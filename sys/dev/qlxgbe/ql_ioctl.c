@@ -34,7 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "ql_os.h"
 #include "ql_hw.h"
 #include "ql_def.h"
@@ -104,14 +103,12 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		qla_offchip_mem_val_t *mem;
 	} u;
 
-
         if ((ha = (qla_host_t *)dev->si_drv1) == NULL)
                 return ENXIO;
 
 	pci_dev= ha->pci_dev;
 
         switch(cmd) {
-
         case QLA_RDWR_REG:
 
                 u.rv = (qla_reg_val_t *)data;
@@ -254,7 +251,6 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		fw_dump->saved = 1;
 
 		if (ha->offline) {
-
 			if (ha->enable_minidump)
 				ql_minidump(ha);
 
@@ -268,7 +264,6 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 				break;
 			}
 		} else {
-
 #define QLA_LOCK_MDUMP_MS_TIMEOUT (QLA_LOCK_DEFAULT_MS_TIMEOUT * 5)
 			if (QLA_LOCK(ha, __func__, QLA_LOCK_MDUMP_MS_TIMEOUT, 0) == 0) {
 				if (!ha->hw.mdump_done) {
@@ -284,7 +279,7 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 				rval = ENXIO;
 				break;
 			}
-	
+
 #define QLNX_DUMP_WAIT_SECS	30
 
 			count = QLNX_DUMP_WAIT_SECS * 1000;
@@ -353,8 +348,6 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
         return rval;
 }
-
-
 
 static int
 ql_drvr_state(qla_host_t *ha, qla_driver_state_t *state)
@@ -474,7 +467,7 @@ ql_capture_drvr_state(qla_host_t *ha)
 		return;
 
 	hdr = (qla_drvr_state_hdr_t *)state_buffer;
-	
+
 	hdr->saved = 0;
 
 	if (hdr->drvr_version_major) {
@@ -667,4 +660,3 @@ ql_slowpath_log(qla_host_t *ha, qla_sp_log_t *log)
 
 	return (rval);
 }
-

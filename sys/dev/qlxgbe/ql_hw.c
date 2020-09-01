@@ -98,9 +98,8 @@ qla_sysctl_stop_pegs(SYSCTL_HANDLER_ARGS)
 {
 	int err, ret = 0;
 	qla_host_t *ha;
-	
-	err = sysctl_handle_int(oidp, &ret, 0, req);
 
+	err = sysctl_handle_int(oidp, &ret, 0, req);
 
 	if (err || !req->newptr)
 		return (err);
@@ -147,7 +146,6 @@ qla_sysctl_port_cfg(SYSCTL_HANDLER_ARGS)
 	ha = (qla_host_t *)arg1;
 
         if ((qla_validate_set_port_cfg_bit((uint32_t)ret) == 0)) {
-
                 err = qla_get_port_config(ha, &cfg_bits);
 
                 if (err)
@@ -215,7 +213,6 @@ qla_sysctl_set_cam_search_mode(SYSCTL_HANDLER_ARGS)
 
 	if ((ret == Q8_HW_CONFIG_CAM_SEARCH_MODE_INTERNAL) ||
 		(ret == Q8_HW_CONFIG_CAM_SEARCH_MODE_AUTO)) {
-
 		if (QLA_LOCK(ha, __func__, QLA_LOCK_DEFAULT_MS_TIMEOUT, 0) == 0) {
 			err = qla_set_cam_search_mode(ha, (uint32_t)ret);
 			QLA_UNLOCK(ha, __func__);
@@ -604,7 +601,6 @@ qlnx_add_hw_xmt_stats_sysctls(qla_host_t *ha)
         children = SYSCTL_CHILDREN(ctx_oid);
 
         for (i = 0; i < ha->hw.num_tx_rings; i++) {
-
                 bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
                 snprintf(name_str, sizeof(name_str), "%d", i);
 
@@ -783,7 +779,6 @@ qlnx_add_drvr_sds_stats(qla_host_t *ha)
         children = SYSCTL_CHILDREN(ctx_oid);
 
         for (i = 0; i < ha->hw.num_sds_rings; i++) {
-
                 bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
                 snprintf(name_str, sizeof(name_str), "%d", i);
 
@@ -822,7 +817,6 @@ qlnx_add_drvr_rds_stats(qla_host_t *ha)
         children = SYSCTL_CHILDREN(ctx_oid);
 
         for (i = 0; i < ha->hw.num_rds_rings; i++) {
-
                 bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
                 snprintf(name_str, sizeof(name_str), "%d", i);
 
@@ -867,7 +861,6 @@ qlnx_add_drvr_tx_stats(qla_host_t *ha)
         children = SYSCTL_CHILDREN(ctx_oid);
 
         for (i = 0; i < ha->hw.num_tx_rings; i++) {
-
                 bzero(name_str, (sizeof(uint8_t) * sizeof(name_str)));
                 snprintf(name_str, sizeof(name_str), "%d", i);
 
@@ -1162,7 +1155,6 @@ ql_hw_link_status(qla_host_t *ha)
 	}
 
 	switch (ha->hw.module_type) {
-
 	case 0x01:
 		device_printf(ha->pci_dev, "Module Type 10GBase-LRM\n");
 		break;
@@ -1282,7 +1274,7 @@ ql_alloc_dma(qla_host_t *ha)
 
 	hw->dma_buf.tx_ring.alignment = 8;
 	hw->dma_buf.tx_ring.size = size + PAGE_SIZE;
-	
+
         if (ql_alloc_dmabuf(ha, &hw->dma_buf.tx_ring)) {
                 device_printf(dev, "%s: tx ring alloc failed\n", __func__);
                 goto ql_alloc_dma_exit;
@@ -1290,7 +1282,7 @@ ql_alloc_dma(qla_host_t *ha)
 
 	vaddr = (uint8_t *)hw->dma_buf.tx_ring.dma_b;
 	paddr = hw->dma_buf.tx_ring.dma_addr;
-	
+
 	for (i = 0; i < ha->hw.num_tx_rings; i++) {
 		tx_cntxt = (qla_hw_tx_cntxt_t *)&hw->tx_cntxt[i];
 
@@ -1321,7 +1313,6 @@ ql_alloc_dma(qla_host_t *ha)
 	 */
 
 	for (i = 0; i < hw->num_rds_rings; i++) {
-
 		hw->dma_buf.rds_ring[i].alignment = 8;
 		hw->dma_buf.rds_ring[i].size =
 			(sizeof(q80_recv_desc_t)) * NUM_RX_DESCRIPTORS;
@@ -1415,7 +1406,6 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 		i = Q8_MBX_MSEC_DELAY;
 
 	while (i) {
-
 		if (ha->qla_initiate_recovery) {
 			ql_sp_log(ha, 2, 1, ha->qla_initiate_recovery, 0, 0, 0, 0);
 			return (-1);
@@ -1449,10 +1439,8 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 
 	WRITE_REG32(ha, Q8_HOST_MBOX_CNTRL, 0x1);
 
-
 	i = Q8_MBX_MSEC_DELAY;
 	while (i) {
-
 		if (ha->qla_initiate_recovery) {
 			ql_sp_log(ha, 4, 1, ha->qla_initiate_recovery, 0, 0, 0, 0);
 			return (-1);
@@ -1483,7 +1471,6 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 	}
 
 	for (i = 0; i < n_fwmbox; i++) {
-
 		if (ha->qla_initiate_recovery) {
 			ql_sp_log(ha, 6, 1, ha->qla_initiate_recovery, 0, 0, 0, 0);
 			return (-1);
@@ -1511,7 +1498,6 @@ qla_mbx_cmd(qla_host_t *ha, uint32_t *h_mbox, uint32_t n_hmbox,
 		}
 	}
 	ql_sp_log(ha, 7, 5, fw_mbox[0], fw_mbox[1], fw_mbox[2], fw_mbox[3], fw_mbox[4]);
-
 
 exit_qla_mbx_cmd:
 	return (ret);
@@ -1742,7 +1728,7 @@ qla_config_intr_coalesce(qla_host_t *ha, uint16_t cntxt_id, int tenable,
 	q80_config_intr_coalesc_rsp_t	*intrc_rsp;
 	uint32_t			err, i;
 	device_t			dev = ha->pci_dev;
-	
+
 	intrc = (q80_config_intr_coalesc_t *)ha->hw.mbox;
 	bzero(intrc, (sizeof (q80_config_intr_coalesc_t)));
 
@@ -1786,10 +1772,9 @@ qla_config_intr_coalesce(qla_host_t *ha, uint16_t cntxt_id, int tenable,
 		device_printf(dev, "%s: failed1 [0x%08x]\n", __func__, err);
 		return (-1);
 	}
-	
+
 	return 0;
 }
-
 
 /*
  * Name: qla_config_mac_addr
@@ -1857,10 +1842,9 @@ qla_config_mac_addr(qla_host_t *ha, uint8_t *mac_addr, uint32_t add_mac,
 		}
 		return (-1);
 	}
-	
+
 	return 0;
 }
-
 
 /*
  * Name: qla_set_mac_rcv_mode
@@ -1899,7 +1883,7 @@ qla_set_mac_rcv_mode(qla_host_t *ha, uint32_t mode)
 		device_printf(dev, "%s: failed1 [0x%08x]\n", __func__, err);
 		return (-1);
 	}
-	
+
 	return 0;
 }
 
@@ -2284,7 +2268,6 @@ qla_tx_tso(qla_host_t *ha, struct mbuf *mp, q80_tx_cmd_t *tx_cmd, uint8_t *hdr)
 
 	dev = ha->pci_dev;
 
-
 	eh = mtod(mp, struct ether_vlan_header *);
 
 	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
@@ -2523,7 +2506,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	eh = mtod(mp, struct ether_vlan_header *);
 
 	if (mp->m_pkthdr.csum_flags & CSUM_TSO) {
-
 		bzero((void *)&tso_cmd, sizeof(q80_tx_cmd_t));
 
 		src = frame_hdr;
@@ -2586,7 +2568,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	tx_cmd = &hw->tx_cntxt[txr_idx].tx_ring_base[tx_idx];
 
         if (!(mp->m_pkthdr.csum_flags & CSUM_TSO)) {
-
                 if (nsegs > ha->hw.max_tx_segs)
                         ha->hw.max_tx_segs = nsegs;
 
@@ -2611,7 +2592,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 			eh->evl_tag |= ha->hw.user_pri_iscsi << 13;
 
 	} else if (mp->m_flags & M_VLANTAG) {
-
 		if (hdr_len) { /* TSO */
 			tx_cmd->flags_opcode |= (Q8_TX_CMD_FLAGS_VLAN_TAGGED |
 						Q8_TX_CMD_FLAGS_HW_VLAN_ID);
@@ -2628,7 +2608,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 		}
 	}
 
-
         tx_cmd->n_bufs = (uint8_t)nsegs;
         tx_cmd->data_len_lo = (uint8_t)(total_length & 0xFF);
         tx_cmd->data_len_hi = qla_host_to_le16(((uint16_t)(total_length >> 8)));
@@ -2638,7 +2617,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 
 	while (1) {
 		for (i = 0; ((i < Q8_TX_CMD_MAX_SEGMENTS) && nsegs); i++) {
-
 			switch (i) {
 			case 0:
 				tx_cmd->buf1_addr = c_seg->ds_addr;
@@ -2678,7 +2656,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	}
 
 	if (mp->m_pkthdr.csum_flags & CSUM_TSO) {
-
 		/* TSO : Copy the header in the following tx cmd descriptors */
 
 		txr_next = hw->tx_cntxt[txr_idx].txr_next;
@@ -2708,7 +2685,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 
 			/* bytes left in TxCmd Entry */
 			bytes -= ((ETHER_ADDR_LEN * 2) + ETHER_VLAN_ENCAP_LEN);
-
 
 			bcopy(src, dst, bytes);
 			src += bytes;
@@ -2751,8 +2727,6 @@ ql_hw_send(qla_host_t *ha, bus_dma_segment_t *segs, int nsegs,
 	return (0);
 }
 
-
-
 #define Q8_CONFIG_IND_TBL_SIZE	32 /* < Q8_RSS_IND_TBL_SIZE and power of 2 */
 static int
 qla_config_rss_ind_table(qla_host_t *ha)
@@ -2760,14 +2734,12 @@ qla_config_rss_ind_table(qla_host_t *ha)
 	uint32_t i, count;
 	uint8_t rss_ind_tbl[Q8_CONFIG_IND_TBL_SIZE];
 
-
 	for (i = 0; i < Q8_CONFIG_IND_TBL_SIZE; i++) {
 		rss_ind_tbl[i] = i % ha->hw.num_sds_rings;
 	}
 
 	for (i = 0; i <= Q8_RSS_IND_TBL_MAX_IDX ;
 		i = i + Q8_CONFIG_IND_TBL_SIZE) {
-
 		if ((i + Q8_CONFIG_IND_TBL_SIZE) > Q8_RSS_IND_TBL_MAX_IDX) {
 			count = Q8_RSS_IND_TBL_MAX_IDX - i + 1;
 		} else {
@@ -2858,7 +2830,6 @@ qla_free_soft_lro(qla_host_t *ha)
 	return;
 }
 
-
 /*
  * Name: ql_del_hw_if
  * Function: Destroys the hardware specific entities corresponding to an
@@ -2879,7 +2850,6 @@ ql_del_hw_if(qla_host_t *ha)
 
 	if (ha->hw.flags.init_intr_cnxt) {
 		for (i = 0; i < ha->hw.num_sds_rings; ) {
-
 			if ((i + Q8_MAX_INTR_VECTORS) < ha->hw.num_sds_rings)
 				num_msix = Q8_MAX_INTR_VECTORS;
 			else
@@ -2947,16 +2917,13 @@ ql_init_hw_if(qla_host_t *ha)
 	}
 
 	for (i = 0; i < ha->hw.num_sds_rings; ) {
-
 		if ((i + Q8_MAX_INTR_VECTORS) < ha->hw.num_sds_rings)
 			num_msix = Q8_MAX_INTR_VECTORS;
 		else
 			num_msix = ha->hw.num_sds_rings - i;
 
 		if (qla_config_intr_cntxt(ha, i, num_msix, 1)) {
-
 			if (i > 0) {
-
 				num_msix = i;
 
 				for (i = 0; i < num_msix; ) {
@@ -3225,9 +3192,7 @@ qla_init_rcv_cntxt(qla_host_t *ha)
 	ha->hw.flags.init_rx_cnxt = 1;
 
 	if (hw->num_sds_rings > MAX_RCNTXT_SDS_RINGS) {
-
 		for (i = MAX_RCNTXT_SDS_RINGS; i < hw->num_sds_rings;) {
-
 			if ((i + MAX_RCNTXT_SDS_RINGS) < hw->num_sds_rings)
 				max_idx = MAX_RCNTXT_SDS_RINGS;
 			else
@@ -3242,9 +3207,7 @@ qla_init_rcv_cntxt(qla_host_t *ha)
 	}
 
 	if (hw->num_rds_rings > 1) {
-
 		for (i = 0; i < hw->num_rds_rings; ) {
-
 			if ((i + MAX_SDS_TO_RDS_MAP) < hw->num_rds_rings)
 				max_idx = MAX_SDS_TO_RDS_MAP;
 			else
@@ -3282,7 +3245,6 @@ qla_add_rcv_rings(qla_host_t *ha, uint32_t sds_idx, uint32_t nsds)
 	add_rcv->cntxt_id = hw->rcv_cntxt_id;
 
         for (i = 0; i <  nsds; i++) {
-
 		j = i + sds_idx;
 
                 add_rcv->sds[i].paddr =
@@ -3293,7 +3255,6 @@ qla_add_rcv_rings(qla_host_t *ha, uint32_t sds_idx, uint32_t nsds)
 
                 add_rcv->sds[i].intr_id = qla_host_to_le16(hw->intr_id[j]);
                 add_rcv->sds[i].intr_src_bit = qla_host_to_le16(0);
-
         }
 
         for (i = 0; (i <  nsds); i++) {
@@ -3311,7 +3272,6 @@ qla_add_rcv_rings(qla_host_t *ha, uint32_t sds_idx, uint32_t nsds)
                 add_rcv->rds[i].std_nentries =
                         qla_host_to_le32(NUM_RX_DESCRIPTORS);
         }
-
 
         if (qla_mbx_cmd(ha, (uint32_t *)add_rcv,
 		(sizeof (q80_rq_add_rcv_rings_t) >> 2),
@@ -3360,14 +3320,12 @@ qla_del_rcv_cntxt(qla_host_t *ha)
 		return;
 
 	if (ha->hw.flags.bcast_mac) {
-
 		bcast_mac[0] = 0xFF; bcast_mac[1] = 0xFF; bcast_mac[2] = 0xFF;
 		bcast_mac[3] = 0xFF; bcast_mac[4] = 0xFF; bcast_mac[5] = 0xFF;
 
 		if (qla_config_mac_addr(ha, bcast_mac, 0, 1))
 			return;
 		ha->hw.flags.bcast_mac = 0;
-
 	}
 
 	if (ha->hw.flags.unicast_mac) {
@@ -3490,7 +3448,6 @@ qla_init_xmt_cntxt_i(qla_host_t *ha, uint32_t txr_idx)
 	return (0);
 }
 
-
 /*
  * Name: qla_del_xmt_cntxt
  * Function: Destroys the Transmit Context.
@@ -3587,7 +3544,6 @@ qla_hw_all_mcast(qla_host_t *ha, uint32_t add_mcast)
 			(ha->hw.mcast[i].addr[3] != 0) ||
 			(ha->hw.mcast[i].addr[4] != 0) ||
 			(ha->hw.mcast[i].addr[5] != 0)) {
-
 			bcopy(ha->hw.mcast[i].addr, mcast, ETHER_ADDR_LEN);
 			mcast = mcast + ETHER_ADDR_LEN;
 			count++;
@@ -3671,14 +3627,12 @@ qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
 	int i;
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
-
 		if ((ha->hw.mcast[i].addr[0] == 0) && 
 			(ha->hw.mcast[i].addr[1] == 0) &&
 			(ha->hw.mcast[i].addr[2] == 0) &&
 			(ha->hw.mcast[i].addr[3] == 0) &&
 			(ha->hw.mcast[i].addr[4] == 0) &&
 			(ha->hw.mcast[i].addr[5] == 0)) {
-
 			bcopy(mta, ha->hw.mcast[i].addr, Q8_MAC_ADDR_LEN);
 			ha->hw.nmcast++;	
 
@@ -3688,7 +3642,6 @@ qla_hw_add_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
 			if (nmcast == 0)
 				break;
 		}
-
 	}
 	return 0;
 }
@@ -3700,7 +3653,6 @@ qla_hw_del_mcast(qla_host_t *ha, uint8_t *mta, uint32_t nmcast)
 
 	for (i = 0; i < Q8_MAX_NUM_MULTICAST_ADDRS; i++) {
 		if (QL_MAC_CMP(ha->hw.mcast[i].addr, mta) == 0) {
-
 			ha->hw.mcast[i].addr[0] = 0;
 			ha->hw.mcast[i].addr[1] = 0;
 			ha->hw.mcast[i].addr[2] = 0;
@@ -3812,7 +3764,6 @@ ql_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx)
 	comp_idx = qla_le32_to_host(*(hw_tx_cntxt->tx_cons));
 
 	while (comp_idx != hw_tx_cntxt->txr_comp) {
-
 		txb = &ha->tx_ring[txr_idx].tx_buf[hw_tx_cntxt->txr_comp];
 
 		hw_tx_cntxt->txr_comp++;
@@ -3845,7 +3796,7 @@ ql_hw_tx_done_locked(qla_host_t *ha, uint32_t txr_idx)
 		("%s [%d]: txr_idx = %d txr_free = %d txr_next = %d txr_comp = %d\n",\
 		__func__, __LINE__, txr_idx, hw_tx_cntxt->txr_free, \
 		hw_tx_cntxt->txr_next, hw_tx_cntxt->txr_comp));
-	
+
 	return;
 }
 
@@ -3917,7 +3868,6 @@ ql_hw_check_health(qla_host_t *ha)
 
 	ha->hw.hbeat_failure++;
 
-	
 	if ((ha->dbg_level & 0x8000) && (ha->hw.hbeat_failure == 1))
 		device_printf(ha->pci_dev, "%s: Heartbeat Failue 1[0x%08x]\n",
 			__func__, val);
@@ -4182,7 +4132,6 @@ qla_set_port_config(qla_host_t *ha, uint32_t cfg_bits)
         return (0);
 }
 
-
 static int
 qla_get_minidump_tmplt_size(qla_host_t *ha, uint32_t *size)
 {
@@ -4211,7 +4160,6 @@ qla_get_minidump_tmplt_size(qla_host_t *ha, uint32_t *size)
 	if (qla_mbx_cmd(ha, (uint32_t *) md_size,
 		(sizeof(q80_config_md_templ_size_t) >> 2), ha->hw.mbox,
 		(sizeof(q80_config_md_templ_size_rsp_t) >> 2), 0)) {
-
 		device_printf(dev, "%s: failed\n", __func__);
 
 		return (-1);
@@ -4301,7 +4249,6 @@ ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp)
         }
 
 	if (etype == ETHERTYPE_IP) {
-
 		offset = (hdrlen + sizeof (struct ip));
 
 		if (mp->m_len >= offset) {
@@ -4312,10 +4259,9 @@ ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp)
 		}
 
                 if (ip->ip_p == IPPROTO_TCP) {
-
 			hdrlen += ip->ip_hl << 2;
 			offset = hdrlen + 4;
-	
+
 			if (mp->m_len >= offset) {
 				th = (struct tcphdr *)(mp->m_data + hdrlen);
 			} else {
@@ -4325,7 +4271,6 @@ ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp)
                 }
 
 	} else if (etype == ETHERTYPE_IPV6) {
-
 		offset = (hdrlen + sizeof (struct ip6_hdr));
 
 		if (mp->m_len >= offset) {
@@ -4336,7 +4281,6 @@ ql_iscsi_pdu(qla_host_t *ha, struct mbuf *mp)
 		}
 
                 if (ip6->ip6_nxt == IPPROTO_TCP) {
-
 			hdrlen += sizeof(struct ip6_hdr);
 			offset = hdrlen + 4;
 
@@ -4397,7 +4341,6 @@ ql_get_minidump_template(qla_host_t *ha)
 		(sizeof(q80_config_md_templ_cmd_t) >> 2),
 		 ha->hw.mbox,
 		(sizeof(q80_config_md_templ_cmd_rsp_t) >> 2), 0)) {
-
 		device_printf(dev, "%s: failed\n", __func__);
 
 		return (-1);
@@ -4470,7 +4413,6 @@ static uint32_t ql_rdqueue(qla_host_t *ha,
 static uint32_t ql_cntrl(qla_host_t *ha,
 			ql_minidump_template_hdr_t *template_hdr,
 			ql_minidump_entry_cntrl_t *crbEntry);
-
 
 static uint32_t
 ql_minidump_size(qla_host_t *ha)
@@ -4562,7 +4504,6 @@ ql_alloc_minidump_buffers(qla_host_t *ha)
 	return (ret);
 }
 
-
 static uint32_t
 ql_validate_minidump_checksum(qla_host_t *ha)
 {
@@ -4611,7 +4552,6 @@ ql_minidump_init(qla_host_t *ha)
 
 #ifdef QL_LDFLASH_FW
 	if (ql_alloc_dmabuf(ha, &ha->hw.dma_buf.minidump)) {
-
 		device_printf(dev, "%s: minidump dma alloc failed\n", __func__);
 
 		return (-1);
@@ -4628,11 +4568,9 @@ ql_minidump_init(qla_host_t *ha)
 #endif /* #ifdef QL_LDFLASH_FW */
 
 	if (ret == 0) {
-
 		ret = ql_validate_minidump_checksum(ha);
 
 		if (ret == 0) {
-
 			ret = ql_alloc_minidump_buffers(ha);
 
 			if (ret == 0)
@@ -4689,14 +4627,13 @@ ql_minidump(qla_host_t *ha)
 		ha->hw.mdump_template_size);
 
 	ql_parse_template(ha);
- 
+
 	ql_start_sequence(ha, ha->hw.mdump_start_seq_index);
 
 	ha->hw.mdump_done = 1;
 
 	return;
 }
-
 
 /*
  * helper routines
@@ -4710,7 +4647,6 @@ ql_entry_err_chk(ql_minidump_entry_t *entry, uint32_t esize)
 	}
 	return;
 }
-
 
 static int 
 ql_parse_template(qla_host_t *ha)
@@ -4729,7 +4665,7 @@ ql_parse_template(qla_host_t *ha)
 
 	if (template_hdr->entry_type == TLHDR)
 		sane_start = 1;
-	
+
 	dump_buff = (char *) ha->hw.mdump_buffer;
 
 	num_of_entries = template_hdr->num_of_entries;
@@ -4752,14 +4688,12 @@ ql_parse_template(qla_host_t *ha)
 		__func__, sane_start, num_of_entries, capture_mask, dump_size));
 
 	for (buff_level = 0, e_cnt = 0; e_cnt < num_of_entries; e_cnt++) {
-
 		/*
 		 * If the capture_mask of the entry does not match capture mask
 		 * skip the entry after marking the driver_flags indicator.
 		 */
 		
 		if (!(entry->hdr.entry_capture_mask & capture_mask)) {
-
 			entry->hdr.driver_flags |= QL_DBG_SKIPPED_FLAG;
 			entry = (ql_minidump_entry_t *) ((char *) entry
 					+ entry->hdr.entry_size);
@@ -4907,7 +4841,7 @@ ql_parse_template(qla_host_t *ha)
 			"\n%s: Template configuration error. Check Template\n",
 			__func__);
 	}
-	
+
 	QL_DPRINT80(ha, (ha->pci_dev, "%s: Minidump num of entries = %d\n",
 		__func__, template_hdr->num_of_entries));
 
@@ -4930,7 +4864,6 @@ ql_rdcrb(qla_host_t *ha, ql_minidump_entry_rdcrb_t * crb_entry,
 	stride = crb_entry->addr_stride;
 
 	for (loop_cnt = 0; loop_cnt < op_count; loop_cnt++) {
-
 		ret = ql_rdwr_indreg32(ha, addr, &value, 1);
 
 		if (ret)
@@ -4978,7 +4911,6 @@ ql_L2Cache(qla_host_t *ha, ql_minidump_entry_cache_t *cacheEntry,
 	read_cnt = cacheEntry->read_addr_cnt;
 
 	for (i = 0; i < loop_cnt; i++) {
-
 		ret = ql_rdwr_indreg32(ha, tag_reg_addr, &tag_value, 0);
 		if (ret)
 			return (0);
@@ -5002,7 +4934,6 @@ ql_L2Cache(qla_host_t *ha, ql_minidump_entry_cache_t *cacheEntry,
 			cntl_value_r = (uint8_t)data;
 
 			while ((cntl_value_r & cacheEntry->poll_mask) != 0) {
-
 				if (timeout) {
 					qla_mdelay(__func__, 1);
 					timeout--;
@@ -5030,7 +4961,6 @@ ql_L2Cache(qla_host_t *ha, ql_minidump_entry_cache_t *cacheEntry,
 
 		addr = read_addr;
 		for (k = 0; k < read_cnt; k++) {
-
 			ret = ql_rdwr_indreg32(ha, addr, &read_value, 1);
 			if (ret)
 				return (0);
@@ -5075,7 +5005,6 @@ ql_L1Cache(qla_host_t *ha,
 	read_cnt = cacheEntry->read_addr_cnt;
 
 	for (i = 0; i < loop_cnt; i++) {
-
 		ret = ql_rdwr_indreg32(ha, tag_reg_addr, &tag_value, 0);
 		if (ret)
 			return (0);
@@ -5086,7 +5015,6 @@ ql_L1Cache(qla_host_t *ha,
 
 		addr = read_addr;
 		for (k = 0; k < read_cnt; k++) {
-
 			ret = ql_rdwr_indreg32(ha, addr, &read_value, 1);
 			if (ret)
 				return (0);
@@ -5145,7 +5073,6 @@ ql_rdmem(qla_host_t *ha,
         loop_cnt = mem_entry->read_data_size / (sizeof(uint32_t) * 4);
 
         for (i = 0; i < loop_cnt; i++) {
-
 		ret = ql_rdwr_offchip_mem(ha, (addr & 0x0ffffffff), &val, 1);
 		if (ret)
 			return (0);
@@ -5180,7 +5107,6 @@ ql_rdrom(qla_host_t *ha,
 	loop_cnt /= sizeof(value);
 
 	for (i = 0; i < loop_cnt; i++) {
-
 		ret = ql_rd_flash32(ha, addr, &value);
 		if (ret)
 			return (0);
@@ -5211,7 +5137,6 @@ ql_rdmux(qla_host_t *ha,
 	read_addr = muxEntry->read_addr;
 
 	for (loop_cnt = 0; loop_cnt < muxEntry->op_count; loop_cnt++) {
-
 		ret = ql_rdwr_indreg32(ha, select_addr, &sel_value, 0);
 		if (ret)
 			return (0);
@@ -5253,7 +5178,6 @@ ql_rdmux2(qla_host_t *ha,
 
         for (loop_cnt = 0; loop_cnt < muxEntry->select_value_count;
 		loop_cnt++) {
-
                 uint32_t temp_sel_val;
 
 		ret = ql_rdwr_indreg32(ha, select_addr_1, &select_value_1, 0);
@@ -5318,7 +5242,6 @@ ql_rdqueue(qla_host_t *ha,
 
 	for (loop_cnt = 0, queue_id = 0; loop_cnt < queueEntry->op_count;
 		loop_cnt++) {
-
 		ret = ql_rdwr_indreg32(ha, select_addr, &queue_id, 0);
 		if (ret)
 			return (0);
@@ -5326,7 +5249,6 @@ ql_rdqueue(qla_host_t *ha,
 		read_addr = queueEntry->read_addr;
 
 		for (k = 0; k < read_cnt; k++) {
-
 			ret = ql_rdwr_indreg32(ha, read_addr, &read_value, 1);
 			if (ret)
 				return (0);
@@ -5361,7 +5283,6 @@ ql_cntrl(qla_host_t *ha,
 		opcode = crbEntry->opcode;
 
 		if (opcode & QL_DBG_OPCODE_WR) {
-
                 	ret = ql_rdwr_indreg32(ha, entry_addr,
 					&crbEntry->value_1, 0);
 			if (ret)
@@ -5371,7 +5292,6 @@ ql_cntrl(qla_host_t *ha,
 		}
 
 		if (opcode & QL_DBG_OPCODE_RW) {
-
                 	ret = ql_rdwr_indreg32(ha, entry_addr, &read_value, 1);
 			if (ret)
 				return (0);
@@ -5384,7 +5304,6 @@ ql_cntrl(qla_host_t *ha,
 		}
 
 		if (opcode & QL_DBG_OPCODE_AND) {
-
                 	ret = ql_rdwr_indreg32(ha, entry_addr, &read_value, 1);
 			if (ret)
 				return (0);
@@ -5403,7 +5322,6 @@ ql_cntrl(qla_host_t *ha,
 		}
 
 		if (opcode & QL_DBG_OPCODE_OR) {
-
                 	ret = ql_rdwr_indreg32(ha, entry_addr, &read_value, 1);
 			if (ret)
 				return (0);
@@ -5418,7 +5336,6 @@ ql_cntrl(qla_host_t *ha,
 		}
 
 		if (opcode & QL_DBG_OPCODE_POLL) {
-
 			opcode &= ~QL_DBG_OPCODE_POLL;
 			timeout = crbEntry->poll_timeout;
 			addr = entry_addr;
@@ -5429,7 +5346,6 @@ ql_cntrl(qla_host_t *ha,
 
 			while ((read_value & crbEntry->value_2)
 				!= crbEntry->value_1) {
-
 				if (timeout) {
 					qla_mdelay(__func__, 1);
 					timeout--;
@@ -5555,7 +5471,6 @@ ql_pollrd(qla_host_t *ha, ql_minidump_entry_pollrd_t *entry,
         data_size              = entry->data_size;
 
         for (loop_cnt = 0; loop_cnt < op_count; loop_cnt++) {
-
                 ret = ql_rdwr_indreg32(ha, select_addr, &select_value, 0);
 		if (ret)
 			return (0);
@@ -5563,7 +5478,6 @@ ql_pollrd(qla_host_t *ha, ql_minidump_entry_pollrd_t *entry,
                 wait_count = 0;
 
                 while (wait_count < poll) {
-
                         uint32_t temp;
 
 			ret = ql_rdwr_indreg32(ha, select_addr, &temp, 1);
@@ -5600,7 +5514,6 @@ ql_pollrd(qla_host_t *ha, ql_minidump_entry_pollrd_t *entry,
         return (loop_cnt * (2 * sizeof(uint32_t)));
 }
 
-
 /*
  * Handling rd modify write poll entry.
  */
@@ -5625,14 +5538,12 @@ ql_pollrd_modify_write(qla_host_t *ha,
         modify_mask	= entry->modify_mask;
         data_size	= entry->data_size;
 
-
 	ret = ql_rdwr_indreg32(ha, addr_1, &value_1, 0);
 	if (ret)
 		return (0);
 
         wait_count = 0;
         while (wait_count < poll) {
-
 		uint32_t temp;
 
 		ret = ql_rdwr_indreg32(ha, addr_1, &temp, 1);
@@ -5649,7 +5560,6 @@ ql_pollrd_modify_write(qla_host_t *ha,
                 device_printf(ha->pci_dev, "%s Error in processing entry\n",
 			__func__);
         } else {
-
 		ret = ql_rdwr_indreg32(ha, addr_2, &data, 1);
 		if (ret)
 			return (0);
@@ -5667,7 +5577,6 @@ ql_pollrd_modify_write(qla_host_t *ha,
                 /* Poll again */
                 wait_count = 0;
                 while (wait_count < poll) {
-
                         uint32_t temp;
 
 			ret = ql_rdwr_indreg32(ha, addr_1, &temp, 1);
@@ -5688,5 +5597,3 @@ ql_pollrd_modify_write(qla_host_t *ha,
          */
         return (2 * sizeof(uint32_t));
 }
-
-

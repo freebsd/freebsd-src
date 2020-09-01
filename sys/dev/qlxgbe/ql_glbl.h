@@ -124,5 +124,4 @@ extern void ql_sp_log(qla_host_t *ha, uint16_t fmtstr_idx, uint16_t num_params,
 extern void ql_alloc_sp_log_buffer(qla_host_t *ha);
 extern void ql_free_sp_log_buffer(qla_host_t *ha);
 
-
 #endif /* #ifndef_QL_GLBL_H_ */

@@ -170,7 +170,7 @@ struct qla_host {
 	int			msix_count;
 
 	qla_ivec_t		irq_vec[MAX_SDS_RINGS];
-	
+
 	/* parent dma tag */
 	bus_dma_tag_t           parent_tag;
 
@@ -228,7 +228,7 @@ struct qla_host {
 
 	struct task             stats_task;
 	struct taskqueue	*stats_tq;
-	
+
         uint32_t                fw_ver_major;
         uint32_t                fw_ver_minor;
         uint32_t                fw_ver_sub;
