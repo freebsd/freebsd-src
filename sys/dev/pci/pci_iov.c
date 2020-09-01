@@ -83,7 +83,6 @@ static u_long pci_iov_max_config = 1024 * 1024;
 SYSCTL_ULONG(_hw_pci, OID_AUTO, iov_max_config, CTLFLAG_RWTUN,
     &pci_iov_max_config, 0, "Maximum allowed size of SR-IOV configuration.");
 
-
 #define IOV_READ(d, r, w) \
 	pci_read_config((d)->cfg.dev, (d)->cfg.iov->iov_pos + r, w)
 
@@ -128,7 +127,7 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 	dinfo = device_get_ivars(dev);
 	pcib = device_get_parent(bus);
 	schema = NULL;
-	
+
 	error = pci_find_extcap(dev, PCIZ_SRIOV, &iov_pos);
 
 	if (error != 0)
@@ -171,7 +170,7 @@ pci_iov_attach_method(device_t bus, device_t dev, nvlist_t *pf_schema,
 		error = ENOMEM;
 		goto cleanup;
 	}
-	
+
 	dinfo->cfg.iov = iov;
 	iov->iov_cdev->si_drv1 = dinfo;
 	mtx_unlock(&Giant);
@@ -1061,4 +1060,3 @@ pci_vf_release_mem_resource(device_t dev, device_t child, int rid,
 
 	return (rman_release_resource(r));
 }
-

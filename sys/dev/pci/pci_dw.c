@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -82,12 +81,9 @@ __FBSDID("$FreeBSD$");
 #define	PCI_FUNC_MASK		0x07
 #define	PCI_REG_MASK		0xFFF
 
-
 #define	IATU_CFG_BUS(bus)	((uint64_t)((bus)  & 0xff) << 24)
 #define	IATU_CFG_SLOT(slot)	((uint64_t)((slot) & 0x1f) << 19)
 #define	IATU_CFG_FUNC(func)	((uint64_t)((func) & 0x07) << 16)
-
-
 
 static uint32_t
 pci_dw_dbi_read(device_t dev, u_int reg, int width)
@@ -133,7 +129,6 @@ pci_dw_dbi_write(device_t dev, u_int reg, uint32_t val, int width)
 		break;
 	}
 }
-
 
 static void
 pci_dw_dbi_protect(struct pci_dw_softc *sc, bool protect)
@@ -243,7 +238,6 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 	}
 	/* XXX Should we handle also prefetch memory? */
 
-
 	/* Adjust number of lanes */
 	reg = DBI_RD4(sc, DW_PORT_LINK_CTRL);
 	reg &= ~PORT_LINK_CAPABLE(~0);
@@ -274,7 +268,6 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 	}
 	DBI_WR4(sc, DW_PORT_LINK_CTRL, reg);
 
-
 	/* And link width */
 	reg = DBI_RD4(sc, DW_GEN2_CTRL);
 	reg &= ~GEN2_CTRL_NUM_OF_LANES(~0);
@@ -303,7 +296,6 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 	reg = DBI_RD4(sc, DW_GEN2_CTRL);
 	reg |= DIRECT_SPEED_CHANGE;
 	DBI_WR4(sc, DW_GEN2_CTRL, reg);
-
 
 	return (0);
 }
@@ -352,8 +344,6 @@ pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
 	}
 	return (0);
 }
-
-
 
 /*-----------------------------------------------------------------------------
  *
@@ -437,7 +427,6 @@ pci_dw_write_config(device_t dev, u_int bus, u_int slot,
 			return ;
 		res = sc->cfg_res;
 	}
-
 
 	switch (bytes) {
 	case 1:
@@ -658,7 +647,6 @@ out:
 }
 
 static device_method_t pci_dw_methods[] = {
-
 	/* Bus interface */
 	DEVMETHOD(bus_get_dma_tag,	pci_dw_get_dma_tag),
 

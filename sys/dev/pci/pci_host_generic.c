@@ -261,7 +261,6 @@ generic_pcie_read_ivar(device_t dev, device_t child, int index,
 	if (index == PCIB_IVAR_BUS) {
 		*result = sc->bus_start;
 		return (0);
-
 	}
 
 	if (index == PCIB_IVAR_DOMAIN) {

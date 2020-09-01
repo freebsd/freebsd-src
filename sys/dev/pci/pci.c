@@ -317,7 +317,6 @@ static const struct pci_quirk pci_quirks[] = {
 	 * expected place.
 	 */
 	{ 0x98741002, PCI_QUIRK_REALLOC_BAR,	0, 	0 },
-
 	{ 0 }
 };
 
@@ -768,7 +767,6 @@ pci_ea_fill_info(device_t pcib, pcicfgregs *cfg)
 		ptr += 4;
 
 	for (a = 0; a < num_ent; a++) {
-
 		eae = malloc(sizeof(*eae), M_DEVBUF, M_WAITOK | M_ZERO);
 		eae->eae_cfg_offset = cfg->ea.ea_location + ptr;
 
@@ -2363,7 +2361,6 @@ pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 	 * data registers and apply the results.
 	 */
 	if (cfg->msi.msi_alloc > 0) {
-
 		/* If we don't have any active handlers, nothing to do. */
 		if (cfg->msi.msi_handlers == 0)
 			return (0);
@@ -2593,7 +2590,6 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 			device_printf(child, "using IRQs %d", irqs[0]);
 			run = 0;
 			for (i = 1; i < actual; i++) {
-
 				/* Still in a run? */
 				if (irqs[i] == irqs[i - 1] + 1) {
 					run = 1;
@@ -3862,7 +3858,6 @@ pci_add_resources_ea(device_t bus, device_t dev, int alloc_iov)
 		return;
 
 	STAILQ_FOREACH(ea, &dinfo->cfg.ea.ea_entries, eae_link) {
-
 		/*
 		 * TODO: Ignore EA-BAR if is not enabled.
 		 *   Currently the EA implementation supports
@@ -5261,7 +5256,6 @@ DB_SHOW_COMMAND(pciregs, db_pci_dump)
 	     dinfo = STAILQ_FIRST(devlist_head);
 	     (dinfo != NULL) && (error == 0) && (i < pci_numdevs) && !db_pager_quit;
 	     dinfo = STAILQ_NEXT(dinfo, pci_links), i++) {
-
 		/* Populate pd_name and pd_unit */
 		name = NULL;
 		if (dinfo->cfg.dev)
