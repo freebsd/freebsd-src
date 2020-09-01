@@ -360,7 +360,6 @@ static device_method_t cardbus_methods[] = {
 
 	/* PCI interface */
 	DEVMETHOD(pci_alloc_devinfo,	cardbus_alloc_devinfo),
-
 	{0,0}
 };
 

@@ -108,7 +108,6 @@ static int	decode_tuple(device_t cbdev, device_t child, int tupleid,
 		    int len, uint8_t *tupledata, uint32_t start,
 		    uint32_t *off, struct tuple_callbacks *callbacks,
 		    void *);
-
 #define	MAKETUPLE(NAME,FUNC) { CISTPL_ ## NAME, #NAME, decode_tuple_ ## FUNC }
 
 static char *funcnames[] = {
