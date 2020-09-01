@@ -399,7 +399,6 @@ msgdma_desc_alloc(struct msgdma_softc *sc, struct msgdma_channel *chan,
 	return (0);
 }
 
-
 static int
 msgdma_channel_alloc(device_t dev, struct xdma_channel *xchan)
 {
