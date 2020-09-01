@@ -60,13 +60,11 @@
 #include <sys/sysctl.h>
 #include <sys/stat.h>
 
-
 #define TWS_PULL_MODE_ENABLE 1
 
 MALLOC_DECLARE(M_TWS);
 /* externs */
 extern int tws_queue_depth;
-
 
 #define TWS_DRIVER_VERSION_STRING "10.80.00.005"
 #define TWS_MAX_NUM_UNITS             65 
@@ -142,7 +140,7 @@ enum tws_req_flags {
     TWS_DIR_NONE = 0x8,
     TWS_DATA_CCB = 0x10,
 };
- 
+
 enum tws_intrs {
      TWS_INTx,
      TWS_MSI,
@@ -160,7 +158,6 @@ struct tws_ioctl_lock {
     u_int32_t       lock;
     time_t          timeout;
 };
- 
 
 #define TWS_TRACE_FNAME_LEN  10
 #define TWS_TRACE_FUNC_LEN   15
@@ -182,8 +179,6 @@ struct tws_circular_q {
     u_int8_t  overflow;
     void *    q;
 };
- 
-
 
 struct tws_stats {
     u_int64_t reqs_in;
@@ -205,7 +200,6 @@ struct tws_init_connect_info {
     u_int16_t     fw_on_ctlr_build;
 
 };
-
 
 /* ------------ boolean types ------------------- */
 

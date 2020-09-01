@@ -49,8 +49,6 @@ int tws_queue_depth = TWS_MAX_REQS;
 int tws_enable_msi = 0;
 int tws_enable_msix = 0;
 
-
-
 /* externs */
 extern int tws_cam_attach(struct tws_softc *sc);
 extern void tws_cam_detach(struct tws_softc *sc);
@@ -68,14 +66,11 @@ extern boolean tws_ctlr_reset(struct tws_softc *sc);
 extern void tws_intr(void *arg);
 extern int tws_use_32bit_sgls;
 
-
 struct tws_request *tws_get_request(struct tws_softc *sc, u_int16_t type);
 int tws_init_connect(struct tws_softc *sc, u_int16_t mc);
 void tws_send_event(struct tws_softc *sc, u_int8_t event);
 uint8_t tws_get_state(struct tws_softc *sc);
 void tws_release_request(struct tws_request *req);
-
-
 
 /* Function prototypes */
 static d_open_t     tws_open;
@@ -94,7 +89,6 @@ static int tws_init_trace_q(struct tws_softc *sc);
 static int tws_setup_irq(struct tws_softc *sc);
 int tws_setup_intr(struct tws_softc *sc, int irqs);
 int tws_teardown_intr(struct tws_softc *sc);
-
 
 /* Character device entry points */
 
@@ -209,7 +203,6 @@ tws_attach(device_t dev)
     tws_send_event(sc, TWS_INIT_START);
     mtx_unlock(&sc->gen_lock);
 
-
 #if _BYTE_ORDER == _BIG_ENDIAN
     TWS_TRACE(sc, "BIG endian", 0, 0);
 #endif
@@ -233,7 +226,7 @@ tws_attach(device_t dev)
     bar = pci_read_config(dev, TWS_PCI_BAR1, 4);
     bar = bar & ~TWS_BIT2;
     TWS_TRACE_DEBUG(sc, "bar1 ", bar, 0);
- 
+
     /* MFA base address is BAR2 register used for 
      * push mode. Firmware will evatualy move to 
      * pull mode during witch this needs to change
@@ -455,7 +448,6 @@ tws_setup_intr(struct tws_softc *sc, int irqs)
 
 }
 
-
 int
 tws_teardown_intr(struct tws_softc *sc)
 {
@@ -470,7 +462,6 @@ tws_teardown_intr(struct tws_softc *sc)
     }
     return(SUCCESS);
 }
-
 
 static int 
 tws_setup_irq(struct tws_softc *sc)
@@ -506,7 +497,6 @@ tws_setup_irq(struct tws_softc *sc)
                 return(FAILURE);
             device_printf(sc->tws_dev, "Using MSI\n");
             break;
-
     }
 
     return(SUCCESS);
@@ -727,7 +717,6 @@ tws_send_event(struct tws_softc *sc, u_int8_t event)
     mtx_assert(&sc->gen_lock, MA_OWNED);
     TWS_TRACE_DEBUG(sc, "received event ", 0, event);
     switch (event) {
-
         case TWS_INIT_START:
             sc->tws_state = TWS_INIT;
             break;
@@ -826,7 +815,6 @@ tws_resume(device_t dev)
     return (0);
 }
 
-
 struct tws_request *
 tws_get_request(struct tws_softc *sc, u_int16_t type)
 {
@@ -892,7 +880,6 @@ static driver_t tws_driver = {
         tws_methods,
         sizeof(struct tws_softc)
 };
-
 
 static devclass_t tws_devclass;
 
