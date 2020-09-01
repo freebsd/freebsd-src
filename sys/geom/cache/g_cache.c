@@ -93,7 +93,6 @@ SYSCTL_PROC(_kern_geom_cache, OID_AUTO, used_hi,
     sysctl_handle_pct, "IU",
     "");
 
-
 static int g_cache_destroy(struct g_cache_softc *sc, boolean_t force);
 static g_ctl_destroy_geom_t g_cache_destroy_geom;
 
@@ -111,7 +110,6 @@ struct g_class g_cache_class = {
 
 #define	OFF2BNO(off, sc)	((off) >> (sc)->sc_bshift)
 #define	BNO2OFF(bno, sc)	((bno) << (sc)->sc_bshift)
-
 
 static struct g_cache_desc *
 g_cache_alloc(struct g_cache_softc *sc)

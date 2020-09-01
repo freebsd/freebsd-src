@@ -36,4 +36,3 @@ struct g_flashmap {
 };
 
 #endif
-

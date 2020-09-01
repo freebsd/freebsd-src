@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_dbg.h>
 #include <geom/mountver/g_mountver.h>
 
-
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, mountver, CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, "GEOM_MOUNTVER stuff");
@@ -555,7 +554,7 @@ g_mountver_ident_matches(struct g_geom *gp)
 
 	return (0);
 }
-	
+
 static struct g_geom *
 g_mountver_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {

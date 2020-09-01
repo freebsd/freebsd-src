@@ -203,7 +203,6 @@ g_label_mangle_name(char *label, size_t size)
 	if (*label == '\0')
 		return;
 
-
 	sb = sbuf_new(NULL, NULL, size, SBUF_FIXEDLEN);
 	for (c = label; *c != '\0'; c++) {
 		/* Trim leading whitespace. */

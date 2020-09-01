@@ -317,7 +317,6 @@ g_part_get_physpath_done(struct bio *bp)
 	g_std_done(bp);
 }
 
-
 #define	DPRINTF(...)	if (bootverbose) {	\
 	printf("GEOM_PART: " __VA_ARGS__);	\
 }

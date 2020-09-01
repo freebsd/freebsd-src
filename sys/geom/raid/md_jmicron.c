@@ -527,7 +527,6 @@ nofit:
 	/* Welcome the new disk. */
 	g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 	TAILQ_FOREACH(sd, &disk->d_subdisks, sd_next) {
-
 		/*
 		 * Different disks may have different sizes/offsets,
 		 * especially in concat mode. Update.
@@ -1044,7 +1043,6 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	error = 0;
 	if (strcmp(verb, "label") == 0) {
-
 		if (*nargs < 4) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
@@ -1238,7 +1236,6 @@ g_raid_md_ctl_jmicron(struct g_raid_md_object *md,
 		return (0);
 	}
 	if (strcmp(verb, "delete") == 0) {
-
 		/* Check if some volume is still open. */
 		force = gctl_get_paraml(req, "force", sizeof(*force));
 		if (force != NULL && *force == 0 &&

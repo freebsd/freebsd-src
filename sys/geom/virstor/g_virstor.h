@@ -33,7 +33,6 @@
 
 #define	G_VIRSTOR_CLASS_NAME "VIRSTOR"
 
-
 #define VIRSTOR_MAP_ALLOCATED 1
 struct virstor_map_entry {
 	uint16_t	flags;
@@ -70,7 +69,6 @@ struct virstor_map_entry {
 /* superfluous debug info (large volumes of data) */
 #define	LVL_MOREDEBUG	15
 
-
 /* Component data */
 struct g_virstor_component {
 	struct g_consumer	*gcons;
@@ -81,7 +79,6 @@ struct g_virstor_component {
 	unsigned int		 chunk_reserved;
 	unsigned int		 flags;
 };
-
 
 /* Internal geom instance data */
 struct g_virstor_softc {
@@ -108,7 +105,6 @@ struct g_virstor_bio_q {
 	struct bio		*bio;
 	STAILQ_ENTRY(g_virstor_bio_q) linkage;
 };
-
 
 #endif	/* _KERNEL */
 

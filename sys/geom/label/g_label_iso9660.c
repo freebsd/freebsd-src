@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #define	ISO9660_OFFSET	0x8000
 #define	VOLUME_LEN	32
 
-
 static void
 g_label_iso9660_taste(struct g_consumer *cp, char *label, size_t size)
 {

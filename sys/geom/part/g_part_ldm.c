@@ -1286,7 +1286,6 @@ g_part_ldm_probe(struct g_part_table *basetable, struct g_consumer *cp)
 	u_char *buf, type[64];
 	int error, idx;
 
-
 	pp = cp->provider;
 	if (pp->sectorsize != 512)
 		return (ENXIO);

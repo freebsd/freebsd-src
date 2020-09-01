@@ -233,7 +233,6 @@ g_ccd_freesc(struct ccd_s *sc)
 	g_free(sc);
 }
 
-
 static int
 ccdinit(struct gctl_req *req, struct ccd_s *cs)
 {
@@ -261,7 +260,6 @@ ccdinit(struct gctl_req *req, struct ccd_s *cs)
 			cs->sc_offset = 0;
 		else
 			cs->sc_offset = CCD_OFFSET;
-
 	}
 	for (ix = 0; ix < cs->sc_ndisks; ix++) {
 		ci = &cs->sc_cinfo[ix];
@@ -358,7 +356,6 @@ ccdinterleave(struct ccd_s *cs)
 	daddr_t bn, lbn;
 	int ix;
 	daddr_t size;
-
 
 	/*
 	 * Allocate an interleave table.  The worst case occurs when each

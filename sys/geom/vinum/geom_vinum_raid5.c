@@ -80,7 +80,7 @@ gv_raid5_start(struct gv_plex *p, struct bio *bp, caddr_t addr, off_t boff,
 		g_free(wp);
 		return (NULL);
 	}
-	
+
 	/*
 	 * Building the sub-request failed, we probably need to clean up a lot.
 	 */

@@ -71,7 +71,6 @@ static int	gv_legacy_header_type(uint8_t *, int);
  * format uses big-endian (network order).
  */
 
-
 /* Checks for legacy format depending on platform. */
 static int
 gv_legacy_header_type(uint8_t *hdr, int bigendian)

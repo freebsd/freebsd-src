@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/raid/g_raid.h>
 #include "g_raid_md_if.h"
 
-
 static struct g_raid_softc *
 g_raid_find_node(struct g_class *mp, const char *name)
 {

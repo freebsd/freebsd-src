@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _G_VIRSTOR_MD_H_
 #define _G_VIRSTOR_MD_H_
 

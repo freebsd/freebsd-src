@@ -70,7 +70,6 @@ struct g_class g_concat_class = {
 	.destroy_geom = g_concat_destroy_geom
 };
 
-
 /*
  * Greatest Common Divisor.
  */

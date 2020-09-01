@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <geom/raid3/g_raid3.h>
 
-
 static struct g_raid3_softc *
 g_raid3_find_device(struct g_class *mp, const char *name)
 {

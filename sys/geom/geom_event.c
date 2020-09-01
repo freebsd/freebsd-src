@@ -131,7 +131,6 @@ g_attr_changed_event(void *arg, int flag)
 
 	g_topology_assert();
 	if (flag != EV_CANCEL && g_shutdown == 0) {
-
 		/*
 		 * Tell all consumers of the change.
 		 */
@@ -170,7 +169,7 @@ g_orphan_provider(struct g_provider *pp, int error)
 	KASSERT(error != 0,
 	    ("g_orphan_provider(%p(%s), 0) error must be non-zero\n",
 	     pp, pp->name));
-	
+
 	pp->error = error;
 	mtx_lock(&g_eventlock);
 	KASSERT(!(pp->flags & G_PF_ORPHAN),

@@ -54,7 +54,6 @@
 #define G_BDE_LOCKSIZE	384
 #define NLOCK_FIELDS	13
 
-
 /* This just needs to be "large enough" */
 #define G_BDE_KEYBYTES	304
 

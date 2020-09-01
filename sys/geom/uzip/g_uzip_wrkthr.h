@@ -27,4 +27,3 @@
  */
 
 void g_uzip_wrkthr(void *);
-

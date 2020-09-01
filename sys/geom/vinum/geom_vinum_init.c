@@ -241,7 +241,6 @@ gv_sync(struct gv_volume *v)
 	sc = v->vinumconf;
 	KASSERT(sc != NULL, ("gv_sync: NULL sc on %s", v->name));
 
-
 	up = gv_find_good_plex(v);
 	if (up == NULL)
 		return (ENXIO);
