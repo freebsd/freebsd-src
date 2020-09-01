@@ -231,7 +231,7 @@ ral_pci_attach(device_t dev)
 	sc->sc_st = rman_get_bustag(psc->mem);
 	sc->sc_sh = rman_get_bushandle(psc->mem);
 	sc->sc_invalid = 1;
-	
+
 	rid = 0;
 	if (ral_msi_disable == 0) {
 		count = 1;
@@ -265,7 +265,7 @@ ral_pci_attach(device_t dev)
 		return error;
 	}
 	sc->sc_invalid = 0;
-	
+
 	return 0;
 }
 
@@ -274,7 +274,7 @@ ral_pci_detach(device_t dev)
 {
 	struct ral_pci_softc *psc = device_get_softc(dev);
 	struct rt2560_softc *sc = &psc->u.sc_rt2560;
-	
+
 	/* check if device was removed */
 	sc->sc_invalid = !bus_child_present(dev);
 

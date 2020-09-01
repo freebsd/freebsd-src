@@ -115,7 +115,6 @@
 #define RT2560_SECCSR1		0x0158	/* WEP control */
 #define RT2560_BBPCSR1		0x015c	/* BBP TX Configuration */
 
-
 /* possible flags for register RXCSR0 */
 #define RT2560_DISABLE_RX		(1 << 0)
 #define RT2560_DROP_CRC_ERROR		(1 << 1)

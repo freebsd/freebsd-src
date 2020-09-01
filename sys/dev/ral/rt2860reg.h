@@ -210,7 +210,6 @@
 #define RT2860_H2M_BBPAGENT		0x7028
 #define RT2860_BCN_BASE(vap)		(0x7800 + (vap) * 512)
 
-
 /* possible flags for RT2860_PCI_CFG */
 #define RT2860_PCI_CFG_USB	(1 << 17)
 #define RT2860_PCI_CFG_PCI	(1 << 16)
@@ -699,12 +698,10 @@
 #define RT2860_H2M_BUSY		(1 << 24)
 #define RT2860_TOKEN_NO_INTR	0xff
 
-
 /* possible flags for MCU command RT2860_MCU_CMD_LEDS */
 #define RT2860_LED_RADIO	(1 << 13)
 #define RT2860_LED_LINK_2GHZ	(1 << 14)
 #define RT2860_LED_LINK_5GHZ	(1 << 15)
-
 
 /* possible flags for RT3020 RF register 1 */
 #define RT3070_RF_BLOCK	(1 << 0)
@@ -896,7 +893,6 @@ struct rt2860_rxwi {
 	uint8_t		snr[2];
 	uint16_t	reserved2;
 } __packed;
-
 
 /* first DMA segment contains TXWI + 802.11 header + 32-bit padding */
 #define RT2860_TXWI_DMASZ			\
