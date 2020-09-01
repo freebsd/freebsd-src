@@ -713,7 +713,6 @@ static inline int mthca_check_fmr(struct mthca_fmr *fmr, u64 *page_list,
 	return 0;
 }
 
-
 int mthca_tavor_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 			     int list_len, u64 iova)
 {
@@ -869,7 +868,6 @@ int mthca_init_mr_table(struct mthca_dev *dev)
 
 	if (!mthca_is_memfree(dev) &&
 	    (dev->mthca_flags & MTHCA_FLAG_FMR)) {
-
 		addr = pci_resource_start(dev->pdev, 4) +
 			((pci_resource_len(dev->pdev, 4) - 1) &
 			 dev->mr_table.mpt_base);

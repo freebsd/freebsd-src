@@ -1086,7 +1086,6 @@ static int mthca_map_memfree(struct mthca_dev *dev,
 				      qp->qpn << dev->qp_table.rdb_shift);
 		if (ret)
 			goto err_eqpc;
-
 	}
 
 	return 0;
@@ -1218,7 +1217,6 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 			next->nda_op = htonl((((i + 1) % qp->rq.max) <<
 					      qp->rq.wqe_shift) | 1);
 		}
-
 	}
 
 	qp->sq.last = get_send_wqe(qp, qp->sq.max - 1);
