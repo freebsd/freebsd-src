@@ -386,7 +386,6 @@ struct vmci_queue_header {
 	volatile uint64_t	consumer_head;	/* Offset in peer queue. */
 };
 
-
 /*
  * If one client of a QueuePair is a 32bit entity, we restrict the QueuePair
  * size to be less than 4GB, and use 32bit atomic operations on the head and

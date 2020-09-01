@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-
 #define VMXNET3_VMWARE_VENDOR_ID	0x15AD
 #define VMXNET3_VMWARE_DEVICE_ID	0x07B0
 
@@ -191,7 +190,6 @@ typedef enum {
 } vmxnet3_barrier_t;
 
 static void	vmxnet3_barrier(struct vmxnet3_softc *, vmxnet3_barrier_t);
-
 
 static device_method_t vmxnet3_methods[] = {
 	/* Device interface */
@@ -476,7 +474,7 @@ vmxnet3_msix_intr_assign(if_ctx_t ctx, int msix)
 
 	sc = iflib_get_softc(ctx);
 	scctx = sc->vmx_scctx;
-	
+
 	for (i = 0; i < scctx->isc_nrxqsets; i++) {
 		snprintf(irq_name, sizeof(irq_name), "rxq%d", i);
 
@@ -737,7 +735,7 @@ vmxnet3_queues_shared_alloc(struct vmxnet3_softc *sc)
 	if_softc_ctx_t scctx;
 	int size;
 	int error;
-	
+
 	scctx = sc->vmx_scctx;
 
 	/*
@@ -763,7 +761,7 @@ vmxnet3_init_txq(struct vmxnet3_softc *sc, int q)
 	struct vmxnet3_comp_ring *txc;
 	struct vmxnet3_txring *txr;
 	if_softc_ctx_t scctx;
-	
+
 	txq = &sc->vmx_txq[q];
 	txc = &txq->vxtxq_comp_ring;
 	txr = &txq->vxtxq_cmd_ring;
@@ -786,7 +784,7 @@ vmxnet3_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 	int q;
 	int error;
 	caddr_t kva;
-	
+
 	sc = iflib_get_softc(ctx);
 
 	/* Allocate the array of transmit queues */
@@ -881,7 +879,7 @@ vmxnet3_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 	int i;
 	int error;
 	caddr_t kva;
-	
+
 	sc = iflib_get_softc(ctx);
 	scctx = sc->vmx_scctx;
 
@@ -1208,11 +1206,11 @@ vmxnet3_reinit_shared_data(struct vmxnet3_softc *sc)
 	struct ifnet *ifp;
 	struct vmxnet3_driver_shared *ds;
 	if_softc_ctx_t scctx;
-	
+
 	ifp = sc->vmx_ifp;
 	ds = sc->vmx_ds;
 	scctx = sc->vmx_scctx;
-	
+
 	ds->mtu = ifp->if_mtu;
 	ds->ntxqueue = scctx->isc_ntxqsets;
 	ds->nrxqueue = scctx->isc_nrxqsets;
@@ -1416,7 +1414,7 @@ vmxnet3_isc_txd_credits_update(void *vsc, uint16_t txqid, bool clear)
 	struct vmxnet3_txcompdesc *txcd;
 	struct vmxnet3_txring *txr;
 	int processed;
-	
+
 	sc = vsc;
 	txq = &sc->vmx_txq[txqid];
 	txc = &txq->vxtxq_comp_ring;
@@ -1493,7 +1491,7 @@ vmxnet3_isc_rxd_available(void *vsc, uint16_t rxqid, qidx_t idx, qidx_t budget)
 			completed_gen ^= 1;
 		}
 	}
-	
+
 	return (avail);
 }
 
@@ -1734,7 +1732,7 @@ vmxnet3_isc_rxd_flush(void *vsc, uint16_t rxqid, uint8_t flid, qidx_t pidx)
 	struct vmxnet3_rxqueue *rxq;
 	struct vmxnet3_rxring *rxr;
 	bus_size_t r;
-	
+
 	sc = vsc;
 	rxq = &sc->vmx_rxq[rxqid];
 	rxr = &rxq->vxrxq_cmd_ring[flid];
@@ -1753,7 +1751,7 @@ vmxnet3_legacy_intr(void *xsc)
 	struct vmxnet3_softc *sc;
 	if_softc_ctx_t scctx;
 	if_ctx_t ctx;
-	
+
 	sc = xsc;
 	scctx = sc->vmx_scctx;
 	ctx = sc->vmx_ctx;
@@ -1834,7 +1832,7 @@ vmxnet3_txinit(struct vmxnet3_softc *sc, struct vmxnet3_txqueue *txq)
 	struct vmxnet3_comp_ring *txc;
 
 	txq->vxtxq_last_flush = -1;
-	
+
 	txr = &txq->vxtxq_cmd_ring;
 	txr->vxtxr_next = 0;
 	txr->vxtxr_gen = VMXNET3_INIT_GEN;
@@ -1953,7 +1951,7 @@ static void
 vmxnet3_init(if_ctx_t ctx)
 {
 	struct vmxnet3_softc *sc;
-	
+
 	sc = iflib_get_softc(ctx);
 
 	/* Use the current MAC address. */
@@ -2182,7 +2180,7 @@ vmxnet3_link_status(struct vmxnet3_softc *sc)
 	ctx = sc->vmx_ctx;
 	link = vmxnet3_link_is_up(sc);
 	speed = IF_Gbps(10);
-	
+
 	if (link != 0 && sc->vmx_link_active == 0) {
 		sc->vmx_link_active = 1;
 		iflib_link_state_change(ctx, LINK_STATE_UP, speed);
@@ -2320,7 +2318,7 @@ vmxnet3_setup_debug_sysctl(struct vmxnet3_softc *sc,
 	int i;
 
 	scctx = sc->vmx_scctx;
-	
+
 	for (i = 0; i < scctx->isc_ntxqsets; i++) {
 		struct vmxnet3_txqueue *txq = &sc->vmx_txq[i];
 
@@ -2380,7 +2378,7 @@ vmxnet3_setup_queue_sysctl(struct vmxnet3_softc *sc,
 	int i;
 
 	scctx = sc->vmx_scctx;
-	
+
 	for (i = 0; i < scctx->isc_ntxqsets; i++)
 		vmxnet3_setup_txq_sysctl(&sc->vmx_txq[i], ctx, child);
 	for (i = 0; i < scctx->isc_nrxqsets; i++)

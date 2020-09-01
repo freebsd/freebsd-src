@@ -615,7 +615,6 @@ vmci_alloc_ppn_set(void *prod_q, uint64_t num_produce_pages, void *cons_q,
 		if (sizeof(pfn) >
 		    sizeof(*consume_ppns) && pfn != consume_ppns[i])
 			goto ppn_error;
-
 	}
 
 	ppn_set->num_produce_pages = num_produce_pages;
