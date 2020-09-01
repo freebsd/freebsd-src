@@ -380,7 +380,6 @@ vr_miibus_statchg(device_t dev)
 	}
 }
 
-
 static void
 vr_cam_mask(struct vr_softc *sc, uint32_t mask, int type)
 {
