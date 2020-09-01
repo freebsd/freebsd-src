@@ -283,7 +283,6 @@ vm86_emulate(struct vm86frame *vmf)
 				vmf->vmf_eflags &= ~PSL_VIF;
 			}
 			return (retcode);
-
 		}
 		return (SIGBUS);
 	}
@@ -808,7 +807,7 @@ vm86_getptr(struct vm86context *vmc, vm_offset_t kva, u_short *sel,
 		}
 	return (0);
 }
-	
+
 int
 vm86_sysarch(struct thread *td, char *args)
 {
@@ -843,7 +842,7 @@ vm86_sysarch(struct thread *td, char *args)
 #if 0
 	case VM86_SET_VME: {
 		struct vm86_vme_args sa;
-	
+
 		if ((cpu_feature & CPUID_VME) == 0)
 			return (ENODEV);
 

@@ -440,7 +440,7 @@ npxinit(bool bsp)
 	 */
 	if (bsp)
 		npxinit_bsp2();
-	
+
 	/*
 	 * fninit has the same h/w bugs as fnsave.  Use the detoxified
 	 * fnsave to throw away any junk in the fpu.  fpusave() initializes
@@ -1324,7 +1324,6 @@ static device_method_t npxisa_methods[] = {
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
-	
 	{ 0, 0 }
 };
 

@@ -473,7 +473,7 @@ user_ldt_alloc(struct mdproc *mdp, int len)
 		    len * sizeof(union descriptor));
 	} else
 		bcopy(ldt, new_ldt->ldt_base, sizeof(union descriptor) * NLDT);
-	
+
 	return (new_ldt);
 }
 

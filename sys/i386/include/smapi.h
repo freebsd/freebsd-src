@@ -58,7 +58,7 @@ struct smapi_bios_header {
 
 	u_int32_t	prot32_offset;
 	u_int32_t	prot32_segment;
-	
+
 } __packed;
 
 struct smapi_bios_parameter {

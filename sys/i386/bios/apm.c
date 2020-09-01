@@ -397,7 +397,6 @@ deleteit:
 		*list = p->ah_next;
 }
 
-
 /* APM driver calls some functions automatically */
 static void
 apm_execute_hook(struct apmhook *list)
@@ -410,7 +409,6 @@ apm_execute_hook(struct apmhook *list)
 			printf("Warning: APM hook \"%s\" failed", p->ah_name);
 	}
 }
-
 
 /* establish an apm hook */
 struct apmhook *
@@ -583,7 +581,6 @@ apm_resume(void)
 	EVENTHANDLER_INVOKE(power_resume);
 }
 
-
 /* get power status per battery */
 static int
 apm_get_pwstatus(apm_pwstatus_t app)
@@ -618,7 +615,6 @@ apm_get_pwstatus(apm_pwstatus_t app)
 
 	return 0;
 }
-
 
 /* get APM information */
 static int
@@ -658,7 +654,6 @@ apm_get_info(apm_info_t aip)
 	return 0;
 }
 
-
 /* inform APM BIOS that CPU is idle */
 void
 apm_cpu_idle(void)
@@ -666,7 +661,6 @@ apm_cpu_idle(void)
 	struct apm_softc *sc = &apm_softc;
 
 	if (sc->active) {
-
 		sc->bios.r.eax = (APM_BIOS <<8) | APM_CPUIDLE;
 		sc->bios.r.edx = sc->bios.r.ecx = sc->bios.r.ebx = 0;
 		(void) apm_bioscall();
@@ -697,13 +691,11 @@ apm_cpu_busy(void)
 	 * necessary.
 	 */
 	if (sc->slow_idle_cpu && sc->active) {
-
 		sc->bios.r.eax = (APM_BIOS <<8) | APM_CPUBUSY;
 		sc->bios.r.edx = sc->bios.r.ecx = sc->bios.r.ebx = 0;
 		apm_bioscall();
 	}
 }
-
 
 /*
  * APM thread loop.
@@ -934,7 +926,6 @@ apm_probe(device_t dev)
 
 	return(0);
 }
-
 
 /*
  * return 0 if the user will notice and handle the event,
@@ -1170,7 +1161,6 @@ apm_attach(device_t dev)
 	       ((apm_version & 0xf000) >> 12) * 10 + ((apm_version & 0x0f00) >> 8),
 	       ((apm_version & 0x00f0) >> 4) * 10 + ((apm_version & 0x000f) >> 0),
 	       sc->majorversion, sc->minorversion);
-
 
 	APM_DPRINT("apm: Slow Idling CPU %s\n", is_enabled(sc->slow_idle_cpu));
 	/* enable power management */
@@ -1472,7 +1462,6 @@ static device_method_t apm_methods[] = {
 	DEVMETHOD(device_identify,	apm_identify),
 	DEVMETHOD(device_probe,		apm_probe),
 	DEVMETHOD(device_attach,	apm_attach),
-
 	{ 0, 0 }
 };
 

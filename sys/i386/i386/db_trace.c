@@ -678,7 +678,6 @@ i386_set_watch(watchnum, watchaddr, size, access, d)
 	return (watchnum);
 }
 
-
 int
 i386_clr_watch(watchnum, d)
 	int watchnum;
@@ -693,7 +692,6 @@ i386_clr_watch(watchnum, d)
 
 	return (0);
 }
-
 
 int
 db_md_set_watchpoint(addr, size)
@@ -732,7 +730,6 @@ db_md_set_watchpoint(addr, size)
 	return(0);
 }
 
-
 int
 db_md_clr_watchpoint(addr, size)
 	db_expr_t addr;
@@ -748,7 +745,6 @@ db_md_clr_watchpoint(addr, size)
 			if ((DBREG_DRX((&d), i) >= addr) &&
 			    (DBREG_DRX((&d), i) < addr+size))
 				i386_clr_watch(i, &d);
-
 		}
 	}
 
@@ -756,7 +752,6 @@ db_md_clr_watchpoint(addr, size)
 
 	return(0);
 }
-
 
 static const char *
 watchtype_str(type)
@@ -769,7 +764,6 @@ watchtype_str(type)
 		default		      : return "invalid";    break;
 	}
 }
-
 
 void
 db_md_list_watchpoints(void)
