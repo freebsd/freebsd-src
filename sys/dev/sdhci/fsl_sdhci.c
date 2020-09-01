@@ -253,7 +253,6 @@ fsl_sdhci_read_1(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		return (SDHCI_POWER_ON | SDHCI_POWER_300);
 	}
 
-
 	return ((RD4(sc, off & ~3) >> (off & 3) * 8) & 0xff);
 }
 
@@ -279,7 +278,6 @@ fsl_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 			return (RD4(sc, USDHC_MIX_CONTROL) & 0x37);
 
 	} else if (sc->hwtype == HWTYPE_ESDHC) {
-
 		/*
 		 * The ESDHC hardware has the typical 32-bit combined "command
 		 * and mode" register that we have to cache so that command
@@ -340,7 +338,7 @@ fsl_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		val32 |= SDHCI_CAN_DO_8BITBUS;
 		return (val32);
 	}
-	
+
 	/*
 	 * The hardware moves bits around in the present state register to make
 	 * room for all 8 data line state bits.  To translate, mask out all the
@@ -596,7 +594,6 @@ fsl_sdhc_set_clock(struct fsl_sdhci_softc *sc, uint16_t val)
 			WR4(sc, SDHCI_CLOCK_CONTROL, val32 & ~SDHC_CLK_SDCLKEN);
 #endif
 			return;
-
 		}
 		divisor = (val >> SDHCI_DIVIDER_SHIFT) & SDHCI_DIVIDER_MASK;
 		freq = sc->baseclk_hz >> ffs(divisor);
@@ -782,7 +779,6 @@ fsl_sdhci_get_platform_clock(device_t dev)
 	/* Get sdhci node properties */
 	if((OF_getprop(node, "clock-frequency", (void *)&clock,
 	    sizeof(clock)) <= 0) || (clock == 0)) {
-
 		clock = mpc85xx_get_system_clock();
 
 		if (clock == 0) {
@@ -799,7 +795,6 @@ fsl_sdhci_get_platform_clock(device_t dev)
 	return (clock);
 }
 #endif
-
 
 static int
 fsl_sdhci_detach(device_t dev)
