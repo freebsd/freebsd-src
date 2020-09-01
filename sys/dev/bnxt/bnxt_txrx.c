@@ -316,10 +316,9 @@ bnxt_isc_rxd_flush(void *sc, uint16_t rxqid, uint8_t flid,
 	if (softc->rx_cp_rings[rxqid].cons != UINT32_MAX)
 		BNXT_CP_IDX_DISABLE_DB(&softc->rx_cp_rings[rxqid].ring,
 		    softc->rx_cp_rings[rxqid].cons);
-	/* We're given the last filled RX buffer here, not the next empty one */
-	BNXT_RX_DB(rx_ring, RING_NEXT(rx_ring, pidx));
+	BNXT_RX_DB(rx_ring, pidx);
 	/* TODO: Cumulus+ doesn't need the double doorbell */
-	BNXT_RX_DB(rx_ring, RING_NEXT(rx_ring, pidx));
+	BNXT_RX_DB(rx_ring, pidx);
 	return;
 }
 
