@@ -100,7 +100,7 @@ aac_disk_open(struct disk *dp)
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	sc = (struct aac_disk *)dp->d_drv1;
-	
+
 	if (sc == NULL) {
 		printf("aac_disk_open: No Softc\n");
 		return (ENXIO);
@@ -129,7 +129,7 @@ aac_disk_close(struct disk *dp)
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 
 	sc = (struct aac_disk *)dp->d_drv1;
-	
+
 	if (sc == NULL)
 		return (ENXIO);
 
@@ -366,7 +366,7 @@ static int
 aac_disk_attach(device_t dev)
 {
 	struct aac_disk	*sc;
-	
+
 	sc = (struct aac_disk *)device_get_softc(dev);
 	fwprintf(NULL, HBA_FLAGS_DBG_FUNCTION_ENTRY_B, "");
 

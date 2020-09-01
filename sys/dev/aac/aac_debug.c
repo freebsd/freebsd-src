@@ -392,7 +392,7 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
 		default:
 			status = "unknown status"; break;
 		}		
-	
+
 		device_printf(sc->aac_dev, "JobProgress (%d) - %s (%d, %d)\n",
 			      aif->seqNumber, status,
 			      aif->data.PR[0].currentTick,
