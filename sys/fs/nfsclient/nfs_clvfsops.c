@@ -1419,7 +1419,9 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		if ((newflag & NFSMNT_TLS) != 0) {
 			error = EINVAL;
 #ifdef KERN_TLS
-			if (rpctls_getinfo(&maxlen, true, false))
+			/* KERN_TLS is only supported for TCP. */
+			if (argp->sotype == SOCK_STREAM &&
+			    rpctls_getinfo(&maxlen, true, false))
 				error = 0;
 #endif
 			if (error != 0) {
