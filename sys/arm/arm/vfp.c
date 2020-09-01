@@ -100,7 +100,6 @@ set_coprocessorACR(u_int val)
 	isb();
 }
 
-
 	/* called for each cpu */
 void
 vfp_init(void)
@@ -169,7 +168,6 @@ vfp_init(void)
 }
 
 SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
-
 
 /* start VFP unit, restore the vfp registers from the PCB  and retry
  * the instruction
@@ -324,4 +322,3 @@ vfp_discard(struct thread *td)
 }
 
 #endif
-

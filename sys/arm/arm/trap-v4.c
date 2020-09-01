@@ -213,7 +213,6 @@ abort_handler(struct trapframe *tf, int type)
 		td->td_frame = tf;
 		if (td->td_cowgen != td->td_proc->p_cowgen)
 			thread_cow_update(td);
-
 	}
 	/* Grab the current pcb */
 	pcb = td->td_pcb;
@@ -224,7 +223,6 @@ abort_handler(struct trapframe *tf, int type)
 		if (__predict_true(tf->tf_spsr & PSR_F) == 0)
 			enable_interrupts(PSR_F);
 	}
-
 
 	/* Invoke the appropriate handler, if necessary */
 	if (__predict_false(data_aborts[fsr & FAULT_TYPE_MASK].func != NULL)) {
@@ -293,7 +291,6 @@ abort_handler(struct trapframe *tf, int type)
 
 		/* Was the fault due to the FPE/IPKDB ? */
 		if (__predict_false((tf->tf_spsr & PSR_MODE)==PSR_UND32_MODE)) {
-
 			/*
 			 * Force exit via userret()
 			 * This is necessary as the FPE is an extension to
@@ -368,7 +365,6 @@ fatal_pagefault:
 		    error);
 		dab_fatal(tf, fsr, far, td, &ksig);
 	}
-
 
 do_trapsignal:
 	call_trapsignal(td, signo, ucode);
@@ -638,7 +634,6 @@ prefetch_abort_handler(struct trapframe *tf)
 	if (__predict_false(!TRAP_USERMODE(tf)))
 		dab_fatal(tf, 0, tf->tf_pc, NULL, &ksig);
 	td->td_pticks = 0;
-
 
 	/* Ok validate the address, can only execute in USER space */
 	if (__predict_false(fault_pc >= VM_MAXUSER_ADDRESS ||

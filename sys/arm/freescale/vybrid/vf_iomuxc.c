@@ -139,7 +139,6 @@ pinmux_set(struct iomuxc_softc *sc)
 
 	/* Find 'iomux_config' prop in the nodes */
 	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
-
 		/* Find a 'leaf'. Start the search from this node. */
 		while (OF_child(child)) {
 			parent = child;

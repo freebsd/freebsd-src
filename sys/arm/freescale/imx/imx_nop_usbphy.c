@@ -120,4 +120,3 @@ static driver_t usbphy_driver = {
 static devclass_t usbphy_devclass;
 
 DRIVER_MODULE(usbphy, simplebus, usbphy_driver, usbphy_devclass, 0, 0);
-

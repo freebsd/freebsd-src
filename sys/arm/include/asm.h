@@ -169,7 +169,6 @@
 #define __FBSDID(s)     /* nothing */
 #endif
 
-
 #define	WEAK_ALIAS(alias,sym)						\
 	.weak alias;							\
 	alias = sym

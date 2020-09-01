@@ -61,7 +61,6 @@ static device_method_t nb_service_methods[] = {
 	DEVMETHOD(device_probe,		nb_service_probe),
 	DEVMETHOD(device_attach,	nb_service_attach),
 	DEVMETHOD(device_detach,	nb_service_detach),
-
 	{ 0, 0 }
 };
 

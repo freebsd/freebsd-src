@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pic_if.h"
 
-
 #define	AFI_AXI_BAR0_SZ				0x000
 #define	AFI_AXI_BAR1_SZ				0x004
 #define	AFI_AXI_BAR2_SZ				0x008
@@ -122,7 +121,6 @@ __FBSDID("$FreeBSD$");
 #define	 AFI_INTR_CODE_INT_CODE_CLKCLAMP_SENSE		12
 #define	 AFI_INTR_CODE_INT_CODE_RDY4PD_SENSE		13
 #define	 AFI_INTR_CODE_INT_CODE_P2P_ERROR		14
-
 
 #define	AFI_INTR_SIGNATURE			0x0bc
 #define	AFI_UPPER_FPCI_ADDRESS			0x0c0
@@ -620,7 +618,6 @@ tegra_pcib_msi_detach(struct tegra_pcib_softc *sc)
 	return (EBUSY);
 }
 
-
 static void
 tegra_pcib_msi_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 {
@@ -693,7 +690,6 @@ tegra_pcib_msi_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 	return (0);
 }
 
-
 static int
 tegra_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
     device_t *pic, struct intr_irqsrc **srcs)
@@ -740,7 +736,6 @@ tegra_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	for (i = 0; i < count; i++) {
 		/* Mark the interrupt as used */
 		sc->isrcs[irq + i].flags |= TEGRA_FLAG_MSI_USED;
-
 	}
 	mtx_unlock(&sc->mtx);
 
@@ -975,7 +970,6 @@ fail:
 	return (NULL);
 }
 
-
 static int
 tegra_pcib_parse_fdt_resources(struct tegra_pcib_softc *sc, phandle_t node)
 {
@@ -1143,7 +1137,6 @@ tegra_pcib_wait_for_link(struct tegra_pcib_softc *sc,
 	uint32_t reg;
 	int i;
 
-
 	/* Setup link detection. */
 	reg = tegra_pcib_read_config(sc->dev, 0, port->port_idx, 0,
 	    RP_PRIV_MISC, 4);
@@ -1158,7 +1151,6 @@ tegra_pcib_wait_for_link(struct tegra_pcib_softc *sc,
 		if (reg & RP_VEND_XP_DL_UP)
 				break;
 		DELAY(1);
-
 	}
 	if (i <= 0)
 		return (ETIMEDOUT);
@@ -1211,7 +1203,6 @@ tegra_pcib_port_enable(struct tegra_pcib_softc *sc, int port_num)
 			 port->num_lanes > 1 ? "s": "",
 			 rv == 0 ? "up": "down");
 }
-
 
 static void
 tegra_pcib_port_disable(struct tegra_pcib_softc *sc, uint32_t port_num)
@@ -1318,7 +1309,6 @@ tegra_pcib_enable(struct tegra_pcib_softc *sc)
 			}
 		}
 	}
-
 
 	rv = hwreset_deassert(sc->hwreset_pcie_x);
 	if (rv != 0) {
@@ -1500,7 +1490,6 @@ tegra_pcib_attach(device_t dev)
 	}
 	sc->cfg_base_addr = rman_get_start(sc->cfg_mem_res);
 
-
 	/* Map RP slots */
 	for (i = 0; i < TEGRA_PCIB_MAX_PORTS; i++) {
 		if (sc->ports[i] == NULL)
@@ -1582,7 +1571,6 @@ out:
 
 	return (rv);
 }
-
 
 static device_method_t tegra_pcib_methods[] = {
 	/* Device interface */

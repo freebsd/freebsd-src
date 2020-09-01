@@ -191,7 +191,6 @@ am335x_ecap_detach(device_t dev)
 
 	PWM_LOCK_DESTROY(sc);
 
-
 	return (0);
 }
 

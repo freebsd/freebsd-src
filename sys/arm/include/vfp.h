@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _MACHINE__VFP_H_
 #define _MACHINE__VFP_H_
 

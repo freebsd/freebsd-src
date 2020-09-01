@@ -381,7 +381,6 @@ i2c_read(device_t dev, char *buf, int len,
 
 	DPRINTF("Read ");
 	while (*read < len) {
-
 		/* Do not ack last read */
 		if (*read == (len - 1)) {
 			reg = READ1(sc, I2CCON);
@@ -465,7 +464,6 @@ static device_method_t i2c_methods[] = {
 	DEVMETHOD(iicbus_read,			i2c_read),
 	DEVMETHOD(iicbus_write,			i2c_write),
 	DEVMETHOD(iicbus_transfer,		iicbus_transfer_gen),
-
 	{ 0, 0 }
 };
 

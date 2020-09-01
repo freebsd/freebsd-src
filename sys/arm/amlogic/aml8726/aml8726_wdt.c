@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/amlogic/aml8726/aml8726_soc.h>
 
-
 struct aml8726_wdt_softc {
 	device_t		dev;
 	struct resource	*	res[2];
@@ -115,7 +114,6 @@ aml8726_wdt_watchdog(void *private, u_int cmd, int *error)
 
 	if (cmd != 0 && tens_of_usec <= (AML_WDT_CTRL_TERMINAL_CNT_MASK >>
 	    AML_WDT_CTRL_TERMINAL_CNT_SHIFT)) {
-
 		wcr = AML_WDT_CTRL_CPU_WDRESET_MASK |
 		    AML_WDT_CTRL_EN | ((uint32_t)tens_of_usec <<
 		    AML_WDT_CTRL_TERMINAL_CNT_SHIFT);

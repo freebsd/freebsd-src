@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/fdt/fdt_common.h>
- 
+
 #ifdef CPSW_ETHERSWITCH
 #include <dev/etherswitch/etherswitch.h>
 #include "etherswitch_if.h"

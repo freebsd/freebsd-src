@@ -119,8 +119,6 @@ bcm2836_devmap_init(platform_t plat)
 }
 #endif
 
-
-
 static void
 bcm2835_cpu_reset(platform_t plat)
 {

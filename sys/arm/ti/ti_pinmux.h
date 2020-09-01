@@ -32,7 +32,6 @@
  * $FreeBSD$
  */
 
-
 /**
  *	Functions to configure the PIN multiplexing on the chip.
  *

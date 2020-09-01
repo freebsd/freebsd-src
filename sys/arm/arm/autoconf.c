@@ -74,7 +74,6 @@ SYSINIT(configure3, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure_final, NULL);
 
 device_t nexus_dev;
 
-
 /*
  * Determine i/o configuration for a machine.
  */

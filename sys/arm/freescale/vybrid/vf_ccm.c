@@ -407,7 +407,6 @@ ccm_fdt_set(struct ccm_softc *sc)
 
 	/* Find 'clock_names' prop in the tree */
 	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
-
 		/* Find a 'leaf'. Start the search from this node. */
 		while (OF_child(child)) {
 			parent = child;

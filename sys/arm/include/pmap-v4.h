@@ -110,7 +110,6 @@ struct	md_page {
 struct l1_ttable;
 struct l2_dtable;
 
-
 /*
  * The number of L2 descriptor tables which can be tracked by an l2_dtable.
  * A bucket size of 16 provides for 16MB of contiguous virtual address

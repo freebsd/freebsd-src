@@ -190,7 +190,6 @@ store_ptr(Elf_Addr *where, Elf_Addr val)
 }
 #undef RELOC_ALIGNED_P
 
-
 /* Process one elf relocation with addend. */
 static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
@@ -233,7 +232,6 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	}
 
 	switch (rtype) {
-
 		case R_ARM_NONE:	/* none */
 			break;
 

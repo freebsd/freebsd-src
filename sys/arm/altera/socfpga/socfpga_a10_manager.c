@@ -141,7 +141,6 @@ fpga_wait_dclk_pulses(struct fpgamgr_a10_softc *sc, int npulses)
 	return (0);
 }
 
-
 static int
 fpga_open(struct cdev *dev, int flags __unused,
     int fmt __unused, struct thread *td __unused)

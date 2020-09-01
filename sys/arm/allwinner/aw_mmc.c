@@ -951,7 +951,6 @@ aw_mmc_req_ok(struct aw_mmc_softc *sc)
 	aw_mmc_req_done(sc);
 }
 
-
 static inline void
 set_mmc_error(struct aw_mmc_softc *sc, int error_code)
 {
@@ -1499,7 +1498,6 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		if (error != 0)
 			return (error);
 	}
-
 
 	return (0);
 }

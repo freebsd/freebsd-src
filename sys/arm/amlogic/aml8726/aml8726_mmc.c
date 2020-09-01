@@ -485,7 +485,6 @@ spurious:
 		CSR_WRITE_4(sc, AML_MMC_MULT_CONFIG_REG, mcfgr);
 
 		if ((cmdr & AML_MMC_CMD_RESP_CRC7_FROM_8) != 0) {
-
 			/*
 			 * Controller supplies 135:8 instead of
 			 * 127:0 so discard the leading 8 bits

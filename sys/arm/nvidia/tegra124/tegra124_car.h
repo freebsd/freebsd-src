@@ -310,7 +310,6 @@
 #define	PLLP_OUTC			0x67c
 #define	PLLP_MISC1			0x680
 
-
 struct tegra124_car_softc {
 	device_t		dev;
 	struct resource *	mem_res;

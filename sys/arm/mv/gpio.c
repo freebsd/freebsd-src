@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-
 #define GPIO_MAX_INTR_COUNT	8
 #define GPIO_PINS_PER_REG	32
 #define GPIO_GENERIC_CAP	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |		\

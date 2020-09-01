@@ -72,7 +72,6 @@ static struct devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, }
 };
 
-
 /*
  * Construct devmap table with DT-derived config data.
  */

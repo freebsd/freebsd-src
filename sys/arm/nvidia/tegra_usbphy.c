@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 /*
  * USB phy driver for Tegra SoCs.
  */
@@ -66,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #define	 USB_HOSTPC1_DEVLC_STS			(1 << 28)
 #define	 USB_HOSTPC1_DEVLC_PHCD			(1 << 22)
 
-
 #define	IF_USB_SUSP_CTRL		0x400
 #define	 FAST_WAKEUP_RESP			(1 << 26)
 #define	 UTMIP_SUSPL1_SET			(1 << 25)
@@ -89,7 +87,6 @@ __FBSDID("$FreeBSD$");
 #define	IF_USB_PHY_VBUS_SENSORS		0x404
 #define	 B_SESS_END_SW_VALUE			(1 << 4)
 #define	 B_SESS_END_SW_EN			(1 << 3)
-
 
 #define	UTMIP_XCVR_CFG0			0x808
 #define	 UTMIP_XCVR_HSSLEW_MSB(x)		((((x) & 0x1fc) >> 2) << 25)
@@ -133,7 +130,6 @@ __FBSDID("$FreeBSD$");
 #define	 UTMIP_HSCHIRP_LEVEL(x)			(((x) & 0x3) << 4)
 #define	 UTMIP_HSDISCON_LEVEL(x)		(((x) & 0x3) << 2)
 #define	 UTMIP_HSSQUELCH_LEVEL(x)		(((x) & 0x3) << 0)
-
 
 #define	UTMIP_HSRX_CFG0			0x810
 #define	 UTMIP_KEEP_PATT_ON_ACTIVE(x)		(((x) & 0x3) << 30)
@@ -361,7 +357,6 @@ usbphy_utmi_enable(struct usbphy_softc *sc)
 	val |= UTMIP_RESET;
 	WR4(sc, IF_USB_SUSP_CTRL, val);
 
-
 	val = RD4(sc, UTMIP_TX_CFG0);
 	val |= UTMIP_FS_PREAMBLE_J;
 	WR4(sc, UTMIP_TX_CFG0, val);
@@ -464,7 +459,6 @@ usbphy_utmi_enable(struct usbphy_softc *sc)
 	val &= ~UTMIP_XCVR_TERM_RANGE_ADJ(~0);
 	val |= UTMIP_XCVR_TERM_RANGE_ADJ(sc->term_range_adj);
 	WR4(sc, UTMIP_XCVR_CFG1, val);
-
 
 	val = RD4(sc, UTMIP_BIAS_CFG1);
 	val &= ~UTMIP_BIAS_PDTRK_COUNT(~0);

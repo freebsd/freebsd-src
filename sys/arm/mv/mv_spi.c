@@ -338,7 +338,6 @@ mv_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	MV_SPI_WRITE(sc, MV_SPI_CONTROL, reg | MV_SPI_CTRL_CS_ACTIVE);
 
 	while ((resid = sc->sc_len - sc->sc_written) > 0) {
-
 		MV_SPI_WRITE(sc, MV_SPI_INTR_STAT, 0);
 
 		/*

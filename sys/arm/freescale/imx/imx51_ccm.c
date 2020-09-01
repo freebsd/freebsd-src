@@ -249,7 +249,6 @@ imxccm_attach(device_t dev)
 	    imx51_get_clock(IMX51CLK_IPG_CLK_ROOT),
 	    imx51_get_clock(IMX51CLK_PERCLK_ROOT));
 
-
 	return (0);
 
 noclocks:
@@ -437,7 +436,6 @@ imx51_get_clock(enum imx51_clock clk)
 		return 0;
 	}
 }
-
 
 static uint64_t
 imx51_get_pll_freq(u_int pll_no)
@@ -661,4 +659,3 @@ imx_ccm_ahb_hz(void)
 
 	return (imx51_get_clock(IMX51CLK_AHB_CLK_ROOT));
 }
-

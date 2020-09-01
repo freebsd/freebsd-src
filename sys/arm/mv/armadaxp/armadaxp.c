@@ -319,4 +319,3 @@ armadaxp_l2_init(void)
 	reg |= (7 << 16);
 	write_coher_fabric(COHER_FABRIC_CIB_CTRL, reg);
 }
-

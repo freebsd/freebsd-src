@@ -498,7 +498,6 @@ static struct aw_clk_nm_def ir_clk = {
 /* Missing CSI clock */
 /* Missing VE clock */
 
-
 /* Clocks list */
 static struct aw_ccung_clk a13_ccu_clks[] = {
 	{ .type = AW_CLK_NKMP, .clk.nkmp = &pll_core},

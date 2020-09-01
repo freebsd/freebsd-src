@@ -206,7 +206,6 @@
 #define	 PULSE_END(x)					(((x) & 0xfff) << 16)
 #define	 PULSE_START(x)					(((x) & 0xfff) <<  0)
 
-
 #define	DC_DISP_DISP_CLOCK_CONTROL		0x42e
 #define	 PIXEL_CLK_DIVIDER(x)				(((x) & 0xf) <<  8)
 #define	  PCD1							 0
@@ -359,7 +358,6 @@
 #define	DC_WIN_PRESCALED_SIZE			0x706
 #define	 WIN_PRESCALED_SIZE(h, v)	((((h) & 0x7fff) <<  0) |	\
 					 (((v) & 0x1fff) << 16))
-
 
 #define	DC_WIN_H_INITIAL_DDA			0x707
 #define	DC_WIN_V_INITIAL_DDA			0x708

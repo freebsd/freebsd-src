@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #define	PERLCK_MUX_SHIFT	29
 #define	PERLCK_MUX_MASK		0x07
 
-
 struct periph_def {
 	struct clknode_init_def	clkdef;
 	uint32_t		base_reg;
@@ -460,7 +459,6 @@ static struct periph_def periph_def[] = {
 	CLK_8_1(0, "pc_tsec", mux_p_c2_c_c3_m_a_clkm, CLK_SOURCE_TSEC, 0),
 /* SPARE2 */
 
-
 	CLK_8_1(0, "pc_mselect", mux_p_c2_c_c3_m_clks_clkm, CLK_SOURCE_MSELECT, 0),
 	CLK_8_1(0, "pc_tsensor", mux_p_c2_c_c3_clkm_N_clks, CLK_SOURCE_TSENSOR, 0),
 	CLK_8_1(0, "pc_i2s3", mux_a_N_audio3_N_p_N_clkm, CLK_SOURCE_I2S3, DCF_HAVE_ENA),
@@ -591,7 +589,6 @@ periph_set_mux(struct clknode *clk, int idx)
 {
 	struct periph_sc *sc;
 	uint32_t reg;
-
 
 	sc = clknode_get_softc(clk);
 	if (!(sc->flags & DCF_HAVE_MUX))

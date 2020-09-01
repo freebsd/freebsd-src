@@ -130,4 +130,3 @@ imx_wdog_init_last_reset(vm_offset_t wdsr_phys)
 		sysctl___hw_imx_last_reset_reason.oid_arg1 = "PowerOnReset";
 	}
 }
-

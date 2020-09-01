@@ -207,4 +207,3 @@ static devclass_t usbphy_devclass;
  */
 EARLY_DRIVER_MODULE(usbphy, simplebus, usbphy_driver, usbphy_devclass, 0, 0,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
-

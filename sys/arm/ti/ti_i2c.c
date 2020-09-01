@@ -387,7 +387,6 @@ ti_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	err = 0;
 	repstart = 0;
 	for (i = 0; i < nmsgs; i++) {
-
 		sc->sc_buffer = &msgs[i];
 		sc->sc_buffer_pos = 0;
 		sc->sc_error = 0;

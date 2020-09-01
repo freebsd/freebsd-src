@@ -132,8 +132,6 @@ pandaboard_usb_hub_init(void)
 	    OMAP44XX_SCM_PADCONF_SIZE, 0, &scm_addr) != 0)
 		panic("Couldn't map SCM Padconf registers");
 
-	
-
 	/* Need to set FREF_CLK3_OUT to 19.2 MHz and pump it out on pin GPIO_WK31.
 	 * We know the SYS_CLK is 38.4Mhz and therefore to get the needed 19.2Mhz,
 	 * just use a 2x divider and ensure the SYS_CLK is used as the source.
@@ -148,14 +146,12 @@ pandaboard_usb_hub_init(void)
 	 */
 	REG_WRITE16(scm_addr + CONTROL_WKUP_PAD0_FREF_CLK3_OUT, 0x0000);
 
-
 	/* Disable the power to the USB hub, drive GPIO1 low */
 	REG_WRITE32(gpio1_addr + GPIO1_OE, REG_READ32(gpio1_addr + 
 	    GPIO1_OE) & ~(1UL << 1));
 	REG_WRITE32(gpio1_addr + GPIO1_CLEARDATAOUT, (1UL << 1));
 	REG_WRITE16(scm_addr + CONTROL_CORE_PAD1_KPD_COL2, 0x0003);
-	
-	
+
 	/* Reset the USB PHY and Hub using GPIO_62 */
 	REG_WRITE32(gpio2_addr + GPIO2_OE, 
 	    REG_READ32(gpio2_addr + GPIO2_OE) & ~(1UL << 30));
@@ -164,7 +160,6 @@ pandaboard_usb_hub_init(void)
 	DELAY(10);
 	REG_WRITE32(gpio2_addr + GPIO2_SETDATAOUT, (1UL << 30));
 
-	
 	/* Enable power to the hub (GPIO_1) */
 	REG_WRITE32(gpio1_addr + GPIO1_SETDATAOUT, (1UL << 1));
 	bus_space_unmap(fdtbus_bs_tag, scrm_addr, OMAP44XX_SCRM_SIZE);

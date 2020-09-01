@@ -20,4 +20,3 @@ struct vfpreg {
 #define	PT_SETVFPREGS	(PT_FIRSTMACH + 1)
 
 #endif /* !_MACHINE_PTRACE_H */
-

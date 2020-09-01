@@ -290,7 +290,6 @@ aml8726_rtc_initialize(struct aml8726_rtc_softc *sc)
 
 	if (sc->init.always == TRUE || (CSR_READ_4(sc, AML_RTC_1_REG) &
 	    AML_RTC_SRDY) == 0) {
-
 		/*
 		 * The RTC has a 16 bit initialization register.  The upper
 		 * bits can be written directly.  The lower bits are written

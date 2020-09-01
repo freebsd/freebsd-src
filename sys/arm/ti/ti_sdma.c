@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
  *
  */
 struct ti_sdma_channel {
-
 	/*
 	 * The configuration registers for the given channel, these are modified
 	 * by the set functions and only written to the actual registers when a
@@ -225,7 +224,6 @@ ti_sdma_intr(void *arg)
 	TI_SDMA_LOCK(sc);
 
 	for (j = 0; j < NUM_DMA_IRQS; j++) {
-
 		/* Get the flag interrupts (enabled) */
 		intr = ti_sdma_read_4(sc, DMA4_IRQSTATUS_L(j));
 		intr &= ti_sdma_read_4(sc, DMA4_IRQENABLE_L(j));
@@ -1194,7 +1192,6 @@ ti_sdma_attach(device_t dev)
 
 	/* Soft-reset is only supported on pre-OMAP44xx devices */
 	if (ti_sdma_is_omap3_rev(sc)) {
-
 		/* Soft-reset */
 		ti_sdma_write_4(sc, DMA4_OCP_SYSCONFIG, 0x0002);
 
@@ -1203,7 +1200,6 @@ ti_sdma_attach(device_t dev)
 
 		/* Wait for DMA reset to complete */
 		while ((ti_sdma_read_4(sc, DMA4_SYSSTATUS) & 0x1) == 0x0) {
-
 			/* Sleep for a tick */
 			pause("DMARESET", 1);
 

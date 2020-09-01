@@ -30,7 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 /* Based on sys/arm/ti/ti_sysc.c */
 
 #include <sys/param.h>
@@ -159,4 +158,3 @@ EARLY_DRIVER_MODULE(ti_scm, simplebus, ti_scm_driver,
     ti_scm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(ti_scm, 1);
 MODULE_DEPEND(ti_scm, ti_sysc, 1, 1, 1);
-

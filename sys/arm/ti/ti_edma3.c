@@ -190,7 +190,6 @@ ti_edma3_attach(device_t dev)
 
 	device_printf(dev, "EDMA revision %08x\n", reg);
 
-
 	/* Attach interrupt handlers */
 	for (i = 0; i < TI_EDMA3_NUM_IRQS; ++i) {
 		err = bus_setup_intr(dev, sc->irq_res[i], INTR_TYPE_MISC |

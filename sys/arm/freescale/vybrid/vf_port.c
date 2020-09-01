@@ -118,7 +118,6 @@ port_intr(void *arg)
 	for (i = 0; i < NGPIO; i++) {
 		reg = READ4(sc, PORT_PCR(i));
 		if (reg & PCR_ISF) {
-
 			/* Clear interrupt */
 			WRITE4(sc, PORT_PCR(i), reg);
 

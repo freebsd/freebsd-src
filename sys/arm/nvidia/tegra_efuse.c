@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/nvidia/tegra_efuse.h>
 
-
 #define	RD4(_sc, _r)	bus_read_4((_sc)->mem_res, (_sc)->fuse_begin + (_r))
 
 static struct ofw_compat_data compat_data[] = {
@@ -180,7 +179,6 @@ tegra124_rev_sku_to_speedo_ids(struct tegra_efuse_softc *sc,
 	}
 }
 
-
 static void
 tegra124_init_speedo(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku)
 {
@@ -228,12 +226,10 @@ tegra124_init_speedo(struct tegra_efuse_softc *sc, struct tegra_sku_info *sku)
 
 uint32_t
 tegra_fuse_read_4(int addr) {
-
 	if (dev_sc == NULL)
 		panic("tegra_fuse_read_4 called too early");
 	return (RD4(dev_sc, addr));
 }
-
 
 static void
 tegra_efuse_dump_sku(void)

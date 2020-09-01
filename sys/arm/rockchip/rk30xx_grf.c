@@ -129,4 +129,3 @@ rk30_grf_gpio_pud(uint32_t bank, uint32_t pin, uint32_t state)
 	pin = (7 - (pin % 8)) * 2;
 	grf_write_4(rk30_grf_sc, offset, (0x3 << (16 + pin)) | (state << pin));
 }
-

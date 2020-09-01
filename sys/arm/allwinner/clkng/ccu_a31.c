@@ -608,7 +608,6 @@ NM_CLK(spi3_clk,
     31,						/* gate */
     AW_CLK_HAS_GATE | AW_CLK_HAS_MUX);		/* flags */
 
-
 static const char *daudio_parents[] = {"pll_audio-8x", "pll_audio-4x", "pll_audio-2x", "pll_audio"};
 MUX_CLK(daudio0mux_clk,
     0,

@@ -131,7 +131,6 @@ struct mv_cp110_clock_softc {
 	struct mtx		mtx;
 };
 
-
 static struct ofw_compat_data compat_data[] = {
 	{"marvell,cp110-clock", 1},
 	{NULL,             0}

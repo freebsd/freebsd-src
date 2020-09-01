@@ -105,9 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/broadcom/bcm2835/bcm2835_mbox_prop.h>
 #include "bcm2835_vcbus.h"
 
-
 /* #define SDHOST_DEBUG */
-
 
 /* Registers */
 #define HC_COMMAND		0x00	/* Command and flags */
@@ -233,7 +231,6 @@ static void bcm_sdhost_intr(void *);
 
 static int bcm_sdhost_get_ro(device_t, device_t);
 
-
 static inline uint32_t
 RD4(struct bcm_sdhost_softc *sc, bus_size_t off)
 {
@@ -301,7 +298,6 @@ bcm_sdhost_print_regs(struct bcm_sdhost_softc *sc, struct sdhci_slot *slot,
 {
 
 	if (bcm2835_sdhost_debug > 0 || error > 0) {
-
 		printf("%s: sc=%p slot=%p\n",
 		    __func__, sc, slot);
 		printf("HC_COMMAND:        0x%08x\n",
@@ -334,7 +330,6 @@ bcm_sdhost_print_regs(struct bcm_sdhost_softc *sc, struct sdhci_slot *slot,
 		    RD4(sc, HC_BLOCKCOUNT));
 
 	} else {
-
 		/*
 		printf("%04d | HC_COMMAND: 0x%08x HC_ARGUMENT: 0x%08x "
 		    "HC_HOSTSTATUS: 0x%08x HC_HOSTCONFIG: 0x%08x\n",

@@ -282,7 +282,6 @@ static device_method_t ti_scm_syscon_methods[] = {
 	DEVMETHOD_END
 };
 
-
 DEFINE_CLASS_1(ti_scm_syscon, ti_scm_syscon_driver, ti_scm_syscon_methods,
     sizeof(struct ti_scm_syscon_softc), simplebus_driver);
 

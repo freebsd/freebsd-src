@@ -328,4 +328,3 @@ static devclass_t imx_iomux_devclass;
 
 EARLY_DRIVER_MODULE(imx_iomux, simplebus, imx_iomux_driver, 
     imx_iomux_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_LATE);
-

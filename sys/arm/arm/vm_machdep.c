@@ -148,7 +148,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	tf->tf_r0 = 0;
 	tf->tf_r1 = 0;
 
-
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;
