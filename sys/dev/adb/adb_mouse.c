@@ -107,7 +107,6 @@ static device_method_t adb_mouse_methods[] = {
 
 	/* ADB interface */
 	DEVMETHOD(adb_receive_packet,	adb_mouse_receive_packet),
-
 	{ 0, 0 }
 };
 
@@ -145,7 +144,7 @@ adb_mouse_probe(device_t dev)
 	device_set_desc(dev,"ADB Mouse");
 	return (0);
 }
-	
+
 static int 
 adb_mouse_attach(device_t dev) 
 {
@@ -509,13 +508,11 @@ ams_read(struct cdev *dev, struct uio *uio, int flag)
 	if (!sc->packet_read_len) {
 		if (sc->xdelta == 0 && sc->ydelta == 0 && 
 		   sc->buttons == sc->last_buttons) {
-
 			if (flag & O_NONBLOCK) {
 				mtx_unlock(&sc->sc_mtx);
 				return EWOULDBLOCK;
 			}
 
-	
 			/* Otherwise, block on new data */
 			error = cv_wait_sig(&sc->sc_cv, &sc->sc_mtx);
 			if (error) {
@@ -557,7 +554,6 @@ ams_read(struct cdev *dev, struct uio *uio, int flag)
 
 		sc->packet[7] = ~((uint8_t)(sc->buttons >> 3)) & 0x7f;
 
-
 		sc->last_buttons = sc->buttons;
 		sc->xdelta = 0;
 		sc->ydelta = 0;
@@ -578,7 +574,6 @@ ams_read(struct cdev *dev, struct uio *uio, int flag)
 
 	return (error);
 }
-
 
 static int
 ams_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, 
@@ -616,12 +611,12 @@ ams_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			sc->mode.packetsize = 5;
 			break;
 		}
-	
+
 		return EINVAL;
 	case MOUSE_GETLEVEL:
 		*(int *)addr = sc->mode.level;
 		break;
-	
+
 	case MOUSE_GETSTATUS: {
 		mousestatus_t *status = (mousestatus_t *) addr;
 
@@ -646,7 +641,6 @@ ams_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		sc->last_buttons = sc->buttons;
 
 		mtx_unlock(&sc->sc_mtx);
-
 		break; }
 	default:
 		return ENOTTY;
