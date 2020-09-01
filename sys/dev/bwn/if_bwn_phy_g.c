@@ -1689,7 +1689,6 @@ bwn_wa_grev1(struct bwn_mac *mac)
 			bwn_ofdmtab_write_2(mac, BWN_OFDMTAB_AGC2, i,
 			    bwn_tab_noise_g2[i]);
 
-
 	for (i = 0; i < N(bwn_tab_rotor); i++)
 		bwn_ofdmtab_write_4(mac, BWN_OFDMTAB_ROTOR, i,
 		    bwn_tab_rotor[i]);
