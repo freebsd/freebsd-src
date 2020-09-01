@@ -236,7 +236,6 @@ struct winbond_vendor_device_id {
 	},
 };
 
-
 /*
  * Return the watchdog related registers as we last read them.  This will
  * usually not give the current timeout or state on whether the watchdog
