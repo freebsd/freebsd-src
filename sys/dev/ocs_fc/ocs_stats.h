@@ -36,7 +36,6 @@
  *
  */
 
-
 #if !defined(__OCS_STATS_H__)
 #define __OCS_STATS_H__
 

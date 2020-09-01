@@ -70,7 +70,6 @@ typedef struct {
 	uint32_t num_pairs;
 } ocs_hw_mrq_t;
 
-
 #define MAX_TOKENS			256
 #define OCS_HW_MAX_QTOP_ENTRIES	200
 

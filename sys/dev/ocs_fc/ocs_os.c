@@ -920,7 +920,6 @@ ocs_get_num_cpus(void)
 	return cpuinfo.num_cpus;
 }
 
-
 void
 __ocs_callout(void *t)
 {

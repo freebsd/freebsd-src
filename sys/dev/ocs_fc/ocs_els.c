@@ -68,7 +68,6 @@ static ocs_io_t *ocs_els_abort_io(ocs_io_t *els, int send_abts);
 static void _ocs_els_io_free(void *arg);
 static void ocs_els_delay_timer_cb(void *arg);
 
-
 /**
  * @ingroup els_api
  * @brief ELS state machine transition wrapper.
@@ -355,7 +354,6 @@ ocs_els_make_active(ocs_io_t *els)
 				ocs_unlock(&node->active_ios_lock);
 				return;
 			} else {
-
 				/* remove from pending list */
 				ocs_list_remove(&node->els_io_pend_list, els);
 				els->els_pend = 0;
@@ -506,7 +504,6 @@ ocs_els_req_cb(ocs_hw_io_t *hio, ocs_remote_node_t *rnode, uint32_t length, int3
 		ocs_els_post_event(els, OCS_EVT_SRRS_ELS_REQ_RJT, &cbdata);
 		break;
 
-
 	case SLI4_FC_WCQE_STATUS_LOCAL_REJECT:
 		switch (ext_status) {
 		case SLI4_FC_LOCAL_REJECT_SEQUENCE_TIMEOUT:
@@ -647,7 +644,6 @@ ocs_send_plogi(ocs_node_t *node, uint32_t timeout_sec, uint32_t retries,
 		els->iparam.els.timeout = timeout_sec;
 
 		ocs_io_transition(els, __ocs_els_init, NULL);
-
 	}
 	return els;
 }
@@ -908,7 +904,6 @@ ocs_send_logo(ocs_node_t *node, uint32_t timeout_sec, uint32_t retries,
 	ocs_t *ocs;
 	fc_logo_payload_t *logo;
 	fc_plogi_payload_t *sparams;
-
 
 	ocs = node->ocs;
 
@@ -1305,7 +1300,7 @@ ocs_send_plogi_acc(ocs_io_t *io, uint32_t ox_id, els_cb_t cb, void *cbarg)
 	ocs_memcpy(plogi, node->sport->service_params, sizeof(*plogi));
 	plogi->command_code = FC_ELS_CMD_ACC;
 	plogi->resv1 = 0;
-	
+
 	/* Set Application header support bit if requested */
 	if (req->common_service_parameters[1] & ocs_htobe32(1U << 24)) {
 		plogi->common_service_parameters[1] |= ocs_htobe32(1U << 24);
@@ -1724,7 +1719,6 @@ ocs_ns_send_rftid(ocs_node_t *node, uint32_t timeout_sec, uint32_t retries,
 	if (els == NULL) {
 		ocs_log_err(ocs, "IO alloc failed\n");
 	} else {
-
 		els->iparam.fc_ct.r_ctl = FC_RCTL_ELS;
 		els->iparam.fc_ct.type = FC_TYPE_GS;
 		els->iparam.fc_ct.df_ctl = 0;
@@ -1777,7 +1771,6 @@ ocs_ns_send_rffid(ocs_node_t *node, uint32_t timeout_sec, uint32_t retries,
 	if (els == NULL) {
 		ocs_log_err(ocs, "IO alloc failed\n");
 	} else {
-
 		els->iparam.fc_ct.r_ctl = FC_RCTL_ELS;
 		els->iparam.fc_ct.type = FC_TYPE_GS;
 		els->iparam.fc_ct.df_ctl = 0;
@@ -1807,7 +1800,6 @@ ocs_ns_send_rffid(ocs_node_t *node, uint32_t timeout_sec, uint32_t retries,
 	}
 	return els;
 }
-
 
 /**
  * @ingroup els_api
@@ -1839,7 +1831,6 @@ ocs_ns_send_gidpt(ocs_node_t *node, uint32_t timeout_sec, uint32_t retries,
 	if (els == NULL) {
 		ocs_log_err(ocs, "IO alloc failed\n");
 	} else {
-
 		els->iparam.fc_ct.r_ctl = FC_RCTL_ELS;
 		els->iparam.fc_ct.type = FC_TYPE_GS;
 		els->iparam.fc_ct.df_ctl = 0;
@@ -2102,7 +2093,6 @@ ocs_els_abort_io(ocs_io_t *els, int send_abts)
 	return abort_io;
 }
 
-
 /*
  * ELS IO State Machine
  */
@@ -2125,7 +2115,6 @@ ocs_els_abort_io(ocs_io_t *els, int send_abts)
 			ocs_log_info(ocs, "[%s] %-8s %-20s %-20s\n", node->display_name, els->display_name, \
 				__func__, ocs_sm_event_name(evt)); \
 	} while (0)
-
 
 /**
  * @brief Cleanup an ELS IO
@@ -2159,7 +2148,6 @@ ocs_els_io_cleanup(ocs_io_t *els, ocs_sm_event_t node_evt, void *arg)
 	}
 	els->els_req_free = 1;
 }
-
 
 /**
  * @brief Common event handler for the ELS IO state machine.
@@ -2650,7 +2638,6 @@ ocs_ddump_els(ocs_textbuf_t *textbuf, ocs_io_t *els)
 	ocs_ddump_endsection(textbuf, "els", -1);
 }
 
-
 /**
  * @brief return TRUE if given ELS list is empty (while taking proper locks)
  *
@@ -2743,7 +2730,6 @@ ocs_send_ct_rsp(ocs_io_t *io, uint32_t ox_id, fcct_iu_header_t *ct_hdr, uint32_t
 	}
 	return 0;
 }
-
 
 /**
  * @brief Handle delay retry timeout

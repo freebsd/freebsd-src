@@ -47,7 +47,6 @@
 #define OCS_FC_RQ_SIZE_DEFAULT			1024
 #endif
 
-
 /***************************************************************************
  * IO Configuration
  */
@@ -58,7 +57,6 @@
 #ifndef OCS_FC_MAX_SGL
 #define OCS_FC_MAX_SGL		128
 #endif
-
 
 /***************************************************************************
  * DIF Configuration

@@ -434,7 +434,6 @@ sli_dump_bmbx_command(sli4_t *sli4, void *mbx, const char *prefix)
 					ocs_addr32_hi(sli4->bmbx_non_emb_pmd->phys),
 					ocs_addr32_lo(sli4->bmbx_non_emb_pmd->phys));
 			}
-
 		}
 	} else {
 		/* not an SLI_CONFIG command, just display first 64 bytes, like we do
@@ -1390,7 +1389,6 @@ sli_cmd_sli_config(sli4_t *sli4, void *buf, size_t size, uint32_t length, ocs_dm
 		/* save pointer to DMA for BMBX dumping purposes */
 		sli4->bmbx_non_emb_pmd = dma;
 #endif
-
 	}
 
 	return offsetof(sli4_cmd_sli_config_t, payload.embed);
@@ -1607,7 +1605,6 @@ sli_cmd_unreg_vpi(sli4_t *sli4, void *buf, size_t size, uint16_t indicator, uint
 	return sizeof(sli4_cmd_unreg_vpi_t);
 }
 
-
 /**
  * @ingroup sli
  * @brief Write an CONFIG_AUTO_XFER_RDY command to the provided buffer.
@@ -1764,7 +1761,6 @@ sli_cmd_common_create_cq(sli4_t *sli4, void *buf, size_t size,
 		ocs_log_test(sli4->os, "unsupported IF_TYPE %d\n", if_type);
 		return -1;
 	}
-
 
 	/* now that we have the mailbox command size, we can set SLI_CONFIG fields */
 	if (SLI4_PORT_TYPE_FC == sli4->port_type) {
@@ -2030,7 +2026,6 @@ sli_cmd_common_create_eq(sli4_t *sli4, void *buf, size_t size, ocs_dma_t *qmem,
 	return(sli_config_off + sizeof(sli4_req_common_create_eq_t));
 }
 
-
 /**
  * @brief Write a COMMON_DESTROY_EQ command.
  *
@@ -2102,7 +2097,7 @@ sli4_cmd_lowlevel_set_watchdog(sli4_t *sli4, void *buf, size_t size, uint16_t ti
 	req->hdr.subsystem = SLI4_SUBSYSTEM_LOWLEVEL;
 	req->hdr.request_length = sizeof(sli4_req_lowlevel_set_watchdog_t) - sizeof(sli4_req_hdr_t);
 	req->watchdog_timeout = timeout;
-	
+
 	return;
 }
 
@@ -2484,7 +2479,6 @@ sli_cmd_common_get_port_name(sli4_t *sli4, void *buf, size_t size)
 	return sli_config_off + port_name->hdr.request_length;
 }
 
-
 /**
  * @ingroup sli
  * @brief Write a COMMON_WRITE_OBJECT command.
@@ -2541,10 +2535,8 @@ sli_cmd_common_write_object(sli4_t *sli4, void *buf, size_t size,
 	host_buffer->u.data.buffer_address_low = ocs_addr32_lo(dma->phys);
 	host_buffer->u.data.buffer_address_high = ocs_addr32_hi(dma->phys);
 
-
 	return(sli_config_off + sizeof(sli4_req_common_write_object_t) + sizeof (sli4_bde_t));
 }
-
 
 /**
  * @ingroup sli
@@ -2638,7 +2630,6 @@ sli_cmd_common_read_object(sli4_t *sli4, void *buf, size_t size,
 		host_buffer->u.data.buffer_address_low = 0;
 		host_buffer->u.data.buffer_address_high = 0;
 	}
-
 
 	return(sli_config_off + sizeof(sli4_req_common_read_object_t) + sizeof (sli4_bde_t));
 }
@@ -2739,7 +2730,6 @@ sli_cmd_common_set_dump_location(sli4_t *sli4, void *buf, size_t size,
 
 	return(sli_config_off + sizeof(sli4_req_common_set_dump_location_t));
 }
-
 
 /**
  * @ingroup sli
@@ -3094,7 +3084,6 @@ sli_cmd_common_set_reconfig_link_id(sli4_t *sli4, void *buf, size_t size, ocs_dm
         return(cmd_off + sizeof(sli4_req_common_set_reconfig_link_id_t));
 }
 
-
 /**
  * @ingroup sli
  * @brief Check the mailbox/queue completion entry.
@@ -3237,7 +3226,6 @@ sli_common_function_reset(sli4_t *sli4)
 
 	return 0;
 }
-
 
 /**
  * @brief check to see if the FW is ready.
@@ -3586,7 +3574,6 @@ sli_query_fw_config(sli4_t *sli4)
 	}
 	return 0;
 }
-
 
 static int32_t
 sli_get_config(sli4_t *sli4)
@@ -4584,14 +4571,12 @@ sli_queue_alloc(sli4_t *sli4, uint32_t qtype, sli4_queue_t *q, uint32_t n_entrie
 		return -1;
 	}
 
-
 	if (__sli_queue_init(sli4, q, qtype, size, n_entries, align)) {
 		ocs_log_err(sli4->os, "%s allocation failed\n", SLI_QNAME[qtype]);
 		return -1;
 	}
 
 	if (create(sli4, sli4->bmbx.virt, SLI4_BMBX_SIZE, &q->dma, assoc ? assoc->id : 0, ulp)) {
-
 		if (__sli_create_queue(sli4, q)) {
 			ocs_log_err(sli4->os, "create %s failed\n", SLI_QNAME[qtype]);
 			return -1;
@@ -4604,7 +4589,6 @@ sli_queue_alloc(sli4_t *sli4, uint32_t qtype, sli4_queue_t *q, uint32_t n_entrie
 
 	return 0;
 }
-
 
 /**
  * @ingroup sli
@@ -4762,8 +4746,6 @@ error:
 
 	return -1;
 }
-
-
 
 /**
  * @ingroup sli
@@ -5017,7 +4999,6 @@ _sli_queue_write(sli4_t *sli4, sli4_queue_t *q, uint8_t *entry)
 		case SLI_QTYPE_WQ: {
 			ocs_dump32(OCS_DEBUG_ENABLE_WQ_DUMP, sli4->os, "wqe", entry, q->size);
 			break;
-
 		}
 		case SLI_QTYPE_MQ:
 			/* Note: we don't really need to dump the whole 
@@ -6602,7 +6583,6 @@ sli_els_request64_wqe(sli4_t *sli4, void *buf, size_t size, ocs_dma_t *sgl, uint
 	return 0;
 }
 
-
 /**
  * @ingroup sli_fc
  * @brief Write an FCP_ICMND64_WQE work queue entry.
@@ -6785,7 +6765,6 @@ sli_fcp_iread64_wqe(sli4_t *sli4, void *buf, size_t size, ocs_dma_t *sgl, uint32
 
 	return  0;
 }
-
 
 /**
  * @ingroup sli_fc
@@ -7450,7 +7429,6 @@ sli_send_frame_wqe(sli4_t *sli4, void *buf, size_t size, uint8_t sof, uint8_t eo
 	sf->pu = 0;
 	sf->context_tag = 0;
 
-
 	sf->ct = 0;
 	sf->command = SLI4_WQE_SEND_FRAME;
 	sf->class = SLI4_ELS_REQUEST64_CLASS_3;
@@ -8039,7 +8017,6 @@ sli_fc_cqe_parse(sli4_t *sli4, sli4_queue_t *cq, uint8_t *cqe, sli4_qentry_e *et
 
 		/* Flag errors except for FCP_RSP_FAILURE */
 		if (rc && (rc != SLI4_FC_WCQE_STATUS_FCP_RSP_FAILURE)) {
-
 			ocs_log_test(sli4->os, "WCQE: status=%#x hw_status=%#x tag=%#x w1=%#x w2=%#x xb=%d\n",
 				wcqe->status, wcqe->hw_status,
 				wcqe->request_tag, wcqe->wqe_specific_1,
@@ -8449,7 +8426,6 @@ sli_fc_rq_alloc(sli4_t *sli4, sli4_queue_t *q,
 	return 0;
 }
 
-
 /**
  * @ingroup sli_fc
  * @brief Allocate a receive queue set.
@@ -8536,7 +8512,6 @@ sli_fc_rq_set_alloc(sli4_t *sli4, uint32_t num_rq_pairs,
 		ocs_log_crit(sli4->os, "bootstrap mailbox write faild RQSet\n");
 		goto error;
 	}
-
 
 	rsp = (void *)((uint8_t *)dma.virt);
 	if (rsp->hdr.status) {

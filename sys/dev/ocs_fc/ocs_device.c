@@ -246,7 +246,6 @@ __ocs_d_common(const char *funcname, ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void
 	ocs_assert(ocs, NULL);
 
 	switch(evt) {
-
 	/* Handle shutdown events */
 	case OCS_EVT_SHUTDOWN:
 		ocs_log_debug(ocs, "[%s] %-20s %-20s\n", node->display_name, funcname, ocs_sm_event_name(evt));
@@ -315,9 +314,6 @@ __ocs_d_wait_loop(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 	return NULL;
 }
 
-
-
-
 /**
  * @ingroup device_sm
  * @brief state: wait for node resume event
@@ -383,7 +379,6 @@ __ocs_d_wait_del_ini_tgt(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 
 	return NULL;
 }
-
 
 /**
  * @ingroup device_sm
@@ -454,8 +449,6 @@ __ocs_d_wait_del_node(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 
 	return NULL;
 }
-
-
 
 /**
  * @brief Save the OX_ID for sending LS_ACC sometime later.
@@ -535,7 +528,6 @@ ocs_process_abts(ocs_io_t *io, fc_header_t *hdr)
 
 	/* If an IO was found, attempt to take a reference on it */
 	if (abortio != NULL && (ocs_ref_get_unless_zero(&abortio->ref) != 0)) {
-
 		/* Got a reference on the IO. Hold it until backend is notified below */
 		node_printf(node, "Abort request: ox_id [%04x] rx_id [%04x]\n",
 			    ox_id, rx_id);
@@ -677,7 +669,6 @@ __ocs_d_wait_logo_rsp(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 	return NULL;
 }
 
-
 /**
  * @ingroup device_sm
  * @brief Device node state machine: Wait for the PRLO response.
@@ -723,7 +714,6 @@ __ocs_d_wait_prlo_rsp(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 	}
 	return NULL;
 }
-
 
 /**
  * @brief Initialize device node.
@@ -1654,13 +1644,12 @@ __ocs_d_device_ready(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 		break;
 	}
 
-
 	case OCS_EVT_PDISC_RCVD: {
 		fc_header_t *hdr = cbdata->header->dma.virt;
 		ocs_send_plogi_acc(cbdata->io, ocs_be16toh(hdr->ox_id), NULL, NULL);
 		break;
 	}
-	
+
 	case OCS_EVT_PRLI_RCVD: {
 		/* T, I+T: remote initiator is slow to get started */
 		fc_header_t *hdr = cbdata->header->dma.virt;
@@ -1808,7 +1797,6 @@ __ocs_d_device_gone(ocs_sm_ctx_t *ctx, ocs_sm_event_t evt, void *arg)
 		default:
 			rc = OCS_SCSI_CALL_COMPLETE;
 			break;
-
 		}
 
 		if ((rc == OCS_SCSI_CALL_COMPLETE) && (rc_2 == OCS_SCSI_CALL_COMPLETE)) {

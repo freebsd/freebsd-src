@@ -132,7 +132,7 @@ ocs_attach_port(ocs_t *ocs, int chan)
 		cam_sim_free(sim, FALSE);
 		return 1;
 	}
-	
+
 	fcp->ocs = ocs;
 	fcp->sim  = sim;
 	fcp->path = path;
@@ -171,7 +171,7 @@ ocs_detach_port(ocs_t *ocs, int32_t chan)
 			fcp->sim = NULL;
 		mtx_unlock(&ocs->sim_lock);
 	}
-	
+
 	return 0;
 }
 
@@ -199,7 +199,7 @@ ocs_cam_attach(ocs_t *ocs)
 			goto detach_port;
 		}
 	}
-	
+
 	ocs->io_high_watermark = max_io;
 	ocs->io_in_use = 0;
 	return 0;
@@ -322,7 +322,6 @@ void
 ocs_scsi_tgt_del_domain(ocs_domain_t *domain)
 {
 }
-
 
 /**
  * @ingroup scsi_api_target
@@ -493,7 +492,6 @@ ocs_scsi_del_initiator(ocs_node_t *node, ocs_scsi_del_initiator_reason_e reason)
 	adc->arrived = 0;
 	xpt_async(AC_CONTRACT, fcp->path, &ac);
 
-
 	if (reason == OCS_SCSI_INITIATOR_MISSING) {
 		return OCS_SCSI_CALL_COMPLETE;
 	}
@@ -566,7 +564,6 @@ int32_t ocs_scsi_recv_cmd(ocs_io_t *io, uint64_t lun, uint8_t *cdb,
 	}
 
 	if (atio) {
-
 		STAILQ_REMOVE_HEAD(&trsrc->atio, sim_links.stqe);
 
 		atio->ccb_h.status = CAM_CDB_RECVD;
@@ -699,7 +696,6 @@ int32_t ocs_scsi_recv_tmf(ocs_io_t *tmfio, uint64_t lun, ocs_scsi_tmf_cmd_e cmd,
 		goto ocs_scsi_recv_tmf_out;
 	}
 
-
 	tmfio->tgt_io.app = abortio;
 
 	STAILQ_REMOVE_HEAD(&trsrc->inot, sim_links.stqe);
@@ -773,7 +769,7 @@ int32_t ocs_scsi_recv_tmf(ocs_io_t *tmfio, uint64_t lun, ocs_scsi_tmf_cmd_e cmd,
 		abortio->tgt_io.flags |= OCS_CAM_IO_F_ABORT_DEV;
 		rc = ocs_scsi_tgt_abort_io(abortio, ocs_io_abort_cb, tmfio);
 	}
-	
+
 ocs_scsi_recv_tmf_out:
 	return rc;
 }
@@ -812,7 +808,6 @@ ocs_scsi_ini_del_device(ocs_t *ocs)
 
 	return 0;
 }
-
 
 /**
  * @ingroup scsi_api_initiator
@@ -959,7 +954,7 @@ ocs_tgt_find(ocs_fcport *fcp, ocs_node_t *node)
 {
 	ocs_fc_target_t *tgt = NULL;
 	uint32_t i;
-	
+
 	for (i = 0; i < OCS_MAX_TARGETS; i++) {
 		tgt = &fcp->tgt[i];
 
@@ -970,7 +965,7 @@ ocs_tgt_find(ocs_fcport *fcp, ocs_node_t *node)
 			return i;
 		}
 	}
-	
+
 	return -1;
 }
 
@@ -996,12 +991,12 @@ uint32_t
 ocs_update_tgt(ocs_node_t *node, ocs_fcport *fcp, uint32_t tgt_id)
 {
 	ocs_fc_target_t *tgt = NULL;
-	
+
 	tgt = &fcp->tgt[tgt_id];
 
 	tgt->node_id = node->instance_index;
 	tgt->state = OCS_TGT_STATE_VALID;
-	
+
 	tgt->port_id = node->rnode.fc_id;
 	tgt->wwpn = ocs_node_get_wwpn(node);
 	tgt->wwnn = ocs_node_get_wwnn(node);
@@ -1052,7 +1047,7 @@ ocs_scsi_new_target(ocs_node_t *node)
 	}
 
 	i = ocs_tgt_find(fcp, node);
-	
+
 	if (i < 0) {
 		ocs_add_new_tgt(node, fcp);
 		return 0;
@@ -1071,7 +1066,7 @@ ocs_delete_target(ocs_t *ocs, ocs_fcport *fcp, int tgt)
 		device_printf(ocs->dev, "%s: calling with NULL sim\n", __func__); 
 		return;
 	}
-	
+
 	if (CAM_REQ_CMP == xpt_create_path(&cpath, NULL, cam_sim_path(fcp->sim),
 				tgt, CAM_LUN_WILDCARD)) {
 		xpt_async(AC_LOST_DEVICE, cpath, NULL);
@@ -1189,14 +1184,13 @@ ocs_scsi_del_target(ocs_node_t *node, ocs_scsi_del_target_reason_e reason)
 	if(!ocs->attached) {
 		ocs_delete_target(ocs, fcp, tgt_id);
 	} else {
-	
 		tgt->state = OCS_TGT_STATE_LOST;
 		tgt->gone_timer = 30;
 		if (!callout_active(&fcp->ldt)) {
 			callout_reset(&fcp->ldt, hz, ocs_ldt, fcp);
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -1742,7 +1736,6 @@ ocs_target_io(struct ocs_softc *ocs, union ccb *ccb)
 					" are 0 \n", __func__);
 		ocs_set_ccb_status(ccb, CAM_REQ_INVALID);
 		rc = 1;
-
 	}
 
 	if (rc) {
@@ -1917,7 +1910,7 @@ ocs_fcp_change_role(struct ocs_softc *ocs, ocs_fcport *fcp, uint32_t new_role)
 		
 		return 0;
 	}
-	
+
 	if ((fcp->role != KNOB_ROLE_NONE)){
 		fcp->role = new_role;
 		vport->enable_ini = (new_role & KNOB_ROLE_INITIATOR)? 1:0;
@@ -1927,7 +1920,7 @@ ocs_fcp_change_role(struct ocs_softc *ocs, ocs_fcport *fcp, uint32_t new_role)
 	}
 
 	fcp->role = new_role;
-	
+
 	vport->enable_ini = (new_role & KNOB_ROLE_INITIATOR)? 1:0;
 	vport->enable_tgt = (new_role & KNOB_ROLE_TARGET)? 1:0;
 
@@ -2617,7 +2610,7 @@ ocs_abort_atio(struct ocs_softc *ocs, union ccb *ccb)
 	aio->tgt_io.flags |= OCS_CAM_IO_F_ABORT_CAM;
 	ocs_target_io_free(aio);
 	ocs_set_ccb_status(ccb, CAM_REQ_CMP);
-	
+
 	return;
 }
 
@@ -2808,7 +2801,7 @@ ocs_get_crn(ocs_node_t *node, uint8_t *crn, uint64_t lun)
 	if (lcrn->lun != lun) {
 		return (1);
 	}	
-	
+
 	if (lcrn->crnseed == 0)
 		lcrn->crnseed = 1;
 
@@ -2821,7 +2814,7 @@ ocs_del_crn(ocs_node_t *node)
 {
 	uint32_t i;
 	struct ocs_lun_crn *lcrn = NULL;
-	
+
 	for(i = 0; i < OCS_MAX_LUN; i++) {
 		lcrn = node->ini_node.lun_crn[i];
 		if (lcrn) {

@@ -45,7 +45,6 @@
 #include "ocs_fabric.h"
 #include "ocs_device.h"
 
-
 #define frame_printf(ocs, hdr, fmt, ...) \
 	do { \
 		char s_id_text[16]; \
@@ -124,7 +123,6 @@ ocs_unsol_abort_cb (ocs_hw_io_t *hio, ocs_remote_node_t *rnode, uint32_t len, in
 	ocs_hw_io_free(&ocs->hw, hio);
 	return 0;
 }
-
 
 /**
  * @ingroup unsol
@@ -556,7 +554,6 @@ ocs_domain_accept_frames(ocs_domain_t *domain)
 	xport_fcfi->hold_frames = 0;
 	ocs_domain_process_pending(domain);
 }
-
 
 /**
  * @ingroup unsol
@@ -1137,7 +1134,6 @@ ocs_dispatch_fcp_data(ocs_node_t *node, ocs_hw_sequence_t *seq)
 	ocs_hw_sequence_free(&ocs->hw, seq);
 	return 0;
 }
-
 
 /**
  * @ingroup unsol

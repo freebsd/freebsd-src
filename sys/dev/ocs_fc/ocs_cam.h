@@ -42,7 +42,6 @@
 
 #include <cam/scsi/scsi_message.h>
 
-
 #define ccb_ocs_ptr     spriv_ptr0
 #define ccb_io_ptr      spriv_ptr1
 
@@ -119,4 +118,3 @@ extern int32_t ocs_cam_attach(ocs_t *ocs);
 extern int32_t ocs_cam_detach(ocs_t *ocs);
 
 #endif /* __OCS_CAM_H__ */
-

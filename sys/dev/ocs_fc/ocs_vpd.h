@@ -174,7 +174,6 @@ ocs_find_vpd(uint8_t *vpddata, uint32_t vpddata_length, const char *key)
 					}
 				/* check for "RV" end */
 				} else if ('R' == rc0 && 'V' == rc1) {
-
 					/* Read the checksum */
 					for (i = 0; i < sublen; i++) {
 						vpdnext(&vpdbuf);
