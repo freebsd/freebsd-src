@@ -37,7 +37,6 @@
 #include "../if_medium.h"
 #include "../wtap_hal/hal.h"
 
-
 struct wtap_plugin {
 	struct cdev	*wp_sdev;
 	struct wtap_hal	*wp_hal;
@@ -47,4 +46,3 @@ struct wtap_plugin {
 };
 
 #endif
-

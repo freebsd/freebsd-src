@@ -70,11 +70,9 @@
 
 #include <net/bpf.h>
 
-
 #include <sys/errno.h>
 #include <sys/conf.h>   /* cdevsw struct */
 #include <sys/uio.h>    /* uio struct */
-
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
@@ -131,7 +129,6 @@ wtap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 	CURVNET_RESTORE();
 	return error;
 }
-
 
 /* The function called at load/unload. */
 static int

@@ -55,4 +55,3 @@ void visibility_deinit(struct wtap_plugin *);
 void visibility_work(struct wtap_plugin *, struct packet *);
 
 #endif
-
