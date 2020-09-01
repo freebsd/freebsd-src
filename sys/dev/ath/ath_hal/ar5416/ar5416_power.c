@@ -114,7 +114,7 @@ static void
 ar5416SetPowerModeNetworkSleep(struct ath_hal *ah, int setChip)
 {
 	OS_REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PWR_SAV);
-	
+
 	if (setChip)
 		OS_REG_CLR_BIT(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN);
 }

@@ -20,7 +20,7 @@
  */
 #ifndef _ATH_AR5416_CAL_H_
 #define _ATH_AR5416_CAL_H_
- 
+
 typedef enum {
 	ADC_DC_INIT_CAL	= 0x1,
 	ADC_GAIN_CAL	= 0x2,

@@ -223,7 +223,6 @@ ar5416AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 		return AH_FALSE;
 	}
 
-
 	switch (cmd) {
 	case HAL_ANI_NOISE_IMMUNITY_LEVEL: {
 		u_int level = param;
@@ -727,7 +726,7 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState;
 	const struct ar5212AniParams *params;
-	
+
 	HALASSERT(ANI_ENA(ah));
 
 	aniState = ahp->ah_curani;

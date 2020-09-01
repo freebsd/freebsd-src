@@ -708,7 +708,6 @@ ar5211Get11nExtBusy(struct ath_hal *ah)
 	return (0);
 }
 
-
 /*
  * There's no channel survey support for the AR5211.
  */

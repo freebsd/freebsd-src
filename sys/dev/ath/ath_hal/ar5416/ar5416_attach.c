@@ -721,7 +721,6 @@ ar5416SpurMitigate(struct ath_hal *ah, const struct ieee80211_channel *chan)
         SM(spur_delta_phase, AR_PHY_TIMING11_SPUR_DELTA_PHASE));
     OS_REG_WRITE(ah, AR_PHY_TIMING11, new);
 
-
     /*
      * ============================================
      * pilot mask 1 [31:0] = +6..-26, no 0 bin
@@ -893,7 +892,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	struct ath_hal_private *ahpriv = AH_PRIVATE(ah);
 	HAL_CAPABILITIES *pCap = &ahpriv->ah_caps;
 	uint16_t val;
-	
+
 	/* Construct wireless mode from EEPROM */
 	pCap->halWirelessModes = 0;
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_AMODE)) {

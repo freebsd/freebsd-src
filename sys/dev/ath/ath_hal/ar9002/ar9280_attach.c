@@ -434,7 +434,6 @@ ar9280ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 		OS_DELAY(1000);
 	}
 
-
 	/*
 	 * Set PCIe workaround bits
 	 *

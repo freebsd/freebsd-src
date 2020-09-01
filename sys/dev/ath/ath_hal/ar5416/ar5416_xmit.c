@@ -266,7 +266,6 @@ ar5416GetTxRatePower(struct ath_hal *ah, uint8_t rate, uint8_t tx_chainmask,
 	 */
 	if (AR_SREV_MERLIN_20_OR_LATER(ah) &&
 	    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) {
-
 		if (rate == 0x19 || rate == 0x1a || rate == 0x1b ||
 		    rate == (0x19 | 0x04) || rate == (0x1a | 0x04) ||
 		    rate == (0x1b | 0x04)) {
@@ -543,7 +542,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 
 	int isaggr = 0;
 	uint32_t last_aggr = 0;
-	
+
 	(void) hdrLen;
 	(void) ah;
 
@@ -613,7 +612,7 @@ ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	}
 	ds_txstatus[0] = ds_txstatus[1] = 0;
 	ds_txstatus[9] &= ~AR_TxDone;
-	
+
 	return AH_TRUE;
 }
 
@@ -631,7 +630,7 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	HALASSERT(isValidTxRate(txRate0));
 	HALASSERT((flags & RTSCTS) != RTSCTS);
 	/* XXX validate antMode */
-	
+
 	txPower = (txPower + ahp->ah_txPowerIndexOffset );
 	if(txPower > 63)  txPower=63;
 
@@ -646,7 +645,7 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel1)
 		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel2) 
 		| SM(AH5416(ah)->ah_tx_chainmask, AR_ChainSel3);
-	
+
 	/* NB: no V1 WAR */
 	ads->ds_ctl8 = SM(0, AR_AntCtl0);
 	ads->ds_ctl9 = SM(0, AR_AntCtl1) | SM(txPower, AR_XmitPower1);
@@ -673,7 +672,7 @@ ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		ads->ds_ctl10 = SM(0, AR_AntCtl2) | SM(0, AR_XmitPower2);
 		ads->ds_ctl11 = SM(0, AR_AntCtl3) | SM(0, AR_XmitPower3);
 	}
-	
+
 	return AH_TRUE;
 #undef RTSCTS
 }
@@ -1114,7 +1113,6 @@ ar5416GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *
 	return AH_TRUE;
 }
 
-
 /*
  * TX queue management routines - AR5416 and later chipsets
  */
@@ -1326,7 +1324,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 			  SM(qi->tqi_readyTime, AR_Q_RDYTIMECFG_INT)
 			| AR_Q_RDYTIMECFG_ENA);
 	}
-	
+
 	OS_REG_WRITE(ah, AR_DCHNTIME(q),
 		  SM(qi->tqi_burstTime, AR_D_CHNTIME_DUR)
 		| (qi->tqi_burstTime ? AR_D_CHNTIME_EN : 0));
@@ -1464,7 +1462,7 @@ ar5416ResetTxQueue(struct ath_hal *ah, u_int q)
 			     OS_REG_READ(ah, AR_Q0_MISC + 4*q)
 			     | AR_Q_MISC_QCU_COMP_EN);
 	}
-	
+
 	/*
 	 * Always update the secondary interrupt mask registers - this
 	 * could be a new queue getting enabled in a running system or

@@ -1307,7 +1307,7 @@ ath_tx_set_rtscts(struct ath_softc *sc, struct ath_buf *bf)
 	/* Squirrel away in ath_buf */
 	bf->bf_state.bfs_ctsrate = ctsrate;
 	bf->bf_state.bfs_ctsduration = ctsduration;
-	
+
 	/*
 	 * Must disable multi-rate retry when using RTS/CTS.
 	 */
@@ -1485,7 +1485,6 @@ ath_tx_should_swq_frame(struct ath_softc *sc, struct ath_node *an,
 		return (1);
 	}
 }
-
 
 /*
  * Transmit the given frame to the hardware.
@@ -2519,7 +2518,6 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-
 	/* Put the hardware back to sleep if required */
 	ATH_LOCK(sc);
 	ath_power_restore_power_state(sc);
@@ -2712,7 +2710,6 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
 	    tap->txa_start, tap->txa_wnd, index, cindex, tid->baw_head,
 	    tid->baw_tail);
-
 
 #if 0
 	assert(tid->tx_buf[cindex] == NULL);
@@ -3225,7 +3222,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		/* XXX TXQ locking */
 		if (txq->axq_depth + txq->fifo.axq_depth == 0) {
-
 			bf = ATH_TID_FIRST(atid);
 			ATH_TID_REMOVE(atid, bf, bf_list);
 
@@ -4312,7 +4308,6 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 	ath_tx_default_comp(sc, bf, 0);
 }
 
-
 /*
  * This as it currently stands is a bit dumb.  Ideally we'd just
  * fail the frame the normal way and have it permanently fail
@@ -5392,7 +5387,6 @@ ath_tx_tid_swq_depth_bytes(struct ath_softc *sc, struct ath_node *an,
 	 * ever queue more than that in a single frame.
 	 */
 	TAILQ_FOREACH(bf, &tid->tid_q, bf_list) {
-
 		/*
 		 * TODO: I'm not sure if we're going to hit cases where
 		 * no frames get sent because the list is empty.
@@ -5612,7 +5606,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			 * already points to the rest in the chain.
 			 */
 			ath_tx_setds_11n(sc, bf);
-
 		}
 	queuepkt:
 		/* Set completion handler, multi-frame aggregate or not */
@@ -5684,7 +5677,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		    __func__, tid->tid);
 
 	for (;;) {
-
 		/*
 		 * If the upper layers have paused the TID, don't
 		 * queue any further packets.
@@ -5916,7 +5908,6 @@ ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
  * Is AMPDU-TX pending for the given TID?
  */
 
-
 /*
  * Method to handle sending an ADDBA request.
  *
@@ -6043,7 +6034,6 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	ATH_TX_UNLOCK(sc);
 	return r;
 }
-
 
 /*
  * Stop ADDBA on a queue.

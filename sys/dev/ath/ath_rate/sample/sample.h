@@ -137,7 +137,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
 	struct ieee80211com *ic = &sc->sc_ic;
 	int rts, cts;
-	
+
 	unsigned t_slot = 20;
 	unsigned t_difs = 50; 
 	unsigned t_sifs = 10; 
@@ -145,7 +145,7 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	int x = 0;
 	int cw = WIFI_CW_MIN;
 	int cix;
-	
+
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
 	if (rix >= rt->rateCount) {

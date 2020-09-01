@@ -225,7 +225,7 @@ ar5212AniControl(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState = ahp->ah_curani;
 	const struct ar5212AniParams *params = AH_NULL;
-	
+
 	/*
 	 * This function may be called before there's a current
 	 * channel (eg to disable ANI.)
@@ -784,7 +784,7 @@ ar5212AniLowerImmunity(struct ath_hal *ah)
 	struct ath_hal_5212 *ahp = AH5212(ah);
 	struct ar5212AniState *aniState;
 	const struct ar5212AniParams *params;
-	
+
 	HALASSERT(ANI_ENA(ah));
 
 	aniState = ahp->ah_curani;

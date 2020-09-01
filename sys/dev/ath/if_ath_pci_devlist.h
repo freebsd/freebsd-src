@@ -663,7 +663,5 @@ static const struct pci_device_table ath_pci_id_table[] = {
 	/* PCI-E AR9565 (WB335) */
 	{ PCI_VDEVICE(PCI_VENDOR_ID_ATHEROS, 0x0036),
 	  .driver_data = ATH_PCI_BT_ANT_DIV },
-
 	{ 0 }
 };
-

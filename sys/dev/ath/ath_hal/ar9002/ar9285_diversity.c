@@ -77,7 +77,7 @@ ar9285SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 	/* Store settings */
 	AH5212(ah)->ah_antControl = settings;
 	AH5212(ah)->ah_diversity = (settings == HAL_ANT_VARIABLE);
-	
+
 	/* XXX don't fiddle if the PHY is in sleep mode or ! chan */
 
 	/* Begin setting the relevant registers */

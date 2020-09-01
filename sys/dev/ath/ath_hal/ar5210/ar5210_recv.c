@@ -50,7 +50,6 @@ ar5210SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE qtype)
 	OS_REG_WRITE(ah, AR_RXDP, rxdp);
 }
 
-
 /*
  * Set Receive Enable bits.
  */
