@@ -115,7 +115,7 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 		register_t *zero_ptr = &kdb_frame->zero;
 		return zero_ptr + regnum;
 	}
-	
+
 	switch (regnum) {
 	/* 
 	 * S0..S7

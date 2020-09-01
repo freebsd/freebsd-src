@@ -699,7 +699,7 @@ mipsNN_pdcache_wbinv_range_index_64(vm_offset_t va, vm_size_t size)
 		va += 64;
 	}
 }
- 
+
 void
 mipsNN_pdcache_inv_range_16(vm_offset_t va, vm_size_t size)
 {
@@ -845,12 +845,10 @@ mipsNN_icache_sync_range_index_128(vm_offset_t va, vm_size_t size)
 {
 }
 
-
 void
 mipsNN_pdcache_wbinv_all_128(void)
 {
 }
-
 
 void
 mipsNN_pdcache_wbinv_range_128(vm_offset_t va, vm_size_t size)
@@ -986,7 +984,6 @@ mipsNN_pdcache_wbinv_all_128(void)
 
 	SYNC;
 }
-
 
 void
 mipsNN_pdcache_wbinv_range_128(vm_offset_t va, vm_size_t size)

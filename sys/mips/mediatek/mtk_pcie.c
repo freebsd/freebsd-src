@@ -583,7 +583,6 @@ mtk_pci_teardown_intr(device_t dev, device_t child, struct resource *ires,
 	result = intr_event_remove_handler(cookie);
 	if (!result)
 		sc->sc_eventstab[irqidx] = NULL;
-	
 
 	return (result);
 }

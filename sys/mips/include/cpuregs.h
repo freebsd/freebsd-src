@@ -421,7 +421,6 @@
 #define	_(n)	n
 #endif
 
-
 #define	MIPS_COP_0_TLB_INDEX	_(0)
 #define	MIPS_COP_0_TLB_RANDOM	_(1)
 	/* Name and meaning of	TLB bits for $2 differ on r3k and r4k. */
@@ -498,7 +497,7 @@
 #define	MIPS_CONFIG0_MT_SHIFT	7
 #define	MIPS_CONFIG0_BE		0x00008000	/* data is big-endian */
 #define	MIPS_CONFIG0_VI		0x00000008	/* inst cache is virtual */
- 
+
 /*
  * Config1 Register Fields
  * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9-1)
@@ -619,7 +618,6 @@
 #define	MIPS_FPU_COND_BIT		0x00800000
 #define	MIPS_FPU_FLUSH_BIT		0x01000000	/* r4k,	 MBZ on r3k */
 #define	MIPS_FPC_MBZ_BITS		0xfe7c0000
-
 
 /*
  * Constants to determine if have a floating point instruction.

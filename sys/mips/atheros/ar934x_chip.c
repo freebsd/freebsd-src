@@ -286,7 +286,6 @@ ar934x_chip_ddr_flush(ar71xx_flush_ddr_id_t id)
 	}
 }
 
-
 static uint32_t
 ar934x_chip_get_eth_pll(unsigned int mac, int speed)
 {

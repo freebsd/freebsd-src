@@ -687,7 +687,7 @@ mtk_gpio_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	if (error != 0)
 		return (error);
-	
+
 	MTK_GPIO_LOCK(sc);
 	if (mode == GPIO_INTR_EDGE_BOTH || mode == GPIO_INTR_EDGE_RISING) {
 		val = MTK_READ_4(sc, GPIO_PIORENA) | (1u << irq);

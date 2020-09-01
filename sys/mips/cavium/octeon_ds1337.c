@@ -38,11 +38,6 @@
  *
  ***********************license end**************************************/
 
-
-
-
-
-
 /**
  * @file
  *
@@ -102,7 +97,6 @@ uint32_t cvmx_rtc_ds1337_read(void)
     uint8_t   sec;
     struct clocktime ct;
     struct timespec ts;
-
 
     memset(&reg, 0, sizeof(reg));
     memset(&ct, 0, sizeof(ct));

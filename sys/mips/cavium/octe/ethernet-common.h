@@ -4,7 +4,6 @@ SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -54,4 +53,3 @@ int cvm_oct_sgmii_init(struct ifnet *ifp);
 int cvm_oct_spi_init(struct ifnet *ifp);
 void cvm_oct_spi_uninit(struct ifnet *ifp);
 int cvm_oct_xaui_init(struct ifnet *ifp);
-

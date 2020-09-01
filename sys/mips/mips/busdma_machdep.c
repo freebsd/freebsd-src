@@ -605,7 +605,6 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 * an active address boundary.
 	 */
 	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
-
 		/* Must bounce */
 		struct bounce_zone *bz;
 		int maxpages;
@@ -1017,7 +1016,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	struct sync_list *sl;
 	vm_offset_t vaddr = (vm_offset_t)buf;
 	int error = 0;
-
 
 	if (segs == NULL)
 		segs = dmat->segments;

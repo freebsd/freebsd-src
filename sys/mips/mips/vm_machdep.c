@@ -560,7 +560,7 @@ DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
 		td = db_lookup_thread(addr, true);
 	else
 		td = curthread;
-	
+
 	pcb = td->td_pcb;
 
 	db_printf("Thread %d at %p\n", td->td_tid, td);
@@ -601,7 +601,7 @@ DB_SHOW_COMMAND(pcb, ddb_dump_pcb)
  */
 DB_SHOW_COMMAND(trapframe, ddb_dump_trapframe)
 {
-	
+
 	if (!have_addr)
 		return;
 

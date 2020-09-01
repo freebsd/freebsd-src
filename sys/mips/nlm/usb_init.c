@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/nlm/xlp.h>
 
-
 static void
 nlm_usb_intr_en(int node, int port)
 {

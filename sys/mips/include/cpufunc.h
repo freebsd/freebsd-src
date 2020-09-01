@@ -379,7 +379,7 @@ get_intr_mask(void)
 #if !defined(__mips_o32)
 #define	readq(a)	(*(volatile uint64_t *)(a))
 #endif
- 
+
 #define	writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
 #define	writew(va, d)	(*(volatile uint16_t *) (va) = (d))
 #define	writel(va, d)	(*(volatile uint32_t *) (va) = (d))

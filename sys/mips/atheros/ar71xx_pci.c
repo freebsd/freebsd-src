@@ -358,7 +358,6 @@ ar71xx_pci_slot_fixup(device_t dev, u_int bus, u_int slot, u_int func)
 			return;
 		}
 
-
 		device_printf(dev, "found EEPROM at 0x%lx on %d.%d.%d\n",
 		    flash_addr, bus, slot, func);
 		ar71xx_pci_fixup(dev, bus, slot, func, flash_addr, size);
@@ -660,7 +659,7 @@ static int
 ar71xx_pci_route_interrupt(device_t pcib, device_t device, int pin)
 {
 	struct ar71xx_pci_softc *sc = device_get_softc(pcib);
-	
+
 	if (pci_get_slot(device) < sc->sc_baseslot)
 		panic("%s: PCI slot %d is less then AR71XX_PCI_BASE_SLOT",
 		    __func__, pci_get_slot(device));

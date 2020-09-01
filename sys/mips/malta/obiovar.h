@@ -53,7 +53,7 @@ struct obio_softc {
 	int oba_irq;			/* XINT interrupt bit # */
 	struct rman oba_rman;
 	struct rman oba_irq_rman;
-	
+
 };
 extern struct bus_space obio_bs_tag;
 

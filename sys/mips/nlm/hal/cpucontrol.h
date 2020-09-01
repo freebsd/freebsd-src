@@ -81,7 +81,6 @@
 #define	MMU_PGWKR_PTESHFT	0x418
 #define	MMU_PGWKR_PTEMASK	0x419
 
-
 #if !defined(LOCORE) && !defined(__ASSEMBLY__)
 #if defined(__mips_n64) || defined(__mips_n32)
 static __inline uint64_t

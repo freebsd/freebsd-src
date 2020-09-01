@@ -192,7 +192,6 @@ static int	cf_send_cmd(uint32_t, uint8_t);
 /* Miscelenous */
 static void	cf_swap_ascii(unsigned char[], char[]);
 
-
 /* ------------------------------------------------------------------- *
  *                      cf_access()                                    *
  * ------------------------------------------------------------------- */
@@ -200,7 +199,6 @@ static int cf_access (struct g_provider *pp, int r, int w, int e)
 {
 	return (0);
 }
-
 
 /* ------------------------------------------------------------------- *
  *                      cf_start()                                     *
@@ -251,12 +249,10 @@ static void cf_start (struct bio *bp)
 	g_io_deliver(bp, 0);
 }
 
-
 static int cf_ioctl (struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread *td)
 {
 	return (0);
 }
-
 
 static uint8_t cf_inb_8(int port)
 {
@@ -367,7 +363,6 @@ static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 	return (0);
 }
 
-
 /* ------------------------------------------------------------------- *
  *                      cf_cmd_write()                                 *
  * ------------------------------------------------------------------- *
@@ -381,7 +376,7 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 	uint16_t *ptr_16;
 	uint8_t  *ptr_8;
 	int error;
-	
+
 	lba = start_sector;
 	ptr_8  = (uint8_t*)buf;
 	ptr_16 = (uint16_t*)buf;
@@ -418,7 +413,6 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 	}
 	return (0);
 }
-
 
 /* ------------------------------------------------------------------- *
  *                      cf_cmd_identify()                              *
@@ -475,7 +469,6 @@ static int cf_cmd_identify(struct cf_priv *cf_priv)
 
 	return (0);
 }
-
 
 /* ------------------------------------------------------------------- *
  *                      cf_send_cmd()                                  *
@@ -586,7 +579,6 @@ static void cf_swap_ascii (unsigned char str1[], char str2[])
 		str2[i] = str1[i ^ 1];
 }
 
-
 /* ------------------------------------------------------------------- *
  *                      cf_probe()                                     *
  * ------------------------------------------------------------------- */
@@ -620,7 +612,7 @@ static void cf_identify (driver_t *drv, device_t parent)
 	int count = 0;
 	cvmx_mio_boot_reg_cfgx_t cfg;
 	uint64_t phys_base;
-	
+
     	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
 		return;
 
@@ -672,7 +664,6 @@ static void cf_identify (driver_t *drv, device_t parent)
 	BUS_ADD_CHILD(parent, 0, "cf", 0);
 }
 
-
 /* ------------------------------------------------------------------- *
  *                      cf_attach_geom()                               *
  * ------------------------------------------------------------------- */
@@ -718,7 +709,6 @@ static int cf_attach (device_t dev)
         return 0;
 }
 
-
 static device_method_t cf_methods[] = {
         /* Device interface */
         DEVMETHOD(device_probe,         cf_probe),
@@ -726,7 +716,6 @@ static device_method_t cf_methods[] = {
         DEVMETHOD(device_attach,        cf_attach),
         DEVMETHOD(device_detach,        bus_generic_detach),
         DEVMETHOD(device_shutdown,      bus_generic_shutdown),
-
         { 0, 0 }
 };
 

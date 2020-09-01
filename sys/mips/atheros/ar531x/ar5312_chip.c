@@ -87,7 +87,6 @@ ar5312_chip_detect_sys_frequency(void)
 	uint32_t	predivisor;
 	uint32_t	multiplier;
 
-
 	const uint32_t clockctl = ATH_READ_REG(AR5312_SYSREG_BASE + AR5312_SYSREG_CLOCKCTL);
 	if(ar531x_soc == AR531X_SOC_AR5313) {
 		predivisor = __SHIFTOUT(clockctl, AR2313_CLOCKCTL_PREDIVIDE);

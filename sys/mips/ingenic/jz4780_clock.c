@@ -451,7 +451,6 @@ jz4780_clock_register(struct jz4780_clock_softc *sc)
 		ret = clknode_gate_register(sc->clkdom, &gatedef);
 		if (ret != 0)
 			return (ret);
-
 	}
 
 	return (0);

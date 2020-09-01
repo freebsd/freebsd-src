@@ -156,7 +156,6 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 		remove_userlocal_code((uint32_t *)cpu_switch_set_userlocal);
 	}
 
-
 #if defined(CPU_NLM)
 	/* Account for Extended TLB entries in XLP */
 	tmp = mips_rd_config6();
@@ -496,7 +495,6 @@ static device_method_t cpu_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	cpu_alloc_resource),
 	DEVMETHOD(bus_setup_intr,	cpu_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-
 	{ 0, 0 }
 };
 

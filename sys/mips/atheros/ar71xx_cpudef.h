@@ -171,7 +171,6 @@ extern uint32_t u_ar71xx_ddr_freq;
 extern uint32_t u_ar71xx_uart_freq;
 extern uint32_t u_ar71xx_wdt_freq;
 extern uint32_t u_ar71xx_mdio_freq;
-
 static inline uint64_t ar71xx_refclk(void) { return u_ar71xx_refclk; }
 static inline uint64_t ar71xx_cpu_freq(void) { return u_ar71xx_cpu_freq; }
 static inline uint64_t ar71xx_ahb_freq(void) { return u_ar71xx_ahb_freq; }

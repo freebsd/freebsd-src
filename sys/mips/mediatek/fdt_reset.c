@@ -122,4 +122,3 @@ fdt_reset_unregister_provider(device_t provider)
 
 	OF_device_register_xref(OF_xref_from_device(provider), NULL);
 }
-

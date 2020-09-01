@@ -36,7 +36,6 @@ int main(void)
 {
 	int num_cachelines = 1518 / 64 ; /* pktsize / L3 cacheline size */
 
-
 	/* Spray packets to using distribution vector */
 	while (1) {
 		(void)nlm_read_ucore_rxpktrdy();

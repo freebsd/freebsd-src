@@ -296,7 +296,6 @@ msgring_process_fast_intr(void *arg)
 		msgring_wakeup_nosleep[cpu]++;
 	}
 
-
 	return (FILTER_HANDLED);
 }
 

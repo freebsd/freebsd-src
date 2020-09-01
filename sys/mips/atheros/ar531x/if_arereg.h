@@ -141,7 +141,6 @@ struct are_softc {
 #define	CSR_READ_4(sc, reg)		\
     bus_space_read_4(sc->are_btag, sc->are_bhandle, reg)
 
-
 /*	$NetBSD: aereg.h,v 1.2 2008/04/28 20:23:28 martin Exp $	*/
 
 /*-
@@ -254,7 +253,7 @@ struct are_softc {
 #define	CSR_MIIDATA	0x0018		/* mii data */
 #define	CSR_FLOWC	0x001C		/* flow control */
 #define	CSR_VL1		0x0020		/* vlan 1 tag */
-	
+
 /* these are more or less normal Tulip registers */
 #define	CSR_BUSMODE	0x1000		/* bus mode */
 #define	CSR_TXPOLL	0x1004		/* tx poll demand */
@@ -331,7 +330,6 @@ struct are_softc {
 /* CSR_TXPOLL - Transmit Poll Demand */
 #define	TXPOLL_TPD		0x00000001	/* transmit poll demand */
 
-
 /* CSR_RXPOLL - Receive Poll Demand */
 #define	RXPOLL_RPD		0x00000001	/* receive poll demand */
 
@@ -392,7 +390,6 @@ struct are_softc {
 
 /* CSR_INTEN - Interrupt Enable */
 	/* See bits for CSR_STATUS -- Status */
-
 
 /* CSR_MISSED - Missed Frames */
 #define	MISSED_MFC		0xffff0000	/* missed packet count */

@@ -317,7 +317,6 @@ gt_pci_attach(device_t dev)
 	sc->sc_ioh_icu2 = MIPS_PHYS_TO_KSEG1(sc->sc_io + IO_ICU2);
 #endif	
 
-
 	/* All interrupts default to "masked off". */
 	sc->sc_imask = 0xffff;
 
@@ -680,7 +679,7 @@ gt_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 {
 	bus_space_handle_t p;
 	int error;
-	
+
 	if ((type == SYS_RES_MEMORY) || (type == SYS_RES_IOPORT)) {
 		error = bus_space_map(rman_get_bustag(r),
 		    rman_get_bushandle(r), rman_get_size(r), 0, &p);

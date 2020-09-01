@@ -39,12 +39,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/reboot.h>
- 
+
 #include <vm/vm.h>
 #include <vm/vm_page.h>
- 
+
 #include <net/ethernet.h>
- 
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
- 
+
 #include <mips/atheros/ar531x/ar5315reg.h>
 #include <mips/atheros/ar531x/ar5312reg.h>
 #include <mips/atheros/ar531x/ar5315_setup.h>
@@ -158,4 +158,3 @@ ar5315_get_system_type(void)
 {
 	return ar5315_sys_type;
 }
-

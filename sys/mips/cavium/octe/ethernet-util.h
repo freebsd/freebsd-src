@@ -4,7 +4,6 @@ SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -44,7 +43,6 @@ static inline char *cvm_oct_get_buffer_ptr(cvmx_buf_ptr_t packet_ptr)
 	return cvmx_phys_to_ptr(((packet_ptr.s.addr >> 7) - packet_ptr.s.back) << 7);
 }
 
-
 /**
  * Given an IPD/PKO port number, return the logical interface it is
  * on.
@@ -67,7 +65,6 @@ static inline int INTERFACE(int ipd_port)
 		panic("Illegal ipd_port %d passed to INTERFACE\n", ipd_port);
 }
 
-
 /**
  * Given an IPD/PKO port number, return the port's index on a
  * logical interface.
@@ -83,4 +80,3 @@ static inline int INDEX(int ipd_port)
 	else
 		return ipd_port & 3;
 }
-

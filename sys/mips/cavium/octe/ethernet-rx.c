@@ -4,7 +4,6 @@ SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -82,7 +81,6 @@ int cvm_oct_do_interrupt(void *dev_id)
 	return FILTER_HANDLED;
 }
 
-
 /**
  * This is called on receive errors, and determines if the packet
  * can be dropped early-on in cvm_oct_tasklet_rx().
@@ -98,7 +96,6 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 		   Note these packets still get counted as frame errors. */
 	} else
 	if (USE_10MBPS_PREAMBLE_WORKAROUND && ((work->word2.snoip.err_code == 5) || (work->word2.snoip.err_code == 7))) {
-
 		/* We received a packet with either an alignment error or a
 		   FCS error. This may be signalling that we are running
 		   10Mbps with GMXX_RXX_FRM_CTL[PRE_CHK} off. If this is the
@@ -109,7 +106,6 @@ static inline int cvm_oct_check_rcv_error(cvmx_wqe_t *work)
 		cvmx_gmxx_rxx_frm_ctl_t gmxx_rxx_frm_ctl;
 		gmxx_rxx_frm_ctl.u64 = cvmx_read_csr(CVMX_GMXX_RXX_FRM_CTL(index, interface));
 		if (gmxx_rxx_frm_ctl.s.pre_chk == 0) {
-
 			uint8_t *ptr = cvmx_phys_to_ptr(work->packet_ptr.s.addr);
 			int i = 0;
 
@@ -201,7 +197,6 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 		CVMX_PREFETCH(cvm_oct_device[work->word1.cn38xx.ipprt], 0);
 		//CVMX_PREFETCH(m, 0);
 
-
 		rx_count++;
 		/* Immediately throw away all packets with receive errors */
 		if ((work->word2.snoip.rcv_error)) {
@@ -224,7 +219,6 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 			 */
 			m->m_data += (work->packet_ptr.s.back << 7) + (work->packet_ptr.s.addr & 0x7f);
 		} else {
-
 			/* We have to copy the packet. First allocate an
 			   mbuf for it */
 			MGETHDR(m, M_NOWAIT, MT_DATA);
@@ -362,8 +356,6 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 	}
 }
 
-
-
 void cvm_oct_rx_initialize(void)
 {
 	int cpu;
@@ -385,4 +377,3 @@ void cvm_oct_rx_shutdown(void)
 {
 	panic("%s: not yet implemented.", __func__);
 }
-

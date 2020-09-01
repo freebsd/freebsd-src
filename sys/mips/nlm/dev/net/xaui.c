@@ -117,7 +117,6 @@ nlm_xaui_pcs_init(uint64_t nae_base, int xaui_cplx_mask)
 
 		for (lane_ctrl = PHY_LANE_0_CTRL;
 		    lane_ctrl <= PHY_LANE_3_CTRL; lane_ctrl++) {
-
 			reg = NAE_REG(block, PHY, lane_ctrl - 4);
 			/* Wait for TX clock to be set */
 			do {

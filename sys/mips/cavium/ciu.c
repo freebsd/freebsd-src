@@ -143,7 +143,7 @@ ciu_attach(device_t dev)
 
 	sc->irq_rman.rm_type = RMAN_ARRAY;
 	sc->irq_rman.rm_descr = "CIU IRQ";
-	
+
 	error = rman_init(&sc->irq_rman);
 	if (error != 0)
 		return (error);
@@ -178,7 +178,7 @@ ciu_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	struct resource *res;
 	struct ciu_softc *sc;
-	
+
 	sc = device_get_softc(bus);
 
 	switch (type) {
@@ -276,7 +276,7 @@ ciu_bind_intr(device_t bus, device_t child, struct resource *res, int cpu)
 {
 	struct intr_event *event;
 	int irq;
-	
+
 	irq = rman_get_start(res);
 	if (irq <= CIU_IRQ_EN0_END)
 		event = ciu_en0_intr_events[irq - CIU_IRQ_EN0_BEGIN];
@@ -295,7 +295,7 @@ ciu_describe_intr(device_t bus, device_t child, struct resource *res,
 	mips_intrcnt_t intrcnt;
 	int error;
 	int irq;
-	
+
 	irq = rman_get_start(res);
 	if (irq <= CIU_IRQ_EN0_END) {
 		event = ciu_en0_intr_events[irq - CIU_IRQ_EN0_BEGIN];
@@ -476,7 +476,6 @@ static device_method_t ciu_methods[] = {
 
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_hinted_child,	ciu_hinted_child),
-
 	{ 0, 0 }
 };
 

@@ -336,4 +336,3 @@ platform_initclocks(void)
 {
 
 }
-

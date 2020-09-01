@@ -372,7 +372,6 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 		panic("can't happen");
 	}
 
-
 	/*
 	 * setup a new explicit key
 	 */
@@ -380,7 +379,6 @@ cryptocteon_process(device_t dev, struct cryptop *crp, int hint)
 		memcpy(od->octo_enckey, crp->crp_cipher_key, od->octo_encklen);
 	if (crp->crp_auth_key != NULL)
 		cryptocteon_calc_hash(csp, crp->crp_auth_key, od);
-
 
 	if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
 		(*od->octo_encrypt)(od, od->octo_iov, iovcnt, iovlen,
@@ -414,7 +412,6 @@ static device_method_t cryptocteon_methods[] = {
 	DEVMETHOD(cryptodev_probesession, cryptocteon_probesession),
 	DEVMETHOD(cryptodev_newsession,	cryptocteon_newsession),
 	DEVMETHOD(cryptodev_process,	cryptocteon_process),
-
 	{ 0, 0 }
 };
 

@@ -210,7 +210,6 @@ beri_iommu_detach(device_t dev)
 }
 
 static device_method_t beri_iommu_methods[] = {
-
 	/* xDMA IOMMU interface */
 	DEVMETHOD(xdma_iommu_init,	beri_iommu_init),
 	DEVMETHOD(xdma_iommu_release,	beri_iommu_release),
@@ -221,7 +220,6 @@ static device_method_t beri_iommu_methods[] = {
 	DEVMETHOD(device_probe,		beri_iommu_probe),
 	DEVMETHOD(device_attach,	beri_iommu_attach),
 	DEVMETHOD(device_detach,	beri_iommu_detach),
-
 	{ 0, 0 }
 };
 

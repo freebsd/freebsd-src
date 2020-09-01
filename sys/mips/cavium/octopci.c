@@ -216,7 +216,7 @@ static int
 octopci_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 {
 	struct octopci_softc *sc;
-	
+
 	sc = device_get_softc(dev);
 
 	switch (which) {

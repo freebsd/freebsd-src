@@ -126,7 +126,6 @@
 #define	TA3	15
 #endif
 
-
 /*
  * Index of FP registers in 'struct frame', counting from the beginning
  * of the frame (i.e., including the general registers).

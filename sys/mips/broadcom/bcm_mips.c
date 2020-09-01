@@ -477,7 +477,6 @@ bcm_mips_pic_teardown_intr(device_t dev, struct intr_irqsrc *irqsrc,
 	return (error);
 }
 
-
 /** return our PIC's xref */
 static uintptr_t
 bcm_mips_pic_xref(struct bcm_mips_softc *sc)

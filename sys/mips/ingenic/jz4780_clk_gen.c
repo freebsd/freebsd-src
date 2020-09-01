@@ -290,7 +290,6 @@ jz4780_clk_gen_set_gate(struct clknode *clk, bool enable)
 	return (0);
 }
 
-
 int jz4780_clk_gen_register(struct clkdom *clkdom,
     const struct jz4780_clk_descr *descr, struct mtx *dev_mtx,
     struct resource *mem_res)

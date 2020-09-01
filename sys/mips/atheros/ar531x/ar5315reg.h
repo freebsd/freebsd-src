@@ -223,7 +223,7 @@
 
 #define ATH_READ_REG(reg) \
     *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg)))
- 
+
 #define ATH_WRITE_REG(reg, val) \
     *((volatile uint32_t *)MIPS_PHYS_TO_KSEG1((reg))) = (val)
 

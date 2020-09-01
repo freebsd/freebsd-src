@@ -68,7 +68,6 @@ db_addr_t	next_instr_address(db_addr_t, boolean_t);
 		}							\
 	} while (0);
 
-
 /*
  *  Test of instructions to see class.
  */

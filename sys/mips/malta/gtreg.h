@@ -34,8 +34,6 @@
  * $FreeBSD$
  */
 
-
-
 #define GT_REGVAL(x)	*((volatile u_int32_t *) \
 			    (MIPS_PHYS_TO_KSEG1(MALTA_CORECTRL_BASE + (x))))
 

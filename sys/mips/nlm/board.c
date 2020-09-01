@@ -321,7 +321,6 @@ nlm_board_get_phyaddr(int block, int port, int *phyaddr)
 	}
 }
 
-
 static void
 nlm_print_processor_info(void)
 {
