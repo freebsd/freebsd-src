@@ -233,7 +233,6 @@ verify_digest(const char *data, size_t len, const unsigned char *expected_hash)
 	return (memcmp(expected_hash, hash, SHA256_DIGEST_LENGTH));
 }
 
-
 static int
 open_file(const char *path, struct nameidata *nid)
 {

@@ -318,7 +318,6 @@ kau_free(struct au_record *rec)
 	}								\
 } while (0)
 
-
 /*
  * Implement auditing for the auditon() system call. The audit tokens that
  * are generated depend on the command that was sent into the auditon()
