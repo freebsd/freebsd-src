@@ -1413,7 +1413,7 @@ cesa_detach(device_t dev)
 {
 	struct cesa_softc *sc;
 	int i;
- 
+
 	sc = device_get_softc(dev);
 
 	/* TODO: Wait for queued requests completion before shutdown. */
@@ -1639,7 +1639,7 @@ cesa_newsession(device_t dev, crypto_session_t cses,
 	struct cesa_session *cs;
 	struct cesa_softc *sc;
 	int error;
- 
+
 	sc = device_get_softc(dev);
 	error = 0;
 
