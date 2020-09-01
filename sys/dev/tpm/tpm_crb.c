@@ -85,7 +85,6 @@ struct tpmcrb_sc {
 	size_t		rsp_buf_size;
 };
 
-
 int tpmcrb_transmit(struct tpm_sc *sc, size_t size);
 
 static int tpmcrb_acpi_probe(device_t dev);
