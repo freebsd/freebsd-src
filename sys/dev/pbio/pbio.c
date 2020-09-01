@@ -159,7 +159,6 @@ pboutb(struct pbio_softc *scp, int off, uint8_t val)
 	bus_space_write_1(scp->bst, scp->bsh, off, val);
 }
 
-
 static int
 pbioprobe(device_t dev)
 {
@@ -251,7 +250,7 @@ pbioioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag,
 {
 	struct pbio_softc *scp;
 	int port, unit;
-	
+
 	unit = UNIT(dev);
 	port = PORT(dev);
 	scp = pbio_addr(unit);
@@ -288,13 +287,13 @@ pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 	struct pbio_softc *scp;
 	int ocfg, port, unit;
 	int portbit;			/* Port configuration bit */
-	
+
 	unit = UNIT(dev);
 	port = PORT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
-	
+
 	switch (port) {
 	case 0: portbit = 0x10; break;	/* Port A */
 	case 1: portbit = 0x02; break;	/* Port B */
@@ -321,12 +320,12 @@ pbioclose(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
 	struct pbio_softc *scp;
 	int unit;
-	
+
 	unit = UNIT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
-	
+
 	return (0);
 }
 
@@ -377,7 +376,7 @@ pbioread(struct cdev *dev, struct uio *uio, int ioflag)
 	struct pbio_softc *scp;
 	int err, i, port, ret, toread, unit;
 	char val;
-	
+
 	unit = UNIT(dev);
 	port = PORT(dev);
 	scp = pbio_addr(unit);
@@ -406,7 +405,7 @@ pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 	struct pbio_softc *scp;
 	int i, port, ret, towrite, unit;
 	char val, oval;
-	
+
 	unit = UNIT(dev);
 	port = PORT(dev);
 	scp = pbio_addr(unit);
@@ -453,12 +452,12 @@ pbiopoll(struct cdev *dev, int which, struct thread *td)
 {
 	struct pbio_softc *scp;
 	int unit;
-	
+
 	unit = UNIT(dev);
 	scp = pbio_addr(unit);
 	if (scp == NULL)
 		return (ENODEV);
-	
+
 	/*
 	 * Do processing
 	 */
