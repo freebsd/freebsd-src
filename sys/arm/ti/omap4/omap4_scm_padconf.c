@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_pinmux.h>
 #include <arm/ti/omap4/omap4_scm_padconf.h>
 
-
 /*
  *	This file defines the pin mux configuration for the OMAP4xxx series of
  *	devices.

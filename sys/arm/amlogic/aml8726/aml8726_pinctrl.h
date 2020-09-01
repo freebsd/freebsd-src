@@ -525,7 +525,6 @@ struct aml8726_pinctrl_function aml8726_m6_pinctrl[] = {
 	{ NULL }
 };
 
-
 /*
  * aml8726-m8
  *
@@ -796,7 +795,6 @@ struct aml8726_pinctrl_function aml8726_m8_pinctrl[] = {
 	{ "uart-ao", aml8726_m8_uart_ao },
 	{ NULL }
 };
-
 
 /*
  * aml8726-m8b

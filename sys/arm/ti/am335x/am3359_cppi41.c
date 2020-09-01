@@ -171,14 +171,12 @@ ti_am3359_cppi41_attach(device_t dev)
 	return (0);
 }
 
-
 static device_method_t ti_am3359_cppi41_methods[] = {
 	DEVMETHOD(device_probe,		ti_am3359_cppi41_probe),
 	DEVMETHOD(device_attach,	ti_am3359_cppi41_attach),
 
 	DEVMETHOD_END
 };
-
 
 DEFINE_CLASS_1(ti_am3359_cppi41, ti_am3359_cppi41_driver,
     ti_am3359_cppi41_methods,sizeof(struct ti_am3359_cppi41_softc),

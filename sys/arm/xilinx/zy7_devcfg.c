@@ -455,7 +455,7 @@ zy7_devcfg_reset_pl(struct zy7_devcfg_softc *sc)
 		if (err != 0)
 			return (err);
 	}
-	
+
 	/* Reassert PROG_B (active low). */
 	devcfg_ctl &= ~ZY7_DEVCFG_CTRL_PCFG_PROG_B;
 	WR4(sc, ZY7_DEVCFG_CTRL, devcfg_ctl);

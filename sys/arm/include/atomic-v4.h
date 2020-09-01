@@ -84,7 +84,6 @@ __swp(uint32_t val, volatile uint32_t *ptr)
 	return (val);
 }
 
-
 #ifdef _KERNEL
 #define	ARM_HAVE_ATOMIC64
 
@@ -253,7 +252,6 @@ atomic_cmpset_64(volatile u_int64_t *p, volatile u_int64_t cmpval, volatile u_in
 	});
 	return (ret);
 }
-
 
 static __inline uint32_t
 atomic_fetchadd_32(volatile uint32_t *p, uint32_t v)

@@ -427,7 +427,6 @@ exec_setregs(struct thread *td, struct image_params *imgp, uintptr_t stack)
 	tf->tf_spsr = PSR_USR32_MODE;
 }
 
-
 #ifdef VFP
 /*
  * Get machine VFP context.
@@ -928,7 +927,6 @@ initarm(struct arm_boot_params *abp)
 			kernel_pt_table[i].pv_pa =
 			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
 			    abp->abp_physaddr;
-
 		}
 	}
 	/*

@@ -355,7 +355,7 @@ ahci_a10_attach(device_t dev)
 		device_printf(dev, "Cannot enable clk gate\n");
 		goto fail;
 	}
-	
+
 	/* Reset controller */
 	if ((error = ahci_a10_ctlr_reset(dev)) != 0)
 		goto fail;

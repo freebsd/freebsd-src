@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-
 #include <sys/proc.h>
 #include <sys/kdb.h>
 #include <sys/stack.h>
@@ -102,7 +101,6 @@ db_stack_trace_cmd(struct unwind_state *state)
 					i = 0;
 				} else
 					sep = " ";
-
 			}
 		}
 		db_printf("\n");

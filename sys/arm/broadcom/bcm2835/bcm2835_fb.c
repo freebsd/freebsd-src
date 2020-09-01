@@ -191,7 +191,6 @@ static device_method_t bcm_fb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_fb_probe),
 	DEVMETHOD(device_attach,	bcm_fb_attach),
-
 	{ 0, 0 }
 };
 

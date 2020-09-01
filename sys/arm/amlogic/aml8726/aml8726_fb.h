@@ -29,7 +29,6 @@
 #ifndef	_ARM_AMLOGIC_AML8726_FB_H
 #define	_ARM_AMLOGIC_AML8726_FB_H
 
-
 #define	AML_CAV_OSD1_INDEX			0x40
 
 #define	AML_CAV_LUT_DATAL_REG			0

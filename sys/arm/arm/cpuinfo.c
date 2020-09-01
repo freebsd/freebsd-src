@@ -79,7 +79,6 @@ SYSCTL_INT(_hw_cpu_quirks, OID_AUTO, actlr_set,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &cpu_quirks_actlr_set, 0,
     "Bits to be set in ACTLR");
 
-
 /* Read and parse CPU id scheme */
 void
 cpuinfo_init(void)

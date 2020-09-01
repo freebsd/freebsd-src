@@ -29,7 +29,6 @@
 #ifndef	_ARM_AMLOGIC_AML8726_MMC_H
 #define	_ARM_AMLOGIC_AML8726_MMC_H
 
-
 #define	AML_MMC_ALIGN_DMA			4
 #define	AML_MMC_MAX_DMA				4096
 

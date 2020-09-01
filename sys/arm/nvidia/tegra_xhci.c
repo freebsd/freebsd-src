@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
 #include <dev/extres/phy/phy.h>
@@ -210,7 +209,6 @@ __FBSDID("$FreeBSD$");
 /* MBOX responses. */
 #define	MBOX_CMD_ACK				(0x80 + 0)
 #define	MBOX_CMD_NAK				(0x80 + 1)
-
 
 #define	IPFS_WR4(_sc, _r, _v)	bus_write_4((_sc)->mem_res_ipfs, (_r), (_v))
 #define	IPFS_RD4(_sc, _r)	bus_read_4((_sc)->mem_res_ipfs, (_r))
@@ -713,7 +711,6 @@ process_msg(struct tegra_xhci_softc *sc, uint32_t req_cmd, uint32_t req_data,
 		*resp_cmd = MBOX_CMD_ACK;
 		break;
 
-
 	case MBOX_CMD_START_HSIC_IDLE:
 	case MBOX_CMD_STOP_HSIC_IDLE:
 		/* Not implemented yet. */
@@ -907,7 +904,6 @@ init_hw(struct tegra_xhci_softc *sc)
 	reg |= CONFIGURATION_EN_FPCI;
 	IPFS_WR4(sc, XUSB_HOST_CONFIGURATION, reg);
 	IPFS_RD4(sc, XUSB_HOST_CONFIGURATION);
-
 
 	/* Program bar for XHCI base address */
 	reg = FPCI_RD4(sc, T_XUSB_CFG_4);

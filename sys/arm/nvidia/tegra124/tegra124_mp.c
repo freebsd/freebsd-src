@@ -93,7 +93,6 @@ tegra124_mp_start_ap(platform_t plat)
 			  pmap_kextract((vm_offset_t)mpentry));
 	bus_space_read_4(fdtbus_bs_tag, exvec , TEGRA_EXCEPTION_VECTOR_ENTRY);
 
-
 	/* Wait until POWERGATE is ready (max 20 APB cycles). */
 	do {
 		val = bus_space_read_4(fdtbus_bs_tag, pmc,
@@ -119,7 +118,6 @@ tegra124_mp_start_ap(platform_t plat)
 				    PMC_PWRGATE_STATUS);
 			} while ((val & mask) == 0);
 		}
-
 	}
 	dsb();
 	sev();

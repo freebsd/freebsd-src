@@ -712,7 +712,6 @@ pmap_free_l2_bucket(pmap_t pm, struct l2_bucket *l2b, u_int count)
 	pt_entry_t *ptep;
 	u_short l1idx;
 
-
 	/*
 	 * Update the bucket's reference count according to how many
 	 * PTEs the caller has just invalidated.
@@ -1057,9 +1056,7 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		/* check for user uncachable conditions - order is important */
 		if (pm != kernel_pmap &&
 		    (pv->pv_pmap == pm || pv->pv_pmap == kernel_pmap)) {
-
 			if ((uentries > 1 && uwritable) || uwritable > 1) {
-
 				/* user duplicate mapping */
 				if (pv->pv_pmap != kernel_pmap)
 					pv->pv_flags |= PVF_MWC;
@@ -1083,7 +1080,6 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		     (pv->pv_pmap == kernel_pmap ||
 		      (pv->pv_flags & PVF_WRITE) ||
 		      (pv->pv_flags & PVF_MWC)))) {
-
 			if (!(pv->pv_flags & PVF_NC)) {
 				pv->pv_flags |= PVF_NC;
 				pmap_set_cache_entry(pv, pm, va, -1);
@@ -1094,7 +1090,6 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 			/* kernel and user are cachable */
 		if ((pm == kernel_pmap) && !(pv->pv_flags & PVF_MWC) &&
 		    (pv->pv_flags & PVF_NC)) {
-
 			pv->pv_flags &= ~PVF_NC;
 			if (pg->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
 				pmap_set_cache_entry(pv, pm, va, 1);
@@ -1104,7 +1099,6 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		if (pm != kernel_pmap &&
 		    (pv->pv_pmap == pm || pv->pv_pmap == kernel_pmap) &&
 		    !pmwc && (pv->pv_flags & PVF_NC)) {
-
 			pv->pv_flags &= ~(PVF_NC | PVF_MWC);
 			if (pg->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
 				pmap_set_cache_entry(pv, pm, va, 1);
@@ -1278,7 +1272,6 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 		}
 
 		PMAP_UNLOCK(pm);
-
 	}
 
 	if (maskbits & PVF_WRITE)
@@ -1679,7 +1672,6 @@ pmap_fault_fixup(pmap_t pm, vm_offset_t va, vm_prot_t ftype, int user)
 		pg->md.pvh_attrs |= PVF_REF;
 		pv->pv_flags |= PVF_REF;
 
-
 		*ptep = (pte & ~L2_TYPE_MASK) | L2_S_PROTO;
 		PTE_SYNC(ptep);
 		rv = 1;
@@ -1788,7 +1780,6 @@ pmap_postinit(void)
 		pmap_init_l1(l1, pl1pt);
 	}
 
-
 #ifdef DEBUG
 	printf("pmap_postinit: Allocated %d static L1 descriptor tables\n",
 	    needed);
@@ -1846,7 +1837,6 @@ pmap_activate(struct thread *td)
 			return;
 		}
 
-
 		/*
 		 * We MUST, I repeat, MUST fix up the L1 entry corresponding
 		 * to 'vector_page' in the incoming L1 table before switching
@@ -1854,7 +1844,6 @@ pmap_activate(struct thread *td)
 		 * domain faults!) will jump into hyperspace.
 		 */
 		if (pcb->pcb_pl1vec) {
-
 			*pcb->pcb_pl1vec = pcb->pcb_l1vec;
 			/*
 			 * Don't need to PTE_SYNC() at this point since
@@ -2045,7 +2034,6 @@ pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt)
 		}
 	}
 
-
 	/*
 	 * Ensure the primary (kernel) L1 has the correct cache mode for
 	 * a page table. Bitch if it is not correctly set.
@@ -2156,14 +2144,11 @@ pmap_release(pmap_t pmap)
 		curpcb->pcb_l1vec = pcb->pcb_l1vec;
 		curpcb->pcb_dacr = pcb->pcb_dacr;
 		curpcb->pcb_pagedir = pcb->pcb_pagedir;
-
 	}
 	pmap_free_l1(pmap);
 
 	dprintf("pmap_release()\n");
 }
-
-
 
 /*
  * Helper function for pmap_grow_l2_bucket()
@@ -2290,7 +2275,6 @@ pmap_grow_l2_bucket(pmap_t pm, vm_offset_t va)
 	return (l2b);
 }
 
-
 /*
  * grow the number of kernel page table entries, if needed
  */
@@ -2320,7 +2304,6 @@ pmap_growkernel(vm_offset_t addr)
 	cpu_cpwait();
 	kernel_vm_end = pmap_curmaxkvaddr;
 }
-
 
 /*
  * Remove all pages from specified address space
@@ -2369,7 +2352,6 @@ pmap_remove_pages(pmap_t pmap)
 	PMAP_UNLOCK(pmap);
 }
 
-
 /***************************************************
  * Low level mapping routines.....
  ***************************************************/
@@ -2406,7 +2388,6 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 
 	PDEBUG(1, printf("pmap_kenter: va = %08x, pa = %08x\n",
 	    (uint32_t) va, (uint32_t) pa));
-
 
 	l2b = pmap_get_l2_bucket(kernel_pmap, va);
 	if (l2b == NULL)
@@ -2565,7 +2546,6 @@ pmap_kremove(vm_offset_t va)
 	}
 }
 
-
 /*
  *	Used to map a range of physical addresses into kernel
  *	virtual address space.
@@ -2636,7 +2616,6 @@ pmap_qenter(vm_offset_t va, vm_page_t *m, int count)
 	}
 }
 
-
 /*
  * this routine jerks page mappings from the
  * kernel -- it is meant only for temporary mappings.
@@ -2657,7 +2636,6 @@ pmap_qremove(vm_offset_t va, int count)
 	}
 }
 
-
 /*
  * pmap_object_init_pt preloads the ptes for a given object
  * into the specified pmap.  This eliminates the blast of soft
@@ -2672,7 +2650,6 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_object_t object,
 	KASSERT(object->type == OBJT_DEVICE || object->type == OBJT_SG,
 	    ("pmap_object_init_pt: non-device object"));
 }
-
 
 /*
  *	pmap_is_prefaultable:
@@ -2828,7 +2805,6 @@ pmap_remove_all(vm_page_t m)
 	rw_wunlock(&pvh_global_lock);
 }
 
-
 /*
  *	Set the physical protection on the
  *	specified range of this map as requested.
@@ -2917,7 +2893,6 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		}
 	}
 
-
 	if (flush) {
 		if (PV_BEEN_EXECD(flags))
 			pmap_tlb_flushID(pm);
@@ -2929,7 +2904,6 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
  	PMAP_UNLOCK(pm);
 }
-
 
 /*
  *	Insert the given physical page (p) at
@@ -3109,7 +3083,6 @@ do_l2b_alloc:
 			 * must remove it from the PV list
 			 */
 			if ((pve = pmap_remove_pv(opg, pmap, va))) {
-
 			/* note for patch: the oflags/invalidation was moved
 			 * because PG_FICTITIOUS pages could free the pve
 			 */
@@ -3223,7 +3196,6 @@ do_l2b_alloc:
 		else if (PV_BEEN_REFD(oflags))
 			pmap_tlb_flushD_SE(pmap, va);
 
-
 		if (m)
 			pmap_fix_cache(m, pmap, va);
 	}
@@ -3332,7 +3304,6 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
  	PMAP_UNLOCK(pmap);
 }
 
-
 /*
  *	Copy the range specified by src_addr/len
  *	from the source map to the range dst_addr/len
@@ -3345,7 +3316,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
     vm_size_t len, vm_offset_t src_addr)
 {
 }
-
 
 /*
  *	Routine:	pmap_extract
@@ -3546,11 +3516,9 @@ pmap_pinit(pmap_t pmap)
 	return (1);
 }
 
-
 /***************************************************
  * page management routines.
  ***************************************************/
-
 
 static void
 pmap_free_pv_entry(pv_entry_t pv)
@@ -3558,7 +3526,6 @@ pmap_free_pv_entry(pv_entry_t pv)
 	pv_entry_count--;
 	uma_zfree(pvzone, pv);
 }
-
 
 /*
  * get a new pv_entry, allocating a block from the system
@@ -3594,7 +3561,6 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	u_int total;
 	u_int mappings, is_exec, is_refd;
 	int flushall = 0;
-
 
 	/*
 	 * we lock in the pmap => pv_head direction
@@ -3745,7 +3711,6 @@ pmap_zero_page(vm_page_t m)
 	pmap_zero_page_generic(VM_PAGE_TO_PHYS(m), 0, PAGE_SIZE);
 }
 
-
 /*
  *	pmap_zero_page_area zeros the specified hardware page by mapping
  *	the page into KVM and using bzero to clear its contents.
@@ -3758,7 +3723,6 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 
 	pmap_zero_page_generic(VM_PAGE_TO_PHYS(m), off, size);
 }
-
 
 #if 0
 /*
@@ -4077,7 +4041,6 @@ pmap_ts_referenced(vm_page_t m)
 	return (pmap_clearbit(m, PVF_REF));
 }
 
-
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
@@ -4089,7 +4052,6 @@ pmap_is_modified(vm_page_t m)
 
 	return(FALSE);
 }
-
 
 /*
  *	Clear the modify bits on the specified physical page.
@@ -4108,7 +4070,6 @@ pmap_clear_modify(vm_page_t m)
 		pmap_clearbit(m, PVF_MOD);
 }
 
-
 /*
  *	pmap_is_referenced:
  *
@@ -4124,7 +4085,6 @@ pmap_is_referenced(vm_page_t m)
 	return ((m->md.pvh_attrs & PVF_REF) != 0);
 }
 
-
 /*
  * Clear the write and modified bits in each of the given page's mappings.
  */
@@ -4139,7 +4099,6 @@ pmap_remove_write(vm_page_t m)
 	if (pmap_page_is_write_mapped(m))
 		pmap_clearbit(m, PVF_WRITE);
 }
-
 
 /*
  * Perform the pmap work for mincore(2).  If the page is not both referenced and
@@ -4199,12 +4158,10 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	return (val);
 }
 
-
 void
 pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
 }
-
 
 /*
  *	Increase the starting virtual address of the given mapping if a
@@ -4276,7 +4233,6 @@ pmap_link_l2pt(vm_offset_t l1pt, vm_offset_t va, struct pv_addr *l2pv)
 	PTE_SYNC(&pde[slot]);
 
 	SLIST_INSERT_HEAD(&kernel_pt_list, l2pv, pv_list);
-
 
 }
 

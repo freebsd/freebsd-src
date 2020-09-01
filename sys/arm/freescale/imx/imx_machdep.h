@@ -69,4 +69,3 @@ imx_soc_family(void)
 }
 
 #endif
-

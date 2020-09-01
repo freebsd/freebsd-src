@@ -111,7 +111,6 @@ set_curthread(struct thread *td)
 	__asm __volatile("mcr p15, 0, %0, c13, c0, 4" : : "r" (td));
 }
 
-
 static inline void *
 get_tls(void)
 {

@@ -257,4 +257,3 @@
 #define	CCGR_CLK_MODE_ALWAYS		3
 
 #endif /* _IMX51_CCMREG_H */
-

@@ -237,7 +237,6 @@ ckb_set_state(keyboard_t *kbd, void *buf, size_t len)
 	return (EINVAL);
 }
 
-
 /* check if data is waiting */
 static int
 ckb_check(keyboard_t *kbd)
@@ -429,7 +428,6 @@ ckb_read_char(keyboard_t *kbd, int wait)
 	return (keycode);
 }
 
-
 /* some useful control functions */
 static int
 ckb_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
@@ -574,7 +572,6 @@ ckb_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		return (result);
 	}
 }
-
 
 /*
  * Enable the access to the device; until this function is called,

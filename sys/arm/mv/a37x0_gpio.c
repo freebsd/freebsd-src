@@ -76,7 +76,6 @@ struct a37x0_gpio_softc {
 #define	A37X0_GPIO_OUTPUT(_p)		(0x18 + ((_p) / 32) * 4)
 #define	A37X0_GPIO_SEL			0x30
 
-
 static struct ofw_compat_data compat_data[] = {
 	{ "marvell,armada3710-nb-pinctrl",	A37X0_NB_GPIO },
 	{ "marvell,armada3710-sb-pinctrl",	A37X0_SB_GPIO },

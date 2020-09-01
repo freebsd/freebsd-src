@@ -214,4 +214,3 @@ DEFINE_CLASS_1(bcm_xhci, bcm_xhci_driver, bcm_xhci_methods,
 
 static devclass_t xhci_devclass;
 DRIVER_MODULE(bcm_xhci, pci, bcm_xhci_driver, xhci_devclass, 0, 0); MODULE_DEPEND(bcm_xhci, usb, 1, 1, 1);
-

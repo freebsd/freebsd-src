@@ -284,11 +284,10 @@ am335x_ehrpwm_cfg_period(struct am335x_ehrpwm_softc *sc, u_int period)
 	 */
 	if (sc->sc_clkfreq != pwmclk || sc->sc_clktick != pwmtick ||
 	    sc->sc_period != tbprd * pwmtick) {
-
 		sc->sc_clkfreq = pwmclk;
 		sc->sc_clktick = pwmtick;
 		sc->sc_period  = tbprd * pwmtick;
-	
+
 		PWM_LOCK_ASSERT(sc);
 		regval = EPWM_READ2(sc, EPWM_TBCTL);
 		regval &= ~(TBCTL_CLKDIV_MASK | TBCTL_HSPCLKDIV_MASK);

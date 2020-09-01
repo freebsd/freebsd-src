@@ -589,14 +589,12 @@ rk30_gpio_init(void)
 
 	/* Traverse through entire tree to find nodes with 'gpios' prop */
 	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
-
 		/* Find a 'leaf'. Start the search from this node. */
 		while (OF_child(child)) {
 			parent = child;
 			child = OF_child(child);
 		}
 		if ((len = OF_getproplen(child, "gpios")) > 0) {
-
 			if (len > sizeof(gpios))
 				return (ENXIO);
 

@@ -480,4 +480,3 @@ static platform_method_t mv_axp_methods[] = {
 	PLATFORMMETHOD_END,
 };
 FDT_PLATFORM_DEF(mv_axp, "mv_axp", 0, "marvell,armadaxp", 100);
-

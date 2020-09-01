@@ -173,7 +173,6 @@ mv_cp110_icu_convert_map_data(struct mv_cp110_icu_softc *sc, struct intr_map_dat
 	return ((struct intr_map_data *)sc->parent_map_data);
 }
 
-
 static int
 mv_cp110_icu_detach(device_t dev)
 {
@@ -212,8 +211,6 @@ mv_cp110_icu_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	PIC_DISABLE_INTR(sc->parent, isrc);
 }
-
-
 
 static int
 mv_cp110_icu_map_intr(device_t dev, struct intr_map_data *data,

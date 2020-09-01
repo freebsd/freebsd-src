@@ -268,7 +268,6 @@ zy7_qspi_write_fifo(struct zy7_qspi_softc *sc, int nbytes)
 	}
 }
 
-
 /* Read hardware fifo data into command response and data buffers. */
 static void
 zy7_qspi_read_fifo(struct zy7_qspi_softc *sc)
@@ -326,7 +325,6 @@ zy7_qspi_abort_transfer(struct zy7_qspi_softc *sc)
 	    ZY7_QSPI_INTR_RX_FIFO_NOT_EMPTY |
 	    ZY7_QSPI_INTR_TX_FIFO_NOT_FULL);
 }
-
 
 static void
 zy7_qspi_intr(void *arg)
@@ -401,7 +399,6 @@ zy7_qspi_intr(void *arg)
 	/* Finished with transfer? */
 	if (sc->tx_bytes_sent == sc->tx_bytes &&
 	    sc->rx_bytes_rcvd == sc->rx_bytes) {
-
 		/* De-assert CS. */
 		sc->cfg_reg_shadow |= ZY7_QSPI_CONFIG_PCS;
 		WR4(sc, ZY7_QSPI_CONFIG_REG, sc->cfg_reg_shadow);
@@ -490,7 +487,6 @@ zy7_qspi_init_hw(struct zy7_qspi_softc *sc)
 	return (0);
 }
 
-
 static void
 zy7_qspi_add_sysctls(device_t dev)
 {
@@ -517,7 +513,6 @@ zy7_qspi_add_sysctls(device_t dev)
 	    &sc->stray_ints, 0, "stray interrupts");
 }
 
-
 static int
 zy7_qspi_probe(device_t dev)
 {
@@ -532,7 +527,6 @@ zy7_qspi_probe(device_t dev)
 
 	return (BUS_PROBE_DEFAULT);
 }
-
 
 static int
 zy7_qspi_attach(device_t dev)
@@ -656,14 +650,12 @@ zy7_qspi_detach(device_t dev)
 	return (0);
 }
 
-
 static phandle_t
 zy7_qspi_get_node(device_t bus, device_t dev)
 {
 
 	return (ofw_bus_get_node(bus));
 }
-
 
 static int
 zy7_qspi_transfer(device_t dev, device_t child, struct spi_command *cmd)
@@ -748,7 +740,6 @@ static device_method_t zy7_qspi_methods[] = {
 
 	DEVMETHOD_END
 };
-
 
 static driver_t zy7_qspi_driver = {
 	"zy7_qspi",

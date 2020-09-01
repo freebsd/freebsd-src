@@ -51,7 +51,6 @@
 #define CPU_ARCH_CORTEX_A73		0xD09
 #define CPU_ARCH_CORTEX_A75		0xD0A
 
-
 /* QCOM */
 #define CPU_ARCH_KRAIT_300		0x06F
 

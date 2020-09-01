@@ -445,7 +445,6 @@ tegra124_pmc_parse_fdt(struct tegra124_pmc_softc *sc, phandle_t node)
 
 	rv = OF_getencprop(node, "nvidia,lp0-vec", tmparr, sizeof(tmparr));
 	if (rv == sizeof(tmparr)) {
-
 		sc->lp0_vec_phys = tmparr[0];
 		sc->core_pmu_time = tmparr[1];
 		sc->lp0_vec_size = TEGRA_SUSPEND_NONE;

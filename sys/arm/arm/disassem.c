@@ -53,7 +53,6 @@
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
-
 #include <sys/systm.h>
 #include <machine/disassem.h>
 #include <machine/armreg.h>
@@ -532,7 +531,6 @@ disasm(const disasm_interface_t *di, vm_offset_t loc, int altfmt)
 	return(loc + INSN_SIZE);
 }
 
-
 static void
 disasm_register_shift(const disasm_interface_t *di, u_int insn)
 {
@@ -550,7 +548,6 @@ disasm_register_shift(const disasm_interface_t *di, u_int insn)
 			    (insn >> 7) & 0x1f);
 	}
 }
-
 
 static void
 disasm_print_reglist(const disasm_interface_t *di, u_int insn)

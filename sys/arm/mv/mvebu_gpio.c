@@ -238,7 +238,6 @@ mvebu_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (pin >= sc->gpio_npins)
 		return (EINVAL);
 
-
 	mvebu_gpio_pin_configure(sc, &sc->gpio_pins[pin], flags);
 
 	return (0);
@@ -299,7 +298,6 @@ mvebu_gpio_pin_toggle(device_t dev, uint32_t pin)
 	return (0);
 }
 
-
 /* --------------------------------------------------------------------------
  *
  * Interrupts
@@ -337,7 +335,6 @@ mvebu_gpio_isrc_eoi(struct mvebu_gpio_softc *sc,
 	if (!mgi->is_level)
 		intr_modify(sc, GPIO_INT_CAUSE, mgi, 1, 1);
 }
-
 
 static int
 mvebu_gpio_pic_attach(struct mvebu_gpio_softc *sc)
@@ -377,7 +374,6 @@ mvebu_gpio_pic_detach(struct mvebu_gpio_softc *sc)
 	device_printf(sc->dev, "%s: not implemented yet\n", __func__);
 	return (EBUSY);
 }
-
 
 static void
 mvebu_gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
@@ -419,7 +415,6 @@ mvebu_gpio_pic_map_fdt(struct mvebu_gpio_softc *sc, u_int ncells,
 	if (ncells != 2 || cells[0] >= sc->gpio_npins)
 		return (EINVAL);
 
-
 	switch (cells[1]) {
 	case 1:
 		inverted  = false;
@@ -447,7 +442,6 @@ mvebu_gpio_pic_map_fdt(struct mvebu_gpio_softc *sc, u_int ncells,
 		*levelp = level;
 	return (0);
 }
-
 
 static int
 mvebu_gpio_pic_map_gpio(struct mvebu_gpio_softc *sc, u_int gpio_pin_num,
@@ -637,7 +631,6 @@ mvebu_gpio_intr(void *arg)
 	struct trapframe *tf;
 	struct mvebu_gpio_irqsrc *mgi;
 	struct mvebu_gpio_irq_cookie *cookie;
-
 
 	cookie = (struct mvebu_gpio_irq_cookie *)arg;
 	sc = cookie->sc;

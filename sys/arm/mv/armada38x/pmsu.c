@@ -69,7 +69,6 @@ static device_method_t pmsu_methods[] = {
 	DEVMETHOD(device_probe,		pmsu_probe),
 	DEVMETHOD(device_attach,	pmsu_attach),
 	DEVMETHOD(device_detach,	pmsu_detach),
-
 	{ 0, 0 }
 };
 

@@ -32,4 +32,3 @@
 void aw_wdog_watchdog_reset(void);
 
 #endif /*__AW_WDOG_H__*/
-

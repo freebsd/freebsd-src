@@ -642,8 +642,6 @@ bcm2835_cpufreq_get_temperature(struct bcm2835_cpufreq_softc *sc)
 	return (value);
 }
 
-
-
 static int
 sysctl_bcm2835_cpufreq_arm_freq(SYSCTL_HANDLER_ARGS)
 {
@@ -1021,7 +1019,6 @@ sysctl_bcm2835_devcpu_temperature(SYSCTL_HANDLER_ARGS)
 	/* write request */
 	return (EINVAL);
 }
-
 
 static void
 bcm2835_cpufreq_init(void *arg)

@@ -480,7 +480,6 @@ aml8726_sdxc_finish_command(struct aml8726_sdxc_softc *sc, int mmc_error)
 	stop_cmd = (cmd->mrq->stop != cmd) ? cmd->mrq->stop : NULL;
 
 	if (stop_cmd != NULL) {
-
 		/*
 		 * If the original command executed successfully, then
 		 * the hardware will also have automatically executed

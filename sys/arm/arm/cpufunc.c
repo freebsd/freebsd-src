@@ -196,7 +196,6 @@ struct cpu_functions sheeva_cpufuncs = {
 
 #ifdef CPU_MV_PJ4B
 struct cpu_functions pj4bv7_cpufuncs = {
-
 	/* Cache operations */
 	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
 	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
@@ -214,7 +213,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 
 #if defined(CPU_ARM1176)
 struct cpu_functions arm1176_cpufuncs = {
-
 	/* Cache operations */
 	.cf_l2cache_wbinv_all = (void *)cpufunc_nullop,
 	.cf_l2cache_wbinv_range = (void *)cpufunc_nullop,
@@ -232,7 +230,6 @@ struct cpu_functions arm1176_cpufuncs = {
 
 #if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
-
 	/* Cache operations */
 
 	/*

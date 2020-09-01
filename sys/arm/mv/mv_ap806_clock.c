@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-
 #include "syscon_if.h"
 
 static struct clk_fixed_def ap806_clk_cluster_0 = {
@@ -97,8 +96,6 @@ struct mv_ap806_clock_softc {
 	device_t		dev;
 	struct syscon		*syscon;
 };
-
-
 
 static struct ofw_compat_data compat_data[] = {
 	{"marvell,ap806-clock",	1},

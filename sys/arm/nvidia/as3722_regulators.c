@@ -71,7 +71,6 @@ enum as3722_reg_id {
 	AS3722_REG_ID_LDO11,
 };
 
-
 /* Regulator HW definition. */
 struct reg_def {
 	intptr_t		id;		/* ID */
@@ -362,7 +361,6 @@ static struct reg_def as3722s_def[] = {
 	},
 };
 
-
 struct as3722_regnode_init_def {
 	struct regnode_init_def	reg_init_def;
 	int 			ext_control;
@@ -487,7 +485,6 @@ as3722_regnode_init(struct regnode *regnode)
 	}
 
 	if (sc->ext_control) {
-
 		rv = as3722_reg_enable(sc);
 		if (rv < 0) {
 			device_printf(sc->base_sc->dev,
@@ -528,7 +525,6 @@ struct as3722_regnode_init_def *init_def)
 	}
 	if (OF_hasprop(node, "ams,enable-tracking"))
 		init_def->enable_tracking = 1;
-
 
 	/* Get parent supply. */
 	if (def->supply_name == NULL)
@@ -618,7 +614,6 @@ as3722_regulator_attach(struct as3722_softc *sc, phandle_t node)
 	sc->nregs = nitems(as3722s_def);
 	sc->regs = malloc(sizeof(struct as3722_reg_sc *) * sc->nregs,
 	    M_AS3722_REG, M_WAITOK | M_ZERO);
-
 
 	/* Attach all known regulators if exist in DT. */
 	for (i = 0; i < sc->nregs; i++) {

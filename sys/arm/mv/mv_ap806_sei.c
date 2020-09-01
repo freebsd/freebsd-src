@@ -68,8 +68,6 @@ __FBSDID("$FreeBSD$");
 #define GICP_SEMR(i)		(0x20  + (((i)/32) * 0x4))
 #define GICP_SEMR_BIT(i)	((i) % 32)
 
-
-
 struct mv_ap806_sei_irqsrc {
 	struct intr_irqsrc	isrc;
 	u_int			irq;
@@ -178,8 +176,6 @@ mv_ap806_sei_map_intr(device_t dev, struct intr_map_data *data,
 
 	return (rv);
 }
-
-
 
 static int
 mv_ap806_sei_setup_intr(device_t dev, struct intr_irqsrc *isrc,
@@ -290,7 +286,6 @@ mv_ap806_sei_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-
 static int
 mv_ap806_sei_probe(device_t dev)
 {
@@ -365,7 +360,7 @@ mv_ap806_sei_attach(device_t dev)
 		rv = ENXIO;
 		goto fail;
 	}
-	
+
 	OF_device_register_xref(xref, dev);
 	return (0);
 
@@ -386,7 +381,6 @@ mv_ap806_sei_detach(device_t dev)
 
 	return (EBUSY);
 }
-
 
 static device_method_t mv_ap806_sei_methods[] = {
 	/* Device interface */

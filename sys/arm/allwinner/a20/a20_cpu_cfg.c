@@ -136,4 +136,3 @@ a20_read_counter64(void)
 
 	return (((uint64_t)hi << 32) | lo);
 }
-

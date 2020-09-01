@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>
 #include <arm/mv/mvwin.h>
 
-
 MALLOC_DEFINE(M_IDMA, "idma", "idma dma test memory");
 
 #define IDMA_DEBUG
@@ -356,7 +355,6 @@ static struct fdt_pm_mask_entry fdt_pm_mask_table[] = {
 	{ "mrvl,usb-ehci",	CPU_PM_CTRL_USB(2) },
 	{ "mrvl,xor",		CPU_PM_CTRL_XOR },
 	{ "mrvl,sata",		CPU_PM_CTRL_SATA },
-
 	{ NULL, 0 }
 };
 
@@ -866,7 +864,6 @@ soc_decode_win(void)
 		if ((err = decode_win_sdram_fixup()) != 0)
 			return(err);
 
-
 	decode_win_cpu_setup();
 	if (MV_DUMP_WIN)
 		soc_dump_decode_win();
@@ -1218,7 +1215,6 @@ decode_win_cpu_valid(void)
 
 	rv = 1;
 	for (i = 0; i < cpu_wins_no; i++) {
-
 		if (cpu_wins[i].target == 0) {
 			printf("CPU window#%d: DDR target window is not "
 			    "supposed to be reprogrammed!\n", i);
@@ -1692,7 +1688,6 @@ decode_win_usb3_setup(u_long base)
 	}
 }
 
-
 /**************************************************************************
  * ETH windows routines
  **************************************************************************/
@@ -1780,7 +1775,6 @@ decode_win_eth_setup(u_long base)
 
 	/* Disable, clear and revoke protection for all ETH windows */
 	for (i = 0; i < MV_WIN_ETH_MAX; i++) {
-
 		eth_bare_write(base, i, 1);
 		eth_epap_write(base, i, 0);
 		win_eth_br_write(base, i, 0);
@@ -1792,7 +1786,6 @@ decode_win_eth_setup(u_long base)
 	/* Only access to active DRAM banks is required */
 	for (i = 0; i < MV_WIN_DDR_MAX; i++)
 		if (ddr_is_active(i)) {
-
 			br = ddr_base(i) | (ddr_attr(i) << 8) | MV_WIN_ETH_DDR_TRGT(i);
 			sz = ((ddr_size(i) - 1) & 0xffff0000);
 
@@ -2003,7 +1996,6 @@ decode_win_idma_setup(u_long base)
 	 * Disable and clear all IDMA windows, revoke protection for all channels
 	 */
 	for (i = 0; i < MV_WIN_IDMA_MAX; i++) {
-
 		idma_bare_write(base, i, 1);
 		win_idma_br_write(base, i, 0);
 		win_idma_sz_write(base, i, 0);
@@ -2025,7 +2017,6 @@ decode_win_idma_setup(u_long base)
 			for (j = 0; j < MV_WIN_IDMA_MAX; j++)
 				if (win_idma_can_remap(j) != 1 &&
 				    idma_bare_read(base, j) == 1) {
-
 					/* Configure window */
 					win_idma_br_write(base, j, br);
 					win_idma_sz_write(base, j, sz);
@@ -2095,7 +2086,6 @@ decode_win_idma_valid(void)
 	wintab = idma_wins;
 	rv = 1;
 	for (i = 0; i < idma_wins_no; i++, wintab++) {
-
 		if (wintab->target == 0) {
 			printf("IDMA window#%d: DDR target window is not "
 			    "supposed to be reprogrammed!\n", i);
@@ -2312,7 +2302,6 @@ decode_win_xor_setup(u_long base)
 	 */
 	m = xor_max_eng();
 	for (j = 0; j < m; j++, e--) {
-
 		/* Number of non-remaped windows */
 		window = MV_XOR_NON_REMAP - 1;
 
@@ -2389,7 +2378,6 @@ decode_win_xor_valid(void)
 	wintab = xor_wins;
 	rv = 1;
 	for (i = 0; i < xor_wins_no; i++, wintab++) {
-
 		if (wintab->target == 0) {
 			printf("XOR window#%d: DDR target window is not "
 			    "supposed to be reprogrammed!\n", i);

@@ -42,4 +42,3 @@ __FBSDID("$FreeBSD$");
 #include <machine/fdt.h>
 
 #include <arm/altera/socfpga/socfpga_rstmgr.h>
-

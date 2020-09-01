@@ -103,7 +103,6 @@ struct mv_pinctrl_softc {
 	struct mv_padconf	*padconf;
 };
 
-
 static struct ofw_compat_data compat_data[] = {
 	{"marvell,ap806-pinctrl", (uintptr_t)&ap806_padconf},
 	{NULL,             0}

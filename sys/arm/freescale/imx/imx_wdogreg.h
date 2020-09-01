@@ -61,4 +61,3 @@
 
 #define	WDOG_MCR_REG	0x08	/* Miscellaneous Control Register */
 #define	  WDOG_MCR_PDE		  (1u << 0)  /* Power-down enable */
-

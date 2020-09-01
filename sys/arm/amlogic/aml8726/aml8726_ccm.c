@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/amlogic/aml8726/aml8726_soc.h>
 #include <arm/amlogic/aml8726/aml8726_ccm.h>
 
-
 struct aml8726_ccm_softc {
 	device_t			dev;
 	struct aml8726_ccm_function	*soc;

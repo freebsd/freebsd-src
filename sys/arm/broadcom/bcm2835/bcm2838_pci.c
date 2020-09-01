@@ -124,7 +124,6 @@ static struct ofw_compat_data compat_data[] = {
 	{"brcm,bcm2711-pcie",			1},
 	{"brcm,bcm7211-pcie",			1},
 	{"brcm,bcm7445-pcie",			1},
-
 	{NULL,					0}
 };
 
@@ -740,4 +739,3 @@ DEFINE_CLASS_1(pcib, bcm_pcib_driver, bcm_pcib_methods,
 
 static devclass_t bcm_pcib_devclass;
 DRIVER_MODULE(bcm_pcib, simplebus, bcm_pcib_driver, bcm_pcib_devclass, 0, 0);
-

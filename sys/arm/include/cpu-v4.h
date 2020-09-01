@@ -82,11 +82,9 @@ fname(uint32_t reg)							\
 	__asm __volatile("mcr\t" _FX(aname):: "r" (reg));		\
 }
 
-
 /*
  * Publicly accessible functions
  */
-
 
 /* Various control registers */
 
@@ -110,7 +108,6 @@ _RF0(cp15_sctlr_get, CP15_SCTLR(%0))
 #undef	_RF0
 #undef	_WF0
 #undef	_WF1
-
 
 /*
  * armv4/5 compatibility shims.

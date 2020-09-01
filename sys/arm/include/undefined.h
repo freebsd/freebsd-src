@@ -47,7 +47,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _MACHINE_UNDEFINED_H_
 #define _MACHINE_UNDEFINED_H_
 #ifdef _KERNEL

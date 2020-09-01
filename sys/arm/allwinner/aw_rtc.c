@@ -235,7 +235,7 @@ aw_rtc_attach(device_t dev)
 	aw_rtc_install_clocks(sc, dev);
 
 	clock_register(dev, RTC_RES_US);
-	
+
 	return (0);
 }
 
@@ -290,7 +290,7 @@ aw_rtc_gettime(device_t dev, struct timespec *ts)
 
 	rdate = RTC_READ(sc, sc->conf->rtc_date);
 	rtime = RTC_READ(sc, sc->conf->rtc_time);
-	
+
 	if ((rtime & TIME_MASK) == 0)
 		rdate = RTC_READ(sc, sc->conf->rtc_date);
 
@@ -303,7 +303,7 @@ aw_rtc_gettime(device_t dev, struct timespec *ts)
 	ct.dow = -1;
 	/* RTC resolution is 1 sec */
 	ct.nsec = 0;
-	
+
 	return (clock_ct_to_ts(&ct, ts));
 }
 
@@ -320,7 +320,7 @@ aw_rtc_settime(device_t dev, struct timespec *ts)
 	ts->tv_nsec = 0;
 
 	clock_ts_to_ct(ts, &ct);
-	
+
 	if ((ct.year < YEAR_MIN) || (ct.year > YEAR_MAX)) {
 		device_printf(dev, "could not set time, year out of range\n");
 		return (EINVAL);

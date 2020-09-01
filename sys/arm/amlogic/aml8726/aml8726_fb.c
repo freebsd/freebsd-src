@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 
 #include "fb_if.h"
 
-
 enum aml8726_fb_output {
 	aml8726_unknown_fb_output,
 	aml8726_cvbs_fb_output,

@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -294,7 +293,6 @@ static device_method_t ti_aintc_methods[] = {
 	DEVMETHOD(pic_post_filter,	ti_aintc_post_filter),
 	DEVMETHOD(pic_post_ithread,	ti_aintc_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	ti_aintc_pre_ithread),
-
 	{ 0, 0 }
 };
 

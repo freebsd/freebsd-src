@@ -193,7 +193,6 @@ omap_ehci_soft_phy_reset(struct omap_ehci_softc *isc, unsigned int port)
 	/* Wait for ULPI access completion */
 	while ((omap_ehci_read_4(isc, OMAP_USBHOST_INSNREG05_ULPI)
 	       & (1 << OMAP_USBHOST_INSNREG05_ULPI_CONTROL_SHIFT))) {
-
 		/* Sleep for a tick */
 		pause("USBPHY_RESET", 1);
 		
@@ -224,7 +223,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 	uint32_t reg = 0;
 	int i;
 	device_t uhh_dev;
-	
+
 	uhh_dev = device_get_parent(isc->sc_dev);
 	device_printf(isc->sc_dev, "Starting TI EHCI USB Controller\n");
 
@@ -241,7 +240,6 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 	for (i = 0; i < OMAP_HS_USB_PORTS; i++) {
 		if (omap_usb_port_mode(uhh_dev, i) == EHCI_HCD_OMAP_MODE_PHY)
 			omap_ehci_soft_phy_reset(isc, i);
-
 	}
 
 	return(0);
@@ -269,7 +267,7 @@ omap_ehci_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, OMAP_EHCI_HC_DEVSTR);
-	
+
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -318,13 +316,13 @@ omap_ehci_attach(device_t dev)
 
 	/* save the device */
 	isc->sc_dev = dev;
-	
+
 	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus, USB_GET_DMA_TAG(dev),
 	                          &ehci_iterate_hw_softc)) {
 		return (ENOMEM);
 	}
-	
+
 	/* Allocate resource for the EHCI register set */
 	rid = 0;
 	sc->sc_io_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
@@ -349,7 +347,7 @@ omap_ehci_attach(device_t dev)
 
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
 	device_set_desc(sc->sc_bus.bdev, OMAP_EHCI_HC_DEVSTR);
-	
+
 	/* Initialise the ECHI registers */
 	err = omap_ehci_init(isc);
 	if (err) {
@@ -370,7 +368,7 @@ omap_ehci_attach(device_t dev)
 		sc->sc_intr_hdl = NULL;
 		goto error;
 	}
-	
+
 	/* Finally we are ready to kick off the ECHI host controller */
 	err = ehci_init(sc);
 	if (err == 0) {
@@ -380,9 +378,9 @@ omap_ehci_attach(device_t dev)
 		device_printf(dev, "Error: USB init failed err=%d\n", err);
 		goto error;
 	}
-	
+
 	return (0);
-	
+
 error:
 	omap_ehci_detach(dev);
 	return (ENXIO);
@@ -408,17 +406,17 @@ omap_ehci_detach(device_t dev)
 	struct omap_ehci_softc *isc = device_get_softc(dev);
 	ehci_softc_t *sc = &isc->base;
 	int err;
-	
+
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
-	
+
 	/*
 	 * disable interrupts that might have been switched on in ehci_init
 	 */
 	if (sc->sc_io_res) {
 		EWRITE4(sc, EHCI_USBINTR, 0);
 	}
-	
+
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
 		 * only call ehci_detach() after ehci_init()
@@ -430,7 +428,7 @@ omap_ehci_detach(device_t dev)
 			device_printf(dev, "Error: could not tear down irq, %d\n", err);
 		sc->sc_intr_hdl = NULL;
 	}
-	
+
 	/* Free the resources stored in the base EHCI handler */
 	if (sc->sc_irq_res) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
@@ -453,10 +451,9 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_suspend, bus_generic_suspend),
 	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-	
+
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	
 	{0, 0}
 };
 

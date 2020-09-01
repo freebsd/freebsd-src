@@ -126,7 +126,6 @@ static kobj_method_t a10hdmiaudio_mixer_methods[] = {
 };
 MIXER_DECLARE(a10hdmiaudio_mixer);
 
-
 /*
  * Channel interface
  */
@@ -344,7 +343,6 @@ static kobj_method_t a10hdmiaudio_chan_methods[] = {
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(a10hdmiaudio_chan);
-
 
 /*
  * Device interface

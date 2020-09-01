@@ -92,10 +92,8 @@ __FBSDID("$FreeBSD$");
 #define	A8K_RTC_READ_OUTPUT_DELAY_MASK		0x000000FFFF
 #define	A8K_RTC_READ_OUTPUT_DELAY_VAL		0x3F
 
-
 #define	RTC_RES		0
 #define	RTC_SOC_RES	1
-
 
 static struct resource_spec res_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },

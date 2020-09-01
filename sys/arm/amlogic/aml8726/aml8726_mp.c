@@ -198,7 +198,6 @@ find_node_for_device(const char *device, const char **compatible)
 	return (0);
 }
 
-
 static int
 alloc_resource_for_node(phandle_t node, struct resource *res, u_long *size)
 {
@@ -220,7 +219,6 @@ alloc_resource_for_node(phandle_t node, struct resource *res, u_long *size)
 
 	return (err);
 }
-
 
 static void
 power_on_cpu(int cpu)
@@ -374,7 +372,6 @@ platform_mp_setmaxid(void)
 	if (alloc_resource_for_node(cpucfg_node, &aml8726_smp.cpucfg_res,
 	    &aml8726_smp.cpucfg_size) != 0)
 		panic("Could not allocate resource for CPUCONFIG");
-
 
 	/*
 	 * Strictly speaking the aobus and cbus may not be required in

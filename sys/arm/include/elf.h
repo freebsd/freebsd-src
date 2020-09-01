@@ -105,7 +105,6 @@ __ElfType(Auxinfo);
 #define	HWCAP_LPAE		0x00100000
 #define	HWCAP_EVTSTRM		0x00200000	/* Not implemented yet.       */
 
-
 /* Flags passed in AT_HWCAP2. */
 #define	HWCAP2_AES		0x00000001
 #define	HWCAP2_PMULL		0x00000002

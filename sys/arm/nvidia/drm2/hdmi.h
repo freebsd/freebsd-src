@@ -26,7 +26,6 @@
 #ifndef _HDMI_H_
 #define _HDMI_H_
 
-
 enum hdmi_infoframe_type {
 	HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
 	HDMI_INFOFRAME_TYPE_AVI = 0x82,
@@ -281,7 +280,6 @@ enum hdmi_3d_structure {
 	HDMI_3D_STRUCTURE_TOP_AND_BOTTOM,
 	HDMI_3D_STRUCTURE_SIDE_BY_SIDE_HALF = 8,
 };
-
 
 struct hdmi_vendor_infoframe {
 	enum hdmi_infoframe_type type;

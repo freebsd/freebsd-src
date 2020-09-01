@@ -96,7 +96,6 @@
 #define MV_DEV_CS2_BASE     0xFB500000
 #define MV_DEV_CS2_SIZE     (1024 * 1024)   /* 1 MB */
 
-
 /*
  * Integrated SoC peripherals addresses
  */
@@ -104,7 +103,6 @@
 #define	MV_DDR_CADR_BASE_ARMV7	(MV_BASE + 0x20180)
 #define MV_DDR_CADR_BASE	(MV_BASE + 0x1500)
 #define MV_MPP_BASE		(MV_BASE + 0x10000)
-
 
 #define MV_MISC_BASE		(MV_BASE + 0x18200)
 #define MV_MBUS_BRIDGE_BASE	(MV_BASE + 0x20000)

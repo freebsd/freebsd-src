@@ -34,4 +34,3 @@
 void rk30_wd_watchdog_reset(void);
 
 #endif /*__RK30XX_WDOG_H__*/
-

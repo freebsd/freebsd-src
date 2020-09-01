@@ -279,7 +279,6 @@ static kobj_method_t ssimixer_methods[] = {
 };
 MIXER_DECLARE(ssimixer);
 
-
 /*
  * Channel interface.
  */

@@ -62,7 +62,6 @@ static device_method_t al_ccu_methods[] = {
 	DEVMETHOD(device_probe,		al_ccu_probe),
 	DEVMETHOD(device_attach,	al_ccu_attach),
 	DEVMETHOD(device_detach,	al_ccu_detach),
-
 	{ 0, 0 }
 };
 

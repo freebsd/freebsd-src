@@ -162,7 +162,6 @@ spi_txrx(struct spi_softc *sc, uint8_t *out_buf,
 	WRITE4(sc, CS_REG, reg);
 
 	for (i = 0; i < bufsz; i++) {
-
 		/* TODO: Implement FIFO operation */
 
 		/* Wait all the data shifted out */
@@ -221,7 +220,6 @@ static device_method_t spi_methods[] = {
 
 	/* SPI interface */
 	DEVMETHOD(spibus_transfer,	spi_transfer),
-
 	{ 0, 0 }
 };
 

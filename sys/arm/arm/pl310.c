@@ -219,7 +219,6 @@ pl310_wait_background_op(uint32_t off, uint32_t mask)
 		continue;
 }
 
-
 /**
  *	pl310_cache_sync - performs a cache sync operation
  *
@@ -251,7 +250,6 @@ pl310_cache_sync(void)
 		pl310_write4(pl310_softc, PL310_CACHE_SYNC, 0xffffffff);
 }
 
-
 static void
 pl310_wbinv_all(void)
 {
@@ -274,7 +272,6 @@ pl310_wbinv_all(void)
 		pl310_cache_sync();
 		PL310_UNLOCK(pl310_softc);
 		return;
-
 	}
 	if (pl310_softc->sc_rtl_revision == CACHE_ID_RELEASE_r3p0)
 		platform_pl310_write_debug(pl310_softc, 3);
@@ -305,7 +302,6 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 		size &= ~g_l2cache_align_mask;
 	   	size += g_l2cache_line_size;
 	}
-
 
 #ifdef PL310_ERRATA_727915
 	if (pl310_softc->sc_rtl_revision >= CACHE_ID_RELEASE_r2p0 &&
@@ -595,4 +591,3 @@ static devclass_t pl310_devclass;
 
 EARLY_DRIVER_MODULE(pl310, simplebus, pl310_driver, pl310_devclass, 0, 0,
     BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE);
-

@@ -535,18 +535,18 @@ bcm2835_mbox_fb_get_bpp(struct bcm2835_fb_config *fb)
 {
 	int err;
 	struct msg_fb_get_bpp msg;
-	
+
 	memset(&msg, 0, sizeof(msg));
 	msg.hdr.buf_size = sizeof(msg);
 	msg.hdr.code = BCM2835_MBOX_CODE_REQ;
 	BCM2835_MBOX_INIT_TAG(&msg.bpp, GET_DEPTH);
 	msg.bpp.tag_hdr.val_len = 0;
 	msg.end_tag = 0;
-	
+
 	err = bcm2835_mbox_property(&msg, sizeof(msg));
 	if (err == 0)
 		fb->bpp = msg.bpp.body.resp.bpp;
-	
+
 	return (err);
 }
 
@@ -592,4 +592,3 @@ bcm2835_mbox_fb_init(struct bcm2835_fb_config *fb)
 
 	return (err);
 }
-

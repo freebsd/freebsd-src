@@ -279,7 +279,6 @@ extern bus_space_tag_t arm_base_bs_tag;
 #define	__bs_nonsingle_s(type, sz, t, h, o, a, c)			\
 	(*(t)->__bs_opname_s(type,sz))((t), h, o, a, c)
 
-
 #define __generate_inline_bs_rs(IFN, MBR, TYP)					\
 	static inline TYP						\
 	IFN(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)	\
@@ -311,7 +310,6 @@ extern bus_space_tag_t arm_base_bs_tag;
 	(*(t)->bs_unmap)((t), (h), (s))
 #define	bus_space_subregion(t, h, o, s, hp)				\
 	(*(t)->bs_subregion)((t), (h), (o), (s), (hp))
-
 
 /*
  * Allocation and deallocation operations.
@@ -365,7 +363,6 @@ __generate_inline_bs_rs(bus_space_read_stream_8, bs_r_8_s, uint64_t);
 #define	bus_space_read_multi_stream_8(t, h, o, a, c)			\
 	__bs_nonsingle_s(rm,8,(t),(h),(o),(a),(c))
 
-
 /*
  * Bus read region operations.
  */
@@ -387,7 +384,6 @@ __generate_inline_bs_rs(bus_space_read_stream_8, bs_r_8_s, uint64_t);
 #define	bus_space_read_region_stream_8(t, h, o, a, c)			\
 	__bs_nonsingle_s(rr,8,(t),(h),(o),(a),(c))
 
-
 /*
  * Bus write (single) operations.
  */
@@ -400,7 +396,6 @@ __generate_inline_bs_ws(bus_space_write_stream_1, bs_w_1_s, uint8_t);
 __generate_inline_bs_ws(bus_space_write_stream_2, bs_w_2_s, uint16_t);
 __generate_inline_bs_ws(bus_space_write_stream_4, bs_w_4_s, uint32_t);
 __generate_inline_bs_ws(bus_space_write_stream_8, bs_w_8_s, uint64_t);
-
 
 /*
  * Bus write multiple operations.
@@ -423,7 +418,6 @@ __generate_inline_bs_ws(bus_space_write_stream_8, bs_w_8_s, uint64_t);
 #define	bus_space_write_multi_stream_8(t, h, o, a, c)			\
 	__bs_nonsingle_s(wm,8,(t),(h),(o),(a),(c))
 
-
 /*
  * Bus write region operations.
  */
@@ -445,7 +439,6 @@ __generate_inline_bs_ws(bus_space_write_stream_8, bs_w_8_s, uint64_t);
 #define	bus_space_write_region_stream_8(t, h, o, a, c)			\
 	__bs_nonsingle_s(wr,8,(t),(h),(o),(a),(c))
 
-
 /*
  * Set multiple operations.
  */
@@ -458,7 +451,6 @@ __generate_inline_bs_ws(bus_space_write_stream_8, bs_w_8_s, uint64_t);
 #define	bus_space_set_multi_8(t, h, o, v, c)				\
 	__bs_set(sm,8,(t),(h),(o),(v),(c))
 
-
 /*
  * Set region operations.
  */
@@ -470,7 +462,6 @@ __generate_inline_bs_ws(bus_space_write_stream_8, bs_w_8_s, uint64_t);
 	__bs_set(sr,4,(t),(h),(o),(v),(c))
 #define	bus_space_set_region_8(t, h, o, v, c)				\
 	__bs_set(sr,8,(t),(h),(o),(v),(c))
-
 
 /*
  * Copy operations.

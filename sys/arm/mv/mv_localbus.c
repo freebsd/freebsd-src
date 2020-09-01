@@ -136,7 +136,6 @@ static device_method_t localbus_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-
 	{ 0, 0 }
 };
 
@@ -151,7 +150,6 @@ const struct localbus_va_entry localbus_virtmap[] = {
 	{  1, MV_DEV_CS0_BASE,		MV_DEV_CS0_SIZE },
 	{  2, MV_DEV_CS1_BASE,		MV_DEV_CS1_SIZE },
 	{  3, MV_DEV_CS2_BASE,		MV_DEV_CS2_SIZE },
-
 	{ -1, 0, 0 }
 };
 
@@ -184,7 +182,6 @@ fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
 
 	regptr = reg;
 	for (i = 0; i < tuples; i++) {
-
 		bank = fdt_data_get((void *)regptr, 1);
 
 		if (bank >= MV_LOCALBUS_MAX_BANKS) {
@@ -270,7 +267,6 @@ localbus_attach(device_t dev)
 	dt_node = ofw_bus_get_node(dev);
 	for (dt_child = OF_child(dt_node); dt_child != 0;
 	    dt_child = OF_peer(dt_child)) {
-
 		/* Check and process 'status' property. */
 		if (!(ofw_bus_node_status_okay(dt_child)))
 			continue;
@@ -366,7 +362,6 @@ localbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	    count, flags));
 }
 
-
 static struct resource_list *
 localbus_get_resource_list(device_t bus, device_t child)
 {
@@ -432,7 +427,6 @@ fdt_localbus_devmap(phandle_t dt_node, struct devmap_entry *fdt_devmap,
 
  	/* Process data from FDT */
 	for (i = 0; i < dev_num; i++) {
-
 		/* First field is bank number */
 		bank = fdt_data_get((void *)rangesptr, 1);
 		rangesptr += 1;

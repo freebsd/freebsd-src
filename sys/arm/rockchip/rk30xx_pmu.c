@@ -129,4 +129,3 @@ rk30_pmu_gpio_pud(uint32_t pin, uint32_t state)
 	pin = (pin % 8) * 2;
 	pmu_write_4(rk30_pmu_sc, offset, (0x3 << (16 + pin)) | (state << pin));
 }
-

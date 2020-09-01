@@ -490,7 +490,6 @@ bcm_pwm_get_node(device_t bus, device_t dev)
 	return (ofw_bus_get_node(bus));
 }
 
-
 static device_method_t bcm_pwm_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		bcm_pwm_probe),

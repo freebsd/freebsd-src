@@ -172,7 +172,6 @@ aml8726_pinctrl_detach(device_t dev)
 	return (0);
 }
 
-
 static int
 aml8726_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 {
@@ -406,7 +405,6 @@ aml8726_pinctrl_configure_pins(device_t dev, phandle_t cfgxref)
 
 	return (0);
 }
-
 
 static device_method_t aml8726_pinctrl_methods[] = {
 	/* Device interface */

@@ -686,7 +686,6 @@ ti_adc_tsc_init(struct ti_adc_softc *sc)
 		sc->sc_tsc_enabled |= (1 << i);
 	}
 
-
 	TI_ADC_UNLOCK(sc);
 }
 

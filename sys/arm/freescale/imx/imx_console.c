@@ -137,7 +137,6 @@ uart_cnungrab(struct consdev *cp)
 
 }
 
-
 static void
 uart_cnprobe(struct consdev *cp)
 {

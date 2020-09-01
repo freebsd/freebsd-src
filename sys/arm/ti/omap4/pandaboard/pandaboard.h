@@ -29,4 +29,3 @@
 #define _PANDABOARD_H_
 void pandaboard_usb_hub_init(void);
 #endif /* _OMAP4_MP_H_ */
-

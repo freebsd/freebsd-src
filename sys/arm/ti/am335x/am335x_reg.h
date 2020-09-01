@@ -40,4 +40,3 @@
 #define AM335X_CONTROL_DEV_FEATURE		0x0604
 
 #endif
-

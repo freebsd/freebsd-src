@@ -56,7 +56,6 @@
 #define ZYNQ7_UART1_HWBASE	(ZYNQ7_PSIO_HWBASE+0x1000)
 #define ZYNQ7_UART1_SIZE	0x1000
 
-
 /* SMC Memories not mapped for now. */
 #define ZYNQ7_SMC_HWBASE	0xE1000000
 #define ZYNQ7_SMC_SIZE		0x05000000

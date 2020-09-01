@@ -467,7 +467,7 @@ emac_watchdog(struct emac_softc *sc)
 			    "(missed link)\n");
 	} else
 		if_printf(sc->emac_ifp, "watchdog timeout -- resetting\n");
-	
+
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	emac_init_locked(sc);
@@ -601,7 +601,6 @@ emac_init_locked(struct emac_softc *sc)
 
 	callout_reset(&sc->emac_tick_ch, hz, emac_tick, sc);
 }
-
 
 static void
 emac_start(struct ifnet *ifp)
