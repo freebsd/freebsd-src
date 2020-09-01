@@ -87,6 +87,7 @@ enum ixl_pf_state {
 	IXL_PF_STATE_GLOB_RESET_REQ	= (1 << 7),
 	IXL_PF_STATE_EMP_RESET_REQ	= (1 << 8),
 	IXL_PF_STATE_FW_LLDP_DISABLED	= (1 << 9),
+	IXL_PF_STATE_EEE_ENABLED	= (1 << 10),
 };
 
 #define IXL_PF_IN_RECOVERY_MODE(pf)	\
@@ -191,7 +192,9 @@ struct ixl_pf {
 "\t 0x4 - advertise 10G\n"		\
 "\t 0x8 - advertise 20G\n"		\
 "\t0x10 - advertise 25G\n"		\
-"\t0x20 - advertise 40G\n\n"		\
+"\t0x20 - advertise 40G\n"		\
+"\t0x40 - advertise 2.5G\n"		\
+"\t0x80 - advertise 5G\n\n"		\
 "Set to 0 to disable link.\n"		\
 "Use \"sysctl -x\" to view flags properly."
 
@@ -203,7 +206,9 @@ struct ixl_pf {
 "\t 0x4 - 10G\n"			\
 "\t 0x8 - 20G\n"			\
 "\t0x10 - 25G\n"			\
-"\t0x20 - 40G\n\n"			\
+"\t0x20 - 40G\n"			\
+"\t0x40 - 2.5G\n"			\
+"\t0x80 - 5G\n\n"			\
 "Use \"sysctl -x\" to view flags properly."
 
 #define IXL_SYSCTL_HELP_FC				\

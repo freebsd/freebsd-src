@@ -347,6 +347,12 @@ struct i40e_phy_info {
 					     I40E_PHY_TYPE_OFFSET)
 #define I40E_CAP_PHY_TYPE_25GBASE_ACC BIT_ULL(I40E_PHY_TYPE_25GBASE_ACC + \
 					     I40E_PHY_TYPE_OFFSET)
+/* Offset for 2.5G/5G PHY Types value to bit number conversion */
+#define I40E_PHY_TYPE_OFFSET2 (-10)
+#define I40E_CAP_PHY_TYPE_2_5GBASE_T BIT_ULL(I40E_PHY_TYPE_2_5GBASE_T + \
+					     I40E_PHY_TYPE_OFFSET2)
+#define I40E_CAP_PHY_TYPE_5GBASE_T BIT_ULL(I40E_PHY_TYPE_5GBASE_T + \
+					     I40E_PHY_TYPE_OFFSET2)
 #define I40E_HW_CAP_MAX_GPIO			30
 #define I40E_HW_CAP_MDIO_PORT_MODE_MDIO		0
 #define I40E_HW_CAP_MDIO_PORT_MODE_I2C		1
@@ -1490,6 +1496,8 @@ struct i40e_hw_port_stats {
 	u32 rx_lpi_status;
 	u64 tx_lpi_count;		/* etlpic */
 	u64 rx_lpi_count;		/* erlpic */
+	u64 tx_lpi_duration;
+	u64 rx_lpi_duration;
 };
 
 /* Checksum and Shadow RAM pointers */
@@ -1542,6 +1550,7 @@ struct i40e_hw_port_stats {
 #define I40E_SR_FEATURE_CONFIGURATION_PTR	0x49
 #define I40E_SR_CONFIGURATION_METADATA_PTR	0x4D
 #define I40E_SR_IMMEDIATE_VALUES_PTR		0x4E
+#define I40E_SR_5TH_FREE_PROVISION_AREA_PTR	0x50
 
 /* Auxiliary field, mask and shift definition for Shadow RAM and NVM Flash */
 #define I40E_SR_VPD_MODULE_MAX_SIZE		1024
@@ -1728,4 +1737,9 @@ struct i40e_lldp_variables {
 #define I40E_FLEX_56_MASK		(0x1ULL << I40E_FLEX_56_SHIFT)
 #define I40E_FLEX_57_SHIFT		6
 #define I40E_FLEX_57_MASK		(0x1ULL << I40E_FLEX_57_SHIFT)
+#define I40E_BCM_PHY_PCS_STATUS1_PAGE	0x3
+#define I40E_BCM_PHY_PCS_STATUS1_REG	0x0001
+#define I40E_BCM_PHY_PCS_STATUS1_RX_LPI	BIT(8)
+#define I40E_BCM_PHY_PCS_STATUS1_TX_LPI	BIT(9)
+
 #endif /* _I40E_TYPE_H_ */

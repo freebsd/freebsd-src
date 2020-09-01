@@ -1940,6 +1940,8 @@ enum i40e_aq_phy_type {
 	I40E_PHY_TYPE_25GBASE_LR		= 0x22,
 	I40E_PHY_TYPE_25GBASE_AOC		= 0x23,
 	I40E_PHY_TYPE_25GBASE_ACC		= 0x24,
+	I40E_PHY_TYPE_2_5GBASE_T		= 0x30,
+	I40E_PHY_TYPE_5GBASE_T			= 0x31,
 	I40E_PHY_TYPE_MAX,
 	I40E_PHY_TYPE_NOT_SUPPORTED_HIGH_TEMP	= 0xFD,
 	I40E_PHY_TYPE_EMPTY			= 0xFE,
@@ -1981,19 +1983,25 @@ enum i40e_aq_phy_type {
 				BIT_ULL(I40E_PHY_TYPE_25GBASE_SR) | \
 				BIT_ULL(I40E_PHY_TYPE_25GBASE_LR) | \
 				BIT_ULL(I40E_PHY_TYPE_25GBASE_AOC) | \
-				BIT_ULL(I40E_PHY_TYPE_25GBASE_ACC))
+				BIT_ULL(I40E_PHY_TYPE_25GBASE_ACC) | \
+				BIT_ULL(I40E_PHY_TYPE_2_5GBASE_T) | \
+				BIT_ULL(I40E_PHY_TYPE_5GBASE_T))
 
+#define I40E_LINK_SPEED_2_5GB_SHIFT	0x0
 #define I40E_LINK_SPEED_100MB_SHIFT	0x1
 #define I40E_LINK_SPEED_1000MB_SHIFT	0x2
 #define I40E_LINK_SPEED_10GB_SHIFT	0x3
 #define I40E_LINK_SPEED_40GB_SHIFT	0x4
 #define I40E_LINK_SPEED_20GB_SHIFT	0x5
 #define I40E_LINK_SPEED_25GB_SHIFT	0x6
+#define I40E_LINK_SPEED_5GB_SHIFT	0x7
 
 enum i40e_aq_link_speed {
 	I40E_LINK_SPEED_UNKNOWN	= 0,
 	I40E_LINK_SPEED_100MB	= (1 << I40E_LINK_SPEED_100MB_SHIFT),
 	I40E_LINK_SPEED_1GB	= (1 << I40E_LINK_SPEED_1000MB_SHIFT),
+	I40E_LINK_SPEED_2_5GB	= (1 << I40E_LINK_SPEED_2_5GB_SHIFT),
+	I40E_LINK_SPEED_5GB	= (1 << I40E_LINK_SPEED_5GB_SHIFT),
 	I40E_LINK_SPEED_10GB	= (1 << I40E_LINK_SPEED_10GB_SHIFT),
 	I40E_LINK_SPEED_40GB	= (1 << I40E_LINK_SPEED_40GB_SHIFT),
 	I40E_LINK_SPEED_20GB	= (1 << I40E_LINK_SPEED_20GB_SHIFT),
@@ -2030,6 +2038,8 @@ struct i40e_aq_get_phy_abilities_resp {
 #define I40E_AQ_EEE_1000BASE_KX		0x0010
 #define I40E_AQ_EEE_10GBASE_KX4		0x0020
 #define I40E_AQ_EEE_10GBASE_KR		0x0040
+#define I40E_AQ_EEE_2_5GBASE_T		0x0100
+#define I40E_AQ_EEE_5GBASE_T		0x0200
 	__le32	eeer_val;
 	u8	d3_lpan;
 #define I40E_AQ_SET_PHY_D3_LPAN_ENA	0x01
@@ -2040,6 +2050,8 @@ struct i40e_aq_get_phy_abilities_resp {
 #define I40E_AQ_PHY_TYPE_EXT_25G_LR	0x08
 #define I40E_AQ_PHY_TYPE_EXT_25G_AOC	0x10
 #define I40E_AQ_PHY_TYPE_EXT_25G_ACC	0x20
+#define I40E_AQ_PHY_TYPE_EXT_2_5GBASE_T	0x40
+#define I40E_AQ_PHY_TYPE_EXT_5GBASE_T	0x80
 	u8	fec_cfg_curr_mod_ext_info;
 #define I40E_AQ_ENABLE_FEC_KR		0x01
 #define I40E_AQ_ENABLE_FEC_RS		0x02
@@ -2282,15 +2294,32 @@ enum i40e_aq_phy_reg_type {
 	I40E_AQC_PHY_REG_EXERNAL_MODULE	= 0x3
 };
 
+#pragma pack(1)
 /* Run PHY Activity (0x0626) */
 struct i40e_aqc_run_phy_activity {
-	__le16  activity_id;
-	u8      flags;
-	u8      reserved1;
-	__le32  control;
-	__le32  data;
-	u8      reserved2[4];
+	u8	cmd_flags;
+	__le16	activity_id;
+#define I40E_AQ_RUN_PHY_ACT_ID_USR_DFND			0x10
+	u8	reserved;
+	union {
+		struct {
+			__le32  dnl_opcode;
+#define I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_STAT_DUR	0x801a
+#define I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_STAT	0x801b
+#define I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_DUR	0x1801b
+			__le32  data;
+			u8	reserved2[4];
+		} cmd;
+		struct {
+			__le32	cmd_status;
+#define I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC		0x4
+#define I40E_AQ_RUN_PHY_ACT_CMD_STAT_MASK		0xFFFF
+			__le32	data0;
+			__le32	data1;
+		} resp;
+	} params;
 };
+#pragma pack()
 
 I40E_CHECK_CMD_LENGTH(i40e_aqc_run_phy_activity);
 
