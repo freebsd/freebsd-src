@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include "isa_if.h"
 
-
 typedef void (*sio_conf_enter_f)(struct resource*, uint16_t);
 typedef void (*sio_conf_exit_f)(struct resource*, uint16_t);
 
