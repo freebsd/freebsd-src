@@ -507,4 +507,3 @@ ngt_rint_poll(struct tty *tp)
 	/* We can always accept input */
 	return (1);
 }
-

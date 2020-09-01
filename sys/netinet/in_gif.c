@@ -458,4 +458,3 @@ in_gif_uninit(void)
 		gif_hashdestroy(V_ipv4_srchashtbl);
 	}
 }
-

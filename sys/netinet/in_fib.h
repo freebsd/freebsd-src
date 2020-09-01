@@ -52,4 +52,3 @@ int fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 struct nhop_object *fib4_lookup_debugnet(uint32_t fibnum, struct in_addr dst,
     uint32_t scopeid, uint32_t flags);
 #endif
-

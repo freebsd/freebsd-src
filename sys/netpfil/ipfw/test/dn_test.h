@@ -28,7 +28,6 @@ extern int debug;
 #define DX(lev, fmt, args...) do {              \
         if (debug > lev) D(fmt, ## args); } while (0)
 
-
 #ifndef offsetof
 #define offsetof(t,m) (int)(intptr_t)((&((t *)0L)->m))
 #endif

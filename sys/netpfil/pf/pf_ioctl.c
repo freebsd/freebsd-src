@@ -330,7 +330,6 @@ pfattach_vnet(void)
 		return;
 }
 
-
 static struct pf_pool *
 pf_get_pool(char *anchor, u_int32_t ticket, u_int8_t rule_action,
     u_int32_t rule_number, u_int8_t r_last, u_int8_t active,
@@ -472,7 +471,7 @@ pf_init_tagset(struct pf_tagset *ts, unsigned int *tunable_size,
 {
 	unsigned int i;
 	unsigned int hashsize;
-	
+
 	if (*tunable_size == 0 || !powerof2(*tunable_size))
 		*tunable_size = default_size;
 
@@ -559,7 +558,7 @@ tagname2tag(struct pf_tagset *ts, char *tagname)
 
 	/* Mark the tag as in use.  Bits are 0-based for BIT_CLR() */
 	BIT_CLR(TAGID_MAX, new_tagid - 1, &ts->avail);
-	
+
 	/* allocate and fill new struct pf_tagname */
 	tag = uma_zalloc(V_pf_tag_z, M_NOWAIT);
 	if (tag == NULL)
@@ -574,7 +573,7 @@ tagname2tag(struct pf_tagset *ts, char *tagname)
 	/* Insert into taghash */
 	index = tag2hashindex(ts, new_tagid);
 	TAILQ_INSERT_TAIL(&ts->taghash[index], tag, taghash_entries);
-	
+
 	return (tag->tag);
 }
 
@@ -583,7 +582,7 @@ tag_unref(struct pf_tagset *ts, u_int16_t tag)
 {
 	struct pf_tagname	*t;
 	uint16_t		 index;
-	
+
 	PF_RULES_WASSERT();
 
 	index = tag2hashindex(ts, tag);
@@ -795,7 +794,7 @@ pf_altq_ifnet_event_add(struct ifnet *ifp, int remove, u_int32_t ticket,
 {
 	struct ifnet	*ifp1;
 	int		 error = 0;
-	
+
 	/* Deactivate the interface in question */
 	altq->local_flags &= ~PFALTQ_FLAG_IF_REMOVED;
 	if ((ifp1 = ifunit(altq->ifname)) == NULL ||
@@ -1058,7 +1057,6 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	    rs->rules[rs_num].inactive.ticket;
 	pf_calc_skip_steps(rs->rules[rs_num].active.ptr);
 
-
 	/* Purge the old rule list. */
 	while ((rule = TAILQ_FIRST(old_rules)) != NULL)
 		pf_unlink_rule(old_rules, rule);
@@ -1155,7 +1153,7 @@ static int
 pf_export_kaltq(struct pf_altq *q, struct pfioc_altq_v1 *pa, size_t ioc_size)
 {
 	u_int32_t version;
-	
+
 	if (ioc_size == sizeof(struct pfioc_altq_v0))
 		version = 0;
 	else
@@ -1264,7 +1262,7 @@ static int
 pf_import_kaltq(struct pfioc_altq_v1 *pa, struct pf_altq *q, size_t ioc_size)
 {
 	u_int32_t version;
-	
+
 	if (ioc_size == sizeof(struct pfioc_altq_v0))
 		version = 0;
 	else
@@ -1272,7 +1270,7 @@ pf_import_kaltq(struct pfioc_altq_v1 *pa, struct pf_altq *q, size_t ioc_size)
 
 	if (version > PFIOC_ALTQ_VERSION)
 		return (EINVAL);
-	
+
 #define ASSIGN(x) q->x = imported_q->x
 #define COPY(x) \
 	bcopy(&imported_q->x, &q->x, min(sizeof(imported_q->x), sizeof(q->x)))
@@ -1357,7 +1355,7 @@ pf_import_kaltq(struct pfioc_altq_v1 *pa, struct pf_altq *q, size_t ioc_size)
 
 #undef ASSIGN
 #undef COPY
-	
+
 	return (0);
 }
 
@@ -1584,7 +1582,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		rule->cuid = td->td_ucred->cr_ruid;
 		rule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 		TAILQ_INIT(&rule->rpool.list);
-
 #define	ERROUT(x)	{ error = (x); goto DIOCADDRULE_error; }
 
 		PF_RULES_WLOCK();
@@ -1846,7 +1843,6 @@ DIOCADDRULE_error:
 			newrule->cpid = td->td_proc ? td->td_proc->p_pid : 0;
 			TAILQ_INIT(&newrule->rpool.list);
 		}
-
 #define	ERROUT(x)	{ error = (x); goto DIOCCHANGERULE_error; }
 
 		PF_RULES_WLOCK();
@@ -2182,7 +2178,6 @@ relock_DIOCKILLSTATES:
 
 			PF_HASHROW_LOCK(ih);
 			LIST_FOREACH(s, &ih->states, entry) {
-
 				if (s->timeout == PFTM_UNLINKED)
 					continue;
 
@@ -2775,7 +2770,6 @@ DIOCGETSTATES_full:
 				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
 			newpa->kif = NULL;
 		}
-
 #define	ERROUT(x)	{ error = (x); goto DIOCCHANGEADDR_error; }
 		PF_RULES_WLOCK();
 		ruleset = pf_find_ruleset(pca->anchor);
@@ -3834,7 +3828,6 @@ DIOCCHANGEADDR_error:
 	}
 
 	case DIOCCLRSRCNODES: {
-
 		pf_clear_srcnodes(NULL);
 		pf_purge_expired_src_nodes();
 		break;
@@ -4498,7 +4491,6 @@ vnet_pf_uninit(const void *unused __unused)
 SYSUNINIT(pf_unload, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND, pf_unload, NULL);
 VNET_SYSUNINIT(vnet_pf_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_THIRD,
     vnet_pf_uninit, NULL);
-
 
 static int
 pf_modevent(module_t mod, int type, void *data)

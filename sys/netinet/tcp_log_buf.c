@@ -1192,7 +1192,6 @@ tcp_log_tcpcbinit(struct tcpcb *tp)
 	}
 }
 
-
 /* Remove entries */
 static void
 tcp_log_expire(void *unused __unused)
@@ -2339,7 +2338,6 @@ tcp_log_dump_node_logbuf(struct tcp_log_id_node *tln, char *reason, int how)
 	return (0);
 }
 
-
 /*
  * Queue the log buffers for all sessions in a bucket for transmissions via
  * the log buffer facility.
@@ -2577,7 +2575,6 @@ done:
 }
 #undef	LOCAL_SAVE
 
-
 /*
  * Queue the log buffers for all sessions in a bucket for transmissions via
  * the log buffer facility.
@@ -2639,4 +2636,3 @@ tcp_log_flowend(struct tcpcb *tp)
 				TCP_LOG_FLOWEND, 0, 0, NULL, false);
 	}
 }
-

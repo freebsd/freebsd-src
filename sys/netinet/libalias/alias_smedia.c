@@ -154,7 +154,7 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-	
+
 	if (ntohs(*ah->dport) == TFTP_PORT_NUMBER)
 		FindRtspOut(la, pip->ip_src, pip->ip_dst,
  			    *ah->sport, *ah->aport, IPPROTO_UDP);
@@ -312,7 +312,6 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 				eport = htons(p[1]);
 
 				if (!links_created) {
-
 					links_created = 1;
 					/*
 					 * Find an even numbered port
@@ -331,7 +330,6 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 						    "PacketAlias/RTSP: Cannot find contiguous RTSP data ports\n");
 #endif
 					} else {
-
 						base_alias = ntohs(salias);
 						for (j = 0; j < RTSP_PORT_GROUP; j++) {
 							/*
@@ -363,7 +361,6 @@ alias_rtsp_out(struct libalias *la, struct ip *pip,
 					ealias = htons(base_alias + (RTSP_PORT_GROUP - 1));
 				}
 				if (salias && rtsp_lnk) {
-
 					pkt_updated = 1;
 
 					/* Copy into IP packet */
@@ -504,7 +501,6 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 	/* When aliasing a client, check for the SETUP request */
 	if ((ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_1) ||
 	    (ntohs(tc->th_dport) == RTSP_CONTROL_PORT_NUMBER_2)) {
-
 		if (dlen >= (int)strlen(setup)) {
 			if (memcmp(data, setup, strlen(setup)) == 0) {
 				alias_rtsp_out(la, pip, lnk, data, client_port_str);
@@ -517,14 +513,12 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 			}
 		}
 	} else {
-
 		/*
 		 * When aliasing a server, check for the 200 reply
 		 * Accommodate varying number of blanks between 200 & OK
 		 */
 
 		if (dlen >= (int)strlen(str200)) {
-
 			for (parseOk = 0, i = 0;
 			    i <= dlen - (int)strlen(str200);
 			    i++) {
@@ -534,16 +528,13 @@ AliasHandleRtspOut(struct libalias *la, struct ip *pip, struct alias_link *lnk, 
 				}
 			}
 			if (parseOk) {
-
 				i += strlen(str200);	/* skip string found */
 				while (data[i] == ' ')	/* skip blank(s) */
 					i++;
 
 				if ((dlen - i) >= (int)strlen(okstr)) {
-
 					if (memcmp(&data[i], okstr, strlen(okstr)) == 0)
 						alias_rtsp_out(la, pip, lnk, data, server_port_str);
-
 				}
 			}
 		}

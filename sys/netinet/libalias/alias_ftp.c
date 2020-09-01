@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
     changes of sequence and acknowledgment numbers, since the client
     machine is totally unaware of the modification to the TCP stream.
 
-
     References: RFC 959, RFC 2428.
 
     Initial version:  August, 1996  (cjm)
@@ -139,7 +138,6 @@ protohandler_out(struct libalias *la, struct ip *pip, struct alias_data *ah)
 	AliasHandleFtpOut(la, pip, ah->lnk, ah->maxpktsize);
 	return (0);
 }
-
 
 static int
 protohandler_in(struct libalias *la, struct ip *pip, struct alias_data *ah)

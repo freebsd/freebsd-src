@@ -177,7 +177,6 @@ static const STRUCT_USB_HOST_ID ubtbcmfw_devs[] = {
 	{ USB_VPI(USB_VENDOR_BROADCOM, USB_PRODUCT_BROADCOM_BCM2033, 0) },
 };
 
-
 DRIVER_MODULE(ubtbcmfw, uhub, ubtbcmfw_driver, ubtbcmfw_devclass, NULL, 0);
 MODULE_DEPEND(ubtbcmfw, usb, 1, 1, 1);
 USB_PNP_HOST_INFO(ubtbcmfw_devs);

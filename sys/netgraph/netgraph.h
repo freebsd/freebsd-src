@@ -77,7 +77,6 @@
 #define NG_ABI_VERSION	_NG_ABI_VERSION
 #endif	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/
 
-
 /*
  * Forward references for the basic structures so we can
  * define the typedefs and use them in the structures themselves.
@@ -302,7 +301,6 @@ _ng_hook_hi_stack(hook_p hook, char * file, int line)
 	_chkhook(hook, file, line);
 	_NG_HOOK_HI_STACK(hook);
 }
-
 
 #define	NG_HOOK_REF(hook)		_ng_hook_ref(hook, _NN_)
 #define NG_HOOK_NAME(hook)		_ng_hook_name(hook, _NN_)
@@ -873,7 +871,7 @@ _ngi_hook(item_p item, char *file, int line)
 
 #define NGI_QUEUED_READER(i)	((i)->el_flags & NGQF_QREADER)
 #define NGI_QUEUED_WRITER(i)	(((i)->el_flags & NGQF_QMODE) == NGQF_QWRITER)
-	
+
 /**********************************************************************
 * Data macros.  Send, manipulate and free.
 **********************************************************************/
@@ -1033,7 +1031,6 @@ _ngi_hook(item_p item, char *file, int line)
 		(item) = NULL;						\
 	} while (0)
 
-
 /***********************************************************************
  ******** Structures Definitions and Macros for defining a node  *******
  ***********************************************************************
@@ -1070,7 +1067,6 @@ struct ng_cmdlist {
  * for other reasons (e.g. device output queuing).
  */
 struct ng_type {
-
 	u_int32_t	version; 	/* must equal NG_API_VERSION */
 	const char	*name;		/* Unique type name */
 	modeventhand_t	mod_event;	/* Module event handler (optional) */

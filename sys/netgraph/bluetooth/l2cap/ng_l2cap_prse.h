@@ -86,4 +86,3 @@ static const struct ng_cmdlist	ng_l2cap_cmdlist[] = {
 };
 
 #endif /* ndef _NETGRAPH_L2CAP_PRSE_H_ */
-

@@ -339,4 +339,3 @@ int  ng_btsocket_rfcomm_sockaddr   (struct socket *, struct sockaddr **);
 #endif /* _KERNEL */
 
 #endif /* _NETGRAPH_BTSOCKET_RFCOMM_H_ */
-

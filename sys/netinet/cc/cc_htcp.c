@@ -518,7 +518,6 @@ htcp_ssthresh_update(struct cc_var *ccv)
 	}
 }
 
-
 SYSCTL_DECL(_net_inet_tcp_cc_htcp);
 SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, htcp, CTLFLAG_RW | CTLFLAG_MPSAFE, NULL,
     "H-TCP related settings");

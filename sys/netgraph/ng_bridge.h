@@ -201,4 +201,3 @@ enum {
 };
 
 #endif /* _NETGRAPH_NG_BRIDGE_H_ */
-

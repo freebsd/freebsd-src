@@ -364,7 +364,6 @@ static int	bridge_fragment(struct ifnet *, struct mbuf **mp,
 static void	bridge_linkstate(struct ifnet *ifp);
 static void	bridge_linkcheck(struct bridge_softc *sc);
 
-
 /* The default bridge vlan is 1 (IEEE 802.1Q-2003 Table 9-2) */
 #define	VLANTAGOF(_m)	\
     (_m->m_flags & M_VLANTAG) ? EVL_VLANOFTAG(_m->m_pkthdr.ether_vtag) : 1
@@ -784,7 +783,6 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	NET_EPOCH_ENTER(et);
 
 	switch (cmd) {
-
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		break;

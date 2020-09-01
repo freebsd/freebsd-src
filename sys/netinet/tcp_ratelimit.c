@@ -917,7 +917,6 @@ tcp_find_suitable_rate(const struct tcp_rate_set *rs, uint64_t bytes_per_sec, ui
 	int i, matched;
 	struct tcp_hwrate_limit_table *rte = NULL;
 
-
 	if ((rs->rs_flags & RS_INT_TBL) &&
 	    (rs->rs_rate_cnt >= ALL_HARDWARE_RATES)) {
 		/*
@@ -1265,7 +1264,6 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 	int is_indirect = 0;
 	int err;
 
-
 	if ((tp->t_inpcb->inp_snd_tag == NULL) ||
 	    (crte == NULL)) {
 		/* Wrong interface */
@@ -1365,7 +1363,6 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 #define ONE_HUNDRED_MBPS 12500000	/* 100Mbps in bytes per second */
 #define FIVE_HUNDRED_MBPS 62500000	/* 500Mbps in bytes per second */
 #define MAX_MSS_SENT 43	/* 43 mss = 43 x 1500 = 64,500 bytes */
-
 
 uint32_t
 tcp_get_pacing_burst_size (uint64_t bw, uint32_t segsiz, int can_use_1mss,

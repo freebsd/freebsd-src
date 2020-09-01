@@ -65,7 +65,6 @@ static ng_shutdown_t	ng_patch_shutdown;
 static ng_newhook_t	ng_patch_newhook;
 static ng_rcvdata_t	ng_patch_rcvdata;
 static ng_disconnect_t	ng_patch_disconnect;
-
 #define ERROUT(x) { error = (x); goto done; }
 
 static int
@@ -578,7 +577,6 @@ ng_patch_rcvdata(hook_p hook, item_p item)
 
 	if (priv->conf && hook == priv->in &&
 	    m && (m->m_flags & M_PKTHDR)) {
-
 		m = m_unshare(m, M_NOWAIT);
 
 		if (m == NULL)

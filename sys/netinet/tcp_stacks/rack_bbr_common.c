@@ -161,7 +161,6 @@ again:
 }
 #endif
 
-
 /*
  * The function ctf_process_inbound_raw() is used by
  * transport developers to do the steps needed to
@@ -674,7 +673,6 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so, struct tcp
 	if ((SEQ_GEQ(th->th_seq, (tp->last_ack_sent - 1)) &&
 	    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
 	    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
-
 		KASSERT(tp->t_state != TCPS_SYN_SENT,
 		    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p",
 		    __func__, th, tp));

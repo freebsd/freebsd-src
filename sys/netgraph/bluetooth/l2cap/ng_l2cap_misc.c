@@ -234,7 +234,7 @@ ng_l2cap_discon_untimeout(ng_l2cap_con_p con)
 "%s: %s - no disconnect timeout, state=%d, flags=%#x\n",
 			__func__,  NG_NODE_NAME(con->l2cap->node),
 			con->state, con->flags);
-	
+
 	if (ng_uncallout(&con->con_timo, con->l2cap->node) == 0)
 		return (ETIMEDOUT);
 
@@ -348,7 +348,7 @@ ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm, int idtyp
 		ch->scid = ng_l2cap_get_cid(l2cap,
 					    (con->linktype!= NG_HCI_LINK_ACL));
 	}
-	
+
 	ch->idtype = idtype;
 	if (ch->scid != NG_L2CAP_NULL_CID) {
 		/* Initialize channel */
@@ -378,7 +378,6 @@ ng_l2cap_new_chan(ng_l2cap_p l2cap, ng_l2cap_con_p con, u_int16_t psm, int idtyp
 	return (ch);
 } /* ng_l2cap_new_chan */
 
-
 ng_l2cap_chan_p
 ng_l2cap_chan_by_scid(ng_l2cap_p l2cap, u_int16_t scid, int idtype)
 {
@@ -388,7 +387,7 @@ ng_l2cap_chan_by_scid(ng_l2cap_p l2cap, u_int16_t scid, int idtype)
 	   (idtype == NG_L2CAP_L2CA_IDTYPE_SMP)){
 		return NULL;
 	}
-	
+
 	LIST_FOREACH(ch, &l2cap->chan_list, next){
 		if((idtype != NG_L2CAP_L2CA_IDTYPE_BREDR)&&
 		   (ch->con->linktype == NG_HCI_LINK_ACL ))
@@ -408,7 +407,6 @@ ng_l2cap_chan_by_conhandle(ng_l2cap_p l2cap, uint16_t scid,
 {
 	ng_l2cap_chan_p	ch = NULL;
 
-	
 	LIST_FOREACH(ch, &l2cap->chan_list, next){
 		if ((ch->scid == scid) &&
 		    (ch->con->con_handle == con_handle))
@@ -477,7 +475,7 @@ ng_l2cap_new_cmd(ng_l2cap_con_p con, ng_l2cap_chan_p ch, u_int8_t ident,
 
 	return (cmd);
 } /* ng_l2cap_new_cmd */
- 
+
 /*
  * Get pending (i.e. initiated by local side) L2CAP command descriptor by ident
  */
@@ -535,7 +533,7 @@ ng_l2cap_lp_untimeout(ng_l2cap_con_p con)
 "%s: %s - no LP connection timeout, state=%d, flags=%#x\n",
 			__func__,  NG_NODE_NAME(con->l2cap->node),
 			con->state, con->flags);
-	
+
 	if (ng_uncallout(&con->con_timo, con->l2cap->node) == 0)
 		return (ETIMEDOUT);
 
@@ -697,4 +695,3 @@ ng_l2cap_get_ident(ng_l2cap_con_p con)
 
 	return (NG_L2CAP_NULL_IDENT);
 } /* ng_l2cap_get_ident */
-

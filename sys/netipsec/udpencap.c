@@ -291,4 +291,3 @@ udp_ipsec_adjust_cksum(struct mbuf *m, struct secasvar *sav, int proto,
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 }
-

@@ -480,4 +480,3 @@ ipsec6_pcbctl(struct inpcb *inp, struct sockopt *sopt)
 	return (ipsec_control_pcbpolicy(inp, sopt));
 }
 #endif
-

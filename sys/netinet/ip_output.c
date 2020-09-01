@@ -105,7 +105,6 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, mbuf_frag_size, CTLFLAG_RW,
 
 static void	ip_mloopback(struct ifnet *, const struct mbuf *, int);
 
-
 extern int in_mcast_loop;
 extern	struct protosw inetsw[];
 
@@ -721,7 +720,6 @@ sendit:
 			gw = dst;
 			ip = mtod(m, struct ip *);
 			goto again;
-
 		}
 	}
 
@@ -1428,7 +1426,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_RECVRSSBUCKETID:
 #endif
 			switch (sopt->sopt_name) {
-
 			case IP_TOS:
 				optval = inp->inp_ip_tos;
 				break;

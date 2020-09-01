@@ -172,12 +172,10 @@ static SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet,
 #define DC(x)	(&(dn_cfg.x))
 /* parameters */
 
-
 SYSCTL_PROC(_net_inet_ip_dummynet, OID_AUTO, hash_size,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     0, 0, sysctl_hash_size, "I",
     "Default hash table size");
-
 
 SYSCTL_PROC(_net_inet_ip_dummynet, OID_AUTO, pipe_slot_limit,
     CTLTYPE_LONG | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
@@ -856,7 +854,6 @@ tag_mbuf(struct mbuf *m, int dir, struct ip_fw_args *fwa)
 	dt->iphdr_off = (dir & PROTO_LAYER2) ? ETHER_HDR_LEN : 0;
 	return 0;
 }
-
 
 /*
  * dummynet hook for packets.

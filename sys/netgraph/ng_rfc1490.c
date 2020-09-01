@@ -486,4 +486,3 @@ ng_rfc1490_disconnect(hook_p hook)
 		panic("%s", __func__);
 	return (0);
 }
-

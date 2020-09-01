@@ -178,7 +178,6 @@
 #define	BSTP_INFO_AGED		3
 #define	BSTP_INFO_DISABLED	4
 
-
 #define	BSTP_MESSAGE_AGE_INCR	(1 * 256)	/* in 256ths of a second */
 #define	BSTP_TICK_VAL		(1 * 256)	/* in 256ths of a second */
 #define	BSTP_LINK_TIMER		(BSTP_TICK_VAL * 15)

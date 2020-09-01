@@ -72,7 +72,6 @@ struct sockaddr_dl {
 #define CLLADDR(s) ((c_caddr_t)((s)->sdl_data + (s)->sdl_nlen))
 #define LLINDEX(s) ((s)->sdl_index)
 
-
 struct ifnet;
 struct sockaddr_dl *link_alloc_sdl(size_t, int);
 void link_free_sdl(struct sockaddr *sa);

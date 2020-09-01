@@ -64,7 +64,6 @@
 /*
  * Local Macros
  */
-
 #define	reset_cutoff(ifd)	{ ifd->cutoff_ = RM_MAXDEPTH; }
 
 /*
@@ -651,7 +650,6 @@ rmc_delete_class(struct rm_ifdat *ifd, struct rm_class *cl)
 	free(cl->q_, M_DEVBUF);
 	free(cl, M_DEVBUF);
 }
-
 
 /*
  * void

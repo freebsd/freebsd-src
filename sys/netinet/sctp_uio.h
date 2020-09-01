@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #ifndef _NETINET_SCTP_UIO_H_
 #define _NETINET_SCTP_UIO_H_
 
-
 #if !defined(_KERNEL)
 #include <stdint.h>
 #endif
@@ -110,7 +109,6 @@ struct sctp_initmsg {
  * The assoc up needs a verfid
  * all sendrcvinfo's need a verfid for SENDING only.
  */
-
 
 #define SCTP_ALIGN_RESV_PAD 92
 #define SCTP_ALIGN_RESV_PAD_SHORT 76
@@ -424,7 +422,6 @@ struct sctp_setadaption {
 	uint32_t ssb_adaption_ind;
 };
 
-
 /*
  * Partial Delivery API event
  */
@@ -440,7 +437,6 @@ struct sctp_pdapi_event {
 
 /* indication values */
 #define SCTP_PARTIAL_DELIVERY_ABORTED	0x0001
-
 
 /*
  * authentication key event
@@ -461,14 +457,12 @@ struct sctp_authkey_event {
 #define SCTP_AUTH_NO_AUTH	0x0002
 #define SCTP_AUTH_FREE_KEY	0x0003
 
-
 struct sctp_sender_dry_event {
 	uint16_t sender_dry_type;
 	uint16_t sender_dry_flags;
 	uint32_t sender_dry_length;
 	sctp_assoc_t sender_dry_assoc_id;
 };
-
 
 /*
  * Stream reset event - subscribe to SCTP_STREAM_RESET_EVENT
@@ -516,7 +510,6 @@ struct sctp_stream_change_event {
 
 #define SCTP_STREAM_CHANGE_DENIED	0x0004
 #define SCTP_STREAM_CHANGE_FAILED	0x0008
-
 
 /* SCTP notification event */
 struct sctp_tlv {
@@ -1148,7 +1141,6 @@ struct sctpstat {
 #define SCTP_STAT_DECR_COUNTER64(_x) SCTP_STAT_DECR(_x)
 #define SCTP_STAT_DECR_GAUGE32(_x) SCTP_STAT_DECR(_x)
 
-
 /***********************************/
 /* And something for us old timers */
 /***********************************/
@@ -1163,7 +1155,6 @@ struct sctpstat {
 #define htonll(x) htobe64(x)
 #endif
 /***********************************/
-
 
 struct xsctp_inpcb {
 	uint32_t last;

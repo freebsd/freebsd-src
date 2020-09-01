@@ -144,7 +144,6 @@ struct sctp_tagblock {
 	struct sctp_timewait vtag_block[SCTP_NUMBER_IN_VTAG_BLOCK];
 };
 
-
 struct sctp_epinfo {
 #ifdef INET
 	struct socket *udp4_tun_socket;
@@ -239,7 +238,6 @@ struct sctp_epinfo {
 	struct sctp_timer addr_wq_timer;
 
 };
-
 
 struct sctp_base_info {
 	/*
@@ -355,7 +353,6 @@ struct sctp_pcbtsn_rlog {
 };
 #define SCTP_READ_LOG_SIZE 135	/* we choose the number to make a pcb a page */
 
-
 struct sctp_inpcb {
 	/*-
 	 * put an inpcb in front of it all, kind of a waste but we need to
@@ -366,7 +363,6 @@ struct sctp_inpcb {
 		char align[(sizeof(struct inpcb) + SCTP_ALIGNM1) &
 		    ~SCTP_ALIGNM1];
 	}     ip_inp;
-
 
 	/* Socket buffer lock protects read_queue and of course sb_cc */
 	struct sctp_readhead read_queue;
@@ -473,10 +469,7 @@ struct sctp_tcb {
 	struct mtx tcb_send_mtx;
 };
 
-
-
 #include <netinet/sctp_lock_bsd.h>
-
 
 #if defined(_KERNEL) || defined(__Userspace__)
 
@@ -522,12 +515,9 @@ void sctp_update_ifn_mtu(uint32_t ifn_index, uint32_t mtu);
 void sctp_free_ifn(struct sctp_ifn *sctp_ifnp);
 void sctp_free_ifa(struct sctp_ifa *sctp_ifap);
 
-
 void
 sctp_del_addr_from_vrf(uint32_t vrfid, struct sockaddr *addr,
     uint32_t ifn_index, const char *if_name);
-
-
 
 struct sctp_nets *sctp_findnet(struct sctp_tcb *, struct sockaddr *);
 
@@ -587,7 +577,6 @@ sctp_aloc_assoc(struct sctp_inpcb *, struct sockaddr *,
     int);
 
 int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
-
 
 void sctp_delete_from_timewait(uint32_t, uint16_t, uint16_t);
 

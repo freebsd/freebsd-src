@@ -347,7 +347,6 @@ struct tcp_log_dev_log_queue {
 			    NULL, NULL, 0, tv);				\
 	} while (0)
 
-
 #ifdef TCP_BLACKBOX
 extern bool tcp_log_verbose;
 void tcp_log_drain(struct tcpcb *tp);

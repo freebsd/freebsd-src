@@ -55,7 +55,6 @@
 #include <net/altq/altq.h>
 #include <net/altq/altq_cbq.h>
 
-
 /*
  * Forward Declarations.
  */

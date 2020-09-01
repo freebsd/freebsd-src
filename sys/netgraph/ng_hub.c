@@ -81,7 +81,6 @@ static struct ng_type ng_hub_typestruct = {
 };
 NETGRAPH_INIT(hub, &ng_hub_typestruct);
 
-
 static int
 ng_hub_constructor(node_p node)
 {

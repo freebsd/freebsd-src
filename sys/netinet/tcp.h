@@ -107,7 +107,6 @@ struct tcphdr {
 #define	MAX_SACK_BLKS	6	/* Max # SACK blocks stored at receiver side */
 #define	TCP_MAX_SACK	4	/* MAX # SACKs sent in any segment */
 
-
 /*
  * The default maximum segment size (MSS) to be used for new TCP connections
  * when path MTU discovery is not enabled.
@@ -281,7 +280,6 @@ struct tcphdr {
 #define TCP_RACK_PACE_TO_FILL 1127 /* If we are not in recovery, always pace to fill the cwnd in 1 RTT */
 #define TCP_SHARED_CWND_TIME_LIMIT 1128 /* we should limit to low time values the scwnd life */
 #define TCP_RACK_PROFILE 1129	/* Select a profile that sets multiple options */
-
 
 /* Start of reserved space for third-party user-settable options. */
 #define	TCP_VENDOR	SO_VENDOR

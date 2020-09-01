@@ -40,7 +40,6 @@
  * both directions can be set separately, except for delay.
  */
 
-
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/systm.h>
@@ -127,7 +126,6 @@ typedef struct node_priv *priv_p;
 			TAILQ_INSERT_BEFORE(ngp_f1, ngp_f, fifo_le);	\
 	} else								\
 		TAILQ_INSERT_TAIL(&hinfo->fifo_head, ngp_f, fifo_le);	\
-
 
 static void	parse_cfg(struct ng_pipe_hookcfg *, struct ng_pipe_hookcfg *,
 			struct hookinfo *, priv_p);
@@ -717,7 +715,6 @@ ngp_rcvdata(hook_p hook, item_p item)
 	return (0);
 }
 
-
 /*
  * Dequeueing sequence - we basically do the following:
  *  1) Try to extract the frame from the inbound (bandwidth) queue;
@@ -931,7 +928,6 @@ ngp_shutdown(node_p node)
 	free(priv, M_NG_PIPE);
 	return (0);
 }
-
 
 /*
  * Hook disconnection

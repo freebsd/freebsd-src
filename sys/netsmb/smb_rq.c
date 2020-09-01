@@ -366,7 +366,6 @@ smb_rq_reply(struct smb_rq *rqp)
 	return error ? error : rperror;
 }
 
-
 #define ALIGN4(a)	(((a) + 3) & ~3)
 
 /*

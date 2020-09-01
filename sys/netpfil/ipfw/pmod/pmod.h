@@ -33,4 +33,3 @@
 int tcpmod_init(struct ip_fw_chain *ch, int first);
 void tcpmod_uninit(struct ip_fw_chain *ch, int last);
 #endif /* _IP_FW_PMOD_H_ */
-

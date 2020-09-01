@@ -90,4 +90,3 @@ typedef struct {
 typedef u_int16_t	ng_ubt_node_dev_nodes_ep;
 
 #endif /* ndef _NG_UBT_H_ */
-

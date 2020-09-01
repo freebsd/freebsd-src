@@ -349,7 +349,6 @@ lCTCP_START:
 			struct alias_link *dcc_lnk;
 			struct in_addr destaddr;
 
-
 			true_port = htons(org_port);
 			true_addr.s_addr = htonl(org_addr);
 			destaddr.s_addr = 0;

@@ -141,7 +141,6 @@ static void clear_llinfo_pqueue(struct llentry *);
 static int nd6_resolve_slow(struct ifnet *, int, struct mbuf *,
     const struct sockaddr_in6 *, u_char *, uint32_t *, struct llentry **);
 static int nd6_need_cache(struct ifnet *);
- 
 
 VNET_DEFINE_STATIC(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
@@ -622,7 +621,6 @@ nd6_is_stale(struct llentry *lle, long *pdelay, int *do_switch)
 	LLE_REQ_UNLOCK(lle);
 
 	if (r_skip_req > 0) {
-
 		/*
 		 * Nonzero r_skip_req value was set upon entering
 		 * STALE state. Since value was not changed, no
@@ -639,7 +637,6 @@ nd6_is_stale(struct llentry *lle, long *pdelay, int *do_switch)
 		}
 
 		if (delay == 0) {
-
 			/*
 			 * The original ng6_gctime timeout ended,
 			 * no more rescheduling.
@@ -656,7 +653,6 @@ nd6_is_stale(struct llentry *lle, long *pdelay, int *do_switch)
 	 */
 	delay = (long)(time_uptime - lle_hittime);
 	if (delay < nd_delay) {
-
 		/*
 		 * V_nd6_delay still not passed since the first
 		 * hit in STALE state.
@@ -670,7 +666,6 @@ nd6_is_stale(struct llentry *lle, long *pdelay, int *do_switch)
 	*do_switch = 1;
 	return (0);
 }
-
 
 /*
  * Switch @lle state to new state optionally arming timers.
@@ -849,7 +844,6 @@ nd6_llinfo_timer(void *arg)
 
 	case ND6_LLINFO_STALE:
 		if (nd6_is_stale(ln, &delay, &do_switch) != 0) {
-
 			/*
 			 * No packet has used this entry and GC timeout
 			 * has not been passed. Reshedule timer and
@@ -860,7 +854,6 @@ nd6_llinfo_timer(void *arg)
 		}
 
 		if (do_switch == 0) {
-
 			/*
 			 * GC timer has ended and entry hasn't been used.
 			 * Run Garbage collector (RFC 4861, 5.3)
@@ -911,7 +904,6 @@ done:
 	NET_EPOCH_EXIT(et);
 	CURVNET_RESTORE();
 }
-
 
 /*
  * ND6 timer routine to expire default route list and prefix list
@@ -978,7 +970,6 @@ nd6_timer(void *arg)
 			if (V_ip6_use_tempaddr &&
 			    (ia6->ia6_flags & IN6_IFF_TEMPORARY) != 0 &&
 			    (oldflags & IN6_IFF_DEPRECATED) == 0) {
-
 				if (regen_tmpaddr(ia6) == 0) {
 					/*
 					 * A new temporary address is
@@ -1198,7 +1189,7 @@ nd6_lookup(const struct in6_addr *addr6, int flags, struct ifnet *ifp)
 {
 	struct sockaddr_in6 sin6;
 	struct llentry *ln;
-	
+
 	bzero(&sin6, sizeof(sin6));
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_family = AF_INET6;
@@ -1369,7 +1360,6 @@ restart:
 	return (0);
 }
 
-
 /*
  * Detect if a given IPv6 address identifies a neighbor on a given link.
  * XXX: should take care of the destination of a p2p link?
@@ -1481,7 +1471,6 @@ nd6_free(struct llentry **lnp, int gc)
 		}
 
 		if (ln->ln_router || dr) {
-
 			/*
 			 * We need to unlock to avoid a LOR with rt6_flush() with the
 			 * rnh and for the calls to pfxlist_onlink_check() and
@@ -1599,7 +1588,6 @@ nd6_subscription_cb(struct rib_head *rnh, struct rib_cmd_info *rc, void *arg)
 		}
 	}
 }
-
 
 int
 nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
@@ -2070,7 +2058,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 
 	if (chain != NULL)
 		nd6_flush_holdchain(ifp, chain, &sin6);
-	
+
 	/*
 	 * When the link-layer address of a router changes, select the
 	 * best router again.  In particular, when the neighbor entry is newly
@@ -2138,7 +2126,6 @@ nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
 	lltable_fill_sa_entry(ln, (struct sockaddr *)sin6);
 
 	if (ln->ln_state == ND6_LLINFO_STALE) {
-
 		/*
 		 * The first time we send a packet to a
 		 * neighbor whose entry is STALE, we have
@@ -2270,7 +2257,6 @@ nd6_resolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 
 	return (nd6_resolve_slow(ifp, 0, m, dst6, desten, pflags, plle));
 }
-
 
 /*
  * Do L2 address resolution for @sa_dst address. Stores found

@@ -330,7 +330,6 @@ extern struct sx pf_end_lock;
 		(neg)							\
 	)
 
-
 struct pf_rule_uid {
 	uid_t		 uid[2];
 	u_int8_t	 op;
@@ -377,7 +376,6 @@ struct pf_pool {
 	u_int16_t		 proxy_port[2];
 	u_int8_t		 opts;
 };
-
 
 /* A packed Operating System description for fingerprinting */
 typedef u_int32_t pf_osfp_t;
@@ -479,7 +477,6 @@ struct pf_osfp_ioctl {
 
 	int			fp_getnum;	/* DIOCOSFPGET number */
 };
-
 
 union pf_rule_ptr {
 	struct pf_rule		*ptr;
@@ -628,7 +625,6 @@ struct pf_rule {
 #define PFSTATE_HIWAT		100000	/* default state table size */
 #define PFSTATE_ADAPT_START	60000	/* default adaptive timeout start */
 #define PFSTATE_ADAPT_END	120000	/* default adaptive timeout end */
-
 
 struct pf_threshold {
 	u_int32_t	limit;
@@ -1447,7 +1443,6 @@ struct pfioc_iface {
 	int	 pfiio_nzero;
 	int	 pfiio_flags;
 };
-
 
 /*
  * ioctl operations

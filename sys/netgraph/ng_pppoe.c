@@ -306,8 +306,6 @@ static	int	pppoe_send_event(sessp sp, enum cmd cmdid);
  * Author:	Michal Ostrowski <mostrows@styx.uwaterloo.ca>		 *
  ************************************************************************/
 
-
-
 /*
  * Return the location where the next tag can be put
  */
@@ -2184,7 +2182,7 @@ scan_tags(sessp	sp, const struct pppoe_hdr* ph)
 	}
 	return NULL;
 }
-	
+
 static	int
 pppoe_send_event(sessp sp, enum cmd cmdid)
 {

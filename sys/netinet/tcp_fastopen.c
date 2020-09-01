@@ -191,7 +191,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_var.h>
 #include <netinet/tcp_fastopen.h>
 
-
 #define	TCP_FASTOPEN_KEY_LEN	SIPHASH_KEY_LENGTH
 
 #if TCP_FASTOPEN_PSK_LEN != TCP_FASTOPEN_KEY_LEN
@@ -382,7 +381,6 @@ VNET_DEFINE_STATIC(struct tcp_fastopen_ccache, tcp_fastopen_ccache);
 #define	CCB_UNLOCK(ccb)		mtx_unlock(&(ccb)->ccb_mtx)
 #define	CCB_LOCK_ASSERT(ccb)	mtx_assert(&(ccb)->ccb_mtx, MA_OWNED)
 
-
 void
 tcp_fastopen_init(void)
 {
@@ -532,7 +530,6 @@ tcp_fastopen_autokey_callout(void *arg)
 		      tcp_fastopen_autokey_callout, ctx);
 	CURVNET_RESTORE();
 }
-
 
 static uint64_t
 tcp_fastopen_make_cookie(uint8_t key[SIPHASH_KEY_LENGTH], struct in_conninfo *inc)
@@ -824,7 +821,6 @@ sysctl_net_inet_tcp_fastopen_ccache_bucket_limit(SYSCTL_HANDLER_ARGS)
 			}
 			V_tcp_fastopen_ccache.bucket_limit = new;
 		}
-
 	}
 	return (error);
 }
@@ -1223,4 +1219,3 @@ sysctl_net_inet_tcp_fastopen_ccache_list(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(&sb);
 	return (error);
 }
-

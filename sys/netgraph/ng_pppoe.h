@@ -240,7 +240,6 @@ struct pppoe_hdr{
 	u_int16_t length;
 }__packed;
 
-
 struct pppoe_full_hdr {
 	struct  ether_header eh;
 	struct pppoe_hdr ph;
@@ -285,4 +284,3 @@ struct maxptag {
 /* for PADT */
 
 #endif /* _NETGRAPH_NG_PPPOE_H_ */
-

@@ -965,4 +965,3 @@ ipsec_encap(struct mbuf **mp, struct secasindex *saidx)
 	(*mp)->m_flags &= ~(M_BCAST | M_MCAST);
 	return (0);
 }
-

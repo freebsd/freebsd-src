@@ -154,7 +154,7 @@ typedef struct mtx ieee80211_psq_lock_t;
 	IF_UNLOCK(ifq);						\
 } while (0)
 #endif /* IF_PREPEND_LIST */
- 
+
 /*
  * Age queue definitions.
  */

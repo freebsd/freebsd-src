@@ -496,7 +496,6 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	uint32_t tsnlast, tsnfirst;
 	int recovery_cnt = 0;
 
-
 	/* none in flight now */
 	audit_tf = 0;
 	fir = 0;
@@ -799,7 +798,6 @@ start_again:
 	/* We return 1 if we only have a window probe outstanding */
 	return (0);
 }
-
 
 int
 sctp_t3rxt_timer(struct sctp_inpcb *inp,

@@ -42,7 +42,6 @@ extern "C" {
 
 #define	PRIQ_MAXPRI	16	/* upper limit of the number of priorities */
 
-
 /* priq class flags */
 #define	PRCF_RED		0x0001	/* use RED */
 #define	PRCF_ECN		0x0002  /* use RED/ECN */
@@ -53,7 +52,6 @@ extern "C" {
 
 /* special class handles */
 #define	PRIQ_NULLCLASS_HANDLE	0
-
 
 struct priq_classstats {
 	u_int32_t		class_handle;
@@ -75,7 +73,6 @@ struct priq_classstats {
  * from mixing of public-API and internal bits in each scheduler-specific
  * header.
  */
-
 
 #ifdef _KERNEL
 

@@ -611,4 +611,3 @@ ng_vjc_pulluphdrs(struct mbuf *m, int knownTCP)
 		m = m_pullup(m, ihlen + thlen);
 	return (m);
 }
-

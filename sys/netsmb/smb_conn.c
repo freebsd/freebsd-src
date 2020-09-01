@@ -726,7 +726,7 @@ u_short
 smb_vc_nextmid(struct smb_vc *vcp)
 {
 	u_short r;
-	
+
 	sx_xlock(&vcp->obj.co_interlock);
 	r = vcp->vc_mid++;
 	sx_unlock(&vcp->obj.co_interlock);
@@ -834,7 +834,7 @@ smb_share_get(struct smb_share *ssp, struct smb_cred *scred)
 void
 smb_share_put(struct smb_share *ssp, struct smb_cred *scred)
 {
-	
+
 	smb_co_put(SSTOCP(ssp), scred);
 }
 
@@ -843,7 +843,7 @@ smb_share_lock(struct smb_share *ssp)
 {
 	struct smb_connobj *cp;
 	int error;
-	
+
 	cp = SSTOCP(ssp);
 	sx_xlock(&cp->co_interlock);
 	error = smb_co_lock(cp);
@@ -855,7 +855,7 @@ void
 smb_share_unlock(struct smb_share *ssp)
 {
 	struct smb_connobj *cp;
-	
+
 	cp = SSTOCP(ssp);
 	sx_xlock(&cp->co_interlock);
 	smb_co_unlock(cp);

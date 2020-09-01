@@ -187,7 +187,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_offload.h>
 #endif
 
-
 MALLOC_DEFINE(M_TCPHPTS, "tcp_hpts", "TCP hpts");
 #ifdef RSS
 static int tcp_bind_threads = 1;
@@ -246,7 +245,6 @@ counter_u64_t hpts_loops;
 SYSCTL_COUNTER_U64(_net_inet_tcp_hpts, OID_AUTO, loops, CTLFLAG_RD,
     &hpts_loops, "Number of times hpts had to loop to catch up");
 
-
 counter_u64_t back_tosleep;
 
 SYSCTL_COUNTER_U64(_net_inet_tcp_hpts, OID_AUTO, no_tcbsfound, CTLFLAG_RD,
@@ -279,7 +277,6 @@ SYSCTL_INT(_net_inet_tcp_hpts, OID_AUTO, loopmax, CTLFLAG_RW,
 #define HPTS_MAX_SLEEP_ALLOWED (NUM_OF_HPTSI_SLOTS/2)
 
 static uint32_t hpts_sleep_max = HPTS_MAX_SLEEP_ALLOWED;
-
 
 static int
 sysctl_net_inet_tcp_hpts_max_sleep(SYSCTL_HANDLER_ARGS)

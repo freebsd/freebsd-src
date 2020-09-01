@@ -371,7 +371,6 @@ enum {
 	IEEE80211_HWMP_ROOTMODE_RANN		= 3,	/* use RANN elemid */
 };
 
-
 /*
  * Set the active channel list by IEEE channel #: each channel
  * to be marked active is set in a bit vector.  Note this list is

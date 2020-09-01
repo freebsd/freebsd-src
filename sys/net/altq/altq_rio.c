@@ -447,5 +447,4 @@ rio_getq(rio_t *rp, class_queue_t *q)
 	return (m);
 }
 
-
 #endif /* ALTQ_RIO */

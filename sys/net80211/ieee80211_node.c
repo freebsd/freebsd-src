@@ -574,7 +574,6 @@ check_bss_debug(struct ieee80211vap *vap, struct ieee80211_node *ni)
 }
 #endif /* IEEE80211_DEBUG */
 
-
 int
 ieee80211_ibss_merge_check(struct ieee80211_node *ni)
 {
@@ -640,7 +639,6 @@ ieee80211_ibss_node_check_new(struct ieee80211_node *ni,
 	 * Check if the scan SSID matches the SSID list for the VAP.
 	 */
 	for (i = 0; i < vap->iv_des_nssid; i++) {
-
 		/* Sanity length check */
 		if (vap->iv_des_ssid[i].len != scan->ssid[1])
 			continue;
@@ -1815,7 +1813,6 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 		    (ni->ni_vap->iv_flags_vht & IEEE80211_FVHT_VHT)) {
 			do_vht_setup = 1;
 		}
-
 	}
 
 	/* NB: must be after ni_chan is setup */

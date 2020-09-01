@@ -291,4 +291,3 @@ static moduledata_t	bluetooth_mod = {
 
 DECLARE_MODULE(ng_bluetooth, bluetooth_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(ng_bluetooth, NG_BLUETOOTH_VERSION);
-

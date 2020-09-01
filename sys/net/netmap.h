@@ -235,7 +235,6 @@ struct netmap_slot {
 
 #define NETMAP_MAX_FRAGS	64	/* max number of fragments */
 
-
 /*
  * struct netmap_ring
  *
@@ -307,7 +306,6 @@ struct netmap_ring {
 	/* the slots follow. This struct has variable size */
 	struct netmap_slot slot[0];	/* array of slots. */
 };
-
 
 /*
  * RING FLAGS

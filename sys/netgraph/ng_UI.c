@@ -49,7 +49,6 @@
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 
-
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_UI.h>
@@ -242,4 +241,3 @@ ng_UI_disconnect(hook_p hook)
 	}
 	return (0);
 }
-

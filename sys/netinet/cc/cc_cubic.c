@@ -231,7 +231,6 @@ cubic_after_idle(struct cc_var *ccv)
 	cubic_data->t_last_cong = ticks;
 }
 
-
 static void
 cubic_cb_destroy(struct cc_var *ccv)
 {
@@ -463,7 +462,6 @@ cubic_ssthresh_update(struct cc_var *ccv)
 	}
 	CCV(ccv, snd_ssthresh) = max(ssthresh, 2 * CCV(ccv, t_maxseg));
 }
-
 
 DECLARE_CC_MODULE(cubic, &cubic_cc_algo);
 MODULE_VERSION(cubic, 1);

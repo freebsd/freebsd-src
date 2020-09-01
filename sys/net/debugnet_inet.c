@@ -161,7 +161,6 @@ debugnet_handle_ip(struct debugnet_pcb *pcb, struct mbuf **mb)
 		return;
 	}
 	if (m->m_pkthdr.len > ip->ip_len) {
-
 		/* Truncate the packet to the IP length. */
 		if (m->m_len == m->m_pkthdr.len) {
 			m->m_len = ip->ip_len;

@@ -176,7 +176,7 @@ struct ng_btsocket_l2cap_pcb {
 
 	struct mtx			 pcb_mtx;    /* pcb mutex */
 	uint16_t			 need_encrypt; /*encryption needed*/
-	
+
 	LIST_ENTRY(ng_btsocket_l2cap_pcb) next;      /* link to next PCB */
 };
 typedef struct ng_btsocket_l2cap_pcb	ng_btsocket_l2cap_pcb_t;
@@ -215,4 +215,3 @@ int  ng_btsocket_l2cap_sockaddr   (struct socket *, struct sockaddr **);
 #endif /* _KERNEL */
 
 #endif /* _NETGRAPH_BTSOCKET_L2CAP_H_ */
-

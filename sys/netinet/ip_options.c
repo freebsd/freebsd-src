@@ -143,7 +143,6 @@ ip_dooptions(struct mbuf *m, int pass)
 			}
 		}
 		switch (opt) {
-
 		default:
 			break;
 
@@ -338,7 +337,6 @@ dropit:
 			off--;				/* 0 origin */
 			sin = (struct in_addr *)(cp + off);
 			switch (cp[IPOPT_OFFSET + 1] & 0x0f) {
-
 			case IPOPT_TS_TSONLY:
 				break;
 
@@ -652,7 +650,6 @@ ip_pcbopts(struct inpcb *inp, int optname, struct mbuf *m)
 				goto bad;
 		}
 		switch (opt) {
-
 		default:
 			break;
 

@@ -1485,7 +1485,6 @@ pf_purge_thread(void *unused __unused)
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
 
-
 			/* Wait until V_pf_default_rule is initialized. */
 			if (V_pf_vnet_active == 0) {
 				CURVNET_RESTORE();
@@ -1552,7 +1551,6 @@ pf_unload_vnet_purge(void)
 	pf_purge_unlinked_rules();
 	pfi_kif_purge();
 }
-
 
 u_int32_t
 pf_state_expires(const struct pf_state *state)
@@ -1734,7 +1732,6 @@ pf_purge_expired_states(u_int i, int maxcheck)
 	 * Go through hash and unlink states that expire now.
 	 */
 	while (maxcheck > 0) {
-
 		ih = &V_pf_idhash[i];
 
 		/* only take the lock if we expect to do work */
@@ -2012,7 +2009,6 @@ pf_calc_skip_steps(struct pf_rulequeue *rules)
 	for (i = 0; i < PF_SKIP_COUNT; ++i)
 		head[i] = cur;
 	while (cur != NULL) {
-
 		if (cur->kif != prev->kif || cur->ifnot != prev->ifnot)
 			PF_SET_SKIP_STEPS(PF_SKIP_IFP);
 		if (cur->direction != prev->direction)
@@ -2304,7 +2300,6 @@ pf_change_icmp(struct pf_addr *ia, u_int16_t *ip, struct pf_addr *oa,
 	}
 }
 
-
 /*
  * Need to modulate the sequence numbers in the TCP SACK option
  * (credits to Krzysztof Pfaff for report and patch)
@@ -2593,7 +2588,6 @@ pf_return(struct pf_rule *r, struct pf_rule *nr, struct pf_pdesc *pd,
 		pf_send_icmp(m, r->return_icmp6 >> 8,
 			r->return_icmp6 & 255, af, r);
 }
-
 
 static int
 pf_ieee8021q_setpcp(struct mbuf *m, u_int8_t prio)
@@ -4093,7 +4087,6 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 
 	ackskew = dst->seqlo - ack;
 
-
 	/*
 	 * Need to demodulate the sequence numbers in any TCP SACK options
 	 * (Selective ACK). We could optionally validate the SACK values
@@ -4110,7 +4103,6 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 		if (pf_modulate_sack(m, off, pd, th, dst))
 			*copyback = 1;
 	}
-
 
 #define	MAXACKWINDOW (0xffff + 1500)	/* 1500 is an arbitrary fudge factor */
 	if (SEQ_GEQ(src->seqhi, end) &&
@@ -4141,7 +4133,6 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 		/* slide the window of what the other end can send */
 		if (SEQ_GEQ(ack + (win << sws), dst->seqhi))
 			dst->seqhi = ack + MAX((win << sws), 1);
-
 
 		/* update states */
 		if (th->th_flags & TH_SYN)
@@ -4645,7 +4636,6 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct pfi_kif *kif,
 	}
 
 	if (!state_icmp) {
-
 		/*
 		 * ICMP query/reply message not related to a TCP/UDP packet.
 		 * Search for an ICMP state.
@@ -5266,7 +5256,6 @@ pf_test_state_other(struct pf_state **state, int direction, struct pfi_kif *kif,
 				    nk->addr[pd->sidx].v4.s_addr,
 				    0);
 
-
 			if (PF_ANEQ(pd->dst, &nk->addr[pd->didx], AF_INET))
 				pf_change_a(&pd->dst->v4.s_addr,
 				    pd->ip_sum,
@@ -5800,7 +5789,6 @@ pf_check_proto_cksum(struct mbuf *m, int off, int len, u_int8_t p, sa_family_t a
 	return (0);
 }
 
-
 #ifdef INET
 int
 pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
@@ -5895,7 +5883,6 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	}
 
 	switch (h->ip_p) {
-
 	case IPPROTO_TCP: {
 		struct tcphdr	th;
 
@@ -6046,7 +6033,6 @@ done:
 			/* Add hints for ecn. */
 			pd.pf_mtag->hdr = h;
 		}
-
 	}
 #endif /* ALTQ */
 
@@ -6064,7 +6050,6 @@ done:
 
 	if (action == PF_PASS && r->divert.port && ip_divert_ptr != NULL &&
 	    !PACKET_LOOPED(&pd)) {
-
 		ipfwtag = m_tag_alloc(MTAG_IPFW_RULE, 0,
 		    sizeof(struct ipfw_rule_ref), M_NOWAIT | M_ZERO);
 		if (ipfwtag != NULL) {
@@ -6334,7 +6319,6 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 		n = m;
 
 	switch (pd.proto) {
-
 	case IPPROTO_TCP: {
 		struct tcphdr	th;
 

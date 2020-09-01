@@ -120,7 +120,6 @@ static void	hwmp_peerdown(struct ieee80211_node *);
 static struct timeval ieee80211_hwmp_preqminint = { 0, 100000 };
 static struct timeval ieee80211_hwmp_perrminint = { 0, 100000 };
 
-
 /* NB: the Target Address set in a Proactive PREQ is the broadcast address. */
 static const uint8_t	broadcastaddr[IEEE80211_ADDR_LEN] =
 	{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -216,7 +215,6 @@ SYSCTL_PROC(_net_wlan_hwmp, OID_AUTO, inact,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
     &mesh_proto_hwmp.mpp_inact, 0, ieee80211_sysctl_msecs_ticks, "I",
     "mesh route inactivity timeout (ms)");
-
 
 static void
 ieee80211_hwmp_init(void)
@@ -1877,7 +1875,6 @@ hwmp_rediscover_cb(void *arg)
 	}
 
 	hr->hr_preqretries++;
-
 
 	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_HWMP, rt->rt_dest,
 	    "start path rediscovery , target seq %u", hr->hr_seq);

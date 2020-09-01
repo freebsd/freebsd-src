@@ -400,7 +400,6 @@ gif_qflush(struct ifnet *ifp __unused)
 
 }
 
-
 int
 gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct route *ro)
@@ -721,4 +720,3 @@ gif_delete_tunnel(struct gif_softc *sc)
 	GIF2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 	if_link_state_change(GIF2IFP(sc), LINK_STATE_DOWN);
 }
-

@@ -1650,7 +1650,6 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 	return (rip_input(mp, offp, proto));
 }
 
-
 /*
  * Fast timeout handler (global).
  * VIMAGE: Timeout handlers are expected to service all vimages.
@@ -1950,7 +1949,6 @@ igmp_v3_process_group_timers(struct in_multi_head *inmh,
 		break;
 	}
 }
-
 
 /*
  * Suppress a group's pending response to a group or source/group query.

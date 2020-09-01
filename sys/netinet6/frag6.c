@@ -158,7 +158,6 @@ VNET_DEFINE_STATIC(uint32_t,		ip6qb_hashseed);
 #define	IP6_MAXFRAGS		(nmbclusters / 32)
 #define	IP6_MAXFRAGPACKETS	(imin(IP6_MAXFRAGS, IP6REASS_NHASH * 50))
 
-
 /*
  * Sysctls and helper function.
  */
@@ -213,7 +212,6 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_MAXFRAGBUCKETSIZE, maxfragbucketsize,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_maxfragbucketsize), 0,
 	"Maximum number of reassembly queues per hash bucket");
 
-
 /*
  * Remove the IPv6 fragmentation header from the mbuf.
  */
@@ -250,7 +248,6 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 	IP6QB_LOCK_ASSERT(bucket);
 
 	while ((af6 = TAILQ_FIRST(&q6->ip6q_frags)) != NULL) {
-
 		m = af6->ip6af_m;
 		TAILQ_REMOVE(&q6->ip6q_frags, af6, ip6af_tq);
 
@@ -259,7 +256,6 @@ frag6_freef(struct ip6q *q6, uint32_t bucket)
 		 * Just free other fragments.
 		 */
 		if (af6->ip6af_off == 0 && m->m_pkthdr.rcvif != NULL) {
-
 			/* Adjust pointer. */
 			ip6 = mtod(m, struct ip6_hdr *);
 
@@ -317,7 +313,6 @@ frag6_cleanup(void *arg __unused, struct ifnet *ifp)
 		/* Scan fragment list. */
 		TAILQ_FOREACH(q6, head, ip6q_tq) {
 			TAILQ_FOREACH(af6, &q6->ip6q_frags, ip6af_tq) {
-
 				/* Clear no longer valid rcvif pointer. */
 				if (af6->ip6af_m->m_pkthdr.rcvif == ifp)
 					af6->ip6af_m->m_pkthdr.rcvif = NULL;
@@ -524,7 +519,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 
 	only_frag = false;
 	if (q6 == NULL) {
-
 		/* A first fragment to arrive creates a reassembly queue. */
 		only_frag = true;
 
@@ -634,7 +628,6 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	if (fragoff == 0 && !only_frag) {
 		TAILQ_FOREACH_SAFE(af6, &q6->ip6q_frags, ip6af_tq, af6tmp) {
-
 			if (q6->ip6q_unfrglen + af6->ip6af_off +
 			    af6->ip6af_frglen > IPV6_MAXPACKET) {
 				struct ip6_hdr *ip6err;

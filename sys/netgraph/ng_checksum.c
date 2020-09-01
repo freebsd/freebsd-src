@@ -75,7 +75,6 @@ static ng_shutdown_t	ng_checksum_shutdown;
 static ng_newhook_t	ng_checksum_newhook;
 static ng_rcvdata_t	ng_checksum_rcvdata;
 static ng_disconnect_t	ng_checksum_disconnect;
-
 #define ERROUT(x) { error = (x); goto done; }
 
 static const struct ng_parse_struct_field ng_checksum_config_type_fields[]

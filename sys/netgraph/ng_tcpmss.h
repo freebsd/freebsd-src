@@ -57,7 +57,6 @@ struct ng_tcpmss_hookstat {
 	{ NULL }					\
 }
 
-
 /* Structure for NGM_TCPMSS_CONFIG. */
 struct ng_tcpmss_config {
 	char		inHook[NG_HOOKSIZ];

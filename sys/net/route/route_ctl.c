@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-
 /*
  * This file contains control plane routing tables functions.
  *
@@ -99,7 +98,7 @@ VNET_DEFINE_STATIC(uma_zone_t, rtzone);
 void
 vnet_rtzone_init()
 {
-	
+
 	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry),
 		NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 }
@@ -157,8 +156,6 @@ rtfree(struct rtentry *rt)
 	epoch_call(net_epoch_preempt, destroy_rtentry_epoch,
 	    &rt->rt_epoch_ctx);
 }
-
-
 
 static struct rib_head *
 get_rnh(uint32_t fibnum, const struct rt_addrinfo *info)
@@ -358,7 +355,6 @@ add_route(struct rib_head *rnh, struct rt_addrinfo *info,
 
 	return (error);
 }
-
 
 /*
  * Removes route defined by @info from the kernel table specified by @fibnum and
@@ -752,7 +748,6 @@ change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
 	} else {
 		/* Prefix exists, try to update */
 		if (rnd_orig->rnd_nhop == rt_new->rt_nhop) {
-
 			/*
 			 * Nhop/mpath group hasn't changed. Flip
 			 * to the new precalculated one and return
@@ -811,7 +806,6 @@ rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
 
 	return (error);
 }
-
 
 struct rt_delinfo
 {
@@ -947,7 +941,6 @@ allocate_subscription(rib_subscription_cb_t *f, void *arg,
 	return (rs);
 }
 
-
 /*
  * Subscribe for the changes in the routing table specified by @fibnum and
  *  @family.
@@ -1061,4 +1054,3 @@ rib_destroy_subscriptions(struct rib_head *rnh)
 	RIB_WUNLOCK(rnh);
 	NET_EPOCH_EXIT(et);
 }
-

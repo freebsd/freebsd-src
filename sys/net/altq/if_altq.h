@@ -74,7 +74,6 @@ struct	ifaltq {
 	struct top_cdnr *altq_cdnr;
 };
 
-
 #ifdef _KERNEL
 
 /*

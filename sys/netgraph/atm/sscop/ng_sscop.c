@@ -302,7 +302,6 @@ flow_upper(node_p node, struct ng_mesg *msg)
 	q = (struct ngm_queue_state *)msg->data;
 
 	switch (msg->header.cmd) {
-
 	  case NGM_HIGH_WATER_PASSED:
 		if (priv->flow) {
 			VERBOSE(priv, SSCOP_DBG_FLOW, (priv->sscop, priv,
@@ -355,7 +354,6 @@ flow_lower(node_p node, struct ng_mesg *msg)
 		return (EINVAL);
 
 	switch (msg->header.cmd) {
-
 	  case NGM_HIGH_WATER_PASSED:
 		sscop_setbusy(priv->sscop, 1);
 		break;
@@ -435,7 +433,6 @@ text_status(node_p node, struct priv *priv, char *arg, u_int len)
 	return (sbuf_len(&sbuf));
 }
 
-
 /*
  * Control message received.
  */
@@ -450,10 +447,8 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 
 	switch (msg->header.typecookie) {
-
 	  case NGM_GENERIC_COOKIE:
 		switch (msg->header.cmd) {
-
 		  case NGM_TEXT_STATUS:
 			NG_MKRESPONSE(resp, msg, NG_TEXTRESPONSE, M_NOWAIT);
 			if (resp == NULL) {
@@ -482,7 +477,6 @@ ng_sscop_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 	  case NGM_SSCOP_COOKIE:
 		switch (msg->header.cmd) {
-
 		  case NGM_SSCOP_GETPARAM:
 		    {
 			struct sscop_param *p;
@@ -864,7 +858,6 @@ ng_sscop_mod_event(module_t mod, int event, void *data)
 	int error = 0;
 
 	switch (event) {
-
 	  case MOD_LOAD:
 		break;
 

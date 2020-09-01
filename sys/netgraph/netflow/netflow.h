@@ -145,7 +145,6 @@ struct netflow_v5_export_dgram {
 	struct netflow_v5_record	r[NETFLOW_V5_MAX_RECORDS];
 } __attribute__((__packed__));
 
-
 /* RFC3954 field definitions */
 #define NETFLOW_V9_FIELD_IN_BYTES		1	/* Input bytes count for a flow. Default 4, can be 8 */
 #define NETFLOW_V9_FIELD_IN_PKTS		2	/* Incoming counter with number of packets associated with an IP Flow. Default 4 */

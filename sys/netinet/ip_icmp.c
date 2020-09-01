@@ -71,7 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcpip.h>
 #include <netinet/icmp_var.h>
 
-
 #ifdef INET
 
 #include <machine/in_cksum.h>
@@ -478,7 +477,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	ICMPSTAT_INC(icps_inhist[icp->icmp_type]);
 	code = icp->icmp_code;
 	switch (icp->icmp_type) {
-
 	case ICMP_UNREACH:
 		switch (code) {
 			case ICMP_UNREACH_NET:
@@ -618,7 +616,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		if (icmplen < ICMP_MASKLEN)
 			break;
 		switch (ip->ip_dst.s_addr) {
-
 		case INADDR_BROADCAST:
 		case INADDR_ANY:
 			icmpdst.sin_addr = ip->ip_src;
@@ -987,7 +984,6 @@ icmp_verify_redirect_gateway(struct sockaddr_in *src, struct sockaddr_in *dst,
 	return (0);
 }
 
-
 /*
  * Send an icmp packet back to the ip level,
  * after supplying a checksum.
@@ -1064,7 +1060,6 @@ ip_next_mtu(int mtu, int dir)
 	return 0;
 }
 #endif /* INET */
-
 
 /*
  * badport_bandlim() - check for ICMP bandwidth limit

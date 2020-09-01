@@ -79,7 +79,6 @@
 /*#define SMBV_FAILED		0x0200*/	/* last reconnect attempt has failed */
 #define SMBV_UNICODE		0x0400	/* connection is configured to use Unicode */
 
-
 /*
  * smb_share flags
  */
@@ -124,7 +123,6 @@ enum smbiod_state {
 	SMBIOD_ST_VCACTIVE,	/* session established */
 	SMBIOD_ST_DEAD		/* connection broken, transport is down */
 };
-
 
 /*
  * Info structures

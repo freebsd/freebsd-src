@@ -206,4 +206,3 @@ ipfw_bpf_uninit(int last __unused)
 	if_clone_detach(V_ipfw_cloner);
 	if_clone_detach(V_ipfwlog_cloner);
 }
-

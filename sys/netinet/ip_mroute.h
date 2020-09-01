@@ -251,7 +251,6 @@ struct sioc_vif_req {
     u_long obytes;		/* Output byte count on vif		*/
 };
 
-
 /*
  * The kernel's virtual-interface structure.
  */

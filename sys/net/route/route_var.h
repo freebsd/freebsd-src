@@ -127,7 +127,6 @@ VNET_PCPUSTAT_DECLARE(struct rtstat, rtstat);
 	VNET_PCPUSTAT_ADD(struct rtstat, rtstat, name, (val))
 #define	RTSTAT_INC(name)	RTSTAT_ADD(name, 1)
 
-
 /*
  * Convert a 'struct radix_node *' to a 'struct rtentry *'.
  * The operation can be done safely (in this code) because a
@@ -211,7 +210,7 @@ struct rtentry {
 #define	_RT_SELECT_NHOP(_nh, _flowid)	\
 	((!NH_IS_MULTIPATH(_nh)) ? (_nh) : _SELECT_NHOP(_nh, _flowid))
 #define	RT_SELECT_NHOP(_rt, _flowid)	_RT_SELECT_NHOP((_rt)->rt_nhop, _flowid)
- 
+
 /* route_temporal.c */
 void tmproutes_update(struct rib_head *rnh, struct rtentry *rt);
 void tmproutes_init(struct rib_head *rh);

@@ -129,4 +129,3 @@ int  ng_btsocket_sco_sockaddr   (struct socket *, struct sockaddr **);
 #endif /* _KERNEL */
 
 #endif /* _NETGRAPH_BTSOCKET_SCO_H_ */
-

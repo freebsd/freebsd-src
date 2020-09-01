@@ -163,5 +163,4 @@ fq_codel_extract_head(struct fq_codel_flow *q, aqm_time_t *pkt_ts, struct fq_cod
 	return m;
 }
 
-
 #endif

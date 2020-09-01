@@ -153,11 +153,9 @@ tmproutes_init(struct rib_head *rh)
 	callout_init(&rh->expire_callout, 1);
 }
 
-
 void
 tmproutes_destroy(struct rib_head *rh)
 {
 
 	callout_drain(&rh->expire_callout);
 }
-

@@ -243,7 +243,7 @@ altq_disable(ifq)
 	ASSERT(ifq->ifq_len == 0);
 	ifq->altq_flags &= ~(ALTQF_ENABLED|ALTQF_CLASSIFY);
 	splx(s);
-	
+
 	IFQ_UNLOCK(ifq);
 	return 0;
 }
@@ -330,7 +330,7 @@ tbr_set(ifq, profile)
 	struct tb_profile *profile;
 {
 	struct tb_regulator *tbr, *otbr;
-	
+
 	if (tbr_dequeue_ptr == NULL)
 		tbr_dequeue_ptr = tbr_dequeue;
 
@@ -840,7 +840,6 @@ write_dsfield(struct mbuf *m, struct altq_pktattr *pktattr, u_int8_t dsfield)
 #endif
 	return;
 }
-
 
 /*
  * high resolution clock support taking advantage of a machine dependent
@@ -1811,7 +1810,6 @@ filt2fibmask(filt)
 	return (mask);
 }
 
-
 /*
  * helper functions to handle IPv4 fragments.
  * currently only in-sequence fragments are handled.
@@ -1830,7 +1828,6 @@ struct ip4_frag {
 static TAILQ_HEAD(ip4f_list, ip4_frag) ip4f_list; /* IPv4 fragment cache */
 
 #define	IP4F_TABSIZE		16	/* IPv4 fragment cache size */
-
 
 static void
 ip4f_cache(ip, fin)
@@ -1871,7 +1868,6 @@ ip4f_lookup(ip, fin)
 		    ip->ip_src.s_addr == fp->ip4f_info.fi_src.s_addr &&
 		    ip->ip_dst.s_addr == fp->ip4f_info.fi_dst.s_addr &&
 		    ip->ip_p == fp->ip4f_info.fi_proto) {
-
 			/* found the matching entry */
 			fin->fi_sport = fp->ip4f_info.fi_sport;
 			fin->fi_dport = fp->ip4f_info.fi_dport;

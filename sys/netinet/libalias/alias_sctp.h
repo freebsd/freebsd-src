@@ -86,7 +86,6 @@
 #define SCTP_UNUSED __attribute__((unused))
 #endif //#ifndef SCTP_UNUSED
 
-
 #include <netinet/sctp.h>
 //#include <netinet/sctp_os_bsd.h> --might be needed later for mbuf stuff
 #include <netinet/sctp_header.h>
@@ -96,9 +95,7 @@
 #include <stdio.h>
 #endif //#ifdef _KERNEL
 
-
 #define LINK_SCTP                      IPPROTO_SCTP
-
 
 #define SN_TO_LOCAL              0   /**< packet traveling from global to local */
 #define SN_TO_GLOBAL             1   /**< packet traveling from local to global */
@@ -113,7 +110,6 @@
 #define SN_REFLECT_ERROR    0x0100   /**< Reply with ERROR to sender on OOTB packet Tbit set */
 #define SN_REPLY_ERROR      0x0200   /**< Reply with ERROR to sender on ASCONF clash */
 #define SN_TX_ERROR         0x0300   /**< mask for transmitting error */
-
 
 #define PKT_ALIAS_RESPOND   0x1000   /**< Signal to libalias that there is a response packet to send */
 /*
@@ -162,7 +158,6 @@ union sctpChunkOfInt {
 	struct sctp_paramhdr *Asconf; /**< Pointer to ASCONF chunk */
 };
 
-
 /**
  * @brief SCTP message
  * 
@@ -180,7 +175,6 @@ struct sctp_nat_msg {
 	int chunk_length;		/**< length of chunk of interest */
 };
 
-
 /**
  * @brief sctp nat timer queue structure
  * 
@@ -191,7 +185,5 @@ struct sctp_nat_timer {
 	int cur_loc;			/**< index of the current location in the circular queue */
 	LIST_HEAD(sctpTimerQ,sctp_nat_assoc) *TimerQ; /**< List of associations at this position in the timer Q */
 };
-
-
 
 #endif //#ifndef _ALIAS_SCTP_H

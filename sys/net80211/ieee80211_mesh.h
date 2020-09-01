@@ -90,7 +90,6 @@ enum {
 
 /* Authentication Protocol Identifier */
 enum {
-	
 	IEEE80211_MESHCONF_AUTH_DISABLED	= 0,
 	/* Simultaneous Authenticaction of Equals */
 	IEEE80211_MESHCONF_AUTH_SEA		= 1,

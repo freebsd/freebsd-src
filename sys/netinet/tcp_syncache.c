@@ -337,7 +337,6 @@ syncache_destroy(void)
 
 	/* Cleanup hash buckets: stop timers, free entries, destroy locks. */
 	for (i = 0; i < V_tcp_syncache.hashsize; i++) {
-
 		sch = &V_tcp_syncache.hashbase[i];
 		callout_drain(&sch->sch_timer);
 

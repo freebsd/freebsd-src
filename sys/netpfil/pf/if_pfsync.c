@@ -315,7 +315,6 @@ static void	pfsync_update_net_tdb(struct pfsync_tdb *);
 static struct pfsync_bucket	*pfsync_get_bucket(struct pfsync_softc *,
 		    struct pf_state *);
 
-
 #define PFSYNC_MAX_BULKTRIES	12
 
 VNET_DEFINE(struct if_clone *, pfsync_cloner);
@@ -453,7 +452,6 @@ pfsync_alloc_scrub_memory(struct pfsync_state_peer *s,
 
 	return (0);
 }
-
 
 static int
 pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
@@ -1287,7 +1285,6 @@ bad:
 	return;
 }
 #endif
-
 
 static int
 pfsync_in_eof(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
@@ -2332,7 +2329,6 @@ pfsyncintr(void *arg)
 		PFSYNC_BUCKET_UNLOCK(b);
 
 		for (; m != NULL; m = n) {
-
 			n = m->m_nextpkt;
 			m->m_nextpkt = NULL;
 

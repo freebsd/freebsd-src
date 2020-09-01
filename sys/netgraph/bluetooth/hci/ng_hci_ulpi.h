@@ -54,4 +54,3 @@ int  ng_hci_lp_enc_change                (ng_hci_unit_con_p, int);
 void ng_hci_process_con_timeout          (node_p, hook_p, void *, int);
 
 #endif /* ndef _NETGRAPH_HCI_ULPI_H_ */
-

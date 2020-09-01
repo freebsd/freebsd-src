@@ -1123,7 +1123,6 @@ udp_v4mapped_pktinfo(struct cmsghdr *cm, struct sockaddr_in * src,
 			return (ENXIO);
 	}
 	if (ifp != NULL && !IN6_IS_ADDR_UNSPECIFIED(&pktinfo->ipi6_addr)) {
-
 		ia.s_addr = pktinfo->ipi6_addr.s6_addr32[3];
 		if (in_ifhasaddr(ifp, ia) == 0)
 			return (EADDRNOTAVAIL);

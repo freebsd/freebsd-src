@@ -734,7 +734,6 @@ ng_mppc_decompress(node_p node, struct mbuf **datap)
 		}
 #endif
 	} else {
-
 		/* Are we expecting encryption? */
 		if ((d->cfg.bits & MPPE_BITS) != 0) {
 			log(LOG_ERR, "%s: rec'd unexpectedly %s packet",
@@ -820,7 +819,7 @@ failed:
 		if (ina)
 			free(inbuf, M_NETGRAPH_MPPC);
 		outlen -= destCnt;
-	
+
 		m_copyback(m, 0, outlen, (caddr_t)outbuf);
 		if (m->m_pkthdr.len < outlen) {
 			m_freem(m);
@@ -904,4 +903,3 @@ ng_mppc_updatekey(u_int32_t bits,
 	rc4_init(rc4, key, keylen);
 }
 #endif
-

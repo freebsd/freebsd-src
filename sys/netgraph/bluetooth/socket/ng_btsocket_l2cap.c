@@ -223,8 +223,6 @@ static int ng_btsock_l2cap_addrtype_to_linktype(int addrtype);
 #define ng_btsocket_l2cap_wakeup_route_task() \
 	taskqueue_enqueue(taskqueue_swi_giant, &ng_btsocket_l2cap_rt_task)
 
-
-
 int ng_btsock_l2cap_addrtype_to_linktype(int addrtype)
 {
 	switch(addrtype){
@@ -236,7 +234,6 @@ int ng_btsock_l2cap_addrtype_to_linktype(int addrtype)
 		return NG_HCI_LINK_ACL;
 	}
 }
-
 
 /*****************************************************************************
  *****************************************************************************
@@ -614,7 +611,7 @@ ng_btsocket_l2cap_process_l2ca_con_ind(struct ng_mesg *msg,
 		ip->psm, ip->lcid, ip->ident);
 
 	mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
-	
+
 	pcb = ng_btsocket_l2cap_pcb_by_addr(&rt->src, ip->psm);
 	if (pcb != NULL) {
 		struct socket *so1;
@@ -697,7 +694,6 @@ static int ng_btsocket_l2cap_process_l2ca_enc_change(struct ng_mesg *msg, ng_bts
 	ng_l2cap_l2ca_enc_chg_op	*op = NULL;
 	ng_btsocket_l2cap_pcb_t		*pcb = NULL;
 
-
 	if (msg->header.arglen != sizeof(*op))
 		return (EMSGSIZE);
 
@@ -714,7 +710,7 @@ static int ng_btsocket_l2cap_process_l2ca_enc_change(struct ng_mesg *msg, ng_bts
 
 	mtx_lock(&pcb->pcb_mtx);
 	pcb->encryption = op->result;
-	
+
 	if(pcb->need_encrypt){
 		ng_btsocket_l2cap_untimeout(pcb);		
 		if(pcb->state != NG_BTSOCKET_L2CAP_W4_ENC_CHANGE){
@@ -1191,7 +1187,7 @@ ng_btsocket_l2cap_process_l2ca_write_rsp(struct ng_mesg *msg,
 
 		return (ENOENT);
 	}
-	
+
 	ng_btsocket_l2cap_untimeout(pcb);
 
 	/*
@@ -1428,7 +1424,7 @@ ng_btsocket_l2cap_data_input(struct mbuf *m, hook_p hook)
 	m = m_pullup(m, sizeof(uint16_t));
 	idtype = *mtod(m, uint16_t *);
 	m_adj(m, sizeof(uint16_t));
-	
+
 	/* Make sure we can access header */
 	if (m->m_pkthdr.len < sizeof(*hdr)) {
 		NG_BTSOCKET_L2CAP_ERR(
@@ -1476,7 +1472,6 @@ ng_btsocket_l2cap_data_input(struct mbuf *m, hook_p hook)
 	    (idtype == NG_L2CAP_L2CA_IDTYPE_ATT)||
 	    (idtype == NG_L2CAP_L2CA_IDTYPE_SMP)
 	    ){
-
 		mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
 
 		/* Normal packet: find connected socket */
@@ -1518,7 +1513,6 @@ ng_btsocket_l2cap_data_input(struct mbuf *m, hook_p hook)
 
 		/* Check if we have enough space in socket receive queue */
 		if (m->m_pkthdr.len > sbspace(&pcb->so->so_rcv)) {
-
 			/* 
 			 * This is really bad. Receive queue on socket does
 			 * not have enough space for the packet. We do not 
@@ -2086,7 +2080,7 @@ ng_btsocket_l2cap_attach(struct socket *so, int proto, struct thread *td)
 		mtx_lock(&ng_btsocket_l2cap_sockets_mtx);
 	else
 		mtx_assert(&ng_btsocket_l2cap_sockets_mtx, MA_OWNED);
-	
+
 	/* Set PCB token. Use ng_btsocket_l2cap_sockets_mtx for protection */
 	if (++ token == 0)
 		token ++;
@@ -2346,7 +2340,6 @@ ng_btsocket_l2cap_ctloutput(struct socket *so, struct sockopt *sopt)
 			error = sooptcopyout(sopt, &pcb->need_encrypt,
 						sizeof(pcb->need_encrypt));
 			break;
-
 
 		default:
 			error = ENOPROTOOPT;
@@ -2651,7 +2644,7 @@ ng_btsocket_l2cap_send2(ng_btsocket_l2cap_pcb_p pcb)
 	struct	mbuf		*m = NULL;
 	ng_l2cap_l2ca_hdr_t	*hdr = NULL;
 	int			 error = 0;
-	
+
 	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
 	if (sbavail(&pcb->so->so_snd) == 0)
@@ -2793,7 +2786,6 @@ ng_btsocket_l2cap_pcb_by_cid(bdaddr_p src, int cid, int idtype)
 		    bcmp(src, &p->src, sizeof(p->src)) == 0&&
 		    p->idtype == idtype)		    
 			break;
-
 	}
 	return (p);
 } /* ng_btsocket_l2cap_pcb_by_cid */
@@ -2971,4 +2963,3 @@ ng_btsocket_l2cap_result2errno(int result)
 
 	return (ENOSYS);
 } /* ng_btsocket_l2cap_result2errno */
-

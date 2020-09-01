@@ -593,4 +593,3 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 	}
 	return (error);
 }
-

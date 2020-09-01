@@ -503,7 +503,6 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 }
 #endif
 
-
 /*
  * Non-static functions called from ng_netflow.c
  */
@@ -598,7 +597,7 @@ ng_netflow_fib_init(priv_p priv, int fib)
 		    fib, fe, priv_to_fib(priv, fib));
 		priv->nfinfo_alloc_fibs++;
 	}
-	
+
 	return (0);
 }
 
@@ -864,7 +863,7 @@ ng_netflow_flow6_add(priv_p priv, fib_export_p fe, struct ip6_hdr *ip6,
 
 	r.r_ip_p = upper_proto;
 	r.r_i_ifx = src_if_index;
- 
+
 	counter_u64_add(priv->nfinfo_packets6, 1);
 	counter_u64_add(priv->nfinfo_bytes6, plen);
 
@@ -1077,7 +1076,6 @@ export_send(priv_p priv, fib_export_p fe, item_p item, int flags)
 
 	return (error);
 }
-
 
 /* Add export record to dgram. */
 static int

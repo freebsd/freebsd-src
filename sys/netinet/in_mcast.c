@@ -1273,7 +1273,6 @@ in_joingroup_locked(struct ifnet *ifp, const struct in_addr *gina,
 
  out_inm_release:
 	if (error) {
-
 		CTR2(KTR_IGMPV3, "%s: dropping ref on %p", __func__, inm);
 		IF_ADDR_WLOCK(ifp);
 		inm_release_deferred(inm);

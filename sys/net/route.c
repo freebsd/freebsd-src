@@ -328,7 +328,6 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst,
 	return (ifa);
 }
 
-
 /*
  * Copy most of @rt data into @info.
  *
@@ -367,7 +366,6 @@ rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
 		src = rt_mask(rt);
 		dst = info->rti_info[RTAX_NETMASK];
 		if (src != NULL && dst != NULL) {
-
 			/*
 			 * Radix stores different value in sa_len,
 			 * assume rt_mask() to have the same length
@@ -718,7 +716,6 @@ rt_updatemtu(struct ifnet *ifp)
 	}
 }
 
-
 #if 0
 int p_sockaddr(char *buf, int buflen, struct sockaddr *s);
 int rt_print(char *buf, int buflen, struct rtentry *rt);
@@ -742,7 +739,7 @@ p_sockaddr(char *buf, int buflen, struct sockaddr *s)
 
 	if (inet_ntop(s->sa_family, paddr, buf, buflen) == NULL)
 		return (0);
-	
+
 	return (strlen(buf));
 }
 
@@ -981,7 +978,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			rn = rnh->rnh_lookup(dst, netmask, &rnh->head);
 #ifdef RADIX_MPATH
 			if (rt_mpath_capable(rnh)) {
-
 				if (rn == NULL) 
 					error = ESRCH;
 				else {
@@ -1115,7 +1111,7 @@ rt_routemsg(int cmd, struct rtentry *rt, struct ifnet *ifp, int rti_addrs,
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 	    ("unexpected cmd %d", cmd));
-	
+
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
@@ -1138,7 +1134,7 @@ rt_routemsg_info(int cmd, struct rt_addrinfo *info, int fibnum)
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE || cmd == RTM_CHANGE,
 	    ("unexpected cmd %d", cmd));
-	
+
 	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
@@ -1146,7 +1142,6 @@ rt_routemsg_info(int cmd, struct rt_addrinfo *info, int fibnum)
 
 	return (rtsock_routemsg_info(cmd, info, fibnum));
 }
-
 
 /*
  * This is called to generate messages from the routing socket
@@ -1171,4 +1166,3 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, struct rtentry *rt, int fibnum)
 		rt_addrmsg(cmd, ifa, fibnum);
 	}
 }
-

@@ -315,10 +315,8 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	NGI_GET_MSG(item, msg);
 
 	switch (msg->header.typecookie) {
-
 	  case NGM_GENERIC_COOKIE:
 		switch (msg->header.cmd) {
-
 		  case NGM_TEXT_STATUS:
 			NG_MKRESPONSE(resp, msg, NG_TEXTRESPONSE, M_NOWAIT);
 			if (resp == NULL) {
@@ -338,7 +336,6 @@ ng_uni_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 	  case NGM_UNI_COOKIE:
 		switch (msg->header.cmd) {
-
 		  case NGM_UNI_SETDEBUG:
 		    {
 			struct ngm_uni_debug *arg;
@@ -563,7 +560,6 @@ ng_uni_rcvupper(hook_p hook, item_p item)
 	return (0);
 }
 
-
 /*
  * Upper layer signal from UNI
  */
@@ -594,7 +590,6 @@ uni_uni_output(struct uni *uni, void *varg, enum uni_sig sig, u_int32_t cookie,
 	NG_SEND_DATA_ONLY(error, priv->upper, m);
 }
 
-
 static void
 dump_uni_msg(struct uni_msg *msg)
 {
@@ -613,7 +608,6 @@ dump_uni_msg(struct uni_msg *msg)
 		printf("\n");
 }
 
-
 /*
  * Dump a SAAL signal in either direction
  */
@@ -625,7 +619,6 @@ dump_saal_signal(node_p node, enum saal_sig sig, struct uni_msg *msg, int to)
 	printf("signal %s SAAL: ", to ? "to" : "from");
 
 	switch (sig) {
-
 #define D(S) case S: printf("%s", #S); break
 
 	D(SAAL_ESTABLISH_request);
@@ -757,7 +750,6 @@ uni_verbose(struct uni *uni, void *varg, u_int fac, const char *fmt, ...)
 
 	printf("\n");
 }
-
 
 /************************************************************/
 /*
@@ -912,7 +904,6 @@ ng_uni_mod_event(module_t mod, int event, void *data)
 	int error = 0;
 
 	switch(event) {
-
 	  case MOD_LOAD:
 		uni_init();
 		break;

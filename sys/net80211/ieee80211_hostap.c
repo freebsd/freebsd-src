@@ -1637,7 +1637,7 @@ ieee80211_deliver_l2uf(struct ieee80211_node *ni)
 	struct mbuf *m;
 	struct l2_update_frame *l2uf;
 	struct ether_header *eh;
-	
+
 	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		IEEE80211_NOTE(vap, IEEE80211_MSG_ASSOC, ni,
@@ -1652,14 +1652,14 @@ ieee80211_deliver_l2uf(struct ieee80211_node *ni)
 	/* src: associated STA */
 	IEEE80211_ADDR_COPY(eh->ether_shost, ni->ni_macaddr);
 	eh->ether_type = htons(sizeof(*l2uf) - sizeof(*eh));
-	
+
 	l2uf->dsap = 0;
 	l2uf->ssap = 0;
 	l2uf->control = 0xf5;
 	l2uf->xid[0] = 0x81;
 	l2uf->xid[1] = 0x80;
 	l2uf->xid[2] = 0x00;
-	
+
 	m->m_pkthdr.len = m->m_len = sizeof(*l2uf);
 	hostap_deliver_data(vap, ni, m);
 }

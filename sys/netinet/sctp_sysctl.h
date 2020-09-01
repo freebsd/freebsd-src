@@ -215,7 +215,6 @@ struct sctp_sysctl {
 #define SCTPCTL_FRMAXBURST_MAX		0xFFFFFFFF
 #define SCTPCTL_FRMAXBURST_DEFAULT	SCTP_DEF_FRMAX_BURST
 
-
 /* maxchunks: Default max chunks on queue per asoc */
 #define SCTPCTL_MAXCHUNKS_DESC		"Default max chunks on queue per asoc"
 #define SCTPCTL_MAXCHUNKS_MIN		0
@@ -554,9 +553,6 @@ struct sctp_sysctl {
 #define SCTPCTL_DEBUG_MAX	0xFFFFFFFF
 #define SCTPCTL_DEBUG_DEFAULT	0
 #endif
-
-
-
 
 #if defined(_KERNEL) || defined(__Userspace__)
 #if defined(SYSCTL_DECL)

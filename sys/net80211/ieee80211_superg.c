@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 
 #include <sys/socket.h>
- 
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_llc.h>
@@ -589,7 +589,6 @@ bad:
 		m_freem(m2);
 	return NULL;
 }
-
 
 static void
 ff_transmit(struct ieee80211_node *ni, struct mbuf *m)

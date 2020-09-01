@@ -489,7 +489,6 @@ SYSCTL_U32(_net_inet_ip_fw, OID_AUTO, dyn_keep_states,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_keep_states), 0,
     "Do not flush dynamic states on rule deletion");
 
-
 #ifdef IPFIREWALL_DYNDEBUG
 #define	DYN_DEBUG(fmt, ...)	do {			\
 	printf("%s: " fmt "\n", __func__, __VA_ARGS__);	\
@@ -1164,7 +1163,6 @@ dyn_lookup_ipv4_parent_locked(const struct ipfw_flow_id *pkt,
 	}
 	return (s);
 }
-
 
 #ifdef INET6
 static uint32_t
@@ -3267,5 +3265,3 @@ ipfw_dyn_uninit(int pass)
 	if (IS_DEFAULT_VNET(curvnet))
 		free(dyn_hp_cache, M_IPFW);
 }
-
-

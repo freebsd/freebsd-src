@@ -59,7 +59,6 @@ extern uint32_t
 sctp_addr_mgmt_ep_sa(struct sctp_inpcb *, struct sockaddr *, uint32_t,
     uint32_t);
 
-
 extern int
 sctp_asconf_iterator_ep(struct sctp_inpcb *inp, void *ptr,
     uint32_t val);
@@ -68,7 +67,6 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     void *ptr, uint32_t type);
 extern void sctp_asconf_iterator_end(void *ptr, uint32_t val);
-
 
 extern int32_t
 sctp_set_primary_ip_address_sa(struct sctp_tcb *,

@@ -144,7 +144,6 @@ struct mbuf    *m_megapullup(struct mbuf *, int);
  * Mode flags and other constants.
  */
 
-
 /* Mode flags, set using PacketAliasSetMode() */
 
 /*

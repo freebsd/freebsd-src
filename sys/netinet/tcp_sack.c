@@ -150,7 +150,6 @@ SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, globalholes, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(tcp_sack_globalholes), 0,
     "Global number of TCP SACK holes currently allocated");
 
-
 /*
  * This function will find overlaps with the currently stored sackblocks
  * and add any overlap as a dsack block upfront

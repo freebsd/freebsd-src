@@ -832,7 +832,6 @@ bstp_assign_roles(struct bstp_state *bs)
 		bp->bp_desg_fdelay = bs->bs_root_fdelay;
 		bp->bp_desg_htime = bs->bs_bridge_htime;
 
-
 		switch (bp->bp_infois) {
 		case BSTP_INFO_DISABLED:
 			bstp_set_port_role(bp, BSTP_ROLE_DISABLED);

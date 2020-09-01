@@ -106,7 +106,6 @@
 
 #define TCP_PUSH_BIT 0x10
 
-
 /*
  * "state" data for each active tcp conversation on the wire.  This is
  * basically a copy of the entire IP/TCP header from the last packet

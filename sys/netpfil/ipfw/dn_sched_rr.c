@@ -138,7 +138,6 @@ remove_queue_q(struct rr_queue *q, struct rr_si *si)
 	}
 }
 
-
 static inline void
 next_pointer(struct rr_si *si)
 {
@@ -321,6 +320,5 @@ static struct dn_alg rr_desc = {
 	_SI( .getconfig = )  NULL,
 #endif
 };
-
 
 DECLARE_DNSCHED_MODULE(dn_rr, &rr_desc);

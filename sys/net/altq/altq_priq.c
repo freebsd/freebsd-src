@@ -74,10 +74,8 @@ static struct mbuf *priq_getq(struct priq_class *);
 static struct mbuf *priq_pollq(struct priq_class *);
 static void priq_purgeq(struct priq_class *);
 
-
 static void get_class_stats(struct priq_classstats *, struct priq_class *);
 static struct priq_class *clh_to_clp(struct priq_if *, u_int32_t);
-
 
 int
 priq_pfattach(struct pf_altq *a)
@@ -639,6 +637,5 @@ clh_to_clp(struct priq_if *pif, u_int32_t chandle)
 
 	return (NULL);
 }
-
 
 #endif /* ALTQ_PRIQ */

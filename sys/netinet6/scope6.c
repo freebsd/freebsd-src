@@ -595,5 +595,3 @@ sa6_checkzone_ifp(struct ifnet *ifp, struct sockaddr_in6 *sa6)
 	}
 	return (sa6_checkzone(sa6));
 }
-
-

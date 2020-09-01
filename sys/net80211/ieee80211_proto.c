@@ -104,7 +104,6 @@ const char *ieee80211_wme_acnames[] = {
 	"WME_UPSD",
 };
 
-
 /*
  * Reason code descriptions were (mostly) obtained from
  * IEEE Std 802.11-2012, pp. 442-445 Table 8-36.
@@ -1693,7 +1692,7 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 	/* XXX WDS? */
 
 	/* XXX MBSS? */
-	
+
 	if (do_aggrmode) {
 		chanp = &wme->wme_chanParams.cap_wmeParams[WME_AC_BE];
 		bssp = &wme->wme_bssChanParams.cap_wmeParams[WME_AC_BE];
@@ -1712,7 +1711,6 @@ ieee80211_wme_updateparams_locked(struct ieee80211vap *vap)
 		    chanp->wmep_acm, chanp->wmep_aifsn, chanp->wmep_logcwmin,
 		    chanp->wmep_logcwmax, chanp->wmep_txopLimit);
 	}
-
 
 	/*
 	 * Change the contention window based on the number of associated
@@ -1996,7 +1994,6 @@ ieee80211_start_locked(struct ieee80211vap *vap)
 		 * to be brought up auto-up the parent if necessary.
 		 */
 		if (ic->ic_nrunning++ == 0) {
-
 			/* reset the channel to a known good channel */
 			if (ieee80211_start_check_reset_chan(vap))
 				ieee80211_start_reset_chan(vap);

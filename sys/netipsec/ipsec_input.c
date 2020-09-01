@@ -98,7 +98,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/in_cksum.h>
 #include <machine/stdarg.h>
 
-
 #define	IPSEC_ISTAT(proto, name)	do {	\
 	if ((proto) == IPPROTO_ESP)		\
 		ESPSTAT_INC(esps_##name);	\
@@ -516,7 +515,6 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
 	/* Fix IPv6 header */
 	if (m->m_len < sizeof(struct ip6_hdr) &&
 	    (m = m_pullup(m, sizeof(struct ip6_hdr))) == NULL) {
-
 		DPRINTF(("%s: processing failed for SA %s/%08lx\n",
 		    __func__, ipsec_address(&sav->sah->saidx.dst, buf,
 		    sizeof(buf)), (u_long) ntohl(sav->spi)));

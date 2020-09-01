@@ -38,7 +38,6 @@
 #define ALTQ3_CLFIER_COMPAT	/* for compatibility with altq-3 classifier */
 #endif
 
-
 /* altq discipline type */
 #define	ALTQT_NONE		0	/* reserved */
 #define	ALTQT_CBQ		1	/* cbq */
@@ -57,13 +56,11 @@
 #define	ALTQT_CODEL		14      /* CoDel */
 #define	ALTQT_MAX		15	/* should be max discipline type + 1 */
 
-
 /* simple token backet meter profile */
 struct	tb_profile {
 	u_int64_t	rate;	/* rate in bit-per-sec */
 	u_int32_t	depth;	/* depth in bytes */
 };
-
 
 /*
  * generic packet counter
@@ -75,7 +72,6 @@ struct pktcntr {
 
 #define	PKTCNTR_ADD(cntr, len)	\
 	do { (cntr)->packets++; (cntr)->bytes += len; } while (/*CONSTCOND*/ 0)
-
 
 #ifdef _KERNEL
 #include <net/altq/altq_var.h>
@@ -105,5 +101,5 @@ static inline int altq_stats_version(int scheduler)
 	default: return (0);
 	}
 }
-	
+
 #endif /* _ALTQ_ALTQ_H_ */
