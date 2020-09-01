@@ -709,7 +709,7 @@ twed_open(struct disk *dp)
     struct twed_softc	*sc = (struct twed_softc *)dp->d_drv1;
 
     debug_called(4);
-	
+
     if (sc == NULL)
 	return (ENXIO);
 
@@ -1065,7 +1065,6 @@ twe_map_request(struct twe_request *tr)
      * If the command involves data, map that too.
      */
     if (tr->tr_data != NULL && ((tr->tr_flags & TWE_CMD_MAPPED) == 0)) {
-
 	/* 
 	 * Data must be 64-byte aligned; allocate a fixup buffer if it's not.
 	 */
@@ -1079,7 +1078,7 @@ twe_map_request(struct twe_request *tr)
 		return(ENOMEM);
 	    }
 	}
-	
+
 	/*
 	 * Map the data buffer into bus space and build the s/g list.
 	 */
