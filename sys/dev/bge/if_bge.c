@@ -240,7 +240,6 @@ static const struct bge_type {
 	{ FJTSU_VENDORID,	FJTSU_DEVICEID_PW008GE4 },
 	{ FJTSU_VENDORID,	FJTSU_DEVICEID_PW008GE5 },
 	{ FJTSU_VENDORID,	FJTSU_DEVICEID_PP250450 },
-
 	{ 0, 0 }
 };
 
@@ -255,7 +254,6 @@ static const struct bge_vendor {
 	{ SK_VENDORID,		"SysKonnect" },
 	{ TC_VENDORID,		"3Com" },
 	{ FJTSU_VENDORID,	"Fujitsu" },
-
 	{ 0, NULL }
 };
 
@@ -330,7 +328,6 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM57765_B0,	"BCM57765 B0" },
 	{ BGE_CHIPID_BCM57780_A0,	"BCM57780 A0" },
 	{ BGE_CHIPID_BCM57780_A1,	"BCM57780 A1" },
-
 	{ 0, NULL }
 };
 
@@ -363,7 +360,6 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5719,		"unknown BCM5719" },
 	{ BGE_ASICREV_BCM5720,		"unknown BCM5720" },
 	{ BGE_ASICREV_BCM5762,		"unknown BCM5762" },
-
 	{ 0, NULL }
 };
 
