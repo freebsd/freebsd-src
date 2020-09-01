@@ -144,7 +144,6 @@ aac_cam_rescan(struct aac_softc *sc, uint32_t channel, uint32_t target_id)
 	}
 }
 
-
 static void
 aac_cam_event(struct aac_softc *sc, struct aac_event *event, void *arg)
 {

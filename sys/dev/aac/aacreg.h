@@ -1563,4 +1563,3 @@ enum {
 				 AAC_DB_RESPONSE_READY |	\
 				 AAC_DB_PRINTF)
 #define AAC_DB_INT_NEW_COMM		0x08		
-
