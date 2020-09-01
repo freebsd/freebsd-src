@@ -635,7 +635,6 @@ vtbe_attach(device_t dev)
 static device_method_t vtbe_methods[] = {
 	DEVMETHOD(device_probe,		vtbe_probe),
 	DEVMETHOD(device_attach,	vtbe_attach),
-
 	{ 0, 0 }
 };
 
