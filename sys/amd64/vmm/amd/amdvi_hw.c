@@ -356,7 +356,6 @@ amdvi_cmd_inv_iommu_pages(struct amdvi_softc *softc, uint16_t domain_id,
 	cmd = amdvi_get_cmd_tail(softc);
 	KASSERT(cmd != NULL, ("Cmd is NULL"));
 
-
 	cmd->opcode = AMDVI_INVD_PAGE_OPCODE;
 	cmd->word1 = domain_id;
 	/*
@@ -729,7 +728,6 @@ amdvi_print_pci_cap(device_t dev)
 	struct amdvi_softc *softc;
 	uint32_t off, cap;
 
-
 	softc = device_get_softc(dev);
 	off = softc->cap_off;
 
@@ -868,7 +866,6 @@ amdvi_alloc_intr_resources(struct amdvi_softc *softc)
 	pci_enable_msi(mmio_dev, msi_addr, msi_data);
 	return (0);
 }
-
 
 static void
 amdvi_print_dev_cap(struct amdvi_softc *softc)
@@ -1121,7 +1118,6 @@ amdvi_free_ptp(uint64_t *ptp, int level)
 
 		amdvi_free_ptp((uint64_t *)PHYS_TO_DMAP(ptp[i]
 		    & AMDVI_PT_MASK), level - 1);
-
 	}
 
 	free(ptp, M_AMDVI);
@@ -1304,7 +1300,7 @@ amdvi_set_dte(struct amdvi_domain *domain, uint16_t devid, bool enable)
 	struct amdvi_dte* temp;
 
 	KASSERT(domain, ("domain is NULL for pci_rid:0x%x\n", devid));
-	
+
 	softc = amdvi_find_iommu(devid);
 	KASSERT(softc, ("softc is NULL for pci_rid:0x%x\n", devid));
 

@@ -723,11 +723,11 @@ vatpic_master_handler(struct vm *vm, int vcpuid, bool in, int port, int bytes,
 
 	if (bytes != 1)
 		return (-1);
- 
+
 	if (in) {
 		return (vatpic_read(vatpic, atpic, in, port, bytes, eax));
 	}
- 
+
 	return (vatpic_write(vatpic, atpic, in, port, bytes, eax));
 }
 
@@ -841,7 +841,6 @@ vatpic_snapshot(struct vatpic *vatpic, struct vm_snapshot_meta *meta)
 				      meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(atpic->lowprio, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(atpic->intr_raised, meta, ret, done);
-
 	}
 
 	SNAPSHOT_BUF_OR_LEAVE(vatpic->elc, sizeof(vatpic->elc),

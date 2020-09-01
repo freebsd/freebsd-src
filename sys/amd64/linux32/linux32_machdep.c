@@ -89,7 +89,6 @@ struct l_old_select_argv {
 	l_uintptr_t	timeout;
 } __packed;
 
-
 static void
 bsd_to_linux_rusage(struct rusage *ru, struct l_rusage *lru)
 {
@@ -402,7 +401,6 @@ linux_set_cloned_tls(struct thread *td, void *desc)
 	if (error) {
 		linux_msg(td, "set_cloned_tls copyin info failed!");
 	} else {
-
 		/* We might copy out the entry_number as GUGS32_SEL. */
 		info.entry_number = GUGS32_SEL;
 		error = copyout(&info, desc, sizeof(struct l_user_desc));

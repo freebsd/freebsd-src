@@ -100,7 +100,6 @@ struct vm_snapshot_meta {
 	enum vm_snapshot_op op;
 };
 
-
 void vm_snapshot_buf_err(const char *bufname, const enum vm_snapshot_op op);
 int vm_snapshot_buf(volatile void *data, size_t data_size,
 		    struct vm_snapshot_meta *meta);

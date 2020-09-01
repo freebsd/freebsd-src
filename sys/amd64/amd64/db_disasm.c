@@ -992,7 +992,6 @@ struct i_addr {
 };
 
 static const char * const db_reg[2][4][16] = {
-
 	{{"%al",  "%cl",  "%dl",  "%bl",  "%ah",  "%ch",  "%dh",  "%bh",
 	  "%r8b", "%r9b", "%r10b", "%r11b", "%r12b", "%r13b", "%r14b", "%r15b" },
 	{ "%ax",  "%cx",  "%dx",  "%bx",  "%sp",  "%bp",  "%si",  "%di",
@@ -1573,7 +1572,6 @@ db_disasm(db_addr_t loc, bool altfmt)
 		db_printf(",");
 
 	    switch (i_mode & 0xFF) {
-
 		case E:
 		    db_print_address(seg, size, rex, &address);
 		    break;

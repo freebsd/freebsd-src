@@ -57,7 +57,7 @@ cloudabi64_fixup_tcb(uintptr_t *stack_base, struct image_params *imgp)
 	error = cloudabi64_fixup(stack_base, imgp);
 	if (error != 0)
 		return (error);
-	
+
 	/*
 	 * On x86-64, the TCB is referred to by %fs:0. Take some space
 	 * from the top of the stack to store a single element array,
