@@ -60,4 +60,3 @@ nvme_strvis(uint8_t *dst, const uint8_t *src, int dstlen, int srclen)
 	}
 	*dst = '\0';
 }
-

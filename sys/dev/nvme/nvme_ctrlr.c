@@ -745,7 +745,6 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 			}
 		}
 
-
 		/*
 		 * Pass the cpl data from the original async event completion,
 		 *  not the log page fetch.
