@@ -166,7 +166,6 @@ static device_method_t ae_methods[] = {
 	DEVMETHOD(miibus_readreg,	ae_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	ae_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	ae_miibus_statchg),
-
 	{ NULL, NULL }
 };
 static driver_t ae_driver = {
@@ -314,7 +313,7 @@ ae_attach(device_t dev)
 			goto fail;
 		}
 	}
-	
+
 	ae_init_tunables(sc);
 
 	ae_phy_reset(sc);		/* Reset PHY. */
@@ -399,7 +398,7 @@ ae_attach(device_t dev)
 fail:
 	if (error != 0)
 		ae_detach(dev);
-	
+
 	return (error);
 }
 
@@ -503,7 +502,7 @@ ae_reset(ae_softc_t *sc)
 	AE_WRITE_4(sc, AE_MASTER_REG, AE_MASTER_SOFT_RESET);
 	bus_barrier(sc->mem[0], AE_MASTER_REG, 4,
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-	
+
 	/*
 	 * Wait for reset to complete.
 	 */
@@ -1022,7 +1021,7 @@ ae_get_vpd_eaddr(ae_softc_t *sc, uint32_t *eaddr)
 
 	if (found < 2)
 		return (ENOENT);
-	
+
 	eaddr[1] &= 0xffff;	/* Only last 2 bytes are used. */
 	if (AE_CHECK_EADDR_VALID(eaddr) != 0) {
 		if (bootverbose)
@@ -1288,7 +1287,7 @@ static void
 ae_powersave_disable(ae_softc_t *sc)
 {
 	uint32_t val;
-	
+
 	AE_LOCK_ASSERT(sc);
 
 	AE_PHY_WRITE(sc, AE_PHY_DBG_ADDR, 0);
@@ -1304,7 +1303,7 @@ static void
 ae_powersave_enable(ae_softc_t *sc)
 {
 	uint32_t val;
-	
+
 	AE_LOCK_ASSERT(sc);
 
 	/*
@@ -1430,7 +1429,7 @@ static unsigned int
 ae_tx_avail_size(ae_softc_t *sc)
 {
 	unsigned int avail;
-	
+
 	if (sc->txd_cur >= sc->txd_ack)
 		avail = AE_TXD_BUFSIZE_DEFAULT - (sc->txd_cur - sc->txd_ack);
 	else
@@ -1451,7 +1450,7 @@ ae_encap(ae_softc_t *sc, struct mbuf **m_head)
 
 	m0 = *m_head;
 	len = m0->m_pkthdr.len;
-	
+
 	if ((sc->flags & AE_FLAG_TXAVAIL) == 0 ||
 	    len + sizeof(ae_txd_t) + 3 > ae_tx_avail_size(sc)) {
 #ifdef AE_DEBUG
@@ -1599,7 +1598,7 @@ ae_link_task(void *arg, int pending)
 		AE_UNLOCK(sc);	/* XXX: could happen? */
 		return;
 	}
-	
+
 	sc->flags &= ~AE_FLAG_LINK;
 	if ((mii->mii_media_status & (IFM_AVALID | IFM_ACTIVE)) ==
 	    (IFM_AVALID | IFM_ACTIVE)) {
