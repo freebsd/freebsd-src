@@ -35,7 +35,6 @@
 #include <linux/compiler.h>
 #include <sys/types.h>
 #include <machine/atomic.h>
-
 #define	ATOMIC_INIT(x)	{ .counter = (x) }
 
 typedef struct {

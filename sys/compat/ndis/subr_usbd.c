@@ -1455,7 +1455,6 @@ image_patch_table usbd_functbl[] = {
 	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_STDCALL },
 
 	/* End of list. */
-
 	{ NULL, NULL, NULL }
 };
 

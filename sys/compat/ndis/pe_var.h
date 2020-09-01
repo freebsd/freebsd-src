@@ -164,7 +164,6 @@ typedef struct image_data_directory image_data_directory;
  */
 
 struct image_optional_header {
-
 	/* Standard fields */
 
 	uint16_t	ioh_magic;
@@ -502,7 +501,6 @@ extern uint32_t x86_stdcall_call(void *, int, ...);
 		x86_stdcall_call(fn, 6, (a), (b), (c), (d), (e), (f))
 
 #endif /* __i386__ */
-
 
 #define	FUNC void(*)(void)
 

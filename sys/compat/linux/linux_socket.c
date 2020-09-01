@@ -88,7 +88,6 @@ static int linux_recvmsg_common(struct thread *, l_int, struct l_msghdr *,
 					l_uint, struct msghdr *);
 static int linux_set_socket_flags(int, int *);
 
-
 static int
 linux_to_bsd_sockopt_level(int level)
 {
@@ -778,7 +777,6 @@ linux_socketpair(struct thread *td, struct linux_socketpair_args *args)
 	if (error != 0)
 		return (error);
 	if (args->protocol != 0 && args->protocol != PF_UNIX) {
-
 		/*
 		 * Use of PF_UNIX as protocol argument is not right,
 		 * but Linux does it.
@@ -1020,7 +1018,6 @@ linux_sendmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 	}
 
 	if (linux_msghdr.msg_controllen >= sizeof(struct l_cmsghdr)) {
-
 		error = ENOBUFS;
 		control = m_get(M_WAITOK, MT_CONTROL);
 		MCLGET(control, M_WAITOK);

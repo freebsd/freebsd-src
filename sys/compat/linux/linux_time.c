@@ -122,7 +122,6 @@ LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, unsupported_flags, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, unsupported_clockid, "int");
 LIN_SDT_PROBE_DEFINE1(time, linux_clock_nanosleep, return, "int");
 
-
 int
 native_to_linux_timespec(struct l_timespec *ltp, struct timespec *ntp)
 {

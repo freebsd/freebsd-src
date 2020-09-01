@@ -65,7 +65,6 @@ static int __elfN(symstrindex);
 static void
 __elfN(linux_vdso_lookup)(Elf_Ehdr *, struct linux_vdso_sym *);
 
-
 void
 __elfN(linux_vdso_sym_init)(struct linux_vdso_sym *s)
 {

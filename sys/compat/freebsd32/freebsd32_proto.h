@@ -976,7 +976,6 @@ int	ofreebsd32_getdirentries(struct thread *, struct ofreebsd32_getdirentries_ar
 
 #endif /* COMPAT_43 */
 
-
 #ifdef COMPAT_FREEBSD4
 
 #if !defined(PAD64_REQUIRED) && !defined(__amd64__)
@@ -1041,7 +1040,6 @@ int	freebsd4_freebsd32_sigaction(struct thread *, struct freebsd4_freebsd32_siga
 int	freebsd4_freebsd32_sigreturn(struct thread *, struct freebsd4_freebsd32_sigreturn_args *);
 
 #endif /* COMPAT_FREEBSD4 */
-
 
 #ifdef COMPAT_FREEBSD6
 
@@ -1132,7 +1130,6 @@ int	freebsd6_freebsd32_lio_listio(struct thread *, struct freebsd6_freebsd32_lio
 
 #endif /* COMPAT_FREEBSD6 */
 
-
 #ifdef COMPAT_FREEBSD7
 
 #if !defined(PAD64_REQUIRED) && !defined(__amd64__)
@@ -1175,7 +1172,6 @@ int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_
 
 #endif /* COMPAT_FREEBSD7 */
 
-
 #ifdef COMPAT_FREEBSD10
 
 #if !defined(PAD64_REQUIRED) && !defined(__amd64__)
@@ -1199,7 +1195,6 @@ int	freebsd7_freebsd32_shmctl(struct thread *, struct freebsd7_freebsd32_shmctl_
 int	freebsd10_freebsd32_pipe(struct thread *, struct freebsd10_freebsd32_pipe_args *);
 
 #endif /* COMPAT_FREEBSD10 */
-
 
 #ifdef COMPAT_FREEBSD11
 
@@ -1272,7 +1267,6 @@ int	freebsd11_freebsd32_kevent(struct thread *, struct freebsd11_freebsd32_keven
 int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fstatat_args *);
 
 #endif /* COMPAT_FREEBSD11 */
-
 
 #ifdef COMPAT_FREEBSD12
 

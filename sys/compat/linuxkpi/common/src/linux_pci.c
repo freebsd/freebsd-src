@@ -588,7 +588,6 @@ linux_dma_trie_free(struct pctrie *ptree, void *node)
 	uma_zfree(linux_dma_trie_zone, node);
 }
 
-
 PCTRIE_DEFINE(LINUX_DMA, linux_dma_obj, dma_addr, linux_dma_trie_alloc,
     linux_dma_trie_free);
 

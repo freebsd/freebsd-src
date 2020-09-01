@@ -48,5 +48,4 @@
 
 #define request_module_nowait request_module
 
-
 #endif /* _LINUX_KMOD_H_ */

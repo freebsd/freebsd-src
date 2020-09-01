@@ -496,7 +496,6 @@ static inline int pci_pcie_cap(struct pci_dev *dev)
 	return pci_find_capability(dev, PCI_CAP_ID_EXP);
 }
 
-
 static inline int
 pci_read_config_byte(struct pci_dev *pdev, int where, u8 *val)
 {
@@ -706,7 +705,6 @@ pci_iounmap(struct pci_dev *dev, void *res)
 #define DEFINE_PCI_DEVICE_TABLE(_table) \
 	const struct pci_device_id _table[] __devinitdata
 
-
 /* XXX This should not be necessary. */
 #define	pcix_set_mmrbc(d, v)	0
 #define	pcix_get_max_mmrbc(d)	0
@@ -773,7 +771,6 @@ enum pci_ers_result {
 	PCI_ERS_RESULT_RECOVERED = 5,
 };
 
-
 /* PCI bus error event callbacks */
 struct pci_error_handlers {
 	pci_ers_result_t (*error_detected)(struct pci_dev *dev,
@@ -808,7 +805,6 @@ static inline u16 pcie_flags_reg(struct pci_dev *dev)
 
 	return reg16;
 }
-
 
 static inline int pci_pcie_type(struct pci_dev *dev)
 {

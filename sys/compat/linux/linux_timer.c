@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <compat/linux/linux_timer.h>
 
-
 static int
 linux_convert_l_sigevent(struct l_sigevent *l_sig, struct sigevent *sig)
 {

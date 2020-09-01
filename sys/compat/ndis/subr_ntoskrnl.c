@@ -742,7 +742,6 @@ IoGetDriverObjectExtension(drv, clid)
 	return (NULL);
 }
 
-
 uint32_t
 IoCreateDevice(driver_object *drv, uint32_t devextlen, unicode_string *devname,
 	uint32_t devtype, uint32_t devchars, uint8_t exclusive,
@@ -1599,7 +1598,6 @@ KeTickCount(void)
 	return tvtohz(&tv);
 }
 
-
 /*
  * KeWaitForSingleObject() is a tricky beast, because it can be used
  * with several different object types: semaphores, timers, events,
@@ -1948,7 +1946,6 @@ KeWaitForMultipleObjects(uint32_t cnt, nt_dispatch_header *obj[], uint32_t wtype
 		}
 	}
 
-
 wait_done:
 
 	cv_destroy(&we.we_cv);
@@ -1956,7 +1953,6 @@ wait_done:
 	for (i = 0; i < cnt; i++) {
 		if (whead[i].wb_object != NULL)
 			RemoveEntryList(&whead[i].wb_waitlist);
-
 	}
 	mtx_unlock(&ntoskrnl_dispatchlock);
 
@@ -2659,7 +2655,6 @@ MmUnmapIoSpace(vaddr, len)
 {
 }
 
-
 static device_t
 ntoskrnl_finddev(dev, paddr, res)
 	device_t		dev;
@@ -2716,7 +2711,6 @@ ntoskrnl_finddev(dev, paddr, res)
 			return (matching_dev);
 		}
 	}
-
 
 	/* Won't somebody please think of the children! */
 
@@ -2968,7 +2962,6 @@ ExQueueWorkItem(w, qtype)
 	list_entry		*l;
 	io_workitem		*cur;
 	uint8_t			irql;
-
 
 	/*
 	 * We need to do a special sanity test to make sure
@@ -4250,7 +4243,6 @@ dummy()
 	printf("ntoskrnl dummy called...\n");
 }
 
-
 image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(RtlZeroMemory, 2),
 	IMPORT_SFUNC(RtlSecureZeroMemory, 2),
@@ -4450,6 +4442,5 @@ image_patch_table ntoskrnl_functbl[] = {
 	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_STDCALL },
 
 	/* End of list. */
-
 	{ NULL, NULL, NULL }
 };

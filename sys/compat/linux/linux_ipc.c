@@ -832,7 +832,6 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	memset(&linux_shminfo64, 0, sizeof(linux_shminfo64));
 
 	switch (args->cmd & ~LINUX_IPC_64) {
-
 	case LINUX_IPC_INFO: {
 		struct shminfo bsd_shminfo;
 

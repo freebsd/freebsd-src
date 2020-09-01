@@ -539,7 +539,6 @@ out:
 }
 #endif /* __i386__ || (__amd64__ && COMPAT_LINUX32) */
 
-
 /*
  * These exist mainly for hooks for doing /compat/linux translation.
  */
