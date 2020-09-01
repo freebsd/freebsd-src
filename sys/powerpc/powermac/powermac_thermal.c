@@ -88,7 +88,7 @@ fan_management_proc(void)
 	/* Nothing to manage? */
 	if (SLIST_EMPTY(&fans))
 		kproc_exit(0);
-	
+
 	while (1) {
 		pmac_therm_manage_fans();
 		pause("pmac_therm", hz);
@@ -217,4 +217,3 @@ pmac_thermal_sensor_register(struct pmac_therm *sensor)
 
 	SLIST_INSERT_HEAD(&sensors, list_entry, entries);
 }
-

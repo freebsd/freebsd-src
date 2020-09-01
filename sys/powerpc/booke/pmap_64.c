@@ -408,7 +408,6 @@ pte_remove(pmap_t pmap, vm_offset_t va, u_int8_t flags)
 
 	/* Handle managed entry. */
 	if (PTE_ISMANAGED(pte)) {
-
 		/* Handle modified pages. */
 		if (PTE_ISMODIFIED(pte))
 			vm_page_dirty(m);
@@ -519,7 +518,6 @@ pte_vatopa(pmap_t pmap, vm_offset_t va)
 	return (pa);
 }
 
-
 /* allocate pte entries to manage (addr & mask) to (addr & mask) + size */
 static void
 kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
@@ -590,7 +588,6 @@ mmu_booke_alloc_kernel_pgtables(vm_offset_t data_end)
 	return (data_end);
 }
 
-
 /*
  * Initialize a preallocated and zeroed pmap structure,
  * such as one in a vmspace structure.
@@ -645,7 +642,7 @@ mmu_booke_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 	pte_t *pte;
 	vm_paddr_t pa = 0;
 	int sync_sz, valid;
- 
+
 	while (sz > 0) {
 		PMAP_LOCK(pm);
 		pte = pte_find(pm, va);

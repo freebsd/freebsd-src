@@ -60,7 +60,6 @@ static device_method_t pswitch_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pswitch_probe),
 	DEVMETHOD(device_attach,	pswitch_attach),
-
 	{ 0, 0 }
 };
 

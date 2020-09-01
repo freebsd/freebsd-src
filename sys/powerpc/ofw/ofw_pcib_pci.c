@@ -173,4 +173,3 @@ ofw_pcib_pci_route_interrupt(device_t bridge, device_t dev, int intpin)
 	return (PCIB_ROUTE_INTERRUPT(device_get_parent(device_get_parent(
 	    bridge)), bridge, intpin));
 }
-

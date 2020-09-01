@@ -257,7 +257,6 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	}
 
 	switch (rtype) {
-
 	case R_PPC_NONE:
 		break;
 

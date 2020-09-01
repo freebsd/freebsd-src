@@ -127,4 +127,3 @@ DEFINE_CLASS_0(powernv_centaur, powernv_centaur_driver, powernv_centaur_methods,
     sizeof(struct powernv_centaur_softc));
 DRIVER_MODULE(powernv_centaur, ofwbus, powernv_centaur_driver, powernv_centaur_devclass, NULL,
     NULL);
-

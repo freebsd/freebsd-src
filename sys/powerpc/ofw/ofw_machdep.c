@@ -122,7 +122,7 @@ ofw_sprg_prepare(void)
 {
 	if (ofw_real_mode)
 		return;
-	
+
 	/*
 	 * Assume that interrupt are disabled at this point, or
 	 * SPRG1-3 could be trashed
@@ -154,7 +154,7 @@ ofw_sprg_restore(void)
 {
 	if (ofw_real_mode)
 		return;
-	
+
 	/*
 	 * Note that SPRG1-3 contents are irrelevant. They are scratch
 	 * registers used in the early portion of trap handling when
@@ -869,4 +869,3 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 
 	return (bus_space_map(*tag, addr, size, flags, handle));
 }
-

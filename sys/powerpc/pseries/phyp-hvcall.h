@@ -322,4 +322,3 @@ int64_t phyp_pft_hcall(uint64_t opcode, uint64_t flags, uint64_t pteidx,
     uint64_t *r6);
 
 #endif /* _PSERIES_PHYP_HVCALL_H_ */
-

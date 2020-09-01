@@ -68,7 +68,6 @@ static void dump_total(const char *id, size_t sz);
 #define dump_total(...)
 #endif
 
-
 extern vm_offset_t __startkernel, __endkernel;
 
 int vm_page_dump_size;

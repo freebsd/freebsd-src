@@ -554,7 +554,7 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 			if (i->trig == INTR_TRIGGER_INVALID)
 				PIC_TRANSLATE_CODE(i->pic, i->intline,
 				    i->fwcode, &i->trig, &i->pol);
-	
+
 			if (i->trig != INTR_TRIGGER_CONFORM ||
 			    i->pol != INTR_POLARITY_CONFORM)
 				PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);

@@ -113,7 +113,6 @@
 /* Trap was in user mode */
 #define	EXC_USER	0x10000
 
-
 /*
  * EXC_ALI sets bits in the DSISR and DAR to provide enough
  * information to recover from the unaligned access without needing to

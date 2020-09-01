@@ -73,7 +73,6 @@ static int64_t	mps3_pte_clear(struct pvo_entry *, uint64_t ptebit);
 static int64_t	mps3_pte_unset(struct pvo_entry *);
 static int64_t	mps3_pte_insert(struct pvo_entry *);
 
-
 static struct pmap_funcs mps3_methods = {
 	.install = mps3_install,
         .bootstrap = mps3_bootstrap,
@@ -161,7 +160,7 @@ static int64_t
 mps3_pte_synch_locked(struct pvo_entry *pvo)
 {
 	uint64_t halfbucket[4], rcbits;
-	
+
 	PTESYNC();
 	lv1_read_htab_entries(mps3_vas_id, pvo->pvo_pte.slot & ~0x3UL,
 	    &halfbucket[0], &halfbucket[1], &halfbucket[2], &halfbucket[3],
@@ -289,4 +288,3 @@ mps3_pte_insert(struct pvo_entry *pvo)
 
 	return (0);
 }
-

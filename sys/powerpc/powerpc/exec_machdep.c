@@ -678,7 +678,7 @@ set_regs(struct thread *td, struct reg *regs)
 
 	tf = td->td_frame;
 	memcpy(tf, regs, sizeof(struct reg));
-	
+
 	return (0);
 }
 
@@ -752,7 +752,7 @@ grab_mcontext32(struct thread *td, mcontext32_t *mcp, int flags)
 	error = grab_mcontext(td, &mcp64, flags);
 	if (error != 0)
 		return (error);
-	
+
 	mcp->mc_vers = mcp64.mc_vers;
 	mcp->mc_flags = mcp64.mc_flags;
 	mcp->mc_onstack = mcp64.mc_onstack;
@@ -1193,4 +1193,3 @@ ppc_instr_emulate(struct trapframe *frame, struct thread *td)
 
 	return (sig);
 }
-

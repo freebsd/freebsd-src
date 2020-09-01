@@ -110,7 +110,6 @@ ata_iobus_probe(device_t dev)
 	return (0);
 }
 
-
 static int
 ata_iobus_attach(device_t dev)
 {
@@ -121,7 +120,6 @@ ata_iobus_attach(device_t dev)
 	device_add_child(dev, "ata", -1);
 	return (bus_generic_attach(dev));
 }
-
 
 static int
 ata_iobus_print_child(device_t dev, device_t child)
@@ -134,7 +132,6 @@ ata_iobus_print_child(device_t dev, device_t child)
 
 	return (retval);
 }
-
 
 struct resource *
 ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
@@ -199,7 +196,6 @@ ata_iobus_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	}
 }
 
-
 static int
 ata_iobus_release_resource(device_t dev, device_t child, int type, int rid,
 			   struct resource *r)
@@ -207,7 +203,6 @@ ata_iobus_release_resource(device_t dev, device_t child, int type, int rid,
 	/* no hotplug... */
 	return (0);
 }
-
 
 /*
  * Define the actual ATA device. This is a sub-bus to the ata-iobus layer

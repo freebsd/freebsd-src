@@ -101,7 +101,7 @@ static device_method_t macio_methods[] = {
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown),
 	DEVMETHOD(device_suspend,       bus_generic_suspend),
 	DEVMETHOD(device_resume,        bus_generic_resume),
-	
+
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,      macio_print_child),
 	DEVMETHOD(bus_probe_nomatch,    macio_probe_nomatch),
@@ -123,7 +123,6 @@ static device_method_t macio_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-
 	{ 0, 0 }
 };
 
@@ -187,7 +186,6 @@ macio_get_quirks(const char *name)
         return (0);
 }
 
-
 /*
  * Add an interrupt to the dev's resource list if present
  */
@@ -234,7 +232,6 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 		dinfo->mdi_ninterrupts++;
 	}
 }
-
 
 static void
 macio_add_reg(phandle_t devnode, struct macio_devinfo *dinfo)
@@ -293,7 +290,7 @@ macio_probe(device_t dev)
 {
         int i;
         u_int32_t devid;
-	
+
         devid = pci_get_devid(dev);
         for (i = 0; macio_pci_devlist[i].mpd_desc != NULL; i++) {
                 if (devid == macio_pci_devlist[i].mpd_devid) {
@@ -301,7 +298,7 @@ macio_probe(device_t dev)
                         return (0);
                 }
         }
-	
+
         return (ENXIO);	
 }
 
@@ -324,7 +321,7 @@ macio_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	root = sc->sc_node = ofw_bus_get_node(dev);
-	
+
 	/*
 	 * Locate the device node and it's base address
 	 */
@@ -425,19 +422,16 @@ macio_attach(device_t dev)
 		 */
 		if ((strcmp(ofw_bus_get_name(cdev), "i2s") == 0) &&
 		    (strcmp(compat, "K2-Keylargo") == 0)) {
-
 			uint32_t fcr1;
 
 			fcr1 = bus_read_4(sc->sc_memr, KEYLARGO_FCR1);
 			fcr1 |= FCR1_I2S0_CLK_ENABLE | FCR1_I2S0_ENABLE;
 			bus_write_4(sc->sc_memr, KEYLARGO_FCR1, fcr1);
 		}
-
 	}
 
 	return (bus_generic_attach(dev));
 }
-
 
 static int
 macio_print_child(device_t dev, device_t child)
@@ -459,7 +453,6 @@ macio_print_child(device_t dev, device_t child)
         return (retval);
 }
 
-
 static void
 macio_probe_nomatch(device_t dev, device_t child)
 {
@@ -479,7 +472,6 @@ macio_probe_nomatch(device_t dev, device_t child)
 		printf(" (no driver attached)\n");
 	}
 }
-
 
 static struct resource *
 macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -585,7 +577,6 @@ macio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (rv);
 }
 
-
 static int
 macio_release_resource(device_t bus, device_t child, int type, int rid,
 		       struct resource *res)
@@ -598,7 +589,6 @@ macio_release_resource(device_t bus, device_t child, int type, int rid,
 
 	return (rman_release_resource(res));
 }
-
 
 static int
 macio_activate_resource(device_t bus, device_t child, int type, int rid,
@@ -625,7 +615,6 @@ macio_activate_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_activate_resource(res));
 }
 
-
 static int
 macio_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			  struct resource *res)
@@ -642,7 +631,6 @@ macio_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 	return (rman_deactivate_resource(res));
 }
-
 
 static struct resource_list *
 macio_get_resource_list (device_t dev, device_t child)

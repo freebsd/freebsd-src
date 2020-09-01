@@ -110,7 +110,7 @@ static driver_t uart_opal_driver = {
 	uart_opal_methods,
 	sizeof(struct uart_opal_softc),
 };
- 
+
 DRIVER_MODULE(uart_opal, opalcons, uart_opal_driver, uart_devclass, 0, 0);
 
 static int uart_opal_getc(struct uart_opal_softc *sc);
@@ -157,7 +157,7 @@ uart_opal_real_map_outbuffer(uint64_t *bufferp, uint64_t *lenp)
 	*bufferp = (uint64_t)opalcons_buffer.tmpbuf;
 	*lenp = (uint64_t)&opalcons_buffer.size;
 }
-	
+
 static void
 uart_opal_real_unmap_outbuffer(uint64_t *len)
 {
@@ -237,7 +237,7 @@ uart_opal_cnprobe(struct consdev *cp)
 	/* Check if OF has an active stdin/stdout */
 	if (OF_getprop(chosen, "linux,stdout-path", buf, sizeof(buf)) <= 0)
 		goto fail;
-	
+
 	input = OF_finddevice(buf);
 	if (input == -1)
 		goto fail;
@@ -253,7 +253,7 @@ uart_opal_cnprobe(struct consdev *cp)
 	cp->cn_arg = console_sc;
 	stdout_cp = cp;
 	return;
-	
+
 fail:
 	cp->cn_pri = CN_DEAD;
 	return;
@@ -573,4 +573,3 @@ static driver_t opalcons_driver = {
 static devclass_t opalcons_devclass;
 
 DRIVER_MODULE(opalcons, opal, opalcons_driver, opalcons_devclass, 0, 0);
-

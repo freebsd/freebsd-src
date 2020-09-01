@@ -200,7 +200,6 @@ extern mmu_t	mmu_obj;
 	} while (mmu != NULL);			\
 	f;})
 
-
 #define MMU_DEF(name, ident, methods)		\
 						\
 const struct mmu_kobj name = {		\

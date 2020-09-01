@@ -35,7 +35,7 @@
 
 struct pmac_fan {
 	int min_rpm, max_rpm, default_rpm;
-	
+
 	char name[32];
 	int zone;
 
@@ -45,7 +45,7 @@ struct pmac_fan {
 
 struct pmac_therm {
 	int target_temp, max_temp;	/* Tenths of a degree K */
-	
+
 	char name[32];
 	int zone;
 

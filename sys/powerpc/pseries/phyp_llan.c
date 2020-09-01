@@ -560,4 +560,3 @@ llan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	return (err);
 }
-

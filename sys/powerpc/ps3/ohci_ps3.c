@@ -171,4 +171,3 @@ static devclass_t ohci_ps3_devclass;
 
 DRIVER_MODULE(ohci_ps3, ps3bus, ohci_ps3_driver, ohci_ps3_devclass, 0, 0);
 MODULE_DEPEND(ohci_ps3, usb, 1, 1, 1);
-

@@ -326,7 +326,6 @@ static int moea_map_user_ptr(pmap_t pm,
 static int moea_decode_kernel_ptr(vm_offset_t addr,
     int *is_user, vm_offset_t *decoded_addr);
 
-
 static struct pmap_funcs moea_methods = {
 	.clear_modify = moea_clear_modify,
 	.copy_page = moea_copy_page,
@@ -1573,14 +1572,14 @@ moea_map_user_ptr(pmap_t pm, volatile const void *uaddr,
 		return (EFAULT);
 
 	vsid = va_to_vsid(pm, (vm_offset_t)uaddr);
- 
+
 	/* Mark segment no-execute */
 	vsid |= SR_N;
- 
+
 	/* If we have already set this VSID, we can just return */
 	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == vsid)
 		return (0);
- 
+
 	__asm __volatile("isync");
 	curthread->td_pcb->pcb_cpu.aim.usr_segm =
 	    (uintptr_t)uaddr >> ADDR_SR_SHFT;
@@ -1716,7 +1715,6 @@ moea_pinit(pmap_t pmap)
 	    == NULL) {
 		pmap->pmap_phys = pmap;
 	}
-
 
 	mtx_lock(&moea_vsid_mutex);
 	/*
@@ -2481,7 +2479,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 		return (TRUE);
 
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-
 		/*
 		 * See if we saved the bit off.  If so, cache it and return
 		 * success.
@@ -2499,7 +2496,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 	 */
 	powerpc_sync();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-
 		/*
 		 * See if this pvo has a valid PTE.  if so, fetch the
 		 * REF/CHG bits from the valid PTE.  If the appropriate

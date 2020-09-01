@@ -97,7 +97,7 @@ static platform_method_t chrp_methods[] = {
 	PLATFORMMETHOD(platform_mem_regions,	chrp_mem_regions),
 	PLATFORMMETHOD(platform_real_maxaddr,	chrp_real_maxaddr),
 	PLATFORMMETHOD(platform_timebase_freq,	chrp_timebase_freq),
-	
+
 	PLATFORMMETHOD(platform_smp_ap_init,	chrp_smp_ap_init),
 	PLATFORMMETHOD(platform_smp_first_cpu,	chrp_smp_first_cpu),
 	PLATFORMMETHOD(platform_smp_next_cpu,	chrp_smp_next_cpu),
@@ -109,7 +109,6 @@ static platform_method_t chrp_methods[] = {
 #endif
 
 	PLATFORMMETHOD(platform_reset,		chrp_reset),
-
 	{ 0, 0 }
 };
 
@@ -222,7 +221,6 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 
 	len = OF_getproplen(phandle, "ibm,dynamic-memory");
 	if (len > 0) {
-
 		/* We have to use a variable length array on the stack
 		   since we have very limited stack space.
 		*/
@@ -238,7 +236,7 @@ parse_drconf_memory(struct mem_region *ofmem, int *msz,
 
 		/* First address, in arr[1], arr[2]*/
 		dmem = &arr[1];
-	
+
 		for (i = 0; i < idx; i++) {
 			base = ((uint64_t)dmem[0] << 32) + dmem[1];
 			dmem += 4;
@@ -473,7 +471,6 @@ chrp_cpuref_init(void)
 	return (0);
 }
 
-
 #ifdef SMP
 static int
 chrp_smp_start_cpu(platform_t plat, struct pcpu *pc)
@@ -595,4 +592,3 @@ chrp_smp_ap_init(platform_t platform)
 {
 }
 #endif
-

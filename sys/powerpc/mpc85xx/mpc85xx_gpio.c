@@ -170,7 +170,7 @@ mpc85xx_gpio_pin_toggle(device_t dev, uint32_t pin)
 	val = bus_read_4(sc->out_res, 0);
 	val ^= (1 << (31 - pin));
 	bus_write_4(sc->out_res, 0, val);
-	
+
 	GPIO_UNLOCK(sc);
 
 	return (0);

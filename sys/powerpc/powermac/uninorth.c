@@ -101,7 +101,6 @@ static void		unin_enable_mpic(device_t dev);
  * Driver methods.
  */
 static device_method_t unin_chip_methods[] = {
-
 	/* Device interface */
 	DEVMETHOD(device_probe,         unin_chip_probe),
 	DEVMETHOD(device_attach,        unin_chip_attach),
@@ -127,7 +126,6 @@ static device_method_t unin_chip_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-
 	{ 0, 0 }
 };
 
@@ -403,7 +401,7 @@ unin_chip_attach(device_t dev)
 		if (strcmp(compat, "chrp,open-pic") == 0)
 			unin_enable_mpic(dev);
 	}
-	
+
 	/*
 	 * GMAC lives under the PCI bus, so just check if enet is gmac.
 	 */
@@ -455,7 +453,6 @@ unin_chip_probe_nomatch(device_t dev, device_t child)
 		printf(" (no driver attached)\n");
 	}
 }
-
 
 static struct resource *
 unin_chip_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -608,7 +605,6 @@ unin_chip_activate_resource(device_t bus, device_t child, int type, int rid,
 	return (rman_activate_resource(res));
 }
 
-
 static int
 unin_chip_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			      struct resource *res)
@@ -625,7 +621,6 @@ unin_chip_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 	return (rman_deactivate_resource(res));
 }
-
 
 static struct resource_list *
 unin_chip_get_resource_list (device_t dev, device_t child)

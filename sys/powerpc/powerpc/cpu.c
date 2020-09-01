@@ -284,7 +284,6 @@ cpu_feature_setup()
 	cpu_features2 |= cp->features2;
 }
 
-
 void
 cpu_setup(u_int cpuid)
 {
@@ -504,7 +503,6 @@ cpu_6xx_setup(int cpuid, uint16_t vers)
 			hid0 |= HID0_EMCP | HID0_BTIC | HID0_SGE | HID0_BHT;
 			hid0 |= HID0_EIEC;
 			break;
-
 	}
 
 	mtspr(SPR_HID0, hid0);
@@ -530,7 +528,6 @@ cpu_6xx_setup(int cpuid, uint16_t vers)
 	if (cpu_idle_hook == NULL)
 		cpu_idle_hook = cpu_idle_60x;
 }
-
 
 static void
 cpu_6xx_print_cacheinfo(u_int cpuid, uint16_t vers)
@@ -834,7 +831,7 @@ cpu_idle_power9(sbintime_t sbt)
 	 * the wake up.
 	 */
 	mtmsr(msr);
-	
+
 }
 #endif
 

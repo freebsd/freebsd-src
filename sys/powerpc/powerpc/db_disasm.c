@@ -108,14 +108,13 @@ op_class_func *opcodes_base[] = {
 /*x3C*/	op_ill,		op_ill,		op_cl_x3e,	op_cl_x3f
 };
 
-
 /* This table could be modified to make significant the "reserved" fields
  * of the opcodes, But I didn't feel like it when typing in the table,
  * I would recommend that this table be looked over for errors, 
  * This was derived from the table in Appendix A.2 of (Mot part # MPCFPE/AD)
  * PowerPC Microprocessor Family: The Programming Environments
  */
-	
+
 const struct opcode opcodes[] = {
 	{ "tdi",	0xfc000000, 0x08000000, Op_TO | Op_A | Op_SIMM },
 	{ "twi",	0xfc000000, 0x0c000000, Op_TO | Op_A | Op_SIMM },
@@ -408,7 +407,6 @@ const struct opcode opcodes_3f[] = {
 	{ "",		0x0,		0x0, 0 }
 };
 
-
 struct specialreg {
 	int reg;
 	const char *name;
@@ -586,7 +584,6 @@ const struct specialreg dcrregs[] = {
 static const char *condstr[8] = {
 	"ge", "le", "ne", "ns", "lt", "gt", "eq", "so"
 };
-
 
 void
 op_ill(instr_t instr, vm_offset_t loc)

@@ -50,4 +50,3 @@ struct ofw_pcibus_devinfo {
 };
 
 #endif // POWERPC_OFW_OFW_PCIBUS_H
-

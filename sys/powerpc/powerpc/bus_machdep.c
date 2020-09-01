@@ -621,7 +621,7 @@ static void
 bs_le_ws_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val)
 {
 	volatile uint16_t *addr;
- 
+
 	addr = __ppc_ba(bsh, ofs);
 	__asm __volatile("sthbrx %0, 0, %1" :: "r"(val), "r"(addr));
 	powerpc_iomb();

@@ -160,4 +160,3 @@ uart_phyp_dbg_putc(int c)
 		DELAY(100);
 	} while (err == H_BUSY);
 }
-

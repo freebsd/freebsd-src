@@ -58,7 +58,6 @@ static device_method_t uart_iobus_methods[] = {
 	DEVMETHOD(device_probe,		uart_iobus_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
-
 	{ 0, 0 }
 };
 

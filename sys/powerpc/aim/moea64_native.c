@@ -282,7 +282,7 @@ moea64_pte_synch_native(struct pvo_entry *pvo)
 	ptelo = be64toh(pt->pte_lo);
 
 	rw_runlock(&moea64_eviction_lock);
-	
+
 	return (ptelo & (LPTE_REF | LPTE_CHG));
 }
 

@@ -425,4 +425,3 @@ cpudep_ap_setup()
 		break;
 	}
 }
-

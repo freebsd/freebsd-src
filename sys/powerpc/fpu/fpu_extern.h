@@ -54,4 +54,3 @@ u_int fpu_ftoi(struct fpemu *, struct fpn *);
 u_int fpu_ftox(struct fpemu *, struct fpn *, u_int *);
 u_int fpu_ftos(struct fpemu *, struct fpn *);
 u_int fpu_ftod(struct fpemu *, struct fpn *, u_int *);
-

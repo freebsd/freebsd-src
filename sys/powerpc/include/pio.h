@@ -178,7 +178,6 @@ __inlrb(volatile u_int32_t *a)
 #define	inlrb(a)	(__inlrb((volatile u_int32_t *)(a)))
 #define	in32rb(a)	inlrb(a)
 
-
 static __inline void
 __outsb(volatile u_int8_t *a, const u_int8_t *s, size_t c)
 {

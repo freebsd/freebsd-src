@@ -215,7 +215,7 @@ phyp_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
 
 	return (0);
 }
-	
+
 int
 phyp_iommu_unmap(device_t dev, bus_dma_segment_t *segs, int nsegs, void *cookie)
 {
@@ -244,4 +244,3 @@ phyp_iommu_unmap(device_t dev, bus_dma_segment_t *segs, int nsegs, void *cookie)
 
 	return (0);
 }
-

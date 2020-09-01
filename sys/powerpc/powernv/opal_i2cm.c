@@ -130,4 +130,3 @@ DRIVER_MODULE(opal_i2cm, powernv_xscom, opal_i2cm_driver, opal_i2cm_devclass, NU
     NULL);
 DRIVER_MODULE(opal_i2cm, powernv_centaur, opal_i2cm_driver, opal_i2cm_devclass, NULL,
     NULL);
-

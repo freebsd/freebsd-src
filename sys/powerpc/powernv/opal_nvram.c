@@ -84,7 +84,6 @@ static device_method_t	opal_nvram_methods[] = {
 	DEVMETHOD(device_probe,		opal_nvram_probe),
 	DEVMETHOD(device_attach,	opal_nvram_attach),
 	DEVMETHOD(device_detach,	opal_nvram_detach),
-
 	{ 0, 0 }
 };
 
@@ -157,7 +156,7 @@ opal_nvram_attach(device_t dev)
 	sc->sc_cdev = make_dev(&opal_nvram_cdevsw, 0, 0, 0, 0600,
 	    "nvram");
 	sc->sc_cdev->si_drv1 = sc;
-	
+
 	mtx_init(&sc->sc_mtx, "opal_nvram", 0, MTX_DEF);
 
 	return (0);
@@ -176,7 +175,7 @@ opal_nvram_detach(device_t dev)
 		contigfree(sc->sc_buf, NVRAM_BUFSIZE, M_DEVBUF);
 
 	mtx_destroy(&sc->sc_mtx);
-	
+
 	return (0);
 }
 

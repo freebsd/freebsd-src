@@ -54,4 +54,3 @@ struct ata_dbdma_channel {
 void ata_dbdma_dmainit(device_t dev);
 
 #endif /* ATA_DBDMA_H */
-

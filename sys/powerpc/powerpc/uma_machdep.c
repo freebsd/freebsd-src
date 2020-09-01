@@ -57,7 +57,7 @@ uma_small_alloc(uma_zone_t zone, vm_size_t bytes, int domain, u_int8_t *flags,
 	void *va;
 	vm_paddr_t pa;
 	vm_page_t m;
-	
+
 	*flags = UMA_SLAB_PRIV;
 
 	m = vm_page_alloc_domain(NULL, 0, domain,

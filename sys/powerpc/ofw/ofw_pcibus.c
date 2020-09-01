@@ -312,7 +312,7 @@ ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
 
 	return (0);
 }
-	
+
 static int
 ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 {
@@ -324,12 +324,12 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 
 	if (node == -1) {
 		/* Non-firmware enumerated child, use standard routing */
-	
+
 		intr[0] = pci_get_intpin(child);
 		return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, 
 		    intr[0]));
 	}
-	
+
 	/*
 	 * Try to determine the node's interrupt parent so we know which
 	 * PIC to use.
@@ -343,7 +343,7 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	if (iparent != -1)
 		OF_getencprop(OF_node_from_xref(iparent), "#interrupt-cells",
 		    &icells, sizeof(icells));
-	
+
 	/*
 	 * Any AAPL,interrupts property gets priority and is
 	 * fully specified (i.e. does not need routing)
@@ -362,7 +362,7 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 		/* No property: our best guess is the intpin. */
 		intr[0] = pci_get_intpin(child);
 	}
-	
+
 	/*
 	 * If we got intr from a property, it may or may not be an intpin.
 	 * For on-board devices, it frequently is not, and is completely out

@@ -128,7 +128,7 @@ uninorth_probe(device_t dev)
 		device_set_desc(dev, "IBM CPC945 PCI Express Root");
 		return (0);
 	}
-	
+
 	return (ENXIO);
 }
 
@@ -278,4 +278,3 @@ uninorth_enable_config(struct uninorth_softc *sc, u_int bus, u_int slot,
 
 	return (1);
 }
-

@@ -391,7 +391,6 @@ aim_cpu_init(vm_offset_t toc)
 		bcopy(&restorebridge, (void *)EXC_TRC, trap_offset);
 		bcopy(&restorebridge, (void *)EXC_BPT, trap_offset);
 	} else {
-
 		/*
 		 * Use an IBAT and a DBAT to map the bottom 256M segment.
 		 *
@@ -571,7 +570,6 @@ cpu_machine_check(struct thread *td, struct trapframe *frame, int *ucode)
 	*ucode = BUS_OBJERR;
 	return (SIGBUS);
 }
-
 
 #ifndef __powerpc64__
 uint64_t
@@ -779,4 +777,3 @@ cpu_sleep()
 		enable_vec(curthread);
 	powerpc_sync();
 }
-
