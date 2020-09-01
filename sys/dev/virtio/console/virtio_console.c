@@ -146,7 +146,6 @@ static struct virtio_feature_desc vtcon_feature_desc[] = {
 	{ VIRTIO_CONSOLE_F_SIZE,	"ConsoleSize"	},
 	{ VIRTIO_CONSOLE_F_MULTIPORT,	"MultiplePorts"	},
 	{ VIRTIO_CONSOLE_F_EMERG_WRITE,	"EmergencyWrite" },
-
 	{ 0, NULL }
 };
 
@@ -511,7 +510,6 @@ vtcon_alloc_virtqueues(struct vtcon_softc *sc)
 		return (ENOMEM);
 
 	for (i = 0, idx = 0, portidx = 0; i < nvqs / 2; i++, idx += 2) {
-
 		if (i == 1) {
 			/* The control virtqueues are after the first port. */
 			VQ_ALLOC_INFO_INIT(&info[idx], 0,
