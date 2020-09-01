@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 #if EFSYS_OPT_QSTATS
@@ -393,7 +392,6 @@ ef10_tx_qpio_post(
 	unsigned int added = *addedp;
 	efx_rc_t rc;
 
-
 	if (added - completed + 1 > EFX_TXQ_LIMIT(etp->et_mask + 1)) {
 		rc = ENOSPC;
 		goto fail1;
@@ -716,7 +714,6 @@ ef10_tx_qdesc_checksum_create(
 	    ESF_DZ_TX_OPTION_INNER_IP_CSUM,
 	    (flags & EFX_TXQ_CKSUM_INNER_IPV4) ? 1 : 0);
 }
-
 
 	__checkReturn	efx_rc_t
 ef10_tx_qpace(

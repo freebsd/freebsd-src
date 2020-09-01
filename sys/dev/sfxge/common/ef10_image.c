@@ -67,7 +67,6 @@ typedef struct efx_asn1_cursor_s {
 	uint32_t	val_size;
 } efx_asn1_cursor_t;
 
-
 /* Parse header of DER encoded ASN.1 TLV and match tag */
 static	__checkReturn	efx_rc_t
 efx_asn1_parse_header_match_tag(
@@ -305,7 +304,6 @@ fail1:
 	return (rc);
 }
 
-
 /*
  * Utility routines for parsing CMS headers (see RFC2315, PKCS#7)
  */
@@ -537,7 +535,6 @@ efx_check_reflash_image(
 	uint32_t image_size;
 	void *imagep;
 	efx_rc_t rc;
-
 
 	EFSYS_ASSERT(infop != NULL);
 	if (infop == NULL) {
@@ -907,8 +904,6 @@ fail1:
 
 	return (rc);
 }
-
-
 
 #endif	/* EFSYS_OPT_IMAGE_LAYOUT */
 

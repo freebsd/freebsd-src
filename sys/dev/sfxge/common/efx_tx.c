@@ -125,7 +125,6 @@ siena_tx_qstats_update(
 
 #endif /* EFSYS_OPT_SIENA */
 
-
 #if EFSYS_OPT_SIENA
 static const efx_tx_ops_t	__efx_tx_siena_ops = {
 	siena_tx_init,				/* etxo_init */
@@ -233,7 +232,6 @@ static const efx_tx_ops_t	__efx_tx_medford2_ops = {
 #endif
 };
 #endif /* EFSYS_OPT_MEDFORD2 */
-
 
 	__checkReturn	efx_rc_t
 efx_tx_init(
@@ -691,7 +689,6 @@ efx_tx_qdesc_checksum_create(
 	etxop->etxo_qdesc_checksum_create(etp, flags, edp);
 }
 
-
 #if EFSYS_OPT_QSTATS
 			void
 efx_tx_qstats_update(
@@ -706,7 +703,6 @@ efx_tx_qstats_update(
 	etxop->etxo_qstats_update(etp, stat);
 }
 #endif
-
 
 #if EFSYS_OPT_SIENA
 

@@ -55,10 +55,8 @@ extern "C" {
 /* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_BIU_HW_REV_ID_REG_RESET 0xeb14face
 
-
 #define	ERF_DZ_HW_REV_ID_LBN 0
 #define	ERF_DZ_HW_REV_ID_WIDTH 32
-
 
 /*
  * BIU_MC_SFT_STATUS_REG(32bit):
@@ -71,10 +69,8 @@ extern "C" {
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_ROWS 8
 #define	ER_DZ_BIU_MC_SFT_STATUS_REG_RESET 0x1111face
 
-
 #define	ERF_DZ_MC_SFT_STATUS_LBN 0
 #define	ERF_DZ_MC_SFT_STATUS_WIDTH 32
-
 
 /*
  * BIU_INT_ISR_REG(32bit):
@@ -85,10 +81,8 @@ extern "C" {
 /* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_BIU_INT_ISR_REG_RESET 0x0
 
-
 #define	ERF_DZ_ISR_REG_LBN 0
 #define	ERF_DZ_ISR_REG_WIDTH 32
-
 
 /*
  * MC_DB_LWRD_REG(32bit):
@@ -99,10 +93,8 @@ extern "C" {
 /* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_MC_DB_LWRD_REG_RESET 0x0
 
-
 #define	ERF_DZ_MC_DOORBELL_L_LBN 0
 #define	ERF_DZ_MC_DOORBELL_L_WIDTH 32
-
 
 /*
  * MC_DB_HWRD_REG(32bit):
@@ -113,10 +105,8 @@ extern "C" {
 /* hunta0,medforda0,medford2a0=pf_dbell_bar */
 #define	ER_DZ_MC_DB_HWRD_REG_RESET 0x0
 
-
 #define	ERF_DZ_MC_DOORBELL_H_LBN 0
 #define	ERF_DZ_MC_DOORBELL_H_WIDTH 32
-
 
 /*
  * EVQ_RPTR_REG(32bit):
@@ -129,12 +119,10 @@ extern "C" {
 #define	ER_DZ_EVQ_RPTR_REG_ROWS 2048
 #define	ER_DZ_EVQ_RPTR_REG_RESET 0x0
 
-
 #define	ERF_DZ_EVQ_RPTR_VLD_LBN 15
 #define	ERF_DZ_EVQ_RPTR_VLD_WIDTH 1
 #define	ERF_DZ_EVQ_RPTR_LBN 0
 #define	ERF_DZ_EVQ_RPTR_WIDTH 15
-
 
 /*
  * EVQ_RPTR_REG_64K(32bit):
@@ -147,12 +135,10 @@ extern "C" {
 #define	ER_FZ_EVQ_RPTR_REG_64K_ROWS 2048
 #define	ER_FZ_EVQ_RPTR_REG_64K_RESET 0x0
 
-
 #define	ERF_FZ_EVQ_RPTR_VLD_LBN 15
 #define	ERF_FZ_EVQ_RPTR_VLD_WIDTH 1
 #define	ERF_FZ_EVQ_RPTR_LBN 0
 #define	ERF_FZ_EVQ_RPTR_WIDTH 15
-
 
 /*
  * EVQ_RPTR_REG_16K(32bit):
@@ -165,12 +151,10 @@ extern "C" {
 #define	ER_FZ_EVQ_RPTR_REG_16K_ROWS 2048
 #define	ER_FZ_EVQ_RPTR_REG_16K_RESET 0x0
 
-
 /* defined as ERF_FZ_EVQ_RPTR_VLD_LBN 15; */
 /* defined as ERF_FZ_EVQ_RPTR_VLD_WIDTH 1 */
 /* defined as ERF_FZ_EVQ_RPTR_LBN 0; */
 /* defined as ERF_FZ_EVQ_RPTR_WIDTH 15 */
-
 
 /*
  * EVQ_TMR_REG_64K(32bit):
@@ -183,14 +167,12 @@ extern "C" {
 #define	ER_FZ_EVQ_TMR_REG_64K_ROWS 2048
 #define	ER_FZ_EVQ_TMR_REG_64K_RESET 0x0
 
-
 #define	ERF_FZ_TC_TMR_REL_VAL_LBN 16
 #define	ERF_FZ_TC_TMR_REL_VAL_WIDTH 14
 #define	ERF_FZ_TC_TIMER_MODE_LBN 14
 #define	ERF_FZ_TC_TIMER_MODE_WIDTH 2
 #define	ERF_FZ_TC_TIMER_VAL_LBN 0
 #define	ERF_FZ_TC_TIMER_VAL_WIDTH 14
-
 
 /*
  * EVQ_TMR_REG_16K(32bit):
@@ -203,14 +185,12 @@ extern "C" {
 #define	ER_FZ_EVQ_TMR_REG_16K_ROWS 2048
 #define	ER_FZ_EVQ_TMR_REG_16K_RESET 0x0
 
-
 /* defined as ERF_FZ_TC_TMR_REL_VAL_LBN 16; */
 /* defined as ERF_FZ_TC_TMR_REL_VAL_WIDTH 14 */
 /* defined as ERF_FZ_TC_TIMER_MODE_LBN 14; */
 /* defined as ERF_FZ_TC_TIMER_MODE_WIDTH 2 */
 /* defined as ERF_FZ_TC_TIMER_VAL_LBN 0; */
 /* defined as ERF_FZ_TC_TIMER_VAL_WIDTH 14 */
-
 
 /*
  * EVQ_TMR_REG(32bit):
@@ -223,14 +203,12 @@ extern "C" {
 #define	ER_DZ_EVQ_TMR_REG_ROWS 2048
 #define	ER_DZ_EVQ_TMR_REG_RESET 0x0
 
-
 /* defined as ERF_FZ_TC_TMR_REL_VAL_LBN 16; */
 /* defined as ERF_FZ_TC_TMR_REL_VAL_WIDTH 14 */
 #define	ERF_DZ_TC_TIMER_MODE_LBN 14
 #define	ERF_DZ_TC_TIMER_MODE_WIDTH 2
 #define	ERF_DZ_TC_TIMER_VAL_LBN 0
 #define	ERF_DZ_TC_TIMER_VAL_WIDTH 14
-
 
 /*
  * RX_DESC_UPD_REG_16K(32bit):
@@ -243,10 +221,8 @@ extern "C" {
 #define	ER_FZ_RX_DESC_UPD_REG_16K_ROWS 2048
 #define	ER_FZ_RX_DESC_UPD_REG_16K_RESET 0x0
 
-
 #define	ERF_FZ_RX_DESC_WPTR_LBN 0
 #define	ERF_FZ_RX_DESC_WPTR_WIDTH 12
-
 
 /*
  * RX_DESC_UPD_REG(32bit):
@@ -259,10 +235,8 @@ extern "C" {
 #define	ER_DZ_RX_DESC_UPD_REG_ROWS 2048
 #define	ER_DZ_RX_DESC_UPD_REG_RESET 0x0
 
-
 #define	ERF_DZ_RX_DESC_WPTR_LBN 0
 #define	ERF_DZ_RX_DESC_WPTR_WIDTH 12
-
 
 /*
  * RX_DESC_UPD_REG_64K(32bit):
@@ -275,10 +249,8 @@ extern "C" {
 #define	ER_FZ_RX_DESC_UPD_REG_64K_ROWS 2048
 #define	ER_FZ_RX_DESC_UPD_REG_64K_RESET 0x0
 
-
 /* defined as ERF_FZ_RX_DESC_WPTR_LBN 0; */
 /* defined as ERF_FZ_RX_DESC_WPTR_WIDTH 12 */
-
 
 /*
  * TX_DESC_UPD_REG_64K(96bit):
@@ -291,7 +263,6 @@ extern "C" {
 #define	ER_FZ_TX_DESC_UPD_REG_64K_ROWS 2048
 #define	ER_FZ_TX_DESC_UPD_REG_64K_RESET 0x0
 
-
 #define	ERF_FZ_RSVD_LBN 76
 #define	ERF_FZ_RSVD_WIDTH 20
 #define	ERF_FZ_TX_DESC_WPTR_LBN 64
@@ -300,7 +271,6 @@ extern "C" {
 #define	ERF_FZ_TX_DESC_HWORD_WIDTH 32
 #define	ERF_FZ_TX_DESC_LWORD_LBN 0
 #define	ERF_FZ_TX_DESC_LWORD_WIDTH 32
-
 
 /*
  * TX_DESC_UPD_REG_16K(96bit):
@@ -313,7 +283,6 @@ extern "C" {
 #define	ER_FZ_TX_DESC_UPD_REG_16K_ROWS 2048
 #define	ER_FZ_TX_DESC_UPD_REG_16K_RESET 0x0
 
-
 /* defined as ERF_FZ_RSVD_LBN 76; */
 /* defined as ERF_FZ_RSVD_WIDTH 20 */
 /* defined as ERF_FZ_TX_DESC_WPTR_LBN 64; */
@@ -322,7 +291,6 @@ extern "C" {
 /* defined as ERF_FZ_TX_DESC_HWORD_WIDTH 32 */
 /* defined as ERF_FZ_TX_DESC_LWORD_LBN 0; */
 /* defined as ERF_FZ_TX_DESC_LWORD_WIDTH 32 */
-
 
 /*
  * TX_DESC_UPD_REG(96bit):
@@ -335,7 +303,6 @@ extern "C" {
 #define	ER_DZ_TX_DESC_UPD_REG_ROWS 2048
 #define	ER_DZ_TX_DESC_UPD_REG_RESET 0x0
 
-
 #define	ERF_DZ_RSVD_LBN 76
 #define	ERF_DZ_RSVD_WIDTH 20
 #define	ERF_DZ_TX_DESC_WPTR_LBN 64
@@ -344,7 +311,6 @@ extern "C" {
 #define	ERF_DZ_TX_DESC_HWORD_WIDTH 32
 #define	ERF_DZ_TX_DESC_LWORD_LBN 0
 #define	ERF_DZ_TX_DESC_LWORD_WIDTH 32
-
 
 /* ES_DRIVER_EV */
 #define	ESF_DZ_DRV_CODE_LBN 60
@@ -365,7 +331,6 @@ extern "C" {
 #define	ESF_DZ_DRV_TMR_ID_LBN 0
 #define	ESF_DZ_DRV_TMR_ID_WIDTH 14
 
-
 /* ES_EVENT_ENTRY */
 #define	ESF_DZ_EV_CODE_LBN 60
 #define	ESF_DZ_EV_CODE_WIDTH 4
@@ -381,7 +346,6 @@ extern "C" {
 #define	ESF_DZ_EV_DATA_LBN 0
 #define	ESF_DZ_EV_DATA_WIDTH 60
 
-
 /* ES_MC_EVENT */
 #define	ESF_DZ_MC_CODE_LBN 60
 #define	ESF_DZ_MC_CODE_WIDTH 4
@@ -395,7 +359,6 @@ extern "C" {
 #define	ESF_DZ_MC_SOFT_DW1_WIDTH 26
 #define	ESF_DZ_MC_SOFT_LBN 0
 #define	ESF_DZ_MC_SOFT_WIDTH 58
-
 
 /* ES_RX_EVENT */
 #define	ESF_DZ_RX_CODE_LBN 60
@@ -501,7 +464,6 @@ extern "C" {
 #define	ESF_DZ_RX_BYTES_LBN 0
 #define	ESF_DZ_RX_BYTES_WIDTH 14
 
-
 /* ES_RX_KER_DESC */
 #define	ESF_DZ_RX_KER_RESERVED_LBN 62
 #define	ESF_DZ_RX_KER_RESERVED_WIDTH 2
@@ -513,7 +475,6 @@ extern "C" {
 #define	ESF_DZ_RX_KER_BUF_ADDR_DW1_WIDTH 16
 #define	ESF_DZ_RX_KER_BUF_ADDR_LBN 0
 #define	ESF_DZ_RX_KER_BUF_ADDR_WIDTH 48
-
 
 /* ES_TX_CSUM_TSTAMP_DESC */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
@@ -544,7 +505,6 @@ extern "C" {
 #define	ESF_DZ_TX_OPTION_IP_CSUM_LBN 0
 #define	ESF_DZ_TX_OPTION_IP_CSUM_WIDTH 1
 
-
 /* ES_TX_EVENT */
 #define	ESF_DZ_TX_CODE_LBN 60
 #define	ESF_DZ_TX_CODE_WIDTH 4
@@ -573,7 +533,6 @@ extern "C" {
 #define	ESF_DZ_TX_DESCR_INDX_LBN 0
 #define	ESF_DZ_TX_DESCR_INDX_WIDTH 16
 
-
 /* ES_TX_KER_DESC */
 #define	ESF_DZ_TX_KER_TYPE_LBN 63
 #define	ESF_DZ_TX_KER_TYPE_WIDTH 1
@@ -588,7 +547,6 @@ extern "C" {
 #define	ESF_DZ_TX_KER_BUF_ADDR_LBN 0
 #define	ESF_DZ_TX_KER_BUF_ADDR_WIDTH 48
 
-
 /* ES_TX_PIO_DESC */
 #define	ESF_DZ_TX_PIO_TYPE_LBN 63
 #define	ESF_DZ_TX_PIO_TYPE_WIDTH 1
@@ -600,7 +558,6 @@ extern "C" {
 #define	ESF_DZ_TX_PIO_BYTE_CNT_WIDTH 12
 #define	ESF_DZ_TX_PIO_BUF_ADDR_LBN 0
 #define	ESF_DZ_TX_PIO_BUF_ADDR_WIDTH 12
-
 
 /* ES_TX_TSO_DESC */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
@@ -623,7 +580,6 @@ extern "C" {
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_LBN 0
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_WIDTH 32
 
-
 /* ES_TX_TSO_V2_DESC_A */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
 #define	ESF_DZ_TX_DESC_IS_OPT_WIDTH 1
@@ -642,7 +598,6 @@ extern "C" {
 #define	ESF_DZ_TX_TSO_IP_ID_WIDTH 16
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_LBN 0
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_WIDTH 32
-
 
 /* ES_TX_TSO_V2_DESC_B */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
@@ -663,7 +618,6 @@ extern "C" {
 #define	ESF_DZ_TX_TSO_OUTER_IPID_LBN 0
 #define	ESF_DZ_TX_TSO_OUTER_IPID_WIDTH 16
 
-
 /* ES_TX_VLAN_DESC */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
 #define	ESF_DZ_TX_DESC_IS_OPT_WIDTH 1
@@ -678,7 +632,6 @@ extern "C" {
 #define	ESF_DZ_TX_VLAN_TAG2_WIDTH 16
 #define	ESF_DZ_TX_VLAN_TAG1_LBN 0
 #define	ESF_DZ_TX_VLAN_TAG1_WIDTH 16
-
 
 /*************************************************************************
  * NOTE: the comment line above marks the end of the autogenerated section

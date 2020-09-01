@@ -76,7 +76,6 @@ typedef struct efx_dhcp_tag_hdr_s {
 #define	DHCP_CALC_TAG_LENGTH(payload_len) \
 	((payload_len) + sizeof (efx_dhcp_tag_hdr_t))
 
-
 /* Report the layout of bootcfg sectors in NVRAM partition. */
 	__checkReturn		efx_rc_t
 efx_bootcfg_sector_info(
@@ -162,7 +161,6 @@ fail1:
 	EFSYS_PROBE1(fail1, efx_rc_t, rc);
 	return (rc);
 }
-
 
 	__checkReturn		uint8_t
 efx_dhcp_csum(
@@ -398,7 +396,6 @@ fail1:
 
 	return (rc);
 }
-
 
 /*
  * Delete the given tag from anywhere in the buffer. Copes with
@@ -750,7 +747,6 @@ fail1:
 
 	return (rc);
 }
-
 
 /*
  * Copy bootcfg sector data to a target buffer which may differ in size.

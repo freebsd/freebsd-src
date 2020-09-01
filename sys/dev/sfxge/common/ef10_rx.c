@@ -34,9 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
-
 
 static	__checkReturn	efx_rc_t
 efx_mcdi_init_rxq(
@@ -539,7 +537,6 @@ fail1:
 }
 #endif /* EFSYS_OPT_RX_SCALE */
 
-
 	__checkReturn	efx_rc_t
 ef10_rx_init(
 	__in		efx_nic_t *enp)
@@ -712,7 +709,6 @@ ef10_rx_scale_tbl_set(
 {
 	efx_rc_t rc;
 
-
 	if (rss_context == EFX_RSS_CONTEXT_DEFAULT) {
 		if (enp->en_rss_context_type == EFX_RX_SCALE_UNAVAILABLE) {
 			rc = ENOTSUP;
@@ -735,7 +731,6 @@ fail1:
 	return (rc);
 }
 #endif /* EFSYS_OPT_RX_SCALE */
-
 
 /*
  * EF10 RX pseudo-header
@@ -972,7 +967,6 @@ ef10_rx_qps_packet_info(
 
 	return (pkt_start);
 }
-
 
 #endif
 

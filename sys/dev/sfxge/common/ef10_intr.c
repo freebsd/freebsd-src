@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 	__checkReturn	efx_rc_t
@@ -47,14 +46,12 @@ ef10_intr_init(
 	return (0);
 }
 
-
 			void
 ef10_intr_enable(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
 }
-
 
 			void
 ef10_intr_disable(
@@ -63,14 +60,12 @@ ef10_intr_disable(
 	_NOTE(ARGUNUSED(enp))
 }
 
-
 			void
 ef10_intr_disable_unlocked(
 	__in		efx_nic_t *enp)
 {
 	_NOTE(ARGUNUSED(enp))
 }
-
 
 static	__checkReturn	efx_rc_t
 efx_mcdi_trigger_interrupt(

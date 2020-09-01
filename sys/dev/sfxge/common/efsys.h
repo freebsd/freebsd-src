@@ -159,7 +159,6 @@ sfxge_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
 
 /* Code inclusion options */
 
-
 #define	EFSYS_OPT_NAMES 1
 
 #define	EFSYS_OPT_SIENA 1
@@ -332,7 +331,6 @@ typedef struct efsys_mem_s {
 
 #define	EFSYS_MEM_IS_NULL(_esmp)					\
 	((_esmp)->esm_base == NULL)
-
 
 #define	EFSYS_MEM_ZERO(_esmp, _size)					\
 	do {								\

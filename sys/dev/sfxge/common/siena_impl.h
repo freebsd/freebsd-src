@@ -54,7 +54,6 @@ extern "C" {
 
 #define	SIENA_NVRAM_CHUNK 0x80
 
-
 extern	__checkReturn	efx_rc_t
 siena_nic_probe(
 	__in		efx_nic_t *enp);

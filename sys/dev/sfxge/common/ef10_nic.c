@@ -669,7 +669,6 @@ fail1:
 	return (rc);
 }
 
-
 static	__checkReturn	efx_rc_t
 efx_mcdi_free_vis(
 	__in		efx_nic_t *enp)
@@ -701,7 +700,6 @@ fail1:
 
 	return (rc);
 }
-
 
 static	__checkReturn	efx_rc_t
 efx_mcdi_alloc_piobuf(
@@ -885,7 +883,6 @@ fail1:
 	}
 	enp->en_arch.ef10.ena_piobuf_count = 0;
 }
-
 
 static			void
 ef10_nic_free_piobufs(
@@ -1074,7 +1071,6 @@ ef10_get_datapath_caps(
 
 	if ((rc = ef10_mcdi_get_pf_count(enp, &encp->enc_hw_pf_count)) != 0)
 		goto fail1;
-
 
 	req.emr_cmd = MC_CMD_GET_CAPABILITIES;
 	req.emr_in_buf = payload;
@@ -1416,7 +1412,6 @@ fail1:
 	return (rc);
 }
 
-
 #define	EF10_LEGACY_PF_PRIVILEGE_MASK					\
 	(MC_CMD_PRIVILEGE_MASK_IN_GRP_ADMIN			|	\
 	MC_CMD_PRIVILEGE_MASK_IN_GRP_LINK			|	\
@@ -1431,7 +1426,6 @@ fail1:
 	MC_CMD_PRIVILEGE_MASK_IN_GRP_PROMISCUOUS)
 
 #define	EF10_LEGACY_VF_PRIVILEGE_MASK	0
-
 
 	__checkReturn		efx_rc_t
 ef10_get_privilege_mask(
@@ -1466,7 +1460,6 @@ fail1:
 
 	return (rc);
 }
-
 
 #define	EFX_EXT_PORT_MAX	4
 #define	EFX_EXT_PORT_NA		0xFF
@@ -2137,7 +2130,6 @@ fail1:
 	return (rc);
 }
 
-
 	__checkReturn	efx_rc_t
 ef10_nic_reset(
 	__in		efx_nic_t *enp)
@@ -2445,7 +2437,6 @@ ef10_nic_set_hw_unavailable(
 	EFSYS_PROBE(hw_unavail);
 	enp->en_reset_flags |= EFX_RESET_HW_UNAVAIL;
 }
-
 
 			void
 ef10_nic_fini(

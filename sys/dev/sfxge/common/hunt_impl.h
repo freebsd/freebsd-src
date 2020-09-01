@@ -62,7 +62,6 @@ extern "C" {
 
 #define	HUNT_MIN_PIO_ALLOC_SIZE	(HUNT_PIOBUF_SIZE / 32)
 
-
 /* NIC */
 
 extern	__checkReturn	efx_rc_t

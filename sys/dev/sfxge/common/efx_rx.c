@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_SIENA
 
 static	__checkReturn	efx_rc_t
@@ -150,7 +149,6 @@ siena_rx_qdestroy(
 
 #endif /* EFSYS_OPT_SIENA */
 
-
 #if EFSYS_OPT_SIENA
 static const efx_rx_ops_t __efx_rx_siena_ops = {
 	siena_rx_init,				/* erxo_init */
@@ -208,7 +206,6 @@ static const efx_rx_ops_t __efx_rx_ef10_ops = {
 	ef10_rx_qdestroy,			/* erxo_qdestroy */
 };
 #endif	/* EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2 */
-
 
 	__checkReturn	efx_rc_t
 efx_rx_init(
@@ -955,7 +952,6 @@ fail1:
 
 #endif
 
-
 			void
 efx_rx_qdestroy(
 	__in		efx_rxq_t *erp)
@@ -1081,7 +1077,6 @@ fail1:
 }
 #endif	/* EFSYS_OPT_RX_SCATTER */
 
-
 #define	EFX_RX_LFSR_HASH(_enp, _insert)					\
 	do {								\
 		efx_oword_t oword;					\
@@ -1140,7 +1135,6 @@ fail1:
 									\
 		_NOTE(CONSTANTCONDITION)				\
 	} while (B_FALSE)
-
 
 #if EFSYS_OPT_RX_SCALE
 
@@ -1455,7 +1449,6 @@ siena_rx_prefix_pktlen(
 	EFSYS_ASSERT(0);
 	return (ENOTSUP);
 }
-
 
 static				void
 siena_rx_qpost(

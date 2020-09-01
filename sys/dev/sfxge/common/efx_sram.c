@@ -204,7 +204,6 @@ efx_sram_buf_tbl_clear(
 	EFX_BAR_WRITEO(enp, FR_AZ_BUF_TBL_UPD_REG, &oword);
 }
 
-
 #if EFSYS_OPT_DIAG
 
 static			void

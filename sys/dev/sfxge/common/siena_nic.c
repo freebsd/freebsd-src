@@ -749,7 +749,6 @@ fail1:
 	return (rc);
 }
 
-
 	__checkReturn	efx_rc_t
 siena_nic_register_test(
 	__in		efx_nic_t *enp)

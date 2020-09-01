@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_HUNTINGTON || EFSYS_OPT_MEDFORD || EFSYS_OPT_MEDFORD2
 
 #if EFSYS_OPT_MCDI
@@ -42,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #ifndef WITH_MCDI_V2
 #error "WITH_MCDI_V2 required for EF10 MCDIv2 commands."
 #endif
-
 
 	__checkReturn	efx_rc_t
 ef10_mcdi_init(

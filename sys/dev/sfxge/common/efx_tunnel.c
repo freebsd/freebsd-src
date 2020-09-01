@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "efx.h"
 #include "efx_impl.h"
 
-
 #if EFSYS_OPT_TUNNEL
 
 #if EFSYS_OPT_SIENA || EFSYS_OPT_HUNTINGTON

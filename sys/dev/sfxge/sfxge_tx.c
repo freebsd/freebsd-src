@@ -92,7 +92,6 @@ __FBSDID("$FreeBSD$");
 #include "sfxge.h"
 #include "sfxge_tx.h"
 
-
 #define	SFXGE_PARAM_TX_DPL_GET_MAX	SFXGE_PARAM(tx_dpl_get_max)
 static int sfxge_tx_dpl_get_max = SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT;
 TUNABLE_INT(SFXGE_PARAM_TX_DPL_GET_MAX, &sfxge_tx_dpl_get_max);
@@ -123,7 +122,6 @@ SYSCTL_INT(_hw_sfxge, OID_AUTO, tso_fw_assisted, CTLFLAG_RDTUN,
 	   &sfxge_tso_fw_assisted, 0,
 	   "Bitmask of FW-assisted TSO allowed to use if supported by NIC firmware");
 
-
 static const struct {
 	const char *name;
 	size_t offset;
@@ -142,7 +140,6 @@ static const struct {
 	SFXGE_TX_STAT(tx_put_overflow, put_overflow),
 	SFXGE_TX_STAT(tx_netdown_drops, netdown_drops),
 };
-
 
 /* Forward declarations. */
 static void sfxge_tx_qdpl_service(struct sfxge_txq *txq);
@@ -802,7 +799,6 @@ sfxge_if_qflush(struct ifnet *ifp)
  * The fields are 8-bit, but it's ok, no header may be longer than 255 bytes.
  */
 
-
 #define TSO_MBUF_PROTO(_mbuf)    ((_mbuf)->m_pkthdr.PH_loc.sixteen[0])
 /* We abuse l5hlen here because PH_loc can hold only 64 bits of data */
 #define TSO_MBUF_FLAGS(_mbuf)    ((_mbuf)->m_pkthdr.l5hlen)
@@ -991,7 +987,6 @@ static const struct tcphdr *tso_tcph(const struct sfxge_tso_state *tso)
 }
 #endif
 
-
 /* Size of preallocated TSO header buffers.  Larger blocks must be
  * allocated from the heap.
  */
@@ -1092,13 +1087,11 @@ static void tso_start(struct sfxge_txq *txq, struct sfxge_tso_state *tso,
 	}
 #endif
 
-
 	if (tso->fw_assisted &&
 	    __predict_false(tso->tcph_off >
 			    encp->enc_tx_tso_tcp_header_offset_limit)) {
 		tso->fw_assisted = 0;
 	}
-
 
 #if !SFXGE_TX_PARSE_EARLY
 	KASSERT(mbuf->m_len >= tso->tcph_off,
@@ -2006,7 +1999,6 @@ sfxge_tx_fini(struct sfxge_softc *sc)
 
 	sc->txq_count = 0;
 }
-
 
 int
 sfxge_tx_init(struct sfxge_softc *sc)
