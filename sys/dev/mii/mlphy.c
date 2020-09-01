@@ -237,7 +237,6 @@ mlphy_service(xsc, mii, cmd)
 			break;
 		default:
 			return (EINVAL);
-
 		}
 		break;
 

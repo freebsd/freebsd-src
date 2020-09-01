@@ -136,7 +136,7 @@ rlswitch_attach(device_t dev)
 #ifdef RL_DEBUG
 	rlswitch_phydump(dev);
 #endif
-	
+
 #ifdef RL_VLAN
 	int val;
 
