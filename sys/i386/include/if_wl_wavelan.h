@@ -166,4 +166,3 @@ struct w_sigcache {
 };
 
 #endif /* _CHIPS_WAVELAN_H */
-

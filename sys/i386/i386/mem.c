@@ -128,7 +128,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			pa = pmap_extract(kernel_pmap, addr);
 			if (pa == 0) 
 				return EFAULT;
-
 		}
 		
 		/* 
@@ -185,7 +184,7 @@ memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 	int nd, error = 0;
 	struct mem_range_op *mo = (struct mem_range_op *)data;
 	struct mem_range_desc *md;
-	
+
 	/* is this for us? */
 	if ((cmd != MEMRANGE_GET) &&
 	    (cmd != MEMRANGE_SET))

@@ -1667,7 +1667,7 @@ add_physmap_entry(uint64_t base, uint64_t length, vm_paddr_t *physmap,
 	int i, insert_idx, physmap_idx;
 
 	physmap_idx = *physmap_idxp;
-	
+
 	if (length == 0)
 		return (1);
 
@@ -2151,7 +2151,7 @@ do_next:
 		}
 	}
 	pmap_cmap3(0, 0);
-	
+
 	/*
 	 * XXX
 	 * The last chunk must contain at least one page plus the message

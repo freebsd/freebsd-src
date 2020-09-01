@@ -675,7 +675,6 @@ __CONCAT(PMTYPE, bootstrap)(vm_paddr_t firstaddr)
 	va = virtual_avail;
 	pte = vtopte(va);
 
-
 	/*
 	 * Initialize temporary map objects on the current CPU for use
 	 * during early boot.
@@ -788,7 +787,7 @@ pmap_init_reserved_pages(void)
 		pc->pc_qmap_addr = pages + ptoa(2);
 	}
 }
- 
+
 SYSINIT(rpages_init, SI_SUB_CPU, SI_ORDER_ANY, pmap_init_reserved_pages, NULL);
 
 /*
@@ -961,7 +960,6 @@ pmap_ptelist_init(vm_offset_t *head, void *base, int npages)
 		pmap_ptelist_free(head, va);
 	}
 }
-
 
 /*
  *	Initialize the pmap module.
@@ -1854,7 +1852,6 @@ __CONCAT(PMTYPE, map)(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end,
 	return (sva);
 }
 
-
 /*
  * Add a list of wired pages to the kva
  * this routine is only used for temporary
@@ -2211,7 +2208,6 @@ retry:
 	return (m);
 }
 
-
 /***************************************************
 * Pmap allocation/deallocation routines.
  ***************************************************/
@@ -2294,7 +2290,6 @@ __CONCAT(PMTYPE, growkernel)(vm_offset_t addr)
 		}
 	}
 }
-
 
 /***************************************************
  * page management routines.
@@ -2891,7 +2886,7 @@ pmap_demote_pde(pmap_t pmap, pd_entry_t *pde, vm_offset_t va)
 	 */ 
 	if ((*firstpte & PG_PTE_PROMOTE) != (newpte & PG_PTE_PROMOTE))
 		pmap_fill_ptp(firstpte, newpte);
-	
+
 	/*
 	 * Demote the mapping.  This pmap is locked.  The old PDE has
 	 * PG_A set.  If the old PDE has PG_RW set, it also has PG_M
@@ -4380,7 +4375,6 @@ resume:
 	}
 	PMAP_UNLOCK(pmap);
 }
-
 
 /*
  *	Copy the range specified by src_addr/len

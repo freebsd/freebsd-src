@@ -35,7 +35,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _I386_INCLUDE_PARAM_H_
 #define	_I386_INCLUDE_PARAM_H_
 
@@ -44,7 +43,6 @@
 /*
  * Machine dependent constants for Intel 386.
  */
-
 
 #define __HAVE_ACPI
 #define	__HAVE_PIR

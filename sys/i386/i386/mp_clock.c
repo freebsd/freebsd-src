@@ -63,7 +63,6 @@ static struct timecounter piix_timecounter = {
 	"PIIX"			/* name */
 };
 
-
 static int
 sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)
 {

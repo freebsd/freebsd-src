@@ -67,7 +67,6 @@
 #define	PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
 #define	PG_NX		(1ull<<63) /* No-execute */
 
-
 /* Our various interpretations of the above */
 #define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
 #define	PG_MANAGED	PG_AVAIL2

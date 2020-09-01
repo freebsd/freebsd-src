@@ -508,7 +508,6 @@ struct l_desc_struct {
 	unsigned long	a, b;
 };
 
-
 #define	LINUX_LOWERWORD	0x0000ffff
 
 /*

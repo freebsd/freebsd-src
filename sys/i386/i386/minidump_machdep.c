@@ -82,4 +82,3 @@ minidumpsys(struct dumperinfo *di)
 
 	return (pae_mode ? minidumpsys_pae(di) : minidumpsys_nopae(di));
 }
-

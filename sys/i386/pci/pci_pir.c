@@ -481,7 +481,6 @@ pci_pir_biosroute(int bus, int device, int func, int pin, int irq)
 	return (bios32(&args, PCIbios.ventry, GSEL(GCODE_SEL, SEL_KPL)));
 }
 
-
 /*
  * Route a PCI interrupt using a link device from the $PIR.
  */
@@ -732,7 +731,6 @@ static device_method_t pir_methods[] = {
 	DEVMETHOD(device_probe,		pir_probe),
 	DEVMETHOD(device_attach,	pir_attach),
 	DEVMETHOD(device_resume,	pir_resume),
-
 	{ 0, 0 }
 };
 

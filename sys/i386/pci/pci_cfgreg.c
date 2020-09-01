@@ -405,7 +405,6 @@ pcireg_cfgopen(void)
 	}
 
 	if ((oldval2 & 0xf0) == 0) {
-
 		cfgmech = CFGMECH_2;
 		devmax = 16;
 
@@ -466,7 +465,6 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
 #endif
 	{
-
 		pcie_array = malloc(sizeof(struct pcie_cfg_elem) * PCIE_CACHE,
 		    M_DEVBUF, M_NOWAIT);
 		if (pcie_array == NULL)

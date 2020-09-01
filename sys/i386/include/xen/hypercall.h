@@ -261,7 +261,7 @@ HYPERVISOR_update_va_mapping(
 
 	lo = (uint32_t)(new_val & 0xffffffff);
 	hi = (uint32_t)(new_val >> 32);
-	
+
 	return _hypercall4(int, update_va_mapping, va,
 			   lo, hi, flags);
 }
@@ -327,10 +327,10 @@ HYPERVISOR_update_va_mapping_otherdomain(
 	unsigned long va, uint64_t new_val, unsigned long flags, domid_t domid)
 {
 	uint32_t hi, lo;
-	
+
 	lo = (uint32_t)(new_val & 0xffffffff);
 	hi = (uint32_t)(new_val >> 32);
-	
+
 	return _hypercall5(int, update_va_mapping_otherdomain, va,
 			   lo, hi, flags, domid);
 }

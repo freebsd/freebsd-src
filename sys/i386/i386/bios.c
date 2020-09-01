@@ -91,7 +91,6 @@ bios32_init(void *junk)
     
     /* look for the signature */
     if ((sigaddr = bios_sigsearch(0, "_32_", 4, 16, 0)) != 0) {
-
 	/* get a virtual pointer to the structure */
 	sdh = (struct bios32_SDheader *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
 	for (cv = (u_int8_t *)sdh, ck = 0, i = 0; i < (sdh->len * 16); i++) {
@@ -109,7 +108,6 @@ bios32_init(void *junk)
 
 	    /* Allow user override of PCI BIOS search */
 	    if (((p = kern_getenv("machdep.bios.pci")) == NULL) || strcmp(p, "disable")) {
-
 		/* See if there's a PCI BIOS entrypoint here */
 		PCIbios.ident.id = 0x49435024;	/* PCI systems should have this */
 		if (!bios32_SDlookup(&PCIbios) && bootverbose)
@@ -129,7 +127,6 @@ bios32_init(void *junk)
      */
     if ((((p = kern_getenv("machdep.bios.pnp")) == NULL) || strcmp(p, "disable")) &&
 	((sigaddr = bios_sigsearch(0, "$PnP", 4, 16, 0)) != 0)) {
-
 	/* get a virtual pointer to the structure */
 	pt = (struct PnPBIOS_table *)(uintptr_t)BIOS_PADDRTOVADDR(sigaddr);
 	for (cv = (u_int8_t *)pt, ck = 0, i = 0; i < pt->len; i++) {
@@ -188,7 +185,6 @@ bios32_SDlookup(struct bios32_SDentry *ent)
     return (1);				/* failed */
 }
 
-
 /*
  * bios_sigsearch
  *
@@ -227,7 +223,6 @@ bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs
 
     /* loop searching */
     while ((sp + sigofs + siglen) < end) {
-	
 	/* compare here */
 	if (!bcmp(sp + sigofs, sig, siglen)) {
 	    /* convert back to physical address */
@@ -272,7 +267,7 @@ set_bios_selectors(struct bios_segments *seg, int flags)
 #else
     p_gdt = gdt;
 #endif
-	
+
     ssd.ssd_base = seg->code32.base;
     ssd.ssd_limit = seg->code32.limit;
     ssdtosd(&ssd, &p_gdt[GBIOSCODE32_SEL].sd);
@@ -619,7 +614,6 @@ pnpbios_identify(driver_t *driver, device_t parent)
     pd = &pda->node;
 
     for (currdev = 0, left = ndevs; (currdev != 0xff) && (left > 0); left--) {
-
 	bzero(pd, bigdev);
 	pda->next = currdev;
 	/* get current configuration */
@@ -648,7 +642,7 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	    continue;
 	if (!strcmp(pnp_eisaformat(pd->devid), "PNP0003"))	/* APIC */
 	    continue;
-	
+
 	/* Add the device and parse its resources */
 	dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNPBIOS, NULL, -1);
 	isa_set_vendorid(dev, pd->devid);
@@ -718,7 +712,6 @@ pnpbios_identify(driver_t *driver, device_t parent)
 static device_method_t pnpbios_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	pnpbios_identify),
-
 	{ 0, 0 }
 };
 
