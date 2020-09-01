@@ -217,7 +217,6 @@ vm_radix_node_store(smrnode_t *p, struct vm_radix_node *v,
     enum vm_radix_access access)
 {
 
-
 	switch (access) {
 	case UNSERIALIZED:
 		smr_unserialized_store(p, v, true);

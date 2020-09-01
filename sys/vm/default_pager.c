@@ -154,4 +154,3 @@ default_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 	/* An OBJT_DEFAULT object has no backing store. */
 	return (FALSE);
 }
-

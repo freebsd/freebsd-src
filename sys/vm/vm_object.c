@@ -278,7 +278,7 @@ vm_object_init(void)
 {
 	TAILQ_INIT(&vm_object_list);
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
-	
+
 	rw_init(&kernel_object->lock, "kernel vm object");
 	_vm_object_allocate(OBJT_PHYS, atop(VM_MAX_KERNEL_ADDRESS -
 	    VM_MIN_KERNEL_ADDRESS), OBJ_UNMANAGED, kernel_object, NULL);
@@ -555,7 +555,6 @@ vm_object_deallocate_vnode(vm_object_t object)
 	/* vrele may need the vnode lock. */
 	vrele(vp);
 }
-
 
 /*
  * We dropped a reference on an object and discovered that it had a
@@ -2269,7 +2268,6 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	 * Account for the charge.
 	 */
 	if (prev_object->cred != NULL) {
-
 		/*
 		 * If prev_object was charged, then this mapping,
 		 * although not charged now, may become writable
@@ -2434,7 +2432,6 @@ vm_object_vnode(vm_object_t object)
 	}
 	return (vp);
 }
-
 
 /*
  * Busy the vm object.  This prevents new pages belonging to the object from
