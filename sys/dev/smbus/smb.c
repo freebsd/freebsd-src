@@ -68,7 +68,6 @@ static device_method_t smb_methods[] = {
 
 	/* smbus interface */
 	DEVMETHOD(smbus_intr,		smbus_generic_intr),
-
 	{ 0, 0 }
 };
 
@@ -104,7 +103,7 @@ smb_probe(device_t dev)
 	device_set_desc(dev, "SMBus generic I/O");
 	return (BUS_PROBE_NOWILDCARD);
 }
-	
+
 static int
 smb_attach(device_t dev)
 {

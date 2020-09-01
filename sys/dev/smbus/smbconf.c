@@ -68,7 +68,7 @@ smbus_error(int smb_error)
 
 	if (smb_error == SMB_ENOERR)
 		return (0);
-	
+
 	if (smb_error & (SMB_ENOTSUPP))
 		error = ENODEV;
 	else if (smb_error & (SMB_ENOACK))
