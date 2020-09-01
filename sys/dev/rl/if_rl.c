@@ -590,7 +590,7 @@ rl_probe(device_t dev)
 	const struct rl_type	*t;
 	uint16_t		devid, revid, vendor;
 	int			i;
-	
+
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 	revid = pci_get_revid(dev);
@@ -666,7 +666,6 @@ rl_attach(device_t dev)
 	callout_init_mtx(&sc->rl_stat_callout, &sc->rl_mtx, 0);
 
 	pci_enable_busmaster(dev);
-
 
 	/*
 	 * Map control/status registers.
@@ -1393,7 +1392,7 @@ rl_twister_update(struct rl_softc *sc)
 	case DONE:
 		break;
 	}
-	
+
 }
 
 static void
@@ -1636,7 +1635,6 @@ rl_start_locked(struct ifnet *ifp)
 		return;
 
 	while (RL_CUR_TXMBUF(sc) == NULL) {
-
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 
 		if (m_head == NULL)
