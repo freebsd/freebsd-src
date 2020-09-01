@@ -727,7 +727,6 @@ static device_method_t psm_methods[] = {
 	DEVMETHOD(device_attach,	psmattach),
 	DEVMETHOD(device_detach,	psmdetach),
 	DEVMETHOD(device_resume,	psmresume),
-
 	{ 0, 0 }
 };
 
@@ -1691,7 +1690,6 @@ psmprobe(device_t dev)
 #define	PS2_MOUSE_ELANTECH_NAME		"ETPS/2 Elantech Touchpad"
 #define	PS2_MOUSE_ELANTECH_ST_NAME	"ETPS/2 Elantech TrackPoint"
 #define	PS2_MOUSE_ELANTECH_PRODUCT	0x000E
-
 #define	ABSINFO_END	{ ABS_CNT, 0, 0, 0 }
 
 static void
@@ -2629,7 +2627,6 @@ psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 	/* Perform IOCTL command */
 	switch (cmd) {
-
 	case OLD_MOUSE_GETHWINFO:
 		s = spltty();
 		((old_mousehw_t *)addr)->buttons = sc->hw.buttons;
@@ -4716,7 +4713,6 @@ proc_elantech(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		    !(pb->ipacket[0] & 0x10) != !(pb->ipacket[3] & 0x10) &&
 		    !(pb->ipacket[0] & 0x20) != !(pb->ipacket[2] & 0x80) &&
 		    !(pb->ipacket[0] & 0x20) != !(pb->ipacket[3] & 0x20)) {
-
 			*x = (pb->ipacket[0] & MOUSE_PS2_XNEG) ?
 			    pb->ipacket[4] - 256 : pb->ipacket[4];
 			*y = (pb->ipacket[0] & MOUSE_PS2_YNEG) ?
@@ -4982,7 +4978,6 @@ psmsoftintr(void *arg)
 		sc->idlepacket.inputbytes = 0;
 
 		switch (sc->hw.model) {
-
 		case MOUSE_MODEL_EXPLORER:
 			/*
 			 *          b7 b6 b5 b4 b3 b2 b1 b0
@@ -7489,7 +7484,6 @@ static	device_attach_t			psmcpnp_attach;
 static device_method_t psmcpnp_methods[] = {
 	DEVMETHOD(device_probe,		psmcpnp_probe),
 	DEVMETHOD(device_attach,	psmcpnp_attach),
-
 	{ 0, 0 }
 };
 
