@@ -28,7 +28,6 @@
  * IN THE SOFTWARE.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -971,7 +970,6 @@ xenwatch_thread(void *unused)
 	struct xs_stored_msg *msg;
 
 	for (;;) {
-
 		mtx_lock(&xs.watch_events_lock);
 		while (TAILQ_EMPTY(&xs.watch_events))
 			mtx_sleep(&xs.watch_events,
@@ -1223,7 +1221,7 @@ static device_method_t xenstore_methods[] = {
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
 	DEVMETHOD(device_suspend,       xs_suspend), 
 	DEVMETHOD(device_resume,        xs_resume), 
- 
+
 	/* Bus interface */ 
 	DEVMETHOD(bus_add_child,        bus_generic_add_child),
 	DEVMETHOD(bus_alloc_resource,   bus_generic_alloc_resource),
@@ -1236,7 +1234,7 @@ static device_method_t xenstore_methods[] = {
 
 DEFINE_CLASS_0(xenstore, xenstore_driver, xenstore_methods, 0);
 static devclass_t xenstore_devclass; 
- 
+
 DRIVER_MODULE(xenstore, xenpv, xenstore_driver, xenstore_devclass, 0, 0);
 
 /*------------------------------- Sysctl Data --------------------------------*/
@@ -1656,4 +1654,3 @@ xs_unlock(void)
 	sx_xunlock(&xs.request_mutex);
 	return;
 }
-

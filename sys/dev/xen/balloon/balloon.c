@@ -274,7 +274,7 @@ balloon_process(void *unused)
 {
 	int need_sleep = 0;
 	long credit;
-	
+
 	mtx_lock(&balloon_mutex);
 	for (;;) {
 		int sleep_time;
