@@ -194,7 +194,6 @@ static void	xnb_add_mbuf_cksum(struct mbuf *mbufc);
 #endif
 /*------------------------------ Data Structures -----------------------------*/
 
-
 /**
  * Representation of a xennet packet.  Simplified version of a packet as
  * stored in the Xen tx ring.  Applicable to both RX and TX packets
@@ -305,7 +304,6 @@ xnb_dump_txreq(RING_IDX idx, const struct netif_tx_request *txreq)
 		DPRINTF("netif_tx_request.size  =%hu\n", txreq->size);
 	}
 }
-
 
 /**
  * \brief Configuration data for a shared memory request ring
@@ -1414,7 +1412,6 @@ xnb_frontend_changed(device_t dev, XenbusState frontend_state)
 	}
 }
 
-
 /*---------------------------- Request Processing ----------------------------*/
 /**
  * Interrupt handler bound to the shared ring's event channel.
@@ -1466,7 +1463,6 @@ xnb_intr(void *arg)
 
 	xnb_start(ifp);
 }
-
 
 /**
  * Build a struct xnb_pkt based on netif_tx_request's from a netif tx ring.
@@ -1590,7 +1586,6 @@ xnb_ring2pkt(struct xnb_pkt *pkt, const netif_tx_back_ring_t *tx_ring,
 
 	return idx - start;
 }
-
 
 /**
  * Respond to all the requests that constituted pkt.  Builds the responses and
@@ -2448,7 +2443,6 @@ xnb_ifinit_locked(struct xnb_softc *xnb)
 	if_link_state_change(ifp, LINK_STATE_UP);
 }
 
-
 static void
 xnb_ifinit(void *xsc)
 {
@@ -2480,7 +2474,6 @@ xnb_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	ifmr->ifm_active = IFM_ETHER|IFM_MANUAL;
 }
 
-
 /*---------------------------- NewBus Registration ---------------------------*/
 static device_method_t xnb_methods[] = {
 	/* Device interface */
@@ -2493,7 +2486,6 @@ static device_method_t xnb_methods[] = {
 
 	/* Xenbus interface */
 	DEVMETHOD(xenbus_otherend_changed, xnb_frontend_changed),
-
 	{ 0, 0 }
 };
 
@@ -2505,7 +2497,6 @@ static driver_t xnb_driver = {
 devclass_t xnb_devclass;
 
 DRIVER_MODULE(xnb, xenbusb_back, xnb_driver, xnb_devclass, 0, 0);
-
 
 /*-------------------------- Unit Tests -------------------------------------*/
 #ifdef XNB_DEBUG

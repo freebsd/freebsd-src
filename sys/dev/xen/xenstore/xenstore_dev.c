@@ -29,7 +29,6 @@
  * IN THE SOFTWARE.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -128,7 +127,6 @@ xs_dev_return_error(struct xs_dev_data *u, int error, int req_id, int tx_id)
 	msg.req_id = req_id;
 	msg.tx_id = tx_id;
 	payload = NULL;
-
 
 	payload = xs_dev_error_to_string(error);
 	if (payload == NULL)

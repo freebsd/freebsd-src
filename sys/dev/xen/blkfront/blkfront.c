@@ -427,7 +427,6 @@ xbd_startio(struct xbd_softc *sc)
 		return;
 
 	while (!RING_FULL(&sc->xbd_ring)) {
-
 		if (sc->xbd_qfrozen_cnt != 0)
 			break;
 
@@ -768,7 +767,6 @@ xbd_alloc_ring(struct xbd_softc *sc)
 	for (i = 0, sring_page_addr = (uintptr_t)sring;
 	     i < sc->xbd_ring_pages;
 	     i++, sring_page_addr += PAGE_SIZE) {
-
 		error = xenbus_grant_ring(sc->xbd_dev,
 		    (vtophys(sring_page_addr) >> PAGE_SHIFT),
 		    &sc->xbd_ring_ref[i]);
@@ -899,7 +897,7 @@ xbd_setup_sysctl(struct xbd_softc *xbd)
 	struct sysctl_ctx_list *sysctl_ctx = NULL;
 	struct sysctl_oid *sysctl_tree = NULL;
 	struct sysctl_oid_list *children;
-	
+
 	sysctl_ctx = device_get_sysctl_ctx(xbd->xbd_dev);
 	if (sysctl_ctx == NULL)
 		return;
@@ -1050,7 +1048,7 @@ static void
 xbd_free(struct xbd_softc *sc)
 {
 	int i;
-	
+
 	/* Prevent new requests being issued until we fix things up. */
 	mtx_lock(&sc->xbd_io_lock);
 	sc->xbd_state = XBD_STATE_DISCONNECTED; 
@@ -1059,7 +1057,6 @@ xbd_free(struct xbd_softc *sc)
 	/* Free resources associated with old device channel. */
 	xbd_free_ring(sc);
 	if (sc->xbd_shadow) {
-
 		for (i = 0; i < sc->xbd_max_requests; i++) {
 			struct xbd_command *cm;
 
@@ -1638,7 +1635,7 @@ static device_method_t xbd_methods[] = {
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
 	DEVMETHOD(device_suspend,       xbd_suspend), 
 	DEVMETHOD(device_resume,        xbd_resume), 
- 
+
 	/* Xenbus interface */
 	DEVMETHOD(xenbus_otherend_changed, xbd_backend_changed),
 
@@ -1651,5 +1648,5 @@ static driver_t xbd_driver = {
 	sizeof(struct xbd_softc),                      
 }; 
 devclass_t xbd_devclass; 
- 
+
 DRIVER_MODULE(xbd, xenbusb_front, xbd_driver, xbd_devclass, 0, 0); 
