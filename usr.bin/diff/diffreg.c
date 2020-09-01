@@ -412,10 +412,10 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	ixnew = xreallocarray(ixnew, len[1] + 2, sizeof(*ixnew));
 	check(f1, f2, flags);
 	output(file1, f1, file2, f2, flags);
-	if (pr != NULL)
-		stop_pr(pr);
 
 closem:
+	if (pr != NULL)
+		stop_pr(pr);
 	if (anychange) {
 		status |= 1;
 		if (rval == D_SAME)
