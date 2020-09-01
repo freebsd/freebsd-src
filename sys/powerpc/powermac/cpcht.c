@@ -465,7 +465,7 @@ cpcht_alloc_msix(device_t dev, device_t child, int *irq)
 
 	return (ENXIO);
 }
-	
+
 static int
 cpcht_release_msix(device_t dev, device_t child, int irq)
 {

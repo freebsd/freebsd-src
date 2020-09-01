@@ -108,7 +108,7 @@ static driver_t uart_phyp_driver = {
 	uart_phyp_methods,
 	sizeof(struct uart_phyp_softc),
 };
- 
+
 DRIVER_MODULE(uart_phyp, vdevice, uart_phyp_driver, uart_devclass, 0, 0);
 
 static cn_probe_t uart_phyp_cnprobe;
@@ -222,7 +222,7 @@ uart_phyp_cnprobe(struct consdev *cp)
 	cp->cn_pri = CN_NORMAL;
 	console_sc = &sc;
 	return;
-	
+
 fail:
 	cp->cn_pri = CN_DEAD;
 	return;
@@ -431,7 +431,7 @@ uart_phyp_ttyoutwakeup(struct tty *tp)
 	int len;
 
 	sc = tty_softc(tp);
-	
+
 	while ((len = ttydisc_getc(tp, buffer, sizeof(buffer))) != 0)
 		uart_phyp_put(sc, buffer, len);
 }
@@ -453,4 +453,3 @@ uart_phyp_intr(void *v)
 	if (sc->irqres == NULL)
 		callout_reset(&sc->callout, sc->polltime, uart_phyp_intr, sc);
 }
-

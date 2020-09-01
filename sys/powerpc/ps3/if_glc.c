@@ -83,7 +83,6 @@ static device_method_t glc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		glc_probe),
 	DEVMETHOD(device_attach,	glc_attach),
-
 	{ 0, 0 }
 };
 
@@ -590,7 +589,7 @@ static int
 glc_add_rxbuf_dma(struct glc_softc *sc, int idx)
 {
 	struct glc_rxsoft *rxs = &sc->sc_rxsoft[idx];
-	
+
 	bzero(&sc->sc_rxdmadesc[idx], sizeof(sc->sc_rxdmadesc[idx]));
 	sc->sc_rxdmadesc[idx].paddr = rxs->segment.ds_addr;
 	sc->sc_rxdmadesc[idx].len = rxs->segment.ds_len;
@@ -639,7 +638,7 @@ glc_encap(struct glc_softc *sc, struct mbuf **m_head, bus_addr_t *pktdesc)
 		}
 		*m_head = m;
 	}
-	
+
 	err = bus_dmamap_load_mbuf_sg(sc->sc_txdma_tag, txs->txs_dmamap,
 	    *m_head, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (err != 0) {
@@ -959,4 +958,3 @@ glc_media_change(struct ifnet *ifp)
 
 	return (result ? EIO : 0);
 }
-

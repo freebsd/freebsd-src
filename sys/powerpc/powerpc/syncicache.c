@@ -69,4 +69,3 @@ __syncicache(void *from, int len)
 	} while ((len -= cacheline_size) > 0);
 	__asm __volatile ("sync; isync");
 }
-

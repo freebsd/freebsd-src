@@ -39,4 +39,3 @@ void    save_vec(struct thread *);
 void    save_vec_nodrop(struct thread *);
 
 #endif	/* _MACHINE_ALTIVEC_H_ */
-

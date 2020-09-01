@@ -51,7 +51,7 @@ opal_check(void)
 	if (!OF_hasprop(opal, "opal-base-address") ||
 	    !OF_hasprop(opal, "opal-entry-address"))
 		return (ENOENT);
-	
+
 	OF_getencprop(opal, "opal-base-address", val, sizeof(val));
 	opal_data = ((uint64_t)val[0] << 32) | val[1];
 	OF_getencprop(opal, "opal-entry-address", val, sizeof(val));
@@ -63,4 +63,3 @@ opal_check(void)
 
 	return (0);
 }
-

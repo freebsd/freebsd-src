@@ -82,7 +82,7 @@ struct pcb {
 		uint64_t texasr;
 		uint64_t tfiar;
 	} pcb_htm;
-	
+
 	struct ebb {
 		uint64_t ebbhr;
 		uint64_t ebbrr;

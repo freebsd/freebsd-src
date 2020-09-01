@@ -255,7 +255,7 @@ cpld_send(device_t dev, struct cpld_cmd_data *d)
 
 	if (d->cmd > USHRT_MAX)
 		return (EINVAL);
-	
+
 	sc = device_get_softc(dev);
 
 	mtx_lock(&sc->sc_mutex);

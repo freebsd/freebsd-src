@@ -50,4 +50,3 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 
 	return (EINVAL);
 }
-

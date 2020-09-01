@@ -403,4 +403,3 @@ platform_probe_and_attach()
 
 	PLATFORM_ATTACH(plat_obj);
 }
-

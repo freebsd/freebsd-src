@@ -98,7 +98,6 @@ struct unin_chip_devinfo {
 #define UNIN_SLEEPING		0x01
 #define UNIN_RUNNING		0x02
 
-
 /*
  * Toggle registers
  */

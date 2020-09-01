@@ -83,7 +83,6 @@ int64_t		moea64_pte_unset(struct pvo_entry *);
 int64_t		moea64_pte_clear(struct pvo_entry *, uint64_t);
 int64_t		moea64_pte_synch(struct pvo_entry *);
 
-
 typedef int64_t	(*moea64_pte_replace_t)(struct pvo_entry *, int);
 typedef int64_t	(*moea64_pte_insert_t)(struct pvo_entry *);
 typedef int64_t	(*moea64_pte_unset_t)(struct pvo_entry *);
@@ -131,4 +130,3 @@ extern u_long		moea64_pteg_mask;
 extern int		n_slbs;
 
 #endif /* _POWERPC_AIM_MMU_OEA64_H */
-

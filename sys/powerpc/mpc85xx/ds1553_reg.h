@@ -85,7 +85,6 @@
 #define DS1553_MASK_SECONDS		0x7f
 
 struct ds1553_softc {
-
 	bus_space_tag_t		sc_bst;	/* bus space tag */
 	bus_space_handle_t	sc_bsh;	/* bus space handle */
 

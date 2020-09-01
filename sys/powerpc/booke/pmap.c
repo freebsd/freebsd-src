@@ -354,7 +354,6 @@ static int		mmu_booke_decode_kernel_ptr(vm_offset_t addr,
 static void		mmu_booke_page_array_startup(long);
 static boolean_t mmu_booke_page_is_mapped(vm_page_t m);
 
-
 static struct pmap_funcs mmu_booke_methods = {
 	/* pmap dispatcher interface */
 	.clear_modify = mmu_booke_clear_modify,
@@ -475,7 +474,6 @@ tlb_miss_lock(void)
 
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 		if (pc != pcpup) {
-
 			CTR3(KTR_PMAP, "%s: tlb miss LOCK of CPU=%d, "
 			    "tlb_lock=%p", __func__, pc->pc_cpuid, pc->pc_booke.tlb_lock);
 
@@ -560,7 +558,6 @@ pv_free(pv_entry_t pve)
 	pv_entry_count--;
 	uma_zfree(pvzone, pve);
 }
-
 
 /* Allocate and initialize pv_entry structure. */
 static void
@@ -842,7 +839,6 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 
 	debugf("fill in phys_avail:\n");
 	for (i = 0, j = 0; i < availmem_regions_sz; i++, j += 2) {
-
 		debugf(" region: 0x%jx - 0x%jx (0x%jx)\n",
 		    (uintmax_t)availmem_regions[i].mr_start,
 		    (uintmax_t)availmem_regions[i].mr_start +
@@ -930,7 +926,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	    (uintmax_t)kstack0_phys, (uintmax_t)kstack0_phys + kstack0_sz);
 	debugf("kstack0 at 0x%"PRI0ptrX" - 0x%"PRI0ptrX"\n",
 	    kstack0, kstack0 + kstack0_sz);
-	
+
 	virtual_avail += KSTACK_GUARD_PAGES * PAGE_SIZE + kstack0_sz;
 	for (i = 0; i < kstack_pages; i++) {
 		mmu_booke_kenter(kstack0, kstack0_phys);
@@ -939,7 +935,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	}
 
 	pmap_bootstrapped = 1;
-	
+
 	debugf("virtual_avail = %"PRI0ptrX"\n", virtual_avail);
 	debugf("virtual_end   = %"PRI0ptrX"\n", virtual_end);
 
@@ -1034,7 +1030,7 @@ mmu_booke_kextract(vm_offset_t va)
 
 	if (va >= VM_MIN_KERNEL_ADDRESS && va <= VM_MAX_KERNEL_ADDRESS)
 		p = pte_vatopa(kernel_pmap, va);
-	
+
 	if (p == 0) {
 		/* Check TLB1 mappings */
 		for (i = 0; i < TLB1_ENTRIES; i++) {
@@ -1148,9 +1144,8 @@ mmu_booke_kenter_attr(vm_offset_t va, vm_paddr_t pa, vm_memattr_t ma)
 
 	mtx_lock_spin(&tlbivax_mutex);
 	tlb_miss_lock();
-	
+
 	if (PTE_ISVALID(pte)) {
-	
 		CTR1(KTR_PMAP, "%s: replacing entry!", __func__);
 
 		/* Flush entry from TLB0 */
@@ -1188,7 +1183,6 @@ mmu_booke_kremove(vm_offset_t va)
 	pte = pte_find(kernel_pmap, va);
 
 	if (!PTE_ISVALID(pte)) {
-	
 		CTR1(KTR_PMAP, "%s: invalid pte", __func__);
 
 		return;
@@ -1599,7 +1593,7 @@ mmu_booke_activate(struct thread *td)
 	cpuid = PCPU_GET(cpuid);
 	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
-	
+
 	if (pmap->pm_tid[cpuid] == TID_NONE)
 		tid_alloc(pmap);
 
@@ -1624,7 +1618,7 @@ mmu_booke_deactivate(struct thread *td)
 	pmap_t pmap;
 
 	pmap = &td->td_proc->p_vmspace->vm_pmap;
-	
+
 	CTR5(KTR_PMAP, "%s: td=%p, proc = '%s', id = %d, pmap = 0x%"PRI0ptrX,
 	    __func__, td, td->td_proc->p_comm, td->td_proc->p_pid, pmap);
 
@@ -2464,7 +2458,6 @@ tid_alloc(pmap_t pmap)
 
 	/* If we are stealing TID then clear the relevant pmap's field */
 	if (tidbusy[thiscpu][tid] != NULL) {
-
 		CTR2(KTR_PMAP, "%s: warning: stealing tid %d", __func__, tid);
 		
 		tidbusy[thiscpu][tid]->pm_tid[thiscpu] = TID_NONE;
@@ -2515,7 +2508,6 @@ tlb0_flush_entry(vm_offset_t va)
 
 	CTR1(KTR_PMAP, "%s: e", __func__);
 }
-
 
 /**************************************************************************/
 /* TLB1 handling */
@@ -2890,7 +2882,7 @@ pmap_early_io_map(vm_paddr_t pa, vm_size_t size)
 	tlb_entry_t e;
 
 	KASSERT(!pmap_bootstrapped, ("Do not use after PMAP is up!"));
-	
+
 	for (i = 0; i < TLB1_ENTRIES; i++) {
 		tlb1_read_entry(&e, i);
 		if (!(e.mas1 & MAS1_VALID))
@@ -2943,7 +2935,6 @@ out:
 	rw_wunlock(&pvh_global_lock);
 }
 
-
 /*
  * Setup MAS4 defaults.
  * These values are loaded to MAS0-2 on a TLB miss.
@@ -2962,7 +2953,6 @@ set_mas4_defaults(void)
 	mtspr(SPR_MAS4, mas4);
 	__asm __volatile("isync");
 }
-
 
 /*
  * Return 0 if the physical IO range is encompassed by one of the
@@ -3068,7 +3058,6 @@ DB_SHOW_COMMAND(tlb0, tlb0_print_tlbentries)
 	printf("TLB0 entries:\n");
 	for (way = 0; way < TLB0_WAYS; way ++)
 		for (entryidx = 0; entryidx < TLB0_ENTRIES_PER_WAY; entryidx++) {
-
 			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
 			mtspr(SPR_MAS0, mas0);
 
@@ -3102,7 +3091,6 @@ DB_SHOW_COMMAND(tlb1, tlb1_print_tlbentries)
 
 	printf("TLB1 entries:\n");
 	for (i = 0; i < TLB1_ENTRIES; i++) {
-
 		mas0 = MAS0_TLBSEL(1) | MAS0_ESEL(i);
 		mtspr(SPR_MAS0, mas0);
 

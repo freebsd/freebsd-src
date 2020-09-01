@@ -349,7 +349,7 @@ xicp_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 			break;
 		ncpus++;
 	}
-	
+
 	cpu = pcpu_find(cpu)->pc_hwref;
 	iv->cpu = cpu;
 
@@ -417,7 +417,6 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 				    0xff);
 			i = sc->ipi_vec;
 		} else {
-
 			/* XXX: super inefficient */
 			for (i = 0; i < sc->nintvecs; i++) {
 				if (sc->intvecs[i].irq == xirr)

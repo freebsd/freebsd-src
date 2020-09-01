@@ -569,7 +569,6 @@ dummy_freeze(device_t dev, bool freeze)
 	/* Nothing to do here, move along. */
 }
 
-
 /* QorIQ Run control/power management timebase management. */
 
 #define	RCPM_CTBENR	0x00000084
@@ -583,7 +582,7 @@ mpc85xx_rcpm_freeze_timebase(device_t dev, bool freeze)
 	struct mpc85xx_rcpm_softc *sc;
 
 	sc = device_get_softc(dev);
-	
+
 	if (freeze)
 		bus_write_4(sc->sc_mem, RCPM_CTBENR, 0);
 	else
@@ -634,7 +633,6 @@ static driver_t mpc85xx_rcpm_driver = {
 EARLY_DRIVER_MODULE(mpc85xx_rcpm, simplebus, mpc85xx_rcpm_driver,
 	mpc85xx_rcpm_devclass, 0, 0, BUS_PASS_BUS);
 
-
 /* "Global utilities" power management/Timebase management. */
 
 #define	GUTS_DEVDISR	0x00000070
@@ -652,7 +650,7 @@ mpc85xx_guts_freeze_timebase(device_t dev, bool freeze)
 	uint32_t devdisr;
 
 	sc = device_get_softc(dev);
-	
+
 	devdisr = bus_read_4(sc->sc_mem, GUTS_DEVDISR);
 	if (freeze)
 		bus_write_4(sc->sc_mem, GUTS_DEVDISR,

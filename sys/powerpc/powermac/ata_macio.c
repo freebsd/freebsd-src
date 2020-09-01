@@ -270,7 +270,7 @@ ata_macio_setmode(device_t dev, int target, int mode)
 	if ((mode & ATA_DMA_MASK) == ATA_UDMA0) {
 		min_cycle = udma_timings[mode & ATA_MODE_MASK].cycle;
 		min_active = udma_timings[mode & ATA_MODE_MASK].active;
-	
+
 		cycle_tick = ATA_TIME_TO_TICK(sc->rev,min_cycle);
 		act_tick = ATA_TIME_TO_TICK(sc->rev,min_active);
 
@@ -280,7 +280,7 @@ ata_macio_setmode(device_t dev, int target, int mode)
 	} else if ((mode & ATA_DMA_MASK) == ATA_WDMA0) {
 		min_cycle = dma_timings[mode & ATA_MODE_MASK].cycle;
 		min_active = dma_timings[mode & ATA_MODE_MASK].active;
-	
+
 		cycle_tick = ATA_TIME_TO_TICK(sc->rev,min_cycle);
 		act_tick = ATA_TIME_TO_TICK(sc->rev,min_active);
 
@@ -304,7 +304,7 @@ ata_macio_setmode(device_t dev, int target, int mode)
 		    pio_timings[(mode & ATA_MODE_MASK) - ATA_PIO0].cycle;
 		min_active = 
 		    pio_timings[(mode & ATA_MODE_MASK) - ATA_PIO0].active;
-	
+
 		cycle_tick = ATA_TIME_TO_TICK(sc->rev,min_cycle);
 		act_tick = ATA_TIME_TO_TICK(sc->rev,min_active);
 
@@ -372,4 +372,3 @@ ata_macio_resume(device_t dev)
 
 	return (error);
 }
-

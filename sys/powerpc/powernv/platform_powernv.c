@@ -89,7 +89,7 @@ static platform_method_t powernv_methods[] = {
 	PLATFORMMETHOD(platform_mem_regions,	powernv_mem_regions),
 	PLATFORMMETHOD(platform_numa_mem_regions,	powernv_numa_mem_regions),
 	PLATFORMMETHOD(platform_timebase_freq,	powernv_timebase_freq),
-	
+
 	PLATFORMMETHOD(platform_smp_ap_init,	powernv_smp_ap_init),
 	PLATFORMMETHOD(platform_smp_first_cpu,	powernv_smp_first_cpu),
 	PLATFORMMETHOD(platform_smp_next_cpu,	powernv_smp_next_cpu),
@@ -102,7 +102,6 @@ static platform_method_t powernv_methods[] = {
 	PLATFORMMETHOD(platform_node_numa_domain,	powernv_node_numa_domain),
 
 	PLATFORMMETHOD(platform_reset,		powernv_reset),
-
 	{ 0, 0 }
 };
 
@@ -256,7 +255,6 @@ powernv_attach(platform_t plat)
 out:
 	return (0);
 }
-
 
 void
 powernv_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,

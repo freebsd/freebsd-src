@@ -327,7 +327,6 @@ ps3disk_task(void *arg)
 	struct ps3disk_softc *sc = (struct ps3disk_softc *) arg;
 	struct bio *bp;
 
-	
 	while (1) {
 		kproc_suspend_check(sc->sc_task);
 		tsleep(&sc->sc_deferredq, PRIBIO, "ps3disk", 10);
@@ -421,7 +420,7 @@ ps3disk_intr(void *arg)
 
 	if (lv1_storage_get_async_status(devid, &tag, &status) != 0)
 		return;
-	
+
 	PS3DISK_LOCK(sc);
 
 	DPRINTF(sc, PS3DISK_DEBUG_INTR, "%s: tag 0x%016lx "

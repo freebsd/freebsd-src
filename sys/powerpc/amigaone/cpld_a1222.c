@@ -165,10 +165,10 @@ cpld_read_pair(struct cpld_softc *sc, int addr)
 	KASSERT(addr <= 0xff, ("Invalid register-pair base address %x.", addr));
 	bus_write_1(sc->sc_mem, CPLD_MEM_ADDR_H, addr);
 	tmp = bus_read_1(sc->sc_mem, CPLD_MEM_DATA) << 8;
-	
+
 	bus_write_1(sc->sc_mem, CPLD_MEM_ADDR_H, addr + 1);
 	tmp |= bus_read_1(sc->sc_mem, CPLD_MEM_DATA);
-	
+
 	return (tmp);
 }
 
@@ -317,7 +317,7 @@ cpld_send(device_t dev, struct cpld_cmd_data *d)
 
 	if (d->cmd > USHRT_MAX)
 		return (EINVAL);
-	
+
 	sc = device_get_softc(dev);
 
 	mtx_lock(&sc->sc_mutex);

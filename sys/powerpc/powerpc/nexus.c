@@ -208,7 +208,7 @@ static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
- 
+
 	return (powerpc_config_intr(irq, trig, pol));
 } 
 
@@ -263,4 +263,3 @@ nexus_deactivate_resource(device_t bus __unused, device_t child __unused,
 
 	return (rman_deactivate_resource(r));
 }
-

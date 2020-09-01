@@ -80,7 +80,6 @@
 #include <vm/vm_radix.h>
 #endif
 
-
 /*
  * The radix page table structure is described by levels 1-4.
  * See Fig 33. on p. 1002 of Power ISA v3.0B

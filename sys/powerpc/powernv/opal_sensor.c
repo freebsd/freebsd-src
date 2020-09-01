@@ -117,7 +117,7 @@ opal_sensor_get_val(struct opal_sensor_softc *sc, uint32_t key, uint64_t *val)
 		*val = val32;
 	else
 		rv = EIO;
-	
+
 	opal_free_async_token(token);
 	return (rv);
 }
@@ -139,7 +139,7 @@ opal_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	result = sensval;
-	
+
 	switch (sc->sc_type) {
 	case OPAL_SENSOR_TEMP:
 		result = result * 10 + 2731; /* Convert to K */
@@ -179,7 +179,7 @@ opal_sensor_attach(device_t dev)
 	sc->sc_dev = dev;
 
 	node = ofw_bus_get_node(dev);
-	
+
 	if (OF_getencprop(node, "sensor-data", &sensor_id, sizeof(sensor_id)) < 0) {
 		device_printf(dev, "Missing sensor ID\n");
 		return (ENXIO);
@@ -188,7 +188,7 @@ opal_sensor_attach(device_t dev)
 		device_printf(dev, "Missing sensor type\n");
 		return (ENXIO);
 	}
-	
+
 	sc->sc_type = -1;
 	for (i = 0; i < OPAL_SENSOR_MAX; i++) {
 		if (strcmp(type, opal_sensor_types[i]) == 0) {
@@ -258,7 +258,6 @@ static devclass_t opal_sensor_devclass;
 
 DRIVER_MODULE(opal_sensor, opalsens, opal_sensor_driver, opal_sensor_devclass,
     NULL, NULL);
-
 
 static int
 opalsens_probe(device_t dev)

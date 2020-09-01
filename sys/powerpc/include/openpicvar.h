@@ -66,7 +66,7 @@ struct openpic_softc {
 	uint32_t		sc_saved_prios[4];
 	struct openpic_timer	sc_saved_timers[OPENPIC_TIMERS];
 	uint32_t		sc_saved_vectors[OPENPIC_SRC_VECTOR_COUNT];
-	
+
 };
 
 extern devclass_t openpic_devclass;

@@ -39,7 +39,6 @@
 	  __asm __volatile("mfspr %0,%1" : "=r"(val) : "K"(reg));	\
 	  val; } )
 
-
 #ifndef __powerpc64__
 
 /* The following routines allow manipulation of the full 64-bit width 
@@ -246,7 +245,7 @@
 #define	  FSL_E300C4		  0x8086
 
 #define   LPCR_PECE_WAKESET     (LPCR_PECE_EXT | LPCR_PECE_DECR | LPCR_PECE_ME)
- 
+
 #define	SPR_DBSR		0x130	/* ..8 Debug Status Register */
 #define	  DBSR_IDE		  0x80000000 /* Imprecise debug event. */
 #define	  DBSR_UDE		  0x40000000 /* Unconditional debug event. */

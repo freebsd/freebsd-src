@@ -113,7 +113,6 @@ struct bat {
 #define	BATL(pa, wimg, pp)						\
 	(((pa) & BAT_PBS) | (wimg) | (pp))
 
-
 /* Lower BAT bits (PowerPC 601): */
 #define	BAT601_PBN	0xfffe0000	/* physical block number */
 #define	BAT601_V	0x00000040	/* valid */

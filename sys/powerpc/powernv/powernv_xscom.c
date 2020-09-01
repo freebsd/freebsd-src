@@ -127,4 +127,3 @@ DEFINE_CLASS_0(powernv_xscom, powernv_xscom_driver, powernv_xscom_methods,
     sizeof(struct powernv_xscom_softc));
 DRIVER_MODULE(powernv_xscom, ofwbus, powernv_xscom_driver, powernv_xscom_devclass, NULL,
     NULL);
-

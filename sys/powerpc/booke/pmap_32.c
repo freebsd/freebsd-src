@@ -162,7 +162,6 @@ static struct ptbl_buf *ptbl_bufs;
 /* Page table related */
 /**************************************************************************/
 
-
 /* Initialize pool of kva ptbl buffers. */
 static void
 ptbl_init(void)
@@ -323,7 +322,7 @@ ptbl_free(pmap_t pmap, unsigned int pdir_idx)
 	 */
 	mtx_lock_spin(&tlbivax_mutex);
 	tlb_miss_lock();
-	
+
 	pmap->pm_pdir[pdir_idx] = NULL;
 
 	tlb_miss_unlock();
@@ -458,7 +457,6 @@ pte_remove(pmap_t pmap, vm_offset_t va, uint8_t flags)
 
 	/* Handle managed entry. */
 	if (PTE_ISMANAGED(pte)) {
-
 		if (PTE_ISMODIFIED(pte))
 			vm_page_dirty(m);
 
@@ -553,7 +551,7 @@ pte_enter(pmap_t pmap, vm_page_t m, vm_offset_t va, uint32_t flags,
 	}
 
 	pmap->pm_stats.resident_count++;
-	
+
 	pte_tmp = PTE_RPN_FROM_PA(VM_PAGE_TO_PHYS(m));
 	pte_tmp |= (PTE_VALID | flags | PTE_PS_4KB); /* 4KB pages only */
 
@@ -735,7 +733,7 @@ mmu_booke_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 	vm_page_t m;
 	vm_offset_t addr;
 	int active;
- 
+
 	rw_wlock(&pvh_global_lock);
 	pmap = PCPU_GET(curpmap);
 	active = (pm == kernel_pmap || pm == pmap) ? 1 : 0;
@@ -950,7 +948,6 @@ tid_flush(tlbtid_t tid)
 	uint32_t mas0, mas1, mas2;
 	int entry, way;
 
-
 	/* Don't evict kernel translations */
 	if (tid == TID_KERNEL)
 		return;
@@ -975,7 +972,6 @@ tid_flush(tlbtid_t tid)
 
 	for (way = 0; way < TLB0_WAYS; way++)
 		for (entry = 0; entry < TLB0_ENTRIES_PER_WAY; entry++) {
-
 			mas0 = MAS0_TLBSEL(0) | MAS0_ESEL(way);
 			mtspr(SPR_MAS0, mas0);
 

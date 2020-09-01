@@ -540,7 +540,7 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	 * Poking config state for non-existant devices can make
 	 * the host bridge hang up. Clear any errors.
 	 */
-	
+
 	if (error != OPAL_SUCCESS ||
 	    (word == ((1UL << (8 * width)) - 1))) {
 		if (error != OPAL_HARDWARE) {

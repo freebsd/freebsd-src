@@ -64,7 +64,7 @@ static device_method_t  rtasdev_methods[] = {
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	rtas_gettime),
 	DEVMETHOD(clock_settime,	rtas_settime),
-	
+
 	{ 0, 0 },
 };
 
@@ -97,7 +97,7 @@ rtasdev_attach(device_t dev)
 {
 	if (rtas_token_lookup("get-time-of-day") != -1)
 		clock_register(dev, 2000);
-	
+
 	EVENTHANDLER_REGISTER(shutdown_final, rtas_shutdown, NULL,
 	    SHUTDOWN_PRI_LAST);
 
@@ -110,7 +110,7 @@ rtas_gettime(device_t dev, struct timespec *ts) {
 	cell_t tod[8];
 	cell_t token;
 	int error;
-	
+
 	token = rtas_token_lookup("get-time-of-day");
 	if (token == -1)
 		return (ENXIO);
@@ -138,7 +138,7 @@ rtas_settime(device_t dev, struct timespec *ts)
 	struct clocktime ct;
 	cell_t token, status;
 	int error;
-	
+
 	token = rtas_token_lookup("set-time-of-day");
 	if (token == -1)
 		return (ENXIO);
@@ -158,7 +158,7 @@ static void
 rtas_shutdown(void *arg, int howto)
 {
 	cell_t token, status;
-	
+
 	if (howto & RB_HALT) {
 		token = rtas_token_lookup("power-off");
 		if (token == -1)
@@ -173,4 +173,3 @@ rtas_shutdown(void *arg, int howto)
 		rtas_call_method(token, 0, 1, &status);
 	}
 }
-

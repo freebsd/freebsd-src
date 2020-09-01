@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #define   NVIDIA_PMC_BL_SHIFT    (16)
 #define   NVIDIA_PMC_BL_EN       (1U << 31)
 
-
 struct nvbl_softc {
 	device_t	 dev;
 	struct resource *sc_memr;

@@ -625,7 +625,6 @@ fsl_pcib_outbound(struct fsl_pcib_softc *sc, int wnd, int res, uint64_t start,
 	bus_space_write_4(sc->sc_bst, sc->sc_bsh, REG_POWAR(wnd), attr);
 }
 
-
 static void
 fsl_pcib_err_init(device_t dev)
 {
@@ -826,7 +825,6 @@ static int fsl_pcib_map_msi(device_t dev, device_t child,
 
 	return (0);
 }
-
 
 /*
  * Linux device trees put the msi@<x> as children of the SoC, with ranges based

@@ -216,4 +216,3 @@ vdevice_get_dma_tag(device_t dev, device_t child)
 
         return (dinfo->mdi_dma_tag);
 }
-

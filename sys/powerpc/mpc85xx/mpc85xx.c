@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 
 #include <powerpc/mpc85xx/mpc85xx.h>
 
-
 /*
  * MPC85xx system specific routines
  */

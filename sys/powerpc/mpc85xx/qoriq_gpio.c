@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #define	GPIO_GPIMR	0x10
 #define	GPIO_GPICR	0x14
 
-
 struct qoriq_gpio_softc {
 	device_t	dev;
 	device_t	busdev;
@@ -209,7 +208,7 @@ qoriq_gpio_pin_toggle(device_t dev, uint32_t pin)
 	val = bus_read_4(sc->sc_mem, GPIO_GPDAT);
 	val ^= (1 << (31 - pin));
 	bus_write_4(sc->sc_mem, GPIO_GPDAT, val);
-	
+
 	GPIO_UNLOCK(sc);
 
 	return (0);

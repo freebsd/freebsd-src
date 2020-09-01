@@ -126,7 +126,6 @@ db_frame(struct db_variable *vp, db_expr_t *valuep, int op)
 	return (1);
 }
 
-
 /*
  *	Frame tracing.
  */

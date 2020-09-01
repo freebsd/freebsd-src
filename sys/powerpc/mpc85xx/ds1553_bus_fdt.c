@@ -64,7 +64,6 @@ static device_method_t rtc_methods[] = {
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	ds1553_gettime),
 	DEVMETHOD(clock_settime,	ds1553_settime),
-
 	{ 0, 0 }
 };
 

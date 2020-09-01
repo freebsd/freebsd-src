@@ -84,7 +84,7 @@ static device_method_t  opaldev_methods[] = {
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
-	
+
 	DEVMETHOD_END
 };
 
@@ -172,7 +172,6 @@ opaldev_probe(device_t dev)
 		free(irqs, M_DEVBUF);
 	}
 
-
 	return (BUS_PROBE_SPECIFIC);
 }
 
@@ -197,7 +196,7 @@ opaldev_attach(device_t dev)
 
 	if (rv == OPAL_SUCCESS)
 		clock_register(dev, 2000);
-	
+
 	EVENTHANDLER_REGISTER(OPAL_SHUTDOWN, opal_handle_shutdown_message,
 	    NULL, EVENTHANDLER_PRI_ANY);
 	EVENTHANDLER_REGISTER(shutdown_final, opal_shutdown, NULL,
@@ -381,7 +380,7 @@ opal_handle_messages(void)
 	uint32_t type;
 
 	rv = opal_call(OPAL_GET_MSG, vtophys(&msg), sizeof(msg));
-	
+
 	if (rv != OPAL_SUCCESS)
 		return;
 
@@ -422,4 +421,3 @@ opal_intr(void *xintr)
 		wakeup(opal_hb_proc);
 
 }
-

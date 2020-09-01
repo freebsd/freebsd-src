@@ -259,7 +259,7 @@ cell_t
 rtas_token_lookup(const char *method)
 {
 	cell_t token;
-	
+
 	if (!rtas_exists())
 		return (-1);
 
@@ -268,5 +268,3 @@ rtas_token_lookup(const char *method)
 
 	return (token);
 }
-
-

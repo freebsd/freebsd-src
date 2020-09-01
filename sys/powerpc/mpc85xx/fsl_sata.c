@@ -58,7 +58,6 @@ struct fsl_sata_slot;
 enum fsl_sata_err_type;
 struct fsl_sata_cmd_tab;
 
-
 /* local prototypes */
 static int fsl_sata_init(device_t dev);
 static int fsl_sata_deinit(device_t dev);

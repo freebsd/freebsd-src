@@ -87,7 +87,7 @@ struct vscsi_xfer {
         union ccb *ccb;
         bus_dmamap_t dmamap;
         uint64_t tag;
-	
+
 	vmem_addr_t srp_iu_offset;
 	vmem_size_t srp_iu_size;
 };
@@ -368,7 +368,6 @@ vscsi_attach(device_t dev)
 		return (EINVAL);
 	}
 
-
 	mtx_lock(&sc->io_lock);
 	if (xpt_bus_register(sc->sim, dev, 0) != 0) {
 		device_printf(dev, "XPT bus registration failed\n");
@@ -405,7 +404,7 @@ vscsi_detach(device_t dev)
 		cam_simq_free(sc->devq);
 		sc->devq = NULL;
 	}
-	
+
 	mtx_destroy(&sc->io_lock);
 
 	return (0);
@@ -505,7 +504,7 @@ vscsi_srp_login(struct vscsi_softc *sc)
 	xp->ccb = NULL;
 	TAILQ_REMOVE(&sc->free_xferq, xp, queue);
 	TAILQ_INSERT_TAIL(&sc->active_xferq, xp, queue);
-	
+
 	/* Set up command */
 	xp->srp_iu_size = crq.iu_length = 64;
 	err = vmem_alloc(xp->sc->srp_iu_arena, xp->srp_iu_size,
@@ -716,7 +715,7 @@ static void
 vscsi_crq_load_cb(void *xsc, bus_dma_segment_t *segs, int nsegs, int err)
 {
 	struct vscsi_softc *sc = xsc;
-	
+
 	sc->crq_phys = segs[0].ds_addr;
 	sc->n_crqs = PAGE_SIZE/sizeof(struct vscsi_crq);
 
@@ -824,7 +823,6 @@ vscsi_setup_bus(struct vscsi_softc *sc)
 
 	error = phyp_hcall(H_VIO_SIGNAL, sc->unit, 1); /* Enable interrupts */
 }
-	
 
 static void
 vscsi_intr(void *xsc)
@@ -992,4 +990,3 @@ vscsi_check_response_queue(struct vscsi_softc *sc)
 		phyp_hcall(H_VIO_SIGNAL, sc->unit, 1);
 	}
 }
-

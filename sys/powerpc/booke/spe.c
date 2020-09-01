@@ -197,7 +197,6 @@ save_vec_nodrop(struct thread *td)
 	}
 }
 
-
 #define	SPE_INST_MASK	0x31f
 #define	EADD	0x200
 #define	ESUB	0x201
@@ -485,7 +484,7 @@ spe_handle_fpdata(struct trapframe *frame)
 	uint32_t msr;
 
 	err = fueword32((void *)frame->srr0, &instr);
-	
+
 	if (err != 0)
 		return;
 		/* Fault. */;

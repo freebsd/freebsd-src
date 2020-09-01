@@ -122,7 +122,6 @@ enum {
 #define PMU_PWR_PCHARGE_RESET	(1 << 6)
 #define PMU_PWR_BATT_EXIST	(1 << 7)
 
-
 /* I2C related definitions */
 #define PMU_I2C_MODE_SIMPLE	0
 #define PMU_I2C_MODE_STDSUB	1
