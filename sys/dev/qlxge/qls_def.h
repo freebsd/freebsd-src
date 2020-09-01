@@ -96,7 +96,6 @@ struct qla_tx_buf {
 typedef struct qla_tx_buf qla_tx_buf_t;
 
 struct qla_tx_ring {
-
 	volatile struct {
 		uint32_t	wq_dma:1,
 				privb_dma:1;
@@ -119,7 +118,7 @@ struct qla_tx_ring {
 
 	uint32_t		*txr_cons_vaddr;
 	bus_addr_t		txr_cons_paddr;
-	
+
 	volatile uint32_t	txr_free; /* # of free entries in tx ring */
 	volatile uint32_t	txr_next; /* # next available tx ring entry */
 	volatile uint32_t	txr_done;
@@ -146,7 +145,6 @@ typedef struct qla_tx_ring qla_tx_ring_t;
 
 #define QLA_LGBQ_AND_TABLE_SIZE	\
 	((QLA_LBQ_SIZE + PAGE_SIZE + (PAGE_SIZE - 1)) & ~(PAGE_SIZE - 1))
-
 
 /* Please note that Small Buffer size is determined by max mtu size */
 #define QLA_NUM_SMB_ENTRIES	NUM_RX_DESCRIPTORS
@@ -221,7 +219,6 @@ struct qla_rx_ring {
 	uint64_t		rss_int;
 };
 typedef struct qla_rx_ring qla_rx_ring_t;
-
 
 #define QLA_WATCHDOG_CALLOUT_TICKS	1
 
@@ -326,7 +323,7 @@ struct qla_host {
 	uint8_t			mac_addr[ETHER_ADDR_LEN];
 	uint32_t		nmcast;
 	qla_mcast_t		mcast[Q8_MAX_NUM_MULTICAST_ADDRS];
-	
+
 	/* Link Related */
         uint8_t			link_up;
 	uint32_t		link_status;
@@ -358,7 +355,7 @@ struct qla_host {
 	/* mpi dump related */
 	qla_dma_t		mpi_dma;
 	qla_dma_t		rss_dma;
-	
+
 };
 typedef struct qla_host qla_host_t;
 

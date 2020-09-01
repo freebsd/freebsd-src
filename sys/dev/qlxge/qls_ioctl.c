@@ -33,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "qls_os.h"
 #include "qls_hw.h"
 #include "qls_def.h"
@@ -95,7 +94,6 @@ qls_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	pci_dev= ha->pci_dev;
 
         switch(cmd) {
-
 	case QLA_MPI_DUMP:
 		mpi_dump = (qls_mpi_dump_t *)data;
 
@@ -119,7 +117,6 @@ qls_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 						__func__, rval);
 				}
 			}
-
 		}
 		
 		break;
@@ -129,4 +126,3 @@ qls_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
         return rval;
 }
-

@@ -123,7 +123,6 @@ static __inline int qls_sec_to_hz(int sec)
 	return (tvtohz(&t));
 }
 
-
 #define qla_host_to_le16(x)	htole16(x)
 #define qla_host_to_le32(x)	htole32(x)
 #define qla_host_to_le64(x)	htole64(x)
@@ -147,13 +146,13 @@ MALLOC_DECLARE(M_QLA8XXXBUF);
 		else  \
 			pause(fn, qls_ms_to_hz(msecs)); \
 	}
-	
+
 /*
  * Locks
  */
 #define QLA_LOCK(ha, str, no_delay) qls_lock(ha, str, no_delay)
 #define QLA_UNLOCK(ha, str) qls_unlock(ha, str)
- 
+
 #define QLA_TX_LOCK(ha)		mtx_lock(&ha->tx_lock);
 #define QLA_TX_UNLOCK(ha)	mtx_unlock(&ha->tx_lock);
 

@@ -35,7 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "qls_os.h"
 #include "qls_hw.h"
 #include "qls_def.h"
@@ -162,11 +161,9 @@ qls_sysctl_get_drvr_stats(SYSCTL_HANDLER_ARGS)
                 return (err);
 
         if (ret == 1) {
-
                 ha = (qla_host_t *)arg1;
 
                 for (i = 0; i < ha->num_tx_rings; i++) {
-
                         device_printf(ha->pci_dev,
                                 "%s: tx_ring[%d].tx_frames= %p\n",
 				__func__, i,
@@ -204,7 +201,6 @@ qls_sysctl_get_drvr_stats(SYSCTL_HANDLER_ARGS)
 		}
 
                 for (i = 0; i < ha->num_rx_rings; i++) {
-
                         device_printf(ha->pci_dev,
                                 "%s: rx_ring[%d].rx_int= %p\n",
 				__func__, i,
@@ -303,16 +299,13 @@ qls_watchdog(void *arg)
 	ha->qla_watchdog_exited = 0;
 
 	if (!ha->flags.qla_watchdog_pause) {
-
 		if (ha->qla_initiate_recovery) {
-
 			ha->qla_watchdog_paused = 1;
 			ha->qla_initiate_recovery = 0;
 			ha->err_inject = 0;
 			taskqueue_enqueue(ha->err_tq, &ha->err_task);
 
 		} else if ((ifp->if_snd.ifq_head != NULL) && QL_RUNNING(ifp)) {
-
 			taskqueue_enqueue(ha->tx_tq, &ha->tx_task);
 		}
 
@@ -454,7 +447,7 @@ qls_pci_attach(device_t dev)
 			taskqueue_thread_enqueue, &ha->tx_tq);
 	taskqueue_start_threads(&ha->tx_tq, 1, PI_NET, "%s txq",
 		device_get_nameunit(ha->pci_dev));
-	
+
 	callout_init(&ha->tx_callout, 1);
 	ha->flags.qla_callout_init = 1;
 
@@ -555,7 +548,6 @@ qls_release(qla_host_t *ha)
 	qls_free_parent_dma_tag(ha);
 
         for (i = 0; i < ha->num_rx_rings; i++) {
-
                 if (ha->irq_vec[i].handle) {
                         (void)bus_teardown_intr(dev, ha->irq_vec[i].irq,
                                         ha->irq_vec[i].handle);
@@ -708,7 +700,7 @@ qls_alloc_parent_dma_tag(qla_host_t *ha)
         }
 
         ha->flags.parent_tag = 1;
-	
+
 	return (0);
 }
 
@@ -1039,7 +1031,7 @@ qls_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
-	
+
 	qls_update_link_state(ha);
 	if (ha->link_up) {
 		ifmr->ifm_status |= IFM_ACTIVE;
@@ -1069,7 +1061,6 @@ qls_start(struct ifnet *ifp)
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) == 
 		IFF_DRV_RUNNING) {
-
 		for (i = 0; i < ha->num_tx_rings; i++) {
 			ret |= qls_hw_tx_done(ha, i);
 		}
@@ -1095,7 +1086,6 @@ qls_start(struct ifnet *ifp)
 	}
 
 	while (ifp->if_snd.ifq_head != NULL) {
-
 		IF_DEQUEUE(&ifp->if_snd, m_head);
 
 		if (m_head == NULL) {
@@ -1146,7 +1136,6 @@ qls_send(qla_host_t *ha, struct mbuf **m_headp)
 			BUS_DMA_NOWAIT);
 
 	if (ret == EFBIG) {
-
 		struct mbuf *m;
 
 		QL_DPRINT8((ha->pci_dev, "%s: EFBIG [%d]\n", __func__,
@@ -1167,7 +1156,6 @@ qls_send(qla_host_t *ha, struct mbuf **m_headp)
 
 		if ((ret = bus_dmamap_load_mbuf_sg(ha->tx_tag, map, m_head,
 					segs, &nsegs, BUS_DMA_NOWAIT))) {
-
 			ha->err_tx_dmamap_load++;
 
 			device_printf(ha->pci_dev,
@@ -1182,7 +1170,6 @@ qls_send(qla_host_t *ha, struct mbuf **m_headp)
 		}
 
 	} else if (ret) {
-
 		ha->err_tx_dmamap_load++;
 
 		device_printf(ha->pci_dev,
@@ -1201,7 +1188,6 @@ qls_send(qla_host_t *ha, struct mbuf **m_headp)
 	bus_dmamap_sync(ha->tx_tag, map, BUS_DMASYNC_PREWRITE);
 
         if (!(ret = qls_hw_send(ha, segs, nsegs, tx_idx, m_head, txr_idx))) {
-
 		ha->tx_ring[txr_idx].count++;
 		ha->tx_ring[txr_idx].tx_buf[tx_idx].m_head = m_head;
 		ha->tx_ring[txr_idx].tx_buf[tx_idx].map = map;
@@ -1254,7 +1240,6 @@ qls_flush_tx_buf(qla_host_t *ha, qla_tx_buf_t *txb)
 	QL_DPRINT2((ha->pci_dev, "%s: enter\n", __func__));
 
 	if (txb->m_head) {
-
 		bus_dmamap_unload(ha->tx_tag, txb->map);
 
 		m_freem(txb->m_head);
@@ -1277,7 +1262,6 @@ qls_flush_xmt_bufs(qla_host_t *ha)
 	return;
 }
 
-
 static int
 qls_alloc_rcv_mbufs(qla_host_t *ha, int r)
 {
@@ -1286,11 +1270,9 @@ qls_alloc_rcv_mbufs(qla_host_t *ha, int r)
 	qla_rx_ring_t		*rx_ring;
 	volatile q81_bq_addr_e_t *sbq_e;
 
-
 	rx_ring = &ha->rx_ring[r];
 
 	for (i = 0; i < NUM_RX_DESCRIPTORS; i++) {
-
 		rxb = &rx_ring->rx_buf[i];
 
 		ret = bus_dmamap_create(ha->rx_tag, BUS_DMA_NOWAIT, &rxb->map);
@@ -1314,9 +1296,7 @@ qls_alloc_rcv_mbufs(qla_host_t *ha, int r)
 	rxb = &rx_ring->rx_buf[0];
 
 	for (i = 0; i < NUM_RX_DESCRIPTORS; i++) {
-
 		if (!(ret = qls_get_mbuf(ha, rxb, NULL))) {
-
 			/*
 		 	 * set the physical address in the
 			 * corresponding descriptor entry in the
@@ -1351,11 +1331,9 @@ qls_free_rcv_bufs(qla_host_t *ha)
 	qla_rx_ring_t	*rxr;
 
 	for (r = 0; r < ha->num_rx_rings; r++) {
-
 		rxr = &ha->rx_ring[r];
 
 		for (i = 0; i < NUM_RX_DESCRIPTORS; i++) {
-
 			rxb = &rxr->rx_buf[i];
 
 			if (rxb->m_head != NULL) {
@@ -1381,7 +1359,6 @@ qls_alloc_rcv_bufs(qla_host_t *ha)
 	}
 
 	for (r = 0; r < ha->num_rx_rings; r++) {
-
 		ret = qls_alloc_rcv_mbufs(ha, r);
 
 		if (ret)
@@ -1406,11 +1383,9 @@ qls_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp)
 	ifp = ha->ifp;
 
 	if (mp == NULL) {
-
 		mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, ha->msize);
 
 		if (mp == NULL) {
-
 			if (ha->msize == MCLBYTES)
 				ha->err_m_getcl++;
 			else
@@ -1527,4 +1502,3 @@ qls_error_recovery(void *context, int pending)
 
 	return;
 }
-

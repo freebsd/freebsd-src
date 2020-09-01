@@ -49,5 +49,4 @@ typedef struct qls_mpi_dump qls_mpi_dump_t;
  */
 #define QLA_MPI_DUMP		_IOWR('q', 1, qls_mpi_dump_t)
 
-
 #endif /* #ifndef _QLS_IOCTL_H_ */
