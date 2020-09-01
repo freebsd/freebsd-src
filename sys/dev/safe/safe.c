@@ -1736,9 +1736,9 @@ safe_free_entry(struct safe_softc *sc, struct safe_ringentry *re)
 		m_freem(re->re_dst_m);
 
 	crp = (struct cryptop *)re->re_crp;
-	
+
 	re->re_desc.d_csr = 0;
-	
+
 	crp->crp_etype = EFAULT;
 	crypto_done(crp);
 	return(0);
