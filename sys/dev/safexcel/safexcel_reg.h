@@ -35,7 +35,6 @@
 #define	SAFEXCEL_REG_LO16(_reg)			((_reg) & 0xffff)
 #define	SAFEXCEL_REG_HI16(_reg)			(((_reg) >> 16) & 0xffff)
 
-
 /* HIA, Command Descriptor Ring Manager */
 #define	CDR_BASE_ADDR_LO(x)			(0x0 + ((x) << 12))
 #define	CDR_BASE_ADDR_HI(x)			(0x4 + ((x) << 12))
