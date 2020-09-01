@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <sys/socket.h>
- 
+
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
@@ -145,7 +145,6 @@ ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
 	rc[3].tries = amn->amn_tx_try3;
 }
 
-
 void
 ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 	struct ath_desc *ds, int shortPreamble, u_int8_t rix)
@@ -216,7 +215,6 @@ node_reset(struct amrr_node *amn)
   	amn->amn_recovery = 0;
   	amn->amn_success_threshold = ath_rate_min_success_threshold;
 }
-
 
 /**
  * The code below assumes that we are dealing with hardware multi rate retry
@@ -416,7 +414,6 @@ ath_rate_ctl(void *arg, struct ieee80211_node *ni)
    		} else {
 			amn->amn_recovery = 0;
 		}
-
    	}
 	if (is_enough (amn) || rix != amn->amn_rix) {
 		/* reset counters. */

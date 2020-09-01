@@ -193,7 +193,6 @@ setTxQInterrupts(struct ath_hal *ah, HAL_TX_QUEUE_INFO *qi)
 		AR_IMR_S2_QCU_TXURN, ahp->ah_txUrnInterruptMask);
 }
 
-
 /*
  * Free a tx DCU/QCU combination.
  */
@@ -676,7 +675,6 @@ ar5211GetTxCompletionRates(struct ath_hal *ah, const struct ath_desc *ds0, int *
 {
 	return AH_FALSE;
 }
-
 
 void
 ar5211SetTxDescLink(struct ath_hal *ah, void *ds, uint32_t link)

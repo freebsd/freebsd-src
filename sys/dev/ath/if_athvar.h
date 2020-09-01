@@ -411,7 +411,6 @@ struct ath_txq {
 #define	ATH_TXQ_UNLOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock,	\
 					    MA_NOTOWNED)
 
-
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
 #define	ATH_NODE_UNLOCK(_an)		mtx_unlock(&(_an)->an_mtx)
 #define	ATH_NODE_LOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx, MA_OWNED)

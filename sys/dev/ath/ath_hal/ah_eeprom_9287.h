@@ -166,5 +166,4 @@ typedef struct {
 typedef struct modal_eep_ar9287_header MODAL_EEP_9287_HEADER;
 typedef struct base_eep_ar9287_header BASE_EEP_9287_HEADER;
 
-
 #endif /* __AH_EEPROM_9287_H__ */

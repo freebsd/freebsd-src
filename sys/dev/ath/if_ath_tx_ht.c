@@ -1026,7 +1026,6 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 			break;
 		}
 #endif
-
 	}
 
 finish:

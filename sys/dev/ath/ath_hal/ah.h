@@ -739,7 +739,6 @@ typedef enum {
 	HAL_HT_EXTPROTSPACING_25 = 1,	/* 25 MHz spacing */
 } HAL_HT_EXTPROTSPACING;
 
-
 typedef enum {
 	HAL_RX_CLEAR_CTL_LOW	= 0x1,	/* force control channel to appear busy */
 	HAL_RX_CLEAR_EXT_LOW	= 0x2,	/* force extension channel to appear busy */
@@ -1052,7 +1051,6 @@ typedef enum {
 	HAL_DFS_ETSI_DOMAIN	= 2,	/* ETSI dfs domain */
 	HAL_DFS_MKK4_DOMAIN	= 3,	/* Japan dfs domain */
 } HAL_DFS_DOMAIN;
-
 
 /*
  * MFP decryption options for initializing the MAC.

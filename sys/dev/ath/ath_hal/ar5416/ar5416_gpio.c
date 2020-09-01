@@ -131,7 +131,7 @@ ar5416GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 	return AH_TRUE;
 #undef	N
 }
- 
+
 /*
  * Configure GPIO Input lines
  */

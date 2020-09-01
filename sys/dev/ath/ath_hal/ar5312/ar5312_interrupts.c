@@ -29,7 +29,6 @@
 #include "ar5312/ar5312reg.h"
 #include "ar5312/ar5312phy.h"
 
-
 /*
  * Checks to see if an interrupt is pending on our NIC
  *

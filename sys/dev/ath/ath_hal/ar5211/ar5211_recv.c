@@ -51,7 +51,6 @@ ar5211SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE qtype)
 	HALASSERT(OS_REG_READ(ah, AR_RXDP) == rxdp);
 }
 
-
 /*
  * Set Receive Enable bits.
  */
