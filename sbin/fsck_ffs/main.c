@@ -408,7 +408,7 @@ checkfilesys(char *filesys)
 	case 0:
 		if (preen)
 			pfatal("CAN'T CHECK FILE SYSTEM.");
-		return (0);
+		return (EEXIT);
 	case -1:
 	clean:
 		pwarn("clean, %ld free ", (long)(sblock.fs_cstotal.cs_nffree +
