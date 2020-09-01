@@ -131,7 +131,6 @@ iconv_xlat16_conv(void *d2p, const char **inbuf,
 	dst = *outbuf;
 
 	while(ir > 0 && or > 0) {
-
 		inlen = 0;
 		code = 0;
 

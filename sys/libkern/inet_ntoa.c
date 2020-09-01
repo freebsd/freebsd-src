@@ -47,5 +47,3 @@ inet_ntoa_r(struct in_addr ina, char *buf)
 		ucp[3] & 0xff);
 	return buf;
 }
-
-

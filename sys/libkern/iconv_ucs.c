@@ -186,7 +186,6 @@ iconv_ucs_conv(void *d2p, const char **inbuf,
 	dst = *outbuf;
 
 	while (ir > 0 && or > 0) {
-
 		/*
 		 * The first half of conversion.
 		 * (convert any code into ENCODING_UNICODE)
@@ -537,4 +536,3 @@ decode_surrogate(const u_char *ucs)
 	return ((((ucs[0] & 0x3) << 18) | (ucs[1] << 10) |
 	    ((ucs[2] & 0x3) << 8) | ucs[3]) + 0x10000);
 }
-

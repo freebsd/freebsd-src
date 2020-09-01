@@ -237,7 +237,6 @@ _MCOUNT_DECL(uintfptr_t frompc, uintfptr_t selfpc)
 			*frompcindex = toindex;
 			goto done;
 		}
-
 	}
 done:
 #ifdef _KERNEL
