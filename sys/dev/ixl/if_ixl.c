@@ -48,7 +48,7 @@
  *  Driver version
  *********************************************************************/
 #define IXL_DRIVER_VERSION_MAJOR	2
-#define IXL_DRIVER_VERSION_MINOR	2
+#define IXL_DRIVER_VERSION_MINOR	3
 #define IXL_DRIVER_VERSION_BUILD	0
 
 #define IXL_DRIVER_VERSION_STRING			\
@@ -82,6 +82,10 @@ static pci_vendor_info_t ixl_vendor_info_array[] =
 	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_SFP_I_X722, "Intel(R) Ethernet Connection X722 for 10GbE SFP+"),
 	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_25G_B, "Intel(R) Ethernet Controller XXV710 for 25GbE backplane"),
 	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_25G_SFP28, "Intel(R) Ethernet Controller XXV710 for 25GbE SFP28"),
+	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_BASE_T_BC, "Intel(R) Ethernet Controller X710 for 10GBASE-T"),
+	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_SFP, "Intel(R) Ethernet Controller X710 for 10GbE SFP+"),
+	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_10G_B, "Intel(R) Ethernet Controller X710 for 10GbE backplane"),
+	PVIDV(I40E_INTEL_VENDOR_ID, I40E_DEV_ID_5G_BASE_T_BC, "Intel(R) Ethernet Controller V710 for 5GBASE-T"),
 	/* required last entry */
 	PVID_END
 };
@@ -598,6 +602,12 @@ ixl_if_attach_pre(if_ctx_t ctx)
 		i40e_aq_stop_lldp(hw, true, false, NULL);
 		pf->state |= IXL_PF_STATE_FW_LLDP_DISABLED;
 	}
+
+	/* Try enabling Energy Efficient Ethernet (EEE) mode */
+	if (i40e_enable_eee(hw, true) == I40E_SUCCESS)
+		atomic_set_32(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+	else
+		atomic_clear_32(&pf->state, IXL_PF_STATE_EEE_ENABLED);
 
 	/* Get MAC addresses from hardware */
 	i40e_get_mac_addr(hw, hw->mac.addr);
@@ -1490,6 +1500,14 @@ ixl_if_media_status(if_ctx_t ctx, struct ifmediareq *ifmr)
 			break;
 		case I40E_PHY_TYPE_1000BASE_T_OPTICAL:
 			ifmr->ifm_active |= IFM_1000_T;
+			break;
+		/* 2.5 G */
+		case I40E_PHY_TYPE_2_5GBASE_T:
+			ifmr->ifm_active |= IFM_2500_T;
+			break;
+		/* 5 G */
+		case I40E_PHY_TYPE_5GBASE_T:
+			ifmr->ifm_active |= IFM_5000_T;
 			break;
 		/* 10 G */
 		case I40E_PHY_TYPE_10GBASE_SFPP_CU:
