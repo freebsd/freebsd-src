@@ -929,7 +929,6 @@ mvs_legacy_intr(device_t dev, int poll)
 		ireason = ATA_INB(ch->r_mem,ATA_IREASON);
 		switch ((ireason & (ATA_I_CMD | ATA_I_IN)) |
 			(status & ATA_S_DRQ)) {
-
 		case ATAPI_P_CMDOUT:
 		    device_printf(dev, "ATAPI CMDOUT\n");
 		    /* Return wait for interrupt */
@@ -1180,7 +1179,6 @@ mvs_tfd_write(device_t dev, union ccb *ccb)
 	ATA_OUTB(ch->r_mem, ATA_CYL_MSB, cmd->lba_high);
 	ATA_OUTB(ch->r_mem, ATA_COMMAND, cmd->command);
 }
-
 
 /* Must be called with channel locked. */
 static void
@@ -2456,4 +2454,3 @@ mvspoll(struct cam_sim *sim)
 		mvs_reset_to(ch->dev);
 	}
 }
-
