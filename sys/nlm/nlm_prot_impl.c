@@ -167,7 +167,6 @@ struct timeval nlm_zero_tv = { 0, 0 };
  */
 int nlm_nsm_state;
 
-
 /*
  * A lock to protect the host list and waiting lock list.
  */
@@ -325,7 +324,6 @@ nlm_copy_netobj(struct netobj *dst, struct netobj *src,
 
 	nlm_make_netobj(dst, src->n_bytes, src->n_len, type);
 }
-
 
 /*
  * Create an RPC client handle for the given (address,prog,vers)
@@ -644,7 +642,7 @@ nlm_cancel_async_lock(struct nlm_async_lock *af)
 	}
 
 	mtx_lock(&host->nh_lock);
-	
+
 	if (!error) {
 		NLM_DEBUG(2, "NLM: async lock %p for %s (sysid %d) "
 		    "cancelled\n", af, host->nh_caller_name, host->nh_sysid);
@@ -1061,7 +1059,6 @@ nlm_find_host_by_addr(const struct sockaddr *addr, int vers)
 		strlcpy(tmp, "<unknown>", sizeof(tmp));
 	}
 
-
 	mtx_lock(&nlm_global_lock);
 
 	/*
@@ -1334,7 +1331,7 @@ nlm_deregister_wait_lock(void *handle)
 	mtx_lock(&nlm_global_lock);
 	TAILQ_REMOVE(&nlm_waiting_locks, nw, nw_link);
 	mtx_unlock(&nlm_global_lock);
-	
+
 	free(nw, M_NLM);
 }
 
@@ -1393,7 +1390,6 @@ nlm_cancel_wait(struct vnode *vp)
 	}
 	mtx_unlock(&nlm_global_lock);
 }
-
 
 /**********************************************************************/
 
@@ -1703,7 +1699,6 @@ sys_nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
  * NLM implementation details, called from the RPC stubs.
  */
 
-
 void
 nlm_sm_notify(struct nlm_sm_status *argp)
 {
@@ -1738,7 +1733,7 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 	int error;
 	uint64_t exflags;
 	struct ucred *cred = NULL, *credanon = NULL;
-	
+
 	memset(vs, 0, sizeof(*vs));
 
 	vs->vs_mp = vfs_getvfs(&fhp->fh_fsid);
@@ -1840,7 +1835,7 @@ nlm_do_test(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp,
 	int error, sysid;
 	struct flock fl;
 	accmode_t accmode;
-	
+
 	memset(result, 0, sizeof(*result));
 	memset(&vs, 0, sizeof(vs));
 
@@ -1938,7 +1933,7 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	int error, sysid;
 	struct flock fl;
 	accmode_t accmode;
-	
+
 	memset(result, 0, sizeof(*result));
 	memset(&vs, 0, sizeof(vs));
 
@@ -2127,7 +2122,7 @@ nlm_do_cancel(nlm4_cancargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	int error, sysid;
 	struct flock fl;
 	struct nlm_async_lock *af;
-	
+
 	memset(result, 0, sizeof(*result));
 	memset(&vs, 0, sizeof(vs));
 
@@ -2216,7 +2211,7 @@ nlm_do_unlock(nlm4_unlockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	struct nlm_host *host;
 	int error, sysid;
 	struct flock fl;
-	
+
 	memset(result, 0, sizeof(*result));
 	memset(&vs, 0, sizeof(vs));
 
@@ -2276,7 +2271,7 @@ nlm_do_granted(nlm4_testargs *argp, nlm4_res *result, struct svc_req *rqstp,
 {
 	struct nlm_host *host;
 	struct nlm_waiting_lock *nw;
-	
+
 	memset(result, 0, sizeof(*result));
 
 	host = nlm_find_host_by_addr(svc_getrpccaller(rqstp), rqstp->rq_vers);
