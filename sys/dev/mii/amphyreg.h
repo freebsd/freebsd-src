@@ -41,7 +41,6 @@
  * AMD Am79C873 registers.
  */
 
-
 #define MII_AMPHY_DSCR		0x10	/* Specified configuration register */a
 #define DSCR_BP4B5B		0x8000	/* Bypass 4B5B encoding */
 #define DSCR_BPSCR		0x4000	/* Bypass scrambler */

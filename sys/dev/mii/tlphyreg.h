@@ -1,5 +1,5 @@
 /*	$NetBSD: tlphyreg.h,v 1.1 1998/08/10 23:59:58 thorpej Exp $	*/
- 
+
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD
  *

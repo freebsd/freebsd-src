@@ -72,13 +72,11 @@
 #define	INT_CTRL_RXERR	0x4000
 #define	INT_CTRL_JABBER	0x8000
 
-
 #define	MII_DIAG	18
 #define	DIAG_RLOCK	0x0100
 #define	DIAG_RPASS	0x0200
 #define	DIAG_RATE_100	0x0400
 #define	DIAG_DUPLEX	0x0800
 #define	DIAG_NEGFAIL	0x1000
-
 
 #endif
