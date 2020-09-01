@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_persona.h>
 #include <compat/linux/linux_util.h>
 
-
 #define STACK_SIZE  (2 * 1024 * 1024)
 #define GUARD_SIZE  (4 * PAGE_SIZE)
 

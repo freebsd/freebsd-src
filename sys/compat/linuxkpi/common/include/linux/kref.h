@@ -91,7 +91,6 @@ kref_put_lock(struct kref *kref, void (*rel)(struct kref *kref),
 	return (0);
 }
 
-
 static inline int
 kref_sub(struct kref *kref, unsigned int count,
     void (*rel)(struct kref *kref))

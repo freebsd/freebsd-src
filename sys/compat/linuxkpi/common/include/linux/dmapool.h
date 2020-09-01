@@ -82,5 +82,4 @@ dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma_addr)
 	linux_dma_pool_free(pool, vaddr, dma_addr);
 }
 
-
 #endif /* _LINUX_DMAPOOL_H_ */

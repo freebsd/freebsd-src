@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
  * expects.
  */
 
-
 #include <sys/ctype.h>
 #include <sys/param.h>
 #include <sys/types.h>
@@ -1731,7 +1730,6 @@ NdisAllocatePacketPool(status, pool, descnum, protrsvdlen)
 	packets = ExAllocatePoolWithTag(NonPagedPool, p->np_cnt *
 	    p->np_len, 0);
 
-
 	if (packets == NULL) {
 		ExFreePool(p);
 		*status = NDIS_STATUS_RESOURCES;
@@ -1843,7 +1841,6 @@ NdisAllocatePacket(status, packet, pool)
 		*status = NDIS_STATUS_RESOURCES;
 		return;
 	}
-
 
 	bzero((char *)pkt, sizeof(ndis_packet));
 
@@ -2214,7 +2211,7 @@ ndis_intr(iobj, arg)
 		    sc->ndis_block->nmb_miniportadapterctx);
 		call_isr = 1;
 	}
- 
+
 	if (call_isr)
 		IoRequestDpc(sc->ndis_block->nmb_deviceobj, NULL, sc);
 
@@ -3371,6 +3368,5 @@ image_patch_table ndis_functbl[] = {
 	{ NULL, (FUNC)dummy, NULL, 0, WINDRV_WRAP_STDCALL },
 
 	/* End of list. */
-
 	{ NULL, NULL, NULL }
 };

@@ -45,7 +45,6 @@
 struct dma_attrs {
 	unsigned long flags;
 };
-
 #define DEFINE_DMA_ATTRS(x) struct dma_attrs x = { }
 
 static inline void

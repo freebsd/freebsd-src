@@ -120,4 +120,3 @@ linux_hrtimer_forward_now(struct hrtimer *hrtimer, ktime_t interval)
 	    nstosbt(hrtimer->precision), hrtimer_call_handler, hrtimer, 0);
 	mtx_unlock(&hrtimer->mtx);
 }
-

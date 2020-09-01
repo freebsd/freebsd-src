@@ -130,7 +130,6 @@ single_open(struct linux_file *f, int (*show)(struct seq_file *, void *), void *
 			free(op, M_LSEQ);
 		else
 			((struct seq_file *)f->private_data)->private = d;
-
 	}
 	return (rc);
 }

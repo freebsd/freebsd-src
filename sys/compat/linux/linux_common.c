@@ -60,7 +60,6 @@ static eventhandler_tag linux_exec_tag;
 static eventhandler_tag linux_thread_dtor_tag;
 static eventhandler_tag	linux_exit_tag;
 
-
 static int
 linux_common_modevent(module_t mod, int type, void *data)
 {

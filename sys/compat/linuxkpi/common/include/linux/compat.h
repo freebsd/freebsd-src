@@ -41,7 +41,6 @@ struct task_struct;
 extern int linux_alloc_current(struct thread *, int flags);
 extern void linux_free_current(struct task_struct *);
 
-
 static inline void
 linux_set_current(struct thread *td)
 {

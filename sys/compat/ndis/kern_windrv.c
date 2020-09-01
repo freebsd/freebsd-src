@@ -798,7 +798,6 @@ _x86_64_call6(void *fn, uint64_t a, uint64_t b, uint64_t c, uint64_t d,
 }
 #endif /* __amd64__ */
 
-
 #ifdef __i386__
 
 struct x86desc {

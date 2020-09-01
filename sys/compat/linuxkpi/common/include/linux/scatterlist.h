@@ -479,5 +479,4 @@ sg_page_iter_page(struct sg_page_iter *piter)
 	return (nth_page(sg_page(piter->sg), piter->sg_pgoffset));
 }
 
-
 #endif					/* _LINUX_SCATTERLIST_H_ */

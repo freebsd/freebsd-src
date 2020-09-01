@@ -423,7 +423,6 @@ linux_thread_detach(struct thread *td)
 	child_clear_tid = em->child_clear_tid;
 
 	if (child_clear_tid != NULL) {
-
 		LINUX_CTR2(thread_detach, "thread(%d) %p",
 		    em->em_tid, child_clear_tid);
 

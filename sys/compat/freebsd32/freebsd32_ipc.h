@@ -60,7 +60,6 @@ struct semid_kernel32 {
 };
 #endif /* _KERNEL */
 
-
 union semun32 {
 	int		val;
 	uint32_t	buf;

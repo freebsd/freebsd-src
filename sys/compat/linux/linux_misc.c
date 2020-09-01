@@ -145,7 +145,6 @@ struct l_pselect6arg {
 
 static int	linux_utimensat_nsec_valid(l_long);
 
-
 int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 {
@@ -640,7 +639,6 @@ struct l_times_argv {
 	l_clock_t	tms_cutime;
 	l_clock_t	tms_cstime;
 };
-
 
 /*
  * Glibc versions prior to 2.2.1 always use hard-coded CLK_TCK value.
@@ -1666,7 +1664,6 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 	return (sys_reboot(td, &bsd_args));
 }
 
-
 int
 linux_getpid(struct thread *td, struct linux_getpid_args *args)
 {
@@ -1688,7 +1685,6 @@ linux_gettid(struct thread *td, struct linux_gettid_args *args)
 
 	return (0);
 }
-
 
 int
 linux_getppid(struct thread *td, struct linux_getppid_args *args)

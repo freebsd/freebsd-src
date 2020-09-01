@@ -88,7 +88,6 @@ struct ia32_ucontext {
 	u_int32_t		__spare__[4];
 };
 
-
 #if defined(COMPAT_FREEBSD4)
 struct ia32_mcontext4 {
 	u_int32_t	mc_onstack;		/* XXX - sigcontext compat. */

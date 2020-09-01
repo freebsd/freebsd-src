@@ -906,7 +906,6 @@ typedef struct devobj_extension devobj_extension;
 #define	IOCTL_CODE(dev, func, iomethod, acc)	\
 	((dev) << 16) | (acc << 14) | (func << 2) | (iomethod))
 
-
 struct io_status_block {
 	union {
 		uint32_t		isb_status;

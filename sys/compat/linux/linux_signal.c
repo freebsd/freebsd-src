@@ -59,7 +59,6 @@ static int	linux_do_tkill(struct thread *td, struct thread *tdt,
 		    ksiginfo_t *ksi);
 static void	sicode_to_lsicode(int si_code, int *lsi_code);
 
-
 static void
 linux_to_bsd_sigaction(l_sigaction_t *lsa, struct sigaction *bsa)
 {

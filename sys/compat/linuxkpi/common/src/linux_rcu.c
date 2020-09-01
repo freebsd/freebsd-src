@@ -167,7 +167,6 @@ linux_rcu_cleaner_func(void *context, int pending __unused)
 
 	/* dispatch all callbacks, if any */
 	while ((rcu = STAILQ_FIRST(&tmp_head)) != NULL) {
-
 		STAILQ_REMOVE_HEAD(&tmp_head, entry);
 
 		offset = (uintptr_t)rcu->func;
