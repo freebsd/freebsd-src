@@ -220,7 +220,6 @@ singletable_crc32c(uint32_t crc, const void *buf, size_t size)
 {
 	const uint8_t *p = buf;
 
-
 	while (size--)
 		crc = crc32Table[(crc ^ *p++) & 0xff] ^ (crc >> 8);
 
@@ -295,8 +294,6 @@ static const uint32_t sctp_crc_tableil8_o32[256] =
  * end of the CRC lookup table crc_tableil8_o32
  */
 
-
-
 /*
  * The following CRC lookup table was generated automagically using the
  * following model parameters:
@@ -350,8 +347,6 @@ static const uint32_t sctp_crc_tableil8_o40[256] =
 /*
  * end of the CRC lookup table crc_tableil8_o40
  */
-
-
 
 /*
  * The following CRC lookup table was generated automagically using the
@@ -407,8 +402,6 @@ static const uint32_t sctp_crc_tableil8_o48[256] =
  * end of the CRC lookup table crc_tableil8_o48
  */
 
-
-
 /*
  * The following CRC lookup table was generated automagically using the
  * following model parameters:
@@ -462,8 +455,6 @@ static const uint32_t sctp_crc_tableil8_o56[256] =
 /*
  * end of the CRC lookup table crc_tableil8_o56
  */
-
-
 
 /*
  * The following CRC lookup table was generated automagically using the
@@ -519,8 +510,6 @@ static const uint32_t sctp_crc_tableil8_o64[256] =
  * end of the CRC lookup table crc_tableil8_o64
  */
 
-
-
 /*
  * The following CRC lookup table was generated automagically using the
  * following model parameters:
@@ -574,8 +563,6 @@ static const uint32_t sctp_crc_tableil8_o72[256] =
 /*
  * end of the CRC lookup table crc_tableil8_o72
  */
-
-
 
 /*
  * The following CRC lookup table was generated automagically using the
@@ -631,8 +618,6 @@ static const uint32_t sctp_crc_tableil8_o80[256] =
  * end of the CRC lookup table crc_tableil8_o80
  */
 
-
-
 /*
  * The following CRC lookup table was generated automagically using the
  * following model parameters:
@@ -686,7 +671,6 @@ static const uint32_t sctp_crc_tableil8_o88[256] =
 /*
  * end of the CRC lookup table crc_tableil8_o88
  */
-
 
 static uint32_t
 crc32c_sb8_64_bit(uint32_t crc,

@@ -154,4 +154,3 @@ void
 
 	memcpy(dst0, src0, length);
 }
-
