@@ -97,7 +97,6 @@ xdr_reference(XDR *xdrs,
 	return (stat);
 }
 
-
 /*
  * xdr_pointer():
  *
