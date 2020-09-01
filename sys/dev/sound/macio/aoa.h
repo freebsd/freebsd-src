@@ -46,4 +46,3 @@ void	aoa_interrupt(void *);
 int	aoa_attach(void *xsc);
 
 #endif /* SOUND_AOA_H */
-

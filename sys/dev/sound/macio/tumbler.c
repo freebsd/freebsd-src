@@ -108,7 +108,6 @@ static device_method_t tumbler_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		tumbler_probe),
 	DEVMETHOD(device_attach,	tumbler_attach),
-
 	{ 0, 0 }
 };
 
@@ -437,4 +436,3 @@ tumbler_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return (0);
 }
-

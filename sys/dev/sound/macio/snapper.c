@@ -108,7 +108,6 @@ static device_method_t snapper_methods[] = {
 	/* Device interface. */
 	DEVMETHOD(device_probe,		snapper_probe),
 	DEVMETHOD(device_attach,	snapper_attach),
-
 	{ 0, 0 }
 };
 
@@ -189,7 +188,6 @@ MIXER_DECLARE(snapper_mixer);
 #define  SNAPPER_ACR_INP_A	0x00	/*  A */
 #define  SNAPPER_ACR_INP_B	0x02	/*  B */
 #define SNAPPER_ACR_APD	0x01	/* Analog power down */
-
 
 struct snapper_reg {
 	u_char MCR1[1];
@@ -491,4 +489,3 @@ snapper_setrecsrc(struct snd_mixer *m, u_int32_t src)
 {
 	return (0);
 }
-

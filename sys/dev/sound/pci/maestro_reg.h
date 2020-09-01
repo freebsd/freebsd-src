@@ -80,7 +80,6 @@
 #define	PPMI_D2		2	/* Low power */
 #define	PPMI_D3		3	/* Turned off */
 
-
 /* -----------------------------
  * I/O ports
  */
@@ -212,7 +211,6 @@
 #define PORT_ASSP_HOST_WR_DATA	0xaa	/* BYTE RW */
 #define PORT_ASSP_INT_STAT	0xac	/* BYTE RW */
 
-
 /* -----------------------------
  * Wave Processor Indexed Data Registers.
  */
@@ -249,7 +247,6 @@
 
 #define WPREG_TIMER_ENABLE	17
 #define WPREG_TIMER_START	23
-
 
 /* -----------------------------
  * Audio Processing Unit.
@@ -375,7 +372,6 @@
 
 #define APU_DATASRC_A_SHIFT	0
 #define APU_DATASRC_B_SHIFT	8
-
 
 /* -----------------------------
  * Limits.

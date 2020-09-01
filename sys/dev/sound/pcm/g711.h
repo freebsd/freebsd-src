@@ -173,12 +173,10 @@
 	  171,  171,  171,  171,  170,  170,  170,  170,		\
 	}
 
-
 #define _G711_TO_INTPCM(t, v)	((intpcm_t)				\
 				 ((int8_t)((t)[(uint8_t)(v)] ^ 0x80)))
 
 #define _INTPCM_TO_G711(t, v)	((t)[(uint8_t)((v) ^ 0x80)])
-
 
 #define G711_DECLARE_TABLE(t)						\
 static const struct {							\

@@ -1140,7 +1140,6 @@ m3_intr(void *p)
 			device_printf(sc->dev, "Unknown HWVOL event\n");
 		}
 		m3_wr_1(sc, HW_VOL_COUNTER_MASTER, 0x88);
-
 	}
 
 	if (status & ASSP_INT_PENDING) {

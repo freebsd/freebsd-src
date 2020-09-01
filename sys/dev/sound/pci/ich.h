@@ -97,4 +97,3 @@
 /* play/record buffer */
 #define ICH_BDC_IOC 0x80000000
 #define ICH_BDC_BUP 0x40000000
-

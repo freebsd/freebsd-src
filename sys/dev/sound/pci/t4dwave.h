@@ -87,7 +87,6 @@
 #define		TNX_CDC_RESET	0x01
 #define		TNX_CDC_ON	(TNX_CDC_ADC1ON|TNX_CDC_DAC1ON)
 
-
 #define	TR_REG_STARTA	0x80
 #define TR_REG_STOPA	0x84
 #define	TR_REG_CSPF_A	0x90

@@ -1284,7 +1284,6 @@ emu_intr(void *data)
 					emu_enatimer(sc, 0);
 			}
 
-
 			if (ack & (EMU_IPR_ADCBUFFULL | EMU_IPR_ADCBUFHALFFULL)) {
 				if (sc->rch[0].channel)
 					chn_intr(sc->rch[0].channel);

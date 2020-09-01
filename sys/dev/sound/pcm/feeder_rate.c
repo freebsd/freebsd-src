@@ -291,7 +291,6 @@ SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_quality,
     __XSTRING(Z_QUALITY_MAX)"=high)");
 #endif	/* _KERNEL */
 
-
 /*
  * Resampler type.
  */
@@ -1081,7 +1080,7 @@ z_resampler_build_polyphase(struct z_info *info)
 			z += info->z_dy;
 		}
 	}
-	
+
 #ifndef _KERNEL
 	fprintf(stderr, "Polyphase: [%d/%d] %d entries\n",
 	    info->z_gx, info->z_gy, info->z_size * info->z_gy * 2);

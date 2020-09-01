@@ -148,7 +148,6 @@
 #define PCI_DDMA_CTRL           0x60
 #define DDMA_ENABLE             0x00000001
 
-
 /* Allegro registers */
 #define HOST_INT_CTRL           0x18
 #define SB_INT_ENABLE           0x0001
@@ -446,7 +445,6 @@
 #error Data memory map length too short.
 #endif
 
-
 /*
  * Kernel code memory definition
  */
@@ -455,7 +453,6 @@
 #define KCODE_VECTORS_END               0x002F
 #define KCODE_VECTORS_UNIT_LENGTH       0x0002
 #define KCODE_VECTORS_LENGTH            (KCODE_VECTORS_END - KCODE_VECTORS_BEGIN + 1)
-
 
 /*
  * Kernel data memory definition

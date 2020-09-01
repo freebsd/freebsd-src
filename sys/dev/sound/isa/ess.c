@@ -143,13 +143,11 @@ static int ess_stop(struct ess_chinfo *ch);
 
 static void
 ess_lock(struct ess_info *sc) {
-
 	sbc_lock(device_get_softc(sc->parent_dev));
 }
 
 static void
 ess_unlock(struct ess_info *sc) {
-
 	sbc_unlock(device_get_softc(sc->parent_dev));
 }
 
@@ -467,7 +465,6 @@ ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int le
 	int stereo = (AFMT_CHANNEL(fmt) > 1)? 1 : 0;
 	int unsign = (fmt == AFMT_U8 || fmt == AFMT_U16_LE)? 1 : 0;
 	u_int8_t spdval, fmtval;
-
 
 	spdval = (sc->newspeed)? ess_calcspeed9(&spd) : ess_calcspeed8(&spd);
 	len = -len;
@@ -932,7 +929,6 @@ static device_method_t ess_methods[] = {
 	DEVMETHOD(device_attach,	ess_attach),
 	DEVMETHOD(device_detach,	ess_detach),
 	DEVMETHOD(device_resume,	ess_resume),
-
 	{ 0, 0 }
 };
 
@@ -1004,7 +1000,6 @@ static device_method_t esscontrol_methods[] = {
 	DEVMETHOD(device_probe,		esscontrol_probe),
 	DEVMETHOD(device_attach,	esscontrol_attach),
 	DEVMETHOD(device_detach,	esscontrol_detach),
-
 	{ 0, 0 }
 };
 

@@ -99,7 +99,6 @@ struct snd_clone;
 
 #define SND_CLONE_DEVMASK	SND_CLONE_ALLOC
 
-
 void snd_timestamp(struct timespec *);
 
 struct snd_clone *snd_clone_create(int, int, int, uint32_t);

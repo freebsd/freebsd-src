@@ -1128,7 +1128,6 @@ hdaa_dump_amp_sb(struct sbuf *sb, uint32_t cap, const char *banner)
 	    ((step - offset) * (size + 1)) / 4);
 }
 
-
 static int
 hdaa_sysctl_caps(SYSCTL_HANDLER_ARGS)
 {

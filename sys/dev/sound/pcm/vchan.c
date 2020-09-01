@@ -822,7 +822,7 @@ vchan_create(struct pcm_channel *parent, int num)
 			d->rvchanrate = parent->speed;
 		}
 	}
-	
+
 	/*
 	 * If the parent channel supports digital format,
 	 * enable passthrough mode.

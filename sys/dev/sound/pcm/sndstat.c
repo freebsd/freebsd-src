@@ -344,7 +344,7 @@ sndstat_prepare(struct sndstat_file *pf_self)
 
 	/* make sure buffer is reset */
 	sbuf_clear(s);
-	
+
 	if (snd_verbose > 0) {
 		sbuf_printf(s, "FreeBSD Audio Driver (%ubit %d/%s)\n",
 		    (u_int)sizeof(intpcm32_t) << 3, SND_DRV_VERSION,

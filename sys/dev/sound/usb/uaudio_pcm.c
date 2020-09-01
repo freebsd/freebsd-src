@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_snd.h"
 #endif
@@ -189,7 +188,6 @@ static kobj_method_t ua_mixer_methods[] = {
 
 MIXER_DECLARE(ua_mixer);
 /************************************************************/
-
 
 static int
 ua_probe(device_t dev)

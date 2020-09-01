@@ -47,7 +47,6 @@
 #define	EMU_MAX_BUFSZ	EMUPAGESIZE*16
 #define	EMU_MAXPAGES	8192
 
-
 #define	EMU_VAR_FUNC		0
 #define	EMU_VAR_ROUTE		1
 #define	EMU_VAR_ISEMU10K1 	2

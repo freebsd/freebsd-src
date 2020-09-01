@@ -125,19 +125,16 @@ static void sb_intr(void *arg);
 
 static void
 sb_lock(struct sb_info *sb) {
-
 	sbc_lock(device_get_softc(sb->parent_dev));
 }
 
 static void
 sb_lockassert(struct sb_info *sb) {
-
 	sbc_lockassert(device_get_softc(sb->parent_dev));
 }
 
 static void
 sb_unlock(struct sb_info *sb) {
-
 	sbc_unlock(device_get_softc(sb->parent_dev));
 }
 
@@ -336,7 +333,7 @@ static int
 rel2abs_volume(int x, int max)
 {
 	int temp;
-	
+
 	temp = ((x * max) + 50) / 100;
 	if (temp > max)
 		temp = max;
@@ -899,7 +896,6 @@ static device_method_t sb16_methods[] = {
 	DEVMETHOD(device_probe,		sb16_probe),
 	DEVMETHOD(device_attach,	sb16_attach),
 	DEVMETHOD(device_detach,	sb16_detach),
-
 	{ 0, 0 }
 };
 

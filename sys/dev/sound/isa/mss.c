@@ -767,7 +767,6 @@ mss_init(struct mss_info *mss, device_t dev)
 	return 0;
 }
 
-
 /*
  * main irq handler for the CS423x. The OPTi931 code is
  * a separate one.
@@ -1072,7 +1071,6 @@ mss_trigger(struct mss_chinfo *ch, int go)
 			       m, ad_read(mss, 9)));
     	return 0;
 }
-
 
 /*
  * the opti931 seems to miss interrupts when working in full
@@ -1527,7 +1525,6 @@ mss_detect(device_t dev, struct mss_info *mss)
 		* b2-b0 = chip id;
 		*/
 		switch (id) {
-
 		case 0xa0:
 			name = "CS4231A";
 			mss->bd_id = MD_CS42XX;
@@ -1882,7 +1879,6 @@ static device_method_t mss_methods[] = {
 	DEVMETHOD(device_detach,	mss_detach),
 	DEVMETHOD(device_suspend,       mss_suspend),
 	DEVMETHOD(device_resume,        mss_resume),
-
 	{ 0, 0 }
 };
 
@@ -2099,7 +2095,6 @@ opti_init(device_t dev, struct mss_info *mss)
 			return ENXIO;
 	}
 
-
 	switch (mss->bd_id) {
 	case MD_OPTI924:
 		opti_write(mss, 1, 0x80 | basebits);	/* MSS mode */
@@ -2194,7 +2189,6 @@ static device_method_t pnpmss_methods[] = {
 	DEVMETHOD(device_detach,	mss_detach),
 	DEVMETHOD(device_suspend,       mss_suspend),
 	DEVMETHOD(device_resume,        mss_resume),
-
 	{ 0, 0 }
 };
 
@@ -2280,7 +2274,6 @@ static device_method_t guspcm_methods[] = {
 	DEVMETHOD(device_probe,		guspcm_probe),
 	DEVMETHOD(device_attach,	guspcm_attach),
 	DEVMETHOD(device_detach,	mss_detach),
-
 	{ 0, 0 }
 };
 

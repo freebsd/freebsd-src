@@ -241,7 +241,6 @@ mpu401_minit(struct snd_midi *sm, void *arg)
 	return 1;
 }
 
-
 int
 mpu401_muninit(struct snd_midi *sm, void *arg)
 {

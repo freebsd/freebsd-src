@@ -86,7 +86,6 @@ void sbc_unlock(struct sbc_softc *);
 
 #define	DSP_CMD_DAC2S_AUTO	0x1f	/* auto 2-bit adpcm dma out (start) */
 
-
 /* SB16 commands */
 #define	DSP_CMD_O16		0xb0
 #define	DSP_CMD_I16		0xb8
@@ -112,7 +111,6 @@ void sbc_unlock(struct sbc_softc *);
 
 #define	DSP_CMD_GETVER		0xE1
 #define	DSP_CMD_GETID		0xE7	/* return id bytes */
-
 
 #define	DSP_CMD_OUT16		0x41	/* send parms for dma out on sb16 */
 #define	DSP_CMD_IN16		0x42	/* send parms for dma in on sb16 */
