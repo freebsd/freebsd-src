@@ -530,7 +530,6 @@ acpi_tz_monitor(void *Context)
     if (acpi_tz_min_runtime > 0 && sc->tz_active != TZ_ACTIVE_NONE &&
 	sc->tz_active != TZ_ACTIVE_UNKNOWN &&
 	(newactive == TZ_ACTIVE_NONE || newactive > sc->tz_active)) {
-
 	getnanotime(&curtime);
 	timespecsub(&curtime, &sc->tz_cooling_started, &curtime);
 	if (curtime.tv_sec < acpi_tz_min_runtime)
@@ -926,7 +925,6 @@ acpi_tz_power_profile(void *arg)
 
     /* check that we haven't decided there's no _SCP method */
     if ((sc->tz_flags & TZ_FLAG_NO_SCP) == 0) {
-
 	/* Call _SCP to set the new profile */
 	status = acpi_SetInteger(sc->tz_handle, "_SCP",
 	    (state == POWER_PROFILE_PERFORMANCE) ? 0 : 1);

@@ -424,7 +424,7 @@ acpi_pci_attach(device_t dev)
 	    acpi_pci_bus_notify_handler, dev);
 	AcpiWalkNamespace(ACPI_TYPE_DEVICE, acpi_get_handle(dev), 1,
 	    acpi_pci_install_device_notify_handler, NULL, dev, NULL);
-	
+
 	return (0);
 }
 
@@ -479,4 +479,3 @@ acpi_pci_get_dma_tag(device_t bus, device_t child)
 	return (pci_get_dma_tag(bus, child));
 }
 #endif
-
