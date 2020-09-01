@@ -267,7 +267,7 @@ end:
 		dmar_flush_write_bufs(unit);
 		DMAR_UNLOCK(unit);
 	}
-	
+
 	return (res);
 }
 

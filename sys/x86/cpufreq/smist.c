@@ -100,7 +100,6 @@ static device_method_t smist_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	smist_get),
 	DEVMETHOD(cpufreq_drv_type,	smist_type),
 	DEVMETHOD(cpufreq_drv_settings,	smist_settings),
-
 	{0, 0}
 };
 

@@ -543,7 +543,7 @@ attimer_stop(struct eventtimer *et)
 {
 	device_t dev = (device_t)et->et_priv;
 	struct attimer_softc *sc = device_get_softc(dev);
-	
+
 	sc->mode = MODE_STOP;
 	sc->period = 0;
 	set_i8254_freq(sc->mode, sc->period);
@@ -563,7 +563,7 @@ static int
 attimer_probe(device_t dev)
 {
 	int result;
-	
+
 	result = ISA_PNP_PROBE(device_get_parent(dev), dev, attimer_ids);
 	/* ENOENT means no PnP-ID, device is hinted. */
 	if (result == ENOENT) {

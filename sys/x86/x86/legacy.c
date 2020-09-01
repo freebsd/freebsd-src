@@ -91,7 +91,6 @@ static device_method_t legacy_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-
 	{ 0, 0 }
 };
 
@@ -242,7 +241,6 @@ legacy_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	}
 	return 0;
 }
-	
 
 static int
 legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)

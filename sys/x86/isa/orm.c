@@ -163,7 +163,7 @@ orm_detach(device_t dev)
 {
 	int			i;
 	struct orm_softc	*sc = device_get_softc(dev);
-	
+
 	for (i = 0; i < sc->rnum; i++)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->rid[i],
 		    sc->res[i]);

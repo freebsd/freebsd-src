@@ -192,4 +192,3 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 }
 
 #endif /* !_X86_BUS_DMA_H_ */
-

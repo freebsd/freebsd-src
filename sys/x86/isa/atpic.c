@@ -310,7 +310,6 @@ atpic_disable_intr(struct intsrc *isrc)
 {
 }
 
-
 static int
 atpic_vector(struct intsrc *isrc)
 {
@@ -562,7 +561,7 @@ static int
 atpic_probe(device_t dev)
 {
 	int result;
-	
+
 	result = ISA_PNP_PROBE(device_get_parent(dev), dev, atpic_ids);
 	if (result <= 0)
 		device_quiet(dev);

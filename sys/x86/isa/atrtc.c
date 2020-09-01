@@ -617,7 +617,6 @@ static device_method_t atrtc_isa_methods[] = {
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	atrtc_gettime),
 	DEVMETHOD(clock_settime,	atrtc_settime),
-
 	{ 0, 0 }
 };
 
@@ -639,7 +638,6 @@ static device_method_t atrtc_acpi_methods[] = {
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	atrtc_gettime),
 	DEVMETHOD(clock_settime,	atrtc_settime),
-
 	{ 0, 0 }
 };
 
