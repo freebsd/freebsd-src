@@ -429,7 +429,6 @@ struct gnttab_transfer {
 typedef struct gnttab_transfer gnttab_transfer_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_transfer_t);
 
-
 /*
  * GNTTABOP_copy: Hypervisor based copy
  * source and destinations can be eithers MFNs or, for foreign domains,
@@ -525,7 +524,6 @@ struct gnttab_set_version {
 };
 typedef struct gnttab_set_version gnttab_set_version_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_set_version_t);
-
 
 /*
  * GNTTABOP_get_status_frames: Get the list of frames used to store grant

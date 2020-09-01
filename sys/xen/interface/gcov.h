@@ -68,7 +68,6 @@ struct xencov_file
     char filename[1];
 };
 
-
 /**
  * Counters information
  * Prefixed with XENCOV_TAG_COUNTER(n) where n is 0..(XENCOV_COUNTERS-1)
@@ -112,4 +111,3 @@ struct xencov_end
 };
 
 #endif /* __XEN_PUBLIC_GCOV_H__ */
-

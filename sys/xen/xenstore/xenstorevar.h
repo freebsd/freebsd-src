@@ -332,7 +332,7 @@ int xs_gather(struct xs_transaction t, const char *dir, ...);
  *          xenbus_watch objects, to watch the same path in the XenStore.
  */
 int xs_register_watch(struct xs_watch *watch);
- 
+
 /**
  * Unregister a XenStore watch.
  *
@@ -368,4 +368,3 @@ void xs_lock(void);
 void xs_unlock(void);
 
 #endif /* _XEN_XENSTORE_XENSTOREVAR_H */
-

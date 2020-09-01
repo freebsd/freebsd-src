@@ -164,4 +164,3 @@ DEFINE_XEN_GUEST_HANDLE(xen_pmu_arch_t);
  * indent-tabs-mode: nil
  * End:
  */
-

@@ -52,7 +52,6 @@ struct hvm_save_descriptor {
     uint32_t length;            /* In bytes, *not* including this descriptor */
 };
 
-
 /* 
  * Each entry has a datatype associated with it: for example, the CPU state 
  * is saved as a HVM_SAVE_TYPE(CPU), which has HVM_SAVE_LENGTH(CPU), 

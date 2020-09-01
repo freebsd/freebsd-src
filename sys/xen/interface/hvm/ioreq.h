@@ -124,7 +124,6 @@ typedef struct buffered_iopage buffered_iopage_t;
 #define ACPI_GPE0_BLK_ADDRESS        ACPI_GPE0_BLK_ADDRESS_V0
 #define ACPI_GPE0_BLK_LEN            ACPI_GPE0_BLK_LEN_V0
 
-
 #endif /* _IOREQ_H_ */
 
 /*
