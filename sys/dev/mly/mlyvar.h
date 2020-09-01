@@ -309,7 +309,6 @@ struct mly_softc {
 	    sc->mly_qstat[qname].q_max = 0;	\
 	} while(0)
 
-
 #define MLYQ_COMMAND_QUEUE(name, index)					\
 static __inline void							\
 mly_initq_ ## name (struct mly_softc *sc)				\
