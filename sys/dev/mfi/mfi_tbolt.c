@@ -31,7 +31,6 @@
  * official policies,either expressed or implied, of the FreeBSD Project.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -84,7 +83,6 @@ static void mfi_queue_map_sync(struct mfi_softc *sc);
 
 #define MFI_FUSION_ENABLE_INTERRUPT_MASK	(0x00000008)
 
-
 extern int	mfi_polled_cmd_timeout;
 static int	mfi_fw_reset_test = 0;
 #ifdef MFI_DEBUG
@@ -134,7 +132,6 @@ mfi_tbolt_check_clear_intr_ppc(struct mfi_softc *sc)
 	MFI_READ4(sc, MFI_OSTS);
 	return 0;
 }
-
 
 void
 mfi_tbolt_issue_cmd_ppc(struct mfi_softc *sc, bus_addr_t bus_add,
@@ -804,7 +801,6 @@ mfi_tbolt_get_request_descriptor(struct mfi_softc *sc, uint16_t index)
 	return (union mfi_mpi2_request_descriptor *)p;
 }
 
-
 /* Used to build IOCTL cmd */
 uint8_t
 mfi_build_mpt_pass_thru(struct mfi_softc *sc, struct mfi_command *mfi_cmd)
@@ -938,7 +934,6 @@ mfi_tbolt_build_io(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 
 	return 0;
 }
-
 
 static int
 mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
@@ -1186,7 +1181,6 @@ mfi_issue_pending_cmds_again(struct mfi_softc *sc)
 
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 	TAILQ_FOREACH_REVERSE_SAFE(cm, &sc->mfi_busy, BUSYQ, cm_link, tmp) {
-
 		cm->retry_for_fw_reset++;
 
 		/*

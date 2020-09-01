@@ -362,7 +362,6 @@ mfi_addr_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	*addr = segs[0].ds_addr;
 }
 
-
 int
 mfi_attach(struct mfi_softc *sc)
 {
@@ -421,7 +420,6 @@ mfi_attach(struct mfi_softc *sc)
 		sc->mfi_check_clear_intr = mfi_check_clear_intr_ppc;
 		sc->mfi_issue_cmd = mfi_issue_cmd_ppc;
 	}
-
 
 	/* Before we get too far, see if the firmware is working */
 	if ((error = mfi_transition_firmware(sc)) != 0) {
@@ -1329,7 +1327,6 @@ mfi_shutdown(struct mfi_softc *sc)
 	struct mfi_dcmd_frame *dcmd;
 	struct mfi_command *cm;
 	int error;
-
 
 	if (sc->mfi_aen_cm != NULL) {
 		sc->cm_aen_abort = 1;
@@ -2525,7 +2522,6 @@ mfi_std_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 	return (0);
 }
 
-
 void
 mfi_complete(struct mfi_softc *sc, struct mfi_command *cm)
 {
@@ -2932,7 +2928,6 @@ mfi_check_for_sscd(struct mfi_softc *sc, struct mfi_command *cm)
 
 		mfi_release_command(ld_cm);
 		free(ld_info, M_MFIBUF);
-
 	}
 	return error;
 }
@@ -3031,7 +3026,6 @@ mfi_user_command(struct mfi_softc *sc, struct mfi_ioc_passthru *ioc)
 	void *ioc_buf = NULL;
 	uint32_t context;
 	int error = 0, locked;
-
 
 	if (ioc->buf_size > 0) {
 		if (ioc->buf_size > 1024 * 1024)
