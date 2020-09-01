@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/spigenio.h>
 #include <sys/types.h>
- 
+
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
@@ -370,7 +370,7 @@ spigen_detach(device_t dev)
 
 	if (sc->sc_cdev)
 		destroy_dev(sc->sc_cdev);
-	
+
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -383,7 +383,6 @@ static device_method_t spigen_methods[] = {
 	DEVMETHOD(device_probe,		spigen_probe),
 	DEVMETHOD(device_attach,	spigen_attach),
 	DEVMETHOD(device_detach,	spigen_detach),
-
 	{ 0, 0 }
 };
 
