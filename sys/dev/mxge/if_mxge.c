@@ -159,7 +159,6 @@ mxge_probe(device_t dev)
 {
 	int rev;
 
-
 	if ((pci_get_vendor(dev) == MXGE_PCI_VENDOR_MYRICOM) &&
 	    ((pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E) ||
 	     (pci_get_device(dev) == MXGE_PCI_DEVICE_Z8E_9))) {
@@ -200,7 +199,6 @@ mxge_enable_wc(mxge_softc_t *sc)
 	}
 #endif		
 }
-
 
 /* callback to get our DMA address */
 static void
@@ -271,7 +269,6 @@ abort_with_dmat:
 	(void)bus_dma_tag_destroy(dma->dmat);
 	return err;
 }
-
 
 static void
 mxge_dma_free(mxge_dma_t *dma)
@@ -351,7 +348,6 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 	uintptr_t bus, slot, func, ivend, idev;
 	uint32_t *ptr32;
 
-
 	if (!mxge_nvidia_ecrc_enable)
 		return;
 
@@ -427,7 +423,6 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 
 	/* map it into the kernel */
 	va = pmap_mapdev(trunc_page((vm_paddr_t)off), PAGE_SIZE);
-	
 
 	if (va == NULL) {
 		device_printf(sc->dev, "pmap_kenter_temporary didn't\n");
@@ -473,7 +468,6 @@ mxge_enable_nvidia_ecrc(mxge_softc_t *sc)
 }
 #endif
 
-
 static int
 mxge_dma_test(mxge_softc_t *sc, int test_type)
 {
@@ -482,7 +476,6 @@ mxge_dma_test(mxge_softc_t *sc, int test_type)
 	int status;
 	uint32_t len;
 	char *test = " ";
-
 
 	/* Run a small DMA test.
 	 * The magic multipliers to the length tell the firmware
@@ -657,7 +650,6 @@ static int
 mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 {
 
-
 	if (be32toh(hdr->mcp_type) != MCP_TYPE_ETH) {
 		device_printf(sc->dev, "Bad firmware type: 0x%x\n",
 			      be32toh(hdr->mcp_type));
@@ -703,8 +695,6 @@ mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 			      sc->fw_name);
 		return ENOENT;
 	}
-
-
 
 	/* setup zlib and decompress f/w */
 	bzero(&zs, sizeof (zs));
@@ -804,7 +794,6 @@ mxge_dummy_rdma(mxge_softc_t *sc, int enable)
 	buf[3] = htobe32(dma_high); 		/* dummy addr MSW */
 	buf[4] = htobe32(dma_low); 		/* dummy addr LSW */
 	buf[5] = htobe32(enable);			/* enable? */
-
 
 	submit = (volatile char *)(sc->sram + MXGEFW_BOOT_DUMMY_RDMA);
 
@@ -946,7 +935,6 @@ mxge_adopt_running_firmware(mxge_softc_t *sc)
 	return status;
 }
 
-
 static int
 mxge_load_firmware(mxge_softc_t *sc, int adopt)
 {
@@ -1039,7 +1027,6 @@ mxge_update_mac_address(mxge_softc_t *sc)
 	uint8_t *addr = sc->mac_addr;
 	int status;
 
-	
 	cmd.data0 = ((addr[0] << 24) | (addr[1] << 16)
 		     | (addr[2] << 8) | addr[3]);
 
@@ -1133,10 +1120,10 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 		       " error status: %d\n", err);
 		return;
 	}
-	
+
 	if (sc->adopted_rx_filter_bug)
 		return;
-	
+
 	if (ifp->if_flags & IFF_ALLMULTI)
 		/* request to disable multicast filtering, so quit here */
 		return;
@@ -1211,7 +1198,6 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 
 	mxge_dummy_rdma(sc, 1);
 
-
 	/* set the intrq size */
 	cmd.data0 = sc->rx_ring_size;
 	status = mxge_send_cmd(sc, MXGEFW_CMD_SET_INTRQ_SIZE, &cmd);
@@ -1226,7 +1212,7 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 	 * MXGEFW_CMD_SET_INTRQ_SIZE, since the intrq size is used by
 	 * the firmware to compute offsets.
 	 */
-	
+
 	if (sc->num_slices > 1) {
 		/* ask the maximum number of slices it supports */
 		status = mxge_send_cmd(sc, MXGEFW_CMD_GET_MAX_RSS_QUEUES,
@@ -1254,7 +1240,6 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 		}
 	}
 
-
 	if (interrupts_setup) {
 		/* Now exchange information about interrupts  */
 		for (slice = 0; slice < sc->num_slices; slice++) {
@@ -1271,13 +1256,11 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 
 	status |= mxge_send_cmd(sc,
 				MXGEFW_CMD_GET_INTR_COAL_DELAY_OFFSET, &cmd);
-	
 
 	sc->intr_coal_delay_ptr = (volatile uint32_t *)(sc->sram + cmd.data0);
 
 	status |= mxge_send_cmd(sc, MXGEFW_CMD_GET_IRQ_ACK_OFFSET, &cmd);
 	irq_claim = (volatile uint32_t *)(sc->sram + cmd.data0);
-
 
 	status |= mxge_send_cmd(sc,  MXGEFW_CMD_GET_IRQ_DEASSERT_OFFSET,
 				&cmd);
@@ -1286,11 +1269,9 @@ mxge_reset(mxge_softc_t *sc, int interrupts_setup)
 		device_printf(sc->dev, "failed set interrupt parameters\n");
 		return status;
 	}
-	
 
 	*sc->intr_coal_delay_ptr = htobe32(sc->intr_coal_delay);
 
-	
 	/* run a DMA benchmark */
 	(void) mxge_dma_test(sc, MXGEFW_DMA_TEST);
 
@@ -1355,7 +1336,7 @@ mxge_change_throttle(SYSCTL_HANDLER_ARGS)
 
 	if (throttle < MXGE_MIN_THROTTLE || throttle > MXGE_MAX_THROTTLE)
 		return EINVAL;
-	
+
 	mtx_lock(&sc->driver_mtx);
 	cmd.data0 = throttle;
 	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_THROTTLE_FACTOR, &cmd);
@@ -1387,7 +1368,7 @@ mxge_change_intr_coal(SYSCTL_HANDLER_ARGS)
 	mtx_lock(&sc->driver_mtx);
 	*sc->intr_coal_delay_ptr = htobe32(intr_coal_delay);
 	sc->intr_coal_delay = intr_coal_delay;
-	
+
 	mtx_unlock(&sc->driver_mtx);
 	return err;
 }
@@ -1503,7 +1484,6 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		       "watchdog_resets",
 		       CTLFLAG_RD, &sc->watchdog_resets,
 		       0, "Number of times NIC was reset");
-
 
 	/* performance related tunables */
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO,
@@ -1708,7 +1688,7 @@ mxge_submit_req(mxge_tx_ring_t *tx, mcp_kreq_ether_send_t *src,
 	mcp_kreq_ether_send_t *srcp;
 	volatile mcp_kreq_ether_send_t *dstp, *dst;
 	uint8_t last_flags;
-	
+
 	idx = tx->req & tx->mask;
 
 	last_flags = src->flags;
@@ -1882,7 +1862,6 @@ mxge_encap_tso(struct mxge_slice_state *ss, struct mbuf *m,
 	}
 	flags = MXGEFW_FLAGS_TSO_HDR | MXGEFW_FLAGS_FIRST;
 
-	
 	/* for TSO, pseudo_hdr_offset holds mss.
 	 * The firmware figures out where to put
 	 * the checksum by parsing the header. */
@@ -2062,7 +2041,6 @@ mxge_encap(struct mxge_slice_state *ss, struct mbuf *m)
 	int cnt, cum_len, err, i, idx, odd_flag;
 	uint16_t pseudo_hdr_offset;
 	uint8_t flags, cksum_offset;
-
 
 	sc = ss->sc;
 	ifp = sc->ifp;
@@ -2477,7 +2455,6 @@ mxge_csum_generic(uint16_t *raw, int len)
 {
 	uint32_t csum;
 
-
 	csum = 0;
 	while (len > 0) {
 		csum += *raw;
@@ -2546,7 +2523,6 @@ mxge_rx_csum(struct mbuf *m, int csum)
 	int cap = m->m_pkthdr.rcvif->if_capenable;
 #endif
 	uint16_t c, etype;
-
 
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
@@ -2632,7 +2608,6 @@ mxge_vlan_tag_remove(struct mbuf *m, uint32_t *csum)
 	      ETHER_HDR_LEN - ETHER_TYPE_LEN);
 	m_adj(m, ETHER_VLAN_ENCAP_LEN);
 }
-
 
 static inline void
 mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
@@ -2800,7 +2775,6 @@ mxge_clean_rx_done(struct mxge_slice_state *ss)
 #endif
 }
 
-
 static inline void
 mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 {
@@ -2834,7 +2808,7 @@ mxge_tx_done(struct mxge_slice_state *ss, uint32_t mcp_idx)
 			tx->pkt_done++;
 		}
 	}
-	
+
 	/* If we have space, clear IFF_OACTIVE to tell the stack that
 	   its OK to send packets */
 #ifdef IFNET_BUF_RING
@@ -2891,7 +2865,6 @@ static void
 mxge_media_set(mxge_softc_t *sc, int media_type)
 {
 
-	
 	ifmedia_add(&sc->media, IFM_ETHER | IFM_FDX | media_type,
 		    0, NULL);
 	ifmedia_set(&sc->media, IFM_ETHER | IFM_FDX | media_type);
@@ -3063,7 +3036,6 @@ mxge_intr(void *arg)
 	uint32_t send_done_count;
 	uint8_t valid;
 
-
 #ifndef IFNET_BUF_RING
 	/* an interrupt on a non-zero slice is implicitly valid
 	   since MSI-X irqs are not shared */
@@ -3147,14 +3119,11 @@ mxge_init(void *arg)
 	mxge_softc_t *sc = arg;
 	struct ifnet *ifp = sc->ifp;
 
-
 	mtx_lock(&sc->driver_mtx);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		(void) mxge_open(sc);
 	mtx_unlock(&sc->driver_mtx);
 }
-
-
 
 static void
 mxge_free_slice_mbufs(struct mxge_slice_state *ss)
@@ -3210,7 +3179,6 @@ static void
 mxge_free_slice_rings(struct mxge_slice_state *ss)
 {
 	int i;
-
 
 	if (ss->rx_done.entry != NULL)
 		mxge_dma_free(&ss->rx_done.dma);
@@ -3399,7 +3367,6 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	ss->tx.mask = tx_ring_entries - 1;
 	ss->tx.max_desc = MIN(MXGE_MAX_SEND_DESC, tx_ring_entries / 4);
 
-	
 	/* allocate the tx request copy block */
 	bytes = 8 +
 		sizeof (*ss->tx.req_list) * (ss->tx.max_desc + 4);
@@ -3416,7 +3383,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	/* allocate the tx host info ring */
 	bytes = tx_ring_entries * sizeof (*ss->tx.info);
 	ss->tx.info = malloc(bytes, M_DEVBUF, M_ZERO|M_WAITOK);
-	
+
 	/* allocate the tx busdma resources */
 	err = bus_dma_tag_create(sc->parent_dmat,	/* parent */
 				 1,			/* alignment */
@@ -3430,7 +3397,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 				 BUS_DMA_ALLOCNOW,	/* flags */
 				 NULL, NULL,		/* lock */
 				 &ss->tx.dmat);		/* tag */
-	
+
 	if (err != 0) {
 		device_printf(sc->dev, "Err %d allocating tx dmat\n",
 			      err);
@@ -3459,7 +3426,7 @@ mxge_alloc_rings(mxge_softc_t *sc)
 	int tx_ring_size;
 	int tx_ring_entries, rx_ring_entries;
 	int err, slice;
-	
+
 	/* get ring sizes */
 	err = mxge_send_cmd(sc, MXGEFW_CMD_GET_SEND_RING_SIZE, &cmd);
 	tx_ring_size = cmd.data0;
@@ -3488,7 +3455,6 @@ abort:
 	return err;
 
 }
-
 
 static void
 mxge_choose_params(int mtu, int *big_buf_size, int *cl_size, int *nbufs)
@@ -3533,7 +3499,6 @@ mxge_slice_open(struct mxge_slice_state *ss, int nbufs, int cl_size)
 	bus_dmamap_t map;
 	int err, i, slice;
 
-
 	sc = ss->sc;
 	slice = ss - sc->ss;
 
@@ -3541,7 +3506,7 @@ mxge_slice_open(struct mxge_slice_state *ss, int nbufs, int cl_size)
 	(void)tcp_lro_init(&ss->lc);
 #endif
 	ss->lc.ifp = sc->ifp;
-	
+
 	/* get the lanai pointers to the send and receive rings */
 
 	err = 0;
@@ -3652,7 +3617,6 @@ mxge_open(mxge_softc_t *sc)
 		}
 	}
 
-
 	mxge_choose_params(sc->ifp->if_mtu, &big_bytes, &cl_size, &nbufs);
 
 	cmd.data0 = nbufs;
@@ -3745,7 +3709,6 @@ mxge_open(mxge_softc_t *sc)
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	return 0;
-
 
 abort:
 	mxge_free_mbufs(sc);
@@ -3878,7 +3841,6 @@ mxge_watchdog_reset(mxge_softc_t *sc)
 			      reboot);
 		running = sc->ifp->if_drv_flags & IFF_DRV_RUNNING;
 		if (running) {
-
 			/*
 			 * quiesce NIC so that TX routines will not try to
 			 * xmit after restoration of BAR
@@ -3944,7 +3906,6 @@ static void
 mxge_watchdog_task(void *arg, int pending)
 {
 	mxge_softc_t *sc = arg;
-
 
 	mtx_lock(&sc->driver_mtx);
 	mxge_watchdog_reset(sc);
@@ -4096,7 +4057,6 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 	int real_mtu, old_mtu;
 	int err = 0;
 
-
 	real_mtu = mtu + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
 	if ((real_mtu > sc->max_mtu) || real_mtu < 60)
 		return EINVAL;
@@ -4120,7 +4080,6 @@ static void
 mxge_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	mxge_softc_t *sc = ifp->if_softc;
-	
 
 	if (sc == NULL)
 		return;
@@ -4136,7 +4095,6 @@ mxge_fetch_i2c(mxge_softc_t *sc, struct ifi2creq *i2c)
 	mxge_cmd_t cmd;
 	uint32_t i2c_args;
 	int i, ms, err;
-
 
 	if (i2c->dev_addr != 0xA0 &&
 	    i2c->dev_addr != 0xA2)
@@ -4386,13 +4344,11 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 	sc->throttle = mxge_throttle;
 }
 
-
 static void
 mxge_free_slices(mxge_softc_t *sc)
 {
 	struct mxge_slice_state *ss;
 	int i;
-
 
 	if (sc->ss == NULL)
 		return;
@@ -4434,7 +4390,7 @@ mxge_alloc_slices(mxge_softc_t *sc)
 	}
 	sc->rx_ring_size = cmd.data0;
 	max_intr_slots = 2 * (sc->rx_ring_size / sizeof (mcp_dma_addr_t));
-	
+
 	bytes = sizeof (*sc->ss) * sc->num_slices;
 	sc->ss = malloc(bytes, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->ss == NULL)
@@ -4497,7 +4453,7 @@ mxge_slice_probe(mxge_softc_t *sc)
 	 *  don't enable multiple slices if they are not enabled,
 	 *  or if this is not an SMP system
 	 */
-	
+
 	if (mxge_max_slices == 0 || mxge_max_slices == 1 || mp_ncpus < 2)
 		return;
 
@@ -4517,7 +4473,7 @@ mxge_slice_probe(mxge_softc_t *sc)
 		device_printf(sc->dev, "Falling back to a single slice\n");
 		return;
 	}
-	
+
 	/* try to send a reset command to the card to see if it
 	   is alive */
 	memset(&cmd, 0, sizeof (cmd));
@@ -4569,7 +4525,7 @@ mxge_slice_probe(mxge_softc_t *sc)
 	if (mxge_verbose)
 		device_printf(sc->dev, "using %d slices\n",
 			      sc->num_slices);
-	
+
 	return;
 
 abort_with_fw:
@@ -4666,7 +4622,6 @@ abort_with_intr:
 	}
 	free(sc->msix_ih, M_DEVBUF);
 
-
 abort_with_res:
 	for (i = 0; i < sc->num_slices; i++) {
 		rid = i + 1;
@@ -4676,7 +4631,6 @@ abort_with_res:
 		sc->msix_irq_res[i] = NULL;
 	}
 	free(sc->msix_irq_res, M_DEVBUF);
-
 
 abort_with_msix:
 	pci_release_msi(sc->dev);
@@ -4783,14 +4737,13 @@ mxge_add_irq(mxge_softc_t *sc)
 		err = mxge_add_msix_irqs(sc);
 	else
 		err = mxge_add_single_irq(sc);
-	
+
 	if (0 && err == 0 && sc->num_slices > 1) {
 		mxge_rem_msix_irqs(sc);
 		err = mxge_add_msix_irqs(sc);
 	}
 	return err;
 }
-
 
 static int
 mxge_attach(device_t dev)
@@ -4849,7 +4802,7 @@ mxge_attach(device_t dev)
 	callout_init_mtx(&sc->co_hdl, &sc->driver_mtx, 0);
 
 	mxge_setup_cfg_space(sc);
-	
+
 	/* Map the board into the kernel */
 	rid = PCIR_BARS;
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
