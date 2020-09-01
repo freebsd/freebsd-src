@@ -69,7 +69,6 @@ static struct virtio_ident {
 	{ VIRTIO_ID_INPUT,		"Input" 			},
 	{ VIRTIO_ID_VSOCK,		"VSOCK Transport" 		},
 	{ VIRTIO_ID_CRYPTO,		"Crypto" 			},
-
 	{ 0, NULL }
 };
 
@@ -80,7 +79,6 @@ static struct virtio_feature_desc virtio_common_feature_desc[] = {
 	{ VIRTIO_RING_F_EVENT_IDX,	"EventIdx"	},
 	{ VIRTIO_F_BAD_FEATURE,		"BadFeature"	},
 	{ VIRTIO_F_VERSION_1,		"Version1"	},
-
 	{ 0, NULL }
 };
 

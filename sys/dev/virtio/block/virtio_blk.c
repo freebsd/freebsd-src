@@ -114,7 +114,6 @@ static struct virtio_feature_desc vtblk_feature_desc[] = {
 	{ VIRTIO_BLK_F_TOPOLOGY,	"Topology"	},
 	{ VIRTIO_BLK_F_CONFIG_WCE,	"ConfigWCE"	},
 	{ VIRTIO_BLK_F_DISCARD,		"Discard"	},
-
 	{ 0, NULL }
 };
 

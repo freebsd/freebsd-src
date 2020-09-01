@@ -80,7 +80,6 @@ struct vtballoon_softc {
 static struct virtio_feature_desc vtballoon_feature_desc[] = {
 	{ VIRTIO_BALLOON_F_MUST_TELL_HOST,	"MustTellHost"	},
 	{ VIRTIO_BALLOON_F_STATS_VQ,		"StatsVq"	},
-
 	{ 0, NULL }
 };
 
