@@ -120,7 +120,6 @@
 #define OCE_FUNCTION_CAPS_SUPER_NIC	0x40
 #define IS_PROFILE_SUPER_NIC(sc) (sc->function_caps & OCE_FUNCTION_CAPS_SUPER_NIC)
 
-
 /* proportion Service Level Interface queues */
 #define OCE_MAX_UNITS			2
 #define OCE_MAX_PPORT			OCE_MAX_UNITS
@@ -164,7 +163,6 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_HWLRO_MAX_RQ_POSTS		64
 #define OCE_DEFAULT_PROMISCUOUS		0
 
-
 #define RSS_ENABLE_IPV4			0x1
 #define RSS_ENABLE_TCP_IPV4		0x2
 #define RSS_ENABLE_IPV6			0x4
@@ -177,7 +175,6 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_FC_TX			0x00000001
 #define OCE_FC_RX			0x00000002
 #define OCE_DEFAULT_FLOW_CONTROL	(OCE_FC_TX | OCE_FC_RX)
-
 
 /* Interface capabilities to give device when creating interface */
 #define  OCE_CAPAB_FLAGS 		(MBX_RX_IFACE_FLAGS_BROADCAST    | \
@@ -199,7 +196,6 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 					IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU)
 #define OCE_IF_HWASSIST_NONE		0
 #define OCE_IF_CAPABILITIES_NONE 	0
-
 
 #define MAX_VLANFILTER_SIZE		64
 #define MAX_VLANS			4096
@@ -223,7 +219,6 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 		for (i = 0, eq = sc->eq[0]; i < sc->neqs; i++, eq = sc->eq[i])
 #define for_all_cq_queues(sc, cq, i) 	\
 		for (i = 0, cq = sc->cq[0]; i < sc->ncqs; i++, cq = sc->cq[i])
-
 
 /* Flash specific */
 #define IOCTL_COOKIE			"SERVERENGINES CORP"
@@ -277,7 +272,6 @@ typedef struct oce_intr_info {
 	char task_name[32];	/* task name */
 	int vector;		/* interrupt vector number */
 } OCE_INTR_INFO, *POCE_INTR_INFO;
-
 
 /* Ring related */
 #define	GET_Q_NEXT(_START, _STEP, _END)	\
@@ -643,13 +637,11 @@ struct oce_cq {
 	uint32_t ref_count;
 };
 
-
 struct mq_config {
 	uint32_t eqd;
 	uint8_t q_len;
 	uint8_t pad[3];
 };
-
 
 struct oce_mq {
 	void *parent;
@@ -742,7 +734,6 @@ struct oce_rx_queue_stats {
 	uint32_t rx_drops_no_frags;  /* HW has no fetched frags */
 };
 
-
 struct oce_rq {
 	struct rq_config cfg;
 	uint32_t rq_id;
@@ -775,8 +766,6 @@ struct link_status {
 	uint8_t logical_link_status;
 	uint16_t qos_link_speed;
 };
-
-
 
 #define OCE_FLAGS_PCIX			0x00000001
 #define OCE_FLAGS_PCIE			0x00000002
@@ -904,7 +893,6 @@ typedef struct oce_softc {
 
 #define OCE_RDMA_FLAG_SUPPORTED         0x00000001
 
-
 /**************************************************
  * BUS memory read/write macros
  * BE3: accesses three BAR spaces (CFG, CSR, DB)
@@ -1011,7 +999,6 @@ void oce_free_posted_rxbuf(struct oce_rq *rq);
 void oce_free_lro(POCE_SOFTC sc);
 #endif
 
-
 /************************************************************
  * Mailbox functions
  ************************************************************/
@@ -1086,7 +1073,6 @@ void mbx_common_req_hdr_init(struct mbx_hdr *hdr,
 			     uint32_t timeout, uint32_t pyld_len,
 			     uint8_t version);
 
-
 uint16_t oce_mq_handler(void *arg);
 
 /************************************************************
@@ -1101,7 +1087,6 @@ void	 oce_tx_task(void *arg, int npending);
  ************************************************************/
 int	 oce_alloc_rx_bufs(struct oce_rq *rq, int count);
 uint16_t oce_rq_handler(void *arg);
-
 
 /* Sysctl functions */
 void oce_add_sysctls(POCE_SOFTC sc);
@@ -1193,8 +1178,6 @@ extern uint8_t sfp_vpd_dump_buffer[TRANSCEIVER_DATA_SIZE];
 struct oce_rdma_info;
 extern struct oce_rdma_if *oce_rdma_if;
 
-
-
 /* OS2BMC related */
 
 #define DHCP_CLIENT_PORT        68
@@ -1266,4 +1249,3 @@ extern struct oce_rdma_if *oce_rdma_if;
 #define LRO_FLAGS_CLSC_IPV6 0x00000020
 #define NIC_RQ_FLAGS_RSS 0x0001
 #define NIC_RQ_FLAGS_LRO 0x0020
-

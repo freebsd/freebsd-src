@@ -132,7 +132,6 @@ struct oce_common_cqe_info{
         uint16_t vtag;
 };
 
-
 /* Driver entry points prototypes */
 static int  oce_probe(device_t dev);
 static int  oce_attach(device_t dev);
@@ -190,7 +189,6 @@ static void oce_get_config(POCE_SOFTC sc);
 static struct mbuf *oce_insert_vlan_tag(POCE_SOFTC sc, struct mbuf *m, boolean_t *complete);
 static void oce_read_env_variables(POCE_SOFTC sc);
 
-
 /* IP specific */
 #if defined(INET6) || defined(INET)
 static int  oce_init_lro(POCE_SOFTC sc);
@@ -213,7 +211,6 @@ static driver_t oce_driver = {
 };
 static devclass_t oce_devclass;
 
-
 /* global vars */
 const char component_revision[32] = {"///" COMPONENT_REVISION "///"};
 
@@ -225,7 +222,6 @@ uint32_t oce_rq_buf_size = 2048;
 TUNABLE_INT("hw.oce.max_rsp_handled", &oce_max_rsp_handled);
 TUNABLE_INT("hw.oce.enable_rss", &oce_enable_rss);
 
-
 /* Supported devices table */
 static uint32_t supportedDevices[] =  {
 	(PCI_VENDOR_SERVERENGINES << 16) | PCI_PRODUCT_BE2,
@@ -236,14 +232,12 @@ static uint32_t supportedDevices[] =  {
 	(PCI_VENDOR_EMULEX << 16) | PCI_PRODUCT_SH
 };
 
-
 DRIVER_MODULE(oce, pci, oce_driver, oce_devclass, 0, 0);
 MODULE_PNP_INFO("W32:vendor/device", pci, oce, supportedDevices,
     nitems(supportedDevices));
 MODULE_DEPEND(oce, pci, 1, 1, 1);
 MODULE_DEPEND(oce, ether, 1, 1, 1);
 MODULE_VERSION(oce, 1);
-
 
 POCE_SOFTC softc_head = NULL;
 POCE_SOFTC softc_tail = NULL;
@@ -301,7 +295,6 @@ oce_probe(device_t dev)
 
 	return ENXIO;
 }
-
 
 static int
 oce_attach(device_t dev)
@@ -414,7 +407,6 @@ pci_res_free:
 
 }
 
-
 static int
 oce_detach(device_t dev)
 {
@@ -441,7 +433,7 @@ oce_detach(device_t dev)
 	UNLOCK(&sc->dev_lock);
 
 	callout_drain(&sc->timer);
-	
+
 	if (sc->vlan_attach != NULL)
 		EVENTHANDLER_DEREGISTER(vlan_config, sc->vlan_attach);
 	if (sc->vlan_detach != NULL)
@@ -458,17 +450,15 @@ oce_detach(device_t dev)
 	return 0;
 }
 
-
 static int
 oce_shutdown(device_t dev)
 {
 	int rc;
-	
+
 	rc = oce_detach(dev);
 
 	return rc;	
 }
-
 
 static int
 oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
@@ -481,7 +471,6 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	uint32_t u;
 
 	switch (command) {
-
 	case SIOCGIFMEDIA:
 		rc = ifmedia_ioctl(ifp, ifr, &sc->media, command);
 		break;
@@ -634,23 +623,21 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	return rc;
 }
 
-
 static void
 oce_init(void *arg)
 {
 	POCE_SOFTC sc = arg;
-	
+
 	LOCK(&sc->dev_lock);
 
 	if (sc->ifp->if_flags & IFF_UP) {
 		oce_if_deactivate(sc);
 		oce_if_activate(sc);
 	}
-	
+
 	UNLOCK(&sc->dev_lock);
 
 }
-
 
 static int
 oce_multiq_start(struct ifnet *ifp, struct mbuf *m)
@@ -676,7 +663,6 @@ oce_multiq_start(struct ifnet *ifp, struct mbuf *m)
 
 }
 
-
 static void
 oce_multiq_flush(struct ifnet *ifp)
 {
@@ -690,8 +676,6 @@ oce_multiq_flush(struct ifnet *ifp)
 	}
 	if_qflush(ifp);
 }
-
-
 
 /*****************************************************************************
  *                   Driver interrupt routines functions                     *
@@ -708,7 +692,6 @@ oce_intr(void *arg, int pending)
 	struct oce_cq *cq = NULL;
 	int i, num_eqes = 0;
 
-
 	bus_dmamap_sync(eq->ring->dma.tag, eq->ring->dma.map,
 				 BUS_DMASYNC_POSTWRITE);
 	do {
@@ -722,7 +705,7 @@ oce_intr(void *arg, int pending)
 		num_eqes++;
 
 	} while (TRUE);
-	
+
 	if (!num_eqes)
 		goto eq_arm; /* Spurious */
 
@@ -746,7 +729,6 @@ eq_arm:
 
 	return;
 }
-
 
 static int
 oce_setup_intr(POCE_SOFTC sc)
@@ -816,7 +798,6 @@ error:
 	return rc;
 }
 
-
 static int
 oce_fast_isr(void *arg)
 {
@@ -834,7 +815,6 @@ oce_fast_isr(void *arg)
 
 	return FILTER_HANDLED;
 }
-
 
 static int
 oce_alloc_intr(POCE_SOFTC sc, int vector, void (*isr) (void *arg, int pending))
@@ -885,12 +865,11 @@ oce_alloc_intr(POCE_SOFTC sc, int vector, void (*isr) (void *arg, int pending))
 
 }
 
-
 void
 oce_intr_free(POCE_SOFTC sc)
 {
 	int i = 0;
-	
+
 	for (i = 0; i < sc->intr_count; i++) {
 		
 		if (sc->intrs[i].tag != NULL)
@@ -912,8 +891,6 @@ oce_intr_free(POCE_SOFTC sc)
 
 }
 
-
-
 /******************************************************************************
 *			  Media callbacks functions 			      *
 ******************************************************************************/
@@ -923,15 +900,14 @@ oce_media_status(struct ifnet *ifp, struct ifmediareq *req)
 {
 	POCE_SOFTC sc = (POCE_SOFTC) ifp->if_softc;
 
-
 	req->ifm_status = IFM_AVALID;
 	req->ifm_active = IFM_ETHER;
-	
+
 	if (sc->link_status == 1)
 		req->ifm_status |= IFM_ACTIVE;
 	else 
 		return;
-	
+
 	switch (sc->link_speed) {
 	case 1: /* 10 Mbps */
 		req->ifm_active |= IFM_10_T | IFM_FDX;
@@ -965,17 +941,15 @@ oce_media_status(struct ifnet *ifp, struct ifmediareq *req)
 		sc->speed = 0;
 		break;
 	}
-	
+
 	return;
 }
-
 
 int
 oce_media_change(struct ifnet *ifp)
 {
 	return 0;
 }
-
 
 static void oce_is_pkt_dest_bmc(POCE_SOFTC sc,
 				struct mbuf *m, boolean_t *os2bmc,
@@ -1050,8 +1024,6 @@ done:
 	}
 }
 
-
-
 /*****************************************************************************
  *			  Transmit routines functions			     *
  *****************************************************************************/
@@ -1094,7 +1066,6 @@ oce_tx(POCE_SOFTC sc, struct mbuf **mpp, int wq_index)
 			device_printf(sc->dev, "Insertion unsuccessful\n");
 			return 0;
 		}
-
 	}
 
 	/* Lancer, SH ASIC has a bug wherein Packets that are 32 bytes or less
@@ -1122,7 +1093,6 @@ tx_start:
 			goto free_ret;
 		}
 	}
-
 
 	pd = &wq->pckts[wq->pkt_desc_head];
 
@@ -1252,7 +1222,7 @@ retry:
 		m = m_new;
 		goto tx_start;
 	}
-	
+
 	return 0;
 
 free_ret:
@@ -1260,7 +1230,6 @@ free_ret:
 	*mpp = NULL;
 	return rc;
 }
-
 
 static void
 oce_process_tx_completion(struct oce_wq *wq)
@@ -1280,7 +1249,6 @@ oce_process_tx_completion(struct oce_wq *wq)
 	m_freem(m);
 	pd->mbuf = NULL;
 
-
 	if (sc->ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		if (wq->ring->num_used < (wq->ring->num_items / 2)) {
 			sc->ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE);
@@ -1288,7 +1256,6 @@ oce_process_tx_completion(struct oce_wq *wq)
 		}
 	}
 }
-
 
 static void
 oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq)
@@ -1301,7 +1268,6 @@ oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq)
 		taskqueue_enqueue(taskqueue_swi, &wq->txtask);
 
 }
-
 
 #if defined(INET6) || defined(INET)
 static struct mbuf *
@@ -1318,7 +1284,7 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp)
 	struct tcphdr *th;
 	uint16_t etype;
 	int total_len = 0, ehdrlen = 0;
-	
+
 	m = *mpp;
 
 	if (M_WRITABLE(m) == 0) {
@@ -1362,13 +1328,13 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp)
 	default:
 		return NULL;
 	}
-	
+
 	m = m_pullup(m, total_len);
 	if (!m)
 		return NULL;
 	*mpp = m;
 	return m;
-	
+
 }
 #endif /* INET6 || INET */
 
@@ -1389,7 +1355,6 @@ oce_tx_task(void *arg, int npending)
 	UNLOCK(&wq->tx_lock);
 }
 
-
 void
 oce_start(struct ifnet *ifp)
 {
@@ -1404,7 +1369,7 @@ oce_start(struct ifnet *ifp)
 
 	if (!sc->link_status)
 		return;
-	
+
 	while (true) {
 		IF_DEQUEUE(&sc->ifp->if_snd, m);
 		if (m == NULL)
@@ -1424,7 +1389,6 @@ oce_start(struct ifnet *ifp)
 		}
 	}
 }
-
 
 /* Handle the Completion Queue for transmit */
 uint16_t
@@ -1460,11 +1424,10 @@ oce_wq_handler(void *arg)
 
 	if (num_cqes)
 		oce_arm_cq(sc, cq->cq_id, num_cqes, FALSE);
-	
+
 	UNLOCK(&wq->tx_compl_lock);
 	return num_cqes;
 }
-
 
 static int 
 oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
@@ -1504,9 +1467,6 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 
 	return 0;
 }
-
-
-
 
 /*****************************************************************************
  *			    Receive  routines functions 		     *
@@ -1730,7 +1690,7 @@ oce_rx(struct oce_rq *rq, struct oce_nic_rx_cqe *cqe)
 		vtag = BSWAP_16(cqe->u0.s.vlan_tag);
 	else
 		vtag = cqe->u0.s.vlan_tag;
-	
+
 	cq_info.l4_cksum_pass = cqe->u0.s.l4_cksum_pass;
 	cq_info.ip_cksum_pass = cqe->u0.s.ip_cksum_pass;
 	cq_info.ipv6_frame = cqe->u0.s.ip_ver;
@@ -1773,7 +1733,6 @@ oce_rx(struct oce_rq *rq, struct oce_nic_rx_cqe *cqe)
 		    (cqe->u0.s.l4_cksum_pass) &&
 		    (!cqe->u0.s.ip_ver)       &&
 		    (rq->lro.lro_cnt != 0)) {
-
 			if (tcp_lro_rx(&rq->lro, m, 0) == 0) {
 				rq->lro_pkts_queued ++;		
 				goto post_done;
@@ -1781,7 +1740,7 @@ oce_rx(struct oce_rq *rq, struct oce_nic_rx_cqe *cqe)
 			/* If LRO posting fails then try to post to STACK */
 		}
 #endif
-	
+
 		(*sc->ifp->if_input) (sc->ifp, m);
 #if defined(INET6) || defined(INET)
 post_done:
@@ -1798,7 +1757,6 @@ post_done:
 exit:
 	return;
 }
-
 
 void
 oce_discard_rx_comp(struct oce_rq *rq, int num_frags)
@@ -1826,7 +1784,6 @@ oce_discard_rx_comp(struct oce_rq *rq, int num_frags)
 	}
 }
 
-
 static int
 oce_cqe_vtp_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe)
 {
@@ -1838,11 +1795,10 @@ oce_cqe_vtp_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe)
 		vtp =  cqe_v1->u0.s.vlan_tag_present; 
 	} else
 		vtp = cqe->u0.s.vlan_tag_present;
-	
+
 	return vtp;
 
 }
-
 
 static int
 oce_cqe_portid_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe)
@@ -1857,7 +1813,7 @@ oce_cqe_portid_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe)
 			return 0;
 	} else
 		;/* For BE3 legacy and Lancer this is dummy */
-	
+
 	return 1;
 
 }
@@ -1874,10 +1830,9 @@ oce_rx_flush_lro(struct oce_rq *rq)
 
 	tcp_lro_flush_all(lro);
 	rq->lro_pkts_queued = 0;
-	
+
 	return;
 }
-
 
 static int
 oce_init_lro(POCE_SOFTC sc)
@@ -1897,7 +1852,6 @@ oce_init_lro(POCE_SOFTC sc)
 
 	return rc;		
 }
-
 
 void
 oce_free_lro(POCE_SOFTC sc)
@@ -1991,7 +1945,7 @@ oce_alloc_rx_bufs(struct oce_rq *rq, int count)
 			}
 		}
 	}
-	
+
 	return 0;	
 }
 
@@ -2143,9 +2097,6 @@ oce_rq_handler(void *arg)
 
 }
 
-
-
-
 /*****************************************************************************
  *		   Helper function prototypes in this file 		     *
  *****************************************************************************/
@@ -2191,7 +2142,7 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_capabilities |= IFCAP_LRO;
 	sc->ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
 #endif
-	
+
 	sc->ifp->if_capenable = sc->ifp->if_capabilities;
 	sc->ifp->if_baudrate = IF_Gbps(10);
 
@@ -2200,10 +2151,9 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_hw_tsomaxsegsize = 4096;
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);
-	
+
 	return 0;
 }
-
 
 static void
 oce_add_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
@@ -2221,7 +2171,6 @@ oce_add_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
 		oce_vid_config(sc);
 }
 
-
 static void
 oce_del_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
 {
@@ -2236,7 +2185,6 @@ oce_del_vlan(void *arg, struct ifnet *ifp, uint16_t vtag)
 	sc->vlans_added--;
 	oce_vid_config(sc);
 }
-
 
 /*
  * A max of 64 vlans can be configured in BE. If the user configures
@@ -2266,14 +2214,12 @@ oce_vid_config(POCE_SOFTC sc)
 	return status;
 }
 
-
 static void
 oce_mac_addr_set(POCE_SOFTC sc)
 {
 	uint32_t old_pmac_id = sc->pmac_id;
 	int status = 0;
 
-	
 	status = bcmp((IF_LLADDR(sc->ifp)), sc->macaddr.mac_addr,
 			 sc->macaddr.size_of_struct);
 	if (!status)
@@ -2290,7 +2236,6 @@ oce_mac_addr_set(POCE_SOFTC sc)
 		device_printf(sc->dev, "Failed update macaddress\n");
 
 }
-
 
 static int
 oce_handle_passthrough(struct ifnet *ifp, caddr_t data)
@@ -2501,22 +2446,21 @@ static void oce_detect_hw_error(POCE_SOFTC sc)
 
 }
 
-
 static void
 oce_local_timer(void *arg)
 {
 	POCE_SOFTC sc = arg;
 	int i = 0;
-	
+
 	oce_detect_hw_error(sc);
 	oce_refresh_nic_stats(sc);
 	oce_refresh_queue_stats(sc);
 	oce_mac_addr_set(sc);
-	
+
 	/* TX Watch Dog*/
 	for (i = 0; i < sc->nwqs; i++)
 		oce_tx_restart(sc, sc->wq[i]);
-	
+
 	/* calculate and set the eq delay for optimal interrupt rate */
 	if (IS_BE(sc) || IS_SH(sc))
 		oce_eqd_set_periodic(sc);
@@ -2613,7 +2557,6 @@ oce_if_deactivate(POCE_SOFTC sc)
 	DELAY(10);
 }
 
-
 static void
 oce_if_activate(POCE_SOFTC sc)
 {
@@ -2623,9 +2566,9 @@ oce_if_activate(POCE_SOFTC sc)
 	int i, rc = 0;
 
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING; 
-	
+
 	oce_hw_intr_disable(sc);
-	
+
 	oce_start_rx(sc);
 
 	for_all_rq_queues(sc, rq, i) {
@@ -2640,7 +2583,6 @@ oce_if_activate(POCE_SOFTC sc)
 			device_printf(sc->dev, "Unable to start TX\n");
 	}
 
-	
 	for_all_evnt_queues(sc, eq, i)
 		oce_arm_eq(sc, eq->eq_id, 0, TRUE, FALSE);
 
@@ -2662,7 +2604,6 @@ process_link_state(POCE_SOFTC sc, struct oce_async_cqe_link_state *acqe)
 	}
 }
 
-
 static void oce_async_grp5_osbmc_process(POCE_SOFTC sc,
 					 struct oce_async_evt_grp5_os2bmc *evt)
 {
@@ -2682,7 +2623,6 @@ static void oce_async_grp5_osbmc_process(POCE_SOFTC sc,
 	sc->bmc_filt_mask |= (evt->u.s.ipv6_ras_filt << 7);
 	sc->bmc_filt_mask |= (evt->u.s.mcast_filt << 8);
 }
-
 
 static void oce_process_grp5_events(POCE_SOFTC sc, struct oce_mq_cqe *cqe)
 {
@@ -2718,7 +2658,6 @@ oce_mq_handler(void *arg)
 	struct oce_mq_cqe *cqe;
 	struct oce_async_cqe_link_state *acqe;
 	struct oce_async_event_qnq *dbgcqe;
-
 
 	bus_dmamap_sync(cq->ring->dma.tag,
 			cq->ring->dma.map, BUS_DMASYNC_POSTWRITE);
@@ -2757,7 +2696,6 @@ oce_mq_handler(void *arg)
 	return 0;
 }
 
-
 static void
 setup_max_queues_want(POCE_SOFTC sc)
 {
@@ -2777,7 +2715,6 @@ setup_max_queues_want(POCE_SOFTC sc)
 	if (IS_BE2(sc) && is_rss_enabled(sc))
 		sc->nrqs = MIN(OCE_NCPUS, sc->nrssqs) + 1;
 }
-
 
 static void
 update_queues_got(POCE_SOFTC sc)

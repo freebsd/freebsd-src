@@ -40,7 +40,6 @@
 
 /* $FreeBSD$ */
 
-
 #include "oce_if.h"
 
 static int oce_POST(POCE_SOFTC sc);
@@ -98,7 +97,7 @@ oce_hw_init(POCE_SOFTC sc)
 	rc = oce_POST(sc);
 	if (rc)
 		return rc;
-	
+
 	/* create the bootstrap mailbox */
 	rc = oce_dma_alloc(sc, sizeof(struct oce_bmbx), &sc->bsmbx, 0);
 	if (rc) {
@@ -115,30 +114,27 @@ oce_hw_init(POCE_SOFTC sc)
 	if (rc)
 		goto error;
 
-
 	rc = oce_get_fw_version(sc);
 	if (rc)
 		goto error;
 
-
 	rc = oce_get_fw_config(sc);
 	if (rc)
 		goto error;
-
 
 	sc->macaddr.size_of_struct = 6;
 	rc = oce_read_mac_addr(sc, 0, 1, MAC_ADDRESS_TYPE_NETWORK,
 					&sc->macaddr);
 	if (rc)
 		goto error;
-	
+
 	if ((IS_BE(sc) && (sc->flags & OCE_FLAGS_BE3)) || IS_SH(sc)) {
 		rc = oce_mbox_check_native_mode(sc);
 		if (rc)
 			goto error;
 	} else
 		sc->be3_native = 0;
-	
+
 	return rc;
 
 error:
@@ -146,8 +142,6 @@ error:
 	device_printf(sc->dev, "Hardware initialisation failed\n");
 	return rc;
 }
-
-
 
 /**
  * @brief		Releases the obtained pci resources
@@ -193,9 +187,6 @@ oce_hw_pci_free(POCE_SOFTC sc)
 		sc->db_vhandle = (void *)NULL;
 	}
 }
-
-
-
 
 /**
  * @brief 		Function to get the PCI capabilities
@@ -284,7 +275,7 @@ oce_hw_pci_alloc(POCE_SOFTC sc)
 
 	if (intf.bits.sli_valid != OCE_INTF_VALID_SIG)
 		goto error;
-	
+
 	if (intf.bits.sli_rev != OCE_INTF_SLI_REV4) {
 		device_printf(sc->dev, "Adapter doesnt support SLI4\n");
 		goto error;
@@ -329,7 +320,6 @@ error:
 	return ENXIO;
 }
 
-
 /**
  * @brief		Function for device shutdown
  * @param sc		software handle to the device
@@ -362,7 +352,6 @@ oce_hw_shutdown(POCE_SOFTC sc)
 
 	oce_dma_free(sc, &sc->bsmbx);
 }
-
 
 /**
  * @brief		Function for creating nw interface.
@@ -480,7 +469,7 @@ oce_hw_start(POCE_SOFTC sc)
 	rc = oce_get_link_status(sc, &link);
 	if (rc) 
 		return 1;
-	
+
 	if (link.logical_link_status == NTWK_LOGICAL_LINK_UP) {
 		sc->link_status = NTWK_LOGICAL_LINK_UP;
 		if_link_state_change(sc->ifp, LINK_STATE_UP);
@@ -493,7 +482,7 @@ oce_hw_start(POCE_SOFTC sc)
 	sc->qos_link_speed = (uint32_t )link.qos_link_speed * 10;
 
 	rc = oce_start_mq(sc->mq);
-	
+
 	/* we need to get MCC aync events. So enable intrs and arm
 	   first EQ, Other EQs will be armed after interface is UP 
 	*/
@@ -507,7 +496,6 @@ oce_hw_start(POCE_SOFTC sc)
 
 	return rc;
 }
-
 
 /**
  * @brief 		Function for hardware enable interupts.
@@ -524,7 +512,6 @@ oce_hw_intr_enable(POCE_SOFTC sc)
 
 }
 
-
 /**
  * @brief 		Function for hardware disable interupts
  * @param sc		software handle to the device
@@ -533,12 +520,11 @@ void
 oce_hw_intr_disable(POCE_SOFTC sc)
 {
 	uint32_t reg;
-	
+
 	reg = OCE_READ_REG32(sc, devcfg, PCICFG_INTR_CTRL);
 	reg &= ~HOSTINTR_MASK;
 	OCE_WRITE_REG32(sc, devcfg, PCICFG_INTR_CTRL, reg);
 }
-
 
 static u_int
 oce_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
@@ -553,7 +539,6 @@ oce_copy_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 
 	return (1);
 }
-
 
 /**
  * @brief		Function for hardware update multicast filter
@@ -589,4 +574,3 @@ oce_hw_update_multicast(POCE_SOFTC sc)
 	oce_dma_free(sc, &dma);
 	return rc;
 }
-
