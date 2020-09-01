@@ -57,7 +57,6 @@
 #ifndef MPI_TYPE_H
 #define MPI_TYPE_H
 
-
 /*******************************************************************************
  * Define MPI_POINTER if it hasn't already been defined. By default MPI_POINTER
  * is defined to be a near pointer. MPI_POINTER can be defined as a far pointer
@@ -66,7 +65,6 @@
 #ifndef MPI_POINTER
 #define MPI_POINTER     *
 #endif
-
 
 /*****************************************************************************
 *
@@ -99,7 +97,6 @@ typedef uint32_t U32;
 #endif
 #endif
 
-
 typedef struct _S64
 {
     U32          Low;
@@ -111,7 +108,6 @@ typedef struct _U64
     U32          Low;
     U32          High;
 } U64;
-
 
 /****************************************************************************/
 /*  Pointers                                                                */
@@ -126,6 +122,4 @@ typedef U32     *PU32;
 typedef S64     *PS64;
 typedef U64     *PU64;
 
-
 #endif
-

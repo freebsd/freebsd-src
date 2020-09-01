@@ -592,7 +592,6 @@ mpt_print_scsi_tmf_request(MSG_SCSI_TASK_MGMT *msg)
 	printf("\tTaskMsgContext  0x%08x\n", msg->TaskMsgContext);
 }
 
-
 static void
 mpt_print_scsi_target_assist_request(PTR_MSG_TARGET_ASSIST_REQUEST msg)
 {

@@ -683,7 +683,6 @@ struct mpt_softc {
 	struct req_queue	request_pending_list;
 	struct req_queue	request_timeout_list;
 
-
 	struct cam_sim	       *sim;
 	struct cam_path	       *path;
 

@@ -577,7 +577,7 @@ mpt_user_raid_action(struct mpt_softc *mpt, struct mpt_raid_action *raid_act,
 		mpt_free_request(mpt, req);
 		return (0);
 	}
-	
+
 	res = (struct mpt_user_raid_action_result *)
 	    (((uint8_t *)req->req_vbuf) + MPT_RQSL(mpt));
 	raid_act->volume_status = res->volume_status;

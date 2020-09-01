@@ -75,7 +75,6 @@
 #ifndef MPI_FC_H
 #define MPI_FC_H
 
-
 /*****************************************************************************
 *
 *        F C    D i r e c t    A c c e s s     M e s s a g e s
@@ -170,7 +169,6 @@ typedef struct _MSG_LINK_SERVICE_BUFFER_POST_REPLY
 #define FCP_TARGET_TYPE_MASK                        (0xFF000000)
 #define FCP_TARGET_TYPE_SHIFT                       (24)
 
-
 /****************************************************************************/
 /* Link Service Response messages                                           */
 /****************************************************************************/
@@ -201,7 +199,6 @@ typedef struct _MSG_LINK_SERVICE_RSP_REQUEST
 #define LINK_SERVICE_RSP_FLAGS_IMMEDIATE        (0x80)
 #define LINK_SERVICE_RSP_FLAGS_PORT_MASK        (0x01)
 
-
 /* Link Service Response Reply  */
 typedef struct _MSG_LINK_SERVICE_RSP_REPLY
 {
@@ -218,7 +215,6 @@ typedef struct _MSG_LINK_SERVICE_RSP_REPLY
     U32                     InitiatorIndex;     /* 14h */
 } MSG_LINK_SERVICE_RSP_REPLY, MPI_POINTER PTR_MSG_LINK_SERVICE_RSP_REPLY,
   LinkServiceRspReply_t, MPI_POINTER pLinkServiceRspReply_t;
-
 
 /****************************************************************************/
 /* Extended Link Service Send messages                                      */
@@ -241,7 +237,6 @@ typedef struct _MSG_EXLINK_SERVICE_SEND_REQUEST
 #define EX_LINK_SERVICE_SEND_DID_SHIFT          (0)
 #define EX_LINK_SERVICE_SEND_MSGFLAGS_MASK      (0xFF000000)
 #define EX_LINK_SERVICE_SEND_MSGFLAGS_SHIFT     (24)
-
 
 /* Extended Link Service Send Reply */
 typedef struct _MSG_EXLINK_SERVICE_SEND_REPLY
@@ -302,7 +297,6 @@ typedef struct _MSG_FC_ABORT_REPLY
 } MSG_FC_ABORT_REPLY, MPI_POINTER PTR_MSG_FC_ABORT_REPLY,
   FcAbortReply_t, MPI_POINTER pFcAbortReply_t;
 
-
 /****************************************************************************/
 /* FC Common Transport Send messages                                        */
 /****************************************************************************/
@@ -328,7 +322,6 @@ typedef struct _MSG_FC_COMMON_TRANSPORT_SEND_REQUEST
 #define MPI_FC_CT_SEND_MSGFLAGS_MASK            (0xFF000000)
 #define MPI_FC_CT_SEND_MSGFLAGS_SHIFT           (24)
 
-
 /* FC Common Transport Send Reply */
 typedef struct _MSG_FC_COMMON_TRANSPORT_SEND_REPLY
 {
@@ -346,7 +339,6 @@ typedef struct _MSG_FC_COMMON_TRANSPORT_SEND_REPLY
     U32                     ResponseLength;     /* 14h */
 } MSG_FC_COMMON_TRANSPORT_SEND_REPLY, MPI_POINTER PTR_MSG_FC_COMMON_TRANSPORT_SEND_REPLY,
   FcCommonTransportSendReply_t, MPI_POINTER pFcCommonTransportSendReply_t;
-
 
 /****************************************************************************/
 /* FC Primitive Send messages                                               */
@@ -393,4 +385,3 @@ typedef struct _MSG_FC_PRIMITIVE_SEND_REPLY
   FcPrimitiveSendReply_t, MPI_POINTER pFcPrimitiveSendReply_t;
 
 #endif
-

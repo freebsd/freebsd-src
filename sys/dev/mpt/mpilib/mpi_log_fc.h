@@ -40,7 +40,6 @@
  *  ID:             $Id: fc_log.h,v 4.6 2001/07/26 14:41:33 sschremm Exp $
  */
 
-
 /*
  * MpiIocLogInfo_t enum
  *
