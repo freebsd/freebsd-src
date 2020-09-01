@@ -45,7 +45,6 @@
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 
-
 /*
  * See BKDG for AMD Family 15h Models 00h-0Fh Processors
  * (publication 42301 Rev 3.08 - March 12, 2012):
