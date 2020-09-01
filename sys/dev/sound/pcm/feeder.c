@@ -473,7 +473,6 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 		return l;
 	}
 
-
 	offset = count - l;
 
 	if (offset > 0) {

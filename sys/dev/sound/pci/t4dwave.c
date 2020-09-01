@@ -450,7 +450,6 @@ tr_rdch(struct tr_chinfo *ch)
 		cr[i]=tr_rd(tr, TR_REG_CHNBASE+(i<<2), 4);
 	snd_mtxunlock(tr->lock);
 
-
 	if (tr->type == ALI_PCI_ID)
 		ch->lba=(cr[1] & ALI_MAXADDR);
 	else

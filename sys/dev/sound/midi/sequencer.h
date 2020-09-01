@@ -36,7 +36,6 @@
 #ifndef _SEQUENCER_H_
 #define _SEQUENCER_H_
 
-
 #define NSEQ_MAX	16
 
 /*

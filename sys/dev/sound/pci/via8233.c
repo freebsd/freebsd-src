@@ -1427,7 +1427,6 @@ via_detach(device_t dev)
 	return (0);
 }
 
-
 static device_method_t via_methods[] = {
 	DEVMETHOD(device_probe,		via_probe),
 	DEVMETHOD(device_attach,	via_attach),

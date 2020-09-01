@@ -97,5 +97,4 @@
 #define AC97_REG_ID1	0x7c
 #define AC97_REG_ID2	0x7e
 
-
 #endif

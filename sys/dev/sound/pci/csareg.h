@@ -1971,5 +1971,4 @@ struct cs461x_firmware_struct
 	u_int32_t BA1Array[INKY_BA1_DWORD_SIZE];
 };
 
-
 #endif /* _CSA_REG_H */

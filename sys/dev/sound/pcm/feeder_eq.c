@@ -240,7 +240,6 @@ FEEDEQ_DECLARE(U, 32, BE)
 		feed_eq_biquad_##SIGN##BIT##ENDIAN			\
 	}
 
-
 static const struct {
 	uint32_t format;
 	feed_eq_t biquad;
@@ -651,7 +650,6 @@ sysctl_dev_pcm_eq_preamp(SYSCTL_HANDLER_ARGS)
 					(void)FEEDER_SET(f, FEEDEQ_PREAMP, val);
 				CHN_UNLOCK(c);
 			}
-
 		}
 
 		PCM_RELEASE(d);

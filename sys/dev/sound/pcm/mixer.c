@@ -160,7 +160,7 @@ mixer_set_softpcmvol(struct snd_mixer *m, struct snddev_info *d,
 		dropmtx = 1;
 	else
 		dropmtx = 0;
-	
+
 	if (!(d->flags & SD_F_MPSAFE) || mtx_owned(d->lock) != 0)
 		acquiremtx = 0;
 	else
@@ -213,7 +213,7 @@ mixer_set_eq(struct snd_mixer *m, struct snddev_info *d,
 		dropmtx = 1;
 	else
 		dropmtx = 0;
-	
+
 	if (!(d->flags & SD_F_MPSAFE) || mtx_owned(d->lock) != 0)
 		acquiremtx = 0;
 	else
@@ -1047,7 +1047,6 @@ mixer_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	struct snddev_info *d;
 	struct snd_mixer *m;
-
 
 	if (i_dev == NULL || i_dev->si_drv1 == NULL)
 		return (EBADF);

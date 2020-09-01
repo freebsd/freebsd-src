@@ -1291,7 +1291,6 @@ atiixp_pci_attach(device_t dev)
 	    sizeof(struct atiixp_dma_op), atiixp_dma_cb, sc, 0))
 		goto bad;
 
-
 	atiixp_chip_pre_init(sc);
 
 	sc->delayed_attach.ich_func = atiixp_chip_post_init;

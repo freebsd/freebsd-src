@@ -352,7 +352,6 @@ struct usb_audio_extension_unit_1 {
 #define	UATF_MULTITRACK		0x0712
 #define	UATF_SYNTHESIZER	0x0713
 
-
 #define	SET_CUR 0x01
 #define	GET_CUR 0x81
 #define	SET_MIN 0x02

@@ -434,7 +434,6 @@ au_intr (void *p)
 	au_rd(au, 0, AU_REG_IRQSRC, 4);
 }
 
-
 /* -------------------------------------------------------------------- */
 
 /* Probe and attach the card */
@@ -673,7 +672,6 @@ static device_method_t au_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		au_pci_probe),
 	DEVMETHOD(device_attach,	au_pci_attach),
-
 	{ 0, 0 }
 };
 

@@ -649,7 +649,6 @@ ich_intr(void *p)
 				lvi += cbi + ch->blkcnt - lbi;
 			lvi %= ICH_DTBL_LENGTH;
 			ich_wr(sc, ch->regbase + ICH_REG_X_LVI, lvi, 1);
-
 		}
 		/* clear status bit */
 		ich_wr(sc, ch->regbase +

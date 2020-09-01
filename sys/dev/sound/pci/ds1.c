@@ -765,7 +765,6 @@ ds_intr(void *p)
 		i = ds_rd(sc, YDSXGR_MODE, 4);
 		if (x)
 			ds_wr(sc, YDSXGR_MODE, i | 0x00000002, 4);
-
 	}
 	snd_mtxunlock(sc->lock);
 }

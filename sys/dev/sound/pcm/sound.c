@@ -491,7 +491,6 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 	PCM_LOCKASSERT(d);
 	KASSERT(num >= -1, ("invalid num=%d", num));
 
-
 	switch (dir) {
 	case PCMDIR_PLAY:
 		dirs = "play";
@@ -1163,7 +1162,7 @@ pcm_unregister(device_t dev)
 	PCM_WAIT(d);
 
 	d->flags |= SD_F_DETACHING;
-	
+
 	if (d->inprog != 0) {
 		device_printf(dev, "unregister: operation in progress\n");
 		PCM_UNLOCK(d);
@@ -1210,7 +1209,7 @@ pcm_unregister(device_t dev)
 
 	/* remove /dev/sndstat entry first */
 	sndstat_unregister(dev);
-	
+
 	PCM_LOCK(d);
 	d->flags |= SD_F_DYING;
 	d->flags &= ~SD_F_REGISTERED;
@@ -1284,7 +1283,7 @@ sound_oss_sysinfo(oss_sysinfo *si)
 	struct snddev_info *d;
 	struct pcm_channel *c;
 	int i, j, ncards;
-	
+
 	ncards = 0;
 
 	strlcpy(si->product, si_product, sizeof(si->product));
@@ -1370,7 +1369,7 @@ sound_oss_card_info(oss_card_info *si)
 {
 	struct snddev_info *d;
 	int i, ncards;
-	
+
 	ncards = 0;
 
 	for (i = 0; pcm_devclass != NULL &&
