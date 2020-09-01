@@ -137,7 +137,6 @@ struct lock_class {
 #define	LOCK_LOG_TEST(lo, flags)	0
 #endif
 
-
 #define	LOCK_LOG_LOCK(opname, lo, flags, recurse, file, line) do {	\
 	if (LOCK_LOG_TEST((lo), (flags)))				\
 		CTR6(KTR_LOCK, opname " (%s) %s %p r = %d at %s:%d",	\

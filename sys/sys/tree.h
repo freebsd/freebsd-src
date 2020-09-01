@@ -99,7 +99,7 @@ struct {								\
 	SPLAY_RIGHT(tmp, field) = (head)->sph_root;			\
 	(head)->sph_root = tmp;						\
 } while (/*CONSTCOND*/ 0)
-	
+
 #define SPLAY_ROTATE_LEFT(head, tmp, field) do {			\
 	SPLAY_RIGHT((head)->sph_root, field) = SPLAY_LEFT(tmp, field);	\
 	SPLAY_LEFT(tmp, field) = (head)->sph_root;			\
@@ -459,7 +459,6 @@ struct {								\
 	RB_GENERATE_PREV(name, type, field, attr)			\
 	RB_GENERATE_MINMAX(name, type, field, attr)			\
 	RB_GENERATE_REINSERT(name, type, field, cmp, attr)
-
 
 #define RB_GENERATE_INSERT_COLOR(name, type, field, attr)		\
 attr void								\

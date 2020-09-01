@@ -311,7 +311,7 @@ struct resource_map {
 	bus_size_t r_size;
 	void	*r_vaddr;
 };
-	
+
 /**
  * @brief Optional properties of a resource mapping request.
  */

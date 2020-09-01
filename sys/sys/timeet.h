@@ -105,4 +105,3 @@ int	et_free(struct eventtimer *et);
 SYSCTL_DECL(_kern_eventtimer);
 #endif
 #endif /* !_SYS_TIMETC_H_ */
-

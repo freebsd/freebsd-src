@@ -373,7 +373,6 @@ __extension__ ({							\
 typedef struct {
 	atomic_bool	__flag;
 } atomic_flag;
-
 #define	ATOMIC_FLAG_INIT		{ ATOMIC_VAR_INIT(0) }
 
 static __inline _Bool

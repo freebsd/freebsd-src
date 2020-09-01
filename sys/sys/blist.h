@@ -102,4 +102,3 @@ void	blist_resize(blist_t *pblist, daddr_t count, int freenew, int flags);
 void	blist_stats(blist_t blist, struct sbuf *s);
 
 #endif	/* _SYS_BLIST_H_ */
-

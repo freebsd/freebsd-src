@@ -39,7 +39,6 @@
 #error "no user-serviceable parts inside"
 #endif
 
-
 struct thread;
 struct socket;
 

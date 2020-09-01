@@ -52,4 +52,3 @@
 #endif
 
 #endif /* ! _SYS__STDARG_H_ */
-

@@ -268,7 +268,6 @@ struct tg_mem {
 	int		len;
 }; 
 
-
 typedef enum {
 	TI_PARAM_NONE		= 0x00,
 	TI_PARAM_STAT_TICKS	= 0x01,

@@ -58,4 +58,3 @@ void	_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
 	    void *callback_arg);
 
 #endif /* !_BUS_DMA_INTERNAL_H_ */
-

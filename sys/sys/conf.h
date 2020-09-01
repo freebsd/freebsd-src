@@ -272,7 +272,7 @@ struct make_dev_args {
 void make_dev_args_init_impl(struct make_dev_args *_args, size_t _sz);
 #define	make_dev_args_init(a) \
     make_dev_args_init_impl((a), sizeof(struct make_dev_args))
-	
+
 void	delist_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 int	destroy_dev_sched(struct cdev *dev);

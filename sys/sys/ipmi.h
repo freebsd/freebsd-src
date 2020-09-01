@@ -127,7 +127,6 @@ struct ipmi_cmdspec {
 	unsigned char	cmd;
 };
 
-
 struct ipmi_addr {
 	int		addr_type;
 	short		channel;

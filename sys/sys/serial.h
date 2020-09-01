@@ -35,7 +35,6 @@
 #ifndef _SYS_SERIAL_H_
 #define	_SYS_SERIAL_H_
 
-
 /*
  * Indentification of modem control signals.  These definitions match
  * the TIOCMGET definitions in <sys/ttycom.h> shifted a bit down, and

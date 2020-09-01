@@ -230,7 +230,6 @@ struct knlist {
 	int	kl_autodestroy;
 };
 
-
 #ifdef _KERNEL
 
 /*
