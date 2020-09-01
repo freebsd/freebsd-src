@@ -77,7 +77,7 @@ sbni_pci_probe(device_t dev)
 {
 	struct sbni_softc  *sc;
 	u_int32_t  ports;
- 
+
 	ports = SBNI_PORTS;
 	if (pci_get_vendor(dev) != SBNI_PCI_VENDOR ||
 	    pci_get_device(dev) != SBNI_PCI_DEVICE)
@@ -183,7 +183,7 @@ sbni_pci_detach(device_t dev)
 	sbni_detach(sc);
 	if (sc->slave_sc)
 		sbni_detach(sc);
-	
+
 	sbni_release_resources(sc);
 	if (sc->slave_sc)
 		free(sc->slave_sc, M_DEVBUF);
