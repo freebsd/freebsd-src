@@ -593,7 +593,6 @@ mfi_print_sense(struct mfi_softc *sc, void *sense)
 	    "asc %d, ascq %d\n", error, key, asc, ascq);
 }
 
-
 #define MFI_WRITE4(sc, reg, val)	bus_space_write_4((sc)->mfi_btag, \
 	sc->mfi_bhandle, (reg), (val))
 #define MFI_READ4(sc, reg)		bus_space_read_4((sc)->mfi_btag, \
