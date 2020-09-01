@@ -63,4 +63,3 @@ __aeabi_ulcmp(unsigned long long a, unsigned long long b)
 	return __ucmpdi2(a, b) - 1;
 }
 #endif
-
