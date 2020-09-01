@@ -63,7 +63,7 @@ gss_import_name(OM_uint32 *minor_status,
 
 	args.input_name_buffer = *input_name_buffer;
 	args.input_name_type = input_name_type;
-	
+
 	bzero(&res, sizeof(res));
 	stat = gssd_import_name_1(&args, &res, cl);
 	CLNT_RELEASE(cl);

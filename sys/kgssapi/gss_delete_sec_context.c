@@ -70,7 +70,7 @@ gss_delete_sec_context(OM_uint32 *minor_status, gss_ctx_id_t *context_handle,
 			cl = kgss_gssd_client();
 			if (cl == NULL)
 				return (GSS_S_FAILURE);
-	
+
 			bzero(&res, sizeof(res));
 			stat = gssd_delete_sec_context_1(&args, &res, cl);
 			CLNT_RELEASE(cl);

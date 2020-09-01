@@ -375,7 +375,7 @@ gsstest_1(struct thread *td)
 	    || memcmp(message_buf.value, server_token.value,
 		message_buf.length))
 		printf("unwrap result corrupt\n");
-	
+
 	gss_release_buffer(&min_stat, &client_token);
 	gss_release_buffer(&min_stat, &server_token);
 
@@ -429,7 +429,6 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 	maj_stat = GSS_S_FAILURE;
 	min_stat = 0;
 	switch (step) {
-
 	case 1:
 		if (server_context == GSS_C_NO_CONTEXT) {
 			static char sbuf[512];
@@ -565,7 +564,7 @@ gsstest_2(struct thread *td, int step, const gss_buffer_t input_token,
 	*maj_stat_res = maj_stat;
 	*min_stat_res = min_stat;
 	return (0);
-	
+
 out:
 	*maj_stat_res = maj_stat;
 	*min_stat_res = min_stat;
@@ -1126,7 +1125,6 @@ static int gsstest_offset = NO_SYSCALL;
 /*
  * The function called at load/unload.
  */
-
 
 static int
 gsstest_load(struct module *module, int cmd, void *arg)

@@ -249,7 +249,6 @@ extern gss_OID GSS_C_NT_HOSTBASED_SERVICE;
  */
 extern gss_OID GSS_C_NT_ANONYMOUS;
 
-
 /*
  * The implementation must reserve static storage for a
  * gss_OID_desc object containing the value

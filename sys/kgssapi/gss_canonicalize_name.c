@@ -61,7 +61,7 @@ gss_canonicalize_name(OM_uint32 *minor_status,
 
 	args.input_name = input_name->handle;
 	args.mech_type = mech_type;
-	
+
 	bzero(&res, sizeof(res));
 	stat = gssd_canonicalize_name_1(&args, &res, cl);
 	CLNT_RELEASE(cl);

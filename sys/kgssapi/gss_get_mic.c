@@ -88,4 +88,3 @@ gss_get_mic_mbuf(OM_uint32 *minor_status, const gss_ctx_id_t ctx,
 
 	return (KGSS_GET_MIC(ctx, minor_status, qop_req, m, micp));
 }
-
