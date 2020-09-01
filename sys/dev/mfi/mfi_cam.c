@@ -474,4 +474,3 @@ mfip_cam_poll(struct cam_sim *sim)
 
 	mfisc->mfi_intr_ptr(mfisc);
 }
-
