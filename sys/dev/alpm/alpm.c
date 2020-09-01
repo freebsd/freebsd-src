@@ -557,7 +557,7 @@ alpm_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	}
 
 	ALPM_SMBOUTB(sc, SMBHADDR, slave & ~LSB);
-	
+
 	/* set the cmd and reset the
 	 * 32-byte long internal buffer */
 	ALPM_SMBOUTB(sc, SMBCMD, SMBWRBLOCK | SMB_BLK_CLR);
@@ -598,7 +598,7 @@ alpm_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	}
 
 	ALPM_SMBOUTB(sc, SMBHADDR, slave | LSB);
-	
+
 	/* set the cmd and reset the
 	 * 32-byte long internal buffer */
 	ALPM_SMBOUTB(sc, SMBCMD, SMBWRBLOCK | SMB_BLK_CLR);
@@ -634,7 +634,7 @@ static device_method_t alpm_methods[] = {
 	DEVMETHOD(device_probe,		alpm_probe),
 	DEVMETHOD(device_attach,	alpm_attach),
 	DEVMETHOD(device_detach,	alpm_detach),
-	
+
 	/* smbus interface */
 	DEVMETHOD(smbus_callback,	alpm_callback),
 	DEVMETHOD(smbus_quick,		alpm_quick),
@@ -646,7 +646,6 @@ static device_method_t alpm_methods[] = {
 	DEVMETHOD(smbus_readw,		alpm_readw),
 	DEVMETHOD(smbus_bwrite,		alpm_bwrite),
 	DEVMETHOD(smbus_bread,		alpm_bread),
-	
 	{ 0, 0 }
 };
 
