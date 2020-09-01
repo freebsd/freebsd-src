@@ -139,8 +139,6 @@
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_PATH_BLOCKED           (0x0000001B) /* Retry Timeout */
 #define PL_LOGINFO_SUB_CODE_OPEN_FAIL_AWT_MAXED              (0x0000001C) /* Retry Timeout */
 
-
-
 #define PL_LOGINFO_CODE_INVALID_SGL                          (0x00020000)
 #define PL_LOGINFO_CODE_WRONG_REL_OFF_OR_FRAME_LENGTH        (0x00030000)
 #define PL_LOGINFO_CODE_FRAME_XFER_ERROR                     (0x00040000)
@@ -189,7 +187,6 @@
 #define PL_LOGINFO_SUB_CODE_TARGET_BUS_RESET                 (0x00000120)
 #define PL_LOGINFO_SUB_CODE_TRANSPORT_LAYER                  (0x00000130)  /* Leave lower nibble (1-f) reserved. */
 #define PL_LOGINFO_SUB_CODE_PORT_LAYER                       (0x00000140)  /* Leave lower nibble (1-f) reserved. */
-
 
 #define PL_LOGINFO_SUB_CODE_INVALID_SGL                      (0x00000200)
 #define PL_LOGINFO_SUB_CODE_WRONG_REL_OFF_OR_FRAME_LENGTH    (0x00000300)
@@ -247,7 +244,6 @@
 #define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND_2              (0x0020010D) /* SEP doesn't support CDB opcode f/w location 2 */
 #define PL_LOGINFO_DA_SEP_UNSUPPORTED_COMMAND_3              (0x0020010E) /* SEP doesn't support CDB opcode f/w location 3 */
 
-
 /****************************************************************************/
 /* IR LOGINFO_CODE defines, valid if IOC_LOGINFO_ORIGINATOR = IR            */
 /****************************************************************************/
@@ -295,7 +291,6 @@
 /* Creation failed due to error in creating RAID Phys Disk Config Page */
 #define IR_LOGINFO_PHYSDISK_CREATE_CONFIG_PAGE_ERROR           (0x00010024)
 
-
 /* Compatibility Error : IR Disabled */
 #define IR_LOGINFO_COMPAT_ERROR_RAID_DISABLED                  (0x00010030)
 /* Compatibility Error : Inquiry Comand failed */
@@ -342,7 +337,6 @@
 /* Device Firmware Update:  */
 //#define IR_LOGINFO_DEV_FW_UPDATE_ERR_                         (0x00010054)
 
-
 /****************************************************************************/
 /* Defines for convenience                                                  */
 /****************************************************************************/
@@ -351,4 +345,3 @@
 #define IOC_LOGINFO_PREFIX_IR                           ((MPI_IOCLOGINFO_TYPE_SAS << MPI_IOCLOGINFO_TYPE_SHIFT) | IOC_LOGINFO_ORIGINATOR_IR)
 
 #endif /* end of file */
-

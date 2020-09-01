@@ -965,7 +965,6 @@ mpt_wait_state(struct mpt_softc *mpt, enum DB_STATE_BITS state)
 	return (MPT_FAIL);
 }
 
-
 /************************* Initialization/Configuration ************************/
 static int mpt_download_fw(struct mpt_softc *mpt);
 
@@ -1015,7 +1014,6 @@ mpt_enable_diag_mode(struct mpt_softc *mpt)
 
 	try = 20;
 	while (--try) {
-
 		if ((mpt_read(mpt, MPT_OFFSET_DIAGNOSTIC) & MPI_DIAG_DRWE) != 0)
 			break;
 
@@ -1099,7 +1097,6 @@ mpt_hard_reset(struct mpt_softc *mpt)
 	 * the controller will become operational.  Do so now.
 	 */
 	if (mpt->fw_image != NULL) {
-
 		error = mpt_download_fw(mpt);
 
 		if (error) {
@@ -1201,7 +1198,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	request_t *nxt;
 	struct mpt_evtf_record *record;
 	uint32_t offset, reply_baddr;
-	
+
 	if (req == NULL || req != &mpt->request_pool[req->index]) {
 		panic("mpt_free_request: bad req ptr");
 	}
@@ -1514,7 +1511,7 @@ mpt_get_iocfacts(struct mpt_softc *mpt, MSG_IOC_FACTS_REPLY *freplp)
 {
 	MSG_IOC_FACTS f_req;
 	int error;
-	
+
 	memset(&f_req, 0, sizeof f_req);
 	f_req.Function = MPI_FUNCTION_IOC_FACTS;
 	f_req.MsgContext = htole32(MPT_REPLY_HANDLER_HANDSHAKE);
@@ -1531,7 +1528,7 @@ mpt_get_portfacts(struct mpt_softc *mpt, U8 port, MSG_PORT_FACTS_REPLY *freplp)
 {
 	MSG_PORT_FACTS f_req;
 	int error;
-	
+
 	memset(&f_req, 0, sizeof f_req);
 	f_req.Function = MPI_FUNCTION_PORT_FACTS;
 	f_req.PortNumber = port;
@@ -1575,7 +1572,6 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
 	error = mpt_recv_handshake_reply(mpt, sizeof reply, &reply);
 	return (error);
 }
-
 
 /*
  * Utiltity routine to read configuration headers and pages
@@ -2392,7 +2388,7 @@ mpt_upload_fw(struct mpt_softc *mpt)
 	SGE_SIMPLE32 *sge;
 	uint32_t flags;
 	int error;
-	
+
 	memset(&fw_req_buf, 0, sizeof(fw_req_buf));
 	fw_req = (MSG_FW_UPLOAD *)fw_req_buf;
 	fw_req->ImageType = MPI_FW_UPLOAD_ITYPE_FW_IOC_MEM;
@@ -2737,7 +2733,6 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		return (ENOMEM);
 	}
 
-
 	if ((mpt->ioc_facts.Flags & MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT) &&
 	    (mpt->fw_uploaded == 0)) {
 		struct mpt_map_info mi;
@@ -2812,7 +2807,6 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		    "PORTFACTS[%d]: Type %x PFlags %x IID %d MaxDev %d\n",
 		    port, pfp->PortType, pfp->ProtocolFlags, pfp->PortSCSIID,
 		    pfp->MaxDevices);
-
 	}
 
 	/*
@@ -2908,7 +2902,6 @@ mpt_enable_ioc(struct mpt_softc *mpt, int portenable)
 		if (++val == mpt->ioc_facts.GlobalCredits - 1)
 			break;
 	}
-
 
 	/*
 	 * Enable the port if asked. This is only done if we're resetting

@@ -66,7 +66,6 @@
 #ifndef MPI_LAN_H
 #define MPI_LAN_H
 
-
 /******************************************************************************
 *
 *               L A N    M e s s a g e s
@@ -88,7 +87,6 @@ typedef struct _MSG_LAN_SEND_REQUEST
 } MSG_LAN_SEND_REQUEST, MPI_POINTER PTR_MSG_LAN_SEND_REQUEST,
   LANSendRequest_t, MPI_POINTER pLANSendRequest_t;
 
-
 typedef struct _MSG_LAN_SEND_REPLY
 {
     U16                     Reserved;           /* 00h */
@@ -106,7 +104,6 @@ typedef struct _MSG_LAN_SEND_REPLY
 } MSG_LAN_SEND_REPLY, MPI_POINTER PTR_MSG_LAN_SEND_REPLY,
   LANSendReply_t, MPI_POINTER pLANSendReply_t;
 
-
 /* LANReceivePost */
 
 typedef struct _MSG_LAN_RECEIVE_POST_REQUEST
@@ -122,7 +119,6 @@ typedef struct _MSG_LAN_RECEIVE_POST_REQUEST
     SGE_MPI_UNION           SG_List[1];         /* 10h */
 } MSG_LAN_RECEIVE_POST_REQUEST, MPI_POINTER PTR_MSG_LAN_RECEIVE_POST_REQUEST,
   LANReceivePostRequest_t, MPI_POINTER pLANReceivePostRequest_t;
-
 
 typedef struct _MSG_LAN_RECEIVE_POST_REPLY
 {
@@ -144,7 +140,6 @@ typedef struct _MSG_LAN_RECEIVE_POST_REPLY
 } MSG_LAN_RECEIVE_POST_REPLY, MPI_POINTER PTR_MSG_LAN_RECEIVE_POST_REPLY,
   LANReceivePostReply_t, MPI_POINTER pLANReceivePostReply_t;
 
-
 /* LANReset */
 
 typedef struct _MSG_LAN_RESET_REQUEST
@@ -158,7 +153,6 @@ typedef struct _MSG_LAN_RESET_REQUEST
     U32                     MsgContext;         /* 08h */
 } MSG_LAN_RESET_REQUEST, MPI_POINTER PTR_MSG_LAN_RESET_REQUEST,
   LANResetRequest_t, MPI_POINTER pLANResetRequest_t;
-
 
 typedef struct _MSG_LAN_RESET_REPLY
 {
@@ -174,7 +168,6 @@ typedef struct _MSG_LAN_RESET_REPLY
     U32                     IOCLogInfo;         /* 10h */
 } MSG_LAN_RESET_REPLY, MPI_POINTER PTR_MSG_LAN_RESET_REPLY,
   LANResetReply_t, MPI_POINTER pLANResetReply_t;
-
 
 /****************************************************************************/
 /* LAN Context Reply defines and macros                                     */
@@ -225,14 +218,12 @@ typedef struct _MSG_LAN_RESET_REPLY
                             (((frm) << LAN_REPLY_FORM_SHIFT) &              \
                                         LAN_REPLY_FORM_MASK))
 
-
 /****************************************************************************/
 /* LAN Current Device State defines                                         */
 /****************************************************************************/
 
 #define MPI_LAN_DEVICE_STATE_RESET                     (0x00)
 #define MPI_LAN_DEVICE_STATE_OPERATIONAL               (0x01)
-
 
 /****************************************************************************/
 /* LAN Loopback defines                                                     */
@@ -241,4 +232,3 @@ typedef struct _MSG_LAN_RESET_REPLY
 #define MPI_LAN_TX_MODES_ENABLE_LOOPBACK_SUPPRESSION   (0x01)
 
 #endif
-
