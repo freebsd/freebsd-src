@@ -242,7 +242,7 @@ static int
 an_suspend_pci(device_t dev)
 {
 	an_shutdown(dev);
-	
+
 	return (0);
 }
 

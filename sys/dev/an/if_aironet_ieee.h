@@ -152,7 +152,6 @@ struct an_rssi_entry {
 	u_int8_t	an_rss_dbm;
 };
 
-
 struct an_ltv_key {
 	u_int16_t	an_len;
 	u_int16_t	an_type;
@@ -641,7 +640,6 @@ struct an_rxframe {
 	u_int8_t		an_addr4[6];		/* 0x2C */
 	u_int8_t		an_gaplen;		/* 0x32 */
 } __packed;
-
 
 /* Do not modify this unless you are modifying LEAP itself */
 #define LEAP_USERNAME_MAX 32
