@@ -315,7 +315,6 @@ struct ciss_softc
 	    sc->ciss_qstat[qname].q_max = 0;	\
 	} while(0)
 
-
 #define CISSQ_REQUEST_QUEUE(name, index)				\
 static __inline void							\
 ciss_initq_ ## name (struct ciss_softc *sc)				\
