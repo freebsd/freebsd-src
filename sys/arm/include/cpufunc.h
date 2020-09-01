@@ -58,7 +58,6 @@ breakpoint(void)
 }
 
 struct cpu_functions {
-
 	/* CPU functions */
 #if __ARM_ARCH < 6
 	void	(*cf_cpwait)		(void);

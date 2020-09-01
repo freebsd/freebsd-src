@@ -560,7 +560,6 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 
 	mtx_lock(&sc->mutex);
 	while (*sent < len) {
-
 		WRITE1(sc, I2C_IBDR, *buf++);
 
 		error = wait_for_iif(sc);
@@ -598,7 +597,6 @@ static device_method_t i2c_methods[] = {
 	DEVMETHOD(iicbus_read,			i2c_read),
 	DEVMETHOD(iicbus_write,			i2c_write),
 	DEVMETHOD(iicbus_transfer,		iicbus_transfer_gen),
-
 	{ 0, 0 }
 };
 

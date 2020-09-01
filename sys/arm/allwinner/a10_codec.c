@@ -367,7 +367,6 @@ static kobj_method_t a10_mixer_methods[] = {
 };
 MIXER_DECLARE(a10_mixer);
 
-
 /*
  * H3 mixer interface
  */
@@ -619,7 +618,6 @@ static kobj_method_t h3_mixer_methods[] = {
 	KOBJMETHOD_END
 };
 MIXER_DECLARE(h3_mixer);
-
 
 /*
  * Channel interface
@@ -1009,7 +1007,6 @@ static kobj_method_t a10codec_chan_methods[] = {
 	KOBJMETHOD_END
 };
 CHANNEL_DECLARE(a10codec_chan);
-
 
 /*
  * Device interface

@@ -1461,7 +1461,6 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 	return ((void *)crashdumpmap);
 }
 
-
 /*************************************
  *
  *  TLB & cache maintenance routines.
@@ -5737,7 +5736,6 @@ small_mappings:
 	rw_wunlock(&pvh_global_lock);
 }
 
-
 /*
  *  Sets the memory attribute for the specified page.
  */
@@ -6308,7 +6306,6 @@ pmap_set_pcb_pagedir(pmap_t pmap, struct pcb *pcb)
 
 	pcb->pcb_pagedir = pmap_ttb_get(pmap);
 }
-
 
 /*
  *  Clean L1 data cache range by physical address.

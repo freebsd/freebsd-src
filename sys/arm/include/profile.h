@@ -45,7 +45,6 @@
  */
 #define	FUNCTION_ALIGNMENT	16
 
-
 #define	_MCOUNT_DECL void mcount
 
 typedef u_long	fptrdiff_t;
@@ -106,7 +105,6 @@ void user(void);
 	((pc >= (uintfptr_t)btrap && pc < (uintfptr_t)eintr) ?	\
 	    ((pc >= (uintfptr_t)bintr) ? (uintfptr_t)bintr :	\
 		(uintfptr_t)btrap) : ~0U)
-
 
 #ifdef _KERNEL
 

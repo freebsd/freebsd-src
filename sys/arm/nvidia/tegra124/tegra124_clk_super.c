@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <gnu/dts/include/dt-bindings/clock/tegra124-car.h>
 #include "tegra124_car.h"
 
-
 /* Flags */
 #define	SMF_HAVE_DIVIDER_2	1
 

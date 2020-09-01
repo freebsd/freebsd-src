@@ -80,7 +80,6 @@ static struct ti_pinmux_softc *ti_pinmux_sc;
 #define	ti_pinmux_write_4(sc, reg, val)		\
     bus_space_write_4((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
 
-
 /**
  *	ti_padconf_devmap - Array of pins, should be defined one per SoC
  *
@@ -89,7 +88,6 @@ static struct ti_pinmux_softc *ti_pinmux_sc;
  *	corresponds to an individual pin.
  */
 static const struct ti_pinmux_device *ti_pinmux_dev;
-
 
 /**
  *	ti_pinmux_padconf_from_name - searches the list of pads and returns entry
@@ -399,7 +397,6 @@ ti_pinmux_probe(device_t dev)
 		printf("Unknown CPU in pinmux\n");
 		return (ENXIO);
 	}
-
 
 	device_set_desc(dev, "TI Pinmux Module");
 	return (BUS_PROBE_DEFAULT);

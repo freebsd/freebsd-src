@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 
 #include "tegra_soctherm_if.h"
 
-
 enum therm_info {
 	CORETEMP_TEMP,
 	CORETEMP_DELTA,
@@ -71,11 +70,9 @@ coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
 	enum therm_info type;
 	char stemp[16];
 
-
 	dev = (device_t) arg1;
 	sc = device_get_softc(dev);
 	type = arg2;
-
 
 	rv = TEGRA_SOCTHERM_GET_TEMPERATURE(sc->tsens_dev, sc->dev,
 	     sc->tsens_id, &temp);
@@ -102,7 +99,6 @@ coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
 		val +=  2731;
 		break;
 	}
-
 
 	if ((temp > sc->core_max_temp)  && !sc->overheat_log) {
 		sc->overheat_log = 1;
@@ -261,7 +257,6 @@ static device_method_t tegra124_coretemp_methods[] = {
 	DEVMETHOD(device_probe,		tegra124_coretemp_probe),
 	DEVMETHOD(device_attach,	tegra124_coretemp_attach),
 	DEVMETHOD(device_detach,	tegra124_coretemp_detach),
-
 
 	DEVMETHOD_END
 };

@@ -68,7 +68,6 @@ static struct a10_sramc_softc *a10_sramc_sc;
 #define	sramc_write_4(sc, reg, val)	\
     bus_space_write_4((sc)->bst, (sc)->bsh, (reg), (val))
 
-
 static int
 a10_sramc_probe(device_t dev)
 {

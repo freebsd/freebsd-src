@@ -33,4 +33,3 @@
 void nexus_set_dma_tag(bus_dma_tag_t _tag);
 
 #endif
-

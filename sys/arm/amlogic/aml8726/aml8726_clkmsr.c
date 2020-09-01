@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/amlogic/aml8726/aml8726_soc.h>
 #include <arm/amlogic/aml8726/aml8726_clkmsr.h>
 
-
 static struct aml8726_clkmsr_clk {
 	const char *		name;
 	uint32_t		mux;
@@ -216,7 +215,6 @@ aml8726_clkmsr_detach(device_t dev)
 
 	return (0);
 }
-
 
 static device_method_t aml8726_clkmsr_methods[] = {
 	/* Device interface */

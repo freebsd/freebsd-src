@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-
 struct aml8726_rng_softc {
 	device_t		dev;
 	struct resource		*res[1];

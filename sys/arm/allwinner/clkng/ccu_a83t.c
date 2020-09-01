@@ -81,7 +81,6 @@ __FBSDID("$FreeBSD$");
 /* Non-exported fixed clocks */
 #define CLK_OSC_12M		150
 
-
 static struct aw_ccung_reset a83t_ccu_resets[] = {
 	CCU_RESET(RST_USB_PHY0, 0xcc, 0)
 	CCU_RESET(RST_USB_PHY1, 0xcc, 1)

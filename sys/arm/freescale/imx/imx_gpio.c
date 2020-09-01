@@ -864,7 +864,7 @@ imx51_gpio_attach(device_t dev)
 	intr_pic_register(dev, OF_xref_from_node(ofw_bus_get_node(dev)));
 #endif
 	sc->sc_busdev = gpiobus_attach_bus(dev);
-	
+
 	if (sc->sc_busdev == NULL) {
 		imx51_gpio_detach(dev);
 		return (ENXIO);

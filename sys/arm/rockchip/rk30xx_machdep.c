@@ -76,7 +76,7 @@ rk30xx_devmap_init(platform_t plat)
 
 	devmap_add_entry(0x10000000, 0x00200000);
 	devmap_add_entry(0x20000000, 0x00100000);
-	
+
 	return (0);
 }
 

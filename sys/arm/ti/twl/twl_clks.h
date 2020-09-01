@@ -31,10 +31,8 @@
 #ifndef _TWL_CLKS_H_
 #define _TWL_CLKS_H_
 
-
 int twl_clks_enable(device_t dev, const char *name);
 int twl_clks_disable(device_t dev, const char *name);
 int twl_clks_is_enabled(device_t dev, const char *name, int *enabled);
-
 
 #endif /* _TWL_CLKS_H_ */

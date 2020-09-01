@@ -46,7 +46,6 @@
  * Created      : 06/01/95
  */
 
-
 #include "opt_ddb.h"
 
 #include <sys/cdefs.h>
@@ -106,7 +105,6 @@ static int gdb_trapper(u_int, u_int, struct trapframe *, int);
 
 LIST_HEAD(, undefined_handler) undefined_handlers[MAX_COPROCS];
 
-
 void *
 install_coproc_handler(int coproc, undef_handler_t handler)
 {
@@ -137,7 +135,6 @@ remove_coproc_handler(void *cookie)
 	LIST_REMOVE(uh, uh_link);
 	free(uh, M_TEMP);
 }
-
 
 static int
 gdb_trapper(u_int addr, u_int insn, struct trapframe *frame, int code)
@@ -183,7 +180,7 @@ gdb_trapper(u_int addr, u_int insn, struct trapframe *frame, int code)
 			}
 		}
 	}
-	
+
 	return 1;
 }
 
@@ -202,7 +199,6 @@ undefined_init(void)
 	gdb_uh.uh_handler = gdb_trapper;
 	install_coproc_handler_static(0, &gdb_uh);
 }
-
 
 void
 undefinedinstruction(struct trapframe *frame)

@@ -134,7 +134,6 @@ static const struct sata_pad_calibration tegra124_pad_calibration[] = {
 #define	 T_SATA0_CHX_PHY_CTRL1_GEN1_TX_AMP_MASK		0xff
 #define	 T_SATA0_CHX_PHY_CTRL1_GEN1_TX_AMP_SHIFT	0
 
-
 #define	T_SATA0_CHX_PHY_CTRL1_GEN2		0x694
 #define	 T_SATA0_CHX_PHY_CTRL1_GEN2_TX_PEAK_MASK	0xff
 #define	 T_SATA0_CHX_PHY_CTRL1_GEN2_TX_PEAK_SHIFT	12
@@ -149,7 +148,6 @@ static const struct sata_pad_calibration tegra124_pad_calibration[] = {
 
 #define	FUSE_SATA_CALIB				0x124
 #define	FUSE_SATA_CALIB_MASK			0x3
-
 
 #define	SATA_AUX_MISC_CNTL			0x1108
 #define	SATA_AUX_PAD_PLL_CTRL_0			0x1120
@@ -203,7 +201,6 @@ static int
 get_fdt_resources(struct tegra_ahci_sc *sc, phandle_t node)
 {
 	int rv;
-
 
 	rv = regulator_get_by_ofw_property(sc->dev, 0, "hvdd-supply",
 	    &sc->supply_hvdd );
@@ -389,7 +386,6 @@ tegra_ahci_ctrl_init(struct tegra_ahci_sc *sc)
 	val = SATA_RD4(sc, SATA_CONFIGURATION);
 	val |= SATA_CONFIGURATION_EN_FPCI;
 	SATA_WR4(sc, SATA_CONFIGURATION, val);
-
 
 	/* Pad calibration. */
 	val = tegra_fuse_read_4(FUSE_SATA_CALIB);

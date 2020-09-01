@@ -1075,7 +1075,6 @@ axp2xx_gpio_pin_set(device_t dev, uint32_t pin, unsigned int val)
 	return (error);
 }
 
-
 static int
 axp2xx_gpio_pin_toggle(device_t dev, uint32_t pin)
 {

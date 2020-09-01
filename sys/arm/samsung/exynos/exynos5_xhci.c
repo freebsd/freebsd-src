@@ -294,7 +294,7 @@ exynos_xhci_detach(device_t dev)
 	device_delete_children(dev);
 
 	xhci_halt_controller(&esc->base);
-	
+
 	if (esc->res[2] && esc->base.sc_intr_hdl) {
 		err = bus_teardown_intr(dev, esc->res[2],
 		    esc->base.sc_intr_hdl);
@@ -308,6 +308,6 @@ exynos_xhci_detach(device_t dev)
 	bus_release_resources(dev, exynos_xhci_spec, esc->res);
 
 	xhci_uninit(&esc->base);
-	
+
 	return (0);
 }

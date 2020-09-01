@@ -227,7 +227,6 @@ static kobj_method_t exynos4210_methods[] = {
 	KOBJMETHOD(uart_receive,	exynos4210_bus_receive),
 	KOBJMETHOD(uart_setsig,		exynos4210_bus_setsig),
 	KOBJMETHOD(uart_transmit,	exynos4210_bus_transmit),
-
 	{0, 0 }
 };
 

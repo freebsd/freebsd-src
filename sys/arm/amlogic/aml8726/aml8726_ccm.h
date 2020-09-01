@@ -29,7 +29,6 @@
 #ifndef	_ARM_AMLOGIC_AML8726_CCM_H
 #define	_ARM_AMLOGIC_AML8726_CCM_H
 
-
 struct aml8726_ccm_gate {
 	uint32_t addr;
 	uint32_t bits;
@@ -39,7 +38,6 @@ struct aml8726_ccm_function {
 	const char *name;
 	struct aml8726_ccm_gate *gates;
 };
-
 
 /*
  * aml8726-m3
@@ -109,7 +107,6 @@ struct aml8726_ccm_function aml8726_m3_ccm[] = {
 	{ NULL }
 };
 
-
 /*
  * aml8726-m6
  */
@@ -177,7 +174,6 @@ struct aml8726_ccm_function aml8726_m6_ccm[] = {
 	{ "usb-b", aml8726_m6_usb_b },
 	{ NULL }
 };
-
 
 /*
  * aml8726-m8
@@ -249,7 +245,6 @@ struct aml8726_ccm_function aml8726_m8_ccm[] = {
 	{ "usb-b", aml8726_m8_usb_b },
 	{ NULL }
 };
-
 
 /*
  * aml8726-m8b

@@ -138,7 +138,6 @@ bcm_systimer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 	register_t s;
 
 	if (first != 0) {
-
 		count = ((uint32_t)et->et_frequency * first) >> 32;
 
 		s = intr_disable();

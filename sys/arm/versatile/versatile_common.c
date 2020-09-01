@@ -65,7 +65,6 @@ fdt_intc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 	return (0);
 }
 
-
 fdt_pic_decode_t fdt_pic_table[] = {
 	&fdt_intc_decode_ic,
 	NULL

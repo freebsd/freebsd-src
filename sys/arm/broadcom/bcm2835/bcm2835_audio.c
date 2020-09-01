@@ -412,7 +412,7 @@ bcm2835_audio_update_params(struct bcm2835_audio_info *sc, uint32_t fmt, uint32_
 static bool
 bcm2835_audio_buffer_should_sleep(struct bcm2835_audio_chinfo *ch)
 {
-	
+
 	if (ch->playback_state != PLAYBACK_PLAYING)
 		return (true);
 
@@ -953,7 +953,6 @@ static device_method_t bcm2835_audio_methods[] = {
 	DEVMETHOD(device_probe,		bcm2835_audio_probe),
 	DEVMETHOD(device_attach,	bcm2835_audio_attach),
 	DEVMETHOD(device_detach,	bcm2835_audio_detach),
-
 	{ 0, 0 }
 };
 

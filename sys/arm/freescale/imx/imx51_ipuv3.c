@@ -155,7 +155,6 @@ static uint32_t colors_24[16] = {
 	0xFFFF00,/* Yellow 	*/
 	0xFFFFFF,/* White 	*/
 
-
 };
 
 #define	IPUV3_READ(ipuv3, module, reg)					\
@@ -422,7 +421,6 @@ static device_method_t ipu3_fb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ipu3_fb_probe),
 	DEVMETHOD(device_attach,	ipu3_fb_attach),
-
 	{ 0, 0 }
 };
 

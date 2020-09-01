@@ -181,7 +181,6 @@ ti_clk_factor_get_value(struct ti_clk_factor *factor, uint32_t raw)
 	return (val);
 }
 
-
 static int
 ti_dpll_clk_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
     int flags, int *stop)

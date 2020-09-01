@@ -219,7 +219,6 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 	return (child);
 }
 
-
 /*
  * Allocate a resource on behalf of child.  NB: child is usually going to be a
  * child of one of our descendants, not a direct child of nexus0.
@@ -470,4 +469,3 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 #endif /* INTRNG */
 }
 #endif /* FDT */
-

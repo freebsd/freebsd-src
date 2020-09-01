@@ -268,7 +268,6 @@ omap_uhh_init(struct omap_uhh_softc *isc)
 	omap_uhh_write_4(isc, OMAP_USBHOST_UHH_HOSTCONFIG, reg);
 	device_printf(isc->sc_dev, "UHH setup done, uhh_hostconfig=0x%08x\n", reg);
 
-
 	/* I found the code and comments in the Linux EHCI driver - thanks guys :)
 	 *
 	 * "An undocumented "feature" in the OMAP3 EHCI controller, causes suspended

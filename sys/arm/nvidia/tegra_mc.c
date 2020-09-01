@@ -300,7 +300,6 @@ static device_method_t tegra_mc_methods[] = {
 	DEVMETHOD(device_attach,	tegra_mc_attach),
 	DEVMETHOD(device_detach,	tegra_mc_detach),
 
-
 	DEVMETHOD_END
 };
 

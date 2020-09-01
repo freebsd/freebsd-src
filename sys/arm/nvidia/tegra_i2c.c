@@ -484,7 +484,6 @@ tegra_i2c_start_msg(struct tegra_i2c_softc *sc, struct iic_msg *msg,
 	   (1 << PACKET_HEADER0_PACKET_ID_SHIFT);
 	WR4(sc, I2C_TX_PACKET_FIFO, tmp);
 
-
 	/* Packet size. */
 	WR4(sc, I2C_TX_PACKET_FIFO, msg->len - 1);
 

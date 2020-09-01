@@ -131,7 +131,6 @@ static void mv_watchdog_event(void *, unsigned int, int *);
 static device_method_t mv_wdt_methods[] = {
 	DEVMETHOD(device_probe, mv_wdt_probe),
 	DEVMETHOD(device_attach, mv_wdt_attach),
-
 	{ 0, 0 }
 };
 

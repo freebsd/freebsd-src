@@ -732,7 +732,6 @@ pad_pin_toggle(device_t dev, uint32_t pin)
 	return (0);
 }
 
-
 static void
 pad_pin_configure(struct pad_softc *sc, struct gpio_pin *pin,
     unsigned int flags)
@@ -774,7 +773,6 @@ pad_pin_configure(struct pad_softc *sc, struct gpio_pin *pin,
 
 	GPIO_UNLOCK(sc);
 }
-
 
 static int
 pad_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)

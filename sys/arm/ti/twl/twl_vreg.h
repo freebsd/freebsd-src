@@ -31,7 +31,6 @@
 #ifndef _TWL_VREG_H_
 #define _TWL_VREG_H_
 
-
 int twl_vreg_get_voltage(device_t dev, const char *name, int *millivolts);
 int twl_vreg_set_voltage(device_t dev, const char *name, int millivolts);
 

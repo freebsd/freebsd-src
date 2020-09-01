@@ -425,7 +425,6 @@ tegra_gpio_intr(void *arg)
 				device_printf(sc->dev,
 				    "Stray irq %u disabled\n", irq);
 			}
-
 		}
 	}
 
@@ -469,7 +468,6 @@ tegra_gpio_pic_detach(struct tegra_gpio_softc *sc)
 	device_printf(sc->dev, "%s: not implemented yet\n", __func__);
 	return (EBUSY);
 }
-
 
 static void
 tegra_gpio_pic_disable_intr(device_t dev, struct intr_irqsrc *isrc)
@@ -534,7 +532,6 @@ tegra_gpio_pic_map_fdt(struct tegra_gpio_softc *sc, u_int ncells,
 		*regp = reg;
 	return (0);
 }
-
 
 static int
 tegra_gpio_pic_map_gpio(struct tegra_gpio_softc *sc, u_int gpio_pin_num,

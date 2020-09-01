@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include "iicbb_if.h"
 
-
 struct aml8726_iic_softc {
 	device_t	dev;
 	struct resource	*res[1];

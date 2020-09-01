@@ -43,7 +43,6 @@
 #include <machine/frame.h>
 #include <machine/vfp.h>
 
-
 /*
  * WARNING!
  * Keep pcb_regs first for faster access in switch.S

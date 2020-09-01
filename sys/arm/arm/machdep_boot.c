@@ -144,7 +144,6 @@ arm_print_kenv(void)
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 
-
 #if defined(LINUX_BOOT_ABI)
 
 /* Convert the U-Boot command line into FreeBSD kenv and boot options. */
@@ -343,7 +342,6 @@ default_parse_boot_param(struct arm_boot_params *abp)
  * own.  We just fake metadata...
  */
 __weak_reference(default_parse_boot_param, parse_boot_param);
-
 
 /*
  * Fake up a boot descriptor table

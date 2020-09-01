@@ -432,7 +432,6 @@ awusbphy_set_mode(struct phynode *phynode, int mode)
 
 	sc->mode = mode;
 
-
 out:
 	return (0);
 }

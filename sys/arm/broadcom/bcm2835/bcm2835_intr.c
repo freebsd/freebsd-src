@@ -28,7 +28,6 @@
  * SUCH DAMAGE.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -439,7 +438,6 @@ static device_method_t bcm_intc_methods[] = {
 	DEVMETHOD(pic_post_filter,	bcm_intc_post_filter),
 	DEVMETHOD(pic_post_ithread,	bcm_intc_post_ithread),
 	DEVMETHOD(pic_pre_ithread,	bcm_intc_pre_ithread),
-
 	{ 0, 0 }
 };
 

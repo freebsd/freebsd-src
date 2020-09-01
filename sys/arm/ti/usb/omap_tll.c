@@ -223,7 +223,6 @@ omap_tll_init(struct omap_tll_softc *sc)
 	/* Wait for TLL reset to complete */
 	while ((omap_tll_read_4(sc, OMAP_USBTLL_SYSSTATUS) &
 	        TLL_SYSSTATUS_RESETDONE) == 0x00) {
-
 		/* Sleep for a tick */
 		pause("USBRESET", 1);
 
@@ -348,7 +347,6 @@ static device_method_t omap_tll_methods[] = {
 	DEVMETHOD(device_suspend, bus_generic_suspend),
 	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
-
 	{0, 0}
 };
 

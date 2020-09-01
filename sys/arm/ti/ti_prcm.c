@@ -284,7 +284,6 @@ EARLY_DRIVER_MODULE(ti_prcm, simplebus, ti_prcm_driver,
 MODULE_VERSION(ti_prcm, 1);
 MODULE_DEPEND(ti_prcm, ti_scm, 1, 1, 1);
 
-
 /* From sys/arm/ti/am335x/am335x_prcm.c
  * Copyright (c) 2012 Damjan Marion <dmarion@Freebsd.org>
  */

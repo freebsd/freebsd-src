@@ -64,7 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-
 #include "opt_mmccam.h"
 
 struct ti_sdhci_softc {
@@ -641,7 +640,7 @@ ti_sdhci_attach(device_t dev)
 	 * before waiting to see them de-asserted.
 	 */
 	sc->slot.quirks |= SDHCI_QUIRK_WAITFOR_RESET_ASSERTED;
-	
+
 	/*
 	 * The controller waits for busy responses.
 	 */

@@ -312,7 +312,6 @@ mv_thermal_attach(device_t dev)
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
-
 	if (SYSCON_GET_HANDLE(sc->dev, &sc->syscon) != 0 ||
 	    sc->syscon == NULL) {
 		device_printf(dev, "cannot get syscon for device\n");

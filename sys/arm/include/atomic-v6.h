@@ -91,7 +91,6 @@ atomic_##NAME##_rel_##WIDTH(__volatile uint##WIDTH##_t *p, uint##WIDTH##_t v)\
 	atomic_##NAME##_##WIDTH(p, v);					\
 }
 
-
 static __inline void
 atomic_add_32(volatile uint32_t *p, uint32_t val)
 {

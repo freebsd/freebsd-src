@@ -196,7 +196,6 @@ ti_clkctrl_attach(device_t dev)
 	/* reg property has a pair of (base address, length) */
 	for (index = 0; index < num_reg; index += 2) {
 		for (reg_offset = 0; reg_offset < reg[index+1]; reg_offset += sizeof(cell_t)) {
-
 			err = create_clkctrl(sc, reg, index, reg_offset, parent_offset,
 			    org_name, false);
 			if (err)

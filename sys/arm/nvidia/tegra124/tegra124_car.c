@@ -183,7 +183,6 @@ static uint32_t osc_freqs[16] = {
 	[12] = 260000000,
 };
 
-
 /* Parent lists. */
 PLIST(mux_pll_srcs) = {"osc_div_clk", NULL, "pllP_out0", NULL}; /* FIXME */
 PLIST(mux_plle_src1) = {"osc_div_clk", "pllP_out0"};
@@ -191,7 +190,6 @@ PLIST(mux_plle_src) = {"pllE_src1", "pllREFE_out"};
 PLIST(mux_plld_out0_plld2_out0) = {"pllD_out0", "pllD2_out0"};
 PLIST(mux_xusb_hs) = {"xusb_ss_div2", "pllU_60"};
 PLIST(mux_xusb_ss) = {"pc_xusb_ss", "osc_div_clk"};
-
 
 /* Clocks ajusted online. */
 static struct clk_fixed_def fixed_clk_m =
@@ -226,7 +224,6 @@ static struct clk_fixed_def tegra124_fixed_clks[] = {
 
 };
 
-
 static struct clk_mux_def tegra124_mux_clks[] = {
 	/* Core clocks. */
 	MUX(0, "pllD2_src", mux_pll_srcs, PLLD2_BASE, 25, 2),
@@ -244,7 +241,6 @@ static struct clk_mux_def tegra124_mux_clks[] = {
 	MUX(0, "xusb_ss_mux", mux_xusb_ss, CLK_SOURCE_XUSB_SS, 24, 1),
 
 };
-
 
 static struct clk_gate_def tegra124_gate_clks[] = {
 	/* Core clocks. */
@@ -347,7 +343,6 @@ init_gates(struct tegra124_car_softc *sc, struct clk_gate_def *clks, int nclks)
 {
 	int i, rv;
 
-
 	for (i = 0; i < nclks; i++) {
 		rv = clknode_gate_register(sc->clkdom, clks + i);
 		if (rv != 0)
@@ -359,7 +354,6 @@ static void
 init_muxes(struct tegra124_car_softc *sc, struct clk_mux_def *clks, int nclks)
 {
 	int i, rv;
-
 
 	for (i = 0; i < nclks; i++) {
 		rv = clknode_mux_register(sc->clkdom, clks + i);

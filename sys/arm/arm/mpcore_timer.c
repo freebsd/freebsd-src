@@ -252,9 +252,6 @@ arm_tmr_intr(void *arg)
 	return (FILTER_HANDLED);
 }
 
-
-
-
 /**
  *	arm_tmr_probe - timer probe routine
  *	@dev: new device

@@ -148,4 +148,3 @@ ti_omap4_cm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
 
 EARLY_DRIVER_MODULE(ti_omap4_cm, ofwbus, ti_omap4_cm_driver,
 ti_omap4_cm_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_FIRST);
-

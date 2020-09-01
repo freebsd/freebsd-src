@@ -149,7 +149,6 @@ struct zy7_spi_softc {
 #define ZY7_SPI_TX_THRESH_REG		0x0028
 #define ZY7_SPI_RX_THRESH_REG		0x002c
 
-
 /* Fill hardware fifo with command and data bytes. */
 static void
 zy7_spi_write_fifo(struct zy7_spi_softc *sc, int nbytes)
@@ -172,7 +171,6 @@ zy7_spi_write_fifo(struct zy7_spi_softc *sc, int nbytes)
 		nbytes--;
 	}
 }
-
 
 /* Read hardware fifo data into command response and data buffers. */
 static void
@@ -215,7 +213,6 @@ zy7_spi_abort_transfer(struct zy7_spi_softc *sc)
 	    ZY7_SPI_INTR_RX_FIFO_NOT_EMPTY |
 	    ZY7_SPI_INTR_TX_FIFO_NOT_FULL);
 }
-
 
 static void
 zy7_spi_intr(void *arg)
@@ -285,7 +282,6 @@ zy7_spi_intr(void *arg)
 	/* Finished with transfer? */
 	if (sc->tx_bytes_sent == sc->tx_bytes &&
 	    sc->rx_bytes_rcvd == sc->rx_bytes) {
-
 		/* De-assert CS. */
 		sc->cfg_reg_shadow &=
 		    ~(ZY7_SPI_CONFIG_CLK_PH | ZY7_SPI_CONFIG_CLK_POL);
@@ -338,7 +334,6 @@ zy7_spi_init_hw(struct zy7_spi_softc *sc)
 	return (0);
 }
 
-
 static void
 zy7_spi_add_sysctls(device_t dev)
 {
@@ -365,7 +360,6 @@ zy7_spi_add_sysctls(device_t dev)
 	    &sc->stray_ints, 0, "stray interrupts");
 }
 
-
 static int
 zy7_spi_probe(device_t dev)
 {
@@ -380,7 +374,6 @@ zy7_spi_probe(device_t dev)
 
 	return (BUS_PROBE_DEFAULT);
 }
-
 
 static int zy7_spi_detach(device_t);
 
@@ -496,14 +489,12 @@ zy7_spi_detach(device_t dev)
 	return (0);
 }
 
-
 static phandle_t
 zy7_spi_get_node(device_t bus, device_t dev)
 {
 
 	return (ofw_bus_get_node(bus));
 }
-
 
 static int
 zy7_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
@@ -591,7 +582,6 @@ static device_method_t zy7_spi_methods[] = {
 
 	DEVMETHOD_END
 };
-
 
 static driver_t zy7_spi_driver = {
 	"zy7_spi",

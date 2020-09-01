@@ -98,7 +98,6 @@ struct zy7_gpio_softc {
 #define WR4(sc, off, val)	bus_write_4((sc)->mem_res, (off), (val))
 #define RD4(sc, off)		bus_read_4((sc)->mem_res, (off))
 
-
 /* Xilinx Zynq-7000 GPIO register definitions:
  */
 #define ZY7_GPIO_MASK_DATA_LSW(b)	(0x0000+8*(b))	/* maskable wr lo */

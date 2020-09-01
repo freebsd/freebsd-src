@@ -115,7 +115,6 @@ int tegra_drm_fb_create(struct drm_device *drm, struct drm_file *file,
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_destroy(struct drm_device *drm);
 
-
 /* tegra_bo.c */
 struct tegra_bo;
 int tegra_bo_create(struct drm_device *drm, size_t size,

@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #define	READBACK_ADD_HALF				(1 << 7)
 #define	READBACK_NEGATE					(1 << 0)
 
-
 /* Fuses */
 #define	 FUSE_TSENSOR_CALIB_CP_TS_BASE_SHIFT		0
 #define	 FUSE_TSENSOR_CALIB_CP_TS_BASE_BITS		13
@@ -118,7 +117,6 @@ __FBSDID("$FreeBSD$");
 #define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_FT_BITS 	5
 #define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_CP(x) 	(((x) >>  0) & 0x3f)
 #define	 FUSE_SPARE_REALIGNMENT_REG_SHIFT_FT(x) 	(((x) >> 21) & 0x1f)
-
 
 #define	NOMINAL_CALIB_FT_T124	105
 #define	NOMINAL_CALIB_CP_T124	25
@@ -185,7 +183,6 @@ static struct tsensor_cfg t124_tsensor_config = {
 	.tsample_ate = 480,
 	.pdiv_ate = 8
 };
-
 
 static struct tsensor t124_tsensors[] = {
 	{
@@ -312,7 +309,6 @@ get_shared_cal(struct soctherm_softc *sc, struct soctherm_shared_cal *cal)
 #endif
 }
 
-
 static void
 tsensor_calibration(struct tsensor *sensor, struct soctherm_shared_cal *shared)
 {
@@ -337,7 +333,6 @@ tsensor_calibration(struct tsensor *sensor, struct soctherm_shared_cal *shared)
 	delta_temp = shared->actual_temp_ft - shared->actual_temp_cp;
 	mult = sensor->cfg->pdiv * sensor->cfg->tsample_ate;
 	div = sensor->cfg->tsample * sensor->cfg->pdiv_ate;
-
 
 	temp_a = div64_s64_precise((int64_t) delta_temp * (1LL << 13) * mult,
 				   (int64_t) delta_sens * div);
@@ -425,7 +420,6 @@ soctherm_read_temp(struct soctherm_softc *sc, struct tsensor *sensor, int *temp)
 {
 	int timeout;
 	uint32_t val;
-
 
 	/* wait for valid sample */
 	for (timeout = 1000; timeout > 0; timeout--) {

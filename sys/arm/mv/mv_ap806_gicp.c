@@ -167,9 +167,6 @@ mv_ap806_gicp_convert_map_data(struct mv_ap806_gicp_softc *sc,
 	return ((struct intr_map_data *)sc->parent_map_data);
 }
 
-
-
-
 static int
 mv_ap806_gicp_activate_intr(device_t dev, struct intr_irqsrc *isrc,
     struct resource *res, struct intr_map_data *data)

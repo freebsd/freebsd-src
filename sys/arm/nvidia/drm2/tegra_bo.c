@@ -232,8 +232,6 @@ tegra_bo_create(struct drm_device *drm, size_t size, struct tegra_bo **res_bo)
 	return (0);
 }
 
-
-
 static int
 tegra_bo_create_with_handle(struct drm_file *file, struct drm_device *drm,
     size_t size, uint32_t *handle, struct tegra_bo **res_bo)

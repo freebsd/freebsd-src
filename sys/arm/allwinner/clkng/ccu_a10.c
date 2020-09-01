@@ -300,7 +300,6 @@ NM_CLK(apb1_clk,
     0,						/* gate */
     AW_CLK_HAS_MUX);				/* flags */
 
-
 NKMP_CLK(pll_ddr_other_clk,
     CLK_PLL_DDR_OTHER,				/* id */
     "pll_ddr_other", pll_parents,		/* name, parents */

@@ -198,7 +198,6 @@ const struct cpuidtab cpuids[] = {
 
 	{ CPU_ID_MV88FR571_VD,	CPU_CLASS_MARVELL,	"Feroceon 88FR571-VD",
 	  generic_steppings },
-
 	{ 0, CPU_CLASS_NONE, NULL, NULL }
 };
 

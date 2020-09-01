@@ -644,7 +644,6 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	dmat_copy = dmat;
 
 	if (dmat != NULL) {
-
 		if (dmat->map_count != 0) {
 			error = EBUSY;
 			goto out;
@@ -997,7 +996,6 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, pmap_t pmap, bus_dmamap_t map,
 				map->pagesneeded++;
 			}
 			vaddr += (PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK));
-
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d", map->pagesneeded);
 	}
@@ -1237,7 +1235,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			if (map->sync_count == 0 ||
 			    (kvaddr != 0 && kvaddr != sl_vend) ||
 			    (curaddr != sl_pend)) {
-
 				if (++map->sync_count > dmat->nsegments)
 					goto cleanup;
 				sl++;
@@ -1416,7 +1413,6 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	 * we're able to test direct userland dma, panic on a map mismatch.
 	 */
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
-
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
 		    "performing bounce", __func__, dmat, dmat->flags, op);
 

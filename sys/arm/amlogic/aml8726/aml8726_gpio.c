@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-
 struct aml8726_gpio_softc {
 	device_t	dev;
 	struct resource *res[3];

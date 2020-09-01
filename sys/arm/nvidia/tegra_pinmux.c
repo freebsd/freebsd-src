@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #define	TEGRA_MUX_IORESET_SHIFT 8
 #define	TEGRA_MUX_RCV_SEL_SHIFT 9
 
-
 /* Pin goup register. */
 #define	TEGRA_GRP_HSM_SHIFT 2
 #define	TEGRA_GRP_SCHMT_SHIFT 3
@@ -708,7 +707,6 @@ static int pinmux_configure(device_t dev, phandle_t cfgxref)
 	sc = device_get_softc(dev);
 	cfgnode = OF_node_from_xref(cfgxref);
 
-
 	for (node = OF_child(cfgnode); node != 0; node = OF_peer(node)) {
 		if (!ofw_bus_node_status_okay(node))
 			continue;
@@ -778,7 +776,6 @@ pinmux_attach(device_t dev)
 
 	return (0);
 }
-
 
 static device_method_t tegra_pinmux_methods[] = {
 	/* Device interface */

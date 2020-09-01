@@ -383,7 +383,6 @@ arm_tmr_acpi_probe(device_t dev)
 }
 #endif
 
-
 static int
 arm_tmr_attach(device_t dev)
 {
