@@ -504,7 +504,6 @@ ofwfb_init(struct vt_device *vd)
 	#endif
         }
 
-
 	#if defined(__powerpc__)
 	/*
 	 * If we are running on PowerPC in real mode (supported only on AIM
@@ -521,4 +520,3 @@ ofwfb_init(struct vt_device *vd)
 
 	return (CN_INTERNAL);
 }
-
