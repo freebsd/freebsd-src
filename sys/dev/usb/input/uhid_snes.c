@@ -69,7 +69,6 @@
 #define	RIGHT_T 0x02
 
 static const uint8_t uhid_snes_report_descr[] = { UHID_SNES_REPORT_DESCR() };
-
 #define	SNES_DEV(v,p,i) { USB_VPI(v,p,i) }
 
 static const STRUCT_USB_HOST_ID snes_devs[] = {
@@ -582,7 +581,6 @@ found:
 	    iface_index, UID_ROOT, GID_OPERATOR, 0644);
 	sc->sc_repdesc_size = sizeof(uhid_snes_report_descr);
 	sc->sc_repdesc_ptr = __DECONST(void*, &uhid_snes_report_descr);
-
 
 	if (error)
 		goto detach;

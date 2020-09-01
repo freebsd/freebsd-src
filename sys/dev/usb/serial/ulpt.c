@@ -257,7 +257,6 @@ ulpt_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 
 		if (actlen == 0) {
-
 			if (sc->sc_zlps == 4) {
 				/* enable BULK throttle */
 				usbd_xfer_set_interval(xfer, 500); /* ms */
@@ -421,7 +420,6 @@ ulpt_open(struct usb_fifo *fifo, int fflags)
 	/* we assume that open is a serial process */
 
 	if (sc->sc_fflags == 0) {
-
 		/* reset USB parallel port */
 
 		ulpt_reset(sc);
@@ -575,7 +573,6 @@ found:
 	    "config number: %d\n", alt_index);
 
 	if (alt_index) {
-
 		error = usbd_set_alt_interface_index
 		    (uaa->device, iface_index, alt_index);
 
@@ -690,7 +687,6 @@ static uint8_t
 ieee1284_compare(const char *a, const char *b)
 {
 	while (1) {
-
 		if (*b == 0) {
 			break;
 		}

@@ -87,7 +87,6 @@ struct usb_page_search {
  * memory allocation.
  */
 struct usb_page_cache {
-
 #if USB_HAVE_BUSDMA
 	bus_dma_tag_t tag;
 	bus_dmamap_t map;

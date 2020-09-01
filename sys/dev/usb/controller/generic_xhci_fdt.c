@@ -120,7 +120,6 @@ generic_xhci_fdt_detach(device_t dev)
 	return (0);
 }
 
-
 static device_method_t xhci_fdt_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, generic_xhci_fdt_probe),

@@ -267,7 +267,7 @@ uep_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			memcpy(sc->buf + sc->buf_len, buf, res);
 			uep_process_pkt(sc, sc->buf);
 			sc->buf_len = 0;
- 
+
 			p = buf + res;
 			len -= res;
 		} else

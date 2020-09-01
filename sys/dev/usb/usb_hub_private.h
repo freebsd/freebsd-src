@@ -44,7 +44,6 @@ enum {
 	UHUB_N_TRANSFER,
 };
 
-
 struct uhub_current_state {
 	uint16_t port_change;
 	uint16_t port_status;

@@ -102,7 +102,6 @@ typedef int (usb_fifo_ioctl_t)(struct usb_fifo *fifo, u_long cmd, void *addr, in
 typedef void (usb_fifo_cmd_t)(struct usb_fifo *fifo);
 typedef void (usb_fifo_filter_t)(struct usb_fifo *fifo, struct usb_mbuf *m);
 
-
 /* USB events */
 #ifndef USB_GLOBAL_INCLUDE_FILE
 #include <sys/_eventhandler.h>
@@ -267,7 +266,6 @@ struct usb_config {
  * "usb_device_id".
  */
 struct usb_device_id {
-
 	/* Select which fields to match against */
 #if BYTE_ORDER == LITTLE_ENDIAN
 	uint16_t

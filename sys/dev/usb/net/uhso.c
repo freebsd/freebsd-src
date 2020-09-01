@@ -942,7 +942,6 @@ uhso_probe_iface(struct uhso_softc *sc, int index,
 		}
 	} else if ((UHSO_IFACE_USB_TYPE(type) & UHSO_IF_BULK) &&
 	    UHSO_IFACE_PORT(type) & UHSO_PORT_SERIAL) {
-
 		error = uhso_attach_bulkserial(sc, iface, type);
 		if (error)
 			return (ENXIO);
@@ -1234,7 +1233,6 @@ tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 1);
 		if (ucom_get_data(&sc->sc_ucom[ht->ht_muxport], pc,
 		    0, 32, &actlen)) {
-
 			usbd_get_page(pc, 0, &res);
 
 			memset(&req, 0, sizeof(struct usb_device_request));
@@ -1532,7 +1530,6 @@ uhso_ucom_start_write(struct ucom_softc *ucom)
 		    &sc->sc_tty[ucom->sc_subunit]);
 		usbd_transfer_start(
 		    sc->sc_tty[ucom->sc_subunit].ht_xfer[UHSO_CTRL_WRITE]);
-
 	}
 	else if (UHSO_IFACE_USB_TYPE(sc->sc_type) & UHSO_IF_BULK) {
 		usbd_transfer_start(sc->sc_xfer[UHSO_BULK_ENDPT_WRITE]);

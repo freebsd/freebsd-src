@@ -221,7 +221,6 @@ static int	axe_rxeof(struct usb_ether *, struct usb_page_cache *,
 static void	axe_csum_cfg(struct usb_ether *);
 
 static const struct usb_config axe_config[AXE_N_TRANSFER] = {
-
 	[AXE_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -1026,7 +1025,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 
@@ -1270,7 +1268,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 

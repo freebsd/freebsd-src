@@ -77,7 +77,6 @@
 #error	"Invalid USB page size!"
 #endif
 
-
 /*
  * Isochronous Transfer Descriptor.  This descriptor is used for high speed
  * transfers only.

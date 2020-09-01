@@ -117,7 +117,6 @@
 #define RT2573_STA_CSR4		0x30d0
 #define RT2573_STA_CSR5		0x30d4
 
-
 /* possible values for register RT2573_ADDR_MODE */
 #define RT2573_MODE_MASK	0x7
 #define RT2573_MODE_NOSEC	0

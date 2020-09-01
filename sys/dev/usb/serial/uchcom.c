@@ -241,7 +241,6 @@ static usb_callback_t uchcom_write_callback;
 static usb_callback_t uchcom_read_callback;
 
 static const struct usb_config uchcom_config_data[UCHCOM_N_TRANSFER] = {
-
 	[UCHCOM_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -504,7 +503,6 @@ uchcom_set_dtr_rts_20(struct uchcom_softc *sc, uint8_t val)
 	uchcom_ctrl_write(sc, UCHCOM_REQ_SET_DTRRTS, val, 0);
 }
 
-
 /* ----------------------------------------------------------------------
  * middle layer
  */
@@ -534,7 +532,6 @@ uchcom_update_status(struct uchcom_softc *sc)
 	uchcom_get_status(sc, &cur);
 	uchcom_convert_status(sc, cur);
 }
-
 
 static void
 uchcom_set_dtr_rts(struct uchcom_softc *sc)
@@ -834,7 +831,6 @@ tr_setup:
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (ucom_get_data(&sc->sc_ucom, pc, 0,
 		    usbd_xfer_max_len(xfer), &actlen)) {
-
 			DPRINTF("actlen = %d\n", actlen);
 
 			usbd_xfer_set_frame_len(xfer, 0, actlen);

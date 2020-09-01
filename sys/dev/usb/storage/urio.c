@@ -33,7 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 /*
  * 2000/3/24  added NetBSD/OpenBSD support (from Alex Nemirovsky)
  * 2000/3/07  use two bulk-pipe handles for read and write (Dirk)
@@ -281,7 +280,6 @@ urio_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		pc = usbd_xfer_get_frame(xfer, 0);
 		if (usb_fifo_get_data(f, pc, 0,
 		    usbd_xfer_max_len(xfer), &actlen, 0)) {
-
 			usbd_xfer_set_frame_len(xfer, 0, actlen);
 			usbd_transfer_submit(xfer);
 		}

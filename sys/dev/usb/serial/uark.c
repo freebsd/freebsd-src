@@ -23,7 +23,6 @@
  * be called from within the config thread function !
  */
 
-
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -119,7 +118,6 @@ static void	uark_poll(struct ucom_softc *ucom);
 
 static const struct usb_config
 	uark_xfer_config[UARK_N_TRANSFER] = {
-
 	[UARK_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -298,7 +296,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 

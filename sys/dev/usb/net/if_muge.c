@@ -224,7 +224,6 @@ static int lan78xx_chip_init(struct muge_softc *sc);
 static int muge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 
 static const struct usb_config muge_config[MUGE_N_TRANSFER] = {
-
 	[MUGE_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,

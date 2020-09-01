@@ -877,4 +877,3 @@ cdceem_resume(device_t dev)
 	CDCEEM_DEBUG(sc, "go");
 	return (0);
 }
-

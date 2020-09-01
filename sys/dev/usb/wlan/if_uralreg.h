@@ -98,7 +98,6 @@
  */
 #define RAL_STA_CSR0	0x04e0	/* FCS error */
 
-
 #define RAL_DISABLE_RX		(1 << 0)
 #define RAL_DROP_CRC		(1 << 1)
 #define RAL_DROP_PHY		(1 << 2)

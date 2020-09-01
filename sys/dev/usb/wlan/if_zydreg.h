@@ -1312,4 +1312,3 @@ struct zyd_softc {
 #define	ZYD_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
 #define	ZYD_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
 #define	ZYD_LOCK_ASSERT(sc, t)	mtx_assert(&(sc)->sc_mtx, t)
-

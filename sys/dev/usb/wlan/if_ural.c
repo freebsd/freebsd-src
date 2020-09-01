@@ -758,7 +758,6 @@ fail:
 	return (-1);
 }
 
-
 static void
 ural_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 {

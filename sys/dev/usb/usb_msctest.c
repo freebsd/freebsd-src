@@ -195,7 +195,6 @@ static struct bbb_transfer *bbb_attach(struct usb_device *, uint8_t, uint8_t);
 static void	bbb_detach(struct bbb_transfer *);
 
 static const struct usb_config bbb_config[ST_MAX] = {
-
 	[ST_COMMAND] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -255,7 +254,6 @@ static const struct usb_config bbb_config[ST_MAX] = {
 };
 
 static const struct usb_config bbb_raw_config[1] = {
-
 	[0] = {
 		.type = UE_BULK_INTR,
 		.endpoint = UE_ADDR_ANY,
@@ -746,7 +744,6 @@ usb_msc_get_max_lun(struct usb_device *udev, uint8_t iface_index)
 	usb_error_t err;
 	uint8_t buf = 0;
 
-
 	/* The Get Max Lun command is a class-specific request. */
 	req.bmRequestType = UT_READ_CLASS_INTERFACE;
 	req.bRequest = 0xFE;		/* GET_MAX_LUN */
@@ -845,7 +842,6 @@ retry_sync_cache:
 	    USB_MS_HZ);
 
 	if (err != 0) {
-
 		if (err != ERR_CSW_FAILED)
 			goto error;
 
@@ -853,7 +849,6 @@ retry_sync_cache:
 
 		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
 	} else {
-
 		/*
 		 * Certain Kingston memory sticks fail the first
 		 * read capacity after a synchronize cache command
@@ -898,7 +893,6 @@ retry_sync_cache:
 	DPRINTF("Inquiry = %d\n", err);
 
 	if (err != 0) {
-
 		if (err != ERR_CSW_FAILED)
 			goto error;
 	}
@@ -910,7 +904,6 @@ retry_sync_cache:
 	DPRINTF("Request sense = %d\n", err);
 
 	if (err != 0) {
-
 		if (err != ERR_CSW_FAILED)
 			goto error;
 	}

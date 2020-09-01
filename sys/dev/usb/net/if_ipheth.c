@@ -93,7 +93,6 @@ SYSCTL_INT(_hw_usb_ipheth, OID_AUTO, debug, CTLFLAG_RWTUN, &ipheth_debug, 0, "De
 #endif
 
 static const struct usb_config ipheth_config[IPHETH_N_TRANSFER] = {
-
 	[IPHETH_BULK_RX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -413,7 +412,6 @@ ipheth_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		for (x = 0; x != IPHETH_TX_FRAMES_MAX; x++) {
-
 			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 
 			if (m == NULL)
@@ -488,7 +486,6 @@ ipheth_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTF("received %u bytes in %u frames\n", actlen, aframes);
 
 		for (x = 0; x != aframes; x++) {
-
 			m = sc->sc_rx_buf[x];
 			sc->sc_rx_buf[x] = NULL;
 			len = usbd_xfer_frame_len(xfer, x);

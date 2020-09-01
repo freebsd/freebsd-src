@@ -895,7 +895,7 @@ upgt_set_chan(struct upgt_softc *sc, struct ieee80211_channel *c)
 		    "%s: invalid channel %x\n", __func__, channel);
 		return;
 	}
-	
+
 	DPRINTF(sc, UPGT_DEBUG_STATE, "%s: channel %d\n", __func__, channel);
 
 	data_cmd = upgt_getbuf(sc);
@@ -1056,7 +1056,6 @@ upgt_eeprom_parse(struct upgt_softc *sc)
 	    (sizeof(struct upgt_eeprom_header) + preamble_len));
 
 	while (!option_end) {
-
 		/* sanity check */
 		if (eeprom_option >= (struct upgt_eeprom_option *)
 		    (sc->sc_eeprom + UPGT_EEPROM_SIZE)) {
@@ -1483,7 +1482,7 @@ upgt_rx_rate(struct upgt_softc *sc, const int rate)
 	static const uint8_t cck_upgt2rate[4] = { 2, 4, 11, 22 };
 	static const uint8_t ofdm_upgt2rate[12] =
 	    { 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
-	
+
 	if (ic->ic_curmode == IEEE80211_MODE_11B &&
 	    !(rate < 0 || rate > 3))
 		return cck_upgt2rate[rate & 0xf];
@@ -1672,7 +1671,7 @@ static int
 upgt_fw_copy(const uint8_t *src, char *dst, int size)
 {
 	int i, j;
-	
+
 	for (i = 0, j = 0; i < size && j < size; i++) {
 		switch (src[i]) {
 		case 0x7e:

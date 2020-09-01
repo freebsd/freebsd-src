@@ -230,8 +230,6 @@ acpi_uhub_port_sysctl(SYSCTL_HANDLER_ARGS)
 			    posstr[(port->pld[8] >> 6) & 3]);
 			sbuf_printf(&sb, "\tHorizPosition: %s\n",
 			    posstr[(port->pld[9]) & 3]);
-
-
 		}
 		sbuf_printf(&sb, "\tShape: %s\n",
 		    shapestr[(port->pld[9] >> 2) & 0xf]);
@@ -492,7 +490,7 @@ acpi_uhub_root_attach(device_t dev)
 	if ((ret = uhub_attach(dev)) != 0) {
 		return (ret);
 	}
-	
+
 	if ((ret = acpi_uhub_attach_common(dev)) != 0) {
 		acpi_uhub_detach(dev);
 	}
@@ -557,7 +555,6 @@ acpi_uhub_child_location_string(device_t parent, device_t child,
 	}
 	return (0);
 }
-
 
 static device_method_t acpi_uhub_methods[] = {
 	DEVMETHOD(device_probe, acpi_uhub_probe),

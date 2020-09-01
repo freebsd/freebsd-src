@@ -207,7 +207,6 @@ ehci_msm_detach(device_t dev)
 	return (0);
 }
 
-
 static device_method_t ehci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ehci_msm_probe),
