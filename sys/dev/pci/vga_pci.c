@@ -160,7 +160,6 @@ vga_pci_reset(device_t dev)
 	pci_set_powerstate(dev, ps);
 }
 
-
 void *
 vga_pci_map_bios(device_t dev, size_t *size)
 {
@@ -779,7 +778,6 @@ static device_method_t vga_pci_methods[] = {
 	DEVMETHOD(pci_release_msi,	vga_pci_release_msi),
 	DEVMETHOD(pci_msi_count,	vga_pci_msi_count),
 	DEVMETHOD(pci_msix_count,	vga_pci_msix_count),
-
 	{ 0, 0 }
 };
 

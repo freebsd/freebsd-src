@@ -31,7 +31,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -145,7 +144,6 @@ pci_mv_init(struct pci_mv_softc *sc)
 {
 	uint32_t reg;
 
-
 	/* Set device configuration to RC */
 	reg = pci_dw_dbi_rd4(sc->dev, MV_GLOBAL_CONTROL_REG);
 	reg &= ~0x000000F0;
@@ -232,7 +230,7 @@ pci_mv_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	sc->dev = dev;
 	sc->node = node;
-	
+
 	rid = 0;
 	sc->dw_sc.dbi_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -266,7 +264,6 @@ pci_mv_attach(device_t dev)
 		rv = ENXIO;
 		goto out;
 	}
-
 
 	rv = clk_enable(sc->clk_core);
 	if (rv != 0) {

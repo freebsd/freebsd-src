@@ -1445,7 +1445,7 @@ pcib_detach_hotplug(struct pcib_softc *sc)
 	}
 
 	pcib_pcie_hotplug_update(sc, val, mask, false);
-	
+
 	error = pcib_release_pcie_irq(sc);
 	if (error)
 		return (error);
@@ -2532,7 +2532,6 @@ pcib_xlate_ari(device_t pcib, int bus, int *slot, int *func)
 		*func = PCIE_ARI_FUNC(ari_func);
 	}
 }
-
 
 static void
 pcib_enable_ari(struct pcib_softc *sc, uint32_t pcie_pos)

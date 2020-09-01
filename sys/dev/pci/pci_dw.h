@@ -34,7 +34,6 @@
 
 #include "pci_dw_if.h"
 
-
 /* DesignWare CIe configuration registers */
 #define	DW_PORT_LINK_CTRL		0x710
 #define	 PORT_LINK_CAPABLE(n)			(((n) & 0x3F) << 16)
@@ -44,7 +43,6 @@
 #define	 PORT_LINK_CAPABLE_8			0x0F
 #define	 PORT_LINK_CAPABLE_16			0x1F
 #define	 PORT_LINK_CAPABLE_32			0x3F
-
 
 #define	DW_GEN2_CTRL			0x80C
 #define	 DIRECT_SPEED_CHANGE			(1 << 17)
@@ -61,7 +59,6 @@
 #define DW_MSI_INTR0_ENABLE		0x828
 #define DW_MSI_INTR0_MASK		0x82C
 #define DW_MSI_INTR0_STATUS		0x830
-
 
 #define	DW_MISC_CONTROL_1		0x8BC
 #define	 DBI_RO_WR_EN				(1 << 0)
@@ -82,7 +79,6 @@
 #define	DW_IATU_LIMIT_ADDR		0x914
 #define	DW_IATU_LWR_TARGET_ADDR		0x918
 #define	DW_IATU_UPPER_TARGET_ADDR	0x91C
-
 
 struct pci_dw_softc {
 	struct ofw_pci_softc	ofw_pci;	/* Must be first */
@@ -115,7 +111,6 @@ struct pci_dw_softc {
 };
 
 DECLARE_CLASS(pci_dw_driver);
-
 
 static inline void
 pci_dw_dbi_wr4(device_t dev, u_int reg, uint32_t val)

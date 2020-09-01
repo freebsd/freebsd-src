@@ -506,7 +506,6 @@ generic_pcie_ofw_bus_attach(device_t dev)
 		get_addr_size_cells(parent, &addr_cells, &size_cells);
 		/* Iterate through all bus subordinates */
 		for (node = OF_child(parent); node > 0; node = OF_peer(node)) {
-
 			/* Allocate and populate devinfo. */
 			di = malloc(sizeof(*di), M_DEVBUF, M_WAITOK | M_ZERO);
 			if (ofw_bus_gen_setup_devinfo(&di->di_dinfo, node) != 0) {
