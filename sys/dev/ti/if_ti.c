@@ -166,7 +166,6 @@ static const struct ti_type ti_devs[] = {
 	{ 0, 0, NULL }
 };
 
-
 static	d_open_t	ti_open;
 static	d_close_t	ti_close;
 static	d_ioctl_t	ti_ioctl2;
@@ -446,7 +445,6 @@ ti_mem_read(struct ti_softc *sc, uint32_t addr, uint32_t len, void *buf)
 	}
 }
 
-
 /*
  * NIC memory write function.
  * Can be used to copy data into NIC local memory.
@@ -587,7 +585,6 @@ ti_copy_mem(struct ti_softc *sc, uint32_t tigon_addr, uint32_t len,
 				TI_LOCK(sc);
 			} else {
 				if (first_pass) {
-
 					ti_bcopy_swap(sc->ti_membuf,
 					    sc->ti_membuf2, segsize,
 					    TI_SWAP_NTOH);
@@ -2665,7 +2662,6 @@ ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len, int idx)
 	if (m) {
 		m_freem(m);
 		mp->m_next = NULL;
-
 	}
 	if (mp->m_next != NULL)
 		panic("ti_hdr_split: last mbuf in chain should be null");
