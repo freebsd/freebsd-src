@@ -459,7 +459,6 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 		   ifctx->dhcpquerytype == DHCP_REQUEST)
 		ifctx->state = IF_DHCP_RESOLVED;
 
-
 	if (ifctx->dhcpquerytype == DHCP_DISCOVER &&
 	    ifctx->state != IF_BOOTP_RESOLVED) {
 		p = bootpc_tag(&gctx->tmptag, &ifctx->reply,
@@ -567,7 +566,6 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	timo = 0;
 	rtimo = 0;
 	for (;;) {
-
 		outstanding = 0;
 		gotrootpath = 0;
 
