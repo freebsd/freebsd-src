@@ -130,7 +130,6 @@ vm_pager_put_pages(
 	int flags,
 	int *rtvals
 ) {
-
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	(*pagertab[object->type]->pgo_putpages)
 	    (object, m, count, flags, rtvals);
@@ -172,7 +171,6 @@ vm_pager_populate(vm_object_t object, vm_pindex_t pidx, int fault_type,
 	return ((*pagertab[object->type]->pgo_populate)(object, pidx,
 	    fault_type, max_prot, first, last));
 }
-
 
 /* 
  *      vm_pager_page_unswapped

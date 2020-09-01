@@ -124,7 +124,7 @@ SYSCTL_UINT(_vm, OID_AUTO, v_free_severe,
 static int
 sysctl_vm_loadavg(SYSCTL_HANDLER_ARGS)
 {
-	
+
 #ifdef SCTL_MASK32
 	u_int32_t la[4];
 

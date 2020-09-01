@@ -228,7 +228,6 @@ vnode_destroy_vobject(struct vnode *vp)
 	KASSERT(vp->v_object == NULL, ("vp %p obj %p", vp, vp->v_object));
 }
 
-
 /*
  * Allocate (or lookup) pager for a vnode.
  * Handle is a vnode pointer.

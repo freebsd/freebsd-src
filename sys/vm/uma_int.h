@@ -307,14 +307,14 @@ cache_uz_flags(uma_cache_t cache)
 
 	return (cache->uc_freebucket.ucb_spare);
 }
- 
+
 static inline uint32_t
 cache_uz_size(uma_cache_t cache)
 {
 
 	return (cache->uc_allocbucket.ucb_spare);
 }
- 
+
 /*
  * Per-domain slab lists.  Embedded in the kegs.
  */

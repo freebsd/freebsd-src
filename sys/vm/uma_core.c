@@ -1892,7 +1892,6 @@ pcpu_page_free(void *mem, vm_size_t size, uint8_t flags)
 	kva_free(sva, size);
 }
 
-
 /*
  * Zero fill initializer
  *
@@ -4975,7 +4974,6 @@ uma_vm_zone_stats(struct uma_type_header *uth, uma_zone_t z, struct sbuf *sbuf,
 	uma_zone_domain_t zdom;
 	uma_cache_t cache;
 	int i;
-
 
 	for (i = 0; i < vm_ndomains; i++) {
 		zdom = ZDOM_GET(z, i);

@@ -109,7 +109,6 @@ void vm_phys_early_startup(void);
 int vm_phys_avail_largest(void);
 vm_paddr_t vm_phys_avail_size(int i);
 
-
 /*
  *
  *	vm_phys_domain:
