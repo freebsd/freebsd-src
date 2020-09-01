@@ -37,11 +37,9 @@
  * Modifications by: Manjunath Ranganathaiah
  */
 
-
 /*
  * Common Layer initialization functions.
  */
-
 
 #include "tw_osl_share.h"
 #include "tw_cl_share.h"
@@ -50,7 +48,6 @@
 #include "tw_cl.h"
 #include "tw_cl_externs.h"
 #include "tw_osl_ioctl.h"
-
 
 /*
  * Function name:	tw_cl_ctlr_supported
@@ -73,8 +70,6 @@ tw_cl_ctlr_supported(TW_INT32 vendor_id, TW_INT32 device_id)
 		return(TW_CL_TRUE);
 	return(TW_CL_FALSE);
 }
-
-
 
 /*
  * Function name:	tw_cl_get_pci_bar_info
@@ -150,8 +145,6 @@ tw_cl_get_pci_bar_info(TW_INT32 device_id, TW_INT32 bar_type,
 	return(error);
 }
 
-
-
 /*
  * Function name:	tw_cl_get_mem_requirements
  * Description:		Provides info about Common Layer requirements for a
@@ -213,7 +206,6 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 		(sizeof(struct tw_cli_req_context) * max_simult_reqs) +
 		(sizeof(struct tw_cl_event_packet) * max_aens);
 
-
 	/*
 	 * Total DMA'able memory needed is the sum total of memory needed for
 	 * all command packets (including the 1 needed for CL internal
@@ -226,8 +218,6 @@ tw_cl_get_mem_requirements(struct tw_cl_ctlr_handle *ctlr_handle,
 
 	return(0);
 }
-
-
 
 /*
  * Function name:	tw_cl_init_ctlr
@@ -356,7 +346,6 @@ tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags,
 
 	/* Initialize the AEN queue. */
 	ctlr->aen_queue = (struct tw_cl_event_packet *)free_non_dma_mem;
-
 
 start_ctlr:
 	/*
@@ -545,7 +534,6 @@ tw_cli_start_ctlr(struct tw_cli_ctlr_context *ctlr)
 	return(TW_OSL_ESUCCESS);
 }
 
-
 /*
  * Function name:	tw_cl_shutdown_ctlr
  * Description:		Closes logical connection with the controller.
@@ -592,8 +580,6 @@ tw_cl_shutdown_ctlr(struct tw_cl_ctlr_handle *ctlr_handle, TW_UINT32 flags)
 ret:
 	return(error);
 }
-
-
 
 /*
  * Function name:	tw_cli_init_connection
@@ -708,5 +694,3 @@ out:
 		tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
 	return(error);
 }
-
-

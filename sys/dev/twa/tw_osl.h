@@ -37,17 +37,13 @@
  * Modifications by: Manjunath Ranganathaiah
  */
 
-
-
 #ifndef TW_OSL_H
 
 #define TW_OSL_H
 
-
 /*
  * OS Layer internal macros, structures and functions.
  */
-
 
 #define TW_OSLI_DEVICE_NAME		"3ware 9000 series Storage Controller"
 
@@ -82,14 +78,12 @@
 #define TW_OSLI_REQ_FLAGS_FAILED	(1<<7)	/* bus_dmamap_load() failed */
 #define TW_OSLI_REQ_FLAGS_CCB		(1<<8)	/* req is ccb. */
 
-
 #ifdef TW_OSL_DEBUG
 struct tw_osli_q_stats {
 	TW_UINT32	cur_len;	/* current # of items in q */
 	TW_UINT32	max_len;	/* max value reached by q_length */
 };
 #endif /* TW_OSL_DEBUG */
-
 
 /* Queues of OSL internal request context packets. */
 #define TW_OSLI_FREE_Q		0	/* free q */
@@ -126,7 +120,6 @@ struct tw_osli_req_context {
 	bus_dmamap_t		dma_map;/* DMA map for data */
 	struct tw_cl_req_packet	req_pkt;/* req pkt understood by CL */
 };
-
 
 /* Per-controller structure. */
 struct twa_softc {
@@ -187,8 +180,6 @@ struct twa_softc {
 					associated with this controller */
 };
 
-
-
 /*
  * Queue primitives.
  */
@@ -200,7 +191,6 @@ struct twa_softc {
 	(sc)->q_stats[q_type].max_len = 0;				\
 } while(0)
 
-
 #define TW_OSLI_Q_INSERT(sc, q_type)	do {				\
 	struct tw_osli_q_stats *q_stats = &((sc)->q_stats[q_type]);	\
 									\
@@ -208,10 +198,8 @@ struct twa_softc {
 		q_stats->max_len = q_stats->cur_len;			\
 } while(0)
 
-
 #define TW_OSLI_Q_REMOVE(sc, q_type)					\
 	(sc)->q_stats[q_type].cur_len--
-
 
 #else /* TW_OSL_DEBUG */
 
@@ -221,8 +209,6 @@ struct twa_softc {
 
 #endif /* TW_OSL_DEBUG */
 
-
-
 /* Initialize a queue of requests. */
 static __inline	TW_VOID
 tw_osli_req_q_init(struct twa_softc *sc, TW_UINT8 q_type)
@@ -230,8 +216,6 @@ tw_osli_req_q_init(struct twa_softc *sc, TW_UINT8 q_type)
 	TW_CL_Q_INIT(&(sc->req_q_head[q_type]));
 	TW_OSLI_Q_INIT(sc, q_type);
 }
-
-
 
 /* Insert the given request at the head of the given queue (q_type). */
 static __inline	TW_VOID
@@ -243,8 +227,6 @@ tw_osli_req_q_insert_head(struct tw_osli_req_context *req, TW_UINT8 q_type)
 	mtx_unlock_spin(req->ctlr->q_lock);
 }
 
-
-
 /* Insert the given request at the tail of the given queue (q_type). */
 static __inline	TW_VOID
 tw_osli_req_q_insert_tail(struct tw_osli_req_context *req, TW_UINT8 q_type)
@@ -254,8 +236,6 @@ tw_osli_req_q_insert_tail(struct tw_osli_req_context *req, TW_UINT8 q_type)
 	TW_OSLI_Q_INSERT(req->ctlr, q_type);
 	mtx_unlock_spin(req->ctlr->q_lock);
 }
-
-
 
 /* Remove and return the request at the head of the given queue (q_type). */
 static __inline struct tw_osli_req_context *
@@ -276,8 +256,6 @@ tw_osli_req_q_remove_head(struct twa_softc *sc, TW_UINT8 q_type)
 	return(req);
 }
 
-
-
 /* Remove the given request from the given queue (q_type). */
 static __inline TW_VOID
 tw_osli_req_q_remove_item(struct tw_osli_req_context *req, TW_UINT8 q_type)
@@ -288,8 +266,6 @@ tw_osli_req_q_remove_item(struct tw_osli_req_context *req, TW_UINT8 q_type)
 	mtx_unlock_spin(req->ctlr->q_lock);
 }
 
-
-
 #ifdef TW_OSL_DEBUG
 
 extern TW_INT32	TW_DEBUG_LEVEL_FOR_OSL;
@@ -298,7 +274,6 @@ extern TW_INT32	TW_DEBUG_LEVEL_FOR_OSL;
 	if (dbg_level <= TW_DEBUG_LEVEL_FOR_OSL)			\
 		device_printf(sc->bus_dev, "%s: " fmt "\n",		\
 			__func__, ##args)
-
 
 #define tw_osli_dbg_printf(dbg_level, fmt, args...)			\
 	if (dbg_level <= TW_DEBUG_LEVEL_FOR_OSL)			\
@@ -311,7 +286,6 @@ extern TW_INT32	TW_DEBUG_LEVEL_FOR_OSL;
 
 #endif /* TW_OSL_DEBUG */
 
-
 /* For regular printing. */
 #define twa_printf(sc, fmt, args...)					\
 	device_printf(((struct twa_softc *)(sc))->bus_dev, fmt, ##args)
@@ -320,7 +294,5 @@ extern TW_INT32	TW_DEBUG_LEVEL_FOR_OSL;
 #define tw_osli_printf(sc, err_specific_desc, args...)			\
 	device_printf((sc)->bus_dev,					\
 		"%s: (0x%02X: 0x%04X): %s: " err_specific_desc "\n", ##args)
-
-
 
 #endif /* TW_OSL_H */

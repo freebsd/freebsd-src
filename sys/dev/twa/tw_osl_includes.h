@@ -36,17 +36,13 @@
  * Modifications by: Adam Radford
  */
 
-
-
 #ifndef TW_OSL_INCLUDES_H
 
 #define TW_OSL_INCLUDES_H
 
-
 /*
  * All header files needed by the OS Layer.
  */
-
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -76,7 +72,5 @@
 #include <dev/twa/tw_osl_share.h>
 #include <dev/twa/tw_cl_share.h>
 #include <dev/twa/tw_osl_externs.h>
-
-
 
 #endif /* TW_OSL_INCLUDES_H */

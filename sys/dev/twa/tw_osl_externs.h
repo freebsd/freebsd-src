@@ -36,23 +36,17 @@
  * Modifications by: Adam Radford
  */
 
-
-
 #ifndef TW_OSL_EXTERNS_H
 
 #define TW_OSL_EXTERNS_H
-
 
 /*
  * Data structures and functions global to the OS Layer.
  */
 
-
 /* External data structures. */
 
 extern int	mp_ncpus;
-
-
 
 /* Functions in tw_osl_freebsd.c */
 
@@ -67,8 +61,6 @@ extern TW_INT32	tw_osli_map_request(struct tw_osli_req_context *req);
 
 /* Undo mapping. */
 extern TW_VOID	tw_osli_unmap_request(struct tw_osli_req_context *req);
-
-
 
 /* Functions in tw_osl_cam.c */
 
@@ -90,7 +82,5 @@ extern TW_VOID	tw_osl_complete_io(struct tw_cl_req_handle *req_handle);
 
 /* OSL's completion routine for passthru requests. */
 extern TW_VOID	tw_osl_complete_passthru(struct tw_cl_req_handle *req_handle);
-
-
 
 #endif /* TW_OSL_EXTERNS_H */

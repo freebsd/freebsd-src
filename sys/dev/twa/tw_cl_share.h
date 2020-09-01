@@ -37,12 +37,9 @@
  * Modifications by: Manjunath Ranganathaiah
  */
 
-
-
 #ifndef TW_CL_SHARE_H
 
 #define TW_CL_SHARE_H
-
 
 /*
  * Macros, structures and functions shared between OSL and CL,
@@ -83,7 +80,6 @@
 #define TW_CL_MAX_32BIT_SG_ELEMENTS	109	/* max 32-bit sg elements */
 #define TW_CL_MAX_64BIT_SG_ELEMENTS	72	/* max 64-bit sg elements */
 
-
 /* Possible values of ctlr->flags */
 #define TW_CL_64BIT_ADDRESSES	(1<<0) /* 64 bit cmdpkt & SG addresses */
 #define TW_CL_64BIT_SG_LENGTH	(1<<1) /* 64 bit SG length */
@@ -101,11 +97,9 @@
 #define TW_CL_ERR_REQ_BUS_RESET			(1<<5)
 #define TW_CL_ERR_REQ_UNABLE_TO_SUBMIT_COMMAND	(1<<6)
 
-
 /* Possible values of req_pkt->flags */
 #define TW_CL_REQ_RETRY_ON_BUSY		(1<<0)
 #define TW_CL_REQ_CALLBACK_FOR_SGLIST	(1<<1)
-
 
 #define TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR	3
 #define TW_CL_MESSAGE_SOURCE_CONTROLLER_EVENT	4
@@ -126,8 +120,6 @@
 #define TW_CL_SEVERITY_INFO_STRING	"INFO"
 #define TW_CL_SEVERITY_DEBUG_STRING	"DEBUG"
 
-
-
 /*
  * Structure, a pointer to which is used as the controller handle in
  * communications between the OS Layer and the Common Layer.
@@ -136,7 +128,6 @@ struct tw_cl_ctlr_handle {
 	TW_VOID	*osl_ctlr_ctxt;	/* OSL's ctlr context */
 	TW_VOID	*cl_ctlr_ctxt;	/* CL's ctlr context */
 };
-
 
 /*
  * Structure, a pointer to which is used as the request handle in
@@ -147,7 +138,6 @@ struct tw_cl_req_handle {
 	TW_VOID	*cl_req_ctxt;	/* CL's request context */
 	TW_UINT8 is_io;		/* Only freeze/release simq for IOs */
 };
-
 
 /* Structure used to describe SCSI requests to CL. */
 struct tw_cl_scsi_req_packet {
@@ -162,7 +152,6 @@ struct tw_cl_scsi_req_packet {
 	TW_UINT8	*sg_list;	/* ptr to SG list */
 };
 
-
 /* Structure used to describe pass through command packets to CL. */
 struct tw_cl_passthru_req_packet {
 	TW_UINT8	*cmd_pkt;	/* ptr to passthru cmd pkt */
@@ -170,7 +159,6 @@ struct tw_cl_passthru_req_packet {
 	TW_UINT32	sgl_entries;	/* # of SG descriptors */
 	TW_UINT8	*sg_list;	/* ptr to SG list */
 };
-
 
 /* Request packet submitted to the Common Layer, by the OS Layer. */
 struct tw_cl_req_packet {
@@ -189,7 +177,6 @@ struct tw_cl_req_packet {
 		struct tw_cl_passthru_req_packet	pt_req;/*Passthru req*/
 	} gen_req_pkt;
 };
-
 
 #pragma pack(1)
 /*
@@ -210,13 +197,11 @@ struct tw_cl_event_packet {
 };
 #pragma pack()
 
-
 /* Structure to link 2 adjacent elements in a list. */
 struct tw_cl_link {
 	struct tw_cl_link	*next;
 	struct tw_cl_link	*prev;
 };
-
 
 #pragma pack(1)
 /* Scatter/Gather list entry with 32 bit addresses. */
@@ -224,7 +209,6 @@ struct tw_cl_sg_desc32 {
 	TW_UINT32	address;
 	TW_UINT32	length;
 };
-
 
 /* Scatter/Gather list entry with 64 bit addresses. */
 struct tw_cl_sg_desc64 {
@@ -234,23 +218,19 @@ struct tw_cl_sg_desc64 {
 
 #pragma pack()
 
-
 /* Byte swap functions.  Valid only if running on big endian platforms. */
 #ifdef TW_OSL_BIG_ENDIAN
 
 #define TW_CL_SWAP16_WITH_CAST(x)					\
 	((x << 8) | (x >> 8))
 
-
 #define TW_CL_SWAP32_WITH_CAST(x)					\
 	((x << 24) | ((x << 8) & (0xFF0000)) |				\
 	((x >> 8) & (0xFF00)) | (x >> 24))
 
-
 #define TW_CL_SWAP64_WITH_CAST(x)					\
 	((((TW_UINT64)(TW_CL_SWAP32(((TW_UINT32 *)(&(x)))[1]))) << 32) |\
 	((TW_UINT32)(TW_CL_SWAP32(((TW_UINT32 *)(&(x)))[0]))))
-
 
 #else /* TW_OSL_BIG_ENDIAN */
 
@@ -264,14 +244,12 @@ struct tw_cl_sg_desc64 {
 #define TW_CL_SWAP32(x)		TW_CL_SWAP32_WITH_CAST((TW_UINT32)(x))
 #define TW_CL_SWAP64(x)		TW_CL_SWAP64_WITH_CAST((TW_UINT64)(x))
 
-
 /* Queue manipulation functions. */
 
 /* Initialize a queue. */
 #define TW_CL_Q_INIT(head)	do {		\
 	(head)->prev = (head)->next = head;	\
 } while (0)
-
 
 /* Insert an item at the head of the queue. */
 #define TW_CL_Q_INSERT_HEAD(head, item)	do {	\
@@ -281,7 +259,6 @@ struct tw_cl_sg_desc64 {
 	(head)->next = item;			\
 } while (0)
 
-
 /* Insert an item at the tail of the queue. */
 #define	TW_CL_Q_INSERT_TAIL(head, item)	do {	\
 	(item)->next = head;			\
@@ -290,38 +267,31 @@ struct tw_cl_sg_desc64 {
 	(head)->prev = item;			\
 } while (0)
 
-
 /* Remove an item from the head of the queue. */
 #define TW_CL_Q_REMOVE_ITEM(head, item)	do {	\
 	(item)->prev->next = (item)->next;	\
 	(item)->next->prev = (item)->prev;	\
 } while (0)
 
-
 /* Retrieve the item at the head of the queue. */
 #define TW_CL_Q_FIRST_ITEM(head)		\
 	(((head)->next != head) ? ((head)->next) : TW_CL_NULL)
-
 
 /* Retrieve the item at the tail of the queue. */
 #define TW_CL_Q_LAST_ITEM(head)			\
 	(((head)->prev != head) ? ((head)->prev) : TW_CL_NULL)
 
-
 /* Retrieve the item next to a given item in the queue. */
 #define TW_CL_Q_NEXT_ITEM(head, item)		\
 	(((item)->next != head) ? ((item)->next) : TW_CL_NULL)
-
 
 /* Retrieve the item previous to a given item in the queue. */
 #define TW_CL_Q_PREV_ITEM(head, item)		\
 	(((item)->prev != head) ? ((item)->prev) : TW_CL_NULL)
 
-
 /* Determine the offset of a field from the head of the structure it is in. */
 #define	TW_CL_STRUCT_OFFSET(struct_type, field)	\
 	(TW_INT8 *)(&((struct_type *)0)->field)
-
 
 /*
  * Determine the address of the head of a structure, given the address of a
@@ -331,13 +301,9 @@ struct tw_cl_sg_desc64 {
 	(struct_type *)((TW_INT8 *)addr -		\
 	TW_CL_STRUCT_OFFSET(struct_type, field))
 
-
-
 #ifndef TW_BUILDING_API
 
 #include "tw_osl_inline.h"
-
-
 
 /*
  * The following are extern declarations of OS Layer defined functions called
@@ -350,7 +316,6 @@ struct tw_cl_sg_desc64 {
 extern TW_VOID	tw_osl_breakpoint(TW_VOID);
 #endif
 
-
 #ifndef tw_osl_timeout
 /* Start OS timeout() routine after controller reset sequence */
 extern TW_VOID	tw_osl_timeout(struct tw_cl_req_handle *req_handle);
@@ -361,12 +326,10 @@ extern TW_VOID	tw_osl_timeout(struct tw_cl_req_handle *req_handle);
 extern TW_VOID	tw_osl_untimeout(struct tw_cl_req_handle *req_handle);
 #endif
 
-
 #ifndef tw_osl_cur_func
 /* Text name of current function. */
 extern TW_INT8	*tw_osl_cur_func(TW_VOID);
 #endif
-
 
 #ifdef TW_OSL_DEBUG
 #ifndef tw_osl_dbg_printf
@@ -376,12 +339,10 @@ extern TW_INT32 tw_osl_dbg_printf(struct tw_cl_ctlr_handle *ctlr_handle,
 #endif
 #endif /* TW_OSL_DEBUG */
 
-
 #ifndef tw_osl_delay
 /* Cause a delay of usecs micro-seconds. */
 extern TW_VOID	tw_osl_delay(TW_INT32 usecs);
 #endif
-
 
 #ifndef tw_osl_destroy_lock
 /* Create/initialize a lock for CL's use. */
@@ -389,19 +350,16 @@ extern TW_VOID	tw_osl_destroy_lock(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_LOCK_HANDLE *lock);
 #endif
 
-
 #ifndef tw_osl_free_lock
 /* Free a previously held lock. */
 extern TW_VOID	tw_osl_free_lock(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_LOCK_HANDLE *lock);
 #endif
 
-
 #ifndef tw_osl_get_local_time
 /* Get local time. */
 extern TW_TIME	tw_osl_get_local_time(TW_VOID);
 #endif
-
 
 #ifndef tw_osl_get_lock
 /* Acquire a lock. */
@@ -409,32 +367,27 @@ extern TW_VOID	tw_osl_get_lock(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_LOCK_HANDLE *lock);
 #endif
 
-
 #ifndef tw_osl_init_lock
 /* Create/initialize a lock for CL's use. */
 extern TW_VOID	tw_osl_init_lock(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_INT8 *lock_name, TW_LOCK_HANDLE *lock);
 #endif
 
-
 #ifndef tw_osl_memcpy
 /* Copy 'size' bytes from 'src' to 'dest'. */
 extern TW_VOID	tw_osl_memcpy(TW_VOID *src, TW_VOID *dest, TW_INT32 size);
 #endif
-
 
 #ifndef tw_osl_memzero
 /* Zero 'size' bytes starting at 'addr'. */
 extern TW_VOID	tw_osl_memzero(TW_VOID *addr, TW_INT32 size);
 #endif
 
-
 #ifndef tw_osl_notify_event
 /* Notify OSL of a controller/CL (or even OSL) event. */
 extern TW_VOID	tw_osl_notify_event(struct tw_cl_ctlr_handle *ctlr_handle,
 	struct tw_cl_event_packet *event);
 #endif
-
 
 #ifdef TW_OSL_PCI_CONFIG_ACCESSIBLE
 #ifndef tw_osl_read_pci_config
@@ -444,19 +397,16 @@ extern TW_UINT32 tw_osl_read_pci_config(
 #endif
 #endif /* TW_OSL_PCI_CONFIG_ACCESSIBLE */
 
-
 #ifndef tw_osl_read_reg
 /* Read 'size' bytes at 'offset' from base address of this controller. */
 extern TW_UINT32 tw_osl_read_reg(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_INT32 offset, TW_INT32 size);
 #endif
 
-
 #ifndef tw_osl_scan_bus
 /* Request OSL for a bus scan. */
 extern TW_VOID	tw_osl_scan_bus(struct tw_cl_ctlr_handle *ctlr_handle);
 #endif
-
 
 #ifdef TW_OSL_CAN_SLEEP
 #ifndef tw_osl_sleep
@@ -466,18 +416,15 @@ extern TW_INT32	tw_osl_sleep(struct tw_cl_ctlr_handle *ctlr_handle,
 #endif
 #endif /* TW_OSL_CAN_SLEEP */
 
-
 #ifndef tw_osl_sprintf
 /* Standard sprintf. */
 extern TW_INT32	tw_osl_sprintf(TW_INT8 *dest, const TW_INT8 *fmt, ...);
 #endif
 
-
 #ifndef tw_osl_strcpy
 /* Copy string 'src' to 'dest'. */
 extern TW_INT8	*tw_osl_strcpy(TW_INT8 *dest, TW_INT8 *src);
 #endif
-
 
 #ifndef tw_osl_strlen
 /* Return length of string pointed at by 'str'. */
@@ -489,7 +436,6 @@ extern TW_INT32	tw_osl_strlen(TW_VOID *str);
 extern TW_INT32	tw_osl_vsprintf(TW_INT8 *dest, const TW_INT8 *fmt, va_list ap);
 #endif
 
-
 #ifdef TW_OSL_CAN_SLEEP
 #ifndef tw_osl_wakeup
 /* Wake up a thread sleeping by a call to tw_osl_sleep. */
@@ -497,7 +443,6 @@ extern TW_VOID	tw_osl_wakeup(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_SLEEP_HANDLE *sleep_handle);
 #endif
 #endif /* TW_OSL_CAN_SLEEP */
-
 
 #ifdef TW_OSL_PCI_CONFIG_ACCESSIBLE
 #ifndef tw_osl_write_pci_config
@@ -507,7 +452,6 @@ extern TW_VOID	tw_osl_write_pci_config(struct tw_cl_ctlr_handle *ctlr_handle,
 #endif
 #endif /* TW_OSL_PCI_CONFIG_ACCESSIBLE */
 
-
 #ifndef tw_osl_write_reg
 /*
  * Write 'value' of 'size' (max 4) bytes at 'offset' from base address of
@@ -516,8 +460,6 @@ extern TW_VOID	tw_osl_write_pci_config(struct tw_cl_ctlr_handle *ctlr_handle,
 extern TW_VOID	tw_osl_write_reg(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_INT32 offset, TW_INT32 value, TW_INT32 size);
 #endif
-
-
 
 /* Functions in the Common Layer */
 
@@ -530,11 +472,9 @@ extern TW_VOID tw_cl_create_event(struct tw_cl_ctlr_handle *ctlr_handle,
 /* Indicates whether a ctlr is supported by CL. */
 extern TW_INT32	tw_cl_ctlr_supported(TW_INT32 vendor_id, TW_INT32 device_id);
 
-
 /* Submit a firmware cmd packet. */
 extern TW_INT32	tw_cl_fw_passthru(struct tw_cl_ctlr_handle *ctlr_handle,
 	struct tw_cl_req_packet *req_pkt, struct tw_cl_req_handle *req_handle);
-
 
 /* Find out how much memory CL needs. */
 extern TW_INT32	tw_cl_get_mem_requirements(
@@ -544,11 +484,9 @@ extern TW_INT32	tw_cl_get_mem_requirements(
 	TW_UINT32 *non_dma_mem_size, TW_UINT32 *dma_mem_size
 	);
 
-
 /* Return PCI BAR info. */
 extern TW_INT32 tw_cl_get_pci_bar_info(TW_INT32 device_id, TW_INT32 bar_type,
 	TW_INT32 *bar_num, TW_INT32 *bar0_offset, TW_INT32 *bar_size);
-
 
 /* Initialize Common Layer for a given controller. */
 extern TW_INT32	tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle,
@@ -557,7 +495,6 @@ extern TW_INT32	tw_cl_init_ctlr(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_UINT64 dma_mem_phys
 	);
 
-
 extern TW_VOID  tw_cl_set_reset_needed(struct tw_cl_ctlr_handle *ctlr_handle);
 extern TW_INT32 tw_cl_is_reset_needed(struct tw_cl_ctlr_handle *ctlr_handle);
 extern TW_INT32 tw_cl_is_active(struct tw_cl_ctlr_handle *ctlr_handle);
@@ -565,11 +502,9 @@ extern TW_INT32 tw_cl_is_active(struct tw_cl_ctlr_handle *ctlr_handle);
 /* CL's interrupt handler. */
 extern TW_INT32	tw_cl_interrupt(struct tw_cl_ctlr_handle *ctlr_handle);
 
-
 /* CL's ioctl handler. */
 extern TW_INT32	tw_cl_ioctl(struct tw_cl_ctlr_handle *ctlr_handle,
 	u_long cmd, TW_VOID *buf);
-
 
 #ifdef TW_OSL_DEBUG
 /* Print CL's state/statistics for a controller. */
@@ -579,26 +514,21 @@ extern TW_VOID	tw_cl_print_ctlr_stats(struct tw_cl_ctlr_handle *ctlr_handle);
 extern TW_VOID	tw_cl_print_req_info(struct tw_cl_req_handle *req_handle);
 #endif /* TW_OSL_DEBUG */
 
-
 /* Soft reset controller. */
 extern TW_INT32	tw_cl_reset_ctlr(struct tw_cl_ctlr_handle *ctlr_handle);
-
 
 #ifdef TW_OSL_DEBUG
 /* Reset CL's statistics for a controller. */
 extern TW_VOID	tw_cl_reset_stats(struct tw_cl_ctlr_handle *ctlr_handle);
 #endif /* TW_OSL_DEBUG */
 
-
 /* Stop a controller. */
 extern TW_INT32	tw_cl_shutdown_ctlr(struct tw_cl_ctlr_handle *ctlr_handle,
 	TW_UINT32 flags);
 
-
 /* Submit a SCSI I/O request. */
 extern TW_INT32	tw_cl_start_io(struct tw_cl_ctlr_handle *ctlr_handle,
 	struct tw_cl_req_packet *req_pkt, struct tw_cl_req_handle *req_handle);
-
 
 #endif /* TW_BUILDING_API */
 
