@@ -156,7 +156,7 @@ pmc_summary_handler(int logfd, int k, bool do_full)
 			auto rate = ratemap[kv.first];
 			std::cout << "idx: " << kv.first << " name: " << name << " rate: " << rate << std::endl;
 			while (!kv.second.empty()) {
-				auto &val = kv.second.back();
+				auto val = kv.second.back();
 				kv.second.pop_back();
 				std::cout << val.second << ": " << val.first << std::endl;
 			}
