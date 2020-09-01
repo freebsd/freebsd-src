@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2020
+.Dd September 1, 2020
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -40,9 +40,9 @@ All of the tools necessary to build a release are available from the
 .Fx
 source code repository in
 .Pa src/release .
-A complete release can actually be built with only a single command,
+A complete release can be built with only a single command,
 including the creation of ISO images suitable for burning to CD-ROM,
-memory stick images, and an FTP install directory.
+memory stick images, and a network install directory.
 This command is aptly named
 .Dq Li "make release" .
 .Pp
@@ -96,7 +96,7 @@ assurance, or other aspects of the release engineering process.
 .Sh CLEAN RELEASE GENERATION
 Official releases of
 .Fx
-are produced in a totally clean environment to
+are produced in a clean environment to
 ensure consistency between the versions of the src, ports, and doc trees
 and to avoid contamination from the host system
 .Po such as local patches, changes
