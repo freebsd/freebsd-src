@@ -679,6 +679,21 @@ isfunc(const char *name)
 }
 
 
+static void
+print_absolute_path(const char *name)
+{
+	const char *pwd;
+
+	if (*name != '/' && (pwd = lookupvar("PWD")) != NULL && *pwd != '\0') {
+		out1str(pwd);
+		if (strcmp(pwd, "/") != 0)
+			outcslow('/', out1);
+	}
+	out1str(name);
+	outcslow('\n', out1);
+}
+
+
 /*
  * Shared code for the following builtin commands:
  *    type, command -v, command -V
@@ -745,20 +760,16 @@ typecmd_impl(int argc, char **argv, int cmd, const char *path)
 					name = padvance(&path2, &opt2, argv[i]);
 					stunalloc(name);
 				} while (--j >= 0);
-				if (cmd == TYPECMD_SMALLV)
-					out1fmt("%s\n", name);
-				else
-					out1fmt("%s is%s %s\n", argv[i],
+				if (cmd != TYPECMD_SMALLV)
+					out1fmt("%s is%s ", argv[i],
 					    (cmdp && cmd == TYPECMD_TYPE) ?
-						" a tracked alias for" : "",
-					    name);
+						" a tracked alias for" : "");
+				print_absolute_path(name);
 			} else {
 				if (eaccess(argv[i], X_OK) == 0) {
-					if (cmd == TYPECMD_SMALLV)
-						out1fmt("%s\n", argv[i]);
-					else
-						out1fmt("%s is %s\n", argv[i],
-						    argv[i]);
+					if (cmd != TYPECMD_SMALLV)
+						out1fmt("%s is ", argv[i]);
+					print_absolute_path(argv[i]);
 				} else {
 					if (cmd != TYPECMD_SMALLV)
 						outfmt(out2, "%s: %s\n",
