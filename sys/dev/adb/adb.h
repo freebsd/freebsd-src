@@ -45,7 +45,7 @@ enum {
 	ADB_DEVICE_MOUSE	= 0x03,
 	ADB_DEVICE_TABLET	= 0x04,
 	ADB_DEVICE_MODEM	= 0x05,
-	
+
 	ADB_DEVICE_MISC		= 0x07
 };
 
@@ -78,4 +78,3 @@ extern devclass_t adb_devclass;
 extern driver_t adb_driver;
 
 #endif
-
