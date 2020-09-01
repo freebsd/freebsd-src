@@ -183,7 +183,7 @@ ofw_bus_status_okay(device_t dev)
 	if (status == NULL || strcmp(status, "okay") == 0 ||
 	    strcmp(status, "ok") == 0)
 		return (1);
-	
+
 	return (0);
 }
 

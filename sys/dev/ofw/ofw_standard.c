@@ -136,7 +136,6 @@ static ofw_method_t ofw_std_methods[] = {
 	OFWMETHOD(ofw_release,			ofw_std_release),
 	OFWMETHOD(ofw_enter,			ofw_std_enter),
 	OFWMETHOD(ofw_exit,			ofw_std_exit),
-
 	{ 0, 0 }
 };
 
