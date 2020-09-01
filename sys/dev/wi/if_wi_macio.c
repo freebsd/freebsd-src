@@ -87,7 +87,6 @@ static device_method_t wi_macio_methods[] = {
 	DEVMETHOD(device_attach,	wi_macio_attach),
 	DEVMETHOD(device_detach,	wi_detach),
 	DEVMETHOD(device_shutdown,	wi_shutdown),
-
 	{ 0, 0 }
 };
 

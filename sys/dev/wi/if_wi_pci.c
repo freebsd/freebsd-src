@@ -84,7 +84,6 @@ static device_method_t wi_pci_methods[] = {
 	DEVMETHOD(device_shutdown,	wi_shutdown),
 	DEVMETHOD(device_suspend,	wi_pci_suspend),
 	DEVMETHOD(device_resume,	wi_pci_resume),
-
 	{ 0, 0 }
 };
 
@@ -246,7 +245,7 @@ wi_pci_suspend(device_t dev)
 	WI_LOCK(sc);
 	wi_stop(sc, 1);
 	WI_UNLOCK(sc);
-	
+
 	return (0);
 }
 

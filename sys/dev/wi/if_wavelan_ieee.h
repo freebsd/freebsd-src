@@ -478,7 +478,6 @@ struct wi_rx_frame {
 #define WI_MGMT_HDRLEN		0x3C
 #define WI_CTL_HDRLEN		0x3C
 
-
 /*
  * all data packets have a snap (sub-network access protocol) header that
  * isn't entirely definied, but added for ethernet compatibility.
@@ -487,7 +486,6 @@ struct wi_snap_frame {
 	u_int16_t	wi_dat[3];
 	u_int16_t	wi_type;
 };
-
 
 /*
  * management frame headers
@@ -592,7 +590,6 @@ struct wi_mgmt_deauth_hdr {
 	u_int16_t	wi_reason;
 };
 
-
 /*
  * rid configuration register definitions
  */
@@ -601,7 +598,6 @@ struct wi_mgmt_deauth_hdr {
 
 #define WI_RID_PROCFRAME	0x3137 /* Return full frame information */
 #define WI_RID_PRISM2		0x3138 /* tell if we're a prism2 card or not */
-
 
 /*
  * 802.11 definitions
@@ -650,7 +646,6 @@ struct wi_mgmt_deauth_hdr {
 
 #define WI_FCS_LEN		0x4 /* checksum length */
 
-
 /*
  * management definitions
  */
@@ -693,7 +688,6 @@ struct wi_mgmt_deauth_hdr {
 
 #define WI_VAR_SRATES_MASK	0x7F
 
-
 /*
  * control definitions
  */
@@ -703,7 +697,6 @@ struct wi_mgmt_deauth_hdr {
 #define WI_STYPE_CTL_ACK	0x00D0
 #define WI_STYPE_CTL_CFEND	0x00E0
 #define WI_STYPE_CTL_CFENDCFACK	0x00F0
-
 
 /*
  * ap scanning structures
@@ -728,7 +721,6 @@ struct wi_scan_p2_hdr {
 	u_int16_t	wi_reason;
 };
 #define WI_PRISM2_RES_SIZE	62
-
 
 /*
  * prism2 debug mode definitions
