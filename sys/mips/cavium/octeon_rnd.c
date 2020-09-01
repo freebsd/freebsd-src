@@ -63,7 +63,6 @@ static device_method_t octeon_rnd_methods[] = {
 	DEVMETHOD(device_probe,		octeon_rnd_probe),
 	DEVMETHOD(device_attach,	octeon_rnd_attach),
 	DEVMETHOD(device_detach,	octeon_rnd_detach),
-
 	{ 0, 0 }
 };
 

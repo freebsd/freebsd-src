@@ -138,7 +138,6 @@ typedef union {
 
 #define	MIPS_OPCODE(r, c)	(((r & 0x07) << 3) | (c & 0x07))
 
-
 /*
  * Values for the 'op' field.
  */

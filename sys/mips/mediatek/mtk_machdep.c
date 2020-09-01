@@ -297,7 +297,6 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 			kern_setenv(n, arg);
 	}
 
-
 	mips_init();
 	mips_timer_init_params(timer_clk, 0);
 }

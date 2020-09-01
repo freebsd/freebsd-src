@@ -66,4 +66,3 @@
 #define	PCF2123_WRITE(reg)	(PCF2123_CMD_WRITE | (1 << 4) | (reg))
 
 #endif /* __PCF2123REG_H__ */
-

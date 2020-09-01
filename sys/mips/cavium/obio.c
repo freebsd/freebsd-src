@@ -165,7 +165,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	rman_set_rid(rv, *rid);
 	rman_set_bustag(rv, bt);
 	rman_set_bushandle(rv, bh);
-	
+
 	if (0) {
 		if (bus_activate_resource(child, type, *rid, rv)) {
 			rman_release_resource(rv);

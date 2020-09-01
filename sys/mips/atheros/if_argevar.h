@@ -50,7 +50,6 @@
     ((sc)->arge_rdata.arge_rx_ring_paddr + sizeof(struct arge_desc) * (i))
 #define	ARGE_INC(x,y)		(x) = (((x) + 1) % y)
 
-
 #define	ARGE_MII_TIMEOUT	1000
 
 #define	ARGE_LOCK(_sc)		mtx_lock(&(_sc)->arge_mtx)

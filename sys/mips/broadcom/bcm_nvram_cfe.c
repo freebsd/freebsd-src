@@ -104,7 +104,6 @@ bhnd_nvram_cfe_probe(device_t dev)
 	return (BUS_PROBE_NOWILDCARD);
 }
 
-
 static int
 bhnd_nvram_cfe_attach(device_t dev)
 {
@@ -240,7 +239,6 @@ bcm_nvram_find_cfedev(struct bcm_nvram_iocfe *iocfe,
 	return (ENODEV);
 }
 
-
 /**
  * Initialize a new CFE device-backed I/O context.
  *
@@ -343,7 +341,6 @@ bcm_nvram_iocfe_init(struct bcm_nvram_iocfe *iocfe, char *dname)
 		req_blk_erase	= !(fi.flash_flags & FLASH_FLAG_NOERASE);
 	}
 
-	
 	/* Verify that the full NVRAM layout can be represented via size_t */
 	if (nv_size > SIZE_MAX || SIZE_MAX - nv_size < nv_offset) {
 		IOCFE_LOG(iocfe, "invalid NVRAM layout (%#x/%#jx)\n",
@@ -449,7 +446,7 @@ bhnd_nvram_iocfe_read(struct bhnd_nvram_io *io, size_t offset, void *buffer,
 		cfe_noff = cfe_offset + nread;
 		p = ((uint8_t *)buffer + nread);
 		nreq = ummin(INT_MAX, remain);
-	
+
 		nr = cfe_readblk(iocfe->fd, cfe_noff, p, nreq);
 		if (nr < 0) {
 			IOCFE_LOG(iocfe, "cfe_readblk() failed: %d\n", nr);

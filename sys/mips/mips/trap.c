@@ -345,7 +345,7 @@ cpu_fetch_syscall_args(struct thread *td)
 
 	locr0 = td->td_frame;
 	sa = &td->td_sa;
-	
+
 	bzero(sa->args, sizeof(sa->args));
 
 	/* compute next PC after syscall instruction */
@@ -1150,7 +1150,6 @@ trapDump(char *msg)
 }
 #endif
 
-
 /*
  * Return the resulting PC as if the branch was executed.
  */
@@ -1165,7 +1164,6 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 
 #define	GetBranchDest(InstPtr, inst) \
 	(InstPtr + 4 + ((short)inst.IType.imm << 2))
-
 
 	if (instptr) {
 		if (instptr < MIPS_KSEG0_START)
@@ -1378,7 +1376,6 @@ trap_frame_dump(struct trapframe *frame)
 
 #endif
 
-
 static void
 get_mapping_info(vm_offset_t va, pd_entry_t **pdepp, pt_entry_t **ptepp)
 {
@@ -1519,7 +1516,6 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	    (intmax_t)frame->badvaddr, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 }
 
-
 /*
  * Unaligned load/store emulation
  */
@@ -1639,7 +1635,6 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	panic("%s: should not be reached.", __func__);
 }
 
-
 /*
  * XXX TODO: SMP?
  */
@@ -1666,7 +1661,6 @@ emulate_unaligned_access(struct trapframe *frame, int mode)
 	 * Fall through if it's instruction fetch exception
 	 */
 	if (!((pc & 3) || (pc == frame->badvaddr))) {
-
 		/*
 		 * Handle unaligned load and store
 		 */

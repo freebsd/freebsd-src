@@ -39,7 +39,6 @@
  * $FreeBSD$
  */
 
-
 /*  *********************************************************************
     *  Broadcom Common Firmware Environment (CFE)
     *  

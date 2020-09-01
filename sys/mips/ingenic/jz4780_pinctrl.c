@@ -240,7 +240,6 @@ done:
 	return (result);
 }
 
-
 static device_method_t jz4780_pinctrl_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		jz4780_pinctrl_probe),

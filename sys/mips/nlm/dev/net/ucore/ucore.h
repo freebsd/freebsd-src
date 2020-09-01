@@ -100,7 +100,6 @@ nlm_write_ucore_##name(unsigned int v)				\
 	nlm_write_ucore_reg(reg, v);				\
 } struct __hack
 
-
 NLM_DEFINE_UCORE(obufdone,		UCORE_OUTBUF_DONE);
 NLM_DEFINE_UCORE(rxpktrdy,		UCORE_RX_PKT_RDY);
 NLM_DEFINE_UCORE(rxpktinfo,		UCORE_RX_PKT_INFO);

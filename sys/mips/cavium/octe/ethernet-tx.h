@@ -4,7 +4,6 @@
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -32,4 +31,3 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
 
 int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp);
 void cvm_oct_tx_shutdown(struct ifnet *ifp);
-

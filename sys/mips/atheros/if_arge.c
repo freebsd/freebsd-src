@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 #include "mdio_if.h"
 #endif
 
-
 MODULE_DEPEND(arge, ether, 1, 1, 1);
 MODULE_DEPEND(arge, miibus, 1, 1, 1);
 MODULE_VERSION(arge, 1);
@@ -230,7 +229,7 @@ static device_method_t argemdio_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	device_add_child_ordered),
-	
+
 	/* MDIO access */
 	DEVMETHOD(mdio_readreg,		arge_miibus_readreg),
 	DEVMETHOD(mdio_writereg,	arge_miibus_writereg),
@@ -1242,7 +1241,6 @@ arge_update_link_locked(struct arge_softc *sc)
 	}
 
 	if (mii->mii_media_status & IFM_ACTIVE) {
-
 		media = IFM_SUBTYPE(mii->mii_media_active);
 		if (media != IFM_NONE) {
 			sc->arge_link_status = 1;
@@ -1372,7 +1370,6 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	ar71xx_device_set_mii_speed(sc->arge_mac_unit, if_speed);
 #endif
 }
-
 
 static void
 arge_reset_dma(struct arge_softc *sc)
@@ -1738,7 +1735,6 @@ arge_start_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
-
 		/*
 		 * Pack the data into the transmit ring.
 		 */
@@ -1783,7 +1779,6 @@ arge_stop(struct arge_softc *sc)
 	arge_rx_ring_free(sc);
 	arge_tx_ring_free(sc);
 }
-
 
 static int
 arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
@@ -2419,7 +2414,6 @@ arge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 }
 #endif /* DEVICE_POLLING */
 
-
 static void
 arge_tx_locked(struct arge_softc *sc)
 {
@@ -2484,7 +2478,6 @@ arge_tx_locked(struct arge_softc *sc)
 	    sc->arge_cdata.arge_tx_ring_map, BUS_DMASYNC_PREWRITE);
 }
 
-
 static int
 arge_rx_locked(struct arge_softc *sc)
 {
@@ -2541,7 +2534,6 @@ arge_rx_locked(struct arge_softc *sc)
 	}
 
 	if (prog > 0) {
-
 		i = sc->arge_cdata.arge_rx_cons;
 		for (; prog > 0 ; prog--) {
 			if (arge_newbuf(sc, i) != 0) {
@@ -2698,7 +2690,6 @@ arge_intr(void *arg)
 	 */
 	ARGE_WRITE(sc, AR71XX_DMA_INTR, DMA_INTR_ALL);
 }
-
 
 static void
 arge_tick(void *xsc)

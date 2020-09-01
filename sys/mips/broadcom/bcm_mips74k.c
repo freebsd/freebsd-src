@@ -200,7 +200,6 @@ bcm_mips74k_detach(device_t dev)
 	return (0);
 }
 
-
 /* PIC_DISABLE_INTR() */
 static void
 bcm_mips74k_pic_disable_intr(device_t dev, struct intr_irqsrc *irqsrc)

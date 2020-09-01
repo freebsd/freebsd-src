@@ -342,7 +342,6 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	       cvmx_sysinfo_get()->mac_addr_base, ":",
 	       cvmx_sysinfo_get()->mac_addr_count);
 
-
 	octeon_ciu_reset();
 	/*
 	 * Convert U-Boot 'bootoctlinux' loader command line arguments into

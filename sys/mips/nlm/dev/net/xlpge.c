@@ -903,7 +903,6 @@ fail:
 	return (err);
 }
 
-
 static int
 nlm_xlpge_gmac_config_speed(struct nlm_xlpge_softc *sc)
 {
@@ -1004,7 +1003,6 @@ xlpge_read_mac_addr(struct nlm_xlpge_softc *sc)
 		nlm_nae_setup_mac_addr_xaui(sc->base_addr, sc->block,
 		    sc->port, sc->type, sc->dev_addr);
 }
-
 
 static int
 xlpge_mediachange(struct ifnet *ifp)

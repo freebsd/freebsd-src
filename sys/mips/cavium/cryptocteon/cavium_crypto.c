@@ -388,7 +388,6 @@ octo_aes_cbc_encrypt(
     return 0;
 }
 
-
 int
 octo_aes_cbc_decrypt(
     struct octo_sess *od,
@@ -645,7 +644,6 @@ octo_aes_cbc_sha1_encrypt(
 	mydata[1].data32[0] = *data32;
 	IOV_CONSUME(iov, data32, data_i, data_l);
 	mydata[1].data32[1] = *data32;
-
 
     	if (crypt_off <= 0) {
 	    if (crypt_len > 0) {

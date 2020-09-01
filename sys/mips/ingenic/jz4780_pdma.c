@@ -451,7 +451,7 @@ pdma_channel_request(device_t dev, struct xdma_channel *xchan, struct xdma_reque
 		chan->flags = CHAN_DESCR_RELINK;
 	chan->cur_desc = 0;
 	chan->req = req;
-	
+
 	for (i = 0; i < req->block_num; i++) {
 		desc = &chan->desc_ring[i];
 

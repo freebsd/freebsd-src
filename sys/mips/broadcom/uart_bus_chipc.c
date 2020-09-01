@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 
 #include "bcm_machdep.h"
 
-
 static int
 uart_chipc_probe(device_t dev)
 {

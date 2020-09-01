@@ -66,7 +66,6 @@ static device_method_t octebus_methods[] = {
 
 	/* Bus interface.  */
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-
 	{ 0, 0 }
 };
 

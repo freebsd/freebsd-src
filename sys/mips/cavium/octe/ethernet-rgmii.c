@@ -4,7 +4,6 @@ SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -71,11 +70,9 @@ static void cvm_oct_rgmii_poll(struct ifnet *ifp)
 
 	link_info = cvmx_helper_link_get(priv->port);
 	if (link_info.u64 == priv->link_info) {
-
 		/* If the 10Mbps preamble workaround is supported and we're
 		   at 10Mbps we may need to do some special checking */
 		if (USE_10MBPS_PREAMBLE_WORKAROUND && (link_info.s.speed == 10)) {
-
 			/* Read the GMXX_RXX_INT_REG[PCTERR] bit and
 			   see if we are getting preamble errors */
 			int interface = INTERFACE(priv->port);
@@ -83,7 +80,6 @@ static void cvm_oct_rgmii_poll(struct ifnet *ifp)
 			cvmx_gmxx_rxx_int_reg_t gmxx_rxx_int_reg;
 			gmxx_rxx_int_reg.u64 = cvmx_read_csr(CVMX_GMXX_RXX_INT_REG(index, interface));
 			if (gmxx_rxx_int_reg.s.pcterr) {
-
 				/* We are getting preamble errors at 10Mbps.
 				   Most likely the PHY is giving us packets
 				   with mis aligned preambles. In order to get
@@ -116,7 +112,6 @@ static void cvm_oct_rgmii_poll(struct ifnet *ifp)
 	   every speed change. If errors occur during 10Mbps operation
 	   the above code will change this stuff */
 	if (USE_10MBPS_PREAMBLE_WORKAROUND) {
-
 		cvmx_gmxx_rxx_frm_ctl_t gmxx_rxx_frm_ctl;
 		cvmx_ipd_sub_port_fcs_t ipd_sub_port_fcs;
 		cvmx_gmxx_rxx_int_reg_t gmxx_rxx_int_reg;
@@ -144,7 +139,6 @@ static void cvm_oct_rgmii_poll(struct ifnet *ifp)
 	mtx_unlock_spin(&global_register_lock);
 }
 
-
 static int cvm_oct_rgmii_rml_interrupt(void *dev_id)
 {
 	cvmx_npi_rsl_int_blocks_t rsl_int_blocks;
@@ -155,18 +149,15 @@ static int cvm_oct_rgmii_rml_interrupt(void *dev_id)
 
 	/* Check and see if this interrupt was caused by the GMX0 block */
 	if (rsl_int_blocks.s.gmx0) {
-
 		int interface = 0;
 		/* Loop through every port of this interface */
 		for (index = 0; index < cvmx_helper_ports_on_interface(interface); index++) {
-
 			/* Read the GMX interrupt status bits */
 			cvmx_gmxx_rxx_int_reg_t gmx_rx_int_reg;
 			gmx_rx_int_reg.u64 = cvmx_read_csr(CVMX_GMXX_RXX_INT_REG(index, interface));
 			gmx_rx_int_reg.u64 &= cvmx_read_csr(CVMX_GMXX_RXX_INT_EN(index, interface));
 			/* Poll the port if inband status changed */
 			if (gmx_rx_int_reg.s.phy_dupx || gmx_rx_int_reg.s.phy_link || gmx_rx_int_reg.s.phy_spd) {
-
 				struct ifnet *ifp = cvm_oct_device[cvmx_helper_get_ipd_port(interface, index)];
 				if (ifp)
 					cvm_oct_rgmii_poll(ifp);
@@ -182,18 +173,15 @@ static int cvm_oct_rgmii_rml_interrupt(void *dev_id)
 
 	/* Check and see if this interrupt was caused by the GMX1 block */
 	if (rsl_int_blocks.s.gmx1) {
-
 		int interface = 1;
 		/* Loop through every port of this interface */
 		for (index = 0; index < cvmx_helper_ports_on_interface(interface); index++) {
-
 			/* Read the GMX interrupt status bits */
 			cvmx_gmxx_rxx_int_reg_t gmx_rx_int_reg;
 			gmx_rx_int_reg.u64 = cvmx_read_csr(CVMX_GMXX_RXX_INT_REG(index, interface));
 			gmx_rx_int_reg.u64 &= cvmx_read_csr(CVMX_GMXX_RXX_INT_EN(index, interface));
 			/* Poll the port if inband status changed */
 			if (gmx_rx_int_reg.s.phy_dupx || gmx_rx_int_reg.s.phy_link || gmx_rx_int_reg.s.phy_spd) {
-
 				struct ifnet *ifp = cvm_oct_device[cvmx_helper_get_ipd_port(interface, index)];
 				if (ifp)
 					cvm_oct_rgmii_poll(ifp);
@@ -208,7 +196,6 @@ static int cvm_oct_rgmii_rml_interrupt(void *dev_id)
 	}
 	return return_status;
 }
-
 
 int cvm_oct_rgmii_init(struct ifnet *ifp)
 {
@@ -257,9 +244,7 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 	   a RGMII port */
 	if (((priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII) && (priv->port == 0)) ||
 	    (priv->imode == CVMX_HELPER_INTERFACE_MODE_RGMII)) {
-
 		if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) {
-
 			cvmx_gmxx_rxx_int_en_t gmx_rx_int_en;
 			int interface = INTERFACE(priv->port);
 			int index = INDEX(priv->port);
@@ -286,9 +271,7 @@ void cvm_oct_rgmii_uninit(struct ifnet *ifp)
 	   a RGMII port */
 	if (((priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII) && (priv->port == 0)) ||
 	    (priv->imode == CVMX_HELPER_INTERFACE_MODE_RGMII)) {
-
 		if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) {
-
 			cvmx_gmxx_rxx_int_en_t gmx_rx_int_en;
 			int interface = INTERFACE(priv->port);
 			int index = INDEX(priv->port);
@@ -307,4 +290,3 @@ void cvm_oct_rgmii_uninit(struct ifnet *ifp)
 	if (number_rgmii_ports == 0)
 		panic("%s: need to implement IRQ release.", __func__);
 }
-

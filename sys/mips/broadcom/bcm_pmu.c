@@ -121,7 +121,7 @@ bcm_get_uart_clkcfg(struct bcm_platform *bp)
 	/* PLL M2 clock source? */
 	if (!bcm_has_pmu(bp) && BCM_PMU_PLL_TYPE(bp) == CHIPC_PLL_TYPE1) {
 		uint32_t n, m;
-	
+
 		n = BCM_CHIPC_READ_4(bp, CHIPC_CLKC_N);
 		m = BCM_CHIPC_READ_4(bp, CHIPC_CLKC_M2);
 
@@ -130,7 +130,7 @@ bcm_get_uart_clkcfg(struct bcm_platform *bp)
 			BCM_UART_RCLK_PLL_T1_DIV,
 			bhnd_pwrctl_clock_rate(BCM_PMU_PLL_TYPE(bp), n, m)
 		};
-	
+
 		return (cfg);
 	}
 
@@ -247,7 +247,7 @@ bcm_get_cpufreq(struct bcm_platform *bp)
 	m = BCM_CHIPC_READ_4(bp, mreg);
 
 	return (bhnd_pwrctl_cpu_clock_rate(&bp->cid, pll_type, n, m));
-	
+
 }
 
 /** Backplane clock frequency (in Hz) */
@@ -276,7 +276,6 @@ bcm_get_sifreq(struct bcm_platform *bp)
 
 	return (bhnd_pwrctl_si_clock_rate(&bp->cid, pll_type, n, m));
 }
-
 
 static uint32_t
 bcm_pmu_read4(bus_size_t reg, void *ctx) {

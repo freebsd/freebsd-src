@@ -594,7 +594,6 @@ ar724x_pci_intr(void *arg)
 	struct intr_event *event;
 	uint32_t reg, irq, mask;
 
-
 	reg = ATH_READ_REG(AR724X_PCI_INTR_STATUS);
 	mask = ATH_READ_REG(AR724X_PCI_INTR_MASK);
 	/*
@@ -602,7 +601,6 @@ ar724x_pci_intr(void *arg)
 	 */
 	reg &= mask;
 	if (reg & AR724X_PCI_INTR_DEV0) {
-
 		irq = AR71XX_PCI_IRQ_START;
 		event = sc->sc_eventstab[irq];
 		if (!event || CK_SLIST_EMPTY(&event->ie_handlers)) {

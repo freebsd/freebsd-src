@@ -46,4 +46,3 @@ void fdt_reset_register_provider(device_t provider);
 void fdt_reset_unregister_provider(device_t provider);
 
 #endif /* DEV_FDT_RESET_H */
-

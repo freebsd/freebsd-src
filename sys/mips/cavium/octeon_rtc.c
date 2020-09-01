@@ -58,7 +58,6 @@ static device_method_t octeon_rtc_methods[] = {
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	octeon_rtc_gettime),
 	DEVMETHOD(clock_settime,	octeon_rtc_settime),
-
 	{ 0, 0 }
 };
 

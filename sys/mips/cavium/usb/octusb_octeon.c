@@ -143,7 +143,6 @@ octusb_octeon_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_dci.sc_bus.bdev, &sc->sc_dci.sc_bus);
 
-
 	err = octusb_init(&sc->sc_dci);
 	if (!err) {
 		err = device_probe_and_attach(sc->sc_dci.sc_bus.bdev);

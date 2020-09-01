@@ -120,7 +120,7 @@ load_kernel(void * kstart)
 	int symtabindex = -1;
 	int symstrindex = -1;
 	Elf_Size tmp;
-	
+
 #if ELFSIZE == 64
 	eh = (Elf64_Ehdr *)kstart;
 #else

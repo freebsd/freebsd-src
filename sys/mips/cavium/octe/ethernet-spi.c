@@ -4,7 +4,6 @@ SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -68,7 +67,6 @@ static int cvm_oct_spi_rml_interrupt(void *dev_id)
 		spx_int_reg.u64 = cvmx_read_csr(CVMX_SPXX_INT_REG(1));
 		cvmx_write_csr(CVMX_SPXX_INT_REG(1), spx_int_reg.u64);
 		if (!need_retrain[1]) {
-
 			spx_int_reg.u64 &= cvmx_read_csr(CVMX_SPXX_INT_MSK(1));
 			if (spx_int_reg.s.spf)
 				printf("SPI1: SRX Spi4 interface down\n");
@@ -97,7 +95,6 @@ static int cvm_oct_spi_rml_interrupt(void *dev_id)
 		stx_int_reg.u64 = cvmx_read_csr(CVMX_STXX_INT_REG(1));
 		cvmx_write_csr(CVMX_STXX_INT_REG(1), stx_int_reg.u64);
 		if (!need_retrain[1]) {
-
 			stx_int_reg.u64 &= cvmx_read_csr(CVMX_STXX_INT_MSK(1));
 			if (stx_int_reg.s.syncerr)
 				printf("SPI1: STX Interface encountered a fatal error\n");
@@ -132,7 +129,6 @@ static int cvm_oct_spi_rml_interrupt(void *dev_id)
 		spx_int_reg.u64 = cvmx_read_csr(CVMX_SPXX_INT_REG(0));
 		cvmx_write_csr(CVMX_SPXX_INT_REG(0), spx_int_reg.u64);
 		if (!need_retrain[0]) {
-
 			spx_int_reg.u64 &= cvmx_read_csr(CVMX_SPXX_INT_MSK(0));
 			if (spx_int_reg.s.spf)
 				printf("SPI0: SRX Spi4 interface down\n");
@@ -161,7 +157,6 @@ static int cvm_oct_spi_rml_interrupt(void *dev_id)
 		stx_int_reg.u64 = cvmx_read_csr(CVMX_STXX_INT_REG(0));
 		cvmx_write_csr(CVMX_STXX_INT_REG(0), stx_int_reg.u64);
 		if (!need_retrain[0]) {
-
 			stx_int_reg.u64 &= cvmx_read_csr(CVMX_STXX_INT_MSK(0));
 			if (stx_int_reg.s.syncerr)
 				printf("SPI0: STX Interface encountered a fatal error\n");
@@ -229,9 +224,7 @@ static void cvm_oct_spi_poll(struct ifnet *ifp)
 	int interface;
 
 	for (interface = 0; interface < 2; interface++) {
-
 		if ((priv->port == interface*16) && need_retrain[interface]) {
-
 			if (cvmx_spi_restart_interface(interface, CVMX_SPI_MODE_DUPLEX, 10) == 0) {
 				need_retrain[interface] = 0;
 				cvm_oct_spi_enable_error_reporting(interface);
@@ -255,7 +248,6 @@ static void cvm_oct_spi_poll(struct ifnet *ifp)
 		}
 	}
 }
-
 
 int cvm_oct_spi_init(struct ifnet *ifp)
 {

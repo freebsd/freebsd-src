@@ -4,7 +4,6 @@ SPDX-License-Identifier: BSD-3-Clause
 Copyright (c) 2003-2007  Cavium Networks (support@cavium.com). All rights
 reserved.
 
-
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
@@ -91,7 +90,6 @@ void cvm_oct_common_set_multicast_list(struct ifnet *ifp)
 	}
 }
 
-
 /**
  * Assign a MAC addres from the pool of available MAC addresses
  * Can return as either a 64-bit value and/or 6 octets.
@@ -116,7 +114,7 @@ int cvm_assign_mac_address(uint64_t *macp, uint8_t *octets)
 
 	if (cvm_oct_mac_addr_offset >= cvmx_sysinfo_get()->mac_addr_count)
 		return ENXIO;	    /* Out of addresses to assign */
-	
+
 	if (macp)
 		*macp = cvm_oct_mac_addr;
 	if (octets)
@@ -165,7 +163,6 @@ void cvm_oct_common_set_mac_address(struct ifnet *ifp, const void *addr)
 	}
 }
 
-
 /**
  * Change the link MTU. Unimplemented
  *
@@ -210,7 +207,6 @@ int cvm_oct_common_change_mtu(struct ifnet *ifp, int new_mtu)
 	return 0;
 }
 
-
 /**
  * Enable port.
  */
@@ -239,7 +235,6 @@ int cvm_oct_common_open(struct ifnet *ifp)
 
 	return 0;
 }
-
 
 /**
  * Disable port.
@@ -298,7 +293,6 @@ void cvm_oct_common_poll(struct ifnet *ifp)
 	priv->need_link_update = 1;
 }
 
-
 /**
  * Per network device initialization
  *
@@ -344,4 +338,3 @@ void cvm_oct_common_uninit(struct ifnet *ifp)
 {
     /* Currently nothing to do */
 }
-

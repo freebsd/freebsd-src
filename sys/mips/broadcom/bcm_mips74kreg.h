@@ -64,5 +64,4 @@
 #define	BCM_MIPS74K_GET_TIMER_IRQ()	\
 	 ((mips_rd_intctl() & MIPS_INTCTL_IPTI_MASK) >> MIPS_INTCTL_IPTI_SHIFT)
 
-
 #endif /* _MIPS_BROADCOM_MIPS74KREG_H_ */

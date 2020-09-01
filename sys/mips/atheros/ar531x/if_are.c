@@ -195,7 +195,6 @@ DRIVER_MODULE(aremdio, nexus, aremdio_driver, aremdio_devclass, 0, 0);
 DRIVER_MODULE(mdio, aremdio, mdio_driver, mdio_devclass, 0, 0);
 #endif
 
-
 static int 
 are_probe(device_t dev)
 {
@@ -1472,7 +1471,6 @@ are_fixup_rx(struct mbuf *m)
 	m->m_data -= ETHER_ALIGN;
 }
 
-
 static void
 are_tx(struct are_softc *sc)
 {
@@ -1537,7 +1535,6 @@ are_tx(struct are_softc *sc)
 	bus_dmamap_sync(sc->are_cdata.are_tx_ring_tag,
 	    sc->are_cdata.are_tx_ring_map, BUS_DMASYNC_PREWRITE);
 }
-
 
 static void
 are_rx(struct are_softc *sc)
@@ -1611,7 +1608,6 @@ are_rx(struct are_softc *sc)
 		bus_dmamap_sync(sc->are_cdata.are_rx_ring_tag,
 		    sc->are_cdata.are_rx_ring_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-
 	}
 
 	if (prog > 0) {

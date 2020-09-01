@@ -240,7 +240,6 @@ static struct ofw_compat_data compat_data[] = {
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
 
-
 #define	SIGCHG(c, i, s, d)				\
 	if (c) {					\
 		i |= (i & s) ? s : s | d;		\

@@ -50,7 +50,6 @@ struct mtk_pin_group {
 #define GROUP(_name, _reg, _off, _mask, _funcs)	\
     { .name = (_name), .sysc_reg = (_reg), .offset = (_off),		\
     .mask = (_mask), .functions = (_funcs), .funcnum = nitems(_funcs) }
-
 #define GROUP_END	{ NULL, 0, 0, 0, NULL, 0 }
 
 #define DECL_FUNC(_name)	\

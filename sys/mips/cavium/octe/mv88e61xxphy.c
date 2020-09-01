@@ -617,7 +617,6 @@ static device_method_t mv88e61xxphy_methods[] = {
 	DEVMETHOD(device_attach,	mv88e61xxphy_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-
 	{ 0, 0 }
 };
 
