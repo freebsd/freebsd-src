@@ -136,7 +136,6 @@ struct fsif_sync_request {
     uint32_t fd;
 };
 
-
 /* FS operation request */
 struct fsif_request {
     uint8_t type;                 /* Type of the request                  */
@@ -187,6 +186,5 @@ DEFINE_RING_TYPES(fsif, struct fsif_request, struct fsif_response);
 #define STATE_READY           "ready"
 #define STATE_CLOSING         "closing"
 #define STATE_CLOSED          "closed"
-
 
 #endif

@@ -233,7 +233,6 @@
  */
 #define XEN_ELFNOTE_CRASH_REGS 0x1000002
 
-
 /*
  * xen dump-core none note.
  * xm dump-core code will create one XEN_ELFNOTE_DUMPCORE_NONE

@@ -242,7 +242,7 @@ xenbusb_delete_child(device_t dev, device_t child)
 		xs_unregister_watch(&ivars->xd_otherend_watch);
 	if (ivars->xd_local_watch.node != NULL)
 		xs_unregister_watch(&ivars->xd_local_watch);
-	
+
 	device_delete_child(dev, child);
 	xenbusb_free_child_ivars(ivars);
 }
@@ -255,7 +255,6 @@ static void
 xenbusb_verify_device(device_t dev, device_t child)
 {
 	if (xs_exists(XST_NIL, xenbus_get_node(child), "") == 0) {
-
 		/*
 		 * Device tree has been removed from Xenbus.
 		 * Tear down the device.
