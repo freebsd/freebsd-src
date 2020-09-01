@@ -295,7 +295,6 @@ ether_request_mac(device_t dev, uint8_t *mac)
 #if defined(RT305X_UBOOT) ||  defined(__REDBOOT__) || defined(__ROUTERBOOT__)
 	if ((var = kern_getenv("ethaddr")) != NULL ||
 	    (var = kern_getenv("kmac")) != NULL ) {
-
 		if(!macaddr_atoi(var, mac)) {
 			printf("%s: use %s macaddr from KENV\n",
 			    device_get_nameunit(dev), var);
@@ -312,7 +311,6 @@ ether_request_mac(device_t dev, uint8_t *mac)
 	 */
 	if (!resource_string_value(device_get_name(dev),
 	    device_get_unit(dev), "macaddr", (const char **)&var)) {
-
 		if(!macaddr_atoi(var, mac)) {
 			printf("%s: use %s macaddr from hints\n",
 			    device_get_nameunit(dev), var);
@@ -403,7 +401,6 @@ rt_attach(device_t dev)
 
 	/* Reset hardware */
 	reset_freng(sc);
-
 
 	if (sc->rt_chipid == RT_CHIPID_MT7620) {
 		sc->csum_fail_ip = MT7620_RXD_SRC_IP_CSUM_FAIL;
@@ -1000,7 +997,7 @@ rt_stop_locked(void *priv)
 
 	/* disable interrupts */
 	RT_WRITE(sc, sc->fe_int_enable, 0);
-	
+
 	if(sc->rt_chipid != RT_CHIPID_RT5350 &&
 	   sc->rt_chipid != RT_CHIPID_MT7620 &&
 	   sc->rt_chipid != RT_CHIPID_MT7621) {
@@ -1110,7 +1107,6 @@ rt_tx_data(struct rt_softc *sc, struct mbuf *m, int qid)
 
 	/* set up Tx descs */
 	for (i = 0; i < ndmasegs; i += 2) {
-
 		/* TODO: this needs to be refined as MT7620 for example has
 		 * a different word3 layout than RT305x and RT5350 (the last
 		 * one doesn't use word3 at all). And so does MT7621...
@@ -1545,25 +1541,25 @@ rt_rt5350_intr(void *arg)
 	struct rt_softc *sc;
 	struct ifnet *ifp;
 	uint32_t status;
-	
+
 	sc = arg;
 	ifp = sc->ifp;
-	
+
 	/* acknowledge interrupts */
 	status = RT_READ(sc, sc->fe_int_status);
 	RT_WRITE(sc, sc->fe_int_status, status);
-	
+
 	RT_DPRINTF(sc, RT_DEBUG_INTR, "interrupt: status=0x%08x\n", status);
-	
+
 	if (status == 0xffffffff ||     /* device likely went away */
 		status == 0)            /* not for us */
 		return;
-	
+
 	sc->interrupts++;
-	
+
 	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 	        return;
-	
+
 	if (status & RT5350_INT_TX_COHERENT)
 		rt_tx_coherent_intr(sc);
 	if (status & RT5350_INT_RX_COHERENT)
