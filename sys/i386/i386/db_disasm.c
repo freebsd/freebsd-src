@@ -1346,7 +1346,6 @@ db_disasm(db_addr_t loc, bool altfmt)
 		db_printf(",");
 
 	    switch (i_mode & 0xFF) {
-
 		case E:
 		    db_print_address(seg, size, &address);
 		    break;

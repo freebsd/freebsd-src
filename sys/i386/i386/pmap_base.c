@@ -269,7 +269,6 @@ SYSCTL_OID(_vm_pmap, OID_AUTO, kernel_maps,
     NULL, 0, sysctl_kmaps, "A",
     "Dump kernel address layout");
 
-
 /*
  * Initialize a vm_page's machine-dependent fields.
  */

@@ -36,7 +36,7 @@
 
 #ifndef	_MACHINE_PERFMON_H_
 #define	_MACHINE_PERFMON_H_
- 
+
 #ifndef _KERNEL
 #include <sys/types.h>
 #endif

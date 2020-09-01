@@ -96,7 +96,6 @@ struct l_old_select_argv {
 	struct l_timeval	*timeout;
 };
 
-
 int
 linux_execve(struct thread *td, struct linux_execve_args *args)
 {

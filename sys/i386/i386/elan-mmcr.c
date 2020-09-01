@@ -347,7 +347,7 @@ init_AMD_Elan_sc520(void)
 	 *   f = 32768 * 45 * 25 / 31 = 1189161.29...
 	 * We use the sysctl to get the i8254 (timecounter etc) into whack.
 	 */
-	
+
 	new = 1189161;
 	i = kernel_sysctlbyname(&thread0, "machdep.i8254_freq", 
 	    NULL, 0, &new, sizeof new, NULL, 0);
@@ -497,7 +497,7 @@ elan_drvinit(void)
 	/* Create the error LED on GPIO9 */
 	led_cookie[9] = 0x02000c34;
 	led_dev[9] = led_create(gpio_led, &led_cookie[9], "error");
-	
+
 	/* Disable the unavailable GPIO pins */
 	strcpy(gpio_config, "-----....--..--------..---------");
 #else /* !CPU_SOEKRIS */
@@ -509,4 +509,3 @@ elan_drvinit(void)
 }
 
 SYSINIT(elan, SI_SUB_PSEUDO, SI_ORDER_MIDDLE, elan_drvinit, NULL);
-

@@ -159,7 +159,6 @@ init_486dlc(void)
 	intr_restore(saveintr);
 }
 
-
 /*
  * Cyrix 486S/DX series
  */
@@ -180,7 +179,6 @@ init_cy486dx(void)
 	write_cyrix_reg(CCR2, ccr2);
 	intr_restore(saveintr);
 }
-
 
 /*
  * Cyrix 5x86
@@ -959,7 +957,6 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 	cr0 = rcr0();
 	if (cpu_vendor_id == CPU_VENDOR_CYRIX) {
 		saveintr = intr_disable();
-
 
 		if ((cpu != CPU_M1SC) && (cpu != CPU_CY486DX)) {
 			ccr0 = read_cyrix_reg(CCR0);

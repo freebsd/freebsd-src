@@ -165,7 +165,7 @@
 	pushl	$0		/* dummy trap type */
 	PUSH_FRAME2
 	.endm
-	
+
 /*
  * Access per-CPU data.
  */
