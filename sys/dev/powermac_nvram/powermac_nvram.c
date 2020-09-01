@@ -76,7 +76,6 @@ static device_method_t	powermac_nvram_methods[] = {
 	DEVMETHOD(device_probe,		powermac_nvram_probe),
 	DEVMETHOD(device_attach,	powermac_nvram_attach),
 	DEVMETHOD(device_detach,	powermac_nvram_detach),
-
 	{ 0, 0 }
 };
 
@@ -200,7 +199,7 @@ powermac_nvram_detach(device_t dev)
 		destroy_dev(sc->sc_cdev);
 
 	sx_destroy(&sc->sc_lock);
-	
+
 	return 0;
 }
 
