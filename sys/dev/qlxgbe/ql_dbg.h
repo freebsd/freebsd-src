@@ -102,5 +102,4 @@ extern void ql_dump_buf32(qla_host_t *ha, const char *str, void *dbuf,
 
 #endif
 
-
 #endif /* #ifndef _QL_DBG_H_ */

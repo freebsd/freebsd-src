@@ -1409,4 +1409,3 @@ unsigned char ql83xx_resetseq[] = {
   0xdf, 0xfa, 0x8f, 0x87
 };
 unsigned int ql83xx_resetseq_len = 16384;
-

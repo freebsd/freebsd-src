@@ -281,5 +281,4 @@ typedef struct qla_sp_log qla_sp_log_t;
 #define SP_TLOG_FMT_STR_14	\
 	"qla_init_locked [%ld]: \n"
 
-
 #endif /* #ifndef _QL_IOCTL_H_ */
