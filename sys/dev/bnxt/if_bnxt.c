@@ -713,7 +713,6 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto dma_fail;
 
-
 	/* Get firmware version and compare with driver */
 	softc->ver_info = malloc(sizeof(struct bnxt_ver_info),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -1094,7 +1093,6 @@ bnxt_init(if_ctx_t ctx)
 		rc = bnxt_hwrm_ring_grp_alloc(softc, &softc->grp_info[i]);
 		if (rc)
 			goto fail;
-
 	}
 
 	/* Allocate the VNIC RSS context */
@@ -1249,7 +1247,6 @@ bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	struct ifmedia_entry *next;
 	uint64_t target_baudrate = bnxt_get_baudrate(link_info);
 	int active_media = IFM_UNKNOWN;
-
 
 	bnxt_update_link(softc, true);
 
@@ -1654,7 +1651,6 @@ bnxt_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data)
 	size_t iol;
 	int rc = ENOTSUP;
 	struct bnxt_ioctl_data iod_storage, *iod = &iod_storage;
-
 
 	switch (command) {
 	case SIOCGPRIVATE_0:
@@ -2086,7 +2082,7 @@ bnxt_add_media_types(struct bnxt_softc *softc)
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_100MB, IFM_100_T);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_10MB, IFM_10_T);
 		break;
-	
+
 	case HWRM_PORT_PHY_QCFG_OUTPUT_PHY_TYPE_BASEKX:
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_10GB, IFM_10G_KR);
 		BNXT_IFMEDIA_ADD(supported, SPEEDS_2_5GB, IFM_2500_KX);
