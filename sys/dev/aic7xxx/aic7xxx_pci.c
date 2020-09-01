@@ -721,7 +721,6 @@ ahc_9005_subdevinfo_valid(uint16_t device, uint16_t vendor,
 	 && subvendor == 0x9005
          && subdevice != device
          && SUBID_9005_TYPE_KNOWN(subdevice) != 0) {
-
 		switch (SUBID_9005_TYPE(subdevice)) {
 		case SUBID_9005_TYPE_MB:
 			break;
@@ -826,13 +825,12 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	 * 64bit bus (PCI64BIT set in devconfig).
 	 */
 	if ((ahc->flags & AHC_39BIT_ADDRESSING) != 0) {
-
 		if (bootverbose)
 			printf("%s: Enabling 39Bit Addressing\n",
 			       ahc_name(ahc));
 		devconfig |= DACEN;
 	}
-	
+
 	/* Ensure that pci error generation, a test feature, is disabled. */
 	devconfig |= PCIERRGENDIS;
 
@@ -904,7 +902,6 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 	dscommand0 |= MPARCKEN|CACHETHEN;
 	if ((ahc->features & AHC_ULTRA2) != 0) {
-
 		/*
 		 * DPARCKEN doesn't work correctly on
 		 * some MBs so don't use it.
@@ -931,7 +928,6 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 
 	if ((ahc->bugs & AHC_PCI_2_1_RETRY_BUG) != 0
 	 && ahc->pci_cachesize == 4) {
-
 		aic_pci_write_config(ahc->dev_softc, CSIZE_LATTIME,
 				     0, /*bytes*/1);
 		ahc->pci_cachesize = 0;
@@ -1168,7 +1164,7 @@ ahc_probe_ext_scbram(struct ahc_softc *ahc)
 	fast = FALSE;
 	large = FALSE;
 	num_scbs = 0;
-	
+
 	if (ahc_ext_scbram_present(ahc) == 0)
 		goto done;
 
@@ -1377,7 +1373,6 @@ check_extport(struct ahc_softc *ahc, u_int *sxfrctl1)
 
 	have_seeprom = ahc_acquire_seeprom(ahc, &sd);
 	if (have_seeprom) {
-
 		if (bootverbose) 
 			printf("%s: Reading SEEPROM...", ahc_name(ahc));
 
@@ -1617,7 +1612,7 @@ configure_termination(struct ahc_softc *ahc,
 		      u_int *sxfrctl1)
 {
 	uint8_t brddat;
-	
+
 	brddat = 0;
 
 	/*
@@ -1625,7 +1620,7 @@ configure_termination(struct ahc_softc *ahc,
 	 * termination settings 
 	 */
 	*sxfrctl1 = 0;
-	
+
 	/*
 	 * SEECS must be on for the GALS to latch
 	 * the data properly.  Be sure to leave MS
@@ -1921,7 +1916,7 @@ aic785X_cable_detect(struct ahc_softc *ahc, int *internal50_present,
 	*externalcable_present = (brdctl & BRDDAT6) ? 0 : 1;
 	*eeprom_present = (ahc_inb(ahc, SPIOCAP) & EEPROM) ? 1 : 0;
 }
-	
+
 int
 ahc_acquire_seeprom(struct ahc_softc *ahc, struct seeprom_descriptor *sd)
 {

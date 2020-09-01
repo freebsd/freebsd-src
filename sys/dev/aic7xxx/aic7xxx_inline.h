@@ -637,7 +637,6 @@ ahc_intr(struct ahc_softc *ahc)
 	} else if (intstat & BRKADRINT) {
 		ahc_handle_brkadrint(ahc);
 	} else if ((intstat & (SEQINT|SCSIINT)) != 0) {
-
 		ahc_pause_bug_fix(ahc);
 
 		if ((intstat & SEQINT) != 0)

@@ -3671,4 +3671,3 @@ ahd_scb_disconnected_lists_print(u_int regvalue, u_int *cur_col, u_int wrap)
 	return (ahd_print_register(NULL, 0, "SCB_DISCONNECTED_LISTS",
 	    0x1b8, regvalue, cur_col, wrap));
 }
-

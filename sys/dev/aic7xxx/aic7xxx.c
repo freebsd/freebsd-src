@@ -319,7 +319,6 @@ ahc_run_qoutfifo(struct ahc_softc *ahc)
 
 	ahc_sync_qoutfifo(ahc, BUS_DMASYNC_POSTREAD);
 	while (ahc->qoutfifo[ahc->qoutfifonext] != SCB_LIST_NULL) {
-
 		scb_index = ahc->qoutfifo[ahc->qoutfifonext];
 		if ((ahc->qoutfifonext & 0x03) == 0x03) {
 			u_int modnext;
@@ -421,7 +420,7 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 {
 	struct scb *scb;
 	struct ahc_devinfo devinfo;
-	
+
 	ahc_fetch_devinfo(ahc, &devinfo);
 
 	/*
@@ -760,7 +759,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		 */
 		if ((intstat & SCSIINT) == 0
 		 && (ahc_inb(ahc, SSTAT1) & SCSIPERR) != 0) {
-
 			if ((ahc->features & AHC_DT) == 0) {
 				u_int curphase;
 
@@ -845,7 +843,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 		       aic_get_transfer_length(scb), scb->sg_count);
 		if (scb->sg_count > 0) {
 			for (i = 0; i < scb->sg_count; i++) {
-
 				printf("sg[%d] - Addr 0x%x%x : Length %d\n",
 				       i,
 				       (aic_le32toh(scb->sg_list[i].len) >> 24
@@ -1471,7 +1468,6 @@ ahc_clear_critical_section(struct ahc_softc *ahc)
 
 		steps++;
 		if (stepping == FALSE) {
-
 			/*
 			 * Disable all interrupt sources so that the
 			 * sequencer will not be stuck by a pausing
@@ -1717,11 +1713,10 @@ ahc_find_syncrate(struct ahc_softc *ahc, u_int *period,
 	if ((*ppr_options & MSG_EXT_PPR_DT_REQ) == 0
 	 && maxsync < AHC_SYNCRATE_ULTRA2)
 		maxsync = AHC_SYNCRATE_ULTRA2;
-	
+
 	for (syncrate = &ahc_syncrates[maxsync];
 	     syncrate->rate != NULL;
 	     syncrate++) {
-
 		/*
 		 * The Ultra2 table doesn't go as low
 		 * as for the Fast/Ultra cards.
@@ -1783,7 +1778,6 @@ ahc_find_period(struct ahc_softc *ahc, u_int scsirate, u_int maxsync)
 
 	syncrate = &ahc_syncrates[maxsync];
 	while (syncrate->rate != NULL) {
-
 		if ((ahc->features & AHC_ULTRA2) != 0) {
 			if (syncrate->sxfr_u2 == 0)
 				break;
@@ -1955,7 +1949,6 @@ ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		update_needed++;
 		scsirate = tinfo->scsirate;
 		if ((ahc->features & AHC_ULTRA2) != 0) {
-
 			scsirate &= ~(SXFR_ULTRA2|SINGLE_EDGE|ENABLE_CRC);
 			if (syncrate != NULL) {
 				scsirate |= syncrate->sxfr_u2;
@@ -1965,7 +1958,6 @@ ahc_set_syncrate(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 					scsirate |= SINGLE_EDGE;
 			}
 		} else {
-
 			scsirate &= ~(SXFR|SOFS);
 			/*
 			 * Ensure Ultra mode is set properly for
@@ -2268,7 +2260,6 @@ ahc_scb_devinfo(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 			    SCB_GET_LUN(scb), SCB_GET_CHANNEL(ahc, scb), role);
 }
 
-
 /************************ Message Phase Processing ****************************/
 static void
 ahc_assert_atn(struct ahc_softc *ahc)
@@ -2450,7 +2441,6 @@ ahc_build_transfer_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 	 * messages that WDTR comes first.
 	 */
 	if (doppr || (dosync && !dowide)) {
-
 		offset = tinfo->goal.offset;
 		ahc_validate_offset(ahc, tinfo, rate, &offset,
 				    doppr ? tinfo->goal.width
@@ -2577,7 +2567,6 @@ ahc_handle_proto_violation(struct ahc_softc *ahc)
 	curphase = ahc_inb(ahc, SCSISIGI) & PHASE_MASK;
 	lastphase = ahc_inb(ahc, LASTPHASE);
 	if ((seq_flags & NOT_IDENTIFIED) != 0) {
-
 		/*
 		 * The reconnecting target either did not send an
 		 * identify message, or did, but we didn't find an SCB
@@ -2848,7 +2837,6 @@ reswitch:
 		 */
 		if ((ahc_inb(ahc, SCSISIGI) & ATNI) != 0
 		 && ahc->msgout_index > 0) {
-
 			/*
 			 * Change gears and see if this messages is
 			 * of interest to us or should be passed back
@@ -3047,7 +3035,6 @@ ahc_sent_msg(struct ahc_softc *ahc, ahc_msgtype type, u_int msgval, int full)
 			end_index = index + 1 + ahc->msgout_buf[index + 1];
 			if (ahc->msgout_buf[index+2] == msgval
 			 && type == AHCMSG_EXT) {
-
 				if (full) {
 					if (ahc->msgout_index > end_index)
 						found = TRUE;
@@ -3057,7 +3044,6 @@ ahc_sent_msg(struct ahc_softc *ahc, ahc_msgtype type, u_int msgval, int full)
 			index = end_index;
 		} else if (ahc->msgout_buf[index] >= MSG_SIMPLE_TASK
 			&& ahc->msgout_buf[index] <= MSG_IGN_WIDE_RESIDUE) {
-
 			/* Skip tag type and tag id or residue param*/
 			index += 2;
 		} else {
@@ -3292,7 +3278,6 @@ ahc_parse_msg(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 				      AHC_TRANS_ACTIVE|AHC_TRANS_GOAL,
 				      /*paused*/TRUE);
 			if (sending_reply == FALSE && reject == FALSE) {
-
 				/*
 				 * We will always have an SDTR to send.
 				 */
@@ -3544,7 +3529,6 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		ahc->msgout_index = 0;
 		response = 1;
 	} else if (ahc_sent_msg(ahc, AHCMSG_EXT, MSG_EXT_WDTR, /*full*/FALSE)) {
-
 		/* note 8bit xfers */
 		printf("(%s:%c:%d:%d): refuses WIDE negotiation.  Using "
 		       "8bit transfers\n", ahc_name(ahc),
@@ -3560,7 +3544,6 @@ ahc_handle_msg_reject(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		 * sync rate before sending our WDTR.
 		 */
 		if (tinfo->goal.offset != tinfo->curr.offset) {
-
 			/* Start the sync negotiation */
 			ahc->msgout_index = 0;
 			ahc->msgout_len = 0;
@@ -3723,7 +3706,6 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 			sglen = aic_le32toh(sg->len) & AHC_SG_LEN_MASK;
 			if (sg != scb->sg_list
 			 && sglen < (data_cnt & AHC_SG_LEN_MASK)) {
-
 				sg--;
 				sglen = aic_le32toh(sg->len);
 				/*
@@ -3754,7 +3736,6 @@ ahc_handle_ign_wide_residue(struct ahc_softc *ahc, struct ahc_devinfo *devinfo)
 		}
 	}
 }
-
 
 /*
  * Reinitialize the data pointers for the active transfer
@@ -3859,7 +3840,7 @@ ahc_handle_devreset(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	ahc_set_syncrate(ahc, devinfo, /*syncrate*/NULL,
 			 /*period*/0, /*offset*/0, /*ppr_options*/0,
 			 AHC_TRANS_CUR, /*paused*/TRUE);
-	
+
 	if (status != CAM_SEL_TIMEOUT)
 		ahc_send_async(ahc, devinfo->channel, devinfo->target,
 			       CAM_LUN_WILDCARD, AC_SENT_BDR, NULL);
@@ -4151,7 +4132,7 @@ ahc_reset(struct ahc_softc *ahc, int reinit)
 	u_int	sxfrctl1_a, sxfrctl1_b;
 	int	error;
 	int	wait;
-	
+
 	/*
 	 * Preserve the value of the SXFRCTL1 register for all channels.
 	 * It contains settings that affect termination and we don't want
@@ -4255,7 +4236,6 @@ ahc_probe_scbs(struct ahc_softc *ahc) {
 	int i;
 
 	for (i = 0; i < AHC_SCB_MAX; i++) {
-
 		ahc_outb(ahc, SCBPTR, i);
 		ahc_outb(ahc, SCB_BASE, i);
 		if (ahc_inb(ahc, SCB_BASE) != i)
@@ -4656,7 +4636,6 @@ ahc_chip_init(struct ahc_softc *ahc)
 
 	/* Set the SCSI Id, SXFRCTL0, SXFRCTL1, and SIMODE1, for both channels*/
 	if (ahc->features & AHC_TWIN) {
-
 		/*
 		 * Setup Channel B first.
 		 */
@@ -4876,7 +4855,7 @@ ahc_init(struct ahc_softc *ahc)
 	 */
 	if ((ahc->flags & AHC_USEDEFAULTS) != 0)
 		ahc->our_id = ahc->our_id_b = 7;
-	
+
 	/*
 	 * Default to allowing initiator operations.
 	 */
@@ -5367,7 +5346,7 @@ ahc_freeze_devq(struct ahc_softc *ahc, struct scb *scb)
 	target = SCB_GET_TARGET(ahc, scb);
 	lun = SCB_GET_LUN(scb);
 	channel = SCB_GET_CHANNEL(ahc, scb);
-	
+
 	ahc_search_qinfifo(ahc, target, channel, lun,
 			   /*tag*/SCB_LIST_NULL, ROLE_UNKNOWN,
 			   CAM_REQUEUE_REQ, SEARCH_COMPLETE);
@@ -5658,10 +5637,8 @@ ahc_search_untagged_queues(struct ahc_softc *ahc, aic_io_ctx_t ctx,
 	found = 0;
 	i = 0;
 	if ((ahc->flags & AHC_SCB_BTT) == 0) {
-
 		maxtarget = 16;
 		if (target != CAM_TARGET_WILDCARD) {
-
 			i = target;
 			if (channel == 'B')
 				i += 8;
@@ -5678,7 +5655,6 @@ ahc_search_untagged_queues(struct ahc_softc *ahc, aic_io_ctx_t ctx,
 		untagged_q = &(ahc->untagged_queues[i]);
 		next_scb = TAILQ_FIRST(untagged_q);
 		while (next_scb != NULL) {
-
 			scb = next_scb;
 			next_scb = TAILQ_NEXT(scb, links.tqe);
 
@@ -5935,7 +5911,6 @@ ahc_abort_scbs(struct ahc_softc *ahc, int target, char channel,
 	}
 
 	if (lun == CAM_LUN_WILDCARD) {
-
 		/*
 		 * Unless we are using an SCB based
 		 * busy targets table, there is only
@@ -6188,7 +6163,6 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 	 * Revert to async/narrow transfers until we renegotiate.
 	 */
 	for (target = 0; target <= max_scsiid; target++) {
-
 		if (ahc->enabled_targets[target] == NULL)
 			continue;
 		for (initiator = 0; initiator <= max_scsiid; initiator++) {
@@ -6212,7 +6186,6 @@ ahc_reset_channel(struct ahc_softc *ahc, char channel, int initiate_reset)
 		ahc_unpause(ahc);
 	return found;
 }
-
 
 /***************************** Residual Processing ****************************/
 /*
@@ -6507,7 +6480,6 @@ ahc_loadseq(struct ahc_softc *ahc)
 
 	ahc->num_critical_sections = cs_count;
 	if (cs_count != 0) {
-
 		cs_count *= sizeof(struct cs);
 		ahc->critical_sections = malloc(cs_count, M_DEVBUF, M_NOWAIT);
 		if (ahc->critical_sections == NULL)
@@ -6537,9 +6509,7 @@ ahc_check_patch(struct ahc_softc *ahc, struct patch **start_patch,
 	cur_patch = *start_patch;
 
 	while (cur_patch < last_patch && start_instr == cur_patch->begin) {
-
 		if (cur_patch->patch_func(ahc) == 0) {
-
 			/* Start rejecting code */
 			*skip_addr = start_instr + cur_patch->skip_instr;
 			cur_patch += cur_patch->skip_patch;
@@ -6601,7 +6571,6 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 		skip_addr = 0;
 
 		for (i = 0; i < address;) {
-
 			ahc_check_patch(ahc, &cur_patch, i, &skip_addr);
 
 			if (skip_addr > i) {
@@ -7122,7 +7091,6 @@ bus_reset:
 
 			/* It's us */
 			if ((scb->flags & SCB_TARGET_SCB) != 0) {
-
 				/*
 				 * Send back any queued up transactions
 				 * and properly record the error condition.
@@ -7183,7 +7151,6 @@ bus_reset:
 			}
 
 			if (disconnected) {
-
 				ahc_set_recoveryscb(ahc, scb);
 				/*
 				 * Actually re-queue this SCB in an attempt
@@ -7261,14 +7228,13 @@ bus_reset:
 		}
 		break;
 	}
-	
+
 	/*
 	 * Any remaining SCBs were not the "culprit", so remove
 	 * them from the timeout list.  The timer for these commands
 	 * will be reset once the recovery SCB completes.
 	 */
 	while ((scb = LIST_FIRST(&ahc->timedout_scbs)) != NULL) {
-
 		LIST_REMOVE(scb, timedout_links);
 		scb->flags &= ~SCB_TIMEDOUT;
 	}
@@ -7371,7 +7337,6 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 		 *     a previous target mode ID has been enabled.
 		 */
 		if ((ahc->features & AHC_MULTIROLE) != 0) {
-
 			if ((ahc->features & AHC_MULTI_TID) != 0
 		   	 && (ahc->flags & AHC_INITIATORROLE) != 0) {
 				/*
@@ -7395,7 +7360,6 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 			}
 		} else if ((ahc->features & AHC_MULTI_TID) == 0
 			&& ahc->enabled_luns > 0) {
-
 			status = CAM_TID_INVALID;
 		}
 	}
@@ -7643,7 +7607,6 @@ ahc_handle_en_lun(struct ahc_softc *ahc, struct cam_sim *sim, union ccb *ccb)
 				}
 			}
 		} else {
-
 			ahc->black_hole = NULL;
 
 			/*
@@ -7736,7 +7699,6 @@ ahc_run_tqinfifo(struct ahc_softc *ahc, int paused)
 
 	ahc_sync_tqinfifo(ahc, BUS_DMASYNC_POSTREAD);
 	while ((cmd = &ahc->targetcmds[ahc->tqinfifonext])->cmd_valid != 0) {
-
 		/*
 		 * Only advance through the queue if we
 		 * have the resources to process the command.
@@ -7867,7 +7829,7 @@ ahc_handle_target_cmd(struct ahc_softc *ahc, struct target_cmd *cmd)
 		printf("Reserved or VU command code type encountered\n");
 		break;
 	}
-	
+
 	memcpy(atio->cdb_io.cdb_bytes, byte, atio->cdb_len);
 
 	atio->ccb_h.status |= CAM_CDB_RECVD;

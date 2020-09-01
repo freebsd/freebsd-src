@@ -165,7 +165,6 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 	}
 
 	if (allow_memio != 0) {
-
 		regs_type = SYS_RES_MEMORY;
 		regs_id = AHC_PCI_MEMADDR;
 		regs = bus_alloc_resource_any(ahc->dev_softc, regs_type,
