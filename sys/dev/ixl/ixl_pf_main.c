@@ -61,6 +61,8 @@ static int	ixl_sysctl_unallocated_queues(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_pf_tx_itr(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_pf_rx_itr(SYSCTL_HANDLER_ARGS);
 
+static int	ixl_sysctl_eee_enable(SYSCTL_HANDLER_ARGS);
+
 /* Debug Sysctls */
 static int 	ixl_sysctl_link_status(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS);
@@ -619,6 +621,12 @@ ixl_add_ifmedia(struct ifmedia *media, u64 phy_types)
 		ifmedia_add(media, IFM_ETHER | IFM_1000_SX, 0, NULL);
 	if (phy_types & (I40E_CAP_PHY_TYPE_1000BASE_LX))
 		ifmedia_add(media, IFM_ETHER | IFM_1000_LX, 0, NULL);
+
+	if (phy_types & (I40E_CAP_PHY_TYPE_2_5GBASE_T))
+		ifmedia_add(media, IFM_ETHER | IFM_2500_T, 0, NULL);
+
+	if (phy_types & (I40E_CAP_PHY_TYPE_5GBASE_T))
+		ifmedia_add(media, IFM_ETHER | IFM_5000_T, 0, NULL);
 
 	if (phy_types & (I40E_CAP_PHY_TYPE_XAUI) ||
 	    phy_types & (I40E_CAP_PHY_TYPE_XFI) ||
@@ -1891,6 +1899,13 @@ ixl_update_stats_counters(struct ixl_pf *pf)
 	ixl_stat_update32(hw, I40E_GLPRT_RJC(hw->port),
 			   pf->stat_offsets_loaded,
 			   &osd->rx_jabber, &nsd->rx_jabber);
+	/* EEE */
+	i40e_get_phy_lpi_status(hw, nsd);
+
+	i40e_lpi_stat_update(hw, pf->stat_offsets_loaded,
+			  &osd->tx_lpi_count, &nsd->tx_lpi_count,
+			  &osd->rx_lpi_count, &nsd->rx_lpi_count);
+
 	pf->stat_offsets_loaded = true;
 	/* End hw stats */
 
@@ -2154,6 +2169,8 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 
 	struct sysctl_oid *fec_node;
 	struct sysctl_oid_list *fec_list;
+	struct sysctl_oid *eee_node;
+	struct sysctl_oid_list *eee_list;
 
 	/* Set up sysctls */
 	SYSCTL_ADD_PROC(ctx, ctx_list,
@@ -2245,6 +2262,32 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	SYSCTL_ADD_PROC(ctx, ctx_list,
 	    OID_AUTO, "fw_lldp", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 	    pf, 0, ixl_sysctl_fw_lldp, "I", IXL_SYSCTL_HELP_FW_LLDP);
+
+	eee_node = SYSCTL_ADD_NODE(ctx, ctx_list,
+	    OID_AUTO, "eee", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Energy Efficient Ethernet (EEE) Sysctls");
+	eee_list = SYSCTL_CHILDREN(eee_node);
+
+	SYSCTL_ADD_PROC(ctx, eee_list,
+	    OID_AUTO, "enable", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+	    pf, 0, ixl_sysctl_eee_enable, "I",
+	    "Enable Energy Efficient Ethernet (EEE)");
+
+	SYSCTL_ADD_UINT(ctx, eee_list, OID_AUTO, "tx_lpi_status",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, &pf->stats.tx_lpi_status, 0,
+	    "TX LPI status");
+
+	SYSCTL_ADD_UINT(ctx, eee_list, OID_AUTO, "rx_lpi_status",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, &pf->stats.rx_lpi_status, 0,
+	    "RX LPI status");
+
+	SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "tx_lpi_count",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, &pf->stats.tx_lpi_count,
+	    "TX LPI count");
+
+	SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "rx_lpi_count",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, &pf->stats.rx_lpi_count,
+	    "RX LPI count");
 
 	/* Add sysctls meant to print debug information, but don't list them
 	 * in "sysctl -a" output. */
@@ -2375,6 +2418,8 @@ ixl_link_speed_string(enum i40e_aq_link_speed link_speed)
 		"40 Gbps",
 		"20 Gbps",
 		"25 Gbps",
+		"2.5 Gbps",
+		"5 Gbps"
 	};
 	int index;
 
@@ -2396,6 +2441,12 @@ ixl_link_speed_string(enum i40e_aq_link_speed link_speed)
 		break;
 	case I40E_LINK_SPEED_25GB:
 		index = 6;
+		break;
+	case I40E_LINK_SPEED_2_5GB:
+		index = 7;
+		break;
+	case I40E_LINK_SPEED_5GB:
+		index = 8;
 		break;
 	case I40E_LINK_SPEED_UNKNOWN:
 	default:
@@ -2430,14 +2481,16 @@ ixl_sysctl_current_speed(SYSCTL_HANDLER_ARGS)
 static u8
 ixl_convert_sysctl_aq_link_speed(u8 speeds, bool to_aq)
 {
-#define SPEED_MAP_SIZE 6
+#define SPEED_MAP_SIZE 8
 	static u16 speedmap[SPEED_MAP_SIZE] = {
 		(I40E_LINK_SPEED_100MB | (0x1 << 8)),
 		(I40E_LINK_SPEED_1GB   | (0x2 << 8)),
 		(I40E_LINK_SPEED_10GB  | (0x4 << 8)),
 		(I40E_LINK_SPEED_20GB  | (0x8 << 8)),
 		(I40E_LINK_SPEED_25GB  | (0x10 << 8)),
-		(I40E_LINK_SPEED_40GB  | (0x20 << 8))
+		(I40E_LINK_SPEED_40GB  | (0x20 << 8)),
+		(I40E_LINK_SPEED_2_5GB | (0x40 << 8)),
+		(I40E_LINK_SPEED_5GB   | (0x80 << 8)),
 	};
 	u8 retval = 0;
 
@@ -2509,6 +2562,8 @@ ixl_set_advertised_speeds(struct ixl_pf *pf, int speeds, bool from_aq)
 **	 0x8 - 20G
 **	0x10 - 25G
 **	0x20 - 40G
+**	0x40 - 2.5G
+**	0x80 - 5G
 */
 static int
 ixl_sysctl_supported_speeds(SYSCTL_HANDLER_ARGS)
@@ -2528,6 +2583,8 @@ ixl_sysctl_supported_speeds(SYSCTL_HANDLER_ARGS)
 **	 0x8 - advertise 20G
 **	0x10 - advertise 25G
 **	0x20 - advertise 40G
+**	0x40 - advertise 2.5G
+**	0x80 - advertise 5G
 **
 **	Set to 0 to disable link
 */
@@ -2552,7 +2609,7 @@ ixl_sysctl_set_advertise(SYSCTL_HANDLER_ARGS)
 	}
 
 	/* Error out if bits outside of possible flag range are set */
-	if ((requested_ls & ~((u8)0x3F)) != 0) {
+	if ((requested_ls & ~((u8)0xFF)) != 0) {
 		device_printf(dev, "Input advertised speed out of range; "
 		    "valid flags are: 0x%02x\n",
 		    ixl_convert_sysctl_aq_link_speed(pf->supported_speeds, false));
@@ -2591,6 +2648,10 @@ ixl_max_aq_speed_to_value(u8 link_speeds)
 		return IF_Gbps(20);
 	if (link_speeds & I40E_LINK_SPEED_10GB)
 		return IF_Gbps(10);
+	if (link_speeds & I40E_LINK_SPEED_5GB)
+		return IF_Gbps(5);
+	if (link_speeds & I40E_LINK_SPEED_2_5GB)
+		return IF_Mbps(2500);
 	if (link_speeds & I40E_LINK_SPEED_1GB)
 		return IF_Gbps(1);
 	if (link_speeds & I40E_LINK_SPEED_100MB)
@@ -2875,8 +2936,8 @@ ixl_phy_type_string(u32 bit_pos, bool ext)
 		"25GBASE-LR",
 		"25GBASE-AOC",
 		"25GBASE-ACC",
-		"Reserved (6)",
-		"Reserved (7)"
+		"2.5GBASE-T",
+		"5GBASE-T"
 	};
 
 	if (ext && bit_pos > 7) return "Invalid_Ext";
@@ -4101,6 +4162,43 @@ ixl_sysctl_fw_lldp(SYSCTL_HANDLER_ARGS)
 		return ixl_stop_fw_lldp(pf);
 
 	return ixl_start_fw_lldp(pf);
+}
+
+static int
+ixl_sysctl_eee_enable(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_pf         *pf = (struct ixl_pf *)arg1;
+	int                   state, new_state;
+	int                   sysctl_handle_status = 0;
+	enum i40e_status_code cmd_status;
+
+	/* Init states' values */
+	state = new_state = (!!(pf->state & IXL_PF_STATE_EEE_ENABLED));
+
+	/* Get requested mode */
+	sysctl_handle_status = sysctl_handle_int(oidp, &new_state, 0, req);
+	if ((sysctl_handle_status) || (req->newptr == NULL))
+		return (sysctl_handle_status);
+
+	/* Check if state has changed */
+	if (new_state == state)
+		return (0);
+
+	/* Set new state */
+	cmd_status = i40e_enable_eee(&pf->hw, (bool)(!!new_state));
+
+	/* Save new state or report error */
+	if (!cmd_status) {
+		if (new_state == 0)
+			atomic_clear_32(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+		else
+			atomic_set_32(&pf->state, IXL_PF_STATE_EEE_ENABLED);
+	} else if (cmd_status == I40E_ERR_CONFIG)
+		return (EPERM);
+	else
+		return (EIO);
+
+	return (0);
 }
 
 int
