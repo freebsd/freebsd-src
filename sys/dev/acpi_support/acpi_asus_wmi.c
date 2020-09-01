@@ -104,7 +104,6 @@ ACPI_MODULE_NAME("ASUS-WMI")
 #define ASUS_WMI_DSTS_BRIGHTNESS_MASK   0x000000FF
 #define ASUS_WMI_DSTS_MAX_BRIGTH_MASK   0x0000FF00
 
-
 struct acpi_asus_wmi_softc {
 	device_t	dev;
 	device_t	wmi_dev;
@@ -450,7 +449,7 @@ static int
 acpi_asus_wmi_detach(device_t dev)
 {
 	struct acpi_asus_wmi_softc *sc = device_get_softc(dev);
-	
+
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t) __func__);
 
 	if (sc->notify_guid)
@@ -468,7 +467,7 @@ acpi_asus_wmi_sysctl(SYSCTL_HANDLER_ARGS)
 	int			error = 0;
 	int			function;
 	int			dev_id;
-	
+
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
 	sc = (struct acpi_asus_wmi_softc *)oidp->oid_arg1;
@@ -601,7 +600,7 @@ acpi_asus_wmi_evaluate_method(device_t wmi_dev, int method,
 	ACPI_OBJECT	*obj;
 	ACPI_BUFFER	in = { sizeof(params), &params };
 	ACPI_BUFFER	out = { ACPI_ALLOCATE_BUFFER, NULL };
-	
+
 	if (ACPI_FAILURE(ACPI_WMI_EVALUATE_CALL(wmi_dev,
 	    ACPI_ASUS_WMI_MGMT_GUID, 1, method, &in, &out))) {
 		acpi_asus_wmi_free_buffer(&out);
