@@ -580,7 +580,7 @@ bwn_attach(device_t dev)
 		device_printf(sc->sc_dev, "couldn't allocate registers\n");
 		return (error);
 	}
-	
+
 	if ((error = bhnd_alloc_pmu(sc->sc_dev))) {
 		bus_release_resource(sc->sc_dev, SYS_RES_MEMORY,
 		    sc->sc_mem_rid, sc->sc_mem_res);
@@ -685,7 +685,7 @@ fail:
 	free(mac, M_DEVBUF);
 	bhnd_release_pmu(dev);
 	bwn_release_bus_providers(sc);
-	
+
 	if (sc->sc_mem_res != NULL) {
 		bus_release_resource(sc->sc_dev, SYS_RES_MEMORY,
 		    sc->sc_mem_rid, sc->sc_mem_res);
@@ -1307,7 +1307,6 @@ bwn_attach_core(struct bwn_mac *mac)
 		have_bg = 1;
 		have_a = 1;
 	}
-	
 
 #if 0
 	device_printf(sc->sc_dev, "%s: iost=0x%04hx, have_a=%d, have_bg=%d,"
@@ -3041,7 +3040,7 @@ bwn_dma_32_setdesc(struct bwn_dma_ring *dr,
 	struct bhnd_dma_translation	*dt;
 	uint32_t			 addr, addrext, ctl;
 	int				 slot;
-	
+
 	descbase = dr->dr_ring_descbase;
 	dma = &dr->dr_mac->mac_method.dma;
 	dt = &dma->translation;
@@ -3137,8 +3136,7 @@ bwn_dma_64_setdesc(struct bwn_dma_ring *dr,
 	uint32_t			 addrext;
 	uint32_t			 ctl0, ctl1;
 	int				 slot;
-	
-	
+
 	descbase = dr->dr_ring_descbase;
 	dma = &dr->dr_mac->mac_method.dma;
 	dt = &dma->translation;
@@ -3685,7 +3683,6 @@ bwn_gpio_control(struct bwn_mac *mac, uint32_t pins)
 
 	return (0);
 }
-
 
 static int
 bwn_gpio_init(struct bwn_mac *mac)
@@ -4527,7 +4524,6 @@ bwn_fwinitvals_write(struct bwn_mac *mac, const struct bwn_fwinitvals *ivals,
 			BWN_WRITE_4(mac, offset, be32toh(iv->data.d32));
 			iv = GET_NEXTIV32(iv);
 		} else {
-
 			if (array_size < sizeof(iv->data.d16))
 				goto fail;
 			array_size -= sizeof(iv->data.d16);
@@ -6008,7 +6004,6 @@ bwn_rxeof(struct bwn_mac *mac, struct mbuf *m, const void *_rxhdr)
 		break;
 	}
 
-
 	phytype = chanstat & BWN_RX_CHAN_PHYTYPE;
 
 	if (macstat & BWN_RX_MAC_FCSERR)
@@ -7171,7 +7166,6 @@ bwn_dma_attach(struct bwn_mac *mac)
 		    mac->mac_dmatype);
 		return (ENXIO);
 	}
-
 
 	/* Fetch our device->host DMA translation and tag */
 	error = bhnd_get_dma_translation(sc->sc_dev, addr_width, 0, &dmat,

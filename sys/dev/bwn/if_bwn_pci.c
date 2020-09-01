@@ -90,7 +90,6 @@ static const struct bwn_pci_device siba_devices[] = {
 	    BWN_QUIRK_UNTESTED),
 
 	BWN_BCM_DEV(BCM4328_D11G,	"BCM4328/4312 802.11g",		0),
-
 	{ 0, 0, NULL, 0 }
 };
 
@@ -102,7 +101,6 @@ static const struct bwn_pci_device bcma_devices[] = {
 	BWN_BCM_DEV(BCM43224_D11N,	"BCM43224 802.11n Dual-Band",	0),
 	BWN_BCM_DEV(BCM43224_D11N_ID_VEN1, "BCM43224 802.11n Dual-Band",0),
 	BWN_BCM_DEV(BCM43225_D11N2G,	"BCM43225 802.11n 2GHz",	0),
-
 	{ 0, 0, NULL, 0}
 };
 
