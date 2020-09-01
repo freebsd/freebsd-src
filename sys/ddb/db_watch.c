@@ -277,8 +277,6 @@ db_find_watchpoint(vm_map_t map, db_addr_t addr, db_regs_t regs)
 }
 #endif
 
-
-
 /* Delete hardware watchpoint */
 /*ARGSUSED*/
 void

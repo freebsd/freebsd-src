@@ -124,11 +124,9 @@ db_putchar(int c, void *arg)
 	struct dbputchar_arg *dap = arg;
 
 	if (dap->da_pbufr == NULL) {
-
 		 /* No bufferized output is provided. */
 		db_putc(c);
 	} else {
-
 		*dap->da_pnext++ = c;
 		dap->da_remain--;
 
