@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 
 #define	MEGAMFI_RAW_FRAME_SIZE	128
 
-
 #pragma pack(1)
 struct mrsas_iocpacket {
 	u_int16_t host_no;

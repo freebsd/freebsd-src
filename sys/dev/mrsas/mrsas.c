@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/smp.h>
 
-
 /*
  * Function prototypes
  */
@@ -176,7 +175,6 @@ void mrsas_map_mpt_cmd_status(struct mrsas_mpt_cmd *cmd,
 void
 mrsas_write_64bit_req_desc(struct mrsas_softc *sc, u_int32_t req_desc_lo,
     u_int32_t req_desc_hi);
-
 
 SYSCTL_NODE(_hw, OID_AUTO, mrsas, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "MRSAS Driver Parameters");
@@ -313,7 +311,6 @@ mrsas_read_reg(struct mrsas_softc *sc, int offset)
 
 	return ((u_int32_t)bus_space_read_4(bus_tag, bus_handle, offset));
 }
-
 
 /*
  * Interrupt Disable/Enable/Clear Functions
@@ -650,7 +647,6 @@ dcmd_timeout:
 	return retcode;
 }
 
-
 /*
  *  mrsas_register_aen:		Register for asynchronous event notification
  *  @sc:			Adapter soft state
@@ -685,7 +681,6 @@ mrsas_register_aen(struct mrsas_softc *sc, u_int32_t seq_num,
 	curr_aen.word = class_locale_word;
 
 	if (sc->aen_cmd) {
-
 		prev_aen.word = sc->aen_cmd->frame->dcmd.mbox.w[1];
 
 		/*
@@ -778,7 +773,6 @@ mrsas_start_aen(struct mrsas_softc *sc)
 {
 	struct mrsas_evt_log_info eli;
 	union mrsas_evt_class_locale class_locale;
-
 
 	/* Get the latest sequence number from FW */
 
@@ -905,7 +899,6 @@ mrsas_attach(device_t dev)
 	case MRSAS_AERO_10E7:
 		device_printf(dev, "Adapter is in non-secure mode\n");
 		return SUCCESS;
-
 	}
 
 	mrsas_get_tunables(sc);
@@ -1262,7 +1255,6 @@ mrsas_free_mem(struct mrsas_softc *sc)
 		bus_dmamem_free(sc->verbuf_tag, sc->verbuf_mem, sc->verbuf_dmamap);
 	if (sc->verbuf_tag != NULL)
 		bus_dma_tag_destroy(sc->verbuf_tag);
-
 
 	/*
 	 * Free sense buffer memory
@@ -2487,7 +2479,6 @@ mrsas_init_fw(struct mrsas_softc *sc)
 	}
 	megasas_setup_jbod_map(sc);
 
-
 	memset(sc->target_list, 0,
 		MRSAS_MAX_TM_TARGETS * sizeof(struct mrsas_target));
 	for (i = 0; i < MRSAS_MAX_TM_TARGETS; i++)
@@ -3132,7 +3123,6 @@ mrsas_ocr_thread(void *arg)
 		fw_state = fw_status & MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT || sc->do_timedout_reset ||
 			mrsas_atomic_read(&sc->target_reset_outstanding)) {
-
 			/* First, freeze further IOs to come to the SIM */
 			mrsas_xpt_freeze(sc);
 
@@ -3526,7 +3516,6 @@ mrsas_wait_for_outstanding(struct mrsas_softc *sc, u_int8_t check_reason)
 	int i, outstanding, retval = 0;
 	u_int32_t fw_state, count, MSIxIndex;
 
-
 	for (i = 0; i < MRSAS_RESET_WAIT_TIME; i++) {
 		if (sc->remove_in_progress) {
 			mrsas_dprint(sc, MRSAS_OCR,
@@ -3591,7 +3580,6 @@ mrsas_release_mfi_cmd(struct mrsas_mfi_cmd *cmd_mfi)
 {
 	struct mrsas_softc *sc = cmd_mfi->sc;
 	struct mrsas_mpt_cmd *cmd_mpt;
-
 
 	mtx_lock(&sc->mfi_cmd_pool_lock);
 	/*
@@ -4094,7 +4082,6 @@ mrsas_complete_mptmfi_passthru(struct mrsas_softc *sc, struct mrsas_mfi_cmd *cmd
 		if ((cmd->frame->dcmd.opcode ==
 		    MR_DCMD_SYSTEM_PD_MAP_GET_INFO) &&
 		    (cmd->frame->dcmd.mbox.b[0] == 1)) {
-
 			mtx_lock(&sc->raidmap_lock);
 			sc->jbod_seq_cmd = NULL;
 			mrsas_release_mfi_cmd(cmd);
@@ -5021,7 +5008,6 @@ skip_register_aen:
 	return;
 
 }
-
 
 /*
  * mrsas_complete_aen:	Completes AEN command

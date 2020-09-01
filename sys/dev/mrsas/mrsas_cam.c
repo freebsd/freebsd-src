@@ -784,9 +784,6 @@ mrsas_get_request_desc(struct mrsas_softc *sc, u_int16_t index)
 	return (MRSAS_REQUEST_DESCRIPTOR_UNION *) p;
 }
 
-
-
-
 /* mrsas_prepare_secondRaid1_IO
  * It prepares the raid 1 second IO
  */
@@ -835,7 +832,6 @@ mrsas_prepare_secondRaid1_IO(struct mrsas_softc *sc,
 	    cmd->io_request->RaidContext.raid_context_g35.spanArm + 1;
 
 }
-
 
 /*
  * mrsas_build_ldio_rw:	Builds an LDIO command
@@ -956,7 +952,6 @@ mrsas_stream_detect(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd,
 	*track_stream = (((*track_stream & ZERO_LAST_STREAM) << 4) | streamNum);
 	return;
 }
-
 
 /*
  * mrsas_setup_io:	Set up data including Fast Path I/O
@@ -1451,7 +1446,6 @@ static boolean_t mrsas_is_prp_possible(struct mrsas_mpt_cmd *cmd,
 					break;
 				}
 		}
-
 	}
 
 	return build_prp;
@@ -1623,13 +1617,11 @@ static void mrsas_build_prp_nvme(struct mrsas_mpt_cmd *cmd, bus_dma_segment_t *s
 	main_chain_element = (pMpi25IeeeSgeChain64_t)
 	    ((u_int8_t *)sgl_ptr + sizeof(MPI25_IEEE_SGE_CHAIN64));
 
-
 	main_chain_element->Address = cmd->chain_frame_phys_addr;
 	main_chain_element->NextChainOffset = 0;
 	main_chain_element->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT |
 					IEEE_SGE_FLAGS_SYSTEM_ADDR |
 					MPI26_IEEE_SGE_FLAGS_NSF_NVME_PRP;
-
 
 	/* Build first PRP, SGE need not to be PAGE aligned*/
 	ptr_first_sgl = sgl_ptr;
@@ -1655,7 +1647,6 @@ static void mrsas_build_prp_nvme(struct mrsas_mpt_cmd *cmd, bus_dma_segment_t *s
 	}
 
 	for (;;) {
-
 		offset = (u_int32_t) (sge_addr & page_mask);
 
 		/* Put PRP pointer due to page boundary*/
@@ -1673,7 +1664,6 @@ static void mrsas_build_prp_nvme(struct mrsas_mpt_cmd *cmd, bus_dma_segment_t *s
 		ptr_sgl++;
 		ptr_sgl_phys++;
 		num_prp_in_chain++;
-
 
 		sge_addr += mr_nvme_pg_size;
 		sge_len -= mr_nvme_pg_size;
@@ -1783,7 +1773,7 @@ void
 mrsas_cmd_done(struct mrsas_softc *sc, struct mrsas_mpt_cmd *cmd)
 {
 	mrsas_unmap_request(sc, cmd);
-	
+
 	mtx_lock(&sc->sim_lock);
 	if (cmd->callout_owner) {
 		callout_stop(&cmd->cm_callout);
@@ -2152,4 +2142,3 @@ return_status:
 
 	return retCode;
 }
-
