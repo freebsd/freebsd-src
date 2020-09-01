@@ -89,7 +89,6 @@ static int	tcp_log_dev_ioctl(struct cdev *dev __unused, u_long cmd,
 static int	tcp_log_dev_poll(struct cdev *dev __unused, int events,
     struct thread *td);
 
-
 enum tcp_log_dev_queue_lock_state {
 	QUEUE_UNLOCKED = 0,
 	QUEUE_LOCKED,
