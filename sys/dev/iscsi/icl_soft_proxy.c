@@ -192,7 +192,7 @@ icl_listen_free(struct icl_listen *il)
 			pause("icl_unlisten", 1 * hz);
 			sx_xlock(&il->il_lock);
 		}
-	
+
 		TAILQ_REMOVE(&il->il_sockets, ils, ils_next);
 		soclose(ils->ils_socket);
 		free(ils, M_ICL_PROXY);
@@ -325,7 +325,6 @@ icl_listen_add(struct icl_listen *il, bool rdma, int domain, int socktype,
 		ICL_DEBUG("RDMA not supported");
 		return (EOPNOTSUPP);
 	}
-
 
 	return (icl_listen_add_tcp(il, domain, socktype, protocol, sa,
 	    portal_id));

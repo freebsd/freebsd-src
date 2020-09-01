@@ -398,14 +398,14 @@ iscsi_maintenance_thread_reconnect(struct iscsi_session *is)
 	}
 	cv_signal(&is->is_login_cv);
 #endif
- 
+
 	if (fail_on_disconnection) {
 		ISCSI_SESSION_DEBUG(is, "connection failed, destroying devices");
 		iscsi_session_cleanup(is, true);
 	} else {
 		iscsi_session_cleanup(is, false);
 	}
- 
+
 	KASSERT(TAILQ_EMPTY(&is->is_outstanding),
 	    ("destroying session with active tasks"));
 	KASSERT(STAILQ_EMPTY(&is->is_postponed),
@@ -1037,7 +1037,7 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 	union ccb *ccb;
 	struct ccb_scsiio *csio;
 	size_t data_segment_len, received, oreceived;
-	
+
 	is = PDU_SESSION(response);
 	bhsdi = (struct iscsi_bhs_data_in *)response->ip_bhs;
 	io = iscsi_outstanding_find(is, bhsdi->bhsdi_initiator_task_tag);
