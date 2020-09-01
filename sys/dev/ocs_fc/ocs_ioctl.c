@@ -96,7 +96,6 @@ __ocs_ioctl_mbox_cb(ocs_hw_t *hw, int32_t status, uint8_t *mqe, void *arg)
 
 static int
 ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma){
-
 	sli4_cmd_sli_config_t *sli_config = (sli4_cmd_sli_config_t *)mcmd->payload;
 
 	if (sli_config->emb) {
@@ -120,7 +119,6 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 				rdobj->host_buffer_descriptor[0].buffer_length = mcmd->out_bytes;
 				rdobj->host_buffer_descriptor[0].u.data.buffer_address_low = ocs_addr32_lo(dma->phys);
 				rdobj->host_buffer_descriptor[0].u.data.buffer_address_high = ocs_addr32_hi(dma->phys);
-
 			}
 			break;
 		case SLI4_OPC_COMMON_WRITE_OBJECT:
@@ -162,7 +160,6 @@ ocs_process_sli_config (ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd, ocs_dma_t *dma)
 				rdobj->host_buffer_descriptor[0].buffer_length = mcmd->out_bytes;
 				rdobj->host_buffer_descriptor[0].u.data.buffer_address_low = ocs_addr32_lo(dma->phys);
 				rdobj->host_buffer_descriptor[0].u.data.buffer_address_high = ocs_addr32_hi(dma->phys);
-
 			}
 			break;
 		case SLI4_OPC_COMMON_READ_TRANSCEIVER_DATA:
@@ -222,7 +219,6 @@ ocs_process_mbx_ioctl(ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd)
 		device_printf(ocs->dev, "%s, command not support\n", __func__);
 		goto no_support;
 		break;
-
 	}
 
 	/*
@@ -245,7 +241,6 @@ ocs_process_mbx_ioctl(ocs_t *ocs, ocs_ioctl_elxu_mbox_t *mcmd)
 	mtx_lock(&ocs->dbg_lock);
 	if (ocs_hw_command(&ocs->hw, mcmd->payload, OCS_CMD_NOWAIT,
 			__ocs_ioctl_mbox_cb, ocs)) {
-
 		device_printf(ocs->dev, "%s: command- %x failed\n", __func__,
 			((sli4_mbox_command_header_t *)mcmd->payload)->command);
 	}
@@ -282,7 +277,6 @@ ocs_process_ecd_helper (ocs_t *ocs, ocs_ioctl_ecd_helper_t *req)
 	uint8_t v8;
 	uint16_t v16;
 	uint32_t v32;
-
 
 	/* Check the BAR read/write commands for valid bar */
 	switch(req->cmd) {
@@ -461,7 +455,6 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 				} else {
 					ptbuf = &textbuf;
 				}
-
 			}
 			written = 0;
 			if (ptbuf != NULL) {
@@ -543,7 +536,6 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 		ocs_textbuf_free(ocs, &textbuf);
 
 		break;
-
 	}
 
 	case OCS_IOCTL_CMD_MGMT_GET_ALL: {
@@ -565,7 +557,6 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 			if(ocs_copy_to_user(req->user_buffer + copied, 
 					ocs_textbuf_ext_get_buffer(&textbuf, idx),
 					ocs_textbuf_ext_get_written(&textbuf, idx))) {
-
 					ocs_log_err(ocs, "Error: ocs_textbuf_alloc failed\n");
 			}
 			copied += n;
@@ -602,7 +593,6 @@ ocs_ioctl(struct cdev *cdev, u_long cmd, caddr_t addr, int flag, struct thread *
 				ocs_textbuf_get_buffer(&textbuf), 
 				ocs_textbuf_get_written(&textbuf))) {
 				ocs_log_test(ocs, "Error: (%d) ocs_copy_to_user failed\n", __LINE__);
-
 		}
 		}
 		req->value_length = ocs_textbuf_get_written(&textbuf);
@@ -696,7 +686,6 @@ ocs_firmware_write(ocs_t *ocs, const uint8_t *buf, size_t buf_len,
         }
 
         while (bytes_left > 0) {
-
                 if (bytes_left > FW_WRITE_BUFSIZE) {
                         xfer_size = FW_WRITE_BUFSIZE;
                 } else {
@@ -766,7 +755,6 @@ ocs_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
                         ocs_be32toh(fw_image->magic_number), fw->datasize);
                 rc = -1;
                 goto exit;
-
         }
 
         if (!strncmp(ocs->fw_version, fw_image->revision, 
@@ -807,7 +795,6 @@ ocs_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
                                         fw_change_status);
                                 break;
                 }
-
         }
 
 exit:
@@ -842,7 +829,6 @@ ocs_sysctl_wwnn(SYSCTL_HANDLER_ARGS)
 
 	/*Read wwnn*/
 	if (!req->newptr) {
-
 		return (sysctl_handle_string(oidp, old, sizeof(old), req));
 	}
 
@@ -877,7 +863,6 @@ ocs_sysctl_wwpn(SYSCTL_HANDLER_ARGS)
 		memset(old, 0, sizeof(old));
 		snprintf(old, sizeof(old), "0x%llx",(unsigned long long) ocs_htobe64(*wwpn));
 	}
-
 
 	/*Read wwpn*/
 	if (!req->newptr) {
@@ -993,7 +978,6 @@ ocs_sysctl_fcid(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
 }
 
-
 static int
 ocs_sysctl_port_state(SYSCTL_HANDLER_ARGS)
 {
@@ -1012,7 +996,7 @@ ocs_sysctl_port_state(SYSCTL_HANDLER_ARGS)
 					 "offline" : "online");	
 		return (sysctl_handle_string(oidp, new, sizeof(new), req));
         }
-	
+
 	/*Configure port state*/
 	rc = sysctl_handle_string(oidp, new, sizeof(new), req);
 	if (rc)
@@ -1053,7 +1037,7 @@ ocs_sysctl_vport_wwpn(SYSCTL_HANDLER_ARGS)
 
 	memset(str_wwpn, 0, sizeof(str_wwpn));
 	snprintf(str_wwpn, sizeof(str_wwpn), "0x%llx", (unsigned long long)fcp->vport->wwpn);
-	
+
 	return (sysctl_handle_string(oidp, str_wwpn, sizeof(str_wwpn), req));
 }
 
@@ -1195,7 +1179,6 @@ ocs_sysctl_init(ocs_t *ocs)
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(vtree), OID_AUTO,
 		    "wwpn", CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_NEEDGIANT,
 		    fcp, 0, ocs_sysctl_vport_wwpn, "A", "World Wide Port Name");
-
 	}
 
 }
@@ -1252,4 +1235,3 @@ ocs_debug_detach(void *os)
 		destroy_dev(ocs->cdev);
 	}
 }
-

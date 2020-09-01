@@ -60,7 +60,6 @@ static int32_t
 ocs_mgmt_read_phys(ocs_t *ocs, char *, void *, uint32_t , void *, uint32_t);
 #endif
 
-
 /* Getters */
 
 static void get_nodes_count(ocs_t *, char *, ocs_textbuf_t*);
@@ -263,7 +262,6 @@ ocs_mgmt_get_list(ocs_t *ocs, ocs_textbuf_t *textbuf)
 
 	/* Have each of my children add their actions */
 	if (ocs_device_lock_try(ocs) == TRUE) {
-
 		/* If we get here then we are holding the device lock */
 		ocs_list_foreach(&ocs->domain_list, domain) {
 			if ((domain->mgmt_functions) && (domain->mgmt_functions->get_list_handler)) {
@@ -303,7 +301,6 @@ ocs_mgmt_get_list(ocs_t *ocs, ocs_textbuf_t *textbuf)
  * @return Returns 0 if the value was found and returned, or -1 if an error occurred.
  */
 
-
 int
 ocs_mgmt_get(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 {
@@ -313,7 +310,6 @@ ocs_mgmt_get(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 	uint32_t i;
 
 	ocs_mgmt_start_unnumbered_section(textbuf, "ocs");
-
 
 	snprintf(qualifier, sizeof(qualifier), "/ocs");
 
@@ -354,19 +350,15 @@ ocs_mgmt_get(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 				if (retval ==  0) {
 					break;
 				}
-
-
 			}
 			ocs_device_unlock(ocs);
 		}
-
 	}
 
 	ocs_mgmt_end_unnumbered_section(textbuf, "ocs");
 
 	return retval;
 }
-
 
 /**
  * @ingroup mgmt
@@ -439,8 +431,6 @@ ocs_mgmt_set(ocs_t *ocs, char *name, char *value)
 			}
 			ocs_device_unlock(ocs);
 		}
-
-
 	}
 
 	return result;
@@ -497,7 +487,6 @@ ocs_mgmt_exec(ocs_t *ocs, char *action, void *arg_in,
 					return mgmt_table[i].action_handler(ocs, action, arg_in, arg_in_length,
 							arg_out, arg_out_length);
 				}
-
 			}
 		}
 
@@ -528,7 +517,6 @@ ocs_mgmt_exec(ocs_t *ocs, char *action, void *arg_in,
 			}
 			ocs_device_unlock(ocs);
 		}
-
 	}
 
 	return result;
@@ -582,7 +570,6 @@ ocs_mgmt_read_phys(ocs_t *ocs, char *name, void *arg_in, uint32_t arg_in_length,
         ocs_ramdisc_t **ramdisc_array;
         uint32_t ramdisc_count;
 
-
         if ((arg_in == NULL) ||
             (arg_in_length == 0) ||
             (arg_out == NULL) ||
@@ -634,13 +621,9 @@ ocs_mgmt_read_phys(ocs_t *ocs, char *name, void *arg_in, uint32_t arg_in_length,
                 }
         }
 
-
-
-
         length = arg_out_length;
 
         if (vaddr != NULL) {
-
                 if (ocs_copy_to_user(arg_out, vaddr, length)) {
                         ocs_log_test(ocs, "Failed to copy buffer to user\n");
                         return -EFAULT;
@@ -648,7 +631,6 @@ ocs_mgmt_read_phys(ocs_t *ocs, char *name, void *arg_in, uint32_t arg_in_length,
 
                 return 0;
         } else {
-
                 return -EFAULT;
 	}
 
@@ -697,21 +679,16 @@ static void* find_address_in_target(ocs_ramdisc_t **ramdisc_array, uint32_t ramd
 			if (vaddr != NULL) {
 				break;
 			}
-
 		}
 
 		if (vaddr != NULL) {
 			break;
 		}
-
-
 	}
 
 	return vaddr;
 }
 #endif
-
-
 
 static int32_t
 ocs_mgmt_firmware_reset(ocs_t *ocs, char *name, void *buf, uint32_t buf_len, void *arg_out, uint32_t arg_out_length)
@@ -793,8 +770,6 @@ ocs_mgmt_firmware_write(ocs_t *ocs, char *name, void *buf, uint32_t buf_len, voi
 	}
 
 	while (bytes_left > 0) {
-
-
 		if (bytes_left > FW_WRITE_BUFSIZE) {
 			xfer_size = FW_WRITE_BUFSIZE;
 		} else {
@@ -843,7 +818,6 @@ ocs_mgmt_firmware_write(ocs_t *ocs, char *name, void *buf, uint32_t buf_len, voi
 		bytes_left -= result.actual_xfer;
 		offset += result.actual_xfer;
 		userp += result.actual_xfer;
-
 	}
 
 	/* Create string with status and copy to userland */
@@ -857,7 +831,6 @@ ocs_mgmt_firmware_write(ocs_t *ocs, char *name, void *buf, uint32_t buf_len, voi
 			ocs_log_test(ocs, "copy to user failed for change_status\n");
 		}
 	}
-
 
 	ocs_dma_free(ocs, &dma);
 
@@ -2015,7 +1988,6 @@ typedef struct ocs_mgmt_get_port_protocol_result {
 	ocs_hw_port_protocol_e port_protocol;
 } ocs_mgmt_get_port_protocol_result_t;
 
-
 static void
 ocs_mgmt_get_port_protocol_cb(int32_t status,
 			      ocs_hw_port_protocol_e port_protocol,
@@ -2072,8 +2044,6 @@ typedef struct ocs_mgmt_set_port_protocol_result {
 	ocs_sem_t semaphore;
 	int32_t status;
 } ocs_mgmt_set_port_protocol_result_t;
-
-
 
 static void
 ocs_mgmt_set_port_protocol_cb(int32_t status,
@@ -2208,7 +2178,6 @@ get_profile_list(ocs_t *ocs, char *name, ocs_textbuf_t *textbuf)
 				}
 			}
 
-
 			ocs_mgmt_emit_string(textbuf, MGMT_MODE_RD, "profile_list", result_buf);
 
 			ocs_free(ocs, result_buf, BUFFER_SIZE);
@@ -2279,7 +2248,6 @@ typedef struct ocs_mgmt_set_active_profile_result {
 	ocs_sem_t semaphore;
 	int32_t status;
 } ocs_mgmt_set_active_profile_result_t;
-
 
 static void
 ocs_mgmt_set_active_profile_cb(int32_t status, void *ul_arg)
@@ -2495,7 +2463,6 @@ typedef struct ocs_mgmt_set_nvparms_result {
 	ocs_sem_t semaphore;
 	int32_t status;
 } ocs_mgmt_set_nvparms_result_t;
-
 
 static void
 ocs_mgmt_set_nvparms_cb(int32_t status, void *ul_arg)
@@ -2728,10 +2695,7 @@ parse_wwn(char *wwn_in, uint64_t *wwn_out)
 	}
 }
 
-
-
 static char *mode_string(int mode);
-
 
 /**
  * @ingroup mgmt

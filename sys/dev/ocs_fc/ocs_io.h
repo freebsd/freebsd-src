@@ -69,7 +69,6 @@ typedef enum {
 } ocs_io_type_e;
 
 struct ocs_io_s {
-
 	ocs_t *ocs;			/**< pointer back to ocs */
 	uint32_t instance_index;	/**< unique instance index value */
 	const char *display_name;	/**< display name */

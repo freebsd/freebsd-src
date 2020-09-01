@@ -39,8 +39,7 @@
 /**
  * @defgroup scsi_api_base SCSI Base Target/Initiator
  */
- 
- 
+
 #include "ocs.h"
 #include "ocs_els.h"
 #include "ocs_scsi.h"
@@ -90,7 +89,6 @@ static int32_t ocs_scsi_convert_dif_info(ocs_t *ocs, ocs_scsi_dif_info_t *scsi_d
 static int32_t ocs_scsi_io_dispatch_hw_io(ocs_io_t *io, ocs_hw_io_t *hio);
 static int32_t ocs_scsi_io_dispatch_no_hw_io(ocs_io_t *io);
 static void _ocs_scsi_io_free(void *arg);
-
 
 /**
  * @ingroup scsi_api_base
@@ -294,8 +292,6 @@ ocs_scsi_io_free(ocs_io_t *io)
 	ocs_ref_put(&io->ref); /* ocs_ref_get(): ocs_scsi_io_alloc() */
 }
 
-
-
 static int32_t
 ocs_scsi_send_io(ocs_hw_io_type_e type, ocs_node_t *node, ocs_io_t *io, uint64_t lun,
 	ocs_scsi_tmf_cmd_e tmf, uint8_t *cdb, uint32_t cdb_len,
@@ -436,7 +432,6 @@ ocs_target_io_cb(ocs_hw_io_t *hio, ocs_remote_node_t *rnode, uint32_t length,
 		}
 
 		cb(io, scsi_status, flags, io->scsi_tgt_cb_arg);
-
 	}
 	ocs_scsi_check_pending(ocs);
 }
@@ -551,7 +546,6 @@ ocs_scsi_dif_check_unknown(ocs_io_t *io, uint32_t length, uint32_t check_length,
 			scsi_status = OCS_SCSI_STATUS_DIF_REF_TAG_ERROR;
 			break;
 		}
-
 	}
 	return scsi_status;
 }
@@ -669,7 +663,6 @@ ocs_scsi_count_sgls(ocs_hw_dif_info_t *hw_dif, ocs_scsi_sgl_t *sgl, uint32_t sgl
 
 	/* Convert DIF Information */
 	if (hw_dif->dif_oper != OCS_HW_DIF_OPER_DISABLED) {
-
 		/* If we're not DIF separate, then emit a seed SGE */
 		if (!hw_dif->dif_separate) {
 			count++;
@@ -709,7 +702,6 @@ ocs_scsi_build_sgls(ocs_hw_t *hw, ocs_hw_io_t *hio, ocs_hw_dif_info_t *hw_dif, o
 
 	/* Convert DIF Information */
 	if (hw_dif->dif_oper != OCS_HW_DIF_OPER_DISABLED) {
-
 		/* If we're not DIF separate, then emit a seed SGE */
 		if (!hw_dif->dif_separate) {
 			rc = ocs_hw_io_add_seed_sge(hw, hio, hw_dif);
@@ -786,7 +778,6 @@ ocs_scsi_build_sgls(ocs_hw_t *hw, ocs_hw_io_t *hio, ocs_hw_dif_info_t *hw_dif, o
 						sgl_count, rc);
 				return rc;
 			}
-
 		}
 	}
 	return 0;
@@ -955,7 +946,6 @@ static void ocs_log_sgl(ocs_io_t *io)
 
 }
 
-
 /**
  * @brief Check pending error asynchronous callback function.
  *
@@ -1065,7 +1055,6 @@ ocs_scsi_check_pending(ocs_t *ocs)
 			}
 		}
 	} while (io != NULL);
-
 
 	/*
 	 * If nothing was removed from the list,
@@ -1179,7 +1168,6 @@ ocs_scsi_io_dispatch(ocs_io_t *io, void *cb)
 	 */
 	hio = ocs_hw_io_alloc(&io->ocs->hw);
 	if (hio == NULL) {
-
 		/* Couldn't get a HW IO. Save this IO on the pending list */
 		ocs_lock(&xport->io_pending_lock);
 			ocs_list_add_tail(&xport->io_pending_list, io);
@@ -1283,7 +1271,6 @@ ocs_scsi_io_dispatch_hw_io(ocs_io_t *io, ocs_hw_io_t *hio)
 		hio->wq_steering = OCS_HW_WQ_STEERING_CPU;
 		break;
 	}
-
 
 	switch (io->io_type) {
 	case OCS_IO_TYPE_IO: {
@@ -1582,7 +1569,6 @@ ocs_scsi_xfer_data(ocs_io_t *io, uint32_t flags,
 	return ocs_scsi_io_dispatch(io, ocs_target_io_cb);
 }
 
-
 int32_t
 ocs_scsi_send_rd_data(ocs_io_t *io, uint32_t flags,
 	ocs_scsi_dif_info_t *dif_info,
@@ -1842,7 +1828,6 @@ ocs_scsi_send_tmf_resp(ocs_io_t *io, ocs_scsi_tmf_resp_e rspcode, uint8_t addl_r
 
 	return rc;
 }
-
 
 /**
  * @brief Process target abort callback.
@@ -2117,7 +2102,6 @@ ocs_scsi_io_complete(ocs_io_t *io)
 	ocs_ref_put(&io->ref); /* ocs_ref_get(): ocs_scsi_io_alloc() */
 }
 
-
 /**
  * @brief Handle initiator IO completion.
  *
@@ -2245,7 +2229,6 @@ ocs_initiator_io_cb(ocs_hw_io_t *hio, ocs_remote_node_t *rnode, uint32_t length,
 		}
 
 		cb(io, scsi_status, &rsp, flags, io->scsi_ini_cb_arg);
-
 	}
 	ocs_scsi_check_pending(ocs);
 }
@@ -2543,7 +2526,6 @@ static int32_t ocs_scsi_send_io(ocs_hw_io_type_e type, ocs_node_t *node, ocs_io_
 			ocs_textbuf_get_buffer(&txtbuf));
 	}
 
-
 	ocs_assert(io->cmdbuf.virt, -1);
 
 	cmnd = io->cmdbuf.virt;
@@ -2576,7 +2558,7 @@ static int32_t ocs_scsi_send_io(ocs_hw_io_type_e type, ocs_node_t *node, ocs_io_
 	}
 
 	be64enc(cmnd->fcp_lun, CAM_EXTLUN_BYTE_SWIZZLE(lun));
-	
+
 	if (node->fcp2device) {
 		if(ocs_get_crn(node, &cmnd->command_reference_number,
 					lun)) {
@@ -2895,7 +2877,6 @@ ocs_scsi_del_initiator_complete(ocs_node_t *node)
 	ocs_node_post_event(node, OCS_EVT_NODE_DEL_INI_COMPLETE, NULL);
 }
 
-
 /**
  * @ingroup scsi_api_base
  * @brief Notify that delete target is complete.
@@ -2915,7 +2896,6 @@ ocs_scsi_del_target_complete(ocs_node_t *node)
 	/* Notify the node to resume */
 	ocs_node_post_event(node, OCS_EVT_NODE_DEL_TGT_COMPLETE, NULL);
 }
-
 
 /**
  * @brief Update transferred count

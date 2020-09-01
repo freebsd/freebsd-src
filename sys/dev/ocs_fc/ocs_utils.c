@@ -416,7 +416,6 @@ ocs_varray_get_count(ocs_varray_t *va)
 	return rc;
 }
 
-
 struct ocs_cbuf_s {
 	ocs_os_handle_t os;		/*<< OS handle */
 	uint32_t entry_count;		/*<< entry count */
@@ -660,7 +659,6 @@ ocs_ddump_value(ocs_textbuf_t *textbuf, const char *name, const char *fmt, ...)
 	ocs_textbuf_printf(textbuf, "<%s>%s</%s>\n", name, valuebuf, name);
 }
 
-
 /**
  * @brief Generate driver dump data for an arbitrary buffer of DWORDS
  *
@@ -739,7 +737,6 @@ ocs_ddump_queue_entries(ocs_textbuf_t *textbuf, void *q_addr, uint32_t size,
 		if (index < 0) {
 			index += length;
 		}
-
 	}
 #define OCS_NEWLINE_MOD	8
 	ocs_textbuf_printf(textbuf, "<qentries>\n");
@@ -767,7 +764,6 @@ ocs_ddump_queue_entries(ocs_textbuf_t *textbuf, void *q_addr, uint32_t size,
 	}
 	ocs_textbuf_printf(textbuf, "</qentries>\n");
 }
-
 
 #define OCS_DEBUG_ENABLE(x)	(x ? ~0 : 0)
 
@@ -835,7 +831,6 @@ int ocs_debug_is_enabled(uint32_t mask) {
 	return (ocs_debug_mask & mask) == mask;
 }
 
-
 /**
  * @ingroup debug
  * @brief Dump 32 bit hex/ascii data
@@ -899,7 +894,6 @@ ocs_dump32(uint32_t mask, ocs_os_handle_t os, const char *label, void *buf, uint
 		addr += n*sizeof(uint32_t);
 	}
 }
-
 
 #if defined(OCS_DEBUG_QUEUE_HISTORY)
 
@@ -1465,7 +1459,6 @@ ocs_scsi_dif_wire_blocksize(ocs_scsi_dif_info_t *dif_info, int wiretomem)
 		DIF_SIZE,	/* OCS_SCSI_DIF_OPER_IN_CHKSUM_OUT_CRC, */
 		DIF_SIZE};	/* OCS_SCSI_DIF_OPER_IN_RAW_OUT_RAW, */
 
-
 	blocksize = ocs_scsi_dif_blocksize(dif_info);
 	if (blocksize == 0) {
 		return -1;
@@ -1609,7 +1602,6 @@ ocs_hw_dif_wire_blocksize(ocs_hw_dif_info_t *dif_info, int wiretomem)
 		DIF_SIZE,	/* OCS_HW_DIF_OPER_IN_CRC_OUT_CHKSUM, */
 		DIF_SIZE,	/* OCS_HW_DIF_OPER_IN_CHKSUM_OUT_CRC, */
 		DIF_SIZE};	/* OCS_HW_DIF_OPER_IN_RAW_OUT_RAW, */
-
 
 	blocksize = ocs_hw_dif_blocksize(dif_info);
 	if (blocksize == 0) {
@@ -1852,11 +1844,9 @@ ocs_textbuf_vprintf(ocs_textbuf_t *textbuf, const char *fmt, va_list ap)
 
 	/* See if data was truncated */
 	if (written >= avail) {
-
 		written = avail;
 
 		if (textbuf->extendable) {
-
 			/* revert the partially written data */
 			*(segment->buffer + segment->buffer_written) = 0;
 
@@ -1915,7 +1905,6 @@ ocs_textbuf_buffer(ocs_textbuf_t *textbuf, uint8_t *buffer, uint32_t buffer_leng
 
 	s = (char*) buffer;
 	while(*s) {
-
 		/*
 		 * XML escapes
 		 *
@@ -2005,8 +1994,6 @@ ocs_textbuf_reset(ocs_textbuf_t *textbuf)
  * resulting in 10k.
  */
 
-
-
 /**
  * @ingroup spv
  * @brief Allocate a new sparse vector row.
@@ -2026,8 +2013,6 @@ static void
 {
 	return ocs_malloc(os, sizeof(void*) * rowcount, OCS_M_ZERO | OCS_M_NOWAIT);
 }
-
-
 
 /**
  * @ingroup spv
@@ -2232,7 +2217,6 @@ void
  * Used in the Emulex SDK, the generated file crctable.out is cut and pasted into
  * applicable SDK sources.
  */
-
 
 static unsigned short crctable[256] =
 {
@@ -2573,7 +2557,6 @@ struct ocs_pool_s {
 typedef struct {
 	ocs_list_link_t link;
 } pool_hdr_t;
-
 
 /**
  * @brief Allocate a memory pool.

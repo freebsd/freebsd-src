@@ -117,7 +117,6 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 		}
 	}
 
-
 	ocs_hw_assert(qtop != NULL);
 
 	for (i = 0, qt = qtop->entries; i < qtop->inuse_count; i++, qt++) {
@@ -164,7 +163,6 @@ ocs_hw_init_queues(ocs_hw_t *hw, ocs_hw_qtop_t *qtop)
 			break;
 
 		case QTOP_WQ: {
-
 			len = (qt->len) ? qt->len : default_lengths[QTOP_WQ];
 			if (qt->set_default) {
 				default_lengths[QTOP_WQ] = len;
@@ -492,7 +490,6 @@ error:
 	return -1;
 }
 
-
 /**
  * @brief Allocate a new MQ object
  *
@@ -600,7 +597,6 @@ hw_new_rq(hw_cq_t *cq, uint32_t entry_count, uint32_t ulp)
 
 	ocs_hw_get(hw, OCS_HW_MAX_RQ_ENTRIES, &max_hw_rq);
 
-
 	if (rq != NULL) {
 		rq->instance = hw->hw_rq_count++;
 		rq->cq = cq;
@@ -659,7 +655,6 @@ hw_new_rq(hw_cq_t *cq, uint32_t entry_count, uint32_t ulp)
 	}
 	return rq;
 }
-
 
 /**
  * @brief Allocate a hw_rq_t object SET
@@ -729,7 +724,6 @@ hw_new_rq_set(hw_cq_t *cqs[], hw_rq_t *rqs[], uint32_t num_rq_pairs, uint32_t en
 		goto error;
 	}
 
-
 	for (i = 0; i < num_rq_pairs; i++) {
 		hw->hw_rq[rqs[i]->instance] = rqs[i];
 		ocs_list_add_tail(&cqs[i]->q_list, rqs[i]);
@@ -757,7 +751,6 @@ error:
 
 	return -1;
 }
-
 
 /**
  * @brief Free an EQ object
@@ -1419,7 +1412,6 @@ tok_getnumber(ocs_hw_t *hw, ocs_hw_qtop_t *qtop, tok_t *tok)
 	return rval;
 }
 
-
 /**
  * @brief parse an array of tokens
  *
@@ -1465,7 +1457,6 @@ parse_topology(ocs_hw_t *hw, tokarray_t *tokarray, ocs_hw_qtop_t *qtop)
 					((tok[3].type == TOK_NUMBER) ||
 					 (tok[3].type == TOK_NUMBER_VALUE) ||
 					 (tok[3].type == TOK_NUMBER_LIST))) {
-
 					switch (tok[1].subtype) {
 					case TOK_SUB_LEN:
 						qt->len = tok_getnumber(hw, qtop, &tok[3]);
@@ -1925,7 +1916,6 @@ ocs_hw_rqpair_process_auto_xfr_rdy_cmd(ocs_hw_t *hw, hw_cq_t *cq, uint8_t *cqe)
 	if (seq->auto_xrdy) {
 		/* If data cqe came before cmd cqe in out of order in case of AXR */
 		if(seq->hio->axr_buf->data_cqe == 1) {
-
 #if defined(OCS_DISC_SPIN_DELAY)
 			if (ocs_get_property("disk_spin_delay", prop_buf, sizeof(prop_buf)) == 0) {
 				delay = ocs_strtoul(prop_buf, 0, 0);
@@ -1999,7 +1989,6 @@ ocs_hw_rqpair_process_auto_xfr_rdy_data(ocs_hw_t *hw, hw_cq_t *cq, uint8_t *cqe)
 	seq->payload->dma.len = opt_wr->total_data_placed;
 	seq->fcfi = buf->fcfi;
 	seq->hw_priv = cq->eq;
-
 
 	if (opt_wr->status == SLI4_FC_WCQE_STATUS_SUCCESS) {
 		seq->status = OCS_HW_UNSOL_SUCCESS;
@@ -2393,7 +2382,6 @@ ocs_hw_rqpair_auto_xfer_rdy_move_to_host(ocs_hw_t *hw, ocs_hw_io_t *io)
 	}
 	return;
 }
-
 
 /**
  * @brief Posts an auto xfer rdy buffer to an IO.

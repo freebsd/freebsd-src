@@ -268,7 +268,6 @@ static inline uint32_t ocs_lg2(uint32_t val)
 #define ocs_htobe16(v)	htobe16(v)
 #define ocs_be16toh(v)	be16toh(v)
 
-
 #define ocs_htobe64(v)	htobe64(v)
 #define ocs_be64toh(v)	be64toh(v)
 
@@ -521,7 +520,6 @@ extern void ocs_dma_sync(ocs_dma_t *, uint32_t);
 
 #define OCS_DMASYNC_PREWRITE BUS_DMASYNC_PREWRITE
 #define OCS_DMASYNC_POSTREAD BUS_DMASYNC_POSTREAD
-
 
 /***************************************************************************
  * Locking
@@ -999,7 +997,6 @@ typedef enum {
 	OCS_THREAD_CREATE,			/*<< create and wait for start request */
 } ocs_thread_start_e;
 
-
 extern int32_t ocs_thread_create(ocs_os_handle_t os, ocs_thread_t *thread, ocs_thread_fctn fctn,
 				 const char *name, void *arg, ocs_thread_start_e start_option);
 extern int32_t ocs_thread_start(ocs_thread_t *thread);
@@ -1011,7 +1008,6 @@ extern void ocs_thread_yield(ocs_thread_t *thread);
 extern ocs_thread_t *ocs_thread_self(void);
 extern int32_t ocs_thread_setcpu(ocs_thread_t *thread, uint32_t cpu);
 extern int32_t ocs_thread_getcpu(void);
-
 
 /***************************************************************************
  * PCI
@@ -1061,7 +1057,6 @@ ocs_get_bus_dev_func(ocs_t *ocs, uint8_t* bus, uint8_t* dev, uint8_t* func);
 
 extern ocs_t *ocs_get_instance(uint32_t index);
 extern uint32_t ocs_instance(void *os);
-
 
 /**
  * @ingroup os

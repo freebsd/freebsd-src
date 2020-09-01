@@ -95,7 +95,6 @@
 #define FC_GS_NAMESERVER_RSNN_NN	0x0239
 #define FC_GS_NAMESERVER_RSPN_ID	0x0218
 
-
 #define FC_GS_REVISION		0x03
 
 #define FC_GS_IO_PARAMS		{ .fc_ct.r_ctl = 0x02, \
@@ -114,7 +113,6 @@ typedef struct fc_vft_header_s {
 	uint32_t	:24,
 			hopct:8;
 } fc_vft_header_t;
-
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 static inline uint32_t fc_be24toh(uint32_t x) { return (ocs_be32toh(x) >> 8); }
@@ -146,7 +144,6 @@ typedef struct fc_header_s {
 			rx_id:16;
 	uint32_t	parameter;
 } fc_header_t;
-
 
 /**
  * @brief FC header in little-endian order
@@ -320,7 +317,6 @@ typedef struct fc_acc_payload_s {
 	uint32_t	command_code: 8,
 			resv1:24;
 } fc_acc_payload_t;
-
 
 typedef struct fc_ls_rjt_payload_s {
 	uint32_t	command_code:8,
@@ -742,6 +738,5 @@ typedef struct fcp_xfer_rdy_iu_s {
 } fcp_xfer_rdy_iu_t;
 
 #define MAX_ACC_REJECT_PAYLOAD (sizeof(fc_ls_rjt_payload_t) > sizeof(fc_acc_payload_t) ? sizeof(fc_ls_rjt_payload_t) : sizeof(fc_acc_payload_t))
-
 
 #endif /* !_OCS_FCP_H */

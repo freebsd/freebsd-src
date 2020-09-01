@@ -108,6 +108,4 @@ extern void ocs_remote_node_group_free(ocs_remote_node_group_t *node_group);
 extern int ocs_node_group_init(ocs_node_t *node);
 extern void ocs_node_group_free(ocs_node_t *node);
 
-
-
 #endif 

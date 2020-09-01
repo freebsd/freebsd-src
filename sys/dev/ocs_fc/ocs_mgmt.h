@@ -36,7 +36,6 @@
  * Declarations for the common functions used by ocs_mgmt.
  */
 
-
 #if !defined(__OCS_MGMT_H__)
 #define __OCS_MGMT_H__
 
@@ -58,7 +57,6 @@ typedef struct ocs_mgmt_fw_write_result {
 	uint32_t actual_xfer;
 	uint32_t change_status;
 } ocs_mgmt_fw_write_result_t;
-
 
 /*
  * This structure is used in constructing a table of internal handler functions.
@@ -91,7 +89,6 @@ typedef struct ocs_mgmt_functions_s {
 	ocs_mgmt_set_handler		set_handler;
 	ocs_mgmt_exec_handler		exec_handler;
 } ocs_mgmt_functions_t;
-
 
 /* Helper functions */
 extern void ocs_mgmt_start_section(ocs_textbuf_t *textbuf, const char *name, int index);

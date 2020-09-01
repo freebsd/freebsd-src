@@ -62,7 +62,6 @@ extern void ocs_varray_lock(ocs_varray_t *ai);
 extern void ocs_varray_unlock(ocs_varray_t *ai);
 extern uint32_t ocs_varray_get_count(ocs_varray_t *ai);
 
-
 /***************************************************************************
  * Circular buffer
  *
@@ -80,7 +79,6 @@ typedef struct {
         void *vaddr;
         uint32_t length;
 } ocs_scsi_vaddr_len_t;
-
 
 #define OCS_TEXTBUF_MAX_ALLOC_LEN	(256*1024)
 
@@ -122,7 +120,6 @@ extern uint8_t *ocs_textbuf_ext_get_buffer(ocs_textbuf_t *textbuf, uint32_t idx)
 extern int32_t ocs_textbuf_ext_get_length(ocs_textbuf_t *textbuf, uint32_t idx);
 extern int32_t ocs_textbuf_ext_get_written(ocs_textbuf_t *textbuf, uint32_t idx);
 
-
 typedef struct ocs_pool_s ocs_pool_t;
 
 extern ocs_pool_t *ocs_pool_alloc(ocs_os_handle_t os, uint32_t size, uint32_t count, uint32_t use_lock);
@@ -134,11 +131,9 @@ extern uint32_t ocs_pool_get_count(ocs_pool_t *pool);
 extern void *ocs_pool_get_instance(ocs_pool_t *pool, uint32_t idx);
 extern uint32_t ocs_pool_get_freelist_count(ocs_pool_t *pool);
 
-
 /* Uncomment this line to enable logging extended queue history
  */
 //#define OCS_DEBUG_QUEUE_HISTORY
-
 
 /* Allocate maximum allowed (4M) */
 #if defined(OCS_DEBUG_QUEUE_HISTORY)
@@ -152,7 +147,6 @@ extern uint32_t ocs_pool_get_freelist_count(ocs_pool_t *pool);
 #define OCS_LOG_ENABLE_DOMAIN_SM_TRACE(ocs)	(((ocs) != NULL) ? (((ocs)->logmask & (1U << 4)) != 0) : 0)
 #define OCS_LOG_ENABLE_Q_FULL_BUSY_MSG(ocs)	(((ocs) != NULL) ? (((ocs)->logmask & (1U << 5)) != 0) : 0)
 #define OCS_LOG_ENABLE_IO_ERRORS(ocs)		(((ocs) != NULL) ? (((ocs)->logmask & (1U << 6)) != 0) : 0)
-
 
 extern void ocs_dump32(uint32_t, ocs_os_handle_t, const char *, void *, uint32_t);
 extern void ocs_debug_enable(uint32_t mask);
@@ -175,7 +169,6 @@ typedef union ocs_q_hist_ftr_u {
 			 type:Q_HIST_TYPE_LEN;
 	} s;
 } ocs_q_hist_ftr_t;
-
 
 /**
  * @brief WQE command mask lookup
@@ -262,7 +255,6 @@ extern void _ocs_assert(const char *cond, const char *filename, int linenum);
 extern void ocs_dump_service_params(const char *label, void *sparms);
 extern void ocs_display_sparams(const char *prelabel, const char *reqlabel, int dest, void *textbuf, void *sparams);
 
-
 typedef struct {
 	uint16_t crc;
 	uint16_t app_tag;
@@ -307,7 +299,6 @@ extern const char *ocs_pm_get_state_string(ocs_t *ocs);
 
 #define SPV_ROWLEN	256
 #define SPV_DIM		3
-
 
 /*!
 * @defgroup spv Sparse Vector
