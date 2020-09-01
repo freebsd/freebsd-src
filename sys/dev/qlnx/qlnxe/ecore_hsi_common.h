@@ -35,7 +35,6 @@
 /********************************/
 #include "common_hsi.h"
 
-
 /*
  * opcodes for the event ring
  */
@@ -54,7 +53,6 @@ enum common_event_opcode
 	MAX_COMMON_EVENT_OPCODE
 };
 
-
 /*
  * Common Ramrod Command IDs
  */
@@ -71,7 +69,6 @@ enum common_ramrod_cmd_id
 	MAX_COMMON_RAMROD_CMD_ID
 };
 
-
 /*
  * How ll2 should deal with packet upon errors
  */
@@ -82,7 +79,6 @@ enum core_error_handle
 	LL2_ASSERT /* If error occurs assert */,
 	MAX_CORE_ERROR_HANDLE
 };
-
 
 /*
  * opcodes for the event ring
@@ -98,7 +94,6 @@ enum core_event_opcode
 	MAX_CORE_EVENT_OPCODE
 };
 
-
 /*
  * The L4 pseudo checksum mode for Core
  */
@@ -108,7 +103,6 @@ enum core_l4_pseudo_checksum_mode
 	CORE_L4_PSEUDO_CSUM_ZERO_LENGTH /* Pseudo Checksum on packet is calculated with zero length. */,
 	MAX_CORE_L4_PSEUDO_CHECKSUM_MODE
 };
-
 
 /*
  * Light-L2 RX Producers in Tstorm RAM
@@ -120,7 +114,6 @@ struct core_ll2_port_stats
 	struct regpair gsi_unsupported_pkt_typ;
 	struct regpair gsi_crcchksm_error;
 };
-
 
 /*
  * Ethernet TX Per Queue Stats
@@ -135,7 +128,6 @@ struct core_ll2_pstorm_per_queue_stat
 	struct regpair sent_bcast_pkts /* number of total packets sent without errors */;
 };
 
-
 /*
  * Light-L2 RX Producers in Tstorm RAM
  */
@@ -146,13 +138,11 @@ struct core_ll2_rx_prod
 	__le32 reserved;
 };
 
-
 struct core_ll2_tstorm_per_queue_stat
 {
 	struct regpair packet_too_big_discard /* Number of packets discarded because they are bigger than MTU */;
 	struct regpair no_buff_discard /* Number of packets discarded due to lack of host buffers */;
 };
-
 
 struct core_ll2_ustorm_per_queue_stat
 {
@@ -163,7 +153,6 @@ struct core_ll2_ustorm_per_queue_stat
 	struct regpair rcv_mcast_pkts;
 	struct regpair rcv_bcast_pkts;
 };
-
 
 /*
  * Core Ramrod Command IDs (light L2)
@@ -180,7 +169,6 @@ enum core_ramrod_cmd_id
 	MAX_CORE_RAMROD_CMD_ID
 };
 
-
 /*
  * Core RX CQE Type for Light L2
  */
@@ -190,7 +178,6 @@ enum core_roce_flavor_type
 	CORE_RROCE,
 	MAX_CORE_ROCE_FLAVOR_TYPE
 };
-
 
 /*
  * Specifies how ll2 should deal with packets errors: packet_too_big and no_buff
@@ -206,7 +193,6 @@ struct core_rx_action_on_error
 #define CORE_RX_ACTION_ON_ERROR_RESERVED_SHIFT       4
 };
 
-
 /*
  * Core RX BD for Light L2
  */
@@ -215,7 +201,6 @@ struct core_rx_bd
 	struct regpair addr;
 	__le16 reserved[4];
 };
-
 
 /*
  * Core RX CM offload BD for Light L2
@@ -236,8 +221,6 @@ union core_rx_bd_union
 	struct core_rx_bd_with_buff_len rx_bd_with_len /* Core Rx Bd with dynamic buffer length */;
 };
 
-
-
 /*
  * Opaque Data for Light L2 RX CQE . 
  */
@@ -245,7 +228,6 @@ struct core_rx_cqe_opaque_data
 {
 	__le32 data[2] /* Opaque CQE Data */;
 };
-
 
 /*
  * Core RX CQE Type for Light L2
@@ -258,7 +240,6 @@ enum core_rx_cqe_type
 	CORE_RX_CQE_TYPE_SLOW_PATH /* Slow path Core RX CQE */,
 	MAX_CORE_RX_CQE_TYPE
 };
-
 
 /*
  * Core RX CQE for Light L2 . 
@@ -315,10 +296,6 @@ union core_rx_cqe_union
 	struct core_rx_slow_path_cqe rx_cqe_sp /* Slow path CQE */;
 };
 
-
-
-
-
 /*
  * Ramrod data for rx queue start ramrod
  */
@@ -344,7 +321,6 @@ struct core_rx_start_ramrod_data
 	u8 reserved[6];
 };
 
-
 /*
  * Ramrod data for rx queue stop ramrod
  */
@@ -356,7 +332,6 @@ struct core_rx_stop_ramrod_data
 	u8 reserved1;
 	__le16 reserved2[2];
 };
-
 
 /*
  * Flags for Core TX BD
@@ -408,8 +383,6 @@ struct core_tx_bd
 #define CORE_TX_BD_TX_DST_SHIFT          14
 };
 
-
-
 /*
  * Light L2 TX Destination
  */
@@ -421,7 +394,6 @@ enum core_tx_dest
 	CORE_TX_DEST_DROP /* TX Drop */,
 	MAX_CORE_TX_DEST
 };
-
 
 /*
  * Ramrod data for tx queue start ramrod
@@ -441,7 +413,6 @@ struct core_tx_start_ramrod_data
 	u8 resrved[3];
 };
 
-
 /*
  * Ramrod data for tx queue stop ramrod
  */
@@ -449,7 +420,6 @@ struct core_tx_stop_ramrod_data
 {
 	__le32 reserved0[2];
 };
-
 
 /*
  * Ramrod data for tx queue update ramrod
@@ -462,7 +432,6 @@ struct core_tx_update_ramrod_data
 	__le32 reserved1[1];
 };
 
-
 /*
  * Enum flag for what type of DCB data to update
  */
@@ -474,7 +443,6 @@ enum dcb_dscp_update_mode
 	UPDATE_DCB_DSCP /* update vlan pri and DSCP */,
 	MAX_DCB_DSCP_UPDATE_MODE
 };
-
 
 /*
  * The core storm context for the Ystorm
@@ -978,7 +946,6 @@ struct e4_core_conn_context
 	struct regpair ustorm_st_padding[2] /* padding */;
 };
 
-
 struct e5_xstorm_core_conn_ag_ctx
 {
 	u8 reserved0 /* cdu_validation */;
@@ -1479,7 +1446,6 @@ struct e5_core_conn_context
 	struct regpair ustorm_st_padding[2] /* padding */;
 };
 
-
 struct eth_mstorm_per_pf_stat
 {
 	struct regpair gre_discard_pkts /* Dropped GRE RX packets */;
@@ -1487,7 +1453,6 @@ struct eth_mstorm_per_pf_stat
 	struct regpair geneve_discard_pkts /* Dropped GENEVE RX packets */;
 	struct regpair lb_discard_pkts /* Dropped Tx switched packets */;
 };
-
 
 struct eth_mstorm_per_queue_stat
 {
@@ -1500,7 +1465,6 @@ struct eth_mstorm_per_queue_stat
 	struct regpair tpa_aborts_num /* number of aggregations, which abnormally ended */;
 	struct regpair tpa_coalesced_bytes /* total TCP payload length in all TPA aggregations */;
 };
-
 
 /*
  * Ethernet TX Per PF
@@ -1524,7 +1488,6 @@ struct eth_pstorm_per_pf_stat
 	struct regpair geneve_drop_pkts /* Dropped GENEVE TX packets */;
 };
 
-
 /*
  * Ethernet TX Per Queue Stats
  */
@@ -1539,7 +1502,6 @@ struct eth_pstorm_per_queue_stat
 	struct regpair error_drop_pkts /* number of total packets dropped due to errors */;
 };
 
-
 /*
  * ETH Rx producers data
  */
@@ -1551,7 +1513,6 @@ struct eth_rx_rate_limit
 	u8 reserved0;
 	__le16 reserved1;
 };
-
 
 struct eth_ustorm_per_pf_stat
 {
@@ -1569,7 +1530,6 @@ struct eth_ustorm_per_pf_stat
 	struct regpair rcv_geneve_pkts /* Received GENEVE packets */;
 };
 
-
 struct eth_ustorm_per_queue_stat
 {
 	struct regpair rcv_ucast_bytes;
@@ -1579,7 +1539,6 @@ struct eth_ustorm_per_queue_stat
 	struct regpair rcv_mcast_pkts;
 	struct regpair rcv_bcast_pkts;
 };
-
 
 /*
  * Event Ring VF-PF Channel data
@@ -1622,7 +1581,6 @@ union event_ring_data
 	struct initial_cleanup_eqe_data vf_init_cleanup /* VF Initial Cleanup data */;
 };
 
-
 /*
  * Event Ring Entry
  */
@@ -1659,9 +1617,6 @@ union event_ring_element
 	struct event_ring_next_addr next_addr /* Event Ring Next Page Address */;
 };
 
-
-
-
 /*
  * Ports mode
  */
@@ -1671,7 +1626,6 @@ enum fw_flow_ctrl_mode
 	flow_ctrl_pfc,
 	MAX_FW_FLOW_CTRL_MODE
 };
-
 
 /*
  * GFT profile type.
@@ -1686,7 +1640,6 @@ enum gft_profile_type
 	MAX_GFT_PROFILE_TYPE
 };
 
-
 /*
  * Major and Minor hsi Versions
  */
@@ -1695,8 +1648,6 @@ struct hsi_fp_ver_struct
 	u8 minor_ver_arr[2] /* Minor Version of hsi loading pf */;
 	u8 major_ver_arr[2] /* Major Version of driver loading pf */;
 };
-
-
 
 /*
  * Integration Phase
@@ -1709,7 +1660,6 @@ enum integ_phase
 	MAX_INTEG_PHASE
 };
 
-
 /*
  * Ports mode
  */
@@ -1721,8 +1671,6 @@ enum iwarp_ll2_tx_queues
 	IWARP_LL2_ERROR /* Error indication */,
 	MAX_IWARP_LL2_TX_QUEUES
 };
-
-
 
 /*
  * Malicious VF error ID
@@ -1754,8 +1702,6 @@ enum malicious_vf_error_id
 	MAX_MALICIOUS_VF_ERROR_ID
 };
 
-
-
 /*
  * Mstorm non-triggering VF zone
  */
@@ -1765,7 +1711,6 @@ struct mstorm_non_trigger_vf_zone
 	struct eth_rx_prod_data eth_rx_queue_producers[ETH_MAX_NUM_RX_QUEUES_PER_VF_QUAD] /* VF RX queues producers */;
 };
 
-
 /*
  * Mstorm VF zone
  */
@@ -1773,7 +1718,6 @@ struct mstorm_vf_zone
 {
 	struct mstorm_non_trigger_vf_zone non_trigger /* non-interrupt-triggering zone */;
 };
-
 
 /*
  * vlan header including TPID and TCI fields
@@ -1796,7 +1740,6 @@ struct outer_tag_config_struct
 	u8 inner_to_outer_pri_map[8] /* Map from inner to outer priority. Set pri_map_valid when init map */;
 };
 
-
 /*
  * personality per PF
  */
@@ -1812,7 +1755,6 @@ enum personality_type
 	PERSONALITY_TOE /* Toe and LL2 */,
 	MAX_PERSONALITY_TYPE
 };
-
 
 /*
  * tunnel configuration
@@ -1856,8 +1798,6 @@ struct pf_start_ramrod_data
 	struct hsi_fp_ver_struct hsi_fp_ver /* FP HSI version to be used by FW */;
 	struct outer_tag_config_struct outer_tag_config /* Outer tag configurations */;
 };
-
-
 
 /*
  * Per protocol DCB data
@@ -1917,8 +1857,6 @@ struct pf_update_ramrod_data
 	struct pf_update_tunnel_config tunnel_config /* tunnel configuration. */;
 };
 
-
-
 /*
  * Ports mode
  */
@@ -1932,8 +1870,6 @@ enum ports_mode
 	MAX_PORTS_MODE
 };
 
-
-
 /*
  * use to index in hsi_fp_[major|minor]_ver_arr per protocol
  */
@@ -1943,8 +1879,6 @@ enum protocol_version_array_key
 	ROCE_VER_KEY,
 	MAX_PROTOCOL_VERSION_ARRAY_KEY
 };
-
-
 
 /*
  * RDMA TX Stats
@@ -1964,7 +1898,6 @@ struct pstorm_non_trigger_vf_zone
 	struct rdma_sent_stats rdma_stats /* RoCE sent statistics */;
 };
 
-
 /*
  * Pstorm VF zone
  */
@@ -1973,7 +1906,6 @@ struct pstorm_vf_zone
 	struct pstorm_non_trigger_vf_zone non_trigger /* non-interrupt-triggering zone */;
 	struct regpair reserved[7] /* vf_zone size mus be power of 2 */;
 };
-
 
 /*
  * Ramrod Header of SPQE
@@ -1986,7 +1918,6 @@ struct ramrod_header
 	__le16 echo /* Ramrod echo */;
 };
 
-
 /*
  * RDMA RX Stats
  */
@@ -1995,8 +1926,6 @@ struct rdma_rcv_stats
 	struct regpair rcv_bytes /* number of total RDMA bytes received */;
 	struct regpair rcv_pkts /* number of total RDMA packets received */;
 };
-
-
 
 /*
  * Data for update QCN/DCQCN RL ramrod
@@ -2022,7 +1951,6 @@ struct rl_update_ramrod_data
 	__le32 reserved[2];
 };
 
-
 /*
  * Slowpath Element (SPQE)
  */
@@ -2032,7 +1960,6 @@ struct slow_path_element
 	struct regpair data_ptr /* Pointer to the Ramrod Data on the Host */;
 };
 
-
 /*
  * Tstorm non-triggering VF zone
  */
@@ -2040,7 +1967,6 @@ struct tstorm_non_trigger_vf_zone
 {
 	struct rdma_rcv_stats rdma_stats /* RoCE received statistics */;
 };
-
 
 struct tstorm_per_port_stat
 {
@@ -2063,7 +1989,6 @@ struct tstorm_per_port_stat
 	struct regpair eth_gft_drop_pkt /* GFT dropped packets */;
 };
 
-
 /*
  * Tstorm VF zone
  */
@@ -2071,7 +1996,6 @@ struct tstorm_vf_zone
 {
 	struct tstorm_non_trigger_vf_zone non_trigger /* non-interrupt-triggering zone */;
 };
-
 
 /*
  * Tunnel classification scheme
@@ -2086,8 +2010,6 @@ enum tunnel_clss
 	MAX_TUNNEL_CLSS
 };
 
-
-
 /*
  * Ustorm non-triggering VF zone
  */
@@ -2096,7 +2018,6 @@ struct ustorm_non_trigger_vf_zone
 	struct eth_ustorm_per_queue_stat eth_queue_stat /* VF statistic bucket */;
 	struct regpair vf_pf_msg_addr /* VF-PF message address */;
 };
-
 
 /*
  * Ustorm triggering VF zone
@@ -2107,7 +2028,6 @@ struct ustorm_trigger_vf_zone
 	u8 reserved[7];
 };
 
-
 /*
  * Ustorm VF zone
  */
@@ -2116,7 +2036,6 @@ struct ustorm_vf_zone
 	struct ustorm_non_trigger_vf_zone non_trigger /* non-interrupt-triggering zone */;
 	struct ustorm_trigger_vf_zone trigger /* interrupt triggering zone */;
 };
-
 
 /*
  * VF-PF channel data
@@ -2128,8 +2047,6 @@ struct vf_pf_channel_data
 	u8 reserved0;
 	__le16 reserved1;
 };
-
-
 
 /*
  * Ramrod data for VF start ramrod
@@ -2144,7 +2061,6 @@ struct vf_start_ramrod_data
 	struct hsi_fp_ver_struct hsi_fp_ver /* FP HSI version to be used by FW */;
 };
 
-
 /*
  * Ramrod data for VF start ramrod
  */
@@ -2155,7 +2071,6 @@ struct vf_stop_ramrod_data
 	__le16 reserved1;
 	__le32 reserved2;
 };
-
 
 /*
  * VF zone size mode.
@@ -2168,10 +2083,6 @@ enum vf_zone_size_mode
 	MAX_VF_ZONE_SIZE_MODE
 };
 
-
-
-
-
 /*
  * Attentions status block
  */
@@ -2183,7 +2094,6 @@ struct atten_status_block
 	__le16 sb_index /* status block running index */;
 	__le32 reserved1;
 };
-
 
 /*
  * DMAE command
@@ -2252,14 +2162,12 @@ struct dmae_cmd
 	__le16 xsum8 /* checksum8 result  */;
 };
 
-
 enum dmae_cmd_comp_crc_en_enum
 {
 	dmae_cmd_comp_crc_disabled /* Do not write a CRC word */,
 	dmae_cmd_comp_crc_enabled /* Write a CRC word */,
 	MAX_DMAE_CMD_COMP_CRC_EN_ENUM
 };
-
 
 enum dmae_cmd_comp_func_enum
 {
@@ -2268,7 +2176,6 @@ enum dmae_cmd_comp_func_enum
 	MAX_DMAE_CMD_COMP_FUNC_ENUM
 };
 
-
 enum dmae_cmd_comp_word_en_enum
 {
 	dmae_cmd_comp_word_disabled /* Do not write a completion word */,
@@ -2276,14 +2183,12 @@ enum dmae_cmd_comp_word_en_enum
 	MAX_DMAE_CMD_COMP_WORD_EN_ENUM
 };
 
-
 enum dmae_cmd_c_dst_enum
 {
 	dmae_cmd_c_dst_pcie,
 	dmae_cmd_c_dst_grc,
 	MAX_DMAE_CMD_C_DST_ENUM
 };
-
 
 enum dmae_cmd_dst_enum
 {
@@ -2294,7 +2199,6 @@ enum dmae_cmd_dst_enum
 	MAX_DMAE_CMD_DST_ENUM
 };
 
-
 enum dmae_cmd_error_handling_enum
 {
 	dmae_cmd_error_handling_send_regular_comp /* Send a regular completion (with no error indication) */,
@@ -2303,14 +2207,12 @@ enum dmae_cmd_error_handling_enum
 	MAX_DMAE_CMD_ERROR_HANDLING_ENUM
 };
 
-
 enum dmae_cmd_src_enum
 {
 	dmae_cmd_src_pcie /* The source is the PCIe */,
 	dmae_cmd_src_grc /* The source is the GRC */,
 	MAX_DMAE_CMD_SRC_ENUM
 };
-
 
 struct e4_mstorm_core_conn_ag_ctx
 {
@@ -2349,10 +2251,6 @@ struct e4_mstorm_core_conn_ag_ctx
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
 };
-
-
-
-
 
 struct e4_ystorm_core_conn_ag_ctx
 {
@@ -2399,7 +2297,6 @@ struct e4_ystorm_core_conn_ag_ctx
 	__le32 reg3 /* reg3 */;
 };
 
-
 struct e5_mstorm_core_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -2437,10 +2334,6 @@ struct e5_mstorm_core_conn_ag_ctx
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
 };
-
-
-
-
 
 struct e5_ystorm_core_conn_ag_ctx
 {
@@ -2487,7 +2380,6 @@ struct e5_ystorm_core_conn_ag_ctx
 	__le32 reg3 /* reg3 */;
 };
 
-
 struct fw_asserts_ram_section
 {
 	__le16 section_ram_line_offset /* The offset of the section in the RAM in RAM lines (64-bit units) */;
@@ -2497,7 +2389,6 @@ struct fw_asserts_ram_section
 	u8 list_num_elements /* The number of elements in the asserts list */;
 	u8 list_next_index_dword_offset /* The offset of the next list index field within the section in dwords */;
 };
-
 
 struct fw_ver_num
 {
@@ -2523,15 +2414,11 @@ struct fw_info
 	struct fw_asserts_ram_section fw_asserts_section /* Info regarding the FW asserts section in the Storm RAM */;
 };
 
-
 struct fw_info_location
 {
 	__le32 grc_addr /* GRC address where the fw_info struct is located. */;
 	__le32 size /* Size of the fw_info structure (thats located at the grc_addr). */;
 };
-
-
-
 
 /*
  * IGU cleanup command
@@ -2550,7 +2437,6 @@ struct igu_cleanup
 	__le32 reserved1;
 };
 
-
 /*
  * IGU firmware driver command
  */
@@ -2559,7 +2445,6 @@ union igu_command
 	struct igu_prod_cons_update prod_cons_update;
 	struct igu_cleanup cleanup;
 };
-
 
 /*
  * IGU firmware driver command
@@ -2575,7 +2460,6 @@ struct igu_command_reg_ctrl
 #define IGU_COMMAND_REG_CTRL_COMMAND_TYPE_MASK  0x1 /* command typ: 0 - read, 1 - write */
 #define IGU_COMMAND_REG_CTRL_COMMAND_TYPE_SHIFT 15
 };
-
 
 /*
  * IGU mapping line structure
@@ -2597,7 +2481,6 @@ struct igu_mapping_line
 #define IGU_MAPPING_LINE_RESERVED_SHIFT        24
 };
 
-
 /*
  * IGU MSIX line structure
  */
@@ -2615,7 +2498,6 @@ struct igu_msix_vector
 #define IGU_MSIX_VECTOR_RESERVED1_MASK     0xFF
 #define IGU_MSIX_VECTOR_RESERVED1_SHIFT    24
 };
-
 
 /*
  * per encapsulation type enabling flags
@@ -2639,7 +2521,6 @@ struct prs_reg_encapsulation_type_en
 #define PRS_REG_ENCAPSULATION_TYPE_EN_RESERVED_SHIFT               6
 };
 
-
 enum pxp_tph_st_hint
 {
 	TPH_ST_HINT_BIDIR /* Read/Write access by Host and Device */,
@@ -2648,7 +2529,6 @@ enum pxp_tph_st_hint
 	TPH_ST_HINT_TARGET_PRIO /* Device Write and Host Read, or Host Write and Device Read - with temporal reuse */,
 	MAX_PXP_TPH_ST_HINT
 };
-
 
 /*
  * QM hardware structure of enable bypass credit mask
@@ -2673,7 +2553,6 @@ struct qm_rf_bypass_mask
 #define QM_RF_BYPASS_MASK_RESERVED1_MASK  0x1
 #define QM_RF_BYPASS_MASK_RESERVED1_SHIFT 7
 };
-
 
 /*
  * QM hardware structure of opportunistic credit mask
@@ -2703,7 +2582,6 @@ struct qm_rf_opportunistic_mask
 #define QM_RF_OPPORTUNISTIC_MASK_RESERVED1_SHIFT  9
 };
 
-
 /*
  * E4 QM hardware structure of QM map memory
  */
@@ -2725,7 +2603,6 @@ struct qm_rf_pq_map_e4
 #define QM_RF_PQ_MAP_E4_RESERVED_MASK          0x3F
 #define QM_RF_PQ_MAP_E4_RESERVED_SHIFT         26
 };
-
 
 /*
  * E5 QM hardware structure of QM map memory
@@ -2749,7 +2626,6 @@ struct qm_rf_pq_map_e5
 #define QM_RF_PQ_MAP_E5_RESERVED_SHIFT         27
 };
 
-
 /*
  * Completion params for aggregated interrupt completion
  */
@@ -2763,7 +2639,6 @@ struct sdm_agg_int_comp_params
 #define SDM_AGG_INT_COMP_PARAMS_AGG_VECTOR_BIT_MASK     0x1FF /* Number of bit in the aggregated vector, 0-279 (TBD) */
 #define SDM_AGG_INT_COMP_PARAMS_AGG_VECTOR_BIT_SHIFT    7
 };
-
 
 /*
  * SDM operation gen command (generate aggregative interrupt)

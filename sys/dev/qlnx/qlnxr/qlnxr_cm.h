@@ -27,11 +27,8 @@
  * $FreeBSD$
  */
 
-
-
 #ifndef __QLNXR_CM_H__
 #define __QLNXR_CM_H__
-
 
 /* ECORE LL2 has a limit to the number of buffers it can handle.
  * FYI, OFED used 512 and 128 for recv and send.

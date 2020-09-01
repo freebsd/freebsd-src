@@ -138,7 +138,7 @@ MALLOC_DECLARE(M_QLNXBUF);
 		else  \
 			pause(fn, qlnx_ms_to_hz(msecs)); \
 	}
-	
+
 /*
  * Locks
  */
@@ -157,6 +157,5 @@ struct qlnx_dma {
         bus_dma_tag_t           dma_tag;
 };
 typedef struct qlnx_dma qlnx_dma_t;
-
 
 #endif /* #ifndef _QLNX_OS_H_ */

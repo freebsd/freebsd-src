@@ -893,5 +893,4 @@ bool ecore_is_block_in_reset(struct ecore_hwfn *p_hwfn,
 							 struct ecore_ptt *p_ptt,
 							 enum block_id block);
 
-
 #endif

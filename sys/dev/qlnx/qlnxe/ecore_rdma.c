@@ -506,7 +506,6 @@ end:
 	bmap->bitmap = OSAL_NULL;
 }
 
-
 void ecore_rdma_resc_free(struct ecore_hwfn *p_hwfn)
 {
 	if (IS_IWARP(p_hwfn))
@@ -583,7 +582,6 @@ static void ecore_rdma_get_guid(struct ecore_hwfn *p_hwfn, u8 *guid)
 	guid[6] = mac_addr[4];
 	guid[7] = mac_addr[5];
 }
-
 
 static void ecore_rdma_init_events(
 	struct ecore_hwfn *p_hwfn,
@@ -833,7 +831,6 @@ ecore_rdma_start_fw(struct ecore_hwfn *p_hwfn,
 					   &p_ent->ramrod.iwarp_init_func);
 		p_ramrod = &p_ent->ramrod.iwarp_init_func.rdma;
 	} else {
-
 #ifdef CONFIG_DCQCN
 		rc = ecore_roce_dcqcn_cfg(p_hwfn, &params->roce.dcqcn_params,
 					  &p_ent->ramrod.roce_init_func, p_ptt);
@@ -849,7 +846,6 @@ ecore_rdma_start_fw(struct ecore_hwfn *p_hwfn,
 		ll2_queue_id = ecore_ll2_handle_to_queue_id(
 			p_hwfn, params->roce.ll2_handle);
 		p_ent->ramrod.roce_init_func.roce.ll2_queue_id = ll2_queue_id;
-
 	}
 
 	pheader = &p_ramrod->params_header;
@@ -973,7 +969,6 @@ static enum _ecore_status_t ecore_rdma_setup(struct ecore_hwfn    *p_hwfn,
 
 	return ecore_rdma_start_fw(p_hwfn, p_ptt, params);
 }
-
 
 enum _ecore_status_t ecore_rdma_stop(void *rdma_cxt)
 {
@@ -1454,7 +1449,6 @@ void ecore_rdma_set_fw_mac(u16 *p_fw_mac, u8 *p_ecore_mac)
 	p_fw_mac[2] = OSAL_CPU_TO_LE16((p_ecore_mac[4] << 8) + p_ecore_mac[5]);
 }
 
-
 enum _ecore_status_t ecore_rdma_query_qp(void			*rdma_cxt,
 			struct ecore_rdma_qp			*qp,
 			struct ecore_rdma_query_qp_out_params	*out_params)
@@ -1496,7 +1490,6 @@ enum _ecore_status_t ecore_rdma_query_qp(void			*rdma_cxt,
 	return rc;
 }
 
-
 enum _ecore_status_t ecore_rdma_destroy_qp(void *rdma_cxt,
 					   struct ecore_rdma_qp *qp,
 					   struct ecore_rdma_destroy_qp_out_params *out_params)
@@ -1523,7 +1516,6 @@ enum _ecore_status_t ecore_rdma_destroy_qp(void *rdma_cxt,
 
 	return rc;
 }
-
 
 struct ecore_rdma_qp *ecore_rdma_create_qp(void			*rdma_cxt,
 			struct ecore_rdma_create_qp_in_params	*in_params,

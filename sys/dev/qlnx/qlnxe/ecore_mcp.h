@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_MCP_H__
 #define __ECORE_MCP_H__
 

@@ -28,7 +28,6 @@
  *
  */
 
-
 /****************************************************************************
  *
  * Name:        nvm_cfg.h
@@ -42,7 +41,6 @@
 
 #ifndef NVM_CFG_H
 #define NVM_CFG_H
-
 
 #define NVM_CFG_version 0x83306
 

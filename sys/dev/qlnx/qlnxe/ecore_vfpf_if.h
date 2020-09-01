@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_VF_PF_IF_H__
 #define __ECORE_VF_PF_IF_H__
 

@@ -34,7 +34,6 @@
 /* SCSI CONSTANTS */
 /*********************/
 
-
 #define SCSI_MAX_NUM_OF_CMDQS (NUM_OF_GLOBAL_QUEUES / 2)
 // Each Resource ID is one-one-valued mapped by the driver to a BDQ Resource ID (for instance per port)
 #define BDQ_NUM_RESOURCES (4)
@@ -69,7 +68,6 @@ struct iscsi_drv_opaque
 	__le16 opaque;
 };
 
-
 /*
  * Scsi 2B/8B opaque union
  */
@@ -88,7 +86,6 @@ struct scsi_bd
 	union scsi_opaque opaque /* Driver Metadata (preferably Virtual Address of buffer) */;
 };
 
-
 /*
  * Scsi Drv BDQ struct
  */
@@ -97,7 +94,6 @@ struct scsi_bdq_ram_drv_data
 	__le16 external_producer /* BDQ External Producer; updated by driver when it loads BDs to External Ring */;
 	__le16 reserved0[3];
 };
-
 
 /*
  * SCSI SGE entry
@@ -117,7 +113,6 @@ struct scsi_cached_sges
 	struct scsi_sge sge[4] /* Cached SGEs section */;
 };
 
-
 /*
  * Scsi Drv CMDQ struct
  */
@@ -127,7 +122,6 @@ struct scsi_drv_cmdq
 	__le16 reserved0;
 	__le32 reserved1;
 };
-
 
 /*
  * Common SCSI init params passed by driver to FW in function init ramrod 
@@ -139,7 +133,6 @@ struct scsi_init_func_params
 	u8 debug_mode /* Use iscsi_debug_mode enum */;
 	u8 reserved2[12];
 };
-
 
 /*
  * SCSI RQ/CQ/CMDQ firmware function init parameters
@@ -178,8 +171,6 @@ struct scsi_init_func_queues
 	__le16 cmdq_xon_threshold /* CMDQ XON threshold - when number of entries will be above that TH, it will send XON */;
 };
 
-
-
 /*
  * Scsi Drv BDQ Data struct (2 BDQ IDs: 0 - RQ, 1 - Immediate Data)
  */
@@ -187,8 +178,6 @@ struct scsi_ram_per_bdq_resource_drv_data
 {
 	struct scsi_bdq_ram_drv_data drv_data_per_bdq_id[BDQ_NUM_IDS] /* External ring data */;
 };
-
-
 
 /*
  * SCSI SGL types
@@ -199,7 +188,6 @@ enum scsi_sgl_mode
 	SCSI_FAST_SGL /* Fast SGL: Less than SCSI_NUM_SGES_SLOW_SGL_THR SGEs or all middle SGEs are at least a page size */,
 	MAX_SCSI_SGL_MODE
 };
-
 
 /*
  * SCSI SGL parameters
@@ -214,7 +202,6 @@ struct scsi_sgl_params
 	u8 reserved;
 };
 
-
 /*
  * SCSI terminate connection params
  */
@@ -224,7 +211,6 @@ struct scsi_terminate_extra_params
 	__le16 cmdq_count /* Counts number of CMDQ placements on this connection */;
 	u8 reserved[4];
 };
-
 
 /*
  * SCSI Task Queue Element

@@ -585,7 +585,6 @@ struct e4_eth_conn_context
 	struct mstorm_eth_conn_st_ctx mstorm_st_context /* mstorm storm context */;
 };
 
-
 struct e5_xstorm_eth_conn_ag_ctx
 {
 	u8 reserved0 /* cdu_validation */;
@@ -1131,7 +1130,6 @@ struct e5_eth_conn_context
 	struct mstorm_eth_conn_st_ctx mstorm_st_context /* mstorm storm context */;
 };
 
-
 /*
  * Ethernet filter types: mac/vlan/pair
  */
@@ -1162,7 +1160,6 @@ enum eth_error_code
 	MAX_ETH_ERROR_CODE
 };
 
-
 /*
  * opcodes for the event ring
  */
@@ -1189,7 +1186,6 @@ enum eth_event_opcode
 	MAX_ETH_EVENT_OPCODE
 };
 
-
 /*
  * Classify rule types in E2/E3
  */
@@ -1201,7 +1197,6 @@ enum eth_filter_action
 	ETH_FILTER_ACTION_REMOVE_ALL /* Remove all filters of given type and vport ID. */,
 	MAX_ETH_FILTER_ACTION
 };
-
 
 /*
  * Command for adding/removing a classification rule $$KEEP_ENDIANNESS$$
@@ -1219,7 +1214,6 @@ struct eth_filter_cmd
 	__le16 vlan_id;
 };
 
-
 /*
  *  $$KEEP_ENDIANNESS$$
  */
@@ -1231,7 +1225,6 @@ struct eth_filter_cmd_header
 	u8 assert_on_error /* 0 - dont assert in case of filter configuration error. Just return an error code. 1 - assert in case of filter configuration error. */;
 	u8 reserved1[4];
 };
-
 
 /*
  * Ethernet filter types: mac/vlan/pair
@@ -1251,7 +1244,6 @@ enum eth_filter_type
 	MAX_ETH_FILTER_TYPE
 };
 
-
 /*
  * eth IPv4 Fragment Type
  */
@@ -1263,7 +1255,6 @@ enum eth_ipv4_frag_type
 	MAX_ETH_IPV4_FRAG_TYPE
 };
 
-
 /*
  * eth IPv4 Fragment Type
  */
@@ -1273,7 +1264,6 @@ enum eth_ip_type
 	ETH_IPV6 /* IPv6 */,
 	MAX_ETH_IP_TYPE
 };
-
 
 /*
  * Ethernet Ramrod Command IDs
@@ -1301,7 +1291,6 @@ enum eth_ramrod_cmd_id
 	MAX_ETH_RAMROD_CMD_ID
 };
 
-
 /*
  * return code from eth sp ramrods
  */
@@ -1316,7 +1305,6 @@ struct eth_return_code
 #define ETH_RETURN_CODE_RX_TX_SHIFT    7
 };
 
-
 /*
  * What to do in case an error occurs
  */
@@ -1326,7 +1314,6 @@ enum eth_tx_err
 	ETH_TX_ERR_ASSERT_MALICIOUS /* Assert an interrupt for PF, declare as malicious for VF */,
 	MAX_ETH_TX_ERR
 };
-
 
 /*
  * Array of the different error type behaviors
@@ -1351,7 +1338,6 @@ struct eth_tx_err_vals
 #define ETH_TX_ERR_VALS_RESERVED_MASK                     0x1FF
 #define ETH_TX_ERR_VALS_RESERVED_SHIFT                    7
 };
-
 
 /*
  * vport rss configuration data
@@ -1387,7 +1373,6 @@ struct eth_vport_rss_config
 	__le32 reserved3[2];
 };
 
-
 /*
  * eth vport RSS mode
  */
@@ -1397,7 +1382,6 @@ enum eth_vport_rss_mode
 	ETH_VPORT_RSS_MODE_REGULAR /* Regular (ndis-like) RSS */,
 	MAX_ETH_VPORT_RSS_MODE
 };
-
 
 /*
  * Command for setting classification flags for a vport $$KEEP_ENDIANNESS$$
@@ -1421,7 +1405,6 @@ struct eth_vport_rx_mode
 #define ETH_VPORT_RX_MODE_RESERVED1_SHIFT              6
 };
 
-
 /*
  * Command for setting tpa parameters
  */
@@ -1441,7 +1424,6 @@ struct eth_vport_tpa_param
 	u8 max_buff_num /* maximal number of buffers that can be used for one aggregation */;
 	u8 reserved;
 };
-
 
 /*
  * Command for setting classification flags for a vport $$KEEP_ENDIANNESS$$
@@ -1463,7 +1445,6 @@ struct eth_vport_tx_mode
 #define ETH_VPORT_TX_MODE_RESERVED1_SHIFT        5
 };
 
-
 /*
  * GFT filter update action type.
  */
@@ -1473,9 +1454,6 @@ enum gft_filter_update_action
 	GFT_DELETE_FILTER,
 	MAX_GFT_FILTER_UPDATE_ACTION
 };
-
-
-
 
 /*
  * Ramrod data for rx add openflow filter
@@ -1504,7 +1482,6 @@ struct rx_add_openflow_filter_data
 	__le16 l4_src_port /* Searcher String - TCP/UDP Source Port */;
 };
 
-
 /*
  * Ramrod data for rx create gft action
  */
@@ -1514,7 +1491,6 @@ struct rx_create_gft_action_data
 	u8 reserved[7];
 };
 
-
 /*
  * Ramrod data for rx create openflow action
  */
@@ -1523,7 +1499,6 @@ struct rx_create_openflow_action_data
 	u8 vport_id /* ID of RX queue */;
 	u8 reserved[7];
 };
-
 
 /*
  * Ramrod data for rx queue start ramrod
@@ -1557,7 +1532,6 @@ struct rx_queue_start_ramrod_data
 	struct regpair reserved2 /* FW reserved. */;
 };
 
-
 /*
  * Ramrod data for rx queue stop ramrod
  */
@@ -1569,7 +1543,6 @@ struct rx_queue_stop_ramrod_data
 	u8 vport_id /* ID of virtual port */;
 	u8 reserved[3];
 };
-
 
 /*
  * Ramrod data for rx queue update ramrod
@@ -1590,7 +1563,6 @@ struct rx_queue_update_ramrod_data
 	struct regpair reserved6 /* FW reserved. */;
 };
 
-
 /*
  * Ramrod data for rx Add UDP Filter
  */
@@ -1607,7 +1579,6 @@ struct rx_udp_filter_data
 	__le16 udp_src_port /* Searcher String - UDP Source Port */;
 	__le32 tenant_id /* Searcher String - Tenant ID */;
 };
-
 
 /*
  * add or delete GFT filter - filter is packet header of type of packet wished to pass certain FW flow
@@ -1627,8 +1598,6 @@ struct rx_update_gft_filter_data
 	u8 assert_on_error /* 0 - dont assert in case of error. Just return an error code. 1 - assert in case of error. */;
 	u8 reserved;
 };
-
-
 
 /*
  * Ramrod data for tx queue start ramrod
@@ -1671,7 +1640,6 @@ struct tx_queue_start_ramrod_data
 	struct regpair bd_cons_address /* BD consumer address in host - for PMD queues */;
 };
 
-
 /*
  * Ramrod data for tx queue stop ramrod
  */
@@ -1679,7 +1647,6 @@ struct tx_queue_stop_ramrod_data
 {
 	__le16 reserved[4];
 };
-
 
 /*
  * Ramrod data for tx queue update ramrod
@@ -1692,8 +1659,6 @@ struct tx_queue_update_ramrod_data
 	struct regpair reserved1[5];
 };
 
-
-
 /*
  * Ramrod data for vport update ramrod
  */
@@ -1702,7 +1667,6 @@ struct vport_filter_update_ramrod_data
 	struct eth_filter_cmd_header filter_cmd_hdr /* Header for Filter Commands (RX/TX, Add/Remove/Replace, etc) */;
 	struct eth_filter_cmd filter_cmds[ETH_FILTER_RULES_COUNT] /* Filter Commands */;
 };
-
 
 /*
  * Ramrod data for vport start ramrod
@@ -1731,7 +1695,6 @@ struct vport_start_ramrod_data
 	u8 reserved[1];
 };
 
-
 /*
  * Ramrod data for vport stop ramrod
  */
@@ -1740,7 +1703,6 @@ struct vport_stop_ramrod_data
 	u8 vport_id;
 	u8 reserved[7];
 };
-
 
 /*
  * Ramrod data for vport update ramrod
@@ -1799,11 +1761,6 @@ struct vport_update_ramrod_data
 	struct vport_update_ramrod_mcast approx_mcast;
 	struct eth_vport_rss_config rss_config /* rss config data */;
 };
-
-
-
-
-
 
 struct E4XstormEthConnAgCtxDqExtLdPart
 {
@@ -2035,7 +1992,6 @@ struct E4XstormEthConnAgCtxDqExtLdPart
 	__le32 reg4 /* reg4 */;
 };
 
-
 struct e4_mstorm_eth_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -2073,10 +2029,6 @@ struct e4_mstorm_eth_conn_ag_ctx
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
 };
-
-
-
-
 
 struct e4_xstorm_eth_hw_conn_ag_ctx
 {
@@ -2298,8 +2250,6 @@ struct e4_xstorm_eth_hw_conn_ag_ctx
 	__le16 tx_class /* word5 */;
 	__le16 conn_dpi /* conn_dpi */;
 };
-
-
 
 struct E5XstormEthConnAgCtxDqExtLdPart
 {
@@ -2531,7 +2481,6 @@ struct E5XstormEthConnAgCtxDqExtLdPart
 	__le32 reg4 /* reg4 */;
 };
 
-
 struct e5_mstorm_eth_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -2569,10 +2518,6 @@ struct e5_mstorm_eth_conn_ag_ctx
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
 };
-
-
-
-
 
 struct e5_xstorm_eth_hw_conn_ag_ctx
 {
@@ -2795,8 +2740,6 @@ struct e5_xstorm_eth_hw_conn_ag_ctx
 	__le16 conn_dpi /* conn_dpi */;
 };
 
-
-
 /*
  * GFT CAM line struct
  */
@@ -2812,7 +2755,6 @@ struct gft_cam_line
 #define GFT_CAM_LINE_RESERVED1_MASK  0x7
 #define GFT_CAM_LINE_RESERVED1_SHIFT 29
 };
-
 
 /*
  * GFT CAM line struct with fields breakout
@@ -2846,13 +2788,11 @@ struct gft_cam_line_mapped
 #define GFT_CAM_LINE_MAPPED_RESERVED1_SHIFT                29
 };
 
-
 union gft_cam_line_union
 {
 	struct gft_cam_line cam_line;
 	struct gft_cam_line_mapped cam_line_mapped;
 };
-
 
 /*
  * Used in gft_profile_key: Indication for ip version
@@ -2863,7 +2803,6 @@ enum gft_profile_ip_version
 	GFT_PROFILE_IPV6=1,
 	MAX_GFT_PROFILE_IP_VERSION
 };
-
 
 /*
  * Profile key stucr fot GFT logic in Prs
@@ -2885,7 +2824,6 @@ struct gft_profile_key
 #define GFT_PROFILE_KEY_RESERVED0_SHIFT           14
 };
 
-
 /*
  * Used in gft_profile_key: Indication for tunnel type
  */
@@ -2899,7 +2837,6 @@ enum gft_profile_tunnel_type
 	GFT_PROFILE_GENEVE_IP_TUNNEL=5,
 	MAX_GFT_PROFILE_TUNNEL_TYPE
 };
-
 
 /*
  * Used in gft_profile_key: Indication for protocol type
@@ -2924,7 +2861,6 @@ enum gft_profile_upper_protocol_type
 	GFT_PROFILE_RAW=15,
 	MAX_GFT_PROFILE_UPPER_PROTOCOL_TYPE
 };
-
 
 /*
  * GFT RAM line struct
@@ -3018,7 +2954,6 @@ struct gft_ram_line
 #define GFT_RAM_LINE_RESERVED1_MASK                0x3FFFFF
 #define GFT_RAM_LINE_RESERVED1_SHIFT               10
 };
-
 
 /*
  * Used in the first 2 bits for gft_ram_line: Indication for vlan mask

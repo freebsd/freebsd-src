@@ -92,7 +92,6 @@ extern void qlnx_get_protocol_stats(void *cdev, int proto_type,
 
 extern void qlnx_sp_isr(void *arg);
 
-
 extern void qlnx_osal_vf_fill_acquire_resc_req(void *p_hwfn, void *p_resc_req,
 			void *p_sw_info);
 extern void qlnx_osal_iov_vf_cleanup(void *p_hwfn, uint8_t relative_vf_id);
@@ -126,7 +125,7 @@ is_power_of_2(unsigned long n)
 {
 	return (n == roundup_pow_of_two(n));
 }
- 
+
 static __inline unsigned long
 rounddown_pow_of_two(unsigned long x)
 {
@@ -345,7 +344,6 @@ do {							\
         }                                                          \
     } while (0)
 
-
 #define OSAL_LIST_IS_EMPTY(list) \
 	((list)->cnt == 0)
 
@@ -363,7 +361,6 @@ do {							\
           entry != NULL;                                             \
           entry = (type *)tmp_entry,                                         \
           tmp_entry = (entry) ? OSAL_LIST_NEXT(entry, field, type) : NULL)
-
 
 #define OSAL_BAR_SIZE(dev, bar_id) qlnx_pci_bus_get_bar_size(dev, bar_id)
 
@@ -440,7 +437,6 @@ qlnx_log2(uint32_t x)
 #define OSAL_UNLIKELY 
 #define OSAL_NULL NULL
 
-
 #define OSAL_MAX_T(type, __max1, __max2) max_t(type, __max1, __max2)
 #define OSAL_MIN_T(type, __max1, __max2) min_t(type, __max1, __max2)
 
@@ -512,7 +508,6 @@ bitmap_weight(unsigned long *bitmap, unsigned nbits)
 }
 
 #endif
-
 
 #define OSAL_TEST_AND_FLIP_BIT qlnx_test_and_change_bit
 #define OSAL_TEST_AND_CLEAR_BIT test_and_clear_bit

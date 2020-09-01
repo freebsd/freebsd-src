@@ -28,7 +28,6 @@
  *
  */
 
-
 #ifndef __ECORE_HSI_INIT_TOOL__
 #define __ECORE_HSI_INIT_TOOL__ 
 /**************************************/
@@ -45,7 +44,6 @@
 /* Max size in dwords of a zipped array */
 #define MAX_ZIPPED_SIZE			8192
 
-
 enum chip_ids
 {
 	CHIP_BB,
@@ -53,7 +51,6 @@ enum chip_ids
 	CHIP_E5,
 	MAX_CHIP_IDS
 };
-
 
 enum init_modes
 {
@@ -76,7 +73,6 @@ enum init_modes
 	MAX_INIT_MODES
 };
 
-
 enum init_phases
 {
 	PHASE_ENGINE,
@@ -86,7 +82,6 @@ enum init_phases
 	PHASE_QM_PF,
 	MAX_INIT_PHASES
 };
-
 
 enum init_split_types
 {
@@ -98,7 +93,6 @@ enum init_split_types
 	MAX_INIT_SPLIT_TYPES
 };
 
-
 /*
  * Binary buffer header
  */
@@ -107,7 +101,6 @@ struct bin_buffer_hdr
 	u32 offset /* buffer offset in bytes from the beginning of the binary file */;
 	u32 length /* buffer length in bytes */;
 };
-
 
 /*
  * binary init buffer types
@@ -121,7 +114,6 @@ enum bin_init_buffer_type
 	BIN_BUF_INIT_IRO /* internal RAM offsets */,
 	MAX_BIN_INIT_BUFFER_TYPE
 };
-
 
 /*
  * init array header: raw
@@ -184,10 +176,6 @@ union init_array_hdr
 	struct init_array_pattern_hdr pattern /* pattern init array header */;
 };
 
-
-
-
-
 /*
  * init array types
  */
@@ -198,8 +186,6 @@ enum init_array_types
 	INIT_ARR_PATTERN /* a repeated pattern */,
 	MAX_INIT_ARRAY_TYPES
 };
-
-
 
 /*
  * init operation: callback
@@ -215,7 +201,6 @@ struct init_callback_op
 	u16 block_id /* Blocks ID */;
 };
 
-
 /*
  * init operation: delay
  */
@@ -228,7 +213,6 @@ struct init_delay_op
 #define INIT_DELAY_OP_RESERVED_SHIFT 4
 	u32 delay /* delay in us */;
 };
-
 
 /*
  * init operation: if_mode
@@ -245,7 +229,6 @@ struct init_if_mode_op
 	u16 reserved2;
 	u16 modes_buf_offset /* offset (in bytes) in modes expression buffer */;
 };
-
 
 /*
  * init operation: if_phase
@@ -270,7 +253,6 @@ struct init_if_phase_op
 #define INIT_IF_PHASE_OP_PHASE_ID_SHIFT    16
 };
 
-
 /*
  * init mode operators
  */
@@ -281,7 +263,6 @@ enum init_mode_ops
 	INIT_MODE_OP_AND /* init mode and operator */,
 	MAX_INIT_MODE_OPS
 };
-
 
 /*
  * init operation: raw
@@ -366,8 +347,6 @@ union init_op
 	struct init_delay_op delay /* delay init operation */;
 };
 
-
-
 /*
  * Init command operation types
  */
@@ -382,7 +361,6 @@ enum init_op_types
 	MAX_INIT_OP_TYPES
 };
 
-
 /*
  * init polling types
  */
@@ -395,9 +373,6 @@ enum init_poll_types
 	MAX_INIT_POLL_TYPES
 };
 
-
-
-
 /*
  * init source types
  */
@@ -409,9 +384,6 @@ enum init_source_types
 	INIT_SRC_RUNTIME /* init value is provided during runtime */,
 	MAX_INIT_SOURCE_TYPES
 };
-
-
-
 
 /*
  * Internal RAM Offsets macro data

@@ -25,7 +25,6 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 /*
  * File: qlnxr_os.c
  */
@@ -64,7 +63,6 @@ SYSCTL_UINT(_dev_qnxr, OID_AUTO, mpa_enhanced, CTLFLAG_RW, &mpa_enhanced, 1,
 uint32_t rtr_type = 7;
 SYSCTL_UINT(_dev_qnxr, OID_AUTO, rtr_type, CTLFLAG_RW, &rtr_type, 1,
 	"iWARP: RDMAP opcode to use for the RTR message: BITMAP 1: RDMA_SEND 2: RDMA_WRITE 4: RDMA_READ. Default: 7");
-
 
 #define QNXR_WQ_MULTIPLIER_MIN  (1)
 #define QNXR_WQ_MULTIPLIER_MAX  (7)
@@ -253,13 +251,11 @@ qlnxr_register_device(qlnxr_dev_t *dev)
         ibdev->alloc_fast_reg_page_list = qlnxr_alloc_frmr_page_list;
         ibdev->free_fast_reg_page_list = qlnxr_free_frmr_page_list;
 #endif /* #if __FreeBSD_version >= 1102000 */
-	
+
         ibdev->poll_cq = qlnxr_poll_cq;
         ibdev->post_send = qlnxr_post_send;
         ibdev->post_recv = qlnxr_post_recv;
 	ibdev->process_mad = qlnxr_process_mad;
-
-
 
         ibdev->dma_device = &dev->pdev->dev;
 
@@ -267,7 +263,7 @@ qlnxr_register_device(qlnxr_dev_t *dev)
         
 	if (QLNX_IS_IWARP(dev)) {
                 iwcm = kmalloc(sizeof(*iwcm), GFP_KERNEL);
-	
+
 		device_printf(dev->ha->pci_dev, "device is IWARP\n");
 		if (iwcm == NULL)
 			return (-ENOMEM);
@@ -407,18 +403,15 @@ qlnxr_setup_irqs(struct qlnxr_dev *dev)
 	QL_DPRINT12(ha, "enter start_irq_rid = %d num_rss = %d\n",
 		start_irq_rid, dev->ha->num_rss);
 
-
         for (i = 0; i < dev->num_cnq; i++) {
-
 		dev->cnq_array[i].irq_rid = start_irq_rid + i;
-	
+
 		dev->cnq_array[i].irq = bus_alloc_resource_any(dev->ha->pci_dev,
 						SYS_RES_IRQ,
 						&dev->cnq_array[i].irq_rid,
 						(RF_ACTIVE | RF_SHAREABLE));
 
 		if (dev->cnq_array[i].irq == NULL) {
-
 			QL_DPRINT11(ha,
 				"bus_alloc_resource_any failed irq_rid = %d\n",
 				dev->cnq_array[i].irq_rid);
@@ -431,7 +424,6 @@ qlnxr_setup_irqs(struct qlnxr_dev *dev)
                                 (INTR_TYPE_NET | INTR_MPSAFE),
                                 NULL, qlnxr_intr, &dev->cnq_array[i],
 				&dev->cnq_array[i].irq_handle)) {
-
 			QL_DPRINT11(ha, "bus_setup_intr failed\n");
 			goto qlnxr_setup_irqs_err;
                 }
@@ -483,7 +475,6 @@ qlnxr_free_resources(struct qlnxr_dev *dev)
 	QL_DPRINT12(ha, "exit\n");
 	return;
 }
-
 
 static int
 qlnxr_alloc_resources(struct qlnxr_dev *dev)
@@ -537,7 +528,6 @@ qlnxr_alloc_resources(struct qlnxr_dev *dev)
                 dev->cnq_array[i].index = i;
                 sprintf(dev->cnq_array[i].name, "qlnxr%d@pci:%d",
                         i, (dev->ha->pci_func));
-
         }
 
 	QL_DPRINT12(ha, "exit\n");
@@ -575,7 +565,6 @@ qlnxr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 
         if (QLNX_IS_IWARP(dev)) {
 		switch (e_code) {
-
 		case ECORE_IWARP_EVENT_CQ_OVERFLOW:
 			event.event = IB_EVENT_CQ_ERR;
 			event_type = EVENT_TYPE_CQ;
@@ -589,7 +578,6 @@ qlnxr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 		}
         } else {
 		switch (e_code) {
-
 		case ROCE_ASYNC_EVENT_CQ_OVERFLOW_ERR:
 			event.event = IB_EVENT_CQ_ERR;
 			event_type = EVENT_TYPE_CQ;
@@ -633,7 +621,6 @@ qlnxr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 	}
 
         switch (event_type) {
-
         case EVENT_TYPE_CQ:
                 if (cq && cq->sig == QLNXR_CQ_MAGIC_NUMBER) {
                         struct ib_cq *ibcq = &cq->ibcq;
@@ -676,7 +663,6 @@ qlnxr_affiliated_event(void *context, u8 e_code, void *fw_handle)
 
         default:
                 break;
-
 	}
 
 	QL_DPRINT12(ha, "exit\n");
@@ -695,7 +681,6 @@ qlnxr_unaffiliated_event(void *context, u8 e_code)
 	QL_DPRINT12(ha, "enter/exit \n");
 	return;
 }
-
 
 static int
 qlnxr_set_device_attr(struct qlnxr_dev *dev)
@@ -757,7 +742,6 @@ qlnxr_set_device_attr(struct qlnxr_dev *dev)
         return 0;
 }
 
-
 static int
 qlnxr_init_hw(struct qlnxr_dev *dev)
 {
@@ -804,14 +788,13 @@ qlnxr_init_hw(struct qlnxr_dev *dev)
         in_params->roce.cq_mode = ECORE_RDMA_CQ_MODE_32_BITS;
         in_params->max_mtu = dev->ha->max_frame_size;
 
-
 	if (QLNX_IS_IWARP(dev)) {
 	        if (delayed_ack)
         	        in_params->iwarp.flags |= ECORE_IWARP_DA_EN;
 
 	        if (timestamp)
         	        in_params->iwarp.flags |= ECORE_IWARP_TS_EN;
- 
+
 	        in_params->iwarp.rcv_wnd_size = rcv_wnd_size*1024;
 	        in_params->iwarp.crc_needed = crc_needed;
 	        in_params->iwarp.ooo_num_rx_bufs =
@@ -887,7 +870,6 @@ qlnxr_add_ip_based_gid(struct qlnxr_dev *dev, struct ifnet *ifp)
 
 	CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET) {
-
 			QL_DPRINT12(dev->ha, "IP address : %x\n", ((struct sockaddr_in *) ifa->ifa_addr)->sin_addr.s_addr);
 			ipv6_addr_set_v4mapped(
 				((struct sockaddr_in *) ifa->ifa_addr)->sin_addr.s_addr,
@@ -967,7 +949,7 @@ is_vlan_dev(struct ifnet *ifp)
 {
 	return (ifp->if_type == IFT_L2VLAN);
 }
- 
+
 static inline uint16_t
 vlan_dev_vlan_id(struct ifnet *ifp)
 {
@@ -1212,7 +1194,7 @@ qlnxr_remove(void *eth_dev, void *qlnx_rdma_dev)
 	}
 
 	ib_unregister_device(&dev->ibdev);
-	
+
 	if (QLNX_IS_ROCE(dev)) {
 		if (dev->pd_count)
 			return (EBUSY);
@@ -1281,7 +1263,6 @@ qlnxr_notify(void *eth_dev, void *qlnx_rdma_dev, enum qlnx_rdma_event event)
 	QL_DPRINT12(ha, "enter (%p, %d)\n", qlnx_rdma_dev, event);
 
         switch (event) {
-
         case QLNX_ETHDEV_UP:
 		if (!test_and_set_bit(QLNXR_ENET_STATE_BIT, &dev->enet_state))
 			qlnxr_ib_dispatch_event(dev, QLNXR_PORT,
@@ -1308,7 +1289,6 @@ qlnxr_mod_load(void)
 {
 	int ret;
 
-
 	qlnxr_drv.add = qlnxr_add;
 	qlnxr_drv.remove = qlnxr_remove;
 	qlnxr_drv.notify = qlnxr_notify;
@@ -1334,7 +1314,6 @@ qlnxr_event_handler(module_t mod, int event, void *arg)
 	int ret = 0;
 
 	switch (event) {
-
 	case MOD_LOAD:
 		ret = qlnxr_mod_load();
 		break;
@@ -1364,4 +1343,3 @@ MODULE_DEPEND(qlnxr, linuxkpi, 1, 1, 1);
 #endif /* #if __FreeBSD_version >= 1100000 */
 
 DECLARE_MODULE(qlnxr, qlnxr_mod_info, SI_SUB_LAST, SI_ORDER_ANY);
-

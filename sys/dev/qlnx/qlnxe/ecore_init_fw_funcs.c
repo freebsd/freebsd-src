@@ -235,7 +235,6 @@ static void ecore_enable_vport_rl(struct ecore_hwfn *p_hwfn,
 {
 	STORE_RT_REG(p_hwfn, QM_REG_RLGLBLENABLE_RT_OFFSET, vport_rl_en ? 1 : 0);
 	if (vport_rl_en) {
-
 		/* Write RL period (use timer 0 only) */
 		STORE_RT_REG(p_hwfn, QM_REG_RLGLBLPERIOD_0_RT_OFFSET, QM_RL_PERIOD_CLK_25M);
 		STORE_RT_REG(p_hwfn, QM_REG_RLGLBLPERIODTIMER_0_RT_OFFSET, QM_RL_PERIOD_CLK_25M);
@@ -573,7 +572,7 @@ static int ecore_pf_rl_rt_init(struct ecore_hwfn *p_hwfn,
 							  u32 pf_rl)
 {
 	u32 inc_val;
-	
+
 	inc_val = QM_RL_INC_VAL(pf_rl);
 	if (inc_val > QM_PF_RL_MAX_INC_VAL) {
 		DP_NOTICE(p_hwfn, true, "Invalid PF rate limit configuration\n");
@@ -691,7 +690,6 @@ static bool ecore_send_qm_cmd(struct ecore_hwfn *p_hwfn,
 
 	return ecore_poll_on_qm_cmd_ready(p_hwfn, p_ptt);
 }
-
 
 /******************** INTERFACE IMPLEMENTATION *********************/
 
@@ -814,7 +812,7 @@ int ecore_init_pf_wfq(struct ecore_hwfn *p_hwfn,
 					  u16 pf_wfq)
 {
 	u32 inc_val;
-	
+
 	inc_val = QM_WFQ_INC_VAL(pf_wfq);
 	if (!inc_val || inc_val > QM_WFQ_MAX_INC_VAL) {
 		DP_NOTICE(p_hwfn, true, "Invalid PF WFQ weight configuration\n");
@@ -832,7 +830,7 @@ int ecore_init_pf_rl(struct ecore_hwfn *p_hwfn,
 					 u32 pf_rl)
 {
 	u32 inc_val;
-	
+
 	inc_val = QM_RL_INC_VAL(pf_rl);
 	if (inc_val > QM_PF_RL_MAX_INC_VAL) {
 		DP_NOTICE(p_hwfn, true, "Invalid PF rate limit configuration\n");
@@ -912,7 +910,6 @@ bool ecore_send_qm_stop_cmd(struct ecore_hwfn *p_hwfn,
 
 	/* Go over requested PQs */
 	for (pq_id = start_pq; pq_id <= last_pq; pq_id++) {
-
 		/* Set PQ bit in mask (stop command only) */
 		if (!is_release_cmd)
 			pq_mask |= (1 << (pq_id % QM_STOP_PQ_MASK_WIDTH));
@@ -958,7 +955,6 @@ bool ecore_send_qm_stop_cmd(struct ecore_hwfn *p_hwfn,
 
 /* NIG: packet prioritry configuration constants */
 #define NIG_PRIORITY_MAP_TC_BITS	4
-
 
 void ecore_init_nig_ets(struct ecore_hwfn *p_hwfn,
 						struct ecore_ptt *p_ptt,
@@ -1036,7 +1032,6 @@ void ecore_init_nig_lb_rl(struct ecore_hwfn *p_hwfn,
 
 	/* Configure and enable global MAC+LB RL */
 	if (req->lb_mac_rate) {
-
 		/* Configure  */
 		ecore_wr(p_hwfn, p_ptt, NIG_REG_TX_LB_GLBRATELIMIT_INC_PERIOD, NIG_RL_PERIOD_CLK_25M);
 		inc_val = NIG_RL_INC_VAL(req->lb_mac_rate);
@@ -1054,7 +1049,6 @@ void ecore_init_nig_lb_rl(struct ecore_hwfn *p_hwfn,
 
 	/* Configure and enable global LB-only RL */
 	if (req->lb_rate) {
-
 		/* Configure  */
 		ecore_wr(p_hwfn, p_ptt, NIG_REG_LB_BRBRATELIMIT_INC_PERIOD, NIG_RL_PERIOD_CLK_25M);
 		inc_val = NIG_RL_INC_VAL(req->lb_rate);
@@ -1068,7 +1062,6 @@ void ecore_init_nig_lb_rl(struct ecore_hwfn *p_hwfn,
 
 	/* Per-TC RLs */
 	for (tc = 0, reg_offset = 0; tc < NUM_OF_PHYS_TCS; tc++, reg_offset += 4) {
-
 		/* Disable TC RL */
 		ctrl = NIG_RL_BASE_TYPE << NIG_REG_LB_TCRATELIMIT_CTRL_0_LB_TCRATELIMIT_BASE_TYPE_0_SHIFT;
 		ecore_wr(p_hwfn, p_ptt, NIG_REG_LB_TCRATELIMIT_CTRL_0 + reg_offset, ctrl);
@@ -1122,7 +1115,6 @@ void ecore_init_nig_pri_tc_map(struct ecore_hwfn *p_hwfn,
 /* PRS: ETS configuration constants */
 #define PRS_ETS_MIN_WFQ_BYTES		1600
 #define PRS_ETS_UP_BOUND(weight,mtu)		(2 * ((weight) > (mtu) ? (weight) : (mtu)))
-
 
 void ecore_init_prs_ets(struct ecore_hwfn *p_hwfn,
 						struct ecore_ptt *p_ptt,
@@ -1274,7 +1266,6 @@ void ecore_set_port_mf_ovlan_eth_type(struct ecore_hwfn *p_hwfn, u32 ethType)
 }
 
 #endif /* UNUSED_HSI_FUNC */
-
 
 #define SET_TUNNEL_TYPE_ENABLE_BIT(var,offset,enable) var = ((var) & ~(1 << (offset))) | ( (enable) ? (1 << (offset)) : 0)
 #define PRS_ETH_TUNN_OUTPUT_FORMAT        -188897008
@@ -1452,7 +1443,6 @@ void ecore_set_vxlan_no_l2_enable(struct ecore_hwfn *p_hwfn,
 #define RAM_LINE_SIZE sizeof(u64) 
 #define REG_SIZE sizeof(u32)
 
-
 void ecore_gft_disable(struct ecore_hwfn *p_hwfn,
     struct ecore_ptt *p_ptt,
     u16 pf_id)
@@ -1469,7 +1459,6 @@ void ecore_gft_disable(struct ecore_hwfn *p_hwfn,
     ecore_wr(p_hwfn, p_ptt, PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE*pf_id, 0);
     ecore_wr(p_hwfn, p_ptt, PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE*pf_id + REG_SIZE, 0);
 }
-
 
 void ecore_set_gft_event_id_cm_hdr (struct ecore_hwfn *p_hwfn,
 	struct ecore_ptt *p_ptt)
@@ -1588,7 +1577,6 @@ void ecore_gft_config(struct ecore_hwfn *p_hwfn,
     /* Enable gft search */
     ecore_wr(p_hwfn, p_ptt, PRS_REG_SEARCH_GFT, 1);
 }
-
 
 #endif /* UNUSED_HSI_FUNC */
 
@@ -1843,5 +1831,3 @@ void ecore_update_eth_rss_ind_table_entry(struct ecore_hwfn * p_hwfn,
     ecore_wr(p_hwfn, p_ptt, RSS_REG_RSS_RAM_DATA + 8, reg_val[2]);
     ecore_wr(p_hwfn, p_ptt, RSS_REG_RSS_RAM_DATA + 12, reg_val[3]);
 }
-
-

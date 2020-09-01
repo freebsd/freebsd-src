@@ -215,7 +215,6 @@ ecore_vf_get_num_cids(struct ecore_hwfn OSAL_UNUSED *p_hwfn,
 		      u8 OSAL_UNUSED *num_cids)
 {
 }
-
 static OSAL_INLINE void ecore_vf_get_port_mac(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED *port_mac) {}
 static OSAL_INLINE void ecore_vf_get_num_vlan_filters(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED *num_vlan_filters) {}
 static OSAL_INLINE void ecore_vf_get_num_mac_filters(struct ecore_hwfn OSAL_UNUSED *p_hwfn, u8 OSAL_UNUSED *num_mac_filters) {}

@@ -2545,7 +2545,6 @@ enum _ecore_status_t ecore_mcp_get_board_config(struct ecore_hwfn *p_hwfn,
 		*p_board_config = NVM_CFG1_PORT_PORT_TYPE_UNDEFINED;
 		return ECORE_INVAL;
 	} else {
-
 	nvm_cfg_addr = ecore_rd(p_hwfn, p_ptt,
 			MISC_REG_GEN_PURP_CR0);
 	nvm_cfg1_offset = ecore_rd(p_hwfn, p_ptt,

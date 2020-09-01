@@ -107,7 +107,6 @@ struct e4_roce_conn_context
 	struct regpair ustorm_st_padding[2] /* padding */;
 };
 
-
 /*
  * roce connection context
  */
@@ -127,9 +126,6 @@ struct e5_roce_conn_context
 	struct ustorm_roce_conn_st_ctx ustorm_st_context /* ustorm storm context */;
 	struct regpair ustorm_st_padding[2] /* padding */;
 };
-
-
-
 
 /*
  * roce create qp requester ramrod data
@@ -180,7 +176,6 @@ struct roce_create_qp_req_ramrod_data
 	__le16 regular_latency_phy_queue;
 	__le16 dpi;
 };
-
 
 /*
  * roce create qp responder ramrod data
@@ -242,7 +237,6 @@ struct roce_create_qp_resp_ramrod_data
 	__le16 dpi;
 };
 
-
 /*
  * roce DCQCN received statistics
  */
@@ -252,7 +246,6 @@ struct roce_dcqcn_received_stats
 	struct regpair cnp_pkt_rcv /* The number of total RoCE packets with CNP opcode received */;
 };
 
-
 /*
  * roce DCQCN sent statistics
  */
@@ -260,7 +253,6 @@ struct roce_dcqcn_sent_stats
 {
 	struct regpair cnp_pkt_sent /* The number of total RoCE packets with CNP opcode sent */;
 };
-
 
 /*
  * RoCE destroy qp requester output params
@@ -271,7 +263,6 @@ struct roce_destroy_qp_req_output_params
 	__le32 cq_prod /* Completion producer value at destroy QP */;
 };
 
-
 /*
  * RoCE destroy qp requester ramrod data
  */
@@ -279,7 +270,6 @@ struct roce_destroy_qp_req_ramrod_data
 {
 	struct regpair output_params_addr;
 };
-
 
 /*
  * RoCE destroy qp responder output params
@@ -290,7 +280,6 @@ struct roce_destroy_qp_resp_output_params
 	__le32 cq_prod /* Completion producer value at destroy QP */;
 };
 
-
 /*
  * RoCE destroy qp responder ramrod data
  */
@@ -298,7 +287,6 @@ struct roce_destroy_qp_resp_ramrod_data
 {
 	struct regpair output_params_addr;
 };
-
 
 /*
  * roce special events statistics
@@ -311,7 +299,6 @@ struct roce_events_stats
 	__le32 icrc_error_count;
 	__le32 reserved;
 };
-
 
 /*
  * ROCE slow path EQ cmd IDs
@@ -327,7 +314,6 @@ enum roce_event_opcode
 	MAX_ROCE_EVENT_OPCODE
 };
 
-
 /*
  * roce func init ramrod data
  */
@@ -340,7 +326,6 @@ struct roce_init_func_params
 	__le32 cnp_send_timeout /* The minimal difference of send time between CNP packets for specific QP. Units are in microseconds */;
 };
 
-
 /*
  * roce func init ramrod data
  */
@@ -349,7 +334,6 @@ struct roce_init_func_ramrod_data
 	struct rdma_init_func_ramrod_data rdma;
 	struct roce_init_func_params roce;
 };
-
 
 /*
  * roce modify qp requester ramrod data
@@ -403,7 +387,6 @@ struct roce_modify_qp_req_ramrod_data
 	__le32 dst_gid[4] /* BE order. In case of IPv4 the higher register will hold the address. Low registers must be zero! */;
 };
 
-
 /*
  * roce modify qp responder ramrod data
  */
@@ -452,7 +435,6 @@ struct roce_modify_qp_resp_ramrod_data
 	__le32 dst_gid[4] /* BE order. In case of IPv4 the higher register will hold the address. Low registers must be zero! */;
 };
 
-
 /*
  * RoCE query qp requester output params
  */
@@ -468,7 +450,6 @@ struct roce_query_qp_req_output_params
 #define ROCE_QUERY_QP_REQ_OUTPUT_PARAMS_RESERVED0_SHIFT       2
 };
 
-
 /*
  * RoCE query qp requester ramrod data
  */
@@ -476,7 +457,6 @@ struct roce_query_qp_req_ramrod_data
 {
 	struct regpair output_params_addr;
 };
-
 
 /*
  * RoCE query qp responder output params
@@ -491,7 +471,6 @@ struct roce_query_qp_resp_output_params
 #define ROCE_QUERY_QP_RESP_OUTPUT_PARAMS_RESERVED0_SHIFT 1
 };
 
-
 /*
  * RoCE query qp responder ramrod data
  */
@@ -499,7 +478,6 @@ struct roce_query_qp_resp_ramrod_data
 {
 	struct regpair output_params_addr;
 };
-
 
 /*
  * ROCE ramrod command IDs
@@ -514,11 +492,6 @@ enum roce_ramrod_cmd_id
 	ROCE_RAMROD_DESTROY_UD_QP,
 	MAX_ROCE_RAMROD_CMD_ID
 };
-
-
-
-
-
 
 struct e4_mstorm_roce_req_conn_ag_ctx
 {
@@ -558,7 +531,6 @@ struct e4_mstorm_roce_req_conn_ag_ctx
 	__le32 reg1 /* reg1 */;
 };
 
-
 struct e4_mstorm_roce_resp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -596,7 +568,6 @@ struct e4_mstorm_roce_resp_conn_ag_ctx
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
 };
-
 
 struct e4_tstorm_roce_req_conn_ag_ctx
 {
@@ -703,7 +674,6 @@ struct e4_tstorm_roce_req_conn_ag_ctx
 	__le32 reg10 /* reg10 */;
 };
 
-
 struct e4_tstorm_roce_resp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -809,7 +779,6 @@ struct e4_tstorm_roce_resp_conn_ag_ctx
 	__le32 reg10 /* reg10 */;
 };
 
-
 struct e4_ustorm_roce_req_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -880,7 +849,6 @@ struct e4_ustorm_roce_req_conn_ag_ctx
 	__le16 word3 /* word3 */;
 };
 
-
 struct e4_ustorm_roce_resp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -950,7 +918,6 @@ struct e4_ustorm_roce_resp_conn_ag_ctx
 	__le16 word2 /* word2 */;
 	__le16 word3 /* word3 */;
 };
-
 
 struct e4_xstorm_roce_req_conn_ag_ctx
 {
@@ -1181,7 +1148,6 @@ struct e4_xstorm_roce_req_conn_ag_ctx
 	__le32 orq_cons_th /* cf_array0 */;
 	__le32 orq_cons /* cf_array1 */;
 };
-
 
 struct e4_xstorm_roce_resp_conn_ag_ctx
 {
@@ -1415,7 +1381,6 @@ struct e4_xstorm_roce_resp_conn_ag_ctx
 	__le32 msn_and_syndrome /* cf_array1 */;
 };
 
-
 struct e4_ystorm_roce_req_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -1461,7 +1426,6 @@ struct e4_ystorm_roce_req_conn_ag_ctx
 	__le32 reg3 /* reg3 */;
 };
 
-
 struct e4_ystorm_roce_resp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -1506,7 +1470,6 @@ struct e4_ystorm_roce_resp_conn_ag_ctx
 	__le32 reg2 /* reg2 */;
 	__le32 reg3 /* reg3 */;
 };
-
 
 struct E5XstormRoceConnAgCtxDqExtLdPart
 {
@@ -1774,7 +1737,6 @@ struct E5XstormRoceConnAgCtxDqExtLdPart
 	__le32 reg13 /* reg13 */;
 };
 
-
 struct e5_mstorm_roce_req_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -1813,7 +1775,6 @@ struct e5_mstorm_roce_req_conn_ag_ctx
 	__le32 reg1 /* reg1 */;
 };
 
-
 struct e5_mstorm_roce_resp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -1851,7 +1812,6 @@ struct e5_mstorm_roce_resp_conn_ag_ctx
 	__le32 reg0 /* reg0 */;
 	__le32 reg1 /* reg1 */;
 };
-
 
 struct e5_tstorm_roce_req_conn_ag_ctx
 {
@@ -1974,7 +1934,6 @@ struct e5_tstorm_roce_req_conn_ag_ctx
 	__le16 e4_reserved9 /* word4 */;
 };
 
-
 struct e5_tstorm_roce_resp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -2096,7 +2055,6 @@ struct e5_tstorm_roce_resp_conn_ag_ctx
 	__le16 e4_reserved9 /* word4 */;
 };
 
-
 struct e5_ustorm_roce_req_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -2179,7 +2137,6 @@ struct e5_ustorm_roce_req_conn_ag_ctx
 	__le16 word3 /* word3 */;
 };
 
-
 struct e5_ustorm_roce_resp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -2261,7 +2218,6 @@ struct e5_ustorm_roce_resp_conn_ag_ctx
 	__le16 word2 /* word2 */;
 	__le16 word3 /* word3 */;
 };
-
 
 struct e5_xstorm_roce_req_conn_ag_ctx
 {
@@ -2492,7 +2448,6 @@ struct e5_xstorm_roce_req_conn_ag_ctx
 	__le32 orq_cons_th /* cf_array0 */;
 	__le32 orq_cons /* cf_array1 */;
 };
-
 
 struct e5_xstorm_roce_resp_conn_ag_ctx
 {
@@ -2726,7 +2681,6 @@ struct e5_xstorm_roce_resp_conn_ag_ctx
 	__le32 msn_and_syndrome /* cf_array1 */;
 };
 
-
 struct e5_ystorm_roce_req_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -2772,7 +2726,6 @@ struct e5_ystorm_roce_req_conn_ag_ctx
 	__le32 reg3 /* reg3 */;
 };
 
-
 struct e5_ystorm_roce_resp_conn_ag_ctx
 {
 	u8 byte0 /* cdu_validation */;
@@ -2817,7 +2770,6 @@ struct e5_ystorm_roce_resp_conn_ag_ctx
 	__le32 reg2 /* reg2 */;
 	__le32 reg3 /* reg3 */;
 };
-
 
 /*
  * Roce doorbell data

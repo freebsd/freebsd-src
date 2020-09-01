@@ -31,14 +31,12 @@
 #ifndef __QLNXR_ROCE_H__
 #define __QLNXR_ROCE_H__ 
 
-
 /*
  * roce completion notification queue element
  */
 struct roce_cnqe {
 	struct regpair cq_handle;
 };
-
 
 struct roce_cqe_responder {
 	struct regpair srq_wr_id;
@@ -104,9 +102,6 @@ union roce_cqe {
 	struct roce_cqe_common cmn;
 };
 
-
-
-
 /*
  * CQE requester status enumeration
  */
@@ -126,8 +121,6 @@ enum roce_cqe_requester_status_enum {
 	MAX_ROCE_CQE_REQUESTER_STATUS_ENUM
 };
 
-
-
 /*
  * CQE responder status enumeration
  */
@@ -143,7 +136,6 @@ enum roce_cqe_responder_status_enum {
 	MAX_ROCE_CQE_RESPONDER_STATUS_ENUM
 };
 
-
 /*
  * CQE type enumeration
  */
@@ -155,7 +147,6 @@ enum roce_cqe_type {
 	MAX_ROCE_CQE_TYPE
 };
 
-
 /*
  * memory window type enumeration
  */
@@ -164,7 +155,6 @@ enum roce_mw_type {
 	ROCE_MW_TYPE_2A,
 	MAX_ROCE_MW_TYPE
 };
-
 
 struct roce_rq_sge {
 	struct regpair addr;
@@ -177,7 +167,6 @@ struct roce_rq_sge {
 #define ROCE_RQ_SGE_RESERVED0_MASK  0x7
 #define ROCE_RQ_SGE_RESERVED0_SHIFT 29
 };
-
 
 struct roce_sq_atomic_wqe {
 	struct regpair remote_va;
@@ -205,7 +194,6 @@ struct roce_sq_atomic_wqe {
 	struct regpair reserved3;
 };
 
-
 /*
  * First element (16 bytes) of atomic wqe
  */
@@ -230,7 +218,6 @@ struct roce_sq_atomic_wqe_1st {
 	u8 prev_wqe_size;
 };
 
-
 /*
  * Second element (16 bytes) of atomic wqe
  */
@@ -240,7 +227,6 @@ struct roce_sq_atomic_wqe_2nd {
 	__le32 reserved2;
 };
 
-
 /*
  * Third element (16 bytes) of atomic wqe
  */
@@ -248,7 +234,6 @@ struct roce_sq_atomic_wqe_3rd {
 	struct regpair cmp_data;
 	struct regpair reserved3;
 };
-
 
 struct roce_sq_bind_wqe {
 	struct regpair addr;
@@ -295,7 +280,6 @@ struct roce_sq_bind_wqe {
 	__le32 reserved6;
 };
 
-
 /*
  * First element (16 bytes) of bind wqe
  */
@@ -332,7 +316,6 @@ struct roce_sq_bind_wqe_1st {
 	u8 prev_wqe_size;
 };
 
-
 /*
  * Second element (16 bytes) of bind wqe
  */
@@ -350,7 +333,6 @@ struct roce_sq_bind_wqe_2nd {
 	__le32 parent_l_key;
 	__le32 reserved6;
 };
-
 
 /*
  * Structure with only the SQ WQE common fields. Size is of one SQ element (16B)
@@ -374,7 +356,6 @@ struct roce_sq_common_wqe {
 	u8 reserved2;
 	u8 prev_wqe_size;
 };
-
 
 struct roce_sq_fmr_wqe {
 	struct regpair addr;
@@ -422,7 +403,6 @@ struct roce_sq_fmr_wqe {
 	struct regpair pbl_addr;
 };
 
-
 /*
  * First element (16 bytes) of fmr wqe
  */
@@ -459,7 +439,6 @@ struct roce_sq_fmr_wqe_1st {
 	u8 prev_wqe_size;
 };
 
-
 /*
  * Second element (16 bytes) of fmr wqe
  */
@@ -478,7 +457,6 @@ struct roce_sq_fmr_wqe_2nd {
 	__le32 length_lo;
 	struct regpair pbl_addr;
 };
-
 
 struct roce_sq_local_inv_wqe {
 	struct regpair reserved;
@@ -500,7 +478,6 @@ struct roce_sq_local_inv_wqe {
 	u8 reserved1;
 	u8 prev_wqe_size;
 };
-
 
 struct roce_sq_rdma_wqe {
 	__le32 imm_data;
@@ -527,7 +504,6 @@ struct roce_sq_rdma_wqe {
 	__le32 reserved1;
 };
 
-
 /*
  * First element (16 bytes) of rdma wqe
  */
@@ -553,7 +529,6 @@ struct roce_sq_rdma_wqe_1st {
 	u8 prev_wqe_size;
 };
 
-
 /*
  * Second element (16 bytes) of rdma wqe
  */
@@ -562,7 +537,6 @@ struct roce_sq_rdma_wqe_2nd {
 	__le32 r_key;
 	__le32 reserved1;
 };
-
 
 /*
  * SQ WQE req type enumeration
@@ -582,7 +556,6 @@ enum roce_sq_req_type {
 	ROCE_SQ_REQ_TYPE_INVALID,
 	MAX_ROCE_SQ_REQ_TYPE
 };
-
 
 struct roce_sq_send_wqe {
 	__le32 inv_key_or_imm_data;
@@ -606,18 +579,15 @@ struct roce_sq_send_wqe {
 	u8 prev_wqe_size;
 };
 
-
 struct roce_sq_sge {
 	__le32 length;
 	struct regpair addr;
 	__le32 l_key;
 };
 
-
 struct roce_srq_prod {
 	__le16 prod;
 };
-
 
 struct roce_srq_sge {
 	struct regpair addr;
@@ -634,7 +604,6 @@ struct roce_srq_sge {
 	__le32 reserved3;
 };
 
-
 /*
  * RoCE doorbell data for SQ and RQ
  */
@@ -643,12 +612,10 @@ struct roce_pwm_val16_data {
 	__le16 prod_val;
 };
 
-
 union roce_pwm_val16_data_union {
 	struct roce_pwm_val16_data as_struct;
 	__le32 as_dword;
 };
-
 
 /*
  * RoCE doorbell data for CQ
@@ -665,7 +632,6 @@ struct roce_pwm_val32_data {
 #define ROCE_PWM_VAL32_DATA_RESERVED_SHIFT  3
 	__le32 cq_cons_val;
 };
-
 
 union roce_pwm_val32_data_union {
 	struct roce_pwm_val32_data as_struct;

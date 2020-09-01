@@ -86,8 +86,6 @@ ecore_roce_async_event(struct ecore_hwfn *p_hwfn,
 	return ECORE_SUCCESS;
 }
 
-
-
 #ifdef CONFIG_DCQCN
 static enum _ecore_status_t ecore_roce_start_rl(
 	struct ecore_hwfn *p_hwfn,
@@ -194,7 +192,6 @@ enum _ecore_status_t ecore_roce_dcqcn_cfg(
 }
 #endif
 
-
 enum _ecore_status_t ecore_roce_stop(struct ecore_hwfn *p_hwfn)
 {
 	struct ecore_bmap *cid_map = &p_hwfn->p_rdma_info->cid_map;
@@ -219,7 +216,6 @@ enum _ecore_status_t ecore_roce_stop(struct ecore_hwfn *p_hwfn)
 
 	return ECORE_SUCCESS;
 }
-
 
 static void ecore_rdma_copy_gids(struct ecore_rdma_qp *qp, __le32 *src_gid,
 				 __le32 *dst_gid) {
@@ -1333,7 +1329,6 @@ err:
 	return rc;
 }
 
-
 enum _ecore_status_t ecore_roce_create_ud_qp(void		*rdma_cxt,
 			struct ecore_rdma_create_qp_out_params	*out_params)
 {
@@ -1386,7 +1381,6 @@ err:
 
 	return rc;
 }
-
 
 enum _ecore_status_t
 ecore_roce_modify_qp(struct ecore_hwfn *p_hwfn,
@@ -1499,7 +1493,6 @@ ecore_roce_modify_qp(struct ecore_hwfn *p_hwfn,
 		rc = ecore_roce_sp_destroy_qp_requester(p_hwfn, qp,
 							&num_bound_mw,
 							&qp->cq_prod.req);
-
 
 		if (rc != ECORE_SUCCESS)
 			return rc;

@@ -72,7 +72,6 @@
 #define ETH_MAX_NUM_RX_QUEUES_PER_VF_DOUBLE   48    /*Maximum number of RX queues that can be allocated to VF with doubled VF zone size. Up to 96 VF supported in this mode*/
 #define ETH_MAX_NUM_RX_QUEUES_PER_VF_QUAD     112   /*Maximum number of RX queues that can be allocated to VF with 4 VF zone size. Up to 48 VF supported in this mode*/
 
-
 /********************************/
 /* CORE (LIGHT L2) FW CONSTANTS */
 /********************************/
@@ -97,11 +96,9 @@
 #define MAX_NUM_LL2_RX_QUEUES					48
 #define MAX_NUM_LL2_TX_STATS_COUNTERS			48
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Include firmware verison number only- do not add constants here to avoid redundunt compilations
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 #define FW_MAJOR_VERSION		8
 #define FW_MINOR_VERSION		33
@@ -195,7 +192,6 @@
 #define	CDU_CONTEXT_VALIDATION_CFG_USE_REGION				(3)
 #define	CDU_CONTEXT_VALIDATION_CFG_USE_CID					(4)
 #define	CDU_CONTEXT_VALIDATION_CFG_USE_ACTIVE				(5)
-
 
 /*****************/
 /* DQ CONSTANTS  */
@@ -412,11 +408,9 @@
 #define PIS_PER_SB_E5    8
 #define MAX_PIS_PER_SB	 OSAL_MAX_T(PIS_PER_SB_E4,PIS_PER_SB_E5)
 
-
 #define CAU_HC_STOPPED_STATE		3			/* fsm is stopped or not valid for this sb */
 #define CAU_HC_DISABLE_STATE		4			/* fsm is working without interrupt coalescing for this sb*/
 #define CAU_HC_ENABLE_STATE			0			/* fsm is working with interrupt coalescing for this sb*/
-
 
 /*****************/
 /* IGU CONSTANTS */
@@ -594,11 +588,9 @@
 
 #define PXP_NUM_ILT_RECORDS_E5 13664
 
-
 // Host Interface
 #define PXP_QUEUES_ZONE_MAX_NUM_E4	320
 #define PXP_QUEUES_ZONE_MAX_NUM_E5	512
-
 
 /*****************/
 /* PRM CONSTANTS */
@@ -607,7 +599,6 @@
 /*****************/
 /* SDMs CONSTANTS  */
 /*****************/
-
 
 #define SDM_OP_GEN_TRIG_NONE			0
 #define SDM_OP_GEN_TRIG_WAKE_THREAD		1
@@ -660,13 +651,11 @@ struct coalescing_timeset
 #define COALESCING_TIMESET_VALID_SHIFT   7
 };
 
-
 struct common_queue_zone
 {
 	__le16 ring_drv_data_consumer;
 	__le16 reserved;
 };
-
 
 /*
  * ETH Rx producers data
@@ -676,7 +665,6 @@ struct eth_rx_prod_data
 	__le16 bd_prod /* BD producer. */;
 	__le16 cqe_prod /* CQE producer. */;
 };
-
 
 struct tcp_ulp_connect_done_params
 {
@@ -696,7 +684,6 @@ struct iscsi_connect_done_results
 	struct tcp_ulp_connect_done_params params /* decided tcp params after connect done */;
 };
 
-
 struct iscsi_eqe_data
 {
 	__le16 icid /* Context ID of the connection */;
@@ -712,7 +699,6 @@ struct iscsi_eqe_data
 #define ISCSI_EQE_DATA_RESERVED0_SHIFT              7
 };
 
-
 /*
  * Multi function mode
  */
@@ -723,7 +709,6 @@ enum mf_mode
 	MF_NPAR /* Multi function based on MAC address (NIC partitioning) */,
 	MAX_MF_MODE
 };
-
 
 /*
  * Per-protocol connection types
@@ -742,7 +727,6 @@ enum protocol_type
 	PROTOCOLID_TCP /* TCP */,
 	MAX_PROTOCOL_TYPE
 };
-
 
 struct regpair
 {
@@ -768,9 +752,6 @@ union rdma_eqe_data
 	struct rdma_eqe_destroy_qp rdma_destroy_qp_data /* RoCE Destroy Event Data */;
 };
 
-
-
-
 /*
  * Ustorm Queue Zone
  */
@@ -780,13 +761,11 @@ struct ustorm_eth_queue_zone
 	u8 reserved[3];
 };
 
-
 struct ustorm_queue_zone
 {
 	struct ustorm_eth_queue_zone eth;
 	struct common_queue_zone common;
 };
-
 
 /*
  * status block structure
@@ -803,7 +782,6 @@ struct cau_pi_entry
 #define CAU_PI_ENTRY_RESERVED_MASK    0xFF /* Select the FSM within the SB */
 #define CAU_PI_ENTRY_RESERVED_SHIFT   24
 };
-
 
 /*
  * status block structure
@@ -836,7 +814,6 @@ struct cau_sb_entry
 #define CAU_SB_ENTRY_TPH_SHIFT         31
 };
 
-
 /*
  * Igu cleanup bit values to distinguish between clean or producer consumer update.
  */
@@ -846,7 +823,6 @@ enum command_type_bit
 	IGU_COMMAND_TYPE_SET=1,
 	MAX_COMMAND_TYPE_BIT
 };
-
 
 /*
  * core doorbell data
@@ -868,7 +844,6 @@ struct core_db_data
 	__le16 spq_prod;
 };
 
-
 /*
  * Enum of doorbell aggregative command selection
  */
@@ -880,7 +855,6 @@ enum db_agg_cmd_sel
 	DB_AGG_CMD_MAX /* Set max of current and new value */,
 	MAX_DB_AGG_CMD_SEL
 };
-
 
 /*
  * Enum of doorbell destination
@@ -894,7 +868,6 @@ enum db_dest
 	MAX_DB_DEST
 };
 
-
 /*
  * Enum of doorbell DPM types
  */
@@ -906,7 +879,6 @@ enum db_dpm_type
 	DPM_L2_BD /* L2 DPM with BD- to PBF, with TX BD data on doorbell */,
 	MAX_DB_DPM_TYPE
 };
-
 
 /*
  * Structure for doorbell data, in L2 DPM mode, for the first doorbell in a DPM burst
@@ -932,7 +904,6 @@ struct db_l2_dpm_data
 #define DB_L2_DPM_DATA_GFS_SRC_EN_SHIFT 31
 };
 
-
 /*
  * Structure for SGE in a DPM doorbell of type DPM_L2_BD
  */
@@ -952,7 +923,6 @@ struct db_l2_dpm_sge
 	__le32 reserved2;
 };
 
-
 /*
  * Structure for doorbell address, in legacy mode
  */
@@ -966,7 +936,6 @@ struct db_legacy_addr
 #define DB_LEGACY_ADDR_ICID_MASK       0x7FFFFFF /* internal CID */
 #define DB_LEGACY_ADDR_ICID_SHIFT      5
 };
-
 
 /*
  * Structure for doorbell address, in PWM mode
@@ -985,7 +954,6 @@ struct db_pwm_addr
 #define DB_PWM_ADDR_RESERVED1_MASK  0xF
 #define DB_PWM_ADDR_RESERVED1_SHIFT 28
 };
-
 
 /*
  * Parameters to RDMA firmware, passed in EDPM doorbell
@@ -1023,8 +991,6 @@ struct db_rdma_dpm_data
 	struct db_rdma_dpm_params params /* parametes passed to RDMA firmware */;
 };
 
-
-
 /*
  * Igu interrupt command
  */
@@ -1036,7 +1002,6 @@ enum igu_int_cmd
 	IGU_INT_NOP2=3,
 	MAX_IGU_INT_CMD
 };
-
 
 /*
  * IGU producer or consumer update command
@@ -1061,7 +1026,6 @@ struct igu_prod_cons_update
 	__le32 reserved1;
 };
 
-
 /*
  * Igu segments access for default status block only
  */
@@ -1071,7 +1035,6 @@ enum igu_seg_access
 	IGU_SEG_ACCESS_ATTN=1,
 	MAX_IGU_SEG_ACCESS
 };
-
 
 /*
  * Enumeration for L3 type field of parsing_and_err_flags. L3Type: 0 - unknown (not ip) ,1 - Ipv4, 2 - Ipv6 (this field can be filled according to the last-ethertype)
@@ -1084,7 +1047,6 @@ enum l3_type
 	MAX_L3_TYPE
 };
 
-
 /*
  * Enumeration for l4Protocol field of parsing_and_err_flags. L4-protocol 0 - none, 1 - TCP, 2- UDP. if the packet is IPv4 fragment, and its not the first fragment, the protocol-type should be set to none.
  */
@@ -1095,7 +1057,6 @@ enum l4_protocol
 	e_l4_protocol_udp,
 	MAX_L4_PROTOCOL
 };
-
 
 /*
  * Parsing and error flags field.
@@ -1132,7 +1093,6 @@ struct parsing_and_err_flags
 #define PARSING_AND_ERR_FLAGS_TUNNELL4CHKSMERROR_MASK          0x1 /* Set if tunnel L4 checksum validation failed. Valid only if tunnel L4 checksum was calculated. */
 #define PARSING_AND_ERR_FLAGS_TUNNELL4CHKSMERROR_SHIFT         15
 };
-
 
 /*
  * Parsing error flags bitmap.
@@ -1174,7 +1134,6 @@ struct parsing_err_flags
 #define PARSING_ERR_FLAGS_TUNNEL_L4_CHKSM_ERROR_SHIFT             15
 };
 
-
 /*
  * Pb context
  */
@@ -1182,7 +1141,6 @@ struct pb_context
 {
 	__le32 crc[4];
 };
-
 
 /*
  * Concrete Function ID.
@@ -1201,7 +1159,6 @@ struct pxp_concrete_fid
 #define PXP_CONCRETE_FID_VFID_MASK     0xFF
 #define PXP_CONCRETE_FID_VFID_SHIFT    8
 };
-
 
 /*
  * Concrete Function ID.
@@ -1255,9 +1212,6 @@ struct pxp_pretend_cmd
 #define PXP_PRETEND_CMD_IS_CONCRETE_SHIFT      15
 };
 
-
-
-
 /*
  * PTT Record in PXP Admin Window.
  */
@@ -1270,7 +1224,6 @@ struct pxp_ptt_entry
 #define PXP_PTT_ENTRY_RESERVED0_SHIFT 23
 	struct pxp_pretend_cmd pretend;
 };
-
 
 /*
  * VF Zone A Permission Register.
@@ -1287,7 +1240,6 @@ struct pxp_vf_zone_a_permission
 #define PXP_VF_ZONE_A_PERMISSION_RESERVED1_MASK  0xFFFF
 #define PXP_VF_ZONE_A_PERMISSION_RESERVED1_SHIFT 16
 };
-
 
 /*
  * Rdif context
@@ -1359,8 +1311,6 @@ struct rdif_task_context
 	__le32 reserved2;
 };
 
-
-
 /*
  * status block structure
  */
@@ -1381,7 +1331,6 @@ struct status_block_e4
 #define STATUS_BLOCK_E4_ZERO_PAD3_SHIFT  24
 };
 
-
 /*
  * status block structure
  */
@@ -1401,7 +1350,6 @@ struct status_block_e5
 #define STATUS_BLOCK_E5_ZERO_PAD3_MASK   0xFF
 #define STATUS_BLOCK_E5_ZERO_PAD3_SHIFT  24
 };
-
 
 /*
  * Tdif context
@@ -1489,7 +1437,6 @@ struct tdif_task_context
 	u8 partial_dif_data_b[8];
 };
 
-
 /*
  * Timers context
  */
@@ -1538,7 +1485,6 @@ struct timers_context
 #define TIMERS_CONTEXT_RESERVED7_MASK             0x7
 #define TIMERS_CONTEXT_RESERVED7_SHIFT            29
 };
-
 
 /*
  * Enum for next_protocol field of tunnel_parsing_flags / tunnelTypeDesc

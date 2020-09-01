@@ -28,7 +28,6 @@
  *
  */
 
-
 /*
  * File: qlnx_ver.h
  * Author : David C Somayajulu, Cavium, Inc., San Jose, CA 95131.
@@ -40,4 +39,3 @@
 #define QLNX_VERSION_MAJOR      2
 #define QLNX_VERSION_MINOR      0
 #define QLNX_VERSION_BUILD      112
-

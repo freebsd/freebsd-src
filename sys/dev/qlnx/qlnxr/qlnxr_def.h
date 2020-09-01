@@ -27,7 +27,6 @@
  * $FreeBSD$
  */
 
-
 /*
  * File: qlnxr_def.h
  * Author: David C Somayajulu
@@ -234,7 +233,6 @@
 
 #define QLNXR_MAX_MSIX		(16)
 
-
 struct qlnxr_cnq {
         struct qlnxr_dev	*dev;
         struct ecore_chain	pbl;
@@ -422,7 +420,6 @@ struct qlnxr_dev {
 
 typedef struct qlnxr_dev qlnxr_dev_t;
 
-
 struct qlnxr_pd {
         struct ib_pd ibpd;
         u32 pd_id;
@@ -441,8 +438,6 @@ struct qlnxr_ucontext {
         struct list_head mm_head;
         struct mutex mm_list_lock;
 };
-
-
 
 struct qlnxr_dev_attr {
         struct ib_device_attr ib_attr;
@@ -548,7 +543,6 @@ struct qlnxr_cq {
         uint8_t			destroyed;
         uint16_t		cnq_notif;
 };
-
 
 struct qlnxr_ah {
         struct ib_ah		ibah;
@@ -725,7 +719,6 @@ enum qlnxr_mr_type {
         QLNXR_MR_FRMR
 };
 
-
 struct qlnxr_mr {
         struct ib_mr    ibmr;
         struct ib_umem  *umem;
@@ -741,7 +734,6 @@ struct qlnxr_mr {
 
 	u64 *iova_start; /* valid only for kernel_mr */
 };
-
 
 struct qlnxr_mm {
         struct {
@@ -848,7 +840,6 @@ static inline bool qlnxr_qp_has_rq(struct qlnxr_qp *qp)
         return 1;
 }
 
-
 #ifdef DEFINE_IB_FAST_REG
 static inline struct qlnxr_fast_reg_page_list *get_qlnxr_frmr_list(
         struct ib_fast_reg_page_list *ifrpl)
@@ -903,7 +894,6 @@ qlnxr_get_dmac(struct qlnxr_dev *dev, struct ib_ah_attr *ah_attr, u8 *mac_addr)
 
 extern int qlnx_rdma_ll2_set_mac_filter(void *rdma_ctx, uint8_t *old_mac_address,
                 uint8_t *new_mac_address);
-
 
 #define QLNXR_ROCE_PKEY_MAX 1
 #define QLNXR_ROCE_PKEY_TABLE_LEN 1

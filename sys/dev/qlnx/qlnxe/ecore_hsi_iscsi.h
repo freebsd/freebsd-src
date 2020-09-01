@@ -40,7 +40,6 @@
 /************************************************************************/
 #include "iscsi_common.h"
 
-
 /*
  * The iscsi storm connection context of Ystorm
  */
@@ -580,7 +579,6 @@ struct e4_iscsi_conn_context
 	struct ustorm_iscsi_conn_st_ctx ustorm_st_context /* ustorm storm context */;
 };
 
-
 struct e5_xstorm_iscsi_conn_ag_ctx
 {
 	u8 cdu_validation /* cdu_validation */;
@@ -1110,7 +1108,6 @@ struct e5_iscsi_conn_context
 	struct ustorm_iscsi_conn_st_ctx ustorm_st_context /* ustorm storm context */;
 };
 
-
 /*
  * iSCSI init params passed by driver to FW in iSCSI init ramrod 
  */
@@ -1119,17 +1116,6 @@ struct iscsi_init_ramrod_params
 	struct iscsi_spe_func_init iscsi_init_spe /* parameters initialized by the miniport and handed to bus-driver */;
 	struct tcp_init_params tcp_init /* TCP parameters initialized by the bus-driver */;
 };
-
-
-
-
-
-
-
-
-
-
-
 
 struct e4_ystorm_iscsi_conn_ag_ctx
 {
@@ -1175,11 +1161,6 @@ struct e4_ystorm_iscsi_conn_ag_ctx
 	__le32 reg2 /* reg2 */;
 	__le32 reg3 /* reg3 */;
 };
-
-
-
-
-
 
 struct e5_ystorm_iscsi_conn_ag_ctx
 {

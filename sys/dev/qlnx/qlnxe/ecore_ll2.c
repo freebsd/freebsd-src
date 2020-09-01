@@ -780,7 +780,6 @@ ecore_ll2_lb_txq_completion(struct ecore_hwfn *p_hwfn,
 		return ECORE_SUCCESS;
 
 	while (num_bds) {
-
 		if (OSAL_LIST_IS_EMPTY(&p_tx->active_descq))
 			return ECORE_INVAL;
 
@@ -1753,7 +1752,6 @@ static void ecore_ll2_tx_packet_notify(struct ecore_hwfn *p_hwfn,
 	if (p_ll2_conn->tx_queue.cur_send_frag_num !=
 	    p_ll2_conn->tx_queue.cur_send_packet->bd_used)
 		return;
-
 
 	/* Push the current packet to the list and clean after it */
 	OSAL_LIST_PUSH_TAIL(&p_ll2_conn->tx_queue.cur_send_packet->list_entry,
