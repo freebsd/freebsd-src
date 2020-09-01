@@ -71,7 +71,6 @@ static int tpcl_shutdown(void);
 static void tpcl_datamove(union ctl_io *io);
 static void tpcl_done(union ctl_io *io);
 
-
 static struct ctl_frontend tpcl_frontend =
 {
 	.name = "tpc",

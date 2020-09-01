@@ -112,7 +112,6 @@ typedef enum {
 	CTL_FLAG_SERSEQ_DONE	= 0x20000000	/* All storage I/O started */
 } ctl_io_flags;
 
-
 struct ctl_lba_len {
 	uint64_t lba;
 	uint32_t len;
@@ -374,7 +373,6 @@ struct ctl_taskio {
 	uint8_t			task_status; /* Complete, Succeeded, etc. */
 	uint8_t			task_resp[3];/* Response information */
 };
-
 
 /*
  * HA link messages.

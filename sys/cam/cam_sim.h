@@ -78,7 +78,6 @@ void		  cam_sim_release(struct cam_sim *sim);
 /* Optional sim attributes may be set with these. */
 void	cam_sim_set_path(struct cam_sim *sim, u_int32_t path_id);
 
-
 /* Generically useful offsets into the sim private area */
 #define spriv_ptr0 sim_priv.entries[0].ptr
 #define spriv_ptr1 sim_priv.entries[1].ptr

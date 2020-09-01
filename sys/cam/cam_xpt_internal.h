@@ -92,7 +92,6 @@ SET_DECLARE(cam_xpt_proto_set, struct xpt_proto);
 #define CAM_XPT_PROTO(data) 				\
 	DATA_SET(cam_xpt_proto_set, data)
 
-
 /*
  * The CAM EDT (Existing Device Table) contains the device information for
  * all devices for all buses in the system.  The table contains a

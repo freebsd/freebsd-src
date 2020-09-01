@@ -1111,7 +1111,6 @@ struct ccb_trans_settings {
 	} xport_specific;
 };
 
-
 /*
  * Calculate the geometry parameters for a device
  * give the block size and volume size in blocks.
@@ -1131,7 +1130,6 @@ struct ccb_calc_geometry {
 
 #define	KNOB_VALID_ADDRESS	0x1
 #define	KNOB_VALID_ROLE		0x2
-
 
 #define	KNOB_ROLE_NONE		0x0
 #define	KNOB_ROLE_INITIATOR	0x1

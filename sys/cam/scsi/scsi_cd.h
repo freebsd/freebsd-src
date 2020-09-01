@@ -886,4 +886,3 @@ void scsi_read_toc(struct ccb_scsiio *csio, uint32_t retries,
 __END_DECLS
 
 #endif /*_SCSI_SCSI_CD_H*/
-

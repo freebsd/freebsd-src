@@ -1317,7 +1317,6 @@ ctl_be_block_cw_dispatch_ws(struct ctl_be_block_lun *be_lun,
 		pbo = 0;
 	len_left = (uint64_t)lbalen->len * cbe_lun->blocksize;
 	for (i = 0, lba = 0; i < CTLBLK_MAX_SEGS && len_left > 0; i++) {
-
 		/*
 		 * Setup the S/G entry for this chunk.
 		 */
@@ -2782,7 +2781,6 @@ ctl_be_block_init(void)
 	SLIST_INIT(&softc->lun_list);
 	return (0);
 }
-
 
 static int
 ctl_be_block_shutdown(void)

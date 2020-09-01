@@ -117,7 +117,6 @@ static struct periph_driver ptdriver =
 
 PERIPHDRIVER_DECLARE(pt, ptdriver);
 
-
 static struct cdevsw pt_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	0,
@@ -195,7 +194,7 @@ ptstrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct pt_softc *softc;
-	
+
 	periph = (struct cam_periph *)bp->bio_dev->si_drv1;
 	bp->bio_resid = bp->bio_bcount;
 	if (periph == NULL) {
@@ -213,7 +212,7 @@ ptstrategy(struct bio *bp)
 		biofinish(bp, NULL, ENXIO);
 		return;
 	}
-	
+
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
@@ -368,7 +367,7 @@ ptasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 	{
 		struct ccb_getdev *cgd;
 		cam_status status;
- 
+
 		cgd = (struct ccb_getdev *)arg;
 		if (cgd == NULL)
 			break;

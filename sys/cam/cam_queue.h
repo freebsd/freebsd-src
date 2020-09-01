@@ -78,7 +78,6 @@ struct cam_devq {
 	int		 send_active;
 };
 
-
 struct cam_devq *cam_devq_alloc(int devices, int openings);
 
 int		 cam_devq_init(struct cam_devq *devq, int devices,
@@ -87,7 +86,7 @@ int		 cam_devq_init(struct cam_devq *devq, int devices,
 void		 cam_devq_free(struct cam_devq *devq);
 
 u_int32_t	 cam_devq_resize(struct cam_devq *camq, int openings);
-	
+
 /*
  * Allocate a cam_ccb_queue structure and initialize it.
  */
@@ -166,7 +165,6 @@ cam_ccbq_ccb_done(struct cam_ccbq *ccbq, union ccb *done_ccb);
 
 static __inline void
 cam_ccbq_release_opening(struct cam_ccbq *ccbq);
-
 
 static __inline int
 cam_ccbq_pending_ccb_count(struct cam_ccbq *ccbq)

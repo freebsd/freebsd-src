@@ -1043,7 +1043,7 @@ safte_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflag)
 	req.elm_idx = SES_SETSTATUS_ENC_IDX;
 	req.elm_stat[0] = encstat & 0xf;
 	req.result = 0;
-	
+
 	TAILQ_INSERT_TAIL(&cfg->requests, &req, links);
 	enc_update_request(enc, SAFTE_PROCESS_CONTROL_REQS);
 	cam_periph_sleep(enc->periph, &req, PUSER, "encstat", 0);
@@ -1129,4 +1129,3 @@ safte_softc_init(enc_softc_t *enc)
 	TAILQ_INIT(&cfg->requests);
 	return (0);
 }
-

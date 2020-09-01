@@ -738,7 +738,6 @@ const struct ctl_cmd_entry ctl_cmd_table_9b[32] =
 /* 1d-1f */
 };
 
-
 /* 9E SERVICE ACTION IN(16) */
 const struct ctl_cmd_entry ctl_cmd_table_9e[32] =
 {

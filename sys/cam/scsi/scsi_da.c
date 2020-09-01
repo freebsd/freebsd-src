@@ -1799,7 +1799,6 @@ daclose(struct disk *dp)
 	    ("daclose\n"));
 
 	if (da_periph_hold(periph, PRIBIO, DA_REF_CLOSE_HOLD) == 0) {
-
 		/* Flush disk cache. */
 		if ((softc->flags & DA_FLAG_DIRTY) != 0 &&
 		    (softc->quirks & DA_Q_NO_SYNC_CACHE) == 0 &&
@@ -1946,7 +1945,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 	 * Sync the disk cache contents to the physical media.
 	 */
 	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0) {
-
 		xpt_setup_ccb(&csio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_synchronize_cache(&csio,
@@ -1999,7 +1997,6 @@ dainit(void)
 		printf("da: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
 	} else if (da_send_ordered) {
-
 		/* Register our shutdown event handler */
 		if ((EVENTHANDLER_REGISTER(shutdown_post_sync, dashutdown,
 					   NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
@@ -3858,7 +3855,6 @@ out:
 			free(sup_cap, M_SCSIDA);
 			daprobedone(periph, start_ccb);
 			break;
-
 		}
 
 		start_ccb->ccb_h.ccb_bp = NULL;
@@ -4873,7 +4869,6 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 						 /*timeout*/0,
 						 /*getcount_only*/0);
 
-
 			xpt_setup_ccb(&cgd.ccb_h, done_ccb->ccb_h.path,
 				      CAM_PRIORITY_NORMAL);
 			cgd.ccb_h.func_code = XPT_GDEV_TYPE;
@@ -5786,7 +5781,6 @@ dadone_probeatazone(struct cam_periph *periph, union ccb *done_ccb)
 						 /*getcount_only*/0);
 			}
 		}
-
 	}
 
 	free(csio->data_ptr, M_SCSIDA);
@@ -5886,7 +5880,6 @@ dadone_tur(struct cam_periph *periph, union ccb *done_ccb)
 	cam_periph_assert(periph, MA_OWNED);
 
 	if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-
 		if (daerror(done_ccb, CAM_RETRY_SELTO,
 		    SF_RETRY_UA | SF_NO_RECOVERY | SF_NO_PRINT) == ERESTART)
 			return;	/* Will complete again, keep reference */
@@ -6517,7 +6510,6 @@ scsi_ata_zac_mgmt_out(struct ccb_scsiio *csio, uint32_t retries,
 				retval = 1;
 				goto bailout;
 			}
-
 		}
 
 		auxiliary = (zm_action & 0xf) | (zone_flags << 8);
