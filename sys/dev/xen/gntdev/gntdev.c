@@ -462,7 +462,7 @@ gntdev_dealloc_gref(struct ioctl_gntdev_dealloc_gref *arg)
 	}
 	mtx_unlock(&cleanup_data.to_kill_grefs_mtx);
 	mtx_unlock(&priv_user->user_data_lock);
-	
+
 	taskqueue_enqueue(taskqueue_thread, &cleanup_task);
 	put_file_offset(priv_user, arg->count, arg->index);
 
@@ -573,10 +573,10 @@ notify_unmap_cleanup(struct gntdev_gmap *gmap)
 	int error, count;
 	vm_page_t m;
 	struct gnttab_unmap_grant_ref *unmap_ops;
-	
+
 	unmap_ops = malloc(sizeof(struct gnttab_unmap_grant_ref) * gmap->count,
 			M_GNTDEV, M_WAITOK);
-	
+
 	/* Enumerate freeable maps. */
 	count = 0;
 	for (i = 0; i < gmap->count; i++) {
@@ -588,7 +588,7 @@ notify_unmap_cleanup(struct gntdev_gmap *gmap)
 			count++;
 		}
 	}
-	
+
 	/* Perform notification. */
 	if (count > 0 && gmap->notify) {
 		vm_page_t page;
@@ -598,7 +598,7 @@ notify_unmap_cleanup(struct gntdev_gmap *gmap)
 		page = PHYS_TO_VM_PAGE(gmap->map->phys_base_addr + page_offset);
 		notify(gmap->notify, page);
 	}
-	
+
 	/* Free the pages. */
 	VM_OBJECT_WLOCK(gmap->map->mem);
 retry:
@@ -611,16 +611,16 @@ retry:
 		cdev_pager_free_page(gmap->map->mem, m);
 	}
 	VM_OBJECT_WUNLOCK(gmap->map->mem);
-	
+
 	/* Perform unmap hypercall. */
 	error = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref,
 	    unmap_ops, count);
-	
+
 	for (i = 0; i < gmap->count; i++) {
 		gmap->grant_map_ops[i].handle = -1;
 		gmap->grant_map_ops[i].host_addr = 0;
 	}
-	
+
 	if (gmap->map) {
 		error = xenmem_free(gntdev_dev, gmap->map->pseudo_phys_res_id,
 		    gmap->map->pseudo_phys_res);
@@ -630,9 +630,9 @@ retry:
 		free(gmap->map, M_GNTDEV);
 		gmap->map = NULL;
 	}
-	
+
 	free(unmap_ops, M_GNTDEV);
-	
+
 	return (error);
 }
 
@@ -721,13 +721,13 @@ gntdev_unmap_grant_ref(struct ioctl_gntdev_unmap_grant_ref *arg)
 	STAILQ_INSERT_TAIL(&cleanup_data.to_kill_gmaps, gmap, gmap_next.list);
 	mtx_unlock(&cleanup_data.to_kill_gmaps_mtx);
 	mtx_unlock(&priv_user->user_data_lock);
-	
+
 	if (gmap->map)
 		vm_object_deallocate(gmap->map->mem);
 
 	taskqueue_enqueue(taskqueue_thread, &cleanup_task);
 	put_file_offset(priv_user, arg->count, arg->index);
-	
+
 	return (0);
 }
 

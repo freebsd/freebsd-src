@@ -224,7 +224,6 @@ gnttab_end_foreign_access_references(u_int count, grant_ref_t *refs)
 	tail = *refs;
 	last_ref = refs + count;
 	while (refs != last_ref) {
-
 		if (gnttab_end_foreign_access_ref(*refs)) {
 			gnttab_entry(*refs) = head;
 			head = *refs;
@@ -416,7 +415,6 @@ gnttab_cancel_free_callback(struct gnttab_free_callback *callback)
 	}
 	mtx_unlock(&gnttab_list_lock);
 }
-
 
 static int
 grow_gnttab_list(unsigned int more_frames)

@@ -1432,7 +1432,6 @@ xn_get_responses(struct netfront_rxq *rxq,
 #endif
 		if (__predict_false(rx->status < 0 ||
 			rx->offset + rx->status > PAGE_SIZE)) {
-
 			xn_move_rx_slot(rxq, m, ref);
 			if (m0 == m)
 				m0 = NULL;
