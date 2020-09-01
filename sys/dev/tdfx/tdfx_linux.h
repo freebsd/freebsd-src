@@ -33,7 +33,6 @@
  *   $FreeBSD$
  */
 
-
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
 #include <compat/linux/linux_ioctl.h>

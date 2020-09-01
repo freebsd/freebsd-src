@@ -75,12 +75,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/tdfx/tdfx_vars.h>
 #include <dev/tdfx/tdfx_pci.h>
 
-
 static devclass_t tdfx_devclass;
 
-
 static int tdfx_count = 0;
-
 
 /* Set up the boot probe/attach routines */
 static device_method_t tdfx_methods[] = {
@@ -250,7 +247,7 @@ tdfx_attach(device_t dev) {
 	tdfx_info->devt = make_dev(&tdfx_cdev, device_get_unit(dev),
 		UID_ROOT, GID_WHEEL, 0600, "3dfx%x", device_get_unit(dev));
 	tdfx_info->devt->si_drv1 = tdfx_info;
-	
+
 	return 0;
 }
 
@@ -259,7 +256,7 @@ tdfx_detach(device_t dev) {
 	struct tdfx_softc* tdfx_info;
 	int retval;
 	tdfx_info = device_get_softc(dev);
-	
+
 	/* Delete allocated resource, of course */
 	bus_release_resource(dev, SYS_RES_MEMORY, tdfx_info->memrid,
 			tdfx_info->memrange);
@@ -303,12 +300,12 @@ tdfx_clrmtrr(device_t dev) {
 	 */
 	int retval, act;
 	struct tdfx_softc *tdfx_info = device_get_softc(dev);
-	
+
 	act = MEMRANGE_SET_REMOVE;
 	retval = mem_range_attr_set(&tdfx_info->mrdesc, &act);
 	return retval;
 }
-	
+
 static int
 tdfx_setmtrr(device_t dev) {
 	/*
@@ -426,13 +423,13 @@ tdfx_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 	/**** OLD GET CONFIG ****/
 	/* struct tdfx_softc* tdfx_info; */
-	
+
 	/* Get the configuration for our card XXX*/
 	/*tdfx_info = dev->si_drv1; */
 	/************************/
 
 	struct tdfx_softc* tdfx_info[2];
-	
+
 	tdfx_info[0] = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass, 0);
 
 	/* If, for some reason, its not configured, we bail out */
@@ -449,7 +446,7 @@ tdfx_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 		*paddr = rman_get_start(tdfx_info[0]->memrange) + offset;
 		return 0;
 	}
-	
+
 	if(tdfx_count > 1) {
 		tdfx_info[1] = (struct tdfx_softc*)devclass_get_softc(tdfx_devclass, 1);
 		if((offset & 0xff000000) == tdfx_info[1]->addr0) {
@@ -552,7 +549,6 @@ tdfx_query_fetch(u_int cmd, struct tdfx_pio_data *piod)
 			return -EINVAL;
 	}
 
-	
 	/* Read the value and return */
 	switch(piod->size) {
 		case 1:
@@ -675,7 +671,7 @@ tdfx_do_pio_rd(struct tdfx_pio_data *piod)
 		(piod->port != SC_DATA) || (piod->port != VGA_MISC_OUTPUT_READ)) &&
 		(piod->port < tdfx_info->pio0) && (piod->port > tdfx_info->pio0max))
 		return -EPERM;
-	
+
 	/* All VGA STATUS REGS are byte registers, size should never be > 1 */
 	if(piod->size != 1) {
 		return -EINVAL;
@@ -702,7 +698,7 @@ tdfx_do_pio_wt(struct tdfx_pio_data *piod)
 		(piod->port != VGA_MISC_OUTPUT_READ)) /* Can't write VGA_ST_1C */ &&
 		(piod->port < tdfx_info->pio0) && (piod->port > tdfx_info->pio0max))
 		return -EPERM;
-	
+
 	/* All VGA STATUS REGS are byte registers, size should never be > 1 */
 	if(piod->size != 1) {
 		return -EINVAL;
