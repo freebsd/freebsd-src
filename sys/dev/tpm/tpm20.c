@@ -177,7 +177,6 @@ tpm20_close(struct cdev *dev, int flag, int mode, struct thread *td)
 	return (0);
 }
 
-
 int
 tpm20_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
     int flags, struct thread *td)
@@ -234,7 +233,6 @@ tpm20_release(struct tpm_sc *sc)
 		destroy_dev(sc->sc_cdev);
 }
 
-
 int
 tpm20_suspend(device_t dev)
 {
@@ -266,7 +264,6 @@ tpm20_harvest(void *arg)
 		0x00, 0x00, 0x01, 0x7b,	/* cmd TPM_CC_GetRandom */
 		0x00, TPM_HARVEST_SIZE 	/* number of bytes requested */
 	};
-
 
 	sc = arg;
 	sx_xlock(&sc->dev_lock);
