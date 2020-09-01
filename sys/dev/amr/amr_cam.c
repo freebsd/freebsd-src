@@ -175,7 +175,6 @@ amr_cam_attach(device_t dev)
 	 * Iterate over our channels, registering them with CAM
 	 */
 	for (chn = 0; chn < sc->amr_maxchan; chn++) {
-
 		/* allocate a sim */
 		if ((sc->amr_cam_sim[chn] = cam_sim_alloc(amr_cam_action,
 		    amr_cam_poll, "amr", sc, device_get_unit(sc->amr_dev),
@@ -247,7 +246,6 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 	struct amr_softc	*sc = cam_sim_softc(sim);
 
 	switch(ccb->ccb_h.func_code) {
-
 	/*
 	 * Perform SCSI I/O to a physical device.
 	 */
@@ -266,7 +264,7 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 		if ((csio->cdb_len > AMR_MAX_CDB_LEN) &&
 		    (sc->support_ext_cdb == 0))
 			ccbh->status = CAM_REQ_INVALID;
-	
+
 		/* check that the CDB pointer is not to a physical address */
 		if ((ccbh->flags & CAM_CDB_POINTER) &&
 		    (ccbh->flags & CAM_CDB_PHYS))
@@ -280,7 +278,7 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 				/* we can't map it */
 				ccbh->status = CAM_REQ_INVALID;
 		}
-	
+
 		/*
 		 * If the command is to a LUN other than 0, fail it.
 		 * This is probably incorrect, but during testing the
@@ -292,7 +290,6 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 		/* if we're happy with the request, queue it for attention */
 		if (ccbh->status == CAM_REQ_INPROG) {
-
 			/* save the channel number in the ccb */
 			csio->ccb_h.sim_priv.entries[0].field= cam_sim_bus(sim);
 
@@ -396,7 +393,6 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 		debug(3, "XPT_SET_TRAN_SETTINGS");
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		break;
-
 
 	/*
 	 * Reject anything else as unsupported.

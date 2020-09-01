@@ -371,7 +371,6 @@ amr_init_sysctl(struct amr_softc *sc)
 	"");
 }
 
-
 /*******************************************************************************
  * Free resources associated with a controller instance
  */
@@ -777,7 +776,6 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
     ap = NULL;
 
     switch(cmd) {
-
     case AMR_IO_VERSION:
 	debug(1, "AMR_IO_VERSION");
 	*arg.result = AMR_IO_VERSION_NUMBER;
@@ -977,7 +975,6 @@ amr_query_controller(struct amr_softc *sc)
      */
     if ((aex = amr_enquiry(sc, 2048, AMR_CMD_CONFIG, AMR_CONFIG_ENQ3, 
 			   AMR_CONFIG_ENQ3_SOLICITED_FULL, &status)) != NULL) {
-
 	/*
 	 * Fetch current state of logical drives.
 	 */
@@ -1011,7 +1008,6 @@ amr_query_controller(struct amr_softc *sc)
 	    device_printf(sc->amr_dev, "delete logical drives supported by controller\n");
 	}
     } else {
-
 	/* failed, try the 8LD ENQUIRY commands */
 	if ((ae = (struct amr_enquiry *)amr_enquiry(sc, 2048, AMR_CMD_EXT_ENQUIRY2, 0, 0, &status)) == NULL) {
 	    if ((ae = (struct amr_enquiry *)amr_enquiry(sc, 2048, AMR_CMD_ENQUIRY, 0, 0, &status)) == NULL) {
@@ -1173,7 +1169,6 @@ amr_support_ext_cdb(struct amr_softc *sc)
     mbox[0] = 0xA4;
     mbox[2] = 0x16;
 
-
     /* we have to poll, as the system may be going down or otherwise damaged */
     if (sc->amr_poll_command(ac))
 	goto out;
@@ -1203,7 +1198,6 @@ amr_startio(struct amr_softc *sc)
 
     /* spin until something prevents us from doing any work */
     for (;;) {
-
 	/* Don't bother to queue commands no bounce buffers are available. */
 	if (sc->amr_state & AMR_STATE_QUEUE_FRZN)
 	    break;
@@ -1341,7 +1335,6 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
 	ac->ac_mailbox.mb_drive |= 0x80;
 
     /* we fill in the s/g related data when the command is mapped */
-
 
     *acp = ac;
     return(error);
@@ -1643,7 +1636,7 @@ amr_setup_data(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 	amr_requeue_ready(ac);
     }
 }
- 
+
 static void
 amr_setup_ccb(void *arg, bus_dma_segment_t *segs, int nsegs, int err)
 {
@@ -1730,9 +1723,7 @@ amr_unmapcmd(struct amr_command *ac)
 
     /* if the command involved data at all and was mapped */
     if (ac->ac_flags & AMR_CMD_MAPPED) {
-
 	if (ac->ac_data != NULL) {
-
 	    flag = 0;
 	    if (ac->ac_flags & AMR_CMD_DATAIN)
 		flag |= BUS_DMASYNC_POSTREAD;
@@ -1834,7 +1825,6 @@ amr_done(struct amr_softc *sc)
 
 		/* really a busy command? */
 		if (ac != NULL) {
-
 		    /* pull the command from the busy index */
 		    amr_freeslot(ac);
 		
@@ -2144,7 +2134,6 @@ amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave)
 
     /* work waiting for us? */
     if ((outd = AMR_QGET_ODB(sc)) == AMR_QODB_READY) {
-
 	/* acknowledge interrupt */
 	AMR_QPUT_ODB(sc, AMR_QODB_READY);
 
@@ -2275,7 +2264,7 @@ amr_std_init(struct amr_softc *sc)
     device_printf(sc->amr_dev, "initial init status %x\n", AMR_SGET_INITSTATUS(sc));
 
     AMR_SRESET(sc);
- 
+
     ostatus = 0xff;
     while ((status = AMR_SGET_INITSTATUS(sc)) != AMR_SINIT_DONE) {
 	if (status != ostatus) {
@@ -2331,7 +2320,6 @@ amr_describe_controller(struct amr_softc *sc)
 	prod = amr_describe_code(amr_table_adaptertype, ae->ae_signature);
 
     } else if ((ae = (struct amr_enquiry *)amr_enquiry(sc, 2048, AMR_CMD_ENQUIRY, 0, 0, &status)) != NULL) {
-
 	/*
 	 * Try to work it out based on the PCI signatures.
 	 */
@@ -2366,7 +2354,6 @@ amr_describe_controller(struct amr_softc *sc)
        ae->ae_adapter.aa_bios[2] <= 'Z'     &&
        ae->ae_adapter.aa_bios[1] <  ' '     &&
        ae->ae_adapter.aa_bios[0] <  ' ') {
-
 	/* this looks like we have an HP NetRaid version of the MegaRaid */
 
     	if(ae->ae_signature == AMR_SIG_438) {
@@ -2428,8 +2415,6 @@ amr_dump_blocks(struct amr_softc *sc, int unit, u_int32_t lba, void *data, int b
     sc->amr_state &= ~AMR_STATE_INTEN;
     return (error);
 }
-
-
 
 #ifdef AMR_DEBUG
 /********************************************************************************
