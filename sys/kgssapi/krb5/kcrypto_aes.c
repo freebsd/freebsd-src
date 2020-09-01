@@ -121,7 +121,7 @@ aes_crypto_cb(struct cryptop *crp)
 {
 	int error;
 	struct aes_state *as = (struct aes_state *) crp->crp_opaque;
-	
+
 	if (crypto_ses2caps(crp->crp_session) & CRYPTOCAP_F_SYNC)
 		return (0);
 

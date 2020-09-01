@@ -96,4 +96,3 @@ gss_unwrap_mbuf(OM_uint32 *minor_status,
 
 	return (KGSS_UNWRAP(ctx, minor_status, mp, conf_state, qop_state));
 }
-

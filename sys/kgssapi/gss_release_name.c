@@ -59,7 +59,7 @@ gss_release_name(OM_uint32 *minor_status, gss_name_t *input_name)
 	if (*input_name) {
 		name = *input_name;
 		args.input_name = name->handle;
-	
+
 		cl = kgss_gssd_client();
 		if (cl == NULL)
 			return (GSS_S_FAILURE);
