@@ -381,7 +381,6 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if (sc->mii_ticks <= sc->mii_anegticks)
 			break;
 
-
 		/* Retry autonegotiation */
 		sc->mii_ticks = 0;
 		brgphy_mii_phy_auto(sc, ife->ifm_media);
@@ -1031,7 +1030,6 @@ brgphy_reset(struct mii_softc *sc)
 	} else if (bce_sc) {
 		if (BCE_CHIP_NUM(bce_sc) == BCE_CHIP_NUM_5708 &&
 			(bce_sc->bce_phy_flags & BCE_PHY_SERDES_FLAG)) {
-
 			/* Store autoneg capabilities/results in digital block (Page 0) */
 			PHY_WRITE(sc, BRGPHY_5708S_BLOCK_ADDR, BRGPHY_5708S_DIG3_PG2);
 			PHY_WRITE(sc, BRGPHY_5708S_PG2_DIGCTL_3_0,
@@ -1080,7 +1078,6 @@ brgphy_reset(struct mii_softc *sc)
 			}
 		} else if (BCE_CHIP_NUM(bce_sc) == BCE_CHIP_NUM_5709 &&
 			(bce_sc->bce_phy_flags & BCE_PHY_SERDES_FLAG)) {
-
 			/* Select the SerDes Digital block of the AN MMD. */
 			PHY_WRITE(sc, BRGPHY_BLOCK_ADDR, BRGPHY_BLOCK_ADDR_SERDES_DIG);
 			val = PHY_READ(sc, BRGPHY_SERDES_DIG_1000X_CTL1);

@@ -49,7 +49,6 @@
 #define	AUX_CTL_BASEWANDER_DIS	0x0040	/* disable baseline wander correction */
 #define	AUX_CTL_FEF_EN		0x0020	/* far-end fault enable */
 
-
 #define	MII_BMTPHY_AUX_STS	0x11	/* auxiliary status */
 #define	AUX_STS_FX_MODE		0x0400	/* 100base-FX mode (strap pin) */
 #define	AUX_STS_LOCKED		0x0200	/* descrambler locked */
@@ -63,21 +62,16 @@
 #define	AUX_STS_LOCKERROR	0x0002	/* lock error detected */
 #define	AUX_STS_MLT3ERROR	0x0001	/* MLT3 code error detected */
 
-
 #define	MII_BMTPHY_RXERROR_CTR	0x12	/* 100base-X Rx error counter */
 #define	RXERROR_CTR_MASK	0x00ff
-
 
 #define	MII_BMTPHY_FCS_CTR	0x13	/* 100base-X false carrier counter */
 #define	FCS_CTR_MASK		0x00ff
 
-
 #define	MII_BMTPHY_DIS_CTR	0x14	/* 100base-X disconnect counter */
 #define	DIS_CTR_MASK		0x00ff
 
-
 #define	MII_BMTPHY_PTEST	0x17	/* PTEST */
-
 
 #define	MII_BMTPHY_AUX_CSR	0x18	/* auxiliary control/status */
 #define	AUX_CSR_JABBER_DIS	0x8000	/* jabber disable */
@@ -90,7 +84,6 @@
 #define	AUX_CSR_F100		0x0004	/* force 100base */
 #define	AUX_CSR_SPEED		0x0002	/* 1 = 100, 0 = 10 */
 #define	AUX_CSR_FDX		0x0001	/* full-duplex */
-
 
 #define	MII_BMTPHY_AUX_SS	0x19	/* auxiliary status summary */
 #define	AUX_SS_ACOMP		0x8000	/* auto-negotiation complete */
@@ -114,7 +107,6 @@
 #define	AUX_SS_ANEN		0x0002	/* auto-neg. enabled */
 #define	AUX_SS_JABBER		0x0001	/* jabber detected */
 
-
 #define	MII_BMTPHY_INTR		0x1a	/* interrupt register */
 #define	INTR_FDX_LED		0x8000	/* full-duplex led enable */
 #define	INTR_INTR_EN		0x4000	/* interrupt enable */
@@ -127,7 +119,6 @@
 #define	INTR_LINK_CHANGE	0x0002	/* link change */
 #define	INTR_INTR_STATUS	0x0001	/* interrupt status */
 
-
 #define	MII_BMTPHY_AUX2		0x1b	/* auliliary mode 2 */
 #define	AUX2_BLOCK_RXDV		0x0200	/* block RXDV mode enabled */
 #define	AUX2_ANPDQ		0x0100	/* auto-neg parallel detection Q mode */
@@ -138,7 +129,6 @@
 #define	AUX2_TWOLINK_LED	0x0004	/* two link LEDs */
 #define	AUX2_SQE_DIS		0x0002	/* disable SQE pulse */
 
-
 #define	MII_BMTPHY_AUXERR	0x1c	/* auxiliary error */
 #define	AUXERR_MANCHESTER	0x0400	/* Manchester code error */
 #define	AUXERR_EOF		0x0200	/* EOF detection error */
@@ -148,12 +138,10 @@
 #define	AUXERR_SPEED		0x0002	/* 1 = 100, 0 = 10 */
 #define	AUXERR_FDX		0x0001	/* full-duplex */
 
-
 #define	MII_BMTPHY_AUXMODE	0x1d	/* auxiliary mode */
 #define	AUXMODE_ACT_LED_DIS	0x0010	/* activity LED disable */
 #define	AUXMODE_LINK_LED_DIS	0x0008	/* link LED disable */
 #define	AUXMODE_BLOCK_TXEN	0x0002	/* enable block TXEN */
-
 
 #define	MII_BMTPHY_AUXMPHY	0x1e	/* auxiliary multiple phy register */
 #define	AUXMPHY_HCD_TX_FDX	0x8000	/* res. is 100baseTX-FDX */
@@ -169,8 +157,6 @@
 #define	AUXMPHY_SUPER_ISO	0x0008	/* super-isolate mode */
 #define	AUXMPHY_10T_SERIAL	0x0002	/* 10baseT serial mode */
 
-
 #define	MII_BMTPHY_TEST		0x1d	/* Broadcom test register */
-
 
 #endif /* _DEV_MII_BMTPHYREG_H_ */

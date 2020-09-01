@@ -94,7 +94,6 @@
 #define	TTR_NOLINK		0x0002	/* Disable Link check */
 #define	TTR_NOSQUELCH		0x0001	/* Disable squelch */
 
-
 /*
  * Extended Control Register 2
  *
