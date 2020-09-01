@@ -1143,7 +1143,6 @@ static device_method_t xae_methods[] = {
 	DEVMETHOD(miibus_readreg,	xae_miibus_read_reg),
 	DEVMETHOD(miibus_writereg,	xae_miibus_write_reg),
 	DEVMETHOD(miibus_statchg,	xae_miibus_statchg),
-
 	{ 0, 0 }
 };
 

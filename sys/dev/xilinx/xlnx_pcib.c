@@ -596,7 +596,6 @@ xlnx_pcib_msi_alloc_msi(device_t dev, device_t child, int count, int maxcount,
 	found = false;
 
 	for (irq = 0; (irq + count - 1) < XLNX_PCIB_MAX_MSI; irq++) {
-
 		/* Assume the range is valid. */
 		found = true;
 
