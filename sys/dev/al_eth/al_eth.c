@@ -2168,7 +2168,6 @@ __al_eth_free_irq(struct al_eth_adapter *adapter)
 			if (rc != 0)
 				device_printf(adapter->dev, "failed to tear "
 				    "down irq: %d\n", irq->vector);
-
 		}
 		irq->requested = 0;
 	}
