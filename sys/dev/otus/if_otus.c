@@ -99,7 +99,6 @@ SYSCTL_INT(_hw_usb_otus, OID_AUTO, debug, CTLFLAG_RWTUN, &otus_debug, 0,
 		if ((dm == OTUS_DEBUG_ANY) || (dm & otus_debug)) \
 			device_printf(sc->sc_dev, __VA_ARGS__); \
 	} while (0)
-
 #define	OTUS_DEV(v, p) { USB_VPI(v, p, 0) }
 static const STRUCT_USB_HOST_ID otus_devs[] = {
 	OTUS_DEV(USB_VENDOR_ACCTON,		USB_PRODUCT_ACCTON_WN7512),
@@ -1571,7 +1570,6 @@ otus_sub_rxeof(struct otus_softc *sc, uint8_t *buf, int len, struct mbufq *rxq)
 	struct mbuf *m;
 //	int s;
 
-
 	if (otus_debug & OTUS_DEBUG_RX_BUFFER) {
 		device_printf(sc->sc_dev, "%s: %*D\n",
 		    __func__, len, buf, "-");
@@ -2226,7 +2224,6 @@ otus_hw_rate_is_ofdm(struct otus_softc *sc, uint8_t hw_rate)
 	}
 }
 
-
 static void
 otus_tx_update_ratectl(struct otus_softc *sc, struct ieee80211_node *ni)
 {
@@ -2417,7 +2414,6 @@ otus_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 
 	return (1);
 }
-
 
 int
 otus_set_multi(struct otus_softc *sc)
