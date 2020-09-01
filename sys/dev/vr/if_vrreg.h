@@ -491,7 +491,6 @@ struct vr_desc {
 #define	VR_RXCTL_RXLERR		0x00800000	/* 6105M */
 #define VR_RXCTL_RX_INTR	0x00800000
 
-
 #define VR_RXCTL (VR_RXCTL_CHAIN|VR_RXCTL_RX_INTR)
 
 #define VR_TXSTAT_DEFER		0x00000001
@@ -525,7 +524,6 @@ struct vr_desc {
 #define VR_FLAG_FORCEDELAY	1
 #define VR_FLAG_SCHEDDELAY	2
 #define VR_FLAG_DELAYTIMEO	3
-
 
 #define VR_TIMEOUT		1000
 #define VR_MII_TIMEOUT		10000
