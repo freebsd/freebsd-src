@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #define	RECALL_EE		0xb8
 #define	READ_SCRATCHPAD		0xbe
 
-
 #define	OW_TEMP_DONE		0x01
 #define	OW_TEMP_RUNNING		0x02
 
@@ -95,7 +94,7 @@ static int
 ow_temp_read_scratchpad(device_t dev, uint8_t *scratch, int len)
 {
 	struct ow_cmd cmd;
-	
+
 	own_self_command(dev, &cmd, READ_SCRATCHPAD);
 	cmd.xpt_read_len = len;
 	own_command_wait(dev, &cmd);
@@ -114,7 +113,6 @@ ow_temp_convert_t(device_t dev)
 
 	return 0;
 }
-
 
 static int
 ow_temp_read_power_supply(device_t dev, int *parasite)
@@ -262,7 +260,7 @@ ow_temp_detach(device_t dev)
 		msleep(sc->event_thread, &sc->temp_lock, PWAIT, "owtun", 0);
 	}
 	mtx_destroy(&sc->temp_lock);
-	
+
 	return 0;
 }
 
@@ -273,7 +271,6 @@ static device_method_t ow_temp_methods[] = {
 	DEVMETHOD(device_probe,		ow_temp_probe),
 	DEVMETHOD(device_attach,	ow_temp_attach),
 	DEVMETHOD(device_detach,	ow_temp_detach),
-
 	{ 0, 0 }
 };
 
