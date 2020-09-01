@@ -2487,7 +2487,7 @@ static int ng_ce_connect (hook_p hook)
 		CE_DEBUG (d, ("Connect\n"));
 		callout_reset (&d->timeout_handle, hz, ce_watchdog_timer, d);
 	}
-	
+
 	return 0;
 }
 

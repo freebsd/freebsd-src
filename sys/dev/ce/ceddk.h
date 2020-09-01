@@ -63,7 +63,7 @@ typedef struct _ce_chan_t {
 #define T_NONE		0		/* no channel */
 #define T_E1		3		/* E1 */
 #define T_DATA		6		/* no physical interface */
-	
+
 	struct _ce_board_t *board;
 	unsigned char dtr;
 	unsigned char rts;
