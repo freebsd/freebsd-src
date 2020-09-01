@@ -181,7 +181,7 @@ softdep_setup_allocdirect(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	long oldsize;
 	struct buf *bp;
 {
-	
+
 	panic("softdep_setup_allocdirect called");
 }
 
@@ -195,7 +195,7 @@ softdep_setup_allocext(ip, lbn, newblkno, oldblkno, newsize, oldsize, bp)
 	long oldsize;
 	struct buf *bp;
 {
-	
+
 	panic("softdep_setup_allocext called");
 }
 
@@ -232,7 +232,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	off_t length;
 	int flags;
 {
-	
+
 	panic("softdep_journal_freeblocks called");
 }
 
@@ -250,7 +250,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	off_t length;
 	int flags;
 {
-	
+
 	panic("softdep_setup_freeblocks called");
 }
 
@@ -297,7 +297,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
 	struct inode *ip;
 	int isrmdir;
 {
-	
+
 	panic("softdep_setup_remove called");
 }
 
@@ -540,7 +540,7 @@ softdep_check_suspend(struct mount *mp,
 {
 	struct bufobj *bo;
 	int error;
-	
+
 	(void) softdep_depcnt,
 	(void) softdep_accdepcnt;
 
@@ -2425,7 +2425,7 @@ indirblk_insert(freework)
 	jseg = TAILQ_LAST(&jblocks->jb_segs, jseglst);
 	if (jseg == NULL)
 		return;
-	
+
 	LIST_INSERT_HEAD(&jseg->js_indirs, freework, fw_segs);
 	TAILQ_INSERT_HEAD(INDIR_HASH(ump, freework->fw_blkno), freework,
 	    fw_next);
@@ -5163,7 +5163,7 @@ softdep_setup_blkmapdep(bp, mp, newblkno, frags, oldfrags)
 			uint8_t *blksfree;
 			long bno;
 			int i;
-	
+
 			cgp = (struct cg *)bp->b_data;
 			blksfree = cg_blksfree(cgp);
 			bno = dtogd(fs, jnewblk->jn_blkno);
@@ -6325,7 +6325,6 @@ setup_trunc_indir(freeblks, ip, lbn, lastlbn, blkno)
 	int error;
 	int off;
 
-
 	freework = NULL;
 	if (blkno == 0)
 		return (0);
@@ -7462,7 +7461,6 @@ cancel_allocdirect(adphead, adp, freeblks)
 	    &freeblks->fb_jwork);
 	WORKLIST_INSERT(&freeblks->fb_freeworkhd, &newblk->nb_list);
 }
-
 
 /*
  * Cancel a new block allocation.  May be an indirect or direct block.  We
@@ -9211,7 +9209,6 @@ dirrem_journal(dirrem, jremref, dotremref, dotdotremref)
 {
 	struct inodedep *inodedep;
 
-
 	if (inodedep_lookup(jremref->jr_list.wk_mp, jremref->jr_ref.if_ino, 0,
 	    &inodedep) == 0)
 		panic("dirrem_journal: Lost inodedep");
@@ -10058,7 +10055,6 @@ handle_workitem_freefile(freefile)
 	FREE_LOCK(ump);
 }
 
-
 /*
  * Helper function which unlinks marker element from work list and returns
  * the next element on the list.
@@ -10067,7 +10063,7 @@ static __inline struct worklist *
 markernext(struct worklist *marker)
 {
 	struct worklist *next;
-	
+
 	next = LIST_NEXT(marker, wk_list);
 	LIST_REMOVE(marker, wk_list);
 	return next;
@@ -10132,7 +10128,6 @@ softdep_disk_io_initiation(bp)
 	     wk = markernext(&marker)) {
 		LIST_INSERT_AFTER(wk, &marker, wk_list);
 		switch (wk->wk_type) {
-
 		case D_PAGEDEP:
 			initiate_write_filepage(WK_PAGEDEP(wk), bp);
 			continue;
@@ -11172,7 +11167,6 @@ softdep_disk_write_complete(bp)
 	if ((bp->b_ioflags & BIO_ERROR) != 0 && (bp->b_flags & B_INVAL) == 0) {
 		LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 			switch (wk->wk_type) {
-
 			case D_PAGEDEP:
 				handle_written_filepage(WK_PAGEDEP(wk), bp, 0);
 				continue;
@@ -11214,7 +11208,6 @@ softdep_disk_write_complete(bp)
 			panic("duplicate worklist: %p\n", wk);
 		owk = wk;
 		switch (wk->wk_type) {
-
 		case D_PAGEDEP:
 			if (handle_written_filepage(WK_PAGEDEP(wk), bp,
 			    WRITESUCCEEDED))
@@ -12890,7 +12883,6 @@ softdep_sync_buf(struct vnode *vp, struct buf *bp, int waitfor)
 top:
 	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 		switch (wk->wk_type) {
-
 		case D_ALLOCDIRECT:
 		case D_ALLOCINDIR:
 			newblk = WK_NEWBLK(wk);
@@ -13786,7 +13778,6 @@ request_cleanup(mp, resource)
 	 * the cleanup for us.
 	 */
 	switch (resource) {
-
 	case FLUSH_INODES:
 	case FLUSH_INODES_WAIT:
 		ACQUIRE_GBLLOCK(&lk);
@@ -14192,7 +14183,6 @@ softdep_count_dependencies(bp, wantcount)
 	ACQUIRE_LOCK(ump);
 	LIST_FOREACH(wk, &bp->b_dep, wk_list) {
 		switch (wk->wk_type) {
-
 		case D_INODEDEP:
 			inodedep = WK_INODEDEP(wk);
 			if ((inodedep->id_state & DEPCOMPLETE) == 0) {
@@ -14250,7 +14240,6 @@ softdep_count_dependencies(bp, wantcount)
 				}
 			}
 			for (i = 0; i < DAHASHSZ; i++) {
-
 				LIST_FOREACH(dap, &pagedep->pd_diraddhd[i], da_pdlist) {
 					/* directory entry dependency */
 					retval += 1;
@@ -14388,7 +14377,6 @@ getdirtybuf(bp, lock, waitfor)
 	return (bp);
 }
 
-
 /*
  * Check if it is safe to suspend the file system now.  On entry,
  * the vnode interlock for devvp should be held.  Return 0 with
@@ -14501,7 +14489,6 @@ softdep_check_suspend(struct mount *mp,
 	BO_UNLOCK(bo);
 	return (error);
 }
-
 
 /*
  * Get the number of dependency structures for the file system, both

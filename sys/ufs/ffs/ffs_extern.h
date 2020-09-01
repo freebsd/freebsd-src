@@ -202,7 +202,6 @@ void	softdep_buf_append(struct buf *, struct workhead *);
 void	softdep_inode_append(struct inode *, struct ucred *, struct workhead *);
 void	softdep_freework(struct workhead *);
 
-
 /*
  * Things to request flushing in softdep_request_cleanup()
  */

@@ -615,7 +615,7 @@ ffs_balloc_ufs2(struct vnode *vp, off_t startoffset, int size,
 
 	if (DOINGSOFTDEP(vp))
 		softdep_prealloc(vp, MNT_WAIT);
-	
+
 	/*
 	 * Check for allocating external data.
 	 */

@@ -185,7 +185,6 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 		*runb = 0;
 	}
 
-
 	ap = a;
 	nump = &num;
 	error = ufs_getlbns(vp, bn, ap, nump);
@@ -242,7 +241,6 @@ ufs_bmaparray(vp, bn, bnp, nbp, runp, runb)
 		}
 		return (0);
 	}
-
 
 	/* Get disk address out of indirect block array */
 	daddr = DIP(ip, i_ib[ap->in_off]);
