@@ -206,7 +206,6 @@ TUNABLE_INT("hw.vtscsi.bus_reset_disable", &vtscsi_bus_reset_disable);
 static struct virtio_feature_desc vtscsi_feature_desc[] = {
 	{ VIRTIO_SCSI_F_INOUT,		"InOut"		},
 	{ VIRTIO_SCSI_F_HOTPLUG,	"Hotplug"	},
-
 	{ 0, NULL }
 };
 
