@@ -111,13 +111,15 @@ main(int argc, char *argv[])
 			   warning. (not needed w/clang) */
 	showexit = 0;
 
-	while ((ch = getopt(argc, argv, "adFfkpqrt:")) != -1)
+	while ((ch = getopt(argc, argv, "adeFfkpqrt:")) != -1)
 		switch(ch) {
 		case 'a':
 			aflg = 1;
 			break;
 		case 'd':
 			usesleep = 0;
+			break;
+		case 'e':	/* Default behaior, accepted for linux compat */
 			break;
 		case 'F':
 			Fflg = 1;
