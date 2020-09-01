@@ -269,7 +269,7 @@ tsec_attach(struct tsec_softc *sc)
 	/* Advertise that polling is supported */
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
-	
+
 	/* Attach PHY(s) */
 	error = mii_attach(sc->dev, &sc->tsec_miibus, ifp, tsec_ifmedia_upd,
 	    tsec_ifmedia_sts, BMSR_DEFCAPMASK, sc->phyaddr, MII_OFFSET_ANY,
@@ -372,7 +372,6 @@ tsec_mii_wait(struct tsec_softc *sc, uint32_t flags)
 
 	return (timeout == 0);
 }
-
 
 static void
 tsec_init_locked(struct tsec_softc *sc)
@@ -556,7 +555,7 @@ tsec_init_locked(struct tsec_softc *sc)
 
 	/* Step 26: Setup multicast filters */
 	tsec_setup_multicast(sc);
-	
+
 	/* Step 27: Activate network interface */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -742,7 +741,6 @@ tsec_start_locked(struct ifnet *ifp)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	for (;;) {
-
 		if (TSEC_FREE_TX_DESC(sc) < TSEC_TX_MAX_DMA_SEGS) {
 			/* No free descriptors */
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -806,7 +804,7 @@ tsec_encap(struct ifnet *ifp, struct tsec_softc *sc, struct mbuf *m0,
 
 	tx_idx = sc->tx_idx_head;
 	tx_bufmap = &sc->tx_bufmap[tx_idx];
- 
+
 	/* Create mapping in DMA memory */
 	error = bus_dmamap_load_mbuf_sg(sc->tsec_tx_mtag, tx_bufmap->map, m0,
 	    segs, &nsegs, BUS_DMA_NOWAIT);
@@ -831,7 +829,7 @@ tsec_encap(struct ifnet *ifp, struct tsec_softc *sc, struct mbuf *m0,
 	bus_dmamap_sync(sc->tsec_tx_mtag, tx_bufmap->map,
 	    BUS_DMASYNC_PREWRITE);
 	tx_bufmap->mbuf = m0;
- 
+
 	/*
 	 * Fill in the TX descriptors back to front so that READY bit in first
 	 * descriptor is set last.
@@ -1328,7 +1326,6 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 
 		if (flags & (TSEC_RXBD_LG | TSEC_RXBD_SH | TSEC_RXBD_NO |
 		    TSEC_RXBD_CR | TSEC_RXBD_OV | TSEC_RXBD_TR)) {
-
 			rx_desc->length = 0;
 			rx_desc->flags = (rx_desc->flags &
 			    ~TSEC_RXBD_ZEROONINIT) | TSEC_RXBD_E | TSEC_RXBD_I;
@@ -1847,7 +1844,6 @@ tsec_offload_setup(struct tsec_softc *sc)
 	TSEC_WRITE(sc, TSEC_REG_RCTRL, reg);
 }
 
-
 static void
 tsec_offload_process_frame(struct tsec_softc *sc, struct mbuf *m)
 {
@@ -1871,7 +1867,6 @@ tsec_offload_process_frame(struct tsec_softc *sc, struct mbuf *m)
 	if ((protocol == IPPROTO_TCP || protocol == IPPROTO_UDP) &&
 	    TSEC_RX_FCB_TCP_UDP_CSUM_CHECKED(flags) &&
 	    (flags & TSEC_RX_FCB_TCP_UDP_CSUM_ERROR) == 0) {
-
 		csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		m->m_pkthdr.csum_data = 0xFFFF;
 	}
