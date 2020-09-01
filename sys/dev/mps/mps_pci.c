@@ -442,4 +442,3 @@ mps_pci_restore(struct mps_softc *sc)
 	pci_cfg_restore(sc->mps_dev, dinfo);
 	return (0);
 }
-

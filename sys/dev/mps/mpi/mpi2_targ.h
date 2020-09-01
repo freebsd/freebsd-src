@@ -62,7 +62,6 @@
 #ifndef MPI2_TARG_H
 #define MPI2_TARG_H
 
-
 /******************************************************************************
 *
 *        SCSI Target Messages
@@ -103,7 +102,6 @@ typedef struct _MPI2_TARGET_CMD_BUF_POST_BASE_REQUEST
 #define MPI2_CMD_BUF_POST_BASE_IOCPLBNTA_ADDRESS_SPACE       (0x0C)
 
 #define MPI2_CMD_BUF_POST_BASE_FLAGS_AUTO_POST_ALL           (0x01)
-
 
 /****************************************************************************
 *  Target Command Buffer Post List Request
@@ -156,7 +154,6 @@ typedef struct _MPI2_TARGET_BUF_POST_BASE_LIST_REPLY
 
 /* Flags defines */
 #define MPI2_CMD_BUF_POST_REPLY_IOINDEX_VALID       (0x01)
-
 
 /****************************************************************************
 *  Command Buffer Formats (with 16 byte CDB)
@@ -213,7 +210,6 @@ typedef struct _MPI2_TARGET_SSP_TASK_BUFFER
 /* mask and shift for HashedSourceSASAddress field */
 #define MPI2_TARGET_HASHED_SAS_ADDRESS_MASK     (0xFFFFFF00)
 #define MPI2_TARGET_HASHED_SAS_ADDRESS_SHIFT    (8)
-
 
 /****************************************************************************
 *   Target Assist Request
@@ -318,7 +314,6 @@ typedef struct _MPI2_TARGET_ASSIST_REQUEST
 #define MPI2_TA_EEDPFLAGS_REPLACE_OP                (0x0006)
 #define MPI2_TA_EEDPFLAGS_CHECK_REGEN_OP            (0x0007)
 
-
 /****************************************************************************
 *  Target Status Send Request
 ****************************************************************************/
@@ -368,8 +363,6 @@ typedef struct _MPI2_TARGET_STATUS_SEND_REQUEST
 #define MPI2_TSS_SGLFLAGS_IEEE32_TYPE               (0x01)
 #define MPI2_TSS_SGLFLAGS_IEEE64_TYPE               (0x02)
 
-
-
 /*
  * NOTE: The SSP status IU is big-endian. When used on a little-endian system,
  * this structure properly orders the bytes.
@@ -392,7 +385,6 @@ typedef struct _MPI2_TARGET_SSP_RSP_IU
     U8      ResponseSenseData[4];                       /* 0x30 */
 } MPI2_TARGET_SSP_RSP_IU, MPI2_POINTER PTR_MPI2_TARGET_SSP_RSP_IU,
   Mpi2TargetSspRspIu_t, MPI2_POINTER pMpi2TargetSspRspIu_t;
-
 
 /****************************************************************************
 *  Target Standard Reply - used with Target Assist or Target Status Send
@@ -418,7 +410,6 @@ typedef struct _MPI2_TARGET_STANDARD_REPLY
     U32                     BidirectionalTransferCount; /* 0x1C */
 } MPI2_TARGET_STANDARD_REPLY, MPI2_POINTER PTR_MPI2_TARGET_STANDARD_REPLY,
   Mpi2TargetErrorReply_t, MPI2_POINTER pMpi2TargetErrorReply_t;
-
 
 /****************************************************************************
 *  Target Mode Abort Request
@@ -450,7 +441,6 @@ typedef struct _MPI2_TARGET_MODE_ABORT_REQUEST
 #define MPI2_TARGET_MODE_ABORT_EXACT_IO_REQUEST     (0x03)
 #define MPI2_TARGET_MODE_ABORT_IO_REQUEST_AND_IO    (0x04)
 
-
 /****************************************************************************
 *  Target Mode Abort Reply
 ****************************************************************************/
@@ -473,6 +463,4 @@ typedef struct _MPI2_TARGET_MODE_ABORT_REPLY
 } MPI2_TARGET_MODE_ABORT_REPLY, MPI2_POINTER PTR_MPI2_TARGET_MODE_ABORT_REPLY,
   Mpi2TargetModeAbortReply_t, MPI2_POINTER pMpi2TargetModeAbortReply_t;
 
-
 #endif
-
