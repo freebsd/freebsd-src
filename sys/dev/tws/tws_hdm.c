@@ -36,11 +36,9 @@
  * $FreeBSD$
  */
 
-
 #include <dev/tws/tws.h>
 #include <dev/tws/tws_services.h>
 #include <dev/tws/tws_hdm.h>
-
 
 int tws_use_32bit_sgls=0;
 extern u_int64_t mfa_base;
@@ -95,7 +93,6 @@ tws_init_ctlr(struct tws_softc *sc)
         return(FAILURE);
         
     }
-
 
     while( 1 ) {
         regh = tws_read_reg(sc, TWS_I2O0_IOPOBQPH, 4);
@@ -274,7 +271,6 @@ tws_send_generic_cmd(struct tws_softc *sc, u_int8_t opcode)
 
 }
 
-
 int
 tws_submit_command(struct tws_softc *sc, struct tws_request *req)
 {
@@ -319,16 +315,13 @@ tws_submit_command(struct tws_softc *sc, struct tws_request *req)
          * retry later 
          */
         return(TWS_REQ_RET_PEND_NOMFA);
-
     }
 
 #ifndef TWS_PULL_MODE_ENABLE
     for (int i=mfa; i<(sizeof(struct tws_command_packet)+ mfa - 
                             sizeof( struct tws_command_header)); i++) {
-
         bus_space_write_1(sc->bus_mfa_tag, sc->bus_mfa_handle,i, 
                                ((u_int8_t *)&req->cmd_pkt->cmd)[i-mfa]);
-
     }
 #endif
 
@@ -371,7 +364,6 @@ tws_get_response(struct tws_softc *sc, u_int16_t *req_id, u_int64_t *mfa)
 
     if ( out_mfa == TWS_FIFO_EMPTY32 ) {
         return(false);
-
     }
     out_mfa = out_mfa << 32;
     val = tws_read_reg(sc, TWS_I2O0_HOBQPL, 4);
@@ -389,9 +381,6 @@ tws_get_response(struct tws_softc *sc, u_int16_t *req_id, u_int64_t *mfa)
     return(true);
 }
 
-
-
-
 u_int16_t
 tws_poll4_response(struct tws_softc *sc, u_int64_t *mfa)
 {
@@ -401,7 +390,6 @@ tws_poll4_response(struct tws_softc *sc, u_int64_t *mfa)
     endt = TWS_LOCAL_TIME + TWS_POLL_TIMEOUT;
     do {
         if(tws_get_response(sc, &req_id, mfa)) {
-
             if ( req_id == TWS_INVALID_REQID ) {
                 TWS_TRACE_DEBUG(sc, "invalid req_id", 0, req_id);
                 return(TWS_INVALID_REQID);

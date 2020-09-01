@@ -41,13 +41,11 @@
 #include <dev/tws/tws_hdm.h>
 #include <dev/tws/tws_user.h>
 
-
 int tws_ioctl(struct cdev *dev, long unsigned int cmd, caddr_t buf, int flags, 
                                                     struct thread *td);
 void tws_passthru_complete(struct tws_request *req);
 extern void tws_circular_aenq_insert(struct tws_softc *sc,
                     struct tws_circular_q *cq, struct tws_event_packet *aen);
-
 
 static int tws_passthru(struct tws_softc *sc, void *buf);
 static int tws_ioctl_aen(struct tws_softc *sc, u_long cmd, void *buf);
@@ -81,7 +79,6 @@ tws_ioctl(struct cdev *dev, u_long cmd, caddr_t buf, int flags,
             TWS_TRACE_DEBUG(sc, "ioctl-aen", cmd, buf);
             error = tws_ioctl_aen(sc, cmd, (void *)buf);
             break;
-
     }
     return(error);
 }
@@ -327,7 +324,6 @@ tws_ioctl_aen(struct tws_softc *sc, u_long cmd, void *buf)
                 lpkt.time_remaining_msec = (u_int32_t)
                           ((sc->ioctl_lock.timeout - ctime) * 1000);
                 ubuf->driver_pkt.status = TWS_IOCTL_LOCK_ALREADY_HELD;
-
             }
             break;
         case TWS_IOCTL_RELEASE_LOCK :
@@ -366,7 +362,6 @@ tws_ioctl_aen(struct tws_softc *sc, u_long cmd, void *buf)
             TWS_TRACE_DEBUG(sc, "not valid cmd", cmd, 
                            TWS_IOCTL_GET_COMPATIBILITY_INFO);
             break;
-
     }
     mtx_unlock(&sc->gen_lock);
     return(SUCCESS);

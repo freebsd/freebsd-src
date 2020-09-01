@@ -36,7 +36,6 @@
  * $FreeBSD$
  */
 
-
 /* #define TWS_DEBUG on */
 
 void tws_trace(const char *file, const char *fun, int linenum,
@@ -52,8 +51,6 @@ u_int32_t tws_swap32(u_int32_t val);
 u_int64_t tws_swap64(u_int64_t val);
 
 void tws_init_qs(struct tws_softc *sc);
-
-
 
 /* ----------------- trace ----------------- */
 
@@ -80,7 +77,6 @@ void tws_init_qs(struct tws_softc *sc);
 #endif
 
 /* ---------------- logging ---------------- */
-
 
 /* ---------------- logging ---------------- */
 enum error_index {
@@ -128,7 +124,6 @@ struct error_desc {
 #define TWS_REQ_RET_PEND_NOMFA     1
 #define TWS_REQ_RET_RESET          2
 #define TWS_REQ_RET_INVALID   0xdead
-
 
 /* ------------------------ */
 #include <sys/clock.h>
