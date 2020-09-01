@@ -339,15 +339,15 @@ readsb(int listerr)
 			return (0);
 		case ENOENT:
 			if (bflag)
-				fprintf(stderr, "%jd is not a file system "
+				printf("%jd is not a file system "
 				    "superblock\n", super / dev_bsize);
 			else
-				fprintf(stderr, "Cannot find file system "
+				printf("Cannot find file system "
 				    "superblock\n");
 			return (0);
 		case EIO:
 		default:
-			fprintf(stderr, "I/O error reading %jd\n",
+			printf("I/O error reading %jd\n",
 			    super / dev_bsize);
 			return (0);
 		}
