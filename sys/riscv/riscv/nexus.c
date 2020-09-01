@@ -117,7 +117,6 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
-
 	{ 0, 0 }
 };
 
@@ -192,7 +191,6 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 
 	return (child);
 }
-
 
 /*
  * Allocate a resource on behalf of child.  NB: child is usually going to be a
@@ -348,7 +346,6 @@ nexus_set_resource(device_t dev, device_t child, int type, int rid,
 
 	return(0);
 }
-
 
 static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,

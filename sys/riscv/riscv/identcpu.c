@@ -173,7 +173,6 @@ fill_elf_hwcap(void *dummy __unused)
 			elf_hwcap &= hwcap;
 		else
 			elf_hwcap = hwcap;
-
 	}
 }
 
