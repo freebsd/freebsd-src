@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
- 
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
@@ -88,7 +88,6 @@ static void	bwi_phy_config_agc(struct bwi_mac *);
 
 static void	bwi_tbl_write_2(struct bwi_mac *mac, uint16_t, uint16_t);
 static void	bwi_tbl_write_4(struct bwi_mac *mac, uint16_t, uint32_t);
-
 #define SUP_BPHY(num)	{ .rev = num, .init = bwi_phy_init_11b_rev##num }
 
 static const struct {
