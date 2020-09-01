@@ -158,7 +158,6 @@ SYSCTL_UINT(_vm_memguard, OID_AUTO, frequency, CTLFLAG_RWTUN,
 SYSCTL_ULONG(_vm_memguard, OID_AUTO, frequency_hits, CTLFLAG_RD,
     &memguard_frequency_hits, 0, "# times MemGuard randomly chose");
 
-
 /*
  * Return a fudged value to be used for vm_kmem_size for allocating
  * the kernel_arena.

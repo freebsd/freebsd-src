@@ -872,7 +872,6 @@ vm_fault_cow(struct faultstate *fs)
 	    (is_first_object_locked = VM_OBJECT_TRYWLOCK(fs->first_object)) &&
 	    fs->object == fs->first_object->backing_object &&
 	    VM_OBJECT_TRYWLOCK(fs->object)) {
-
 		/*
 		 * Remove but keep xbusy for replace.  fs->m is moved into
 		 * fs->first_object and left busy while fs->first_m is
@@ -1010,7 +1009,6 @@ vm_fault_allocate(struct faultstate *fs)
 	struct domainset *dset;
 	int alloc_req;
 	int rv;
-
 
 	if ((fs->object->flags & OBJ_SIZEVNLOCK) != 0) {
 		rv = vm_fault_lock_vnode(fs, true);

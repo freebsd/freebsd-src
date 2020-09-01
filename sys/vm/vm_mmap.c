@@ -148,7 +148,6 @@ ogetpagesize(struct thread *td, struct ogetpagesize_args *uap)
 }
 #endif				/* COMPAT_43 */
 
-
 /*
  * Memory Map (mmap) system call.  Note that the file offset
  * and address are allowed to be NOT page aligned, though if
@@ -257,7 +256,7 @@ kern_mmap_req(struct thread *td, const struct mmap_req *mrp)
 	 * Ignore old flags that used to be defined but did not do anything.
 	 */
 	flags &= ~(MAP_RESERVED0020 | MAP_RESERVED0040);
-	
+
 	/*
 	 * Enforce the constraints.
 	 * Mapping of length 0 is only allowed for old binaries.
@@ -497,7 +496,6 @@ ommap(struct thread *td, struct ommap_args *uap)
 	    uap->fd, uap->pos));
 }
 #endif				/* COMPAT_43 */
-
 
 #ifndef _SYS_SYSPROTO_H_
 struct msync_args {
@@ -846,7 +844,6 @@ RestartScan:
 	 */
 	lastvecindex = -1;
 	while (entry->start < end) {
-
 		/*
 		 * check for contiguity
 		 */

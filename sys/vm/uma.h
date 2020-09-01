@@ -154,7 +154,6 @@ typedef void (*uma_release)(void *arg, void **store, int count);
  *
  */
 
-
 /* Function proto types */
 
 /*

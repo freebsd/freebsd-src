@@ -134,7 +134,7 @@ sg_pager_dealloc(vm_object_t object)
 		TAILQ_REMOVE(&object->un_pager.sgp.sgp_pglist, m, plinks.q);
 		vm_page_putfake(m);
 	}
-	
+
 	sg = object->handle;
 	sglist_free(sg);
 	object->handle = NULL;
