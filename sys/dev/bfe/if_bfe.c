@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -823,7 +822,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c)
 	rx_header->len = 0;
 	rx_header->flags = 0;
 	bus_dmamap_sync(sc->bfe_rxmbuf_tag, r->bfe_map, BUS_DMASYNC_PREREAD);
-	
+
 	ctrl = segs[0].ds_len & BFE_DESC_LEN;
 	KASSERT(ctrl > ETHER_MAX_LEN + 32, ("%s: buffer size too small(%d)!",
 	    __func__, ctrl));
@@ -1109,7 +1108,6 @@ bfe_set_rx_mode(struct bfe_softc *sc)
 		val &= ~BFE_RXCONF_DBCAST;
 	else
 		val |= BFE_RXCONF_DBCAST;
-
 
 	CSR_WRITE_4(sc, BFE_CAM_CTRL, 0);
 	bfe_cam_write(sc, IF_LLADDR(sc->bfe_ifp), 0);
@@ -1481,7 +1479,6 @@ bfe_intr(void *xsc)
 		bfe_txeof(sc);
 
 	if (istat & BFE_ISTAT_ERRORS) {
-
 		if (istat & BFE_ISTAT_DSCE) {
 			device_printf(sc->bfe_dev, "Descriptor Error\n");
 			bfe_stop(sc);

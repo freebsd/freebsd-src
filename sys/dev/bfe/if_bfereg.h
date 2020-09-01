@@ -248,7 +248,6 @@
 #define BFE_IBE             0x00020000 /* In Band Error */
 #define BFE_TO              0x00040000 /* Timeout */
 
-
 /* Seems the bcm440x has a fairly generic core, we only need be concerned with
  * a couple of these
  */
