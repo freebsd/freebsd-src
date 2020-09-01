@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_dbg.h>
 #include <geom/nop/g_nop.h>
 
-
 SYSCTL_DECL(_kern_geom);
 static SYSCTL_NODE(_kern_geom, OID_AUTO, nop, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "GEOM_NOP stuff");

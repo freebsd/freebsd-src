@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/label/g_label.h>
 #include <geom/multipath/g_multipath.h>
 
-
 static char* classes_pass[] = { G_DISK_CLASS_NAME, G_MULTIPATH_CLASS_NAME,
     NULL };
 

@@ -187,7 +187,7 @@ sysctl_kern_geom_conftxt(SYSCTL_HANDLER_ARGS)
 
 	return (sysctl_kern_geom_confany(req, g_conftxt, &hint));
 }
- 
+
 static int
 sysctl_kern_geom_confdot(SYSCTL_HANDLER_ARGS)
 {

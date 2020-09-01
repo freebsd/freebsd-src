@@ -110,7 +110,6 @@ struct g_class g_mirror_class = {
 	.resize = g_mirror_resize
 };
 
-
 static void g_mirror_destroy_provider(struct g_mirror_softc *sc);
 static int g_mirror_update_disk(struct g_mirror_disk *disk, u_int state);
 static void g_mirror_update_device(struct g_mirror_softc *sc, bool force);
@@ -124,7 +123,6 @@ static void g_mirror_sync_stop(struct g_mirror_disk *disk, int type);
 static void g_mirror_register_request(struct g_mirror_softc *sc,
     struct bio *bp);
 static void g_mirror_sync_release(struct g_mirror_softc *sc);
-
 
 static const char *
 g_mirror_disk_state2str(int state)

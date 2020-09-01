@@ -172,7 +172,6 @@ find_marker(struct g_consumer *cp, const char *line, off_t *offset)
 	for (search_offset = search_start;
 	     search_offset < cp->provider->mediasize;
 	     search_offset += search_step) {
-
 		g_topology_unlock();
 		buf = g_read_data(cp, rounddown(search_offset, sectorsize),
 		    roundup(strlen(search_key), sectorsize), NULL);
@@ -375,7 +374,6 @@ g_map_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 	for (i = 0; i < MAP_MAXSLICE; i++)
 		g_map_parse_part(mp, pp, cp, gp, sc, i);
-
 
 	g_access(cp, -1, 0, 0);
 	if (LIST_EMPTY(&gp->provider)) {

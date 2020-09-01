@@ -124,7 +124,6 @@ g_bde_crypt_read(struct g_bde_work *wp)
 	u_char skey[G_BDE_SKEYLEN];
 	keyInstance ki;
 	cipherInstance ci;
-	
 
 	AES_init(&ci);
 	sc = wp->softc;
@@ -164,7 +163,6 @@ g_bde_crypt_write(struct g_bde_work *wp)
 	AES_init(&ci);
 	o = 0;
 	for (n = 0; o < wp->length; n++, o += sc->sectorsize) {
-
 		s = (u_char *)wp->data + o;
 		d = (u_char *)wp->sp->data + o;
 		arc4rand(skey, sizeof skey, 0);

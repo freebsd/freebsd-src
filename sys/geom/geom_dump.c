@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom_int.h>
 #include <geom/geom_disk.h>
 
-
 static void
 g_confdot_consumer(struct sbuf *sb, struct g_consumer *cp)
 {
@@ -241,7 +240,6 @@ g_conf_provider(struct sbuf *sb, struct g_provider *pp)
 	}
 	sbuf_cat(sb, "\t</provider>\n");
 }
-
 
 static void
 g_conf_geom(struct sbuf *sb, struct g_geom *gp, struct g_provider *pp, struct g_consumer *cp)

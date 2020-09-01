@@ -63,7 +63,6 @@ virstor_metadata_encode(struct g_virstor_metadata *md, unsigned char *data)
 	bs_write_u16(&bs, md->flags);
 }
 
-
 /*
  * Decode data from endian-independant byte stream into g_virstor_metadata
  * structure.

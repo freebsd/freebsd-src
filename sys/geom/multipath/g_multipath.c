@@ -479,7 +479,6 @@ g_multipath_kt(void *arg)
 	kproc_exit(0);
 }
 
-
 static int
 g_multipath_access(struct g_provider *pp, int dr, int dw, int de)
 {

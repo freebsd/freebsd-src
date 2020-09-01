@@ -77,7 +77,6 @@ void	gv_rm_drive(struct gv_softc *, struct gv_drive *, int);
 void	gv_rm_plex(struct gv_softc *, struct gv_plex *);
 void	gv_rm_vol(struct gv_softc *, struct gv_volume *);
 
-
 /* geom_vinum_state.c */
 int	gv_sdstatemap(struct gv_plex *);
 void	gv_setstate(struct g_geom *, struct gctl_req *);
