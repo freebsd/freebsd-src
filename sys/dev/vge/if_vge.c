@@ -556,7 +556,6 @@ vge_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
 	return (1);
 }
 
-
 /*
  * Program the multicast filter. We use the 64-entry CAM filter
  * for perfect filtering. If there's more than 64 multicast addresses,
@@ -1953,7 +1952,6 @@ vge_start(struct ifnet *ifp)
 	vge_start_locked(ifp);
 	VGE_UNLOCK(sc);
 }
-
 
 static void
 vge_start_locked(struct ifnet *ifp)
