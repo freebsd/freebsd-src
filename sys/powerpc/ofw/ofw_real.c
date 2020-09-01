@@ -141,7 +141,6 @@ static ofw_method_t ofw_real_methods[] = {
 	OFWMETHOD(ofw_release,			ofw_real_release),
 	OFWMETHOD(ofw_enter,			ofw_real_enter),
 	OFWMETHOD(ofw_exit,			ofw_real_exit),
-
 	{ 0, 0 }
 };
 
@@ -1184,4 +1183,3 @@ ofw_real_exit(ofw_t ofw)
 		;
 	ofw_real_stop();
 }
-

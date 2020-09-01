@@ -97,7 +97,7 @@ dbdma_resize_channel(dbdma_channel_t *chan, int newslots)
 
 	if (newslots > (PAGE_SIZE / sizeof(struct dbdma_command)))
 		return (-1);
-	
+
 	chan->sc_nslots = newslots;
 	return (0);
 }
@@ -234,7 +234,7 @@ void
 dbdma_set_device_status(dbdma_channel_t *chan, uint8_t mask, uint8_t value)
 {
 	uint32_t control_reg;
-	
+
 	control_reg = mask;
 	control_reg <<= DBDMA_REG_MASK_SHIFT;
 	control_reg |= value;

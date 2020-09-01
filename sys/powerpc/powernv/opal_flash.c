@@ -324,7 +324,6 @@ opalflash_task(void *arg)
 	}
 }
 
-
 /* Device driver interfaces. */
 
 static int

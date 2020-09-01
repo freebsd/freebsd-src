@@ -100,7 +100,6 @@ esid2idx(uint64_t esid, int level)
 #define uad_baseok(ua)                          \
 	(esid2base(ua->ua_base, ua->ua_level) == ua->ua_base)
 
-
 static inline uint64_t
 esid2base(uint64_t esid, int level)
 {
@@ -561,7 +560,7 @@ handle_kernel_slb_spill(int type, register_t dar, register_t srr0)
 	slbcache = PCPU_GET(aim.slb);
 	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
 	slbe = (esid << SLBE_ESID_SHIFT) | SLBE_VALID;
-	
+
 	/* See if the hardware flushed this somehow (can happen in LPARs) */
 	for (i = 0; i < n_slbs; i++)
 		if (slbcache[i].slbe == (slbe | (uint64_t)i))

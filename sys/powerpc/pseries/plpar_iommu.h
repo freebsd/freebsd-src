@@ -42,4 +42,3 @@ int phyp_iommu_unmap(device_t dev, bus_dma_segment_t *segs, int nsegs,
     void *cookie);
 
 #endif
-

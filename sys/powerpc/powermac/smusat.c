@@ -292,4 +292,3 @@ smusat_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 
 	return (error);
 }
-

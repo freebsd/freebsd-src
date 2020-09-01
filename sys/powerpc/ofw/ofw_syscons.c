@@ -817,7 +817,6 @@ ofwfb_putc8(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 		uint8_t  c[4];
 	} ch1, ch2;
 
-
 	sc = (struct ofwfb_softc *)adp;
         row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
         col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;

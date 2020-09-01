@@ -159,4 +159,3 @@ bare_reset(platform_t plat)
 	while (1)
 		;
 }
-

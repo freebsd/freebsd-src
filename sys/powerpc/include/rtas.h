@@ -60,4 +60,3 @@ cell_t rtas_token_lookup(const char *method);
 #define	RTAS_VENDOR_ERROR_BEGIN		-9004
 
 #endif /* _MACHINE_RTAS_H_ */
-

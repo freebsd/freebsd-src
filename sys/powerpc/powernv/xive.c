@@ -107,7 +107,6 @@ static void	xive_init_irq(struct xive_irq *irqd, u_int irq);
 static struct xive_irq	*xive_configure_irq(u_int irq);
 static int	xive_provision_page(struct xive_softc *sc);
 
-
 /* Interfaces */
 static int	xive_probe(device_t);
 static int	xive_attach(device_t);
@@ -292,7 +291,6 @@ xive_write_mmap8(vm_offset_t addr, uint64_t val)
 	*(uint64_t *)(addr) = val;
 }
 
-
 /* Device interfaces. */
 static int
 xive_probe(device_t dev)
@@ -467,7 +465,7 @@ xive_bind(device_t dev, u_int irq, cpuset_t cpumask, void **priv)
 	}
 
 	opal_call(OPAL_XIVE_SYNC, OPAL_XIVE_SYNC_QUEUE, irq);
-	
+
 	irqd->vp = pcpu_find(cpu)->pc_hwref;
 	error = opal_call(OPAL_XIVE_SET_IRQ_CONFIG, irq, irqd->vp,
 	    XIVE_PRIORITY, irqd->lirq);
@@ -708,7 +706,7 @@ xive_init_irq(struct xive_irq *irqd, u_int irq)
 	irqd->girq = irq;
 	irqd->esb_size = 1 << esb_shift;
 	irqd->eoi_page = (vm_offset_t)pmap_mapdev(eoi_phys, irqd->esb_size);
-	
+
 	if (eoi_phys == trig_phys)
 		irqd->trig_page = irqd->eoi_page;
 	else if (trig_phys != 0)

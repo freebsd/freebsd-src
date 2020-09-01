@@ -126,7 +126,7 @@ kmem_direct_mapped:	off = v & PAGE_MASK;
 				error = EFAULT;
 				break;
 			}
-	
+
 			if (hw_direct_map && !pmap_dev_direct_mapped(v, cnt)) {
 				error = uiomove((void *)PHYS_TO_DMAP(v), cnt,
 				    uio);
@@ -286,7 +286,7 @@ memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 	int nd, error = 0;
 	struct mem_range_op *mo = (struct mem_range_op *)data;
 	struct mem_range_desc *md;
-	
+
 	/* is this for us? */
 	if ((cmd != MEMRANGE_GET) &&
 	    (cmd != MEMRANGE_SET))
@@ -331,4 +331,3 @@ memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
 	}
 	return (error);
 }
-

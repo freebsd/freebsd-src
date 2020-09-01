@@ -102,7 +102,6 @@ static device_method_t pmcr_methods[] = {
 	DEVMETHOD(cpufreq_drv_get,	pmcr_get),
 	DEVMETHOD(cpufreq_drv_type,	pmcr_type),
 	DEVMETHOD(cpufreq_drv_settings,	pmcr_settings),
-
 	{0, 0}
 };
 
@@ -186,7 +185,7 @@ static int
 pmcr_set(device_t dev, const struct cf_setting *set)
 {
 	register_t pmcr;
-	
+
 	if (set == NULL)
 		return (EINVAL);
 
@@ -245,4 +244,3 @@ pmcr_type(device_t dev, int *type)
 	*type = CPUFREQ_TYPE_ABSOLUTE;
 	return (0);
 }
-

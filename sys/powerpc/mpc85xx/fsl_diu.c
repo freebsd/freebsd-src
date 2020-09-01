@@ -413,7 +413,7 @@ diu_attach(device_t dev)
 	sc->sc_info.fb_pbase = (intptr_t)vtophys(sc->sc_info.fb_vbase);
 	sc->sc_info.fb_flags = FB_FLAG_MEMATTR;
 	sc->sc_info.fb_memattr = VM_MEMATTR_DEFAULT;
-	
+
 	/* Gamma table is 3 consecutive segments of 256 bytes. */
 	sc->sc_gamma = contigmalloc(3 * 256, M_DEVBUF, 0, 0,
 	    BUS_SPACE_MAXADDR_32BIT, PAGE_SIZE, 0);

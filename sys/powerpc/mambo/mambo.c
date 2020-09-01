@@ -98,4 +98,3 @@ mambobus_attach(device_t dev)
 	bus_generic_probe(dev);
 	return (bus_generic_attach(dev));
 }
-

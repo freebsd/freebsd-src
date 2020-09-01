@@ -78,7 +78,7 @@ static int
 plpar_pcibus_probe(device_t dev)
 {
 	phandle_t rtas;
- 
+
 	if (ofw_bus_get_node(dev) == -1 || !rtas_exists())
 		return (ENXIO);
 
@@ -112,4 +112,3 @@ plpar_pcibus_get_dma_tag(device_t dev, device_t child)
 
 	return (dinfo->opd_dma_tag);
 }
-

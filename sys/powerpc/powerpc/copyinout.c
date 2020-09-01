@@ -155,7 +155,6 @@ DEFINE_COPY_FUNC(int, casueword, (volatile u_long *, u_long, u_long *, u_long))
 #define	REMAP(x)	x
 #endif
 
-
 int
 REMAP(copyout)(const void *kaddr, void *udaddr, size_t len)
 {

@@ -316,7 +316,6 @@ static void *moea64_dump_pmap_init(unsigned blkpgs);
 static void moea64_page_array_startup(long);
 #endif
 
-
 static struct pmap_funcs moea64_methods = {
 	.clear_modify = moea64_clear_modify,
 	.copy_page = moea64_copy_page,
@@ -408,7 +407,6 @@ alloc_pvo_entry(int bootstrap)
 	return (pvo);
 }
 
-
 static void
 init_pvo_entry(struct pvo_entry *pvo, pmap_t pmap, vm_offset_t va)
 {
@@ -445,7 +443,7 @@ moea64_pte_from_pvo(const struct pvo_entry *pvo, struct lpte *lpte)
 
 	lpte->pte_hi = moea64_pte_vpn_from_pvo_vpn(pvo);
 	lpte->pte_hi |= LPTE_VALID;
-	
+
 	if (pvo->pvo_vaddr & PVO_LARGE)
 		lpte->pte_hi |= LPTE_BIG;
 	if (pvo->pvo_vaddr & PVO_WIRED)
@@ -1688,7 +1686,7 @@ moea64_uma_page_alloc(uma_zone_t zone, vm_size_t bytes, int domain,
 
 	if (needed_lock)
 		PMAP_UNLOCK(kernel_pmap);
-	
+
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
                 bzero((void *)va, PAGE_SIZE);
 
@@ -2373,7 +2371,6 @@ moea64_release_vsid(uint64_t vsid)
 	moea64_vsid_bitmap[idx] &= ~mask;
 	mtx_unlock(&moea64_slb_mutex);
 }
-	
 
 void
 moea64_release(pmap_t pmap)

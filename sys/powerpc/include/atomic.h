@@ -228,7 +228,6 @@ _ATOMIC_ADD(long)
     }								\
     /* _ATOMIC_CLEAR */
 
-
 _ATOMIC_CLEAR(int)
 _ATOMIC_CLEAR(long)
 
@@ -725,7 +724,6 @@ atomic_cmpset_long(volatile u_long* p, u_long cmpval, u_long newval)
 
 ATOMIC_CMPSET_ACQ_REL(int);
 ATOMIC_CMPSET_ACQ_REL(long);
-
 
 #ifdef ISA_206_ATOMICS
 #define	atomic_cmpset_8		atomic_cmpset_char

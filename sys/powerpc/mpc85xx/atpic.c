@@ -242,7 +242,6 @@ atpic_isa_attach(device_t dev)
 	return (error);
 }
 
-
 /*
  * PIC interface.
  */

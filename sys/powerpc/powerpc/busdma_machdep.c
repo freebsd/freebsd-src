@@ -330,7 +330,7 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		/* Performed initial allocation */
 		newtag->flags |= BUS_DMA_MIN_ALLOC_COMP;
 	}
-	
+
 	if (error != 0) {
 		free(newtag, M_DEVBUF);
 	} else {
@@ -409,7 +409,6 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	dmat_copy = dmat;
 
 	if (dmat != NULL) {
-
 		if (dmat->map_count != 0) {
 			error = EBUSY;
 			goto out;
@@ -456,14 +455,12 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		return (ENOMEM);
 	}
 
-
 	/*
 	 * Bouncing might be required if the driver asks for an active
 	 * exclusion region, a data alignment that is stricter than 1, and/or
 	 * an active address boundary.
 	 */
 	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
-
 		/* Must bounce */
 		struct bounce_zone *bz;
 		int maxpages;
@@ -544,7 +541,6 @@ bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
 	return (0);
 }
-
 
 /*
  * Allocate a piece of memory that can be efficiently mapped into
@@ -960,7 +956,6 @@ bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 	vm_offset_t datavaddr, tempvaddr;
 
 	if ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
-
 		/*
 		 * Handle data bouncing.  We might also
 		 * want to add support for invalidating
@@ -1276,4 +1271,3 @@ bus_dma_tag_set_iommu(bus_dma_tag_t tag, device_t iommu, void *cookie)
 
 	return (0);
 }
-

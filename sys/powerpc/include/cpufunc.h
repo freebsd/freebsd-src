@@ -108,7 +108,6 @@ mfctrl(void)
 	return (value);
 }
 
-
 static __inline void
 mtdec(register_t value)
 {

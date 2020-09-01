@@ -112,4 +112,3 @@ vcoregpio_post_change(device_t dev, const struct cf_level *level)
 		macgpio_write(dev, GPIO_DDR_OUTPUT | 0);
 	}
 }
-

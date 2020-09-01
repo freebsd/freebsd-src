@@ -106,7 +106,6 @@ static device_method_t iobus_methods[] = {
         DEVMETHOD(bus_release_resource, iobus_release_resource),
         DEVMETHOD(bus_activate_resource, iobus_activate_resource),
         DEVMETHOD(bus_deactivate_resource, iobus_deactivate_resource),
-
         { 0, 0 }
 };
 
@@ -147,7 +146,6 @@ iobus_add_intr(phandle_t devnode, struct iobus_devinfo *dinfo)
 	dinfo->id_interrupt = intr;
 }
 
-
 static void
 iobus_add_reg(phandle_t devnode, struct iobus_devinfo *dinfo,
 	      vm_offset_t iobus_off)
@@ -177,7 +175,6 @@ iobus_add_reg(phandle_t devnode, struct iobus_devinfo *dinfo,
 		}
 	}
 }
-
 
 static int
 iobus_attach(device_t dev)
@@ -241,33 +238,30 @@ iobus_attach(device_t dev)
         return (bus_generic_attach(dev));
 }
 
-
 static int
 iobus_print_child(device_t dev, device_t child)
 {
         struct iobus_devinfo *dinfo;
         struct resource_list *rl;
         int retval = 0;
-	
+
 	dinfo = device_get_ivars(child);
         rl = &dinfo->id_resources;
 
 	retval += bus_print_child_header(dev, child);
-	
+
         retval += printf(" offset 0x%x", dinfo->id_reg[1]);
         retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%jd");
-	
+
         retval += bus_print_child_footer(dev, child);
 
         return (retval);	
 }
 
-
 static void
 iobus_probe_nomatch(device_t dev, device_t child)
 {
 }
-
 
 static int
 iobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
@@ -297,13 +291,11 @@ iobus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
         return (0);
 }
 
-
 static int
 iobus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 {
         return (EINVAL);
 }
-
 
 static struct resource *
 iobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -356,7 +348,6 @@ iobus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (rv);	
 }
 
-
 static int
 iobus_release_resource(device_t bus, device_t child, int type, int rid,
 		       struct resource *res)
@@ -369,7 +360,6 @@ iobus_release_resource(device_t bus, device_t child, int type, int rid,
 
 	return (rman_release_resource(res));
 }
-
 
 static int
 iobus_activate_resource(device_t bus, device_t child, int type, int rid,
@@ -395,7 +385,6 @@ iobus_activate_resource(device_t bus, device_t child, int type, int rid,
 
 	return (rman_activate_resource(res));
 }
-
 
 static int
 iobus_deactivate_resource(device_t bus, device_t child, int type, int rid,

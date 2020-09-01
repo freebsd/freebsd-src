@@ -315,4 +315,3 @@ DELAY(int n)
 	nop_prio_medium();
 	TSEXIT();
 }
-

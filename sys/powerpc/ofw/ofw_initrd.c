@@ -109,4 +109,3 @@ ofw_initrd_probe_and_attach(void *junk)
 			start, end);
 	}
 }
-

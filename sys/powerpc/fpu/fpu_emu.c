@@ -179,7 +179,6 @@ fpu_dumpfpn(struct fpn *fp)
 #define	NOTFPU		2	/* not an FPU instruction */
 #define	FAULT		3
 
-
 /*
  * Emulate a floating-point instruction.
  * Return zero for success, else signal number.
@@ -207,7 +206,6 @@ fpu_emulate(struct trapframe *frame, struct fpu *fpf)
 
 	DPRINTF(FPE_EX, ("fpu_emulate: emulating insn %x at %p\n",
 	    insn.i_int, (void *)frame->srr0));
-
 
 	if ((insn.i_any.i_opcd == OPC_TWI) ||
 	    ((insn.i_any.i_opcd == OPC_integer_31) &&
@@ -313,7 +311,6 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 		int store, update;
 
 		cond = 0; /* ld/st never set condition codes */
-
 
 		if (instr.i_any.i_opcd == OPC_integer_31) {
 			if (instr.i_x.i_xo == OPC31_STFIWX) {
@@ -427,15 +424,12 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 #endif
 	} else if (instr.i_any.i_opcd == OPC_sp_fp_59 ||
 		instr.i_any.i_opcd == OPC_dp_fp_63) {
-
-
 		if (instr.i_any.i_opcd == OPC_dp_fp_63 &&
 		    !(instr.i_a.i_xo & OPC63M_MASK)) {
 			/* Format X */
 			rt = instr.i_x.i_rt;
 			ra = instr.i_x.i_ra;
 			rb = instr.i_x.i_rb;
-
 
 			/* One of the special opcodes.... */
 			switch (instr.i_x.i_xo) {

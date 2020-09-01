@@ -271,7 +271,7 @@ cpu_mp_unleash(void *dummy)
 	/* Provide our current DEC and TB values for APs */
 	ap_timebase = mftb() + 10;
 	__asm __volatile("msync; isync");
-	
+
 	/* Let APs continue */
 	atomic_store_rel_int(&ap_letgo, 1);
 
