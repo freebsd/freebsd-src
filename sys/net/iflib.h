@@ -295,7 +295,7 @@ typedef enum {
 
 
 /*
- * Interface has a separate command queue for RX
+ * Interface has a separate completion queue for RX
  */
 #define IFLIB_HAS_RXCQ		0x01
 /*
@@ -307,7 +307,7 @@ typedef enum {
  */
 #define IFLIB_IS_VF		0x04
 /*
- * Interface has a separate command queue for TX
+ * Interface has a separate completion queue for TX
  */
 #define IFLIB_HAS_TXCQ		0x08
 /*
