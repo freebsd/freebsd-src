@@ -80,7 +80,6 @@ static int      MY_USEIOSPACE = 1;
 #define MY_RID                  MY_PCI_LOMEM
 #endif
 
-
 #include <dev/my/if_myreg.h>
 
 /*
@@ -220,7 +219,6 @@ my_send_cmd_to_phy(struct my_softc * sc, int opcode, int regad)
 	return miir;
 }
 
-
 static u_int16_t
 my_phy_readreg(struct my_softc * sc, int reg)
 {
@@ -263,7 +261,6 @@ my_phy_readreg(struct my_softc * sc, int reg)
 
 	return (u_int16_t) data;
 }
-
 
 static void
 my_phy_writereg(struct my_softc * sc, int reg, int data)
@@ -1006,7 +1003,6 @@ my_detach(device_t dev)
 	return (0);
 }
 
-
 /*
  * Initialize the transmit descriptors.
  */
@@ -1179,7 +1175,6 @@ my_rxeof(struct my_softc * sc)
 	return;
 }
 
-
 /*
  * A frame was downloaded to the chip. It's safe for us to clean up the list
  * buffers.
@@ -1311,7 +1306,6 @@ my_intr(void *arg)
 			my_init_locked(sc);
 		}
 #endif
-
 	}
 
 	/* Re-enable interrupts. */
@@ -1708,7 +1702,6 @@ my_watchdog(void *arg)
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		my_start_locked(ifp);
 }
-
 
 /*
  * Stop the adapter and free any mbufs allocated to the RX and TX lists.
