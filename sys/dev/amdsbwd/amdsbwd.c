@@ -132,7 +132,6 @@ static driver_t		amdsbwd_driver = {
 
 DRIVER_MODULE(amdsbwd, isa, amdsbwd_driver, amdsbwd_devclass, NULL, NULL);
 
-
 static uint8_t
 pmio_read(struct resource *res, uint8_t reg)
 {
@@ -279,7 +278,6 @@ amdsbwd_identify(driver_t *driver, device_t parent)
 	if (child == NULL)
 		device_printf(parent, "add amdsbwd child failed\n");
 }
-
 
 static void
 amdsbwd_probe_sb7xx(device_t dev, struct resource *pmres, uint32_t *addr)
