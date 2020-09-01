@@ -435,7 +435,6 @@ zyd_drain_mbufq(struct zyd_softc *sc)
 	}
 }
 
-
 static int
 zyd_detach(device_t dev)
 {
@@ -676,7 +675,6 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 					txs->status =
 					    IEEE80211_RATECTL_TX_SUCCESS;
 				}
-
 
 				ieee80211_ratectl_tx_complete(ni, txs);
 				ieee80211_free_node(ni);
@@ -1239,7 +1237,7 @@ zyd_al2230_bandedge6(struct zyd_rf *rf, struct ieee80211_channel *c)
 
 	if (chan == 1 || chan == 11)
 		r[0].val = 0x12;
-	
+
 	for (i = 0; i < nitems(r); i++)
 		zyd_write16_m(sc, r[i].reg, r[i].val);
 fail:

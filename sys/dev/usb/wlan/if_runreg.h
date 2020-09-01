@@ -209,7 +209,6 @@
 #define	RT2860_H2M_BBPAGENT		0x7028
 #define	RT2860_BCN_BASE(vap)		(0x7800 + (vap) * 512)
 
-
 /* possible flags for register RT2860_PCI_EECTRL */
 #define	RT2860_C	(1 << 0)
 #define	RT2860_S	(1 << 1)

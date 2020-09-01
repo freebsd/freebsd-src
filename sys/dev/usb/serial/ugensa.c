@@ -110,7 +110,6 @@ static void	ugensa_stop_write(struct ucom_softc *);
 static void	ugensa_poll(struct ucom_softc *ucom);
 
 static const struct usb_config ugensa_xfer_config[UGENSA_N_TRANSFER] = {
-
 	[UGENSA_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -205,7 +204,6 @@ ugensa_attach(device_t dev)
 	ucom_ref(&sc->sc_super_ucom);
 
 	for (iface_index = UGENSA_IFACE_INDEX; iface_index < UGENSA_IFACE_MAX; iface_index++) {
-
 		iface = usbd_get_iface(uaa->device, iface_index);
 		if (iface == NULL || iface->idesc->bInterfaceClass != UICLASS_VENDOR)
 			/* Not a serial port, most likely a SD reader */
@@ -213,7 +211,6 @@ ugensa_attach(device_t dev)
 
 		/* Loop over all endpoints pairwise */
 		for (x = 0; x < maxports && sc->sc_nports < UGENSA_PORT_MAX; x++) {
-
 			ssc = sc->sc_sub + sc->sc_nports;
 			ssc->sc_ucom_ptr = sc->sc_ucom + sc->sc_nports;
 

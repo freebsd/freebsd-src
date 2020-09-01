@@ -137,7 +137,6 @@ SYSCTL_INT(_hw_usb_cue, OID_AUTO, debug, CTLFLAG_RWTUN, &cue_debug, 0,
 #endif
 
 static const struct usb_config cue_config[CUE_N_TRANSFER] = {
-
 	[CUE_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -497,7 +496,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 

@@ -731,7 +731,6 @@ xhci_generic_done_sub(struct usb_xfer *xfer)
 		usbd_xfer_set_frame_len(xfer, xfer->aframes, 0);
 
 	while (1) {
-
 		usb_pc_cpu_invalidate(td->page_cache);
 
 		status = td->status;
@@ -811,7 +810,6 @@ xhci_generic_done(struct usb_xfer *xfer)
 	xfer->td_transfer_cache = xfer->td_transfer_first;
 
 	if (xfer->flags_int.control_xfr) {
-
 		if (xfer->flags_int.control_hdr)
 			err = xhci_generic_done_sub(xfer);
 
@@ -822,7 +820,6 @@ xhci_generic_done(struct usb_xfer *xfer)
 	}
 
 	while (xfer->aframes != xfer->nframes) {
-
 		err = xhci_generic_done_sub(xfer);
 		xfer->aframes++;
 
@@ -848,7 +845,6 @@ xhci_activate_transfer(struct usb_xfer *xfer)
 	usb_pc_cpu_invalidate(td->page_cache);
 
 	if (!(td->td_trb[0].dwTrb3 & htole32(XHCI_TRB_3_CYCLE_BIT))) {
-
 		/* activate the transfer */
 
 		td->td_trb[0].dwTrb3 |= htole32(XHCI_TRB_3_CYCLE_BIT);
@@ -872,7 +868,6 @@ xhci_skip_transfer(struct usb_xfer *xfer)
 	usb_pc_cpu_invalidate(td->page_cache);
 
 	if (!(td->td_trb[0].dwTrb3 & htole32(XHCI_TRB_3_CYCLE_BIT))) {
-
 		usb_pc_cpu_invalidate(td_last->page_cache);
 
 		/* copy LINK TRB to current waiting location */
@@ -975,7 +970,6 @@ xhci_check_transfer(struct xhci_softc *sc, struct xhci_trb *trb)
 
 		if (offset >= 0 &&
 		    offset < (int64_t)sizeof(td->td_trb)) {
-
 			usb_pc_cpu_invalidate(td->page_cache);
 
 			/* compute rest of remainder, if any */
@@ -1097,7 +1091,6 @@ xhci_interrupt_poll(struct xhci_softc *sc)
 	t = 2;
 
 	while (1) {
-
 		temp = le32toh(phwr->hwr_events[i].dwTrb3);
 
 		k = (temp & XHCI_TRB_3_CYCLE_BIT) ? 1 : 0;
@@ -1218,7 +1211,6 @@ retry:
 	i++;
 
 	if (i == (XHCI_MAX_COMMANDS - 1)) {
-
 		if (j) {
 			temp = htole32(XHCI_TRB_3_TC_BIT |
 			    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK) |
@@ -1660,13 +1652,12 @@ xhci_interrupt(struct xhci_softc *sc)
 	/* force clearing of pending interrupts */
 	if (temp & XHCI_IMAN_INTR_PEND)
 		XWRITE4(sc, runt, XHCI_IMAN(0), temp);
- 
+
 	/* check for event(s) */
 	xhci_interrupt_poll(sc);
 
 	if (status & (XHCI_STS_PCD | XHCI_STS_HCH |
 	    XHCI_STS_HSE | XHCI_STS_HCE)) {
-
 		if (status & XHCI_STS_PCD) {
 			xhci_root_intr(sc);
 		}
@@ -1745,9 +1736,7 @@ restart:
 	td_next = td_first = temp->td_next;
 
 	while (1) {
-
 		if (temp->len == 0) {
-
 			if (temp->shortpkt)
 				break;
 
@@ -1757,7 +1746,6 @@ restart:
 			average = 0;
 
 		} else {
-
 			average = temp->average;
 
 			if (temp->len < average) {
@@ -1779,7 +1767,6 @@ restart:
 		/* check if we are pre-computing */
 
 		if (precompute) {
-
 			/* update remaining length */
 
 			temp->len -= average;
@@ -1838,7 +1825,6 @@ restart:
 			x++;
 
 		} else do {
-
 			uint32_t npkt;
 
 			/* fill out buffer pointers */
@@ -2130,11 +2116,9 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 		xfer->endpoint->isoc_next += xfer->nframes << shift;
 
 	} else if (xfer->flags_int.control_xfr) {
-
 		/* check if we should prepend a setup message */
 
 		if (xfer->flags_int.control_hdr) {
-
 			temp.len = xfer->frlengths[0];
 			temp.pc = xfer->frbuffers + 0;
 			temp.shortpkt = temp.len ? 1 : 0;
@@ -2172,7 +2156,6 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 	}
 
 	while (x != xfer->nframes) {
-
 		/* DATA0 / DATA1 message */
 
 		temp.len = xfer->frlengths[x];
@@ -2191,7 +2174,6 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 			}
 		}
 		if (temp.len == 0) {
-
 			/* make sure that we send an USB packet */
 
 			temp.shortpkt = 0;
@@ -2200,7 +2182,6 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 			temp.tlbpc = mult - 1;
 
 		} else if (xfer->flags_int.isochronous_xfr) {
-
 			uint8_t tdpc;
 
 			/*
@@ -2226,7 +2207,6 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 			else
 				temp.tlbpc--;
 		} else {
-
 			/* regular data transfer */
 
 			temp.shortpkt = xfer->flags.force_short_xfer ? 0 : 1;
@@ -2247,7 +2227,6 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 
 	if (xfer->flags_int.control_xfr &&
 	    !xfer->flags_int.control_act) {
-
 		/*
 		 * Send a DATA1 message and invert the current
 		 * endpoint direction.
@@ -2588,7 +2567,6 @@ xhci_configure_device(struct usb_device *udev)
 	/* figure out route string and root HUB port number */
 
 	for (hubdev = udev; hubdev != NULL; hubdev = hubdev->parent_hub) {
-
 		if (hubdev->parent_hub == NULL)
 			break;
 
@@ -2753,7 +2731,6 @@ xhci_alloc_device_ext(struct usb_device *udev)
 	/* initialize all endpoint LINK TRBs */
 
 	for (i = 0; i != XHCI_MAX_ENDPOINTS; i++) {
-
 		pc = &sc->sc_hw.devs[index].endpoint_pc[i];
 		pg = &sc->sc_hw.devs[index].endpoint_pg[i];
 
@@ -2932,7 +2909,6 @@ xhci_transfer_insert(struct usb_xfer *xfer)
 	/* check if bMaxPacketSize changed */
 	if (xfer->flags_int.control_xfr != 0 &&
 	    pepext->trb_ep_maxp != xfer->endpoint->edesc->wMaxPacketSize[0]) {
-
 		DPRINTFN(8, "Reconfigure control endpoint\n");
 
 		/* force driver to reconfigure endpoint */
@@ -3185,7 +3161,6 @@ static const struct usb_pipe_methods xhci_device_generic_methods =
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-
 #define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
 
 static const
@@ -3521,7 +3496,6 @@ xhci_roothub_exec(struct usb_device *udev,
 		sc->sc_hub_desc.hubd.bPwrOn2PwrGood = 10;
 
 		for (j = 1; j <= sc->sc_noport; j++) {
-
 			v = XREAD4(sc, oper, XHCI_PORTSC(j));
 			if (v & XHCI_PS_DR) {
 				sc->sc_hub_desc.hubd.
@@ -3959,13 +3933,11 @@ xhci_configure_msg(struct usb_proc_msg *pm)
 
 restart:
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-
 		pepext = xhci_get_endpoint_ext(xfer->xroot->udev,
 		    xfer->endpoint->edesc);
 
 		if ((pepext->trb_halted != 0) ||
 		    (pepext->trb_running == 0)) {
-
 			uint16_t i;
 
 			/* clear halted and running */
@@ -4009,7 +3981,6 @@ restart:
 		}
 
 		if (xfer->flags_int.did_dma_delay) {
-
 			/* remove transfer from interrupt queue (again) */
 			usbd_transfer_dequeue(xfer);
 
@@ -4022,7 +3993,6 @@ restart:
 	}
 
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-
 		/* try to insert xfer on HW queue */
 		xhci_transfer_insert(xfer);
 

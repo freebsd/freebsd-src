@@ -329,7 +329,6 @@ tr_setup:
 			usbd_transfer_submit(xfer);
 
 		} else if (sc->sc_mode == G_KEYBOARD_MODE_PATTERN) {
-
 			memset(&sc->sc_data, 0, sizeof(sc->sc_data));
 
 			if ((sc->sc_state < 0) || (sc->sc_state >= G_KEYBOARD_MAX_STRLEN))
@@ -391,7 +390,6 @@ g_keyboard_handle_request(device_t dev,
 		    (req->bRequest == UR_SET_REPORT) &&
 		    (req->wValue[0] == 0x00) &&
 		    (req->wValue[1] == 0x02)) {
-
 			if (offset == 0) {
 				*plen = sizeof(sc->sc_led_state);
 				*pptr = &sc->sc_led_state;

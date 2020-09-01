@@ -129,7 +129,6 @@ static void	ucycom_cfg_param(struct ucom_softc *, struct termios *);
 static void	ucycom_poll(struct ucom_softc *ucom);
 
 static const struct usb_config ucycom_config[UCYCOM_N_TRANSFER] = {
-
 	[UCYCOM_CTRL_RD] = {
 		.type = UE_CONTROL,
 		.endpoint = 0x00,	/* Control pipe */
@@ -398,7 +397,6 @@ tr_transferred:
 
 		if (ucom_get_data(&sc->sc_ucom, pc1, offset,
 		    sc->sc_olen - offset, &actlen)) {
-
 			req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 			req.bRequest = UR_SET_REPORT;
 			USETW2(req.wValue, UHID_OUTPUT_REPORT, sc->sc_oid);
@@ -602,7 +600,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 

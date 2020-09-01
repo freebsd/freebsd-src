@@ -1080,7 +1080,6 @@ out:
 	return (err);
 }
 
-
 static int
 cp2112iic_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {

@@ -86,7 +86,6 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, umcs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 SYSCTL_INT(_hw_usb_umcs, OID_AUTO, debug, CTLFLAG_RWTUN, &umcs_debug, 0, "Debug level");
 #endif					/* USB_DEBUG */
 
-
 /*
  * Two-port devices (both with 7820 chip and 7840 chip configured as two-port)
  * have ports 0 and 2, with ports 1 and 3 omitted.
@@ -520,7 +519,6 @@ umcs7840_cfg_open(struct ucom_softc *ucom)
 	if (umcs7840_set_baudrate(sc, pn, 9600))
 		return;
 
-
 	/* Finally enable all interrupts -- documented */
 	/*
 	 * Copied from vendor driver, I don't know why we should read LCR
@@ -609,7 +607,6 @@ umcs7840_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	DPRINTF("Port %d BREAK set to: %s\n", pn, onoff ? "on" : "off");
 }
 
-
 static void
 umcs7840_cfg_param(struct ucom_softc *ucom, struct termios *t)
 {
@@ -684,7 +681,6 @@ umcs7840_cfg_param(struct ucom_softc *ucom, struct termios *t)
 
 	umcs7840_set_baudrate(sc, pn, t->c_ospeed);
 }
-
 
 static int
 umcs7840_pre_param(struct ucom_softc *ucom, struct termios *t)

@@ -127,7 +127,6 @@ SYSCTL_INT(_hw_usb_cdce, OID_AUTO, interval, CTLFLAG_RWTUN, &cdce_tx_interval, 0
 #endif
 
 static const struct usb_config cdce_config[CDCE_N_TRANSFER] = {
-
 	[CDCE_BULK_RX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -181,7 +180,6 @@ static const struct usb_config cdce_config[CDCE_N_TRANSFER] = {
 
 #if CDCE_HAVE_NCM
 static const struct usb_config cdce_ncm_config[CDCE_N_TRANSFER] = {
-
 	[CDCE_BULK_RX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -601,11 +599,9 @@ cdce_attach(device_t dev)
 	data_iface_no = ud->bSlaveInterface[0];
 
 	for (i = 0;; i++) {
-
 		iface = usbd_get_iface(uaa->device, i);
 
 		if (iface) {
-
 			id = usbd_get_interface_descriptor(iface);
 
 			if (id && (id->bInterfaceNumber == data_iface_no)) {
@@ -648,7 +644,6 @@ alloc_transfers:
 	pcfg = cdce_config;	/* Default Configuration */
 
 	for (i = 0; i != 32; i++) {
-
 		error = usbd_set_alt_interface_index(uaa->device,
 		    sc->sc_ifaces_index[0], i);
 		if (error)
@@ -683,7 +678,6 @@ alloc_transfers:
 	}
 
 	if (error) {
-
 		/* fake MAC address */
 
 		device_printf(dev, "faking MAC address\n");
@@ -693,11 +687,9 @@ alloc_transfers:
 		sc->sc_ue.ue_eaddr[5] = device_get_unit(dev);
 
 	} else {
-
 		memset(sc->sc_ue.ue_eaddr, 0, sizeof(sc->sc_ue.ue_eaddr));
 
 		for (i = 0; i != (ETHER_ADDR_LEN * 2); i++) {
-
 			char c = eaddr_str[i];
 
 			if ('0' <= c && c <= '9')
@@ -807,7 +799,6 @@ cdce_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		for (x = 0; x != CDCE_FRAMES_MAX; x++) {
-
 			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 
 			if (m == NULL)
@@ -988,7 +979,6 @@ cdce_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTF("received %u bytes in %u frames\n", actlen, aframes);
 
 		for (x = 0; x != aframes; x++) {
-
 			m = sc->sc_rx_buf[x];
 			sc->sc_rx_buf[x] = NULL;
 			len = usbd_xfer_frame_len(xfer, x);
@@ -1149,7 +1139,7 @@ tr_setup:
 
 			USETDW(req.data + 0, speed); /* Upstream bit rate */
 			USETDW(req.data + 4, speed); /* Downstream bit rate */
- 
+
 			pc = usbd_xfer_get_frame(xfer, 0);
 			usbd_copy_in(pc, 0, &req, sizeof(req));
 			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
@@ -1185,7 +1175,6 @@ cdce_handle_request(device_t dev,
 	 */
 	if (req->bmRequestType == UT_WRITE_CLASS_INTERFACE && \
 	    req->bRequest == UCDC_NCM_SET_ETHERNET_PACKET_FILTER) {
-
 		if (is_complete == 1) {
 			mtx_lock(&sc->sc_mtx);
 			sc->sc_notify_state = CDCE_NOTIFY_SPEED_CHANGE;
@@ -1244,7 +1233,6 @@ cdce_ncm_fill_tx_frames(struct usb_xfer *xfer, uint8_t index)
 	retval = 2;
 
 	for (n = 0; n != sc->sc_ncm.tx_nframe; n++) {
-
 		/* check if end of transmit buffer is reached */
 
 		if (offset >= sc->sc_ncm.tx_max)
@@ -1517,7 +1505,6 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		sumdata = 0;
 
 		for (x = 0; x != nframes; x++) {
-
 			offset = UGETW(sc->sc_ncm.dp[x].wFrameIndex);
 			temp = UGETW(sc->sc_ncm.dp[x].wFrameLength);
 

@@ -178,7 +178,6 @@ SYSCTL_INT(_hw_usb_kue, OID_AUTO, debug, CTLFLAG_RWTUN, &kue_debug, 0,
 #endif
 
 static const struct usb_config kue_config[KUE_N_TRANSFER] = {
-
 	[KUE_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -275,7 +274,6 @@ kue_ctl(struct kue_softc *sc, uint8_t rw, uint8_t breq,
 		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	else
 		req.bmRequestType = UT_READ_VENDOR_DEVICE;
-
 
 	req.bRequest = breq;
 	USETW(req.wValue, val);
@@ -578,7 +576,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 
@@ -646,7 +643,6 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
-
 	}
 }
 

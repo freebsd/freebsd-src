@@ -311,7 +311,6 @@ uether_ifdetach(struct usb_ether *ue)
 	ifp = ue->ue_ifp;
 
 	if (ifp != NULL) {
-
 		/* we are not running any more */
 		UE_LOCK(ue);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

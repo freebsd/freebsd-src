@@ -139,7 +139,6 @@ static void saf1761_otg_enable_psof(struct saf1761_otg_softc *, uint8_t);
  * 8192 bytes.
  */
 static const struct usb_hw_ep_profile saf1761_otg_ep_profile[] = {
-
 	[0] = {
 		.max_in_frame_size = 64,
 		.max_out_frame_size = 64,
@@ -1095,7 +1094,6 @@ saf1761_otg_set_address(struct saf1761_otg_softc *sc, uint8_t addr)
 	SAF1761_WRITE_LE_4(sc, SOTG_ADDRESS, addr | SOTG_ADDRESS_ENABLE);
 }
 
-
 static void
 saf1761_read_device_fifo(struct saf1761_otg_softc *sc,
     struct saf1761_otg_td *td, uint32_t len)
@@ -1266,7 +1264,6 @@ saf1761_device_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 
 		/* check buffer status */
 		if ((count & SOTG_BUF_LENGTH_FILLED_MASK) != 0) {
-
 			if (td->remainder == 0) {
 				/*
 				 * We are actually complete and have
@@ -1797,7 +1794,6 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 
 	if (xfer->flags_int.control_xfr) {
 		if (xfer->flags_int.control_hdr) {
-
 			if (is_host)
 				temp.func = &saf1761_host_setup_tx;
 			else
@@ -1872,7 +1868,6 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 	}
 
 	while (x != xfer->nframes) {
-
 		/* DATA0 / DATA1 message */
 
 		temp.len = xfer->frlengths[x];
@@ -1889,13 +1884,11 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 			}
 		}
 		if (temp.len == 0) {
-
 			/* make sure that we send an USB packet */
 
 			temp.short_pkt = 0;
 
 		} else {
-
 			/* regular data transfer */
 
 			temp.short_pkt = (xfer->flags.force_short_xfer) ? 0 : 1;
@@ -1927,7 +1920,6 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 
 		/* check if we should append a status stage */
 		if (!xfer->flags_int.control_act) {
-
 			/*
 			 * Send a DATA1 message and invert the current
 			 * endpoint direction.
@@ -2155,9 +2147,7 @@ saf1761_otg_standard_done(struct usb_xfer *xfer)
 	xfer->td_transfer_cache = xfer->td_transfer_first;
 
 	if (xfer->flags_int.control_xfr) {
-
 		if (xfer->flags_int.control_hdr) {
-
 			err = saf1761_otg_standard_done_sub(xfer);
 		}
 		xfer->aframes = 1;
@@ -2167,7 +2157,6 @@ saf1761_otg_standard_done(struct usb_xfer *xfer)
 		}
 	}
 	while (xfer->aframes != xfer->nframes) {
-
 		err = saf1761_otg_standard_done_sub(xfer);
 		xfer->aframes++;
 
@@ -2178,7 +2167,6 @@ saf1761_otg_standard_done(struct usb_xfer *xfer)
 
 	if (xfer->flags_int.control_xfr &&
 	    !xfer->flags_int.control_act) {
-
 		err = saf1761_otg_standard_done_sub(xfer);
 	}
 done:
@@ -2416,7 +2404,6 @@ saf1761_otg_init(struct saf1761_otg_softc *sc)
 	usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 100);
 
 	for (x = 1;; x++) {
-
 		saf1761_otg_get_hw_ep_profile(NULL, &pf, x);
 		if (pf == NULL)
 			break;
@@ -2795,7 +2782,6 @@ static const struct usb_pipe_methods saf1761_otg_host_isoc_methods =
  *------------------------------------------------------------------------*
  * Simulate a hardware HUB by handling all the necessary requests.
  *------------------------------------------------------------------------*/
-
 #define	HSETW(ptr, val) ptr = { (uint8_t)(val), (uint8_t)((val) >> 8) }
 
 static const struct usb_device_descriptor saf1761_otg_devd = {
@@ -3443,7 +3429,6 @@ saf1761_otg_xfer_setup(struct usb_setup_params *parm)
 	ep_type = (xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE);
 
 	if (ep_type == UE_CONTROL) {
-
 		ntd = xfer->nframes + 1 /* STATUS */ + 1 /* SYNC */ ;
 
 	} else {
@@ -3500,11 +3485,9 @@ saf1761_otg_xfer_setup(struct usb_setup_params *parm)
 	parm->size[0] += ((-parm->size[0]) & (USB_HOST_ALIGN - 1));
 
 	for (n = 0; n != ntd; n++) {
-
 		struct saf1761_otg_td *td;
 
 		if (parm->buf) {
-
 			td = USB_ADD_BYTES(parm->buf, parm->size[0]);
 
 			/* init TD */
@@ -3631,7 +3614,6 @@ saf1761_otg_device_resume(struct usb_device *udev)
 	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-
 		if (xfer->xroot->udev != udev)
 			continue;
 
@@ -3687,7 +3669,6 @@ saf1761_otg_device_suspend(struct usb_device *udev)
 	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-
 		if (xfer->xroot->udev != udev)
 			continue;
 

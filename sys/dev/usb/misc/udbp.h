@@ -49,7 +49,6 @@
    date command: date -u +'%s' */
 #define	NGM_UDBP_COOKIE		944609300
 
-
 #define	NG_UDBP_HOOK_NAME	"data"
 
 /* Netgraph commands understood by this node type */

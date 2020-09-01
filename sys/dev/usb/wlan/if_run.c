@@ -2785,7 +2785,6 @@ run_newassoc(struct ieee80211_node *ni, int isnew)
 
 	/* only interested in true associations */
 	if (isnew && ni->ni_associd != 0) {
-
 		/*
 		 * This function could is called though timeout function.
 		 * Need to defer.
@@ -3792,7 +3791,7 @@ run_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 {
 	struct run_softc *sc = ni->ni_ic->ic_softc;
 	int error = 0;
- 
+
 	RUN_LOCK(sc);
 
 	/* prevent management frames from being sent if we're not ready */
@@ -6406,7 +6405,6 @@ run_delay(struct run_softc *sc, u_int ms)
 	usb_pause_mtx(mtx_owned(&sc->sc_mtx) ? 
 	    &sc->sc_mtx : NULL, USB_MS_TO_TICKS(ms));
 }
-
 
 static void
 run_update_chw(struct ieee80211com *ic)

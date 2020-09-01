@@ -208,7 +208,6 @@ static void	uvisor_start_write(struct ucom_softc *);
 static void	uvisor_stop_write(struct ucom_softc *);
 
 static const struct usb_config uvisor_config[UVISOR_N_TRANSFER] = {
-
 	[UVISOR_BULK_DT_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
@@ -620,7 +619,6 @@ uvisor_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 tr_setup:
 		for (x = 0; x != UVISOROFRAMES; x++) {
-
 			usbd_xfer_set_frame_offset(xfer, 
 			    x * UVISOROBUFSIZE, x);
 

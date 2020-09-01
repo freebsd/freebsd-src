@@ -274,7 +274,6 @@ tr_setup:
 			ep = ep_first;	/* endpoint wrapped around */
 		if (ep->edesc &&
 		    ep->is_stalled) {
-
 			/* setup a clear-stall packet */
 
 			req.bmRequestType = UT_WRITE_ENDPOINT;
@@ -1003,7 +1002,6 @@ usbd_req_get_desc(struct usb_device *udev,
 	USETW(req.wIndex, id);
 
 	while (1) {
-
 		if ((min_len < 2) || (max_len < 2)) {
 			err = USB_ERR_INVAL;
 			goto done;
@@ -1051,7 +1049,6 @@ usbd_req_get_desc(struct usb_device *udev,
 		}
 
 		if (min_len == max_len) {
-
 			/* enforce correct length */
 			if ((buf[0] > min_len) && (actlen == NULL))
 				buf[0] = min_len;
@@ -2312,4 +2309,3 @@ usbd_req_set_lpm_info(struct usb_device *udev, struct mtx *mtx,
 	}
 	return (err);
 }
-

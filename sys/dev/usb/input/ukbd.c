@@ -1,7 +1,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-NetBSD
  *
@@ -439,7 +438,6 @@ ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 	}
 
 	while (sc->sc_inputs == 0) {
-
 		usbd_transfer_poll(sc->sc_xfer, UKBD_N_TRANSFER);
 
 		/* Delay-optimised support for repetition of keys */
@@ -549,7 +547,7 @@ ukbd_interrupt(struct ukbd_softc *sc)
 
 	/* synchronize old data with new data */
 	sc->sc_odata = sc->sc_ndata;
-	
+
 	/* check if last key is still pressed */
 	if (sc->sc_repeat_key != 0) {
 		const int32_t dtime = (sc->sc_repeat_time - now);
@@ -886,7 +884,6 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static const struct usb_config ukbd_config[UKBD_N_TRANSFER] = {
-
 	[UKBD_INTR_DT_0] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
@@ -1163,7 +1160,6 @@ ukbd_attach(device_t dev)
 	/* check if we should use the boot protocol */
 	if (usb_test_quirk(uaa, UQ_KBD_BOOTPROTO) ||
 	    (err != 0) || ukbd_any_key_valid(sc) == false) {
-
 		DPRINTF("Forcing boot protocol\n");
 
 		err = usbd_req_set_protocol(sc->sc_udev, NULL, 
@@ -1555,7 +1551,6 @@ next_code:
 
 	if ((sc->sc_composed_char > 0) &&
 	    (!(sc->sc_flags & UKBD_FLAG_COMPOSE))) {
-
 		action = sc->sc_composed_char;
 		sc->sc_composed_char = 0;
 
@@ -1902,7 +1897,6 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		return (result);
 	}
 }
-
 
 /* clear the internal state of the keyboard */
 static void

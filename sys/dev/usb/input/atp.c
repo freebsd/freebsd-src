@@ -511,7 +511,6 @@ static const struct wsp_dev_params wsp_dev_params[WELLSPRING_PRODUCT_MAX] = {
 		.finger_data_offset  = WSP_TYPE3_FINGER_DATA_OFFSET,
 	},
 };
-
 #define ATP_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 
 /* TODO: STRUCT_USB_HOST_ID */
@@ -734,7 +733,6 @@ typedef enum interface_mode {
 	RAW_SENSOR_MODE = (uint8_t)0x01,
 	HID_MODE        = (uint8_t)0x08
 } interface_mode;
-
 
 /*
  * function prototypes
@@ -1416,7 +1414,6 @@ fg_match_strokes_against_pspans(struct atp_softc *sc, atp_axis axis,
 			if (fg_match_stroke_component(
 			    &strokep->components[axis], &pspans[i],
 			    strokep->type)) {
-
 				/* There is a match. */
 				strokep->components[axis].matched = true;
 
@@ -1553,7 +1550,6 @@ fg_update_strokes(struct atp_softc *sc, fg_pspan *pspans_x,
 
 	/* Update the state of strokes based on the above pspan matches. */
 	TAILQ_FOREACH_SAFE(strokep, &sc->sc_stroke_used, entry, strokep_next) {
-
 		if (strokep->components[X].matched &&
 		    strokep->components[Y].matched) {
 			strokep->matched = true;
@@ -2367,7 +2363,6 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 
 		if (sc->sc_status.flags & (MOUSE_POSCHANGED |
 		    MOUSE_STDBUTTONSCHANGED)) {
-
 			atp_stroke_t *strokep;
 			u_int8_t n_movements = 0;
 			int dx = 0;

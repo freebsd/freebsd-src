@@ -146,7 +146,6 @@ MODULE_VERSION(ugold, 1);
 USB_PNP_HOST_INFO(ugold_devs);
 
 static const struct usb_config ugold_config[UGOLD_N_TRANSFER] = {
-
 	[UGOLD_INTR_DT] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
@@ -259,7 +258,7 @@ ugold_attach(device_t dev)
 	    SYSCTL_CHILDREN(sensor_tree),
 	    OID_AUTO, "inner_calib", CTLFLAG_RWTUN, &sc->sc_calib[UGOLD_INNER], 0,
 	    "Inner calibration temperature in microCelcius");
-	
+
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(sensor_tree),
 	    OID_AUTO, "outer", CTLFLAG_RD, &sc->sc_sensor[UGOLD_OUTER], 0,
@@ -315,7 +314,6 @@ ugold_ds75_temp(uint8_t msb, uint8_t lsb)
 	int32_t temp = (msb << 24) | ((lsb & 0xF0) << 16);
 	return (((int64_t)temp * (int64_t)1000000LL) >> 24);
 }
-
 
 static void
 ugold_intr_callback(struct usb_xfer *xfer, usb_error_t error)
