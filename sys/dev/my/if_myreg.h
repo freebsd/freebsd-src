@@ -585,5 +585,3 @@ struct my_softc {
 #define PHY_BMSR_LINKSTAT               0x0004
 #define PHY_BMSR_JABBER                 0x0002
 #define PHY_BMSR_EXTENDED               0x0001
-
-
