@@ -23,7 +23,6 @@
 
 #include <dev/rtwn/rtl8192c/r92c_priv.h>
 
-
 /*
  * MAC initialization values.
  */
@@ -51,7 +50,6 @@ static const struct rtwn_mac_prog rtl8192cu_mac[] = {
 	{ 0x702, 0x65 }, { 0x703, 0x87 }, { 0x708, 0x21 }, { 0x709, 0x43 },
 	{ 0x70a, 0x65 }, { 0x70b, 0x87 }
 };
-
 
 /*
  * Baseband initialization values.
@@ -273,7 +271,6 @@ static const struct rtwn_bb_prog rtl8192cu_bb[] = {
 		}
 	}
 };
-
 
 static const uint32_t rtl8188ru_agc_vals[] = {
 	0x7b000001, 0x7b010001, 0x7b020001, 0x7b030001, 0x7b040001,

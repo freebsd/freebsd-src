@@ -60,7 +60,6 @@ static const struct rtwn_mac_prog rtl8821au_mac[] = {
 	{ 0x70b, 0x87 }, { 0x718, 0x40 }
 };
 
-
 /*
  * Baseband initialization values.
  */
@@ -216,7 +215,6 @@ static const struct rtwn_agc_prog rtl8821au_agc[] = {
 		NULL
 	}
 };
-
 
 /*
  * RF initialization values.
@@ -444,7 +442,6 @@ static const struct rtwn_rf_prog rtl8821au_rf[] = {
 	},
 	{ 0, NULL, NULL, { 0 }, NULL }
 };
-
 
 /*
  * Registers to save before IQ calibration.

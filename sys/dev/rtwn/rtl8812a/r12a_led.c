@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8812a/r12a.h>
 #include <dev/rtwn/rtl8812a/r12a_reg.h>
 
-
 void
 r12a_set_led(struct rtwn_softc *sc, int led, int on)
 {

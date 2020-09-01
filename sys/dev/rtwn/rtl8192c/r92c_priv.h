@@ -36,7 +36,6 @@ struct rtwn_r92c_txpwr {
 	int8_t		ht20_max_pwr[R92C_MAX_CHAINS][R92C_GROUP_2G];
 };
 
-
 /*
  * Baseband initialization values (shared parts).
  */
@@ -131,7 +130,6 @@ static const struct rtwn_agc_prog rtl8192ce_agc[] = {
 		NULL
 	}
 };
-
 
 /*
  * RF initialization values.
@@ -330,7 +328,6 @@ static const struct rtwn_rf_prog rtl8192c_rf[] = {
 	},
 	{ 0, NULL, NULL, { 0 }, NULL }
 };
-
 
 struct rtwn_r92c_txagc {
 	uint8_t	pwr[R92C_GROUP_2G][28];	/* RTWN_RIDX_HT_MCS(15) + 1 */

@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8812a/r12a_reg.h>
 #include <dev/rtwn/rtl8812a/r12a_var.h>
 
-
 int
 r12a_check_condition(struct rtwn_softc *sc, const uint8_t cond[])
 {

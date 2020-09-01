@@ -21,7 +21,6 @@
 
 #define	RTWN_NOISE_FLOOR	-95
 
-
 void	rtwn_get_rates(struct rtwn_softc *, const struct ieee80211_rateset *,
 	    const struct ieee80211_htrateset *, uint32_t *, int *, int);
 void	rtwn_set_basicrates(struct rtwn_softc *, uint32_t);

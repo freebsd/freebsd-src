@@ -47,7 +47,6 @@
 #define RTWN_RATE_IS_OFDM(rate) \
 	((rate) >= RTWN_RIDX_OFDM6 && (rate) != RTWN_RIDX_UNKNOWN)
 
-
 static const uint8_t ridx2rate[] =
 	{ 2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108 };
 

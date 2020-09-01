@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c_var.h>
 #include <dev/rtwn/rtl8192c/r92c_tx_desc.h>
 
-
 static int
 r92c_tx_get_sco(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {

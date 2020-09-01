@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8812a/r12a_var.h>
 #include <dev/rtwn/rtl8812a/r12a_fw_cmd.h>
 
-
 #ifndef RTWN_WITHOUT_UCODE
 void
 r12a_fw_reset(struct rtwn_softc *sc, int reason)

@@ -79,7 +79,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 
-
 static void		rtwn_radiotap_attach(struct rtwn_softc *);
 static void		rtwn_vap_decrement_counters(struct rtwn_softc *,
 			    enum ieee80211_opmode, int);
@@ -1541,7 +1540,6 @@ rtwn_getradiocaps(struct ieee80211com *ic,
 	setbit(bands, IEEE80211_MODE_11A);
 	setbit(bands, IEEE80211_MODE_11NA);
 	for (i = 0; i < nitems(sc->chan_num_5ghz); i++) {
-
 		if (sc->chan_num_5ghz[i] == 0)
 			continue;
 
