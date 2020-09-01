@@ -73,7 +73,7 @@ typedef struct ng_h4_info {
 
 	ng_h4_node_debug_ep	 debug;	/* Debug level */
 	ng_h4_node_state_ep	 state;	/* State */
-	
+
 	ng_h4_node_stat_ep	 stat;
 #define NG_H4_STAT_PCKTS_SENT(s)	(s).pckts_sent ++
 #define NG_H4_STAT_BYTES_SENT(s, n)	(s).bytes_sent += (n)
@@ -102,4 +102,3 @@ typedef struct ng_h4_info {
 typedef ng_h4_info_t *		 ng_h4_info_p;
 
 #endif /* _NETGRAPH_H4_VAR_H_ */
-

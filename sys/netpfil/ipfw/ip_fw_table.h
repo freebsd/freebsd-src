@@ -230,6 +230,5 @@ int ipfw_count_xtable(struct ip_fw_chain *ch, struct tid_info *ti,
 int ipfw_dump_table_legacy(struct ip_fw_chain *ch, struct tid_info *ti,
     ipfw_table *tbl);
 
-
 #endif /* _KERNEL */
 #endif /* _IPFW2_TABLE_H */

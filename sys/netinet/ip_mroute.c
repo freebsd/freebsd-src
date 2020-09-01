@@ -1533,7 +1533,6 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	 */
 	if (V_pim_assert_enabled && (vifi < V_numvifs) &&
 	    V_viftable[vifi].v_ifp) {
-
 	    if (ifp == &V_multicast_register_if)
 		PIMSTAT_INC(pims_rcv_registers_wrongiif);
 
@@ -1575,7 +1574,6 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	}
 	return 0;
     }
-
 
     /* If I sourced this packet, it counts as output, else it was input. */
     if (in_hosteq(ip->ip_src, V_viftable[vifi].v_lcl_addr)) {
@@ -2191,7 +2189,6 @@ unschedule_bw_meter(struct bw_meter *x)
     x->bm_time_next = NULL;
     x->bm_time_hash = BW_METER_BUCKETS;
 }
-
 
 /*
  * Process all "<=" type of bw_meter that should be processed now,

@@ -379,7 +379,6 @@ ip6_destroy(void *unused __unused)
 		/* Cannot lock here - lock recursion. */
 		/* IF_ADDR_LOCK(ifp); */
 		CK_STAILQ_FOREACH_SAFE(ifa, &ifp->if_addrhead, ifa_link, nifa) {
-
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
 			in6_purgeaddr(ifa);
@@ -1492,7 +1491,6 @@ ip6_savecontrol(struct inpcb *inp, struct mbuf *m, struct mbuf **mp)
 				 * other cases).
 				 */
 				goto loopend;
-
 			}
 
 			/* proceed with the next header. */

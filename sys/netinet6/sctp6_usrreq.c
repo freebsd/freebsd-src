@@ -164,7 +164,6 @@ out:
 	return (IPPROTO_DONE);
 }
 
-
 int
 sctp6_input(struct mbuf **i_pak, int *offp, int proto SCTP_UNUSED)
 {
@@ -463,7 +462,6 @@ SYSCTL_PROC(_net_inet6_sctp6, OID_AUTO, getcred,
     0, 0, sctp6_getcred, "S,ucred",
     "Get the ucred of a SCTP6 connection");
 
-
 /* This is the same as the sctp_abort() could be made common */
 static void
 sctp6_abort(struct socket *so)
@@ -654,7 +652,6 @@ out:
 	return (error);
 }
 
-
 static void
 sctp6_close(struct socket *so)
 {
@@ -670,11 +667,9 @@ sctp6_disconnect(struct socket *so)
 	return (sctp_disconnect(so));
 }
 
-
 int
 sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *p);
-
 
 static int
 sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
@@ -1125,7 +1120,6 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 #endif
 	return (error);
 }
-
 
 static int
 sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)

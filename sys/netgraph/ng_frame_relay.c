@@ -252,7 +252,6 @@ ngfrm_newhook(node_p node, hook_p hook, const char *name)
 	 */
 	if (strncmp(name, NG_FRAMERELAY_HOOK_DLCI,
 	    strlen(NG_FRAMERELAY_HOOK_DLCI)) != 0) {
-
 		/* It must be the downstream connection */
 		if (strcmp(name, NG_FRAMERELAY_HOOK_DOWNSTREAM) != 0)
 			return EINVAL;

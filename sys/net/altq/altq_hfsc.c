@@ -133,15 +133,12 @@ static void			 get_class_stats_v1(struct hfsc_classstats_v1 *,
 				    struct hfsc_class *);
 static struct hfsc_class	*clh_to_clp(struct hfsc_if *, u_int32_t);
 
-
-
 /*
  * macros
  */
 #define	is_a_parent_class(cl)	((cl)->cl_children != NULL)
 
 #define	HT_INFINITY	0xffffffffffffffffULL	/* infinite time value */
-
 
 int
 hfsc_pfattach(struct pf_altq *a)
@@ -306,7 +303,6 @@ static int
 hfsc_clear_interface(struct hfsc_if *hif)
 {
 	struct hfsc_class	*cl;
-
 
 	/* clear out the classes */
 	while (hif->hif_rootclass != NULL &&
@@ -569,7 +565,6 @@ hfsc_class_destroy(struct hfsc_class *cl)
 	s = splnet();
 	IFQ_LOCK(cl->cl_hif->hif_ifq);
 
-
 	if (!qempty(cl->cl_q))
 		hfsc_purgeq(cl);
 
@@ -729,7 +724,6 @@ hfsc_dequeue(struct ifaltq *ifq, int op)
 	cur_time = read_machclk();
 
 	if (op == ALTDQ_REMOVE && hif->hif_pollcache != NULL) {
-
 		cl = hif->hif_pollcache;
 		hif->hif_pollcache = NULL;
 		/* check if the class was scheduled by real-time criteria */
@@ -754,7 +748,6 @@ hfsc_dequeue(struct ifaltq *ifq, int op)
 			 */
 			cl = hif->hif_rootclass;
 			while (is_a_parent_class(cl)) {
-
 				cl = actlist_firstfit(cl, cur_time);
 				if (cl == NULL) {
 #ifdef ALTQ_DEBUG
@@ -962,7 +955,6 @@ init_vf(struct hfsc_class *cl, int len)
 	cur_time = 0;
 	go_active = 1;
 	for ( ; cl->cl_parent != NULL; cl = cl->cl_parent) {
-
 		if (go_active && cl->cl_nactive++ == 0)
 			go_active = 1;
 		else
@@ -1052,7 +1044,6 @@ update_vf(struct hfsc_class *cl, int len, u_int64_t cur_time)
 	go_passive = qempty(cl->cl_q);
 
 	for (; cl->cl_parent != NULL; cl = cl->cl_parent) {
-
 		cl->cl_total += len;
 
 		if (cl->cl_fsc == NULL || cl->cl_nactive == 0)
@@ -1596,7 +1587,7 @@ get_class_stats_v0(struct hfsc_classstats_v0 *sp, struct hfsc_class *cl)
 	}
 
 #undef SATU32
-	
+
 	sp->total = cl->cl_total;
 	sp->cumul = cl->cl_cumul;
 
@@ -1741,6 +1732,5 @@ clh_to_clp(struct hfsc_if *hif, u_int32_t chandle)
 			return (cl);
 	return (NULL);
 }
-
 
 #endif /* ALTQ_HFSC */

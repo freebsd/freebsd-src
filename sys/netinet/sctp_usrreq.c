@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <sys/eventhandler.h>
 
-
 extern const struct sctp_cc_functions sctp_cc_functions[];
 extern const struct sctp_ss_functions sctp_ss_functions[];
 
@@ -411,7 +410,6 @@ SYSCTL_PROC(_net_inet_sctp, OID_AUTO, getcred,
     0, 0, sctp_getcred, "S,ucred",
     "Get the ucred of a SCTP connection");
 
-
 #ifdef INET
 static void
 sctp_abort(struct socket *so)
@@ -574,11 +572,9 @@ sctp_must_try_again:
 	return;
 }
 
-
 int
 sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *p);
-
 
 int
 sctp_sendm(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
@@ -855,7 +851,6 @@ sctp_flush(struct socket *so, int how)
 		so->so_snd.sb_cc = 0;
 		so->so_snd.sb_mbcnt = 0;
 		so->so_snd.sb_mb = NULL;
-
 	}
 	return (0);
 }
@@ -1001,8 +996,6 @@ sctp_fill_user_address(struct sockaddr *dst, struct sockaddr *src)
 	memcpy(dst, src, src->sa_len);
 	return (0);
 }
-
-
 
 static size_t
 sctp_fill_up_addresses_vrf(struct sctp_inpcb *inp,
@@ -1433,7 +1426,6 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 	/* FIX ME: do we want to pass in a vrf on the connect call? */
 	vrf_id = inp->def_vrf_id;
 
-
 	/* We are GOOD to go */
 	stcb = sctp_aloc_assoc(inp, sa, &error, 0, vrf_id,
 	    inp->sctp_ep.pre_open_stream_count,
@@ -1512,7 +1504,6 @@ out_now:
 		stcb = NULL; \
 	} \
 }
-
 
 #define SCTP_CHECK_AND_CAST(destp, srcp, type, size) {\
 	if (size < sizeof(type)) { \
@@ -2629,7 +2620,6 @@ flags_out:
 			 */
 			sstat->sstat_penddata = (stcb->asoc.cnt_on_reasm_queue +
 			    stcb->asoc.cnt_on_all_streams);
-
 
 			sstat->sstat_instrms = stcb->asoc.streamincnt;
 			sstat->sstat_outstrms = stcb->asoc.streamoutcnt;
@@ -4641,7 +4631,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					}
 					SCTP_INP_RUNLOCK(inp);
 				}
-
 			}
 			break;
 		}
@@ -5309,7 +5298,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			if ((stcb != NULL) && (net == NULL)) {
 #ifdef INET
 				if (addr->sa_family == AF_INET) {
-
 					struct sockaddr_in *sin;
 
 					sin = (struct sockaddr_in *)addr;
@@ -6384,7 +6372,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			if ((stcb != NULL) && (net == NULL)) {
 #ifdef INET
 				if (addr->sa_family == AF_INET) {
-
 					struct sockaddr_in *sin;
 
 					sin = (struct sockaddr_in *)addr;
@@ -6556,7 +6543,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			if ((stcb != NULL) && (net == NULL)) {
 #ifdef INET
 				if (addr->sa_family == AF_INET) {
-
 					struct sockaddr_in *sin;
 
 					sin = (struct sockaddr_in *)addr;

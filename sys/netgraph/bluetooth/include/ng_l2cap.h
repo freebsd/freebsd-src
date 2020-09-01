@@ -84,7 +84,6 @@
 #define NG_L2CAP_LAST_CID	0xffff	/* dynamically alloc. (end) */
 #define NG_L2CAP_LELAST_CID	0x007f
 
-
 /* L2CAP MTU */
 #define NG_L2CAP_MTU_LE_MINIMAM		23
 #define NG_L2CAP_MTU_MINIMUM		48
@@ -705,4 +704,3 @@ typedef struct {
 typedef u_int16_t	ng_l2cap_node_auto_discon_ep;
 
 #endif /* ndef _NETGRAPH_L2CAP_H_ */
-

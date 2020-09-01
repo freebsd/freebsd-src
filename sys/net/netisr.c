@@ -692,7 +692,7 @@ netisr_register_vnet(const struct netisr_handler *nhp)
 	KASSERT(netisr_proto[proto].np_handler != NULL,
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    nhp->nh_name));
-	
+
 	V_netisr_enable[proto] = 1;
 	NETISR_WUNLOCK();
 }
@@ -760,7 +760,7 @@ netisr_unregister_vnet(const struct netisr_handler *nhp)
 	KASSERT(netisr_proto[proto].np_handler != NULL,
 	    ("%s(%u): protocol not registered for %s", __func__, proto,
 	    nhp->nh_name));
-	
+
 	V_netisr_enable[proto] = 0;
 
 	netisr_drain_proto_vnet(curvnet, proto);

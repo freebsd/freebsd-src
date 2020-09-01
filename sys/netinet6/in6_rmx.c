@@ -172,4 +172,3 @@ in6_detachhead(struct rib_head *rh)
 	rt_table_destroy(rh);
 }
 #endif
-

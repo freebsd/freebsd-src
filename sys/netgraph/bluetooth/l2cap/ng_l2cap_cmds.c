@@ -410,4 +410,3 @@ ng_l2cap_process_command_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 
 	ng_l2cap_free_cmd(cmd);
 } /* ng_l2cap_process_command_timeout */
-

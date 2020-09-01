@@ -22,7 +22,7 @@ __list_add(struct list_head *o, struct list_head *prev,
         o->prev = prev;
         prev->next = o;
 }
- 
+
 static inline void
 list_add_tail(struct list_head *o, struct list_head *head)
 {

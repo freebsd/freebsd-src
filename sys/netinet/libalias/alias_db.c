@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
     there is an incomplete connection, in which case the link
     can be deleted after a certain amount of time.
 
-
     Initial version: August, 1996  (cjm)
 
     Version 1.4: September 16, 1996 (cjm)
@@ -178,7 +177,6 @@ __FBSDID("$FreeBSD$");
 
 static		LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead);
 
-
 /*
    Constants (note: constants are also defined
 	      near relevant functions or structs)
@@ -219,15 +217,12 @@ static		LIST_HEAD(, libalias) instancehead = LIST_HEAD_INITIALIZER(instancehead)
 #define TCP_EXPIRE_CONNECTED   86400
 #endif
 
-
 /* Dummy port number codes used for FindLinkIn/Out() and AddLink().
    These constants can be anything except zero, which indicates an
    unknown port number. */
 
 #define NO_DEST_PORT     1
 #define NO_SRC_PORT      1
-
-
 
 /* Data Structures
 
@@ -383,7 +378,6 @@ Miscellaneous:
     ShowAliasStats()         -- send alias statistics to a monitor file
 */
 
-
 /* Local prototypes */
 static u_int	StartPointIn(struct in_addr, u_short, int);
 
@@ -422,7 +416,6 @@ StartPointIn(struct in_addr alias_addr,
 	return (n % LINK_TABLE_IN_SIZE);
 }
 
-
 static		u_int
 StartPointOut(struct in_addr src_addr, struct in_addr dst_addr,
     u_short src_port, u_short dst_port, int link_type)
@@ -439,7 +432,6 @@ StartPointOut(struct in_addr src_addr, struct in_addr dst_addr,
 
 	return (n % LINK_TABLE_OUT_SIZE);
 }
-
 
 static int
 SeqDiff(u_long x, u_long y)
@@ -460,7 +452,7 @@ static void
 AliasLog(char *str, const char *format, ...)
 {		
 	va_list ap;
-	
+
 	va_start(ap, format);
 	vsnprintf(str, LIBALIAS_BUF_SIZE, format, ap);
 	va_end(ap);
@@ -470,7 +462,7 @@ static void
 AliasLog(FILE *stream, const char *format, ...)
 {
 	va_list ap;
-	
+
 	va_start(ap, format);
 	vfprintf(stream, format, ap);
 	va_end(ap);
@@ -512,7 +504,6 @@ void SctpShowAliasStats(struct libalias *la)
 
 	ShowAliasStats(la);
 }
-
 
 /* Internal routines for finding, deleting and adding links
 
@@ -556,7 +547,6 @@ static struct alias_link *
 
 static struct alias_link *
 		FindLinkIn    (struct libalias *, struct in_addr, struct in_addr, u_short, u_short, int, int);
-
 
 #define ALIAS_PORT_BASE            0x08000
 #define ALIAS_PORT_MASK            0x07fff
@@ -621,7 +611,6 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 #endif
 		return (-1);
 	}
-
 
 /* Port number search */
 	for (i = 0; i < max_trials; i++) {
@@ -770,7 +759,6 @@ FindNewPortGroup(struct libalias *la,
 		port_sys = ntohs(src_port);
 
 	} else {
-
 		/* First trial and all subsequent are random. */
 		if (align == FIND_EVEN_ALIAS_BASE)
 			port_sys = arc4random() & ALIAS_PORT_MASK_EVEN;
@@ -782,7 +770,6 @@ FindNewPortGroup(struct libalias *la,
 
 /* Port number search */
 	for (i = 0; i < max_trials; i++) {
-
 		struct alias_link *search_result;
 
 		for (j = 0; j < port_count; j++)
@@ -830,7 +817,6 @@ CleanupAliasData(struct libalias *la)
 
 	la->cleanupIndex = 0;
 }
-
 
 static void
 IncrementalCleanup(struct libalias *la)
@@ -923,7 +909,6 @@ DeleteLink(struct alias_link *lnk)
 		ShowAliasStats(la);
 	}
 }
-
 
 struct alias_link *
 AddLink(struct libalias *la, struct in_addr src_addr, struct in_addr dst_addr,
@@ -1169,7 +1154,6 @@ FindLinkOut(struct libalias *la, struct in_addr src_addr,
 	return (lnk);
 }
 
-
 static struct alias_link *
 _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
     struct in_addr alias_addr,
@@ -1244,8 +1228,6 @@ _FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 		}
 	}
 
-
-
 	if (lnk_fully_specified != NULL) {
 		lnk_fully_specified->timestamp = la->timeStamp;
 		lnk = lnk_fully_specified;
@@ -1315,9 +1297,6 @@ FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 	return (lnk);
 }
 
-
-
-
 /* External routines for finding/adding links
 
 -- "external" means outside alias_db.c, but within alias*.c --
@@ -1333,7 +1312,6 @@ FindLinkIn(struct libalias *la, struct in_addr dst_addr,
 
 (prototypes in alias_local.h)
 */
-
 
 struct alias_link *
 FindIcmpIn(struct libalias *la, struct in_addr dst_addr,
@@ -1358,7 +1336,6 @@ FindIcmpIn(struct libalias *la, struct in_addr dst_addr,
 	return (lnk);
 }
 
-
 struct alias_link *
 FindIcmpOut(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
@@ -1382,7 +1359,6 @@ FindIcmpOut(struct libalias *la, struct in_addr src_addr,
 	return (lnk);
 }
 
-
 struct alias_link *
 FindFragmentIn1(struct libalias *la, struct in_addr dst_addr,
     struct in_addr alias_addr,
@@ -1403,20 +1379,18 @@ FindFragmentIn1(struct libalias *la, struct in_addr dst_addr,
 	return (lnk);
 }
 
-
 struct alias_link *
 FindFragmentIn2(struct libalias *la, struct in_addr dst_addr,	/* Doesn't add a link if
 								 * one */
     struct in_addr alias_addr,	/* is not found.           */
     u_short ip_id)
 {
-	
+
 	LIBALIAS_LOCK_ASSERT(la);
 	return FindLinkIn(la, dst_addr, alias_addr,
 	    NO_DEST_PORT, ip_id,
 	    LINK_FRAGMENT_ID, 0);
 }
-
 
 struct alias_link *
 AddFragmentPtrLink(struct libalias *la, struct in_addr dst_addr,
@@ -1429,7 +1403,6 @@ AddFragmentPtrLink(struct libalias *la, struct in_addr dst_addr,
 	    LINK_FRAGMENT_PTR);
 }
 
-
 struct alias_link *
 FindFragmentPtr(struct libalias *la, struct in_addr dst_addr,
     u_short ip_id)
@@ -1440,7 +1413,6 @@ FindFragmentPtr(struct libalias *la, struct in_addr dst_addr,
 	    NO_DEST_PORT, ip_id,
 	    LINK_FRAGMENT_PTR, 0);
 }
-
 
 struct alias_link *
 FindProtoIn(struct libalias *la, struct in_addr dst_addr,
@@ -1465,7 +1437,6 @@ FindProtoIn(struct libalias *la, struct in_addr dst_addr,
 	return (lnk);
 }
 
-
 struct alias_link *
 FindProtoOut(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
@@ -1488,7 +1459,6 @@ FindProtoOut(struct libalias *la, struct in_addr src_addr,
 	}
 	return (lnk);
 }
-
 
 struct alias_link *
 FindUdpTcpIn(struct libalias *la, struct in_addr dst_addr,
@@ -1529,7 +1499,6 @@ FindUdpTcpIn(struct libalias *la, struct in_addr dst_addr,
 	return (lnk);
 }
 
-
 struct alias_link *
 FindUdpTcpOut(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
@@ -1567,7 +1536,6 @@ FindUdpTcpOut(struct libalias *la, struct in_addr src_addr,
 	return (lnk);
 }
 
-
 struct alias_link *
 AddPptp(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
@@ -1583,7 +1551,6 @@ AddPptp(struct libalias *la, struct in_addr src_addr,
 
 	return (lnk);
 }
-
 
 struct alias_link *
 FindPptpOutByCallId(struct libalias *la, struct in_addr src_addr,
@@ -1605,7 +1572,6 @@ FindPptpOutByCallId(struct libalias *la, struct in_addr src_addr,
 	return (lnk);
 }
 
-
 struct alias_link *
 FindPptpOutByPeerCallId(struct libalias *la, struct in_addr src_addr,
     struct in_addr dst_addr,
@@ -1625,7 +1591,6 @@ FindPptpOutByPeerCallId(struct libalias *la, struct in_addr src_addr,
 
 	return (lnk);
 }
-
 
 struct alias_link *
 FindPptpInByCallId(struct libalias *la, struct in_addr dst_addr,
@@ -1647,7 +1612,6 @@ FindPptpInByCallId(struct libalias *la, struct in_addr dst_addr,
 	return (lnk);
 }
 
-
 struct alias_link *
 FindPptpInByPeerCallId(struct libalias *la, struct in_addr dst_addr,
     struct in_addr alias_addr,
@@ -1660,10 +1624,8 @@ FindPptpInByPeerCallId(struct libalias *la, struct in_addr dst_addr,
 	    0 /* any */ , alias_call_id,
 	    LINK_PPTP, 0);
 
-
 	return (lnk);
 }
-
 
 struct alias_link *
 FindRtspOut(struct libalias *la, struct in_addr src_addr,
@@ -1701,7 +1663,6 @@ FindRtspOut(struct libalias *la, struct in_addr src_addr,
 	return (lnk);
 }
 
-
 struct in_addr
 FindOriginalAddress(struct libalias *la, struct in_addr alias_addr)
 {
@@ -1734,7 +1695,6 @@ FindOriginalAddress(struct libalias *la, struct in_addr alias_addr)
 	}
 }
 
-
 struct in_addr
 FindAliasAddress(struct libalias *la, struct in_addr original_addr)
 {
@@ -1755,7 +1715,6 @@ FindAliasAddress(struct libalias *la, struct in_addr original_addr)
 	}
 }
 
-
 /* External routines for getting or changing link data
    (external to alias_db.c, but internal to alias*.c)
 
@@ -1770,13 +1729,11 @@ FindAliasAddress(struct libalias *la, struct in_addr original_addr)
     SetDestCallId()
 */
 
-
 void
 SetFragmentAddr(struct alias_link *lnk, struct in_addr src_addr)
 {
 	lnk->data.frag_addr = src_addr;
 }
-
 
 void
 GetFragmentAddr(struct alias_link *lnk, struct in_addr *src_addr)
@@ -1784,20 +1741,17 @@ GetFragmentAddr(struct alias_link *lnk, struct in_addr *src_addr)
 	*src_addr = lnk->data.frag_addr;
 }
 
-
 void
 SetFragmentPtr(struct alias_link *lnk, char *fptr)
 {
 	lnk->data.frag_ptr = fptr;
 }
 
-
 void
 GetFragmentPtr(struct alias_link *lnk, char **fptr)
 {
 	*fptr = lnk->data.frag_ptr;
 }
-
 
 void
 SetStateIn(struct alias_link *lnk, int state)
@@ -1824,7 +1778,6 @@ SetStateIn(struct alias_link *lnk, int state)
 	lnk->data.tcp->state.in = state;
 }
 
-
 void
 SetStateOut(struct alias_link *lnk, int state)
 {
@@ -1850,7 +1803,6 @@ SetStateOut(struct alias_link *lnk, int state)
 	lnk->data.tcp->state.out = state;
 }
 
-
 int
 GetStateIn(struct alias_link *lnk)
 {
@@ -1858,14 +1810,12 @@ GetStateIn(struct alias_link *lnk)
 	return (lnk->data.tcp->state.in);
 }
 
-
 int
 GetStateOut(struct alias_link *lnk)
 {
 	/* TCP output state */
 	return (lnk->data.tcp->state.out);
 }
-
 
 struct in_addr
 GetOriginalAddress(struct alias_link *lnk)
@@ -1876,13 +1826,11 @@ GetOriginalAddress(struct alias_link *lnk)
 		return (lnk->src_addr);
 }
 
-
 struct in_addr
 GetDestAddress(struct alias_link *lnk)
 {
 	return (lnk->dst_addr);
 }
-
 
 struct in_addr
 GetAliasAddress(struct alias_link *lnk)
@@ -1893,15 +1841,13 @@ GetAliasAddress(struct alias_link *lnk)
 		return (lnk->alias_addr);
 }
 
-
 struct in_addr
 GetDefaultAliasAddress(struct libalias *la)
 {
-	
+
 	LIBALIAS_LOCK_ASSERT(la);
 	return (la->aliasAddress);
 }
-
 
 void
 SetDefaultAliasAddress(struct libalias *la, struct in_addr alias_addr)
@@ -1911,13 +1857,11 @@ SetDefaultAliasAddress(struct libalias *la, struct in_addr alias_addr)
 	la->aliasAddress = alias_addr;
 }
 
-
 u_short
 GetOriginalPort(struct alias_link *lnk)
 {
 	return (lnk->src_port);
 }
-
 
 u_short
 GetAliasPort(struct alias_link *lnk)
@@ -1941,13 +1885,11 @@ SetAckModified(struct alias_link *lnk)
 	lnk->data.tcp->state.ack_modified = 1;
 }
 
-
 struct in_addr
 GetProxyAddress(struct alias_link *lnk)
 {
 	return (lnk->proxy_addr);
 }
-
 
 void
 SetProxyAddress(struct alias_link *lnk, struct in_addr addr)
@@ -1955,20 +1897,17 @@ SetProxyAddress(struct alias_link *lnk, struct in_addr addr)
 	lnk->proxy_addr = addr;
 }
 
-
 u_short
 GetProxyPort(struct alias_link *lnk)
 {
 	return (lnk->proxy_port);
 }
 
-
 void
 SetProxyPort(struct alias_link *lnk, u_short port)
 {
 	lnk->proxy_port = port;
 }
-
 
 int
 GetAckModified(struct alias_link *lnk)
@@ -2110,7 +2049,7 @@ SetExpire(struct alias_link *lnk, int expire)
 void
 ClearCheckNewLink(struct libalias *la)
 {
-	
+
 	LIBALIAS_LOCK_ASSERT(la);
 	la->newDefaultLink = 0;
 }
@@ -2140,7 +2079,6 @@ SetDestCallId(struct alias_link *lnk, u_int16_t cid)
 	    lnk->src_port, cid, lnk->alias_port, lnk->link_type);
 	la->deleteAllLinks = 0;
 }
-
 
 /* Miscellaneous Functions
 
@@ -2398,7 +2336,6 @@ LibAliasRedirectAddr(struct libalias *la, struct in_addr src_addr,
 	return (lnk);
 }
 
-
 /* Mark the aliasing link dynamic */
 int
 LibAliasRedirectDynamic(struct libalias *la, struct alias_link *lnk)
@@ -2418,7 +2355,6 @@ LibAliasRedirectDynamic(struct libalias *la, struct alias_link *lnk)
 	return (res);
 }
 
-
 void
 LibAliasRedirectDelete(struct libalias *la, struct alias_link *lnk)
 {
@@ -2432,7 +2368,6 @@ LibAliasRedirectDelete(struct libalias *la, struct alias_link *lnk)
 	LIBALIAS_UNLOCK(la);
 }
 
-
 void
 LibAliasSetAddress(struct libalias *la, struct in_addr addr)
 {
@@ -2445,7 +2380,6 @@ LibAliasSetAddress(struct libalias *la, struct in_addr addr)
 	la->aliasAddress = addr;
 	LIBALIAS_UNLOCK(la);
 }
-
 
 void
 LibAliasSetTarget(struct libalias *la, struct in_addr target_addr)
@@ -2609,7 +2543,6 @@ getout:
 	return (res);
 }
 
-
 int
 LibAliasCheckNewLink(struct libalias *la)
 {
@@ -2620,7 +2553,6 @@ LibAliasCheckNewLink(struct libalias *la)
 	LIBALIAS_UNLOCK(la);
 	return (res);
 }
-
 
 #ifndef NO_FW_PUNCH
 
@@ -2706,7 +2638,6 @@ fill_rule(void *buf, int bufsize, int rulenum,
 }
 
 static void	ClearAllFWHoles(struct libalias *la);
-
 
 #define fw_setfield(la, field, num)                         \
 do {                                                    \

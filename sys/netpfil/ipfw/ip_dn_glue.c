@@ -195,7 +195,6 @@ struct dn_pipe7 {        /* a pipe */
 };
 SLIST_HEAD(dn_pipe_head7, dn_pipe7);
 
-
 /* FREEBSD8 ip_dummynet.h r196045 */
 struct dn_flow_queue8 {
 	struct dn_flow_queue8 *next ;
@@ -311,7 +310,6 @@ o_next(struct dn_id **o, int len, int type)
 	*o = O_NEXT(*o, len);
 	return ret;
 }
-
 
 static size_t pipesize7 = sizeof(struct dn_pipe7);
 static size_t pipesize8 = sizeof(struct dn_pipe8);
@@ -483,7 +481,7 @@ dn_compat_config_profile(struct dn_profile *pf, struct dn_link *p,
 	struct dn_pipe8 *p8 = (struct dn_pipe8 *)v;
 
 	p8->samples = &(((struct dn_pipe_max8 *)p8)->samples[0]);
-	
+
 	pf->link_nr = p->link_nr;
 	pf->loss_level = p8->loss_level;
 // 	pf->bandwidth = p->bandwidth; //XXX bandwidth redundant?
@@ -660,7 +658,6 @@ dn_c_copy_pipe(struct dn_schk *s, struct copy_args *a, int nq)
 	*a->start += size;
 	return 0;
 }
-
 
 int
 dn_compat_copy_pipe(struct copy_args *a, void *_o)
@@ -847,5 +844,3 @@ ip_dummynet_compat(struct sockopt *sopt)
 
 	return error;
 }
-
-

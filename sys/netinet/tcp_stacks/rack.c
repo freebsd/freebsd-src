@@ -259,7 +259,6 @@ static int32_t rack_probertt_clear_is = 1;
 static int32_t rack_max_drain_hbp = 1;		/* Extra drain times gpsrtt for highly buffered paths */
 static int32_t rack_hbp_thresh = 3;		/* what is the divisor max_rtt/min_rtt to decided a hbp */
 
-
 /* Part of pacing */
 static int32_t rack_max_per_above = 30;		/* When we go to increment stop if above 100+this% */
 
@@ -501,7 +500,6 @@ static void
 
 int32_t rack_clear_counter=0;
 
-
 static int
 sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 {
@@ -568,13 +566,10 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 		counter_u64_zero(rack_tlp_does_nada);
 		counter_u64_zero(rack_try_scwnd);
 		counter_u64_zero(rack_collapsed_win);
-
 	}
 	rack_clear_counter = 0;
 	return (0);
 }
-
-
 
 static void
 rack_init_sysctls(void)
@@ -1671,8 +1666,6 @@ rack_log_retran_reason(struct tcp_rack *rack, struct rack_sendmap *rsm, uint32_t
 	}
 }
 
-
-
 static void
 rack_log_to_start(struct tcp_rack *rack, uint32_t cts, uint32_t to, int32_t slot, uint8_t which)
 {
@@ -1768,7 +1761,6 @@ rack_log_rtt_upd(struct tcpcb *tp, struct tcp_rack *rack, uint32_t t, uint32_t l
 			log.u_bbr.lost = rsm->r_end;
 			log.u_bbr.cwnd_gain = rsm->r_rtr_cnt;
 		} else {
-
 			/* Its a SYN */
 			log.u_bbr.pkt_epoch = rack->rc_tp->iss;
 			log.u_bbr.lost = 0;
@@ -1832,7 +1824,6 @@ rack_log_rtt_sample(struct tcp_rack *rack, uint32_t rtt)
 		    0, &log, false, &tv);
 	}
 }
-
 
 static inline void
 rack_log_progress_event(struct tcp_rack *rack, struct tcpcb *tp, uint32_t tick,  int event, int line)
@@ -2414,7 +2405,6 @@ rack_enough_for_measurement(struct tcpcb *tp, struct tcp_rack *rack, tcp_seq th_
 	return (0);
 }
 
-
 static void
 rack_log_timely(struct tcp_rack *rack,
 		uint32_t logged, uint64_t cur_bw, uint64_t low_bnd,
@@ -2710,7 +2700,6 @@ rack_decrease_highrtt(struct tcp_rack *rack, uint32_t curper, uint32_t rtt)
 						    (uint64_t)rtt)) / 100)) /(uint64_t)1000000);
 	return (perf);
 }
-
 
 static void
 rack_decrease_bw_mul(struct tcp_rack *rack, int timely_says, uint32_t rtt, int32_t rtt_diff)
@@ -3301,7 +3290,6 @@ rack_update_multiplier(struct tcp_rack *rack, int32_t timely_says, uint64_t last
 				/* Log it stays the same */
 				rack_log_timely(rack,  0, last_bw_est, low_bnd, 0,
 						__LINE__, 11);
-
 			}
 			rack->rc_gp_timely_dec_cnt++;
 			/* We are not incrementing really no-count */
@@ -3354,7 +3342,6 @@ rack_update_multiplier(struct tcp_rack *rack, int32_t timely_says, uint64_t last
  			/* Log it stays the same */
 			rack_log_timely(rack,  0, last_bw_est, up_bnd, 0,
 			    __LINE__, 12);
-
 		}
 		return;
 	} else {
@@ -3966,7 +3953,6 @@ rack_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	struct tcp_rack *rack;
 	uint32_t orig_cwnd;
 
-
 	orig_cwnd = tp->snd_cwnd;
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
@@ -4102,8 +4088,6 @@ rack_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 	}
 }
 
-
-
 static inline void
 rack_cc_after_idle(struct tcp_rack *rack, struct tcpcb *tp)
 {
@@ -4133,7 +4117,6 @@ rack_cc_after_idle(struct tcp_rack *rack, struct tcpcb *tp)
 		tp->snd_cwnd = i_cwnd;
 	}
 }
-
 
 /*
  * Indicate whether this ack should be delayed.  We can delay the ack if
@@ -4192,7 +4175,6 @@ rack_find_high_nonack(struct tcp_rack *rack, struct rack_sendmap *rsm)
 	}
 	return (NULL);
 }
-
 
 static uint32_t
 rack_calc_thresh_rack(struct tcp_rack *rack, uint32_t srtt, uint32_t cts)
@@ -4697,7 +4679,6 @@ rack_exit_persist(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 				rack_exit_probertt(rack, us_cts);
 			}
 		}
-
 	}
 	rack->rc_in_persist = 0;
 	rack->r_ctl.rc_went_idle_time = 0;
@@ -4811,7 +4792,6 @@ rack_start_hpts_timer(struct tcp_rack *rack, struct tcpcb *tp, uint32_t cts,
 				slot = HPTS_TICKS_PER_USEC;
 			}
 		} else {
-
 			slot -= rack->r_ctl.rc_agg_delayed;
 			rack->r_ctl.rc_agg_delayed = 0;
 			/* Make sure we have 100 useconds at minimum */
@@ -5295,7 +5275,6 @@ need_retran:
 		 */
 		struct rack_sendmap *nrsm;
 
-
 		nrsm = rack_alloc_full_limit(rack);
 		if (nrsm == NULL) {
 			/*
@@ -5569,7 +5548,6 @@ rack_cc_conn_init(struct tcpcb *tp)
 {
 	struct tcp_rack *rack;
 
-
 	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	cc_conn_init(tp);
 	/*
@@ -5699,7 +5677,6 @@ rack_timeout_rxt(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts)
 	    (V_tcp_pmtud_blackhole_detect == 3 && isipv6)) &&
 	    ((tp->t_state == TCPS_ESTABLISHED) ||
 	    (tp->t_state == TCPS_FIN_WAIT_1))) {
-
 		/*
 		 * Idea here is that at each stage of mtu probe (usually,
 		 * 1448 -> 1188 -> 524) should be given 2 chances to recover
@@ -5894,7 +5871,6 @@ rack_timer_cancel(struct tcpcb *tp, struct tcp_rack *rack, uint32_t cts, int lin
 	uint32_t us_cts, flags_on_entry;
 	uint8_t hpts_removed = 0;
 
-
 	flags_on_entry = rack->r_ctl.rc_hpts_flags;
 	us_cts = tcp_get_usecs(&tv);
 	if ((rack->r_ctl.rc_hpts_flags & PACE_PKT_OUTPUT) &&
@@ -6008,7 +5984,6 @@ rack_update_rsm(struct tcpcb *tp, struct tcp_rack *rack,
 	}
 }
 
-
 static uint32_t
 rack_update_entry(struct tcpcb *tp, struct tcp_rack *rack,
     struct rack_sendmap *rsm, uint32_t ts, int32_t *lenp)
@@ -6080,7 +6055,6 @@ rack_update_entry(struct tcpcb *tp, struct tcp_rack *rack,
 	*lenp = 0;
 	return (0);
 }
-
 
 static void
 rack_log_output(struct tcpcb *tp, struct tcpopt *to, int32_t len,
@@ -6392,7 +6366,6 @@ tcp_rack_xmit_timer(struct tcp_rack *rack, int32_t rtt, uint32_t len, uint32_t u
 			rack->r_ctl.rack_rs.confidence = confidence;
 			rack->r_ctl.rack_rs.rs_us_rtrcnt = rtrcnt;
 		}
-
 	}
 	rack_log_rtt_upd(rack->rc_tp, rack, us_rtt, len, rsm, confidence);
 	rack->r_ctl.rack_rs.rs_flags = RACK_RTT_VALID;
@@ -7487,7 +7460,6 @@ rack_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th)
 	int loop_start = 0, moved_two = 0;
 	uint32_t tsused;
 
-
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	if (th->th_flags & TH_RST) {
 		/* We don't log resets */
@@ -7652,7 +7624,6 @@ more:
 		rsm->r_start = th_ack;
 		if (rack->app_limited_needs_set)
 			rack_need_set_test(tp, rack, rsm, tp->snd_una, __LINE__, RACK_USE_BEG);
-
 	}
 proc_sack:
 	/* Check for reneging */
@@ -7704,7 +7675,6 @@ proc_sack:
 			tcp_record_dsack(sack.start, sack.end);
 #endif
 		}
-
 	}
 	/*
 	 * Sort the SACK blocks so we can update the rack scoreboard with
@@ -8428,7 +8398,6 @@ rack_process_ack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp = tcp_close(tp);
 			ctf_do_dropwithreset(m, tp, th, BANDLIM_UNLIMITED, tlen);
 			return (1);
-
 		}
 	}
 	if (ofia)
@@ -8779,7 +8748,6 @@ rack_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->rcv_nxt++;
 		}
 		switch (tp->t_state) {
-
 			/*
 			 * In SYN_RECEIVED and ESTABLISHED STATES enter the
 			 * CLOSE_WAIT state.
@@ -9681,7 +9649,6 @@ rack_do_established(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	if ((thflags & TH_ACK) == 0) {
 		if (tp->t_flags & TF_NEEDSYN) {
-
 			return (rack_process_data(m, th, so, tp, drop_hdrlen, tlen,
 			    tiwin, thflags, nxt_pkt));
 
@@ -10177,7 +10144,6 @@ rack_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    tiwin, thflags, nxt_pkt));
 }
 
-
 /*
  * Return value of 1, the TCB is unlocked and most
  * likely gone, return value of 0, the TCP is still
@@ -10625,7 +10591,6 @@ rack_fini(struct tcpcb *tp, int32_t tcb_is_purged)
 	tp->snd_nxt = tp->snd_max;
 }
 
-
 static void
 rack_set_state(struct tcpcb *tp, struct tcp_rack *rack)
 {
@@ -10670,7 +10635,6 @@ rack_set_state(struct tcpcb *tp, struct tcp_rack *rack)
 		break;
 	};
 }
-
 
 static void
 rack_timer_audit(struct tcpcb *tp, struct tcp_rack *rack, struct sockbuf *sb)
@@ -11608,7 +11572,6 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 							     rate_wanted, rack->r_ctl.crte->rate, __LINE__,
 							     err);
 				}
-
 			}
 		}
 		if (rack_limit_time_with_srtt &&
@@ -14116,7 +14079,6 @@ rack_set_sockopt(struct socket *so, struct sockopt *sopt,
 	uint64_t val;
 	int32_t error = 0, optval;
 	uint16_t ca, ss;
-
 
 	switch (sopt->sopt_name) {
 	case TCP_RACK_PROP_RATE:		/*  URL:prop_rate */

@@ -742,7 +742,7 @@ static void
 sppp_ifstart_sched(void *dummy)
 {
 	struct sppp *sp = dummy;
-	
+
 	sp->if_start(SP2IFP(sp));
 }
 
@@ -1005,7 +1005,7 @@ sppp_attach(struct ifnet *ifp)
 
 	/* Initialize mtx lock */
 	mtx_init(&sp->mtx, "sppp", MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE);
-	
+
 	/* Initialize keepalive handler. */
  	callout_init(&sp->keepalive_callout, 1);
 	callout_reset(&sp->keepalive_callout, hz * 10, sppp_keepalive,
@@ -1863,7 +1863,6 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 	}
 }
 
-
 /*
  * The generic part of all Up/Down/Open/Close/TO event handlers.
  * Basically, the state transition handling in the automaton.
@@ -1930,7 +1929,6 @@ sppp_down_event(const struct cp *cp, struct sppp *sp)
 	}
 }
 
-
 static void
 sppp_open_event(const struct cp *cp, struct sppp *sp)
 {
@@ -1979,7 +1977,6 @@ sppp_open_event(const struct cp *cp, struct sppp *sp)
 		break;
 	}
 }
-
 
 static void
 sppp_close_event(const struct cp *cp, struct sppp *sp)
@@ -2680,7 +2677,7 @@ sppp_lcp_tlu(struct sppp *sp)
 	/* notify low-level driver of state change */
 	if (sp->pp_chg)
 		sp->pp_chg(sp, (int)sp->pp_phase);
-	
+
 	if (sp->pp_phase == PHASE_NETWORK)
 		/* if no NCP is starting, close down */
 		sppp_lcp_check_and_close(sp);
@@ -3070,7 +3067,6 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				else
 					log(-1, "%s [not agreed] ",
 						sppp_dotted_quad(desiredaddr));
-
 			}
 			p[2] = hisaddr >> 24;
 			p[3] = hisaddr >> 16;
@@ -3836,7 +3832,6 @@ static void sppp_ipv6cp_down(struct sppp *sp)
 {
 }
 
-
 static void sppp_ipv6cp_open(struct sppp *sp)
 {
 }
@@ -4188,7 +4183,6 @@ sppp_chap_input(struct sppp *sp, struct mbuf *m)
 			log(-1, ">\n");
 		}
 		break;
-
 	}
 }
 
@@ -4506,7 +4500,6 @@ sppp_pap_input(struct sppp *sp, struct mbuf *m)
 			log(-1, ">\n");
 		}
 		break;
-
 	}
 }
 
@@ -5227,7 +5220,6 @@ sppp_phase_network(struct sppp *sp)
 	/* if no NCP is starting, all this was in vain, close down */
 	sppp_lcp_check_and_close(sp);
 }
-
 
 static const char *
 sppp_cp_type_name(u_char type)

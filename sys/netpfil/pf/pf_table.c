@@ -754,7 +754,6 @@ pfr_mark_addrs(struct pfr_ktable *kt)
 		printf("pfr_mark_addrs: IPv6 walktree failed.\n");
 }
 
-
 static struct pfr_kentry *
 pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 {

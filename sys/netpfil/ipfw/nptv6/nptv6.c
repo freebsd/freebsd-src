@@ -1039,4 +1039,3 @@ nptv6_uninit(struct ip_fw_chain *ch, int last)
 	V_nptv6_eid = 0;
 	IPFW_UH_WUNLOCK(ch);
 }
-

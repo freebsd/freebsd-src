@@ -447,7 +447,6 @@ ngdread(struct cdev *dev, struct uio *uio, int flag)
 	return (error);
 }
 
-
 /*
  * This function is called when our device is written to.
  * We read the data from userland into mbuf chain and pass it to the remote hook.

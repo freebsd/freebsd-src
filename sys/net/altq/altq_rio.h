@@ -38,13 +38,11 @@
  */
 #define	RIO_NDROPPREC	3	/* number of drop precedence values */
 
-
 /* rio flags */
 #define	RIOF_ECN4	0x01	/* use packet marking for IPv4 packets */
 #define	RIOF_ECN6	0x02	/* use packet marking for IPv6 packets */
 #define	RIOF_ECN	(RIOF_ECN4 | RIOF_ECN6)
 #define	RIOF_CLEARDSCP	0x200	/* clear diffserv codepoint */
-
 
 #ifdef _KERNEL
 
@@ -83,7 +81,6 @@ typedef struct rio {
 
 	struct redstats q_stats[RIO_NDROPPREC];	/* statistics */
 } rio_t;
-
 
 extern rio_t		*rio_alloc(int, struct redparams *, int, int);
 extern void		 rio_destroy(rio_t *);

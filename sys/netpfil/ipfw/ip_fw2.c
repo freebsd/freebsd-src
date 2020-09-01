@@ -231,7 +231,6 @@ SYSEND
 
 #endif /* SYSCTL_NODE */
 
-
 /*
  * Some macros used in the various matching options.
  * L3HDR maps an ipv4 pointer into a layer3 header pointer of type T
@@ -310,7 +309,6 @@ ipopts_match(struct ip *ip, ipfw_insn *cmd)
 				return 0; /* invalid or truncated */
 		}
 		switch (opt) {
-
 		default:
 			break;
 
@@ -977,7 +975,6 @@ send_reject6(struct ip_fw_args *args, int code, u_int hlen, struct ip6_hdr *ip6)
 }
 
 #endif /* INET6 */
-
 
 /*
  * sends a reject message, consuming the mbuf passed as an argument.
@@ -2197,7 +2194,6 @@ do {								\
 				    ipfw_localip6(&args->f_id.dst_ip6);
 #endif
 				break;
-
 
 			case O_IP_SRCPORT:
 			case O_IP_DSTPORT:
@@ -3562,7 +3558,7 @@ SYSINIT(ipfw_init, IPFW_SI_SUB_FIREWALL, IPFW_MODULE_ORDER,
 	    ipfw_init, NULL);
 VNET_SYSINIT(vnet_ipfw_init, IPFW_SI_SUB_FIREWALL, IPFW_VNET_ORDER,
 	    vnet_ipfw_init, NULL);
- 
+
 /*
  * Closing up shop. These are done in REVERSE ORDER, but still
  * after ipfwmod() has been called. Not called on reboot.

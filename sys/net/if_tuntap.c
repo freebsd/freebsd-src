@@ -168,7 +168,6 @@ struct tuntap_softc {
 #define TAP_ALL_OFFLOAD		(CSUM_TSO | CSUM_TCP | CSUM_UDP |\
 				    CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
 
-
 /*
  * All mutable global variables in if_tun are locked using tunmtx, with
  * the exception of tundebug, which is used unlocked, and the drivers' *clones,
@@ -387,7 +386,6 @@ tun_busy(struct tuntap_softc *tp)
 	return (ret);
 }
 
-
 static void
 tun_unbusy(struct tuntap_softc *tp)
 {
@@ -475,8 +473,6 @@ tuntap_driver_from_flags(int tun_flags)
 
 	return (NULL);
 }
-
-
 
 static int
 tun_clone_match(struct if_clone *ifc, const char *name)

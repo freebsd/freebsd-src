@@ -109,7 +109,6 @@
 
 	ASCII value
 	-----------
-
 	{ ip=1.2.3.4 label="abc\n" alen=3 ary=[ 5 2=10 ] }
 
     Note that omitted fields and array elements get their default
@@ -537,4 +536,3 @@ extern char	*ng_get_string_token(const char *s, int *startp,
 extern char	*ng_encode_string(const char *s, int slen);
 
 #endif /* _NETGRAPH_NG_PARSE_H_ */
-

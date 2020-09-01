@@ -582,7 +582,6 @@ static const uint16_t ht40_bps[32] = {
 	216, 432, 648, 864, 1296, 1728, 1944, 2160
 };
 
-
 #define	OFDM_PLCP_BITS	22
 #define	HT_L_STF	8
 #define	HT_L_LTF	8

@@ -225,7 +225,6 @@ ng_ipfw_findhook1(node_p node, u_int16_t rulenum)
 	return (NULL);
 }
 
-
 static int
 ng_ipfw_rcvdata(hook_p hook, item_p item)
 {

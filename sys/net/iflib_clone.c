@@ -58,7 +58,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/md5.h>
 #include <sys/proc.h>
 
-
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_types.h>

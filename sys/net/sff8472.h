@@ -61,7 +61,6 @@
  * driver.
  */
 
-
 /* Table 3.1 Two-wire interface ID: Data Fields */
 
 enum {

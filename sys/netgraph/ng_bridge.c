@@ -382,7 +382,6 @@ ng_bridge_reset_link(hook_p hook, void *arg __unused)
 	return (1);
 }
 
-
 static int
 ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
@@ -631,7 +630,6 @@ ng_bridge_send_ctx(hook_p dst, void *arg)
 		return (0);	       /* abort loop */
 	}
 
-
 	/* Update stats */
 	destLink->stats.xmitPackets++;
 	destLink->stats.xmitOctets += m2->m_pkthdr.len;
@@ -707,20 +705,17 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 
 	/* Look up packet's source Ethernet address in hashtable */
 	if ((host = ng_bridge_get(priv, eh->ether_shost)) != NULL) {
-
 		/* Update time since last heard from this host */
 		host->staleness = 0;
 
 		/* Did host jump to a different link? */
 		if (host->link != ctx.incoming) {
-
 			/*
 			 * If the host's old link was recently established
 			 * on the old link and it's already jumped to a new
 			 * link, declare a loopback condition.
 			 */
 			if (host->age < priv->conf.minStableAge) {
-
 				/* Log the problem */
 				if (priv->conf.debugLevel >= 2) {
 					struct ifnet *ifp = ctx.m->m_pkthdr.rcvif;
@@ -776,7 +771,6 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 	 * unless it is the same link as the packet came in on.
 	 */
 	if (!ctx.manycast) {
-
 		/* Determine packet destination link */
 		if ((host = ng_bridge_get(priv, eh->ether_dhost)) != NULL) {
 			link_p destLink = host->link;
@@ -808,7 +802,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 		NG_FREE_M(ctx.m);
 		return (ctx.error);
 	}
-	
+
 	/*
 	 * If we've sent all the others, send the original
 	 * on the first link we found.
@@ -995,7 +989,6 @@ ng_bridge_rehash(priv_p priv)
 		    MISC FUNCTIONS
 ******************************************************************/
 
-
 /*
  * Remove all hosts associated with a specific link from the hashtable.
  * If linkNum == -1, then remove all hosts in the table.
@@ -1105,4 +1098,3 @@ ng_bridge_nodename(node_p node)
 		snprintf(name, sizeof(name), "[%x]", ng_node2ID(node));
 	return name;
 }
-

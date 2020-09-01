@@ -160,7 +160,6 @@ static int32_t bbr_hardware_pacing_limit = 8000;
 static int32_t bbr_quanta = 3;	/* How much extra quanta do we get? */
 static int32_t bbr_no_retran = 0;
 
-
 static int32_t bbr_error_base_paceout = 10000; /* usec to pace */
 static int32_t bbr_max_net_error_cnt = 10;
 /* Should the following be dynamic too -- loss wise */
@@ -217,7 +216,6 @@ static int32_t bbr_target_cwnd_mult_limit = 8;
  * state typically 4.
  */
 static int32_t bbr_cwnd_min_val = BBR_PROBERTT_NUM_MSS;
-
 
 static int32_t bbr_cwnd_min_val_hs = BBR_HIGHSPEED_NUM_MSS;
 
@@ -515,7 +513,6 @@ static void
      bbr_check_probe_rtt_limits(struct tcp_bbr *bbr, uint32_t cts);
 static void
      bbr_timer_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts);
-
 
 static void
 bbr_log_pacing_delay_calc(struct tcp_bbr *bbr, uint16_t gain, uint32_t len,
@@ -1127,8 +1124,6 @@ bbr_calc_time(uint32_t cts, uint32_t earlier_time) {
 	 */
 	return (cts - earlier_time);
 }
-
-
 
 static int
 sysctl_bbr_clear_lost(SYSCTL_HANDLER_ARGS)
@@ -1806,7 +1801,6 @@ bbr_init_sysctls(void)
 	    &bbr_nohdwr_pacing_enobuf,
 	    "Total number of enobufs for non-hardware paced flows");
 
-
 	bbr_flows_whdwr_pacing = counter_u64_alloc(M_WAITOK);
 	SYSCTL_ADD_COUNTER_U64(&bbr_sysctl_ctx,
 	    SYSCTL_CHILDREN(bbr_sysctl_root),
@@ -1933,8 +1927,6 @@ bbr_log_type_rwnd_collapse(struct tcp_bbr *bbr, int seq, int mode, uint32_t coun
 	}
 }
 
-
-
 static void
 bbr_log_type_just_return(struct tcp_bbr *bbr, uint32_t cts, uint32_t tlen, uint8_t hpts_calling,
     uint8_t reason, uint32_t p_maxseg, int len)
@@ -1960,7 +1952,6 @@ bbr_log_type_just_return(struct tcp_bbr *bbr, uint32_t cts, uint32_t tlen, uint8
 		    tlen, &log, false, &bbr->rc_tv);
 	}
 }
-
 
 static void
 bbr_log_type_enter_rec(struct tcp_bbr *bbr, uint32_t seq)
@@ -2569,7 +2560,6 @@ bbr_log_to_cancel(struct tcp_bbr *bbr, int32_t line, uint32_t cts, uint8_t hpts_
 	}
 }
 
-
 static void
 bbr_log_tstmp_validation(struct tcp_bbr *bbr, uint64_t peer_delta, uint64_t delta)
 {
@@ -2589,7 +2579,6 @@ bbr_log_tstmp_validation(struct tcp_bbr *bbr, uint64_t peer_delta, uint64_t delt
 		    &bbr->rc_inp->inp_socket->so_snd,
 		    BBR_LOG_TSTMP_VAL, 0,
 		    0, &log, false, &bbr->rc_tv);
-
 	}
 }
 
@@ -2679,7 +2668,6 @@ bbr_log_type_bbrupd(struct tcp_bbr *bbr, uint8_t flex8, uint32_t cts,
 		    flex2, &log, false, &bbr->rc_tv);
 	}
 }
-
 
 static void
 bbr_log_type_ltbw(struct tcp_bbr *bbr, uint32_t cts, int32_t reason,
@@ -2915,7 +2903,6 @@ bbr_set_epoch(struct tcp_bbr *bbr, uint32_t cts, int32_t line)
 	bbr_log_time_epoch(bbr, cts, line, epoch_time);
 	bbr->r_ctl.rc_rcv_epoch_start = cts;
 }
-
 
 static inline void
 bbr_isit_a_pkt_epoch(struct tcp_bbr *bbr, uint32_t cts, struct bbr_sendmap *rsm, int32_t line, int32_t cum_acked)
@@ -3333,7 +3320,6 @@ bbr_alloc_full_limit(struct tcp_bbr *bbr)
 	return (bbr_alloc(bbr));
 }
 
-
 /* wrapper to allocate a sendmap entry, subject to a specific limit */
 static struct bbr_sendmap *
 bbr_alloc_limit(struct tcp_bbr *bbr, uint8_t limit_type)
@@ -3539,7 +3525,6 @@ bbr_get_header_oh(struct tcp_bbr *bbr)
 	}
 	return(seg_oh);
 }
-
 
 static uint32_t
 bbr_get_pacing_length(struct tcp_bbr *bbr, uint16_t gain, uint32_t useconds_time, uint64_t bw)
@@ -4298,7 +4283,6 @@ static int
 bbr_is_lost(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t cts)
 {
 	uint32_t thresh;
-
 
 	thresh = bbr_calc_thresh_rack(bbr, bbr_get_rtt(bbr, BBR_RTT_RACK),
 				      cts, rsm);
@@ -5085,7 +5069,6 @@ bbr_timeout_rxt(struct tcpcb *tp, struct tcp_bbr *bbr, uint32_t cts)
 	    (V_tcp_pmtud_blackhole_detect == 3 && isipv6)) &&
 	    ((tp->t_state == TCPS_ESTABLISHED) ||
 	    (tp->t_state == TCPS_FIN_WAIT_1))) {
-
 		/*
 		 * Idea here is that at each stage of mtu probe (usually,
 		 * 1448 -> 1188 -> 524) should be given 2 chances to recover
@@ -6154,7 +6137,6 @@ bbr_collapse_rtt(struct tcpcb *tp, struct tcp_bbr *bbr, int32_t rtt)
 	tp->t_softerror = 0;
 }
 
-
 static void
 tcp_bbr_xmit_timer(struct tcp_bbr *bbr, uint32_t rtt_usecs, uint32_t rsm_send_time, uint32_t r_start, uint32_t tsin)
 {
@@ -6300,7 +6282,6 @@ tcp_bbr_xmit_timer_commit(struct tcp_bbr *bbr, struct tcpcb *tp, uint32_t cts)
 	int32_t delta;
 	uint32_t rtt, tsin;
 	int32_t rtt_ticks;
-
 
 	if (bbr->rtt_valid == 0)
 		/* No valid sample */
@@ -6506,7 +6487,6 @@ bbr_earlier_retran(struct tcpcb *tp, struct tcp_bbr *bbr, struct bbr_sendmap *rs
 	BBR_STAT_INC(bbr_badfr);
 	BBR_STAT_ADD(bbr_badfr_bytes, (rsm->r_end - rsm->r_start));
 }
-
 
 static void
 bbr_set_reduced_rtt(struct tcp_bbr *bbr, uint32_t cts, uint32_t line)
@@ -6762,7 +6742,6 @@ bbr_google_measurement(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rt
 	}
 }
 
-
 static void
 bbr_update_bbr_info(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, uint32_t rtt, uint32_t cts, uint32_t tsin,
     uint32_t uts, int32_t match, uint32_t rsm_send_time, int32_t ack_type, struct tcpopt *to)
@@ -6911,7 +6890,6 @@ bbr_update_rtt(struct tcpcb *tp, struct tcp_bbr *bbr,
 	    (ack_type == BBR_CUM_ACKED) &&
 	    (to->to_flags & TOF_TS) &&
 	    (to->to_tsecr != 0)) {
-
 		t = tcp_tv_to_mssectick(&bbr->rc_tv) - to->to_tsecr;
 		if (t < 1)
 			t = 1;
@@ -7308,7 +7286,6 @@ out:
 	return (changed);
 }
 
-
 static void inline
 bbr_peer_reneges(struct tcp_bbr *bbr, struct bbr_sendmap *rsm, tcp_seq th_ack)
 {
@@ -7481,7 +7458,6 @@ bbr_log_ack(struct tcpcb *tp, struct tcpopt *to, struct tcphdr *th,
 		bbr->r_wanted_output = 1;
 more:
 		if (rsm == NULL) {
-
 			if (tp->t_flags & TF_SENTFIN) {
 				/* if we send a FIN we will not hav a map */
 				goto proc_sack;
@@ -8455,7 +8431,6 @@ bbr_process_data(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->rcv_nxt++;
 		}
 		switch (tp->t_state) {
-
 			/*
 			 * In SYN_RECEIVED and ESTABLISHED STATES enter the
 			 * CLOSE_WAIT state.
@@ -9194,7 +9169,6 @@ bbr_do_syn_recv(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	if (thflags & TH_ACK)
 		bbr_log_syn(tp, to);
 	if (IS_FASTOPEN(tp->t_flags) && tp->t_tfo_pending) {
-
 		tcp_fastopen_decrement_counter(tp->t_tfo_pending);
 		tp->t_tfo_pending = NULL;
 	}
@@ -9876,7 +9850,6 @@ bbr_do_lastack(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	    tiwin, thflags, nxt_pkt));
 }
 
-
 /*
  * Return value of 1, the TCB is unlocked and most
  * likely gone, return value of 0, the TCB is still
@@ -10419,7 +10392,6 @@ bbr_substate_change(struct tcp_bbr *bbr, uint32_t cts, int32_t line, int dolog)
 	 * needed?
 	 */
 	int32_t old_state, old_gain;
-
 
 	old_state = bbr_state_val(bbr);
 	old_gain = bbr->r_ctl.rc_bbr_hptsi_gain;
@@ -11011,7 +10983,6 @@ bbr_should_enter_probe_rtt(struct tcp_bbr *bbr, uint32_t cts)
 	return (0);
 }
 
-
 static int32_t
 bbr_google_startup(struct tcp_bbr *bbr, uint32_t cts, int32_t  pkt_epoch)
 {
@@ -11204,7 +11175,6 @@ bbr_state_change(struct tcp_bbr *bbr, uint32_t cts, int32_t epoch, int32_t pkt_e
 			bbr->rc_filled_pipe = 1;
 			bbr->r_ctl.bbr_lost_at_state = bbr->r_ctl.rc_lost;
 			if (SEQ_GT(cts, bbr->r_ctl.rc_bbr_state_time)) {
-
 				time_in = cts - bbr->r_ctl.rc_bbr_state_time;
 				counter_u64_add(bbr_state_time[bbr->rc_bbr_state], time_in);
 			} else

@@ -131,4 +131,3 @@ rib_lookup(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 
 	return (nh);
 }
-

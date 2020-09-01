@@ -479,7 +479,6 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 ready:
 	/* See if we got a match and find destination hook */
 	if (len > 0) {
-
 		/* Update stats */
 		/* XXX atomically? */
 		hip->stats.recvMatchFrames++;

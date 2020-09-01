@@ -232,7 +232,7 @@ ng_hci_get_neighbor(ng_hci_unit_p unit, bdaddr_p bdaddr,int link_type)
 
 		n = nn;
 	}
-	
+
 	return (n);
 } /* ng_hci_get_neighbor */
 
@@ -526,4 +526,3 @@ ng_hci_str_error(u_int16_t code)
 	return ((code >= LAST_ERROR_CODE)? s[LAST_ERROR_CODE] : s[code]);
 } /* ng_hci_str_error */
 #endif
-

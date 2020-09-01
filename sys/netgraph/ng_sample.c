@@ -393,7 +393,7 @@ devintr()
 
 	/* get packet from device and send on */
 	m = MGET(blah blah)
-	
+
 	NG_SEND_DATA_ONLY(error, xxxp->upstream_hook.hook, m);
 				/* see note above in xxx_rcvdata() */
 				/* and ng_xxx_connect() */
@@ -493,4 +493,3 @@ ng_xxx_disconnect(hook_p hook)
 		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
-

@@ -106,7 +106,6 @@ static SYSCTL_NODE(_net_inet_tcp_reass, OID_AUTO, stats,
     CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Segment Reassembly stats");
 
-
 static int tcp_reass_maxseg = 0;
 SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
     &tcp_reass_maxseg, 0,
@@ -511,7 +510,6 @@ tcp_reass_overhead_of_chain(struct mbuf *m, struct mbuf **mlast)
 	*mlast = m;
 	return (len);
 }
-
 
 /*
  * NOTE!!! the new tcp-reassembly code *must not* use

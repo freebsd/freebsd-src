@@ -195,7 +195,6 @@ int  smb_usr_t2request(struct smb_share *ssp, struct smbioc_t2rq *data,
 int  smb_dev2share(int fd, int mode, struct smb_cred *scred,
 	struct smb_share **sspp, struct smb_dev **ssdp);
 
-
 #endif /* _KERNEL */
 
 #endif /* _NETSMB_DEV_H_ */

@@ -90,7 +90,7 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 static int
 protohandler(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
-	
+
 	AliasHandleDummy(la, pip, ah);
 	return (0);
 }
@@ -152,4 +152,3 @@ AliasHandleDummy(struct libalias *la, struct ip *ip, struct alias_data *ah)
 {
 	; /* Dummy. */
 }
-

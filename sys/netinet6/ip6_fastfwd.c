@@ -302,4 +302,3 @@ drop:
 		m_freem(m);
 	return (NULL);
 }
-

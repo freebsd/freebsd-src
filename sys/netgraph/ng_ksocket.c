@@ -583,7 +583,6 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 			return (error);
 
 		/* XXX call soreserve() ? */
-
 	}
 
 	/* OK */
@@ -1016,7 +1015,6 @@ ng_ksocket_incoming(struct socket *so, void *arg, int waitflag)
 	return (SU_OK);
 }
 
-
 /*
  * When incoming data is appended to the socket, we get notified here.
  * This is also called whenever a significant event occurs for the socket.
@@ -1271,4 +1269,3 @@ ng_ksocket_parse(const struct ng_ksocket_alias *aliases,
 		return (-1);
 	return (val);
 }
-

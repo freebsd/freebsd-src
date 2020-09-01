@@ -385,7 +385,7 @@ ng_pptpgre_newhook(node_p node, hook_p hook, const char *name)
 		hpriv = malloc(sizeof(*hpriv), M_NETGRAPH, M_NOWAIT | M_ZERO);
 		if (hpriv == NULL)
 			return (ENOMEM);
-	
+
 		/* Initialize state */
 		mtx_init(&hpriv->mtx, "ng_pptp", NULL, MTX_DEF);
 		ng_callout_init(&hpriv->sackTimer);
@@ -600,7 +600,6 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 	}
 	/* Check if there's data */
 	if (m != NULL) {
-
 		/* Check if windowing is enabled */
 		if (hpriv->conf.enableWindowing) {
 			/* Is our transmit window full? */

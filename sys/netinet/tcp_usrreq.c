@@ -2809,7 +2809,6 @@ db_print_tflags2(u_int t_flags2)
 	}
 }
 
-
 static void
 db_print_toobflags(char t_oobflags)
 {

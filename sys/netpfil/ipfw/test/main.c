@@ -132,7 +132,6 @@ drop(struct cfg_s *c, struct mbuf *m)
 	return 0;
 }
 
-
 /*
  * dn_sch_inst does not have a queue, for the RR we
  * allocate a mq right after si
@@ -151,7 +150,6 @@ default_enqueue(struct dn_sch_inst *si, struct dn_queue *q, struct mbuf *m)
 	mq->tail = m;
 	return 0; /* default - success */
 }
-
 
 static struct mbuf *
 default_dequeue(struct dn_sch_inst *si)
@@ -598,7 +596,6 @@ init(struct cfg_s *c)
 	c->llmask = 1; /* all flows are in the first list */
 	return 0;
 }
-
 
 int
 main(int ac, char *av[])

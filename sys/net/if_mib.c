@@ -150,4 +150,3 @@ out:
 static SYSCTL_NODE(_net_link_generic, IFMIB_IFDATA, ifdata,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ifdata,
     "Interface table");
-

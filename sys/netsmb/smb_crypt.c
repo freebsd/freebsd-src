@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 
 static u_char N8[] = {0x4b, 0x47, 0x53, 0x21, 0x40, 0x23, 0x24, 0x25};
 
-
 static void
 smb_E(const u_char *key, u_char *data, u_char *dest)
 {
@@ -87,7 +86,6 @@ smb_E(const u_char *key, u_char *data, u_char *dest)
 	des_ecb_encrypt(data, dest, *ksp, 1);
 	free(ksp, M_SMBTEMP);
 }
-
 
 int
 smb_encrypt(const u_char *apwd, u_char *C8, u_char *RN)

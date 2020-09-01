@@ -1424,7 +1424,6 @@ tcp_lro_queue_mbuf(struct lro_ctrl *lc, struct mbuf *mb)
 	/* check if packet is not LRO capable */
 	if (__predict_false(mb->m_pkthdr.csum_flags == 0 ||
 	    (lc->ifp->if_capenable & IFCAP_LRO) == 0)) {
-
 		/* input packet to network layer */
 		(*lc->ifp->if_input) (lc->ifp, mb);
 		return;

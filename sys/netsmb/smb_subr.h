@@ -79,7 +79,6 @@ void m_dumpm(struct mbuf *m);
 #define	smb_sl_lock(mtx)		mtx_lock(mtx)
 #define	smb_sl_unlock(mtx)		mtx_unlock(mtx)
 
-
 #define SMB_STRFREE(p)	do { if (p) smb_strfree(p); } while(0)
 
 typedef u_int16_t	smb_unichar;

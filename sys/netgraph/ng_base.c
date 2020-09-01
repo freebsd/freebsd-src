@@ -1426,7 +1426,7 @@ ng_con_part2(node_p node, item_p item, hook_p hook)
 	LIST_INSERT_HEAD(&node->nd_hooks, hook, hk_hooks);
 	node->nd_numhooks++;
 	NG_HOOK_REF(hook);	/* one for the node */
-	
+
 	/*
 	 * We now have a symmetrical situation, where both hooks have been
 	 * linked to their nodes, the newhook methods have been called
@@ -1577,7 +1577,6 @@ ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 
 	if ((error == 0) && hook2->hk_node->nd_type->connect) {
 		error = (*hook2->hk_node->nd_type->connect) (hook2);
-
 	}
 
 	/*
@@ -1599,7 +1598,7 @@ ng_mkpeer(node_p node, const char *name, const char *name2, char *type)
 /************************************************************************
 		Utility routines to send self messages
 ************************************************************************/
-	
+
 /* Shut this node down as soon as everyone is clear of it */
 /* Should add arg "immediately" to jump the queue */
 int

@@ -142,4 +142,3 @@ ngee_disconnect(hook_p hook)
 	}
 	return (0);
 }
-

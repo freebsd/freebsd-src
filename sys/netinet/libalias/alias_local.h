@@ -127,7 +127,7 @@ struct libalias {
 
 	int		deleteAllLinks;	/* If equal to zero, DeleteLink()  */
 	/* will not remove permanent links */
-	
+
 	/* log descriptor        */ 
 #ifdef  _KERNEL
 	char           *logDesc;        
@@ -172,10 +172,10 @@ struct libalias {
 #ifdef  _KERNEL
 	/* timing queue for keeping track of association timeouts */
 	struct sctp_nat_timer sctpNatTimer;
-	
+
 	/* size of hash table used in this instance */
 	u_int sctpNatTableSize;
-	
+
 /* 
  * local look up table sorted by l_vtag/l_port 
  */
@@ -184,7 +184,7 @@ struct libalias {
  * global look up table sorted by g_vtag/g_port 
  */
 	LIST_HEAD(sctpNatTableG, sctp_nat_assoc) *sctpTableGlobal;
-	
+
 	/* 
 	 * avoid races in libalias: every public function has to use it.
 	 */
@@ -231,7 +231,6 @@ struct libalias {
 			cksum = (u_short) acc; \
 		} \
 	} while (0)
-
 
 /* Prototypes */
 

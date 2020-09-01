@@ -767,7 +767,6 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 				/* Unwrap in6_getscope() and in6_clearscope() */
 				scopeid = ntohs(sa6->sin6_addr.s6_addr16[1]);
 				sa6->sin6_addr.s6_addr16[1] = 0;
-
 			}
 
 			ro->ro_nh = fib6_lookup(fibnum,

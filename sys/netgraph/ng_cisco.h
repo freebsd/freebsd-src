@@ -88,4 +88,3 @@ struct ng_cisco_stats {
 }
 
 #endif /* _NETGRAPH_NG_CISCO_H_ */
-

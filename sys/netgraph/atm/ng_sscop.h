@@ -67,7 +67,6 @@ enum {
 	  { NULL }						\
 	}
 
-
 struct ng_sscop_setparam {
 	uint32_t		mask;
 	struct sscop_param	param;

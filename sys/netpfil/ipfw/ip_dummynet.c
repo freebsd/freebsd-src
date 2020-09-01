@@ -1338,7 +1338,7 @@ get_aqm_parms(struct sockopt *sopt)
 	struct dn_fsk *fs;
 	size_t sopt_valsize;
 	int l, err = 0;
-	
+
 	sopt_valsize = sopt->sopt_valsize;
 	l = sizeof(*ep);
 	if (sopt->sopt_valsize < l) {
@@ -1393,7 +1393,7 @@ get_sched_parms(struct sockopt *sopt)
 	struct dn_schk *schk;
 	size_t sopt_valsize;
 	int l, err = 0;
-	
+
 	sopt_valsize = sopt->sopt_valsize;
 	l = sizeof(*ep);
 	if (sopt->sopt_valsize < l) {
@@ -2505,7 +2505,6 @@ ip_dn_ctl(struct sockopt *sopt)
 	return error ;
 }
 
-
 static void
 ip_dn_init(void)
 {
@@ -2733,7 +2732,6 @@ load_dn_aqm(struct dn_aqm *d)
 	return aqm ? 1 : 0;
 }
 
-
 /* Callback to clean up AQM status for queues connected to a flowset
  * and then deconfigure the flowset.
  * This function is called before an AQM module is unloaded
@@ -2794,4 +2792,3 @@ dn_aqm_modevent(module_t mod, int cmd, void *arg)
 #endif
 
 /* end of file */
-

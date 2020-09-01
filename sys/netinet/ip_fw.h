@@ -516,7 +516,6 @@ struct cfg_nat {
 
 #endif	/* ifndef _KERNEL */
 
-
 struct nat44_cfg_spool {
 	struct in_addr	addr;
 	uint16_t	port;
@@ -638,7 +637,6 @@ struct ip_fw_bcounter {
 	uint64_t	bcnt;		/* Byte counter			*/
 };
 
-
 #ifndef	_KERNEL
 /*
  * Legacy rule format
@@ -668,7 +666,6 @@ struct ip_fw {
 	(ipfw_insn *)( (u_int32_t *)((rule)->cmd) + ((rule)->act_ofs) )
 
 #define RULESIZE(rule)  (sizeof(*(rule)) + (rule)->cmd_len * 4 - 4)
-
 
 #if 1 // should be moved to in.h
 /*

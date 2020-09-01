@@ -258,7 +258,6 @@ freemask_ffsll(uint32_t *freemask)
 	((uint64_t)ck_pr_load_32(FREEMASK_CHUNK((pg), (n)) + 1) << 32)
 #endif /* !__LP64__ */
 
-
 #define	NAT64LSN_TRY_PGCNT	32
 static struct nat64lsn_pg*
 nat64lsn_get_pg(uint32_t *chunkmask, uint32_t *pgmask,
@@ -1750,4 +1749,3 @@ nat64lsn_destroy_instance(struct nat64lsn_cfg *cfg)
 	free(cfg->aliases, M_NAT64LSN);
 	free(cfg, M_NAT64LSN);
 }
-

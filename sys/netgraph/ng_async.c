@@ -66,7 +66,6 @@ static MALLOC_DEFINE(M_NETGRAPH_ASYNC, "netgraph_async", "netgraph async node");
 #define M_NETGRAPH_ASYNC M_NETGRAPH
 #endif
 
-
 /* Async decode state */
 #define MODE_HUNT	0
 #define MODE_NORMAL	1
@@ -259,7 +258,7 @@ nga_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	struct ng_mesg *msg;
-	
+
 	NGI_GET_MSG(item, msg);
 	switch (msg->header.typecookie) {
 	case NGM_ASYNC_COOKIE:
@@ -406,7 +405,6 @@ nga_rcv_sync(const sc_p sc, item_p item)
 	u_int16_t fcs, fcs0;
 	u_int32_t accm;
 	struct mbuf *m;
-
 
 #define ADD_BYTE(x)	nga_async_add(sc, &fcs, accm, &alen, (x))
 

@@ -64,9 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/sctp_os_bsd.h>
 
-
-
-
 /* All os's must implement this address gatherer. If
  * no VRF's exist, then vrf 0 is the only one and all
  * addresses and ifn's live here.

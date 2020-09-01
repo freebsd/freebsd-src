@@ -381,5 +381,4 @@ static struct dn_alg wf2qp_desc = {
 
 };
 
-
 DECLARE_DNSCHED_MODULE(dn_wf2qp, &wf2qp_desc);

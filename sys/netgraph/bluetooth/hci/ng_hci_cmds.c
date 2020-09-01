@@ -527,7 +527,7 @@ process_link_policy_params(ng_hci_unit_p unit, u_int16_t ocf,
 	case NG_HCI_OCF_WRITE_LINK_POLICY_SETTINGS:
 		/* These do not need post processing */
 		break;
-	
+
 	case NG_HCI_OCF_HOLD_MODE:
 	case NG_HCI_OCF_SNIFF_MODE:
 	case NG_HCI_OCF_EXIT_SNIFF_MODE:
@@ -733,7 +733,7 @@ process_info_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 		ng_hci_node_is_up(unit->node, unit->acl, NULL, 0);
 		ng_hci_node_is_up(unit->node, unit->sco, NULL, 0);
 		break;
-	
+
 	default:
 		error = EINVAL;
 		break;
@@ -785,14 +785,13 @@ process_testing_params(ng_hci_unit_p unit, u_int16_t ocf, struct mbuf *mcp,
 	int	error = 0;
 
 	switch (ocf) {
-
 	/*
 	 * XXX FIXME
 	 * We do not support these features at this time. However,
 	 * HCI node could support this and do something smart. At least
 	 * node can change unit state.
 	 */
- 
+
 	case NG_HCI_OCF_READ_LOOPBACK_MODE:
 	case NG_HCI_OCF_WRITE_LOOPBACK_MODE:
 	case NG_HCI_OCF_ENABLE_UNIT_UNDER_TEST:
@@ -854,7 +853,6 @@ process_le_params(ng_hci_unit_p unit, u_int16_t ocf,
 	case NG_HCI_OCF_LE_READ_REMOTE_USED_FEATURES:
 	case NG_HCI_OCF_LE_START_ENCRYPTION:
 
-
 	default:
 		/*
 		 * None of these command was supposed to generate 
@@ -873,8 +871,6 @@ process_le_params(ng_hci_unit_p unit, u_int16_t ocf,
 	return (error);
 
 }
-
-
 
 static int
 process_le_status(ng_hci_unit_p unit,ng_hci_command_status_ep *ep,
@@ -917,7 +913,6 @@ process_le_status(ng_hci_unit_p unit,ng_hci_command_status_ep *ep,
 	case NG_HCI_OCF_LE_RECEIVER_TEST:
 	case NG_HCI_OCF_LE_TRANSMITTER_TEST:
 	case NG_HCI_OCF_LE_TEST_END:
-
 
 	default:
 		/*
@@ -1036,4 +1031,3 @@ process_link_policy_status(ng_hci_unit_p unit, ng_hci_command_status_ep *ep,
 
 	return (error);
 } /* process_link_policy_status */
-

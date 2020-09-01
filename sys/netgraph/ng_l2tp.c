@@ -1065,9 +1065,9 @@ ng_l2tp_rcvdata_ctrl(hook_p hook, item_p item)
 	if (!callout_active(&seq->rack_timer))
 		ng_callout(&seq->rack_timer, node, NULL,
 		    hz, ng_l2tp_seq_rack_timeout, NULL, 0);
-	
+
 	ns = seq->ns++;
-	
+
 	mtx_unlock(&seq->mtx);
 
 	/* Copy packet */
@@ -1349,7 +1349,6 @@ ng_l2tp_seq_recv_nr(priv_p priv, u_int16_t nr)
 	 * ACK had arrived separately.
 	 */
 	if (seq->cwnd < seq->wmax) {
-
 		/* Handle slow start phase */
 		if (seq->cwnd < seq->ssth) {
 			seq->cwnd += nack;
@@ -1522,7 +1521,6 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 
 	/* If no mbuf passed, send an empty packet (ZLB) */
 	if (m == NULL) {
-
 		/* Create a new mbuf for ZLB packet */
 		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
@@ -1533,7 +1531,6 @@ ng_l2tp_xmit_ctrl(priv_p priv, struct mbuf *m, u_int16_t ns)
 		m->m_pkthdr.rcvif = NULL;
 		priv->stats.xmitZLBs++;
 	} else {
-
 		/* Strip off session ID */
 		if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
 			priv->stats.memoryFailures++;

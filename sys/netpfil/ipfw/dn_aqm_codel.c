@@ -274,7 +274,6 @@ drop:
 	return (1);
 }
 
-
 /* Dequeue a pcaket from queue q */
 static struct mbuf * 
 aqm_codel_dequeue(struct dn_queue *q)
@@ -364,10 +363,10 @@ aqm_codel_config(struct dn_fsk* fs, struct dn_extra_parms *ep, int len)
 		D("cannot allocate AQM_codel configuration parameters");
 		return ENOMEM; 
 	}
-	
+
 	/* configure codel parameters */
 	ccfg = fs->aqmcfg;
-	
+
 	if (ep->par[0] < 0)
 		ccfg->target = codel_sysctl.target;
 	else
@@ -442,6 +441,5 @@ static struct dn_aqm codel_desc = {
 };
 
 DECLARE_DNAQM_MODULE(dn_aqm_codel, &codel_desc);
-
 
 #endif

@@ -47,7 +47,6 @@ enum nbstate {
 	NBST_REFUSED
 };
 
-
 /*
  * socket specific data
  */

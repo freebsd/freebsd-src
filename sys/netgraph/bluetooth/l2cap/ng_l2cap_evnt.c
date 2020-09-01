@@ -370,7 +370,7 @@ static int ng_l2cap_process_cmd_urs(ng_l2cap_con_p con, uint8_t ident)
 {
 	/* We only support master side yet .*/
 	//send_l2cap_reject(con,ident ... );
-	
+
 	NG_FREE_M(con->rx_pkt);
 	return 0;
 }
@@ -463,7 +463,7 @@ ng_l2cap_process_con_req(ng_l2cap_con_p con, u_int8_t ident)
 	int			 error = 0;
 	u_int16_t		 dcid, psm;
 	int idtype;
-	
+
 	/* Get command parameters */
 	NG_L2CAP_M_PULLUP(m, sizeof(*cp));
 	if (m == NULL)
@@ -713,7 +713,6 @@ ng_l2cap_process_cfg_req(ng_l2cap_con_p con, u_int8_t ident)
 			respond = 1;
 
 			if (error == -3) {
-
 				/*
 				 * Adjust mbuf so we can get to the start
 				 * of the first option we did not like.
@@ -1244,7 +1243,7 @@ ng_l2cap_process_info_rsp(ng_l2cap_con_p con, u_int8_t ident)
 
 		return (ENOENT);
 	}
-	
+
 	/* If command timeout already happened then ignore response */
 	if ((error = ng_l2cap_command_untimeout(cmd)) != 0) {
 		NG_FREE_M(con->rx_pkt);
@@ -1335,7 +1334,7 @@ send_l2cap_con_rej(ng_l2cap_con_p con, u_int8_t ident, u_int16_t scid,
 
 		return (ENOBUFS);
 	}
-	
+
 	/* Link command to the queue */
 	ng_l2cap_link_cmd(con, cmd);
 	ng_l2cap_lp_deliver(con);
@@ -1384,7 +1383,6 @@ send_l2cap_param_urs(ng_l2cap_con_p con, u_int8_t ident,
 			       NG_L2CAP_CMD_PARAM_UPDATE_RESPONSE,
 			       0);
 	if (cmd == NULL) {
-
 		return (ENOMEM);
 	}
 
@@ -1475,4 +1473,3 @@ get_next_l2cap_opt(struct mbuf *m, int *off, ng_l2cap_cfg_opt_p hdr,
 
 	return (1);
 } /* get_next_l2cap_opt */
-

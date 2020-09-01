@@ -1323,7 +1323,6 @@ ng_btsocket_sco_bind(struct socket *so, struct sockaddr *nam,
 
 			mtx_unlock(&pcb->pcb_mtx);
 		}
-
 	}
 
 	pcb = so2sco_pcb(so);
@@ -1508,7 +1507,7 @@ ng_btsocket_sco_ctloutput(struct socket *so, struct sockopt *sopt)
 	}
 
 	mtx_unlock(&pcb->pcb_mtx);
-	
+
 	return (error);
 } /* ng_btsocket_sco_ctloutput */
 
@@ -1980,4 +1979,3 @@ ng_btsocket_sco_process_timeout(void *xpcb)
 
 	mtx_unlock(&pcb->pcb_mtx);
 } /* ng_btsocket_sco_process_timeout */
-

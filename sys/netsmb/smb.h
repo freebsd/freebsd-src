@@ -31,7 +31,7 @@
 /*
  * Common definitions and structures for SMB/CIFS protocol
  */
- 
+
 #ifndef _NETSMB_SMB_H_
 #define _NETSMB_SMB_H_
 

@@ -1580,7 +1580,6 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 				 * us then get us out of STA mode powersave.
 				 */
 				if (tim_ucast == 1) {
-
 					/*
 					 * Wake us out of SLEEP state if we're
 					 * in it; and if we're doing bgscan

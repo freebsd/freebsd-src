@@ -272,7 +272,6 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		    0, 0, &info) == 0) {
 			if ((info.rti_flags & RTF_ANNOUNCE) != 0 &&
 			    rt_gateway.sdl_family == AF_LINK) {
-
 				/*
 				 * proxy NDP for single entry
 				 */

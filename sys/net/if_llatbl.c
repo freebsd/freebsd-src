@@ -874,7 +874,6 @@ llatbl_llt_show(struct lltable *llt)
 
 	for (i = 0; i < llt->llt_hsize; i++) {
 		CK_LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
-
 			llatbl_lle_show((struct llentry_sa *)lle);
 			if (db_pager_quit)
 				return;

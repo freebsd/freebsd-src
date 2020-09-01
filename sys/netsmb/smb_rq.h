@@ -56,7 +56,6 @@
 #define SMBRQ_SUNLOCK(rqp)	smb_sl_unlock(&(rqp)->sr_slock)
 #define SMBRQ_SLOCKPTR(rqp)	(&(rqp)->sr_slock)
 
-
 enum smbrq_state {
 	SMBRQ_NOTSENT,		/* rq have data to send */
 	SMBRQ_SENT,		/* send procedure completed */

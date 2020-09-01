@@ -560,7 +560,6 @@ ubt_do_hci_request(struct usb_device *udev, struct ubt_hci_cmd *cmd,
 	error = usbd_transfer_setup(udev, &iface_index, xfer,
 	    &ubt_probe_config, 1, evt, &mtx);
 	if (error == USB_ERR_NORMAL_COMPLETION) {
-
 		mtx_lock(&mtx);
 		usbd_transfer_start(*xfer);
 
@@ -703,7 +702,6 @@ ubt_attach(device_t dev)
 	while ((ed = (struct usb_endpoint_descriptor *)usb_desc_foreach(
 	    usbd_get_config_descriptor(uaa->device), 
 	    (struct usb_descriptor *)ed))) {
-
 		if ((ed->bDescriptorType == UDESC_INTERFACE) &&
 		    (ed->bLength >= sizeof(*id))) {
 			id = (struct usb_interface_descriptor *)ed;
@@ -1678,7 +1676,7 @@ ng_ubt_disconnect(hook_p hook)
 
 	return (0);
 } /* ng_ubt_disconnect */
-	
+
 /*
  * Process control message.
  * Netgraph context.

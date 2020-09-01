@@ -183,7 +183,6 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
                         } else
                                 opts = tmp_opts;
                 }
-
 	}
 	m_adj(n, off + sizeof(struct udphdr));
 
@@ -817,7 +816,6 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 
 	NET_EPOCH_ENTER(et);
 	if (sin6) {
-
 		/*
 		 * Since we saw no essential reason for calling in_pcbconnect,
 		 * we get rid of such kind of logic, and call in6_selectsrc

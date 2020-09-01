@@ -57,7 +57,7 @@ struct service_curve_v1 {
 
 /* Latest version of struct service_curve_vX */
 #define HFSC_SERVICE_CURVE_VERSION	1
-	
+
 /* special class handles */
 #define	HFSC_NULLCLASS_HANDLE	0
 #define	HFSC_MAX_CLASSES	64
@@ -167,7 +167,6 @@ struct hfsc_classstats_v1 {
  * from mixing of public-API and internal bits in each scheduler-specific
  * header.
  */
-	
 
 #ifdef _KERNEL
 /*

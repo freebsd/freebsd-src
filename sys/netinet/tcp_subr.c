@@ -340,7 +340,6 @@ static void tcp_mtudisc(struct inpcb *, int);
 static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 		    void *ip4hdr, const void *ip6hdr);
 
-
 static struct tcp_function_block tcp_def_funcblk = {
 	.tfb_tcp_block_name = "freebsd",
 	.tfb_tcp_output = tcp_output,
@@ -2437,7 +2436,6 @@ SYSCTL_PROC(_net_inet6_tcp6, OID_AUTO, getcred,
     "Get the xucred of a TCP6 connection");
 #endif /* INET6 */
 
-
 #ifdef INET
 void
 tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
@@ -2934,7 +2932,6 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 	KASSERT(inc != NULL, ("tcp_maxmtu with NULL in_conninfo pointer"));
 
 	if (inc->inc_faddr.s_addr != INADDR_ANY) {
-
 		nh = fib4_lookup(inc->inc_fibnum, inc->inc_faddr, 0, NHR_NONE, 0);
 		if (nh == NULL)
 			return (0);

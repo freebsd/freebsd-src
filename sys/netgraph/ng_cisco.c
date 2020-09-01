@@ -572,7 +572,6 @@ drop:
 	return (error);
 }
 
-
 /*
  * Send keepalive packets, every 10 seconds.
  */

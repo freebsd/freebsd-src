@@ -283,7 +283,6 @@ ng_btsocket_l2cap_raw_node_rcvmsg(node_p node, item_p item, hook_p hook)
 	int		 error = 0;
 
 	if (msg != NULL && msg->header.typecookie == NGM_L2CAP_COOKIE) {
-
 		/*
 		 * NGM_L2CAP_NODE_HOOK_INFO is special message initiated by
 		 * L2CAP layer. Ignore all other messages if they are not
@@ -751,7 +750,7 @@ ng_btsocket_l2cap_raw_connect(struct socket *so, struct sockaddr *nam,
 
 		return (0);
 	}
-	
+
 	/*
 	 * Find the first hook that does not match specified destination address
 	 */
@@ -849,7 +848,7 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 			(struct ng_btsocket_l2cap_raw_con_list *) data;
 		ng_l2cap_node_con_list_ep		*p1 = NULL;
                 ng_l2cap_node_con_ep			*p2 = NULL;
- 
+
 		if (p->num_connections == 0 ||
 		    p->num_connections > NG_L2CAP_MAX_CON_NUM ||
 		    p->connections == NULL) {
@@ -913,14 +912,14 @@ ng_btsocket_l2cap_raw_control(struct socket *so, u_long cmd, caddr_t data,
 			(struct ng_btsocket_l2cap_raw_chan_list *) data;
 		ng_l2cap_node_chan_list_ep		*p1 = NULL;
                 ng_l2cap_node_chan_ep			*p2 = NULL;
- 
+
 		if (p->num_channels == 0 ||
 		    p->num_channels > NG_L2CAP_MAX_CHAN_NUM ||
 		    p->channels == NULL) {
 			mtx_unlock(&pcb->pcb_mtx);
 			return (EINVAL);
 		}
- 
+
 		NG_MKMESSAGE(msg, NGM_L2CAP_COOKIE,
 			NGM_L2CAP_NODE_GET_CHAN_LIST, 0, M_NOWAIT);
 		if (msg == NULL) {
@@ -1287,9 +1286,9 @@ ng_btsocket_l2cap_raw_get_token(u_int32_t *token)
   
 	if (++ ng_btsocket_l2cap_raw_token == 0)
 		ng_btsocket_l2cap_raw_token = 1;
- 
+
 	*token = ng_btsocket_l2cap_raw_token;
- 
+
 	mtx_unlock(&ng_btsocket_l2cap_raw_token_mtx);
 } /* ng_btsocket_l2cap_raw_get_token */
 
@@ -1359,4 +1358,3 @@ ng_btsocket_l2cap_raw_send_sync_ngmsg(ng_btsocket_l2cap_raw_pcb_p pcb,
 
 	return (0);
 } /* ng_btsocket_l2cap_raw_send_sync_ngmsg */
-

@@ -189,7 +189,6 @@ static void	TcpMonitorIn(u_char, struct alias_link *);
 
 static void	TcpMonitorOut(u_char, struct alias_link *);
 
-
 static void
 TcpMonitorIn(u_char th_flags, struct alias_link *lnk)
 {
@@ -225,10 +224,6 @@ TcpMonitorOut(u_char th_flags, struct alias_link *lnk)
 		break;
 	}
 }
-
-
-
-
 
 /* Protocol Specific Packet Aliasing Routines
 
@@ -269,7 +264,6 @@ All packets go through the aliasing mechanism, whether they come from
 the gateway machine or other machines on a local area network.
 */
 
-
 /* Local prototypes */
 static int	IcmpAliasIn1(struct libalias *, struct ip *);
 static int	IcmpAliasIn2(struct libalias *, struct ip *);
@@ -290,7 +284,6 @@ static int	UdpAliasOut(struct libalias *, struct ip *, int, int create);
 
 static int	TcpAliasIn(struct libalias *, struct ip *);
 static int	TcpAliasOut(struct libalias *, struct ip *, int, int create);
-
 
 static int
 IcmpAliasIn1(struct libalias *la, struct ip *pip)
@@ -438,7 +431,6 @@ fragment contained in ICMP data section */
 	return (PKT_ALIAS_IGNORED);
 }
 
-
 static int
 IcmpAliasIn(struct libalias *la, struct ip *pip)
 {
@@ -481,7 +473,6 @@ IcmpAliasIn(struct libalias *la, struct ip *pip)
 	}
 	return (iresult);
 }
-
 
 static int
 IcmpAliasOut1(struct libalias *la, struct ip *pip, int create)
@@ -526,7 +517,6 @@ IcmpAliasOut1(struct libalias *la, struct ip *pip, int create)
 	}
 	return (PKT_ALIAS_IGNORED);
 }
-
 
 static int
 IcmpAliasOut2(struct libalias *la, struct ip *pip)
@@ -627,7 +617,6 @@ fragment contained in ICMP data section */
 	}
 	return (PKT_ALIAS_IGNORED);
 }
-
 
 static int
 IcmpAliasOut(struct libalias *la, struct ip *pip, int create)
@@ -733,7 +722,6 @@ ProtoAliasOut(struct libalias *la, struct in_addr *ip_src,
 	}
 	return (PKT_ALIAS_IGNORED);
 }
-
 
 static int
 UdpAliasIn(struct libalias *la, struct ip *pip)
@@ -936,8 +924,6 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 	}
 	return (PKT_ALIAS_IGNORED);
 }
-
-
 
 static int
 TcpAliasIn(struct libalias *la, struct ip *pip)
@@ -1185,9 +1171,6 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 	return (PKT_ALIAS_IGNORED);
 }
 
-
-
-
 /* Fragment Handling
 
     FragmentIn()
@@ -1241,11 +1224,6 @@ FragmentOut(struct libalias *la, struct in_addr *ip_src, u_short *ip_sum)
 
 	return (PKT_ALIAS_OK);
 }
-
-
-
-
-
 
 /* Outside World Access
 
@@ -1428,8 +1406,6 @@ LibAliasInLocked(struct libalias *la, char *ptr, int maxpacketsize)
 getout:
 	return (iresult);
 }
-
-
 
 /* Unregistered address ranges */
 
@@ -1650,7 +1626,6 @@ LibAliasUnaliasOut(struct libalias *la, char *ptr,	/* valid IP packet */
 			iresult = PKT_ALIAS_OK;
 
 		} else if (pip->ip_p == IPPROTO_ICMP) {
-
 			int accumulate;
 			struct in_addr original_address;
 			u_short original_id;

@@ -28,7 +28,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
- 
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <netsmb/smb_tran.h>
 #include <netsmb/smb_trantcp.h>
 
-
 #define SMBIOD_SLEEP_TIMO	2
 #define	SMBIOD_PING_TIMO	60	/* seconds */
 
@@ -58,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #define	SMB_IOD_RQUNLOCK(iod)	smb_sl_unlock(&((iod)->iod_rqlock))
 
 #define	smb_iod_wakeup(iod)	wakeup(&(iod)->iod_flags)
-
 
 static MALLOC_DEFINE(M_SMBIOD, "SMBIOD", "SMB network io daemon");
 
@@ -506,7 +504,6 @@ smb_iod_waitrq(struct smb_rq *rqp)
 		}
 		smb_iod_removerq(rqp);
 		return rqp->sr_lerror;
-
 	}
 	SMBRQ_SLOCK(rqp);
 	if (rqp->sr_rpgen == rqp->sr_rplast)
@@ -527,7 +524,6 @@ smb_iod_waitrq(struct smb_rq *rqp)
 		smb_iod_removerq(rqp);
 	return error;
 }
-
 
 static int
 smb_iod_sendall(struct smbiod *iod)
@@ -719,4 +715,3 @@ smb_iod_done(void)
 {
 	return 0;
 }
-

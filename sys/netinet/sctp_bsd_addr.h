@@ -47,7 +47,6 @@ void sctp_wakeup_iterator(void);
 
 void sctp_startup_iterator(void);
 
-
 #ifdef INET6
 void sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa);
 #endif

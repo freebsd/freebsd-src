@@ -988,7 +988,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		return (ENOBUFS);
 	}
 	sorwakeup_locked(so);
-	
+
 	return (error);
 }
 
@@ -1214,4 +1214,3 @@ SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG
 static SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "CONTROL");
 SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, NG_CONTROL, "");
-

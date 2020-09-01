@@ -57,7 +57,6 @@ _cht_need_resize(const struct _cht_head *head)
 	return (_cht_get_resize_size(head) > 0);
 }
 
-
 #ifndef	typeof
 #define	typeof	__typeof
 #endif
@@ -152,11 +151,9 @@ struct _HNAME##_head {				\
 	}								\
 } while(0)
 
-
 #define	CHT_SLIST_FOREACH(_head, _PX, _x)				\
 	for (uint32_t _i = 0; _i < (_head)->hash_size; _i++) {		\
 		for (_x = CHT_FIRST(_head, _i); _x; _x = _PX##_next(_x))
-
 #define	CHT_SLIST_FOREACH_END	}
 
 #define	CHT_SLIST_RESIZE(_head, _PX, _new_void_ptr, _new_hsize)		\
@@ -197,4 +194,3 @@ int bitmask_alloc_idx(struct bitmask_head *bi, uint16_t *pidx);
 int bitmask_free_idx(struct bitmask_head *bi, uint16_t idx);
 
 #endif
-

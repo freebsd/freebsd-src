@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 
 #include <sys/socket.h>
- 
+
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -173,7 +173,6 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1: 0;
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
-
 
 	/*
 	 * Figure out if we can do A-MPDU, A-MSDU or FF.
@@ -326,8 +325,6 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 
 	return (0);
 }
-
-
 
 /*
  * Send the given mbuf through the given vap.
@@ -1479,7 +1476,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	int meshhdrsize, meshae;
 	uint8_t *qos;
 	int is_amsdu = 0;
-	
+
 	IEEE80211_TX_LOCK_ASSERT(ic);
 
 	is_mcast = !! (m->m_flags & (M_MCAST | M_BCAST));
@@ -2645,7 +2642,6 @@ ieee80211_send_mgmt(struct ieee80211_node *ni, int type, int arg)
 
 	memset(&params, 0, sizeof(params));
 	switch (type) {
-
 	case IEEE80211_FC0_SUBTYPE_AUTH:
 		status = arg >> 16;
 		arg &= 0xffff;

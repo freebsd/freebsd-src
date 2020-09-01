@@ -281,7 +281,6 @@ free_nat_instance(struct cfg_nat *ptr)
 	free(ptr, M_IPFW);
 }
 
-
 /*
  * ipfw_nat - perform mbuf header translation.
  *
@@ -707,7 +706,7 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	export_nat_cfg(ptr, ucfg);
-	
+
 	/* Estimate memory amount */
 	sz = sizeof(ipfw_obj_header) + sizeof(struct nat44_cfg_nat);
 	LIST_FOREACH(r, &ptr->redir_chain, _next) {
@@ -718,7 +717,6 @@ nat44_get_cfg(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	ucfg->size = sz;
 	if (sd->valsize < sz) {
-
 		/*
 		 * Submitted buffer size is not enough.
 		 * WE've already filled in @ucfg structure with
@@ -854,11 +852,10 @@ nat44_get_log(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 	}
 
 	export_nat_cfg(ptr, ucfg);
-	
+
 	/* Estimate memory amount */
 	ucfg->size = sizeof(struct nat44_cfg_nat) + LIBALIAS_BUF_SIZE;
 	if (sd->valsize < sz + sizeof(*oh)) {
-
 		/*
 		 * Submitted buffer size is not enough.
 		 * WE've already filled in @ucfg structure with
@@ -871,7 +868,7 @@ nat44_get_log(struct ip_fw_chain *chain, ip_fw3_opheader *op3,
 
 	pbuf = (void *)ipfw_get_sopt_space(sd, LIBALIAS_BUF_SIZE);
 	memcpy(pbuf, ptr->lib->logDesc, LIBALIAS_BUF_SIZE);
-	
+
 	IPFW_UH_RUNLOCK(chain);
 
 	return (0);
@@ -884,7 +881,6 @@ static struct ipfw_sopt_handler	scodes[] = {
 	{ IP_FW_NAT44_LIST_NAT,	0,	HDIR_GET,	nat44_list_nat },
 	{ IP_FW_NAT44_XGETLOG,	0,	HDIR_GET,	nat44_get_log },
 };
-
 
 /*
  * Legacy configuration routines

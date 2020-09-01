@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/condvar.h>
- 
+
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -231,7 +231,6 @@ ieee80211_swscan_start_scan_locked(const struct ieee80211_scanner *scan,
 	}
 	return 0;
 }
-
 
 /*
  * Start a scan unless one is already going.

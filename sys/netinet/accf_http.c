@@ -273,7 +273,6 @@ fallout:
 	return (SU_ISCONNECTED);
 }
 
-
 #define NCHRS 3
 
 static int

@@ -195,7 +195,7 @@ ipfw_init_counters()
 void
 ipfw_destroy_counters()
 {
-	
+
 	uma_zdestroy(V_ipfw_cntr_zone);
 }
 
@@ -226,7 +226,6 @@ ipfw_free_rule(struct ip_fw *rule)
 	uma_zfree_pcpu(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
-
 
 /*
  * Find the smallest rule >= key, id.
@@ -348,7 +347,6 @@ ipfw_destroy_skipto_cache(struct ip_fw_chain *chain)
 		free(chain->idxmap_back, M_IPFW);
 }
 
-
 /*
  * allocate a new map, returns the chain locked. extra is the number
  * of entries to add or delete.
@@ -397,7 +395,6 @@ swap_map(struct ip_fw_chain *chain, struct ip_fw **new_map, int new_len)
 	IPFW_WUNLOCK(chain);
 	return old_map;
 }
-
 
 static void
 export_cntr1_base(struct ip_fw *krule, struct ip_fw_bcounter *cntr)
@@ -501,7 +498,6 @@ export_rule1(struct ip_fw *krule, caddr_t data, int len, int rcntrs)
 	/* Copy opcodes */
 	memcpy(urule->cmd, krule->cmd, krule->cmd_len * sizeof(uint32_t));
 }
-
 
 /*
  * Copies rule @urule from FreeBSD8 userland format (v0)
@@ -706,14 +702,12 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 		 */
 		error = rewrite_rule_uidx(chain, ci);
 		if (error != 0) {
-
 			/*
 			 * rewrite failed, state for current rule
 			 * has been reverted. Check if we need to
 			 * revert more.
 			 */
 			if (tcount > 0) {
-
 				/*
 				 * We have some more table rules
 				 * we need to rollback.
@@ -725,10 +719,8 @@ commit_rules(struct ip_fw_chain *chain, struct rule_check_info *rci, int count)
 					if (ci->object_opcodes == 0)
 						continue;
 					unref_rule_objects(chain,ci->krule);
-
 				}
 				IPFW_UH_WUNLOCK(chain);
-
 			}
 
 			return (error);
@@ -1675,7 +1667,6 @@ zero_entry(struct ip_fw_chain *chain, u_int32_t arg, int log_only)
 	return (0);
 }
 
-
 /*
  * Check rule head in FreeBSD11 format
  *
@@ -2099,7 +2090,6 @@ bad_size:
 	return (EINVAL);
 }
 
-
 /*
  * Translation of requests for compatibility with FreeBSD 7.2/8.
  * a static variable tells us if we have an old client from userland,
@@ -2135,7 +2125,6 @@ static int convert_rule_to_8(struct ip_fw_rule0 *rule);
 #define RULESIZE7(rule)  (sizeof(struct ip_fw7) + \
 	((struct ip_fw7 *)(rule))->cmd_len * 4 - 4)
 #endif
-
 
 /*
  * Copy the static and dynamic rules to the supplied buffer
@@ -2226,7 +2215,6 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 	ipfw_get_dynamic(chain, &bp, ep); /* protected by the dynamic lock */
 	return (bp - (char *)buf);
 }
-
 
 struct dump_args {
 	uint32_t	b;	/* start rule */
@@ -2636,7 +2624,6 @@ set_legacy_obj_kidx(struct ip_fw_chain *ch, struct ip_fw_rule0 *rule)
 		if (*end == '\0' && val < 65535) {
 			uidx = val;
 		} else {
-
 			/*
 			 * We are called via legacy opcode.
 			 * Save error and show table as fake number
@@ -2651,7 +2638,6 @@ set_legacy_obj_kidx(struct ip_fw_chain *ch, struct ip_fw_rule0 *rule)
 
 	return (error);
 }
-
 
 /*
  * Unreferences all already-referenced objects in given @cmd rule,
@@ -2724,7 +2710,6 @@ unref_rule_objects(struct ip_fw_chain *ch, struct ip_fw *rule)
 			no->refcnt--;
 	}
 }
-
 
 /*
  * Find and reference object (if any) stored in instruction @cmd.
@@ -3334,7 +3319,6 @@ ipfw_del_obj_rewriter(struct opcode_obj_rewrite *rw, size_t count)
 			ctl3_rsize--;
 			break;
 		}
-
 	}
 
 	if (ctl3_rsize == 0) {
@@ -3664,7 +3648,7 @@ ipfw_get_sopt_header(struct sockopt_data *sd, size_t needed)
 
 	if (sd->kavail > 0)
 		memset(sd->kbuf + sd->koff, 0, sd->kavail);
-	
+
 	return (addr);
 }
 
@@ -3732,7 +3716,6 @@ ipfw_ctl3(struct sockopt *sopt)
 		sdata.ksize = sizeof(xbuf);
 		sdata.kavail = valsize;
 	} else {
-
 		/*
 		 * Determine opcode type/buffer size:
 		 * allocate sliding-window buf for data export or
@@ -4003,7 +3986,6 @@ ipfw_ctl(struct sockopt *sopt)
 			    del_table_entry(chain, &ti, &tei, 0, 1);
 		}
 		break;
-
 
 	case IP_FW_TABLE_FLUSH:
 		{
@@ -4416,7 +4398,7 @@ ipfw_objhash_lookup_name(struct namedobj_instance *ni, uint32_t set, char *name)
 	uint32_t hash;
 
 	hash = ni->hash_f(ni, name, set) % ni->nn_size;
-	
+
 	TAILQ_FOREACH(no, &ni->names[hash], nn_next) {
 		if (ni->cmp_f(no, name, set) == 0)
 			return (no);
@@ -4532,7 +4514,7 @@ ipfw_objhash_lookup_kidx(struct namedobj_instance *ni, uint16_t kidx)
 	uint32_t hash;
 
 	hash = objhash_hash_idx(ni, kidx);
-	
+
 	TAILQ_FOREACH(no, &ni->values[hash], nv_next) {
 		if (no->kidx == kidx)
 			return (no);
@@ -4674,7 +4656,7 @@ ipfw_objhash_free_idx(struct namedobj_instance *ni, uint16_t idx)
 	/* Update free offset */
 	if (ni->free_off[0] > i)
 		ni->free_off[0] = i;
-	
+
 	return (0);
 }
 

@@ -305,7 +305,6 @@ ng_car_rcvdata(hook_p hook, item_p item )
 		hinfo->tc -= len;
 		NG_CAR_PERFORM_MATCH_ACTION(hinfo->conf.green_action);
 	} else {
-
 		/* Refill only if not green without it. */
 		ng_car_refillhook(hinfo);
 
@@ -673,7 +672,6 @@ ng_car_q_event(node_p node, hook_p hook, void *arg, int arg2)
 
 	/* If we have some tokens */
 	while (hinfo->tc >= 0) {
-
 		/* Send packet. */
 		m = hinfo->q[hinfo->q_first];
 		NG_SEND_DATA_ONLY(error, hinfo->dest, m);

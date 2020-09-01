@@ -60,7 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip6.h>
 #endif /* INET6 */
 
-
 #ifdef _KERNEL
 #define DPFPRINTF(format, x...)				\
 	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\

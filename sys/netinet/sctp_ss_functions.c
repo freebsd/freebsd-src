@@ -182,7 +182,6 @@ sctp_ss_default_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	return;
 }
 
-
 static struct sctp_stream_out *
 sctp_ss_default_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
     struct sctp_association *asoc)
@@ -389,7 +388,6 @@ rrp_again:
 	return;
 }
 
-
 /*
  * Priority algorithm.
  * Always prefers streams based on their priority id.
@@ -411,7 +409,6 @@ sctp_ss_prio_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		TAILQ_REMOVE(&asoc->ss_data.out.wheel, strq, ss_params.prio.next_spoke);
 		strq->ss_params.prio.next_spoke.tqe_next = NULL;
 		strq->ss_params.prio.next_spoke.tqe_prev = NULL;
-
 	}
 	asoc->ss_data.last_out_stream = NULL;
 	if (holds_lock == 0) {
@@ -897,7 +894,6 @@ sctp_ss_fcfs_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	}
 	return;
 }
-
 
 static struct sctp_stream_out *
 sctp_ss_fcfs_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,

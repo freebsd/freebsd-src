@@ -87,7 +87,7 @@ struct ieee80211_tdma_state {
 		    const struct ieee80211_rx_stats *rxs, int, int);
 	void	(*tdma_opdetach)(struct ieee80211vap *);
 };
- 
+
 #define	TDMA_UPDATE_SLOT	0x0001	/* tdma_slot changed */
 #define	TDMA_UPDATE_SLOTCNT	0x0002	/* tdma_slotcnt changed */
 #define	TDMA_UPDATE_SLOTLEN	0x0004	/* tdma_slotlen changed */

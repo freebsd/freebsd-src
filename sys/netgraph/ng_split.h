@@ -30,7 +30,6 @@
  *
  */
 
-
 #ifndef _NETGRAPH_NG_SPLIT_H_
 #define _NETGRAPH_NG_SPLIT_H_
 

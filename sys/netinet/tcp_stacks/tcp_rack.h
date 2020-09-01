@@ -99,7 +99,6 @@ struct rack_rtt_sample {
 #define RACK_LOG_TYPE_ALLOC     0x04
 #define RACK_LOG_TYPE_FREE      0x05
 
-
 struct rack_log {
 	union {
 		struct rack_sendmap *rsm;	/* For alloc/free */

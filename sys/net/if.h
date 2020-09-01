@@ -164,7 +164,6 @@ struct if_data {
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
 #define	IFF_NOGROUP	0x800000	/* (n) interface is not part of any groups */
 
-
 /*
  * Old names for driver flags so that user space tools can continue to use
  * the old (portable) names.
