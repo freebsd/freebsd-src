@@ -95,6 +95,8 @@ static const struct pci_device_table pchtherm_devices[] =
 	  PCI_DESCR("Skylake PCH Thermal Subsystem")},
 	{ PCI_DEV(0x8086, 0xa131),
 	  PCI_DESCR("Skylake PCH 100 Thermal Subsystem")},
+	{ PCI_DEV(0x8086, 0x9df9),
+	  PCI_DESCR("Cannon Lake PCH Thermal Controller")},
 };
 
 static int pchtherm_probe(device_t dev)
