@@ -43,7 +43,7 @@ int pqisrc_submit_cmnd(pqisrc_softstate_t *softs,
 	DBG_FUNC("IN\n");
 
 	PQI_LOCK(&ib_q->lock);
-	
+
 	/* Check queue full */
 	if ((ib_q->pi_local + 1) % ib_q->num_elem == *(ib_q->ci_virt_addr)) {
 		DBG_WARN("OUT Q full\n");

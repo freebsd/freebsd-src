@@ -123,7 +123,6 @@ void os_dma_mem_free(pqisrc_softstate_t *softs, struct dma_mem *dma_mem)
 	/* DBG_FUNC("OUT\n");  */
 }
 
-
 /*
  * Mem resource allocation wrapper function
  */

@@ -40,14 +40,11 @@
 #define PQIIOCTL_READ			0x02
 #define PQIIOCTL_BIDIRECTIONAL		(PQIIOCTL_READ | PQIIOCTL_WRITE)
 
-
 /* Type defs used in the following structs */
 #define BYTE  	uint8_t
 #define WORD  	uint16_t
 #define HWORD 	uint16_t
 #define DWORD 	uint32_t
-
-
 
 /* Command List Structure */
 typedef union _SCSI3Addr_struct {
@@ -67,7 +64,7 @@ typedef union _SCSI3Addr_struct {
 	   BYTE Targ:6;
 	   BYTE Mode:2; 	   /* b10 */
 	 } LogUnit;
- 
+
 }OS_ATTRIBUTE_PACKED SCSI3Addr_struct;
 
 typedef struct _PhysDevAddr_struct {
@@ -130,7 +127,6 @@ typedef struct _ErrorInfo_struct {
 
 }OS_ATTRIBUTE_PACKED ErrorInfo_struct;
 
-
 typedef struct pqi_ioctl_passthruCmd_struct {
 	LUNAddr_struct           LUN_info;
 	RequestBlock_struct      Request;
@@ -139,6 +135,5 @@ typedef struct pqi_ioctl_passthruCmd_struct {
 	passthru_buf_type_t		buf;
 
 }OS_ATTRIBUTE_PACKED IOCTL_Command_struct;
-
 
 #endif  /* _PQI_IOCTL_H_ */

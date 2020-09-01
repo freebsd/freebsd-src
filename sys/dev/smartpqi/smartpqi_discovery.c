@@ -58,7 +58,7 @@ int pqisrc_alloc_tid(pqisrc_softstate_t *softs)
 		DBG_ERR("Target ID exhausted\n");
 		return INVALID_ELEM;
 	}
-	
+
 	return  softs->tid_pool.tid[softs->tid_pool.index--];
 }
 
@@ -68,7 +68,7 @@ void pqisrc_free_tid(pqisrc_softstate_t *softs, int tid)
 		DBG_ERR("Target ID queue is full\n");
 		return;
 	}
-	
+
 	softs->tid_pool.index++;
 	softs->tid_pool.tid[softs->tid_pool.index] = tid;
 }
@@ -126,7 +126,7 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 			    void *buff, size_t datasize, uint8_t cmd, uint16_t vpd_page, uint8_t *scsi3addr,
 			    raid_path_error_info_elem_t *error_info)
 {
-	
+
 	uint8_t *cdb;
 	int ret = PQI_STATUS_SUCCESS;
 	uint32_t tag = 0;
@@ -137,7 +137,7 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 	ob_queue_t *ob_q = &softs->op_ob_q[PQI_DEFAULT_IB_QUEUE];
 
 	rcb_t *rcb = NULL;
-	
+
 	DBG_FUNC("IN\n");
 
 	memset(&device_mem, 0, sizeof(struct dma_mem));
@@ -149,7 +149,7 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 		device_mem.align = PQISRC_DEFAULT_DMA_ALIGN;
 
 		ret = os_dma_mem_alloc(softs, &device_mem);
-	
+
 		if (ret) {
 			DBG_ERR("failed to allocate dma memory for device_mem return code %d\n", ret);
 			return ret;
@@ -160,7 +160,6 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 		sgd->addr = device_mem.dma_addr;
 		sgd->len = datasize;
 		sgd->flags = SG_FLAG_LAST;
-
 	}
 
 	/* Build raid path request */
@@ -278,7 +277,7 @@ int pqisrc_build_send_raid_request(pqisrc_softstate_t *softs,  pqisrc_raid_req_t
 		}
 		os_dma_mem_free(softs, &device_mem);
 	}
-	
+
 	ret = rcb->status;
 	if (ret) {
 		if(error_info) {
@@ -422,7 +421,6 @@ static int pqisrc_get_phys_log_device_list(pqisrc_softstate_t *softs,
 	reportlun_data_ext_t *local_logdev_list;
 	reportlun_data_ext_t *logdev_data;
 	reportlun_header_t report_lun_header;
-	
 
 	DBG_FUNC("IN\n");
 
@@ -437,7 +435,6 @@ static int pqisrc_get_phys_log_device_list(pqisrc_softstate_t *softs,
 		DBG_ERR("report logical LUNs failed");
 		return ret;
 	}
-
 
 	logdev_data = *logical_dev_list;
 
@@ -592,7 +589,7 @@ static uint8_t pqisrc_get_volume_offline_status(pqisrc_softstate_t *softs,
 	uint8_t *buff = NULL;
 
 	DBG_FUNC("IN\n");
-	
+
 	buff = os_mem_alloc(softs, 64);
 	if (!buff)
 		return PQI_STATUS_FAILURE;
@@ -621,7 +618,6 @@ out:
 	return status;
 }
 
-
 /* Determine offline status of a volume.  Returns appropriate SA_LV_* status.*/
 static uint8_t pqisrc_get_dev_vol_status(pqisrc_softstate_t *softs,
 	uint8_t *scsi3addr)
@@ -642,7 +638,7 @@ static uint8_t pqisrc_get_dev_vol_status(pqisrc_softstate_t *softs,
 	memset(&request, 0, sizeof(request));	
 	ret =  pqisrc_build_send_raid_request(softs, &request, NULL, 0, 
 				TEST_UNIT_READY, 0, scsi3addr, &error_info);
-	
+
 	if (ret)
 		goto error;
 	sense_data = error_info.data;
@@ -824,7 +820,7 @@ static void pqisrc_get_dev_ioaccel_status(pqisrc_softstate_t *softs,
 		DBG_ERR("error in send scsi inquiry ret=%d\n", ret);
 		goto err_out;
 	}
-	
+
 	ioaccel_status = buff[IOACCEL_STATUS_BYTE];
 	device->offload_config =
 		!!(ioaccel_status & OFFLOAD_CONFIGURED_BIT);
@@ -835,7 +831,7 @@ static void pqisrc_get_dev_ioaccel_status(pqisrc_softstate_t *softs,
 		if (pqisrc_get_device_raidmap(softs, device))
 			device->offload_enabled_pending = false;
 	}
-	
+
 	DBG_DISC("offload_config: 0x%x offload_enabled_pending: 0x%x \n", 
 			device->offload_config, device->offload_enabled_pending);
 
@@ -995,7 +991,6 @@ static int pqisrc_identify_physical_disk(pqisrc_softstate_t *softs,
 	uint16_t bmic_device_index;
 	pqisrc_raid_req_t request;
 
-
 	DBG_FUNC("IN\n");
 
 	memset(&request, 0, sizeof(request));	
@@ -1046,7 +1041,6 @@ static void pqisrc_get_physical_device_info(pqisrc_softstate_t *softs,
 	DBG_FUNC("OUT\n");
 }
 
-
 /* Function used to find the entry of the device in a list */
 static device_status_t pqisrc_scsi_find_entry(pqisrc_softstate_t *softs,
 	pqi_scsi_dev_t *device_to_find,
@@ -1076,7 +1070,6 @@ static device_status_t pqisrc_scsi_find_entry(pqisrc_softstate_t *softs,
 
 	return DEVICE_NOT_FOUND;
 }
-
 
 /* Update the newly added devices as existed device */
 static void pqisrc_exist_device_update(pqisrc_softstate_t *softs,
@@ -1241,7 +1234,6 @@ void pqisrc_remove_device(pqisrc_softstate_t *softs,
 	DBG_FUNC("OUT\n");
 }
 
-
 /*
  * When exposing new device to OS fails then adjst list according to the
  * mid scsi list
@@ -1331,7 +1323,7 @@ void pqisrc_device_mem_free(pqisrc_softstate_t *softs, pqi_scsi_dev_t *device)
 	}
 	os_mem_free(softs, (char *)device,sizeof(*device));
 	DBG_FUNC("OUT\n");
-	
+
 }
 
 /* OS should call this function to free the scsi device */
@@ -1346,7 +1338,6 @@ void pqisrc_free_device(pqisrc_softstate_t * softs,pqi_scsi_dev_t *device)
 		OS_RELEASE_SPINLOCK(&softs->devlist_lock);
 
 }
-
 
 /* Update the newly added devices to the device list */
 static void pqisrc_update_device_list(pqisrc_softstate_t *softs,
@@ -1372,9 +1363,9 @@ static void pqisrc_update_device_list(pqisrc_softstate_t *softs,
 		DBG_WARN("Out of memory \n");
 		goto free_and_out;
 	}
-	
+
 	OS_ACQUIRE_SPINLOCK(&softs->devlist_lock);
-	
+
 	for(i = 0; i < PQI_MAX_DEVICES; i++) {
 		for(j = 0; j < PQI_MAX_MULTILUN; j++) {
 			if(softs->device_list[i][j] == NULL)
@@ -1448,7 +1439,7 @@ static void pqisrc_update_device_list(pqisrc_softstate_t *softs,
 	}
 
 	pqisrc_update_log_dev_qdepth(softs);
-	
+
 	for(i = 0; i < PQI_MAX_DEVICES; i++) {
 		for(j = 0; j < PQI_MAX_MULTILUN; j++) {
 			if(softs->device_list[i][j] == NULL)
@@ -1571,7 +1562,7 @@ int pqisrc_write_driver_version_to_host_wellness(pqisrc_softstate_t *softs)
 					BMIC_WRITE_HOST_WELLNESS, 0, (uint8_t *)RAID_CTLR_LUNID, NULL);
 
 	os_mem_free(softs, (char *)host_wellness_driver_ver, data_length);
-	
+
 	DBG_FUNC("OUT");
 	return rval;
 }
@@ -1613,10 +1604,10 @@ int pqisrc_write_current_time_to_host_wellness(pqisrc_softstate_t *softs)
 	host_wellness_time->dont_write_tag[1] = 'W';
 	host_wellness_time->end_tag[0] = 'Z';
 	host_wellness_time->end_tag[1] = 'Z';
-	
+
 	rval = pqisrc_build_send_raid_request(softs, &request, host_wellness_time,data_length,
 					BMIC_WRITE_HOST_WELLNESS, 0, (uint8_t *)RAID_CTLR_LUNID, NULL);
-	
+
 	os_mem_free(softs, (char *)host_wellness_time, data_length);
 
 	DBG_FUNC("OUT");
@@ -1645,7 +1636,6 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 	bmic_ident_physdev_t *bmic_phy_info = NULL;
 	pqi_scsi_dev_t **new_device_list = NULL;
 	pqi_scsi_dev_t *device = NULL;
-	
 
 	DBG_FUNC("IN\n");
 
@@ -1657,7 +1647,7 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 
 	physical_cnt = BE_32(physical_dev_list->header.list_length) 
 		/ sizeof(physical_dev_list->lun_entries[0]);
-	
+
 	logical_cnt = BE_32(logical_dev_list->header.list_length)
 		/ sizeof(logical_dev_list->lun_entries[0]);
 
@@ -1695,7 +1685,6 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 	ndev_allocated = phy_log_dev_cnt;
 	new_dev_cnt = 0;
 	for (i = 0; i < phy_log_dev_cnt; i++) {
-
 		if (i < physical_cnt) {
 			is_physical_device = true;
 			lun_ext_entry = &physical_dev_list->lun_entries[i];
@@ -1803,7 +1792,7 @@ int pqisrc_scan_devices(pqisrc_softstate_t *softs)
 	DBG_DISC("new_dev_cnt %d\n", new_dev_cnt);
 
 	pqisrc_update_device_list(softs, new_device_list, new_dev_cnt);
-	
+
 err_out:
 	if (new_device_list) {
 		for (i = 0; i < ndev_allocated; i++) {
@@ -1824,7 +1813,7 @@ err_out:
 		os_mem_free(softs, (char *)logical_dev_list, log_data_length);
 	if (bmic_phy_info)
 		os_mem_free(softs, (char *)bmic_phy_info, sizeof(*bmic_phy_info));
-	
+
 	DBG_FUNC("OUT \n");
 
 	return ret;
@@ -1839,7 +1828,7 @@ void pqisrc_cleanup_devices(pqisrc_softstate_t *softs)
 	int i = 0,j = 0;
 	pqi_scsi_dev_t *dvp = NULL;
 	DBG_FUNC("IN\n");
-	
+
  	for(i = 0; i < PQI_MAX_DEVICES; i++) {
 		for(j = 0; j < PQI_MAX_MULTILUN; j++) {
 			if (softs->device_list[i][j] == NULL) 
@@ -1850,4 +1839,3 @@ void pqisrc_cleanup_devices(pqisrc_softstate_t *softs)
 	}
 	DBG_FUNC("OUT\n");
 }
-

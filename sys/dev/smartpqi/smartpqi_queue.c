@@ -39,7 +39,7 @@ int pqisrc_submit_admin_req(pqisrc_softstate_t *softs,
 	ob_queue_t *ob_q = &softs->admin_ob_queue;
 	ib_queue_t *ib_q = &softs->admin_ib_queue;
 	int tmo = PQISRC_ADMIN_CMD_RESP_TIMEOUT;
-	
+
 	DBG_FUNC("IN\n");
 
 	req->header.iu_type =
@@ -48,7 +48,7 @@ int pqisrc_submit_admin_req(pqisrc_softstate_t *softs,
 	req->header.iu_length = PQI_STANDARD_IU_LENGTH;
 	req->res1 = 0;
 	req->work = 0;
-	
+
 	/* Get the tag */
 	req->req_id = pqisrc_get_tag(&softs->taglist);
 	if (INVALID_ELEM == req->req_id) {
@@ -57,7 +57,7 @@ int pqisrc_submit_admin_req(pqisrc_softstate_t *softs,
 		goto err_out;
 	}
 	softs->rcb[req->req_id].tag = req->req_id;
-	
+
 	/* Submit the command to the admin ib queue */
 	ret = pqisrc_submit_cmnd(softs, ib_q, req);
 	if (ret != PQI_STATUS_SUCCESS) {
@@ -73,7 +73,7 @@ int pqisrc_submit_admin_req(pqisrc_softstate_t *softs,
 		ret = PQI_STATUS_TIMEOUT;
 		goto err_cmd;
 	}
-	
+
 	/* Copy the response */
 	memcpy(resp, ob_q->array_virt_addr + (ob_q->ci_local * ob_q->elem_size),
 					sizeof(gen_adm_resp_iu_t));
@@ -82,7 +82,7 @@ int pqisrc_submit_admin_req(pqisrc_softstate_t *softs,
 	ob_q->ci_local = (ob_q->ci_local + 1 ) %  ob_q->num_elem;
 	PCI_MEM_PUT32(softs, ob_q->ci_register_abs, 
         ob_q->ci_register_offset, LE_32(ob_q->ci_local));
-	
+
 	/* Validate the response data */
 	ASSERT(req->fn_code == resp->fn_code);
 	ASSERT(resp->header.iu_type == PQI_IU_TYPE_GENERAL_ADMIN_RESPONSE);
@@ -109,7 +109,6 @@ void pqisrc_get_admin_queue_config(pqisrc_softstate_t *softs)
 {
 	uint64_t val = 0;
 
-
 	val = LE_64(PCI_MEM_GET64(softs, &softs->pqi_reg->pqi_dev_adminq_cap, PQI_ADMINQ_CAP));
 
 	/* pqi_cap = (struct pqi_dev_adminq_cap *)&val;*/
@@ -118,7 +117,7 @@ void pqisrc_get_admin_queue_config(pqisrc_softstate_t *softs)
 	/* Note : size in unit of 16 byte s*/
 	softs->admin_ib_queue.elem_size = ((val & 0xFF0000) >> 16) * 16;
 	softs->admin_ob_queue.elem_size = ((val & 0xFF000000) >> 24) * 16;
-	
+
 	DBG_FUNC(" softs->admin_ib_queue.num_elem : %d\n",
 			softs->admin_ib_queue.num_elem);
 	DBG_FUNC(" softs->admin_ib_queue.elem_size : %d\n",
@@ -153,7 +152,7 @@ int pqisrc_allocate_and_init_adminq(pqisrc_softstate_t *softs)
 
 	ib_array_size = (softs->admin_ib_queue.num_elem *
 			softs->admin_ib_queue.elem_size);
-	
+
 	ob_array_size = (softs->admin_ob_queue.num_elem *
 			softs->admin_ob_queue.elem_size);
 
@@ -183,7 +182,7 @@ int pqisrc_allocate_and_init_adminq(pqisrc_softstate_t *softs)
 	softs->admin_ob_queue.array_virt_addr = virt_addr + ib_array_size;
 	softs->admin_ob_queue.array_dma_addr = dma_addr + ib_array_size;
 	softs->admin_ob_queue.ci_local = 0;
-	
+
 	/* IB CI */
 	softs->admin_ib_queue.ci_virt_addr =
 		(uint32_t*)((uint8_t*)softs->admin_ob_queue.array_virt_addr 
@@ -238,7 +237,7 @@ int pqisrc_create_delete_adminq(pqisrc_softstate_t *softs,
 		tmo = PQISRC_ADMIN_QUEUE_CREATE_TIMEOUT;
 	else
 		tmo = PQISRC_ADMIN_QUEUE_DELETE_TIMEOUT;
-	
+
 	/* Wait for completion */
 	COND_WAIT((PCI_MEM_GET64(softs, &softs->pqi_reg->admin_q_config, PQI_ADMINQ_CONFIG) ==
 				PQI_ADMIN_QUEUE_CONF_FUNC_STATUS_IDLE), tmo);
@@ -299,7 +298,7 @@ int pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
 		DBG_ERR("Failed to Allocate Admin Q ret : %d\n", ret);
 		goto err_out;
 	}
-	
+
 	/* Write IB Q element array address */
 	PCI_MEM_PUT64(softs, &softs->pqi_reg->admin_ibq_elem_array_addr, 
         PQI_ADMIN_IBQ_ELEM_ARRAY_ADDR, LE_64(softs->admin_ib_queue.array_dma_addr));
@@ -315,7 +314,6 @@ int pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
 	/* Write OB Q PI address */
 	PCI_MEM_PUT64(softs, &softs->pqi_reg->admin_obq_pi_addr, 
         PQI_ADMIN_OBQ_PI_ADDR, LE_64(softs->admin_ob_queue.pi_dma_addr));
-
 
 	/* Write Admin Q params pqi-r200a table 36 */
 
@@ -333,7 +331,7 @@ int pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
 		DBG_ERR("Failed to Allocate Admin Q ret : %d\n", ret);
 		goto err_q_create;
 	}
-	
+
 	/* Admin queue created, get ci,pi offset */
     softs->admin_ib_queue.pi_register_offset =(PQISRC_PQI_REG_OFFSET +
         PCI_MEM_GET64(softs, &softs->pqi_reg->admin_ibq_pi_offset, PQI_ADMIN_IBQ_PI_OFFSET));
@@ -348,7 +346,7 @@ int pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
         softs->admin_ob_queue.ci_register_offset);
 
     os_strlcpy(softs->admin_ib_queue.lockname, "admin_ibqlock", LOCKNAME_SIZE);
-	
+
     ret =OS_INIT_PQILOCK(softs, &softs->admin_ib_queue.lock,
             softs->admin_ib_queue.lockname);
     if(ret){
@@ -360,7 +358,7 @@ int pqisrc_create_admin_queue(pqisrc_softstate_t *softs)
 
 	/* Print admin q config details */
 	pqisrc_print_adminq_config(softs);
-	
+
 	DBG_FUNC("OUT\n");
 	return ret;
 
@@ -385,7 +383,6 @@ int pqisrc_delete_op_queue(pqisrc_softstate_t *softs,
 	gen_adm_req_iu_t admin_req;
 	gen_adm_resp_iu_t admin_resp;
 
-
 	memset(&admin_req, 0, sizeof(admin_req));
 	memset(&admin_resp, 0, sizeof(admin_resp));
 
@@ -397,10 +394,9 @@ int pqisrc_delete_op_queue(pqisrc_softstate_t *softs,
 		admin_req.fn_code = PQI_FUNCTION_DELETE_OPERATIONAL_IQ;
 	else
 		admin_req.fn_code = PQI_FUNCTION_DELETE_OPERATIONAL_OQ;
-	
-	
+
 	ret = pqisrc_submit_admin_req(softs, &admin_req, &admin_resp);
-	
+
 	DBG_FUNC("OUT\n");
 #endif
 	return ret;
@@ -421,7 +417,7 @@ void pqisrc_destroy_event_queue(pqisrc_softstate_t *softs)
 		}
 		softs->event_q.created = false;
 	}
-	
+
 	/* Free the memory */
 	os_dma_mem_free(softs, &softs->event_q_dma_mem);
 
@@ -516,7 +512,7 @@ int pqisrc_destroy_admin_queue(pqisrc_softstate_t *softs)
 				PQI_ADMIN_QUEUE_CONF_FUNC_DEL_Q_PAIR);
 #endif			
 	os_dma_mem_free(softs, &softs->admin_queue_dma_mem);	
-	
+
 	DBG_FUNC("OUT\n");
 	return ret;
 }
@@ -533,15 +529,15 @@ int pqisrc_change_op_ibq_queue_prop(pqisrc_softstate_t *softs,
 
 	memset(&admin_req, 0, sizeof(admin_req));
 	memset(&admin_resp, 0, sizeof(admin_resp));
-	
+
 	DBG_FUNC("IN\n");
-	
+
 	admin_req.fn_code = PQI_FUNCTION_CHANGE_OPERATIONAL_IQ_PROP;
 	admin_req.req_type.change_op_iq_prop.qid = op_ib_q->q_id;
 	admin_req.req_type.change_op_iq_prop.vend_specific = prop;
-	
+
 	ret = pqisrc_submit_admin_req(softs, &admin_req, &admin_resp);
-	
+
 	DBG_FUNC("OUT\n");
 	return ret;
 }
@@ -611,9 +607,9 @@ int pqisrc_create_op_ibq(pqisrc_softstate_t *softs,
 	admin_req.req_type.create_op_iq.iq_ci_addr = op_ib_q->ci_dma_addr;
 	admin_req.req_type.create_op_iq.num_elem =  op_ib_q->num_elem;
 	admin_req.req_type.create_op_iq.elem_len = op_ib_q->elem_size / 16;
-	
+
 	ret = pqisrc_submit_admin_req(softs, &admin_req, &admin_resp);
-	
+
 	if( PQI_STATUS_SUCCESS == ret) {
 		op_ib_q->pi_register_offset =(PQISRC_PQI_REG_OFFSET + 
 				admin_resp.resp_type.create_op_iq.pi_offset);
@@ -640,7 +636,7 @@ int pqisrc_create_op_aio_ibq(pqisrc_softstate_t *softs,
 	int ret = PQI_STATUS_SUCCESS;
 
 	DBG_FUNC("IN\n");
-	
+
 	ret = pqisrc_create_op_ibq(softs,op_aio_ib_q);
 	if ( PQI_STATUS_SUCCESS == ret)
 		ret = pqisrc_change_op_ibq_queue_prop(softs,
@@ -657,11 +653,11 @@ int pqisrc_create_op_raid_ibq(pqisrc_softstate_t *softs,
 			ib_queue_t *op_raid_ib_q)
 {
 	int ret = PQI_STATUS_SUCCESS;
-	
+
 	DBG_FUNC("IN\n");
-	
+
 	ret = pqisrc_create_op_ibq(softs,op_raid_ib_q);
-	
+
 	DBG_FUNC("OUT\n");
 	return ret;
 }
@@ -680,7 +676,6 @@ int pqisrc_alloc_and_create_event_queue(pqisrc_softstate_t *softs)
 	uint32_t event_q_pi_virt_start_offset = 0;
 	char *event_q_pi_virt_start_addr = NULL;
 	ob_queue_t *event_q = NULL;
-	
 
 	DBG_FUNC("IN\n");
 
@@ -719,7 +714,7 @@ int pqisrc_alloc_and_create_event_queue(pqisrc_softstate_t *softs)
 	dma_addr = softs->event_q_dma_mem.dma_addr;
 	event_q_pi_dma_start_offset += dma_addr;
 	event_q_pi_virt_start_addr = virt_addr + event_q_pi_virt_start_offset;
-	
+
 	event_q = &softs->event_q;
 	ASSERT(!(dma_addr & PQI_ADDR_ALIGN_MASK_64));
 	FILL_QUEUE_ARRAY_ADDR(event_q,virt_addr,dma_addr);
@@ -740,7 +735,7 @@ int pqisrc_alloc_and_create_event_queue(pqisrc_softstate_t *softs)
 
 	DBG_FUNC("OUT\n");
 	return ret;
- 
+
 err_out_create:
 	pqisrc_destroy_event_queue(softs);
 err_out:
@@ -795,7 +790,7 @@ int pqisrc_alloc_and_create_ib_queues(pqisrc_softstate_t *softs)
 	ib_ci_virt_start_addr = virt_addr + ib_ci_virt_start_offset;
 
 	ASSERT(softs->num_op_raid_ibq == softs->num_op_aio_ibq);
-	
+
 	for (i = 0; i <  softs->num_op_raid_ibq; i++) {
 		/* OP RAID IB Q */
 		op_ib_q = &softs->op_raid_ib_q[i];
@@ -854,7 +849,7 @@ int pqisrc_alloc_and_create_ib_queues(pqisrc_softstate_t *softs)
 			goto err_out_create;
 		}
 		op_ib_q->created  = true;
-	
+
 		virt_addr += ibq_size;
 		dma_addr += ibq_size;
 	}
@@ -896,7 +891,7 @@ int pqisrc_alloc_and_create_ob_queues(pqisrc_softstate_t *softs)
 	 * of 4, so that OB Queue element size (16) * num elements 
 	 * will be multiple of 64.
 	 */
-	
+
 	ALIGN_BOUNDARY(softs->num_elem_per_op_obq, 4);
 	obq_size = softs->num_elem_per_op_obq *  softs->obq_elem_size;
 	alloc_size += num_op_obq * obq_size;
@@ -950,10 +945,10 @@ int pqisrc_alloc_and_create_ob_queues(pqisrc_softstate_t *softs)
 		virt_addr += obq_size;
 		dma_addr += obq_size;
 	}
-	
+
 	DBG_FUNC("OUT\n");
 	return ret;
-	
+
 err_out_create:
 	pqisrc_destroy_op_ob_queues(softs);
 err_out:

@@ -57,7 +57,7 @@ static int smartpqi_open(struct cdev *cdev, int flags, int devtype,
 		struct thread *td)
 {
 	int error = PQI_STATUS_SUCCESS;
-	
+
 	return error;
 }
 
@@ -119,7 +119,6 @@ static void smartpqi_get_pci_info_ioctl(caddr_t udata, struct cdev *cdev)
 	pci_info->chip_id = ((device << 16) & 0xffff0000) | vendor;
 	DBG_FUNC("OUT\n");
 }
-
 
 /*
  * ioctl entry point for user
@@ -235,7 +234,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 
 	if (pqisrc_ctrl_offline(softs))
 		return PQI_STATUS_FAILURE;
-	
+
 	if (!arg)
 		return (PQI_STATUS_FAILURE);
 
@@ -270,7 +269,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 		 
 		DBG_INFO("ioctl_dma_buf.dma_addr  = %p\n",(void*)ioctl_dma_buf.dma_addr);
 		DBG_INFO("ioctl_dma_buf.virt_addr = %p\n",(void*)ioctl_dma_buf.virt_addr);
-	
+
 		drv_buf = (char *)ioctl_dma_buf.virt_addr;
 		if (iocommand->Request.Type.Direction & PQIIOCTL_WRITE) {
         		if ((ret = os_copy_from_user(softs, (void *)drv_buf, (void *)iocommand->buf, 
@@ -280,7 +279,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 			}
 		}
 	}
-	
+
 	request.header.iu_type = PQI_IU_TYPE_RAID_PATH_IO_REQUEST;
 	request.header.iu_length = offsetof(pqisrc_raid_req_t, sg_descriptors[1]) - 
 									PQI_REQUEST_HEADER_LENGTH;
@@ -288,7 +287,7 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 		sizeof(request.lun_number));
 	memcpy(request.cdb, iocommand->Request.CDB, iocommand->Request.CDBLen);
 	request.additional_cdb_bytes_usage = PQI_ADDITIONAL_CDB_BYTES_0;
-	
+
 	switch (iocommand->Request.Type.Direction) {
 	case PQIIOCTL_NONE:
 		request.data_direction = SOP_DATA_DIR_NONE;
@@ -341,7 +340,6 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 
 	memset(&iocommand->error_info, 0, sizeof(iocommand->error_info));
 
-
 	if (rcb->status) {
 		size_t sense_data_length;
 
@@ -374,7 +372,6 @@ pqisrc_passthru_ioctl(struct pqisrc_softstate *softs, void *arg, int mode)
 
 	if (rcb->status == REQUEST_SUCCESS && iocommand->buf_size > 0 && 
 		(iocommand->Request.Type.Direction & PQIIOCTL_READ)) {
-
 		if ((ret = os_copy_to_user(softs, (void*)iocommand->buf, 
 			(void*)drv_buf, iocommand->buf_size, mode)) != 0) {
 				DBG_ERR("Failed to copy the response\n");	
