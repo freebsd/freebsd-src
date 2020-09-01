@@ -179,7 +179,6 @@ amdgpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 
 	sc = device_get_softc(dev);
 
-
 	dprintf("pin %d\n", pin);
 	if (!amdgpio_valid_pin(sc, pin))
 		return (EINVAL);
@@ -427,7 +426,6 @@ err_rsrc:
 
 	return (ENXIO);
 }
-
 
 static int
 amdgpio_detach(device_t dev)
