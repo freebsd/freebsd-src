@@ -662,13 +662,18 @@ static inline int
 pmap_pte_dirty(pmap_t pmap, pt_entry_t pte)
 {
 
-	PMAP_ASSERT_STAGE1(pmap);
 	KASSERT((pte & ATTR_SW_MANAGED) != 0, ("pte %#lx is unmanaged", pte));
-	KASSERT((pte & (ATTR_S1_AP_RW_BIT | ATTR_SW_DBM)) != 0,
-	    ("pte %#lx is writeable and missing ATTR_SW_DBM", pte));
 
-	return ((pte & (ATTR_S1_AP_RW_BIT | ATTR_SW_DBM)) ==
-	    (ATTR_S1_AP(ATTR_S1_AP_RW) | ATTR_SW_DBM));
+	if (pmap->pm_stage == PM_STAGE1) {
+		KASSERT((pte & (ATTR_S1_AP_RW_BIT | ATTR_SW_DBM)) != 0,
+		    ("pte %#lx is writeable and missing ATTR_SW_DBM", pte));
+
+		return ((pte & (ATTR_S1_AP_RW_BIT | ATTR_SW_DBM)) ==
+		    (ATTR_S1_AP(ATTR_S1_AP_RW) | ATTR_SW_DBM));
+	}
+
+	return ((pte & ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE)) ==
+	    ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE));
 }
 
 static __inline void
@@ -1940,20 +1945,27 @@ pmap_release(pmap_t pmap)
 	    pmap->pm_stats.resident_count));
 	KASSERT(vm_radix_is_empty(&pmap->pm_root),
 	    ("pmap_release: pmap has reserved page table page(s)"));
-	PMAP_ASSERT_STAGE1(pmap);
 
 	set = pmap->pm_asid_set;
 	KASSERT(set != NULL, ("%s: NULL asid set", __func__));
 
-	mtx_lock_spin(&set->asid_set_mutex);
-	if (COOKIE_TO_EPOCH(pmap->pm_cookie) == set->asid_epoch) {
-		asid = COOKIE_TO_ASID(pmap->pm_cookie);
-		KASSERT(asid >= ASID_FIRST_AVAILABLE &&
-		    asid < set->asid_set_size,
-		    ("pmap_release: pmap cookie has out-of-range asid"));
-		bit_clear(set->asid_set, asid);
+	/*
+	 * Allow the ASID to be reused. In stage 2 VMIDs we don't invalidate
+	 * the entries when removing them so rely on a later tlb invalidation.
+	 * this will happen when updating the VMID generation. Because of this
+	 * we don't reuse VMIDs within a generation.
+	 */
+	if (pmap->pm_stage == PM_STAGE1) {
+		mtx_lock_spin(&set->asid_set_mutex);
+		if (COOKIE_TO_EPOCH(pmap->pm_cookie) == set->asid_epoch) {
+			asid = COOKIE_TO_ASID(pmap->pm_cookie);
+			KASSERT(asid >= ASID_FIRST_AVAILABLE &&
+			    asid < set->asid_set_size,
+			    ("pmap_release: pmap cookie has out-of-range asid"));
+			bit_clear(set->asid_set, asid);
+		}
+		mtx_unlock_spin(&set->asid_set_mutex);
 	}
-	mtx_unlock_spin(&set->asid_set_mutex);
 
 	m = PHYS_TO_VM_PAGE(pmap->pm_l0_paddr);
 	vm_page_unwire_noq(m);
@@ -3464,8 +3476,11 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if ((prot & VM_PROT_WRITE) != 0) {
 			new_l3 |= ATTR_SW_DBM;
 			if ((flags & VM_PROT_WRITE) == 0) {
-				PMAP_ASSERT_STAGE1(pmap);
-				new_l3 |= ATTR_S1_AP(ATTR_S1_AP_RO);
+				if (pmap->pm_stage == PM_STAGE1)
+					new_l3 |= ATTR_S1_AP(ATTR_S1_AP_RO);
+				else
+					new_l3 &=
+					    ~ATTR_S2_S2AP(ATTR_S2_S2AP_WRITE);
 			}
 		}
 	}
