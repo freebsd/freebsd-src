@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 static int ata_cypress_chipinit(device_t dev);
 static int ata_cypress_setmode(device_t dev, int target, int mode);
 
-
 /*
  * Cypress chipset support functions
  */

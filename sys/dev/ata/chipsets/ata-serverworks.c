@@ -68,7 +68,6 @@ static int ata_serverworks_status(device_t dev);
 #define SWKS_100	2
 #define SWKS_MIO	3
 
-
 /*
  * ServerWorks chipset support functions
  */
@@ -235,7 +234,7 @@ ata_serverworks_ch_attach(device_t dev)
 	 * The status register must be read as a long to fill the other
 	 * registers.
 	 */
-	
+
 	ch->hw.status = ata_serverworks_status;
 	ch->flags |= ATA_STATUS_IS_LONG;
     }

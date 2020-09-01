@@ -296,7 +296,6 @@ struct ata_request {
 #define ATA_DEBUG_RQ(request, string)
 #endif
 
-
 /* structure describing an ATA/ATAPI device */
 struct ata_device {
     device_t                    dev;            /* device handle */

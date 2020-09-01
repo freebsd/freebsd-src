@@ -161,7 +161,7 @@ ata_pci_suspend(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     int error = 0;
- 
+
     bus_generic_suspend(dev);
     if (ctlr->suspend)
 	error = ctlr->suspend(dev);
@@ -173,7 +173,7 @@ ata_pci_resume(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     int error = 0;
- 
+
     if (ctlr->resume)
 	error = ctlr->resume(dev);
     bus_generic_resume(dev);

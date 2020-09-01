@@ -138,7 +138,7 @@ ata_isa_attach(device_t dev)
     ch->r_io[ATA_CONTROL].offset = 0;
     ch->r_io[ATA_IDX_ADDR].res = io;
     ata_default_registers(dev);
- 
+
     /* initialize softc for this channel */
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
@@ -186,7 +186,6 @@ ata_isa_resume(device_t dev)
 
     return ata_resume(dev);
 }
-
 
 static device_method_t ata_isa_methods[] = {
     /* device interface */
