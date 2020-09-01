@@ -199,7 +199,7 @@ adlink_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 	u_int u;
 	struct pgstat *pg;
 	uint64_t *sample;
-	
+
 	sc = dev->si_drv1;
 	u = *(u_int*)data;
 	error = 0;
@@ -430,7 +430,7 @@ static device_method_t adlink_methods[] = {
 
 	DEVMETHOD_END
 };
- 
+
 static driver_t adlink_driver = {
 	"adlink",
 	adlink_methods,
