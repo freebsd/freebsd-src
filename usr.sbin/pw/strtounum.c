@@ -44,28 +44,24 @@ strtounum(const char * __restrict np, uintmax_t minval, uintmax_t maxval,
 	*errpp = NULL;
 	if (minval > maxval) {
 		errno = EINVAL;
-		if (errpp != NULL)
-			*errpp = "invalid";
+		*errpp = "invalid";
 		return (0);
 	}
 	errno = 0;
 	ret = strtoumax(np, &endp, 10);
 	if (endp == np || *endp != '\0') {
 		errno = EINVAL;
-		if (errpp != NULL)
-			*errpp = "invalid";
+		*errpp = "invalid";
 		return (0);
 	}
 	if (ret < minval) {
 		errno = ERANGE;
-		if (errpp != NULL)
-			*errpp = "too small";
+		*errpp = "too small";
 		return (0);
 	}
 	if (errno == ERANGE || ret > maxval) {
 		errno = ERANGE;
-		if (errpp != NULL)
-			*errpp = "too large";
+		*errpp = "too large";
 		return (0);
 	}
 	return (ret);
