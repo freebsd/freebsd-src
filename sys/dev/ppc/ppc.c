@@ -426,7 +426,6 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
     int		ptr, pcr, val, i;
 
     while ((idport = pc873xx_basetab[index++])) {
-
 	/* XXX should check first to see if this location is already claimed */
 
 	/*
@@ -488,7 +487,6 @@ ppc_pc873xx_detect(struct ppc_data *ppc, int chipset_mode)	/* XXX mode never for
 	val = inb(idport + 1);
 	/* XXX we should create a driver instance for every port found */
 	if (pc873xx_porttab[val & 0x3] != ppc->ppc_base) {
-
 	    /* First try to change the port address to that requested... */
 
 	    switch (ppc->ppc_base) {
@@ -709,7 +707,6 @@ ppc_smc37c66xgt_detect(struct ppc_data *ppc, int chipset_mode)
 	int csr = SMC66x_CSR;	/* initial value is 0x3F0 */
 
 	int port_address[] = { -1 /* disabled */ , 0x3bc, 0x378, 0x278 };
-
 
 #define cio csr+1	/* config IO port is either 0x3F1 or 0x371 */
 
@@ -1256,7 +1253,6 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
  */
 static int
 ppc_detect(struct ppc_data *ppc, int chipset_mode) {
-
 #ifdef PPC_PROBE_CHIPSET
 	int i, mode;
 
@@ -1570,7 +1566,6 @@ ppcintr(void *arg)
 		/* check if ppc driver has programmed the
 		 * nFault interrupt */
 		if  (ppc->ppc_irqstat & PPC_IRQ_nFAULT) {
-
 			w_ecr(ppc, ecr | PPC_nFAULT_INTR);
 			ppc->ppc_irqstat &= ~PPC_IRQ_nFAULT;
 		} else {
@@ -1607,7 +1602,6 @@ ppcintr(void *arg)
 			}
 		}
 	} else if (ppc->ppc_irqstat & PPC_IRQ_FIFO) {
-
 		/* classic interrupt I/O */
 		ppc->ppc_irqstat &= ~PPC_IRQ_FIFO;
 	}
