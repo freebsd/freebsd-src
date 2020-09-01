@@ -103,7 +103,6 @@ static device_method_t cmx_pccard_methods[] = {
 	DEVMETHOD(device_probe, cmx_pccard_probe),
 	DEVMETHOD(device_attach, cmx_pccard_attach),
 	DEVMETHOD(device_detach, cmx_detach),
-
 	{ 0, 0 }
 };
 
