@@ -731,7 +731,6 @@ ata_promise_mio_reset(device_t dev)
     case PR_SATA:
 	if ((ctlr->chip->cfg2 == PR_SATA) ||
 	    ((ctlr->chip->cfg2 == PR_CMBO) && (ch->unit < 2))) {
-
 	    /* mask plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x06c, (0x00110000 << ch->unit));
 	}
@@ -745,7 +744,6 @@ ata_promise_mio_reset(device_t dev)
 
 	if ((ctlr->chip->cfg2 == PR_SATA) ||
 	    ((ctlr->chip->cfg2 == PR_CMBO) && (ch->unit < 2))) {
-
 	    if (ata_sata_phy_reset(dev, -1, 1))
 		ata_generic_reset(dev);
 	    else
@@ -778,7 +776,6 @@ ata_promise_mio_reset(device_t dev)
 
 	if ((ctlr->chip->cfg2 == PR_SATA2) ||
 	    ((ctlr->chip->cfg2 == PR_CMBO2) && (ch->unit < 2))) {
-
 	    /* set PHY mode to "improved" */
 	    ATA_OUTL(ctlr->r_res2, 0x414 + (ch->unit << 8),
 		     (ATA_INL(ctlr->r_res2, 0x414 + (ch->unit << 8)) &
@@ -823,7 +820,6 @@ ata_promise_mio_reset(device_t dev)
 	else
 	    ata_generic_reset(dev);
 	break;
-
     }
 }
 
