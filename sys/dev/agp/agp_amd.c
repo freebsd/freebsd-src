@@ -252,7 +252,7 @@ agp_amd_attach(device_t dev)
 
 	/* Install the gatt. */
 	WRITE4(AGP_AMD751_ATTBASE, gatt->ag_pdir);
-	
+
 	/* Enable synchronisation between host and agp. */
 	pci_write_config(dev,
 			 AGP_AMD751_MODECTRL,
@@ -281,10 +281,10 @@ agp_amd_detach(device_t dev)
 	/* Disable the TLB.. */
 	WRITE2(AGP_AMD751_STATUS,
 	       READ2(AGP_AMD751_STATUS) & ~AGP_AMD751_STATUS_GCE);
-	
+
 	/* Disable host-agp sync */
 	pci_write_config(dev, AGP_AMD751_MODECTRL, 0x00, 1);
-	
+
 	/* Clear the GATT base */
 	WRITE4(AGP_AMD751_ATTBASE, 0);
 
@@ -327,7 +327,7 @@ agp_amd_set_aperture(device_t dev, u_int32_t aperture)
 		return EINVAL;
 
 	vas = ffs(aperture / 32*1024*1024) - 1;
-	
+
 	/* 
 	 * While the size register is bits 1-3 of APCTRL, bit 0 must be
 	 * set for the size value to be 'valid'
@@ -395,7 +395,6 @@ static device_method_t agp_amd_methods[] = {
 	DEVMETHOD(agp_free_memory,	agp_generic_free_memory),
 	DEVMETHOD(agp_bind_memory,	agp_generic_bind_memory),
 	DEVMETHOD(agp_unbind_memory,	agp_generic_unbind_memory),
-
 	{ 0, 0 }
 };
 
