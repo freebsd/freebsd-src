@@ -391,7 +391,6 @@ axgbe_attach(device_t dev)
 	sc->prv.phy.advertising = ADVERTISED_10000baseKR_Full |
 	    ADVERTISED_1000baseKX_Full;
 
-
 	/*
 	 * Read the needed properties from the phy node.
 	 */
@@ -563,7 +562,6 @@ static device_method_t axgbe_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		axgbe_probe),
 	DEVMETHOD(device_attach,	axgbe_attach),
-
 	{ 0, 0 }
 };
 
@@ -572,7 +570,6 @@ static devclass_t axgbe_devclass;
 DEFINE_CLASS_0(axgbe, axgbe_driver, axgbe_methods,
     sizeof(struct axgbe_softc));
 DRIVER_MODULE(axgbe, simplebus, axgbe_driver, axgbe_devclass, 0, 0);
-
 
 static struct ofw_compat_data phy_compat_data[] = {
 	{ "amd,xgbe-phy-seattle-v1a",	true },
@@ -608,7 +605,6 @@ static device_method_t axgbephy_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		axgbephy_probe),
 	DEVMETHOD(device_attach,	axgbephy_attach),
-
 	{ 0, 0 }
 };
 
