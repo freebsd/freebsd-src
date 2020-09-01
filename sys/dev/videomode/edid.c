@@ -133,10 +133,10 @@ edid_is_valid(uint8_t *d)
 {
 	int sum = 0, i;
 	uint8_t sig[8] = EDID_SIGNATURE;
-	
+
 	if (memcmp(d, sig, 8) != 0)
 		return EINVAL;
-	
+
 	for (i = 0; i < 128; i++)
 		sum += d[i];
 	if ((sum & 0xff) != 0)
@@ -391,7 +391,7 @@ edid_det_timing(uint8_t *data, struct videomode *vmp)
 	vblank = EDID_DET_TIMING_VBLANK(data);
 	vsyncwid = EDID_DET_TIMING_VSYNC_WIDTH(data);
 	vsyncoff = EDID_DET_TIMING_VSYNC_OFFSET(data);
-	
+
 	/* Borders are contained within the blank areas. */
 
 	vmp->hdisplay = hactive;
@@ -644,4 +644,3 @@ edid_parse(uint8_t *data, struct edid_info *edid)
 
 	return 0;
 }
-
