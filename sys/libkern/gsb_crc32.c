@@ -227,6 +227,7 @@ singletable_crc32c(uint32_t crc, const void *buf, size_t size)
 	return crc;
 }
 
+#ifndef _STANDALONE
 
 /*
  * Copyright (c) 2004-2006 Intel Corporation - All Rights Reserved
@@ -788,3 +789,10 @@ calculate_crc32c(uint32_t crc32c,
 		return (multitable_crc32c(crc32c, buffer, length));
 	}
 }
+#else
+uint32_t
+calculate_crc32c(uint32_t crc32c, const unsigned char *buffer, unsigned int length)
+{
+	return (singletable_crc32c(crc32c, buffer, length));
+}
+#endif
