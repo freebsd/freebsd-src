@@ -137,8 +137,6 @@
 #define	NFSERR_FILE_OPEN	10046
 #define	NFSERR_STALEWRITEVERF	30001	/* Fake return for nfs_commit() */
 
-
-
 #define NFSERR_RETVOID		0x20000000 /* Return void, not error */
 #define NFSERR_AUTHERR		0x40000000 /* Mark an authentication error */
 #define NFSERR_RETERR		0x80000000 /* Mark an error return for V3 */

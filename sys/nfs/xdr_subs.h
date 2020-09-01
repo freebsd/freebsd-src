@@ -35,7 +35,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _NFS_XDR_SUBS_H_
 #define _NFS_XDR_SUBS_H_
 
