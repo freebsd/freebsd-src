@@ -413,7 +413,6 @@ struct bnxt_vf_info {
 	bus_addr_t	hwrm_cmd_req_dma_addr;
 };
 
-
 #define BNXT_PF(softc)		(!((softc)->flags & BNXT_FLAG_VF))
 #define BNXT_VF(softc)		((softc)->flags & BNXT_FLAG_VF)
 

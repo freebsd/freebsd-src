@@ -173,7 +173,6 @@ bnxt_create_tx_sysctls(struct bnxt_softc *softc, int txr)
 	if (!oid)
 		return ENOMEM;
 
-
 	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "ucast_pkts", CTLFLAG_RD, &tx_stats[txr].tx_ucast_pkts,
 	    "unicast packets sent");
@@ -650,7 +649,6 @@ bnxt_create_port_stats_sysctls(struct bnxt_softc *softc)
 
 	return 0;
 }
-
 
 int
 bnxt_create_rx_sysctls(struct bnxt_softc *softc, int rxr)
@@ -1362,7 +1360,7 @@ bnxt_create_hw_lro_sysctls(struct bnxt_softc *softc)
 	    softc, 0, bnxt_hw_lro_set_max_agg_segs, "A",
 	    "Set Max Agg Seg Value (unit is Log2): "
 	    "0 (= 1 seg) / 1 (= 2 segs) /  ... / 31 (= 2^31 segs)");
-	
+
         SYSCTL_ADD_PROC(&softc->hw_lro_ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "max_aggs", CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_NEEDGIANT,
 	    softc, 0, bnxt_hw_lro_set_max_aggs, "A",
