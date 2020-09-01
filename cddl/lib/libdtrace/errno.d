@@ -225,7 +225,7 @@ inline int ENOTRECOVERABLE = 95;
 #pragma D binding "1.13" ENOTRECOVERABLE
 inline int EOWNERDEAD = 96;
 #pragma D binding "1.13" EOWNERDEAD
-inline int EINTEGRITY = 96;
+inline int EINTEGRITY = 97;
 #pragma D binding "1.13" EINTEGRITY
 inline int ELAST = 97;
 #pragma D binding "1.0" ELAST
