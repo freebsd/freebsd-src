@@ -331,7 +331,6 @@ tpmtis_write_bytes(struct tpm_sc *sc, size_t count, uint8_t *buf)
 	return (true);
 }
 
-
 static bool
 tpmtis_request_locality(struct tpm_sc *sc, int locality)
 {

@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
 
-
-
 char *tpm_ids[] = {"ATM1200",  "BCM0102", "INTC0102", "SNO3504", "WEC1000",
     "PNP0C31", NULL};
 
@@ -53,7 +51,7 @@ static int
 tpm_acpi_probe(device_t dev)
 {
 	int rv;
-	
+
 	rv = ACPI_ID_PROBE(device_get_parent(dev), dev, tpm_ids, NULL);
 	if (rv <= 0)
 		device_set_desc(dev, "Trusted Platform Module");

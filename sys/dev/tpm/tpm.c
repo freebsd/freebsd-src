@@ -146,7 +146,6 @@ __FBSDID("$FreeBSD$");
 /* Set when enabling legacy interface in host bridge. */
 int tpm_enabled;
 
-
 #ifdef __FreeBSD__
 #define	TPMSOFTC(dev) \
 	((struct tpm_softc *)dev->si_drv1)
@@ -244,7 +243,6 @@ tpm_identify(driver_t *driver, device_t parent)
 }
 #endif
 
-
 int
 tpm_attach(device_t dev)
 {
@@ -270,7 +268,7 @@ tpm_attach(device_t dev)
 
 	/* In case PnP probe this may contain some initialization. */
 	tpm_tis12_probe(sc->sc_bt, sc->sc_bh);
-	
+
 	if (tpm_legacy_probe(sc->sc_bt, sc->sc_bh)) {
 		sc->sc_init = tpm_legacy_init;
 		sc->sc_start = tpm_legacy_start;
@@ -330,7 +328,6 @@ tpm_detach(device_t dev)
 
 	return 0;
 }
-
 
 #else
 /*
