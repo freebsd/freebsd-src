@@ -37,7 +37,6 @@
 #ifndef _NFS_NFSM_SUBS_H_
 #define	_NFS_NFSM_SUBS_H_
 
-
 /*
  * These macros do strange and peculiar things to mbuf chains for
  * the assistance of the nfs code. To attempt to use them for any

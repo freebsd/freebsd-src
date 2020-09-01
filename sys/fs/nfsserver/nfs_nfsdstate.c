@@ -4470,7 +4470,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum, nfsv4stateid_t *stateidp,
 	m->m_len = 0;
 	nd->nd_mreq = nd->nd_mb = m;
 	nd->nd_bpos = mtod(m, caddr_t);
-	
+
 	/*
 	 * and build the callback request.
 	 */
@@ -7958,7 +7958,6 @@ nfsrv_allocdevid(struct nfsdevice *ds, char *addr, char *dnshost)
 	NFSBCOPY(dnshost, ds->nfsdev_host, ds->nfsdev_hostnamelen + 1);
 }
 
-
 /*
  * Create the device id list.
  * Return 0 if the nfsd threads are to run and ENXIO if the "-p" argument
@@ -8571,7 +8570,7 @@ nfsrv_mdscopymr(char *mdspathp, char *dspathp, char *curdspathp, char *buf,
 			return (ENXIO);
 		}
 		curnmp = VFSTONFS(nd.ni_vp->v_mount);
-	
+
 		/* Search the nfsdev list for a match. */
 		NFSDDSLOCK();
 		*fdsp = nfsv4_findmirror(curnmp);
@@ -8619,7 +8618,7 @@ nfsrv_mdscopymr(char *mdspathp, char *dspathp, char *curdspathp, char *buf,
 			return (ENXIO);
 		}
 		nmp = VFSTONFS(nd.ni_vp->v_mount);
-	
+
 		/*
 		 * Search the nfsdevice list for a match.  If curnmp == NULL,
 		 * this is a recovery and there must be a mirror.
@@ -8751,4 +8750,3 @@ nfsrv_findmirroredds(struct nfsmount *nmp)
 	}
 	return (fndds);
 }
-

@@ -535,7 +535,6 @@ autofs_trigger(struct autofs_node *anp,
 			    "error %d", anp->an_retries, error);
 			anp->an_retries = 0;
 			return (error);
-
 		}
 		AUTOFS_DEBUG("trigger failed with error %d; will retry in "
 		    "%d seconds, %d attempts left", error, autofs_retry_delay,

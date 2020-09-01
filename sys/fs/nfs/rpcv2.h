@@ -199,7 +199,7 @@
 #define	RPCMNT_NAMELEN	255
 #define	RPCMNT_PATHLEN	1024
 #define	RPCPROG_NFS	100003
- 
+
 /* Structs for common parts of the rpc's */
 struct rpcv2_time {
 	u_int32_t rpc_sec;

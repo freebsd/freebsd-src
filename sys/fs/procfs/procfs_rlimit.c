@@ -61,7 +61,6 @@
 #include <fs/pseudofs/pseudofs.h>
 #include <fs/procfs/procfs.h>
 
-
 int
 procfs_doprocrlimit(PFS_FILL_ARGS)
 {
@@ -77,7 +76,6 @@ procfs_doprocrlimit(PFS_FILL_ARGS)
 	PROC_UNLOCK(p);
 
 	for (i = 0; i < RLIM_NLIMITS; i++) {
-
 		/*
 		 * Add the rlimit ident
 		 */

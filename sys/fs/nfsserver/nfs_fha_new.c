@@ -298,7 +298,6 @@ fhanew_set_locktype(rpcproc_t procnum, struct fha_info *info)
 	}
 }
 
-
 /*
  * This just specifies that offsets should obey affinity when within
  * the same 1Mbyte (1<<20) chunk for the file (reads only for now).

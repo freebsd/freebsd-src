@@ -37,7 +37,6 @@
  * $FreeBSD$
  */
 
-
 /*
  *	Analyze function flag (similar to RR field bits)
  */

@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpcsec_gss.h>
 #include <rpc/rpcsec_tls.h>
 
-
 NFSDLOCKMUTEX;
 
 extern SVCPOOL	*nfscbd_pool;
@@ -308,4 +307,3 @@ nfsrvd_cbinit(int terminating)
 		NFSD_LOCK();
 	}
 }
-

@@ -446,7 +446,6 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 		goto bail;
 	}
 
-
 	/*
 	 * Grab the Fileset Descriptor
 	 * Thanks to Chuck McCrobie <mccrobie@cablespeed.com> for pointing
@@ -673,7 +672,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	}
 
 	bcopy(bp->b_data, unode->fentry, size);
-	
+
 	brelse(bp);
 	bp = NULL;
 

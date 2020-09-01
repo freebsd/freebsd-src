@@ -1232,7 +1232,6 @@ fuse_vnop_lookup(struct vop_lookup_args *ap)
 				(nameiop == RENAME && wantparent))) {
 				cnp->cn_flags |= SAVENAME;
 			}
-
 		}
 	}
 out:
@@ -1877,7 +1876,6 @@ fuse_vnop_strategy(struct vop_strategy_args *ap)
 	return 0;
 }
 
-
 /*
     struct vnop_symlink_args {
 	struct vnode *a_dvp;
@@ -2120,7 +2118,7 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	size_t len;
 	char *attr_str;
 	int err;
-	
+
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
@@ -2466,7 +2464,7 @@ fuse_vnop_print(struct vop_print_args *ap)
 
 	return 0;
 }
-	
+
 /*
  * Get an NFS filehandle for a FUSE file.
  *
@@ -2509,5 +2507,3 @@ fuse_vnop_vptofh(struct vop_vptofh_args *ap)
 		return EOVERFLOW;
 	return (0);
 }
-
-

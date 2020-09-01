@@ -130,7 +130,6 @@ struct msdosfs_fileno {
 /* Byte offset in FAT on filesystem pmp, cluster cn */
 #define	FATOFS(pmp, cn)	((cn) * (pmp)->pm_fatmult / (pmp)->pm_fatdiv)
 
-
 #define	VFSTOMSDOSFS(mp)	((struct msdosfsmount *)mp->mnt_data)
 
 /* Number of bits in one pm_inusemap item: */

@@ -272,7 +272,6 @@ fdesc_get_ino_alloc(struct mount *mp, void *arg, int lkflags,
 	return (error);
 }
 
-
 /*
  * vp is the current namei directory
  * ndp is the name to locate in that directory...

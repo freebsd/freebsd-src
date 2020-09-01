@@ -57,7 +57,6 @@ typedef	struct	{
 	dev_t		iso_rdev;	/* Major/Minor number for special */
 } ISO_RRIP_INODE;
 
-
 struct iso_node {
 	struct	vnode *i_vnode;	/* vnode associated with this inode */
 	cd_ino_t	i_number;	/* the identity of the inode */

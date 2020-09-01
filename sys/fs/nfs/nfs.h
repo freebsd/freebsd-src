@@ -579,7 +579,6 @@ struct uio; struct buf; struct vattr; struct nameidata;	/* XXX */
 		((e) != EINTR && (e) != ERESTART && (e) != EWOULDBLOCK && \
 		((s) & PR_CONNREQUIRED) == 0)
 
-
 /*
  * This structure holds socket information for a connection. Used by the
  * client and the server for callbacks.

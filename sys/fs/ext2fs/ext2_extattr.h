@@ -53,7 +53,6 @@
 #define EXT2_EXTATTR_VALUE_HASH_SHIFT		16
 #define EXT2_EXTATTR_BLOCK_HASH_SHIFT		16
 
-
 struct ext2fs_extattr_header {
 	int32_t	h_magic;	/* magic number for identification */
 	int32_t	h_refcount;	/* reference count */

@@ -312,7 +312,6 @@ fuse_internal_cache_attrs(struct vnode *vp, struct fuse_attr *attr,
 		memcpy(vap, vp_cache_at, sizeof(*vap));
 }
 
-
 /* fsync */
 
 int

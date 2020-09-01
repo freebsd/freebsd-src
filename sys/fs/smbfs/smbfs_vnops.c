@@ -45,7 +45,6 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-
 #include <netsmb/smb.h>
 #include <netsmb/smb_conn.h>
 #include <netsmb/smb_subr.h>
@@ -553,7 +552,6 @@ smbfs_create(ap)
 	char *name = cnp->cn_nameptr;
 	int nmlen = cnp->cn_namelen;
 	int error;
-	
 
 	SMBVDEBUG("\n");
 	*vpp = NULL;
@@ -563,7 +561,7 @@ smbfs_create(ap)
 		return error;
 	scred = smbfs_malloc_scred();
 	smb_makescred(scred, cnp->cn_thread, cnp->cn_cred);
-	
+
 	error = smbfs_smb_create(dnp, name, nmlen, scred);
 	if (error)
 		goto out;
@@ -898,7 +896,7 @@ smbfs_pathconf (ap)
 	struct smb_vc *vcp = SSTOVC(smp->sm_share);
 	long *retval = ap->a_retval;
 	int error = 0;
-	
+
 	switch (ap->a_name) {
 	    case _PC_FILESIZEBITS:
 		if (vcp->vc_sopt.sv_caps & (SMB_CAP_LARGE_READX |
@@ -1039,7 +1037,6 @@ smbfs_advlock(ap)
 	}
 	size = np->n_size;
 	switch (fl->l_whence) {
-
 	case SEEK_SET:
 	case SEEK_CUR:
 		start = fl->l_start;
@@ -1188,7 +1185,7 @@ smbfs_lookup(ap)
 	int nmlen = cnp->cn_namelen;
 	int error, islastcn, isdot;
 	int killit;
-	
+
 	SMBVDEBUG("\n");
 	if (dvp->v_type != VDIR)
 		return ENOTDIR;

@@ -485,4 +485,3 @@ nfscl_lockderef(struct nfsv4lock *lckp)
 	}
 	NFSUNLOCKCLSTATE();
 }
-

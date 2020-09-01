@@ -249,7 +249,7 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 	}
 
 	vp->v_vflag |= VV_VMSIZEVNLOCK;
-	
+
 	np->n_fhp = nfhp;
 	/*
 	 * For NFSv4, we have to attach the directory file handle and
@@ -1046,7 +1046,6 @@ newnfs_copyincred(struct ucred *cr, struct nfscred *nfscr)
 		nfscr->nfsc_groups[i] = cr->cr_groups[i];
 }
 
-
 /*
  * Do any client specific initialization.
  */
@@ -1419,4 +1418,3 @@ MODULE_VERSION(nfscl, 1);
 MODULE_DEPEND(nfscl, nfscommon, 1, 1, 1);
 MODULE_DEPEND(nfscl, krpc, 1, 1, 1);
 MODULE_DEPEND(nfscl, nfssvc, 1, 1, 1);
-

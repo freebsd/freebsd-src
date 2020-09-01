@@ -425,7 +425,6 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_minorversion4, CTLFLAG_RWTUN,
 static void nfsrvd_compound(struct nfsrv_descript *nd, int isdgram,
     u_char *tag, int taglen, u_int32_t minorvers);
 
-
 /*
  * This static array indicates which server procedures require the extra
  * arguments to return the current file handle for V2, 3.
