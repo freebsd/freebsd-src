@@ -78,7 +78,6 @@ struct oce_dev_info {
 #define OCE_RDMA_INFO_RDMA_SUPPORTED     0x00000001
 };
 
-
 #define OCE_GEN2_FAMILY     2
 
 #ifdef notdef
