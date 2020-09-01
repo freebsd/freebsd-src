@@ -134,7 +134,6 @@ smbus_hinted_child(device_t bus, const char *dname, int dunit)
 	devi->addr = addr;
 }
 
-
 static int
 smbus_child_location_str(device_t parent, device_t child, char *buf,
     size_t buflen)
