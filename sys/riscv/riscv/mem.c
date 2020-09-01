@@ -121,4 +121,3 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 
 	return (error);
 }
-

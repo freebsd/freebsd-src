@@ -70,7 +70,6 @@ sbi_get_mvendorid(void)
 	return (SBI_CALL0(SBI_EXT_ID_BASE, SBI_BASE_GET_MVENDORID));
 }
 
-
 static struct sbi_ret
 sbi_get_marchid(void)
 {

@@ -400,7 +400,6 @@ bounce_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 	return (0);
 }
 
-
 /*
  * Allocate a piece of memory that can be efficiently mapped into
  * bus device space based on the constraints lited in the dma tag.
@@ -813,7 +812,6 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			if (map->sync_count == 0 ||
 			    (kvaddr != 0 && kvaddr != sl_vend) ||
 			    (curaddr != sl_pend)) {
-
 				if (++map->sync_count > dmat->common.nsegments)
 					goto cleanup;
 				sl++;

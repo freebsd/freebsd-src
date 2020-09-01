@@ -117,7 +117,6 @@ ATOMIC_FCMPSET_ACQ_REL(16);
 #define	atomic_fcmpset_acq_char		atomic_fcmpset_acq_8
 #define	atomic_fcmpset_rel_char		atomic_fcmpset_rel_8
 
-
 #define	atomic_cmpset_short		atomic_cmpset_16
 #define	atomic_cmpset_acq_short		atomic_cmpset_acq_16
 #define	atomic_cmpset_rel_short		atomic_cmpset_rel_16
