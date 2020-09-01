@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/gpio.h>
 #include <machine/bus.h>
 
-
 #include <dev/fdt/simplebus.h>
 
 #include <dev/fdt/fdt_common.h>

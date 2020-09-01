@@ -27,7 +27,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _RK805REG_H_
 #define	 _RK805REG_H_
 

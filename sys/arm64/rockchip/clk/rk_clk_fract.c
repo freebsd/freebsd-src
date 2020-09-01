@@ -71,7 +71,6 @@ static clknode_method_t rk_clk_fract_methods[] = {
 DEFINE_CLASS_1(rk_clk_fract, rk_clk_fract_class, rk_clk_fract_methods,
    sizeof(struct rk_clk_fract_sc), clknode_class);
 
-
 /*
  * Compute best rational approximation of input fraction
  * for fixed sized fractional divider registers.

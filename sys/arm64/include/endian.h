@@ -66,7 +66,7 @@ __bswap64(__uint64_t x)
 
 	__asm __volatile("rev %0, %1\n"
 			 : "=&r" (ret), "+r" (x));
-	
+
 	return (ret);
 }
 
@@ -77,7 +77,7 @@ __bswap32_var(__uint32_t v)
 
 	__asm __volatile("rev32 %x0, %x1\n"
 			 : "=&r" (ret), "+r" (v));
-	
+
 	return (ret);
 }
 

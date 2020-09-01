@@ -87,7 +87,6 @@ struct rk_pinctrl_gpio {
 	device_t	gpio_dev;
 };
 
-
 struct rk_pinctrl_softc;
 
 struct rk_pinctrl_conf {
@@ -467,7 +466,6 @@ static struct rk_pinctrl_pin_fixup rk3328_pin_fixup[] = {
 	RK_PINFIX(2, 15, 0x28,  0, 0x7),
 	RK_PINFIX(2, 23, 0x30, 14, 0x6000),
 };
-
 
 static struct rk_pinctrl_pin_drive rk3328_pin_drive[] = {
 	/*       bank sub  offs val ma */

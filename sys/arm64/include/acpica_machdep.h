@@ -36,7 +36,6 @@
 #ifndef __ACPICA_MACHDEP_H__
 #define	__ACPICA_MACHDEP_H__
 
-
 #ifdef _KERNEL
 
 #include <machine/_bus.h>

@@ -99,7 +99,6 @@ __FBSDID("$FreeBSD$");
 #define	TX_NEXT(n, count)		(((n) + 1) & ((count) - 1))
 #define	RX_NEXT(n, count)		(((n) + 1) & ((count) - 1))
 
-
 #define	TX_MAX_SEGS		20
 
 /* Maximum number of mbufs to send to if_input */
@@ -1258,7 +1257,6 @@ gen_intr(void *arg)
 
 	if (val & GENET_IRQ_RXDMA_DONE)
 		gen_rxintr(sc, &sc->rx_queue[DEF_RXQUEUE]);
-
 
 	if (val & GENET_IRQ_TXDMA_DONE) {
 		gen_txintr(sc, &sc->tx_queue[DEF_TXQUEUE]);

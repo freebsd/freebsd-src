@@ -729,7 +729,6 @@ static struct rk_clk_composite_def pclk_pmu_src = {
 	.div_width = 5,
 };
 
-
 #define	SCLK_I2C0_PMU	9
 #define	SCLK_I2C4_PMU	10
 #define	SCLK_I2C8_PMU	11

@@ -82,7 +82,6 @@ struct gic_v3_softc {
 	struct gic_v3_irqsrc	*gic_irqs;
 };
 
-
 struct gic_v3_devinfo {
 	int gic_domain;
 	int msi_xref;

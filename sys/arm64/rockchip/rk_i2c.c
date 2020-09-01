@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include "iicbus_if.h"
 
-
 #define	RK_I2C_CON			0x00
 #define	 RK_I2C_CON_EN			(1 << 0)
 #define	 RK_I2C_CON_MODE_SHIFT		1
@@ -238,7 +237,6 @@ rk_i2c_fill_tx(struct rk_i2c_softc *sc)
 				sc->cnt++;
 			}
 			buf32 |= buf << (j * 8);
-
 		}
 		RK_I2C_WRITE(sc, RK_I2C_TXDATA_BASE + 4 * i, buf32);
 

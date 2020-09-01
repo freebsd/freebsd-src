@@ -209,7 +209,6 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 	return (child);
 }
 
-
 /*
  * Allocate a resource on behalf of child.  NB: child is usually going to be a
  * child of one of our descendants, not a direct child of nexus0.
@@ -397,7 +396,6 @@ nexus_set_resource(device_t dev, device_t child, int type, int rid,
 
 	return(0);
 }
-
 
 static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
