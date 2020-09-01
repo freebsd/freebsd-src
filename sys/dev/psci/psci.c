@@ -498,7 +498,6 @@ psci_v0_1_init(device_t dev, int default_version __unused)
 	phandle_t node;
 	int len;
 
-
 	/* Zero out the function ID table - Is this needed ? */
 	for (psci_fn = PSCI_FN_VERSION, psci_fnid = PSCI_FNID_VERSION;
 	    psci_fn < PSCI_FN_MAX; psci_fn++, psci_fnid++)
