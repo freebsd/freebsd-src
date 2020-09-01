@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/accommon.h>
 #include <dev/acpica/acpivar.h>
 
-
 static int uart_acpi_probe(device_t dev);
 
 static device_method_t uart_acpi_methods[] = {

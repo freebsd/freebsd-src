@@ -39,7 +39,7 @@ struct ns8250_softc {
 	uint8_t		fcr;
 	uint8_t		ier;
 	uint8_t		mcr;
-	
+
 	uint8_t		ier_mask;
 	uint8_t		ier_rxbits;
 	uint8_t		busy_detect;
