@@ -36,17 +36,13 @@
  * Modifications by: Adam Radford
  */
 
-
-
 #ifndef TW_OSL_TYPES_H
 
 #define TW_OSL_TYPES_H
 
-
 /*
  * typedefs shared between OSL and CL, and defined by OSL.
  */
-
 
 typedef void			TW_VOID;
 typedef char			TW_INT8;
@@ -60,7 +56,5 @@ typedef unsigned long long	TW_UINT64;
 
 typedef time_t			TW_TIME;
 typedef struct mtx		TW_LOCK_HANDLE;
-
-
 
 #endif /* TW_OSL_TYPES_H */

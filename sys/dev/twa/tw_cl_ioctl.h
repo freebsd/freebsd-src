@@ -36,17 +36,13 @@
  * Modifications by: Adam Radford
  */
 
-
-
 #ifndef TW_CL_IOCTL_H
 
 #define TW_CL_IOCTL_H
 
-
 /*
  * Macros and structures for Common Layer handled ioctls.
  */
-
 
 #define TW_CL_AEN_NOT_RETRIEVED	0x1
 #define TW_CL_AEN_RETRIEVED	0x2
@@ -57,7 +53,6 @@
 #define TW_CL_ERROR_IOCTL_LOCK_NOT_HELD		0x1001   /* Not locked */
 #define TW_CL_ERROR_IOCTL_LOCK_ALREADY_HELD	0x1002   /* Already locked */
 
-
 #pragma pack(1)
 
 /* Structure used to handle GET/RELEASE LOCK ioctls. */
@@ -66,7 +61,6 @@ struct tw_cl_lock_packet {
 	TW_UINT32	time_remaining_msec;
 	TW_UINT32	force_flag;
 };
-
 
 /* Structure used to handle GET COMPATIBILITY INFO ioctl. */
 struct tw_cl_compatibility_packet {
@@ -87,7 +81,6 @@ struct tw_cl_compatibility_packet {
 	TW_UINT16	fw_on_ctlr_build;/* build # of running firmware */
 };
 
-
 /* Driver understandable part of the ioctl packet built by the API. */
 struct tw_cl_driver_packet {
 	TW_UINT32	control_code;
@@ -98,7 +91,6 @@ struct tw_cl_driver_packet {
 	TW_UINT32	buffer_length;
 };
 
-
 /* ioctl packet built by the API. */
 struct tw_cl_ioctl_packet {
 	struct tw_cl_driver_packet	driver_pkt;
@@ -108,7 +100,5 @@ struct tw_cl_ioctl_packet {
 };
 
 #pragma pack()
-
-
 
 #endif /* TW_CL_IOCTL_H */
