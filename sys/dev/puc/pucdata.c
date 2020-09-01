@@ -905,7 +905,6 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_8S, 0x10, 0, 8,
 	},
 
-
 	/*
 	 * Oxford Semiconductor PCI Express Expresso family
 	 *
@@ -1279,7 +1278,6 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x10, 0, 8,
 	    .config_function = puc_config_icbook
 	},
-
 	{ 0xffff, 0, 0xffff, 0, NULL, 0 }
 };
 
