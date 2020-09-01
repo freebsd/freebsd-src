@@ -489,7 +489,6 @@ default: DBPRINT(sc, BCE_INSANE_PHY,					\
 
 #endif /* BCE_DEBUG */
 
-
 /****************************************************************************/
 /* Device identification definitions.                                       */
 /****************************************************************************/
@@ -541,7 +540,6 @@ default: DBPRINT(sc, BCE_INSANE_PHY,					\
 
 /* A serdes chip will have the first bit of the bond id set. */
 #define BCE_CHIP_BOND_ID_SERDES_BIT	0x01
-
 
 /* shorthand one */
 #define BCE_ASICREV(x)			((x) >> 28)
@@ -639,7 +637,6 @@ struct flash_spec {
 	const u8 *name;
 };
 
-
 /****************************************************************************/
 /* Shared Memory layout                                                     */
 /* The BCE bootcode will initialize this data area with port configurtion   */
@@ -661,7 +658,6 @@ struct flash_spec {
  * driver reset.
  */
 #define FW_ACK_TIME_OUT_MS			1000
-
 
 #define BCE_DRV_RESET_SIGNATURE			0x00000000
 #define BCE_DRV_RESET_SIGNATURE_MAGIC		0x4841564b /* HAVK */
@@ -1042,7 +1038,6 @@ struct flash_spec {
  */
 #define BCE_PCI_PCIX_CMD		0x42
 
-
 /****************************************************************************/
 /* Convenience definitions.                                                 */
 /****************************************************************************/
@@ -1093,7 +1088,6 @@ struct flash_spec {
 #define	BCE_ADDR_HI(y)			(0)
 #endif
 
-
 /****************************************************************************/
 /* Do not modify any of the following data structures, they are generated   */
 /* from RTL code.                                                           */
@@ -1124,7 +1118,6 @@ struct tx_bd {
 	u16 tx_bd_vlan_tag;
 };
 
-
 /*
  *  rx_bd definition
  */
@@ -1138,7 +1131,6 @@ struct rx_bd {
 #define RX_BD_FLAGS_END		(1<<2)
 #define RX_BD_FLAGS_START		(1<<3)
 };
-
 
 /*
  *  status_block definition
@@ -1229,7 +1221,6 @@ struct status_block {
 #endif
 };
 
-
 /*
  *  statistics_block definition
  */
@@ -1316,7 +1307,6 @@ struct statistics_block {
 	u32 stat_GenStat15;
 };
 
-
 /*
  *  l2_fhdr definition
  */
@@ -1392,7 +1382,6 @@ struct l2_fhdr {
 	"\02RULE_b1"		\
 	"\01RULE_b0"
 
-
 /*
  *  l2_tx_context definition (5706 and 5708)
  */
@@ -1439,7 +1428,6 @@ struct l2_fhdr {
 #define BCE_L2CTX_TX_TBDR_BHADDR_HI_XI		0x00000258
 #define BCE_L2CTX_TX_TBDR_BHADDR_LO_XI		0x0000025c
 
-
 /*
  *  l2_rx_context definition (5706, 5708, 5709, and 5716)
  */
@@ -1481,7 +1469,6 @@ struct l2_fhdr {
 #define BCE_L2CTX_RX_NX_PG_BDHADDR_HI		0x00000050
 #define BCE_L2CTX_RX_NX_PG_BDHADDR_LO		0x00000054
 #define BCE_L2CTX_RX_NX_PG_BDIDX		0x00000058
-
 
 /*
  *  l2_mq definitions (5706, 5708, 5709, and 5716)
@@ -1565,7 +1552,6 @@ struct l2_fhdr {
 #define BCE_PCICFG_STATUS_BIT_CLEAR_CMD		0x0000008c
 #define BCE_PCICFG_MAILBOX_QUEUE_ADDR			0x00000090
 #define BCE_PCICFG_MAILBOX_QUEUE_DATA			0x00000094
-
 
 /*
  *  pci_reg definition
@@ -1747,7 +1733,6 @@ struct l2_fhdr {
 
 #define BCE_PCI_MSI_ADDR_H				0x00000454
 #define BCE_PCI_MSI_ADDR_L				0x00000458
-
 
 /*
  *  misc_reg definition
@@ -2784,7 +2769,6 @@ struct l2_fhdr {
 #define BCE_MISC_OSCFUNDS_CTRL_IAMP_ADJ_2		 (2L<<10)
 #define BCE_MISC_OSCFUNDS_CTRL_IAMP_ADJ_3		 (3L<<10)
 
-
 /*
  *  dma_reg definition
  *  offset: 0xc00
@@ -2993,7 +2977,6 @@ struct l2_fhdr {
 
 #define BCE_DMA_FUSE_CTRL2_DATA			0x00000f14
 
-
 /*
  *  context_reg definition
  *  offset: 0x1000
@@ -3177,7 +3160,6 @@ struct l2_fhdr {
 #define BCE_CTX_CAM_CTRL_SEARCH							(1L<<29)
 #define BCE_CTX_CAM_CTRL_WRITE_REQ						(1L<<30)
 #define BCE_CTX_CAM_CTRL_READ_REQ						(1L<<31)
-
 
 /*
  *  emac_reg definition
@@ -3673,7 +3655,6 @@ struct l2_fhdr {
 #define BCE_EMAC_TX_STAT_AC21				0x000016d4
 #define BCE_EMAC_TXMAC_SUC_DBG_OVERRUNVEC		0x000016d8
 
-
 /*
  *  rpm_reg definition
  *  offset: 0x1800
@@ -4041,7 +4022,6 @@ struct l2_fhdr {
 #define BCE_RPM_ACPI_DBG_BUF_W32			0x000019f8
 #define BCE_RPM_ACPI_DBG_BUF_W33			0x000019fc
 
-
 /*
  *  rlup_reg definition
  *  offset: 0x2000
@@ -4050,7 +4030,6 @@ struct l2_fhdr {
 #define BCE_RLUP_FTQ_CTL					0x000023fc
 #define BCE_RLUP_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
 #define BCE_RLUP_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
-
 
 /*
  *  rv2pcsr_reg definition
@@ -4061,7 +4040,6 @@ struct l2_fhdr {
 #define BCE_RV2PCSR_FTQ_CTL_MAX_DEPTH		(0x3ffL<<12)
 #define BCE_RV2PCSR_FTQ_CTL_CUR_DEPTH		(0x3ffL<<22)
 
-
 /*
  *  rdma_reg definition
  *  offset: 0x2c00
@@ -4070,8 +4048,6 @@ struct l2_fhdr {
 #define BCE_RDMA_FTQ_CTL					0x00002ffc
 #define BCE_RDMA_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
 #define BCE_RDMA_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
-
-
 
 /*
  *  timer_reg definition
@@ -4092,7 +4068,6 @@ struct l2_fhdr {
 
 #define BCE_TIMER_25MHZ_FREE_RUN			0x00004448
 
-
 /*
  *  tsch_reg definition
  *  offset: 0x4c00
@@ -4102,8 +4077,6 @@ struct l2_fhdr {
 #define BCE_TSCH_FTQ_CTL					0x00004ffc
 #define BCE_TSCH_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
 #define BCE_TSCH_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
-
-
 
 /*
  *  rbuf_reg definition
@@ -4151,7 +4124,6 @@ struct l2_fhdr {
 #define BCE_RBUF_PKT_DATA				0x00208000
 #define BCE_RBUF_CLIST_DATA				0x00210000
 #define BCE_RBUF_BUF_DATA				0x00220000
-
 
 /*
  *  rv2p_reg definition
@@ -4308,7 +4280,6 @@ struct l2_fhdr {
 #define BCE_RV2P_MFTQ_CTL_MAX_DEPTH			 (0x3ffL<<12)
 #define BCE_RV2P_MFTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
 
-
 /*
  *  mq_reg definition
  *  offset: 0x3c00
@@ -4427,7 +4398,6 @@ struct l2_fhdr {
 #define BCE_MQ_MAP_L2_5_ENA							(0x1L<<31)
 #define BCE_MQ_MAP_L2_5_DEFAULT						0x83000b08
 
-
 /*
  *  csch_reg definition
  *  offset: 0x4000
@@ -4437,7 +4407,6 @@ struct l2_fhdr {
 #define BCE_CSCH_CH_FTQ_CTL				0x000043fc
 #define BCE_CSCH_CH_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
 #define BCE_CSCH_CH_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
-
 
 /*
  *  tbdr_reg definition
@@ -4505,7 +4474,6 @@ struct l2_fhdr {
 #define BCE_TBDR_FTQ_CTL_FORCE_INTERVENE		(1L<<2)
 #define BCE_TBDR_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
 #define BCE_TBDR_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
-
 
 /*
  *  tdma_reg definition
@@ -4595,7 +4563,6 @@ struct l2_fhdr {
 #define BCE_TDMA_FTQ_CTL_FORCE_INTERVENE		 (1L<<2)
 #define BCE_TDMA_FTQ_CTL_MAX_DEPTH			 (0x3ffL<<12)
 #define BCE_TDMA_FTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
-
 
 /*
  *  nvm_reg definition
@@ -4700,7 +4667,6 @@ struct l2_fhdr {
 #define BCE_NVM_WRITE1_WREN_CMD				 (0xffL<<0)
 #define BCE_NVM_WRITE1_WRDI_CMD				 (0xffL<<8)
 #define BCE_NVM_WRITE1_SR_DATA				 (0xffL<<16)
-
 
 /*
  *  hc_reg definition
@@ -5485,7 +5451,6 @@ struct l2_fhdr {
 #define BCE_HC_PERIODIC_TICKS_8_HC_PERIODIC_TICKS	 (0xffffL<<0)
 #define BCE_HC_PERIODIC_TICKS_8_HC_INT_PERIODIC_TICKS	 (0xffffL<<16)
 
-
 /*
  *  txp_reg definition
  *  offset: 0x40000
@@ -5566,7 +5531,6 @@ struct l2_fhdr {
 
 #define BCE_TXP_SCRATCH				0x00060000
 
-
 /*
  *  tpat_reg definition
  *  offset: 0x80000
@@ -5645,7 +5609,6 @@ struct l2_fhdr {
 #define BCE_TPAT_FTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
 
 #define BCE_TPAT_SCRATCH				0x000a0000
-
 
 /*
  *  rxp_reg definition
@@ -5747,7 +5710,6 @@ struct l2_fhdr {
 #define BCE_RXP_FTQ_CTL_CUR_DEPTH			 (0x3ffL<<22)
 
 #define BCE_RXP_SCRATCH				0x000e0000
-
 
 /*
  *  com_reg definition
@@ -5871,7 +5833,6 @@ struct l2_fhdr {
 
 #define BCE_COM_SCRATCH				0x00120000
 
-
 /*
  *  cp_reg definition
  *  offset: 0x180000
@@ -5952,7 +5913,6 @@ struct l2_fhdr {
 
 #define BCE_CP_SCRATCH					0x001a0000
 
-
 /*
  *  tas_reg definition
  *  offset: 0x1c0000
@@ -5961,7 +5921,6 @@ struct l2_fhdr {
 #define BCE_TAS_FTQ_CTL						0x001c03fc
 #define BCE_TAS_FTQ_CTL_MAX_DEPTH			(0x3ffL<<12)
 #define BCE_TAS_FTQ_CTL_CUR_DEPTH			(0x3ffL<<22)
-
 
 /*
  *  mcp_reg definition
