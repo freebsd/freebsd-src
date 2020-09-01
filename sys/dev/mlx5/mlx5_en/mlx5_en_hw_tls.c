@@ -188,7 +188,7 @@ mlx5e_tls_work(struct work_struct *work)
 	priv = container_of(ptag->tls, struct mlx5e_priv, tls);
 
 	switch (ptag->state) {
-	case MLX5E_TLS_ST_SETUP:
+	case MLX5E_TLS_ST_INIT:
 		/* try to open TIS, if not present */
 		if (ptag->tisn == 0) {
 			err = mlx5_tls_open_tis(priv->mdev, 0, priv->tdn,
@@ -215,8 +215,8 @@ mlx5e_tls_work(struct work_struct *work)
 		ptag->dek_index_ok = 1;
 
 		MLX5E_TLS_TAG_LOCK(ptag);
-		if (ptag->state == MLX5E_TLS_ST_SETUP)
-			ptag->state = MLX5E_TLS_ST_TXRDY;
+		if (ptag->state == MLX5E_TLS_ST_INIT)
+			ptag->state = MLX5E_TLS_ST_SETUP;
 		MLX5E_TLS_TAG_UNLOCK(ptag);
 		break;
 
@@ -413,6 +413,10 @@ mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
 	MPASS(ptag->tag.m_snd_tag.refcount == 0);
 	m_snd_tag_init(&ptag->tag.m_snd_tag, ifp);
 	*ppmt = &ptag->tag.m_snd_tag;
+
+	queue_work(priv->tls.wq, &ptag->work);
+	flush_work(&ptag->work);
+
 	return (0);
 
 failure:
@@ -736,16 +740,11 @@ mlx5e_sq_tls_xmit(struct mlx5e_sq *sq, struct mlx5e_xmit_args *parg, struct mbuf
 	MLX5E_TLS_TAG_LOCK(ptls_tag);
 	switch (ptls_tag->state) {
 	case MLX5E_TLS_ST_INIT:
-		queue_work(sq->priv->tls.wq, &ptls_tag->work);
-		ptls_tag->state = MLX5E_TLS_ST_SETUP;
-		ptls_tag->expected_seq = ~mb_seq;	/* force setup */
 		MLX5E_TLS_TAG_UNLOCK(ptls_tag);
 		return (MLX5E_TLS_FAILURE);
-
 	case MLX5E_TLS_ST_SETUP:
-		MLX5E_TLS_TAG_UNLOCK(ptls_tag);
-		return (MLX5E_TLS_FAILURE);
-
+		ptls_tag->state = MLX5E_TLS_ST_TXRDY;
+		ptls_tag->expected_seq = ~mb_seq;	/* force setup */
 	default:
 		MLX5E_TLS_TAG_UNLOCK(ptls_tag);
 		break;
