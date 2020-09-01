@@ -148,7 +148,6 @@ amrd_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
 	int	driveno = amrd_sc->amrd_drive - amr_sc->amr_drive;
 	if ((error = amr_dump_blocks(amr_sc,driveno,offset / AMR_BLKSIZE ,(void *)virtual,(int) length / AMR_BLKSIZE  )) != 0)
 	    	return(error);
-
     }
     return(0);
 }
@@ -266,4 +265,3 @@ amrd_detach(device_t dev)
 #endif
     return(0);
 }
-
