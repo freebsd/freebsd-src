@@ -72,13 +72,13 @@ __FBSDID("$FreeBSD$");
 		(*last) = (item); \
 		(item)->next = NULL; \
 	} while (0)
-	
+
 #define CE_ENQUEUE_HEAD(list,item) \
 	do { \
 		(item)->next = list; \
 		list = item; \
 	} while (0)
-	
+
 #define CE_DEQUEUE(list,item) \
 	do { \
 		item = list; \
@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 			list = (item)->next; \
 		} \
 	} while (0)
-	
+
 #define CE_PREREQUEST(b,c,list,item) \
 	do { \
 		item = list; \
@@ -120,7 +120,7 @@ __FBSDID("$FreeBSD$");
 			} \
 		} \
 	} while (0)
-	
+
 #define CE_LAST_ITEM(list,item) \
 	do { \
 		TAU32_UserRequest **last; \
@@ -227,7 +227,7 @@ static void TAU32_CALLBACK_TYPE ce_on_receive
 
 	len = req->Io.Rx.Received;
 	error = req->ErrorCode;
-	
+
 	c->rintr++;
 	if (error == TAU32_SUCCESSFUL) {
 		if (req->Io.Rx.FrameEnd) {
@@ -247,7 +247,7 @@ static void TAU32_CALLBACK_TYPE ce_on_receive
 		CE_DDK_DEBUG (b, c, ("Another receive error: %x\n", error));
 		/* Do some procesing */
 	}
-	
+
 	CE_ASSERT (!req->pInternal);
 	CE_ENQUEUE (c->rx_queue, req);
 	while (c->rx_queue) {
@@ -285,7 +285,7 @@ static void TAU32_CALLBACK_TYPE ce_on_transmit
 
 	len = req->Io.Tx.Transmitted;
 	error = req->ErrorCode;
-	
+
 	c->tintr++;
 	if (error == TAU32_SUCCESSFUL) {
 		c->obytes += len;
@@ -299,10 +299,10 @@ static void TAU32_CALLBACK_TYPE ce_on_transmit
 				error));
 		/* Do some procesing */
 	}
-	
+
 	CE_ENQUEUE (c->tx_queue, req);
 	c->tx_pending--;
-	
+
 	if (c->transmit)
 		c->transmit (c, 0, len);
 	EXIT ();
@@ -317,7 +317,7 @@ int ce_send_packet (ce_chan_t *c, unsigned char *buf, int len, void *tag)
 {
 	TAU32_UserRequest *req;
 	ce_buf_item_t *item;
-	
+
 	ENTER ();
 
 	if (!ce_transmit_space (c)) {
@@ -372,7 +372,7 @@ static void TAU32_CALLBACK_TYPE ce_on_config_stop
 	TAU32_UserRequest *rreq;
 	ce_board_t *b = (ce_board_t *) pContext;
 	ce_chan_t *c = b->chan + req->Io.ChannelNumber;
-	
+
 	ENTER ();
 	/* Stop all requests */
 	CE_ASSERT (0);/* Buggy */
@@ -397,7 +397,7 @@ static void TAU32_CALLBACK_TYPE ce_on_config_stop
 			break;
 		}
 	}
-	
+
 	c->tx_pending = 0;
 /*	c->rx_pending = 0;*/
 	EXIT ();
@@ -414,7 +414,7 @@ static int ce_cfg_submit (ce_board_t *b)
 
 	req->pCallback = ce_on_config;
 	b->cr.pending++;
-	
+
 	CE_DDK_DEBUG (b, (ce_chan_t *)0, ("config request pending: %d\n",
 		      b->cr.pending));
 
@@ -424,7 +424,7 @@ static int ce_cfg_submit (ce_board_t *b)
 		b->cr.pending--;
 		EXIT (0);
 	}
-	
+
 	EXIT (1);
 }
 
@@ -558,7 +558,7 @@ void ce_start_chan (ce_chan_t *c, int tx, int rx, ce_buf_t *cb,
 		c->tx_pending = 0;
 		c->rx_pending = 0;
 	}
-	
+
 	/* submit rx */
 	while (1) {
 		ce_buf_item_t *item;
@@ -583,7 +583,7 @@ void ce_start_chan (ce_chan_t *c, int tx, int rx, ce_buf_t *cb,
 			break;
 		}	
 	}
-	
+
 	if (tx | rx) {
 		TAU32_UserRequest *req;
 		CE_PREREQUEST (b, c, b->cr.queue, req);
@@ -599,7 +599,7 @@ void ce_start_chan (ce_chan_t *c, int tx, int rx, ce_buf_t *cb,
 			return;
 		}
 	}
-	
+
 	/* If we run just after ce_board_init we have prope values.
 	 * Else I hope you didn't set ts to incorrect value.
 	 */
@@ -638,14 +638,13 @@ void ce_stop_chan (ce_chan_t *c)
 	req->Io.ChannelNumber = c->num;
 	req->pCallback = ce_on_config_stop;
 	b->cr.pending++;
-	
+
 	if (!TAU32_SubmitRequest (b->ddk.pControllerObject, req)) {
 		CE_ENQUEUE_HEAD (b->cr.queue, req);
 		CE_DDK_DEBUG (b, c, ("Can't stop chan\n"));
 		b->cr.pending--;
 	}
 }	
-
 
 void ce_register_transmit (ce_chan_t *c,
 	void (*func) (ce_chan_t*, void*, int))
@@ -758,10 +757,10 @@ void ce_e1_timer (ce_chan_t *c)
 
 	if (c->num >= b->ddk.Interfaces)
 		return;
-	
+
 	state = &b->ddk.InterfacesInfo[c->num];
 	acc_status = c->acc_status;
-	
+
 	/* Clear acc_status */
 	c->acc_status = b->ddk.InterfacesInfo[c->num].Status;
 
@@ -814,7 +813,7 @@ void ce_e1_timer (ce_chan_t *c)
 		/* Controlled slip second -- any slip event. */
 		css = state->TransmitSlips + state->ReceiveSlips;
 	}
-	
+
 	/* Clear state */
 	state->RxViolations		= 0;
 	state->FasErrors		= 0;
@@ -939,11 +938,11 @@ void ce_set_baud (ce_chan_t *c, unsigned long baud)
 	unsigned long cfg = c->config & ~TAU32_framing_mode_mask;
 	unsigned long ts;
 	unsigned long kbps = (baud + 32000) / 64000 * 64;
-	
+
 	if (!c->unfram || c->num != 0 ||
 		baud == c->baud || b->cr.pending >= CONFREQSZ)
 		return;
-	
+
 	if (!kbps || kbps > 1024) {
 		ts = 0xffffffffUL;
 		cfg |= TAU32_unframed_2048;
@@ -1085,7 +1084,7 @@ static void _ce_set_ts (ce_chan_t *c, unsigned long ts)
 		if (b->dxc[i] != TAU32_CROSS_OFF)
 			pts++;
 	}
-	
+
 	CE_DDK_DEBUG (b, c, ("pts: %d ots: %d nts: %d ts: %lx\n", pts, ots, nts,
 		      ts));
 	/* 32 - all busy + my old busy == free */
@@ -1110,7 +1109,7 @@ static void _ce_set_ts (ce_chan_t *c, unsigned long ts)
 			omask |= (1ul << t);
 		}
 	}
-	
+
 	k = 0;
 	/* Set */
 	for (i = 0; i < 32; i++) {
@@ -1130,7 +1129,7 @@ static void _ce_set_ts (ce_chan_t *c, unsigned long ts)
 			b->dxc[(c->dir?32:64) + i] = TAU32_CROSS_OFF;
 		mask |= (1ul << k);
 	}
-	
+
 	c->ts = ts;
 	c->baud = nts*64000;
 
@@ -1141,12 +1140,12 @@ static void _ce_set_ts (ce_chan_t *c, unsigned long ts)
 	req->Command = TAU32_Timeslots_Channel | TAU32_Configure_Commit;
 	req->Io.ChannelNumber = c->num;
 	req->Io.ChannelConfig.AssignedTsMask = mask;	
-	
+
 	if (c->phony) {
 		b->pmask &= ~omask;
 		b->pmask |= mask;
 	}
-	
+
 	CE_DDK_DEBUG (b, c, ("ts=%lx mask=%lx omask=%lx pmask=%lx\n", c->ts,
 		      mask, omask, b->pmask));
 	CE_DDK_DEBUG (b, c, ("Crossmatrix table:\n"));
@@ -1164,7 +1163,7 @@ static void _ce_set_ts (ce_chan_t *c, unsigned long ts)
 		/* Do some error processing */
 		return;
 	}
-	
+
 	CE_DDK_DEBUG (b, c, ("SetCrossMatrix\n"));
 	if (!TAU32_SetCrossMatrix(b->ddk.pControllerObject, b->dxc, b->pmask)) {
 		CE_DDK_DEBUG (b, c, ("Faild to SetCrossMatrix\n"));
@@ -1191,7 +1190,7 @@ void ce_set_ts (ce_chan_t *c, unsigned long ts)
 			continue;
 		ts &= ~x->ts;
 	}
-	
+
 	_ce_set_ts (c, ts);
 }
 
@@ -1201,12 +1200,12 @@ void ce_set_unfram (ce_chan_t *c, unsigned char on)
 	ce_board_t *b = c->board;
 	unsigned long cfg = c->config & ~TAU32_framing_mode_mask;
 	unsigned long i;
-	
+
 	if (c->num != 0 || b->cr.pending + 2*32 + 3>= CONFREQSZ)
 		return;
 
 	on = on ? 1 : 0;
-	
+
 	if (on == c->unfram)
 		return;
 		
@@ -1267,11 +1266,11 @@ void ce_set_phony (ce_chan_t *c, unsigned char on)
 	ce_board_t *b = c->board;
 	unsigned long mask = 0;
 	int i;
-	
+
 	if ((c->phony && on) || (c->phony == 0 && on == 0) ||
 	    b->cr.pending >= CONFREQSZ)
 		return;
-	
+
 	CE_PREREQUEST (b, c, b->cr.queue, req);
 	if (!req)
 		return;
@@ -1293,9 +1292,9 @@ void ce_set_phony (ce_chan_t *c, unsigned char on)
 		if (c->ts & (1ul << t))
 			mask |= (1ul << t);
 	}
-	
+
 	CE_DDK_DEBUG (b, c, ("phony mask:%lx\n", mask));
-	
+
 	if (on) {
 		b->pmask |= mask;
 	} else {
@@ -1303,7 +1302,7 @@ void ce_set_phony (ce_chan_t *c, unsigned char on)
 	}
 
 	c->phony = on ? 1 : 0;
-	
+
 	CE_DDK_DEBUG (b, c, ("Submit (setcrosmatrix) phony\n"));
 	if (!TAU32_SetCrossMatrix(b->ddk.pControllerObject, b->dxc, b->pmask)) {
 		/* Do some error processing */
@@ -1397,15 +1396,15 @@ void ce_set_use16 (ce_chan_t *c, unsigned char on)
 
 	cfg[0] = b->chan[0].config & ~TAU32_framing_mode_mask;
 	cfg[1] = b->chan[1].config & ~TAU32_framing_mode_mask;
-	
+
 	on = on ? 1 : 0;
-	
+
 	if (c->use16 == on || b->chan->unfram)
 		return;
 		
 	use[0] = b->chan[0].use16;
 	use[1] = b->chan[1].use16;
-	
+
 	/* Correct value */
 	use[c->num] = on;
 
@@ -1481,7 +1480,7 @@ void ce_set_gsyn (ce_chan_t *c, int syn)
 
 	if (c->num >= b->ddk.Interfaces)
 		return;
-	
+
 	if (syn == GSYN_RCV)
 		syn = c->num ? GSYN_RCV1 : GSYN_RCV0;
 
