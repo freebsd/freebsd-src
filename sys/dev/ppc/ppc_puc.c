@@ -69,7 +69,6 @@ static device_method_t ppc_puc_methods[] = {
 	DEVMETHOD(ppbus_ecp_sync,	ppc_ecp_sync),
 	DEVMETHOD(ppbus_read,		ppc_read),
 	DEVMETHOD(ppbus_write,		ppc_write),
-
 	{ 0, 0 }
 };
 

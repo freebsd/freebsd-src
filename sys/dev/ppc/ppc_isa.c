@@ -76,7 +76,6 @@ static device_method_t ppc_isa_methods[] = {
 	DEVMETHOD(ppbus_ecp_sync,	ppc_ecp_sync),
 	DEVMETHOD(ppbus_read,		ppc_read),
 	DEVMETHOD(ppbus_write,		ppc_isa_write),
-
 	{ 0, 0 }
 };
 
@@ -234,7 +233,6 @@ ppc_isa_write(device_t dev, char *buf, int len, int how)
 
 	/* wait for an empty fifo */
 	while (!(r_ecr(ppc) & PPC_FIFO_EMPTY)) {
-
 		for (spin=100; spin; spin--)
 			if (r_ecr(ppc) & PPC_FIFO_EMPTY)
 				goto fifo_empty;
