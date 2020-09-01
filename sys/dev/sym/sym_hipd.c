@@ -2007,7 +2007,6 @@ static void sym_fw_bind_script (hcb_p np, u32 *start, int len)
 	end = start + len/4;
 
 	while (cur < end) {
-
 		opcode = *cur;
 
 		/*
@@ -9214,7 +9213,6 @@ static void S24C16_set_bit(hcb_p np, u_char write_bit, u_char *gpreg,
 	case CLR_CLK:
 		*gpreg &= 0xfd;
 		break;
-
 	}
 	OUTB (nc_gpreg, *gpreg);
 	UDELAY (5);
@@ -9526,7 +9524,6 @@ static int T93C46_Read_Data(hcb_p np, u_short *data,int len,u_char *gpreg)
 	int	x;
 
 	for (x = 0; x < len; x++)  {
-
 		/* output read command and address */
 		T93C46_Send_Command(np, 0x180 | x, &read_bit, gpreg);
 		if (read_bit & 0x01)
