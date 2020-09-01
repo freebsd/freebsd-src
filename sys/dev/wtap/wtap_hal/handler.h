@@ -49,4 +49,3 @@ struct eventhandler {
 };
 
 #endif
-

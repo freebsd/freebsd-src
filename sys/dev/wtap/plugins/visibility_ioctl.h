@@ -50,4 +50,3 @@ struct link {
 #define VISIOCTLLINK _IOW('W', 4, struct link) //
 
 #endif
-
