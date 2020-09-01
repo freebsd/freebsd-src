@@ -102,7 +102,6 @@ static device_method_t adb_kbd_methods[] = {
 
 	/* ADB interface */
 	DEVMETHOD(adb_receive_packet,	adb_kbd_receive_packet),
-
 	{ 0, 0 }
 };
 
@@ -282,7 +281,7 @@ ms_to_ticks(int ms)
 
 	return ms/(1000/hz);
 }
-	
+
 static int 
 adb_kbd_attach(device_t dev) 
 {
@@ -502,7 +501,7 @@ akbd_repeat(void *xsc) {
 	callout_reset(&sc->sc_repeater, ms_to_ticks(sc->sc_kbd.kb_delay2),
 	    akbd_repeat, sc);
 }
-	
+
 static int 
 akbd_configure(int flags) 
 {
@@ -666,7 +665,7 @@ akbd_read_char(keyboard_t *kbd, int wait)
 					    key & ~SCAN_PREFIX;
 					sc->at_buffered_char[1] = 0;
 				}
-	
+
 				key = (key & SCAN_PREFIX_E0) ? 0xe0 : 0xe1;
 			}
 		}
@@ -756,7 +755,7 @@ static int akbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t data)
 
 	case KDSETLED:
 		KBD_LED_VAL(kbd) = *(int *)data;
-	
+
 		if (!sc->have_led_control)
 			break;
 
@@ -890,4 +889,3 @@ adb_fn_keys(SYSCTL_HANDLER_ARGS)
 }
 
 DEV_MODULE(akbd, akbd_modevent, NULL);
-

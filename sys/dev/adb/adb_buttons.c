@@ -69,7 +69,6 @@ static device_method_t abtn_methods[] = {
 
 	/* ADB interface */
 	DEVMETHOD(adb_receive_packet,	abtn_receive_packet),
-
 	{ 0, 0 }
 };
 
@@ -159,4 +158,3 @@ abtn_receive_packet(device_t dev, u_char status,
 	}
 	return 0;
 }
-
