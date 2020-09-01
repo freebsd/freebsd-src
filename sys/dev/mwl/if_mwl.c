@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
- 
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
