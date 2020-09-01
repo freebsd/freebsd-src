@@ -258,7 +258,7 @@ static struct pccard_cis_quirk pccard_cis_quirks[] = {
 	{ PCMCIA_VENDOR_INVALID, PCMCIA_PRODUCT_INVALID, PCMCIA_CIS_NDC_ND5100_E,
 	  &pccard_ndc_nd5100_func0, &pccard_ndc_nd5100_func0_cfe0 },
 };
-	
+
 static int
 pccard_cis_quirk_match(struct pccard_softc *sc, struct pccard_cis_quirk *q)
 {
