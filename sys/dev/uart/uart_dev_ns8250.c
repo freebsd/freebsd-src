@@ -514,19 +514,19 @@ ns8250_bus_attach(struct uart_softc *sc)
 			ns8250->fcr |= FCR_RX_MEDH;
 	} else 
 		ns8250->fcr |= FCR_RX_MEDH;
-	
+
 	/* Get IER mask */
 	ivar = 0xf0;
 	resource_int_value("uart", device_get_unit(sc->sc_dev), "ier_mask",
 	    &ivar);
 	ns8250->ier_mask = (uint8_t)(ivar & 0xff);
-	
+
 	/* Get IER RX interrupt bits */
 	ivar = IER_EMSC | IER_ERLS | IER_ERXRDY;
 	resource_int_value("uart", device_get_unit(sc->sc_dev), "ier_rxbits",
 	    &ivar);
 	ns8250->ier_rxbits = (uint8_t)(ivar & 0xff);
-	
+
 	uart_setreg(bas, REG_FCR, ns8250->fcr);
 	uart_barrier(bas);
 	ns8250_bus_flush(sc, UART_FLUSH_RECEIVER|UART_FLUSH_TRANSMITTER);

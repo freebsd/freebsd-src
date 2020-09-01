@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
 
 #define AUX_MU_MCR_REG		0x04
 #define AUX_MCR_RTS		(1<<1)
-	
+
 #define AUX_MU_LSR_REG		0x05
 #define LSR_RXREADY		(1)
 #define LSR_OVRRUN		(1<<1)
@@ -153,7 +153,7 @@ static struct uart_ops uart_mu_ops = {
 static int
 uart_mu_probe(struct uart_bas *bas)
 {
-	
+
 	return (0);
 }
 
@@ -169,7 +169,7 @@ uart_mu_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 {
 	uint32_t line;
 	uint32_t baud;
-	
+
 	/*
 	 * Zero all settings to make sure
 	 * UART is disabled and not configured
@@ -199,7 +199,7 @@ uart_mu_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		 */
 		__uart_setreg(bas, AUX_MU_BAUD_REG, ((uint32_t)(baud & 0xFFFF)));
 	}
-	
+
 	/* re-enable UART */
 	__uart_setreg(bas, AUX_MU_CNTL_REG, CNTL_RXENAB|CNTL_TXENAB);
 }
@@ -283,7 +283,6 @@ static kobj_method_t uart_mu_methods[] = {
 	KOBJMETHOD(uart_transmit,	uart_mu_bus_transmit),
 	KOBJMETHOD(uart_grab,		uart_mu_bus_grab),
 	KOBJMETHOD(uart_ungrab,		uart_mu_bus_ungrab),
-
 	{ 0, 0 }
 };
 
@@ -319,7 +318,7 @@ uart_mu_bus_attach(struct uart_softc *sc)
 	psc->aux_ier = (IER_RXENABLE|IER_TXENABLE|IER_REQUIRED);
 	__uart_setreg(bas, AUX_MU_IER_REG, psc->aux_ier);
 	sc->sc_txbusy = 0;
-	
+
 	return (0);
 }
 
@@ -375,7 +374,7 @@ uart_mu_bus_ipend(struct uart_softc *sc)
 	struct uart_bas *bas;
 	uint32_t ints;
 	int ipend;
-	
+
 	psc = (struct uart_mu_softc *)sc;
 	bas = &sc->sc_bas;
 
@@ -436,11 +435,11 @@ uart_mu_bus_receive(struct uart_softc *sc)
 	struct uart_bas *bas;
 	uint32_t lsr, xc;
 	int rx;
-	
+
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 	psc = (struct uart_mu_softc *)sc;
-	
+
 	lsr = __uart_getreg(bas, AUX_MU_LSR_REG);
 	while (lsr & LSR_RXREADY) {
 		xc = __uart_getreg(bas, AUX_MU_IO_REG);
@@ -470,7 +469,7 @@ uart_mu_bus_transmit(struct uart_softc *sc)
 	struct uart_mu_softc *psc;
 	struct uart_bas *bas;
 	int i;
-	
+
 	psc = (struct uart_mu_softc *)sc;
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);

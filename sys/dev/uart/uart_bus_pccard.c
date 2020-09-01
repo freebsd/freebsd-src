@@ -53,7 +53,6 @@ static device_method_t uart_pccard_methods[] = {
 	DEVMETHOD(device_probe,		uart_pccard_probe),
 	DEVMETHOD(device_attach,	uart_pccard_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
-
 	{ 0, 0 }
 };
 
