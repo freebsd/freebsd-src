@@ -552,7 +552,6 @@ cpuctl_do_eval_cpu_features(int cpu, struct thread *td)
 	return (0);
 }
 
-
 int
 cpuctl_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 {
