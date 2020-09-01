@@ -30,7 +30,6 @@
 
 #include "own_if.h"
 
-
 #define	READ_ROM	0x33
 #define	MATCH_ROM	0x55
 #define	SKIP_ROM	0xcc
