@@ -323,7 +323,7 @@ static const struct mousedata * const mousesmall[] = {
 		writeb((pos), (uint8_t)(color));			\
 	}								\
 } while (0)
-	
+
 static uint32_t vga_palette32[16] = {
 	0x000000, 0x0000ad, 0x00ad00, 0x00adad,
 	0xad0000, 0xad00ad, 0xad5200, 0xadadad,

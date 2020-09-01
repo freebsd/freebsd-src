@@ -147,7 +147,6 @@ gfb_draw(scr_stat *scp, int from, int count, int flip)
 	   and the number of characters to be displayed...
 	 */
 	if (from + count > scp->xsize*scp->ysize) {
-
 		/*
 		   Calculate the number of characters past the end of the
 		   visible screen...
@@ -177,7 +176,6 @@ gfb_draw(scr_stat *scp, int from, int count, int flip)
 	   all-at-once...
 	*/
 	else {
-
 		/*
 		   Determine the method by which we are to display characters
 		   (are we going to print forwards or backwards?

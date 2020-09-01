@@ -61,7 +61,6 @@ vesa_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	scp = SC_STAT(tp);
 
 	switch (cmd) {
-
 	/* generic text modes */
 	case SW_TEXT_132x25: case SW_TEXT_132x30:
 	case SW_TEXT_132x43: case SW_TEXT_132x50:
