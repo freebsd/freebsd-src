@@ -196,7 +196,7 @@ bhnd_sprom_detach(device_t dev)
 {
 	struct bhnd_sprom_softc	*sc;
 	int			 error;
-	
+
 	sc = device_get_softc(dev);
 
 	if ((error = bhnd_deregister_provider(dev, BHND_SERVICE_ANY)))

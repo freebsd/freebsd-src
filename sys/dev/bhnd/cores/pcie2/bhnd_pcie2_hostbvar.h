@@ -45,7 +45,6 @@
 
 DECLARE_CLASS(bhnd_pcie2_hostb_driver);
 
-
 /* 
  * PCIe-Gen2 endpoint-mode device quirks
  */
@@ -59,7 +58,6 @@ enum {
 	BHND_PCIE2_QUIRK_SERDES_TXDRV_DEEMPH	= (1<<0),
 };
 
-
 /**
  * bhnd_pci_hostb driver instance state.
  */
@@ -69,6 +67,5 @@ struct bhnd_pcie2hb_softc {
 	device_t		pci_dev;	/**< host PCI device */
 	uint32_t		quirks;		/**< hostb device quirks */
 };
-
 
 #endif /* _BHND_CORES_PCIE2_BHND_PCI_HOSTBVAR_H_ */

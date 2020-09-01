@@ -66,7 +66,6 @@ bhnd_nvram_io_read(struct bhnd_nvram_io *io, size_t offset, void *buffer,
 	return (io->iops->read(io, offset, buffer, nbytes));
 }
 
-
 /**
  * Attempt to fetch a pointer to @p io's internal read buffer, if
  * supported by @p io.
@@ -202,4 +201,3 @@ bhnd_nvram_io_free(struct bhnd_nvram_io *io)
 {
 	return (io->iops->free(io));
 }
-

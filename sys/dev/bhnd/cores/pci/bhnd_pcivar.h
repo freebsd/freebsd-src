@@ -103,7 +103,6 @@ struct bhnd_pci_softc {
 	int			 mem_rid;	/**< register block RID */
 };
 
-
 #define	BHND_PCI_LOCK_INIT(sc) \
 	mtx_init(&(sc)->mtx, device_get_nameunit((sc)->dev), \
 	    "BHND PCI driver lock", MTX_DEF)
@@ -168,7 +167,6 @@ struct bhnd_pci_softc {
 	    BHND_PCI_COMMON_REG((_regf), _attr ## _MASK),	\
 	    BHND_PCI_COMMON_REG((_regf), _attr ## _SHIFT),	\
 	    _val)
-
 
 /**
  * Evaluates to the offset of a common PCI/PCIe register definition. 

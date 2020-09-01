@@ -765,7 +765,7 @@ bhnd_pmu_res_masks(struct bhnd_pmu_softc *sc, uint32_t *pmin, uint32_t *pmax)
 	case BHND_CHIPID_BCM4342:
 		if (sc->cid.chip_rev >= 2)
 			break;
-	
+
 		/* request ALP(can skip for A1) */
 		min_mask = PMURES_BIT(RES4322_RF_LDO) |
 			   PMURES_BIT(RES4322_XTAL_PU) |
@@ -1012,7 +1012,7 @@ bhnd_pmu_res_init(struct bhnd_pmu_softc *sc)
 		KASSERT(pmu_res_updown_table != NULL, ("no updown tables"));
 
 		updt = &pmu_res_updown_table[pmu_res_updown_table_sz - i - 1];
-	
+
 		PMU_DEBUG(sc, "Changing rsrc %d res_updn_timer to %#x\n",
 		    updt->resnum, updt->updown);
 
@@ -1571,7 +1571,7 @@ bhnd_pmu0_pllinit0(struct bhnd_pmu_softc *sc, uint32_t xtal)
 	} else {
 		pll_data &= ~BHND_PMU0_PLL0_PC1_STOP_MOD;
 	}
-	
+
 	pll_mask = 
 	    BHND_PMU0_PLL0_PC1_WILD_INT_MASK |
 	    BHND_PMU0_PLL0_PC1_WILD_FRAC_MASK;
@@ -1664,8 +1664,6 @@ bhnd_pmu0_cpuclk0(struct bhnd_pmu_query *sc)
 	/* Return ARM/SB clock */
 	return FVCO / (divarm + BHND_PMU0_PLL0_PC0_DIV_ARM_BASE) * 1000;
 }
-
-
 
 /* Set up PLL registers in the PMU as per the crystal speed. */
 static void
@@ -1862,7 +1860,6 @@ bhnd_pmu1_pllinit0(struct bhnd_pmu_softc *sc, uint32_t xtal)
 
 	BHND_PMU_PLL_WRITE(sc, BHND_PMU1_PLL0_PLLCTL0, plldata, pllmask);
 
-
 	if (sc->cid.chip_id == BHND_CHIPID_BCM4330)
 		bhnd_pmu_set_4330_plldivs(sc);
 
@@ -1885,7 +1882,6 @@ bhnd_pmu1_pllinit0(struct bhnd_pmu_softc *sc, uint32_t xtal)
 	} else {
 		ndiv_mode = BHND_PMU1_PLL0_PC2_NDIV_MODE_MASH;
 	}
-	
 
 	BHND_PMU_PLL_WRITE(sc, BHND_PMU1_PLL0_PLLCTL2,
 	    BHND_PMU_SET_BITS(xt->ndiv_int, BHND_PMU1_PLL0_PC2_NDIV_INT) |
@@ -2249,7 +2245,6 @@ bhnd_pmu5_clock(struct bhnd_pmu_query *sc, u_int pll0, u_int m)
 		if ((tmp & 0x40000) != 0)
 			return (133 * 1000000);
 	}
-
 
 	/* Fetch p1 and p2 */
 	BHND_PMU_WRITE_4(sc, BHND_PMU_PLL_CONTROL_ADDR,
@@ -2690,7 +2685,6 @@ bhnd_pmu_init(struct bhnd_pmu_softc *sc)
 		BHND_PMU_REGCTRL_WRITE(sc, 2, 0x00000005, 0x00000007);
 	}
 
-
 	/* Fetch target xtalfreq, in KHz */
 	error = bhnd_nvram_getvar_uint32(sc->chipc_dev, BHND_NVAR_XTALFREQ,
 	    &xtalfreq);
@@ -2875,7 +2869,6 @@ bhnd_pmu_rcal(struct bhnd_pmu_softc *sc)
 	uint32_t	val;
 	uint8_t		rcal_code;
 	bool		bluetooth_rcal;
-
 
 	bluetooth_rcal = false;
 
@@ -3203,7 +3196,6 @@ bhnd_pmu_spuravoid_pllupdate(struct bhnd_pmu_softc *sc,
 		default:
 			return (ENODEV);
 		}
-
 
 		pmuctrl = BHND_PMU_CTRL_NOILP_ON_WAIT | 
 			  BHND_PMU_CTRL_PLL_PLLCTL_UPD;

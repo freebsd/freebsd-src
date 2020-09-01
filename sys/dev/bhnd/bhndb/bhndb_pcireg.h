@@ -205,7 +205,6 @@
 #define	BHNDB_PCI_SPROM_BACKPLANE_EN	0x40	/**< enable indirect backplane access (BHNDB_PCI_BACKPLANE_*) */
 #define	BHNDB_PCI_SPROM_OTPIN_USE	0x80	/**< device OTP in use */
 
-
 /* PCI (non-PCIe) BHNDB_PCI_GPIO_OUTEN  */
 #define	BHNDB_PCI_GPIO_SCS		0x10	/* PCI config space bit 4 for 4306c0 slow clock source */
 #define	BHNDB_PCI_GPIO_HWRAD_OFF		0x20	/* PCI config space GPIO 13 for hw radio disable */

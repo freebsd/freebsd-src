@@ -122,14 +122,14 @@ typedef enum {
 	 * acceptable.
 	 */
 	BHND_CLOCK_ILP		= (1 << 1),
-	
+
 	/**
 	 * Active Low-Power (ALP).
 	 * 
 	 * Low-latency register access and low-rate DMA.
 	 */
 	BHND_CLOCK_ALP		= (1 << 2),
-	
+
 	/**
 	 * High Throughput (HT).
 	 * 
@@ -183,6 +183,5 @@ typedef uint64_t	bhnd_addr_t;
 /** BHND bus size. */
 typedef uint64_t	bhnd_size_t;
 #define	BHND_SIZE_MAX	UINT64_MAX	/**< Maximum bhnd_size_t value */
-
 
 #endif /* _BHND_BHND_TYPES_H_ */

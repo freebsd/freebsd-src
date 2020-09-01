@@ -451,7 +451,7 @@ bhndb_init_region_cfg(struct bhndb_softc *sc, bhnd_erom_t *erom,
 
 			direct_msg = prio >= prio_min ? "direct" : "indirect";
 			type_msg = region->static_regwin ? "static" : "dynamic";
-	
+
 			device_printf(sc->dev, "region 0x%llx+0x%llx priority "
 			    "%u %s/%s",
 			    (unsigned long long) region->addr, 
@@ -649,7 +649,7 @@ bhndb_generic_detach(device_t dev)
 
 	/* Clean up our driver state. */
 	bhndb_free_resources(sc->bus_res);
-	
+
 	BHNDB_LOCK_DESTROY(sc);
 
 	return (0);
@@ -690,7 +690,7 @@ bhndb_generic_resume(device_t dev)
 	error = 0;
 	for (size_t i = 0; i < bus_res->dwa_count; i++) {
 		dwa = &bus_res->dw_alloc[i];
-	
+
 		/* Skip regions that were not previously used */
 		if (bhndb_dw_is_free(bus_res, dwa) && dwa->target == 0x0)
 			continue;
@@ -858,7 +858,7 @@ bhndb_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	struct bhndb_devinfo	*dinfo;
 	device_t		 child;
-	
+
 	child = device_add_child_ordered(dev, order, name, unit);
 	if (child == NULL)
 		return (NULL);
@@ -1016,7 +1016,7 @@ bhndb_alloc_resource(device_t dev, device_t child, int type,
 	    child);
 	if (rv == NULL)
 		return (NULL);
-	
+
 	rman_set_rid(rv, *rid);
 
 	/* Activate */
@@ -1099,7 +1099,7 @@ bhndb_adjust_resource(device_t dev, device_t child, int type,
 	struct rman			*rm;
 	rman_res_t			 mstart, mend;
 	int				 error;
-	
+
 	sc = device_get_softc(dev);
 	error = 0;
 
@@ -1219,7 +1219,7 @@ bhndb_activate_static_region(struct bhndb_softc *sc,
 	bridge_res = bhndb_host_resource_for_regwin(sc->bus_res->res, win);
 	if (bridge_res == NULL)
 		return (ENXIO);
-	
+
 	/* Calculate subregion offset within the parent resource */
 	parent_offset = r_start - region->addr;
 	parent_offset += win->win_offset;
@@ -1340,7 +1340,7 @@ bhndb_try_activate_resource(struct bhndb_softc *sc, device_t child, int type,
 
 	/* Only MMIO resources can be mapped via register windows */
 	KASSERT(type == SYS_RES_MEMORY, ("invalid type: %d", type));
-	
+
 	r_start = rman_get_start(r);
 	r_size = rman_get_size(r);
 
@@ -1537,7 +1537,7 @@ bhndb_activate_bhnd_resource(device_t dev, device_t child,
 
 	KASSERT(!r->direct,
 	    ("direct flag set on inactive resource"));
-	
+
 	KASSERT(!(rman_get_flags(r->res) & RF_ACTIVE),
 	    ("RF_ACTIVE set on inactive resource"));
 
@@ -1769,7 +1769,7 @@ bhndb_io_resource(struct bhndb_softc *sc, bus_addr_t addr, bus_size_t size,
 			    (unsigned long long) addr,
 			    (unsigned long long) addr+size-1);
 		}
-	
+
 		error = bhndb_dw_set_addr(sc->dev, sc->bus_res, dwa, addr,
 		    size);
 		if (error) {
@@ -2161,7 +2161,7 @@ bhndb_get_dma_translation(device_t dev, device_t child, u_int width,
 		masked = (dwin->addr_mask | dwin->addrext_mask) & addr_mask;
 		if (masked == 0)
 			continue;
-	
+
 		/* Is this a better match? */
 		if (match == NULL || masked > match_addr_mask) {
 			match = dwin;
@@ -2264,7 +2264,7 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bhnd_bus_deregister_provider,	bhnd_bus_generic_sr_deregister_provider),
 	DEVMETHOD(bhnd_bus_retain_provider,	bhnd_bus_generic_sr_retain_provider),
 	DEVMETHOD(bhnd_bus_release_provider,	bhnd_bus_generic_sr_release_provider),
-	
+
 	DEVMETHOD(bhnd_bus_read_1,		bhndb_bus_read_1),
 	DEVMETHOD(bhnd_bus_read_2,		bhndb_bus_read_2),
 	DEVMETHOD(bhnd_bus_read_4,		bhndb_bus_read_4),
@@ -2285,7 +2285,7 @@ static device_method_t bhndb_methods[] = {
 	DEVMETHOD(bhnd_bus_write_multi_1,	bhndb_bus_write_multi_1),
 	DEVMETHOD(bhnd_bus_write_multi_2,	bhndb_bus_write_multi_2),
 	DEVMETHOD(bhnd_bus_write_multi_4,	bhndb_bus_write_multi_4),
-	
+
 	DEVMETHOD(bhnd_bus_read_multi_stream_1,	bhndb_bus_read_multi_stream_1),
 	DEVMETHOD(bhnd_bus_read_multi_stream_2,	bhndb_bus_read_multi_stream_2),
 	DEVMETHOD(bhnd_bus_read_multi_stream_4,	bhndb_bus_read_multi_stream_4),

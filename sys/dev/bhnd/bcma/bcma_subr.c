@@ -81,7 +81,7 @@ bcma_alloc_corecfg(u_int core_index, int core_unit, uint16_t vendor,
 		.core_idx = core_index,
 		.unit = core_unit
 	};
-	
+
 	STAILQ_INIT(&cfg->master_ports);
 	cfg->num_master_ports = 0;
 
@@ -111,7 +111,7 @@ bcma_free_corecfg(struct bcma_corecfg *corecfg)
 	STAILQ_FOREACH_SAFE(mport, &corecfg->master_ports, mp_link, mnext) {
 		free(mport, M_BHND);
 	}
-	
+
 	STAILQ_FOREACH_SAFE(sport, &corecfg->dev_ports, sp_link, snext) {
 		bcma_free_sport(sport);
 	}
@@ -119,7 +119,7 @@ bcma_free_corecfg(struct bcma_corecfg *corecfg)
 	STAILQ_FOREACH_SAFE(sport, &corecfg->bridge_ports, sp_link, snext) {
 		bcma_free_sport(sport);
 	}
-	
+
 	STAILQ_FOREACH_SAFE(sport, &corecfg->wrapper_ports, sp_link, snext) {
 		bcma_free_sport(sport);
 	}
@@ -197,8 +197,6 @@ bcma_dinfo_init_port_resource_info(device_t bus, struct bcma_devinfo *dinfo,
 		}
 	}
 }
-
-
 
 /**
  * Allocate the per-core agent register block for a device info structure.
@@ -297,7 +295,7 @@ bcma_dinfo_init_intrs(device_t bus, device_t child,
 
 		if (dinfo->num_intrs == UINT_MAX)
 			return (ENOMEM);
-	
+
 		selout = bhnd_bus_read_4(dinfo->res_agent, BCMA_DMP_OOBSELOUT(
 		    BCMA_OOB_BANK_INTR, sel));
 
@@ -330,7 +328,7 @@ struct bcma_devinfo *
 bcma_alloc_dinfo(device_t bus)
 {
 	struct bcma_devinfo *dinfo;
-	
+
 	dinfo = malloc(sizeof(struct bcma_devinfo), M_BHND, M_NOWAIT|M_ZERO);
 	if (dinfo == NULL)
 		return (NULL);
@@ -406,7 +404,7 @@ bcma_init_dinfo(device_t bus, device_t child, struct bcma_devinfo *dinfo,
 		}
 
 		intr->i_mapped = true;
-	
+
 		/* Add to resource list */
 		intr->i_rid = resource_list_add_next(&dinfo->resources,
 		    SYS_RES_IRQ, intr->i_irq, intr->i_irq, 1);
@@ -458,7 +456,6 @@ bcma_free_dinfo(device_t bus, device_t child, struct bcma_devinfo *dinfo)
 
 	free(dinfo, M_BHND);
 }
-
 
 /**
  * Allocate and initialize a new interrupt descriptor.
@@ -517,11 +514,11 @@ struct bcma_sport *
 bcma_alloc_sport(bcma_pid_t port_num, bhnd_port_type port_type)
 {
 	struct bcma_sport *sport;
-	
+
 	sport = malloc(sizeof(struct bcma_sport), M_BHND, M_NOWAIT);
 	if (sport == NULL)
 		return NULL;
-	
+
 	sport->sp_num = port_num;
 	sport->sp_type = port_type;
 	sport->sp_num_maps = 0;
@@ -545,7 +542,6 @@ bcma_free_sport(struct bcma_sport *sport) {
 
 	free(sport, M_BHND);
 }
-
 
 /**
  * Given a bcma(4) child's device info, spin waiting for the device's DMP

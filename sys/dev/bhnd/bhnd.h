@@ -108,7 +108,6 @@ enum {
 
 };
 
-
 /**
  * Per-core IOCTL flags common to all bhnd(4) cores.
  */
@@ -206,7 +205,6 @@ struct bhnd_board_info {
 	uint32_t	board_flags2;	/**< Board flags 2 (see BHND_BFL2_*) */
 	uint32_t	board_flags3;	/**< Board flags 3 (see BHND_BFL3_*) */
 };
-
 
 /**
  * Chip Identification
@@ -307,7 +305,6 @@ struct bhnd_dma_translation {
 	 */
 	uint32_t	flags;
 };
-
 #define	BHND_DMA_TRANSLATION_TABLE_END	{ 0, 0, 0, 0 }
 
 #define	BHND_DMA_IS_TRANSLATION_TABLE_END(_dt)			\
@@ -377,7 +374,6 @@ struct bhnd_device_quirk {
 #define	BHND_BOARD_QUIRK(_board, _flags)	\
 	{{ BHND_MATCH_BOARD_TYPE(_board) },	\
 	    (_flags) }
-
 #define	BHND_DEVICE_QUIRK_END		{ { BHND_MATCH_ANY }, 0 }
 #define	BHND_DEVICE_QUIRK_IS_END(_q)	\
 	(((_q)->desc.m.match_flags == 0) && (_q)->quirks == 0)
@@ -409,7 +405,6 @@ struct bhnd_device {
 #define	BHND_DEVICE(_vendor, _device, _desc, _quirks, ...)	\
 	_BHND_DEVICE(_vendor, _device, _desc, _quirks,		\
 	    ## __VA_ARGS__, 0)
-
 #define	BHND_DEVICE_END		{ { BHND_MATCH_ANY }, NULL, NULL, 0 }
 #define	BHND_DEVICE_IS_END(_d)	\
 	(BHND_MATCH_IS_ANY(&(_d)->core) && (_d)->desc == NULL)
@@ -763,7 +758,6 @@ static inline const struct bhnd_chipid *
 bhnd_get_chipid(device_t dev) {
 	return (BHND_BUS_GET_CHIPID(device_get_parent(dev), dev));
 };
-
 
 /**
  * Read the current value of a bhnd(4) device's per-core I/O control register.
@@ -1309,7 +1303,6 @@ bhnd_alloc_resource(device_t dev, int type, int *rid, rman_res_t start,
 	return BHND_BUS_ALLOC_RESOURCE(device_get_parent(dev), dev, type, rid,
 	    start, end, count, flags);
 }
-
 
 /**
  * Allocate a resource from a device's parent bhnd(4) bus, using the

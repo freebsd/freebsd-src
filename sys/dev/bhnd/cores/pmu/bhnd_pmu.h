@@ -45,7 +45,6 @@
 #include "bhnd_pmu_if.h"
 #include "bhnd_pmu_types.h"
 
-
 /**
  * Return the current value of a PMU chipctrl register.
  *
@@ -250,7 +249,6 @@ bhnd_pmu_request_spuravoid(device_t dev, bhnd_pmu_spuravoid spuravoid)
 {
 	return (BHND_PMU_REQUEST_SPURAVOID(dev, spuravoid));
 }
-
 
 /**
  * Return the PMU's maximum state transition latency in microseconds.

@@ -366,7 +366,6 @@
 #define	BHND_PMU_XTALFREQ_REG_MEASURE_MASK	0x80000000
 #define	BHND_PMU_XTALFREQ_REG_MEASURE_SHIFT	31
 
-
 /* Divider allocation in 4716/47162/5356/5357 */
 #define	BHND_PMU5_MAINPLL_CPU		1
 #define	BHND_PMU5_MAINPLL_MEM		2
@@ -394,15 +393,12 @@
 #define	BHND_PMU7_PLL_PLLCTL8		8
 #define	BHND_PMU7_PLL_PLLCTL11		11
 
-
 /* PLL usage in 4716/47162 */
 #define	BHND_PMU4716_MAINPLL_PLL0	12
-
 
 /* PLL usage in 5356/5357 */
 #define	BHND_PMU5356_MAINPLL_PLL0	0
 #define	BHND_PMU5357_MAINPLL_PLL0	0
-
 
 /* 4716/47162 PMU resources */
 #define	BHND_PMU_RES4716_PROC_PLL_ON		0x00000040
@@ -410,7 +406,6 @@
 
 /* 4716/4717/4718 chip-specific CHIPCTRL PMU register bits */
 #define	BHND_PMU_CCTRL471X_I2S_PINS_ENABLE	0x0080	/* I2S pins off by default, shared with pflash */
-
 
 /* 5354 PMU resources */
 #define	BHND_PMU_RES5354_EXT_SWITCHER_PWM	0	/* 0x00001 */
@@ -434,11 +429,9 @@
 #define	BHND_PMU_RES5354_RF_PLL_FILTBYP		18	/* 0x40000 */
 #define	BHND_PMU_RES5354_BB_PLL_PU		19	/* 0x80000 */
 
-
 /* 5357 chip-specific CHIPCTRL register bits */
 #define	BHND_PMU_CCTRL5357_EXTPA		(1<<14)	/* extPA in CHIPCTRL1, bit 14 */
 #define	BHND_PMU_CCTRL5357_ANT_MUX_2o3		(1<<15)	/* 2o3 in CHIPCTRL1, bit 15 */
-
 
 /* 4328 PMU resources */
 #define	BHND_PMU_RES4328_EXT_SWITCHER_PWM	0	/* 0x00001 */
@@ -461,7 +454,6 @@
 #define	BHND_PMU_RES4328_BB_PLL_FILTBYP		17	/* 0x20000 */
 #define	BHND_PMU_RES4328_RF_PLL_FILTBYP		18	/* 0x40000 */
 #define	BHND_PMU_RES4328_BB_PLL_PU		19	/* 0x80000 */
-
 
 /* 4325 A0/A1 PMU resources */
 #define	BHND_PMU_RES4325_BUCK_BOOST_BURST	0	/* 0x00000001 */
@@ -487,17 +479,14 @@
 #define	BHND_PMU_RES4325_BBPLL_PWRSW_PU		20	/* 0x00100000 */
 #define	BHND_PMU_RES4325_HT_AVAIL		21	/* 0x00200000 */
 
-
 /* 4325 B0/C0 PMU resources */
 #define	BHND_PMU_RES4325B0_CBUCK_LPOM		1	/* 0x00000002 */
 #define	BHND_PMU_RES4325B0_CBUCK_BURST		2	/* 0x00000004 */
 #define	BHND_PMU_RES4325B0_CBUCK_PWM		3	/* 0x00000008 */
 #define	BHND_PMU_RES4325B0_CLDO_PU		4	/* 0x00000010 */
 
-
 /* 4325 C1 PMU resources */
 #define	BHND_PMU_RES4325C1_LNLDO2_PU		12	/* 0x00001000 */
-
 
 /* 4325 PMU resources */
 #define	BHND_PMU_RES4329_RESERVED0		0	/* 0x00000001 */
@@ -523,7 +512,6 @@
 #define	BHND_PMU_RES4329_BBPLL_PWRSW_PU		20	/* 0x00100000 */
 #define	BHND_PMU_RES4329_HT_AVAIL		21	/* 0x00200000 */
 
-
 /* 4312 PMU resources (all PMU chips with little memory constraint) */
 #define	BHND_PMU_RES4312_SWITCHER_BURST		0	/* 0x00000001 */
 #define	BHND_PMU_RES4312_SWITCHER_PWM    	1	/* 0x00000002 */
@@ -541,7 +529,6 @@
 #define	BHND_PMU_RES4312_RF_PLL_FILTBYP		13	/* 0x00002000 */
 #define	BHND_PMU_RES4312_HT_AVAIL		14	/* 0x00004000 */
 
-
 /* 4322 PMU resources */
 #define	BHND_PMU_RES4322_RF_LDO			0
 #define	BHND_PMU_RES4322_ILP_REQUEST		1
@@ -553,12 +540,10 @@
 #define	BHND_PMU_RES4322_HT_PHY_AVAIL		7
 #define	BHND_PMU_RES4322_OTP_PU			8
 
-
 /* 43224 chip-specific CHIPCTRL register bits */
 #define	BHND_PMU_CCTRL43224_GPIO_TOGGLE	0x8000
 #define	BHND_PMU_CCTRL43224A0_12MA_LED_DRIVE	0x00F000F0	/* 12 mA drive strength */
 #define	BHND_PMU_CCTRL43224B0_12MA_LED_DRIVE	0xF0		/* 12 mA drive strength for later 43224s */
-
 
 /* 43236 PMU resources */
 #define	BHND_PMU_RES43236_REGULATOR		0
@@ -574,7 +559,6 @@
 #define	BHND_PMU_CCTRL43236_EXT_LNA		(1<<2)	/* 0 disable */
 #define	BHND_PMU_CCTRL43236_ANT_MUX_2o3		(1<<3)	/* 2o3 mux, chipcontrol bit 3 */
 #define	BHND_PMU_CCTRL43236_GSIO		(1<<4)	/* 0 disable */
-
 
 /* 4331 PMU resources */
 #define	BHND_PMU_RES4331_REGULATOR		0

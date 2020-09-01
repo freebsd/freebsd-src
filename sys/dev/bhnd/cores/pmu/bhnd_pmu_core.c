@@ -121,7 +121,7 @@ bhnd_pmu_core_detach(device_t dev)
 	int			 error;
 
 	sc = device_get_softc(dev);
-	
+
 	/* Delegate to common driver implementation */
 	if ((error = bhnd_pmu_detach(dev)))
 		return (error);
