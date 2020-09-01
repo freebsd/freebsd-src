@@ -664,7 +664,7 @@ prep_cdevsw(struct cdevsw *devsw, int flags)
 		devsw->d_dump = dead_dump;
 		devsw->d_kqfilter = dead_kqfilter;
 	}
-	
+
 	if (devsw->d_flags & D_NEEDGIANT) {
 		printf("WARNING: Device \"%s\" is Giant locked and may be "
 		    "deleted before FreeBSD 13.0.\n",
@@ -1399,7 +1399,7 @@ clone_cleanup(struct clonedevs **cdp)
 	struct cdev *dev;
 	struct cdev_priv *cp;
 	struct clonedevs *cd;
-	
+
 	cd = *cdp;
 	if (cd == NULL)
 		return;

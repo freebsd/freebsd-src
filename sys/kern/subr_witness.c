@@ -959,7 +959,6 @@ witness_ddb_compute_levels(void)
 	 * Look for locks with no parents and level all their descendants.
 	 */
 	STAILQ_FOREACH(w, &w_all, w_list) {
-
 		/* If the witness has ancestors (is not a root), skip it. */
 		if (w->w_num_ancestors > 0)
 			continue;
@@ -1032,7 +1031,7 @@ witness_ddb_display_list(int(*prnt)(const char *fmt, ...),
 			return;
 	}
 }
-	
+
 static void
 witness_ddb_display(int(*prnt)(const char *fmt, ...))
 {
@@ -1053,7 +1052,7 @@ witness_ddb_display(int(*prnt)(const char *fmt, ...))
 	witness_ddb_display_list(prnt, &w_sleep);
 	if (db_pager_quit)
 		return;
-	
+
 	/*
 	 * Now do spin locks which have been acquired at least once.
 	 */
@@ -1061,7 +1060,7 @@ witness_ddb_display(int(*prnt)(const char *fmt, ...))
 	witness_ddb_display_list(prnt, &w_spin);
 	if (db_pager_quit)
 		return;
-	
+
 	/*
 	 * Finally, any locks which have not been acquired yet.
 	 */
@@ -1101,7 +1100,7 @@ witness_defineorder(struct lock_object *lock1, struct lock_object *lock2)
 		mtx_unlock_spin(&w_mtx);
 		return (EDOOFUS);
 	}
-	
+
 	/* Try to add the new order. */
 	CTR3(KTR_WITNESS, "%s: adding %s as a child of %s", __func__,
 	    lock2->lo_witness->w_name, lock1->lo_witness->w_name);
@@ -1130,7 +1129,6 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 	td = curthread;
 
 	if (class->lc_flags & LC_SLEEPLOCK) {
-
 		/*
 		 * Since spin locks include a critical section, this check
 		 * implicitly enforces a lock order of all sleep locks before
@@ -1150,7 +1148,6 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		if (lock_list == NULL || lock_list->ll_count == 0)
 			return;
 	} else {
-
 		/*
 		 * If this is the first lock, just return as no order
 		 * checking is needed.  Avoid problems with thread
@@ -1230,7 +1227,7 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			plock = &lle->ll_children[lle->ll_count - 1];
 		}
 	}
-	
+
 	/*
 	 * Try to perform most checks without a lock.  If this succeeds we
 	 * can skip acquiring the lock and return success.  Otherwise we redo
@@ -2013,7 +2010,6 @@ adopt(struct witness *parent, struct witness *child)
 
 		/* Find each descendant of 'i' and mark it as a descendant. */
 		for (j = 1; j <= w_max_used_index; j++) {
-
 			/* 
 			 * Skip children that are already marked as
 			 * descendants of 'i'.
@@ -2498,7 +2494,6 @@ witness_assert(const struct lock_object *lock, int flags, const char *file,
 	default:
 		kassert_panic("Invalid lock assertion at %s:%d.",
 		    fixup_filename(file), line);
-
 	}
 #endif	/* INVARIANT_SUPPORT */
 }
@@ -2979,7 +2974,7 @@ witness_hash_get(const char *key)
 {
 	struct witness *w;
 	uint32_t hash;
-	
+
 	MPASS(key != NULL);
 	if (witness_cold == 0)
 		mtx_assert(&w_mtx, MA_OWNED);
@@ -3068,7 +3063,7 @@ witness_lock_order_add(struct witness *parent, struct witness *child)
 	struct witness_lock_order_data *data = NULL;
 	struct witness_lock_order_key key;
 	unsigned int hash;
-	
+
 	MPASS(parent != NULL && child != NULL);
 	key.from = parent->w_index;
 	key.to = child->w_index;

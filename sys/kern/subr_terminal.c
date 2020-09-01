@@ -192,7 +192,7 @@ terminal_init(struct terminal *tm)
 		default_message.ta_bgcolor |= TC_LIGHT;
 		kernel_message.ta_bgcolor |= TC_LIGHT;
 	}
-	
+
 	if (default_message.ta_bgcolor == TC_BLACK &&
 	    default_message.ta_fgcolor < TC_NCOLORS)
 		kernel_message.ta_fgcolor |= TC_LIGHT;

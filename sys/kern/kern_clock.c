@@ -229,7 +229,6 @@ deadlres_td_sleep_q(struct proc *p, struct thread *td, int slpticks)
 	slptype = sleepq_type(wchan);
 	if ((slptype == SLEEPQ_SX || slptype == SLEEPQ_LK) &&
 	    tticks > slpticks) {
-
 		/*
 		 * Accordingly with provided thresholds, this thread is stuck
 		 * for too long on a sleepqueue.

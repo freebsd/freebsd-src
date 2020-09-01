@@ -253,7 +253,7 @@ kobj_class_free(kobj_class_t cls)
 		ops = cls->ops;
 		cls->ops = NULL;
 	}
-	
+
 	KOBJ_UNLOCK();
 
 	if (ops)

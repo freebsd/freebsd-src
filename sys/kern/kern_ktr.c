@@ -419,7 +419,7 @@ static	int db_mach_vtrace(void);
 
 DB_SHOW_COMMAND(ktr, db_ktr_all)
 {
-	
+
 	tstate.cur = (ktr_idx - 1) % ktr_entries;
 	tstate.first = -1;
 	db_ktr_verbose = 0;

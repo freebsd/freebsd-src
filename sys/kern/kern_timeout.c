@@ -654,7 +654,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	c_arg = c->c_arg;
 	c_iflags = c->c_iflags;
 	c->c_iflags &= ~CALLOUT_PENDING;
-	
+
 	cc_exec_curr(cc, direct) = c;
 	cc_exec_last_func(cc, direct) = c_func;
 	cc_exec_last_arg(cc, direct) = c_arg;

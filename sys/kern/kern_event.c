@@ -1561,7 +1561,7 @@ findkn:
 			goto done;
 		}
 	}
-	
+
 	if (kev->flags & EV_DELETE) {
 		kn_enter_flux(kn);
 		KQ_UNLOCK(kq);

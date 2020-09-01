@@ -342,7 +342,6 @@ turnstile_adjust_thread(struct turnstile *ts, struct thread *td)
 	td2 = TAILQ_NEXT(td, td_lockq);
 	if ((td1 != NULL && td->td_priority < td1->td_priority) ||
 	    (td2 != NULL && td->td_priority > td2->td_priority)) {
-
 		/*
 		 * Remove thread from blocked chain and determine where
 		 * it should be moved to.
@@ -872,7 +871,7 @@ turnstile_signal(struct turnstile *ts, int queue)
 
 	return (empty);
 }
-	
+
 /*
  * Put all blocked threads on the pending list.  This must be called with
  * the turnstile chain locked.
@@ -1160,7 +1159,7 @@ found:
 	print_queue(&ts->ts_blocked[TS_EXCLUSIVE_QUEUE], "Exclusive Waiters",
 	    "\t");
 	print_queue(&ts->ts_pending, "Pending Threads", "\t");
-	
+
 }
 
 /*
@@ -1267,7 +1266,7 @@ DB_SHOW_ALL_COMMAND(chains, db_show_allchains)
 DB_SHOW_ALIAS(allchains, db_show_allchains)
 
 static void	print_waiters(struct turnstile *ts, int indent);
-	
+
 static void
 print_waiter(struct thread *td, int indent)
 {

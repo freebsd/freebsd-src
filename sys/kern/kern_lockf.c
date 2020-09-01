@@ -441,7 +441,6 @@ lf_advlockasync(struct vop_advlockasync_args *ap, struct lockf **statep,
 	 * Convert the flock structure into a start and end.
 	 */
 	switch (fl->l_whence) {
-
 	case SEEK_SET:
 	case SEEK_CUR:
 		/*
@@ -2440,7 +2439,7 @@ graph_free_vertex(struct owner_graph *g, struct owner_vertex *v)
 	int i;
 
 	sx_assert(&lf_owner_graph_lock, SX_XLOCKED);
-	
+
 	KASSERT(LIST_EMPTY(&v->v_outedges), ("Freeing vertex with edges"));
 	KASSERT(LIST_EMPTY(&v->v_inedges), ("Freeing vertex with edges"));
 

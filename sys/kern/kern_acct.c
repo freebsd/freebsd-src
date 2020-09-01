@@ -635,7 +635,6 @@ acct_thread(void *dummy)
 
 	/* Loop until we are asked to exit. */
 	while (!(acct_state & ACCT_EXITREQ)) {
-
 		/* Perform our periodic checks. */
 		acctwatch();
 

@@ -493,7 +493,7 @@ smp_rendezvous_action(void)
 #ifdef INVARIANTS
 	owepreempt = td->td_owepreempt;
 #endif
-	
+
 	/*
 	 * If requested, run a setup function before the main action
 	 * function.  Ensure all CPUs have completed the setup
@@ -720,7 +720,7 @@ smp_topo_none(void)
 	top->cg_children = 0;
 	top->cg_level = CG_SHARE_NONE;
 	top->cg_flags = 0;
-	
+
 	return (top);
 }
 
@@ -1302,4 +1302,3 @@ topo_analyze(struct topo_node *topo_root, int all,
 }
 
 #endif /* SMP */
-

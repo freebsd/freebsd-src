@@ -704,7 +704,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		procdesc_finit(p2->p_procdesc, fp_procdesc);
 		fdrop(fp_procdesc, td);
 	}
-	
+
 	/*
 	 * Speculative check for PTRACE_FORK. PTRACE_FORK is not
 	 * synced with forks in progress so it is OK if we miss it

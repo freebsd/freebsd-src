@@ -218,7 +218,6 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, const char *str, int filter_cr)
 	 * insert a newline before this string.
 	 */
 	if (mbp->msg_lastpri != pri && (mbp->msg_flags & MSGBUF_NEEDNL) != 0) {
-
 		msgbuf_do_addchar(mbp, &seq, '\n');
 		mbp->msg_flags &= ~MSGBUF_NEEDNL;
 	}
@@ -239,7 +238,6 @@ msgbuf_addstr(struct msgbuf *mbp, int pri, const char *str, int filter_cr)
 
 		if (msgbuf_show_timestamp && needtime == 1 &&
 		    (mbp->msg_flags & MSGBUF_NEEDNL) == 0) {
-
 			snprintf(buf, sizeof(buf), "[%jd] ",
 			    (intmax_t)time_uptime);
 			for (j = 0; buf[j] != '\0'; j++)

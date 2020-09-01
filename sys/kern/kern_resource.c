@@ -105,7 +105,6 @@ kern_getpriority(struct thread *td, int which, int who)
 	error = 0;
 	low = PRIO_MAX + 1;
 	switch (which) {
-
 	case PRIO_PROCESS:
 		if (who == 0)
 			low = td->td_proc->p_nice;
@@ -691,7 +690,6 @@ kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
 	alimp = &newlim->pl_rlimit[which];
 
 	switch (which) {
-
 	case RLIMIT_CPU:
 		if (limp->rlim_cur != RLIM_INFINITY &&
 		    p->p_cpulimit == RLIM_INFINITY)

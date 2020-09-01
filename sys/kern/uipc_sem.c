@@ -176,7 +176,7 @@ ksem_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	
+
 	/*
 	 * Attempt to return sanish values for fstat() on a semaphore
 	 * file descriptor.

@@ -3163,7 +3163,6 @@ vfs_bio_awrite(struct buf *bp)
 	if ((vp->v_type == VREG) && 
 	    (vp->v_mount != 0) && /* Only on nodes that have the size info */
 	    (bp->b_flags & (B_CLUSTEROK | B_INVAL)) == B_CLUSTEROK) {
-
 		size = vp->v_mount->mnt_stat.f_iosize;
 		maxcl = MAXPHYS / size;
 

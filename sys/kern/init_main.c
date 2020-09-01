@@ -277,7 +277,6 @@ restart:
 	 * Perform each task, and continue on to the next task.
 	 */
 	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
-
 		if ((*sipp)->subsystem == SI_SUB_DUMMY)
 			continue;	/* skip dummy task(s)*/
 
@@ -723,7 +722,7 @@ start_init(void *dummy)
 		freeenv(var);
 	}
 	free_init_path = tmp_init_path = strdup(init_path, M_TEMP);
-	
+
 	while ((path = strsep(&tmp_init_path, ":")) != NULL) {
 		if (bootverbose)
 			printf("start_init: trying %s\n", path);

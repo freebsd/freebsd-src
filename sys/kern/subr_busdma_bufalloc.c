@@ -171,4 +171,3 @@ busdma_bufalloc_free_uncacheable(void *item, vm_size_t size, uint8_t pflag)
 
 	kmem_free((vm_offset_t)item, size);
 }
-

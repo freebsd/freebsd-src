@@ -1357,7 +1357,6 @@ pipe_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 
 	error = 0;
 	switch (cmd) {
-
 	case FIONBIO:
 		break;
 

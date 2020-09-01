@@ -514,7 +514,6 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 	 * is always monotonic.
 	 */
 	switch (time_state) {
-
 		/*
 		 * No warning.
 		 */
@@ -588,7 +587,7 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 	time_adj = ftemp;
 	L_SUB(time_offset, ftemp);
 	L_ADD(time_adj, time_freq);
-	
+
 	/*
 	 * Apply any correction from adjtime(2).  If more than one second
 	 * off we slew at a rate of 5ms/s (5000 PPM) else 500us/s (500PPM)

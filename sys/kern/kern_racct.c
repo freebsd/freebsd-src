@@ -528,7 +528,7 @@ racct_adjust_resource(struct racct *racct, int resource,
 		    ("%s: resource %d usage < 0", __func__, resource));
 		racct->r_resources[resource] = 0;
 	}
-	
+
 	/*
 	 * There are some cases where the racct %cpu resource would grow
 	 * beyond 100% per core.  For example in racct_proc_exit() we add
