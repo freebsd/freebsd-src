@@ -1422,7 +1422,6 @@ vtterm_splash(struct vt_device *vd)
 
 	/* Display a nice boot splash. */
 	if (!(vd->vd_flags & VDF_TEXTMODE) && (boothowto & RB_MUTE)) {
-
 		top = (vd->vd_height - vt_logo_height) / 2;
 		left = (vd->vd_width - vt_logo_width) / 2;
 		switch (vt_logo_depth) {
@@ -1436,7 +1435,6 @@ vtterm_splash(struct vt_device *vd)
 	}
 }
 #endif
-
 
 static void
 vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
@@ -2729,7 +2727,6 @@ vt_upgrade(struct vt_device *vd)
 				    vt_window_switch, vw, SHUTDOWN_PRI_DEFAULT);
 			}
 		}
-
 	}
 	VT_LOCK(vd);
 	if (vd->vd_curwindow == NULL)

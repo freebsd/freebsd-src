@@ -706,7 +706,6 @@ vtbuf_flush_mark(struct vt_buf *vb)
 	/* Notify renderer to update marked region. */
 	if ((vb->vb_mark_start.tp_col != vb->vb_mark_end.tp_col) ||
 	    (vb->vb_mark_start.tp_row != vb->vb_mark_end.tp_row)) {
-
 		s = vtbuf_htw(vb, vb->vb_mark_start.tp_row);
 		e = vtbuf_htw(vb, vb->vb_mark_end.tp_row);
 
