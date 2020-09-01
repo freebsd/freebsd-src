@@ -57,6 +57,10 @@ rm_r(int rootfd, const char *path, uid_t uid)
 	}
 
 	d = fdopendir(dirfd);
+	if (d == NULL) {
+		(void)close(dirfd);
+		return;
+	}
 	while ((e = readdir(d)) != NULL) {
 		if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0)
 			continue;
