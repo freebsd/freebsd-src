@@ -160,7 +160,6 @@ struct label {
 	intptr_t	l_perpolicy[MAC_MAX_SLOTS];
 };
 
-
 /*
  * Flags for mac_labeled, a bitmask of object types need across the union of
  * all policies currently registered with the MAC Framework, used to key

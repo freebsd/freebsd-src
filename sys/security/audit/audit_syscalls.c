@@ -90,7 +90,6 @@ sys_audit(struct thread *td, struct audit_args *uap)
 	 * commit the user audit record.
 	 */
 	if (ar == NULL) {
-
 		/*
 		 * This is not very efficient; we're required to allocate a
 		 * complete kernel audit record just so the user record can

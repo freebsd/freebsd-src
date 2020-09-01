@@ -275,7 +275,7 @@ mac_socketpeer_set_from_mbuf(struct mbuf *m, struct socket *so)
 void
 mac_socketpeer_set_from_socket(struct socket *oldso, struct socket *newso)
 {
-	
+
 	if (mac_policy_count == 0)
 		return;
 

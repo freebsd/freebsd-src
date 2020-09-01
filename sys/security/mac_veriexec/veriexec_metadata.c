@@ -773,7 +773,6 @@ mac_veriexec_metadata_get_file_info(dev_t fsid, long fileid, unsigned long gen,
 	return (ip);
 }
 
-
 /**
  * @brief Intialize the meta-data store
  */

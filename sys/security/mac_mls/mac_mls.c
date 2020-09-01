@@ -2378,7 +2378,7 @@ mls_sysvshm_check_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 		if (!mls_dominate_effective(obj, subj))
 			return (EACCES);
 	}
-	
+
 	return (0);
 }
 
@@ -3371,7 +3371,6 @@ static struct mac_policy_ops mls_ops =
 	.mpo_sysvshm_create = mls_sysvshm_create,
 	.mpo_sysvshm_destroy_label = mls_destroy_label,
 	.mpo_sysvshm_init_label = mls_init_label,
-
 
 	.mpo_system_check_acct = mls_system_check_acct,
 	.mpo_system_check_auditctl = mls_system_check_auditctl,

@@ -731,7 +731,7 @@ lomac_parse_element(struct mac_lomac_element *element, char *string)
 
 		p0 = string;
 		d = strtol(p0, &p1, 10);
-	
+
 		if (d < 0 || d > 65535)
 			return (EINVAL);
 		element->mle_type = MAC_LOMAC_TYPE_GRADE;

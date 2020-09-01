@@ -93,7 +93,6 @@ mac_destroy_label(struct label *label)
 #endif
 }
 
-
 static int
 mac_labelzone_ctor(void *mem, int size, void *arg, int flags)
 {
