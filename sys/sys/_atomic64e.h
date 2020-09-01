@@ -27,7 +27,6 @@
  * $FreeBSD$
  */
 
-
 #ifndef _SYS_ATOMIC64E_H_
 #define _SYS_ATOMIC64E_H_
 

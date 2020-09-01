@@ -859,7 +859,6 @@ extern pid_t pid_max;
 
 #define	SESS_LEADER(p)	((p)->p_session->s_leader == (p))
 
-
 /* Lock and unlock a process. */
 #define	PROC_LOCK(p)	mtx_lock(&(p)->p_mtx)
 #define	PROC_TRYLOCK(p)	mtx_trylock(&(p)->p_mtx)

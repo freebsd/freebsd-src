@@ -248,7 +248,6 @@ struct changer_element_status_request {
 	struct changer_element_status	*cesr_element_status;
 };
 
-
 struct changer_set_voltag_request {
 	u_int16_t		csvr_type;
 	u_int16_t		csvr_addr;
@@ -263,7 +262,6 @@ struct changer_set_voltag_request {
 
 	changer_voltag_t     	csvr_voltag;
 };
-
 
 #define	CESTATUS_BITS	\
 	"\20\6INENAB\5EXENAB\4ACCESS\3EXCEPT\2IMPEXP\1FULL"

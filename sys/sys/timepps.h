@@ -81,7 +81,6 @@ typedef struct {
 #define assert_offset_ntpfp     assert_off_tu.ntpfp
 #define clear_offset_ntpfp      clear_off_tu.ntpfp
 
-
 #define PPS_CAPTUREASSERT	0x01
 #define PPS_CAPTURECLEAR	0x02
 #define PPS_CAPTUREBOTH		0x03

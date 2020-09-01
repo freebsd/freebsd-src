@@ -70,7 +70,6 @@
 	 N_GETMAGIC_NET(ex) != OMAGIC && N_GETMAGIC_NET(ex) != NMAGIC && \
 	 N_GETMAGIC_NET(ex) != ZMAGIC && N_GETMAGIC_NET(ex) != QMAGIC)
 
-
 /* Address of the bottom of the text segment. */
 /*
  * This can not be done right.  Abuse a_entry in some cases to handle kernels.

@@ -193,7 +193,6 @@ int linker_search_symbol_name_flags(caddr_t value, char *buf, u_int buflen,
 int linker_search_symbol_name(caddr_t value, char *buf, u_int buflen,
     long *offset);
 
-
 /* HWPMC helper */
 void *linker_hwpmc_list_objects(void);
 

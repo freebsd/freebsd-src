@@ -102,7 +102,6 @@ get_cur_timelim(struct time_filter *tf)
 	return(tf->cur_time_limit);
 }
 
-
 int setup_time_filter_small(struct time_filter_small *tf,
 			    int fil_type, uint32_t time_len);
 void reset_time_small(struct time_filter_small *tf, uint32_t time_len);
@@ -128,7 +127,6 @@ get_cur_timelim_small(struct time_filter_small *tf)
 {
 	return(tf->cur_time_limit);
 }
-
 
 #endif
 #endif

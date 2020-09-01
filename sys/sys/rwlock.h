@@ -209,7 +209,6 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 	__rw_assert(&(rw)->rw_lock, w, f, l)
 #endif
 
-
 /*
  * Public interface for lock operations.
  */

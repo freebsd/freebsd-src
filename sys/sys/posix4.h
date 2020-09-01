@@ -55,7 +55,6 @@ int sys_ ## SC (struct thread *td, struct SC##_args *uap) \
 	return syscall_not_present(td, #SC , (struct nosys_args *)uap); \
 }
 
-
 MALLOC_DECLARE(M_P31B);
 
 int p31b_proc(struct proc *, pid_t, struct proc **);
@@ -75,7 +74,6 @@ void p31b_unsetcfg(int);
  */
 
 enum ksched_op {
-
 #define KSCHED_OP_RW { 1, 0, 1, 0, 0, 0, 0, 0 }
 
 	SCHED_SETPARAM,

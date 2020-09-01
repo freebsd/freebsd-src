@@ -43,7 +43,6 @@
 	    sizeof("::") + sizeof(__XSTRING(DOMAINSET_POLICY_MAX)) +	\
 	    sizeof(__XSTRING(MAXMEMDOM)))
 
-
 #define	DOMAINSET_CLR(n, p)		BIT_CLR(DOMAINSET_SETSIZE, n, p)
 #define	DOMAINSET_COPY(f, t)		BIT_COPY(DOMAINSET_SETSIZE, f, t)
 #define	DOMAINSET_ISSET(n, p)		BIT_ISSET(DOMAINSET_SETSIZE, n, p)

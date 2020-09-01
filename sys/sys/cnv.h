@@ -75,7 +75,6 @@ int			 cnvlist_get_descriptor(const void *cookie);
 const int		*cnvlist_get_descriptor_array(const void *cookie, size_t *nitemsp);
 #endif
 
-
 /*
  * The cnvlist_take functions returns value associated with the given cookie and
  * remove the given entry from the nvlist.

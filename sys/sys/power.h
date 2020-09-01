@@ -64,4 +64,3 @@ typedef void (*power_profile_change_hook)(void *, int);
 EVENTHANDLER_DECLARE(power_profile_change, power_profile_change_hook);
 
 #endif	/* !_SYS_POWER_H_ */
-

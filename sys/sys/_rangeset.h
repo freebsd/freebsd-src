@@ -48,4 +48,3 @@ struct rangeset {
 };
 
 #endif
-

@@ -146,7 +146,6 @@
 #define	CNO_RTSDTR	0x00200000	/* Do not assert RTS or DTR automatically */
 #endif
 
-
 /*
  * "Local" flags - dumping ground for other state
  *

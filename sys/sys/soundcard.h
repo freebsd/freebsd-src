@@ -802,7 +802,6 @@ typedef struct {
 #define SNDCTL_DSP_SUBDIVIDE	_IOWR('P', 9, int)
 #define SNDCTL_DSP_SETFRAGMENT	_IOWR('P',10, int)
 
-
 #define SNDCTL_DSP_GETFMTS	_IOR ('P',11, int) /* Returns a mask */
 /*
  * Buffer status queries.
@@ -1045,7 +1044,6 @@ typedef struct copr_msg {
 #define SOUND_MIXER_VIDEO       22      /* Video/TV (audio) in */
 #define SOUND_MIXER_RADIO       23      /* Radio in */
 #define SOUND_MIXER_MONITOR     24      /* Monitor (usually mic) volume */
-
 
 /*
  * Some on/off settings (SOUND_SPECIAL_MIN - SOUND_SPECIAL_MAX)
@@ -1420,7 +1418,6 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 #define SEQ_BENDER(dev, chn, value) \
 	_CHN_COMMON(dev, MIDI_PITCH_BEND, chn, 0, 0, value)
 
-
 #define SEQ_V2_X_CONTROL(dev, voice, controller, value)	{ \
 	_SEQ_NEEDBUF(8);\
 	_seqbuf[_seqbufptr] = SEQ_EXTENDED;\
@@ -1595,7 +1592,6 @@ typedef struct audio_errinfo
 #define SNDCTL_DSP_GETPLAYVOL           _IOR ('P', 24, int)
 #define SNDCTL_DSP_SETPLAYVOL           _IOWR('P', 24, int)
 #define SNDCTL_DSP_GETERROR             _IOR ('P', 25, audio_errinfo)
-
 
 /*
  ****************************************************************************

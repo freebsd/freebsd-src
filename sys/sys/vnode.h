@@ -522,7 +522,6 @@ extern struct vnodeop_desc *vnodeop_descs[];
 #define	VOPARG_OFFSETTO(s_type, s_offset, struct_p) \
     ((s_type)(((char*)(struct_p)) + (s_offset)))
 
-
 #ifdef DEBUG_VFS_LOCKS
 /*
  * Support code to aid in debugging VFS locking problems.  Not totally
@@ -569,7 +568,6 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
 #define ASSERT_VOP_NOT_IN_SEQC(vp)	((void)0)
 
 #endif /* DEBUG_VFS_LOCKS */
-
 
 /*
  * This call works for vnodes in the kernel.

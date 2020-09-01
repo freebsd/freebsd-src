@@ -26,7 +26,7 @@
  *
  * $FreeBSD$
  */
- 
+
 /*
  * DTrace lockstat provider definitions
  */
