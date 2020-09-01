@@ -388,7 +388,6 @@ sdiob_rw_extended_sc(struct sdiob_softc *sc, uint8_t fn, uint32_t addr,
 	 */
 	while (sc->cardinfo.support_multiblk &&
 	    size > 4 && size >= sc->cardinfo.f[fn].cur_blksize) {
-
 		b_count = size / sc->cardinfo.f[fn].cur_blksize;
 		KASSERT(b_count >= 1, ("%s: block count too small %u size %u "
 		    "cur_blksize %u\n", __func__, b_count, size,
@@ -531,7 +530,6 @@ sdiob_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	return (0);
 }
 
-
 /* -------------------------------------------------------------------------- */
 /*
  * Newbus functions for ourselves to probe/attach/detach and become a proper
@@ -565,7 +563,6 @@ sdiob_attach(device_t dev)
 	 * Do this before any child gets a chance to attach.
 	 */
 	for (i = 0; i < sc->cardinfo.num_funcs; i++) {
-
 		sc->child[i] = device_add_child(dev, NULL, -1);
 		if (sc->child[i] == NULL) {
 			device_printf(dev, "%s: failed to add child\n", __func__);
@@ -612,7 +609,6 @@ sdiob_detach(device_t dev)
 	return (EOPNOTSUPP);
 }
 
-
 /* -------------------------------------------------------------------------- */
 /*
  * driver(9) and device(9) "control plane".
@@ -622,7 +618,6 @@ sdiob_detach(device_t dev)
  */
 
 static device_method_t sdiob_methods[] = {
-
 	/* Device interface. */
 	DEVMETHOD(device_probe,		sdiob_probe),
 	DEVMETHOD(device_attach,	sdiob_attach),
@@ -649,7 +644,6 @@ static driver_t sdiob_driver = {
 	sdiob_methods,
 	0
 };
-
 
 /* -------------------------------------------------------------------------- */
 /*
@@ -859,7 +853,6 @@ sdiob_get_card_info(struct sdiob_softc *sc)
 	mmcp = &sc->ccb->ccb_h.path->device->mmc_ident_data;
 	fn_max = MIN(mmcp->sdio_func_count + 1, nitems(sc->cardinfo.f));
 	for (fn = 1; fn < fn_max; fn++) {
-
 		fbr_addr = SD_IO_FBR_START * fn + SD_IO_FBR_CIS_OFFSET;
 
 		error = sdio_read_direct_sc(sc, 0, fbr_addr++, &val);
@@ -910,7 +903,6 @@ sdiob_get_card_info(struct sdiob_softc *sc)
 	}
 	return (error);
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*
