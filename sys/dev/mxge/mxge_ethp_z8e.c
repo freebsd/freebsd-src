@@ -44,4 +44,3 @@ static moduledata_t mxge_ethp_z8e_fw_mod = {
 DECLARE_MODULE(mxge_ethp_z8e_fw, mxge_ethp_z8e_fw_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(mxge_ethp_z8e_fw, 1);
 MODULE_DEPEND(mxge_ethp_z8e_fw, firmware, 1, 1, 1);
-

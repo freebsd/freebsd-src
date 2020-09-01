@@ -78,7 +78,7 @@ $FreeBSD$
 #ifndef IFCAP_TSO
 #define IFCAP_TSO 0
 #endif
- 
+
 #ifndef IFCAP_TSO4
 #define IFCAP_TSO4 0
 #endif
@@ -117,7 +117,6 @@ typedef struct {
 	bus_dma_tag_t dmat;
 	bus_dmamap_t map;
 } mxge_dma_t;
-
 
 typedef struct {
 	mcp_slot_t *entry;
@@ -324,7 +323,6 @@ struct mxge_pkt_info {
 	struct tcphdr *tcp;
 };
 
-
 static inline void
 mxge_pio_copy(volatile void *to_v, void *from_v, size_t size)
 {
@@ -346,7 +344,6 @@ void mxge_lro_flush(struct mxge_slice_state *ss, struct lro_entry *lro);
 int mxge_lro_rx(struct mxge_slice_state *ss, struct mbuf *m_head,
 		uint32_t csum);
 		
-
 
 /*
   This file uses Myri10GE driver indentation.
