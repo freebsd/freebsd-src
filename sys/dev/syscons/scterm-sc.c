@@ -206,7 +206,6 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 	sc = scp->sc; 
 	if (tcp->esc == 1) {	/* seen ESC */
 		switch (c) {
-
 		case '7':	/* Save cursor position */
 			tcp->saved_xpos = scp->xpos;
 			tcp->saved_ypos = scp->ypos;
@@ -265,7 +264,6 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 		}
 		tcp->num_param = tcp->last_param + 1;
 		switch (c) {
-
 		case ';':
 			if (tcp->num_param < MAX_ESC_PAR)
 				return;
@@ -552,7 +550,6 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 		}
 		tcp->num_param = tcp->last_param + 1;
 		switch (c) {
-
 		case ';':
 			if (tcp->num_param < MAX_ESC_PAR)
 				return;

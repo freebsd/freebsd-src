@@ -491,7 +491,6 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	return ENODEV;
 
     switch (cmd) {
-
     case CONS_CURRENTADP:	/* get current adapter index */
     case FBIO_ADAPTER:
 	return fb_ioctl(adp, FBIO_ADAPTER, data);

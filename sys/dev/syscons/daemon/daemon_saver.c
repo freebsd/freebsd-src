@@ -359,7 +359,7 @@ daemon_init(video_adapter_t *adp)
 	for (;;) {
 		hostlen = strlen(prison0.pr_hostname);
 		mtx_unlock(&prison0.pr_mtx);
-	
+
 		messagelen = hostlen + 3 + strlen(ostype) + 1 +
 		    strlen(osrelease);
 		message = malloc(messagelen + 1, M_DEVBUF, M_WAITOK);

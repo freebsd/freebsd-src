@@ -845,7 +845,6 @@ sckbdevent(keyboard_t *thiskbd, int event, void *arg)
 	 * the Xaccel-2.1 keyboard hang, but it can't hurt.		XXX
 	 */
 	while ((c = scgetc(sc, SCGETC_NONBLOCK, NULL)) != NOKEY) {
-
 		cur_tty = SC_DEV(sc, sc->cur_scp->index);
 		if (!tty_opened_ns(cur_tty))
 			continue;
@@ -3275,7 +3274,6 @@ scinit(int unit, int flags)
 	}
 
 	if (!(sc->flags & SC_INIT_DONE) || (adp != sc->adp)) {
-
 		sc->initial_mode = sc->adp->va_initial_mode;
 
 #ifndef SC_NO_FONT_LOADING
@@ -3800,7 +3798,6 @@ next_code:
 
 	/* if scroll-lock pressed allow history browsing */
 	if (!ISGRAPHSC(scp) && scp->history && scp->status & SLKED) {
-
 		scp->status &= ~CURSOR_ENABLED;
 		sc_remove_cursor_image(scp);
 

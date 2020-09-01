@@ -663,7 +663,6 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
     scp = SC_STAT(tp);
 
     switch (cmd) {
-
     case CONS_MOUSECTL:		/* control mouse arrow */
     case OLD_CONS_MOUSECTL:
 
