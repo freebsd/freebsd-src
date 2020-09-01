@@ -35,15 +35,15 @@ int
 pqisrc_rescan_devices(pqisrc_softstate_t *softs)
 {
 	int ret;
-	
+
 	DBG_FUNC("IN\n");
-	
+
 	os_sema_lock(&softs->scan_lock);
-	
+
 	ret = pqisrc_scan_devices(softs);
 
 	os_sema_unlock(&softs->scan_lock);
-	
+
 	DBG_FUNC("OUT\n");
 
 	return ret;
@@ -62,7 +62,7 @@ static void
 pqisrc_acknowledge_event(pqisrc_softstate_t *softs, 
 	struct pqi_event *event)
 {
- 
+
 	pqi_event_acknowledge_request_t request;
 	ib_queue_t *ib_q = &softs->op_raid_ib_q[0];
 	int tmo = PQISRC_EVENT_ACK_RESP_TIMEOUT;
@@ -93,7 +93,7 @@ pqisrc_acknowledge_event(pqisrc_softstate_t *softs,
 			DBG_ERR("wait for event acknowledge timed out\n");
 			DBG_ERR("tmo : %d\n",tmo);	
  		}		
-	
+
 	DBG_FUNC(" OUT\n");
 }
 
@@ -109,7 +109,6 @@ pqisrc_ack_all_events(void *arg1)
 		
 	DBG_FUNC(" IN\n");
 
-
 	pending_event = &softs->pending_events[0];
 	for (i=0; i < PQI_NUM_SUPPORTED_EVENTS; i++) {
 		if (pending_event->pending == true) {
@@ -118,13 +117,13 @@ pqisrc_ack_all_events(void *arg1)
 		}
 		pending_event++;
 	}
-	
+
 	/* Rescan devices except for heartbeat event */
 	if ((pqisrc_rescan_devices(softs)) != PQI_STATUS_SUCCESS) {
 			DBG_ERR(" Failed to Re-Scan devices\n ");
 	}
 	DBG_FUNC(" OUT\n");
-	
+
 }
 
 /*
@@ -173,16 +172,16 @@ pqisrc_process_event_intr_src(pqisrc_softstate_t *softs,int obq_id)
 	ob_queue_t *event_q;
 	struct pqi_event *pending_event;
 	boolean_t  need_delayed_work = false;
-	
+
 	DBG_FUNC(" IN\n");
-	
+
 	OS_ATOMIC64_INC(softs, num_intrs);
-	
+
 	event_q = &softs->event_q;
 	obq_ci = event_q->ci_local;
 	obq_pi = *(event_q->pi_virt_addr);
 	DBG_INFO("Initial Event_q ci : %d Event_q pi : %d\n", obq_ci, obq_pi);
-	
+
 	while(1) {
 		int event_index;
 		DBG_INFO("queue_id : %d ci : %d pi : %d\n",obq_id, obq_ci, obq_pi);
@@ -223,7 +222,6 @@ pqisrc_process_event_intr_src(pqisrc_softstate_t *softs,int obq_id)
 
 	DBG_FUNC("OUT");
 	return PQI_STATUS_SUCCESS;
-	
 
 }
 
@@ -236,7 +234,7 @@ int pqisrc_submit_management_req(pqisrc_softstate_t *softs,
 	int ret = PQI_STATUS_SUCCESS;
 	ib_queue_t *op_ib_q = &softs->op_raid_ib_q[0];
 	rcb_t *rcb = NULL;
-	
+
 	DBG_FUNC(" IN\n");
 
 	/* Get the tag */
@@ -267,7 +265,7 @@ int pqisrc_submit_management_req(pqisrc_softstate_t *softs,
  	pqisrc_put_tag(&softs->taglist,request->request_id);
 	DBG_FUNC("OUT\n");
 	return ret;
-	
+
 err_cmd:
 	os_reset_rcb(rcb); 
 	pqisrc_put_tag(&softs->taglist,request->request_id);
@@ -285,9 +283,9 @@ pqi_event_configure(pqisrc_softstate_t *softs ,
                               dma_mem_t *buff)
 {
         int ret = PQI_STATUS_SUCCESS;
-	
+
 	DBG_FUNC(" IN\n");
-	
+
 	request->header.comp_feature = 0x00;
 	request->header.iu_length = sizeof(pqi_event_config_request_t) - 
 		    PQI_REQUEST_HEADER_LENGTH; /* excluding IU header length */
@@ -304,7 +302,6 @@ pqi_event_configure(pqisrc_softstate_t *softs ,
 	ret = pqisrc_submit_management_req(softs,request);
 	if(ret)
 		goto err_out;
-	
 
 	DBG_FUNC(" OUT\n");
 	return ret;
@@ -328,14 +325,14 @@ int pqisrc_report_event_config(pqisrc_softstate_t *softs)
 	/*bytes to be allocaed for report event config data-in buffer */
 	uint32_t alloc_size = sizeof(pqi_event_config_t) ;
 	memset(&request, 0 , sizeof(request));
- 
+
 	DBG_FUNC(" IN\n");
-	
+
 	memset(&buf_report_event, 0, sizeof(struct dma_mem)); 
 	buf_report_event.tag 	= "pqi_report_event_buf" ;
 	buf_report_event.size 	= alloc_size;
 	buf_report_event.align 	= PQISRC_DEFAULT_DMA_ALIGN;
- 
+
 	/* allocate memory */
 	ret = os_dma_mem_alloc(softs, &buf_report_event);
 	if (ret) {
@@ -346,13 +343,13 @@ int pqisrc_report_event_config(pqisrc_softstate_t *softs)
 	DBG_INFO("buf_report_event.virt_addr 	= %p \n",(void*)buf_report_event.virt_addr);
   
 	request.header.iu_type = PQI_REQUEST_IU_REPORT_VENDOR_EVENT_CONFIG;
-	
+
 	/* Event configuration */
 	ret=pqi_event_configure(softs,&request,&buf_report_event);
 	if(ret)
 		goto free_mem;
     
-	
+
 	event_config_p = (pqi_event_config_t*)buf_report_event.virt_addr;
 	softs->event_config.num_event_descriptors = MIN(event_config_p->num_event_descriptors,
 		                                            PQI_MAX_EVENT_DESCRIPTORS) ;
@@ -415,7 +412,6 @@ int pqisrc_set_event_config(pqisrc_softstate_t *softs)
 
 	event_config_p->num_event_descriptors = softs->event_config.num_event_descriptors;
 
-	
 	for (i=0; i < softs->event_config.num_event_descriptors ; i++){
 		event_config_p->descriptors[i].event_type = 
 					softs->event_config.descriptors[i].event_type;
@@ -424,7 +420,6 @@ int pqisrc_set_event_config(pqisrc_softstate_t *softs)
 		else
 			event_config_p->descriptors[i].oq_id = 0; /* Not supported this event. */
 			
-
 	}
         /* Event configuration */
 	ret = pqi_event_configure(softs,&request,&buf_set_event);
@@ -435,7 +430,7 @@ int pqisrc_set_event_config(pqisrc_softstate_t *softs)
 	   
 	DBG_FUNC(" OUT\n");
 	return ret;
-	
+
 free_mem:
 	os_dma_mem_free(softs, &buf_set_event);
 err_out:

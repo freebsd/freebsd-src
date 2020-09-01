@@ -92,9 +92,9 @@ void pqisrc_process_aio_response_error(pqisrc_softstate_t *softs,
 		rcb_t *rcb, uint16_t err_idx)
 {
 	aio_path_error_info_elem_t *err_info = NULL;
-	
+
 	DBG_FUNC("IN");
-	
+
 	err_info = (aio_path_error_info_elem_t*)
 			softs->err_buf_dma_mem.virt_addr + 
 			err_idx;
@@ -103,7 +103,7 @@ void pqisrc_process_aio_response_error(pqisrc_softstate_t *softs,
 		DBG_ERR("err_info structure is NULL  err_idx :%x", err_idx);
 		return;
 	}
-	
+
 	os_aio_response_error(rcb, err_info);
 
 	DBG_FUNC("OUT");
@@ -116,18 +116,18 @@ void pqisrc_process_raid_response_error(pqisrc_softstate_t *softs,
 		rcb_t *rcb, uint16_t err_idx)
 {
 	raid_path_error_info_elem_t *err_info = NULL;
-	
+
 	DBG_FUNC("IN");
-	
+
 	err_info = (raid_path_error_info_elem_t*)
 			softs->err_buf_dma_mem.virt_addr + 
 			err_idx;
-	
+
 	if(err_info == NULL) {
 		DBG_ERR("err_info structure is NULL  err_idx :%x", err_idx);
 		return;
 	}
-	
+
 	os_raid_response_error(rcb, err_info);
 
 	DBG_FUNC("OUT");
@@ -179,7 +179,7 @@ pqisrc_process_response_queue(pqisrc_softstate_t *softs, int oq_id)
 	DBG_FUNC("IN");
 
 	OS_ATOMIC64_INC(softs, num_intrs);
-	
+
 	ob_q = &softs->op_ob_q[oq_id - 1]; /* zero for event Q */
 	oq_ci = ob_q->ci_local;
 	oq_pi = *(ob_q->pi_virt_addr);

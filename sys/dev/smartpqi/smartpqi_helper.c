@@ -47,18 +47,18 @@ void pqisrc_configure_legacy_intx(pqisrc_softstate_t *softs, boolean_t enable_in
 {
 	uint32_t intx_mask;
 	uint32_t *reg_addr = NULL;
-	
+
 	DBG_FUNC("IN\n");
-	
+
 	if (enable_intx)
 		reg_addr = &softs->pqi_reg->legacy_intr_mask_clr;
 	else
 		reg_addr = &softs->pqi_reg->legacy_intr_mask_set;
-	
+
 	intx_mask = PCI_MEM_GET32(softs, reg_addr, PQI_LEGACY_INTR_MASK_CLR);
 	intx_mask |= PQISRC_LEGACY_INTX_MASK;
 	PCI_MEM_PUT32(softs, reg_addr, PQI_LEGACY_INTR_MASK_CLR ,intx_mask);
-	
+
 	DBG_FUNC("OUT\n");
 }
 
@@ -150,12 +150,11 @@ take_ctrl_offline:
  * Conditional variable management routine for internal commands.
  */
 int pqisrc_wait_on_condition(pqisrc_softstate_t *softs, rcb_t *rcb){
-
 	DBG_FUNC("IN\n");
 
 	int ret = PQI_STATUS_SUCCESS;
 	uint32_t loop_cnt = 0;
-	
+
 	while (rcb->req_pending == true) {
 		OS_SLEEP(500); /* Micro sec */
 
@@ -170,13 +169,12 @@ int pqisrc_wait_on_condition(pqisrc_softstate_t *softs, rcb_t *rcb){
 			ret = PQI_STATUS_TIMEOUT;
 			break;
 		}
-	
+
 		if (pqisrc_ctrl_offline(softs)) {
 			DBG_ERR("Controller is Offline");
 			ret = PQI_STATUS_FAILURE;
 			break;
 		}
-
 	}
 	rcb->req_pending = true;
 

@@ -77,7 +77,7 @@
 			} \
 		} \
 	}
-	
+
 #define FILL_QUEUE_ARRAY_ADDR(q,virt,dma) { 	\
 			q->array_virt_addr = virt;	\
 			q->array_dma_addr = dma;	\
@@ -104,7 +104,6 @@ enum INTR_TYPE {
 #define DMA_TO_VIRT(mem)	((mem)->virt_addr)
 #define DMA_PHYS_LOW(mem)	(((mem)->dma_addr)  & 0x00000000ffffffff)
 #define DMA_PHYS_HIGH(mem)	((((mem)->dma_addr) & 0xffffffff00000000) >> 32)
-
 
 typedef enum REQUEST_STATUS {
 	REQUEST_SUCCESS = 0,
@@ -134,7 +133,6 @@ typedef enum controller_state {
 	PQI_UP_RUNNING,
 	PQI_BUS_RESET,
 }controller_state_t;
-
 
 #define PQISRC_MAX_MSIX_SUPPORTED		64
 
@@ -186,8 +184,6 @@ typedef enum controller_state {
 #define	PQISRC_MAX_OUTSTANDING_REQ			4096
 #define	PQISRC_MAX_ADMIN_IB_QUEUE_ELEM_NUM		16
 #define	PQISRC_MAX_ADMIN_OB_QUEUE_ELEM_NUM		16
-
-
 
 #define PQI_MIN_OP_IB_QUEUE_ID				1
 #define PQI_OP_EVENT_QUEUE_ID				1
@@ -348,7 +344,6 @@ enum pqisrc_ctrl_mode{
 #define	PQI_MANAGEMENT_CMD_RESP_TIMEOUT			3000 
 #define	PQISRC_EVENT_ACK_RESP_TIMEOUT			1000
 
-
 /* Supported Event types by controller */
 #define PQI_NUM_SUPPORTED_EVENTS		7
 
@@ -370,7 +365,6 @@ enum pqisrc_ctrl_mode{
 #define PQI_EVENT_AIO_CONFIG_CHANGE	6
 
 #define PQI_MAX_HEARTBEAT_REQUESTS	5
-
 
 /* Device flags */
 #define	PQISRC_DFLAG_VALID			(1 << 0)
@@ -408,7 +402,6 @@ enum pqisrc_ctrl_mode{
 #define SOP_TASK_MANAGEMENT_FUNCTION_ABORT_TASK		0x01
 #define SOP_TASK_MANAGEMENT_FUNCTION_ABORT_TASK_SET	0x02
 #define SOP_TASK_MANAGEMENT_LUN_RESET			0x8
-
 
 /* Additional CDB bytes  */
 #define PQI_ADDITIONAL_CDB_BYTES_0		0	/* 16 byte CDB */
@@ -471,7 +464,6 @@ enum pqisrc_ctrl_mode{
 
 #define VPD_PAGE			(1 << 8)
 
-
 /* logical volume states */
 #define SA_LV_OK					0x0
 #define SA_LV_NOT_AVAILABLE				0xb
@@ -494,8 +486,6 @@ enum pqisrc_ctrl_mode{
 
 /* 0 = no limit */
 #define PQI_LOGICAL_DISK_DEFAULT_MAX_QUEUE_DEPTH	0
-
-
 
 #define RAID_CTLR_LUNID		"\0\0\0\0\0\0\0\0"
 
@@ -521,12 +511,10 @@ enum pqisrc_ctrl_mode{
 #define ASCQ_LUN_NOT_READY_FORMAT_IN_PROGRESS		0x4
 #define ASCQ_LUN_NOT_READY_INITIALIZING_CMD_REQ		0x2
 
-
 #define OBDR_SIG_OFFSET		43
 #define OBDR_TAPE_SIG		"$DR-10"
 #define OBDR_SIG_LEN		(sizeof(OBDR_TAPE_SIG) - 1)
 #define OBDR_TAPE_INQ_SIZE	(OBDR_SIG_OFFSET + OBDR_SIG_LEN)
-
 
 #define IOACCEL_STATUS_BYTE	4
 #define OFFLOAD_CONFIGURED_BIT	0x1
@@ -545,7 +533,6 @@ enum pqisrc_ctrl_mode{
 
 #define TEST_UNIT_READY		0x00
 #define SCSI_VPD_HEADER_LENGTH	64
-
 
 #define PQI_MAX_MULTILUN	256
 #define PQI_MAX_LOGICALS	64
@@ -587,7 +574,6 @@ typedef enum pqisrc_device_status {
 #define BMIC_CACHE_FLUSH			0xc2
 #define BMIC_FLASH_FIRMWARE			0xf7
 #define BMIC_WRITE_HOST_WELLNESS		0xa5
-
 
 #define MASKED_DEVICE(lunid)			((lunid)[3] & 0xC0)
 #define BMIC_GET_LEVEL_2_BUS(lunid)		((lunid)[7] & 0x3F)
@@ -659,13 +645,11 @@ static inline void PUT_BE64(uint64_t val, uint8_t *p)
         PUT_BE32(val, p + 4);
 }
 
-
 #define OS_FREEBSD
 #define SIS_POLL_WAIT
 
 #define OS_ATTRIBUTE_PACKED         __attribute__((__packed__))
 #define OS_ATTRIBUTE_ALIGNED(n)     __attribute__((aligned(n)))
-
 
 /* Management Interface */
 #define CCISS_IOC_MAGIC		'C'
@@ -699,7 +683,6 @@ typedef struct _driver_info
 
 typedef uint8_t *passthru_buf_type_t;
 
-
 #define PQISRC_DRIVER_MAJOR		1
 #define PQISRC_DRIVER_MINOR		0
 #define PQISRC_DRIVER_RELEASE		3
@@ -711,7 +694,7 @@ typedef uint8_t *passthru_buf_type_t;
                                         PQISRC_DRIVER_MINOR, \
                                         PQISRC_DRIVER_RELEASE, \
                                         PQISRC_DRIVER_REVISION)
-	
+
 /* End Management interface */
 
 #ifdef ASSERT
@@ -723,7 +706,6 @@ typedef uint8_t *passthru_buf_type_t;
 			printf("Assertion failed at file %s line %d\n",__FILE__,__LINE__);	\
 		}	\
 		}
-
 
 #define PQI_MAX_MSIX            64      /* vectors */
 #define PQI_MSI_CTX_SIZE        sizeof(pqi_intr_ctx)+1
@@ -764,7 +746,6 @@ typedef struct PCI_ACC_HANDLE {
 #define LEGACY_SIS_ODR_SHIFT 	12	/* outbound doorbell shift */
 #define LEGACY_SIS_IDR_SHIFT 	9	/* inbound doorbell shift */
 
-
 /*
  * PQI Register definitions for the smartraid adapters
  */
@@ -792,9 +773,8 @@ typedef struct PCI_ACC_HANDLE {
 #define OS_BUSYWAIT(x) DELAY(x)
 #define OS_SLEEP(timeout)	\
 	DELAY(timeout);
-	
-#define OS_HOST_WELLNESS_TIMEOUT	(24 * 3600)
 
+#define OS_HOST_WELLNESS_TIMEOUT	(24 * 3600)
 
 #define LE_16(x) htole16(x)
 #define LE_32(x) htole32(x)
@@ -806,7 +786,6 @@ typedef struct PCI_ACC_HANDLE {
 #define PQI_HWIF_SRCV           0
 #define PQI_HWIF_UNKNOWN        -1
 
-
 #define SMART_STATE_SUSPEND     	(1<<0)
 #define SMART_STATE_UNUSED0     	(1<<1)
 #define SMART_STATE_INTERRUPTS_ON       (1<<2)
@@ -817,7 +796,6 @@ typedef struct PCI_ACC_HANDLE {
 #define PQI_MSI_ENABLED 		(1<<1)
 #define PQI_SIM_REGISTERED 		(1<<2)
 #define PQI_MTX_INIT	 		(1<<3)
-
 
 #define PQI_CMD_MAPPED 			(1<<2)
 
@@ -946,7 +924,6 @@ static int logging_level  = PQISRC_LOG_LEVEL;
 #define	PQISRC_FLAGS_DISC		0x00000010
 #define	PQISRC_FLAGS_WARN		0x00000020
 #define	PQISRC_FLAGS_ERROR		0x00000040
-
 
 #define	DBG_INIT(fmt,args...)						\
 		do {							\
