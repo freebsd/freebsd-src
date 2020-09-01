@@ -382,7 +382,7 @@ mprsas_remove_volume(struct mpr_softc *sc, struct mpr_command *tm)
 
 	mpr_dprint(sc, MPR_XINFO, "clearing target %u handle 0x%04x\n",
 	    targ->tid, handle);
-	
+
 	/*
 	 * Don't clear target if remove fails because things will get confusing.
 	 * Leave the devname and sasaddr intact so that we know to avoid reusing
@@ -411,7 +411,6 @@ mprsas_remove_volume(struct mpr_softc *sc, struct mpr_command *tm)
 
 	mprsas_free_tm(sc, tm);
 }
-
 
 /*
  * No Need to call "MPI2_SAS_OP_REMOVE_DEVICE" For Volume removal.
@@ -1456,7 +1455,6 @@ mprsas_send_reset(struct mpr_softc *sc, struct mpr_command *tm, uint8_t type)
 	return err;
 }
 
-
 static void
 mprsas_abort_complete(struct mpr_softc *sc, struct mpr_command *tm)
 {
@@ -1659,7 +1657,6 @@ mprsas_scsiio_timeout(void *data)
 		    "processing by tm %p\n", cm, targ->tm);
 	}
 	else if ((targ->tm = mprsas_alloc_tm(sc)) != NULL) {
-
 		/* start recovery by aborting the first timedout command */
 		mpr_dprint(sc, MPR_RECOVERY|MPR_INFO,
 		    "Sending abort to target %u for SMID %d\n", targ->tid,
@@ -2145,7 +2142,7 @@ mpr_sc_failed_io_info(struct mpr_softc *sc, struct ccb_scsiio *csio,
 	char *desc_ioc_state = NULL;
 	char *desc_scsi_status = NULL;
 	u32 log_info = le32toh(mpi_reply->IOCLogInfo);
-	
+
 	if (log_info == 0x31170000)
 		return;
 
@@ -2161,7 +2158,7 @@ mpr_sc_failed_io_info(struct mpr_softc *sc, struct ccb_scsiio *csio,
 		    "connector name (%4s)\n", targ->encl_level, targ->encl_slot,
 		    targ->connector_name);
 	}
-	
+
 	/*
 	 * We can add more detail about underflow data here
 	 * TO-DO
@@ -2350,7 +2347,7 @@ mprsas_nvme_trans_status_code(uint16_t nvme_status,
 		}
 		break;
 	}
-	
+
 	returned_sense_len = sizeof(struct scsi_sense_data);
 	if (returned_sense_len < ccb->csio.sense_len)
 		ccb->csio.sense_resid = ccb->csio.sense_len -
@@ -2788,7 +2785,7 @@ mprsas_scsiio_complete(struct mpr_softc *sc, struct mpr_command *cm)
 
 		break;
 	}
-	
+
 	mpr_sc_failed_io_info(sc, csio, rep, cm->cm_targ);
 
 	if (sassc->flags & MPRSAS_QUEUE_FROZEN) {
@@ -3153,7 +3150,6 @@ mprsas_action_smpio(struct mprsas_softc *sassc, union ccb *ccb)
 			    targ->handle, targ->parent_handle);
 			mprsas_set_ccbstatus(ccb, CAM_DEV_NOT_THERE);
 			goto bailout;
-
 		}
 		if (targ->parent_sasaddr == 0x0) {
 			mpr_dprint(sc, MPR_ERROR, "%s: handle %d parent handle "
@@ -3165,7 +3161,6 @@ mprsas_action_smpio(struct mprsas_softc *sassc, union ccb *ccb)
 
 		sasaddr = targ->parent_sasaddr;
 #endif /* OLD_MPR_PROBE */
-
 	}
 
 	if (sasaddr == 0) {

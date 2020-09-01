@@ -88,7 +88,6 @@ static driver_t mpr_pci_driver = {
 	sizeof(struct mpr_softc)
 };
 
-
 struct mpr_ident {
 	uint16_t	vendor;
 	uint16_t	device;
@@ -174,7 +173,6 @@ struct mpr_ident {
 	    "Broadcom Inc. (LSI) INVALID1 SAS3916" },
 	{ 0, 0, 0, 0, 0, NULL }
 };
-
 
 static devclass_t	mpr_devclass;
 DRIVER_MODULE(mpr, pci, mpr_pci_driver, mpr_devclass, 0, 0);
@@ -489,4 +487,3 @@ mpr_pci_restore(struct mpr_softc *sc)
 	pci_cfg_restore(sc->mpr_dev, dinfo);
 	return (0);
 }
-

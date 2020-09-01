@@ -266,7 +266,6 @@ typedef struct _MPI2_SCSI_IO_REQUEST
 #define MPI2_SCSIIO_CONTROL_TLR_ON              (0x00000040)
 #define MPI2_SCSIIO_CONTROL_TLR_OFF             (0x00000080)
 
-
 /* MPI v2.5 CDB field */
 typedef union _MPI25_SCSI_IO_CDB_UNION
 {
@@ -377,7 +376,6 @@ typedef struct _MPI25_SCSI_IO_REQUEST
 
 /* use MPI2_SCSIIO_CONTROL_ defines for the Control field */
 
-
 /* NOTE: The SCSI IO Reply is nearly the same for MPI 2.0 and MPI 2.5, so
  *       MPI2_SCSI_IO_REPLY is used for both.
  */
@@ -416,7 +414,6 @@ typedef struct _MPI2_SCSI_IO_REPLY
 #define MPI26_SCSIIO_REPLY_MSGFLAGS_GUARD_OBSERVED_VALID      (0x02)
 #define MPI26_SCSIIO_REPLY_MSGFLAGS_APPTAG_OBSERVED_VALID     (0x04)
 
-
 /* SCSI IO Reply SCSIStatus values (SAM-4 status codes) */
 
 #define MPI2_SCSI_STATUS_GOOD                   (0x00)
@@ -445,7 +442,6 @@ typedef struct _MPI2_SCSI_IO_REPLY
 #define MPI2_SCSI_RI_SHIFT_REASONCODE           (0)
 
 #define MPI2_SCSI_TASKTAG_UNKNOWN               (0xFFFF)
-
 
 /****************************************************************************
 *  SCSI Task Management messages
@@ -497,7 +493,6 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REQUEST
 #define MPI2_SCSITASKMGMT_MSGFLAGS_SAS_HARD_LINK_RESET    (0x10)
 #define MPI26_SCSITASKMGMT_MSGFLAGS_PROTOCOL_LVL_RST_PCIE (0x18)
 
-
 /* SCSI Task Management Reply Message */
 typedef struct _MPI2_SCSI_TASK_MANAGE_REPLY
 {
@@ -541,7 +536,6 @@ typedef struct _MPI2_SCSI_TASK_MANAGE_REPLY
 #define MPI2_SCSITASKMGMT_RI_SHIFT_ARI1                 (16)
 #define MPI2_SCSITASKMGMT_RI_MASK_ARI0                  (0xFF000000)
 #define MPI2_SCSITASKMGMT_RI_SHIFT_ARI0                 (24)
-
 
 /****************************************************************************
 *  SCSI Enclosure Processor messages
@@ -591,7 +585,6 @@ typedef struct _MPI2_SEP_REQUEST
 #define MPI2_SEP_REQ_SLOTSTATUS_DEV_FAULTY              (0x00000002)
 #define MPI2_SEP_REQ_SLOTSTATUS_NO_ERROR                (0x00000001)
 
-
 /* SCSI Enclosure Processor Reply Message */
 typedef struct _MPI2_SEP_REPLY
 {
@@ -629,7 +622,4 @@ typedef struct _MPI2_SEP_REPLY
 #define MPI2_SEP_REPLY_SLOTSTATUS_DEV_FAULTY            (0x00000002)
 #define MPI2_SEP_REPLY_SLOTSTATUS_NO_ERROR              (0x00000001)
 
-
 #endif
-
-

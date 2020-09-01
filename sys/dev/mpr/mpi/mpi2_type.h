@@ -53,7 +53,6 @@
 #ifndef MPI2_TYPE_H
 #define MPI2_TYPE_H
 
-
 /*******************************************************************************
  * Define MPI2_POINTER if it hasn't already been defined. By default
  * MPI2_POINTER is defined to be a near pointer. MPI2_POINTER can be defined as
@@ -109,7 +108,6 @@ typedef struct _U64
     U32          High;
 } U64;
 
-
 /*****************************************************************************
 *
 *               Pointer Types
@@ -128,4 +126,3 @@ typedef U64     *PU64;
 #endif
 
 #endif
-

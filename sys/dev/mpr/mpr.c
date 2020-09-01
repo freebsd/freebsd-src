@@ -339,7 +339,7 @@ mpr_transition_ready(struct mpr_softc *sc)
 			error = EINVAL;
 			break;
 		}
-	
+
 		/* Wait 50ms for things to settle down. */
 		DELAY(50000);
 	}
@@ -1000,7 +1000,7 @@ mpr_request_sync(struct mpr_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 	uint16_t *data16;
 	int i, count, ioc_sz, residual;
 	int sleep_flags = CAN_SLEEP;
-	
+
 	if (curthread->td_no_sleeping)
 		sleep_flags = NO_SLEEP;
 
@@ -1995,7 +1995,6 @@ mpr_parse_debug(struct mpr_softc *sc, char *list)
 	flags = 0;
 	sz = sizeof(mpr_debug_strings) / sizeof(mpr_debug_strings[0]);
 	while ((token = strsep(&list, ":,")) != NULL) {
-
 		/* Handle integer flags */
 		flags |= strtol(token, &endtoken, 0);
 		if (token != endtoken)
@@ -2370,20 +2369,20 @@ mpr_sas_log_info(struct mpr_softc *sc , u32 log_info)
 	};
 	union loginfo_type sas_loginfo;
 	char *originator_str = NULL;
- 
+
 	sas_loginfo.loginfo = log_info;
 	if (sas_loginfo.dw.bus_type != 3 /*SAS*/)
 		return;
- 
+
 	/* each nexus loss loginfo */
 	if (log_info == 0x31170000)
 		return;
- 
+
 	/* eat the loginfos associated with task aborts */
 	if ((log_info == 30050000) || (log_info == 0x31140000) ||
 	    (log_info == 0x31130000))
 		return;
- 
+
 	switch (sas_loginfo.dw.originator) {
 	case 0:
 		originator_str = "IOP";
@@ -2395,7 +2394,7 @@ mpr_sas_log_info(struct mpr_softc *sc , u32 log_info)
 		originator_str = "IR";
 		break;
 	}
- 
+
 	mpr_dprint(sc, MPR_LOG, "log_info(0x%08x): originator(%s), "
 	    "code(0x%02x), sub_code(0x%04x)\n", log_info, originator_str,
 	    sas_loginfo.dw.code, sas_loginfo.dw.subcode);
@@ -2406,7 +2405,7 @@ mpr_display_reply_info(struct mpr_softc *sc, uint8_t *reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
 	u16 sc_status;
- 
+
 	mpi_reply = (MPI2DefaultReply_t*)reply;
 	sc_status = le16toh(mpi_reply->IOCStatus);
 	if (sc_status & MPI2_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE)
@@ -2735,7 +2734,7 @@ mpr_update_events(struct mpr_softc *sc, struct mpr_event_handle *handle,
 	if ((reply == NULL) ||
 	    (reply->IOCStatus & MPI2_IOCSTATUS_MASK) != MPI2_IOCSTATUS_SUCCESS)
 		error = ENXIO;
-	
+
 	if (reply)
 		MPR_DPRINT_EVENT(sc, generic, reply);
 

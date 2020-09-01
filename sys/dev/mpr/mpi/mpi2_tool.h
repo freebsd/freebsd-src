@@ -93,7 +93,6 @@
 #define MPI2_TOOLBOX_TEXT_DISPLAY_TOOL              (0x07)
 #define MPI26_TOOLBOX_BACKEND_PCIE_LANE_MARGIN      (0x08)
 
-
 /****************************************************************************
 *  Toolbox reply
 ****************************************************************************/
@@ -115,7 +114,6 @@ typedef struct _MPI2_TOOLBOX_REPLY
     U32                     IOCLogInfo;                 /* 0x10 */
 } MPI2_TOOLBOX_REPLY, MPI2_POINTER PTR_MPI2_TOOLBOX_REPLY,
   Mpi2ToolboxReply_t, MPI2_POINTER pMpi2ToolboxReply_t;
-
 
 /****************************************************************************
 *  Toolbox Clean Tool request
@@ -160,7 +158,6 @@ typedef struct _MPI2_TOOLBOX_CLEAN_REQUEST
 #define MPI2_TOOLBOX_CLEAN_SEEPROM                  (0x00000002)
 #define MPI2_TOOLBOX_CLEAN_NVSRAM                   (0x00000001)
 
-
 /****************************************************************************
 *  Toolbox Memory Move request
 ****************************************************************************/
@@ -180,7 +177,6 @@ typedef struct _MPI2_TOOLBOX_MEM_MOVE_REQUEST
     MPI2_SGE_SIMPLE_UNION   SGL;                        /* 0x0C */
 } MPI2_TOOLBOX_MEM_MOVE_REQUEST, MPI2_POINTER PTR_MPI2_TOOLBOX_MEM_MOVE_REQUEST,
   Mpi2ToolboxMemMoveRequest_t, MPI2_POINTER pMpi2ToolboxMemMoveRequest_t;
-
 
 /****************************************************************************
 *  Toolbox Diagnostic Data Upload request
@@ -211,7 +207,6 @@ typedef struct _MPI2_TOOLBOX_DIAG_DATA_UPLOAD_REQUEST
 
 /* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
-
 typedef struct _MPI2_DIAG_DATA_UPLOAD_HEADER
 {
     U32                     DiagDataLength;             /* 00h */
@@ -220,7 +215,6 @@ typedef struct _MPI2_DIAG_DATA_UPLOAD_HEADER
     U16                     Reserved2;                  /* 06h */
 } MPI2_DIAG_DATA_UPLOAD_HEADER, MPI2_POINTER PTR_MPI2_DIAG_DATA_UPLOAD_HEADER,
   Mpi2DiagDataUploadHeader_t, MPI2_POINTER pMpi2DiagDataUploadHeader_t;
-
 
 /****************************************************************************
 *  Toolbox ISTWI Read Write Tool
@@ -275,7 +269,6 @@ typedef struct _MPI2_TOOLBOX_ISTWI_READ_WRITE_REQUEST
 #define MPI26_TOOLBOX_REQ_MSGFLAGS_ADDRESSING_DEVINDEX (0x00)  /* Request uses Man Page 43 device index addressing */
 #define MPI26_TOOLBOX_REQ_MSGFLAGS_ADDRESSING_DEVINFO  (0x01)  /* Request uses Man Page 43 device info struct addressing */
 
-
 /* Toolbox ISTWI Read Write Tool reply message */
 typedef struct _MPI2_TOOLBOX_ISTWI_REPLY
 {
@@ -300,7 +293,6 @@ typedef struct _MPI2_TOOLBOX_ISTWI_REPLY
     U16                     RxDataCount;                /* 0x1A */
 } MPI2_TOOLBOX_ISTWI_REPLY, MPI2_POINTER PTR_MPI2_TOOLBOX_ISTWI_REPLY,
   Mpi2ToolboxIstwiReply_t, MPI2_POINTER pMpi2ToolboxIstwiReply_t;
-
 
 /****************************************************************************
 *  Toolbox Beacon Tool request
@@ -328,7 +320,6 @@ typedef struct _MPI2_TOOLBOX_BEACON_REQUEST
 /* values for the Flags field */
 #define MPI2_TOOLBOX_FLAGS_BEACONMODE_OFF       (0x00)
 #define MPI2_TOOLBOX_FLAGS_BEACONMODE_ON        (0x01)
-
 
 /****************************************************************************
 *  Toolbox Diagnostic CLI Tool
@@ -362,7 +353,6 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REQUEST
 
 /* use MPI2_SGLFLAGS_ defines from mpi2.h for the SGLFlags field */
 
-
 /* MPI v2.5 Toolbox Diagnostic CLI Tool request message */
 typedef struct _MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST
 {
@@ -385,7 +375,6 @@ typedef struct _MPI25_TOOLBOX_DIAGNOSTIC_CLI_REQUEST
   Mpi25ToolboxDiagnosticCliRequest_t,
   MPI2_POINTER pMpi25ToolboxDiagnosticCliRequest_t;
 
-
 /* Toolbox Diagnostic CLI Tool reply message */
 typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY
 {
@@ -407,7 +396,6 @@ typedef struct _MPI2_TOOLBOX_DIAGNOSTIC_CLI_REPLY
   MPI2_POINTER PTR_MPI2_TOOLBOX_DIAG_CLI_REPLY,
   Mpi2ToolboxDiagnosticCliReply_t,
   MPI2_POINTER pMpi2ToolboxDiagnosticCliReply_t;
-
 
 /****************************************************************************
 *  Toolbox Console Text Display Tool
@@ -446,7 +434,6 @@ typedef struct _MPI2_TOOLBOX_TEXT_DISPLAY_REQUEST
 /* defines for the Flags field */
 #define MPI2_TOOLBOX_CONSOLE_FLAG_TIMESTAMP     (0x01)
 
-
 /****************************************************************************
 *  Toolbox Backend Lane Margining Tool
 ****************************************************************************/
@@ -480,7 +467,6 @@ typedef struct _MPI26_TOOLBOX_LANE_MARGINING_REQUEST
 #define MPI26_TOOL_MARGIN_COMMAND_WRITE_REGISTER_DATA      (0x03)
 #define MPI26_TOOL_MARGIN_COMMAND_EXIT_MARGIN_MODE         (0x04)
 
-
 /* Toolbox Backend Lane Margining Tool reply message */
 typedef struct _MPI26_TOOLBOX_LANE_MARGINING_REPLY
 {
@@ -504,13 +490,11 @@ typedef struct _MPI26_TOOLBOX_LANE_MARGINING_REPLY
   Mpi26ToolboxLaneMarginingReply_t,
   MPI2_POINTER pMpi26ToolboxLaneMarginingReply_t;
 
-
 /*****************************************************************************
 *
 *       Diagnostic Buffer Messages
 *
 *****************************************************************************/
-
 
 /****************************************************************************
 *  Diagnostic Buffer Post request
@@ -551,7 +535,6 @@ typedef struct _MPI2_DIAG_BUFFER_POST_REQUEST
 #define MPI2_DIAG_BUF_FLAG_RELEASE_ON_FULL          (0x00000002) /* for MPI v2.0 products only */
 #define MPI2_DIAG_BUF_FLAG_IMMEDIATE_RELEASE        (0x00000001)
 
-
 /****************************************************************************
 *  Diagnostic Buffer Post reply
 ****************************************************************************/
@@ -575,7 +558,6 @@ typedef struct _MPI2_DIAG_BUFFER_POST_REPLY
 } MPI2_DIAG_BUFFER_POST_REPLY, MPI2_POINTER PTR_MPI2_DIAG_BUFFER_POST_REPLY,
   Mpi2DiagBufferPostReply_t, MPI2_POINTER pMpi2DiagBufferPostReply_t;
 
-
 /****************************************************************************
 *  Diagnostic Release request
 ****************************************************************************/
@@ -594,7 +576,6 @@ typedef struct _MPI2_DIAG_RELEASE_REQUEST
     U16                     Reserved4;                  /* 0x0A */
 } MPI2_DIAG_RELEASE_REQUEST, MPI2_POINTER PTR_MPI2_DIAG_RELEASE_REQUEST,
   Mpi2DiagReleaseRequest_t, MPI2_POINTER pMpi2DiagReleaseRequest_t;
-
 
 /****************************************************************************
 *  Diagnostic Buffer Post reply
@@ -618,6 +599,4 @@ typedef struct _MPI2_DIAG_RELEASE_REPLY
 } MPI2_DIAG_RELEASE_REPLY, MPI2_POINTER PTR_MPI2_DIAG_RELEASE_REPLY,
   Mpi2DiagReleaseReply_t, MPI2_POINTER pMpi2DiagReleaseReply_t;
 
-
 #endif
-

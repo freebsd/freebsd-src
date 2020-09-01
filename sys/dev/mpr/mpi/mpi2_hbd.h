@@ -128,7 +128,6 @@ typedef struct _MPI2_HBD_ACTION_REQUEST
 #define MPI25_HBD_MAX_RATE_12_0                 (0x0B)
 #define MPI26_HBD_MAX_RATE_22_5                 (0x0C)
 
-
 /* Host Based Discovery Action Reply Message */
 typedef struct _MPI2_HBD_ACTION_REPLY
 {
@@ -148,7 +147,4 @@ typedef struct _MPI2_HBD_ACTION_REPLY
 } MPI2_HBD_ACTION_REPLY, MPI2_POINTER PTR_MPI2_HBD_ACTION_REPLY,
   Mpi2HbdActionReply_t, MPI2_POINTER pMpi2HbdActionReply_t;
 
-
 #endif
-
-
