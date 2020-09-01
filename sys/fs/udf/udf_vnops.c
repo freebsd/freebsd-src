@@ -690,7 +690,6 @@ udf_getfid(struct udf_dirstream *ds)
 	 */
 	if (ds->off + UDF_FID_SIZE > ds->size ||
 	    ds->off + le16toh(fid->l_iu) + fid->l_fi + UDF_FID_SIZE > ds->size){
-
 		/* Copy what we have of the fid into a buffer */
 		frag_size = ds->size - ds->off;
 		if (frag_size >= ds->udfmp->bsize) {
@@ -824,7 +823,6 @@ udf_readdir(struct vop_readdir_args *a)
 	    node->udfmp);
 
 	while ((fid = udf_getfid(ds)) != NULL) {
-
 		/* XXX Should we return an error on a bad fid? */
 		if (udf_checktag(&fid->tag, TAGID_FID)) {
 			printf("Invalid FID tag\n");
@@ -1163,7 +1161,6 @@ lookloop:
 	ds = udf_opendir(node, offset, fsize, udfmp);
 
 	while ((fid = udf_getfid(ds)) != NULL) {
-
 		/* XXX Should we return an error on a bad fid? */
 		if (udf_checktag(&fid->tag, TAGID_FID)) {
 			printf("udf_lookup: Invalid tag\n");

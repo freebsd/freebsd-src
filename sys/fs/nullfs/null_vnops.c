@@ -272,7 +272,6 @@ null_bypass(struct vop_generic_args *ap)
 			if (reles & VDESC_VP0_WILLRELE)
 				VREF(*this_vp_p);
 		}
-
 	}
 
 	/*

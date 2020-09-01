@@ -1244,7 +1244,6 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 		goto out;
 	}
 
-
 	/* Detach the directory entry from the directory (dnode). */
 	tmpfs_dir_detach(dvp, de);
 	if (v->a_cnp->cn_flags & DOWHITEOUT)

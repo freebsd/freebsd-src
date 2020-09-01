@@ -65,7 +65,7 @@ extern uint32_t	nfscl_attrcache_load_done_id;
 		    nfscl_accesscache_get_hit_id, (vp), (uid),		\
 		    (mode));						\
 } while (0)
-	
+
 #define	KDTRACE_NFS_ACCESSCACHE_GET_MISS(vp, uid, mode)	do {		\
 	if (dtrace_nfscl_accesscache_get_miss_probe != NULL)		\
 		(dtrace_nfscl_accesscache_get_miss_probe)(		\

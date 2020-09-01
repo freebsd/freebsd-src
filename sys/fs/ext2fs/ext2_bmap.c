@@ -236,7 +236,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	if (runb)
 		*runb = 0;
 
-
 	ap = a;
 	nump = &num;
 	error = ext2_getlbns(vp, bn, ap, nump);

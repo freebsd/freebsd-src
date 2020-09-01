@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include "opt_bootp.h"
 #include "opt_nfsroot.h"
 #include "opt_kern_tls.h"
@@ -179,7 +178,6 @@ SYSCTL_STRING(_vfs_nfs, OID_AUTO, diskless_rootpath, CTLFLAG_RD,
 SYSCTL_OPAQUE(_vfs_nfs, OID_AUTO, diskless_rootaddr, CTLFLAG_RD,
     &nfsv3_diskless.root_saddr, sizeof(nfsv3_diskless.root_saddr),
     "%Ssockaddr_in", "Diskless root nfs address");
-
 
 void		newnfsargs_ntoh(struct nfs_args *);
 static int	nfs_mountdiskless(char *,
@@ -368,7 +366,7 @@ ncl_fsinfo(struct nfsmount *nmp, struct vnode *vp, struct ucred *cred,
 	struct nfsfsinfo fs;
 	struct nfsvattr nfsva;
 	int error, attrflag;
-	
+
 	error = nfsrpc_fsinfo(vp, &fs, cred, td, &nfsva, &attrflag, NULL);
 	if (!error) {
 		if (attrflag)
@@ -1358,7 +1356,6 @@ out:
 	return (error);
 }
 
-
 /*
  * VFS Operations.
  *
@@ -1551,7 +1548,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	else
 		nmp->nm_sockreq.nr_vers = NFS_VER2;
 
-
 	if ((error = newnfs_connect(nmp, &nmp->nm_sockreq, cred, td, 0, false)))
 		goto bad;
 	/* For NFSv4.1, get the clientid now. */
@@ -1602,7 +1598,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		if (error)
 			goto bad;
 		*vpp = NFSTOV(np);
-	
+
 		/*
 		 * Get file attributes and transfer parameters for the
 		 * mountpoint.  This has the side effect of filling in
@@ -1645,7 +1641,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		}
 		if (argp->flags & NFSMNT_NFSV3)
 			ncl_fsinfo(nmp, *vpp, cred, td);
-	
+
 		/* Mark if the mount point supports NFSv4 ACLs. */
 		if ((argp->flags & NFSMNT_NFSV4) != 0 && nfsrv_useacl != 0 &&
 		    ret == 0 &&
@@ -1654,7 +1650,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			mp->mnt_flag |= MNT_NFS4ACLS;
 			MNT_IUNLOCK(mp);
 		}
-	
+
 		/*
 		 * Lose the lock but keep the ref.
 		 */
@@ -2085,4 +2081,3 @@ void nfscl_retopts(struct nfsmount *nmp, char *buffer, size_t buflen)
 	nfscl_printoptval(nmp, nmp->nm_timeo, ",timeout", &buf, &blen);
 	nfscl_printoptval(nmp, nmp->nm_retry, ",retrans", &buf, &blen);
 }
-

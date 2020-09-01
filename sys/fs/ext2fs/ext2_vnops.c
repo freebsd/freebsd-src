@@ -1572,7 +1572,6 @@ ext2_strategy(struct vop_strategy_args *ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ext2_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-
 		if (VTOI(ap->a_vp)->i_flag & IN_E4EXTENTS)
 			error = ext4_bmapext(vp, bp->b_lblkno, &blkno, NULL, NULL);
 		else

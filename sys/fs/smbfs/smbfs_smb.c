@@ -177,7 +177,6 @@ smbfs_query_info_fs(struct smb_share *ssp, struct statfs *sbp,
 	return (0);
 }
 
-
 static int
 smbfs_query_info_alloc(struct smb_share *ssp, struct statfs *sbp,
 	struct smb_cred *scred)
@@ -669,7 +668,6 @@ smbfs_smb_setfattrNT(struct smbnode *np, u_int16_t attr, struct timespec *mtime,
 	return error;
 }
 
-
 int
 smbfs_smb_open(struct smbnode *np, int accmode, struct smb_cred *scred)
 {
@@ -720,7 +718,6 @@ smbfs_smb_open(struct smbnode *np, int accmode, struct smb_cred *scred)
 	np->n_rwstate = grantedmode;
 	return 0;
 }
-
 
 int
 smbfs_smb_close(struct smb_share *ssp, u_int16_t fid, struct timespec *mtime,

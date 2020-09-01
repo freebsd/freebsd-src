@@ -599,7 +599,6 @@ nfs_access(struct vop_access_args *ap)
 	}
 }
 
-
 /*
  * nfs open vnode op
  * Check to see if the type is ok
@@ -1177,7 +1176,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct nfsvattr dnfsva, nfsva;
 	struct vattr vattr;
 	struct timespec nctime;
-	
+
 	*vpp = NULLVP;
 	if ((flags & ISLASTCN) && (mp->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
@@ -2341,7 +2340,7 @@ nfs_readdir(struct vop_readdir_args *ap)
 	ssize_t tresid, left;
 	int error = 0;
 	struct vattr vattr;
-	
+
 	if (ap->a_eofflag != NULL)
 		*ap->a_eofflag = 0;
 	if (vp->v_type != VDIR) 
@@ -2388,7 +2387,7 @@ nfs_readdir(struct vop_readdir_args *ap)
 		if (ap->a_eofflag != NULL)
 			*ap->a_eofflag = 1;
 	}
-	
+
 	/* Add the partial DIRBLKSIZ (left) back in. */
 	uio->uio_resid += left;
 	return (error);
@@ -3148,7 +3147,7 @@ nfs_advlock(struct vop_advlock_args *ap)
 	struct vattr va;
 	int ret, error;
 	u_quad_t size;
-	
+
 	error = NFSVOPLOCK(vp, LK_SHARED);
 	if (error != 0)
 		return (EBADF);
@@ -3277,7 +3276,7 @@ nfs_advlockasync(struct vop_advlockasync_args *ap)
 	struct vnode *vp = ap->a_vp;
 	u_quad_t size;
 	int error;
-	
+
 	if (NFS_ISV4(vp))
 		return (EOPNOTSUPP);
 	error = NFSVOPLOCK(vp, LK_SHARED);
@@ -4292,4 +4291,3 @@ nfs_pathconf(struct vop_pathconf_args *ap)
 	}
 	return (error);
 }
-

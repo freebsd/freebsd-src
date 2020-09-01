@@ -440,7 +440,7 @@ out:
 	vnode_pager_setsize(vp, newsize);
 	return err;
 }
-	
+
 /* Get the current, possibly dirty, size of the file */
 int
 fuse_vnode_size(struct vnode *vp, off_t *filesize, struct ucred *cred,
@@ -485,7 +485,7 @@ fuse_vnode_update(struct vnode *vp, int flags)
 		fvdat->cached_attrs.va_mtime = ts;
 	if (flags & FN_CTIMECHANGE)
 		fvdat->cached_attrs.va_ctime = ts;
-	
+
 	fvdat->flag |= flags;
 }
 
