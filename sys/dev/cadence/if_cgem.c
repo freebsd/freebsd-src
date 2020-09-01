@@ -89,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #define MAX_DESC_RING_SIZE (MAX(CGEM_NUM_RX_DESCS*sizeof(struct cgem_rx_desc),\
 				CGEM_NUM_TX_DESCS*sizeof(struct cgem_tx_desc)))
 
-
 /* Default for sysctl rxbufs.  Must be < CGEM_NUM_RX_DESCS of course. */
 #define DEFAULT_NUM_RX_BUFS	256	/* number of receive bufs to queue. */
 
@@ -511,7 +510,6 @@ cgem_recv(struct cgem_softc *sc)
 	m_tl = &m_hd;
 	while (sc->rxring_queued > 0 &&
 	   (sc->rxring[sc->rxring_tl_ptr].addr & CGEM_RXDESC_OWN) != 0) {
-
 		ctl = sc->rxring[sc->rxring_tl_ptr].ctl;
 
 		/* Grab filled mbuf. */
@@ -611,7 +609,6 @@ cgem_clean_tx(struct cgem_softc *sc)
 	while (sc->txring_queued > 0 &&
 	    ((ctl = sc->txring[sc->txring_tl_ptr].ctl) &
 	    CGEM_TXDESC_USED) != 0) {
-
 		/* Sync cache. */
 		bus_dmamap_sync(sc->mbuf_dma_tag,
 		    sc->txring_m_dmamap[sc->txring_tl_ptr],
@@ -689,7 +686,6 @@ cgem_start_locked(if_t ifp)
 		/* Check that there is room in the descriptor ring. */
 		if (sc->txring_queued >=
 		    CGEM_NUM_TX_DESCS - TX_MAX_DMA_SEGS * 2) {
-
 			/* Try to make room. */
 			cgem_clean_tx(sc);
 
@@ -1134,7 +1130,6 @@ cgem_stop(struct cgem_softc *sc)
 	/* Force next statchg or linkchg to program net config register. */
 	sc->mii_media_active = 0;
 }
-
 
 static int
 cgem_ioctl(if_t ifp, u_long cmd, caddr_t data)
@@ -1625,7 +1620,6 @@ cgem_add_sysctls(device_t dev)
 	    CTLFLAG_RD, &sc->stats.rx_udp_csum_errs, 0,
 	    "Number frames received with UDP checksum errors");
 }
-
 
 static int
 cgem_probe(device_t dev)
