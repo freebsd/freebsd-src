@@ -677,6 +677,8 @@ start_mmu:
 
 	/* Invalidate the TLB */
 	tlbi	vmalle1is
+	dsb	ish
+	isb
 
 	ldr	x2, mair
 	msr	mair_el1, x2
