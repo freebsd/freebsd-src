@@ -1378,7 +1378,6 @@ in6_leavegroup_locked(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
 	return (error);
 }
 
-
 /*
  * Block or unblock an ASM multicast source on an inpcb.
  * This implements the delta-based API described in RFC 3678.
@@ -2508,7 +2507,7 @@ in6p_set_source_filters(struct inpcb *inp, struct sockopt *sopt)
 		int			 i;
 
 		INP_WUNLOCK(inp);
- 
+
 		CTR2(KTR_MLD, "%s: loading %lu source list entries",
 		    __func__, (unsigned long)msfr.msfr_nsrcs);
 		kss = malloc(sizeof(struct sockaddr_storage) * msfr.msfr_nsrcs,

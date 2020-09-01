@@ -64,6 +64,6 @@ struct esptail {
 	u_int8_t	esp_nxt;	/* Next header */
 	/*variable size, 32bit bound*/	/* Authentication data (new IPsec)*/
 };
-	
+
 #define ESP_ALEN	12	/* 96-bit authenticator */
 #endif /*_NETIPSEC_ESP_H_*/

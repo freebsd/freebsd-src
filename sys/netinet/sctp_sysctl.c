@@ -132,7 +132,6 @@ sctp_init_sysctls()
 #endif
 }
 
-
 /* It returns an upper limit. No filtering is done here */
 static unsigned int
 sctp_sysctl_number_of_addresses(struct sctp_inpcb *inp)
@@ -596,7 +595,6 @@ sctp_sysctl_handle_udp_tunneling(SYSCTL_HANDLER_ARGS)
 	}
 	return (error);
 }
-
 
 static int
 sctp_sysctl_handle_auth(SYSCTL_HANDLER_ARGS)

@@ -194,7 +194,6 @@ static struct ng_type ng_vlan_typestruct = {
 };
 NETGRAPH_INIT(vlan, &ng_vlan_typestruct);
 
-
 /*
  * Helper functions.
  */
@@ -213,7 +212,6 @@ m_chk(struct mbuf **mp, int len)
 
 	return (0);
 }
-
 
 /*
  * Netgraph node functions.
@@ -523,7 +521,6 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 	uint16_t vid, eth_vtag;
 	struct mbuf *m;
 	hook_p dst_hook;
-
 
 	NGI_GET_M(item, m);
 

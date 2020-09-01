@@ -149,7 +149,6 @@ static const struct encap_config ipv6_encap_cfg = {
 	.input = pim6_input
 };
 
-
 VNET_DEFINE_STATIC(int, ip6_mrouter_ver) = 0;
 #define	V_ip6_mrouter_ver	VNET(ip6_mrouter_ver)
 
@@ -851,7 +850,6 @@ add_m6fc(struct mf6cctl *mfccp)
 		    IN6_ARE_ADDR_EQUAL(&rt->mf6c_mcastgrp.sin6_addr,
 				       &mfccp->mf6cc_mcastgrp.sin6_addr) &&
 		    (rt->mf6c_stall != NULL)) {
-
 			if (nstl++)
 				log(LOG_ERR,
 				    "add_m6fc: %s o %s g %s p %x dbx %p\n",
@@ -906,12 +904,10 @@ add_m6fc(struct mf6cctl *mfccp)
 		    mfccp->mf6cc_parent);
 
 		for (rt = mf6ctable[hash]; rt; rt = rt->mf6c_next) {
-
 			if (IN6_ARE_ADDR_EQUAL(&rt->mf6c_origin.sin6_addr,
 					       &mfccp->mf6cc_origin.sin6_addr)&&
 			    IN6_ARE_ADDR_EQUAL(&rt->mf6c_mcastgrp.sin6_addr,
 					       &mfccp->mf6cc_mcastgrp.sin6_addr)) {
-
 				rt->mf6c_origin     = mfccp->mf6cc_origin;
 				rt->mf6c_mcastgrp   = mfccp->mf6cc_mcastgrp;
 				rt->mf6c_parent     = mfccp->mf6cc_parent;

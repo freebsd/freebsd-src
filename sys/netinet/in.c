@@ -755,7 +755,6 @@ in_scrubprefixlle(struct in_ifaddr *ia, int all, u_int flags)
 	ifp = ia->ia_ifp;
 
 	if (all) {
-
 		/*
 		 * Remove all L2 entries matching given prefix.
 		 * Convert address to host representation to avoid
@@ -1138,7 +1137,6 @@ in_lltable_match_prefix(const struct sockaddr *saddr,
 		return (0);
 
 	if (lle->la_flags & LLE_IFADDR) {
-
 		/*
 		 * Delete LLE_IFADDR records IFF address & flag matches.
 		 * Note that addr is the interface address within prefix

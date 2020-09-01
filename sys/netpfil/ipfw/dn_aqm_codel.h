@@ -49,7 +49,6 @@
 #ifndef _IP_DN_AQM_CODEL_H
 #define _IP_DN_AQM_CODEL_H
 
-
 // XXX How to choose MTAG?
 #define FIX_POINT_BITS 16 
 
@@ -88,9 +87,9 @@ codel_dodequeue(struct dn_queue *q, aqm_time_t now, uint16_t *ok_to_drop)
 
 	*ok_to_drop = 0;
 	m = codel_extract_head(q, &pkt_ts);
-	
+
 	cst = q->aqm_status;
-	
+
 	if (m == NULL) {
 		/* queue is empty - we can't be above target */
 		cst->first_above_time= 0;
@@ -158,7 +157,6 @@ codel_dequeue(struct dn_queue *q)
 		 * happen now, hence the 'while' loop.
 		 */
 		while (now >= cst->drop_next_time && cst->dropping) {
-
 			/* mark the packet */
 			if (cprms->flags & CODEL_ECN_ENABLED && ecn_mark(m)) {
 				cst->count++;
@@ -188,7 +186,6 @@ codel_dequeue(struct dn_queue *q)
 	 * above 'target' for 'interval' so enter dropping state.
 	 */
 	} else if (ok_to_drop) {
-
 		/* if ECN option is disabled or the packet cannot be marked,
 		 * drop the packet and extract another.
 		 */
@@ -215,7 +212,7 @@ codel_dequeue(struct dn_queue *q)
 		 * we initilaize  isqrt in control_law function when count == 1 */
 		cst->drop_next_time = control_law(cst, cprms, now);
 	}
-	
+
 	return m;
 }
 

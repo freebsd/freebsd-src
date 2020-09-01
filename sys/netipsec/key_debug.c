@@ -163,7 +163,6 @@ kdebug_sadb_exttype(uint16_t type)
 #undef X_NAME
 }
 
-
 /* %%%: about struct sadb_msg */
 void
 kdebug_sadb(struct sadb_msg *base)
@@ -1029,7 +1028,6 @@ ipsec_bindump(caddr_t buf, int len)
 
 	return;
 }
-
 
 void
 ipsec_hexdump(caddr_t buf, int len)

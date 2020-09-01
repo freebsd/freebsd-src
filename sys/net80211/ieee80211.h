@@ -101,7 +101,6 @@ struct ieee80211_frame_addr4 {
 	uint8_t		i_addr4[IEEE80211_ADDR_LEN];
 } __packed;
 
-
 struct ieee80211_qosframe_addr4 {
 	uint8_t		i_fc[2];
 	uint8_t		i_dur[2];
@@ -741,7 +740,6 @@ struct ieee80211_ie_htinfo {
 #define	IEEE80211_HTINFO_BASIC_STBCMCS	0x7f
 #define	IEEE80211_HTINFO_BASIC_STBCMCS_S 0
 #define	IEEE80211_HTINFO_DUALPROTECTED	0x80
-
 
 /*
  * 802.11ac definitions - 802.11ac-2013 .

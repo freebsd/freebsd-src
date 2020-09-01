@@ -715,7 +715,7 @@ typedef struct {
 } __attribute__ ((packed)) ng_hci_periodic_inquiry_cp;
 
 typedef ng_hci_status_rp	ng_hci_periodic_inquiry_rp;
-	
+
 #define NG_HCI_OCF_EXIT_PERIODIC_INQUIRY	0x0004
 /* No command parameter(s) */
 typedef ng_hci_status_rp	ng_hci_exit_periodic_inquiry_rp;
@@ -941,7 +941,7 @@ typedef struct {
 typedef struct {
 	u_int16_t	con_handle; /* connection handle */
 } __attribute__ ((packed)) ng_hci_read_link_policy_settings_cp;
-	
+
 typedef struct {
 	u_int8_t	status;     /* 0x00 - success */
 	u_int16_t	con_handle; /* connection handle */
@@ -1207,7 +1207,7 @@ typedef struct {
 	u_int16_t	con_handle; /* connection handle */
 	u_int16_t	timeout;    /* 0x00 - no flush, timeout * 0.625 msec */
 } __attribute__ ((packed)) ng_hci_read_auto_flush_timo_rp;
-	
+
 #define NG_HCI_OCF_WRITE_AUTO_FLUSH_TIMO	0x0028
 typedef struct {
 	u_int16_t	con_handle; /* connection handle */
@@ -1529,7 +1529,7 @@ typedef ng_hci_status_rp	ng_hci_enable_unit_under_test_rp;
 #define NG_HCI_OCF_LE_SET_EVENT_MASK			0x0001
 typedef struct {
 	u_int8_t	event_mask[NG_HCI_LE_EVENT_MASK_SIZE]; /* event_mask*/
-	
+
 } __attribute__ ((packed)) ng_hci_le_set_event_mask_cp;
 typedef ng_hci_status_rp	ng_hci_le_set_event_mask_rp;
 #define NG_HCI_LE_EVENT_MASK_ALL 0x1f
@@ -1541,7 +1541,6 @@ typedef struct {
 	u_int16_t 	hc_le_data_packet_length;
 	u_int8_t	hc_total_num_le_data_packets; 
 } __attribute__ ((packed)) ng_hci_le_read_buffer_size_rp;
-
 
 #define NG_HCI_OCF_LE_READ_LOCAL_SUPPORTED_FEATURES	0x0003
 /*No command parameter */
@@ -1640,7 +1639,7 @@ typedef struct {
 	u_int8_t status;
 	u_int8_t white_list_size;
 } __attribute__ ((packed)) ng_hci_le_read_white_list_size_rp;
-	
+
 #define NG_HCI_OCF_LE_CLEAR_WHITE_LIST			0x0010
 /* No command parameters. */
 typedef ng_hci_status_rp	ng_hci_le_clear_white_list_rp;	
@@ -1685,7 +1684,7 @@ typedef struct {
 	u_int16_t connection_handle;
 	u_int8_t le_channel_map[5];
 } __attribute__ ((packed)) ng_hci_le_read_channel_map_rp;
-	
+
 #define NG_HCI_OCF_LE_READ_REMOTE_USED_FEATURES		0x0016
 typedef struct {
 	u_int16_t connection_handle;
@@ -1708,7 +1707,7 @@ typedef struct {
 	u_int8_t status;
 	u_int64_t random_number;
 }__attribute__ ((packed)) ng_hci_le_rand_rp;	
-	
+
 #define NG_HCI_OCF_LE_START_ENCRYPTION			0x0019
 typedef struct {
 	u_int16_t connection_handle;
@@ -2044,13 +2043,13 @@ typedef struct {
 	u_int8_t	latency;
 	u_int16_t	supervision_timeout;
 	u_int8_t	master_clock_accuracy;
-	
+
 } __attribute__ ((packed)) ng_hci_le_connection_complete_ep;
 
 #define NG_HCI_LEEV_ADVREP 0x02
 typedef struct {
 	u_int8_t num_reports;
-	
+
 }__attribute__ ((packed)) ng_hci_le_advertising_report_ep;
 #define NG_HCI_SCAN_RESPONSE_DATA_MAX 0x1f
 

@@ -871,7 +871,6 @@ key_do_allocsp(struct secpolicyindex *spidx, u_int dir)
 	return (sp);
 }
 
-
 /*
  * allocating a SP for OUTBOUND or INBOUND packet.
  * Must call key_freesp() later.
@@ -1036,7 +1035,6 @@ key_allocsa_policy(struct secpolicy *sp, const struct secasindex *saidx,
 		    kdebug_secash(sah, "  "));
 		if (key_cmpsaidx(&sah->saidx, saidx, CMP_MODE_REQID))
 			break;
-
 	}
 	if (sah != NULL) {
 		/*
@@ -4066,7 +4064,6 @@ key_dup_keymsg(const struct sadb_key *src, size_t len,
 	} else {
 		ipseclog((LOG_DEBUG, "%s: No more memory.\n",
 		    __func__));
-
 	}
 	return (dst);
 }
@@ -4133,7 +4130,6 @@ key_cmpsaidx(const struct secasindex *saidx0, const struct secasindex *saidx1,
 		    saidx0->dst.sa.sa_len) != 0)
 			return 0;
 	} else {
-
 		/* CMP_MODE_REQID, CMP_REQID, CMP_HEAD */
 		if (flag == CMP_MODE_REQID || flag == CMP_REQID) {
 			/*
@@ -5031,7 +5027,6 @@ key_do_getnewspi(struct sadb_spirange *spirange, struct secasindex *saidx)
 		count--; /* taking one cost. */
 		newspi = min;
 	} else {
-
 		/* init SPI */
 		newspi = 0;
 
@@ -8536,7 +8531,7 @@ key_setlifetime(struct seclifetime *src, uint16_t exttype)
 	p->sadb_lifetime_bytes = src->bytes;
 	p->sadb_lifetime_addtime = src->addtime;
 	p->sadb_lifetime_usetime = src->usetime;
-	
+
 	return m;
 
 }
@@ -8573,4 +8568,3 @@ comp_algorithm_lookup(int alg)
 			return (supported_calgs[i].xform);
 	return (NULL);
 }
-

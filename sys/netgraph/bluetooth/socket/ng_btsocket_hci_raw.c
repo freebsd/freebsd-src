@@ -125,7 +125,7 @@ static struct mtx				ng_btsocket_hci_raw_token_mtx;
 static struct ng_btsocket_hci_raw_sec_filter	*ng_btsocket_hci_raw_sec_filter;
 static struct timeval				ng_btsocket_hci_raw_lasttime;
 static int					ng_btsocket_hci_raw_curpps;
- 
+
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_hci_sockets);
 static SYSCTL_NODE(_net_bluetooth_hci_sockets, OID_AUTO, raw,
@@ -365,7 +365,7 @@ ng_btsocket_hci_raw_node_rcvdata(hook_p hook, item_p item)
  * submits ioctl() message then interrupts ioctl() and re-submits another
  * ioctl() on the same socket *before* first ioctl() complete.
  */
- 
+
 static void
 ng_btsocket_hci_raw_get_token(u_int32_t *token)
 {
@@ -373,9 +373,9 @@ ng_btsocket_hci_raw_get_token(u_int32_t *token)
   
 	if (++ ng_btsocket_hci_raw_token == 0)
 		ng_btsocket_hci_raw_token = 1;
- 
+
 	*token = ng_btsocket_hci_raw_token;
- 
+
 	mtx_unlock(&ng_btsocket_hci_raw_token_mtx);
 } /* ng_btsocket_hci_raw_get_token */
 
@@ -499,7 +499,6 @@ ng_btsocket_hci_raw_data_input(struct mbuf *nam)
 	mtx_lock(&ng_btsocket_hci_raw_sockets_mtx);
 
 	LIST_FOREACH(pcb, &ng_btsocket_hci_raw_sockets, next) {
-
 		mtx_lock(&pcb->pcb_mtx);
 
 		/*
@@ -1504,7 +1503,7 @@ ng_btsocket_hci_raw_ctloutput(struct socket *so, struct sockopt *sopt)
 	}
 
 	mtx_unlock(&pcb->pcb_mtx);
-	
+
 	return (error);
 } /* ng_btsocket_hci_raw_ctloutput */
 
@@ -1650,7 +1649,7 @@ drop:
 	NG_FREE_M(control); /* NG_FREE_M checks for != NULL */
 	NG_FREE_M(nam);
 	NG_FREE_M(m);
-	
+
 	return (error);
 } /* ng_btsocket_hci_raw_send */
 
@@ -1681,4 +1680,3 @@ ng_btsocket_hci_raw_sockaddr(struct socket *so, struct sockaddr **nam)
 
 	return ((*nam == NULL)? ENOMEM : 0);
 } /* ng_btsocket_hci_raw_sockaddr */
-

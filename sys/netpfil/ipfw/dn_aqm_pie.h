@@ -48,7 +48,6 @@
 #define PIE_FIX_POINT_BITS 13
 #define PIE_SCALE (1L<<PIE_FIX_POINT_BITS)
 
-
 /* PIE options */
 enum {
 	PIE_ECN_ENABLED =1,
@@ -119,7 +118,6 @@ drop_early(struct pie_status *pst, uint32_t qlen)
 		&& pst->drop_prob < PIE_MAX_PROB / 5 )
 		||  qlen <= 2 * MEAN_PKTSIZE)
 		return ENQUE;
-
 
 	if (pst->drop_prob == 0)
 		pst->accu_prob = 0;

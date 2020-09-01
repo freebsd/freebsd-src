@@ -108,7 +108,6 @@ void	ifmedia_set(struct ifmedia *ifm, int mword);
 int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 	    struct ifmedia *ifm, u_long cmd);
 
-
 /* Compute baudrate for a given media. */
 uint64_t	ifmedia_baudrate(int);
 

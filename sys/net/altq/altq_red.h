@@ -32,7 +32,6 @@
 
 #include <net/altq/altq_classq.h>
 
-
 /* red flags */
 #define	REDF_ECN4	0x01	/* use packet marking for IPv4 packets */
 #define	REDF_ECN6	0x02	/* use packet marking for IPv6 packets */
@@ -58,9 +57,7 @@ struct redstats {
 	u_int		marked_packets;
 };
 
-
 #ifdef _KERNEL
-
 
 /* weight table structure for idle time calibration */
 struct wtab {
@@ -96,7 +93,6 @@ typedef struct red {
 	struct wtab	*red_wtab;	/* weight table */
 	struct timeval	 red_last;	/* time when the queue becomes idle */
 
-
 	struct {
 		struct pktcntr	xmit_cnt;
 		struct pktcntr	drop_cnt;
@@ -105,7 +101,6 @@ typedef struct red {
 		u_int		marked_packets;
 	} red_stats;
 } red_t;
-
 
 /* red drop types */
 #define	DTYPE_NODROP	0	/* no drop */

@@ -167,7 +167,6 @@ typedef struct pci_vendor_info {
 	uint32_t	pvi_class_mask;
 	const char	*pvi_name;
 } pci_vendor_info_t;
-
 #define PVID(vendor, devid, name) {vendor, devid, 0, 0, 0, 0, name}
 #define PVID_OEM(vendor, devid, svid, sdevid, revid, name) {vendor, devid, svid, sdevid, revid, 0, name}
 #define PVID_END {0, 0, 0, 0, 0, 0, NULL}
@@ -379,7 +378,6 @@ typedef enum {
  * emulating ethernet
  */
 #define IFLIB_PSEUDO_ETHER	0x80000
-
 
 /*
  * These enum values are used in iflib_needs_restart to indicate to iflib

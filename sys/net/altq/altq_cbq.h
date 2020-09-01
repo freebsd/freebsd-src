@@ -111,7 +111,6 @@ typedef struct _cbq_class_stats_ {
  * header.
  */
 
-
 #ifdef _KERNEL
 /*
  * Define macros only good for kernel drivers and modules.
@@ -121,7 +120,6 @@ typedef struct _cbq_class_stats_ {
 #define	CBQ_LS_TIMEOUT		(20 * hz / 1000)
 
 #define	CBQ_MAX_CLASSES	256
-
 
 /*
  * Define State structures.

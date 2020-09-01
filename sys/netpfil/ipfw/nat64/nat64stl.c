@@ -263,5 +263,3 @@ ipfw_nat64stl(struct ip_fw_chain *chain, struct ip_fw_args *args,
 	args->m = NULL;
 	return (IP_FW_NAT64);
 }
-
-

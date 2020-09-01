@@ -144,7 +144,6 @@
  *
  */
 
-
 /*
  * struct nmreq overlays a struct ifreq (just the name)
  */
@@ -215,7 +214,6 @@ struct nmreq {
 /* and also two setsockopt for sysctl emulation */
 #define NETMAP_SETSOCKOPT _IO('i', 140)
 #define NETMAP_GETSOCKOPT _IO('i', 141)
-
 
 /* These linknames are for the Netmap Core Driver */
 #define NETMAP_NT_DEVICE_NAME			L"\\Device\\NETMAP"

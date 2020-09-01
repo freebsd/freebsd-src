@@ -137,7 +137,7 @@ do { \
 } while(0)
 
 static MALLOC_DEFINE(M_BT3C, "bt3c", "bt3c data structures");
-	
+
 /****************************************************************************
  ****************************************************************************
  **                           Netgraph specific
@@ -834,7 +834,7 @@ bt3c_receive(bt3c_softc_p sc)
 		bt3c_read_data(sc, c);
 		if (sc->m->m_pkthdr.len >= MCLBYTES) {
 			NG_BT3C_ERR(sc->dev, "Oversized frame\n");
-	
+
 			NG_FREE_M(sc->m);
 			sc->state = NG_BT3C_W4_PKT_IND;
 			sc->want = 1;
@@ -1181,7 +1181,6 @@ static device_method_t	bt3c_pccard_methods[] = {
 	DEVMETHOD(device_probe,		bt3c_pccard_probe),
 	DEVMETHOD(device_attach,	bt3c_pccard_attach),
 	DEVMETHOD(device_detach,	bt3c_pccard_detach),
-
 	{ 0, 0 }
 };
 
@@ -1193,16 +1192,15 @@ static driver_t		bt3c_pccard_driver = {
 
 static devclass_t	bt3c_devclass;
 
- 
 /*
  * Load/Unload the driver module
  */
- 
+
 static int
 bt3c_modevent(module_t mod, int event, void *data)
 {
 	int	error;
- 
+
 	switch (event) {
 	case MOD_LOAD:
 		error = ng_newtype(&typestruct);

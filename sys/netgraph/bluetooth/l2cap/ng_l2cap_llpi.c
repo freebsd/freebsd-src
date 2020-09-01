@@ -127,7 +127,7 @@ ng_l2cap_lp_con_req(ng_l2cap_p l2cap, bdaddr_p bdaddr, int type)
 		 * the caller.
 		 */
 	}
-	
+
 	return (error);
 } /* ng_l2cap_lp_con_req */
 
@@ -403,7 +403,7 @@ ng_l2cap_lp_qos_req(ng_l2cap_p l2cap, u_int16_t con_handle,
 	ep->delay_variation = flow->delay_variation;
 
 	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, 0);
-	
+
 	return (error);
 } /* ng_l2cap_lp_con_req */
 
@@ -524,13 +524,13 @@ ng_l2cap_lp_enc_change(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	}
 
 	con->encryption = ep->status;
-	
+
 	LIST_FOREACH(ch, &l2cap->chan_list, next){
 		if((ch->con->con_handle == ep->con_handle) &&
 		   (ch->con->linktype == ep->link_type))
 			ng_l2cap_l2ca_encryption_change(ch, ep->status);
 	}
-	
+
 out:
 	return (error);
 } /* ng_l2cap_enc_change */
@@ -967,4 +967,3 @@ ng_l2cap_process_discon_timeout(node_p node, hook_p hook, void *arg1, int con_ha
 
 	NG_SEND_MSG_HOOK(error, l2cap->node, msg, l2cap->hci, 0);
 } /* ng_l2cap_process_discon_timeout */
-

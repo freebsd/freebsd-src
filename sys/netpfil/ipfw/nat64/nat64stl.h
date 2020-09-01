@@ -57,4 +57,3 @@ int ipfw_nat64stl(struct ip_fw_chain *chain, struct ip_fw_args *args,
     ipfw_insn *cmd, int *done);
 
 #endif
-

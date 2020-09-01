@@ -849,7 +849,6 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	struct nhop_object *nh;
 
 	fibnum = so->so_fibnum;
-
 #define senderr(e) { error = e; goto flush;}
 	if (m == NULL || ((m->m_len < sizeof(long)) &&
 		       (m = m_pullup(m, sizeof(long))) == NULL))
@@ -1053,7 +1052,6 @@ send_rtm_reply(struct socket *so, struct rt_msghdr *rtm, struct mbuf *m,
 	}
 }
 
-
 static void
 rt_getmetrics(const struct rtentry *rt, const struct nhop_object *nh,
     struct rt_metrics *out)
@@ -1151,7 +1149,6 @@ rtsock_msg_mbuf(int type, struct rt_addrinfo *rtinfo)
 	int len, dlen;
 
 	switch (type) {
-
 	case RTM_DELADDR:
 	case RTM_NEWADDR:
 		len = sizeof(struct ifa_msghdr);
@@ -1238,7 +1235,6 @@ rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo, struct walkarg *w, int *
 #endif
 
 	switch (type) {
-
 	case RTM_DELADDR:
 	case RTM_NEWADDR:
 		if (w != NULL && w->w_op == NET_RT_IFLISTL) {
@@ -2040,7 +2036,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	error = sysctl_wire_old_buffer(req, 0);
 	if (error)
 		return (error);
-	
+
 	/*
 	 * Allocate reply buffer in advance.
 	 * All rtsock messages has maximum length of u_short.
@@ -2147,4 +2143,3 @@ static struct domain routedomain = {
 };
 
 VNET_DOMAIN_SET(route);
-

@@ -64,7 +64,7 @@ enum {
 	UBT_IF_0_BULK_DT_RD,
 	UBT_IF_0_INTR_DT_RD,
 	UBT_IF_0_CTRL_DT_WR,
-	
+
 	/* Interface #1 transfers */
 	UBT_IF_1_ISOC_DT_RD1,
 	UBT_IF_1_ISOC_DT_RD2,
@@ -165,4 +165,3 @@ extern	devclass_t	ubt_devclass;
 extern	driver_t	ubt_driver;
 
 #endif /* ndef _NG_UBT_VAR_H_ */
-

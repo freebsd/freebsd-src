@@ -1445,14 +1445,12 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 #endif /* INET6 */
 	}
 
-
 	/*
 	 * All normalizations below are only begun if we see the start of
 	 * the connections.  They must all set an enabled bit in pfss_flags
 	 */
 	if ((th->th_flags & TH_SYN) == 0)
 		return (0);
-
 
 	if (th->th_off > (sizeof(struct tcphdr) >> 2) && src->scrub &&
 	    pf_pull_hdr(m, off, hdr, th->th_off << 2, NULL, NULL, pd->af)) {
@@ -1630,7 +1628,6 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		}
 	}
 
-
 	/*
 	 * Must invalidate PAWS checks on connections idle for too long.
 	 * The fastest allowed timestamp clock is 1ms.  That turns out to
@@ -1730,7 +1727,6 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		 */
 		struct timeval delta_ts;
 		int ts_fudge;
-
 
 		/*
 		 * PFTM_TS_DIFF is how many seconds of leeway to allow
@@ -1838,7 +1834,6 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		}
 	}
 
-
 	/*
 	 * We will note if a host sends his data packets with or without
 	 * timestamps.  And require all data packets to contain a timestamp
@@ -1865,7 +1860,6 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 			}
 		}
 	}
-
 
 	/*
 	 * Update PAWS values

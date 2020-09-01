@@ -577,7 +577,6 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 	 * for the link level header.
 	 */
 	switch (linktype) {
-
 	case DLT_SLIP:
 		sockp->sa_family = AF_INET;
 		hlen = 0;
@@ -1428,7 +1427,6 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 
 	CURVNET_SET(TD_TO_VNET(td));
 	switch (cmd) {
-
 	default:
 		error = EINVAL;
 		break;

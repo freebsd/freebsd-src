@@ -747,7 +747,6 @@ ieee80211_crypto_demic(struct ieee80211vap *vap, struct ieee80211_key *k,
 	return (cip->ic_miclen > 0 ? cip->ic_demic(k, m, force) : 1);
 }
 
-
 static void
 load_ucastkey(void *arg, struct ieee80211_node *ni)
 {

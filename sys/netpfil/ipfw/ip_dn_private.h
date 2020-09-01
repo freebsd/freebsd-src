@@ -304,7 +304,6 @@ struct dn_schk {
 	struct dn_ht	*siht;
 };
 
-
 /*
  * Scheduler instance.
  * Contains variables and all queues relative to a this instance.
@@ -353,7 +352,6 @@ struct dn_sch_inst {
  *
  * The same schema is used for sceduler instances
  */
-
 
 /* kernel-side flags. Linux has DN_DELETE in fcntl.h
  */

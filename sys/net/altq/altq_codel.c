@@ -246,7 +246,6 @@ codel_dequeue(struct ifaltq *ifq, int op)
 	if (op == ALTDQ_POLL)
 		return (qhead(cif->cl_q));
 
-
 	m = codel_getq(&cif->codel, cif->cl_q);
 	if (m != NULL) {
 		IFQ_DEC_LEN(ifq);

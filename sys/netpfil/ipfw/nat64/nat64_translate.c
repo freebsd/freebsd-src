@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include "ip_fw_nat64.h"
 #include "nat64_translate.h"
 
-
 typedef int (*nat64_output_t)(struct ifnet *, struct mbuf *,
     struct sockaddr *, struct nat64_counters *, void *);
 typedef int (*nat64_output_one_t)(struct mbuf *, struct nat64_counters *,
@@ -1725,4 +1724,3 @@ nat64_do_handle_ip6(struct mbuf *m, uint32_t aaddr, uint16_t aport,
 		NAT64STAT_INC(&cfg->stats, opcnt64);
 	return (NAT64RETURN);
 }
-

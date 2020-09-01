@@ -53,4 +53,3 @@
 #define NG_UI_HOOK_UPSTREAM	"upstream"
 
 #endif /* _NETGRAPH_NG_UI_H_ */
-

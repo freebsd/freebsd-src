@@ -166,7 +166,7 @@ static int
 ng_split_disconnect(hook_p hook)
 {
 	hook_p		*localhook = NG_HOOK_PRIVATE(hook);
-	
+
 	KASSERT(localhook != NULL, ("%s: null info", __func__));
 	*localhook = NULL;
 	if ((NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0)

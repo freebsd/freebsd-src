@@ -420,7 +420,6 @@ drbr_advance(struct ifnet *ifp, struct buf_ring *br)
 	return (buf_ring_advance_sc(br));
 }
 
-
 static __inline struct mbuf *
 drbr_dequeue_cond(struct ifnet *ifp, struct buf_ring *br,
     int (*func) (struct mbuf *, void *), void *arg) 

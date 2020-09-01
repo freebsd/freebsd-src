@@ -142,7 +142,6 @@ static struct ng_type ng_tcpmss_typestruct = {
 };
 
 NETGRAPH_INIT(tcpmss, &ng_tcpmss_typestruct);
-
 #define	ERROUT(x)	{ error = (x); goto done; }
 
 /*
@@ -329,7 +328,7 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 	/* Check SYN packet and has options. */
 	if (!(tcp->th_flags & TH_SYN) || tcphlen == sizeof(struct tcphdr))
 		goto send;
-	
+
 	/* Update SYN stats. */
 	priv->stats.SYNPkts++;
 

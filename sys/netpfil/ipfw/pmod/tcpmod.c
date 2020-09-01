@@ -243,4 +243,3 @@ tcpmod_uninit(struct ip_fw_chain *ch, int last)
 	ipfw_del_eaction(ch, V_tcpmod_setmss_eid);
 	V_tcpmod_setmss_eid = 0;
 }
-

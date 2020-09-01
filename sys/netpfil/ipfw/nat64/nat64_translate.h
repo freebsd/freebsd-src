@@ -154,4 +154,3 @@ void nat64_set_output_method(int);
 int nat64_get_output_method(void);
 
 #endif
-

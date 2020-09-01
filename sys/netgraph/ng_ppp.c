@@ -1446,7 +1446,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 		mtx_unlock(&priv->rmtx);
 		return (ng_ppp_bypass(node, item, proto, linkNum));
 	}
-	
+
 	/* Other packets are denied on a disabled link. */
 	if (!link->conf.enableLink)
 		ERROUT(ENXIO);
@@ -1650,7 +1650,7 @@ ng_ppp_bump_mseq(node_p node, int32_t new_mseq)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	int i;
-	
+
 	if (MP_RECV_SEQ_DIFF(priv, priv->mseq, new_mseq) < 0) {
 		priv->mseq = new_mseq;
 		for (i = 0; i < priv->numActiveLinks; i++) {
@@ -1863,7 +1863,7 @@ ng_ppp_frag_process(node_p node, item_p oitem)
 		}
 	  /* Delete dead fragments and try again */
 	} while (ng_ppp_frag_trim(node) || ng_ppp_frag_drop(node));
-	
+
 	/* If we haven't reused original item - free it. */
 	if (oitem) NG_FREE_ITEM(oitem);
 
@@ -1897,7 +1897,6 @@ ng_ppp_frag_checkstale(node_p node)
 
 	now.tv_sec = 0;			/* uninitialized state */
 	while (1) {
-
 		/* If queue is empty, we're done */
 		if (TAILQ_EMPTY(&priv->frags))
 			break;
@@ -2004,7 +2003,7 @@ ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto)
 		NG_FREE_ITEM(item);
 		return (ENETDOWN);
 	}
-	
+
 	/* Save length for later stats. */
 	plen = NGI_M(item)->m_pkthdr.len;
 
@@ -2077,7 +2076,7 @@ deliver:
 		frags += (distrib[activeLinkNum] + link->conf.mru - hdr_len - 1) /
 		    (link->conf.mru - hdr_len);
 	}
-	
+
 	/* Get out initial sequence number */
 	seq = priv->xseq;
 

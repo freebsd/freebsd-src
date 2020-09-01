@@ -86,7 +86,6 @@ struct vdump_args {
 	int error;
 };
 
-
 static uint32_t
 hash_table_value(struct namedobj_instance *ni, const void *key, uint32_t kopt)
 {
@@ -372,7 +371,6 @@ alloc_table_vidx(struct ip_fw_chain *ch, struct tableop_state *ts,
 
 	error = ipfw_objhash_alloc_idx(vi, &vidx);
 	if (error != 0) {
-
 		/*
 		 * We need to resize array. This involves
 		 * lock/unlock, so we need to check "modified"
@@ -385,7 +383,6 @@ alloc_table_vidx(struct ip_fw_chain *ch, struct tableop_state *ts,
 
 	vlimit = ts->ta->vlimit;
 	if (vlimit != 0 && vidx >= vlimit && !(flags & IPFW_CTF_ATOMIC)) {
-
 		/*
 		 * Algorithm is not able to store given index.
 		 * We have to rollback state, start using
@@ -445,7 +442,6 @@ ipfw_garbage_table_values(struct ip_fw_chain *ch, struct table_config *tc,
 		ptei = &tei[i];
 
 		if (ptei->value == 0) {
-
 			/*
 			 * We may be deleting non-existing record.
 			 * Skip.
@@ -550,7 +546,6 @@ ipfw_link_table_values(struct ip_fw_chain *ch, struct tableop_state *ts,
 	tc_unref(tc);
 	del_toperation_state(ch, ts);
 	if (ts->modified != 0) {
-
 		/*
 		 * In general, we should free all state/indexes here
 		 * and return. However, we keep allocated state instead
@@ -804,4 +799,3 @@ ipfw_table_value_destroy(struct ip_fw_chain *ch, int last)
 	ipfw_objhash_foreach(CHAIN_TO_VI(ch), destroy_value, ch);
 	ipfw_objhash_destroy(CHAIN_TO_VI(ch));
 }
-

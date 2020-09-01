@@ -95,8 +95,6 @@ typedef struct sctp_authinformation {
 	uint16_t recv_keyid;	/* last recv keyid (cached) */
 } sctp_authinfo_t;
 
-
-
 /*
  * Macros
  */
@@ -153,7 +151,6 @@ extern void sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t keyid);
 extern void
 sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t keyid,
     int so_locked);
-
 
 /* hmac list handling */
 extern sctp_hmaclist_t *sctp_alloc_hmaclist(uint16_t num_hmacs);

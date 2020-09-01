@@ -500,7 +500,6 @@ qfq_slot_rotate(struct qfq_sched *q, struct qfq_group *grp, uint64_t roundedS)
 	grp->front = (grp->front - i) % QFQ_MAX_SLOTS;
 }
 
-
 static inline void
 qfq_update_eligible(struct qfq_sched *q, uint64_t old_V)
 {
@@ -709,7 +708,6 @@ skip_update:
 
 	return 0;
 }
-
 
 #if 0
 static inline void

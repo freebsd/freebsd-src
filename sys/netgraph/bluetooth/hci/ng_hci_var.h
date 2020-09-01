@@ -219,4 +219,3 @@ typedef struct ng_hci_neighbor {
 typedef ng_hci_neighbor_t *		ng_hci_neighbor_p;
        
 #endif /* ndef _NETGRAPH_HCI_VAR_H_ */
-

@@ -380,12 +380,12 @@ int ng_l2cap_l2ca_encryption_change(ng_l2cap_chan_p ch, uint16_t result)
 	}
 
 	return (error);
-	
+
 }
 /*
  * Send L2CAP_ConnectRsp response to the upper layer
  */
- 
+
 int
 ng_l2cap_l2ca_con_rsp_rsp(ng_l2cap_chan_p ch, u_int32_t token, u_int16_t result)
 {
@@ -889,7 +889,7 @@ ng_l2cap_l2ca_write_req(ng_l2cap_p l2cap, struct mbuf *m)
 		ch = ng_l2cap_chan_by_scid(l2cap, l2ca_hdr->lcid,
 					   l2ca_hdr->idtype);
 	}
-	
+
 	if (ch == NULL) {
 		NG_L2CAP_ERR(
 "%s: %s - invalid L2CA Data packet. Channel does not exist, cid=%d\n",
@@ -995,7 +995,7 @@ ng_l2cap_l2ca_receive(ng_l2cap_con_p con)
 	int idtype;
 	uint16_t *idp;
 	int silent = 0;
-	
+
 	NG_L2CAP_M_PULLUP(con->rx_pkt, sizeof(*hdr));
 	if (con->rx_pkt == NULL)
 		return (ENOBUFS);
@@ -1232,7 +1232,6 @@ ng_l2cap_l2ca_discon_req(ng_l2cap_p l2cap, struct ng_mesg *msg)
 	}
 
 	ip = (ng_l2cap_l2ca_discon_ip *)(msg->data);
-
 
 	if(ip->idtype == NG_L2CAP_L2CA_IDTYPE_ATT){
 		/* Don't send Disconnect request on L2CAP Layer*/
@@ -1719,7 +1718,7 @@ out:
 
 	return (error);
 } /* ng_l2cap_l2ca_get_info_rsp */
-	
+
 /*
  * Process L2CA_EnableCLT message from the upper layer protocol
  * XXX convert to NGN_L2CAP_NODE_SET_FLAGS?
@@ -1786,7 +1785,7 @@ ng_l2cap_l2ca_enable_clt(ng_l2cap_p l2cap, struct ng_mesg *msg)
 		else
 			l2cap->flags |= NG_L2CAP_CLT_TCP_DISABLED;
 		break;
-	
+
 	default:
 		NG_L2CAP_ERR(
 "%s: %s - unsupported PSM=%d\n", __func__, NG_NODE_NAME(l2cap->node), ip->psm);
@@ -1820,4 +1819,3 @@ ng_l2cap_l2ca_enable_clt(ng_l2cap_p l2cap, struct ng_mesg *msg)
 
 	return (error);
 } /* ng_l2cap_l2ca_enable_clt */
-

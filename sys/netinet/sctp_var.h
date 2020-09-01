@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 extern struct pr_usrreqs sctp_usrreqs;
 
-
 #define sctp_feature_on(inp, feature)  (inp->sctp_features |= feature)
 #define sctp_feature_off(inp, feature) (inp->sctp_features &= ~feature)
 #define sctp_is_feature_on(inp, feature) ((inp->sctp_features & feature) == feature)
@@ -182,7 +181,6 @@ extern struct pr_usrreqs sctp_usrreqs;
 	} \
 }
 
-
 #define sctp_free_remote_addr(__net) { \
 	if ((__net)) {  \
 		if (SCTP_DECREMENT_AND_CHECK_REFCOUNT(&(__net)->ref_count)) { \
@@ -222,7 +220,6 @@ extern struct pr_usrreqs sctp_usrreqs;
 	    SCTP_BUF_TYPE(m) != MT_OOBDATA) \
 		atomic_add_int(&(sb)->sb_ctl,SCTP_BUF_LEN((m))); \
 }
-
 
 #define sctp_ucount_incr(val) { \
 	val++; \
@@ -322,7 +319,6 @@ struct sctp_nets;
 struct sctp_inpcb;
 struct sctp_tcb;
 struct sctphdr;
-
 
 void sctp_close(struct socket *so);
 int sctp_disconnect(struct socket *so);

@@ -1303,7 +1303,6 @@ ipsec_updatereplay(uint32_t seq, struct secasvar *sav)
 
 ok:
 	if (replay->count == ~0) {
-
 		/* Set overflow flag. */
 		replay->overflow++;
 
@@ -1391,7 +1390,6 @@ def_policy_init(const void *unused __unused)
 	} else
 		printf("%s: failed to initialize default policy\n", __func__);
 }
-
 
 static void
 def_policy_uninit(const void *unused __unused)

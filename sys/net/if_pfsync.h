@@ -47,7 +47,6 @@
  *	$FreeBSD$
  */
 
-
 #ifndef _NET_IF_PFSYNC_H_
 #define	_NET_IF_PFSYNC_H_
 

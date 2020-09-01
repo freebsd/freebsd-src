@@ -84,4 +84,3 @@ enum {
 };
 
 #endif /* _NETGRAPH_NG_DEFLATE_H_ */
-

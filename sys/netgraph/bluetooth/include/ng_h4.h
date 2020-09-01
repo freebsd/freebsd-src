@@ -112,4 +112,3 @@ typedef struct {
 #define NGM_H4_NODE_RESET_STAT	8
 
 #endif /* _NETGRAPH_H4_H_ */
-

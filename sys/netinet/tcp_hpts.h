@@ -51,7 +51,6 @@ TAILQ_HEAD(hptsh, inpcb);
 #define HPTS_MSEC_IN_SEC 1000
 #define HPTS_USEC_IN_MSEC 1000
 
-
 struct hpts_diag {
 	uint32_t p_hpts_active; 	/* bbr->flex7 x */
 	uint32_t p_nxt_slot;		/* bbr->flex1 x */

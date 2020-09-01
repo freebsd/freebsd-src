@@ -436,7 +436,6 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	vid = 0xfff;
 	pcp = 0;
 	if (evt != LLENTRY_RESOLVED) {
-
 		/*
 		 * LLENTRY_TIMEDOUT, LLENTRY_DELETED, LLENTRY_EXPIRED all mean
 		 * this entry is going to be deleted.
@@ -444,7 +443,6 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 
 		lladdr = NULL;
 	} else {
-
 		KASSERT(lle->la_flags & LLE_VALID,
 		    ("%s: %p resolved but not valid?", __func__, lle));
 
@@ -513,7 +511,6 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 		    ("%s: tp %p not offloaded.", __func__, tp));
 
 		if (err == EAGAIN) {
-
 			/*
 			 * Temporary failure during offload, take this PCB back.
 			 * Detach from the TOE driver and do the rest of what
@@ -527,7 +524,6 @@ toe_connect_failed(struct toedev *tod, struct inpcb *inp, int err)
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 			(void) tp->t_fb->tfb_tcp_output(tp);
 		} else {
-
 			tp = tcp_drop(tp, err);
 			if (tp == NULL)
 				INP_WLOCK(inp);	/* re-acquire */

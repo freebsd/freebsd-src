@@ -65,4 +65,3 @@ void nptv6_uninit(struct ip_fw_chain *ch, int last);
 #endif /* _KERNEL */
 
 #endif /* _IP_FW_NPTV6_H_ */
-

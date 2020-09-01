@@ -287,7 +287,6 @@ ng_iface_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	ng_iface_print_ioctl(ifp, command, data);
 #endif
 	switch (command) {
-
 	/* These two are mostly handled at a higher layer */
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
@@ -625,7 +624,6 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_IFACE_POINT2POINT:
 		case NGM_IFACE_BROADCAST:
 		    {
-
 			/* Deny request if interface is UP */
 			if ((ifp->if_flags & IFF_UP) != 0)
 				return (EBUSY);

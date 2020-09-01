@@ -1024,7 +1024,6 @@ mld_v2_process_group_query(struct in6_multi *inm, struct mld_ifsoftc *mli,
 	    m0->m_pkthdr.len, off + sizeof(struct mldv2_query) +
 	    nsrc * sizeof(struct in6_addr), m0));
 
-
 	/*
 	 * Deal with group-specific queries upfront.
 	 * If any group query is already pending, purge any recorded
@@ -1334,7 +1333,7 @@ mld_fasttimo(void)
 	VNET_ITERATOR_DECL(vnet_iter);
 
 	SLIST_INIT(&inmh);
-	
+
 	VNET_LIST_RLOCK_NOSLEEP();
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
@@ -1808,7 +1807,7 @@ mld_v1_transmit_report(struct in6_multi *in6m, const int type)
 	NET_EPOCH_ASSERT();
 	IN6_MULTI_LIST_LOCK_ASSERT();
 	MLD_LOCK_ASSERT();
-	
+
 	ifp = in6m->in6m_ifp;
 	/* in process of being freed */
 	if (ifp == NULL)

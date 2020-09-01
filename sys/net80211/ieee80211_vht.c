@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/systm.h> 
 #include <sys/endian.h>
- 
+
 #include <sys/socket.h>
 
 #include <net/if.h>

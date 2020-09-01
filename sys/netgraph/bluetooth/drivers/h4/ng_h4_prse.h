@@ -123,4 +123,3 @@ static const struct ng_cmdlist	ng_h4_cmdlist[] = {
 };
 
 #endif /* ndef _NETGRAPH_H4_PRSE_H_ */
-

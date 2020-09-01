@@ -157,7 +157,6 @@ fairq_add_altq(struct ifnet *ifp, struct pf_altq *a)
 	if (!ALTQ_IS_READY(&ifp->if_snd))
 		return (ENODEV);
 
-
 	pif = malloc(sizeof(struct fairq_if),
 			M_DEVBUF, M_WAITOK | M_ZERO);
 	pif->pif_bandwidth = a->ifbandwidth;

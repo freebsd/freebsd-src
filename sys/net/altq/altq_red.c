@@ -162,12 +162,10 @@
  * to switch to the random-drop policy, define "RED_RANDOM_DROP".
  */
 
-
 /* default red parameter values */
 static int default_th_min = TH_MIN;
 static int default_th_max = TH_MAX;
 static int default_inv_pmax = INV_P_MAX;
-
 
 /*
  * red support routines
@@ -628,6 +626,5 @@ pow_w(struct wtab *w, int n)
 	}
 	return (val);
 }
-
 
 #endif /* ALTQ_RED */

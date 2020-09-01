@@ -106,4 +106,3 @@ typedef struct bt3c_softc	bt3c_softc_t;
 typedef struct bt3c_softc *	bt3c_softc_p;
 
 #endif /* ndef _NG_BT3C_VAR_H_ */
-

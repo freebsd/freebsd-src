@@ -107,4 +107,3 @@ struct mbuf *   ng_l2cap_prepend      (struct mbuf *, int);
 ng_l2cap_flow_p ng_l2cap_default_flow (void);
 
 #endif /* ndef _NETGRAPH_L2CAP_MISC_H_ */
-

@@ -186,7 +186,6 @@ get_table_value(struct ip_fw_chain *ch, struct table_config *tc, uint32_t kidx)
 	return (&pval[kidx]);
 }
 
-
 /*
  * Checks if we're able to insert/update entry @tei into table
  * w.r.t @tc limits.
@@ -328,7 +327,7 @@ find_ref_table(struct ip_fw_chain *ch, struct tid_info *ti,
 	IPFW_UH_WUNLOCK(ch);
 	error = create_table_compat(ch, ti, &kidx);
 	IPFW_UH_WLOCK(ch);
-	
+
 	if (error != 0)
 		return (error);
 
@@ -368,7 +367,6 @@ rollback_added_entries(struct ip_fw_chain *ch, struct table_config *tc,
 	for (i = 0; i < added; i++, v += ta_buf_sz, vv += ta_buf_sz) {
 		ptei = &tei[i];
 		if ((ptei->flags & TEI_FLAGS_UPDATED) != 0) {
-
 			/*
 			 * We have old value stored by previous
 			 * call in @ptei->value. Do add once again
@@ -411,7 +409,6 @@ prepare_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
 		memset(*ta_buf, 0, TA_BUF_SZ);
 		ta_buf_m = *ta_buf;
 	} else {
-
 		/*
 		 * Multiple adds/deletes, allocate larger buffer
 		 *
@@ -481,7 +478,6 @@ flush_batch_buffer(struct ip_fw_chain *ch, struct table_algo *ta,
 	if (ta_buf_m != ta_buf)
 		free(ta_buf_m, M_TEMP);
 }
-
 
 static void
 rollback_add_entry(void *object, struct op_state *_state)
@@ -707,7 +703,7 @@ cleanup:
 	IPFW_UH_WUNLOCK(ch);
 
 	flush_batch_buffer(ch, ta, tei, count, rollback, ta_buf_m, ta_buf);
-	
+
 	return (error);
 }
 
@@ -863,7 +859,6 @@ check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
 			break;
 
 		if (ts != NULL && ts->modified != 0) {
-
 			/*
 			 * Swap operation has happened
 			 * so we're currently operating on other
@@ -885,7 +880,7 @@ check_table_space(struct ip_fw_chain *ch, struct tableop_state *ts,
 			ta->flush_mod(ta_buf);
 			break;
 		}
-	
+
 		error = ta->fill_mod(tc->astate, ti, ta_buf, &pflags);
 		if (error == 0) {
 			/* Do actual modification */
@@ -931,7 +926,7 @@ manage_table_ent_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	xent = (ipfw_table_xentry *)(op3 + 1);
 	if (xent->len < hdrlen || xent->len + read > sd->valsize)
 		return (EINVAL);
-	
+
 	memset(&tei, 0, sizeof(tei));
 	tei.paddr = &xent->k;
 	tei.masklen = xent->masklen;
@@ -1570,7 +1565,6 @@ ipfw_resize_tables(struct ip_fw_chain *ch, unsigned int ntables)
 
 	/* Temporary restrict decreasing max_tables */
 	if (ntables < V_fw_tables_max) {
-
 		/*
 		 * FIXME: Check if we really can shrink
 		 */
@@ -1906,7 +1900,6 @@ create_table_internal(struct ip_fw_chain *ch, struct tid_info *ti,
 	/* Check if table has been already created */
 	tc_new = find_table(ni, ti);
 	if (tc_new != NULL) {
-
 		/*
 		 * Compat: do not fail if we're
 		 * requesting to create existing table
@@ -2074,7 +2067,7 @@ export_table_info(struct ip_fw_chain *ch, struct table_config *tc,
 {
 	struct table_info *ti;
 	struct table_algo *ta;
-	
+
 	i->type = tc->no.subtype;
 	i->tflags = tc->tflags;
 	i->vmask = tc->vmask;
@@ -2197,7 +2190,6 @@ dump_table_v1(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	export_table_info(ch, tc, i);
 
 	if (sd->valsize < i->size) {
-
 		/*
 		 * Submitted buffer size is not enough.
 		 * WE've already filled in @i structure with
@@ -2250,7 +2242,7 @@ dump_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 
 	memset(&ti, 0, sizeof(ti));
 	ti.uidx = xtbl->tbl;
-	
+
 	IPFW_UH_RLOCK(ch);
 	if ((tc = find_table(CHAIN_TO_NI(ch), &ti)) == NULL) {
 		IPFW_UH_RUNLOCK(ch);
@@ -2265,7 +2257,6 @@ dump_table_v0(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 	xtbl->tbl = ti.uidx;
 
 	if (sd->valsize < sz) {
-
 		/*
 		 * Submitted buffer size is not enough.
 		 * WE've already filled in @i structure with
@@ -2663,7 +2654,7 @@ ipfw_add_table_algo(struct ip_fw_chain *ch, struct table_algo *ta, size_t size,
 		tcfg->def_algo[ta_new->type] = ta_new;
 
 	*idx = ta_new->idx;
-	
+
 	return (0);
 }
 
@@ -3072,7 +3063,6 @@ ipfw_switch_tables_namespace(struct ip_fw_chain *ch, unsigned int sets)
 				IPFW_UH_WUNLOCK(ch);
 				return (EBUSY);
 			}
-
 		}
 	}
 	V_fw_tables_sets = sets;
@@ -3202,7 +3192,7 @@ alloc_table_config(struct ip_fw_chain *ch, struct tid_info *ti,
 		free(tc, M_IPFW);
 		return (NULL);
 	}
-	
+
 	return (tc);
 }
 
@@ -3364,6 +3354,3 @@ ipfw_init_tables(struct ip_fw_chain *ch, int first)
 	IPFW_ADD_SOPT_HANDLER(first, scodes);
 	return (0);
 }
-
-
-

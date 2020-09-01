@@ -99,7 +99,6 @@ _Static_assert(sizeof(struct nhop_object) <= 128,
 
 static uma_zone_t nhops_zone;	/* Global zone for each and every nexthop */
 
-
 #define	NHOP_OBJECT_ALIGNED_SIZE	roundup2(sizeof(struct nhop_object), \
 							2 * CACHE_LINE_SIZE)
 #define	NHOP_PRIV_ALIGNED_SIZE		roundup2(sizeof(struct nhop_priv), \
@@ -181,7 +180,6 @@ set_nhop_mtu_from_info(struct nhop_object *nh, const struct rt_addrinfo *info)
 
 	if (info->rti_mflags & RTV_MTU) {
 		if (info->rti_rmx->rmx_mtu != 0) {
-
 			/*
 			 * MTU was explicitly provided by user.
 			 * Keep it.
@@ -189,7 +187,6 @@ set_nhop_mtu_from_info(struct nhop_object *nh, const struct rt_addrinfo *info)
 
 			nh->nh_priv->rt_flags |= RTF_FIXEDMTU;
 		} else {
-
 			/*
 			 * User explicitly sets MTU to 0.
 			 * Assume rollback to default.
@@ -532,7 +529,6 @@ finalize_nhop(struct nh_control *ctl, struct rt_addrinfo *info,
 	print_nhop("FINALIZE", nh);
 
 	if (link_nhop(ctl, nh_priv) == 0) {
-
 		/*
 		 * Adding nexthop to the datastructures
 		 *  failed. Call destructor w/o waiting for
@@ -686,7 +682,6 @@ nhop_free_any(struct nhop_object *nh)
 
 	nhop_free(nh);
 }
-
 
 /* Helper functions */
 
@@ -858,4 +853,3 @@ nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 
 	return (0);
 }
-

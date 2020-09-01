@@ -941,4 +941,3 @@ nat64lsn_uninit(struct ip_fw_chain *ch, int last)
 	if (last != 0)
 		nat64lsn_uninit_internal();
 }
-

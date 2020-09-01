@@ -358,7 +358,6 @@ struct flow_manager {
 	  { NULL }						\
 }
 
-
 /*
  * For netgraph nodes that are somehow associated with file descriptors
  * (e.g., a device that has a /dev entry and is also a netgraph node),

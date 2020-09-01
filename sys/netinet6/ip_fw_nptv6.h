@@ -52,4 +52,3 @@ typedef struct _ipfw_nptv6_cfg {
 } ipfw_nptv6_cfg;
 
 #endif /* _NETINET6_IP_FW_NPTV6_H_ */
-

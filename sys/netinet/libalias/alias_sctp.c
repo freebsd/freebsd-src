@@ -150,7 +150,6 @@ static void sctp_RmTimeOut(struct libalias *la, struct sctp_nat_assoc *assoc);
 static void sctp_ResetTimeOut(struct libalias *la, struct sctp_nat_assoc *assoc, int newexp);
 void sctp_CheckTimers(struct libalias *la);
 
-
 /* Logging Functions */
 static void logsctperror(char* errormsg, uint32_t vtag, int error, int direction);
 static void logsctpparse(int direction, struct sctp_nat_msg *sm);
@@ -243,7 +242,6 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
 #define SN_SCTP_ASCONF      0x0100    /**< a packet containing an ASCONF chunk */
 #define SN_SCTP_ASCONFACK   0x0200    /**< a packet containing an ASCONF-ACK chunk */
 #define SN_SCTP_OTHER       0xFFFF    /**< a packet containing a chunk that is not of interest */
-
 /** @}
  * @defgroup state_machine SCTP NAT State Machine
  *
@@ -255,7 +253,6 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
 #define SN_UP  0x0100		/**< Association in UP state */
 #define SN_CL  0x1000		/**< Closing state */
 #define SN_RM  0x2000		/**< Removing state */
-
 /** @}
  * @defgroup Logging Logging Functionality
  *
@@ -270,7 +267,6 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
 #define	SN_LOG_DEBUG_MAX  5
 
 #define	SN_LOG(level, action)	if (sysctl_log_level >= level) { action; } /**< Perform log action ONLY if the current log level meets the specified log level */
-
 /** @}
  * @defgroup Hash Hash Table Macros and Functions
  *
@@ -292,7 +288,6 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
 #define SN_ADD_CLASH              1   /**< Clash when trying to add the assoc. info to the table */
 
 #define SN_TABLE_HASH(vtag, port, size) (((u_int) vtag + (u_int) port) % (u_int) size) /**< Calculate the hash table lookup position */
-
 /** @}
  * @defgroup Timer Timer Queue Macros and Functions
  *
@@ -307,7 +302,6 @@ static MALLOC_DEFINE(M_SCTPNAT, "sctpnat", "sctp nat dbs");
 #define SN_U_T(la) (la->timeStamp + sysctl_up_timer)         /**< UP State expiration time in seconds */
 #define SN_C_T(la) (la->timeStamp + sysctl_shutdown_timer)   /**< CL State expiration time in seconds */
 #define SN_X_T(la) (la->timeStamp + sysctl_holddown_timer)   /**< Wait after a shutdown complete in seconds */
-
 /** @}
  * @defgroup sysctl SysCtl Variable and callback function declarations
  *
@@ -431,7 +425,6 @@ SYSCTL_PROC(_net_inet_ip_alias_sctp, OID_AUTO, track_global_addresses,
     "\t> 0 - enables tracking but limits the number of global IP addresses to this value");
 
 #endif /* SYSCTL_NODE */
-
 /** @}
  * @ingroup sysctl
  * @brief sysctl callback for changing net.inet.ip.fw.sctp.log_level
@@ -591,7 +584,6 @@ int sysctl_chg_chunk_proc_limit(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-
 /** @ingroup sysctl
  * @brief sysctl callback for changing net.inet.ip.alias.sctp.param_proc_limit
  *
@@ -632,7 +624,6 @@ int sysctl_chg_track_global_addresses(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
-
 
 /* ----------------------------------------------------------------------
  *                            CODE BEGINS HERE
@@ -2437,7 +2428,6 @@ sctp_RmTimeOut(struct libalias *la, struct sctp_nat_assoc *assoc)
 	LIBALIAS_LOCK_ASSERT(la);
 	LIST_REMOVE(assoc, timer_Q);/* Note this is O(1) */
 }
-
 
 /** @ingroup Timer
  * @brief Reset timer in timer queue

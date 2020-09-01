@@ -1901,7 +1901,6 @@ tcp_m_copym(struct mbuf *m, int32_t off0, int32_t *plen,
 	uint32_t mlen, frags;
 	bool copyhdr;
 
-
 	KASSERT(off >= 0, ("tcp_m_copym, negative off %d", off));
 	KASSERT(len >= 0, ("tcp_m_copym, negative len %d", len));
 	if (off == 0 && m->m_flags & M_PKTHDR)

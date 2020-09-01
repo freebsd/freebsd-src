@@ -140,7 +140,6 @@ nat64stl_find(struct namedobj_instance *ni, const char *name, uint8_t set)
 	return (cfg);
 }
 
-
 static int
 nat64stl_create_internal(struct ip_fw_chain *ch, struct nat64stl_cfg *cfg,
     ipfw_nat64stl_cfg *i)
@@ -493,7 +492,6 @@ nat64stl_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 }
 
 static struct ipfw_sopt_handler	scodes[] = {
-
 	{ IP_FW_NAT64STL_CREATE, 0,	HDIR_SET,	nat64stl_create },
 	{ IP_FW_NAT64STL_DESTROY,0,	HDIR_SET,	nat64stl_destroy },
 	{ IP_FW_NAT64STL_CONFIG, 0,	HDIR_BOTH,	nat64stl_config },
@@ -617,4 +615,3 @@ nat64stl_uninit(struct ip_fw_chain *ch, int last)
 	V_nat64stl_eid = 0;
 	IPFW_UH_WUNLOCK(ch);
 }
-

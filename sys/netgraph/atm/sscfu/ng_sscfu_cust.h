@@ -82,7 +82,6 @@
 
 #endif
 
-
 /*
  * Signal queues
  */
@@ -119,7 +118,6 @@ ng_sscfu_sigq_get(struct sscfu_sigq *q)					\
 	}								\
 	TAILQ_INIT(Q);							\
     } while (0)
-
 
 /*
  * Message buffers

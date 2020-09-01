@@ -284,7 +284,7 @@ rss_naive_hash(u_int keylen, const uint8_t *key, u_int datalen,
 uint32_t
 rss_hash(u_int datalen, const uint8_t *data)
 {
- 
+
 	switch (rss_hashalgo) {
 	case RSS_HASH_TOEPLITZ:
 		return (toeplitz_hash(sizeof(rss_key), rss_key, datalen,

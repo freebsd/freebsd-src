@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 
-
 static int
 rib4_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *mask,
     struct nhop_object *nh)
@@ -67,7 +66,6 @@ rib4_preadd(u_int fibnum, const struct sockaddr *addr, const struct sockaddr *ma
 	rt_flags = nhop_get_rtflags(nh);
 
 	if (rt_flags & RTF_HOST) {
-
 		/*
 		 * Backward compatibility:
 		 * if the destination is broadcast,
@@ -188,4 +186,3 @@ in_ifadown(struct ifaddr *ifa, int delete)
 	rt_foreach_fib_walk_del(AF_INET, in_ifadownkill, &arg);
 	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
 }
-

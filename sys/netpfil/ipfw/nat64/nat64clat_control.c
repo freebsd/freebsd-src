@@ -487,7 +487,6 @@ nat64clat_reset_stats(struct ip_fw_chain *ch, ip_fw3_opheader *op,
 }
 
 static struct ipfw_sopt_handler	scodes[] = {
-
 	{ IP_FW_NAT64CLAT_CREATE, 0,	HDIR_SET,	nat64clat_create },
 	{ IP_FW_NAT64CLAT_DESTROY,0,	HDIR_SET,	nat64clat_destroy },
 	{ IP_FW_NAT64CLAT_CONFIG, 0,	HDIR_BOTH,	nat64clat_config },
@@ -611,4 +610,3 @@ nat64clat_uninit(struct ip_fw_chain *ch, int last)
 	V_nat64clat_eid = 0;
 	IPFW_UH_WUNLOCK(ch);
 }
-

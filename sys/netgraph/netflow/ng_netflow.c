@@ -220,7 +220,6 @@ static const struct ng_cmdlist ng_netflow_cmds[] = {
        { 0 }
 };
 
-
 /* Netgraph node type descriptor */
 static struct ng_type ng_netflow_typestruct = {
 	.version =	NG_ABI_VERSION,
@@ -340,7 +339,6 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		iface->out = hook;
 
 	} else if (strcmp(name, NG_NETFLOW_HOOK_EXPORT) == 0) {
-
 		if (priv->export != NULL)
 			return (EISCONN);
 
@@ -354,7 +352,6 @@ ng_netflow_newhook(node_p node, hook_p hook, const char *name)
 		callout_reset(&priv->exp_callout, (1*hz), &ng_netflow_expire,
 		    (void *)priv);
 	} else if (strcmp(name, NG_NETFLOW_HOOK_EXPORT9) == 0) {
-
 		if (priv->export9 != NULL)
 			return (EISCONN);
 
@@ -500,7 +497,7 @@ ng_netflow_rcvmsg (node_p node, item_p item, hook_p lasthook)
 				ERROUT(EINVAL);
 			
 			priv->ifaces[set->iface].info.conf = set->conf;
-	
+
 			break;
 		    }
 		case NGM_NETFLOW_SETTEMPLATE:
@@ -638,7 +635,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			    MTAG_NETFLOW_CALLED, mtag);
 		}
 	}
-	
+
 	if (bypass) {
 		if (out == NULL)
 			ERROUT(ENOTCONN);
@@ -646,7 +643,7 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		NG_FWD_ITEM_HOOK(error, item, out);
 		return (error);
 	}
-	
+
 	if (iface->info.conf &
 	    (NG_NETFLOW_CONF_ONCE | NG_NETFLOW_CONF_THISONCE)) {
 		mtag = m_tag_alloc(MTAG_NETFLOW, MTAG_NETFLOW_CALLED,
@@ -918,7 +915,7 @@ loopend:
 			src_if_index = m->m_pkthdr.rcvif->if_index;
 	} else
 		src_if_index = iface->info.ifinfo_index;
-	
+
 	/* Check packet FIB */
 	fib = M_GETFIB(m);
 	if (fib >= priv->maxfibs) {
@@ -948,7 +945,7 @@ loopend:
 #endif
 	else
 		goto bypass;
-	
+
 	acct = 1;
 bypass:
 	if (out != NULL) {

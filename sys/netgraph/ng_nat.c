@@ -884,7 +884,7 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 			th->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP +
 			    ip_len - (ip->ip_hl << 2)));
-	
+
 			if ((m->m_pkthdr.csum_flags & CSUM_TCP) == 0) {
 				m->m_pkthdr.csum_data = offsetof(struct tcphdr,
 				    th_sum);
@@ -946,7 +946,7 @@ static unsigned int
 ng_nat_translate_flags(unsigned int x)
 {
 	unsigned int	res = 0;
-	
+
 	if (x & NG_NAT_LOG)
 		res |= PKT_ALIAS_LOG;
 	if (x & NG_NAT_DENY_INCOMING)

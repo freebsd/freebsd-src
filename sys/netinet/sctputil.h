@@ -62,7 +62,6 @@ void
 
 #define sctp_get_associd(stcb) ((sctp_assoc_t)stcb->asoc.assoc_id)
 
-
 /*
  * Function prototypes
  */
@@ -158,7 +157,6 @@ sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
     struct sctp_inpcb *new_inp,
     struct sctp_tcb *stcb, int waitflags);
 
-
 void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 
 /* Stop all timers for association and remote addresses. */
@@ -179,7 +177,6 @@ sctp_abort_association(struct sctp_inpcb *, struct sctp_tcb *, struct mbuf *,
     struct sctphdr *, struct mbuf *,
     uint8_t, uint32_t,
     uint32_t, uint16_t);
-
 
 /* We choose to abort via user input */
 void
@@ -324,7 +321,6 @@ void sctp_log_strm_del_alt(struct sctp_tcb *stcb, uint32_t, uint16_t, uint16_t, 
 
 void sctp_log_nagle_event(struct sctp_tcb *stcb, int action);
 
-
 #ifdef SCTP_MBUF_LOGGING
 void
      sctp_log_mb(struct mbuf *m, int from);
@@ -357,7 +353,6 @@ void sctp_log_sack(uint32_t, uint32_t, uint32_t, uint16_t, uint16_t, int);
 void sctp_log_map(uint32_t, uint32_t, uint32_t, int);
 void sctp_print_mapping_array(struct sctp_association *asoc);
 void sctp_clr_stat_log(void);
-
 
 #ifdef SCTP_AUDITING_ENABLED
 void

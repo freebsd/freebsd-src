@@ -133,7 +133,6 @@ T##_func(node_p node, hook_p hook, void *arg1, int arg2)		\
 	sscop_signal(sscop, SIG_T_##N, NULL);				\
 }
 
-
 /*
  * Message queues
  */

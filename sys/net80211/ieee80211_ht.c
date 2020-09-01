@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/systm.h> 
 #include <sys/endian.h>
- 
+
 #include <sys/socket.h>
 
 #include <net/if.h>
@@ -2914,7 +2914,6 @@ ieee80211_send_bar(struct ieee80211_node *ni,
 	uint16_t barctl, barseqctl;
 	uint8_t *frm;
 	int tid, ret;
-
 
 	IEEE80211_NOTE(tap->txa_ni->ni_vap, IEEE80211_MSG_11N,
 	    tap->txa_ni,

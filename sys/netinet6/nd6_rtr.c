@@ -668,7 +668,6 @@ pfxrtr_del(struct nd_pfxrouter *pfr)
 	free(pfr, M_IP6NDP);
 }
 
-
 /* Default router list processing sub routines. */
 static void
 defrouter_addreq(struct nd_defrouter *new)
@@ -792,7 +791,6 @@ defrouter_del(struct nd_defrouter *dr)
 	 */
 	defrouter_rele(dr);
 }
-
 
 struct nd_defrouter *
 defrouter_lookup_locked(const struct in6_addr *addr, struct ifnet *ifp)

@@ -68,7 +68,7 @@ int
 ng_hci_lp_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 {
 	int link_type;
-	
+
 	if ((unit->state & NG_HCI_UNIT_READY) != NG_HCI_UNIT_READY) {
 		NG_HCI_WARN(
 "%s: %s - unit is not ready, state=%#x\n",
@@ -111,7 +111,7 @@ ng_hci_lp_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 	default:
 		panic("%s: link_type invalid.", __func__);
 	}
-	
+
 	return (EINVAL);
 } /* ng_hci_lp_con_req */
 
@@ -618,7 +618,7 @@ ng_hci_lp_le_con_req(ng_hci_unit_p unit, item_p item, hook_p hook, int link_type
 	req->hdr.length = sizeof(req->cp);
 	req->hdr.opcode = htole16(NG_HCI_OPCODE(NG_HCI_OGF_LE,
 					NG_HCI_OCF_LE_CREATE_CONNECTION));
-	
+
 	bcopy(&ep->bdaddr, &req->cp.peer_addr, sizeof(req->cp.peer_addr));
 	req->cp.own_address_type = 0;
 	req->cp.peer_addr_type = (link_type == NG_HCI_LINK_LE_RANDOM)? 1:0;
@@ -824,7 +824,6 @@ ng_hci_lp_enc_change(ng_hci_unit_con_p con, int status)
 	ng_hci_lp_enc_change_ep	*ep = NULL;
 	int			 error;
 
-
 	if (con->link_type != NG_HCI_LINK_SCO) {
 		if (unit->acl != NULL && NG_HOOK_IS_VALID(unit->acl)) {
 			NG_MKMESSAGE(msg, NGM_HCI_COOKIE, NGM_HCI_LP_ENC_CHG, 
@@ -842,7 +841,6 @@ ng_hci_lp_enc_change(ng_hci_unit_con_p con, int status)
 			NG_HCI_INFO(
 "%s: %s - ACL hook not valid, hook=%p\n",
 				__func__, NG_NODE_NAME(unit->node), unit->acl);
-
 	}
 	return (0);
 } /* ng_hci_lp_con_cfm */
@@ -1254,7 +1252,7 @@ ng_hci_lp_qos_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 		error = ng_hci_send_command(unit);
 out:
 	NG_FREE_ITEM(item);
-	
+
 	return (error);
 } /* ng_hci_lp_qos_req */
 
@@ -1309,7 +1307,7 @@ ng_hci_lp_qos_cfm(ng_hci_unit_con_p con, int status)
 
 		con->flags &= ~NG_HCI_CON_NOTIFY_SCO;
 	}
-	
+
 	return (0);
 } /* ng_hci_lp_qos_cfm */
 
@@ -1428,4 +1426,3 @@ ng_hci_process_con_timeout(node_p node, hook_p hook, void *arg1, int con_handle)
 
 	ng_hci_free_con(con);
 } /* ng_hci_process_con_timeout */
-

@@ -179,7 +179,6 @@ SYSCTL_INT(_net_link_ether_arp, OID_AUTO, log_level, CTLFLAG_VNET | CTLFLAG_RW,
 		log((pri), "arp: " __VA_ARGS__);			\
 } while (0)
 
-
 static void	arpintr(struct mbuf *);
 static void	arptimer(void *);
 #ifdef INET
@@ -350,7 +349,6 @@ arp_fillheader(struct ifnet *ifp, struct arphdr *ah, int bcast, u_char *buf,
 
 	return (error);
 }
-
 
 /*
  * Broadcast an ARP request. Caller specifies:
@@ -986,7 +984,6 @@ match:
 		/* Allocate new entry */
 		la = lltable_alloc_entry(LLTABLE(ifp), 0, dst);
 		if (la == NULL) {
-
 			/*
 			 * lle creation may fail if source address belongs
 			 * to non-directly connected subnet. However, we
@@ -1059,7 +1056,6 @@ reply:
 			(void)memcpy(ar_sha(ah), lle->ll_addr, ah->ar_hln);
 			LLE_RUNLOCK(lle);
 		} else {
-
 			if (lle != NULL)
 				LLE_RUNLOCK(lle);
 

@@ -188,7 +188,6 @@ struct dn_flow {
 	uint32_t	drops;
 };
 
-
 /*
  * Scheduler template, mostly indicating the name, number,
  * sched_mask and buckets.
@@ -203,7 +202,6 @@ struct dn_sch {
 	/* mask to select the appropriate scheduler instance */
 	struct ipfw_flow_id sched_mask; /* M */
 };
-
 
 /* A delay profile is attached to a link.
  * Note that a profile, as any other object, cannot be longer than 2^16
