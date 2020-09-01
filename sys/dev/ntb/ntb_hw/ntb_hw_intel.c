@@ -1682,7 +1682,6 @@ configure_atom_secondary_side_bars(struct ntb_softc *ntb)
 	}
 }
 
-
 /*
  * When working around Xeon SDOORBELL errata by remapping remote registers in a
  * MW, limit the B2B MW to half a MW.  By sharing a MW, half the shared MW
