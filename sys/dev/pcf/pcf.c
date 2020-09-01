@@ -66,7 +66,6 @@ pcf_wait_byte(struct pcf_softc *sc)
 
 	PCF_ASSERT_LOCKED(sc);
 	while (counter--) {
-
 		if ((pcf_get_S1(sc) & PIN) == 0)
 			return (0);
 	}
@@ -252,7 +251,6 @@ pcf_intr(void *arg)
 		status = pcf_get_S1(sc);
 
 		switch(sc->pcf_slave_mode) {
-
 		case SLAVE_TRANSMITTER:
 			if (status & LRB) {
 				/* ack interrupt line */
@@ -393,7 +391,6 @@ pcf_write(device_t dev, const char *buf, int len, int *sent, int timeout /* us *
 	bytes = 0;
 	PCF_LOCK(sc);
 	while (len) {
-
 		pcf_set_S0(sc, *buf++);
 
 		/* wait for the byte to be send */
@@ -445,7 +442,6 @@ pcf_read(device_t dev, char *buf, int len, int *read, int last,
 
 	bytes = 0;
 	while (len) {
-
 		/* XXX delay needed here */
 
 		/* wait for trigged byte */
