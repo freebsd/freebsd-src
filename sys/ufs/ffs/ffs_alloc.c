@@ -550,7 +550,7 @@ ffs_reallocblks(ap)
 		return (ffs_reallocblks_ufs1(ap));
 	return (ffs_reallocblks_ufs2(ap));
 }
-	
+
 static int
 ffs_reallocblks_ufs1(ap)
 	struct vop_reallocblks_args /* {
@@ -3243,7 +3243,6 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	filetype = IFREG;
 
 	switch (oidp->oid_number) {
-
 	case FFS_SET_FLAGS:
 #ifdef DIAGNOSTIC
 		if (fsckcmds)
@@ -3511,7 +3510,6 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 #endif /* DIAGNOSTIC */
 		error = EINVAL;
 		break;
-
 	}
 	fdrop(fp, td);
 	vn_finished_write(mp);

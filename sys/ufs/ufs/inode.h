@@ -87,7 +87,6 @@ struct inode {
 	u_int32_t i_flag;	/* flags, see below */
 	int	  i_effnlink;	/* i_nlink when I/O completes */
 
-
 	/*
 	 * Side effects; used during directory lookup.
 	 */

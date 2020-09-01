@@ -112,7 +112,6 @@ struct dirhash {
 	TAILQ_ENTRY(dirhash) dh_list;	/* chain of all dirhashes */
 };
 
-
 /*
  * Dirhash functions.
  */

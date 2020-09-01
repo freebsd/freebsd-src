@@ -94,7 +94,6 @@ SYSCTL_PROC(_vfs_ufs, OID_AUTO, dirhash_reclaimpercent,
     0, 0, ufsdirhash_set_reclaimpercent, "I",
     "set percentage of dirhash cache to be removed in low VM events");
 
-
 static int ufsdirhash_hash(struct dirhash *dh, char *name, int namelen);
 static void ufsdirhash_adjfree(struct dirhash *dh, doff_t offset, int diff);
 static void ufsdirhash_delslot(struct dirhash *dh, int slot);
@@ -813,7 +812,7 @@ ufsdirhash_add(struct inode *ip, struct direct *dirp, doff_t offset)
 
 	if ((dh = ufsdirhash_acquire(ip)) == NULL)
 		return;
-	
+
 	KASSERT(offset < dh->dh_dirblks * DIRBLKSIZ,
 	    ("ufsdirhash_add: bad offset"));
 	/*
@@ -1187,7 +1186,7 @@ ufsdirhash_destroy(struct dirhash *dh)
 	int i, mem, narrays;
 
 	KASSERT(dh->dh_hash != NULL, ("dirhash: NULL hash on list"));
-	
+
 	/* Remove it from the list and detach its memory. */
 	TAILQ_REMOVE(&ufsdirhash_list, dh, dh_list);
 	dh->dh_onlist = 0;

@@ -471,7 +471,7 @@ ffs_isblock(struct fs *fs, unsigned char *cp, ufs1_daddr_t h)
 int
 ffs_isfreeblock(struct fs *fs, u_char *cp, ufs1_daddr_t h)
 {
- 
+
 	switch ((int)fs->fs_frag) {
 	case 8:
 		return (cp[h] == 0);
@@ -526,7 +526,6 @@ ffs_setblock(struct fs *fs, unsigned char *cp, ufs1_daddr_t h)
 {
 
 	switch ((int)fs->fs_frag) {
-
 	case 8:
 		cp[h] = 0xff;
 		return;

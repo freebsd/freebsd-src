@@ -183,7 +183,6 @@ ffs_rawread_sync(struct vnode *vp)
 	return 0;
 }
 
-
 static int
 ffs_rawread_readahead(struct vnode *vp,
 		      caddr_t udata,
@@ -201,9 +200,9 @@ ffs_rawread_readahead(struct vnode *vp,
 	int bforwards;
 	struct inode *ip;
 	ufs2_daddr_t blkno;
-	
+
 	bsize = vp->v_mount->mnt_stat.f_iosize;
-	
+
 	ip = VTOI(vp);
 	dp = ITODEVVP(ip);
 
@@ -223,14 +222,13 @@ ffs_rawread_readahead(struct vnode *vp,
 	if ((daddr_t) blockno != blockno) {
 		return EINVAL; /* blockno overflow */
 	}
-	
+
 	bp->b_lblkno = bp->b_blkno = blockno;
-	
+
 	error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, NULL, &bforwards, NULL);
 	if (error != 0)
 		return error;
 	if (blkno == -1) {
-
 		/* Fill holes with NULs to preserve semantics */
 		
 		if (bp->b_bcount + blockoff * DEV_BSIZE > bsize)
@@ -251,18 +249,17 @@ ffs_rawread_readahead(struct vnode *vp,
 	}
 	bp->b_blkno = blkno + blockoff;
 	bp->b_offset = bp->b_iooffset = (blkno + blockoff) * DEV_BSIZE;
-	
+
 	if (bp->b_bcount + blockoff * DEV_BSIZE > bsize * (1 + bforwards))
 		bp->b_bcount = bsize * (1 + bforwards) - blockoff * DEV_BSIZE;
 	bp->b_bufsize = bp->b_bcount;
-	
+
 	if (vmapbuf(bp, 1) < 0)
 		return EFAULT;
-	
+
 	BO_STRATEGY(&dp->v_bufobj, bp);
 	return 0;
 }
-
 
 static int
 ffs_rawread_main(struct vnode *vp,
@@ -275,7 +272,7 @@ ffs_rawread_main(struct vnode *vp,
 	long resid;
 	off_t offset;
 	struct thread *td;
-	
+
 	td = uio->uio_td ? uio->uio_td : curthread;
 	udata = uio->uio_iov->iov_base;
 	resid = uio->uio_resid;
@@ -285,13 +282,13 @@ ffs_rawread_main(struct vnode *vp,
 	 * keep the process from being swapped
 	 */
 	PHOLD(td->td_proc);
-	
+
 	error = 0;
 	nerror = 0;
-	
+
 	bp = NULL;
 	nbp = NULL;
-	
+
 	while (resid > 0) {
 		
 		if (bp == NULL) { /* Setup first read */
@@ -391,7 +388,7 @@ ffs_rawread_main(struct vnode *vp,
 				break;
 		}
 	}
-	
+
 	if (bp != NULL) {
 		pbrelvp(bp);
 		uma_zfree(ffsraw_pbuf_zone, bp);
@@ -402,7 +399,7 @@ ffs_rawread_main(struct vnode *vp,
 		pbrelvp(nbp);
 		uma_zfree(ffsraw_pbuf_zone, nbp);
 	}
-	
+
 	if (error == 0)
 		error = nerror;
 	PRELE(td->td_proc);
@@ -411,7 +408,6 @@ ffs_rawread_main(struct vnode *vp,
 	uio->uio_offset = offset;
 	return error;
 }
-
 
 int
 ffs_rawread(struct vnode *vp,
