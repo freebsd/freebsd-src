@@ -518,4 +518,3 @@ nvd_controller_fail(void *ctrlr_arg)
 	mtx_unlock(&nvd_lock);
 	free(ctrlr, M_NVD);
 }
-
