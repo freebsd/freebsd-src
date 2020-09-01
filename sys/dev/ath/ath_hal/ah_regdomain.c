@@ -953,7 +953,6 @@ ath_hal_getctl(struct ath_hal *ah, const struct ieee80211_channel *c)
 	return ctl;
 }
 
-
 /*
  * Update the current dfsDomain setting based on the given
  * country code.
@@ -978,7 +977,6 @@ ath_hal_update_dfsdomain(struct ath_hal *ah)
 	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN, "%s ah_dfsDomain: %d\n",
 	    __func__, AH_PRIVATE(ah)->ah_dfsDomain);
 }
-
 
 /*
  * Return the max allowed antenna gain and apply any regulatory

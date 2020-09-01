@@ -611,7 +611,6 @@ ar5210SetResetReg(struct ath_hal *ah, uint32_t resetMask, u_int delay)
 	return rt;
 }
 
-
 /*
  * Returns: the pcdac value
  */

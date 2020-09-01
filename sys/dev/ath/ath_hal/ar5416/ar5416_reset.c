@@ -386,7 +386,6 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 		    AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
 	}
 
-
 	/*
 	 * disable seq number generation in hw
 	 */
@@ -606,7 +605,7 @@ ar5416InitDMA(struct ath_hal *ah)
 	 * Setup receive FIFO threshold to hold off TX activities
 	 */
 	OS_REG_WRITE(ah, AR_RXFIFO_CFG, 0x200);
-	
+
 	/*
 	 * reduce the number of usable entries in PCU TXBUF to avoid
 	 * wrap around.
@@ -645,7 +644,7 @@ ar5416InitBB(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	/* Activate the PHY (includes baseband activate and synthesizer on) */
 	OS_REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
-	
+
 	/* 
 	 * If the AP starts the calibration before the base band timeout
 	 * completes  we could get rx_clear false triggering.  Add an
@@ -1049,7 +1048,6 @@ ar5416WriteTxPowerRateRegisters(struct ath_hal *ah,
 #undef POW_SM
 }
 
-
 /**************************************************************
  * ar5416SetTransmitPower
  *
@@ -1096,7 +1094,7 @@ ar5416SetTransmitPower(struct ath_hal *ah,
     if (IS_EEP_MINOR_V2(ah)) {
         AH5416(ah)->ah_ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
     }
- 
+
     if (!ar5416SetPowerPerRateTable(ah, pEepData,  chan,
                                     &AH5416(ah)->ah_ratesArray[0],
 				    cfgCtl,
@@ -1525,7 +1523,7 @@ ar5416InitPLL(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			pll |= SM(0xb, AR_RTC_PLL_DIV);
 	} else
 		pll |= SM(0xb, AR_RTC_PLL_DIV);
-	
+
 	OS_REG_WRITE(ah, AR_RTC_PLL_CONTROL, pll);
 
 	/* TODO:
@@ -1657,7 +1655,6 @@ ar5416SetBoardValues(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
         if ((i == 0) || AR_SREV_5416_V20_OR_LATER(ah))
 	    ar5416SetDefGainValues(ah, pModal, eep, txRxAttenLocal, regChainOffset, i);
-
     }
 
 	if (AR_SREV_MERLIN_10_OR_LATER(ah)) {
@@ -2804,7 +2801,6 @@ ar5416MarkPhyInactive(struct ath_hal *ah)
 #define	AR5416_HALF_RATE_USEC_44	21 /* ((44 / 2) - 1 ) */
 #define	AR5416_QUARTER_RATE_USEC_44	10  /* ((44 / 4) - 1 ) */
 
-
 /* XXX What should these be for 40/44MHz clocks (and half/quarter) ? */
 #define	AR5416_RX_NON_FULL_RATE_LATENCY		63
 #define	AR5416_TX_HALF_RATE_LATENCY		108
@@ -2903,4 +2899,3 @@ ar5416SetIFSTiming(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	OS_REG_RMW_FIELD(ah, AR_D_GBL_IFS_MISC,
 	    AR_D_GBL_IFS_MISC_USEC_DURATION, init_usec);
 }
-

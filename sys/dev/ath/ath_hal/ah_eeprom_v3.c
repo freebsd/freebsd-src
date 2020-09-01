@@ -739,14 +739,14 @@ readEepromRawPowerCalInfo2413(struct ath_hal *ah, HAL_EEPROM *ee)
 	int numEEPROMWordsPerChannel;
 	uint32_t off;
 	HAL_BOOL ret = AH_FALSE;
-	
+
 	HALASSERT(ee->ee_version >= AR_EEPROM_VER5_0);
 	HALASSERT(ee->ee_eepMap == 2);
-	
+
 	pCal = ath_hal_malloc(sizeof(EEPROM_DATA_STRUCT_2413));
 	if (pCal == AH_NULL)
 		goto exit;
-	
+
 	off = ee->ee_eepMap2PowerCalStart;
 	if (ee->ee_Amode) {
 		OS_MEMZERO(pCal, sizeof(EEPROM_DATA_STRUCT_2413));

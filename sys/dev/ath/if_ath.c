@@ -1221,7 +1221,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 					 IEEE80211_HTC_TXLDPC;
 		}
 
-
 		device_printf(sc->sc_dev,
 		    "[HT] %d RX streams; %d TX streams\n", rxs, txs);
 	}
@@ -3540,7 +3539,7 @@ finish:
 	ATH_UNLOCK(sc);
 
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_transmit: finished");
-	
+
 	return (retval);
 }
 
@@ -4379,8 +4378,6 @@ ath_tx_process_buf_completion(struct ath_softc *sc, struct ath_txq *txq,
 	} else
 		bf->bf_comp(sc, bf, 0);
 }
-
-
 
 /*
  * Process completed xmit descriptors from the specified queue.
@@ -6103,7 +6100,6 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 		taskqueue_unblock(sc->sc_tq);
 	} else if (nstate == IEEE80211_S_INIT) {
-
 		/* Quiet time handling - ensure we resync */
 		memset(&avp->quiet_ie, 0, sizeof(avp->quiet_ie));
 

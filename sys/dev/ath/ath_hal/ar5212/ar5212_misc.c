@@ -623,7 +623,7 @@ ar5212SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 		 * timeouts. This value is in core clocks.
   		 */
 		timeout = ACK_CTS_TIMEOUT_11A + (coverageclass * 3 * clkRate);
-	
+
 		/*
 		 * Write the values: slot, eifs, ack/cts timeouts.
 		 */
@@ -1194,7 +1194,6 @@ ar5212EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 		val &= ~ AR_PHY_RADAR_0_ENA;
 
 	if (IS_5413(ah)) {
-
 		if (pe->pe_blockradar == 1)
 			OS_REG_SET_BIT(ah, AR_PHY_RADAR_2,
 			    AR_PHY_RADAR_2_BLOCKOFDMWEAK);

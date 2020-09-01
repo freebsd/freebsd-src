@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <sys/socket.h>
- 
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
@@ -481,4 +481,3 @@ bad:
 		free(outdata, M_TEMP);
 	return (error);
 }
-

@@ -278,7 +278,7 @@ ar2133SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
 
 	/* Setup Bank 6 Write */
 	ath_hal_ini_bank_setup(priv->Bank6Data, &AH5416(ah)->ah_ini_bank6, modesIndex);
-	
+
 	/* Only the 5 or 2 GHz OB/DB need to be set for a mode */
 	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
 		HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: 2ghz: OB_2:%d, DB_2:%d\n",
@@ -473,7 +473,6 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 		    "NF calibrated [ctl] [chain 1] is %d\n", nf);
 		nfarray[1] = nf;
 
-
 		nf = MS(OS_REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR_PHY_CH1_EXT_MINCCA_PWR);
 		if (nf & 0x100)
 			nf = 0 - ((nf ^ 0x1ff) + 1);
@@ -522,7 +521,7 @@ ar2133RfDetach(struct ath_hal *ah)
 	ath_hal_free(ahp->ah_rfHal);
 	ahp->ah_rfHal = AH_NULL;
 }
-	
+
 /*
  * Allocate memory for analog bank scratch buffers
  * Scratch Buffer will be reinitialized every reset so no need to zero now

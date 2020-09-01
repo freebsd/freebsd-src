@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <sys/socket.h>
- 
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
@@ -422,7 +422,7 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 	int current_rix, rix;
 	unsigned current_tt;
 	uint64_t mask;
-	
+
 	current_rix = sn->current_rix[size_bin];
 	if (current_rix < 0) {
 		/* no successes yet, send at the lowest bit-rate */
@@ -656,7 +656,6 @@ ath_rate_pick_seed_rate_ht(struct ath_softc *sc, struct ath_node *an,
 #undef	MCS
 #undef	DOT11RATE
 }
-
 
 void
 ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
@@ -1275,7 +1274,6 @@ ath_rate_update_rx_rssi(struct ath_softc *sc, struct ath_node *an, int rssi)
 {
 }
 
-
 static const struct txschedule *mrr_schedules[IEEE80211_MODE_MAX+2] = {
 	NULL,		/* IEEE80211_MODE_AUTO */
 	series_11a,	/* IEEE80211_MODE_11A */
@@ -1632,7 +1630,7 @@ struct ath_ratectrl *
 ath_rate_attach(struct ath_softc *sc)
 {
 	struct sample_softc *ssc;
-	
+
 	ssc = malloc(sizeof(struct sample_softc), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (ssc == NULL)
 		return NULL;
@@ -1651,6 +1649,6 @@ void
 ath_rate_detach(struct ath_ratectrl *arc)
 {
 	struct sample_softc *ssc = (struct sample_softc *) arc;
-	
+
 	free(ssc, M_DEVBUF);
 }

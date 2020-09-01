@@ -52,7 +52,6 @@ ar9285GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 	    "NF calibrated [ctl] [chain 0] is %d\n", nf);
 	nfarray[0] = nf;
 
-
 	nf = MS(OS_REG_READ(ah, AR_PHY_EXT_CCA), AR9280_PHY_EXT_MINCCA_PWR);
 	if (nf & 0x100)
 		nf = 0 - ((nf ^ 0x1ff) + 1);

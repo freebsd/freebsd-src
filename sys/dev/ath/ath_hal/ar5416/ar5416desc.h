@@ -64,7 +64,6 @@ struct ar5416_rx_desc { /* rx desc has 2 control words + 9 status words */
 	uint32_t	status8;
 };
 
-
 struct ar5416_desc {
 	uint32_t   ds_link;    /* link pointer */
 	uint32_t   ds_data;    /* data buffer pointer */
