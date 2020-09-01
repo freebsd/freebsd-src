@@ -48,7 +48,6 @@ extern void qls_dump_buf32(qla_host_t *ha, const char *str, void *dbuf,
 
 extern void qls_dump_cq(qla_host_t *ha);
 
-
 #ifdef QL_DBG
 
 #define QL_DPRINT1(x)	if (qls_dbg_level & 0x0001) device_printf x
@@ -91,6 +90,5 @@ extern void qls_dump_cq(qla_host_t *ha);
 #define QL_DUMP_CQ(ha)
 
 #endif
-
 
 #endif /* #ifndef _QL_DBG_H_ */
