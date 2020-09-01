@@ -229,7 +229,6 @@ struct apic_ops {
 	void	(*disable_vector)(u_int, u_int);
 	void	(*free_vector)(u_int, u_int, u_int);
 
-
 	/* PMC */
 	int	(*enable_pmc)(void);
 	void	(*disable_pmc)(void);

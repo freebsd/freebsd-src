@@ -70,7 +70,7 @@ int	acpi_release_global_lock(volatile uint32_t *);
 #define	ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq)	do {			\
 	(Acq) = acpi_release_global_lock(&((GLptr)->GlobalLock));	\
 } while (0)
- 
+
 enum intr_trigger;
 enum intr_polarity;
 

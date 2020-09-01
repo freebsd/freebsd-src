@@ -397,7 +397,6 @@ legacy_pcib_identify(driver_t *driver, device_t parent)
 		devclass_get_device(pci_devclass, 0))
 		return;
 
-
 	bus = 0;
  retry:
 	for (slot = 0; slot <= PCI_SLOTMAX; slot++) {
@@ -675,7 +674,6 @@ static devclass_t hostb_devclass;
 DEFINE_CLASS_0(pcib, legacy_pcib_driver, legacy_pcib_methods, 1);
 DRIVER_MODULE(pcib, legacy, legacy_pcib_driver, hostb_devclass, 0, 0);
 
-
 /*
  * Install placeholder to claim the resources owned by the
  * PCI bus interface.  This could be used to extract the
@@ -737,7 +735,6 @@ static device_method_t pcibios_pcib_pci_methods[] = {
 
 	/* pcib interface */
 	DEVMETHOD(pcib_route_interrupt,	legacy_pcib_route_interrupt),
-
 	{0, 0}
 };
 

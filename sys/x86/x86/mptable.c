@@ -496,7 +496,6 @@ mptable_probe_cpus_handler(u_char *entry, void *arg)
 	}
 }
 
-
 static void
 mptable_setup_cpus_handler(u_char *entry, void *arg)
 {
@@ -580,7 +579,6 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 	bus_entry_ptr bus;
 	enum busTypes bus_type;
 	int i;
-
 
 	switch (*entry) {
 	case MPCT_ENTRY_BUS:

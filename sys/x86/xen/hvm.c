@@ -416,7 +416,7 @@ xen_hvm_resume(bool suspend_cancelled)
 	/* Register vcpu_info area for CPU#0. */
 	xen_hvm_cpu_init();
 }
- 
+
 static void
 xen_hvm_sysinit(void *arg __unused)
 {

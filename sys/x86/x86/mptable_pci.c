@@ -230,7 +230,6 @@ static device_method_t mptable_pcib_pci_methods[] = {
 
 	/* pcib interface */
 	DEVMETHOD(pcib_route_interrupt,	mptable_pci_route_interrupt),
-
 	{0, 0}
 };
 

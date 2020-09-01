@@ -110,11 +110,9 @@
  * 3F0             Reserved
  */
 
-
 /******************************************************************************
  * global defines, etc.
  */
-
 
 /******************************************************************************
  * LOCAL APIC structure
@@ -286,7 +284,6 @@ typedef struct IOAPIC ioapic_t;
 
 #endif  /* !LOCORE */
 
-
 /******************************************************************************
  * various code 'logical' values
  */
@@ -411,7 +408,6 @@ typedef struct IOAPIC ioapic_t;
 #define APIC_LVT_RIRR		0x00004000
 #define APIC_LVT_TM		0x00008000
 #define APIC_LVT_M		0x00010000
-
 
 /* fields in LVT Timer */
 #define APIC_LVTT_VECTOR	0x000000ff

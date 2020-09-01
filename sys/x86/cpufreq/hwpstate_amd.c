@@ -153,7 +153,6 @@ static device_method_t hwpstate_methods[] = {
 
 	/* ACPI interface */
 	DEVMETHOD(acpi_get_features,	hwpstate_features),
-
 	{0, 0}
 };
 

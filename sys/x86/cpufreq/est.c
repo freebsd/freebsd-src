@@ -888,7 +888,6 @@ static device_method_t est_methods[] = {
 
 	/* ACPI interface */
 	DEVMETHOD(acpi_get_features,	est_features),
-
 	{0, 0}
 };
 

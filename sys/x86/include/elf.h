@@ -122,7 +122,6 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 	} a_un;
 } Elf32_Auxinfo;
 
-
 typedef struct {	/* Auxiliary vector entry on initial stack */
 	long	a_type;			/* Entry type. */
 	union {
