@@ -57,14 +57,12 @@ $FreeBSD$
    };
 */
 
-
 #define MCP_HEADER_PTR_OFFSET  0x3c
 
 #define MCP_TYPE_MX 0x4d582020 /* "MX  " */
 #define MCP_TYPE_PCIE 0x70636965 /* "PCIE" pcie-only MCP */
 #define MCP_TYPE_ETH 0x45544820 /* "ETH " */
 #define MCP_TYPE_MCP0 0x4d435030 /* "MCP0" */
-
 
 typedef struct mcp_gen_header {
   /* the first 4 fields are filled at compile time */
@@ -99,6 +97,5 @@ typedef struct mcp_gen_header {
     (unsigned int) STRING_SPECS,				\
     256								\
   }
-
 
 #endif /* _mcp_gen_header_h */

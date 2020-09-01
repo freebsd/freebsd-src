@@ -44,4 +44,3 @@ static moduledata_t mxge_rss_eth_z8e_fw_mod = {
 DECLARE_MODULE(mxge_rss_eth_z8e_fw, mxge_rss_eth_z8e_fw_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(mxge_rss_eth_z8e_fw, 1);
 MODULE_DEPEND(mxge_rss_eth_z8e_fw, firmware, 1, 1, 1);
-
