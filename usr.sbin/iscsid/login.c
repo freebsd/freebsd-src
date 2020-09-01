@@ -170,7 +170,7 @@ kernel_modify(const struct connection *conn, const char *target_address)
 	ism.ism_session_id = conn->conn_session_id;
 	memcpy(&ism.ism_conf, &conn->conn_conf, sizeof(ism.ism_conf));
 	strlcpy(ism.ism_conf.isc_target_addr, target_address,
-	    sizeof(ism.ism_conf.isc_target));
+	    sizeof(ism.ism_conf.isc_target_addr));
 	error = ioctl(conn->conn_iscsi_fd, ISCSISMODIFY, &ism);
 	if (error != 0) {
 		log_err(1, "failed to redirect to %s: ISCSISMODIFY",
