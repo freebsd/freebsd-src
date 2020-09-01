@@ -182,7 +182,7 @@ static int
 pwmc_detach(device_t dev)
 {
 	struct pwmc_softc *sc;
- 
+
 	sc = device_get_softc(dev);
 	destroy_dev(sc->cdev);
 

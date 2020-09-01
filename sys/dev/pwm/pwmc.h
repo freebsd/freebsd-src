@@ -46,5 +46,4 @@ struct pwm_state {
 #define	PWMGETSTATE	_IOWR('G', 0, struct pwm_state)
 #define	PWMSETSTATE	_IOWR('G', 1, struct pwm_state)
 
-
 #endif /* _PWM_H_ */
