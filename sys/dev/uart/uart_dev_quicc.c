@@ -522,4 +522,3 @@ quicc_bus_ungrab(struct uart_softc *sc)
 	quicc_write2(bas, rb, st | 0x9000);
 	uart_unlock(sc->sc_hwmtx);
 }
-

@@ -614,4 +614,3 @@ uart_mvebu_bus_ungrab(struct uart_softc *sc)
 	uart_barrier(bas);
 	uart_unlock(sc->sc_hwmtx);
 }
-
