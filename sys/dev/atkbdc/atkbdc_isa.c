@@ -77,7 +77,6 @@ static device_method_t atkbdc_isa_methods[] = {
 	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
-
 	{ 0, 0 }
 };
 
@@ -300,7 +299,7 @@ atkbdc_isa_alloc_resource(device_t dev, device_t child, int type, int *rid,
     rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
 {
 	atkbdc_softc_t	*sc;
-	
+
 	sc = *(atkbdc_softc_t **)device_get_softc(dev);
 	if (type == SYS_RES_IRQ && *rid == KBDC_RID_KBD && sc->irq != NULL)
 		return (sc->irq);
@@ -313,7 +312,7 @@ atkbdc_isa_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 	atkbdc_softc_t	*sc;
-	
+
 	sc = *(atkbdc_softc_t **)device_get_softc(dev);
 	if (type == SYS_RES_IRQ && rid == KBDC_RID_KBD && r == sc->irq)
 		return (0);
