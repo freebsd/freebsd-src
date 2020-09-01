@@ -618,4 +618,3 @@ smp_phy_control(struct ccb_smpio *smpio, uint32_t retries,
 	request->config_bits0 = slumber_partial;
 	request->pp_timeout_value = pp_timeout_value;
 }
-

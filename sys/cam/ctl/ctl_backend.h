@@ -79,7 +79,6 @@ typedef enum {
 	MODULE_DEPEND(name, ctl, 1, 1, 1); \
 	MODULE_DEPEND(name, cam, 1, 1, 1)
 
-
 struct ctl_be_lun;
 typedef void (*be_callback_t)(struct ctl_be_lun *be_lun);
 

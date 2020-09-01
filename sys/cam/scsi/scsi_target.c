@@ -32,7 +32,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -54,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_xpt_periph.h>
 #include <cam/cam_sim.h>
 #include <cam/scsi/scsi_targetio.h>
-
 
 /* Transaction information attached to each CCB sent by the user */
 struct targ_cmd_descr {
@@ -599,7 +597,7 @@ targwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		}
 		write_len += sizeof(user_ccb);
 	}
-	
+
 	/*
 	 * If we've successfully taken in some amount of
 	 * data, return success for that data first.  If
@@ -731,7 +729,6 @@ targsendccb(struct targ_softc *softc, union ccb *ccb,
 
 	if ((ccb_h->func_code == XPT_CONT_TARGET_IO) ||
 	    (ccb_h->func_code == XPT_DEV_MATCH)) {
-
 		error = cam_periph_mapmem(ccb, mapinfo, softc->maxio);
 
 		/*

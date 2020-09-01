@@ -81,4 +81,3 @@ ctl_serialize_table[CTL_SERIDX_COUNT][CTL_SERIDX_COUNT] = {
 /*FORMAT  */{   pS, bK, bK, bK, bK, bK,  bK,  pS,  pS, bK,  bK, bK,  bK, bK},
 /*START   */{   bK, bK, bK, bK, bK, bK,  bK,  bK,  pS, bK,  bK, bK,  bK, bK},
 };
-

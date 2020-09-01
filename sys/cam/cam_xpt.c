@@ -234,7 +234,6 @@ static int	xpt_init(void *);
 DECLARE_MODULE(cam, cam_moduledata, SI_SUB_CONFIGURE, SI_ORDER_SECOND);
 MODULE_VERSION(cam, 1);
 
-
 static void		xpt_async_bcast(struct async_list *async_head,
 					u_int32_t async_code,
 					struct cam_path *path,
@@ -519,7 +518,6 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			bcopy(&ccb, inccb, sizeof(union ccb));
 			xpt_free_path(ccb.ccb_h.path);
 			break;
-
 		}
 		case XPT_DEV_MATCH: {
 			struct cam_periph_map_info mapinfo;
@@ -651,7 +649,6 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 		 */
 		for (periph = TAILQ_FIRST(&(*p_drv)->units); periph != NULL;
 		     periph = TAILQ_NEXT(periph, unit_links)) {
-
 			if (periph->unit_number == unit)
 				break;
 		}
@@ -1035,7 +1032,6 @@ xpt_remove_periph(struct cam_periph *periph)
 		atomic_add_32(&xsoftc.xpt_generation, 1);
 	}
 }
-
 
 void
 xpt_announce_periph(struct cam_periph *periph, char *announce_string)
@@ -2675,7 +2671,6 @@ xpt_action_default(union ccb *start_ccb)
 		if (device->protocol_version <= SCSI_REV_2
 		 && start_ccb->ccb_h.target_lun < 8
 		 && (start_ccb->ccb_h.flags & CAM_CDB_POINTER) == 0) {
-
 			start_ccb->csio.cdb_io.cdb_bytes[1] |=
 			    start_ccb->ccb_h.target_lun << 5;
 		}
@@ -2863,7 +2858,6 @@ call_sim:
 		struct cam_ed		*device;
 		int			found;
 
-
 		found = 0;
 
 		/*
@@ -3041,13 +3035,11 @@ call_sim:
 		crs = &start_ccb->crs;
 		dev = path->device;
 		if (dev == NULL) {
-
 			crs->ccb_h.status = CAM_DEV_NOT_THERE;
 			break;
 		}
 
 		if ((crs->release_flags & RELSIM_ADJUST_OPENINGS) != 0) {
-
 			/* Don't ever go below one opening */
 			if (crs->openings > 0) {
 				xpt_dev_ccbq_resize(path, crs->openings);
@@ -3061,9 +3053,7 @@ call_sim:
 
 		mtx_lock(&dev->sim->devq->send_mtx);
 		if ((crs->release_flags & RELSIM_RELEASE_AFTER_TIMEOUT) != 0) {
-
 			if ((dev->flags & CAM_DEV_REL_TIMEOUT_PENDING) != 0) {
-
 				/*
 				 * Just extend the old timeout and decrement
 				 * the freeze count so that a single timeout
@@ -3072,7 +3062,6 @@ call_sim:
 				start_ccb->ccb_h.flags &= ~CAM_DEV_QFREEZE;
 				callout_stop(&dev->callout);
 			} else {
-
 				start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 			}
 
@@ -3081,11 +3070,9 @@ call_sim:
 			    xpt_release_devq_timeout, dev, 0);
 
 			dev->flags |= CAM_DEV_REL_TIMEOUT_PENDING;
-
 		}
 
 		if ((crs->release_flags & RELSIM_RELEASE_AFTER_CMDCMPLT) != 0) {
-
 			if ((dev->flags & CAM_DEV_REL_ON_COMPLETE) != 0) {
 				/*
 				 * Decrement the freeze count so that a single
@@ -3094,20 +3081,16 @@ call_sim:
 				 */
 				start_ccb->ccb_h.flags &= ~CAM_DEV_QFREEZE;
 			} else {
-
 				dev->flags |= CAM_DEV_REL_ON_COMPLETE;
 				start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 			}
 		}
 
 		if ((crs->release_flags & RELSIM_RELEASE_AFTER_QEMPTY) != 0) {
-
 			if ((dev->flags & CAM_DEV_REL_ON_QUEUE_EMPTY) != 0
 			 || (dev->ccbq.dev_active == 0)) {
-
 				start_ccb->ccb_h.flags &= ~CAM_DEV_QFREEZE;
 			} else {
-
 				dev->flags |= CAM_DEV_REL_ON_QUEUE_EMPTY;
 				start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 			}
@@ -3300,7 +3283,6 @@ xpt_schedule(struct cam_periph *periph, u_int32_t new_priority)
 	}
 }
 
-
 /*
  * Schedule a device to run on a given queue.
  * If the device was inserted as a new entry on the queue,
@@ -3317,7 +3299,6 @@ xpt_schedule_dev(struct camq *queue, cam_pinfo *pinfo,
 	u_int32_t old_priority;
 
 	CAM_DEBUG_PRINT(CAM_DEBUG_XPT, ("xpt_schedule_dev\n"));
-
 
 	old_priority = pinfo->priority;
 
@@ -3381,7 +3362,6 @@ restart:
 	    periph->immediate_priority)) != CAM_PRIORITY_NONE &&
 	    (periph->periph_allocated - (ccb != NULL ? 1 : 0) <
 	     device->ccbq.total_openings || prio <= CAM_PRIORITY_OOB)) {
-
 		if (ccb == NULL &&
 		    (ccb = xpt_get_ccb_nowait(periph)) == NULL) {
 			if (sleep) {
@@ -3446,7 +3426,6 @@ xpt_run_devq(struct cam_devq *devq)
 		}
 
 		if ((work_ccb->ccb_h.flags & CAM_HIGH_POWER) != 0) {
-
 			mtx_lock(&xsoftc.xpt_highpower_lock);
 		 	if (xsoftc.num_highpower <= 0) {
 				/*
@@ -4090,7 +4069,6 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 
 	/* Notify interested parties */
 	if (sim->path_id != CAM_XPT_PATH_ID) {
-
 		xpt_async(AC_PATH_REGISTERED, path, &cpi);
 		if ((cpi.hba_misc & PIM_NOSCAN) == 0) {
 			union	ccb *scan_ccb;
@@ -4691,8 +4669,6 @@ xpt_free_ccb(union ccb *free_ccb)
 {
 	free(free_ccb, M_CAMCCB);
 }
-
-
 
 /* Private XPT functions */
 
@@ -5399,7 +5375,6 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 		 * Any high powered commands queued up?
 		 */
 		if (device != NULL) {
-
 			STAILQ_REMOVE_HEAD(hphead, highpowerq_entry);
 			mtx_unlock(&xsoftc.xpt_highpower_lock);
 

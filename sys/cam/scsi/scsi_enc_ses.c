@@ -439,7 +439,6 @@ ses_iter_next(struct ses_iterator *iter)
 	 *	 configuration has 0 objects.
 	 */
 	if (iter->global_element_index >= (int)iter->cache->nelms - 1) {
-
 		/* Elements exhausted. */
 		iter->type_index	       = ITERATOR_INDEX_END;
 		iter->type_element_index       = ITERATOR_INDEX_END;
@@ -463,7 +462,6 @@ ses_iter_next(struct ses_iterator *iter)
 	 * count is non-zero.
 	 */
 	if (iter->type_element_index > element_type->hdr->etype_maxelt) {
-
 		/*
 		 * We've exhausted the elements of this type.
 		 * This next element belongs to the next type.
@@ -625,7 +623,7 @@ ses_cache_free_status(enc_softc_t *enc, enc_cache_t *cache)
 	ses_cache   = cache->private;
 	if (ses_cache->status_page == NULL)
 		return;
-	
+
 	other_ses_cache = enc_other_cache(enc, cache)->private;
 	if (other_ses_cache->status_page != ses_cache->status_page)
 		ENC_FREE(ses_cache->status_page);
@@ -647,7 +645,6 @@ ses_cache_free_elm_map(enc_softc_t *enc, enc_cache_t *cache)
 	for (cur_elm = cache->elm_map,
 	     last_elm = &cache->elm_map[cache->nelms];
 	     cur_elm != last_elm; cur_elm++) {
-
 		ENC_FREE_AND_NULL(cur_elm->elm_private);
 	}
 	ENC_FREE_AND_NULL(cache->elm_map);
@@ -721,7 +718,6 @@ ses_cache_clone(enc_softc_t *enc, enc_cache_t *src, enc_cache_t *dst)
 	for (dst_elm = dst->elm_map, src_elm = src->elm_map,
 	     last_elm = &src->elm_map[src->nelms];
 	     src_elm != last_elm; src_elm++, dst_elm++) {
-
 		dst_elm->elm_private = malloc(sizeof(ses_element_t),
 		    M_SCSIENC, M_WAITOK);
 		memcpy(dst_elm->elm_private, src_elm->elm_private,
@@ -923,7 +919,6 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 				    device_match->path_id,
 				    device_match->target_id,
 				    device_match->target_lun) == CAM_REQ_CMP) {
-
 			args->callback(enc, elem, path, args->callback_arg);
 
 			xpt_free_path(path);
@@ -1051,7 +1046,6 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 		cam_release_devq(cdai.ccb_h.path, 0, 0, 0, FALSE);
 
 	if (strcmp(old_physpath, sbuf_data(args->physpath)) != 0) {
-
 		xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 		cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 		cdai.buftype = CDAI_TYPE_PHYS_PATH;
@@ -1386,7 +1380,6 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	err = 0;
 	if (ses_config_cache_valid(ses_cache, cfg_page->hdr.gen_code)) {
-
 		/* Our cache is still valid.  Proceed to fetching status. */
 		goto out;
 	}
@@ -1422,7 +1415,6 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	last_subenc = &subencs[ses_cache->ses_nsubencs - 1];
 	ntype = 0;
 	while (cur_subenc <= last_subenc) {
-
 		if (!ses_enc_desc_is_complete(buf_subenc, last_valid_byte)) {
 			ENC_VLOG(enc, "Enclosure %d Beyond End of "
 			    "Descriptors\n", cur_subenc - subencs);
@@ -1612,7 +1604,6 @@ ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		__func__, length, xfer_len);
 	while (cur_stat <= last_stat
 	    && (element = ses_iter_next(&iter)) != NULL) {
-
 		ENC_DLOG(enc, "%s: obj %d(%d,%d) off=0x%tx status=%jx\n",
 		    __func__, iter.global_element_index, iter.type_index,
 		    iter.type_element_index, (uint8_t *)cur_stat - buf,
@@ -2077,7 +2068,6 @@ ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 	ses_iter_init(enc, enc_cache, &iter);
 	while (offset < plength
 	    && (element = ses_iter_next(&iter)) != NULL) {
-
 		if ((offset + sizeof(struct ses_elm_desc_hdr)) > plength) {
 			ENC_VLOG(enc, "Element %d Descriptor Header Past "
 			    "End of Buffer\n", iter.global_element_index);
@@ -2210,7 +2200,7 @@ ses_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
 	hdr = (struct ses_control_page_hdr *)buf;
-	
+
 	if (ses_cache->status_page == NULL) {
 		ses_terminate_control_requests(&ses->ses_requests, EIO);
 		return (EIO);
@@ -2231,7 +2221,6 @@ ses_fill_control_request(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	/* Apply incoming requests. */
 	while ((req = TAILQ_FIRST(&ses->ses_requests)) != NULL) {
-
 		TAILQ_REMOVE(&ses->ses_requests, req, links);
 		req->result = ses_encode(enc, buf, plength, req);
 		if (req->result != 0) {
@@ -2769,7 +2758,7 @@ ses_set_enc_status(enc_softc_t *enc, uint8_t encstat, int slpflag)
 	ses = enc->enc_private;
 	req.elm_idx = SES_SETSTATUS_ENC_IDX;
 	req.elm_stat.comstatus = encstat & 0xf;
-	
+
 	TAILQ_INSERT_TAIL(&ses->ses_requests, &req, links);
 	enc_update_request(enc, SES_PROCESS_CONTROL_REQS);
 	cam_periph_sleep(enc->periph, &req, PUSER, "encstat", 0);
@@ -3055,4 +3044,3 @@ ses_softc_init(enc_softc_t *enc)
 
 	return (0);
 }
-

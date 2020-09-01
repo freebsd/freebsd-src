@@ -274,7 +274,7 @@ pmpasync(void *callback_arg, u_int32_t code,
 	{
 		struct ccb_getdev *cgd;
 		cam_status status;
- 
+
 		cgd = (struct ccb_getdev *)arg;
 		if (cgd == NULL)
 			break;

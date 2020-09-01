@@ -1091,7 +1091,6 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 		break;
 	}
 	case CD_STATE_MEDIA_TOC_FULL: {
-
 		bzero(&softc->toc, sizeof(softc->toc));
 
 		scsi_read_toc(&start_ccb->csio,
@@ -1339,7 +1338,6 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 
 					announce_buf = NULL;
 				} else {
-
 					/*
 					 * Invalidate this peripheral.
 					 */
@@ -1382,7 +1380,6 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 	case CD_CCB_TUR:
 	{
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-
 			if (cderror(done_ccb, CAM_RETRY_SELTO,
 			    SF_RETRY_UA | SF_NO_RECOVERY | SF_NO_PRINT) ==
 			    ERESTART)
@@ -1791,7 +1788,6 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 	cam_periph_unlock(periph);
 
 	switch (cmd) {
-
 	case CDIOCPLAYTRACKS:
 		{
 			struct ioc_play_track *args
@@ -1943,7 +1939,6 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 			cam_periph_lock(periph);
 			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
 				  ("trying to do CDIOCPLAYBLOCKS\n"));
-
 
 			error = cdgetmode(periph, &params, AUDIO_PAGE);
 			if (error) {
@@ -2818,7 +2813,6 @@ cdcheckmedia(struct cam_periph *periph)
 	 */
 	cdindex = toch->starting_track + num_entries -1;
 	if (cdindex == toch->ending_track + 1) {
-
 		error = cdreadtoc(periph, CD_MSF_FORMAT, LEADOUT,
 				  (u_int8_t *)&leadout, sizeof(leadout),
 				  SF_NO_PRINT);
@@ -3219,7 +3213,6 @@ cdreadsubchannel(struct cam_periph *periph, u_int32_t mode,
 	return(error);
 }
 
-
 /*
  * All MODE_SENSE requests in the cd(4) driver MUST go through this
  * routine.  See comments in cd6byteworkaround() for details.
@@ -3417,7 +3410,6 @@ cdsetmode(struct cam_periph *periph, struct cd_mode_params *data)
 	return (error);
 }
 
-
 static int
 cdplay(struct cam_periph *periph, u_int32_t blk, u_int32_t len)
 {
@@ -3517,7 +3509,6 @@ cdplaymsf(struct cam_periph *periph, u_int32_t startm, u_int32_t starts,
 
 	return(error);
 }
-
 
 static int
 cdplaytracks(struct cam_periph *periph, u_int32_t strack, u_int32_t sindex,
@@ -4187,7 +4178,6 @@ scsi_send_key(struct ccb_scsiio *csio, u_int32_t retries,
 		      sizeof(*scsi_cmd),
 		      timeout);
 }
-
 
 void
 scsi_read_dvd_structure(struct ccb_scsiio *csio, u_int32_t retries,

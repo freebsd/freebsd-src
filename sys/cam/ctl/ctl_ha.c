@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_debug.h>
 #include <cam/ctl/ctl_error.h>
 
-
 struct ha_msg_wire {
 	uint32_t	 channel;
 	uint32_t	 length;
@@ -874,7 +873,6 @@ ctl_dt_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 		printf("%s: Unknown event %d\n", __func__, event);
 	}
 }
-
 
 ctl_ha_status
 ctl_ha_msg_init(struct ctl_softc *ctl_softc)

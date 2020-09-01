@@ -86,7 +86,7 @@ typedef enum {
 	NDA_Q_4K   = 0x01,
 	NDA_Q_NONE = 0x00,
 } nda_quirks;
-	
+
 #define NDA_Q_BIT_STRING	\
 	"\020"			\
 	"\001Bit 0"
@@ -335,7 +335,6 @@ ndaclose(struct disk *dp)
 	if ((softc->flags & NDA_FLAG_DIRTY) != 0 &&
 	    (periph->flags & CAM_PERIPH_INVALID) == 0 &&
 	    cam_periph_hold(periph, PRIBIO) == 0) {
-
 		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
 		nda_nvme_flush(softc, &ccb->nvmeio);
 		error = cam_periph_runccb(ccb, ndaerror, /*cam_flags*/0,
@@ -467,7 +466,7 @@ ndastrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct nda_softc *softc;
-	
+
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
 	softc = (struct nda_softc *)periph->softc;
 
@@ -483,7 +482,7 @@ ndastrategy(struct bio *bp)
 		biofinish(bp, NULL, ENXIO);
 		return;
 	}
-	
+
 	if (bp->bio_cmd == BIO_DELETE)
 		softc->deletes++;
 
@@ -519,7 +518,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 	secsize = softc->disk->d_sectorsize;
 	lba = offset / secsize;
 	count = length / secsize;
-	
+
 	if ((periph->flags & CAM_PERIPH_INVALID) != 0)
 		return (ENXIO);
 
@@ -536,7 +535,7 @@ ndadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t len
 
 		return (error);
 	}
-	
+
 	/* Flush */
 	xpt_setup_ccb(&nvmeio.ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 
@@ -564,7 +563,6 @@ ndainit(void)
 		printf("nda: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
 	} else if (nda_send_ordered) {
-
 		/* Register our event handlers */
 		if ((EVENTHANDLER_REGISTER(power_suspend, ndasuspend,
 					   NULL, EVENTHANDLER_PRI_LAST)) == NULL)
@@ -656,7 +654,7 @@ ndaasync(void *callback_arg, u_int32_t code,
 	{
 		struct ccb_getdev *cgd;
 		cam_status status;
- 
+
 		cgd = (struct ccb_getdev *)arg;
 		if (cgd == NULL)
 			break;

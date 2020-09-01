@@ -292,7 +292,6 @@ mmc_action(union ccb *start_ccb)
 		  ("mmc_action! func_code=%x, action %s\n", start_ccb->ccb_h.func_code,
 		   xpt_action_name(start_ccb->ccb_h.func_code)));
 	switch (start_ccb->ccb_h.func_code) {
-
 	case XPT_SCAN_BUS:
                 /* FALLTHROUGH */
 	case XPT_SCAN_TGT:
@@ -601,7 +600,6 @@ mmcprobe_start(struct cam_periph *periph, union ccb *start_ccb)
 			softc->action = PROBE_RESET;
 		else
 			softc->action = PROBE_IDENTIFY;
-
 	}
 
 	/* Here is the place where the identify fun begins */
@@ -852,7 +850,6 @@ mmcprobe_done(struct cam_periph *periph, union ccb *done_ccb)
 			mmcp->card_features |= CARD_FEATURE_SD20;
 			CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_PROBE,
 				  ("SD 2.0 interface conditions: OK\n"));
-
 		}
                 PROBE_SET_ACTION(softc, PROBE_SDIO_RESET);
 		break;

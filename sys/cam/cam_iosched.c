@@ -241,7 +241,6 @@ struct iop_stats {
 	struct cam_iosched_softc *softc;
 };
 
-
 typedef enum {
 	set_max = 0,			/* current = max */
 	read_latency,			/* Steer read latency by throttling writes */
@@ -456,7 +455,6 @@ cam_iosched_iops_tick(struct iop_stats *ios)
 		ios->l_value1 += new_ios;
 	}
 
-
 	return 0;
 }
 
@@ -542,7 +540,6 @@ cam_iosched_bw_caniop(struct iop_stats *ios, struct bio *bp)
 	if (ios->current > 0 && ios->l_value1 <= 0)
 		return EAGAIN;
 
-
 	return 0;
 }
 
@@ -614,7 +611,6 @@ cam_iosched_ticker(void *arg)
 
 	isc->total_ticks++;
 }
-
 
 static void
 cam_iosched_cl_init(struct control_loop *clp, struct cam_iosched_softc *isc)
@@ -790,7 +786,6 @@ cam_iosched_has_more_trim(struct cam_iosched_softc *isc)
 
 #define cam_iosched_sort_queue(isc)	((isc)->sort_io_queue >= 0 ?	\
     (isc)->sort_io_queue : cam_sort_io_queues)
-
 
 static inline bool
 cam_iosched_has_work(struct cam_iosched_softc *isc)

@@ -139,4 +139,3 @@ ctl_backend_find(char *backend_name)
 
 	return (NULL);
 }
-

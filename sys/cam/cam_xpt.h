@@ -39,7 +39,6 @@
 #include <cam/cam_ccb.h>
 #endif
 
-
 /* Forward Declarations */
 union ccb;
 struct cam_periph;

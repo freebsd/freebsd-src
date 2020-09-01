@@ -52,4 +52,3 @@ void		xpt_done_direct(union ccb *done_ccb);
 #endif
 
 #endif /* _CAM_CAM_XPT_SIM_H */
-

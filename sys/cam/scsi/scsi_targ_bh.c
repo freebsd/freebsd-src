@@ -256,7 +256,7 @@ targbhenlun(struct cam_periph *periph)
 		    status);
 		return (status);
 	}
-	
+
 	softc->flags |= TARGBH_FLAG_LUN_ENABLED;
 
 	/*
@@ -449,7 +449,7 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 	ccb_flags flags;
 
 	softc = (struct targbh_softc *)periph->softc;
-	
+
 	ccbh = TAILQ_FIRST(&softc->work_queue);
 	if (ccbh == NULL) {
 		xpt_release_ccb(start_ccb);	
@@ -478,7 +478,6 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 				csio->sense_data = atio->sense_data;
 				flags |= CAM_SEND_SENSE;
 			}
-
 		}
 
 		cam_fill_ctio(csio,
@@ -683,7 +682,6 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 		desc->data_resid -= desc->data_increment;
 		xpt_release_ccb(done_ccb);
 		if (softc->state != TARGBH_STATE_TEARDOWN) {
-
 			/*
 			 * Send the original accept TIO back to the
 			 * controller to handle more work.

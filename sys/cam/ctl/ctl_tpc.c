@@ -2472,4 +2472,3 @@ ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio)
 	ctl_datamove((union ctl_io *)ctsio);
 	return (retval);
 }
-
