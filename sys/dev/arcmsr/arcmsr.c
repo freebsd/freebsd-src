@@ -263,7 +263,7 @@ static int arcmsr_ioctl(struct cdev *dev, u_long ioctl_cmd, caddr_t arg, int fla
 {
 	int	unit = dev2unit(dev);
 	struct AdapterControlBlock *acb = devclass_get_softc(arcmsr_devclass, unit);
-	
+
 	if (acb == NULL) {
 		return ENXIO;
 	}
@@ -451,7 +451,7 @@ static u_int8_t arcmsr_hbe_wait_msgint_ready(struct AdapterControlBlock *acb)
 {
 	u_int32_t Index, read_doorbell;
 	u_int8_t Retries = 0x00;
-	
+
 	do {
 		for(Index=0; Index < 100; Index++) {
 			read_doorbell = CHIP_REG_READ32(HBE_MessageUnit, 0, iobound_doorbell);
@@ -542,7 +542,7 @@ static void arcmsr_flush_hbd_cache(struct AdapterControlBlock *acb)
 static void arcmsr_flush_hbe_cache(struct AdapterControlBlock *acb)
 {
 	int retry_count = 30;/* enlarge wait flush adapter cache time: 10 minute */
-	
+
 	CHIP_REG_WRITE32(HBE_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_FLUSH_CACHE);
 	acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 	CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, acb->out_doorbell);
@@ -934,7 +934,6 @@ static void arcmsr_done4abort_postqueue(struct AdapterControlBlock *acb)
 		}
 		break;
 	case ACB_ADAPTER_TYPE_C: {
-
 			while((CHIP_REG_READ32(HBC_MessageUnit, 0, host_int_status) & ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR) && (i++ < ARCMSR_MAX_OUTSTANDING_CMD)) {
 				flag_srb = CHIP_REG_READ32(HBC_MessageUnit, 0, outbound_queueport_low);
 				error = (flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE1) ? TRUE : FALSE;
@@ -1207,7 +1206,7 @@ static struct QBUFFER *arcmsr_get_iop_rqbuffer( struct AdapterControlBlock *acb)
 		break;
 	case ACB_ADAPTER_TYPE_E: {
 			struct HBE_MessageUnit *phbcmu = (struct HBE_MessageUnit *)acb->pmu;
-	
+
 			qbuffer = (struct QBUFFER *)&phbcmu->message_rbuffer;
 		}
 		break;
@@ -1249,7 +1248,7 @@ static struct QBUFFER *arcmsr_get_iop_wqbuffer( struct AdapterControlBlock *acb)
 		break;
 	case ACB_ADAPTER_TYPE_E: {
 			struct HBE_MessageUnit *phbcmu = (struct HBE_MessageUnit *)acb->pmu;
-	
+
 			qbuffer = (struct QBUFFER *)&phbcmu->message_wbuffer;
 		}
 		break;
@@ -1462,7 +1461,6 @@ static void arcmsr_poll(struct cam_sim *psim)
 */
 static u_int32_t arcmsr_Read_iop_rqbuffer_data_D(struct AdapterControlBlock *acb,
 	struct QBUFFER *prbuffer) {
-
 	u_int8_t *pQbuffer;
 	u_int8_t *buf1 = NULL;
 	u_int32_t *iop_data, *buf2 = NULL;
@@ -1507,7 +1505,6 @@ static u_int32_t arcmsr_Read_iop_rqbuffer_data_D(struct AdapterControlBlock *acb
 */
 static u_int32_t arcmsr_Read_iop_rqbuffer_data(struct AdapterControlBlock *acb,
 	struct QBUFFER *prbuffer) {
-
 	u_int8_t *pQbuffer;
 	u_int8_t *iop_data;
 	u_int32_t iop_len;
@@ -1688,7 +1685,6 @@ static void	arcmsr_rescan_lun(struct AdapterControlBlock *acb, int target, int l
 	ccb->crcn.flags = CAM_FLAG_NONE;
 	xpt_action(ccb);
 }
-
 
 static void arcmsr_abort_dr_ccbs(struct AdapterControlBlock *acb, int target, int lun)
 {
@@ -1965,7 +1961,7 @@ static void arcmsr_hbd_doorbell_isr(struct AdapterControlBlock *acb)
 static void arcmsr_hbe_doorbell_isr(struct AdapterControlBlock *acb)
 {
 	u_int32_t doorbell_status, in_doorbell;
-	
+
 	/*
 	*******************************************************************
 	**  Maybe here we need to check wrqbuffer_lock is lock or not
@@ -2136,7 +2132,7 @@ static void arcmsr_hbe_postqueue_isr(struct AdapterControlBlock *acb)
 	u_int16_t error;
 	uint32_t doneq_index;
 	uint16_t cmdSMID;
-	
+
 	/*
 	*****************************************************************************
 	**               areca cdb command done
@@ -2988,7 +2984,7 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 	case INQUIRY: {
 		unsigned char inqdata[36];
 		char *buffer = pccb->csio.data_ptr;
-	
+
 		inqdata[0] = T_PROCESSOR;	/* Periph Qualifier & Periph Dev Type */
 		inqdata[1] = 0;			/* rem media bit & Dev Type Modifier */
 		inqdata[2] = 0;			/* ISO, ECMA, & ANSI versions */
@@ -3110,7 +3106,7 @@ static void arcmsr_action(struct cam_sim *psim, union ccb *pccb)
 		}
 	case XPT_ABORT: {
 			union ccb *pabort_ccb;
-	
+
 			pabort_ccb = pccb->cab.abort_ccb;
 			switch (pabort_ccb->ccb_h.func_code) {
 			case XPT_ACCEPT_TARGET_IO:
@@ -3548,7 +3544,7 @@ static void arcmsr_polling_hbe_srbdone(struct AdapterControlBlock *acb, struct C
 	struct CommandControlBlock *srb;
 	u_int32_t poll_srb_done=0, poll_count=0, doneq_index;
 	u_int16_t	error, cmdSMID;
-	
+
 polling_ccb_retry:
 	poll_count++;
 	bus_dmamap_sync(acb->srb_dmat, acb->srb_dmamap, BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
@@ -3835,14 +3831,14 @@ static void arcmsr_get_hbe_config(struct AdapterControlBlock *acb)
 	size_t iop_firm_version = offsetof(struct HBE_MessageUnit,msgcode_rwbuffer[ARCMSR_FW_VERS_OFFSET]); /*firm_version,17,68-83*/
 	size_t iop_device_map = offsetof(struct HBE_MessageUnit,msgcode_rwbuffer[ARCMSR_FW_DEVMAP_OFFSET]);
 	int i;
-	
+
 	CHIP_REG_WRITE32(HBE_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_GET_CONFIG);
 	acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 	CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, acb->out_doorbell);
 	if(!arcmsr_hbe_wait_msgint_ready(acb)) {
 		printf("arcmsr%d: wait 'get adapter firmware miscellaneous data' timeout \n", acb->pci_unit);
 	}
-	
+
 	i = 0;
 	while(i < 8) {
 		*acb_firm_model = bus_space_read_1(acb->btag[0], acb->bhandle[0], iop_firm_model+i); 

@@ -1128,15 +1128,15 @@ struct ARCMSR_CDB {
 	u_int8_t     	TargetID;         /* 01h   should be 0--15        */
 	u_int8_t     	LUN;              /* 02h   should be 0--7         */
 	u_int8_t     	Function;         /* 03h   should be 1            */
-	
+
 	u_int8_t     	CdbLength;        /* 04h   not used now           */
 	u_int8_t     	sgcount;          /* 05h                          */
 	u_int8_t     	Flags;            /* 06h                          */
 	u_int8_t     	msgPages;         /* 07h                          */
-	
+
 	u_int32_t    	Context;          /* 08h   Address of this request */
 	u_int32_t    	DataLength;       /* 0ch   not used now           */
-	
+
 	u_int8_t     	Cdb[16];          /* 10h   SCSI CDB               */
 	/*
 	********************************************************
@@ -1145,9 +1145,9 @@ struct ARCMSR_CDB {
 	********************************************************
 	*/
 	u_int8_t     	DeviceStatus;     /* 20h   if error                */
-	
+
 	u_int8_t     	SenseData[15];    /* 21h   output                  */        
-	
+
 	union {
 		struct SG32ENTRY	sg32entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h   Scatter gather address  */
 		struct SG64ENTRY	sg64entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h                           */
@@ -1235,7 +1235,7 @@ struct CommandControlBlock {
 
 struct AdapterControlBlock {
 	u_int32_t		adapter_type;		/* adapter A,B..... */
-	
+
 	bus_space_tag_t		btag[2];
 	bus_space_handle_t	bhandle[2];
 	bus_dma_tag_t		parent_dmat;
@@ -1245,12 +1245,12 @@ struct AdapterControlBlock {
 	device_t		pci_dev;
 	struct cdev		*ioctl_dev;
 	int			pci_unit;
-	
+
 	struct resource		*sys_res_arcmsr[2];
 	struct resource		*irqres[ARCMSR_NUM_MSIX_VECTORS];
 	void			*ih[ARCMSR_NUM_MSIX_VECTORS]; /* interrupt handle */
 	int			irq_id[ARCMSR_NUM_MSIX_VECTORS];
-	
+
 	/* Hooks into the CAM XPT */
 	struct			cam_sim *psim;
 	struct			cam_path *ppath;
@@ -1266,32 +1266,32 @@ struct AdapterControlBlock {
 //	unsigned long				srb_phyaddr;
 	/* Offset is used in making arc cdb physical to virtual calculations */
 	u_int32_t		outbound_int_enable;
-	
+
 	struct MessageUnit_UNION	*pmu;		/* message unit ATU inbound base address0 */
-	
+
 	u_int8_t		adapter_index;
 	u_int8_t		irq;
 	u_int16_t		acb_flags;
-	
+
 	struct CommandControlBlock *psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
 	struct CommandControlBlock *srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */
 	int32_t			workingsrb_doneindex;		/* done srb array index */
 	int32_t			workingsrb_startindex;		/* start srb array index  */
 	int32_t			srboutstandingcount;
-	
+
 	u_int8_t		rqbuffer[ARCMSR_MAX_QBUFFER];	/* data collection buffer for read from 80331 */
 	u_int32_t		rqbuf_firstindex;		/* first of read buffer  */
 	u_int32_t		rqbuf_lastindex;		/* last of read buffer   */
-	
+
 	u_int8_t		wqbuffer[ARCMSR_MAX_QBUFFER];	/* data collection buffer for write to 80331  */
 	u_int32_t		wqbuf_firstindex;		/* first of write buffer */
 	u_int32_t		wqbuf_lastindex;		/* last of write buffer  */
-	
+
 	arcmsr_lock_t		isr_lock;
 	arcmsr_lock_t		srb_lock;
 	arcmsr_lock_t		postDone_lock;
 	arcmsr_lock_t		qbuffer_lock;
-	
+
 	u_int8_t		devstate[ARCMSR_MAX_TARGETID][ARCMSR_MAX_TARGETLUN]; /* id0 ..... id15,lun0...lun7 */
 	u_int32_t		num_resets;
 	u_int32_t		num_aborts;
@@ -2500,9 +2500,6 @@ struct SENSE_DATA {
 **************************************************************************
 */
 
-
-
-
 /*
 *************************************************************************************************************************************
 **                       80331 Address Translation Unit Register Definitions
@@ -3028,8 +3025,6 @@ struct SENSE_DATA {
 ***************************************************************************************  
 */
 
-
-
 /*
 ***********************************************************************************
 **  ATU Interrupt Line Register - ATUILR
@@ -3156,8 +3151,6 @@ struct SENSE_DATA {
 **  					ANS:IB_Address=B145 012CH
 ***********************************************************************************
 */
-
-
 
 /*
 ***********************************************************************************
@@ -4387,8 +4380,6 @@ struct SENSE_DATA {
 *****************************************************************
 */
 
-
-
 /*
 **************************************************************************
 **               Inbound Read Completions Data Parity Errors
@@ -4446,7 +4437,6 @@ struct SENSE_DATA {
 **	Detected Parity Error bit in the ATUISR. When set, no action.
 ***************************************************************************
 */
-
 
 /*
 ***************************************************************************
@@ -4552,7 +4542,6 @@ struct SENSE_DATA {
 **  the internal bus of the 80331.
 *****************************************************************************
 */
-
 
 /*
 ******************************************************************************************************
