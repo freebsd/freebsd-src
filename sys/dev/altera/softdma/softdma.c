@@ -501,7 +501,6 @@ softdma_process_descriptors(struct softdma_channel *chan,
 	desc = &chan->descs[chan->idx_tail];
 
 	while (desc != NULL) {
-
 		if ((desc->control & CONTROL_OWN) == 0) {
 			break;
 		}

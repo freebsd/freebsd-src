@@ -40,4 +40,3 @@
 #define	PIO_EDGECAPT	0x0c
 #define	PIO_OUTSET	0x10
 #define	PIO_OUTCLR	0x14
-
