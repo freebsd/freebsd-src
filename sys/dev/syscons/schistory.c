@@ -299,7 +299,6 @@ sc_hist_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	int error;
 
 	switch (cmd) {
-
 	case CONS_HISTORY:  	/* set history size */
 		scp = SC_STAT(tp);
 		if (*(int *)data <= 0)

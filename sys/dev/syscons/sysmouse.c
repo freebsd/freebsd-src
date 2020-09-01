@@ -137,7 +137,6 @@ smdev_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	mousemode_t *mode;
 
 	switch (cmd) {
-
 	case MOUSE_GETHWINFO:	/* get device information */
 		hw = (mousehw_t *)data;
 		hw->buttons = 10;		/* XXX unknown */
