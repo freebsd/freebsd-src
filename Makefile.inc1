@@ -1436,7 +1436,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	    DISTBASE=/base DESTDIR=${DESTDIR}/${DISTDIR}/base \
 	    LOCAL_MTREE=${LOCAL_MTREE:Q} distrib-dirs
 	${INSTALL_SYMLINK} ${INSTALLFLAGS} usr/src/sys ${INSTALL_DDIR}/base/sys
-.endif
+.endif # make(distributeworld)
 	${_+_}cd ${.CURDIR}; ${IMAKE} re${.TARGET:S/world$//}; \
 	    ${IMAKEENV} rm -rf ${INSTALLTMP}
 .if make(distributeworld)
@@ -1465,7 +1465,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 .endfor
 .endif
-.endif
+.endif # make(distributeworld)
 
 packageworld: .PHONY
 .for dist in base ${EXTRA_DISTRIBUTIONS}
