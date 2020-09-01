@@ -118,7 +118,6 @@ static char *fifo_memory_block[] = {
 #define	PCS_TXRX_ENABLE_DYNAMIC_RECONF	0	/* Dynamic trans. reconfig. */
 #define	PCS_TXRX_STARTING_CHANNEL	0	/* 0..284. */
 
-
 /* -------------------------------------------------------------------------- */
 
 /* XXX more values based on the bitmaps provided. Cleanup. */
@@ -397,7 +396,6 @@ static char *fifo_memory_block[] = {
 /* 0xC8 - 0xCF, Reserved; set to zero, ignore on read. */
 /* 0xD7 - 0xFF, Reserved; set to zero, ignore on read. */
 
-
 /* -------------------------------------------------------------------------- */
 
 /* DE4 Intel Strata Flash Ethernet Option Bits area. */
@@ -456,7 +454,6 @@ struct atse_softc {
 	struct buf_ring		*br;
 	struct mtx		br_mtx;
 };
-
 
 int	atse_attach(device_t);
 int	atse_detach_dev(device_t);
