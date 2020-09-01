@@ -314,7 +314,7 @@ atkbd_configure(int flags)
 		}
 		return 0;
 	}
-	
+
 	/* XXX: a kludge to obtain the device configuration flags */
 	if (resource_int_value("atkbd", ATKBD_DEFAULT, "flags", &i) == 0)
 		flags |= i;
@@ -427,7 +427,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		    imin(fkeymap_size * sizeof(fkeymap[0]), sizeof(fkey_tab)));
 		kbd_set_maps(kbd, keymap, accmap, fkeymap, fkeymap_size);
 		kbd->kb_data = (void *)state;
-	
+
 		if (probe_keyboard(state->kbdc, flags)) { /* shouldn't happen */
 			if (flags & KB_CONF_FAIL_IF_NO_KBD) {
 				error = ENXIO;
@@ -928,7 +928,6 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 	s = spltty();
 	switch (cmd) {
-
 	case KDGKBMODE:		/* get keyboard mode */
 		*(int *)arg = state->ks_mode;
 		break;
@@ -1386,7 +1385,7 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 	if (bootverbose)
 		printf("atkbd: scancode set %d\n", codeset);
 #endif /* KBD_DETECT_XT_KEYBOARD */
- 
+
 	*type = KB_OTHER;
 	id = get_kbd_id(kbdc);
 	switch(id) {
