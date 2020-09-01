@@ -93,7 +93,7 @@ xdrmbuf_append(XDR *xdrs, struct mbuf *madd)
 		m_freem(madd);
 		return;
 	}
-	
+
 	m = (struct mbuf *) xdrs->x_private;
 	m->m_next = madd;
 
@@ -206,7 +206,7 @@ xdrmbuf_getbytes(XDR *xdrs, char *addr, u_int len)
 			xdrs->x_handy = 0;
 		}
 	}
-	
+
 	return (TRUE);
 }
 
@@ -241,7 +241,7 @@ xdrmbuf_putbytes(XDR *xdrs, const char *addr, u_int len)
 			xdrs->x_handy = 0;
 		}
 	}
-	
+
 	return (TRUE);
 }
 

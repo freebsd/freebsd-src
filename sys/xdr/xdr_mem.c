@@ -67,7 +67,7 @@ static bool_t xdrmem_setpos(XDR *, u_int);
 static int32_t *xdrmem_inline_aligned(XDR *, u_int);
 static int32_t *xdrmem_inline_unaligned(XDR *, u_int);
 static bool_t xdrmem_control(XDR *xdrs, int request, void *info);
-	
+
 static const struct	xdr_ops xdrmem_ops_aligned = {
 	xdrmem_getlong_aligned,
 	xdrmem_putlong_aligned,
@@ -240,7 +240,6 @@ xdrmem_control(XDR *xdrs, int request, void *info)
 	int len;
 
 	switch (request) {
-
 	case XDR_GET_BYTES_AVAIL:
 		xptr = (xdr_bytesrec *)info;
 		xptr->xc_is_last_record = TRUE;
@@ -269,7 +268,6 @@ xdrmem_control(XDR *xdrs, int request, void *info)
 		xdrs->x_handy -= len;
 		xdrs->x_private = (char *)xdrs->x_private + len;
 		return (TRUE);
-
 	}
 	return (FALSE);
 }

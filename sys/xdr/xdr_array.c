@@ -108,7 +108,7 @@ xdr_array(XDR *xdrs,
 		case XDR_ENCODE:
 			break;
 	}
-	
+
 	/*
 	 * now we xdr each element of array
 	 */
