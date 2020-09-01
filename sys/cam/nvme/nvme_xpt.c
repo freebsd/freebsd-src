@@ -849,4 +849,3 @@ nvme_proto_debug_out(union ccb *ccb)
 		ccb->ccb_h.func_code == XPT_NVME_ADMIN),
 		nvme_cmd_string(&ccb->nvmeio.cmd, cdb_str, sizeof(cdb_str))));
 }
-

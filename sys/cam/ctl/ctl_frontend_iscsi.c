@@ -1183,7 +1183,6 @@ cfiscsi_maintenance_thread(void *arg)
 		CFISCSI_SESSION_UNLOCK(cs);
 
 		if (cs->cs_terminating && cs->cs_handoff_in_progress == false) {
-
 			/*
 			 * We used to wait up to 30 seconds to deliver queued
 			 * PDUs to the initiator.  We also tried hard to deliver
@@ -2136,7 +2135,6 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	alias = dnvlist_get_string(req->args_nvl, "cfiscsi_target_alias", NULL);
 	val = dnvlist_get_string(req->args_nvl, "cfiscsi_portal_group_tag",
 	    NULL);
-
 
 	if (target == NULL || val == NULL) {
 		req->status = CTL_LUN_ERROR;

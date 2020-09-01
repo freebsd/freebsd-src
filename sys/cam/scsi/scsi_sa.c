@@ -124,7 +124,6 @@ typedef enum {
 /* bits in ccb_pflags */
 #define	SA_POSITION_UPDATED	0x1
 
-
 typedef enum {
 	SA_FLAG_OPEN		= 0x0001,
 	SA_FLAG_FIXED		= 0x0002,
@@ -605,7 +604,6 @@ static void		safilldenstypesb(struct sbuf *sb, int *indent,
 static void		safilldensitysb(struct sa_softc *softc, int *indent,
 					struct sbuf *sb);
 
-
 #ifndef	SA_DEFAULT_IO_SPLIT
 #define	SA_DEFAULT_IO_SPLIT	0
 #endif
@@ -635,7 +633,6 @@ PERIPHDRIVER_DECLARE(sa, sadriver);
 #ifndef D_TAPE
 #define D_TAPE 0
 #endif
-
 
 static struct cdevsw sa_cdevsw = {
 	.d_version =	D_VERSION,
@@ -741,7 +738,6 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE|CAM_DEBUG_INFO,
 	    ("saclose(%s): softc=0x%x\n", devtoname(dev), softc->flags));
-
 
 	softc->open_rdonly = 0; 
 	if (SA_IS_CTRL(dev)) {
@@ -878,7 +874,7 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 		xpt_print(periph->path, "tape is now frozen- use an OFFLINE, "
 		    "REWIND or MTEOM command to clear this state.\n");
 	}
-	
+
 	/* release the device if it is no longer mounted */
 	if ((softc->flags & SA_FLAG_TAPE_MOUNTED) == 0)
 		sareservereleaseunit(periph, FALSE);
@@ -900,7 +896,7 @@ sastrategy(struct bio *bp)
 {
 	struct cam_periph *periph;
 	struct sa_softc *softc;
-	
+
 	bp->bio_resid = bp->bio_bcount;
 	if (SA_IS_CTRL(bp->bio_dev)) {
 		biofinish(bp, NULL, EINVAL);
@@ -945,7 +941,6 @@ sastrategy(struct bio *bp)
 		softc->open_pending_mount = 0;
 	}
 
-
 	/*
 	 * If it's a null transfer, return immediately
 	 */
@@ -975,7 +970,6 @@ sastrategy(struct bio *bp)
 	} else if ((bp->bio_bcount > softc->max_blk) ||
 		   (bp->bio_bcount < softc->min_blk) ||
 		   (bp->bio_bcount & softc->blk_mask) != 0) {
-
 		xpt_print_path(periph->path);
 		printf("Invalid request.  Variable block "
 		    "device requests must be ");
@@ -988,7 +982,7 @@ sastrategy(struct bio *bp)
 		biofinish(bp, NULL, EINVAL);
 		return;
         }
-	
+
 	/*
 	 * Place it at the end of the queue.
 	 */
@@ -1004,7 +998,7 @@ sastrategy(struct bio *bp)
 		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 		    ("sastrategy: queue count now %d\n", softc->queue_count));
 	}
-	
+
 	/*
 	 * Schedule ourselves for performing the work.
 	 */
@@ -1106,7 +1100,6 @@ bailout:
 
 	return (error);
 }
-
 
 static void
 safillprot(struct sa_softc *softc, int *indent, struct sbuf *sb)
@@ -1771,7 +1764,6 @@ extget_bailout:
 
 		mt = (struct mtop *)arg;
 
-
 		CAM_DEBUG(periph->path, CAM_DEBUG_TRACE,
 			 ("saioctl: op=0x%x count=0x%x\n",
 			  mt->mt_op, mt->mt_count));
@@ -2348,7 +2340,7 @@ saregister(struct cam_periph *periph, void *arg)
 	caddr_t match;
 	char tmpstr[80];
 	int error;
-	
+
 	cgd = (struct ccb_getdev *)arg;
 	if (cgd == NULL) {
 		printf("saregister: no getdev CCB, can't register device\n");
@@ -2579,7 +2571,6 @@ sastart(struct cam_periph *periph, union ccb *start_ccb)
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sastart\n"));
 
-	
 	switch (softc->state) {
 	case SA_STATE_NORMAL:
 	{
@@ -2781,7 +2772,6 @@ again:
 	}
 }
 
-
 static void
 sadone(struct cam_periph *periph, union ccb *done_ccb)
 {
@@ -2806,7 +2796,6 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 
 	if (error == EIO) {
-
 		/*
 		 * Catastrophic error. Mark the tape as frozen
 		 * (we no longer know tape position).
@@ -2887,7 +2876,6 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 	UNUSED_PARAMETER(oflags);
 	UNUSED_PARAMETER(dev);
 
-
 	softc = (struct sa_softc *)periph->softc;
 
 	/*
@@ -2898,7 +2886,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 	 * we don't care about the unit read state and can instead use
 	 * this opportunity to attempt to reserve the tape unit.
 	 */
-	
+
 	if (softc->flags & SA_FLAG_TAPE_MOUNTED) {
 		ccb = cam_periph_getccb(periph, 1);
 		scsi_test_unit_ready(&ccb->csio, 0, NULL,
@@ -3038,8 +3026,6 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 			 */
 			softc->max_blk = scsi_3btoul(rblim->maximum);
 			softc->min_blk = scsi_2btoul(rblim->minimum);
-
-
 		}
 		/*
 		 * Next, perform a mode sense to determine
@@ -3286,7 +3272,6 @@ tryagain:
 			}
 			error = 0;	/* not an error */
 		}
-
 
 		if (error == 0) {
 			softc->flags |= SA_FLAG_TAPE_MOUNTED;
@@ -3664,7 +3649,6 @@ retry:
 	if ((mode_hdr->blk_desc_len == 0) &&
 	    (params_to_get & SA_PARAM_COMPRESSION) &&
 	    (params_to_get & ~(SA_PARAM_COMPRESSION))) {
-
 		/*
 		 * Decrease the mode buffer length by the size of
 		 * the compression page, to make sure the data
@@ -4330,7 +4314,6 @@ retry:
 		printf("\n");
 	}
 
-
 	if (error) {
 		/*
 		 * If we can, try without setting density/blocksize.
@@ -4520,7 +4503,7 @@ saextget(struct cdev *dev, struct cam_periph *periph, struct sbuf *sb,
 
 	SASBADDUINTDESC(sb, indent, softc->blk_gran, %u, blk_gran, 
 	    "Block granularity supported by tape drive and media");
-	
+
 	maxio_tmp = min(softc->max_blk, softc->maxio);
 
 	SASBADDUINTDESC(sb, indent, maxio_tmp, %u, max_effective_iosize, 
@@ -4773,7 +4756,6 @@ sawritefilemarks(struct cam_periph *periph, int nmarks, int setmarks, int immed)
 	scsi_write_filemarks(&ccb->csio, 0, NULL, MSG_SIMPLE_Q_TAG,
 	    immed, setmarks, nmarks, SSD_FULL_SIZE, IO_TIMEOUT);
 	softc->dsreg = MTIO_DSREG_REST;
-
 
 	error = cam_periph_runccb(ccb, saerror, 0, 0, softc->device_stats);
 
@@ -5274,7 +5256,6 @@ safilldenstypesb(struct sbuf *sb, int *indent, uint8_t *buf, int buf_len,
 	if (buf_len < sizeof(*hdr))
 		goto bailout;
 
-
 	hdr = (struct scsi_density_hdr *)buf;
 	hdr_len = scsi_2btoul(hdr->length);
 	len_to_go = min(buf_len - sizeof(*hdr), hdr_len);
@@ -5415,7 +5396,6 @@ safilldenstypesb(struct sbuf *sb, int *indent, uint8_t *buf, int buf_len,
 			    cur_offset, "Medium type name");
 			SAFILLDENSSBSTR(type_data, sb, *indent, description,
 			    desc_remain, len_to_go, cur_offset, "Description");
-
 		}
 	}
 	if (need_close != 0) {
@@ -5433,7 +5413,7 @@ static void
 safilldensitysb(struct sa_softc *softc, int *indent, struct sbuf *sb)
 {
 	int i, is_density;
-	
+
 	SASBADDNODE(sb, *indent, mtdensity);
 	SASBADDUINTDESC(sb, *indent, softc->media_density, %u, media_density,
 	    "Current Medium Density");
@@ -5558,7 +5538,7 @@ scsi_rewind(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_cmd->opcode = REWIND;
 	if (immediate)
 		scsi_cmd->immediate = SREW_IMMED;
-	
+
 	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action, NULL,
 	    0, sense_len, sizeof(*scsi_cmd), timeout);
 }
@@ -5597,7 +5577,7 @@ scsi_write_filemarks(struct ccb_scsiio *csio, u_int32_t retries,
 		scsi_cmd->byte2 |= SWFMRK_IMMED;
 	if (setmark)
 		scsi_cmd->byte2 |= SWFMRK_WSMK;
-	
+
 	scsi_ulto3b(num_marks, scsi_cmd->num_marks);
 
 	cam_fill_csio(csio, retries, cbfcnp, CAM_DIR_NONE, tag_action, NULL,
@@ -5699,7 +5679,6 @@ scsi_read_position_10(struct ccb_scsiio *csio, u_int32_t retries,
 		      sense_len,
 		      sizeof(*scmd),
 		      timeout);
-
 
 	scmd = (struct scsi_tape_read_position *)&csio->cdb_io.cdb_bytes;
 	bzero(scmd, sizeof(*scmd));

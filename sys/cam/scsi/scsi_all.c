@@ -691,7 +691,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 				return(table[j][i].desc);
 		}
 	}
-	
+
 	/*
 	 * If we can't find a match for the command in the table, we just
 	 * assume it's a vendor specifc command.
@@ -709,7 +709,6 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 }
 
 #endif
-
 
 #if !defined(SCSI_NO_SENSE_STRINGS)
 #define SST(asc, ascq, action, desc) \
@@ -3230,7 +3229,6 @@ ascentrycomp(const void *key, const void *member)
 	table_entry = (const struct asc_table_entry *)member;
 
 	if (asc >= table_entry->asc) {
-
 		if (asc > table_entry->asc)
 			return (1);
 
@@ -4353,7 +4351,6 @@ scsi_command_sbuf(struct sbuf *sb, uint8_t *cdb, int cdb_len,
 	sbuf_printf(sb, "Command Specific Info: %#jx", csi);
 }
 
-
 void
 scsi_progress_sbuf(struct sbuf *sb, uint16_t progress)
 {
@@ -4962,7 +4959,6 @@ scsi_sense_only_sbuf(struct scsi_sense_data *sense, u_int sense_len,
 		scsi_desc_iterate(desc_sense, sense_len, scsi_print_desc_func,
 				  &print_info);
 		break;
-
 	}
 	case -1:
 		/*
@@ -5063,7 +5059,6 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 	sense = NULL;
 
 	if (flags & SSS_FLAG_PRINT_COMMAND) {
-
 		sbuf_cat(sb, path_str);
 
 #ifdef _KERNEL
@@ -5118,8 +5113,6 @@ scsi_sense_sbuf(struct cam_device *device, struct ccb_scsiio *csio,
 #endif /* _KERNEL/!_KERNEL */
 	return(0);
 }
-
-
 
 #ifdef _KERNEL
 char *
@@ -5530,7 +5523,6 @@ scsi_calc_syncsrate(u_int period_factor)
 	num_syncrates = nitems(scsi_syncrates);
 	/* See if the period is in the "exception" table */
 	for (i = 0; i < num_syncrates; i++) {
-
 		if (period_factor == scsi_syncrates[i].period_factor) {
 			/* Period in kHz */
 			return (100000000 / scsi_syncrates[i].period);
@@ -5562,7 +5554,6 @@ scsi_calc_syncparam(u_int period)
 	num_syncrates = nitems(scsi_syncrates);
 	/* See if the period is in the "exception" table */
 	for (i = 0; i < num_syncrates; i++) {
-
 		if (period <= scsi_syncrates[i].period) {
 			/* Period in 100ths of ns */
 			return (scsi_syncrates[i].period_factor);
@@ -5713,7 +5704,6 @@ scsi_get_devid_desc(struct scsi_vpd_id_descriptor *desc, uint32_t len,
 	    desc->identifier + desc->length <= desc_buf_end;
 	    desc = (struct scsi_vpd_id_descriptor *)(desc->identifier
 						    + desc->length)) {
-
 		if (ck_fn == NULL || ck_fn((uint8_t *)desc) != 0)
 			return (desc);
 	}
@@ -7893,7 +7883,6 @@ scsi_read_capacity_16(struct ccb_scsiio *csio, uint32_t retries,
 {
 	struct scsi_read_capacity_16 *scsi_cmd;
 
-	
 	cam_fill_csio(csio,
 		      retries,
 		      cbfcnp,
@@ -8489,7 +8478,6 @@ scsi_ata_pass(struct ccb_scsiio *csio, uint32_t retries,
 		protocol |= AP_EXTEND;
 	}
 
-
 	if ((cmd_size > sizeof(csio->cdb_io.cdb_bytes))
 	 && ((cdb_storage == NULL)
 	  || (cdb_storage_len < cmd_size))) {
@@ -8867,7 +8855,7 @@ scsi_read_attribute(struct ccb_scsiio *csio, u_int32_t retries,
 	scsi_ulto4b(length, scsi_cmd->length);
 	if (cache != 0)
 		scsi_cmd->cache |= SRA_CACHE;
-	
+
 	cam_fill_csio(csio,
 		      retries,
 		      cbfcnp,
@@ -9076,7 +9064,7 @@ scsi_inquiry_match(caddr_t inqbuffer, caddr_t table_entry)
 {
 	struct scsi_inquiry_pattern *entry;
 	struct scsi_inquiry_data *inq;
- 
+
 	entry = (struct scsi_inquiry_pattern *)table_entry;
 	inq = (struct scsi_inquiry_data *)inqbuffer;
 
@@ -9103,7 +9091,7 @@ scsi_static_inquiry_match(caddr_t inqbuffer, caddr_t table_entry)
 {
 	struct scsi_static_inquiry_pattern *entry;
 	struct scsi_inquiry_data *inq;
- 
+
 	entry = (struct scsi_static_inquiry_pattern *)table_entry;
 	inq = (struct scsi_inquiry_data *)inqbuffer;
 
@@ -9166,7 +9154,6 @@ scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
 		rhs_id = (struct scsi_vpd_id_descriptor *)rhs;
 		while (rhs_id <= rhs_last
 		    && (rhs_id->identifier + rhs_id->length) <= rhs_end) {
-
 			if ((rhs_id->id_type &
 			     (SVPD_ID_ASSOC_MASK | SVPD_ID_TYPE_MASK)) ==
 			    (lhs_id->id_type &

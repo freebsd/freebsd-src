@@ -356,7 +356,6 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 			       "due to status 0x%x\n", status);
 
 		break;
-
 	}
 	default:
 		cam_periph_async(periph, code, path, arg);
@@ -426,7 +425,6 @@ chregister(struct cam_periph *periph, void *arg)
 		return (CAM_REQ_CMP_ERR);
 	}
 
-
 	/* Register the device */
 	make_dev_args_init(&args);
 	args.mda_devsw = &ch_cdevsw;
@@ -473,7 +471,7 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	softc = (struct ch_softc *)periph->softc;
 
 	cam_periph_lock(periph);
-	
+
 	if (softc->flags & CH_FLAG_INVALID) {
 		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
@@ -612,7 +610,6 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		struct page_element_address_assignment *ea;
 		char announce_buf[80];
 
-
 		mode_header = (struct scsi_mode_header_6 *)csio->data_ptr;
 
 		ea = (struct page_element_address_assignment *)
@@ -713,7 +710,6 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				    "to attach to device\n");
 
 				cam_periph_invalidate(periph);
-
 			}
 		}
 		softc->state = CH_STATE_NORMAL;
@@ -1088,7 +1084,6 @@ copy_element_status(struct ch_softc *softc,
 		ces->ces_flags |= CES_INVERT;
 
 	if (desc->flags2 & READ_ELEMENT_STATUS_SVALID) {
-
 		eaddr = scsi_2btoul(desc->ssea);
 
 		/* convert source address to logical format */
@@ -1524,7 +1519,7 @@ chsetvoltag(struct cam_periph *periph,
 			     /* parameters */ &ssvtp,
 			     /* sense_len */ SSD_FULL_SIZE,
 			     /* timeout */ CH_TIMEOUT_SEND_VOLTAG);
-	
+
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
 				  /*sense_flags*/ SF_RETRY_UA,
 				  softc->device_stats);
@@ -1652,7 +1647,7 @@ chgetparams(struct cam_periph *periph)
 			/* param_len */ mode_buffer_len,
 			/* sense_len */ SSD_FULL_SIZE,
 			/* timeout */ CH_TIMEOUT_MODE_SENSE);
-	
+
 	error = cam_periph_runccb(ccb, cherror, /*cam_flags*/ CAM_RETRY_SELTO,
 				  /* sense_flags */ SF_RETRY_UA | SF_NO_PRINT,
 				  softc->device_stats);

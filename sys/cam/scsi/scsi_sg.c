@@ -211,7 +211,6 @@ sgdevgonecb(void *arg)
 	mtx_unlock(mtx);
 }
 
-
 static void
 sgoninvalidate(struct cam_periph *periph)
 {
@@ -1038,4 +1037,3 @@ scsi_group_len(u_char cmd)
 	group = (cmd >> 5) & 0x7;
 	return (len[group]);
 }
-

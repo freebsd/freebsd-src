@@ -278,7 +278,6 @@ typedef enum {
 	/* SCSI Bus Busy */
 	CAM_SCSI_BUSY		= 0x3f,
 
-
 	/*
 	 * Flags
 	 */
@@ -304,7 +303,7 @@ typedef enum {
 	/*
 	 * Target Specific Adjunct Status
 	 */
-	
+
 	/* sent sense with status */
 	CAM_SENT_SENSE		= 0x40000000
 } cam_status;

@@ -373,7 +373,7 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 	dm = ccb->cdm.matches;
 	/* Translate in-place: old fields are smaller */
 	dm18 = (struct dev_match_result_0x18 *)(dm);
-	
+
 	for (i = 0; i < ccb->cdm.num_matches; i++) {
 		dm18[i].type = dm[i].type;
 		switch (dm[i].type) {
@@ -420,4 +420,3 @@ cam_compat_translate_dev_match_0x18(union ccb *ccb)
 
 	return (0);
 }
-

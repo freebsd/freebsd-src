@@ -1000,7 +1000,7 @@ void	scsi_load_unload(struct ccb_scsiio *csio, u_int32_t retries,
 			 u_int8_t tag_action, int immediate,   int eot,
 			 int reten, int load, u_int8_t sense_len,
 			 u_int32_t timeout);
-	
+
 void	scsi_write_filemarks(struct ccb_scsiio *csio, u_int32_t retries,
 			     void (*cbfcnp)(struct cam_periph *, union ccb *),
 			     u_int8_t tag_action, int immediate, int setmark,

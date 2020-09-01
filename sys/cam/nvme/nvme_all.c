@@ -85,7 +85,6 @@ nvme_identify_match(caddr_t identbuffer, caddr_t table_entry)
 	return 0;
 }
 
-
 void
 nvme_print_ident(const struct nvme_controller_data *cdata,
     const struct nvme_namespace_data *data, struct sbuf *sb)
