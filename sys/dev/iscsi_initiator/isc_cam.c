@@ -211,7 +211,7 @@ ic_action(struct cam_sim *sim, union ccb *ccb)
 	       return;
 	  break;
      }
- 
+
      case XPT_CALC_GEOMETRY:
      {
 	  struct	ccb_calc_geometry *ccg;
@@ -330,7 +330,6 @@ ic_init(isc_session_t *sp)
      if(xpt_bus_register(sim,
 			 NULL,
 			 0/*bus_number*/) != CAM_SUCCESS) {
-
 	  cam_sim_free(sim, /*free_devq*/TRUE);
 	  mtx_destroy(&sp->cam_mtx);
 	  return ENXIO;

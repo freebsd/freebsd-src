@@ -409,7 +409,7 @@ iscsi_reject(isc_session_t *sp, pduq_t *opq, pduq_t *pq)
      //XXX: check RFC 10.17.1 (page 176)
      ccb->ccb_h.status = CAM_REQ_ABORTED;
      xpt_done(ccb);
- 
+
      pdu_free(sp->isc, opq);
 }
 
