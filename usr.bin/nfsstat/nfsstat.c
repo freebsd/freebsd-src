@@ -721,7 +721,7 @@ exp_intpr(int clientOnly, int serverOnly, int nfs41)
 			    "{T:PutRootFH/%13.13s}{T:DelegRet/%13.13s}"
 			    "{T:GetAcl/%13.13s}{T:SetAcl/%13.13s}\n");
 			xo_emit("{:rellckown/%13ju}{:freestateid/%13ju}"
-			    "{:getacl/%13ju}{:delegret/%13ju}"
+			    "{:putrootfh/%13ju}{:delegret/%13ju}"
 			    "{:getacl/%13ju}{:setacl/%13ju}\n",
 			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_RELEASELCKOWN],
 			    (uintmax_t)ext_nfsstats.rpccnt[NFSPROC_FREESTATEID],
