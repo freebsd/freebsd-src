@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200902	p3	FreeBSD-EN-20:17.linuxthread
+			FreeBSD-EN-20:18.getfsstat
+			FreeBSD-SA-20:25.sctp
+			FreeBSD-SA-20:26.dhclient
+
+        Fix FreeBSD Linux ABI kernel panic. [EN-20:17.linuxthread]
+
+        Fix getfsstat compatibility system call panic. [EN-20:18.getfsstat]
+
+        Fix SCTP socket use-after-free. [SA-20:25.sctp]
+
+        Fix dhclient heap overflow. [SA-20:26.dhclient]
+
 20200805	p2	FreeBSD-SA-20:21.usb_net
 			FreeBSD-SA-20:22.unbound
 			FreeBSD-SA-20:23.ipv6
