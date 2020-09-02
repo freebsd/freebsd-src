@@ -88,6 +88,11 @@ libbe_create_head()
 }
 libbe_create_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
 	cwd=$(atf_get_srcdir)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
