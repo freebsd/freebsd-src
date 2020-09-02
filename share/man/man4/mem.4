@@ -28,7 +28,7 @@
 .\"	@(#)mem.4	5.3 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2004
+.Dd August 25, 2020
 .Dt MEM 4
 .Os
 .Sh NAME
@@ -54,11 +54,7 @@ in the same manner as
 .Pa /dev/mem .
 Only kernel virtual addresses that are currently mapped to memory are allowed.
 .Pp
-On
-.Tn ISA
-the
-.Tn I/O
-memory space begins at physical address 0x000a0000
+On ISA the I/O memory space begins at physical address 0x000a0000
 and runs to 0x00100000.
 The
 per-process data
@@ -69,6 +65,46 @@ is
 long, and ends at virtual
 address 0xf0000000.
 .Sh IOCTL INTERFACE
+The
+.Dv MEM_EXTRACT_PADDR
+ioctl can be used to look up the physical address and NUMA domain of a given
+virtual address in the calling process' address space.
+The request is described by
+.Bd -literal
+struct mem_extract {
+	uint64_t	me_vaddr;	/* input */
+	uint64_t	me_paddr;	/* output */
+	int		me_domain;	/* output */
+	int		me_state;	/* output */
+};
+.Ed
+.Pp
+The ioctl returns an error if the address is not valid.
+The information returned by
+.Dv MEM_EXTRACT_PADDR
+may be out of date by the time that the ioctl call returns.
+Specifically, concurrent system calls, page faults, or system page reclamation
+activity may have unmapped the virtual page or replaced the backing physical
+page before the ioctl call returns.
+Wired pages, e.g., those locked by
+.Xr mlock 2 ,
+will not be reclaimed by the system.
+.Pp
+The
+.Fa me_state
+field provides information about the state of the virtual page:
+.Bl -tag -width indent
+.It Dv ME_STATE_INVALID
+The virtual address is invalid.
+.It Dv ME_STATE_VALID
+The virtual address is valid but is not mapped at the time of the ioctl call.
+.It Dv ME_STATE_MAPPED
+The virtual address corresponds to a physical page mapping, and the
+.Fa me_paddr
+and
+.Fa me_domain
+fields are valid.
+.Pp
 Several architectures allow attributes to be associated with ranges of physical
 memory.
 These attributes can be manipulated via
@@ -95,12 +131,13 @@ The region cannot be written to.
 .El
 .Pp
 Memory ranges are described by
-.Vt struct mem_range_desc :
-.Bd -literal -offset indent
-uint64_t	mr_base;	/\(** physical base address \(**/
-uint64_t	mr_len;		/\(** physical length of region \(**/
-int		mr_flags;	/\(** attributes of region \(**/
-char		mr_owner[8];
+.Bd -literal
+struct mem_range_desc {
+	uint64_t	mr_base;	/* physical base address */
+	uint64_t	mr_len;		/* physical length of region */
+	int		mr_flags;	/* attributes of region */
+	char		mr_owner[8];
+};
 .Ed
 .Pp
 In addition to the region attributes listed above, the following flags
@@ -126,10 +163,11 @@ altered.
 .El
 .Pp
 Operations are performed using
-.Fa struct mem_range_op :
-.Bd -literal -offset indent
-struct mem_range_desc	*mo_desc;
-int			mo_arg[2];
+.Bd -literal
+struct mem_range_op {
+	struct mem_range_desc	*mo_desc;
+	int			mo_arg[2];
+};
 .Ed
 .Pp
 The
@@ -165,7 +203,7 @@ to remove a range.
 .It Bq Er EOPNOTSUPP
 Memory range operations are not supported on this architecture.
 .It Bq Er ENXIO
-No memory range descriptors are available (e.g.\& firmware has not enabled
+No memory range descriptors are available (e.g., firmware has not enabled
 any).
 .It Bq Er EINVAL
 The memory range supplied as an argument is invalid or overlaps another
@@ -174,7 +212,7 @@ range in a fashion not supported by this architecture.
 An attempt to remove or update a range failed because the range is busy.
 .It Bq Er ENOSPC
 An attempt to create a new range failed due to a shortage of hardware
-resources (e.g.\& descriptor slots).
+resources (e.g., descriptor slots).
 .It Bq Er ENOENT
 An attempt to remove a range failed because no range matches the descriptor
 base/length supplied.
