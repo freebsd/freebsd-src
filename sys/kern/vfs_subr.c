@@ -3227,15 +3227,6 @@ vhold(struct vnode *vp)
 }
 
 void
-vholdl(struct vnode *vp)
-{
-
-	ASSERT_VI_LOCKED(vp, __func__);
-	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
-	vhold(vp);
-}
-
-void
 vholdnz(struct vnode *vp)
 {
 
