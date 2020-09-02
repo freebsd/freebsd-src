@@ -4101,6 +4101,21 @@ pmap_pinit(pmap_t pmap)
 	return (pmap_pinit_type(pmap, PT_X86, pmap_flags));
 }
 
+static void
+pmap_allocpte_free_unref(pmap_t pmap, vm_offset_t va, pt_entry_t *pte)
+{
+	vm_page_t mpg;
+	struct spglist free;
+
+	mpg = PHYS_TO_VM_PAGE(*pte & PG_FRAME);
+	if (mpg->ref_count != 0)
+		return;
+	SLIST_INIT(&free);
+	_pmap_unwire_ptp(pmap, va, mpg, &free);
+	pmap_invalidate_page(pmap, va);
+	vm_page_free_pages_toq(&free, true);
+}
+
 static pml4_entry_t *
 pmap_allocpte_getpml4(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
     bool addref)
@@ -4157,8 +4172,12 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 	if ((*pml4 & PG_V) == 0) {
 		/* Have to allocate a new pdp, recurse */
 		if (_pmap_allocpte(pmap, pmap_pml4e_pindex(va), lockp, va) ==
-		    NULL)
+		    NULL) {
+			if (pmap_is_la57(pmap))
+				pmap_allocpte_free_unref(pmap, va,
+				    pmap_pml5e(pmap, va));
 			return (NULL);
+		}
 		allocated = true;
 	} else {
 		allocated = false;
@@ -4332,6 +4351,8 @@ _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 			/* Have to allocate a new pd, recurse */
 			if (_pmap_allocpte(pmap, pmap_pdpe_pindex(va),
 			    lockp, va) == NULL) {
+				pmap_allocpte_free_unref(pmap, va,
+				    pmap_pml4e(pmap, va));
 				vm_page_unwire_noq(m);
 				vm_page_free_zero(m);
 				return (NULL);
