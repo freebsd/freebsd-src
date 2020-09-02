@@ -688,7 +688,6 @@ void	vget_finish_ref(struct vnode *vp, enum vgetstate vs);
 void	vget_abort(struct vnode *vp, enum vgetstate vs);
 void	vgone(struct vnode *vp);
 void	vhold(struct vnode *);
-void	vholdl(struct vnode *);
 void	vholdnz(struct vnode *);
 bool	vhold_smr(struct vnode *);
 void	vinactive(struct vnode *vp);
@@ -974,6 +973,11 @@ vrefcnt(struct vnode *vp)
 
 	return (vp->v_usecount);
 }
+
+#define	vholdl(vp)	do {						\
+	ASSERT_VI_LOCKED(vp, __func__);					\
+	vhold(vp);							\
+} while (0)
 
 #define	vrefl(vp)	do {						\
 	ASSERT_VI_LOCKED(vp, __func__);					\
