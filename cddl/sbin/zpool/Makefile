@@ -33,14 +33,12 @@ MAN= \
 	zpool-labelclear.8 \
 	zpool-list.8 \
 	zpool-offline.8 \
-	zpool-online.8 \
 	zpool-reguid.8 \
 	zpool-remove.8 \
 	zpool-reopen.8 \
 	zpool-replace.8 \
 	zpool-resilver.8 \
 	zpool-scrub.8 \
-	zpool-set.8 \
 	zpool-split.8 \
 	zpool-status.8 \
 	zpool-sync.8 \
@@ -49,6 +47,9 @@ MAN= \
 	zpool-wait.8 \
 	zpoolconcepts.8 \
 	zpoolprops.8
+MLINKS= \
+	zpool-offline.8 zpool-online.8 \
+	zpool-get.8 zpool-set.8
 SRCS= \
 	zpool_iter.c \
 	zpool_main.c \
