@@ -19,8 +19,10 @@ opt_inet.h:
 opt_inet6.h:
 	@echo "#define INET6 1" > ${.TARGET}
 .endif
+.if ${MK_IPSEC_SUPPORT} != "no"
 opt_ipsec.h:
 	@echo "#define IPSEC_SUPPORT 1" > ${.TARGET}
+.endif
 .if ${MK_EISA} != "no"
 opt_eisa.h:
 	@echo "#define DEV_EISA 1" > ${.TARGET}
@@ -47,6 +49,9 @@ KERN_OPTS+= INET TCP_OFFLOAD
 .endif
 .if ${MK_INET6_SUPPORT} != "no"
 KERN_OPTS+= INET6
+.endif
+.if ${MK_IPSEC_SUPPORT} != "no"
+KERN_OPTS+= IPSEC_SUPPORT
 .endif
 .if ${MK_EISA} != "no"
 KERN_OPTS+= DEV_EISA
