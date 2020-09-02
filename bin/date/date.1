@@ -32,7 +32,7 @@
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2018
+.Dd August 25, 2020
 .Dt DATE 1
 .Os
 .Sh NAME
@@ -154,6 +154,9 @@ This allows you to use the
 flag in addition to the
 .Cm +
 option to convert one date format to another.
+Note that any date or time components unspecified by the
+.Fl f
+format string take their values from the current time.
 .It Fl n
 By default, if the
 .Xr timed 8
