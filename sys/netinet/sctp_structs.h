@@ -535,6 +535,7 @@ struct sctp_stream_queue_pending {
 	uint8_t sender_all_done;
 	uint8_t put_last_out;
 	uint8_t discard_rest;
+	uint8_t processing;
 };
 
 /*

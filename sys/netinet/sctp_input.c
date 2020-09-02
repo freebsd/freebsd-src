@@ -839,7 +839,6 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 	SCTP_TCB_LOCK(stcb);
 	atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
-	SCTP_ADD_SUBSTATE(stcb, SCTP_STATE_WAS_ABORTED);
 	(void)sctp_free_assoc(stcb->sctp_ep, stcb, SCTP_NORMAL_PROC,
 	    SCTP_FROM_SCTP_INPUT + SCTP_LOC_8);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -1989,7 +1988,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		/* send up all the data */
 		SCTP_TCB_SEND_LOCK(stcb);
 
-		sctp_report_all_outbound(stcb, 0, 1, SCTP_SO_LOCKED);
+		sctp_report_all_outbound(stcb, 0, SCTP_SO_LOCKED);
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			stcb->asoc.strmout[i].chunks_on_queues = 0;
 #if defined(SCTP_DETAILED_STR_STATS)
