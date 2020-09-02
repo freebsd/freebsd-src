@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2020
+.Dd September 2, 2020
 .Dt LTC430X 4
 .Os
 .Sh NAME
@@ -85,12 +85,19 @@ ltc,downstream-accelerators-enable
 .It
 ltc,upstream-accelerators-enable
 .El
+.Pp
+In addition, the following additional property is supported:
+.Bl -tag -offset indent -width indent
+.It Va freebsd,ctlreg2
+A value to store into the chip's control register 2 during initialization.
+Consult the chip datasheet for the meaning of the various bits in
+the register.
+.El
 .Sh HINTS CONFIGURATION
 On a
 .Xr device.hints 5
-based system, these values are configurable for
-.Nm :
-.Bl -tag -width indent
+based system, the following hints are required:
+.Bl -tag -offset indent -width indent
 .It Va hint.ltc430x.<unit>.at
 The upstream
 .Xr iicbus 4
@@ -101,11 +108,33 @@ instance is attached to.
 The slave address of the
 .Nm
 instance on the upstream bus.
+.It Va hint.ltc430x.<unit>.chip_type
+The type of chip the driver is controlling.
+Valid values are
+.Dq ltc4305
+and
+.Dq ltc4306 .
+.El
+.Pp
+The following hints are optional:
+.Bl -tag -offset indent -width indent
+.It Va hint.ltc430x.<unit>.ctlreg2
+A value to store into the chip's control register 2 during initialization.
+Consult the chip datasheet for the meaning of the various bits in
+the register.
+This hint is optional; when missing, the driver does not update control
+register 2.
+.It Va hint.ltc430x.<unit>.idle_disconnect
+Whether to disconnect all downstream busses from the upstream bus when idle.
+If set to zero, the most recently used downstream bus is left connected to
+the upstream bus after IO completes.
+Any non-zero value causes all downstream busses to be disconnected when idle.
+This hint is optional; when missing, the driver behaves as if it were zero.
 .El
 .Pp
 When configured via hints, the driver automatically adds an iicbus
 instance for every downstream bus supported by the chip.
-There is currently no way to indicate used versus unused channels.
+There is currently no way to indicate used versus unused downstream channels.
 .Sh SEE ALSO
 .Xr iicbus 4 ,
 .Xr iicmux 4 ,

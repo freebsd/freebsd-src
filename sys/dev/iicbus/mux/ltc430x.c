@@ -79,6 +79,7 @@ struct ltc430x_softc {
 #define	LTC430X_CTLREG_0	0
 #define	LTC430X_CTLREG_1	1
 #define	LTC430X_CTLREG_2	2
+#define	  LTC430X_CR2_ENABLE_MW	  (1u << 3) /* Enable mass write address. */
 #define	LTC430X_CTLREG_3	3
 
 static int
@@ -157,16 +158,38 @@ static int
 ltc430x_attach(device_t dev)
 {
 	struct ltc430x_softc *sc __unused;
-	int chip, err, numchan;
+	int chip, err, numchan, val;
+	uint8_t busbits, ctlreg2;
 
 	sc = device_get_softc(dev);
 
+	busbits = 0;
+	ctlreg2 = LTC430X_CR2_ENABLE_MW;
+
+	/*
+	 * Check for the idle-disconnect and ctlreg2 options, first in FDT data,
+	 * then allow them to be overriden by hints data.
+	 */
 #ifdef FDT
 	phandle_t node;
 
 	node = ofw_bus_get_node(dev);
 	sc->idle_disconnect = OF_hasprop(node, "i2c-mux-idle-disconnect");
+
+	if (OF_getprop(macnode, "freebsd,ctlreg2", &val, sizeof(val)) > 0) {
+		ctlreg2 = val;
+	}
 #endif
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "idle_disconnect", &val) == 0) {
+		sc->idle_disconnect = val;
+	}
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "ctlreg2", &val) == 0) {
+		ctlreg2 = val;
+	}
 
 	/* We found the chip type when probing, so now it "can't fail". */
 	if ((chip = ltc430x_find_chiptype(dev)) == CHIP_NONE) {
@@ -175,8 +198,22 @@ ltc430x_attach(device_t dev)
 	}
 	numchan = chip_infos[chip].numchannels;
 
+	/* Set control reg 2 with configured (or default) values. */
+	iicdev_writeto(dev, LTC430X_CTLREG_2, &ctlreg2, sizeof(ctlreg2),
+	    IIC_WAIT);
+
+	/* If configured for idle-disconnect, ensure we start disconnected. */
+	if (sc->idle_disconnect) {
+		iicdev_writeto(dev, LTC430X_CTLREG_3, &busbits, sizeof(busbits),
+		    IIC_WAIT);
+	}
+
+	/*
+	 * Invoke the iicmux framework's attach code, and if it succeeds, invoke
+	 * the probe and attach code of any child iicbus instances it added.
+	 */
 	if ((err = iicmux_attach(dev, device_get_parent(dev), numchan)) == 0)
-                bus_generic_attach(dev);
+		bus_generic_attach(dev);
 
 	return (err);
 }
