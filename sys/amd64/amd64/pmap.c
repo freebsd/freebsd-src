@@ -9149,7 +9149,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 			/* Compute the physical address of the 4KB page. */
 			pa = ((*pdep & PG_PS_FRAME) | (addr & PDRMASK)) &
 			    PG_FRAME;
-			val = MINCORE_SUPER;
+			val = MINCORE_PSIND(1);
 		} else {
 			pte = *pmap_pde_to_pte(pdep, addr);
 			pa = pte & PG_FRAME;

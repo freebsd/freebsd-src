@@ -5689,7 +5689,7 @@ mmu_radix_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 			/* Compute the physical address of the 4KB page. */
 			pa = ((*l3ep & PG_PS_FRAME) | (addr & L3_PAGE_MASK)) &
 			    PG_FRAME;
-			val = MINCORE_SUPER;
+			val = MINCORE_PSIND(1);
 		} else {
 			pte = *pmap_l3e_to_pte(l3ep, addr);
 			pa = pte & PG_FRAME;
