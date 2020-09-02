@@ -145,7 +145,13 @@ _CPUCFLAGS = -march=${CPUTYPE}
 _CPUCFLAGS = -march=${CPUTYPE:S/^mips//}
 . endif
 . elif ${MACHINE_CPUARCH} == "aarch64"
+.  if ${CPUTYPE:Marmv*} != ""
+# Use -march when the CPU type is an architecture value, e.g. armv8.1-a
+_CPUCFLAGS = -march=${CPUTYPE}
+.  else
+# Otherwise assume we have a CPU type
 _CPUCFLAGS = -mcpu=${CPUTYPE}
+.  endif
 . endif
 
 # Set up the list of CPU features based on the CPU type.  This is an
