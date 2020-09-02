@@ -246,22 +246,22 @@ sysctl_hw_pagesizes(SYSCTL_HANDLER_ARGS)
 			pagesizes32[i] = (uint32_t)pagesizes[i];
 
 		len = sizeof(pagesizes32);
-		if (len > req->oldlen)
+		if (len > req->oldlen && req->oldptr != NULL)
 			len = req->oldlen;
 		error = SYSCTL_OUT(req, pagesizes32, len);
 	} else
 #endif
 	{
 		len = sizeof(pagesizes);
-		if (len > req->oldlen)
+		if (len > req->oldlen && req->oldptr != NULL)
 			len = req->oldlen;
 		error = SYSCTL_OUT(req, pagesizes, len);
 	}
 	return (error);
 }
 SYSCTL_PROC(_hw, OID_AUTO, pagesizes,
-    CTLTYPE_ULONG | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0, 
-    sysctl_hw_pagesizes, "LU",
+    CTLTYPE_OPAQUE | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_hw_pagesizes, "S,pagesizes",
     "Supported page sizes");
 
 int adaptive_machine_arch = 1;
