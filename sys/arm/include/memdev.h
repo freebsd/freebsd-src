@@ -37,6 +37,6 @@
 d_open_t	memopen;
 d_read_t	memrw;
 d_mmap_t	memmmap;
-#define		memioctl	(d_ioctl_t *)NULL
+d_ioctl_t	memioctl_md;
 
 #endif /* _MACHINE_MEMDEV_H_ */
