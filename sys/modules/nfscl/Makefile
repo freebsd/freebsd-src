@@ -17,6 +17,7 @@ SRCS=	vnode_if.h \
 	opt_bootp.h \
 	opt_inet.h \
 	opt_inet6.h \
+	opt_kern_tls.h \
 	opt_kgssapi.h \
 	opt_nfs.h \
 	opt_nfsroot.h \
