@@ -1269,6 +1269,9 @@ again:
 			CTR3(KTR_CALLOUT, "postponing stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
  			if (drain) {
+				KASSERT(cc_exec_drain(cc, direct) == NULL,
+				    ("callout drain function already set to %p",
+				    cc_exec_drain(cc, direct)));
 				cc_exec_drain(cc, direct) = drain;
 			}
 			CC_UNLOCK(cc);
@@ -1277,6 +1280,9 @@ again:
 			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
 			    c, c->c_func, c->c_arg);
 			if (drain) {
+				KASSERT(cc_exec_drain(cc, direct) == NULL,
+				    ("callout drain function already set to %p",
+				    cc_exec_drain(cc, direct)));
 				cc_exec_drain(cc, direct) = drain;
 			}
 		}
