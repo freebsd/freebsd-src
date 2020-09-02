@@ -4,6 +4,8 @@ PACKAGE=	lib${LIB}
 LIB=		ifconfig
 INTERNALLIB=	true
 
+LIBADD=		m
+
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	1
 SRCS=		libifconfig.c \
