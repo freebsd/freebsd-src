@@ -37,8 +37,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	rebuilding world may fail.
 
 	The ZFS cache file has moved from /boot to /etc to match the OpenZFS
-	upstream default. This means your zpool won't auto import until you
-	upgrade your /etc/rc.d files or you import them manually.
+	upstream default. A fallback to /boot has been added for mountroot.
+
+	Pool auto import behavior at boot has been moved from the kernel module
+	to an explicit "zpool import -a" in one of the rc scripts enabled by
+	zfs_enable=YES. This means your non-root zpools won't auto import until
+	you upgrade your /etc/rc.d files.
 
 20200824:
 	The resume code now notifies devd with the 'kernel' system
