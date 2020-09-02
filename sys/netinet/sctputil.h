@@ -166,7 +166,7 @@ void sctp_stop_timers_for_shutdown(struct sctp_tcb *);
 void sctp_stop_association_timers(struct sctp_tcb *, bool);
 
 void
-sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int, int
+sctp_report_all_outbound(struct sctp_tcb *, uint16_t, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
