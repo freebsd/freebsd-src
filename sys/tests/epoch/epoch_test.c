@@ -141,7 +141,7 @@ test_modinit(void)
 	int i, error, pri_range, pri_off;
 
 	pri_range = PRI_MIN_TIMESHARE - PRI_MIN_REALTIME;
-	test_epoch = epoch_alloc(EPOCH_PREEMPT);
+	test_epoch = epoch_alloc("test_epoch", EPOCH_PREEMPT);
 	for (i = 0; i < mp_ncpus*2; i++) {
 		etilist[i].threadid = i;
 		error = kthread_add(testloop, &etilist[i], NULL, &testthreads[i],
@@ -209,6 +209,7 @@ epoch_test_module_event_handler(module_t mod, int what, void *arg __unused)
 		mtx_unlock(&state_mtx);
 		/* yes --- gross */
 		pause("epoch unload", 3*hz);
+		epoch_free(test_epoch);
 		break;
 	default:
 		return (EOPNOTSUPP);
