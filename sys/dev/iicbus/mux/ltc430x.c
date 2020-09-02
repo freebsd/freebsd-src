@@ -176,7 +176,7 @@ ltc430x_attach(device_t dev)
 	node = ofw_bus_get_node(dev);
 	sc->idle_disconnect = OF_hasprop(node, "i2c-mux-idle-disconnect");
 
-	if (OF_getprop(macnode, "freebsd,ctlreg2", &val, sizeof(val)) > 0) {
+	if (OF_getprop(node, "freebsd,ctlreg2", &val, sizeof(val)) > 0) {
 		ctlreg2 = val;
 	}
 #endif
