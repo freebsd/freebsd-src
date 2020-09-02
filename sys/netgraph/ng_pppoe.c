@@ -48,6 +48,7 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/epoch.h>
 #include <sys/syslog.h>
 #include <net/ethernet.h>
 
@@ -761,6 +762,7 @@ ng_pppoe_connect(hook_p hook)
 static int
 ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
+	struct epoch_tracker et;
 	priv_p privp = NG_NODE_PRIVATE(node);
 	struct ngpppoe_init_data *ourmsg = NULL;
 	struct ng_mesg *resp = NULL;
@@ -980,7 +982,9 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			neg->service.hdr.tag_len = htons((uint16_t)srvlen);
 			bcopy(ourmsg->data + srvpos, neg->service.data, srvlen);
 			neg->service_len = srvlen;
+			NET_EPOCH_ENTER(et);
 			pppoe_start(sp);
+			NET_EPOCH_EXIT(et);
 			break;
 		    }
 		case NGM_PPPOE_LISTEN:
@@ -1166,8 +1170,10 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				m->m_pkthdr.len = m->m_len = sizeof(*wh) + sizeof(*tag) +
 				    ourmsg->data_len;
 				wh->ph.length = htons(sizeof(*tag) + ourmsg->data_len);
+				NET_EPOCH_ENTER(et);
 				NG_SEND_DATA_ONLY(error,
 				    privp->ethernet_hook, m);
+				NET_EPOCH_EXIT(et);
 			}
 			break;
 		    }
@@ -1209,8 +1215,10 @@ ng_pppoe_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				m->m_pkthdr.len = m->m_len = sizeof(*wh) + sizeof(*tag) +
 				    ourmsg->data_len;
 				wh->ph.length = htons(sizeof(*tag) + ourmsg->data_len);
+				NET_EPOCH_ENTER(et);
 				NG_SEND_DATA_ONLY(error,
 				    privp->ethernet_hook, m);
+				NET_EPOCH_EXIT(et);
 			}
 			break;
 		    }
