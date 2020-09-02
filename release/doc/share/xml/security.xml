@@ -19,9 +19,66 @@
 
     <tbody>
       <row>
-	<entry>No advisories.</entry>
-	<entry>&nbsp;</entry>
-	<entry>&nbsp;</entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:18.posix_spawnp.asc">FreeBSD-SA-20:18.posix_spawnp</link></entry>
+	<entry>8&nbsp;July&nbsp;2020</entry>
+	<entry><para>Buffer overflow</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:19.unbound.asc">FreeBSD-SA-20:19.unbound</link></entry>
+	<entry>8&nbsp;July&nbsp;2020</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:20.ipv6.asc">FreeBSD-SA-20:20.ipv6</link></entry>
+	<entry>8&nbsp;July&nbsp;2020</entry>
+	<entry><para>Race condition and use-after-free</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:21.usb_net.asc">FreeBSD-SA-20:21.usb_net</link></entry>
+	<entry>5&nbsp;August&nbsp;2020</entry>
+	<entry><para>Memory corruption</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:22.sqlite.asc">FreeBSD-SA-20:22.sqlite</link></entry>
+	<entry>5&nbsp;August&nbsp;2020</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:23.sendmsg.asc">FreeBSD-SA-20:23.sendmsg</link></entry>
+	<entry>5&nbsp;August&nbsp;2020</entry>
+	<entry><para>Privilege escalation</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:24.ipv6.asc">FreeBSD-SA-20:24.ipv6</link></entry>
+	<entry>2&nbsp;September&nbsp;2020</entry>
+	<entry><para>Use-after-free bug</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:25.sctp.asc">FreeBSD-SA-20:25.sctp</link></entry>
+	<entry>2&nbsp;September&nbsp;2020</entry>
+	<entry><para>Use-after-free bug</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:26.dhclient.asc">FreeBSD-SA-20:26.dhclient</link></entry>
+	<entry>2&nbsp;September&nbsp;2020</entry>
+	<entry><para>Heap overflow</para></entry>
       </row>
     </tbody>
   </tgroup>

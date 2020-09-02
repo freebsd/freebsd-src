@@ -19,9 +19,24 @@
 
     <tbody>
       <row>
-	<entry>No notices.</entry>
-	<entry>&nbsp;</entry>
-	<entry>&nbsp;</entry>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:15.mps.asc">FreeBSD-EN-20:15.mps</link></entry>
+	<entry>8&nbsp;July&nbsp;2020</entry>
+	<entry><para>Kernel panic</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:17.linuxthread.asc">FreeBSD-EN-20:17.linuxthread</link></entry>
+	<entry>2&nbsp;September&nbsp;2020</entry>
+	<entry><para>Kernel panic</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:18.getfsstat.asc">FreeBSD-EN-20:18.getfsstat</link></entry>
+	<entry>2&nbsp;September&nbsp;2020</entry>
+	<entry><para>Kernel panic</para></entry>
       </row>
     </tbody>
   </tgroup>
