@@ -4724,12 +4724,11 @@ vm_page_grab_pages(vm_object_t object, vm_pindex_t pindex, int allocflags,
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	KASSERT(((u_int)allocflags >> VM_ALLOC_COUNT_SHIFT) == 0,
 	    ("vm_page_grap_pages: VM_ALLOC_COUNT() is not allowed"));
+	KASSERT(count > 0,
+	    ("vm_page_grab_pages: invalid page count %d", count));
 	vm_page_grab_check(allocflags);
 
 	pflags = vm_page_grab_pflags(allocflags);
-	if (count == 0)
-		return (0);
-
 	i = 0;
 retrylookup:
 	m = vm_radix_lookup_le(&object->rtree, pindex + i);
@@ -4783,6 +4782,8 @@ vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
 	int flags;
 	int i;
 
+	KASSERT(count > 0,
+	    ("vm_page_grab_pages_unlocked: invalid page count %d", count));
 	vm_page_grab_check(allocflags);
 
 	/*
@@ -4805,7 +4806,7 @@ vm_page_grab_pages_unlocked(vm_object_t object, vm_pindex_t pindex,
 		vm_page_grab_release(m, allocflags);
 		pred = ma[i] = m;
 	}
-	if ((allocflags & VM_ALLOC_NOCREAT) != 0)
+	if (i == count || (allocflags & VM_ALLOC_NOCREAT) != 0)
 		return (i);
 	count -= i;
 	VM_OBJECT_WLOCK(object);
