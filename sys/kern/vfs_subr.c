@@ -3850,6 +3850,7 @@ vgonel(struct vnode *vp)
 		VNASSERT(vp->v_holdcnt > 0, vp, ("vnode without hold count"));
 		VI_UNLOCK(vp);
 	}
+	cache_purge_vgone(vp);
 	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_RECLAIM);
 
 	/*
@@ -3923,7 +3924,6 @@ vgonel(struct vnode *vp)
 	 * Delete from old mount point vnode list.
 	 */
 	delmntque(vp);
-	cache_purge_vgone(vp);
 	/*
 	 * Done with purge, reset to the standard lock and invalidate
 	 * the vnode.
