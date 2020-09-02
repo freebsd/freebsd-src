@@ -4217,7 +4217,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	if (l2 != NULL && ((tpte = pmap_load(l2)) & PTE_V) != 0) {
 		if ((tpte & PTE_RWX) != 0) {
 			pa = PTE_TO_PHYS(tpte) | (addr & L2_OFFSET);
-			val = MINCORE_INCORE | MINCORE_SUPER;
+			val = MINCORE_INCORE | MINCORE_PSIND(1);
 		} else {
 			l3 = pmap_l2_to_l3(l2, addr);
 			tpte = pmap_load(l3);

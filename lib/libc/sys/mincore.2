@@ -28,7 +28,7 @@
 .\"	@(#)mincore.2	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2019
+.Dd August 23, 2020
 .Dt MINCORE 2
 .Os
 .Sh NAME
@@ -73,8 +73,18 @@ Page has been modified by us.
 Page has been referenced.
 .It Dv MINCORE_MODIFIED_OTHER
 Page has been modified.
-.It Dv MINCORE_SUPER
+.It Dv MINCORE_PSIND(i)
 Page is part of a large
+.Pq Dq super
+page with size given by index
+.Dv i
+in the array returned by
+.Xr getpagesizes 3 .
+.It Dv MINCORE_SUPER
+A mask of the valid
+.Dv MINCORE_PSIND()
+values.
+If any bits in this mask are set, the page is part of a large
 .Pq Dq super
 page.
 .El
@@ -98,6 +108,17 @@ and
 statuses.
 Otherwise, if the sysctl value is zero, all resident pages backing the
 specified address range are examined, regardless of the mapping state.
+.Sh IMPLEMENTATION NOTES
+Prior to the introduction of
+.Dv MINCORE_PSIND()
+in
+.Fx 13.0 ,
+.Dv MINCORE_SUPER
+consisted of a single bit equal to
+.Dv MINCORE_PSIND(1) .
+In particular, applications compiled using the old value of
+.Dv MINCORE_SUPER
+will not identify large pages with size index 2 as being large pages.
 .Sh RETURN VALUES
 .Rv -std mincore
 .Sh ERRORS
@@ -122,7 +143,8 @@ argument points to an illegal address.
 .Xr mprotect 2 ,
 .Xr msync 2 ,
 .Xr munmap 2 ,
-.Xr getpagesize 3
+.Xr getpagesize 3 ,
+.Xr getpagesizes 3
 .Sh HISTORY
 The
 .Fn mincore

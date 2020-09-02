@@ -112,6 +112,8 @@ SYSCTL_INT(_vm, OID_AUTO, imply_prot_max, CTLFLAG_RWTUN, &imply_prot_max, 0,
 #define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
 #endif
 
+_Static_assert(MAXPAGESIZES <= 4, "MINCORE_SUPER too narrow");
+
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
 	int incr;
