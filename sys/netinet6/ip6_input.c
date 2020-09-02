@@ -402,20 +402,22 @@ VNET_SYSUNINIT(inet6, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, ip6_destroy, NULL);
 #endif
 
 static int
-ip6_input_hbh(struct mbuf *m, uint32_t *plen, uint32_t *rtalert, int *off,
+ip6_input_hbh(struct mbuf **mp, uint32_t *plen, uint32_t *rtalert, int *off,
     int *nxt, int *ours)
 {
+	struct mbuf *m;
 	struct ip6_hdr *ip6;
 	struct ip6_hbh *hbh;
 
-	if (ip6_hopopts_input(plen, rtalert, &m, off)) {
+	if (ip6_hopopts_input(plen, rtalert, mp, off)) {
 #if 0	/*touches NULL pointer*/
-		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_discard);
+		in6_ifstat_inc((*mp)->m_pkthdr.rcvif, ifs6_in_discard);
 #endif
 		goto out;	/* m have already been freed */
 	}
 
 	/* adjust pointer */
+	m = *mp;
 	ip6 = mtod(m, struct ip6_hdr *);
 
 	/*
@@ -855,7 +857,7 @@ passin:
 	 */
 	plen = (u_int32_t)ntohs(ip6->ip6_plen);
 	if (ip6->ip6_nxt == IPPROTO_HOPOPTS) {
-		if (ip6_input_hbh(m, &plen, &rtalert, &off, &nxt, &ours) != 0)
+		if (ip6_input_hbh(&m, &plen, &rtalert, &off, &nxt, &ours) != 0)
 			return;
 	} else
 		nxt = ip6->ip6_nxt;
