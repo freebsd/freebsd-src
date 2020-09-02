@@ -697,6 +697,29 @@ S_input_id(size_t l2, void *p)
 	return (0);
 }
 
+static int
+S_pagesizes(size_t l2, void *p)
+{
+	char buf[256];
+	u_long *ps;
+	size_t l;
+	int i;
+
+	l = snprintf(buf, sizeof(buf), "{ ");
+	ps = p;
+	for (i = 0; i * sizeof(*ps) < l2 && ps[i] != 0 && l < sizeof(buf);
+	    i++) {
+		l += snprintf(&buf[l], sizeof(buf) - l,
+		    "%s%lu", i == 0 ? "" : ", ", ps[i]);
+	}
+	if (l < sizeof(buf))
+		(void)snprintf(&buf[l], sizeof(buf) - l, " }");
+
+	printf("%s", buf);
+
+	return (0);
+}
+
 #ifdef __amd64__
 static int
 S_efi_map(size_t l2, void *p)
@@ -1002,6 +1025,8 @@ show_var(int *oid, int nlen)
 			func = S_vmtotal;
 		else if (strcmp(fmt, "S,input_id") == 0)
 			func = S_input_id;
+		else if (strcmp(fmt, "S,pagesizes") == 0)
+			func = S_pagesizes;
 #ifdef __amd64__
 		else if (strcmp(fmt, "S,efi_map_header") == 0)
 			func = S_efi_map;
