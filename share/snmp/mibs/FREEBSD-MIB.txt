@@ -16,7 +16,7 @@ IMPORTS
 		FROM SNMPv2-SMI;
 
 freeBSD MODULE-IDENTITY
-	LAST-UPDATED "200610311000Z"
+	LAST-UPDATED "202009032030Z"
 	ORGANIZATION "The FreeBSD Project."
 	CONTACT-INFO
 		"phk@FreeBSD.org is contact person for this file.
@@ -24,6 +24,9 @@ freeBSD MODULE-IDENTITY
 	DESCRIPTION
 		"The Structure of Management Information for the
 		FreeBSD Project enterprise MIB subtree."
+	REVISION      "202009031900Z"
+	DESCRIPTION
+		"Added entries for the otherName component of a X.509 cert"
 	REVISION      "200610310800Z"
 	DESCRIPTION
 		"Initial version of this MIB module."
@@ -35,6 +38,21 @@ freeBSDsrc OBJECT-IDENTITY
 	DESCRIPTION
 		"Subtree for things which lives in the src tree."
 	::= { freeBSD 1 }
+
+freeBSDsrcCertOtherName OBJECT-IDENTITY
+	STATUS	current
+	DESCRIPTION
+		"Subtree for X.509 Certificate otherName entries"
+	::= { freeBSDsrc 1 }
+
+--
+-- For NFS over TLS, a user@domain can optionally be handled by rpc.tlsservd
+--
+freeBSDsrcCertNFSuser OBJECT-IDENTITY
+	STATUS	current
+	DESCRIPTION
+		"Entry for X.509 Certificate for NFS user@domain name"
+	::= { freeBSDsrcCertOtherName 1 }
 
 freeBSDports OBJECT-IDENTITY
 	STATUS	current
