@@ -132,19 +132,29 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 
 	/*
 	 * Regular ACK and we're not in cong/fast recovery and we're cwnd
-	 * limited and we're either not doing ABC or are slow starting or are
-	 * doing ABC and we've sent a cwnd's worth of bytes.
+	 * limited and we're either not doing ABC or are just coming out
+	 * from slow-start or were application limited or are slow starting
+	 * or are doing ABC and we've sent a cwnd's worth of bytes.
 	 */
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
 	    (ccv->flags & CCF_CWND_LIMITED) && (!V_tcp_do_rfc3465 ||
+	    (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART | CUBICFLAG_IN_APPLIMIT)) ||
 	    CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
-	    (V_tcp_do_rfc3465 && ccv->flags & CCF_ABC_SENTAWND))) {
+	    (V_tcp_do_rfc3465 && (ccv->flags & CCF_ABC_SENTAWND)))) {
 		 /* Use the logic in NewReno ack_received() for slow start. */
 		if (CCV(ccv, snd_cwnd) <= CCV(ccv, snd_ssthresh) ||
 		    cubic_data->min_rtt_ticks == TCPTV_SRTTBASE) {
 			cubic_data->flags |= CUBICFLAG_IN_SLOWSTART;
 			newreno_cc_algo.ack_received(ccv, type);
 		} else {
+			if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
+						 CUBICFLAG_IN_APPLIMIT)) {
+				cubic_data->flags &= ~(CUBICFLAG_IN_SLOWSTART |
+						       CUBICFLAG_IN_APPLIMIT);
+				cubic_data->t_last_cong = ticks;
+				cubic_data->K = cubic_k(cubic_data->max_cwnd /
+							CCV(ccv, t_maxseg));
+			}
 			if ((ticks_since_cong =
 			    ticks - cubic_data->t_last_cong) < 0) {
 				/*
@@ -152,14 +162,6 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 				 */
 				ticks_since_cong = INT_MAX;
 				cubic_data->t_last_cong = ticks - INT_MAX;
-			}
-
-			if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
-						 CUBICFLAG_IN_APPLIMIT)) {
-				cubic_data->flags &= ~(CUBICFLAG_IN_SLOWSTART |
-						       CUBICFLAG_IN_APPLIMIT);
-				cubic_data->t_last_cong = ticks;
-				cubic_data->K = 0;
 			}
 			/*
 			 * The mean RTT is used to best reflect the equations in
