@@ -225,6 +225,7 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		}
 		memcpy(&nh->gw_sa, gw, gw->sa_len);
 	} else {
+
 		/*
 		 * Interface route. Currently the route.c code adds
 		 * sa of type AF_LINK, which is 56 bytes long. The only
@@ -235,7 +236,21 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 		 * in the separate field (nh_aifp, see below), write AF_LINK
 		 * compatible sa with shorter total length.
 		 */
-		fill_sdl_from_ifp(&nh->gwl_sa, nh->nh_ifp);
+		struct sockaddr_dl *sdl;
+		struct ifnet *ifp;
+
+		/* Fetch and validate interface index */
+		sdl = (struct sockaddr_dl *)gw;
+		if (sdl->sdl_family != AF_LINK) {
+			DPRINTF("unsupported AF: %d", sdl->sdl_family);
+			return (ENOTSUP);
+		}
+		ifp = ifnet_byindex(sdl->sdl_index);
+		if (ifp == NULL) {
+			DPRINTF("invalid ifindex %d", sdl->sdl_index);
+			return (EINVAL);
+		}
+		fill_sdl_from_ifp(&nh->gwl_sa, ifp);
 	}
 
 	return (0);
@@ -272,12 +287,13 @@ fill_nhop_from_info(struct nhop_priv *nh_priv, struct rt_addrinfo *info)
 
 	nh->nh_flags = convert_rt_to_nh_flags(rt_flags);
 	set_nhop_mtu_from_info(nh, info);
-	nh->nh_ifp = info->rti_ifa->ifa_ifp;
-	nh->nh_ifa = info->rti_ifa;
-	nh->nh_aifp = get_aifp(nh, 0);
-
 	if ((error = set_nhop_gw_from_info(nh, info)) != 0)
 		return (error);
+
+	nh->nh_ifp = info->rti_ifa->ifa_ifp;
+	nh->nh_ifa = info->rti_ifa;
+	/* depends on the gateway */
+	nh->nh_aifp = get_aifp(nh, 0);
 
 	/*
 	 * Note some of the remaining data is set by the
