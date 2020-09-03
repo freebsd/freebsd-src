@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 /* See comments below for why auto-scanning is a bad idea. */
 #define SCAN_IICBUS 0
 
+SYSCTL_NODE(_hw, OID_AUTO, i2c, CTLFLAG_RW, 0, "i2c controls");
+
 static int
 iicbus_probe(device_t dev)
 {
