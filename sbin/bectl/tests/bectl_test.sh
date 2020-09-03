@@ -148,6 +148,11 @@ bectl_destroy_head()
 }
 bectl_destroy_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -228,6 +233,11 @@ bectl_export_import_head()
 }
 bectl_export_import_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -256,6 +266,11 @@ bectl_list_head()
 }
 bectl_list_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -291,6 +306,11 @@ bectl_mount_head()
 }
 bectl_mount_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -325,6 +345,11 @@ bectl_rename_head()
 }
 bectl_rename_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -352,6 +377,11 @@ bectl_jail_head()
 }
 bectl_jail_body()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
