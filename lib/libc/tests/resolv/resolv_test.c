@@ -70,22 +70,23 @@ static void
 load(const char *fname)
 {
 	FILE *fp;
-	size_t len;
+	size_t linecap;
 	char *line;
 
-	if ((fp = fopen(fname, "r")) == NULL)
+	fp = fopen(fname, "r");
 	ATF_REQUIRE(fp != NULL);
-	while ((line = fgetln(fp, &len)) != NULL) {
-		char c = line[len - 1];
+	line = NULL;
+	linecap = 0;
+	while (getline(&line, &linecap, fp) >= 0) {
 		char *ptr;
-		line[len - 1] = '\0';
+
 		for (ptr = strtok(line, WS); ptr; ptr = strtok(NULL, WS)) {
-			if (ptr == '\0' || ptr[0] == '#')
-				continue;
+			if (ptr[0] == '#')
+				break;
 			sl_add(hosts, strdup(ptr));
 		}
-		line[len - 1] = c;
 	}
+	free(line);
 
 	(void)fclose(fp);
 }
