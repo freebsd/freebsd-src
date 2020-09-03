@@ -62,8 +62,6 @@ __FBSDID("$FreeBSD$");
 #include "rpctlscd.h"
 #include "rpctlssd.h"
 
-extern struct fileops badfileops;
-
 /*
  * Syscall hooks
  */
