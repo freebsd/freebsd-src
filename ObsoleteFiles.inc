@@ -7605,8 +7605,6 @@ OLD_FILES+=usr/lib/libdisk.a usr/lib32/libdisk.a
 # 20121230: remove wrongly created directories for auditdistd
 OLD_DIRS+=var/dist
 OLD_DIRS+=var/remote
-# 20121114: zpool-features manual page moved from section 5 to 7
-OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
 # 20121022: remove harp, hfa and idt man page
 OLD_FILES+=usr/share/man/man4/harp.4.gz
 OLD_FILES+=usr/share/man/man4/hfa.4.gz
