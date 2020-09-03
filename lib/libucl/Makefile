@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIBUCL=	${SRCTOP}/contrib/libucl
+LIBUCL_DIR=	${SRCTOP}/contrib/libucl
 
 PACKAGE=lib${LIB}
 LIB=		ucl
@@ -16,18 +16,18 @@ SRCS=		ucl_emitter_streamline.c \
 		ucl_sexp.c \
 		ucl_util.c
 
-.PATH:		${LIBUCL}/src \
-		${LIBUCL}/include \
-		${LIBUCL}/doc
+.PATH:		${LIBUCL_DIR}/src \
+		${LIBUCL_DIR}/include \
+		${LIBUCL_DIR}/doc
 
 INCS=		ucl.h
 LIBADD=		m
 
 WARNS=		1
-CFLAGS+=	-I${LIBUCL}/include \
-		-I${LIBUCL}/src \
-		-I${LIBUCL}/uthash \
-		-I${LIBUCL}/klib
+CFLAGS+=	-I${LIBUCL_DIR}/include \
+		-I${LIBUCL_DIR}/src \
+		-I${LIBUCL_DIR}/uthash \
+		-I${LIBUCL_DIR}/klib
 
 MAN+=		libucl.3
 
