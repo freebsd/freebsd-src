@@ -1190,16 +1190,17 @@ static int
 ich_pci_resume(device_t dev)
 {
 	struct sc_info *sc;
-	int i;
+	int err, i;
 
 	sc = pcm_getdevinfo(dev);
 
 	ICH_LOCK(sc);
 	/* Reinit audio device */
-    	if (ich_init(sc) == -1) {
+	err = ich_init(sc);
+	if (err != 0) {
 		device_printf(dev, "unable to reinitialize the card\n");
 		ICH_UNLOCK(sc);
-		return (ENXIO);
+		return (err);
 	}
 	/* Reinit mixer */
 	ich_pci_codec_reset(sc);
