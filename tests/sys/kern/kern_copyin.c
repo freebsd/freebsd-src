@@ -66,6 +66,7 @@ get_maxuser_address(void)
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_PS_STRINGS;
 	mib[3] = getpid();
+	len = sizeof(psstrings);
 	error = sysctl(mib, nitems(mib), &psstrings, &len, NULL, 0);
 	if (error != 0)
 		return (0);
