@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: zpool
-# REQUIRE: hostid
+# REQUIRE: hostid disks
 # BEFORE: zvol mountcritlocal
 # KEYWORD: nojail
 
