@@ -996,8 +996,11 @@ be_rename(libbe_handle_t *lbh, const char *old, const char *new)
 	    ZFS_TYPE_FILESYSTEM)) == NULL)
 		return (set_error(lbh, BE_ERR_ZFSOPEN));
 
-
-	err = zfs_rename(zfs_hdl,full_new, B_FALSE, B_FALSE);
+	/* recurse, nounmount, forceunmount */
+	struct renameflags flags = {
+		.nounmount = 1,
+	};
+	err = zfs_rename(zfs_hdl, full_new, flags);
 
 	zfs_close(zfs_hdl);
 	if (err != 0)
