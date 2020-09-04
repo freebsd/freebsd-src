@@ -2,9 +2,8 @@
  * CDDL HEADER START
  *
  * The contents of this file are subject to the terms of the
- * Common Development and Distribution License, Version 1.0 only
- * (the "License").  You may not use this file except in compliance
- * with the License.
+ * Common Development and Distribution License (the "License").
+ * You may not use this file except in compliance with the License.
  *
  * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
  * or http://www.opensolaris.org/os/licensing.
@@ -19,27 +18,18 @@
  *
  * CDDL HEADER END
  */
+
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Portions Copyright 2020 iXsystems, Inc.
  */
 
-#include_next <limits.h>
-#include <float.h>
+#ifndef _SYS_ZFS_VFSOPS_H
+#define	_SYS_ZFS_VFSOPS_H
 
-#ifndef _LIBSPL_LIMITS_H
-#define	_LIBSPL_LIMITS_H
-
-#ifndef DBL_DIG
-#define	DBL_DIG		15
-#define	DBL_MAX		1.7976931348623157081452E+308
-#define	DBL_MIN		2.2250738585072013830903E-308
+#ifdef _KERNEL
+#include <sys/zfs_vfsops_os.h>
 #endif
 
-#ifndef FLT_DIG
-#define	FLT_DIG		6
-#define	FLT_MAX		3.4028234663852885981170E+38F
-#define	FLT_MIN		1.1754943508222875079688E-38F
-#endif
+extern void zfsvfs_update_fromname(const char *, const char *);
 
-#endif /* _LIBSPL_LIMITS_H */
+#endif /* _SYS_ZFS_VFSOPS_H */
