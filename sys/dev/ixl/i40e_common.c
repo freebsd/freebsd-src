@@ -62,6 +62,10 @@ enum i40e_status_code i40e_set_mac_type(struct i40e_hw *hw)
 		case I40E_DEV_ID_QSFP_C:
 		case I40E_DEV_ID_10G_BASE_T:
 		case I40E_DEV_ID_10G_BASE_T4:
+		case I40E_DEV_ID_10G_BASE_T_BC:
+		case I40E_DEV_ID_10G_B:
+		case I40E_DEV_ID_10G_SFP:
+		case I40E_DEV_ID_5G_BASE_T_BC:
 		case I40E_DEV_ID_20G_KR2:
 		case I40E_DEV_ID_20G_KR2_A:
 		case I40E_DEV_ID_25G_B:
@@ -1251,6 +1255,8 @@ static enum i40e_media_type i40e_get_media_type(struct i40e_hw *hw)
 		break;
 	case I40E_PHY_TYPE_100BASE_TX:
 	case I40E_PHY_TYPE_1000BASE_T:
+	case I40E_PHY_TYPE_2_5GBASE_T:
+	case I40E_PHY_TYPE_5GBASE_T:
 	case I40E_PHY_TYPE_10GBASE_T:
 		media = I40E_MEDIA_TYPE_BASET;
 		break;
@@ -1516,7 +1522,8 @@ static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 	u32 gpio_val = 0;
 	u32 port;
 
-	if (!hw->func_caps.led[idx])
+	if (!I40E_IS_X710TL_DEVICE(hw->device_id) &&
+	    !hw->func_caps.led[idx])
 		return 0;
 	gpio_val = rd32(hw, I40E_GLGEN_GPIO_CTL(idx));
 	port = (gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK) >>
@@ -1635,6 +1642,19 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 			break;
 		}
 
+		if (I40E_IS_X710TL_DEVICE(hw->device_id)) {
+			u32 pin_func = 0;
+
+			if (mode & I40E_FW_LED)
+				pin_func = I40E_PIN_FUNC_SDP;
+			else
+				pin_func = I40E_PIN_FUNC_LED;
+
+			gpio_val &= ~I40E_GLGEN_GPIO_CTL_PIN_FUNC_MASK;
+			gpio_val |= ((pin_func <<
+				     I40E_GLGEN_GPIO_CTL_PIN_FUNC_SHIFT) &
+				     I40E_GLGEN_GPIO_CTL_PIN_FUNC_MASK);
+		}
 		gpio_val &= ~I40E_GLGEN_GPIO_CTL_LED_MODE_MASK;
 		/* this & is a bit of paranoia, but serves as a range check */
 		gpio_val |= ((mode << I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT) &
@@ -6230,6 +6250,71 @@ enum i40e_status_code i40e_aq_debug_dump(struct i40e_hw *hw, u8 cluster_id,
 	return status;
 }
 
+
+/**
+ * i40e_enable_eee
+ * @hw: pointer to the hardware structure
+ * @enable: state of Energy Efficient Ethernet mode to be set
+ *
+ * Enables or disables Energy Efficient Ethernet (EEE) mode
+ * accordingly to @enable parameter.
+ **/
+enum i40e_status_code i40e_enable_eee(struct i40e_hw *hw, bool enable)
+{
+	struct i40e_aq_get_phy_abilities_resp abilities;
+	struct i40e_aq_set_phy_config config;
+	enum i40e_status_code status;
+	__le16 eee_capability;
+
+	/* Get initial PHY capabilities */
+	status = i40e_aq_get_phy_capabilities(hw, FALSE, TRUE, &abilities,
+					      NULL);
+	if (status)
+		goto err;
+
+	/* Check whether NIC configuration is compatible with Energy Efficient
+	 * Ethernet (EEE) mode.
+	 */
+	if (abilities.eee_capability == 0) {
+		status = I40E_ERR_CONFIG;
+		goto err;
+	}
+
+	/* Cache initial EEE capability */
+	eee_capability = abilities.eee_capability;
+
+	/* Get current configuration */
+	status = i40e_aq_get_phy_capabilities(hw, FALSE, false, &abilities,
+					      NULL);
+	if (status)
+		goto err;
+
+	/* Cache current configuration */
+	config.phy_type = abilities.phy_type;
+	config.phy_type_ext = abilities.phy_type_ext;
+	config.link_speed = abilities.link_speed;
+	config.abilities = abilities.abilities |
+			   I40E_AQ_PHY_ENABLE_ATOMIC_LINK;
+	config.eeer = abilities.eeer_val;
+	config.low_power_ctrl = abilities.d3_lpan;
+	config.fec_config = abilities.fec_cfg_curr_mod_ext_info &
+			    I40E_AQ_PHY_FEC_CONFIG_MASK;
+
+	/* Set desired EEE state */
+	if (enable) {
+		config.eee_capability = eee_capability;
+		config.eeer |= I40E_PRTPM_EEER_TX_LPI_EN_MASK;
+	} else {
+		config.eee_capability = 0;
+		config.eeer &= ~I40E_PRTPM_EEER_TX_LPI_EN_MASK;
+	}
+
+	/* Save modified config */
+	status = i40e_aq_set_phy_config(hw, &config, NULL);
+err:
+	return status;
+}
+
 /**
  * i40e_read_bw_from_alt_ram
  * @hw: pointer to the hardware structure
@@ -6550,6 +6635,8 @@ enum i40e_status_code i40e_write_phy_register(struct i40e_hw *hw,
 		break;
 	case I40E_DEV_ID_10G_BASE_T:
 	case I40E_DEV_ID_10G_BASE_T4:
+	case I40E_DEV_ID_10G_BASE_T_BC:
+	case I40E_DEV_ID_5G_BASE_T_BC:
 	case I40E_DEV_ID_10G_BASE_T_X722:
 	case I40E_DEV_ID_25G_B:
 	case I40E_DEV_ID_25G_SFP28:
@@ -6586,6 +6673,8 @@ enum i40e_status_code i40e_read_phy_register(struct i40e_hw *hw,
 		break;
 	case I40E_DEV_ID_10G_BASE_T:
 	case I40E_DEV_ID_10G_BASE_T4:
+	case I40E_DEV_ID_10G_BASE_T_BC:
+	case I40E_DEV_ID_5G_BASE_T_BC:
 	case I40E_DEV_ID_10G_BASE_T_X722:
 	case I40E_DEV_ID_25G_B:
 	case I40E_DEV_ID_25G_SFP28:
@@ -6842,6 +6931,196 @@ restore_config:
 }
 
 /**
+ * i40e_get_phy_lpi_status - read LPI status from PHY or MAC register
+ * @hw: pointer to the hw struct
+ * @stat: pointer to structure with status of rx and tx lpi
+ *
+ * Read LPI state directly from external PHY register or from MAC
+ * register, depending on device ID and current link speed.
+ */
+enum i40e_status_code i40e_get_phy_lpi_status(struct i40e_hw *hw,
+					      struct i40e_hw_port_stats *stat)
+{
+	enum i40e_status_code ret = I40E_SUCCESS;
+	u32 val;
+
+	stat->rx_lpi_status = 0;
+	stat->tx_lpi_status = 0;
+
+	if ((hw->device_id == I40E_DEV_ID_10G_BASE_T_BC ||
+	     hw->device_id == I40E_DEV_ID_5G_BASE_T_BC) &&
+	    (hw->phy.link_info.link_speed == I40E_LINK_SPEED_2_5GB ||
+	     hw->phy.link_info.link_speed == I40E_LINK_SPEED_5GB)) {
+		ret = i40e_aq_get_phy_register(hw,
+					       I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
+					       I40E_BCM_PHY_PCS_STATUS1_PAGE,
+					       TRUE,
+					       I40E_BCM_PHY_PCS_STATUS1_REG,
+					       &val, NULL);
+
+		if (ret != I40E_SUCCESS)
+			return ret;
+
+		stat->rx_lpi_status = !!(val & I40E_BCM_PHY_PCS_STATUS1_RX_LPI);
+		stat->tx_lpi_status = !!(val & I40E_BCM_PHY_PCS_STATUS1_TX_LPI);
+
+		return ret;
+	}
+
+	val = rd32(hw, I40E_PRTPM_EEE_STAT);
+	stat->rx_lpi_status = (val & I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_MASK) >>
+			       I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_SHIFT;
+	stat->tx_lpi_status = (val & I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_MASK) >>
+			       I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_SHIFT;
+
+	return ret;
+}
+
+/**
+ * i40e_get_lpi_counters - read LPI counters from EEE statistics
+ * @hw: pointer to the hw struct
+ * @tx_counter: pointer to memory for TX LPI counter
+ * @rx_counter: pointer to memory for RX LPI counter
+ * @is_clear:   returns TRUE if counters are clear after read
+ *
+ * Read Low Power Idle (LPI) mode counters from Energy Efficient
+ * Ethernet (EEE) statistics.
+ **/
+enum i40e_status_code i40e_get_lpi_counters(struct i40e_hw *hw,
+					    u32 *tx_counter, u32 *rx_counter,
+					    bool *is_clear)
+{
+	/* only X710-T*L requires special handling of counters
+	 * for other devices we just read the MAC registers
+	 */
+	if ((hw->device_id == I40E_DEV_ID_10G_BASE_T_BC ||
+	     hw->device_id == I40E_DEV_ID_5G_BASE_T_BC) &&
+	     hw->phy.link_info.link_speed != I40E_LINK_SPEED_1GB) {
+		enum i40e_status_code retval;
+		u32 cmd_status;
+
+		*is_clear = FALSE;
+		retval = i40e_aq_run_phy_activity(hw,
+				I40E_AQ_RUN_PHY_ACT_ID_USR_DFND,
+				I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_STAT,
+				&cmd_status, tx_counter, rx_counter, NULL);
+
+		if (!retval && cmd_status != I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC)
+			retval = I40E_ERR_ADMIN_QUEUE_ERROR;
+
+		return retval;
+	}
+
+	*is_clear = TRUE;
+	*tx_counter = rd32(hw, I40E_PRTPM_TLPIC);
+	*rx_counter = rd32(hw, I40E_PRTPM_RLPIC);
+
+	return I40E_SUCCESS;
+}
+
+/**
+ * i40e_get_lpi_duration - read LPI time duration from EEE statistics
+ * @hw: pointer to the hw struct
+ * @stat: pointer to structure with status of rx and tx lpi
+ * @tx_duration: pointer to memory for TX LPI time duration
+ * @rx_duration: pointer to memory for RX LPI time duration
+ *
+ * Read Low Power Idle (LPI) mode time duration from Energy Efficient
+ * Ethernet (EEE) statistics.
+ */
+enum i40e_status_code i40e_get_lpi_duration(struct i40e_hw *hw,
+					    struct i40e_hw_port_stats *stat,
+					    u64 *tx_duration, u64 *rx_duration)
+{
+	u32 tx_time_dur, rx_time_dur;
+	enum i40e_status_code retval;
+	u32 cmd_status;
+
+	if (hw->device_id != I40E_DEV_ID_10G_BASE_T_BC &&
+	    hw->device_id != I40E_DEV_ID_5G_BASE_T_BC)
+		return I40E_ERR_NOT_IMPLEMENTED;
+
+	retval = i40e_aq_run_phy_activity
+		(hw, I40E_AQ_RUN_PHY_ACT_ID_USR_DFND,
+		I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_DUR,
+		&cmd_status, &tx_time_dur, &rx_time_dur, NULL);
+
+	if (retval)
+		return retval;
+	if ((cmd_status & I40E_AQ_RUN_PHY_ACT_CMD_STAT_MASK) !=
+	    I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC)
+		return I40E_ERR_ADMIN_QUEUE_ERROR;
+
+	if (hw->phy.link_info.link_speed == I40E_LINK_SPEED_1GB &&
+	    !tx_time_dur && !rx_time_dur &&
+	    stat->tx_lpi_status && stat->rx_lpi_status) {
+		retval = i40e_aq_run_phy_activity
+			(hw, I40E_AQ_RUN_PHY_ACT_ID_USR_DFND,
+			I40E_AQ_RUN_PHY_ACT_DNL_OPCODE_GET_EEE_STAT_DUR,
+			&cmd_status,
+			&tx_time_dur, &rx_time_dur, NULL);
+
+		if (retval)
+			return retval;
+		if ((cmd_status & I40E_AQ_RUN_PHY_ACT_CMD_STAT_MASK) !=
+		    I40E_AQ_RUN_PHY_ACT_CMD_STAT_SUCC)
+			return I40E_ERR_ADMIN_QUEUE_ERROR;
+		tx_time_dur = 0;
+		rx_time_dur = 0;
+	}
+
+	*tx_duration = tx_time_dur;
+	*rx_duration = rx_time_dur;
+
+	return retval;
+}
+
+/**
+ * i40e_lpi_stat_update - update LPI counters with values relative to offset
+ * @hw: pointer to the hw struct
+ * @offset_loaded: flag indicating need of writing current value to offset
+ * @tx_offset: pointer to offset of TX LPI counter
+ * @tx_stat: pointer to value of TX LPI counter
+ * @rx_offset: pointer to offset of RX LPI counter
+ * @rx_stat: pointer to value of RX LPI counter
+ *
+ * Update Low Power Idle (LPI) mode counters while having regard to passed
+ * offsets.
+ **/
+enum i40e_status_code i40e_lpi_stat_update(struct i40e_hw *hw,
+					   bool offset_loaded, u64 *tx_offset,
+					   u64 *tx_stat, u64 *rx_offset,
+					   u64 *rx_stat)
+{
+	enum i40e_status_code retval;
+	u32 tx_counter, rx_counter;
+	bool is_clear;
+
+	retval = i40e_get_lpi_counters(hw, &tx_counter, &rx_counter, &is_clear);
+	if (retval)
+		goto err;
+
+	if (is_clear) {
+		*tx_stat += tx_counter;
+		*rx_stat += rx_counter;
+	} else {
+		if (!offset_loaded) {
+			*tx_offset = tx_counter;
+			*rx_offset = rx_counter;
+		}
+
+		*tx_stat = (tx_counter >= *tx_offset) ?
+			(u32)(tx_counter - *tx_offset) :
+			(u32)((tx_counter + BIT_ULL(32)) - *tx_offset);
+		*rx_stat = (rx_counter >= *rx_offset) ?
+			(u32)(rx_counter - *rx_offset) :
+			(u32)((rx_counter + BIT_ULL(32)) - *rx_offset);
+	}
+err:
+	return retval;
+}
+
+/**
  * i40e_aq_rx_ctl_read_register - use FW to read from an Rx control register
  * @hw: pointer to the hw struct
  * @reg_addr: register address
@@ -7083,6 +7362,52 @@ i40e_aq_get_phy_register_ext(struct i40e_hw *hw,
 
 	return status;
 }
+
+/**
+ * i40e_aq_run_phy_activity
+ * @hw: pointer to the hw struct
+ * @activity_id: ID of DNL activity to run
+ * @dnl_opcode: opcode passed to DNL script
+ * @cmd_status: pointer to memory to write return value of DNL script
+ * @data0: pointer to memory for first 4 bytes of data returned by DNL script
+ * @data1: pointer to memory for last 4 bytes of data returned by DNL script
+ * @cmd_details: pointer to command details structure or NULL
+ *
+ * Run DNL admin command.
+ **/
+enum i40e_status_code
+i40e_aq_run_phy_activity(struct i40e_hw *hw, u16 activity_id, u32 dnl_opcode,
+			 u32 *cmd_status, u32 *data0, u32 *data1,
+			 struct i40e_asq_cmd_details *cmd_details)
+{
+	struct i40e_aqc_run_phy_activity *cmd;
+	enum i40e_status_code retval;
+	struct i40e_aq_desc desc;
+
+	cmd = (struct i40e_aqc_run_phy_activity *)&desc.params.raw;
+
+	if (!cmd_status || !data0 || !data1) {
+		retval = I40E_ERR_PARAM;
+		goto err;
+	}
+
+	i40e_fill_default_direct_cmd_desc(&desc,
+					  i40e_aqc_opc_run_phy_activity);
+
+	cmd->activity_id = CPU_TO_LE16(activity_id);
+	cmd->params.cmd.dnl_opcode = CPU_TO_LE32(dnl_opcode);
+
+	retval = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
+	if (retval)
+		goto err;
+
+	*cmd_status = LE32_TO_CPU(cmd->params.resp.cmd_status);
+	*data0 = LE32_TO_CPU(cmd->params.resp.data0);
+	*data1 = LE32_TO_CPU(cmd->params.resp.data1);
+err:
+	return retval;
+}
+
 
 /**
  * i40e_aq_send_msg_to_pf
