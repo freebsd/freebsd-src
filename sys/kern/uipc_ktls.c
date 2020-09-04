@@ -680,7 +680,8 @@ ktls_cleanup(struct ktls_session *tls)
 			counter_u64_add(ktls_ifnet_gcm, -1);
 			break;
 		}
-		m_snd_tag_rele(tls->snd_tag);
+		if (tls->snd_tag != NULL)
+			m_snd_tag_rele(tls->snd_tag);
 		break;
 #ifdef TCP_OFFLOAD
 	case TCP_TLS_MODE_TOE:
