@@ -43,16 +43,16 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
-#ifdef MD5
+#ifdef WITH_MD5
 #include <md5.h>
 #endif
-#ifdef RMD160
+#ifdef WITH_RMD160
 #include <ripemd.h>
 #endif
-#ifdef SHA1
+#ifdef WITH_SHA1
 #include <sha.h>
 #endif
-#ifdef SHA256
+#ifdef WITH_SHA256
 #include <sha256.h>
 #endif
 #include <stdint.h>
@@ -244,7 +244,7 @@ typeerr:		LABEL;
 			(void)printf("\n");
 		tab = "\t";
 	}
-#ifdef MD5
+#ifdef WITH_MD5
 	if (s->flags & F_MD5) {
 		char *new_digest, buf[33];
 
@@ -262,7 +262,7 @@ typeerr:		LABEL;
 		}
 	}
 #endif /* MD5 */
-#ifdef SHA1
+#ifdef WITH_SHA1
 	if (s->flags & F_SHA1) {
 		char *new_digest, buf[41];
 
@@ -280,7 +280,7 @@ typeerr:		LABEL;
 		}
 	}
 #endif /* SHA1 */
-#ifdef RMD160
+#ifdef WITH_RMD160
 	if (s->flags & F_RMD160) {
 		char *new_digest, buf[41];
 
@@ -298,7 +298,7 @@ typeerr:		LABEL;
 		}
 	}
 #endif /* RMD160 */
-#ifdef SHA256
+#ifdef WITH_SHA256
 	if (s->flags & F_SHA256) {
 		char *new_digest, buf[65];
 
