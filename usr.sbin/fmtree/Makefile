@@ -10,7 +10,7 @@ MAN=	fmtree.8
 SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c
 SRCS+=	specspec.c
 
-CFLAGS+= -DMD5 -DSHA1 -DRMD160 -DSHA256
+CFLAGS+= -DWITH_MD5 -DWITH_SHA1 -DWITH_RMD160 -DWITH_SHA256
 LIBADD=	md
 
 CLEANFILES+=	fmtree.8
