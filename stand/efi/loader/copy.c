@@ -290,8 +290,8 @@ before_staging:
 		 * translation still works.
 		 */
 		staging_base = addr;
-		memmove((void *)staging_base, (void *)staging,
-		    staging_end - staging);
+		memmove((void *)(uintptr_t)staging_base,
+		    (void *)(uintptr_t)staging, staging_end - staging);
 		stage_offset -= (staging - staging_base);
 		staging = staging_base;
 		return (true);
