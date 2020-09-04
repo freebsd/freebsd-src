@@ -64,7 +64,8 @@ END(.rtld_start)
  */
 ENTRY(_rtld_bind_start)
 	/* Save the arguments and ra */
-	addi	sp, sp, -(8 * 17)
+	/* We require 17 dwords, but the stack must be aligned to 16-bytes */
+	addi	sp, sp, -(8 * 18)
 	sd	a0, (8 * 0)(sp)
 	sd	a1, (8 * 1)(sp)
 	sd	a2, (8 * 2)(sp)
@@ -122,7 +123,7 @@ ENTRY(_rtld_bind_start)
 	fld	fa6, (8 * 15)(sp)
 	fld	fa7, (8 * 16)(sp)
 #endif
-	addi	sp, sp, (8 * 17)
+	addi	sp, sp, (8 * 18)
 
 	/* Call into the correct function */
 	jr	t0
