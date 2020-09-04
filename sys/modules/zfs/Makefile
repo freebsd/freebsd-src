@@ -44,8 +44,6 @@ CFLAGS+= -DDEBUG_VFS_LOCKS
 CFLAGS+=	 -fprofile-arcs -ftest-coverage
 .endif
 
-DEBUG_FLAGS=-g
-
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
 	${MACHINE_ARCH} == "powerpcspe" || ${MACHINE_ARCH} == "arm"
 CFLAGS+= -DBITS_PER_LONG=32
