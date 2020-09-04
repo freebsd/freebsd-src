@@ -1,6 +1,6 @@
 ﻿Dynamic Device Personalization (DDP) Package
 ============================================
-February 21, 2020
+July 7, 2020
 
 
 Contents
@@ -59,6 +59,7 @@ The OS-default DDP package supports the following:
 - GRE
 - NVGRE
 - RoCEv2
+- MPLS (up to 5 consecutive MPLS labels in the outermost Layer 2 header group)
 
 
 Safe Mode
