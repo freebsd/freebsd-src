@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 The FreeBSD Foundation
+ * Copyright (c) 2015, 2020 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by Konstantin Belousov <kib@FreeBSD.org>
@@ -31,6 +31,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/exec.h>
+#include <sys/sysctl.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
@@ -52,21 +54,54 @@ copyin_checker(uintptr_t uaddr, size_t len)
 	return (ret == -1 ? errno : 0);
 }
 
+#ifdef __amd64__
+static uintptr_t
+get_maxuser_address(void)
+{
+	size_t len;
+	uintptr_t psstrings;
+	int error, mib[4];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_PS_STRINGS;
+	mib[3] = getpid();
+	error = sysctl(mib, nitems(mib), &psstrings, &len, NULL, 0);
+	if (error != 0)
+		return (0);
+
+	if (psstrings == PS_STRINGS_LA57)
+		return (VM_MAXUSER_ADDRESS_LA57);
+	if (psstrings == PS_STRINGS_LA48)
+		return (VM_MAXUSER_ADDRESS_LA48);
+	/* AMD LA48 with clipped UVA */
+	if (psstrings == PS_STRINGS_LA48 - PAGE_SIZE)
+		return (VM_MAXUSER_ADDRESS_LA48 - PAGE_SIZE);
+	return (0);
+}
+#endif
+
 #define	FMAX	ULONG_MAX
 
 ATF_TC_WITHOUT_HEAD(kern_copyin);
 ATF_TC_BODY(kern_copyin, tc)
 {
 	char template[] = "copyin.XXXXXX";
+	uintptr_t maxuser;
 
-#ifdef __mips__
+#if defined(__mips__)
 	/*
 	 * MIPS has different VM layout: the UVA map on mips ends the
 	 * highest mapped entry at the VM_MAXUSER_ADDRESS - PAGE_SIZE,
 	 * while all other arches map either stack or shared page up
 	 * to the VM_MAXUSER_ADDRESS.
 	 */
-	atf_tc_skip("Platform is not supported.");
+	maxuser = VM_MAXUSER_ADDRESS - PAGE_SIZE;
+#elif defined(__amd64__)
+	maxuser = get_maxuser_address();
+	ATF_REQUIRE(maxuser != 0);
+#else
+	maxuser = VM_MAXUSER_ADDRESS;
 #endif
 
 	scratch_file = mkstemp(template);
@@ -74,15 +109,15 @@ ATF_TC_BODY(kern_copyin, tc)
 	unlink(template);
 
 	ATF_CHECK(copyin_checker(0, 0) == 0);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS - 10, 9) == 0);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS - 10, 10) == 0);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS - 10, 11) == EFAULT);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS - 1, 1) == 0);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS, 0) == 0);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS, 1) == EFAULT);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS, 2) == EFAULT);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS + 1, 0) == 0);
-	ATF_CHECK(copyin_checker(VM_MAXUSER_ADDRESS + 1, 2) == EFAULT);
+	ATF_CHECK(copyin_checker(maxuser - 10, 9) == 0);
+	ATF_CHECK(copyin_checker(maxuser - 10, 10) == 0);
+	ATF_CHECK(copyin_checker(maxuser - 10, 11) == EFAULT);
+	ATF_CHECK(copyin_checker(maxuser - 1, 1) == 0);
+	ATF_CHECK(copyin_checker(maxuser, 0) == 0);
+	ATF_CHECK(copyin_checker(maxuser, 1) == EFAULT);
+	ATF_CHECK(copyin_checker(maxuser, 2) == EFAULT);
+	ATF_CHECK(copyin_checker(maxuser + 1, 0) == 0);
+	ATF_CHECK(copyin_checker(maxuser + 1, 2) == EFAULT);
 	ATF_CHECK(copyin_checker(FMAX - 10, 9) == EFAULT);
 	ATF_CHECK(copyin_checker(FMAX - 10, 10) == EFAULT);
 	ATF_CHECK(copyin_checker(FMAX - 10, 11) == EFAULT);
