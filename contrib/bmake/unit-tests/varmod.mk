@@ -1,0 +1,8 @@
+# $NetBSD: varmod.mk,v 1.2 2020/08/16 14:25:16 rillig Exp $
+#
+# Tests for variable modifiers, such as :Q, :S,from,to or :Ufallback.
+
+# TODO: Implementation
+
+all:
+	@:;

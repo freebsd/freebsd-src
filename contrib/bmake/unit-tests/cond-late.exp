@@ -1,3 +1,4 @@
+make: Bad conditional expression ` != "no"' in  != "no"?:
 yes
 no
 exit status 0

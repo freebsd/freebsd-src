@@ -1,4 +1,4 @@
-# $NetBSD: posix1.mk,v 1.3 2014/08/30 22:21:08 sjg Exp $
+# $NetBSD: posix1.mk,v 1.4 2020/08/10 18:19:58 rillig Exp $
 
 # Keep the default suffixes from interfering, just in case.
 .SUFFIXES:
@@ -8,6 +8,8 @@ all:	line-continuations suffix-substitution localvars
 # we need to clean for repeatable results
 .BEGIN: clean
 clean:
+	@rm -f lib.a dir/* dummy obj*
+.END:
 	@rm -f lib.a dir/* dummy obj*
 
 #

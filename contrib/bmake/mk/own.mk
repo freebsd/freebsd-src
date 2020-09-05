@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.40 2018/04/23 04:53:57 sjg Exp $
+# $Id: own.mk,v 1.41 2020/08/19 17:51:53 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -61,7 +61,7 @@ YACC.y?=	${YACC} ${YFLAGS}
 
 # for suffix rules
 IMPFLAGS?=	${COPTS.${.IMPSRC:T}} ${CPUFLAGS.${.IMPSRC:T}} ${CPPFLAGS.${.IMPSRC:T}}
-.for s in .c .cc 
+.for s in .c .cc
 COMPILE.$s += ${IMPFLAGS}
 LINK.$s +=  ${IMPFLAGS}
 .endfor
@@ -211,8 +211,8 @@ CFLAGS+= ${CPPFLAGS}
 
 # allow for per target flags
 # apply the :T:R first, so the more specific :T can override if needed
-CPPFLAGS += ${CPPFLAGS_${.TARGET:T:R}} ${CPPFLAGS_${.TARGET:T}} 
-CFLAGS += ${CFLAGS_${.TARGET:T:R}} ${CFLAGS_${.TARGET:T}} 
+CPPFLAGS += ${CPPFLAGS_${.TARGET:T:R}} ${CPPFLAGS_${.TARGET:T}}
+CFLAGS += ${CFLAGS_${.TARGET:T:R}} ${CFLAGS_${.TARGET:T}}
 
 # Define SYS_INCLUDE to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful

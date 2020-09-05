@@ -12,7 +12,7 @@ CFLAGS+= -I${.CURDIR}
 CLEANDIRS+= FreeBSD
 CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.107 2020/06/07 21:18:46 sjg Exp $
+#	$Id: Makefile,v 1.112 2020/08/28 16:26:17 sjg Exp $
 
 PROG?=	${.CURDIR:T}
 
@@ -22,9 +22,11 @@ SRCS= \
 	compat.c \
 	cond.c \
 	dir.c \
+	enum.c \
 	for.c \
 	hash.c \
 	job.c \
+	lst.c \
 	main.c \
 	make.c \
 	make_malloc.c \
@@ -38,36 +40,6 @@ SRCS= \
 	trace.c \
 	util.c \
 	var.c
-
-# from lst.lib/
-SRCS+= \
-	lstAppend.c \
-	lstAtEnd.c \
-	lstAtFront.c \
-	lstClose.c \
-	lstConcat.c \
-	lstDatum.c \
-	lstDeQueue.c \
-	lstDestroy.c \
-	lstDupl.c \
-	lstEnQueue.c \
-	lstFind.c \
-	lstFindFrom.c \
-	lstFirst.c \
-	lstForEach.c \
-	lstForEachFrom.c \
-	lstInit.c \
-	lstInsert.c \
-	lstIsAtEnd.c \
-	lstIsEmpty.c \
-	lstLast.c \
-	lstMember.c \
-	lstNext.c \
-	lstOpen.c \
-	lstPrev.c \
-	lstRemove.c \
-	lstReplace.c \
-	lstSucc.c
 
 .sinclude "Makefile.inc"
 
@@ -110,7 +82,6 @@ COPTS.filemon_dev.c += -DHAVE_FILEMON_H -I${FILEMON_H:H}
 .endif				# USE_FILEMON
 
 .PATH:	${srcdir}
-.PATH:	${srcdir}/lst.lib
 
 .if make(obj) || make(clean)
 SUBDIR+= unit-tests
@@ -171,8 +142,11 @@ ${OBJS}: config.h
 
 
 # A simple unit-test driver to help catch regressions
+TEST_MAKE ?= ${.OBJDIR}/${PROG:T}
 accept test:
-	cd ${.CURDIR}/unit-tests && MAKEFLAGS= ${.MAKE} -r -m / TEST_MAKE=${TEST_MAKE:U${.OBJDIR}/${PROG:T}} ${.TARGET}
+	cd ${.CURDIR}/unit-tests && \
+	MAKEFLAGS= ${TEST_MAKE} -r -m / ${.TARGET} ${TESTS:DTESTS=${TESTS:Q}}
+
 
 # override some simple things
 BINDIR= /usr/bin

@@ -1,4 +1,4 @@
-#	$Id: Generic.mk,v 1.16 2020/06/29 14:34:42 sjg Exp $
+#	$Id: Generic.mk,v 1.17 2020/08/19 17:51:53 sjg Exp $
 #
 
 # some reasonable defaults
@@ -31,7 +31,7 @@ ARFLAGS ?=	rl
 
 AS ?=		as
 AFLAGS ?=
-.if ${MACHINE_ARCH} == "sparc64" 
+.if ${MACHINE_ARCH} == "sparc64"
 AFLAGS+= -Wa,-Av9a
 .endif
 COMPILE.s ?=	${CC} ${AFLAGS} -c
@@ -56,7 +56,7 @@ COMPILE.m ?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} -c
 LINK.m ?=	${OBJC} ${OBJCFLAGS} ${CPPFLAGS} ${LDFLAGS}
 
 CPP ?=		cpp
-CPPFLAGS ?=	
+CPPFLAGS ?=
 
 FC ?=		f77
 FFLAGS ?=	-O
@@ -181,7 +181,7 @@ ${CXX_SUFFIXES:%=%.a}:
 	mv lex.yy.c ${.TARGET}
 .l.o:
 	${LEX.l} ${.IMPSRC}
-	${COMPILE.c} -o ${.TARGET} lex.yy.c 
+	${COMPILE.c} -o ${.TARGET} lex.yy.c
 	rm -f lex.yy.c
 
 # Yacc

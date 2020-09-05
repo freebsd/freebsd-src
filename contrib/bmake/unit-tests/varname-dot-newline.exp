@@ -1,0 +1,4 @@
+make: "varname-dot-newline.mk" line 16: The .newline variable can be overwritten.  Just don't do that.
+first
+second
+exit status 0

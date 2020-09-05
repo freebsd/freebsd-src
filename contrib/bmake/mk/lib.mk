@@ -1,4 +1,4 @@
-# $Id: lib.mk,v 1.70 2020/05/02 02:10:20 sjg Exp $
+# $Id: lib.mk,v 1.71 2020/08/19 17:51:53 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -67,7 +67,7 @@ META_NOECHO?= echo
 		# Alpha-specific shared library flags
 FPICFLAGS ?= -fPIC
 CPICFLAGS ?= -fPIC -DPIC
-CPPPICFLAGS?= -DPIC 
+CPPPICFLAGS?= -DPIC
 CAPICFLAGS?= ${CPPPICFLAGS} ${CPICFLAGS}
 APICFLAGS ?=
 .elif ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipseb"
@@ -87,7 +87,7 @@ MKPICLIB= no
 
 .elif (${MACHINE_ARCH} == "sparc" || ${MACHINE_ARCH} == "sparc64") && \
        ${OBJECT_FMT} == "ELF"
-# If you use -fPIC you need to define BIGPIC to turn on 32-bit 
+# If you use -fPIC you need to define BIGPIC to turn on 32-bit
 # relocations in asm code
 FPICFLAGS ?= -fPIC
 CPICFLAGS ?= -fPIC -DPIC
@@ -102,7 +102,7 @@ SHLIB_SOVERSION=${SHLIB_FULLVERSION}
 SHLIB_SHFLAGS=
 FPICFLAGS ?= -fPIC
 CPICFLAGS?= -fPIC -DPIC
-CPPPICFLAGS?= -DPIC 
+CPPPICFLAGS?= -DPIC
 CAPICFLAGS?= ${CPPPICFLAGS} ${CPICFLAGS}
 APICFLAGS?= -k
 
@@ -246,7 +246,7 @@ DLLIB ?= -ldl
 .endif
 
 # some libs have lots of objects, and scanning all .o, .po and ${PICO} meta files
-# is a waste of time, this tells meta.autodep.mk to just pick one 
+# is a waste of time, this tells meta.autodep.mk to just pick one
 # (typically ${PICO})
 # yes, 42 is a random number.
 .if ${MK_DIRDEPS_BUILD} == "yes" && ${SRCS:Uno:[\#]} > 42
@@ -272,7 +272,7 @@ ${CXX_SUFFIXES:%=%.o}:
 	${COMPILE.cc} ${.IMPSRC}
 
 .S.o .s.o:
-	${COMPILE.S} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} 
+	${COMPILE.S} ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC}
 
 .if (${LD_X} == "")
 .c.po:
@@ -382,7 +382,7 @@ _LIBS+= ${libLDORDER_INC}
 .endif
 
 .if !defined(_SKIP_BUILD)
-realbuild: ${_LIBS} 
+realbuild: ${_LIBS}
 .endif
 
 all: _SUBDIRUSE

@@ -1,14 +1,14 @@
-# $Id: libs.mk,v 1.3 2013/08/02 18:28:48 sjg Exp $
+# $Id: libs.mk,v 1.6 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -82,12 +82,18 @@ UPDATE_DEPENDFILE = NO
 LIBS_TARGETS+= cleandepend cleandir cleanobj depend install
 
 .for b in ${LIBS:R:T:S,^lib,,}
-lib$b.a: ${SRCS} ${DPADD} ${SRCS_lib$b} ${DPADD_lib$b} 
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} LIB=$b)
+lib$b.a: ${SRCS} ${DPADD} ${SRCS_lib$b} ${DPADD_lib$b}
+	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} LIB=$b -DWITHOUT_META_STATS)
 
 .for t in ${LIBS_TARGETS:O:u}
 $b.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} LIB=$b ${@:E})
+	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} LIB=$b ${@:E} -DWITHOUT_META_STATS)
 .endfor
 .endfor
+
+.if !defined(WITHOUT_META_STATS) && ${.MAKE.LEVEL} > 0
+.END: _reldir_finish
+.ERROR: _reldir_failed
+.endif
+
 .endif

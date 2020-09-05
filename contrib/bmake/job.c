@@ -1,4 +1,4 @@
-/*	$NetBSD: job.c,v 1.201 2020/07/03 08:13:23 rillig Exp $	*/
+/*	$NetBSD: job.c,v 1.227 2020/08/30 19:56:02 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: job.c,v 1.201 2020/07/03 08:13:23 rillig Exp $";
+static char rcsid[] = "$NetBSD: job.c,v 1.227 2020/08/30 19:56:02 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: job.c,v 1.201 2020/07/03 08:13:23 rillig Exp $");
+__RCSID("$NetBSD: job.c,v 1.227 2020/08/30 19:56:02 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -112,7 +112,7 @@ __RCSID("$NetBSD: job.c,v 1.201 2020/07/03 08:13:23 rillig Exp $");
  *
  *	Job_ParseShell	    	Given the line following a .SHELL target, parse
  *	    	  	    	the line as a shell specification. Returns
- *	    	  	    	FAILURE if the spec was incorrect.
+ *	    	  	    	FALSE if the spec was incorrect.
  *
  *	Job_Finish	    	Perform any final processing which needs doing.
  *	    	  	    	This includes the execution of any commands
@@ -142,7 +142,6 @@ __RCSID("$NetBSD: job.c,v 1.201 2020/07/03 08:13:23 rillig Exp $");
 #include <sys/time.h>
 #include "wait.h"
 
-#include <assert.h>
 #include <errno.h>
 #if !defined(USE_SELECT) && defined(HAVE_POLL_H)
 #include <poll.h>
@@ -155,15 +154,12 @@ __RCSID("$NetBSD: job.c,v 1.201 2020/07/03 08:13:23 rillig Exp $");
 #endif
 #endif
 #include <signal.h>
-#include <stdio.h>
-#include <string.h>
 #include <utime.h>
 #if defined(HAVE_SYS_SOCKET_H)
 # include <sys/socket.h>
 #endif
 
 #include "make.h"
-#include "hash.h"
 #include "dir.h"
 #include "job.h"
 #include "pathnames.h"
@@ -200,7 +196,6 @@ static int    	aborting = 0;	    /* why is the make aborting? */
  * this tracks the number of tokens currently "out" to build jobs.
  */
 int jobTokensRunning = 0;
-int not_parallel = 0;		    /* set if .NOT_PARALLEL */
 
 /*
  * XXX: Avoid SunOS bug... FILENO() is fp->_file, and file
@@ -327,9 +322,9 @@ static Shell *commandShell = &shells[DEFSHELL_INDEX]; /* this is the shell to
 						   * Job_ParseShell function */
 const char *shellPath = NULL,		  	  /* full pathname of
 						   * executable image */
-           *shellName = NULL;		      	  /* last component of shell */
+	   *shellName = NULL;		      	  /* last component of shell */
 char *shellErrFlag = NULL;
-static const char *shellArgv = NULL;		  /* Custom shell args */
+static char *shellArgv = NULL;	/* Custom shell args */
 
 
 STATIC Job	*job_table;	/* The structures that describe them */
@@ -385,11 +380,6 @@ static void JobTokenAdd(void);
 static void JobSigLock(sigset_t *);
 static void JobSigUnlock(sigset_t *);
 static void JobSigReset(void);
-
-#if !defined(MALLOC_OPTIONS)
-# define MALLOC_OPTIONS "A"
-#endif
-const char *malloc_options= MALLOC_OPTIONS;
 
 static unsigned
 nfds_per_job(void)
@@ -739,15 +729,14 @@ JobPrintCommand(void *cmdp, void *jobp)
     char	  *escCmd = NULL;    /* Command with quotes/backticks escaped */
     char     	  *cmd = (char *)cmdp;
     Job           *job = (Job *)jobp;
-    int           i, j;
 
     noSpecials = NoExecute(job->node);
 
     if (strcmp(cmd, "...") == 0) {
 	job->node->type |= OP_SAVE_CMDS;
 	if ((job->flags & JOB_IGNDOTS) == 0) {
-	    job->tailCmds = Lst_Succ(Lst_Member(job->node->commands,
-						cmd));
+	    LstNode dotsNode = Lst_FindDatum(job->node->commands, cmd);
+	    job->tailCmds = dotsNode != NULL ? LstNode_Next(dotsNode) : NULL;
 	    return 1;
 	}
 	return 0;
@@ -761,7 +750,7 @@ JobPrintCommand(void *cmdp, void *jobp)
 
     numCommands += 1;
 
-    cmdStart = cmd = Var_Subst(NULL, cmd, job->node, VARF_WANTRES);
+    cmdStart = cmd = Var_Subst(cmd, job->node, VARE_WANTRES);
 
     cmdTemplate = "%s\n";
 
@@ -801,15 +790,17 @@ JobPrintCommand(void *cmdp, void *jobp)
      */
 
     if (!commandShell->hasErrCtl) {
+	int i, j;
+
 	/* Worst that could happen is every char needs escaping. */
 	escCmd = bmake_malloc((strlen(cmd) * 2) + 1);
-	for (i = 0, j= 0; cmd[i] != '\0'; i++, j++) {
-		if (cmd[i] == '$' || cmd[i] == '`' || cmd[i] == '\\' ||
-			cmd[i] == '"')
-			escCmd[j++] = '\\';
-		escCmd[j] = cmd[i];
+	for (i = 0, j = 0; cmd[i] != '\0'; i++, j++) {
+	    if (cmd[i] == '$' || cmd[i] == '`' || cmd[i] == '\\' ||
+		cmd[i] == '"')
+		escCmd[j++] = '\\';
+	    escCmd[j] = cmd[i];
 	}
-	escCmd[j] = 0;
+	escCmd[j] = '\0';
     }
 
     if (shutUp) {
@@ -942,15 +933,15 @@ JobPrintCommand(void *cmdp, void *jobp)
  *	Always returns 0
  *
  * Side Effects:
- *	The command is tacked onto the end of postCommands's commands list.
+ *	The command is tacked onto the end of postCommands' commands list.
  *
  *-----------------------------------------------------------------------
  */
 static int
 JobSaveCommand(void *cmd, void *gn)
 {
-    cmd = Var_Subst(NULL, (char *)cmd, (GNode *)gn, VARF_WANTRES);
-    (void)Lst_AtEnd(postCommands->commands, cmd);
+    cmd = Var_Subst((char *)cmd, (GNode *)gn, VARE_WANTRES);
+    Lst_Append(postCommands->commands, cmd);
     return 0;
 }
 
@@ -1140,7 +1131,7 @@ JobFinish (Job *job, WAIT_T status)
 	if (job->tailCmds != NULL) {
 	    Lst_ForEachFrom(job->node->commands, job->tailCmds,
 			     JobSaveCommand,
-			    job->node);
+			     job->node);
 	}
 	job->node->made = MADE;
 	if (!(job->flags & JOB_SPECIAL))
@@ -1291,7 +1282,7 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 	     */
 	    Make_HandleUse(DEFAULT, gn);
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), gn);
-	    free(p1);
+	    bmake_free(p1);
 	} else if (Dir_MTime(gn, 0) == 0 && (gn->type & OP_SPECIAL) == 0) {
 	    /*
 	     * The node wasn't the target of an operator we have no .DEFAULT
@@ -1318,7 +1309,7 @@ Job_CheckCommands(GNode *gn, void (*abortProc)(const char *, ...))
 		(void)fprintf(stdout, "%s%s %s (continuing)\n", progname,
 		    msg, gn->name);
 		(void)fflush(stdout);
-  		return FALSE;
+		return FALSE;
 	    } else {
 		(*abortProc)("%s%s %s. Stop", progname, msg, gn->name);
 		return FALSE;
@@ -1361,7 +1352,7 @@ JobExec(Job *job, char **argv)
 	for (i = 0; argv[i] != NULL; i++) {
 	    (void)fprintf(debug_file, "%s ", argv[i]);
 	}
- 	(void)fprintf(debug_file, "\n");
+	(void)fprintf(debug_file, "\n");
     }
 
     /*
@@ -1736,7 +1727,7 @@ JobStart(GNode *gn, int flags)
 	 * up the graph.
 	 */
 	job->cmdFILE = stdout;
-    	Job_Touch(gn, job->flags&JOB_SILENT);
+	Job_Touch(gn, job->flags&JOB_SILENT);
 	noExec = TRUE;
     }
     /* Just in case it isn't already... */
@@ -1765,8 +1756,8 @@ JobStart(GNode *gn, int flags)
 	if (cmdsOK && aborting == 0) {
 	    if (job->tailCmds != NULL) {
 		Lst_ForEachFrom(job->node->commands, job->tailCmds,
-				JobSaveCommand,
-			       job->node);
+				 JobSaveCommand,
+				 job->node);
 	    }
 	    job->node->made = MADE;
 	    Make_Update(job->node);
@@ -2007,8 +1998,8 @@ JobRun(GNode *targ)
      * and .INTERRUPT job in the parallel job module. This has
      * the nice side effect that it avoids a lot of other problems.
      */
-    Lst lst = Lst_Init(FALSE);
-    Lst_AtEnd(lst, targ);
+    Lst lst = Lst_Init();
+    Lst_Append(lst, targ);
     (void)Make_Run(lst);
     Lst_Destroy(lst, NULL);
     JobStart(targ, JOB_SPECIAL);
@@ -2235,8 +2226,9 @@ Shell_Init(void)
 	    shellName++;
 	} else
 #endif
-	shellPath = str_concat(_PATH_DEFSHELLDIR, shellName, STR_ADDSLASH);
+	shellPath = str_concat3(_PATH_DEFSHELLDIR, "/", shellName);
     }
+    Var_Set_with_flags(".SHELL", shellPath, VAR_CMD, VAR_SET_READONLY);
     if (commandShell->exit == NULL) {
 	commandShell->exit = "";
     }
@@ -2270,38 +2262,23 @@ Shell_Init(void)
 const char *
 Shell_GetNewline(void)
 {
-
     return commandShell->newline;
 }
 
 void
 Job_SetPrefix(void)
 {
-
     if (targPrefix) {
 	free(targPrefix);
     } else if (!Var_Exists(MAKE_JOB_PREFIX, VAR_GLOBAL)) {
 	Var_Set(MAKE_JOB_PREFIX, "---", VAR_GLOBAL);
     }
 
-    targPrefix = Var_Subst(NULL, "${" MAKE_JOB_PREFIX "}",
-			   VAR_GLOBAL, VARF_WANTRES);
+    targPrefix = Var_Subst("${" MAKE_JOB_PREFIX "}",
+			   VAR_GLOBAL, VARE_WANTRES);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Job_Init --
- *	Initialize the process module
- *
- * Input:
- *
- * Results:
- *	none
- *
- * Side Effects:
- *	lists and counters are initialized
- *-----------------------------------------------------------------------
- */
+/* Initialize the process module. */
 void
 Job_Init(void)
 {
@@ -2413,19 +2390,7 @@ static void JobSigReset(void)
     (void)bmake_signal(SIGCHLD, SIG_DFL);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * JobMatchShell --
- *	Find a shell in 'shells' given its name.
- *
- * Results:
- *	A pointer to the Shell structure.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
- */
+/* Find a shell in 'shells' given its name, or return NULL. */
 static Shell *
 JobMatchShell(const char *name)
 {
@@ -2448,7 +2413,7 @@ JobMatchShell(const char *name)
  *	line		The shell spec
  *
  * Results:
- *	FAILURE if the specification was incorrect.
+ *	FALSE if the specification was incorrect.
  *
  * Side Effects:
  *	commandShell points to a Shell structure (either predefined or
@@ -2485,12 +2450,13 @@ JobMatchShell(const char *name)
  *
  *-----------------------------------------------------------------------
  */
-ReturnStatus
+Boolean
 Job_ParseShell(char *line)
 {
+    Words	wordsList;
     char	**words;
     char	**argv;
-    int		argc;
+    size_t	argc;
     char	*path;
     Shell	newShell;
     Boolean	fullSpec = FALSE;
@@ -2500,17 +2466,20 @@ Job_ParseShell(char *line)
 	line++;
     }
 
-    free(UNCONST(shellArgv));
+    free(shellArgv);
 
     memset(&newShell, 0, sizeof(newShell));
 
     /*
      * Parse the specification by keyword
      */
-    words = brk_string(line, &argc, TRUE, &path);
+    wordsList = Str_Words(line, TRUE);
+    words = wordsList.words;
+    argc = wordsList.len;
+    path = wordsList.freeIt;
     if (words == NULL) {
 	Error("Unterminated quoted string [%s]", line);
-	return FAILURE;
+	return FALSE;
     }
     shellArgv = path;
 
@@ -2549,7 +2518,7 @@ Job_ParseShell(char *line)
 		    Parse_Error(PARSE_FATAL, "Unknown keyword \"%s\"",
 				*argv);
 		    free(words);
-		    return FAILURE;
+		    return FALSE;
 		}
 		fullSpec = TRUE;
 	    }
@@ -2565,13 +2534,13 @@ Job_ParseShell(char *line)
 	if (newShell.name == NULL) {
 	    Parse_Error(PARSE_FATAL, "Neither path nor name specified");
 	    free(words);
-	    return FAILURE;
+	    return FALSE;
 	} else {
 	    if ((sh = JobMatchShell(newShell.name)) == NULL) {
 		    Parse_Error(PARSE_WARNING, "%s: No matching shell",
 				newShell.name);
 		    free(words);
-		    return FAILURE;
+		    return FALSE;
 	    }
 	    commandShell = sh;
 	    shellName = newShell.name;
@@ -2607,7 +2576,7 @@ Job_ParseShell(char *line)
 		    Parse_Error(PARSE_WARNING, "%s: No matching shell",
 				shellName);
 		    free(words);
-		    return FAILURE;
+		    return FALSE;
 	    }
 	    commandShell = sh;
 	} else {
@@ -2636,7 +2605,7 @@ Job_ParseShell(char *line)
      * shell specification.
      */
     free(words);
-    return SUCCESS;
+    return TRUE;
 }
 
 /*-
@@ -2813,7 +2782,6 @@ Job_AbortAll(void)
 	continue;
 }
 
-
 /*-
  *-----------------------------------------------------------------------
  * JobRestartJobs --
@@ -3154,7 +3122,7 @@ emul_poll(struct pollfd *fd, int nfd, int timeout)
 	usecs = timeout * 1000;
 	tv.tv_sec = usecs / 1000000;
 	tv.tv_usec = usecs % 1000000;
-        tvp = &tv;
+	tvp = &tv;
     }
 
     nselect = select(maxfd + 1, &rfds, &wfds, 0, tvp);

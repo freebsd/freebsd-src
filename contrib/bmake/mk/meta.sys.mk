@@ -1,4 +1,4 @@
-# $Id: meta.sys.mk,v 1.36 2020/05/16 23:21:48 sjg Exp $
+# $Id: meta.sys.mk,v 1.38 2020/08/19 17:51:53 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010-2020, Simon J. Gerraty
@@ -6,10 +6,10 @@
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -155,12 +155,6 @@ dirdeps:
 # the first .MAIN: is what counts
 # by default dirdeps is all we want at level0
 .MAIN: dirdeps
-# tell dirdeps.mk what we want
-BUILD_AT_LEVEL0 = no
-.endif
-.if ${.TARGETS:Nall} == "" 
-# it works best if we do everything via sub-makes
-BUILD_AT_LEVEL0 ?= no
 .endif
 
 .endif

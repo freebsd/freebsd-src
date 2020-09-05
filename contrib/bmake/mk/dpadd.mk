@@ -1,14 +1,14 @@
-# $Id: dpadd.mk,v 1.27 2019/05/17 13:58:53 sjg Exp $
+# $Id: dpadd.mk,v 1.28 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2004, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -75,7 +75,7 @@
 #	and -L${STAGE_OBJTOP}/usr/lib are sufficient, and we should
 #	have no need of anything else.
 #
-	
+
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
 
@@ -98,7 +98,7 @@ RELOBJTOP?= ${OBJTOP}
 RELSRCTOP?= ${SRCTOP}
 
 # we get included just about everywhere so this is handy...
-# C*DEBUG_XTRA are for defining on cmd line etc 
+# C*DEBUG_XTRA are for defining on cmd line etc
 # so do not use in makefiles.
 .ifdef CFLAGS_DEBUG_XTRA
 CFLAGS_LAST += ${CFLAGS_DEBUG_XTRA}
@@ -180,14 +180,14 @@ SRC_LIBS+= ${_OBJDIR}/lib${LIB}.a
 .endif
 .endif
 
-# 
+#
 # This little bit of magic, assumes that SRC_libfoo will be
 # set if it cannot be correctly derrived from ${LIBFOO}
 # Note that SRC_libfoo and INCLUDES_libfoo should be named for the
 # actual library name not the variable name that might refer to it.
 # 99% of the time the two are the same, but the DPADD logic
 # only has the library name available, so stick to that.
-# 
+#
 
 SRC_LIBS?=
 # magic_libs includes those we want to link with
@@ -198,7 +198,7 @@ DPMAGIC_LIBS += ${__dpadd_magic_libs} \
 
 # we skip this for staged libs
 .for __lib in ${DPMAGIC_LIBS:O:u:N${STAGE_OBJTOP:Unot}*/lib/*}
-# 
+#
 # if SRC_libfoo is not set, then we assume that the srcdir corresponding
 # to where we found the library is correct.
 #
@@ -215,8 +215,8 @@ INCLUDES_${__lib:T:R}?= -I${exists(${SRC_${__lib:T:R}}/h):?${SRC_${__lib:T:R}}/h
 
 .endfor
 
-# even for staged libs we sometimes 
-# need to allow direct -I to avoid cicular dependencies 
+# even for staged libs we sometimes
+# need to allow direct -I to avoid cicular dependencies
 .for __lib in ${DPMAGIC_LIBS:O:u:T:R}
 .if !empty(SRC_${__lib}) && empty(INCLUDES_${__lib})
 # must be a staged lib
@@ -267,7 +267,7 @@ __dpadd_last_incs += ${__dpadd_magic_libs:O:u:@s@${SRC_LIBS_${s:T:R}:U}@:@x@${IN
 __dpadd_last_incs := \
 	${__dpadd_last_incs:N-I/usr/*} \
 	${__dpadd_incs:M-I/usr/*} \
-	${__dpadd_last_incs:M-I/usr/*} 
+	${__dpadd_last_incs:M-I/usr/*}
 __dpadd_incs := ${__dpadd_incs:N-I/usr/*}
 .endif
 
@@ -310,12 +310,12 @@ dpadd:	.NOTMAIN
 .endif
 
 .ifdef SRC_PATHADD
-# We don't want to assume that we need to .PATH every element of 
+# We don't want to assume that we need to .PATH every element of
 # SRC_LIBS, but the Makefile cannot do
 # .PATH: ${SRC_libfoo}
 # since the value of SRC_libfoo must be available at the time .PATH:
-# is read - and we only just worked it out.  
-# Further, they can't wait until after include of {lib,prog}.mk as 
+# is read - and we only just worked it out.
+# Further, they can't wait until after include of {lib,prog}.mk as
 # the .PATH is needed before then.
 # So we let the Makefile do
 # SRC_PATHADD+= ${SRC_libfoo}
