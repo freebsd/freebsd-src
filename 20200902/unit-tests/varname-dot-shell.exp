@@ -1,0 +1,19 @@
+ParseReadLine (8): 'ORIG_SHELL:=	${.SHELL}'
+Var_Parse: ${.SHELL} with VARE_WANTRES|VARE_ASSIGN
+Global:delete .SHELL (not found)
+Command:.SHELL = (details omitted)
+ParseReadLine (10): '.SHELL=		overwritten'
+Global:.SHELL = overwritten
+Var_Parse: ${.SHELL} != ${ORIG_SHELL} with VARE_UNDEFERR|VARE_WANTRES
+ParseReadLine (18): '.undef .SHELL'
+Global:delete .SHELL
+ParseReadLine (19): '.SHELL=		newly overwritten'
+Global:.SHELL = newly overwritten
+Var_Parse: ${.SHELL} != ${ORIG_SHELL} with VARE_UNDEFERR|VARE_WANTRES
+ParseReadLine (24): 'all:'
+ParseReadLine (25): '	@echo ${.SHELL:M*}'
+Var_Parse: ${.SHELL:M*} with VARE_WANTRES
+Applying ${.SHELL:M...} to "(details omitted)" (eflags = VARE_WANTRES, vflags = VAR_READONLY)
+Pattern[.SHELL] for [(details omitted)] is [*]
+Result of ${.SHELL:M*} is "(details omitted)" (eflags = VARE_WANTRES, vflags = VAR_READONLY)
+exit status 0

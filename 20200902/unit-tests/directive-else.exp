@@ -1,0 +1,8 @@
+make: "directive-else.mk" line 10: ok
+make: "directive-else.mk" line 14: ok
+make: "directive-else.mk" line 20: if-less else
+make: "directive-else.mk" line 26: ok
+make: "directive-else.mk" line 27: warning: extra else
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

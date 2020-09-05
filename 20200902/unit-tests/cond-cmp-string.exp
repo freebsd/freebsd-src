@@ -1,0 +1,5 @@
+make: "cond-cmp-string.mk" line 18: Malformed conditional (str != str)
+make: "cond-cmp-string.mk" line 37: Malformed conditional ("string" != "str""ing")
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1
