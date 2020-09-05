@@ -1,11 +1,12 @@
 #!/bin/sh
 
-# Install loader, kernel, and enough of userland to boot in QEMU and echo
-# "Hello world." from init, as a very quick smoke test for CI.  Uses QEMU's
-# virtual FAT filesystem to avoid the need to create a disk image.  While
-# designed for CI automated testing, this script can also be run by hand as
-# a quick smoke-test.  The rootgen.sh and related scripts generate much more
-# extensive tests for many combinations of boot env (ufs, zfs, geli, etc).
+# Install pkgbase packages for loader, kernel, and enough of userland to boot
+# in QEMU and echo "Hello world." from init, as a very quick smoke test for CI.
+# Uses QEMU's virtual FAT filesystem to avoid the need to create a disk image.
+# While designed for CI automated testing, this script can also be run by hand
+# as a quick smoke-test as long as pkgbase packages have been built.  The
+# rootgen.sh and related scripts generate much more extensive tests for many
+# combinations of boot env (ufs, zfs, geli, etc).
 #
 # $FreeBSD$
 
@@ -26,31 +27,21 @@ tempdir_cleanup()
 tempdir_setup()
 {
 	# Create minimal directory structure and populate it.
-	# Caller must cd ${SRCTOP} before calling this function.
 
 	for dir in dev bin efi/boot etc lib libexec sbin usr/lib usr/libexec; do
 		mkdir -p ${ROOTDIR}/${dir}
 	done
 
 	# Install kernel, loader and minimal userland.
-
-	make -DNO_ROOT DESTDIR=${ROOTDIR} \
-	    MODULES_OVERRIDE= \
-	    WITHOUT_DEBUG_FILES=yes \
-	    WITHOUT_KERNEL_SYMBOLS=yes \
-	    installkernel
-	for dir in stand \
-	    lib/libc lib/libedit lib/ncurses \
-	    libexec/rtld-elf \
-	    bin/sh sbin/init sbin/shutdown sbin/sysctl; do
-		make -DNO_ROOT DESTDIR=${ROOTDIR} INSTALL="install -U" \
-		    WITHOUT_DEBUG_FILES= \
-		    WITHOUT_MAN= \
-		    WITHOUT_PROFILE= \
-		    WITHOUT_TESTS= \
-		    WITHOUT_TOOLCHAIN= \
-		    -C ${dir} install
-	done
+	cat<<EOF >${ROOTDIR}/pkg.conf
+REPOS_DIR=[]
+repositories={local {url = file://$(dirname $OBJTOP)/repo/\${ABI}/latest}}
+EOF
+	ASSUME_ALWAYS_YES=true INSTALL_AS_USER=true pkg \
+	    -o ABI_FILE=$OBJTOP/bin/sh/sh \
+	    -C ${ROOTDIR}/pkg.conf -r ${ROOTDIR} install \
+	    FreeBSD-kernel-generic FreeBSD-bootloader \
+	    FreeBSD-clibs FreeBSD-runtime
 
 	# Put loader in standard EFI location.
 	mv ${ROOTDIR}/boot/loader.efi ${ROOTDIR}/efi/boot/BOOTx64.EFI
@@ -80,6 +71,10 @@ EOF
 : ${SRCTOP:=$(make -V SRCTOP)}
 if [ -z "${SRCTOP}" ]; then
 	die "Cannot locate top of source tree"
+fi
+: ${OBJTOP:=$(make -V OBJTOP)}
+if [ -z "${OBJTOP}" ]; then
+	die "Cannot locate top of object tree"
 fi
 
 # Locate the uefi firmware file used by qemu.
