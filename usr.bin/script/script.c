@@ -119,7 +119,7 @@ main(int argc, char *argv[])
 		case 'd':
 			usesleep = 0;
 			break;
-		case 'e':	/* Default behaior, accepted for linux compat */
+		case 'e':	/* Default behavior, accepted for linux compat */
 			break;
 		case 'F':
 			Fflg = 1;
