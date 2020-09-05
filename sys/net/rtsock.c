@@ -2137,7 +2137,7 @@ static struct protosw routesw[] = {
 
 static struct domain routedomain = {
 	.dom_family =		PF_ROUTE,
-	.dom_name =		 "route",
+	.dom_name =		"route",
 	.dom_protosw =		routesw,
 	.dom_protoswNPROTOSW =	&routesw[nitems(routesw)]
 };
