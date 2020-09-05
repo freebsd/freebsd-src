@@ -172,6 +172,7 @@ vfs_hash_insert(struct vnode *vp, u_int hash, int flags, struct thread *td,
 			rw_wlock(&vfs_hash_lock);
 			LIST_INSERT_HEAD(&vfs_hash_side, vp, v_hashlist);
 			rw_wunlock(&vfs_hash_lock);
+			vgone(vp);
 			vput(vp);
 			if (!error)
 				*vpp = vp2;
