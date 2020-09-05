@@ -1,3 +1,6 @@
+# $NetBSD: modmatch.mk,v 1.8 2020/08/16 20:03:53 rillig Exp $
+#
+# Tests for the :M and :S modifiers.
 
 X=a b c d e
 
@@ -15,7 +18,7 @@ res = no
 res = OK
 .endif
 
-all:	show-libs check-cclass slow
+all:	show-libs
 
 show-libs:
 	@for x in $X; do ${.MAKE} -f ${MAKEFILE} show LIB=$$x; done
@@ -25,15 +28,3 @@ show:
 	@echo 'LIB=${LIB} X_LIBS:M$${LIB$${LIB:tu}} is "${X_LIBS:M${LIB${LIB:tu}}}"'
 	@echo 'LIB=${LIB} X_LIBS:M*/lib$${LIB}.a is "${X_LIBS:M*/lib${LIB}.a}"'
 	@echo 'LIB=${LIB} X_LIBS:M*/lib$${LIB}.a:tu is "${X_LIBS:M*/lib${LIB}.a:tu}"'
-
-LIST= One Two Three Four five six seven
-
-check-cclass:
-	@echo Upper=${LIST:M[A-Z]*}
-	@echo Lower=${LIST:M[^A-Z]*}
-	@echo nose=${LIST:M[^s]*[ex]}
-
-# Before 2020-06-13, this expression took quite a long time in Str_Match,
-# calling itself 601080390 times for 16 asterisks.
-slow: .PHONY
-	@:;: ${:U****************:M****************b:Q}

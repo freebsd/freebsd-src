@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.282 2020/06/06 20:28:42 wiz Exp $
+.\"	$NetBSD: make.1,v 1.289 2020/08/28 17:15:04 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd June 5, 2020
+.Dd August 28, 2020
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -166,8 +166,15 @@ Print the input graph after making everything, or before exiting
 on error.
 .It Ar "g3"
 Print the input graph before exiting on error.
+.It Ar h
+Print debugging information about hash table operations.
 .It Ar j
 Print debugging information about running multiple shells.
+.It Ar L
+Turn on lint checks.
+This will throw errors for variable assignments that do not parse
+correctly, at the time of assignment so the file and line number
+are available.
 .It Ar l
 Print commands in Makefiles regardless of whether or not they are prefixed by
 .Ql @
@@ -311,7 +318,8 @@ as an argument).
 .It Fl n
 Display the commands that would have been executed, but do not
 actually execute them unless the target depends on the .MAKE special
-source (see below).
+source (see below) or the command is prefixed with
+.Ql Ic + .
 .It Fl N
 Display the commands which would have been executed, but do not
 actually execute any of them; useful for debugging top-level makefiles
@@ -412,37 +420,44 @@ or more sources.
 This creates a relationship where the targets
 .Dq depend
 on the sources
-and are usually created from them.
-The exact relationship between the target and the source is determined
-by the operator that separates them.
-The three operators are as follows:
+and are customarily created from them.
+A target is considered out-of-date if it does not exist, or if its
+modification time is less than that of any of its sources.
+An out-of-date target will be re-created, but not until all sources
+have been examined and themselves re-created as needed.
+Three operators may be used:
 .Bl -tag -width flag
 .It Ic \&:
-A target is considered out-of-date if its modification time is less than
-those of any of its sources.
-Sources for a target accumulate over dependency lines when this operator
-is used.
-The target is removed if
+Many dependency lines may name this target but only one may have
+attached shell commands.
+All sources named in all dependency lines are considered together,
+and if needed the attached shell commands are run to create or
+re-create the target.
+If
 .Nm
-is interrupted.
+is interrupted, the target is removed.
 .It Ic \&!
-Targets are always re-created, but not until all sources have been
-examined and re-created as necessary.
-Sources for a target accumulate over dependency lines when this operator
-is used.
-The target is removed if
-.Nm
-is interrupted.
+The same, but the target is always re-created whether or not it is out
+of date.
 .It Ic \&::
-If no sources are specified, the target is always re-created.
-Otherwise, a target is considered out-of-date if any of its sources has
-been modified more recently than the target.
-Sources for a target do not accumulate over dependency lines when this
-operator is used.
-The target will not be removed if
+Any dependency line may have attached shell commands, but each one
+is handled independently: its sources are considered and the attached
+shell commands are run if the target is out of date with respect to
+(only) those sources.
+Thus, different groups of the attached shell commands may be run
+depending on the circumstances.
+Furthermore, unlike
+.Ic \&:,
+for dependency lines with no sources, the attached shell
+commands are always run.
+Also unlike
+.Ic \&:,
+the target will not be removed if
 .Nm
 is interrupted.
 .El
+All dependency lines mentioning a particular target must use the same
+operator.
 .Pp
 Targets and sources may contain the shell wildcard values
 .Ql \&? ,
@@ -608,7 +623,7 @@ This shorter form is not recommended.
 .Pp
 If the variable name contains a dollar, then the name itself is expanded first.
 This allows almost arbitrary variable names, however names containing dollar,
-braces, parenthesis, or whitespace are really best avoided!
+braces, parentheses, or whitespace are really best avoided!
 .Pp
 If the result of expanding a variable contains a dollar sign
 .Pq Ql \&$
@@ -1126,6 +1141,9 @@ is set to the value of
 for all programs which
 .Nm
 executes.
+.It Ev .SHELL
+The pathname of the shell used to run target scripts.
+It is read-only.
 .It Ev .TARGETS
 The list of targets explicitly specified on the command line, if any.
 .It Ev VPATH
@@ -1171,7 +1189,7 @@ Replaces each word in the variable with its suffix.
 .It Cm \&:H
 Replaces each word in the variable with everything but the last component.
 .It Cm \&:M Ns Ar pattern
-Select only those words that match
+Selects only those words that match
 .Ar pattern .
 The standard shell wildcard characters
 .Pf ( Ql * ,
@@ -1195,11 +1213,11 @@ This is identical to
 but selects all words which do not match
 .Ar pattern .
 .It Cm \&:O
-Order every word in variable alphabetically.
+Orders every word in variable alphabetically.
 .It Cm \&:Or
-Order every word in variable in reverse alphabetical order.
+Orders every word in variable in reverse alphabetical order.
 .It Cm \&:Ox
-Randomize words in variable.
+Shuffles the words in variable.
 The results will be different each time you are referring to the
 modified variable; use the assignment with expansion
 .Pq Ql Cm \&:=
@@ -1249,7 +1267,7 @@ If a
 .Va utc
 value is not provided or is 0, the current time is used.
 .It Cm \&:hash
-Compute a 32-bit hash of the value and encode it as hex digits.
+Computes a 32-bit hash of the value and encode it as hex digits.
 .It Cm \&:localtime[=utc]
 The value is a format string for
 .Xr strftime 3 ,
@@ -1259,7 +1277,7 @@ If a
 .Va utc
 value is not provided or is 0, the current time is used.
 .It Cm \&:tA
-Attempt to convert variable to an absolute path using
+Attempts to convert variable to an absolute path using
 .Xr realpath 3 ,
 if that fails, the value is unchanged.
 .It Cm \&:tl
@@ -1271,7 +1289,7 @@ This modifier sets the separator to the character
 If
 .Ar c
 is omitted, then no separator is used.
-The common escapes (including octal numeric codes), work as expected.
+The common escapes (including octal numeric codes) work as expected.
 .It Cm \&:tu
 Converts variable to upper-case letters.
 .It Cm \&:tW
@@ -1287,21 +1305,21 @@ See also
 .Sm off
 .It Cm \&:S No \&/ Ar old_string No \&/ Ar new_string No \&/ Op Cm 1gW
 .Sm on
-Modify the first occurrence of
+Modifies the first occurrence of
 .Ar old_string
-in the variable's value, replacing it with
+in each word of the variable's value, replacing it with
 .Ar new_string .
 If a
 .Ql g
-is appended to the last slash of the pattern, all occurrences
+is appended to the last delimiter of the pattern, all occurrences
 in each word are replaced.
 If a
 .Ql 1
-is appended to the last slash of the pattern, only the first word
+is appended to the last delimiter of the pattern, only the first occurrence
 is affected.
 If a
 .Ql W
-is appended to the last slash of the pattern,
+is appended to the last delimiter of the pattern,
 then the value is treated as a single word
 (possibly containing embedded white space).
 If
@@ -1370,13 +1388,6 @@ as occur in the word or words it is found in; the
 .Ql W
 modifier causes the value to be treated as a single word
 (possibly containing embedded white space).
-Note that
-.Ql 1
-and
-.Ql g
-are orthogonal; the former specifies whether multiple words are
-potentially affected, the latter whether multiple substitutions can
-potentially occur within each affected word.
 .Pp
 As for the
 .Cm \&:S
@@ -1387,9 +1398,9 @@ and
 are subjected to variable expansion before being parsed as
 regular expressions.
 .It Cm \&:T
-Replaces each word in the variable with its last component.
+Replaces each word in the variable with its last path component.
 .It Cm \&:u
-Remove adjacent duplicate words (like
+Removes adjacent duplicate words (like
 .Xr uniq 1 ) .
 .Sm off
 .It Cm \&:\&? Ar true_string Cm \&: Ar false_string
@@ -1405,7 +1416,7 @@ usually contain variable expansions.
 A common error is trying to use expressions like
 .Dl ${NUMBERS:M42:?match:no}
 which actually tests defined(NUMBERS),
-to determine is any words match "42" you need to use something like:
+to determine if any words match "42" you need to use something like:
 .Dl ${"${NUMBERS:M42}" != \&"\&":?match:no} .
 .It Ar :old_string=new_string
 This is the
@@ -1449,7 +1460,7 @@ in either the
 or
 .Ar old_string ,
 only the first instance is treated specially (as the pattern character);
-all subsequent instances are treated as regular characters
+all subsequent instances are treated as regular characters.
 .Pp
 Variable expansion occurs in the normal fashion inside both
 .Ar old_string
@@ -1466,11 +1477,10 @@ This is the loop expansion mechanism from the OSF Development
 Environment (ODE) make.
 Unlike
 .Cm \&.for
-loops expansion occurs at the time of
-reference.
-Assign
+loops, expansion occurs at the time of reference.
+Assigns
 .Ar temp
-to each word in the variable and evaluate
+to each word in the variable and evaluates
 .Ar string .
 The ODE convention is that
 .Ar temp
@@ -1481,7 +1491,7 @@ For example.
 However a single character variable is often more readable:
 .Dl ${MAKE_PRINT_VAR_ON_ERROR:@v@$v='${$v}'${.newline}@}
 .It Cm \&:_[=var]
-Save the current variable value in
+Saves the current variable value in
 .Ql $_
 or the named
 .Va var
@@ -1502,7 +1512,7 @@ is used to save the result of the
 modifier which is later referenced using the index values from
 .Ql :range .
 .It Cm \&:U Ns Ar newval
-If the variable is undefined
+If the variable is undefined,
 .Ar newval
 is the value.
 If the variable is defined, the existing value is returned.
@@ -1512,7 +1522,7 @@ It is handy for setting per-target CFLAGS for instance:
 If a value is only required if the variable is undefined, use:
 .Dl ${VAR:D:Unewval}
 .It Cm \&:D Ns Ar newval
-If the variable is defined
+If the variable is defined,
 .Ar newval
 is the value.
 .It Cm \&:L
@@ -1641,7 +1651,7 @@ Returns the number of words in the value.
 .El \" :[range]
 .El
 .Sh INCLUDE STATEMENTS, CONDITIONALS AND FOR LOOPS
-Makefile inclusion, conditional structures and for loops  reminiscent
+Makefile inclusion, conditional structures and for loops reminiscent
 of the C programming language are provided in
 .Nm .
 All such structures are identified by a line beginning with a single
@@ -1687,7 +1697,7 @@ The possible conditionals are as follows:
 The message is printed along with the name of the makefile and line number,
 then
 .Nm
-will exit.
+will exit immediately.
 .It Ic .export Ar variable ...
 Export the specified global variable.
 If no variable list is provided, all globals are exported
@@ -1876,7 +1886,7 @@ operator is not an integral value, then
 string comparison is performed between the expanded
 variables.
 If no relational operator is given, it is assumed that the expanded
-variable is being compared against 0 or an empty string in the case
+variable is being compared against 0, or an empty string in the case
 of a string comparison.
 .Pp
 When
@@ -1917,7 +1927,7 @@ The syntax of a for loop is:
 .Pp
 .Bl -tag -compact -width Ds
 .It Ic \&.for Ar variable Oo Ar variable ... Oc Ic in Ar expression
-.It Aq make-rules
+.It Aq make-lines
 .It Ic \&.endfor
 .El
 .Pp
@@ -1929,7 +1939,7 @@ On each iteration of the loop, one word is taken and assigned to each
 in order, and these
 .Ic variables
 are substituted into the
-.Ic make-rules
+.Ic make-lines
 inside the body of the for loop.
 The number of words must come out even; that is, if there are three
 iteration variables, the number of words provided must be a multiple

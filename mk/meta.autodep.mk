@@ -1,4 +1,4 @@
-# $Id: meta.autodep.mk,v 1.50 2018/06/08 01:25:31 sjg Exp $
+# $Id: meta.autodep.mk,v 1.52 2020/07/18 05:57:57 sjg Exp $
 
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
@@ -57,7 +57,7 @@ _OBJTOP ?= ${OBJTOP}
 _OBJROOT ?= ${OBJROOT:U${_OBJTOP}}
 _DEPENDFILE := ${_CURDIR}/${.MAKE.DEPENDFILE:T}
 
-.if ${.MAKE.LEVEL} > 0 || ${BUILD_AT_LEVEL0:Uyes:tl} == "yes"
+.if ${.MAKE.LEVEL} > 0
 # do not allow auto update if we ever built this dir without filemon
 NO_FILEMON_COOKIE = .nofilemon
 CLEANFILES += ${NO_FILEMON_COOKIE}
@@ -73,9 +73,7 @@ UPDATE_DEPENDFILE = NO
 .endif
 
 .if ${.MAKE.LEVEL} == 0
-.if ${BUILD_AT_LEVEL0:Uyes:tl} == "no"
 UPDATE_DEPENDFILE = NO
-.endif
 .endif
 .if !exists(${_DEPENDFILE})
 _bootstrap_dirdeps = yes
@@ -283,9 +281,7 @@ ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.MET
 .endif
 
 .if ${_bootstrap_dirdeps} == "yes"
-.if ${BUILD_AT_LEVEL0:Uno} == "no"
 DIRDEPS+= ${RELDIR}.${TARGET_SPEC:U${MACHINE}}
-.endif
 # make sure this is included at least once
 .include <dirdeps.mk>
 .else
@@ -312,7 +308,7 @@ _reldir_finish: .NOMETA
 _reldir_failed: .NOMETA
 	@echo "${TIME_STAMP} Failed ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
 
-.if defined(WITH_META_STATS) && ${.MAKE.LEVEL} > 0
+.if !defined(WITHOUT_META_STATS) && ${.MAKE.LEVEL} > 0
 .END: _reldir_finish
 .ERROR: _reldir_failed
 .endif

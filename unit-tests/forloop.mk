@@ -1,4 +1,4 @@
-# $Id: forloop.mk,v 1.1.1.2 2020/05/05 00:54:40 sjg Exp $
+# $Id: forloop.mk,v 1.1.1.3 2020/09/02 18:35:14 sjg Exp $
 
 all: for-loop
 
@@ -36,7 +36,7 @@ X!= echo 'a=$a b=$b' >&2; echo
 
 # Since at least 1993, iteration stops at the first newline.
 # Back then, the .newline variable didn't exist, therefore it was unlikely
-# that a newline ever occured.
+# that a newline ever occurred.
 .for var in a${.newline}b${.newline}c
 X!= echo 'newline-item=('${var:Q}')' 1>&2; echo
 .endfor

@@ -61,6 +61,7 @@ warnings.mk
 whats.mk
 yacc.mk
 dirdeps.mk
+dirdeps-cache-update.mk
 dirdeps-options.mk
 dirdeps-targets.mk
 gendirdeps.mk

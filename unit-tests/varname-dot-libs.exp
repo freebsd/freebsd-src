@@ -1,0 +1,2 @@
+.LIBS= -L. -L..
+exit status 0

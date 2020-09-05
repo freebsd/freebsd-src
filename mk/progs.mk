@@ -1,14 +1,14 @@
-# $Id: progs.mk,v 1.13 2013/08/02 18:28:48 sjg Exp $
+# $Id: progs.mk,v 1.16 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2006, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -87,16 +87,21 @@ x.$p= PROG_CXX=$p
 .endif
 
 $p ${p}_p: .PHONY .MAKE
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} PROG=$p ${x.$p})
+	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} PROG=$p ${x.$p} -DWITHOUT_META_STATS)
 
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} PROG=$p ${x.$p} ${@:E})
+	(cd ${.CURDIR} && ${.MAKE} -f ${MAKEFILE} PROG=$p ${x.$p} ${@:E} -DWITHOUT_META_STATS)
 .endfor
 .endfor
 
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
+
+.if !defined(WITHOUT_META_STATS) && ${.MAKE.LEVEL} > 0
+.END: _reldir_finish
+.ERROR: _reldir_failed
+.endif
 
 .endif

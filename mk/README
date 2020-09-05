@@ -1,10 +1,10 @@
-#	$Id: README,v 1.1 1997/03/11 07:27:15 sjg Exp $
+#	$Id: README,v 1.2 2020/08/19 17:51:53 sjg Exp $
 
 This directory contains some macro's derrived from the NetBSD bsd.*.mk
 macros.  They have the same names but without the bsd., separate macro
 files are needed to ensure we can make them do what we want for
 builing things outside of /usr/src.  Nearly all the comments below
-apply. 
+apply.
 
 #	$NetBSD: bsd.README,v 1.18 1997/01/13 00:54:23 mark Exp $
 #	@(#)bsd.README	5.1 (Berkeley) 5/11/90
@@ -347,9 +347,9 @@ If foo has multiple source files, add the line:
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 The include file <bsd.subdir.mk> contains the default targets for building
-subdirectories.  It has the same eight targets as <bsd.prog.mk>: all, 
+subdirectories.  It has the same eight targets as <bsd.prog.mk>: all,
 clean, cleandir, depend, includes, install, lint, and tags.  For all of
-the directories listed in the variable SUBDIRS, the specified directory 
+the directories listed in the variable SUBDIRS, the specified directory
 will be visited and the target made.  There is also a default target which
 allows the command "make subdir" where subdir is any directory listed in
 the variable SUBDIRS.

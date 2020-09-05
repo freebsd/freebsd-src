@@ -14,17 +14,17 @@ Many years ago, when building large software projects, I used GNU make
 to simplify developing complex build trees.
 
 Since the early 90's my main development machines, run BSD
-(NetBSD_ to be precise), and the BSD source tree is good example of a
-large software project.   It quickly became clear that
-``/usr/share/mk/*.mk`` were a great model, but were quite tightly
-linked to building the BSD tree.
+(NetBSD_ to be precise, and more recently FreeBSD), and the BSD source
+tree is good example of a large software project.
+It quickly became clear that ``/usr/share/mk/*.mk`` were a great
+model, but at the time were quite tightly linked to building the BSD tree.
 
 Much as I liked using NetBSD, my customers were more likely to be
 using SunOS, HP-UX etc, so I started on bmake_ and a portable collection
 of mk-files (mk.tar.gz_).  NetBSD provided much of the original structure.
 
 Since then I've added a lot of features to NetBSD's make and hence to
-bmake which is kept closely in sync.  The mk-files however have 
+bmake which is kept closely in sync.  The mk-files however have
 diverged quite a bit, though ideas are still picked up from NetBSD
 and FreeBSD.
 
@@ -59,7 +59,7 @@ in such cases even the ``SRCS`` line is unnecessary as ``prog.mk``
 will default it to ``${PROG}.c``.
 
 It is the sensible use of defaults and the plethora of macro modifiers
-provided by bmake_ that allow simple makefiles such as the above
+provided by bmake_ that allow simple makefiles such as the above to
 *just work* on many different systems.
 
 
@@ -67,7 +67,7 @@ mk-files
 ========
 
 This section provides a brief description of some of the ``*.mk``
-files. 
+files.
 
 sys.mk
 ------
@@ -76,7 +76,7 @@ When bmake starts, it looks for ``sys.mk`` and reads it before doing
 anything else.  Thus, this is the place to setup the environment for
 everyone else.
 
-In this distribution, sys.mk avoids doing anything platform dependent.
+In this distribution, ``sys.mk`` avoids doing anything platform dependent.
 It is quite short, and includes a number of other files (which may or
 may not exists)
 
@@ -97,7 +97,7 @@ examples/sys.clean-env.mk
 			PATH HOME USER LOGNAME \
 			SRCTOP OBJTOP OBJROOT \
 			${_env_vars}
-		
+
 		_env_vars != env | egrep '^(${MAKE_SAVE_ENV_PREFIX:ts|})' | sed 's,=.*,,'; echo
 		_export_list =
 		.for v in ${MAKE_SAVE_ENV_VARS:O:u}
@@ -169,7 +169,7 @@ lib${LIB}.a
 	An archive lib of ``.o`` files, this is the default
 
 lib${LIB}_p.a
-	A profiled lib of ``.po`` files.  
+	A profiled lib of ``.po`` files.
 	Still an archive lib, but all the objects are built with
 	profiling in mind - hence the different extension.
 	It is skipped if ``MKPROFILE`` is "no".
@@ -194,7 +194,7 @@ lib${LIB}.${LD_so}
 
 There is a lot of platform specific tweaking in ``lib.mk``, largely the
 result of the original distributions trying to avoid interfering with
-the system's ``sys.mk``. 
+the system's ``sys.mk``.
 
 libnames.mk
 -----------
@@ -204,21 +204,18 @@ include ``*.libnames.mk`` of which:
 
 local.libnames.mk
 	does not exist unless you create it.  It is a handy way for you
-	to customize without touching the distributed files. 
+	to customize without touching the distributed files.
 	For example, on a test machine I needed to build openssl but
-	not install it, so put the following in ``local.libnames.mk``:: 
+	not install it, so put the following in ``local.libnames.mk``::
 
 		.if ${host_os} == "sunos"
 		LIBCRYPTO = ${OBJTOP}/openssl/lib/crypto/libcrypto${DLIBEXT}
 		LIBSSL = ${OBJTOP}/openssl/lib/ssl/libssl${DLIBEXT}
 		INCLUDES_libcrypto = -I${OBJ_libcrypto}
 		.endif
-		
+
 	The makefile created an openssl dir in ``${OBJ_libcrypto}`` to
 	gather all the headers. dpadd.mk_ did the rest.
-
-sjg.libnames.mk
-	not part of the mk-files distribution.
 
 host.libnames.mk
 	contains logic to find any libs named in ``HOST_LIBS`` in
@@ -248,7 +245,7 @@ else in various ways::
 	# it also has the same effect as SRC_LIBS
 	DPADD += ${LIBSSLFD}
 
-	# indicate that not only must libsslfd be built, 
+	# indicate that not only must libsslfd be built,
 	# but that we need to link with it.
 	# this is almost exactly equivalent to
 	# DPADD += ${LIBSSLFD}
@@ -324,7 +321,7 @@ If ``SUBDIR_MUST_EXIST`` is set, missing directories cause an error,
 otherwise a warning is issued.  If you don't even want the warning,
 set ``MISSING_DIR=continue``.
 
-Traditionally, ``subdir.mk`` prints clue as it visits each subdir::
+Traditionally, ``subdir.mk`` prints clues as it visits each subdir::
 
 	===> ssl
 	===> ssl/lib
@@ -342,7 +339,7 @@ links.mk
 
 Provides rules for processing lists of ``LINKS`` and ``SYMLINKS``.
 Each is expected to be a list of ``link`` and ``target`` pairs
-(``link`` -> ``target``). 
+(``link`` -> ``target``).
 
 The logic is generally in a ``_*_SCRIPT`` which is referenced in a
 ``_*_USE`` (``.USE``) target.
@@ -353,7 +350,7 @@ For example::
 
 	SYMLINKS += ${.CURDIR}/${MACHINE_ARCH}/include machine
 	header_links: _BUILD_SYMLINKS_USE
-	
+
 	md.o: header_links
 
 would create a symlink called ``machine`` in ``${.OBJDIR}`` pointing to
@@ -394,10 +391,10 @@ post process the ``.d`` files into ``.depend``.
 auto.dep.mk
 -----------
 
-A much simpler implementation than autodep.mk_ it uses 
+A much simpler implementation than autodep.mk_ it uses
 ``-MF ${.TARGET:T}.d``
-to avoid possible conflicts during parallel builds.  
-This precludes the use of suffix rules to drive ``make depend``, so 
+to avoid possible conflicts during parallel builds.
+This precludes the use of suffix rules to drive ``make depend``, so
 dep.mk_ handles that if specifically requested.
 
 options.mk
@@ -452,7 +449,7 @@ on sparc, ``-Wno-unused`` would replace ``-Wunused``.
 
 You should never need to edit ``warnings.mk``, it will include
 ``warnings-sets.mk`` if it exists and you use that to make any local
-customizations. 
+customizations.
 
 rst2htm.mk
 ----------
@@ -470,7 +467,7 @@ Meta mode
 =========
 
 The 20110505 and later versions of ``mk-files`` include a number of
-makefiles contributed by Juniper Networks, Inc.  
+makefiles contributed by Juniper Networks, Inc.
 These allow the latest version of bmake_ to run in `meta mode`_
 see `dirdeps.mk`_
 
@@ -499,5 +496,5 @@ where you unpacked the tar file, you can::
 .. _mk.tar.gz: http://www.crufty.net/ftp/pub/sjg/mk.tar.gz
 
 :Author: sjg@crufty.net
-:Revision: $Id: mk-files.txt,v 1.18 2018/12/08 07:27:15 sjg Exp $
+:Revision: $Id: mk-files.txt,v 1.20 2020/08/19 17:51:53 sjg Exp $
 :Copyright: Crufty.NET

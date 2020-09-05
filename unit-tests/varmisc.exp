@@ -23,4 +23,52 @@ Version=123.456.789 == 123456789
 Literal=3.4.5 == 3004005
 We have target specific vars
 MAN= make.1
+save-dollars: 0        = $
+save-dollars: 1        = $$
+save-dollars: 2        = $$
+save-dollars: False    = $
+save-dollars: True     = $$
+save-dollars: false    = $
+save-dollars: true     = $$
+save-dollars: Yes      = $$
+save-dollars: No       = $
+save-dollars: yes      = $$
+save-dollars: no       = $
+save-dollars: On       = $$
+save-dollars: Off      = $
+save-dollars: ON       = $$
+save-dollars: OFF      = $
+save-dollars: on       = $$
+save-dollars: off      = $
+export-appended: env
+export-appended: env
+export-appended: env mk
+parse-dynamic: parse-dynamic parse-dynamic before
+parse-dynamic: parse-dynamic parse-dynamic after
+parse-dynamic: parse-dynamic parse-dynamic after
+varerror-unclosed:begin
+make: Unclosed variable ""
+
+make: Unclosed variable "UNCLOSED"
+
+make: Unclosed variable "UNCLOSED"
+
+make: Unclosed variable "PATTERN"
+make: Unclosed variable specification (expecting '}') for "UNCLOSED" (value "") modifier M
+
+make: Unclosed variable "param"
+make: Unclosed variable "UNCLOSED."
+
+
+make: Unclosed variable "UNCLOSED.1"
+
+make: Unclosed variable "UNCLOSED.2"
+
+make: Unclosed variable "UNCLOSED.3"
+
+make: Unclosed variable "UNCLOSED_ORIG"
+
+varerror-unclosed:end
+target1-flags: we have: one two
+target2-flags: we have: one two three four
 exit status 0

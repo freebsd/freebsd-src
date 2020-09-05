@@ -1,2 +1,2 @@
 # keep this compatible with sh and make
-_MAKE_VERSION=20200710
+_MAKE_VERSION=20200902

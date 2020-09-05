@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.43 2020/07/03 08:13:23 rillig Exp $	*/
+/*	$NetBSD: job.h,v 1.47 2020/08/29 12:20:17 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -77,8 +77,8 @@
  * job.h --
  *	Definitions pertaining to the running of jobs in parallel mode.
  */
-#ifndef _JOB_H_
-#define _JOB_H_
+#ifndef MAKE_JOB_H
+#define MAKE_JOB_H
 
 #define TMPPAT	"makeXXXXXX"		/* relative to tmpdir */
 
@@ -110,7 +110,6 @@ emul_poll(struct pollfd *fd, int nfd, int timeout);
  */
 #define POLL_MSEC	5000
 
-
 /*-
  * Job Table definitions.
  *
@@ -164,7 +163,7 @@ typedef struct Job {
 				 * commands */
 #define JOB_TRACED	0x400	/* we've sent 'set -x' */
 
-    int	  	 jobPipe[2];	/* Pipe for readind output from job */
+    int	  	 jobPipe[2];	/* Pipe for reading output from job */
     struct pollfd *inPollfd;	/* pollfd associated with inPipe */
     char  	outBuf[JOB_BUFSIZE + 1];
 				/* Buffer for storing the output of the
@@ -179,7 +178,6 @@ typedef struct Job {
 #define inPipe jobPipe[0]
 #define outPipe jobPipe[1]
 
-
 /*-
  * Shell Specifications:
  * Each shell type has associated with it the following information:
@@ -252,23 +250,20 @@ void Shell_Init(void);
 const char *Shell_GetNewline(void);
 void Job_Touch(GNode *, Boolean);
 Boolean Job_CheckCommands(GNode *, void (*abortProc )(const char *, ...));
-#define CATCH_BLOCK	1
 void Job_CatchChildren(void);
 void Job_CatchOutput(void);
 void Job_Make(GNode *);
 void Job_Init(void);
-Boolean Job_Full(void);
 Boolean Job_Empty(void);
-ReturnStatus Job_ParseShell(char *);
+Boolean Job_ParseShell(char *);
 int Job_Finish(void);
 void Job_End(void);
 void Job_Wait(void);
 void Job_AbortAll(void);
-void JobFlagForMigration(int);
 void Job_TokenReturn(void);
 Boolean Job_TokenWithdraw(void);
 void Job_ServerStart(int, int, int);
 void Job_SetPrefix(void);
 Boolean Job_RunTarget(const char *, const char *);
 
-#endif /* _JOB_H_ */
+#endif /* MAKE_JOB_H */

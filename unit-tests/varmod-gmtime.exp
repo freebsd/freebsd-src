@@ -1,0 +1,9 @@
+mod-gmtime:
+%Y
+2020
+%Y
+%Y
+mod-gmtime-indirect:
+make: Unknown modifier '1'
+
+exit status 0

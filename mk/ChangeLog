@@ -1,3 +1,106 @@
+2020-08-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: ensure we cannot confuse a static cache for dynamic
+	(even more rare that use of static cache is playing clever tricks
+	with it)
+
+2020-08-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-cache-update.mk: allow
+	MK_STATIC_DIRDEPS_CACHE_UPDATE_IMMEDIATE to control when we
+	actually update STATIC_DIRDEPS_CACHE.
+
+	* stage-install.sh: create dest directory if needed
+	before running install(1)
+
+2020-08-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-targets.mk: include Makefile.dirdeps.options
+
+	* dirdeps.mk: use _TARGETS if defined for DIRDEPS_CACHE
+
+2020-08-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: default BUILD_DIRDEPS_MAKEFILE to empty
+
+	* dirdeps-cache-update.mk: building parallel cache update
+	under the context of dirdeps-cached would be ideal, but
+	is problematic, so it runs as a sibling.
+	Use cache-built target to ensure we wait for it to complete if
+	necessary.
+
+2020-08-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200806
+
+	* dirdeps-options: allow TARGET_SPEC to affect option values.
+	Use DIRDEPS_OPTIONS_QUALIFIER_LIST before using bare MK_*
+
+	* dirdeps-targets.mk: check for MK_STATIC_DIRDEPS_CACHE defined
+	before looking for STATIC_DIRDEPS_CACHE
+
+2020-08-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* host-target.mk: Darwin use MACHINE for HOST_ARCH too
+
+	* dirdeps-options.mk: improve debug output
+
+2020-07-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: set and export DYNAMIC_DIRDEPS_CACHE
+	for use by dirdeps-cache-update.mk
+
+	* dirdeps-targets.mk: set and export STATIC_DIRDEPS_CACHE
+	for use by dirdeps-cache-update.mk even if we don't use it.
+
+	* dirdeps-cache-update.mk: we only need worry about the background
+	update case, with the above, the update from DIRDEPS_CACHE is
+	simple.
+
+	* meta2deps.py: R 1234 . is not interesting
+
+2020-07-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.mk: default MK_STATIC_DIRDEPS_CACHE from MK_DIRDEPS_CACHE
+
+	* dirdeps-options.mk: do not :tu DIRDEPS_OPTIONS
+	allows use of lower case for pseudo options.
+
+	* dirdeps-cache-update.mk: magic to deal with STATIC_DIRDEPS_CACHE
+
+2020-07-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-targets.mk: Look for Makefile.dirdeps.cache
+	which allows us to have a static cache for expensive targets.
+	Use -DWITHOUT_STATIC_DIRDEPS_CACHE -DWITH_DIRDEPS_CACHE
+	to regenerate the dirdeps.cache it is a copy of.
+
+2020-07-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Get rid of BUILD_AT_LEVEL0, MK_DIRDEPS_BUILD makes more sense.
+
+2020-07-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk (DIRDEP_LOADAVG_REPORT): make it easy to record
+	load averages at intervals during build.
+
+2020-07-15  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200715
+
+	* dirdeps.mk: tweak Checking line to make matching Finished
+	lines for post-build analysis easier.
+
+	* meta.autodep.mk: use !defined(WITHOUT_META_STATS)
+
+	* progs.mk: avoid prog.mk outputting multiple Finished lines
+
+2020-07-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps.mk: further optimize dirdeps.cache
+	generate a DIRDEPS.${.TARGET} list for other purposes
+	and improve the layout.
+
 2020-07-10  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* dirdeps.mk: optimize content of dirdeps.cache
@@ -124,7 +227,7 @@
 	* install-mk (MK_VERSION): 20180919
 
 	* dirdeps-options.mk: .undef cannot handle var that expands to
-	  more than one var. 
+	  more than one var.
 
 2018-07-08  Simon J Gerraty  <sjg@beast.crufty.net>
 
@@ -309,8 +412,8 @@
 2016-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20161212
-	
-	* meta2deps.py: set pid_cwd[pid] when we process 'C'hdir, 
+
+	* meta2deps.py: set pid_cwd[pid] when we process 'C'hdir,
 	rather than when we detect pid change.
 
 2016-12-07  Simon J. Gerraty  <sjg@bad.crufty.net>
@@ -322,7 +425,7 @@
 	  to use foo.tgz to reference the latest staged version - so we
 	  make foo.tgz a symlink to it.
 	  Using a target to do both operations ensures we stay in sync.
-	
+
 2016-11-26  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20161126
@@ -374,18 +477,18 @@
 
 2016-08-13  Simon J. Gerraty  <sjg@bad.crufty.net>
 
-	* meta.sys.mk (.MAKE.META.IGNORE_PATHS): 
+	* meta.sys.mk (.MAKE.META.IGNORE_PATHS):
 	  in meta mode we can ignore the mtime of makefiles
 
 2016-08-02  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20160802
-	
+
 	* lib.mk (libinstall): depends on beforinstall
 
 	* prog.mk (proginstall): depends on beforinstall
 	  patch from Lauri Tirkkonen
-	
+
 	* dirdeps.mk (bootstrap): When bootstrapping; creat
 	.MAKE.DEPENDFILE_DEFAULT and allow additional filtering via
 	.MAKE.DEPENDFILE_BOOTSTRAP_SED
@@ -408,7 +511,7 @@
 	* install-mk (MK_VERSION): 20160530
 	* meta.stage.mk: we assume ${CLEANFILES} gets .NOPATH
 	  make it so.
-	
+
 2016-05-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20160512
@@ -418,7 +521,7 @@
 	  skip INCLUDES_* for staged libs unless SRC_* defined.
 
 	* own.mk: add INCLUDEDIR
-	
+
 2016-04-18  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* dirdeps.mk: when doing -f dirdeps.mk if target suppies no
@@ -428,9 +531,9 @@
 2016-04-07  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* meta.autodep.mk: issue a warning if UPDATE_DEPENDFILE=NO due to
-	  NO_FILEMON_COOKIE  
+	  NO_FILEMON_COOKIE
 
-	* dirdeps.mk: move the logic that allows for 
+	* dirdeps.mk: move the logic that allows for
 	  make -f dirdeps.mk some/dir.${TARGET_SPEC}
 	  inside the check for !target(_DIRDEP_USE)
 
@@ -438,15 +541,15 @@
 
 	* Use <> when including local*.mk and others which may exist
 	  elsewhere so that user can better control what they get.
-	
-	* meta.autodep.mk (NO_FILEMON_COOKIE): 
+
+	* meta.autodep.mk (NO_FILEMON_COOKIE):
 	  create a cookie if we ever build dir with nofilemon
 	  so that UPDATE_DEPENDFILE will be forced to NO until cleaned.
 
 2016-04-01  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20160401
-	
+
 	* meta2deps.py: fix old print statement when debugging.
 
 	* gendirdeps.mk: META2DEPS_CMD append M2D_EXCLUDES with -X
@@ -455,12 +558,12 @@
 2016-03-22  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20160317 (St. Pats)
-	
+
 	* warnings.mk: g++ does not like -Wimplicit
-	
+
 	* sys.mk sys/*.mk lib.mk prog.mk: use CXX_SUFFIXES to handle the
 	  pelthora of common suffixes for C++
-	
+
 	* lib.mk: use .So for shared objects
 
 2016-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
@@ -469,9 +572,9 @@
 
 	* meta.stage.mk (LN_CP_SCRIPT): do not ln(1) if we have to chmod(1)
 	  normally only applies to scripts.
-	
+
 	* dirdeps.mk: NO_DIRDEPS_BELOW to supress DIRDEPS below RELDIR as
-	  well as outside it. 
+	  well as outside it.
 
 2016-03-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
@@ -509,17 +612,17 @@
 	  we cannot use the '$$' trick, but .export-literal does the job
 	  we need.
 	* auto.dep.mk: make use .dinclude if we can.
-	
+
 
 2016-02-05  Simon J. Gerraty  <sjg@bad.crufty.net>
 
-	* dirdeps.mk: 
+	* dirdeps.mk:
 	  Add _build_all_dirs such that local.dirdeps.mk can
 	  add fully qualified dirs to it.
-	  These will be built normally but the current 
+	  These will be built normally but the current
 	  DEP_RELDIR will not depend on then (to avoid cycles).
 	  This makes it easy to hook things like unit-tests into build.
-	
+
 
 2016-01-21  Simon J. Gerraty  <sjg@bad.crufty.net>
 
@@ -541,7 +644,7 @@
 	  to set MK_AUTO_OBJ and MK_DIRDEPS_BUILD
 	  include local.sys.env.mk early
 	  include local.sys.mk later
-	
+
 	* own.mk (OPTIONS_DEFAULT_NO): AUTO_OBJ etc moved to sys.mk
 
 2015-11-13  Simon J. Gerraty  <sjg@bad.crufty.net>
@@ -560,8 +663,8 @@
 2015-10-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20151020
-	
-	* dirdeps.mk: Add logic for 
+
+	* dirdeps.mk: Add logic for
 	  make -f dirdeps.mk some/dir.${TARGET_SPEC}
 
 2015-10-14  Simon J. Gerraty  <sjg@bad.crufty.net>
@@ -587,16 +690,16 @@
 2015-06-15  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150615
-	
+
 	* auto.obj.mk: allow use of MAKEOBJDIRPREFIX too.
 	  Follow make's normal precedence rules.
-	
+
 	* gendirdeps.mk: allow customization of the header.
-	  eg. for FreeBSD: 
+	  eg. for FreeBSD:
 	  GENDIRDEPS_HEADER= echo '\# ${FreeBSD:L:@v@$$$v$$ @:M*F*}';
 
 	* meta.autodep.mk: ignore dirdeps.cache*
-	
+
 	* meta.stage.mk: when bootstrapping options it can be handy to
 	  throw warnings rather than errors for staging conflicts.
 
@@ -605,11 +708,11 @@
 2015-06-06  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150606
-	
+
 	* dirdeps.mk: don't rely on manually maintained Makefile.depend
 	  to set DEP_RELDIR and reset DIRDEPS.
 	  By setting DEP_RELDIR ourselves we can skip :tA
-	
+
 	* gendirdeps.mk: skip setting DEP_RELDIR.
 
 2015-05-24  Simon J. Gerraty  <sjg@bad.crufty.net>
@@ -626,19 +729,19 @@
 
 	* meta.stage.mk: for STAGE_AS_* basename of file may not be unique
 	  so first use absolute path as key.
-	  Also skip staging at level 0. 
+	  Also skip staging at level 0.
 
 2015-04-30  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150430
-	
+
 	* dirdeps.mk: fix _count_dirdeps for non-cache case.
 
 2015-04-16  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150411
 	  bump version
-	
+
 	* own.mk: put AUTO_OBJ in OPTIONS_DEFAULT_NO rather than YES.
 	  it is here mainly for documentation purposes, since
 	  if using auto.obj.mk it is better done via sys.mk
@@ -646,21 +749,21 @@
 2015-04-01  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150401
-	
+
 	* meta2deps.sh: support @list
-	
+
 	* meta2deps.py: updates from Juniper
-	  o add EXCLUDES 
+	  o add EXCLUDES
 	  o skip bogus input files.
 	  o treat 'M' and 'L' as both an 'R' and a 'W'
 
 2015-03-03  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20150303
-	
+
 	* dirdeps.mk: if MK_DIRDEPS_CACHE is yes, use dirdeps-cache
 	  which is built via sub-make so we have a .meta file to tell if
-	  it is out-of-date. 
+	  it is out-of-date.
 	  The dirdeps-cache contains the same dependency rules that we
 	  normaly construct on the fly.
 	  This adds a few seconds overhead when the cache is out of date,
@@ -669,15 +772,15 @@
 2014-11-18  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20141118
-	
+
 	* meta.stage.mk: add stale_staged
-	
+
 	* dirdeps.mk (_DIRDEP_USE_LEVEL): allow this to be tweaked
 	  only useful under very rare conditions such as
 	  FreeBSD's make universe.
 
 	* auto.obj.mk: Allow MK_AUTO_OBJ to set MKOBJDIRS=auto
-	
+
 2014-11-11  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20141111
@@ -695,24 +798,24 @@
 	  for GENDIRDEPS_FILTER to avoid surprises.
 
 2014-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
-	
+
 	* dirdeps.mk (NSkipHostDir): this needs SRCTOP prepended since by
 	  the time it is applied to __depdirs they have.
-	
+
 	* dirdeps.mk fix filtering of _machines since M_dep_qual_fixes
 	  expects patterns like *.${MACHINE}
-	
+
 	* cython.mk (pyprefix?): use pyprefix to find python bits
 	  since prefix might be something else (where we install our
 	  stuff)
-	
+
 2014-09-11  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20140911
-	
+
 	* dirdeps.mk: add bootstrap target to simplify adding support for
 	  new MACHINE.
-	
+
 2014-09-01  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* gendirdeps.mk: Add handling of GENDIRDEPS_FILTER_DIR_VARS and
@@ -722,7 +825,7 @@
 2014-08-28  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20140828
-	
+
 	* cython.mk: capture logic for building python extension modules
 	  with Cython.
 
@@ -735,8 +838,8 @@
 	* install-mk (MK_VERSION): 20140801
 
 	* dep.mk: use explicit MKDEP_MK rather than overload MKDEP to
-	identify the autodep.mk variant. 
-	
+	identify the autodep.mk variant.
+
 	* sys.dependfile.mk: delete .MAKE.DEPENDFILE if its
 	initial value does not match .MAKE.DEPENDFILE_PREFIX
 
@@ -774,7 +877,7 @@
 	  build).
 
 	* dirdeps.mk (__depdirs): ensure // don't sneak in
-	
+
 	* gendirdeps.mk (DIRDEPS): ensure // don't sneak in
 
 
@@ -794,7 +897,7 @@
 
 2014-02-09  Simon J. Gerraty  <sjg@bad.crufty.net>
 
-	* options.mk: cleanup and simplify semanitcs 
+	* options.mk: cleanup and simplify semanitcs
 	  NO_* dominates all, if both WITH_* and WITHOUT_*
 	  are defined then result is DOMINATE_* which defaults to "no".
 	  Ie. WITHOUT_ normally wins.
@@ -815,7 +918,7 @@
 	  as _build_dirs.
 	  Also fix the filtering of Makefile.depend files - for reporting
 	  what we are looking for (M_dep_qual_fixes can get confused by
-	  Makefile.depend) 
+	  Makefile.depend)
 	  Add some more debug info.
 
 2013-09-04  Simon J. Gerraty  <sjg@bad.crufty.net>
@@ -828,7 +931,7 @@
 
 	* install-mk (MK_VERSION): 20130801
 	* libs.mk: update to match progs.mk
-	
+
 2013-07-26  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20130726
@@ -837,13 +940,13 @@
 	    errors
 	    also allow @file to provide huge list of .meta files.
 	* meta2deps.py: add try_parse() to cleanup the above.
-	
+
 2013-07-16  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20130716
 	* own.mk: add GPROG as an option
 	* prog.mk: honor MK_GPROF==yes
-	
+
 2013-05-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20130505
@@ -878,7 +981,7 @@
 	* meta.stage.mk (LN_CP_SCRIPT): Add LnCp to do the ln||cp dance
 	  consistently.
 	* dirdeps.mk: better describe the dance in sys.mk for TARGET_SPEC.
-	
+
 2013-03-18  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* gendirdeps.mk: revert the dance around .MAKE.DEPENDFILE_DEFAULT
@@ -893,7 +996,7 @@
 	* gendirdeps.mk: ensure _objroot has trailing / if it needs it.
 	* meta2deps.py: if machine is "host", then also trim
 	  self.host_target from any OBJROOTS.
-	
+
 
 2013-03-11  Simon J. Gerraty  <sjg@bad.crufty.net>
 
@@ -909,7 +1012,7 @@
 
 2013-03-07  Simon J. Gerraty  <sjg@bad.crufty.net>
 
-	* sys.dependfile.mk (.MAKE.DEPENDFILE_DEFAULT): 
+	* sys.dependfile.mk (.MAKE.DEPENDFILE_DEFAULT):
 	  use a separate variable for the default .MAKE.DEPENDFILE value
 	  so that it can be controlled independently of
 	  .MAKE.DEPENDFILE_PREFERENCE
@@ -926,12 +1029,12 @@
 2013-02-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20130210
-	* import latest dirdeps.mk, gendirdeps.mk and meta2deps.py 
-	  from Juniper. 
+	* import latest dirdeps.mk, gendirdeps.mk and meta2deps.py
+	  from Juniper.
 	  o dirdeps.mk now fully supports TARGET_SPEC consisting of more
 	    than just MACHINE.
 	  o no longer use DEP_MACHINE from Makefile.depend* so remove it.
-	
+
 2013-01-23  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20130123
@@ -976,13 +1079,13 @@
 	* progs.mk: add MAN and CXXFLAGS to PROG_VARS
 	  also add PROGS_TARGETS and pass on PROG_CXX if it seems
 	  appropriate.
-	
+
 2012-11-04  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* meta.stage.mk: update CLEANFILES
 	  remove redundant cp of .dirdep from STAGE_AS_SCRIPT.
 	* progs.mk: Add LDADD to PROG_VARS
-	
+
 2012-10-12  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* meta.stage.mk (STAGE_DIR_FILTER): track dirs we stage to in
@@ -1004,11 +1107,11 @@
 
 	* install-mk (MK_VERSION): bump version to 20120711
 	* dep.mk: add explicit dependencies on SRCS after applying
-	  SRCS_DEP_FILTER 
+	  SRCS_DEP_FILTER
 	* meta.autodep.mk: add explicit dependencies on SRCS after
 	  applying SRCS_DEP_FILTER
 	* meta.autodep.mk: ensure GENDIRDEPS_FILTER is exported if needed.
-	
+
 2012-06-26  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20120626
@@ -1020,14 +1123,14 @@
 	* gendirdeps.mk: only produce unqualified deps if no
 	  .MAKE.DEPENDFILE_PREFERENCE ends in .${MACHINE}
 	* meta.subdir.mk: apply SUBDIRDEPS_FILTER
-	
+
 2012-04-20  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20120420
 	* add sys.dependfile.mk so we can experiment with
-	  .MAKE.DEPENDFILE_PREFERENCE 
+	  .MAKE.DEPENDFILE_PREFERENCE
 	* meta.autodep.mk: _DEPENDFILE is precious!
-	
+
 2012-03-15  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20120315
@@ -1068,37 +1171,37 @@
 	  o meta2deps.py add a clear 'ERROR:' token if an exception is raised.
 	  o gendirdeps.mk if ERROR: from meta2deps.py do not update
 	    anything.
-	
+
 2011-10-30  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-new.mk separate the cmp and copy logic to its own function.
-	
+
 2011-10-28  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20111028
 	* sys.mk: include auto.obj.mk if MKOBJDIRS is set to auto
 	* subdir.mk: ensure _SUBDIRUSE is provided
-	* meta.autodep.mk: remove dependency of gendirdeps.mk on auto.obj.mk 
+	* meta.autodep.mk: remove dependency of gendirdeps.mk on auto.obj.mk
 	* meta.subdir.mk: always allow for Makefile.depend
-	
+
 2011-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20111010
 	  o minor tweak to *dirdeps.mk from Juniper sjg@
-	
+
 2011-10-01  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20111001
 	  o add meta2deps.py from Juniper sjg@
 	  o tweak gendirdeps.mk to work with meta2deps.py when not
-	    cross-building 
-	* autoconf.mk: add autoconf-input as a hook for regenerating 
+	    cross-building
+	* autoconf.mk: add autoconf-input as a hook for regenerating
 	  AUTOCONF_INPUTS (configure).
 
 2011-08-24  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* meta.autodep.mk: if we do not have OBJS, .depend isn't a useful
-	  trigger for updating Makefile.depend* 
+	  trigger for updating Makefile.depend*
 
 2011-08-08  Simon J. Gerraty  <sjg@bad.crufty.net>
 
@@ -1155,7 +1258,7 @@
 2011-04-03  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* rst2htm.mk: convert rst to s5 (slides) or plain html depending
-	  on target name. 
+	  on target name.
 
 2011-03-30  Simon J. Gerraty  <sjg@bad.crufty.net>
 
@@ -1167,16 +1270,16 @@
 	  can be used to debug level 0 only and DEBUG_MAKE_FLAGS for the rest.
 	* sys.mk: re-define M_whence in terms of M_type.
 	  M_type is useful for checking if something is a builtin.
-	
+
 2011-03-16  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* meta.stage.mk: add stage_symlinks and leverage StageLinks for
-	  stage_libs 
+	  stage_libs
 
 2011-03-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* dirdeps.mk: correct value for _depdir_files depends on
-	  .MAKE.DEPENDFILE 
+	  .MAKE.DEPENDFILE
 	  Add our copyright - just to make it clear we have frobbed this
 	  quite a bit.
 	  DEP_MACHINE needs to be set to MACHINE each time, if using only
@@ -1216,7 +1319,7 @@
 2010-09-24  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20100919
-	include dirdeps.mk et al from Juniper Networks, 
+	include dirdeps.mk et al from Juniper Networks,
 	for meta mode - requires filemon(9).
 	* sys.mk, subdir.mk: Add hooks for meta mode.
 	we do this as meta.sys.mk, meta.autodep.mk and meta.subdir.mk
@@ -1282,7 +1385,7 @@
 	* install-mk (MK_VERSION): bump version to 20100420
 	* sys/NetBSD.mk: add MACHINE_CPU to keep netbsd makefiles happy
 	* autoconf.mk allow AUTO_AUTOCONF
-	
+
 2010-04-19  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* obj.mk: add objwarn to keep freebsd makefiles happy
@@ -1294,7 +1397,7 @@
 	* auto.dep.mk: add some explanation of how/what we do.
 	* autodep.mk: skip the .OPTIONAL frobbing of .depend
 	  bmake's FROM_DEPEND flag makes it redundant.
-	
+
 2010-04-13  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20100404
@@ -1335,7 +1438,7 @@
 
 	* sys.mk,libnames.mk add .-include <local.*>
 	  this allows local customization without the need to edit the
-	  distributed files. 
+	  distributed files.
 
 2009-12-14  Simon J. Gerraty  <sjg@void.crufty.net>
 
@@ -1361,7 +1464,7 @@
 2009-11-17  Simon J. Gerraty  <sjg@void.crufty.net>
 
 	* install-mk (MK_VERSION): bump version
-	* host-target.mk: only export the expensive stuff 
+	* host-target.mk: only export the expensive stuff
 	* Generic.sys.mk (sys_mk): for SunOS we need to look for
 	  ${HOST_OS}.${HOST_OSMAJOR} too!
 
@@ -1411,7 +1514,7 @@
 
 	* install-mk (MK_VERSION): bump version
 	* general cleanup
-	* dpadd.mk introduce DPMAGIC_LIBS_* 
+	* dpadd.mk introduce DPMAGIC_LIBS_*
 
 2007-04-30  Simon J. Gerraty  <sjg@void.crufty.net>
 
@@ -1453,10 +1556,10 @@
 	* install-mk (MK_VERSION): bump version to 20061126
 
 	* warnings.mk: detect invalid WARNINGS_SET
-	
+
 	* warnings.mk: use ${.TARGET:T:R}.o when looking for target
-	specific warnings. 
-	
+	specific warnings.
+
 	* For .cc sources, turn off warnings that g++ vomits on.
 
 2006-11-08  Simon J. Gerraty  <sjg@void.crufty.net>
@@ -1483,11 +1586,11 @@
 2006-03-01  Simon J. Gerraty  <sjg@void.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20060301
-	* autodep.mk (.depend): 
+	* autodep.mk (.depend):
 	if MAKE_VERSION is newer than  20050530 we can make .END depend on
 	.depend and make .depend depend on __depsrcs that exist.
 	* dpadd.mk: add SRC_PATHADD
-	
+
 2005-11-04  Simon J. Gerraty  <sjg@void.crufty.net>
 
 	* install-mk (MK_VERSION): bump version to 20051104
@@ -1512,7 +1615,7 @@
 2004-02-15  Simon J. Gerraty  <sjg@void.crufty.net>
 
 	* own.mk: don't use NetBSD's _SRC_TOP_ it can
-	cause confusion.  Also don't take just 'mk' as a 
+	cause confusion.  Also don't take just 'mk' as a
 	srctop indicator.
 
 2004-02-14  Simon J. Gerraty  <sjg@void.crufty.net>
@@ -1538,7 +1641,7 @@
 	* set OS and ROOT_GROUP for those that we know the value.
 	for others (eg. Generic.sys.mk) wrap the != in an .ifndef so
 	we don't do it again for each sub-make.
-	
+
 2003-09-28  Simon J. Gerraty  <sjg@void.crufty.net>
 
 	* install-mk (MK_VERSION): 20030928
@@ -1554,8 +1657,8 @@
 
 2003-07-31  Simon J. Gerraty  <sjg@void.crufty.net>
 
-	* install-mk: add ability to use cp -f when updating 
-	destination .mk files.  Also now possible to play games with 
+	* install-mk: add ability to use cp -f when updating
+	destination .mk files.  Also now possible to play games with
 	FORCE_SYS_MK=ln etc on *BSD machines to link /usr/share/mk/sys.mk
 	into dest - not recommended unless you seriously want to.
 
@@ -1575,4 +1678,4 @@
 	* install-mk: Allow FORCE_SYS_MK to come from env
 
 
-	
+
