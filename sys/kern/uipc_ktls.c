@@ -1643,21 +1643,6 @@ out:
 	return (top);
 }
 
-static int
-m_segments(struct mbuf *m, int skip)
-{
-	int count;
-
-	while (skip >= m->m_len) {
-		skip -= m->m_len;
-		m = m->m_next;
-	}
-
-	for (count = 0; m != NULL; count++)
-		m = m->m_next;
-	return (count);
-}
-
 static void
 ktls_decrypt(struct socket *so)
 {
