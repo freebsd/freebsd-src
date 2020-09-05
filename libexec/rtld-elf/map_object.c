@@ -49,7 +49,7 @@ int __getosreldate(void);
 static bool
 phdr_in_zero_page(const Elf_Ehdr *hdr)
 {
-	return (hdr->e_phoff + hdr->e_phnum * sizeof(Elf_Phdr) <
+	return (hdr->e_phoff + hdr->e_phnum * sizeof(Elf_Phdr) <=
 	    (size_t)PAGE_SIZE);
 }
 
