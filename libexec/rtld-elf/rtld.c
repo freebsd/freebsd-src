@@ -1089,7 +1089,10 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
     *dyn_runpath = NULL;
 
     obj->bind_now = false;
-    for (dynp = obj->dynamic;  dynp->d_tag != DT_NULL;  dynp++) {
+    dynp = obj->dynamic;
+    if (dynp == NULL)
+	return;
+    for (;  dynp->d_tag != DT_NULL;  dynp++) {
 	switch (dynp->d_tag) {
 
 	case DT_REL:
