@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${SRCTOP}/sys/rpc ${SRCTOP}/sys/xdr
+.PATH: ${SRCTOP}/sys/rpc
 KMOD=	krpc
 SRCS=	auth_none.c \
 	auth_unix.c \
@@ -22,13 +22,6 @@ SRCS=	auth_none.c \
 	svc_dg.c \
 	svc_generic.c \
 	svc_vc.c \
-
-SRCS+=	xdr.c \
-	xdr_array.c \
-	xdr_mbuf.c \
-	xdr_mem.c \
-	xdr_reference.c \
-	xdr_sizeof.c
 
 SRCS+=	opt_inet6.h
 
