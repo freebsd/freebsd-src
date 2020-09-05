@@ -74,6 +74,8 @@ ifcmd(const char *cmd, const char *args)
 		}
 	} else if (prefix(cmd, "pps"))
 		showpps = !showpps;
+	else
+		return (0);
 
 	return (1);
 }

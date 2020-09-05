@@ -37,6 +37,7 @@
 #include <net/if.h>
 #include <net/if_mib.h>
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <err.h>
@@ -67,7 +68,8 @@ SLIST_HEAD(, if_stat_disp)	displist;
 
 struct if_stat {
 	SLIST_ENTRY(if_stat)	 link;
-	char	if_name[IF_NAMESIZE];
+	char	display_name[IF_NAMESIZE];
+	char	dev_name[IFNAMSIZ]; 	/* copied from ifmibdata */
 	struct	ifmibdata if_mib;
 	struct	timeval tv;
 	struct	timeval tv_lastchanged;
@@ -81,7 +83,7 @@ struct if_stat {
 	uint64_t if_out_pps_peak;
 	u_int	if_row;			/* Index into ifmib sysctl */
 	int 	if_ypos;		/* -1 if not being displayed */
-	u_int	display;
+	bool	display;
 	u_int	match;
 };
 
@@ -91,11 +93,13 @@ extern	 int showpps;
 extern	 int needsort;
 
 static	 int needclear = 0;
+static	 bool displayall = false;
 
-static	 void  right_align_string(struct if_stat *);
-static	 void  getifmibdata(const int, struct ifmibdata *);
+static	 void  format_device_name(struct if_stat *);
+static	 int   getifmibdata(const int, struct ifmibdata *);
 static	 void  sort_interface_list(void);
 static	 u_int getifnum(void);
+static	 void  clearifstat(void);
 
 #define IFSTAT_ERR(n, s)	do {					\
 	putchar('\014');						\
@@ -165,7 +169,7 @@ static	 u_int getifnum(void);
 } while (0)
 
 #define PUTNAME(p) do {							\
-	mvprintw(p->if_ypos, 0, "%s", p->if_name);			\
+	mvprintw(p->if_ypos, 0, "%s", p->display_name);			\
 	mvprintw(p->if_ypos, col2-3, "%s", (const char *)"in");		\
 	mvprintw(p->if_ypos+1, col2-3, "%s", (const char *)"out");	\
 } while (0)
@@ -214,7 +218,7 @@ showifstat(void)
 	
 	SLIST_FOREACH(ifp, &curlist, link) {
 		if (ifp->if_ypos < LINES - 3 && ifp->if_ypos != -1)
-			if (ifp->display == 0 || ifp->match == 0) {
+			if (!ifp->display || ifp->match == 0) {
 					wmove(wnd, ifp->if_ypos, 0);
 					wclrtoeol(wnd);
 					wmove(wnd, ifp->if_ypos + 1, 0);
@@ -235,7 +239,7 @@ int
 initifstat(void)
 {
 	struct   if_stat *p = NULL;
-	u_int	 n = 0, i = 0;
+	u_int	 n, i;
 
 	n = getifnum();
 	if (n <= 0)
@@ -247,18 +251,21 @@ initifstat(void)
 		p = (struct if_stat *)calloc(1, sizeof(struct if_stat));
 		if (p == NULL)
 			IFSTAT_ERR(1, "out of memory");
-		SLIST_INSERT_HEAD(&curlist, p, link);
 		p->if_row = i+1;
-		getifmibdata(p->if_row, &p->if_mib);
-		right_align_string(p);
+		if (getifmibdata(p->if_row, &p->if_mib) == -1) {
+			free(p);
+			continue;
+		}
+		SLIST_INSERT_HEAD(&curlist, p, link);
+		format_device_name(p);
 		p->match = 1;
 
 		/*
 		 * Initially, we only display interfaces that have
-		 * received some traffic.
+		 * received some traffic unless display-all is on.
 		 */
-		if (p->if_mib.ifmd_data.ifi_ibytes != 0)
-			p->display = 1;
+		if (displayall || p->if_mib.ifmd_data.ifi_ibytes != 0)
+			p->display = true;
 	}
 
 	sort_interface_list();
@@ -269,13 +276,13 @@ initifstat(void)
 void
 fetchifstat(void)
 {
-	struct	if_stat *ifp = NULL;
+	struct	if_stat *ifp = NULL, *temp_var;
 	struct	timeval tv, new_tv, old_tv;
 	double	elapsed = 0.0;
 	uint64_t new_inb, new_outb, old_inb, old_outb = 0;
 	uint64_t new_inp, new_outp, old_inp, old_outp = 0;
 
-	SLIST_FOREACH(ifp, &curlist, link) {
+	SLIST_FOREACH_SAFE(ifp, &curlist, link, temp_var) {
 		/*
 		 * Grab a copy of the old input/output values before we
 		 * call getifmibdata().
@@ -287,7 +294,22 @@ fetchifstat(void)
 		ifp->tv_lastchanged = ifp->if_mib.ifmd_data.ifi_lastchange;
 
 		(void)gettimeofday(&new_tv, NULL);
-		(void)getifmibdata(ifp->if_row, &ifp->if_mib);
+		if (getifmibdata(ifp->if_row, &ifp->if_mib) == -1 ) {
+			/* if a device was removed */
+			SLIST_REMOVE(&curlist, ifp, if_stat, link);
+			free(ifp);
+			needsort = 1;
+			clearifstat();
+		} else if (strcmp(ifp->dev_name, ifp->if_mib.ifmd_name) != 0 ) {
+			/* a device was removed and another one was added */
+			format_device_name(ifp);
+			/* clear to the current value for the new device */
+			old_inb = ifp->if_mib.ifmd_data.ifi_ibytes;
+			old_outb = ifp->if_mib.ifmd_data.ifi_obytes;
+			old_inp = ifp->if_mib.ifmd_data.ifi_ipackets;
+			old_outp = ifp->if_mib.ifmd_data.ifi_opackets;
+			needsort = 1;
+		}
 
 		new_inb = ifp->if_mib.ifmd_data.ifi_ibytes;
 		new_outb = ifp->if_mib.ifmd_data.ifi_obytes;
@@ -295,8 +317,8 @@ fetchifstat(void)
 		new_outp = ifp->if_mib.ifmd_data.ifi_opackets;
 
 		/* Display interface if it's received some traffic. */
-		if (new_inb > 0 && old_inb == 0) {
-			ifp->display = 1;
+		if (!ifp->display && new_inb > 0 && old_inb == 0) {
+			ifp->display = true;
 			needsort = 1;
 		}
 
@@ -351,28 +373,18 @@ fetchifstat(void)
 /*
  * We want to right justify our interface names against the first column
  * (first sixteen or so characters), so we need to do some alignment.
+ * We save original name so that we can find a same spot is take by a
+ * different device.
  */
 static void
-right_align_string(struct if_stat *ifp)
+format_device_name(struct if_stat *ifp)
 {
-	int	 str_len = 0, pad_len = 0;
-	char	*newstr = NULL, *ptr = NULL;
 
-	if (ifp == NULL || ifp->if_mib.ifmd_name == NULL)
-		return;
-	else {
-		/* string length + '\0' */
-		str_len = strlen(ifp->if_mib.ifmd_name)+1;
-		pad_len = IF_NAMESIZE-(str_len);
-
-		newstr = ifp->if_name;
-		ptr = newstr + pad_len;
-		(void)memset((void *)newstr, (int)' ', IF_NAMESIZE);
-		(void)strncpy(ptr, (const char *)&ifp->if_mib.ifmd_name,
-			      str_len);
+	if (ifp != NULL ) {
+		snprintf(ifp->display_name, IF_NAMESIZE, "%*s", IF_NAMESIZE-1,
+		    ifp->if_mib.ifmd_name);
+		strcpy(ifp->dev_name, ifp->if_mib.ifmd_name);
 	}
-
-	return;
 }
 
 static int
@@ -461,9 +473,10 @@ getifnum(void)
 	return (data);
 }
 
-static void
+static int
 getifmibdata(int row, struct ifmibdata *data)
 {
+	int	ret = 0;
 	size_t	datalen = 0;
 	static	int name[] = { CTL_NET,
 			       PF_LINK,
@@ -474,9 +487,12 @@ getifmibdata(int row, struct ifmibdata *data)
 	datalen = sizeof(*data);
 	name[4] = row;
 
-	if ((sysctl(name, 6, (void *)data, (size_t *)&datalen, (void *)NULL,
-	    (size_t)0) != 0) && (errno != ENOENT))
+	ret = sysctl(name, 6, (void *)data, (size_t *)&datalen, (void *)NULL,
+	    (size_t)0);
+	if ((ret != 0) && (errno != ENOENT))
 		IFSTAT_ERR(2, "sysctl error getting interface data");
+
+	return (ret);
 }
 
 int
@@ -487,13 +503,23 @@ cmdifstat(const char *cmd, const char *args)
 	retval = ifcmd(cmd, args);
 	/* ifcmd() returns 1 on success */
 	if (retval == 1) {
-		if (needclear) {
-			showifstat();
-			refresh();
-			werase(wnd);
-			labelifstat();
-			needclear = 0;
-		}
+		if (needclear)
+			clearifstat();
+	}
+	else if (prefix(cmd, "all")) {
+		retval = 1;
+		displayall = true;
 	}
 	return (retval);
+}
+
+static void
+clearifstat(void)
+{
+
+	showifstat();
+	refresh();
+	werase(wnd);
+	labelifstat();
+	needclear = 0;
 }
