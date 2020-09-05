@@ -33,7 +33,7 @@
 #
 #	All our *.mk files are copied to "dest" with appropriate
 #	ownership and permissions.
-#	
+#
 #	By default if a sys.mk can be found in a standard location
 #	(that bmake will find) then no sys.mk will be put in "dest".
 #
@@ -55,22 +55,22 @@
 #       Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: install-mk,v 1.174 2020/07/10 21:50:14 sjg Exp $
+#	$Id: install-mk,v 1.179 2020/08/26 21:49:45 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
 
-MK_VERSION=20200710
+MK_VERSION=20200826
 OWNER=
 GROUP=
 MODE=444
@@ -137,7 +137,7 @@ if [ -s $SYS_MK -a -d $dest ]; then
 	sys_mk_dir=`realpath $SYS_MK_DIR`
 	if [ $dest = $sys_mk_dir ]; then
 		case "$os" in
-		*BSD*)	SKIP_SYS_MK=: 
+		*BSD*)	SKIP_SYS_MK=:
 			SKIP_BSD_MK=:
 			;;
 		*)	# could be fake?

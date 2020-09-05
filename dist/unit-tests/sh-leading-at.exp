@@ -1,0 +1,5 @@
+ok
+space after @
+echo 'echoed'
+echoed
+exit status 0

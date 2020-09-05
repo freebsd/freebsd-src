@@ -1,4 +1,4 @@
-/*	$NetBSD: strlist.h,v 1.3 2009/01/16 21:15:34 dsl Exp $	*/
+/*	$NetBSD: strlist.h,v 1.4 2020/08/13 03:54:57 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2008 - 2009 The NetBSD Foundation, Inc.
@@ -32,8 +32,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _STRLIST_H
-#define _STRLIST_H
+#ifndef MAKE_STRLIST_H
+#define MAKE_STRLIST_H
 
 typedef struct {
     char          *si_str;
@@ -59,4 +59,4 @@ void strlist_add_str(strlist_t *, char *, unsigned int);
     if ((sl)->sl_items != NULL) \
 	for (index = 0; (v = strlist_str(sl, index)) != NULL; index++)
 
-#endif /* _STRLIST_H */
+#endif /* MAKE_STRLIST_H */

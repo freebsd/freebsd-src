@@ -1,4 +1,4 @@
-# $NetBSD: varmod-edge.mk,v 1.7 2020/04/27 14:07:22 christos Exp $
+# $NetBSD: varmod-edge.mk,v 1.12 2020/08/08 13:29:09 rillig Exp $
 #
 # Tests for edge cases in variable modifiers.
 #
@@ -143,20 +143,31 @@ INP.eq-bs=	file.c file.c=%.o
 MOD.eq-bs=	${INP.eq-bs:%.c\=%.o=%.ext}
 EXP.eq-bs=	file.c file.ext
 
-# Having only an escaped = results in a parse error.
-# The call to "pattern.lhs = VarGetPattern" fails.
+# Having only an escaped '=' results in a parse error.
+# The call to "pattern.lhs = ParseModifierPart" fails.
 TESTS+=		eq-esc
 INP.eq-esc=	file.c file...
 MOD.eq-esc=	${INP.eq-esc:a\=b}
 EXP.eq-esc=	# empty
-# make: Unclosed substitution for INP.eq-esc (= missing)
+# make: Unfinished modifier for INP.eq-esc ('=' missing)
 
-all:
+TESTS+=		colon
+INP.colon=	value
+MOD.colon=	${INP.colon:}
+EXP.colon=	value
+
+TESTS+=		colons
+INP.colons=	value
+MOD.colons=	${INP.colons::::}
+EXP.colons=	# empty
+
 .for test in ${TESTS}
 .  if ${MOD.${test}} == ${EXP.${test}}
-	@printf 'ok %s\n' ${test:Q}''
+.info ok ${test}
 .  else
-	@printf 'error in %s: expected %s, got %s\n' \
-		${test:Q}'' ${EXP.${test}:Q}'' ${MOD.${test}:Q}''
+.warning error in ${test}: expected "${EXP.${test}}", got "${MOD.${test}}"
 .  endif
 .endfor
+
+all:
+	@echo ok

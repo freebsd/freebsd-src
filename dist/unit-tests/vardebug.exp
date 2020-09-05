@@ -1,0 +1,80 @@
+Global:RELEVANT = yes
+Global:VAR = added
+Global:VAR = overwritten
+Global:delete VAR
+Global:delete VAR (not found)
+Var_Parse: ${:U} with VARE_WANTRES
+Applying ${:U} to "" (eflags = VARE_WANTRES, vflags = VAR_JUNK)
+Result of ${:U} is "" (eflags = VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Var_Set("${:U}", "empty name", ...) name expands to empty string - ignored
+Var_Parse: ${:U} with VARE_WANTRES
+Applying ${:U} to "" (eflags = VARE_WANTRES, vflags = VAR_JUNK)
+Result of ${:U} is "" (eflags = VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Var_Append("${:U}", "empty name", ...) name expands to empty string - ignored
+Global:FROM_CMDLINE = overwritten ignored!
+Global:VAR = 1
+Global:VAR = 1 2
+Global:VAR = 1 2 3
+Var_Parse: ${VAR:M[2]} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${VAR:M...} to "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Pattern[VAR] for [1 2 3] is [[2]]
+ModifyWords: split "1 2 3" into 3 words
+VarMatch [1] [[2]]
+VarMatch [2] [[2]]
+VarMatch [3] [[2]]
+Result of ${VAR:M[2]} is "2" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Var_Parse: ${VAR:N[2]} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${VAR:N...} to "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Pattern[VAR] for [1 2 3] is [[2]]
+ModifyWords: split "1 2 3" into 3 words
+Result of ${VAR:N[2]} is "1 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Var_Parse: ${VAR:S,2,two,} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${VAR:S...} to "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Modifier part: "2"
+Modifier part: "two"
+ModifyWords: split "1 2 3" into 3 words
+Result of ${VAR:S,2,two,} is "1 two 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Var_Parse: ${VAR:Q} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${VAR:Q} to "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+QuoteMeta: [1\ 2\ 3]
+Result of ${VAR:Q} is "1\ 2\ 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Var_Parse: ${VAR:tu:tl:Q} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${VAR:t...} to "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Result of ${VAR:tu} is "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Applying ${VAR:t...} to "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Result of ${VAR:tl} is "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Applying ${VAR:Q} to "1 2 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+QuoteMeta: [1\ 2\ 3]
+Result of ${VAR:Q} is "1\ 2\ 3" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = none)
+Var_Parse: ${:Uvalue:${:UM*e}:Mvalu[e]} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U...} to "" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK)
+Result of ${:Uvalue} is "value" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Var_Parse: ${:UM*e}:Mvalu[e]} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U...} to "" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK)
+Result of ${:UM*e} is "M*e" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Indirect modifier "M*e" from "${:UM*e}"
+Applying ${:M...} to "value" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Pattern[] for [value] is [*e]
+ModifyWords: split "value" into 1 words
+VarMatch [value] [*e]
+Result of ${:M*e} is "value" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Applying ${:M...} to "value" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Pattern[] for [value] is [valu[e]]
+ModifyWords: split "value" into 1 words
+VarMatch [value] [valu[e]]
+Result of ${:Mvalu[e]} is "value" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Var_Parse: ${:UVAR} with VARE_WANTRES
+Applying ${:U...} to "" (eflags = VARE_WANTRES, vflags = VAR_JUNK)
+Result of ${:UVAR} is "VAR" (eflags = VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Global:delete VAR
+Var_Parse: ${:Uvariable:unknown} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U...} to "" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK)
+Result of ${:Uvariable} is "variable" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+Applying ${:u...} to "variable" (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+make: Unknown modifier 'u'
+Result of ${:unknown} is error (eflags = VARE_UNDEFERR|VARE_WANTRES, vflags = VAR_JUNK|VAR_KEEP)
+make: "vardebug.mk" line 44: Malformed conditional (${:Uvariable:unknown})
+Var_Parse: ${UNDEFINED} with VARE_UNDEFERR|VARE_WANTRES
+make: "vardebug.mk" line 53: Malformed conditional (${UNDEFINED})
+Global:RELEVANT = no
+exit status 1

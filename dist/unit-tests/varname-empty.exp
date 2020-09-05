@@ -1,0 +1,11 @@
+Var_Set("${:U}", "cmdline-u", ...) name expands to empty string - ignored
+Var_Set("", "cmline-plain", ...) name expands to empty string - ignored
+Var_Set("", "default", ...) name expands to empty string - ignored
+Var_Set("", "assigned", ...) name expands to empty string - ignored
+Var_Set("", "appended", ...) name expands to empty string - ignored
+Var_Set("", "", ...) name expands to empty string - ignored
+Var_Set("", "subst", ...) name expands to empty string - ignored
+Var_Set("", "shell-output", ...) name expands to empty string - ignored
+out: fallback
+out: 1 2 3
+exit status 0

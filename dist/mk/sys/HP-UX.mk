@@ -1,4 +1,4 @@
-#	$Id: HP-UX.mk,v 1.14 2020/06/29 14:34:42 sjg Exp $
+#	$Id: HP-UX.mk,v 1.15 2020/08/19 17:51:53 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
@@ -8,7 +8,7 @@ unix ?=		We run ${OS}.
 
 # HP-UX's cc does not provide any clues as to wether this is 9.x or 10.x
 # nor does sys/param.h, so we'll use the existence of /hp-ux
-.if exists("/hp-ux") 
+.if exists("/hp-ux")
 OSMAJOR ?=9
 .endif
 OSMAJOR ?=10
@@ -60,7 +60,7 @@ PICFLAG ?= +z
 LD_x=
 DBG ?=-g -O
 .endif
-DBG ?=         
+DBG ?=
 STATIC ?=         -Wl,-a,archive
 .endif
 .if (${__HPUX_VERSION} == "10")
@@ -180,7 +180,7 @@ ${CXX_SUFFIXES:%=%.a}:
 .s:
 	${LINK.s} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
 .s.o:
-	${COMPILE.s} -o ${.TARGET} ${.IMPSRC} 
+	${COMPILE.s} -o ${.TARGET} ${.IMPSRC}
 .s.a:
 	${COMPILE.s} ${.IMPSRC}
 	${AR} ${ARFLAGS} $@ $*.o
@@ -204,7 +204,7 @@ ${CXX_SUFFIXES:%=%.a}:
 	mv lex.yy.c ${.TARGET}
 .l.o:
 	${LEX.l} ${.IMPSRC}
-	${COMPILE.c} -o ${.TARGET} lex.yy.c 
+	${COMPILE.c} -o ${.TARGET} lex.yy.c
 	rm -f lex.yy.c
 
 # Yacc

@@ -1,0 +1,2 @@
+.INCLUDES= -I. -I..
+exit status 0

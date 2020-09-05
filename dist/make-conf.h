@@ -1,4 +1,4 @@
-/*	$NetBSD: config.h,v 1.21 2012/03/31 00:12:24 christos Exp $	*/
+/*	$NetBSD: config.h,v 1.22 2020/09/01 17:40:34 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -100,7 +100,10 @@
  * LIBSUFF
  *	Is the suffix used to denote libraries and is used by the Suff module
  *	to find the search path on which to seek any -l<xx> targets.
- *
+ */
+#define	LIBSUFF	".a"
+
+/*
  * RECHECK
  *	If defined, Make_Update will check a target for its current
  *	modification time after it has been re-made, setting it to the
@@ -108,10 +111,9 @@
  *	Unfortunately, under NFS the modification time often doesn't
  *	get updated in time, so a target will appear to not have been
  *	re-made, causing later targets to appear up-to-date. On systems
- *	that don't have this problem, you should defined this. Under
+ *	that don't have this problem, you should define this. Under
  *	NFS you probably should not, unless you aren't exporting jobs.
  */
-#define	LIBSUFF	".a"
 #define	RECHECK
 
 /*

@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.h,v 1.18 2017/05/31 22:02:06 maya Exp $	*/
+/*	$NetBSD: dir.h,v 1.23 2020/09/02 04:08:54 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -72,29 +72,34 @@
  *	from: @(#)dir.h	8.1 (Berkeley) 6/6/93
  */
 
-/* dir.h --
- */
-
 #ifndef	MAKE_DIR_H
 #define	MAKE_DIR_H
 
-typedef struct Path {
+/* A cache of a directory, remembering all the files that exist in that
+ * directory. */
+typedef struct {
     char         *name;	    	/* Name of directory */
     int	    	  refCount; 	/* Number of paths with this directory */
     int		  hits;	    	/* the number of times a file in this
 				 * directory has been found */
-    Hash_Table    files;    	/* Hash table of files in directory */
+    Hash_Table    files;    	/* Hash set of files in directory */
 } Path;
 
-void Dir_Init(const char *);
+struct make_stat {
+    time_t mst_mtime;
+    mode_t mst_mode;
+};
+
+void Dir_Init(void);
+void Dir_InitDir(const char *);
 void Dir_InitCur(const char *);
 void Dir_InitDot(void);
 void Dir_End(void);
 void Dir_SetPATH(void);
-Boolean Dir_HasWildcards(char *);
+Boolean Dir_HasWildcards(const char *);
 void Dir_Expand(const char *, Lst, Lst);
 char *Dir_FindFile(const char *, Lst);
-int Dir_FindHereOrAbove(char *, char *, char *, int);
+Boolean Dir_FindHereOrAbove(const char *, const char *, char *, int);
 int Dir_MTime(GNode *, Boolean);
 Path *Dir_AddDir(Lst, const char *);
 char *Dir_MakeFlags(const char *, Lst);
@@ -103,6 +108,9 @@ void Dir_Concat(Lst, Lst);
 void Dir_PrintDirectories(void);
 void Dir_PrintPath(Lst);
 void Dir_Destroy(void *);
-void * Dir_CopyDir(void *);
+void *Dir_CopyDir(void *);
+
+int cached_lstat(const char *, struct make_stat *);
+int cached_stat(const char *, struct make_stat *);
 
 #endif /* MAKE_DIR_H */
