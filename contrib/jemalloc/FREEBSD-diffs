@@ -14,7 +14,7 @@ index 7fecda7c..d5ca5e86 100644
 +    <option>--with-malloc-conf=abort_conf:false</option>.
 +    Additionally, <option>--enable-debug</option> is enabled in development
 +    versions of FreeBSD (controlled by the
-+    <constant>MALLOC_PRODUCTION</constant> make variable).</para>
++    <constant>MK_MALLOC_PRODUCTION</constant> make variable).</para>
 +
    </refsect1>
    <refsynopsisdiv>
