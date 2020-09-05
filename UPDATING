@@ -22,9 +22,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	debugging flags in userland, and various verbose features in the
 	kernel.  Many developers choose to disable these features on build
 	machines to maximize performance.  (To completely disable malloc
-	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
-	disable the most expensive debugging functionality run
-	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+	debugging, define WITH_MALLOC_PRODUCTION in /etc/src.conf and rebuild
+	world, or to merely disable the most expensive debugging functionality
+	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20200824:
 	OpenZFS support has been integrated. Do not upgrade root pools until
