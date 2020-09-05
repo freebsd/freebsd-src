@@ -902,6 +902,8 @@ svc_xprt_free(SVCXPRT *xprt)
 {
 
 	mem_free(xprt->xp_p3, sizeof(SVCXPRT_EXT));
+	/* The size argument is ignored, so 0 is ok. */
+	mem_free(xprt->xp_gidp, 0);
 	mem_free(xprt, sizeof(SVCXPRT));
 }
 
