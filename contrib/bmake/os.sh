@@ -17,7 +17,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: os.sh,v 1.55 2017/12/11 20:31:41 sjg Exp $
+#	$Id: os.sh,v 1.56 2020/08/05 23:25:22 sjg Exp $
 #
 #	@(#) Copyright (c) 1994 Simon J. Gerraty
 #
@@ -86,6 +86,9 @@ AIX)	# everyone loves to be different...
 	PS_AXC=-e
 	SHARE_ARCH=$OS/$OSMAJOR.X
 	;;
+Darwin) # a bit like BSD
+        HOST_ARCH=$MACHINE
+        ;;
 SunOS)
 	CHOWN=`Which chown /usr/etc:/usr/bin`
 	export CHOWN
@@ -208,12 +211,12 @@ esac
 
 TMP_DIRS=${TMP_DIRS:-"/tmp /var/tmp"}
 MACHINE_ARCH=${MACHINE_ARCH:-$MACHINE}
-case "$MACHINE_ARCH" in
+HOST_ARCH=${HOST_ARCH:-$MACHINE_ARCH}
+case "$HOST_ARCH" in
 x86*64|amd64) MACHINE32_ARCH=i386;;
 *64) MACHINE32_ARCH=`echo $MACHINE_ARCH | sed 's,64,32,'`;;
 *) MACHINE32_ARCH=$MACHINE_ARCH;;
 esac
-HOST_ARCH=${HOST_ARCH:-$MACHINE_ARCH}
 HOST_ARCH32=${HOST_ARCH32:-$MACHINE32_ARCH}
 # we mount server:/share/arch/$SHARE_ARCH as /usr/local
 SHARE_ARCH_DEFAULT=$OS/$OSMAJOR.X/$HOST_ARCH

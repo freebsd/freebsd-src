@@ -1,14 +1,14 @@
-# $Id: options.mk,v 1.11 2020/05/02 21:23:52 sjg Exp $
+# $Id: options.mk,v 1.13 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2012, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -77,4 +77,6 @@ ${OPTION_PREFIX}${o:H} ?= no
 ${OPTION_PREFIX}${o:H} ?= ${${OPTION_PREFIX}${o:T}}
 .endif
 .endfor
-.undef OPTIONS_DEFAULT_VALUES OPTIONS_DEFAULT_NO OPTIONS_DEFAULT_YES
+.undef OPTIONS_DEFAULT_VALUES
+.undef OPTIONS_DEFAULT_NO
+.undef OPTIONS_DEFAULT_YES

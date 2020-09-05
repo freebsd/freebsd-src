@@ -1,4 +1,4 @@
-#	$Id: SunOS.mk,v 1.11 2020/06/29 14:34:42 sjg Exp $
+#	$Id: SunOS.mk,v 1.12 2020/08/19 17:51:53 sjg Exp $
 
 .if ${.PARSEFILE} == "sys.mk"
 .include <host-target.mk>
@@ -197,7 +197,7 @@ ${CXX_SUFFIXES:%=%.a}:
 	mv lex.yy.c ${.TARGET}
 .l.o:
 	${LEX.l} ${.IMPSRC}
-	${COMPILE.c} -o ${.TARGET} lex.yy.c 
+	${COMPILE.c} -o ${.TARGET} lex.yy.c
 	rm -f lex.yy.c
 
 # Yacc

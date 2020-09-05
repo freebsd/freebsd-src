@@ -1,4 +1,4 @@
-#	$Id: prog.mk,v 1.35 2018/01/26 20:04:07 sjg Exp $
+#	$Id: prog.mk,v 1.36 2020/08/19 17:51:53 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -99,7 +99,7 @@ _PROGLDOPTS+=	-Wl,-dynamic-linker=${_SHLINKER}
 _PROGLDOPTS+=	-Wl,-rpath-link,${DESTDIR}${SHLIBDIR}:${DESTDIR}/usr/lib \
 		-L${DESTDIR}${SHLIBDIR}
 .endif
-_PROGLDOPTS+=	-Wl,-rpath,${SHLIBDIR}:/usr/lib 
+_PROGLDOPTS+=	-Wl,-rpath,${SHLIBDIR}:/usr/lib
 
 .if defined(PROG_CXX)
 _CCLINK=	${CXX}

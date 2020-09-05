@@ -1,3 +1,243 @@
+2020-09-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200902
+	Merge with NetBSD make, pick up
+	o use make_stat to ensure no confusion over valid fields
+	returned by cached_stat
+	o var.c: make VarQuote const-correct
+	o add unit tests for .for
+
+2020-09-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200901
+	Merge with NetBSD make, pick up
+	o rename Hash_Table fields
+	o make data types in Dir_HasWildcards more precise
+
+2020-08-31  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200831
+	Merge with NetBSD make, pick up
+	o suff.c: fix unbalanced Lst_Open/Lst_Close in SuffFindCmds
+	o lst.c: Lst_Open renable assert that list isn't open
+	o unit test for .TARGET dependent flags
+	o var.c: fix aliasing bug in VarUniq
+	o more unit tests for :u
+
+2020-08-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200830
+	Merge with NetBSD make, pick up
+	o allow for strict type checking for Boolean
+	o Var_Parse never returns NULL
+	o Var_Subst never returns NULL
+	o Lst_Find now takes boolean match function
+	o rename Lst_Memeber to Lst_FindDatum
+	o rename LstNode functions to match their type
+	o rename GNode.iParents to implicitParents
+	o fix assertion failure for .SUFFIXES in archives
+	o compat.c: clean up documentation for CompatInterrupt and Compat_Run
+	remove unreachable code from CompatRunCommand
+	o main.c: simplify getBoolean
+	o stc.c: replace brk_string with simpler Str_Words
+	o suff.c: add debug macros
+
+2020-08-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200828
+	Merge with NetBSD make, pick up
+	o lst.c: inline LstIsValid and LstNodeIsValid
+	o remove trailing S from Lst function names after migration complete
+	o more comment cleanup/clarification
+	o suff.c: clean up suffix handling
+	o more unit tests
+
+2020-08-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200826
+	Merge with NetBSD make, pick up
+	o enum.c: distinguish between bitsets containing flags and
+	ordinary enums
+	o var.c: fix error message for ::!= modifier with shell error
+	o fix bugs in -DCLEANUP mode
+
+2020-08-24  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200824
+	Merge with NetBSD make, pick up
+	o in debug mode, print GNode details in symbols
+
+2020-08-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200823
+	Merge with NetBSD make, pick up
+	o lst.c: more asserts,
+	make args to Lst_Find match others.
+	o var.c: pass flags to VarAdd
+	o arch.c: use Buffer
+	o str.c: brk_string return size_t for nwords
+	o more unit tests
+
+2020-08-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION):
+	Merge with NetBSD make, pick up
+	o var.c: support for read-only variables eg .SHELL
+	being the shell used to run scripts.
+	o lst.c: more simplification
+	o more documentation and style cleanup
+	o more unit tests
+	o ensure unit-test/Makefile is run by TEST_MAKE
+	o reduce duplication of header inclusion
+
+2020-08-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200821
+	Merge with NetBSD make, pick up
+	o lst.c: revert invalid assertion - but document it
+	o dir.c: split Dir_Init into two functions
+
+2020-08-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* lst.c: needs inttypes.h on Linux
+
+	* VERSION (_MAKE_VERSION): 20200820
+	Merge with NetBSD make, pick up
+	o make.1: clarify some passages
+	o var.c: more cleanup, clarify comments
+	o make_malloc.c: remove unreachable code
+	o cond.c: make CondGetString easier to debug
+	o simplify list usage
+	o unit-tests: more
+
+2020-08-16  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200816
+	Merge with NetBSD make, pick up
+	o refactor unit-tests to be more fine grained
+	  not all tests moved yet
+
+2020-08-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200814
+	Merge with NetBSD make, pick up
+	o more str_concat variants
+	o more enums for flags
+	o var.c: cleanup for higher warnings level
+
+2020-08-10  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200810
+	Merge with NetBSD make, pick up
+	o more unit tests
+	o general comment and style cleanup
+
+2020-08-08  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200808
+	Merge with NetBSD make, pick up
+	o enum.[ch]: streamline, enums for use in flags and debug output
+	o cond.c: cleanup
+	o var.c: reduce duplicate code for modifiers
+	debug logging for Var_Parse
+	more detailed debug output
+	o more unit tests
+
+2020-08-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* unit-tests/Makefile: -r for recursive and include Makefile.inc
+	so I can run tests in meta mode
+	supress extra noise if in meta mode
+
+	* VERSION (_MAKE_VERSION): 20200806
+	Merge with NetBSD make, pick up
+	o parse.c: remove VARE_WANTRES for LINT
+	we just want to check parsing (for now).
+
+2020-08-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200805
+	Merge with NetBSD make, pick up
+	o make.1: Rework the description of dependence operators
+
+2020-08-03  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200803
+	Merge with NetBSD make, pick up
+	o revert some C99 usage, for max portability
+	o unit-tests/lint
+
+2020-08-02  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200802
+	Merge with NetBSD make, pick up
+	o more unit tests
+
+2020-08-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* Remove NetBSD specific plumbing from unit-tests/Makefile
+
+	* VERSION (_MAKE_VERSION): 20200801
+	Merge with NetBSD make, pick up
+	o make Var_Value return const
+	o size_t for buf sizes
+	o optimize some buffer operations - avoid strlen
+
+2020-07-31  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200731
+	Merge with NetBSD make, pick up
+	o var.c: fix undefinded behavior for incomplete :t modifier
+	  fixes unit-test/moderrs on Ubuntu
+	o parse.c: When parsing variable assignments other than :=
+	  if DEBUG(LINT) test substition of value, so we get a file and
+	  line number in the resulting error.
+	o dir.c: fix parsing of nested braces in dependency lines
+	  add unit-tests
+
+2020-07-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200730
+	Merge with NetBSD make, pick up
+	o var.c: minor cleanup
+	o unit-tests: more tests to improve code coverage
+
+2020-07-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200728
+	Merge with NetBSD make, pick up
+	o var.c: more optimizations
+
+2020-07-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200726
+	Merge with NetBSD make, pick up
+	o collapse lsd.lib into lst.c - reduce code size and allow inlining
+	o lots of function comment updates
+	o var.c: more optimizations
+	o make return of Var_Parse const
+
+2020-07-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200720
+	Merge with NetBSD make, pick up
+	o DEBUG_HASH report stats at end and tone down the noise
+	o var.c: each flag type gets its own prefix.
+	move SysV string matching to var.c
+	make ampersand in ${VAR:from=to&} an ordinary character
+	cleanup and simplify implementation of modifiers
+	o make.1: move documentation for assignment modifiers
+
+2020-07-18  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20200718
+	Merge with NetBSD make, pick up
+	o DEBUG_HASH to see how well the hash tables are working
+
+2020-07-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* bsd.after-import.mk: make sure we update unit-tests/Makefile
+
 2020-07-10  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* configure.in: use AC_INCLUDES_DEFAULT rather than AC_HEADER_STDC

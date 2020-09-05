@@ -1,14 +1,14 @@
-# $Id: links.mk,v 1.6 2014/09/29 17:14:40 sjg Exp $
+# $Id: links.mk,v 1.7 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2005, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #

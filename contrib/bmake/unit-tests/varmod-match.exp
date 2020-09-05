@@ -1,0 +1,5 @@
+match-char-class:
+  uppercase numbers: One Two Three Four
+  all the others: five six seven
+  starts with non-s, ends with [ex]: One Three five
+exit status 0

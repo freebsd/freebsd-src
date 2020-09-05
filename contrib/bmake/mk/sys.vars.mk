@@ -1,20 +1,20 @@
-# $Id: sys.vars.mk,v 1.4 2019/05/27 20:22:52 sjg Exp $
+# $Id: sys.vars.mk,v 1.5 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2003-2009, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
 
 # We use the following paradigm for preventing multiple inclusion.
-# It relies on the fact that conditionals and dependencies are resolved 
+# It relies on the fact that conditionals and dependencies are resolved
 # at the time they are read.
 #
 # _this ?= ${.PARSEFILE}

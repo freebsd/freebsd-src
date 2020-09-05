@@ -25,7 +25,7 @@ We only pay attention to a subset of the information in the
 
 'W'	files opened for write or read-write,
 	for filemon V3 and earlier.
-        
+
 'E'	files executed.
 
 'L'	files linked
@@ -37,20 +37,20 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.30 2020/06/08 23:05:00 sjg Exp $
+	$Id: meta2deps.py,v 1.33 2020/08/19 17:51:53 sjg Exp $
 
-	Copyright (c) 2011-2019, Simon J. Gerraty
+	Copyright (c) 2011-2020, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
 	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
-	modification, are permitted provided that the following conditions 
-	are met: 
+	modification, are permitted provided that the following conditions
+	are met:
 	1. Redistributions of source code must retain the above copyright
-	   notice, this list of conditions and the following disclaimer. 
+	   notice, this list of conditions and the following disclaimer.
 	2. Redistributions in binary form must reproduce the above copyright
 	   notice, this list of conditions and the following disclaimer in the
-	   documentation and/or other materials provided with the distribution.  
+	   documentation and/or other materials provided with the distribution.
 
 	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -62,8 +62,8 @@ RCSid:
 	DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 	THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 	(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
- 
+	OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 """
 
 import os, re, sys
@@ -164,7 +164,7 @@ def sort_unique(list, cmp=None, key=None, reverse=False):
 
 def add_trims(x):
     return ['/' + x + '/',
-            '/' + x, 
+            '/' + x,
             x + '/',
             x]
 
@@ -181,7 +181,7 @@ class MetaFile:
     obj_deps = []
     src_deps = []
     file_deps = []
-    
+
     def __init__(self, name, conf={}):
         """if name is set we will parse it now.
         conf can have the follwing keys:
@@ -198,7 +198,7 @@ class MetaFile:
 
         TARGET_SPEC
                 Sometimes MACHINE isn't enough.
-                
+
         HOST_TARGET
                 when we build for the pseudo machine 'host'
                 the object tree uses HOST_TARGET rather than MACHINE.
@@ -222,7 +222,7 @@ class MetaFile:
         debug_out open file to send debug output to (sys.stderr)
 
         """
-        
+
         self.name = name
         self.debug = getv(conf, 'debug', 0)
         self.debug_out = getv(conf, 'debug_out', sys.stderr)
@@ -310,11 +310,11 @@ class MetaFile:
         self.obj_deps = []
         self.src_deps = []
         self.file_deps = []
-          
+
     def dirdeps(self, sep='\n'):
         """return DIRDEPS"""
         return sep.strip() + sep.join(self.obj_deps)
-    
+
     def src_dirdeps(self, sep='\n'):
         """return SRC_DIRDEPS"""
         return sep.strip() + sep.join(self.src_deps)
@@ -333,7 +333,7 @@ class MetaFile:
     def seenit(self, dir):
         """rememer that we have seen dir."""
         self.seen[dir] = 1
-          
+
     def add(self, list, data, clue=''):
         """add data to list if it isn't already there."""
         if data not in list:
@@ -392,10 +392,10 @@ class MetaFile:
             # give a useful clue
             print('{}:{}: '.format(self.name, self.line), end=' ', file=sys.stderr)
             raise
-        
+
     def parse(self, name=None, file=None):
         """A meta file looks like:
-        
+
         # Meta data file "path"
         CMD "command-line"
         CWD "cwd"
@@ -506,6 +506,8 @@ class MetaFile:
                 continue
             elif w[0] in 'ERWS':
                 path = w[2]
+                if path == '.':
+                    continue
                 self.parse_path(path, cwd, w[0], w)
 
         if not file:
@@ -601,13 +603,13 @@ class MetaFile:
                 self.seenit(w[2])
                 self.seenit(dir)
 
-                            
+
 def main(argv, klass=MetaFile, xopts='', xoptf=None):
     """Simple driver for class MetaFile.
 
     Usage:
         script [options] [key=value ...] "meta" ...
-        
+
     Options and key=value pairs contribute to the
     dictionary passed to MetaFile.
 
@@ -615,7 +617,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
                 add "SRCTOP" to the "SRCTOPS" list.
 
     -C "CURDIR"
-    
+
     -O "OBJROOT"
                 add "OBJROOT" to the "OBJROOTS" list.
 
@@ -626,7 +628,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     -H "HOST_TARGET"
 
     -D "DPDEPS"
-    
+
     -d  bumps debug level
 
     """
@@ -666,7 +668,7 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
 
     debug = 0
     output = True
-    
+
     opts, args = getopt.getopt(argv[1:], 'a:dS:C:O:R:m:D:H:qT:X:' + xopts)
     for o, a in opts:
         if o == '-a':

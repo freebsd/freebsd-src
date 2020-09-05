@@ -1,4 +1,4 @@
-# $NetBSD: cond-late.mk,v 1.1 2020/04/29 23:15:21 rillig Exp $
+# $NetBSD: cond-late.mk,v 1.2 2020/07/25 20:37:46 rillig Exp $
 #
 # Using the :? modifier, variable expressions can contain conditional
 # expressions that are evaluated late.  Any variables appearing in these
@@ -15,9 +15,15 @@
 # and then expand the variables, the output would change from the
 # current "yes no" to "yes yes", since both variables are non-empty.
 
+all: cond-literal
+
 COND.true=	"yes" == "yes"
 COND.false=	"yes" != "yes"
 
-all:
+cond-literal:
 	@echo ${ ${COND.true} :?yes:no}
 	@echo ${ ${COND.false} :?yes:no}
+
+VAR+=	${${UNDEF} != "no":?:}
+.if empty(VAR:Mpattern)
+.endif

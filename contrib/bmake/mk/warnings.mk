@@ -1,15 +1,15 @@
 # RCSid:
-#	$Id: warnings.mk,v 1.14 2016/04/05 15:58:37 sjg Exp $
+#	$Id: warnings.mk,v 1.15 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2002, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -28,10 +28,10 @@ MIN_WARNINGS?= -Wall \
 	-Wformat \
 	-Wimplicit \
 	-Wunused \
-	-Wuninitialized 
+	-Wuninitialized
 
 LOW_WARNINGS?= ${MIN_WARNINGS} -W -Wstrict-prototypes -Wmissing-prototypes
- 
+
 MEDIUM_WARNINGS?= ${LOW_WARNINGS} -Werror
 
 HIGH_WARNINGS?= ${MEDIUM_WARNINGS} \
@@ -84,7 +84,7 @@ W_uninitialized=
 
 
 # .for loops have the [dis]advantage of being evaluated when read,
-# so adding to WARNINGS_SET[_${MACHINE_ARCH}] after this file is 
+# so adding to WARNINGS_SET[_${MACHINE_ARCH}] after this file is
 # read has no effect.
 # Replacing the above .for loops with the WARNINGS+= below solves that
 # but tiggers a double free bug in bmake-20040118 and earlier.
@@ -95,11 +95,11 @@ W_uninitialized=
 # In the second :@ "loop", the ::?= noise sets W_foo?=-Wfoo etc
 # which makes it easy to turn off override individual flags
 # (see W_uninitialized above).
-# 
+#
 # The last bit expands to ${W_foo_${.TARGET:T}:U${W_foo}}
 # which is the bit we ultimately want.  It allows W_* to be set on a
 # per target basis.
-# 
+#
 # NOTE: that we force the target extension to be .o
 #
 
@@ -110,7 +110,7 @@ M_warnings_list = @s@$${$$s_WARNINGS}@:O:u:@w@$${$${w:C/-(.)/\1_/}::?=$$w} $${$$
 _warnings = ${WARNINGS_SET_${MACHINE_ARCH}:U${WARNINGS_SET}:${M_warnings_list}}
 # now a list of all -Wno-* overrides not just those defined by WARNINGS_SET
 # since things like -Wall imply lots of others.
-# this should be a super-set of the -Wno-* in _warnings, but 
+# this should be a super-set of the -Wno-* in _warnings, but
 # just in case...
 _no_warnings = ${_warnings:M-Wno-*} ${ALL_WARNINGS_SETS:${M_warnings_list}:M-Wno-*}
 # -Wno-* must follow any others

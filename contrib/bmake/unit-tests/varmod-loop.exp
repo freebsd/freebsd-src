@@ -1,0 +1,16 @@
+:+one+ +two+ +three+:
+:x1y x2y x3y:
+:x1y x2y x3y:
+:mod-loop-varname: :x1y x2y x3y: ::
+:x1y x2y x3y:
+mod-loop-resolve:w1d2d3w w2i3w w1i2d3 2i${RES3}w w1d2d3 2i${RES3} 1i${RES2}w:
+mod-loop-varname-dollar:(1) (2) (3).
+mod-loop-varname-dollar:() () ().
+mod-loop-varname-dollar:() () ().
+mod-loop-dollar:1:
+mod-loop-dollar:${word}$:
+mod-loop-dollar:$3$:
+mod-loop-dollar:$${word}$$:
+mod-loop-dollar:$$5$$:
+mod-loop-dollar:$$${word}$$$:
+exit status 0

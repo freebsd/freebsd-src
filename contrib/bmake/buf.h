@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.h,v 1.19 2017/05/31 22:02:06 maya Exp $	*/
+/*	$NetBSD: buf.h,v 1.28 2020/09/01 17:38:26 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -72,48 +72,54 @@
  *	from: @(#)buf.h	8.1 (Berkeley) 6/6/93
  */
 
-/*-
- * buf.h --
- *	Header for users of the buf library.
- */
+/* Automatically growing null-terminated buffers of characters. */
 
 #ifndef MAKE_BUF_H
 #define MAKE_BUF_H
 
-typedef char Byte;
+#include <stddef.h>
 
+/* An automatically growing null-terminated buffer of characters. */
 typedef struct Buffer {
-    int	    size; 	/* Current size of the buffer */
-    int     count;	/* Number of bytes in buffer */
-    Byte    *buffer;	/* The buffer itself (zero terminated) */
+    size_t size;	/* Allocated size of the buffer, including the null */
+    size_t count;	/* Number of bytes in buffer, excluding the null */
+    char *buffer;	/* The buffer itself (always null-terminated) */
 } Buffer;
 
-/* If we aren't on netbsd, __predict_false() might not be defined. */
+/* If we aren't on NetBSD, __predict_false() might not be defined. */
 #ifndef __predict_false
 #define __predict_false(x) (x)
 #endif
 
-/* Buf_AddByte adds a single byte to a buffer. */
-#define	Buf_AddByte(bp, byte) do { \
-	int _count = ++(bp)->count; \
-	char *_ptr; \
-	if (__predict_false(_count >= (bp)->size)) \
-		Buf_Expand_1(bp); \
-	_ptr = (bp)->buffer + _count; \
-	_ptr[-1] = (byte); \
-	_ptr[0] = 0; \
-    } while (0)
-
-#define BUF_ERROR 256
-
-#define Buf_Size(bp) ((bp)->count)
-
 void Buf_Expand_1(Buffer *);
-void Buf_AddBytes(Buffer *, int, const Byte *);
-Byte *Buf_GetAll(Buffer *, int *);
+
+/* Buf_AddByte adds a single byte to a buffer. */
+static inline void MAKE_ATTR_UNUSED
+Buf_AddByte(Buffer *bp, char byte)
+{
+    size_t count = ++bp->count;
+    char *ptr;
+    if (__predict_false(count >= bp->size))
+	Buf_Expand_1(bp);
+    ptr = bp->buffer + count;
+    ptr[-1] = byte;
+    ptr[0] = 0;
+}
+
+static inline size_t MAKE_ATTR_UNUSED
+Buf_Size(const Buffer *bp)
+{
+    return bp->count;
+}
+
+void Buf_AddBytes(Buffer *, const char *, size_t);
+void Buf_AddBytesBetween(Buffer *, const char *, const char *);
+void Buf_AddStr(Buffer *, const char *);
+void Buf_AddInt(Buffer *, int);
+char *Buf_GetAll(Buffer *, size_t *);
 void Buf_Empty(Buffer *);
-void Buf_Init(Buffer *, int);
-Byte *Buf_Destroy(Buffer *, Boolean);
-Byte *Buf_DestroyCompact(Buffer *);
+void Buf_Init(Buffer *, size_t);
+char *Buf_Destroy(Buffer *, Boolean);
+char *Buf_DestroyCompact(Buffer *);
 
 #endif /* MAKE_BUF_H */

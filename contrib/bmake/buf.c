@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.c,v 1.26 2020/07/03 08:02:55 rillig Exp $	*/
+/*	$NetBSD: buf.c,v 1.37 2020/08/23 08:21:50 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,173 +70,123 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: buf.c,v 1.26 2020/07/03 08:02:55 rillig Exp $";
+static char rcsid[] = "$NetBSD: buf.c,v 1.37 2020/08/23 08:21:50 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)buf.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: buf.c,v 1.26 2020/07/03 08:02:55 rillig Exp $");
+__RCSID("$NetBSD: buf.c,v 1.37 2020/08/23 08:21:50 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
 
-/*-
- * buf.c --
- *	Functions for automatically-expanded buffers.
- */
+/* Functions for automatically-expanded null-terminated buffers. */
 
-#include    "make.h"
-#include    "buf.h"
+#include <limits.h>
+#include "make.h"
 
-#ifndef max
-#define max(a,b)  ((a) > (b) ? (a) : (b))
-#endif
-
-#define BUF_DEF_SIZE	256 	/* Default buffer size */
-
-/*-
- *-----------------------------------------------------------------------
- * Buf_Expand_1 --
- *	Extend buffer for single byte add.
- *
- *-----------------------------------------------------------------------
- */
+/* Extend the buffer for adding a single byte. */
 void
 Buf_Expand_1(Buffer *bp)
 {
-    bp->size += max(bp->size, 16);
+    bp->size += MAX(bp->size, 16);
     bp->buffer = bmake_realloc(bp->buffer, bp->size);
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Buf_AddBytes --
- *	Add a number of bytes to the buffer.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	Guess what?
- *
- *-----------------------------------------------------------------------
- */
+/* Add the given bytes to the buffer. */
 void
-Buf_AddBytes(Buffer *bp, int numBytes, const Byte *bytesPtr)
+Buf_AddBytes(Buffer *bp, const char *bytesPtr, size_t numBytes)
 {
-    int count = bp->count;
-    Byte *ptr;
+    size_t count = bp->count;
+    char *ptr;
 
     if (__predict_false(count + numBytes >= bp->size)) {
-	bp->size += max(bp->size, numBytes + 16);
+	bp->size += MAX(bp->size, numBytes + 16);
 	bp->buffer = bmake_realloc(bp->buffer, bp->size);
     }
 
     ptr = bp->buffer + count;
     bp->count = count + numBytes;
-    ptr[numBytes] = 0;
     memcpy(ptr, bytesPtr, numBytes);
+    ptr[numBytes] = '\0';
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Buf_GetAll --
- *	Get all the available data at once.
- *
- * Results:
- *	A pointer to the data and the number of bytes available.
- *
- * Side Effects:
- *	None.
- *
- *-----------------------------------------------------------------------
- */
-Byte *
-Buf_GetAll(Buffer *bp, int *numBytesPtr)
+/* Add the bytes between start and end to the buffer. */
+void
+Buf_AddBytesBetween(Buffer *bp, const char *start, const char *end)
 {
+    Buf_AddBytes(bp, start, (size_t)(end - start));
+}
 
+/* Add the given string to the buffer. */
+void
+Buf_AddStr(Buffer *bp, const char *str)
+{
+    Buf_AddBytes(bp, str, strlen(str));
+}
+
+/* Add the given number to the buffer. */
+void
+Buf_AddInt(Buffer *bp, int n)
+{
+    enum {
+	bits = sizeof(int) * CHAR_BIT,
+	max_octal_digits = (bits + 2) / 3,
+	max_decimal_digits = /* at most */ max_octal_digits,
+	max_sign_chars = 1,
+	buf_size = max_sign_chars + max_decimal_digits + 1
+    };
+    char buf[buf_size];
+
+    size_t len = (size_t)snprintf(buf, sizeof buf, "%d", n);
+    Buf_AddBytes(bp, buf, len);
+}
+
+/* Get the data (usually a string) from the buffer.
+ * The returned data is valid until the next modifying operation
+ * on the buffer.
+ *
+ * Returns the pointer to the data and optionally the length of the
+ * data in the buffer. */
+char *
+Buf_GetAll(Buffer *bp, size_t *numBytesPtr)
+{
     if (numBytesPtr != NULL)
 	*numBytesPtr = bp->count;
-
     return bp->buffer;
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Buf_Empty --
- *	Throw away bytes in a buffer.
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	The bytes are discarded.
- *
- *-----------------------------------------------------------------------
- */
+/* Mark the buffer as empty, so it can be filled with data again. */
 void
 Buf_Empty(Buffer *bp)
 {
-
     bp->count = 0;
-    *bp->buffer = 0;
+    bp->buffer[0] = '\0';
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Buf_Init --
- *	Initialize a buffer. If no initial size is given, a reasonable
- *	default is used.
- *
- * Input:
- *	size		Initial size for the buffer
- *
- * Results:
- *	A buffer to be given to other functions in this library.
- *
- * Side Effects:
- *	The buffer is created, the space allocated and pointers
- *	initialized.
- *
- *-----------------------------------------------------------------------
- */
+/* Initialize a buffer.
+ * If the given initial size is 0, a reasonable default is used. */
 void
-Buf_Init(Buffer *bp, int size)
+Buf_Init(Buffer *bp, size_t size)
 {
     if (size <= 0) {
-	size = BUF_DEF_SIZE;
+	size = 256;
     }
     bp->size = size;
     bp->count = 0;
     bp->buffer = bmake_malloc(size);
-    *bp->buffer = 0;
+    bp->buffer[0] = '\0';
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Buf_Destroy --
- *	Nuke a buffer and all its resources.
- *
- * Input:
- *	buf		Buffer to destroy
- *	freeData	TRUE if the data should be destroyed
- *
- * Results:
- *	Data buffer, NULL if freed
- *
- * Side Effects:
- *	The buffer is freed.
- *
- *-----------------------------------------------------------------------
- */
-Byte *
+/* Reset the buffer.
+ * If freeData is TRUE, the data from the buffer is freed as well.
+ * Otherwise it is kept and returned. */
+char *
 Buf_Destroy(Buffer *buf, Boolean freeData)
 {
-    Byte *data;
-
-    data = buf->buffer;
+    char *data = buf->buffer;
     if (freeData) {
 	free(data);
 	data = NULL;
@@ -249,42 +199,24 @@ Buf_Destroy(Buffer *buf, Boolean freeData)
     return data;
 }
 
-
-/*-
- *-----------------------------------------------------------------------
- * Buf_DestroyCompact --
- *	Nuke a buffer and return its data.
- *
- * Input:
- *	buf		Buffer to destroy
- *
- * Results:
- *	Data buffer
- *
- * Side Effects:
- *	If the buffer size is much greater than its content,
- *	a new buffer will be allocated and the old one freed.
- *
- *-----------------------------------------------------------------------
- */
 #ifndef BUF_COMPACT_LIMIT
-# define BUF_COMPACT_LIMIT 128          /* worthwhile saving */
+# define BUF_COMPACT_LIMIT 128		/* worthwhile saving */
 #endif
 
-Byte *
+/* Reset the buffer and return its data.
+ *
+ * If the buffer size is much greater than its content,
+ * a new buffer will be allocated and the old one freed. */
+char *
 Buf_DestroyCompact(Buffer *buf)
 {
 #if BUF_COMPACT_LIMIT > 0
-    Byte *data;
-
     if (buf->size - buf->count >= BUF_COMPACT_LIMIT) {
 	/* We trust realloc to be smart */
-	data = bmake_realloc(buf->buffer, buf->count + 1);
-	if (data) {
-	    data[buf->count] = 0;
-	    Buf_Destroy(buf, FALSE);
-	    return data;
-	}
+	char *data = bmake_realloc(buf->buffer, buf->count + 1);
+	data[buf->count] = '\0';
+	Buf_Destroy(buf, FALSE);
+	return data;
     }
 #endif
     return Buf_Destroy(buf, FALSE);

@@ -1,4 +1,4 @@
-#	$Id: UnixWare.mk,v 1.6 2020/06/29 14:34:42 sjg Exp $
+#	$Id: UnixWare.mk,v 1.7 2020/08/19 17:51:53 sjg Exp $
 #	based on "Id: SunOS.5.sys.mk,v 1.6 2003/09/30 16:42:23 sjg Exp "
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
@@ -219,7 +219,7 @@ ${CXX_SUFFIXES:%=%.a}:
 	mv lex.yy.c ${.TARGET}
 .l.o:
 	${LEX.l} ${.IMPSRC}
-	${COMPILE.c} -o ${.TARGET} lex.yy.c 
+	${COMPILE.c} -o ${.TARGET} lex.yy.c
 	rm -f lex.yy.c
 
 # Yacc

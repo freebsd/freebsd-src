@@ -1,3 +1,4 @@
+make: Unknown modifier '$'
 path=':/bin:/tmp::/:.:/no/such/dir:.'
 path='/bin:/tmp:/:/no/such/dir'
 path='/bin:/tmp:/:/no/such/dir'
@@ -7,45 +8,14 @@ path_/usr/xbin=/opt/xbin/
 paths=/bin /tmp / /no/such/dir /opt/xbin
 PATHS=/BIN /TMP / /NO/SUCH/DIR /OPT/XBIN
 The answer is 42
-dirname of 'a/b/c def a.b.c a.b/c a a.a .gitignore a a.a' is 'a/b . . a.b . . . . .'
-basename of 'a/b/c def a.b.c a.b/c a a.a .gitignore a a.a' is 'c def a.b.c c a a.a .gitignore a a.a'
-suffix of 'a/b/c def a.b.c a.b/c a a.a .gitignore a a.a' is 'c b/c a gitignore a'
-root of 'a/b/c def a.b.c a.b/c a a.a .gitignore a a.a' is 'a/b/c def a.b a a a  a a'
 S:
 C:
 @:
 S:empty
 C:empty
 @:
-:a b b c:
-:a b b c:
-: b c:
-:a c:
-:x__ 3 x__ 3:
-:a b b c:
-:a b b c:
-: b c:
-make: RE substitution error: (details omitted)
-make: Unclosed substitution for  (, missing)
-:C,word,____,:Q}:
-:a c:
-:x__ 3 x__ 3:
-:+one+ +two+ +three+:
-mod-at-resolve:w1d2d3w w2i3w w1i2d3 2i${RES3}w w1d2d3 2i${RES3} 1i${RES2}w:
-mod-subst-dollar:$1:
-mod-subst-dollar:$2:
-mod-subst-dollar:$3:
-mod-subst-dollar:$4:
-mod-subst-dollar:$5:
-mod-subst-dollar:$6:
-mod-subst-dollar:$7:
-mod-subst-dollar:$8:
-mod-subst-dollar:U8:
-mod-subst-dollar:$$$$:
-mod-loop-dollar:1:
-mod-loop-dollar:${word}:
-mod-loop-dollar:$3$:
-mod-loop-dollar:$${word}$:
-mod-loop-dollar:$$5$$:
-mod-loop-dollar:$$${word}$$:
+mod-quote: new
+
+line
+mod-break-many-words: 500
 exit status 0
