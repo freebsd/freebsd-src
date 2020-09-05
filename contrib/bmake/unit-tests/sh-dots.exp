@@ -1,0 +1,15 @@
+first first
+hidden hidden
+make: exec(...) failed (No such file or directory)
+hidden delayed hidden
+repeated repeated
+commented commented
+*** Error code 1 (ignored)
+...	# Run the below commands later
+<normalized: ...: not found>
+commented delayed commented
+first delayed first
+repeated delayed repeated
+repeated delayed twice repeated
+*** Error code 127 (ignored)
+exit status 0

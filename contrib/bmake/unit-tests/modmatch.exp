@@ -14,7 +14,4 @@ LIB=e X_LIBS:M${LIB${LIB:tu}} is "/tmp/libe.a"
 LIB=e X_LIBS:M*/lib${LIB}.a is "/tmp/libe.a"
 LIB=e X_LIBS:M*/lib${LIB}.a:tu is "/TMP/LIBE.A"
 Mscanner=OK
-Upper=One Two Three Four
-Lower=five six seven
-nose=One Three five
 exit status 0

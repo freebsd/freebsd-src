@@ -1,16 +1,16 @@
 #
 # RCSid:
-#	$Id: auto.dep.mk,v 1.5 2016/04/05 15:58:37 sjg Exp $
+#	$Id: auto.dep.mk,v 1.6 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2010, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -20,11 +20,11 @@
 
 # set MKDEP_MK=auto.dep.mk and dep.mk will include us
 
-# This version differs from autodep.mk, in that 
+# This version differs from autodep.mk, in that
 # we use ${.TARGET:T}.d rather than ${.TARGET:T:R}.d
 # this makes it simpler to get the args to -MF and -MT right
 # and ensure we can simply include all the .d files.
-# 
+#
 # However suffix rules do not work with something like .o.d so we
 # don't even try to handle 'make depend' gracefully.
 # dep.mk will handle that itself.
@@ -37,7 +37,7 @@ __${.PARSEFILE}__:
 
 # set this to -MMD to ignore /usr/include
 # actually it ignores <> so may not be a great idea
-CFLAGS_MD ?= -MD 
+CFLAGS_MD ?= -MD
 # -MF etc not available on all gcc versions.
 CFLAGS_MF ?= -MF ${.TARGET:T}.d -MT ${.TARGET:T}
 CFLAGS += ${CFLAGS_MD} ${CFLAGS_MF}

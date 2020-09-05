@@ -1,4 +1,4 @@
-#	$Id: Linux.mk,v 1.12 2020/06/29 14:34:42 sjg Exp $
+#	$Id: Linux.mk,v 1.13 2020/08/19 17:51:53 sjg Exp $
 #	$NetBSD: sys.mk,v 1.19.2.1 1994/07/26 19:58:31 cgd Exp $
 #	@(#)sys.mk	5.11 (Berkeley) 3/13/91
 
@@ -141,7 +141,7 @@ ${CXX_SUFFIXES:%=%.a}:
 .s:
 	${LINK.s} -o ${.TARGET} ${.IMPSRC} ${LDLIBS}
 .s.o:
-	${COMPILE.s} -o ${.TARGET} ${.IMPSRC} 
+	${COMPILE.s} -o ${.TARGET} ${.IMPSRC}
 .s.a:
 	${COMPILE.s} ${.IMPSRC}
 	${AR} ${ARFLAGS} $@ $*.o
@@ -165,7 +165,7 @@ ${CXX_SUFFIXES:%=%.a}:
 	mv lex.yy.c ${.TARGET}
 .l.o:
 	${LEX.l} ${.IMPSRC}
-	${COMPILE.c} -o ${.TARGET} lex.yy.c 
+	${COMPILE.c} -o ${.TARGET} lex.yy.c
 	rm -f lex.yy.c
 
 # Yacc

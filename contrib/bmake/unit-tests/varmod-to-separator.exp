@@ -1,0 +1,9 @@
+make: Bad modifier `:tx' for WORDS
+make: "varmod-to-separator.mk" line 104: Malformed conditional (${WORDS:tx} != "anything")
+make: "varmod-to-separator.mk" line 108: Parsing continues here.
+make: Bad modifier `:t\X' for WORDS
+make: "varmod-to-separator.mk" line 112: Malformed conditional (${WORDS:t\X} != "anything")
+make: "varmod-to-separator.mk" line 115: Parsing continues here.
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

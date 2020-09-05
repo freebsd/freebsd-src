@@ -1,16 +1,16 @@
 #
 # RCSid:
-#	$Id: java.mk,v 1.14 2007/11/22 08:16:25 sjg Exp $
+#	$Id: java.mk,v 1.15 2020/08/19 17:51:53 sjg Exp $
 
 #	@(#) Copyright (c) 1998-2001, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -53,7 +53,7 @@ JAVAC_FLAGS+= ${JAVAC_DBG}
 
 .if defined(MAKE_VERSION) && !defined(NO_CLASSES_COOKIE)
 # java works best by compiling a bunch of classes at once.
-# this lot does that but needs a recent netbsd make or 
+# this lot does that but needs a recent netbsd make or
 # or its portable cousin bmake.
 .for __s in ${SRCS}
 __c:= ${__classdest}${__s:.java=.class}

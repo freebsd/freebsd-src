@@ -1,15 +1,15 @@
 # RCSid:
-#       $Id: dirdeps-targets.mk,v 1.10 2020/06/06 22:41:02 sjg Exp $
+#       $Id: dirdeps-targets.mk,v 1.22 2020/08/15 18:00:11 sjg Exp $
 #
 #       @(#) Copyright (c) 2019-2020 Simon J. Gerraty
 #
 #       This file is provided in the hope that it will
 #       be of use.  There is absolutely NO WARRANTY.
 #       Permission to copy, redistribute or otherwise
-#       use this file is hereby granted provided that 
+#       use this file is hereby granted provided that
 #       the above copyright notice and this notice are
-#       left intact. 
-#      
+#       left intact.
+#
 #       Please send copies of changes and bug-fixes to:
 #       sjg@crufty.net
 #
@@ -25,7 +25,16 @@
 # We then search those dirs for any Makefile.depend*
 # Finally we select any that match conditions like REQUESTED_MACHINE
 # or TARGET_SPEC and initialize DIRDEPS accordingly.
-# 
+#
+# We will check each of the initial DIRDEPS for Makefile.dirdeps.options
+# and include any found.
+# This makes it feasible to tweak options like MK_DIRDEPS_CACHE
+# for a specific target.
+#
+# If MK_STATIC_DIRDEPS_CACHE is defined we will check if the
+# initial DIRDEPS has a static cache (Makefile.dirdeps.cache).
+# This only makes sense for seriously expensive targets.
+#
 
 .if ${.MAKE.LEVEL} == 0
 # pickup customizations
@@ -125,12 +134,38 @@ DIRDEPS := ${DIRDEPS:O:u}
 .endif
 # if we got DIRDEPS get to work
 .if !empty(DIRDEPS)
+DIRDEPS.dirs := ${DIRDEPS:S,^,${SRCTOP}/,:@d@${exists($d):?$d:${d:R}}@}
+# some targets what to tweak options we might want to process now
+.for m in ${DIRDEPS.dirs:S,$,/Makefile.dirdeps.options,}
+.-include <$m>
+.endfor
+.if defined(MK_STATIC_DIRDEPS_CACHE)
+# some targets are very expensive to compute dirdeps for
+# so we may have a static cache
+.for c in ${DIRDEPS.dirs:S,$,/Makefile.dirdeps.cache,}
+.if exists($c)
+STATIC_DIRDEPS_CACHE ?= $c
+.if ${MK_STATIC_DIRDEPS_CACHE} == "yes"
+DIRDEPS_CACHE ?= $c
+MK_DIRDEPS_CACHE = yes
+.endif
+.endif
+.endfor
+.if defined(STATIC_DIRDEPS_CACHE)
+.export STATIC_DIRDEPS_CACHE
+.endif
+.endif
+
+# allow a top-level makefile to do other stuff
+# before including dirdeps.mk
+.if ${MK_DIRDEPS_TARGETS_INCLUDE_DIRDEPS:Uyes} == "yes"
 .include <dirdeps.mk>
+.endif
 
 DIRDEPS_TARGETS_SKIP += all clean* destroy*
 
 .for t in ${.TARGETS:${DIRDEPS_TARGETS_SKIP:${M_ListToSkip}}}
 $t: dirdeps
-.endfor                                                                         
+.endfor
 .endif
 .endif

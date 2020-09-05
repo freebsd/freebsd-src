@@ -1,4 +1,4 @@
-/*	$NetBSD: compat.c,v 1.113 2020/07/03 08:13:23 rillig Exp $	*/
+/*	$NetBSD: compat.c,v 1.139 2020/08/30 20:08:47 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: compat.c,v 1.113 2020/07/03 08:13:23 rillig Exp $";
+static char rcsid[] = "$NetBSD: compat.c,v 1.139 2020/08/30 20:08:47 rillig Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)compat.c	8.2 (Berkeley) 3/19/94";
 #else
-__RCSID("$NetBSD: compat.c,v 1.113 2020/07/03 08:13:23 rillig Exp $");
+__RCSID("$NetBSD: compat.c,v 1.139 2020/08/30 20:08:47 rillig Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -129,34 +129,24 @@ static void
 CompatDeleteTarget(GNode *gn)
 {
     if ((gn != NULL) && !Targ_Precious (gn)) {
-	char	  *p1;
-	char 	  *file = Var_Value(TARGET, gn, &p1);
+	char *p1;
+	const char *file = Var_Value(TARGET, gn, &p1);
 
 	if (!noExecute && eunlink(file) != -1) {
 	    Error("*** %s removed", file);
 	}
 
-	free(p1);
+	bmake_free(p1);
     }
 }
 
-/*-
- *-----------------------------------------------------------------------
- * CompatInterrupt --
- *	Interrupt the creation of the current target and remove it if
- *	it ain't precious.
+/* Interrupt the creation of the current target and remove it if it ain't
+ * precious. Then exit.
  *
- * Results:
- *	None.
- *
- * Side Effects:
- *	The target is removed and the process exits. If .INTERRUPT exists,
- *	its commands are run first WITH INTERRUPTS IGNORED..
+ * If .INTERRUPT exists, its commands are run first WITH INTERRUPTS IGNORED.
  *
  * XXX: is .PRECIOUS supposed to inhibit .INTERRUPT? I doubt it, but I've
  * left the logic alone for now. - dholland 20160826
- *
- *-----------------------------------------------------------------------
  */
 static void
 CompatInterrupt(int signo)
@@ -190,7 +180,7 @@ CompatInterrupt(int signo)
 	kill(myPid, signo);
     }
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * CompatRunCommand --
@@ -215,7 +205,7 @@ CompatRunCommand(void *cmdp, void *gnp)
     char    	  *cmdStart;	/* Start of expanded command */
     char 	  *cp, *bp;
     Boolean 	  silent,   	/* Don't print command */
-	    	  doIt;		/* Execute even if -n */
+		  doIt;		/* Execute even if -n */
     volatile Boolean errCheck; 	/* Check errors */
     WAIT_T 	  reason;   	/* Reason for child's death */
     int	    	  status;   	/* Description of child's death */
@@ -224,21 +214,17 @@ CompatRunCommand(void *cmdp, void *gnp)
     LstNode 	  cmdNode;  	/* Node where current command is located */
     const char  ** volatile av;	/* Argument vector for thing to exec */
     char	** volatile mav;/* Copy of the argument vector for freeing */
-    int	    	  argc;	    	/* Number of arguments in av or 0 if not
-				 * dynamically allocated */
-    Boolean 	  local;    	/* TRUE if command should be executed
-				 * locally */
     Boolean 	  useShell;    	/* TRUE if command should be executed
 				 * using a shell */
     char	  * volatile cmd = (char *)cmdp;
     GNode	  *gn = (GNode *)gnp;
 
-    silent = gn->type & OP_SILENT;
+    silent = (gn->type & OP_SILENT) != 0;
     errCheck = !(gn->type & OP_IGNORE);
     doIt = FALSE;
 
-    cmdNode = Lst_Member(gn->commands, cmd);
-    cmdStart = Var_Subst(NULL, cmd, gn, VARF_WANTRES);
+    cmdNode = Lst_FindDatum(gn->commands, cmd);
+    cmdStart = Var_Subst(cmd, gn, VARE_WANTRES);
 
     /*
      * brk_string will return an argv with a NULL in av[0], thus causing
@@ -252,10 +238,11 @@ CompatRunCommand(void *cmdp, void *gnp)
 	return 0;
     }
     cmd = cmdStart;
-    Lst_Replace(cmdNode, cmdStart);
+    LstNode_Set(cmdNode, cmdStart);
 
     if ((gn->type & OP_SAVE_CMDS) && (gn != ENDNode)) {
-	(void)Lst_AtEnd(ENDNode->commands, cmdStart);
+        assert(ENDNode != NULL);
+	Lst_Append(ENDNode->commands, cmdStart);
 	return 0;
     }
     if (strcmp(cmdStart, "...") == 0) {
@@ -266,7 +253,7 @@ CompatRunCommand(void *cmdp, void *gnp)
     while ((*cmd == '@') || (*cmd == '-') || (*cmd == '+')) {
 	switch (*cmd) {
 	case '@':
-	    silent = DEBUG(LOUD) ? FALSE : TRUE;
+	    silent = !DEBUG(LOUD);
 	    break;
 	case '-':
 	    errCheck = FALSE;
@@ -330,7 +317,6 @@ CompatRunCommand(void *cmdp, void *gnp)
     if (DEBUG(JOB))
 	fprintf(debug_file, "Execute: '%s'\n", cmd);
 
-again:
     if (useShell) {
 	/*
 	 * We need to pass the command off to the shell, typically
@@ -352,9 +338,8 @@ again:
 	else
 		shargv[shargc++] = "-c";
 	shargv[shargc++] = cmd;
-	shargv[shargc++] = NULL;
+	shargv[shargc] = NULL;
 	av = shargv;
-	argc = 0;
 	bp = NULL;
 	mav = NULL;
     } else {
@@ -362,15 +347,11 @@ again:
 	 * No meta-characters, so no need to exec a shell. Break the command
 	 * into words to form an argument vector we can execute.
 	 */
-	mav = brk_string(cmd, &argc, TRUE, &bp);
-	if (mav == NULL) {
-		useShell = 1;
-		goto again;
-	}
+	Words words = Str_Words(cmd, FALSE);
+	mav = words.words;
+	bp = words.freeIt;
 	av = (void *)mav;
     }
-
-    local = TRUE;
 
 #ifdef USE_META
     if (useMeta) {
@@ -392,10 +373,7 @@ again:
 	    meta_compat_child();
 	}
 #endif
-	if (local)
-	    (void)execvp(av[0], (char *const *)UNCONST(av));
-	else
-	    (void)execv(av[0], (char *const *)UNCONST(av));
+	(void)execvp(av[0], (char *const *)UNCONST(av));
 	execError("exec", av[0]);
 	_exit(1);
     }
@@ -403,7 +381,9 @@ again:
     free(mav);
     free(bp);
 
-    Lst_Replace(cmdNode, NULL);
+    /* XXX: Memory management looks suspicious here. */
+    /* XXX: Setting a list item to NULL is unexpected. */
+    LstNode_SetNull(cmdNode);
 
 #ifdef USE_META
     if (useMeta) {
@@ -436,18 +416,18 @@ again:
 #endif
 		if (status != 0) {
 		    if (DEBUG(ERROR)) {
-		        fprintf(debug_file, "\n*** Failed target:  %s\n*** Failed command: ",
+			fprintf(debug_file, "\n*** Failed target:  %s\n*** Failed command: ",
 			    gn->name);
-		        for (cp = cmd; *cp; ) {
-    			    if (isspace((unsigned char)*cp)) {
+			for (cp = cmd; *cp; ) {
+			    if (isspace((unsigned char)*cp)) {
 				fprintf(debug_file, " ");
-			        while (isspace((unsigned char)*cp))
+				while (isspace((unsigned char)*cp))
 				    cp++;
 			    } else {
 				fprintf(debug_file, "%c", *cp);
-			        cp++;
+				cp++;
 			    }
-		        }
+			}
 			fprintf(debug_file, "\n");
 		    }
 		    printf("*** Error code %d", status);
@@ -502,7 +482,7 @@ again:
 
     return status;
 }
-
+
 /*-
  *-----------------------------------------------------------------------
  * Compat_Make --
@@ -544,14 +524,14 @@ Compat_Make(void *gnp, void *pgnp)
 	Lst_ForEach(gn->children, Compat_Make, gn);
 	if ((gn->flags & REMAKE) == 0) {
 	    gn->made = ABORTED;
-	    pgn->flags &= ~REMAKE;
+	    pgn->flags &= ~(unsigned)REMAKE;
 	    goto cohorts;
 	}
 
-	if (Lst_Member(gn->iParents, pgn) != NULL) {
+	if (Lst_FindDatum(gn->implicitParents, pgn) != NULL) {
 	    char *p1;
 	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
-	    free(p1);
+	    bmake_free(p1);
 	}
 
 	/*
@@ -614,7 +594,7 @@ Compat_Make(void *gnp, void *pgnp)
 		Lst_ForEach(gn->commands, CompatRunCommand, gn);
 		curTarg = NULL;
 	    } else {
-		Job_Touch(gn, gn->type & OP_SILENT);
+		Job_Touch(gn, (gn->type & OP_SILENT) != 0);
 	    }
 	} else {
 	    gn->made = ERROR;
@@ -640,7 +620,7 @@ Compat_Make(void *gnp, void *pgnp)
 		Make_TimeStamp(pgn, gn);
 	    }
 	} else if (keepgoing) {
-	    pgn->flags &= ~REMAKE;
+	    pgn->flags &= ~(unsigned)REMAKE;
 	} else {
 	    PrintOnError(gn, "\nStop.");
 	    exit(1);
@@ -650,18 +630,19 @@ Compat_Make(void *gnp, void *pgnp)
 	 * Already had an error when making this beastie. Tell the parent
 	 * to abort.
 	 */
-	pgn->flags &= ~REMAKE;
+	pgn->flags &= ~(unsigned)REMAKE;
     } else {
-	if (Lst_Member(gn->iParents, pgn) != NULL) {
+	if (Lst_FindDatum(gn->implicitParents, pgn) != NULL) {
 	    char *p1;
-	    Var_Set(IMPSRC, Var_Value(TARGET, gn, &p1), pgn);
-	    free(p1);
+	    const char *target = Var_Value(TARGET, gn, &p1);
+	    Var_Set(IMPSRC, target != NULL ? target : "", pgn);
+	    bmake_free(p1);
 	}
 	switch(gn->made) {
 	    case BEINGMADE:
 		Error("Graph cycles through %s", gn->name);
 		gn->made = ERROR;
-		pgn->flags &= ~REMAKE;
+		pgn->flags &= ~(unsigned)REMAKE;
 		break;
 	    case MADE:
 		if ((gn->type & OP_EXEC) == 0) {
@@ -683,22 +664,11 @@ cohorts:
     Lst_ForEach(gn->cohorts, Compat_Make, pgnp);
     return 0;
 }
-
-/*-
- *-----------------------------------------------------------------------
- * Compat_Run --
- *	Initialize this mode and start making.
+
+/* Initialize this module and start making.
  *
  * Input:
- *	targs		List of target nodes to re-create
- *
- * Results:
- *	None.
- *
- * Side Effects:
- *	Guess what?
- *
- *-----------------------------------------------------------------------
+ *	targs		The target nodes to re-create
  */
 void
 Compat_Run(Lst targs)
@@ -732,10 +702,10 @@ Compat_Run(Lst targs)
 	gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 	if (gn != NULL) {
 	    Compat_Make(gn, gn);
-            if (gn->made == ERROR) {
-                PrintOnError(gn, "\nStop.");
-                exit(1);
-            }
+	    if (gn->made == ERROR) {
+		PrintOnError(gn, "\nStop.");
+		exit(1);
+	    }
 	}
     }
 
@@ -756,8 +726,8 @@ Compat_Run(Lst targs)
      *	    	  	    could not be made due to errors.
      */
     errors = 0;
-    while (!Lst_IsEmpty (targs)) {
-	gn = (GNode *)Lst_DeQueue(targs);
+    while (!Lst_IsEmpty(targs)) {
+	gn = Lst_Dequeue(targs);
 	Compat_Make(gn, gn);
 
 	if (gn->made == UPTODATE) {

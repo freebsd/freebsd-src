@@ -1,0 +1,19 @@
+1
+2
+3
+4
+5
+13
+14
+15
+pre-patch
+pre-configure
+patch
+configure
+fetch
+fetch-post
+extract
+extract-post
+dup-1
+single-word
+exit status 0

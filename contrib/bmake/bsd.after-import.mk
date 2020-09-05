@@ -1,4 +1,4 @@
-# $Id: bsd.after-import.mk,v 1.15 2018/12/30 17:14:24 sjg Exp $
+# $Id: bsd.after-import.mk,v 1.16 2020/07/12 03:39:01 sjg Exp $
 
 # This makefile is for use when integrating bmake into a BSD build
 # system.  Use this makefile after importing bmake.
@@ -9,7 +9,7 @@
 # The goal is to allow the benefits of autoconf without
 # the overhead of running configure.
 
-all: _makefile
+all: _makefile _utmakefile
 all: after-import
 
 # we rely on bmake
@@ -37,7 +37,9 @@ SRCTOP := ${srctop}
 .endif
 
 # This lets us match what boot-strap does
-.if !defined(HOST_OS)
+.if defined(.MAKE.OS)
+HOST_OS:= ${.MAKE.OS}
+.elif !defined(HOST_OS)
 HOST_OS!= uname
 .endif
 
@@ -106,6 +108,19 @@ _makefile:	bootstrap ${MAKEFILE}
 	echo ) > ${.TARGET}
 	@cmp -s ${.TARGET} ${.CURDIR}/Makefile || \
 	    mv ${.TARGET} ${.CURDIR}/Makefile
+
+_utmakefile: bootstrap ${MAKEFILE}
+	@echo Generating ${.CURDIR}/unit-tests/Makefile
+	@mkdir -p ${.CURDIR}/unit-tests
+	@(echo '# This is a generated file, do NOT edit!'; \
+	echo '# See ${_this:S,${SRCTOP}/,,}'; \
+	echo '#'; echo '# $$${HOST_OS}$$'; \
+	${MAKEFILE_SED} \
+	-e '/^UNIT_TESTS/s,=.*,= $${srcdir},' \
+	${BMAKE_SRC}/unit-tests/Makefile ) > ${.TARGET}
+	@cmp -s ${.TARGET} ${.CURDIR}/unit-tests/Makefile || \
+	    mv ${.TARGET} ${.CURDIR}/unit-tests/Makefile
+
 
 .include <bsd.obj.mk>
 

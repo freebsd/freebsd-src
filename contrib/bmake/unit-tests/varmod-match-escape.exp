@@ -1,0 +1,3 @@
+Pattern[SPECIALS] for [\: : \\ * \*] is [\:]
+Pattern[SPECIALS] for [\: : \\ * \*] is [:]
+exit status 0

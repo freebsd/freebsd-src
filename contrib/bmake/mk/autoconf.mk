@@ -1,14 +1,14 @@
-# $Id: autoconf.mk,v 1.9 2017/08/13 20:03:13 sjg Exp $
+# $Id: autoconf.mk,v 1.10 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 1996-2009, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -49,7 +49,7 @@ CLEANFILES+= config.recheck config.gen config.status *.meta
 AUTOCONF ?= autoconf
 AUTOHEADER ?= autoheader
 
-# expand it to a full path 
+# expand it to a full path
 AUTOCONF := ${AUTOCONF:${M_whence}}
 
 .if exists(${AUTOCONF})
