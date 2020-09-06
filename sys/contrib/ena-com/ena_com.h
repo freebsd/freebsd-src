@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2017 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,12 +34,7 @@
 #ifndef ENA_COM
 #define ENA_COM
 
-#ifndef ENA_INTERNAL
 #include "ena_plat.h"
-#else
-#include "ena_plat.h"
-#include "ena_includes.h"
-#endif
 
 #define ENA_MAX_NUM_IO_QUEUES		128U
 /* We need to queues for each IO (on for Tx and one for Rx) */
@@ -89,6 +84,8 @@
 
 #define ENA_HW_HINTS_NO_TIMEOUT				0xFFFF
 
+#define ENA_FEATURE_MAX_QUEUE_EXT_VER	1
+
 enum ena_intr_moder_level {
 	ENA_INTR_MODER_LOWEST = 0,
 	ENA_INTR_MODER_LOW,
@@ -96,6 +93,14 @@ enum ena_intr_moder_level {
 	ENA_INTR_MODER_HIGH,
 	ENA_INTR_MODER_HIGHEST,
 	ENA_INTR_MAX_NUM_OF_LEVELS,
+};
+
+struct ena_llq_configurations {
+	enum ena_admin_llq_header_location llq_header_location;
+	enum ena_admin_llq_ring_entry_size llq_ring_entry_size;
+	enum ena_admin_llq_stride_ctrl  llq_stride_ctrl;
+	enum ena_admin_llq_num_descs_before_header llq_num_decs_before_header;
+	u16 llq_ring_entry_size_value;
 };
 
 struct ena_intr_moder_entry {
@@ -134,12 +139,13 @@ struct ena_com_tx_meta {
 };
 
 struct ena_com_llq_info {
-	bool inline_header;
+	u16 header_location_ctrl;
 	u16 desc_stride_ctrl;
-
+	u16 desc_list_entry_size_ctrl;
 	u16 desc_list_entry_size;
 	u16 descs_num_before_header;
 	u16 descs_per_entry;
+	u16 max_entries_in_tx_burst;
 };
 
 struct ena_com_io_cq {
@@ -221,6 +227,7 @@ struct ena_com_io_sq {
 	u8 phase;
 	u8 desc_entry_size;
 	u8 dma_addr_bits;
+	u16 entries_in_tx_burst_left;
 } ____cacheline_aligned;
 
 struct ena_com_admin_cq {
@@ -338,6 +345,13 @@ struct ena_host_attribute {
 	ena_mem_handle_t host_info_dma_handle;
 };
 
+struct ena_extra_properties_strings {
+	u8 *virt_addr;
+	dma_addr_t dma_addr;
+	ena_mem_handle_t dma_handle;
+	u32 size;
+};
+
 /* Each ena_dev is a PCI function. */
 struct ena_com_dev {
 	struct ena_com_admin_queue admin_queue;
@@ -367,15 +381,18 @@ struct ena_com_dev {
 	struct ena_intr_moder_entry *intr_moder_tbl;
 
 	struct ena_com_llq_info llq_info;
+	struct ena_extra_properties_strings extra_properties_strings;
 };
 
 struct ena_com_dev_get_features_ctx {
 	struct ena_admin_queue_feature_desc max_queues;
+	struct ena_admin_queue_ext_feature_desc max_queue_ext;
 	struct ena_admin_device_attr_feature_desc dev_attr;
 	struct ena_admin_feature_aenq_desc aenq;
 	struct ena_admin_feature_offload_desc offload;
 	struct ena_admin_ena_hw_hints hw_hints;
 	struct ena_admin_feature_llq_desc llq;
+	struct ena_admin_feature_rss_ind_table ind_table;
 };
 
 struct ena_com_create_io_ctx {
@@ -434,8 +451,6 @@ void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev);
 /* ena_com_admin_init - Init the admin and the async queues
  * @ena_dev: ENA communication layer struct
  * @aenq_handlers: Those handlers to be called upon event.
- * @init_spinlock: Indicate if this method should init the admin spinlock or
- * the spinlock was init before (for example, in a case of FLR).
  *
  * Initialize the admin submission and completion queues.
  * Initialize the asynchronous events notification queues.
@@ -443,8 +458,7 @@ void ena_com_mmio_reg_read_request_destroy(struct ena_com_dev *ena_dev);
  * @return - 0 on success, negative value on failure.
  */
 int ena_com_admin_init(struct ena_com_dev *ena_dev,
-		       struct ena_aenq_handlers *aenq_handlers,
-		       bool init_spinlock);
+		       struct ena_aenq_handlers *aenq_handlers);
 
 /* ena_com_admin_destroy - Destroy the admin and the async events queues.
  * @ena_dev: ENA communication layer struct
@@ -593,6 +607,31 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev);
  */
 int ena_com_get_link_params(struct ena_com_dev *ena_dev,
 			    struct ena_admin_get_feat_resp *resp);
+
+/* ena_com_extra_properties_strings_init - Initialize the extra properties strings buffer.
+ * @ena_dev: ENA communication layer struct
+ *
+ * Initialize the extra properties strings buffer.
+ */
+int ena_com_extra_properties_strings_init(struct ena_com_dev *ena_dev);
+
+/* ena_com_delete_extra_properties_strings - Free the extra properties strings buffer.
+ * @ena_dev: ENA communication layer struct
+ *
+ * Free the allocated extra properties strings buffer.
+ */
+void ena_com_delete_extra_properties_strings(struct ena_com_dev *ena_dev);
+
+/* ena_com_get_extra_properties_flags - Retrieve extra properties flags.
+ * @ena_dev: ENA communication layer struct
+ * @resp: Extra properties flags.
+ *
+ * Retrieve the extra properties flags.
+ *
+ * @return - 0 on Success negative value otherwise.
+ */
+int ena_com_get_extra_properties_flags(struct ena_com_dev *ena_dev,
+				       struct ena_admin_get_feat_resp *resp);
 
 /* ena_com_get_dma_width - Retrieve physical dma address width the device
  * supports.
@@ -972,14 +1011,15 @@ void ena_com_get_intr_moderation_entry(struct ena_com_dev *ena_dev,
 				       enum ena_intr_moder_level level,
 				       struct ena_intr_moder_entry *entry);
 
-
 /* ena_com_config_dev_mode - Configure the placement policy of the device.
  * @ena_dev: ENA communication layer struct
- * @llq: LLQ feature descriptor, retrieve via ena_com_get_dev_attr_feat.
- *
+ * @llq_features: LLQ feature descriptor, retrieve via
+ *		   ena_com_get_dev_attr_feat.
+ * @ena_llq_config: The default driver LLQ parameters configurations
  */
 int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
-			    struct ena_admin_feature_llq_desc *llq);
+			    struct ena_admin_feature_llq_desc *llq_features,
+			    struct ena_llq_configurations *llq_default_config);
 
 static inline bool ena_com_get_adaptive_moderation_enabled(struct ena_com_dev *ena_dev)
 {
@@ -1101,7 +1141,7 @@ static inline u8 *ena_com_get_next_bounce_buffer(struct ena_com_io_bounce_buffer
 	buf = bounce_buf_ctrl->base_buffer +
 		(bounce_buf_ctrl->next_to_use++ & (buffers_num - 1)) * size;
 
-	prefetch(bounce_buf_ctrl->base_buffer +
+	prefetchw(bounce_buf_ctrl->base_buffer +
 		(bounce_buf_ctrl->next_to_use & (buffers_num - 1)) * size);
 
 	return buf;
