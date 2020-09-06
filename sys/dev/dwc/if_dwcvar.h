@@ -44,7 +44,6 @@
 /*
  * Driver data and defines.
  */
-#define	RX_MAX_PACKET	0x7ff
 #define	RX_DESC_COUNT	1024
 #define	RX_DESC_SIZE	(sizeof(struct dwc_hwdesc) * RX_DESC_COUNT)
 #define	TX_DESC_COUNT	1024
@@ -57,8 +56,6 @@ struct dwc_bufmap {
 
 struct dwc_softc {
 	struct resource		*res[2];
-	bus_space_tag_t		bst;
-	bus_space_handle_t	bsh;
 	device_t		dev;
 	int			mactype;
 	int			mii_clk;

@@ -74,7 +74,7 @@ static int
 if_dwc_socfpga_mac_type(device_t dev)
 {
 
-	return (DWC_GMAC);
+	return (DWC_GMAC_EXT_DESC);
 }
 
 static int
