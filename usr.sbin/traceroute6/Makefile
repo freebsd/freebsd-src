@@ -15,8 +15,6 @@
 
 .include <src.opts.mk>
 
-.include <src.opts.mk>
-
 TRACEROUTE_DISTDIR?= ${SRCTOP}/contrib/traceroute
 .PATH: ${TRACEROUTE_DISTDIR}
 
