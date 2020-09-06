@@ -37,6 +37,10 @@
 #ifndef __IF_DWC_H__
 #define __IF_DWC_H__
 
+#define	PHY_MODE_UNKNOWN	0x0
+#define	PHY_MODE_RMII		0x1
+#define	PHY_MODE_RGMII		0x2
+
 #define	MAC_CONFIGURATION	0x0
 #define	 CONF_JD		(1 << 22)	/* jabber timer disable */
 #define	 CONF_BE		(1 << 21)	/* Frame Burst Enable */

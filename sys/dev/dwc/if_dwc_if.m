@@ -49,6 +49,12 @@ CODE {
 	{
 		return (GMAC_MII_CLK_25_35M_DIV16);
 	}
+
+	static int
+	if_dwc_default_set_speed(device_t dev, int speed)
+	{
+		return (0);
+	}
 };
 
 HEADER {
@@ -74,3 +80,11 @@ METHOD int mac_type {
 METHOD int mii_clk {
 	device_t dev;
 } DEFAULT if_dwc_default_mii_clk;
+
+#
+# Signal media change to a specific hardware
+#
+METHOD int set_speed {
+	device_t dev;
+	int speed;
+} DEFAULT if_dwc_default_set_speed;
