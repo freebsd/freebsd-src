@@ -154,6 +154,12 @@ kfree(const void *ptr)
 	free(__DECONST(void *, ptr), M_KMALLOC);
 }
 
+static inline size_t
+ksize(const void *ptr)
+{
+	return (malloc_usable_size(ptr));
+}
+
 extern struct linux_kmem_cache *linux_kmem_cache_create(const char *name,
     size_t size, size_t align, unsigned flags, linux_kmem_ctor_t *ctor);
 
