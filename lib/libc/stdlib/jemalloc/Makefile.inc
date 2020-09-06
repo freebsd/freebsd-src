@@ -45,6 +45,6 @@ MLINKS+= \
 	jemalloc.3 nallocx.3 \
 	jemalloc.3 malloc.conf.5
 
-.if ${MK_MALLOC_PRODUCTION} != "no"
+.if ${MK_MALLOC_PRODUCTION} != "no" || defined(MALLOC_PRODUCTION)
 CFLAGS+=	-DMALLOC_PRODUCTION
 .endif
