@@ -374,6 +374,7 @@ SUBDIR=	\
 	${_stg} \
 	stge \
 	${_streams} \
+	${_sume} \
 	${_svr4} \
 	${_sym} \
 	${_syscons} \
@@ -735,6 +736,7 @@ _ntb=		ntb
 _pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
+_sume=		sume
 .if ${MK_SOURCELESS_UCODE} != "no"
 _qlxgbe=	qlxgbe
 _qlnx=		qlnx
