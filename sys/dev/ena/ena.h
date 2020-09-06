@@ -40,7 +40,7 @@
 #include "ena-com/ena_eth_com.h"
 
 #define DRV_MODULE_VER_MAJOR	2
-#define DRV_MODULE_VER_MINOR	0
+#define DRV_MODULE_VER_MINOR	1
 #define DRV_MODULE_VER_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
@@ -226,6 +226,14 @@ struct ena_calc_queue_size_ctx {
 	uint16_t max_rx_sgl_size;
 };
 
+#ifdef DEV_NETMAP
+struct ena_netmap_tx_info {
+	uint32_t socket_buf_idx[ENA_PKT_MAX_BUFS];
+	bus_dmamap_t map_seg[ENA_PKT_MAX_BUFS];
+	unsigned int sockets_used;
+};
+#endif
+
 struct ena_tx_buffer {
 	struct mbuf *mbuf;
 	/* # of ena desc for this specific mbuf
@@ -245,6 +253,10 @@ struct ena_tx_buffer {
 	struct bintime timestamp;
 	bool print_once;
 
+#ifdef DEV_NETMAP
+	struct ena_netmap_tx_info nm_info;
+#endif /* DEV_NETMAP */
+
 	struct ena_com_buf bufs[ENA_PKT_MAX_BUFS];
 } __aligned(CACHE_LINE_SIZE);
 
@@ -252,6 +264,9 @@ struct ena_rx_buffer {
 	struct mbuf *mbuf;
 	bus_dmamap_t map;
 	struct ena_com_buf ena_buf;
+#ifdef DEV_NETMAP
+	uint32_t netmap_buf_idx;
+#endif /* DEV_NETMAP */
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_tx {
@@ -355,6 +370,10 @@ struct ena_ring {
 
 	/* Used for LLQ */
 	uint8_t *push_buf_intermediate_buf;
+
+#ifdef DEV_NETMAP
+	bool initialized;
+#endif /* DEV_NETMAP */
 } __aligned(CACHE_LINE_SIZE);
 
 struct ena_stats_dev {
@@ -467,6 +486,31 @@ static inline int ena_mbuf_count(struct mbuf *mbuf)
 		++count;
 
 	return count;
+}
+
+int	ena_up(struct ena_adapter *);
+void	ena_down(struct ena_adapter *);
+int	ena_restore_device(struct ena_adapter *);
+void	ena_destroy_device(struct ena_adapter *, bool);
+int	ena_refill_rx_bufs(struct ena_ring *, uint32_t);
+
+static inline int
+validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
+{
+	if (likely(req_id < rx_ring->ring_size))
+		return (0);
+
+	device_printf(rx_ring->adapter->pdev, "Invalid rx req_id: %hu\n",
+	    req_id);
+	counter_u64_add(rx_ring->rx_stats.bad_req_id, 1);
+
+	/* Trigger device reset */
+	if (likely(!ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter))) {
+		rx_ring->adapter->reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+		ENA_FLAG_SET_ATOMIC(ENA_FLAG_TRIGGER_RESET, rx_ring->adapter);
+	}
+
+	return (EFAULT);
 }
 
 #endif /* !(ENA_H) */

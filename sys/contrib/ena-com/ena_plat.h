@@ -103,6 +103,7 @@ extern struct ena_bus_space ebs;
 #define ENA_RSC 	(1 << 6) /* Goes with TXPTH or RXPTH, free/alloc res. */
 #define ENA_IOQ 	(1 << 7) /* Detailed info about IO queues. 	      */
 #define ENA_ADMQ	(1 << 8) /* Detailed info about admin queue. 	      */
+#define ENA_NETMAP	(1 << 9) /* Detailed info about netmap. 	      */
 
 extern int ena_log_level;
 
