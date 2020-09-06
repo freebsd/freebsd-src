@@ -1220,7 +1220,8 @@ dwc_clock_init(device_t dev)
 		}
 		if (bootverbose) {
 			clk_get_freq(clk, &freq);
-			device_printf(dev, "MAC clock(%s) freq: %ld\n",  clk_get_name(clk), freq);
+			device_printf(dev, "MAC clock(%s) freq: %jd\n",
+					clk_get_name(clk), (intmax_t)freq);
 		}
 	}
 	else {
