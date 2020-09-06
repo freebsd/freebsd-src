@@ -372,6 +372,7 @@ SUBDIR=	\
 	ste \
 	${_stg} \
 	stge \
+	${_sume} \
 	${_superio} \
 	${_sym} \
 	${_syscons} \
@@ -752,6 +753,7 @@ _nvdimm=	nvdimm
 _pms=		pms
 _qlxge=		qlxge
 _qlxgb=		qlxgb
+_sume=		sume
 .if ${MK_SOURCELESS_UCODE} != "no"
 _qlxgbe=	qlxgbe
 _qlnx=		qlnx
