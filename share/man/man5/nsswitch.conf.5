@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2018
+.Dd September 6, 2020
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -224,20 +224,24 @@ and continue on anything else (i.e,
 .Ss Cache
 You can enable caching for the particular database by specifying
 .Dq cache
-as the first source in the
+in the
 .Nm
 file.
+It should come after
+.Dq files ,
+but before remote sources like
+.Dq nis .
 You should also enable caching for this database in
 .Xr nscd.conf 5 .
-If for the particular query
+If for a particular query
 .Dq cache
-source returns success, no further sources are queried.
+source returns success, then no further sources are queried.
 On the other hand, if there are no previously cached data, the
 query result will be placed into the cache right after
 all other sources are processed.
-Note, that
+Note that
 .Dq cache
-requires
+requires the
 .Xr nscd 8
 daemon to be running.
 .Ss Compat mode: +/- syntax
@@ -321,15 +325,16 @@ resides in
 .Pa /etc .
 .El
 .Sh EXAMPLES
-To lookup hosts in cache, then in
+To lookup hosts in
 .Pa /etc/hosts
+, then in cache,
 and then from the DNS, and lookup user information from
 .Tn NIS
 then files, use:
 .Pp
 .Bl -tag -width passwd: -compact
 .It hosts:
-cache files dns
+files cache dns
 .It passwd:
 nis [notfound=return] files
 .It group:
