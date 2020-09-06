@@ -275,7 +275,7 @@ out:
 #endif
 	crp->crp_etype = error;
 	crypto_done(crp);
-	return (error);
+	return (0);
 }
 
 static device_method_t padlock_methods[] = {
