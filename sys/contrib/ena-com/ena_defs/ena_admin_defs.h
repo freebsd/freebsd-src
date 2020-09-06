@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -409,6 +409,10 @@ struct ena_admin_basic_stats {
 	uint32_t rx_drops_low;
 
 	uint32_t rx_drops_high;
+
+	uint32_t tx_drops_low;
+
+	uint32_t tx_drops_high;
 };
 
 struct ena_admin_acq_get_stats_resp {
@@ -492,6 +496,36 @@ enum ena_admin_llq_stride_ctrl {
 	ENA_ADMIN_MULTIPLE_DESCS_PER_ENTRY          = 2,
 };
 
+enum ena_admin_accel_mode_feat {
+	ENA_ADMIN_DISABLE_META_CACHING              = 0,
+	ENA_ADMIN_LIMIT_TX_BURST                    = 1,
+};
+
+struct ena_admin_accel_mode_get {
+	/* bit field of enum ena_admin_accel_mode_feat */
+	uint16_t supported_flags;
+
+	/* maximum burst size between two doorbells. The size is in bytes */
+	uint16_t max_tx_burst_size;
+};
+
+struct ena_admin_accel_mode_set {
+	/* bit field of enum ena_admin_accel_mode_feat */
+	uint16_t enabled_flags;
+
+	uint16_t reserved;
+};
+
+struct ena_admin_accel_mode_req {
+	union {
+		uint32_t raw[2];
+
+		struct ena_admin_accel_mode_get get;
+
+		struct ena_admin_accel_mode_set set;
+	} u;
+};
+
 struct ena_admin_feature_llq_desc {
 	uint32_t max_llq_num;
 
@@ -537,10 +571,13 @@ struct ena_admin_feature_llq_desc {
 	/* the stride control the driver selected to use */
 	uint16_t descriptors_stride_ctrl_enabled;
 
-	/* Maximum size in bytes taken by llq entries in a single tx burst.
-	 * Set to 0 when there is no such limit.
+	/* reserved */
+	uint32_t reserved1;
+
+	/* accelerated low latency queues requirment. driver needs to
+	 * support those requirments in order to use accelerated llq
 	 */
-	uint32_t max_tx_burst_size;
+	struct ena_admin_accel_mode_req accel_mode;
 };
 
 struct ena_admin_queue_ext_feature_fields {
@@ -821,6 +858,14 @@ struct ena_admin_host_info {
 	uint16_t num_cpus;
 
 	uint16_t reserved;
+
+	/* 0 : mutable_rss_table_size
+	 * 1 : rx_offset
+	 * 2 : interrupt_moderation
+	 * 3 : map_rx_buf_bidirectional
+	 * 31:4 : reserved
+	 */
+	uint32_t driver_supported_features;
 };
 
 struct ena_admin_rss_ind_table_entry {
@@ -1033,6 +1078,10 @@ struct ena_admin_aenq_keep_alive_desc {
 	uint32_t rx_drops_low;
 
 	uint32_t rx_drops_high;
+
+	uint32_t tx_drops_low;
+
+	uint32_t tx_drops_high;
 };
 
 struct ena_admin_ena_mmio_req_read_less_resp {
@@ -1132,6 +1181,13 @@ struct ena_admin_ena_mmio_req_read_less_resp {
 #define ENA_ADMIN_HOST_INFO_DEVICE_MASK                     GENMASK(7, 3)
 #define ENA_ADMIN_HOST_INFO_BUS_SHIFT                       8
 #define ENA_ADMIN_HOST_INFO_BUS_MASK                        GENMASK(15, 8)
+#define ENA_ADMIN_HOST_INFO_MUTABLE_RSS_TABLE_SIZE_MASK     BIT(0)
+#define ENA_ADMIN_HOST_INFO_RX_OFFSET_SHIFT                 1
+#define ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK                  BIT(1)
+#define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_SHIFT      2
+#define ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK       BIT(2)
+#define ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_SHIFT  3
+#define ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_MASK   BIT(3)
 
 /* feature_rss_ind_table */
 #define ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK BIT(0)
@@ -1553,6 +1609,46 @@ static inline void set_ena_admin_host_info_bus(struct ena_admin_host_info *p, ui
 	p->bdf |= (val << ENA_ADMIN_HOST_INFO_BUS_SHIFT) & ENA_ADMIN_HOST_INFO_BUS_MASK;
 }
 
+static inline uint32_t get_ena_admin_host_info_mutable_rss_table_size(const struct ena_admin_host_info *p)
+{
+	return p->driver_supported_features & ENA_ADMIN_HOST_INFO_MUTABLE_RSS_TABLE_SIZE_MASK;
+}
+
+static inline void set_ena_admin_host_info_mutable_rss_table_size(struct ena_admin_host_info *p, uint32_t val)
+{
+	p->driver_supported_features |= val & ENA_ADMIN_HOST_INFO_MUTABLE_RSS_TABLE_SIZE_MASK;
+}
+
+static inline uint32_t get_ena_admin_host_info_rx_offset(const struct ena_admin_host_info *p)
+{
+	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK) >> ENA_ADMIN_HOST_INFO_RX_OFFSET_SHIFT;
+}
+
+static inline void set_ena_admin_host_info_rx_offset(struct ena_admin_host_info *p, uint32_t val)
+{
+	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_RX_OFFSET_SHIFT) & ENA_ADMIN_HOST_INFO_RX_OFFSET_MASK;
+}
+
+static inline uint32_t get_ena_admin_host_info_interrupt_moderation(const struct ena_admin_host_info *p)
+{
+	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK) >> ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_SHIFT;
+}
+
+static inline void set_ena_admin_host_info_interrupt_moderation(struct ena_admin_host_info *p, uint32_t val)
+{
+	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_SHIFT) & ENA_ADMIN_HOST_INFO_INTERRUPT_MODERATION_MASK;
+}
+
+static inline uint32_t get_ena_admin_host_info_map_rx_buf_bidirectional(const struct ena_admin_host_info *p)
+{
+	return (p->driver_supported_features & ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_MASK) >> ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_SHIFT;
+}
+
+static inline void set_ena_admin_host_info_map_rx_buf_bidirectional(struct ena_admin_host_info *p, uint32_t val)
+{
+	p->driver_supported_features |= (val << ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_SHIFT) & ENA_ADMIN_HOST_INFO_MAP_RX_BUF_BIDIRECTIONAL_MASK;
+}
+
 static inline uint8_t get_ena_admin_feature_rss_ind_table_one_entry_update(const struct ena_admin_feature_rss_ind_table *p)
 {
 	return p->flags & ENA_ADMIN_FEATURE_RSS_IND_TABLE_ONE_ENTRY_UPDATE_MASK;
@@ -1584,4 +1680,4 @@ static inline void set_ena_admin_aenq_link_change_desc_link_status(struct ena_ad
 }
 
 #endif /* !defined(DEFS_LINUX_MAINLINE) */
-#endif /*_ENA_ADMIN_H_ */
+#endif /* _ENA_ADMIN_H_ */

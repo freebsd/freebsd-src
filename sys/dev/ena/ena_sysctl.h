@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,7 @@
 
 #include "ena.h"
 
-void	ena_sysctl_add_nodes(struct ena_adapter *);
+void	ena_sysctl_add_nodes(struct ena_adapter *adapter);
 
 extern int ena_enable_9k_mbufs;
 #define ena_mbuf_sz (ena_enable_9k_mbufs ? MJUM9BYTES : MJUMPAGESIZE)

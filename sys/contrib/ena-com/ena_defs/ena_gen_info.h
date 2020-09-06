@@ -1,7 +1,7 @@
 /*-
  * BSD LICENSE
  *
- * Copyright (c) 2015-2019 Amazon.com, Inc. or its affiliates.
+ * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,5 +30,5 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#define	ENA_GEN_DATE	"Mon Oct  8 20:25:08 DST 2018"
-#define	ENA_GEN_COMMIT	"e70f3a6"
+#define	ENA_GEN_DATE	"Mon Apr 20 15:41:59 DST 2020"
+#define	ENA_GEN_COMMIT	"daa45ac"
