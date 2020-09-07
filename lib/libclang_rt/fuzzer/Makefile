@@ -23,4 +23,8 @@ SRCS+=		fuzzer/FuzzerUtil.cpp
 SRCS+=		fuzzer/FuzzerUtilLinux.cpp
 SRCS+=		fuzzer/FuzzerUtilPosix.cpp
 
+.PATH:		${CRTSRC}/include/fuzzer
+INCSDIR=	${CLANGDIR}/include/fuzzer
+INCS+=		FuzzedDataProvider.h
+
 .include <bsd.lib.mk>
