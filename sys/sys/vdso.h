@@ -102,8 +102,16 @@ struct vdso_sv_tk *alloc_sv_tk(void);
 #define	VDSO_TH_NUM	4
 
 #ifdef COMPAT_FREEBSD32
+
+/*
+ * i386 is the only arch with a 32 bit time_t.
+ */
 struct bintime32 {
+#if defined(__amd64__)
 	uint32_t	sec;
+#else
+	uint64_t	sec;
+#endif
 	uint32_t	frac[2];
 };
 
