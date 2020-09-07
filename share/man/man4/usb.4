@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 24, 2018
+.Dd September 7, 2020
 .Dt USB 4
 .Os
 .Sh NAME
@@ -52,8 +52,7 @@ for more information.
 .Sh DESCRIPTION
 .Fx
 provides machine-independent bus support and drivers for
-.Tn USB
-devices in host and device side mode.
+USB devices in host and device side mode.
 .Pp
 The
 .Nm
@@ -67,32 +66,25 @@ driver has three layers:
 The controller attaches to a physical bus
 like
 .Xr pci 4 .
-The
-.Tn USB
-bus attaches to the controller, and the root hub attaches
+The USB bus attaches to the controller, and the root hub attaches
 to the controller.
 Any devices attached to the bus will attach to the root hub
-or another hub attached to the
-.Tn USB
-bus.
+or another hub attached to the USB bus.
 .Pp
 The
 .Nm uhub
 device will always be present as it is needed for the root hub.
 .Sh INTRODUCTION TO USB
-The
-.Tn USB
-is a system where external devices can be connected to a PC.
+The USB is a system where external devices can be connected to a PC.
 The most common USB speeds are:
 .Bl -tag -width 6n -offset indent
-.It Low Speed (1.5MBit/sec)
-.It Full Speed (12MBit/sec)
-.It High Speed (480MBit/sec)
+.It Low Speed (1.5 MBit/sec)
+.It Full Speed (12 MBit/sec)
+.It High Speed (480 MBit/sec)
+.It SuperSpeed (5 GBit/sec)
 .El
 .Pp
-Each
-.Tn USB
-has a USB controller that is the master of the bus.
+Each USB has a USB controller that is the master of the bus.
 The physical communication is simplex which means the host controller only
 communicates with one USB device at a time.
 .Pp
@@ -122,9 +114,7 @@ A device may operate in different configurations.
 Depending on the configuration, the device may present different sets of
 endpoints and interfaces.
 .Pp
-The bus enumeration of the
-.Tn USB
-bus proceeds in several steps:
+The bus enumeration of the USB bus proceeds in several steps:
 .Bl -enum
 .It
 Any interface specific driver can attach to the device.
@@ -144,11 +134,9 @@ debug message verbosity.
 Default is 0.
 .El
 .Sh SEE ALSO
-The
-.Tn USB
-specifications can be found at:
+The USB specifications can be found at:
 .Pp
-.D1 Pa http://www.usb.org/developers/docs/
+.D1 Pa https://www.usb.org/documents
 .Pp
 .Xr libusb 3 ,
 .Xr aue 4 ,
@@ -178,7 +166,7 @@ specifications can be found at:
 .Sh STANDARDS
 The
 .Nm
-module complies with the USB 2.0 standard.
+module complies with the USB 3.0 standard.
 .Sh HISTORY
 The
 .Nm
