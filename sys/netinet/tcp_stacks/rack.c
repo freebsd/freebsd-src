@@ -128,7 +128,7 @@ struct sysctl_ctx_list rack_sysctl_ctx;
 struct sysctl_oid *rack_sysctl_root;
 
 #ifndef TCPHPTS
-fatal error missing option TCPHSTS in the build;
+#error Kernel option TCPHPTS is required
 #endif
 
 #define CUM_ACKED 1
