@@ -135,6 +135,12 @@ int clk_get_parent(clk_t clk, clk_t *parent);
 int clk_set_parent_by_clk(clk_t clk, clk_t parent);
 const char *clk_get_name(clk_t clk);
 
+static inline uint64_t
+clk_freq_diff(uint64_t x, uint64_t y)
+{
+	return (x >= y ? x - y : y - x);
+}
+
 #ifdef FDT
 int clk_set_assigned(device_t dev, phandle_t node);
 int clk_get_by_ofw_index(device_t dev, phandle_t node, int idx, clk_t *clk);
