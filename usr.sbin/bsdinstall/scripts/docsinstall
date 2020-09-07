@@ -42,7 +42,7 @@ f_include $BSDCFG_SHARE/packages/packages.subr
 # List of languages to display (descriptions pulled from $msg_{lang}doc_desc)
 #
 : ${DOCSINSTALL_LANGS:=\
-	bn da de el en es fr hu it ja mn nl pl pt ru sr tr zh_cn zh_tw \
+	bn da de el en es fr hu it ja ko mn nl pl pt ru tr zh_cn zh_tw \
 }
 
 ############################################################ GLOBALS
@@ -65,13 +65,13 @@ msg_freebsd_installer="FreeBSD Installer"
 msg_hudoc_desc="Hungarian Documentation"
 msg_itdoc_desc="Italian Documentation"
 msg_jadoc_desc="Japanese Documentation"
+msg_kodoc_desc="Korean Documentation"
 msg_mndoc_desc="Mongolian Documentation"
 msg_nldoc_desc="Dutch Documentation"
 msg_ok="OK"
 msg_pldoc_desc="Polish Documentation"
 msg_ptdoc_desc="Portuguese Documentation"
 msg_rudoc_desc="Russian Documentation"
-msg_srdoc_desc="Serbian Documentation"
 msg_trdoc_desc="Turkish Documentation"
 msg_zh_cndoc_desc="Simplified Chinese Documentation"
 msg_zh_twdoc_desc="Traditional Chinese Documentation"
