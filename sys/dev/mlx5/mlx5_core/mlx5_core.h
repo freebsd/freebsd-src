@@ -127,6 +127,9 @@ void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
 void mlx5_recover_device(struct mlx5_core_dev *dev);
+int mlx5_query_pddr_troubleshooting_info(struct mlx5_core_dev *mdev,
+					 u16 *monitor_opcode,
+					 u8 *status_message, size_t sm_len);
 
 int mlx5_register_device(struct mlx5_core_dev *dev);
 void mlx5_unregister_device(struct mlx5_core_dev *dev);
