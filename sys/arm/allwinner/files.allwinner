@@ -27,6 +27,7 @@ dev/usb/controller/generic_ohci.c	optional	ohci
 dev/usb/controller/generic_usb_if.m	optional	ohci
 dev/usb/controller/generic_ehci.c	optional	ehci
 dev/usb/controller/generic_ehci_fdt.c	optional	ehci
+dev/usb/controller/musb_otg_allwinner.c	optional	musb
 arm/allwinner/aw_sid.c			optional	aw_sid
 arm/allwinner/aw_thermal.c		optional	aw_thermal
 arm/allwinner/aw_cir.c			optional	aw_cir evdev
