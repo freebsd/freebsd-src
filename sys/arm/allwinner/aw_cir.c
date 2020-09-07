@@ -126,8 +126,10 @@ __FBSDID("$FreeBSD$");
 #define	AW_IR_DMAX			53
 
 /* Active Thresholds */
-#define	AW_IR_ACTIVE_T			((0 & 0xff) << 16)
-#define	AW_IR_ACTIVE_T_C		((1 & 0xff) << 23)
+#define	AW_IR_ACTIVE_T_VAL		AW_IR_L1_MIN
+#define	AW_IR_ACTIVE_T			(((AW_IR_ACTIVE_T_VAL - 1) & 0xff) << 16)
+#define	AW_IR_ACTIVE_T_C_VAL		0
+#define	AW_IR_ACTIVE_T_C		((AW_IR_ACTIVE_T_C_VAL & 0xff) << 23)
 
 /* Code masks */
 #define	CODE_MASK			0x00ff00ff
@@ -209,9 +211,9 @@ aw_ir_decode_packets(struct aw_ir_softc *sc)
 		device_printf(sc->dev, "sc->dcnt = %d\n", sc->dcnt);
 
 	/* Find Lead 1 (bit separator) */
-	active_delay = (AW_IR_ACTIVE_T + 1) * (AW_IR_ACTIVE_T_C != 0 ? 128 : 1);
-	len = 0;
-	len += (active_delay >> 1);
+	active_delay = AW_IR_ACTIVE_T_VAL *
+	    (AW_IR_ACTIVE_T_C_VAL != 0 ? 128 : 1);
+	len = active_delay;
 	if (bootverbose)
 		device_printf(sc->dev, "Initial len: %ld\n", len);
 	for (i = 0;  i < sc->dcnt; i++) {
