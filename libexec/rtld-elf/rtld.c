@@ -2844,7 +2844,7 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 	        (void *)elm->obj->init);
 	    LD_UTRACE(UTRACE_INIT_CALL, elm->obj, (void *)elm->obj->init,
 	        0, 0, elm->obj->path);
-	    call_initfini_pointer(elm->obj, elm->obj->init);
+	    call_init_pointer(elm->obj, elm->obj->init);
 	}
 	init_addr = (Elf_Addr *)elm->obj->init_array;
 	if (init_addr != NULL) {
