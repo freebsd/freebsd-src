@@ -4426,8 +4426,8 @@ iwm_media_change(struct ifnet *ifp)
 	int error;
 
 	error = ieee80211_media_change(ifp);
-	if (error != ENETRESET)
-		return error;
+	if (error != 0)
+		return (error);
 
 	IWM_LOCK(sc);
 	if (ic->ic_nrunning > 0) {
@@ -4435,7 +4435,7 @@ iwm_media_change(struct ifnet *ifp)
 		iwm_init(sc);
 	}
 	IWM_UNLOCK(sc);
-	return error;
+	return (0);
 }
 
 static void

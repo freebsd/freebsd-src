@@ -166,7 +166,6 @@ void		otus_write(struct otus_softc *, uint32_t, uint32_t);
 int		otus_write_barrier(struct otus_softc *);
 static struct	ieee80211_node *otus_node_alloc(struct ieee80211vap *vap,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
-int		otus_media_change(struct ifnet *);
 int		otus_read_eeprom(struct otus_softc *);
 void		otus_newassoc(struct ieee80211_node *, int);
 void		otus_cmd_rxeof(struct otus_softc *, uint8_t *, int);
@@ -1337,35 +1336,6 @@ otus_node_alloc(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	return malloc(sizeof (struct otus_node), M_80211_NODE,
 	    M_NOWAIT | M_ZERO);
 }
-
-#if 0
-int
-otus_media_change(struct ifnet *ifp)
-{
-	struct otus_softc *sc = ifp->if_softc;
-	struct ieee80211com *ic = &sc->sc_ic;
-	uint8_t rate, ridx;
-	int error;
-
-	error = ieee80211_media_change(ifp);
-	if (error != ENETRESET)
-		return error;
-
-	if (ic->ic_fixed_rate != -1) {
-		rate = ic->ic_sup_rates[ic->ic_curmode].
-		    rs_rates[ic->ic_fixed_rate] & IEEE80211_RATE_VAL;
-		for (ridx = 0; ridx <= OTUS_RIDX_MAX; ridx++)
-			if (otus_rates[ridx].rate == rate)
-				break;
-		sc->fixed_ridx = ridx;
-	}
-
-	if ((ifp->if_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
-		error = otus_init(sc);
-
-	return error;
-}
-#endif
 
 int
 otus_read_eeprom(struct otus_softc *sc)
