@@ -147,7 +147,11 @@ twsi_clear_iflg(struct twsi_softc *sc)
 {
 
 	DELAY(1000);
-	twsi_control_clear(sc, TWSI_CONTROL_IFLG);
+	/* There are two ways of clearing IFLAG. */
+	if (sc->iflag_w1c)
+		twsi_control_set(sc, TWSI_CONTROL_IFLG);
+	else
+		twsi_control_clear(sc, TWSI_CONTROL_IFLG);
 	DELAY(1000);
 }
 
@@ -667,13 +671,11 @@ twsi_intr(void *arg)
 	}
 	debugf(sc->dev, "Refresh reg_control\n");
 
-	/* 
-	 * Fix silicon bug on > Allwinner A20 by doing a read and writing
-	 * again to the control register
+	/*
+	 * Newer Allwinner chips clear IFLG after writing 1 to it.
 	 */
-	status = TWSI_READ(sc, sc->reg_status);
-	TWSI_WRITE(sc, sc->reg_control,
-	  sc->control_val | TWSI_CONTROL_IFLG);
+	TWSI_WRITE(sc, sc->reg_control, sc->control_val |
+	    (sc->iflag_w1c ? TWSI_CONTROL_IFLG : 0));
 
 	debugf(sc->dev, "Done with interrupts\n\n");
 	if (transfer_done == 1) {
