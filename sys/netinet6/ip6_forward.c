@@ -257,24 +257,8 @@ again2:
 	 * modified by a redirect.
 	 */
 	if (V_ip6_sendredirects && rt->rt_ifp == m->m_pkthdr.rcvif && !srcrt &&
-	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0) {
-		if ((rt->rt_ifp->if_flags & IFF_POINTOPOINT) != 0) {
-			/*
-			 * If the incoming interface is equal to the outgoing
-			 * one, and the link attached to the interface is
-			 * point-to-point, then it will be highly probable
-			 * that a routing loop occurs. Thus, we immediately
-			 * drop the packet and send an ICMPv6 error message.
-			 *
-			 * type/code is based on suggestion by Rich Draves.
-			 * not sure if it is the best pick.
-			 */
-			icmp6_error(mcopy, ICMP6_DST_UNREACH,
-				    ICMP6_DST_UNREACH_ADDR, 0);
-			goto bad;
-		}
+	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0)
 		type = ND_REDIRECT;
-	}
 
 	/*
 	 * Fake scoped addresses. Note that even link-local source or
