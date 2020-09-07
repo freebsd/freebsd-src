@@ -452,6 +452,11 @@ bectl_jail_body()
 # attempts to destroy the zpool.
 bectl_jail_cleanup()
 {
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "i386" ]; then
+		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
 	zpool=$(get_zpool_name)
 	for bootenv in "default" "target" "1234"; do
 		# mountpoint of the boot environment
