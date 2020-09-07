@@ -194,7 +194,6 @@ static void	iwn_read_eeprom_enhinfo(struct iwn_softc *);
 static struct ieee80211_node *iwn_node_alloc(struct ieee80211vap *,
 		    const uint8_t mac[IEEE80211_ADDR_LEN]);
 static void	iwn_newassoc(struct ieee80211_node *, int);
-static int	iwn_media_change(struct ifnet *);
 static int	iwn_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwn_calib_timeout(void *);
 static void	iwn_rx_phy(struct iwn_softc *, struct iwn_rx_desc *);
@@ -1356,8 +1355,8 @@ iwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
-	ieee80211_vap_attach(vap, iwn_media_change, ieee80211_media_status,
-	    mac);
+	ieee80211_vap_attach(vap, ieee80211_media_change,
+	    ieee80211_media_status, mac);
 	ic->ic_opmode = opmode;
 	return vap;
 }
@@ -2881,16 +2880,6 @@ static void
 iwn_newassoc(struct ieee80211_node *ni, int isnew)
 {
 	/* Doesn't do anything at the moment */
-}
-
-static int
-iwn_media_change(struct ifnet *ifp)
-{
-	int error;
-
-	error = ieee80211_media_change(ifp);
-	/* NB: only the fixed rate can change and that doesn't need a reset */
-	return (error == ENETRESET ? 0 : error);
 }
 
 static int
