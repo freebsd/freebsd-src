@@ -259,6 +259,8 @@ awusbdrd_bs_r_2(awusb_bs_tag t, bus_space_handle_t h, bus_size_t o)
 {
 	const struct bus_space *bs = t;
 
+	if (awusbdrd_filt(o) != 0)
+		return (0);
 	return bus_space_read_2(bs_parent_space(bs), h, awusbdrd_reg(o));
 }
 
