@@ -160,7 +160,6 @@ static int	ath_init(struct ath_softc *);
 static void	ath_stop(struct ath_softc *);
 static int	ath_reset_vap(struct ieee80211vap *, u_long);
 static int	ath_transmit(struct ieee80211com *, struct mbuf *);
-static int	ath_media_change(struct ifnet *);
 static void	ath_watchdog(void *);
 static void	ath_parent(struct ieee80211com *);
 static void	ath_fatal_proc(void *, int);
@@ -1766,8 +1765,8 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	ATH_UNLOCK(sc);
 
 	/* complete setup */
-	ieee80211_vap_attach(vap, ath_media_change, ieee80211_media_status,
-	    mac);
+	ieee80211_vap_attach(vap, ieee80211_media_change,
+	    ieee80211_media_status, mac);
 	return vap;
 bad2:
 	reclaim_address(sc, mac);
@@ -3541,14 +3540,6 @@ finish:
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_transmit: finished");
 
 	return (retval);
-}
-
-static int
-ath_media_change(struct ifnet *ifp)
-{
-	int error = ieee80211_media_change(ifp);
-	/* NB: only the fixed rate can change and that doesn't need a reset */
-	return (error == ENETRESET ? 0 : error);
 }
 
 /*

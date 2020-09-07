@@ -2126,7 +2126,7 @@ run_media_change(struct ifnet *ifp)
 	RUN_LOCK(sc);
 
 	error = ieee80211_media_change(ifp);
-	if (error != ENETRESET) {
+	if (error != 0) {
 		RUN_UNLOCK(sc);
 		return (error);
 	}

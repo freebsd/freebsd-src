@@ -150,16 +150,6 @@ wtap_medium_enqueue(struct wtap_vap *avp, struct mbuf *m)
 	return medium_transmit(avp->av_md, avp->id, m);
 }
 
-static int
-wtap_media_change(struct ifnet *ifp)
-{
-
-	DWTAP_PRINTF("%s\n", __func__);
-	int error = ieee80211_media_change(ifp);
-	/* NB: only the fixed rate can change and that doesn't need a reset */
-	return (error == ENETRESET ? 0 : error);
-}
-
 /*
  * Intercept management frames to collect beacon rssi data
  * and to do ibss merges.
@@ -352,8 +342,8 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vap->iv_bmiss = wtap_bmiss;
 
 	/* complete setup */
-	ieee80211_vap_attach(vap, wtap_media_change, ieee80211_media_status,
-	    mac);
+	ieee80211_vap_attach(vap, ieee80211_media_change,
+	    ieee80211_media_status, mac);
 	avp->av_dev = make_dev(&wtap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "%s", (const char *)sc->name);
 
