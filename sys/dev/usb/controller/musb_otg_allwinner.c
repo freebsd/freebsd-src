@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 #include <dev/extres/hwreset/hwreset.h>
+#include <dev/extres/phy/phy.h>
+#include <dev/extres/phy/phy_usb.h>
 
 #ifdef __arm__
 #include <arm/allwinner/aw_machdep.h>
@@ -121,6 +123,7 @@ struct awusbdrd_softc {
 	struct resource		*res[2];
 	clk_t			clk;
 	hwreset_t		reset;
+	phy_t			phy;
 	struct bus_space	bs;
 	int			flags;
 };
@@ -382,7 +385,10 @@ awusbdrd_probe(device_t dev)
 static int
 awusbdrd_attach(device_t dev)
 {
+	char usb_mode[24];
 	struct awusbdrd_softc *sc;
+	uint8_t musb_mode;
+	int phy_mode;
 	int error;
 
 	sc = device_get_softc(dev);
@@ -391,6 +397,31 @@ awusbdrd_attach(device_t dev)
 	error = bus_alloc_resources(dev, awusbdrd_spec, sc->res);
 	if (error != 0)
 		return (error);
+
+	musb_mode = MUSB2_HOST_MODE;	/* default */
+	phy_mode = PHY_USB_MODE_HOST;
+	if (OF_getprop(ofw_bus_get_node(dev), "dr_mode",
+	    &usb_mode, sizeof(usb_mode)) > 0) {
+		usb_mode[sizeof(usb_mode) - 1] = 0;
+		if (strcasecmp(usb_mode, "host") == 0) {
+			musb_mode = MUSB2_HOST_MODE;
+			phy_mode = PHY_USB_MODE_HOST;
+		} else if (strcasecmp(usb_mode, "peripheral") == 0) {
+			musb_mode = MUSB2_DEVICE_MODE;
+			phy_mode = PHY_USB_MODE_DEVICE;
+		} else if (strcasecmp(usb_mode, "otg") == 0) {
+			/*
+			 * XXX phy has PHY_USB_MODE_OTG, but MUSB does not have
+			 * it.  It's not clear how to propagate mode changes
+			 * from phy layer (that detects them) to MUSB.
+			 */
+			musb_mode = MUSB2_DEVICE_MODE;
+			phy_mode = PHY_USB_MODE_DEVICE;
+		} else {
+			device_printf(dev, "Invalid FDT dr_mode: %s\n",
+			    usb_mode);
+		}
+	}
 
 	/* AHB gate clock is required */
 	error = clk_get_by_ofw_index(dev, 0, 0, &sc->clk);
@@ -411,6 +442,24 @@ awusbdrd_attach(device_t dev)
 		if (error != 0) {
 			device_printf(dev, "failed to de-assert reset: %d\n",
 			    error);
+			goto fail;
+		}
+	}
+
+	/* XXX not sure if this is universally needed. */
+	(void)phy_get_by_ofw_name(dev, 0, "usb", &sc->phy);
+	if (sc->phy != NULL) {
+		device_printf(dev, "setting phy mode %d\n", phy_mode);
+		if (musb_mode == MUSB2_HOST_MODE) {
+			error = phy_enable(sc->phy);
+			if (error != 0) {
+				device_printf(dev, "Could not enable phy\n");
+				goto fail;
+			}
+		}
+		error = phy_usb_set_mode(sc->phy, phy_mode);
+		if (error != 0) {
+			device_printf(dev, "Could not set phy mode\n");
 			goto fail;
 		}
 	}
@@ -457,7 +506,7 @@ awusbdrd_attach(device_t dev)
 	device_set_ivars(sc->sc.sc_bus.bdev, &sc->sc.sc_bus);
 	sc->sc.sc_id = 0;
 	sc->sc.sc_platform_data = sc;
-	sc->sc.sc_mode = MUSB2_HOST_MODE;	/* XXX HOST vs DEVICE mode */
+	sc->sc.sc_mode = musb_mode;
 	if (ofw_bus_is_compatible(dev, "allwinner,sun8i-h3-musb")) {
 		sc->sc.sc_ep_cfg = musbotg_ep_allwinner_h3;
 		sc->sc.sc_ep_max = DRD_EP_MAX_H3;
@@ -497,8 +546,15 @@ awusbdrd_attach(device_t dev)
 	return (0);
 
 fail:
-	if (sc->reset != NULL)
+	if (sc->phy != NULL) {
+		if (musb_mode == MUSB2_HOST_MODE)
+			(void)phy_disable(sc->phy);
+		phy_release(sc->phy);
+	}
+	if (sc->reset != NULL) {
+		hwreset_assert(sc->reset);
 		hwreset_release(sc->reset);
+	}
 	if (sc->clk != NULL)
 		clk_release(sc->clk);
 	bus_release_resources(dev, awusbdrd_spec, sc->res);
@@ -527,8 +583,16 @@ awusbdrd_detach(device_t dev)
 
 	usb_bus_mem_free_all(&sc->sc.sc_bus, NULL);
 
-	if (sc->reset != NULL)
+	if (sc->phy != NULL) {
+		if (sc->sc.sc_mode == MUSB2_HOST_MODE)
+			phy_disable(sc->phy);
+		phy_release(sc->phy);
+	}
+	if (sc->reset != NULL) {
+		if (hwreset_assert(sc->reset) != 0)
+			device_printf(dev, "failed to assert reset\n");
 		hwreset_release(sc->reset);
+	}
 	if (sc->clk != NULL)
 		clk_release(sc->clk);
 
