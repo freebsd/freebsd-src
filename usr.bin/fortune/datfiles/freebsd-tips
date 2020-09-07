@@ -304,8 +304,8 @@ been replaced with other messages, look at /var/run/dmesg.boot.
 Want colour in your directory listings?  Use "ls -G".  "ls -F" is also useful,
 and they can be combined as "ls -FG".
 %
-Want to find a specific port, just type the following under /usr/ports
-or one its subdirectories:
+Want to find a specific port? Just type the following under /usr/ports
+or one of its subdirectories:
 
 	make search name=<port-name>
     or
