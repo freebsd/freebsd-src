@@ -257,6 +257,7 @@ device		gpioregulator
 device		ls1046_gpio	# LS1046A GPIO controller
 device		mv_gpio		# Marvell GPIO controller
 device		mvebu_pinctrl	# Marvell Pinmux Controller
+device		pl061		# Arm PL061 GPIO controller
 device		rk_gpio		# RockChip GPIO Controller
 device		rk_pinctrl	# RockChip Pinmux Controller
 
