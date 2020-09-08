@@ -80,11 +80,11 @@ ofw_memmap(int acells)
 		    "Physical Range", "#Pages", "Mode");
 
 		for (i = 0; i < nmapping; i++) {
-			sprintf(lbuf, "%08x-%08x\t%08x-%08x\t%8d\t%6x\n",
-				mapptr[i].va,
-				mapptr[i].va + mapptr[i].len,
-				mapptr[i].pa,
-				mapptr[i].pa + mapptr[i].len,
+			sprintf(lbuf, "%08jx-%08jx\t%08jx-%08jx\t%8d\t%6x\n",
+				(uintmax_t)mapptr[i].va,
+				(uintmax_t)mapptr[i].va + mapptr[i].len,
+				(uintmax_t)mapptr[i].pa,
+				(uintmax_t)mapptr[i].pa + mapptr[i].len,
 				mapptr[i].len / 0x1000,
 				mapptr[i].mode);
 			if (pager_output(lbuf))
@@ -98,11 +98,11 @@ ofw_memmap(int acells)
 		       "Physical Range", "#Pages", "Mode");
 
 		for (i = 0; i < nmapping; i++) {
-			sprintf(lbuf, "%08x-%08x\t%08x-%08x\t%8d\t%6x\n",
-				mapptr2[i].va,
-				mapptr2[i].va + mapptr2[i].len,
-				mapptr2[i].pa_lo,
-				mapptr2[i].pa_lo + mapptr2[i].len,
+			sprintf(lbuf, "%08jx-%08jx\t%08jx-%08jx\t%8d\t%6x\n",
+				(uintmax_t)mapptr2[i].va,
+				(uintmax_t)mapptr2[i].va + mapptr2[i].len,
+				(uintmax_t)mapptr2[i].pa_lo,
+				(uintmax_t)mapptr2[i].pa_lo + mapptr2[i].len,
 				mapptr2[i].len / 0x1000,
 				mapptr2[i].mode);
 			if (pager_output(lbuf))
