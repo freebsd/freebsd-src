@@ -2,8 +2,7 @@
 # $FreeBSD$
 #
 
-SYSDIR?=${SRCTOP}/sys
-.include "${SYSDIR}/conf/kern.opts.mk"
+.include <kmod.opts.mk>
 
 SUBDIR=	\
         ${_tcp_rack} \
