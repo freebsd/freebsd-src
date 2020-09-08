@@ -2213,7 +2213,7 @@ fdcopy_remapped(struct filedesc *fdp, const int *fds, size_t nfds,
 			error = EINVAL;
 			goto bad;
 		}
-		if (!fhold(nfde->fde_file)) {
+		if (!fhold(ofde->fde_file)) {
 			error = EBADF;
 			goto bad;
 		}
