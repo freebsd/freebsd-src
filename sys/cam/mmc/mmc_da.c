@@ -1808,6 +1808,7 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 	}
 
 	/* Find partition that has outstanding commands.  Prefer current partition. */
+	part_index = softc->part_curr;
 	part = softc->part[softc->part_curr];
 	bp = bioq_first(&part->bio_queue);
 	if (bp == NULL) {
