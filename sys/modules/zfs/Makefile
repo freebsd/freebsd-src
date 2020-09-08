@@ -27,21 +27,12 @@ CFLAGS+= -include ${INCDIR}/os/freebsd/spl/sys/ccompile.h
 CFLAGS+= -include ${SRCTOP}/sys/modules/zfs/static_ccompile.h
 CFLAGS+= -I${.CURDIR}
 
-CFLAGS+= -D__KERNEL__ -DFREEBSD_NAMECACHE -DBUILDING_ZFS  -D__BSD_VISIBLE=1 \
+CFLAGS+= -D__KERNEL__ -DFREEBSD_NAMECACHE -DBUILDING_ZFS \
 	-DHAVE_UIO_ZEROCOPY -DWITHOUT_NETDUMP -D__KERNEL -D_SYS_CONDVAR_H_ \
-	-D_SYS_VMEM_H_ -DKDTRACE_HOOKS -DSMP -DIN_FREEBSD_BASE -DHAVE_KSID
+	-D_SYS_VMEM_H_ -DIN_FREEBSD_BASE -DHAVE_KSID
 
 .if ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_SSE2 -DHAVE_AVX512F -DHAVE_AVX512BW -DHAVE_SSSE3
-.endif
-
-.if defined(WITH_VFS_DEBUG) && ${WITH_VFS_DEBUG} == "true"
-# kernel must also be built with this option for this to work
-CFLAGS+= -DDEBUG_VFS_LOCKS
-.endif
-
-.if defined(WITH_GCOV) && ${WITH_GCOV} == "true"
-CFLAGS+=	 -fprofile-arcs -ftest-coverage
 .endif
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
