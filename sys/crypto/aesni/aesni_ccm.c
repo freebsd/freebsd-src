@@ -155,7 +155,7 @@ cbc_mac_start(const unsigned char *auth_data, size_t auth_len,
 		 * already partially filled, by auth_amt, so we need
 		 * to handle that.  The last block needs to be zero padded.
 		 */
-		copy_amt = MIN(auth_len - auth_amt,
+		copy_amt = MIN(auth_len,
 		    sizeof(staging_block) - auth_amt);
 		byte_ptr = (uint8_t*)&staging_block;
 		bcopy(auth_ptr, &byte_ptr[auth_amt], copy_amt);
