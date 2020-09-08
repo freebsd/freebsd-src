@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
+#include <sys/vdso.h>
 
 #include <dev/ofw/openfirm.h>
 
@@ -90,6 +91,12 @@ static int		decr_et_start(struct eventtimer *et,
     sbintime_t first, sbintime_t period);
 static int		decr_et_stop(struct eventtimer *et);
 static timecounter_get_t	decr_get_timecount;
+static uint32_t decr_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
+#ifdef COMPAT_FREEBSD32
+static uint32_t decr_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc);
+#endif
 
 struct decr_state {
 	int	mode;	/* 0 - off, 1 - periodic, 2 - one-shot. */
@@ -99,11 +106,14 @@ DPCPU_DEFINE_STATIC(struct decr_state, decr_state);
 
 static struct eventtimer	decr_et;
 static struct timecounter	decr_tc = {
-	decr_get_timecount,	/* get_timecount */
-	0,			/* no poll_pps */
-	~0u,			/* counter_mask */
-	0,			/* frequency */
-	"timebase"		/* name */
+	.tc_get_timecount = 		decr_get_timecount,
+	.tc_counter_mask = 		~0u,
+	.tc_name = 			"timebase",
+	.tc_quality = 			1000,
+	.tc_fill_vdso_timehands = 	decr_vdso_timehands,
+#ifdef COMPAT_FREEBSD32
+	.tc_fill_vdso_timehands32 = 	decr_vdso_timehands32,
+#endif
 };
 
 /*
@@ -223,6 +233,25 @@ decr_tc_init(void)
 	decr_et.et_priv = NULL;
 	et_register(&decr_et);
 }
+
+uint32_t
+decr_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
+{
+	vdso_th->th_algo = VDSO_TH_ALGO_PPC_TB;
+	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
+	return (initialized == 1);
+}
+
+#ifdef COMPAT_FREEBSD32
+uint32_t
+decr_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc)
+{
+	vdso_th32->th_algo = VDSO_TH_ALGO_PPC_TB;
+	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
+	return (initialized == 1);
+}
+#endif
 
 /*
  * Event timer start method.
