@@ -457,6 +457,8 @@ powerpc_enable_intr(void)
 	if (root_pic == NULL)
 		root_pic = piclist[0].dev;
 
+	KASSERT(root_pic != NULL, ("no root PIC!"));
+
 #ifdef SMP
 	/* Install an IPI handler. */
 	if (mp_ncpus > 1) {
