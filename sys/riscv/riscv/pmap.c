@@ -590,7 +590,7 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 		if (physmap[i + 1] > max_pa)
 			max_pa = physmap[i + 1];
 	}
-	printf("physmap_idx %lx\n", physmap_idx);
+	printf("physmap_idx %u\n", physmap_idx);
 	printf("min_pa %lx\n", min_pa);
 	printf("max_pa %lx\n", max_pa);
 

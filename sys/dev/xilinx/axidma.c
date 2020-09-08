@@ -363,7 +363,7 @@ axidma_desc_alloc(struct axidma_softc *sc, struct xdma_channel *xchan,
 	chan->mem_vaddr = kva_alloc(chan->mem_size);
 	pmap_kenter_device(chan->mem_vaddr, chan->mem_size, chan->mem_paddr);
 
-	device_printf(sc->dev, "Allocated chunk %lx %d\n",
+	device_printf(sc->dev, "Allocated chunk %lx %lu\n",
 	    chan->mem_paddr, chan->mem_size);
 
 	for (i = 0; i < nsegments; i++) {

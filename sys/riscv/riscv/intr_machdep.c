@@ -73,9 +73,9 @@ struct intc_irqsrc isrcs[INTC_NIRQS];
 static void
 riscv_mask_irq(void *source)
 {
-	uintptr_t irq;
+	int irq;
 
-	irq = (uintptr_t)source;
+	irq = (int)(uintptr_t)source;
 
 	switch (irq) {
 	case IRQ_TIMER_SUPERVISOR:
@@ -95,9 +95,9 @@ riscv_mask_irq(void *source)
 static void
 riscv_unmask_irq(void *source)
 {
-	uintptr_t irq;
+	int irq;
 
-	irq = (uintptr_t)source;
+	irq = (int)(uintptr_t)source;
 
 	switch (irq) {
 	case IRQ_TIMER_SUPERVISOR:
