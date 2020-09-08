@@ -4668,11 +4668,8 @@ vfs_periodic_msync_inactive(struct mount *mp, int flags)
 {
 	struct vnode *vp, *mvp;
 	struct vm_object *obj;
-	struct thread *td;
 	int lkflags, objflags;
 	bool seen_defer;
-
-	td = curthread;
 
 	lkflags = LK_EXCLUSIVE | LK_INTERLOCK;
 	if (flags != MNT_WAIT) {
