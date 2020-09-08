@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2020
+.Dd September 8, 2020
 .Dt RCORDER 8
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd print a dependency ordering of interdependent files
 .Sh SYNOPSIS
 .Nm
+.Op Fl gp
 .Op Fl k Ar keep
 .Op Fl s Ar skip
 .Ar
@@ -95,6 +96,9 @@ is reached, parsing stops.
 .Pp
 The options are as follows:
 .Bl -tag -width "-k keep"
+.It Fl g
+Produce a GraphViz (.dot) of the complete dependency graph instead of
+plaintext calling order list.
 .It Fl k Ar keep
 Add the specified keyword to the
 .Dq "keep list" .
@@ -102,6 +106,9 @@ If any
 .Fl k
 option is given, only those files containing the matching keyword are listed.
 This option can be specified multiple times.
+.It Fl p
+Generate ordering suitable for parallel startup, placing files that can be
+executed simultaneously on the same line.
 .It Fl s Ar skip
 Add the specified keyword to the
 .Dq "skip list" .
@@ -178,19 +185,46 @@ The
 utility may print one of the following error messages and exit with a non-zero
 status if it encounters an error while processing the file list.
 .Bl -diag
-.It "Requirement %s has no providers, aborting."
+.It "Requirement %s in file %s has no providers."
 No file has a
 .Ql PROVIDE
 line corresponding to a condition present in a
 .Ql REQUIRE
 line in another file.
-.It "Circular dependency on provision %s, aborting."
+.It "Circular dependency on provision %s in file %s."
 A set of files has a circular dependency which was detected while
 processing the stated condition.
-.It "Circular dependency on file %s, aborting."
+Loop visualization follows this message.
+.It "Circular dependency on file %s."
 A set of files has a circular dependency which was detected while
 processing the stated file.
+.It "%s was seen in circular dependencies for %d times."
+Each node that was a part of circular dependency loops reports total number of
+such encounters.
+Start with files having biggest counter when fighting with broken dependencies.
 .El
+.Sh DIAGNOSTICS WITH GRAPHVIZ
+Direct dependency is drawn with solid line,
+.Ql BEFORE
+dependency is drawn as a dashed line.
+Each node of a graph represents an item from
+.Ql PROVIDE
+lines.
+In case there are more than one file providing an item, a list of filenames
+shortened with
+.Xr basename 3
+is shown.
+Shortened filenames are also shown in case
+.Ql PROVIDE
+item does not match file name.
+.Pp
+Edges and nodes where circular dependencies were detected are drawn bold red.
+If a file has an item in
+.Ql REQUIRE
+or in
+.Ql BEFORE
+that could not be provided,
+this missing provider and the requirement will be drawn bold red as well.
 .Sh SEE ALSO
 .Xr acpiconf 8 ,
 .Xr rc 8 ,
