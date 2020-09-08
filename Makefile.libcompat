@@ -62,7 +62,7 @@ build${libcompat}: .PHONY
 	@echo "--------------------------------------------------------------"
 	@echo ">>> stage 4.3: building lib${libcompat} shim libraries"
 	@echo "--------------------------------------------------------------"
-.if !defined(NO_CLEAN)
+.if ${MK_CLEAN} == "yes"
 	rm -rf ${LIBCOMPATTMP}
 .else
 	${_+_}@if [ -e "${LIBCOMPATTMP}" ]; then \
@@ -71,7 +71,7 @@ build${libcompat}: .PHONY
 		    DESTDIR=${LIBCOMPATTMP} \
 		    delete-old delete-old-libs >/dev/null; \
 	fi
-.endif	# !defined(NO_CLEAN)
+.endif	# MK_CLEAN == "yes"
 
 	mkdir -p ${LIBCOMPATTMP}/usr/include
 	${WORLDTMP_MTREE} -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
