@@ -102,25 +102,29 @@ __ElfType(Auxinfo);
 #define	HWCAP_CRC32		0x00000080
 #define	HWCAP_ATOMICS		0x00000100
 #define	HWCAP_FPHP		0x00000200
-/* XXX: The following bits don't match the Linux definitions */
-#define	HWCAP_CPUID		0x00000400
-#define	HWCAP_ASIMDRDM		0x00000800
-#define	HWCAP_JSCVT		0x00001000
-#define	HWCAP_FCMA		0x00002000
-#define	HWCAP_LRCPC		0x00004000
-#define	HWCAP_DCPOP		0x00008000
-#define	HWCAP_SHA3		0x00010000
-#define	HWCAP_SM3		0x00020000
-#define	HWCAP_SM4		0x00040000
-#define	HWCAP_ASIMDDP		0x00080000
-#define	HWCAP_SHA512		0x00100000
-#define	HWCAP_SVE		0x00200000
-#define	HWCAP_ASIMDFHM		0x00400000
-#define	HWCAP_DIT		0x00800000
-#define	HWCAP_USCAT		0x01000000
-#define	HWCAP_ILRCPC		0x02000000
-#define	HWCAP_FLAGM		0x04000000
-/* XXX: end of incorrect definitions */
+#define	HWCAP_ASIMDHP		0x00000400
+/*
+ * XXX: The following bits (from CPUID to FLAGM) were originally incorrect,
+ * but later changed to match the Linux definitions. No compatibility code is
+ * provided, as the fix was expected to result in near-zero fallout.
+ */
+#define	HWCAP_CPUID		0x00000800
+#define	HWCAP_ASIMDRDM		0x00001000
+#define	HWCAP_JSCVT		0x00002000
+#define	HWCAP_FCMA		0x00004000
+#define	HWCAP_LRCPC		0x00008000
+#define	HWCAP_DCPOP		0x00010000
+#define	HWCAP_SHA3		0x00020000
+#define	HWCAP_SM3		0x00040000
+#define	HWCAP_SM4		0x00080000
+#define	HWCAP_ASIMDDP		0x00100000
+#define	HWCAP_SHA512		0x00200000
+#define	HWCAP_SVE		0x00400000
+#define	HWCAP_ASIMDFHM		0x00800000
+#define	HWCAP_DIT		0x01000000
+#define	HWCAP_USCAT		0x02000000
+#define	HWCAP_ILRCPC		0x04000000
+#define	HWCAP_FLAGM		0x08000000
 #define	HWCAP_SSBS		0x10000000
 #define	HWCAP_SB		0x20000000
 #define	HWCAP_PACA		0x40000000
