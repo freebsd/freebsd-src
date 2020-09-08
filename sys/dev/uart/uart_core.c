@@ -333,6 +333,7 @@ uart_intr_overrun(void *arg)
 			sc->sc_rxbuf[sc->sc_rxput] = UART_STAT_OVERRUN;
 		uart_sched_softih(sc, SER_INT_RXREADY);
 	}
+	sc->sc_rxoverruns++;
 	UART_FLUSH(sc, UART_FLUSH_RECEIVER);
 	return (0);
 }
@@ -740,6 +741,12 @@ uart_bus_attach(device_t dev)
 
 	if (sc->sc_sysdev != NULL)
 		sc->sc_sysdev->hwmtx = sc->sc_hwmtx;
+
+	if (sc->sc_rxfifosz > 1)
+		SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "rx_overruns", CTLFLAG_RD, &sc->sc_rxoverruns, 0,
+		    "Receive overruns");
 
 	return (0);
 
