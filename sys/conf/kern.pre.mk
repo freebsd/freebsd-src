@@ -51,14 +51,15 @@ OBJCOPY?=	objcopy
 SIZE?=		size
 
 .if defined(DEBUG)
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe"
+# Work around clang 11 miscompile on 32 bit powerpc.
+_MINUS_O=	-O2
+.else
 _MINUS_O=	-O
+.endif
 CTFFLAGS+=	-g
 .else
-.if ${MACHINE_CPUARCH} == "powerpc"
-_MINUS_O=	-O	# gcc miscompiles some code at -O2
-.else
 _MINUS_O=	-O2
-.endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 .if ${COMPILER_TYPE} == "clang"
