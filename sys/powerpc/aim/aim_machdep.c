@@ -629,7 +629,8 @@ flush_disable_caches(void)
 	mtspr(SPR_MSSCR0, msscr0);
 	powerpc_sync();
 	isync();
-	__asm__ __volatile__("dssall; sync");
+	/* 7e00066c: dssall */
+	__asm__ __volatile__(".long 0x7e00066c; sync");
 	powerpc_sync();
 	isync();
 	__asm__ __volatile__("dcbf 0,%0" :: "r"(0));
