@@ -3611,7 +3611,7 @@ restart:
 			break;
 		if (rr && vm_domainset_iter_policy(&di, &domain) != 0) {
 			if ((flags & M_WAITOK) != 0) {
-				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask);
+				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask, 0);
 				goto restart;
 			}
 			break;
@@ -4755,7 +4755,7 @@ uma_prealloc(uma_zone_t zone, int items)
 				break;
 			}
 			if (vm_domainset_iter_policy(&di, &domain) != 0)
-				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask);
+				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask, 0);
 		}
 	}
 }
