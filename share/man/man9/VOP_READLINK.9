@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd March 30, 2020
 .Dt VOP_READLINK 9
 .Os
 .Sh NAME
@@ -58,6 +58,8 @@ Zero is returned on success, otherwise an error code is returned.
 .Bl -tag -width Er
 .It Bq Er EIO
 A read error occurred while reading the contents of the symlink.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading the contents of the symlink.
 .El
 .Sh SEE ALSO
 .Xr uiomove 9 ,

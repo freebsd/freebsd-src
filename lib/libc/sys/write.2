@@ -28,7 +28,7 @@
 .\"     @(#)write.2	8.5 (Berkeley) 4/2/94
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd March 30, 2020
 .Dt WRITE 2
 .Os
 .Sh NAME
@@ -205,6 +205,12 @@ is greater than
 if the sysctl
 .Va debug.iosize_max_clamp
 is non-zero).
+.It Bq Er EINTEGRITY
+The backing store for
+.Fa fd
+detected corrupted data while reading.
+(For example, writing a partial filesystem block may require first reading
+the existing block which may trigger this error.)
 .El
 .Pp
 In addition,

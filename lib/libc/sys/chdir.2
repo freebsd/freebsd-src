@@ -28,7 +28,7 @@
 .\"     @(#)chdir.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2017
+.Dd March 30, 2020
 .Dt CHDIR 2
 .Os
 .Sh NAME
@@ -96,6 +96,8 @@ argument
 points outside the process's allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .El
 .Pp
 The

@@ -28,7 +28,7 @@
 .\"     @(#)chroot.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2012
+.Dd March 30, 2020
 .Dt CHROOT 2
 .Os
 .Sh NAME
@@ -121,6 +121,8 @@ argument
 points outside the process's allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system.
 .El
 .Sh SEE ALSO
 .Xr chdir 2 ,

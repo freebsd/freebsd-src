@@ -28,7 +28,7 @@
 .\"     @(#)swapon.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd October 4, 2013
+.Dd March 30, 2020
 .Dt SWAPON 2
 .Os
 .Sh NAME
@@ -115,6 +115,9 @@ is out of range (this indicates no device driver exists
 for the associated hardware).
 .It Bq Er EIO
 An I/O error occurred while opening the swap device.
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from the file system to open the
+swap device.
 .El
 .Pp
 Lastly,

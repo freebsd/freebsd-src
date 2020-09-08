@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2019
+.Dd March 30, 2020
 .Dt SENDFILE 2
 .Os
 .Sh NAME
@@ -335,6 +335,9 @@ argument
 is negative.
 .It Bq Er EIO
 An error occurred while reading from
+.Fa fd .
+.It Bq Er EINTEGRITY
+Corrupted data was detected while reading from
 .Fa fd .
 .It Bq Er ENOTCAPABLE
 The
