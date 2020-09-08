@@ -1236,7 +1236,7 @@ sort_list_to_file(struct sort_list *list, const char *outfile)
 {
 	struct sort_mods *sm = &(keys[0].sm);
 
-	if (!(sm->Mflag) && !(sm->Rflag) && !(sm->Vflag) && !(sm->Vflag) &&
+	if (!(sm->Mflag) && !(sm->Rflag) && !(sm->Vflag) &&
 	    !(sm->gflag) && !(sm->hflag) && !(sm->nflag)) {
 		if ((sort_opts_vals.sort_method == SORT_DEFAULT) && byte_sort)
 			sort_opts_vals.sort_method = SORT_RADIXSORT;
