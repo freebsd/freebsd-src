@@ -1259,6 +1259,7 @@ errout:
 	if (err != ERESTART) {
 		crp->crp_etype = err;
 		crypto_done(crp);
+		err = 0;
 	} else {
 		sc->sc_needwakeup |= CRYPTO_SYMQ;
 	}
