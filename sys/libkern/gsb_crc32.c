@@ -58,7 +58,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if defined(__aarch64__)
-#include <machine/cpu.h>
+#include <machine/elf.h>
+#include <machine/md_var.h>
 #endif
 #endif /* _KERNEL */
 
@@ -755,14 +756,7 @@ calculate_crc32c(uint32_t crc32c,
 	} else
 #endif
 #if defined(__aarch64__)
-	uint64_t reg;
-
-	/*
-	 * We only test for CRC32 support on the CPU with index 0 assuming that
-	 * this applies to all CPUs.
-	 */
-	reg = READ_SPECIALREG(id_aa64isar0_el1);
-	if (ID_AA64ISAR0_CRC32_VAL(reg) != ID_AA64ISAR0_CRC32_NONE) {
+	if ((elf_hwcap & HWCAP_CRC32) != 0) {
 		return (armv8_crc32c(crc32c, buffer, length));
 	} else
 #endif
