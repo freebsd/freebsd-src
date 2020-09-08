@@ -2517,7 +2517,7 @@ errout:
 		hifnstats.hst_nomem++;
 	crp->crp_etype = err;
 	crypto_done(crp);
-	return (err);
+	return (0);
 }
 
 static void
