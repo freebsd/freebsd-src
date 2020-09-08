@@ -104,7 +104,7 @@ sbi_print_version(void)
 
 	switch (sbi_impl_id) {
 	case (SBI_IMPL_ID_BBL):
-		printf("SBI: Berkely Boot Loader %u\n", sbi_impl_version);
+		printf("SBI: Berkely Boot Loader %lu\n", sbi_impl_version);
 		break;
 	case (SBI_IMPL_ID_OPENSBI):
 		major = sbi_impl_version >> OPENSBI_VERSION_MAJOR_OFFSET;
@@ -112,7 +112,7 @@ sbi_print_version(void)
 		printf("SBI: OpenSBI v%u.%u\n", major, minor);
 		break;
 	default:
-		printf("SBI: Unrecognized Implementation: %u\n", sbi_impl_id);
+		printf("SBI: Unrecognized Implementation: %lu\n", sbi_impl_id);
 		break;
 	}
 
