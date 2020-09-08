@@ -3714,14 +3714,13 @@ cache_fplookup_final_withparent(struct cache_fpl *fpl)
 	struct componentname *cnp;
 	enum vgetstate dvs, tvs;
 	struct vnode *dvp, *tvp;
-	seqc_t dvp_seqc, tvp_seqc;
+	seqc_t dvp_seqc;
 	int error;
 
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 	tvp = fpl->tvp;
-	tvp_seqc = fpl->tvp_seqc;
 
 	MPASS((cnp->cn_flags & (LOCKPARENT|WANTPARENT)) != 0);
 
@@ -3780,13 +3779,12 @@ cache_fplookup_final(struct cache_fpl *fpl)
 	struct componentname *cnp;
 	enum vgetstate tvs;
 	struct vnode *dvp, *tvp;
-	seqc_t dvp_seqc, tvp_seqc;
+	seqc_t dvp_seqc;
 
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 	tvp = fpl->tvp;
-	tvp_seqc = fpl->tvp_seqc;
 
 	VNPASS(cache_fplookup_vnode_supported(dvp), dvp);
 
