@@ -416,7 +416,7 @@ oprint(struct riscv_op *op, vm_offset_t loc, int insn)
 				imm |= ((insn >> 12) & 0x1) << 5;
 				if (imm & (1 << 5))
 					imm |= (0x7ffffff << 5); /* sign ext */
-				db_printf("0x%lx", imm);
+				db_printf("0x%x", imm);
 				break;
 			case 'o':
 				imm = ((insn >> 2) & 0x1f) << 0;
@@ -524,7 +524,7 @@ oprint(struct riscv_op *op, vm_offset_t loc, int insn)
 			imm = (insn >> 12) & 0xfffff;
 			if (imm & (1 << 20))
 				imm |= (0xfff << 20);	/* sign extend */
-			db_printf("0x%lx", imm);
+			db_printf("0x%x", imm);
 			break;
 		case 'j':
 			/* imm[11:0] << 20 */
