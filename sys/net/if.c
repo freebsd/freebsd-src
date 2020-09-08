@@ -1298,6 +1298,11 @@ if_vmove(struct ifnet *ifp, struct vnet *new_vnet)
 	ifindex_free_locked(ifp->if_index);
 	IFNET_WUNLOCK();
 
+
+	/* Don't re-attach DYING interfaces. */
+	if (ifp->if_flags & IFF_DYING)
+		return (0);
+
 	/*
 	 * Perform interface-specific reassignment tasks, if provided by
 	 * the driver.

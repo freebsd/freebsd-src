@@ -611,8 +611,14 @@ epair_qflush(struct ifnet *ifp)
 	struct epair_softc *sc;
 
 	sc = ifp->if_softc;
-	KASSERT(sc != NULL, ("%s: ifp=%p, epair_softc gone? sc=%p\n",
-	    __func__, ifp, sc));
+
+	/*
+	 * See epair_clone_destroy(), we can end up getting called twice.
+	 * Don't do anything on the second call.
+	 */
+	if (sc == NULL)
+		return;
+
 	/*
 	 * Remove this ifp from all backpointer lists. The interface will not
 	 * usable for flushing anyway nor should it have anything to flush
