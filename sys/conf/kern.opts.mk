@@ -80,10 +80,6 @@ BROKEN_OPTIONS+= CDDL ZFS SSP
 BROKEN_OPTIONS+= ZFS
 .endif
 
-.if ${MACHINE_CPUARCH} == "riscv"
-BROKEN_OPTIONS+= FORMAT_EXTENSIONS
-.endif
-
 # Things that don't work because the kernel doesn't have the support
 # for them.
 .if ${MACHINE} != "i386" && ${MACHINE} != "amd64"
