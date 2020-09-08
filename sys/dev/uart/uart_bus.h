@@ -108,6 +108,7 @@ struct uart_softc {
 	int		sc_rxput;
 	int		sc_rxget;
 	int		sc_rxfifosz;	/* Size of RX FIFO. */
+	int		sc_rxoverruns;
 
 	/* Transmitter data. */
 	uint8_t		*sc_txbuf;
