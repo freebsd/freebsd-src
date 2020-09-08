@@ -1965,7 +1965,8 @@ sddadone(struct cam_periph *periph, union ccb *done_ccb)
 	/* Process result of switching MMC partitions */
 	if (softc->state == SDDA_STATE_PART_SWITCH) {
 		CAM_DEBUG(path, CAM_DEBUG_TRACE,
-		    ("Compteting partition switch to %d\n", softc->part_requested));
+		    ("Completing partition switch to %d\n",
+		    softc->part_requested));
 		softc->outstanding_cmds--;
 		/* Complete partition switch */
 		softc->state = SDDA_STATE_NORMAL;
