@@ -139,7 +139,7 @@ ns8250_divisor(int rclk, int baudrate)
 	actual_baud = rclk / (divisor << 4);
 
 	/* 10 times error in percent: */
-	error = ((actual_baud - baudrate) * 2000 / baudrate + 1) >> 1;
+	error = ((actual_baud - baudrate) * 2000 / baudrate + 1) / 2;
 
 	/* enforce maximum error tolerance: */
 	if (error < -UART_DEV_TOLERANCE_PCT || error > UART_DEV_TOLERANCE_PCT)
