@@ -341,7 +341,11 @@ xive_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "XIVE", NULL, MTX_DEF);
 
-	order = fls(mp_maxid + (mp_maxid - 1)) - 1;
+	/* Workaround for qemu single-thread powernv */
+	if (mp_maxid == 0)
+		order = 1;
+	else
+		order = fls(mp_maxid + (mp_maxid - 1)) - 1;
 
 	do {
 		vp_block = opal_call(OPAL_XIVE_ALLOCATE_VP_BLOCK, order);
