@@ -43,11 +43,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/undefined.h>
 #include <machine/elf.h>
+#include <machine/md_var.h>
+#include <machine/undefined.h>
 
 static void print_cpu_features(u_int cpu);
 static u_long parse_cpu_features_hwcap(void);
+static u_long parse_cpu_features_hwcap2(void);
 
 char machine[] = "arm64";
 
@@ -869,7 +871,7 @@ static struct mrs_field_value id_aa64pfr1_mte[] = {
 
 static struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD(ID_AA64PFR1, BT, false, MRS_EXACT, id_aa64pfr1_bt),
-	MRS_FIELD(ID_AA64PFR1, SSBS, false, MRS_EXACT, id_aa64pfr1_ssbs),
+	MRS_FIELD(ID_AA64PFR1, SSBS, false, MRS_LOWER, id_aa64pfr1_ssbs),
 	MRS_FIELD(ID_AA64PFR1, MTE, false, MRS_EXACT, id_aa64pfr1_mte),
 	MRS_FIELD_END,
 };
@@ -1126,7 +1128,6 @@ update_special_regs(u_int cpu)
 }
 
 /* HWCAP */
-extern u_long elf_hwcap;
 bool __read_frequently lse_supported = false;
 
 bool __read_frequently icache_aliasing = false;
@@ -1156,8 +1157,9 @@ identify_cpu_sysinit(void *dummy __unused)
 			idc = false;
 	}
 
-	/* Exposed to userspace as AT_HWCAP */
+	/* Exposed to userspace as AT_HWCAP and AT_HWCAP2 */
 	elf_hwcap = parse_cpu_features_hwcap();
+	elf_hwcap2 = parse_cpu_features_hwcap2();
 
 	if (dic && idc) {
 		arm64_icache_sync_range = &arm64_dic_idc_icache_sync_range;
@@ -1194,6 +1196,15 @@ parse_cpu_features_hwcap(void)
 {
 	u_long hwcap = 0;
 
+	switch (ID_AA64ISAR0_TS_VAL(user_cpu_desc.id_aa64isar0)) {
+	case ID_AA64ISAR0_TS_CondM_8_4:
+	case ID_AA64ISAR0_TS_CondM_8_5:
+		hwcap |= HWCAP_FLAGM;
+		break;
+	default:
+		break;
+	}
+
 	if (ID_AA64ISAR0_DP_VAL(user_cpu_desc.id_aa64isar0) ==
 	    ID_AA64ISAR0_DP_IMPL)
 		hwcap |= HWCAP_ASIMDDP;
@@ -1205,6 +1216,10 @@ parse_cpu_features_hwcap(void)
 	if (ID_AA64ISAR0_SM3_VAL(user_cpu_desc.id_aa64isar0) ==
 	    ID_AA64ISAR0_SM3_IMPL)
 		hwcap |= HWCAP_SM3;
+
+	if (ID_AA64ISAR0_SHA3_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_SHA3_IMPL)
+		hwcap |= HWCAP_SHA3;
 
 	if (ID_AA64ISAR0_RDM_VAL(user_cpu_desc.id_aa64isar0) ==
 	    ID_AA64ISAR0_RDM_IMPL)
@@ -1229,7 +1244,8 @@ parse_cpu_features_hwcap(void)
 		break;
 	}
 
-	if (ID_AA64ISAR0_SHA1_VAL(user_cpu_desc.id_aa64isar0))
+	if (ID_AA64ISAR0_SHA1_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_SHA1_BASE)
 		hwcap |= HWCAP_SHA1;
 
 	switch (ID_AA64ISAR0_AES_VAL(user_cpu_desc.id_aa64isar0)) {
@@ -1243,9 +1259,20 @@ parse_cpu_features_hwcap(void)
 		break;
 	}
 
-	if (ID_AA64ISAR1_LRCPC_VAL(user_cpu_desc.id_aa64isar1) ==
-	    ID_AA64ISAR1_LRCPC_RCPC_8_3)
+	if (ID_AA64ISAR1_SB_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_SB_IMPL)
+		hwcap |= HWCAP_SB;
+
+	switch (ID_AA64ISAR1_LRCPC_VAL(user_cpu_desc.id_aa64isar1)) {
+	case ID_AA64ISAR1_LRCPC_RCPC_8_3:
 		hwcap |= HWCAP_LRCPC;
+		break;
+	case ID_AA64ISAR1_LRCPC_RCPC_8_4:
+		hwcap |= HWCAP_LRCPC | HWCAP_ILRCPC;
+		break;
+	default:
+		break;
+	}
 
 	if (ID_AA64ISAR1_FCMA_VAL(user_cpu_desc.id_aa64isar1) ==
 	    ID_AA64ISAR1_FCMA_IMPL)
@@ -1285,7 +1312,51 @@ parse_cpu_features_hwcap(void)
 		break;
 	}
 
+	if (ID_AA64PFR1_SSBS_VAL(user_cpu_desc.id_aa64pfr1) ==
+	    ID_AA64PFR1_SSBS_PSTATE_MSR)
+		hwcap |= HWCAP_SSBS;
+
 	return (hwcap);
+}
+
+static u_long
+parse_cpu_features_hwcap2(void)
+{
+	u_long hwcap2 = 0;
+
+	if (ID_AA64ISAR0_RNDR_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_RNDR_IMPL)
+		hwcap2 |= HWCAP2_RNG;
+
+	if (ID_AA64ISAR0_TS_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_TS_CondM_8_5)
+		hwcap2 |= HWCAP2_FLAGM2;
+
+	if (ID_AA64ISAR1_I8MM_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_I8MM_IMPL)
+		hwcap2 |= HWCAP2_I8MM;
+
+	if (ID_AA64ISAR1_DGH_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_DGH_IMPL)
+		hwcap2 |= HWCAP2_DGH;
+
+	if (ID_AA64ISAR1_BF16_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_BF16_IMPL)
+		hwcap2 |= HWCAP2_BF16;
+
+	if (ID_AA64ISAR1_FRINTTS_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_FRINTTS_IMPL)
+		hwcap2 |= HWCAP2_FRINT;
+
+	if (ID_AA64ISAR1_DPB_VAL(user_cpu_desc.id_aa64isar1) ==
+	    ID_AA64ISAR1_DPB_DCCVADP)
+		hwcap2 |= HWCAP2_DCPODP;
+
+	if (ID_AA64PFR1_BT_VAL(user_cpu_desc.id_aa64pfr1) ==
+	    ID_AA64PFR1_BT_IMPL)
+		hwcap2 |= HWCAP2_BTI;
+
+	return (hwcap2);
 }
 
 static void

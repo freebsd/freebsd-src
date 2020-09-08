@@ -38,6 +38,8 @@ extern char sigcode[];
 extern int szsigcode;
 extern uint64_t *vm_page_dump;
 extern int vm_page_dump_size;
+extern u_long elf_hwcap;
+extern u_long elf_hwcap2;
 
 struct dumperinfo;
 
