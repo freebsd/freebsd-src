@@ -182,7 +182,6 @@ static void sdda_start_init(void *context, union ccb *start_ccb);
 static void sdda_start_init_task(void *context, int pending);
 static void sdda_process_mmc_partitions(struct cam_periph *periph, union ccb *start_ccb);
 static uint32_t sdda_get_host_caps(struct cam_periph *periph, union ccb *ccb);
-static void sdda_init_switch_part(struct cam_periph *periph, union ccb *start_ccb, u_int part);
 static int mmc_select_card(struct cam_periph *periph, union ccb *ccb, uint32_t rca);
 static inline uint32_t mmc_get_sector_size(struct cam_periph *periph) {return MMC_SECTOR_SIZE;}
 
@@ -1770,10 +1769,13 @@ sdda_process_mmc_partitions(struct cam_periph *periph, union ccb *ccb)
  * This function cannot fail, instead check switch errors in sddadone().
  */
 static void
-sdda_init_switch_part(struct cam_periph *periph, union ccb *start_ccb, u_int part) {
+sdda_init_switch_part(struct cam_periph *periph, union ccb *start_ccb,
+    uint8_t part)
+{
 	struct sdda_softc *sc = (struct sdda_softc *)periph->softc;
 	uint8_t value;
 
+	KASSERT(part < MMC_PART_MAX, ("%s: invalid partition index", __func__));
 	sc->part_requested = part;
 
 	value = (sc->raw_ext_csd[EXT_CSD_PART_CONFIG] &
@@ -1797,7 +1799,7 @@ sddastart(struct cam_periph *periph, union ccb *start_ccb)
 	struct sdda_softc *softc = (struct sdda_softc *)periph->softc;
 	struct sdda_part *part;
 	struct mmc_params *mmcp = &periph->path->device->mmc_ident_data;
-	int part_index;
+	uint8_t part_index;
 
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("sddastart\n"));
 
