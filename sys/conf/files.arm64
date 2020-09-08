@@ -305,6 +305,9 @@ dev/iicbus/sy8106a.c		optional	sy8106a fdt
 dev/iicbus/twsi/mv_twsi.c	optional	twsi fdt
 dev/iicbus/twsi/a10_twsi.c	optional	twsi fdt
 dev/iicbus/twsi/twsi.c		optional	twsi fdt
+dev/gpio/pl061.c		optional	pl061 gpio
+dev/gpio/pl061_acpi.c		optional	pl061 gpio acpi
+dev/gpio/pl061_fdt.c		optional	pl061 gpio fdt
 dev/hwpmc/hwpmc_arm64.c		optional	hwpmc
 dev/hwpmc/hwpmc_arm64_md.c	optional	hwpmc
 dev/mbox/mbox_if.m		optional	soc_brcm_bcm2837
