@@ -753,8 +753,9 @@ cpu_idle_60x(sbintime_t sbt)
 	case MPC7450:
 	case MPC7455:
 	case MPC7457:
+		/* 0x7e00066c: dssall */
 		__asm __volatile("\
-			    dssall; sync; mtmsr %0; isync"
+			    .long 0x7e00066c; sync; mtmsr %0; isync"
 			    :: "r"(msr | PSL_POW));
 		break;
 	default:
