@@ -399,7 +399,7 @@ int	 ftruncate(int, off_t);
 #endif
 
 #if __POSIX_VISIBLE >= 199506
-int	 getlogin_r(char *, int);
+int	 getlogin_r(char *, size_t);
 #endif
 
 /* 1003.1-2001 */
