@@ -1913,8 +1913,6 @@ SYSCTL_LONG(_vm, OID_AUTO, aslr_restarts, CTLFLAG_RD,
     &aslr_restarts, 0,
     "Number of aslr failures");
 
-#define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
-
 /*
  * Searches for the specified amount of free space in the given map with the
  * specified alignment.  Performs an address-ordered, first-fit search from
