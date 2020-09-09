@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: util.c,v 10.30 2013/03/19 10:00:27 yamt Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 
@@ -42,11 +38,8 @@ static const char sccsid[] = "$Id: util.c,v 10.30 2013/03/19 10:00:27 yamt Exp $
  * PUBLIC: void *binc(SCR *, void *, size_t *, size_t);
  */
 void *
-binc(
-	SCR *sp,			/* sp MAY BE NULL!!! */
-	void *bp,
-	size_t *bsizep,
-	size_t min)
+binc(SCR *sp,			/* sp MAY BE NULL!!! */
+    void *bp, size_t *bsizep, size_t min)
 {
 	size_t csize;
 
@@ -79,10 +72,7 @@ binc(
  * PUBLIC: int nonblank(SCR *, recno_t, size_t *);
  */
 int
-nonblank(
-	SCR *sp,
-	recno_t lno,
-	size_t *cnop)
+nonblank(SCR *sp, recno_t lno, size_t *cnop)
 {
 	CHAR_T *p;
 	size_t cnt, len, off;
@@ -109,31 +99,13 @@ nonblank(
 }
 
 /*
- * tail --
- *	Return tail of a path.
- *
- * PUBLIC: char *tail(char *);
- */
-char *
-tail(char *path)
-{
-	char *p;
-
-	if ((p = strrchr(path, '/')) == NULL)
-		return (path);
-	return (p + 1);
-}
-
-/*
  * join --
  *	Join two paths; need free.
  *
  * PUBLIC: char *join(char *, char *);
  */
 char *
-join(
-	char *path1,
-	char *path2)
+join(char *path1, char *path2)
 {
 	char *p;
 
@@ -212,8 +184,8 @@ quote(char *str)
 			n++;
 		if (unsafe)
 			continue;
-		if (isascii(*p)) {
-			if (isalnum(*p))
+		if (isascii((u_char)*p)) {
+			if (isalnum((u_char)*p))
 				continue;
 			switch (*p) {
 			case '%': case '+': case ',': case '-': case '.':
@@ -248,14 +220,11 @@ quote(char *str)
  * PUBLIC: char *v_strdup(SCR *, const char *, size_t);
  */
 char *
-v_strdup(
-	SCR *sp,
-	const char *str,
-	size_t len)
+v_strdup(SCR *sp, const char *str, size_t len)
 {
 	char *copy;
 
-	MALLOC(sp, copy, char *, len + 1);
+	MALLOC(sp, copy, len + 1);
 	if (copy == NULL)
 		return (NULL);
 	memcpy(copy, str, len);
@@ -270,13 +239,11 @@ v_strdup(
  * PUBLIC: CHAR_T *v_wstrdup(SCR *, const CHAR_T *, size_t);
  */
 CHAR_T *
-v_wstrdup(SCR *sp,
-	const CHAR_T *str,
-	size_t len)
+v_wstrdup(SCR *sp, const CHAR_T *str, size_t len)
 {
 	CHAR_T *copy;
 
-	MALLOC(sp, copy, CHAR_T *, (len + 1) * sizeof(CHAR_T));
+	MALLOC(sp, copy, (len + 1) * sizeof(CHAR_T));
 	if (copy == NULL)
 		return (NULL);
 	MEMCPY(copy, str, len);
@@ -291,11 +258,7 @@ v_wstrdup(SCR *sp,
  * PUBLIC: enum nresult nget_uslong(u_long *, const CHAR_T *, CHAR_T **, int);
  */
 enum nresult
-nget_uslong(
-	u_long *valp,
-	const CHAR_T *p,
-	CHAR_T **endp,
-	int base)
+nget_uslong(u_long *valp, const CHAR_T *p, CHAR_T **endp, int base)
 {
 	errno = 0;
 	*valp = STRTOUL(p, endp, base);
@@ -313,11 +276,7 @@ nget_uslong(
  * PUBLIC: enum nresult nget_slong(long *, const CHAR_T *, CHAR_T **, int);
  */
 enum nresult
-nget_slong(
-	long *valp,
-	const CHAR_T *p,
-	CHAR_T **endp,
-	int base)
+nget_slong(long *valp, const CHAR_T *p, CHAR_T **endp, int base)
 {
 	errno = 0;
 	*valp = STRTOL(p, endp, base);
@@ -339,8 +298,7 @@ nget_slong(
  * PUBLIC: void timepoint_steady(struct timespec *);
  */
 void
-timepoint_steady(
-	struct timespec *ts)
+timepoint_steady(struct timespec *ts)
 {
 #ifdef __APPLE__
 	static mach_timebase_info_data_t base = { 0 };
@@ -370,8 +328,7 @@ timepoint_steady(
  * PUBLIC: void timepoint_system(struct timespec *);
  */
 void
-timepoint_system(
-	struct timespec *ts)
+timepoint_system(struct timespec *ts)
 {
 #ifdef __APPLE__
 	clock_serv_t clk;
@@ -404,10 +361,7 @@ timepoint_system(
  * PUBLIC: void TRACE(SCR *, const char *, ...);
  */
 void
-TRACE(
-	SCR *sp,
-	const char *fmt,
-	...)
+TRACE(SCR *sp, const char *fmt, ...)
 {
 	FILE *tfp;
 	va_list ap;

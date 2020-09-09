@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: v_cmd.c,v 10.9 1996/03/28 15:18:39 bostic Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -130,7 +126,7 @@ VIKEYS const vikeys [MAXVIKEY + 1] = {
 /* 034  ^\ */
 	{v_exmode,	0,
 	    "^\\",
-	    " ^\\ switch to ex mode"},
+	    "^\\ switch to ex mode"},
 /* 035  ^] */
 	{v_tagpush,	V_ABS|V_KEYW|VM_RCM_SET,
 	    "^]",

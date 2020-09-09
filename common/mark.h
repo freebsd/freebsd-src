@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: mark.h,v 10.6 2011/07/04 14:41:51 zy Exp $
  */
 
 /*

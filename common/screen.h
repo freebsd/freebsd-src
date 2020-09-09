@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: screen.h,v 10.26 2011/12/12 22:31:36 zy Exp $
  */
 
 /*

@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_cscope.c,v 10.25 2012/10/04 09:23:03 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -261,7 +257,7 @@ cscope_add(SCR *sp, EXCMD *cmdp, CHAR_T *dname)
 
 	/* Allocate a cscope connection structure and initialize its fields. */
 	len = strlen(np);
-	CALLOC_RET(sp, csc, CSC *, 1, sizeof(CSC) + len);
+	CALLOC_RET(sp, csc, 1, sizeof(CSC) + len);
 	csc->dname = csc->buf;
 	csc->dlen = len;
 	memcpy(csc->dname, np, len);
@@ -321,7 +317,7 @@ get_paths(SCR *sp, CSC *csc)
 	if (stat(buf, &sb) == 0) {
 		/* Read in the CSCOPE_PATHS file. */
 		len = sb.st_size;
-		MALLOC_RET(sp, csc->pbuf, char *, len + 1);
+		MALLOC_RET(sp, csc->pbuf, len + 1);
 		if ((fd = open(buf, O_RDONLY, 0)) < 0 ||
 		    read(fd, csc->pbuf, len) != len) {
 			 msgq_str(sp, M_SYSERR, buf, "%s");
@@ -340,8 +336,7 @@ get_paths(SCR *sp, CSC *csc)
 				++nentries;
 
 		/* Build an array of pointers to the paths. */
-		CALLOC_GOTO(sp,
-		    csc->paths, char **, nentries + 1, sizeof(char **));
+		CALLOC_GOTO(sp, csc->paths, nentries + 1, sizeof(char **));
 		for (pathp = csc->paths, p = strtok(csc->pbuf, ":");
 		    p != NULL; p = strtok(NULL, ":"))
 			*pathp++ = p;
@@ -357,15 +352,13 @@ get_paths(SCR *sp, CSC *csc)
 		msgq(sp, M_SYSERR, NULL);
 		return (1);
 	}
-	CALLOC_GOTO(sp, csc->paths, char **, 2, sizeof(char *));
+	CALLOC_GOTO(sp, csc->paths, 2, sizeof(char *));
 	csc->paths[0] = csc->pbuf;
 	return (0);
 
 alloc_err:
-	if (csc->pbuf != NULL) {
-		free(csc->pbuf);
-		csc->pbuf = NULL;
-	}
+	free(csc->pbuf);
+	csc->pbuf = NULL;
 	return (1);
 }
 
@@ -483,11 +476,11 @@ cscope_find(SCR *sp, EXCMD *cmdp, CHAR_T *pattern)
 	rtqp = NULL;
 	if (TAILQ_EMPTY(exp->tq)) {
 		/* Initialize the `local context' tag queue structure. */
-		CALLOC_GOTO(sp, rtqp, TAGQ *, 1, sizeof(TAGQ));
+		CALLOC_GOTO(sp, rtqp, 1, sizeof(TAGQ));
 		TAILQ_INIT(rtqp->tagq);
 
 		/* Initialize and link in its tag structure. */
-		CALLOC_GOTO(sp, rtp, TAG *, 1, sizeof(TAG));
+		CALLOC_GOTO(sp, rtp, 1, sizeof(TAG));
 		TAILQ_INSERT_HEAD(rtqp->tagq, rtp, q);
 		rtqp->current = rtp;
 	}
@@ -497,8 +490,8 @@ cscope_find(SCR *sp, EXCMD *cmdp, CHAR_T *pattern)
 	np = strdup(np);
 	if ((tqp = create_cs_cmd(sp, np, &search)) == NULL)
 		goto err;
-	if (np != NULL)
-		free(np);
+	free(np);
+	np = NULL;
 
 	/*
 	 * Stick the current context in a convenient place, we'll lose it
@@ -529,10 +522,8 @@ cscope_find(SCR *sp, EXCMD *cmdp, CHAR_T *pattern)
 
 	if (matches == 0) {
 		msgq(sp, M_INFO, "278|No matches for query");
-nomatch:	if (rtp != NULL)
-			free(rtp);
-		if (rtqp != NULL)
-			free(rtqp);
+nomatch:	free(rtp);
+		free(rtqp);
 		tagq_free(sp, tqp);
 		return (1);
 	}
@@ -588,12 +579,9 @@ nomatch:	if (rtp != NULL)
 
 err:
 alloc_err:
-	if (rtqp != NULL)
-		free(rtqp);
-	if (rtp != NULL)
-		free(rtp);
-	if (np != NULL)
-		free(np);
+	free(rtqp);
+	free(rtp);
+	free(np);
 	return (1);
 }
 
@@ -652,7 +640,7 @@ usage:		(void)csc_help(sp, "find");
 		tlen = strlen(p);
 
 	/* Allocate and initialize the TAGQ structure. */
-	CALLOC(sp, tqp, TAGQ *, 1, sizeof(TAGQ) + tlen + 3);
+	CALLOC(sp, tqp, 1, sizeof(TAGQ) + tlen + 3);
 	if (tqp == NULL)
 		return (NULL);
 	TAILQ_INIT(tqp->tagq);
@@ -756,9 +744,8 @@ parse(SCR *sp, CSC *csc, TAGQ *tqp, int *matchesp)
 		 * Allocate and initialize a tag structure plus the variable
 		 * length cscope information that follows it.
 		 */
-		CALLOC_RET(sp, tp,
-		    TAG *, 1, sizeof(TAG) + dlen + 2 + nlen + 1 +
-		    (slen + 1) * sizeof(CHAR_T));
+		CALLOC_RET(sp, tp, 1,
+			   sizeof(TAG) + dlen + 2 + nlen + 1 + (slen + 1) * sizeof(CHAR_T));
 		tp->fname = (char *)tp->buf;
 		if (dlen == 1 && *dname == '.')
 			--dlen;
@@ -770,9 +757,11 @@ parse(SCR *sp, CSC *csc, TAGQ *tqp, int *matchesp)
 		memcpy(tp->fname + dlen, name, nlen + 1);
 		tp->fnlen = dlen + nlen;
 		tp->slno = slno;
-		tp->search = (CHAR_T*)(tp->fname + tp->fnlen + 1);
-		CHAR2INT(sp, search, slen + 1, wp, wlen);
-		MEMCPY(tp->search, wp, (tp->slen = slen) + 1);
+		if (slen != 0) {
+			tp->search = (CHAR_T*)(tp->fname + tp->fnlen + 1);
+			CHAR2INT(sp, search, slen + 1, wp, wlen);
+			MEMCPY(tp->search, wp, (tp->slen = slen) + 1);
+		}
 		TAILQ_INSERT_TAIL(tqp->tagq, tp, q);
 
 		/* Try to preset the tag within the current file. */
@@ -943,10 +932,8 @@ badno:		msgq(sp, M_ERR, "312|%d: no such cscope session", n);
 	(void)waitpid(csc->pid, &pstat, 0);
 
 	/* Discard cscope connection information. */
-	if (csc->pbuf != NULL)
-		free(csc->pbuf);
-	if (csc->paths != NULL)
-		free(csc->paths);
+	free(csc->pbuf);
+	free(csc->paths);
 	free(csc);
 	return (0);
 }

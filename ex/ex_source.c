@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_source.c,v 10.17 2011/12/19 16:17:06 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -65,7 +61,7 @@ ex_source(SCR *sp, EXCMD *cmdp)
 		goto err;
 	}
 
-	MALLOC(sp, bp, char *, (size_t)sb.st_size + 1);
+	MALLOC(sp, bp, (size_t)sb.st_size + 1);
 	if (bp == NULL) {
 		(void)close(fd);
 		return (1);
@@ -88,8 +84,7 @@ err:		msgq_str(sp, M_SYSERR, name, "%s");
 		msgq(sp, M_ERR, "323|Invalid input. Truncated.");
 	/* Put it on the ex queue. */
 	rc = ex_run_str(sp, np, wp, wlen - 1, 1, 0);
-	if (np != NULL)
-		free(np);
+	free(np);
 	free(bp);
 	return (rc);
 }
