@@ -16,6 +16,12 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200909:
+	The resume code now notifies devd with the 'kernel' system
+	rather than the old 'kern' subsystem to be consistent with
+	other use. The old notification will be created as well, but
+	will be removed prior to FreeBSD 14.0.
+
 20200722:
 	Clang, llvm, lld, lldb, compiler-rt, libc++, libunwind and openmp have
 	been upgraded to 10.0.1.  Please see the 20141231 entry below for
