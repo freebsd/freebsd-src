@@ -8,7 +8,7 @@ V=	${.CURDIR}/../../../contrib/nvi
 
 FILESGROUPS+=VICAT
 CAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
-	uk_UA.KOI8-U zh_CN.GB2312
+	uk_UA.KOI8-U zh_CN.GB2312 tr_TR.ISO8859-9 tr_TR.UTF-8
 VICAT=		${CAT}
 VICATDIR=	${FILESDIR}
 VICATPACKAGE=	${PACKAGE}

@@ -9,16 +9,13 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: vs_refresh.c,v 10.54 2015/04/08 16:32:49 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
+#include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -469,7 +466,7 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 	/* Sanity checking. */
 	if (CNO >= len && len != 0) {
 		msgq(sp, M_ERR, "Error: %s/%d: cno (%zu) >= len (%zu)",
-		     tail(__FILE__), __LINE__, CNO, len);
+		     basename(__FILE__), __LINE__, CNO, len);
 		return (1);
 	}
 #endif
@@ -503,7 +500,7 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 
 		/*
 		 * Count up the widths of the characters.  If it's a tab
-		 * character, go do it the the slow way.
+		 * character, go do it the slow way.
 		 */
 		for (cwtotal = 0; cnt--; cwtotal += KEY_COL(sp, ch))
 			if ((ch = *(UCHAR_T *)p--) == '\t')
@@ -541,7 +538,7 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 
 		/*
 		 * Count up the widths of the characters.  If it's a tab
-		 * character, go do it the the slow way.  If we cross a
+		 * character, go do it the slow way.  If we cross a
 		 * screen boundary, we can quit.
 		 */
 		for (cwtotal = SCNO; cnt--;) {

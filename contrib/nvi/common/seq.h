@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: seq.h,v 10.4 2011/12/11 21:43:39 zy Exp $
  */
 
 /*

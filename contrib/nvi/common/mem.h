@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: mem.h,v 10.17 2012/10/07 00:40:29 zy Exp $
  */
 
 #ifdef DEBUG
@@ -148,45 +146,32 @@
 
 /*
  * Malloc a buffer, casting the return pointer.  Various versions.
- *
- * !!!
- * The cast should be unnecessary, malloc(3) and friends return void *'s,
- * which is all we need.  However, some systems that nvi needs to run on
- * don't do it right yet, resulting in the compiler printing out roughly
- * a million warnings.  After awhile, it seemed easier to put the casts
- * in instead of explaining it all the time.
  */
-#define	CALLOC(sp, p, cast, nmemb, size) {				\
-	if ((p = (cast)calloc(nmemb, size)) == NULL)			\
+#define	CALLOC(sp, p, nmemb, size) {					\
+	if ((p = calloc(nmemb, size)) == NULL)				\
 		msgq(sp, M_SYSERR, NULL);				\
 }
-#define	CALLOC_GOTO(sp, p, cast, nmemb, size) {				\
-	if ((p = (cast)calloc(nmemb, size)) == NULL)			\
+#define	CALLOC_GOTO(sp, p, nmemb, size) {				\
+	if ((p = calloc(nmemb, size)) == NULL)				\
 		goto alloc_err;						\
 }
-#define	CALLOC_NOMSG(sp, p, cast, nmemb, size) {			\
-	p = (cast)calloc(nmemb, size);					\
-}
-#define	CALLOC_RET(sp, p, cast, nmemb, size) {				\
-	if ((p = (cast)calloc(nmemb, size)) == NULL) {			\
+#define	CALLOC_RET(sp, p, nmemb, size) {				\
+	if ((p = calloc(nmemb, size)) == NULL) {			\
 		msgq(sp, M_SYSERR, NULL);				\
 		return (1);						\
 	}								\
 }
 
-#define	MALLOC(sp, p, cast, size) {					\
-	if ((p = (cast)malloc(size)) == NULL)				\
+#define	MALLOC(sp, p, size) {						\
+	if ((p = malloc(size)) == NULL)					\
 		msgq(sp, M_SYSERR, NULL);				\
 }
-#define	MALLOC_GOTO(sp, p, cast, size) {				\
-	if ((p = (cast)malloc(size)) == NULL)				\
+#define	MALLOC_GOTO(sp, p, size) {					\
+	if ((p = malloc(size)) == NULL)					\
 		goto alloc_err;						\
 }
-#define	MALLOC_NOMSG(sp, p, cast, size) {				\
-	p = (cast)malloc(size);						\
-}
-#define	MALLOC_RET(sp, p, cast, size) {					\
-	if ((p = (cast)malloc(size)) == NULL) {				\
+#define	MALLOC_RET(sp, p, size) {					\
+	if ((p = malloc(size)) == NULL) {				\
 		msgq(sp, M_SYSERR, NULL);				\
 		return (1);						\
 	}								\
@@ -198,20 +183,12 @@
  */
 #define	REALLOC(sp, p, cast, size) {					\
 	cast newp;							\
-	if ((newp = (cast)realloc(p, size)) == NULL) {			\
-		if (p != NULL)						\
-			free(p);					\
+	if ((newp = realloc(p, size)) == NULL) {			\
+		free(p);						\
 		msgq(sp, M_SYSERR, NULL);				\
 	}								\
 	p = newp;							\
 }
-
-/*
- * Versions of bcopy(3) and bzero(3) that use the size of the
- * initial pointer to figure out how much memory to manipulate.
- */
-#define	BCOPY(p, t, len)	bcopy(p, t, (len) * sizeof(*(p)))
-#define	BZERO(p, len)		bzero(p, (len) * sizeof(*(p)))
 
 /* 
  * p2roundup --
