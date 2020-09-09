@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: v_match.c,v 10.11 2012/02/11 00:33:46 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -162,9 +158,8 @@ v_buildmcs(SCR *sp, char *str)
 	CHAR_T **mp = &VIP(sp)->mcs;
 	size_t len = strlen(str) + 1;
 
-	if (*mp != NULL)
-		free(*mp);
-	MALLOC(sp, *mp, CHAR_T *, len * sizeof(CHAR_T));
+	free(*mp);
+	MALLOC(sp, *mp, len * sizeof(CHAR_T));
 	if (*mp == NULL)
 		return (1);
 #ifdef USE_WIDECHAR

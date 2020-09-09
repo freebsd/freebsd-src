@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: cut.h,v 10.10 2012/02/11 15:52:33 zy Exp $
  */
 
 typedef struct _texth TEXTH;		/* TEXT list head structure. */

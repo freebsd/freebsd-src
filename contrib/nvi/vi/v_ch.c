@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: v_ch.c,v 10.11 2011/12/02 19:49:50 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -195,6 +191,15 @@ v_chT(SCR *sp, VICMD *vp)
 {
 	if (v_chF(sp, vp))
 		return (1);
+
+	/*
+	 * Check whether the matching character is to the immediate left
+	 * of the original cursor position, offset adjusted for a motion
+	 * command.  If so, no movement is required.
+	 */
+	if (vp->m_start.cno == vp->m_stop.cno) {
+                return (1);
+	}
 
 	/*
 	 * v_chF places the cursor on the character, where the 'T'
