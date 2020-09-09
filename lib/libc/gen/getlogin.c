@@ -58,7 +58,7 @@ getlogin(void)
 }
 
 int
-getlogin_r(char *logname, int namelen)
+getlogin_r(char *logname, size_t namelen)
 {
 	char tmpname[MAXLOGNAME];
 	int	len;
@@ -75,3 +75,13 @@ getlogin_r(char *logname, int namelen)
 	strlcpy(logname, tmpname, len);
 	return (0);
 }
+
+/* FreeBSD 12 and earlier compat. */
+int
+__getlogin_r_fbsd12(char *logname, int namelen)
+{
+	if (namelen < 1)
+		return (ERANGE);
+	return (getlogin_r(logname, namelen));
+}
+__sym_compat(getlogin_r, __getlogin_r_fbsd12, FBSD_1.0);
