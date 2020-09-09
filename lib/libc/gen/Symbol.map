@@ -156,7 +156,6 @@ FBSD_1.0 {
 	gethostname;
 	getloadavg;
 	getlogin;
-	getlogin_r;
 	setnetgrent;
 	getnetgrent;
 	endnetgrent;
@@ -422,6 +421,7 @@ FBSD_1.5 {
 };
 
 FBSD_1.6 {
+	getlogin_r;
 	memalign;
 	scandir_b;
 	sigandset;
