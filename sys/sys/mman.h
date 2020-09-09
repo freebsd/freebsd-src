@@ -192,6 +192,17 @@
  */
 #define	SHM_ALLOW_SEALING		0x00000001
 #define	SHM_GROW_ON_WRITE		0x00000002
+#define	SHM_LARGEPAGE			0x00000004
+
+#define	SHM_LARGEPAGE_ALLOC_DEFAULT	0
+#define	SHM_LARGEPAGE_ALLOC_NOWAIT	1
+#define	SHM_LARGEPAGE_ALLOC_HARD	2
+
+struct shm_largepage_conf {
+	int psind;
+	int alloc_policy;
+	int pad[10];
+};
 
 /*
  * Flags for memfd_create().
@@ -199,7 +210,6 @@
 #define	MFD_CLOEXEC			0x00000001
 #define	MFD_ALLOW_SEALING		0x00000002
 
-/* UNSUPPORTED */
 #define	MFD_HUGETLB			0x00000004
 
 #define	MFD_HUGE_MASK			0xFC000000
@@ -282,6 +292,10 @@ struct shmfd {
 
 	int		shm_flags;
 	int		shm_seals;
+
+	/* largepage config */
+	int		shm_lp_psind;
+	int		shm_lp_alloc_policy;
 };
 #endif
 
@@ -290,10 +304,11 @@ int	shm_map(struct file *fp, size_t size, off_t offset, void **memp);
 int	shm_unmap(struct file *fp, void *mem, size_t size);
 
 int	shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags);
-struct shmfd *shm_alloc(struct ucred *ucred, mode_t mode);
+struct shmfd *shm_alloc(struct ucred *ucred, mode_t mode, bool largepage);
 struct shmfd *shm_hold(struct shmfd *shmfd);
 void	shm_drop(struct shmfd *shmfd);
 int	shm_dotruncate(struct shmfd *shmfd, off_t length);
+bool	shm_largepage(struct shmfd *shmfd);
 
 extern struct fileops shm_ops;
 
@@ -332,6 +347,7 @@ int	shm_unlink(const char *);
 #endif
 #if __BSD_VISIBLE
 int	memfd_create(const char *, unsigned int);
+int	shm_create_largepage(const char *, int, int, int, mode_t);
 int	shm_rename(const char *, const char *, int);
 #endif
 __END_DECLS
