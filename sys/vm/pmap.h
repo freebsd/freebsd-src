@@ -106,6 +106,7 @@ extern vm_offset_t kernel_vm_end;
  */
 #define	PMAP_ENTER_NOSLEEP	0x00000100
 #define	PMAP_ENTER_WIRED	0x00000200
+#define	PMAP_ENTER_LARGEPAGE	0x00000400
 #define	PMAP_ENTER_RESERVED	0xFF000000
 
 /*
