@@ -3933,7 +3933,7 @@ umtx_shm_create_reg(struct thread *td, const struct umtx_key *key,
 	reg = uma_zalloc(umtx_shm_reg_zone, M_WAITOK | M_ZERO);
 	reg->ushm_refcnt = 1;
 	bcopy(key, &reg->ushm_key, sizeof(*key));
-	reg->ushm_obj = shm_alloc(td->td_ucred, O_RDWR);
+	reg->ushm_obj = shm_alloc(td->td_ucred, O_RDWR, false);
 	reg->ushm_cred = crhold(cred);
 	error = shm_dotruncate(reg->ushm_obj, PAGE_SIZE);
 	if (error != 0) {
