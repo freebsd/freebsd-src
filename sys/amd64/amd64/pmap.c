@@ -6475,6 +6475,119 @@ setpte:
 }
 #endif /* VM_NRESERVLEVEL > 0 */
 
+static int
+pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t newpte, int flags,
+    int psind)
+{
+	vm_page_t mp;
+	pt_entry_t origpte, *pml4e, *pdpe, *pde, pten, PG_V;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(psind > 0 && psind < MAXPAGESIZES,
+	    ("psind %d unexpected", psind));
+	KASSERT(((newpte & PG_FRAME) & (pagesizes[psind] - 1)) == 0,
+	    ("unaligned phys address %#lx newpte %#lx psind %d",
+	    newpte & PG_FRAME, newpte, psind));
+	KASSERT((va & (pagesizes[psind] - 1)) == 0,
+	    ("unaligned va %#lx psind %d", va, psind));
+	KASSERT(va < VM_MAXUSER_ADDRESS,
+	    ("kernel mode non-transparent superpage")); /* XXXKIB */
+	KASSERT(va + pagesizes[psind] < VM_MAXUSER_ADDRESS,
+	    ("overflowing user map va %#lx psind %d", va, psind)); /* XXXKIB */
+
+	PG_V = pmap_valid_bit(pmap);
+
+restart:
+	pten = newpte;
+	if (va < VM_MAXUSER_ADDRESS && pmap->pm_type == PT_X86)
+		pten |= pmap_pkru_get(pmap, va);
+
+	if (psind == 2) {	/* 1G */
+		if (!pmap_pkru_same(pmap, va, va + NBPDP))
+			return (KERN_PROTECTION_FAILURE);
+		pml4e = pmap_pml4e(pmap, va);
+		if ((*pml4e & PG_V) == 0) {
+			mp = _pmap_allocpte(pmap, pmap_pml4e_pindex(va),
+			    NULL, va);
+			if (mp == NULL) {
+				if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+					return (KERN_RESOURCE_SHORTAGE);
+				PMAP_UNLOCK(pmap);
+				vm_wait(NULL);
+				PMAP_LOCK(pmap);
+
+				/*
+				 * Restart at least to recalcuate the pkru
+				 * key.  Our caller must keep the map locked
+				 * so no paging structure can be validated
+				 * under us.
+				 */
+				goto restart;
+			}
+			pdpe = pmap_pdpe(pmap, va);
+			KASSERT(pdpe != NULL, ("va %#lx lost pdpe", va));
+			origpte = *pdpe;
+			MPASS(origpte == 0);
+		} else {
+			mp = PHYS_TO_VM_PAGE(*pml4e & PG_FRAME);
+			pdpe = pmap_pdpe(pmap, va);
+			KASSERT(pdpe != NULL, ("va %#lx lost pdpe", va));
+			origpte = *pdpe;
+			if ((origpte & PG_V) == 0)
+				mp->ref_count++;
+		}
+		KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
+		    (origpte & PG_FRAME) == (newpte & PG_FRAME)),
+		    ("va %#lx changing 1G phys page pdpe %#lx newpte %#lx",
+		    va, origpte, newpte));
+		if ((newpte & PG_W) != 0 && (origpte & PG_W) == 0)
+			pmap->pm_stats.wired_count += NBPDP / PAGE_SIZE;
+		else if ((newpte & PG_W) == 0 && (origpte & PG_W) != 0)
+			pmap->pm_stats.wired_count -= NBPDP / PAGE_SIZE;
+		*pdpe = newpte;
+	} else /* (psind == 1) */ {	/* 2M */
+		if (!pmap_pkru_same(pmap, va, va + NBPDR))
+			return (KERN_PROTECTION_FAILURE);
+		pde = pmap_pde(pmap, va);
+		if (pde == NULL) {
+			mp = _pmap_allocpte(pmap, pmap_pdpe_pindex(va),
+			    NULL, va);
+			if (mp == NULL) {
+				if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+					return (KERN_RESOURCE_SHORTAGE);
+				PMAP_UNLOCK(pmap);
+				vm_wait(NULL);
+				PMAP_LOCK(pmap);
+				goto restart;
+			}
+			pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mp));
+			pde = &pde[pmap_pde_index(va)];
+			origpte = *pde;
+			MPASS(origpte == 0);
+		} else {
+			pdpe = pmap_pdpe(pmap, va);
+			MPASS(pdpe != NULL && (*pdpe & PG_V) != 0);
+			mp = PHYS_TO_VM_PAGE(*pdpe & PG_FRAME);
+			origpte = *pde;
+			if ((origpte & PG_V) == 0)
+				mp->ref_count++;
+		}
+		KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
+		    (origpte & PG_FRAME) == (newpte & PG_FRAME)),
+		    ("va %#lx changing 2M phys page pde %#lx newpte %#lx",
+		    va, origpte, newpte));
+		if ((newpte & PG_W) != 0 && (origpte & PG_W) == 0)
+			pmap->pm_stats.wired_count += NBPDR / PAGE_SIZE;
+		else if ((newpte & PG_W) == 0 && (origpte & PG_W) != 0)
+			pmap->pm_stats.wired_count -= NBPDR / PAGE_SIZE;
+		*pde = newpte;
+	}
+	if ((origpte & PG_V) == 0)
+		pmap_resident_count_inc(pmap, pagesizes[psind] / PAGE_SIZE);
+
+	return (KERN_SUCCESS);
+}
+
 /*
  *	Insert the given physical page (p) at
  *	the specified virtual address (v) in the
@@ -6554,6 +6667,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	lock = NULL;
 	PMAP_LOCK(pmap);
+	if ((flags & PMAP_ENTER_LARGEPAGE) != 0) {
+		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
+		    ("managed largepage va %#lx flags %#x", va, flags));
+		rv = pmap_enter_largepage(pmap, va, newpte | PG_PS, flags,
+		    psind);
+		goto out;
+	}
 	if (psind == 1) {
 		/* Assert the required virtual and physical alignment. */ 
 		KASSERT((va & PDRMASK) == 0, ("pmap_enter: va unaligned"));
