@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	@(#)msg.h	10.10 (Berkeley) 5/10/96
  */
 
 /*

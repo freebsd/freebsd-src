@@ -5,17 +5,10 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: common.h,v 10.22 2012/04/13 05:21:50 zy Exp $
  */
 
-/*
- * Pseudo-local includes.  These are files that are unlikely to exist
- * on most machines to which we're porting vi, and we want to include
- * them in a very specific order, regardless.
- */
-#include <db.h>
-#include <regex.h>
+#include "/usr/include/db.h"	/* Only include db1. */
+#include <regex.h>		/* May refer to the bundled regex. */
 
 /*
  * Forward structure declarations.  Not pretty, but the include files

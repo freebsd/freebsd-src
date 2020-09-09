@@ -12,10 +12,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_tag.c,v 10.54 2012/04/12 07:17:30 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/queue.h>
@@ -98,8 +94,7 @@ ex_tag_push(SCR *sp, EXCMD *cmdp)
 	exp = EXP(sp);
 	switch (cmdp->argc) {
 	case 1:
-		if (exp->tag_last != NULL)
-			free(exp->tag_last);
+		free(exp->tag_last);
 
 		if ((exp->tag_last = v_wstrdup(sp, cmdp->argv[0]->bp,
 		    cmdp->argv[0]->len)) == NULL) {
@@ -590,12 +585,14 @@ tagf_copy(SCR *sp, TAGF *otfp, TAGF **tfpp)
 {
 	TAGF *tfp;
 
-	MALLOC_RET(sp, tfp, TAGF *, sizeof(TAGF));
+	MALLOC_RET(sp, tfp, sizeof(TAGF));
 	*tfp = *otfp;
 
 	/* XXX: Allocate as part of the TAGF structure!!! */
-	if ((tfp->name = strdup(otfp->name)) == NULL)
+	if ((tfp->name = strdup(otfp->name)) == NULL) {
+		free(tfp);
 		return (1);
+	}
 
 	*tfpp = tfp;
 	return (0);
@@ -614,7 +611,7 @@ tagq_copy(SCR *sp, TAGQ *otqp, TAGQ **tqpp)
 	len = sizeof(TAGQ);
 	if (otqp->tag != NULL)
 		len += otqp->tlen + 1;
-	MALLOC_RET(sp, tqp, TAGQ *, len);
+	MALLOC_RET(sp, tqp, len);
 	memcpy(tqp, otqp, len);
 
 	TAILQ_INIT(tqp->tagq);
@@ -643,7 +640,7 @@ tag_copy(SCR *sp, TAG *otp, TAG **tpp)
 		len += otp->slen + 1;
 	if (otp->msg != NULL)
 		len += otp->mlen + 1;
-	MALLOC_RET(sp, tp, TAG *, len);
+	MALLOC_RET(sp, tp, len);
 	memcpy(tp, otp, len);
 
 	if (otp->fname != NULL)
@@ -727,11 +724,11 @@ tagq_push(SCR *sp, TAGQ *tqp, int new_screen, int force)
 	rtqp = NULL;
 	if (TAILQ_EMPTY(exp->tq)) {
 		/* Initialize the `local context' tag queue structure. */
-		CALLOC_GOTO(sp, rtqp, TAGQ *, 1, sizeof(TAGQ));
+		CALLOC_GOTO(sp, rtqp, 1, sizeof(TAGQ));
 		TAILQ_INIT(rtqp->tagq);
 
 		/* Initialize and link in its tag structure. */
-		CALLOC_GOTO(sp, rtp, TAG *, 1, sizeof(TAG));
+		CALLOC_GOTO(sp, rtp, 1, sizeof(TAG));
 		TAILQ_INSERT_HEAD(rtqp->tagq, rtp, q);
 		rtqp->current = rtp;
 	}
@@ -802,10 +799,8 @@ tagq_push(SCR *sp, TAGQ *tqp, int new_screen, int force)
 
 err:
 alloc_err:
-	if (rtqp != NULL)
-		free(rtqp);
-	if (rtp != NULL)
-		free(rtp);
+	free(rtqp);
+	free(rtp);
 	tagq_free(sp, tqp);
 	return (1);
 }
@@ -858,8 +853,8 @@ ex_tagf_alloc(SCR *sp, char *str)
 	for (p = t = str;; ++p) {
 		if (*p == '\0' || cmdskip(*p)) {
 			if ((len = p - t)) {
-				MALLOC_RET(sp, tfp, TAGF *, sizeof(TAGF));
-				MALLOC(sp, tfp->name, char *, len + 1);
+				MALLOC_RET(sp, tfp, sizeof(TAGF));
+				MALLOC(sp, tfp->name, len + 1);
 				if (tfp->name == NULL) {
 					free(tfp);
 					return (1);
@@ -896,8 +891,7 @@ ex_tag_free(SCR *sp)
 		tagq_free(sp, tqp);
 	while ((tfp = TAILQ_FIRST(exp->tagfq)) != NULL)
 		tagf_free(sp, tfp);
-	if (exp->tag_last != NULL)
-		free(exp->tag_last);
+	free(exp->tag_last);
 	return (0);
 }
 
@@ -985,7 +979,7 @@ ctag_slist(SCR *sp, CHAR_T *tag)
 	/* Allocate and initialize the tag queue structure. */
 	INT2CHAR(sp, tag, STRLEN(tag) + 1, np, nlen);
 	len = nlen - 1;
-	CALLOC_GOTO(sp, tqp, TAGQ *, 1, sizeof(TAGQ) + len + 1);
+	CALLOC_GOTO(sp, tqp, 1, sizeof(TAGQ) + len + 1);
 	TAILQ_INIT(tqp->tagq);
 	tqp->tag = tqp->buf;
 	memcpy(tqp->tag, np, (tqp->tlen = len) + 1);
@@ -1125,9 +1119,8 @@ corrupt:		p = msg_print(sp, tname, &nf1);
 		/* Resolve the file name. */
 		ctag_file(sp, tfp, name, &dname, &dlen);
 
-		CALLOC_GOTO(sp, tp,
-		    TAG *, 1, sizeof(TAG) + dlen + 2 + nlen + 1 + 
-		    (slen + 1) * sizeof(CHAR_T));
+		CALLOC_GOTO(sp, tp, 1,
+			    sizeof(TAG) + dlen + 2 + nlen + 1 + (slen + 1) * sizeof(CHAR_T));
 		tp->fname = (char *)tp->buf;
 		if (dlen == 1 && *dname == '.')
 			--dlen;

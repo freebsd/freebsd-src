@@ -5,10 +5,6 @@
  * See the LICENSE file for redistribution information.
  */
 
-#ifndef lint
-static const char sccsid[] = "$Id: encoding.c,v 1.4 2011/12/13 19:40:52 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 
 int looks_utf8(const char *, size_t);
@@ -96,7 +92,7 @@ looks_utf8(const char *ibuf, size_t nbytes)
 				if (i >= nbytes)
 					goto done;
 
-				if (buf[i] & 0x40)	/* 10xxxxxx */
+				if ((buf[i] & 0xc0) != 0x80)	/* 10xxxxxx */
 					return -1;
 			}
 

@@ -27,10 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static char sccsid[] = "$Id: dump.c,v 8.2 2011/07/14 00:05:25 zy Exp $";
-#endif /* not lint */
-
 #include <ctype.h>
 #include <stdio.h>
 

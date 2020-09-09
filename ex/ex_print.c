@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_print.c,v 10.26 2013/11/02 02:11:07 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -213,7 +209,7 @@ ex_prchars(SCR *sp, const CHAR_T *p, size_t *colp, size_t len,
 	gp = sp->gp;
 	ts = O_VAL(sp, O_TABSTOP);
 	for (col = *colp; len--;)
-		if ((ch = *p++) == L('\t') && !LF_ISSET(E_C_LIST))
+		if ((ch = *p++) == '\t' && !LF_ISSET(E_C_LIST))
 			for (tlen = ts - col % ts;
 			    col < sp->cols && tlen--; ++col) {
 				(void)ex_printf(sp,

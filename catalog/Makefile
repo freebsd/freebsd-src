@@ -1,7 +1,5 @@
-#	$Id: Makefile,v 9.0 2012/10/19 15:13:11 zy Exp $
-
-CAT=	dutch english french german polish ru_RU.KOI8-R spanish swedish \
-	uk_UA.KOI8-U zh_CN.GB2312
+CAT=	dutch english french german polish ru_RU.KOI8-R spanish \
+	swedish tr_TR.ISO8859-9 tr_TR.UTF-8 uk_UA.KOI8-U zh_CN.GB2312
 FILES=	../cl/*.c ../common/*.c ../ex/*.c ../vi/*.c
 
 all: dump ${CAT}
@@ -33,7 +31,8 @@ ${CAT}: english.base
 
 CHK=	dutch.check english.check french.check german.check \
 	polish.check ru_RU.KOI8-R.check spanish.check swedish.check \
-	uk_UA.KOI8-U.check zh_CN.GB2312.check
+	tr_TR.ISO8859-9.check tr_TR.UTF-8.check uk_UA.KOI8-U.check \
+	zh_CN.GB2312.check
 check: ${CHK}
 ${CHK}: ${CAT}
 	@echo "... $@";							\

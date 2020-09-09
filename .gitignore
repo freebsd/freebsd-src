@@ -1,0 +1,9 @@
+*.swp
+*~
+*.orig
+*.core
+extern.h
+*_def.h
+version.h
+tags
+build/

@@ -1,0 +1,17 @@
+/* Define when using wide characters */
+#cmakedefine USE_WIDECHAR
+
+/* Define when iconv can be used */
+#cmakedefine USE_ICONV
+
+/* Define when the 2nd argument of iconv(3) is not const */
+#cmakedefine ICONV_TRADITIONAL
+
+/* Define if you have <libutil.h> */
+#cmakedefine HAVE_LIBUTIL_H
+
+/* Define if you have <ncurses.h> */
+#cmakedefine HAVE_NCURSES_H
+
+/* Define if you have <term.h> */
+#cmakedefine HAVE_TERM_H

@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_subst.c,v 10.53 2011/12/21 20:40:35 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -78,7 +74,7 @@ ex_s(SCR *sp, EXCMD *cmdp)
 subagain:	return (ex_subagain(sp, cmdp));
 
 	delim = *p++;
-	if (!isascii(delim) || isalnum(delim) || delim == '\\')
+	if (is09azAZ(delim) || delim == '\\')
 		return (s(sp, cmdp, p, &sp->subre_c, SUB_MUSTSETR));
 
 	/*
@@ -190,8 +186,7 @@ subagain:	return (ex_subagain(sp, cmdp));
 	if (p[0] == '\0' || p[0] == delim) {
 		if (p[0] == delim)
 			++p;
-		if (sp->repl != NULL)
-			free(sp->repl);
+		free(sp->repl);
 		sp->repl = NULL;
 		sp->repl_len = 0;
 	} else if (p[0] == '%' && (p[1] == '\0' || p[1] == delim))
@@ -230,9 +225,8 @@ tilde:				++p;
 			++len;
 		}
 		if ((sp->repl_len = len) != 0) {
-			if (sp->repl != NULL)
-				free(sp->repl);
-			MALLOC(sp, sp->repl, CHAR_T *, len * sizeof(CHAR_T));
+			free(sp->repl);
+			MALLOC(sp, sp->repl, len * sizeof(CHAR_T));
 			if (sp->repl == NULL) {
 				FREE_SPACEW(sp, bp, blen);
 				return (1);
@@ -870,8 +864,7 @@ err:		rval = 1;
 
 	if (bp != NULL)
 		FREE_SPACEW(sp, bp, blen);
-	if (lb != NULL)
-		free(lb);
+	free(lb);
 	return (rval);
 }
 
@@ -940,10 +933,9 @@ re_compile(SCR *sp, CHAR_T *ptrn, size_t plen, CHAR_T **ptrnp, size_t *lenp, reg
 				return (1);
 
 		/* Discard previous pattern. */
-		if (*ptrnp != NULL) {
-			free(*ptrnp);
-			*ptrnp = NULL;
-		}
+		free(*ptrnp);
+		*ptrnp = NULL;
+
 		if (lenp != NULL)
 			*lenp = plen;
 
@@ -954,7 +946,7 @@ re_compile(SCR *sp, CHAR_T *ptrn, size_t plen, CHAR_T **ptrnp, size_t *lenp, reg
 		 * Regcomp isn't 8-bit clean, so the pattern is nul-terminated
 		 * for now.  There's just no other solution.  
 		 */
-		MALLOC(sp, *ptrnp, CHAR_T *, (plen + 1) * sizeof(CHAR_T));
+		MALLOC(sp, *ptrnp, (plen + 1) * sizeof(CHAR_T));
 		if (*ptrnp != NULL) {
 			MEMCPY(*ptrnp, ptrn, plen);
 			(*ptrnp)[plen] = '\0';
@@ -1289,7 +1281,7 @@ re_error(SCR *sp, int errcode, regex_t *preg)
 	char *oe;
 
 	s = regerror(errcode, preg, "", 0);
-	MALLOC(sp, oe, char *, s);
+	MALLOC(sp, oe, s);
 	if (oe != NULL) {
 		(void)regerror(errcode, preg, oe, s);
 		msgq(sp, M_ERR, "RE error: %s", oe);

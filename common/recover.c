@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: recover.c,v 11.3 2015/04/04 03:50:42 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -116,10 +112,7 @@ static int	 rcv_dlnread(SCR *, char **, char **, FILE *);
  * PUBLIC: int rcv_tmp(SCR *, EXF *, char *);
  */
 int
-rcv_tmp(
-	SCR *sp,
-	EXF *ep,
-	char *name)
+rcv_tmp(SCR *sp, EXF *ep, char *name)
 {
 	struct stat sb;
 	int fd;
@@ -237,9 +230,7 @@ err:	msgq(sp, M_ERR,
  * PUBLIC: int rcv_sync(SCR *, u_int);
  */
 int
-rcv_sync(
-	SCR *sp,
-	u_int flags)
+rcv_sync(SCR *sp, u_int flags)
 {
 	EXF *ep;
 	int fd, rval;
@@ -318,10 +309,7 @@ err:		rval = 1;
  *	Build the file to mail to the user.
  */
 static int
-rcv_mailfile(
-	SCR *sp,
-	int issync,
-	char *cp_path)
+rcv_mailfile(SCR *sp, int issync, char *cp_path)
 {
 	EXF *ep;
 	GS *gp;
@@ -404,7 +392,7 @@ rcv_mailfile(
 		goto err;
 	}
 
-	MALLOC(sp, host, char *, hostmax + 1);
+	MALLOC(sp, host, hostmax + 1);
 	if (host == NULL)
 		goto err;
 	(void)gethostname(host, hostmax + 1);
@@ -429,8 +417,8 @@ rcv_mailfile(
 	    " was editing a file named ", t, " on the machine ",
 	    host, ", when it was saved for recovery. ",
 	    "You can recover most, if not all, of the changes ",
-	    "to this file using the -r option to ", gp->progname, ":\n\n\t",
-	    gp->progname, " -r ", qt);
+	    "to this file using the -r option to ", getprogname(), ":\n\n\t",
+	    getprogname(), " -r ", qt);
 	free(qt);
 	free(host);
 	if (buf == NULL) {
@@ -594,13 +582,11 @@ rcv_list(SCR *sp)
 
 		/* Close, discarding lock. */
 next:		(void)fclose(fp);
-		if (file != NULL)
-			free(file);
-		if (path != NULL)
-			free(path);
+		free(file);
+		free(path);
 	}
 	if (found == 0)
-		(void)printf("%s: No files to recover\n", sp->gp->progname);
+		(void)printf("%s: No files to recover\n", getprogname());
 	(void)closedir(dirp);
 	return (0);
 }
@@ -612,9 +598,7 @@ next:		(void)fclose(fp);
  * PUBLIC: int rcv_read(SCR *, FREF *);
  */
 int
-rcv_read(
-	SCR *sp,
-	FREF *frp)
+rcv_read(SCR *sp, FREF *frp)
 {
 	struct dirent *dp;
 	struct stat sb;
@@ -732,12 +716,10 @@ rcv_read(
 			sv_fd = dup(fileno(fp));
 		} else {
 next:			free(recpath);
-			if (path != NULL)
-				free(path);
+			free(path);
 		}
 		(void)fclose(fp);
-		if (file != NULL)
-			free(file);
+		free(file);
 	}
 	(void)closedir(dirp);
 
@@ -790,10 +772,7 @@ next:			free(recpath);
  *	Copy a recovery file.
  */
 static int
-rcv_copy(
-	SCR *sp,
-	int wfd,
-	char *fname)
+rcv_copy(SCR *sp, int wfd, char *fname)
 {
 	int nr, nw, off, rfd;
 	char buf[8 * 1024];
@@ -816,10 +795,7 @@ err:	msgq_str(sp, M_SYSERR, fname, "%s");
  *	Paranoid make temporary file routine.
  */
 static int
-rcv_mktemp(
-	SCR *sp,
-	char *path,
-	char *dname)
+rcv_mktemp(SCR *sp, char *path, char *dname)
 {
 	int fd;
 
@@ -833,9 +809,7 @@ rcv_mktemp(
  *	Send email.
  */
 static void
-rcv_email(
-	SCR *sp,
-	char *fname)
+rcv_email(SCR *sp, char *fname)
 {
 	char *buf;
 
@@ -854,11 +828,7 @@ rcv_email(
  *	Encode a string into an X-vi-data line and write it.
  */
 static int
-rcv_dlnwrite(
-	SCR *sp,
-	const char *dtype,
-	const char *src,
-	FILE *fp)
+rcv_dlnwrite(SCR *sp, const char *dtype, const char *src, FILE *fp)
 {
 	char *bp = NULL, *p;
 	size_t blen = 0;
@@ -901,9 +871,7 @@ alloc_err:
  *	Read an X-vi-data line and decode it.
  */
 static int
-rcv_dlnread(
-	SCR *sp,
-	char **dtypep,
+rcv_dlnread(SCR *sp, char **dtypep,
 	char **datap,		/* free *datap if != NULL after use. */
 	FILE *fp)
 {
@@ -948,7 +916,7 @@ rcv_dlnread(
 	len -= src - bp;
 
 	/* Memory looks like: "<data>\0<dtype>\0". */
-	MALLOC(sp, data, char *, dlen + len / 4 * 3 + 2);
+	MALLOC(sp, data, dlen + len / 4 * 3 + 2);
 	if (data == NULL)
 		goto err;
 	if ((xlen = (b64_pton(p + dlen + 1,
