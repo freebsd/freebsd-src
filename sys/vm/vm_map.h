@@ -149,6 +149,10 @@ struct vm_map_entry {
 #define	MAP_ENTRY_STACK_GAP_UP		0x00040000
 #define	MAP_ENTRY_HEADER		0x00080000
 
+#define	MAP_ENTRY_SPLIT_BOUNDARY_MASK	0x00300000
+
+#define	MAP_ENTRY_SPLIT_BOUNDARY_SHIFT	20
+
 #ifdef	_KERNEL
 static __inline u_char
 vm_map_entry_behavior(vm_map_entry_t entry)
@@ -373,6 +377,9 @@ long vmspace_resident_count(struct vmspace *vmspace);
 #define	MAP_CREATE_STACK_GAP_UP	0x00010000
 #define	MAP_CREATE_STACK_GAP_DN	0x00020000
 #define	MAP_VN_EXEC		0x00040000
+#define	MAP_SPLIT_BOUNDARY_MASK	0x00180000
+
+#define	MAP_SPLIT_BOUNDARY_SHIFT 19
 
 /*
  * vm_fault option flags
