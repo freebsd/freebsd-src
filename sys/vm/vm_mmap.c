@@ -577,6 +577,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 	vm_offset_t addr, end;
 	vm_size_t pageoff;
 	vm_map_t map;
+	int rv;
 
 	if (size == 0)
 		return (EINVAL);
@@ -614,10 +615,10 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 		}
 	}
 #endif
-	vm_map_delete(map, addr, end);
+	rv = vm_map_delete(map, addr, end);
 
 #ifdef HWPMC_HOOKS
-	if (__predict_false(pmc_handled)) {
+	if (rv == KERN_SUCCESS && __predict_false(pmc_handled)) {
 		/* downgrade the lock to prevent a LOR with the pmc-sx lock */
 		vm_map_lock_downgrade(map);
 		if (pkm.pm_address != (uintptr_t) NULL)
@@ -627,8 +628,7 @@ kern_munmap(struct thread *td, uintptr_t addr0, size_t size)
 #endif
 		vm_map_unlock(map);
 
-	/* vm_map_delete returns nothing but KERN_SUCCESS anyway */
-	return (0);
+	return (vm_mmap_to_errno(rv));
 }
 
 #ifndef _SYS_SYSPROTO_H_

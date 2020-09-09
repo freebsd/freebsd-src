@@ -1868,8 +1868,11 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	    ("vm_map_fixed: non-NULL backing object for stack"));
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
-	if ((cow & MAP_CHECK_EXCL) == 0)
-		vm_map_delete(map, start, end);
+	if ((cow & MAP_CHECK_EXCL) == 0) {
+		result = vm_map_delete(map, start, end);
+		if (result != KERN_SUCCESS)
+			goto out;
+	}
 	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
 		result = vm_map_stack_locked(map, start, length, sgrowsiz,
 		    prot, max, cow);
@@ -1877,6 +1880,7 @@ vm_map_fixed(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		result = vm_map_insert(map, object, offset, start, end,
 		    prot, max, cow);
 	}
+out:
 	vm_map_unlock(map);
 	return (result);
 }
@@ -2115,7 +2119,9 @@ again:
 			rv = KERN_INVALID_ADDRESS;
 			goto done;
 		}
-		vm_map_delete(map, *addr, *addr + length);
+		rv = vm_map_delete(map, *addr, *addr + length);
+		if (rv != KERN_SUCCESS)
+			goto done;
 	}
 	if ((cow & (MAP_STACK_GROWS_DOWN | MAP_STACK_GROWS_UP)) != 0) {
 		rv = vm_map_stack_locked(map, *addr, length, sgrowsiz, prot,
