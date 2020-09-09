@@ -188,7 +188,7 @@ kern_break(struct thread *td, uintptr_t *addr)
 			rv = vm_map_wire_locked(map, old, new,
 			    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES);
 			if (rv != KERN_SUCCESS)
-				vm_map_delete(map, old, new);
+				(void)vm_map_delete(map, old, new);
 		}
 		if (rv != KERN_SUCCESS) {
 #ifdef RACCT
