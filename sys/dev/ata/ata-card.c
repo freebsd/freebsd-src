@@ -144,6 +144,7 @@ ata_pccard_attach(device_t dev)
     err = ata_probe(dev);
     if (err > 0)
 	return (err);
+    gone_in_dev(dev, 13, "pccard removed");
     return (ata_attach(dev));
 }
 
