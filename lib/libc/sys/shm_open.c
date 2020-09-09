@@ -31,14 +31,17 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/filio.h>
 #include <sys/mman.h>
 
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "libc_private.h"
 
@@ -54,6 +57,51 @@ shm_open(const char *path, int flags, mode_t mode)
 	return (__sys_shm_open2(path, flags | O_CLOEXEC, mode, 0, NULL));
 }
 
+int
+shm_create_largepage(const char *path, int flags, int psind, int alloc_policy,
+    mode_t mode)
+{
+	struct shm_largepage_conf slc;
+	int error, fd, saved_errno;
+
+	fd = __sys_shm_open2(path, flags | O_CREAT, mode, SHM_LARGEPAGE, NULL);
+	if (error == -1)
+		return (-1);
+
+	memset(&slc, 0, sizeof(slc));
+	slc.psind = psind;
+	slc.alloc_policy = alloc_policy;
+	error = ioctl(fd, FIOSSHMLPGCNF, &slc);
+	if (error == -1) {
+		saved_errno = errno;
+		close(fd);
+		errno = saved_errno;
+		return (-1);
+	}
+	return (fd);
+}
+
+#define	K(x)	((size_t)(x) * 1024)
+#define	M(x)	(K(x) * 1024)
+#define	G(x)	(M(x) * 1024)
+static const struct {
+	int mask;
+	size_t pgsize;
+} mfd_huge_sizes[] = {
+	{ .mask = MFD_HUGE_64KB,	.pgsize = K(64) },
+	{ .mask = MFD_HUGE_512KB,	.pgsize = K(512) },
+	{ .mask = MFD_HUGE_1MB,		.pgsize = M(1) },
+	{ .mask = MFD_HUGE_2MB,		.pgsize = M(2) },
+	{ .mask = MFD_HUGE_8MB,		.pgsize = M(8) },
+	{ .mask = MFD_HUGE_16MB,	.pgsize = M(16) },
+	{ .mask = MFD_HUGE_32MB,	.pgsize = M(32) },
+	{ .mask = MFD_HUGE_256MB,	.pgsize = M(256) },
+	{ .mask = MFD_HUGE_512MB,	.pgsize = M(512) },
+	{ .mask = MFD_HUGE_1GB,		.pgsize = G(1) },
+	{ .mask = MFD_HUGE_2GB,		.pgsize = G(2) },
+	{ .mask = MFD_HUGE_16GB,	.pgsize = G(16) },
+};
+
 /*
  * The path argument is passed to the kernel, but the kernel doesn't currently
  * do anything with it.  Linux exposes it in linprocfs for debugging purposes
@@ -63,8 +111,9 @@ int
 memfd_create(const char *name, unsigned int flags)
 {
 	char memfd_name[NAME_MAX + 1];
-	size_t namelen;
-	int oflags, shmflags;
+	size_t namelen, *pgs;
+	struct shm_largepage_conf slc;
+	int error, fd, i, npgs, oflags, pgidx, saved_errno, shmflags;
 
 	if (name == NULL)
 		return (EBADF);
@@ -75,11 +124,9 @@ memfd_create(const char *name, unsigned int flags)
 	    MFD_HUGE_MASK)) != 0)
 		return (EINVAL);
 	/* Size specified but no HUGETLB. */
-	if ((flags & MFD_HUGE_MASK) != 0 && (flags & MFD_HUGETLB) == 0)
+	if (((flags & MFD_HUGE_MASK) != 0 && (flags & MFD_HUGETLB) == 0) ||
+	    __bitcount(flags & MFD_HUGE_MASK) > 1)
 		return (EINVAL);
-	/* We don't actually support HUGETLB. */
-	if ((flags & MFD_HUGETLB) != 0)
-		return (ENOSYS);
 
 	/* We've already validated that we're sufficiently sized. */
 	snprintf(memfd_name, NAME_MAX + 1, "%s%s", MEMFD_NAME_PREFIX, name);
@@ -89,5 +136,57 @@ memfd_create(const char *name, unsigned int flags)
 		oflags |= O_CLOEXEC;
 	if ((flags & MFD_ALLOW_SEALING) != 0)
 		shmflags |= SHM_ALLOW_SEALING;
-	return (__sys_shm_open2(SHM_ANON, oflags, 0, shmflags, memfd_name));
+	if ((flags & MFD_HUGETLB) == 0)
+		shmflags |= SHM_LARGEPAGE;
+	fd = __sys_shm_open2(SHM_ANON, oflags, 0, shmflags, memfd_name);
+	if (fd == -1 || (flags & MFD_HUGETLB) == 0)
+		return (fd);
+
+	pgs = NULL;
+	npgs = getpagesizes(NULL, 0);
+	if (npgs == -1)
+		goto clean;
+	pgs = calloc(npgs, sizeof(size_t));
+	if (pgs == NULL)
+		goto clean;
+	error = getpagesizes(pgs, npgs);
+	if (error == -1)
+		goto clean;
+	if ((flags & MFD_HUGE_MASK) == 0) {
+		if (npgs == 1) {
+			errno = EOPNOTSUPP;
+			goto clean;
+		}
+		pgidx = 1;
+	} else {
+		for (i = 0; i < nitems(mfd_huge_sizes); i++) {
+			if (mfd_huge_sizes[i].mask == (flags & MFD_HUGE_MASK))
+				break;
+		}
+		for (pgidx = 0; pgidx < npgs; pgidx++) {
+			if (mfd_huge_sizes[i].pgsize == pgs[pgidx])
+				break;
+		}
+		if (pgidx == npgs) {
+			errno = EOPNOTSUPP;
+			goto clean;
+		}
+	}
+	free(pgs);
+	pgs = NULL;
+
+	memset(&slc, 0, sizeof(slc));
+	slc.psind = pgidx;
+	slc.alloc_policy = SHM_LARGEPAGE_ALLOC_DEFAULT;
+	error = ioctl(fd, FIOSSHMLPGCNF, &slc);
+	if (error == -1)
+		goto clean;
+	return (fd);
+
+clean:
+	saved_errno = errno;
+	close(fd);
+	free(pgs);
+	errno = saved_errno;
+	return (-1);
 }
