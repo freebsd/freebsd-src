@@ -18,7 +18,6 @@ SRCF+=		ashldi3
 SRCF+=		ashlti3
 SRCF+=		ashrdi3
 SRCF+=		ashrti3
-SRCF+=		atomic
 SRCF+=		bswapdi2
 SRCF+=		bswapsi2
 SRCF+=		clear_cache
@@ -122,6 +121,12 @@ SRCF+=		udivti3
 SRCF+=		umoddi3
 SRCF+=		umodsi3
 SRCF+=		umodti3
+
+# Enable compiler-rt's atomic implementation only for clang, as it uses clang
+# specific builtins, and gcc packages usually come with their own libatomic.
+.if "${COMPILER_TYPE}" == "clang"
+SRCF+=		atomic
+.endif
 
 # Avoid using SSE2 instructions on i386, if unsupported.
 .if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
