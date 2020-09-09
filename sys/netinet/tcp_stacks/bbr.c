@@ -10281,6 +10281,8 @@ bbr_handoff_ok(struct tcpcb *tp)
 		 */
 		return (EAGAIN);
 	}
+	if (tp->t_flags & TF_SENTFIN)
+		return (EINVAL);
 	if ((tp->t_flags & TF_SACK_PERMIT) || bbr_sack_not_required) {
 		return (0);
 	}
