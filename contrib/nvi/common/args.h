@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: args.h,v 10.2 1996/03/06 19:50:07 bostic Exp $
  */
 
 /*

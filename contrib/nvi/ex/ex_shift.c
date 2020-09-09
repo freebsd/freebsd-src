@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_shift.c,v 10.17 2001/06/25 15:19:20 skimo Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -25,7 +21,7 @@ static const char sccsid[] = "$Id: ex_shift.c,v 10.17 2001/06/25 15:19:20 skimo 
 
 #include "../common/common.h"
 
-enum which {LEFT, RIGHT};
+enum which {RETAB, LEFT, RIGHT};
 static int shift(SCR *, EXCMD *, enum which);
 
 /*
@@ -49,6 +45,18 @@ int
 ex_shiftr(SCR *sp, EXCMD *cmdp)
 {
 	return (shift(sp, cmdp, RIGHT));
+}
+
+/*
+ * ex_retab -- Expand tabs (if enabled)
+ *
+ *
+ * PUBLIC: int ex_retab(SCR *, EXCMD *);
+ */
+int
+ex_retab(SCR *sp, EXCMD *cmdp)
+{
+	return (shift(sp, cmdp, RETAB));
 }
 
 /*
@@ -114,7 +122,9 @@ shift(SCR *sp, EXCMD *cmdp, enum which rl)
 				break;
 
 		/* Calculate the new indent amount. */
-		if (rl == RIGHT)
+		if (rl == RETAB)
+			newcol = oldcol;
+		else if (rl == RIGHT)
 			newcol = oldcol + sw;
 		else {
 			newcol = oldcol < sw ? 0 : oldcol - sw;
@@ -132,10 +142,13 @@ shift(SCR *sp, EXCMD *cmdp, enum which rl)
 		 * Build a new indent string and count the number of
 		 * characters it uses.
 		 */
-		for (tbp = bp, newidx = 0;
-		    newcol >= O_VAL(sp, O_TABSTOP); ++newidx) {
-			*tbp++ = '\t';
-			newcol -= O_VAL(sp, O_TABSTOP);
+		tbp = bp;
+		newidx = 0;
+		if (!O_ISSET(sp, O_EXPANDTAB)) {
+			for (; newcol >= O_VAL(sp, O_TABSTOP); ++newidx) {
+				*tbp++ = '\t';
+				newcol -= O_VAL(sp, O_TABSTOP);
+			}
 		}
 		for (; newcol > 0; --newcol, ++newidx)
 			*tbp++ = ' ';

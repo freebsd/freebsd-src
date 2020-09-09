@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	@(#)log.h	10.2 (Berkeley) 3/6/96
  */
 
 #define	LOG_NOTYPE		0

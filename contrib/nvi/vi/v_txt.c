@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: v_txt.c,v 11.5 2013/05/19 20:37:45 bentley Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -32,7 +28,7 @@ static const char sccsid[] = "$Id: v_txt.c,v 11.5 2013/05/19 20:37:45 bentley Ex
 static int	 txt_abbrev(SCR *, TEXT *, CHAR_T *, int, int *, int *);
 static void	 txt_ai_resolve(SCR *, TEXT *, int *);
 static TEXT	*txt_backup(SCR *, TEXTH *, TEXT *, u_int32_t *);
-static int	 txt_dent(SCR *, TEXT *, int);
+static int	 txt_dent(SCR *, TEXT *, int, int);
 static int	 txt_emark(SCR *, TEXT *, size_t);
 static void	 txt_err(SCR *, TEXTH *);
 static int	 txt_fc(SCR *, TEXT *, int *);
@@ -615,30 +611,21 @@ replay:	if (LF_ISSET(TXT_REPLAY)) {
 
 	/*
 	 * !!!
-	 * If this character was quoted by a K_VLNEXT or a backslash, replace
-	 * the placeholder (a carat or a backslash) with the new character.
-	 * If it was quoted by a K_VLNEXT, we've already adjusted the cursor
-	 * because it has to appear on top of the placeholder character.  If
-	 * it was quoted by a backslash, adjust the cursor now, the cursor
-	 * doesn't appear on top of it.  Historic practice in both cases.
+	 * If this character was quoted by a K_VLNEXT, replace the placeholder
+	 * (a carat) with the new character.  We've already adjusted the cursor
+	 * because it has to appear on top of the placeholder character.
+	 * Historic practice.
 	 *
 	 * Skip tests for abbreviations; ":ab xa XA" followed by "ixa^V<space>"
 	 * doesn't perform an abbreviation.  Special case, ^V^J (not ^V^M) is
 	 * the same as ^J, historically.
 	 */
-	if (quote == Q_BTHIS || quote == Q_VTHIS) {
+	if (quote == Q_VTHIS) {
 		FL_CLR(ec_flags, EC_QUOTED);
 		if (LF_ISSET(TXT_MAPINPUT))
 			FL_SET(ec_flags, EC_MAPINPUT);
 
-		if (quote == Q_BTHIS &&
-		    (evp->e_value == K_VERASE || evp->e_value == K_VKILL)) {
-			quote = Q_NOTSET;
-			--tp->cno;
-			++tp->owrite;
-			goto insl_ch;
-		}
-		if (quote == Q_VTHIS && evp->e_value != K_NL) {
+		if (evp->e_value != K_NL) {
 			quote = Q_NOTSET;
 			goto insl_ch;
 		}
@@ -977,7 +964,7 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 			if (tp->ai == 0 || tp->cno > tp->ai + tp->offset)
 				goto ins_ch;
 
-			(void)txt_dent(sp, tp, 0);
+			(void)txt_dent(sp, tp, O_SHIFTWIDTH, 0);
 			break;
 		default:
 			abort();
@@ -1193,34 +1180,9 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 	case K_CNTRLT:			/* Add autoindent characters. */
 		if (!LF_ISSET(TXT_CNTRLT))
 			goto ins_ch;
-		if (txt_dent(sp, tp, 1))
+		if (txt_dent(sp, tp, O_SHIFTWIDTH, 1))
 			goto err;
 		goto ebuf_chk;
-	case K_BACKSLASH:		/* Quote next erase/kill. */
-		/*
-		 * !!!
-		 * Historic vi tried to make abbreviations after a backslash
-		 * escape work.  If you did ":ab x y", and inserted "x\^H",
-		 * (assuming the erase character was ^H) you got "x^H", and
-		 * no abbreviation was done.  If you inserted "x\z", however,
-		 * it tried to back up and do the abbreviation, i.e. replace
-		 * 'x' with 'y'.  The problem was it got it wrong, and you
-		 * ended up with "zy\".
-		 *
-		 * This is really hard to do (you have to remember the
-		 * word/non-word state, for example), and doesn't make any
-		 * sense to me.  Both backslash and the characters it
-		 * (usually) escapes will individually trigger the
-		 * abbreviation, so I don't see why the combination of them
-		 * wouldn't.  I don't expect to get caught on this one,
-		 * particularly since it never worked right, but I've been
-		 * wrong before.
-		 *
-		 * Do the tests for abbreviations, so ":ab xa XA",
-		 * "ixa\<K_VERASE>" performs the abbreviation.
-		 */
-		quote = Q_BNEXT;
-		goto insq_ch;
 	case K_VLNEXT:			/* Quote next character. */
 		evp->e_c = '^';
 		quote = Q_VNEXT;
@@ -1241,6 +1203,14 @@ leftmargin:		tp->lb[tp->cno - 1] = ' ';
 		goto insl_ch;
 	case K_HEXCHAR:
 		hexcnt = 1;
+		goto insq_ch;
+	case K_TAB:
+		if (sp->showmode != SM_COMMAND && quote != Q_VTHIS &&
+		    O_ISSET(sp, O_EXPANDTAB)) {
+			if (txt_dent(sp, tp, O_TABSTOP, 1))
+				goto err;
+			goto ebuf_chk;
+		}
 		goto insq_ch;
 	default:			/* Insert the character. */
 		if (LF_ISSET(TXT_SHOWMATCH)) {
@@ -1365,12 +1335,8 @@ ebuf_chk:	if (tp->cno >= tp->len) {
 		}
 
 		/* Step the quote state forward. */
-		if (quote != Q_NOTSET) {
-			if (quote == Q_BNEXT)
-				quote = Q_BTHIS;
-			if (quote == Q_VNEXT)
-				quote = Q_VTHIS;
-		}
+		if (quote == Q_VNEXT)
+			quote = Q_VTHIS;
 		break;
 	}
 
@@ -1723,13 +1689,19 @@ txt_ai_resolve(SCR *sp, TEXT *tp, int *changedp)
 	/*
 	 * If there are no spaces, or no tabs after spaces and less than
 	 * ts spaces, it's already minimal.
+	 * Keep analysing if expandtab is set.
 	 */
-	if (!spaces || (!tab_after_sp && spaces < ts))
+	if ((!spaces || (!tab_after_sp && spaces < ts)) &&
+	    !O_ISSET(sp, O_EXPANDTAB))
 		return;
 
 	/* Count up spaces/tabs needed to get to the target. */
-	for (cno = 0, tabs = 0; cno + COL_OFF(cno, ts) <= scno; ++tabs)
-		cno += COL_OFF(cno, ts);
+	cno = 0;
+	tabs = 0;
+	if (!O_ISSET(sp, O_EXPANDTAB)) {
+		for (; cno + COL_OFF(cno, ts) <= scno; ++tabs)
+			cno += COL_OFF(cno, ts);
+	}
 	spaces = scno - cno;
 
 	/*
@@ -1888,7 +1860,7 @@ txt_backup(SCR *sp, TEXTH *tiqh, TEXT *tp, u_int32_t *flagsp)
  * changes.
  */
 static int
-txt_dent(SCR *sp, TEXT *tp, int isindent)
+txt_dent(SCR *sp, TEXT *tp, int swopt, int isindent)
 {
 	CHAR_T ch;
 	u_long sw, ts;
@@ -1896,7 +1868,7 @@ txt_dent(SCR *sp, TEXT *tp, int isindent)
 	int ai_reset;
 
 	ts = O_VAL(sp, O_TABSTOP);
-	sw = O_VAL(sp, O_SHIFTWIDTH);
+	sw = O_VAL(sp, swopt);
 
 	/*
 	 * Since we don't know what precedes the character(s) being inserted
@@ -1963,9 +1935,12 @@ txt_dent(SCR *sp, TEXT *tp, int isindent)
 	if (current >= target)
 		spaces = tabs = 0;
 	else {
-		for (cno = current,
-		    tabs = 0; cno + COL_OFF(cno, ts) <= target; ++tabs)
-			cno += COL_OFF(cno, ts);
+		cno = current;
+		tabs = 0;
+		if (!O_ISSET(sp, O_EXPANDTAB)) {
+			for (; cno + COL_OFF(cno, ts) <= target; ++tabs)
+				cno += COL_OFF(cno, ts);
+		}
 		spaces = target - cno;
 	}
 

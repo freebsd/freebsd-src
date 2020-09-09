@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: exf.c,v 10.64 2015/04/05 15:21:55 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -59,9 +55,7 @@ static int	file_spath(SCR *, FREF *, struct stat *, int *);
  * PUBLIC: FREF *file_add(SCR *, char *);
  */
 FREF *
-file_add(
-	SCR *sp,
-	char *name)
+file_add(SCR *sp, char *name)
 {
 	GS *gp;
 	FREF *frp, *tfrp;
@@ -80,8 +74,7 @@ file_add(
 		TAILQ_FOREACH_SAFE(frp, gp->frefq, q, tfrp) {
 			if (frp->name == NULL) {
 				TAILQ_REMOVE(gp->frefq, frp, q);
-				if (frp->name != NULL)
-					free(frp->name);
+				free(frp->name);
 				free(frp);
 				continue;
 			}
@@ -90,7 +83,7 @@ file_add(
 		}
 
 	/* Allocate and initialize the FREF structure. */
-	CALLOC(sp, frp, FREF *, 1, sizeof(FREF));
+	CALLOC(sp, frp, 1, sizeof(FREF));
 	if (frp == NULL)
 		return (NULL);
 
@@ -121,11 +114,7 @@ file_add(
  * PUBLIC: int file_init(SCR *, FREF *, char *, int);
  */
 int
-file_init(
-	SCR *sp,
-	FREF *frp,
-	char *rcv_name,
-	int flags)
+file_init(SCR *sp, FREF *frp, char *rcv_name, int flags)
 {
 	EXF *ep;
 	RECNOINFO oinfo = { 0 };
@@ -160,7 +149,7 @@ file_init(
 	 *	Default recover mail file fd to -1.
 	 *	Set initial EXF flag bits.
 	 */
-	CALLOC_RET(sp, ep, EXF *, 1, sizeof(EXF));
+	CALLOC_RET(sp, ep, 1, sizeof(EXF));
 	ep->c_lno = ep->c_nlines = OOBLNO;
 	ep->rcv_fd = -1;
 	F_SET(ep, F_FIRSTMODIFY);
@@ -356,9 +345,9 @@ file_init(
          * vi, unless the -R command-line option was specified or the program
          * was executed as "view".  (Well, to be truthful, if the letter 'w'
          * occurred anywhere in the program name, but let's not get into that.)
-	 * So, the persistant readonly state has to be stored in the screen
+	 * So, the persistent readonly state has to be stored in the screen
 	 * structure, and the edit option value toggles with the contents of
-	 * the edit buffer.  If the persistant readonly flag is set, set the
+	 * the edit buffer.  If the persistent readonly flag is set, set the
 	 * readonly edit option.
 	 *
 	 * Otherwise, try and figure out if a file is readonly.  This is a
@@ -418,10 +407,8 @@ file_init(
 
 	return (0);
 
-err:	if (frp->name != NULL) {
-		free(frp->name);
-		frp->name = NULL;
-	}
+err:	free(frp->name);
+	frp->name = NULL;
 	if (frp->tname != NULL) {
 		(void)unlink(frp->tname);
 		free(frp->tname);
@@ -430,10 +417,9 @@ err:	if (frp->name != NULL) {
 
 oerr:	if (F_ISSET(ep, F_RCV_ON))
 		(void)unlink(ep->rcv_path);
-	if (ep->rcv_path != NULL) {
-		free(ep->rcv_path);
-		ep->rcv_path = NULL;
-	}
+	free(ep->rcv_path);
+	ep->rcv_path = NULL;
+
 	if (ep->db != NULL)
 		(void)ep->db->close(ep->db);
 	free(ep);
@@ -448,11 +434,7 @@ oerr:	if (F_ISSET(ep, F_RCV_ON))
  *	try and open.
  */
 static int
-file_spath(
-	SCR *sp,
-	FREF *frp,
-	struct stat *sbp,
-	int *existsp)
+file_spath(SCR *sp, FREF *frp, struct stat *sbp, int *existsp)
 {
 	int savech;
 	size_t len;
@@ -564,7 +546,7 @@ file_cinit(SCR *sp)
 		}
 		CHAR2INT(sp, gp->c_option, strlen(gp->c_option) + 1,
 			 wp, wlen);
-		if (ex_run_str(sp, "-c option", wp, wlen - 1, 1, 1))
+		if (ex_run_str(sp, "-c option", wp, wlen - 1, 1, 0))
 			return;
 		gp->c_option = NULL;
 	} else if (F_ISSET(sp, SC_EX)) {
@@ -632,10 +614,7 @@ file_cinit(SCR *sp)
  * PUBLIC: int file_end(SCR *, EXF *, int);
  */
 int
-file_end(
-	SCR *sp,
-	EXF *ep,
-	int force)
+file_end(SCR *sp, EXF *ep, int force)
 {
 	FREF *frp;
 
@@ -681,8 +660,7 @@ file_end(
 		frp->tname = NULL;
 		if (F_ISSET(frp, FR_TMPFILE)) {
 			TAILQ_REMOVE(sp->gp->frefq, frp, q);
-			if (frp->name != NULL)
-				free(frp->name);
+			free(frp->name);
 			free(frp);
 		}
 		sp->frp = NULL;
@@ -724,10 +702,8 @@ file_end(
 	}
 	if (ep->rcv_fd != -1)
 		(void)close(ep->rcv_fd);
-	if (ep->rcv_path != NULL)
-		free(ep->rcv_path);
-	if (ep->rcv_mpath != NULL)
-		free(ep->rcv_mpath);
+	free(ep->rcv_path);
+	free(ep->rcv_mpath);
 	if (ep->c_blen > 0)
 		free(ep->c_lp);
 
@@ -744,12 +720,7 @@ file_end(
  * PUBLIC: int file_write(SCR *, MARK *, MARK *, char *, int);
  */
 int
-file_write(
-	SCR *sp,
-	MARK *fm,
-	MARK *tm,
-	char *name,
-	int flags)
+file_write(SCR *sp, MARK *fm, MARK *tm, char *name, int flags)
 {
 	enum { NEWFILE, OLDFILE } mtype;
 	struct stat sb;
@@ -1016,10 +987,7 @@ success_open:
  * recreate the file.  So, let's not risk it.
  */
 static int
-file_backup(
-	SCR *sp,
-	char *name,
-	char *bname)
+file_backup(SCR *sp, char *name, char *bname)
 {
 	struct dirent *dp;
 	struct stat sb;
@@ -1188,6 +1156,7 @@ file_backup(
 		estr = wfname;
 		goto err;
 	}
+	free(d);
 	if (bp != NULL)
 		FREE_SPACE(sp, bp, blen);
 	return (0);
@@ -1201,8 +1170,7 @@ err:	if (rfd != -1)
 	}
 	if (estr)
 		msgq_str(sp, M_SYSERR, estr, "%s");
-	if (d != NULL)
-		free(d);
+	free(d);
 	if (bp != NULL)
 		FREE_SPACE(sp, bp, blen);
 	return (1);
@@ -1306,10 +1274,7 @@ file_comment(SCR *sp)
  * PUBLIC: int file_m1(SCR *, int, int);
  */
 int
-file_m1(
-	SCR *sp,
-	int force,
-	int flags)
+file_m1(SCR *sp, int force, int flags)
 {
 	EXF *ep;
 
@@ -1347,9 +1312,7 @@ file_m1(
  * PUBLIC: int file_m2(SCR *, int);
  */
 int
-file_m2(
-	SCR *sp,
-	int force)
+file_m2(SCR *sp, int force)
 {
 	EXF *ep;
 
@@ -1379,9 +1342,7 @@ file_m2(
  * PUBLIC: int file_m3(SCR *, int);
  */
 int
-file_m3(
-	SCR *sp,
-	int force)
+file_m3(SCR *sp, int force)
 {
 	EXF *ep;
 
@@ -1415,9 +1376,7 @@ file_m3(
  * PUBLIC: int file_aw(SCR *, int);
  */
 int
-file_aw(
-	SCR *sp,
-	int flags)
+file_aw(SCR *sp, int flags)
 {
 	if (!F_ISSET(sp->ep, F_MODIFIED))
 		return (0);
@@ -1476,12 +1435,9 @@ file_aw(
  * PUBLIC: void set_alt_name(SCR *, char *);
  */
 void
-set_alt_name(
-	SCR *sp,
-	char *name)
+set_alt_name(SCR *sp, char *name)
 {
-	if (sp->alt_name != NULL)
-		free(sp->alt_name);
+	free(sp->alt_name);
 	if (name == NULL)
 		sp->alt_name = NULL;
 	else if ((sp->alt_name = strdup(name)) == NULL)
@@ -1495,11 +1451,7 @@ set_alt_name(
  * PUBLIC: lockr_t file_lock(SCR *, char *, int, int);
  */
 lockr_t
-file_lock(
-	SCR *sp,
-	char *name,
-	int fd,
-	int iswrite)
+file_lock(SCR *sp, char *name, int fd, int iswrite)
 {
 	if (!O_ISSET(sp, O_LOCKFILES))
 		return (LOCK_SUCCESS);

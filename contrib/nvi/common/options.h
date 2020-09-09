@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: options.h,v 10.21 2012/02/10 20:24:58 zy Exp $
  */
 
 /*

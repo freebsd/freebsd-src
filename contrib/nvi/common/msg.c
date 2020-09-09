@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: msg.c,v 11.1 2015/02/09 11:12:44 marc Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -39,11 +35,7 @@ static const char sccsid[] = "$Id: msg.c,v 11.1 2015/02/09 11:12:44 marc Exp $";
  * PUBLIC: void msgq(SCR *, mtype_t, const char *, ...);
  */
 void
-msgq(
-	SCR *sp,
-	mtype_t mt,
-	const char *fmt,
-	...)
+msgq(SCR *sp, mtype_t mt, const char *fmt, ...)
 {
 #ifndef NL_ARGMAX
 #define	__NL_ARGMAX	20		/* Set to 9 by System V. */
@@ -202,12 +194,12 @@ retry:		FREE_SPACE(sp, bp, blen);
 		if (*p == '\0')
 			break;
 		++p;
-		if (!isdigit(*p)) {
+		if (!isdigit((u_char)*p)) {
 			if (*p == '%')
 				++p;
 			continue;
 		}
-		for (u = p; *++p != '\0' && isdigit(*p););
+		for (u = p; *++p != '\0' && isdigit((u_char)*p););
 		if (*p != '$')
 			continue;
 
@@ -359,11 +351,7 @@ alloc_err:
  * PUBLIC: void msgq_wstr(SCR *, mtype_t, const CHAR_T *, const char *);
  */
 void
-msgq_wstr(
-	SCR *sp,
-	mtype_t mtype,
-	const CHAR_T *str,
-	const char *fmt)
+msgq_wstr(SCR *sp, mtype_t mtype, const CHAR_T *str, const char *fmt)
 {
 	size_t nlen;
 	CONST char *nstr;
@@ -383,11 +371,7 @@ msgq_wstr(
  * PUBLIC: void msgq_str(SCR *, mtype_t, const char *, const char *);
  */
 void
-msgq_str(
-	SCR *sp,
-	mtype_t mtype,
-	const char *str,
-	const char *fmt)
+msgq_str(SCR *sp, mtype_t mtype, const char *str, const char *fmt)
 {
 	int nf, sv_errno;
 	char *p;
@@ -536,10 +520,7 @@ alloc_err:
  * PUBLIC: void msgq_status(SCR *, recno_t, u_int);
  */
 void
-msgq_status(
-	SCR *sp,
-	recno_t lno,
-	u_int flags)
+msgq_status(SCR *sp, recno_t lno, u_int flags)
 {
 	recno_t last;
 	size_t blen, len;
@@ -708,9 +689,7 @@ alloc_err:
  * PUBLIC: int msg_open(SCR *, char *);
  */
 int
-msg_open(
-	SCR *sp,
-	char *file)
+msg_open(SCR *sp, char *file)
 {
 	/*
 	 * !!!
@@ -788,10 +767,7 @@ msg_close(GS *gp)
  * PUBLIC: const char *msg_cmsg(SCR *, cmsg_t, size_t *);
  */
 const char *
-msg_cmsg(
-	SCR *sp,
-	cmsg_t which,
-	size_t *lenp)
+msg_cmsg(SCR *sp, cmsg_t which, size_t *lenp)
 {
 	switch (which) {
 	case CMSG_CONF:
@@ -826,10 +802,7 @@ msg_cmsg(
  * PUBLIC: const char *msg_cat(SCR *, const char *, size_t *);
  */
 const char *
-msg_cat(
-	SCR *sp,
-	const char *str,
-	size_t *lenp)
+msg_cat(SCR *sp, const char *str, size_t *lenp)
 {
 	GS *gp;
 	char *p;
@@ -839,8 +812,9 @@ msg_cat(
 	 * If it's not a catalog message, i.e. has doesn't have a leading
 	 * number and '|' symbol, we're done.
 	 */
-	if (isdigit(str[0]) &&
-	    isdigit(str[1]) && isdigit(str[2]) && str[3] == '|') {
+	if (isdigit((u_char)str[0]) &&
+	    isdigit((u_char)str[1]) &&
+	    isdigit((u_char)str[2]) && str[3] == '|') {
 		msgno = atoi(str);
 		str = &str[4];
 
@@ -864,10 +838,7 @@ msg_cat(
  * PUBLIC: char *msg_print(SCR *, const char *, int *);
  */
 char *
-msg_print(
-	SCR *sp,
-	const char *s,
-	int *needfree)
+msg_print(SCR *sp, const char *s, int *needfree)
 {
 	size_t blen, nlen;
 	char *bp, *ep, *p, *t;

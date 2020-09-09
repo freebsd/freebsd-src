@@ -11,10 +11,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: conv.c,v 2.40 2014/02/27 16:25:29 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -118,7 +114,7 @@ default_char2int(SCR *sp, const char * str, ssize_t len, CONVWIN *cw,
 	size_t left = len;
 	int error = 1;
 
-	BZERO(&mbs, 1);
+	memset(&mbs, 0, sizeof(mbs));
 	BINC_RETW(NULL, *tostr, *blen, nlen);
 
 #ifdef USE_ICONV
@@ -245,7 +241,7 @@ default_int2char(SCR *sp, const CHAR_T * str, ssize_t len, CONVWIN *cw,
 #endif
 
 
-	BZERO(&mbs, 1);
+	memset(&mbs, 0, sizeof(mbs));
 	BINC_RETC(NULL, *tostr, *blen, nlen);
 	dst = *tostr; buflen = *blen;
 
@@ -323,7 +319,7 @@ conv_init(SCR *orig, SCR *sp)
 	if (orig == NULL)
 		setlocale(LC_ALL, "");
 	if (orig != NULL)
-		BCOPY(&orig->conv, &sp->conv, 1);
+		memmove(&sp->conv, &orig->conv, sizeof(CONV));
 #ifdef USE_WIDECHAR
 	else {
 		char *ctype = setlocale(LC_CTYPE, NULL);
@@ -464,7 +460,6 @@ conv_end(SCR *sp)
 	for (i = 0; i <= IC_IE_TO_UTF16; ++i)
 		if (sp->conv.id[i] != (iconv_t)-1)
 			iconv_close(sp->conv.id[i]);
-	if (sp->cw.bp1.c != NULL)
-		free(sp->cw.bp1.c);
+	free(sp->cw.bp1.c);
 #endif
 }

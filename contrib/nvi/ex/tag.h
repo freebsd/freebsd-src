@@ -7,8 +7,6 @@
  *	Rob Mayoff.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: tag.h,v 10.9 2012/07/06 16:38:36 zy Exp $
  */
 
 /*

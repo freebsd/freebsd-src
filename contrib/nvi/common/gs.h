@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: gs.h,v 11.0 2012/10/17 06:34:37 zy Exp $
  */
 
 #define	TEMPORARY_FILE_STRING	"/tmp"	/* Default temporary file name. */
@@ -55,8 +53,6 @@ typedef enum { KEY_VEOF, KEY_VERASE, KEY_VKILL, KEY_VWERASE } scr_keyval_t;
  * Structure that describes global state of the running program.
  */
 struct _gs {
-	char	*progname;		/* Programe name. */
-
 	int	 id;			/* Last allocated screen id. */
 	TAILQ_HEAD(_dqh, _scr) dq[1];	/* Displayed screens. */
 	TAILQ_HEAD(_hqh, _scr) hq[1];	/* Hidden screens. */

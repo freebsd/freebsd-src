@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_read.c,v 10.44 2001/06/25 15:19:19 skimo Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -112,8 +108,7 @@ ex_read(SCR *sp, EXCMD *cmdp)
 
 		/* Set the last bang command. */
 		exp = EXP(sp);
-		if (exp->lastbcomm != NULL)
-			free(exp->lastbcomm);
+		free(exp->lastbcomm);
 		if ((exp->lastbcomm =
 		    v_wstrdup(sp, cmdp->argv[argc]->bp,
 				cmdp->argv[argc]->len)) == NULL) {

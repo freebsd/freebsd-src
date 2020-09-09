@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: v_init.c,v 10.10 2012/02/11 00:33:46 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -39,7 +35,7 @@ v_screen_copy(SCR *orig, SCR *sp)
 	VI_PRIVATE *ovip, *nvip;
 
 	/* Create the private vi structure. */
-	CALLOC_RET(orig, nvip, VI_PRIVATE *, 1, sizeof(VI_PRIVATE));
+	CALLOC_RET(orig, nvip, 1, sizeof(VI_PRIVATE));
 	sp->vi_private = nvip;
 
 	/* Invalidate the line size cache. */
@@ -52,7 +48,7 @@ v_screen_copy(SCR *orig, SCR *sp)
 
 		/* User can replay the last input, but nothing else. */
 		if (ovip->rep_len != 0) {
-			MALLOC_RET(orig, nvip->rep, EVENT *, ovip->rep_len);
+			MALLOC_RET(orig, nvip->rep, ovip->rep_len);
 			memmove(nvip->rep, ovip->rep, ovip->rep_len);
 			nvip->rep_len = ovip->rep_len;
 		}
@@ -88,17 +84,12 @@ v_screen_end(SCR *sp)
 
 	if ((vip = VIP(sp)) == NULL)
 		return (0);
-	if (vip->keyw != NULL)
-		free(vip->keyw);
-	if (vip->rep != NULL)
-		free(vip->rep);
-	if (vip->mcs != NULL)
-		free(vip->mcs);
-	if (vip->ps != NULL)
-		free(vip->ps);
+	free(vip->keyw);
+	free(vip->rep);
+	free(vip->mcs);
+	free(vip->ps);
 
-	if (HMAP != NULL)
-		free(HMAP);
+	free(HMAP);
 
 	free(vip);
 	sp->vi_private = NULL;

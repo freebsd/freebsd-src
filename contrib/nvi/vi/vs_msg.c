@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: vs_msg.c,v 10.88 2013/03/19 09:59:03 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -352,16 +348,16 @@ vs_msg(SCR *sp, mtype_t mtype, char *line, size_t len)
 		}
 	vip->mtype = mtype;
 	for (s = line;; s = t) {
-		for (; len > 0 && isblank(*s); --len, ++s);
+		for (; len > 0 && isblank((u_char)*s); --len, ++s);
 		if (len == 0)
 			break;
 		if (len + vip->lcontinue > maxcols) {
 			for (e = s + (maxcols - vip->lcontinue);
-			    e > s && !isblank(*e); --e);
+			    e > s && !isblank((u_char)*e); --e);
 			if (e == s)
 				 e = t = s + (maxcols - vip->lcontinue);
 			else
-				for (t = e; isblank(e[-1]); --e);
+				for (t = e; isblank((u_char)e[-1]); --e);
 		} else
 			e = t = s + len;
 
@@ -875,8 +871,8 @@ vs_msgsave(SCR *sp, mtype_t mt, char *p, size_t len)
 	 * allocate memory here, we're genuinely screwed, dump the message
 	 * to stderr in the (probably) vain hope that someone will see it.
 	 */
-	CALLOC_GOTO(sp, mp_n, MSGS *, 1, sizeof(MSGS));
-	MALLOC_GOTO(sp, mp_n->buf, char *, len);
+	CALLOC_GOTO(sp, mp_n, 1, sizeof(MSGS));
+	MALLOC_GOTO(sp, mp_n->buf, len);
 
 	memmove(mp_n->buf, p, len);
 	mp_n->len = len;
@@ -894,7 +890,6 @@ vs_msgsave(SCR *sp, mtype_t mt, char *p, size_t len)
 	return;
 
 alloc_err:
-	if (mp_n != NULL)
-		free(mp_n);
+	free(mp_n);
 	(void)fprintf(stderr, "%.*s\n", (int)len, p);
 }

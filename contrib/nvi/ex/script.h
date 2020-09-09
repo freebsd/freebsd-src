@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: script.h,v 10.3 2012/04/21 23:51:46 zy Exp $
  */
 
 struct _script {

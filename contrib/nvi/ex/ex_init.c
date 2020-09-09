@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_init.c,v 10.33 2012/04/11 19:12:34 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -46,7 +42,7 @@ ex_screen_copy(SCR *orig, SCR *sp)
 	EX_PRIVATE *oexp, *nexp;
 
 	/* Create the private ex structure. */
-	CALLOC_RET(orig, nexp, EX_PRIVATE *, 1, sizeof(EX_PRIVATE));
+	CALLOC_RET(orig, nexp, 1, sizeof(EX_PRIVATE));
 	sp->ex_private = nexp;
 
 	/* Initialize queues. */
@@ -94,14 +90,11 @@ ex_screen_end(SCR *sp)
 	if (argv_free(sp))
 		rval = 1;
 
-	if (exp->ibp != NULL)
-		free(exp->ibp);
+	free(exp->ibp);
 
-	if (exp->lastbcomm != NULL)
-		free(exp->lastbcomm);
+	free(exp->lastbcomm);
 
-	if (exp->ibcw.bp1.c != NULL)
-		free(exp->ibcw.bp1.c);
+	free(exp->ibcw.bp1.c);
 
 	if (ex_tag_free(sp))
 		rval = 1;
@@ -291,7 +284,7 @@ ex_run_str(SCR *sp, char *name, CHAR_T *str, size_t len, int ex_flags, int nocop
 
 	gp = sp->gp;
 	if (EXCMD_RUNNING(gp)) {
-		CALLOC_RET(sp, ecp, EXCMD *, 1, sizeof(EXCMD));
+		CALLOC_RET(sp, ecp, 1, sizeof(EXCMD));
 		SLIST_INSERT_HEAD(gp->ecq, ecp, q);
 	} else
 		ecp = &gp->excmd;

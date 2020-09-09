@@ -1,4 +1,3 @@
-/* $Id: pathnames.h.in,v 8.7 2012/04/23 08:34:52 zy Exp $ */
 /* $FreeBSD$ */
 
 /* Read standard system paths first. */

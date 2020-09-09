@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: util.h,v 10.7 2013/02/24 21:00:10 zy Exp $
  */
 
 /* Macros to init/set/clear/test flags. */

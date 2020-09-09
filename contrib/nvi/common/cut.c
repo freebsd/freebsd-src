@@ -9,12 +9,9 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: cut.c,v 10.12 2012/02/11 15:52:33 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/time.h>
 
 #include <bitstring.h>
 #include <ctype.h>
@@ -64,12 +61,7 @@ static void	cb_rotate(SCR *);
  * PUBLIC: int cut(SCR *, CHAR_T *, MARK *, MARK *, int);
  */
 int
-cut(
-	SCR *sp,
-	CHAR_T *namep,
-	MARK *fm,
-	MARK *tm,
-	int flags)
+cut(SCR *sp, CHAR_T *namep, MARK *fm, MARK *tm, int flags)
 {
 	CB *cbp;
 	CHAR_T name = '\0';
@@ -126,7 +118,7 @@ copyloop:
 	 * Otherwise, if it's not an append, free its current contents.
 	 */
 	if (cbp == NULL) {
-		CALLOC_RET(sp, cbp, CB *, 1, sizeof(CB));
+		CALLOC_RET(sp, cbp, 1, sizeof(CB));
 		cbp->name = name;
 		TAILQ_INIT(cbp->textq);
 		SLIST_INSERT_HEAD(sp->gp->cutq, cbp, q);
@@ -225,12 +217,7 @@ cb_rotate(SCR *sp)
  * PUBLIC: int cut_line(SCR *, recno_t, size_t, size_t, CB *);
  */
 int
-cut_line(
-	SCR *sp,
-	recno_t lno,
-	size_t fcno,
-	size_t clen,
-	CB *cbp)
+cut_line(SCR *sp, recno_t lno, size_t fcno, size_t clen, CB *cbp)
 {
 	TEXT *tp;
 	size_t len;
@@ -294,20 +281,16 @@ cut_close(GS *gp)
  * PUBLIC: TEXT *text_init(SCR *, const CHAR_T *, size_t, size_t);
  */
 TEXT *
-text_init(
-	SCR *sp,
-	const CHAR_T *p,
-	size_t len,
-	size_t total_len)
+text_init(SCR *sp, const CHAR_T *p, size_t len, size_t total_len)
 {
 	TEXT *tp;
 
-	CALLOC(sp, tp, TEXT *, 1, sizeof(TEXT));
+	CALLOC(sp, tp, 1, sizeof(TEXT));
 	if (tp == NULL)
 		return (NULL);
 	/* ANSI C doesn't define a call to malloc(3) for 0 bytes. */
 	if ((tp->lb_len = total_len * sizeof(CHAR_T)) != 0) {
-		MALLOC(sp, tp->lb, CHAR_T *, tp->lb_len);
+		MALLOC(sp, tp->lb, tp->lb_len);
 		if (tp->lb == NULL) {
 			free(tp);
 			return (NULL);
@@ -345,7 +328,6 @@ text_lfree(TEXTH *headp)
 void
 text_free(TEXT *tp)
 {
-	if (tp->lb != NULL)
-		free(tp->lb);
+	free(tp->lb);
 	free(tp);
 }

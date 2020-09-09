@@ -119,7 +119,6 @@ int seq_save(SCR *, FILE *, char *, seq_t);
 int e_memcmp(CHAR_T *, EVENT *, size_t);
 void *binc(SCR *, void *, size_t *, size_t);
 int nonblank(SCR *, recno_t, size_t *);
-char *tail(char *);
 char *join(char *, char *);
 char *expanduser(char *);
 char *quote(char *);

@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: multibyte.h,v 1.32 2012/10/07 01:35:58 zy Exp $
  */
 
 #ifndef MULTIBYTE_H
@@ -111,5 +109,39 @@ typedef	char		RCHAR_T;
 #endif
 
 #define SIZE(w)			(sizeof(w) / sizeof(*w))
+
+/*
+ * Locale insensitive character category detection.
+ */
+
+static __inline int
+isatoz(CHAR_T c)
+{
+	return 'a' <= c && c <= 'z';
+}
+
+static __inline int
+isAtoZ(CHAR_T c)
+{
+	return 'A' <= c && c <= 'Z';
+}
+
+static __inline int
+is0to9(CHAR_T c)
+{
+	return '0' <= c && c <= '9';
+}
+
+static __inline int
+isazAZ(CHAR_T c)
+{
+	return isatoz(c) || isAtoZ(c);
+}
+
+static __inline int
+is09azAZ(CHAR_T c)
+{
+	return is0to9(c) || isazAZ(c);
+}
 
 #endif

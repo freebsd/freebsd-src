@@ -84,6 +84,7 @@ int ex_exec_proc(SCR *, EXCMD *, char *, const char *, int);
 int proc_wait(SCR *, long, const char *, int, int);
 int ex_shiftl(SCR *, EXCMD *);
 int ex_shiftr(SCR *, EXCMD *);
+int ex_retab(SCR *, EXCMD *);
 int ex_source(SCR *, EXCMD *);
 int ex_stop(SCR *, EXCMD *);
 int ex_s(SCR *, EXCMD *);

@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_argv.c,v 11.2 2012/10/09 23:00:29 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -484,7 +480,7 @@ argv_alloc(SCR *sp, size_t len)
 
 	/* First argument. */
 	if (exp->args[off] == NULL) {
-		CALLOC(sp, exp->args[off], ARGS *, 1, sizeof(ARGS));
+		CALLOC(sp, exp->args[off], 1, sizeof(ARGS));
 		if (exp->args[off] == NULL)
 			goto mem;
 	}
@@ -507,7 +503,7 @@ mem:			msgq(sp, M_SYSERR, NULL);
 
 	/* Second argument. */
 	if (exp->args[++off] == NULL) {
-		CALLOC(sp, exp->args[off], ARGS *, 1, sizeof(ARGS));
+		CALLOC(sp, exp->args[off], 1, sizeof(ARGS));
 		if (exp->args[off] == NULL)
 			goto mem;
 	}

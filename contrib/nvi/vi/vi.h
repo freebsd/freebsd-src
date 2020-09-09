@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: vi.h,v 10.29 2012/02/11 00:33:46 zy Exp $
  */
 
 /* Definition of a vi "word". */
@@ -217,7 +215,7 @@ typedef struct _smap {
 typedef enum { CNOTSET, FSEARCH, fSEARCH, TSEARCH, tSEARCH } cdir_t;
 
 typedef enum { AB_NOTSET, AB_NOTWORD, AB_INWORD } abb_t;
-typedef enum { Q_NOTSET, Q_BNEXT, Q_BTHIS, Q_VNEXT, Q_VTHIS } quote_t;
+typedef enum { Q_NOTSET, Q_VNEXT, Q_VTHIS } quote_t;
 
 /* Vi private, per-screen memory. */
 typedef struct _vi_private {

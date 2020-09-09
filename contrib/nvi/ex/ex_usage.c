@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_usage.c,v 10.16 2011/12/21 19:26:48 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -170,7 +166,8 @@ nokey:			(void)ex_printf(sp,
 		else
 			(void)ex_printf(sp,
 			    "  Key:%s%s\nUsage: %s\n",
-			    isblank(*kp->help) ? "" : " ", kp->help, kp->usage);
+			    isblank((u_char)*kp->help) ? "" : " ",
+			    kp->help, kp->usage);
 		break;
 	case 0:
 		for (key = 0; key <= MAXVIKEY && !INTERRUPTED(sp); ++key) {
