@@ -10451,7 +10451,12 @@ rack_init(struct tcpcb *tp)
 		rsm->r_rtr_cnt = 1;
 		rsm->r_rtr_bytes = 0;
 		rsm->r_start = tp->snd_una;
-		rsm->r_end = tp->snd_max;
+		if (tp->t_flags & TF_SENTFIN) {
+			rsm->r_end = tp->snd_max - 1;
+			rsm->r_flags |= RACK_HAS_FIN;
+		} else {
+			rsm->r_end = tp->snd_max;
+		}
 		rsm->usec_orig_send = us_cts;
 		rsm->r_dupack = 0;
 		insret = RB_INSERT(rack_rb_tree_head, &rack->r_ctl.rc_mtree, rsm);
@@ -10518,8 +10523,21 @@ rack_handoff_ok(struct tcpcb *tp)
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED)) {
 		/*
-		 * We really don't know you have to get to ESTAB or beyond
-		 * to tell.
+		 * We really don't know if you support sack, 
+		 * you have to get to ESTAB or beyond to tell.
+		 */
+		return (EAGAIN);
+	}
+	if ((tp->t_flags & TF_SENTFIN) && ((tp->snd_max - tp->snd_una) > 1)) {
+		/*
+		 * Rack will only send a FIN after all data is acknowledged.
+		 * So in this case we have more data outstanding. We can't
+		 * switch stacks until either all data and only the FIN
+		 * is left (in which case rack_init() now knows how
+		 * to deal with that) <or> all is acknowledged and we
+		 * are only left with incoming data, though why you
+		 * would want to switch to rack after all data is acknowledged
+		 * I have no idea (rrs)!
 		 */
 		return (EAGAIN);
 	}
