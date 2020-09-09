@@ -187,7 +187,7 @@ userret(struct thread *td, struct trapframe *frame)
 #ifdef EPOCH_TRACE
 		epoch_trace_list(curthread);
 #endif
-		KASSERT(1, ("userret: Returning with sleep disabled"));
+		KASSERT(0, ("userret: Returning with sleep disabled"));
 	}
 	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,
 	    ("userret: Returning with with pinned thread"));

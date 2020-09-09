@@ -325,7 +325,7 @@ sleepq_add(const void *wchan, struct lock_object *lock, const char *wmesg,
 #ifdef EPOCH_TRACE
 		epoch_trace_list(curthread);
 #endif
-		KASSERT(1,
+		KASSERT(0,
 		    ("%s: td %p to sleep on wchan %p with sleeping prohibited",
 		    __func__, td, wchan));
 	}
