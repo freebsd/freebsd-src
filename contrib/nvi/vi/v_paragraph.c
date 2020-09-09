@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: v_paragraph.c,v 10.10 2001/06/25 15:19:32 skimo Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -325,11 +321,10 @@ v_buildps(SCR *sp, char *p_p, char *s_p)
 	if (p_len == 0 && s_len == 0)
 		return (0);
 
-	MALLOC_RET(sp, p, char *, p_len + s_len + 1);
+	MALLOC_RET(sp, p, p_len + s_len + 1);
 
 	vip = VIP(sp);
-	if (vip->ps != NULL)
-		free(vip->ps);
+	free(vip->ps);
 
 	if (p_p != NULL)
 		memmove(p, p_p, p_len + 1);

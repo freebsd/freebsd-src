@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_bang.c,v 10.36 2001/06/25 15:19:14 skimo Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/time.h>
@@ -67,8 +63,7 @@ ex_bang(SCR *sp, EXCMD *cmdp)
 
 	/* Set the "last bang command" remembered value. */
 	exp = EXP(sp);
-	if (exp->lastbcomm != NULL)
-		free(exp->lastbcomm);
+	free(exp->lastbcomm);
 	if ((exp->lastbcomm = v_wstrdup(sp, ap->bp, ap->len)) == NULL) {
 		msgq(sp, M_SYSERR, NULL);
 		return (1);
@@ -177,6 +172,10 @@ ex_bang(SCR *sp, EXCMD *cmdp)
 	/* Ex terminates with a bang, even if the command fails. */
 	if (!F_ISSET(sp, SC_VI) && !F_ISSET(sp, SC_EX_SILENT))
 		(void)ex_puts(sp, "!\n");
+
+	/* Apply expandtab to the new text */
+	if (O_ISSET(sp, O_EXPANDTAB))
+		ex_retab(sp, cmdp);
 
 	/*
 	 * XXX

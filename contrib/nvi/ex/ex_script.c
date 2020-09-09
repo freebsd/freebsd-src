@@ -12,10 +12,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: ex_script.c,v 10.44 2012/10/05 10:17:47 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <sys/queue.h>
@@ -93,7 +89,7 @@ sscr_init(SCR *sp)
 	if (opts_empty(sp, O_SHELL, 0))
 		return (1);
 
-	MALLOC_RET(sp, sc, SCRIPT *, sizeof(SCRIPT));
+	MALLOC_RET(sp, sc, sizeof(SCRIPT));
 	sp->script = sc;
 	sc->sh_prompt = NULL;
 	sc->sh_prompt_len = 0;
@@ -523,9 +519,8 @@ sscr_setprompt(SCR *sp, char *buf, size_t len)
 	SCRIPT *sc;
 
 	sc = sp->script;
-	if (sc->sh_prompt)
-		free(sc->sh_prompt);
-	MALLOC(sp, sc->sh_prompt, char *, len + 1);
+	free(sc->sh_prompt);
+	MALLOC(sp, sc->sh_prompt, len + 1);
 	if (sc->sh_prompt == NULL) {
 		sscr_end(sp);
 		return (1);

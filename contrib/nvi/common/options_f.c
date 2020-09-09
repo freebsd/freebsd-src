@@ -9,10 +9,6 @@
 
 #include "config.h"
 
-#ifndef lint
-static const char sccsid[] = "$Id: options_f.c,v 10.34 04/07/11 16:06:29 zy Exp $";
-#endif /* not lint */
-
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/stat.h>
@@ -32,11 +28,7 @@ static const char sccsid[] = "$Id: options_f.c,v 10.34 04/07/11 16:06:29 zy Exp 
  * PUBLIC: int f_altwerase(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_altwerase(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_altwerase(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	if (*valp)
 		O_CLR(sp, O_TTYWERASE);
@@ -47,11 +39,7 @@ f_altwerase(
  * PUBLIC: int f_columns(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_columns(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_columns(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	/* Validate the number. */
 	if (*valp < MINIMUM_SCREEN_COLS) {
@@ -81,11 +69,7 @@ f_columns(
  * PUBLIC: int f_lines(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_lines(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_lines(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	/* Validate the number. */
 	if (*valp < MINIMUM_SCREEN_ROWS) {
@@ -138,11 +122,7 @@ f_lines(
  * PUBLIC: int f_lisp(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_lisp(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_lisp(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	msgq(sp, M_ERR, "044|The lisp option is not implemented");
 	return (0);
@@ -152,11 +132,7 @@ f_lisp(
  * PUBLIC: int f_msgcat(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_msgcat(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_msgcat(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	(void)msg_open(sp, str);
 	return (0);
@@ -166,11 +142,7 @@ f_msgcat(
  * PUBLIC: int f_print(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_print(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_print(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	int offset = op - sp->opts;
 
@@ -195,11 +167,7 @@ f_print(
  * PUBLIC: int f_readonly(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_readonly(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_readonly(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	/*
 	 * !!!
@@ -216,11 +184,7 @@ f_readonly(
  * PUBLIC: int f_recompile(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_recompile(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_recompile(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	if (F_ISSET(sp, SC_RE_SEARCH)) {
 		regfree(&sp->re_c);
@@ -237,11 +201,7 @@ f_recompile(
  * PUBLIC: int f_reformat(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_reformat(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_reformat(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	F_SET(sp, SC_SCR_REFORMAT);
 	return (0);
@@ -251,11 +211,7 @@ f_reformat(
  * PUBLIC: int f_ttywerase(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_ttywerase(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_ttywerase(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	if (*valp)
 		O_CLR(sp, O_ALTWERASE);
@@ -266,11 +222,7 @@ f_ttywerase(
  * PUBLIC: int f_w300(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_w300(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_w300(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	u_long v;
 
@@ -287,11 +239,7 @@ f_w300(
  * PUBLIC: int f_w1200(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_w1200(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_w1200(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	u_long v;
 
@@ -308,11 +256,7 @@ f_w1200(
  * PUBLIC: int f_w9600(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_w9600(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_w9600(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	u_long v;
 
@@ -329,11 +273,7 @@ f_w9600(
  * PUBLIC: int f_window(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_window(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_window(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	if (*valp >= O_VAL(sp, O_LINES) - 1 &&
 	    (*valp = O_VAL(sp, O_LINES) - 1) == 0)
@@ -345,11 +285,7 @@ f_window(
  * PUBLIC: int f_encoding(SCR *, OPTION *, char *, u_long *);
  */
 int
-f_encoding(
-	SCR *sp,
-	OPTION *op,
-	char *str,
-	u_long *valp)
+f_encoding(SCR *sp, OPTION *op, char *str, u_long *valp)
 {
 	int offset = op - sp->opts;
 

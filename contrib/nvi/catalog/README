@@ -1,5 +1,3 @@
-#	$Id: README,v 9.0 2012/10/19 17:06:15 zy Exp $
-
 Generally, all non-system error and informational messages in nvi are
 catalog messages, i.e. they can be tailored to a specific langauge.
 Command strings, usage strings, system errors and other 'known text'

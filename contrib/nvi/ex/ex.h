@@ -5,8 +5,6 @@
  *	Keith Bostic.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: ex.h,v 10.31 2012/10/03 02:33:24 zy Exp $
  */
 
 #define	PROMPTCHAR	':'		/* Prompt using a colon. */

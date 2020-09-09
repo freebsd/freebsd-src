@@ -7,8 +7,6 @@
  *	Zhihao Yuan.  All rights reserved.
  *
  * See the LICENSE file for redistribution information.
- *
- *	$Id: conv.h,v 2.32 2013/03/11 01:20:53 zy Exp $
  */
 
 #ifdef USE_ICONV
