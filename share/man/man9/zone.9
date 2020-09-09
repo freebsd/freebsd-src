@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2019
+.Dd August 20, 2020
 .Dt UMA 9
 .Os
 .Sh NAME
@@ -401,7 +401,7 @@ This function infers the domain from the pointer and does not require it as an
 argument.
 .Pp
 The
-.Fn uma_zone_prealloc
+.Fn uma_prealloc
 function allocates slabs for the requested number of items, typically following
 the initial creation of a zone.
 Subsequent allocations from the zone will be satisfied using the pre-allocated
@@ -409,7 +409,7 @@ slabs.
 Note that slab allocation is performed with the
 .Dv M_WAITOK
 flag, so
-.Fn uma_zone_prealloc
+.Fn uma_prealloc
 may sleep.
 .Pp
 The
