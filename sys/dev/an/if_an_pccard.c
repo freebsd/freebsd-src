@@ -157,6 +157,6 @@ fail:
 	if (error)
 		an_release_resources(dev);
 	else
-		gone_in_dev(dev, 13, "pccard removed");
+		gone_in_dev(dev, 13, "pccard removed, an doesn't support modern crypto");
 	return (error);
 }
