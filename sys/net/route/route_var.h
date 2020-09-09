@@ -224,6 +224,12 @@ struct route_nhop_data {
 int change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
     struct rt_addrinfo *info, struct route_nhop_data *nhd_orig,
     struct route_nhop_data *nhd_new, struct rib_cmd_info *rc);
+struct rtentry *lookup_prefix(struct rib_head *rnh,
+    const struct rt_addrinfo *info, struct route_nhop_data *rnd);
+int check_info_match_nhop(const struct rt_addrinfo *info,
+    const struct rtentry *rt, const struct nhop_object *nh);
+int can_override_nhop(const struct rt_addrinfo *info,
+    const struct nhop_object *nh);
 
 void vnet_rtzone_init(void);
 void vnet_rtzone_destroy(void);
@@ -252,8 +258,5 @@ int nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_ori
 void nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu);
 int nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w);
 
-/* route */
-struct rtentry *rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info,
-    int *perror);
 
 #endif
