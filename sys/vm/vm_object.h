@@ -173,6 +173,17 @@ struct vm_object {
 			struct pctrie swp_blks;
 			vm_ooffset_t writemappings;
 		} swp;
+
+		/*
+		 * Phys pager
+		 */
+		struct {
+			struct phys_pager_ops *ops;
+			union {
+				void *data_ptr;
+				uintptr_t data_val;
+			};
+		} phys;
 	} un_pager;
 	struct ucred *cred;
 	vm_ooffset_t charge;
