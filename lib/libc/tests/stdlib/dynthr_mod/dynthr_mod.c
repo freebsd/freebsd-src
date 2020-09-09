@@ -41,10 +41,12 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <pthread.h>
 
+void mod_main(int op);
+
 static pthread_t thr;
 
 static void *
-mod_thread(void *ptr)
+mod_thread(void *ptr __unused)
 {
 	char *volatile dummy;
 
