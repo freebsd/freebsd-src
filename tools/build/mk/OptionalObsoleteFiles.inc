@@ -2043,6 +2043,11 @@ OLD_FILES+=usr/share/man/man5/freebsd-update.conf.5.gz
 OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
 .endif
 
+.if ${MK_FREEBSD_UPDATE} == no && ${MK_PORTSNAP} == no
+OLD_FILES+=usr/libexec/phttpget
+OLD_FILES+=usr/share/man/man8/phttpget.8.gz
+.endif
+
 .if ${MK_GAMES} == no
 OLD_FILES+=usr/bin/caesar
 OLD_FILES+=usr/bin/factor
@@ -7330,10 +7335,8 @@ OLD_FILES+=usr/share/man/man8/pmcstudy.8.gz
 .if ${MK_PORTSNAP} == no
 OLD_FILES+=etc/portsnap.conf
 OLD_FILES+=usr/libexec/make_index
-OLD_FILES+=usr/libexec/phttpget
 OLD_FILES+=usr/sbin/portsnap
 OLD_FILES+=usr/share/examples/etc/portsnap.conf
-OLD_FILES+=usr/share/man/man8/phttpget.8.gz
 OLD_FILES+=usr/share/man/man8/portsnap.8.gz
 .endif
 
