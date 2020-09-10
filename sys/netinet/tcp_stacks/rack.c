@@ -479,7 +479,7 @@ sysctl_rack_clear(SYSCTL_HANDLER_ARGS)
 
 
 static void
-rack_init_sysctls()
+rack_init_sysctls(void)
 {
 	SYSCTL_ADD_S32(&rack_sysctl_ctx,
 	    SYSCTL_CHILDREN(rack_sysctl_root),
@@ -1130,7 +1130,7 @@ rack_log_to_processing(struct tcp_rack *rack, uint32_t cts, int32_t ret, int32_t
 }
 
 static void
-rack_counter_destroy()
+rack_counter_destroy(void)
 {
 	counter_u64_free(rack_badfr);
 	counter_u64_free(rack_badfr_bytes);
