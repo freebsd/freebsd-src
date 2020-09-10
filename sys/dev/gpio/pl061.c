@@ -335,22 +335,22 @@ pl061_pic_setup_intr(device_t dev, struct intr_irqsrc *isrc,
 
 	PL061_LOCK(sc);
 
-	if (mask & GPIO_INTR_EDGE_BOTH) {
+	if (mode & GPIO_INTR_EDGE_BOTH) {
 		mask_and_set(sc, PL061_INTBOTHEDGES, mask, mask);
 		mask_and_set(sc, PL061_INTSENSE, mask, 0);
-	} else if (mask & GPIO_INTR_EDGE_RISING) {
+	} else if (mode & GPIO_INTR_EDGE_RISING) {
 		mask_and_set(sc, PL061_INTBOTHEDGES, mask, 0);
 		mask_and_set(sc, PL061_INTSENSE, mask, 0);
 		mask_and_set(sc, PL061_INTEVENT, mask, mask);
-	} else if (mask & GPIO_INTR_EDGE_FALLING) {
+	} else if (mode & GPIO_INTR_EDGE_FALLING) {
 		mask_and_set(sc, PL061_INTBOTHEDGES, mask, 0);
 		mask_and_set(sc, PL061_INTSENSE, mask, 0);
 		mask_and_set(sc, PL061_INTEVENT, mask, 0);
-	} else if (mask & GPIO_INTR_LEVEL_HIGH) {
+	} else if (mode & GPIO_INTR_LEVEL_HIGH) {
 		mask_and_set(sc, PL061_INTBOTHEDGES, mask, 0);
 		mask_and_set(sc, PL061_INTSENSE, mask, mask);
 		mask_and_set(sc, PL061_INTEVENT, mask, mask);
-	} else if (mask & GPIO_INTR_LEVEL_LOW) {
+	} else if (mode & GPIO_INTR_LEVEL_LOW) {
 		mask_and_set(sc, PL061_INTBOTHEDGES, mask, 0);
 		mask_and_set(sc, PL061_INTSENSE, mask, mask);
 		mask_and_set(sc, PL061_INTEVENT, mask, 0);
