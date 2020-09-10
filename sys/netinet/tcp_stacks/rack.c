@@ -6752,6 +6752,10 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_ecn_ect1);
 			break;
 		}
+
+		/* Process a packet differently from RFC3168. */
+		cc_ecnpkt_handler(tp, th, iptos);
+
 		/* Congestion experienced. */
 		if (thflags & TH_ECE) {
 			rack_cong_signal(tp, th, CC_ECN);
