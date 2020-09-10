@@ -1133,6 +1133,7 @@ send:
 		 * Ignore pure ack packets, retransmissions and window probes.
 		 */
 		if (len > 0 && SEQ_GEQ(tp->snd_nxt, tp->snd_max) &&
+		    (sack_rxmit == 0) &&
 		    !((tp->t_flags & TF_FORCEDATA) && len == 1 &&
 		    SEQ_LT(tp->snd_una, tp->snd_max))) {
 #ifdef INET6
