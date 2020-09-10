@@ -190,7 +190,7 @@ timespec_add_ms(struct timespec *ts, int ms)
 	}
 }
 
-volatile sig_atomic_t got_sigalrm = 0;
+static volatile sig_atomic_t got_sigalrm = 0;
 
 static void
 sigalrm_handler(int sig __unused)
@@ -212,7 +212,6 @@ ATF_TC_BODY(timedwait, tc)
 {
 	struct timespec ts;
 	sem_t sem;
-	int result;
 
 	SEM_REQUIRE(sem_init(&sem, 0, 0));
 	SEM_REQUIRE(sem_post(&sem));
