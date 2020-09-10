@@ -93,7 +93,7 @@ static device_method_t pl061_acpi_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_1(pl061, pl061_acpi_driver, pl061_acpi_methods,
+DEFINE_CLASS_1(gpio, pl061_acpi_driver, pl061_acpi_methods,
     sizeof(struct pl061_softc), pl061_driver);
 
 static devclass_t pl061_devclass;
