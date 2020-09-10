@@ -252,6 +252,9 @@ _ice_status_str(enum ice_status status)
 	case ICE_ERR_HW_TABLE:
 		str = "ICE_ERR_HW_TABLE";
 		break;
+	case ICE_ERR_FW_DDP_MISMATCH:
+		str = "ICE_ERR_FW_DDP_MISMATCH";
+		break;
 	case ICE_ERR_DOES_NOT_EXIST:
 		str = "ICE_ERR_DOES_NOT_EXIST";
 		break;
@@ -270,8 +273,8 @@ _ice_status_str(enum ice_status status)
 	case ICE_ERR_AQ_EMPTY:
 		str = "ICE_ERR_AQ_EMPTY";
 		break;
-	case ICE_ERR_FW_DDP_MISMATCH:
-		str = "ICE_ERR_FW_DDP_MISMATCH";
+	case ICE_ERR_AQ_FW_CRITICAL:
+		str = "ICE_ERR_AQ_FW_CRITICAL";
 		break;
 	}
 
@@ -987,6 +990,8 @@ ice_state_to_str(enum ice_state state)
 		return "DETACHING";
 	case ICE_STATE_LINK_DEFAULT_OVERRIDE_PENDING:
 		return "LINK_DEFAULT_OVERRIDE_PENDING";
+	case ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER:
+		return "LLDP_RX_FLTR_FROM_DRIVER";
 	case ICE_STATE_LAST:
 		return NULL;
 	}

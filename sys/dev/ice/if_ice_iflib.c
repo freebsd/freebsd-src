@@ -82,6 +82,8 @@ static void ice_if_stop(if_ctx_t ctx);
 static uint64_t ice_if_get_counter(if_ctx_t ctx, ift_counter counter);
 static int ice_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 static int ice_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
+static int ice_if_suspend(if_ctx_t ctx);
+static int ice_if_resume(if_ctx_t ctx);
 
 static int ice_msix_que(void *arg);
 static int ice_msix_admin(void *arg);
@@ -167,6 +169,8 @@ static device_method_t ice_iflib_methods[] = {
 	DEVMETHOD(ifdi_get_counter, ice_if_get_counter),
 	DEVMETHOD(ifdi_priv_ioctl, ice_if_priv_ioctl),
 	DEVMETHOD(ifdi_i2c_req, ice_if_i2c_req),
+	DEVMETHOD(ifdi_suspend, ice_if_suspend),
+	DEVMETHOD(ifdi_resume, ice_if_resume),
 	DEVMETHOD_END
 };
 
@@ -278,7 +282,6 @@ MODULE_VERSION(ice, 1);
 MODULE_DEPEND(ice, pci, 1, 1, 1);
 MODULE_DEPEND(ice, ether, 1, 1, 1);
 MODULE_DEPEND(ice, iflib, 1, 1, 1);
-MODULE_DEPEND(ice, firmware, 1, 1, 1);
 
 IFLIB_PNP_INFO(pci, ice, ice_vendor_info_array);
 
@@ -663,6 +666,7 @@ static void
 ice_update_link_status(struct ice_softc *sc, bool update_media)
 {
 	struct ice_hw *hw = &sc->hw;
+	enum ice_status status;
 
 	/* Never report link up when in recovery mode */
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
@@ -672,6 +676,8 @@ ice_update_link_status(struct ice_softc *sc, bool update_media)
 	if (!ice_testandset_state(&sc->state, ICE_STATE_LINK_STATUS_REPORTED)) {
 		if (sc->link_up) { /* link is up */
 			uint64_t baudrate = ice_aq_speed_to_rate(sc->hw.port_info);
+
+			ice_set_default_local_lldp_mib(sc);
 
 			iflib_link_state_change(sc->ctx, LINK_STATE_UP, baudrate);
 
@@ -687,7 +693,7 @@ ice_update_link_status(struct ice_softc *sc, bool update_media)
 
 	/* Update the supported media types */
 	if (update_media) {
-		enum ice_status status = ice_add_media_types(sc, sc->media);
+		status = ice_add_media_types(sc, sc->media);
 		if (status)
 			device_printf(sc->dev, "Error adding device media types: %s aq_err %s\n",
 				      ice_status_str(status),
@@ -1827,6 +1833,16 @@ ice_if_init(if_ctx_t ctx)
 
 	ASSERT_CTX_LOCKED(sc);
 
+	/*
+	 * We've seen an issue with 11.3/12.1 where sideband routines are
+	 * called after detach is called.  This would call routines after
+	 * if_stop, causing issues with the teardown process.  This has
+	 * seemingly been fixed in STABLE snapshots, but it seems like a
+	 * good idea to have this guard here regardless.
+	 */
+	if (ice_driver_is_detaching(sc))
+		return;
+
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
 		return;
 
@@ -2573,7 +2589,7 @@ ice_init_device_features(struct ice_softc *sc)
 	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_SAFE_MODE))
 		return;
 
-	/* Set capabilities that the driver supports */
+	/* Set capabilities that all devices support */
 	ice_set_bit(ICE_FEATURE_SRIOV, sc->feat_cap);
 	ice_set_bit(ICE_FEATURE_RSS, sc->feat_cap);
 	ice_set_bit(ICE_FEATURE_LENIENT_LINK_MODE, sc->feat_cap);
@@ -2870,5 +2886,48 @@ ice_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req)
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 
 	return ice_handle_i2c_req(sc, req);
+}
+
+/**
+ * ice_if_suspend - PCI device suspend handler for iflib
+ * @ctx: iflib context pointer
+ *
+ * Deinitializes the driver and clears HW resources in preparation for
+ * suspend or an FLR.
+ *
+ * @returns 0; this return value is ignored
+ */
+static int
+ice_if_suspend(if_ctx_t ctx)
+{
+	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
+
+	/* At least a PFR is always going to happen after this;
+	 * either via FLR or during the D3->D0 transition.
+	 */
+	ice_clear_state(&sc->state, ICE_STATE_RESET_PFR_REQ);
+
+	ice_prepare_for_reset(sc);
+
+	return (0);
+}
+
+/**
+ * ice_if_resume - PCI device resume handler for iflib
+ * @ctx: iflib context pointer
+ *
+ * Reinitializes the driver and the HW after PCI resume or after
+ * an FLR. An init is performed by iflib after this function is finished.
+ *
+ * @returns 0; this return value is ignored
+ */
+static int
+ice_if_resume(if_ctx_t ctx)
+{
+	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
+
+	ice_rebuild(sc);
+
+	return (0);
 }
 

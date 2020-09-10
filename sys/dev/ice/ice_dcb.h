@@ -131,17 +131,11 @@
 #define ICE_IEEE_APP_TLV_LEN		11
 
 #pragma pack(1)
-/* IEEE 802.1AB LLDP TLV structure */
-struct ice_lldp_generic_tlv {
-	__be16 typelen;
-	u8 tlvinfo[1];
-};
-
 /* IEEE 802.1AB LLDP Organization specific TLV */
 struct ice_lldp_org_tlv {
 	__be16 typelen;
 	__be32 ouisubtype;
-	u8 tlvinfo[1];
+	u8 tlvinfo[STRUCT_HACK_VAR_LEN];
 };
 #pragma pack()
 
@@ -164,7 +158,7 @@ struct ice_cee_feat_tlv {
 #define ICE_CEE_FEAT_TLV_WILLING_M	0x40
 #define ICE_CEE_FEAT_TLV_ERR_M		0x20
 	u8 subtype;
-	u8 tlvinfo[1];
+	u8 tlvinfo[STRUCT_HACK_VAR_LEN];
 };
 
 #pragma pack(1)
@@ -218,9 +212,6 @@ enum ice_status
 ice_aq_update_lldp_tlv(struct ice_hw *hw, u8 bridge_type, void *buf,
 		       u16 buf_size, u16 old_len, u16 new_len, u16 offset,
 		       u16 *mib_len, struct ice_sq_cd *cd);
-enum ice_status
-ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
-		    struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_dcb_ignore_pfc(struct ice_hw *hw, u8 tcmap, bool request, u8 *tcmap_ret,
 		      struct ice_sq_cd *cd);

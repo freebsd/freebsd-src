@@ -143,8 +143,8 @@ static void
 ice_sysctl_speeds_to_aq_phy_types(u16 sysctl_speeds, u64 *phy_type_low,
 				  u64 *phy_type_high);
 static int
-ice_intersect_media_types_with_caps(struct ice_softc *sc, u64 *phy_type_low,
-				    u64 *phy_type_high);
+ice_intersect_media_types_with_caps(struct ice_softc *sc, u16 sysctl_speeds,
+				    u64 *phy_type_low, u64 *phy_type_high);
 static int
 ice_get_auto_speeds(struct ice_softc *sc, u64 *phy_type_low,
 		    u64 *phy_type_high);
@@ -1388,44 +1388,54 @@ ice_setup_tx_ctx(struct ice_tx_queue *txq, struct ice_tlan_ctx *tlan_ctx, u16 pf
 int
 ice_cfg_vsi_for_tx(struct ice_vsi *vsi)
 {
-	struct ice_aqc_add_tx_qgrp qg = { 0 };
+	struct ice_aqc_add_tx_qgrp *qg;
 	struct ice_hw *hw = &vsi->sc->hw;
 	device_t dev = vsi->sc->dev;
 	enum ice_status status;
-	int i, err;
-	u16 pf_q;
+	int i;
+	int err = 0;
+	u16 qg_size, pf_q;
 
-	qg.num_txqs = 1;
+	qg_size = ice_struct_size(qg, txqs, 1);
+	qg = (struct ice_aqc_add_tx_qgrp *)malloc(qg_size, M_ICE, M_NOWAIT|M_ZERO);
+	if (!qg)
+		return (ENOMEM);
+
+	qg->num_txqs = 1;
 
 	for (i = 0; i < vsi->num_tx_queues; i++) {
 		struct ice_tlan_ctx tlan_ctx = { 0 };
 		struct ice_tx_queue *txq = &vsi->tx_queues[i];
 
 		pf_q = vsi->tx_qmap[txq->me];
-		qg.txqs[0].txq_id = htole16(pf_q);
+		qg->txqs[0].txq_id = htole16(pf_q);
 
 		err = ice_setup_tx_ctx(txq, &tlan_ctx, pf_q);
 		if (err)
-			return err;
+			goto free_txqg;
 
-		ice_set_ctx((u8 *)&tlan_ctx, qg.txqs[0].txq_ctx,
+		ice_set_ctx(hw, (u8 *)&tlan_ctx, qg->txqs[0].txq_ctx,
 			    ice_tlan_ctx_info);
 
 		status = ice_ena_vsi_txq(hw->port_info, vsi->idx, 0,
-					 i, 1, &qg, sizeof(qg), NULL);
+					 i, 1, qg, qg_size, NULL);
 		if (status) {
 			device_printf(dev,
 				      "Failed to set LAN Tx queue context, err %s aq_err %s\n",
 				      ice_status_str(status), ice_aq_str(hw->adminq.sq_last_status));
-			return (ENODEV);
+			err = ENODEV;
+			goto free_txqg;
 		}
 
 		/* Keep track of the Tx queue TEID */
-		if (pf_q == le16toh(qg.txqs[0].txq_id))
-			txq->q_teid = le32toh(qg.txqs[0].q_teid);
+		if (pf_q == le16toh(qg->txqs[0].txq_id))
+			txq->q_teid = le32toh(qg->txqs[0].q_teid);
 	}
 
-	return (0);
+free_txqg:
+	free(qg, M_ICE);
+
+	return (err);
 }
 
 /**
@@ -2343,6 +2353,10 @@ ice_update_pf_stats(struct ice_softc *sc)
 	ICE_PF_STAT40(GLPRT_UPTC, eth.tx_unicast);
 	ICE_PF_STAT40(GLPRT_MPTC, eth.tx_multicast);
 	ICE_PF_STAT40(GLPRT_BPTC, eth.tx_broadcast);
+	/* This stat register doesn't have an lport */
+	ice_stat_update32(hw, PRTRPB_RDPC,
+			  sc->stats.offsets_loaded,
+			  &prev_ps->eth.rx_discards, &cur_ps->eth.rx_discards);
 
 	ICE_PF_STAT32(GLPRT_TDOLD, tx_dropped_link_down);
 	ICE_PF_STAT40(GLPRT_PRC64, rx_size_64);
@@ -2808,6 +2822,7 @@ ice_sysctl_speeds_to_aq_phy_types(u16 sysctl_speeds, u64 *phy_type_low,
 /**
  * ice_intersect_media_types_with_caps - Restrict input AQ PHY flags
  * @sc: driver private structure
+ * @sysctl_speeds: current SW configuration of PHY types
  * @phy_type_low: input/output flag set for low PHY types
  * @phy_type_high: input/output flag set for high PHY types
  *
@@ -2819,34 +2834,101 @@ ice_sysctl_speeds_to_aq_phy_types(u16 sysctl_speeds, u64 *phy_type_low,
  * mode
  */
 static int
-ice_intersect_media_types_with_caps(struct ice_softc *sc, u64 *phy_type_low,
-				    u64 *phy_type_high)
+ice_intersect_media_types_with_caps(struct ice_softc *sc, u16 sysctl_speeds,
+				    u64 *phy_type_low, u64 *phy_type_high)
 {
+	struct ice_aqc_get_phy_caps_data pcaps = { 0 };
+	struct ice_port_info *pi = sc->hw.port_info;
 	device_t dev = sc->dev;
 	enum ice_status status;
+	u64 temp_phy_low, temp_phy_high;
+	u64 final_phy_low, final_phy_high;
+	u16 topo_speeds;
 
-	u64 new_phy_low, new_phy_high;
-
-	status = ice_get_phy_types(sc, &new_phy_low, &new_phy_high);
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP,
+	    &pcaps, NULL);
 	if (status != ICE_SUCCESS) {
-		/* Function already prints appropriate error message */
+		device_printf(dev,
+		    "%s: ice_aq_get_phy_caps (TOPO_CAP) failed; status %s, aq_err %s\n",
+		    __func__, ice_status_str(status),
+		    ice_aq_str(sc->hw.adminq.sq_last_status));
 		return (EIO);
 	}
 
-	ice_apply_supported_speed_filter(&new_phy_low, &new_phy_high);
+	final_phy_low = le64toh(pcaps.phy_type_low);
+	final_phy_high = le64toh(pcaps.phy_type_high);
 
-	new_phy_low &= *phy_type_low;
-	new_phy_high &= *phy_type_high;
+	topo_speeds = ice_aq_phy_types_to_sysctl_speeds(final_phy_low,
+	    final_phy_high);
 
-	if (new_phy_low == 0 && new_phy_high == 0) {
+	/*
+	 * If the user specifies a subset of speeds the media is already
+	 * capable of supporting, then we're good to go.
+	 */
+	if ((sysctl_speeds & topo_speeds) == sysctl_speeds)
+		goto intersect_final;
+
+	temp_phy_low = final_phy_low;
+	temp_phy_high = final_phy_high;
+	/*
+	 * Otherwise, we'll have to use the superset if Lenient Mode is
+	 * supported.
+	 */
+	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE)) {
+		/*
+		 * Start with masks that _don't_ include the PHY types
+		 * discovered by the TOPO_CAP.
+		 */
+		ice_sysctl_speeds_to_aq_phy_types(topo_speeds, &final_phy_low,
+		    &final_phy_high);
+		final_phy_low = ~final_phy_low;
+		final_phy_high = ~final_phy_high;
+
+		/* Get the PHY types the NVM says we can support */
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_NVM_CAP,
+		    &pcaps, NULL);
+		if (status != ICE_SUCCESS) {
+			device_printf(dev,
+			    "%s: ice_aq_get_phy_caps (NVM_CAP) failed; status %s, aq_err %s\n",
+			    __func__, ice_status_str(status),
+			    ice_aq_str(sc->hw.adminq.sq_last_status));
+			return (status);
+		}
+
+		/*
+		 * Clear out the unsupported PHY types, including those
+		 * from TOPO_CAP.
+		 */
+		final_phy_low &= le64toh(pcaps.phy_type_low);
+		final_phy_high &= le64toh(pcaps.phy_type_high);
+		/*
+		 * Include PHY types from TOPO_CAP (which may be a subset
+		 * of the types the NVM specifies).
+		 */
+		final_phy_low |= temp_phy_low;
+		final_phy_high |= temp_phy_high;
+	}
+
+intersect_final:
+
+	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE))
+		ice_apply_supported_speed_filter(&final_phy_low, &final_phy_high);
+
+	ice_sysctl_speeds_to_aq_phy_types(sysctl_speeds, &temp_phy_low,
+	    &temp_phy_high);
+
+	final_phy_low &= temp_phy_low;
+	final_phy_high &= temp_phy_high;
+
+	if (final_phy_low == 0 && final_phy_high == 0) {
 		device_printf(dev,
 		    "The selected speed is not supported by the current media. Please select a link speed that is supported by the current media.\n");
 		return (EINVAL);
 	}
 
 	/* Overwrite input phy_type values and return */
-	*phy_type_low = new_phy_low;
-	*phy_type_high = new_phy_high;
+	*phy_type_low = final_phy_low;
+	*phy_type_high = final_phy_high;
 
 	return (0);
 }
@@ -2960,8 +3042,8 @@ ice_sysctl_advertise_speed(SYSCTL_HANDLER_ARGS)
 			/* Function already prints appropriate error message */
 			return (error);
 	} else {
-		ice_sysctl_speeds_to_aq_phy_types(sysctl_speeds, &phy_low, &phy_high);
-		error = ice_intersect_media_types_with_caps(sc, &phy_low, &phy_high);
+		error = ice_intersect_media_types_with_caps(sc, sysctl_speeds,
+		    &phy_low, &phy_high);
 		if (error)
 			/* Function already prints appropriate error message */
 			return (error);
@@ -2976,7 +3058,7 @@ ice_sysctl_advertise_speed(SYSCTL_HANDLER_ARGS)
 
 	cfg.phy_type_low = phy_low;
 	cfg.phy_type_high = phy_high;
-	cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT;
+	cfg.caps |= ICE_AQ_PHY_ENA_AUTO_LINK_UPDT | ICE_AQ_PHY_ENA_LINK;
 
 	status = ice_aq_set_phy_cfg(hw, pi, &cfg, NULL);
 	if (status != ICE_SUCCESS) {
@@ -3752,9 +3834,10 @@ ice_sysctl_fw_lldp_agent(SYSCTL_HANDLER_ARGS)
 			return (EIO);
 		}
 		ice_aq_set_dcb_parameters(hw, true, NULL);
-		hw->port_info->is_sw_lldp = true;
+		hw->port_info->qos_cfg.is_sw_lldp = true;
 		ice_add_rx_lldp_filter(sc);
 	} else {
+		ice_del_rx_lldp_filter(sc);
 retry_start_lldp:
 		status = ice_aq_start_lldp(hw, true, NULL);
 		if (status) {
@@ -3778,8 +3861,7 @@ retry_start_lldp:
 				return (EIO);
 			}
 		}
-		hw->port_info->is_sw_lldp = false;
-		ice_del_rx_lldp_filter(sc);
+		hw->port_info->qos_cfg.is_sw_lldp = false;
 	}
 
 	return (error);
@@ -3977,8 +4059,9 @@ struct ice_sysctl_info {
  * Adds statistics sysctls for the ethernet statistics of the MAC or a VSI.
  * Will add them under the parent node specified.
  *
- * Note that rx_discards and tx_errors are only meaningful for VSIs and not
- * the global MAC/PF statistics, so they are not included here.
+ * Note that tx_errors is only meaningful for VSIs and not the global MAC/PF
+ * statistics, so it is not included here. Similarly, rx_discards has different
+ * descriptions for VSIs and MAC/PF stats, so it is also not included here.
  */
 void
 ice_add_sysctls_eth_stats(struct sysctl_ctx_list *ctx,
@@ -4195,7 +4278,7 @@ ice_add_vsi_sysctls(struct ice_vsi *vsi)
 
 	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_discards",
 			CTLFLAG_RD | CTLFLAG_STATS, &vsi->hw_stats.cur.rx_discards,
-			0, "Discarded Rx Packets");
+			0, "Discarded Rx Packets (see rx_errors or rx_no_desc)");
 
 	SYSCTL_ADD_U64(ctx, hw_list, OID_AUTO, "rx_errors",
 		       CTLFLAG_RD | CTLFLAG_STATS, &vsi->hw_stats.cur.rx_errors,
@@ -4256,6 +4339,8 @@ ice_add_sysctls_mac_stats(struct sysctl_ctx_list *ctx,
 		{&stats->rx_oversize, "rx_oversized", "Oversized packets received"},
 		{&stats->rx_jabber, "rx_jabber", "Received Jabber"},
 		{&stats->rx_len_errors, "rx_length_errors", "Receive Length Errors"},
+		{&stats->eth.rx_discards, "rx_discards",
+		    "Discarded Rx Packets by Port (shortage of storage space)"},
 		/* Packet Transmission Stats */
 		{&stats->tx_size_64, "tx_frames_64", "64 byte frames transmitted"},
 		{&stats->tx_size_127, "tx_frames_65_127", "65-127 byte frames transmitted"},
@@ -6652,7 +6737,7 @@ ice_set_pci_link_status_data(struct ice_hw *hw, u16 link_status)
 		break;
 	}
 
-	reg = (link_status & PCIEM_LINK_STA_SPEED) + 0x14;
+	reg = (link_status & PCIEM_LINK_STA_SPEED) + 0x13;
 
 	switch (reg) {
 	case ice_pcie_speed_2_5GT:
@@ -6845,9 +6930,9 @@ ice_init_dcb_setup(struct ice_softc *sc)
 		return;
 	}
 
-	hw->port_info->dcbx_status = ice_get_dcbx_status(hw);
-	if (hw->port_info->dcbx_status != ICE_DCBX_STATUS_DONE &&
-	    hw->port_info->dcbx_status != ICE_DCBX_STATUS_IN_PROGRESS) {
+	hw->port_info->qos_cfg.dcbx_status = ice_get_dcbx_status(hw);
+	if (hw->port_info->qos_cfg.dcbx_status != ICE_DCBX_STATUS_DONE &&
+	    hw->port_info->qos_cfg.dcbx_status != ICE_DCBX_STATUS_IN_PROGRESS) {
 		/*
 		 * Start DCBX agent, but not LLDP. The return value isn't
 		 * checked here because a more detailed dcbx agent status is
@@ -6856,7 +6941,7 @@ ice_init_dcb_setup(struct ice_softc *sc)
 		ice_aq_start_stop_dcbx(hw, true, &dcbx_agent_status, NULL);
 	}
 
-	/* This sets hw->port_info->is_sw_lldp */
+	/* This sets hw->port_info->qos_cfg.is_sw_lldp */
 	status = ice_init_dcb(hw, true);
 
 	/* If there is an error, then FW LLDP is not in a usable state */
@@ -6871,10 +6956,10 @@ ice_init_dcb_setup(struct ice_softc *sc)
 				      ice_status_str(status),
 				      ice_aq_str(hw->adminq.sq_last_status));
 		}
-		hw->port_info->dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
+		hw->port_info->qos_cfg.dcbx_status = ICE_DCBX_STATUS_NOT_STARTED;
 	}
 
-	switch (hw->port_info->dcbx_status) {
+	switch (hw->port_info->qos_cfg.dcbx_status) {
 	case ICE_DCBX_STATUS_DIS:
 		ice_debug(hw, ICE_DBG_DCB, "DCBX disabled\n");
 		break;
@@ -6889,11 +6974,9 @@ ice_init_dcb_setup(struct ice_softc *sc)
 	}
 
 	/* LLDP disabled in FW */
-	if (hw->port_info->is_sw_lldp) {
+	if (hw->port_info->qos_cfg.is_sw_lldp) {
 		ice_add_rx_lldp_filter(sc);
 		device_printf(dev, "Firmware LLDP agent disabled\n");
-	} else {
-		ice_del_rx_lldp_filter(sc);
 	}
 }
 
@@ -7117,6 +7200,25 @@ ice_add_rx_lldp_filter(struct ice_softc *sc)
 	device_t dev = sc->dev;
 	enum ice_status status;
 	int err;
+	u16 vsi_num;
+
+	/*
+	 * If FW is new enough, use a direct AQ command to perform the filter
+	 * addition.
+	 */
+	if (ice_fw_supports_lldp_fltr_ctrl(hw)) {
+		vsi_num = ice_get_hw_vsi_num(hw, vsi->idx);
+		status = ice_lldp_fltr_add_remove(hw, vsi_num, true);
+		if (status) {
+			device_printf(dev,
+			    "Failed to add Rx LLDP filter, err %s aq_err %s\n",
+			    ice_status_str(status),
+			    ice_aq_str(hw->adminq.sq_last_status));
+		} else
+			ice_set_state(&sc->state,
+			    ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER);
+		return;
+	}
 
 	INIT_LIST_HEAD(&ethertype_list);
 
@@ -7132,13 +7234,17 @@ ice_add_rx_lldp_filter(struct ice_softc *sc)
 	}
 
 	status = ice_add_eth_mac(hw, &ethertype_list);
-	if (status == ICE_ERR_ALREADY_EXISTS) {
-		; /* Don't complain if we try to add a filter that already exists */
-	} else if (status) {
+	if (status && status != ICE_ERR_ALREADY_EXISTS) {
 		device_printf(dev,
 			      "Failed to add Rx LLDP filter, err %s aq_err %s\n",
 			      ice_status_str(status),
 			      ice_aq_str(hw->adminq.sq_last_status));
+	} else {
+		/*
+		 * If status == ICE_ERR_ALREADY_EXISTS, we won't treat an
+		 * already existing filter as an error case.
+		 */
+		ice_set_state(&sc->state, ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER);
 	}
 
 free_ethertype_list:
@@ -7162,6 +7268,31 @@ ice_del_rx_lldp_filter(struct ice_softc *sc)
 	device_t dev = sc->dev;
 	enum ice_status status;
 	int err;
+	u16 vsi_num;
+
+	/*
+	 * Only in the scenario where the driver added the filter during
+	 * this session (while the driver was loaded) would we be able to
+	 * delete this filter.
+	 */
+	if (!ice_test_state(&sc->state, ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER))
+		return;
+
+	/*
+	 * If FW is new enough, use a direct AQ command to perform the filter
+	 * removal.
+	 */
+	if (ice_fw_supports_lldp_fltr_ctrl(hw)) {
+		vsi_num = ice_get_hw_vsi_num(hw, vsi->idx);
+		status = ice_lldp_fltr_add_remove(hw, vsi_num, false);
+		if (status) {
+			device_printf(dev,
+			    "Failed to remove Rx LLDP filter, err %s aq_err %s\n",
+			    ice_status_str(status),
+			    ice_aq_str(hw->adminq.sq_last_status));
+		}
+		return;
+	}
 
 	INIT_LIST_HEAD(&ethertype_list);
 
@@ -7693,7 +7824,6 @@ ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* data, u1
 	struct ice_hw *hw = &sc->hw;
 	int error = 0, retries = 0;
 	enum ice_status status;
-	u16 lport;
 
 	if (length > 16)
 		return (EINVAL);
@@ -7704,11 +7834,8 @@ ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* data, u1
 	if (ice_test_state(&sc->state, ICE_STATE_NO_MEDIA))
 		return (ENXIO);
 
-	/* Set bit to indicate lport value is valid */
-	lport = hw->port_info->lport | (0x1 << 8);
-
 	do {
-		status = ice_aq_sff_eeprom(hw, lport, dev_addr,
+		status = ice_aq_sff_eeprom(hw, 0, dev_addr,
 					   offset, 0, 0, data, length,
 					   false, NULL);
 		if (!status) {
@@ -7997,4 +8124,51 @@ ice_get_phy_types(struct ice_softc *sc, u64 *phy_type_low, u64 *phy_type_high)
 	*phy_type_high = le64toh(pcaps.phy_type_high);
 
 	return (ICE_SUCCESS);
+}
+
+/**
+ * ice_set_default_local_lldp_mib - Set Local LLDP MIB to default settings
+ * @sc: device softc structure
+ *
+ * This function needs to be called after link up; it makes sure the FW
+ * has certain PFC/DCB settings. This is intended to workaround a FW behavior
+ * where these settings seem to be cleared on link up.
+ */
+void
+ice_set_default_local_lldp_mib(struct ice_softc *sc)
+{
+	struct ice_dcbx_cfg *dcbcfg;
+	struct ice_hw *hw = &sc->hw;
+	struct ice_port_info *pi;
+	device_t dev = sc->dev;
+	enum ice_status status;
+
+	pi = hw->port_info;
+	dcbcfg = &pi->qos_cfg.local_dcbx_cfg;
+
+	/* This value is only 3 bits; 8 TCs maps to 0 */
+	u8 maxtcs = hw->func_caps.common_cap.maxtc & ICE_IEEE_ETS_MAXTC_M;
+
+	/**
+	 * Setup the default settings used by the driver for the Set Local
+	 * LLDP MIB Admin Queue command (0x0A08). (1TC w/ 100% BW, ETS, no
+	 * PFC).
+	 */
+	memset(dcbcfg, 0, sizeof(*dcbcfg));
+	dcbcfg->etscfg.willing = 1;
+	dcbcfg->etscfg.tcbwtable[0] = 100;
+	dcbcfg->etscfg.maxtcs = maxtcs;
+	dcbcfg->etsrec.willing = 1;
+	dcbcfg->etsrec.tcbwtable[0] = 100;
+	dcbcfg->etsrec.maxtcs = maxtcs;
+	dcbcfg->pfc.willing = 1;
+	dcbcfg->pfc.pfccap = maxtcs;
+
+	status = ice_set_dcb_cfg(pi);
+
+	if (status)
+		device_printf(dev,
+		    "Error setting Local LLDP MIB: %s aq_err %s\n",
+		    ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
 }

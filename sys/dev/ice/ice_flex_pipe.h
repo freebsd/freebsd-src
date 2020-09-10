@@ -50,9 +50,6 @@
 enum ice_status
 ice_update_pkg(struct ice_hw *hw, struct ice_buf *bufs, u32 count);
 enum ice_status
-ice_acquire_change_lock(struct ice_hw *hw, enum ice_aq_res_access_type access);
-void ice_release_change_lock(struct ice_hw *hw);
-enum ice_status
 ice_find_prot_off(struct ice_hw *hw, enum ice_block blk, u8 prof, u16 fv_idx,
 		  u8 *prot, u16 *off);
 enum ice_status
@@ -103,9 +100,9 @@ enum ice_status
 ice_add_prof_id_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi, u64 hdl);
 enum ice_status
 ice_rem_prof_id_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi, u64 hdl);
-struct ice_prof_map *
+enum ice_status
 ice_set_prof_context(struct ice_hw *hw, enum ice_block blk, u64 id, u64 cntxt);
-struct ice_prof_map *
+enum ice_status
 ice_get_prof_context(struct ice_hw *hw, enum ice_block blk, u64 id, u64 *cntxt);
 enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buff, u32 len);
 enum ice_status
@@ -123,9 +120,5 @@ ice_rem_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi[], u8 count,
 	     u64 id);
 enum ice_status
 ice_rem_prof(struct ice_hw *hw, enum ice_block blk, u64 id);
-
-enum ice_status
-ice_set_key(u8 *key, u16 size, u8 *val, u8 *upd, u8 *dc, u8 *nm, u16 off,
-	    u16 len);
 
 #endif /* _ICE_FLEX_PIPE_H_ */
