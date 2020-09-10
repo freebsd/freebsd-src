@@ -22,7 +22,6 @@ WARNS?=		2
 CFLAGS+=	-DCTF_OLD_VERSIONS
 
 CFLAGS+= -DIN_BASE
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd/spl
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd

@@ -30,7 +30,6 @@ LIBADD+=	elf procstat rtld_db util
 LIBADD+=	ctf
 IGNORE_PRAGMA=	YES
 CFLAGS+= -DIN_BASE
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd/spl
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
