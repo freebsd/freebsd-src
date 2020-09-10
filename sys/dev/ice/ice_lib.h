@@ -527,6 +527,7 @@ enum ice_state {
 	ICE_STATE_LINK_STATUS_REPORTED,
 	ICE_STATE_DETACHING,
 	ICE_STATE_LINK_DEFAULT_OVERRIDE_PENDING,
+	ICE_STATE_LLDP_RX_FLTR_FROM_DRIVER,
 	/* This entry must be last */
 	ICE_STATE_LAST,
 };
@@ -807,5 +808,6 @@ int ice_handle_i2c_req(struct ice_softc *sc, struct ifi2creq *req);
 int ice_read_sff_eeprom(struct ice_softc *sc, u16 dev_addr, u16 offset, u8* data, u16 length);
 int ice_alloc_intr_tracking(struct ice_softc *sc);
 void ice_free_intr_tracking(struct ice_softc *sc);
+void ice_set_default_local_lldp_mib(struct ice_softc *sc);
 
 #endif /* _ICE_LIB_H_ */

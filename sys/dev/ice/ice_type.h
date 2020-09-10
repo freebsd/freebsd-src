@@ -56,6 +56,13 @@
 
 #define IS_ASCII(_ch)	((_ch) < 0x80)
 
+#define STRUCT_HACK_VAR_LEN
+/**
+ * ice_struct_size - size of struct with C99 flexible array member
+ * @ptr: pointer to structure
+ * @field: flexible array member (last member of the structure)
+ * @num: number of elements of that flexible array member
+ */
 #define ice_struct_size(ptr, field, num) \
 	(sizeof(*(ptr)) + sizeof(*(ptr)->field) * (num))
 
@@ -231,6 +238,7 @@ enum ice_media_type {
 	ICE_MEDIA_BASET,
 	ICE_MEDIA_BACKPLANE,
 	ICE_MEDIA_DA,
+	ICE_MEDIA_AUI,
 };
 
 /* Software VSI types. */
@@ -476,7 +484,7 @@ struct ice_nvm_info {
 	u32 flash_size;			/* Size of available flash in bytes */
 	u8 major_ver;			/* major version of dev starter */
 	u8 minor_ver;			/* minor version of dev starter */
-	u8 blank_nvm_mode;		/* is NVM empty (no FW present)*/
+	u8 blank_nvm_mode;		/* is NVM empty (no FW present) */
 };
 
 struct ice_link_default_override_tlv {
@@ -587,7 +595,7 @@ enum ice_rl_type {
 #define ICE_SCHED_NO_BW_WT		0
 #define ICE_SCHED_DFLT_RL_PROF_ID	0
 #define ICE_SCHED_NO_SHARED_RL_PROF_ID	0xFFFF
-#define ICE_SCHED_DFLT_BW_WT		1
+#define ICE_SCHED_DFLT_BW_WT		4
 #define ICE_SCHED_INVAL_PROF_ID		0xFFFF
 #define ICE_SCHED_DFLT_BURST_SIZE	(15 * 1024)	/* in bytes (15k) */
 
@@ -720,6 +728,14 @@ struct ice_dcbx_cfg {
 #define ICE_DCBX_APPS_NON_WILLING	0x1
 };
 
+struct ice_qos_cfg {
+	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
+	struct ice_dcbx_cfg desired_dcbx_cfg;	/* CEE Desired Cfg */
+	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
+	u8 dcbx_status : 3;			/* see ICE_DCBX_STATUS_DIS */
+	u8 is_sw_lldp : 1;
+};
+
 struct ice_port_info {
 	struct ice_sched_node *root;	/* Root Node per Port */
 	struct ice_hw *hw;		/* back pointer to HW instance */
@@ -743,14 +759,9 @@ struct ice_port_info {
 		sib_head[ICE_MAX_TRAFFIC_CLASS][ICE_AQC_TOPO_MAX_LEVEL_NUM];
 	/* List contain profile ID(s) and other params per layer */
 	struct LIST_HEAD_TYPE rl_prof_list[ICE_AQC_TOPO_MAX_LEVEL_NUM];
+	struct ice_bw_type_info root_node_bw_t_info;
 	struct ice_bw_type_info tc_node_bw_t_info[ICE_MAX_TRAFFIC_CLASS];
-	struct ice_dcbx_cfg local_dcbx_cfg;	/* Oper/Local Cfg */
-	/* DCBX info */
-	struct ice_dcbx_cfg remote_dcbx_cfg;	/* Peer Cfg */
-	struct ice_dcbx_cfg desired_dcbx_cfg;	/* CEE Desired Cfg */
-	/* LLDP/DCBX Status */
-	u8 dcbx_status:3;		/* see ICE_DCBX_STATUS_DIS */
-	u8 is_sw_lldp:1;
+	struct ice_qos_cfg qos_cfg;
 	u8 is_vf:1;
 };
 
@@ -758,6 +769,7 @@ struct ice_switch_info {
 	struct LIST_HEAD_TYPE vsi_list_map_head;
 	struct ice_sw_recipe *recp_list;
 	u16 prof_res_bm_init;
+	u16 max_used_prof_index;
 
 	ice_declare_bitmap(prof_res_bm[ICE_MAX_NUM_PROFILES], ICE_MAX_FV_WORDS);
 };
@@ -1022,7 +1034,7 @@ enum ice_sw_fwd_act_type {
 #define ICE_SR_1ST_SCRATCH_PAD_PTR		0x41
 #define ICE_SR_1ST_NVM_BANK_PTR			0x42
 #define ICE_SR_NVM_BANK_SIZE			0x43
-#define ICE_SR_1ND_OROM_BANK_PTR		0x44
+#define ICE_SR_1ST_OROM_BANK_PTR		0x44
 #define ICE_SR_OROM_BANK_SIZE			0x45
 #define ICE_SR_NETLIST_BANK_PTR			0x46
 #define ICE_SR_NETLIST_BANK_SIZE		0x47
@@ -1069,4 +1081,8 @@ enum ice_sw_fwd_act_type {
 #define GLPCI_LBARCTRL_VF_PE_DB_SIZE_8KB 0x1
 #define GLPCI_LBARCTRL_VF_PE_DB_SIZE_64KB 0x2
 
+/* AQ API version for LLDP_FILTER_CONTROL */
+#define ICE_FW_API_LLDP_FLTR_MAJ	1
+#define ICE_FW_API_LLDP_FLTR_MIN	7
+#define ICE_FW_API_LLDP_FLTR_PATCH	1
 #endif /* _ICE_TYPE_H_ */
