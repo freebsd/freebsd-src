@@ -361,7 +361,6 @@ MAN=	accept_filter.9 \
 	vm_fault_prefault.9 \
 	vm_map.9 \
 	vm_map_check_protection.9 \
-	vm_map_create.9 \
 	vm_map_delete.9 \
 	vm_map_entry_resize_free.9 \
 	vm_map_find.9 \
