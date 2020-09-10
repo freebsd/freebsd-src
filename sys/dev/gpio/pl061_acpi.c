@@ -76,7 +76,7 @@ pl061_acpi_attach(device_t dev)
 	if (error != 0)
 		return (error);
 
-	if (!intr_pic_register(dev, ACPI_INTR_XREF)) {
+	if (!intr_pic_register(dev, ACPI_GPIO_XREF)) {
 		device_printf(dev, "couldn't register PIC\n");
 		pl061_detach(dev);
 		error = ENXIO;
@@ -98,6 +98,7 @@ DEFINE_CLASS_1(gpio, pl061_acpi_driver, pl061_acpi_methods,
 
 static devclass_t pl061_devclass;
 
-DRIVER_MODULE(pl061, acpi, pl061_driver, pl061_devclass, NULL, NULL);
+EARLY_DRIVER_MODULE(pl061, acpi, pl061_acpi_driver, pl061_devclass, NULL, NULL,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
 MODULE_DEPEND(pl061, acpi, 1, 1, 1);
 MODULE_DEPEND(pl061, gpiobus, 1, 1, 1);
