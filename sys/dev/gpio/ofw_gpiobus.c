@@ -197,7 +197,8 @@ ofw_gpiobus_register_provider(device_t provider)
 	phandle_t node;
 
 	node = ofw_bus_get_node(provider);
-	OF_device_register_xref(OF_xref_from_node(node), provider);
+	if (node != -1)
+		OF_device_register_xref(OF_xref_from_node(node), provider);
 }
 
 void
@@ -206,7 +207,8 @@ ofw_gpiobus_unregister_provider(device_t provider)
 	phandle_t node;
 
 	node = ofw_bus_get_node(provider);
-	OF_device_register_xref(OF_xref_from_node(node), NULL);
+	if (node != -1)
+		OF_device_register_xref(OF_xref_from_node(node), NULL);
 }
 
 static struct ofw_gpiobus_devinfo *
