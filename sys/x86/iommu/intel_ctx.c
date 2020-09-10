@@ -118,9 +118,9 @@ dmar_map_ctx_entry(struct dmar_ctx *ctx, struct sf_buf **sfp)
 
 	dmar = CTX2DMAR(ctx);
 
-	ctxp = dmar_map_pgtbl(dmar->ctx_obj, 1 +
-	    PCI_RID2BUS(ctx->rid), IOMMU_PGF_NOALLOC | IOMMU_PGF_WAITOK, sfp);
-	ctxp += ctx->rid & 0xff;
+	ctxp = dmar_map_pgtbl(dmar->ctx_obj, 1 + PCI_RID2BUS(ctx->context.rid),
+	    IOMMU_PGF_NOALLOC | IOMMU_PGF_WAITOK, sfp);
+	ctxp += ctx->context.rid & 0xff;
 	return (ctxp);
 }
 
@@ -386,7 +386,7 @@ dmar_ctx_alloc(struct dmar_domain *domain, uint16_t rid)
 	ctx->context.domain = DOM2IODOM(domain);
 	ctx->context.tag = malloc(sizeof(struct bus_dma_tag_iommu),
 	    M_DMAR_CTX, M_WAITOK | M_ZERO);
-	ctx->rid = rid;
+	ctx->context.rid = rid;
 	ctx->refs = 1;
 	return (ctx);
 }
@@ -643,8 +643,9 @@ dmar_move_ctx_to_domain(struct dmar_domain *domain, struct dmar_ctx *ctx)
 	error = dmar_flush_for_ctx_entry(dmar, true);
 	/* If flush failed, rolling back would not work as well. */
 	printf("dmar%d rid %x domain %d->%d %s-mapped\n",
-	    dmar->iommu.unit, ctx->rid, old_domain->domain, domain->domain,
-	    (domain->iodom.flags & IOMMU_DOMAIN_IDMAP) != 0 ? "id" : "re");
+	    dmar->iommu.unit, ctx->context.rid, old_domain->domain,
+	    domain->domain, (domain->iodom.flags & IOMMU_DOMAIN_IDMAP) != 0 ?
+	    "id" : "re");
 	dmar_unref_domain_locked(dmar, old_domain);
 	TD_PINNED_ASSERT;
 	return (error);
@@ -776,7 +777,7 @@ dmar_find_ctx_locked(struct dmar_unit *dmar, uint16_t rid)
 
 	LIST_FOREACH(domain, &dmar->domains, link) {
 		LIST_FOREACH(ctx, &domain->contexts, link) {
-			if (ctx->rid == rid)
+			if (ctx->context.rid == rid)
 				return (ctx);
 		}
 	}
