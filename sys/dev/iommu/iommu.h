@@ -135,6 +135,7 @@ struct iommu_ctx {
 	u_long loads;			/* atomic updates, for stat only */
 	u_long unloads;			/* same */
 	u_int flags;			/* (u) */
+	uint16_t rid;			/* (c) pci RID */
 };
 
 /* struct iommu_ctx flags */
