@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200910: remove vm_map_create(9) to sync with the code
+OLD_FILES+=usr/share/man/man9/vm_map_create.9.gz
+
 # 20200820: Removal of the ufm driver.
 OLD_FILES+=usr/share/man/man4/ufm.4.gz
 
