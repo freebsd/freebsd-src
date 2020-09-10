@@ -212,27 +212,16 @@ copy_file(const FTSENT *entp, int dne)
 					err(1, "Not enough memory");
 			}
 			wtotal = 0;
-			while ((rcount = read(from_fd, buf, bufsize)) > 0) {
-				for (bufp = buf, wresid = rcount; ;
-				    bufp += wcount, wresid -= wcount) {
-					wcount = write(to_fd, bufp, wresid);
-					if (wcount <= 0)
-						break;
-					wtotal += wcount;
-					if (info) {
-						info = 0;
-						(void)fprintf(stderr,
-						    "%s -> %s %3d%%\n",
-						    entp->fts_path, to.p_path,
-						    cp_pct(wtotal, fs->st_size));
-					}
-					if (wcount >= (ssize_t)wresid)
-						break;
-				}
-				if (wcount != (ssize_t)wresid) {
-					warn("%s", to.p_path);
-					rval = 1;
-					break;
+			while ((rcount = copy_file_range(from_fd, NULL,
+			    to_fd, NULL, bufsize, 0)) > 0)
+			{
+				wtotal += rcount;
+				if (info) {
+					info = 0;
+					(void)fprintf(stderr,
+					    "%s -> %s %3d%%\n",
+					    entp->fts_path, to.p_path,
+					    cp_pct(wtotal, fs->st_size));
 				}
 			}
 			if (rcount < 0) {
