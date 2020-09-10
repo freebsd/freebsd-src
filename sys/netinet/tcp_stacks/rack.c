@@ -1444,6 +1444,8 @@ rack_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		tp->snd_ssthresh = max(2, min(tp->snd_wnd, tp->snd_cwnd) / 2 /
 		    tp->t_maxseg) * tp->t_maxseg;
 		tp->snd_cwnd = tp->t_maxseg;
+		if (tp->t_flags & TF_ECN_PERMIT)
+			tp->t_flags |= TF_ECN_SND_CWR;
 		break;
 	case CC_RTO_ERR:
 		TCPSTAT_INC(tcps_sndrexmitbad);
