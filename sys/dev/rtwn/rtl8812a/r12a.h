@@ -52,7 +52,6 @@ static const uint8_t r12a_chan_5ghz_1[] =
 static const uint8_t r12a_chan_5ghz_2[] =
 	{ 149, 153, 157, 161, 165, 169, 173, 177 };
 
-
 /*
  * Function declarations.
  */

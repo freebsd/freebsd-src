@@ -81,7 +81,6 @@ HAL_RATE_TABLE ar5211_11b_table = {
 #undef	CCK
 #undef	TURBO
 
-
 const HAL_RATE_TABLE *
 ar5211GetRateTable(struct ath_hal *ah, u_int mode)
 {

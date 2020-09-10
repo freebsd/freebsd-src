@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/usb/r92cu_reg.h>
 #include <dev/rtwn/rtl8192c/usb/r92cu_tx_desc.h>
 
-
 static struct rtwn_r92c_txpwr r92c_txpwr;
 
 void	r92cu_attach(struct rtwn_usb_softc *);

@@ -31,7 +31,6 @@
 
 #include <dev/rtwn/rtl8812a/r12a.h>
 
-
 /*
  * Function declarations.
  */

@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 #include <dev/rtwn/rtl8192c/r92c_var.h>
 
-
 static int
 r92c_get_power_group(struct rtwn_softc *sc, struct ieee80211_channel *c)
 {

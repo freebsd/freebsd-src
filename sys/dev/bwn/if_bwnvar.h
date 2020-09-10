@@ -161,7 +161,6 @@ struct bwn_mac;
 #define	BWN_DMA_WRITE(dr, offset, value)			\
 	(BWN_WRITE_4(dr->dr_mac, dr->dr_base + offset, value))
 
-
 typedef enum {
 	BWN_PHY_BAND_2G = 0,
 	BWN_PHY_BAND_5G_LO = 1,

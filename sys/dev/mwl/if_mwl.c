@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
- 
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_dl.h>
@@ -1470,16 +1470,17 @@ mwl_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 static int
 mwl_media_change(struct ifnet *ifp)
 {
-	struct ieee80211vap *vap = ifp->if_softc;
+	struct ieee80211vap *vap;
 	int error;
 
-	error = ieee80211_media_change(ifp);
 	/* NB: only the fixed rate can change and that doesn't need a reset */
-	if (error == ENETRESET) {
-		mwl_setrates(vap);
-		error = 0;
-	}
-	return error;
+	error = ieee80211_media_change(ifp);
+	if (error != 0)
+		return (error);
+
+	vap = ifp->if_softc;
+	mwl_setrates(vap);
+	return (0);
 }
 
 #ifdef MWL_DEBUG

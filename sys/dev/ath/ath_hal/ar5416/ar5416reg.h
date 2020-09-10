@@ -669,7 +669,6 @@
 #define	AR_XSREV_VERSION_OWL_PCI	0x0D
 #define	AR_XSREV_VERSION_OWL_PCIE	0x0C
 
-
 /*
  * These are from ath9k/Atheros and assume an AR_SREV version mask
  * of 0x07, rather than 0x0F which is being used in the FreeBSD HAL.
@@ -807,7 +806,6 @@
 #define	AR_SREV_KIWI_13_OR_LATER(_ah) \
 	(AR_SREV_KIWI(_ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KIWI_13)
-
 
 /* Not yet implemented chips */
 #define	AR_SREV_9271(_ah)	0

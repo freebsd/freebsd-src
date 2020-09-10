@@ -107,7 +107,7 @@ ar9285SetTransmitPower(struct ath_hal *ah,
     if (IS_EEP_MINOR_V2(ah)) {
         AH5416(ah)->ah_ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
     }
- 
+
     if (!ar9285SetPowerPerRateTable(ah, pEepData,  chan,
                                     &AH5416(ah)->ah_ratesArray[0],cfgCtl,
                                     twiceAntennaReduction,

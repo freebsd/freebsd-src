@@ -173,7 +173,7 @@ ar9130Attach(uint16_t devid, HAL_SOFTC sc,
 	if (ecode != HAL_OK)
 		goto bad;
 
-	if (!ar5416ChipReset(ah, AH_NULL)) {	/* reset chip */
+	if (!ar5416ChipReset(ah, AH_NULL, HAL_RESET_NORMAL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		ecode = HAL_EIO;
 		goto bad;
@@ -242,7 +242,6 @@ ar9130Attach(uint16_t devid, HAL_SOFTC sc,
 	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_0, AH_NULL);
 	AH_PRIVATE(ah)->ah_currentRDext =
 	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_1, AH_NULL);
-
 
 	/*
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()

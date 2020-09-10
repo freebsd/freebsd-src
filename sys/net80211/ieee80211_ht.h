@@ -33,6 +33,8 @@
  * 802.11n protocol implementation definitions.
  */
 
+#include <sys/mbuf.h>
+
 #define	IEEE80211_AGGR_BAWMAX	64	/* max block ack window size */
 /* threshold for aging overlapping non-HT bss */
 #define	IEEE80211_NONHT_PRESENT_AGE	msecs_to_ticks(60*1000)
@@ -47,6 +49,7 @@ struct ieee80211_tx_ampdu {
 #define	IEEE80211_AGGR_NAK		0x0010	/* peer NAK'd ADDBA request */
 #define	IEEE80211_AGGR_BARPEND		0x0020	/* BAR response pending */
 #define	IEEE80211_AGGR_WAITRX		0x0040	/* Wait for first RX frame to define BAW */
+#define	IEEE80211_AGGR_AMSDU		0x0080	/* A-MSDU in A-MPDU TX allowed */
 	uint8_t		txa_tid;
 	uint8_t		txa_token;	/* dialog token */
 	int		txa_lastsample;	/* ticks @ last traffic sample */
@@ -67,6 +70,14 @@ struct ieee80211_tx_ampdu {
 /* return non-zero if AMPDU tx for the TID is running */
 #define	IEEE80211_AMPDU_RUNNING(tap) \
 	(((tap)->txa_flags & IEEE80211_AGGR_RUNNING) != 0)
+
+/*
+ * Return non-zero if AMPDU tx for the TID is running and we can do
+ * A-MSDU in A-MPDU
+ */
+#define	IEEE80211_AMPDU_RUNNING_AMSDU(tap) \
+	(((tap)->txa_flags & (IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_AMSDU)) \
+	    == (IEEE80211_AGGR_RUNNING | IEEE80211_AGGR_AMSDU))
 
 /* return non-zero if AMPDU tx for the TID was NACKed */
 #define	IEEE80211_AMPDU_NACKED(tap)\
@@ -160,7 +171,7 @@ struct ieee80211_rx_ampdu {
 	uint16_t	rxa_wnd;	/* BA window size */
 	int		rxa_age;	/* age of oldest frame in window */
 	int		rxa_nframes;	/* frames since ADDBA */
-	struct mbuf *rxa_m[IEEE80211_AGGR_BAWMAX];
+	struct mbufq rxa_mq[IEEE80211_AGGR_BAWMAX];
 	void		*rxa_private;
 	uint64_t	rxa_pad[3];
 };
@@ -199,8 +210,8 @@ struct ieee80211_channel *ieee80211_ht_adjust_channel(struct ieee80211com *,
 void	ieee80211_ht_wds_init(struct ieee80211_node *);
 void	ieee80211_ht_node_join(struct ieee80211_node *);
 void	ieee80211_ht_node_leave(struct ieee80211_node *);
-void	ieee80211_htprot_update(struct ieee80211com *, int protmode);
-void	ieee80211_ht_timeout(struct ieee80211com *);
+void	ieee80211_htprot_update(struct ieee80211vap *, int protmode);
+void	ieee80211_ht_timeout(struct ieee80211vap *);
 void	ieee80211_parse_htcap(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_parse_htinfo(struct ieee80211_node *, const uint8_t *);
 void	ieee80211_ht_updateparams(struct ieee80211_node *, const uint8_t *,
@@ -230,5 +241,6 @@ void	ieee80211_ampdu_rx_stop_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_ext(struct ieee80211_node *ni, int tid);
 int	ieee80211_ampdu_tx_request_active_ext(struct ieee80211_node *ni,
 	    int tid, int status);
+void	ieee80211_htinfo_notify(struct ieee80211vap *vap);
 
 #endif /* _NET80211_IEEE80211_HT_H_ */

@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c_var.h>
 #include <dev/rtwn/rtl8192c/r92c_rom_image.h>
 
-
 static void
 r92c_set_chains(struct rtwn_softc *sc)
 {

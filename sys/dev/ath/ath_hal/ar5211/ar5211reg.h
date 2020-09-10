@@ -808,7 +808,6 @@
 #define	AR5211_USEC_RX_LAT_M	0x1F800000	/* Rx latency */
 #define	AR5211_USEC_RX_LAT_S	23
 
-
 #define	AR_BEACON_PERIOD	0x0000FFFF	/* Beacon period in TU/msec */
 #define	AR_BEACON_PERIOD_S	0		/* Byte offset of PERIOD start*/
 #define	AR_BEACON_TIM		0x007F0000	/* Byte offset of TIM start */

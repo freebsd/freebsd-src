@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8812a/r12a_reg.h>
 #include <dev/rtwn/rtl8812a/r12a_tx_desc.h>
 
-
 void
 r12a_beacon_init(struct rtwn_softc *sc, void *buf, int id)
 {

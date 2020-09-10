@@ -477,18 +477,12 @@ amrr_sysctlattach(struct ieee80211vap *vap,
 }
 
 static void
-amrr_node_stats(struct ieee80211_node *ni, struct sbuf *s)
+amrr_print_node_rate(struct ieee80211_amrr_node *amn,
+    struct ieee80211_node *ni, struct sbuf *s)
 {
 	int rate;
-	struct ieee80211_amrr_node *amn = ni->ni_rctls;
 	struct ieee80211_rateset *rs;
 
-	/* XXX TODO: check locking? */
-
-	if (!amn)
-		return;
-
-	/* XXX TODO: this should be a method */
 	if (amrr_node_is_11n(ni)) {
 		rs = (struct ieee80211_rateset *) &ni->ni_htrates;
 		rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
@@ -498,7 +492,19 @@ amrr_node_stats(struct ieee80211_node *ni, struct sbuf *s)
 		rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
 		sbuf_printf(s, "rate: %d Mbit\n", rate / 2);
 	}
+}
 
+static void
+amrr_node_stats(struct ieee80211_node *ni, struct sbuf *s)
+{
+	struct ieee80211_amrr_node *amn = ni->ni_rctls;
+
+	/* XXX TODO: check locking? */
+
+	if (!amn)
+		return;
+
+	amrr_print_node_rate(amn, ni, s);
 	sbuf_printf(s, "ticks: %d\n", amn->amn_ticks);
 	sbuf_printf(s, "txcnt: %u\n", amn->amn_txcnt);
 	sbuf_printf(s, "success: %u\n", amn->amn_success);

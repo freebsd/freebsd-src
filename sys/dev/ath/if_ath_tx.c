@@ -363,7 +363,7 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
  */
 static void
 ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
-    struct ath_buf *bf, int is_aggr, int is_first_subframe,
+    struct ath_buf *bf, bool is_aggr, int is_first_subframe,
     int is_last_subframe)
 {
 	struct ath_hal *ah = sc->sc_ah;
@@ -1307,7 +1307,7 @@ ath_tx_set_rtscts(struct ath_softc *sc, struct ath_buf *bf)
 	/* Squirrel away in ath_buf */
 	bf->bf_state.bfs_ctsrate = ctsrate;
 	bf->bf_state.bfs_ctsduration = ctsduration;
-	
+
 	/*
 	 * Must disable multi-rate retry when using RTS/CTS.
 	 */
@@ -1376,10 +1376,13 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
  * as they may depend upon the rate chosen.
  */
 static void
-ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf, int tid,
+    int pktlen, int is_aggr)
 {
 	uint8_t rate, rix;
 	int try0;
+	int maxdur; // Note: Unused for now
+	int maxpktlen;
 
 	if (! bf->bf_state.bfs_doratelookup)
 		return;
@@ -1389,7 +1392,7 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
 
 	ATH_NODE_LOCK(ATH_NODE(bf->bf_node));
 	ath_rate_findrate(sc, ATH_NODE(bf->bf_node), bf->bf_state.bfs_shpream,
-	    bf->bf_state.bfs_pktlen, &rix, &try0, &rate);
+	    pktlen, tid, is_aggr, &rix, &try0, &rate, &maxdur, &maxpktlen);
 
 	/* In case MRR is disabled, make sure rc[0] is setup correctly */
 	bf->bf_state.bfs_rc[0].rix = rix;
@@ -1398,13 +1401,14 @@ ath_tx_do_ratelookup(struct ath_softc *sc, struct ath_buf *bf)
 
 	if (bf->bf_state.bfs_ismrr && try0 != ATH_TXMAXTRY)
 		ath_rate_getxtxrates(sc, ATH_NODE(bf->bf_node), rix,
-		    bf->bf_state.bfs_rc);
+		    is_aggr, bf->bf_state.bfs_rc);
 	ATH_NODE_UNLOCK(ATH_NODE(bf->bf_node));
 
 	sc->sc_txrix = rix;	/* for LED blinking */
 	sc->sc_lastdatarix = rix;	/* for fast frames */
 	bf->bf_state.bfs_try0 = try0;
 	bf->bf_state.bfs_txrate0 = rate;
+	bf->bf_state.bfs_rc_maxpktlen = maxpktlen;
 }
 
 /*
@@ -1482,7 +1486,6 @@ ath_tx_should_swq_frame(struct ath_softc *sc, struct ath_node *an,
 	}
 }
 
-
 /*
  * Transmit the given frame to the hardware.
  *
@@ -1519,7 +1522,7 @@ ath_tx_xmit_normal(struct ath_softc *sc, struct ath_txq *txq,
 	bf->bf_state.bfs_txflags |= HAL_TXDESC_CLRDMASK;
 
 	/* Setup the descriptor before handoff */
-	ath_tx_do_ratelookup(sc, bf);
+	ath_tx_do_ratelookup(sc, bf, tid->tid, bf->bf_state.bfs_pktlen, false);
 	ath_tx_calc_duration(sc, bf);
 	ath_tx_calc_protection(sc, bf);
 	ath_tx_set_rtscts(sc, bf);
@@ -2515,7 +2518,6 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
 
-
 	/* Put the hardware back to sleep if required */
 	ATH_LOCK(sc);
 	ath_power_restore_power_state(sc);
@@ -2708,7 +2710,6 @@ ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
 	    __func__, tid->tid, SEQNO(bf->bf_state.bfs_seqno),
 	    tap->txa_start, tap->txa_wnd, index, cindex, tid->baw_head,
 	    tid->baw_tail);
-
 
 #if 0
 	assert(tid->tx_buf[cindex] == NULL);
@@ -3094,7 +3095,8 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 	ath_tx_update_clrdmask(sc, tid, bf);
 
 	/* Direct dispatch to hardware */
-	ath_tx_do_ratelookup(sc, bf);
+	ath_tx_do_ratelookup(sc, bf, tid->tid, bf->bf_state.bfs_pktlen,
+	    false);
 	ath_tx_calc_duration(sc, bf);
 	ath_tx_calc_protection(sc, bf);
 	ath_tx_set_rtscts(sc, bf);
@@ -3220,7 +3222,6 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni,
 		 */
 		/* XXX TXQ locking */
 		if (txq->axq_depth + txq->fifo.axq_depth == 0) {
-
 			bf = ATH_TID_FIRST(atid);
 			ATH_TID_REMOVE(atid, bf, bf_list);
 
@@ -4257,7 +4258,9 @@ ath_tx_normal_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	 */
 	if (fail == 0 && ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0))
 		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
-		    ts, bf->bf_state.bfs_pktlen,
+		    ts,
+		    bf->bf_state.bfs_pktlen,
+		    bf->bf_state.bfs_pktlen,
 		    1, (ts->ts_status == 0) ? 0 : 1);
 
 	ath_tx_default_comp(sc, bf, fail);
@@ -4304,7 +4307,6 @@ ath_tx_comp_cleanup_unaggr(struct ath_softc *sc, struct ath_buf *bf)
 
 	ath_tx_default_comp(sc, bf, 0);
 }
-
 
 /*
  * This as it currently stands is a bit dumb.  Ideally we'd just
@@ -4686,13 +4688,11 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	/*
 	 * Update rate control - all frames have failed.
-	 *
-	 * XXX use the length in the first frame in the series;
-	 * XXX just so things are consistent for now.
 	 */
 	ath_tx_update_ratectrl(sc, ni, bf_first->bf_state.bfs_rc,
 	    &bf_first->bf_status.ds_txstat,
-	    bf_first->bf_state.bfs_pktlen,
+	    bf_first->bf_state.bfs_al,
+	    bf_first->bf_state.bfs_rc_maxpktlen,
 	    bf_first->bf_state.bfs_nframes, bf_first->bf_state.bfs_nframes);
 
 	ATH_TX_LOCK(sc);
@@ -4841,6 +4841,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	int drops = 0;
 	int nframes = 0, nbad = 0, nf;
 	int pktlen;
+	int agglen, rc_agglen;
 	/* XXX there's too much on the stack? */
 	struct ath_rc_series rc[ATH_RC_NUM];
 	int txseq;
@@ -4853,6 +4854,8 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	 * has been completed and freed.
 	 */
 	ts = bf_first->bf_status.ds_txstat;
+	agglen = bf_first->bf_state.bfs_al;
+	rc_agglen = bf_first->bf_state.bfs_rc_maxpktlen;
 
 	TAILQ_INIT(&bf_q);
 	TAILQ_INIT(&bf_cq);
@@ -5003,7 +5006,11 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 		    "%s: AR5416 bug: hasba=%d; txok=%d, isaggr=%d, "
 		    "seq_st=%d\n",
 		    __func__, hasba, tx_ok, isaggr, seq_st);
-		/* XXX TODO: schedule an interface reset */
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_fataltask);
+		/* And as we can't really trust the BA here .. */
+		ba[0] = 0;
+		ba[1] = 0;
+		seq_st = 0;
 #ifdef ATH_DEBUG
 		ath_printtxbuf(sc, bf_first,
 		    sc->sc_ac2q[atid->ac]->axq_qnum, 0, 0);
@@ -5088,9 +5095,10 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first,
 	 * Now we know how many frames were bad, call the rate
 	 * control code.
 	 */
-	if (fail == 0)
-		ath_tx_update_ratectrl(sc, ni, rc, &ts, pktlen, nframes,
-		    nbad);
+	if (fail == 0) {
+		ath_tx_update_ratectrl(sc, ni, rc, &ts, agglen, rc_agglen,
+		    nframes, nbad);
+	}
 
 	/*
 	 * send bar if we dropped any frames
@@ -5180,6 +5188,7 @@ ath_tx_aggr_comp_unaggr(struct ath_softc *sc, struct ath_buf *bf, int fail)
 	if (fail == 0 && ((bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) == 0))
 		ath_tx_update_ratectrl(sc, ni, bf->bf_state.bfs_rc,
 		    &bf->bf_status.ds_txstat,
+		    bf->bf_state.bfs_pktlen,
 		    bf->bf_state.bfs_pktlen,
 		    1, (ts.ts_status == 0) ? 0 : 1);
 
@@ -5353,6 +5362,65 @@ ath_tx_aggr_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 }
 
 /*
+ * Grab the software queue depth that we COULD transmit.
+ *
+ * This includes checks if it's in the BAW, whether it's a frame
+ * that is supposed to be in the BAW.  Other checks could be done;
+ * but for now let's try and avoid doing the whole of ath_tx_form_aggr()
+ * here.
+ */
+static int
+ath_tx_tid_swq_depth_bytes(struct ath_softc *sc, struct ath_node *an,
+    struct ath_tid *tid)
+{
+	struct ath_buf *bf;
+	struct ieee80211_tx_ampdu *tap;
+	int nbytes = 0;
+
+	ATH_TX_LOCK_ASSERT(sc);
+
+	tap = ath_tx_get_tx_tid(an, tid->tid);
+
+	/*
+	 * Iterate over each buffer and sum the pkt_len.
+	 * Bail if we exceed ATH_AGGR_MAXSIZE bytes; we won't
+	 * ever queue more than that in a single frame.
+	 */
+	TAILQ_FOREACH(bf, &tid->tid_q, bf_list) {
+		/*
+		 * TODO: I'm not sure if we're going to hit cases where
+		 * no frames get sent because the list is empty.
+		 */
+
+		/* Check if it's in the BAW */
+		if (tap != NULL && (! BAW_WITHIN(tap->txa_start, tap->txa_wnd,
+		    SEQNO(bf->bf_state.bfs_seqno)))) {
+			break;
+		}
+
+		/* Check if it's even supposed to be in the BAW */
+		if (! bf->bf_state.bfs_dobaw) {
+			break;
+		}
+
+		nbytes += bf->bf_state.bfs_pktlen;
+		if (nbytes >= ATH_AGGR_MAXSIZE)
+			break;
+
+		/*
+		 * Check if we're likely going to leak a frame
+		 * as part of a PSPOLL.  Break out at this point;
+		 * we're only going to send a single frame anyway.
+		 */
+		if (an->an_leak_count) {
+			break;
+		}
+	}
+
+	return MIN(nbytes, ATH_AGGR_MAXSIZE);
+}
+
+/*
  * Schedule some packets from the given node/TID to the hardware.
  *
  * This is the aggregate version.
@@ -5366,6 +5434,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 	struct ieee80211_tx_ampdu *tap;
 	ATH_AGGR_STATUS status;
 	ath_bufhead bf_q;
+	int swq_pktbytes;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX, "%s: tid=%d\n", __func__, tid->tid);
 	ATH_TX_LOCK_ASSERT(sc);
@@ -5429,7 +5498,8 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			/* Update CLRDMASK just before this frame is queued */
 			ath_tx_update_clrdmask(sc, tid, bf);
 
-			ath_tx_do_ratelookup(sc, bf);
+			ath_tx_do_ratelookup(sc, bf, tid->tid,
+			    bf->bf_state.bfs_pktlen, false);
 			ath_tx_calc_duration(sc, bf);
 			ath_tx_calc_protection(sc, bf);
 			ath_tx_set_rtscts(sc, bf);
@@ -5446,17 +5516,18 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 		TAILQ_INIT(&bf_q);
 
 		/*
-		 * Do a rate control lookup on the first frame in the
-		 * list. The rate control code needs that to occur
-		 * before it can determine whether to TX.
-		 * It's inaccurate because the rate control code doesn't
-		 * really "do" aggregate lookups, so it only considers
-		 * the size of the first frame.
+		 * Loop over the swq to find out how long
+		 * each packet is (up until 64k) and provide that
+		 * to the rate control lookup.
 		 */
-		ath_tx_do_ratelookup(sc, bf);
-		bf->bf_state.bfs_rc[3].rix = 0;
-		bf->bf_state.bfs_rc[3].tries = 0;
+		swq_pktbytes = ath_tx_tid_swq_depth_bytes(sc, an, tid);
+		ath_tx_do_ratelookup(sc, bf, tid->tid, swq_pktbytes, true);
 
+		/*
+		 * Note this only is used for the fragment paths and
+		 * should really be rethought out if we want to do
+		 * things like an RTS burst across >1 aggregate.
+		 */
 		ath_tx_calc_duration(sc, bf);
 		ath_tx_calc_protection(sc, bf);
 
@@ -5535,7 +5606,6 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			 * already points to the rest in the chain.
 			 */
 			ath_tx_setds_11n(sc, bf);
-
 		}
 	queuepkt:
 		/* Set completion handler, multi-frame aggregate or not */
@@ -5607,7 +5677,6 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		    __func__, tid->tid);
 
 	for (;;) {
-
 		/*
 		 * If the upper layers have paused the TID, don't
 		 * queue any further packets.
@@ -5644,7 +5713,8 @@ ath_tx_tid_hw_queue_norm(struct ath_softc *sc, struct ath_node *an,
 		ath_tx_update_clrdmask(sc, tid, bf);
 
 		/* Program descriptors + rate control */
-		ath_tx_do_ratelookup(sc, bf);
+		ath_tx_do_ratelookup(sc, bf, tid->tid,
+		    bf->bf_state.bfs_pktlen, false);
 		ath_tx_calc_duration(sc, bf);
 		ath_tx_calc_protection(sc, bf);
 		ath_tx_set_rtscts(sc, bf);
@@ -5838,7 +5908,6 @@ ath_tx_ampdu_pending(struct ath_softc *sc, struct ath_node *an, int tid)
  * Is AMPDU-TX pending for the given TID?
  */
 
-
 /*
  * Method to handle sending an ADDBA request.
  *
@@ -5965,7 +6034,6 @@ ath_addba_response(struct ieee80211_node *ni, struct ieee80211_tx_ampdu *tap,
 	ATH_TX_UNLOCK(sc);
 	return r;
 }
-
 
 /*
  * Stop ADDBA on a queue.

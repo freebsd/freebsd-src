@@ -245,7 +245,6 @@ ar5212SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 		OS_REG_WRITE(ah, AR_KEYTABLE_TYPE(entry), keyType);
 		(void) ar5212SetKeyCacheEntryMac(ah, entry, mac);
 
-
 		/*
 		 * Write MIC entry according to new or old key layout.
 		 * The MISC_MODE register is assumed already set so

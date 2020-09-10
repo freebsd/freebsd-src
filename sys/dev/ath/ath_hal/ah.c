@@ -556,7 +556,6 @@ ath_hal_get_curmode(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	return HAL_MODE_11NG_HT20;
 }
 
-
 typedef enum {
 	WIRELESS_MODE_11a   = 0,
 	WIRELESS_MODE_TURBO = 1,
@@ -971,7 +970,7 @@ ath_hal_getregdump(struct ath_hal *ah, const HAL_REGRANGE *regs,
 	}
 	return (char *) dp - (char *) dstbuf;
 }
- 
+
 static void
 ath_hal_setregs(struct ath_hal *ah, const HAL_REGWRITE *regs, int space)
 {
@@ -1127,7 +1126,6 @@ ath_hal_getTxQProps(struct ath_hal *ah,
 		return AH_FALSE;
 	}
 
-	qInfo->tqi_qflags = qi->tqi_qflags;
 	qInfo->tqi_ver = qi->tqi_ver;
 	qInfo->tqi_subtype = qi->tqi_subtype;
 	qInfo->tqi_qflags = qi->tqi_qflags;
@@ -1141,6 +1139,7 @@ ath_hal_getTxQProps(struct ath_hal *ah,
 	qInfo->tqi_cbrOverflowLimit = qi->tqi_cbrOverflowLimit;
 	qInfo->tqi_burstTime = qi->tqi_burstTime;
 	qInfo->tqi_readyTime = qi->tqi_readyTime;
+	qInfo->tqi_compBuf = qi->tqi_physCompBuf;
 	return AH_TRUE;
 }
 

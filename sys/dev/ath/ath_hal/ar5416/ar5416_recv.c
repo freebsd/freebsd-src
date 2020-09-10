@@ -106,14 +106,14 @@ ar5416StopDmaReceive(struct ath_hal *ah)
  * Start receive at the PCU engine
  */
 void
-ar5416StartPcuReceive(struct ath_hal *ah)
+ar5416StartPcuReceive(struct ath_hal *ah, HAL_BOOL is_scanning)
 {
 	struct ath_hal_private *ahp = AH_PRIVATE(ah);
 
 	HALDEBUG(ah, HAL_DEBUG_RX, "%s: Start PCU Receive \n", __func__);
 	ar5212EnableMibCounters(ah);
-	/* NB: restore current settings */
-	ar5416AniReset(ah, ahp->ah_curchan, ahp->ah_opmode, AH_TRUE);
+	/* NB: restore current settings if we're not scanning */
+	ar5416AniReset(ah, ahp->ah_curchan, ahp->ah_opmode, ! is_scanning);
 	/*
 	 * NB: must do after enabling phy errors to avoid rx
 	 *     frames w/ corrupted descriptor status.
@@ -182,8 +182,6 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 
 	rs->rs_datalen = ads->ds_rxstatus1 & AR_DataLen;
 	rs->rs_tstamp =  ads->AR_RcvTimestamp;
-
-	/* XXX what about KeyCacheMiss? */
 
 	rs->rs_rssi = MS(ads->ds_rxstatus4, AR_RxRSSICombined);
 	rs->rs_rssi_ctl[0] = MS(ads->ds_rxstatus0, AR_RxRSSIAnt00);
@@ -276,6 +274,9 @@ ar5416ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		else if (ads->ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= HAL_RXERR_MIC;
 	}
+
+	if (ads->ds_rxstatus8 & AR_KeyMiss)
+		rs->rs_status |= HAL_RXERR_KEYMISS;
 
 	return HAL_OK;
 }

@@ -33,6 +33,18 @@
 #include "ah_osdep.h"
 
 /*
+ * Endianness macros; used by various structures and code.
+ */
+#define AH_BIG_ENDIAN           4321
+#define AH_LITTLE_ENDIAN        1234
+
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define AH_BYTE_ORDER   AH_BIG_ENDIAN
+#else
+#define AH_BYTE_ORDER   AH_LITTLE_ENDIAN
+#endif
+
+/*
  * The maximum number of TX/RX chains supported.
  * This is intended to be used by various statistics gathering operations
  * (NF, RSSI, EVM).
@@ -727,7 +739,6 @@ typedef enum {
 	HAL_HT_EXTPROTSPACING_25 = 1,	/* 25 MHz spacing */
 } HAL_HT_EXTPROTSPACING;
 
-
 typedef enum {
 	HAL_RX_CLEAR_CTL_LOW	= 0x1,	/* force control channel to appear busy */
 	HAL_RX_CLEAR_EXT_LOW	= 0x2,	/* force extension channel to appear busy */
@@ -893,11 +904,13 @@ typedef struct {
 } HAL_ANI_STATS;
 
 typedef struct {
-	uint8_t		noiseImmunityLevel;
+	uint8_t		noiseImmunityLevel; /* Global for pre-AR9380; OFDM later*/
+	uint8_t		cckNoiseImmunityLevel; /* AR9380: CCK specific NI */
 	uint8_t		spurImmunityLevel;
 	uint8_t		firstepLevel;
 	uint8_t		ofdmWeakSigDetectOff;
 	uint8_t		cckWeakSigThreshold;
+	uint8_t		mrcCck;		/* MRC CCK is enabled */
 	uint32_t	listenTime;
 
 	/* NB: intentionally ordered so data exported to user space is first */
@@ -956,7 +969,7 @@ typedef struct {
  */
 typedef enum {
 	HAL_ANI_PRESENT = 0,			/* is ANI support present */
-	HAL_ANI_NOISE_IMMUNITY_LEVEL = 1,	/* set level */
+	HAL_ANI_NOISE_IMMUNITY_LEVEL = 1,	/* set level (global or ofdm) */
 	HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION = 2,	/* enable/disable */
 	HAL_ANI_CCK_WEAK_SIGNAL_THR = 3,	/* enable/disable */
 	HAL_ANI_FIRSTEP_LEVEL = 4,		/* set level */
@@ -964,6 +977,7 @@ typedef enum {
 	HAL_ANI_MODE = 6,			/* 0 => manual, 1 => auto (XXX do not change) */
 	HAL_ANI_PHYERR_RESET = 7,		/* reset phy error stats */
 	HAL_ANI_MRC_CCK = 8,
+	HAL_ANI_CCK_NOISE_IMMUNITY_LEVEL = 9,	/* set level (cck) */
 } HAL_ANI_CMD;
 
 #define	HAL_ANI_ALL		0xffffffff
@@ -1037,7 +1051,6 @@ typedef enum {
 	HAL_DFS_ETSI_DOMAIN	= 2,	/* ETSI dfs domain */
 	HAL_DFS_MKK4_DOMAIN	= 3,	/* Japan dfs domain */
 } HAL_DFS_DOMAIN;
-
 
 /*
  * MFP decryption options for initializing the MAC.
@@ -1311,7 +1324,7 @@ struct ath_hal {
 	void	  __ahdecl(*ah_setRxDP)(struct ath_hal*, uint32_t rxdp, HAL_RX_QUEUE);
 	void	  __ahdecl(*ah_enableReceive)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_stopDmaReceive)(struct ath_hal*);
-	void	  __ahdecl(*ah_startPcuReceive)(struct ath_hal*);
+	void	  __ahdecl(*ah_startPcuReceive)(struct ath_hal*, HAL_BOOL);
 	void	  __ahdecl(*ah_stopPcuReceive)(struct ath_hal*);
 	void	  __ahdecl(*ah_setMulticastFilter)(struct ath_hal*,
 				uint32_t filter0, uint32_t filter1);

@@ -654,7 +654,7 @@ ath_edma_setup_txfifo(struct ath_softc *sc, int qnum)
 	 * Set initial "empty" state.
 	 */
 	te->m_fifo_head = te->m_fifo_tail = te->m_fifo_depth = 0;
-	
+
 	return (0);
 }
 
@@ -777,7 +777,6 @@ ath_edma_tx_proc(void *arg, int npending)
 	    __func__, npending);
 #endif
 	ath_edma_tx_processq(sc, 1);
-
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_txproc_cnt--;
@@ -1011,6 +1010,8 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 			nacked++;
 			sc->sc_stats.ast_tx_rssi = ts.ts_rssi;
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
+			    ts.ts_rssi);
+			ATH_RSSI_LPF(ATH_NODE(ni)->an_node_stats.ns_avgtxrssi,
 			    ts.ts_rssi);
 		}
 

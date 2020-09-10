@@ -33,7 +33,6 @@
 
 #define R88E_CALIB_THRESHOLD	4
 
-
 /*
  * Function declarations.
  */

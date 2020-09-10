@@ -48,7 +48,6 @@
 #define	AR_PHY_PLL_CTL_40	0x18	/* 40 MHz */
 #define	AR_PHY_PLL_CTL_20	0x13	/* 20 MHz half rate 11a for emulation */
 
-
 #define	AR_PHY_RX_DELAY	0x9914	/* PHY analog_power_on_time, in 100ns increments */
 #define	AR_PHY_RX_DELAY_M	0x00003FFF	/* Mask for delay from active assertion (wake up) */
 				/* to enable_receiver */

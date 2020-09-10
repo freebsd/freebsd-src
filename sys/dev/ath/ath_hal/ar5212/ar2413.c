@@ -624,7 +624,7 @@ ar2413GetMaxPower(struct ath_hal *ah, const RAW_DATA_PER_CHANNEL_2413 *data)
 {
 	uint32_t ii;
 	uint16_t Pmax=0,numVpd;
-	
+
 	for (ii=0; ii< MAX_NUM_PDGAINS_PER_CHANNEL; ii++) {
 		/* work forwards cuase lowest pdGain for highest power */
 		numVpd = data->pDataPerPDGain[ii].numVpd;
@@ -659,7 +659,7 @@ ar2413GetChannelMaxMinPower(struct ath_hal *ah,
 
 	numChannels = pRawDataset->numChannels;
 	data = pRawDataset->pDataPerChannel;
-	
+
 	/* Make sure the channel is in the range of the TP values 
 	 *  (freq piers)
 	 */

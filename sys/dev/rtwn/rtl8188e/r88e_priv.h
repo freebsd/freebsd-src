@@ -33,7 +33,6 @@ struct rtwn_r88e_txpwr {
 	int8_t		bw20_tx_pwr_diff;
 };
 
-
 /*
  * MAC initialization values.
  */

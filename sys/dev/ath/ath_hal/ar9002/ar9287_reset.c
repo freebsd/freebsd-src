@@ -113,7 +113,6 @@ ar9287SetPowerCalTable(struct ath_hal *ah,
 	*pTxPowerIndexOffset = 0;
 }
 
-
 /* XXX hard-coded values? */
 #define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6
 

@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8821a/r21a_priv.h>
 #include <dev/rtwn/rtl8821a/r21a_reg.h>
 
-
 int
 r21a_power_on(struct rtwn_softc *sc)
 {

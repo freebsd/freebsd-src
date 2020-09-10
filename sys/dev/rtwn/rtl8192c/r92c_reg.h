@@ -224,7 +224,6 @@
 #define R92C_MACID1			0x700
 #define R92C_BSSID1			0x708
 
-
 #define R92C_MACID(id)			((id) == 0 ? R92C_MACID0 : R92C_MACID1)
 #define R92C_BSSID(id)			((id) == 0 ? R92C_BSSID0 : R92C_BSSID1)
 
@@ -628,7 +627,6 @@
 #define R92C_CAMCMD_CLR		0x40000000
 #define R92C_CAMCMD_POLLING	0x80000000
 
-
 /*
  * CAM entries.
  */
@@ -665,7 +663,6 @@
 /* Bits for R92C_RXFLTMAP*. */
 #define R92C_RXFLTMAP_SUBTYPE(subtype)	\
 	(1 << ((subtype) >> IEEE80211_FC0_SUBTYPE_SHIFT))
-
 
 /*
  * Baseband registers.
@@ -849,7 +846,6 @@
 /* Bits for R92C_[RT]X_POWER_IQK*. */
 #define R92C_POWER_IQK_RESULT_S		16
 #define R92C_POWER_IQK_RESULT_M		0x03ff0000
-
 
 /*
  * RF (6052) registers.

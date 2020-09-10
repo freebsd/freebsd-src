@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/pci/rtwn_pci_var.h>
 #include <dev/rtwn/pci/rtwn_pci_reg.h>
 
-
 int
 rtwn_pci_write_1(struct rtwn_softc *sc, uint16_t addr, uint8_t val)
 {

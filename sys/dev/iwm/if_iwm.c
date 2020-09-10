@@ -4415,22 +4415,26 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int rix)
 static int
 iwm_media_change(struct ifnet *ifp)
 {
+#if 0
 	struct ieee80211vap *vap = ifp->if_softc;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct iwm_softc *sc = ic->ic_softc;
+#endif
 	int error;
 
 	error = ieee80211_media_change(ifp);
-	if (error != ENETRESET)
-		return error;
+	if (error != 0)
+		return (error);
 
+#if 0
 	IWM_LOCK(sc);
 	if (ic->ic_nrunning > 0) {
 		iwm_stop(sc);
 		iwm_init(sc);
 	}
 	IWM_UNLOCK(sc);
-	return error;
+#endif
+	return (0);
 }
 
 static void

@@ -125,6 +125,17 @@
 #define	IEEE80211_NODE_AMSDU_RX	0x040000	/* AMSDU rx enabled */
 #define	IEEE80211_NODE_AMSDU_TX	0x080000	/* AMSDU tx enabled */
 #define	IEEE80211_NODE_VHT	0x100000	/* VHT enabled */
+#define	IEEE80211_NODE_LDPC	0x200000	/* LDPC enabled */
+#define	IEEE80211_NODE_UAPSD	0x400000	/* UAPSD enabled */
+#endif
+
+/* XXX should also figure out where to put these for k/u-space sharing. */
+#ifndef IEEE80211_FVHT_VHT
+#define	IEEE80211_FVHT_VHT	0x000000001	/* CONF: VHT supported */
+#define	IEEE80211_FVHT_USEVHT40	0x000000002	/* CONF: Use VHT40 */
+#define	IEEE80211_FVHT_USEVHT80	0x000000004	/* CONF: Use VHT80 */
+#define	IEEE80211_FVHT_USEVHT160 0x000000008	/* CONF: Use VHT160 */
+#define	IEEE80211_FVHT_USEVHT80P80 0x000000010	/* CONF: Use VHT 80+80 */
 #endif
 
 #define	MAXCHAN	1536		/* max 1.5K channels */
@@ -1804,6 +1815,12 @@ set80211ldpc(const char *val, int d, int s, const struct afswtch *rafp)
         set80211(s, IEEE80211_IOC_LDPC, ldpc, 0, NULL);
 }
 
+static void
+set80211uapsd(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	set80211(s, IEEE80211_IOC_UAPSD, d, 0, NULL);
+}
+
 static
 DECL_CMD_FUNC(set80211ampdulimit, val, d)
 {
@@ -2159,8 +2176,6 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 
 			/*
 			 * VHT first - HT is a subset.
-			 *
-			 * XXX TODO: VHT80p80, VHT160 is not yet done.
 			 */
 			if (flags & IEEE80211_CHAN_VHT) {
 				if ((chanFlags & IEEE80211_CHAN_VHT20) &&
@@ -2184,7 +2199,20 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 						    "VHT80 channel\n", freq);
 					continue;
 				}
-
+				if ((chanFlags & IEEE80211_CHAN_VHT160) &&
+				    (flags & IEEE80211_CHAN_VHT160) == 0) {
+					if (verbose)
+						printf("%u: skip, not a "
+						    "VHT160 channel\n", freq);
+					continue;
+				}
+				if ((chanFlags & IEEE80211_CHAN_VHT80P80) &&
+				    (flags & IEEE80211_CHAN_VHT80P80) == 0) {
+					if (verbose)
+						printf("%u: skip, not a "
+						    "VHT80+80 channel\n", freq);
+					continue;
+				}
 				flags &= ~IEEE80211_CHAN_VHT;
 				flags |= chanFlags & IEEE80211_CHAN_VHT;
 			}
@@ -2370,7 +2398,7 @@ regdomain_makechannels(
 				    &dc->dc_chaninfo);
 			}
 
-			/* XXX TODO: VHT80_80, VHT160 */
+			/* XXX TODO: VHT80P80, VHT160 */
 		}
 
 		if (!LIST_EMPTY(&rd->bands_11ng) && dc->dc_htcaps != 0) {
@@ -2631,6 +2659,10 @@ getflags(int flags)
 		*cp++ = 't';
 	if (flags & IEEE80211_NODE_AMSDU_RX)
 		*cp++ = 'r';
+	if (flags & IEEE80211_NODE_UAPSD)
+		*cp++ = 'U';
+	if (flags & IEEE80211_NODE_LDPC)
+		*cp++ = 'L';
 	*cp = '\0';
 	return flagstring;
 }
@@ -3840,8 +3872,8 @@ list_stations(int s)
 			, "TXSEQ"
 			, "RXSEQ"
 		);
-	else 
-		printf("%-17.17s %4s %4s %4s %4s %4s %6s %6s %4s %-7s\n"
+	else
+		printf("%-17.17s %4s %4s %4s %4s %4s %6s %6s %4s %-12s\n"
 			, "ADDR"
 			, "AID"
 			, "CHAN"
@@ -3875,8 +3907,8 @@ list_stations(int s)
 				, gettxseq(si)
 				, getrxseq(si)
 			);
-		else 
-			printf("%s %4u %4d %3dM %4.1f %4d %6d %6d %-4.4s %-7.7s"
+		else
+			printf("%s %4u %4d %3dM %4.1f %4d %6d %6d %-4.4s %-12.12s"
 				, ether_ntoa((const struct ether_addr*)
 				    si->isi_macaddr)
 				, IEEE80211_AID(si->isi_associd)
@@ -3937,8 +3969,11 @@ get_chaninfo(const struct ieee80211_channel *c, int precise,
 	if (IEEE80211_IS_CHAN_TURBO(c))
 		strlcat(buf, " Turbo", bsize);
 	if (precise) {
-		/* XXX should make VHT80U, VHT80D */
-		if (IEEE80211_IS_CHAN_VHT80(c) &&
+		if (IEEE80211_IS_CHAN_VHT80P80(c))
+			strlcat(buf, " vht/80p80", bsize);
+		else if (IEEE80211_IS_CHAN_VHT160(c))
+			strlcat(buf, " vht/160", bsize);
+		else if (IEEE80211_IS_CHAN_VHT80(c) &&
 		    IEEE80211_IS_CHAN_HT40D(c))
 			strlcat(buf, " vht/80-", bsize);
 		else if (IEEE80211_IS_CHAN_VHT80(c) &&
@@ -3992,10 +4027,11 @@ print_chaninfo(const struct ieee80211_channel *c, int verb)
 static int
 chanpref(const struct ieee80211_channel *c)
 {
+
+	if (IEEE80211_IS_CHAN_VHT80P80(c))
+		return 90;
 	if (IEEE80211_IS_CHAN_VHT160(c))
 		return 80;
-	if (IEEE80211_IS_CHAN_VHT80_80(c))
-		return 75;
 	if (IEEE80211_IS_CHAN_VHT80(c))
 		return 70;
 	if (IEEE80211_IS_CHAN_VHT40(c))
@@ -4767,6 +4803,23 @@ getid(int s, int ix, void *data, size_t len, int *plen, int mesh)
 	return 0;
 }
 
+static int
+getdevicename(int s, void *data, size_t len, int *plen)
+{
+	struct ieee80211req ireq;
+
+	(void) memset(&ireq, 0, sizeof(ireq));
+	(void) strlcpy(ireq.i_name, name, sizeof(ireq.i_name));
+	ireq.i_type = IEEE80211_IOC_IC_NAME;
+	ireq.i_val = -1;
+	ireq.i_data = data;
+	ireq.i_len = len;
+	if (ioctl(s, SIOCG80211, &ireq) < 0)
+		return (-1);
+	*plen = ireq.i_len;
+	return (0);
+}
+
 static void
 ieee80211_status(int s)
 {
@@ -5288,30 +5341,40 @@ end:
 				break;
 			}
 		}
+		if (get80211val(s, IEEE80211_IOC_UAPSD, &val) != -1) {
+			switch (val) {
+			case 0:
+				LINE_CHECK("-uapsd");
+				break;
+			case 1:
+				LINE_CHECK("uapsd");
+				break;
+			}
+		}
 	}
 
 	if (IEEE80211_IS_CHAN_VHT(c) || verbose) {
 		getvhtconf(s);
-		if (vhtconf & 0x1)
+		if (vhtconf & IEEE80211_FVHT_VHT)
 			LINE_CHECK("vht");
 		else
 			LINE_CHECK("-vht");
-		if (vhtconf & 0x2)
+		if (vhtconf & IEEE80211_FVHT_USEVHT40)
 			LINE_CHECK("vht40");
 		else
 			LINE_CHECK("-vht40");
-		if (vhtconf & 0x4)
+		if (vhtconf & IEEE80211_FVHT_USEVHT80)
 			LINE_CHECK("vht80");
 		else
 			LINE_CHECK("-vht80");
-		if (vhtconf & 0x8)
-			LINE_CHECK("vht80p80");
-		else
-			LINE_CHECK("-vht80p80");
-		if (vhtconf & 0x10)
+		if (vhtconf & IEEE80211_FVHT_USEVHT160)
 			LINE_CHECK("vht160");
 		else
 			LINE_CHECK("-vht160");
+		if (vhtconf & IEEE80211_FVHT_USEVHT80P80)
+			LINE_CHECK("vht80p80");
+		else
+			LINE_CHECK("-vht80p80");
 	}
 
 	if (get80211val(s, IEEE80211_IOC_WME, &wme) != -1) {
@@ -5479,6 +5542,12 @@ end:
 			LINE_CHECK("hwmpmaxhops %u", val);
 		}
 	}
+
+	LINE_BREAK();
+
+	if (getdevicename(s, data, sizeof(data), &len) < 0)
+		return;
+	LINE_CHECK("parent interface: %s", data);
 
 	LINE_BREAK();
 }
@@ -5872,6 +5941,8 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-ldpctx",	-1,	set80211ldpc),
 	DEF_CMD("ldpc",		3,	set80211ldpc),		/* NB: tx+rx */
 	DEF_CMD("-ldpc",	-3,	set80211ldpc),
+	DEF_CMD("uapsd",	1,	set80211uapsd),
+	DEF_CMD("-uapsd",	0,	set80211uapsd),
 	DEF_CMD("puren",	1,	set80211puren),
 	DEF_CMD("-puren",	0,	set80211puren),
 	DEF_CMD("doth",		1,	set80211doth),
@@ -5904,16 +5975,16 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD("-ht40",	0,	set80211htconf),
 	DEF_CMD("ht",		3,	set80211htconf),	/* NB: 20+40 */
 	DEF_CMD("-ht",		0,	set80211htconf),
-	DEF_CMD("vht",		1,	set80211vhtconf),
-	DEF_CMD("-vht",		0,	set80211vhtconf),
-	DEF_CMD("vht40",		2,	set80211vhtconf),
-	DEF_CMD("-vht40",		-2,	set80211vhtconf),
-	DEF_CMD("vht80",		4,	set80211vhtconf),
-	DEF_CMD("-vht80",		-4,	set80211vhtconf),
-	DEF_CMD("vht80p80",		8,	set80211vhtconf),
-	DEF_CMD("-vht80p80",		-8,	set80211vhtconf),
-	DEF_CMD("vht160",		16,	set80211vhtconf),
-	DEF_CMD("-vht160",		-16,	set80211vhtconf),
+	DEF_CMD("vht",		IEEE80211_FVHT_VHT,		set80211vhtconf),
+	DEF_CMD("-vht",		0,				set80211vhtconf),
+	DEF_CMD("vht40",	IEEE80211_FVHT_USEVHT40,	set80211vhtconf),
+	DEF_CMD("-vht40",	-IEEE80211_FVHT_USEVHT40,	set80211vhtconf),
+	DEF_CMD("vht80",	IEEE80211_FVHT_USEVHT80,	set80211vhtconf),
+	DEF_CMD("-vht80",	-IEEE80211_FVHT_USEVHT80,	set80211vhtconf),
+	DEF_CMD("vht160",	IEEE80211_FVHT_USEVHT160,	set80211vhtconf),
+	DEF_CMD("-vht160",	-IEEE80211_FVHT_USEVHT160,	set80211vhtconf),
+	DEF_CMD("vht80p80",	IEEE80211_FVHT_USEVHT80P80,	set80211vhtconf),
+	DEF_CMD("-vht80p80",	-IEEE80211_FVHT_USEVHT80P80,	set80211vhtconf),
 	DEF_CMD("rifs",		1,	set80211rifs),
 	DEF_CMD("-rifs",	0,	set80211rifs),
 	DEF_CMD("smps",		IEEE80211_HTCAP_SMPS_ENA,	set80211smps),

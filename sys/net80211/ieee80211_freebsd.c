@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>   
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 
@@ -78,6 +79,10 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct ieee80211vap *vap;
 	struct ieee80211com *ic;
 	int error;
+
+	error = priv_check(curthread, PRIV_NET80211_CREATE_VAP);
+	if (error)
+		return error;
 
 	error = copyin(params, &cp, sizeof(cp));
 	if (error)
@@ -788,8 +793,11 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 	struct ifnet *ifp = vap->iv_ifp;
 
 	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
-	    "%s replay detected tid %d <rsc %ju, csc %ju, keyix %u rxkeyix %u>",
-	    k->wk_cipher->ic_name, tid, (intmax_t) rsc,
+	    "%s replay detected tid %d <rsc %ju (%jx), csc %ju (%jx), keyix %u rxkeyix %u>",
+	    k->wk_cipher->ic_name, tid,
+	    (intmax_t) rsc,
+	    (intmax_t) rsc,
+	    (intmax_t) k->wk_keyrsc[tid],
 	    (intmax_t) k->wk_keyrsc[tid],
 	    k->wk_keyix, k->wk_rxkeyix);
 
@@ -1027,6 +1035,20 @@ wlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 
 		IEEE80211_ADDR_COPY(vap->iv_myaddr, IF_LLADDR(ifp));
 	}
+}
+
+/*
+ * Fetch the VAP name.
+ *
+ * This returns a const char pointer suitable for debugging,
+ * but don't expect it to stick around for much longer.
+ */
+const char *
+ieee80211_get_vap_ifname(struct ieee80211vap *vap)
+{
+	if (vap->iv_ifp == NULL)
+		return "(none)";
+	return vap->iv_ifp->if_xname;
 }
 
 /*

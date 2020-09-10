@@ -51,7 +51,6 @@
 #define R92C_UART_TX_DES		0x370
 #define R92C_UART_RX_DES		0x378
 
-
 /* Bits for R92C_GPIO_MUXCFG. */
 #define R92C_GPIO_MUXCFG_RFKILL		0x0008
 

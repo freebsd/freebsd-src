@@ -193,7 +193,6 @@ struct ath_diag {
 #define	SIOCGATHDIAG	_IOWR('i', 138, struct ath_diag)
 #define	SIOCGATHPHYERR	_IOWR('i', 140, struct ath_diag)
 
-
 /*
  * The rate control ioctl has to support multiple potential rate
  * control classes.  For now, instead of trying to support an

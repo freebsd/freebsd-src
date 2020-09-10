@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8188e/r88e.h>
 #include <dev/rtwn/rtl8188e/r88e_rx_desc.h>
 
-
 int
 r88e_classify_intr(struct rtwn_softc *sc, void *buf, int len)
 {

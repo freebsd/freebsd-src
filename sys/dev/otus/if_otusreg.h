@@ -201,12 +201,17 @@ struct ar_tx_head {
 
 	uint32_t	phyctl;
 /* Modulation type. */
+#define AR_TX_PHY_MT_SHIFT	0 /* 0:1 - PHY mode */
 #define AR_TX_PHY_MT_CCK	0
 #define AR_TX_PHY_MT_OFDM	1
 #define AR_TX_PHY_MT_HT		2
-#define AR_TX_PHY_GF		(1 << 2)
-#define AR_TX_PHY_BW_SHIFT	3
-#define AR_TX_PHY_TPC_SHIFT	9
+#define AR_TX_PHY_GF		(1 << 2) /* 2 - greenfield */
+#define AR_TX_PHY_BW_SHIFT	3 /* 4:3 - bandwidth */
+#define AR_TX_PHY_BW_20MHZ		0
+#define AR_TX_PHY_BW_40MHZ		2
+#define AR_TX_PHY_BW_40MHZ_DUP		3
+#define AR_TX_PHY_TX_HEAVY_CLIP_SHIFT	6	/* 9:6 - heavy clip */
+#define AR_TX_PHY_TPC_SHIFT	9 /* 14:9 - TX power */
 #define AR_TX_PHY_ANTMSK(msk)	((msk) << 15)
 #define AR_TX_PHY_MCS(mcs)	((mcs) << 18)
 #define AR_TX_PHY_SHGI		(1U << 31)
@@ -220,15 +225,11 @@ struct ar_rx_head {
 } __packed;
 
 /* Rx descriptor. */
-struct ar_rx_tail {
-	uint8_t	rssi_ant[3];
-	uint8_t	rssi_ant_ext[3];
-	uint8_t	rssi;		/* Combined RSSI. */
-	uint8_t	evm[2][6];	/* Error Vector Magnitude. */
-	uint8_t	phy_err;
-	uint8_t	sa_idx;
-	uint8_t	da_idx;
-	uint8_t	error;
+
+struct ar_rx_macstatus {
+	uint8_t		sa_idx;
+	uint8_t		da_idx;
+	uint8_t		error;
 #define AR_RX_ERROR_TIMEOUT	(1 << 0)
 #define AR_RX_ERROR_OVERRUN	(1 << 1)
 #define AR_RX_ERROR_DECRYPT	(1 << 2)
@@ -236,14 +237,26 @@ struct ar_rx_tail {
 #define AR_RX_ERROR_BAD_RA	(1 << 4)
 #define AR_RX_ERROR_PLCP	(1 << 5)
 #define AR_RX_ERROR_MMIC	(1 << 6)
-
-	uint8_t	status;
+	uint8_t		status;
 /* Modulation type (same as AR_TX_PHY_MT). */
 #define AR_RX_STATUS_MT_MASK	0x3
 #define AR_RX_STATUS_MT_CCK	0
 #define AR_RX_STATUS_MT_OFDM	1
 #define AR_RX_STATUS_MT_HT	2
 #define AR_RX_STATUS_SHPREAMBLE	(1 << 3)
+#define AR_RX_STATUS_MPDU_MASK		0x30
+#define AR_RX_STATUS_MPDU_SINGLE	0x00
+#define AR_RX_STATUS_MPDU_LAST		0x10
+#define AR_RX_STATUS_MPDU_FIRST		0x20
+#define AR_RX_STATUS_MPDU_MIDDLE	0x30
+} __packed;
+
+struct ar_rx_phystatus {
+	uint8_t		rssi_ant[3];
+	uint8_t		rssi_ant_ext[3];
+	uint8_t		rssi;		/* Combined RSSI. */
+	uint8_t		evm[2][6];	/* Error Vector Magnitude. */
+	uint8_t		phy_err;
 } __packed;
 
 #define AR_PLCP_HDR_LEN	12
@@ -468,7 +481,6 @@ static const uint32_t ar5416_phy_vals_5ghz_20mhz[] = {
 	0x5fd80682, 0x7fe00482, 0x7f3c7bba, 0xf3307ff0
 };
 
-#ifdef notyet
 static const uint32_t ar5416_phy_vals_5ghz_40mhz[] = {
 	0x00000007, 0x000003c4, 0x00000000, 0xad848e19, 0x7d14e000,
 	0x9c0a9f6b, 0x00000090, 0x00000000, 0x02020200, 0x00000e0e,
@@ -537,9 +549,7 @@ static const uint32_t ar5416_phy_vals_5ghz_40mhz[] = {
 	0x17601685, 0x1f801104, 0x37a00c03, 0x3fc40883, 0x57c00803,
 	0x5fd80682, 0x7fe00482, 0x7f3c7bba, 0xf3307ff0
 };
-#endif
 
-#ifdef notyet
 static const uint32_t ar5416_phy_vals_2ghz_40mhz[] = {
 	0x00000007, 0x000003c4, 0x00000000, 0xad848e19, 0x7d14e000,
 	0x9c0a9f6b, 0x00000090, 0x00000000, 0x02020200, 0x00000e0e,
@@ -608,7 +618,6 @@ static const uint32_t ar5416_phy_vals_2ghz_40mhz[] = {
 	0x17601685, 0x1f801104, 0x37a00c03, 0x3fc40883, 0x57c00803,
 	0x5fd80682, 0x7fe00482, 0x7f3c7bba, 0xf3307ff0
 };
-#endif
 
 static const uint32_t ar5416_phy_vals_2ghz_20mhz[] = {
 	0x00000007, 0x00000300, 0x00000000, 0xad848e19, 0x7d14e000,
@@ -1053,6 +1062,9 @@ struct otus_softc {
 	struct otus_tx_cmd		sc_cmd[OTUS_CMD_LIST_COUNT];
 
 	struct usb_xfer			*sc_xfer[OTUS_N_XFER];
+
+	/* Last seen PLCP header; for A-MPDU decap */
+	uint8_t ar_last_rx_plcp[AR_PLCP_HDR_LEN];
 
 	STAILQ_HEAD(, otus_data)	sc_rx_active;
 	STAILQ_HEAD(, otus_data)	sc_rx_inactive;

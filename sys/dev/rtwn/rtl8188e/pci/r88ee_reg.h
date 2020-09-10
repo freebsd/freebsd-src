@@ -23,4 +23,3 @@
 #include <dev/rtwn/rtl8188e/r88e_reg.h>
 
 #endif	/* R88EE_REG_H */
-

@@ -63,7 +63,7 @@ static struct {
   },
   {
     "amsdu",
-    "input,output,amsdu_tooshort,amsdu_split,amsdu_decap,amsdu_encap,rssi,rate"
+    "input,output,amsdu_tooshort,amsdu_split,amsdu_decap,amsdu_encap,rx_amsdu_more,rx_amsdu_more_end,rssi,rate"
   },
 };
 

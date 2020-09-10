@@ -849,7 +849,6 @@ typedef struct {
 	uint16_t	ee_data;	/* write data */
 } HAL_DIAG_EEVAL;
 
-
 typedef struct {
 	u_int offset;		/* reg offset */
 	uint32_t val;		/* reg value  */

@@ -21,7 +21,6 @@
 
 #include <dev/rtwn/rtl8188e/r88e.h>
 
-
 /*
  * Global definitions.
  */
@@ -32,7 +31,6 @@
 #define R88EE_TX_PAGE_COUNT	\
 	(R88EE_PUBQ_NPAGES + R88EE_HPQ_NPAGES + \
 	 R88EE_NPQ_NPAGES + R88EE_LPQ_NPAGES)
-
 
 /*
  * Function declarations.
@@ -50,4 +48,3 @@ void	r88ee_start_xfers(struct rtwn_softc *);
 void	r88ee_post_init(struct rtwn_softc *);
 
 #endif	/* RTL8188EE_H */
-

@@ -355,7 +355,7 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_setRxDP		= ar9300_set_rx_dp;
 	ah->ah_enableReceive	= ar9300_enable_receive;
 	ah->ah_stopDmaReceive	= ar9300_stop_dma_receive_freebsd;
-	ah->ah_startPcuReceive	= ar9300_start_pcu_receive_freebsd;
+	ah->ah_startPcuReceive	= ar9300_start_pcu_receive;
 	ah->ah_stopPcuReceive	= ar9300_stop_pcu_receive;
 	ah->ah_setMulticastFilter	= ar9300_set_multicast_filter;
 	ah->ah_setMulticastFilterIndex = ar9300SetMulticastFilterIndex;
@@ -543,6 +543,7 @@ ar9300_reset_freebsd(struct ath_hal *ah, HAL_OPMODE opmode,
 	    HAL_HT_EXTPROTSPACING_20, /* always 20Mhz channel spacing */
 	    bChannelChange,
 	    status,
+	    resetType,
 	    AH_FALSE);       /* XXX should really extend ath_hal_reset() */
 
 	return (r);
@@ -678,14 +679,6 @@ ar9300_reset_cal_valid_freebsd(struct ath_hal *ah,
 	return (is_cal_done);
 }
 
-
-void
-ar9300_start_pcu_receive_freebsd(struct ath_hal *ah)
-{
-
-	/* is_scanning flag == NULL */
-	ar9300_start_pcu_receive(ah, AH_FALSE);
-}
 
 /*
  * FreeBSD will just pass in the descriptor value as 'pa'.

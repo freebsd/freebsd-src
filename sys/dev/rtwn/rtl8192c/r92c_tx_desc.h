@@ -109,7 +109,6 @@ struct r92c_tx_desc {
 #define R92C_TXDW6_MAX_AGG_S		11
 } __packed __attribute__((aligned(4)));
 
-
 /* Rate adaptation modes. */
 #define R92C_RAID_11BGN		0
 #define R92C_RAID_11GN		1

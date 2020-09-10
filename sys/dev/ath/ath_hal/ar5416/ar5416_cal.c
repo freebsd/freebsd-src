@@ -196,7 +196,6 @@ ar5416RunInitCals(struct ath_hal *ah, int init_cal_count)
 }
 #endif
 
-
 /*
  * AGC calibration for the AR5416, AR9130, AR9160, AR9280.
  */
@@ -623,7 +622,6 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	h = AH5416(ah)->ah_cal.nfCalHist;
 	HALDEBUG(ah, HAL_DEBUG_NFCAL, "CCA: ");
 	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
-
 		/* Don't write to EXT radio CCA registers unless in HT/40 mode */
 		/* XXX this check should really be cleaner! */
 		if (i > 2 && !IEEE80211_IS_CHAN_HT40(chan))
@@ -674,7 +672,6 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * of next noise floor calibration the baseband does.  
 	 */
 	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
-
 		/* Don't write to EXT radio CCA registers unless in HT/40 mode */
 		/* XXX this check should really be cleaner! */
 		if (i > 2 && !IEEE80211_IS_CHAN_HT40(chan))
@@ -780,7 +777,6 @@ ar5416SanitizeNF(struct ath_hal *ah, int16_t *nf)
                 }
         }
 }
-
 
 /*
  * Read the NF and check it against the noise floor threshold

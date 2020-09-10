@@ -23,13 +23,11 @@
 
 #include <dev/rtwn/rtl8188e/r88e.h>
 
-
 /*
  * Global definitions.
  */
 #define R88EU_PUBQ_NPAGES	142
 #define R88EU_TX_PAGE_COUNT	169
-
 
 /*
  * Function declarations.

@@ -129,7 +129,6 @@ HAL_RATE_TABLE ar5212_11b_table = {
 	},
 };
 
-
 /* Venice TODO: roundUpRate() is broken when the rate table does not represent rates
  * in increasing order  e.g.  5.5, 11, 6, 9.    
  * An average rate of 6 Mbps will currently map to 11 Mbps. 

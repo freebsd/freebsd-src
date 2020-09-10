@@ -204,7 +204,6 @@ ath_ioctl_diag(struct ath_softc *sc, struct ath_diag *ad)
 		}
 	}
 
-
 	ATH_LOCK(sc);
 	if (id != HAL_DIAG_REGS)
 		ath_power_set_power_state(sc, HAL_PM_AWAKE);
@@ -306,4 +305,3 @@ ath_ioctl(struct ieee80211com *ic, u_long cmd, void *data)
 		return (ENOTTY);
 	}
 }
-

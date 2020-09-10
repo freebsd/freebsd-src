@@ -92,7 +92,6 @@
 #define WPI_FH_MSG_CONFIG	0xe88
 #define WPI_FH_TX_STATUS	0xe90
 
-
 /*
  * NIC internal memory offsets.
  */
@@ -118,7 +117,6 @@
 #define WPI_BSM_DRAM_DATA_ADDR		0x3498
 #define WPI_BSM_DRAM_DATA_SIZE		0x349c
 #define WPI_BSM_SRAM_BASE		0x3800
-
 
 /* Possible flags for register WPI_HW_IF_CONFIG. */
 #define WPI_HW_IF_CONFIG_ALM_MB		(1 << 8)
@@ -558,7 +556,6 @@ struct wpi_beacon_missed {
 	uint32_t received;
 } __packed;
 
-
 /* Structure for command WPI_CMD_MRR_SETUP. */
 #define WPI_RIDX_MAX	11
 struct wpi_mrr_setup {
@@ -806,7 +803,6 @@ struct wpi_stats {
 /* Possible flags for command WPI_CMD_GET_STATISTICS. */
 #define WPI_STATISTICS_BEACON_DISABLE	(1 << 1)
 
-
 /* Firmware error dump entry. */
 struct wpi_fw_dump {
 	uint32_t	desc;
@@ -818,7 +814,6 @@ struct wpi_fw_dump {
 
 /* Firmware image file header. */
 struct wpi_firmware_hdr {
-
 #define WPI_FW_MINVERSION 2144
 #define WPI_FW_NAME "wpifw"
 

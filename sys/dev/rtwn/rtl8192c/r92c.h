@@ -35,7 +35,6 @@
 
 #define R92C_CALIB_THRESHOLD	2
 
-
 /*
  * Function declarations.
  */

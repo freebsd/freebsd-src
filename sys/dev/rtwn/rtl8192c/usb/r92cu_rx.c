@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/usb/r92cu.h>
 
-
 int
 r92cu_align_rx(int totlen, int len)
 {

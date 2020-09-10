@@ -192,7 +192,7 @@ decode_flag(struct mystate *mt, const char *p, int len)
 		FLAG(IEEE80211_CHAN_VHT40),
 		FLAG(IEEE80211_CHAN_VHT80),
 		/*
-		 * XXX VHT80_80? This likely should be done by
+		 * XXX VHT80P80? This likely should be done by
 		 * 80MHz chan logic in net80211 / ifconfig.
 		 */
 		FLAG(IEEE80211_CHAN_VHT160),

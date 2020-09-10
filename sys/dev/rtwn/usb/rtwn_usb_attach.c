@@ -88,7 +88,6 @@ static void	rtwn_usb_sysctlattach(struct rtwn_softc *);
 
 #define RTWN_CONFIG_INDEX	0
 
-
 static int
 rtwn_usb_match(device_t self)
 {

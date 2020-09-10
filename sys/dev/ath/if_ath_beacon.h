@@ -53,4 +53,3 @@ extern	void ath_beacon_proc(void *arg, int pending);
 extern	void ath_beacon_miss(struct ath_softc *sc);
 
 #endif
-

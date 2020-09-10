@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8188e/r88e_reg.h>
 #include <dev/rtwn/rtl8188e/r88e_fw_cmd.h>
 
-
 #ifndef RTWN_WITHOUT_UCODE
 int
 r88e_fw_cmd(struct rtwn_softc *sc, uint8_t id, const void *buf, int len)
