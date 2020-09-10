@@ -31,7 +31,6 @@ CFLAGS+= -DIN_BASE
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd
-CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/lib/libspl/include/os/freebsd/spl
 CFLAGS+= -I${SRCTOP}/cddl/compat/opensolaris/include
 CFLAGS+=	-I${SRCTOP}/sys/cddl/compat/opensolaris \
 		-I${SRCTOP}/cddl/compat/opensolaris/include \
