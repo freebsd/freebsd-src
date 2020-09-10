@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 bool byte_sort;
 
 static wchar_t **wmonths;
-static unsigned char **cmonths;
+static char **cmonths;
 
 /* initialise months */
 
@@ -56,17 +56,17 @@ initialise_months(void)
 	const nl_item item[12] = { ABMON_1, ABMON_2, ABMON_3, ABMON_4,
 	    ABMON_5, ABMON_6, ABMON_7, ABMON_8, ABMON_9, ABMON_10,
 	    ABMON_11, ABMON_12 };
-	unsigned char *tmp;
+	char *tmp;
 	size_t len;
 
 	if (MB_CUR_MAX == 1) {
 		if (cmonths == NULL) {
-			unsigned char *m;
+			char *m;
 
-			cmonths = sort_malloc(sizeof(unsigned char*) * 12);
+			cmonths = sort_malloc(sizeof(char*) * 12);
 			for (int i = 0; i < 12; i++) {
 				cmonths[i] = NULL;
-				tmp = (unsigned char *) nl_langinfo(item[i]);
+				tmp = nl_langinfo(item[i]);
 				if (debug_sort)
 					printf("month[%d]=%s\n", i, tmp);
 				if (*tmp == '\0')
@@ -86,14 +86,14 @@ initialise_months(void)
 			wmonths = sort_malloc(sizeof(wchar_t *) * 12);
 			for (int i = 0; i < 12; i++) {
 				wmonths[i] = NULL;
-				tmp = (unsigned char *) nl_langinfo(item[i]);
+				tmp = nl_langinfo(item[i]);
 				if (debug_sort)
 					printf("month[%d]=%s\n", i, tmp);
 				if (*tmp == '\0')
 					continue;
 				len = strlen(tmp);
 				m = sort_malloc(SIZEOF_WCHAR_STRING(len + 1));
-				if (mbstowcs(m, (char*)tmp, len) ==
+				if (mbstowcs(m, tmp, len) ==
 				    ((size_t) - 1)) {
 					sort_free(m);
 					continue;
