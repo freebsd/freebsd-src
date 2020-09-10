@@ -577,9 +577,11 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 	 */
 #ifdef RADIX_MPATH
 	info->rti_info[RTAX_GATEWAY] = &nh->gw_sa;
-	if (rt_mpath_capable(rnh))
-		rn = rt_mpath_unlink(rnh, info, rt, perror);
-	else
+	if (rt_mpath_capable(rnh)) {
+		rn = rt_mpath_unlink(rnh, info, rt, &error);
+		if (error != 0)
+			return (error);
+	} else
 #endif
 	rn = rnh->rnh_deladdr(info->rti_info[RTAX_DST],
 	    info->rti_info[RTAX_NETMASK], &rnh->head);
