@@ -7467,9 +7467,6 @@ again:
 		    (tp->t_state == TCPS_SYN_RECEIVED))
 			flags &= ~TH_SYN;
 #endif
-		sb_offset--, len++;
-		if (sbavail(sb) == 0)
-			len = 0;
 	}
 	/*
 	 * Be careful not to send data and/or FIN on SYN segments. This
