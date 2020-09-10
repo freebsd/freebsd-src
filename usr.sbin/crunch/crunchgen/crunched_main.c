@@ -76,15 +76,19 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
+typedef int crunched_stub_t(int, char **, char **);
+
 struct stub {
-	char *name;
-	int (*f)();
+	const char *name;
+	crunched_stub_t *f;
 };
 
 extern const char *__progname;
 extern struct stub entry_points[];
 
 static void crunched_usage(void);
+
+crunched_stub_t crunched_main;
 
 static struct stub *
 find_entry_point(const char *basename)

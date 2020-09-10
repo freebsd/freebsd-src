@@ -934,7 +934,9 @@ gen_output_cfile(void)
 		fprintf(outcf, "%s\n", *cp);
 
 	for (p = progs; p != NULL; p = p->next)
-		fprintf(outcf, "extern int _crunched_%s_stub();\n", p->ident);
+		fprintf(outcf,
+		    "extern crunched_stub_t _crunched_%s_stub;\n",
+		    p->ident);
 
 	fprintf(outcf, "\nstruct stub entry_points[] = {\n");
 	for (p = progs; p != NULL; p = p->next) {
@@ -1122,9 +1124,10 @@ prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_stub.c:\n", p->name);
 	fprintf(outmk, "\techo \""
 	    "extern int main(int argc, char **argv, char **envp); "
+	    "int _crunched_%s_stub(int argc, char **argv, char **envp);"
 	    "int _crunched_%s_stub(int argc, char **argv, char **envp)"
 	    "{return main(argc,argv,envp);}\" >%s_stub.c\n",
-	    p->ident, p->name);
+	    p->ident, p->ident, p->name);
 	fprintf(outmk, "%s.lo: %s_stub.o $(%s_OBJPATHS)",
 	    p->name, p->name, p->ident);
 	if (p->libs)
