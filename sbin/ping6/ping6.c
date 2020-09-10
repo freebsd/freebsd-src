@@ -229,6 +229,7 @@ static char *hostname;
 static int ident;		/* process id to identify our packets */
 static u_int8_t nonce[8];	/* nonce field for node information */
 static int hoplimit = -1;	/* hoplimit */
+static int tclass = -1;		/* traffic class */
 static u_char *packet = NULL;
 static cap_channel_t *capdns;
 
@@ -352,7 +353,7 @@ main(int argc, char *argv[])
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	while ((ch = getopt(argc, argv,
-	    "k:b:c:DdfHe:m:I:i:l:unNop:qaAS:s:OvyYW:t:" ADDOPTS)) != -1) {
+	    "k:b:c:DdfHe:m:I:i:l:unNop:qaAS:s:OvyYW:t:z:" ADDOPTS)) != -1) {
 #undef ADDOPTS
 		switch (ch) {
 		case 'k':
@@ -584,6 +585,14 @@ main(int argc, char *argv[])
 				if (setitimer(ITIMER_REAL, &itv, NULL) != 0)
 					err(1, "setitimer");
 			}
+			break;
+		case 'z':		/* traffic class */
+			tclass = strtol(optarg, &e, 10);
+			if (*optarg == '\0' || *e != '\0')
+				errx(1, "illegal traffic class %s", optarg);
+			if (255 < tclass || tclass < -1)
+				errx(1,
+				    "illegal traffic class -- %s", optarg);
 			break;
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
@@ -935,6 +944,12 @@ main(int argc, char *argv[])
 		memcpy(CMSG_DATA(scmsgp), &hoplimit, sizeof(hoplimit));
 
 		scmsgp = CMSG_NXTHDR(&smsghdr, scmsgp);
+	}
+
+	if (tclass != -1) {
+		if (setsockopt(ssend, IPPROTO_IPV6, IPV6_TCLASS,
+		    &tclass, sizeof(tclass)) == -1)
+			err(1, "setsockopt(IPV6_TCLASS)");
 	}
 
 	if (argc > 1) {	/* some intermediate addrs are specified */
