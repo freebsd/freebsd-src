@@ -96,3 +96,6 @@ UPDATE_DEPENDFILE= no
     Error was caused by Makefile in ${.CURDIR}
 .endif
 .endif
+
+# GCC doesn't allow silencing warn_unused_result calls with (void) casts.
+CFLAGS.gcc+=-Wno-unused-result
