@@ -472,7 +472,7 @@ vmcb_getany(struct svm_softc *sc, int vcpu, int ident, uint64_t *val)
 		goto err;
 	}
 
-	error = vm_get_register(sc->vm, vcpu, ident, val);
+	error = vmcb_read(sc, vcpu, ident, val);
 
 err:
 	return (error);
@@ -493,7 +493,7 @@ vmcb_setany(struct svm_softc *sc, int vcpu, int ident, uint64_t val)
 		goto err;
 	}
 
-	error = vm_set_register(sc->vm, vcpu, ident, val);
+	error = vmcb_write(sc, vcpu, ident, val);
 
 err:
 	return (error);
