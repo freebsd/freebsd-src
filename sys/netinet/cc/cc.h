@@ -96,7 +96,7 @@ struct cc_var {
 /* cc_var flags. */
 #define	CCF_ABC_SENTAWND	0x0001	/* ABC counted cwnd worth of bytes? */
 #define	CCF_CWND_LIMITED	0x0002	/* Are we currently cwnd limited? */
-#define	CCF_DELACK		0x0004	/* Is this ack delayed? */
+#define	CCF_UNUSED1		0x0004	/* unused */
 #define	CCF_ACKNOW		0x0008	/* Will this ack be sent now? */
 #define	CCF_IPHDR_CE		0x0010	/* Does this packet set CE bit? */
 #define	CCF_TCPHDR_CWR		0x0020	/* Does this packet set CWR bit? */
