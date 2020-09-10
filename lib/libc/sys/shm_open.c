@@ -115,18 +115,26 @@ memfd_create(const char *name, unsigned int flags)
 	struct shm_largepage_conf slc;
 	int error, fd, i, npgs, oflags, pgidx, saved_errno, shmflags;
 
-	if (name == NULL)
-		return (EBADF);
+	if (name == NULL) {
+		errno = EBADF;
+		return (-1);
+	}
 	namelen = strlen(name);
-	if (namelen + sizeof(MEMFD_NAME_PREFIX) - 1 > NAME_MAX)
-		return (EINVAL);
+	if (namelen + sizeof(MEMFD_NAME_PREFIX) - 1 > NAME_MAX) {
+		errno = EINVAL;
+		return (-1);
+	}
 	if ((flags & ~(MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_HUGETLB |
-	    MFD_HUGE_MASK)) != 0)
-		return (EINVAL);
+	    MFD_HUGE_MASK)) != 0) {
+		errno = EINVAL;
+		return (-1);
+	}
 	/* Size specified but no HUGETLB. */
 	if (((flags & MFD_HUGE_MASK) != 0 && (flags & MFD_HUGETLB) == 0) ||
-	    __bitcount(flags & MFD_HUGE_MASK) > 1)
-		return (EINVAL);
+	    __bitcount(flags & MFD_HUGE_MASK) > 1) {
+		errno = EINVAL;
+		return (-1);
+	}
 
 	/* We've already validated that we're sufficiently sized. */
 	snprintf(memfd_name, NAME_MAX + 1, "%s%s", MEMFD_NAME_PREFIX, name);
