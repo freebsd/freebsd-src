@@ -1579,7 +1579,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 /* Define to `int' if <sys/types.h> doesn't define. */
 /* #undef uid_t */
 
-#if _AIX
+#ifdef _AIX
 /* XXX this is gross, but kills about a gazillion warnings */
 struct ether_addr;
 struct sockaddr;
