@@ -124,7 +124,8 @@ SRCF+=		umodti3
 
 # Enable compiler-rt's atomic implementation only for clang, as it uses clang
 # specific builtins, and gcc packages usually come with their own libatomic.
-.if "${COMPILER_TYPE}" == "clang"
+# Exclude arm which has its own implementations of atomic functions, below.
+.if "${COMPILER_TYPE}" == "clang" && ${MACHINE_CPUARCH} != "arm"
 SRCF+=		atomic
 .endif
 
