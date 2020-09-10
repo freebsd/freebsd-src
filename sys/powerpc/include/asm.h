@@ -194,6 +194,43 @@ name: \
 #define	ASENTRY_NOPROF(y)	_ENTRY(ASMNAME(y))
 #define	ENTRY_NOPROF(y)		_ENTRY(CNAME(y))
 
+/* Load NIA without affecting branch prediction */
+#define	LOAD_LR_NIA	bcl	20, 31, .+4
+
+/*
+ * Magic sequence to return to native endian.
+ * Overwrites r0 and r11.
+ *
+ * The encoding of the instruction "tdi 0, %r0, 0x48" in opposite endian
+ * happens to be "b . + 8". This is useful because we can write a sequence
+ * of instructions that can execute in either endian.
+ *
+ * Use a sequence of handcoded instructions that switches contexts to the
+ * instruction following the sequence, but with the correct PSL_LE bit.
+ *
+ * The same sequence works for both BE and LE because the xori will flip
+ * the bit to the other state, and the code only runs when running in the
+ * wrong endian.
+ *
+ * This sequence is NMI-reentrant.
+ */
+#define	RETURN_TO_NATIVE_ENDIAN						  \
+	tdi	0, %r0, 0x48;	/* Endian swapped: b . + 8		*/\
+	b	1f;		/* Will fall through to here if correct */\
+	.long	0xa600607d;	/* mfmsr %r11				*/\
+	.long	0x00000038;	/* li %r0, 0				*/\
+	.long	0x6401617d;	/* mtmsrd %r0, 1 (L=1 EE,RI bits only)	*/\
+	.long	0x01006b69;	/* xori %r11, %r11, 0x1 (PSL_LE)	*/\
+	.long	0xa602087c;	/* mflr %r0				*/\
+	.long	0x05009f42;	/* LOAD_LR_NIA				*/\
+	.long	0xa6037b7d;	/* 0: mtsrr1 %r11			*/\
+	.long	0xa602687d;	/* mflr	%r11				*/\
+	.long	0x18006b39;	/* addi	%r11, %r11, (1f - 0b)		*/\
+	.long	0xa6037a7d;	/* mtsrr0 %r11				*/\
+	.long	0xa603087c;	/* mtlr %r0				*/\
+	.long	0x2400004c;	/* rfid					*/\
+1:	/* RETURN_TO_NATIVE_ENDIAN */
+
 #define	ASMSTR		.asciz
 
 #define	RCSID(x)	.text; .asciz x
