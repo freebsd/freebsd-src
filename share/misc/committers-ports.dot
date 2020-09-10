@@ -229,6 +229,7 @@ rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 rezny [label="Matthew Rezny\nrezny@FreeBSD.org\n2017/01/09"]
+rhurlin [label="Rainer Hurling\nrhurlin@FreeBSD.org\n2020/08/31"]
 riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
 rigoletto [label="Alexandre C. Guimaraes\nrigoletto@FreeBSD.org\n2018/10/01"]
 rm [label="Ruslan Makhmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
@@ -319,6 +320,8 @@ araujo -> lippe
 araujo -> pclin
 araujo -> pgollucci
 araujo -> samm
+
+arrowd -> rhurlin
 
 arved -> markus
 arved -> stefan
@@ -746,6 +749,7 @@ tcberner -> joneum
 tcberner -> kai
 tcberner -> lbartoletti
 tcberner -> pkubaj
+tcberner -> rhurlin
 tcberner -> rigoletto
 tcberner -> salvadore
 tcberner -> yuri
