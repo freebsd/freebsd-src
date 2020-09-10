@@ -450,9 +450,7 @@ shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		error = 0;
 		if ((shmfd->shm_flags & SHM_GROW_ON_WRITE) != 0 &&
 		    size > shmfd->shm_size) {
-			VM_OBJECT_WLOCK(shmfd->shm_object);
-			error = shm_dotruncate_locked(shmfd, size, rl_cookie);
-			VM_OBJECT_WUNLOCK(shmfd->shm_object);
+			error = shm_dotruncate_cookie(shmfd, size, rl_cookie);
 		}
 		if (error == 0)
 			error = uiomove_object(shmfd->shm_object,
@@ -766,6 +764,9 @@ shm_dotruncate_largepage(struct shmfd *shmfd, off_t length, void *rl_cookie)
 		return (0);
 #endif
 	}
+
+	if ((shmfd->shm_seals & F_SEAL_GROW) != 0)
+		return (EPERM);
 
 	aflags = VM_ALLOC_NORMAL | VM_ALLOC_ZERO;
 	if (shmfd->shm_lp_alloc_policy == SHM_LARGEPAGE_ALLOC_NOWAIT)
@@ -1416,7 +1417,7 @@ out:
 static int
 shm_mmap_large(struct shmfd *shmfd, vm_map_t map, vm_offset_t *addr,
     vm_size_t size, vm_prot_t prot, vm_prot_t max_prot, int flags,
-    vm_ooffset_t foff, bool writecounted, struct thread *td)
+    vm_ooffset_t foff, struct thread *td)
 {
 	struct vmspace *vms;
 	vm_map_entry_t next_entry, prev_entry;
@@ -1448,8 +1449,6 @@ shm_mmap_large(struct shmfd *shmfd, vm_map_t map, vm_offset_t *addr,
 	docow |= MAP_INHERIT_SHARE;
 	if ((flags & MAP_NOCORE) != 0)
 		docow |= MAP_DISABLE_COREDUMP;
-	if (writecounted)
-		docow |= MAP_WRITECOUNT;
 
 	mask = pagesizes[shmfd->shm_lp_psind] - 1;
 	if ((foff & mask) != 0)
@@ -1594,12 +1593,15 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	mtx_unlock(&shm_timestamp_lock);
 	vm_object_reference(shmfd->shm_object);
 
-	if (writecnt)
-		vm_pager_update_writecount(shmfd->shm_object, 0, objsize);
 	if (shm_largepage(shmfd)) {
+		writecnt = false;
 		error = shm_mmap_large(shmfd, map, addr, objsize, prot,
-		    maxprot, flags, foff, writecnt, td);
+		    maxprot, flags, foff, td);
 	} else {
+		if (writecnt) {
+			vm_pager_update_writecount(shmfd->shm_object, 0,
+			    objsize);
+		}
 		error = vm_mmap_object(map, addr, objsize, prot, maxprot, flags,
 		    shmfd->shm_object, foff, writecnt, td);
 	}
@@ -1838,6 +1840,11 @@ shm_add_seals(struct file *fp, int seals)
 	}
 	nseals = seals & ~shmfd->shm_seals;
 	if ((nseals & F_SEAL_WRITE) != 0) {
+		if (shm_largepage(shmfd)) {
+			error = ENOTSUP;
+			goto out;
+		}
+
 		/*
 		 * The rangelock above prevents writable mappings from being
 		 * added after we've started applying seals.  The RLOCK here
