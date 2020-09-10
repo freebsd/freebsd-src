@@ -80,6 +80,7 @@ SECTIONS
   _edata = .;
 
   /* Unused sections */
+  .interp	: { *(.interp) }
   .dynstr	: { *(.dynstr) }
   .hash		: { *(.hash) }
 }
