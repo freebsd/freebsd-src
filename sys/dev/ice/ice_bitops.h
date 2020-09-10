@@ -242,7 +242,7 @@ ice_or_bitmap(ice_bitmap_t *dst, const ice_bitmap_t *bmp1,
 	ice_bitmap_t mask;
 	u16 i;
 
-	/* Handle all but last chunk*/
+	/* Handle all but last chunk */
 	for (i = 0; i < BITS_TO_CHUNKS(size) - 1; i++)
 		dst[i] = bmp1[i] | bmp2[i];
 
@@ -273,7 +273,7 @@ ice_xor_bitmap(ice_bitmap_t *dst, const ice_bitmap_t *bmp1,
 	ice_bitmap_t mask;
 	u16 i;
 
-	/* Handle all but last chunk*/
+	/* Handle all but last chunk */
 	for (i = 0; i < BITS_TO_CHUNKS(size) - 1; i++)
 		dst[i] = bmp1[i] ^ bmp2[i];
 
@@ -284,6 +284,37 @@ ice_xor_bitmap(ice_bitmap_t *dst, const ice_bitmap_t *bmp1,
 	 */
 	mask = LAST_CHUNK_MASK(size);
 	dst[i] = (dst[i] & ~mask) | ((bmp1[i] ^ bmp2[i]) & mask);
+}
+
+/**
+ * ice_andnot_bitmap - bitwise ANDNOT 2 bitmaps and result in dst bitmap
+ * @dst: Destination bitmap that receive the result of the operation
+ * @bmp1: The first bitmap of ANDNOT operation
+ * @bmp2: The second bitmap to ANDNOT operation
+ * @size: Size of the bitmaps in bits
+ *
+ * This function performs a bitwise ANDNOT on two "source" bitmaps of the same
+ * size, and stores the result to "dst" bitmap. The "dst" bitmap must be of the
+ * same size as the "source" bitmaps to avoid buffer overflows.
+ */
+static inline void
+ice_andnot_bitmap(ice_bitmap_t *dst, const ice_bitmap_t *bmp1,
+		  const ice_bitmap_t *bmp2, u16 size)
+{
+	ice_bitmap_t mask;
+	u16 i;
+
+	/* Handle all but last chunk */
+	for (i = 0; i < BITS_TO_CHUNKS(size) - 1; i++)
+		dst[i] = bmp1[i] & ~bmp2[i];
+
+	/* We want to only clear bits within the size. Furthermore, we also do
+	 * not want to modify destination bits which are beyond the specified
+	 * size. Use a bitmask to ensure that we only modify the bits that are
+	 * within the specified size.
+	 */
+	mask = LAST_CHUNK_MASK(size);
+	dst[i] = (dst[i] & ~mask) | ((bmp1[i] & ~bmp2[i]) & mask);
 }
 
 /**
@@ -343,6 +374,11 @@ static inline u16 ice_find_first_bit(const ice_bitmap_t *bitmap, u16 size)
 	return ice_find_next_bit(bitmap, size, 0);
 }
 
+#define ice_for_each_set_bit(_bitpos, _addr, _maxlen)	\
+	for ((_bitpos) = ice_find_first_bit((_addr), (_maxlen)); \
+	     (_bitpos) < (_maxlen); \
+	     (_bitpos) = ice_find_next_bit((_addr), (_maxlen), (_bitpos) + 1))
+
 /**
  * ice_is_any_bit_set - Return true of any bit in the bitmap is set
  * @bitmap: the bitmap to check
@@ -373,6 +409,48 @@ static inline void ice_cp_bitmap(ice_bitmap_t *dst, ice_bitmap_t *src, u16 size)
 }
 
 /**
+ * ice_bitmap_set - set a number of bits in bitmap from a starting position
+ * @dst: bitmap destination
+ * @pos: first bit position to set
+ * @num_bits: number of bits to set
+ *
+ * This function sets bits in a bitmap from pos to (pos + num_bits) - 1.
+ * Note that this function assumes it is operating on a bitmap declared using
+ * ice_declare_bitmap.
+ */
+static inline void
+ice_bitmap_set(ice_bitmap_t *dst, u16 pos, u16 num_bits)
+{
+	u16 i;
+
+	for (i = pos; i < num_bits; i++)
+		ice_set_bit(i, dst);
+}
+
+/**
+ * ice_bitmap_hweight - hamming weight of bitmap
+ * @bm: bitmap pointer
+ * @size: size of bitmap (in bits)
+ *
+ * This function determines the number of set bits in a bitmap.
+ * Note that this function assumes it is operating on a bitmap declared using
+ * ice_declare_bitmap.
+ */
+static inline int
+ice_bitmap_hweight(ice_bitmap_t *bm, u16 size)
+{
+	int count = 0;
+	u16 bit = 0;
+
+	while (size > (bit = ice_find_next_bit(bm, size, bit))) {
+		count++;
+		bit++;
+	}
+
+	return count;
+}
+
+/**
  * ice_cmp_bitmaps - compares two bitmaps.
  * @bmp1: the bitmap to compare
  * @bmp2: the bitmap to compare with bmp1
@@ -386,12 +464,12 @@ ice_cmp_bitmap(ice_bitmap_t *bmp1, ice_bitmap_t *bmp2, u16 size)
 	ice_bitmap_t mask;
 	u16 i;
 
-	/* Handle all but last chunk*/
+	/* Handle all but last chunk */
 	for (i = 0; i < BITS_TO_CHUNKS(size) - 1; i++)
 		if (bmp1[i] != bmp2[i])
 			return false;
 
-	/* We want to only compare bits within the size.*/
+	/* We want to only compare bits within the size */
 	mask = LAST_CHUNK_MASK(size);
 	if ((bmp1[i] & mask) != (bmp2[i] & mask))
 		return false;

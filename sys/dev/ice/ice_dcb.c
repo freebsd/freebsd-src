@@ -266,39 +266,6 @@ ice_aq_start_lldp(struct ice_hw *hw, bool persist, struct ice_sq_cd *cd)
 }
 
 /**
- * ice_aq_set_lldp_mib - Set the LLDP MIB
- * @hw: pointer to the HW struct
- * @mib_type: Local, Remote or both Local and Remote MIBs
- * @buf: pointer to the caller-supplied buffer to store the MIB block
- * @buf_size: size of the buffer (in bytes)
- * @cd: pointer to command details structure or NULL
- *
- * Set the LLDP MIB. (0x0A08)
- */
-enum ice_status
-ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
-		    struct ice_sq_cd *cd)
-{
-	struct ice_aqc_lldp_set_local_mib *cmd;
-	struct ice_aq_desc desc;
-
-	cmd = &desc.params.lldp_set_mib;
-
-	if (buf_size == 0 || !buf)
-		return ICE_ERR_PARAM;
-
-	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_lldp_set_local_mib);
-
-	desc.flags |= CPU_TO_LE16((u16)ICE_AQ_FLAG_RD);
-	desc.datalen = CPU_TO_LE16(buf_size);
-
-	cmd->type = mib_type;
-	cmd->length = CPU_TO_LE16(buf_size);
-
-	return ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
-}
-
-/**
  * ice_get_dcbx_status
  * @hw: pointer to the HW struct
  *
@@ -761,8 +728,7 @@ ice_parse_org_tlv(struct ice_lldp_org_tlv *tlv, struct ice_dcbx_cfg *dcbcfg)
  *
  * Parse DCB configuration from the LLDPDU
  */
-enum ice_status
-ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
+enum ice_status ice_lldp_to_dcb_cfg(u8 *lldpmib, struct ice_dcbx_cfg *dcbcfg)
 {
 	struct ice_lldp_org_tlv *tlv;
 	enum ice_status ret = ICE_SUCCESS;
@@ -1140,9 +1106,9 @@ ice_get_ieee_or_cee_dcb_cfg(struct ice_port_info *pi, u8 dcbx_mode)
 		return ICE_ERR_PARAM;
 
 	if (dcbx_mode == ICE_DCBX_MODE_IEEE)
-		dcbx_cfg = &pi->local_dcbx_cfg;
+		dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 	else if (dcbx_mode == ICE_DCBX_MODE_CEE)
-		dcbx_cfg = &pi->desired_dcbx_cfg;
+		dcbx_cfg = &pi->qos_cfg.desired_dcbx_cfg;
 
 	/* Get Local DCB Config in case of ICE_DCBX_MODE_IEEE
 	 * or get CEE DCB Desired Config in case of ICE_DCBX_MODE_CEE
@@ -1153,7 +1119,7 @@ ice_get_ieee_or_cee_dcb_cfg(struct ice_port_info *pi, u8 dcbx_mode)
 		goto out;
 
 	/* Get Remote DCB Config */
-	dcbx_cfg = &pi->remote_dcbx_cfg;
+	dcbx_cfg = &pi->qos_cfg.remote_dcbx_cfg;
 	ret = ice_aq_get_dcb_cfg(pi->hw, ICE_AQ_LLDP_MIB_REMOTE,
 				 ICE_AQ_LLDP_BRID_TYPE_NEAREST_BRID, dcbx_cfg);
 	/* Don't treat ENOENT as an error for Remote MIBs */
@@ -1182,14 +1148,14 @@ enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi)
 	ret = ice_aq_get_cee_dcb_cfg(pi->hw, &cee_cfg, NULL);
 	if (ret == ICE_SUCCESS) {
 		/* CEE mode */
-		dcbx_cfg = &pi->local_dcbx_cfg;
+		dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 		dcbx_cfg->dcbx_mode = ICE_DCBX_MODE_CEE;
 		dcbx_cfg->tlv_status = LE32_TO_CPU(cee_cfg.tlv_status);
 		ice_cee_to_dcb_cfg(&cee_cfg, dcbx_cfg);
 		ret = ice_get_ieee_or_cee_dcb_cfg(pi, ICE_DCBX_MODE_CEE);
 	} else if (pi->hw->adminq.sq_last_status == ICE_AQ_RC_ENOENT) {
 		/* CEE mode not enabled try querying IEEE data */
-		dcbx_cfg = &pi->local_dcbx_cfg;
+		dcbx_cfg = &pi->qos_cfg.local_dcbx_cfg;
 		dcbx_cfg->dcbx_mode = ICE_DCBX_MODE_IEEE;
 		ret = ice_get_ieee_or_cee_dcb_cfg(pi, ICE_DCBX_MODE_IEEE);
 	}
@@ -1206,26 +1172,26 @@ enum ice_status ice_get_dcb_cfg(struct ice_port_info *pi)
  */
 enum ice_status ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 {
-	struct ice_port_info *pi = hw->port_info;
+	struct ice_qos_cfg *qos_cfg = &hw->port_info->qos_cfg;
 	enum ice_status ret = ICE_SUCCESS;
 
 	if (!hw->func_caps.common_cap.dcb)
 		return ICE_ERR_NOT_SUPPORTED;
 
-	pi->is_sw_lldp = true;
+	qos_cfg->is_sw_lldp = true;
 
 	/* Get DCBX status */
-	pi->dcbx_status = ice_get_dcbx_status(hw);
+	qos_cfg->dcbx_status = ice_get_dcbx_status(hw);
 
-	if (pi->dcbx_status == ICE_DCBX_STATUS_DONE ||
-	    pi->dcbx_status == ICE_DCBX_STATUS_IN_PROGRESS ||
-	    pi->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {
+	if (qos_cfg->dcbx_status == ICE_DCBX_STATUS_DONE ||
+	    qos_cfg->dcbx_status == ICE_DCBX_STATUS_IN_PROGRESS ||
+	    qos_cfg->dcbx_status == ICE_DCBX_STATUS_NOT_STARTED) {
 		/* Get current DCBX configuration */
-		ret = ice_get_dcb_cfg(pi);
+		ret = ice_get_dcb_cfg(hw->port_info);
 		if (ret)
 			return ret;
-		pi->is_sw_lldp = false;
-	} else if (pi->dcbx_status == ICE_DCBX_STATUS_DIS) {
+		qos_cfg->is_sw_lldp = false;
+	} else if (qos_cfg->dcbx_status == ICE_DCBX_STATUS_DIS) {
 		return ICE_ERR_NOT_READY;
 	}
 
@@ -1233,7 +1199,7 @@ enum ice_status ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
 	if (enable_mib_change) {
 		ret = ice_aq_cfg_lldp_mib_change(hw, true, NULL);
 		if (ret)
-			pi->is_sw_lldp = true;
+			qos_cfg->is_sw_lldp = true;
 	}
 
 	return ret;
@@ -1248,21 +1214,21 @@ enum ice_status ice_init_dcb(struct ice_hw *hw, bool enable_mib_change)
  */
 enum ice_status ice_cfg_lldp_mib_change(struct ice_hw *hw, bool ena_mib)
 {
-	struct ice_port_info *pi = hw->port_info;
+	struct ice_qos_cfg *qos_cfg = &hw->port_info->qos_cfg;
 	enum ice_status ret;
 
 	if (!hw->func_caps.common_cap.dcb)
 		return ICE_ERR_NOT_SUPPORTED;
 
 	/* Get DCBX status */
-	pi->dcbx_status = ice_get_dcbx_status(hw);
+	qos_cfg->dcbx_status = ice_get_dcbx_status(hw);
 
-	if (pi->dcbx_status == ICE_DCBX_STATUS_DIS)
+	if (qos_cfg->dcbx_status == ICE_DCBX_STATUS_DIS)
 		return ICE_ERR_NOT_READY;
 
 	ret = ice_aq_cfg_lldp_mib_change(hw, ena_mib, NULL);
 	if (!ret)
-		pi->is_sw_lldp = !ena_mib;
+		qos_cfg->is_sw_lldp = !ena_mib;
 
 	return ret;
 }
@@ -1559,7 +1525,7 @@ enum ice_status ice_set_dcb_cfg(struct ice_port_info *pi)
 	hw = pi->hw;
 
 	/* update the HW local config */
-	dcbcfg = &pi->local_dcbx_cfg;
+	dcbcfg = &pi->qos_cfg.local_dcbx_cfg;
 	/* Allocate the LLDPDU */
 	lldpmib = (u8 *)ice_malloc(hw, ICE_LLDPDU_SIZE);
 	if (!lldpmib)
@@ -1618,7 +1584,7 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 			    struct ice_aqc_port_ets_elem *buf)
 {
 	struct ice_sched_node *node, *tc_node;
-	struct ice_aqc_get_elem elem;
+	struct ice_aqc_txsched_elem_data elem;
 	enum ice_status status = ICE_SUCCESS;
 	u32 teid1, teid2;
 	u8 i, j;
@@ -1660,7 +1626,7 @@ ice_update_port_tc_tree_cfg(struct ice_port_info *pi,
 		/* new TC */
 		status = ice_sched_query_elem(pi->hw, teid2, &elem);
 		if (!status)
-			status = ice_sched_add_node(pi, 1, &elem.generic[0]);
+			status = ice_sched_add_node(pi, 1, &elem);
 		if (status)
 			break;
 		/* update the TC number */

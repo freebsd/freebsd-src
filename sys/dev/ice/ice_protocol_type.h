@@ -79,8 +79,10 @@ enum ice_sw_tunnel_type {
 	ICE_NON_TUN = 0,
 	ICE_SW_TUN_AND_NON_TUN,
 	ICE_SW_TUN_VXLAN_GPE,
-	ICE_SW_TUN_GENEVE,
-	ICE_SW_TUN_VXLAN,
+	ICE_SW_TUN_GENEVE,      /* GENEVE matches only non-VLAN pkts */
+	ICE_SW_TUN_GENEVE_VLAN, /* GENEVE matches both VLAN and non-VLAN pkts */
+	ICE_SW_TUN_VXLAN,	/* VXLAN matches only non-VLAN pkts */
+	ICE_SW_TUN_VXLAN_VLAN,  /* VXLAN matches both VLAN and non-VLAN pkts */
 	ICE_SW_TUN_NVGRE,
 	ICE_SW_TUN_UDP, /* This means all "UDP" tunnel types: VXLAN-GPE, VXLAN
 			 * and GENEVE
@@ -160,7 +162,9 @@ enum ice_prot_id {
 
 #define ICE_MDID_SIZE 2
 #define ICE_TUN_FLAG_MDID 21
+#define ICE_TUN_FLAG_MDID_OFF (ICE_MDID_SIZE * ICE_TUN_FLAG_MDID)
 #define ICE_TUN_FLAG_MASK 0xFF
+#define ICE_TUN_FLAG_VLAN_MASK 0x01
 #define ICE_TUN_FLAG_FV_IND 2
 
 #define ICE_PROTOCOL_MAX_ENTRIES 16

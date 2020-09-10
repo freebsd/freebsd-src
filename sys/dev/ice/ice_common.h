@@ -46,12 +46,18 @@ enum ice_fw_modes {
 	ICE_FW_MODE_ROLLBACK
 };
 
+/* prototype for functions used for SW locks */
+void ice_free_list(struct LIST_HEAD_TYPE *list);
+void ice_init_lock(struct ice_lock *lock);
+void ice_acquire_lock(struct ice_lock *lock);
+void ice_release_lock(struct ice_lock *lock);
+void ice_destroy_lock(struct ice_lock *lock);
+void *ice_alloc_dma_mem(struct ice_hw *hw, struct ice_dma_mem *m, u64 size);
+void ice_free_dma_mem(struct ice_hw *hw, struct ice_dma_mem *m);
+
 void ice_idle_aq(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 
-enum ice_status ice_update_sr_checksum(struct ice_hw *hw);
-enum ice_status ice_validate_sr_checksum(struct ice_hw *hw, u16 *checksum);
-enum ice_status ice_nvm_validate_checksum(struct ice_hw *hw);
 enum ice_status ice_init_hw(struct ice_hw *hw);
 void ice_deinit_hw(struct ice_hw *hw);
 enum ice_status ice_check_reset(struct ice_hw *hw);
@@ -147,7 +153,8 @@ enum ice_status ice_aq_q_shutdown(struct ice_hw *hw, bool unloading);
 void ice_fill_dflt_direct_cmd_desc(struct ice_aq_desc *desc, u16 opcode);
 extern const struct ice_ctx_ele ice_tlan_ctx_info[];
 enum ice_status
-ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info);
+ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
+	    const struct ice_ctx_ele *ce_info);
 
 enum ice_status
 ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc,
@@ -165,9 +172,6 @@ enum ice_status
 ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 		    struct ice_aqc_get_phy_caps_data *caps,
 		    struct ice_sq_cd *cd);
-enum ice_status
-ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
-		     enum ice_adminq_opc opc, struct ice_sq_cd *cd);
 void
 ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
 		    u16 link_speeds_bitmap);
@@ -186,6 +190,7 @@ bool ice_fw_supports_link_override(struct ice_hw *hw);
 enum ice_status
 ice_get_link_default_override(struct ice_link_default_override_tlv *ldo,
 			      struct ice_port_info *pi);
+bool ice_is_phy_caps_an_enabled(struct ice_aqc_get_phy_caps_data *caps);
 
 enum ice_fc_mode ice_caps_to_fc_mode(u8 caps);
 enum ice_fec_mode ice_caps_to_fec_mode(u8 caps, u8 fec_options);
@@ -248,6 +253,7 @@ void ice_sched_replay_agg_vsi_preinit(struct ice_hw *hw);
 void ice_sched_replay_agg(struct ice_hw *hw);
 enum ice_status ice_sched_replay_tc_node_bw(struct ice_port_info *pi);
 enum ice_status ice_replay_vsi_agg(struct ice_hw *hw, u16 vsi_handle);
+enum ice_status ice_sched_replay_root_node_bw(struct ice_port_info *pi);
 enum ice_status
 ice_sched_replay_q_bw(struct ice_port_info *pi, struct ice_q_ctx *q_ctx);
 struct ice_q_ctx *
@@ -263,7 +269,6 @@ ice_stat_update_repc(struct ice_hw *hw, u16 vsi_handle, bool prev_stat_loaded,
 		     struct ice_eth_stats *cur_stats);
 enum ice_fw_modes ice_get_fw_mode(struct ice_hw *hw);
 void ice_print_rollback_msg(struct ice_hw *hw);
-bool ice_is_generic_mac(struct ice_hw *hw);
 enum ice_status
 ice_aq_alternate_write(struct ice_hw *hw, u32 reg_addr0, u32 reg_val0,
 		       u32 reg_addr1, u32 reg_val1);
@@ -276,10 +281,16 @@ ice_aq_alternate_write_done(struct ice_hw *hw, u8 bios_mode,
 enum ice_status ice_aq_alternate_clear(struct ice_hw *hw);
 enum ice_status
 ice_sched_query_elem(struct ice_hw *hw, u32 node_teid,
-		     struct ice_aqc_get_elem *buf);
+		     struct ice_aqc_txsched_elem_data *buf);
 enum ice_status
 ice_get_cur_lldp_persist_status(struct ice_hw *hw, u32 *lldp_status);
 enum ice_status
 ice_get_dflt_lldp_persist_status(struct ice_hw *hw, u32 *lldp_status);
 enum ice_status ice_get_netlist_ver_info(struct ice_hw *hw);
+enum ice_status
+ice_aq_set_lldp_mib(struct ice_hw *hw, u8 mib_type, void *buf, u16 buf_size,
+		    struct ice_sq_cd *cd);
+bool ice_fw_supports_lldp_fltr_ctrl(struct ice_hw *hw);
+enum ice_status
+ice_lldp_fltr_add_remove(struct ice_hw *hw, u16 vsi_num, bool add);
 #endif /* _ICE_COMMON_H_ */
