@@ -63,8 +63,8 @@ struct syncache {
 	struct		mbuf *sc_ipopts;	/* source route */
 	u_int16_t	sc_peer_mss;		/* peer's MSS */
 	u_int16_t	sc_wnd;			/* advertised window */
-	u_int8_t	sc_ip_ttl;		/* IPv4 TTL */
-	u_int8_t	sc_ip_tos;		/* IPv4 TOS */
+	u_int8_t	sc_ip_ttl;		/* TTL / Hop Limit */
+	u_int8_t	sc_ip_tos;		/* TOS / Traffic Class */
 	u_int8_t	sc_requested_s_scale:4,
 			sc_requested_r_scale:4;
 	u_int16_t	sc_flags;
