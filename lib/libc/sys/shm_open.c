@@ -136,7 +136,7 @@ memfd_create(const char *name, unsigned int flags)
 		oflags |= O_CLOEXEC;
 	if ((flags & MFD_ALLOW_SEALING) != 0)
 		shmflags |= SHM_ALLOW_SEALING;
-	if ((flags & MFD_HUGETLB) == 0)
+	if ((flags & MFD_HUGETLB) != 0)
 		shmflags |= SHM_LARGEPAGE;
 	fd = __sys_shm_open2(SHM_ANON, oflags, 0, shmflags, memfd_name);
 	if (fd == -1 || (flags & MFD_HUGETLB) == 0)
