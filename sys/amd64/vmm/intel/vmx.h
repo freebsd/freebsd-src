@@ -117,6 +117,7 @@ enum {
 	IDX_MSR_SF_MASK,
 	IDX_MSR_KGSBASE,
 	IDX_MSR_PAT,
+	IDX_MSR_TSC_AUX,
 	GUEST_MSR_NUM		/* must be the last enumeration */
 };
 
@@ -152,5 +153,19 @@ int	vmx_set_tsc_offset(struct vmx *vmx, int vcpu, uint64_t offset);
 
 extern char	vmx_exit_guest[];
 extern char	vmx_exit_guest_flush_rsb[];
+
+static inline bool
+vmx_have_msr_tsc_aux(struct vmx *vmx)
+{
+	int rdpid_rdtscp_bits = ((1 << VM_CAP_RDPID) | (1 << VM_CAP_RDTSCP));
+
+	/*
+	 * Since the values of these bits are uniform across all vCPUs
+	 * (see discussion in vmx_init() and initialization of these bits
+	 * in vmx_vminit()), just always use vCPU-zero's capability set and
+	 * remove the need to require a vcpuid argument.
+	 */
+	return ((vmx->cap[0].set & rdpid_rdtscp_bits) != 0);
+}
 
 #endif
