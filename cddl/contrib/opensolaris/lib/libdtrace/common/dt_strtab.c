@@ -206,6 +206,13 @@ err:
 	return (-1);
 }
 
+boolean_t
+dt_strtab_empty(dt_strtab_t *sp)
+{
+	/* Always contains "\0". */
+	return (sp->str_nstrs == 1);
+}
+
 ssize_t
 dt_strtab_index(dt_strtab_t *sp, const char *str)
 {

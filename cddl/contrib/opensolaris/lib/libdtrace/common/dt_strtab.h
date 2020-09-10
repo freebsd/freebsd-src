@@ -58,6 +58,7 @@ typedef ssize_t dt_strtab_write_f(const char *, size_t, size_t, void *);
 
 extern dt_strtab_t *dt_strtab_create(size_t);
 extern void dt_strtab_destroy(dt_strtab_t *);
+extern boolean_t dt_strtab_empty(dt_strtab_t *);
 extern ssize_t dt_strtab_index(dt_strtab_t *, const char *);
 extern ssize_t dt_strtab_insert(dt_strtab_t *, const char *);
 extern size_t dt_strtab_size(const dt_strtab_t *);
