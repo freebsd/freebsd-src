@@ -6733,8 +6733,10 @@ rack_hpts_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 * this to occur after we've validated the segment.
 	 */
 	if (tp->t_flags & TF_ECN_PERMIT) {
-		if (thflags & TH_CWR)
+		if (thflags & TH_CWR) {
 			tp->t_flags &= ~TF_ECN_SND_ECE;
+			tp->t_flags |= TF_ACKNOW;
+		}
 		switch (iptos & IPTOS_ECN_MASK) {
 		case IPTOS_ECN_CE:
 			tp->t_flags |= TF_ECN_SND_ECE;
