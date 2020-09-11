@@ -35,7 +35,7 @@ BINMODE=	2555
 .include <bsd.compiler.mk>
 
 .if ${COMPILER_TYPE} == gcc
-WARNS=	5
+WARNS?=	5
 .endif
 
 .include <bsd.prog.mk>
