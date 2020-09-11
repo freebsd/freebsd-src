@@ -74,6 +74,26 @@ __FBSDID("$FreeBSD$");
  */
 #define BUFSIZE_SMALL (MAXPHYS)
 
+static int
+copy_fallback(int from_fd, int to_fd, char *buf, size_t bufsize)
+{
+	int rcount;
+	ssize_t wresid, wcount = 0;
+	char *bufp;
+
+	rcount = read(from_fd, buf, bufsize);
+	if (rcount <= 0)
+		return (rcount);
+	for (bufp = buf, wresid = rcount; ; bufp += wcount, wresid -= wcount) {
+		wcount = write(to_fd, bufp, wresid);
+		if (wcount <= 0)
+			break;
+		if (wcount >= (ssize_t)wresid)
+			break;
+	}
+	return (wcount < 0 ? wcount : rcount);
+}
+
 int
 copy_file(const FTSENT *entp, int dne)
 {
@@ -88,6 +108,7 @@ copy_file(const FTSENT *entp, int dne)
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
 #endif
+	int use_copy_file_range = 1;
 
 	from_fd = to_fd = -1;
 	if (!lflag && !sflag &&
@@ -212,9 +233,19 @@ copy_file(const FTSENT *entp, int dne)
 					err(1, "Not enough memory");
 			}
 			wtotal = 0;
-			while ((rcount = copy_file_range(from_fd, NULL,
-			    to_fd, NULL, bufsize, 0)) > 0)
-			{
+			do {
+				if (use_copy_file_range) {
+					rcount = copy_file_range(from_fd, NULL,
+			    		    to_fd, NULL, bufsize, 0);
+					if (rcount < 0 && errno == EINVAL) {
+						/* Prob a non-seekable FD */
+						use_copy_file_range = 0;
+					}
+				}
+				if (!use_copy_file_range) {
+					rcount = copy_fallback(from_fd, to_fd,
+					    buf, bufsize);
+				}
 				wtotal += rcount;
 				if (info) {
 					info = 0;
@@ -223,7 +254,7 @@ copy_file(const FTSENT *entp, int dne)
 					    entp->fts_path, to.p_path,
 					    cp_pct(wtotal, fs->st_size));
 				}
-			}
+			} while (rcount > 0);
 			if (rcount < 0) {
 				warn("%s", entp->fts_path);
 				rval = 1;
