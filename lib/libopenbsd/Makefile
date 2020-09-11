@@ -15,6 +15,6 @@ INTERNALLIB=
 
 CFLAGS+= -I${.CURDIR}
 
-WARNS=	3
+WARNS?=	3
 
 .include <bsd.lib.mk>

@@ -22,7 +22,7 @@ NO_SHARED?=     YES
 SUBDIR+= tests
 .endif
 
-WARNS=3
+WARNS?=3
 CFLAGS+= -DNO_PWD_OVERRIDE
 
 .if make(after-import)

@@ -11,6 +11,6 @@ MOUNT=	${SRCTOP}/sbin/mount
 CFLAGS+=	-I${MOUNT}
 .PATH:	${MOUNT}
 
-WARNS=	3
+WARNS?=	3
 
 .include <bsd.prog.mk>
