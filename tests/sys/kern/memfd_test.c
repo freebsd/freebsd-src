@@ -43,9 +43,6 @@ ATF_TC_BODY(basic, tc)
 	int fd;
 	char buf[8];
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/249236");
-
 	ATF_REQUIRE((fd = memfd_create("...", 0)) != -1);
 
 	/* write(2) should grow us out automatically. */
@@ -102,9 +99,6 @@ ATF_TC_BODY(write_seal, tc)
 	int fd;
 	char *addr, buf[BUF_SIZE];
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/249236");
-
 	ATF_REQUIRE((fd = memfd_create("...", MFD_ALLOW_SEALING)) != -1);
 	ATF_REQUIRE(ftruncate(fd, BUF_SIZE) == 0);
 
@@ -133,9 +127,6 @@ ATF_TC_BODY(mmap_write_seal, tc)
 {
 	int fd;
 	char *addr, *paddr, *raddr;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/249236");
 
 	ATF_REQUIRE((fd = memfd_create("...", MFD_ALLOW_SEALING)) != -1);
 	ATF_REQUIRE(ftruncate(fd, BUF_SIZE) == 0);
@@ -202,9 +193,6 @@ ATF_TC_WITHOUT_HEAD(truncate_seals);
 ATF_TC_BODY(truncate_seals, tc)
 {
 
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/249236");
-
 	ATF_REQUIRE(memfd_truncate_test(4, 8, F_SEAL_GROW) == EPERM);
 	ATF_REQUIRE(memfd_truncate_test(8, 4, F_SEAL_SHRINK) == EPERM);
 	ATF_REQUIRE(memfd_truncate_test(8, 4, F_SEAL_GROW) == 0);
@@ -240,9 +228,6 @@ ATF_TC_BODY(dup_seals, tc)
 	char buf[8];
 	int fd, fdx;
 	int seals;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/249236");
 
 	ATF_REQUIRE((fd = memfd_create("...", MFD_ALLOW_SEALING)) != -1);
 	ATF_REQUIRE((fdx = dup(fd)) != -1);
