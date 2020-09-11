@@ -4560,17 +4560,24 @@ read_options:
 			fill_cmd(cmd, O_DIVERTED, 0, 2);
 			break;
 
-		case TOK_FRAG:
-			fill_flags_cmd(cmd, O_FRAG, f_ipoff, *av);
-			/*
-			 * Compatibility: no argument after "frag"
-			 * keyword equals to "frag offset".
-			 */
-			if (cmd->arg1 == 0)
-				cmd->arg1 = 0x1;
-			else
+		case TOK_FRAG: {
+			uint32_t set = 0, clear = 0;
+
+			if (*av != NULL && fill_flags(f_ipoff, *av, NULL,
+			    &set, &clear) == 0)
 				av++;
+			else {
+				/*
+				 * Compatibility: no argument after "frag"
+				 * keyword equals to "frag offset".
+				 */
+				set = 0x01;
+				clear = 0;
+			}
+			fill_cmd(cmd, O_FRAG, 0,
+			    (set & 0xff) | ( (clear & 0xff) << 8));
 			break;
+		}
 
 		case TOK_LAYER2:
 			fill_cmd(cmd, O_LAYER2, 0, 0);
