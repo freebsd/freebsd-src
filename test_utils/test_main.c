@@ -475,7 +475,7 @@ static struct line {
 	int count;
 	int skip;
 }  failed_lines[10000];
-const char *failed_filename;
+static const char *failed_filename;
 
 /* Count this failure, setup up log destination and handle initial report. */
 static void __LA_PRINTFLIKE(3, 4)
@@ -3458,7 +3458,7 @@ assertion_entry_compare_acls(const char *file, int line,
 /* Use "list.h" to create a list of all tests (functions and names). */
 #undef DEFINE_TEST
 #define	DEFINE_TEST(n) { n, #n, 0 },
-struct test_list_t tests[] = {
+static struct test_list_t tests[] = {
 	#include "list.h"
 };
 
