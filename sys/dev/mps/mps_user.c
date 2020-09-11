@@ -1346,6 +1346,7 @@ static int
 mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
     uint32_t *return_code)
 {
+	bus_dma_tag_template_t		t;
 	mps_fw_diagnostic_buffer_t	*pBuffer;
 	struct mps_busdma_context	*ctx;
 	uint8_t				extended_type, buffer_type, i;
@@ -1408,17 +1409,11 @@ mps_diag_register(struct mps_softc *sc, mps_fw_diag_register_t *diag_register,
 		*return_code = MPS_FW_DIAG_ERROR_NO_BUFFER;
 		return (MPS_DIAG_FAILURE);
 	}
-	if (bus_dma_tag_create( sc->mps_parent_dmat,    /* parent */
-				1, 0,			/* algnmnt, boundary */
-				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				BUS_SPACE_MAXADDR,	/* highaddr */
-				NULL, NULL,		/* filter, filterarg */
-                                buffer_size,		/* maxsize */
-                                1,			/* nsegments */
-                                buffer_size,		/* maxsegsize */
-                                0,			/* flags */
-                                NULL, NULL,		/* lockfunc, lockarg */
-                                &sc->fw_diag_dmat)) {
+	bus_dma_template_init(&t, sc->mps_parent_dmat);
+	t.lowaddr = BUS_SPACE_MAXADDR_32BIT;
+	t.maxsize = t.maxsegsize = buffer_size;
+	t.nsegments = 1;
+	if (bus_dma_template_tag(&t, &sc->fw_diag_dmat)) {
 		mps_dprint(sc, MPS_ERROR,
 		    "Cannot allocate FW diag buffer DMA tag\n");
 		*return_code = MPS_FW_DIAG_ERROR_NO_BUFFER;
