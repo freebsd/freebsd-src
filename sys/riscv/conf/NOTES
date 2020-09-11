@@ -90,9 +90,6 @@ nooptions 	COMPAT_FREEBSD9
 nooptions 	COMPAT_FREEBSD10
 nooptions 	COMPAT_FREEBSD11
 
-# No support for remote GDB
-nooptions 	GDB
-
 # riscv doesn't support inb/outb, so disable chipset probing which needs it
 nooptions 	PPC_PROBE_CHIPSET
 
