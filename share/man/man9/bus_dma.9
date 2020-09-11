@@ -311,13 +311,13 @@ tag inheriting the restrictions of its parent.
 This allows all devices along the path of DMA transactions
 to contribute to the constraints of those transactions.
 .It Vt bus_dma_template_t
-A template structure for creating a
+A template is a structure for creating a
 .Fa bus_dma_tag_t
 from a set of defaults.
 Once initialized with
 .Fn bus_dma_template_init ,
 a driver can over-ride individual fields to suit its needs.
-The following fields have the indicated values:
+The following fields start with the indicated default values:
 .Bd -literal
 	alignment	1
 	boundary	0
@@ -362,6 +362,8 @@ to
 inclusive.
 The filter function should return zero if any mapping in this range
 can be accommodated by the device and non-zero otherwise.
+.Pp
+.Em Note: The use of filters is deprecated.  Proper operation is not guaranteed.
 .It Vt bus_dma_segment_t
 A machine-dependent type that describes individual
 DMA segments.
@@ -614,6 +616,8 @@ and
 cannot adequately describe the constraints of the device.
 The filter function will be called for every machine page
 that overlaps the exclusion window.
+.Pp
+.Em Note: The use of filters is deprecated.  Proper operation is not guaranteed.
 .It Fa filtfuncarg
 Argument passed to all calls to the filter function for this tag.
 May be
@@ -691,22 +695,23 @@ on success.
 .It Fn bus_dma_template_init "*template" "parent"
 Initializes a
 .Fa bus_dma_template_t
-structure and associates it with an optional
-.Fa parent .
-The
-.Fa parent
-argument may be NULL.
+structure.  If the
+.Fa parent 
+argument is non-NULL, values from this tag will be copied into the template,
+replacing any defaults.
 .It Fn bus_dma_template_tag "*template" "*dmat"
 Unpacks a template into a tag, and returns the tag via the
 .Fa dmat .
 All return values are identical to
 .Fn bus_dma_tag_create .
+The template is not modified by this function, and can be reused and/or
+freed upon return.
 .It Fn bus_dma_template_clone "*template" "dmat"
-Clones the fields from a tag to a template.
-This is useful for cloning tags when paired with
-.Fn bus_dma_template_tag .
-A template that is filled in as a clone does not need to be initialized
-first.
+Copies the fields from an existing tag to a template.
+The template does not need to be initialized first.  All of its fields will
+be overwritten by the values contained in the tag.  When paired with
+.Fn bus_dma_template_tag ,
+this function is useful for creating copies of tags.
 .It Fn bus_dmamap_create "dmat" "flags" "*mapp"
 Allocates and initializes a DMA map.
 Arguments are as follows:
