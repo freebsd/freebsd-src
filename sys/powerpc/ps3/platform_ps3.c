@@ -70,6 +70,7 @@ static int ps3_smp_first_cpu(platform_t, struct cpuref *cpuref);
 static int ps3_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int ps3_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int ps3_smp_start_cpu(platform_t, struct pcpu *cpu);
+static void ps3_smp_probe_threads(platform_t);
 static struct cpu_group *ps3_smp_topo(platform_t);
 #endif
 static void ps3_reset(platform_t);
@@ -87,6 +88,7 @@ static platform_method_t ps3_methods[] = {
 	PLATFORMMETHOD(platform_smp_next_cpu,	ps3_smp_next_cpu),
 	PLATFORMMETHOD(platform_smp_get_bsp,	ps3_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	ps3_smp_start_cpu),
+	PLATFORMMETHOD(platform_smp_probe_threads,	ps3_smp_probe_threads),
 	PLATFORMMETHOD(platform_smp_topo,	ps3_smp_topo),
 #endif
 
@@ -243,11 +245,16 @@ ps3_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	return ((pc->pc_awake) ? 0 : EBUSY);
 }
 
-static struct cpu_group *
-ps3_smp_topo(platform_t plat)
+static void
+ps3_smp_probe_threads(platform_t plat)
 {
 	mp_ncores = 1;
 	smp_threads_per_core = 2;
+}
+
+static struct cpu_group *
+ps3_smp_topo(platform_t plat)
+{
 	return (smp_topo_1level(CG_SHARE_L1, 2, CG_FLAG_SMT));
 }
 #endif
