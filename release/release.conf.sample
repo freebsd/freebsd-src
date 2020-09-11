@@ -12,6 +12,8 @@
 ## Set the directory within which the release will be built.
 CHROOTDIR="/scratch"
 
+## Do not explicitly require the devel/git port to be installed.
+#NOGIT=1
 ## Set the version control system host.
 GITROOT="https://cgit-beta.freebsd.org/"
 GITSRC="src.git"
