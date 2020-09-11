@@ -22,7 +22,7 @@ SRCS+=	tokenizer.l
 .endif
 
 GENFILES=	tokenizer.c parser.c parser.h
-WARNS=	3
+WARNS?=	3
 
 tokenizer.o: parser.h
 

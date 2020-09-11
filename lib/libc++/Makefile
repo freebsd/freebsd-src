@@ -71,7 +71,7 @@ cxxrt_${_S}: ${_LIBCXXRTDIR}/${_S} .NOMETA
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
-WARNS=		0
+WARNS?=		0
 CFLAGS+=	-isystem ${HDRDIR}
 CFLAGS+=	-isystem ${_LIBCXXRTDIR}
 CFLAGS+=	-nostdinc++

@@ -28,7 +28,7 @@ SRCS+=	lerrno.c lstd.c lutils.c
 .PATH:	${FLUASRC}/modules
 SRCS+=	lfs.c
 
-WARNS=	3
+WARNS?=	3
 
 CFLAGS+= -DLUA_PATH=\"${LUAPATH}\" -DLUA_PATH_DEFAULT=\"${LUAPATH}/\?.lua\"
 CFLAGS+= -ffreestanding -nostdlib -DLUA_USE_POSIX

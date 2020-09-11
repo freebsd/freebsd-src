@@ -13,5 +13,5 @@ CFLAGS+=	-DBOOTPROG=\"gptboot.efi\"
 CFLAGS+=	-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
 SRCS+=		gpt.c
 CWARNFLAGS.gpt.c+=	-Wno-sign-compare -Wno-cast-align
-WARNS=6
+WARNS?=6
 .include "${.CURDIR}/../boot1/Makefile"
