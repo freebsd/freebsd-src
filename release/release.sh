@@ -65,7 +65,7 @@ env_setup() {
 		[ ! -z "${VCSCMD}" ] && break 2
 	done
 
-	if [ -z "${VCSCMD}" ]; then
+	if [ -z "${VCSCMD}" -a -z "${NOGIT}" ]; then
 		echo "*** The devel/git port/package is required."
 		exit 1
 	fi
@@ -275,6 +275,7 @@ extra_chroot_setup() {
 		cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
 	fi
 
+	if [ -z "${NOGIT}" ]; then
 	# Install git from ports or packages if the ports tree is
 	# available and VCSCMD is unset.
 	_gitcmd="$(which git)"
@@ -299,6 +300,7 @@ extra_chroot_setup() {
 			pkg install -y devel/git
 		eval chroot ${CHROOTDIR} env ASSUME_ALWAYS_YES=yes \
 			pkg clean -y
+	fi
 	fi
 	if [ -d ${CHROOTDIR}/usr/ports ]; then
 		# Trick the ports 'run-autotools-fixup' target to do the right
