@@ -81,27 +81,6 @@ shm_create_largepage(const char *path, int flags, int psind, int alloc_policy,
 	return (fd);
 }
 
-#define	K(x)	((size_t)(x) * 1024)
-#define	M(x)	(K(x) * 1024)
-#define	G(x)	(M(x) * 1024)
-static const struct {
-	int mask;
-	size_t pgsize;
-} mfd_huge_sizes[] = {
-	{ .mask = MFD_HUGE_64KB,	.pgsize = K(64) },
-	{ .mask = MFD_HUGE_512KB,	.pgsize = K(512) },
-	{ .mask = MFD_HUGE_1MB,		.pgsize = M(1) },
-	{ .mask = MFD_HUGE_2MB,		.pgsize = M(2) },
-	{ .mask = MFD_HUGE_8MB,		.pgsize = M(8) },
-	{ .mask = MFD_HUGE_16MB,	.pgsize = M(16) },
-	{ .mask = MFD_HUGE_32MB,	.pgsize = M(32) },
-	{ .mask = MFD_HUGE_256MB,	.pgsize = M(256) },
-	{ .mask = MFD_HUGE_512MB,	.pgsize = M(512) },
-	{ .mask = MFD_HUGE_1GB,		.pgsize = G(1) },
-	{ .mask = MFD_HUGE_2GB,		.pgsize = G(2) },
-	{ .mask = MFD_HUGE_16GB,	.pgsize = G(16) },
-};
-
 /*
  * The path argument is passed to the kernel, but the kernel doesn't currently
  * do anything with it.  Linux exposes it in linprocfs for debugging purposes
@@ -111,9 +90,9 @@ int
 memfd_create(const char *name, unsigned int flags)
 {
 	char memfd_name[NAME_MAX + 1];
-	size_t namelen, *pgs;
+	size_t namelen, *pgs, pgsize;
 	struct shm_largepage_conf slc;
-	int error, fd, i, npgs, oflags, pgidx, saved_errno, shmflags;
+	int error, fd, npgs, oflags, pgidx, saved_errno, shmflags;
 
 	if (name == NULL) {
 		errno = EBADF;
@@ -130,8 +109,7 @@ memfd_create(const char *name, unsigned int flags)
 		return (-1);
 	}
 	/* Size specified but no HUGETLB. */
-	if (((flags & MFD_HUGE_MASK) != 0 && (flags & MFD_HUGETLB) == 0) ||
-	    __bitcount(flags & MFD_HUGE_MASK) > 1) {
+	if ((flags & MFD_HUGE_MASK) != 0 && (flags & MFD_HUGETLB) == 0) {
 		errno = EINVAL;
 		return (-1);
 	}
@@ -139,13 +117,15 @@ memfd_create(const char *name, unsigned int flags)
 	/* We've already validated that we're sufficiently sized. */
 	snprintf(memfd_name, NAME_MAX + 1, "%s%s", MEMFD_NAME_PREFIX, name);
 	oflags = O_RDWR;
-	shmflags = SHM_GROW_ON_WRITE;
+	shmflags = 0;
 	if ((flags & MFD_CLOEXEC) != 0)
 		oflags |= O_CLOEXEC;
 	if ((flags & MFD_ALLOW_SEALING) != 0)
 		shmflags |= SHM_ALLOW_SEALING;
 	if ((flags & MFD_HUGETLB) != 0)
 		shmflags |= SHM_LARGEPAGE;
+	else
+		shmflags |= SHM_GROW_ON_WRITE;
 	fd = __sys_shm_open2(SHM_ANON, oflags, 0, shmflags, memfd_name);
 	if (fd == -1 || (flags & MFD_HUGETLB) == 0)
 		return (fd);
@@ -160,25 +140,14 @@ memfd_create(const char *name, unsigned int flags)
 	error = getpagesizes(pgs, npgs);
 	if (error == -1)
 		goto clean;
-	if ((flags & MFD_HUGE_MASK) == 0) {
-		if (npgs == 1) {
-			errno = EOPNOTSUPP;
-			goto clean;
-		}
-		pgidx = 1;
-	} else {
-		for (i = 0; i < nitems(mfd_huge_sizes); i++) {
-			if (mfd_huge_sizes[i].mask == (flags & MFD_HUGE_MASK))
-				break;
-		}
-		for (pgidx = 0; pgidx < npgs; pgidx++) {
-			if (mfd_huge_sizes[i].pgsize == pgs[pgidx])
-				break;
-		}
-		if (pgidx == npgs) {
-			errno = EOPNOTSUPP;
-			goto clean;
-		}
+	pgsize = (size_t)1 << ((flags & MFD_HUGE_MASK) >> MFD_HUGE_SHIFT);
+	for (pgidx = 0; pgidx < npgs; pgidx++) {
+		if (pgsize == pgs[pgidx])
+			break;
+	}
+	if (pgidx == npgs) {
+		errno = EOPNOTSUPP;
+		goto clean;
 	}
 	free(pgs);
 	pgs = NULL;
