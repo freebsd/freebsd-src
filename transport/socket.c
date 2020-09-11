@@ -307,7 +307,7 @@ l9p_socket_send_response(struct l9p_request *req __unused,
 
 static void
 l9p_socket_drop_response(struct l9p_request *req __unused,
-    const struct iovec *iov, size_t niov __unused, void *arg)
+    const struct iovec *iov, size_t niov __unused, void *arg __unused)
 {
 
 	L9P_LOG(L9P_DEBUG, "%p: drop buf=%p", arg, iov[0].iov_base);
