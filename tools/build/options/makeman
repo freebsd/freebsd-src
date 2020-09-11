@@ -154,7 +154,8 @@ main()
 .Sh DESCRIPTION
 The
 .Nm
-file contains settings that will apply to every build involving the
+file contains variables that control what components will be generated during
+the build process of the
 .Fx
 source tree; see
 .Xr build 7 .
