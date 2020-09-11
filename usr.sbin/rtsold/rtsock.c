@@ -33,10 +33,11 @@
  */
 
 #include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/uio.h>
-#include <sys/time.h>
+#include <sys/capsicum.h>
 #include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/uio.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -46,6 +47,7 @@
 #include <netinet/ip6.h>
 #include <netinet/icmp6.h>
 
+#include <capsicum_helpers.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -72,8 +74,20 @@ static struct {
 int
 rtsock_open(void)
 {
+	cap_rights_t rights;
+	int error, s;
 
-	return (socket(PF_ROUTE, SOCK_RAW, 0));
+	s = socket(PF_ROUTE, SOCK_RAW, 0);
+	if (s < 0)
+		return (s);
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ);
+	if (caph_rights_limit(s, &rights) != 0) {
+		error = errno;
+		(void)close(s);
+		errno = errno;
+		return (-1);
+	}
+	return (s);
 }
 
 int
