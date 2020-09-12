@@ -880,8 +880,10 @@
  */
 #if __has_attribute(no_sanitize) && defined(__clang__)
 #define __nosanitizeaddress	__attribute__((no_sanitize("address")))
+#define __nosanitizethread	__attribute__((no_sanitize("thread")))
 #else
 #define __nosanitizeaddress
+#define __nosanitizethread
 #endif
 
 /* Guard variables and structure members by lock. */

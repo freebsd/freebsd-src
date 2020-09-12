@@ -215,7 +215,17 @@ SYSCTL_INT(_hw_apic, OID_AUTO, timer_tsc_deadline, CTLFLAG_RD,
 static void lapic_calibrate_initcount(struct lapic *la);
 static void lapic_calibrate_deadline(struct lapic *la);
 
-static uint32_t
+/*
+ * Use __nosanitizethread to exempt the LAPIC I/O accessors from KCSan
+ * instrumentation.  Otherwise, if x2APIC is not available, use of the global
+ * lapic_map will generate a KCSan false positive.  While the mapping is
+ * shared among all CPUs, the physical access will always take place on the
+ * local CPU's APIC, so there isn't in fact a race here.  Furthermore, the
+ * KCSan warning printf can cause a panic if issued during LAPIC access,
+ * due to attempted recursive use of event timer resources.
+ */
+
+static uint32_t __nosanitizethread
 lapic_read32(enum LAPIC_REGISTERS reg)
 {
 	uint32_t res;
@@ -228,7 +238,7 @@ lapic_read32(enum LAPIC_REGISTERS reg)
 	return (res);
 }
 
-static void
+static void __nosanitizethread
 lapic_write32(enum LAPIC_REGISTERS reg, uint32_t val)
 {
 
@@ -241,7 +251,7 @@ lapic_write32(enum LAPIC_REGISTERS reg, uint32_t val)
 	}
 }
 
-static void
+static void __nosanitizethread
 lapic_write32_nofence(enum LAPIC_REGISTERS reg, uint32_t val)
 {
 
