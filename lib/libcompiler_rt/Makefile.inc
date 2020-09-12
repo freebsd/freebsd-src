@@ -18,6 +18,8 @@ SRCF+=		ashldi3
 SRCF+=		ashlti3
 SRCF+=		ashrdi3
 SRCF+=		ashrti3
+SRCF+=		bswapdi2
+SRCF+=		bswapsi2
 SRCF+=		clear_cache
 SRCF+=		clzdi2
 SRCF+=		clzsi2
@@ -117,6 +119,14 @@ SRCF+=		udivti3
 SRCF+=		umoddi3
 SRCF+=		umodti3
 
+# Enable compiler-rt's atomic implementation only for clang, as it uses clang
+# specific builtins, and gcc packages usually come with their own libatomic.
+# Exclude arm which has its own implementations of atomic functions, below.
+.if "${COMPILER_TYPE}" == "clang" && \
+    !(${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "armv6")
+SRCF+=		atomic
+.endif
+
 # Avoid using SSE2 instructions on i386, if unsupported.
 .if ${MACHINE_CPUARCH} == "i386" && empty(MACHINE_CPU:Msse2)
 SRCS+=		floatdidf.c
@@ -215,12 +225,6 @@ CFLAGS+=	-DEMIT_SYNC_ATOMICS
 SRCF+=		stdatomic
 .endif
 
-.if "${COMPILER_TYPE}" == "clang" && \
-    (${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe")
-SRCS+=          atomic.c
-CFLAGS.atomic.c+=      -Wno-atomic-alignment
-.endif
-
 .for file in ${SRCF}
 .if ${MACHINE_ARCH:Marmv6*} && (!defined(CPUTYPE) || ${CPUTYPE:M*soft*} == "") \
     && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
@@ -242,18 +246,9 @@ SRCS+=		aeabi_memmove.S
 SRCS+=		aeabi_memset.S
 SRCS+=		aeabi_uidivmod.S
 SRCS+=		aeabi_uldivmod.S
-SRCS+=		bswapdi2.S
-SRCS+=		bswapsi2.S
 SRCS+=		switch16.S
 SRCS+=		switch32.S
 SRCS+=		switch8.S
 SRCS+=		switchu8.S
 SRCS+=		sync_synchronize.S
 .endif
-
-# GCC-6.3 on mips32 requires bswap32 built-in.
-.if ${MACHINE_CPUARCH} == "mips"
-SRCS+=		bswapdi2.c
-SRCS+=		bswapsi2.c
-.endif
-
