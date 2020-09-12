@@ -677,8 +677,6 @@ main(int argc, char *argv[])
 		    minlen, MAXPACKET);
 		exit(1);
 	}
-	if (useproto == IPPROTO_UDP)
-		datalen -= sizeof(struct udphdr);
 	if ((useproto == IPPROTO_SCTP) && (datalen & 3)) {
 		fprintf(stderr, 
 		    "traceroute6: packet size must be a multiple of 4.\n");
