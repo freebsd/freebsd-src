@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
@@ -42,6 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_media.h>
+
+/* needed for checksum offload */
+#include <netinet/in.h>
+#include <netinet/ip.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -60,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+#include "opt_inet6.h"
+
 #ifdef USB_DEBUG
 static int ure_debug = 0;
 
@@ -67,6 +74,21 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, ure, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB ure");
 SYSCTL_INT(_hw_usb_ure, OID_AUTO, debug, CTLFLAG_RWTUN, &ure_debug, 0,
     "Debug level");
+#endif
+
+#ifdef USB_DEBUG_VAR
+#ifdef USB_DEBUG
+#define DEVPRINTFN(n,dev,fmt,...) do {			\
+	if ((USB_DEBUG_VAR) >= (n)) {			\
+		device_printf((dev), "%s: " fmt,	\
+		    __FUNCTION__ ,##__VA_ARGS__);	\
+	}						\
+} while (0)
+#define DEVPRINTF(...)    DEVPRINTFN(1, __VA_ARGS__)
+#else
+#define DEVPRINTF(...) do { } while (0)
+#define DEVPRINTFN(...) do { } while (0)
+#endif
 #endif
 
 /*
@@ -118,6 +140,8 @@ static int	ure_write_4(struct ure_softc *, uint16_t, uint16_t, uint32_t);
 static uint16_t	ure_ocp_reg_read(struct ure_softc *, uint16_t);
 static void	ure_ocp_reg_write(struct ure_softc *, uint16_t, uint16_t);
 
+static int	ure_sysctl_chipver(SYSCTL_HANDLER_ARGS);
+
 static void	ure_read_chipver(struct ure_softc *);
 static int	ure_attach_post_sub(struct usb_ether *);
 static void	ure_reset(struct ure_softc *);
@@ -128,26 +152,89 @@ static void	ure_rtl8152_init(struct ure_softc *);
 static void	ure_rtl8153_init(struct ure_softc *);
 static void	ure_disable_teredo(struct ure_softc *);
 static void	ure_init_fifo(struct ure_softc *);
+static void	ure_rxcsum(int capenb, struct ure_rxpkt *rp, struct mbuf *m);
+static int	ure_txcsum(struct mbuf *m, int caps, uint32_t *regout);
 
-static const struct usb_config ure_config[URE_N_TRANSFER] = {
-	[URE_BULK_DT_WR] = {
-		.type = UE_BULK,
-		.endpoint = UE_ADDR_ANY,
-		.direction = UE_DIR_OUT,
-		.bufsize = MCLBYTES,
-		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
-		.callback = ure_bulk_write_callback,
-		.timeout = 10000,	/* 10 seconds */
-	},
-	[URE_BULK_DT_RD] = {
+static const struct usb_config ure_config_rx[URE_N_TRANSFER] = {
+	{
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = 16384,
+		.bufsize = URE_TRANSFER_SIZE,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = ure_bulk_read_callback,
 		.timeout = 0,	/* no timeout */
 	},
+	{
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.bufsize = URE_TRANSFER_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = ure_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
+	},
+#if URE_N_TRANSFER == 4
+	{
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.bufsize = URE_TRANSFER_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = ure_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
+	},
+	{
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.bufsize = URE_TRANSFER_SIZE,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
+		.callback = ure_bulk_read_callback,
+		.timeout = 0,	/* no timeout */
+	},
+#endif
+};
+
+static const struct usb_config ure_config_tx[URE_N_TRANSFER] = {
+	{
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_OUT,
+		.bufsize = URE_TRANSFER_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = ure_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
+	},
+	{
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_OUT,
+		.bufsize = URE_TRANSFER_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = ure_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
+	},
+#if URE_N_TRANSFER == 4
+	{
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_OUT,
+		.bufsize = URE_TRANSFER_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = ure_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
+	},
+	{
+		.type = UE_BULK,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_OUT,
+		.bufsize = URE_TRANSFER_SIZE,
+		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+		.callback = ure_bulk_write_callback,
+		.timeout = 10000,	/* 10 seconds */
+	},
+#endif
 };
 
 static device_method_t ure_methods[] = {
@@ -419,11 +506,13 @@ ure_miibus_statchg(device_t dev)
 		case IFM_10_T:
 		case IFM_100_TX:
 			sc->sc_flags |= URE_FLAG_LINK;
+			sc->sc_rxstarted = 0;
 			break;
 		case IFM_1000_T:
 			if ((sc->sc_flags & URE_FLAG_8152) != 0)
 				break;
 			sc->sc_flags |= URE_FLAG_LINK;
+			sc->sc_rxstarted = 0;
 			break;
 		default:
 			break;
@@ -475,12 +564,27 @@ ure_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	iface_index = URE_IFACE_IDX;
-	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_xfer,
-	    ure_config, URE_N_TRANSFER, sc, &sc->sc_mtx);
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_rx_xfer,
+	    ure_config_rx, URE_N_TRANSFER, sc, &sc->sc_mtx);
 	if (error != 0) {
-		device_printf(dev, "allocating USB transfers failed\n");
+		device_printf(dev, "allocating USB RX transfers failed\n");
 		goto detach;
 	}
+
+	error = usbd_transfer_setup(uaa->device, &iface_index, sc->sc_tx_xfer,
+	    ure_config_tx, URE_N_TRANSFER, sc, &sc->sc_mtx);
+	if (error != 0) {
+		usbd_transfer_unsetup(sc->sc_rx_xfer, URE_N_TRANSFER);
+		device_printf(dev, "allocating USB TX transfers failed\n");
+		goto detach;
+	}
+
+	/* Mark all TX transfers as available */
+	for (int i = 0; i < URE_N_TRANSFER; i++) {
+		sc->sc_txavail[i] = sc->sc_tx_xfer[i];
+		DEVPRINTF(dev, "sc_txavail[%d] = %p\n", i, sc->sc_txavail[i]);
+	}
+	sc->sc_txpos = 0;
 
 	ue->ue_sc = sc;
 	ue->ue_dev = dev;
@@ -506,11 +610,48 @@ ure_detach(device_t dev)
 	struct ure_softc *sc = device_get_softc(dev);
 	struct usb_ether *ue = &sc->sc_ue;
 
-	usbd_transfer_unsetup(sc->sc_xfer, URE_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_tx_xfer, URE_N_TRANSFER);
+	usbd_transfer_unsetup(sc->sc_rx_xfer, URE_N_TRANSFER);
 	uether_ifdetach(ue);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
+}
+
+/*
+ * Copy from USB buffers to a new mbuf chain with pkt header.
+ *
+ * This will use m_getm2 to get a mbuf chain w/ properly sized mbuf
+ * clusters as necessary.
+ */
+static struct mbuf *
+ure_makembuf(struct usb_page_cache *pc, usb_frlength_t offset,
+    usb_frlength_t len)
+{
+	struct usb_page_search_res;
+	struct mbuf *m, *mb;
+	usb_frlength_t tlen;
+
+	m = m_getm2(NULL, len + ETHER_ALIGN, M_NOWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (m);
+
+	/* uether_newbuf does this. */
+	m_adj(m, ETHER_ALIGN);
+
+	m->m_pkthdr.len = len;
+
+	for (mb = m; len > 0; mb = mb->m_next) {
+		tlen = MIN(len, M_TRAILINGSPACE(mb));
+
+		usbd_copy_out(pc, offset, mtod(mb, uint8_t *), tlen);
+		mb->m_len = tlen;
+
+		offset += tlen;
+		len -= tlen;
+	}
+
+	return (m);
 }
 
 static void
@@ -520,27 +661,84 @@ ure_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_ether *ue = &sc->sc_ue;
 	struct ifnet *ifp = uether_getifp(ue);
 	struct usb_page_cache *pc;
+	struct mbuf *m;
 	struct ure_rxpkt pkt;
-	int actlen, len;
+	int actlen, off, len;
+	int caps;
+	uint32_t pktcsum;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		if (actlen < (int)(sizeof(pkt))) {
-			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-			goto tr_setup;
-		}
+		off = 0;
 		pc = usbd_xfer_get_frame(xfer, 0);
-		usbd_copy_out(pc, 0, &pkt, sizeof(pkt));
-		len = le32toh(pkt.ure_pktlen) & URE_RXPKT_LEN_MASK;
-		len -= ETHER_CRC_LEN;
-		if (actlen < (int)(len + sizeof(pkt))) {
-			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
-			goto tr_setup;
-		}
+		caps = if_getcapenable(ifp);
+		DEVPRINTFN(13, sc->sc_ue.ue_dev, "rcb start\n");
+		while (actlen > 0) {
+			if (actlen < (int)(sizeof(pkt))) {
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+				goto tr_setup;
+			}
+			usbd_copy_out(pc, off, &pkt, sizeof(pkt));
 
-		uether_rxbuf(ue, pc, sizeof(pkt), len);
+			off += sizeof(pkt);
+			actlen -= sizeof(pkt);
+
+			len = le32toh(pkt.ure_pktlen) & URE_RXPKT_LEN_MASK;
+
+			DEVPRINTFN(13, sc->sc_ue.ue_dev,
+			    "rxpkt: %#x, %#x, %#x, %#x, %#x, %#x\n",
+			    pkt.ure_pktlen, pkt.ure_csum, pkt.ure_misc,
+			    pkt.ure_rsvd2, pkt.ure_rsvd3, pkt.ure_rsvd4);
+			DEVPRINTFN(13, sc->sc_ue.ue_dev, "len: %d\n", len);
+
+			if (len >= URE_RXPKT_LEN_MASK) {
+				/*
+				 * drop the rest of this segment.  With out
+				 * more information, we cannot know where next
+				 * packet starts.  Blindly continuing would
+				 * cause a packet in packet attack, allowing
+				 * one VLAN to inject packets w/o a VLAN tag,
+				 * or injecting packets into other VLANs.
+				 */
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+				goto tr_setup;
+			}
+
+			if (actlen < len) {
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
+				goto tr_setup;
+			}
+
+			if (len != 0)
+				m = ure_makembuf(pc, off, len - ETHER_CRC_LEN);
+			else
+				m = NULL;
+			if (m == NULL) {
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+			} else {
+				/* make mbuf and queue */
+				pktcsum = le32toh(pkt.ure_csum);
+				if (caps & IFCAP_VLAN_HWTAGGING &&
+				    pktcsum & URE_RXPKT_RX_VLAN_TAG) {
+					m->m_pkthdr.ether_vtag =
+					    bswap16(pktcsum &
+					    URE_RXPKT_VLAN_MASK);
+					m->m_flags |= M_VLANTAG;
+				}
+
+				/* set the necessary flags for rx checksum */
+				ure_rxcsum(caps, &pkt, m);
+
+				uether_rxmbuf(ue, m, len - ETHER_CRC_LEN);
+			}
+
+			off += roundup(len, URE_RXPKT_ALIGN);
+			actlen -= roundup(len, URE_RXPKT_ALIGN);
+		}
+		DEVPRINTFN(13, sc->sc_ue.ue_dev, "rcb end\n");
+
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
@@ -570,52 +768,118 @@ ure_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_page_cache *pc;
 	struct mbuf *m;
 	struct ure_txpkt txpkt;
+	uint32_t regtmp;
 	int len, pos;
+	int rem;
+	int caps;
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
 		DPRINTFN(11, "transfer complete\n");
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		if ((sc->sc_flags & URE_FLAG_LINK) == 0 ||
-		    (ifp->if_drv_flags & IFF_DRV_OACTIVE) != 0) {
-			/*
-			 * don't send anything if there is no link !
-			 */
-			return;
-		}
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
+		if ((sc->sc_flags & URE_FLAG_LINK) == 0) {
+			/* don't send anything if there is no link! */
 			break;
-		pos = 0;
-		len = m->m_pkthdr.len;
+		}
+
 		pc = usbd_xfer_get_frame(xfer, 0);
-		memset(&txpkt, 0, sizeof(txpkt));
-		txpkt.ure_pktlen = htole32((len & URE_TXPKT_LEN_MASK) |
-		    URE_TKPKT_TX_FS | URE_TKPKT_TX_LS);
-		usbd_copy_in(pc, pos, &txpkt, sizeof(txpkt));
-		pos += sizeof(txpkt);
-		usbd_m_copy_in(pc, pos, m, 0, m->m_pkthdr.len);
-		pos += m->m_pkthdr.len;
+		caps = if_getcapenable(ifp);
 
-		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		pos = 0;
+		rem = URE_TRANSFER_SIZE;
+		while (rem > sizeof(txpkt)) {
+			IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+			if (m == NULL)
+				break;
 
-		/*
-		 * If there's a BPF listener, bounce a copy
-		 * of this frame to him.
-		 */
-		BPF_MTAP(ifp, m);
+			/*
+			 * make sure we don't ever send too large of a
+			 * packet
+			 */
+			len = m->m_pkthdr.len;
+			if ((len & URE_TXPKT_LEN_MASK) != len) {
+				device_printf(sc->sc_ue.ue_dev,
+				    "pkt len too large: %#x", len);
+pkterror:
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+				m_freem(m);
+				continue;
+			}
 
-		m_freem(m);
+			if (sizeof(txpkt) +
+			    roundup(len, URE_TXPKT_ALIGN) > rem) {
+				/* out of space */
+				IFQ_DRV_PREPEND(&ifp->if_snd, m);
+				m = NULL;
+				break;
+			}
+
+			txpkt = (struct ure_txpkt){};
+			txpkt.ure_pktlen = htole32((len & URE_TXPKT_LEN_MASK) |
+			    URE_TKPKT_TX_FS | URE_TKPKT_TX_LS);
+			if (m->m_flags & M_VLANTAG) {
+				txpkt.ure_csum = htole32(
+				    bswap16(m->m_pkthdr.ether_vtag &
+				    URE_TXPKT_VLAN_MASK) | URE_TXPKT_VLAN);
+			}
+			if (ure_txcsum(m, caps, &regtmp)) {
+				device_printf(sc->sc_ue.ue_dev,
+				    "pkt l4 off too large");
+				goto pkterror;
+			}
+			txpkt.ure_csum |= htole32(regtmp);
+
+			DEVPRINTFN(13, sc->sc_ue.ue_dev,
+			    "txpkt: mbflg: %#x, %#x, %#x\n",
+			    m->m_pkthdr.csum_flags, le32toh(txpkt.ure_pktlen),
+			    le32toh(txpkt.ure_csum));
+
+			usbd_copy_in(pc, pos, &txpkt, sizeof(txpkt));
+
+			pos += sizeof(txpkt);
+			rem -= sizeof(txpkt);
+
+			usbd_m_copy_in(pc, pos, m, 0, len);
+
+			pos += roundup(len, URE_TXPKT_ALIGN);
+			rem -= roundup(len, URE_TXPKT_ALIGN);
+
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+
+			/*
+			 * If there's a BPF listener, bounce a copy
+			 * of this frame to him.
+			 */
+			BPF_MTAP(ifp, m);
+
+			m_freem(m);
+		}
+
+		/* no packets to send */
+		if (pos == 0)
+			break;
 
 		/* Set frame length. */
 		usbd_xfer_set_frame_len(xfer, 0, pos);
 
 		usbd_transfer_submit(xfer);
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+
+		KASSERT(sc->sc_txpos >= 0 && sc->sc_txpos <= URE_N_TRANSFER,
+		    ("sc_txpos invalid: %d", sc->sc_txpos));
+		if (sc->sc_txpos < URE_N_TRANSFER &&
+		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+			xfer = sc->sc_txavail[sc->sc_txpos++];
+			usbd_transfer_start(xfer);
+		}
+
+		if (sc->sc_txpos == URE_N_TRANSFER)
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
+
 	default:			/* Error */
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
@@ -623,13 +887,22 @@ tr_setup:
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
+		if (error == USB_ERR_TIMEOUT) {
+			DEVPRINTFN(12, sc->sc_ue.ue_dev,
+			    "pkt tx timeout\n");
+		}
+
 		if (error != USB_ERR_CANCELLED) {
 			/* try to clear stall first */
 			usbd_xfer_set_stall(xfer);
 			goto tr_setup;
 		}
-		return;
 	}
+
+	KASSERT(sc->sc_txpos > 0 && sc->sc_txpos <= URE_N_TRANSFER, ("sc_txpos invalid: %d", sc->sc_txpos));
+	sc->sc_txavail[(--(sc->sc_txpos))] = xfer;
+	if (sc->sc_txpos < URE_N_TRANSFER)
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
@@ -638,6 +911,7 @@ ure_read_chipver(struct ure_softc *sc)
 	uint16_t ver;
 
 	ver = ure_read_2(sc, URE_PLA_TCR1, URE_MCU_TYPE_PLA) & URE_VERSION_MASK;
+	sc->sc_ver = ver;
 	switch (ver) {
 	case 0x4c00:
 		sc->sc_chip |= URE_CHIP_VER_4C00;
@@ -664,11 +938,31 @@ ure_read_chipver(struct ure_softc *sc)
 	}
 }
 
+static int
+ure_sysctl_chipver(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sb;
+	struct ure_softc *sc = arg1;
+	int error;
+
+	sbuf_new_for_sysctl(&sb, NULL, 0, req);
+
+	sbuf_printf(&sb, "%04x", sc->sc_ver);
+
+	error = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+
+	return (error);
+}
+
 static void
 ure_attach_post(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
+	struct sysctl_ctx_list *sctx;
+	struct sysctl_oid *soid;
 
+	sc->sc_rxstarted = 0;
 	sc->sc_phyno = 0;
 
 	/* Determine the chip version. */
@@ -694,6 +988,13 @@ ure_attach_post(struct usb_ether *ue)
 		sc->sc_ue.ue_eaddr[0] &= ~0x01; /* unicast */
 		sc->sc_ue.ue_eaddr[0] |= 0x02;  /* locally administered */
 	}
+
+	sctx = device_get_sysctl_ctx(sc->sc_ue.ue_dev);
+	soid = device_get_sysctl_tree(sc->sc_ue.ue_dev);
+	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "chipver",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    ure_sysctl_chipver, "A",
+	    "Return string with chip version.");
 }
 
 static int
@@ -710,8 +1011,21 @@ ure_attach_post_sub(struct usb_ether *ue)
 	ifp->if_ioctl = ure_ioctl;
 	ifp->if_init = uether_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
-	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
+	/*
+	 * Try to keep two transfers full at a time.
+	 * ~(TRANSFER_SIZE / 80 bytes/pkt * 2 buffers in flight)
+	 */
+	ifp->if_snd.ifq_drv_maxlen = 512;
 	IFQ_SET_READY(&ifp->if_snd);
+
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_MTU, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWTAGGING, 0);
+	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWCSUM|IFCAP_HWCSUM, 0);
+	if_sethwassist(ifp, CSUM_IP|CSUM_IP_UDP|CSUM_IP_TCP);
+#ifdef INET6
+	if_setcapabilitiesbit(ifp, IFCAP_HWCSUM_IPV6, 0);
+#endif
+	if_setcapenable(ifp, if_getcapabilities(ifp));
 
 	mtx_lock(&Giant);
 	error = mii_attach(ue->ue_dev, &ue->ue_miibus, ifp,
@@ -727,6 +1041,7 @@ ure_init(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
 	struct ifnet *ifp = uether_getifp(ue);
+	uint16_t cpcr;
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -752,6 +1067,17 @@ ure_init(struct usb_ether *ue)
 	    ure_read_2(sc, URE_PLA_FMC, URE_MCU_TYPE_PLA) |
 	    URE_FMC_FCR_MCU_EN);
 
+	/* Enable RX VLANs if enabled */
+	cpcr = ure_read_2(sc, URE_PLA_CPCR, URE_MCU_TYPE_PLA);
+	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
+		DEVPRINTFN(12, sc->sc_ue.ue_dev, "enabled hw vlan tag\n");
+		cpcr |= URE_CPCR_RX_VLAN;
+	} else {
+		DEVPRINTFN(12, sc->sc_ue.ue_dev, "disabled hw vlan tag\n");
+		cpcr &= ~URE_CPCR_RX_VLAN;
+	}
+	ure_write_2(sc, URE_PLA_CPCR, URE_MCU_TYPE_PLA, cpcr);
+
 	/* Enable transmit and receive. */
 	ure_write_1(sc, URE_PLA_CR, URE_MCU_TYPE_PLA,
 	    ure_read_1(sc, URE_PLA_CR, URE_MCU_TYPE_PLA) | URE_CR_RE |
@@ -764,7 +1090,7 @@ ure_init(struct usb_ether *ue)
 	/*  Configure RX filters. */
 	ure_rxfilter(ue);
 
-	usbd_xfer_set_stall(sc->sc_xfer[URE_BULK_DT_WR]);
+	usbd_xfer_set_stall(sc->sc_tx_xfer[0]);
 
 	/* Indicate we are up and running. */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
@@ -777,15 +1103,29 @@ static void
 ure_tick(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
+	struct ifnet *ifp = uether_getifp(ue);
 	struct mii_data *mii = GET_MII(sc);
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
+
+	KASSERT(sc->sc_txpos >= 0 && sc->sc_txpos <= URE_N_TRANSFER, ("sc_txpos invalid: %d", sc->sc_txpos));
+	(void)ifp;
+	DEVPRINTFN(13, sc->sc_ue.ue_dev,
+	    "sc_txpos: %d, oactive: %d\n", sc->sc_txpos, !!(ifp->if_drv_flags & IFF_DRV_OACTIVE));
+	for (int i = 0; i < URE_N_TRANSFER; i++)
+		DEVPRINTFN(13, sc->sc_ue.ue_dev,
+		    "rx[%d] = %d\n", i, USB_GET_STATE(sc->sc_rx_xfer[i]));
+
+	for (int i = 0; i < URE_N_TRANSFER; i++)
+		DEVPRINTFN(13, sc->sc_ue.ue_dev,
+		    "tx[%d] = %d\n", i, USB_GET_STATE(sc->sc_tx_xfer[i]));
 
 	mii_tick(mii);
 	if ((sc->sc_flags & URE_FLAG_LINK) == 0
 	    && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->sc_flags |= URE_FLAG_LINK;
+		sc->sc_rxstarted = 0;
 		ure_start(ue);
 	}
 }
@@ -828,15 +1168,17 @@ ure_rxfilter(struct usb_ether *ue)
 		goto done;
 	}
 
-	rxmode |= URE_RCR_AM;
+	/* calculate multicast masks */
 	if_foreach_llmaddr(ifp, ure_hash_maddr, &hashes);
 
 	h = bswap32(hashes[0]);
 	hashes[0] = bswap32(hashes[1]);
 	hashes[1] = h;
-	rxmode |= URE_RCR_AM;
+	rxmode |= URE_RCR_AM;	/* accept multicast packets */
 
 done:
+	DEVPRINTFN(14, ue->ue_dev, "rxfilt: RCR: %#x\n",
+	    ure_read_4(sc, URE_PLA_RCR, URE_MCU_TYPE_PLA));
 	ure_write_4(sc, URE_PLA_MAR0, URE_MCU_TYPE_PLA, hashes[0]);
 	ure_write_4(sc, URE_PLA_MAR4, URE_MCU_TYPE_PLA, hashes[1]);
 	ure_write_4(sc, URE_PLA_RCR, URE_MCU_TYPE_PLA, rxmode);
@@ -846,12 +1188,34 @@ static void
 ure_start(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
+	struct usb_xfer *xfer;
+	struct ifnet *ifp;
+
+	URE_LOCK_ASSERT(sc, MA_OWNED);
+
+	if (!sc->sc_rxstarted) {
+		sc->sc_rxstarted = 1;
+		for (int i = 0; i < URE_N_TRANSFER; i++)
+			usbd_transfer_start(sc->sc_rx_xfer[i]);
+	}
 
 	/*
 	 * start the USB transfers, if not already started:
 	 */
-	usbd_transfer_start(sc->sc_xfer[URE_BULK_DT_RD]);
-	usbd_transfer_start(sc->sc_xfer[URE_BULK_DT_WR]);
+	if (sc->sc_txpos == URE_N_TRANSFER) {
+		ifp = uether_getifp(&sc->sc_ue);
+
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		return;
+	}
+
+	KASSERT(sc->sc_txpos >= 0 && sc->sc_txpos < URE_N_TRANSFER, ("sc_txpos invalid: %d", sc->sc_txpos));
+	xfer = sc->sc_txavail[sc->sc_txpos++];
+	if (sc->sc_txpos == URE_N_TRANSFER) {
+		ifp = uether_getifp(&sc->sc_ue);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	}
+	usbd_transfer_start(xfer);
 }
 
 static void
@@ -921,9 +1285,31 @@ ure_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	ifr = (struct ifreq *)data;
 	error = 0;
 	reinit = 0;
-	if (cmd == SIOCSIFCAP) {
+	switch (cmd) {
+	case SIOCSIFCAP:
 		URE_LOCK(sc);
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			reinit++;
+		}
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+		}
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_RXCSUM;
+		}
+		if ((mask & IFCAP_TXCSUM_IPV6) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM_IPV6) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+		}
+		if ((mask & IFCAP_RXCSUM_IPV6) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM_IPV6) != 0) {
+			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
+		}
 		if (reinit > 0 && ifp->if_drv_flags & IFF_DRV_RUNNING)
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		else
@@ -931,8 +1317,29 @@ ure_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		URE_UNLOCK(sc);
 		if (reinit > 0)
 			uether_init(ue);
-	} else
+		break;
+
+	case SIOCSIFMTU:
+		/*
+		 * in testing large MTUs "crashes" the device, it
+		 * leaves the device w/ a broken state where link
+		 * is in a bad state.
+		 */
+		if (ifr->ifr_mtu < ETHERMIN ||
+		    ifr->ifr_mtu > (4096 - ETHER_HDR_LEN -
+		    ETHER_VLAN_ENCAP_LEN - ETHER_CRC_LEN)) {
+			error = EINVAL;
+			break;
+		}
+		URE_LOCK(sc);
+		if (if_getmtu(ifp) != ifr->ifr_mtu)
+			if_setmtu(ifp, ifr->ifr_mtu);
+		URE_UNLOCK(sc);
+		break;
+
+	default:
 		error = uether_ioctl(ifp, cmd, data);
+	}
 
 	return (error);
 }
@@ -971,10 +1378,10 @@ ure_rtl8152_init(struct ure_softc *sc)
 	    URE_GPHY_STS_MSK | URE_SPEED_DOWN_MSK | URE_SPDWN_RXDV_MSK |
 	    URE_SPDWN_LINKCHG_MSK);
 
-	/* Disable Rx aggregation. */
+	/* Enable Rx aggregation. */
 	ure_write_2(sc, URE_USB_USB_CTRL, URE_MCU_TYPE_USB,
-	    ure_read_2(sc, URE_USB_USB_CTRL, URE_MCU_TYPE_USB) |
-	    URE_RX_AGG_DISABLE);
+	    ure_read_2(sc, URE_USB_USB_CTRL, URE_MCU_TYPE_USB) &
+	    ~URE_RX_AGG_DISABLE);
 
 	/* Disable ALDPS. */
 	ure_ocp_reg_write(sc, URE_OCP_ALDPS_CONFIG, URE_ENPDNPS | URE_LINKENA |
@@ -1123,10 +1530,10 @@ ure_rtl8153_init(struct ure_softc *sc)
 
 	ure_init_fifo(sc);
 
-	/* Disable Rx aggregation. */
+	/* Enable Rx aggregation. */
 	ure_write_2(sc, URE_USB_USB_CTRL, URE_MCU_TYPE_USB,
-	    ure_read_2(sc, URE_USB_USB_CTRL, URE_MCU_TYPE_USB) |
-	    URE_RX_AGG_DISABLE);
+	    ure_read_2(sc, URE_USB_USB_CTRL, URE_MCU_TYPE_USB) &
+	    ~URE_RX_AGG_DISABLE);
 
 	val = ure_read_2(sc, URE_USB_U2P3_CTRL, URE_MCU_TYPE_USB);
 	if (!(sc->sc_chip & (URE_CHIP_VER_5C00 | URE_CHIP_VER_5C10)))
@@ -1150,12 +1557,15 @@ ure_stop(struct usb_ether *ue)
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->sc_flags &= ~URE_FLAG_LINK;
+	sc->sc_rxstarted = 0;
 
 	/*
 	 * stop all the transfers, if not already stopped:
 	 */
-	usbd_transfer_stop(sc->sc_xfer[URE_BULK_DT_WR]);
-	usbd_transfer_stop(sc->sc_xfer[URE_BULK_DT_RD]);
+	for (int i = 0; i < URE_N_TRANSFER; i++) {
+		usbd_transfer_stop(sc->sc_rx_xfer[i]);
+		usbd_transfer_stop(sc->sc_tx_xfer[i]);
+	}
 }
 
 static void
@@ -1183,6 +1593,7 @@ ure_init_fifo(struct ure_softc *sc)
 
 	ure_disable_teredo(sc);
 
+	DEVPRINTFN(14, sc->sc_ue.ue_dev, "init_fifo: RCR: %#x\n", ure_read_4(sc, URE_PLA_RCR, URE_MCU_TYPE_PLA));
 	ure_write_4(sc, URE_PLA_RCR, URE_MCU_TYPE_PLA,
 	    ure_read_4(sc, URE_PLA_RCR, URE_MCU_TYPE_PLA) &
 	    ~URE_RCR_ACPT_ALL);
@@ -1280,4 +1691,129 @@ ure_init_fifo(struct ure_softc *sc)
 	/* Configure Tx FIFO threshold. */
 	ure_write_4(sc, URE_PLA_TXFIFO_CTRL, URE_MCU_TYPE_PLA,
 	    URE_TXFIFO_THR_NORMAL);
+}
+
+/*
+ * Update mbuf for rx checksum from hardware
+ */
+static void
+ure_rxcsum(int capenb, struct ure_rxpkt *rp, struct mbuf *m)
+{
+	int flags;
+	uint32_t csum, misc;
+	int tcp, udp;
+
+	m->m_pkthdr.csum_flags = 0;
+
+	if (!(capenb & IFCAP_RXCSUM))
+		return;
+
+	csum = le32toh(rp->ure_csum);
+	misc = le32toh(rp->ure_misc);
+
+	tcp = udp = 0;
+
+	flags = 0;
+	if (csum & URE_RXPKT_IPV4_CS)
+		flags |= CSUM_IP_CHECKED;
+	else if (csum & URE_RXPKT_IPV6_CS)
+		flags = 0;
+
+	tcp = rp->ure_csum & URE_RXPKT_TCP_CS;
+	udp = rp->ure_csum & URE_RXPKT_UDP_CS;
+
+	if (__predict_true((flags & CSUM_IP_CHECKED) &&
+	    !(misc & URE_RXPKT_IP_F))) {
+		flags |= CSUM_IP_VALID;
+	}
+	if (__predict_true(
+	    (tcp && !(misc & URE_RXPKT_TCP_F)) ||
+	    (udp && !(misc & URE_RXPKT_UDP_F)))) {
+		flags |= CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+		m->m_pkthdr.csum_data = 0xFFFF;
+	}
+
+	m->m_pkthdr.csum_flags = flags;
+}
+
+/*
+ * If the L4 checksum offset is larger than 0x7ff (2047), return failure.
+ * We currently restrict MTU such that it can't happen, and even if we
+ * did have a large enough MTU, only a very specially crafted IPv6 packet
+ * with MANY headers could possibly come close.
+ *
+ * Returns 0 for success, and 1 if the packet cannot be checksummed and
+ * should be dropped.
+ */
+static int
+ure_txcsum(struct mbuf *m, int caps, uint32_t *regout)
+{
+	struct ip ip;
+	struct ether_header *eh;
+	int flags;
+	uint32_t data;
+	uint32_t reg;
+	int l3off, l4off;
+	uint16_t type;
+
+	*regout = 0;
+	flags = m->m_pkthdr.csum_flags;
+	if (flags == 0)
+		return (0);
+
+	if (__predict_true(m->m_len >= (int)sizeof(*eh))) {
+		eh = mtod(m, struct ether_header *);
+		type = eh->ether_type;
+	} else
+		m_copydata(m, offsetof(struct ether_header, ether_type),
+		    sizeof(type), (caddr_t)&type);
+
+	switch (type = htons(type)) {
+	case ETHERTYPE_IP:
+	case ETHERTYPE_IPV6:
+		l3off = ETHER_HDR_LEN;
+		break;
+	case ETHERTYPE_VLAN:
+		/* XXX - what about QinQ? */
+		l3off = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		break;
+	default:
+		return (0);
+	}
+
+	reg = 0;
+
+	if (flags & CSUM_IP)
+		reg |= URE_TXPKT_IPV4_CS;
+
+	data = m->m_pkthdr.csum_data;
+	if (flags & (CSUM_IP_TCP | CSUM_IP_UDP)) {
+		m_copydata(m, l3off, sizeof ip, (caddr_t)&ip);
+		l4off = l3off + (ip.ip_hl << 2) + data;
+		if (__predict_false(l4off > URE_L4_OFFSET_MAX))
+			return (1);
+
+		reg |= URE_TXPKT_IPV4_CS;
+		if (flags & CSUM_IP_TCP)
+			reg |= URE_TXPKT_TCP_CS;
+		else if (flags & CSUM_IP_UDP)
+			reg |= URE_TXPKT_UDP_CS;
+		reg |= l4off << URE_L4_OFFSET_SHIFT;
+	}
+#ifdef INET6
+	else if (flags & (CSUM_IP6_TCP | CSUM_IP6_UDP)) {
+		l4off = l3off + data;
+		if (__predict_false(l4off > URE_L4_OFFSET_MAX))
+			return (1);
+
+		reg |= URE_TXPKT_IPV6_CS;
+		if (flags & CSUM_IP6_TCP)
+			reg |= URE_TXPKT_TCP_CS;
+		else if (flags & CSUM_IP6_UDP)
+			reg |= URE_TXPKT_UDP_CS;
+		reg |= l4off << URE_L4_OFFSET_SHIFT;
+	}
+#endif
+	*regout = reg;
+	return 0;
 }
