@@ -143,6 +143,10 @@
 #define	URE_RCR_APM		0x00000002
 #define	URE_RCR_AM		0x00000004
 #define	URE_RCR_AB		0x00000008
+#define	URE_RCR_AR		0x00000010	/* runt */
+#define	URE_RCR_AER		0x00000020	/* error pkts */
+#define	URE_RCR_ACPTFLOW	0x00000080
+#define	URE_RCR_RXEMPTY		0x00020000
 #define	URE_RCR_ACPT_ALL	\
 	(URE_RCR_AAP | URE_RCR_APM | URE_RCR_AM | URE_RCR_AB)
 
@@ -391,34 +395,64 @@ struct ure_intrpkt {
 	uint8_t	ure_col_cnt;
 } __packed;
 
+#define	URE_RXPKT_ALIGN		8
 struct ure_rxpkt {
 	uint32_t ure_pktlen;
 #define	URE_RXPKT_LEN_MASK	0x7fff
-	uint32_t ure_rsvd0;
-	uint32_t ure_rsvd1;
+	uint32_t ure_csum;
+/* Linux driver has this in ure_misc, but my device has it in ure_csum */
+#define	URE_RXPKT_VLAN_MASK	0xffff
+#define	URE_RXPKT_RX_VLAN_TAG	(1 << 16)
+#define	URE_RXPKT_IPV4_CS	(1 << 19)
+#define	URE_RXPKT_IPV6_CS	(1 << 20)
+#define	URE_RXPKT_TCP_CS	(1 << 22)
+#define	URE_RXPKT_UDP_CS	(1 << 23)
+	uint32_t ure_misc;
+#define	URE_RXPKT_TCP_F		(1 << 21)
+#define	URE_RXPKT_UDP_F		(1 << 22)
+#define	URE_RXPKT_IP_F		(1 << 23)
 	uint32_t ure_rsvd2;
 	uint32_t ure_rsvd3;
 	uint32_t ure_rsvd4;
 } __packed;
 
+#define	URE_TXPKT_ALIGN		4
 struct ure_txpkt {
 	uint32_t ure_pktlen;
 #define	URE_TKPKT_TX_FS		(1 << 31)
 #define	URE_TKPKT_TX_LS		(1 << 30)
 #define	URE_TXPKT_LEN_MASK	0xffff
-	uint32_t ure_rsvd0;
+	uint32_t ure_csum;
+#define URE_L4_OFFSET_MAX       0x7ff
+#define URE_L4_OFFSET_SHIFT     17
+#define	URE_TXPKT_VLAN_MASK	0xffff
+#define URE_TXPKT_VLAN		(1 << 16)
+#define URE_TXPKT_IPV6_CS	(1 << 28)
+#define URE_TXPKT_IPV4_CS	(1 << 29)
+#define URE_TXPKT_TCP_CS	(1 << 30)
+#define URE_TXPKT_UDP_CS	(1 << 31)
+/* Lower 12 bits are the VLAN tag */
 } __packed;
 
-enum {
-	URE_BULK_DT_WR,
-	URE_BULK_DT_RD,
-	URE_N_TRANSFER,
-};
+#define	URE_N_TRANSFER	4
+#define	URE_TRANSFER_SIZE	16384
 
 struct ure_softc {
 	struct usb_ether	sc_ue;
 	struct mtx		sc_mtx;
-	struct usb_xfer		*sc_xfer[URE_N_TRANSFER];
+	struct usb_xfer		*sc_rx_xfer[URE_N_TRANSFER];
+	struct usb_xfer		*sc_tx_xfer[URE_N_TRANSFER];
+
+	int			sc_rxstarted;
+
+	struct usb_xfer		*sc_txavail[URE_N_TRANSFER];
+	/*
+	 * Position of next available xfer for TX.  If
+	 * sc_txpos == URE_N_TRANSFER, no tx xfer's are available.
+	 * Pop xfer:  sc->sc_txavail[sc->sc_txpos++]
+	 * Push xfer: sc->sc_txavail[(--(sc->sc_txpos))] = xfer
+	 */
+	int			sc_txpos;
 
 	int			sc_phyno;
 
@@ -427,6 +461,7 @@ struct ure_softc {
 #define	URE_FLAG_8152		0x1000	/* RTL8152 */
 
 	u_int			sc_chip;
+	u_int			sc_ver;
 #define	URE_CHIP_VER_4C00	0x01
 #define	URE_CHIP_VER_4C10	0x02
 #define	URE_CHIP_VER_5C00	0x04
