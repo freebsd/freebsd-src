@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8821a/r21a.h>
 #include <dev/rtwn/rtl8821a/r21a_reg.h>
 
-
 #ifndef RTWN_WITHOUT_UCODE
 void
 r21a_fw_reset(struct rtwn_softc *sc, int reason)

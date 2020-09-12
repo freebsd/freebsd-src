@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 #include <dev/rtwn/rtl8192c/r92c_tx_desc.h>
 
-
 void
 r92c_beacon_init(struct rtwn_softc *sc, void *buf, int id)
 {

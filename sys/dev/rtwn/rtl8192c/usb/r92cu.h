@@ -23,13 +23,11 @@
 
 #include <dev/rtwn/rtl8192c/r92c.h>
 
-
 /*
  * Global definitions.
  */
 #define R92CU_PUBQ_NPAGES	231
 #define R92CU_TX_PAGE_COUNT	248
-
 
 /*
  * Function declarations.

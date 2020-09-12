@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8812a/r12a_var.h>
 #include <dev/rtwn/rtl8812a/r12a_rom_image.h>
 
-
 void
 r12a_parse_rom_common(struct rtwn_softc *sc, uint8_t *buf)
 {

@@ -31,7 +31,6 @@
 
 #include <dev/rtwn/rtl8821a/r21a.h>
 
-
 /*
  * Function declarations.
  */

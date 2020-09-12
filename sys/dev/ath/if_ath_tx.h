@@ -71,7 +71,6 @@
 #define	ATH_BA_ISSET(_bm, _n)	(((_n) < (WME_BA_BMP_SIZE)) &&		\
 	    ((_bm)[(_n) >> 5] & (1 << ((_n) & 31))))
 
-
 /* extracting the seqno from buffer seqno */
 #define	SEQNO(_a)	((_a) >> IEEE80211_SEQ_SEQ_SHIFT)
 

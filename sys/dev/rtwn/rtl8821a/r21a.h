@@ -39,7 +39,6 @@
 
 #define R21A_TX_PAGE_SIZE	256
 
-
 /*
  * Function declarations.
  */

@@ -1276,6 +1276,8 @@ sta_pick_bss(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 		 * handle notification that this has completed.
 		 */
 		ss->ss_flags &= ~IEEE80211_SCAN_NOPICK;
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: nopick; return 1\n", __func__);
 		return 1;
 	}
 	/*
@@ -1285,7 +1287,9 @@ sta_pick_bss(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	/* NB: unlocked read should be ok */
 	if (TAILQ_FIRST(&st->st_entry) == NULL) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
-			"%s: no scan candidate\n", __func__);
+			"%s: no scan candidate, join=%d, return 0\n",
+			__func__,
+			!! (ss->ss_flags & IEEE80211_SCAN_NOJOIN));
 		if (ss->ss_flags & IEEE80211_SCAN_NOJOIN)
 			return 0;
 notfound:
@@ -1310,6 +1314,8 @@ notfound:
 		chan = demote11b(vap, chan);
 	if (!ieee80211_sta_join(vap, chan, &selbs->base))
 		goto notfound;
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+	    "%s: terminate scan; return 1\n", __func__);
 	return 1;				/* terminate scan */
 }
 

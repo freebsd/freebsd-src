@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <sys/socket.h>
- 
+
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
@@ -383,7 +383,6 @@ static device_method_t ath_pci_methods[] = {
 	DEVMETHOD(device_shutdown,	ath_pci_shutdown),
 	DEVMETHOD(device_suspend,	ath_pci_suspend),
 	DEVMETHOD(device_resume,	ath_pci_resume),
-
 	{ 0,0 }
 };
 static driver_t ath_pci_driver = {

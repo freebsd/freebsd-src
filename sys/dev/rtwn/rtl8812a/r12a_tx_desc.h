@@ -130,7 +130,6 @@ struct r12a_tx_desc {
 #define R12A_TXDW9_SEQ_S	12
 } __packed __attribute__((aligned(4)));
 
-
 /* Rate adaptation modes. */
 #define R12A_RAID_11BGN_2_40	0
 #define R12A_RAID_11BGN_1_40	1

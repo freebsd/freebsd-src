@@ -1970,49 +1970,48 @@ fail:
 	return (error);
 }
 
+static u_int
+zyd_hash_maddr(void *arg, struct sockaddr_dl *sdl, u_int cnt)
+{
+	uint32_t *hash = arg;
+	uint8_t v;
+
+	v = ((uint8_t *)LLADDR(sdl))[5] >> 2;
+	if (v < 32)
+		hash[0] |= 1 << v;
+	else
+		hash[1] |= 1 << (v - 32);
+
+	return (1);
+}
+
 static void
 zyd_set_multi(struct zyd_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
-	uint32_t low, high;
+	uint32_t hash[2];
 	int error;
 
 	if ((sc->sc_flags & ZYD_FLAG_RUNNING) == 0)
 		return;
 
-	low = 0x00000000;
-	high = 0x80000000;
+	hash[0] = 0x00000000;
+	hash[1] = 0x80000000;
 
 	if (ic->ic_opmode == IEEE80211_M_MONITOR || ic->ic_allmulti > 0 ||
 	    ic->ic_promisc > 0) {
-		low = 0xffffffff;
-		high = 0xffffffff;
+		hash[0] = 0xffffffff;
+		hash[1] = 0xffffffff;
 	} else {
 		struct ieee80211vap *vap;
-		struct ifnet *ifp;
-		struct ifmultiaddr *ifma;
-		uint8_t v;
 
-		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next) {
-			ifp = vap->iv_ifp;
-			if_maddr_rlock(ifp);
-			CK_STAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-				if (ifma->ifma_addr->sa_family != AF_LINK)
-					continue;
-				v = ((uint8_t *)LLADDR((struct sockaddr_dl *)
-				    ifma->ifma_addr))[5] >> 2;
-				if (v < 32)
-					low |= 1 << v;
-				else
-					high |= 1 << (v - 32);
-			}
-			if_maddr_runlock(ifp);
-		}
+		TAILQ_FOREACH(vap, &ic->ic_vaps, iv_next)
+			if_foreach_llmaddr(vap->iv_ifp, zyd_hash_maddr, &hash);
 	}
 
 	/* reprogram multicast global hash table */
-	zyd_write32_m(sc, ZYD_MAC_GHTBL, low);
-	zyd_write32_m(sc, ZYD_MAC_GHTBH, high);
+	zyd_write32_m(sc, ZYD_MAC_GHTBL, hash[0]);
+	zyd_write32_m(sc, ZYD_MAC_GHTBH, hash[1]);
 fail:
 	if (error != 0)
 		device_printf(sc->sc_dev,

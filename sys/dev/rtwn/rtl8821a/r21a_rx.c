@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8821a/r21a.h>
 
-
 int8_t
 r21a_get_rssi_cck(struct rtwn_softc *sc, void *physt)
 {

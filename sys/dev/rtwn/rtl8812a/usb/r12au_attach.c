@@ -72,7 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8812a/usb/r12au.h>
 #include <dev/rtwn/rtl8812a/usb/r12au_tx_desc.h>
 
-
 void	r12au_attach(struct rtwn_usb_softc *);
 
 static void

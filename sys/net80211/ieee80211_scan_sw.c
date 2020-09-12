@@ -298,6 +298,11 @@ ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
 			 * use.  Also discard any frames that might come
 			 * in while temporarily marked as scanning.
 			 */
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+			    "cache hot; ic_lastscan=%d, scanvalid=%d, ticks=%d\n",
+			    ic->ic_lastscan,
+			    vap->iv_scanvalid,
+			    ticks);
 			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_DISCARD;
 			ic->ic_flags |= IEEE80211_F_SCAN;
 
@@ -307,6 +312,8 @@ ieee80211_swscan_check_scan(const struct ieee80211_scanner *scan,
 
 			ic->ic_flags &= ~IEEE80211_F_SCAN;
 			SCAN_PRIVATE(ss)->ss_iflags &= ~ISCAN_DISCARD;
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+			    "%s: scan_end returned %d\n", __func__, result);
 			if (result) {
 				ieee80211_notify_scan_done(vap);
 				return 1;
@@ -675,19 +682,32 @@ scan_curchan_task(void *arg, int pending)
 	struct ieee80211com *ic = ss->ss_ic;
 	struct ieee80211_channel *chan;
 	unsigned long maxdwell;
-	int scandone;
+	int scandone, scanstop;
 
 	IEEE80211_LOCK(ic);
 end:
+	/*
+	 * Note: only /end/ the scan if we're CANCEL rather than
+	 * CANCEL+INTERRUPT (ie, 'PAUSE').
+	 *
+	 * We can stop the scan if we hit cancel, but we shouldn't
+	 * call scan_end(ss, 1) if we're just PAUSEing the scan.
+	 */
 	scandone = (ss->ss_next >= ss->ss_last) ||
-	    (ss_priv->ss_iflags & ISCAN_CANCEL) != 0;
+	    ((ss_priv->ss_iflags & ISCAN_PAUSE) == ISCAN_CANCEL);
+	scanstop = (ss->ss_next >= ss->ss_last) ||
+	    ((ss_priv->ss_iflags & ISCAN_CANCEL) != 0);
 
 	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN,
-	    "%s: loop start; scandone=%d\n",
+	    "%s: loop start; scandone=%d, scanstop=%d, ss_iflags=0x%x, ss_next=%u, ss_last=%u\n",
 	    __func__,
-	    scandone);
+	    scandone,
+	    scanstop,
+	    (uint32_t) ss_priv->ss_iflags,
+	    (uint32_t) ss->ss_next,
+	    (uint32_t) ss->ss_last);
 
-	if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
+	if (scanstop || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
 	    (ss_priv->ss_iflags & ISCAN_ABORT) ||
 	     ieee80211_time_after(ticks + ss->ss_mindwell, ss_priv->ss_scanend)) {
 		ss_priv->ss_iflags &= ~ISCAN_RUNNING;
@@ -787,11 +807,12 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
-	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
+	if ((scandone == 0) && ((ss_priv->ss_iflags & ISCAN_PAUSE) == ISCAN_CANCEL)) {
 		/* XXX printf? */
 		if_printf(vap->iv_ifp,
-		    "%s: OOPS! scan cancelled during driver call (1)!\n",
-		    __func__);
+		    "%s: OOPS! scan cancelled during driver call (1) (ss_iflags=0x%x)!\n",
+		    __func__,
+		    ss_priv->ss_iflags);
 		scandone = 1;
 	}
 
@@ -856,11 +877,12 @@ scan_end(struct ieee80211_scan_state *ss, int scandone)
 	 * Since a cancellation may have occurred during one of the
 	 * driver calls (whilst unlocked), update scandone.
 	 */
-	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_CANCEL) != 0) {
+	if (scandone == 0 && (ss_priv->ss_iflags & ISCAN_PAUSE) == ISCAN_CANCEL) {
 		/* XXX printf? */
 		if_printf(vap->iv_ifp,
-		    "%s: OOPS! scan cancelled during driver call (2)!\n",
-		    __func__);
+		    "%s: OOPS! scan cancelled during driver call (2) (ss_iflags=0x%x)!\n",
+		    __func__,
+		    ss_priv->ss_iflags);
 		scandone = 1;
 	}
 
@@ -900,11 +922,18 @@ scan_done(struct ieee80211_scan_state *ss, int scandone)
 		 */
 		if ((vap->iv_flags_ext & IEEE80211_FEXT_SCAN_OFFLOAD) == 0)
 			vap->iv_sta_ps(vap, 0);
-		if (ss->ss_next >= ss->ss_last)
+		if (ss->ss_next >= ss->ss_last) {
+			IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+			    "%s: Dropping out of scan; ss_next=%u, ss_last=%u\n",
+			    __func__,
+			    (uint32_t) ss->ss_next,
+			    (uint32_t) ss->ss_last);
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_BGSCAN;
+		}
 
 		/* send 'scan done' event if not interrupted due to traffic. */
-		if (!(ss_priv->ss_iflags & ISCAN_INTERRUPT))
+		if (!(ss_priv->ss_iflags & ISCAN_INTERRUPT) ||
+		    (ss->ss_next >= ss->ss_last))
 			ieee80211_notify_scan_done(vap);
 	}
 	ss_priv->ss_iflags &= ~(ISCAN_PAUSE | ISCAN_ABORT);

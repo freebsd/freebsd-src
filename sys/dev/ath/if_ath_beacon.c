@@ -777,7 +777,6 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	 * insure cab frames are triggered by this beacon.
 	 */
 	if (vap->iv_bcn_off.bo_tim[4] & 1) {
-
 		/* NB: only at DTIM */
 		ATH_TXQ_LOCK(&avp->av_mcastq);
 		if (nmcastq) {

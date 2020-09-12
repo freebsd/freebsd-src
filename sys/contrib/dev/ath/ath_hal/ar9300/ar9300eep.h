@@ -18,11 +18,15 @@
 #define _ATH_AR9300_EEP_H_
 
 #include "opt_ah.h"
-
 #include "ah.h"
 
 #if defined(WIN32) || defined(WIN64)
 #pragma pack (push, ar9300, 1)
+#endif
+
+/* Ensure that AH_BYTE_ORDER is defined */
+#ifndef AH_BYTE_ORDER
+#error AH_BYTE_ORDER needs to be defined!
 #endif
 
 /* FreeBSD extras - should be in ah_eeprom.h ? */
@@ -345,11 +349,13 @@ typedef struct CalCtlEdgePwr {
     u_int8_t  flag  :2,
               t_power :6;
 } __packed CAL_CTL_EDGE_PWR;
-#else
+#elif AH_BYTE_ORDER == AH_LITTLE_ENDIAN
 typedef struct CalCtlEdgePwr {
     u_int8_t  t_power :6,
              flag   :2;
 } __packed CAL_CTL_EDGE_PWR;
+#else
+#error AH_BYTE_ORDER undefined!
 #endif
 
 typedef struct ospCalCtlData_5G {

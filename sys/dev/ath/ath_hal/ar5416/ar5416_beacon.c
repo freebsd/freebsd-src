@@ -155,7 +155,7 @@ ar5416SetStaBeaconTimers(struct ath_hal *ah, const HAL_BEACON_STATE *bs)
 	uint32_t nextTbtt, nextdtim,beaconintval, dtimperiod;
 
 	HALASSERT(bs->bs_intval != 0);
-	
+
 	/* NB: no cfp setting since h/w automatically takes care */
 
 	OS_REG_WRITE(ah, AR_NEXT_TBTT, TU_TO_USEC(bs->bs_nexttbtt));

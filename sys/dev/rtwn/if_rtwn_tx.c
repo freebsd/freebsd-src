@@ -56,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/if_rtwn_ridx.h>
 #include <dev/rtwn/if_rtwn_tx.h>
 
-
 void
 rtwn_drain_mbufq(struct rtwn_softc *sc)
 {

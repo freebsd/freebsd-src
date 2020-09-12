@@ -382,7 +382,8 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 		goto finish;
 
 	error = !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
-	    (sc->sc_running) ? ath_reset(sc, ATH_RESET_NOLOSS) : 0;
+	    (sc->sc_running) ? ath_reset(sc, ATH_RESET_NOLOSS,
+	    HAL_RESET_NORMAL) : 0;
 
 finish:
 	ATH_LOCK(sc);
@@ -443,7 +444,8 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 		error = EINVAL;
 		goto finish;
 	}
-	error = sc->sc_running ? ath_reset(sc, ATH_RESET_FULL) : 0;
+	error = sc->sc_running ? ath_reset(sc, ATH_RESET_FULL,
+	    HAL_RESET_NORMAL) : 0;
 
 finish:
 	ATH_LOCK(sc);
@@ -670,7 +672,7 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	 * things in an inconsistent state.
 	 */
 	if (sc->sc_running)
-		ath_reset(sc, ATH_RESET_NOLOSS);
+		ath_reset(sc, ATH_RESET_NOLOSS, HAL_RESET_NORMAL);
 
 	error = 0;
 
@@ -1062,7 +1064,7 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
- 
+
 	/* Create "clear" node */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "clear_stats", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -1296,7 +1298,7 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_ldpc",
 	    CTLFLAG_RD, &sc->sc_stats.ast_tx_ldpc, 0,
 	    "Number of LDPC frames transmitted");
-	
+
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
 

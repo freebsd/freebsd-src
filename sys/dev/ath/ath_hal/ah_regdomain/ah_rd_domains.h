@@ -64,7 +64,6 @@
 	  W1(_fg) | W1(_fh) | W1(_fi) }
 
 static REG_DOMAIN regDomains[] = {
-
 	{.regDmnEnum		= DEBUG_REG_DMN,
 	 .conformanceTestLimit	= FCC,
 	 .dfsMask		= DFS_FCC3,

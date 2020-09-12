@@ -444,7 +444,6 @@ ath_hal_modevent(module_t mod __unused, int type, void *data __unused)
 	default:
 		error = EOPNOTSUPP;
 		break;
-
 	}
 	return (error);
 }

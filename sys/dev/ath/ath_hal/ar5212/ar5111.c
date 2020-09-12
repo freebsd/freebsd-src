@@ -336,7 +336,6 @@ ar5111SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
         	ar5212ModifyRfBuffer(rfReg, rfWaitS, 5, 19, 0);
         	ar5212ModifyRfBuffer(rfReg, rfWaitI, 5, 24, 0);
         	ar5212ModifyRfBuffer(rfReg, rfMaxTime, 2, 49, 0);
-
 	}
 
 	HAL_INI_WRITE_BANK(ah, ar5212Bank7_5111, rfReg, regWrites);

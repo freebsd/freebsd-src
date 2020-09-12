@@ -289,7 +289,7 @@ extern	HAL_BOOL ar5416SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 extern	uint32_t ar5416GetRxFilter(struct ath_hal *ah);
 extern	void ar5416SetRxFilter(struct ath_hal *ah, uint32_t bits);
 extern	HAL_BOOL ar5416StopDmaReceive(struct ath_hal *ah);
-extern	void ar5416StartPcuReceive(struct ath_hal *ah);
+extern	void ar5416StartPcuReceive(struct ath_hal *ah, HAL_BOOL);
 extern	void ar5416StopPcuReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetupRxDesc(struct ath_hal *,
 		struct ath_desc *, uint32_t size, u_int flags);
@@ -306,7 +306,8 @@ extern	HAL_BOOL ar5416PhyDisable(struct ath_hal *ah);
 extern	HAL_RFGAIN ar5416GetRfgain(struct ath_hal *ah);
 extern	HAL_BOOL ar5416Disable(struct ath_hal *ah);
 extern	HAL_BOOL ar5416ChipReset(struct ath_hal *ah,
-		const struct ieee80211_channel *);
+		const struct ieee80211_channel *,
+		HAL_RESET_TYPE);
 extern	int ar5416GetRegChainOffset(struct ath_hal *ah, int i);
 extern	HAL_BOOL ar5416SetBoardValues(struct ath_hal *,
 		const struct ieee80211_channel *);

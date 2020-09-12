@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8821a/usb/r21au.h>
 
-
 void	r21au_attach(struct rtwn_usb_softc *);
 
 static void

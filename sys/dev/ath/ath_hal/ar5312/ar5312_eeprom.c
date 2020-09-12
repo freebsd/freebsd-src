@@ -20,7 +20,6 @@
  */
 #include "opt_ah.h"
 
-
 #ifdef AH_SUPPORT_AR5312
 
 #include "ah.h"
@@ -39,7 +38,7 @@ ar5312EepromRead(struct ath_hal *ah, u_int off, uint16_t *dataIn)
         int i,offset;
 	const char *eepromAddr = AR5312_RADIOCONFIG(ah);
 	uint8_t *data;
-	
+
 	data = (uint8_t *) dataIn;
 	for (i=0,offset=2*off; i<2; i++,offset++) {
 		data[i] = eepromAddr[offset];

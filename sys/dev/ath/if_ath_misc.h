@@ -58,12 +58,14 @@ extern void ath_freebuf(struct ath_softc *sc, struct ath_buf *bf);
 extern void ath_returnbuf_head(struct ath_softc *sc, struct ath_buf *bf);
 extern void ath_returnbuf_tail(struct ath_softc *sc, struct ath_buf *bf);
 
-extern int ath_reset(struct ath_softc *, ATH_RESET_TYPE);
+extern int ath_reset(struct ath_softc *, ATH_RESET_TYPE,
+	    HAL_RESET_TYPE ah_reset_type);
 extern void ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf,
 	    int fail);
 extern void ath_tx_update_ratectrl(struct ath_softc *sc,
 	    struct ieee80211_node *ni, struct ath_rc_series *rc,
-	    struct ath_tx_status *ts, int frmlen, int nframes, int nbad);
+	    struct ath_tx_status *ts, int frmlen, int rc_framelen,
+	    int nframes, int nbad);
 
 extern	int ath_hal_gethangstate(struct ath_hal *ah, uint32_t mask,
 	    uint32_t *hangs);

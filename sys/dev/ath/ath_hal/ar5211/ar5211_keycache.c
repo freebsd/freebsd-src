@@ -163,7 +163,6 @@ ar5211SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 	if (k->kv_len <= 104 / NBBY)
 		key4 &= 0xff;
 
-
 	/*
 	 * Note: WEP key cache hardware requires that each double-word
 	 * pair be written in even/odd order (since the destination is

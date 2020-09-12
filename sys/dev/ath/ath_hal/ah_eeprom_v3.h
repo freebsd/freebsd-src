@@ -231,7 +231,6 @@ typedef struct cornerCalInfo {
 #define NUM_TARGET_POWER_LOCATIONS_11B  4
 #define NUM_TARGET_POWER_LOCATIONS_11G  6
 
-
 typedef struct {
 	uint16_t	xpd_gain;
 	uint16_t	numPcdacs;

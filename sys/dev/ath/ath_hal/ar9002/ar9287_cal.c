@@ -41,7 +41,6 @@
 
 #include "ar9002/ar9287_cal.h"
 
-
 void
 ar9287PACal(struct ath_hal *ah, HAL_BOOL is_reset)
 {
@@ -55,7 +54,7 @@ HAL_BOOL
 ar9287InitCalHardware(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	OS_REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_FLTR_CAL);
-	
+
 	/* Calibrate the AGC */
 	OS_REG_WRITE(ah, AR_PHY_AGC_CONTROL,
 	    OS_REG_READ(ah, AR_PHY_AGC_CONTROL) | AR_PHY_AGC_CONTROL_CAL);

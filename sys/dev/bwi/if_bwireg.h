@@ -77,7 +77,6 @@
 #define BWI_CONF_LO_REQTO_MASK		__BITS(6, 4)	/* request timeout */
 #define BWI_CONF_LO_REQTO		3
 
-
 #define BWI_ID_LO			0xff8
 #define BWI_ID_LO_BUSREV_MASK		__BITS(31, 28)
 /* Bus revision */

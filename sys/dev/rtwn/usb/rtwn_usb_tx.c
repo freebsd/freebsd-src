@@ -67,11 +67,9 @@ static struct rtwn_data * rtwn_usb_getbuf(struct rtwn_usb_softc *);
 static void		rtwn_usb_txeof(struct rtwn_usb_softc *,
 			    struct rtwn_data *, int);
 
-
 static const uint8_t wme2qid[] =
 	{ RTWN_BULK_TX_BE, RTWN_BULK_TX_BK,
 	  RTWN_BULK_TX_VI, RTWN_BULK_TX_VO };
-
 
 static struct rtwn_data *
 _rtwn_usb_getbuf(struct rtwn_usb_softc *uc)

@@ -125,17 +125,23 @@ void	ath_rate_newassoc(struct ath_softc *, struct ath_node *,
  * Return the four TX rate index and try counts for the current data packet.
  */
 void	ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-		uint8_t rix0, struct ath_rc_series *rc);
+		uint8_t rix0, int is_aggr, struct ath_rc_series *rc);
 
 /*
  * Return the transmit info for a data packet.  If multi-rate state
  * is to be setup then try0 should contain a value other than ATH_TXMATRY
  * and ath_rate_setupxtxdesc will be called after deciding if the frame
  * can be transmitted with multi-rate retry.
+ *
+ * maxdur is an optional return value (or -1 if not set) that defines
+ * the maximum frame duration in microseconds.  This allows the rate
+ * control selection to override the maximum duration (normally 4ms)
+ * that the packet aggregation logic makes.
  */
 void	ath_rate_findrate(struct ath_softc *, struct ath_node *,
-		int shortPreamble, size_t frameLen,
-		u_int8_t *rix, int *try0, u_int8_t *txrate);
+		int shortPreamble, size_t frameLen, int tid, int is_aggr,
+		u_int8_t *rix, int *try0, u_int8_t *txrate, int *maxdur,
+		int *maxpktlen);
 /*
  * Setup any extended (multi-rate) descriptor state for a data packet.
  * The rate index returned by ath_rate_findrate is passed back in.
@@ -154,7 +160,13 @@ void	ath_rate_setupxtxdesc(struct ath_softc *, struct ath_node *,
 struct ath_buf;
 void	ath_rate_tx_complete(struct ath_softc *, struct ath_node *,
 		const struct ath_rc_series *, const struct ath_tx_status *,
-		int pktlen, int nframes, int nbad);
+		int pktlen, int rc_framelen, int nframes, int nbad);
+
+/*
+ * Update rate control with a per-packet receive RSSI value.
+ */
+void	ath_rate_update_rx_rssi(struct ath_softc *, struct ath_node *,
+		int rssi);
 
 /*
  * Fetch the global rate control statistics.

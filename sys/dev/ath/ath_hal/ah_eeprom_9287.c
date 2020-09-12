@@ -207,11 +207,11 @@ static uint16_t
 v9287EepromGetSpurChan(struct ath_hal *ah, int ix, HAL_BOOL is2GHz)
 { 
 	HAL_EEPROM_9287 *ee = AH_PRIVATE(ah)->ah_eeprom;
-	
+
 	HALASSERT(is2GHz == AH_TRUE);
 	if (is2GHz != AH_TRUE)
 		return 0;	/* XXX ? */
-	
+
 	HALASSERT(0 <= ix && ix <  AR5416_EEPROM_MODAL_SPURS);
 	return ee->ee_base.modalHeader.spurChans[ix].spurChan;
 }
@@ -234,7 +234,6 @@ fbin2freq(uint8_t fbin, HAL_BOOL is2GHz)
 	return (uint16_t)((is2GHz) ? (2300 + fbin) : (4800 + 5 * fbin));
 }
 
-
 /*
  * Copy EEPROM Conformance Testing Limits contents 
  * into the allocated space
@@ -247,7 +246,7 @@ v9287EepromReadCTLInfo(struct ath_hal *ah, HAL_EEPROM_9287 *ee)
 {
 	RD_EDGES_POWER *rep = ee->ee_rdEdgesPower;
 	int i, j;
-	
+
 	HALASSERT(AR9287_NUM_CTLS <= sizeof(ee->ee_rdEdgesPower)/NUM_EDGES);
 
 	for (i = 0; ee->ee_base.ctlIndex[i] != 0 && i < AR9287_NUM_CTLS; i++) {
@@ -359,7 +358,7 @@ ath_hal_9287EepromAttach(struct ath_hal *ah)
 		len = ee->ee_base.baseEepHeader.length;
 	}
 	len = AH_MIN(len, sizeof(HAL_EEPROM_9287)) / sizeof(uint16_t);
-	
+
 	/* Apply the checksum, done in native eeprom format */
 	/* XXX - Need to check to make sure checksum calculation is done
 	 * in the correct endian format.  Right now, it seems it would

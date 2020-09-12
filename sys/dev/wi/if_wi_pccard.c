@@ -85,7 +85,6 @@ static device_method_t wi_pccard_methods[] = {
 	DEVMETHOD(device_attach,	wi_pccard_attach),
 	DEVMETHOD(device_detach,	wi_detach),
 	DEVMETHOD(device_shutdown,	wi_shutdown),
-
 	{ 0, 0 }
 };
 

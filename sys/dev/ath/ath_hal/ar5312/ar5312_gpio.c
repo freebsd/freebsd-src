@@ -129,5 +129,4 @@ ar5312GpioSetIntr(struct ath_hal *ah, u_int gpio, uint32_t ilevel)
 	(void) ar5212SetInterrupts(ah, AH5212(ah)->ah_maskReg | HAL_INT_GPIO);
 }
 
-
 #endif /* AH_SUPPORT_AR5312 */

@@ -19,17 +19,13 @@
 
 #include "ar9300_freebsd_inc.h"
 
-#define	AH_BIG_ENDIAN		4321
-#define	AH_LITTLE_ENDIAN	1234
-
-#if _BYTE_ORDER == _BIG_ENDIAN
-#define	AH_BYTE_ORDER	AH_BIG_ENDIAN
-#else
-#define	AH_BYTE_ORDER	AH_LITTLE_ENDIAN
-#endif
-
 /* XXX doesn't belong here */
 #define	AR_EEPROM_MODAL_SPURS	5
+
+/* Ensure that AH_BYTE_ORDER is defined */
+#ifndef AH_BYTE_ORDER
+#error AH_BYTE_ORDER needs to be defined!
+#endif
 
 /*
  * (a) this should be N(a),
@@ -43,9 +39,7 @@
 #include "ah_devid.h"
 #include "ar9300eep.h"  /* For Eeprom definitions */
 
-
 #define AR9300_MAGIC    0x19741014
-
 
 /* MAC register values */
 
@@ -1396,7 +1390,7 @@ extern  void ar9300_wowoffload_download_ns_info(struct ath_hal *ah, u_int32_t id
 extern  HAL_BOOL ar9300_reset(struct ath_hal *ah, HAL_OPMODE opmode,
         struct ieee80211_channel *chan, HAL_HT_MACMODE macmode, u_int8_t txchainmask,
         u_int8_t rxchainmask, HAL_HT_EXTPROTSPACING extprotspacing,
-        HAL_BOOL b_channel_change, HAL_STATUS *status, int is_scan);
+        HAL_BOOL b_channel_change, HAL_STATUS *status, HAL_RESET_TYPE reset_type, int is_scan);
 extern HAL_BOOL ar9300_lean_channel_change(struct ath_hal *ah, HAL_OPMODE opmode, struct ieee80211_channel *chan,
         HAL_HT_MACMODE macmode, u_int8_t txchainmask, u_int8_t rxchainmask);
 extern  HAL_BOOL ar9300_set_reset_reg(struct ath_hal *ah, u_int32_t type);
@@ -1406,7 +1400,7 @@ extern  u_int16_t ar9300_is_single_ant_power_save_possible(struct ath_hal *ah);
 extern  void ar9300_set_operating_mode(struct ath_hal *ah, int opmode);
 extern  HAL_BOOL ar9300_phy_disable(struct ath_hal *ah);
 extern  HAL_BOOL ar9300_disable(struct ath_hal *ah);
-extern  HAL_BOOL ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *);
+extern  HAL_BOOL ar9300_chip_reset(struct ath_hal *ah, struct ieee80211_channel *, HAL_RESET_TYPE type);
 extern  HAL_BOOL ar9300_calibration(struct ath_hal *ah,  struct ieee80211_channel *chan,
         u_int8_t rxchainmask, HAL_BOOL longcal, HAL_BOOL *isIQdone, int is_scan, u_int32_t *sched_cals);
 extern  void ar9300_reset_cal_valid(struct ath_hal *ah,

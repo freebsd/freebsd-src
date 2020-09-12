@@ -150,5 +150,3 @@ ar9285BTCoexSetParameter(struct ath_hal *ah, u_int32_t type, u_int32_t value)
 		break;
 	}
 }
-
-

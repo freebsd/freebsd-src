@@ -80,7 +80,6 @@ struct rtwn_tx_phystat {
 	uint32_t	phydw[RTWN_PHY_STATUS_SIZE / sizeof(uint32_t)];
 };
 
-
 struct rtwn_softc;
 
 union sec_param {
@@ -423,14 +422,12 @@ MALLOC_DECLARE(M_RTWN_PRIV);
 #define RTWN_NT_LOCK_INITIALIZED(sc)	mtx_initialized(&(sc)->nt_mtx)
 #define RTWN_NT_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->nt_mtx)
 
-
 void	rtwn_sysctlattach(struct rtwn_softc *);
 
 int	rtwn_attach(struct rtwn_softc *);
 void	rtwn_detach(struct rtwn_softc *);
 void	rtwn_resume(struct rtwn_softc *);
 void	rtwn_suspend(struct rtwn_softc *);
-
 
 /* Interface-specific. */
 #define rtwn_write_1(_sc, _addr, _val) \
@@ -590,7 +587,6 @@ void	rtwn_suspend(struct rtwn_softc *);
 	(((_sc)->sc_post_init)((_sc)))
 #define rtwn_init_bcnq1_boundary(_sc) \
 	(((_sc)->sc_init_bcnq1_boundary)((_sc)))
-
 
 /*
  * Methods to access subfields in registers.

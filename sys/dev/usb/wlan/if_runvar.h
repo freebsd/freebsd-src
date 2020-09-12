@@ -23,14 +23,15 @@
 #ifndef _IF_RUNVAR_H_
 #define	_IF_RUNVAR_H_
 
+/* Support up to 4KB frames - useful for A-MSDU/FF. */
 #define	RUN_MAX_RXSZ			\
 	MIN(4096, MJUMPAGESIZE)
 
-/* NB: "11" is the maximum number of padding bytes needed for Tx */
+/* Support up to 8KB frames - useful for A-MSDU/FF. */
 #define	RUN_MAX_TXSZ			\
 	(sizeof (struct rt2870_txd) +	\
 	 sizeof (struct rt2860_txwi) +	\
-	 MCLBYTES + 11)
+	 8192 + 11)
 
 #define	RUN_TX_TIMEOUT	5000	/* ms */
 
@@ -97,8 +98,6 @@ STAILQ_HEAD(run_tx_data_head, run_tx_data);
 
 struct run_node {
 	struct ieee80211_node	ni;
-	uint8_t			ridx[IEEE80211_RATE_MAXSIZE];
-	uint8_t			ctl_ridx[IEEE80211_RATE_MAXSIZE];
 	uint8_t			amrr_ridx;
 	uint8_t			mgt_ridx;
 	uint8_t			fix_ridx;

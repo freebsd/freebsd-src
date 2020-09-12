@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <sys/socket.h>
- 
+
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_arp.h>
@@ -112,8 +112,9 @@ ath_rate_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 
 void
 ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
-	int shortPreamble, size_t frameLen,
-	u_int8_t *rix, int *try0, u_int8_t *txrate)
+	int shortPreamble, size_t frameLen, int tid, int is_aggr,
+	u_int8_t *rix, int *try0, u_int8_t *txrate, int *maxdur,
+	int *maxpktlen)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
 
@@ -123,6 +124,8 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		*txrate = on->on_tx_rate0sp;
 	else
 		*txrate = on->on_tx_rate0;
+	*maxdur = -1;
+	*maxpktlen = -1;
 }
 
 /*
@@ -133,7 +136,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
  */
 void
 ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-    uint8_t rix0, struct ath_rc_series *rc)
+    uint8_t rix0, int is_aggr, struct ath_rc_series *rc)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
 
@@ -166,7 +169,7 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 	const struct ath_rc_series *rc, const struct ath_tx_status *ts,
-	int frame_size, int nframes, int nbad)
+	int frame_size, int rc_framesize, int nframes, int nbad)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
 
@@ -187,6 +190,11 @@ ath_rate_newassoc(struct ath_softc *sc, struct ath_node *an, int isnew)
 {
 	if (isnew)
 		ath_rate_ctl_start(sc, &an->an_node);
+}
+
+void
+ath_rate_update_rx_rssi(struct ath_softc *sc, struct ath_node *an, int rssi)
+{
 }
 
 static void
@@ -218,7 +226,7 @@ ath_rate_update(struct ath_softc *sc, struct ieee80211_node *ni, int rate)
 	ni->ni_txrate = ni->ni_rates.rs_rates[rate] & IEEE80211_RATE_VAL;
 	on->on_tx_rix0 = sc->sc_rixmap[ni->ni_txrate];
 	on->on_tx_rate0 = rt->info[on->on_tx_rix0].rateCode;
-	
+
 	on->on_tx_rate0sp = on->on_tx_rate0 |
 		rt->info[on->on_tx_rix0].shortPreamble;
 	if (sc->sc_mrretry) {

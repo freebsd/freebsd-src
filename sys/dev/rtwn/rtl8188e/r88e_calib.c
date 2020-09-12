@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8188e/r88e.h>
 #include <dev/rtwn/rtl8188e/r88e_reg.h>
 
-
 /* Registers to save and restore during IQ calibration. */
 struct r88e_iq_cal_reg_vals {
 	uint32_t	adda[16];

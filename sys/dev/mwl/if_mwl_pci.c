@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <sys/socket.h>
- 
+
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
@@ -98,7 +98,6 @@ static const struct mwl_pci_ident mwl_pci_ids[] = {
 	{ 0x11ab, 0x2a0c, "Marvell 88W8363" },
 	{ 0x11ab, 0x2a21, "Marvell 88W8363" },
 	{ 0x11ab, 0x2a24, "Marvell 88W8363" },
-
 	{ 0, 0, NULL }
 };
 
@@ -280,7 +279,6 @@ static device_method_t mwl_pci_methods[] = {
 	DEVMETHOD(device_shutdown,	mwl_pci_shutdown),
 	DEVMETHOD(device_suspend,	mwl_pci_suspend),
 	DEVMETHOD(device_resume,	mwl_pci_resume),
-
 	{ 0,0 }
 };
 static driver_t mwl_pci_driver = {

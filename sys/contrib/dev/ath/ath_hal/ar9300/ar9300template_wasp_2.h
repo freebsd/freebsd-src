@@ -24,6 +24,12 @@
 
 #ifndef __ar9300template_wasp_2_h__
 #define __ar9300template_wasp_2_h__
+
+/* Ensure that AH_BYTE_ORDER is defined */
+#ifndef AH_BYTE_ORDER
+#error AH_BYTE_ORDER needs to be defined!
+#endif
+
 static ar9300_eeprom_t ar9300_template_wasp_2=
 {
 

@@ -55,10 +55,12 @@ static inline void ar9300_init_rate_txpower_stbc(struct ath_hal *ah,
        const HAL_RATE_TABLE *rt, HAL_BOOL is40,
        int rt_ss_offset, int rt_ds_offset,
        int rt_ts_offset, u_int8_t chainmask);
+#if 0
 static inline void ar9300_adjust_rate_txpower_cdd(struct ath_hal *ah,
        const HAL_RATE_TABLE *rt, HAL_BOOL is40,
        int rt_ss_offset, int rt_ds_offset,
        int rt_ts_offset, u_int8_t chainmask);
+#endif
 
 #define AR9300_11A_RT_OFDM_OFFSET    0
 HAL_RATE_TABLE ar9300_11a_table = {
@@ -442,6 +444,8 @@ ar9300_adjust_reg_txpower_cdd(struct ath_hal *ah,
            ((int16_t)AH_MIN((ahp->twice_antenna_reduction -
            (ahp->twice_antenna_gain + AR9300_TXBF_2TX_ARRAY_GAIN)), 0));
         cdd_power = ahp->upper_limit[1] + twice_array_gain;
+
+        HALDEBUG(ah, HAL_DEBUG_CALIBRATE, "%s: 2 chain; cdd_power=%d", __func__, cdd_power);
         /* Adjust OFDM legacy rates as well */
         for (i = ALL_TARGET_LEGACY_6_24; i <= ALL_TARGET_LEGACY_54; i++) {
             if (power_per_rate[i] > cdd_power) {
@@ -471,6 +475,7 @@ ar9300_adjust_reg_txpower_cdd(struct ath_hal *ah,
             ((int16_t)AH_MIN((ahp->twice_antenna_reduction -
             (ahp->twice_antenna_gain + AR9300_TXBF_3TX_ARRAY_GAIN)), 0));
         cdd_power = ahp->upper_limit[2] + twice_array_gain;
+        HALDEBUG(ah, HAL_DEBUG_CALIBRATE, "%s: 3 chain; cdd_power=%d", __func__, cdd_power);
         /* Adjust OFDM legacy rates as well */
         for (i = ALL_TARGET_LEGACY_6_24; i <= ALL_TARGET_LEGACY_54; i++) {
             if (power_per_rate[i] > cdd_power) {
@@ -531,6 +536,7 @@ ar9300_init_rate_txpower(struct ath_hal *ah, u_int mode,
                             AR9300_11NA_RT_HT_SS_OFFSET,
                             AR9300_11NA_RT_HT_DS_OFFSET,
                             AR9300_11NA_RT_HT_TS_OFFSET, chainmask);
+#if 0
         /* For FCC the array gain has to be factored for CDD mode */
         if (is_reg_dmn_fcc(ath_hal_getctl(ah, chan))) {
             ar9300_adjust_rate_txpower_cdd(ah, rt, is40, 
@@ -538,6 +544,7 @@ ar9300_init_rate_txpower(struct ath_hal *ah, u_int mode,
                             AR9300_11NA_RT_HT_DS_OFFSET,
                             AR9300_11NA_RT_HT_TS_OFFSET, chainmask);
         }
+#endif
         break;
     case HAL_MODE_11G:
         ar9300_init_rate_txpower_cck(ah, rt, power_per_rate, chainmask);
@@ -561,6 +568,7 @@ ar9300_init_rate_txpower(struct ath_hal *ah, u_int mode,
                             AR9300_11NG_RT_HT_SS_OFFSET,
                             AR9300_11NG_RT_HT_DS_OFFSET,
                             AR9300_11NG_RT_HT_TS_OFFSET, chainmask);
+#if 0
         /* For FCC the array gain needs to be factored for CDD mode */
         if (is_reg_dmn_fcc(ath_hal_getctl(ah, chan))) {
             ar9300_adjust_rate_txpower_cdd(ah, rt, is40, 
@@ -568,6 +576,7 @@ ar9300_init_rate_txpower(struct ath_hal *ah, u_int mode,
                             AR9300_11NG_RT_HT_DS_OFFSET,
                             AR9300_11NG_RT_HT_TS_OFFSET, chainmask);
         }
+#endif
         break;
     default:
         HALDEBUG(ah, HAL_DEBUG_POWER_MGMT, "%s: invalid mode 0x%x\n",
@@ -941,6 +950,10 @@ ar9300_init_rate_txpower_stbc(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
     return;
 }
 
+/*
+ * To see why this is disabled, look at ar9300_eeprom.c for FCC/OET 13TR1003.
+ */
+#if 0
 static inline void
 ar9300_adjust_rate_txpower_cdd(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
                         HAL_BOOL is40,
@@ -1037,6 +1050,7 @@ ar9300_adjust_rate_txpower_cdd(struct ath_hal *ah, const HAL_RATE_TABLE *rt,
     return;
 
 }
+#endif
 
 void ar9300_disp_tpc_tables(struct ath_hal *ah)
 {

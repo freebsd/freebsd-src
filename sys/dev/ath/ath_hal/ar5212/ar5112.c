@@ -281,7 +281,7 @@ ar5112SetRfRegs(struct ath_hal *ah,
 		ar5212ModifyRfBuffer(priv->Bank6Data, ob5GHz, 3, 279, 0);
 		ar5212ModifyRfBuffer(priv->Bank6Data, db5GHz, 3, 282, 0);
 	}
-	
+
 	/* Lower synth voltage for X112 Rev 2.0 only */
 	if (IS_RADX112_REV2(ah)) {
 		/* Non-Reversed analyg registers - so values are pre-reversed */
@@ -763,7 +763,7 @@ ar5112GetMinPower(struct ath_hal *ah, const EXPN_DATA_PER_CHANNEL_5112 *data)
 	retVal = minPwr - (minPcdac*2);
 	return(retVal);
 }
-	
+
 static HAL_BOOL
 ar5112GetChannelMaxMinPower(struct ath_hal *ah,
 	const struct ieee80211_channel *chan,

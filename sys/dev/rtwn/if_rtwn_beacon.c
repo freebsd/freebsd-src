@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/rtwn/rtl8192c/r92c_reg.h>
 
-
 static void
 rtwn_reset_beacon_valid(struct rtwn_softc *sc, int id)
 {

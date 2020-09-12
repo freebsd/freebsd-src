@@ -335,7 +335,7 @@ ieee80211_pwrsave(struct ieee80211_node *ni, struct mbuf *m)
 	if (psq->psq_len >= psq->psq_maxlen) {
 		psq->psq_drops++;
 		IEEE80211_PSQ_UNLOCK(psq);
-		IEEE80211_NOTE(vap, IEEE80211_MSG_ANY, ni,
+		IEEE80211_NOTE(vap, IEEE80211_MSG_POWER, ni,
 		    "pwr save q overflow, drops %d (size %d)",
 		    psq->psq_drops, psq->psq_len);
 #ifdef IEEE80211_DEBUG

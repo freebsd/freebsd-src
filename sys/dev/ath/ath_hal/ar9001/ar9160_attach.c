@@ -200,7 +200,7 @@ ar9160Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_pcieserdes, ar9160PciePhy, 2);
 	ar5416AttachPCIE(ah);
 
-	if (!ar5416ChipReset(ah, AH_NULL)) {	/* reset chip */
+	if (!ar5416ChipReset(ah, AH_NULL, HAL_RESET_NORMAL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		ecode = HAL_EIO;
 		goto bad;

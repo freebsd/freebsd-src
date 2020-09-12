@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/rtwn/rtl8821a/usb/r21au.h>
 #include <dev/rtwn/rtl8821a/usb/r21au_reg.h>
 
-
 void
 r21au_init_tx_agg(struct rtwn_softc *sc)
 {
@@ -69,4 +68,3 @@ r21au_init_tx_agg(struct rtwn_softc *sc)
 
 	rtwn_write_1(sc, R21A_DWBCN1_CTRL, uc->tx_agg_desc_num << 1);
 }
-

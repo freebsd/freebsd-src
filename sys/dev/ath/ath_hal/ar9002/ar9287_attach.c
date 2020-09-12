@@ -146,7 +146,6 @@ ar9287Attach(uint16_t devid, HAL_SOFTC sc,
 		ah->ah_eepromdata = eepromdata;
 	}
 
-
 	/* XXX override with 9280 specific state */
 	/* override 5416 methods for our needs */
 	AH5416(ah)->ah_initPLL = ar9280InitPLL;
@@ -242,7 +241,7 @@ ar9287Attach(uint16_t devid, HAL_SOFTC sc,
 	if (ecode != HAL_OK)
 		goto bad;
 
-	if (!ar5416ChipReset(ah, AH_NULL)) {	/* reset chip */
+	if (!ar5416ChipReset(ah, AH_NULL, HAL_RESET_NORMAL)) {	/* reset chip */
 		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: chip reset failed\n", __func__);
 		ecode = HAL_EIO;
 		goto bad;
