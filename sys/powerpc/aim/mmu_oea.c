@@ -157,6 +157,9 @@ __FBSDID("$FreeBSD$");
 #define	VSID_TO_SR(vsid)	((vsid) & 0xf)
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
 
+/* Get physical address from PVO. */
+#define PVO_PADDR(pvo)		((pvo)->pvo_pte.pte.pte_lo & PTE_RPGN)
+
 struct ofw_map {
 	vm_offset_t	om_va;
 	vm_size_t	om_len;
@@ -1265,7 +1268,7 @@ moea_extract(pmap_t pm, vm_offset_t va)
 	if (pvo == NULL)
 		pa = 0;
 	else
-		pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
+		pa = PVO_PADDR(pvo) | (va & ADDR_POFF);
 	PMAP_UNLOCK(pm);
 	return (pa);
 }
@@ -1287,7 +1290,7 @@ moea_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	if (pvo != NULL && (pvo->pvo_pte.pte.pte_hi & PTE_VALID) &&
 	    ((pvo->pvo_pte.pte.pte_lo & PTE_PP) == PTE_RW ||
 	     (prot & VM_PROT_WRITE) == 0)) {
-		m = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte.pte_lo & PTE_RPGN);
+		m = PHYS_TO_VM_PAGE(PVO_PADDR(pvo));
 		if (!vm_page_wire_mapped(m))
 			m = NULL;
 	}
@@ -1535,7 +1538,7 @@ moea_kextract(vm_offset_t va)
 	PMAP_LOCK(kernel_pmap);
 	pvo = moea_pvo_find_va(kernel_pmap, va & ~ADDR_POFF, NULL);
 	KASSERT(pvo != NULL, ("moea_kextract: no addr found"));
-	pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) | (va & ADDR_POFF);
+	pa = PVO_PADDR(pvo) | (va & ADDR_POFF);
 	PMAP_UNLOCK(kernel_pmap);
 	return (pa);
 }
@@ -2001,7 +2004,7 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	mtx_lock(&moea_table_mutex);
 	LIST_FOREACH(pvo, &moea_pvo_table[ptegidx], pvo_olink) {
 		if (pvo->pvo_pmap == pm && PVO_VADDR(pvo) == va) {
-			if ((pvo->pvo_pte.pte.pte_lo & PTE_RPGN) == pa &&
+			if (PVO_PADDR(pvo) == pa &&
 			    (pvo->pvo_pte.pte.pte_lo & PTE_PP) ==
 			    (pte_lo & PTE_PP)) {
 				/*
@@ -2129,7 +2132,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
 		struct vm_page *pg;
 
-		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte.pte_lo & PTE_RPGN);
+		pg = PHYS_TO_VM_PAGE(PVO_PADDR(pvo));
 		if (pg != NULL) {
 			moea_attr_save(pg, pvo->pvo_pte.pte.pte_lo &
 			    (PTE_REF | PTE_CHG));
@@ -2696,8 +2699,7 @@ moea_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 		len = MIN(lim - va, sz);
 		pvo = moea_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
 		if (pvo != NULL) {
-			pa = (pvo->pvo_pte.pte.pte_lo & PTE_RPGN) |
-			    (va & ADDR_POFF);
+			pa = PVO_PADDR(pvo) | (va & ADDR_POFF);
 			moea_syncicache(pa, len);
 		}
 		va += len;
