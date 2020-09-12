@@ -14,7 +14,7 @@ index c4a44e3..4626e9b 100644
 +    <option>--enable-tls</option>, <option>--enable-utrace</option>, and
 +    <option>--enable-xmalloc</option>.  Additionally,
 +    <option>--enable-debug</option> is enabled in development versions of
-+    FreeBSD (controlled by the <constant>MALLOC_PRODUCTION</constant> make
++    FreeBSD (controlled by the <constant>MK_MALLOC_PRODUCTION</constant> make
 +    variable).</para>
 +
    </refsect1>
