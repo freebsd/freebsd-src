@@ -32,11 +32,11 @@ do
 	fi
 	MdLoad/MdLoad md${MD} $f
 	if [ -f Ref/$b ] ; then
-		if diskinfo /dev/md${MD}* | 
-		   diff -I '$FreeBSD' -u Ref/$b - > $TMP; then
+		if diskinfo /dev/md${MD}* |
+		   diff -I '\$FreeBSD' -u Ref/$b - > $TMP; then
 			echo "ok - $b"
 		else
-			echo "not ok - $b" 
+			echo "not ok - $b"
 			sed 's/^/# /' $TMP
 		fi
 	else
