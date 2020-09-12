@@ -568,15 +568,10 @@ main(int argc, char *argv[])
 	case IPPROTO_ICMPV6:
 		sndsock = rcvsock;
 		break;
-	case IPPROTO_UDP:
-		if ((sndsock = socket(AF_INET6, SOCK_RAW, IPPROTO_UDP)) < 0) {
-			perror("socket(SOCK_RAW)");
-			exit(5);
-		}
-		break;
 	case IPPROTO_NONE:
 	case IPPROTO_SCTP:
 	case IPPROTO_TCP:
+	case IPPROTO_UDP:
 		if ((sndsock = socket(AF_INET6, SOCK_RAW, useproto)) < 0) {
 			perror("socket(SOCK_RAW)");
 			exit(5);
