@@ -216,7 +216,7 @@ g_simdisk_xml_load(const char *file)
 
 	fd = open(file, O_RDONLY);
 	if (fd < 0)
-		err(1, file);
+		err(1, "%s", file);
 	fstat(fd, &st);
 	p = mmap(NULL, st.st_size, PROT_READ, MAP_NOCORE|MAP_PRIVATE, fd, 0);
 	i = XML_Parse(parser, p, st.st_size, 1);
