@@ -57,9 +57,6 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "msi_if.h"
 
-extern struct bus_space memmap_bus;
-
-#define BUS_SPACE_3G_MAXADDR	0xc0000000
 #define PCI_ID_VAL3		0x43c
 #define CLASS_SHIFT		0x10
 #define SUBCLASS_SHIFT		0x8
@@ -69,18 +66,18 @@ extern struct bus_space memmap_bus;
 #define BRIDGE_DISABLE_FLAG	0x1
 #define BRIDGE_RESET_FLAG	0x2
 #define REG_BRIDGE_SERDES_MODE			0x4204
-#define REG_BRIDGE_CONFIG			0x4008
-#define REG_BRIDGE_MEM_WINDOW_LOW		0x4034
-#define REG_BRIDGE_MEM_WINDOW_HIGH		0x4038
-#define REG_BRIDGE_MEM_WINDOW_1			0x403c
+#define REG_DMA_CONFIG				0x4008
+#define REG_DMA_WINDOW_LOW			0x4034
+#define REG_DMA_WINDOW_HIGH			0x4038
+#define REG_DMA_WINDOW_1			0x403c
 #define REG_BRIDGE_GISB_WINDOW			0x402c
 #define REG_BRIDGE_STATE			0x4068
 #define REG_BRIDGE_LINK_STATE			0x00bc
-#define REG_BRIDGE_BUS_WINDOW_LOW		0x400c
-#define REG_BRIDGE_BUS_WINDOW_HIGH		0x4010
-#define REG_BRIDGE_CPU_WINDOW_LOW		0x4070
-#define REG_BRIDGE_CPU_WINDOW_START_HIGH	0x4080
-#define REG_BRIDGE_CPU_WINDOW_END_HIGH		0x4084
+#define REG_BUS_WINDOW_LOW			0x400c
+#define REG_BUS_WINDOW_HIGH			0x4010
+#define REG_CPU_WINDOW_LOW			0x4070
+#define REG_CPU_WINDOW_START_HIGH		0x4080
+#define REG_CPU_WINDOW_END_HIGH			0x4084
 
 #define REG_MSI_ADDR_LOW			0x4044
 #define REG_MSI_ADDR_HIGH			0x4048
@@ -95,12 +92,27 @@ extern struct bus_space memmap_bus;
 #define REG_EP_CONFIG_DATA			0x8000
 
 /*
- * These values were obtained from runtime inspection of a Linux system using a
- * JTAG. The very limited documentation I have obtained from Broadcom does not
- * explain how to compute them.
+ * The system memory controller can address up to 16 GiB of physical memory
+ * (although at time of writing the largest memory size available for purchase
+ * is 8 GiB). However, the system DMA controller is capable of accessing only a
+ * limited portion of the address space. Worse, the PCI-e controller has further
+ * constraints for DMA, and those limitations are not wholly clear to the
+ * author. NetBSD and Linux allow DMA on the lower 3 GiB of the physical memory,
+ * but experimentation shows DMA performed above 960 MiB results in data
+ * corruption with this driver. The limit of 960 MiB is taken from OpenBSD, but
+ * apparently that value was chosen for satisfying a constraint of an unrelated
+ * peripheral.
+ *
+ * Whatever the true maximum address, 960 MiB works.
  */
-#define REG_VALUE_4GB_WINDOW	0x11
-#define REG_VALUE_4GB_CONFIG	0x88003000
+#define DMA_HIGH_LIMIT			0x3c000000
+#define MAX_MEMORY_LOG2			0x21
+#define REG_VALUE_DMA_WINDOW_LOW	(MAX_MEMORY_LOG2 - 0xf)
+#define REG_VALUE_DMA_WINDOW_HIGH	0x0
+#define DMA_WINDOW_ENABLE		0x3000
+#define REG_VALUE_DMA_WINDOW_CONFIG	\
+    (((MAX_MEMORY_LOG2 - 0xf) << 0x1b) | DMA_WINDOW_ENABLE)
+
 #define REG_VALUE_MSI_CONFIG	0xffe06540
 
 struct bcm_pcib_irqsrc {
@@ -112,6 +124,7 @@ struct bcm_pcib_irqsrc {
 struct bcm_pcib_softc {
 	struct generic_pcie_fdt_softc	base;
 	device_t			dev;
+	bus_dma_tag_t			dmat;
 	struct mtx			config_mtx;
 	struct mtx			msi_mtx;
 	struct resource 		*msi_irq_res;
@@ -140,6 +153,15 @@ bcm_pcib_probe(device_t dev)
 	device_set_desc(dev,
 	    "BCM2838-compatible PCI-express controller");
 	return (BUS_PROBE_DEFAULT);
+}
+
+static bus_dma_tag_t
+bcm_pcib_get_dma_tag(device_t dev, device_t child)
+{
+	struct bcm_pcib_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (sc->dmat);
 }
 
 static void
@@ -614,6 +636,24 @@ bcm_pcib_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
+	/*
+	 * This tag will be used in preference to the one created in
+	 * pci_host_generic.c.
+	 */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /* parent */
+	    1, 0,				/* alignment, bounds */
+	    DMA_HIGH_LIMIT,			/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    DMA_HIGH_LIMIT,			/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,		/* nsegments */
+	    DMA_HIGH_LIMIT,			/* maxsegsize */
+	    0, 					/* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->dmat);
+	if (error)
+		return (error);
+
 	error = pci_host_generic_setup_fdt(dev);
 	if (error)
 		return (error);
@@ -632,17 +672,14 @@ bcm_pcib_attach(device_t dev)
 
 	/*
 	 * Set PCI->CPU memory window. This encodes the inbound window showing
-	 * up to 4 GiB of system memory to the controller, with zero offset.
-	 * Thus, from the perspective of a device on the PCI-E bus, there is a
-	 * 1:1 map from PCI-E bus addresses to system memory addresses. However,
-	 * a hardware limitation means that the controller can only perform DMA
-	 * on the lower 3 GiB of system memory.
+	 * the system memory to the controller.
 	 */
-	bcm_pcib_set_reg(sc, REG_BRIDGE_MEM_WINDOW_LOW, REG_VALUE_4GB_WINDOW);
-	bcm_pcib_set_reg(sc, REG_BRIDGE_MEM_WINDOW_HIGH, 0);
-	bcm_pcib_set_reg(sc, REG_BRIDGE_CONFIG, REG_VALUE_4GB_CONFIG);
+	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_LOW, REG_VALUE_DMA_WINDOW_LOW);
+	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_HIGH, REG_VALUE_DMA_WINDOW_HIGH);
+	bcm_pcib_set_reg(sc, REG_DMA_CONFIG, REG_VALUE_DMA_WINDOW_CONFIG);
+
 	bcm_pcib_set_reg(sc, REG_BRIDGE_GISB_WINDOW, 0);
-	bcm_pcib_set_reg(sc, REG_BRIDGE_MEM_WINDOW_1, 0);
+	bcm_pcib_set_reg(sc, REG_DMA_WINDOW_1, 0);
 
 	bcm_pcib_enable_controller(sc);
 
@@ -682,14 +719,14 @@ bcm_pcib_attach(device_t dev)
 	phys_base = sc->base.base.ranges[0].phys_base;
 	size      = sc->base.base.ranges[0].size;
 
-	bcm_pcib_set_reg(sc, REG_BRIDGE_BUS_WINDOW_LOW, pci_base & 0xffffffff);
-	bcm_pcib_set_reg(sc, REG_BRIDGE_BUS_WINDOW_HIGH, pci_base >> 32);
+	bcm_pcib_set_reg(sc, REG_BUS_WINDOW_LOW, pci_base & 0xffffffff);
+	bcm_pcib_set_reg(sc, REG_BUS_WINDOW_HIGH, pci_base >> 32);
 
-	bcm_pcib_set_reg(sc, REG_BRIDGE_CPU_WINDOW_LOW,
+	bcm_pcib_set_reg(sc, REG_CPU_WINDOW_LOW,
 	    encode_cpu_window_low(phys_base, size));
-	bcm_pcib_set_reg(sc, REG_BRIDGE_CPU_WINDOW_START_HIGH,
+	bcm_pcib_set_reg(sc, REG_CPU_WINDOW_START_HIGH,
 	    encode_cpu_window_start_high(phys_base));
-	bcm_pcib_set_reg(sc, REG_BRIDGE_CPU_WINDOW_END_HIGH,
+	bcm_pcib_set_reg(sc, REG_CPU_WINDOW_END_HIGH,
 	    encode_cpu_window_end_high(phys_base, size));
 
 	/*
@@ -718,6 +755,9 @@ bcm_pcib_attach(device_t dev)
  * Device method table.
  */
 static device_method_t bcm_pcib_methods[] = {
+	/* Bus interface. */
+	DEVMETHOD(bus_get_dma_tag,		bcm_pcib_get_dma_tag),
+
 	/* Device interface. */
 	DEVMETHOD(device_probe,			bcm_pcib_probe),
 	DEVMETHOD(device_attach,		bcm_pcib_attach),
@@ -739,3 +779,4 @@ DEFINE_CLASS_1(pcib, bcm_pcib_driver, bcm_pcib_methods,
 
 static devclass_t bcm_pcib_devclass;
 DRIVER_MODULE(bcm_pcib, simplebus, bcm_pcib_driver, bcm_pcib_devclass, 0, 0);
+
