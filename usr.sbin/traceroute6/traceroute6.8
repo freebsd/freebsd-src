@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2019
+.Dd September 13, 2020
 .Dt TRACEROUTE6 8
 .Os
 .\"
@@ -59,6 +59,9 @@
 .Ek
 .Bk -words
 .Op Fl s Ar src
+.Ek
+.Bk -words
+.Op Fl t Ar tclass
 .Ek
 .Bk -words
 .Op Fl w Ar waittime
@@ -148,6 +151,13 @@ If
 .Ar datalen
 is up to 28, probe packets consist of a SHUTDOWN-ACK chunk possibly bundled
 with a PAD chunk. For larger probe packets, an INIT chunk is used.
+.It Fl t Ar tclass
+.Ar tclass
+specifies the
+.Em traffic class
+used when sending probe packets.
+The value must be a decimal integer in the range 0 to 255.
+The default is 0.
 .It Fl T
 Use TCP segments for the probes.
 .It Fl U
