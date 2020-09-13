@@ -790,7 +790,11 @@ bs_le_sr_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val, size_t cnt)
 	TODO;
 }
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+struct bus_space bs_le_tag = {
+#else
 struct bus_space bs_be_tag = {
+#endif
 	/* mapping/unmapping */
 	bs_gen_map,
 	bs_gen_unmap,
@@ -884,7 +888,11 @@ struct bus_space bs_be_tag = {
 	bs_be_sr_8,
 };
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+struct bus_space bs_be_tag = {
+#else
 struct bus_space bs_le_tag = {
+#endif
 	/* mapping/unmapping */
 	bs_gen_map,
 	bs_gen_unmap,
