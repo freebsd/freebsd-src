@@ -446,6 +446,8 @@ zfs_prop_init(void)
 	    ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "<uint64>", "GUID");
 	zprop_register_number(ZFS_PROP_CREATETXG, "createtxg", 0, PROP_READONLY,
 	    ZFS_TYPE_DATASET | ZFS_TYPE_BOOKMARK, "<uint64>", "CREATETXG");
+	zprop_register_number(ZFS_PROP_OBJSETID, "objsetid", 0,
+	    PROP_READONLY, ZFS_TYPE_DATASET, "<uint64>", "OBJSETID");
 
 	/* inherit number properties */
 	zprop_register_number(ZFS_PROP_RECORDSIZE, "recordsize",
@@ -472,8 +474,6 @@ zfs_prop_init(void)
 	    "USERACCOUNTING");
 	zprop_register_hidden(ZFS_PROP_UNIQUE, "unique", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_DATASET, "UNIQUE");
-	zprop_register_hidden(ZFS_PROP_OBJSETID, "objsetid", PROP_TYPE_NUMBER,
-	    PROP_READONLY, ZFS_TYPE_DATASET, "OBJSETID");
 	zprop_register_hidden(ZFS_PROP_INCONSISTENT, "inconsistent",
 	    PROP_TYPE_NUMBER, PROP_READONLY, ZFS_TYPE_DATASET, "INCONSISTENT");
 	zprop_register_hidden(ZFS_PROP_PREV_SNAP, "prevsnap", PROP_TYPE_STRING,

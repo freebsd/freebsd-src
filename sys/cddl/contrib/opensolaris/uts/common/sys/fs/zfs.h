@@ -148,7 +148,7 @@ typedef enum {
 	ZFS_PROP_USERREFS,
 	ZFS_PROP_LOGBIAS,
 	ZFS_PROP_UNIQUE,		/* not exposed to the user */
-	ZFS_PROP_OBJSETID,		/* not exposed to the user */
+	ZFS_PROP_OBJSETID,
 	ZFS_PROP_DEDUP,
 	ZFS_PROP_MLSLABEL,
 	ZFS_PROP_SYNC,
@@ -220,6 +220,7 @@ typedef enum {
 	ZPOOL_PROP_TNAME,
 	ZPOOL_PROP_MAXDNODESIZE,
 	ZPOOL_PROP_MULTIHOST,
+	ZPOOL_PROP_LOAD_GUID,
 	ZPOOL_NUM_PROPS
 } zpool_prop_t;
 

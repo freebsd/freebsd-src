@@ -38,6 +38,17 @@ static MALLOC_DEFINE(M_KSTAT, "kstat_data", "Kernel statistics");
 
 SYSCTL_ROOT_NODE(OID_AUTO, kstat, CTLFLAG_RW, 0, "Kernel statistics");
 
+static int
+kstat_default_update(kstat_t *ksp, int rw)
+{
+	KASSERT(ksp != NULL, ("kstat=%p", ksp));
+
+	if (rw == KSTAT_WRITE)
+		return (EACCES);
+
+	return (0);
+}
+
 kstat_t *
 kstat_create(char *module, int instance, char *name, char *class, uchar_t type,
     ulong_t ndata, uchar_t flags)
@@ -56,6 +67,7 @@ kstat_create(char *module, int instance, char *name, char *class, uchar_t type,
 	 */
 	ksp = malloc(sizeof(*ksp), M_KSTAT, M_WAITOK);
 	ksp->ks_ndata = ndata;
+	ksp->ks_update = kstat_default_update;
 
 	/*
 	 * Create sysctl tree for those statistics:
@@ -98,11 +110,36 @@ kstat_create(char *module, int instance, char *name, char *class, uchar_t type,
 static int
 kstat_sysctl(SYSCTL_HANDLER_ARGS)
 {
-	kstat_named_t *ksent = arg1;
+	kstat_t *ksp = arg1;
+	kstat_named_t *ksent = ksp->ks_data;
 	uint64_t val;
 
+	/* Select the correct element */
+	ksent += arg2;
+	/* Update the aggsums before reading */
+	(void) ksp->ks_update(ksp, KSTAT_READ);
 	val = ksent->value.ui64;
+
 	return sysctl_handle_64(oidp, &val, 0, req);
+}
+
+static int
+kstat_sysctl_string(SYSCTL_HANDLER_ARGS)
+{
+	kstat_t *ksp = arg1;
+	kstat_named_t *ksent = ksp->ks_data;
+	char *val;
+	uint32_t len = 0;
+
+	/* Select the correct element */
+	ksent += arg2;
+	/* Update the aggsums before reading */
+	(void) ksp->ks_update(ksp, KSTAT_READ);
+	val = KSTAT_NAMED_STR_PTR(ksent);
+	len = KSTAT_NAMED_STR_BUFLEN(ksent);
+	val[len-1] = '\0';
+
+	return (sysctl_handle_string(oidp, val, len, req));
 }
 
 void
@@ -113,11 +150,19 @@ kstat_install(kstat_t *ksp)
 
 	ksent = ksp->ks_data;
 	for (i = 0; i < ksp->ks_ndata; i++, ksent++) {
+		if (ksent->data_type == KSTAT_DATA_STRING) {
+			SYSCTL_ADD_PROC(&ksp->ks_sysctl_ctx,
+			    SYSCTL_CHILDREN(ksp->ks_sysctl_root),
+			    OID_AUTO, ksent->name,
+			    CTLTYPE_STRING | CTLFLAG_RD, ksp, i,
+			    kstat_sysctl_string, "A", ksent->desc);
+			continue;
+		}
 		KASSERT(ksent->data_type == KSTAT_DATA_UINT64,
 		    ("data_type=%d", ksent->data_type));
 		SYSCTL_ADD_PROC(&ksp->ks_sysctl_ctx,
 		    SYSCTL_CHILDREN(ksp->ks_sysctl_root), OID_AUTO, ksent->name,
-		    CTLTYPE_U64 | CTLFLAG_RD, ksent, sizeof(*ksent),
+		    CTLTYPE_U64 | CTLFLAG_RD, ksp, i,
 		    kstat_sysctl, "QU", ksent->desc);
 	}
 }
