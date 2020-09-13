@@ -114,6 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kerneldump.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -126,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <vm/vm.h>
+#include <vm/pmap.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
@@ -291,6 +293,7 @@ boolean_t moea_is_prefaultable(pmap_t, vm_offset_t);
 boolean_t moea_is_referenced(vm_page_t);
 int moea_ts_referenced(vm_page_t);
 vm_offset_t moea_map(vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
+static int moea_mincore(pmap_t, vm_offset_t, vm_paddr_t *);
 boolean_t moea_page_exists_quick(pmap_t, vm_page_t);
 void moea_page_init(vm_page_t);
 int moea_page_wired_mappings(vm_page_t);
@@ -354,7 +357,8 @@ static struct pmap_funcs moea_methods = {
 	.qremove = moea_qremove,
 	.release = moea_release,
 	.remove = moea_remove,
-	.remove_all =       	moea_remove_all,
+	.remove_all = moea_remove_all,
+	.mincore = moea_mincore,
 	.remove_write = moea_remove_write,
 	.sync_icache = moea_sync_icache,
 	.unwire = moea_unwire,
@@ -1924,6 +1928,50 @@ moea_remove_all(vm_page_t m)
 	}
 	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	rw_wunlock(&pvh_global_lock);
+}
+
+static int
+moea_mincore(pmap_t pm, vm_offset_t va, vm_paddr_t *pap)
+{
+	struct pvo_entry *pvo;
+	vm_paddr_t pa;
+	vm_page_t m;
+	int val;
+	bool managed;
+
+	PMAP_LOCK(pm);
+
+	pvo = moea_pvo_find_va(pm, va & ~ADDR_POFF, NULL);
+	if (pvo != NULL) {
+		pa = PVO_PADDR(pvo);
+		m = PHYS_TO_VM_PAGE(pa);
+		managed = (pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED;
+		val = MINCORE_INCORE;
+	} else {
+		PMAP_UNLOCK(pm);
+		return (0);
+	}
+
+	PMAP_UNLOCK(pm);
+
+	if (m == NULL)
+		return (0);
+
+	if (managed) {
+		if (moea_is_modified(m))
+			val |= MINCORE_MODIFIED | MINCORE_MODIFIED_OTHER;
+
+		if (moea_is_referenced(m))
+			val |= MINCORE_REFERENCED | MINCORE_REFERENCED_OTHER;
+	}
+
+	if ((val & (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER)) !=
+	    (MINCORE_MODIFIED_OTHER | MINCORE_REFERENCED_OTHER) &&
+	    managed) {
+		*pap = pa;
+	}
+
+	return (val);
 }
 
 /*
