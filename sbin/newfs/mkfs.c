@@ -556,8 +556,8 @@ restart:
 	 * Reference the summary information so it will also be written.
 	 */
 	sblock.fs_csp = fscs;
-	if (!Nflag && sbput(disk.d_fd, &disk.d_fs, 0) != 0)
-		err(1, "sbput: %s", disk.d_error);
+	if (!Nflag && sbwrite(&disk, 0) != 0)
+		err(1, "sbwrite: %s", disk.d_error);
 	if (Xflag == 1) {
 		printf("** Exiting on Xflag 1\n");
 		exit(0);
@@ -619,8 +619,8 @@ restart:
 		printf("** Exiting on Xflag 3\n");
 		exit(0);
 	}
-	if (sbput(disk.d_fd, &disk.d_fs, 0) != 0)
-		err(1, "sbput: %s", disk.d_error);
+	if (sbwrite(&disk, 0) != 0)
+		err(1, "sbwrite: %s", disk.d_error);
 	/*
 	 * For UFS1 filesystems with a blocksize of 64K, the first
 	 * alternate superblock resides at the location used for
@@ -811,11 +811,11 @@ initcg(int cylno, time_t utime)
 	savedactualloc = sblock.fs_sblockactualloc;
 	sblock.fs_sblockactualloc =
 	    dbtob(fsbtodb(&sblock, cgsblock(&sblock, cylno)));
-	if (sbput(disk.d_fd, &disk.d_fs, 0) != 0)
-		err(1, "sbput: %s", disk.d_error);
+	if (sbwrite(&disk, 0) != 0)
+		err(1, "sbwrite: %s", disk.d_error);
 	sblock.fs_sblockactualloc = savedactualloc;
-	if (cgput(&disk, &acg) != 0)
-		err(1, "initcg: cgput: %s", disk.d_error);
+	if (cgwrite(&disk) != 0)
+		err(1, "initcg: cgwrite: %s", disk.d_error);
 	start = 0;
 	dp1 = (struct ufs1_dinode *)(&iobuf[start]);
 	dp2 = (struct ufs2_dinode *)(&iobuf[start]);
@@ -1024,8 +1024,8 @@ goth:
 		for (i = frag; i < sblock.fs_frag; i++)
 			setbit(cg_blksfree(&acg), d + i);
 	}
-	if (cgput(&disk, &acg) != 0)
-		err(1, "alloc: cgput: %s", disk.d_error);
+	if (cgwrite(&disk) != 0)
+		err(1, "alloc: cgwrite: %s", disk.d_error);
 	return ((ufs2_daddr_t)d);
 }
 
@@ -1045,8 +1045,8 @@ iput(union dinode *ip, ino_t ino)
 	}
 	acg.cg_cs.cs_nifree--;
 	setbit(cg_inosused(&acg), ino);
-	if (cgput(&disk, &acg) != 0)
-		err(1, "iput: cgput: %s", disk.d_error);
+	if (cgwrite(&disk) != 0)
+		err(1, "iput: cgwrite: %s", disk.d_error);
 	sblock.fs_cstotal.cs_nifree--;
 	fscs[0].cs_nifree--;
 	if (getinode(&disk, &dp, ino) == -1) {
