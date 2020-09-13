@@ -796,96 +796,115 @@ struct bus_space bs_le_tag = {
 struct bus_space bs_be_tag = {
 #endif
 	/* mapping/unmapping */
-	bs_gen_map,
-	bs_gen_unmap,
-	bs_gen_subregion,
+	.bs_map =	bs_gen_map,
+	.bs_unmap =	bs_gen_unmap,
+	.bs_subregion =	bs_gen_subregion,
 
 	/* allocation/deallocation */
-	bs_gen_alloc,
-	bs_gen_free,
+	.bs_alloc =	bs_gen_alloc,
+	.bs_free =	bs_gen_free,
 
 	/* barrier */
-	bs_gen_barrier,
+	.bs_barrier =	bs_gen_barrier,
 
 	/* read (single) */
-	native_bs_rs_1,
-	native_bs_rs_2,
-	native_bs_rs_4,
-	native_bs_rs_8,
+	.bs_r_1 =	native_bs_rs_1,
+	.bs_r_2 =	native_bs_rs_2,
+	.bs_r_4 =	native_bs_rs_4,
+	.bs_r_8 =	native_bs_rs_8,
 
-	native_bs_rs_2,
-	native_bs_rs_4,
-	native_bs_rs_8,
+	/* read (single) stream */
+	.bs_r_s_2 =	native_bs_rs_2,
+	.bs_r_s_4 =	native_bs_rs_4,
+	.bs_r_s_8 =	native_bs_rs_8,
 
 	/* read multiple */
-	native_bs_rm_1,
-	native_bs_rm_2,
-	native_bs_rm_4,
-	native_bs_rm_8,
+	.bs_rm_1 =	native_bs_rm_1,
+	.bs_rm_2 =	native_bs_rm_2,
+	.bs_rm_4 =	native_bs_rm_4,
+	.bs_rm_8 =	native_bs_rm_8,
 
-	native_bs_rm_2,
-	native_bs_rm_4,
-	native_bs_rm_8,
+	/* read multiple stream */
+	.bs_rm_s_2 =	native_bs_rm_2,
+	.bs_rm_s_4 =	native_bs_rm_4,
+	.bs_rm_s_8 =	native_bs_rm_8,
 
 	/* read region */
-	native_bs_rr_1,
-	native_bs_rr_2,
-	native_bs_rr_4,
-	native_bs_rr_8,
+	.bs_rr_1 =	native_bs_rr_1,
+	.bs_rr_2 =	native_bs_rr_2,
+	.bs_rr_4 =	native_bs_rr_4,
+	.bs_rr_8 =	native_bs_rr_8,
 
-	native_bs_rr_2,
-	native_bs_rr_4,
-	native_bs_rr_8,
+	/* read region stream */
+	.bs_rr_s_2 =	native_bs_rr_2,
+	.bs_rr_s_4 =	native_bs_rr_4,
+	.bs_rr_s_8 =	native_bs_rr_8,
 
 	/* write (single) */
-	native_bs_ws_1,
-	native_bs_ws_2,
-	native_bs_ws_4,
-	native_bs_ws_8,
+	.bs_w_1 =	native_bs_ws_1,
+	.bs_w_2 =	native_bs_ws_2,
+	.bs_w_4 =	native_bs_ws_4,
+	.bs_w_8 =	native_bs_ws_8,
 
-	native_bs_ws_2,
-	native_bs_ws_4,
-	native_bs_ws_8,
+	/* write (single) stream */
+	.bs_w_s_2 =	native_bs_ws_2,
+	.bs_w_s_4 =	native_bs_ws_4,
+	.bs_w_s_8 =	native_bs_ws_8,
 
 	/* write multiple */
-	native_bs_wm_1,
-	native_bs_wm_2,
-	native_bs_wm_4,
-	native_bs_wm_8,
+	.bs_wm_1 =	native_bs_wm_1,
+	.bs_wm_2 =	native_bs_wm_2,
+	.bs_wm_4 =	native_bs_wm_4,
+	.bs_wm_8 =	native_bs_wm_8,
 
-	native_bs_wm_2,
-	native_bs_wm_4,
-	native_bs_wm_8,
+	/* write multiple stream */
+	.bs_wm_s_2 =	native_bs_wm_2,
+	.bs_wm_s_4 =	native_bs_wm_4,
+	.bs_wm_s_8 =	native_bs_wm_8,
 
 	/* write region */
-	native_bs_wr_1,
-	native_bs_wr_2,
-	native_bs_wr_4,
-	native_bs_wr_8,
+	.bs_wr_1 =	native_bs_wr_1,
+	.bs_wr_2 =	native_bs_wr_2,
+	.bs_wr_4 =	native_bs_wr_4,
+	.bs_wr_8 =	native_bs_wr_8,
 
-	native_bs_wr_2,
-	native_bs_wr_4,
-	native_bs_wr_8,
+	/* write region stream */
+	.bs_wr_s_2 =	native_bs_wr_2,
+	.bs_wr_s_4 =	native_bs_wr_4,
+	.bs_wr_s_8 =	native_bs_wr_8,
 
 	/* set multiple */
-	native_bs_sm_1,
-	native_bs_sm_2,
-	native_bs_sm_4,
-	native_bs_sm_8,
+	.bs_sm_1 =	native_bs_sm_1,
+	.bs_sm_2 =	native_bs_sm_2,
+	.bs_sm_4 =	native_bs_sm_4,
+	.bs_sm_8 =	native_bs_sm_8,
 
-	native_bs_sm_2,
-	native_bs_sm_4,
-	native_bs_sm_8,
+	/* set multiple stream */
+	.bs_sm_s_2 =	native_bs_sm_2,
+	.bs_sm_s_4 =	native_bs_sm_4,
+	.bs_sm_s_8 =	native_bs_sm_8,
 
 	/* set region */
-	native_bs_sr_1,
-	native_bs_sr_2,
-	native_bs_sr_4,
-	native_bs_sr_8,
+	.bs_sr_1 =	native_bs_sr_1,
+	.bs_sr_2 =	native_bs_sr_2,
+	.bs_sr_4 =	native_bs_sr_4,
+	.bs_sr_8 =	native_bs_sr_8,
 
-	native_bs_sr_2,
-	native_bs_sr_4,
-	native_bs_sr_8,
+	/* set region stream */
+	.bs_sr_s_2 =	native_bs_sr_2,
+	.bs_sr_s_4 =	native_bs_sr_4,
+	.bs_sr_s_8 =	native_bs_sr_8,
+
+	/* copy region */
+	.bs_cr_1 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_2 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_4 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_8 =	NULL, /* UNIMPLEMENTED */
+
+	/* copy region stream */
+	.bs_cr_s_2 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_s_4 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_s_8 =	NULL, /* UNIMPLEMENTED */
 };
 
 #if BYTE_ORDER == LITTLE_ENDIAN
@@ -894,94 +913,113 @@ struct bus_space bs_be_tag = {
 struct bus_space bs_le_tag = {
 #endif
 	/* mapping/unmapping */
-	bs_gen_map,
-	bs_gen_unmap,
-	bs_gen_subregion,
+	.bs_map =	bs_gen_map,
+	.bs_unmap =	bs_gen_unmap,
+	.bs_subregion =	bs_gen_subregion,
 
 	/* allocation/deallocation */
-	bs_gen_alloc,
-	bs_gen_free,
+	.bs_alloc =	bs_gen_alloc,
+	.bs_free =	bs_gen_free,
 
 	/* barrier */
-	bs_gen_barrier,
+	.bs_barrier =	bs_gen_barrier,
 
 	/* read (single) */
-	swapped_bs_rs_1,
-	swapped_bs_rs_2,
-	swapped_bs_rs_4,
-	swapped_bs_rs_8,
+	.bs_r_1 =	swapped_bs_rs_1,
+	.bs_r_2 =	swapped_bs_rs_2,
+	.bs_r_4 =	swapped_bs_rs_4,
+	.bs_r_8 =	swapped_bs_rs_8,
 
-	native_bs_rs_2,
-	native_bs_rs_4,
-	native_bs_rs_8,
+	/* read (single) stream */
+	.bs_r_s_2 =	native_bs_rs_2,
+	.bs_r_s_4 =	native_bs_rs_4,
+	.bs_r_s_8 =	native_bs_rs_8,
 
 	/* read multiple */
-	swapped_bs_rm_1,
-	swapped_bs_rm_2,
-	swapped_bs_rm_4,
-	swapped_bs_rm_8,
+	.bs_rm_1 =	swapped_bs_rm_1,
+	.bs_rm_2 =	swapped_bs_rm_2,
+	.bs_rm_4 =	swapped_bs_rm_4,
+	.bs_rm_8 =	swapped_bs_rm_8,
 
-	native_bs_rm_2,
-	native_bs_rm_4,
-	native_bs_rm_8,
+	/* read multiple stream */
+	.bs_rm_s_2 =	native_bs_rm_2,
+	.bs_rm_s_4 =	native_bs_rm_4,
+	.bs_rm_s_8 =	native_bs_rm_8,
 
 	/* read region */
-	swapped_bs_rr_1,
-	swapped_bs_rr_2,
-	swapped_bs_rr_4,
-	swapped_bs_rr_8,
+	.bs_rr_1 =	swapped_bs_rr_1,
+	.bs_rr_2 =	swapped_bs_rr_2,
+	.bs_rr_4 =	swapped_bs_rr_4,
+	.bs_rr_8 =	swapped_bs_rr_8,
 
-	native_bs_rr_2,
-	native_bs_rr_4,
-	native_bs_rr_8,
+	/* read region stream */
+	.bs_rr_s_2 =	native_bs_rr_2,
+	.bs_rr_s_4 =	native_bs_rr_4,
+	.bs_rr_s_8 =	native_bs_rr_8,
 
 	/* write (single) */
-	swapped_bs_ws_1,
-	swapped_bs_ws_2,
-	swapped_bs_ws_4,
-	swapped_bs_ws_8,
+	.bs_w_1 =	swapped_bs_ws_1,
+	.bs_w_2 =	swapped_bs_ws_2,
+	.bs_w_4 =	swapped_bs_ws_4,
+	.bs_w_8 =	swapped_bs_ws_8,
 
-	native_bs_ws_2,
-	native_bs_ws_4,
-	native_bs_ws_8,
+	/* write (single) stream */
+	.bs_w_s_2 =	native_bs_ws_2,
+	.bs_w_s_4 =	native_bs_ws_4,
+	.bs_w_s_8 =	native_bs_ws_8,
 
 	/* write multiple */
-	swapped_bs_wm_1,
-	swapped_bs_wm_2,
-	swapped_bs_wm_4,
-	swapped_bs_wm_8,
+	.bs_wm_1 =	swapped_bs_wm_1,
+	.bs_wm_2 =	swapped_bs_wm_2,
+	.bs_wm_4 =	swapped_bs_wm_4,
+	.bs_wm_8 =	swapped_bs_wm_8,
 
-	native_bs_wm_2,
-	native_bs_wm_4,
-	native_bs_wm_8,
+	/* write multiple stream */
+	.bs_wm_s_2 =	native_bs_wm_2,
+	.bs_wm_s_4 =	native_bs_wm_4,
+	.bs_wm_s_8 =	native_bs_wm_8,
 
 	/* write region */
-	swapped_bs_wr_1,
-	swapped_bs_wr_2,
-	swapped_bs_wr_4,
-	swapped_bs_wr_8,
+	.bs_wr_1 =	swapped_bs_wr_1,
+	.bs_wr_2 =	swapped_bs_wr_2,
+	.bs_wr_4 =	swapped_bs_wr_4,
+	.bs_wr_8 =	swapped_bs_wr_8,
 
-	native_bs_wr_2,
-	native_bs_wr_4,
-	native_bs_wr_8,
+	/* write region stream */
+	.bs_wr_s_2 =	native_bs_wr_2,
+	.bs_wr_s_4 =	native_bs_wr_4,
+	.bs_wr_s_8 =	native_bs_wr_8,
 
 	/* set multiple */
-	swapped_bs_sm_1,
-	swapped_bs_sm_2,
-	swapped_bs_sm_4,
-	swapped_bs_sm_8,
+	.bs_sm_1 =	swapped_bs_sm_1,
+	.bs_sm_2 =	swapped_bs_sm_2,
+	.bs_sm_4 =	swapped_bs_sm_4,
+	.bs_sm_8 =	swapped_bs_sm_8,
 
-	native_bs_sm_2,
-	native_bs_sm_4,
-	native_bs_sm_8,
+	/* set multiple stream */
+	.bs_sm_s_2 =	native_bs_sm_2,
+	.bs_sm_s_4 =	native_bs_sm_4,
+	.bs_sm_s_8 =	native_bs_sm_8,
 
 	/* set region */
-	swapped_bs_sr_1,
-	swapped_bs_sr_2,
-	swapped_bs_sr_4,
-	swapped_bs_sr_8,
+	.bs_sr_1 =	swapped_bs_sr_1,
+	.bs_sr_2 =	swapped_bs_sr_2,
+	.bs_sr_4 =	swapped_bs_sr_4,
+	.bs_sr_8 =	swapped_bs_sr_8,
 
-	native_bs_sr_2,
-	native_bs_sr_4,
-	native_bs_sr_8,
+	/* set region stream */
+	.bs_sr_s_2 =	native_bs_sr_2,
+	.bs_sr_s_4 =	native_bs_sr_4,
+	.bs_sr_s_8 =	native_bs_sr_8,
+
+	/* copy region */
+	.bs_cr_1 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_2 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_4 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_8 =	NULL, /* UNIMPLEMENTED */
+
+	/* copy region stream */
+	.bs_cr_s_2 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_s_4 =	NULL, /* UNIMPLEMENTED */
+	.bs_cr_s_8 =	NULL, /* UNIMPLEMENTED */
 };
