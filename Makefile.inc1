@@ -983,34 +983,6 @@ _sanity_check: .PHONY .MAKE
 _cleanobj_fast_depend_hack: .PHONY
 	@echo ">>> Deleting stale dependencies...";
 	sh ${.CURDIR}/tools/build/depend-cleanup.sh ${OBJTOP}
-# Date      SVN Rev  Syscalls/Changes
-# Syscall stubs rewritten in C and obsolete MD assembly implementations
-# 20191009  r353340  removal of opensolaris_atomic.S (also r353381)
-.if ${MACHINE} != i386
-.for f in opensolaris_atomic
-	@if [ -e "${OBJTOP}/cddl/lib/libzpool/.depend.${f}.o" ] && \
-	    egrep -qw 'opensolaris_atomic\.S' ${OBJTOP}/cddl/lib/libzpool/.depend.${f}.o; then \
-		echo "Removing stale dependencies for opensolaris_atomic"; \
-		rm -f ${OBJTOP}/cddl/lib/libzpool/.depend.${f}.* \
-		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/cddl/lib/libzpool/.depend.${f}.*}; \
-	fi
-.endfor
-.endif
-# 20190925  r352689  removal of obsolete i386 memchr.S
-.for f in memchr
-	@if [ -e "${OBJTOP}/lib/libc/.depend.${f}.o" ] && \
-	    egrep -qw 'i386/string/memchr\.S' ${OBJTOP}/lib/libc/.depend.${f}.o; then \
-		echo "Removing stale dependencies for memchr"; \
-		rm -f ${OBJTOP}/lib/libc/.depend.${f}.*; \
-	fi
-.if defined(_LIBCOMPAT)
-	@if [ -e "${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.o" ] && \
-	    egrep -qw 'i386/string/memchr\.S' ${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.o; then \
-		echo "Removing stale dependencies for memchr"; \
-		rm -f ${LIBCOMPAT_OBJTOP}/lib/libc/.depend.${f}.*; \
-	fi
-.endif
-.endfor
 
 _worldtmp: .PHONY
 	@echo
