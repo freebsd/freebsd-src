@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2020
+.Dd September 13, 2020
 .Dt SOCKSTAT 1
 .Os
 .Sh NAME
@@ -35,7 +35,7 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46cLlSsUuvw
+.Op Fl 46CcLlSsUuvw
 .Op Fl j Ar jid
 .Op Fl p Ar ports
 .Op Fl P Ar protocols
@@ -56,6 +56,9 @@ Show
 Show
 .Dv AF_INET6
 (IPv6) sockets.
+.It Fl C
+Display the congestion control module, if applicable.
+This is currently only implemented for TCP.
 .It Fl c
 Show connected sockets.
 .It Fl j Ar jail
@@ -170,6 +173,10 @@ is specified (only for SCTP or TCP).
 .It Li STACK
 The protocol stack if
 .Fl S
+is specified (only for TCP).
+.It Li CC
+The congestion control if
+.Fl C
 is specified (only for TCP).
 .El
 .Pp
