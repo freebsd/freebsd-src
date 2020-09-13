@@ -100,14 +100,17 @@ __ElfType(Auxinfo);
 #define	R_PPC_EMB_COUNT		(R_PPC_EMB_RELSDA - R_PPC_EMB_NADDR32 + 1)
 
 /* Define "machine" characteristics */
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define	ELF_TARG_DATA	ELFDATA2LSB
+#else
+#define	ELF_TARG_DATA	ELFDATA2MSB
+#endif
 #if __ELF_WORD_SIZE == 64
 #define	ELF_TARG_CLASS	ELFCLASS64
-#define	ELF_TARG_DATA	ELFDATA2MSB
 #define	ELF_TARG_MACH	EM_PPC64
 #define	ELF_TARG_VER	1
 #else
 #define	ELF_TARG_CLASS	ELFCLASS32
-#define	ELF_TARG_DATA	ELFDATA2MSB
 #define	ELF_TARG_MACH	EM_PPC
 #define	ELF_TARG_VER	1
 #endif
