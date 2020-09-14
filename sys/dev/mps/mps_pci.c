@@ -185,7 +185,7 @@ mps_pci_probe(device_t dev)
 static int
 mps_pci_attach(device_t dev)
 {
-	bus_dma_tag_template_t t;
+	bus_dma_template_t t;
 	struct mps_softc *sc;
 	struct mps_ident *m;
 	int error;

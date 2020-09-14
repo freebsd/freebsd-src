@@ -700,3 +700,88 @@ bus_dmamap_load_crp(bus_dma_tag_t dmat, bus_dmamap_t map, struct cryptop *crp,
 	return (bus_dmamap_load_crp_buffer(dmat, map, &crp->crp_buf, callback,
 	    callback_arg, flags));
 }
+
+void
+bus_dma_template_init(bus_dma_template_t *t, bus_dma_tag_t parent)
+{
+
+	if (t == NULL)
+		return;
+
+	t->parent = parent;
+	t->alignment = 1;
+	t->boundary = 0;
+	t->lowaddr = t->highaddr = BUS_SPACE_MAXADDR;
+	t->maxsize = t->maxsegsize = BUS_SPACE_MAXSIZE;
+	t->nsegments = BUS_SPACE_UNRESTRICTED;
+	t->lockfunc = NULL;
+	t->lockfuncarg = NULL;
+	t->flags = 0;
+}
+
+int
+bus_dma_template_tag(bus_dma_template_t *t, bus_dma_tag_t *dmat)
+{
+
+	if (t == NULL || dmat == NULL)
+		return (EINVAL);
+
+	return (bus_dma_tag_create(t->parent, t->alignment, t->boundary,
+	    t->lowaddr, t->highaddr, NULL, NULL, t->maxsize,
+	    t->nsegments, t->maxsegsize, t->flags, t->lockfunc, t->lockfuncarg,
+	    dmat));
+}
+
+void
+bus_dma_template_fill(bus_dma_template_t *t, bus_dma_param_t *kv, u_int count)
+{
+	bus_dma_param_t *pkv;
+
+	while (count) {
+		pkv = &kv[--count];
+		switch (pkv->key) {
+		case BD_PARAM_PARENT:
+			t->parent = pkv->ptr;
+			break;
+		case BD_PARAM_ALIGNMENT:
+			t->alignment = pkv->num;
+			break;
+		case BD_PARAM_BOUNDARY:
+			t->boundary = pkv->num;
+			break;
+		case BD_PARAM_LOWADDR:
+			t->lowaddr = pkv->pa;
+			break;
+		case BD_PARAM_HIGHADDR:
+			t->highaddr = pkv->pa;
+			break;
+		case BD_PARAM_MAXSIZE:
+			t->maxsize = pkv->num;
+			break;
+		case BD_PARAM_NSEGMENTS:
+			t->nsegments = pkv->num;
+			break;
+		case BD_PARAM_MAXSEGSIZE:
+			t->maxsegsize = pkv->num;
+			break;
+		case BD_PARAM_FLAGS:
+			t->flags = pkv->num;
+			break;
+		case BD_PARAM_LOCKFUNC:
+			t->lockfunc = pkv->ptr;
+			break;
+		case BD_PARAM_LOCKFUNCARG:
+			t->lockfuncarg = pkv->ptr;
+			break;
+		case BD_PARAM_NAME:
+			t->name = pkv->ptr;
+			break;
+		case BD_PARAM_INVALID:
+		default:
+			KASSERT(0, ("Invalid key %d\n", pkv->key));
+			break;
+		}
+	}
+	return;
+}
+
