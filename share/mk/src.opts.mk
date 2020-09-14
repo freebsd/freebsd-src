@@ -143,6 +143,7 @@ __DEFAULT_YES_OPTIONS = \
     MAIL \
     MAILWRAPPER \
     MAKE \
+    MALLOC_PRODUCTION \
     NDIS \
     NETCAT \
     NETGRAPH \
