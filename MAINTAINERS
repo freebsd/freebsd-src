@@ -89,9 +89,11 @@ share/mk/*.test.mk	freebsd-testing,ngie (same list as share/mk too)	Pre-commit r
 stand/forth		dteske	Pre-commit review requested.
 stand/lua		kevans	Pre-commit review requested
 sys/compat/linuxkpi	hselasky	If in doubt, ask.
+sys/contrib/dev/ice	erj	Pre-commit phabricator review requested.
 sys/dev/e1000	erj	Pre-commit phabricator review requested.
 sys/dev/ixgbe	erj	Pre-commit phabricator review requested.
 sys/dev/ixl	erj	Pre-commit phabricator review requested.
+sys/dev/ice	erj	Pre-commit phabricator review requested.
 sys/dev/sound/usb	hselasky	If in doubt, ask.
 sys/dev/usb	hselasky	If in doubt, ask.
 sys/dev/xen	royger		Pre-commit review recommended.

@@ -1,0 +1,198 @@
+﻿Dynamic Device Personalization (DDP) Package
+============================================
+July 7, 2020
+
+
+Contents
+========
+- Overview
+- Safe Mode
+- Notes
+- Installation & Troubleshooting
+- Legal
+
+
+Overview
+========
+Adapters based on the Intel(R) Ethernet Controller 800 Series require a Dynamic
+Device Personalization (DDP) package file to enable advanced features (such as
+dynamic tunneling, Flow Director, RSS, and ADQ).
+
+DDP allows you to change the packet processing pipeline of a device by applying
+a profile package to the device at runtime. Profiles can be used to, for
+example, add support for new protocols, change existing protocols, or change
+default settings. DDP profiles can also be rolled back without rebooting the
+system.
+
+The DDP package loads during device initialization. The driver checks to see if
+the DDP package is present and compatible. If this file exists, the driver will
+load it into the device. If the DDP package file is missing or incompatible
+with the driver, the driver will go into Safe Mode where it will use the
+configuration contained in the device's NVM. See "Safe Mode" later in this
+README for more information.
+
+A general purpose, OS-default DDP package is automatically installed with all
+supported Intel Ethernet Controller 800 Series drivers on Microsoft* Windows*,
+ESX*, FreeBSD*, and Linux* operating systems. Additional DDP packages are
+available to address needs for specific market segments. For example, a
+telecommunications (Comms) DDP package is available to support certain
+market-specific protocols in addition to the protocols in the OS-default
+package.
+
+The OS-default DDP package supports the following:
+- MAC
+- EtherType
+- VLAN
+- IPv4
+- IPv6
+- TCP
+- ARP
+- UDP
+- SCTP
+- ICMP
+- ICMPv6
+- CTRL
+- LLDP
+- VXLAN-GPE
+- VXLAN (non-GPE)
+- Geneve
+- GRE
+- NVGRE
+- RoCEv2
+- MPLS (up to 5 consecutive MPLS labels in the outermost Layer 2 header group)
+
+
+Safe Mode
+=========
+Safe Mode disables advanced and performance features, and supports only basic
+traffic and minimal functionality, such as updating the NVM or downloading a
+new driver or DDP package.
+
+See the Intel(R) Ethernet Adapters and Devices User Guide for more details on
+DDP and Safe Mode.
+
+
+Notes
+=====
+- You cannot update the DDP package if any PF drivers are already loaded. To
+overwrite a package, unload all PFs and then reload the driver with the new
+package.
+
+- Except for Linux, you can only use one DDP package per driver, even if you
+have more than one device installed that uses the driver.
+
+- Only the first loaded PF per device can download a package for that device.
+
+- If you are using DPDK, see the DPDK documentation at https://www.dpdk.org/
+for installation instructions and more information.
+
+
+Installation and Troubleshooting
+================================
+
+Microsoft* Windows*
+-------------------
+The DDP package is installed as part of the driver binary. You don't need to
+take additional steps to install the DDP package file.
+
+If you encounter issues with the DDP package file, download the latest driver.
+
+
+ESX
+---
+The DDP package is installed as part of the driver binary. You don't need to
+take additional steps to install the DDP package file.
+
+If you encounter issues with the DDP package file, download the latest driver.
+
+
+FreeBSD
+-------
+The FreeBSD driver automatically installs the default DDP package file during
+driver installation. See the ice driver README for general installation and
+building instructions.
+
+The DDP package loads during device initialization. The driver looks for the
+ice_ddp module and checks that it contains a valid DDP package file.
+
+If you encounter issues with the DDP package file, you may need to download an
+updated driver or ice_ddp module. See the log messages for more information.
+
+NOTE: It's important to do 'make install' during initial ice driver
+installation so that the driver loads the DDP package automatically.
+
+
+Linux
+-----
+The Linux driver automatically installs the default DDP package file during
+driver installation. See the ice driver README for general installation and
+building instructions.
+
+The DDP package loads during device initialization. The driver looks for
+intel/ice/ddp/ice.pkg in your firmware root (typically /lib/firmware/ or
+/lib/firmware/updates/) and checks that it contains a valid DDP package file.
+The ice.pkg file is a symbolic link to the default DDP package file installed
+by the linux-firmware software package or the ice out-of-tree driver
+installation.
+
+If you encounter issues with the DDP package file, you may need to download an
+updated driver or DDP package file. See the log messages for more information.
+
+You can install specific DDP package files for different physical devices in
+the same system. To install a specific DDP package:
+
+1. Download the DDP package file (ice-x.x.x.x.zip) you want for your device. In
+addition to licensing information and this README, this zip file contains the
+following files:
+    ice-x.x.x.x.pkg
+    ice.pkg
+
+NOTE: The ice.pkg file is a Linux symbolic link file pointing to
+ice-x.x.x.x.pkg (in the same path).
+
+2. Rename the ice-x.x.x.x.pkg file as ice-xxxxxxxxxxxxxxxx.pkg, where
+'xxxxxxxxxxxxxxxx' is the unique 64-bit PCI Express device serial number (in
+hex) of the device you want the package downloaded on. The filename must
+include the complete serial number (including leading zeros) and be all
+lowercase. For example, if the 64-bit serial number is b887a3ffffca0568, then
+the file name would be ice-b887a3ffffca0568.pkg.
+
+To find the serial number from the PCI bus address, you can use the following
+command:
+
+# lspci -vv -s af:00.0 | grep -i Serial
+Capabilities: [150 v1] Device Serial Number b8-87-a3-ff-ff-ca-05-68
+
+You can use the following command to format the serial number without the
+dashes:
+
+# lspci -vv -s af:00.0 | grep -i Serial | awk '{print $7}' | sed s/-//g
+b887a3ffffca0568
+
+3. Copy the renamed DDP package file to /lib/firmware/updates/intel/ice/ddp/.
+If the directory does not yet exist, create it before copying the file.
+
+4. Unload all of the PFs on the device.
+
+5. Reload the driver with the new package.
+
+NOTE: The presence of a device-specific DDP package file overrides the loading
+of the default DDP package file (ice.pkg).
+
+
+Legal / Disclaimers
+===================
+Copyright (c) 2019 - 2020, Intel Corporation.
+
+Intel and the Intel logo are trademarks of Intel Corporation or its
+subsidiaries in the U.S. and/or other countries.
+
+*Other names and brands may be claimed as the property of others.
+
+This software and the related documents are Intel copyrighted materials, and
+your use of them is governed by the express license under which they were
+provided to you ("License"). Unless the License provides otherwise, you may not
+use, modify, copy, publish, distribute, disclose or transmit this software or
+the related documents without Intel's prior written permission.
+This software and the related documents are provided as is, with no express or
+implied warranties, other than those that are expressly stated in the License.

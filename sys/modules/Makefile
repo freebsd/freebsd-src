@@ -160,6 +160,8 @@ SUBDIR=	\
         ${_ibcore} \
 	${_ibcs2} \
 	${_ichwd} \
+	${_ice} \
+	${_ice_ddp} \
 	${_ida} \
 	if_bridge \
 	if_disc \
@@ -566,6 +568,13 @@ _rtwnfw=	rtwnfw
 	${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe" && \
 	${MACHINE_CPUARCH} != "riscv"
 _cxgbe=		cxgbe
+.endif
+
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "arm64"
+_ice=		ice
+.if ${MK_SOURCELESS_UCODE} != "no"
+_ice_ddp=	ice_ddp
+.endif
 .endif
 
 # These rely on 64bit atomics
