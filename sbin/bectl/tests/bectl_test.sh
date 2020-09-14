@@ -98,6 +98,11 @@ bectl_create_body()
 		atf_skip "https://bugs.freebsd.org/249055"
 	fi
 
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -151,6 +156,11 @@ bectl_destroy_body()
 	if [ "$(atf_config_get ci false)" = "true" ] && \
 		[ "$(uname -p)" = "i386" ]; then
 		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
 	fi
 
 	cwd=$(realpath .)
@@ -238,6 +248,11 @@ bectl_export_import_body()
 		atf_skip "https://bugs.freebsd.org/249055"
 	fi
 
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -269,6 +284,11 @@ bectl_list_body()
 	if [ "$(atf_config_get ci false)" = "true" ] && \
 		[ "$(uname -p)" = "i386" ]; then
 		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
 	fi
 
 	cwd=$(realpath .)
@@ -311,6 +331,11 @@ bectl_mount_body()
 		atf_skip "https://bugs.freebsd.org/249055"
 	fi
 
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -350,6 +375,11 @@ bectl_rename_body()
 		atf_skip "https://bugs.freebsd.org/249055"
 	fi
 
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
+	fi
+
 	cwd=$(realpath .)
 	zpool=$(make_zpool_name)
 	disk=${cwd}/disk.img
@@ -380,6 +410,11 @@ bectl_jail_body()
 	if [ "$(atf_config_get ci false)" = "true" ] && \
 		[ "$(uname -p)" = "i386" ]; then
 		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
 	fi
 
 	cwd=$(realpath .)
@@ -455,6 +490,11 @@ bectl_jail_cleanup()
 	if [ "$(atf_config_get ci false)" = "true" ] && \
 		[ "$(uname -p)" = "i386" ]; then
 		atf_skip "https://bugs.freebsd.org/249055"
+	fi
+
+	if [ "$(atf_config_get ci false)" = "true" ] && \
+		[ "$(uname -p)" = "armv7" ]; then
+		atf_skip "https://bugs.freebsd.org/249229"
 	fi
 
 	zpool=$(get_zpool_name)
