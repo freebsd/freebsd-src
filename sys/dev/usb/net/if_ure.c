@@ -784,9 +784,10 @@ ure_rxfilter(struct usb_ether *ue)
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
 
-	rxmode = URE_RCR_APM;
-	if (ifp->if_flags & IFF_BROADCAST)
-		 rxmode |= URE_RCR_AB;
+	rxmode = ure_read_4(sc, URE_PLA_RCR, URE_MCU_TYPE_PLA);
+	rxmode &= ~(URE_RCR_AAP | URE_RCR_AM);
+	rxmode |= URE_RCR_APM;	/* accept physical match packets */
+	rxmode |= URE_RCR_AB;	/* always accept broadcasts */
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		if (ifp->if_flags & IFF_PROMISC)
 			rxmode |= URE_RCR_AAP;
