@@ -206,10 +206,6 @@ userret(struct thread *td, struct trapframe *frame)
 	    __func__, td, p->p_pid, td->td_name, curvnet,
 	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
 #endif
-#ifdef RACCT
-	if (__predict_false(racct_enable && p->p_throttled != 0))
-		racct_proc_throttled(p);
-#endif
 }
 
 /*
@@ -361,6 +357,11 @@ ast(struct trapframe *framep)
 		td->td_pflags &= ~TDP_OLDMASK;
 		kern_sigprocmask(td, SIG_SETMASK, &td->td_oldsigmask, NULL, 0);
 	}
+
+#ifdef RACCT
+	if (__predict_false(racct_enable && p->p_throttled != 0))
+		racct_proc_throttled(p);
+#endif
 
 	userret(td, framep);
 }
