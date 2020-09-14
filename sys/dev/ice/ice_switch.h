@@ -43,6 +43,20 @@
 #define ICE_FLTR_TX BIT(1)
 #define ICE_FLTR_TX_RX (ICE_FLTR_RX | ICE_FLTR_TX)
 
+#define DUMMY_ETH_HDR_LEN		16
+#define ICE_SW_RULE_RX_TX_ETH_HDR_SIZE \
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lkup_tx_rx.hdr) + \
+	 (DUMMY_ETH_HDR_LEN * \
+	  sizeof(((struct ice_sw_rule_lkup_rx_tx *)0)->hdr[0])))
+#define ICE_SW_RULE_RX_TX_NO_HDR_SIZE \
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lkup_tx_rx.hdr))
+#define ICE_SW_RULE_LG_ACT_SIZE(n) \
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.lg_act.act) + \
+	 ((n) * sizeof(((struct ice_sw_rule_lg_act *)0)->act[0])))
+#define ICE_SW_RULE_VSI_LIST_SIZE(n) \
+	(offsetof(struct ice_aqc_sw_rules_elem, pdata.vsi_list.vsi) + \
+	 ((n) * sizeof(((struct ice_sw_rule_vsi_list *)0)->vsi[0])))
+
 /* Worst case buffer length for ice_aqc_opc_get_res_alloc */
 #define ICE_MAX_RES_TYPES 0x80
 #define ICE_AQ_GET_RES_ALLOC_BUF_LEN \
@@ -254,8 +268,7 @@ struct ice_sw_recipe {
 	/* Profiles this recipe is associated with */
 	u8 num_profs, *prof_ids;
 
-	/* Possible result indexes are 44, 45, 46 and 47 */
-#define ICE_POSSIBLE_RES_IDX 0x0000F00000000000ULL
+	/* Bit map for possible result indexes */
 	ice_declare_bitmap(res_idxs, ICE_MAX_FV_WORDS);
 
 	/* This allows user to specify the recipe priority.
@@ -407,13 +420,13 @@ ice_alloc_sw(struct ice_hw *hw, bool ena_stats, bool shared_res, u16 *sw_id,
 enum ice_status
 ice_free_sw(struct ice_hw *hw, u16 sw_id, u16 counter_id);
 enum ice_status
-ice_aq_get_res_alloc(struct ice_hw *hw, u16 *num_entries, void *buf,
-		     u16 buf_size, struct ice_sq_cd *cd);
+ice_aq_get_res_alloc(struct ice_hw *hw, u16 *num_entries,
+		     struct ice_aqc_get_res_resp_elem *buf, u16 buf_size,
+		     struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_get_res_descs(struct ice_hw *hw, u16 num_entries,
-		     struct ice_aqc_get_allocd_res_desc_resp *buf,
-		     u16 buf_size, u16 res_type, bool res_shared, u16 *desc_id,
-		     struct ice_sq_cd *cd);
+		     struct ice_aqc_res_elem *buf, u16 buf_size, u16 res_type,
+		     bool res_shared, u16 *desc_id, struct ice_sq_cd *cd);
 enum ice_status
 ice_add_vlan(struct ice_hw *hw, struct LIST_HEAD_TYPE *m_list);
 enum ice_status
@@ -462,7 +475,9 @@ ice_init_def_sw_recp(struct ice_hw *hw, struct ice_sw_recipe **recp_list);
 u16 ice_get_hw_vsi_num(struct ice_hw *hw, u16 vsi_handle);
 bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle);
 
-enum ice_status ice_replay_vsi_all_fltr(struct ice_hw *hw, u16 vsi_handle);
+enum ice_status
+ice_replay_vsi_all_fltr(struct ice_hw *hw, struct ice_port_info *pi,
+			u16 vsi_handle);
+void ice_rm_sw_replay_rule_info(struct ice_hw *hw, struct ice_switch_info *sw);
 void ice_rm_all_sw_replay_rule_info(struct ice_hw *hw);
-
 #endif /* _ICE_SWITCH_H_ */

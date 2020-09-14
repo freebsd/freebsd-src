@@ -39,8 +39,8 @@
 #define VIRTCHNL_IPSEC_MAX_CRYPTO_ITEM_NUMBER	2
 #define VIRTCHNL_IPSEC_MAX_KEY_LEN		128
 #define VIRTCHNL_IPSEC_MAX_SA_DESTROY_NUM	8
-#define VIRTCHNL_IPSEC_SELECTED_SA_DESTROY	0
-#define VIRTCHNL_IPSEC_ALL_SA_DESTROY		1
+#define VIRTCHNL_IPSEC_SA_DESTROY		0
+#define VIRTCHNL_IPSEC_BROADCAST_VFID		0xFFFFFFFF
 
 /* crypto type */
 #define VIRTCHNL_AUTH		1
@@ -49,7 +49,7 @@
 
 /* algorithm type */
 /* Hash Algorithm */
-#define VIRTCHNL_NO_ALG		0 /* NULL algorithm */
+#define VIRTCHNL_HASH_NO_ALG	0 /* NULL algorithm */
 #define VIRTCHNL_AES_CBC_MAC	1 /* AES-CBC-MAC algorithm */
 #define VIRTCHNL_AES_CMAC	2 /* AES CMAC algorithm */
 #define VIRTCHNL_AES_GMAC	3 /* AES GMAC algorithm */
@@ -65,13 +65,14 @@
 #define VIRTCHNL_SHA3_384_HMAC	13 /* HMAC using 384 bit SHA3 algorithm */
 #define VIRTCHNL_SHA3_512_HMAC	14 /* HMAC using 512 bit SHA3 algorithm */
 /* Cipher Algorithm */
-#define VIRTCHNL_3DES_CBC	15 /* Triple DES algorithm in CBC mode */
-#define VIRTCHNL_AES_CBC	16 /* AES algorithm in CBC mode */
-#define VIRTCHNL_AES_CTR	17 /* AES algorithm in Counter mode */
+#define VIRTCHNL_CIPHER_NO_ALG	15 /* NULL algorithm */
+#define VIRTCHNL_3DES_CBC	16 /* Triple DES algorithm in CBC mode */
+#define VIRTCHNL_AES_CBC	17 /* AES algorithm in CBC mode */
+#define VIRTCHNL_AES_CTR	18 /* AES algorithm in Counter mode */
 /* AEAD Algorithm */
-#define VIRTCHNL_AES_CCM	18 /* AES algorithm in CCM mode */
-#define VIRTCHNL_AES_GCM	19 /* AES algorithm in GCM mode */
-#define VIRTCHNL_CHACHA20_POLY1305 20 /* algorithm of ChaCha20-Poly1305 */
+#define VIRTCHNL_AES_CCM	19 /* AES algorithm in CCM mode */
+#define VIRTCHNL_AES_GCM	20 /* AES algorithm in GCM mode */
+#define VIRTCHNL_CHACHA20_POLY1305 21 /* algorithm of ChaCha20-Poly1305 */
 
 /* protocol type */
 #define VIRTCHNL_PROTO_ESP	1
@@ -97,6 +98,21 @@
 #define VIRTCHNL_IPV4	1
 #define VIRTCHNL_IPV6	2
 
+/* Detailed opcodes for DPDK and IPsec use */
+enum inline_ipsec_ops {
+	INLINE_IPSEC_OP_GET_CAP = 0,
+	INLINE_IPSEC_OP_GET_STATUS = 1,
+	INLINE_IPSEC_OP_SA_CREATE = 2,
+	INLINE_IPSEC_OP_SA_UPDATE = 3,
+	INLINE_IPSEC_OP_SA_DESTROY = 4,
+	INLINE_IPSEC_OP_SP_CREATE = 5,
+	INLINE_IPSEC_OP_SP_DESTROY = 6,
+	INLINE_IPSEC_OP_SA_READ = 7,
+	INLINE_IPSEC_OP_EVENT = 8,
+	INLINE_IPSEC_OP_RESP = 9,
+};
+
+#pragma pack(1)
 /* Not all valid, if certain field is invalid, set 1 for all bits */
 struct virtchnl_algo_cap  {
 	u32 algo_type;
@@ -119,6 +135,7 @@ struct virtchnl_algo_cap  {
 	u16 max_aad_size;
 	u16 inc_aad_size;
 };
+#pragma pack()
 
 /* vf record the capability of crypto from the virtchnl */
 struct virtchnl_sym_crypto_cap {
@@ -178,17 +195,7 @@ struct virtchnl_ipsec_cap {
 	struct virtchnl_sym_crypto_cap cap[VIRTCHNL_IPSEC_MAX_CRYPTO_CAP_NUM];
 };
 
-/* using desc_id to record the format of rx descriptor */
-struct virtchnl_rx_desc_fmt {
-	u16 desc_id;
-};
-
-/* using desc_id to record the format of tx descriptor */
-struct virtchnl_tx_desc_fmt {
-	u8 desc_num;
-	u16 desc_ids[VIRTCHNL_IPSEC_MAX_TX_DESC_NUM];
-};
-
+#pragma pack(1)
 /* configuration of crypto function */
 struct virtchnl_ipsec_crypto_cfg_item {
 	u8 crypto_type;
@@ -201,18 +208,23 @@ struct virtchnl_ipsec_crypto_cfg_item {
 	/* Length of digest */
 	u16 digest_len;
 
+	/* SA salt */
+	u32 salt;
+
 	/* The length of the symmetric key */
 	u16 key_len;
 
 	/* key data buffer */
 	u8 key_data[VIRTCHNL_IPSEC_MAX_KEY_LEN];
 };
+#pragma pack()
 
 struct virtchnl_ipsec_sym_crypto_cfg {
 	struct virtchnl_ipsec_crypto_cfg_item
 		items[VIRTCHNL_IPSEC_MAX_CRYPTO_ITEM_NUMBER];
 };
 
+#pragma pack(1)
 /* VIRTCHNL_OP_IPSEC_SA_CREATE
  * VF send this SA configuration to PF using virtchnl;
  * PF create SA as configuration and PF driver will return
@@ -248,9 +260,6 @@ struct virtchnl_ipsec_sa_cfg {
 
 	/* outer dst ip address */
 	u8 dst_addr[16];
-
-	/* SA salt */
-	u32 salt;
 
 	/* SPD reference. Used to link an SA with its policy.
 	 * PF drivers may ignore this field.
@@ -311,6 +320,7 @@ struct virtchnl_ipsec_sa_cfg {
 	/* crypto configuration */
 	struct virtchnl_ipsec_sym_crypto_cfg crypto_cfg;
 };
+#pragma pack()
 
 /* VIRTCHNL_OP_IPSEC_SA_UPDATE
  * VF send configuration of index of SA to PF
@@ -322,6 +332,7 @@ struct virtchnl_ipsec_sa_update {
 	u32 esn_low; /* low 32 bits of esn */
 };
 
+#pragma pack(1)
 /* VIRTCHNL_OP_IPSEC_SA_DESTROY
  * VF send configuration of index of SA to PF
  * PF will destroy SA according to configuration
@@ -329,13 +340,11 @@ struct virtchnl_ipsec_sa_update {
  * be destroyed
  */
 struct virtchnl_ipsec_sa_destroy {
-	/* VIRTCHNL_SELECTED_SA_DESTROY: selected SA will be destroyed.
-	 * VIRTCHNL_ALL_SA_DESTROY: all SA will be destroyed.
+	/* All zero bitmap indicates all SA will be destroyed.
+	 * Non-zero bitmap indicates the selected SA in
+	 * array sa_index will be destroyed.
 	 */
 	u8 flag;
-
-	u8 pad1; /* pading */
-	u16 pad2; /* pading */
 
 	/* selected SA index */
 	u32 sa_index[VIRTCHNL_IPSEC_MAX_SA_DESTROY_NUM];
@@ -445,5 +454,127 @@ struct virtchnl_ipsec_sa_read {
 	/* crypto configuration. Salt and keys are set to 0 */
 	struct virtchnl_ipsec_sym_crypto_cfg crypto_cfg;
 };
+#pragma pack()
+
+/* Add whitelist entry in IES */
+struct virtchnl_ipsec_sp_cfg {
+	u32 spi;
+	u32 dip[4];
+
+	/* Drop frame if true or redirect to QAT if false. */
+	u8 drop;
+
+	/* Congestion domain. For future use. */
+	u8 cgd;
+
+	/* 0 for IPv4 table, 1 for IPv6 table. */
+	u8 table_id;
+
+	/* Set TC (congestion domain) if true. For future use. */
+	u8 set_tc;
+};
+
+#pragma pack(1)
+/* Delete whitelist entry in IES */
+struct virtchnl_ipsec_sp_destroy {
+	/* 0 for IPv4 table, 1 for IPv6 table. */
+	u8 table_id;
+	u32 rule_id;
+};
+#pragma pack()
+
+/* Response from IES to whitelist operations */
+struct virtchnl_ipsec_sp_cfg_resp {
+	u32 rule_id;
+};
+
+struct virtchnl_ipsec_sa_cfg_resp {
+	u32 sa_handle;
+};
+
+#define INLINE_IPSEC_EVENT_RESET	0x1
+#define INLINE_IPSEC_EVENT_CRYPTO_ON	0x2
+#define INLINE_IPSEC_EVENT_CRYPTO_OFF	0x4
+
+struct virtchnl_ipsec_event {
+	u32 ipsec_event_data;
+};
+
+#define INLINE_IPSEC_STATUS_AVAILABLE	0x1
+#define INLINE_IPSEC_STATUS_UNAVAILABLE	0x2
+
+struct virtchnl_ipsec_status {
+	u32 status;
+};
+
+struct virtchnl_ipsec_resp {
+	u32 resp;
+};
+
+/* Internal message descriptor for VF <-> IPsec communication */
+struct inline_ipsec_msg {
+	u16 ipsec_opcode;
+	u16 req_id;
+
+	union {
+		/* IPsec request */
+		struct virtchnl_ipsec_sa_cfg sa_cfg[0];
+		struct virtchnl_ipsec_sp_cfg sp_cfg[0];
+		struct virtchnl_ipsec_sa_update sa_update[0];
+		struct virtchnl_ipsec_sa_destroy sa_destroy[0];
+		struct virtchnl_ipsec_sp_destroy sp_destroy[0];
+
+		/* IPsec response */
+		struct virtchnl_ipsec_sa_cfg_resp sa_cfg_resp[0];
+		struct virtchnl_ipsec_sp_cfg_resp sp_cfg_resp[0];
+		struct virtchnl_ipsec_cap ipsec_cap[0];
+		struct virtchnl_ipsec_status ipsec_status[0];
+		/* response to del_sa, del_sp, update_sa */
+		struct virtchnl_ipsec_resp ipsec_resp[0];
+
+		/* IPsec event (no req_id is required) */
+		struct virtchnl_ipsec_event event[0];
+
+		/* Reserved */
+		struct virtchnl_ipsec_sa_read sa_read[0];
+	} ipsec_data;
+};
+
+static inline u16 virtchnl_inline_ipsec_val_msg_len(u16 opcode)
+{
+	u16 valid_len = sizeof(struct inline_ipsec_msg);
+
+	switch (opcode) {
+	case INLINE_IPSEC_OP_GET_CAP:
+	case INLINE_IPSEC_OP_GET_STATUS:
+		break;
+	case INLINE_IPSEC_OP_SA_CREATE:
+		valid_len += sizeof(struct virtchnl_ipsec_sa_cfg);
+		break;
+	case INLINE_IPSEC_OP_SP_CREATE:
+		valid_len += sizeof(struct virtchnl_ipsec_sp_cfg);
+		break;
+	case INLINE_IPSEC_OP_SA_UPDATE:
+		valid_len += sizeof(struct virtchnl_ipsec_sa_update);
+		break;
+	case INLINE_IPSEC_OP_SA_DESTROY:
+		valid_len += sizeof(struct virtchnl_ipsec_sa_destroy);
+		break;
+	case INLINE_IPSEC_OP_SP_DESTROY:
+		valid_len += sizeof(struct virtchnl_ipsec_sp_destroy);
+		break;
+	/* Only for msg length caculation of response to VF in case of
+	 * inline ipsec failure.
+	 */
+	case INLINE_IPSEC_OP_RESP:
+		valid_len += sizeof(struct virtchnl_ipsec_resp);
+		break;
+	default:
+		valid_len = 0;
+		break;
+	}
+
+	return valid_len;
+}
 
 #endif /* _VIRTCHNL_INLINE_IPSEC_H_ */

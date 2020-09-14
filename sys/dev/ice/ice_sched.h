@@ -103,15 +103,15 @@ struct ice_sched_agg_info {
 /* FW AQ command calls */
 enum ice_status
 ice_aq_query_rl_profile(struct ice_hw *hw, u16 num_profiles,
-			struct ice_aqc_rl_profile_generic_elem *buf,
-			u16 buf_size, struct ice_sq_cd *cd);
+			struct ice_aqc_rl_profile_elem *buf, u16 buf_size,
+			struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_cfg_l2_node_cgd(struct ice_hw *hw, u16 num_nodes,
-		       struct ice_aqc_cfg_l2_node_cgd_data *buf, u16 buf_size,
+		       struct ice_aqc_cfg_l2_node_cgd_elem *buf, u16 buf_size,
 		       struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_query_sched_elems(struct ice_hw *hw, u16 elems_req,
-			 struct ice_aqc_get_elem *buf, u16 buf_size,
+			 struct ice_aqc_txsched_elem_data *buf, u16 buf_size,
 			 u16 *elems_ret, struct ice_sq_cd *cd);
 enum ice_status ice_sched_init_port(struct ice_port_info *pi);
 enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw);
@@ -145,7 +145,7 @@ ice_sched_get_vsi_node(struct ice_port_info *pi, struct ice_sched_node *tc_node,
 bool ice_sched_is_tree_balanced(struct ice_hw *hw, struct ice_sched_node *node);
 enum ice_status
 ice_aq_query_node_to_root(struct ice_hw *hw, u32 node_teid,
-			  struct ice_aqc_get_elem *buf, u16 buf_size,
+			  struct ice_aqc_txsched_elem_data *buf, u16 buf_size,
 			  struct ice_sq_cd *cd);
 
 /* Tx scheduler rate limiter functions */

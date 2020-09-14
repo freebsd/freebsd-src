@@ -135,9 +135,16 @@ ice_read_sr_buf(struct ice_hw *hw, u16 offset, u16 *words, u16 *data);
 enum ice_status
 ice_aq_erase_nvm(struct ice_hw *hw, u16 module_typeid, struct ice_sq_cd *cd);
 enum ice_status
+ice_aq_update_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset,
+		  u16 length, void *data, bool last_command, u8 command_flags,
+		  struct ice_sq_cd *cd);
+enum ice_status
 ice_aq_read_nvm_cfg(struct ice_hw *hw, u8 cmd_flags, u16 field_id, void *data,
 		    u16 buf_size, u16 *elem_count, struct ice_sq_cd *cd);
 enum ice_status
 ice_aq_write_nvm_cfg(struct ice_hw *hw, u8 cmd_flags, void *data, u16 buf_size,
 		     u16 elem_count, struct ice_sq_cd *cd);
+enum ice_status ice_update_sr_checksum(struct ice_hw *hw);
+enum ice_status ice_validate_sr_checksum(struct ice_hw *hw, u16 *checksum);
+enum ice_status ice_nvm_validate_checksum(struct ice_hw *hw);
 #endif /* _ICE_NVM_H_ */
