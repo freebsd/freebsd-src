@@ -181,7 +181,13 @@ int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		       bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		       void *lockfuncarg, bus_dma_tag_t *dmat);
 
-/* Functions for creating and cloning tags via a template */
+/*
+ * Functions for creating and cloning tags via a template,
+ *
+ * bus_dma_template_t is made avaialble publicly so it can be allocated
+ * from the caller stack.  Its contents should be considered private, and
+ * should only be accessed via the documented APIs and macros
+ */
 typedef struct {
 	bus_dma_tag_t		parent;
 	bus_size_t		alignment;
@@ -194,10 +200,63 @@ typedef struct {
 	int			flags;
 	bus_dma_lock_t		*lockfunc;
 	void			*lockfuncarg;
-} bus_dma_tag_template_t;
-void bus_dma_template_init(bus_dma_tag_template_t *t, bus_dma_tag_t parent);
-int bus_dma_template_tag(bus_dma_tag_template_t *t, bus_dma_tag_t *dmat);
-void bus_dma_template_clone(bus_dma_tag_template_t *t, bus_dma_tag_t dmat);
+	const char		*name;
+} bus_dma_template_t;
+
+/*
+ * These enum values should not be re-ordered.  BD_PARAM_INVALID is an
+ * invalid key and will trigger a panic.
+ */
+typedef enum {
+	BD_PARAM_INVALID	= 0,
+	BD_PARAM_PARENT		= 1,
+	BD_PARAM_ALIGNMENT	= 2,
+	BD_PARAM_BOUNDARY	= 3,
+	BD_PARAM_LOWADDR	= 4,
+	BD_PARAM_HIGHADDR	= 5,
+	BD_PARAM_MAXSIZE	= 6,
+	BD_PARAM_NSEGMENTS	= 7,
+	BD_PARAM_MAXSEGSIZE	= 8,
+	BD_PARAM_FLAGS		= 9,
+	BD_PARAM_LOCKFUNC	= 10,
+	BD_PARAM_LOCKFUNCARG	= 11,
+	BD_PARAM_NAME		= 12
+} bus_dma_param_key_t;
+
+/* These contents should also be considered private */
+typedef struct {
+	bus_dma_param_key_t	key;
+	union {
+		void *ptr;
+		vm_paddr_t pa;
+		uintmax_t num;
+	};
+} bus_dma_param_t;
+
+#define BD_PARENT(val)		{ BD_PARAM_PARENT, .ptr = val }
+#define BD_ALIGNMENT(val)	{ BD_PARAM_ALIGNMENT, .num = val }
+#define BD_BOUNDARY(val)	{ BD_PARAM_BOUNDARY, .num = val }
+#define BD_LOWADDR(val)		{ BD_PARAM_LOWADDR, .pa = val }
+#define BD_HIGHADDR(val)	{ BD_PARAM_HIGHADDR, .pa = val }
+#define BD_MAXSIZE(val)		{ BD_PARAM_MAXSIZE, .num = val }
+#define BD_NSEGMENTS(val)	{ BD_PARAM_NSEGMENTS, .num = val }
+#define BD_MAXSEGSIZE(val)	{ BD_PARAM_MAXSEGSIZE, .num = val }
+#define BD_FLAGS(val)		{ BD_PARAM_FLAGS, .num = val }
+#define BD_LOCKFUNC(val)	{ BD_PARAM_LOCKFUNC, .ptr = val }
+#define BD_LOCKFUNCARG(val)	{ BD_PARAM_LOCKFUNCARG, .ptr = val }
+#define BD_NAME(val)		{ BD_PARAM_NAME, .ptr = val }
+
+#define BUS_DMA_TEMPLATE_FILL(t, kv...) \
+do {					\
+	bus_dma_param_t pm[] = { kv };	\
+	bus_dma_template_fill(t, pm, howmany(sizeof(pm), sizeof(pm[0]))); \
+} while (0)
+
+void bus_dma_template_init(bus_dma_template_t *t, bus_dma_tag_t parent);
+int bus_dma_template_tag(bus_dma_template_t *t, bus_dma_tag_t *dmat);
+void bus_dma_template_clone(bus_dma_template_t *t, bus_dma_tag_t dmat);
+void bus_dma_template_fill(bus_dma_template_t *t, bus_dma_param_t *kv,
+    u_int count);
 
 /*
  * Set the memory domain to be used for allocations.
