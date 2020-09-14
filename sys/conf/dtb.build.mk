@@ -22,7 +22,7 @@ SYSDIR=	${S}
 .for _dts in ${DTS}
 # DTB for aarch64 needs to preserve the immediate parent of the .dts, because
 # these DTS are vendored and should be installed into their vendored directory.
-.if ${MACHINE_ARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "aarch64"
 DTB+=	${_dts:R:S/$/.dtb/}
 .else
 DTB+=	${_dts:T:R:S/$/.dtb/}

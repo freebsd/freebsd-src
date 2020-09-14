@@ -187,7 +187,7 @@ ARCH_C +=	zfs_fletcher_avx512.c
 CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_AVX512F \
 	-DHAVE_AVX512BW
 .endif
-.if ${MACHINE_ARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "aarch64"
 ARCH_C +=	zfs_fletcher_aarch64_neon.c
 .endif
 
