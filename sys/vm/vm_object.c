@@ -1313,7 +1313,7 @@ vm_object_shadow(
 void
 vm_object_split(vm_map_entry_t entry)
 {
-	vm_page_t m, m_next;
+	vm_page_t m, m_busy, m_next;
 	vm_object_t orig_object, new_object, source;
 	vm_pindex_t idx, offidxstart;
 	vm_size_t size;
@@ -1370,8 +1370,14 @@ vm_object_split(vm_map_entry_t entry)
 		    ("orig_object->charge < 0"));
 		orig_object->charge -= ptoa(size);
 	}
+	m_busy = NULL;
+#ifdef INVARIANTS
+	idx = 0;
+#endif
 retry:
 	m = vm_page_find_least(orig_object, offidxstart);
+	KASSERT(m == NULL || idx <= m->pindex - offidxstart,
+	    ("%s: object %p was repopulated", __func__, orig_object));
 	for (; m != NULL && (idx = m->pindex - offidxstart) < size;
 	    m = m_next) {
 		m_next = TAILQ_NEXT(m, listq);
@@ -1417,8 +1423,16 @@ retry:
 		 */
 		vm_reserv_rename(m, new_object, orig_object, offidxstart);
 #endif
-		if (orig_object->type == OBJT_SWAP)
+
+		/*
+		 * orig_object's type may change while sleeping, so keep track
+		 * of the beginning of the busied range.
+		 */
+		if (orig_object->type == OBJT_SWAP) {
 			vm_page_xbusy(m);
+			if (m_busy == NULL)
+				m_busy = m;
+		}
 	}
 	if (orig_object->type == OBJT_SWAP) {
 		/*
@@ -1426,8 +1440,9 @@ retry:
 		 * and new_object's locks are released and reacquired. 
 		 */
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
-		TAILQ_FOREACH(m, &new_object->memq, listq)
-			vm_page_xunbusy(m);
+		if (m_busy != NULL)
+			TAILQ_FOREACH_FROM(m_busy, &new_object->memq, listq)
+				vm_page_xunbusy(m_busy);
 	}
 	VM_OBJECT_WUNLOCK(orig_object);
 	VM_OBJECT_WUNLOCK(new_object);
