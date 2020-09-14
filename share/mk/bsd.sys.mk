@@ -187,7 +187,7 @@ CWARNFLAGS+=	-Wno-error=aggressive-loop-optimizations	\
 .endif
 
 # GCC's own arm_neon.h triggers various warnings
-.if ${MACHINE_ARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "aarch64"
 CWARNFLAGS+=	-Wno-system-headers
 .endif
 .endif	# gcc

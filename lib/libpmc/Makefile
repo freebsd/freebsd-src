@@ -7,10 +7,10 @@ INCS=	pmc.h pmclog.h pmcformat.h
 
 CFLAGS+= -I${SRCTOP}/${RELDIR:H}/libpmcstat
 
-.if ${MACHINE_ARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_ARCH} == "amd64" || \
     ${MACHINE_ARCH} == "i386"
 
-.if ${MACHINE_ARCH} == "aarch64"
+.if ${MACHINE_CPUARCH} == "aarch64"
 EVENT_ARCH="arm64"
 .elif ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 EVENT_ARCH="x86"
