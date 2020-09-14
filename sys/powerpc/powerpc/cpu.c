@@ -72,6 +72,7 @@
 #include <sys/sysctl.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/endian.h>
 
 #include <machine/bus.h>
 #include <machine/cpu.h>
@@ -358,6 +359,7 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 	uint16_t	vers;
 	register_t	msr;
 	phandle_t	cpu, dev, root;
+	uint32_t	freq32;
 	int		res  = 0;
 	char		buf[8];
 
@@ -428,10 +430,11 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 				return (ENOENT);
 			if (OF_getprop(cpu, "ibm,extended-clock-frequency",
 			    cps, sizeof(*cps)) >= 0) {
+				*cps = be64toh(*cps);
 				return (0);
-			} else if (OF_getprop(cpu, "clock-frequency", cps, 
-			    sizeof(cell_t)) >= 0) {
-				*cps >>= 32;
+			} else if (OF_getencprop(cpu, "clock-frequency",
+			    &freq32, sizeof(freq32)) >= 0) {
+				*cps = freq32;
 				return (0);
 			} else {
 				return (ENOENT);
