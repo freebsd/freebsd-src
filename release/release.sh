@@ -57,7 +57,9 @@ usage() {
 env_setup() {
 	# The directory within which the release will be built.
 	CHROOTDIR="/scratch"
-	RELENGDIR="$(dirname $(realpath ${0}))"
+	if [ -z "${RELENGDIR}" ]; then
+		export RELENGDIR="$(dirname $(realpath ${0}))"
+	fi
 
 	# The default version control system command to obtain the sources.
 	for _dir in /usr/bin /usr/local/bin; do
