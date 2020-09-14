@@ -1443,7 +1443,7 @@ static int
 mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
     uint32_t *return_code)
 {
-	bus_dma_tag_template_t		t;
+	bus_dma_template_t		t;
 	mpr_fw_diagnostic_buffer_t	*pBuffer;
 	struct mpr_busdma_context	*ctx;
 	uint8_t				extended_type, buffer_type, i;
@@ -1507,9 +1507,9 @@ mpr_diag_register(struct mpr_softc *sc, mpr_fw_diag_register_t *diag_register,
 		return (MPR_DIAG_FAILURE);
 	}
 	bus_dma_template_init(&t, sc->mpr_parent_dmat);
-	t.lowaddr = BUS_SPACE_MAXADDR_32BIT;
-	t.maxsize = t.maxsegsize = buffer_size;
-	t.nsegments = 1;
+	BUS_DMA_TEMPLATE_FILL(&t, BD_LOWADDR(BUS_SPACE_MAXADDR_32BIT),
+	    BD_MAXSIZE(buffer_size), BD_MAXSEGSIZE(buffer_size),
+	    BD_NSEGMENTS(1));
 	if (bus_dma_template_tag(&t, &sc->fw_diag_dmat)) {
 		mpr_dprint(sc, MPR_ERROR,
 		    "Cannot allocate FW diag buffer DMA tag\n");
