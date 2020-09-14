@@ -39,27 +39,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if __amd64__
-#   include "amd64.h"
-#endif
-#if __arm__
-#   include "arm.h"
-#endif
-#if __i386__
-#   include "i386.h"
-#endif
-#if __mips__
-#   include "mips.h"
-#endif
-#if __powerpc__
-#   include "powerpc.h"
-#endif
-#if __sparc64__
-#   include "sparc64.h"
-#endif
-#if __riscv
-#    include "riscv.h"
-#endif
+    /*
+     *	offset (in bytes) of the code from the entry address of a routine.
+     *	(see asgnsamples for use and explanation.)
+     */
+#define OFFSET_OF_CODE	0
+
+enum opermodes { dummy };
+typedef enum opermodes	operandenum;
 
     /*
      * booleans
