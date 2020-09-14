@@ -374,6 +374,9 @@ g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event 
 	if (epp != NULL)
 		*epp = ep;
 	curthread->td_pflags |= TDP_GEOM;
+	thread_lock(curthread);
+	curthread->td_flags |= TDF_ASTPENDING;
+	thread_unlock(curthread);
 	return (0);
 }
 
