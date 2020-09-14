@@ -5707,8 +5707,14 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 		goto out;
 	}
 	clp = stp->ls_clp;
-	delegfilerev = stp->ls_filerev;
 
+	/* If the clientid is not confirmed, ignore the delegation. */
+	if (clp->lc_flags & LCL_NEEDSCONFIRM) {
+		NFSUNLOCKSTATE();
+		goto out;
+	}
+
+	delegfilerev = stp->ls_filerev;
 	/*
 	 * If the Write delegation was issued as a part of this Compound RPC
 	 * or if we have an Implied Clientid (used in a previous Op in this
