@@ -1146,6 +1146,8 @@ racct_proc_throttle(struct proc *p, int timeout)
 
 	FOREACH_THREAD_IN_PROC(p, td) {
 		thread_lock(td);
+		td->td_flags |= TDF_ASTPENDING;
+
 		switch (td->td_state) {
 		case TDS_RUNQ:
 			/*
