@@ -181,7 +181,9 @@ struct g_eli_softc {
 	uint8_t		 sc_ekey[G_ELI_DATAKEYLEN];
 	TAILQ_HEAD(, g_eli_key) sc_ekeys_queue;
 	RB_HEAD(g_eli_key_tree, g_eli_key) sc_ekeys_tree;
+#ifndef _STANDALONE
 	struct mtx	 sc_ekeys_lock;
+#endif
 	uint64_t	 sc_ekeys_total;
 	uint64_t	 sc_ekeys_allocated;
 	u_int		 sc_ealgo;
