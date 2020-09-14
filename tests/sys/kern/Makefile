@@ -57,7 +57,7 @@ LIBADD.mqueue_test+=	rt
 
 .if ${MACHINE_ARCH} == "amd64" || \
     ${MACHINE_ARCH} == "i386" || \
-    ${MACHINE_ARCH} == "aarch64"
+    ${MACHINE_CPUARCH} == "aarch64"
 ATF_TESTS_C+=	libkern_crc32
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 LDADD.libkern_crc32+=	${SRCTOP}/sys/libkern/x86/crc32_sse42.c
