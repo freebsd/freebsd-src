@@ -63,7 +63,7 @@ init_heap(void)
 {
 	bzero(heap, HEAP_SIZE);
 
-	setheap(heap, (void *)((int)heap + HEAP_SIZE));
+	setheap(heap, (void *)((uintptr_t)heap + HEAP_SIZE));
 }
 
 uint64_t

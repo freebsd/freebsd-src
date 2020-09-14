@@ -249,7 +249,7 @@ typedef struct ficl_system_info FICL_SYSTEM_INFO;
 ** complement of false... that unifies logical and bitwise operations
 ** nicely.
 */
-#define FICL_TRUE  ((unsigned long)~(0L))
+#define FICL_TRUE  (~(FICL_UNS)0)
 #define FICL_FALSE (0)
 #define FICL_BOOL(x) ((x) ? FICL_TRUE : FICL_FALSE)
 
