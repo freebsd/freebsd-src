@@ -1,0 +1,6 @@
+.\" $FreeBSD$
+Do not install the enhanced
+.Xr bc
+and
+.Xr dc
+programs instead of the traditional FreeBSD versions.
