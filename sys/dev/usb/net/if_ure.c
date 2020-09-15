@@ -710,7 +710,9 @@ ure_init(struct usb_ether *ue)
 	    ~URE_RXDY_GATED_EN);
 
 	/* Set Rx mode. */
-	rxmode = URE_RCR_APM;
+	rxmode = ure_read_4(sc, URE_PLA_RCR, URE_MCU_TYPE_PLA);
+	rxmode &= ~URE_RCR_ACPT_ALL;
+	rxmode |= URE_RCR_APM;
 
 	/* If we want promiscuous mode, set the allframes bit. */
 	if (ifp->if_flags & IFF_PROMISC)
