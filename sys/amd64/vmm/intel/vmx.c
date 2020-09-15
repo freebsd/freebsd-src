@@ -3215,6 +3215,10 @@ vmx_setreg(void *arg, int vcpu, int reg, uint64_t val)
 	if (vmxctx_setreg(&vmx->ctx[vcpu], reg, val) == 0)
 		return (0);
 
+	/* Do not permit user write access to VMCS fields by offset. */
+	if (reg < 0)
+		return (EINVAL);
+
 	error = vmcs_setreg(&vmx->vmcs[vcpu], running, reg, val);
 
 	if (error == 0) {

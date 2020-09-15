@@ -469,9 +469,22 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_SHUTDOWN);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
 	    VMCB_INTCPT_FERR_FREEZE);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_INVD);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT, VMCB_INTCPT_INVLPGA);
 
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_MONITOR);
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_MWAIT);
+
+	/*
+	 * Intercept SVM instructions since AMD enables them in guests otherwise.
+	 * Non-intercepted VMMCALL causes #UD, skip it.
+	 */
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_VMLOAD);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_VMSAVE);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_STGI);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_CLGI);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_SKINIT);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_ICEBP);
 
 	/*
 	 * From section "Canonicalization and Consistency Checks" in APMv2
@@ -1217,43 +1230,45 @@ emulate_rdmsr(struct svm_softc *sc, int vcpu, u_int num, bool *retu)
 static const char *
 exit_reason_to_str(uint64_t reason)
 {
+	int i;
 	static char reasonbuf[32];
+	static const struct {
+		int reason;
+		const char *str;
+	} reasons[] = {
+		{ .reason = VMCB_EXIT_INVALID,	.str = "invalvmcb" },
+		{ .reason = VMCB_EXIT_SHUTDOWN,	.str = "shutdown" },
+		{ .reason = VMCB_EXIT_NPF, 	.str = "nptfault" },
+		{ .reason = VMCB_EXIT_PAUSE,	.str = "pause" },
+		{ .reason = VMCB_EXIT_HLT,	.str = "hlt" },
+		{ .reason = VMCB_EXIT_CPUID,	.str = "cpuid" },
+		{ .reason = VMCB_EXIT_IO,	.str = "inout" },
+		{ .reason = VMCB_EXIT_MC,	.str = "mchk" },
+		{ .reason = VMCB_EXIT_INTR,	.str = "extintr" },
+		{ .reason = VMCB_EXIT_NMI,	.str = "nmi" },
+		{ .reason = VMCB_EXIT_VINTR,	.str = "vintr" },
+		{ .reason = VMCB_EXIT_MSR,	.str = "msr" },
+		{ .reason = VMCB_EXIT_IRET,	.str = "iret" },
+		{ .reason = VMCB_EXIT_MONITOR,	.str = "monitor" },
+		{ .reason = VMCB_EXIT_MWAIT,	.str = "mwait" },
+		{ .reason = VMCB_EXIT_VMRUN,	.str = "vmrun" },
+		{ .reason = VMCB_EXIT_VMMCALL,	.str = "vmmcall" },
+		{ .reason = VMCB_EXIT_VMLOAD,	.str = "vmload" },
+		{ .reason = VMCB_EXIT_VMSAVE,	.str = "vmsave" },
+		{ .reason = VMCB_EXIT_STGI,	.str = "stgi" },
+		{ .reason = VMCB_EXIT_CLGI,	.str = "clgi" },
+		{ .reason = VMCB_EXIT_SKINIT,	.str = "skinit" },
+		{ .reason = VMCB_EXIT_ICEBP,	.str = "icebp" },
+		{ .reason = VMCB_EXIT_INVD,	.str = "invd" },
+		{ .reason = VMCB_EXIT_INVLPGA,	.str = "invlpga" },
+	};
 
-	switch (reason) {
-	case VMCB_EXIT_INVALID:
-		return ("invalvmcb");
-	case VMCB_EXIT_SHUTDOWN:
-		return ("shutdown");
-	case VMCB_EXIT_NPF:
-		return ("nptfault");
-	case VMCB_EXIT_PAUSE:
-		return ("pause");
-	case VMCB_EXIT_HLT:
-		return ("hlt");
-	case VMCB_EXIT_CPUID:
-		return ("cpuid");
-	case VMCB_EXIT_IO:
-		return ("inout");
-	case VMCB_EXIT_MC:
-		return ("mchk");
-	case VMCB_EXIT_INTR:
-		return ("extintr");
-	case VMCB_EXIT_NMI:
-		return ("nmi");
-	case VMCB_EXIT_VINTR:
-		return ("vintr");
-	case VMCB_EXIT_MSR:
-		return ("msr");
-	case VMCB_EXIT_IRET:
-		return ("iret");
-	case VMCB_EXIT_MONITOR:
-		return ("monitor");
-	case VMCB_EXIT_MWAIT:
-		return ("mwait");
-	default:
-		snprintf(reasonbuf, sizeof(reasonbuf), "%#lx", reason);
-		return (reasonbuf);
+	for (i = 0; i < nitems(reasons); i++) {
+		if (reasons[i].reason == reason)
+			return (reasons[i].str);
 	}
+	snprintf(reasonbuf, sizeof(reasonbuf), "%#lx", reason);
+	return (reasonbuf);
 }
 #endif	/* KTR */
 
@@ -1504,6 +1519,20 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 		break;
 	case VMCB_EXIT_MWAIT:
 		vmexit->exitcode = VM_EXITCODE_MWAIT;
+		break;
+	case VMCB_EXIT_SHUTDOWN:
+	case VMCB_EXIT_VMRUN:
+	case VMCB_EXIT_VMMCALL:
+	case VMCB_EXIT_VMLOAD:
+	case VMCB_EXIT_VMSAVE:
+	case VMCB_EXIT_STGI:
+	case VMCB_EXIT_CLGI:
+	case VMCB_EXIT_SKINIT:
+	case VMCB_EXIT_ICEBP:
+	case VMCB_EXIT_INVD:
+	case VMCB_EXIT_INVLPGA:
+		vm_inject_ud(svm_sc->vm, vcpu);
+		handled = 1;
 		break;
 	default:
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
@@ -2173,8 +2202,11 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 		return (svm_modify_intr_shadow(svm_sc, vcpu, val));
 	}
 
-	if (vmcb_write(svm_sc, vcpu, ident, val) == 0) {
-		return (0);
+	/* Do not permit user write access to VMCB fields by offset. */
+	if (!VMCB_ACCESS_OK(ident)) {
+		if (vmcb_write(svm_sc, vcpu, ident, val) == 0) {
+			return (0);
+		}
 	}
 
 	reg = swctx_regptr(svm_get_guest_regctx(svm_sc, vcpu), ident);
