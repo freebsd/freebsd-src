@@ -1557,7 +1557,8 @@ static int
 unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
     struct thread *td)
 {
-	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
+	struct mtx *vplock;
+	struct sockaddr_un *soun;
 	struct vnode *vp;
 	struct socket *so2;
 	struct unpcb *unp, *unp2, *unp3;
@@ -1566,7 +1567,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	struct sockaddr *sa;
 	cap_rights_t rights;
 	int error, len, freed;
-	struct mtx *vplock;
+	bool connreq;
 
 	if (nam->sa_family != AF_UNIX)
 		return (EAFNOSUPPORT);
@@ -1575,6 +1576,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
 	if (len <= 0)
 		return (EINVAL);
+	soun = (struct sockaddr_un *)nam;
 	bcopy(soun->sun_path, buf, len);
 	buf[len] = 0;
 
@@ -1587,7 +1589,11 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	unp->unp_flags |= UNP_CONNECTING;
 	UNP_PCB_UNLOCK(unp);
 
-	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
+	connreq = (so->so_proto->pr_flags & PR_CONNREQUIRED) != 0;
+	if (connreq)
+		sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
+	else
+		sa = NULL;
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
 	    UIO_SYSSPACE, buf, fd, cap_rights_init(&rights, CAP_CONNECTAT), td);
 	error = namei(&nd);
@@ -1628,7 +1634,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		error = EPROTOTYPE;
 		goto bad2;
 	}
-	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
+	if (connreq) {
 		if (so2->so_options & SO_ACCEPTCONN) {
 			CURVNET_SET(so2->so_vnet);
 			so2 = sonewconn(so2, 0);
