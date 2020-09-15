@@ -313,25 +313,25 @@ static void	unp_process_defers(void * __unused, int);
 static void
 unp_pcb_hold(struct unpcb *unp)
 {
-	MPASS(unp->unp_refcount);
-	refcount_acquire(&unp->unp_refcount);
+	u_int old __unused;
+
+	old = refcount_acquire(&unp->unp_refcount);
+	KASSERT(old > 0, ("%s: unpcb %p has no references", __func__, unp));
 }
 
-static int
+static __result_use_check bool
 unp_pcb_rele(struct unpcb *unp)
 {
-	int freed;
+	bool ret;
 
 	UNP_PCB_LOCK_ASSERT(unp);
-	MPASS(unp->unp_refcount);
-	if ((freed = refcount_release(&unp->unp_refcount))) {
-		/* we got here with having detached? */
-		MPASS(unp->unp_socket == NULL);
+
+	if ((ret = refcount_release(&unp->unp_refcount))) {
 		UNP_PCB_UNLOCK(unp);
 		UNP_PCB_LOCK_DESTROY(unp);
 		uma_zfree(unp_zone, unp);
 	}
-	return (freed);
+	return (ret);
 }
 
 static void
@@ -514,7 +514,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	UNP_PCB_LOCK_INIT(unp);
 	unp->unp_socket = so;
 	so->so_pcb = unp;
-	unp->unp_refcount = 1;
+	refcount_init(&unp->unp_refcount, 1);
 
 	if ((locked = UNP_LINK_WOWNED()) == false)
 		UNP_LINK_WLOCK();
@@ -1814,7 +1814,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	struct unp_head *head;
 	struct xunpcb *xu;
 	u_int i;
-	int error, freeunp, n;
+	int error, n;
 
 	switch ((intptr_t)arg1) {
 	case SOCK_STREAM:
@@ -1891,9 +1891,10 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	for (i = 0; i < n; i++) {
 		unp = unp_list[i];
 		UNP_PCB_LOCK(unp);
-		freeunp = unp_pcb_rele(unp);
+		if (unp_pcb_rele(unp))
+			continue;
 
-		if (freeunp == 0 && unp->unp_gencnt <= gencnt) {
+		if (unp->unp_gencnt <= gencnt) {
 			xu->xu_len = sizeof *xu;
 			xu->xu_unpp = (uintptr_t)unp;
 			/*
@@ -1920,8 +1921,9 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 			sotoxsocket(unp->unp_socket, &xu->xu_socket);
 			UNP_PCB_UNLOCK(unp);
 			error = SYSCTL_OUT(req, xu, sizeof *xu);
-		} else  if (freeunp == 0)
+		} else {
 			UNP_PCB_UNLOCK(unp);
+		}
 	}
 	free(xu, M_TEMP);
 	if (!error) {
@@ -2137,18 +2139,44 @@ unp_zone_change(void *tag)
 	uma_zone_set_max(unp_zone, maxsockets);
 }
 
+#ifdef INVARIANTS
+static void
+unp_zdtor(void *mem, int size __unused, void *arg __unused)
+{
+	struct unpcb *unp;
+
+	unp = mem;
+
+	KASSERT(LIST_EMPTY(&unp->unp_refs),
+	    ("%s: unpcb %p has lingering refs", __func__, unp));
+	KASSERT(unp->unp_socket == NULL,
+	    ("%s: unpcb %p has socket backpointer", __func__, unp));
+	KASSERT(unp->unp_vnode == NULL,
+	    ("%s: unpcb %p has vnode references", __func__, unp));
+	KASSERT(unp->unp_conn == NULL,
+	    ("%s: unpcb %p is still connected", __func__, unp));
+	KASSERT(unp->unp_addr == NULL,
+	    ("%s: unpcb %p has leaked addr", __func__, unp));
+}
+#endif
+
 static void
 unp_init(void)
 {
+	uma_dtor dtor;
 
 #ifdef VIMAGE
 	if (!IS_DEFAULT_VNET(curvnet))
 		return;
 #endif
-	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
+
+#ifdef INVARIANTS
+	dtor = unp_zdtor;
+#else
+	dtor = NULL;
+#endif
+	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, dtor,
 	    NULL, NULL, UMA_ALIGN_CACHE, 0);
-	if (unp_zone == NULL)
-		panic("unp_init");
 	uma_zone_set_max(unp_zone, maxsockets);
 	uma_zone_set_warning(unp_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, unp_zone_change,
