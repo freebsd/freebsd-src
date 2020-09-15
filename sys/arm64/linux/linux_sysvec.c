@@ -141,6 +141,13 @@ linux_set_syscall_retval(struct thread *td, int error)
 
 	td->td_retval[1] = td->td_frame->tf_x[1];
 	cpu_set_syscall_retval(td, error);
+
+	if (__predict_false(error != 0)) {
+		if (error != ERESTART && error != EJUSTRETURN) {
+			td->td_frame->tf_x[0] =
+				SV_ABI_ERRNO(td->td_proc, error);
+		}
+	}
 }
 
 static int

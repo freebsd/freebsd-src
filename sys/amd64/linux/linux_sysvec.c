@@ -219,6 +219,11 @@ linux_set_syscall_retval(struct thread *td, int error)
 
 	cpu_set_syscall_retval(td, error);
 
+	if (__predict_false(error != 0)) {
+		if (error != ERESTART && error != EJUSTRETURN)
+			frame->tf_rax = SV_ABI_ERRNO(td->td_proc, error);
+	}
+
 	 /* Restore all registers. */
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }

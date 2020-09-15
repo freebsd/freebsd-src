@@ -543,7 +543,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 
 	default:
-		frame->tf_rax = SV_ABI_ERRNO(td->td_proc, error);
+		frame->tf_rax = error;
 		frame->tf_rflags |= PSL_C;
 		break;
 	}
