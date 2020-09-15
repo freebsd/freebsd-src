@@ -335,6 +335,15 @@ unp_pcb_rele(struct unpcb *unp)
 }
 
 static void
+unp_pcb_rele_notlast(struct unpcb *unp)
+{
+	bool ret __unused;
+
+	ret = refcount_release(&unp->unp_refcount);
+	KASSERT(!ret, ("%s: unpcb %p has no references", __func__, unp));
+}
+
+static void
 unp_pcb_lock_pair(struct unpcb *unp, struct unpcb *unp2)
 {
 	UNP_PCB_UNLOCK_ASSERT(unp);
@@ -720,18 +729,14 @@ uipc_close(struct socket *so)
 		unp->unp_vnode = NULL;
 	}
 	unp2 = unp->unp_conn;
-	unp_pcb_hold(unp);
 	if (__predict_false(unp == unp2)) {
 		unp_disconnect(unp, unp2);
 	} else if (unp2 != NULL) {
-		unp_pcb_hold(unp2);
 		unp_pcb_owned_lock2(unp, unp2, freed);
 		unp_disconnect(unp, unp2);
-		if (unp_pcb_rele(unp2) == 0)
-			UNP_PCB_UNLOCK(unp2);
-	}
-	if (unp_pcb_rele(unp) == 0)
+	} else {
 		UNP_PCB_UNLOCK(unp);
+	}
 	if (vp) {
 		mtx_unlock(vplock);
 		vrele(vp);
@@ -816,14 +821,11 @@ uipc_detach(struct socket *so)
 				unp2 = NULL;
 		}
 		unp_pcb_hold(unp);
-		if (unp2 != NULL) {
-			unp_pcb_hold(unp2);
+		if (unp2 != NULL)
 			unp_disconnect(unp, unp2);
-			if (unp_pcb_rele(unp2) == 0)
-				UNP_PCB_UNLOCK(unp2);
-		}
+		else
+			UNP_PCB_UNLOCK(unp);
 	}
-	UNP_PCB_UNLOCK(unp);
 	UNP_REF_LIST_LOCK();
 	while (!LIST_EMPTY(&unp->unp_refs)) {
 		struct unpcb *ref = LIST_FIRST(&unp->unp_refs);
@@ -876,14 +878,8 @@ uipc_disconnect(struct socket *so)
 			UNP_PCB_UNLOCK(unp);
 			return (0);
 		}
-		unp_pcb_hold(unp2);
 	}
-	unp_pcb_hold(unp);
 	unp_disconnect(unp, unp2);
-	if (unp_pcb_rele(unp) == 0)
-		UNP_PCB_UNLOCK(unp);
-	if ((unp != unp2) && unp_pcb_rele(unp2) == 0)
-		UNP_PCB_UNLOCK(unp2);
 	return (0);
 }
 
@@ -1122,9 +1118,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		}
 		if (nam != NULL)
 			unp_disconnect(unp, unp2);
-		if (__predict_true(unp != unp2))
-			UNP_PCB_UNLOCK(unp2);
-		UNP_PCB_UNLOCK(unp);
+		else
+			unp_pcb_unlock_pair(unp, unp2);
 		break;
 	}
 
@@ -1756,23 +1751,29 @@ static void
 unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 {
 	struct socket *so, *so2;
-	int freed __unused;
-
-	KASSERT(unp2 != NULL, ("unp_disconnect: unp2 == NULL"));
+#ifdef INVARIANTS
+	struct unpcb *unptmp;
+#endif
 
 	UNP_PCB_LOCK_ASSERT(unp);
 	UNP_PCB_LOCK_ASSERT(unp2);
+	KASSERT(unp->unp_conn == unp2,
+	    ("%s: unpcb %p is not connected to %p", __func__, unp, unp2));
 
-	if (unp->unp_conn == NULL && unp2->unp_conn == NULL)
-		return;
-
-	MPASS(unp->unp_conn == unp2);
 	unp->unp_conn = NULL;
 	so = unp->unp_socket;
 	so2 = unp2->unp_socket;
 	switch (unp->unp_socket->so_type) {
 	case SOCK_DGRAM:
 		UNP_REF_LIST_LOCK();
+#ifdef INVARIANTS
+		LIST_FOREACH(unptmp, &unp2->unp_refs, unp_reflink) {
+			if (unptmp == unp)
+				break;
+		}
+		KASSERT(unptmp != NULL,
+		    ("%s: %p not found in reflist of %p", __func__, unp, unp2));
+#endif
 		LIST_REMOVE(unp, unp_reflink);
 		UNP_REF_LIST_UNLOCK();
 		if (so) {
@@ -1792,10 +1793,17 @@ unp_disconnect(struct unpcb *unp, struct unpcb *unp2)
 			soisdisconnected(so2);
 		break;
 	}
-	freed = unp_pcb_rele(unp);
-	MPASS(freed == 0);
-	freed = unp_pcb_rele(unp2);
-	MPASS(freed == 0);
+
+	if (unp == unp2) {
+		unp_pcb_rele_notlast(unp);
+		if (!unp_pcb_rele(unp))
+			UNP_PCB_UNLOCK(unp);
+	} else {
+		if (!unp_pcb_rele(unp))
+			UNP_PCB_UNLOCK(unp);
+		if (!unp_pcb_rele(unp2))
+			UNP_PCB_UNLOCK(unp2);
+	}
 }
 
 /*
@@ -1991,17 +1999,17 @@ unp_drop(struct unpcb *unp)
 	if (so)
 		so->so_error = ECONNRESET;
 	unp2 = unp->unp_conn;
+	/* Last reference dropped in unp_disconnect(). */
 	if (unp2 == unp) {
+		unp_pcb_rele_notlast(unp);
 		unp_disconnect(unp, unp2);
 	} else if (unp2 != NULL) {
-		unp_pcb_hold(unp2);
 		unp_pcb_owned_lock2(unp, unp2, freed);
+		unp_pcb_rele_notlast(unp);
 		unp_disconnect(unp, unp2);
-		if (unp_pcb_rele(unp2) == 0)
-			UNP_PCB_UNLOCK(unp2);
-	}
-	if (unp_pcb_rele(unp) == 0)
+	} else if (!unp_pcb_rele(unp)) {
 		UNP_PCB_UNLOCK(unp);
+	}
 }
 
 static void
