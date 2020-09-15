@@ -955,7 +955,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		tf->srr0 -= 4;
 		break;
 	default:
-		tf->fixreg[FIRSTARG] = SV_ABI_ERRNO(p, error);
+		tf->fixreg[FIRSTARG] = error;
 		tf->cr |= 0x10000000;		/* Set summary overflow */
 		break;
 	}
