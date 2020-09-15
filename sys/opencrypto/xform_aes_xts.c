@@ -50,6 +50,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <opencrypto/xform_enc.h>
 
 static	int aes_xts_setkey(void *, const uint8_t *, int);
