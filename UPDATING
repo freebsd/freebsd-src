@@ -16,6 +16,20 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20200915	p14	FreeBSD-SA-20:27.ure
+			FreeBSD-SA-20:28.bhyve_vmcs
+			FreeBSD-SA-20:29.bhyve_svm
+			FreeBSD-SA-20:30.ftpd
+
+        Fix ure device driver susceptible to packet-in-packet attack.
+          [SA-20:27.ure]
+
+        Fix bhyve privilege escalation via VMCS access. [SA-20:28.bhyve_vmcs]
+
+        Fix bhyve SVM guest escape. [SA-20:29.bhyve_svm]
+
+        Fix ftpd privilege escalation via ftpchroot. [SA-20:30.ftpd]
+
 20200902	p13	FreeBSD-EN-20:17.linuxthread
 			FreeBSD-EN-20:18.getfsstat
 			FreeBSD-SA-20:24.ipv6
