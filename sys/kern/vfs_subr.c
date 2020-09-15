@@ -5839,6 +5839,15 @@ vop_read_post(void *ap, int rc)
 }
 
 void
+vop_read_pgcache_post(void *ap, int rc)
+{
+	struct vop_read_pgcache_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_UNLOCKED(a->a_vp, NOTE_READ);
+}
+
+void
 vop_readdir_post(void *ap, int rc)
 {
 	struct vop_readdir_args *a = ap;

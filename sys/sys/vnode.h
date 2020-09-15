@@ -852,6 +852,7 @@ void	vop_mknod_pre(void *a);
 void	vop_mknod_post(void *a, int rc);
 void	vop_open_post(void *a, int rc);
 void	vop_read_post(void *a, int rc);
+void	vop_read_pgcache_post(void *ap, int rc);
 void	vop_readdir_post(void *a, int rc);
 void	vop_reclaim_post(void *a, int rc);
 void	vop_remove_pre(void *a);

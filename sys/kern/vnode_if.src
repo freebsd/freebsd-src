@@ -225,6 +225,17 @@ vop_read {
 };
 
 
+%% read_pgcache	vp	- - -
+%! read_pgcache	post	vop_read_pgcache_post
+
+vop_read_pgcache {
+	IN struct vnode *vp;
+	INOUT struct uio *uio;
+	IN int ioflag;
+	IN struct ucred *cred;
+};
+
+
 %% write	vp	L L L
 %! write	pre	VOP_WRITE_PRE
 %! write	post	VOP_WRITE_POST
