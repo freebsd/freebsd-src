@@ -1163,10 +1163,7 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 	 */
 	if (fp->f_ops == &badfileops) {
 		KASSERT(vp->v_type != VFIFO, ("Unexpected fifo."));
-		fp->f_seqcount[UIO_READ] = 1;
-		fp->f_seqcount[UIO_WRITE] = 1;
-		finit(fp, (flags & FMASK) | (fp->f_flag & FHASLOCK),
-		    DTYPE_VNODE, vp, &vnops);
+		finit_vnode(fp, flags, NULL, &vnops);
 	}
 
 	VOP_UNLOCK(vp);
@@ -4138,7 +4135,6 @@ unionread:
 		vp = vp->v_mount->mnt_vnodecovered;
 		VREF(vp);
 		fp->f_vnode = vp;
-		fp->f_data = vp;
 		foffset = 0;
 		vput(tvp);
 		goto unionread;
@@ -4502,10 +4498,7 @@ sys_fhopen(struct thread *td, struct fhopen_args *uap)
 	td->td_dupfd = 0;
 #endif
 	fp->f_vnode = vp;
-	fp->f_seqcount[UIO_READ] = 1;
-	fp->f_seqcount[UIO_WRITE] = 1;
-	finit(fp, (fmode & FMASK) | (fp->f_flag & FHASLOCK), DTYPE_VNODE, vp,
-	    &vnops);
+	finit_vnode(fp, fmode, NULL, &vnops);
 	VOP_UNLOCK(vp);
 	if ((fmode & O_TRUNC) != 0) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);

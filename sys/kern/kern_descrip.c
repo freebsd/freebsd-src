@@ -2622,6 +2622,15 @@ finit(struct file *fp, u_int flag, short type, void *data, struct fileops *ops)
 	atomic_store_rel_ptr((volatile uintptr_t *)&fp->f_ops, (uintptr_t)ops);
 }
 
+void
+finit_vnode(struct file *fp, u_int flag, void *data, struct fileops *ops)
+{
+	fp->f_seqcount[UIO_READ] = 1;
+	fp->f_seqcount[UIO_WRITE] = 1;
+	finit(fp, (flag & FMASK) | (fp->f_flag & FHASLOCK), DTYPE_VNODE,
+	    data, ops);
+}
+
 int
 fget_cap_locked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, struct filecaps *havecapsp)
