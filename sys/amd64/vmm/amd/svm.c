@@ -2227,8 +2227,11 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 		return (svm_modify_intr_shadow(svm_sc, vcpu, val));
 	}
 
-	if (vmcb_write(svm_sc, vcpu, ident, val) == 0) {
-		return (0);
+	/* Do not permit user write access to VMCB fields by offset. */
+	if (!VMCB_ACCESS_OK(ident)) {
+		if (vmcb_write(svm_sc, vcpu, ident, val) == 0) {
+			return (0);
+		}
 	}
 
 	reg = swctx_regptr(svm_get_guest_regctx(svm_sc, vcpu), ident);
