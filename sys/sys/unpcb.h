@@ -85,6 +85,7 @@ struct unpcb {
 	struct	sockaddr_un *unp_addr;	/* (p) bound address of socket */
 	struct	socket *unp_socket;	/* (c) pointer back to socket */
 	/* Cache line 2 */
+	u_int	unp_pairbusy;		/* (p) threads acquiring peer locks */
 	struct	vnode *unp_vnode;	/* (p) associated file if applicable */
 	struct	xucred unp_peercred;	/* (p) peer credentials if applicable */
 	LIST_ENTRY(unpcb) unp_reflink;	/* (l) link in unp_refs list */
@@ -117,6 +118,7 @@ struct unpcb {
  */
 #define	UNP_CONNECTING			0x010	/* Currently connecting. */
 #define	UNP_BINDING			0x020	/* Currently binding. */
+#define	UNP_WAITING			0x040	/* Peer state is changing. */
 
 /*
  * Flags in unp_gcflag.
