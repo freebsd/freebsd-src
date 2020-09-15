@@ -9,6 +9,8 @@
  * All rights reserved.
  * Copyright (c) 1998
  * 	Perry E. Metzger.  All rights reserved.
+ * Copyright (c) 2020
+ *     Boris N. Lytochkin. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libgen.h>
+#include <stdbool.h>
 
 #include "ealloc.h"
 #include "sprite.h"
@@ -75,16 +79,20 @@ static int debug = 0;
 #define KEYWORDS_STR	"# KEYWORDS:"
 #define KEYWORDS_LEN	(sizeof(KEYWORDS_STR) - 1)
 
+#define	FAKE_PROV_NAME	"fake_prov_"
+
 static int exit_code;
 static int file_count;
 static char **file_list;
 
-typedef int bool;
 #define TRUE 1
 #define FALSE 0
 typedef bool flag;
 #define SET TRUE
 #define RESET FALSE
+
+static flag do_graphviz = false;
+static flag do_parallel = false;
 
 static Hash_Table provide_hash_s, *provide_hash;
 
@@ -97,12 +105,14 @@ typedef struct strnodelist strnodelist;
 struct provnode {
 	flag		head;
 	flag		in_progress;
+	int		sequence;
 	filenode	*fnode;
 	provnode	*next, *last;
 };
 
 struct f_provnode {
 	provnode	*pnode;
+	Hash_Entry	*entry;
 	f_provnode	*next;
 };
 
@@ -124,19 +134,23 @@ struct filenode {
 	f_reqnode	*req_list;
 	f_provnode	*prov_list;
 	strnodelist	*keyword_list;
+	int		issues_count;
+	int		sequence;
 };
 
-static filenode fn_head_s, *fn_head;
+static filenode fn_head_s, *fn_head, **fn_seqlist;
+static int max_sequence = 0;
 
 static strnodelist *bl_list;
 static strnodelist *keep_list;
 static strnodelist *skip_list;
 
-static void do_file(filenode *fnode);
+static void do_file(filenode *fnode, strnodelist *);
 static void strnode_add(strnodelist **, char *, filenode *);
 static int skip_ok(filenode *fnode);
 static int keep_ok(filenode *fnode);
-static void satisfy_req(f_reqnode *rnode, char *filename);
+static char *generate_loop_for_req(strnodelist *, provnode *, filenode *);
+static void satisfy_req(f_reqnode *rnode, filenode *fnode, strnodelist *);
 static void crunch_file(char *);
 static void parse_require(filenode *, char *);
 static void parse_provide(filenode *, char *);
@@ -151,6 +165,12 @@ static void insert_before(void);
 static Hash_Entry *make_fake_provision(filenode *);
 static void crunch_all_files(void);
 static void initialize(void);
+static void generate_graphviz_header(void);
+static void generate_graphviz_footer(void);
+static void generate_graphviz_file_links(Hash_Entry *, filenode *);
+static void generate_graphviz_providers(void);
+static inline int is_fake_prov(const char *);
+static int sequence_cmp(const void *, const void *);
 static void generate_ordering(void);
 
 int
@@ -158,7 +178,7 @@ main(int argc, char *argv[])
 {
 	int ch;
 
-	while ((ch = getopt(argc, argv, "dk:s:")) != -1)
+	while ((ch = getopt(argc, argv, "dgk:ps:")) != -1)
 		switch (ch) {
 		case 'd':
 #ifdef DEBUG
@@ -167,8 +187,14 @@ main(int argc, char *argv[])
 			warnx("debugging not compiled in, -d ignored");
 #endif
 			break;
+		case 'g':
+			do_graphviz = true;
+			break;
 		case 'k':
 			strnode_add(&keep_list, optarg, 0);
+			break;
+		case 'p':
+			do_parallel = true;
 			break;
 		case 's':
 			strnode_add(&skip_list, optarg, 0);
@@ -186,10 +212,13 @@ main(int argc, char *argv[])
 	DPRINTF((stderr, "parse_args\n"));
 	initialize();
 	DPRINTF((stderr, "initialize\n"));
+	generate_graphviz_header();
 	crunch_all_files();
 	DPRINTF((stderr, "crunch_all_files\n"));
+	generate_graphviz_providers();
 	generate_ordering();
 	DPRINTF((stderr, "generate_ordering\n"));
+	generate_graphviz_footer();
 
 	exit(exit_code);
 }
@@ -295,6 +324,7 @@ add_provide(filenode *fnode, char *s)
 		head->head = SET;
 		head->in_progress = RESET;
 		head->fnode = NULL;
+		head->sequence = 0;
 		head->last = head->next = NULL;
 		Hash_SetValue(entry, head);
 	}
@@ -350,6 +380,7 @@ add_provide(filenode *fnode, char *s)
 
 	f_pnode = emalloc(sizeof(*f_pnode));
 	f_pnode->pnode = pnode;
+	f_pnode->entry = entry;
 	f_pnode->next = fnode->prov_list;
 	fnode->prov_list = f_pnode;
 }
@@ -522,7 +553,7 @@ make_fake_provision(filenode *node)
 	char buffer[30];
 
 	do {
-		snprintf(buffer, sizeof buffer, "fake_prov_%08d", i++);
+		snprintf(buffer, sizeof buffer, FAKE_PROV_NAME "%08d", i++);
 		entry = Hash_CreateEntry(provide_hash, buffer, &new);
 	} while (new == 0);
 	head = emalloc(sizeof(*head));
@@ -543,6 +574,7 @@ make_fake_provision(filenode *node)
 		pnode->next->last = pnode;
 
 	f_pnode = emalloc(sizeof(*f_pnode));
+	f_pnode->entry = entry;
 	f_pnode->pnode = pnode;
 	f_pnode->next = node->prov_list;
 	node->prov_list = f_pnode;
@@ -575,6 +607,11 @@ insert_before(void)
 		if (new == 1)
 			warnx("file `%s' is before unknown provision `%s'", bl_list->node->filename, bl_list->s);
 
+		if (new == 1 && do_graphviz == true)
+			generate_graphviz_file_links(
+			    Hash_FindEntry(provide_hash, bl_list->s),
+			    bl_list->node);
+
 		for (pnode = Hash_GetValue(entry); pnode; pnode = pnode->next) {
 			if (pnode->head)
 				continue;
@@ -605,6 +642,133 @@ crunch_all_files(void)
 	insert_before();
 }
 
+static inline int
+is_fake_prov(const char *name)
+{
+
+	return (name == strstr(name, FAKE_PROV_NAME));
+}
+
+/* loop though provide list of vnode drawing all non-fake dependencies */
+static void
+generate_graphviz_file_links(Hash_Entry *entry, filenode *fnode)
+{
+	char *dep_name, *fname;
+	provnode *head;
+	f_provnode *fpnode, *rfpnode;
+	int is_before = 0;
+
+	dep_name = Hash_GetKey(entry);
+	if (is_fake_prov(dep_name))
+		is_before = 1;
+	head = Hash_GetValue(entry);
+
+	for (fpnode = fnode->prov_list; fpnode && fpnode->entry;
+	    fpnode = fpnode->next) {
+		fname = Hash_GetKey(fpnode->entry);
+		if (is_fake_prov(fname))
+			continue;
+		rfpnode = NULL;
+		do {
+			if (rfpnode)
+				dep_name = Hash_GetKey(rfpnode->entry);
+			else
+				dep_name = Hash_GetKey(entry);
+
+			if (!is_fake_prov(dep_name)) {
+				printf("\"%s\" -> \"%s\" [%s%s];\n",
+				    fname, dep_name,
+				    /* edge style */
+				    (is_before ? "style=dashed" : "style=solid"),
+				    /* circular dep? */
+				    ((head == NULL ||
+				    (head->next && head->in_progress == SET)) ?
+				    ", color=red, penwidth=4" : ""));
+				if (rfpnode == NULL)
+					break;
+			}
+			/* dependency is solved already */
+			if (head == NULL || head->next == NULL)
+				break;
+
+			if (rfpnode == NULL)
+				rfpnode = head->next->fnode->prov_list;
+			else
+				rfpnode = rfpnode->next;
+		} while (rfpnode);
+	}
+}
+
+/*
+ * Walk the stack, find the looping point and generate traceback.
+ * NULL is returned on failure, otherwize pointer to a buffer holding
+ * text representation is returned, caller must run free(3) for the
+ * pointer.
+ */
+static char *
+generate_loop_for_req(strnodelist *stack_tail, provnode *head,
+    filenode *fnode)
+{
+	provnode *pnode;
+	strnodelist *stack_ptr, *loop_entry;
+	char *buf, **revstack;
+	size_t bufsize;
+	int i, stack_depth;
+
+	loop_entry = NULL;
+	/* fast forward stack to the component that is required now */
+	for (pnode = head->next; pnode; pnode = pnode->next) {
+		if (loop_entry)
+			break;
+		stack_depth = 0;
+		for (stack_ptr = stack_tail; stack_ptr;
+		    stack_ptr = stack_ptr->next) {
+			stack_depth++;
+			if (stack_ptr->node == pnode->fnode) {
+				loop_entry = stack_ptr;
+				break;
+			}
+		}
+	}
+
+	if (loop_entry == NULL)
+		return (NULL);
+
+	stack_depth += 2; /* fnode + loop_entry */
+	revstack = emalloc(sizeof(char *) * stack_depth);
+	bzero(revstack, (sizeof(char *) * stack_depth));
+
+	/* reverse stack and estimate buffer size to allocate */
+	bufsize = 1; /* tralining \0 */
+
+	revstack[stack_depth - 1] = loop_entry->node->filename;
+	bufsize += strlen(revstack[stack_depth - 1]);
+
+	revstack[stack_depth - 2] = fnode->filename;
+	bufsize += strlen(revstack[stack_depth - 2]);
+	fnode->issues_count++;
+
+	stack_ptr = stack_tail;
+	for (i = stack_depth - 3; i >= 0; i--) {
+		revstack[i] = stack_ptr->node->filename;
+		stack_ptr->node->issues_count++;
+		stack_ptr = stack_ptr->next;
+		bufsize += strlen(revstack[i]);
+	}
+	bufsize += strlen(" -> ") * (stack_depth - 1);
+
+	buf = emalloc(bufsize);
+	bzero(buf, bufsize);
+
+	for (i = 0; i < stack_depth; i++) {
+		strlcat(buf, revstack[i], bufsize);
+		if (i < stack_depth - 1)
+			strlcat(buf, " -> ", bufsize);
+	}
+
+	free(revstack);
+	return (buf);
+}
 /*
  * below are the functions that traverse the graphs we have built
  * finding out the desired ordering, printing each file in turn.
@@ -621,17 +785,22 @@ crunch_all_files(void)
  * provision.
  */
 static void
-satisfy_req(f_reqnode *rnode, char *filename)
+satisfy_req(f_reqnode *rnode, filenode *fnode, strnodelist *stack_ptr)
 {
 	Hash_Entry *entry;
 	provnode *head;
+	strnodelist stack_item;
+	char *buf;
 
 	entry = rnode->entry;
 	head = Hash_GetValue(entry);
 
+	if (do_graphviz == true)
+		generate_graphviz_file_links(entry, fnode);
+
 	if (head == NULL) {
 		warnx("requirement `%s' in file `%s' has no providers.",
-		    Hash_GetKey(entry), filename);
+		    Hash_GetKey(entry), fnode->filename);
 		exit_code = 1;
 		return;
 	}
@@ -645,20 +814,34 @@ satisfy_req(f_reqnode *rnode, char *filename)
 	 *	print that there is a circular dependency on it and abort
 	 */
 	if (head->in_progress == SET) {
-		warnx("Circular dependency on provision `%s' in file `%s'.",
-		    Hash_GetKey(entry), filename);
 		exit_code = 1;
+		buf = generate_loop_for_req(stack_ptr, head,
+		    fnode);
+
+		if (buf == NULL) {
+			warnx("Circular dependency on provision `%s' in "
+			    "file `%s' (tracing has failed).",
+			    Hash_GetKey(entry), fnode->filename);
+			return;
+		}
+
+		warnx("Circular dependency on provision `%s': %s.",
+		    Hash_GetKey(entry), buf);
+		free(buf);
 		return;
 	}
 
 	head->in_progress = SET;
 	
+	stack_item.next = stack_ptr;
+	stack_item.node = fnode;
+
 	/*
 	 * while provision_list is not empty
 	 *	do_file(first_member_of(provision_list));
 	 */
 	while (head->next != NULL)
-		do_file(head->next->fnode);
+		do_file(head->next->fnode, &stack_item);
 }
 
 static int
@@ -701,12 +884,13 @@ keep_ok(filenode *fnode)
  * Circular dependencies will cause problems if we do.
  */
 static void
-do_file(filenode *fnode)
+do_file(filenode *fnode, strnodelist *stack_ptr)
 {
 	f_reqnode *r;
 	f_provnode *p, *p_tmp;
-	provnode *pnode;
+	provnode *pnode, *head;
 	int was_set;	
+	char *dep_name;
 
 	DPRINTF((stderr, "do_file on %s.\n", fnode->filename));
 
@@ -729,11 +913,24 @@ do_file(filenode *fnode)
 	 *	satisfy_req(r, filename)
 	 */
 	r = fnode->req_list;
+	fnode->sequence = 0;
 	while (r != NULL) {
-		satisfy_req(r, fnode->filename);
+		satisfy_req(r, fnode, stack_ptr);
+		/* find sequence number where all requirements are satisfied */
+		head = Hash_GetValue(r->entry);
+		if (head && head->sequence > fnode->sequence)
+			fnode->sequence = head->sequence;
 		r = r->next;
 	}
 	fnode->req_list = NULL;
+	fnode->sequence++;
+
+	/* if we've seen issues with this file - put it to the tail */
+	if (fnode->issues_count)
+		fnode->sequence = max_sequence + 1;
+
+	if (max_sequence < fnode->sequence)
+		max_sequence = fnode->sequence;
 
 	/*
 	 * for each provision of fnode -> p
@@ -741,6 +938,19 @@ do_file(filenode *fnode)
 	 */
 	p = fnode->prov_list;
 	while (p != NULL) {
+		/* mark all troublemakers on graphviz */
+		if (do_graphviz == true && fnode->issues_count) {
+			dep_name = Hash_GetKey(p->entry);
+			if (!is_fake_prov(dep_name))
+				printf("\"%s\" [ color=red, penwidth=4 ];\n",
+				    dep_name);
+		}
+
+		/* update sequence when provided requirements are satisfied */
+		head = Hash_GetValue(p->entry);
+		if (head->sequence < fnode->sequence)
+			head->sequence = fnode->sequence;
+
 		p_tmp = p;
 		pnode = p->pnode;
 		if (pnode->next != NULL) {
@@ -759,8 +969,11 @@ do_file(filenode *fnode)
 	DPRINTF((stderr, "next do: "));
 
 	/* if we were already in progress, don't print again */
-	if (was_set == 0 && skip_ok(fnode) && keep_ok(fnode))
-		printf("%s\n", fnode->filename);
+	if (do_graphviz != true && was_set == 0 && skip_ok(fnode) &&
+	    keep_ok(fnode)) {
+		*fn_seqlist = fnode;
+		fn_seqlist++;
+	}
 	
 	if (fnode->next != NULL) {
 		fnode->next->last = fnode->last;
@@ -769,18 +982,102 @@ do_file(filenode *fnode)
 		fnode->last->next = fnode->next;
 	}
 
+	if (fnode->issues_count)
+		warnx("`%s' was seen in circular dependencies for %d times.",
+		    fnode->filename, fnode->issues_count);
+
 	DPRINTF((stderr, "nuking %s\n", fnode->filename));
-#if 0
-	if (was_set == 0) {
-   		free(fnode->filename);
-   		free(fnode);
-	}
-#endif
+}
+
+static void
+generate_graphviz_header()
+{
+
+	if (do_graphviz != true)
+		return;
+
+	printf("digraph rcorder {\n"
+	    "rankdir=\"BT\";\n"
+	    "node [style=rounded, shape=record];\n"
+	    "graph [overlap = false];\n");
+}
+
+static void
+generate_graphviz_footer()
+{
+
+	if (do_graphviz == true)
+		printf("}\n");
+}
+
+static void
+generate_graphviz_providers()
+{
+	Hash_Entry *entry;
+	Hash_Search psearch;
+	provnode *head, *pnode;
+	char *dep_name;
+
+	if (do_graphviz != true)
+		return;
+
+	entry = Hash_EnumFirst(provide_hash, &psearch);
+	if (entry == NULL)
+		return;
+
+	do {
+		dep_name = Hash_GetKey(entry);
+		if (is_fake_prov(dep_name))
+			continue;
+		head = Hash_GetValue(entry);
+		/* no providers for this requirement */
+		if (head == NULL || head->next == NULL) {
+			printf("\"%s\" [label=\"{ %s | ENOENT }\", "
+			    "style=\"rounded,filled\", color=red];\n",
+			    dep_name, dep_name);
+			continue;
+		}
+		/* one PROVIDE word for one file that matches */
+		if (head->next->next == NULL &&
+		    strcmp(dep_name,
+		    basename(head->next->fnode->filename)) == 0) {
+		        continue;
+		}
+		printf("\"%s\" [label=\"{ %s | ", dep_name, dep_name);
+		for (pnode = head->next; pnode; pnode = pnode->next)
+			printf("%s\\n", basename(pnode->fnode->filename));
+
+		printf("}\"];\n");
+	} while (NULL != (entry = Hash_EnumNext(&psearch)));
+}
+
+static int
+sequence_cmp(const void *a, const void *b)
+{
+	const filenode *fna = *((const filenode * const *)a);
+	const filenode *fnb = *((const filenode * const *)b);
+	int left, right;
+
+	/* push phantom files to the end */
+	if (fna == NULL || fnb == NULL)
+		return ((fna < fnb) - (fna > fnb));
+
+	left =  fna->sequence;
+	right = fnb->sequence;
+
+	return ((left > right) - (left < right));
 }
 
 static void
 generate_ordering(void)
 {
+	filenode **seqlist, **psl;
+	int last_seq = 0;
+
+	/* Prepare order buffer, use an additional one as a list terminator */
+	seqlist = emalloc(sizeof(filenode *) * (file_count + 1));
+	bzero(seqlist, sizeof(filenode *) * (file_count + 1));
+	fn_seqlist = seqlist;
 
 	/*
 	 * while there remain undone files{f},
@@ -798,6 +1095,24 @@ generate_ordering(void)
 	 */
 	while (fn_head->next != NULL) {
 		DPRINTF((stderr, "generate on %s\n", fn_head->next->filename));
-		do_file(fn_head->next);
+		do_file(fn_head->next, NULL);
 	}
+
+	/* Sort filenode list based on sequence */
+	qsort(seqlist, file_count, sizeof(filenode *), sequence_cmp);
+
+	for (psl = seqlist; *psl; psl++) {
+		printf("%s%s",
+		    (last_seq == 0 ? "" :
+		    (do_parallel != true || last_seq != (*psl)->sequence) ?
+		    "\n" : " "),
+		(*psl)->filename);
+		last_seq = (*psl)->sequence;
+		free((*psl)->filename);
+		free(*psl);
+	}
+	if (last_seq)
+		printf("\n");
+
+	free(seqlist);
 }
