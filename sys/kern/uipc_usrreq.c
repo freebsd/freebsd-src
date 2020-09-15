@@ -335,18 +335,28 @@ unp_pcb_rele(struct unpcb *unp)
 }
 
 static void
-unp_pcb_lock2(struct unpcb *unp, struct unpcb *unp2)
+unp_pcb_lock_pair(struct unpcb *unp, struct unpcb *unp2)
 {
-	MPASS(unp != unp2);
 	UNP_PCB_UNLOCK_ASSERT(unp);
 	UNP_PCB_UNLOCK_ASSERT(unp2);
-	if ((uintptr_t)unp2 > (uintptr_t)unp) {
+
+	if (unp == unp2) {
+		UNP_PCB_LOCK(unp);
+	} else if ((uintptr_t)unp2 > (uintptr_t)unp) {
 		UNP_PCB_LOCK(unp);
 		UNP_PCB_LOCK(unp2);
 	} else {
 		UNP_PCB_LOCK(unp2);
 		UNP_PCB_LOCK(unp);
 	}
+}
+
+static void
+unp_pcb_unlock_pair(struct unpcb *unp, struct unpcb *unp2)
+{
+	UNP_PCB_UNLOCK(unp);
+	if (unp != unp2)
+		UNP_PCB_UNLOCK(unp2);
 }
 
 static __noinline void
@@ -738,14 +748,9 @@ uipc_connect2(struct socket *so1, struct socket *so2)
 	KASSERT(unp != NULL, ("uipc_connect2: unp == NULL"));
 	unp2 = so2->so_pcb;
 	KASSERT(unp2 != NULL, ("uipc_connect2: unp2 == NULL"));
-	if (unp != unp2)
-		unp_pcb_lock2(unp, unp2);
-	else
-		UNP_PCB_LOCK(unp);
+	unp_pcb_lock_pair(unp, unp2);
 	error = unp_connect2(so1, so2, PRU_CONNECT2);
-	if (unp != unp2)
-		UNP_PCB_UNLOCK(unp2);
-	UNP_PCB_UNLOCK(unp);
+	unp_pcb_unlock_pair(unp, unp2);
 	return (error);
 }
 
@@ -1640,7 +1645,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 			goto bad2;
 		}
 		unp3 = sotounpcb(so2);
-		unp_pcb_lock2(unp2, unp3);
+		unp_pcb_lock_pair(unp2, unp3);
 		if (unp2->unp_addr != NULL) {
 			bcopy(unp2->unp_addr, sa, unp2->unp_addr->sun_len);
 			unp3->unp_addr = (struct sockaddr_un *) sa;
@@ -1662,18 +1667,13 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		mac_socketpeer_set_from_socket(so2, so);
 #endif
 	} else {
-		if (unp == unp2)
-			UNP_PCB_LOCK(unp);
-		else
-			unp_pcb_lock2(unp, unp2);
+		unp_pcb_lock_pair(unp, unp2);
 	}
 	KASSERT(unp2 != NULL && so2 != NULL && unp2->unp_socket == so2 &&
 	    sotounpcb(so2) == unp2,
 	    ("%s: unp2 %p so2 %p", __func__, unp2, so2));
 	error = unp_connect2(so, so2, PRU_CONNECT);
-	if (unp != unp2)
-		UNP_PCB_UNLOCK(unp2);
-	UNP_PCB_UNLOCK(unp);
+	unp_pcb_unlock_pair(unp, unp2);
 bad2:
 	mtx_unlock(vplock);
 bad:
