@@ -65,13 +65,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/domain.h>
-#include <sys/fcntl.h>
-#include <sys/malloc.h>		/* XXX must be before <sys/file.h> */
 #include <sys/eventhandler.h>
+#include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -106,9 +106,7 @@ __FBSDID("$FreeBSD$");
 MALLOC_DECLARE(M_FILECAPS);
 
 /*
- * Locking key:
- * (l)	Locked using list lock
- * (g)	Locked using linkage lock
+ * See unpcb.h for the locking key.
  */
 
 static uma_zone_t	unp_zone;
@@ -196,40 +194,31 @@ SYSCTL_INT(_net_local, OID_AUTO, deferred, CTLFLAG_RD,
 /*
  * Locking and synchronization:
  *
- * Three types of locks exist in the local domain socket implementation: a
- * a global linkage rwlock, the mtxpool lock, and per-unpcb mutexes.
- * The linkage lock protects the socket count, global generation number,
- * and stream/datagram global lists.
+ * Several types of locks exist in the local domain socket implementation:
+ * - a global linkage lock
+ * - a global connection list lock
+ * - the mtxpool lock
+ * - per-unpcb mutexes
+ *
+ * The linkage lock protects the global socket lists, the generation number
+ * counter and garbage collector state.
+ *
+ * The connection list lock protects the list of referring sockets in a datagram
+ * socket PCB.  This lock is also overloaded to protect a global list of
+ * sockets whose buffers contain socket references in the form of SCM_RIGHTS
+ * messages.  To avoid recursion, such references are released by a dedicated
+ * thread.
  *
  * The mtxpool lock protects the vnode from being modified while referenced.
- * Lock ordering requires that it be acquired before any unpcb locks.
+ * Lock ordering rules require that it be acquired before any PCB locks.
  *
- * The unpcb lock (unp_mtx) protects all fields in the unpcb. Of particular
- * note is that this includes the unp_conn field. So long as the unpcb lock
- * is held the reference to the unpcb pointed to by unp_conn is valid. If we
- * require that the unpcb pointed to by unp_conn remain live in cases where
- * we need to drop the unp_mtx as when we need to acquire the lock for a
- * second unpcb the caller must first acquire an additional reference on the
- * second unpcb and then revalidate any state (typically check that unp_conn
- * is non-NULL) upon requiring the initial unpcb lock. The lock ordering
- * between unpcbs is the conventional ascending address order. Two helper
- * routines exist for this:
- *
- *   - unp_pcb_lock2(unp, unp2) - which just acquires the two locks in the
- *     safe ordering.
- *
- *   - unp_pcb_owned_lock2(unp, unp2, freed) - the lock for unp is held
- *     when called. If unp is unlocked and unp2 is subsequently freed
- *     freed will be set to 1.
- *
- * The helper routines for references are:
- *
- *   - unp_pcb_hold(unp): Can be called any time we currently hold a valid
- *     reference to unp.
- *
- *    - unp_pcb_rele(unp): The caller must hold the unp lock. If we are
- *      releasing the last reference, detach must have been called thus
- *      unp->unp_socket be NULL.
+ * The unpcb lock (unp_mtx) protects the most commonly referenced fields in the
+ * unpcb.  This includes the unp_conn field, which either links two connected
+ * PCBs together (for connected socket types) or points at the destination
+ * socket (for connectionless socket types).  The operations of creating or
+ * destroying a connection therefore involve locking multiple PCBs.  To avoid
+ * lock order reversals, in some cases this involves dropping a PCB lock and
+ * using a reference counter to maintain liveness.
  *
  * UNIX domain sockets each have an unpcb hung off of their so_pcb pointer,
  * allocated in pru_attach() and freed in pru_detach().  The validity of that
