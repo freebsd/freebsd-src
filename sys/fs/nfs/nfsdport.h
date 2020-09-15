@@ -94,7 +94,7 @@ struct nfsexstuff {
 #define	NFSLOCKHASH(f) 							\
 	(&nfslockhash[nfsrv_hashfh(f) % nfsrv_lockhashsize])
 
-#define	NFSFPVNODE(f)	((struct vnode *)((f)->f_data))
+#define	NFSFPVNODE(f)	((f)->f_vnode)
 #define	NFSFPCRED(f)	((f)->f_cred)
 #define	NFSFPFLAG(f)	((f)->f_flag)
 

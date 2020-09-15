@@ -3220,7 +3220,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	if ((error = getvnode(td, cmd.handle,
 	    cap_rights_init(&rights, CAP_FSCK), &fp)) != 0)
 		return (error);
-	vp = fp->f_data;
+	vp = fp->f_vnode;
 	if (vp->v_type != VREG && vp->v_type != VDIR) {
 		fdrop(fp, td);
 		return (EINVAL);

@@ -239,7 +239,7 @@ zfs_file_fsync(zfs_file_t *fp, int flags)
 	if (fp->f_type != DTYPE_VNODE)
 		return (EINVAL);
 
-	v = fp->f_data;
+	v = fp->f_vnode;
 	return (zfs_vop_fsync(v));
 }
 
