@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/random.h>
+#include <sys/refcount.h>
 #include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
@@ -211,21 +212,15 @@ tmpfs_pages_check_avail(struct tmpfs_mount *tmp, size_t req_pages)
 void
 tmpfs_ref_node(struct tmpfs_node *node)
 {
+#ifdef INVARIANTS
+	u_int old;
 
-	TMPFS_NODE_LOCK(node);
-	tmpfs_ref_node_locked(node);
-	TMPFS_NODE_UNLOCK(node);
-}
-
-void
-tmpfs_ref_node_locked(struct tmpfs_node *node)
-{
-
-	TMPFS_NODE_ASSERT_LOCKED(node);
-	KASSERT(node->tn_refcount > 0, ("node %p zero refcount", node));
-	KASSERT(node->tn_refcount < UINT_MAX, ("node %p refcount %u", node,
-	    node->tn_refcount));
-	node->tn_refcount++;
+	old =
+#endif
+	refcount_acquire(&node->tn_refcount);
+#ifdef INVARIANTS
+	KASSERT(old > 0, ("node %p zero refcount", node));
+#endif
 }
 
 /*
@@ -370,6 +365,8 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 void
 tmpfs_free_node(struct tmpfs_mount *tmp, struct tmpfs_node *node)
 {
+	if (refcount_release_if_not_last(&node->tn_refcount))
+		return;
 
 	TMPFS_LOCK(tmp);
 	TMPFS_NODE_LOCK(node);
@@ -384,19 +381,19 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
     bool detach)
 {
 	vm_object_t uobj;
+	bool last;
 
 	TMPFS_MP_ASSERT_LOCKED(tmp);
 	TMPFS_NODE_ASSERT_LOCKED(node);
-	KASSERT(node->tn_refcount > 0, ("node %p refcount zero", node));
 
-	node->tn_refcount--;
-	if (node->tn_attached && (detach || node->tn_refcount == 0)) {
+	last = refcount_release(&node->tn_refcount);
+	if (node->tn_attached && (detach || last)) {
 		MPASS(tmp->tm_nodes_inuse > 0);
 		tmp->tm_nodes_inuse--;
 		LIST_REMOVE(node, tn_entries);
 		node->tn_attached = false;
 	}
-	if (node->tn_refcount > 0)
+	if (!last)
 		return (false);
 
 #ifdef INVARIANTS
@@ -596,7 +593,7 @@ tmpfs_alloc_vp(struct mount *mp, struct tmpfs_node *node, int lkflag,
 	error = 0;
 	tm = VFS_TO_TMPFS(mp);
 	TMPFS_NODE_LOCK(node);
-	tmpfs_ref_node_locked(node);
+	tmpfs_ref_node(node);
 loop:
 	TMPFS_NODE_ASSERT_LOCKED(node);
 	if ((vp = node->tn_vnode) != NULL) {
