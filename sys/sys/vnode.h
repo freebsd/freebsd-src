@@ -392,6 +392,7 @@ MALLOC_DECLARE(M_VNODE);
 #endif
 
 extern u_int ncsizefactor;
+extern const u_int io_hold_cnt;
 
 /*
  * Convert between vnode types and inode formats (since POSIX.1
@@ -734,7 +735,8 @@ int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    size_t len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *active_cred, struct ucred *file_cred, size_t *aresid,
 	    struct thread *td);
-int	vn_rlimit_fsize(const struct vnode *vn, const struct uio *uio,
+int	vn_read_from_obj(struct vnode *vp, struct uio *uio);
+int	vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	    struct thread *td);
 int	vn_start_write(struct vnode *vp, struct mount **mpp, int flags);
 int	vn_start_secondary_write(struct vnode *vp, struct mount **mpp,

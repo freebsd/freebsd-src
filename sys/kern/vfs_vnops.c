@@ -125,7 +125,7 @@ struct 	fileops vnops = {
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
-static const int io_hold_cnt = 16;
+const u_int io_hold_cnt = 16;
 static int vn_io_fault_enable = 1;
 SYSCTL_INT(_debug, OID_AUTO, vn_io_fault_enable, CTLFLAG_RWTUN,
     &vn_io_fault_enable, 0, "Enable vn_io_fault lock avoidance");
@@ -848,7 +848,7 @@ get_advice(struct file *fp, struct uio *uio)
 	return (ret);
 }
 
-static int
+int
 vn_read_from_obj(struct vnode *vp, struct uio *uio)
 {
 	vm_object_t obj;
