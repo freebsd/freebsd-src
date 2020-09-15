@@ -614,10 +614,7 @@ build_l1_block_pagetable:
 
 	/* Build the L1 block entry */
 	orr	x12, x7, #L1_BLOCK
-	orr	x12, x12, #(ATTR_AF)
-#ifdef SMP
-	orr	x12, x12, ATTR_SH(ATTR_SH_IS)
-#endif
+	orr	x12, x12, #(ATTR_DEFAULT)
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L1_SHIFT
@@ -655,11 +652,8 @@ build_l2_block_pagetable:
 	/* Build the L2 block entry */
 	lsl	x12, x7, #2
 	orr	x12, x12, #L2_BLOCK
-	orr	x12, x12, #(ATTR_AF)
+	orr	x12, x12, #(ATTR_DEFAULT)
 	orr	x12, x12, #(ATTR_S1_UXN)
-#ifdef SMP
-	orr	x12, x12, ATTR_SH(ATTR_SH_IS)
-#endif
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L2_SHIFT
