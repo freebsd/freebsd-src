@@ -175,12 +175,6 @@ DD=dd ${DD_NOSTATUS}
 CFLAGS+=	-G0 -fno-pic -mno-abicalls
 .endif
 
-.if ${MK_LOADER_FORCE_LE} != "no"
-.if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-mlittle-endian
-.endif
-.endif
-
 #
 # Have a sensible default
 #
