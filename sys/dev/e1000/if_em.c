@@ -1342,7 +1342,7 @@ em_if_init(if_ctx_t ctx)
 	}
 
 	/* Don't lose promiscuous settings */
-	em_if_set_promisc(ctx, IFF_PROMISC);
+	em_if_set_promisc(ctx, if_getflags(ifp));
 	e1000_clear_hw_cntrs_base_generic(&adapter->hw);
 
 	/* MSI-X configuration for 82574 */
