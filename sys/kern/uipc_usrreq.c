@@ -506,7 +506,10 @@ uipc_accept(struct socket *so, struct sockaddr **nam)
 	else
 		sa = &sun_noname;
 	bcopy(sa, *nam, sa->sa_len);
-	unp_pcb_unlock_pair(unp, unp2);
+	if (unp2 != NULL)
+		unp_pcb_unlock_pair(unp, unp2);
+	else
+		UNP_PCB_UNLOCK(unp);
 	return (0);
 }
 
