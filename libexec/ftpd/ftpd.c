@@ -1593,13 +1593,20 @@ skip:
 	 *    (uid 0 has no root power over NFS if not mapped explicitly.)
 	 */
 	if (seteuid(pw->pw_uid) < 0) {
-		reply(550, "Can't set uid.");
-		goto bad;
+		if (guest || dochroot) {
+			fatalerror("Can't set uid.");
+		} else {
+			reply(550, "Can't set uid.");
+			goto bad;
+		}
 	}
+	/*
+	 * Do not allow the session to live if we're chroot()'ed and chdir()
+	 * fails. Otherwise the chroot jail can be escaped.
+	 */
 	if (chdir(homedir) < 0) {
 		if (guest || dochroot) {
-			reply(550, "Can't change to base directory.");
-			goto bad;
+			fatalerror("Can't change to base directory.");
 		} else {
 			if (chdir("/") < 0) {
 				reply(550, "Root is inaccessible.");
