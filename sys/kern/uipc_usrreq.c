@@ -499,18 +499,14 @@ uipc_accept(struct socket *so, struct sockaddr **nam)
 	KASSERT(unp != NULL, ("uipc_accept: unp == NULL"));
 
 	*nam = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
-	UNP_LINK_RLOCK();
-	unp2 = unp->unp_conn;
-	if (unp2 != NULL && unp2->unp_addr != NULL) {
-		UNP_PCB_LOCK(unp2);
-		sa = (struct sockaddr *) unp2->unp_addr;
-		bcopy(sa, *nam, sa->sa_len);
-		UNP_PCB_UNLOCK(unp2);
-	} else {
+	UNP_PCB_LOCK(unp);
+	unp2 = unp_pcb_lock_peer(unp);
+	if (unp2 != NULL && unp2->unp_addr != NULL)
+		sa = (struct sockaddr *)unp2->unp_addr;
+	else
 		sa = &sun_noname;
-		bcopy(sa, *nam, sa->sa_len);
-	}
-	UNP_LINK_RUNLOCK();
+	bcopy(sa, *nam, sa->sa_len);
+	unp_pcb_unlock_pair(unp, unp2);
 	return (0);
 }
 
