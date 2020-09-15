@@ -1663,7 +1663,7 @@ restart:
 		if (tnp->tn_type != VDIR)
 			continue;
 		TMPFS_NODE_LOCK(tnp);
-		tmpfs_ref_node_locked(tnp);
+		tmpfs_ref_node(tnp);
 
 		/*
 		 * tn_vnode cannot be instantiated while we hold the

@@ -228,7 +228,7 @@ struct tmpfs_node {
 	int		tn_vpstate;		/* (i) */
 
 	/* Transient refcounter on this node. */
-	u_int		tn_refcount;		/* (m) + (i) */
+	u_int		tn_refcount;		/* 0<->1 (m) + (i) */
 
 	/* misc data field for different tn_type node */
 	union {
@@ -412,7 +412,6 @@ struct tmpfs_dir_cursor {
  */
 
 void	tmpfs_ref_node(struct tmpfs_node *node);
-void	tmpfs_ref_node_locked(struct tmpfs_node *node);
 int	tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *, enum vtype,
 	    uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *,
 	    const char *, dev_t, struct tmpfs_node **);
