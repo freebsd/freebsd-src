@@ -2874,6 +2874,22 @@ ufs_ioctl(struct vop_ioctl_args *ap)
 	}
 }
 
+static int
+ufs_read_pgcache(struct vop_read_pgcache_args *ap)
+{
+	struct uio *uio;
+	struct vnode *vp;
+
+	uio = ap->a_uio;
+	vp = ap->a_vp;
+	MPASS((vp->v_irflag & VIRF_PGREAD) != 0);
+
+	if (uio->uio_resid > ptoa(io_hold_cnt) || uio->uio_offset < 0 ||
+	    (ap->a_ioflag & IO_DIRECT) != 0)
+		return (EJUSTRETURN);
+	return (vn_read_from_obj(vp, uio));
+}
+
 /* Global vfs data structures for ufs. */
 struct vop_vector ufs_vnodeops = {
 	.vop_default =		&default_vnodeops,
@@ -2901,6 +2917,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_pathconf =		ufs_pathconf,
 	.vop_poll =		vop_stdpoll,
 	.vop_print =		ufs_print,
+	.vop_read_pgcache =	ufs_read_pgcache,
 	.vop_readdir =		ufs_readdir,
 	.vop_readlink =		ufs_readlink,
 	.vop_reclaim =		ufs_reclaim,
