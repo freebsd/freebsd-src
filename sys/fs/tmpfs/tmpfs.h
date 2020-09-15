@@ -287,6 +287,7 @@ struct tmpfs_node {
 			 * a position within the file is accessed.
 			 */
 			vm_object_t		tn_aobj;	/* (c) */
+			struct tmpfs_mount	*tn_tmp;	/* (c) */
 		} tn_reg;
 	} tn_spec;	/* (v) */
 };
@@ -415,6 +416,7 @@ void	tmpfs_ref_node(struct tmpfs_node *node);
 int	tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *, enum vtype,
 	    uid_t uid, gid_t gid, mode_t mode, struct tmpfs_node *,
 	    const char *, dev_t, struct tmpfs_node **);
+int	tmpfs_fo_close(struct file *fp, struct thread *td);
 void	tmpfs_free_node(struct tmpfs_mount *, struct tmpfs_node *);
 bool	tmpfs_free_node_locked(struct tmpfs_mount *, struct tmpfs_node *, bool);
 void	tmpfs_free_tmp(struct tmpfs_mount *);
@@ -557,6 +559,8 @@ tmpfs_update_getattr(struct vnode *vp)
 	if (__predict_false(node->tn_status & update_flags) != 0)
 		tmpfs_update(vp);
 }
+
+extern struct fileops tmpfs_fnops;
 
 #endif /* _KERNEL */
 

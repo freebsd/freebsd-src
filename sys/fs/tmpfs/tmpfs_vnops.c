@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
+#include <sys/file.h>
 #include <sys/limits.h>
 #include <sys/lockf.h>
 #include <sys/lock.h>
@@ -276,22 +277,25 @@ tmpfs_mknod(struct vop_mknod_args *v)
 	return tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL);
 }
 
+struct fileops tmpfs_fnops;
+
 static int
 tmpfs_open(struct vop_open_args *v)
 {
-	struct vnode *vp = v->a_vp;
-	int mode = v->a_mode;
-
-	int error;
+	struct vnode *vp;
 	struct tmpfs_node *node;
+	struct file *fp;
+	int error, mode;
 
-	MPASS(VOP_ISLOCKED(vp));
-
+	vp = v->a_vp;
+	mode = v->a_mode;
 	node = VP_TO_TMPFS_NODE(vp);
 
-	/* The file is still active but all its names have been removed
+	/*
+	 * The file is still active but all its names have been removed
 	 * (e.g. by a "rmdir $(pwd)").  It cannot be opened any more as
-	 * it is about to die. */
+	 * it is about to die.
+	 */
 	if (node->tn_links < 1)
 		return (ENOENT);
 
@@ -306,8 +310,13 @@ tmpfs_open(struct vop_open_args *v)
 		vnode_create_vobject(vp, node->tn_size, v->a_td);
 	}
 
-	MPASS(VOP_ISLOCKED(vp));
-	return error;
+	fp = v->a_fp;
+	if (error == 0 && fp != NULL && vp->v_type == VREG) {
+		tmpfs_ref_node(node);
+		finit_vnode(fp, mode, node, &tmpfs_fnops);
+	}
+
+	return (error);
 }
 
 static int
@@ -319,6 +328,19 @@ tmpfs_close(struct vop_close_args *v)
 	tmpfs_update(vp);
 
 	return (0);
+}
+
+int
+tmpfs_fo_close(struct file *fp, struct thread *td)
+{
+	struct tmpfs_node *node;
+
+	node = fp->f_data;
+	if (node != NULL) {
+		MPASS(node->tn_type == VREG);
+		tmpfs_free_node(node->tn_reg.tn_tmp, node);
+	}
+	return (vnops.fo_close(fp, td));
 }
 
 /*
@@ -564,6 +586,47 @@ tmpfs_read(struct vop_read_args *v)
 	node = VP_TO_TMPFS_NODE(vp);
 	tmpfs_set_status(VFS_TO_TMPFS(vp->v_mount), node, TMPFS_NODE_ACCESSED);
 	return (uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio));
+}
+
+static int
+tmpfs_read_pgcache(struct vop_read_pgcache_args *v)
+{
+	struct vnode *vp;
+	struct tmpfs_node *node;
+	vm_object_t object;
+	off_t size;
+	int error;
+
+	vp = v->a_vp;
+	MPASS((vp->v_irflag & VIRF_PGREAD) != 0);
+
+	if (v->a_uio->uio_offset < 0)
+		return (EINVAL);
+
+	error = EJUSTRETURN;
+	vfs_smr_enter();
+
+	node = VP_TO_TMPFS_NODE_SMR(vp);
+	if (node == NULL)
+		goto out_smr;
+	MPASS(node->tn_type == VREG);
+	MPASS(node->tn_refcount >= 1);
+	object = node->tn_reg.tn_aobj;
+	if (object == NULL)
+		goto out_smr;
+
+	MPASS((object->flags & (OBJ_ANON | OBJ_DEAD | OBJ_TMPFS_NODE)) ==
+	    OBJ_TMPFS_NODE);
+	if (!VN_IS_DOOMED(vp)) {
+		/* size cannot become shorter due to rangelock. */
+		size = node->tn_size;
+		vfs_smr_exit();
+		error = uiomove_object(object, size, v->a_uio);
+		return (error);
+	}
+out_smr:
+	vfs_smr_exit();
+	return (error);
 }
 
 static int
@@ -1721,6 +1784,7 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_getattr =			tmpfs_getattr,
 	.vop_setattr =			tmpfs_setattr,
 	.vop_read =			tmpfs_read,
+	.vop_read_pgcache =		tmpfs_read_pgcache,
 	.vop_write =			tmpfs_write,
 	.vop_fsync =			tmpfs_fsync,
 	.vop_remove =			tmpfs_remove,

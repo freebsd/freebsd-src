@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/refcount.h>
 #include <sys/rwlock.h>
+#include <sys/smr.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
@@ -340,6 +341,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 		/* OBJ_TMPFS is set together with the setting of vp->v_object */
 		vm_object_set_flag(obj, OBJ_TMPFS_NODE);
 		VM_OBJECT_WUNLOCK(obj);
+		nnode->tn_reg.tn_tmp = tmp;
 		break;
 
 	default:
@@ -697,6 +699,7 @@ loop:
 		vp->v_object = object;
 		object->un_pager.swp.swp_tmpfs = vp;
 		vm_object_set_flag(object, OBJ_TMPFS);
+		vp->v_irflag |= VIRF_PGREAD;
 		VI_UNLOCK(vp);
 		VM_OBJECT_WUNLOCK(object);
 		break;
