@@ -263,9 +263,8 @@ ppc_mrset(struct mem_range_softc *sc, struct mem_range_desc *desc, int *arg)
  * This is basically just an ioctl shim for mem_range_attr_get
  * and mem_range_attr_set.
  */
-/* ARGSUSED */
 int 
-memioctl(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
+memioctl_md(struct cdev *dev __unused, u_long cmd, caddr_t data, int flags,
     struct thread *td)
 {
 	int nd, error = 0;
