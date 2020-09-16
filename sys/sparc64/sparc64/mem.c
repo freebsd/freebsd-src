@@ -177,3 +177,10 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 		kva_free(ova, PAGE_SIZE * colors);
 	return (error);
 }
+
+int
+memioctl_md(struct cdev *dev __unused, u_long cmd __unused,
+    caddr_t data __unused, int flags __unused, struct thread *td __unused)
+{
+	return (ENOTTY);
+}
