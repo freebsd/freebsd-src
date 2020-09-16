@@ -995,6 +995,16 @@ sess_release(struct session *s)
 
 #ifdef DDB
 
+static void
+db_print_pgrp_one(struct pgrp *pgrp, struct proc *p)
+{
+	db_printf(
+	    "    pid %d at %p pr %d pgrp %p e %d jc %d\n",
+	    p->p_pid, p, p->p_pptr == NULL ? -1 : p->p_pptr->p_pid,
+	    p->p_pgrp, (p->p_treeflag & P_TREE_GRPEXITED) != 0,
+	    p->p_pptr == NULL ? 0 : isjobproc(p->p_pptr, pgrp));
+}
+
 DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 {
 	struct pgrp *pgrp;
@@ -1003,19 +1013,15 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 
 	for (i = 0; i <= pgrphash; i++) {
 		if (!LIST_EMPTY(&pgrphashtbl[i])) {
-			printf("\tindx %d\n", i);
+			db_printf("indx %d\n", i);
 			LIST_FOREACH(pgrp, &pgrphashtbl[i], pg_hash) {
-				printf(
-			"\tpgrp %p, pgid %ld, sess %p, sesscnt %d, mem %p\n",
-				    (void *)pgrp, (long)pgrp->pg_id,
-				    (void *)pgrp->pg_session,
+				db_printf(
+			"  pgrp %p, pgid %d, sess %p, sesscnt %d, mem %p\n",
+				    pgrp, (int)pgrp->pg_id, pgrp->pg_session,
 				    pgrp->pg_session->s_count,
-				    (void *)LIST_FIRST(&pgrp->pg_members));
-				LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
-					printf("\t\tpid %ld addr %p pgrp %p\n", 
-					    (long)p->p_pid, (void *)p,
-					    (void *)p->p_pgrp);
-				}
+				    LIST_FIRST(&pgrp->pg_members));
+				LIST_FOREACH(p, &pgrp->pg_members, p_pglist)
+					db_print_pgrp_one(pgrp, p);
 			}
 		}
 	}
