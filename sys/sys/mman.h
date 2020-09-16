@@ -245,6 +245,9 @@ void	shm_drop(struct shmfd *shmfd);
 int	shm_dotruncate(struct shmfd *shmfd, off_t length);
 
 extern struct fileops shm_ops;
+
+#define	MAP_32BIT_MAX_ADDR	((vm_offset_t)1 << 31)
+
 #else /* !_KERNEL */
 
 __BEGIN_DECLS
