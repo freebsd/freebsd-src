@@ -41,6 +41,7 @@
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
 #include <sys/uio.h>
@@ -51,6 +52,8 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 
 #include "linker_if.h"
 
@@ -435,8 +438,8 @@ ksyms_open(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		ksyms_size_calc(&ts);
 		elfsz = sizeof(struct ksyms_hdr) + ts.ts_symsz + ts.ts_strsz;
 
-		object = vm_object_allocate(OBJT_PHYS,
-		    OFF_TO_IDX(round_page(elfsz)));
+		object = vm_pager_allocate(OBJT_PHYS, NULL, round_page(elfsz),
+		    VM_PROT_ALL, 0, td->td_ucred);
 		sc->sc_obj = object;
 		sc->sc_objsz = elfsz;
 

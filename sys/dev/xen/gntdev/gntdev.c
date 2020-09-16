@@ -1073,7 +1073,8 @@ mmap_gref(struct per_user_data *priv_user, struct gntdev_gref *gref_start,
 	vm_object_t mem_obj;
 	struct gntdev_gref *gref;
 
-	mem_obj = vm_object_allocate(OBJT_PHYS, size);
+	mem_obj = vm_pager_allocate(OBJT_PHYS, NULL, size, VM_PROT_ALL, 0,
+	    curthread->td_ucred);
 	if (mem_obj == NULL)
 		return (ENOMEM);
 
