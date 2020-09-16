@@ -584,7 +584,7 @@ filt_devctl_read(struct knote *kn, long hint)
 /**
  * @brief Return whether the userland process is running
  */
-boolean_t
+bool
 devctl_process_running(void)
 {
 	return (devsoftc.inuse == 1);
