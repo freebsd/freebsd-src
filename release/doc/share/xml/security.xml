@@ -80,6 +80,34 @@
 	<entry>2&nbsp;September&nbsp;2020</entry>
 	<entry><para>Heap overflow</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:27.ure.asc">FreeBSD-SA-20:27.ure</link></entry>
+	<entry>15&nbsp;September&nbsp;2020</entry>
+	<entry><para>Packet-in-packet attack</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:28.bhyve_vmcs.asc">FreeBSD-SA-20:28.bhyve_vmcs</link></entry>
+	<entry>15&nbsp;September&nbsp;2020</entry>
+	<entry><para>Privilege escalation via VMCS</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:29.bhyve_svm.asc">FreeBSD-SA-20:29.bhyve_svm</link></entry>
+	<entry>15&nbsp;September&nbsp;2020</entry>
+	<entry><para>SVM guest escape</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:30.ftpd.asc">FreeBSD-SA-20:30.ftpd</link></entry>
+	<entry>15&nbsp;September&nbsp;2020</entry>
+	<entry><para>Privilege escalation</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
