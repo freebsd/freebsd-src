@@ -173,11 +173,13 @@ struct tmpfs_node {
 	 * Node's internal status.  This is used by several file system
 	 * operations to do modifications to the node in a delayed
 	 * fashion.
+	 *
+	 * tn_accessed has a dedicated byte to allow update by store without
+	 * using atomics.  This provides a micro-optimization to e.g.
+	 * tmpfs_read_pgcache().
 	 */
-	int			tn_status;	/* (vi) */
-#define	TMPFS_NODE_ACCESSED	(1 << 1)
-#define	TMPFS_NODE_MODIFIED	(1 << 2)
-#define	TMPFS_NODE_CHANGED	(1 << 3)
+	uint8_t			tn_status;	/* (vi) */
+	uint8_t			tn_accessed;	/* unlocked */
 
 	/*
 	 * The node size.  It does not necessarily match the real amount
@@ -317,10 +319,15 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 #define TMPFS_ASSERT_LOCKED(node) (void)0
 #endif
 
+/* tn_vpstate */
 #define TMPFS_VNODE_ALLOCATING	1
 #define TMPFS_VNODE_WANT	2
 #define TMPFS_VNODE_DOOMED	4
 #define	TMPFS_VNODE_WRECLAIM	8
+
+/* tn_status */
+#define	TMPFS_NODE_MODIFIED	0x01
+#define	TMPFS_NODE_CHANGED	0x02
 
 /*
  * Internal representation of a tmpfs mount point.
@@ -452,6 +459,7 @@ int	tmpfs_chtimes(struct vnode *, struct vattr *, struct ucred *cred,
 void	tmpfs_itimes(struct vnode *, const struct timespec *,
 	    const struct timespec *);
 
+void	tmpfs_set_accessed(struct tmpfs_mount *tm, struct tmpfs_node *node);
 void	tmpfs_set_status(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	    int status);
 int	tmpfs_truncate(struct vnode *, off_t);
@@ -551,12 +559,10 @@ static inline void
 tmpfs_update_getattr(struct vnode *vp)
 {
 	struct tmpfs_node *node;
-	int update_flags;
-
-	update_flags = TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED;
 
 	node = VP_TO_TMPFS_NODE(vp);
-	if (__predict_false(node->tn_status & update_flags) != 0)
+	if (__predict_false((node->tn_status & (TMPFS_NODE_MODIFIED |
+	    TMPFS_NODE_CHANGED)) != 0 || node->tn_accessed))
 		tmpfs_update(vp);
 }
 

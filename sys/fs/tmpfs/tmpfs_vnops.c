@@ -586,7 +586,7 @@ tmpfs_read(struct vop_read_args *v)
 	if (uio->uio_offset < 0)
 		return (EINVAL);
 	node = VP_TO_TMPFS_NODE(vp);
-	tmpfs_set_status(VFS_TO_TMPFS(vp->v_mount), node, TMPFS_NODE_ACCESSED);
+	tmpfs_set_accessed(VFS_TO_TMPFS(vp->v_mount), node);
 	return (uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio));
 }
 
@@ -622,6 +622,7 @@ tmpfs_read_pgcache(struct vop_read_pgcache_args *v)
 	if (!VN_IS_DOOMED(vp)) {
 		/* size cannot become shorter due to rangelock. */
 		size = node->tn_size;
+		tmpfs_set_accessed(node->tn_reg.tn_tmp, node);
 		vfs_smr_exit();
 		error = uiomove_object(object, size, v->a_uio);
 		return (error);
@@ -667,8 +668,8 @@ tmpfs_write(struct vop_write_args *v)
 	}
 
 	error = uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio);
-	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
-	    TMPFS_NODE_CHANGED;
+	node->tn_status |= TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED;
+	node->tn_accessed = true;
 	if (node->tn_mode & (S_ISUID | S_ISGID)) {
 		if (priv_check_cred(v->a_cred, PRIV_VFS_RETAINSUGID)) {
 			newmode = node->tn_mode & ~(S_ISUID | S_ISGID);
@@ -744,7 +745,8 @@ tmpfs_remove(struct vop_remove_args *v)
 	 * reclaimed. */
 	tmpfs_free_dirent(tmp, de);
 
-	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED;
+	node->tn_status |= TMPFS_NODE_CHANGED;
+	node->tn_accessed = true;
 	error = 0;
 
 out:
@@ -1317,15 +1319,15 @@ tmpfs_rmdir(struct vop_rmdir_args *v)
 	TMPFS_NODE_LOCK(node);
 	node->tn_links--;
 	node->tn_dir.tn_parent = NULL;
-	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED |
-	    TMPFS_NODE_MODIFIED;
+	node->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
+	node->tn_accessed = true;
 
 	TMPFS_NODE_UNLOCK(node);
 
 	TMPFS_NODE_LOCK(dnode);
 	dnode->tn_links--;
-	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED |
-	    TMPFS_NODE_MODIFIED;
+	dnode->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
+	dnode->tn_accessed = true;
 	TMPFS_NODE_UNLOCK(dnode);
 
 	if (tmpfs_use_nc(dvp)) {
@@ -1444,7 +1446,7 @@ tmpfs_readlink(struct vop_readlink_args *v)
 
 	error = uiomove(node->tn_link, MIN(node->tn_size, uio->uio_resid),
 	    uio);
-	tmpfs_set_status(VFS_TO_TMPFS(vp->v_mount), node, TMPFS_NODE_ACCESSED);
+	tmpfs_set_accessed(VFS_TO_TMPFS(vp->v_mount), node);
 
 	return (error);
 }
