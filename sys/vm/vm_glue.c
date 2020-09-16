@@ -560,7 +560,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 	}
 	dset = td2->td_domain.dr_policy;
 	while (vm_page_count_severe_set(&dset->ds_mask)) {
-		vm_wait_doms(&dset->ds_mask);
+		vm_wait_doms(&dset->ds_mask, 0);
 	}
 
 	if ((flags & RFMEM) == 0) {

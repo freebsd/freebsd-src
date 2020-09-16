@@ -2813,7 +2813,7 @@ restart:
 		if (rr && vm_domainset_iter_policy(&di, &domain) != 0) {
 			if ((flags & M_WAITOK) != 0) {
 				KEG_UNLOCK(keg);
-				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask);
+				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask, 0);
 				KEG_LOCK(keg);
 				goto restart;
 			}
@@ -3718,7 +3718,7 @@ uma_prealloc(uma_zone_t zone, int items)
 			KEG_LOCK(keg);
 			if (vm_domainset_iter_policy(&di, &domain) != 0) {
 				KEG_UNLOCK(keg);
-				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask);
+				vm_wait_doms(&keg->uk_dr.dr_policy->ds_mask, 0);
 				KEG_LOCK(keg);
 			}
 		}
