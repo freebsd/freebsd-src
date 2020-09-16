@@ -258,6 +258,7 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_400G_AUI8_AC IFM_X(116)	/* 400G-AUI8 active copper/optical */
 #define	IFM_400G_AUI8	IFM_X(117)	/* 400G-AUI8 */
 #define	IFM_50G_KR4	IFM_X(118)	/* 50GBase-KR4 */
+#define	IFM_40G_LM4	IFM_X(119)	/* 40GBase-LM4 */
 
 /*
  * Please update ieee8023ad_lacp.c:lacp_compose_key()
@@ -456,6 +457,7 @@ struct ifmedia_description {
 	{ IFM_40G_CR4,	"40Gbase-CR4" },				\
 	{ IFM_40G_SR4,	"40Gbase-SR4" },				\
 	{ IFM_40G_LR4,	"40Gbase-LR4" },				\
+	{ IFM_40G_LM4,	"40GBase-LM4" },				\
 	{ IFM_1000_KX,	"1000Base-KX" },				\
 	{ IFM_OTHER,	"Other" },					\
 	{ IFM_10G_KX4,	"10GBase-KX4" },				\
@@ -801,6 +803,7 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_40G_CR4,	IF_Gbps(40ULL) },		\
 	{ IFM_ETHER | IFM_40G_SR4,	IF_Gbps(40ULL) },		\
 	{ IFM_ETHER | IFM_40G_LR4,	IF_Gbps(40ULL) },		\
+	{ IFM_ETHER | IFM_40G_LM4,	IF_Gbps(40ULL) },		\
 	{ IFM_ETHER | IFM_1000_KX,	IF_Mbps(1000) },		\
 	{ IFM_ETHER | IFM_10G_KX4,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_10G_KR,	IF_Gbps(10ULL) },		\

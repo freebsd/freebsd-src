@@ -1213,6 +1213,7 @@ lacp_compose_key(struct lacp_port *lp)
 		case IFM_40G_CR4:
 		case IFM_40G_SR4:
 		case IFM_40G_LR4:
+		case IFM_40G_LM4:
 		case IFM_40G_XLPPI:
 		case IFM_40G_KR4:
 		case IFM_40G_XLAUI:
