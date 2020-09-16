@@ -62,6 +62,7 @@ struct sockaddr;
 struct stat;
 struct thr_param;
 struct uio;
+struct vm_map;
 
 typedef int (*mmap_check_fp_fn)(struct file *, int, int, int);
 
@@ -185,6 +186,8 @@ int	kern_mmap(struct thread *td, uintptr_t addr, size_t size, int prot,
 int	kern_mmap_fpcheck(struct thread *td, uintptr_t addr, size_t len,
 	    int prot, int flags, int fd, off_t pos,
 	    mmap_check_fp_fn check_fp_fn);
+int	kern_mmap_racct_check(struct thread *td, struct vm_map *map,
+	    vm_size_t size);
 int	kern_mprotect(struct thread *td, uintptr_t addr, size_t size, int prot);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);
