@@ -35,7 +35,7 @@
  * devctl hooks.  Typically one should use the devctl_notify
  * hook to send the message.
  */
-boolean_t devctl_process_running(void);
+bool devctl_process_running(void);
 void devctl_notify(const char *__system, const char *__subsystem,
     const char *__type, const char *__data);
 struct sbuf;
