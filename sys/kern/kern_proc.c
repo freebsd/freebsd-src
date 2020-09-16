@@ -851,6 +851,7 @@ fixjobc_kill(struct proc *p)
 	 * It is marked by the flag because p is only physically
 	 * removed from its process group on wait(2).
 	 */
+	MPASS((p->p_treeflag & P_TREE_GRPEXITED) == 0);
 	p->p_treeflag |= P_TREE_GRPEXITED;
 
 	/*
