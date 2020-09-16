@@ -623,11 +623,6 @@ shm_access(struct shmfd *shmfd, struct ucred *ucred, int flags)
 	return (error);
 }
 
-/*
- * Dictionary management.  We maintain an in-kernel dictionary to map
- * paths to shmfd objects.  We use the FNV hash on the path to store
- * the mappings in a hash table.
- */
 static void
 shm_init(void *arg)
 {
@@ -641,6 +636,11 @@ shm_init(void *arg)
 }
 SYSINIT(shm_init, SI_SUB_SYSV_SHM, SI_ORDER_ANY, shm_init, NULL);
 
+/*
+ * Dictionary management.  We maintain an in-kernel dictionary to map
+ * paths to shmfd objects.  We use the FNV hash on the path to store
+ * the mappings in a hash table.
+ */
 static struct shmfd *
 shm_lookup(char *path, Fnv32_t fnv)
 {
