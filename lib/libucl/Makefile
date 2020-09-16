@@ -23,7 +23,7 @@ SRCS=		ucl_emitter_streamline.c \
 INCS=		ucl.h
 LIBADD=		m
 
-WARNS=		1
+WARNS?=		1
 CFLAGS+=	-I${LIBUCL}/include \
 		-I${LIBUCL}/src \
 		-I${LIBUCL}/uthash \

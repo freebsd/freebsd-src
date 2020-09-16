@@ -5,7 +5,7 @@
 BOOT1?=		boot1
 PROG=		${BOOT1}.sym
 INTERNALPROG=
-WARNS=		6
+WARNS?=		6
 
 CFLAGS+=	-DEFI_BOOT1
 # We implement a slightly non-standard %S in that it always takes a

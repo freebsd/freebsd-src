@@ -15,6 +15,6 @@ CFLAGS+=-I${.CURDIR}
 CFLAGS+=-I${SRCTOP}/contrib/pf/libevent
 CFLAGS+=-I${SRCTOP}/lib/libopenbsd
 
-WARNS=	2
+WARNS?=	2
 
 .include <bsd.prog.mk>

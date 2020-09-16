@@ -13,7 +13,7 @@ SRCS=	charmap.c \
 	time.c \
 	wide.c
 
-WARNS=	3
+WARNS?=	3
 ${SRCS:M*.c}: parser.h
 parser.h: parser.y
 

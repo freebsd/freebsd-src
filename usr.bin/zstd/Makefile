@@ -22,7 +22,7 @@ MLINKS=	zstd.1 unzstd.1 \
 	zstd.1 zstdcat.1 \
 	zstd.1 zstdmt.1
 
-WARNS=	2
+WARNS?=	2
 LIBADD=	zstd
 .PATH: ${SRCTOP}/sys/contrib/zstd/programs
 

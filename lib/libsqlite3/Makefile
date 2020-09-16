@@ -12,7 +12,7 @@ INCS=	sqlite3.h sqlite3ext.h
 SQLITE=	${SRCTOP}/contrib/sqlite3
 .PATH:	${SQLITE}
 
-WARNS=	3
+WARNS?=	3
 CFLAGS+=	-I${SQLITE} \
 		-DUSE_PREAD=1 \
 		-DSTDC_HEADERS=1 \
