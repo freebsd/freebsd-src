@@ -307,6 +307,7 @@ vm_object_init(void)
 	kernel_object->flags |= OBJ_COLORED;
 	kernel_object->pg_color = (u_short)atop(VM_MIN_KERNEL_ADDRESS);
 #endif
+	kernel_object->un_pager.phys.ops = &default_phys_pg_ops;
 
 	/*
 	 * The lock portion of struct vm_object must be type stable due

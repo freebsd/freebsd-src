@@ -233,5 +233,22 @@ vm_object_t cdev_pager_allocate(void *handle, enum obj_type tp,
 vm_object_t cdev_pager_lookup(void *handle);
 void cdev_pager_free_page(vm_object_t object, vm_page_t m);
 
+struct phys_pager_ops {
+	int (*phys_pg_getpages)(vm_object_t vm_obj, vm_page_t *m, int count,
+	    int *rbehind, int *rahead);
+	int (*phys_pg_populate)(vm_object_t vm_obj, vm_pindex_t pidx,
+	    int fault_type, vm_prot_t max_prot, vm_pindex_t *first,
+	    vm_pindex_t *last);
+	boolean_t (*phys_pg_haspage)(vm_object_t obj,  vm_pindex_t pindex,
+	    int *before, int *after);
+	void (*phys_pg_ctor)(vm_object_t vm_obj, vm_prot_t prot,
+	    vm_ooffset_t foff, struct ucred *cred);
+	void (*phys_pg_dtor)(vm_object_t vm_obj);
+};
+extern struct phys_pager_ops default_phys_pg_ops;
+vm_object_t phys_pager_allocate(void *handle, struct phys_pager_ops *ops,
+    void *data, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff,
+    struct ucred *cred);
+
 #endif				/* _KERNEL */
 #endif				/* _VM_PAGER_ */
