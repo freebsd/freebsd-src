@@ -636,7 +636,7 @@ __format_grouped_double(double value, int *flags,
 		memset(bufend, pad_char, padded);
 	}
 
-	bufsize = bufsize - (bufend - rslt) + 1;
+	bufsize = rslt + bufsize - bufend;
 	memmove(rslt, bufend, bufsize);
 	free(avalue);
 	return (rslt);
