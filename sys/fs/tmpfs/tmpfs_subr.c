@@ -88,6 +88,7 @@ tmpfs_node_ctor(void *mem, int size, void *arg, int flags)
 	node->tn_gen++;
 	node->tn_size = 0;
 	node->tn_status = 0;
+	node->tn_accessed = false;
 	node->tn_flags = 0;
 	node->tn_links = 0;
 	node->tn_vnode = NULL;
@@ -1098,8 +1099,8 @@ tmpfs_dir_attach(struct vnode *vp, struct tmpfs_dirent *de)
 		tmpfs_dir_attach_dup(dnode, &xde->ud.td_duphead, de);
 	}
 	dnode->tn_size += sizeof(struct tmpfs_dirent);
-	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
-	    TMPFS_NODE_MODIFIED;
+	dnode->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
+	dnode->tn_accessed = true;
 	tmpfs_update(vp);
 }
 
@@ -1145,8 +1146,8 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
 		RB_REMOVE(tmpfs_dir, head, de);
 
 	dnode->tn_size -= sizeof(struct tmpfs_dirent);
-	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
-	    TMPFS_NODE_MODIFIED;
+	dnode->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
+	dnode->tn_accessed = true;
 	tmpfs_update(vp);
 }
 
@@ -1199,7 +1200,7 @@ tmpfs_dir_getdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	else
 		error = uiomove(&dent, dent.d_reclen, uio);
 
-	tmpfs_set_status(tm, node, TMPFS_NODE_ACCESSED);
+	tmpfs_set_accessed(tm, node);
 
 	return (error);
 }
@@ -1246,7 +1247,7 @@ tmpfs_dir_getdotdotdent(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	else
 		error = uiomove(&dent, dent.d_reclen, uio);
 
-	tmpfs_set_status(tm, node, TMPFS_NODE_ACCESSED);
+	tmpfs_set_accessed(tm, node);
 
 	return (error);
 }
@@ -1391,8 +1392,8 @@ tmpfs_dir_getdents(struct tmpfs_mount *tm, struct tmpfs_node *node,
 	node->tn_dir.tn_readdir_lastn = off;
 	node->tn_dir.tn_readdir_lastp = de;
 
-	tmpfs_set_status(tm, node, TMPFS_NODE_ACCESSED);
-	return error;
+	tmpfs_set_accessed(tm, node);
+	return (error);
 }
 
 int
@@ -1833,7 +1834,7 @@ tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
 		return (error);
 
 	if (vap->va_atime.tv_sec != VNOVAL)
-		node->tn_status |= TMPFS_NODE_ACCESSED;
+		node->tn_accessed = true;
 
 	if (vap->va_mtime.tv_sec != VNOVAL)
 		node->tn_status |= TMPFS_NODE_MODIFIED;
@@ -1861,6 +1862,14 @@ tmpfs_set_status(struct tmpfs_mount *tm, struct tmpfs_node *node, int status)
 	TMPFS_NODE_UNLOCK(node);
 }
 
+void
+tmpfs_set_accessed(struct tmpfs_mount *tm, struct tmpfs_node *node)
+{
+	if (node->tn_accessed || tm->tm_ronly)
+		return;
+	atomic_store_8(&node->tn_accessed, true);
+}
+
 /* Sync timestamps */
 void
 tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
@@ -1872,13 +1881,13 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 	ASSERT_VOP_LOCKED(vp, "tmpfs_itimes");
 	node = VP_TO_TMPFS_NODE(vp);
 
-	if ((node->tn_status & (TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
-	    TMPFS_NODE_CHANGED)) == 0)
+	if (!node->tn_accessed &&
+	    (node->tn_status & (TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED)) == 0)
 		return;
 
 	vfs_timestamp(&now);
 	TMPFS_NODE_LOCK(node);
-	if (node->tn_status & TMPFS_NODE_ACCESSED) {
+	if (node->tn_accessed) {
 		if (acc == NULL)
 			 acc = &now;
 		node->tn_atime = *acc;
@@ -1890,8 +1899,8 @@ tmpfs_itimes(struct vnode *vp, const struct timespec *acc,
 	}
 	if (node->tn_status & TMPFS_NODE_CHANGED)
 		node->tn_ctime = now;
-	node->tn_status &= ~(TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
-	    TMPFS_NODE_CHANGED);
+	node->tn_status &= ~(TMPFS_NODE_MODIFIED | TMPFS_NODE_CHANGED);
+	node->tn_accessed = false;
 	TMPFS_NODE_UNLOCK(node);
 
 	/* XXX: FIX? The entropy here is desirable, but the harvesting may be expensive */
