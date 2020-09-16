@@ -34,6 +34,8 @@ __RCSID("$NetBSD: resolv.c,v 1.6 2004/05/23 16:59:11 christos Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <assert.h>
+#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <netdb.h>
@@ -55,14 +57,13 @@ enum method {
 };
 
 static StringList *hosts = NULL;
-static enum method method = METHOD_GETADDRINFO;
 static int *ask = NULL;
 static int *got = NULL;
 
 static void load(const char *);
-static void resolvone(int);
+static void resolvone(int, enum method);
 static void *resolvloop(void *);
-static void run(int *);
+static void run(int *, enum method);
 
 static pthread_mutex_t stats = PTHREAD_MUTEX_INITIALIZER;
 
@@ -172,18 +173,18 @@ resolv_getipnodeby(pthread_t self, char *host)
 }
 
 static void
-resolvone(int n)
+resolvone(int n, enum method method)
 {
 	char buf[1024];
 	pthread_t self = pthread_self();
 	size_t i = (random() & 0x0fffffff) % hosts->sl_cur;
 	char *host = hosts->sl_str[i];
-	struct addrinfo hints, *res;
 	int error, len;
 
 	len = snprintf(buf, sizeof(buf), "%p: %d resolving %s %d\n",
 	    self, n, host, (int)i);
 	(void)write(STDOUT_FILENO, buf, len);
+	error = 0;
 	switch (method) {
 	case METHOD_GETADDRINFO:
 		error = resolv_getaddrinfo(self, host, i);
@@ -195,6 +196,10 @@ resolvone(int n)
 		error = resolv_getipnodeby(self, host);
 		break;
 	default:
+		/* UNREACHABLE */
+		/* XXX Needs an __assert_unreachable() for userland. */
+		assert(0 && "Unreachable segment reached");
+		abort();
 		break;
 	}
 	pthread_mutex_lock(&stats);
@@ -203,35 +208,53 @@ resolvone(int n)
 	pthread_mutex_unlock(&stats);
 }
 
+struct resolvloop_args {
+	int *nhosts;
+	enum method method;
+};
+
 static void *
 resolvloop(void *p)
 {
-	int *nhosts = (int *)p;
-	if (*nhosts == 0)
+	struct resolvloop_args *args = p;
+
+	if (*args->nhosts == 0) {
+		free(args);
 		return NULL;
+	}
+
 	do
-		resolvone(*nhosts);
-	while (--(*nhosts));
+		resolvone(*args->nhosts, args->method);
+	while (--(*args->nhosts));
+	free(args);
 	return NULL;
 }
 
 static void
-run(int *nhosts)
+run(int *nhosts, enum method method)
 {
 	pthread_t self;
 	int rc;
+	struct resolvloop_args *args;
 
+	/* Created thread is responsible for free(). */
+	args = malloc(sizeof(*args));
+	ATF_REQUIRE(args != NULL);
+
+	args->nhosts = nhosts;
+	args->method = method;
 	self = pthread_self();
-	rc = pthread_create(&self, NULL, resolvloop, nhosts);
+	rc = pthread_create(&self, NULL, resolvloop, args);
 	ATF_REQUIRE_MSG(rc == 0, "pthread_create failed: %s", strerror(rc));
 }
 
 static int
 run_tests(const char *hostlist_file, enum method method)
 {
-	int nthreads = NTHREADS;
-	int nhosts = NHOSTS;
-	int i, c, done, *nleft;
+	size_t nthreads = NTHREADS;
+	size_t nhosts = NHOSTS;
+	size_t i;
+	int c, done, *nleft;
 	hosts = sl_init();
 
 	srandom(1234);
@@ -251,7 +274,7 @@ run_tests(const char *hostlist_file, enum method method)
 
 	for (i = 0; i < nthreads; i++) {
 		nleft[i] = nhosts;
-		run(&nleft[i]);
+		run(&nleft[i], method);
 	}
 
 	for (done = 0; !done;) {
