@@ -1579,7 +1579,7 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 
 	/* Disallow this operation if the file system is mounted read-only. */
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		return EROFS;
+		return (EROFS);
 
 	/*
 	 * Callers may only modify the file flags on objects they
@@ -1702,11 +1702,11 @@ tmpfs_chown(struct vnode *vp, uid_t uid, gid_t gid, struct ucred *cred,
 
 	/* Disallow this operation if the file system is mounted read-only. */
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		return EROFS;
+		return (EROFS);
 
 	/* Immutable or append-only files cannot be modified, either. */
 	if (node->tn_flags & (IMMUTABLE | APPEND))
-		return EPERM;
+		return (EPERM);
 
 	/*
 	 * To modify the ownership of a file, must possess VADMIN for that
@@ -1765,11 +1765,11 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
 	error = 0;
 	switch (vp->v_type) {
 	case VDIR:
-		return EISDIR;
+		return (EISDIR);
 
 	case VREG:
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
-			return EROFS;
+			return (EROFS);
 		break;
 
 	case VBLK:
@@ -1777,23 +1777,27 @@ tmpfs_chsize(struct vnode *vp, u_quad_t size, struct ucred *cred,
 	case VCHR:
 		/* FALLTHROUGH */
 	case VFIFO:
-		/* Allow modifications of special files even if in the file
+		/*
+		 * Allow modifications of special files even if in the file
 		 * system is mounted read-only (we are not modifying the
-		 * files themselves, but the objects they represent). */
-		return 0;
+		 * files themselves, but the objects they represent).
+		 */
+		return (0);
 
 	default:
 		/* Anything else is unsupported. */
-		return EOPNOTSUPP;
+		return (EOPNOTSUPP);
 	}
 
 	/* Immutable or append-only files cannot be modified, either. */
 	if (node->tn_flags & (IMMUTABLE | APPEND))
-		return EPERM;
+		return (EPERM);
 
 	error = tmpfs_truncate(vp, size);
-	/* tmpfs_truncate will raise the NOTE_EXTEND and NOTE_ATTRIB kevents
-	 * for us, as will update tn_status; no need to do that here. */
+	/*
+	 * tmpfs_truncate will raise the NOTE_EXTEND and NOTE_ATTRIB kevents
+	 * for us, as will update tn_status; no need to do that here.
+	 */
 
 	ASSERT_VOP_ELOCKED(vp, "chsize2");
 
@@ -1818,11 +1822,11 @@ tmpfs_chtimes(struct vnode *vp, struct vattr *vap,
 
 	/* Disallow this operation if the file system is mounted read-only. */
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
-		return EROFS;
+		return (EROFS);
 
 	/* Immutable or append-only files cannot be modified, either. */
 	if (node->tn_flags & (IMMUTABLE | APPEND))
-		return EPERM;
+		return (EPERM);
 
 	error = vn_utimes_perm(vp, vap, cred, l);
 	if (error != 0)
