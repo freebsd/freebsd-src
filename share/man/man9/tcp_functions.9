@@ -281,8 +281,9 @@ for that socket, the kernel will call the function pointed to by the
 .Va tfb_tcp_handoff_ok
 field.
 The function should return 0 if the user is allowed to switch the socket to use
-the TCP stack. Otherwise, the function should return an error code, which will
-be returned to the user.
+the TCP stack.
+Otherwise, the function should return an error code, which will be returned to
+the user.
 If the
 .Va tfb_tcp_handoff_ok
 field is
