@@ -821,6 +821,8 @@ process_mapfile(FILE *outfp, char *fpath)
 			/* TODO Deal with lines longer than 16K */
 			pr_info("%s: Mapfile %s: line %d too long, aborting\n",
 					prog, fpath, line_num);
+			free(line);
+			fclose(mapfp);
 			return -1;
 		}
 		line[strlen(line)-1] = '\0';
