@@ -574,7 +574,7 @@ for non-critical paths.
 Allocate an
 .Vt mbuf
 with enough space to hold specified amount of data.
-If the size is is larger than 
+If the size is is larger than
 .Dv MJUMPAGESIZE , NULL
 will be returned.
 .It Fn m_getm orig len how type
@@ -640,7 +640,7 @@ but the specified
 of the cluster to be allocated must be one of
 .Dv MCLBYTES , MJUMPAGESIZE , MJUM9BYTES ,
 or
-.Dv MJUM16BYTES.
+.Dv MJUM16BYTES .
 .It Fn m_free mbuf
 Frees
 .Vt mbuf .
