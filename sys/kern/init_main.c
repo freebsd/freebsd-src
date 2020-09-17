@@ -403,8 +403,6 @@ null_set_syscall_retval(struct thread *td __unused, int error __unused)
 struct sysentvec null_sysvec = {
 	.sv_size	= 0,
 	.sv_table	= NULL,
-	.sv_errsize	= 0,
-	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
 	.sv_fixup	= NULL,
 	.sv_sendsig	= NULL,

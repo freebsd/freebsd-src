@@ -102,8 +102,6 @@ struct vnode;
 struct sysentvec {
 	int		sv_size;	/* number of entries */
 	struct sysent	*sv_table;	/* pointer to sysent */
-	int		sv_errsize;	/* size of errno translation table */
-	const int 	*sv_errtbl;	/* errno translation table */
 	int		(*sv_transtrap)(int, int);
 					/* translate trap-to-signal mapping */
 	int		(*sv_fixup)(uintptr_t *, struct image_params *);
@@ -158,8 +156,6 @@ struct sysentvec {
 #define	SV_ASLR		0x080000	/* ASLR allowed. */
 
 #define	SV_ABI_MASK	0xff
-#define	SV_ABI_ERRNO(p, e)	((p)->p_sysent->sv_errsize <= 0 ? e :	\
-	((e) >= (p)->p_sysent->sv_errsize ? -1 : (p)->p_sysent->sv_errtbl[e]))
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))
 #define	SV_PROC_ABI(p)		((p)->p_sysent->sv_flags & SV_ABI_MASK)
 #define	SV_CURPROC_FLAG(x)	SV_PROC_FLAG(curproc, x)
