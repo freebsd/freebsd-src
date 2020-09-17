@@ -245,9 +245,7 @@ _LIBS=		lib${LIB_PRIVATE}${LIB}.a
 lib${LIB_PRIVATE}${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' \
-	    ${LORDER} ${OBJS} ${STATICOBJS} | ${TSORT} ${TSORTFLAGS}` ${ARADD}
-	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
+	${AR} ${ARFLAGS} ${.TARGET} ${OBJS} ${STATICOBJS} ${ARADD}
 .endif
 
 .if !defined(INTERNALLIB)
@@ -261,9 +259,7 @@ CLEANFILES+=	${POBJS}
 lib${LIB_PRIVATE}${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
-	${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' NMFLAGS='${NMFLAGS}' \
-	    ${LORDER} ${POBJS} | ${TSORT} ${TSORTFLAGS}` ${ARADD}
-	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
+	${AR} ${ARFLAGS} ${.TARGET} ${POBJS} ${ARADD}
 .endif
 
 .if defined(LLVM_LINK)
@@ -319,9 +315,7 @@ ${SHLIB_NAME_FULL}: ${SOBJS}
 	@${INSTALL_LIBSYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 	${_LD:N${CCACHE_BIN}} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
-	    -o ${.TARGET} -Wl,-soname,${SONAME} \
-	    `NM='${NM}' NMFLAGS='${NMFLAGS}' ${LORDER} ${SOBJS} | \
-	    ${TSORT} ${TSORTFLAGS}` ${LDADD}
+	    -o ${.TARGET} -Wl,-soname,${SONAME} ${SOBJS} ${LDADD}
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
@@ -347,7 +341,6 @@ lib${LIB_PRIVATE}${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
-	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if defined(BUILD_NOSSP_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
@@ -360,7 +353,6 @@ lib${LIB_PRIVATE}${LIB}_nossp_pic.a: ${NOSSPSOBJS}
 	@${ECHO} building special nossp pic ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${NOSSPSOBJS} ${ARADD}
-	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .endif # !defined(INTERNALLIB)
@@ -376,7 +368,6 @@ lib${LIB_PRIVATE}${LIB}_pie.a: ${PIEOBJS}
 	@${ECHO} building pie ${LIB} library
 	@rm -f ${.TARGET}
 	${AR} ${ARFLAGS} ${.TARGET} ${PIEOBJS} ${ARADD}
-	${RANLIB} ${RANLIBFLAGS} ${.TARGET}
 .endif
 
 .if defined(_SKIP_BUILD)
