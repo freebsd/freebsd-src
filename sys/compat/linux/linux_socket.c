@@ -1553,7 +1553,7 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 			    name, &newval, UIO_SYSSPACE, &len);
 			if (error != 0)
 				return (error);
-			newval = -SV_ABI_ERRNO(td->td_proc, newval);
+			newval = -linux_to_bsd_errno(newval);
 			return (copyout(&newval, PTRIN(args->optval), len));
 			/* NOTREACHED */
 		default:
