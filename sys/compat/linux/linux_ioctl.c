@@ -1794,6 +1794,10 @@ linux_ioctl_sound(struct thread *td, struct linux_ioctl_args *args)
 		args->cmd = SETDIR(SOUND_MIXER_WRITE_LINE3);
 		return (sys_ioctl(td, (struct ioctl_args *)args));
 
+	case LINUX_SOUND_MIXER_WRITE_MONITOR:
+		args->cmd = SETDIR(SOUND_MIXER_WRITE_MONITOR);
+		return (sys_ioctl(td, (struct ioctl_args *)args));
+
 	case LINUX_SOUND_MIXER_INFO: {
 		/* Key on encoded length */
 		switch ((args->cmd >> 16) & 0x1fff) {
