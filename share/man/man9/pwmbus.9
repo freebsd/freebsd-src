@@ -68,11 +68,11 @@ argument is the duration in nanoseconds of the on portion of that cycle.
 .Pp
 Some PWM hardware is organized as a single controller with multiple channels.
 Channel numbers count up from zero.
-When multiple channels are present, they sometimes share a common clock or 
+When multiple channels are present, they sometimes share a common clock or
 other resources.
-In such cases, changing the period or duty cycle of any one channel may affect 
+In such cases, changing the period or duty cycle of any one channel may affect
 other channels within the hardware which share the same resources.
-Consult the documentation for the underlying PWM hardware device driver for 
+Consult the documentation for the underlying PWM hardware device driver for
 details on channels that share resources.
 .Sh INTERFACE
 .Bl -tag -width indent
