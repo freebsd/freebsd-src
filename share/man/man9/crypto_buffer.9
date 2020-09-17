@@ -198,7 +198,7 @@ A scatter/gather list of kernel buffers as described in
 A network memory buffer as described in
 .Xr mbuf 9 .
 .It Dv CRYPTO_BUF_VMPAGE
-A scatter/gather list of 
+A scatter/gather list of
 .Vt vm_page_t
 structures describing pages in the kernel's address space.
 This buffer type is only available if
@@ -317,11 +317,10 @@ returns the length in bytes of a contiguous segment.
 returns true if the request uses a separate output buffer.
 .Sh SEE ALSO
 .Xr ipsec 4 ,
-.Xr bus_dma 9 ,
 .Xr crypto 7 ,
 .Xr crypto 9 ,
-.Xr crypto_request 9 ,
 .Xr crypto_driver 9 ,
+.Xr crypto_request 9 ,
 .Xr crypto_session 9 ,
-.Xr mbuf 9
+.Xr mbuf 9 ,
 .Xr uio 9
