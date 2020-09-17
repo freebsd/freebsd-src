@@ -138,13 +138,14 @@ to
 It changes lock ordering rules to the same as for
 .Xr sx 9
 locks.
-They do not propagate priority to writers, but they do propagate priority to
-readers. Note that readers are not permitted to sleep regardless of the flag.
+They do not propagate priority to writers, but they do propagate priority to readers.
+Note that readers are not permitted to sleep regardless of the flag.
 .Pp
 Sleepable read-mostly locks (created with
 .Fn rms_init )
 allow sleeping for both readers and writers, but don't do priority propagation
-for either. They follow
+for either.
+They follow
 .Xr sx 9
 lock ordering.
 .Ss Macros and Functions
@@ -350,8 +351,7 @@ lock must be unlocked.
 .Xr sleep 9 ,
 .Xr sx 9
 .Sh HISTORY
-These
-functions appeared in
+These functions appeared in
 .Fx 7.0 .
 .Sh AUTHORS
 .An -nosplit
