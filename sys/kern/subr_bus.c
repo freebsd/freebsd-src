@@ -426,6 +426,9 @@ static struct cdev *devctl_dev;
 static void
 devinit(void)
 {
+	int reserve;
+	uma_zone_t z;
+
 	devctl_dev = make_dev_credf(MAKEDEV_ETERNAL, &dev_cdevsw, 0, NULL,
 	    UID_ROOT, GID_WHEEL, 0600, "devctl");
 	mtx_init(&devsoftc.mtx, "dev mtx", "devd", MTX_DEF);
@@ -433,9 +436,21 @@ devinit(void)
 	STAILQ_INIT(&devsoftc.devq);
 	knlist_init_mtx(&devsoftc.sel.si_note, &devsoftc.mtx);
 	if (devctl_queue_length > 0) {
-		devsoftc.zone = uma_zcreate("DEVCTL", sizeof(struct dev_event_info),
-		    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-		uma_prealloc(devsoftc.zone, devctl_queue_length);
+		/*
+		 * Allocate a zone for the messages. Preallocate 2% of these for
+		 * a reserve. Allow only devctl_queue_length slabs to cap memory
+		 * usage.  The reserve usually allows coverage of surges of
+		 * events during memory shortages. Normally we won't have to
+		 * re-use events from the queue, but will in extreme shortages.
+		 */
+		z = devsoftc.zone = uma_zcreate("DEVCTL",
+		    sizeof(struct dev_event_info), NULL, NULL, NULL, NULL,
+		    UMA_ALIGN_PTR, 0);
+		reserve = max(devctl_queue_length / 50, 100);	/* 2% reserve */
+		uma_zone_set_max(z, devctl_queue_length);
+		uma_zone_set_maxcache(z, 0);
+		uma_zone_reserve(z, reserve);
+		uma_prealloc(z, reserve);
 	}
 	devctl2_init();
 }
@@ -598,15 +613,25 @@ devctl_alloc_dei(void)
 	mtx_lock(&devsoftc.mtx);
 	if (devctl_queue_length == 0)
 		goto out;
-	if (devctl_queue_length == devsoftc.queued) {
+	dei = uma_zalloc(devsoftc.zone, M_NOWAIT);
+	if (dei == NULL)
+		dei = uma_zalloc(devsoftc.zone, M_NOWAIT | M_USE_RESERVE);
+	if (dei == NULL) {
+		/*
+		 * Guard against no items in the queue. Normally, this won't
+		 * happen, but if lots of events happen all at once and there's
+		 * a chance we're out of allocated space but none have yet been
+		 * queued when we get here, leaving nothing to steal. This can
+		 * also happen with error injection. Fail safe by returning
+		 * NULL in that case..
+		 */
+		if (devsoftc.queued == 0)
+			goto out;
 		dei = STAILQ_FIRST(&devsoftc.devq);
 		STAILQ_REMOVE_HEAD(&devsoftc.devq, dei_link);
 		devsoftc.queued--;
-	} else {
-		/* dei can't be NULL -- we know we have at least one in the zone */
-		dei = uma_zalloc(devsoftc.zone, M_NOWAIT);
-		MPASS(dei != NULL);
 	}
+	MPASS(dei != NULL);
 	*dei->dei_data = '\0';
 out:
 	mtx_unlock(&devsoftc.mtx);
