@@ -110,7 +110,8 @@
 	sge_dbq_timer = 3, 2, 1, 5, 7, 9, 12, 16
 
 	# enable TP_OUT_CONFIG.IPIDSPLITMODE
-	reg[0x7d04] = 0x00010000/0x00010000
+	# Set TP_OUT_CONFIG.CCplAckMode to get srtt/rttvar
+	reg[0x7d04] = 0x00012000/0x00012000
 
 	reg[0x7dc0] = 0x0e2f8849	# TP_SHIFT_CNT
 
@@ -199,6 +200,9 @@
 	# HMA configuration
 	hma_size = 92 			# Size (in MBs) of host memory expected
 	hma_regions = stag,pbl,rq	# What all regions to place in host memory
+
+	#enable bottleneck-bw congestion control mode
+	#ofld_flags = 4
 
 # Some "definitions" to make the rest of this a bit more readable.  We support
 # 4 ports, 3 functions (NIC, FCoE and iSCSI), scaling up to 8 "CPU Queue Sets"
@@ -426,7 +430,7 @@
 	nserver = 496		# number of server region entries
 	nhash = 12288		# number of hash region entries
 	nhpfilter = 64		# number of high priority filter region entries
-	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline, nic_hashfilter
+	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu, iscsi_t10dif, tlskeys, crypto_lookaside, ipsec_inline, nic_hashfilter, nic_ktls_ofld
 	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
@@ -588,7 +592,7 @@
 
 [fini]
 	version = 0x1425001d
-	checksum = 0x14a022cd
+	checksum = 0xa1403d73
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104
