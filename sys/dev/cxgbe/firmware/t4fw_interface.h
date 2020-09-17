@@ -4690,6 +4690,7 @@ enum fw_caps_config_crypto {
 	FW_CAPS_CONFIG_CRYPTO_LOOKASIDE = 0x00000001,
 	FW_CAPS_CONFIG_TLSKEYS = 0x00000002,
 	FW_CAPS_CONFIG_IPSEC_INLINE = 0x00000004,
+	FW_CAPS_CONFIG_TLS_HW = 0x00000008,
 };
 
 enum fw_caps_config_fcoe {
@@ -4838,6 +4839,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_TCB_CACHE_FLUSH = 0x2D,
 	FW_PARAMS_PARAM_DEV_FILTER = 0x2E,
 	FW_PARAMS_PARAM_DEV_CLIP2_CMD = 0x2F,
+	FW_PARAMS_PARAM_DEV_KTLS_HW = 0x31,
 };
 
 /*
@@ -4872,6 +4874,13 @@ enum fw_params_param_dev_diag {
 enum fw_params_param_dev_filter{
 	FW_PARAM_DEV_FILTER_VNIC_MODE	= 0x00,
 	FW_PARAM_DEV_FILTER_MODE_MASK	= 0x01,
+};
+
+enum fw_params_param_dev_ktls_hw {
+	FW_PARAMS_PARAM_DEV_KTLS_HW_DISABLE = 0x00,
+	FW_PARAMS_PARAM_DEV_KTLS_HW_ENABLE  = 0x01,
+	FW_PARAMS_PARAM_DEV_KTLS_HW_USER_DISABLE = 0x00,
+	FW_PARAMS_PARAM_DEV_KTLS_HW_USER_ENABLE  = 0x01,
 };
 
 enum fw_params_param_dev_fwcache {
@@ -9638,6 +9647,7 @@ struct fw_debug_cmd {
 
 enum fw_diag_cmd_type {
 	FW_DIAG_CMD_TYPE_OFLDIAG = 0,
+	FW_DIAG_CMD_TYPE_MEM_TEST_DIAG,
 };
 
 enum fw_diag_cmd_ofldiag_op {
@@ -9654,6 +9664,22 @@ enum fw_diag_cmd_ofldiag_status {
 	FW_DIAG_CMD_OFLDIAG_STATUS_PASSED,
 };
 
+enum fw_diag_cmd_memdiag_op {
+	FW_DIAG_CMD_MEMDIAG_TEST_START=1,
+	FW_DIAG_CMD_MEMDIAG_TEST_STOP,
+	FW_DIAG_CMD_MEMDIAG_TEST_STATUS,
+	FW_DIAG_CMD_MEMDIAG_TEST_INIT,
+};
+
+
+enum fw_diag_cmd_memdiag_status {
+	FW_DIAG_CMD_MEMDIAG_STATUS_NONE,
+	FW_DIAG_CMD_MEMDIAG_STATUS_RUNNING,
+	FW_DIAG_CMD_MEMDIAG_STATUS_FAILED,
+	FW_DIAG_CMD_MEMDIAG_STATUS_PASSED
+};
+
+
 struct fw_diag_cmd {
 	__be32 op_type;
 	__be32 len16_pkd;
@@ -9664,14 +9690,32 @@ struct fw_diag_cmd {
 			__be16 test_status;
 			__be32 duration;
 		} ofldiag;
+		struct fw_diag_test_memtest_diag {
+			__u8   test_op;
+			__u8   test_status;
+			__be16 size;  /* in KB */
+			__be32 duration; /* in seconds */
+		} memdiag;
 	} u;
 };
 
-#define S_FW_DIAG_CMD_TYPE		0
-#define M_FW_DIAG_CMD_TYPE		0xff
-#define V_FW_DIAG_CMD_TYPE(x)		((x) << S_FW_DIAG_CMD_TYPE)
-#define G_FW_DIAG_CMD_TYPE(x)		\
-    (((x) >> S_FW_DIAG_CMD_TYPE) & M_FW_DIAG_CMD_TYPE)
+#define S_FW_DIAG_CMD_OPCODE        24
+#define M_FW_DIAG_CMD_OPCODE        0xff
+#define V_FW_DIAG_CMD_OPCODE(x)     ((x) << S_FW_DIAG_CMD_OPCODE)
+#define G_FW_DIAG_CMD_OPCODE(x)     \
+	    (((x) >> S_FW_DIAG_CMD_OPCODE) & M_FW_DIAG_CMD_OPCODE)
+
+#define S_FW_DIAG_CMD_TYPE      0
+#define M_FW_DIAG_CMD_TYPE      0xff
+#define V_FW_DIAG_CMD_TYPE(x)       ((x) << S_FW_DIAG_CMD_TYPE)
+#define G_FW_DIAG_CMD_TYPE(x)       \
+	    (((x) >> S_FW_DIAG_CMD_TYPE) & M_FW_DIAG_CMD_TYPE)
+
+#define S_FW_DIAG_CMD_LEN16     0
+#define M_FW_DIAG_CMD_LEN16     0xff
+#define V_FW_DIAG_CMD_LEN16(x)      ((x) << S_FW_DIAG_CMD_LEN16)
+#define G_FW_DIAG_CMD_LEN16(x)      \
+	    (((x) >> S_FW_DIAG_CMD_LEN16) & M_FW_DIAG_CMD_LEN16)
 
 struct fw_hma_cmd {
 	__be32 op_pkd;
@@ -9939,18 +9983,18 @@ enum fw_hdr_chip {
 
 enum {
 	T4FW_VERSION_MAJOR	= 1,
-	T4FW_VERSION_MINOR	= 24,
-	T4FW_VERSION_MICRO	= 12,
+	T4FW_VERSION_MINOR	= 25,
+	T4FW_VERSION_MICRO	= 0,
 	T4FW_VERSION_BUILD	= 0,
 
 	T5FW_VERSION_MAJOR	= 1,
-	T5FW_VERSION_MINOR	= 24,
-	T5FW_VERSION_MICRO	= 12,
+	T5FW_VERSION_MINOR	= 25,
+	T5FW_VERSION_MICRO	= 0,
 	T5FW_VERSION_BUILD	= 0,
 
 	T6FW_VERSION_MAJOR	= 1,
-	T6FW_VERSION_MINOR	= 24,
-	T6FW_VERSION_MICRO	= 12,
+	T6FW_VERSION_MINOR	= 25,
+	T6FW_VERSION_MICRO	= 0,
 	T6FW_VERSION_BUILD	= 0,
 };
 

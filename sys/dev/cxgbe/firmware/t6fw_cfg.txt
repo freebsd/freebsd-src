@@ -41,8 +41,8 @@
 	# TP OFLD MTUs
 	tp_mtus = 88, 256, 512, 576, 808, 1024, 1280, 1488, 1500, 2002, 2048, 4096, 4352, 8192, 9000, 9600
 
-	# enable TP_OUT_CONFIG.IPIDSPLITMODE and CRXPKTENC
-	reg[0x7d04] = 0x00010008/0x00010008
+	# enable TP_OUT_CONFIG.IPIDSplitMode, CRxPktEnc, and CCplAckMode.
+	reg[0x7d04] = 0x00012008/0x00012008
 
 	# TP_GLOBAL_CONFIG
 	reg[0x7d08] = 0x00000800/0x00000800 # set IssFromCplEnable
@@ -272,7 +272,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x4528a6ac
+	checksum = 0x13640470
 #
 # $FreeBSD$
 #
