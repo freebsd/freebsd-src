@@ -86,7 +86,6 @@ This table shows the first
 .Fx
 release to support each architecture, and, for discontinued
 architectures, the final release.
-.Pp
 .Bl -column -offset indent "Architecture" "Initial Release" "Final Release"
 .It Sy Architecture Ta Sy Initial Release Ta Sy Final Release
 .It aarch64     Ta 11.0
@@ -341,24 +340,24 @@ Architecture-specific macros:
 .Bl -column -offset indent "Architecture" "Predefined macros"
 .It Sy Architecture Ta Sy Predefined macros
 .It aarch64     Ta Dv __aarch64__
-.It amd64       Ta Dv __amd64__, Dv __x86_64__
-.It armv6       Ta Dv __arm__, Dv __ARM_ARCH >= 6
-.It armv7       Ta Dv __arm__, Dv __ARM_ARCH >= 7
+.It amd64       Ta Dv __amd64__ , Dv __x86_64__
+.It armv6       Ta Dv __arm__ , Dv __ARM_ARCH >= 6
+.It armv7       Ta Dv __arm__ , Dv __ARM_ARCH >= 7
 .It i386        Ta Dv __i386__
-.It mips        Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_o32
-.It mipsel      Ta Dv __mips__, Dv __mips_o32
-.It mipselhf    Ta Dv __mips__, Dv __mips_o32
-.It mipshf      Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_o32
-.It mipsn32     Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n32
-.It mips64      Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n64
-.It mips64el    Ta Dv __mips__, Dv __mips_n64
-.It mips64elhf  Ta Dv __mips__, Dv __mips_n64
-.It mips64hf    Ta Dv __mips__, Dv __MIPSEB__, Dv __mips_n64
+.It mips        Ta Dv __mips__ , Dv __MIPSEB__ , Dv __mips_o32
+.It mipsel      Ta Dv __mips__ , Dv __mips_o32
+.It mipselhf    Ta Dv __mips__ , Dv __mips_o32
+.It mipshf      Ta Dv __mips__ , Dv __MIPSEB__ , Dv __mips_o32
+.It mipsn32     Ta Dv __mips__ , Dv __MIPSEB__ , Dv __mips_n32
+.It mips64      Ta Dv __mips__ , Dv __MIPSEB__ , Dv __mips_n64
+.It mips64el    Ta Dv __mips__ , Dv __mips_n64
+.It mips64elhf  Ta Dv __mips__ , Dv __mips_n64
+.It mips64hf    Ta Dv __mips__ , Dv __MIPSEB__ , Dv __mips_n64
 .It powerpc     Ta Dv __powerpc__
-.It powerpcspe  Ta Dv __powerpc__, Dv __SPE__
-.It powerpc64   Ta Dv __powerpc__, Dv __powerpc64__
-.It riscv64     Ta Dv __riscv, Dv __riscv_xlen == 64
-.It riscv64sf   Ta Dv __riscv, Dv __riscv_xlen == 64, Dv __riscv_float_abi_soft
+.It powerpcspe  Ta Dv __powerpc__ , Dv __SPE__
+.It powerpc64   Ta Dv __powerpc__ , Dv __powerpc64__
+.It riscv64     Ta Dv __riscv , Dv __riscv_xlen == 64
+.It riscv64sf   Ta Dv __riscv , Dv __riscv_xlen == 64 , Dv __riscv_float_abi_soft
 .El
 .Pp
 Compilers may define additional variants of architecture-specific macros.
