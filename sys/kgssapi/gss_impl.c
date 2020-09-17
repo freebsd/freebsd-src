@@ -342,5 +342,6 @@ static moduledata_t kgssapi_mod = {
 	NULL,
 };
 DECLARE_MODULE(kgssapi, kgssapi_mod, SI_SUB_VFS, SI_ORDER_ANY);
+MODULE_DEPEND(kgssapi, xdr, 1, 1, 1);
 MODULE_DEPEND(kgssapi, krpc, 1, 1, 1);
 MODULE_VERSION(kgssapi, 1);
