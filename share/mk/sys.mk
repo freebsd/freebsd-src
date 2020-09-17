@@ -150,7 +150,7 @@ AR		?=	ar
 .if defined(%POSIX)
 ARFLAGS		?=	-rv
 .else
-ARFLAGS		?=	-crD
+ARFLAGS		?=	-crsD
 .endif
 RANLIB		?=	ranlib
 .if !defined(%POSIX)
