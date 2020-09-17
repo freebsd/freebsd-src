@@ -36,10 +36,6 @@ empty_head() {
 	atf_set "require.user" "root"
 }
 empty_body() {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/249362"
-	fi
-
 	test_mount
 
 	atf_check -s eq:0 -o empty -e empty touch a
@@ -72,10 +68,6 @@ non_empty_head() {
 	atf_set "require.user" "root"
 }
 non_empty_body() {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/249362"
-	fi
-
 	test_mount
 
 	echo foo >b || atf_fail "Non-empty creation failed"
