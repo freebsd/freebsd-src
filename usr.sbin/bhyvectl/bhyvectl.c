@@ -317,7 +317,7 @@ static int get_vmcs_entry_interruption_info;
 static int get_vmcs_interruptibility;
 uint32_t vmcs_entry_interruption_info;
 static int get_vmcs_gpa, get_vmcs_gla;
-static int get_exception_bitmap, exception_bitmap;
+static int get_exception_bitmap;
 static int get_cr0_mask, get_cr0_shadow;
 static int get_cr4_mask, get_cr4_shadow;
 static int get_cr3_targets;
