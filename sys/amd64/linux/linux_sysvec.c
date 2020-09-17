@@ -221,7 +221,7 @@ linux_set_syscall_retval(struct thread *td, int error)
 
 	if (__predict_false(error != 0)) {
 		if (error != ERESTART && error != EJUSTRETURN)
-			frame->tf_rax = SV_ABI_ERRNO(td->td_proc, error);
+			frame->tf_rax = linux_to_bsd_errno(error);
 	}
 
 	 /* Restore all registers. */
@@ -732,8 +732,6 @@ linux_vsyscall(struct thread *td)
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
 	.sv_table	= linux_sysent,
-	.sv_errsize	= ELAST + 1,
-	.sv_errtbl	= linux_errtbl,
 	.sv_transtrap	= linux_translate_traps,
 	.sv_fixup	= linux_fixup_elf,
 	.sv_sendsig	= linux_rt_sendsig,

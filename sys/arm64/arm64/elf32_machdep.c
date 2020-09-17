@@ -77,8 +77,6 @@ extern void freebsd32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask);
 static struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
 	.sv_table	= freebsd32_sysent,
-	.sv_errsize	= 0,
-	.sv_errtbl	= NULL,
 	.sv_transtrap	= NULL,
 	.sv_fixup	= elf32_freebsd_fixup,
 	.sv_sendsig	= freebsd32_sendsig,
