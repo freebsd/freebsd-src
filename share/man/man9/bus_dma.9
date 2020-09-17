@@ -63,8 +63,8 @@
 .Nm bus_dma_template_init ,
 .Nm bus_dma_template_tag ,
 .Nm bus_dma_template_clone ,
-.Nm bus_dma_template_fill,
-.Nm BUS_DMA_TEMPLATE_FILL,
+.Nm bus_dma_template_fill ,
+.Nm BUS_DMA_TEMPLATE_FILL ,
 .Nm bus_dmamap_create ,
 .Nm bus_dmamap_destroy ,
 .Nm bus_dmamap_load ,
@@ -707,11 +707,13 @@ on success.
 .It Fn bus_dma_template_init "*template" "parent"
 Initializes a
 .Fa bus_dma_template_t
-structure.  If the
-.Fa parent 
+structure.
+If the
+.Fa parent
 argument is non-NULL, this parent tag is associated with the template and
-will be compiled into the dma tag that is later created.  The values
-of the parent are not copied into the template.  During tag creation in
+will be compiled into the dma tag that is later created.
+The values of the parent are not copied into the template.
+During tag creation in
 .Fn bus_dma_tag_template ,
 any parameters from the parent tag that are more restrictive than what is
 in the provided template will overwrite what goes into the new tag.
@@ -724,21 +726,24 @@ The template is not modified by this function, and can be reused and/or
 freed upon return.
 .It Fn bus_dma_template_clone "*template" "dmat"
 Copies the fields from an existing tag to a template.
-The template does not need to be initialized first.  All of its fields will
-be overwritten by the values contained in the tag.  When paired with
+The template does not need to be initialized first.
+All of its fields will be overwritten by the values contained in the tag.
+When paired with
 .Fn bus_dma_template_tag ,
 this function is useful for creating copies of tags.
 .It Fn bus_dma_template_fill "*template" "params[]" "count"
 Fills in the selected fields of the template with the keyed values from the
 .Fa params
-array.  This is not meant to be called directly, use
+array.
+This is not meant to be called directly, use
 .Fn BUS_DMA_TEMPLATE_FILL
 instead.
 .It Fn BUS_DMA_TEMPLATE_FILL "*template" "param ..."
 Fills in the selected fields of the template with a variable number of
-key-value parameters.  The macros listed below take an argument of the
-specified type and encapsulate it into a key-value structure that is directly
-usable as a parameter argument.  Muliple parameters may be provided at once.
+key-value parameters.
+The macros listed below take an argument of the specified type and encapsulate
+it into a key-value structure that is directly usable as a parameter argument.
+Muliple parameters may be provided at once.
 .Bd -literal
 	BD_PARENT()	void *
 	BD_ALIGNMENT()	uintmax_t
@@ -752,7 +757,6 @@ usable as a parameter argument.  Muliple parameters may be provided at once.
 	BD_LOCKFUNC()	void *
 	BD_LOCKFUNCARG() void *
 .Ed
-.Pp
 .It Fn bus_dmamap_create "dmat" "flags" "*mapp"
 Allocates and initializes a DMA map.
 Arguments are as follows:
