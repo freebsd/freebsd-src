@@ -146,7 +146,8 @@
 	nethctrl = 1024
 	neq = 2048
 	nqpcq = 8192
-	nexactf = 456
+	nexactf = 454
+	nrawf = 2
 	cmask = all
 	pmask = all
 	ncrypto_lookaside = 16
@@ -272,7 +273,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x13640470
+	checksum = 0xa92352a8
 #
 # $FreeBSD$
 #
