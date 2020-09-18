@@ -339,11 +339,10 @@ output_tcp_flowid_mpath_success_body()
 	pkt_0=`jexec ${jname}a netstat -Wf link -I ${epair0}a | head | awk '$1!~/^Name/{print$8}'`
 	pkt_1=`jexec ${jname}a netstat -Wf link -I ${epair1}a | head | awk '$1!~/^Name/{print$8}'`
 	if [ ${pkt_0} -le 10 ]; then
-		echo "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
-		exit 1
+		atf_fail "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
 	fi
 	if [ ${pkt_1} -le 10 ]; then
-		echo "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
+		atf_fail "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
 		exit 1
 	fi
 	echo "TCP Balancing: 1: ${pkt_0} 2: ${pkt_1}"
@@ -468,12 +467,10 @@ output_udp_flowid_mpath_success_body()
 	pkt_0=`jexec ${jname}a netstat -Wf link -I ${epair0}a | head | awk '$1!~/^Name/{print$8}'`
 	pkt_1=`jexec ${jname}a netstat -Wf link -I ${epair1}a | head | awk '$1!~/^Name/{print$8}'`
 	if [ ${pkt_0} -le 10 ]; then
-		echo "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
-		exit 1
+		atf_fail "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
 	fi
 	if [ ${pkt_1} -le 10 ]; then
-		echo "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
-		exit 1
+		atf_fail "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
 	fi
 	echo "UDP BALANCING: 1: ${pkt_0} 2: ${pkt_1}"
 }
@@ -561,12 +558,10 @@ output_raw_flowid_mpath_success_body()
 	jexec ${jname}a netstat -bWf link -I ${epair0}a
 	jexec ${jname}a netstat -bWf link -I ${epair1}a
 	if [ ${pkt_0} -le 10 ]; then
-		echo "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
-		exit 1
+		atf_fail "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
 	fi
 	if [ ${pkt_1} -le 10 ]; then
-		echo "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
-		exit 1
+		atf_fail "Balancing failure: 1: ${pkt_0} 2: ${pkt_1}"
 	fi
 	echo "RAW BALANCING: 1: ${pkt_0} 2: ${pkt_1}"
 }
