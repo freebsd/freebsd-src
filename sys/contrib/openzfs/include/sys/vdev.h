@@ -94,7 +94,6 @@ extern void vdev_rele(vdev_t *);
 extern int vdev_metaslab_init(vdev_t *vd, uint64_t txg);
 extern void vdev_metaslab_fini(vdev_t *vd);
 extern void vdev_metaslab_set_size(vdev_t *);
-extern void vdev_ashift_optimize(vdev_t *);
 extern void vdev_expand(vdev_t *vd, uint64_t txg);
 extern void vdev_split(vdev_t *vd);
 extern void vdev_deadman(vdev_t *vd, char *tag);
@@ -181,7 +180,7 @@ extern void vdev_config_generate_stats(vdev_t *vd, nvlist_t *nv);
 extern void vdev_label_write(zio_t *zio, vdev_t *vd, int l, abd_t *buf, uint64_t
     offset, uint64_t size, zio_done_func_t *done, void *priv, int flags);
 extern int vdev_label_read_bootenv(vdev_t *, nvlist_t *);
-extern int vdev_label_write_bootenv(vdev_t *, char *);
+extern int vdev_label_write_bootenv(vdev_t *, nvlist_t *);
 
 typedef enum {
 	VDEV_LABEL_CREATE,	/* create/add a new device */

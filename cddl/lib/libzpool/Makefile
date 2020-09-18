@@ -234,6 +234,7 @@ CFLAGS+= \
 	-DHAVE_ISSETUGID \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h \
 	-I${SRCTOP}/sys/modules/zfs \
+	-I${ZFSTOP}/include/os/freebsd/zfs \
 	-DLIB_ZPOOL_BUILD -DZFS_DEBUG \
 
 # XXX: pthread doesn't have mutex_owned() equivalent, so we need to look
