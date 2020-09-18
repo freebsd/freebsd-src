@@ -129,7 +129,7 @@ do_scan()
 		[ -d "$CPATH" ] || continue
 		echo "Scanning $CPATH for certificates..."
 		for CFILE in $(ls -1 "${CPATH}" | grep -Ee "${FILEPAT}"); do
-			[ -e "$CPATH/$CFILE" -a $UNPRIV -eq 0 ] || continue
+			[ -e "$CPATH/$CFILE" ] || continue
 			[ $VERBOSE -gt 0 ] && echo "Reading $CFILE"
 			"$CFUNC" "$CPATH/$CFILE"
 		done
@@ -263,7 +263,7 @@ shift $(( $OPTIND - 1 ))
 
 : ${METALOG:=${DESTDIR}/METALOG}
 INSTALLFLAGS=
-[ $UNPRIV -eq 1 ] && INSTALLFLAGS=-U -M ${METALOG} -D ${DESTDIR}
+[ $UNPRIV -eq 1 ] && INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR}"
 : ${TRUSTPATH:=${DESTDIR}/usr/share/certs/trusted:${DESTDIR}/usr/local/share/certs:${DESTDIR}/usr/local/etc/ssl/certs}
 : ${BLACKLISTPATH:=${DESTDIR}/usr/share/certs/blacklisted:${DESTDIR}/usr/local/etc/ssl/blacklisted}
 : ${CERTDESTDIR:=${DESTDIR}/etc/ssl/certs}
