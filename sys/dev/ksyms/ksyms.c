@@ -484,7 +484,7 @@ ksyms_mmap_single(struct cdev *dev, vm_ooffset_t *offset, vm_size_t size,
 	if (error != 0)
 		return (error);
 
-	if (*offset < 0 || *offset >= round_page(sc->sc_objsz) ||
+	if (*offset >= round_page(sc->sc_objsz) ||
 	    size > round_page(sc->sc_objsz) - *offset ||
 	    (nprot & ~PROT_READ) != 0)
 		return (EINVAL);

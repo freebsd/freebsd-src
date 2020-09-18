@@ -178,12 +178,14 @@ RB_PROTOTYPE_STATIC(tmpfs_dir, tmpfs_dirent, uh.td_entries, tmpfs_dirtree_cmp);
 size_t
 tmpfs_mem_avail(void)
 {
-	vm_ooffset_t avail;
+	size_t avail;
+	long reserved;
 
-	avail = swap_pager_avail + vm_free_count() - tmpfs_pages_reserved;
-	if (__predict_false(avail < 0))
-		avail = 0;
-	return (avail);
+	avail = swap_pager_avail + vm_free_count();
+	reserved = atomic_load_long(&tmpfs_pages_reserved);
+	if (__predict_false(avail < reserved))
+		return (0);
+	return (avail - reserved);
 }
 
 size_t

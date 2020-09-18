@@ -541,9 +541,6 @@ vnode_pager_addr(struct vnode *vp, vm_ooffset_t address, daddr_t *rtaddress,
 	daddr_t vblock;
 	daddr_t voffset;
 
-	if (address < 0)
-		return -1;
-
 	if (VN_IS_DOOMED(vp))
 		return -1;
 
