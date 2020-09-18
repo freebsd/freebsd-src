@@ -42,7 +42,8 @@ enum {
 	PS_OPT_NOHEADER		= 0x02,
 	PS_OPT_PERTHREAD	= 0x04,
 	PS_OPT_SIGNUM		= 0x08,
-	PS_OPT_VERBOSE		= 0x10
+	PS_OPT_VERBOSE		= 0x10,
+	PS_MODE_COMPAT		= 0x20,
 };
 
 #define PS_SUBCOMMAND_OPTS			\
@@ -64,7 +65,10 @@ void	procstat_cs(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_env(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_kstack(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_pargs(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_penv(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_ptlwpinfo(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_pwdx(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_rlimit(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_rusage(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_sigfastblock(struct procstat *procstat,

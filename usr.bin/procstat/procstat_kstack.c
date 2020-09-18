@@ -68,7 +68,7 @@ kstack_nextstate(enum trace_state ts)
 		return (TS_OFF);
 
 	case TS_OFF:
-		return TS_FRAMENUM;
+		return (TS_FRAMENUM);
 
 	default:
 		errx(-1, "kstack_nextstate");
