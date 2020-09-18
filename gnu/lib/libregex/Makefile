@@ -6,6 +6,8 @@ SHLIB_MAJOR=	5
 REGEXDIR=	${SRCTOP}/contrib/libgnuregex
 .PATH:		${REGEXDIR}
 
+WARNS?=		1
+
 SRCS=		gnuregex.c
 INCSGROUPS=	INCS WRINCS PXINCS
 INCS=		regex.h.patched

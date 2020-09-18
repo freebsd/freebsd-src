@@ -10,3 +10,4 @@ CFLAGS+= -DHAVE_CONFIG_H=1
 CFLAGS+= -I${_spath} -I${_spath}/src
 LIBADD+= osmcomp ibmad ibumad
 
+WARNS?=	0

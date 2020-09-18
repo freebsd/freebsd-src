@@ -4,6 +4,8 @@
 
 PACKAGE=	tests
 
+WARNS?=		1
+
 LIBXOSRC=	${SRCTOP}/contrib/libxo
 
 # Override the default suffix transformation rules for .c/.o -> .out

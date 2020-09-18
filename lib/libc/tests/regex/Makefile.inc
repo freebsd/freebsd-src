@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 BINDIR?=	${TESTSDIR}
+WARNS?=		3
 
 # SKIP_LEFTASSOC -> these testcases fail on FreeBSD.
 IMPLEMENTATION?=      -DREGEX_SPENCER -DSKIP_LEFTASSOC

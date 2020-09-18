@@ -23,6 +23,8 @@ INTERNALLIB=	# Don't install this library
 SRCS=		exec.c getusershell.c login_class.c popen.c rcmdsh.c \
 		sysctl.c system.c
 
+WARNS?=		3
+
 CFLAGS+=	-DRESCUE
 # Flags copied from src/lib/libc and src/lib/libutil
 # libc/db/Makefile.inc

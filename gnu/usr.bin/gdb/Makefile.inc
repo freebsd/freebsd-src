@@ -2,6 +2,8 @@
 
 .include <src.opts.mk>
 
+WARNS?=	0
+
 VERSION= "6.1.1 [FreeBSD]"
 VENDOR= marcel
 

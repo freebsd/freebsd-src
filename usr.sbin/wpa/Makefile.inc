@@ -2,6 +2,8 @@
 
 BINDIR?=	/usr/sbin
 
+WARNS?=		0
+
 WPA_DISTDIR?= 		${SRCTOP}/contrib/wpa/
 WPA_SUPPLICANT_DISTDIR?=${WPA_DISTDIR}/wpa_supplicant
 HOSTAPD_DISTDIR?=	${WPA_DISTDIR}/hostapd

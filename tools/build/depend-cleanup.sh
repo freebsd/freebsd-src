@@ -49,3 +49,10 @@ if [ -e "$OBJTOP"/cddl/lib/libzfs/.depend.libzfs_changelist.o ] && \
 	echo "Removing old ZFS tree"
 	rm -rf "$OBJTOP"/cddl "$OBJTOP"/obj-lib32/cddl
 fi
+
+# 20200916  WARNS bumped, need bootstrapped crunchgen stubs
+if [ -e "$OBJTOP"/rescue/rescue/rescue.c ] && \
+    ! grep -q 'crunched_stub_t' "$OBJTOP"/rescue/rescue/rescue.c; then
+	echo "Removing old rescue(8) tree"
+	rm -rf "$OBJTOP"/rescue/rescue
+fi

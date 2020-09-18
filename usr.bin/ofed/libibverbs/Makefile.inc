@@ -7,3 +7,4 @@ BINDIR?=	/usr/bin
 CFLAGS+=	-I${_spath}
 LIBADD+=	ibverbs mlx4 mlx5 cxgb4 pthread
 
+WARNS?=	2
