@@ -74,7 +74,7 @@ enum {
 };
 
 static const char *umouse_desc_strings[] = {
-	"\x04\x09",
+	"\x09\x04",
 	"BHYVE",
 	"HID Tablet",
 	"01",
