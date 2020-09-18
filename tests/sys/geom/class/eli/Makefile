@@ -4,6 +4,8 @@
 
 PACKAGE=	tests
 
+WARNS?=		3
+
 TESTSDIR=	${TESTSBASE}/sys/geom/class/${.CURDIR:T}
 
 ATF_TESTS_C=	pbkdf2_test

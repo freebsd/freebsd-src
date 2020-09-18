@@ -11,6 +11,4 @@ CFLAGS+=-DWITH_CASPER
 .endif
 LIBADD+=	nv
 
-WARNS?=		3
-
 .include <bsd.test.mk>

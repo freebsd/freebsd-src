@@ -28,6 +28,14 @@ CFLAGS+=	-std=${CSTD}
 CXXFLAGS+=	-std=${CXXSTD}
 .endif
 
+# This gives the Makefile we're evaluating at the top-level a chance to set
+# WARNS.  If it doesn't do so, we may freely pull a DEFAULTWARNS if it's set
+# and use that.  This allows us to default WARNS to 6 for src builds without
+# needing to set the default in various Makefile.inc.
+.if !defined(WARNS) && defined(DEFAULTWARNS)
+WARNS=	${DEFAULTWARNS}
+.endif
+
 # -pedantic is problematic because it also imposes namespace restrictions
 #CFLAGS+=	-pedantic
 .if defined(WARNS)

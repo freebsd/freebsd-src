@@ -2,6 +2,8 @@
 
 PACKAGE=	tests
 
+WARNS?=		3
+
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libpthread
 
 # TODO: t_name (missing pthread_getname_np support in FreeBSD)

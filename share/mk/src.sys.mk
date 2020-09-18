@@ -40,6 +40,8 @@ __postrcconf_${var}:=	${MK_${var}:U-}${WITHOUT_${var}:Uno:Dyes}${WITH_${var}:Uno
 CFCOMMONFLAG?=	-fno-common
 CFLAGS+=	${CFCOMMONFLAG}
 
+DEFAULTWARNS=	6
+
 # tempting, but bsd.compiler.mk causes problems this early
 # probably need to remove dependence on bsd.own.mk 
 #.include "src.opts.mk"

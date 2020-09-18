@@ -18,6 +18,8 @@ CFLAGS+=-I${SRCTOP}/contrib/diff/lib
 CFLAGS+=-DHAVE_CONFIG_H
 CFLAGS+=-DDEFAULT_DIFF_PROGRAM=\"/usr/bin/diff\"
 
+WARNS?=	0
+
 .for f in diff3.c
 ${f}: ${DIFFSRC}/${f} ${.CURDIR}/${f}.diff
 	patch -s -o ${.TARGET} < ${.CURDIR}/${f}.diff ${DIFFSRC}/${f}

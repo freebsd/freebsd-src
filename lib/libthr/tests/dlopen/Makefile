@@ -2,6 +2,8 @@
 
 TESTSRC=	${SRCTOP}/contrib/netbsd-tests/lib/libpthread/dlopen
 
+WARNS?=		2
+
 .include <bsd.own.mk>
 
 TESTSDIR=	${TESTSBASE}/lib/libthr/dlopen

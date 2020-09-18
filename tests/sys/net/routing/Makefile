@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PACKAGE=	tests
+WARNS?=		1
 
 TESTSDIR=       ${TESTSBASE}/sys/net/routing
 
