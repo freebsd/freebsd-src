@@ -23,7 +23,7 @@ scripts: {
 	chmod 1777 ${PKG_ROOTDIR}/tmp
 EOD
 }
-directories {
+directories: {
     /dev = "y";
     /tmp = "y";
 }
