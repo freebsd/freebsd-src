@@ -65,7 +65,7 @@ shm_create_largepage(const char *path, int flags, int psind, int alloc_policy,
 	int error, fd, saved_errno;
 
 	fd = __sys_shm_open2(path, flags | O_CREAT, mode, SHM_LARGEPAGE, NULL);
-	if (error == -1)
+	if (fd == -1)
 		return (-1);
 
 	memset(&slc, 0, sizeof(slc));
