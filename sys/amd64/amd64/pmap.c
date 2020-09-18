@@ -6537,14 +6537,14 @@ restart:
 				mp->ref_count++;
 		}
 		KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
-		    (origpte & PG_FRAME) == (newpte & PG_FRAME)),
-		    ("va %#lx changing 1G phys page pdpe %#lx newpte %#lx",
-		    va, origpte, newpte));
-		if ((newpte & PG_W) != 0 && (origpte & PG_W) == 0)
+		    (origpte & PG_FRAME) == (pten & PG_FRAME)),
+		    ("va %#lx changing 1G phys page pdpe %#lx pten %#lx",
+		    va, origpte, pten));
+		if ((pten & PG_W) != 0 && (origpte & PG_W) == 0)
 			pmap->pm_stats.wired_count += NBPDP / PAGE_SIZE;
-		else if ((newpte & PG_W) == 0 && (origpte & PG_W) != 0)
+		else if ((pten & PG_W) == 0 && (origpte & PG_W) != 0)
 			pmap->pm_stats.wired_count -= NBPDP / PAGE_SIZE;
-		*pdpe = newpte;
+		*pdpe = pten;
 	} else /* (psind == 1) */ {	/* 2M */
 		if (!pmap_pkru_same(pmap, va, va + NBPDR))
 			return (KERN_PROTECTION_FAILURE);
@@ -6573,14 +6573,14 @@ restart:
 				mp->ref_count++;
 		}
 		KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
-		    (origpte & PG_FRAME) == (newpte & PG_FRAME)),
-		    ("va %#lx changing 2M phys page pde %#lx newpte %#lx",
-		    va, origpte, newpte));
-		if ((newpte & PG_W) != 0 && (origpte & PG_W) == 0)
+		    (origpte & PG_FRAME) == (pten & PG_FRAME)),
+		    ("va %#lx changing 2M phys page pde %#lx pten %#lx",
+		    va, origpte, pten));
+		if ((pten & PG_W) != 0 && (origpte & PG_W) == 0)
 			pmap->pm_stats.wired_count += NBPDR / PAGE_SIZE;
-		else if ((newpte & PG_W) == 0 && (origpte & PG_W) != 0)
+		else if ((pten & PG_W) == 0 && (origpte & PG_W) != 0)
 			pmap->pm_stats.wired_count -= NBPDR / PAGE_SIZE;
-		*pde = newpte;
+		*pde = pten;
 	}
 	if ((origpte & PG_V) == 0)
 		pmap_resident_count_inc(pmap, pagesizes[psind] / PAGE_SIZE);
