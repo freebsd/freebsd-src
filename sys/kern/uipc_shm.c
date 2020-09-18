@@ -1577,7 +1577,7 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 #ifdef _LP64
 	    objsize > OFF_MAX ||
 #endif
-	    foff < 0 || foff > OFF_MAX - objsize) {
+	    foff > OFF_MAX - objsize) {
 		error = EINVAL;
 		goto out;
 	}

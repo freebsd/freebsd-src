@@ -176,7 +176,7 @@ fb_mmap(struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
 	if (info->fb_flags & FB_FLAG_NOMMAP)
 		return (ENODEV);
 
-	if (offset >= 0 && offset < info->fb_size) {
+	if (offset < info->fb_size) {
 		if (info->fb_pbase == 0)
 			*paddr = vtophys((uint8_t *)info->fb_vbase + offset);
 		else
