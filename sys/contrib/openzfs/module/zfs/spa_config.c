@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2011, 2018 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
  * Copyright 2017 Joyent, Inc.
  */
 
@@ -316,7 +316,7 @@ spa_write_cachefile(spa_t *target, boolean_t removing, boolean_t postsysevent)
 		if (target->spa_ccw_fail_time == 0) {
 			(void) zfs_ereport_post(
 			    FM_EREPORT_ZFS_CONFIG_CACHE_WRITE,
-			    target, NULL, NULL, NULL, 0, 0);
+			    target, NULL, NULL, NULL, 0);
 		}
 		target->spa_ccw_fail_time = gethrtime();
 		spa_async_request(target, SPA_ASYNC_CONFIG_UPDATE);
@@ -577,10 +577,8 @@ spa_config_update(spa_t *spa, int what)
 			    (tvd->vdev_islog && tvd->vdev_removing))
 				continue;
 
-			if (tvd->vdev_ms_array == 0) {
-				vdev_ashift_optimize(tvd);
+			if (tvd->vdev_ms_array == 0)
 				vdev_metaslab_set_size(tvd);
-			}
 			vdev_expand(tvd, txg);
 		}
 	}
