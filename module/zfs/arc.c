@@ -21,7 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Joyent, Inc.
- * Copyright (c) 2011, 2019, Delphix. All rights reserved.
+ * Copyright (c) 2011, 2020, Delphix. All rights reserved.
  * Copyright (c) 2014, Saso Kiselkov. All rights reserved.
  * Copyright (c) 2017, Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2019, loli10K <ezomori.nozomu@gmail.com>. All rights reserved.
@@ -893,6 +893,12 @@ static inline void arc_hdr_clear_flags(arc_buf_hdr_t *hdr, arc_flags_t flags);
 static boolean_t l2arc_write_eligible(uint64_t, arc_buf_hdr_t *);
 static void l2arc_read_done(zio_t *);
 static void l2arc_do_free_on_write(void);
+
+/*
+ * l2arc_mfuonly : A ZFS module parameter that controls whether only MFU
+ * 		metadata and data are cached from ARC into L2ARC.
+ */
+int l2arc_mfuonly = 0;
 
 /*
  * L2ARC TRIM
@@ -2188,7 +2194,7 @@ arc_untransform(arc_buf_t *buf, spa_t *spa, const zbookmark_phys_t *zb,
 		ret = SET_ERROR(EIO);
 		spa_log_error(spa, zb);
 		(void) zfs_ereport_post(FM_EREPORT_ZFS_AUTHENTICATION,
-		    spa, NULL, zb, NULL, 0, 0);
+		    spa, NULL, zb, NULL, 0);
 	}
 
 	return (ret);
@@ -5654,7 +5660,7 @@ arc_read_done(zio_t *zio)
 				spa_log_error(zio->io_spa, &acb->acb_zb);
 				(void) zfs_ereport_post(
 				    FM_EREPORT_ZFS_AUTHENTICATION,
-				    zio->io_spa, NULL, &acb->acb_zb, zio, 0, 0);
+				    zio->io_spa, NULL, &acb->acb_zb, zio, 0);
 			}
 		}
 
@@ -5931,7 +5937,7 @@ top:
 					spa_log_error(spa, zb);
 					(void) zfs_ereport_post(
 					    FM_EREPORT_ZFS_AUTHENTICATION,
-					    spa, NULL, zb, NULL, 0, 0);
+					    spa, NULL, zb, NULL, 0);
 				}
 			}
 			if (rc != 0) {
@@ -8909,6 +8915,15 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 	 * Copy buffers for L2ARC writing.
 	 */
 	for (int try = 0; try < L2ARC_FEED_TYPES; try++) {
+		/*
+		 * If try == 1 or 3, we cache MRU metadata and data
+		 * respectively.
+		 */
+		if (l2arc_mfuonly) {
+			if (try == 1 || try == 3)
+				continue;
+		}
+
 		multilist_sublist_t *mls = l2arc_sublist_lock(try);
 		uint64_t passed_sz = 0;
 
@@ -9174,7 +9189,7 @@ l2arc_feed_thread(void *unused)
 	cookie = spl_fstrans_mark();
 	while (l2arc_thread_exit == 0) {
 		CALLB_CPR_SAFE_BEGIN(&cpr);
-		(void) cv_timedwait_sig(&l2arc_feed_thr_cv,
+		(void) cv_timedwait_idle(&l2arc_feed_thr_cv,
 		    &l2arc_feed_thr_lock, next);
 		CALLB_CPR_SAFE_END(&cpr, &l2arc_feed_thr_lock);
 		next = ddi_get_lbolt() + hz;
@@ -9290,8 +9305,6 @@ l2arc_add_vdev(spa_t *spa, vdev_t *vd)
 	uint64_t		l2dhdr_asize;
 
 	ASSERT(!l2arc_vdev_present(vd));
-
-	vdev_ashift_optimize(vd);
 
 	/*
 	 * Create a new l2arc device entry.
@@ -10561,6 +10574,9 @@ ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, rebuild_enabled, INT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, rebuild_blocks_min_l2size, ULONG, ZMOD_RW,
 	"Min size in bytes to write rebuild log blocks in L2ARC");
+
+ZFS_MODULE_PARAM(zfs_l2arc, l2arc_, mfuonly, INT, ZMOD_RW,
+	"Cache only MFU data from ARC into L2ARC");
 
 ZFS_MODULE_PARAM_CALL(zfs_arc, zfs_arc_, lotsfree_percent, param_set_arc_int,
 	param_get_int, ZMOD_RW, "System free memory I/O throttle in bytes");

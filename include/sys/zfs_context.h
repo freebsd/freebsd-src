@@ -325,10 +325,14 @@ extern void cv_signal(kcondvar_t *cv);
 extern void cv_broadcast(kcondvar_t *cv);
 
 #define	cv_timedwait_io(cv, mp, at)		cv_timedwait(cv, mp, at)
+#define	cv_timedwait_idle(cv, mp, at)		cv_timedwait(cv, mp, at)
 #define	cv_timedwait_sig(cv, mp, at)		cv_timedwait(cv, mp, at)
 #define	cv_wait_io(cv, mp)			cv_wait(cv, mp)
+#define	cv_wait_idle(cv, mp)			cv_wait(cv, mp)
 #define	cv_wait_io_sig(cv, mp)			cv_wait_sig(cv, mp)
 #define	cv_timedwait_sig_hires(cv, mp, t, r, f) \
+	cv_timedwait_hires(cv, mp, t, r, f)
+#define	cv_timedwait_idle_hires(cv, mp, t, r, f) \
 	cv_timedwait_hires(cv, mp, t, r, f)
 
 /*
@@ -598,9 +602,9 @@ typedef struct vsecattr {
 extern void delay(clock_t ticks);
 
 #define	SEC_TO_TICK(sec)	((sec) * hz)
-#define	MSEC_TO_TICK(msec)	((msec) / (MILLISEC / hz))
-#define	USEC_TO_TICK(usec)	((usec) / (MICROSEC / hz))
-#define	NSEC_TO_TICK(usec)	((usec) / (NANOSEC / hz))
+#define	MSEC_TO_TICK(msec)	(howmany((hrtime_t)(msec) * hz, MILLISEC))
+#define	USEC_TO_TICK(usec)	(howmany((hrtime_t)(usec) * hz, MICROSEC))
+#define	NSEC_TO_TICK(nsec)	(howmany((hrtime_t)(nsec) * hz, NANOSEC))
 
 #define	max_ncpus	64
 #define	boot_ncpus	(sysconf(_SC_NPROCESSORS_ONLN))
