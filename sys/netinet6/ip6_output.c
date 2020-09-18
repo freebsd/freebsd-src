@@ -1119,7 +1119,8 @@ passout:
 	 */
 	sw_csum = m->m_pkthdr.csum_flags;
 	if (!hdrsplit) {
-		tso = ((sw_csum & ifp->if_hwassist & CSUM_TSO) != 0) ? 1 : 0;
+		tso = ((sw_csum & ifp->if_hwassist &
+		    (CSUM_TSO | CSUM_INNER_TSO)) != 0) ? 1 : 0;
 		sw_csum &= ~ifp->if_hwassist;
 	} else
 		tso = 0;

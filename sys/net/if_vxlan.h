@@ -143,4 +143,11 @@ struct ifvxlancmd {
 	char			vxlcmd_ifname[IFNAMSIZ];
 };
 
+#ifdef _KERNEL
+typedef void (*vxlan_event_handler_t)(void *, struct ifnet *, sa_family_t,
+    u_int);
+EVENTHANDLER_DECLARE(vxlan_start, vxlan_event_handler_t);
+EVENTHANDLER_DECLARE(vxlan_stop, vxlan_event_handler_t);
+#endif
+
 #endif /* _NET_IF_VXLAN_H_ */
