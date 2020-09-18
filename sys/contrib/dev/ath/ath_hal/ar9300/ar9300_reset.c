@@ -3879,7 +3879,7 @@ ar9300_init_cal_internal(struct ath_hal *ah, struct ieee80211_channel *chan,
                 cl_tab_reg = BB_cl_tab_b[ch_idx];
                 for (j = 0; j < BB_cl_tab_entry; j++) {
                     OS_REG_WRITE(ah, cl_tab_reg, ichan->tx_clcal[ch_idx][j]);
-                    cl_tab_reg += 4;;
+                    cl_tab_reg += 4;
                 }
             }
             HALDEBUG(ah, HAL_DEBUG_FCS_RTT,
