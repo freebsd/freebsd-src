@@ -433,12 +433,15 @@ pmap_l1(pmap_t pmap, vm_offset_t va)
 }
 
 static __inline pd_entry_t *
-pmap_l1_to_l2(pd_entry_t *l1, vm_offset_t va)
+pmap_l1_to_l2(pd_entry_t *l1p, vm_offset_t va)
 {
-	pd_entry_t *l2;
+	pd_entry_t l1, *l2p;
 
-	l2 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l1) & ~ATTR_MASK);
-	return (&l2[pmap_l2_index(va)]);
+	l1 = pmap_load(l1p);
+	KASSERT((l1 & ATTR_DESCR_MASK) == L1_TABLE,
+	    ("%s: L1 entry %#lx is a leaf", __func__, l1));
+	l2p = (pd_entry_t *)PHYS_TO_DMAP(l1 & ~ATTR_MASK);
+	return (&l2p[pmap_l2_index(va)]);
 }
 
 static __inline pd_entry_t *
@@ -454,12 +457,16 @@ pmap_l2(pmap_t pmap, vm_offset_t va)
 }
 
 static __inline pt_entry_t *
-pmap_l2_to_l3(pd_entry_t *l2, vm_offset_t va)
+pmap_l2_to_l3(pd_entry_t *l2p, vm_offset_t va)
 {
-	pt_entry_t *l3;
+	pd_entry_t l2;
+	pt_entry_t *l3p;
 
-	l3 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l2) & ~ATTR_MASK);
-	return (&l3[pmap_l3_index(va)]);
+	l2 = pmap_load(l2p);
+	KASSERT((l2 & ATTR_DESCR_MASK) == L2_TABLE,
+	    ("%s: L2 entry %#lx is a leaf", __func__, l2));
+	l3p = (pt_entry_t *)PHYS_TO_DMAP(l2 & ~ATTR_MASK);
+	return (&l3p[pmap_l3_index(va)]);
 }
 
 /*
