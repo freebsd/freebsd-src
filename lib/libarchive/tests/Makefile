@@ -1,4 +1,5 @@
 # $FreeBSD$
+.include <src.opts.mk>
 
 PACKAGE=	tests
 
@@ -15,7 +16,7 @@ PROGS+=	libarchive_test
 CFLAGS+= -I${.CURDIR} -I${.CURDIR:H} -I${.OBJDIR}
 CFLAGS+= -I${_LIBARCHIVEDIR}/libarchive -I${_LIBARCHIVEDIR}/libarchive/test
 CFLAGS+= -I${_LIBARCHIVEDIR}/test_utils
-CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+.include "../Makefile.inc"
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
@@ -298,10 +299,6 @@ TESTS_SRCS= \
 	test_zip_filename_encoding.c
 
 # Deterministic failures:
-# Crashes with SIGBUS
-BROKEN_TESTS+=			test_archive_rmd160
-# Fails with `libarchive/test/test_archive_crypto.c:121: md != actualmd`
-BROKEN_TESTS+=			test_archive_sha384
 # Fails with `test_read_disk_directory_traversals.c:1094: File at has atime 886622, 1443306049 seconds ago`
 BROKEN_TESTS+=			test_read_disk_directory_traversals
 
