@@ -323,11 +323,11 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
 	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
-	int mtu;
+	int mtu = 0;
 	int error = 0;
 	struct sockaddr_in *dst, sin;
 	const struct sockaddr_in *gw;
-	struct in_ifaddr *ia;
+	struct in_ifaddr *ia = NULL;
 	struct in_addr src;
 	int isbroadcast;
 	uint16_t ip_len, ip_off;
@@ -485,7 +485,6 @@ again:
 				 * possible that a matching SPD entry exists.
 				 */
 				no_route_but_check_spd = 1;
-				mtu = 0; /* Silence GCC warning. */
 				goto sendit;
 #endif
 				IPSTAT_INC(ips_noroute);
@@ -521,7 +520,6 @@ again:
 			 * possible that a matching SPD entry exists.
 			 */
 			no_route_but_check_spd = 1;
-			mtu = 0; /* Silence GCC warning. */
 			goto sendit;
 #endif
 			IPSTAT_INC(ips_noroute);
