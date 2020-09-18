@@ -4,7 +4,6 @@
 .include <src.opts.mk>
 
 BINDIR?=	/sbin
-WARNS?=	6
 
 .if ${MK_DYNAMICROOT} == "no"
 NO_SHARED?=	YES
