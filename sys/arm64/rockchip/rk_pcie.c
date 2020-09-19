@@ -310,7 +310,7 @@ rk_pcie_check_dev(struct rk_pcie_softc *sc, u_int bus, u_int slot, u_int func,
 	uint32_t val;
 
 	if (bus < sc->bus_start || bus > sc->bus_end || slot > PCI_SLOTMAX ||
-	    func > PCI_FUNCMAX || reg > PCI_REGMAX)
+	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return (false);
 
 	if (bus == sc->root_bus) {
@@ -325,8 +325,8 @@ rk_pcie_check_dev(struct rk_pcie_softc *sc, u_int bus, u_int slot, u_int func,
 	if (STATUS1_LINK_ST_GET(val) != STATUS1_LINK_ST_UP)
 		return (false);
 
-	/* only one device is on first subordinate bus */
-	if (bus == sc->sub_bus  && slot)
+	/* only one device can be on first subordinate bus */
+	if (bus == sc->sub_bus  && slot != 0 )
 		return (false);
 	return (true);
 }
@@ -452,45 +452,41 @@ rk_pcie_read_config(device_t dev, u_int bus, u_int slot,
     u_int func, u_int reg, int bytes)
 {
 	struct rk_pcie_softc *sc;
-	uint32_t data;
+	uint32_t d32, data;
+	uint16_t d16;
+	uint8_t d8;
 	uint64_t addr;
-	int type;
+	int type, ret;
 
 	sc = device_get_softc(dev);
 
 	if (!rk_pcie_check_dev(sc, bus, slot, func, reg))
 		return (0xFFFFFFFFU);
-
 	if (bus == sc->root_bus)
 		return (rk_pcie_local_cfg_read(sc, false, reg, bytes));
 
 	addr = ATU_CFG_BUS(bus) | ATU_CFG_SLOT(slot) | ATU_CFG_FUNC(func) |
 	    ATU_CFG_REG(reg);
-	if (bus == sc->sub_bus) {
-		type = ATU_TYPE_CFG0;
-	} else {
-		type = ATU_TYPE_CFG1;
-		/*
-		* XXX FIXME: any attempt to generate type1 configuration
-		* access causes external data abort
-		*/
-		return (0xFFFFFFFFU);
-	}
+	type = bus == sc->sub_bus ? ATU_TYPE_CFG0: ATU_TYPE_CFG1;
 	rk_pcie_map_cfg_atu(sc, 0, type);
 
+	ret = -1;
 	switch (bytes) {
 	case 1:
-		data = bus_read_1(sc->axi_mem_res, addr);
+		ret = bus_peek_1(sc->axi_mem_res, addr, &d8);
+		data = d8;
 		break;
 	case 2:
-		data = bus_read_2(sc->axi_mem_res, addr);
+		ret = bus_peek_2(sc->axi_mem_res, addr, &d16);
+		data = d16;
 		break;
 	case 4:
-		data = bus_read_4(sc->axi_mem_res, addr);
+		ret = bus_peek_4(sc->axi_mem_res, addr, &d32);
+		data = d32;
 		break;
-	default:
-		data =  0xFFFFFFFFU;
 	}
+	if (ret != 0)
+		data = 0xFFFFFFFF;
 	return (data);
 }
 
@@ -512,27 +508,18 @@ rk_pcie_write_config(device_t dev, u_int bus, u_int slot,
 
 	addr = ATU_CFG_BUS(bus) | ATU_CFG_SLOT(slot) | ATU_CFG_FUNC(func) |
 	    ATU_CFG_REG(reg);
-	if (bus == sc->sub_bus){
-		type = ATU_TYPE_CFG0;
-	} else {
-		type = ATU_TYPE_CFG1;
-		/*
-		* XXX FIXME: any attempt to generate type1 configuration
-		* access causes external data abort
-		*/
-		return;
-	}
+	type = bus == sc->sub_bus ? ATU_TYPE_CFG0: ATU_TYPE_CFG1;
 	rk_pcie_map_cfg_atu(sc, 0, type);
 
 	switch (bytes) {
 	case 1:
-		bus_write_1(sc->axi_mem_res, addr, val);
+		bus_poke_1(sc->axi_mem_res, addr, (uint8_t)val);
 		break;
 	case 2:
-		bus_write_2(sc->axi_mem_res, addr, val);
+		bus_poke_2(sc->axi_mem_res, addr, (uint16_t)val);
 		break;
 	case 4:
-		bus_write_4(sc->axi_mem_res, addr, val);
+		bus_poke_4(sc->axi_mem_res, addr, val);
 		break;
 	default:
 		break;
