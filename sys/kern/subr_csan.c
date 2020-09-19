@@ -878,3 +878,33 @@ CSAN_BUS_SET_FUNC(multi_stream, 8, uint64_t)
 CSAN_BUS_SET_FUNC(region_stream, 8, uint64_t)
 #endif
 #endif
+
+#define CSAN_BUS_PEEK_FUNC(width, type)					\
+	int kcsan_bus_space_peek_##width(bus_space_tag_t tag,		\
+	    bus_space_handle_t hnd, bus_size_t offset, type *value)	\
+	{								\
+		kcsan_access((uintptr_t)value, sizeof(type), true, false, \
+		    __RET_ADDR);					\
+		return (bus_space_peek_##width(tag, hnd, offset, value)); \
+	}
+
+CSAN_BUS_PEEK_FUNC(1, uint8_t)
+CSAN_BUS_PEEK_FUNC(2, uint16_t)
+CSAN_BUS_PEEK_FUNC(4, uint32_t)
+#if !defined(__i386__)
+CSAN_BUS_PEEK_FUNC(8, uint64_t)
+#endif
+
+#define CSAN_BUS_POKE_FUNC(width, type)					\
+	int kcsan_bus_space_poke_##width(bus_space_tag_t tag,		\
+	    bus_space_handle_t hnd, bus_size_t offset, type value)	\
+	{								\
+		return (bus_space_poke_##width(tag, hnd, offset, value)); \
+	}
+
+CSAN_BUS_POKE_FUNC(1, uint8_t)
+CSAN_BUS_POKE_FUNC(2, uint16_t)
+CSAN_BUS_POKE_FUNC(4, uint32_t)
+#if !defined(__i386__)
+CSAN_BUS_POKE_FUNC(8, uint64_t)
+#endif

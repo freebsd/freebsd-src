@@ -83,6 +83,16 @@ void generic_bs_wr_4(void *, bus_space_handle_t, bus_size_t, const uint32_t *,
 void generic_bs_wr_8(void *, bus_space_handle_t, bus_size_t, const uint64_t *,
     bus_size_t);
 
+int generic_bs_peek_1(void *, bus_space_handle_t,  bus_size_t , uint8_t *);
+int generic_bs_peek_2(void *, bus_space_handle_t,  bus_size_t , uint16_t *);
+int generic_bs_peek_4(void *, bus_space_handle_t,  bus_size_t , uint32_t *);
+int generic_bs_peek_8(void *, bus_space_handle_t,  bus_size_t , uint64_t *);
+
+int generic_bs_poke_1(void *, bus_space_handle_t,  bus_size_t, uint8_t);
+int generic_bs_poke_2(void *, bus_space_handle_t,  bus_size_t, uint16_t);
+int generic_bs_poke_4(void *, bus_space_handle_t,  bus_size_t, uint32_t);
+int generic_bs_poke_8(void *, bus_space_handle_t,  bus_size_t, uint64_t);
+
 static int
 generic_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
@@ -223,6 +233,18 @@ struct bus_space memmap_bus = {
 	.bs_wr_2_s = NULL,
 	.bs_wr_4_s = NULL,
 	.bs_wr_8_s = NULL,
+
+	/* peek */
+	.bs_peek_1 = generic_bs_peek_1,
+	.bs_peek_2 = generic_bs_peek_2,
+	.bs_peek_4 = generic_bs_peek_4,
+	.bs_peek_8 = generic_bs_peek_8,
+
+	/* poke */
+	.bs_poke_1 = generic_bs_poke_1,
+	.bs_poke_2 = generic_bs_poke_2,
+	.bs_poke_4 = generic_bs_poke_4,
+	.bs_poke_8 = generic_bs_poke_8,
 };
 
 #ifdef FDT

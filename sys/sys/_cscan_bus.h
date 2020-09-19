@@ -77,11 +77,21 @@
 	    bus_space_handle_t,	bus_size_t, bus_space_handle_t,		\
 	    bus_size_t, bus_size_t);
 
+#define	KCSAN_BS_PEEK(width, type)					\
+	int kcsan_bus_space_peek_##width(bus_space_tag_t, 		\
+	    bus_space_handle_t, bus_size_t, type *);
+
+#define	KCSAN_BS_POKE(width, type)					\
+	int kcsan_bus_space_poke_##width(bus_space_tag_t, 		\
+	    bus_space_handle_t, bus_size_t, type);
+
 #define	KCSAN_BS(width, type)						\
 	KCSAN_BS_READ(width, type);					\
 	KCSAN_BS_WRITE(width, type);					\
 	KCSAN_BS_SET(width, type);					\
-	KCSAN_BS_COPY(width, type)
+	KCSAN_BS_COPY(width, type)					\
+	KCSAN_BS_PEEK(width, type);					\
+	KCSAN_BS_POKE(width, type);
 
 KCSAN_BS(1, uint8_t);
 KCSAN_BS(2, uint16_t);
@@ -127,6 +137,8 @@ void kcsan_bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
 #define	bus_space_set_region_stream_1	kcsan_bus_space_set_region_stream_1
 #define	bus_space_copy_multi_1		kcsan_bus_space_copy_multi_1
 #define	bus_space_copy_multi_stream_1	kcsan_bus_space_copy_multi_stream_1
+#define	bus_space_poke_1		kcsan_bus_space_poke_1
+#define	bus_space_peek_1		kcsan_bus_space_peek_1
 
 #define	bus_space_read_2		kcsan_bus_space_read_2
 #define	bus_space_read_stream_2		kcsan_bus_space_read_stream_2
@@ -146,6 +158,8 @@ void kcsan_bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
 #define	bus_space_set_region_stream_2	kcsan_bus_space_set_region_stream_2
 #define	bus_space_copy_multi_2		kcsan_bus_space_copy_multi_2
 #define	bus_space_copy_multi_stream_2	kcsan_bus_space_copy_multi_stream_2
+#define	bus_space_poke_2		kcsan_bus_space_poke_2
+#define	bus_space_peek_2		kcsan_bus_space_peek_2
 
 #define	bus_space_read_4		kcsan_bus_space_read_4
 #define	bus_space_read_stream_4		kcsan_bus_space_read_stream_4
@@ -165,6 +179,8 @@ void kcsan_bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
 #define	bus_space_set_region_stream_4	kcsan_bus_space_set_region_stream_4
 #define	bus_space_copy_multi_4		kcsan_bus_space_copy_multi_4
 #define	bus_space_copy_multi_stream_4	kcsan_bus_space_copy_multi_stream_4
+#define	bus_space_poke_4		kcsan_bus_space_poke_4
+#define	bus_space_peek_4		kcsan_bus_space_peek_4
 
 #define	bus_space_read_8		kcsan_bus_space_read_8
 #define	bus_space_read_stream_8		kcsan_bus_space_read_stream_8
@@ -184,6 +200,9 @@ void kcsan_bus_space_barrier(bus_space_tag_t, bus_space_handle_t, bus_size_t,
 #define	bus_space_set_region_stream_8	kcsan_bus_space_set_region_stream_8
 #define	bus_space_copy_multi_8		kcsan_bus_space_copy_multi_8
 #define	bus_space_copy_multi_stream_8	kcsan_bus_space_copy_multi_stream_8
+#define	bus_space_poke_8		kcsan_bus_space_poke_8
+#define	bus_space_peek_8		kcsan_bus_space_peek_8
+
 
 #endif /* !KCSAN_RUNTIME */
 

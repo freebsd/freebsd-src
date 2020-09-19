@@ -1089,6 +1089,31 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 #define	bus_space_copy_region_stream_4(t, h1, o1, h2, o2, c) \
 	bus_space_copy_region_4((t), (h1), (o1), (h2), (o2), (c))
 
+#define BUS_PEEK_FUNC(width, type)					\
+	static inline int						\
+	bus_space_peek_##width(bus_space_tag_t tag,			\
+	    bus_space_handle_t hnd, bus_size_t offset, type *value)	\
+	{								\
+		type tmp;						\
+		tmp = bus_space_read_##width(tag, hnd, offset);		\
+		return (0);						\
+	}
+BUS_PEEK_FUNC(1, uint8_t)
+BUS_PEEK_FUNC(2, uint16_t)
+BUS_PEEK_FUNC(4, uint32_t)
+
+#define BUS_POKE_FUNC(width, type)					\
+	static inline int						\
+	bus_space_poke_##width(bus_space_tag_t tag,			\
+	    bus_space_handle_t hnd, bus_size_t offset, type value)	\
+	{								\
+		bus_space_write_##width(tag, hnd, offset, value);	\
+		return (0); 						\
+	}
+BUS_POKE_FUNC(1, uint8_t)
+BUS_POKE_FUNC(2, uint16_t)
+BUS_POKE_FUNC(4, uint32_t)
+
 #endif /* KCSAN && !KCSAN_RUNTIME */
 
 #endif /* _X86_BUS_H_ */

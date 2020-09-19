@@ -52,7 +52,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2017
+.Dd July 7, 2020
 .Dt BUS_SPACE 9
 .Os
 .Sh NAME
@@ -68,6 +68,14 @@
 .Nm bus_space_copy_region_stream_8 ,
 .Nm bus_space_free ,
 .Nm bus_space_map ,
+.Nm bus_space_peek_1 ,
+.Nm bus_space_peek_2 ,
+.Nm bus_space_peek_4 ,
+.Nm bus_space_peek_8 ,
+.Nm bus_space_poke_1 ,
+.Nm bus_space_poke_2 ,
+.Nm bus_space_poke_4 ,
+.Nm bus_space_poke_8 ,
 .Nm bus_space_read_1 ,
 .Nm bus_space_read_2 ,
 .Nm bus_space_read_4 ,
@@ -160,6 +168,46 @@
 .Ft void
 .Fo bus_space_free
 .Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t size"
+.Fc
+.Ft int
+.Fo bus_space_peek_1
+.Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t offset"
+.Fa "uint8_t *datap"
+.Fc
+.Ft int
+.Fo bus_space_peek_2
+.Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t offset"
+.Fa "uint8_t *datap"
+.Fc
+.Ft int
+.Fo bus_space_peek_4
+.Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t offset"
+.Fa "uint8_t *datap"
+.Fc
+.Ft int
+.Fo bus_space_peek_8
+.Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t offset"
+.Fa "uint8_t *datap"
+.Fc
+.Ft int
+.Fo bus_space_poke_1
+.Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t offset"
+.Fa "uint8_t *datap"
+.Fc
+.Ft int
+.Fo bus_space_poke_2
+.Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t offset"
+.Fa "uint8_t *datap"
+.Fc
+.Ft int
+.Fo bus_space_poke_4
+.Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t offset"
+.Fa "uint8_t *datap"
+.Fc
+.Ft int
+.Fo bus_space_poke_8
+.Fa "bus_space_tag_t space" "bus_space_handle_t handle" "bus_size_t offset"
+.Fa "uint8_t *datap"
 .Fc
 .Ft uint8_t
 .Fo bus_space_read_1
@@ -1124,6 +1172,105 @@ If they would fail (e.g.\& because of an
 argument error), that indicates a software bug which should cause a
 panic.
 In that case, they will never return.
+.Sh PROBING BUS SPACE FOR HARDWARE WHICH MAY NOT RESPOND
+One problem with the
+.Fn bus_space_read_N
+and
+.Fn bus_space_write_N
+family of functions is that they provide no protection against
+exceptions which can occur when no physical hardware or
+device responds to the read or write cycles.
+In such a situation, the system typically would panic due to a kernel-mode
+bus error.
+The
+.Fn bus_space_peek_N
+and
+.Fn bus_space_poke_N
+family of functions provide a mechanism to handle these exceptions
+gracefully without the risk of crashing the system.
+.Pp
+As with
+.Fn bus_space_read_N
+and
+.Fn bus_space_write_N ,
+the peek and poke functions provide the ability to read and
+write 1, 2, 4, and 8 byte data items on busses which support those
+access sizes.
+All of the constraints specified in the descriptions of the
+.Fn bus_space_read_N
+and
+.Fn bus_space_write_N
+functions also apply to
+.Fn bus_space_peek_N
+and
+.Fn bus_space_poke_N .
+.Pp
+In addition, explicit calls to the
+.Fn bus_space_barrier
+function are not required as the implementation will ensure all
+pending operations complete before the peek or poke operation starts.
+The implementation will also ensure that the peek or poke operations
+complete before returning.
+.Pp
+The return value indicates the outcome of the peek or poke operation.
+A return value of zero implies that a hardware device is
+responding to the operation at the specified offset in the bus space.
+A non-zero return value indicates that the kernel intercepted a
+hardware exception (e.g., bus error) when the peek or poke operation
+was attempted.
+Note that some busses are incapable of generating exceptions when
+non-existent hardware is accessed.
+In such cases, these functions will always return zero and the value of
+the data read by
+.Fn bus_space_peek_N
+will be unspecified.
+.Pp
+Finally, it should be noted that at this time the
+.Fn bus_space_peek_N
+and
+.Fn bus_space_poke_N
+functions are not re-entrant and should not, therefore, be used
+from within an interrupt service routine.
+This constraint may be removed at some point in the future.
+.Pp
+.Bl -ohang -compact
+.It Fn bus_space_peek_1 "space" "handle" "offset" "datap"
+.It Fn bus_space_peek_2 "space" "handle" "offset" "datap"
+.It Fn bus_space_peek_4 "space" "handle" "offset" "datap"
+.It Fn bus_space_peek_8 "space" "handle" "offset" "datap"
+.Pp
+The
+.Fn bus_space_peek_N
+family of functions cautiously read a 1, 2, 4, or 8 byte data item from
+the offset specified by
+.Fa offset
+in the region specified by
+.Fa handle
+of the bus space specified by
+.Fa space .
+The data item read is stored in the location pointed to by
+.Fa datap .
+It is permissible for
+.Fa datap
+to be NULL, in which case the data item will be discarded after being read.
+.Pp
+.It Fn bus_space_poke_1 "space" "handle" "offset" "value"
+.It Fn bus_space_poke_2 "space" "handle" "offset" "value"
+.It Fn bus_space_poke_4 "space" "handle" "offset" "value"
+.It Fn bus_space_poke_8 "space" "handle" "offset" "value"
+.Pp
+The
+.Fn bus_space_poke_N
+family of functions cautiously write a 1, 2, 4, or 8 byte data item
+specified by
+.Fa value
+to the offset specified by
+.Fa offset
+in the region specified by
+.Fa handle
+of the bus space specified by
+.Fa space .
+.El
 .Sh BARRIERS
 In order to allow high-performance buffering implementations to avoid bus
 activity on every operation, read and write ordering should be specified
