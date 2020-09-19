@@ -59,3 +59,6 @@
 #ifndef S_ISTXT
 #define S_ISTXT S_ISVTX
 #endif
+
+/* This include is needed for OpenZFS bootstrap */
+#include <sys/mount.h>

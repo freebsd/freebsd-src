@@ -14,13 +14,14 @@ SRCS = \
         list.c \
         mkdirp.c \
         page.c \
-        strlcat.c \
-        strlcpy.c \
         timestamp.c \
         zone.c \
         include/sys/list.h \
         include/sys/list_impl.h
 
+# These functions are not required when bootstrapping and the atomic code
+# will not compile when building on macOS.
+.if !defined(BOOTSTRAPPING)
 SRCS += \
         getexecname.c \
         gethostid.c \
@@ -37,6 +38,7 @@ SRCS += atomic.S
 .else
 .PATH: ${SRCTOP}/sys/contrib/openzfs/lib/libspl/asm-generic
 SRCS += atomic.c
+.endif
 .endif
 
 
