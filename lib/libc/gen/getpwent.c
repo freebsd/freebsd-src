@@ -389,10 +389,17 @@ pwd_unmarshal_func(char *buffer, size_t buffer_size, void *retval, va_list ap,
 	orig_buf_size = va_arg(ap, size_t);
 	ret_errno = va_arg(ap, int *);
 
-	if (orig_buf_size <
-	    buffer_size - sizeof(struct passwd) - sizeof(char *)) {
+	if (orig_buf_size + sizeof(struct passwd) + sizeof(char *) <
+	    buffer_size) {
 		*ret_errno = ERANGE;
 		return (NS_RETURN);
+	} else if (buffer_size < sizeof(struct passwd) + sizeof(char *)) {
+		/*
+		 * nscd(8) sometimes returns buffer_size=1 for nonexistent
+		 * entries.
+		 */
+		*ret_errno = 0;
+		return (NS_NOTFOUND);
 	}
 
 	memcpy(pwd, buffer, sizeof(struct passwd));
