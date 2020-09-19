@@ -188,25 +188,54 @@ cgread(struct uufsd *disk)
 	return (cgread1(disk, disk->d_ccg++));
 }
 
+/* Short read/write error messages from cgget()/cgput() */
+static const char *failmsg;
+
 int
 cgread1(struct uufsd *disk, int c)
 {
 
-	if ((cgget(disk, c, &disk->d_cg)) == 0)
+	if (cgget(disk->d_fd, &disk->d_fs, c, &disk->d_cg) == 0) {
+		disk->d_lcg = c;
 		return (1);
+	}
+	ERROR(disk, NULL);
+	if (failmsg != NULL) {
+		ERROR(disk, failmsg);
+		return (-1);
+	}
+	switch (errno) {
+	case EINTEGRITY:
+		ERROR(disk, "cylinder group checks failed");
+		break;
+	case EIO:
+		ERROR(disk, "read error from block device");
+		break;
+	default:
+		ERROR(disk, strerror(errno));
+		break;
+	}
 	return (-1);
 }
 
 int
-cgget(struct uufsd *disk, int cg, struct cg *cgp)
+cgget(int devfd, struct fs *fs, int cg, struct cg *cgp)
 {
-	struct fs *fs;
 	uint32_t cghash, calchash;
+	size_t cnt;
 
-	fs = &disk->d_fs;
-	if (bread(disk, fsbtodb(fs, cgtod(fs, cg)), (void *)cgp,
-	    fs->fs_cgsize) == -1) {
-		ERROR(disk, "unable to read cylinder group");
+	failmsg = NULL;
+	if ((cnt = pread(devfd, cgp, fs->fs_cgsize,
+	    fsbtodb(fs, cgtod(fs, cg)) * (fs->fs_fsize / fsbtodb(fs,1)))) < 0)
+		return (-1);
+	if (cnt == 0) {
+		failmsg = "end of file from block device";
+		errno = EIO;
+		return (-1);
+	}
+	if (cnt != fs->fs_cgsize) {
+		failmsg = "short read from block device";
+		errno = EIO;
 		return (-1);
 	}
 	calchash = cgp->cg_ckhash;
@@ -218,11 +247,9 @@ cgget(struct uufsd *disk, int cg, struct cg *cgp)
 	}
 	if (cgp->cg_ckhash != calchash || !cg_chkmagic(cgp) ||
 	    cgp->cg_cgx != cg) {
-		ERROR(disk, "cylinder group checks failed");
-		errno = EIO;
+		errno = EINTEGRITY;
 		return (-1);
 	}
-	disk->d_lcg = cg;
 	return (0);
 }
 
@@ -230,7 +257,7 @@ int
 cgwrite(struct uufsd *disk)
 {
 
-	return (cgput(disk, &disk->d_cg));
+	return (cgwrite1(disk, disk->d_cg.cg_cgx));
 }
 
 int
@@ -238,8 +265,24 @@ cgwrite1(struct uufsd *disk, int cg)
 {
 	static char errmsg[BUFSIZ];
 
-	if (cg == disk->d_cg.cg_cgx)
-		return (cgput(disk, &disk->d_cg));
+	if (cg == disk->d_cg.cg_cgx) {
+		if (cgput(disk->d_fd, &disk->d_fs, &disk->d_cg) == 0)
+			return (0);
+		ERROR(disk, NULL);
+		if (failmsg != NULL) {
+			ERROR(disk, failmsg);
+			return (-1);
+		}
+		switch (errno) {
+		case EIO:
+			ERROR(disk, "unable to write cylinder group");
+			break;
+		default:
+			ERROR(disk, strerror(errno));
+			break;
+		}
+		return (-1);
+	}
 	snprintf(errmsg, BUFSIZ, "Cylinder group %d in buffer does not match "
 	    "the cylinder group %d that cgwrite1 requested",
 	    disk->d_cg.cg_cgx, cg);
@@ -249,19 +292,22 @@ cgwrite1(struct uufsd *disk, int cg)
 }
 
 int
-cgput(struct uufsd *disk, struct cg *cgp)
+cgput(int devfd, struct fs *fs, struct cg *cgp)
 {
-	struct fs *fs;
+	size_t cnt;
 
-	fs = &disk->d_fs;
 	if ((fs->fs_metackhash & CK_CYLGRP) != 0) {
 		cgp->cg_ckhash = 0;
 		cgp->cg_ckhash =
 		    calculate_crc32c(~0L, (void *)cgp, fs->fs_cgsize);
 	}
-	if (bwrite(disk, fsbtodb(fs, cgtod(fs, cgp->cg_cgx)), cgp,
-	    fs->fs_cgsize) == -1) {
-		ERROR(disk, "unable to write cylinder group");
+	failmsg = NULL;
+	if ((cnt = pwrite(devfd, cgp, fs->fs_cgsize,
+	    fsbtodb(fs, cgtod(fs, cgp->cg_cgx)) *
+	    (fs->fs_fsize / fsbtodb(fs,1)))) < 0)
+		return (-1);
+	if (cnt != fs->fs_cgsize) {
+		failmsg = "short write to block device";
 		return (-1);
 	}
 	return (0);
