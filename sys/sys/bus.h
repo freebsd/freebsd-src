@@ -827,6 +827,10 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 
 #define bus_barrier(r, o, l, f) \
 	bus_space_barrier((r)->r_bustag, (r)->r_bushandle, (o), (l), (f))
+#define bus_poke_1(r, o, v) \
+	bus_space_poke_1((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_peek_1(r, o, vp) \
+	bus_space_peek_1((r)->r_bustag, (r)->r_bushandle, (o), (vp))
 #define bus_read_1(r, o) \
 	bus_space_read_1((r)->r_bustag, (r)->r_bushandle, (o))
 #define bus_read_multi_1(r, o, d, c) \
@@ -859,6 +863,10 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 	bus_space_write_multi_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
 #define bus_write_region_stream_1(r, o, d, c) \
 	bus_space_write_region_stream_1((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_poke_2(r, o, v) \
+	bus_space_poke_2((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_peek_2(r, o, vp) \
+	bus_space_peek_2((r)->r_bustag, (r)->r_bushandle, (o), (vp))
 #define bus_read_2(r, o) \
 	bus_space_read_2((r)->r_bustag, (r)->r_bushandle, (o))
 #define bus_read_multi_2(r, o, d, c) \
@@ -891,6 +899,10 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 	bus_space_write_multi_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
 #define bus_write_region_stream_2(r, o, d, c) \
 	bus_space_write_region_stream_2((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_poke_4(r, o, v) \
+	bus_space_poke_4((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_peek_4(r, o, vp) \
+	bus_space_peek_4((r)->r_bustag, (r)->r_bushandle, (o), (vp))
 #define bus_read_4(r, o) \
 	bus_space_read_4((r)->r_bustag, (r)->r_bushandle, (o))
 #define bus_read_multi_4(r, o, d, c) \
@@ -923,6 +935,10 @@ static __inline void varp ## _set_ ## var(device_t dev, type t)		\
 	bus_space_write_multi_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
 #define bus_write_region_stream_4(r, o, d, c) \
 	bus_space_write_region_stream_4((r)->r_bustag, (r)->r_bushandle, (o), (d), (c))
+#define bus_poke_8(r, o, v) \
+	bus_space_poke_8((r)->r_bustag, (r)->r_bushandle, (o), (v))
+#define bus_peek_8(r, o, vp) \
+	bus_space_peek_8((r)->r_bustag, (r)->r_bushandle, (o), (vp))
 #define bus_read_8(r, o) \
 	bus_space_read_8((r)->r_bustag, (r)->r_bushandle, (o))
 #define bus_read_multi_8(r, o, d, c) \

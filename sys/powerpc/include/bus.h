@@ -462,6 +462,33 @@ extern struct bus_space bs_le_tag;
 	__bs_copy(s_8, t, h1, o1, h2, o2, c)
 #endif
 
+#define BUS_PEEK_FUNC(width, type)					\
+	static inline int						\
+	bus_space_peek_##width(bus_space_tag_t tag,			\
+	    bus_space_handle_t hnd, bus_size_t offset, type *value)	\
+	{								\
+		type tmp;						\
+		tmp = bus_space_read_##width(tag, hnd, offset);		\
+		return (0);						\
+	}
+BUS_PEEK_FUNC(1, uint8_t)
+BUS_PEEK_FUNC(2, uint16_t)
+BUS_PEEK_FUNC(4, uint32_t)
+BUS_PEEK_FUNC(8, uint64_t)
+
+#define BUS_POKE_FUNC(width, type)					\
+	static inline int						\
+	bus_space_poke_##width(bus_space_tag_t tag,			\
+	    bus_space_handle_t hnd, bus_size_t offset, type value)	\
+	{								\
+		bus_space_write_##width(tag, hnd, offset, value);	\
+		return (0); 						\
+	}
+BUS_POKE_FUNC(1, uint8_t)
+BUS_POKE_FUNC(2, uint16_t)
+BUS_POKE_FUNC(4, uint32_t)
+BUS_POKE_FUNC(8, uint64_t)
+
 #include <machine/bus_dma.h>
 
 #endif /* _MACHINE_BUS_H_ */
