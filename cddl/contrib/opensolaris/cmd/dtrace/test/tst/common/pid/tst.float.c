@@ -24,14 +24,14 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <unistd.h>
+
+extern volatile double c;
 
 volatile double c = 1.2;
 
 int
-main(int argc, char **argv)
+main(int argc, char **argv __unused)
 {
 	double a = 1.56;
 	double b = (double)argc;

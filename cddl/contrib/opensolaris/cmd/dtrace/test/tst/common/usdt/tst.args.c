@@ -24,12 +24,10 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/sdt.h>
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	for (;;) {
 		DTRACE_PROBE2(test_prov, place, 10, 4);

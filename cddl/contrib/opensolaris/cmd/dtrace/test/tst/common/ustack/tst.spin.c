@@ -24,11 +24,15 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <unistd.h>
 
+extern volatile long long count;
+
 volatile long long count = 0;
+
+int baz(int);
+int bar(int);
+int foo(int, int);
 
 int
 baz(int a)
@@ -57,5 +61,5 @@ foo(int a, int b)
 int
 main(int argc, char **argv)
 {
-	return (foo(argc, (int)argv) == 0);
+	return (foo(argc, (int)(uintptr_t)argv) == 0);
 }

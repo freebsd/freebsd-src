@@ -24,6 +24,8 @@
  * Use is subject to license terms.
  */
 
+void frax(void);
+
 __attribute__((optnone)) void
 frax(void)
 {

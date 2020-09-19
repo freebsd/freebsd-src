@@ -18,10 +18,10 @@
  */
 
 provider bunyan_fake {
-	probe log__trace(char *msg);
-	probe log__debug(char *msg);
-	probe log__info(char *msg);
-	probe log__warn(char *msg);
-	probe log__error(char *msg);
-	probe log__fatal(char *msg);
+	probe log__trace(const char *msg);
+	probe log__debug(const char *msg);
+	probe log__info(const char *msg);
+	probe log__warn(const char *msg);
+	probe log__error(const char *msg);
+	probe log__fatal(const char *msg);
 };

@@ -24,12 +24,11 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+void grow(int);
 void grow1(int);
 
 void
@@ -53,7 +52,7 @@ grow1(int frame)
 }
 
 int
-main(int argc, char *argv[])
+main(void)
 {
 	grow(1);
 
