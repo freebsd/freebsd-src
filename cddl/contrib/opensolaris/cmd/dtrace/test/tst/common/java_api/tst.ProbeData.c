@@ -24,43 +24,43 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+#include <sys/cdefs.h>
 
 typedef void f(char *);
 
 static void
-f_a(char *a)
+f_a(char *a __unused)
 {
 }
 
 static void
-f_b(char *a)
+f_b(char *a __unused)
 {
 }
 
 static void
-f_c(char *a)
+f_c(char *a __unused)
 {
 }
 
 static void
-f_d(char *a)
+f_d(char *a __unused)
 {
 }
 
 static void
-f_e(char *a)
+f_e(char *a __unused)
 {
 }
 
 static void
-fN(f func, char *a, int i)
+fN(f func, char *a, int i __unused)
 {
 	func(a);
 }
 
 static void
-fN2(f func, char *a, int i)
+fN2(f func, char *a, int i __unused)
 {
 	func(a);
 }

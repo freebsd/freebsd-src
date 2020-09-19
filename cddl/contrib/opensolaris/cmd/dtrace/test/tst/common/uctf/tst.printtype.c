@@ -27,19 +27,19 @@ typedef struct final_fantasy_info {
 } final_fantasy_info_t;
 
 static int
-ff_getgameid(final_fantasy_info_t *f)
+ff_getgameid(final_fantasy_info_t *f __unused)
 {
 	return (0);
 }
 
 static int
-ff_getpartysize(final_fantasy_info_t *f)
+ff_getpartysize(final_fantasy_info_t *f __unused)
 {
 	return (0);
 }
 
 static int
-ff_getsummons(final_fantasy_info_t *f)
+ff_getsummons(final_fantasy_info_t *f __unused)
 {
 	return (0);
 }

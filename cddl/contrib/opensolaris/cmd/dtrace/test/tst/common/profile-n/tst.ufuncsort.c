@@ -24,32 +24,32 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
+#include <sys/cdefs.h>
 
 typedef void f(int x);
 
 static void
-f_a(int i)
+f_a(int i __unused)
 {
 }
 
 static void
-f_b(int i)
+f_b(int i __unused)
 {
 }
 
 static void
-f_c(int i)
+f_c(int i __unused)
 {
 }
 
 static void
-f_d(int i)
+f_d(int i __unused)
 {
 }
 
 static void
-f_e(int i)
+f_e(int i __unused)
 {
 }
 
@@ -60,7 +60,7 @@ fN(f func, int i)
 }
 
 int
-main()
+main(void)
 {
 	fN(f_a, 1);
 	fN(f_b, 2);

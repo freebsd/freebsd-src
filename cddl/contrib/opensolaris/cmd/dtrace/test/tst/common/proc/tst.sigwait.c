@@ -24,8 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <signal.h>
 #include <time.h>
 #include <stdlib.h>
@@ -36,7 +34,7 @@
 #define NANOSEC	1000000000
 
 int
-main(int argc, char **argv)
+main(int argc __unused, char **argv)
 {
 	struct sigevent ev;
 	struct itimerspec ts;

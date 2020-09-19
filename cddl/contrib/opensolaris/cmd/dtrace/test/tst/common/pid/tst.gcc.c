@@ -24,13 +24,14 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <spawn.h>
 #include <signal.h>
 #include <stdio.h>
+
+void go(void);
+void intr(int);
 
 void
 go(void)
@@ -43,12 +44,12 @@ go(void)
 }
 
 void
-intr(int sig)
+intr(int sig __unused)
 {
 }
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	struct sigaction sa;
 

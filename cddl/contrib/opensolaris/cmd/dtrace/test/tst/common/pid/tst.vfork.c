@@ -24,9 +24,10 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <unistd.h>
+
+int waiting(volatile int *);
+int go(void);
 
 int
 waiting(volatile int *a)
@@ -49,7 +50,7 @@ go(void)
 }
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	volatile int a = 0;
 
