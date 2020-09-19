@@ -53,7 +53,7 @@ static const char rcsid[] =
 #include "fsdb.h"
 #include "fsck.h"
 
-void prtblknos(struct uufsd *disk, union dinode *dp);
+void prtblknos(struct fs *fs, union dinode *dp);
 
 char **
 crack(char *line, int *argc)
@@ -236,7 +236,7 @@ printactive(int doblocks)
     case IFSOCK:
     case IFIFO:
 	if (doblocks)
-	    prtblknos(&disk, curinode);
+	    prtblknos(&sblock, curinode);
 	else
 	    printstat("current inode", curinum, curinode);
 	break;
