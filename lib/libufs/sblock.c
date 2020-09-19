@@ -186,7 +186,7 @@ sbput(int devfd, struct fs *fs, int numaltwrite)
 		     use_pwrite)) != 0) {
 			fs->fs_sblockactualloc = savedactualloc;
 			fs->fs_csp = savedcsp;
-			return (-1);
+			return (error);
 		}
 	}
 	fs->fs_sblockactualloc = savedactualloc;

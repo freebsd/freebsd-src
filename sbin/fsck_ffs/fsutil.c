@@ -217,6 +217,9 @@ bufinit(void)
 
 /*
  * Manage cylinder group buffers.
+ *
+ * Use getblk() here rather than cgget() because the cylinder group
+ * may be corrupted but we want it anyway so we can fix it.
  */
 static struct bufarea *cgbufs;	/* header for cylinder group cache */
 static int flushtries;		/* number of tries to reclaim memory */
@@ -370,7 +373,7 @@ flush(int fd, struct bufarea *bp)
 			fsmodified = 1;
 		break;
 	case BT_CYLGRP:
-		if (cgput(&disk, bp->b_un.b_cg) == 0)
+		if (cgput(fswritefd, &sblock, bp->b_un.b_cg) == 0)
 			fsmodified = 1;
 		break;
 	default:

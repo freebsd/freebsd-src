@@ -13,7 +13,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2018
+.Dd September 2, 2020
 .Dt CGREAD 3
 .Os
 .Sh NAME
@@ -29,9 +29,9 @@
 .In ufs/ffs/fs.h
 .In libufs.h
 .Ft int
-.Fn cgget "struct uufsd *disk" "int cg" "struct cg *cgp"
+.Fn cgget "int devfd" "struct fs *fs" "int cg" "struct cg *cgp"
 .Ft int
-.Fn cgput "struct uufsd *disk" "struct cg *cgp"
+.Fn cgput "int devfd" "struct fs *fs" "struct cg *cgp"
 .Ft int
 .Fn cgread "struct uufsd *disk"
 .Ft int
@@ -64,7 +64,11 @@ function reads the cylinder group specified by
 .Fa cg
 into the buffer pointed to by
 .Fa cgp
-from the disk referenced by the user-land UFS-disk structure.
+from the filesystem described by the
+.Fa fs
+superblock using the
+.Fa devfd
+file descriptor that references the filesystem disk.
 The
 .Fn cgget
 function is the only cylinder group read function that is safe to use
@@ -74,7 +78,11 @@ The
 .Fn cgput
 function writes the cylinder group specified by
 .Va cgp
-to the disk referenced by the user-land UFS-disk structure.
+to the filesystem described by the
+.Fa fs
+superblock using the
+.Fa devfd
+file descriptor that references the filesystem disk.
 The
 .Fn cgput
 function is the only cylinder group write function that is safe to use
@@ -172,3 +180,4 @@ in
 .Fx 5.1 .
 .Sh AUTHORS
 .An Juli Mallett Aq Mt jmallett@FreeBSD.org
+.An Marshall Kirk McKusick Aq Mt mckusick@FreeBSD.org
