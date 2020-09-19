@@ -22,9 +22,9 @@
 #include <unistd.h>
 
 typedef struct zelda_info {
-	char	*zi_gamename;
+	const char *zi_gamename;
 	int	zi_ndungeons;
-	char	*zi_villain;
+	const char *zi_villain;
 	int	zi_haszelda;
 } zelda_info_t;
 

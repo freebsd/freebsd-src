@@ -24,8 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/ioctl.h>
 
 #include <assert.h>
@@ -48,7 +46,8 @@ int
 main(int argc, char *argv[])
 {
 	const char *file = "/dev/null";
-	int i, n, fds[10];
+	size_t i, n;
+	int fds[10];
 	struct sigaction act;
 
 	if (argc > 1) {

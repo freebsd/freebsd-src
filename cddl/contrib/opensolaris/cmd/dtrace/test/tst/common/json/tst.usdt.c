@@ -28,6 +28,8 @@
 		"  \"action\": \"%s\"" \
 		"}\n"
 
+int waiting(volatile int *);
+
 int
 waiting(volatile int *a)
 {
@@ -35,7 +37,7 @@ waiting(volatile int *a)
 }
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	volatile int a = 0;
 	int idx;
@@ -45,7 +47,8 @@ main(int argc, char **argv)
 		continue;
 
 	for (idx = 0; idx < 10; idx++) {
-		char *odd, *even, *json, *action;
+		const char *odd, *even, *action;
+		char *json;
 
 		size *= 1.78;
 		odd = idx % 2 == 1 ? "true" : "false";
@@ -57,7 +60,7 @@ main(int argc, char **argv)
 		free(json);
 	}
 
-	BUNYAN_FAKE_LOG_DEBUG("{\"finished\": true}");
+	BUNYAN_FAKE_LOG_DEBUG(__DECONST(char *, "{\"finished\": true}"));
 
 	return (0);
 }

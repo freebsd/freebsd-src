@@ -24,20 +24,18 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
 
 static void
-handle(int sig)
+handle(int sig __unused)
 {
 	exit(0);
 }
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	struct sigaction sa;
 

@@ -24,8 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -35,7 +33,7 @@
 #include "forker.h"
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	int i;
 
