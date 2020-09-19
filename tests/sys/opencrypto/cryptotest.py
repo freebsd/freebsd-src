@@ -1,4 +1,4 @@
-#!/usr/local/bin/python2
+#!/usr/local/bin/python3
 #
 # Copyright (c) 2014 The FreeBSD Foundation
 # All rights reserved.
@@ -29,7 +29,9 @@
 # $FreeBSD$
 #
 
-from __future__ import print_function
+
+
+import binascii
 import errno
 import cryptodev
 import itertools

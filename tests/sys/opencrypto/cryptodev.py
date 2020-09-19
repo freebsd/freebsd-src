@@ -1,4 +1,4 @@
-#!/usr/local/bin/python2
+#!/usr/local/bin/python3
 #
 # Copyright (c) 2014 The FreeBSD Foundation
 # Copyright 2014 John-Mark Gurney
@@ -30,7 +30,7 @@
 # $FreeBSD$
 #
 
-from __future__ import print_function
+
 import array
 import dpkt
 from fcntl import ioctl
