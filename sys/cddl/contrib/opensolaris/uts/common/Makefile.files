@@ -71,6 +71,7 @@ ZFS_COMMON_OBJS +=		\
 	bptree.o		\
 	bqueue.o		\
 	cityhash.o		\
+	dataset_kstats.c	\
 	dbuf.o			\
 	dbuf_stats.o		\
 	ddt.o			\

@@ -96,6 +96,7 @@
 #include <sys/zil_impl.h>
 #include <sys/filio.h>
 #include <sys/zfs_rlock.h>
+#include <sys/dataset_kstats.h>
 
 #include <geom/geom.h>
 
@@ -177,6 +178,7 @@ typedef struct zvol_state {
 	list_t		zv_extents;	/* List of extents for dump */
 	rangelock_t	zv_rangelock;
 	dnode_t		*zv_dn;		/* dnode hold */
+	dataset_kstats_t	zv_kstat;	/* zvol kstats */
 #ifndef illumos
 	int		zv_state;
 	int		zv_volmode;	/* Provide GEOM or cdev */
@@ -768,6 +770,10 @@ zvol_create_minor(const char *name)
 		else
 			zil_replay(os, zv, zvol_replay_vector);
 	}
+
+	ASSERT3P(zv->zv_kstat.dk_kstats, ==, NULL);
+	dataset_kstats_create(&zv->zv_kstat, zv->zv_objset);
+
 	dmu_objset_disown(os, FTAG);
 	zv->zv_objset = NULL;
 
@@ -823,6 +829,7 @@ zvol_remove_zv(zvol_state_t *zv)
 
 	rangelock_fini(&zv->zv_rangelock);
 
+	dataset_kstats_destroy(&zv->zv_kstat);
 	kmem_free(zv, sizeof (zvol_state_t));
 #ifdef illumos
 	ddi_soft_state_free(zfsdev_state, minor);
@@ -1752,6 +1759,23 @@ unlock:
 	bp->bio_completed = bp->bio_length - resid;
 	if (bp->bio_completed < bp->bio_length && off > volsize)
 		error = EINVAL;
+
+	switch (bp->bio_cmd) {
+	case BIO_FLUSH:
+		break;
+	case BIO_READ:
+		dataset_kstats_update_read_kstats(&zv->zv_kstat,
+		    bp->bio_completed);
+		break;
+	case BIO_WRITE:
+		dataset_kstats_update_write_kstats(&zv->zv_kstat,
+		    bp->bio_completed);
+		break;
+	case BIO_DELETE:
+		break;
+	default:
+		break;
+	}
 
 	if (sync) {
 sync:
