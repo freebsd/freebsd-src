@@ -37,6 +37,10 @@
  */
 #pragma once
 
+/* Avoid incompatible opensolaris redeclarations (without _FORTIFY_SOURCE). */
+#define HAVE_STRLCAT 1
+#define HAVE_STRLCPY 1
+
 #include_next <string.h>
 /*
  * FreeBSD string.h #includes strings.h and all libmd code depends on
