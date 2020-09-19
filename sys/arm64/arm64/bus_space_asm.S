@@ -26,7 +26,6 @@
  */
 
 #include <machine/asm.h>
-
 __FBSDID("$FreeBSD$");
 
 ENTRY(generic_bs_r_1)
@@ -397,3 +396,84 @@ ENTRY(generic_bs_wr_8)
 
 2:	ret
 END(generic_bs_wr_8)
+
+ENTRY(generic_bs_fault)
+	mov	x0, #-1
+	ret
+END(bus_fault)
+
+ENTRY(generic_bs_peek_1)
+	.globl	generic_bs_peek_1f
+generic_bs_peek_1f:
+	ldrb	w0, [x1, x2]	/* Checked instruction */
+	dsb	sy
+	strb	w0,[x3]
+	mov	x0, #0
+	ret
+END(generic_bs_peek_1)
+
+ENTRY(generic_bs_peek_2)
+	.globl	generic_bs_peek_2f
+generic_bs_peek_2f:
+	ldrh	w0, [x1, x2]	/* Checked instruction */
+	dsb	sy
+	strh	w0,[x3]
+	mov	x0, #0
+	ret
+END(generic_bs_peek_2)
+
+ENTRY(generic_bs_peek_4)
+	.globl	generic_bs_peek_4f
+generic_bs_peek_4f:
+	ldr	w0, [x1, x2]	/* Checked instruction */
+	dsb	sy
+	str	w0,[x3]
+	mov	x0, #0
+	ret
+END(generic_bs_peek_4)
+
+ENTRY(generic_bs_peek_8)
+	.globl	generic_bs_peek_8f
+generic_bs_peek_8f:
+	ldr	x0, [x1, x2]	/* Checked instruction */
+	dsb	sy
+	str	x0,[x3]
+	mov	x0, #0
+	ret
+END(generic_bs_peek_8)
+
+ENTRY(generic_bs_poke_1)
+	.globl	generic_bs_poke_1f
+generic_bs_poke_1f:
+	strb	w3, [x1, x2]	/* Checked instruction */
+	dsb	sy
+	mov	x0, #0
+	ret
+END(generic_bs_poke_1)
+
+ENTRY(generic_bs_poke_2)
+	.globl	generic_bs_poke_2f
+generic_bs_poke_2f:
+	strh	w3, [x1, x2]	/* Checked instruction */
+	dsb	sy
+	mov	x0, #0
+	ret
+END(generic_bs_poke_2)
+
+ENTRY(generic_bs_poke_4)
+	.globl	generic_bs_poke_4f
+generic_bs_poke_4f:
+	str	w3, [x1, x2]	/* Checked instruction */
+	dsb	sy
+	mov	x0, #0
+	ret
+END(generic_bs_poke_4)
+
+ENTRY(generic_bs_poke_8)
+	.globl	generic_bs_poke_8f
+generic_bs_poke_8f:
+	str	x3, [x1, x2]	/* Checked instruction */
+	dsb	sy
+	mov	x0, #0
+	ret
+END(generic_bs_poke_8)

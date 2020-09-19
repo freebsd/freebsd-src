@@ -48,5 +48,14 @@ void busdma_swi(void);
 void dump_add_page(vm_paddr_t);
 void dump_drop_page(vm_paddr_t);
 int minidumpsys(struct dumperinfo *);
+void generic_bs_fault(void) __asm(__STRING(generic_bs_fault));
+void generic_bs_peek_1(void) __asm(__STRING(generic_bs_peek_1));
+void generic_bs_peek_2(void) __asm(__STRING(generic_bs_peek_2));
+void generic_bs_peek_4(void) __asm(__STRING(generic_bs_peek_4));
+void generic_bs_peek_8(void) __asm(__STRING(generic_bs_peek_8));
+void generic_bs_poke_1(void) __asm(__STRING(generic_bs_poke_1));
+void generic_bs_poke_2(void) __asm(__STRING(generic_bs_poke_2));
+void generic_bs_poke_4(void) __asm(__STRING(generic_bs_poke_4));
+void generic_bs_poke_8(void) __asm(__STRING(generic_bs_poke_8));
 
 #endif /* !_MACHINE_MD_VAR_H_ */

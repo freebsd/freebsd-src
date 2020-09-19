@@ -259,6 +259,24 @@ struct bus_space {
 			    bus_size_t, const u_int32_t *, bus_size_t);
 	void		(*bs_wr_8_s) (void *, bus_space_handle_t,
 			    bus_size_t, const u_int64_t *, bus_size_t);
+	/* peek */
+	int		(*bs_peek_1)(void *, bus_space_handle_t,
+			    bus_size_t , uint8_t *);
+	int		(*bs_peek_2)(void *, bus_space_handle_t,
+			    bus_size_t , uint16_t *);
+	int		(*bs_peek_4)(void *, bus_space_handle_t,
+			    bus_size_t , uint32_t *);
+	int		(*bs_peek_8)(void *, bus_space_handle_t,
+			    bus_size_t , uint64_t *);
+	/* poke */
+	int		(*bs_poke_1)(void *, bus_space_handle_t,
+			   bus_size_t, uint8_t);
+	int		(*bs_poke_2)(void *, bus_space_handle_t,
+			   bus_size_t, uint16_t);
+	int		(*bs_poke_4)(void *, bus_space_handle_t,
+			   bus_size_t, uint32_t);
+	int		(*bs_poke_8)(void *, bus_space_handle_t,
+			   bus_size_t, uint64_t);
 };
 
 /*
@@ -283,6 +301,10 @@ struct bus_space {
 	(*(t)->__bs_opname_s(r,sz))((t)->bs_cookie, h, o)
 #define	__bs_ws_s(sz, t, h, o, v)					\
 	(*(t)->__bs_opname_s(w,sz))((t)->bs_cookie, h, o, v)
+#define	__bs_peek(sz, t, h, o, vp)					\
+	(*(t)->__bs_opname(peek, sz))((t)->bs_cookie, h, o, vp)
+#define	__bs_poke(sz, t, h, o, v)					\
+	(*(t)->__bs_opname(poke, sz))((t)->bs_cookie, h, o, v)
 #define	__bs_nonsingle_s(type, sz, t, h, o, a, c)			\
 	(*(t)->__bs_opname_s(type,sz))((t)->bs_cookie, h, o, a, c)
 
@@ -456,6 +478,22 @@ struct bus_space {
 	__bs_copy(4, t, h1, o1, h2, o2, c)
 #define	bus_space_copy_region_8(t, h1, o1, h2, o2, c)				\
 	__bs_copy(8, t, h1, o1, h2, o2, c)
+
+/*
+ * Poke (checked write) operations.
+ */
+#define	bus_space_poke_1(t, h, o, v)	__bs_poke(1, (t), (h), (o), (v))
+#define	bus_space_poke_2(t, h, o, v)	__bs_poke(2, (t), (h), (o), (v))
+#define	bus_space_poke_4(t, h, o, v)	__bs_poke(4, (t), (h), (o), (v))
+#define	bus_space_poke_8(t, h, o, v)	__bs_poke(8, (t), (h), (o), (v))
+
+/*
+ * Peek (checked read) operations.
+ */
+#define	bus_space_peek_1(t, h, o, vp)	__bs_peek(1, (t), (h), (o), (vp))
+#define	bus_space_peek_2(t, h, o, vp)	__bs_peek(2, (t), (h), (o), (vp))
+#define	bus_space_peek_4(t, h, o, vp)	__bs_peek(4, (t), (h), (o), (vp))
+#define	bus_space_peek_8(t, h, o, vp)	__bs_peek(8, (t), (h), (o), (vp))
 
 #endif
 
