@@ -39,14 +39,15 @@ union dinode {
 	struct ufs2_dinode *dp2;
 };
 
-void prtblknos(struct uufsd *disk, union dinode *dp);
+void prtblknos(struct fs *fs, union dinode *dp);
+
+struct uufsd disk;
 
 int
 main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	struct uufsd disk;
 	union dinodep dp;
 	struct fs *fs;
 	struct stat sb;
@@ -102,7 +103,7 @@ main(argc, argv)
 			warn("Read of inode %jd on %s failed: %s",
 			    (intmax_t)inonum, fsname, disk.d_error);
 
-		prtblknos(&disk, (union dinode *)dp.dp1);
+		prtblknos(fs, (union dinode *)dp.dp1);
 	}
 	exit(0);
 }

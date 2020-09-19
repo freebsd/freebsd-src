@@ -109,6 +109,8 @@ main(int argc, char *argv[])
 	sblock_init();
 	if (!setup(fsys))
 		errx(1, "cannot set up file system `%s'", fsys);
+	if (fswritefd < 0)
+		nflag++;
 	printf("%s file system `%s'\nLast Mounted on %s\n",
 	       nflag? "Examining": "Editing", fsys, sblock.fs_fsmnt);
 	rval = cmdloop();
