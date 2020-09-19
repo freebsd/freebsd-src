@@ -1,4 +1,4 @@
-.\"	$NetBSD: nsswitch.conf.5,v 1.14 1999/03/17 20:19:47 garbled Exp $
+.\" $NetBSD: nsswitch.conf.5,v 1.14 1999/03/17 20:19:47 garbled Exp $
 .\"
 .\" Copyright (c) 1997, 1998, 1999 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -16,7 +16,7 @@
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
 .\"    must display the following acknowledgement:
-.\" 	This product includes software developed by Luke Mewburn.
+.\"    This product includes software developed by Luke Mewburn.
 .\" 4. The name of the author may not be used to endorse or promote products
 .\"    derived from this software without specific prior written permission.
 .\"
@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2016
+.Dd September 6, 2020
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -48,8 +48,7 @@ file specifies how the
 .Pp
 The configuration file controls how a process looks up various databases
 containing information regarding hosts, users (passwords), groups, etc.
-Each database comes from a source (such as local files, DNS,
-.Tn NIS ,
+Each database comes from a source (such as local files, DNS, NIS ,
 and cache), and the order to look up the sources is specified in
 .Nm .
 .Pp
@@ -180,9 +179,7 @@ Try the next source
 Return with the current result
 .El
 .Ss Format of file
-A
-.Tn BNF
-description of the syntax of
+A BNF description of the syntax of
 .Nm
 is:
 .Pp
@@ -222,20 +219,24 @@ and continue on anything else (i.e,
 .Ss Cache
 You can enable caching for the particular database by specifying
 .Dq cache
-as the first source in the
+in the
 .Nm
 file.
+It should come after
+.Dq files ,
+but before remote sources like
+.Dq nis .
 You should also enable caching for this database in
 .Xr nscd.conf 5 .
-If for the particular query
+If for a particular query
 .Dq cache
-source returns success, no further sources are queried.
+source returns success, then no further sources are queried.
 On the other hand, if there are no previously cached data, the
 query result will be placed into the cache right after
 all other sources are processed.
-Note, that
+Note that
 .Dq cache
-requires
+requires the
 .Xr nscd 8
 daemon to be running.
 .Ss Compat mode: +/- syntax
@@ -244,12 +245,10 @@ In historical multi-source implementations, the
 and
 .Sq -
 characters are used to specify the importing of user password and
-group information from
-.Tn NIS .
+group information from NIS .
 Although
 .Nm
-provides alternative methods of accessing distributed sources such as
-.Tn NIS ,
+provides alternative methods of accessing distributed sources such as NIS ,
 specifying a sole source of
 .Dq compat
 will provide the historical behaviour.
@@ -319,15 +318,14 @@ resides in
 .Pa /etc .
 .El
 .Sh EXAMPLES
-To lookup hosts in cache, then in
+To lookup hosts in
 .Pa /etc/hosts
-and then from the DNS, and lookup user information from
-.Tn NIS
-then files, use:
+, then in cache,
+and then from the DNS, and lookup user information from NIS then files, use:
 .Pp
 .Bl -tag -width passwd: -compact
 .It hosts:
-cache files dns
+files cache dns
 .It passwd:
 nis [notfound=return] files
 .It group:
@@ -349,9 +347,7 @@ entries.
 .Fx Ns 's
 .Lb libc
 provides stubs for compatibility with NSS modules
-written for the
-.Tn GNU
-C Library
+written for the GNU C Library
 .Nm nsswitch
 interface.
 However, these stubs only support the use of the
@@ -377,10 +373,8 @@ Project, where it appeared first in
 .Sh AUTHORS
 .An Luke Mewburn Aq Mt lukem@netbsd.org
 wrote this freely distributable name-service switch implementation,
-using ideas from the
-.Tn ULTRIX
+using ideas from the ULTRIX
 .Xr svc.conf 5
-and
-.Tn Solaris
+and Solaris
 .Xr nsswitch.conf 4
 manual pages.
