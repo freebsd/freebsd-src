@@ -10,8 +10,10 @@ atf_test_case side_by_side
 atf_test_case brief_format
 atf_test_case b230049
 atf_test_case Bflag
+atf_test_case Nflag
 atf_test_case tabsize
 atf_test_case conflicting_format
+atf_test_case label
 
 simple_body()
 {
@@ -164,6 +166,15 @@ Bflag_body()
 	atf_check -s exit:1 -o file:"$(atf_get_srcdir)/Bflag_F.out" diff -B E F
 }
 
+Nflag_body()
+{
+	atf_check -x 'printf "foo" > A'
+
+	atf_check -s exit:1 -o ignore -e ignore diff -N A NOFILE 
+	atf_check -s exit:1 -o ignore -e ignore diff -N NOFILE A 
+	atf_check -s exit:2 -o ignore -e ignore diff -N NOFILE1 NOFILE2 
+}
+
 tabsize_body()
 {
 	printf "\tA\n" > A
@@ -195,6 +206,17 @@ conflicting_format_body()
 	atf_check -s exit:1 -o ignore -e ignore diff --normal --normal A B
 }
 
+label_body()
+{
+	printf "\tA\n" > A
+
+	atf_check -o inline:"Files hello and world are identical\n" \
+		-s exit:0 diff --label hello --label world -s A A
+
+	atf_check -o inline:"Binary files hello and world differ\n" \
+		-s exit:1 diff --label hello --label world `which diff` `which ls`
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case simple
@@ -207,6 +229,8 @@ atf_init_test_cases()
 	atf_add_test_case brief_format
 	atf_add_test_case b230049
 	atf_add_test_case Bflag
+	atf_add_test_case Nflag
 	atf_add_test_case tabsize
 	atf_add_test_case conflicting_format
+	atf_add_test_case label
 }
