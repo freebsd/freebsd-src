@@ -696,6 +696,7 @@ void	__bs_c(f,_bs_c_8) (void *t, bus_space_handle_t bsh1,	\
 	{								\
 		type tmp;						\
 		tmp = bus_space_read_##width(tag, hnd, offset);		\
+		*value = (type)tmp;					\
 		return (0);						\
 	}
 BUS_PEEK_FUNC(1, uint8_t)
