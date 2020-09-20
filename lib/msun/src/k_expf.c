@@ -71,7 +71,7 @@ __ldexp_expf(float x, int expt)
 float complex
 __ldexp_cexpf(float complex z, int expt)
 {
-	float x, y, exp_x, scale1, scale2;
+	float c, exp_x, s, scale1, scale2, x, y;
 	int ex_expt, half_expt;
 
 	x = crealf(z);
@@ -84,6 +84,7 @@ __ldexp_cexpf(float complex z, int expt)
 	half_expt = expt - half_expt;
 	SET_FLOAT_WORD(scale2, (0x7f + half_expt) << 23);
 
-	return (CMPLXF(cosf(y) * exp_x * scale1 * scale2,
-	    sinf(y) * exp_x * scale1 * scale2));
+	sincosf(y, &s, &c);
+	return (CMPLXF(c * exp_x * scale1 * scale2,
+	    s * exp_x * scale1 * scale2));
 }
