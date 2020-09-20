@@ -1096,6 +1096,7 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 	{								\
 		type tmp;						\
 		tmp = bus_space_read_##width(tag, hnd, offset);		\
+		*value = (type)tmp;					\
 		return (0);						\
 	}
 BUS_PEEK_FUNC(1, uint8_t)

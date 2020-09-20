@@ -469,6 +469,7 @@ extern struct bus_space bs_le_tag;
 	{								\
 		type tmp;						\
 		tmp = bus_space_read_##width(tag, hnd, offset);		\
+		*value = (type)tmp;					\
 		return (0);						\
 	}
 BUS_PEEK_FUNC(1, uint8_t)
