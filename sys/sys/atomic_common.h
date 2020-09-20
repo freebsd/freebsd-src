@@ -41,7 +41,7 @@
 #define	atomic_load_short(p)	(*(volatile u_short *)(p))
 #define	atomic_load_int(p)	(*(volatile u_int *)(p))
 #define	atomic_load_long(p)	(*(volatile u_long *)(p))
-#define	atomic_load_ptr(p)	(*(volatile __typeof(p))(p))
+#define	atomic_load_ptr(p)	(*(volatile __typeof(*p) *)(p))
 #define	atomic_load_8(p)	(*(volatile uint8_t *)(p))
 #define	atomic_load_16(p)	(*(volatile uint16_t *)(p))
 #define	atomic_load_32(p)	(*(volatile uint32_t *)(p))
