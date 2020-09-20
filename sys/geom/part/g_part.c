@@ -1846,7 +1846,8 @@ g_part_ctlreq(struct gctl_req *req, struct g_class *mp, const char *verb)
 		table = gpp.gpp_geom->softc;
 		if (table != NULL && table->gpt_corrupt &&
 		    ctlreq != G_PART_CTL_DESTROY &&
-		    ctlreq != G_PART_CTL_RECOVER) {
+		    ctlreq != G_PART_CTL_RECOVER &&
+		    geom_part_check_integrity) {
 			gctl_error(req, "%d table '%s' is corrupt",
 			    EPERM, gpp.gpp_geom->name);
 			return;
