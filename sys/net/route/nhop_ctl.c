@@ -691,13 +691,6 @@ nhop_free(struct nhop_object *nh)
 	    &nh_priv->nh_epoch_ctx);
 }
 
-int
-nhop_ref_any(struct nhop_object *nh)
-{
-
-	return (nhop_try_ref_object(nh));
-}
-
 void
 nhop_free_any(struct nhop_object *nh)
 {

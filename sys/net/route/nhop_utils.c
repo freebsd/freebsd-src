@@ -29,7 +29,6 @@
 __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_route.h"
-#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
