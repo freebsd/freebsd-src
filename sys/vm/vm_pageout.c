@@ -2040,7 +2040,7 @@ vm_pageout_init_domain(int domain)
 static void
 vm_pageout_init(void)
 {
-	u_int freecount;
+	u_long freecount;
 	int i;
 
 	/*
@@ -2073,8 +2073,13 @@ vm_pageout_init(void)
 	if (vm_pageout_update_period == 0)
 		vm_pageout_update_period = 600;
 
+	/*
+	 * Set the maximum number of user-wired virtual pages.  Historically the
+	 * main source of such pages was mlock(2) and mlockall(2).  Hypervisors
+	 * may also request user-wired memory.
+	 */
 	if (vm_page_max_user_wired == 0)
-		vm_page_max_user_wired = freecount / 3;
+		vm_page_max_user_wired = 4 * freecount / 5;
 }
 
 /*
