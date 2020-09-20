@@ -244,7 +244,6 @@ int nhops_init_rib(struct rib_head *rh);
 void nhops_destroy_rib(struct rib_head *rh);
 void nhop_ref_object(struct nhop_object *nh);
 int nhop_try_ref_object(struct nhop_object *nh);
-int nhop_ref_any(struct nhop_object *nh);
 void nhop_free_any(struct nhop_object *nh);
 
 void nhop_set_type(struct nhop_object *nh, enum nhop_type nh_type);

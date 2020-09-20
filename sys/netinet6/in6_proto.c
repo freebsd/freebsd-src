@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
 #include "opt_sctp.h"
-#include "opt_mpath.h"
 #include "opt_route.h"
 
 #include <sys/param.h>
