@@ -129,7 +129,7 @@ aw_nmi_intr(void *arg)
 	}
 
 	if (intr_isrc_dispatch(&sc->intr.isrc, curthread->td_intr_frame) != 0) {
-		SC_NMI_WRITE(sc, sc->cfg->enable_reg, !NMI_IRQ_ENABLE);
+		SC_NMI_WRITE(sc, sc->cfg->enable_reg, ~NMI_IRQ_ENABLE);
 		device_printf(sc->dev, "Stray interrupt, NMI disabled\n");
 	}
 
@@ -153,7 +153,7 @@ aw_nmi_disable_intr(device_t dev, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 
-	SC_NMI_WRITE(sc, sc->cfg->enable_reg, !NMI_IRQ_ENABLE);
+	SC_NMI_WRITE(sc, sc->cfg->enable_reg, ~NMI_IRQ_ENABLE);
 }
 
 static int
@@ -296,7 +296,7 @@ aw_nmi_teardown_intr(device_t dev, struct intr_irqsrc *isrc,
 		sc->intr.pol = INTR_POLARITY_CONFORM;
 		sc->intr.tri = INTR_TRIGGER_CONFORM;
 
-		SC_NMI_WRITE(sc, sc->cfg->enable_reg, !NMI_IRQ_ENABLE);
+		SC_NMI_WRITE(sc, sc->cfg->enable_reg, ~NMI_IRQ_ENABLE);
 	}
 
 	return (0);
@@ -367,7 +367,7 @@ aw_nmi_attach(device_t dev)
 	}
 
 	/* Disable and clear interrupts */
-	SC_NMI_WRITE(sc, sc->cfg->enable_reg, !NMI_IRQ_ENABLE);
+	SC_NMI_WRITE(sc, sc->cfg->enable_reg, ~NMI_IRQ_ENABLE);
 	SC_NMI_WRITE(sc, sc->cfg->pending_reg, NMI_IRQ_ACK);
 
 	xref = OF_xref_from_node(ofw_bus_get_node(dev));
