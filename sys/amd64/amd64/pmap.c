@@ -6219,7 +6219,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		pml4e = pmap_pml4e(pmap, sva);
-		if ((*pml4e & PG_V) == 0) {
+		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
 			if (va_next < sva)
 				va_next = eva;
@@ -6502,7 +6502,7 @@ restart:
 		if (!pmap_pkru_same(pmap, va, va + NBPDP))
 			return (KERN_PROTECTION_FAILURE);
 		pml4e = pmap_pml4e(pmap, va);
-		if ((*pml4e & PG_V) == 0) {
+		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
 			mp = _pmap_allocpte(pmap, pmap_pml4e_pindex(va),
 			    NULL, va);
 			if (mp == NULL) {
@@ -7363,7 +7363,7 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		pml4e = pmap_pml4e(pmap, sva);
-		if ((*pml4e & PG_V) == 0) {
+		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
 			if (va_next < sva)
 				va_next = eva;
@@ -7488,7 +7488,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		    ("pmap_copy: invalid to pmap_copy page tables"));
 
 		pml4e = pmap_pml4e(src_pmap, addr);
-		if ((*pml4e & PG_V) == 0) {
+		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
 			va_next = (addr + NBPML4) & ~PML4MASK;
 			if (va_next < addr)
 				va_next = end_addr;
@@ -8571,7 +8571,7 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
 		pml4e = pmap_pml4e(pmap, sva);
-		if ((*pml4e & PG_V) == 0) {
+		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
 			va_next = (sva + NBPML4) & ~PML4MASK;
 			if (va_next < sva)
 				va_next = eva;
@@ -9795,6 +9795,8 @@ pmap_get_mapping(pmap_t pmap, vm_offset_t va, uint64_t *ptr, int *num)
 	PMAP_LOCK(pmap);
 
 	pml4 = pmap_pml4e(pmap, va);
+	if (pml4 == NULL)
+		goto done;
 	ptr[idx++] = *pml4;
 	if ((*pml4 & PG_V) == 0)
 		goto done;
@@ -10893,7 +10895,7 @@ pmap_pkru_update_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
 
 	for (changed = false, va = sva; va < eva; va = va_next) {
 		pml4e = pmap_pml4e(pmap, va);
-		if ((*pml4e & X86_PG_V) == 0) {
+		if (pml4e == NULL || (*pml4e & X86_PG_V) == 0) {
 			va_next = (va + NBPML4) & ~PML4MASK;
 			if (va_next < va)
 				va_next = eva;
