@@ -205,6 +205,7 @@ static void
 fill_sdl_from_ifp(struct sockaddr_dl_short *sdl, const struct ifnet *ifp)
 {
 
+	bzero(sdl, sizeof(struct sockaddr_dl_short));
 	sdl->sdl_family = AF_LINK;
 	sdl->sdl_len = sizeof(struct sockaddr_dl_short);
 	sdl->sdl_index = ifp->if_index;
@@ -217,6 +218,8 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 	struct sockaddr *gw;
 
 	gw = info->rti_info[RTAX_GATEWAY];
+	KASSERT(gw != NULL, ("gw is NULL"));
+
 	if (info->rti_flags & RTF_GATEWAY) {
 		if (gw->sa_len > sizeof(struct sockaddr_in6)) {
 			DPRINTF("nhop SA size too big: AF %d len %u",
@@ -318,6 +321,9 @@ nhop_create_from_info(struct rib_head *rnh, struct rt_addrinfo *info,
 	int error;
 
 	NET_EPOCH_ASSERT();
+
+	if (info->rti_info[RTAX_GATEWAY] == NULL)
+		return (EINVAL);
 
 	nh_priv = alloc_nhop_structure();
 

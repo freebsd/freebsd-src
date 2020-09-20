@@ -397,7 +397,7 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 		nhop_free(nh);
 		return (ENOBUFS);
 	}
-	rt->rte_flags = RTF_UP | flags;
+	rt->rte_flags = (RTF_UP | flags) & RTE_RT_FLAG_MASK;
 	rt->rt_nhop = nh;
 
 	/* Fill in dst */
