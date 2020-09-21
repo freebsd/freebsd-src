@@ -42,14 +42,9 @@ extern	int	szsigcode32;
 extern	char	sigcode64[], sigcode64_elfv2[];
 extern	int	szsigcode64, szsigcode64_elfv2;
 
-extern	uint64_t	*vm_page_dump;
-extern	int	vm_page_dump_size;
-
 struct	dumperinfo;
 int	minidumpsys(struct dumperinfo *);
 int	is_dumpable(vm_paddr_t);
-void	dump_add_page(vm_paddr_t);
-void	dump_drop_page(vm_paddr_t);
 #endif
 
 extern	long	Maxmem;

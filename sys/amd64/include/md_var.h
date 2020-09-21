@@ -36,7 +36,6 @@
 
 #include <x86/x86_var.h>
 
-extern uint64_t	*vm_page_dump;
 extern int	hw_lower_amd64_sharedpage;
 extern int	hw_ibrs_disable;
 extern int	hw_ssb_disable;

@@ -307,6 +307,18 @@ struct pmap_physseg {
 #define	PMAP_HAS_PAGE_ARRAY	1
 #endif
 
+#if defined(__powerpc64__)
+/*
+ * Need a page dump array for minidump.
+ */
+#define MINIDUMP_PAGE_TRACKING	1
+#else
+/*
+ * No minidump with 32-bit powerpc.
+ */
+#define MINIDUMP_PAGE_TRACKING	0
+#endif
+
 #define	PMAP_HAS_DMAP	(hw_direct_map)
 #define PHYS_TO_DMAP(x) ({						\
 	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\

@@ -45,16 +45,6 @@
 #include <machine/md_var.h>
 #include <machine/minidump.h>
 
-/*
- * bit to physical address
- *
- * bm - bitmap
- * i - bitmap entry index
- * bit - bit number
- */
-#define BTOP(bm, i, bit) \
-	(((uint64_t)(i) * sizeof(*(bm)) * NBBY + (bit)) * PAGE_SIZE)
-
 /* Debugging stuff */
 #define	MINIDUMP_DEBUG	0
 #if	MINIDUMP_DEBUG
@@ -69,9 +59,6 @@ static void dump_total(const char *id, size_t sz);
 #endif
 
 extern vm_offset_t __startkernel, __endkernel;
-
-int vm_page_dump_size;
-uint64_t *vm_page_dump;
 
 static int dump_retry_count = 5;
 SYSCTL_INT(_machdep, OID_AUTO, dump_retry_count, CTLFLAG_RWTUN,
@@ -102,28 +89,6 @@ static size_t counter, dumpsize, progress;
 
 /* Handle chunked writes. */
 static size_t fragsz;
-
-void
-dump_add_page(vm_paddr_t pa)
-{
-	int idx, bit;
-
-	pa >>= PAGE_SHIFT;
-	idx = pa >> 6;		/* 2^6 = 64 */
-	bit = pa & 63;
-	atomic_set_long(&vm_page_dump[idx], 1ul << bit);
-}
-
-void
-dump_drop_page(vm_paddr_t pa)
-{
-	int idx, bit;
-
-	pa >>= PAGE_SHIFT;
-	idx = pa >> 6;		/* 2^6 = 64 */
-	bit = pa & 63;
-	atomic_clear_long(&vm_page_dump[idx], 1ul << bit);
-}
 
 int
 is_dumpable(vm_paddr_t pa)
@@ -280,9 +245,8 @@ int
 minidumpsys(struct dumperinfo *di)
 {
 	vm_paddr_t pa;
-	int bit, error, i, retry_count;
+	int error, i, retry_count;
 	uint32_t pmapsize;
-	uint64_t bits;
 	struct minidumphdr mdhdr;
 
 	retry_count = 0;
@@ -306,24 +270,14 @@ retry:
 	/* Calculate dump size */
 	dumpsize = PAGE_SIZE;				/* header */
 	dumpsize += round_page(msgbufp->msg_size);
-	dumpsize += round_page(vm_page_dump_size);
+	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	dumpsize += pmapsize;
-	for (i = 0; i < vm_page_dump_size / sizeof(*vm_page_dump); i++) {
-		bits = vm_page_dump[i];
-		/* TODO optimize with bit manipulation instructions */
-		if (bits == 0)
-			continue;
-		for (bit = 0; bit < 64; bit++) {
-			if ((bits & (1ul<<bit)) == 0)
-				continue;
-
-			pa = BTOP(vm_page_dump, i, bit);
-			/* Clear out undumpable pages now if needed */
-			if (is_dumpable(pa))
-				dumpsize += PAGE_SIZE;
-			else
-				dump_drop_page(pa);
-		}
+	VM_PAGE_DUMP_FOREACH(pa) {
+		/* Clear out undumpable pages now if needed */
+		if (is_dumpable(pa))
+			dumpsize += PAGE_SIZE;
+		else
+			dump_drop_page(pa);
 	}
 	progress = dumpsize;
 
@@ -333,7 +287,7 @@ retry:
 	strncpy(mdhdr.mmu_name, pmap_mmu_name(), sizeof(mdhdr.mmu_name) - 1);
 	mdhdr.version = MINIDUMP_VERSION;
 	mdhdr.msgbufsize = msgbufp->msg_size;
-	mdhdr.bitmapsize = vm_page_dump_size;
+	mdhdr.bitmapsize = round_page(BITSET_SIZE(vm_page_dump_pages));
 	mdhdr.pmapsize = pmapsize;
 	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
 	mdhdr.kernend = VM_MAX_SAFE_KERNEL_ADDRESS;
@@ -368,10 +322,10 @@ retry:
 
 	/* Dump bitmap */
 	error = blk_write(di, (char *)vm_page_dump, 0,
-	    round_page(vm_page_dump_size));
+	    round_page(BITSET_SIZE(vm_page_dump_pages)));
 	if (error)
 		goto fail;
-	dump_total("bitmap", round_page(vm_page_dump_size));
+	dump_total("bitmap", round_page(BITSET_SIZE(vm_page_dump_pages)));
 
 	/* Dump kernel page directory pages */
 	error = dump_pmap(di);
@@ -380,20 +334,10 @@ retry:
 	dump_total("pmap", pmapsize);
 
 	/* Dump memory chunks */
-	for (i = 0; i < vm_page_dump_size / sizeof(*vm_page_dump); i++) {
-		bits = vm_page_dump[i];
-		/* TODO optimize with bit manipulation instructions */
-		if (bits == 0)
-			continue;
-		for (bit = 0; bit < 64; bit++) {
-			if ((bits & (1ul<<bit)) == 0)
-				continue;
-
-			pa = BTOP(vm_page_dump, i, bit);
-			error = blk_write(di, 0, pa, PAGE_SIZE);
-			if (error)
-				goto fail;
-		}
+	VM_PAGE_DUMP_FOREACH(pa) {
+		error = blk_write(di, 0, pa, PAGE_SIZE);
+		if (error)
+			goto fail;
 	}
 
 	error = blk_flush(di);

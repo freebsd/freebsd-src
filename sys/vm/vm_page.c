@@ -155,6 +155,9 @@ vm_page_t vm_page_array;
 long vm_page_array_size;
 long first_page;
 
+struct bitset *vm_page_dump;
+long vm_page_dump_pages;
+
 static TAILQ_HEAD(, vm_page) blacklist_head;
 static int sysctl_vm_page_blacklist(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, page_blacklist, CTLTYPE_STRING | CTLFLAG_RD |
@@ -554,6 +557,9 @@ vm_page_startup(vm_offset_t vaddr)
 	vm_paddr_t page_range __unused;
 	vm_paddr_t last_pa, pa;
 	u_long pagecount;
+#if MINIDUMP_PAGE_TRACKING
+	u_long vm_page_dump_size;
+#endif
 	int biggestone, i, segind;
 #ifdef WITNESS
 	vm_offset_t mapped;
@@ -588,9 +594,7 @@ vm_page_startup(vm_offset_t vaddr)
 	witness_startup((void *)mapped);
 #endif
 
-#if defined(__aarch64__) || defined(__amd64__) || defined(__arm__) || \
-    defined(__i386__) || defined(__mips__) || defined(__riscv) || \
-    defined(__powerpc64__)
+#if MINIDUMP_PAGE_TRACKING
 	/*
 	 * Allocate a bitmap to indicate that a random physical page
 	 * needs to be included in a minidump.
@@ -606,8 +610,8 @@ vm_page_startup(vm_offset_t vaddr)
 	for (i = 0; dump_avail[i + 1] != 0; i += 2)
 		if (dump_avail[i + 1] > last_pa)
 			last_pa = dump_avail[i + 1];
-	page_range = last_pa / PAGE_SIZE;
-	vm_page_dump_size = round_page(roundup2(page_range, NBBY) / NBBY);
+	vm_page_dump_pages = last_pa / PAGE_SIZE;
+	vm_page_dump_size = round_page(BITSET_SIZE(vm_page_dump_pages));
 	new_end -= vm_page_dump_size;
 	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);

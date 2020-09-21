@@ -38,8 +38,6 @@
 extern long Maxmem;
 extern char sigcode[];
 extern int szsigcode;
-extern uint32_t *vm_page_dump;
-extern int vm_page_dump_size;
 extern u_long elf_hwcap;
 extern u_long elf_hwcap2;
 extern vm_paddr_t arm_physmem_kernaddr;
@@ -72,8 +70,6 @@ extern enum cpu_class cpu_class;
 struct dumperinfo;
 extern int busdma_swi_pending;
 void busdma_swi(void);
-void dump_add_page(vm_paddr_t);
-void dump_drop_page(vm_paddr_t);
 int minidumpsys(struct dumperinfo *);
 
 extern uint32_t initial_fpscr;

@@ -49,33 +49,6 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-uint32_t *vm_page_dump;
-int vm_page_dump_size;
-
-CTASSERT(sizeof(*vm_page_dump) == 4);
-
-void
-dump_add_page(vm_paddr_t pa)
-{
-	int idx, bit;
-
-	pa >>= PAGE_SHIFT;
-	idx = pa >> 5;		/* 2^5 = 32 */
-	bit = pa & 31;
-	atomic_set_int(&vm_page_dump[idx], 1ul << bit);
-}
-
-void
-dump_drop_page(vm_paddr_t pa)
-{
-	int idx, bit;
-
-	pa >>= PAGE_SHIFT;
-	idx = pa >> 5;		/* 2^5 = 32 */
-	bit = pa & 31;
-	atomic_clear_int(&vm_page_dump[idx], 1ul << bit);
-}
-
 int
 minidumpsys(struct dumperinfo *di)
 {
