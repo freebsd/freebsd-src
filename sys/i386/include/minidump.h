@@ -32,7 +32,7 @@
 #define	_MACHINE_MINIDUMP_H_ 1
 
 #define	MINIDUMP_MAGIC		"minidump FreeBSD/i386"
-#define	MINIDUMP_VERSION	1
+#define	MINIDUMP_VERSION	2
 
 struct minidumphdr {
 	char magic[24];
@@ -42,6 +42,7 @@ struct minidumphdr {
 	uint32_t ptesize;
 	uint32_t kernbase;
 	uint32_t paemode;
+	uint32_t dumpavailsize;
 };
 
 #endif /* _MACHINE_MINIDUMP_H_ */

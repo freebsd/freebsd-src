@@ -33,7 +33,7 @@
 #define	_MACHINE_MINIDUMP_H_
 
 #define	MINIDUMP_MAGIC		"minidump FreeBSD/arm"
-#define	MINIDUMP_VERSION	1
+#define	MINIDUMP_VERSION	2
 
 /*
  * The first page of vmcore is dedicated to the following header.
@@ -51,6 +51,7 @@ struct minidumphdr {
 	uint32_t kernbase;
 	uint32_t arch;
 	uint32_t mmuformat;
+	uint32_t dumpavailsize;
 };
 
 #define MINIDUMP_MMU_FORMAT_UNKNOWN	0

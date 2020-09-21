@@ -86,7 +86,7 @@ static int
 _arm_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
-	off_t off, sparse_off;
+	off_t off, dump_avail_off, sparse_off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
 	if (vmst == NULL) {
@@ -108,7 +108,7 @@ _arm_minidump_initvtop(kvm_t *kd)
 		return (-1);
 	}
 	vmst->hdr.version = _kvm32toh(kd, vmst->hdr.version);
-	if (vmst->hdr.version != MINIDUMP_VERSION) {
+	if (vmst->hdr.version != MINIDUMP_VERSION && vmst->hdr.version != 1) {
 		_kvm_err(kd, kd->program, "wrong minidump version. "
 		    "Expected %d got %d", MINIDUMP_VERSION, vmst->hdr.version);
 		return (-1);
@@ -123,14 +123,20 @@ _arm_minidump_initvtop(kvm_t *kd)
 		/* This is a safe default as 1K pages are not used. */
 		vmst->hdr.mmuformat = MINIDUMP_MMU_FORMAT_V6;
 	}
+	vmst->hdr.dumpavailsize = vmst->hdr.version == MINIDUMP_VERSION ?
+	    _kvm32toh(kd, vmst->hdr.dumpavailsize) : 0;
 
 	/* Skip header and msgbuf */
-	off = ARM_PAGE_SIZE + arm_round_page(vmst->hdr.msgbufsize);
+	dump_avail_off = ARM_PAGE_SIZE + arm_round_page(vmst->hdr.msgbufsize);
+
+	/* Skip dump_avail */
+	off = dump_avail_off + arm_round_page(vmst->hdr.dumpavailsize);
 
 	sparse_off = off + arm_round_page(vmst->hdr.bitmapsize) +
 	    arm_round_page(vmst->hdr.ptesize);
-	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
-	    ARM_PAGE_SIZE, sizeof(uint32_t)) == -1) {
+	if (_kvm_pt_init(kd, vmst->hdr.dumpavailsize, dump_avail_off,
+	    vmst->hdr.bitmapsize, off, sparse_off, ARM_PAGE_SIZE,
+	    sizeof(uint32_t)) == -1) {
 		return (-1);
 	}
 	off += arm_round_page(vmst->hdr.bitmapsize);

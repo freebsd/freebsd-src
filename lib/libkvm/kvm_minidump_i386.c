@@ -91,7 +91,7 @@ static int
 _i386_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
-	off_t off, sparse_off;
+	off_t off, dump_avail_off, sparse_off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
 	if (vmst == NULL) {
@@ -109,7 +109,7 @@ _i386_minidump_initvtop(kvm_t *kd)
 		return (-1);
 	}
 	vmst->hdr.version = le32toh(vmst->hdr.version);
-	if (vmst->hdr.version != MINIDUMP_VERSION) {
+	if (vmst->hdr.version != MINIDUMP_VERSION && vmst->hdr.version != 1) {
 		_kvm_err(kd, kd->program, "wrong minidump version. expected %d got %d",
 		    MINIDUMP_VERSION, vmst->hdr.version);
 		return (-1);
@@ -119,14 +119,20 @@ _i386_minidump_initvtop(kvm_t *kd)
 	vmst->hdr.ptesize = le32toh(vmst->hdr.ptesize);
 	vmst->hdr.kernbase = le32toh(vmst->hdr.kernbase);
 	vmst->hdr.paemode = le32toh(vmst->hdr.paemode);
+	vmst->hdr.dumpavailsize = vmst->hdr.version == MINIDUMP_VERSION ?
+	    le32toh(vmst->hdr.dumpavailsize) : 0;
 
 	/* Skip header and msgbuf */
-	off = I386_PAGE_SIZE + i386_round_page(vmst->hdr.msgbufsize);
+	dump_avail_off = I386_PAGE_SIZE + i386_round_page(vmst->hdr.msgbufsize);
+
+	/* Skip dump_avail */
+	off = dump_avail_off + i386_round_page(vmst->hdr.dumpavailsize);
 
 	sparse_off = off + i386_round_page(vmst->hdr.bitmapsize) +
 	    i386_round_page(vmst->hdr.ptesize);
-	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
-	    I386_PAGE_SIZE, sizeof(uint32_t)) == -1) {
+	if (_kvm_pt_init(kd, vmst->hdr.dumpavailsize, dump_avail_off,
+	    vmst->hdr.bitmapsize, off, sparse_off, I386_PAGE_SIZE,
+	    sizeof(uint32_t)) == -1) {
 		return (-1);
 	}
 	off += i386_round_page(vmst->hdr.bitmapsize);

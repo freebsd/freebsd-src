@@ -270,6 +270,7 @@ retry:
 	/* Calculate dump size */
 	dumpsize = PAGE_SIZE;				/* header */
 	dumpsize += round_page(msgbufp->msg_size);
+	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	dumpsize += pmapsize;
 	VM_PAGE_DUMP_FOREACH(pa) {
@@ -296,6 +297,7 @@ retry:
 	mdhdr.hw_direct_map = hw_direct_map;
 	mdhdr.startkernel = __startkernel;
 	mdhdr.endkernel = __endkernel;
+	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
 
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_POWERPC_VERSION,
 	    dumpsize);
@@ -319,6 +321,16 @@ retry:
 	error = blk_write(di, (char *)msgbufp->msg_ptr, 0,
 	    round_page(msgbufp->msg_size));
 	dump_total("msgbuf", round_page(msgbufp->msg_size));
+
+	/* Dump dump_avail */
+	_Static_assert(sizeof(dump_avail) <= sizeof(pgbuf),
+	    "Large dump_avail not handled");
+	bzero(pgbuf, sizeof(mdhdr));
+	memcpy(pgbuf, dump_avail, sizeof(dump_avail));
+	error = blk_write(di, pgbuf, 0, PAGE_SIZE);
+	if (error)
+		goto fail;
+	dump_total("dump_avail", round_page(sizeof(dump_avail)));
 
 	/* Dump bitmap */
 	error = blk_write(di, (char *)vm_page_dump, 0,
