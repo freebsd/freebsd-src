@@ -115,7 +115,6 @@ _Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new)
 struct rib_head *rt_tables_get_rnh(uint32_t table, sa_family_t family);
 void rt_mpath_init_rnh(struct rib_head *rnh);
 int rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum);
-void rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt);
 #ifdef RADIX_MPATH
 struct radix_node *rt_mpath_unlink(struct rib_head *rnh,
     struct rt_addrinfo *info, struct rtentry *rto, int *perror);
