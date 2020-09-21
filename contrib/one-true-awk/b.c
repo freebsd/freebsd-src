@@ -37,8 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "awk.h"
 #include "ytab.h"
 
-#define	HAT	(NCHARS+2)	/* matches ^ in regular expr */
-				/* NCHARS is 2**n */
 #define MAXLIN 22
 
 #define type(v)		(v)->nobj	/* badly overloaded here */

@@ -218,6 +218,8 @@ extern	int	pairstack[], paircnt;
 #define NCHARS	(256+3)		/* 256 handles 8-bit chars; 128 does 7-bit */
 				/* watch out in match(), etc. */
 #define NSTATES	32
+#define	HAT	(NCHARS+2)	/* matches ^ in regular expr */
+				/* NCHARS is 2**n */
 
 typedef struct rrow {
 	long	ltype;	/* long avoids pointer warnings on 64-bit */
@@ -230,7 +232,7 @@ typedef struct rrow {
 } rrow;
 
 typedef struct fa {
-	uschar	gototab[NSTATES][NCHARS];
+	uschar	gototab[NSTATES][HAT + 1];
 	uschar	out[NSTATES];
 	uschar	*restr;
 	int	*posns[NSTATES];
