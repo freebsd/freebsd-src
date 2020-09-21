@@ -213,8 +213,7 @@
  */
 #define	BIT_FFS_AT(_s, p, start) __extension__ ({			\
 	__size_t __i;							\
-	long __mask;							\
-	int __bit;							\
+	long __bit, __mask;						\
 									\
 	__mask = ~0UL << ((start) % _BITSET_BITS);			\
 	__bit = 0;							\
@@ -235,7 +234,7 @@
 
 #define	BIT_FLS(_s, p) __extension__ ({					\
 	__size_t __i;							\
-	int __bit;							\
+	long __bit;							\
 									\
 	__bit = 0;							\
 	for (__i = __bitset_words((_s)); __i > 0; __i--) {		\
@@ -250,7 +249,7 @@
 
 #define	BIT_COUNT(_s, p) __extension__ ({				\
 	__size_t __i;							\
-	int __count;							\
+	long __count;							\
 									\
 	__count = 0;							\
 	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
