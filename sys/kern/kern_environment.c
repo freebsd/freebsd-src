@@ -253,7 +253,6 @@ done:
 void
 init_static_kenv(char *buf, size_t len)
 {
-	char *eval;
 
 	KASSERT(!dynamic_kenv, ("kenv: dynamic_kenv already initialized"));
 	/*
@@ -301,20 +300,17 @@ init_static_kenv(char *buf, size_t len)
 	 * if the static environment has disabled the loader environment.
 	 */
 	kern_envp = static_env;
-	eval = kern_getenv("loader_env.disabled");
-	if (eval == NULL || strcmp(eval, "1") != 0) {
+	if (!getenv_is_true("loader_env.disabled")) {
 		md_envp = buf;
 		md_env_len = len;
 		md_env_pos = 0;
 
-		eval = kern_getenv("static_env.disabled");
-		if (eval != NULL && strcmp(eval, "1") == 0) {
+		if (getenv_is_true("static_env.disabled")) {
 			kern_envp[0] = '\0';
 			kern_envp[1] = '\0';
 		}
 	}
-	eval = kern_getenv("static_hints.disabled");
-	if (eval != NULL && strcmp(eval, "1") == 0) {
+	if (getenv_is_true("static_hints.disabled")) {
 		static_hints[0] = '\0';
 		static_hints[1] = '\0';
 	}
