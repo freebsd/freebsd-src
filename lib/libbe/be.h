@@ -81,6 +81,7 @@ int be_prop_list_alloc(nvlist_t **be_list);
 void be_prop_list_free(nvlist_t *be_list);
 
 int be_activate(libbe_handle_t *, const char *, bool);
+int be_deactivate(libbe_handle_t *, const char *, bool);
 
 bool be_is_auto_snapshot_name(libbe_handle_t *, const char *);
 

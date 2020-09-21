@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <sys/disk.h>
 #include <sys/reboot.h>
+#include <sys/zfs_bootenv.h>
 #include <common/drv.h>
 
 #include "bootstrap.h"
@@ -274,6 +275,7 @@ extract_currdev(void)
 	struct i386_devdesc	new_currdev;
 #ifdef LOADER_ZFS_SUPPORT
 	char			buf[20];
+	char			*bootonce;
 #endif
 	int			biosdev = -1;
 
@@ -321,6 +323,16 @@ extract_currdev(void)
 			new_currdev.d_kind.zfs.root_guid = 0;
 		}
 		new_currdev.dd.d_dev = &zfs_dev;
+
+		if ((bootonce = malloc(VDEV_PAD_SIZE)) != NULL) {
+			if (zfs_get_bootonce(&new_currdev, OS_BOOTONCE_USED,
+			    bootonce, VDEV_PAD_SIZE) == 0) {
+				setenv("zfs-bootonce", bootonce, 1);
+			}
+			free(bootonce);
+			(void) zfs_attach_nvstore(&new_currdev);
+		}
+
 #endif
 	} else if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 		/* The passed-in boot device is bad */

@@ -147,7 +147,7 @@ main(int argc, char** argv)
 			warn("open(%s) failed", argv[i]);
 			continue;
 		}
-		if (vdev_probe(vdev_read, &fd[i - 1], NULL) != 0) {
+		if (vdev_probe(vdev_read, NULL, &fd[i - 1], NULL) != 0) {
 			warnx("vdev_probe(%s) failed", argv[i]);
 			close(fd[i - 1]);
 		}

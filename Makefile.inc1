@@ -2835,7 +2835,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_cddl_lib_libtpool} \
 		${_cddl_lib_libzfs_core} ${_cddl_lib_libzfs} \
 		${_cddl_lib_libzutil} \
-		${_cddl_lib_libctf} \
+		${_cddl_lib_libctf} ${_cddl_lib_libzfsbootenv} \
 		lib/libufs \
 		lib/libutil lib/libpjdlog ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssl} \
@@ -2915,6 +2915,7 @@ _cddl_lib_libtpool= cddl/lib/libtpool
 _cddl_lib_libzutil= cddl/lib/libzutil
 _cddl_lib_libzfs_core= cddl/lib/libzfs_core
 _cddl_lib_libzfs= cddl/lib/libzfs
+_cddl_lib_libzfsbootenv= cddl/lib/libzfsbootenv
 
 cddl/lib/libtpool__L: cddl/lib/libspl__L
 
@@ -2928,7 +2929,8 @@ cddl/lib/libzfs__L: cddl/lib/libuutil__L cddl/lib/libavl__L lib/libgeom__L
 cddl/lib/libzfs__L: cddl/lib/libnvpair__L cddl/lib/libzutil__L
 cddl/lib/libzfs__L: secure/lib/libcrypto__L
 
-lib/libbe__L: cddl/lib/libzfs__L
+cddl/lib/libzfsbootenv__L: cddl/lib/libzfs__L
+lib/libbe__L: cddl/lib/libzfs__L cddl/lib/libzfsbootenv__L
 .endif
 _cddl_lib_libctf= cddl/lib/libctf
 _cddl_lib= cddl/lib

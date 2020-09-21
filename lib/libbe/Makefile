@@ -13,7 +13,9 @@ INCS=		be.h
 MAN=		libbe.3
 
 LIBADD+= zfs
-LIBADD+= nvpair spl
+LIBADD+= nvpair
+LIBADD+= spl
+LIBADD+= zfsbootenv
 
 CFLAGS+= -DIN_BASE -DHAVE_RPC_TYPES
 CFLAGS+= -I${SRCTOP}/sys/contrib/openzfs/include

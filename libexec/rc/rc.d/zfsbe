@@ -48,6 +48,21 @@ mount_subordinate()
 	done
 }
 
+activate_bootonce()
+{
+	local _dev
+	local _bootonce
+	local _be
+
+	_dev=$1
+	_be=${_dev##*/}
+
+	_bootonce="`kenv -q zfs-bootonce`"
+	if [ "$_bootonce" = "zfs:${_dev}:" ] ; then
+		bectl activate $_be
+	fi
+}
+
 be_start()
 {
 	if [ `$SYSCTL_N security.jail.jailed` -eq 1 ]; then
@@ -57,6 +72,9 @@ be_start()
 			[ $_mp  = "/" ] || continue
 			if [ $_type = "zfs" ] ; then
 				mount_subordinate $_dev
+				if checkyesno zfs_bootonce_activate; then
+					activate_bootonce $_dev
+				fi
 			fi
 			break
 		done

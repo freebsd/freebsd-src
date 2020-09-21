@@ -63,6 +63,7 @@ typedef struct prop_data {
 	nvlist_t *list;
 	libbe_handle_t *lbh;
 	bool single_object;	/* list will contain props directly */
+	char *bootonce;
 } prop_data_t;
 
 int prop_list_builder_cb(zfs_handle_t *, void *);

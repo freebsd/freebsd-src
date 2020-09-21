@@ -12,6 +12,8 @@ CFLAGS+=	-I${SYSDIR}/crypto/skein
 
 # Do not unroll skein loops, reduce code size
 CFLAGS.skein_block.c+=	-DSKEIN_LOOP=111
-CFLAGS.zfs.c+=	-I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
+CFLAGS+=	-I${SYSDIR}/contrib/openzfs/include
+CFLAGS+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
+CFLAGS.zfs.c+=	-I${SYSDIR}/cddl/contrib/opensolaris/common/lz4
 
 CFLAGS+=	-Wformat -Wall
