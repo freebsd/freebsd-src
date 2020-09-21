@@ -168,9 +168,9 @@ update_firmware(int fd, uint8_t *payload, int32_t payload_size, uint8_t fwug)
 	if (fwug != 0 && fwug != 0xFF)
 		max_xfer_size = ((uint64_t)fwug << 12);
 	else if (ioctl(fd, NVME_GET_MAX_XFER_SIZE, &max_xfer_size) < 0)
- 		err(1, "query max transfer size failed");
- 	if (max_xfer_size > NVME_MAX_XFER_SIZE)
- 		max_xfer_size = NVME_MAX_XFER_SIZE;
+		err(1, "query max transfer size failed");
+	if (max_xfer_size > NVME_MAX_XFER_SIZE)
+		max_xfer_size = NVME_MAX_XFER_SIZE;
 
 	if ((chunk = aligned_alloc(PAGE_SIZE, max_xfer_size)) == NULL)
 		errx(1, "unable to malloc %zd bytes", (size_t)max_xfer_size);
