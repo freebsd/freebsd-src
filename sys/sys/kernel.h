@@ -297,6 +297,8 @@ sysinit_tslog_shim(const void * data)
 
 void	sysinit_add(struct sysinit **set, struct sysinit **set_end);
 
+#ifdef _KERNEL
+
 /*
  * Infrastructure for tunable 'constants'.  Value may be specified at compile
  * time or kernel load time.  Rules relating tunables together can be placed
@@ -458,6 +460,8 @@ struct tunable_str {
 
 #define	TUNABLE_STR_FETCH(path, var, size)			\
 	getenv_string((path), (var), (size))
+
+#endif /* _KERNEL */
 
 typedef void (*ich_func_t)(void *_arg);
 
