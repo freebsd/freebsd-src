@@ -175,6 +175,8 @@ static int	rtsock_msg_buffer(int type, struct rt_addrinfo *rtinfo,
 static int	rt_xaddrs(caddr_t cp, caddr_t cplim,
 			struct rt_addrinfo *rtinfo);
 static int	sysctl_dumpentry(struct radix_node *rn, void *vw);
+static int	sysctl_dumpnhop(struct rtentry *rt, struct nhop_object *nh,
+			uint32_t weight, struct walkarg *w);
 static int	sysctl_iflist(int af, struct walkarg *w);
 static int	sysctl_ifmalist(int af, struct walkarg *w);
 static int	route_output(struct mbuf *m, struct socket *so, ...);
@@ -740,6 +742,7 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 		}
 	}
 	rc->rc_nh_new = rc->rc_rt->rt_nhop;
+	rc->rc_nh_weight = rc->rc_rt->rt_weight;
 	RIB_RUNLOCK(rnh);
 
 	return (0);
@@ -1696,9 +1699,7 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	struct walkarg *w = vw;
 	struct rtentry *rt = (struct rtentry *)rn;
 	struct nhop_object *nh;
-	int error = 0, size;
-	struct rt_addrinfo info;
-	struct sockaddr_storage ss;
+	int error = 0;
 
 	NET_EPOCH_ASSERT();
 
@@ -1707,6 +1708,20 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	if (!can_export_rte(w->w_req->td->td_ucred, rt))
 		return (0);
 	nh = rt->rt_nhop;
+	error = sysctl_dumpnhop(rt, nh, rt->rt_weight, w);
+
+	return (0);
+}
+
+
+static int
+sysctl_dumpnhop(struct rtentry *rt, struct nhop_object *nh, uint32_t weight,
+    struct walkarg *w)
+{
+	struct rt_addrinfo info;
+	int error = 0, size;
+	struct sockaddr_storage ss;
+
 	bzero((caddr_t)&info, sizeof(info));
 	info.rti_info[RTAX_DST] = rt_key(rt);
 	info.rti_info[RTAX_GATEWAY] = &nh->gw_sa;
