@@ -6525,12 +6525,13 @@ restart:
 			origpte = *pdpe;
 			MPASS(origpte == 0);
 		} else {
-			mp = PHYS_TO_VM_PAGE(*pml4e & PG_FRAME);
 			pdpe = pmap_pdpe(pmap, va);
 			KASSERT(pdpe != NULL, ("va %#lx lost pdpe", va));
 			origpte = *pdpe;
-			if ((origpte & PG_V) == 0)
+			if ((origpte & PG_V) == 0) {
+				mp = PHYS_TO_VM_PAGE(*pml4e & PG_FRAME);
 				mp->ref_count++;
+			}
 		}
 		KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
 		    (origpte & PG_FRAME) == (pten & PG_FRAME)),
@@ -6563,10 +6564,11 @@ restart:
 		} else {
 			pdpe = pmap_pdpe(pmap, va);
 			MPASS(pdpe != NULL && (*pdpe & PG_V) != 0);
-			mp = PHYS_TO_VM_PAGE(*pdpe & PG_FRAME);
 			origpte = *pde;
-			if ((origpte & PG_V) == 0)
+			if ((origpte & PG_V) == 0) {
+				mp = PHYS_TO_VM_PAGE(*pdpe & PG_FRAME);
 				mp->ref_count++;
+			}
 		}
 		KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
 		    (origpte & PG_FRAME) == (pten & PG_FRAME)),
