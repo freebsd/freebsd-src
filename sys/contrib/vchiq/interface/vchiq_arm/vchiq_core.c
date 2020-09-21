@@ -619,7 +619,7 @@ static void
 process_free_queue(VCHIQ_STATE_T *state)
 {
 	VCHIQ_SHARED_STATE_T *local = state->local;
-	BITSET_T service_found[BITSET_SIZE(VCHIQ_MAX_SERVICES)];
+	VCHI_BITSET_T service_found[VCHI_BITSET_SIZE(VCHIQ_MAX_SERVICES)];
 	int slot_queue_available;
 
 	/* Find slots which have been freed by the other side, and return them
@@ -646,7 +646,7 @@ process_free_queue(VCHIQ_STATE_T *state)
 
 		/* Initialise the bitmask for services which have used this
 		** slot */
-		BITSET_ZERO(service_found);
+		VCHI_BITSET_ZERO(service_found);
 
 		pos = 0;
 
@@ -686,9 +686,9 @@ process_free_queue(VCHIQ_STATE_T *state)
 						header->size);
 					WARN(1, "invalid message use count\n");
 				}
-				if (!BITSET_IS_SET(service_found, port)) {
+				if (!VCHI_BITSET_IS_SET(service_found, port)) {
 					/* Set the found bit for this service */
-					BITSET_SET(service_found, port);
+					VCHI_BITSET_SET(service_found, port);
 
 					spin_lock(&quota_spinlock);
 					count = service_quota->slot_use_count;
@@ -1276,7 +1276,7 @@ poll_services(VCHIQ_STATE_T *state)
 {
 	int group, i;
 
-	for (group = 0; group < BITSET_SIZE(state->unused_service); group++) {
+	for (group = 0; group < VCHI_BITSET_SIZE(state->unused_service); group++) {
 		uint32_t flags;
 		flags = atomic_xchg(&state->poll_services[group], 0);
 		for (i = 0; flags; i++) {
