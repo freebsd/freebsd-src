@@ -56,6 +56,7 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 	uint8_t ns_smart;
 	uint8_t sqes_max, sqes_min;
 	uint8_t cqes_max, cqes_min;
+	uint8_t fwug;
 
 	oncs = cdata->oncs;
 	compare = (oncs >> NVME_CTRLR_DATA_ONCS_COMPARE_SHIFT) &
@@ -79,6 +80,7 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		NVME_CTRLR_DATA_FRMW_NUM_SLOTS_MASK;
 	fw_slot1_ro = (cdata->frmw >> NVME_CTRLR_DATA_FRMW_SLOT1_RO_SHIFT) &
 		NVME_CTRLR_DATA_FRMW_SLOT1_RO_MASK;
+	fwug = cdata->fwug;
 
 	ns_smart = (cdata->lpa >> NVME_CTRLR_DATA_LPA_NS_SMART_SHIFT) &
 		NVME_CTRLR_DATA_LPA_NS_SMART_MASK;
@@ -192,6 +194,13 @@ nvme_print_controller(struct nvme_controller_data *cdata)
 		    uint128_to_str(to128(cdata->untncap.unvmcap),
 		    cbuf, sizeof(cbuf)));
 	}
+	printf("Firmware Update Granularity: %02x ", fwug);
+	if (fwug == 0)
+		printf("(Not Reported)\n");
+	else if (fwug == 0xFF)
+		printf("(No Granularity)\n");
+	else
+		printf("(%d bytes)\n", ((uint32_t)fwug << 12));
 	printf("Host Buffer Preferred Size:  %llu bytes\n",
 	    (long long unsigned)cdata->hmpre * 4096);
 	printf("Host Buffer Minimum Size:    %llu bytes\n",
