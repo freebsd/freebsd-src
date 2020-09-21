@@ -32,7 +32,9 @@ CFLAGS+=-DBOOTPROG=\"gptzfsboot\" \
 	-I${ZFSSRC} \
 	-I${SYSDIR}/crypto/skein \
 	-I${SYSDIR}/cddl/boot/zfs \
-	-I${SYSDIR}/cddl/contrib/opensolaris/uts/common \
+	-I${SYSDIR}/contrib/openzfs/include \
+	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/spl \
+	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs \
 	-I${SYSDIR}/cddl/contrib/opensolaris/common/lz4 \
 	-I${BOOTSRC}/i386/btx/lib \
 	-I${BOOTSRC}/i386/boot2 \

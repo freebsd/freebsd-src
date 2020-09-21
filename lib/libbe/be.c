@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <libzfsbootenv.h>
 
 #include "be.h"
 #include "be_impl.h"
@@ -1221,42 +1222,19 @@ be_add_child(libbe_handle_t *lbh, const char *child_path, bool cp_if_exists)
 }
 #endif	/* SOON */
 
-static int
-be_set_nextboot(libbe_handle_t *lbh, nvlist_t *config, uint64_t pool_guid,
-    const char *zfsdev)
-{
-	nvlist_t **child;
-	uint64_t vdev_guid;
-	int c, children;
-
-	if (nvlist_lookup_nvlist_array(config, ZPOOL_CONFIG_CHILDREN, &child,
-	    &children) == 0) {
-		for (c = 0; c < children; ++c)
-			if (be_set_nextboot(lbh, child[c], pool_guid, zfsdev) != 0)
-				return (1);
-		return (0);
-	}
-
-	if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_GUID,
-	    &vdev_guid) != 0) {
-		return (1);
-	}
-
-	if (zpool_nextboot(lbh->lzh, pool_guid, vdev_guid, zfsdev) != 0) {
-		perror("ZFS_IOC_NEXTBOOT failed");
-		return (1);
-	}
-
-	return (0);
-}
-
 /*
- * Deactivate old BE dataset; currently just sets canmount=noauto
+ * Deactivate old BE dataset; currently just sets canmount=noauto or
+ * resets boot once configuration.
  */
-static int
-be_deactivate(libbe_handle_t *lbh, const char *ds)
+int
+be_deactivate(libbe_handle_t *lbh, const char *ds, bool temporary)
 {
 	zfs_handle_t *zfs;
+
+	if (temporary) {
+		return (lzbe_set_boot_device(
+		    zpool_get_name(lbh->active_phandle), lzbe_add, NULL));
+	}
 
 	if ((zfs = zfs_open(lbh->lzh, ds, ZFS_TYPE_DATASET)) == NULL)
 		return (1);
@@ -1270,10 +1248,8 @@ int
 be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 {
 	char be_path[BE_MAXPATHLEN];
-	char buf[BE_MAXPATHLEN];
-	nvlist_t *config, *dsprops, *vdevs;
+	nvlist_t *dsprops;
 	char *origin;
-	uint64_t pool_guid;
 	zfs_handle_t *zhp;
 	int err;
 
@@ -1284,27 +1260,10 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 		return (set_error(lbh, err));
 
 	if (temporary) {
-		config = zpool_get_config(lbh->active_phandle, NULL);
-		if (config == NULL)
-			/* config should be fetchable... */
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-
-		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID,
-		    &pool_guid) != 0)
-			/* Similarly, it shouldn't be possible */
-			return (set_error(lbh, BE_ERR_UNKNOWN));
-
-		/* Expected format according to zfsbootcfg(8) man */
-		snprintf(buf, sizeof(buf), "zfs:%s:", be_path);
-
-		/* We have no config tree */
-		if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
-		    &vdevs) != 0)
-			return (set_error(lbh, BE_ERR_NOPOOL));
-
-		return (be_set_nextboot(lbh, vdevs, pool_guid, buf));
+		return (lzbe_set_boot_device(
+		    zpool_get_name(lbh->active_phandle), lzbe_add, be_path));
 	} else {
-		if (be_deactivate(lbh, lbh->bootfs) != 0)
+		if (be_deactivate(lbh, lbh->bootfs, false) != 0)
 			return (-1);
 
 		/* Obtain bootenv zpool */

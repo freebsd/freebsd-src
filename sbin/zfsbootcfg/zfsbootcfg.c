@@ -32,115 +32,257 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <kenv.h>
+#include <unistd.h>
 
-#include <libzfs.h>
+#include <libzfsbootenv.h>
 
-/* Keep in sync with zfsboot.c. */
-#define MAX_COMMAND_LEN	512
+#ifndef ZFS_MAXNAMELEN
+#define	ZFS_MAXNAMELEN	256
+#endif
 
-int
-install_bootonce(libzfs_handle_t *hdl, uint64_t pool_guid, nvlist_t *nv,
-    const char * const data)
+static int
+add_pair(const char *name, const char *nvlist, const char *key,
+    const char *type, const char *value)
 {
-	nvlist_t **child;
-	uint_t children = 0;
-	uint64_t guid;
+	void *data, *nv;
+	size_t size;
 	int rv;
+	char *end;
 
-	(void) nvlist_lookup_nvlist_array(nv, ZPOOL_CONFIG_CHILDREN, &child,
-	    &children);
-
-	for (int c = 0; c < children; c++) {
-		rv = install_bootonce(hdl, pool_guid, child[c], data);
-	}
-
-	if (children > 0)
+	rv = lzbe_nvlist_get(name, nvlist, &nv);
+	if (rv != 0)
 		return (rv);
 
-	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_GUID, &guid) != 0) {
-		perror("can't get vdev guid");
-		return (1);
+	data = NULL;
+	rv = EINVAL;
+	if (strcmp(type, "DATA_TYPE_STRING") == 0) {
+		data = __DECONST(void *, value);
+		size = strlen(data) + 1;
+		rv = lzbe_add_pair(nv, key, type, data, size);
+	} else if (strcmp(type, "DATA_TYPE_UINT64") == 0) {
+		uint64_t v;
+
+		v = strtoull(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_INT64") == 0) {
+		int64_t v;
+
+		v = strtoll(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_UINT32") == 0) {
+		uint32_t v;
+
+		v = strtoul(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_INT32") == 0) {
+		int32_t v;
+
+		v = strtol(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_UINT16") == 0) {
+		uint16_t v;
+
+		v = strtoul(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_INT16") == 0) {
+		int16_t v;
+
+		v = strtol(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_UINT8") == 0) {
+		uint8_t v;
+
+		v = strtoul(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_INT8") == 0) {
+		int8_t v;
+
+		v = strtol(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_BYTE") == 0) {
+		uint8_t v;
+
+		v = strtoul(value, &end, 0);
+		if (errno != 0 || *end != '\0')
+			goto done;
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
+	} else if (strcmp(type, "DATA_TYPE_BOOLEAN_VALUE") == 0) {
+		int32_t v;
+
+		v = strtol(value, &end, 0);
+		if (errno != 0 || *end != '\0') {
+			if (strcasecmp(value, "YES") == 0)
+				v = 1;
+			else if (strcasecmp(value, "NO") == 0)
+				v = 0;
+			if (strcasecmp(value, "true") == 0)
+				v = 1;
+			else if (strcasecmp(value, "false") == 0)
+				v = 0;
+			else goto done;
+		}
+		size = sizeof (v);
+		rv = lzbe_add_pair(nv, key, type, &v, size);
 	}
-	if (zpool_nextboot(hdl, pool_guid, guid, data) != 0) {
-		perror("ZFS_IOC_NEXTBOOT failed");
-		return (1);
-	}
-	return (0);
+
+	if (rv == 0)
+		rv = lzbe_nvlist_set(name, nvlist, nv);
+
+done:
+	lzbe_nvlist_free(nv);
+	return (rv);
 }
 
-int main(int argc, const char * const *argv)
+static int
+delete_pair(const char *name, const char *nvlist, const char *key)
 {
-	char buf[32], *name;
-	libzfs_handle_t *hdl;
-	zpool_handle_t *zphdl;
-	uint64_t pool_guid;
-	nvlist_t *nv, *config;
+	void *nv;
 	int rv;
-	int len;
 
-	if (argc != 2) {
+	rv = lzbe_nvlist_get(name, nvlist, &nv);
+	if (rv == 0) {
+		rv = lzbe_remove_pair(nv, key);
+	}
+	if (rv == 0)
+		rv = lzbe_nvlist_set(name, nvlist, nv);
+
+	lzbe_nvlist_free(nv);
+	return (rv);
+}
+
+/*
+ * Usage: zfsbootcfg [-z pool] [-d key] [-k key -t type -v value] [-p]
+ *	zfsbootcfg [-z pool] -n nvlist [-d key] [-k key -t type -v value] [-p]
+ *
+ * if nvlist is set, we will update nvlist in bootenv.
+ * if nvlist is not set, we update pairs in bootenv.
+ */
+int
+main(int argc, char * const *argv)
+{
+	char buf[ZFS_MAXNAMELEN], *name;
+	const char *key, *value, *type, *nvlist;
+	int rv;
+	bool print, delete;
+
+	nvlist = NULL;
+	name = NULL;
+	key = NULL;
+	type = NULL;
+	value = NULL;
+	print = delete = false;
+	while ((rv = getopt(argc, argv, "d:k:n:pt:v:z:")) != -1) {
+		switch (rv) {
+		case 'd':
+			delete = true;
+			key = optarg;
+			break;
+		case 'k':
+			key = optarg;
+			break;
+		case 'n':
+			nvlist = optarg;
+			break;
+		case 'p':
+			print = true;
+			break;
+		case 't':
+			type = optarg;
+			break;
+		case 'v':
+			value = optarg;
+			break;
+		case 'z':
+			name = optarg;
+			break;
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 1)
+		value = argv[0];
+
+	if (argc > 1) {
 		fprintf(stderr, "usage: zfsbootcfg <boot.config(5) options>\n");
 		return (1);
 	}
 
-	len = strlen(argv[1]);
-	if (len >= MAX_COMMAND_LEN) {
-		fprintf(stderr, "options string is too long\n");
-		return (1);
+	if (name == NULL) {
+		rv = kenv(KENV_GET, "vfs.root.mountfrom", buf, sizeof(buf));
+		if (rv <= 0) {
+			perror("can't get vfs.root.mountfrom");
+			return (1);
+		}
+
+		if (strncmp(buf, "zfs:", 4) == 0) {
+			name = strchr(buf + 4, '/');
+			if (name != NULL)
+				*name = '\0';
+			name = buf + 4;
+		} else {
+			perror("not a zfs root");
+			return (1);
+		}
 	}
 
-	if (kenv(KENV_GET, "vfs.root.mountfrom", buf, sizeof(buf)) <= 0) {
-		perror("can't get vfs.root.mountfrom");
-		return (1);
+	rv = 0;
+	if (key != NULL || value != NULL) {
+		if (type == NULL)
+			type = "DATA_TYPE_STRING";
+
+		if (delete)
+			rv = delete_pair(name, nvlist, key);
+		else if (key == NULL || strcmp(key, "command") == 0)
+			rv = lzbe_set_boot_device(name, lzbe_add, value);
+		else
+			rv = add_pair(name, nvlist, key, type, value);
+
+		if (rv == 0)
+			printf("zfs bootenv is successfully written\n");
+		else
+			printf("error: %d\n", rv);
+	} else if (!print) {
+		char *ptr;
+
+		if (lzbe_get_boot_device(name, &ptr) == 0) {
+			printf("zfs:%s:\n", ptr);
+			free(ptr);
+		}
 	}
 
-	if (strncmp(buf, "zfs:", 4) == 0) {
-		name = strchr(buf + 4, '/');
-		if (name != NULL)
-			*name = '\0';
-		name = buf + 4;
-	} else {
-		perror("not a zfs root");
-		return (1);
-	}
-		
-	if ((hdl = libzfs_init()) == NULL) {
-		(void) fprintf(stderr, "internal error: failed to "
-		    "initialize ZFS library\n");
-		return (1);
+	if (print) {
+		rv = lzbe_bootenv_print(name, nvlist, stdout);
 	}
 
-	zphdl = zpool_open(hdl, name);
-	if (zphdl == NULL) {
-		perror("can't open pool");
-		libzfs_fini(hdl);
-		return (1);
-	}
-
-	pool_guid = zpool_get_prop_int(zphdl, ZPOOL_PROP_GUID, NULL);
-
-	config = zpool_get_config(zphdl, NULL);
-	if (config == NULL) {
-		perror("can't get pool config");
-		zpool_close(zphdl);
-		libzfs_fini(hdl);
-		return (1);
-	}
-
-	if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, &nv) != 0) {
-		perror("failed to get vdev tree");
-		zpool_close(zphdl);
-		libzfs_fini(hdl);
-		return (1);
-	}
-
-	rv = install_bootonce(hdl, pool_guid, nv, argv[1]);
-
-	zpool_close(zphdl);
-	libzfs_fini(hdl);
-	if (rv == 0)
-		printf("zfs next boot options are successfully written\n");
 	return (rv);
 }

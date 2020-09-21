@@ -33,6 +33,7 @@ delete="NO"
 kenv=
 force="NO"
 nextboot_file="/boot/nextboot.conf"
+zfs=
 
 add_kenv()
 {
@@ -106,26 +107,26 @@ if [ -n "${kernel}" -a ${force} = "NO" -a ! -d /boot/${kernel} ]; then
 	exit 1
 fi
 
-df -Tn "/boot/" 2>/dev/null | while read _fs _type _other ; do
+zfs=$(df -Tn "/boot/" 2>/dev/null | while read _fs _type _other ; do
 	[ "zfs" = "${_type}" ] || continue
-	cat 1>&2 <<-EOF
-		WARNING: loader(8) has only R/O support for ZFS
-		nextboot.conf will NOT be reset in case of kernel boot failure
-	EOF
-done
+	echo "${_fs%/ROOT/*}"
+done)
 
 set -e
 
 nextboot_tmp=$(mktemp $(dirname ${nextboot_file})/nextboot.XXXXXX)
 
-if [ ${append} = "YES" -a -f ${nextboot_file} ]; then
-	cp -f ${nextboot_file} ${nextboot_tmp}
-fi
-
+if [ -n ${zfs} ]; then
+	zfsbootcfg -z ${zfs} -n freebsd:nvstore -k nextboot_enable -v YES
+	cat >> ${nextboot_tmp} << EOF
+$kenv
+EOF
+else
 cat >> ${nextboot_tmp} << EOF
 nextboot_enable="YES"
 $kenv
 EOF
+fi
 
 fsync ${nextboot_tmp}
 

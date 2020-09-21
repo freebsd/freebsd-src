@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/boot.h>
+#include <sys/zfs_bootenv.h>
 #include <paths.h>
 #include <stdint.h>
 #include <string.h>
@@ -275,11 +276,14 @@ probe_zfs_currdev(uint64_t guid)
 	if (rv) {
 		buf = malloc(VDEV_PAD_SIZE);
 		if (buf != NULL) {
-			if (zfs_nextboot(&currdev, buf, VDEV_PAD_SIZE) == 0) {
-				printf("zfs nextboot: %s\n", buf);
+			if (zfs_get_bootonce(&currdev, OS_BOOTONCE, buf,
+			    VDEV_PAD_SIZE) == 0) {
+				printf("zfs bootonce: %s\n", buf);
 				set_currdev(buf);
+				setenv("zfs-bootonce", buf, 1);
 			}
 			free(buf);
+			(void) zfs_attach_nvstore(&currdev);
 		}
 	}
 	return (rv);

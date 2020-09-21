@@ -27,6 +27,8 @@ SRCS=	autoload.c \
 CFLAGS+=	-I${.CURDIR}/../loader
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}
+CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include
+CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 CFLAGS+=	-DEFI_ZFS_BOOT
 HAVE_ZFS=	yes
 .endif

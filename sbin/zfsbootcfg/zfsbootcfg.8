@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2017
+.Dd July 22, 2020
 .Dt ZFSBOOTCFG 8
 .Os
 .Sh NAME
@@ -33,39 +33,88 @@
 .Sh SYNOPSIS
 .Nm
 .Ao Ar options Ac
+.Nm
+.Op Fl n Ar name
+.Op Fl k Ar key
+.Op Fl p
+.Op Fl t Ar type
+.Op Fl v Ar value
+.Op Fl z Ar pool
+.Nm
 .Sh DESCRIPTION
 .Nm
 is used to set
 .Xr boot.config 5 Ns -style
 options to be used by
-.Xr zfsboot 8
-or
+.Xr zfsboot 8 ,
 .Xr gptzfsboot 8
+or
+.Xr loader 8
 the next time the machine is booted.
 Once
 .Xr zfsboot 8
 or
 .Xr gptzfsboot 8
+or
+.Xr loader 8
 reads the information, it is deleted.
 If booting fails, the machine automatically reverts to the previous
 boot configuration.
-The information is stored in a special reserved area of a ZFS pool.
-.Xr zfsboot 8
-or
-.Xr gptzfsboot 8
-read the boot option information from the first disk found in the first
-ZFS pool found.
+The information is stored in a special boot environment area of a ZFS pool.
+.Pp
+If used without arguments,
+.Nm
+will output the current boot configuration, if set.
+.Pp
+The following options are supported by
+.Nm :
+.Bl -tag -width indent
+.It Fl k Ar key
+Define key for
+.Ao key , value Ac
+pair.
+.It Fl n Ar name
+Update nvlist
+.Ar name .
+.It Fl p
+Print all information stored in ZFS pool bootenv area.
+.It Fl t Ar type
+Set type of
+.Ar value
+used in
+.Ao key , value Ac
+pair.
+Currently supported types are:
+.Bl -tag -width indent -compact
+.It Ar DATA_TYPE_BYTE
+.It Ar DATA_TYPE_INT8
+.It Ar DATA_TYPE_UINT8
+.It Ar DATA_TYPE_INT16
+.It Ar DATA_TYPE_UINT16
+.It Ar DATA_TYPE_INT32
+.It Ar DATA_TYPE_UINT32
+.It Ar DATA_TYPE_INT64
+.It Ar DATA_TYPE_UINT64
+.It Ar DATA_TYPE_BOOLEAN_VALUE
+.It Ar DATA_TYPE_STRING
+.El
+.Pp
+If not specified, the default is
+.Ar DATA_TYPE_STRING .
+.It Fl v Ar value
+Define value for
+.Ao key , value Ac
+pair.
+.It Fl z Ar pool
+Operate on
+.Ar pool .
+.El
 .Sh ENVIRONMENT
-.Bl -tag -width vfs.zfs.boot.primary_pool -compact
-.It Ev vfs.zfs.boot.primary_pool
+.Bl -tag -width vfs.root.mountfrom -compact
+.It Ev vfs.root.mountfrom
 The
 .Xr kenv 1
 variable that identifies a pool for which the options are written.
-.It Ev vfs.zfs.boot.primary_vdev
-The
-.Xr kenv 1
-variable that identifies a disk within the pool where the options
-are written.
 .El
 .Sh EXAMPLES
 Try to boot to a new
@@ -81,7 +130,9 @@ To clear the boot options:
 .Dl "zfsbootcfg """"
 .Sh SEE ALSO
 .Xr boot.config 5 ,
+.Xr bectl 8 ,
 .Xr gptzfsboot 8 ,
+.Xr loader 8 ,
 .Xr zfsboot 8
 .Sh HISTORY
 .Nm
@@ -90,23 +141,3 @@ appeared in
 .Sh AUTHORS
 This manual page was written by
 .An Andriy Gapon Aq Mt avg@FreeBSD.org .
-.Sh CAVEATS
-At the moment,
-.Nm
-uses the
-.Ev vfs.zfs.boot.primary_pool
-and
-.Ev vfs.zfs.boot.primary_vdev
-.Xr kenv 1
-variables to determine a ZFS pool and a disk in it where the options
-are to be stored.
-The variables are set by the ZFS boot chain, so there is an assumption
-that the same boot disk is going to be used for the next reboot.
-There is no
-.Nm
-option to specify a different pool or a different disk.
-.Pp
-.Nm
-should be extended to install new
-.Xr zfsboot 8
-blocks in a ZFS pool.

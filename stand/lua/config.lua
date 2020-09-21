@@ -389,7 +389,14 @@ end
 
 local function checkNextboot()
 	local nextboot_file = loader.getenv("nextboot_conf")
+	local nextboot_enable = loader.getenv("nextboot_enable")
+
 	if nextboot_file == nil then
+		return
+	end
+
+	-- is nextboot_enable set in nvstore?
+	if nextboot_enable == "NO" then
 		return
 	end
 
@@ -398,7 +405,8 @@ local function checkNextboot()
 		return
 	end
 
-	if text:match("^nextboot_enable=\"NO\"") ~= nil then
+	if nextboot_enable == nil and
+	    text:match("^nextboot_enable=\"NO\"") ~= nil then
 		-- We're done; nextboot is not enabled
 		return
 	end
@@ -421,6 +429,7 @@ local function checkNextboot()
 		io.write(nfile, "nextboot_enable=\"NO\" ")
 		io.close(nfile)
 	end
+	loader.setenv("nextboot_enable", "NO")
 end
 
 -- Module exports
