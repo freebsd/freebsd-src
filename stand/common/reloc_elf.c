@@ -175,7 +175,8 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 	}
 
 	return (0);
-#elif defined(__powerpc__)
+#elif defined(__aarch64__) || defined(__arm__) || defined(__powerpc__) || \
+    defined(__riscv)
 	Elf_Size w;
 	const Elf_Rela *rela;
 
@@ -185,7 +186,15 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 		if (relbase + rela->r_offset >= dataaddr &&
 		    relbase + rela->r_offset < dataaddr + len) {
 			switch (ELF_R_TYPE(rela->r_info)) {
+#if defined(__aarch64__)
+			case R_AARCH64_RELATIVE:
+#elif defined(__arm__)
+			case R_ARM_RELATIVE:
+#elif defined(__powerpc__)
 			case R_PPC_RELATIVE:
+#elif defined(__riscv)
+			case R_RISCV_RELATIVE:
+#endif
 				w = relbase + rela->r_addend;
 				bcopy(&w, (u_char *)data + (relbase +
 				      rela->r_offset - dataaddr), sizeof(w));
