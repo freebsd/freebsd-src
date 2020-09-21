@@ -55,12 +55,12 @@ __FBSDID("$FreeBSD$");
 #define	MAXBUFSIZ	(32 * 1024)
 #define	LNBUFBUMP	80
 
-static unsigned char *buffer;
-static unsigned char *bufpos;
+static char *buffer;
+static char *bufpos;
 static size_t bufrem;
 static size_t fsiz;
 
-static unsigned char *lnbuf;
+static char *lnbuf;
 static size_t lnbuflen;
 
 static inline int
@@ -97,7 +97,7 @@ grep_lnbufgrow(size_t newlen)
 char *
 grep_fgetln(struct file *f, struct parsec *pc)
 {
-	unsigned char *p;
+	char *p;
 	char *ret;
 	size_t len;
 	size_t off;
