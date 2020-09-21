@@ -719,7 +719,8 @@ done:
 	case USB_ERR_CANCELLED:
 		break;
 	default:
-		DPRINTF("I/O error - waiting a bit for TT cleanup\n");
+		DPRINTF("error=%s - waiting a bit for TT cleanup\n",
+		    usbd_errstr(err));
 		usb_pause_mtx(mtx, hz / 16);
 		break;
 	}
@@ -1008,7 +1009,7 @@ usbd_req_get_desc(struct usb_device *udev,
 		USETW(req.wLength, min_len);
 
 		err = usbd_do_request_flags(udev, mtx, &req,
-		    desc, 0, NULL, 500 /* ms */);
+		    desc, 0, NULL, 1000 /* ms */);
 
 		if (err != 0 && err != USB_ERR_TIMEOUT &&
 		    min_len != max_len) {
@@ -1019,7 +1020,7 @@ usbd_req_get_desc(struct usb_device *udev,
 			USETW(req.wLength, max_len);
 
 			err = usbd_do_request_flags(udev, mtx, &req,
-			    desc, USB_SHORT_XFER_OK, NULL, 500 /* ms */);
+			    desc, USB_SHORT_XFER_OK, NULL, 1000 /* ms */);
 
 			if (err == 0) {
 				/* verify length */
