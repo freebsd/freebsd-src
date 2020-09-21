@@ -74,6 +74,7 @@ CRUNCH_LIBS+= -l80211 -lalias -lcam -lcursesw -ldevstat -lipsec
 # Don't forget this - ifconfig, etc -adrian
 CRUNCH_LIBS+= ${LDADD_ifconfig}
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs
+CRUNCH_BUILDOPTS+= CRUNCH_CFLAGS+=-I${OBJTOP}/lib/libifconfig
 
 ##################################################################
 # Programs from stock /usr/bin
