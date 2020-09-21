@@ -7,7 +7,7 @@
  * See the LICENSE file for redistribution information.
  */
 
-#include "/usr/include/db.h"	/* Only include db1. */
+#include <db.h>			/* Only include db1. */
 #include <regex.h>		/* May refer to the bundled regex. */
 
 /*
