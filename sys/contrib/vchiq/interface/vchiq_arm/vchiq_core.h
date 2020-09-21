@@ -141,17 +141,17 @@ vchiq_static_assert((unsigned int)VCHIQ_PORT_MAX <
 
 #define VCHIQ_BULK_ACTUAL_ABORTED -1
 
-typedef uint32_t BITSET_T;
+typedef uint32_t VCHI_BITSET_T;
 
-vchiq_static_assert((sizeof(BITSET_T) * 8) == 32);
+vchiq_static_assert((sizeof(VCHI_BITSET_T) * 8) == 32);
 
-#define BITSET_SIZE(b)        ((b + 31) >> 5)
-#define BITSET_WORD(b)        (b >> 5)
-#define BITSET_BIT(b)         (1 << (b & 31))
-#define BITSET_ZERO(bs)       memset(bs, 0, sizeof(bs))
-#define BITSET_IS_SET(bs, b)  (bs[BITSET_WORD(b)] & BITSET_BIT(b))
-#define BITSET_SET(bs, b)     (bs[BITSET_WORD(b)] |= BITSET_BIT(b))
-#define BITSET_CLR(bs, b)     (bs[BITSET_WORD(b)] &= ~BITSET_BIT(b))
+#define VCHI_BITSET_SIZE(b)        ((b + 31) >> 5)
+#define VCHI_BITSET_WORD(b)        (b >> 5)
+#define VCHI_BITSET_BIT(b)         (1 << (b & 31))
+#define VCHI_BITSET_ZERO(bs)       memset(bs, 0, sizeof(bs))
+#define VCHI_BITSET_IS_SET(bs, b)  (bs[VCHI_BITSET_WORD(b)] & VCHI_BITSET_BIT(b))
+#define VCHI_BITSET_SET(bs, b)     (bs[VCHI_BITSET_WORD(b)] |= VCHI_BITSET_BIT(b))
+#define VCHI_BITSET_CLR(bs, b)     (bs[VCHI_BITSET_WORD(b)] &= ~VCHI_BITSET_BIT(b))
 
 #if VCHIQ_ENABLE_STATS
 #define VCHIQ_STATS_INC(state, stat) (state->stats. stat++)
@@ -478,7 +478,7 @@ struct vchiq_state_struct {
 	unsigned short data_quota;
 
 	/* An array of bit sets indicating which services must be polled. */
-	atomic_t poll_services[BITSET_SIZE(VCHIQ_MAX_SERVICES)];
+	atomic_t poll_services[VCHI_BITSET_SIZE(VCHIQ_MAX_SERVICES)];
 
 	/* The number of the first unused service */
 	int unused_service;
