@@ -26,6 +26,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/reboot.h>
 #include <sys/queue.h>
+#include <sys/zfs_bootenv.h>
 
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
@@ -218,16 +219,26 @@ main(void)
 	if (bdev != NULL && bdev->dd.d_dev->dv_type == DEVT_ZFS) {
 		/* set up proper device name string for ZFS */
 		strncpy(boot_devname, zfs_fmtdev(bdev), sizeof (boot_devname));
-		if (zfs_nextboot(bdev, cmd, sizeof(cmd)) == 0) {
+		if (zfs_get_bootonce(bdev, OS_BOOTONCE, cmd,
+		    sizeof(cmd)) == 0) {
+			nvlist_t *benv;
+
 			nextboot = 1;
 			memcpy(cmddup, cmd, sizeof(cmd));
 			if (parse_cmd()) {
 				if (!OPT_CHECK(RBX_QUIET))
-					printf("failed to parse pad2 area\n");
+					printf("failed to parse bootonce "
+					    "command\n");
 				exit(0);
 			}
 			if (!OPT_CHECK(RBX_QUIET))
-				printf("zfs nextboot: %s\n", cmddup);
+				printf("zfs bootonce: %s\n", cmddup);
+
+			if (zfs_get_bootenv(bdev, &benv) == 0) {
+				nvlist_add_string(benv, OS_BOOTONCE_USED,
+				    cmddup);
+				zfs_set_bootenv(bdev, benv);
+			}
 			/* Do not process this command twice */
 			*cmd = 0;
 		}

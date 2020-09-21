@@ -124,7 +124,7 @@ probe(dev_info_t *dev)
 	}
 	memcpy(tdev, dev, sizeof(*dev));
 
-	if (vdev_probe(vdev_read, tdev, &spa) != 0) {
+	if (vdev_probe(vdev_read, NULL, tdev, &spa) != 0) {
 		free(tdev);
 		return (EFI_UNSUPPORTED);
 	}

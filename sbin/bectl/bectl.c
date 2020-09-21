@@ -74,6 +74,7 @@ usage(bool explicit)
 	    "\tbectl add (path)*\n"
 #endif
 	    "\tbectl activate [-t] beName\n"
+	    "\tbectl activate [-T]\n"
 	    "\tbectl check\n"
 	    "\tbectl create [-r] [-e {nonActiveBe | beName@snapshot}] beName\n"
 	    "\tbectl create [-r] beName@snapshot\n"
@@ -141,13 +142,21 @@ static int
 bectl_cmd_activate(int argc, char *argv[])
 {
 	int err, opt;
-	bool temp;
+	bool temp, reset;
 
 	temp = false;
-	while ((opt = getopt(argc, argv, "t")) != -1) {
+	reset = false;
+	while ((opt = getopt(argc, argv, "tT")) != -1) {
 		switch (opt) {
 		case 't':
+			if (reset)
+				return (usage(false));
 			temp = true;
+			break;
+		case 'T':
+			if (temp)
+				return (usage(false));
+			reset = true;
 			break;
 		default:
 			fprintf(stderr, "bectl activate: unknown option '-%c'\n",
@@ -159,11 +168,18 @@ bectl_cmd_activate(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 1) {
+	if (argc != 1 && (!reset || argc != 0)) {
 		fprintf(stderr, "bectl activate: wrong number of arguments\n");
 		return (usage(false));
 	}
 
+	if (reset) {
+		if ((err = be_deactivate(be, NULL, reset)) == 0)
+			printf("Temporary activation removed\n");
+		else
+			printf("Failed to remove temporary activation\n");
+		return (err);
+	}
 
 	/* activate logic goes here */
 	if ((err = be_activate(be, argv[0], temp)) != 0)

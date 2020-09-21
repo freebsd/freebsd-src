@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 16, 2019
+.Dd July 22, 2020
 .Dt LIBBE 3
 .Os
 .Sh NAME
@@ -78,6 +78,10 @@
 .Pp
 .Ft int
 .Fn be_activate "libbe_handle_t *hdl" "const char *be_name" "bool temporary"
+.Pp
+.Ft int
+.Fn be_deactivate "libbe_handle_t *hdl" "const char *be_name" "bool temporary"
+.Pp
 .Ft int
 .Fn be_destroy "libbe_handle_t *hdl" "const char *be_name" "int options"
 .Pp
@@ -270,8 +274,24 @@ If the
 .Fa temporary
 flag is set, then it will be active for the next boot only, as done by
 .Xr zfsbootcfg 8 .
-Next boot functionality is currently only available when booting in x86 BIOS
-mode.
+.Pp
+The
+.Fn be_deactivate
+function deactivates a boot environment.
+If the
+.Fa temporary
+flag is set, then it will cause removal of boot once configuration, set by
+.Fn be_activate
+function or by
+.Xr zfsbootcfg 8 .
+If the
+.Fa temporary
+flag is not set,
+.Fn be_deactivate
+function will set zfs
+.Dv canmount
+property to
+.Dv noauto .
 .Pp
 The
 .Fn be_destroy

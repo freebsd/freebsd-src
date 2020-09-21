@@ -182,7 +182,7 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 	const char *oname;
 	char *dsname, *propstr;
 	int active_colsz;
-	boolean_t active_now, active_reboot;
+	boolean_t active_now, active_reboot, bootonce;
 
 	dsname = NULL;
 	originprops = NULL;
@@ -228,6 +228,11 @@ print_info(const char *name, nvlist_t *dsprops, struct printc *pc)
 	if (nvlist_lookup_boolean_value(dsprops, "nextboot",
 	    &active_reboot) == 0 && active_reboot) {
 		printf("R");
+		active_colsz--;
+	}
+	if (nvlist_lookup_boolean_value(dsprops, "bootonce",
+	    &bootonce) == 0 && bootonce) {
+		printf("T");
 		active_colsz--;
 	}
 	if (active_colsz == pc->active_colsz_def) {

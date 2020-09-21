@@ -211,15 +211,21 @@ userdisk_realstrategy(void *devdata, int rw, daddr_t dblk, size_t size,
 	size_t		resid;
 	int		rc;
 
-	rw &= F_MASK;
-	if (rw == F_WRITE)
-		return (EROFS);
-	if (rw != F_READ)
-		return (EINVAL);
 	if (rsize)
 		*rsize = 0;
 	off = dblk * ud_info[dev->dd.d_unit].sectorsize;
-	rc = CALLBACK(diskread, dev->dd.d_unit, off, buf, size, &resid);
+	switch (rw & F_MASK) {
+	case F_READ:
+		rc = CALLBACK(diskread, dev->dd.d_unit, off, buf, size, &resid);
+		break;
+	case F_WRITE:
+		rc = CALLBACK(diskwrite, dev->dd.d_unit, off, buf, size,
+		    &resid);
+		break;
+	default:
+		rc = EINVAL;
+		break;
+	}
 	if (rc)
 		return (rc);
 	if (rsize)

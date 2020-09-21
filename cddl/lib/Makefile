@@ -15,6 +15,7 @@ SUBDIR=	drti \
 	libuutil \
 	${_libzfs_core} \
 	${_libzfs} \
+	${_libzfsbootenv} \
 	${_libzpool} \
 	${_libzutil}
 
@@ -26,6 +27,7 @@ _libicp=	libicp
 _libicp_rescue=	libicp_rescue
 _libzfs=	libzfs
 _libzutil=	libzutil
+_libzfsbootenv=	libzfsbootenv
 .if ${MK_LIBTHR} != "no"
 _libzpool=	libzpool
 _libtpool=	libtpool
@@ -40,6 +42,7 @@ SUBDIR_DEPEND_libzfs_core=	libnvpair
 SUBDIR_DEPEND_libzfs=	libavl libnvpair libumem libuutil libzfs_core libzutil
 SUBDIR_DEPEND_libzpool=	libavl libnvpair libumem libicp
 SUBDIR_DEPEND_libzutil=	libavl libtpool
+SUBDIR_DEPEND_libzfsbootenv= libzfs libnvpair
 
 SUBDIR_PARALLEL=
 
