@@ -467,9 +467,8 @@ int word(char *w)
 	int c, n;
 
 	n = binsearch(w, keywords, sizeof(keywords)/sizeof(keywords[0]));
-/* BUG: this ought to be inside the if; in theory could fault (daniel barrett) */
-	kp = keywords + n;
 	if (n != -1) {	/* found in table */
+		kp = keywords + n;
 		yylval.i = kp->sub;
 		switch (kp->type) {	/* special handling */
 		case BLTIN:
