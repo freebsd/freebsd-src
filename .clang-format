@@ -76,6 +76,7 @@ ForEachMacros:
   - TAILQ_FOREACH_REVERSE_SAFE
   - TAILQ_FOREACH_SAFE
   - VM_MAP_ENTRY_FOREACH
+  - VM_PAGE_DUMP_FOREACH
 IndentCaseLabels: false
 IndentPPDirectives: None
 Language: Cpp

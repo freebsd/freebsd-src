@@ -193,4 +193,9 @@ extern vm_offset_t vm_max_kernel_address;
 
 #define	DEVMAP_MAX_VADDR	ARM_VECTORS_HIGH
 
+/*
+ * Need a page dump array for minidump.
+ */
+#define MINIDUMP_PAGE_TRACKING	1
+
 #endif	/* _MACHINE_VMPARAM_H_ */

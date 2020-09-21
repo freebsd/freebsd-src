@@ -240,4 +240,9 @@
 #define	PHYS_TO_DMAP(x)	({ panic("No direct map exists"); 0; })
 #define	DMAP_TO_PHYS(x)	({ panic("No direct map exists"); 0; })
 
+/*
+ * Need a page dump array for minidump.
+ */
+#define MINIDUMP_PAGE_TRACKING	1
+
 #endif /* _MACHINE_VMPARAM_H_ */
