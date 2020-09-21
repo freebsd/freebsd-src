@@ -69,6 +69,9 @@ struct vm_phys_seg {
 	vm_paddr_t	start;
 	vm_paddr_t	end;
 	vm_page_t	first_page;
+#if VM_NRESERVLEVEL > 0
+	vm_reserv_t	first_reserv;
+#endif
 	int		domain;
 	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER_MAX];
 };
