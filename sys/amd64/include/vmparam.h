@@ -253,4 +253,9 @@
  */
 #define	VM_BATCHQUEUE_SIZE	31
 
+/*
+ * Need a page dump array for minidump.
+ */
+#define MINIDUMP_PAGE_TRACKING	1
+
 #endif /* _MACHINE_VMPARAM_H_ */

@@ -69,6 +69,8 @@
 #ifndef	_VM_PAGE_
 #define	_VM_PAGE_
 
+#include <sys/_bitset.h>
+#include <sys/bitset.h>
 #include <vm/pmap.h>
 
 /*
@@ -584,6 +586,26 @@ malloc2vm_flags(int malloc_flags)
 #define	PS_ALL_DIRTY	0x1
 #define	PS_ALL_VALID	0x2
 #define	PS_NONE_BUSY	0x4
+
+extern struct bitset *vm_page_dump;
+extern long vm_page_dump_pages;
+
+static inline void
+dump_add_page(vm_paddr_t pa)
+{
+	BIT_SET_ATOMIC(vm_page_dump_pages, pa >> PAGE_SHIFT, vm_page_dump);
+}
+
+static inline void
+dump_drop_page(vm_paddr_t pa)
+{
+	BIT_CLR_ATOMIC(vm_page_dump_pages, pa >> PAGE_SHIFT, vm_page_dump);
+}
+
+#define VM_PAGE_DUMP_FOREACH(pa)						\
+	for (vm_pindex_t __b = BIT_FFS(vm_page_dump_pages, vm_page_dump);	\
+	    (pa) = (__b - 1) * PAGE_SIZE, __b != 0;				\
+	    __b = BIT_FFS_AT(vm_page_dump_pages, vm_page_dump, __b))
 
 bool vm_page_busy_acquire(vm_page_t m, int allocflags);
 void vm_page_busy_downgrade(vm_page_t m);

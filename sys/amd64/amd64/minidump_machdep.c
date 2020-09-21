@@ -54,9 +54,6 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
-uint64_t *vm_page_dump;
-int vm_page_dump_size;
-
 static struct kerneldumpheader kdh;
 
 /* Handle chunked writes. */
@@ -64,7 +61,6 @@ static size_t fragsz;
 static void *dump_va;
 static size_t counter, progress, dumpsize, wdog_next;
 
-CTASSERT(sizeof(*vm_page_dump) == 8);
 static int dump_retry_count = 5;
 SYSCTL_INT(_machdep, OID_AUTO, dump_retry_count, CTLFLAG_RWTUN,
     &dump_retry_count, 0, "Number of times dump has to retry before bailing out");
@@ -223,9 +219,8 @@ minidumpsys(struct dumperinfo *di)
 	uint32_t pmapsize;
 	vm_offset_t va;
 	int error;
-	uint64_t bits;
 	uint64_t *pml4, *pdp, *pd, *pt, pa;
-	int i, ii, j, k, n, bit;
+	int i, ii, j, k, n;
 	int retry_count;
 	struct minidumphdr mdhdr;
 
@@ -304,19 +299,13 @@ minidumpsys(struct dumperinfo *di)
 	/* Calculate dump size. */
 	dumpsize = pmapsize;
 	dumpsize += round_page(msgbufp->msg_size);
-	dumpsize += round_page(vm_page_dump_size);
-	for (i = 0; i < vm_page_dump_size / sizeof(*vm_page_dump); i++) {
-		bits = vm_page_dump[i];
-		while (bits) {
-			bit = bsfq(bits);
-			pa = (((uint64_t)i * sizeof(*vm_page_dump) * NBBY) + bit) * PAGE_SIZE;
-			/* Clear out undumpable pages now if needed */
-			if (is_dumpable(pa)) {
-				dumpsize += PAGE_SIZE;
-			} else {
-				dump_drop_page(pa);
-			}
-			bits &= ~(1ul << bit);
+	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
+	VM_PAGE_DUMP_FOREACH(pa) {
+		/* Clear out undumpable pages now if needed */
+		if (is_dumpable(pa)) {
+			dumpsize += PAGE_SIZE;
+		} else {
+			dump_drop_page(pa);
 		}
 	}
 	dumpsize += PAGE_SIZE;
@@ -328,7 +317,7 @@ minidumpsys(struct dumperinfo *di)
 	strcpy(mdhdr.magic, MINIDUMP_MAGIC);
 	mdhdr.version = MINIDUMP_VERSION;
 	mdhdr.msgbufsize = msgbufp->msg_size;
-	mdhdr.bitmapsize = vm_page_dump_size;
+	mdhdr.bitmapsize = round_page(BITSET_SIZE(vm_page_dump_pages));
 	mdhdr.pmapsize = pmapsize;
 	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
 	mdhdr.dmapbase = DMAP_MIN_ADDRESS;
@@ -357,7 +346,8 @@ minidumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump bitmap */
-	error = blk_write(di, (char *)vm_page_dump, 0, round_page(vm_page_dump_size));
+	error = blk_write(di, (char *)vm_page_dump, 0,
+	    round_page(BITSET_SIZE(vm_page_dump_pages)));
 	if (error)
 		goto fail;
 
@@ -409,16 +399,10 @@ minidumpsys(struct dumperinfo *di)
 	}
 
 	/* Dump memory chunks */
-	for (i = 0; i < vm_page_dump_size / sizeof(*vm_page_dump); i++) {
-		bits = vm_page_dump[i];
-		while (bits) {
-			bit = bsfq(bits);
-			pa = (((uint64_t)i * sizeof(*vm_page_dump) * NBBY) + bit) * PAGE_SIZE;
-			error = blk_write(di, 0, pa, PAGE_SIZE);
-			if (error)
-				goto fail;
-			bits &= ~(1ul << bit);
-		}
+	VM_PAGE_DUMP_FOREACH(pa) {
+		error = blk_write(di, 0, pa, PAGE_SIZE);
+		if (error)
+			goto fail;
 	}
 
 	error = blk_flush(di);
@@ -453,26 +437,4 @@ minidumpsys(struct dumperinfo *di)
 	} else
 		printf("** DUMP FAILED (ERROR %d) **\n", error);
 	return (error);
-}
-
-void
-dump_add_page(vm_paddr_t pa)
-{
-	int idx, bit;
-
-	pa >>= PAGE_SHIFT;
-	idx = pa >> 6;		/* 2^6 = 64 */
-	bit = pa & 63;
-	atomic_set_long(&vm_page_dump[idx], 1ul << bit);
-}
-
-void
-dump_drop_page(vm_paddr_t pa)
-{
-	int idx, bit;
-
-	pa >>= PAGE_SHIFT;
-	idx = pa >> 6;		/* 2^6 = 64 */
-	bit = pa & 63;
-	atomic_clear_long(&vm_page_dump[idx], 1ul << bit);
 }

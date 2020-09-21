@@ -47,7 +47,6 @@ extern	int	szfreebsd4_sigcode;
 extern	int	szosigcode;
 extern	int	sz_lcall_tramp;
 #endif
-extern	uint32_t *vm_page_dump;
 extern  vm_offset_t proc0kstack;
 extern	uintptr_t setidt_disp;
 
