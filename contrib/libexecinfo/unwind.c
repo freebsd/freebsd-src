@@ -67,7 +67,9 @@ backtrace(void **arr, size_t len)
 	ctx.n = (size_t)~0;
 
 	_Unwind_Backtrace(tracer, &ctx);
-	if (ctx.n != (size_t)~0 && ctx.n > 0)
+	if (ctx.n == (size_t)~0)
+		ctx.n = 0;
+	else if (ctx.n > 0)
 		ctx.arr[--ctx.n] = NULL;	/* Skip frame below __start */
 
 	return ctx.n;
