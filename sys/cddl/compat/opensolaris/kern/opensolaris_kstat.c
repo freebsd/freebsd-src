@@ -184,16 +184,16 @@ kstat_install(kstat_t *ksp)
 			SYSCTL_ADD_PROC(&ksp->ks_sysctl_ctx,
 			    SYSCTL_CHILDREN(ksp->ks_sysctl_root),
 			    OID_AUTO, ksent->name,
-			    CTLTYPE_STRING | CTLFLAG_RD, ksp, i,
-			    kstat_sysctl_string, "A", ksent->desc);
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    ksp, i, kstat_sysctl_string, "A", ksent->desc);
 			continue;
 		}
 		KASSERT(ksent->data_type == KSTAT_DATA_UINT64,
 		    ("data_type=%d", ksent->data_type));
 		SYSCTL_ADD_PROC(&ksp->ks_sysctl_ctx,
 		    SYSCTL_CHILDREN(ksp->ks_sysctl_root), OID_AUTO, ksent->name,
-		    CTLTYPE_U64 | CTLFLAG_RD, ksp, i,
-		    kstat_sysctl, "QU", ksent->desc);
+		    CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+		    ksp, i, kstat_sysctl, "QU", ksent->desc);
 	}
 }
 
