@@ -183,7 +183,7 @@ crunched_main(int argc, char **argv, char **envp)
 }
 
 static void
-crunched_usage()
+crunched_usage(void)
 {
 	int columns, len;
 	struct stub *ep;

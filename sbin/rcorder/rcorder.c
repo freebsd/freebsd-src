@@ -990,7 +990,7 @@ do_file(filenode *fnode, strnodelist *stack_ptr)
 }
 
 static void
-generate_graphviz_header()
+generate_graphviz_header(void)
 {
 
 	if (do_graphviz != true)
@@ -1003,7 +1003,7 @@ generate_graphviz_header()
 }
 
 static void
-generate_graphviz_footer()
+generate_graphviz_footer(void)
 {
 
 	if (do_graphviz == true)
@@ -1011,7 +1011,7 @@ generate_graphviz_footer()
 }
 
 static void
-generate_graphviz_providers()
+generate_graphviz_providers(void)
 {
 	Hash_Entry *entry;
 	Hash_Search psearch;
