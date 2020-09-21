@@ -155,21 +155,29 @@ read_image_file(const char *path, void **buf, int32_t *size)
 }
 
 static void
-update_firmware(int fd, uint8_t *payload, int32_t payload_size)
+update_firmware(int fd, uint8_t *payload, int32_t payload_size, uint8_t fwug)
 {
 	struct nvme_pt_command	pt;
+	uint64_t                max_xfer_size;
 	int32_t			off, resid, size;
 	void			*chunk;
 
 	off = 0;
 	resid = payload_size;
 
-	if ((chunk = aligned_alloc(PAGE_SIZE, NVME_MAX_XFER_SIZE)) == NULL)
-		errx(1, "unable to malloc %d bytes", NVME_MAX_XFER_SIZE);
+	if (fwug != 0 && fwug != 0xFF)
+		max_xfer_size = ((uint64_t)fwug << 12);
+	else if (ioctl(fd, NVME_GET_MAX_XFER_SIZE, &max_xfer_size) < 0)
+ 		err(1, "query max transfer size failed");
+ 	if (max_xfer_size > NVME_MAX_XFER_SIZE)
+ 		max_xfer_size = NVME_MAX_XFER_SIZE;
+
+	if ((chunk = aligned_alloc(PAGE_SIZE, max_xfer_size)) == NULL)
+		errx(1, "unable to malloc %zd bytes", (size_t)max_xfer_size);
 
 	while (resid > 0) {
-		size = (resid >= NVME_MAX_XFER_SIZE) ?
-		    NVME_MAX_XFER_SIZE : resid;
+		size = (resid >= (int32_t)max_xfer_size) ?
+		    max_xfer_size : resid;
 		memcpy(chunk, payload + off, size);
 
 		memset(&pt, 0, sizeof(pt));
@@ -333,7 +341,7 @@ firmware(const struct cmd *f, int argc, char *argv[])
 	}
 
 	if (opt.fw_img != NULL) {
-		update_firmware(fd, buf, size);
+		update_firmware(fd, buf, size, cdata.fwug);
 		if (opt.activate)
 			activate_action = NVME_AA_REPLACE_ACTIVATE;
 		else
