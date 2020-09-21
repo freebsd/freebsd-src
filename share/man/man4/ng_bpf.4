@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_bpf.8,v 1.2 1999/12/03 01:57:12 archie Exp $
 .\"
-.Dd April 29, 2020
+.Dd September 20, 2020
 .Dt NG_BPF 4
 .Os
 .Sh NAME
@@ -113,21 +113,18 @@ program or else
 .Er EINVAL
 is returned.
 .It Dv NGM_BPF_GET_PROGRAM Pq Ic getprogram
-This command takes an
-.Tn ASCII
+This command takes an ASCII
 string argument, the hook name, and returns the
 corresponding
 .Dv "struct ng_bpf_hookprog"
 as shown above.
 .It Dv NGM_BPF_GET_STATS Pq Ic getstats
-This command takes an
-.Tn ASCII
+This command takes an ASCII
 string argument, the hook name, and returns the
 statistics associated with the hook as a
 .Dv "struct ng_bpf_hookstat" .
 .It Dv NGM_BPF_CLR_STATS Pq Ic clrstats
-This command takes an
-.Tn ASCII
+This command takes an ASCII
 string argument, the hook name, and clears the
 statistics associated with the hook.
 .It Dv NGM_BPF_GETCLR_STATS Pq Ic getclrstats
@@ -142,9 +139,8 @@ control message, or when all hooks have been disconnected.
 .Sh EXAMPLES
 It is possible to configure a node from the command line, using
 .Xr tcpdump 1
-to generate raw BPF instructions which are then fed into an
-.Xr awk 1
-script to create the ASCII form of a
+to generate raw BPF instructions which are then transformed
+into the ASCII form of a
 .Dv NGM_BPF_SET_PROGRAM
 control message, as demonstrated here:
 .Bd -literal -offset 4n
@@ -169,6 +165,51 @@ ngctl msg ${NODEPATH} setprogram { thisHook=\\"${INHOOK}\\" \\
   ifMatch=\\"${MATCHHOOK}\\" \\
   ifNotMatch=\\"${NOTMATCHHOOK}\\" \\
   ${BPFPROG} }
+.Ed
+.Pp
+Based on the previous example, it is possible to prevent a jail (or a VM)
+from spoofing by allowing only traffic that has the expected ethernet and
+IP addresses:
+.Bd -literal -offset 4n
+#!/bin/sh
+
+NODEPATH="my_node:"
+JAIL_MAC="0a:00:de:ad:be:ef"
+JAIL_IP="128.66.1.42"
+JAIL_HOOK="jail"
+HOST_HOOK="host"
+DEBUG_HOOK="nomatch"
+
+bpf_prog() {
+    local PATTERN=$1
+
+    tcpdump -s 8192 -p -ddd ${PATTERN} | (
+        read len
+        echo -n "bpf_prog_len=$len "
+        echo -n "bpf_prog=["
+        while read code jt jf k ; do
+            echo -n " { code=$code jt=$jt jf=$jf k=$k }"
+        done
+        echo " ]"
+    )
+}
+
+# Prevent jail from spoofing (filter packets coming from jail)
+ngctl msg ${NODEPATH} setprogram {                        \\
+    thisHook=\\"${JAIL_HOOK}\\"                             \\
+    ifMatch=\\"${HOST_HOOK}\\"                              \\
+    ifNotMatch=\\"${DEBUG_HOOK}\\"                          \\
+    $(bpf_prog "ether src ${JAIL_MAC} && src ${JAIL_IP}") \\
+}
+
+# Prevent jail from receiving spoofed packets (filter packets
+# coming from host)
+ngctl msg ${NODEPATH} setprogram {                        \\
+    thisHook=\\"${HOST_HOOK}\\"                             \\
+    ifMatch=\\"${JAIL_HOOK}\\"                              \\
+    ifNotMatch=\\"${DEBUG_HOOK}\\"                          \\
+    $(bpf_prog "ether dst ${JAIL_MAC} && dst ${JAIL_IP}") \\
+}
 .Ed
 .Sh SEE ALSO
 .Xr bpf 4 ,
