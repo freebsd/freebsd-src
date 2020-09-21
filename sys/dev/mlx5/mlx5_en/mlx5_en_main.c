@@ -1066,7 +1066,7 @@ mlx5e_update_stats(void *arg)
 
 	queue_work(priv->wq, &priv->update_stats_work);
 
-	callout_reset(&priv->watchdog, hz, &mlx5e_update_stats, priv);
+	callout_reset(&priv->watchdog, hz / 4, &mlx5e_update_stats, priv);
 }
 
 static void
