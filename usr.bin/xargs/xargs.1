@@ -33,7 +33,7 @@
 .\" $FreeBSD$
 .\" $xMach: xargs.1,v 1.2 2002/02/23 05:23:37 tim Exp $
 .\"
-.Dd June 11, 2020
+.Dd September 21, 2020
 .Dt XARGS 1
 .Os
 .Sh NAME
@@ -84,7 +84,7 @@ Any single character, including newlines, may be escaped by a backslash.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl 0
+.It Fl 0 , Fl -null
 Change
 .Nm
 to expect NUL
@@ -175,7 +175,7 @@ If EOF is reached and fewer lines have been read than
 then
 .Ar utility
 will be called with the available lines.
-.It Fl n Ar number
+.It Fl n Ar number , Fl -max-args= Ns Ar number
 Set the maximum number of arguments taken from standard input for each
 invocation of
 .Ar utility .
@@ -201,7 +201,7 @@ in the child process before executing the command.
 This is useful if you want
 .Nm
 to run an interactive application.
-.It Fl P Ar maxprocs
+.It Fl P Ar maxprocs , Fl -max-procs= Ns Ar maxprocs
 Parallel mode: run at most
 .Ar maxprocs
 invocations of
@@ -212,7 +212,7 @@ If
 is set to 0,
 .Nm
 will run as many processes as possible.
-.It Fl p
+.It Fl p , Fl -interactive
 Echo each command to be executed and ask the user whether it should be
 executed.
 An affirmative response,
@@ -221,7 +221,7 @@ in the POSIX locale,
 causes the command to be executed, any other response causes it to be
 skipped.
 No commands are executed if the process is not attached to a terminal.
-.It Fl r
+.It Fl r , Fl -no-run-if-empty
 Compatibility with GNU
 .Nm .
 The GNU version of
@@ -263,7 +263,7 @@ can use for replacements.
 The default for
 .Ar replsize
 is 255.
-.It Fl s Ar size
+.It Fl s Ar size , Fl -max-chars= Ns Ar size
 Set the maximum number of bytes for the command line length provided to
 .Ar utility .
 The sum of the length of the utility name, the arguments passed to
@@ -277,10 +277,10 @@ The current default value for
 is
 .Dv ARG_MAX
 - 4096.
-.It Fl t
+.It Fl t , Fl -verbose
 Echo the command to be executed to standard error immediately before it
 is executed.
-.It Fl x
+.It Fl x , Fl -exit
 Force
 .Nm
 to terminate immediately if a command line containing
