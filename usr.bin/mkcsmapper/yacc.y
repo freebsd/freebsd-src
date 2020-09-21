@@ -463,7 +463,7 @@ set_src_zone(u_int32_t val)
 	default: 
 		goto bad;
 	}
-	rowcol_mask = 1 << (rowcol_bits - 1);
+	rowcol_mask = 1u << (rowcol_bits - 1);
 	rowcol_mask |= rowcol_mask - 1;
 	for (i = 0; i < rowcol_len; ++i) {
 		p = &rowcol[i];
