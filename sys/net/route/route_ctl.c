@@ -175,6 +175,32 @@ get_rnh(uint32_t fibnum, const struct rt_addrinfo *info)
 	return (rnh);
 }
 
+static int
+get_info_weight(const struct rt_addrinfo *info, uint32_t default_weight)
+{
+	uint32_t weight;
+
+	if (info->rti_mflags & RTV_WEIGHT)
+		weight = info->rti_rmx->rmx_weight;
+	else
+		weight = default_weight;
+	/* Keep upper 1 byte for adm distance purposes */
+	if (weight > RT_MAX_WEIGHT)
+		weight = RT_MAX_WEIGHT;
+
+	return (weight);
+}
+
+static void
+rt_set_expire_info(struct rtentry *rt, const struct rt_addrinfo *info)
+{
+
+	/* Kernel -> userland timebase conversion. */
+	if (info->rti_mflags & RTV_EXPIRE)
+		rt->rt_expire = info->rti_rmx->rmx_expire ?
+		    info->rti_rmx->rmx_expire - time_second + time_uptime : 0;
+}
+
 /*
  * Check if specified @gw matches gw data in the nexthop @nh.
  *
@@ -423,9 +449,8 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 	 * examine the ifa and  ifa->ifa_ifp if it so desires.
 	 */
 	ifa = info->rti_ifa;
-	rt->rt_weight = 1;
-
-	rt_setmetrics(info, rt);
+	rt->rt_weight = get_info_weight(info, RT_DEFAULT_WEIGHT);
+	rt_set_expire_info(rt, info);
 
 	*prt = rt;
 	return (0);
@@ -815,7 +840,7 @@ change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 
 	if (rnd->rnd_nhop != NULL) {
 		/* Changing expiration & nexthop & weight to a new one */
-		rt_setmetrics(info, rt);
+		rt_set_expire_info(rt, info);
 		rt->rt_nhop = rnd->rnd_nhop;
 		rt->rt_weight = rnd->rnd_weight;
 		if (rt->rt_expire > 0)

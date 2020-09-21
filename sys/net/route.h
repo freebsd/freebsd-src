@@ -104,6 +104,10 @@ struct rt_metrics {
 /* lle state is exported in rmx_state rt_metrics field */
 #define	rmx_state	rmx_weight
 
+/* default route weight */
+#define	RT_DEFAULT_WEIGHT	1
+#define	RT_MAX_WEIGHT		16777215	/* 3 bytes */
+
 /*
  * Keep a generation count of routing table, incremented on route addition,
  * so we can invalidate caches.  This is accessed without a lock, as precision
