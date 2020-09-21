@@ -1451,7 +1451,7 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 .endif # make(distributeworld)
 .if !make(packageworld) && ${MK_CAROOT} != "no"
 	@if which openssl>/dev/null; then \
-		DESTDIR=${CERTCTLDESTDIR} \
+		DESTDIR=${CERTCTLDESTDIR} PATH=${TMPPATH}:${PATH} \
 		    sh ${SRCTOP}/usr.sbin/certctl/certctl.sh ${CERTCTLFLAGS} rehash \
 	else \
 		echo "No openssl on the host, not rehashing certificates target -- /etc/ssl may not be populated."; \
