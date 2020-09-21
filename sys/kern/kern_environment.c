@@ -942,6 +942,65 @@ error:
 }
 
 /*
+ * Return a boolean value from an environment variable. This can be in
+ * numerical or string form, i.e. "1" or "true".
+ */
+int
+getenv_bool(const char *name, bool *data)
+{
+	char *val;
+	int ret = 0;
+
+	if (name == NULL)
+		return (0);
+
+	val = kern_getenv(name);
+	if (val == NULL)
+		return (0);
+
+	if ((strcmp(val, "1") == 0) || (strcasecmp(val, "true") == 0)) {
+		*data = true;
+		ret = 1;
+	} else if ((strcmp(val, "0") == 0) || (strcasecmp(val, "false") == 0)) {
+		*data = false;
+		ret = 1;
+	} else {
+		/* Spit out a warning for malformed boolean variables. */
+		printf("Environment variable %s has non-boolean value \"%s\"\n",
+		    name, val);
+	}
+	freeenv(val);
+
+	return (ret);
+}
+
+/*
+ * Wrapper around getenv_bool to easily check for true.
+ */
+bool
+getenv_is_true(const char *name)
+{
+	bool val;
+
+	if (getenv_bool(name, &val) != 0)
+		return (val);
+	return (false);
+}
+
+/*
+ * Wrapper around getenv_bool to easily check for false.
+ */
+bool
+getenv_is_false(const char *name)
+{
+	bool val;
+
+	if (getenv_bool(name, &val) != 0)
+		return (!val);
+	return (false);
+}
+
+/*
  * Find the next entry after the one which (cp) falls within, return a
  * pointer to its start or NULL if there are no more.
  */
@@ -1005,6 +1064,14 @@ tunable_quad_init(void *data)
 	struct tunable_quad *d = (struct tunable_quad *)data;
 
 	TUNABLE_QUAD_FETCH(d->path, d->var);
+}
+
+void
+tunable_bool_init(void *data)
+{
+	struct tunable_bool *d = (struct tunable_bool *)data;
+
+	TUNABLE_BOOL_FETCH(d->path, d->var);
 }
 
 void

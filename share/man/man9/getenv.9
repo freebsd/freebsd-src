@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2017
+.Dd September 21, 2020
 .Dt GETENV 9
 .Os
 .Sh NAME
@@ -39,6 +39,9 @@
 .Nm getenv_quad ,
 .Nm getenv_uint ,
 .Nm getenv_ulong ,
+.Nm getenv_bool ,
+.Nm getenv_is_true ,
+.Nm getenv_is_false ,
 .Nm kern_setenv ,
 .Nm testenv ,
 .Nm kern_unsetenv
@@ -62,6 +65,12 @@
 .Fn getenv_uint "const char *name" "unsigned int *data"
 .Ft int
 .Fn getenv_ulong "const char *name" "unsigned long *data"
+.Ft int
+.Fn getenv_bool "const char *name" "bool *data"
+.Ft bool
+.Fn getenv_is_true "const char *name"
+.Ft bool
+.Fn getenv_is_false "const char *name"
 .Ft int
 .Fn kern_setenv "const char *name" "const char *value"
 .Ft int
@@ -194,6 +203,28 @@ up to
 characters of its value are copied to the buffer pointed to by
 .Fa data
 followed by a null character and a non-zero value is returned.
+.Pp
+The
+.Fn getenv_bool
+function interprets the value of the kernel environment variable
+.Fa name
+as a boolean value by performing a case-insensitive comparison against the
+strings "1",
+"0",
+"true",
+and "false".
+If the environment variable exists and has a valid boolean value, then that
+value will be copied to the variable pointed to by
+.Fa data .
+If the environment variable exists but is not a boolean value, then a warning
+will be printed to the kernel message buffer.
+The
+.Fn getenv_is_true
+and
+.Fn getenv_is_false
+functions are wrappers around
+.Fn getenv_bool
+that simplify testing for a desired boolean value.
 .Sh RETURN VALUES
 The
 .Fn kern_getenv
@@ -211,12 +242,25 @@ The
 .Fn testenv
 function returns zero if the specified environment variable does not exist and
 a non-zero value if it does exist.
+.Pp
 The
 .Fn getenv_int ,
 .Fn getenv_long ,
 .Fn getenv_string ,
 .Fn getenv_quad ,
 .Fn getenv_uint ,
+.Fn getenv_ulong ,
 and
-.Fn getenv_ulong
+.Fn getenv_bool
 functions return a non-zero value on success and zero on failure.
+.Pp
+The
+.Fn getenv_is_true
+and
+.Fn getenv_is_false
+functions return
+.Dv true
+if the specified environment variable exists and its value matches the desired
+boolean condition, and
+.Dv false
+otherwise.

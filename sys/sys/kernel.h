@@ -421,6 +421,25 @@ struct tunable_quad {
 
 #define	TUNABLE_QUAD_FETCH(path, var)	getenv_quad((path), (var))
 
+/*
+ * bool
+ */
+extern void tunable_bool_init(void *);
+struct tunable_bool {
+	const char *path;
+	bool *var;
+};
+#define	TUNABLE_BOOL(path, var) \
+	static struct tunable_bool __CONCAT(__tunable_bool_, __LINE__) = { \
+		(path),						\
+		(var),						\
+	};							\
+	SYSINIT(__CONCAT(__Tunable_init_, __LINE__),		\
+	    SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_bool_init, \
+	    &__CONCAT(__tunable_bool_, __LINE__))
+
+#define	TUNABLE_BOOL_FETCH(path, var)	getenv_bool((path), (var))
+
 extern void tunable_str_init(void *);
 struct tunable_str {
 	const char *path;
