@@ -83,7 +83,7 @@ static int
 _riscv_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
-	off_t off, sparse_off;
+	off_t off, dump_avail_off, sparse_off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
 	if (vmst == NULL) {
@@ -103,7 +103,7 @@ _riscv_minidump_initvtop(kvm_t *kd)
 	}
 
 	vmst->hdr.version = le32toh(vmst->hdr.version);
-	if (vmst->hdr.version != MINIDUMP_VERSION) {
+	if (vmst->hdr.version != MINIDUMP_VERSION && vmst->hdr.version != 1) {
 		_kvm_err(kd, kd->program, "wrong minidump version. "
 		    "Expected %d got %d", MINIDUMP_VERSION, vmst->hdr.version);
 		return (-1);
@@ -115,15 +115,21 @@ _riscv_minidump_initvtop(kvm_t *kd)
 	vmst->hdr.dmapphys = le64toh(vmst->hdr.dmapphys);
 	vmst->hdr.dmapbase = le64toh(vmst->hdr.dmapbase);
 	vmst->hdr.dmapend = le64toh(vmst->hdr.dmapend);
+	vmst->hdr.dumpavailsize = vmst->hdr.version == MINIDUMP_VERSION ?
+	    le32toh(vmst->hdr.dumpavailsize) : 0;
 
 	/* Skip header and msgbuf */
-	off = RISCV_PAGE_SIZE + riscv_round_page(vmst->hdr.msgbufsize);
+	dump_avail_off = RISCV_PAGE_SIZE + riscv_round_page(vmst->hdr.msgbufsize);
+
+	/* Skip dump_avail */
+	off = dump_avail_off + riscv_round_page(vmst->hdr.dumpavailsize);
 
 	/* build physical address lookup table for sparse pages */
 	sparse_off = off + riscv_round_page(vmst->hdr.bitmapsize) +
 	    riscv_round_page(vmst->hdr.pmapsize);
-	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
-	    RISCV_PAGE_SIZE, sizeof(uint64_t)) == -1) {
+	if (_kvm_pt_init(kd, vmst->hdr.dumpavailsize, dump_avail_off,
+	    vmst->hdr.bitmapsize, off, sparse_off, RISCV_PAGE_SIZE,
+	    sizeof(uint64_t)) == -1) {
 		return (-1);
 	}
 	off += riscv_round_page(vmst->hdr.bitmapsize);
@@ -258,7 +264,9 @@ _riscv_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 	}
 
 	while (_kvm_bitmap_next(&bm, &bmindex)) {
-		pa = bmindex * RISCV_PAGE_SIZE;
+		pa = _kvm_bit_id_pa(kd, bmindex, RISCV_PAGE_SIZE);
+		if (pa == _KVM_PA_INVALID)
+			break;
 		dva = vm->hdr.dmapbase + pa;
 		if (vm->hdr.dmapend < (dva + RISCV_PAGE_SIZE))
 			break;

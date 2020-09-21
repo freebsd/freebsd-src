@@ -31,7 +31,7 @@
 #define	_MACHINE_MINIDUMP_H_ 1
 
 #define	MINIDUMP_MAGIC		"minidump FreeBSD/riscv"
-#define	MINIDUMP_VERSION	1
+#define	MINIDUMP_VERSION	2
 
 struct minidumphdr {
 	char magic[24];
@@ -43,6 +43,7 @@ struct minidumphdr {
 	uint64_t dmapphys;
 	uint64_t dmapbase;
 	uint64_t dmapend;
+	uint32_t dumpavailsize;
 };
 
 #endif /* _MACHINE_MINIDUMP_H_ */

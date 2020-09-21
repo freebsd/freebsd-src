@@ -257,6 +257,7 @@ retry:
 	/* Calculate dump size */
 	dumpsize = pmapsize;
 	dumpsize += round_page(msgbufp->msg_size);
+	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
 		/* Clear out undumpable pages now if needed */
@@ -280,6 +281,7 @@ retry:
 	mdhdr.dmapphys = DMAP_MIN_PHYSADDR;
 	mdhdr.dmapbase = DMAP_MIN_ADDRESS;
 	mdhdr.dmapend = DMAP_MAX_ADDRESS;
+	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
 
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_RISCV_VERSION,
 	    dumpsize);
@@ -301,6 +303,15 @@ retry:
 	/* Dump msgbuf up front */
 	error = blk_write(di, (char *)msgbufp->msg_ptr, 0,
 	    round_page(msgbufp->msg_size));
+	if (error)
+		goto fail;
+
+	/* Dump dump_avail */
+	_Static_assert(sizeof(dump_avail) <= sizeof(tmpbuffer),
+	    "Large dump_avail not handled");
+	bzero(tmpbuffer, sizeof(tmpbuffer));
+	memcpy(tmpbuffer, dump_avail, sizeof(dump_avail));
+	error = blk_write(di, (char *)&tmpbuffer, 0, PAGE_SIZE);
 	if (error)
 		goto fail;
 

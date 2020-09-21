@@ -607,10 +607,13 @@ vm_page_startup(vm_offset_t vaddr)
 	 * included should the sf_buf code decide to use them.
 	 */
 	last_pa = 0;
-	for (i = 0; dump_avail[i + 1] != 0; i += 2)
+	vm_page_dump_pages = 0;
+	for (i = 0; dump_avail[i + 1] != 0; i += 2) {
+		vm_page_dump_pages += howmany(dump_avail[i + 1], PAGE_SIZE) -
+		    dump_avail[i] / PAGE_SIZE;
 		if (dump_avail[i + 1] > last_pa)
 			last_pa = dump_avail[i + 1];
-	vm_page_dump_pages = last_pa / PAGE_SIZE;
+	}
 	vm_page_dump_size = round_page(BITSET_SIZE(vm_page_dump_pages));
 	new_end -= vm_page_dump_size;
 	vm_page_dump = (void *)(uintptr_t)pmap_map(&vaddr, new_end,
