@@ -31,7 +31,7 @@
 #define	_MACHINE_MINIDUMP_H_ 1
 
 #define	MINIDUMP_MAGIC		"minidump FreeBSD/powerpc64"
-#define	MINIDUMP_VERSION	1
+#define	MINIDUMP_VERSION	2
 
 struct minidumphdr {
 	char magic[32];
@@ -47,6 +47,7 @@ struct minidumphdr {
 	int hw_direct_map;
 	uint64_t startkernel;
 	uint64_t endkernel;
+	uint32_t dumpavailsize;
 };
 
 #endif /* _MACHINE_MINIDUMP_H_ */

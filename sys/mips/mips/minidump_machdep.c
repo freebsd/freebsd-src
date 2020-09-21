@@ -205,6 +205,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Calculate dump size. */
 	dumpsize = ptesize;
 	dumpsize += round_page(msgbufp->msg_size);
+	dumpsize += round_page(sizeof(dump_avail));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
 		/* Clear out undumpable pages now if needed */
@@ -225,6 +226,7 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.bitmapsize = round_page(BITSET_SIZE(vm_page_dump_pages));
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
+	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
 
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION,
 	    dumpsize);
@@ -246,6 +248,15 @@ minidumpsys(struct dumperinfo *di)
 	/* Dump msgbuf up front */
 	error = write_buffer(di, (char *)msgbufp->msg_ptr, 
 	    round_page(msgbufp->msg_size));
+	if (error)
+		goto fail;
+
+	/* Dump dump_avail */
+	_Static_assert(sizeof(dump_avail) <= sizeof(tmpbuffer),
+	    "Large dump_avail not handled");
+	bzero(tmpbuffer, sizeof(tmpbuffer));
+	memcpy(tmpbuffer, dump_avail, sizeof(dump_avail));
+	error = write_buffer(di, tmpbuffer, PAGE_SIZE);
 	if (error)
 		goto fail;
 

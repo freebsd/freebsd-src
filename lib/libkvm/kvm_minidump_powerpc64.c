@@ -68,7 +68,7 @@ _powerpc64_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
 	struct minidumphdr *hdr;
-	off_t bitmap_off, pmap_off, sparse_off;
+	off_t dump_avail_off, bitmap_off, pmap_off, sparse_off;
 	const char *mmu_name;
 
 	/* Alloc VM */
@@ -92,7 +92,7 @@ _powerpc64_minidump_initvtop(kvm_t *kd)
 	}
 	/* Check version */
 	hdr->version = be32toh(hdr->version);
-	if (hdr->version != MINIDUMP_VERSION) {
+	if (hdr->version != MINIDUMP_VERSION && hdr->version != 1) {
 		_kvm_err(kd, kd->program, "wrong minidump version. "
 		    "Expected %d got %d", MINIDUMP_VERSION, hdr->version);
 		goto failed;
@@ -108,6 +108,8 @@ _powerpc64_minidump_initvtop(kvm_t *kd)
 	hdr->hw_direct_map	= be32toh(hdr->hw_direct_map);
 	hdr->startkernel	= be64toh(hdr->startkernel);
 	hdr->endkernel		= be64toh(hdr->endkernel);
+	hdr->dumpavailsize	= hdr->version == MINIDUMP_VERSION ?
+	    be32toh(hdr->dumpavailsize) : 0;
 
 	vmst->kimg_start = PPC64_KERNBASE;
 	vmst->kimg_end = PPC64_KERNBASE + hdr->endkernel - hdr->startkernel;
@@ -140,7 +142,8 @@ _powerpc64_minidump_initvtop(kvm_t *kd)
 		goto failed;
 
 	/* Get dump parts' offsets */
-	bitmap_off	= PPC64_PAGE_SIZE + ppc64_round_page(hdr->msgbufsize);
+	dump_avail_off	= PPC64_PAGE_SIZE + ppc64_round_page(hdr->msgbufsize);
+	bitmap_off	= dump_avail_off + ppc64_round_page(hdr->dumpavailsize);
 	pmap_off	= bitmap_off + ppc64_round_page(hdr->bitmapsize);
 	sparse_off	= pmap_off + ppc64_round_page(hdr->pmapsize);
 
@@ -151,8 +154,9 @@ _powerpc64_minidump_initvtop(kvm_t *kd)
 	    (uintmax_t)pmap_off, (uintmax_t)sparse_off);
 
 	/* build physical address lookup table for sparse pages */
-	if (_kvm_pt_init(kd, hdr->bitmapsize, bitmap_off, sparse_off,
-	    PPC64_PAGE_SIZE, sizeof(uint64_t)) == -1)
+	if (_kvm_pt_init(kd, hdr->dumpavailsize, dump_avail_off,
+	    hdr->bitmapsize, bitmap_off, sparse_off, PPC64_PAGE_SIZE,
+	    sizeof(uint64_t)) == -1)
 		goto failed;
 
 	if (_kvm_pmap_init(kd, hdr->pmapsize, pmap_off) == -1)

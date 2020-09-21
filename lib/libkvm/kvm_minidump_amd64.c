@@ -123,7 +123,7 @@ static int
 _amd64_minidump_initvtop(kvm_t *kd)
 {
 	struct vmstate *vmst;
-	off_t off, sparse_off;
+	off_t off, dump_avail_off, sparse_off;
 
 	vmst = _kvm_malloc(kd, sizeof(*vmst));
 	if (vmst == NULL) {
@@ -143,10 +143,10 @@ _amd64_minidump_initvtop(kvm_t *kd)
 
 	/*
 	 * NB: amd64 minidump header is binary compatible between version 1
-	 * and version 2; this may not be the case for the future versions.
+	 * and version 2; version 3 adds the dumpavailsize field
 	 */
 	vmst->hdr.version = le32toh(vmst->hdr.version);
-	if (vmst->hdr.version != MINIDUMP_VERSION && vmst->hdr.version != 1) {
+	if (vmst->hdr.version > MINIDUMP_VERSION || vmst->hdr.version < 1) {
 		_kvm_err(kd, kd->program, "wrong minidump version. expected %d got %d",
 		    MINIDUMP_VERSION, vmst->hdr.version);
 		return (-1);
@@ -157,14 +157,20 @@ _amd64_minidump_initvtop(kvm_t *kd)
 	vmst->hdr.kernbase = le64toh(vmst->hdr.kernbase);
 	vmst->hdr.dmapbase = le64toh(vmst->hdr.dmapbase);
 	vmst->hdr.dmapend = le64toh(vmst->hdr.dmapend);
+	vmst->hdr.dumpavailsize = vmst->hdr.version == MINIDUMP_VERSION ?
+	    le32toh(vmst->hdr.dumpavailsize) : 0;
 
 	/* Skip header and msgbuf */
-	off = AMD64_PAGE_SIZE + amd64_round_page(vmst->hdr.msgbufsize);
+	dump_avail_off = AMD64_PAGE_SIZE + amd64_round_page(vmst->hdr.msgbufsize);
+
+	/* Skip dump_avail */
+	off = dump_avail_off + amd64_round_page(vmst->hdr.dumpavailsize);
 
 	sparse_off = off + amd64_round_page(vmst->hdr.bitmapsize) +
 	    amd64_round_page(vmst->hdr.pmapsize);
-	if (_kvm_pt_init(kd, vmst->hdr.bitmapsize, off, sparse_off,
-	    AMD64_PAGE_SIZE, sizeof(uint64_t)) == -1) {
+	if (_kvm_pt_init(kd, vmst->hdr.dumpavailsize, dump_avail_off,
+	    vmst->hdr.bitmapsize, off, sparse_off, AMD64_PAGE_SIZE,
+	    sizeof(uint64_t)) == -1) {
 		return (-1);
 	}
 	off += amd64_round_page(vmst->hdr.bitmapsize);
@@ -372,7 +378,7 @@ _amd64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 			pa = (pde & AMD64_PG_PS_FRAME) +
 			    ((va & AMD64_PDRMASK) ^ VA_OFF(vm, va));
 			dva = vm->hdr.dmapbase + pa;
-			_kvm_bitmap_set(&bm, pa, AMD64_PAGE_SIZE);
+			_kvm_bitmap_set(&bm, _kvm_pa_bit_id(kd, pa, AMD64_PAGE_SIZE));
 			if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
 			    _amd64_entry_to_prot(pde), AMD64_NBPDR, pgsz)) {
 				goto out;
@@ -392,7 +398,8 @@ _amd64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 			pa = pte & AMD64_PG_FRAME;
 			dva = vm->hdr.dmapbase + pa;
 			if ((pte & AMD64_PG_V) != 0) {
-				_kvm_bitmap_set(&bm, pa, AMD64_PAGE_SIZE);
+				_kvm_bitmap_set(&bm,
+				    _kvm_pa_bit_id(kd, pa, AMD64_PAGE_SIZE));
 				if (!_kvm_visit_cb(kd, cb, arg, pa, va, dva,
 				    _amd64_entry_to_prot(pte), pgsz, 0)) {
 					goto out;
@@ -403,7 +410,9 @@ _amd64_minidump_walk_pages(kvm_t *kd, kvm_walk_pages_cb_t *cb, void *arg)
 	}
 
 	while (_kvm_bitmap_next(&bm, &bmindex)) {
-		pa = bmindex * AMD64_PAGE_SIZE;
+		pa = _kvm_bit_id_pa(kd, bmindex, AMD64_PAGE_SIZE);
+		if (pa == _KVM_PA_INVALID)
+			break;
 		dva = vm->hdr.dmapbase + pa;
 		if (vm->hdr.dmapend < (dva + pgsz))
 			break;
