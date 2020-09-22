@@ -185,7 +185,7 @@ CFLAGS.gcc+=	-mno-spe
 # Use dot symbols (or, better, the V2 ELF ABI) on powerpc64 to make
 # DDB happy. ELFv2, if available, has some other efficiency benefits.
 #
-.if ${MACHINE_ARCH} == "powerpc64"
+.if ${MACHINE_ARCH:Mpowerpc64*} != ""
 CFLAGS+=	-mabi=elfv2
 .endif
 
@@ -307,6 +307,7 @@ LD_EMULATION_mipsn32el= elf32btsmipn32_fbsd   # I don't think this is a thing th
 LD_EMULATION_powerpc= elf32ppc_fbsd
 LD_EMULATION_powerpcspe= elf32ppc_fbsd
 LD_EMULATION_powerpc64= elf64ppc_fbsd
+LD_EMULATION_powerpc64le= elf64lppc_fbsd
 LD_EMULATION_riscv64= elf64lriscv
 LD_EMULATION_riscv64sf= elf64lriscv
 LD_EMULATION=${LD_EMULATION_${MACHINE_ARCH}}

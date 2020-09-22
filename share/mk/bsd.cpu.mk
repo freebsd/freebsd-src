@@ -128,7 +128,7 @@ _CPUCFLAGS = -Wa,-me500 -msoft-float
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE} -mno-powerpc64
 .  endif
-. elif ${MACHINE_ARCH} == "powerpc64"
+. elif ${MACHINE_ARCH:Mpowerpc64*} != ""
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_CPUARCH} == "mips"
 # mips[1234], mips32, mips64, and all later releases need to have mips
