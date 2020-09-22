@@ -113,6 +113,7 @@ ASENTRY_NOPROF(ofwcall)
 	/*
 	 * Set the MSR to the OF value. This has the side effect of disabling
 	 * exceptions, which is important for the next few steps.
+	 * This does NOT, however, cause us to switch endianness.
 	 */
 
 	addis	%r5,%r2,TOC_REF(ofmsr)@ha
@@ -138,9 +139,28 @@ ASENTRY_NOPROF(ofwcall)
 	stw	%r5,4(%r1)
 	stw	%r5,0(%r1)
 
+#ifdef __LITTLE_ENDIAN__
+	/* Atomic context switch w/ endian change */
+	mtmsrd	%r5, 1	/* Clear PSL_EE|PSL_RI */
+	addis	%r5,%r2,TOC_REF(ofmsr)@ha
+	ld	%r5,TOC_REF(ofmsr)@l(%r5)
+	ld	%r5,0(%r5)
+	mtsrr0	%r4
+	mtsrr1	%r5
+	LOAD_LR_NIA
+1:
+	mflr	%r5
+	addi	%r5, %r5, (2f-1b)
+	mtlr	%r5
+	li	%r5, 0
+	rfid
+2:
+	RETURN_TO_NATIVE_ENDIAN
+#else
 	/* Finally, branch to OF */
 	mtctr	%r4
 	bctrl
+#endif
 
 	/* Reload stack pointer, MSR, and reference PC from the OFW stack */
 	ld	%r7,32(%r1)
