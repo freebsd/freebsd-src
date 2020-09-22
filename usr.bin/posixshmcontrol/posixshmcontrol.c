@@ -96,9 +96,14 @@ create_shm(int argc, char **argv)
 			return (2);
 		}
 	}
-
 	argc -= optind;
 	argv += optind;
+
+	if (argc == 0) {
+		usage();
+		return (2);
+	}
+
 	ret = 0;
 	for (i = 0; i < argc; i++) {
 		ret1 = create_one_shm(argv[i], mode);
@@ -127,6 +132,11 @@ static int
 delete_shm(int argc, char **argv)
 {
 	int i, ret, ret1;
+
+	if (argc == 1) {
+		usage();
+		return (2);
+	}
 
 	ret = 0;
 	for (i = 1; i < argc; i++) {
@@ -296,6 +306,11 @@ read_shm(int argc, char **argv)
 {
 	int i, ret, ret1;
 
+	if (argc == 1) {
+		usage();
+		return (2);
+	}
+
 	ret = 0;
 	for (i = 1; i < argc; i++) {
 		ret1 = read_one_shm(argv[i]);
@@ -379,6 +394,11 @@ stat_shm(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (argc == 0) {
+		usage();
+		return (2);
+	}
+
 	ret = 0;
 	for (i = 0; i < argc; i++) {
 		ret1 = stat_one_shm(argv[i], hsize, uname);
@@ -419,16 +439,21 @@ truncate_shm(int argc, char **argv)
 		switch (c) {
 		case 's':
 			if (expand_number(optarg, &newsize) == -1)
-				err(1, "size:");
+				err(1, "size");
 			break;
 		case '?':
 		default:
 			return (2);
 		}
 	}
-
 	argc -= optind;
 	argv += optind;
+
+	if (argc == 0) {
+		usage();
+		return (2);
+	}
+
 	ret = 0;
 	for (i = 0; i < argc; i++) {
 		ret1 = truncate_one_shm(argv[i], newsize);
