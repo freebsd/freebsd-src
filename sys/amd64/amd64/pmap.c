@@ -6479,7 +6479,7 @@ pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t newpte, int flags,
 	pt_entry_t origpte, *pml4e, *pdpe, *pde, pten, PG_V;
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	KASSERT(psind > 0 && psind < MAXPAGESIZES,
+	KASSERT(psind > 0 && psind < MAXPAGESIZES && pagesizes[psind] != 0,
 	    ("psind %d unexpected", psind));
 	KASSERT(((newpte & PG_FRAME) & (pagesizes[psind] - 1)) == 0,
 	    ("unaligned phys address %#lx newpte %#lx psind %d",
@@ -6494,38 +6494,25 @@ pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t newpte, int flags,
 	PG_V = pmap_valid_bit(pmap);
 
 restart:
+	if (!pmap_pkru_same(pmap, va, va + pagesizes[psind]))
+		return (KERN_PROTECTION_FAILURE);
 	pten = newpte;
 	if (va < VM_MAXUSER_ADDRESS && pmap->pm_type == PT_X86)
 		pten |= pmap_pkru_get(pmap, va);
 
 	if (psind == 2) {	/* 1G */
-		if (!pmap_pkru_same(pmap, va, va + NBPDP))
-			return (KERN_PROTECTION_FAILURE);
 		pml4e = pmap_pml4e(pmap, va);
 		if (pml4e == NULL || (*pml4e & PG_V) == 0) {
 			mp = _pmap_allocpte(pmap, pmap_pml4e_pindex(va),
 			    NULL, va);
-			if (mp == NULL) {
-				if ((flags & PMAP_ENTER_NOSLEEP) != 0)
-					return (KERN_RESOURCE_SHORTAGE);
-				PMAP_UNLOCK(pmap);
-				vm_wait(NULL);
-				PMAP_LOCK(pmap);
-
-				/*
-				 * Restart at least to recalcuate the pkru
-				 * key.  Our caller must keep the map locked
-				 * so no paging structure can be validated
-				 * under us.
-				 */
-				goto restart;
-			}
-			pdpe = pmap_pdpe(pmap, va);
-			KASSERT(pdpe != NULL, ("va %#lx lost pdpe", va));
+			if (mp == NULL)
+				goto allocf;
+			pdpe = (pdp_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mp));
+			pdpe = &pdpe[pmap_pdpe_index(va)];
 			origpte = *pdpe;
 			MPASS(origpte == 0);
 		} else {
-			pdpe = pmap_pdpe(pmap, va);
+			pdpe = pmap_pml4e_to_pdpe(pml4e, va);
 			KASSERT(pdpe != NULL, ("va %#lx lost pdpe", va));
 			origpte = *pdpe;
 			if ((origpte & PG_V) == 0) {
@@ -6533,57 +6520,49 @@ restart:
 				mp->ref_count++;
 			}
 		}
-		KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
-		    (origpte & PG_FRAME) == (pten & PG_FRAME)),
-		    ("va %#lx changing 1G phys page pdpe %#lx pten %#lx",
-		    va, origpte, pten));
-		if ((pten & PG_W) != 0 && (origpte & PG_W) == 0)
-			pmap->pm_stats.wired_count += NBPDP / PAGE_SIZE;
-		else if ((pten & PG_W) == 0 && (origpte & PG_W) != 0)
-			pmap->pm_stats.wired_count -= NBPDP / PAGE_SIZE;
 		*pdpe = pten;
 	} else /* (psind == 1) */ {	/* 2M */
-		if (!pmap_pkru_same(pmap, va, va + NBPDR))
-			return (KERN_PROTECTION_FAILURE);
 		pde = pmap_pde(pmap, va);
 		if (pde == NULL) {
 			mp = _pmap_allocpte(pmap, pmap_pdpe_pindex(va),
 			    NULL, va);
-			if (mp == NULL) {
-				if ((flags & PMAP_ENTER_NOSLEEP) != 0)
-					return (KERN_RESOURCE_SHORTAGE);
-				PMAP_UNLOCK(pmap);
-				vm_wait(NULL);
-				PMAP_LOCK(pmap);
-				goto restart;
-			}
+			if (mp == NULL)
+				goto allocf;
 			pde = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mp));
 			pde = &pde[pmap_pde_index(va)];
 			origpte = *pde;
 			MPASS(origpte == 0);
 		} else {
-			pdpe = pmap_pdpe(pmap, va);
-			MPASS(pdpe != NULL && (*pdpe & PG_V) != 0);
 			origpte = *pde;
 			if ((origpte & PG_V) == 0) {
+				pdpe = pmap_pdpe(pmap, va);
+				MPASS(pdpe != NULL && (*pdpe & PG_V) != 0);
 				mp = PHYS_TO_VM_PAGE(*pdpe & PG_FRAME);
 				mp->ref_count++;
 			}
 		}
-		KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
-		    (origpte & PG_FRAME) == (pten & PG_FRAME)),
-		    ("va %#lx changing 2M phys page pde %#lx pten %#lx",
-		    va, origpte, pten));
-		if ((pten & PG_W) != 0 && (origpte & PG_W) == 0)
-			pmap->pm_stats.wired_count += NBPDR / PAGE_SIZE;
-		else if ((pten & PG_W) == 0 && (origpte & PG_W) != 0)
-			pmap->pm_stats.wired_count -= NBPDR / PAGE_SIZE;
 		*pde = pten;
 	}
+	KASSERT((origpte & PG_V) == 0 || ((origpte & PG_PS) != 0 &&
+	    (origpte & PG_PS_FRAME) == (pten & PG_PS_FRAME)),
+	    ("va %#lx changing %s phys page origpte %#lx pten %#lx",
+	    va, psind == 2 ? "1G" : "2M", origpte, pten));
+	if ((pten & PG_W) != 0 && (origpte & PG_W) == 0)
+		pmap->pm_stats.wired_count += pagesizes[psind] / PAGE_SIZE;
+	else if ((pten & PG_W) == 0 && (origpte & PG_W) != 0)
+		pmap->pm_stats.wired_count -= pagesizes[psind] / PAGE_SIZE;
 	if ((origpte & PG_V) == 0)
 		pmap_resident_count_inc(pmap, pagesizes[psind] / PAGE_SIZE);
 
 	return (KERN_SUCCESS);
+
+allocf:
+	if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+		return (KERN_RESOURCE_SHORTAGE);
+	PMAP_UNLOCK(pmap);
+	vm_wait(NULL);
+	PMAP_LOCK(pmap);
+	goto restart;
 }
 
 /*
