@@ -28,7 +28,7 @@
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2020
+.Dd September 23, 2020
 .Dt CHMOD 2
 .Os
 .Sh NAME
@@ -106,6 +106,13 @@ Only allow to change permissions of a file which is beneath of
 the topping directory.
 See the description of the
 .Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
+.It Dv AT_RESOLVE_BENEATH
+Only walks paths below the topping directory.
+See the description of the
+.Dv O_RESOLVE_BENEATH
 flag in the
 .Xr open 2
 manual page.

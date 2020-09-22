@@ -28,7 +28,7 @@
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2020
+.Dd September 23, 2020
 .Dt CHFLAGS 2
 .Os
 .Sh NAME
@@ -99,6 +99,13 @@ Only allow to change flags for a file which is beneath of
 the topping directory.
 See the description of the
 .Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
+.It Dv AT_RESOLVE_BENEATH
+Only walks paths below the topping directory.
+See the description of the
+.Dv O_RESOLVE_BENEATH
 flag in the
 .Xr open 2
 manual page.
