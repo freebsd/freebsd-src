@@ -152,6 +152,7 @@ KNOWN_ARCHES?=	aarch64/arm64 \
 		mips64hf/mips \
 		powerpc \
 		powerpc64/powerpc \
+		powerpc64le/powerpc \
 		powerpcspe/powerpc \
 		riscv64/riscv \
 		riscv64sf/riscv

@@ -500,7 +500,7 @@ worlds: .PHONY
 EXTRA_ARCHES_mips=	mipsel mipshf mipselhf mips64el mips64hf mips64elhf
 EXTRA_ARCHES_mips+=	mipsn32
 # powerpcspe excluded from main list until clang fixed
-EXTRA_ARCHES_powerpc=	powerpcspe
+EXTRA_ARCHES_powerpc=	powerpcspe powerpc64le
 .endif
 TARGETS?=amd64 arm arm64 i386 mips powerpc riscv
 _UNIVERSE_TARGETS=	${TARGETS}
