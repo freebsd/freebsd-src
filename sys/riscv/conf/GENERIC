@@ -163,4 +163,10 @@ device		firmware	# firmware assist module
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
+# Flattened Device Tree
 options 	FDT
+makeoptions	MODULES_EXTRA+="dtb/sifive"
+
+# SiFive device drivers
+device		fu540spi
+include		"../sifive/std.sifive"
