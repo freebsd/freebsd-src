@@ -30,6 +30,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -414,7 +415,7 @@ chrp_cpuref_init(void)
 	/* /chosen/cpu */
 	if (OF_getproplen(chosen, "cpu") == sizeof(ihandle_t)) {
 		OF_getprop(chosen, "cpu", &ibsp, sizeof(ibsp));
-		pbsp = OF_instance_to_package(ibsp);
+		pbsp = OF_instance_to_package(be32toh(ibsp));
 		if (pbsp != -1)
 			get_cpu_reg(pbsp, &bsp_reg);
 	}

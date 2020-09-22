@@ -572,6 +572,10 @@ OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 	ofmsr[0] = mfmsr();
 	#ifdef __powerpc64__
 	ofmsr[0] &= ~PSL_SF;
+	#ifdef __LITTLE_ENDIAN__
+	/* Assume OFW is BE. */
+	ofmsr[0] &= ~PSL_LE;
+	#endif
 	#else
 	__asm __volatile("mfsprg0 %0" : "=&r"(ofmsr[1]));
 	#endif
@@ -645,7 +649,7 @@ OF_bootstrap()
 		 * of its auto-remapping function once the kernel is loaded.
 		 * This is a dirty hack, but what we have.
 		 */
-#ifdef _LITTLE_ENDIAN
+#ifdef __LITTLE_ENDIAN__
 		fdt_bt = &bs_le_tag;
 #else
 		fdt_bt = &bs_be_tag;

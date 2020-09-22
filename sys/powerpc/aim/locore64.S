@@ -133,7 +133,11 @@ btext:
  * r7: Magic cookie (0xfb5d104d) to indicate that r6 has loader metadata
  */
 	.text
-ASENTRY_NOPROF(__start)
+_NAKED_ENTRY(__start)
+
+#ifdef	__LITTLE_ENDIAN__
+	RETURN_TO_NATIVE_ENDIAN
+#endif
 	/* Set 64-bit mode if not yet set before branching to C */
 	mfmsr	%r20
 	li	%r21,1
