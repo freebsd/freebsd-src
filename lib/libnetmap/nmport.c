@@ -614,7 +614,7 @@ nmport_mmap(struct nmport_d *d)
 		}
 		memset(m, 0, sizeof(*m));
 		if (d->extmem != NULL) {
-			m->mem = (void *)d->extmem->nro_usrptr;
+			m->mem = (void *)((uintptr_t)d->extmem->nro_usrptr);
 			m->size = d->extmem->nro_info.nr_memsize;
 			m->is_extmem = 1;
 		} else {
