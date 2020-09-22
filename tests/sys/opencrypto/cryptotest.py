@@ -126,7 +126,7 @@ def GenTestCase(cname):
 						    mac=self._gmacsizes[len(cipherkey)],
 						    mackey=cipherkey, crid=crid,
 						    maclen=16)
-					except EnvironmentError, e:
+					except EnvironmentError as e:
 						# Can't test algorithms the driver does not support.
 						if e.errno != errno.EOPNOTSUPP:
 							raise
@@ -135,7 +135,7 @@ def GenTestCase(cname):
 					if mode == 'ENCRYPT':
 						try:
 							rct, rtag = c.encrypt(pt, iv, aad)
-						except EnvironmentError, e:
+						except EnvironmentError as e:
 							# Can't test inputs the driver does not support.
 							if e.errno != errno.EINVAL:
 								raise
@@ -155,7 +155,7 @@ def GenTestCase(cname):
 						else:
 							try:
 								rpt, rtag = c.decrypt(*args)
-							except EnvironmentError, e:
+							except EnvironmentError as e:
 								# Can't test inputs the driver does not support.
 								if e.errno != errno.EINVAL:
 									raise
@@ -223,7 +223,7 @@ def GenTestCase(cname):
 					try:
 						c = Crypto(meth, cipherkey, crid=crid)
 						r = curfun(c, pt, iv)
-					except EnvironmentError, e:
+					except EnvironmentError as e:
 						# Can't test hashes the driver does not support.
 						if e.errno != errno.EOPNOTSUPP:
 							raise
@@ -254,7 +254,7 @@ def GenTestCase(cname):
 					    mackey=key, maclen=16)
 					r, tag = Crypto.encrypt(c, payload,
 					    nonce, aad)
-				except EnvironmentError, e:
+				except EnvironmentError as e:
 					if e.errno != errno.EOPNOTSUPP:
 						raise
 					continue
@@ -296,7 +296,7 @@ def GenTestCase(cname):
 					    key=key,
 					    mac=cryptodev.CRYPTO_AES_CCM_CBC_MAC,
 					    mackey=key, maclen=16)
-				except EnvironmentError, e:
+				except EnvironmentError as e:
 					if e.errno != errno.EOPNOTSUPP:
 						raise
 					continue
@@ -390,13 +390,13 @@ def GenTestCase(cname):
 
 				for data in lines:
 					msg = data['Msg'].decode('hex')
-                                        msg = msg[:int(data['Len'])]
+					msg = msg[:int(data['Len'])]
 					md = data['MD'].decode('hex')
 
 					try:
 						c = Crypto(mac=alg, crid=crid,
 						    maclen=hashlen)
-					except EnvironmentError, e:
+					except EnvironmentError as e:
 						# Can't test hashes the driver does not support.
 						if e.errno != errno.EOPNOTSUPP:
 							raise
@@ -453,7 +453,7 @@ def GenTestCase(cname):
 					try:
 						c = Crypto(mac=alg, mackey=key,
 						    crid=crid, maclen=hashlen)
-					except EnvironmentError, e:
+					except EnvironmentError as e:
 						# Can't test hashes the driver does not support.
 						if e.errno != errno.EOPNOTSUPP:
 							raise
