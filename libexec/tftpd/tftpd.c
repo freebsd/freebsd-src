@@ -373,7 +373,10 @@ main(int argc, char *argv[])
 			    chroot_dir, strerror(errno));
 			exit(1);
 		}
-		chdir("/");
+		if (chdir("/") != 0) {
+			tftp_log(LOG_ERR, "chdir: %s", strerror(errno));
+			exit(1);
+		}
 		if (setgroups(1, &nobody->pw_gid) != 0) {
 			tftp_log(LOG_ERR, "setgroups failed");
 			exit(1);
