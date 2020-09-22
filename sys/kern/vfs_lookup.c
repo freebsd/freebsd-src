@@ -178,11 +178,13 @@ static void
 nameicap_tracker_add(struct nameidata *ndp, struct vnode *dp)
 {
 	struct nameicap_tracker *nt;
+	struct componentname *cnp;
 
 	if ((ndp->ni_lcf & NI_LCF_CAP_DOTDOT) == 0 || dp->v_type != VDIR)
 		return;
-	if ((ndp->ni_lcf & (NI_LCF_BENEATH_ABS | NI_LCF_BENEATH_LATCHED)) ==
-	    NI_LCF_BENEATH_ABS) {
+	cnp = &ndp->ni_cnd;
+	if ((cnp->cn_flags & BENEATH) != 0 &&
+	    (ndp->ni_lcf & NI_LCF_BENEATH_LATCHED) == 0) {
 		MPASS((ndp->ni_lcf & NI_LCF_LATCH) != 0);
 		if (dp != ndp->ni_beneath_latch)
 			return;
@@ -593,8 +595,8 @@ namei(struct nameidata *ndp)
 				namei_cleanup_cnp(cnp);
 			} else
 				cnp->cn_flags |= HASBUF;
-			if ((ndp->ni_lcf & (NI_LCF_BENEATH_ABS |
-			    NI_LCF_BENEATH_LATCHED)) == NI_LCF_BENEATH_ABS) {
+			if ((ndp->ni_lcf & (NI_LCF_LATCH |
+			    NI_LCF_BENEATH_LATCHED)) == NI_LCF_LATCH) {
 				NDFREE(ndp, 0);
 				error = ENOTCAPABLE;
 			}
