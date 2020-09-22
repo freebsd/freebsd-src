@@ -17,7 +17,7 @@ MK_INSTALL_AS_USER= yes
 TARGET_ARCHES_arm?=     arm armv6 armv7
 TARGET_ARCHES_arm64?=   aarch64
 TARGET_ARCHES_mips?=    mipsel mips mips64el mips64 mipsn32 mipsn32el
-TARGET_ARCHES_powerpc?= powerpc powerpc64 powerpcspe
+TARGET_ARCHES_powerpc?= powerpc powerpc64 powerpc64le powerpcspe
 TARGET_ARCHES_riscv?=   riscv64 riscv64sf
 
 # some corner cases

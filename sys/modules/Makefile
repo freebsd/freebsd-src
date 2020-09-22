@@ -779,7 +779,7 @@ _wi=		wi
 _virtio=	virtio
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc64"
+.if ${MACHINE_ARCH:Mpowerpc64*} != ""
 _ipmi=		ipmi
 _ixl=		ixl
 _nvram=		opal_nvram
