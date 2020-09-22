@@ -351,6 +351,17 @@ This tunable is for specialized applications only and should not be used in
 normal operation.
 The capabilities for which hardware resources have been reserved are listed in
 dev.<nexus>.X.*caps sysctls.
+.It Va hw.cxgbe.tx_vm_wr
+Setting this to 1 instructs the driver to use VM work requests to transmit data.
+This lets PF interfaces transmit frames to VF interfaces over the internal
+switch in the ASIC.
+Note that the
+.Xr cxgbev 4
+VF driver always uses VM work requests and is not affected by this tunable.
+The default value is 0 and should be changed only if PF and VF interfaces need
+to communicate with each other.
+Different interfaces can be assigned different values using the
+dev.<port>.X.tx_vm_wr sysctl when the interface is administratively down.
 .El
 .Sh SUPPORT
 For general information and support,
