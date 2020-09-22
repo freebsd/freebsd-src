@@ -183,6 +183,7 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
  * Namei results flags
  */
 #define	NIRES_ABS	0x00000001 /* Path was absolute */
+#define	NIRES_STRICTREL	0x00000002 /* Restricted lookup result */
 
 /*
  * Flags in ni_lcf, valid for the duration of the namei call.
