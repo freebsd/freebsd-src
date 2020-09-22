@@ -28,7 +28,7 @@
 .\"     @(#)stat.2	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2020
+.Dd September 23, 2020
 .Dt STAT 2
 .Os
 .Sh NAME
@@ -117,6 +117,13 @@ names a symbolic link, the status of the symbolic link is returned.
 Only stat files and directories below the topping directory.
 See the description of the
 .Dv O_BENEATH
+flag in the
+.Xr open 2
+manual page.
+.It Dv AT_RESOLVE_BENEATH
+Only walks paths below the topping directory.
+See the description of the
+.Dv O_RESOLVE_BENEATH
 flag in the
 .Xr open 2
 manual page.
