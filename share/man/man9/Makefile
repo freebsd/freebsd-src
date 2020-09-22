@@ -121,6 +121,7 @@ MAN=	accept_filter.9 \
 	DEVICE_SHUTDOWN.9 \
 	DEV_MODULE.9 \
 	dev_refthread.9 \
+	devctl_process_running.9 \
 	devstat.9 \
 	devtoname.9 \
 	disk.9 \
