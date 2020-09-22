@@ -55,7 +55,8 @@ corresponding to the very first byte of packet headers, and the
 .Va length
 bytes beginning from
 .Va offset
-as a single integer in network byte order. An additional offset can be optionally 
+as a single integer in network byte order.
+An additional offset can be optionally
 requested at configuration time to account for packet type.
 .Sh HOOKS
 This node type has two hooks:
@@ -88,7 +89,7 @@ hook (to help calculate relative offset). Currently, supported types are
 If you want to work on the link layer header you must use no additional offset by specifying
 .Cm DLT_RAW .
 If
-.Cm EN10MB 
+.Cm EN10MB
 is specified, then the optional additional offset will take into account the Ethernet header and a QinQ header if present.
 .It Dv NGM_PATCH_GETDLT Pq Ic getdlt
 This control message returns the data link type of the
