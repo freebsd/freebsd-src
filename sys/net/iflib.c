@@ -2030,7 +2030,8 @@ _rxq_refill_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  * @count: the number of new buffers to allocate
  *
  * (Re)populate an rxq free-buffer list with up to @count new packet buffers.
- * The caller must assure that @count does not exceed the queue's capacity.
+ * The caller must assure that @count does not exceed the queue's capacity
+ * minus one (since we always leave a descriptor unavailable).
  */
 static uint8_t
 iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
@@ -2044,6 +2045,8 @@ iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 	bus_addr_t bus_addr, *sd_ba;
 	int err, frag_idx, i, idx, n, pidx;
 	qidx_t credits;
+
+	MPASS(count <= fl->ifl_size - fl->ifl_credits - 1);
 
 	sd_m = fl->ifl_sds.ifsd_m;
 	sd_map = fl->ifl_sds.ifsd_map;
@@ -2151,15 +2154,10 @@ iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 			fl->ifl_credits = credits;
 		}
 		DBG_COUNTER_INC(rxd_flush);
-		if (fl->ifl_pidx == 0)
-			pidx = fl->ifl_size - 1;
-		else
-			pidx = fl->ifl_pidx - 1;
-
 		bus_dmamap_sync(fl->ifl_ifdi->idi_tag, fl->ifl_ifdi->idi_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 		ctx->isc_rxd_flush(ctx->ifc_softc, fl->ifl_rxq->ifr_id,
-		    fl->ifl_id, pidx);
+		    fl->ifl_id, fl->ifl_pidx);
 		if (__predict_true(bit_test(fl->ifl_rx_bitmap, frag_idx))) {
 			fl->ifl_fragidx = frag_idx + 1;
 			if (fl->ifl_fragidx == fl->ifl_size)
@@ -2175,7 +2173,17 @@ iflib_fl_refill(if_ctx_t ctx, iflib_fl_t fl, int count)
 static inline uint8_t
 iflib_fl_refill_all(if_ctx_t ctx, iflib_fl_t fl)
 {
-	/* we avoid allowing pidx to catch up with cidx as it confuses ixl */
+	/*
+	 * We leave an unused descriptor to avoid pidx to catch up with cidx.
+	 * This is important as it confuses most NICs. For instance,
+	 * Intel NICs have (per receive ring) RDH and RDT registers, where
+	 * RDH points to the next receive descriptor to be used by the NIC,
+	 * and RDT for the next receive descriptor to be published by the
+	 * driver to the NIC (RDT - 1 is thus the last valid one).
+	 * The condition RDH == RDT means no descriptors are available to
+	 * the NIC, and thus it would be ambiguous if it also meant that
+	 * all the descriptors are available to the NIC.
+	 */
 	int32_t reclaimable = fl->ifl_size - fl->ifl_credits - 1;
 #ifdef INVARIANTS
 	int32_t delta = fl->ifl_size - get_inuse(fl->ifl_size, fl->ifl_cidx, fl->ifl_pidx, fl->ifl_gen) - 1;
@@ -2280,12 +2288,15 @@ iflib_fl_setup(iflib_fl_t fl)
 	fl->ifl_zone = m_getzone(fl->ifl_buf_size);
 
 
-	/* avoid pre-allocating zillions of clusters to an idle card
-	 * potentially speeding up attach
+	/*
+	 * Avoid pre-allocating zillions of clusters to an idle card
+	 * potentially speeding up attach. In any case make sure
+	 * to leave a descriptor unavailable. See the comment in
+	 * iflib_fl_refill_all().
 	 */
-	(void)iflib_fl_refill(ctx, fl, min(128, fl->ifl_size));
-	MPASS(min(128, fl->ifl_size) == fl->ifl_credits);
-	if (min(128, fl->ifl_size) != fl->ifl_credits)
+	MPASS(fl->ifl_size > 0);
+	(void)iflib_fl_refill(ctx, fl, min(128, fl->ifl_size - 1));
+	if (min(128, fl->ifl_size - 1) != fl->ifl_credits)
 		return (ENOBUFS);
 	/*
 	 * handle failure
