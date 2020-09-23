@@ -296,9 +296,29 @@ ASENTRY_NOPROF(rtascall)
 	std	%r6,16(%r1)	/* Save MSR */
 	std	%r9,24(%r1)	/* Save reference PC for high 32 bits */
 
+#ifdef __LITTLE_ENDIAN__
+	/* Atomic context switch w/ endian change */
+	li	%r7, 0
+	mtmsrd	%r7, 1	/* Clear PSL_EE|PSL_RI */
+	addis	%r7,%r2,TOC_REF(rtasmsr)@ha
+	ld	%r7,TOC_REF(rtasmsr)@l(%r7)
+	ld	%r7,0(%r7)
+	mtsrr0	%r5
+	mtsrr1	%r7
+	LOAD_LR_NIA
+1:
+	mflr	%r5
+	addi	%r5, %r5, (2f-1b)
+	mtlr	%r5
+	li	%r5, 0
+	rfid
+2:
+	RETURN_TO_NATIVE_ENDIAN
+#else
 	/* Finally, branch to RTAS */
 	mtctr	%r5
 	bctrl
+#endif
 
 	/* 
 	 * Reload stack pointer, MSR, reg PC from the reg save area in r1. We
