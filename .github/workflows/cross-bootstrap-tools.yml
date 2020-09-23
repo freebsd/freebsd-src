@@ -1,0 +1,35 @@
+name: Cross-build CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-18.04, ubuntu-20.04, macOS-latest]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: install LLVM+libarchive (Ubuntu)
+        run: |
+          wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+          chmod +x /tmp/llvm.sh
+          sudo /tmp/llvm.sh 11
+          sudo apt install -y libarchive-dev
+          echo "::set-env name=EXTRA_MAKE_ARGS::--cross-bindir=/usr/lib/llvm-11/bin"
+        if: ${{ startsWith(matrix.os, 'ubuntu') }}
+      - name: install LLVM+libarchive (macOS)
+        run: brew install llvm coreutils libarchive xz
+        if: ${{ startsWith(matrix.os, 'macOS') }}
+      - name: create build dir
+        run: rm -rf ../build && mkdir -p ../build
+      - name: make kernel-toolchain
+        run: env MAKEOBJDIRPREFIX=`realpath ../build` ./tools/build/make.py $EXTRA_MAKE_ARGS TARGET=amd64 TARGET_ARCH=amd64 kernel-toolchain -s -j$(nproc)
+      - name: make buildkernel
+        run: env MAKEOBJDIRPREFIX=`realpath ../build` ./tools/build/make.py $EXTRA_MAKE_ARGS TARGET=amd64 TARGET_ARCH=amd64 KERNCONF=GENERIC NO_MODULES=yes buildkernel -s -j$(nproc)
