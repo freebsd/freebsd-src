@@ -177,6 +177,8 @@ __FBSDID("$FreeBSD$");
 #define PV_STAT(x)	do { } while (0)
 #endif
 
+#define	pmap_l0_pindex(v)	(NUL2E + NUL1E + ((v) >> L0_SHIFT))
+#define	pmap_l1_pindex(v)	(NUL2E + ((v) >> L1_SHIFT))
 #define	pmap_l2_pindex(v)	((v) >> L2_SHIFT)
 
 static struct md_page *
@@ -1087,6 +1089,9 @@ pmap_init(void)
 		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
 		    ("pmap_init: can't assign to pagesizes[1]"));
 		pagesizes[1] = L2_SIZE;
+		KASSERT(MAXPAGESIZES > 2 && pagesizes[2] == 0,
+		    ("pmap_init: can't assign to pagesizes[2]"));
+		pagesizes[2] = L1_SIZE;
 	}
 
 	/*
@@ -1337,7 +1342,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 			use = true;
 
 		if (use) {
-			switch(lvl) {
+			switch (lvl) {
 			case 1:
 				off = va & L1_OFFSET;
 				break;
@@ -1349,7 +1354,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 				off = 0;
 			}
 			m = PHYS_TO_VM_PAGE((tpte & ~ATTR_MASK) | off);
-			if (!vm_page_wire_mapped(m))
+			if (m != NULL && !vm_page_wire_mapped(m))
 				m = NULL;
 		}
 	}
@@ -2968,11 +2973,23 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			continue;
 		}
 
+		va_next = (sva + L1_SIZE) & ~L1_OFFSET;
+		if (va_next < sva)
+			va_next = eva;
 		l1 = pmap_l0_to_l1(l0, sva);
-		if (pmap_load(l1) == 0) {
-			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
-			if (va_next < sva)
-				va_next = eva;
+		if (pmap_load(l1) == 0)
+			continue;
+		if ((pmap_load(l1) & ATTR_DESCR_MASK) == L1_BLOCK) {
+			KASSERT(va_next <= eva,
+			    ("partial update of non-transparent 1G page "
+			    "l1 %#lx sva %#lx eva %#lx va_next %#lx",
+			    pmap_load(l1), sva, eva, va_next));
+			MPASS(pmap != kernel_pmap);
+			MPASS((pmap_load(l1) & ATTR_SW_MANAGED) == 0);
+			pmap_clear(l1);
+			pmap_invalidate_page(pmap, sva);
+			pmap_resident_count_dec(pmap, L1_SIZE / PAGE_SIZE);
+			pmap_unuse_pt(pmap, sva, pmap_load(l0), &free);
 			continue;
 		}
 
@@ -3217,11 +3234,22 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			continue;
 		}
 
+		va_next = (sva + L1_SIZE) & ~L1_OFFSET;
+		if (va_next < sva)
+			va_next = eva;
 		l1 = pmap_l0_to_l1(l0, sva);
-		if (pmap_load(l1) == 0) {
-			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
-			if (va_next < sva)
-				va_next = eva;
+		if (pmap_load(l1) == 0)
+			continue;
+		if ((pmap_load(l1) & ATTR_DESCR_MASK) == L1_BLOCK) {
+			KASSERT(va_next <= eva,
+			    ("partial update of non-transparent 1G page "
+			    "l1 %#lx sva %#lx eva %#lx va_next %#lx",
+			    pmap_load(l1), sva, eva, va_next));
+			MPASS((pmap_load(l1) & ATTR_SW_MANAGED) == 0);
+			if ((pmap_load(l1) & mask) != nbits) {
+				pmap_store(l1, (pmap_load(l1) & ~mask) | nbits);
+				pmap_invalidate_page(pmap, sva);
+			}
 			continue;
 		}
 
@@ -3485,6 +3513,96 @@ setl3:
 }
 #endif /* VM_NRESERVLEVEL > 0 */
 
+static int
+pmap_enter_largepage(pmap_t pmap, vm_offset_t va, pt_entry_t newpte, int flags,
+    int psind)
+{
+	pd_entry_t *l0p, *l1p, *l2p, origpte;
+	vm_page_t mp;
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(psind > 0 && psind < MAXPAGESIZES,
+	    ("psind %d unexpected", psind));
+	KASSERT(((newpte & ~ATTR_MASK) & (pagesizes[psind] - 1)) == 0,
+	    ("unaligned phys address %#lx newpte %#lx psind %d",
+	    (newpte & ~ATTR_MASK), newpte, psind));
+
+restart:
+	if (psind == 2) {
+		l0p = pmap_l0(pmap, va);
+		if ((pmap_load(l0p) & ATTR_DESCR_VALID) == 0) {
+			mp = _pmap_alloc_l3(pmap, pmap_l0_pindex(va), NULL);
+			if (mp == NULL) {
+				if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+					return (KERN_RESOURCE_SHORTAGE);
+				PMAP_UNLOCK(pmap);
+				vm_wait(NULL);
+				PMAP_LOCK(pmap);
+				goto restart;
+			}
+			l1p = pmap_l0_to_l1(l0p, va);
+			KASSERT(l1p != NULL, ("va %#lx lost l1 entry", va));
+			origpte = pmap_load(l1p);
+		} else {
+			l1p = pmap_l0_to_l1(l0p, va);
+			KASSERT(l1p != NULL, ("va %#lx lost l1 entry", va));
+			origpte = pmap_load(l1p);
+			if ((origpte & ATTR_DESCR_VALID) == 0) {
+				mp = PHYS_TO_VM_PAGE(pmap_load(l0p) &
+				    ~ATTR_MASK);
+				mp->ref_count++;
+			}
+		}
+		KASSERT((origpte & ATTR_DESCR_VALID) == 0 ||
+		    ((origpte & ATTR_DESCR_MASK) == L1_BLOCK &&
+		     (origpte & ~ATTR_MASK) == (newpte & ~ATTR_MASK)),
+		    ("va %#lx changing 1G phys page l1 %#lx newpte %#lx",
+		    va, origpte, newpte));
+		pmap_store(l1p, newpte);
+	} else /* (psind == 1) */ {
+		l2p = pmap_l2(pmap, va);
+		if (l2p == NULL) {
+			mp = _pmap_alloc_l3(pmap, pmap_l1_pindex(va), NULL);
+			if (mp == NULL) {
+				if ((flags & PMAP_ENTER_NOSLEEP) != 0)
+					return (KERN_RESOURCE_SHORTAGE);
+				PMAP_UNLOCK(pmap);
+				vm_wait(NULL);
+				PMAP_LOCK(pmap);
+				goto restart;
+			}
+			l2p = (pd_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(mp));
+			l2p = &l2p[pmap_l2_index(va)];
+			origpte = pmap_load(l2p);
+		} else {
+			l1p = pmap_l1(pmap, va);
+			origpte = pmap_load(l2p);
+			if ((origpte & ATTR_DESCR_VALID) == 0) {
+				mp = PHYS_TO_VM_PAGE(pmap_load(l1p) &
+				    ~ATTR_MASK);
+				mp->ref_count++;
+			}
+		}
+		KASSERT((origpte & ATTR_DESCR_VALID) == 0 ||
+		    ((origpte & ATTR_DESCR_MASK) == L2_BLOCK &&
+		     (origpte & ~ATTR_MASK) == (newpte & ~ATTR_MASK)),
+		    ("va %#lx changing 2M phys page l2 %#lx newpte %#lx",
+		    va, origpte, newpte));
+		pmap_store(l2p, newpte);
+	}
+	dsb(ishst);
+
+	if ((origpte & ATTR_DESCR_VALID) == 0)
+		pmap_resident_count_inc(pmap, pagesizes[psind] / PAGE_SIZE);
+	if ((newpte & ATTR_SW_WIRED) != 0 && (origpte & ATTR_SW_WIRED) == 0)
+		pmap->pm_stats.wired_count += pagesizes[psind] / PAGE_SIZE;
+	else if ((newpte & ATTR_SW_WIRED) == 0 &&
+	    (origpte & ATTR_SW_WIRED) != 0)
+		pmap->pm_stats.wired_count -= pagesizes[psind] / PAGE_SIZE;
+
+	return (KERN_SUCCESS);
+}
+
 /*
  *	Insert the given physical page (p) at
  *	the specified virtual address (v) in the
@@ -3560,6 +3678,17 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	lock = NULL;
 	PMAP_LOCK(pmap);
+	if ((flags & PMAP_ENTER_LARGEPAGE) != 0) {
+		KASSERT((m->oflags & VPO_UNMANAGED) != 0,
+		    ("managed largepage va %#lx flags %#x", va, flags));
+		new_l3 &= ~L3_PAGE;
+		if (psind == 2)
+			new_l3 |= L1_BLOCK;
+		else /* (psind == 1) */
+			new_l3 |= L2_BLOCK;
+		rv = pmap_enter_largepage(pmap, va, new_l3, flags, psind);
+		goto out;
+	}
 	if (psind == 1) {
 		/* Assert the required virtual and physical alignment. */
 		KASSERT((va & L2_OFFSET) == 0, ("pmap_enter: va unaligned"));
@@ -4209,10 +4338,22 @@ pmap_unwire(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		}
 
 		l1 = pmap_l0_to_l1(l0, sva);
-		if (pmap_load(l1) == 0) {
-			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
-			if (va_next < sva)
-				va_next = eva;
+		va_next = (sva + L1_SIZE) & ~L1_OFFSET;
+		if (va_next < sva)
+			va_next = eva;
+		if (pmap_load(l1) == 0)
+			continue;
+
+		if ((pmap_load(l1) & ATTR_DESCR_MASK) == L1_BLOCK) {
+			KASSERT(va_next <= eva,
+			    ("partial update of non-transparent 1G page "
+			    "l1 %#lx sva %#lx eva %#lx va_next %#lx",
+			    pmap_load(l1), sva, eva, va_next));
+			MPASS(pmap != kernel_pmap);
+			MPASS((pmap_load(l1) & (ATTR_SW_MANAGED |
+			    ATTR_SW_WIRED)) == ATTR_SW_WIRED);
+			pmap_clear_bits(l1, ATTR_SW_WIRED);
+			pmap->pm_stats.wired_count -= L1_SIZE / PAGE_SIZE;
 			continue;
 		}
 
@@ -4284,7 +4425,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 	pd_entry_t *l0, *l1, *l2, srcptepaddr;
 	pt_entry_t *dst_pte, mask, nbits, ptetemp, *src_pte;
 	vm_offset_t addr, end_addr, va_next;
-	vm_page_t dst_l2pg, dstmpte, srcmpte;
+	vm_page_t dst_m, dstmpte, srcmpte;
 
 	PMAP_ASSERT_STAGE1(dst_pmap);
 	PMAP_ASSERT_STAGE1(src_pmap);
@@ -4308,13 +4449,40 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				va_next = end_addr;
 			continue;
 		}
+
+		va_next = (addr + L1_SIZE) & ~L1_OFFSET;
+		if (va_next < addr)
+			va_next = end_addr;
 		l1 = pmap_l0_to_l1(l0, addr);
-		if (pmap_load(l1) == 0) {
-			va_next = (addr + L1_SIZE) & ~L1_OFFSET;
-			if (va_next < addr)
-				va_next = end_addr;
+		if (pmap_load(l1) == 0)
+			continue;
+		if ((pmap_load(l1) & ATTR_DESCR_MASK) == L1_BLOCK) {
+			KASSERT(va_next <= end_addr,
+			    ("partial update of non-transparent 1G page "
+			    "l1 %#lx addr %#lx end_addr %#lx va_next %#lx",
+			    pmap_load(l1), addr, end_addr, va_next));
+			srcptepaddr = pmap_load(l1);
+			l1 = pmap_l1(dst_pmap, addr);
+			if (l1 == NULL) {
+				if (_pmap_alloc_l3(dst_pmap,
+				    pmap_l0_pindex(addr), NULL) == NULL)
+					break;
+				l1 = pmap_l1(dst_pmap, addr);
+			} else {
+				l0 = pmap_l0(dst_pmap, addr);
+				dst_m = PHYS_TO_VM_PAGE(pmap_load(l0) &
+				    ~ATTR_MASK);
+				dst_m->ref_count++;
+			}
+			KASSERT(pmap_load(l1) == 0,
+			    ("1G mapping present in dst pmap "
+			    "l1 %#lx addr %#lx end_addr %#lx va_next %#lx",
+			    pmap_load(l1), addr, end_addr, va_next));
+			pmap_store(l1, srcptepaddr & ~ATTR_SW_WIRED);
+			pmap_resident_count_inc(dst_pmap, L1_SIZE / PAGE_SIZE);
 			continue;
 		}
+
 		va_next = (addr + L2_SIZE) & ~L2_OFFSET;
 		if (va_next < addr)
 			va_next = end_addr;
@@ -4326,7 +4494,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 			if ((addr & L2_OFFSET) != 0 ||
 			    addr + L2_SIZE > end_addr)
 				continue;
-			l2 = pmap_alloc_l2(dst_pmap, addr, &dst_l2pg, NULL);
+			l2 = pmap_alloc_l2(dst_pmap, addr, &dst_m, NULL);
 			if (l2 == NULL)
 				break;
 			if (pmap_load(l2) == 0 &&
@@ -4342,7 +4510,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 				    PAGE_SIZE);
 				atomic_add_long(&pmap_l2_mappings, 1);
 			} else
-				pmap_abort_ptp(dst_pmap, addr, dst_l2pg);
+				pmap_abort_ptp(dst_pmap, addr, dst_m);
 			continue;
 		}
 		KASSERT((srcptepaddr & ATTR_DESCR_MASK) == L2_TABLE,
@@ -5247,13 +5415,21 @@ pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int advice)
 				va_next = eva;
 			continue;
 		}
+
+		va_next = (sva + L1_SIZE) & ~L1_OFFSET;
+		if (va_next < sva)
+			va_next = eva;
 		l1 = pmap_l0_to_l1(l0, sva);
-		if (pmap_load(l1) == 0) {
-			va_next = (sva + L1_SIZE) & ~L1_OFFSET;
-			if (va_next < sva)
-				va_next = eva;
+		if (pmap_load(l1) == 0)
+			continue;
+		if ((pmap_load(l1) & ATTR_DESCR_MASK) == L1_BLOCK) {
+			KASSERT(va_next <= eva,
+			    ("partial update of non-transparent 1G page "
+			    "l1 %#lx sva %#lx eva %#lx va_next %#lx",
+			    pmap_load(l1), sva, eva, va_next));
 			continue;
 		}
+
 		va_next = (sva + L2_SIZE) & ~L2_OFFSET;
 		if (va_next < sva)
 			va_next = eva;
