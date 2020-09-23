@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "May 19, 2020" "NLnet Labs" "unbound 1.10.1"
+.TH "unbound.conf" "5" "Jul 27, 2020" "NLnet Labs" "unbound 1.11.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -77,6 +77,12 @@ for the included files works, relative pathnames for the included names work
 if the directory where the daemon is started equals its chroot/working
 directory or is specified before the include statement with directory: dir.
 Wildcards can be used to include multiple files, see \fIglob\fR(7).
+.P
+For a more structural include option, the
+.B include\-toplevel:
+directive can be used.  This closes whatever clause is currently active (if any)
+and forces the use of clauses in the included files and right after this
+directive.
 .SS "Server Options"
 These options are part of the
 .B server:
@@ -126,9 +132,12 @@ interface and port number), if not specified the default port (from
 Same as interface: (for ease of compatibility with nsd.conf).
 .TP
 .B interface\-automatic: \fI<yes or no>
-Detect source interface on UDP queries and copy them to replies.  This
-feature is experimental, and needs support in your OS for particular socket
-options.  Default value is no.
+Listen on all addresses on all (current and future) interfaces, detect the
+source interface on UDP queries and copy them to replies.  This is a lot like
+ip\-transparent, but this option services all interfaces whilst with
+ip\-transparent you can select which (future) interfaces unbound provides
+service on.  This feature is experimental, and needs support in your OS for
+particular socket options.  Default value is no.
 .TP
 .B outgoing\-interface: \fI<ip address or ip6 netblock>
 Interface to use to connect to the network. This interface is used to send
@@ -323,6 +332,12 @@ IP addresses that are nonlocal or do not exist, like when the network
 interface or IP address is down.  Exists only on Linux, where the similar
 ip\-transparent option is also available.
 .TP
+.B ip-dscp: \fI<number>
+The value of the Differentiated Services Codepoint (DSCP) in the
+differentiated services field (DS) of the outgoing IP packet headers.
+The field replaces the outdated IPv4 Type-Of-Service field and the
+IPV6 traffic class field.
+.TP
 .B rrset\-cache\-size: \fI<number>
 Number of bytes size of the RRset cache. Default is 4 megabytes.
 A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes, megabytes
@@ -380,6 +395,13 @@ If disabled, queries are not answered on IPv6, and queries are not sent on
 IPv6 to the internet nameservers.  With this option you can disable the
 ipv6 transport for sending DNS traffic, it does not impact the contents of
 the DNS traffic, which may have ip4 and ip6 addresses in it.
+.TP
+.B prefer\-ip4: \fI<yes or no>
+If enabled, prefer IPv4 transport for sending DNS queries to internet
+nameservers. Default is no.  Useful if the IPv6 netblock the server has,
+the entire /64 of that is not owned by one operator and the reputation of
+the netblock /64 is an issue, using IPv4 then uses the IPv4 filters that
+the upstream servers have.
 .TP
 .B prefer\-ip6: \fI<yes or no>
 If enabled, prefer IPv6 transport for sending DNS queries to internet
@@ -529,6 +551,11 @@ and that is the default.
 .B tls\-ciphersuites: \fI<string with ciphersuites list>
 Set the list of ciphersuites to allow when serving TLS.  This is for newer
 TLS 1.3 connections.  Use "" for defaults, and that is the default.
+.TP
+.B tls\-use\-sni: \fI<yes or no>
+Enable or disable sending the SNI extension on TLS connections.
+Default is yes.
+Changing the value requires a reload.
 .TP
 .B use\-systemd: \fI<yes or no>
 Enable or disable systemd socket activation.
@@ -843,7 +870,7 @@ NXDOMAIN from a DNSSEC signed zone. Default is yes.
 QNAME minimisation in strict mode. Do not fall-back to sending full QNAME to
 potentially broken nameservers. A lot of domains will not be resolvable when
 this option in enabled. Only use if you know what you are doing.
-This option only has effect when qname-minimisation is enabled. Default is off.
+This option only has effect when qname-minimisation is enabled. Default is no.
 .TP
 .B aggressive\-nsec: \fI<yes or no>
 Aggressive NSEC uses the DNSSEC NSEC chain to synthesize NXDOMAIN
@@ -911,7 +938,7 @@ are none.
 .TP
 .B rrset\-roundrobin: \fI<yes or no>
 If yes, Unbound rotates RRSet order in response (the random number is taken
-from the query ID, for speed and thread safety).  Default is no.
+from the query ID, for speed and thread safety).  Default is yes.
 .TP
 .B minimal-responses: \fI<yes or no>
 If yes, Unbound doesn't insert authority/additional sections into response
@@ -942,7 +969,9 @@ EDNS client subnet support the default is "subnetcache validator iterator".
 Most modules that need to be listed here have to be listed at the beginning
 of the line.  The cachedb module has to be listed just before the iterator.
 The python module can be listed in different places, it then processes the
-output of the module it is just before.
+output of the module it is just before. The dynlib module can be listed pretty
+much anywhere, it is only a very thin wrapper that allows dynamic libraries to
+run in its place.
 .TP
 .B trust\-anchor\-file: \fI<filename>
 File with trusted keys for validation. Both DS and DNSKEY entries can appear
@@ -1591,6 +1620,9 @@ Name of stub zone nameserver. Is itself resolved before it is used.
 .B stub\-addr: \fI<IP address>
 IP address of stub zone nameserver. Can be IP 4 or IP 6.
 To use a nondefault port for DNS communication append '@' with the port number.
+If tls is enabled, then you can append a '#' and a name, then it'll check
+the tls authentication certificates with that name.  If you combine
+the '@' and '#', the '@' comes first.
 .TP
 .B stub\-prime: \fI<yes or no>
 This option is by default no.  If enabled it performs NS set priming,
@@ -1809,6 +1841,24 @@ directory.
 .B python\-script: \fI<python file>\fR
 The script file to load. Repeat this option for every python module instance
 added to the \fBmodule\-config:\fR option.
+.SS "Dynamic Library Module Options"
+.LP
+The
+.B dynlib:
+clause gives the settings for the \fIdynlib\fR module.  This module is only
+a very small wrapper that allows dynamic modules to be loaded on runtime
+instead of being compiled into the application. To enable the dynlib module it
+has to be compiled into the daemon, and the word "dynlib" has to be put in the
+\fBmodule\-config:\fR option. Multiple instances of dynamic libraries are
+supported by adding the word "dynlib" more than once.
+.LP
+The \fBdynlib\-file:\fR path should be specified as an absolute path relative
+to the new path set by \fBchroot:\fR option, or as a relative path to the
+working directory.
+.TP
+.B dynlib\-file: \fI<dynlib file>\fR
+The dynamic library file to load. Repeat this option for every dynlib module
+instance added to the \fBmodule\-config:\fR option.
 .SS "DNS64 Module Options"
 .LP
 The dns64 module must be configured in the \fBmodule\-config:\fR "dns64
@@ -2060,6 +2110,11 @@ even if some data have expired in terms of DNS TTL or the Redis server has
 cached too much data;
 if necessary the Redis server must be configured to limit the cache size,
 preferably with some kind of least-recently-used eviction policy.
+Additionaly, the \fBredis\-expire\-records\fR option can be used in order to
+set the relative DNS TTL of the message as timeout to the Redis records; keep
+in mind that some additional memory is used per key and that the expire
+information is stored as absolute Unix timestamps in Redis (computer time must
+be stable).
 This backend uses synchronous communication with the Redis server
 based on the assumption that the communication is stable and sufficiently
 fast.
@@ -2114,6 +2169,94 @@ If this timeout expires Unbound closes the connection, treats it as
 if the Redis server does not have the requested data, and will try to
 re-establish a new connection later.
 This option defaults to 100 milliseconds.
+.TP
+.B redis-expire-records: \fI<yes or no>
+If Redis record expiration is enabled.  If yes, unbound sets timeout for Redis
+records so that Redis can evict keys that have expired automatically.  If
+unbound is configured with \fBserve-expired\fR and \fBserve-expired-ttl\fR is 0,
+this option is internally reverted to "no".  Redis SETEX support is required
+for this option (Redis >= 2.0.0).
+This option defaults to no.
+.SS DNSTAP Logging Options
+DNSTAP support, when compiled in, is enabled in the \fBdnstap:\fR section.
+This starts an extra thread (when compiled with threading) that writes
+the log information to the destination.  If unbound is compiled without
+threading it does not spawn a thread, but connects per-process to the
+destination.
+.TP
+.B dnstap-enable: \fI<yes or no>
+If dnstap is enabled.  Default no.  If yes, it connects to the dnstap server
+and if any of the dnstap-log-..-messages options is enabled it sends logs
+for those messages to the server.
+.TP
+.B dnstap-bidirectional: \fI<yes or no>
+Use frame streams in bidirectional mode to transfer DNSTAP messages. Default is
+yes.
+.TP
+.B dnstap-socket-path: \fI<file name>
+Sets the unix socket file name for connecting to the server that is
+listening on that socket.  Default is "@DNSTAP_SOCKET_PATH@".
+.TP
+.B dnstap-ip: \fI<IPaddress[@port]>
+If "", the unix socket is used, if set with an IP address (IPv4 or IPv6)
+that address is used to connect to the server.
+.TP
+.B dnstap-tls: \fI<yes or no>
+Set this to use TLS to connect to the server specified in \fBdnstap-ip\fR.
+The default is yes.  If set to no, TCP is used to connect to the server.
+.TP
+.B dnstap-tls-server-name: \fI<name of TLS authentication>
+The TLS server name to authenticate the server with.  Used when \fBdnstap-tls\fR is enabled.  If "" it is ignored, default "".
+.TP
+.B dnstap-tls-cert-bundle: \fI<file name of cert bundle>
+The pem file with certs to verify the TLS server certificate. If "" the
+server default cert bundle is used, or the windows cert bundle on windows.
+Default is "".
+.TP
+.B dnstap-tls-client-key-file: \fI<file name>
+The client key file for TLS client authentication. If "" client
+authentication is not used.  Default is "".
+.TP
+.B dnstap-tls-client-cert-file: \fI<file name>
+The client cert file for TLS client authentication.  Default is "".
+.TP
+.B dnstap-send-identity: \fI<yes or no>
+If enabled, the server identity is included in the log messages.
+Default is no.
+.TP
+.B dnstap-send-version: \fI<yes or no>
+If enabled, the server version if included in the log messages.
+Default is no.
+.TP
+.B dnstap-identity: \fI<string>
+The identity to send with messages, if "" the hostname is used.
+Default is "".
+.TP
+.B dnstap-version: \fI<string>
+The version to send with messages, if "" the package version is used.
+Default is "".
+.TP
+.B dnstap-log-resolver-query-messages: \fI<yes or no>
+Enable to log resolver query messages.  Default is no.
+These are messages from unbound to upstream servers.
+.TP
+.B dnstap-log-resolver-response-messages: \fI<yes or no>
+Enable to log resolver response messages.  Default is no.
+These are replies from upstream servers to unbound.
+.TP
+.B dnstap-log-client-query-messages: \fI<yes or no>
+Enable to log client query messages.  Default is no.
+These are client queries to unbound.
+.TP
+.B dnstap-log-client-response-messages: \fI<yes or no>
+Enable to log client response messages.  Default is no.
+These are responses from unbound to clients.
+.TP
+.B dnstap-log-forwarder-query-messages: \fI<yes or no>
+Enable to log forwarder query messages.  Default is no.
+.TP
+.B dnstap-log-forwarder-response-messages: \fI<yes or no>
+Enable to log forwarder response messages.  Default is no.
 .SS Response Policy Zone Options
 .LP
 Response Policy Zones are configured with \fBrpz:\fR, and each one must have a

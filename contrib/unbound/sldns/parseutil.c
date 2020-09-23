@@ -167,7 +167,7 @@ sldns_gmtime64_r(int64_t clock, struct tm *result)
 static int64_t
 sldns_serial_arithmetics_time(int32_t time, time_t now)
 {
-	int32_t offset = time - (int32_t) now;
+	int32_t offset = (int32_t)((uint32_t) time - (uint32_t) now);
 	return (int64_t) now + offset;
 }
 

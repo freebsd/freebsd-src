@@ -451,11 +451,9 @@ daemon_create_workers(struct daemon* daemon)
 		fatal_exit("out of memory during daemon init");
 	if(daemon->cfg->dnstap) {
 #ifdef USE_DNSTAP
-		daemon->dtenv = dt_create(daemon->cfg->dnstap_socket_path,
-			(unsigned int)daemon->num);
+		daemon->dtenv = dt_create(daemon->cfg);
 		if (!daemon->dtenv)
 			fatal_exit("dt_create failed");
-		dt_apply_cfg(daemon->dtenv, daemon->cfg);
 #else
 		fatal_exit("dnstap enabled in config but not built with dnstap support");
 #endif
@@ -783,7 +781,7 @@ daemon_delete(struct daemon* daemon)
 #  endif
 #  ifdef HAVE_OPENSSL_CONFIG
 	EVP_cleanup();
-#  if (OPENSSL_VERSION_NUMBER < 0x10100000) && !defined(OPENSSL_NO_ENGINE)
+#  if (OPENSSL_VERSION_NUMBER < 0x10100000) && !defined(OPENSSL_NO_ENGINE) && defined(HAVE_ENGINE_CLEANUP)
 	ENGINE_cleanup();
 #  endif
 	CONF_modules_free();

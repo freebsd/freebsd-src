@@ -79,6 +79,7 @@
 #include "sldns/wire2str.h"
 #include "util/shm_side/shm_main.h"
 #include "dnscrypt/dnscrypt.h"
+#include "dnstap/dtstream.h"
 
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
@@ -1807,14 +1808,14 @@ worker_init(struct worker* worker, struct config_file *cfg,
 	worker->back = outside_network_create(worker->base,
 		cfg->msg_buffer_size, (size_t)cfg->outgoing_num_ports, 
 		cfg->out_ifs, cfg->num_out_ifs, cfg->do_ip4, cfg->do_ip6, 
-		cfg->do_tcp?cfg->outgoing_num_tcp:0, 
+		cfg->do_tcp?cfg->outgoing_num_tcp:0, cfg->ip_dscp,
 		worker->daemon->env->infra_cache, worker->rndstate,
 		cfg->use_caps_bits_for_id, worker->ports, worker->numports,
 		cfg->unwanted_threshold, cfg->outgoing_tcp_mss,
 		&worker_alloc_cleanup, worker,
 		cfg->do_udp || cfg->udp_upstream_without_downstream,
 		worker->daemon->connect_sslctx, cfg->delay_close,
-		dtenv);
+		cfg->tls_use_sni, dtenv);
 	if(!worker->back) {
 		log_err("could not create outgoing sockets");
 		worker_delete(worker);
@@ -1914,6 +1915,20 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		) {
 		auth_xfer_pickup_initial(worker->env.auth_zones, &worker->env);
 	}
+#ifdef USE_DNSTAP
+	if(worker->daemon->cfg->dnstap
+#ifndef THREADS_DISABLED
+		&& worker->thread_num == 0
+#endif
+		) {
+		if(!dt_io_thread_start(dtenv->dtio, comm_base_internal(
+			worker->base), worker->daemon->num)) {
+			log_err("could not start dnstap io thread");
+			worker_delete(worker);
+			return 0;
+		}
+	}
+#endif /* USE_DNSTAP */
 	if(!worker->env.mesh || !worker->env.scratch_buffer) {
 		worker_delete(worker);
 		return 0;
@@ -1961,6 +1976,16 @@ worker_delete(struct worker* worker)
 		wsvc_desetup_worker(worker);
 #endif /* UB_ON_WINDOWS */
 	}
+#ifdef USE_DNSTAP
+	if(worker->daemon->cfg->dnstap
+#ifndef THREADS_DISABLED
+		&& worker->thread_num == 0
+#endif
+		) {
+		dt_io_thread_stop(worker->dtenv.dtio);
+	}
+	dt_deinit(&worker->dtenv);
+#endif /* USE_DNSTAP */
 	comm_base_delete(worker->base);
 	ub_randfree(worker->rndstate);
 	alloc_clear(&worker->alloc);
@@ -2099,3 +2124,18 @@ int codeline_cmp(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
 	return 0;
 }
 
+#ifdef USE_DNSTAP
+void dtio_tap_callback(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
+	void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+#endif
+
+#ifdef USE_DNSTAP
+void dtio_mainfdcallback(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),
+	void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+#endif

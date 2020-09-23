@@ -1,12 +1,16 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.10.1.
+# See unbound.conf(5) man page, version 1.11.0.
 #
 # this is a comment.
 
-#Use this to include other text into the file.
+# Use this anywhere in the file to include other text into this file.
 #include: "otherfile.conf"
+
+# Use this anywhere in the file to include other text, that explicitly starts a
+# clause, into this file. Text after this directive needs to start a clause.
+#include-toplevel: "otherfile.conf"
 
 # The server clause sets the main parameters.
 server:
@@ -70,6 +74,9 @@ server:
 	# Set this to yes to prefer ipv6 upstream servers over ipv4.
 	# prefer-ip6: no
 
+	# Prefer ipv4 upstream servers, even if ipv6 is available.
+	# prefer-ip4: no
+
 	# number of ports to allocate per thread, determines the size of the
 	# port range that can be open simultaneously.  About double the
 	# num-queries-per-thread, or, use as many as the OS will allow you.
@@ -115,6 +122,11 @@ server:
 	# and you can bind to nonexisting IPs and interfaces that are down.
 	# Linux only.  On Linux you also have ip-transparent that is similar.
 	# ip-freebind: no
+
+	# the value of the Differentiated Services Codepoint (DSCP)
+	# in the differentiated services field (DS) of the outgoing
+	# IP packets
+	# ip-dscp: 0
 
 	# EDNS reassembly buffer to advertise to UDP peers (the actual buffer
 	# is set with msg-buffer-size). 1472 can solve fragmentation (timeouts)
@@ -465,7 +477,7 @@ server:
 	# deny-any: no
 
 	# if yes, Unbound rotates RRSet order in response.
-	# rrset-roundrobin: no
+	# rrset-roundrobin: yes
 
 	# if yes, Unbound doesn't insert authority/additional sections
 	# into response messages when those sections are not required.
@@ -738,6 +750,10 @@ server:
 	# cipher setting for TLSv1.3
 	# tls-ciphersuites: "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_8_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256"
 
+	# Use the SNI extension for TLS connections.  Default is yes.
+	# Changing the value requires a reload.
+	# tls-use-sni: yes
+
 	# Add the secret file for TLS Session Ticket.
 	# Secret file must be 80 bytes of random data.
 	# First key use to encrypt and decrypt TLS session tickets.
@@ -846,6 +862,17 @@ server:
 python:
 	# Script file to load
 	# python-script: "@UNBOUND_SHARE_DIR@/ubmodule-tst.py"
+
+# Dynamic library config section. To enable:
+# o use --with-dynlibmodule to configure before compiling.
+# o list dynlib in the module-config string (above) to enable.
+#   It can be placed anywhere, the dynlib module is only a very thin wrapper
+#   to load modules dynamically.
+# o and give a dynlib-file to run. If more than one dynlib entry is listed in
+#   the module-config then you need one dynlib-file per instance.
+dynlib:
+	# Script file to load
+	# dynlib-file: "@UNBOUND_SHARE_DIR@/dynlib.so"
 
 # Remote control config section.
 remote-control:
@@ -1005,16 +1032,52 @@ remote-control:
 #     redis-server-port: 6379
 #     # timeout (in ms) for communication with the redis server
 #     redis-timeout: 100
+#     # set timeout on redis records based on DNS response TTL
+#     redis-expire-records: no
 
 # IPSet
 # Add specify domain into set via ipset.
-# Note: To enable ipset needs run unbound as root user.
+# Note: To enable ipset unbound needs to run as root user.
 # ipset:
 #     # set name for ip v4 addresses
 #     name-v4: "list-v4"
 #     # set name for ip v6 addresses
 #     name-v6: "list-v6"
 #
+
+# Dnstap logging support, if compiled in.  To enable, set the dnstap-enable
+# to yes and also some of dnstap-log-..-messages to yes.  And select an
+# upstream log destination, by socket path, TCP or TLS destination.
+# dnstap:
+# 	dnstap-enable: no
+# 	# if set to yes frame streams will be used in bidirectional mode
+# 	dnstap-bidirectional: yes
+# 	dnstap-socket-path: "@DNSTAP_SOCKET_PATH@"
+# 	# if "" use the unix socket in dnstap-socket-path, otherwise,
+# 	# set it to "IPaddress[@port]" of the destination.
+# 	dnstap-ip: ""
+# 	# if set to yes if you want to use TLS to dnstap-ip, no for TCP.
+# 	dnstap-tls: yes
+# 	# name for authenticating the upstream server. or "" disabled.
+# 	dnstap-tls-server-name: ""
+# 	# if "", it uses the cert bundle from the main unbound config.
+# 	dnstap-tls-cert-bundle: ""
+# 	# key file for client authentication, or "" disabled.
+# 	dnstap-tls-client-key-file: ""
+# 	# cert file for client authentication, or "" disabled.
+# 	dnstap-tls-client-cert-file: ""
+# 	dnstap-send-identity: no
+# 	dnstap-send-version: no
+# 	# if "" it uses the hostname.
+# 	dnstap-identity: ""
+# 	# if "" it uses the package version.
+# 	dnstap-version: ""
+# 	dnstap-log-resolver-query-messages: no
+# 	dnstap-log-resolver-response-messages: no
+# 	dnstap-log-client-query-messages: no
+# 	dnstap-log-client-response-messages: no
+# 	dnstap-log-forwarder-query-messages: no
+# 	dnstap-log-forwarder-response-messages: no
 
 # Response Policy Zones
 # RPZ policies. Applied in order of configuration. QNAME and Response IP

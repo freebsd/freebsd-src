@@ -162,7 +162,7 @@ iter_new(struct module_qstate* qstate, int id)
 	iq->qchase = qstate->qinfo;
 	outbound_list_init(&iq->outlist);
 	iq->minimise_count = 0;
-	iq->minimise_timeout_count = 0;
+	iq->timeout_count = 0;
 	if (qstate->env->cfg->qname_minimisation)
 		iq->minimisation_state = INIT_MINIMISE_STATE;
 	else
@@ -2239,7 +2239,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->qinfo_out.qname = iq->qchase.qname;
 		iq->qinfo_out.qname_len = iq->qchase.qname_len;
 		iq->minimise_count++;
-		iq->minimise_timeout_count = 0;
+		iq->timeout_count = 0;
 
 		iter_dec_attempts(iq->dp, 1);
 
@@ -2327,7 +2327,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		}
 	}
 	if(iq->minimisation_state == SKIP_MINIMISE_STATE) {
-		if(iq->minimise_timeout_count < MAX_MINIMISE_TIMEOUT_COUNT)
+		if(iq->timeout_count < MAX_MINIMISE_TIMEOUT_COUNT)
 			/* Do not increment qname, continue incrementing next 
 			 * iteration */
 			iq->minimisation_state = MINIMISE_STATE;
@@ -2668,14 +2668,15 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 	if(iq->response == NULL) {
 		/* Don't increment qname when QNAME minimisation is enabled */
 		if(qstate->env->cfg->qname_minimisation) {
-			iq->minimise_timeout_count++;
 			iq->minimisation_state = SKIP_MINIMISE_STATE;
 		}
+		iq->timeout_count++;
 		iq->chase_to_rd = 0;
 		iq->dnssec_lame_query = 0;
 		verbose(VERB_ALGO, "query response was timeout");
 		return next_state(iq, QUERYTARGETS_STATE);
 	}
+	iq->timeout_count = 0;
 	type = response_type_from_server(
 		(int)((iq->chase_flags&BIT_RD) || iq->chase_to_rd),
 		iq->response, &iq->qinfo_out, iq->dp);
@@ -3690,7 +3691,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	iq->response = NULL;
 	iq->state = QUERY_RESP_STATE;
 	if(event == module_event_noreply || event == module_event_error) {
-		if(event == module_event_noreply && iq->sent_count >= 3 &&
+		if(event == module_event_noreply && iq->timeout_count >= 3 &&
 			qstate->env->cfg->use_caps_bits_for_id &&
 			!iq->caps_fallback && !is_caps_whitelisted(ie, iq)) {
 			/* start fallback */

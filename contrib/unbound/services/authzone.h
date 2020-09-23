@@ -82,8 +82,8 @@ struct auth_zones {
 	size_t num_query_up;
 	/** number of queries downstream */
 	size_t num_query_down;
-	/** first rpz item in linked list */
-	struct rpz* rpz_first;
+	/** first auth zone containing rpz item in linked list */
+	struct auth_zone* rpz_first;
 	/** rw lock for rpz linked list, needed when iterating or editing linked
 	 * list. */
 	lock_rw_type rpz_lock;
@@ -138,6 +138,11 @@ struct auth_zone {
 	int zone_deleted;
 	/** deletelist pointer, unused normally except during delete */
 	struct auth_zone* delete_next;
+	/* not protected by auth_zone lock, must be last items in struct */
+	/** next auth zone containing RPZ data, or NULL */
+	struct auth_zone* rpz_az_next;
+	/** previous auth zone containing RPZ data, or NULL */
+	struct auth_zone* rpz_az_prev;
 };
 
 /**

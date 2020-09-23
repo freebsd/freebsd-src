@@ -502,10 +502,16 @@ copy_rrset(const struct ub_packed_rrset_key* key, struct regional* region)
 	ck->entry.hash = key->entry.hash;
 	ck->entry.key = ck;
 	ck->rk = key->rk;
-	ck->rk.dname = regional_alloc_init(region, key->rk.dname,
-		key->rk.dname_len);
-	if(!ck->rk.dname)
-		return NULL;
+	if(key->rk.dname) {
+		ck->rk.dname = regional_alloc_init(region, key->rk.dname,
+			key->rk.dname_len);
+		if(!ck->rk.dname)
+			return NULL;
+		ck->rk.dname_len = key->rk.dname_len;
+	} else {
+		ck->rk.dname = NULL;
+		ck->rk.dname_len = 0;
+	}
 
 	if((unsigned)data->count >= 0xffff00U)
 		return NULL; /* guard against integer overflow in dsize */
@@ -908,6 +914,7 @@ respip_rewrite_reply(const struct query_info* qinfo,
 	int ret = 1;
 	struct ub_packed_rrset_key* redirect_rrset = NULL;
 	struct rpz* r;
+	struct auth_zone* a;
 	struct ub_packed_rrset_key* data = NULL;
 	int rpz_used = 0;
 	int rpz_log = 0;
@@ -949,6 +956,10 @@ respip_rewrite_reply(const struct query_info* qinfo,
 		}
 		if(!raddr && !view->isfirst)
 			goto done;
+		if(!raddr && view->isfirst) {
+			lock_rw_unlock(&view->lock);
+			view = NULL;
+		}
 	}
 	if(!raddr && (raddr = respip_addr_lookup(rep, ipset,
 		&rrset_id))) {
@@ -959,7 +970,9 @@ respip_rewrite_reply(const struct query_info* qinfo,
 			ipset->tagname, ipset->num_tags);
 	}
 	lock_rw_rdlock(&az->rpz_lock);
-	for(r = az->rpz_first; r && !raddr; r = r->next) {
+	for(a = az->rpz_first; a && !raddr; a = a->rpz_az_next) {
+		lock_rw_rdlock(&a->lock);
+		r = a->rpz;
 		if(!r->taglist || taglist_intersect(r->taglist, 
 			r->taglistlen, ctaglist, ctaglen)) {
 			if((raddr = respip_addr_lookup(rep,
@@ -969,16 +982,21 @@ respip_rewrite_reply(const struct query_info* qinfo,
 					region, &rpz_used)) {
 					log_err("out of memory");
 					lock_rw_unlock(&raddr->lock);
+					lock_rw_unlock(&a->lock);
 					lock_rw_unlock(&az->rpz_lock);
 					return 0;
 				}
-				if(!rpz_used) {
-					lock_rw_unlock(&raddr->lock);
-					raddr = NULL;
-					actinfo->rpz_disabled++;
+				if(rpz_used) {
+					/* break to make sure 'a' stays pointed
+					 * to used auth_zone, and keeps lock */
+					break;
 				}
+				lock_rw_unlock(&raddr->lock);
+				raddr = NULL;
+				actinfo->rpz_disabled++;
 			}
-		}	
+		}
+		lock_rw_unlock(&a->lock);
 	}
 	lock_rw_unlock(&az->rpz_lock);
 	if(raddr && !search_only) {
@@ -1031,6 +1049,9 @@ respip_rewrite_reply(const struct query_info* qinfo,
 	}
 	if(raddr) {
 		lock_rw_unlock(&raddr->lock);
+	}
+	if(rpz_used) {
+		lock_rw_unlock(&a->lock);
 	}
 	return ret;
 }

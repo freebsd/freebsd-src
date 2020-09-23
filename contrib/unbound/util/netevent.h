@@ -783,7 +783,23 @@ void comm_base_handle_slow_accept(int fd, short event, void* arg);
 void comm_point_tcp_win_bio_cb(struct comm_point* c, void* ssl);
 #endif
 
-/** see if errno for tcp connect has to be logged or not. This uses errno */
+/**
+ * See if errno for tcp connect has to be logged or not. This uses errno
+ * @param addr: apart from checking errno, the addr is checked for ip4mapped
+ * 	and broadcast type, hence passed.
+ * @param addrlen: length of the addr parameter.
+ * @return true if it needs to be logged.
+ */
 int tcp_connect_errno_needs_log(struct sockaddr* addr, socklen_t addrlen);
+
+#ifdef HAVE_SSL
+/**
+ * True if the ssl handshake error has to be squelched from the logs
+ * @param err: the error returned by the openssl routine, ERR_get_error.
+ * 	This is a packed structure with elements that are examined.
+ * @return true if the error is squelched (not logged).
+ */
+int squelch_err_ssl_handshake(unsigned long err);
+#endif
 
 #endif /* NET_EVENT_H */
