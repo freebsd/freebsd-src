@@ -241,6 +241,11 @@
 #define	DMAP_TO_PHYS(x)	({ panic("No direct map exists"); 0; })
 
 /*
+ * No non-transparent large page support in the pmap.
+ */
+#define	PMAP_HAS_LARGEPAGES	0
+
+/*
  * Need a page dump array for minidump.
  */
 #define MINIDUMP_PAGE_TRACKING	1

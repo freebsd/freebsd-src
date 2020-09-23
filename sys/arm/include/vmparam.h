@@ -194,6 +194,11 @@ extern vm_offset_t vm_max_kernel_address;
 #define	DEVMAP_MAX_VADDR	ARM_VECTORS_HIGH
 
 /*
+ * No non-transparent large page support in the pmap.
+ */
+#define	PMAP_HAS_LARGEPAGES	0
+
+/*
  * Need a page dump array for minidump.
  */
 #define MINIDUMP_PAGE_TRACKING	1

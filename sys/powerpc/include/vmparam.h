@@ -327,4 +327,9 @@ struct pmap_physseg {
 	KASSERT(hw_direct_map, ("Direct map not provided by PMAP"));	\
 	(x) &~ DMAP_BASE_ADDRESS; })
 
+/*
+ * No non-transparent large page support in the pmap.
+ */
+#define	PMAP_HAS_LARGEPAGES	0
+
 #endif /* _MACHINE_VMPARAM_H_ */
