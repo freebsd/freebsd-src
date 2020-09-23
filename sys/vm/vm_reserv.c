@@ -280,7 +280,7 @@ SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop, CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLA
 static int sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS);
 
 SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_vm_reserv_partpopq, "A",
     "Partially populated reservation queues");
 
