@@ -94,7 +94,7 @@ opal_hmi_handler2(struct trapframe *frame)
 	*flags = 0;
 	err = opal_call(OPAL_HANDLE_HMI2, DMAP_TO_PHYS((vm_offset_t)flags));
 
-	if (*flags & OPAL_HMI_FLAGS_TOD_TB_FAIL)
+	if (be64toh(*flags) & OPAL_HMI_FLAGS_TOD_TB_FAIL)
 		panic("TOD/TB recovery failure");
 
 	if (err == OPAL_SUCCESS)
