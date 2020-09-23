@@ -487,6 +487,8 @@ vm_fault_populate(struct faultstate *fs)
 	 * populate only busies the first page in superpage run.
 	 */
 	if (bdry_idx != 0) {
+		KASSERT(PMAP_HAS_LARGEPAGES,
+		    ("missing pmap support for large pages"));
 		m = vm_page_lookup(fs->first_object, pager_first);
 		vm_fault_populate_check_page(m);
 		VM_OBJECT_WUNLOCK(fs->first_object);

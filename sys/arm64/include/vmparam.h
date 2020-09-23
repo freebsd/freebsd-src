@@ -244,6 +244,11 @@ extern vm_offset_t init_pt_va;
 #define	DEVMAP_MAX_VADDR	VM_MAX_KERNEL_ADDRESS
 
 /*
+ * The pmap can create non-transparent large page mappings.
+ */
+#define	PMAP_HAS_LARGEPAGES	1
+
+/*
  * Need a page dump array for minidump.
  */
 #define MINIDUMP_PAGE_TRACKING	1
