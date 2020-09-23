@@ -134,6 +134,16 @@ struct kvm_bitmap {
 /*
  * Functions used internally by kvm, but across kvm modules.
  */
+static inline uint16_t
+_kvm16toh(kvm_t *kd, uint16_t val)
+{
+
+	if (kd->nlehdr.e_ident[EI_DATA] == ELFDATA2LSB)
+		return (le16toh(val));
+	else
+		return (be16toh(val));
+}
+
 static inline uint32_t
 _kvm32toh(kvm_t *kd, uint32_t val)
 {
