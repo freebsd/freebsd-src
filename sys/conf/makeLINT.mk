@@ -11,12 +11,6 @@ clean:
 .if ${TARGET} == "amd64" || ${TARGET} == "i386"
 	rm -f LINT-NOINET LINT-NOINET6 LINT-NOIP
 .endif
-.if ${TARGET} == "arm"
-	# LINT-V5 removed 2019-11-26.  The clean rule is left here temporarily
-	# to avoid having stale copies left behind. LINT-V7 left the tree on
-	# 2020-02-02.
-	rm -f LINT-V5 LINT-V7
-.endif
 .if ${TARGET} == "powerpc"
 	rm -f LINT64
 .endif
