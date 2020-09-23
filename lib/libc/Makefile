@@ -15,8 +15,8 @@ LIBC_SRCTOP?= ${.CURDIR}
 # named MACHINE_CPUARCH, but some ABIs are different enough to require
 # their own libc, so allow a directory named MACHINE_ARCH to override this.
 
-.if exists(${LIBC_SRCTOP}/${MACHINE_ARCH})
-LIBC_ARCH=${MACHINE_ARCH}
+.if exists(${LIBC_SRCTOP}/${MACHINE_ARCH:S/powerpc64le/powerpc64/})
+LIBC_ARCH=${MACHINE_ARCH:S/powerpc64le/powerpc64/}
 .else
 LIBC_ARCH=${MACHINE_CPUARCH}
 .endif
