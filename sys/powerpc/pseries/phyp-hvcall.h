@@ -170,6 +170,13 @@
 #define H_PP1 (1UL<<(63-62))
 #define H_PP2 (1UL<<(63-63))
 
+/* H_SET_MODE resource identifiers from 14.5.4.3.5. */
+#define	H_SET_MODE_RSRC_CIABR		0x1	/* All versions */
+#define	H_SET_MODE_RSRC_DAWR0		0x2	/* All versions */
+#define	H_SET_MODE_RSRC_INTR_TRANS_MODE	0x3	/* All versions */
+#define	H_SET_MODE_RSRC_ILE		0x4	/* PAPR 2.8 / ISA 2.07 */
+#define	H_SET_MODE_RSRC_DAWR1		0x5	/* ISA 3.1 Future support */
+
 /* pSeries hypervisor opcodes. */
 #define H_REMOVE		0x04
 #define H_ENTER			0x08
