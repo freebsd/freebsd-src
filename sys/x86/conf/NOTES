@@ -18,7 +18,7 @@ options 	COMPAT_43
 
 # The syscons console driver (SCO color console compatible).
 device		sc
-hint.sc.0.at="isa"
+envvar		hint.sc.0.at="isa"
 options 	MAXCONS=16		# number of virtual consoles
 options 	SC_ALT_MOUSE_IMAGE	# simplified mouse cursor in text mode
 options 	SC_DFLT_FONT		# compile font in
@@ -83,10 +83,10 @@ device		warp_saver
 # the Y-E DATA External FDD (PC Card)
 #
 device		fdc
-hint.fdc.0.at="isa"
-hint.fdc.0.port="0x3F0"
-hint.fdc.0.irq="6"
-hint.fdc.0.drq="2"
+envvar		hint.fdc.0.at="isa"
+envvar		hint.fdc.0.port="0x3F0"
+envvar		hint.fdc.0.irq="6"
+envvar		hint.fdc.0.drq="2"
 #
 # FDC_DEBUG enables floppy debugging.  Since the debug output is huge, you
 # gotta turn it actually on by setting the variable fd_debug with DDB,
@@ -99,7 +99,7 @@ options 	FDC_DEBUG
 #hint.fdc.0.flags="1"
 
 # Specify floppy devices
-hint.fd.0.at="fdc0"
-hint.fd.0.drive="0"
-hint.fd.1.at="fdc0"
-hint.fd.1.drive="1"
+envvar		hint.fd.0.at="fdc0"
+envvar		hint.fd.0.drive="0"
+envvar		hint.fd.1.at="fdc0"
+envvar		hint.fd.1.drive="1"
