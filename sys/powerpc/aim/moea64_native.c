@@ -633,14 +633,45 @@ static int
 atomic_pte_lock(volatile struct lpte *pte, uint64_t bitmask, uint64_t *oldhi)
 {
 	int	ret;
+#ifdef __powerpc64__
+	uint64_t temp;
+#else
 	uint32_t oldhihalf;
+#endif
 
 	/*
 	 * Note: in principle, if just the locked bit were set here, we
 	 * could avoid needing the eviction lock. However, eviction occurs
 	 * so rarely that it isn't worth bothering about in practice.
 	 */
-
+#ifdef __powerpc64__
+	/*
+	 * Note: Success of this sequence has the side effect of invalidating
+	 * the PTE, as we are setting it to LPTE_LOCKED and discarding the
+	 * other bits, including LPTE_V.
+	 */
+	__asm __volatile (
+		"1:\tldarx %1, 0, %3\n\t"	/* load old value */
+		"and. %0,%1,%4\n\t"		/* check if any bits set */
+		"bne 2f\n\t"			/* exit if any set */
+		"stdcx. %5, 0, %3\n\t"		/* attempt to store */
+		"bne- 1b\n\t"			/* spin if failed */
+		"li %0, 1\n\t"			/* success - retval = 1 */
+		"b 3f\n\t"			/* we've succeeded */
+		"2:\n\t"
+		"stdcx. %1, 0, %3\n\t"       	/* clear reservation (74xx) */
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"3:\n\t"
+		: "=&r" (ret), "=&r"(temp), "=m" (pte->pte_hi)
+		: "r" ((volatile char *)&pte->pte_hi),
+		  "r" (htobe64(bitmask)), "r" (htobe64(LPTE_LOCKED)),
+		  "m" (pte->pte_hi)
+		: "cr0", "cr1", "cr2", "memory");
+	*oldhi = be64toh(temp);
+#else
+	/*
+	 * This code is used on bridge mode only.
+	 */
 	__asm __volatile (
 		"1:\tlwarx %1, 0, %3\n\t"	/* load old value */
 		"and. %0,%1,%4\n\t"		/* check if any bits set */
@@ -660,6 +691,7 @@ atomic_pte_lock(volatile struct lpte *pte, uint64_t bitmask, uint64_t *oldhi)
 		: "cr0", "cr1", "cr2", "memory");
 
 	*oldhi = (pte->pte_hi & 0xffffffff00000000ULL) | oldhihalf;
+#endif
 
 	return (ret);
 }
