@@ -57,7 +57,7 @@ opal_check(void)
 	OF_getencprop(opal, "opal-entry-address", val, sizeof(val));
 	opal_entrypoint = ((uint64_t)val[0] << 32) | val[1];
 
-	opal_msr = mfmsr() & ~(PSL_EE | PSL_IR | PSL_DR | PSL_SE);
+	opal_msr = mfmsr() & ~(PSL_EE | PSL_IR | PSL_DR | PSL_SE | PSL_LE);
 
 	opal_initialized = 1;
 
