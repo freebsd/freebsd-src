@@ -6,7 +6,11 @@
 One of the macros `BIGENDIAN' or `LITTLEENDIAN' must be defined.
 -------------------------------------------------------------------------------
 */
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define LITTLEENDIAN
+#else
 #define BIGENDIAN
+#endif
 
 /*
 -------------------------------------------------------------------------------
