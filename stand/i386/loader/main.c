@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/psl.h>
 #include <sys/disk.h>
 #include <sys/reboot.h>
-#include <sys/zfs_bootenv.h>
 #include <common/drv.h>
 
 #include "bootstrap.h"
@@ -50,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "btxv86.h"
 
 #ifdef LOADER_ZFS_SUPPORT
+#include <sys/zfs_bootenv.h>
 #include "libzfs.h"
 #endif
 

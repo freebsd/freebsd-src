@@ -26,7 +26,9 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/reboot.h>
 #include <sys/queue.h>
+#ifdef LOADER_ZFS_SUPPORT
 #include <sys/zfs_bootenv.h>
+#endif
 
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
