@@ -341,7 +341,7 @@ moea64_pte_unset_native(struct pvo_entry *pvo)
 	pvo_ptevpn = moea64_pte_vpn_from_pvo_vpn(pvo);
 
 	rw_rlock(&moea64_eviction_lock);
-	if ((be64toh(pt->pte_hi & LPTE_AVPN_MASK)) != pvo_ptevpn) {
+	if ((be64toh(pt->pte_hi) & LPTE_AVPN_MASK) != pvo_ptevpn) {
 		/* Evicted */
 		STAT_MOEA64(moea64_pte_overflow--);
 		rw_runlock(&moea64_eviction_lock);
@@ -354,7 +354,7 @@ moea64_pte_unset_native(struct pvo_entry *pvo)
 	 */
 	isync();
 	critical_enter();
-	pt->pte_hi = be64toh((pt->pte_hi & ~LPTE_VALID) | LPTE_LOCKED);
+	pt->pte_hi = htobe64((be64toh(pt->pte_hi) & ~LPTE_VALID) | LPTE_LOCKED);
 	PTESYNC();
 	TLBIE(pvo->pvo_vpn);
 	ptelo = be64toh(pt->pte_lo);
@@ -378,7 +378,7 @@ moea64_pte_replace_inval_native(struct pvo_entry *pvo,
 	moea64_pte_from_pvo(pvo, &properpt);
 
 	rw_rlock(&moea64_eviction_lock);
-	if ((be64toh(pt->pte_hi & LPTE_AVPN_MASK)) !=
+	if ((be64toh(pt->pte_hi) & LPTE_AVPN_MASK) !=
 	    (properpt.pte_hi & LPTE_AVPN_MASK)) {
 		/* Evicted */
 		STAT_MOEA64(moea64_pte_overflow--);
@@ -392,7 +392,7 @@ moea64_pte_replace_inval_native(struct pvo_entry *pvo,
 	 */
 	isync();
 	critical_enter();
-	pt->pte_hi = be64toh((pt->pte_hi & ~LPTE_VALID) | LPTE_LOCKED);
+	pt->pte_hi = htobe64((be64toh(pt->pte_hi) & ~LPTE_VALID) | LPTE_LOCKED);
 	PTESYNC();
 	TLBIE(pvo->pvo_vpn);
 	ptelo = be64toh(pt->pte_lo);
