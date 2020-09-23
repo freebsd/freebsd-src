@@ -53,22 +53,23 @@ struct vmstate {
 };
 
 static int
-valid_elf_header(Elf64_Ehdr *eh)
+valid_elf_header(kvm_t *kd, Elf64_Ehdr *eh)
 {
 
 	if (!IS_ELF(*eh))
 		return (0);
 	if (eh->e_ident[EI_CLASS] != ELFCLASS64)
 		return (0);
-	if (eh->e_ident[EI_DATA] != ELFDATA2MSB)
+	if (eh->e_ident[EI_DATA] != ELFDATA2MSB &&
+	    eh->e_ident[EI_DATA] != ELFDATA2LSB)
 		return (0);
 	if (eh->e_ident[EI_VERSION] != EV_CURRENT)
 		return (0);
 	if (eh->e_ident[EI_OSABI] != ELFOSABI_STANDALONE)
 		return (0);
-	if (be16toh(eh->e_type) != ET_CORE)
+	if (_kvm16toh(kd, eh->e_type) != ET_CORE)
 		return (0);
-	if (be16toh(eh->e_machine) != EM_PPC64)
+	if (_kvm16toh(kd, eh->e_machine) != EM_PPC64)
 		return (0);
 	/* Can't think of anything else to check... */
 	return (1);
@@ -80,7 +81,8 @@ dump_header_size(struct kerneldumpheader *dh)
 
 	if (strcmp(dh->magic, KERNELDUMPMAGIC) != 0)
 		return (0);
-	if (strcmp(dh->architecture, "powerpc64") != 0)
+	if (strcmp(dh->architecture, "powerpc64") != 0 &&
+	    strcmp(dh->architecture, "powerpc64le") != 0)
 		return (0);
 	/* That should do it... */
 	return (sizeof(*dh));
@@ -107,7 +109,7 @@ powerpc_maphdrs(kvm_t *kd)
 	}
 	vm->dmphdrsz = 0;
 	vm->eh = vm->map;
-	if (!valid_elf_header(vm->eh)) {
+	if (!valid_elf_header(kd, vm->eh)) {
 		/*
 		 * Hmmm, no ELF header. Maybe we still have a dump header.
 		 * This is normal when the core file wasn't created by
@@ -118,11 +120,11 @@ powerpc_maphdrs(kvm_t *kd)
 		if (vm->dmphdrsz == 0)
 			goto inval;
 		vm->eh = (void *)((uintptr_t)vm->map + vm->dmphdrsz);
-		if (!valid_elf_header(vm->eh))
+		if (!valid_elf_header(kd, vm->eh))
 			goto inval;
 	}
-	mapsz = be16toh(vm->eh->e_phentsize) * be16toh(vm->eh->e_phnum) +
-	    be64toh(vm->eh->e_phoff);
+	mapsz = _kvm16toh(kd, vm->eh->e_phentsize) *
+	    _kvm16toh(kd, vm->eh->e_phnum) + _kvm64toh(kd, vm->eh->e_phoff);
 	munmap(vm->map, vm->mapsz);
 
 	/* Map all headers. */
@@ -134,7 +136,7 @@ powerpc_maphdrs(kvm_t *kd)
 	}
 	vm->eh = (void *)((uintptr_t)vm->map + vm->dmphdrsz);
 	vm->ph = (void *)((uintptr_t)vm->eh +
-	    (uintptr_t)be64toh(vm->eh->e_phoff));
+	    (uintptr_t)_kvm64toh(kd, vm->eh->e_phoff));
 	return (0);
 
  inval:
@@ -155,19 +157,21 @@ powerpc64_va2off(kvm_t *kd, kvaddr_t va, off_t *ofs)
 	int nph;
 
 	ph = vm->ph;
-	nph = be16toh(vm->eh->e_phnum);
-	while (nph && (va < be64toh(ph->p_vaddr) ||
-	    va >= be64toh(ph->p_vaddr) + be64toh(ph->p_memsz))) {
+	nph = _kvm16toh(kd, vm->eh->e_phnum);
+	while (nph && (va < _kvm64toh(kd, ph->p_vaddr) ||
+	    va >= _kvm64toh(kd, ph->p_vaddr) + _kvm64toh(kd, ph->p_memsz))) {
 		nph--;
-		ph = (void *)((uintptr_t)ph + be16toh(vm->eh->e_phentsize));
+		ph = (void *)((uintptr_t)ph +
+		    _kvm16toh(kd, vm->eh->e_phentsize));
 	}
 	if (nph == 0)
 		return (0);
 
 	/* Segment found. Return file offset and range. */
-	*ofs = vm->dmphdrsz + be64toh(ph->p_offset) +
-	    (va - be64toh(ph->p_vaddr));
-	return (be64toh(ph->p_memsz) - (va - be64toh(ph->p_vaddr)));
+	*ofs = vm->dmphdrsz + _kvm64toh(kd, ph->p_offset) +
+	    (va - _kvm64toh(kd, ph->p_vaddr));
+	return (_kvm64toh(kd, ph->p_memsz) -
+	    (va - _kvm64toh(kd, ph->p_vaddr)));
 }
 
 static void
@@ -190,6 +194,14 @@ _powerpc64_probe(kvm_t *kd)
 }
 
 static int
+_powerpc64le_probe(kvm_t *kd)
+{
+
+	return (_kvm_probe_elf_kernel(kd, ELFCLASS64, EM_PPC64) &&
+	    kd->nlehdr.e_ident[EI_DATA] == ELFDATA2LSB);
+}
+
+static int
 _powerpc64_initvtop(kvm_t *kd)
 {
 
@@ -209,7 +221,7 @@ _powerpc64_kvatop(kvm_t *kd, kvaddr_t va, off_t *ofs)
 	struct vmstate *vm;
 
 	vm = kd->vmst;
-	if (be64toh(vm->ph->p_paddr) == 0xffffffffffffffff)
+	if (_kvm64toh(kd, vm->ph->p_paddr) == 0xffffffffffffffff)
 		return ((int)powerpc64_va2off(kd, va, ofs));
 
 	_kvm_err(kd, kd->program, "Raw corefile not supported");
@@ -220,7 +232,18 @@ static int
 _powerpc64_native(kvm_t *kd __unused)
 {
 
-#ifdef __powerpc64__
+#if defined(__powerpc64__) && BYTE_ORDER == BIG_ENDIAN
+	return (1);
+#else
+	return (0);
+#endif
+}
+
+static int
+_powerpc64le_native(kvm_t *kd __unused)
+{
+
+#if defined(__powerpc64__) && BYTE_ORDER == LITTLE_ENDIAN
 	return (1);
 #else
 	return (0);
@@ -235,4 +258,13 @@ static struct kvm_arch kvm_powerpc64 = {
 	.ka_native = _powerpc64_native,
 };
 
+static struct kvm_arch kvm_powerpc64le = {
+	.ka_probe = _powerpc64le_probe,
+	.ka_initvtop = _powerpc64_initvtop,
+	.ka_freevtop = _powerpc64_freevtop,
+	.ka_kvatop = _powerpc64_kvatop,
+	.ka_native = _powerpc64le_native,
+};
+
 KVM_ARCH(kvm_powerpc64);
+KVM_ARCH(kvm_powerpc64le);
