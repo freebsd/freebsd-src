@@ -50,7 +50,7 @@ __elf_phdr_match_addr(struct dl_phdr_info *phdr_info, void *addr)
 		if (ph->p_type != PT_LOAD || (ph->p_flags & PF_X) == 0)
 			continue;
 		if (phdr_info->dlpi_addr + ph->p_vaddr <= (uintptr_t)addr &&
-		    (uintptr_t)addr + sizeof(addr) < phdr_info->dlpi_addr +
+		    (uintptr_t)addr < phdr_info->dlpi_addr +
 		    ph->p_vaddr + ph->p_memsz)
 			break;
 	}
