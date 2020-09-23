@@ -273,8 +273,8 @@ device		nvram		# Access to rtc cmos via /dev/nvram
 # MISCELLANEOUS DEVICES AND OPTIONS
 
 device		speaker		#Play IBM BASIC-style noises out your speaker
-hint.speaker.0.at="isa"
-hint.speaker.0.port="0x61"
+envvar		hint.speaker.0.at="isa"
+envvar		hint.speaker.0.port="0x61"
 device		apm_saver	# Requires APM
 
 
@@ -342,8 +342,8 @@ options 	X86BIOS
 
 #
 # Hints for the non-optional Numeric Processing eXtension driver.
-hint.npx.0.flags="0x0"
-hint.npx.0.irq="13"
+envvar		hint.npx.0.flags="0x0"
+envvar		hint.npx.0.irq="13"
 
 #
 # `flags' for npx0:
@@ -369,8 +369,8 @@ hint.npx.0.irq="13"
 
 # PS/2 mouse
 device		psm
-hint.psm.0.at="atkbdc"
-hint.psm.0.irq="12"
+envvar		hint.psm.0.at="atkbdc"
+envvar		hint.psm.0.irq="12"
 
 # Options for psm:
 options 	PSM_HOOKRESUME		#hook the system resume event, useful
@@ -379,13 +379,13 @@ options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
 # The keyboard controller; it controls the keyboard and the PS/2 mouse.
 device		atkbdc
-hint.atkbdc.0.at="isa"
-hint.atkbdc.0.port="0x060"
+envvar		hint.atkbdc.0.at="isa"
+envvar		hint.atkbdc.0.port="0x060"
 
 # The AT keyboard
 device		atkbd
-hint.atkbd.0.at="atkbdc"
-hint.atkbd.0.irq="1"
+envvar		hint.atkbd.0.at="atkbdc"
+envvar		hint.atkbd.0.irq="1"
 
 # Options for atkbd:
 options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
@@ -400,7 +400,7 @@ makeoptions	ATKBD_DFLT_KEYMAP=fr.dvorak
 
 # Video card driver for VGA adapters.
 device		vga
-hint.vga.0.at="isa"
+envvar		hint.vga.0.at="isa"
 
 # Options for vga:
 # Try the following option if the mouse pointer is not drawn correctly
@@ -521,34 +521,34 @@ device		cpufreq
 device          bxe             # Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		ce
 device		cp
-hint.cs.0.at="isa"
-hint.cs.0.port="0x300"
+envvar		hint.cs.0.at="isa"
+envvar		hint.cs.0.port="0x300"
 #options 	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
 options 	ED_3C503
 options 	ED_HPP
 options 	ED_SIC
-hint.ed.0.at="isa"
-hint.ed.0.port="0x280"
-hint.ed.0.irq="5"
-hint.ed.0.maddr="0xd8000"
+envvar		hint.ed.0.at="isa"
+envvar		hint.ed.0.port="0x280"
+envvar		hint.ed.0.irq="5"
+envvar		hint.ed.0.maddr="0xd8000"
 device		ipw		# Intel 2100 wireless NICs.
 device		iwi		# Intel 2200BG/2225BG/2915ABG wireless NICs.
 device		iwn		# Intel 4965/1000/5000/6000 wireless NICs.
 # Hint for the i386-only ISA front-end of le(4).
-hint.le.0.at="isa"
-hint.le.0.port="0x280"
-hint.le.0.irq="10"
-hint.le.0.drq="0"
+envvar		hint.le.0.at="isa"
+envvar		hint.le.0.port="0x280"
+envvar		hint.le.0.irq="10"
+envvar		hint.le.0.drq="0"
 device  	mthca		# Mellanox HCA InfiniBand
 device		mlx4		# Shared code module between IB and Ethernet
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlx4en		# Mellanox ConnectX HCA Ethernet
 device		nfe		# nVidia nForce MCP on-board Ethernet
 device		sbni
-hint.sbni.0.at="isa"
-hint.sbni.0.port="0x210"
-hint.sbni.0.irq="0xefdead"
-hint.sbni.0.flags="0"
+envvar		hint.sbni.0.at="isa"
+envvar		hint.sbni.0.port="0x210"
+envvar		hint.sbni.0.irq="0xefdead"
+envvar		hint.sbni.0.flags="0"
 device		vmx		# VMware VMXNET3 Ethernet
 device		wpi		# Intel 3945ABG wireless NICs.
 
@@ -762,14 +762,14 @@ device 		hyperv		# HyperV drivers
 #  of the Vaio extra features are controlled by this device.
 
 device		apm
-hint.apm.0.flags="0x20"
+envvar		hint.apm.0.flags="0x20"
 device		ipmi
 device		smapi
 device		smbios
 device		vpd
 device		pbio
-hint.pbio.0.at="isa"
-hint.pbio.0.port="0x360"
+envvar		hint.pbio.0.at="isa"
+envvar		hint.pbio.0.port="0x360"
 device		asmc
 device		tpm
 device		padlock_rng	# VIA Padlock RNG
@@ -797,9 +797,9 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 # pcf	Philips PCF8584 ISA-bus controller
 #
 device		pcf
-hint.pcf.0.at="isa"
-hint.pcf.0.port="0x320"
-hint.pcf.0.irq="5"
+envvar		hint.pcf.0.at="isa"
+envvar		hint.pcf.0.port="0x320"
+envvar		hint.pcf.0.irq="5"
 
 #
 # Hardware watchdog timers:

@@ -6,8 +6,8 @@
 # 'makeoptions', 'hints', etc. go into the kernel configuration that you
 # run config(8) with.
 #
-# Lines that begin with 'hint.' are NOT for config(8), they go into your
-# hints file.  See /boot/device.hints and/or the 'hints' config(8) directive.
+# Lines that begin with 'envvar hint.' should go into your hints file.
+# See /boot/device.hints and/or the 'hints' config(8) directive.
 #
 # Please use ``make LINT'' to create an old-style LINT file if you want to
 # do kernel test-builds.
@@ -1292,22 +1292,22 @@ options 	FFCLOCK
 
 # The syntax for wiring down devices is:
 
-hint.scbus.0.at="ahc0"
-hint.scbus.1.at="ahc1"
-hint.scbus.1.bus="0"
-hint.scbus.3.at="ahc2"
-hint.scbus.3.bus="0"
-hint.scbus.2.at="ahc2"
-hint.scbus.2.bus="1"
-hint.da.0.at="scbus0"
-hint.da.0.target="0"
-hint.da.0.unit="0"
-hint.da.1.at="scbus3"
-hint.da.1.target="1"
-hint.da.2.at="scbus2"
-hint.da.2.target="3"
-hint.sa.1.at="scbus1"
-hint.sa.1.target="6"
+envvar		hint.scbus.0.at="ahc0"
+envvar		hint.scbus.1.at="ahc1"
+envvar		hint.scbus.1.bus="0"
+envvar		hint.scbus.3.at="ahc2"
+envvar		hint.scbus.3.bus="0"
+envvar		hint.scbus.2.at="ahc2"
+envvar		hint.scbus.2.bus="1"
+envvar		hint.da.0.at="scbus0"
+envvar		hint.da.0.target="0"
+envvar		hint.da.0.unit="0"
+envvar		hint.da.1.at="scbus3"
+envvar		hint.da.1.target="1"
+envvar		hint.da.2.at="scbus2"
+envvar		hint.da.2.target="3"
+envvar		hint.sa.1.at="scbus1"
+envvar		hint.sa.1.target="6"
 
 # "units" (SCSI logical unit number) that are not specified are
 # treated as if specified as LUN 0.
@@ -1536,21 +1536,21 @@ device		ahd
 device		esp
 device		iscsi_initiator
 device		isp
-hint.isp.0.disable="1"
-hint.isp.0.role="3"
-hint.isp.0.prefer_iomap="1"
-hint.isp.0.prefer_memmap="1"
-hint.isp.0.fwload_disable="1"
-hint.isp.0.ignore_nvram="1"
-hint.isp.0.fullduplex="1"
-hint.isp.0.topology="lport"
-hint.isp.0.topology="nport"
-hint.isp.0.topology="lport-only"
-hint.isp.0.topology="nport-only"
+envvar		hint.isp.0.disable="1"
+envvar		hint.isp.0.role="3"
+envvar		hint.isp.0.prefer_iomap="1"
+envvar		hint.isp.0.prefer_memmap="1"
+envvar		hint.isp.0.fwload_disable="1"
+envvar		hint.isp.0.ignore_nvram="1"
+envvar		hint.isp.0.fullduplex="1"
+envvar		hint.isp.0.topology="lport"
+envvar		hint.isp.0.topology="nport"
+envvar		hint.isp.0.topology="lport-only"
+envvar		hint.isp.0.topology="nport-only"
 # we can't get u_int64_t types, nor can we get strings if it's got
 # a leading 0x, hence this silly dodge.
-hint.isp.0.portwnn="w50000000aaaa0000"
-hint.isp.0.nodewnn="w50000000aaaa0001"
+envvar		hint.isp.0.portwnn="w50000000aaaa0000"
+envvar		hint.isp.0.nodewnn="w50000000aaaa0001"
 device		ispfw
 device		mpr			# LSI-Logic MPT-Fusion 3
 device		mps			# LSI-Logic MPT-Fusion 2
@@ -1715,12 +1715,12 @@ device		ata
 
 #
 # For older non-PCI, non-PnPBIOS systems, these are the hints lines to add:
-hint.ata.0.at="isa"
-hint.ata.0.port="0x1f0"
-hint.ata.0.irq="14"
-hint.ata.1.at="isa"
-hint.ata.1.port="0x170"
-hint.ata.1.irq="15"
+envvar		hint.ata.0.at="isa"
+envvar		hint.ata.0.port="0x1f0"
+envvar		hint.ata.0.irq="14"
+envvar		hint.ata.1.at="isa"
+envvar		hint.ata.1.port="0x170"
+envvar		hint.ata.1.irq="15"
 
 #
 # uart: newbusified driver for serial interfaces.  It consolidates the sio(4),
@@ -1736,16 +1736,16 @@ options 	UART_POLL_FREQ		# Set polling rate, used when hw has
 
 # The following hint should only be used for pure ISA devices.  It is not
 # needed otherwise.  Use of hints is strongly discouraged.
-hint.uart.0.at="isa"
+envvar		hint.uart.0.at="isa"
 
 # The following 3 hints are used when the UART is a system device (i.e., a
 # console or debug port), but only on platforms that don't have any other
 # means to pass the information to the kernel.  The unit number of the hint
 # is only used to bundle the hints together.  There is no relation to the
 # unit number of the probed UART.
-hint.uart.0.port="0x3f8"
-hint.uart.0.flags="0x10"
-hint.uart.0.baud="115200"
+envvar		hint.uart.0.port="0x3f8"
+envvar		hint.uart.0.flags="0x10"
+envvar		hint.uart.0.baud="115200"
 
 # `flags' for serial drivers that support consoles like sio(4) and uart(4):
 #	0x10	enable console support for this unit.  Other console flags
@@ -1954,7 +1954,7 @@ device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
 device		dc		# DEC/Intel 21143 and various workalikes
 device		et		# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-hint.fxp.0.prefer_iomap="0"
+envvar		hint.fxp.0.prefer_iomap="0"
 device		gem		# Apple GMAC/Sun ERI/Sun GEM
 device		hme		# Sun HME (Happy Meal Ethernet)
 device		jme		# JMicron JMC250 Gigabit/JMC260 Fast Ethernet
@@ -2138,20 +2138,20 @@ device		snd_via82c686
 device		snd_vibes
 
 # For non-PnP sound cards:
-hint.pcm.0.at="isa"
-hint.pcm.0.irq="10"
-hint.pcm.0.drq="1"
-hint.pcm.0.flags="0x0"
-hint.sbc.0.at="isa"
-hint.sbc.0.port="0x220"
-hint.sbc.0.irq="5"
-hint.sbc.0.drq="1"
-hint.sbc.0.flags="0x15"
-hint.gusc.0.at="isa"
-hint.gusc.0.port="0x220"
-hint.gusc.0.irq="5"
-hint.gusc.0.drq="1"
-hint.gusc.0.flags="0x13"
+envvar		hint.pcm.0.at="isa"
+envvar		hint.pcm.0.irq="10"
+envvar		hint.pcm.0.drq="1"
+envvar		hint.pcm.0.flags="0x0"
+envvar		hint.sbc.0.at="isa"
+envvar		hint.sbc.0.port="0x220"
+envvar		hint.sbc.0.irq="5"
+envvar		hint.sbc.0.drq="1"
+envvar		hint.sbc.0.flags="0x15"
+envvar		hint.gusc.0.at="isa"
+envvar		hint.gusc.0.port="0x220"
+envvar		hint.gusc.0.irq="5"
+envvar		hint.gusc.0.drq="1"
+envvar		hint.gusc.0.flags="0x13"
 
 #
 # Following options are intended for debugging/testing purposes:
@@ -2333,8 +2333,8 @@ options 	PCFCLOCK_VERBOSE         # Verbose pcfclock driver
 options 	PCFCLOCK_MAX_RETRIES=5   # Maximum read tries (default 10)
 
 device		ppc
-hint.ppc.0.at="isa"
-hint.ppc.0.irq="7"
+envvar		hint.ppc.0.at="isa"
+envvar		hint.ppc.0.irq="7"
 device		ppbus
 device		lpt
 device		plip
