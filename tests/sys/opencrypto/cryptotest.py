@@ -108,13 +108,13 @@ def GenTestCase(cname):
 			    [ 'Count', 'Key', 'IV', 'CT', 'AAD', 'Tag', 'PT', ]):
 				for data in lines:
 					curcnt = int(data['Count'])
-					cipherkey = data['Key'].decode('hex')
-					iv = data['IV'].decode('hex')
-					aad = data['AAD'].decode('hex')
-					tag = data['Tag'].decode('hex')
+					cipherkey = binascii.unhexlify(data['Key'])
+					iv = binascii.unhexlify(data['IV'])
+					aad = binascii.unhexlify(data['AAD'])
+					tag = binascii.unhexlify(data['Tag'])
 					if 'FAIL' not in data:
-						pt = data['PT'].decode('hex')
-					ct = data['CT'].decode('hex')
+						pt = binascii.unhexlify(data['PT'])
+					ct = binascii.unhexlify(data['CT'])
 
 					if len(iv) != 12:
 						# XXX - isn't supported
@@ -141,8 +141,8 @@ def GenTestCase(cname):
 								raise
 							continue
 						rtag = rtag[:len(tag)]
-						data['rct'] = rct.encode('hex')
-						data['rtag'] = rtag.encode('hex')
+						data['rct'] = binascii.hexlify(rct)
+						data['rtag'] = binascii.hexlify(rtag)
 						self.assertEqual(rct, ct, repr(data))
 						self.assertEqual(rtag, tag, repr(data))
 					else:
@@ -160,8 +160,8 @@ def GenTestCase(cname):
 								if e.errno != errno.EINVAL:
 									raise
 								continue
-							data['rpt'] = rpt.encode('hex')
-							data['rtag'] = rtag.encode('hex')
+							data['rpt'] = binascii.hexlify(rpt)
+							data['rtag'] = binascii.hexlify(rtag)
 							self.assertEqual(rpt, pt,
 							    repr(data))
 
@@ -180,10 +180,10 @@ def GenTestCase(cname):
 
 				for data in lines:
 					curcnt = int(data['COUNT'])
-					cipherkey = data['KEY'].decode('hex')
-					iv = data['IV'].decode('hex')
-					pt = data['PLAINTEXT'].decode('hex')
-					ct = data['CIPHERTEXT'].decode('hex')
+					cipherkey = binascii.unhexlify(data['KEY'])
+					iv = binascii.unhexlify(data['IV'])
+					pt = binascii.unhexlify(data['PLAINTEXT'])
+					ct = binascii.unhexlify(data['CIPHERTEXT'])
 
 					if swapptct:
 						pt, ct = ct, pt
@@ -209,10 +209,10 @@ def GenTestCase(cname):
 				for data in lines:
 					curcnt = int(data['COUNT'])
 					nbits = int(data['DataUnitLen'])
-					cipherkey = data['Key'].decode('hex')
+					cipherkey = binascii.unhexlify(data['Key'])
 					iv = struct.pack('QQ', int(data['DataUnitSeqNumber']), 0)
-					pt = data['PT'].decode('hex')
-					ct = data['CT'].decode('hex')
+					pt = binascii.unhexlify(data['PT'])
+					ct = binascii.unhexlify(data['CT'])
 
 					if nbits % 128 != 0:
 						# XXX - mark as skipped
@@ -236,15 +236,15 @@ def GenTestCase(cname):
 				if Nlen != 12:
 					# OCF only supports 12 byte IVs
 					continue
-				key = data['Key'].decode('hex')
-				nonce = data['Nonce'].decode('hex')
+				key = binascii.unhexlify(data['Key'])
+				nonce = binascii.unhexlify(data['Nonce'])
 				Alen = int(data['Alen'])
 				if Alen != 0:
-					aad = data['Adata'].decode('hex')
+					aad = binascii.unhexlify(data['Adata'])
 				else:
 					aad = None
-				payload = data['Payload'].decode('hex')
-				ct = data['CT'].decode('hex')
+				payload = binascii.unhexlify(data['Payload'])
+				ct = binascii.unhexlify(data['CT'])
 
 				try:
 					c = Crypto(crid=crid,
@@ -262,7 +262,7 @@ def GenTestCase(cname):
 				out = r + tag
 				self.assertEqual(out, ct,
 				    "Count " + data['Count'] + " Actual: " + \
-				    repr(out.encode("hex")) + " Expected: " + \
+				    repr(binascii.hexlify(out)) + " Expected: " + \
 				    repr(data) + " on " + cname)
 
 		def runCCMDecrypt(self, fname):
@@ -279,14 +279,14 @@ def GenTestCase(cname):
 				if Tlen != 16:
 					# OCF only supports 16 byte tags
 					continue
-				key = data['Key'].decode('hex')
-				nonce = data['Nonce'].decode('hex')
+				key = binascii.unhexlify(data['Key'])
+				nonce = binascii.unhexlify(data['Nonce'])
 				Alen = int(data['Alen'])
 				if Alen != 0:
-					aad = data['Adata'].decode('hex')
+					aad = binascii.unhexlify(data['Adata'])
 				else:
 					aad = None
-				ct = data['CT'].decode('hex')
+				ct = binascii.unhexlify(data['CT'])
 				tag = ct[-16:]
 				ct = ct[:-16]
 
@@ -308,12 +308,12 @@ def GenTestCase(cname):
 					r = Crypto.decrypt(c, payload, nonce,
 					    aad, tag)
 
-					payload = data['Payload'].decode('hex')
+					payload = binascii.unhexlify(data['Payload'])
 					Plen = int(data('Plen'))
 					payload = payload[:plen]
 					self.assertEqual(r, payload,
 					    "Count " + data['Count'] + \
-					    " Actual: " + repr(r.encode("hex")) + \
+					    " Actual: " + repr(binascii.hexlify(r)) + \
 					    " Expected: " + repr(data) + \
 					    " on " + cname)
 
@@ -341,10 +341,10 @@ def GenTestCase(cname):
 				for data in lines:
 					curcnt = int(data['COUNT'])
 					key = data['KEYs'] * 3
-					cipherkey = key.decode('hex')
-					iv = data['IV'].decode('hex')
-					pt = data['PLAINTEXT'].decode('hex')
-					ct = data['CIPHERTEXT'].decode('hex')
+					cipherkey = binascii.unhexlify(key)
+					iv = binascii.unhexlify(data['IV'])
+					pt = binascii.unhexlify(data['PLAINTEXT'])
+					ct = binascii.unhexlify(data['CIPHERTEXT'])
 
 					if swapptct:
 						pt, ct = ct, pt
@@ -389,9 +389,9 @@ def GenTestCase(cname):
 					continue
 
 				for data in lines:
-					msg = data['Msg'].decode('hex')
+					msg = binascii.unhexlify(data['Msg'])
 					msg = msg[:int(data['Len'])]
-					md = data['MD'].decode('hex')
+					md = binascii.unhexlify(data['MD'])
 
 					try:
 						c = Crypto(mac=alg, crid=crid,
@@ -405,7 +405,7 @@ def GenTestCase(cname):
 					_, r = c.encrypt(msg, iv="")
 
 					self.assertEqual(r, md, "Actual: " + \
-					    repr(r.encode("hex")) + " Expected: " + repr(data) + " on " + cname)
+					    repr(binascii.hexlify(r)) + " Expected: " + repr(data) + " on " + cname)
 
 		@unittest.skipIf(cname not in shamodules, 'skipping SHA-HMAC on %s' % str(cname))
 		def test_sha1hmac(self):
@@ -442,9 +442,9 @@ def GenTestCase(cname):
 					continue
 
 				for data in lines:
-					key = data['Key'].decode('hex')
-					msg = data['Msg'].decode('hex')
-					mac = data['Mac'].decode('hex')
+					key = binascii.unhexlify(data['Key'])
+					msg = binascii.unhexlify(data['Msg'])
+					mac = binascii.unhexlify(data['Mac'])
 					tlen = int(data['Tlen'])
 
 					if len(key) > blocksize:
@@ -462,7 +462,7 @@ def GenTestCase(cname):
 					_, r = c.encrypt(msg, iv="")
 
 					self.assertEqual(r[:tlen], mac, "Actual: " + \
-					    repr(r.encode("hex")) + " Expected: " + repr(data))
+					    repr(binascii.hexlify(r)) + " Expected: " + repr(data))
 
 	return GendCryptoTestCase
 
