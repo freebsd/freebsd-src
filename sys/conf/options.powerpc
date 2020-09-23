@@ -29,6 +29,7 @@ MAMBO
 POWERNV			opt_platform.h
 PSERIES
 PSIM
+QEMU			opt_platform.h
 
 SC_OFWFB		opt_ofwfb.h
 

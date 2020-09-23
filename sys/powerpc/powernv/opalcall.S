@@ -27,6 +27,8 @@
 
 #include <machine/asm.h>
 
+#include "opt_platform.h"
+
 GLOBAL(opal_entrypoint)
 	.llong	0
 GLOBAL(opal_data)
@@ -70,8 +72,17 @@ ASENTRY(opal_call)
 	ld	%r2,TOC_REF(opal_data)@l(%r2)
 	ld	%r2,0(%r2)
 
+
+#if defined(__LITTLE_ENDIAN__) && defined(QEMU)
+	/* QEMU hack: qemu does not emulate mtmsrd correctly! */
+	ori     %r3,%r3,1       /* Leave PSR_LE set */
+#endif
 	mtmsrd	%r3
 	isync
+#if defined(__LITTLE_ENDIAN__) && defined(QEMU)
+	/* Clean up from qemu hack */
+	xori	%r3,%r3,1
+#endif
 
 	/* Shift registers over */
 	mr	%r3,%r4
