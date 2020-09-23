@@ -319,6 +319,19 @@ dtrace_invop_calltrap_addr:
 	.globl	CNAME(cpu_wakeup_handler)
 	.p2align 3
 CNAME(rstcode):
+#ifdef __LITTLE_ENDIAN__
+	/*
+	 * XXX This shouldn't be necessary.
+	 *
+	 * According to the ISA documentation, LE should be set from HILE
+	 * or the LPCR ILE bit automatically. However, the entry into this
+	 * vector from OPAL_START_CPU does not honor this correctly.
+	 *
+	 * We should be able to define an alternate entry for opal's
+	 * start_kernel_secondary asm code to branch to.
+	 */
+	RETURN_TO_NATIVE_ENDIAN
+#endif
 	/*
 	 * Check if this is software reset or
 	 * processor is waking up from power saving mode
