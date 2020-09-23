@@ -135,7 +135,7 @@ opal_heartbeat(void)
 		events = 0;
 		/* Turn the OPAL state crank */
 		opal_call(OPAL_POLL_EVENTS, vtophys(&events));
-		if (events & OPAL_EVENT_MSG_PENDING)
+		if (be64toh(events) & OPAL_EVENT_MSG_PENDING)
 			opal_handle_messages();
 		tsleep(opal_hb_proc, 0, "opal",
 		    MSEC_2_TICKS(opal_heartbeat_ms));
