@@ -398,8 +398,9 @@ struct iter_qstate {
 
 	/**
 	 * Count number of time-outs. Used to prevent resolving failures when
-	 * the QNAME minimisation QTYPE is blocked. */
-	int minimise_timeout_count;
+	 * the QNAME minimisation QTYPE is blocked. Used to determine if
+	 * capsforid fallback should be started.*/
+	int timeout_count;
 
 	/** True if the current response is from auth_zone */
 	int auth_zone_response;

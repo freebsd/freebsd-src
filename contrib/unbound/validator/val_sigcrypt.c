@@ -1343,7 +1343,7 @@ adjust_ttl(struct val_env* ve, uint32_t unow,
 	if(ve->date_override) {
 		now = ve->date_override;
 	} else	now = (int32_t)unow;
-	expittl = expi - now;
+	expittl = (int32_t)((uint32_t)expi - (uint32_t)now);
 
 	/* so now:
 	 * d->ttl: rrset ttl read from message or cache. May be reduced

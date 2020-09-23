@@ -69,8 +69,9 @@ extern struct config_parser_state* cfg_parser;
 
 %token SPACE LETTER NEWLINE COMMENT COLON ANY ZONESTR
 %token <str> STRING_ARG
+%token VAR_FORCE_TOPLEVEL
 %token VAR_SERVER VAR_VERBOSITY VAR_NUM_THREADS VAR_PORT
-%token VAR_OUTGOING_RANGE VAR_INTERFACE
+%token VAR_OUTGOING_RANGE VAR_INTERFACE VAR_PREFER_IP4
 %token VAR_DO_IP4 VAR_DO_IP6 VAR_PREFER_IP6 VAR_DO_UDP VAR_DO_TCP
 %token VAR_TCP_MSS VAR_OUTGOING_TCP_MSS VAR_TCP_IDLE_TIMEOUT
 %token VAR_EDNS_TCP_KEEPALIVE VAR_EDNS_TCP_KEEPALIVE_TIMEOUT
@@ -116,8 +117,10 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_UNBLOCK_LAN_ZONES VAR_INSECURE_LAN_ZONES
 %token VAR_INFRA_CACHE_MIN_RTT
 %token VAR_DNS64_PREFIX VAR_DNS64_SYNTHALL VAR_DNS64_IGNORE_AAAA
-%token VAR_DNSTAP VAR_DNSTAP_ENABLE VAR_DNSTAP_SOCKET_PATH
-%token VAR_DNSTAP_SEND_IDENTITY VAR_DNSTAP_SEND_VERSION
+%token VAR_DNSTAP VAR_DNSTAP_ENABLE VAR_DNSTAP_SOCKET_PATH VAR_DNSTAP_IP
+%token VAR_DNSTAP_TLS VAR_DNSTAP_TLS_SERVER_NAME VAR_DNSTAP_TLS_CERT_BUNDLE
+%token VAR_DNSTAP_TLS_CLIENT_KEY_FILE VAR_DNSTAP_TLS_CLIENT_CERT_FILE
+%token VAR_DNSTAP_SEND_IDENTITY VAR_DNSTAP_SEND_VERSION VAR_DNSTAP_BIDIRECTIONAL
 %token VAR_DNSTAP_IDENTITY VAR_DNSTAP_VERSION
 %token VAR_DNSTAP_LOG_RESOLVER_QUERY_MESSAGES
 %token VAR_DNSTAP_LOG_RESOLVER_RESPONSE_MESSAGES
@@ -127,6 +130,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES
 %token VAR_RESPONSE_IP_TAG VAR_RESPONSE_IP VAR_RESPONSE_IP_DATA
 %token VAR_HARDEN_ALGO_DOWNGRADE VAR_IP_TRANSPARENT
+%token VAR_IP_DSCP
 %token VAR_DISABLE_DNSSEC_LAME_CHECK
 %token VAR_IP_RATELIMIT VAR_IP_RATELIMIT_SLABS VAR_IP_RATELIMIT_SIZE
 %token VAR_RATELIMIT VAR_RATELIMIT_SLABS VAR_RATELIMIT_SIZE
@@ -159,6 +163,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_IPSECMOD_MAX_TTL VAR_IPSECMOD_WHITELIST VAR_IPSECMOD_STRICT
 %token VAR_CACHEDB VAR_CACHEDB_BACKEND VAR_CACHEDB_SECRETSEED
 %token VAR_CACHEDB_REDISHOST VAR_CACHEDB_REDISPORT VAR_CACHEDB_REDISTIMEOUT
+%token VAR_CACHEDB_REDISEXPIRERECORDS
 %token VAR_UDP_UPSTREAM_WITHOUT_DOWNSTREAM VAR_FOR_UPSTREAM
 %token VAR_AUTH_ZONE VAR_ZONEFILE VAR_MASTER VAR_URL VAR_FOR_DOWNSTREAM
 %token VAR_FALLBACK_ENABLED VAR_TLS_ADDITIONAL_PORT VAR_LOW_RTT VAR_LOW_RTT_PERMIL
@@ -166,10 +171,11 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_ALLOW_NOTIFY VAR_TLS_WIN_CERT VAR_TCP_CONNECTION_LIMIT
 %token VAR_FORWARD_NO_CACHE VAR_STUB_NO_CACHE VAR_LOG_SERVFAIL VAR_DENY_ANY
 %token VAR_UNKNOWN_SERVER_TIME_LIMIT VAR_LOG_TAG_QUERYREPLY
-%token VAR_STREAM_WAIT_SIZE VAR_TLS_CIPHERS VAR_TLS_CIPHERSUITES
+%token VAR_STREAM_WAIT_SIZE VAR_TLS_CIPHERS VAR_TLS_CIPHERSUITES VAR_TLS_USE_SNI
 %token VAR_IPSET VAR_IPSET_NAME_V4 VAR_IPSET_NAME_V6
 %token VAR_TLS_SESSION_TICKET_KEYS VAR_RPZ VAR_TAGS VAR_RPZ_ACTION_OVERRIDE
 %token VAR_RPZ_CNAME_OVERRIDE VAR_RPZ_LOG VAR_RPZ_LOG_NAME
+%token VAR_DYNLIB VAR_DYNLIB_FILE
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -178,20 +184,25 @@ toplevelvar: serverstart contents_server | stubstart contents_stub |
 	rcstart contents_rc | dtstart contents_dt | viewstart contents_view |
 	dnscstart contents_dnsc | cachedbstart contents_cachedb |
 	ipsetstart contents_ipset | authstart contents_auth |
-	rpzstart contents_rpz
+	rpzstart contents_rpz | dynlibstart contents_dl |
+	force_toplevel
 	;
-
+force_toplevel: VAR_FORCE_TOPLEVEL
+	{
+		OUTYY(("\nP(force-toplevel)\n"));
+	}
+	;
 /* server: declaration */
 serverstart: VAR_SERVER
 	{ 
-		OUTYY(("\nP(server:)\n")); 
+		OUTYY(("\nP(server:)\n"));
 	}
 	;
-contents_server: contents_server content_server 
+contents_server: contents_server content_server
 	| ;
 content_server: server_num_threads | server_verbosity | server_port |
 	server_outgoing_range | server_do_ip4 |
-	server_do_ip6 | server_prefer_ip6 |
+	server_do_ip6 | server_prefer_ip4 | server_prefer_ip6 |
 	server_do_udp | server_do_tcp |
 	server_tcp_mss | server_outgoing_tcp_mss | server_tcp_idle_timeout |
 	server_tcp_keepalive | server_tcp_keepalive_timeout |
@@ -239,6 +250,7 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_dns64_prefix | server_dns64_synthall | server_dns64_ignore_aaaa |
 	server_infra_cache_min_rtt | server_harden_algo_downgrade |
 	server_ip_transparent | server_ip_ratelimit | server_ratelimit |
+	server_ip_dscp |
 	server_ip_ratelimit_slabs | server_ratelimit_slabs |
 	server_ip_ratelimit_size | server_ratelimit_size |
 	server_ratelimit_for_domain |
@@ -272,7 +284,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_tcp_connection_limit | server_log_servfail | server_deny_any |
 	server_unknown_server_time_limit | server_log_tag_queryreply |
 	server_stream_wait_size | server_tls_ciphers |
-	server_tls_ciphersuites | server_tls_session_ticket_keys
+	server_tls_ciphersuites | server_tls_session_ticket_keys |
+	server_tls_use_sni
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -780,6 +793,15 @@ server_do_tcp: VAR_DO_TCP STRING_ARG
 		free($2);
 	}
 	;
+server_prefer_ip4: VAR_PREFER_IP4 STRING_ARG
+	{
+		OUTYY(("P(server_prefer_ip4:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->prefer_ip4 = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 server_prefer_ip6: VAR_PREFER_IP6 STRING_ARG
 	{
 		OUTYY(("P(server_prefer_ip6:%s)\n", $2));
@@ -936,6 +958,15 @@ server_tls_session_ticket_keys: VAR_TLS_SESSION_TICKET_KEYS STRING_ARG
 		if(!cfg_strlist_append(&cfg_parser->cfg->tls_session_ticket_keys,
 			$2))
 			yyerror("out of memory");
+	}
+	;
+server_tls_use_sni: VAR_TLS_USE_SNI STRING_ARG
+	{
+		OUTYY(("P(server_tls_use_sni:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->tls_use_sni = (strcmp($2, "yes")==0);
+		free($2);
 	}
 	;
 server_use_systemd: VAR_USE_SYSTEMD STRING_ARG
@@ -1247,6 +1278,20 @@ server_ip_freebind: VAR_IP_FREEBIND STRING_ARG
         free($2);
     }
     ;
+server_ip_dscp: VAR_IP_DSCP STRING_ARG
+	{
+		OUTYY(("P(server_ip_dscp:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else if (atoi($2) > 63)
+			yyerror("value too large (max 63)");
+		else if (atoi($2) < 0)
+			yyerror("value too small (min 0)");
+		else
+			cfg_parser->cfg->ip_dscp = atoi($2);
+		free($2);
+	}
+	;
 server_stream_wait_size: VAR_STREAM_WAIT_SIZE STRING_ARG
 	{
 		OUTYY(("P(server_stream_wait_size:%s)\n", $2));
@@ -2719,7 +2764,10 @@ dtstart: VAR_DNSTAP
 	;
 contents_dt: contents_dt content_dt
 	| ;
-content_dt: dt_dnstap_enable | dt_dnstap_socket_path |
+content_dt: dt_dnstap_enable | dt_dnstap_socket_path | dt_dnstap_bidirectional |
+	dt_dnstap_ip | dt_dnstap_tls | dt_dnstap_tls_server_name |
+	dt_dnstap_tls_cert_bundle |
+	dt_dnstap_tls_client_key_file | dt_dnstap_tls_client_cert_file |
 	dt_dnstap_send_identity | dt_dnstap_send_version |
 	dt_dnstap_identity | dt_dnstap_version |
 	dt_dnstap_log_resolver_query_messages |
@@ -2738,11 +2786,65 @@ dt_dnstap_enable: VAR_DNSTAP_ENABLE STRING_ARG
 		free($2);
 	}
 	;
+dt_dnstap_bidirectional: VAR_DNSTAP_BIDIRECTIONAL STRING_ARG
+	{
+		OUTYY(("P(dt_dnstap_bidirectional:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->dnstap_bidirectional =
+			(strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 dt_dnstap_socket_path: VAR_DNSTAP_SOCKET_PATH STRING_ARG
 	{
 		OUTYY(("P(dt_dnstap_socket_path:%s)\n", $2));
 		free(cfg_parser->cfg->dnstap_socket_path);
 		cfg_parser->cfg->dnstap_socket_path = $2;
+	}
+	;
+dt_dnstap_ip: VAR_DNSTAP_IP STRING_ARG
+	{
+		OUTYY(("P(dt_dnstap_ip:%s)\n", $2));
+		free(cfg_parser->cfg->dnstap_ip);
+		cfg_parser->cfg->dnstap_ip = $2;
+	}
+	;
+dt_dnstap_tls: VAR_DNSTAP_TLS STRING_ARG
+	{
+		OUTYY(("P(dt_dnstap_tls:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->dnstap_tls = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
+dt_dnstap_tls_server_name: VAR_DNSTAP_TLS_SERVER_NAME STRING_ARG
+	{
+		OUTYY(("P(dt_dnstap_tls_server_name:%s)\n", $2));
+		free(cfg_parser->cfg->dnstap_tls_server_name);
+		cfg_parser->cfg->dnstap_tls_server_name = $2;
+	}
+	;
+dt_dnstap_tls_cert_bundle: VAR_DNSTAP_TLS_CERT_BUNDLE STRING_ARG
+	{
+		OUTYY(("P(dt_dnstap_tls_cert_bundle:%s)\n", $2));
+		free(cfg_parser->cfg->dnstap_tls_cert_bundle);
+		cfg_parser->cfg->dnstap_tls_cert_bundle = $2;
+	}
+	;
+dt_dnstap_tls_client_key_file: VAR_DNSTAP_TLS_CLIENT_KEY_FILE STRING_ARG
+	{
+		OUTYY(("P(dt_dnstap_tls_client_key_file:%s)\n", $2));
+		free(cfg_parser->cfg->dnstap_tls_client_key_file);
+		cfg_parser->cfg->dnstap_tls_client_key_file = $2;
+	}
+	;
+dt_dnstap_tls_client_cert_file: VAR_DNSTAP_TLS_CLIENT_CERT_FILE STRING_ARG
+	{
+		OUTYY(("P(dt_dnstap_tls_client_cert_file:%s)\n", $2));
+		free(cfg_parser->cfg->dnstap_tls_client_cert_file);
+		cfg_parser->cfg->dnstap_tls_client_cert_file = $2;
 	}
 	;
 dt_dnstap_send_identity: VAR_DNSTAP_SEND_IDENTITY STRING_ARG
@@ -2850,6 +2952,21 @@ py_script: VAR_PYTHON_SCRIPT STRING_ARG
 	{
 		OUTYY(("P(python-script:%s)\n", $2));
 		if(!cfg_strlist_append_ex(&cfg_parser->cfg->python_script, $2))
+			yyerror("out of memory");
+	}
+dynlibstart: VAR_DYNLIB
+	{ 
+		OUTYY(("\nP(dynlib:)\n")); 
+	}
+	;
+contents_dl: contents_dl content_dl
+	| ;
+content_dl: dl_file
+	;
+dl_file: VAR_DYNLIB_FILE STRING_ARG
+	{
+		OUTYY(("P(dynlib-file:%s)\n", $2));
+		if(!cfg_strlist_append_ex(&cfg_parser->cfg->dynlib_file, $2))
 			yyerror("out of memory");
 	}
 server_disable_dnssec_lame_check: VAR_DISABLE_DNSSEC_LAME_CHECK STRING_ARG
@@ -3003,7 +3120,8 @@ cachedbstart: VAR_CACHEDB
 contents_cachedb: contents_cachedb content_cachedb
 	| ;
 content_cachedb: cachedb_backend_name | cachedb_secret_seed |
-	redis_server_host | redis_server_port | redis_timeout
+	redis_server_host | redis_server_port | redis_timeout |
+	redis_expire_records
 	;
 cachedb_backend_name: VAR_CACHEDB_BACKEND STRING_ARG
 	{
@@ -3063,6 +3181,19 @@ redis_timeout: VAR_CACHEDB_REDISTIMEOUT STRING_ARG
 		if(atoi($2) == 0)
 			yyerror("redis timeout value expected");
 		else cfg_parser->cfg->redis_timeout = atoi($2);
+	#else
+		OUTYY(("P(Compiled without cachedb or redis, ignoring)\n"));
+	#endif
+		free($2);
+	}
+	;
+redis_expire_records: VAR_CACHEDB_REDISEXPIRERECORDS STRING_ARG
+	{
+	#if defined(USE_CACHEDB) && defined(USE_REDIS)
+		OUTYY(("P(redis_expire_records:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->redis_expire_records = (strcmp($2, "yes")==0);
 	#else
 		OUTYY(("P(Compiled without cachedb or redis, ignoring)\n"));
 	#endif

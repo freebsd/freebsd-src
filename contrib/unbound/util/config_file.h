@@ -85,6 +85,8 @@ struct config_file {
 	int do_ip4;
 	/** do ip6 query support. */
 	int do_ip6;
+	/** prefer ip4 upstream queries. */
+	int prefer_ip4;
 	/** prefer ip6 upstream queries. */
 	int prefer_ip6;
 	/** do udp query support. */
@@ -126,6 +128,8 @@ struct config_file {
 	char* tls_ciphers;
 	/** TLS chiphersuites (TLSv1.3) */
 	char* tls_ciphersuites;
+	/** if SNI is to be used */
+	int tls_use_sni;
 
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
@@ -186,6 +190,8 @@ struct config_file {
 	int ip_transparent;
 	/** IP_FREEBIND socket option request on port 53 sockets */
 	int ip_freebind;
+	/** IP_TOS socket option requested on port 53 sockets */
+	int ip_dscp;
 
 	/** number of interfaces to open. If 0 default all interfaces. */
 	int num_ifs;
@@ -444,6 +450,9 @@ struct config_file {
 	/** Python script file */
 	struct config_strlist* python_script;
 
+	/** Dynamic library file */
+	struct config_strlist* dynlib_file;
+
 	/** Use systemd socket activation. */
 	int use_systemd;
 
@@ -472,8 +481,22 @@ struct config_file {
 
 	/** true to enable dnstap support */
 	int dnstap;
+	/** using bidirectional frame streams if true */
+	int dnstap_bidirectional;
 	/** dnstap socket path */
 	char* dnstap_socket_path;
+	/** dnstap IP */
+	char* dnstap_ip;
+	/** dnstap TLS enable */
+	int dnstap_tls;
+	/** dnstap tls server authentication name */
+	char* dnstap_tls_server_name;
+	/** dnstap server cert bundle */
+	char* dnstap_tls_cert_bundle;
+	/** dnstap client key for client authentication */
+	char* dnstap_tls_client_key_file;
+	/** dnstap client cert for client authentication */
+	char* dnstap_tls_client_cert_file;
 	/** true to send "identity" via dnstap */
 	int dnstap_send_identity;
 	/** true to send "version" via dnstap */
@@ -582,6 +605,8 @@ struct config_file {
 	int redis_server_port;
 	/** timeout (in ms) for communication with the redis server */
 	int redis_timeout;
+	/** set timeout on redis records based on DNS response ttl */
+	int redis_expire_records;
 #endif
 #endif
 

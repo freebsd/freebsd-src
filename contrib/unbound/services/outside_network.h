@@ -132,12 +132,16 @@ struct outside_network {
 	struct ub_randstate* rnd;
 	/** ssl context to create ssl wrapped TCP with DNS connections */
 	void* sslctx;
+	/** if SNI will be used for TLS connections */
+	int tls_use_sni;
 #ifdef USE_DNSTAP
 	/** dnstap environment */
 	struct dt_env* dtenv;
 #endif
 	/** maximum segment size of tcp socket */
 	int tcp_mss;
+	/** IP_TOS socket option requested on the sockets */
+	int ip_dscp;
 
 	/**
 	 * Array of tcp pending used for outgoing TCP connections.
@@ -172,11 +176,13 @@ struct port_if {
 	 * if 0, no randomisation. */
 	int pfxlen;
 
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
 	/** the available ports array. These are unused.
 	 * Only the first total-inuse part is filled. */
 	int* avail_ports;
 	/** the total number of available ports (size of the array) */
 	int avail_total;
+#endif
 
 	/** array of the commpoints currently in use. 
 	 * allocated for max number of fds, first part in use. */
@@ -399,6 +405,7 @@ struct serviced_query {
  * @param do_ip4: service IP4.
  * @param do_ip6: service IP6.
  * @param num_tcp: number of outgoing tcp buffers to preallocate.
+ * @param dscp: DSCP to use.
  * @param infra: pointer to infra cached used for serviced queries.
  * @param rnd: stored to create random numbers for serviced queries.
  * @param use_caps_for_id: enable to use 0x20 bits to encode id randomness.
@@ -412,16 +419,17 @@ struct serviced_query {
  * @param sslctx: context to create outgoing connections with (if enabled).
  * @param delayclose: if not 0, udp sockets are delayed before timeout closure.
  * 	msec to wait on timeouted udp sockets.
+ * @param tls_use_sni: if SNI is used for TLS connections.
  * @param dtenv: environment to send dnstap events with (if enabled).
  * @return: the new structure (with no pending answers) or NULL on error.
  */
 struct outside_network* outside_network_create(struct comm_base* base,
 	size_t bufsize, size_t num_ports, char** ifs, int num_ifs,
-	int do_ip4, int do_ip6, size_t num_tcp, struct infra_cache* infra, 
+	int do_ip4, int do_ip6, size_t num_tcp, int dscp, struct infra_cache* infra, 
 	struct ub_randstate* rnd, int use_caps_for_id, int* availports, 
 	int numavailports, size_t unwanted_threshold, int tcp_mss,
 	void (*unwanted_action)(void*), void* unwanted_param, int do_udp,
-	void* sslctx, int delayclose, struct dt_env *dtenv);
+	void* sslctx, int delayclose, int tls_use_sni, struct dt_env *dtenv);
 
 /**
  * Delete outside_network structure.
@@ -540,7 +548,7 @@ size_t serviced_get_mem(struct serviced_query* sq);
 
 /** get TCP file descriptor for address, returns -1 on failure,
  * tcp_mss is 0 or maxseg size to set for TCP packets. */
-int outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen, int tcp_mss);
+int outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen, int tcp_mss, int dscp);
 
 /**
  * Create udp commpoint suitable for sending packets to the destination.

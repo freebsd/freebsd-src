@@ -74,6 +74,10 @@
 #include <sys/un.h>
 #endif
 
+#ifdef HAVE_TARGETCONDITIONALS_H
+#include <TargetConditionals.h>
+#endif
+
 static void usage(void) ATTR_NORETURN;
 static void ssl_err(const char* s) ATTR_NORETURN;
 static void ssl_path_err(const char* s, const char *path) ATTR_NORETURN;
@@ -263,6 +267,9 @@ static void print_mem(struct ub_shm_stat_info* shm_stat,
 #endif
 #ifdef USE_IPSECMOD
 	PR_LL("mem.mod.ipsecmod", shm_stat->mem.ipsecmod);
+#endif
+#ifdef WITH_DYNLIBMODULE
+	PR_LL("mem.mod.dynlib", shm_stat->mem.dynlib);
 #endif
 #ifdef USE_DNSCRYPT
 	PR_LL("mem.cache.dnscrypt_shared_secret",
@@ -879,11 +886,16 @@ int main(int argc, char* argv[])
 	if(argc == 0)
 		usage();
 	if(argc >= 1 && strcmp(argv[0], "start")==0) {
+#if defined(TARGET_OS_TV) || defined(TARGET_OS_WATCH)
+		fatal_exit("could not exec unbound: %s",
+			strerror(ENOSYS));
+#else
 		if(execlp("unbound", "unbound", "-c", cfgfile, 
 			(char*)NULL) < 0) {
 			fatal_exit("could not exec unbound: %s",
 				strerror(errno));
 		}
+#endif
 	}
 	if(argc >= 1 && strcmp(argv[0], "stats_shm")==0) {
 		print_stats_shm(cfgfile);
