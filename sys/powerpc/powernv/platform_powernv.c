@@ -174,6 +174,10 @@ powernv_attach(platform_t plat)
 	if (cpu_features2 & PPC_FEATURE2_ARCH_3_00)
 		lpcr |= LPCR_HVICE;
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+	lpcr |= LPCR_ILE;
+#endif
+
 	mtspr(SPR_LPCR, lpcr);
 	isync();
 
