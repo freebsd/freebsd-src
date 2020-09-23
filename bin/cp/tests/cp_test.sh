@@ -30,7 +30,8 @@ check_size()
 {
 	file=$1
 	sz=$2
-20atf_check -o inline:"$sz\n" stat -f '%z' $file
+
+	atf_check -o inline:"$sz\n" stat -f '%z' $file
 }
 
 atf_test_case basic
