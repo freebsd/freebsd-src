@@ -29,6 +29,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -90,7 +91,7 @@ rtas_setup(void *junk)
 
 	/* RTAS must be called with everything turned off in MSR */
 	rtasmsr = mfmsr();
-	rtasmsr &= ~(PSL_IR | PSL_DR | PSL_EE | PSL_SE);
+	rtasmsr &= ~(PSL_IR | PSL_DR | PSL_EE | PSL_SE | PSL_LE);
 	#ifdef __powerpc64__
 	rtasmsr &= ~PSL_SF;
 	#endif
@@ -215,17 +216,17 @@ rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 	if (!rtas_exists() || nargs + nreturns > 12)
 		return (-1);
 
-	args.token = token;
+	args.token = htobe32(token);
 	va_start(ap, nreturns);
 
 	mtx_lock_spin(&rtas_mtx);
 	rtas_bounce_offset = 0;
 
-	args.nargs = nargs;
-	args.nreturns = nreturns;
+	args.nargs = htobe32(nargs);
+	args.nreturns = htobe32(nreturns);
 
 	for (n = 0; n < nargs; n++)
-		args.args_n_results[n] = va_arg(ap, cell_t);
+		args.args_n_results[n] = htobe32(va_arg(ap, cell_t));
 
 	argsptr = rtas_real_map(&args, sizeof(args));
 
@@ -250,7 +251,7 @@ rtas_call_method(cell_t token, int nargs, int nreturns, ...)
 		return (result);
 
 	for (n = nargs; n < nargs + nreturns; n++)
-		*va_arg(ap, cell_t *) = args.args_n_results[n];
+		*va_arg(ap, cell_t *) = be32toh(args.args_n_results[n]);
 	return (result);
 }
 
