@@ -292,6 +292,7 @@
 #define	SPR_LPCR		0x13e	/* .6. Logical Partitioning Control */
 #define	  LPCR_LPES		  0x008	/* Bit 60 */
 #define	  LPCR_HVICE		  0x002	/* Hypervisor Virtualization Interrupt (Arch 3.0) */
+#define	  LPCR_ILE		  (1ULL << 25) /* Interrupt Little-Endian (ISA 2.07) */
 #define	  LPCR_UPRT		  (1ULL << 22) /* Use Process Table (ISA 3) */
 #define	  LPCR_HR		  (1ULL << 20) /* Host Radix mode */
 #define	  LPCR_PECE_DRBL          (1ULL << 16) /* Directed Privileged Doorbell */
