@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20200923: memfd_test moved to /usr/tests/sys/posixshm
+OLD_FILES+=usr/tests/sys/kern/memfd_test
+
 # 20200910: remove vm_map_create(9) to sync with the code
 OLD_FILES+=usr/share/man/man9/vm_map_create.9.gz
 
