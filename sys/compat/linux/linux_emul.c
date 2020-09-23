@@ -256,7 +256,7 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 	if (error != 0)
 		return (error);
 
-	error = kern_execve(td, eargs, NULL);
+	error = kern_execve(td, eargs, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
 	if (error != EJUSTRETURN)
 		return (error);
