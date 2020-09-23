@@ -651,7 +651,8 @@ zfs_probe(int fd, uint64_t *pool_guid)
 	spa = NULL;
 	ret = vdev_probe(vdev_read, vdev_write, (void *)(uintptr_t)fd, &spa);
 	if (ret == 0 && pool_guid != NULL)
-		*pool_guid = spa->spa_guid;
+		if (*pool_guid == 0)
+			*pool_guid = spa->spa_guid;
 	return (ret);
 }
 

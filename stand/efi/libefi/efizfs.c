@@ -99,7 +99,7 @@ efi_zfs_probe(void)
 	pdinfo_list_t *hdi;
 	pdinfo_t *hd, *pd = NULL;
 	char devname[SPECNAMELEN + 1];
-        uint64_t guid;
+	uint64_t guid;
 
 	hdi = efiblk_get_pdinfo_list(&efipart_hddev);
 	STAILQ_INIT(&zfsinfo);
@@ -114,6 +114,7 @@ efi_zfs_probe(void)
 		STAILQ_FOREACH(pd, &hd->pd_part, pd_link) {
 			snprintf(devname, sizeof(devname), "%s%dp%d:",
 			    efipart_hddev.dv_name, hd->pd_unit, pd->pd_unit);
+			guid = 0;
 			if (zfs_probe_dev(devname, &guid) == 0) {
 				insert_zfs(pd->pd_handle, guid);
 				if (pd->pd_handle == boot_img->DeviceHandle)
