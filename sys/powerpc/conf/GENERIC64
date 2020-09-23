@@ -30,6 +30,7 @@ makeoptions	WITH_CTF=1
 options 	POWERMAC		#NewWorld Apple PowerMacs
 options 	PS3			#Sony Playstation 3
 options 	MAMBO			#IBM Mambo Full System Simulator
+options		QEMU			#QEMU processor emulator
 options 	PSERIES			#PAPR-compliant systems (e.g. IBM p)
 options 	POWERNV			#Non-virtualized OpenPOWER systems
 

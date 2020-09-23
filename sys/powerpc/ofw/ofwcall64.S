@@ -32,6 +32,8 @@
 #include <machine/spr.h>
 #include <machine/asm.h>
 
+#include "opt_platform.h"
+
 #define	OFWSTKSZ	4096		/* 4K Open Firmware stack */
 
 /*
@@ -119,6 +121,10 @@ ASENTRY_NOPROF(ofwcall)
 	addis	%r5,%r2,TOC_REF(ofmsr)@ha
 	ld	%r5,TOC_REF(ofmsr)@l(%r5)
 	ld	%r5,0(%r5)
+#if defined(__LITTLE_ENDIAN__) && defined(QEMU)
+	/* QEMU hack: qemu does not emulate mtmsrd correctly! */
+	ori	%r5,%r5,1	/* Leave PSR_LE set */
+#endif
 	mtmsrd	%r5
 	isync
 
@@ -270,6 +276,10 @@ ASENTRY_NOPROF(rtascall)
 	addis	%r7,%r2,TOC_REF(rtasmsr)@ha
 	ld	%r7,TOC_REF(rtasmsr)@l(%r7)
 	ld	%r7,0(%r7)
+#ifdef	__LITTLE_ENDIAN__
+	/* QEMU hack: qemu does not emulate mtmsrd correctly! */
+	ori	%r7,%r7,1	/* Leave PSR_LE set */
+#endif
 	mtmsrd	%r7
 	isync
 
