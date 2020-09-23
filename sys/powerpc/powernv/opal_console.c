@@ -25,6 +25,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
@@ -323,7 +324,7 @@ uart_opal_get(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 	int hdr = 0;
 
 	if (sc->protocol == OPAL_RAW) {
-		uint64_t len = bufsize;
+		uint64_t len = htobe64(bufsize);
 		uint64_t olen = (uint64_t)&len;
 		uint64_t obuf = (uint64_t)buffer;
 
@@ -336,7 +337,7 @@ uart_opal_get(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 		if (err != OPAL_SUCCESS)
 			return (-1);
 
-		bufsize = len;
+		bufsize = be64toh(len);
 	} else {
 		uart_lock(&sc->sc_mtx);
 		if (sc->inbuflen == 0) {
@@ -347,6 +348,7 @@ uart_opal_get(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 				return (-1);
 			}
 			hdr = 1; 
+			sc->inbuflen = be64toh(sc->inbuflen);
 		}
 
 		if (sc->inbuflen == 0) {
@@ -391,7 +393,9 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 		len = bufsize;
 
 		uart_opal_real_map_outbuffer(&obuf, &olen);
+		*(uint64_t*)olen = htobe64(*(uint64_t*)olen);
 		err = opal_call(OPAL_CONSOLE_WRITE, sc->vtermid, olen, obuf);
+		*(uint64_t*)olen = be64toh(*(uint64_t*)olen);
 		uart_opal_real_unmap_outbuffer(&len);
 	} else {
 		uart_lock(&sc->sc_mtx);
@@ -406,7 +410,9 @@ uart_opal_put(struct uart_opal_softc *sc, void *buffer, size_t bufsize)
 		len = 4 + bufsize;
 
 		uart_opal_real_map_outbuffer(&obuf, &olen);
+		*(uint64_t*)olen = htobe64(*(uint64_t*)olen);
 		err = opal_call(OPAL_CONSOLE_WRITE, sc->vtermid, olen, obuf);
+		*(uint64_t*)olen = be64toh(*(uint64_t*)olen);
 		uart_opal_real_unmap_outbuffer(&len);
 
 		uart_unlock(&sc->sc_mtx);

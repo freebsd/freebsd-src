@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -306,6 +307,11 @@ uart_phyp_get(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 		return (0);
 	}
 
+#if BYTE_ORDER == LITTLE_ENDIAN
+	sc->phyp_inbuf.u64[0] = be64toh(sc->phyp_inbuf.u64[0]);
+	sc->phyp_inbuf.u64[1] = be64toh(sc->phyp_inbuf.u64[1]);
+#endif
+
 	if ((sc->protocol == HVTERMPROT) && (hdr == 1)) {
 		sc->inbuflen = sc->inbuflen - 4;
 		/* The VTERM protocol has a 4 byte header, skip it here. */
@@ -380,8 +386,8 @@ uart_phyp_put(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 	}
 
 	do {
-	    err = phyp_hcall(H_PUT_TERM_CHAR, sc->vtermid, len, cbuf.u64[0],
-			    cbuf.u64[1]);
+	    err = phyp_hcall(H_PUT_TERM_CHAR, sc->vtermid, len, htobe64(cbuf.u64[0]),
+			    htobe64(cbuf.u64[1]));
 		DELAY(100);
 	} while (err == H_BUSY);
 
