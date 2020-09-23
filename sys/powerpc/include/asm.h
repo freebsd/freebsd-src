@@ -213,6 +213,9 @@ name: \
  * wrong endian.
  *
  * This sequence is NMI-reentrant.
+ *
+ * Do not change the length of this sequence without looking at the users,
+ * this is used in size-constrained places like the reset vector!
  */
 #define	RETURN_TO_NATIVE_ENDIAN						  \
 	tdi	0, %r0, 0x48;	/* Endian swapped: b . + 8		*/\
