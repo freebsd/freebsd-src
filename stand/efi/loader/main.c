@@ -36,7 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/boot.h>
+#ifdef EFI_ZFS_BOOT
 #include <sys/zfs_bootenv.h>
+#endif
 #include <paths.h>
 #include <stdint.h>
 #include <string.h>
