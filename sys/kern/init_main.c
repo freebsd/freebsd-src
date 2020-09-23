@@ -752,16 +752,11 @@ start_init(void *dummy)
 		KASSERT((td->td_pflags & TDP_EXECVMSPC) == 0,
 		    ("nested execve"));
 		oldvmspace = td->td_proc->p_vmspace;
-		error = kern_execve(td, &args, NULL);
+		error = kern_execve(td, &args, NULL, oldvmspace);
 		KASSERT(error != 0,
 		    ("kern_execve returned success, not EJUSTRETURN"));
 		if (error == EJUSTRETURN) {
-			if ((td->td_pflags & TDP_EXECVMSPC) != 0) {
-				KASSERT(p->p_vmspace != oldvmspace,
-				    ("oldvmspace still used"));
-				vmspace_free(oldvmspace);
-				td->td_pflags &= ~TDP_EXECVMSPC;
-			}
+			exec_cleanup(td, oldvmspace);
 			free(free_init_path, M_TEMP);
 			TSEXIT();
 			return;
