@@ -377,6 +377,9 @@ xive_attach(device_t dev)
 		opal_call(OPAL_XIVE_GET_VP_INFO, xive_cpud->vp, NULL,
 		    vtophys(&xive_cpud->cam), NULL, vtophys(&xive_cpud->chip));
 
+		xive_cpud->cam = be64toh(xive_cpud->cam);
+		xive_cpud->chip = be64toh(xive_cpud->chip);
+
 		/* Allocate the queue page and populate the queue state data. */
 		xive_cpud->queue.q_page = contigmalloc(PAGE_SIZE, M_XIVE,
 		    M_ZERO | M_WAITOK, 0, BUS_SPACE_MAXADDR, PAGE_SIZE, 0);
@@ -707,6 +710,12 @@ xive_init_irq(struct xive_irq *irqd, u_int irq)
 	    vtophys(&trig_phys), vtophys(&esb_shift),
 	    vtophys(&irqd->chip));
 
+	irqd->flags = be64toh(irqd->flags);
+	eoi_phys = be64toh(eoi_phys);
+	trig_phys = be64toh(trig_phys);
+	esb_shift = be32toh(esb_shift);
+	irqd->chip = be32toh(irqd->chip);
+
 	irqd->girq = irq;
 	irqd->esb_size = 1 << esb_shift;
 	irqd->eoi_page = (vm_offset_t)pmap_mapdev(eoi_phys, irqd->esb_size);
@@ -721,6 +730,10 @@ xive_init_irq(struct xive_irq *irqd, u_int irq)
 
 	opal_call(OPAL_XIVE_GET_IRQ_CONFIG, irq, vtophys(&irqd->vp),
 	    vtophys(&irqd->prio), vtophys(&irqd->lirq));
+
+	irqd->vp = be64toh(irqd->vp);
+	irqd->prio = be64toh(irqd->prio);
+	irqd->lirq = be32toh(irqd->lirq);
 }
 
 /* Allocate an IRQ struct before populating it. */

@@ -385,7 +385,7 @@ opalpci_attach(device_t dev)
 		    (uintmax_t)sc->phb_id);
 
 	for (i = 0; i < entries; i++)
-		sc->tce[i] = (i * tce_size) | OPAL_PCI_TCE_R | OPAL_PCI_TCE_W;
+		sc->tce[i] = htobe64((i * tce_size) | OPAL_PCI_TCE_R | OPAL_PCI_TCE_W);
 
 	/* Map TCE for every PE. It seems necessary for Power8 */
 	for (i = 0; i < npe; i++) {
