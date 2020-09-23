@@ -5,8 +5,8 @@
 .include <bsd.compiler.mk>
 
 LIBC_SRCTOP=${SRCTOP}/lib/libc
-.if exists(${LIBC_SRCTOP}/${MACHINE_ARCH})
-LIBC_ARCH=${MACHINE_ARCH}
+.if exists(${LIBC_SRCTOP}/${MACHINE_ARCH:S/powerpc64le/powerpc64/})
+LIBC_ARCH=${MACHINE_ARCH:S/powerpc64le/powerpc64/}
 .else
 LIBC_ARCH=${MACHINE_CPUARCH}
 .endif
