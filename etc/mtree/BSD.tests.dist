@@ -12,6 +12,8 @@
         ..
         chmod
         ..
+        cp
+        ..
         date
         ..
         dd
