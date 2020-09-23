@@ -326,9 +326,9 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 	TAILQ_INSERT_TAIL(&mountlist, mpdevfs, mnt_list);
 	mtx_unlock(&mountlist_mtx);
 
-	cache_purgevfs(mporoot, true);
+	cache_purgevfs(mporoot);
 	if (mporoot != mpdevfs)
-		cache_purgevfs(mpdevfs, true);
+		cache_purgevfs(mpdevfs);
 
 	if (VFS_ROOT(mporoot, LK_EXCLUSIVE, &vporoot))
 		panic("vfs_mountroot_shuffle: Cannot find root vnode");
@@ -344,7 +344,7 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 	/* Set up the new rootvnode, and purge the cache */
 	mpnroot->mnt_vnodecovered = NULL;
 	set_rootvnode();
-	cache_purgevfs(rootvnode->v_mount, true);
+	cache_purgevfs(rootvnode->v_mount);
 
 	if (mporoot != mpdevfs) {
 		/* Remount old root under /.mount or /mnt */

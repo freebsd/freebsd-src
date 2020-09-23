@@ -295,9 +295,6 @@ static u_long __exclusive_cache_line	numcache;/* number of cache entries allocat
 u_int ncsizefactor = 2;
 SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
     "Size factor for namecache");
-static u_int __read_mostly	ncpurgeminvnodes;
-SYSCTL_UINT(_vfs, OID_AUTO, ncpurgeminvnodes, CTLFLAG_RW, &ncpurgeminvnodes, 0,
-    "Number of vnodes below which purgevfs ignores the request");
 static u_int __read_mostly	ncsize; /* the size as computed on creation or resizing */
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
@@ -2142,7 +2139,6 @@ nchinit(void *dummy __unused)
 	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numvnodelocks; i++)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
-	ncpurgeminvnodes = numbucketlocks * 2;
 
 	neglists = malloc(sizeof(*neglists) * numneglists, M_VFSCACHE,
 	    M_WAITOK | M_ZERO);
@@ -2369,14 +2365,11 @@ cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
  * Flush all entries referencing a particular filesystem.
  */
 void
-cache_purgevfs(struct mount *mp, bool force)
+cache_purgevfs(struct mount *mp)
 {
 	struct vnode *vp, *mvp;
 
 	SDT_PROBE1(vfs, namecache, purgevfs, done, mp);
-	if (!force && mp->mnt_nvnodelistsize <= ncpurgeminvnodes)
-		return;
-
 	/*
 	 * Somewhat wasteful iteration over all vnodes. Would be better to
 	 * support filtering and avoid the interlock to begin with.

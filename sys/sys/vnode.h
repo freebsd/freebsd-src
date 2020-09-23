@@ -643,7 +643,7 @@ void	cache_purge_vgone(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
 void	cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
     struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp);
-void	cache_purgevfs(struct mount *mp, bool force);
+void	cache_purgevfs(struct mount *mp);
 int	change_dir(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	freebsd11_cvtnstat(struct stat *sb, struct nstat *nsb);
