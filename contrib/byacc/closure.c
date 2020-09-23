@@ -87,7 +87,7 @@ set_first_derives(void)
 		k = 0;
 	    }
 
-	    if (cword & (unsigned)(1 << k))
+	    if (cword & (1u << k))
 	    {
 		rp = derives[j];
 		while ((rule = *rp++) >= 0)
@@ -151,7 +151,7 @@ closure(Value_t *nucleus, int n)
 	{
 	    for (i = 0; i < BITS_PER_WORD; ++i)
 	    {
-		if (word & (unsigned)(1 << i))
+		if (word & (1u << i))
 		{
 		    itemno = rrhs[ruleno + i];
 		    while (csp < csend && *csp < itemno)
