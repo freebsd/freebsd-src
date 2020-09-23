@@ -151,20 +151,20 @@ CTASSERT(VM_LOWMEM_BOUNDARY < VM_DMA32_BOUNDARY);
 
 static int sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_free,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_vm_phys_free, "A",
     "Phys Free Info");
 
 static int sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_segs,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_vm_phys_segs, "A",
     "Phys Seg Info");
 
 #ifdef NUMA
 static int sysctl_vm_phys_locality(SYSCTL_HANDLER_ARGS);
 SYSCTL_OID(_vm, OID_AUTO, phys_locality,
-    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT, NULL, 0,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_vm_phys_locality, "A",
     "Phys Locality Info");
 #endif
