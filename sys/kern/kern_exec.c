@@ -118,7 +118,7 @@ static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_stackprot(SYSCTL_HANDLER_ARGS);
 static int do_execve(struct thread *td, struct image_args *args,
-    struct mac *mac_p);
+    struct mac *mac_p, struct vmspace *oldvmspace);
 
 /* XXX This should be vm_size_t. */
 SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD|
@@ -223,7 +223,7 @@ sys_execve(struct thread *td, struct execve_args *uap)
 	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
-		error = kern_execve(td, &args, NULL);
+		error = kern_execve(td, &args, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
 	return (error);
 }
@@ -249,7 +249,7 @@ sys_fexecve(struct thread *td, struct fexecve_args *uap)
 	    uap->argv, uap->envv);
 	if (error == 0) {
 		args.fd = uap->fd;
-		error = kern_execve(td, &args, NULL);
+		error = kern_execve(td, &args, NULL, oldvmspace);
 	}
 	post_execve(td, error, oldvmspace);
 	return (error);
@@ -278,7 +278,7 @@ sys___mac_execve(struct thread *td, struct __mac_execve_args *uap)
 	error = exec_copyin_args(&args, uap->fname, UIO_USERSPACE,
 	    uap->argv, uap->envv);
 	if (error == 0)
-		error = kern_execve(td, &args, uap->mac_p);
+		error = kern_execve(td, &args, uap->mac_p, oldvmspace);
 	post_execve(td, error, oldvmspace);
 	return (error);
 #else
@@ -326,30 +326,26 @@ post_execve(struct thread *td, int error, struct vmspace *oldvmspace)
 			thread_single_end(p, SINGLE_BOUNDARY);
 		PROC_UNLOCK(p);
 	}
-	if ((td->td_pflags & TDP_EXECVMSPC) != 0) {
-		KASSERT(p->p_vmspace != oldvmspace,
-		    ("oldvmspace still used"));
-		vmspace_free(oldvmspace);
-		td->td_pflags &= ~TDP_EXECVMSPC;
-	}
+	exec_cleanup(td, oldvmspace);
 }
 
 /*
- * XXX: kern_execve has the astonishing property of not always returning to
+ * kern_execve() has the astonishing property of not always returning to
  * the caller.  If sufficiently bad things happen during the call to
  * do_execve(), it can end up calling exit1(); as a result, callers must
  * avoid doing anything which they might need to undo (e.g., allocating
  * memory).
  */
 int
-kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p)
+kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
+    struct vmspace *oldvmspace)
 {
 
 	AUDIT_ARG_ARGV(args->begin_argv, args->argc,
 	    exec_args_get_begin_envv(args) - args->begin_argv);
 	AUDIT_ARG_ENVV(exec_args_get_begin_envv(args), args->envc,
 	    args->endp - exec_args_get_begin_envv(args));
-	return (do_execve(td, args, mac_p));
+	return (do_execve(td, args, mac_p, oldvmspace));
 }
 
 /*
@@ -357,7 +353,8 @@ kern_execve(struct thread *td, struct image_args *args, struct mac *mac_p)
  * userspace pointers from the passed thread.
  */
 static int
-do_execve(struct thread *td, struct image_args *args, struct mac *mac_p)
+do_execve(struct thread *td, struct image_args *args, struct mac *mac_p,
+    struct vmspace *oldvmspace)
 {
 	struct proc *p = td->td_proc;
 	struct nameidata nd;
@@ -949,6 +946,7 @@ exec_fail:
 
 	if (error && imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
+		exec_cleanup(td, oldvmspace);
 		exit1(td, 0, SIGABRT);
 		/* NOT REACHED */
 	}
@@ -965,6 +963,20 @@ exec_fail:
 	 * registers unmodified when returning EJUSTRETURN.
 	 */
 	return (error == 0 ? EJUSTRETURN : error);
+}
+
+void
+exec_cleanup(struct thread *td, struct vmspace *oldvmspace)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+	if ((td->td_pflags & TDP_EXECVMSPC) != 0) {
+		KASSERT(p->p_vmspace != oldvmspace,
+		    ("oldvmspace still used"));
+		vmspace_free(oldvmspace);
+		td->td_pflags &= ~TDP_EXECVMSPC;
+	}
 }
 
 int
