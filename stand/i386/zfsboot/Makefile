@@ -81,7 +81,7 @@ zfsboot.ld: zfsboot.ldr zfsboot.bin ${BTXKERN}
 	    -o ${.TARGET} -P 1 zfsboot.bin
 
 zfsboot.ldr:
-	cp /dev/null ${.TARGET}
+	:> ${.TARGET}
 
 zfsboot.bin: zfsboot.out
 	${OBJCOPY} -S -O binary zfsboot.out ${.TARGET}
