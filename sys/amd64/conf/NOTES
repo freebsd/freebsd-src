@@ -125,8 +125,8 @@ device		nvram		# Access to rtc cmos via /dev/nvram
 # MISCELLANEOUS DEVICES AND OPTIONS
 
 device		speaker		#Play IBM BASIC-style noises out your speaker
-hint.speaker.0.at="isa"
-hint.speaker.0.port="0x61"
+envvar		hint.speaker.0.at="isa"
+envvar		hint.speaker.0.port="0x61"
 
 
 #####################################################################
@@ -199,8 +199,8 @@ options 	X86BIOS
 
 # PS/2 mouse
 device		psm
-hint.psm.0.at="atkbdc"
-hint.psm.0.irq="12"
+envvar		hint.psm.0.at="atkbdc"
+envvar		hint.psm.0.irq="12"
 
 # Options for psm:
 options 	PSM_HOOKRESUME		#hook the system resume event, useful
@@ -209,13 +209,13 @@ options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
 # The keyboard controller; it controls the keyboard and the PS/2 mouse.
 device		atkbdc
-hint.atkbdc.0.at="isa"
-hint.atkbdc.0.port="0x060"
+envvar		hint.atkbdc.0.at="isa"
+envvar		hint.atkbdc.0.port="0x060"
 
 # The AT keyboard
 device		atkbd
-hint.atkbd.0.at="atkbdc"
-hint.atkbd.0.irq="1"
+envvar		hint.atkbd.0.at="atkbdc"
+envvar		hint.atkbd.0.irq="1"
 
 # Options for atkbd:
 options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
@@ -230,7 +230,7 @@ makeoptions	ATKBD_DFLT_KEYMAP=fr.dvorak
 
 # Video card driver for VGA adapters.
 device		vga
-hint.vga.0.at="isa"
+envvar		hint.vga.0.at="isa"
 
 # Options for vga:
 # Try the following option if the mouse pointer is not drawn correctly
@@ -523,8 +523,8 @@ device 		xenpci		# Xen HVM Hypervisor services driver
 
 device		ipmi
 device		pbio
-hint.pbio.0.at="isa"
-hint.pbio.0.port="0x360"
+envvar		hint.pbio.0.at="isa"
+envvar		hint.pbio.0.port="0x360"
 device		smbios
 device		vpd
 device		asmc
