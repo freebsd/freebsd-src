@@ -968,11 +968,8 @@ exec_fail:
 void
 exec_cleanup(struct thread *td, struct vmspace *oldvmspace)
 {
-	struct proc *p;
-
-	p = td->td_proc;
 	if ((td->td_pflags & TDP_EXECVMSPC) != 0) {
-		KASSERT(p->p_vmspace != oldvmspace,
+		KASSERT(td->td_proc->p_vmspace != oldvmspace,
 		    ("oldvmspace still used"));
 		vmspace_free(oldvmspace);
 		td->td_pflags &= ~TDP_EXECVMSPC;
