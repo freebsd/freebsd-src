@@ -2620,7 +2620,6 @@ flags_out:
 			 */
 			sstat->sstat_penddata = (stcb->asoc.cnt_on_reasm_queue +
 			    stcb->asoc.cnt_on_all_streams);
-
 			sstat->sstat_instrms = stcb->asoc.streamincnt;
 			sstat->sstat_outstrms = stcb->asoc.streamoutcnt;
 			sstat->sstat_fragmentation_point = sctp_get_frag_point(stcb, &stcb->asoc);
