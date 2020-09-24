@@ -61,11 +61,15 @@ struct log_params {
 	int logpri;
 	int noclose;
 	int outfd;
+	const char *outfn;
 };
 
 static void restrict_process(const char *);
 static void handle_term(int);
 static void handle_chld(int);
+static void handle_hup(int);
+static int open_log(const char *);
+static void reopen_log(struct log_params *);
 static int  listen_child(int, struct log_params *);
 static int  get_log_mapping(const char *, const CODE *);
 static void open_pid_files(const char *, const char *, struct pidfh **,
@@ -74,7 +78,8 @@ static void do_output(const unsigned char *, size_t, struct log_params *);
 static void daemon_sleep(time_t, long);
 static void usage(void);
 
-static volatile sig_atomic_t terminate = 0, child_gone = 0, pid = 0;
+static volatile sig_atomic_t terminate = 0, child_gone = 0, pid = 0,
+  do_log_reopen = 0;
 
 int
 main(int argc, char *argv[])
@@ -84,7 +89,7 @@ main(int argc, char *argv[])
 	sigset_t mask_susp, mask_orig, mask_read, mask_term;
 	struct log_params logpar;
 	int pfd[2] = { -1, -1 }, outfd = -1;
-	int stdmask, logpri, logfac;
+	int stdmask, logpri, logfac, log_reopen;
 	struct pidfh *ppfh, *pfh;
 	char *p;
 
@@ -97,15 +102,19 @@ main(int argc, char *argv[])
 	logtag = "daemon";
 	restart = 0;
 	dosyslog = 0;
+	log_reopen = 0;
 	outfn = NULL;
 	title = NULL;
-	while ((ch = getopt(argc, argv, "cfSp:P:ru:o:s:l:t:l:m:R:T:")) != -1) {
+	while ((ch = getopt(argc, argv, "cfHSp:P:ru:o:s:l:t:l:m:R:T:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
 			break;
 		case 'f':
 			noclose = 0;
+			break;
+		case 'H':
+			log_reopen = 1;
 			break;
 		case 'l':
 			logfac = get_log_mapping(optarg, facilitynames);
@@ -168,7 +177,7 @@ main(int argc, char *argv[])
 		title = argv[0];
 
 	if (outfn) {
-		outfd = open(outfn, O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC, 0600);
+		outfd = open_log(outfn);
 		if (outfd == -1)
 			err(7, "open");
 	}
@@ -201,7 +210,7 @@ main(int argc, char *argv[])
 	 */
 	pid = -1;
 	if (pidfile || ppidfile || restart || outfd != -1 || dosyslog) {
-		struct sigaction act_term, act_chld;
+		struct sigaction act_term, act_chld, act_hup;
 
 		/* Avoid PID racing with SIGCHLD and SIGTERM. */
 		memset(&act_term, 0, sizeof(act_term));
@@ -213,6 +222,10 @@ main(int argc, char *argv[])
 		act_chld.sa_handler = handle_chld;
 		sigemptyset(&act_chld.sa_mask);
 		sigaddset(&act_chld.sa_mask, SIGTERM);
+
+		memset(&act_hup, 0, sizeof(act_hup));
+		act_hup.sa_handler = handle_hup;
+		sigemptyset(&act_hup.sa_mask);
 
 		/* Block these when avoiding racing before sigsuspend(). */
 		sigemptyset(&mask_susp);
@@ -251,6 +264,12 @@ main(int argc, char *argv[])
 		logpar.dosyslog = dosyslog;
 		logpar.logpri = logpri;
 		logpar.noclose = noclose;
+		logpar.outfn = outfn;
+		if (log_reopen && outfd >= 0 &&
+		    sigaction(SIGHUP, &act_hup, NULL) == -1) {
+			warn("sigaction");
+			goto exit;
+		}
 restart:
 		if (pipe(pfd))
 			err(1, "pipe");
@@ -465,6 +484,8 @@ listen_child(int fd, struct log_params *logpar)
 	assert(logpar);
 	assert(bytes_read < LBUF_SIZE - 1);
 
+	if (do_log_reopen)
+		reopen_log(logpar);
 	rv = read(fd, buf + bytes_read, LBUF_SIZE - bytes_read - 1);
 	if (rv > 0) {
 		unsigned char *cp;
@@ -543,9 +564,9 @@ handle_term(int signo)
 }
 
 static void
-handle_chld(int signo)
+handle_chld(int signo __unused)
 {
-	(void)signo;
+
 	for (;;) {
 		int rv = waitpid(-1, NULL, WNOHANG);
 		if (pid == rv) {
@@ -559,10 +580,36 @@ handle_chld(int signo)
 }
 
 static void
+handle_hup(int signo __unused)
+{
+
+	do_log_reopen = 1;
+}
+
+static int
+open_log(const char *outfn)
+{
+
+	return open(outfn, O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC, 0600);
+}
+
+static void
+reopen_log(struct log_params *lpp)
+{
+	int outfd;
+
+	do_log_reopen = 0;
+	outfd = open_log(lpp->outfn);
+	if (lpp->outfd >= 0)
+		close(lpp->outfd);
+	lpp->outfd = outfd;
+}
+
+static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: daemon [-cfrS] [-p child_pidfile] [-P supervisor_pidfile]\n"
+	    "usage: daemon [-cfHrS] [-p child_pidfile] [-P supervisor_pidfile]\n"
 	    "              [-u user] [-o output_file] [-t title]\n"
 	    "              [-l syslog_facility] [-s syslog_priority]\n"
 	    "              [-T syslog_tag] [-m output_mask] [-R restart_delay_secs]\n"
