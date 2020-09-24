@@ -135,7 +135,7 @@ struct bus_dmamap {
 	void		      *callback_arg;
 	STAILQ_ENTRY(bus_dmamap) links;
 	u_int			flags;
-#define	DMAMAP_COULD_BOUNCE	(1 << 0)
+#define	DMAMAP_COHERENT		(1 << 0)
 #define	DMAMAP_FROM_DMAMEM	(1 << 1)
 	int			sync_count;
 	struct sync_list	slist[];
@@ -367,8 +367,6 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		}
 		bz = dmat->bounce_zone;
 
-		(*mapp)->flags = DMAMAP_COULD_BOUNCE;
-
 		/*
 		 * Attempt to add pages to our pool on a per-instance
 		 * basis up to a sane limit.
@@ -396,10 +394,13 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		}
 		bz->map_count++;
 	}
-	if (error == 0)
+	if (error == 0) {
 		dmat->map_count++;
-	else
+		if ((dmat->bounce_flags & BF_COHERENT) != 0)
+			(*mapp)->flags |= DMAMAP_COHERENT;
+	} else {
 		free(*mapp, M_DEVBUF);
+	}
 	CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 	    __func__, dmat, dmat->common.flags, error);
 	return (error);
@@ -421,11 +422,8 @@ bounce_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d", __func__, dmat, EBUSY);
 		return (EBUSY);
 	}
-	if (dmat->bounce_zone) {
-		KASSERT((map->flags & DMAMAP_COULD_BOUNCE) != 0,
-		    ("%s: Bounce zone when cannot bounce", __func__));
+	if (dmat->bounce_zone)
 		dmat->bounce_zone->map_count--;
-	}
 	free(map, M_DEVBUF);
 	dmat->map_count--;
 	CTR2(KTR_BUSDMA, "%s: tag %p error 0", __func__, dmat);
@@ -490,7 +488,16 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    __func__, dmat, dmat->common.flags, ENOMEM);
 		return (ENOMEM);
 	}
-	(*mapp)->flags = DMAMAP_FROM_DMAMEM;
+
+	/*
+	 * Mark the map as coherent if we used uncacheable memory or the
+	 * tag was already marked as coherent.
+	 */
+	if (attr == VM_MEMATTR_UNCACHEABLE ||
+	    (dmat->bounce_flags & BF_COHERENT) != 0)
+		(*mapp)->flags |= DMAMAP_COHERENT;
+
+	(*mapp)->flags |= DMAMAP_FROM_DMAMEM;
 
 	/*
 	 * Allocate the buffer from the malloc(9) allocator if...
@@ -760,7 +767,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 			    sgsize);
-		} else if ((dmat->bounce_flags & BF_COHERENT) == 0) {
+		} else if ((map->flags & DMAMAP_COHERENT) == 0) {
 			if (map->sync_count > 0)
 				sl_end = sl->paddr + sl->datacount;
 
@@ -846,7 +853,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
-		} else if ((dmat->bounce_flags & BF_COHERENT) == 0) {
+		} else if ((map->flags & DMAMAP_COHERENT) == 0) {
 			sgsize = MIN(sgsize, max_sgsize);
 			if (map->sync_count > 0) {
 				sl_pend = sl->paddr + sl->datacount;
@@ -896,8 +903,6 @@ bounce_bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
     struct memdesc *mem, bus_dmamap_callback_t *callback, void *callback_arg)
 {
 
-	if ((map->flags & DMAMAP_COULD_BOUNCE) == 0)
-		return;
 	map->mem = *mem;
 	map->dmat = dmat;
 	map->callback = callback;
@@ -1042,7 +1047,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 				    (void *)bpage->vaddr, bpage->datacount);
 				if (tempvaddr != 0)
 					pmap_quick_remove_page(tempvaddr);
-				if ((dmat->bounce_flags & BF_COHERENT) == 0)
+				if ((map->flags & DMAMAP_COHERENT) == 0)
 					cpu_dcache_wb_range(bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
@@ -1050,7 +1055,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 			dmat->bounce_zone->total_bounced++;
 		} else if ((op & BUS_DMASYNC_PREREAD) != 0) {
 			while (bpage != NULL) {
-				if ((dmat->bounce_flags & BF_COHERENT) == 0)
+				if ((map->flags & DMAMAP_COHERENT) == 0)
 					cpu_dcache_wbinv_range(bpage->vaddr,
 					    bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
@@ -1059,7 +1064,7 @@ bounce_bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 		if ((op & BUS_DMASYNC_POSTREAD) != 0) {
 			while (bpage != NULL) {
-				if ((dmat->bounce_flags & BF_COHERENT) == 0)
+				if ((map->flags & DMAMAP_COHERENT) == 0)
 					cpu_dcache_inv_range(bpage->vaddr,
 					    bpage->datacount);
 				tempvaddr = 0;
@@ -1264,8 +1269,6 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	struct bounce_page *bpage;
 
 	KASSERT(dmat->bounce_zone != NULL, ("no bounce zone in dma tag"));
-	KASSERT((map->flags & DMAMAP_COULD_BOUNCE) != 0,
-	    ("add_bounce_page: bad map %p", map));
 
 	bz = dmat->bounce_zone;
 	if (map->pagesneeded == 0)
