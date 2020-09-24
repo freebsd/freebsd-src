@@ -6405,6 +6405,7 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 	int error;
 
 	error = 0;
+	savxprt = NULL;
 	shp = NFSSESSIONHASH(sessionid);
 	NFSLOCKSTATE();
 	NFSLOCKSESSION(shp);
@@ -6432,8 +6433,6 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 				/* Disable idle timeout. */
 				nd->nd_xprt->xp_idletimeout = 0;
 				sep->sess_cbsess.nfsess_xprt = nd->nd_xprt;
-				if (savxprt != NULL)
-					SVC_RELEASE(savxprt);
 				sep->sess_crflags |= NFSV4CRSESS_CONNBACKCHAN;
 				clp->lc_flags |= LCL_DONEBINDCONN;
 				if (*foreaftp == NFSCDFS4_BACK)
@@ -6460,6 +6459,8 @@ nfsrv_bindconnsess(struct nfsrv_descript *nd, uint8_t *sessionid, int *foreaftp)
 		error = NFSERR_BADSESSION;
 	NFSUNLOCKSESSION(shp);
 	NFSUNLOCKSTATE();
+	if (savxprt != NULL)
+		SVC_RELEASE(savxprt);
 	return (error);
 }
 
