@@ -987,8 +987,8 @@ Enable building
 with support for verification based on certificates obtained from UEFI.
 .Pp
 .It Va WITH_LOADER_FIREWIRE
-Enable firewire support in /boot/loader on x86. This option is a nop
-on all other platforms.
+Enable firewire support in /boot/loader on x86.
+This option is a nop on all other platforms.
 .It Va WITHOUT_LOADER_GELI
 Disable inclusion of GELI crypto support in the boot chain binaries.
 .Pp
@@ -1033,7 +1033,6 @@ arm/armv6, arm/armv7, mips/mips, mips/mips64, powerpc/powerpc and powerpc/powerp
 Set to build with extra verbose debugging in the loader.
 May explode already nearly too large loader over the limit.
 Use with care.
-
 .It Va WITH_LOADER_VERIEXEC
 Enable building
 .Xr loader 8
@@ -1270,7 +1269,6 @@ This is a default setting on
 arm/armv6, arm/armv7, mips/mips, mips/mips64, powerpc/powerpc, riscv/riscv64 and riscv/riscv64sf.
 .It Va WITH_NVME
 Set to build nvme related tools and kernel modules.
-
 .Pp
 This is a default setting on
 amd64/amd64, arm64/aarch64, i386/i386 and powerpc/powerpc64.
