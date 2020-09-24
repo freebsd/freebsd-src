@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2006
+.Dd September 24, 2020
 .Dt WHICH 1
 .Os
 .Sh NAME
@@ -62,6 +62,48 @@ command which is similar or identical to this utility.
 Consult the
 .Xr builtin 1
 manual page.
+.Sh EXAMPLES
+Locate the
+.Xr ls 1
+and
+.Xr cp 1
+commands:
+.Bd -literal -offset indent
+$ /usr/bin/which ls cp
+/bin/ls
+/bin/cp
+.Ed
+.Pp
+Same as above with a specific
+.Va PATH
+and showing all occurrences:
+.Bd -literal -offset indent
+$ PATH=/bin:/rescue /usr/bin/which -a ls cp
+/bin/ls
+/rescue/ls
+/bin/cp
+/rescue/cp
+.Ed
+.Pp
+.Nm which
+will show duplicates if the same executable is find more than once:
+.Bd -literal -offset indent
+$ PATH=/bin:/bin /usr/bin/which -a ls
+/bin/ls
+/bin/ls
+.Ed
+.Pp
+Do not show output.
+Just exit with an appropriate return code:
+.Bd -literal -offset indent
+$ /usr/bin/which -s ls cp
+$ echo $?
+0
+
+$ /usr/bin/which -s fakecommand
+$ echo $?
+1
+.Ed
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
