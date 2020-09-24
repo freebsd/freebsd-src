@@ -49,6 +49,7 @@
 # Language support: MENU, FONT
 #
 MENU:en:Choose your keyboard font
+MENU:da:Vælg din skrifttype for tastaturet
 MENU:de:Wählen Sie Ihre Schrift
 MENU:fr:Choisissez votre fonte écran
 MENU:pl:Wybierz czcionkê ekranow±
@@ -71,109 +72,128 @@ FONT:hy:armscii8-8x16.fnt
 armscii8-8x16.fnt:hy:ARMSCII-8 Îá¹³íáñÙ³İ ³ÕáõëÛ³Ï, 8x16
 armscii8-8x16.fnt:ru:ëÏÄÉÒÏ×ËÁ ARMSCII-8, 8x16
 armscii8-8x16.fnt:en:ARMSCII-8 Character set, 8x16
+armscii8-8x16.fnt:da:ARMSCII-8-tegnsæt, 8x16
 armscii8-8x16.fnt:de:ARMSCII-8 Zeichensatz, 8x16
 
 armscii8-8x14.fnt:hy:ARMSCII-8 Îá¹³íáñÙ³İ ³ÕáõëÛ³Ï, 8x14
 armscii8-8x14.fnt:ru:ëÏÄÉÒÏ×ËÁ ARMSCII-8, 8x14
 armscii8-8x14.fnt:en:ARMSCII-8 Character set, 8x14
+armscii8-8x14.fnt:da:ARMSCII-8-tegnsæt, 8x14
 armscii8-8x14.fnt:de:ARMSCII-8 Zeichensatz, 8x14
 
 armscii8-8x8.fnt:hy:ARMSCII-8 Îá¹³íáñÙ³İ ³ÕáõëÛ³Ï, 8x8
 armscii8-8x8.fnt:ru:ëÏÄÉÒÏ×ËÁ ARMSCII-8, 8x8
 armscii8-8x8.fnt:en:ARMSCII-8 Character set, 8x8
+armscii8-8x8.fnt:da:ARMSCII-8-tegnsæt, 8x8
 armscii8-8x8.fnt:de:ARMSCII-8 Zeichensatz, 8x8
 
 cp437-8x14.fnt:en:Codepage 437 English, 8x14
+cp437-8x14.fnt:da:Codepage 437 engelsk, 8x14
 cp437-8x14.fnt:de:Codeseite 437 Englisch, 8x14
 cp437-8x14.fnt:fr:Code page 437 Anglais, 8x14
 cp437-8x14.fnt:es:Página de códigos 437 inglés, 8x14
 cp437-8x14.fnt:uk:ûÒÉÆÔ 437 ÁÎÇÌ¦ÊÓØËÉÊ, 8x14
 
 cp437-8x16.fnt:en:Codepage 437 English, 8x16
+cp437-8x16.fnt:da:Codepage 437 engelsk, 8x16
 cp437-8x16.fnt:de:Codeseite 437 Englisch, 8x16
 cp437-8x16.fnt:fr:Code page 437 Anglais, 8x16
 cp437-8x16.fnt:es:Página de códigos 437 inglés, 8x16
 cp437-8x16.fnt:uk:ûÒÉÆÔ 437 ÁÎÇÌ¦ÊÓØËÉÊ, 8x16
 
 cp437-thin-8x16.fnt:en:Codepage 437 English, 8x16 (thin)
+cp437-thin-8x16.fnt:da:Codepage 437 engelsk, 8x16 (smal)
 cp437-thin-8x16.fnt:de:Codeseite 437 Englisch, 8x16 (dünn)
 cp437-thin-8x16.fnt:fr:Code page 437 Anglais, 8x16 (dünn)
 cp437-thin-8x16.fnt:es:Página de códigos 437 inglés, 8x16 (fina)
 cp437-thin-8x16.fnt:uk:ûÒÉÆÔ 437 ÁÎÇÌ¦ÊÓØËÉÊ, 8x16 (ÔÏÎËÉÊ)
 
 cp437-8x8.fnt:en:Codepage 437 English, 8x8
+cp437-8x8.fnt:da:Codepage 437 engelsk, 8x8
 cp437-8x8.fnt:de:Codeseite 437 Englisch, 8x8
 cp437-8x8.fnt:fr:Code page 437 Anglais, 8x8
 cp437-8x8.fnt:es:Página de códigos 437 inglés, 8x8
 cp437-8x8.fnt:uk:ûÒÉÆÔ 437 ÁÎÇÌ¦ÊÓØËÉÊ, 8x8
 
 cp437-thin-8x8.fnt:en:Codepage 437 English, 8x8 (thin)
+cp437-thin-8x8.fnt:da:Codepage 437 engelsk, 8x8 (smal)
 cp437-thin-8x8.fnt:de:Codeseite 437 Englisch, 8x8 (dünn)
 cp437-thin-8x8.fnt:fr:Code page 437 Anglais, 8x8 (dünn)
 cp437-thin-8x8.fnt:es:Página de códigos 437 inglés, 8x8 (fina)
 cp437-thin-8x8.fnt:uk:ûÒÉÆÔ 437 ÁÎÇÌ¦ÊÓØËÉÊ, 8x8 (ÔÏÎËÉÊ)
 
 cp850-8x14.fnt:en:Codepage 850 Multilingual Latin I, 8x14
+cp850-8x14.fnt:da:Codepage 850 flersproget latinsk I, 8x14
 cp850-8x14.fnt:de:Codeseite 850 Mehrsprachig (Lateinisch I), 8x14
 cp850-8x14.fnt:fr:Latin multilingual I, 8x14
 cp850-8x14.fnt:es:Página de códigos 850 multilingüe, 8x14
 cp850-8x14.fnt:uk:ûÒÉÆÔ 850 ÌÁÔÉÎÉÃÑ I, 8x14
 
 cp850-8x16.fnt:en:Codepage 850 Multilingual Latin I, 8x16
+cp850-8x16.fnt:da:Codepage 850 flersproget latinsk I, 8x16
 cp850-8x16.fnt:de:Codeseite 850 Mehrsprachig (Lateinisch I), 8x16
 cp850-8x16.fnt:fr:Latin multilingual I, 8x16
 cp850-8x16.fnt:es:Página de códigos 850 multilingüe, 8x16
 cp850-8x16.fnt:uk:ûÒÉÆÔ 850 ÌÁÔÉÎÉÃÑ I, 8x16
 
 cp850-thin-8x16.fnt:en:Codepage 850 Multilingual Latin I, 8x16 (thin)
+cp850-thin-8x16.fnt:da:Codepage 850 flersproget latinsk I, 8x16 (smal)
 cp850-thin-8x16.fnt:de:Codeseite 850 Mehrsprachig (Lateinisch I), 8x16 (dünn)
 cp850-thin-8x16.fnt:fr:Latin multilingual I, 8x16 (fine)
 cp850-thin-8x16.fnt:es:Página de códigos 850 multilingüe, 8x16 (fina)
 cp850-thin-8x16.fnt:uk:ûÒÉÆÔ 850 ÌÁÔÉÎÉÃÑ I, 8x16 (ÔÏÎËÉÊ)
 
 cp850-8x8.fnt:en:Codepage 850 Multilingual Latin I, 8x8
+cp850-8x8.fnt:da:Codepage 850 flersproget latinsk I, 8x8
 cp850-8x8.fnt:de:Codeseite 850 Mehrsprachig (Lateinisch I), 8x8
 cp850-8x8.fnt:fr:Latin multilingual I, 8x8
 cp850-8x8.fnt:es:Página de códigos 850 multilingüe, 8x8
 cp850-8x8.fnt:uk:ûÒÉÆÔ 850 ÌÁÔÉÎÉÃÑ I, 8x8
 
 cp850-thin-8x8.fnt:en:Codepage 850 Multilingual Latin I, 8x8 (thin)
+cp850-thin-8x8.fnt:da:Codepage 850 flersproget latinsk I, 8x8 (smal)
 cp850-thin-8x8.fnt:de:Codeseite 850 Mehrsprachig (Lateinisch I), 8x8 (dünn)
 cp850-thin-8x8.fnt:fr:Latin multilingual I, 8x8 (fine)
 cp850-thin-8x8.fnt:es:Página de códigos 850 multilingüe, 8x8 (fina)
 cp850-thin-8x8.fnt:uk:ûÒÉÆÔ 850 ÌÁÔÉÎÉÃÑ I, 8x8 (ÔÏÎËÉÊ)
 
 cp865-8x14.fnt:en:Codepage 865 Norwegian, 8x14
+cp865-8x14.fnt:da:Codepage 865 norsk, 8x14
 cp865-8x14.fnt:de:Codeseite 865 Norwegen, 8x14
 cp865-8x14.fnt:fr:Code page 865 Norvégien, 8x14
 cp865-8x14.fnt:es:Página de códigos 865 noruego, 8x14
 cp865-8x14.fnt:uk:ûÒÉÆÔ 865 ÎÏÒ×ÅÚØËÉÊ, 8x14
 
 cp865-8x16.fnt:en:Codepage 865 Norwegian, 8x16
+cp865-8x16.fnt:da:Codepage 865 norsk, 8x16
 cp865-8x16.fnt:de:Codeseite 865 Norwegen, 8x16
 cp865-8x16.fnt:fr:Code page 865 Norvégien, 8x16
 cp865-8x16.fnt:es:Página de códigos 865 noruego, 8x16
 cp865-8x16.fnt:uk:ûÒÉÆÔ 865 ÎÏÒ×ÅÚØËÉÊ, 8x16
 
 cp865-thin-8x16.fnt:en:Codepage 865 Norwegian, 8x16 (thin)
+cp865-thin-8x16.fnt:da:Codepage 865 norsk, 8x16 (smal)
 cp865-thin-8x16.fnt:de:Codeseite 865 Norwegen, 8x16 (dünn)
 cp865-thin-8x16.fnt:fr:Code page 865 Norvégien, 8x16 (fine)
 cp865-thin-8x16.fnt:es:Página de códigos 865 noruego, 8x16 (fina)
 cp865-thin-8x16.fnt:uk:ûÒÉÆÔ 865 ÎÏÒ×ÅÚØËÉÊ, 8x16 (ÔÏÎËÉÊ)
 
 cp865-8x8.fnt:en:Codepage 885 Norwegian, 8x8
+cp865-8x8.fnt:da:Codepage 885 norsk, 8x8
 cp865-8x8.fnt:de:Codeseite 865 Norwegen, 8x8
 cp865-8x8.fnt:fr:Code page 865 Norvégien, 8x8
 cp865-8x8.fnt:es:Página de códigos 865 noruego, 8x8
 cp865-8x8.fnt:uk:ûÒÉÆÔ 865 ÎÏÒ×ÅÚØËÉÊ, 8x8
 
 cp865-thin-8x8.fnt:en:Codepage 885 Norwegian, 8x8 (thin)
+cp865-thin-8x8.fnt:da:Codepage 885 norsk, 8x8 (smal)
 cp865-thin-8x8.fnt:de:Codeseite 885 Norwegen, 8x8 (thin)
 cp865-thin-8x8.fnt:fr:Code page 885 Norvégien, 8x8 (fine)
 cp865-thin-8x8.fnt:es:Página de códigos 865 noruego, 8x8 (fina)
 cp865-thin-8x8.fnt:uk:ûÒÉÆÔ 885 ÎÏÒ×ÅÚØËÉÊ, 8x8 (ÔÏÎËÉÊ)
 
 cp866-8x8.fnt:en:Codepage 866 Russian, 8x8
+cp866-8x8.fnt:da:Codepage 866 russisk, 8x8
 cp866-8x8.fnt:de:Codeseite 866 Russisch, 8x8
 cp866-8x8.fnt:ru:ûÒÉÆÔ cp866 ÒÕÓÓËÉÊ, 8x8
 cp866-8x8.fnt:fr:Code page 866 Russe, 8x8
@@ -181,6 +201,7 @@ cp866-8x8.fnt:es:Página de códigos 866 ruso, 8x8
 cp866-8x8.fnt:uk:ûÒÉÆÔ cp866 ÒÏÓ¦ÊÓØËÉÊ, 8x8
 
 cp866-8x14.fnt:en:Codepage 866 Russian, 8x14
+cp866-8x14.fnt:da:Codepage 866 russisk, 8x14
 cp866-8x14.fnt:de:Codeseite 866 Russisch, 8x14
 cp866-8x14.fnt:ru:ûÒÉÆÔ cp866 ÒÕÓÓËÉÊ, 8x14
 cp866-8x14.fnt:fr:Code page 866 Russe, 8x14
@@ -188,6 +209,7 @@ cp866-8x14.fnt:es:Página de códigos 866 ruso, 8x14
 cp866-8x14.fnt:uk:ûÒÉÆÔ cp866 ÒÏÓ¦ÊÓØËÉÊ, 8x14
 
 cp866-8x16.fnt:en:Codepage 866 Russian, 8x16
+cp866-8x16.fnt:da:Codepage 866 russisk, 8x16
 cp866-8x16.fnt:de:Codeseite 866 Russisch, 8x16
 cp866-8x16.fnt:ru:ûÒÉÆÔ cp866 ÒÕÓÓËÉÊ, 8x16
 cp866-8x16.fnt:fr:Code page 866 Russe, 8x16
@@ -195,6 +217,7 @@ cp866-8x16.fnt:es:Página de códigos 866 ruso, 8x16
 cp866-8x16.fnt:uk:ûÒÉÆÔ cp866 ÒÏÓ¦ÊÓØËÉÊ, 8x16
 
 cp866b-8x16.fnt:en:Codepage 866 (b) Russian, 8x16
+cp866b-8x16.fnt:da:Codepage 866 (b) russisk, 8x16
 cp866b-8x16.fnt:de:Codeseite 866 (b) Russisch, 8x16
 cp866b-8x16.fnt:ru:ûÒÉÆÔ cp866 (b) ÒÕÓÓËÉÊ, 8x16
 cp866b-8x16.fnt:fr:Code page 866 (b) Russe, 8x16
@@ -202,6 +225,7 @@ cp866b-8x16.fnt:es:Página de códigos 866 (b) ruso, 8x16
 cp866b-8x16.fnt:uk:ûÒÉÆÔ cp866 (b) ÒÏÓ¦ÊÓØËÉÊ, 8x16
 
 cp866c-8x16.fnt:en:Codepage 866 (c) Russian, 8x16
+cp866c-8x16.fnt:da:Codepage 866 (c) russisk, 8x16
 cp866c-8x16.fnt:de:Codeseite 866 (c) Russisch, 8x16
 cp866c-8x16.fnt:ru:ûÒÉÆÔ cp866 (c) ÒÕÓÓËÉÊ, 8x16
 cp866c-8x16.fnt:fr:Code page 866 (c) Russe, 8x16
@@ -209,156 +233,194 @@ cp866c-8x16.fnt:es:Página de códigos 866 (c) ruso, 8x16
 cp866c-8x16.fnt:uk:ûÒÉÆÔ cp866 (c) ÒÏÓ¦ÊÓØËÉÊ, 8x16
 
 cp1251-8x8.fnt:en:Codepage 1251 Cyrillic, 8x8
+cp1251-8x8.fnt:da:Codepage 1251 kyrillisk, 8x8
 cp1251-8x8.fnt:ru:ûÒÉÆÔ cp1251 ËÉÒÉÌÌÉÃÁ, 8x8
 cp1251-8x8.fnt:uk:ûÒÉÆÔ cp1251-ËÉÒÉÌÉÃÑ, 8x8
 
 cp1251-8x14.fnt:en:Codepage 1251 Cyrillic, 8x14
+cp1251-8x14.fnt:da:Codepage 1251 kyrillisk, 8x14
 cp1251-8x14.fnt:ru:ûÒÉÆÔ cp1251 ËÉÒÉÌÌÉÃÁ, 8x14
 cp1251-8x14.fnt:uk:ûÒÉÆÔ cp1251-ËÉÒÉÌÉÃÑ, 8x14
 
 cp1251-8x16.fnt:en:Codepage 1251 Cyrillic, 8x16
+cp1251-8x16.fnt:da:Codepage 1251 kyrillisk, 8x16
 cp1251-8x16.fnt:ru:ûÒÉÆÔ cp1251 ËÉÒÉÌÌÉÃÁ, 8x16
 cp1251-8x16.fnt:uk:ûÒÉÆÔ cp1251-ËÉÒÉÌÉÃÑ, 8x16
 
 swiss-1131-8x16.fnt:en:Codepage 1131 Belarusian, 8x16 (swiss)
+swiss-1131-8x16.fnt:da:Codepage 1131 hviderussisk, 8x16 (swiss)
 swiss-1251-8x16.fnt:en:Codepage 1251 Cyrillic, 8x16 (swiss)
+swiss-1251-8x16.fnt:da:Codepage 1251 kyrillisk, 8x16 (swiss)
 
 haik8-8x16.fnt:hy:Ğ³Û»ñ»İ haik8 ¥û·ï³·áñÍ»É armscii8 í»ñ³Ïá¹© Ñ»ï¤
 haik8-8x16.fnt:ru:áÒÍÑÎÓËÁÑ haik8 (ÔÏÌØËÏ ÄÌÑ ĞÅÒÅËÏÄÉÒÏ×ËÉ Ó armscii8)
 haik8-8x16.fnt:en:haik8 codepage (use only with armscii8 screenmap)
+haik8-8x16.fnt:da:haik8 codepage (brug kun med armscii8-screenmap)
 haik8-8x16.fnt:de:haik8 Zeichensatz (nur mit armscii8 umwandler verwenden)
 
 haik8-8x14.fnt:hy:Ğ³Û»ñ»İ haik8 ¥û·ï³·áñÍ»É armscii8 í»ñ³Ïá¹© Ñ»ï¤
 haik8-8x14.fnt:ru:áÒÍÑÎÓËÁÑ haik8 (ÔÏÌØËÏ ÄÌÑ ĞÅÒÅËÏÄÉÒÏ×ËÉ Ó armscii8)
 haik8-8x14.fnt:en:haik8 codepage (use only with armscii8 screenmap)
+haik8-8x14.fnt:da:haik8 codepage (brug kun med armscii8-screenmap)
 haik8-8x14.fnt:de:haik8 Zeichensatz (nur mit armscii8 umwandler verwenden)
 
 haik8-8x8.fnt:hy:Ğ³Û»ñ»İ haik8 ¥û·ï³·áñÍ»É armscii8 í»ñ³Ïá¹© Ñ»ï¤
 haik8-8x8.fnt:ru:áÒÍÑÎÓËÁÑ haik8 (ÔÏÌØËÏ ÄÌÑ ĞÅÒÅËÏÄÉÒÏ×ËÉ Ó armscii8)
 haik8-8x8.fnt:en:haik8 codepage (use only with armscii8 screenmap)
+haik8-8x8.fnt:da:haik8 codepage (brug kun med armscii8-screenmap)
 haik8-8x8.fnt:de:haik8 Zeichensatz (nur mit armscii8 umwandler verwenden)
 
 iso-8x16.fnt:en:ISO-8859-1 West European, 8x16
+iso-8x16.fnt:da:ISO-8859-1 vesteuropæisk, 8x16
 iso-8x16.fnt:de:ISO-8859-1 Westeuropa, 8x16
 iso-8x16.fnt:fr:ISO-8859-1 Est européen, 8x16
 iso-8x16.fnt:es:ISO-8859-1 europeo occidental, 8x16
 iso-8x16.fnt:uk:ISO-8859-1 úÁÈ¦ÄÎÁ ´×ÒÏĞÁ, 8x16
 
 iso-8x14.fnt:en:ISO-8859-1 West European, 8x14
+iso-8x14.fnt:da:ISO-8859-1 vesteuropæisk, 8x14
 iso-8x14.fnt:de:ISO-8859-1 Westeuropa, 8x14
 iso-8x14.fnt:fr:ISO-8859-1 Est européen, 8x14
 iso-8x14.fnt:es:ISO-8859-1 europeo occidental, 8x14
 iso-8x14.fnt:uk:ISO-8859-1 úÁÈ¦ÄÎÁ ´×ÒÏĞÁ, 8x14
 
 iso-8x8.fnt:en:ISO-8859-1 West European, 8x8
+iso-8x8.fnt:da:ISO-8859-1 vesteuropæisk, 8x8
 iso-8x8.fnt:de:ISO-8859-1 Westeuropa, 8x8
 iso-8x8.fnt:fr:ISO-8859-1 Est européen, 8x8
 iso-8x8.fnt:es:ISO-8859-1 europeo occidental, 8x8
 iso-8x8.fnt:uk:ISO-8859-1 úÁÈ¦ÄÎÁ ´×ÒÏĞÁ, 8x8
 
 iso-thin-8x16.fnt:en:ISO-8859-1 West European, 8x16 (thin)
+iso-thin-8x16.fnt:da:ISO-8859-1 vesteuropæisk, 8x16 (smal)
 iso-thin-8x16.fnt:de:ISO-8859-1 Westeuropa, 8x16 (dünn)
 iso-thin-8x16.fnt:fr:ISO-8859-1 Est européen, 8x16 (fine)
 iso-thin-8x16.fnt:es:ISO-8859-1 europeo occidental, 8x16 (fina)
 iso-thin-8x16.fnt:uk:ISO-8859-1 úÁÈ¦ÄÎÁ ´×ÒÏĞÁ, 8x16 (ÔÏÎËÉÊ)
 
 iso02-8x16.fnt:en:ISO-8859-2 Central European, 8x16
+iso02-8x16.fnt:da:ISO-8859-2 centraleuropæisk, 8x16
 iso02-8x16.fnt:de:ISO-8859-2 Mitteleuropa, 8x16
 iso02-8x16.fnt:es:ISO-8859-2 centroeuropeo, 8x16
 iso02-8x16.fnt:uk:ISO-8859-2 ãÅÎÔÒÁÌØÎÁ ´×ÒÏĞÁ, 8x16
 
 iso02-8x14.fnt:en:ISO-8859-2 Central European, 8x14
+iso02-8x14.fnt:da:ISO-8859-2 centraleuropæisk, 8x14
 iso02-8x14.fnt:de:ISO-8859-2 Mitteleuropa, 8x14
 iso02-8x14.fnt:es:ISO-8859-2 centroeuropeo, 8x14
 iso02-8x14.fnt:uk:ISO-8859-2 ãÅÎÔÒÁÌØÎÁ ´×ÒÏĞÁ, 8x14
 
 iso02-8x8.fnt:en:ISO-8859-2 Central European, 8x8
+iso02-8x8.fnt:da:ISO-8859-2 centraleuropæisk, 8x8
 iso02-8x8.fnt:de:ISO-8859-2 Mitteleuropa, 8x8
 iso02-8x8.fnt:es:ISO-8859-2 centroeuropeo, 8x8
 iso02-8x8.fnt:uk:ISO-8859-2 ãÅÎÔÒÁÌØÎÁ ´×ÒÏĞÁ, 8x8
 
 iso04-8x16.fnt:en:ISO-8859-4 Baltic, 8x16
+iso04-8x16.fnt:da:ISO-8859-4 baltisk, 8x16
 iso04-8x16.fnt:es:ISO-8859-4 báltico, 8x16
 
 iso04-wide-8x16.fnt:en:ISO-8859-4 Baltic wide, 8x16
+iso04-wide-8x16.fnt:da:ISO-8859-4 baltisk bred, 8x16
 iso04-wide-8x16.fnt:es:ISO-8859-4 báltico, 8x16 (ancha)
 
 iso04-8x14.fnt:en:ISO-8859-4 Baltic, 8x14
+iso04-8x14.fnt:da:ISO-8859-4 baltisk, 8x14
 iso04-8x14.fnt:es:ISO-8859-4 báltico, 8x14
 
 iso04-8x8.fnt:en:ISO-8859-4 Baltic, 8x8
+iso04-8x8.fnt:da:ISO-8859-4 baltisk, 8x8
 iso04-8x8.fnt:es:ISO-8859-4 báltico, 8x8
 
 iso05-8x8.fnt:en:ISO-8859-5 Cyrillic, 8x8
+iso05-8x8.fnt:da:ISO-8859-5 kyrillisk, 8x8
 iso05-8x8.fnt:ru:ISO-8859-5 ËÉÒÉÌÌÉÃÁ, 8x8
 iso05-8x8.fnt:uk:ISO-8859-5 ËÉÒÉÌÉÃÑ, 8x8
 
 iso05-8x14.fnt:en:ISO-8859-5 Cyrillic, 8x14
+iso05-8x14.fnt:da:ISO-8859-5 kyrillisk, 8x14
 iso05-8x14.fnt:ru:ISO-8859-5 ËÉÒÉÌÌÉÃÁ, 8x14
 iso05-8x14.fnt:uk:ISO-8859-5 ËÉÒÉÌÉÃÑ, 8x14
 
 iso05-8x16.fnt:en:ISO-8859-5 Cyrillic, 8x16
+iso05-8x16.fnt:da:ISO-8859-5 kyrillisk, 8x16
 iso05-8x16.fnt:ru:ISO-8859-5 ËÉÒÉÌÌÉÃÁ, 8x16
 iso05-8x16.fnt:uk:ISO-8859-5 ËÉÒÉÌÉÃÑ, 8x16
 
 iso07-8x16.fnt:en:ISO-8859-7 Greek, 8x16
+iso07-8x16.fnt:da:ISO-8859-7 græsk, 8x16
 iso07-8x16.fnt:el:ISO-8859-7 ÅëëçíéêŞ, 8x16
 
 iso07-8x14.fnt:en:ISO-8859-7 Greek, 8x14
+iso07-8x14.fnt:da:ISO-8859-7 græsk, 8x14
 iso07-8x14.fnt:el:ISO-8859-7 ÅëëçíéêŞ, 8x14
 
 iso07-8x8.fnt:en:ISO-8859-7 Greek, 8x8
+iso07-8x8.fnt:da:ISO-8859-7 græsk, 8x8
 iso07-8x8.fnt:el:ISO-8859-7 ÅëëçíéêŞ, 8x8
 
 iso08-8x16.fnt:en:ISO-8859-8 Hebrew, 8x16
+iso08-8x16.fnt:da:ISO-8859-8 hebraisk, 8x16
 iso08-8x16.fnt:iw:ISO-8859-8 8x16 ,úéøáò
 
 iso08-8x14.fnt:en:ISO-8859-8 Hebrew, 8x14
+iso08-8x14.fnt:da:ISO-8859-8 hebraisk, 8x14
 iso08-8x14.fnt:iw:ISO-8859-8 8x14 ,úéøáò
 
 iso08-8x8.fnt:en:ISO-8859-8 Hebrew, 8x8
+iso08-8x8.fnt:da:ISO-8859-8 hebraisk, 8x8
 iso08-8x8.fnt:iw:ISO-8859-8 8x8 ,úéøáò
 
 iso09-8x16.fnt:en:ISO-8859-9 Turkish, 8x16
+iso09-8x16.fnt:da:ISO-8859-9 tyrkisk, 8x16
 iso09-8x16.fnt:uk:ISO-8859-9 ÔÕÒÅÃØËÉÊ, 8x16
 
 iso04-vga9-8x16.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x16
+iso04-vga9-8x16.fnt:da:ISO-8859-4 baltisk (VGA 9 bit-kortlagt), 8x16
 iso04-vga9-8x16.fnt:es:ISO-8859-4 báltico, 8x16 (VGA 9 bits)
 
 iso04-vga9-wide-8x16.fnt:en:ISO-8859-4 Baltic wide (VGA 9bit mapped), 8x16
+iso04-vga9-wide-8x16.fnt:da:ISO-8859-4 baltisk bred (VGA 9 bit-kortlagt), 8x16
 iso04-vga9-wide-8x16.fnt:es:ISO-8859-4 báltico, 8x16 (VGA 9 bits, ancha)
 
 iso04-vga9-8x14.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x14
+iso04-vga9-8x14.fnt:da:ISO-8859-4 baltisk (VGA 9 bit-kortlagt), 8x14
 iso04-vga9-8x14.fnt:es:ISO-8859-4 báltico, 8x14 (VGA 9 bits)
 
 iso04-vga9-8x8.fnt:en:ISO-8859-4 Baltic (VGA 9bit mapped), 8x8
+iso04-vga9-8x8.fnt:da:ISO-8859-4 baltisk (VGA 9 bit-kortlagt), 8x8
 iso04-vga9-8x8.fnt:es:ISO-8859-4 báltico, 8x8 (VGA 9 bits)
 
 iso15-8x16.fnt:en:ISO-8859-15 West European, 8x16
+iso15-8x16.fnt:da:ISO-8859-15 vesteuropæisk, 8x16
 iso15-8x16.fnt:de:ISO-8859-15 Westeuropa, 8x16
 iso15-8x16.fnt:fr:ISO-8859-15 Est européen, 8x16
 iso15-8x16.fnt:es:ISO-8859-15 europeo occidental, 8x16
 iso15-8x16.fnt:uk:ISO-8859-15 úÁÈ¦ÄÎÁ ´×ÒÏĞÁ, 8x16
 
 iso15-8x14.fnt:en:ISO-8859-15 West European, 8x14
+iso15-8x14.fnt:da:ISO-8859-15 vesteuropæisk, 8x14
 iso15-8x14.fnt:de:ISO-8859-15 Westeuropa, 8x14
 iso15-8x14.fnt:fr:ISO-8859-15 Est européen, 8x14
 iso15-8x14.fnt:es:ISO-8859-15 europeo occidental, 8x14
 iso15-8x14.fnt:uk:ISO-8859-15 úÁÈ¦ÄÎÁ ´×ÒÏĞÁ, 8x14
 
 iso15-8x8.fnt:en:ISO-8859-15 West European, 8x8
+iso15-8x8.fnt:da:ISO-8859-15 vesteuropæisk, 8x8
 iso15-8x8.fnt:de:ISO-8859-15 Westeuropa, 8x8
 iso15-8x8.fnt:fr:ISO-8859-15 Est européen, 8x8
 iso15-8x8.fnt:es:ISO-8859-15 europeo occidental, 8x8
 iso15-8x8.fnt:uk:ISO-8859-15 úÁÈ¦ÄÎÁ ´×ÒÏĞÁ, 8x8
 
 iso15-thin-8x16.fnt:en:ISO-8859-15 West European, 8x16 (thin)
+iso15-thin-8x16.fnt:da:ISO-8859-15 vesteuropæisk, 8x16 (smal)
 iso15-thin-8x16.fnt:de:ISO-8859-15 Westeuropa, 8x16 (dünn)
 iso15-thin-8x16.fnt:fr:ISO-8859-15 Est européen, 8x16 (fine)
 iso15-thin-8x16.fnt:es:ISO-8859-15 europeo occidental, 8x16 (fina)
 iso15-thin-8x16.fnt:uk:ISO-8859-15 úÁÈ¦ÄÎÁ ´×ÒÏĞÁ, 8x16 (ÔÏÎËÉÊ)
 
 koi8-r-8x14.fnt:en:Russian koi8-r, 8x14
+koi8-r-8x14.fnt:da:Russisk koi8-r, 8x14
 koi8-r-8x14.fnt:de:Russisch koi8-r, 8x14
 koi8-r-8x14.fnt:ru:òÕÓÓËÉÊ ÛÒÉÆÔ koi8-r, 8x14
 koi8-r-8x14.fnt:fr:Russe koi8-r, 8x14
@@ -367,6 +429,7 @@ koi8-r-8x14.fnt:uk:ûÒÉÆÔ koi8-r ÒÏÓ¦ÊÓØËÉÊ, 8x14
 koi8-r-8x14.fnt:hy:èáõë»ñ»İ koi8-r Ïá¹³íáñáõÙ, 8x14
 
 koi8-r-8x16.fnt:en:Russian koi8-r, 8x16
+koi8-r-8x16.fnt:da:Russisk koi8-r, 8x16
 koi8-r-8x16.fnt:de:Russisch koi8-r, 8x16
 koi8-r-8x16.fnt:ru:òÕÓÓËÉÊ ÛÒÉÆÔ koi8-r, 8x16
 koi8-r-8x16.fnt:fr:Russe koi8-r, 8x16
@@ -375,6 +438,7 @@ koi8-r-8x16.fnt:uk:ûÒÉÆÔ koi8-r ÒÏÓ¦ÊÓØËÉÊ, 8x16
 koi8-r-8x16.fnt:hy:èáõë»ñ»İ koi8-r Ïá¹³íáñáõÙ, 8x16
 
 koi8-r-8x8.fnt:en:Russian koi8-r, 8x8
+koi8-r-8x8.fnt:da:Russisk koi8-r, 8x8
 koi8-r-8x8.fnt:de:Russisch koi8-r, 8x8
 koi8-r-8x8.fnt:ru:òÕÓÓËÉÊ ÛÒÉÆÔ koi8-r, 8x8
 koi8-r-8x8.fnt:fr:Russe koi8-r, 8x8
@@ -383,6 +447,7 @@ koi8-r-8x8.fnt:uk:ûÒÉÆÔ koi8-r ÒÏÓ¦ÊÓØËÉÊ, 8x8
 koi8-r-8x8.fnt:hy:èáõë»ñ»İ koi8-r Ïá¹³íáñáõÙ, 8x8
 
 koi8-rb-8x16.fnt:en:Russian koi8-r (b), 8x16
+koi8-rb-8x16.fnt:da:Russisk koi8-r (b), 8x16
 koi8-rb-8x16.fnt:de:Russisch koi8-r (b), 8x16
 koi8-rb-8x16.fnt:ru:òÕÓÓËÉÊ ÛÒÉÆÔ koi8-r (b), 8x16
 koi8-rb-8x16.fnt:fr:Russe koi8-r (b), 8x16
@@ -391,6 +456,7 @@ koi8-rb-8x16.fnt:uk:ûÒÉÆÔ koi8-r (b) ÒÏÓ¦ÊÓØËÉÊ, 8x16
 koi8-rb-8x16.fnt:hy:èáõë»ñ»İ koi8-r (b) Ïá¹³íáñáõÙ, 8x16
 
 koi8-rc-8x16.fnt:en:Russian koi8-r (c), 8x16
+koi8-rc-8x16.fnt:da:Russisk koi8-r (c), 8x16
 koi8-rc-8x16.fnt:de:Russisch koi8-r (c), 8x16
 koi8-rc-8x16.fnt:ru:òÕÓÓËÉÊ ÛÒÉÆÔ koi8-r (c), 8x16
 koi8-rc-8x16.fnt:fr:Russe koi8-r (c), 8x16
@@ -399,21 +465,27 @@ koi8-rc-8x16.fnt:uk:ûÒÉÆÔ koi8-r (c) ÒÏÓ¦ÊÓØËÉÊ, 8x16
 koi8-rc-8x16.fnt:hy:èáõë»ñ»İ koi8-r (c) Ïá¹³íáñáõÙ, 8x16
 
 cp866u-8x16.fnt:en:Ukrainian font cp866u, 8x16
+cp866u-8x16.fnt:da:Ukrainsk skrifttype cp866u, 8x16
 cp866u-8x16.fnt:uk:ûÒÉÆÔ cp866u ÕËÒÁ§ÎÓØËÉÊ, 8x16
 
 cp866u-8x14.fnt:en:Ukrainian font cp866u, 8x14
+cp866u-8x14.fnt:da:Ukrainsk skrifttype cp866u, 8x14
 cp866u-8x14.fnt:uk:ûÒÉÆÔ cp866u ÕËÒÁ§ÎÓØËÉÊ, 8x14
 
 cp866u-8x8.fnt:en:Ukrainian font cp866u, 8x8
+cp866u-8x8.fnt:da:Ukrainsk skrifttype cp866u, 8x8
 cp866u-8x8.fnt:uk:ûÒÉÆÔ cp866u ÕËÒÁ§ÎÓØËÉÊ, 8x8
 
 koi8-u-8x16.fnt:en:Ukrainian font koi8-u, 8x16
+koi8-u-8x16.fnt:da:Ukrainsk skrifttype koi8-u, 8x16
 koi8-u-8x16.fnt:uk:ûÒÉÆÔ koi8-u ÕËÒÁ§ÎÓØËÉÊ, 8x16
 
 koi8-u-8x14.fnt:en:Ukrainian font koi8-u, 8x14
+koi8-u-8x14.fnt:da:Ukrainsk skrifttype koi8-u, 8x14
 koi8-u-8x14.fnt:uk:ûÒÉÆÔ koi8-u ÕËÒÁ§ÎÓØËÉÊ, 8x14
 
 koi8-u-8x8.fnt:en:Ukrainian font koi8-u, 8x8
+koi8-u-8x8.fnt:da:Ukrainsk skrifttype koi8-u, 8x8
 koi8-u-8x8.fnt:uk:ûÒÉÆÔ koi8-u ÕËÒÁ§ÎÓØËÉÊ, 8x8
 
 # (fset 'langnew
