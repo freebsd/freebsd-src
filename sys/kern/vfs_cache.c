@@ -1089,52 +1089,6 @@ out_relock:
 	return (false);
 }
 
-static int __noinline
-cache_zap_locked_vnode(struct namecache *ncp, struct vnode *vp)
-{
-	struct mtx *pvlp, *vlp1, *vlp2, *to_unlock;
-	struct mtx *blp;
-	int error = 0;
-
-	MPASS(vp == ncp->nc_dvp || vp == ncp->nc_vp);
-	cache_assert_vnode_locked(vp);
-
-	pvlp = VP2VNODELOCK(vp);
-	if (ncp->nc_flag & NCF_NEGATIVE) {
-		cache_zap_negative_locked_vnode_kl(ncp, vp);
-		goto out;
-	}
-
-	blp = NCP2BUCKETLOCK(ncp);
-	vlp1 = VP2VNODELOCK(ncp->nc_dvp);
-	vlp2 = VP2VNODELOCK(ncp->nc_vp);
-	cache_sort_vnodes(&vlp1, &vlp2);
-	if (vlp1 == pvlp) {
-		mtx_lock(vlp2);
-		to_unlock = vlp2;
-	} else {
-		if (!mtx_trylock(vlp1)) {
-			/*
-			 * TODO: Very wasteful but rare.
-			 */
-			mtx_unlock(pvlp);
-			mtx_lock(vlp1);
-			mtx_lock(vlp2);
-			mtx_unlock(vlp2);
-			mtx_unlock(vlp1);
-			return (EAGAIN);
-		}
-		to_unlock = vlp1;
-	}
-	mtx_lock(blp);
-	cache_zap_locked(ncp);
-	mtx_unlock(blp);
-	mtx_unlock(to_unlock);
-out:
-	mtx_unlock(pvlp);
-	return (error);
-}
-
 /*
  * If trylocking failed we can get here. We know enough to take all needed locks
  * in the right order and re-lookup the entry.
@@ -1373,11 +1327,8 @@ negative_success:
 	if (__predict_false(cnp->cn_nameiop == CREATE)) {
 		if (cnp->cn_flags & ISLASTCN) {
 			counter_u64_add(numnegzaps, 1);
-			error = cache_zap_locked_vnode(ncp, dvp);
-			if (__predict_false(error != 0)) {
-				zap_and_exit_bucket_fail2++;
-				goto retry;
-			}
+			cache_zap_negative_locked_vnode_kl(ncp, dvp);
+			mtx_unlock(dvlp);
 			cache_free(ncp);
 			return (0);
 		}
@@ -1484,7 +1435,7 @@ negative_success:
 	if (__predict_false(cnp->cn_nameiop == CREATE)) {
 		if (cnp->cn_flags & ISLASTCN) {
 			counter_u64_add(numnegzaps, 1);
-			error = cache_zap_locked_vnode(ncp, dvp);
+			error = cache_zap_locked_bucket(ncp, cnp, hash, blp);
 			if (__predict_false(error != 0)) {
 				zap_and_exit_bucket_fail2++;
 				goto retry;
