@@ -75,7 +75,7 @@ $ /usr/bin/which ls cp
 .Ed
 .Pp
 Same as above with a specific
-.Va PATH
+.Ev PATH
 and showing all occurrences:
 .Bd -literal -offset indent
 $ PATH=/bin:/rescue /usr/bin/which -a ls cp
@@ -86,7 +86,7 @@ $ PATH=/bin:/rescue /usr/bin/which -a ls cp
 .Ed
 .Pp
 .Nm which
-will show duplicates if the same executable is find more than once:
+will show duplicates if the same executable is found more than once:
 .Bd -literal -offset indent
 $ PATH=/bin:/bin /usr/bin/which -a ls
 /bin/ls
