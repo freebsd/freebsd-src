@@ -162,6 +162,27 @@ static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 static int _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     int flags);
 
+static bool
+might_bounce(bus_dma_tag_t dmat)
+{
+
+	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0)
+		return (true);
+
+	return (false);
+}
+
+static bool
+must_bounce(bus_dma_tag_t dmat, bus_addr_t paddr)
+{
+
+	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0 &&
+	    bus_dma_run_filter(&dmat->common, paddr))
+		return (true);
+
+	return (false);
+}
+
 /*
  * Allocate a device specific dma_tag.
  */
@@ -278,7 +299,7 @@ static bool
 bounce_bus_dma_id_mapped(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen)
 {
 
-	if ((dmat->bounce_flags & BF_COULD_BOUNCE) == 0)
+	if (!might_bounce(dmat))
 		return (true);
 	return (!_bus_dmamap_pagesneeded(dmat, buf, buflen, NULL));
 }
@@ -566,7 +587,7 @@ _bus_dmamap_pagesneeded(bus_dma_tag_t dmat, vm_paddr_t buf, bus_size_t buflen,
 	curaddr = buf;
 	while (buflen != 0) {
 		sgsize = MIN(buflen, dmat->common.maxsegsz);
-		if (bus_dma_run_filter(&dmat->common, curaddr)) {
+		if (must_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize,
 			    PAGE_SIZE - (curaddr & PAGE_MASK));
 			if (pagesneeded == NULL)
@@ -587,7 +608,7 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
     bus_size_t buflen, int flags)
 {
 
-	if ((map->flags & DMAMAP_COULD_BOUNCE) != 0 && map->pagesneeded == 0) {
+	if (map->pagesneeded == 0) {
 		_bus_dmamap_pagesneeded(dmat, buf, buflen, &map->pagesneeded);
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
@@ -602,7 +623,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 	bus_addr_t paddr;
 	bus_size_t sg_len;
 
-	if ((map->flags & DMAMAP_COULD_BOUNCE) != 0 && map->pagesneeded == 0) {
+	if (map->pagesneeded == 0) {
 		CTR4(KTR_BUSDMA, "lowaddr= %d Maxmem= %d, boundary= %d, "
 		    "alignment= %d", dmat->common.lowaddr,
 		    ptoa((vm_paddr_t)Maxmem),
@@ -622,7 +643,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (bus_dma_run_filter(&dmat->common, paddr) != 0) {
+			if (must_bounce(dmat, paddr)) {
 				sg_len = roundup2(sg_len,
 				    dmat->common.alignment);
 				map->pagesneeded++;
@@ -720,7 +741,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 	if (segs == NULL)
 		segs = dmat->segments;
 
-	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) {
+	if (might_bounce(dmat)) {
 		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
@@ -735,9 +756,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 	while (buflen > 0) {
 		curaddr = buf;
 		sgsize = MIN(buflen, dmat->common.maxsegsz);
-		if (((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) &&
-		    map->pagesneeded != 0 &&
-		    bus_dma_run_filter(&dmat->common, curaddr)) {
+		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 			    sgsize);
@@ -791,7 +810,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	if (segs == NULL)
 		segs = dmat->segments;
 
-	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) {
+	if (might_bounce(dmat)) {
 		_bus_dmamap_count_pages(dmat, map, pmap, buf, buflen, flags);
 		if (map->pagesneeded != 0) {
 			error = _bus_dmamap_reserve_pages(dmat, map, flags);
@@ -822,9 +841,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		 */
 		max_sgsize = MIN(buflen, dmat->common.maxsegsz);
 		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
-		if (((dmat->bounce_flags & BF_COULD_BOUNCE) != 0) &&
-		    map->pagesneeded != 0 &&
-		    bus_dma_run_filter(&dmat->common, curaddr)) {
+		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
 			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
