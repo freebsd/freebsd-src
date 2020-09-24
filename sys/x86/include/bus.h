@@ -1102,6 +1102,9 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 BUS_PEEK_FUNC(1, uint8_t)
 BUS_PEEK_FUNC(2, uint16_t)
 BUS_PEEK_FUNC(4, uint32_t)
+#ifdef __amd64__
+BUS_PEEK_FUNC(8, uint64_t)
+#endif
 
 #define BUS_POKE_FUNC(width, type)					\
 	static inline int						\
@@ -1114,6 +1117,9 @@ BUS_PEEK_FUNC(4, uint32_t)
 BUS_POKE_FUNC(1, uint8_t)
 BUS_POKE_FUNC(2, uint16_t)
 BUS_POKE_FUNC(4, uint32_t)
+#ifdef __amd64__
+BUS_POKE_FUNC(8, uint64_t)
+#endif
 
 #endif /* KCSAN && !KCSAN_RUNTIME */
 
