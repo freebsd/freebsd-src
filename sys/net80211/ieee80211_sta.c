@@ -1161,7 +1161,6 @@ int
 ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 	const struct ieee80211_frame *wh, uint8_t *qosinfo)
 {
-#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	struct ieee80211_wme_state *wme = &vap->iv_ic->ic_wme;
 	u_int len = frm[1], qosinfo_count;
 	int i;
@@ -1185,10 +1184,13 @@ ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 		struct wmeParams *wmep =
 			&wme->wme_wmeChanParams.cap_wmeParams[i];
 		/* NB: ACI not used */
-		wmep->wmep_acm = MS(frm[0], WME_PARAM_ACM);
-		wmep->wmep_aifsn = MS(frm[0], WME_PARAM_AIFSN);
-		wmep->wmep_logcwmin = MS(frm[1], WME_PARAM_LOGCWMIN);
-		wmep->wmep_logcwmax = MS(frm[1], WME_PARAM_LOGCWMAX);
+		wmep->wmep_acm = _IEEE80211_MASKSHIFT(frm[0], WME_PARAM_ACM);
+		wmep->wmep_aifsn =
+		    _IEEE80211_MASKSHIFT(frm[0], WME_PARAM_AIFSN);
+		wmep->wmep_logcwmin =
+		     _IEEE80211_MASKSHIFT(frm[1], WME_PARAM_LOGCWMIN);
+		wmep->wmep_logcwmax =
+		     _IEEE80211_MASKSHIFT(frm[1], WME_PARAM_LOGCWMAX);
 		wmep->wmep_txopLimit = le16dec(frm+2);
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_WME,
 		    "%s: WME: %d: acm=%d aifsn=%d logcwmin=%d logcwmax=%d txopLimit=%d\n",
@@ -1203,7 +1205,6 @@ ieee80211_parse_wmeparams(struct ieee80211vap *vap, uint8_t *frm,
 	}
 	wme->wme_wmeChanParams.cap_info = qosinfo_count;
 	return 1;
-#undef MS
 }
 
 /*

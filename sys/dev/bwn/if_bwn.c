@@ -2122,7 +2122,6 @@ bwn_stop(struct bwn_softc *sc)
 static void
 bwn_wme_clear(struct bwn_softc *sc)
 {
-#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	struct wmeParams *p;
 	unsigned int i;
 
@@ -2137,29 +2136,37 @@ bwn_wme_clear(struct bwn_softc *sc)
 			p->wmep_txopLimit = 0;
 			p->wmep_aifsn = 2;
 			/* XXX FIXME: log2(cwmin) */
-			p->wmep_logcwmin = MS(0x0001, WME_PARAM_LOGCWMIN);
-			p->wmep_logcwmax = MS(0x0001, WME_PARAM_LOGCWMAX);
+			p->wmep_logcwmin =
+			    _IEEE80211_MASKSHIFT(0x0001, WME_PARAM_LOGCWMIN);
+			p->wmep_logcwmax =
+			    _IEEE80211_MASKSHIFT(0x0001, WME_PARAM_LOGCWMAX);
 			break;
 		case BWN_WME_VIDEO:
 			p->wmep_txopLimit = 0;
 			p->wmep_aifsn = 2;
 			/* XXX FIXME: log2(cwmin) */
-			p->wmep_logcwmin = MS(0x0001, WME_PARAM_LOGCWMIN);
-			p->wmep_logcwmax = MS(0x0001, WME_PARAM_LOGCWMAX);
+			p->wmep_logcwmin =
+			    _IEEE80211_MASKSHIFT(0x0001, WME_PARAM_LOGCWMIN);
+			p->wmep_logcwmax =
+			    _IEEE80211_MASKSHIFT(0x0001, WME_PARAM_LOGCWMAX);
 			break;
 		case BWN_WME_BESTEFFORT:
 			p->wmep_txopLimit = 0;
 			p->wmep_aifsn = 3;
 			/* XXX FIXME: log2(cwmin) */
-			p->wmep_logcwmin = MS(0x0001, WME_PARAM_LOGCWMIN);
-			p->wmep_logcwmax = MS(0x03ff, WME_PARAM_LOGCWMAX);
+			p->wmep_logcwmin =
+			    _IEEE80211_MASKSHIFT(0x0001, WME_PARAM_LOGCWMIN);
+			p->wmep_logcwmax =
+			    _IEEE80211_MASKSHIFT(0x03ff, WME_PARAM_LOGCWMAX);
 			break;
 		case BWN_WME_BACKGROUND:
 			p->wmep_txopLimit = 0;
 			p->wmep_aifsn = 7;
 			/* XXX FIXME: log2(cwmin) */
-			p->wmep_logcwmin = MS(0x0001, WME_PARAM_LOGCWMIN);
-			p->wmep_logcwmax = MS(0x03ff, WME_PARAM_LOGCWMAX);
+			p->wmep_logcwmin =
+			    _IEEE80211_MASKSHIFT(0x0001, WME_PARAM_LOGCWMIN);
+			p->wmep_logcwmax =
+			    _IEEE80211_MASKSHIFT(0x03ff, WME_PARAM_LOGCWMAX);
 			break;
 		default:
 			KASSERT(0 == 1, ("%s:%d: fail", __func__, __LINE__));
@@ -4612,14 +4619,13 @@ static void
 bwn_wme_loadparams(struct bwn_mac *mac,
     const struct wmeParams *p, uint16_t shm_offset)
 {
-#define	SM(_v, _f)      (((_v) << _f##_S) & _f)
 	struct bwn_softc *sc = mac->mac_sc;
 	uint16_t params[BWN_NR_WMEPARAMS];
 	int slot, tmp;
 	unsigned int i;
 
 	slot = BWN_READ_2(mac, BWN_RNG) &
-	    SM(p->wmep_logcwmin, WME_PARAM_LOGCWMIN);
+	    _IEEE80211_SHIFTMASK(p->wmep_logcwmin, WME_PARAM_LOGCWMIN);
 
 	memset(&params, 0, sizeof(params));
 
@@ -4628,9 +4634,12 @@ bwn_wme_loadparams(struct bwn_mac *mac,
 	    p->wmep_logcwmin, p->wmep_logcwmax, p->wmep_aifsn);
 
 	params[BWN_WMEPARAM_TXOP] = p->wmep_txopLimit * 32;
-	params[BWN_WMEPARAM_CWMIN] = SM(p->wmep_logcwmin, WME_PARAM_LOGCWMIN);
-	params[BWN_WMEPARAM_CWMAX] = SM(p->wmep_logcwmax, WME_PARAM_LOGCWMAX);
-	params[BWN_WMEPARAM_CWCUR] = SM(p->wmep_logcwmin, WME_PARAM_LOGCWMIN);
+	params[BWN_WMEPARAM_CWMIN] =
+	    _IEEE80211_SHIFTMASK(p->wmep_logcwmin, WME_PARAM_LOGCWMIN);
+	params[BWN_WMEPARAM_CWMAX] =
+	     _IEEE80211_SHIFTMASK(p->wmep_logcwmax, WME_PARAM_LOGCWMAX);
+	params[BWN_WMEPARAM_CWCUR] =
+	     _IEEE80211_SHIFTMASK(p->wmep_logcwmin, WME_PARAM_LOGCWMIN);
 	params[BWN_WMEPARAM_AIFS] = p->wmep_aifsn;
 	params[BWN_WMEPARAM_BSLOTS] = slot;
 	params[BWN_WMEPARAM_REGGAP] = slot + p->wmep_aifsn;
