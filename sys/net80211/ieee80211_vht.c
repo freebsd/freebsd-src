@@ -53,10 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_input.h>
 #include <net80211/ieee80211_vht.h>
 
-/* define here, used throughout file */
-#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
-#define	SM(_v, _f)	(((_v) << _f##_S) & _f)
-
 #define	ADDSHORT(frm, v) do {			\
 	frm[0] = (v) & 0xff;			\
 	frm[1] = (v) >> 8;			\
@@ -207,9 +203,11 @@ ieee80211_vht_announce(struct ieee80211com *ic)
 
 	/* Channel width */
 	ic_printf(ic, "[VHT] Channel Widths: 20MHz, 40MHz, 80MHz");
-	if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1)
+	if (_IEEE80211_MASKSHIFT(ic->ic_vhtcaps,
+	    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1)
 		printf(" 160MHz");
-	if (MS(ic->ic_vhtcaps, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2)
+	if (_IEEE80211_MASKSHIFT(ic->ic_vhtcaps,
+	    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2)
 		printf(" 80+80MHz");
 	printf("\n");
 
@@ -376,18 +374,20 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 	 */
 
 	/* Limit MPDU size to the smaller of the two */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_MAX_MPDU_MASK);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_MAX_MPDU_MASK);
 	if (opmode == 1) {
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_MAX_MPDU_MASK);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_MAX_MPDU_MASK);
 	}
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_MAX_MPDU_MASK);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_MAX_MPDU_MASK);
 
 	/* Limit supp channel config */
-	val2 = val1 = MS(vap->iv_vhtcaps,
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
 	    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK);
 	if (opmode == 1) {
-		val2 = MS(ni->ni_vhtcap,
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
 		    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK);
 	}
 	if ((val2 == 2) &&
@@ -397,31 +397,38 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 	    ((vap->iv_flags_vht & IEEE80211_FVHT_USEVHT160) == 0))
 		val2 = 0;
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	     IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK);
 
 	/* RX LDPC */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_RXLDPC);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_RXLDPC);
 	if (opmode == 1) {
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_RXLDPC);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_RXLDPC);
 	}
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_RXLDPC);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_RXLDPC);
 
 	/* Short-GI 80 */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_SHORT_GI_80);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_SHORT_GI_80);
 	if (opmode == 1) {
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_SHORT_GI_80);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_SHORT_GI_80);
 	}
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_SHORT_GI_80);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_SHORT_GI_80);
 
 	/* Short-GI 160 */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_SHORT_GI_160);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_SHORT_GI_160);
 	if (opmode == 1) {
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_SHORT_GI_160);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_SHORT_GI_160);
 	}
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_SHORT_GI_160);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_SHORT_GI_160);
 
 	/*
 	 * STBC is slightly more complicated.
@@ -439,28 +446,32 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 	 */
 
 	/* TX STBC */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_TXSTBC);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_TXSTBC);
 	if (opmode == 1) {
 		/* STA mode - enable it only if node RXSTBC is non-zero */
-		val2 = !! MS(ni->ni_vhtcap, IEEE80211_VHTCAP_RXSTBC_MASK);
+		val2 = !! _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_RXSTBC_MASK);
 	}
 	val = MIN(val1, val2);
 	/* XXX For now, use the 11n config flag */
 	if ((vap->iv_flags_ht & IEEE80211_FHT_STBC_TX) == 0)
 		val = 0;
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_TXSTBC);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_TXSTBC);
 
 	/* RX STBC1..4 */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_RXSTBC_MASK);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_RXSTBC_MASK);
 	if (opmode == 1) {
 		/* STA mode - enable it only if node TXSTBC is non-zero */
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_TXSTBC);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		   IEEE80211_VHTCAP_TXSTBC);
 	}
 	val = MIN(val1, val2);
 	/* XXX For now, use the 11n config flag */
 	if ((vap->iv_flags_ht & IEEE80211_FHT_STBC_RX) == 0)
 		val = 0;
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_RXSTBC_MASK);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_RXSTBC_MASK);
 
 	/*
 	 * Finally - if RXSTBC is 0, then don't enable TXSTBC.
@@ -480,115 +491,129 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 	 */
 
 	/* SU Beamformer capable */
-	val2 = val1 = MS(vap->iv_vhtcaps,
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
 	    IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE);
 	if (opmode == 1) {
-		val2 = MS(ni->ni_vhtcap,
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
 		    IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE);
 	}
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	    IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE);
 
 	/* SU Beamformee capable */
-	val2 = val1 = MS(vap->iv_vhtcaps,
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
 	    IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE);
 	if (opmode == 1) {
-		val2 = MS(ni->ni_vhtcap,
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
 		    IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE);
 	}
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	    IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE);
 
 	/* Beamformee STS capability - only if SU beamformee capable */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_BEAMFORMEE_STS_MASK);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_BEAMFORMEE_STS_MASK);
 	if (opmode == 1) {
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_BEAMFORMEE_STS_MASK);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_BEAMFORMEE_STS_MASK);
 	}
 	val = MIN(val1, val2);
 	if ((new_vhtcap & IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE) == 0)
 		val = 0;
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_BEAMFORMEE_STS_MASK);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	    IEEE80211_VHTCAP_BEAMFORMEE_STS_MASK);
 
 	/* Sounding dimensions - only if SU beamformer capable */
-	val2 = val1 = MS(vap->iv_vhtcaps,
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
 	    IEEE80211_VHTCAP_SOUNDING_DIMENSIONS_MASK);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap,
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
 		    IEEE80211_VHTCAP_SOUNDING_DIMENSIONS_MASK);
 	val = MIN(val1, val2);
 	if ((new_vhtcap & IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE) == 0)
 		val = 0;
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_SOUNDING_DIMENSIONS_MASK);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	    IEEE80211_VHTCAP_SOUNDING_DIMENSIONS_MASK);
 
 	/*
 	 * MU Beamformer capable - only if SU BFF capable, MU BFF capable
 	 * and STA (not AP)
 	 */
-	val2 = val1 = MS(vap->iv_vhtcaps,
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
 	    IEEE80211_VHTCAP_MU_BEAMFORMER_CAPABLE);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap,
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
 		    IEEE80211_VHTCAP_MU_BEAMFORMER_CAPABLE);
 	val = MIN(val1, val2);
 	if ((new_vhtcap & IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE) == 0)
 		val = 0;
 	if (opmode != 1)	/* Only enable for STA mode */
 		val = 0;
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	   IEEE80211_VHTCAP_SU_BEAMFORMER_CAPABLE);
 
 	/*
 	 * MU Beamformee capable - only if SU BFE capable, MU BFE capable
 	 * and AP (not STA)
 	 */
-	val2 = val1 = MS(vap->iv_vhtcaps,
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
 	    IEEE80211_VHTCAP_MU_BEAMFORMEE_CAPABLE);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap,
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
 		    IEEE80211_VHTCAP_MU_BEAMFORMEE_CAPABLE);
 	val = MIN(val1, val2);
 	if ((new_vhtcap & IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE) == 0)
 		val = 0;
 	if (opmode != 0)	/* Only enable for AP mode */
 		val = 0;
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	   IEEE80211_VHTCAP_SU_BEAMFORMEE_CAPABLE);
 
 	/* VHT TXOP PS */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_VHT_TXOP_PS);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_VHT_TXOP_PS);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_VHT_TXOP_PS);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_VHT_TXOP_PS);
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_VHT_TXOP_PS);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_VHT_TXOP_PS);
 
 	/* HTC_VHT */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_HTC_VHT);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_HTC_VHT);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_HTC_VHT);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_HTC_VHT);
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_HTC_VHT);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val, IEEE80211_VHTCAP_HTC_VHT);
 
 	/* A-MPDU length max */
 	/* XXX TODO: we need a userland config knob for this */
-	val2 = val1 = MS(vap->iv_vhtcaps,
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
 	    IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap,
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
 		    IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
 	val = MIN(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	    IEEE80211_VHTCAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK);
 
 	/*
 	 * Link adaptation is only valid if HTC-VHT capable is 1.
 	 * Otherwise, always set it to 0.
 	 */
-	val2 = val1 = MS(vap->iv_vhtcaps,
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
 	    IEEE80211_VHTCAP_VHT_LINK_ADAPTATION_VHT_MASK);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap,
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
 		    IEEE80211_VHTCAP_VHT_LINK_ADAPTATION_VHT_MASK);
 	val = MIN(val1, val2);
 	if ((new_vhtcap & IEEE80211_VHTCAP_HTC_VHT) == 0)
 		val = 0;
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_VHT_LINK_ADAPTATION_VHT_MASK);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	    IEEE80211_VHTCAP_VHT_LINK_ADAPTATION_VHT_MASK);
 
 	/*
 	 * The following two options are 0 if the pattern may change, 1 if it
@@ -596,18 +621,24 @@ ieee80211_vht_get_vhtcap_ie(struct ieee80211_node *ni,
 	 */
 
 	/* RX antenna pattern */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_RX_ANTENNA_PATTERN);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_RX_ANTENNA_PATTERN);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_RX_ANTENNA_PATTERN);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_RX_ANTENNA_PATTERN);
 	val = MAX(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_RX_ANTENNA_PATTERN);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	    IEEE80211_VHTCAP_RX_ANTENNA_PATTERN);
 
 	/* TX antenna pattern */
-	val2 = val1 = MS(vap->iv_vhtcaps, IEEE80211_VHTCAP_TX_ANTENNA_PATTERN);
+	val2 = val1 = _IEEE80211_MASKSHIFT(vap->iv_vhtcaps,
+	    IEEE80211_VHTCAP_TX_ANTENNA_PATTERN);
 	if (opmode == 1)
-		val2 = MS(ni->ni_vhtcap, IEEE80211_VHTCAP_TX_ANTENNA_PATTERN);
+		val2 = _IEEE80211_MASKSHIFT(ni->ni_vhtcap,
+		    IEEE80211_VHTCAP_TX_ANTENNA_PATTERN);
 	val = MAX(val1, val2);
-	new_vhtcap |= SM(val, IEEE80211_VHTCAP_TX_ANTENNA_PATTERN);
+	new_vhtcap |= _IEEE80211_SHIFTMASK(val,
+	    IEEE80211_VHTCAP_TX_ANTENNA_PATTERN);
 
 	/*
 	 * MCS set - again, we announce what we want to use
