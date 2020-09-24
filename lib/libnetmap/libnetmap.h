@@ -554,9 +554,9 @@ struct nmreq_option *nmreq_find_option(struct nmreq_header *, uint32_t);
 void nmreq_free_options(struct nmreq_header *);
 const char* nmreq_option_name(uint32_t);
 #define nmreq_foreach_option(h_, o_) \
-	for ((o_) = (struct nmreq_option *)((h_)->nr_options);\
+	for ((o_) = (struct nmreq_option *)((uintptr_t)((h_)->nr_options));\
 	     (o_) != NULL;\
-	     (o_) = (struct nmreq_option *)((o_)->nro_next))
+	     (o_) = (struct nmreq_option *)((uintptr_t)((o_)->nro_next)))
 
 /* nmctx manipulation */
 
