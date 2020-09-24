@@ -72,6 +72,8 @@ struct bounce_zone;
 
 struct bus_dma_tag {
 	struct bus_dma_tag_common common;
+	size_t			alloc_size;
+	size_t			alloc_alignment;
 	int			map_count;
 	int			bounce_flags;
 	bus_dma_segment_t	*segments;
@@ -208,8 +210,22 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->map_count = 0;
 	newtag->segments = NULL;
 
-	if ((flags & BUS_DMA_COHERENT) != 0)
+	if ((flags & BUS_DMA_COHERENT) != 0) {
 		newtag->bounce_flags |= BF_COHERENT;
+		newtag->alloc_alignment = newtag->common.alignment;
+		newtag->alloc_size = newtag->common.maxsize;
+	} else {
+		/*
+		 * Ensure the buffer is aligned to a cacheline when allocating
+		 * a non-coherent buffer. This is so we don't have any data
+		 * that another CPU may be accessing around DMA buffer
+		 * causing the cache to become dirty.
+		 */
+		newtag->alloc_alignment = MAX(newtag->common.alignment,
+		    dcache_line_size);
+		newtag->alloc_size = roundup2(newtag->common.maxsize,
+		    dcache_line_size);
+	}
 
 	if (parent != NULL) {
 		if ((newtag->common.filter != NULL ||
@@ -520,23 +536,23 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	 *
 	 * In the meantime warn the user if malloc gets it wrong.
 	 */
-	if ((dmat->common.maxsize <= PAGE_SIZE) &&
-	   (dmat->common.alignment <= dmat->common.maxsize) &&
+	if ((dmat->alloc_size <= PAGE_SIZE) &&
+	   (dmat->alloc_alignment <= dmat->alloc_size) &&
 	    dmat->common.lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
-		*vaddr = malloc(dmat->common.maxsize, M_DEVBUF, mflags);
+		*vaddr = malloc(dmat->alloc_size, M_DEVBUF, mflags);
 	} else if (dmat->common.nsegments >=
-	    howmany(dmat->common.maxsize, MIN(dmat->common.maxsegsz, PAGE_SIZE)) &&
-	    dmat->common.alignment <= PAGE_SIZE &&
+	    howmany(dmat->alloc_size, MIN(dmat->common.maxsegsz, PAGE_SIZE)) &&
+	    dmat->alloc_alignment <= PAGE_SIZE &&
 	    (dmat->common.boundary % PAGE_SIZE) == 0) {
 		/* Page-based multi-segment allocations allowed */
-		*vaddr = (void *)kmem_alloc_attr(dmat->common.maxsize, mflags,
+		*vaddr = (void *)kmem_alloc_attr(dmat->alloc_size, mflags,
 		    0ul, dmat->common.lowaddr, attr);
 		dmat->bounce_flags |= BF_KMEM_ALLOC;
 	} else {
-		*vaddr = (void *)kmem_alloc_contig(dmat->common.maxsize, mflags,
-		    0ul, dmat->common.lowaddr, dmat->common.alignment != 0 ?
-		    dmat->common.alignment : 1ul, dmat->common.boundary, attr);
+		*vaddr = (void *)kmem_alloc_contig(dmat->alloc_size, mflags,
+		    0ul, dmat->common.lowaddr, dmat->alloc_alignment != 0 ?
+		    dmat->alloc_alignment : 1ul, dmat->common.boundary, attr);
 		dmat->bounce_flags |= BF_KMEM_ALLOC;
 	}
 	if (*vaddr == NULL) {
@@ -544,7 +560,7 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		    __func__, dmat, dmat->common.flags, ENOMEM);
 		free(*mapp, M_DEVBUF);
 		return (ENOMEM);
-	} else if (vtophys(*vaddr) & (dmat->common.alignment - 1)) {
+	} else if (vtophys(*vaddr) & (dmat->alloc_alignment - 1)) {
 		printf("bus_dmamem_alloc failed to align memory properly.\n");
 	}
 	dmat->map_count++;
@@ -571,7 +587,7 @@ bounce_bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	if ((dmat->bounce_flags & BF_KMEM_ALLOC) == 0)
 		free(vaddr, M_DEVBUF);
 	else
-		kmem_free((vm_offset_t)vaddr, dmat->common.maxsize);
+		kmem_free((vm_offset_t)vaddr, dmat->alloc_size);
 	free(map, M_DEVBUF);
 	dmat->map_count--;
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat,
