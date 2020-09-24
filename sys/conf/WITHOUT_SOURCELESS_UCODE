@@ -14,7 +14,6 @@ nodevice	runfw
 nodevice	sf
 nodevice	ti
 nodevice	txp
-nodevice	cp
 nodevice	ipwfw
 nodevice	iwifw
 nodevice	iwmfw

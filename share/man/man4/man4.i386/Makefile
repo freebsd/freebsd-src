@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 MAN=	apm.4 \
-	cp.4 \
 	CPU_ELAN.4 \
 	glxiic.4 \
 	glxsb.4 \

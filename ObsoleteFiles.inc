@@ -52,6 +52,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20221213: remove sync serial drivers and utilities
+OLD_FILES+=usr/share/man/man4/ce.4
+OLD_FILES+=usr/share/man/man4/cp.4
+
 # 20221202: remove trpt(8)
 OLD_FILES+=usr/sbin/trpt
 OLD_FILES+=usr/share/man/man8/trpt.8.gz
