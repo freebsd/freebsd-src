@@ -923,6 +923,76 @@ TEST_F(WriteBack, o_direct)
 	leak(fd);
 }
 
+TEST_F(WriteBack, direct_io)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd;
+	ssize_t bufsize = strlen(CONTENTS);
+	uint8_t readbuf[bufsize];
+
+	expect_lookup(RELPATH, ino, 0);
+	expect_open(ino, FOPEN_DIRECT_IO, 1);
+	FuseTest::expect_write(ino, 0, bufsize, bufsize, 0, FUSE_WRITE_CACHE,
+		CONTENTS);
+	expect_read(ino, 0, bufsize, bufsize, CONTENTS);
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	ASSERT_EQ(bufsize, write(fd, CONTENTS, bufsize)) << strerror(errno);
+	/* A subsequent read must query the daemon because cache is empty */
+	ASSERT_EQ(0, lseek(fd, 0, SEEK_SET)) << strerror(errno);
+	ASSERT_EQ(0, fcntl(fd, F_SETFL, 0)) << strerror(errno);
+	ASSERT_EQ(bufsize, read(fd, readbuf, bufsize)) << strerror(errno);
+	leak(fd);
+}
+
+/*
+ * mmap should still be possible even if the server used direct_io.  Mmap will
+ * still use the cache, though.
+ *
+ * Regression test for bug 247276
+ * https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=247276
+ */
+TEST_F(WriteBack, mmap_direct_io)
+{
+	const char FULLPATH[] = "mountpoint/some_file.txt";
+	const char RELPATH[] = "some_file.txt";
+	const char *CONTENTS = "abcdefgh";
+	uint64_t ino = 42;
+	int fd;
+	size_t len;
+	ssize_t bufsize = strlen(CONTENTS);
+	void *p, *zeros;
+
+	len = getpagesize();
+	zeros = calloc(1, len);
+	ASSERT_NE(nullptr, zeros);
+
+	expect_lookup(RELPATH, ino, len);
+	expect_open(ino, FOPEN_DIRECT_IO, 1);
+	expect_read(ino, 0, len, len, zeros);
+	expect_flush(ino, 1, ReturnErrno(0));
+	FuseTest::expect_write(ino, 0, len, len, FUSE_WRITE_CACHE, 0, zeros);
+	expect_release(ino, ReturnErrno(0));
+
+	fd = open(FULLPATH, O_RDWR);
+	EXPECT_LE(0, fd) << strerror(errno);
+
+	p = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	ASSERT_NE(MAP_FAILED, p) << strerror(errno);
+
+	memmove((uint8_t*)p, CONTENTS, bufsize);
+
+	ASSERT_EQ(0, munmap(p, len)) << strerror(errno);
+	close(fd);	// Write mmap'd data on close
+
+	free(zeros);
+}
+
 /*
  * When mounted with -o async, the writeback cache mode should delay writes
  */
