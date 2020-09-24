@@ -849,7 +849,9 @@ INSTALL_DDIR=	${_INSTALL_DDIR:S://:/:g:C:/$::}
 METALOG?=	${DESTDIR}/${DISTDIR}/METALOG
 METALOG:=	${METALOG:C,//+,/,g}
 IMAKE+=		-DNO_ROOT METALOG=${METALOG}
-INSTALLFLAGS+=	-U -M ${METALOG} -D ${INSTALL_DDIR}
+METALOG_INSTALLFLAGS=	-U -M ${METALOG} -D ${INSTALL_DDIR}
+INSTALLFLAGS+=	${METALOG_INSTALLFLAGS}
+CERTCTLFLAGS=	${METALOG_INSTALLFLAGS}
 MTREEFLAGS+=	-W
 .endif
 .if defined(BUILD_PKGS)
@@ -858,6 +860,11 @@ INSTALLFLAGS+=	-h sha256
 .if defined(DB_FROM_SRC) || defined(NO_ROOT)
 IMAKE_INSTALL=	INSTALL="install ${INSTALLFLAGS}"
 IMAKE_MTREE=	MTREE_CMD="mtree ${MTREEFLAGS}"
+.endif
+.if make(distributeworld)
+CERTCTLDESTDIR=	${DESTDIR}/${DISTDIR}/base
+.else
+CERTCTLDESTDIR=	${DESTDIR}
 .endif
 
 DESTDIR_MTREEFLAGS=	-deU
@@ -1419,6 +1426,14 @@ distributeworld installworld stageworld: _installcheck_world .PHONY
 	${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 .endfor
 .endif
+.endif # make(distributeworld)
+.if !make(packageworld) && ${MK_CAROOT} != "no"
+	@if which openssl>/dev/null; then \
+		DESTDIR=${CERTCTLDESTDIR} \
+		    sh ${SRCTOP}/usr.sbin/certctl/certctl.sh ${CERTCTLFLAGS} rehash \
+	else \
+		echo "No openssl on the host, not rehashing certificates target -- /etc/ssl may not be populated."; \
+	fi
 .endif
 
 packageworld: .PHONY
