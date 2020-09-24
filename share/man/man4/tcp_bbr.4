@@ -1,0 +1,168 @@
+.\"
+.\" Copyright (c) 2020, Gordon Bergling
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 24, 2020
+.Dt TCP_BBR 4
+.Os
+.Sh NAME
+.Nm tcp_bbr
+.Nd TCP Bottleneck Bandwidth and Round-Trip Time Algorithm
+.Sh SYNOPSIS
+To use this TCP stack you have to place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options TCPHPTS"
+.Ed
+.Pp
+To load the driver as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+tcp_bbr_load="YES"
+.Ed
+.Pp
+To enable the TCP stack you must place the following line in the
+.Xr sysctl.conf 5 :
+.Bd -literal -offset indent
+net.inet.tcp.functions_default=bbr
+.Ed
+.Sh DESCRIPTION
+Bottleneck bandwidth and round-trip time (BBR) is a congestion control algorithm which
+seeks high throughput with a small queue by probing BW and RTT.
+It is a round-up redesign of congestion control, which is not loss-based, delay-based,
+ECN-based or AIMD-based.
+.Pp
+The core design of BBR is about creating a model graph of the network path by
+estimating the maximum BW and minimum RTT on each ACK.
+.Sh MIB Variables
+The algorithm exposes the following scopes in the
+.Va net.inet.tcp.bbr
+branch of the
+.Xr sysctl 3
+MIB:
+.Bl -tag -width ".Va exp_backoff_scale"
+.It Va cwnd
+Cwnd controls, for example "target cwnd rtt measurment" and "BBR initial window".
+.It Va measure
+Measurement controls.
+.It Va pacing
+Connection pacing controls.
+.It Va policer
+Policer controls, for example "false detection threshold" and "loss threshold".
+.It Va probertt
+Probe RTT controls.
+.It Va startup
+Startup controls.
+.It Va states
+State controls.
+.It Va timeout
+Time out controls.
+.El
+.Pp
+Besides the variables within the above scopes the following
+variables are also exposed in the
+.Va net.inet.tcp.bbr
+branch:
+.Bl -tag -width ".Va exp_backoff_scale"
+.It Va clrlost
+Clear lost counters.
+.It Va software_pacing
+Total number of software paced flows.
+.It Va hdwr_pacing
+Total number of hardware paced flows.
+.It Va enob_no_hdwr_pacing
+Total number of enobufs for non-hardware paced flows.
+.It Va enob_hdwr_pacing
+Total number of enobufs for hardware paced flows.
+.It Va rtt_tlp_thresh
+What divisor for TLP rtt/retran will be added (1=rtt, 2=1/2 rtt etc).
+.It Va reorder_fade
+Does reorder detection fade, if so how many ms (0 means never).
+.It Va reorder_thresh
+What factor for rack will be added when seeing reordering (shift right).
+.It Va bb_verbose
+Should BBR black box logging be verbose.
+.It Va sblklimit
+When do we start ignoring small sack blocks.
+.It Va resend_use_tso
+Can resends use TSO?
+.It Va data_after_close
+Do we hold off sending a RST until all pending data is ack'd.
+.It Va kill_paceout
+When we hit this many errors in a row, kill the session?
+.It Va error_paceout
+When we hit an error what is the min to pace out in usec's?
+.It Va cheat_rxt
+Do we burst 1ms between sends on retransmissions (like rack)?
+.It Va minrto
+Minimum RTO in ms.
+.El
+.Sh SEE ALSO
+.Xr cc_chd 4 ,
+.Xr cc_cubic 4 ,
+.Xr cc_hd 4 ,
+.Xr cc_htcp 4 ,
+.Xr cc_newreno 4 ,
+.Xr cc_vegas 4 ,
+.Xr h_ertt 4 ,
+.Xr mod_cc 4 ,
+.Xr tcp 4 ,
+.Xr mod_cc 9
+.Rs
+.%A "Neal Cardwell"
+.%A "Yuchung Cheng"
+.%A "Stephen Gunn"
+.%A "Soheil Hassas Yeganeh"
+.%A "Van Jacobson"
+.%T "BBR: Congestion-Based Congestion Control"
+.%J "ACM Queue, Vol. 14"
+.%D "September / October 2016"
+.Re
+.Rs
+.%A "Dominik Scholz"
+.%A "Benedikt Jaeger"
+.%A "Lukas Schwaighofer"
+.%A "Daniel Raumer"
+.%A "Fabien Geyer"
+.%A "Georg Carle"
+.%T "Towards a Deeper Understanding of TCP BBR Congestion Control"
+.%J "IFIP Networking 2018"
+.%D "May 2018"
+.%U "http://www.net.in.tum.de/fileadmin/bibtex/publications/papers/IFIP-Networking-2018-TCP-BBR.pdf"
+.Re
+.Sh HISTORY
+The
+.Nm
+congestion control module first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+congestion control module was written by
+.An Randall Stewart Aq Mt rrs@FreeBSD.org
+and sponsored by Netflix, Inc.
+This manual page was written by
+.An Gordon Bergling Aq Mt gbe@FreeBSD.org .
