@@ -99,19 +99,17 @@ bus_dma_dflt_lock(void *arg, bus_dma_lock_op_t op)
 int
 bus_dma_run_filter(struct bus_dma_tag_common *tc, bus_addr_t paddr)
 {
-	int retval;
 
-	retval = 0;
-	do {
-		if (((paddr > tc->lowaddr && paddr <= tc->highaddr) ||
-		    ((paddr & (tc->alignment - 1)) != 0)) &&
+	while (tc != NULL) {
+		if ((paddr > tc->lowaddr && paddr <= tc->highaddr) &&
 		    (tc->filter == NULL ||
 		    (*tc->filter)(tc->filterarg, paddr) != 0))
-			retval = 1;
+			return (1);
 
 		tc = tc->parent;		
-	} while (retval == 0 && tc != NULL);
-	return (retval);
+	}
+
+	return (0);
 }
 
 int
