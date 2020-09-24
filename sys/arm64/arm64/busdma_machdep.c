@@ -167,6 +167,7 @@ common_bus_dma_tag_create(struct bus_dma_tag_common *parent,
 		common->impl = parent->impl;
 		common->lowaddr = MIN(parent->lowaddr, common->lowaddr);
 		common->highaddr = MAX(parent->highaddr, common->highaddr);
+		common->alignment = MAX(parent->alignment, common->alignment);
 		if (common->boundary == 0)
 			common->boundary = parent->boundary;
 		else if (parent->boundary != 0) {
