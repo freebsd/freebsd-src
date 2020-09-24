@@ -1,6 +1,6 @@
 .\" $FreeBSD$
-Install the enhanced
-.Xr bc
+Set this option to install the enhanced
+.Xr bc 1
 and
-.Xr dc
+.Xr dc 1
 programs instead of the traditional FreeBSD versions.
