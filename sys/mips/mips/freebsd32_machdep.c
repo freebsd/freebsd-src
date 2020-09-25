@@ -465,7 +465,7 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 		 */
 		if (cpuinfo.userlocal_reg == true) {
 			mips_wr_userlocal((unsigned long)(uap->parms +
-			    td->td_md.md_tls_tcb_offset));
+			    td->td_proc->p_md.md_tls_tcb_offset));
 		}
 		return (0);
 	case MIPS_GET_TLS: 
