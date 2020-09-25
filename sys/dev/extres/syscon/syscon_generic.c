@@ -60,7 +60,7 @@ static int syscon_generic_write_4(struct syscon *syscon, bus_size_t offset,
     uint32_t val);
 static int syscon_generic_modify_4(struct syscon *syscon, bus_size_t offset,
     uint32_t clear_bits, uint32_t set_bits);
-
+static int syscon_generic_detach(device_t dev);
 /*
  * Generic syscon driver (FDT)
  */
@@ -152,7 +152,7 @@ static int
 syscon_generic_attach(device_t dev)
 {
 	struct syscon_generic_softc *sc;
-	int rid;
+	int rid, rv;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -170,9 +170,20 @@ syscon_generic_attach(device_t dev)
 		ofw_bus_get_node(dev));
 	if (sc->syscon == NULL) {
 		device_printf(dev, "Failed to create/register syscon\n");
+		syscon_generic_detach(dev);
 		return (ENXIO);
 	}
-	return (0);
+	if (ofw_bus_is_compatible(dev, "simple-bus")) {
+		rv = simplebus_attach_impl(sc->dev);
+		if (rv != 0) {
+			device_printf(dev, "Failed to create simplebus\n");
+			syscon_generic_detach(dev);
+			return (ENXIO);
+		}
+		sc->simplebus_attached = true;
+	}
+
+	return (bus_generic_attach(dev));
 }
 
 static int
@@ -185,7 +196,8 @@ syscon_generic_detach(device_t dev)
 		syscon_unregister(sc->syscon);
 		free(sc->syscon, M_SYSCON);
 	}
-
+	if (sc->simplebus_attached)
+		simplebus_detach(dev);
 	SYSCON_LOCK_DESTROY(sc);
 
 	if (sc->mem_res != NULL)
@@ -202,8 +214,8 @@ static device_method_t syscon_generic_dmethods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(syscon_generic, syscon_generic_driver, syscon_generic_dmethods,
-    sizeof(struct syscon_generic_softc));
+DEFINE_CLASS_1(syscon_generic_dev, syscon_generic_driver, syscon_generic_dmethods,
+    sizeof(struct syscon_generic_softc), simplebus_driver);
 static devclass_t syscon_generic_devclass;
 
 EARLY_DRIVER_MODULE(syscon_generic, simplebus, syscon_generic_driver,
