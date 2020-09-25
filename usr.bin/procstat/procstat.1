@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2019
+.Dd September 14, 2020
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -102,6 +102,15 @@
 .Op Fl N Ar system
 .Op Fl w Ar interval
 .Ar core ...
+.Nm pargs
+.Op Fl -libxo
+.Ar pid ...
+.Nm penv
+.Op Fl -libxo
+.Ar pid ...
+.Nm pwdx
+.Op Fl -libxo
+.Ar pid ...
 .Sh DESCRIPTION
 .Nm
 utility displays detailed information about the processes identified by the
@@ -112,6 +121,17 @@ flag is used, all processes.
 It can also display information extracted from a process core file, if
 the core file is specified as the argument.
 .Pp
+The
+.Nm pargs ,
+.Nm penv
+and
+.Nm pwdx
+utilities display the arguments, environment, and current working directory,
+respectively of the process specified by
+.Ar pid
+argument.
+They mimic the behavior of Solaris utilities of the same names.
+.Pp
 If the
 .Fl -libxo
 flag is specified the output is generated via
@@ -121,7 +141,8 @@ See
 .Xr xo_parse_args 3
 for details on command line arguments.
 .Pp
-The following commands are available:
+The following commands are available for
+.Nm :
 .Bl -tag -width indent
 .It Ar basic
 Print basic process statistics (this is the default).
@@ -196,6 +217,12 @@ Display thread information for the process.
 Display virtual memory mappings for the process.
 .It Ar auxv | Fl x
 Display ELF auxiliary vector for the process.
+.It Ar pargs
+Display arguments for the process.
+.It Ar penv
+Display environment variables for the process.
+.It Ar pwdx
+Display current working directory for the process.
 .El
 .Pp
 All options generate output in the format of a table, the first field of
@@ -430,7 +457,7 @@ process signal disposition details, three symbols
 if signal is pending in the global process queue; - otherwise.
 .It I
 if signal delivery disposition is
-.Dv SIG_IGN;
+.Dv SIG_IGN ;
 - otherwise.
 .It C
 if the signal will be caught; - otherwise.
@@ -711,6 +738,10 @@ support was added by
 .An -nosplit
 Allan Jude
 .Aq Mt allanjude@FreeBSD.org .
+.br
+.An Juraj Lutter
+.Aq Mt juraj@lutter.sk
+added the pargs, penv and pwdx functionality.
 .Sh BUGS
 The display of open file or memory mapping pathnames is implemented using the
 kernel's name cache.
