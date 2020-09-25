@@ -54,6 +54,7 @@ lb_simple_accept_loop(int domain, const struct sockaddr *addr, int sds[],
 	size_t i;
 	int *acceptcnt;
 	int csd, error, excnt, sd;
+	const struct linger lopt = { 1, 0 };
 
 	/*
 	 * We expect each listening socket to accept roughly nconns/nsds
@@ -71,6 +72,10 @@ lb_simple_accept_loop(int domain, const struct sockaddr *addr, int sds[],
 
 		error = connect(sd, addr, addr->sa_len);
 		ATF_REQUIRE_MSG(error == 0, "connect() failed: %s",
+		    strerror(errno));
+
+		error = setsockopt(sd, SOL_SOCKET, SO_LINGER, &lopt, sizeof(lopt));
+		ATF_REQUIRE_MSG(error == 0, "Setting linger failed: %s",
 		    strerror(errno));
 
 		/*
