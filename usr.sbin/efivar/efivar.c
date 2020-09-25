@@ -59,7 +59,7 @@ static struct option longopts[] = {
 	{ "name",		required_argument,	NULL,	'n' },
 	{ "no-name",		no_argument,		NULL,	'N' },
 	{ "print",		no_argument,		NULL,	'p' },
-	{ "print-decimal",	no_argument,		NULL,	'd' },
+//	{ "print-decimal",	no_argument,		NULL,	'd' }, /* unimplemnted clash with linux version */
 	{ "raw-guid",		no_argument,		NULL,   'R' },
 	{ "utf8",		no_argument,		NULL,	'u' },
 	{ "write",		no_argument,		NULL,	'w' },
