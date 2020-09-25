@@ -67,5 +67,7 @@ int simplebus_fill_ranges(phandle_t node,
     struct simplebus_softc *sc);
 
 int simplebus_attach(device_t dev);
+int simplebus_attach_impl(device_t dev);
+int simplebus_detach(device_t dev);
 
 #endif	/* _FDT_SIMPLEBUS_H */
