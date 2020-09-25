@@ -1343,11 +1343,13 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 
 #endif /* COMPAT_43 */
 
+
 #ifdef COMPAT_FREEBSD4
 
 #define	nosys	linux_nosys
 
 #endif /* COMPAT_FREEBSD4 */
+
 
 #ifdef COMPAT_FREEBSD6
 
@@ -1355,11 +1357,13 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 
 #endif /* COMPAT_FREEBSD6 */
 
+
 #ifdef COMPAT_FREEBSD7
 
 #define	nosys	linux_nosys
 
 #endif /* COMPAT_FREEBSD7 */
+
 
 #ifdef COMPAT_FREEBSD10
 
@@ -1367,11 +1371,13 @@ int	linux_pkey_free(struct thread *, struct linux_pkey_free_args *);
 
 #endif /* COMPAT_FREEBSD10 */
 
+
 #ifdef COMPAT_FREEBSD11
 
 #define	nosys	linux_nosys
 
 #endif /* COMPAT_FREEBSD11 */
+
 
 #ifdef COMPAT_FREEBSD12
 

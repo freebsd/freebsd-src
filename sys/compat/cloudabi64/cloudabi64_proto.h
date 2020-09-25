@@ -324,29 +324,42 @@ int	cloudabi_sys_thread_yield(struct thread *, struct cloudabi_sys_thread_yield_
 
 #ifdef COMPAT_43
 
+
 #endif /* COMPAT_43 */
+
 
 #ifdef COMPAT_FREEBSD4
 
+
 #endif /* COMPAT_FREEBSD4 */
+
 
 #ifdef COMPAT_FREEBSD6
 
+
 #endif /* COMPAT_FREEBSD6 */
+
 
 #ifdef COMPAT_FREEBSD7
 
+
 #endif /* COMPAT_FREEBSD7 */
+
 
 #ifdef COMPAT_FREEBSD10
 
+
 #endif /* COMPAT_FREEBSD10 */
+
 
 #ifdef COMPAT_FREEBSD11
 
+
 #endif /* COMPAT_FREEBSD11 */
 
+
 #ifdef COMPAT_FREEBSD12
+
 
 #endif /* COMPAT_FREEBSD12 */
 
