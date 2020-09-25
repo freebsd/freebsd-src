@@ -259,6 +259,20 @@ aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 	period_freq = NS_PER_SEC / period;
 	if (period_freq > AW_PWM_MAX_FREQ)
 		return (EINVAL);
+
+	/*
+	 * FIXME.  The hardware is capable of sub-Hz frequencies, that is,
+	 * periods longer than a second.  But the current code cannot deal
+	 * with those properly.
+	 */
+	if (period_freq == 0)
+		return (EINVAL);
+
+	/*
+	 * FIXME.  There is a great loss of precision when the period and the
+	 * duty are near 1 second.  In some cases period_freq and duty_freq can
+	 * be equal even if the period and the duty are significantly different.
+	 */
 	duty_freq = NS_PER_SEC / duty;
 	if (duty_freq < period_freq) {
 		device_printf(sc->dev, "duty < period\n");
