@@ -274,7 +274,7 @@ aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 		for (i = 0; i < nitems(aw_pwm_clk_prescaler); i++) {
 			if (aw_pwm_clk_prescaler[i] == 0)
 				continue;
-			div = (AW_PWM_MAX_FREQ * aw_pwm_clk_prescaler[i]) / period_freq;
+			div = AW_PWM_MAX_FREQ / aw_pwm_clk_prescaler[i] / period_freq;
 			if ((div - 1) < AW_PWM_PERIOD_TOTAL_MASK ) {
 				prescaler = i;
 				clk_rate = AW_PWM_MAX_FREQ / aw_pwm_clk_prescaler[i];
