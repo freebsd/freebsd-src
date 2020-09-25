@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 22, 2014
+.Dd September 10, 2020
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -85,6 +85,9 @@ packets to network hosts
 .Ek
 .Bk -words
 .Op Fl s Ar packetsize
+.Ek
+.Bk -words
+.Op Fl z Ar tclass
 .Ek
 .Bk -words
 .Op Ar hops ...
@@ -329,6 +332,8 @@ This option is present for backward compatibility.
 has no effect if
 .Fl w
 is specified.
+.It Fl z Ar tclass
+Use the specified traffic class when sending.
 .It Ar hops
 IPv6 addresses for intermediate nodes,
 which will be put into type 0 routing header.
