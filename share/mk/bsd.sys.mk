@@ -156,7 +156,8 @@ CWARNFLAGS+=	-Wno-error=address			\
 
 # GCC 6.1.0
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60100
-CWARNFLAGS+=	-Wno-error=nonnull-compare		\
+CWARNFLAGS+=	-Wno-error=empty-body			\
+		-Wno-error=nonnull-compare		\
 		-Wno-error=shift-negative-value		\
 		-Wno-error=tautological-compare		\
 		-Wno-error=unused-const-variable
