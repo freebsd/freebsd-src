@@ -67,7 +67,7 @@ static device_method_t	simplebus_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		simplebus_probe),
 	DEVMETHOD(device_attach,	simplebus_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	simplebus_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -134,7 +134,7 @@ simplebus_probe(device_t dev)
 }
 
 int
-simplebus_attach(device_t dev)
+simplebus_attach_impl(device_t dev)
 {
 	struct		simplebus_softc *sc;
 	phandle_t	node;
@@ -154,7 +154,32 @@ simplebus_attach(device_t dev)
 
 	for (node = OF_child(sc->node); node > 0; node = OF_peer(node))
 		simplebus_add_device(dev, node, 0, NULL, -1, NULL);
+
+	return (0);
+}
+
+int
+simplebus_attach(device_t dev)
+{
+	int	rv;
+
+	rv = simplebus_attach_impl(dev);
+	if (rv != 0)
+		return (rv);
+
 	return (bus_generic_attach(dev));
+}
+
+int
+simplebus_detach(device_t dev)
+{
+	struct		simplebus_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (sc->ranges != NULL)
+		free(sc->ranges, M_DEVBUF);
+
+	return (bus_generic_detach(dev));
 }
 
 void
