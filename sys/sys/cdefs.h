@@ -38,6 +38,10 @@
 #ifndef	_SYS_CDEFS_H_
 #define	_SYS_CDEFS_H_
 
+#if defined(_KERNEL) && defined(_STANDALONE)
+#error "_KERNEL and _STANDALONE are mutually exclusive"
+#endif
+
 /*
  * Testing against Clang-specific extensions.
  */
