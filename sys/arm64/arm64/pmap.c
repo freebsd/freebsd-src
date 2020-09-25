@@ -373,12 +373,22 @@ pmap_l1(pmap_t pmap, vm_offset_t va)
 }
 
 static __inline pd_entry_t *
-pmap_l1_to_l2(pd_entry_t *l1, vm_offset_t va)
+pmap_l1_to_l2(pd_entry_t *l1p, vm_offset_t va)
 {
-	pd_entry_t *l2;
+	pd_entry_t l1, *l2p;
 
-	l2 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l1) & ~ATTR_MASK);
-	return (&l2[pmap_l2_index(va)]);
+	l1 = pmap_load(l1p);
+
+	/*
+	 * The valid bit may be clear if pmap_update_entry() is concurrently
+	 * modifying the entry, so for KVA only the entry type may be checked.
+	 */
+	KASSERT(va >= VM_MAX_USER_ADDRESS || (l1 & ATTR_DESCR_VALID) != 0,
+	    ("%s: L1 entry %#lx for %#lx is invalid", __func__, l1, va));
+	KASSERT((l1 & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_TABLE,
+	    ("%s: L1 entry %#lx for %#lx is a leaf", __func__, l1, va));
+	l2p = (pd_entry_t *)PHYS_TO_DMAP(l1 & ~ATTR_MASK);
+	return (&l2p[pmap_l2_index(va)]);
 }
 
 static __inline pd_entry_t *
@@ -394,12 +404,23 @@ pmap_l2(pmap_t pmap, vm_offset_t va)
 }
 
 static __inline pt_entry_t *
-pmap_l2_to_l3(pd_entry_t *l2, vm_offset_t va)
+pmap_l2_to_l3(pd_entry_t *l2p, vm_offset_t va)
 {
-	pt_entry_t *l3;
+	pd_entry_t l2;
+	pt_entry_t *l3p;
 
-	l3 = (pd_entry_t *)PHYS_TO_DMAP(pmap_load(l2) & ~ATTR_MASK);
-	return (&l3[pmap_l3_index(va)]);
+	l2 = pmap_load(l2p);
+
+	/*
+	 * The valid bit may be clear if pmap_update_entry() is concurrently
+	 * modifying the entry, so for KVA only the entry type may be checked.
+	 */
+	KASSERT(va >= VM_MAX_USER_ADDRESS || (l2 & ATTR_DESCR_VALID) != 0,
+	    ("%s: L2 entry %#lx for %#lx is invalid", __func__, l2, va));
+	KASSERT((l2 & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_TABLE,
+	    ("%s: L2 entry %#lx for %#lx is a leaf", __func__, l2, va));
+	l3p = (pt_entry_t *)PHYS_TO_DMAP(l2 & ~ATTR_MASK);
+	return (&l3p[pmap_l3_index(va)]);
 }
 
 /*
