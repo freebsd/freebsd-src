@@ -105,8 +105,6 @@ typedef struct {	/* Auxiliary vector entry on initial stack */
 	int	a_type;			/* Entry type. */
 	union {
 		int	a_val;		/* Integer value. */
-		void	*a_ptr;		/* Address. */
-		void	(*a_fcn)(void); /* Function pointer (not used). */
 	} a_un;
 } Elf32_Auxinfo;
 
