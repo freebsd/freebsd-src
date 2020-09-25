@@ -67,6 +67,12 @@ typedef TAILQ_HEAD(syscon_list, syscon) syscon_list_t;
  */
 static int syscon_method_init(struct syscon *syscon);
 static int syscon_method_uninit(struct syscon *syscon);
+static uint32_t syscon_method_read_4(struct syscon *syscon, bus_size_t offset);
+static int syscon_method_write_4(struct syscon *syscon, bus_size_t offset,
+    uint32_t val);
+static int syscon_method_modify_4(struct syscon *syscon, bus_size_t offset,
+    uint32_t clear_bits, uint32_t set_bits);
+
 
 MALLOC_DEFINE(M_SYSCON, "syscon", "Syscon driver");
 
@@ -80,6 +86,9 @@ SX_SYSINIT(syscon_topology, &syscon_topo_lock, "Syscon topology lock");
 static syscon_method_t syscon_methods[] = {
 	SYSCONMETHOD(syscon_init,	syscon_method_init),
 	SYSCONMETHOD(syscon_uninit,	syscon_method_uninit),
+	SYSCONMETHOD(syscon_read_4,	syscon_method_read_4),
+	SYSCONMETHOD(syscon_write_4,	syscon_method_write_4),
+	SYSCONMETHOD(syscon_modify_4,	syscon_method_modify_4),
 
 	SYSCONMETHOD_END
 };
@@ -115,6 +124,39 @@ syscon_get_softc(struct syscon *syscon)
 	return (syscon->softc);
 };
 
+static uint32_t
+syscon_method_read_4(struct syscon *syscon, bus_size_t offset)
+{
+	uint32_t val;
+
+	SYSCON_DEVICE_LOCK(syscon->pdev);
+	val = SYSCON_UNLOCKED_READ_4(syscon, offset);
+	SYSCON_DEVICE_UNLOCK(syscon->pdev);
+	return(val);
+}
+
+static int
+syscon_method_write_4(struct syscon *syscon, bus_size_t offset, uint32_t val)
+{
+	int	rv;
+
+	SYSCON_DEVICE_LOCK(syscon->pdev);
+	rv = SYSCON_UNLOCKED_WRITE_4(syscon, offset, val);
+	SYSCON_DEVICE_UNLOCK(syscon->pdev);
+	return(rv);
+}
+
+static int
+syscon_method_modify_4(struct syscon *syscon, bus_size_t offset,
+    uint32_t clear_bits, uint32_t set_bits)
+{
+	int	rv;
+
+	SYSCON_DEVICE_LOCK(syscon->pdev);
+	rv = SYSCON_UNLOCKED_MODIFY_4(syscon, offset, clear_bits, set_bits);
+	SYSCON_DEVICE_UNLOCK(syscon->pdev);
+	return(rv);
+}
 /*
  * Create and initialize syscon object, but do not register it.
  */
@@ -254,14 +296,3 @@ syscon_get_by_ofw_property(device_t cdev, phandle_t cnode, char *name,
 	return (0);
 }
 #endif
-
-int
-syscon_get_handle_default(device_t dev, struct syscon **syscon)
-{
-	device_t parent;
-
-	parent = device_get_parent(dev);
-	if (parent == NULL)
-		return (ENODEV);
-	return (SYSCON_GET_HANDLE(parent, syscon));
-}
