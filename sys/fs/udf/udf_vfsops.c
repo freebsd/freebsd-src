@@ -590,6 +590,7 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct vnode *vp;
 	struct udf_node *unode;
 	struct file_entry *fe;
+	uint32_t lea, lad;
 	int error, sector, size;
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
@@ -645,31 +646,37 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	devvp = udfmp->im_devvp;
 	if ((error = RDSECTOR(devvp, sector, udfmp->bsize, &bp)) != 0) {
 		printf("Cannot read sector %d\n", sector);
-		vgone(vp);
-		vput(vp);
-		brelse(bp);
-		*vpp = NULL;
-		return (error);
+		goto error;
 	}
 
+	/*
+	 * File entry length validation.
+	 */
 	fe = (struct file_entry *)bp->b_data;
 	if (udf_checktag(&fe->tag, TAGID_FENTRY)) {
 		printf("Invalid file entry!\n");
-		vgone(vp);
-		vput(vp);
-		brelse(bp);
-		*vpp = NULL;
-		return (ENOMEM);
+		error = ENOMEM;
+		goto error;
 	}
-	size = UDF_FENTRY_SIZE + le32toh(fe->l_ea) + le32toh(fe->l_ad);
+	lea = le32toh(fe->l_ea);
+	lad = le32toh(fe->l_ad);
+	if (lea > udfmp->bsize || lad > udfmp->bsize) {
+		printf("Invalid EA and AD lengths %u, %u\n", lea, lad);
+		error = EIO;
+		goto error;
+	}
+	size = UDF_FENTRY_SIZE + lea + lad;
+	if (size > udfmp->bsize) {
+		printf("Invalid file entry size %u\n", size);
+		error = EIO;
+		goto error;
+	}
+
 	unode->fentry = malloc(size, M_UDFFENTRY, M_NOWAIT | M_ZERO);
 	if (unode->fentry == NULL) {
 		printf("Cannot allocate file entry block\n");
-		vgone(vp);
-		vput(vp);
-		brelse(bp);
-		*vpp = NULL;
-		return (ENOMEM);
+		error = ENOMEM;
+		goto error;
 	}
 
 	bcopy(bp->b_data, unode->fentry, size);
@@ -714,6 +721,13 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	*vpp = vp;
 
 	return (0);
+
+error:
+	vgone(vp);
+	vput(vp);
+	brelse(bp);
+	*vpp = NULL;
+	return (error);
 }
 
 static int
