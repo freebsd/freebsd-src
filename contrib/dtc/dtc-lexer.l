@@ -42,7 +42,7 @@ LINECOMMENT	"//".*\n
 YY_BUFFER_STATE include_stack[MAX_INCLUDE_NESTING];
 int include_stack_pointer = 0;
 
-YYLTYPE yylloc;
+extern YYLTYPE yylloc;
 extern bool treesource_error;
 
 /* CAUTION: this will stop working if we ever use yyless() or yyunput() */
