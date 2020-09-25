@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun5i-a13-pwm",		1 },
+	{ "allwinner,sun8i-h3-pwm",		1 },
 	{ NULL,					0 }
 };
 
