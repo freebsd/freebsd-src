@@ -49,6 +49,7 @@
 
 __NULLABILITY_PRAGMA_PUSH
 
+#ifdef _KERNEL
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int suspend_blocked;	/* block suspend due to pending shutdown */
 extern int rebooting;		/* kern_reboot() has been called. */
@@ -83,28 +84,7 @@ enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
 		VM_GUEST_VMWARE, VM_GUEST_KVM, VM_GUEST_BHYVE, VM_GUEST_VBOX,
 		VM_GUEST_PARALLELS, VM_LAST };
 
-/*
- * These functions need to be declared before the KASSERT macro is invoked in
- * !KASSERT_PANIC_OPTIONAL builds, so their declarations are sort of out of
- * place compared to other function definitions in this header.  On the other
- * hand, this header is a bit disorganized anyway.
- */
-void	panic(const char *, ...) __dead2 __printflike(1, 2);
-void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
-
-#if defined(WITNESS) || defined(INVARIANT_SUPPORT)
-#ifdef KASSERT_PANIC_OPTIONAL
-void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
-#else
-#define kassert_panic	panic
-#endif
-#endif
-
 #ifdef	INVARIANTS		/* The option is always available */
-#define	KASSERT(exp,msg) do {						\
-	if (__predict_false(!(exp)))					\
-		kassert_panic msg;					\
-} while (0)
 #define	VNASSERT(exp, vp, msg) do {					\
 	if (__predict_false(!(exp))) {					\
 		vn_printf(vp, "VNASSERT failed: %s not true at %s:%d (%s)\n",\
@@ -121,9 +101,6 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 	panic("executing segment marked as unreachable at %s:%d (%s)\n", \
 	    __FILE__, __LINE__, __func__)
 #else
-#define	KASSERT(exp,msg) do { \
-} while (0)
-
 #define	VNASSERT(exp, vp, msg) do { \
 } while (0)
 #define	VNPASS(exp, vp) do { \
@@ -134,12 +111,47 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #ifndef CTASSERT	/* Allow lint to override */
 #define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
 #endif
+#endif /* KERNEL */
 
-#if defined(_KERNEL)
-#include <sys/param.h>		/* MAXCPU */
-#include <sys/pcpu.h>		/* curthread */
-#include <sys/kpilite.h>
-#endif
+/*
+ * These functions need to be declared before the KASSERT macro is invoked in
+ * !KASSERT_PANIC_OPTIONAL builds, so their declarations are sort of out of
+ * place compared to other function definitions in this header.  On the other
+ * hand, this header is a bit disorganized anyway.
+ */
+void	panic(const char *, ...) __dead2 __printflike(1, 2);
+void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
+
+
+#if defined(_STANDALONE)
+/*
+ * Until we have more experience with KASSERTS that are called
+ * from the boot loader, they are off. The bootloader does this
+ * a little differently than the kernel (we just call printf atm).
+ * we avoid most of the common functions in the boot loader, so
+ * declare printf() here too.
+ */
+int	printf(const char *, ...) __printflike(1, 2);
+#  define kassert_panic printf
+#else /* !_STANDALONE */
+#  if defined(WITNESS) || defined(INVARIANT_SUPPORT)
+#    ifdef KASSERT_PANIC_OPTIONAL
+void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
+#    else
+#      define kassert_panic	panic
+#    endif /* KASSERT_PANIC_OPTIONAL */
+#  endif /* defined(WITNESS) || defined(INVARIANT_SUPPORT) */
+#endif /* _STANDALONE */
+
+#if defined(INVARIANTS) || defined(_STANDALONE)
+#define	KASSERT(exp,msg) do {						\
+	if (__predict_false(!(exp)))					\
+		kassert_panic msg;					\
+} while (0)
+#else /* !INVARIANTS && !_STANDALONE */
+#define	KASSERT(exp,msg) do { \
+} while (0)
+#endif /* INVARIANTS || _STANDALONE */
 
 /*
  * Helpful macros for quickly coming up with assertions with informative
@@ -150,6 +162,18 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 #define MPASS3(ex, file, line)	MPASS4(ex, #ex, file, line)
 #define MPASS4(ex, what, file, line)					\
 	KASSERT((ex), ("Assertion %s failed at %s:%d", what, file, line))
+
+/*
+ * Align variables.
+ */
+#define	__read_mostly		__section(".data.read_mostly")
+#define	__read_frequently	__section(".data.read_frequently")
+#define	__exclusive_cache_line	__aligned(CACHE_LINE_SIZE) \
+				    __section(".data.exclusive_cache_line")
+#ifdef _KERNEL
+#include <sys/param.h>		/* MAXCPU */
+#include <sys/pcpu.h>		/* curthread */
+#include <sys/kpilite.h>
 
 /*
  * Assert that a pointer can be loaded from memory atomically.
@@ -180,13 +204,6 @@ void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
 })
 #define	SCHEDULER_STOPPED() SCHEDULER_STOPPED_TD(curthread)
 
-/*
- * Align variables.
- */
-#define	__read_mostly		__section(".data.read_mostly")
-#define	__read_frequently	__section(".data.read_frequently")
-#define	__exclusive_cache_line	__aligned(CACHE_LINE_SIZE) \
-				    __section(".data.exclusive_cache_line")
 /*
  * XXX the hints declarations are even more misplaced than most declarations
  * in this file, since they are needed in one file (per arch) and only used
@@ -626,6 +643,7 @@ void _gone_in_dev(struct device *dev, int major, const char *msg);
 #endif
 #define gone_in(major, msg)		__gone_ok(major, msg) _gone_in(major, msg)
 #define gone_in_dev(dev, major, msg)	__gone_ok(major, msg) _gone_in_dev(dev, major, msg)
+#endif /* _KERNEL */
 
 __NULLABILITY_PRAGMA_POP
 
