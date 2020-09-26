@@ -431,6 +431,19 @@ xhci_start_controller(struct xhci_softc *sc)
 	phwr->hwr_ring_seg[0].qwEvrsTablePtr = htole64(addr);
 	phwr->hwr_ring_seg[0].dwEvrsTableSize = htole32(XHCI_MAX_EVENTS);
 
+	/*
+	 * PR 237666:
+	 *
+	 * According to the XHCI specification, the XWRITE4's to
+	 * XHCI_ERSTBA_LO and _HI lead to the XHCI to copy the
+	 * qwEvrsTablePtr and dwEvrsTableSize values above at that
+	 * time, as the XHCI initializes its event ring support. This
+	 * is before the event ring starts to pay attention to the
+	 * RUN/STOP bit. Thus, make sure the values are observable to
+	 * the XHCI before that point.
+	 */
+	usb_bus_mem_flush_all(&sc->sc_bus, &xhci_iterate_hw_softc);
+
 	DPRINTF("ERDP(0)=0x%016llx\n", (unsigned long long)addr);
 
 	XWRITE4(sc, runt, XHCI_ERDP_LO(0), (uint32_t)addr);
