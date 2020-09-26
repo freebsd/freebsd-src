@@ -630,6 +630,7 @@ struct ccb_pathinq_settings_sas {
 	u_int32_t bitrate;	/* Mbps */
 };
 
+#define NVME_DEV_NAME_LEN	52
 struct ccb_pathinq_settings_nvme {
 	uint32_t nsid;		/* Namespace ID for this path */
 	uint32_t domain;
@@ -637,7 +638,10 @@ struct ccb_pathinq_settings_nvme {
 	uint8_t  slot;
 	uint8_t  function;
 	uint8_t  extra;
+	char	 dev_name[NVME_DEV_NAME_LEN]; /* nvme controller dev name for this device */
 };
+_Static_assert(sizeof(struct ccb_pathinq_settings_nvme) == 64,
+    "ccb_pathinq_settings_nvme too big");
 
 #define	PATHINQ_SETTINGS_SIZE	128
 
@@ -1030,6 +1034,7 @@ struct ccb_trans_settings_nvme
 	uint8_t		speed;		/* PCIe generation for each lane */
 	uint8_t		max_lanes;	/* Number of PCIe lanes */
 	uint8_t		max_speed;	/* PCIe generation for each lane */
+
 };
 
 #include <cam/mmc/mmc_bus.h>
