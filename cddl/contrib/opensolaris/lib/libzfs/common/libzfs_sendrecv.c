@@ -3301,7 +3301,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 	boolean_t resuming = DMU_GET_FEATUREFLAGS(drrb->drr_versioninfo) &
 	    DMU_BACKUP_FEATURE_RESUMING;
 	stream_wantsnewfs = (drrb->drr_fromguid == 0 ||
-	    (drrb->drr_flags & DRR_FLAG_CLONE) || originsnap) && !resuming;
+	    (drrb->drr_flags & DRR_FLAG_CLONE) || originsnap);
 
 	if (stream_wantsnewfs) {
 		/*
@@ -3433,7 +3433,7 @@ zfs_receive_one(libzfs_handle_t *hdl, int infd, const char *tosnap,
 		}
 
 		if (!flags->dryrun && zhp->zfs_type == ZFS_TYPE_FILESYSTEM &&
-		    (stream_wantsnewfs || resuming)) {
+		    stream_wantsnewfs) {
 			/* We can't do online recv in this case */
 			clp = changelist_gather(zhp, ZFS_PROP_NAME, 0, 0);
 			if (clp == NULL) {
