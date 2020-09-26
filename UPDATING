@@ -89,7 +89,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	successful or not) and run installworld once more.
 
 20200627:
-	A new implementation of bc and dc has been imorted in r362681. This
+	A new implementation of bc and dc has been imported in r362681. This
 	implementation corrects non-conformant behavior of the previous bc
 	and adds GNU bc compatible options. It offers a number of extensions,
 	is much faster on large values, and has support for message catalogs
