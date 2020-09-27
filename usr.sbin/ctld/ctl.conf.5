@@ -250,6 +250,14 @@ Specifies that this
 .Sy portal-group
 is listened by some other host.
 This host will announce it on discovery stage, but won't listen.
+.It Ic dscp Ar value
+The DiffServ Codepoint used for sending data. The DSCP can be
+set to numeric, or hexadecimal values directly, as well as the
+well-defined
+.Qq Ar CSx
+and
+.Qq Ar AFxx
+codepoints.
 .El
 .Ss target Context
 .Bl -tag -width indent
