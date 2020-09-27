@@ -104,7 +104,6 @@ cloudabi32_fetch_syscall_args(struct thread *td)
 	if (sa->code >= CLOUDABI32_SYS_MAXSYSCALL)
 		return (ENOSYS);
 	sa->callp = &cloudabi32_sysent[sa->code];
-	sa->narg = sa->callp->sy_narg;
 
 	/*
 	 * Fetch system call arguments.
@@ -117,7 +116,7 @@ cloudabi32_fetch_syscall_args(struct thread *td)
 	 * implementation used by 64-bit processes.
 	 */
 	error = copyin((void *)frame->tf_rcx, sa->args,
-	    sa->narg * sizeof(sa->args[0]));
+	    sa->callp->sy_narg * sizeof(sa->args[0]));
 	if (error != 0)
 		return (error);
 

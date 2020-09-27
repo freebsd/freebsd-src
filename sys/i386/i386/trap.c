@@ -1084,11 +1084,10 @@ cpu_fetch_syscall_args(struct thread *td)
  		sa->callp = &p->p_sysent->sv_table[0];
   	else
  		sa->callp = &p->p_sysent->sv_table[sa->code];
-	sa->narg = sa->callp->sy_narg;
 
-	if (params != NULL && sa->narg != 0)
+	if (params != NULL && sa->callp->sy_narg != 0)
 		error = copyin(params, (caddr_t)sa->args,
-		    (u_int)(sa->narg * sizeof(uint32_t)));
+		    (u_int)(sa->callp->sy_narg * sizeof(uint32_t)));
 	else
 		error = 0;
 

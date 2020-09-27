@@ -51,7 +51,6 @@ struct syscall_args {
 	u_int code;
 	struct sysent *callp;
 	register_t args[MAXARGS];
-	int narg;
 };
 
 #ifdef _KERNEL

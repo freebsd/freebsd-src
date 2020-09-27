@@ -156,7 +156,7 @@ freebsd32_fetch_syscall_args(struct thread *td)
 	struct proc *p;
 	register_t *ap;
 	struct syscall_args *sa;
-	int error, i, nap;
+	int error, i, nap, narg;
 	unsigned int args[4];
 
 	nap = 4;
@@ -181,15 +181,15 @@ freebsd32_fetch_syscall_args(struct thread *td)
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 
-	sa->narg = sa->callp->sy_narg;
+	narg = sa->callp->sy_narg;
 	for (i = 0; i < nap; i++)
 		sa->args[i] = ap[i];
-	if (sa->narg > nap) {
-		if ((sa->narg - nap) > nitems(args))
+	if (narg > nap) {
+		if (narg - nap > nitems(args))
 			panic("Too many system call arguiments");
 		error = copyin((void *)td->td_frame->tf_x[13], args,
-		    (sa->narg - nap) * sizeof(int));
-		for (i = 0; i < (sa->narg - nap); i++)
+		    (narg - nap) * sizeof(int));
+		for (i = 0; i < (narg - nap); i++)
 			sa->args[i + nap] = args[i];
 	}
 

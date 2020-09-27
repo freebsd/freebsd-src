@@ -120,12 +120,12 @@ cpu_fetch_syscall_args(struct thread *td)
 		sa->callp = &p->p_sysent->sv_table[0];
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
-	sa->narg = sa->callp->sy_narg;
 	error = 0;
 	memcpy(sa->args, ap, sa->nap * sizeof(register_t));
-	if (sa->narg > sa->nap) {
+	if (sa->callp->sy_narg > sa->nap) {
 		error = copyin((void *)td->td_frame->tf_usr_sp, sa->args +
-		    sa->nap, (sa->narg - sa->nap) * sizeof(register_t));
+		    sa->nap, (sa->callp->sy_narg - sa->nap) *
+		    sizeof(register_t));
 	}
 	if (error == 0) {
 		td->td_retval[0] = 0;

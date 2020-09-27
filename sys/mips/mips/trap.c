@@ -448,9 +448,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	else
 		sa->callp = &se->sv_table[sa->code];
 
-	sa->narg = sa->callp->sy_narg;
-
-	if (sa->narg > nsaved) {
+	if (sa->callp->sy_narg > nsaved) {
 #if defined(__mips_n32) || defined(__mips_n64)
 		/*
 		 * XXX
@@ -462,7 +460,7 @@ cpu_fetch_syscall_args(struct thread *td)
 		if (!SV_PROC_FLAG(td->td_proc, SV_ILP32))
 #endif
 			printf("SYSCALL #%u pid:%u, narg (%u) > nsaved (%u).\n",
-			    sa->code, td->td_proc->p_pid, sa->narg, nsaved);
+			    sa->code, td->td_proc->p_pid, sa->callp->sy_narg, nsaved);
 #endif
 #if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
 		if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
@@ -470,7 +468,7 @@ cpu_fetch_syscall_args(struct thread *td)
 			int32_t arg;
 
 			error = 0; /* XXX GCC is awful.  */
-			for (i = nsaved; i < sa->narg; i++) {
+			for (i = nsaved; i < sa->callp->sy_narg; i++) {
 				error = copyin((caddr_t)(intptr_t)(locr0->sp +
 				    (4 + (i - nsaved)) * sizeof(int32_t)),
 				    (caddr_t)&arg, sizeof arg);
@@ -482,7 +480,7 @@ cpu_fetch_syscall_args(struct thread *td)
 #endif
 		error = copyin((caddr_t)(intptr_t)(locr0->sp +
 		    4 * sizeof(register_t)), (caddr_t)&sa->args[nsaved],
-		   (u_int)(sa->narg - nsaved) * sizeof(register_t));
+		   (u_int)(sa->callp->sy_narg - nsaved) * sizeof(register_t));
 		if (error != 0) {
 			locr0->v0 = error;
 			locr0->a3 = 1;

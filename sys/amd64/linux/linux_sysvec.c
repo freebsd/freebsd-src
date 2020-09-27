@@ -198,7 +198,6 @@ linux_fetch_syscall_args(struct thread *td)
 		sa->callp = &p->p_sysent->sv_table[p->p_sysent->sv_size - 1];
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
-	sa->narg = sa->callp->sy_narg;
 
 	td->td_retval[0] = 0;
 	return (0);
