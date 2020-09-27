@@ -63,6 +63,7 @@ device-id		{ return DEVICE_ID; }
 device-type		{ return DEVICE_TYPE; }
 discovery-auth-group	{ return DISCOVERY_AUTH_GROUP; }
 discovery-filter	{ return DISCOVERY_FILTER; }
+dscp			{ return DSCP; }
 foreign			{ return FOREIGN; }
 initiator-name		{ return INITIATOR_NAME; }
 initiator-portal	{ return INITIATOR_PORTAL; }
@@ -85,6 +86,28 @@ size			{ return SIZE; }
 tag			{ return TAG; }
 target			{ return TARGET; }
 timeout			{ return TIMEOUT; }
+af11			{ return AF11; }
+af12			{ return AF12; }
+af13			{ return AF13; }
+af21			{ return AF21; }
+af22			{ return AF22; }
+af23			{ return AF23; }
+af31			{ return AF31; }
+af32			{ return AF32; }
+af33			{ return AF33; }
+af41			{ return AF41; }
+af42			{ return AF42; }
+af43			{ return AF43; }
+be			{ return CS0;  }
+ef			{ return EF;   }
+cs0			{ return CS0;  }
+cs1			{ return CS1;  }
+cs2			{ return CS2;  }
+cs3			{ return CS3;  }
+cs4			{ return CS4;  }
+cs5			{ return CS5;  }
+cs6			{ return CS6;  }
+cs7			{ return CS7;  }
 \"[^"]+\"		{ yylval.str = strndup(yytext + 1,
 			    strlen(yytext) - 2); return STR; }
 [a-zA-Z0-9\.\-@_/\:\[\]]+ { yylval.str = strdup(yytext); return STR; }

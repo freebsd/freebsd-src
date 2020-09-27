@@ -127,6 +127,7 @@ struct portal_group {
 	TAILQ_HEAD(, port)		pg_ports;
 	char				*pg_offload;
 	char				*pg_redirection;
+	int				pg_dscp;
 
 	uint16_t			pg_tag;
 };
