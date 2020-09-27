@@ -117,9 +117,8 @@ cpu_fetch_syscall_args(struct thread *td)
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 
-	sa->narg = sa->callp->sy_narg;
 	memcpy(sa->args, ap, nap * sizeof(register_t));
-	if (sa->narg > nap)
+	if (sa->callp->sy_narg > nap)
 		panic("TODO: Could we have more then %d args?", NARGREG);
 
 	td->td_retval[0] = 0;

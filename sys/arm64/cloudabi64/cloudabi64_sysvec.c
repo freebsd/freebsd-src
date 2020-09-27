@@ -81,7 +81,6 @@ cloudabi64_fetch_syscall_args(struct thread *td)
 	if (sa->code >= CLOUDABI64_SYS_MAXSYSCALL)
 		return (ENOSYS);
 	sa->callp = &cloudabi64_sysent[sa->code];
-	sa->narg = sa->callp->sy_narg;
 
 	/* Fetch system call arguments. */
 	for (i = 0; i < MAXARGS; i++)
