@@ -464,8 +464,11 @@ abort_handler(struct trapframe *tf, int prefetch)
 		/*
 		 * Don't allow user-mode faults in kernel address space.
 		 */
-		if (usermode)
+		if (usermode) {
+			ksig.sig = SIGSEGV;
+			ksig.code = SEGV_ACCERR;
 			goto nogo;
+		}
 
 		map = kernel_map;
 	} else {
@@ -474,8 +477,11 @@ abort_handler(struct trapframe *tf, int prefetch)
 		 * is NULL or curproc->p_vmspace is NULL the fault is fatal.
 		 */
 		vm = (p != NULL) ? p->p_vmspace : NULL;
-		if (vm == NULL)
+		if (vm == NULL) {
+			ksig.sig = SIGSEGV;
+			ksig.code = 0;
 			goto nogo;
+		}
 
 		map = &vm->vm_map;
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
