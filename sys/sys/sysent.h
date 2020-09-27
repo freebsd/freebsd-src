@@ -65,14 +65,14 @@ extern bool			systrace_enabled;
 #endif /* _KERNEL */
 
 struct sysent {			/* system call table */
-	int	sy_narg;	/* number of arguments */
 	sy_call_t *sy_call;	/* implementing function */
-	au_event_t sy_auevent;	/* audit event associated with syscall */
 	systrace_args_func_t sy_systrace_args_func;
 				/* optional argument conversion function. */
+	u_int8_t sy_narg;	/* number of arguments */
+	u_int8_t sy_flags;	/* General flags for system calls. */
+	au_event_t sy_auevent;	/* audit event associated with syscall */
 	u_int32_t sy_entry;	/* DTrace entry ID for systrace. */
 	u_int32_t sy_return;	/* DTrace return ID for systrace. */
-	u_int32_t sy_flags;	/* General flags for system calls. */
 	u_int32_t sy_thrcnt;
 };
 
