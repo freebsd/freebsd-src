@@ -13,7 +13,7 @@
 #define	__IP_PROXY_H__
 
 #ifndef	SOLARIS
-# if defined(sun) && defined(__SVR4))
+# if defined(sun) && defined(__SVR4)
 #  define	SOLARIS		1
 # else
 #  define	SOLARIS		0
