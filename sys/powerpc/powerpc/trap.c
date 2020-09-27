@@ -639,7 +639,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	struct syscall_args *sa;
 	caddr_t	params;
 	size_t argsz;
-	int error, n, i;
+	int error, n, narg, i;
 
 	p = td->td_proc;
 	frame = td->td_frame;
@@ -680,7 +680,7 @@ cpu_fetch_syscall_args(struct thread *td)
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 
-	sa->narg = sa->callp->sy_narg;
+	narg = sa->callp->sy_narg;
 
 	if (SV_PROC_FLAG(p, SV_ILP32)) {
 		argsz = sizeof(uint32_t);
@@ -695,17 +695,17 @@ cpu_fetch_syscall_args(struct thread *td)
 			sa->args[i] = ((u_register_t *)(params))[i];
 	}
 
-	if (sa->narg > n)
+	if (narg > n)
 		error = copyin(MOREARGS(frame->fixreg[1]), sa->args + n,
-			       (sa->narg - n) * argsz);
+			       (narg - n) * argsz);
 	else
 		error = 0;
 
 #ifdef __powerpc64__
-	if (SV_PROC_FLAG(p, SV_ILP32) && sa->narg > n) {
+	if (SV_PROC_FLAG(p, SV_ILP32) && narg > n) {
 		/* Expand the size of arguments copied from the stack */
 
-		for (i = sa->narg; i >= n; i--)
+		for (i = narg; i >= n; i--)
 			sa->args[i] = ((uint32_t *)(&sa->args[n]))[i-n];
 	}
 #endif

@@ -999,15 +999,15 @@ cpu_fetch_syscall_args_fallback(struct thread *td, struct syscall_args *sa)
   	else
  		sa->callp = &p->p_sysent->sv_table[sa->code];
 
-	sa->narg = sa->callp->sy_narg;
-	KASSERT(sa->narg <= nitems(sa->args), ("Too many syscall arguments!"));
+	KASSERT(sa->callp->sy_narg <= nitems(sa->args),
+	    ("Too many syscall arguments!"));
 	argp = &frame->tf_rdi;
 	argp += reg;
 	memcpy(sa->args, argp, sizeof(sa->args[0]) * NARGREGS);
-	if (sa->narg > regcnt) {
+	if (sa->callp->sy_narg > regcnt) {
 		params = (caddr_t)frame->tf_rsp + sizeof(register_t);
 		error = copyin(params, &sa->args[regcnt],
-	    	    (sa->narg - regcnt) * sizeof(sa->args[0]));
+	    	    (sa->callp->sy_narg - regcnt) * sizeof(sa->args[0]));
 		if (__predict_false(error != 0))
 			return (error);
 	}
@@ -1037,10 +1037,10 @@ cpu_fetch_syscall_args(struct thread *td)
 		return (cpu_fetch_syscall_args_fallback(td, sa));
 
 	sa->callp = &p->p_sysent->sv_table[sa->code];
-	sa->narg = sa->callp->sy_narg;
-	KASSERT(sa->narg <= nitems(sa->args), ("Too many syscall arguments!"));
+	KASSERT(sa->callp->sy_narg <= nitems(sa->args),
+	    ("Too many syscall arguments!"));
 
-	if (__predict_false(sa->narg > NARGREGS))
+	if (__predict_false(sa->callp->sy_narg > NARGREGS))
 		return (cpu_fetch_syscall_args_fallback(td, sa));
 
 	memcpy(sa->args, &frame->tf_rdi, sizeof(sa->args[0]) * NARGREGS);
