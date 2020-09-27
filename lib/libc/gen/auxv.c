@@ -67,7 +67,8 @@ __init_elf_aux_vector(void)
 }
 
 static pthread_once_t aux_once = PTHREAD_ONCE_INIT;
-static int pagesize, osreldate, canary_len, ncpus, pagesizes_len, bsdflags;
+static int pagesize, osreldate, ncpus, bsdflags;
+static size_t canary_len, pagesizes_len;
 static int hwcap_present, hwcap2_present;
 static char *canary, *pagesizes, *execpath;
 static void *ps_strings, *timekeep;
@@ -245,16 +246,21 @@ int
 _elf_aux_info(int aux, void *buf, int buflen)
 {
 	int res;
+	size_t buflen_;
 
 	__init_elf_aux_vector();
 	if (__elf_aux_vector == NULL)
 		return (ENOSYS);
 	_once(&aux_once, init_aux);
 
+	if (buflen < 0)
+		return (EINVAL);
+	buflen_ = (size_t)buflen;
+
 	switch (aux) {
 	case AT_CANARY:
-		if (canary != NULL && canary_len >= buflen) {
-			memcpy(buf, canary, buflen);
+		if (canary != NULL && canary_len >= buflen_) {
+			memcpy(buf, canary, buflen_);
 			memset(canary, 0, canary_len);
 			canary = NULL;
 			res = 0;
@@ -267,35 +273,35 @@ _elf_aux_info(int aux, void *buf, int buflen)
 		else if (buf == NULL)
 			res = EINVAL;
 		else {
-			if (strlcpy(buf, execpath, buflen) >= buflen)
+			if (strlcpy(buf, execpath, buflen_) >= buflen_)
 				res = EINVAL;
 			else
 				res = 0;
 		}
 		break;
 	case AT_HWCAP:
-		if (hwcap_present && buflen == sizeof(u_long)) {
+		if (hwcap_present && buflen_ == sizeof(u_long)) {
 			*(u_long *)buf = hwcap;
 			res = 0;
 		} else
 			res = ENOENT;
 		break;
 	case AT_HWCAP2:
-		if (hwcap2_present && buflen == sizeof(u_long)) {
+		if (hwcap2_present && buflen_ == sizeof(u_long)) {
 			*(u_long *)buf = hwcap2;
 			res = 0;
 		} else
 			res = ENOENT;
 		break;
 	case AT_PAGESIZES:
-		if (pagesizes != NULL && pagesizes_len >= buflen) {
-			memcpy(buf, pagesizes, buflen);
+		if (pagesizes != NULL && pagesizes_len >= buflen_) {
+			memcpy(buf, pagesizes, buflen_);
 			res = 0;
 		} else
 			res = ENOENT;
 		break;
 	case AT_PAGESZ:
-		if (buflen == sizeof(int)) {
+		if (buflen_ == sizeof(int)) {
 			if (pagesize != 0) {
 				*(int *)buf = pagesize;
 				res = 0;
@@ -305,7 +311,7 @@ _elf_aux_info(int aux, void *buf, int buflen)
 			res = EINVAL;
 		break;
 	case AT_OSRELDATE:
-		if (buflen == sizeof(int)) {
+		if (buflen_ == sizeof(int)) {
 			if (osreldate != 0) {
 				*(int *)buf = osreldate;
 				res = 0;
@@ -315,7 +321,7 @@ _elf_aux_info(int aux, void *buf, int buflen)
 			res = EINVAL;
 		break;
 	case AT_NCPUS:
-		if (buflen == sizeof(int)) {
+		if (buflen_ == sizeof(int)) {
 			if (ncpus != 0) {
 				*(int *)buf = ncpus;
 				res = 0;
@@ -325,7 +331,7 @@ _elf_aux_info(int aux, void *buf, int buflen)
 			res = EINVAL;
 		break;
 	case AT_TIMEKEEP:
-		if (buflen == sizeof(void *)) {
+		if (buflen_ == sizeof(void *)) {
 			if (timekeep != NULL) {
 				*(void **)buf = timekeep;
 				res = 0;
@@ -335,14 +341,14 @@ _elf_aux_info(int aux, void *buf, int buflen)
 			res = EINVAL;
 		break;
 	case AT_BSDFLAGS:
-		if (buflen == sizeof(int)) {
+		if (buflen_ == sizeof(int)) {
 			*(int *)buf = bsdflags;
 			res = 0;
 		} else
 			res = EINVAL;
 		break;
 	case AT_PS_STRINGS:
-		if (buflen == sizeof(void *)) {
+		if (buflen_ == sizeof(void *)) {
 			if (ps_strings != NULL) {
 				*(void **)buf = ps_strings;
 				res = 0;

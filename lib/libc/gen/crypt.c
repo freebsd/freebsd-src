@@ -47,6 +47,11 @@ __FBSDID("$FreeBSD$");
  * encryption, make sure you've got libcrypt.a around.
  */
 
+int __freebsd11_des_setkey(const char *key);
+int __freebsd11_des_cipher(const char *in, char *out, long salt, int num_iter);
+int __freebsd11_setkey(const char *key);
+int __freebsd11_encrypt(char *block, int flag);
+
 /* ARGSUSED */
 int
 __freebsd11_des_setkey(const char *key __unused)

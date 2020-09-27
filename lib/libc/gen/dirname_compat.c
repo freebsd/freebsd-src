@@ -25,6 +25,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sys/param.h>
 
+char * __freebsd11_dirname(char *path);
+
 char *
 __freebsd11_dirname(char *path)
 {

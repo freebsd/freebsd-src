@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "libc_private.h"
 

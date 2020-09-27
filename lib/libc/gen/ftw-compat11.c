@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include "fts-compat11.h"
 
+int freebsd11_ftw(const char *path, int (*fn)(const char *,
+    const struct freebsd11_stat *, int), int nfds);
+
 int
 freebsd11_ftw(const char *path,
     int (*fn)(const char *, const struct freebsd11_stat *, int), int nfds)
