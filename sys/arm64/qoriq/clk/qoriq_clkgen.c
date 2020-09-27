@@ -83,7 +83,7 @@ qoriq_clkgen_ofw_mapper(struct clkdom *clkdom, uint32_t ncells,
 
 	*clk = clknode_find_by_id(clkdom, QORIQ_CLK_ID(cells[0], cells[1]));
 
-	if (clk == NULL)
+	if (*clk == NULL)
 		return (EINVAL);
 
 	return (0);
