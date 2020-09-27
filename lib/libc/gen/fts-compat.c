@@ -633,9 +633,8 @@ fts_build(FTS *sp, int type)
 	FTSENT *cur, *tail;
 	DIR *dirp;
 	void *oldaddr;
-	size_t dnamlen;
 	int cderrno, descend, len, level, maxlen, nlinks, oflag, saved_errno,
-	    nostat, doadjust;
+	    nostat, doadjust, dnamlen;
 	char *cp;
 
 	/* Set current node pointer. */
@@ -745,7 +744,7 @@ fts_build(FTS *sp, int type)
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
 
-		if ((p = fts_alloc(sp, dp->d_name, (int)dnamlen)) == NULL)
+		if ((p = fts_alloc(sp, dp->d_name, dnamlen)) == NULL)
 			goto mem1;
 		if (dnamlen >= maxlen) {	/* include space for NUL */
 			oldaddr = sp->fts_path;
