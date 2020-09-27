@@ -498,7 +498,7 @@ common:
 	cbz	x19, 1f
 
 	/* Create the identity mapping for FDT data (2 MiB max) */
-	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_UNCACHEABLE))
+	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
 	mov	x9, x0
 	mov	x8, x0		/* VA start (== PA start) */
 	mov	x10, #1
@@ -508,7 +508,7 @@ common:
 #endif
 
 	/* Create the VA = PA map */
-	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_UNCACHEABLE))
+	mov	x7, #(ATTR_S1_nG | ATTR_S1_IDX(VM_MEMATTR_WRITE_BACK))
 	mov	x9, x27
 	mov	x8, x9		/* VA start (== PA start) */
 	mov	x10, #1
