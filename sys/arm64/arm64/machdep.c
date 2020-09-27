@@ -1258,7 +1258,8 @@ initarm(struct arm64_bootparams *abp)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
 	if (boothowto & RB_VERBOSE) {
-		print_efi_map_entries(efihdr);
+		if (efihdr != NULL)
+			print_efi_map_entries(efihdr);
 		physmem_print_tables();
 	}
 
