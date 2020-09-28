@@ -1,0 +1,6 @@
+.\" $FreeBSD$
+Set to not build and install the enhanced
+.Xr bc 1
+and
+.Xr dc 1
+programs instead of the traditional FreeBSD versions.
