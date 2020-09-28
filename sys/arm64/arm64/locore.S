@@ -46,8 +46,6 @@
 
 /* U-Boot booti related constants. */
 #if defined(LINUX_BOOT_ABI)
-#define FDT_MAGIC		0xEDFE0DD0	/* FDT blob Magic */
-
 #ifndef UBOOT_IMAGE_OFFSET
 #define	UBOOT_IMAGE_OFFSET	0		/* Image offset from start of */
 #endif						/*  2 MiB page */
@@ -408,11 +406,12 @@ create_pagetables:
 	/* No modules or FDT pointer ? */
 	cbz	x0, booti_no_fdt
 
-	/* Test if modulep points to modules descriptor or to FDT */
-	ldr	w8, [x0]
-	ldr	w7, =FDT_MAGIC
-	cmp	w7, w8
-	b.eq	booti_fdt
+	/*
+	 * Test if x0 points to modules descriptor(virtual address) or
+	 * to FDT (physical address)
+	 */
+	cmp	x0, x6		/* x6 is #(KERNBASE) */
+	b.lo	booti_fdt
 #endif
 
 	/* Booted with modules pointer */
