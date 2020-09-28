@@ -88,6 +88,7 @@ typedef enum {
 	NDA_CCB_BUFFER_IO	= 0x01,
 	NDA_CCB_DUMP            = 0x02,
 	NDA_CCB_TRIM            = 0x03,
+	NDA_CCB_PASS            = 0x04,
 	NDA_CCB_TYPE_MASK	= 0x0F,
 } nda_ccb_state;
 
@@ -136,6 +137,7 @@ struct nda_trim_request {
 
 /* Need quirk table */
 
+static	disk_ioctl_t	ndaioctl;
 static	disk_strategy_t	ndastrategy;
 static	dumper_t	ndadump;
 static	periph_init_t	ndainit;
@@ -352,6 +354,91 @@ ndaschedule(struct cam_periph *periph)
 		return;
 
 	cam_iosched_schedule(softc->cam_iosched, periph);
+}
+
+static int
+ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
+    struct thread *td)
+{
+	struct cam_periph *periph;
+	struct nda_softc *softc;
+
+	periph = (struct cam_periph *)dp->d_drv1;
+	softc = (struct nda_softc *)periph->softc;
+
+	switch (cmd) {
+	case NVME_IO_TEST:
+	case NVME_BIO_TEST:
+		/*
+		 * These don't map well to the underlying CCBs, so
+		 * they are usupported via CAM.
+		 */
+		return (ENOTTY);
+	case NVME_GET_NSID:
+	{
+		struct nvme_get_nsid *gnsid = (struct nvme_get_nsid *)data;
+		struct ccb_pathinq cpi;
+
+		xpt_path_inq(&cpi, periph->path);
+		strncpy(gnsid->cdev, cpi.xport_specific.nvme.dev_name,
+		    sizeof(gnsid->cdev));
+		gnsid->nsid = cpi.xport_specific.nvme.nsid;
+		return (0);
+	}
+	case NVME_PASSTHROUGH_CMD:
+	{
+		struct nvme_pt_command *pt;
+		union ccb *ccb;
+		struct cam_periph_map_info mapinfo;
+		u_int maxmap = MAXPHYS;	/* XXX is this right */
+		int error;
+
+		/*
+		 * Create a NVME_IO CCB to do the passthrough command.
+		 */
+		pt = (struct nvme_pt_command *)data;
+		ccb = xpt_alloc_ccb();
+		xpt_setup_ccb(&ccb->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
+		ccb->ccb_state = NDA_CCB_PASS;
+		cam_fill_nvmeio(&ccb->nvmeio,
+		    0,			/* Retries */
+		    ndadone,
+		    (pt->is_read ? CAM_DIR_IN : CAM_DIR_OUT) | CAM_DATA_VADDR,
+		    pt->buf,
+		    pt->len,
+		    nda_default_timeout * 1000);
+		memcpy(&ccb->nvmeio.cmd, &pt->cmd, sizeof(pt->cmd));
+
+		/*
+		 * Wire the user memory in this request for the I/O
+		 */
+		memset(&mapinfo, 0, sizeof(mapinfo));
+		error = cam_periph_mapmem(ccb, &mapinfo, maxmap);
+		if (error)
+			return (error);
+
+		/*
+		 * Lock the periph and run the command. XXX do we need
+		 * to lock the periph?
+		 */
+		cam_periph_lock(periph);
+		cam_periph_runccb(ccb, NULL, CAM_RETRY_SELTO, SF_RETRY_UA | SF_NO_PRINT,
+		    NULL);
+		cam_periph_unlock(periph);
+
+		/*
+		 * Tear down mapping and return status.
+		 */
+		cam_periph_unmapmem(ccb, &mapinfo);
+		cam_periph_lock(periph);
+		error = (ccb->ccb_h.status == CAM_REQ_CMP) ? 0 : EIO;
+		xpt_release_ccb(ccb);
+		return (error);
+	}
+	default:
+		break;
+	}
+	return (ENOTTY);
 }
 
 /*
@@ -735,11 +822,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 	/* ident_data parsing */
 
 	periph->softc = softc;
-
 	softc->quirks = NDA_Q_NONE;
-
 	xpt_path_inq(&cpi, periph->path);
-
 	TASK_INIT(&softc->sysctl_task, 0, ndasysctlinit, periph);
 
 	/*
@@ -763,6 +847,7 @@ ndaregister(struct cam_periph *periph, void *arg)
 	disk->d_open = ndaopen;
 	disk->d_close = ndaclose;
 	disk->d_strategy = ndastrategy;
+	disk->d_ioctl = ndaioctl;
 	disk->d_getattr = ndagetattr;
 	disk->d_dump = ndadump;
 	disk->d_gone = ndadiskgonecb;
@@ -1108,6 +1193,8 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 	}
 	case NDA_CCB_DUMP:
 		/* No-op.  We're polling */
+		return;
+	case NDA_CCB_PASS:
 		return;
 	default:
 		break;
