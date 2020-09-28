@@ -24,8 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -33,7 +31,7 @@
 #include <unistd.h>
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	int val = 1;
 

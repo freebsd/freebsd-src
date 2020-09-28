@@ -24,15 +24,13 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <stdio.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
 /*ARGSUSED*/
 int
-main(int argc, char **argv)
+main(void)
 {
 	for (;;) {
 		(void) __syscall(SYS_mmap, NULL, (size_t)1, 2, 3, -1,

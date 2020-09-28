@@ -24,6 +24,8 @@ typedef struct season_7_lisa_the_vegetarian {
 	int fr_salad;
 } season_7_lisa_the_vegetarian_t;
 
+int sleeper(season_7_lisa_the_vegetarian_t *);
+
 int
 sleeper(season_7_lisa_the_vegetarian_t *lp)
 {

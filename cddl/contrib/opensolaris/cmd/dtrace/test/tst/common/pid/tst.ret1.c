@@ -24,8 +24,6 @@
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -34,6 +32,11 @@
  * The canonical name should be 'go' since we prefer symbol names with fewer
  * leading underscores.
  */
+
+extern int a;
+
+int help(void);
+int go(void);
 
 int a = 100;
 
@@ -50,14 +53,14 @@ go(void)
 }
 
 static void
-handle(int sig)
+handle(int sig __unused)
 {
 	go();
 	exit(0);
 }
 
 int
-main(int argc, char **argv)
+main(void)
 {
 	(void) signal(SIGUSR1, handle);
 	for (;;)
