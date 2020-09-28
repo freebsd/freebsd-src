@@ -1454,15 +1454,17 @@ ng_l2tp_seq_rack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 	struct mbuf *m;
 	u_int delay;
 
-	/* Make sure callout is still active before doing anything */
-	if (callout_pending(&seq->rack_timer) ||
-	    (!callout_active(&seq->rack_timer)))
-		return;
-
 	/* Sanity check */
 	L2TP_SEQ_CHECK(seq);
 
 	mtx_lock(&seq->mtx);
+	/* Make sure callout is still active before doing anything */
+	if (callout_pending(&seq->rack_timer) ||
+	    !callout_active(&seq->rack_timer)) {
+		mtx_unlock(&seq->mtx);
+		return;
+	}
+
 	priv->stats.xmitRetransmits++;
 
 	/* Have we reached the retransmit limit? If so, notify owner. */
