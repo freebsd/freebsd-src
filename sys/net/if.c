@@ -2633,6 +2633,18 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		ifr->ifr_curcap = ifp->if_capenable;
 		break;
 
+	case SIOCGIFDATA:
+	{
+		struct if_data ifd;
+
+		/* Ensure uninitialised padding is not leaked. */
+		memset(&ifd, 0, sizeof(ifd));
+
+		if_data_copy(ifp, &ifd);
+		error = copyout(&ifd, ifr_data_get_ptr(ifr), sizeof(ifd));
+		break;
+	}
+
 #ifdef MAC
 	case SIOCGIFMAC:
 		error = mac_ifnet_ioctl_get(td->td_ucred, ifr, ifp);
