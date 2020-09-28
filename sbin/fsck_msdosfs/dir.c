@@ -422,8 +422,8 @@ checksize(struct fat_descriptor *fat, u_char *p, struct dosDirEntry *dir)
 		physicalSize = (u_int64_t)chainsize * boot->ClusterSize;
 	}
 	if (physicalSize < dir->size) {
-		pwarn("size of %s is %u, should at most be %" PRIu64 "\n",
-		      fullpath(dir), dir->size, physicalSize);
+		pwarn("size of %s is %u, should at most be %ju\n",
+		      fullpath(dir), dir->size, (uintmax_t)physicalSize);
 		if (ask(1, "Truncate")) {
 			dir->size = physicalSize;
 			p[28] = (u_char)physicalSize;
