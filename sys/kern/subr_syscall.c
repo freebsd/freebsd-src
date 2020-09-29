@@ -90,7 +90,7 @@ syscallenter(struct thread *td)
 		goto retval;
 	}
 
-	if (__predict_false((p->p_flag & P_TRACED) != 0)) {
+	if (__predict_false(traced)) {
 		PROC_LOCK(p);
 		if (p->p_ptevents & PTRACE_SCE)
 			ptracestop((td), SIGTRAP, NULL);
