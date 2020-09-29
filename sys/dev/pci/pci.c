@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_iommu.h"
 #include "opt_bus.h"
 
 #include <sys/param.h>
@@ -5683,7 +5684,7 @@ pci_get_resource_list (device_t dev, device_t child)
 	return (&dinfo->resources);
 }
 
-#ifdef ACPI_DMAR
+#ifdef IOMMU
 bus_dma_tag_t
 pci_get_dma_tag(device_t bus, device_t dev)
 {

@@ -439,6 +439,8 @@ device		s3pci
 device		tdfx			# Enable 3Dfx Voodoo support
 device		tdfx_linux		# Enable Linuxulator support
 
+options 	IOMMU			# Enable IOMMU support
+
 #
 # ACPI support using the Intel ACPI Component Architecture reference
 # implementation.
@@ -450,7 +452,6 @@ device		tdfx_linux		# Enable Linuxulator support
 
 device		acpi
 options 	ACPI_DEBUG
-options 	ACPI_DMAR
 
 # ACPI WMI Mapping driver
 device		acpi_wmi
