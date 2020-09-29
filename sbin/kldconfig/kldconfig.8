@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2017
+.Dd September 29, 2020
 .Dt KLDCONFIG 8
 .Os
 .Sh NAME
@@ -54,9 +54,8 @@ The following options are available:
 .It Fl d
 Remove the specified paths from the module search path.
 .It Fl f
-Do not display a diagnostic message if a path specified for adding is
-already present in the search path, or if a path specified for removing
-is not present in the search path.
+Do not fail if a path specified for adding is already present in the search
+path, or if a path specified for removing is not present in the search path.
 This may be useful in startup/shutdown scripts for adding a path to
 a file system which is still not mounted, or in shutdown scripts for
 unconditionally removing a path that may have been added during startup.
@@ -95,6 +94,69 @@ The default module search path used by the kernel.
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Show the module search path
+.Bd -literal -offset indent
+$ kldconfig -r
+/boot/kernel;/boot/modules;/boot/dtb;/boot/dtb/overlays
+.Ed
+.Pp
+Try to delete the
+.Pa /boot
+directory from the search path.
+The command will fail:
+.Bd -literal -offset indent
+$ kldconfig -d /boot
+kldconfig: not in module search path: /boot
+$ echo $?
+1
+.Ed
+.Pp
+Same as above but forcing the operation.
+This time the command will succeed:
+.Bd -literal -offset indent
+$ kldconfig -d -f /boot
+$ echo $?
+0
+.Ed
+.Pp
+Add the
+.Pa /boot
+directory to the beginning of the search path and display extra verbose output:
+.Bd -literal -offset indent
+$ kldconfig -i -m -vv /boot
+/boot/kernel;/boot/modules -> /boot;/boot/kernel;/boot/modules
+.Ed
+.Pp
+Without
+.Fl m
+the
+.Fl i
+flag will overwrite the contents of the search path list:
+.Bd -literal -offset indent
+$ kldconfig -i -vv /boot
+/boot;/boot/kernel;/boot/modules;/boot/dtb;/boot/dtb/overlays -> /boot
+.Ed
+.Pp
+Same as above but using
+.Fl n
+to simulate the operation without actually doing it:
+.Bd -literal -offset indent
+$ kldconfig -i -n -vv /boot
+/boot;/boot/kernel;/boot/modules;/boot/dtb;/boot/dtb/overlays -> /boot
+.Ed
+.Pp
+Add directories to the search path removing duplicates.
+Note the need of
+.Fl f
+to force the operation in case any of the directories is already in the
+search path.
+The
+.Pa /boot/kernel
+directory will be added once:
+.Bd -literal -offset indent
+$ kldconfig -f -U /boot/kernel /boot/kernel /boot/modules /boot/dtb /boot/dtb/overlays
+.Ed
 .Sh SEE ALSO
 .Xr kldload 2 ,
 .Xr kldload 8 ,
