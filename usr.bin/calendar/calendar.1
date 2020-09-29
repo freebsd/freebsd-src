@@ -28,7 +28,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2016
+.Dd September 29, 2020
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -200,7 +200,7 @@ internally, allowing the inclusion of shared files such as
 lists of company holidays or meetings.
 This limited subset consists of \fB#include #ifndef #endif\fR and \fB#define\fR.
 If the shared file is not referenced by a full pathname,
-.Xr calendar 1
+.Nm
 searches in the current (or home) directory first, and then in the
 directory
 .Pa /usr/share/calendar .
@@ -248,7 +248,7 @@ do not send mail if this file exists.
 .El
 .Pp
 The following default calendar files are provided in
-.Pa /usr/share/calendar:
+.Pa /usr/share/calendar :
 .Pp
 .Bl -tag -width calendar.southafrica -compact
 .It Pa calendar.all
