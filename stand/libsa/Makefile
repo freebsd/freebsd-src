@@ -160,6 +160,9 @@ SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 SRCS+=	pkgfs.c
 
+# Time support
+SRCS+=	time.c
+
 # kernel ufs support
 .PATH: ${SRCTOP}/sys/ufs/ffs
 SRCS+=ffs_subr.c ffs_tables.c
