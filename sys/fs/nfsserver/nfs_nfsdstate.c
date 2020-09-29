@@ -1871,14 +1871,20 @@ tryagain:
 			}
 			if (!error)
 			    nfsrv_getowner(&stp->ls_open, new_stp, &lckstp);
-			if (lckstp)
+			if (lckstp) {
 			    /*
-			     * I believe this should be an error, but it
-			     * isn't obvious what NFSERR_xxx would be
-			     * appropriate, so I'll use NFSERR_INVAL for now.
+			     * For NFSv4.1 and NFSv4.2 allow an
+			     * open_to_lock_owner when the lock_owner already
+			     * exists.  Just clear NFSLCK_OPENTOLOCK so that
+			     * a new lock_owner will not be created.
+			     * RFC7530 states that the error for NFSv4.0
+			     * is NFS4ERR_BAD_SEQID.
 			     */
-			    error = NFSERR_INVAL;
-			else
+			    if ((nd->nd_flag & ND_NFSV41) != 0)
+				new_stp->ls_flags &= ~NFSLCK_OPENTOLOCK;
+			    else
+				error = NFSERR_BADSEQID;
+			} else
 			    lckstp = new_stp;
 		    } else if (new_stp->ls_flags&(NFSLCK_LOCK|NFSLCK_UNLOCK)) {
 			/*
