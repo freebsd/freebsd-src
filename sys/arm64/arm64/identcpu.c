@@ -1295,7 +1295,7 @@ parse_cpu_features_hwcap(void)
 		hwcap |= HWCAP_ASIMD;
 		break;
 	case ID_AA64PFR0_AdvSIMD_HP:
-		hwcap |= HWCAP_ASIMD | HWCAP_ASIMDDP;
+		hwcap |= HWCAP_ASIMD | HWCAP_ASIMDHP;
 		break;
 	default:
 		break;
