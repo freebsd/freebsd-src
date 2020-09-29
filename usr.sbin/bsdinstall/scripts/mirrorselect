@@ -44,7 +44,6 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp2.jp.freebsd.org 	"IPv6 Japan"\
 	ftp://ftp4.se.freebsd.org	"IPv6 Sweden"\
 	ftp://ftp4.us.freebsd.org 	"IPv6 USA"\
-	ftp://ftp2.tr.freebsd.org 	"IPv6 Turkey"\
 	ftp://ftp1.freebsd.org 	"Primary"\
 	ftp://ftp2.freebsd.org 	"Primary #2"\
 	ftp://ftp3.freebsd.org 	"Primary #3"\
@@ -57,7 +56,6 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp12.freebsd.org 	"Primary #12"\
 	ftp://ftp13.freebsd.org 	"Primary #13"\
 	ftp://ftp14.freebsd.org 	"Primary #14"\
-	ftp://ftp1.am.freebsd.org 	"Armenia"\
 	ftp://ftp.au.freebsd.org 	"Australia"\
 	ftp://ftp2.au.freebsd.org 	"Australia #2"\
 	ftp://ftp3.au.freebsd.org 	"Australia #3"\
@@ -65,11 +63,9 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp2.br.freebsd.org 	"Brazil #2"\
 	ftp://ftp3.br.freebsd.org 	"Brazil #3"\
 	ftp://ftp4.br.freebsd.org 	"Brazil #4"\
-	ftp://ftp.ca.freebsd.org 	"Canada"\
 	ftp://ftp.cn.freebsd.org 	"China"\
 	ftp://ftp.cz.freebsd.org 	"Czech Republic"\
 	ftp://ftp.dk.freebsd.org 	"Denmark"\
-	ftp://ftp.ee.freebsd.org 	"Estonia"\
 	ftp://ftp.fi.freebsd.org 	"Finland"\
 	ftp://ftp.fr.freebsd.org 	"France"\
 	ftp://ftp3.fr.freebsd.org 	"France #3"\
@@ -82,13 +78,11 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp2.de.freebsd.org 	"Germany #2"\
 	ftp://ftp4.de.freebsd.org 	"Germany #4"\
 	ftp://ftp5.de.freebsd.org 	"Germany #5"\
-	ftp://ftp6.de.freebsd.org 	"Germany #6"\
 	ftp://ftp7.de.freebsd.org 	"Germany #7"\
 	ftp://ftp8.de.freebsd.org 	"Germany #8"\
 	ftp://ftp.gr.freebsd.org 	"Greece"\
 	ftp://ftp2.gr.freebsd.org 	"Greece #2"\
 	ftp://ftp3.ie.freebsd.org 	"Ireland #3"\
-	ftp://ftp.il.freebsd.org 	"Israel"\
 	ftp://ftp.jp.freebsd.org 	"Japan"\
 	ftp://ftp2.jp.freebsd.org 	"Japan #2"\
 	ftp://ftp3.jp.freebsd.org 	"Japan #3"\
@@ -101,16 +95,13 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp.kr.freebsd.org 	"Korea"\
 	ftp://ftp2.kr.freebsd.org 	"Korea #2"\
 	ftp://ftp.lv.freebsd.org 	"Latvia"\
-	ftp://ftp.lt.freebsd.org 	"Lithuania"\
 	ftp://ftp.nl.freebsd.org 	"Netherlands"\
 	ftp://ftp2.nl.freebsd.org 	"Netherlands #2"\
 	ftp://ftp.nz.freebsd.org 	"New Zealand"\
 	ftp://ftp.no.freebsd.org 	"Norway"\
 	ftp://ftp.pl.freebsd.org 	"Poland"\
-	ftp://ftp2.pl.freebsd.org 	"Poland #2"\
 	ftp://ftp.ru.freebsd.org 	"Russia"\
 	ftp://ftp2.ru.freebsd.org 	"Russia #2"\
-	ftp://ftp4.ru.freebsd.org 	"Russia #4"\
 	ftp://ftp5.ru.freebsd.org 	"Russia #5"\
 	ftp://ftp6.ru.freebsd.org 	"Russia #6"\
 	ftp://ftp.sk.freebsd.org 	"Slovak Republic"\
@@ -119,13 +110,8 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp.za.freebsd.org 	"South Africa"\
 	ftp://ftp2.za.freebsd.org 	"South Africa #2"\
 	ftp://ftp4.za.freebsd.org 	"South Africa #4"\
-	ftp://ftp.es.freebsd.org 	"Spain"\
-	ftp://ftp3.es.freebsd.org 	"Spain #3"\
 	ftp://ftp.se.freebsd.org 	"Sweden"\
-	ftp://ftp2.se.freebsd.org 	"Sweden #2"\
-	ftp://ftp3.se.freebsd.org 	"Sweden #3"\
 	ftp://ftp4.se.freebsd.org 	"Sweden #4"\
-	ftp://ftp6.se.freebsd.org 	"Sweden #6"\
 	ftp://ftp.ch.freebsd.org 	"Switzerland"\
 	ftp://ftp.tw.freebsd.org 	"Taiwan"\
 	ftp://ftp2.tw.freebsd.org 	"Taiwan #2"\
