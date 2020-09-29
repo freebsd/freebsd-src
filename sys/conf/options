@@ -704,8 +704,10 @@ EPOCH_TRACE		opt_global.h
 ACPI_DEBUG		opt_acpi.h
 ACPI_MAX_TASKS		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
-ACPI_DMAR		opt_acpi.h
 DEV_ACPI		opt_acpi.h
+
+# options for IOMMU support
+IOMMU			opt_iommu.h
 
 # ISA support
 DEV_ISA			opt_isa.h

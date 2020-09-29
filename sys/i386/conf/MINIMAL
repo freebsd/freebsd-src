@@ -93,6 +93,7 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
+options 	IOMMU
 
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
@@ -104,7 +105,6 @@ device		cpufreq
 
 # Bus support.
 device		acpi
-options 	ACPI_DMAR
 device		pci
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
