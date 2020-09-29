@@ -1653,7 +1653,7 @@ cxgbe_probe(device_t dev)
 #define T4_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
     IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE | IFCAP_HWCSUM_IPV6 | IFCAP_HWSTATS | \
-    IFCAP_HWRXTSTMP)
+    IFCAP_HWRXTSTMP | IFCAP_NOMAP)
 #define T4_CAP_ENABLE (T4_CAP)
 
 static int
@@ -2018,6 +2018,8 @@ cxgbe_ioctl(struct ifnet *ifp, unsigned long cmd, caddr_t data)
 					rxq->iq.flags &= ~IQ_RX_TIMESTAMP;
 			}
 		}
+		if (mask & IFCAP_NOMAP)
+			ifp->if_capenable ^= IFCAP_NOMAP;
 
 #ifdef VLAN_CAPABILITIES
 		VLAN_CAPABILITIES(ifp);

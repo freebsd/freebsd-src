@@ -82,6 +82,10 @@ prefetch(void *x)
 #define CTLTYPE_U64 CTLTYPE_QUAD
 #endif
 
+#ifndef IFCAP_NOMAP
+#define IFCAP_NOMAP (0)
+#endif
+
 SYSCTL_DECL(_hw_cxgbe);
 
 struct adapter;
