@@ -1309,6 +1309,9 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		gnsid->nsid = 0;
 		break;
 	}
+	case NVME_GET_MAX_XFER_SIZE:
+		*(uint64_t *)arg = ctrlr->max_xfer_size;
+		break;
 	default:
 		return (ENOTTY);
 	}
