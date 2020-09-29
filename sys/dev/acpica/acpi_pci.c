@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
+#include "opt_iommu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -459,7 +460,7 @@ acpi_pci_detach(device_t dev)
 	return (pci_detach(dev));
 }
 
-#ifdef ACPI_DMAR
+#ifdef IOMMU
 static bus_dma_tag_t
 acpi_pci_get_dma_tag(device_t bus, device_t child)
 {
