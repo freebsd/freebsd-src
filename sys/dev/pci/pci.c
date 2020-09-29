@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/taskqueue.h>
+#include <sys/tree.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -76,6 +78,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehcireg.h>
 #include <dev/usb/controller/ohcireg.h>
 #include <dev/usb/controller/uhcireg.h>
+
+#include <dev/iommu/iommu.h>
 
 #include "pcib_if.h"
 #include "pci_if.h"
@@ -5680,7 +5684,6 @@ pci_get_resource_list (device_t dev, device_t child)
 }
 
 #ifdef ACPI_DMAR
-bus_dma_tag_t acpi_iommu_get_dma_tag(device_t dev, device_t child);
 bus_dma_tag_t
 pci_get_dma_tag(device_t bus, device_t dev)
 {
@@ -5689,7 +5692,7 @@ pci_get_dma_tag(device_t bus, device_t dev)
 
 	if (device_get_parent(dev) == bus) {
 		/* try iommu and return if it works */
-		tag = acpi_iommu_get_dma_tag(bus, dev);
+		tag = iommu_get_dma_tag(bus, dev);
 	} else
 		tag = NULL;
 	if (tag == NULL) {
