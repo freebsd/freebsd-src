@@ -28,7 +28,7 @@
 .\"     @(#)chroot.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 26, 2020
+.Dd September 29, 2020
 .Dt CHROOT 2
 .Os
 .Sh NAME
@@ -91,7 +91,10 @@ system call.
 .Pp
 Any other value for
 .Ql kern.chroot_allow_open_directories
-will bypass the check for open directories
+will bypass the check for open directories,
+mimicking the historic insecure behavior of
+.Fn chroot
+still present on other systems.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
@@ -156,3 +159,7 @@ root,
 for instance,
 setup the sandbox so that the sandboxed user will have no write
 access to any well-known system directories.
+.Pp
+For complete isolation from the rest of the system, use
+.Xr jail 2
+instead.
