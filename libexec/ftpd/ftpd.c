@@ -1530,7 +1530,7 @@ skip:
 	setusercontext(lc, pw, 0, LOGIN_SETRESOURCES);
 #endif
 
-	if (guest && stats && statfd < 0)
+	if (guest && stats && statfd < 0) {
 #ifdef VIRTUAL_HOSTING
 		statfd = open(thishost->statfile, O_WRONLY|O_APPEND);
 #else
@@ -1538,6 +1538,7 @@ skip:
 #endif
 		if (statfd < 0)
 			stats = 0;
+	}
 
 	/*
 	 * For a chrooted local user,
