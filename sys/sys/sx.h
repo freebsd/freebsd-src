@@ -300,4 +300,26 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 
 #endif /* _KERNEL */
 
+#ifdef _STANDALONE
+/* since we have no threads in the boot loader, trivially implement no-op version */
+#define sx_xlock(s) (1)
+#define sx_try_xlock(s) (1)
+#define sx_xunlock(s) (1)
+#define SX_DUPOK 0
+#define SX_NEW 0
+#define SX_NOWITNESS 0
+
+static __inline void
+sx_init_flags(struct sx *sx, const char *description, int opts)
+{
+
+}
+
+static __inline void
+sx_destroy(struct sx *sx)
+{
+
+}
+#endif /* _STANDALONE */
+
 #endif /* !_SYS_SX_H_ */
