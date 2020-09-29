@@ -2777,7 +2777,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 			return (0);
 		}
 		error = ccr_gcm(sc, s, crp);
-		if (error == EMSGSIZE) {
+		if (error == EMSGSIZE || error == EFBIG) {
 			counter_u64_add(sc->stats_sw_fallback, 1);
 			mtx_unlock(&s->lock);
 			ccr_gcm_soft(s, crp);
@@ -2796,7 +2796,7 @@ ccr_process(device_t dev, struct cryptop *crp, int hint)
 			    csp->csp_cipher_klen);
 		}
 		error = ccr_ccm(sc, s, crp);
-		if (error == EMSGSIZE) {
+		if (error == EMSGSIZE || error == EFBIG) {
 			counter_u64_add(sc->stats_sw_fallback, 1);
 			mtx_unlock(&s->lock);
 			ccr_ccm_soft(s, crp);
