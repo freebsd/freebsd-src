@@ -216,9 +216,6 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
 		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
 		    V_FW_PARAMS_PARAM_YZ(nm_rxq->iq_cntxt_id);
-		param = V_FW_PARAMS_MNEM(FW_PARAMS_MNEM_DMAQ) |
-		    V_FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DMAQ_CONM_CTXT) |
-		    V_FW_PARAMS_PARAM_YZ(nm_rxq->iq_cntxt_id);
 		if (cong == 0)
 			val = 1 << 19;
 		else {
