@@ -297,10 +297,10 @@ CFLAGS+=	ERROR-tried-to-rebuild-during-make-install
 .if ${LD} != "ld" && (${CC:[1]:H} != ${LD:[1]:H} || ${LD:[1]:T} != "ld")
 # Add -fuse-ld=${LD} if $LD is in a different directory or not called "ld".
 .if ${COMPILER_TYPE} == "clang"
+# Note: Clang does not like relative paths for ld so we map ld.lld -> lld.
 .if ${COMPILER_VERSION} >= 120000
 LDFLAGS+=	--ld-path=${LD:[1]:S/^ld.//1W}
 .else
-# Note: Clang does not like relative paths in -fuse-ld so we map ld.lld -> lld.
 LDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
 .endif
 .else
