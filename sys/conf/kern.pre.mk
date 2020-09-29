@@ -51,25 +51,14 @@ OBJCOPY?=	objcopy
 SIZE?=		size
 
 .if defined(DEBUG)
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpcspe"
-# Work around clang 11 miscompile on 32 bit powerpc.
-_MINUS_O=	-O2
-.else
-_MINUS_O=	-O
-.endif
 CTFFLAGS+=	-g
-.else
-_MINUS_O=	-O2
 .endif
-.if ${MACHINE_CPUARCH} == "amd64"
-.if ${COMPILER_TYPE} == "clang"
-COPTFLAGS?=-O2 -pipe
+.if ${MACHINE_CPUARCH} == "amd64" && ${COMPILER_TYPE} != "clang"
+_COPTFLAGS_EXTRA=-frename-registers
 .else
-COPTFLAGS?=-O2 -frename-registers -pipe
+_COPTFLAGS_EXTRA=
 .endif
-.else
-COPTFLAGS?=${_MINUS_O} -pipe
-.endif
+COPTFLAGS?=-O2 -pipe ${_COPTFLAGS_EXTRA}
 .if !empty(COPTFLAGS:M-O[23s]) && empty(COPTFLAGS:M-fno-strict-aliasing)
 COPTFLAGS+= -fno-strict-aliasing
 .endif
