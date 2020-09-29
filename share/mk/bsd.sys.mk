@@ -296,10 +296,13 @@ CFLAGS+=	ERROR-tried-to-rebuild-during-make-install
 # Please keep this if in sync with kern.mk
 .if ${LD} != "ld" && (${CC:[1]:H} != ${LD:[1]:H} || ${LD:[1]:T} != "ld")
 # Add -fuse-ld=${LD} if $LD is in a different directory or not called "ld".
-# Note: Clang 12+ will prefer --ld-path= over -fuse-ld=.
 .if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_VERSION} >= 120000
+LDFLAGS+=	--ld-path=${LD:[1]:S/^ld.//1W}
+.else
 # Note: Clang does not like relative paths in -fuse-ld so we map ld.lld -> lld.
 LDFLAGS+=	-fuse-ld=${LD:[1]:S/^ld.//1W}
+.endif
 .else
 # GCC does not support an absolute path for -fuse-ld so we just print this
 # warning instead and let the user add the required symlinks.
