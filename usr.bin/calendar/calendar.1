@@ -70,9 +70,24 @@ Print lines from today and the next
 .Ar num
 days (forward, future).
 .It Fl a
-Process the ``calendar'' files of all users and mail the results
+Process the ``calendar'' files for users found in
+.Pa /etc/passwd
+and mail the results
 to them.
-This requires super-user privileges.
+This can result in multiple messages for specific files, since
+.Pa /etc/passwd
+does not require home directories to be unique.
+In particular, by default
+.Ar root ,
+.Ar toor
+and
+.Ar daemon
+share the same home directory.
+If this directory contains calendar information,
+.Nm
+will process the file three times.
+.Pp
+This option requires super-user privileges.
 .It Fl B Ar num
 Print lines from today and the previous
 .Ar num
