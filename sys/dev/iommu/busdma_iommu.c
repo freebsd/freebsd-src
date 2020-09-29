@@ -270,7 +270,7 @@ iommu_instantiate_ctx(struct iommu_unit *unit, device_t dev, bool rmrr)
 }
 
 bus_dma_tag_t
-acpi_iommu_get_dma_tag(device_t dev, device_t child)
+iommu_get_dma_tag(device_t dev, device_t child)
 {
 	struct iommu_unit *unit;
 	struct iommu_ctx *ctx;
