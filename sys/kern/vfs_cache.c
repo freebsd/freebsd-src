@@ -2173,7 +2173,7 @@ cache_purge_impl(struct vnode *vp)
 	TAILQ_INIT(&ncps);
 	vlp = VP2VNODELOCK(vp);
 	vlp2 = NULL;
-	mtx_assert(vlp, MA_OWNED);
+	mtx_lock(vlp);
 retry:
 	while (!LIST_EMPTY(&vp->v_cache_src)) {
 		ncp = LIST_FIRST(&vp->v_cache_src);
@@ -2220,13 +2220,10 @@ cache_has_entries(struct vnode *vp)
 void
 cache_purge(struct vnode *vp)
 {
-	struct mtx *vlp;
 
 	SDT_PROBE1(vfs, namecache, purge, done, vp);
 	if (!cache_has_entries(vp))
 		return;
-	vlp = VP2VNODELOCK(vp);
-	mtx_lock(vlp);
 	cache_purge_impl(vp);
 }
 
@@ -2239,22 +2236,18 @@ cache_purge_vgone(struct vnode *vp)
 	struct mtx *vlp;
 
 	VNPASS(VN_IS_DOOMED(vp), vp);
-	vlp = VP2VNODELOCK(vp);
 	if (cache_has_entries(vp)) {
-		mtx_lock(vlp);
 		cache_purge_impl(vp);
-		mtx_assert(vlp, MA_NOTOWNED);
 		return;
 	}
 
 	/*
 	 * Serialize against a potential thread doing cache_purge.
 	 */
+	vlp = VP2VNODELOCK(vp);
 	mtx_wait_unlocked(vlp);
 	if (cache_has_entries(vp)) {
-		mtx_lock(vlp);
 		cache_purge_impl(vp);
-		mtx_assert(vlp, MA_NOTOWNED);
 		return;
 	}
 	return;
