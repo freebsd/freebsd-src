@@ -402,6 +402,28 @@ link_speed_string(uint8_t speed)
 }
 
 static const char *
+max_read_string(u_int max_read)
+{
+
+	switch (max_read) {
+	case 0x0:
+		return ("128");
+	case 0x1:
+		return ("256");
+	case 0x2:
+		return ("512");
+	case 0x3:
+		return ("1024");
+	case 0x4:
+		return ("2048");
+	case 0x5:
+		return ("4096");
+	default:
+		return ("undef");
+	}
+}
+
+static const char *
 aspm_string(uint8_t aspm)
 {
 
@@ -503,6 +525,8 @@ cap_express(int fd, struct pci_conf *p, uint8_t ptr)
 			    (ctl & PCIEM_CTL2_ARI) ? "enabled" : "disabled");
 		}
 	}
+	printf("\n                 max read %s", max_read_string((ctl &
+	    PCIEM_CTL_MAX_READ_REQUEST) >> 12));
 	cap = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_CAP, 4);
 	sta = read_config(fd, &p->pc_sel, ptr + PCIER_LINK_STA, 2);
 	if (cap == 0 && sta == 0)
