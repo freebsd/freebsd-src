@@ -100,6 +100,7 @@ struct vmspace;
 
 int	exec_alloc_args(struct image_args *);
 int	exec_check_permissions(struct image_params *);
+void	exec_cleanup(struct thread *td, struct vmspace *);
 register_t *exec_copyout_strings(struct image_params *);
 void	exec_free_args(struct image_args *);
 int	exec_new_vmspace(struct image_params *, struct sysentvec *);

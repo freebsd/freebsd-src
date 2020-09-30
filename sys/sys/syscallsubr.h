@@ -63,6 +63,7 @@ struct stat;
 struct thr_param;
 struct uio;
 struct vm_map;
+struct vmspace;
 
 typedef int (*mmap_check_fp_fn)(struct file *, int, int, int);
 
@@ -117,7 +118,7 @@ int	kern_cpuset_setid(struct thread *td, cpuwhich_t which,
 	    id_t id, cpusetid_t setid);
 int	kern_dup(struct thread *td, u_int mode, int flags, int old, int new);
 int	kern_execve(struct thread *td, struct image_args *args,
-	    struct mac *mac_p);
+	    struct mac *mac_p, struct vmspace *oldvmspace);
 int	kern_fchmodat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, mode_t mode, int flag);
 int	kern_fchownat(struct thread *td, int fd, char *path,
