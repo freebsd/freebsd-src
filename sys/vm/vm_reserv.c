@@ -278,8 +278,10 @@ SYSCTL_PROC(_vm_reserv, OID_AUTO, fullpop, CTLTYPE_INT | CTLFLAG_RD, NULL, 0,
 
 static int sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq, CTLTYPE_STRING | CTLFLAG_RD, NULL, 0,
-    sysctl_vm_reserv_partpopq, "A", "Partially populated reservation queues");
+SYSCTL_OID(_vm_reserv, OID_AUTO, partpopq,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_vm_reserv_partpopq, "A",
+    "Partially populated reservation queues");
 
 static counter_u64_t vm_reserv_reclaimed = EARLY_COUNTER;
 SYSCTL_COUNTER_U64(_vm_reserv, OID_AUTO, reclaimed, CTLFLAG_RD,
