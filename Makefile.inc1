@@ -1503,10 +1503,14 @@ _sysent_dirs+=	sys/amd64/linux		\
 		sys/arm/linux		\
 		sys/arm64/linux		\
 		sys/i386/linux
+
 sysent: .PHONY
 .for _dir in ${_sysent_dirs}
+sysent-${_dir}: .PHONY
 	@echo "${MAKE} -C ${.CURDIR}/${_dir} sysent"
 	${_+_}@env PATH=${_sysent_PATH} ${MAKE} -C ${.CURDIR}/${_dir} sysent
+
+sysent: sysent-${_dir}
 .endfor
 
 #
