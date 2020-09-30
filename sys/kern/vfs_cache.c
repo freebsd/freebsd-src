@@ -2240,8 +2240,7 @@ cache_purge_vgone(struct vnode *vp)
 
 	VNPASS(VN_IS_DOOMED(vp), vp);
 	vlp = VP2VNODELOCK(vp);
-	if (!(LIST_EMPTY(&vp->v_cache_src) && TAILQ_EMPTY(&vp->v_cache_dst) &&
-	    vp->v_cache_dd == NULL)) {
+	if (cache_has_entries(vp)) {
 		mtx_lock(vlp);
 		cache_purge_impl(vp);
 		mtx_assert(vlp, MA_NOTOWNED);
@@ -2249,12 +2248,10 @@ cache_purge_vgone(struct vnode *vp)
 	}
 
 	/*
-	 * All the NULL pointer state we found above may be transient.
-	 * Serialize against a possible thread doing cache_purge.
+	 * Serialize against a potential thread doing cache_purge.
 	 */
 	mtx_wait_unlocked(vlp);
-	if (!(LIST_EMPTY(&vp->v_cache_src) && TAILQ_EMPTY(&vp->v_cache_dst) &&
-	    vp->v_cache_dd == NULL)) {
+	if (cache_has_entries(vp)) {
 		mtx_lock(vlp);
 		cache_purge_impl(vp);
 		mtx_assert(vlp, MA_NOTOWNED);
