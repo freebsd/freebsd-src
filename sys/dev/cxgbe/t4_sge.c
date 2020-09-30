@@ -199,6 +199,15 @@ static int lro_mbufs = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, lro_mbufs, CTLFLAG_RDTUN, &lro_mbufs, 0,
     "Enable presorting of LRO frames");
 
+static counter_u64_t pullups;
+SYSCTL_COUNTER_U64(_hw_cxgbe, OID_AUTO, pullups, CTLFLAG_RD, &pullups,
+    "Number of mbuf pullups performed");
+
+static counter_u64_t defrags;
+SYSCTL_COUNTER_U64(_hw_cxgbe, OID_AUTO, defrags, CTLFLAG_RD, &defrags,
+    "Number of mbuf defrags performed");
+
+
 static int service_iq(struct sge_iq *, int);
 static int service_iq_fl(struct sge_iq *, int);
 static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
@@ -529,8 +538,12 @@ t4_sge_modload(void)
 
 	extfree_refs = counter_u64_alloc(M_WAITOK);
 	extfree_rels = counter_u64_alloc(M_WAITOK);
+	pullups = counter_u64_alloc(M_WAITOK);
+	defrags = counter_u64_alloc(M_WAITOK);
 	counter_u64_zero(extfree_refs);
 	counter_u64_zero(extfree_rels);
+	counter_u64_zero(pullups);
+	counter_u64_zero(defrags);
 
 	t4_init_shared_cpl_handlers();
 	t4_register_cpl_handler(CPL_FW4_MSG, handle_fw_msg);
@@ -550,6 +563,8 @@ t4_sge_modunload(void)
 
 	counter_u64_free(extfree_refs);
 	counter_u64_free(extfree_rels);
+	counter_u64_free(pullups);
+	counter_u64_free(defrags);
 }
 
 uint64_t
@@ -2460,8 +2475,13 @@ restart:
 	MPASS(m0->m_pkthdr.len > 0);
 	nsegs = count_mbuf_nsegs(m0, 0, &cflags);
 	if (nsegs > (needs_tso(m0) ? TX_SGL_SEGS_TSO : TX_SGL_SEGS)) {
-		if (defragged++ > 0 || (m = m_defrag(m0, M_NOWAIT)) == NULL) {
+		if (defragged++ > 0) {
 			rc = EFBIG;
+			goto fail;
+		}
+		counter_u64_add(defrags, 1);
+		if ((m = m_defrag(m0, M_NOWAIT)) == NULL) {
+			rc = ENOMEM;
 			goto fail;
 		}
 		*mp = m0 = m;	/* update caller's copy after defrag */
@@ -2470,6 +2490,7 @@ restart:
 
 	if (__predict_false(nsegs > 2 && m0->m_pkthdr.len <= MHLEN &&
 	    !(cflags & MC_NOMAP))) {
+		counter_u64_add(pullups, 1);
 		m0 = m_pullup(m0, m0->m_pkthdr.len);
 		if (m0 == NULL) {
 			/* Should have left well enough alone. */
