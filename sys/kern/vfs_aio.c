@@ -1278,7 +1278,6 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 	bp->bio_length = cb->aio_nbytes;
 	bp->bio_bcount = cb->aio_nbytes;
 	bp->bio_done = aio_biowakeup;
-	bp->bio_data = (void *)(uintptr_t)cb->aio_buf;
 	bp->bio_offset = cb->aio_offset;
 	bp->bio_cmd = cb->aio_lio_opcode == LIO_WRITE ? BIO_WRITE : BIO_READ;
 	bp->bio_dev = dev;
@@ -1288,7 +1287,7 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 	if (cb->aio_lio_opcode == LIO_READ)
 		prot |= VM_PROT_WRITE;	/* Less backwards than it looks */
 	job->npages = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
-	    (vm_offset_t)bp->bio_data, bp->bio_length, prot, job->pages,
+	    (vm_offset_t)cb->aio_buf, bp->bio_length, prot, job->pages,
 	    nitems(job->pages));
 	if (job->npages < 0) {
 		error = EFAULT;
