@@ -255,11 +255,8 @@ void
 kern_thread_cputime(struct thread *targettd, struct timespec *ats)
 {
 	uint64_t runtime, curtime, switchtime;
-	struct proc *p;
 
 	if (targettd == NULL) { /* current thread */
-		p = curthread->td_proc;
-		PROC_LOCK_ASSERT(p, MA_OWNED);
 		critical_enter();
 		switchtime = PCPU_GET(switchtime);
 		curtime = cpu_ticks();
@@ -267,8 +264,7 @@ kern_thread_cputime(struct thread *targettd, struct timespec *ats)
 		critical_exit();
 		runtime += curtime - switchtime;
 	} else {
-		p = targettd->td_proc;
-		PROC_LOCK_ASSERT(p, MA_OWNED);
+		PROC_LOCK_ASSERT(targettd->td_proc, MA_OWNED);
 		thread_lock(targettd);
 		runtime = targettd->td_runtime;
 		thread_unlock(targettd);
