@@ -180,7 +180,7 @@ svr4_sys_execv(td, uap)
 	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp, NULL);
 	free(path, M_TEMP);
 	if (error == 0)
-		error = kern_execve(td, &eargs, NULL);
+		error = kern_execve(td, &eargs, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
 	return (error);
 }
@@ -206,7 +206,7 @@ svr4_sys_execve(td, uap)
 	    uap->envp);
 	free(path, M_TEMP);
 	if (error == 0)
-		error = kern_execve(td, &eargs, NULL);
+		error = kern_execve(td, &eargs, NULL, oldvmspace);
 	post_execve(td, error, oldvmspace);
 	return (error);
 }
