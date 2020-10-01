@@ -64,8 +64,8 @@
  */
 #define CPUID_0000_0001_FEAT0_VMX	(1<<5)
 
-int x86_emulate_cpuid(struct vm *vm, int vcpu_id, uint32_t *eax, uint32_t *ebx,
-		      uint32_t *ecx, uint32_t *edx);
+int x86_emulate_cpuid(struct vm *vm, int vcpu_id, uint64_t *rax, uint64_t *rbx,
+    uint64_t *rcx, uint64_t *rdx);
 
 enum vm_cpuid_capability {
 	VCC_NONE,
