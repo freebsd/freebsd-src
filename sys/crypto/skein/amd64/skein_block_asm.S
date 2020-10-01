@@ -56,7 +56,7 @@ ROUNDS_512  = 8*((((SKEIN_ROUNDS /  10) + 5) % 10) + 5)
 ROUNDS_1024 = 8*((((SKEIN_ROUNDS      ) + 5) % 10) + 5)
 # only display rounds if default size is changed on command line
 .irp _NN_,256,512,1024
-  .if _USE_ASM_ && \_NN_
+  .if _USE_ASM_ & \_NN_
     .irp _RR_,%(ROUNDS_\_NN_)
       .if _NN_ < 1024
 .print  "+++ SKEIN_ROUNDS_\_NN_  = \_RR_"
@@ -277,7 +277,7 @@ _STK_OFFS_  =   0                   #starting offset from rsp
     StackVar    X_stk  ,8*(WCNT)    #local context vars
     StackVar    ksTwk  ,8*3         #key schedule: tweak words
     StackVar    ksKey  ,8*(WCNT)+8  #key schedule: key   words
-  .if (SKEIN_ASM_UNROLL && (\BLK_BITS)) == 0
+  .if (SKEIN_ASM_UNROLL & (\BLK_BITS)) == 0
     StackVar    ksRot ,16*(\KS_CNT) #leave space for "rotation" to happen
   .endif
     StackVar    Wcopy  ,8*(WCNT)    #copy of input block    
@@ -397,15 +397,15 @@ _NN_ = _NN_ - 1
 .macro Skein_Debug_Round BLK_BITS,R,RDI_OFFS,afterOp
     # call the appropriate (local) debug "function"
     pushq   %rdx                    #save rdx, so we can use it for round "number"
-  .if (SKEIN_ASM_UNROLL && \BLK_BITS) || (\R >= SKEIN_RND_SPECIAL)
+  .if (SKEIN_ASM_UNROLL & \BLK_BITS) || (\R >= SKEIN_RND_SPECIAL)
     movq    $\R,%rdx
   .else                             #compute round number using edi
 _rOffs_ = \RDI_OFFS + 0
    .if \BLK_BITS == 1024
     movq    rIdx_offs+8(%rsp),%rdx  #get rIdx off the stack (adjust for pushq rdx above)
-    leaq    1+(((\R)-1) && 3)+_rOffs_(,%rdx,4),%rdx
+    leaq    1+(((\R)-1) & 3)+_rOffs_(,%rdx,4),%rdx
    .else
-    leaq    1+(((\R)-1) && 3)+_rOffs_(,%rdi,4),%rdx
+    leaq    1+(((\R)-1) & 3)+_rOffs_(,%rdi,4),%rdx
    .endif
   .endif
     call    Skein_Debug_Round_\BLK_BITS
@@ -749,7 +749,7 @@ C_label Skein_256_Unroll_Cnt
 # MACRO: eight rounds for 512-bit blocks
 #
 .macro R_512_FourRounds _RR_    #RR = base round number (0 % 8)
-  .if (SKEIN_ASM_UNROLL && 512)
+  .if (SKEIN_ASM_UNROLL & 512)
     # here for fully unrolled case.
     _II_ = ((\_RR_)/4) + 1       #key injection counter
     R_512_OneRound  8, 9,10,11,12,13,14,15,%((\_RR_)+0),<movq ksKey+8*(((_II_)+3) % 9)+F_O(%rbp),%rax>,,<movq ksKey+8*(((_II_)+4) % 9)+F_O(%rbp),%rbx>
@@ -972,13 +972,13 @@ rIdx_offs = tmpStk_1024
     addReg      \reg0 , \reg1                      #perform the MIX
     RotL64      \reg1 , 1024,%((\_RN0_) % 8),\_Rn1_
     xorReg      \reg1 , \reg0
-.if ((\_RN0_) && 3) == 3        #time to do key injection?
+.if ((\_RN0_) & 3) == 3        #time to do key injection?
  .if _SKEIN_DEBUG
     movq       %\reg0 , xDebug_1024+8*\w0(%rsp)    #save intermediate values for Debug_Round
     movq       %\reg1 , xDebug_1024+8*\w1(%rsp)    # (before inline key injection)
  .endif
 _II_ = ((\_RN0_)/4)+1           #injection count
- .if SKEIN_ASM_UNROLL && 1024   #here to do fully unrolled key injection
+ .if SKEIN_ASM_UNROLL & 1024   #here to do fully unrolled key injection
     addq        ksKey+ 8*((_II_+\w0) % 17)(%rsp),%\reg0
     addq        ksKey+ 8*((_II_+\w1) % 17)(%rsp),%\reg1
   .if     \w1 == 13                                #tweak injection
@@ -1062,7 +1062,7 @@ _Rn_ = (\_RR_) + 3
       Skein_Debug_Round 1024,%(_Rn_+1)
     .endif
 
-  .if (SKEIN_ASM_UNROLL && 1024) == 0           #here with rdi == rIdx, X0 on stack
+  .if (SKEIN_ASM_UNROLL & 1024) == 0           #here with rdi == rIdx, X0 on stack
     #"rotate" the key schedule on the stack
 i8 = o1K_r8
 i0 = o1K_rdi
