@@ -5430,7 +5430,9 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 	 * it can be delivered... But for now we just dump everything on the
 	 * queue.
 	 */
-	if (!asoc->idata_supported && !ordered && SCTP_TSN_GT(control->fsn_included, cumtsn)) {
+	if (!asoc->idata_supported && !ordered &&
+	    control->first_frag_seen &&
+	    SCTP_TSN_GT(control->fsn_included, cumtsn)) {
 		return;
 	}
 	TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, nchk) {
