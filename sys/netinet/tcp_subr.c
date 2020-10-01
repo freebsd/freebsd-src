@@ -3268,6 +3268,8 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 
 		bcopy(tp->t_fb->tfb_tcp_block_name, xt->xt_stack,
 		    TCP_FUNCTION_NAME_LEN_MAX);
+		bcopy(CC_ALGO(tp)->name, xt->xt_cc,
+		    TCP_CA_NAME_MAX);
 #ifdef TCP_BLACKBOX
 		(void)tcp_log_get_id(tp, xt->xt_logid);
 #endif
