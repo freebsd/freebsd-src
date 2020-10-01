@@ -130,7 +130,7 @@ cli['read-conf'] = function(...)
 	config.readConf(assert(core.popFrontTable(argv)))
 end
 
-cli['reload-conf'] = function(...)
+cli['reload-conf'] = function()
 	config.reload()
 end
 
