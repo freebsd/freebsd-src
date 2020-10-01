@@ -552,7 +552,8 @@ MLINKS+=wordexp.3 wordfree.3
 
 .include <src.tools.mk>
 
-afterinstallconfig:
+afterinstallconfig: install-passwd
+install-passwd: .PHONY
 .if ${MK_TCSH} == "no"
 	sed -i "" -e 's;/bin/csh;/bin/sh;' ${DESTDIR}/etc/master.passwd
 .endif

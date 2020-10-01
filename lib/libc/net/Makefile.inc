@@ -124,8 +124,9 @@ SRCS+=	hesiod.c
 MAN+=	hesiod.3
 .endif
 
+afterinstallconfig: modify-nsswitch-conf
+modify-nsswitch-conf: .PHONY
 .if ${MK_NIS} == "no"
-afterinstallconfig:
 	sed -i "" -e 's/.*_compat:/# &/' -e 's/compat$$/files/' \
 		${DESTDIR}/etc/nsswitch.conf
 .endif
