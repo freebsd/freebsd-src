@@ -159,7 +159,7 @@ __FBSDID("$FreeBSD$");
 		rw_wunlock(&SCTP_BASE_INFO(ipi_addr_mtx));		\
 	}								\
 	rw_destroy(&SCTP_BASE_INFO(ipi_addr_mtx));			\
-}  while (0)
+} while (0)
 
 #define SCTP_IPI_ADDR_RLOCK()	do { 					\
 	rw_rlock(&SCTP_BASE_INFO(ipi_addr_mtx));			\

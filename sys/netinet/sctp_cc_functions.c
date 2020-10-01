@@ -1318,9 +1318,7 @@ sctp_cwnd_update_rtcc_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *ne
 	sctp_cwnd_update_after_ecn_echo_common(stcb, net, in_window, num_pkt_lost, 1);
 }
 
-
-static
-void
+static void
 sctp_cwnd_update_rtcc_tsn_acknowledged(struct sctp_nets *net,
     struct sctp_tmit_chunk *tp1)
 {
@@ -1437,7 +1435,6 @@ sctp_set_rtcc_initial_cc_param(struct sctp_tcb *stcb,
 	net->cc_mod.rtcc.use_dccc_ecn = SCTP_BASE_SYSCTL(sctp_use_dccc_ecn);
 	net->cc_mod.rtcc.step_cnt = 0;
 	net->cc_mod.rtcc.last_step_state = 0;
-
 
 }
 
@@ -2051,7 +2048,7 @@ htcp_cong_avoid(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/*-
 	 * How to handle these functions?
-         *	if (!tcp_is_cwnd_limited(sk, in_flight)) RRS - good question.
+	 *	if (!tcp_is_cwnd_limited(sk, in_flight)) RRS - good question.
 	 *		return;
 	 */
 	if (net->cwnd <= net->ssthresh) {

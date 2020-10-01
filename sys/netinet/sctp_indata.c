@@ -2542,7 +2542,6 @@ sctp_slide_mapping_arrays(struct sctp_tcb *stcb)
 			 * we will be able to slide it forward. Really I
 			 * don't think this should happen :-0
 			 */
-
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MAP_LOGGING_ENABLE) {
 				sctp_log_map((uint32_t)distance, (uint32_t)slide_from,
 				    (uint32_t)asoc->mapping_array_size,
@@ -2627,8 +2626,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int was_a_gap)
 		    (stcb->asoc.numduptsns) ||	/* we have dup's */
 		    (is_a_gap) ||	/* is still a gap */
 		    (stcb->asoc.delayed_ack == 0) ||	/* Delayed sack disabled */
-		    (stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq)	/* hit limit of pkts */
-		    ) {
+		    (stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq)) {	/* hit limit of pkts */
 
 			if ((stcb->asoc.sctp_cmt_on_off > 0) &&
 			    (SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) &&
@@ -2639,14 +2637,13 @@ sctp_sack_check(struct sctp_tcb *stcb, int was_a_gap)
 
 				/*
 				 * CMT DAC algorithm: With CMT, delay acks
-				 * even in the face of
-				 *
-				 * reordering. Therefore, if acks that do
-				 * not have to be sent because of the above
-				 * reasons, will be delayed. That is, acks
-				 * that would have been sent due to gap
-				 * reports will be delayed with DAC. Start
-				 * the delayed ack timer.
+				 * even in the face of reordering.
+				 * Therefore, if acks that do not have to be
+				 * sent because of the above reasons, will
+				 * be delayed. That is, acks that would have
+				 * been sent due to gap reports will be
+				 * delayed with DAC. Start the delayed ack
+				 * timer.
 				 */
 				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
 				    stcb->sctp_ep, stcb, NULL);
@@ -3707,9 +3704,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					tp1->whoTo->find_pseudo_cumack = 1;
 					tp1->whoTo->find_rtx_pseudo_cumack = 1;
 				}
-
 			} else {	/* CMT is OFF */
-
 #ifdef SCTP_FR_TO_ALTERNATE
 				/* Can we find an alternate? */
 				alt = sctp_find_alternate_net(stcb, tp1->whoTo, 0);
@@ -4116,7 +4111,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					tp1->whoTo->new_pseudo_cumack = 1;
 					tp1->whoTo->find_pseudo_cumack = 1;
 					tp1->whoTo->find_rtx_pseudo_cumack = 1;
-
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
 						/* sa_ignore NO_NULL_CHK */
 						sctp_log_cwnd(stcb, tp1->whoTo, tp1->rec.data.tsn, SCTP_CWND_LOG_FROM_SACK);
@@ -4716,7 +4710,6 @@ hopeless_peer:
 					tp1->whoTo->new_pseudo_cumack = 1;
 					tp1->whoTo->find_pseudo_cumack = 1;
 					tp1->whoTo->find_rtx_pseudo_cumack = 1;
-
 
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SACK_LOGGING_ENABLE) {
 						sctp_log_sack(asoc->last_acked_seq,
