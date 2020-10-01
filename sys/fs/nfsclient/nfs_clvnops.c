@@ -3638,7 +3638,7 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 	struct vattr *vap;
 	struct uio io;
 	struct nfsmount *nmp;
-	size_t len, len2, copiedlen;
+	size_t len, len2;
 	int error, inattrflag, outattrflag, ret, ret2;
 	off_t inoff, outoff;
 	bool consecutive, must_commit, tryoutcred;
@@ -3731,7 +3731,11 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 		} else
 			error = 0;
 	}
-	copiedlen = 0;
+
+	/*
+	 * len will be set to 0 upon a successful Copy RPC.
+	 * As such, this only loops when the Copy RPC needs to be retried.
+	 */
 	while (len > 0 && error == 0) {
 		inattrflag = outattrflag = 0;
 		len2 = len;
@@ -3761,18 +3765,9 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 				} else
 					error = NFSERR_OFFLOADNOREQS;
 			}
-			/*
-			 * If the Copy returns a length == 0, it hit the
-			 * EOF on the input file.
-			 */
-			if (len2 == 0) {
-				*ap->a_lenp = copiedlen;
-				len = 0;
-			} else {
-				len -= len2;
-				copiedlen += len2;
-			}
-			if (len == 0 && must_commit && error == 0)
+			*ap->a_lenp = len2;
+			len = 0;
+			if (len2 > 0 && must_commit && error == 0)
 				error = ncl_commit(outvp, outoff, *ap->a_lenp,
 				    ap->a_outcred, curthread);
 			if (error == 0 && ret != 0)
@@ -3783,6 +3778,9 @@ nfs_copy_file_range(struct vop_copy_file_range_args *ap)
 			/*
 			 * Try consecutive == false, which is ok only if all
 			 * bytes are copied.
+			 * If only some bytes were copied when consecutive
+			 * is false, there is no way to know which bytes
+			 * still need to be written.
 			 */
 			consecutive = false;
 			error = 0;
