@@ -314,12 +314,6 @@ echo
 fi
 
 echo "------------------------------------------------------------------------"
-echo "nfsstat"
-echo
-nfsstat -M $VMCORE -N $KERNEL
-echo
-
-echo "------------------------------------------------------------------------"
 echo "netstat -s"
 echo
 netstat -M $VMCORE -N $KERNEL -s
