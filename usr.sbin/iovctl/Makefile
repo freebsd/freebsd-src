@@ -6,8 +6,6 @@ LIBADD=	nv ucl m
 
 CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 
-WARNS?=6
-
 MAN=	\
 	iovctl.8 \
 	iovctl.conf.5 \

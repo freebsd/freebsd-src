@@ -13,8 +13,6 @@ CFLAGS.kvm_read_test+=		-I${.CURDIR:H}
 
 LIBADD+=	kvm
 
-WARNS?=		6
-
 BINDIR=		${TESTSDIR}
 
 .for t in kvm_geterr_test kvm_open_test kvm_open2_test kvm_read_test

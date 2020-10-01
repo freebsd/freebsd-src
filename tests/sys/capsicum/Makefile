@@ -52,6 +52,4 @@ WARNS.capsicum-test=	3
 
 .endif
 
-WARNS?=	6
-
 .include <bsd.test.mk>
