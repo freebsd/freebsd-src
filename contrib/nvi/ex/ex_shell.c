@@ -48,8 +48,7 @@ ex_shell(SCR *sp, EXCMD *cmdp)
 	 * XXX
 	 * Assumes all shells use -i.
 	 */
-	(void)asprintf(&buf, "%s -i", O_STR(sp, O_SHELL));
-	if (buf == NULL) {
+	if (asprintf(&buf, "%s -i", O_STR(sp, O_SHELL)) == -1) {
 		msgq(sp, M_SYSERR, NULL);
 		return (1);
 	}

@@ -36,24 +36,24 @@ parse(FILE *fp)
 {
 	int ch, s1, s2, s3;
 
-#define	TESTD(s) {							\
+#define	TESTD(s) do {							\
 	if ((s = getc(fp)) == EOF)					\
 		return;							\
 	if (!isdigit(s))						\
 		continue;						\
-}
-#define	TESTP {								\
+} while (0)
+#define	TESTP do {							\
 	if ((ch = getc(fp)) == EOF)					\
 		return;							\
 	if (ch != '|')							\
 		continue;						\
-}
-#define	MOVEC(t) {							\
+} while (0)
+#define	MOVEC(t) do {							\
 	do {								\
 		if ((ch = getc(fp)) == EOF)				\
 			return;						\
 	} while (ch != (t));						\
-}
+} while (0)
 	for (;;) {
 		MOVEC('"');
 		TESTD(s1);

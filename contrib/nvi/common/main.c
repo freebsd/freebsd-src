@@ -48,8 +48,8 @@ editor(GS *gp, int argc, char *argv[])
 	size_t len;
 	u_int flags;
 	int ch, flagchk, lflag, secure, startup, readonly, rval, silent;
-	char *tag_f, *wsizearg, path[256];
-	CHAR_T *w;
+	char *tag_f, *wsizearg;
+	CHAR_T *w, path[256];
 	size_t wlen;
 
 	/* Initialize the busy routine, if not defined by the screen. */
@@ -242,9 +242,9 @@ editor(GS *gp, int argc, char *argv[])
 	}
 	if (wsizearg != NULL) {
 		ARGS *av[2], a, b;
-		(void)snprintf(path, sizeof(path), "window=%s", wsizearg);
+		(void)SPRINTF(path, SIZE(path), L("window=%s"), wsizearg);
 		a.bp = (CHAR_T *)path;
-		a.len = strlen(path);
+		a.len = SIZE(path);
 		b.bp = NULL;
 		b.len = 0;
 		av[0] = &a;
@@ -533,7 +533,7 @@ v_obsolete(char *argv[])
 				argv[0][1] = 'c';
 				(void)strlcpy(argv[0] + 2, p + 1, len);
 			}
-		} else if (argv[0][0] == '-')
+		} else if (argv[0][0] == '-') {
 			if (argv[0][1] == '\0') {
 				argv[0] = strdup("-s");
 				if (argv[0] == NULL) {
@@ -545,6 +545,7 @@ nomem:					warn(NULL);
 				    argv[0][1] == 't' || argv[0][1] == 'w') &&
 				    argv[0][2] == '\0')
 					++argv;
+		}
 	return (0);
 }
 

@@ -199,7 +199,7 @@ file_init(SCR *sp, FREF *frp, char *rcv_name, int flags)
 		if (!LF_ISSET(FS_OPENERR))
 			F_SET(frp, FR_NEWFILE);
 
-		ep->mtim = sb.st_mtimespec;
+		ep->mtim = sb.st_mtim;
 	} else {
 		/*
 		 * XXX
@@ -218,7 +218,7 @@ file_init(SCR *sp, FREF *frp, char *rcv_name, int flags)
 		ep->mdev = sb.st_dev;
 		ep->minode = sb.st_ino;
 
-		ep->mtim = sb.st_mtimespec;
+		ep->mtim = sb.st_mtim;
 
 		if (!S_ISREG(sb.st_mode))
 			msgq_str(sp, M_ERR, oname,
@@ -796,7 +796,7 @@ file_write(SCR *sp, MARK *fm, MARK *tm, char *name, int flags)
 		if (noname && !LF_ISSET(FS_FORCE | FS_APPEND) &&
 		    ((F_ISSET(ep, F_DEVSET) &&
 		    (sb.st_dev != ep->mdev || sb.st_ino != ep->minode)) ||
-		    timespeccmp(&sb.st_mtimespec, &ep->mtim, !=))) {
+		    timespeccmp(&sb.st_mtim, &ep->mtim, !=))) {
 			msgq_str(sp, M_ERR, name, LF_ISSET(FS_POSSIBLE) ?
 "250|%s: file modified more recently than this copy; use ! to override" :
 "251|%s: file modified more recently than this copy");
@@ -887,7 +887,7 @@ success_open:
 	 * we re-init the time.  That way the user can clean up the disk
 	 * and rewrite without having to force it.
 	 */
-	if (noname)
+	if (noname) {
 		if (stat(name, &sb))
 			timepoint_system(&ep->mtim);
 		else {
@@ -895,8 +895,9 @@ success_open:
 			ep->mdev = sb.st_dev;
 			ep->minode = sb.st_ino;
 
-			ep->mtim = sb.st_mtimespec;
+			ep->mtim = sb.st_mtim;
 		}
+	}
 
 	/*
 	 * If the write failed, complain loudly.  ex_writefp() has already
@@ -925,11 +926,12 @@ success_open:
 	 */
 	if (LF_ISSET(FS_ALL) && !LF_ISSET(FS_APPEND)) {
 		F_CLR(ep, F_MODIFIED);
-		if (F_ISSET(frp, FR_TMPFILE))
+		if (F_ISSET(frp, FR_TMPFILE)) {
 			if (noname)
 				F_SET(frp, FR_TMPEXIT);
 			else
 				F_CLR(frp, FR_TMPEXIT);
+		}
 	}
 
 	p = msg_print(sp, name, &nf);
@@ -1290,7 +1292,7 @@ file_m1(SCR *sp, int force, int flags)
 	 * unless force is also set.  Otherwise, we fail unless forced or
 	 * there's another open screen on this file.
 	 */
-	if (F_ISSET(ep, F_MODIFIED))
+	if (F_ISSET(ep, F_MODIFIED)) {
 		if (O_ISSET(sp, O_AUTOWRITE)) {
 			if (!force && file_aw(sp, flags))
 				return (1);
@@ -1300,6 +1302,7 @@ file_m1(SCR *sp, int force, int flags)
 "263|File modified since last complete write; write or use :edit! to override");
 			return (1);
 		}
+	}
 
 	return (file_m3(sp, force));
 }

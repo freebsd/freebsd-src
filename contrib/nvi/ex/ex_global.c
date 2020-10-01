@@ -112,11 +112,12 @@ usage:		ex_emsg(sp, cmdp->cmd->usage, EXM_USAGE);
 			*t = '\0';
 			break;
 		}
-		if (p[0] == '\\')
+		if (p[0] == '\\') {
 			if (p[1] == delim)
 				++p;
 			else if (p[1] == '\\')
 				*t++ = *p++;
+		}
 		*t++ = *p++;
 	}
 

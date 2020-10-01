@@ -96,7 +96,7 @@ ex_bang(SCR *sp, EXCMD *cmdp)
 	 */
 	if (cmdp->addrcnt == 0) {
 		msg = NULL;
-		if (sp->ep != NULL && F_ISSET(sp->ep, F_MODIFIED))
+		if (sp->ep != NULL && F_ISSET(sp->ep, F_MODIFIED)) {
 			if (O_ISSET(sp, O_AUTOWRITE)) {
 				if (file_aw(sp, FS_ALL))
 					return (0);
@@ -105,6 +105,7 @@ ex_bang(SCR *sp, EXCMD *cmdp)
 				msg = msg_cat(sp,
 				    "303|File modified since last write.",
 				    NULL);
+		}
 
 		/* If we're still in a vi screen, move out explicitly. */
 		INT2CHAR(sp, ap->bp, ap->len+1, np, nlen);

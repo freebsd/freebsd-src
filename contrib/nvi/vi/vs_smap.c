@@ -292,12 +292,12 @@ err:	HMAP->lno = 1;
  * so the screen map is refilled and the screen redrawn, and return.  This
  * is amazingly slow, but it's not clear that anyone will care.
  */
-#define	HANDLE_WEIRDNESS(cnt) {						\
+#define	HANDLE_WEIRDNESS(cnt) do {					\
 	if (cnt >= sp->t_rows) {					\
 		F_SET(sp, SC_SCR_REFORMAT);				\
 		return (0);						\
 	}								\
-}
+} while (0)
 
 /*
  * vs_sm_delete --

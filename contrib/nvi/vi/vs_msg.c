@@ -240,12 +240,13 @@ vs_msg(SCR *sp, mtype_t mtype, char *line, size_t len)
 	 * XXX
 	 * Shouldn't we save this, too?
 	 */
-	if (F_ISSET(sp, SC_TINPUT_INFO) || F_ISSET(gp, G_BELLSCHED))
+	if (F_ISSET(sp, SC_TINPUT_INFO) || F_ISSET(gp, G_BELLSCHED)) {
 		if (F_ISSET(sp, SC_SCR_VI)) {
 			F_CLR(gp, G_BELLSCHED);
 			(void)gp->scr_bell(sp);
 		} else
 			F_SET(gp, G_BELLSCHED);
+	}
 
 	/*
 	 * If vi is using the error line for text input, there's no screen
@@ -271,13 +272,14 @@ vs_msg(SCR *sp, mtype_t mtype, char *line, size_t len)
 	 * the screen, so previous opinions are ignored.
 	 */
 	if (F_ISSET(sp, SC_EX | SC_SCR_EXWROTE)) {
-		if (!F_ISSET(sp, SC_SCR_EX))
+		if (!F_ISSET(sp, SC_SCR_EX)) {
 			if (F_ISSET(sp, SC_SCR_EXWROTE)) {
 				if (sp->gp->scr_screen(sp, SC_EX))
 					return;
 			} else
 				if (ex_init(sp))
 					return;
+		}
 
 		if (mtype == M_ERR)
 			(void)gp->scr_attr(sp, SA_INVERSE, 1);
@@ -339,13 +341,14 @@ vs_msg(SCR *sp, mtype_t mtype, char *line, size_t len)
 	padding += 2;
 
 	maxcols = sp->cols - 1;
-	if (vip->lcontinue != 0)
+	if (vip->lcontinue != 0) {
 		if (len + vip->lcontinue + padding > maxcols)
 			vs_output(sp, vip->mtype, ".\n", 2);
 		else  {
 			vs_output(sp, vip->mtype, ";", 1);
 			vs_output(sp, M_NONE, " ", 1);
 		}
+	}
 	vip->mtype = mtype;
 	for (s = line;; s = t) {
 		for (; len > 0 && isblank((u_char)*s); --len, ++s);
@@ -452,11 +455,11 @@ vs_output(SCR *sp, mtype_t mtype, const char *line, int llen)
 			(void)gp->scr_attr(sp, SA_INVERSE, 1);
 
 		/* Display the line, doing character translation. */
-#define	FLUSH {								\
+#define	FLUSH do {							\
 	*cbp = '\0';							\
 	(void)gp->scr_addstr(sp, cbuf, cbp - cbuf);			\
 	cbp = cbuf;							\
-}
+} while (0)
 		ecbp = (cbp = cbuf) + sizeof(cbuf) - 1;
 		for (t = line, tlen = len; tlen--; ++t) {
 			/*
