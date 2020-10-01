@@ -319,7 +319,7 @@ function core.bootenvDefaultRewinded()
 	end
 
 	for curenv_idx = 0, bootenv_count - 1 do
-		curenv = loader.getenv("bootenvs_check[" .. curenv_idx .. "]")
+		local curenv = loader.getenv("bootenvs_check[" .. curenv_idx .. "]")
 		if curenv == defname then
 			return defname
 		end

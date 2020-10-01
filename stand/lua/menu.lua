@@ -232,7 +232,7 @@ menu.welcome = {
 					multi_user = multi_user,
 				}
 			else
-				single_user = alts.single_user 
+				single_user = alts.single_user
 				multi_user = alts.multi_user
 			end
 			boot_entry_1, boot_entry_2 = single_user, multi_user
@@ -352,7 +352,7 @@ menu.welcome = {
 		zpool_checkpoints = {
 			entry_type = core.MENU_ENTRY,
 			name = function()
-				rewind = "No"
+				local rewind = "No"
 				if core.isRewinded() then
 					rewind = "Yes"
 				end
