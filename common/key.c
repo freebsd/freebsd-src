@@ -424,12 +424,12 @@ v_event_append(SCR *sp, EVENT *argp)
 }
 
 /* Remove events from the queue. */
-#define	QREM(len) {							\
+#define	QREM(len) do {							\
 	if ((gp->i_cnt -= len) == 0)					\
 		gp->i_next = 0;						\
 	else								\
 		gp->i_next += len;					\
-}
+} while (0)
 
 /*
  * v_event_get --

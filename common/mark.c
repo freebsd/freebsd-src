@@ -216,12 +216,13 @@ mark_insdel(SCR *sp, lnop_t op, recno_t lno)
 		abort();
 	case LINE_DELETE:
 		SLIST_FOREACH(lmp, sp->ep->marks, q)
-			if (lmp->lno >= lno)
+			if (lmp->lno >= lno) {
 				if (lmp->lno == lno) {
 					F_SET(lmp, MARK_DELETED);
 					(void)log_mark(sp, lmp);
 				} else
 					--lmp->lno;
+			}
 		break;
 	case LINE_INSERT:
 		/*

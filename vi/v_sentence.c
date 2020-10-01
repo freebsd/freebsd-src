@@ -336,7 +336,7 @@ okret:	vp->m_stop.lno = cs.cs_lno;
 	 * All commands move to the end of the range.  Adjust the start of
 	 * the range for motion commands.
 	 */
-	if (ISMOTION(vp))
+	if (ISMOTION(vp)) {
 		if (vp->m_start.cno == 0 &&
 		    (cs.cs_flags != 0 || vp->m_stop.cno == 0)) {
 			if (db_get(sp,
@@ -346,6 +346,7 @@ okret:	vp->m_stop.lno = cs.cs_lno;
 			F_SET(vp, VM_LMODE);
 		} else
 			--vp->m_start.cno;
+	}
 	vp->m_final = vp->m_stop;
 	return (0);
 }

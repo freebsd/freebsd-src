@@ -221,10 +221,10 @@ txt_map_end(SCR *sp)
  * Internally, we maintain tp->lno and tp->cno, externally, everyone uses
  * sp->lno and sp->cno.  Make them consistent as necessary.
  */
-#define	UPDATE_POSITION(sp, tp) {					\
+#define	UPDATE_POSITION(sp, tp) do {					\
 	(sp)->lno = (tp)->lno;						\
 	(sp)->cno = (tp)->cno;						\
-}
+} while (0)
 
 /*
  * v_txt --
@@ -677,7 +677,7 @@ k_cr:		if (LF_ISSET(TXT_CR)) {
 			goto k_escape;
 		}
 
-#define	LINE_RESOLVE {							\
+#define	LINE_RESOLVE do {						\
 		/*							\
 		 * Handle abbreviations.  If there was one, discard the	\
 		 * replay characters.					\
@@ -708,7 +708,7 @@ k_cr:		if (LF_ISSET(TXT_CR)) {
 			--tp->len;					\
 			--tp->insert;					\
 		}							\
-}
+} while (0)
 		LINE_RESOLVE;
 
 		/*
@@ -1527,7 +1527,7 @@ txt_abbrev(SCR *sp, TEXT *tp, CHAR_T *pushcp, int isinfoline, int *didsubp, int 
 	 *
 	 * This makes the layering look like a Nachos Supreme.
 	 */
-search:	if (isinfoline)
+search:	if (isinfoline) {
 		if (off == tp->ai || off == tp->offset)
 			if (ex_is_abbrev(p, len)) {
 				*turnoffp = 1;
@@ -1537,6 +1537,7 @@ search:	if (isinfoline)
 		else
 			if (*turnoffp)
 				return (0);
+	}
 
 	/* Check for any abbreviations. */
 	if ((qp = seq_find(sp, NULL, NULL, p, len, SEQ_ABBREV, NULL)) == NULL)
