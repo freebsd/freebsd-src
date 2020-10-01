@@ -180,7 +180,7 @@ static inline BcVec* bc_program_vec(const BcProgram *p, size_t idx, BcType type)
 
 static BcNum* bc_program_num(BcProgram *p, BcResult *r) {
 
-	BcNum *n = NULL;
+	BcNum *n;
 
 	switch (r->t) {
 
