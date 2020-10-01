@@ -138,7 +138,8 @@ syscallenter(struct thread *td)
 		(void)sigfastblock_fetch(td);
 
 	/* Let system calls set td_errno directly. */
-	td->td_pflags &= ~TDP_NERRNO;
+	KASSERT((td->td_pflags & TDP_NERRNO) == 0,
+	    ("%s: TDP_NERRNO set", __func__));
 
 	if (__predict_false(SYSTRACE_ENABLED() ||
 	    AUDIT_SYSCALL_ENTER(sa->code, td))) {
@@ -149,7 +150,9 @@ syscallenter(struct thread *td)
 #endif
 		error = (sa->callp->sy_call)(td, sa->args);
 		/* Save the latest error return value. */
-		if (__predict_false((td->td_pflags & TDP_NERRNO) == 0))
+		if (__predict_false((td->td_pflags & TDP_NERRNO) != 0))
+			td->td_pflags &= ~TDP_NERRNO;
+		else
 			td->td_errno = error;
 		AUDIT_SYSCALL_EXIT(error, td);
 #ifdef KDTRACE_HOOKS
@@ -161,7 +164,9 @@ syscallenter(struct thread *td)
 	} else {
 		error = (sa->callp->sy_call)(td, sa->args);
 		/* Save the latest error return value. */
-		if (__predict_false((td->td_pflags & TDP_NERRNO) == 0))
+		if (__predict_false((td->td_pflags & TDP_NERRNO) != 0))
+			td->td_pflags &= ~TDP_NERRNO;
+		else
 			td->td_errno = error;
 	}
 	syscall_thread_exit(td, sa->callp);
