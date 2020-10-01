@@ -10,6 +10,4 @@ MAN=
 
 CFLAGS+=	-I${.CURDIR:H}
 
-WARNS?=		6
-
 .include <bsd.prog.mk>

@@ -46,7 +46,6 @@ SRCS+=		${SYSDIR}/net/bpf_jitter.c	\
 		${SYSDIR}/${MACHINE_ARCH}/${MACHINE_ARCH}/bpf_jit_machdep.c
 CFLAGS+=	-DBPF_JIT_COMPILER
 LIBS+=		-lutil
-WARNS?=		6
 .else
 SRCS+=		${SYSDIR}/net/bpf_filter.c
 WARNS?=		2

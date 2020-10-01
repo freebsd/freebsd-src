@@ -6,7 +6,6 @@ SDEVRANDOM=	${SRCTOP}/sys/dev/random
 .PATH:		${SDEVRANDOM}
 
 TESTSDIR=	${TESTSBASE}/sys/devrandom
-WARNS?=	6
 
 CFLAGS+=	-I${SRCTOP}/sys
 
