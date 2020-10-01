@@ -141,8 +141,8 @@ const char* const bc_err_msgs[] = {
 	"empty expression",
 	"bad print statement",
 	"bad function definition",
-	"bad assignment: left side must be scale, ibase, "
-		"obase, seed, last, var, or array element",
+	("bad assignment: left side must be scale, ibase, "
+		"obase, seed, last, var, or array element"),
 	"no auto variable found",
 	"function parameter or auto \"%s%s\" already exists",
 	"block end cannot be found",
