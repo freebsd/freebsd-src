@@ -157,28 +157,35 @@ then
     pattern_found=1
 fi
 
-ret=0
 # call grep ...
 if [ $# -lt 1 ]
 then
     # ... on stdin
     if [ ${pattern_file} -eq 0 ]; then
-	${cattool} ${catargs} - | ${grep} ${grep_args} -- "${pattern}" - || ret=$?
+	${cattool} ${catargs} - | ${grep} ${grep_args} -- "${pattern}" -
     else
-	${cattool} ${catargs} - | ${grep} ${grep_args} -- - || ret=$?
+	${cattool} ${catargs} - | ${grep} ${grep_args} -- -
     fi
+    ret=$?
 else
     # ... on all files given on the command line
     if [ ${silent} -lt 1 -a $# -gt 1 ]; then
 	grep_args="-H ${grep_args}"
     fi
+    # Succeed if any file matches.  First assume no match.
+    ret=1
     for file; do
 	if [ ${pattern_file} -eq 0 ]; then
 	    ${cattool} ${catargs} -- "${file}" |
-		${grep} --label="${file}" ${grep_args} -- "${pattern}" - || ret=$?
+		${grep} --label="${file}" ${grep_args} -- "${pattern}" -
 	else
 	    ${cattool} ${catargs} -- "${file}" |
-		${grep} --label="${file}" ${grep_args} -- - || ret=$?
+		${grep} --label="${file}" ${grep_args} -- -
+	fi
+	this_ret=$?
+	# A match (0) overrides a no-match (1).  An error (>=2) overrides all.
+	if [ ${this_ret} -eq 0 -a ${ret} -eq 1 ] || [ ${this_ret} -ge 2 ]; then
+	    ret=${this_ret}
 	fi
     done
 fi
