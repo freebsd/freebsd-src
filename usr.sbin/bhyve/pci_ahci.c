@@ -2684,7 +2684,7 @@ pci_ahci_snapshot(struct vm_snapshot_meta *meta)
 		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(port->rfis, 256, false, meta,
 			ret, done);
 
-		SNAPSHOT_VAR_OR_LEAVE(port->ident, meta, ret, done);
+		SNAPSHOT_VAR_OR_LEAVE(port->ata_ident, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(port->atapi, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(port->reset, meta, ret, done);
 		SNAPSHOT_VAR_OR_LEAVE(port->waitforclear, meta, ret, done);
