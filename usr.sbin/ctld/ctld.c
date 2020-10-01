@@ -931,7 +931,7 @@ void
 isns_register(struct isns *isns, struct isns *oldisns)
 {
 	struct conf *conf = isns->i_conf;
-	int s;
+	int error, s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -943,8 +943,10 @@ isns_register(struct isns *isns, struct isns *oldisns)
 		set_timeout(0, false);
 		return;
 	}
-	gethostname(hostname, sizeof(hostname));
-
+	error = gethostname(hostname, sizeof(hostname));
+	if (error != 0)
+		log_err(1, "gethostname");
+ 
 	if (oldisns == NULL || TAILQ_EMPTY(&oldisns->i_conf->conf_targets))
 		oldisns = isns;
 	isns_do_deregister(oldisns, s, hostname);
@@ -957,7 +959,7 @@ void
 isns_check(struct isns *isns)
 {
 	struct conf *conf = isns->i_conf;
-	int s, res;
+	int error, s, res;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -969,8 +971,10 @@ isns_check(struct isns *isns)
 		set_timeout(0, false);
 		return;
 	}
-	gethostname(hostname, sizeof(hostname));
-
+	error = gethostname(hostname, sizeof(hostname));
+	if (error != 0)
+		log_err(1, "gethostname");
+ 
 	res = isns_do_check(isns, s, hostname);
 	if (res < 0) {
 		isns_do_deregister(isns, s, hostname);
@@ -984,7 +988,7 @@ void
 isns_deregister(struct isns *isns)
 {
 	struct conf *conf = isns->i_conf;
-	int s;
+	int error, s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -994,8 +998,10 @@ isns_deregister(struct isns *isns)
 	s = isns_do_connect(isns);
 	if (s < 0)
 		return;
-	gethostname(hostname, sizeof(hostname));
-
+	error = gethostname(hostname, sizeof(hostname));
+	if (error != 0)
+		log_err(1, "gethostname");
+ 
 	isns_do_deregister(isns, s, hostname);
 	close(s);
 	set_timeout(0, false);
