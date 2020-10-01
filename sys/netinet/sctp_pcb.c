@@ -6592,7 +6592,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			    (ptype == SCTP_DEL_IP_ADDRESS) ||
 			    (ptype == SCTP_ERROR_CAUSE_IND) ||
 		    (ptype == SCTP_SUCCESS_REPORT)) {
-			 /* don't care */ ;
+			/* don't care */
 		} else {
 			if ((ptype & 0x8000) == 0x0000) {
 				/*
