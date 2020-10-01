@@ -3,5 +3,4 @@
 
 BINDIR?=	/usr/libexec
 
-WARNS?=		6
 WFORMAT?=	1

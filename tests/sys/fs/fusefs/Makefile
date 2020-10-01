@@ -85,6 +85,4 @@ LIBADD+=	pthread
 LIBADD+=	gmock gtest
 LIBADD+=	util
 
-WARNS?=	6
-
 .include <bsd.test.mk>

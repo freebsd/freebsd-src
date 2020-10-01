@@ -16,6 +16,4 @@ PROGS+=		mqtest5
 
 LIBADD+=	rt
 
-WARNS?=		6
-
 .include <bsd.test.mk>

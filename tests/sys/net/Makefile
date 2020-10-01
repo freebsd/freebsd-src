@@ -28,6 +28,6 @@ ${PACKAGE}FILESMODE_stp.py=		0555
 MAN=
 PROGS+=		randsleep
 
-WARNS?=		6
+CFLAGS+=        -I${.CURDIR:H:H}
 
 .include <bsd.test.mk>

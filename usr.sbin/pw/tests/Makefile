@@ -5,7 +5,6 @@ PACKAGE=	tests
 BINDIR=		${TESTSDIR}
 
 PROGS+=		crypt
-WARNS?=		6
 LIBADD+=	crypt
 
 ATF_TESTS_SH=	pw_etcdir_test \

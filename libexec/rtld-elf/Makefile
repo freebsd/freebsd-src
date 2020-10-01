@@ -42,7 +42,6 @@ LDFLAGS+=	-nostdlib -e .rtld_start
 .endif
 
 NO_WCAST_ALIGN=	yes
-WARNS?=		6
 INSTALLFLAGS=	-C -b
 PRECIOUSPROG=
 BINDIR=		/libexec

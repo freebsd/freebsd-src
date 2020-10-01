@@ -4,7 +4,6 @@ LIB=	teken
 SHLIB_MAJOR= 0
 
 CFLAGS+=-I.
-WARNS?=	6
 
 SRCDIR=	${.CURDIR}/..
 .PATH: ${SRCDIR}

@@ -6,6 +6,4 @@ ATF_TESTS_C+=	sbuf_string_test
 
 LIBADD+=	sbuf util
 
-WARNS?=		6
-
 .include <bsd.test.mk>

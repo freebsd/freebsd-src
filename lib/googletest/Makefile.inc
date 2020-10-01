@@ -10,5 +10,3 @@ CXXFLAGS+=	${GTESTS_FLAGS}
 
 # Silence warnings about usage of deprecated std::auto_ptr
 CXXWARNFLAGS+=	-Wno-deprecated-declarations
-
-WARNS?=		6

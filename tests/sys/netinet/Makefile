@@ -14,6 +14,4 @@ PROGS=	udp_dontroute tcp_user_cookie
 
 MAN=
 
-WARNS?=	6
-
 .include <bsd.test.mk>
