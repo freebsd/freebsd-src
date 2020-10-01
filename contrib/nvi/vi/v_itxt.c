@@ -48,10 +48,10 @@
  * position.)  We also check for mapped keys waiting, i.e. if we're in the
  * middle of a map, don't bother logging the cursor.
  */
-#define	LOG_CORRECT {							\
+#define	LOG_CORRECT do {						\
 	if (!MAPPED_KEYS_WAITING(sp))					\
 		(void)log_cursor(sp);					\
-}
+} while (0)
 
 static u_int32_t set_txt_std(SCR *, VICMD *, u_int32_t);
 

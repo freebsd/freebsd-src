@@ -7,7 +7,15 @@
  * See the LICENSE file for redistribution information.
  */
 
-#include <db.h>			/* Only include db1. */
+#ifndef TCSASOFT
+#define TCSASOFT 0
+#endif
+
+#ifdef __linux__
+#include "/usr/include/db1/db.h"	/* Only include db1. */
+#else
+#include "/usr/include/db.h"	/* Only include db1. */
+#endif
 #include <regex.h>		/* May refer to the bundled regex. */
 
 /*

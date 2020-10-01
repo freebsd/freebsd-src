@@ -13,6 +13,7 @@ project(nvi2 C)
 
 include(CheckIncludeFiles)
 include(CheckFunctionExists)
+include(CheckStructHasMember)
 include(CheckCSourceCompiles)
 
 mark_as_advanced(CMAKE_INSTALL_PREFIX)
@@ -127,6 +128,7 @@ endif()
 
 if(USE_WIDECHAR)
     find_library(CURSES_LIBRARY NAMES ncursesw cursesw curses HINTS /usr/lib)
+    find_library(TERMINFO_LIBRARY NAMES tinfow terminfo HINTS /usr/lib)
 
     # link to the wchar_t awared BSD libregex.a
     add_library(regex STATIC)
@@ -136,13 +138,14 @@ if(USE_WIDECHAR)
     target_link_libraries(nvi PRIVATE regex)
 else()
     find_library(CURSES_LIBRARY NAMES ncurses curses HINTS /usr/lib)
+    find_library(TERMINFO_LIBRARY NAMES tinfo terminfo HINTS /usr/lib)
     target_compile_options(nvi PRIVATE -Wno-pointer-sign)
 endif()
 
-target_link_libraries(nvi PRIVATE ${CURSES_LIBRARY})
+target_link_libraries(nvi PRIVATE ${CURSES_LIBRARY} ${TERMINFO_LIBRARY})
 
 if(USE_ICONV)
-    check_function_exists(__iconv ICONV_IN_LIBC)
+    check_function_exists(iconv ICONV_IN_LIBC)
     if(NOT ICONV_IN_LIBC)
         find_path(ICONV_INCLUDE_DIR iconv.h)
         find_library(ICONV_LIBRARY iconv)
@@ -173,9 +176,26 @@ if(USE_ICONV)
     target_link_libraries(nvi PRIVATE ${ICONV_LIBRARY})
 endif()
 
+check_function_exists(getprogname GETPROGNAME_IN_LIBC)
+check_function_exists(strlcpy STRLCPY_IN_LIBC)
+if(NOT GETPROGNAME_IN_LIBC OR NOT STRLCPY_IN_LIBC)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(LIBBSD libbsd-overlay)
+    add_definitions(${LIBBSD_CFLAGS})
+    target_link_libraries(nvi PRIVATE ${LIBBSD_LIBRARIES})
+endif()
+
+check_function_exists(dbopen DBOPEN_IN_LIBC)
+if(NOT DBOPEN_IN_LIBC)
+    target_link_libraries(nvi PRIVATE db1)
+endif()
+
 check_include_files(libutil.h HAVE_LIBUTIL_H)
 check_include_files(ncurses.h HAVE_NCURSES_H)
+check_include_files(ncursesw/ncurses.h HAVE_NCURSESW_NCURSES_H)
+check_include_files(pty.h HAVE_PTY_H)
 check_include_files(term.h HAVE_TERM_H)
+check_struct_has_member("struct dirent" d_namlen dirent.h HAVE_DIRENT_D_NAMLEN LANGUAGE C)
 
 configure_file(files/config.h.in config.h)
 

@@ -39,7 +39,7 @@ put(SCR *sp, CB *cbp, CHAR_T *namep, MARK *cp, MARK *rp, int append)
 	CHAR_T *bp, *t;
 	CHAR_T *p;
 
-	if (cbp == NULL)
+	if (cbp == NULL) {
 		if (namep == NULL) {
 			cbp = sp->gp->dcbp;
 			if (cbp == NULL) {
@@ -56,6 +56,7 @@ put(SCR *sp, CB *cbp, CHAR_T *namep, MARK *cp, MARK *rp, int append)
 				return (1);
 			}
 		}
+	}
 	tp = TAILQ_FIRST(cbp->textq);
 
 	/*

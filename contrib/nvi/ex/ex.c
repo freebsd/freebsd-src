@@ -811,13 +811,14 @@ skip_srch:	if (ecp->cmd == &cmds[C_VISUAL_EX] && F_ISSET(sp, SC_VI))
 	 * this isn't a particularly complex trap, and if backslashes were
 	 * legal in set commands, this would have to be much more complicated.
 	 */
-	if (ecp->cmd == &cmds[C_SET])
+	if (ecp->cmd == &cmds[C_SET]) {
 		for (p = ecp->cp, len = ecp->clen; len > 0; --len, ++p)
 			if (IS_ESCAPE(sp, ecp, *p) && len > 1) {
 				--len;
 				++p;
 			} else if (*p == '\\')
 				*p = CH_LITERAL;
+	}
 
 	/*
 	 * Set the default addresses.  It's an error to specify an address for
@@ -1254,7 +1255,7 @@ addr_verify:
 				ex_badaddr(sp, ecp->cmd, A_ZERO, NUM_OK);
 				goto err;
 			}
-		} else if (!db_exist(sp, ecp->addr2.lno))
+		} else if (!db_exist(sp, ecp->addr2.lno)) {
 			if (FL_ISSET(ecp->iflags, E_C_COUNT)) {
 				if (db_last(sp, &lno))
 					goto err;
@@ -1263,6 +1264,7 @@ addr_verify:
 				ex_badaddr(sp, NULL, A_EOF, NUM_OK);
 				goto err;
 			}
+		}
 		/* FALLTHROUGH */
 	case 1:
 		if (ecp->addr1.lno == 0) {
@@ -2117,7 +2119,7 @@ ex_load(SCR *sp)
 
 			/* If it's a global/v command, fix up the last line. */
 			if (FL_ISSET(ecp->agv_flags,
-			    AGV_GLOBAL | AGV_V) && ecp->range_lno != OOBLNO)
+			    AGV_GLOBAL | AGV_V) && ecp->range_lno != OOBLNO) {
 				if (db_exist(sp, ecp->range_lno))
 					sp->lno = ecp->range_lno;
 				else {
@@ -2126,6 +2128,7 @@ ex_load(SCR *sp)
 					if (sp->lno == 0)
 						sp->lno = 1;
 				}
+			}
 			free(ecp->o_cp);
 		}
 
