@@ -891,6 +891,24 @@ mflag_body()
 
 	atf_check -o inline:"test1:2\n" grep -m 2 -EHc "a|b|e|f" test1
 }
+
+atf_test_case zgrep_multiple_files
+zgrep_multiple_files_head()
+{
+	atf_set "descr" "Ensures that zgrep functions properly with multiple files"
+}
+zgrep_multiple_files_body()
+{
+	echo foo > test1
+	echo foo > test2
+	atf_check -o inline:"test1:foo\ntest2:foo\n" zgrep foo test1 test2
+
+	echo bar > test1
+	atf_check -o inline:"test2:foo\n" zgrep foo test1 test2
+
+	echo bar > test2
+	atf_check -s exit:1 zgrep foo test1 test2
+}
 # End FreeBSD
 
 atf_init_test_cases()
@@ -944,5 +962,6 @@ atf_init_test_cases()
 	atf_add_test_case fgrep_oflag
 	atf_add_test_case cflag
 	atf_add_test_case mflag
+	atf_add_test_case zgrep_multiple_files
 # End FreeBSD
 }
