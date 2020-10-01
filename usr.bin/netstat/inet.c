@@ -341,6 +341,9 @@ protopr(u_long off, const char *name, int af1, int proto)
 				xo_emit("  {T:/%8.8s} {T:/%5.5s}",
 				    "flowid", "ftype");
 			}
+			if (Cflag)
+				xo_emit(" {T:/%-*.*s}", TCP_CA_NAME_MAX,
+				    TCP_CA_NAME_MAX, "CC");
 			if (Pflag)
 				xo_emit(" {T:/%s}", "Log ID");
 			xo_emit("\n");
@@ -514,9 +517,15 @@ protopr(u_long off, const char *name, int af1, int proto)
 			    inp->inp_flowid,
 			    inp->inp_flowtype);
 		}
-		if (istcp && Pflag)
-			xo_emit(" {:log-id/%s}", tp->xt_logid[0] == '\0' ?
-			    "-" : tp->xt_logid);
+		if (istcp) {
+			if (Cflag)
+				xo_emit(" {:cc/%-*.*s}", TCP_CA_NAME_MAX,
+				    TCP_CA_NAME_MAX, tp->xt_cc);
+			if (Pflag)
+				xo_emit(" {:log-id/%s}",
+				    tp->xt_logid[0] == '\0' ?
+				    "-" : tp->xt_logid);
+		}
 		xo_emit("\n");
 		xo_close_instance("socket");
 	}

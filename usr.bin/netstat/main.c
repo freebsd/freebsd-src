@@ -205,6 +205,7 @@ int	Aflag;		/* show addresses of protocol control block */
 int	aflag;		/* show all sockets (including servers) */
 static int	Bflag;		/* show information about bpf consumers */
 int	bflag;		/* show i/f total bytes in/out */
+int	Cflag;		/* show congestion control */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
 int	hflag;		/* show counters in human readable format */
@@ -248,7 +249,7 @@ main(int argc, char *argv[])
 	if (argc < 0)
 		exit(EXIT_FAILURE);
 
-	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:nPp:Qq:RrSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "46AaBbCdF:f:ghI:iLlM:mN:nPp:Qq:RrSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
 		case '4':
@@ -276,6 +277,9 @@ main(int argc, char *argv[])
 			break;
 		case 'b':
 			bflag = 1;
+			break;
+		case 'C':
+			Cflag = 1;
 			break;
 		case 'd':
 			dflag = 1;
@@ -721,7 +725,7 @@ kset_dpcpu(u_int cpuid)
 
 	if (kvm_dpcpu_setcpu(kvmd, cpuid) < 0)
 		xo_errx(-1, "%s: kvm_dpcpu_setcpu(%u): %s", __func__,
-		    cpuid, kvm_geterr(kvmd)); 
+		    cpuid, kvm_geterr(kvmd));
 	return;
 }
 
