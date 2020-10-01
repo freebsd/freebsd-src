@@ -1,5 +1,13 @@
 # News
 
+## 3.1.6
+
+This is a production release that fixes a new warning from Clang 12 for FreeBSD
+and also removes some possible undefined behavior found by UBSan that compilers
+did not seem to take advantage of.
+
+Users do ***NOT*** need to upgrade, if they do not want to.
+
 ## 3.1.5
 
 This is a production release that fixes the Chinese locales (which caused `bc`
