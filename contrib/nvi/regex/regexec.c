@@ -114,10 +114,10 @@ static char sccsid[] = "@(#)regexec.c	8.2 (Berkeley) 3/16/94";
 #define	ASSIGN(d, s)	memcpy(d, s, m->g->nstates)
 #define	EQ(a, b)	(memcmp(a, b, m->g->nstates) == 0)
 #define	STATEVARS	int vn; char *space
-#define	STATESETUP(m, nv)	{ (m)->space = malloc((nv)*(m)->g->nstates); \
+#define	STATESETUP(m, nv)	do { (m)->space = malloc((nv)*(m)->g->nstates); \
 				if ((m)->space == NULL) return(REG_ESPACE); \
-				(m)->vn = 0; }
-#define	STATETEARDOWN(m)	{ free((m)->space); }
+				(m)->vn = 0; } while (0)
+#define	STATETEARDOWN(m)	free((m)->space)
 #define	SETUP(v)	((v) = &m->space[m->vn++ * m->g->nstates])
 #define	onestate	int
 #define	INIT(o, n)	((o) = (n))

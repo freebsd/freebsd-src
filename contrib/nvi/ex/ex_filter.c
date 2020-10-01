@@ -174,11 +174,12 @@ err:		if (input[0] != -1)
 		if (ex_readfp(sp, "filter", ofp, fm, &nread, 1))
 			rval = 1;
 		sp->rptlines[L_ADDED] += nread;
-		if (ftype == FILTER_READ)
+		if (ftype == FILTER_READ) {
 			if (fm->lno == 0)
 				rp->lno = nread;
 			else
 				rp->lno += nread;
+		}
 		goto uwait;
 	}
 

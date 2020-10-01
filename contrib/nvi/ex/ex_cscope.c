@@ -261,7 +261,7 @@ cscope_add(SCR *sp, EXCMD *cmdp, CHAR_T *dname)
 	csc->dname = csc->buf;
 	csc->dlen = len;
 	memcpy(csc->dname, np, len);
-	csc->mtim = sb.st_mtimespec;
+	csc->mtim = sb.st_mtim;
 
 	/* Get the search paths for the cscope. */
 	if (get_paths(sp, csc))
@@ -411,7 +411,8 @@ err:		if (to_cs[0] != -1)
 			free(dn);
 			goto nomem;
 		}
-		(void)asprintf(&cmd, CSCOPE_CMD_FMT, dn, dbn);
+		if (asprintf(&cmd, CSCOPE_CMD_FMT, dn, dbn) == -1)
+			cmd = NULL;
 		free(dbn);
 		free(dn);
 		if (cmd == NULL) {
@@ -812,7 +813,7 @@ csc_file(SCR *sp, CSC *csc, char *name, char **dirp, size_t *dlenp, int *isolder
 			*dirp = *pp;
 			*dlenp = strlen(*pp);
 			*isolderp = timespeccmp(
-			    &sb.st_mtimespec, &csc->mtim, <);
+			    &sb.st_mtim, &csc->mtim, <);
 			return;
 		}
 		free(buf);
@@ -843,7 +844,7 @@ csc_help(SCR *sp, char *cmd)
 {
 	CC const *ccp;
 
-	if (cmd != NULL && *cmd != '\0')
+	if (cmd != NULL && *cmd != '\0') {
 		if ((ccp = lookup_ccmd(cmd)) == NULL) {
 			ex_printf(sp,
 			    "%s doesn't match any cscope command\n", cmd);
@@ -854,6 +855,7 @@ csc_help(SCR *sp, char *cmd)
 			ex_printf(sp, "  Usage: %s\n", ccp->usage_msg);
 			return (0);
 		}
+	}
 
 	ex_printf(sp, "cscope commands:\n");
 	for (ccp = cscope_cmds; ccp->name != NULL; ++ccp)
