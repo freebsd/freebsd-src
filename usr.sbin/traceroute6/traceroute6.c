@@ -341,6 +341,7 @@ static u_long max_hops = 30;
 static u_int16_t srcport;
 static u_int16_t port = 32768+666;	/* start udp dest port # for probe packets */
 static u_int16_t ident;
+static int tclass = -1;
 static int options;			/* socket options */
 static int verbose;
 static int waittime = 5;		/* time to wait for response (in seconds) */
@@ -359,7 +360,7 @@ main(int argc, char *argv[])
 	int ch, i, on = 1, seq, rcvcmsglen, error;
 	struct addrinfo hints, *res;
 	static u_char *rcvcmsgbuf;
-	u_long probe, hops, lport;
+	u_long probe, hops, lport, ltclass;
 	struct hostent *hp;
 	size_t size, minlen;
 	uid_t uid;
@@ -406,7 +407,7 @@ main(int argc, char *argv[])
 	seq = 0;
 	ident = htons(getpid() & 0xffff); /* same as ping6 */
 
-	while ((ch = getopt(argc, argv, "aA:df:g:Ilm:nNp:q:rs:STUvw:")) != -1)
+	while ((ch = getopt(argc, argv, "aA:df:g:Ilm:nNp:q:rs:St:TUvw:")) != -1)
 		switch (ch) {
 		case 'a':
 			as_path = 1;
@@ -522,6 +523,17 @@ main(int argc, char *argv[])
 		case 'S':
 			useproto = IPPROTO_SCTP;
 			break;
+		case 't':
+			ep = NULL;
+			errno = 0;
+			ltclass = strtoul(optarg, &ep, 0);
+			if (errno || !*optarg || *ep || ltclass > 255) {
+				fprintf(stderr,
+				    "traceroute6: invalid traffic class.\n");
+				exit(1);
+			}
+			tclass = (int)ltclass;
+			break;
 		case 'T':
 			useproto = IPPROTO_TCP;
 			break;
@@ -591,6 +603,13 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
+	if (tclass != -1) {
+		if (setsockopt(sndsock, IPPROTO_IPV6, IPV6_TCLASS, &tclass,
+		    sizeof(int)) == -1) {
+			perror("setsockopt(IPV6_TCLASS)");
+			exit(7);
+		}
+	}
 
 	if (argc < 1 || argc > 2)
 		usage();
