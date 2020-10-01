@@ -3020,7 +3020,7 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	int error;
 	bool cantseek, readzeros, eof, lastblock;
 	ssize_t aresid;
-	size_t copylen, len, savlen;
+	size_t copylen, len, rem, savlen;
 	char *dat;
 	long holein, holeout;
 
@@ -3089,7 +3089,17 @@ vn_generic_copy_file_range(struct vnode *invp, off_t *inoffp,
 	 * This value is clipped at 4Kbytes and 1Mbyte.
 	 */
 	blksize = MAX(holein, holeout);
-	if (blksize == 0)
+
+	/* Clip len to end at an exact multiple of hole size. */
+	if (blksize > 1) {
+		rem = *inoffp % blksize;
+		if (rem > 0)
+			rem = blksize - rem;
+		if (len - rem > blksize)
+			len = savlen = rounddown(len - rem, blksize) + rem;
+	}
+
+	if (blksize <= 1)
 		blksize = MAX(invp->v_mount->mnt_stat.f_iosize,
 		    outvp->v_mount->mnt_stat.f_iosize);
 	if (blksize < 4096)
