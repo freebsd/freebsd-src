@@ -10,7 +10,9 @@
 #ifdef USE_WIDECHAR
 #define _XOPEN_SOURCE_EXTENDED
 #endif
-#ifdef HAVE_NCURSES_H
+#ifdef HAVE_NCURSESW_NCURSES_H
+#include <ncursesw/ncurses.h>
+#elif defined HAVE_NCURSES_H
 #include <ncurses.h>
 #else
 #include <curses.h>

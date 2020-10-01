@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unctrl.h>
 #include <unistd.h>
 
 #include "common.h"
@@ -312,7 +313,7 @@ opts_init(SCR *sp, int *oargs)
 	argv[1] = &b;
 
 	/* Set numeric and string default values. */
-#define	OI(indx, str) {							\
+#define	OI(indx, str) do {						\
 	a.len = STRLEN(str);						\
 	if ((CHAR_T*)str != b2)	  /* GCC puts strings in text-space. */	\
 		(void)MEMCPY(b2, str, a.len+1);				\
@@ -320,7 +321,7 @@ opts_init(SCR *sp, int *oargs)
 		 optindx = indx;					\
 		goto err;						\
 	}								\
-}
+} while (0)
 	/*
 	 * Indirect global options to global space.  Specifically, set up
 	 * terminal, lines, columns first, they're used by other options.
@@ -366,7 +367,7 @@ opts_init(SCR *sp, int *oargs)
 	OI(O_PARAGRAPHS, L("paragraphs=IPLPPPQPP LIpplpipbp"));
 	(void)SPRINTF(b2, SIZE(b2), L("path=%s"), "");
 	OI(O_PATH, b2);
-	(void)SPRINTF(b2, SIZE(b2), L("recdir=%s"), _PATH_PRESERVE);
+	(void)SPRINTF(b2, SIZE(b2), L("recdir=%s"), NVI_PATH_PRESERVE);
 	OI(O_RECDIR, b2);
 	OI(O_SECTIONS, L("sections=NHSHH HUnhsh"));
 	(void)SPRINTF(b2, SIZE(b2),
@@ -573,13 +574,14 @@ opts_set(SCR *sp, ARGS *argv[], char *usage)
 			 * functions can be expensive.
 			 */
 			isset = !turnoff;
-			if (!F_ISSET(op, OPT_ALWAYS))
+			if (!F_ISSET(op, OPT_ALWAYS)) {
 				if (isset) {
 					if (O_ISSET(sp, offset))
 						break;
 				} else
 					if (!O_ISSET(sp, offset))
 						break;
+			}
 
 			/* Report to subsystems. */
 			if ((op->func != NULL &&
@@ -945,6 +947,7 @@ static int
 opts_print(SCR *sp, OPTLIST const *op)
 {
 	int curlen, offset;
+	const char *p;
 
 	curlen = 0;
 	offset = op - optlist;
@@ -958,8 +961,13 @@ opts_print(SCR *sp, OPTLIST const *op)
 		curlen += ex_printf(sp, WS"=%ld", op->name, O_VAL(sp, offset));
 		break;
 	case OPT_STR:
-		curlen += ex_printf(sp, WS"=\"%s\"", op->name,
-		    O_STR(sp, offset) == NULL ? "" : O_STR(sp, offset));
+		curlen += ex_printf(sp, WS"=\"", op->name);
+		p = O_STR(sp, offset);
+		/* Keep correct count for unprintable character sequences */
+		if (p != NULL)
+			for (; *p != '\0'; ++p)
+				curlen += ex_puts(sp, unctrl(*p));
+		curlen += ex_puts(sp, "\"");
 		break;
 	}
 	return (curlen);

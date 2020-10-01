@@ -424,16 +424,18 @@ cl_ssize(SCR *sp, int sigwinch, size_t *rowp, size_t *colp, int *changedp)
 	if (row == 0 || col == 0) {
 		if ((p = getenv("TERM")) == NULL)
 			goto noterm;
-		if (row == 0)
+		if (row == 0) {
 			if ((rval = tigetnum("lines")) < 0)
 				msgq(sp, M_SYSERR, "tigetnum: lines");
 			else
 				row = rval;
-		if (col == 0)
+		}
+		if (col == 0) {
 			if ((rval = tigetnum("cols")) < 0)
 				msgq(sp, M_SYSERR, "tigetnum: cols");
 			else
 				col = rval;
+		}
 	}
 
 	/* If nothing else, well, it's probably a VT100. */

@@ -32,6 +32,8 @@
 #include <unistd.h>
 #ifdef HAVE_LIBUTIL_H
 #include <libutil.h>
+#elif defined HAVE_PTY_H
+#include <pty.h>
 #else
 #include <util.h>
 #endif

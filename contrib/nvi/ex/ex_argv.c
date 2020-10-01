@@ -611,9 +611,17 @@ argv_flt_path(SCR *sp, EXCMD *excp, CHAR_T *path, size_t plen)
 		if (nlen == 0) {
 			if (dp->d_name[0] == '.')
 				continue;
+#ifdef HAVE_DIRENT_D_NAMLEN
 			len = dp->d_namlen;
+#else
+			len = strlen(dp->d_name);
+#endif
 		} else {
+#ifdef HAVE_DIRENT_D_NAMLEN
 			len = dp->d_namlen;
+#else
+			len = strlen(dp->d_name);
+#endif
 			if (len < nlen || memcmp(dp->d_name, name, nlen))
 				continue;
 		}

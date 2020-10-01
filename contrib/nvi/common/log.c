@@ -69,10 +69,10 @@ static int	apply_with(int (*)(SCR *, recno_t, CHAR_T *, size_t),
 					SCR *, recno_t, u_char *, size_t);
 
 /* Try and restart the log on failure, i.e. if we run out of memory. */
-#define	LOG_ERR {							\
+#define	LOG_ERR do {							\
 	log_err(sp, __FILE__, __LINE__);				\
 	return (1);							\
-}
+} while (0)
 
 /* offset of CHAR_T string in log needs to be aligned on some systems
  * because it is passed to db_set as a string

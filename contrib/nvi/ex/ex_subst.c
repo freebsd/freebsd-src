@@ -115,11 +115,12 @@ subagain:	return (ex_subagain(sp, cmdp));
 			*t = '\0';
 			break;
 		}
-		if (p[0] == '\\')
+		if (p[0] == '\\') {
 			if (p[1] == delim)
 				++p;
 			else if (p[1] == '\\')
 				*t++ = *p++;
+		}
 		*t++ = *p++;
 	}
 
@@ -296,7 +297,7 @@ ex_subtilde(SCR *sp, EXCMD *cmdp)
  * when the replacement is done.  Don't change it unless you're *damned*
  * confident.
  */
-#define	NEEDNEWLINE(sp) {						\
+#define	NEEDNEWLINE(sp) do {						\
 	if (sp->newl_len == sp->newl_cnt) {				\
 		sp->newl_len += 25;					\
 		REALLOC(sp, sp->newl, size_t *,				\
@@ -306,9 +307,9 @@ ex_subtilde(SCR *sp, EXCMD *cmdp)
 			return (1);					\
 		}							\
 	}								\
-}
+} while (0)
 
-#define	BUILD(sp, l, len) {						\
+#define	BUILD(sp, l, len) do {						\
 	if (lbclen + (len) > lblen) {					\
 		lblen = p2roundup(MAX(lbclen + (len), 256));		\
 		REALLOC(sp, lb, CHAR_T *, lblen * sizeof(CHAR_T));	\
@@ -319,9 +320,9 @@ ex_subtilde(SCR *sp, EXCMD *cmdp)
 	}								\
 	MEMCPY(lb + lbclen, l, len);					\
 	lbclen += len;							\
-}
+} while (0)
 
-#define	NEEDSP(sp, len, pnt) {						\
+#define	NEEDSP(sp, len, pnt) do {					\
 	if (lbclen + (len) > lblen) {					\
 		lblen = p2roundup(MAX(lbclen + (len), 256));		\
 		REALLOC(sp, lb, CHAR_T *, lblen * sizeof(CHAR_T));	\
@@ -331,7 +332,7 @@ ex_subtilde(SCR *sp, EXCMD *cmdp)
 		}							\
 		pnt = lb + lbclen;					\
 	}								\
-}
+} while (0)
 
 static int
 s(SCR *sp, EXCMD *cmdp, CHAR_T *s, regex_t *re, u_int flags)
@@ -584,7 +585,7 @@ nextmatch:	match[0].rm_so = 0;
 			empty_ok = 1;
 			if (len == 0)
 				goto endmatch;
-			BUILD(sp, s + offset, 1)
+			BUILD(sp, s + offset, 1);
 			++offset;
 			--len;
 			goto nextmatch;
@@ -710,7 +711,7 @@ skip:		offset += match[0].rm_eo;
 
 			/* Copy the rest of the line. */
 			if (len)
-				BUILD(sp, s + offset, len)
+				BUILD(sp, s + offset, len);
 
 			/* Set the new offset. */
 			offset = saved_offset;
@@ -736,7 +737,7 @@ skip:		offset += match[0].rm_eo;
 				goto err;
 			if (db_get(sp, lno, DBG_FATAL, &s, &llen))
 				goto err;
-			ADD_SPACE_RETW(sp, bp, blen, llen)
+			ADD_SPACE_RETW(sp, bp, blen, llen);
 			MEMCPY(bp, s, llen);
 			s = bp;
 			len = llen - offset;
@@ -779,7 +780,7 @@ endmatch:	if (!linechanged)
 
 		/* Copy any remaining bytes into the build buffer. */
 		if (len)
-			BUILD(sp, s + offset, len)
+			BUILD(sp, s + offset, len);
 
 		/* Store inserted lines, adjusting the build buffer. */
 		last = 0;
@@ -1333,7 +1334,7 @@ re_sub(
 	 * Otherwise, since this is the lowest level of replacement, discard
 	 * all escaping characters.  This (hopefully) matches historic practice.
 	 */
-#define	OUTCH(ch, nltrans) {						\
+#define	OUTCH(ch, nltrans) do {						\
 	ARG_CHAR_T __ch = (ch);						\
 	e_key_t __value = KEY_VAL(sp, __ch);				\
 	if (nltrans && (__value == K_CR || __value == K_NL)) {		\
@@ -1362,7 +1363,7 @@ re_sub(
 	NEEDSP(sp, 1, p);						\
 	*p++ = __ch;							\
 	++lbclen;							\
-}
+} while (0)
 	conv = C_NOTSET;
 	for (rp = sp->repl, rpl = sp->repl_len, p = lb + lbclen; rpl--;) {
 		switch (ch = *rp++) {

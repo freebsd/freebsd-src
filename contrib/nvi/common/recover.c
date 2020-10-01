@@ -421,7 +421,7 @@ rcv_mailfile(SCR *sp, int issync, char *cp_path)
 	    getprogname(), " -r ", qt);
 	free(qt);
 	free(host);
-	if (buf == NULL) {
+	if (len == -1) {
 		msgq(sp, M_SYSERR, NULL);
 		goto err;
 	}
@@ -701,7 +701,7 @@ rcv_read(SCR *sp, FREF *frp)
 		/* If we've found more than one, take the most recent. */
 		(void)fstat(fileno(fp), &sb);
 		if (recp == NULL ||
-		    timespeccmp(&rec_mtim, &sb.st_mtimespec, <)) {
+		    timespeccmp(&rec_mtim, &sb.st_mtim, <)) {
 			p = recp;
 			t = pathp;
 			recp = recpath;
@@ -710,7 +710,7 @@ rcv_read(SCR *sp, FREF *frp)
 				free(p);
 				free(t);
 			}
-			rec_mtim = sb.st_mtimespec;
+			rec_mtim = sb.st_mtim;
 			if (sv_fd != -1)
 				(void)close(sv_fd);
 			sv_fd = dup(fileno(fp));
@@ -813,8 +813,7 @@ rcv_email(SCR *sp, char *fname)
 {
 	char *buf;
 
-	(void)asprintf(&buf, _PATH_SENDMAIL " -odb -t < %s", fname);
-	if (buf == NULL) {
+	if (asprintf(&buf, _PATH_SENDMAIL " -odb -t < %s", fname) == -1) {
 		msgq_str(sp, M_ERR, strerror(errno),
 		    "071|not sending email: %s");
 		return;

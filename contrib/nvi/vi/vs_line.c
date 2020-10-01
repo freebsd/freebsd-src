@@ -165,7 +165,7 @@ vs_line(SCR *sp, SMAP *smp, size_t *yp, size_t *xp)
 		 * Lots of special cases for empty lines, but they only apply
 		 * if we're displaying the first screen of the line.
 		 */
-		if (skip_cols == 0)
+		if (skip_cols == 0) {
 			if (dne) {
 				if (smp->lno == 1) {
 					if (list_dollar) {
@@ -176,12 +176,14 @@ vs_line(SCR *sp, SMAP *smp, size_t *yp, size_t *xp)
 					ch = '~';
 					goto empty;
 				}
-			} else
+			} else {
 				if (list_dollar) {
 					ch = '$';
 empty:					(void)gp->scr_addstr(sp,
 					    KEY_NAME(sp, ch), KEY_LEN(sp, ch));
 				}
+			}
+		}
 
 		(void)gp->scr_clrtoeol(sp);
 		(void)gp->scr_move(sp, oldy, oldx);
@@ -402,11 +404,11 @@ display:
 		if (is_cached || no_draw)
 			continue;
 
-#define	FLUSH {								\
+#define	FLUSH do {							\
 	*cbp = '\0';							\
 	(void)gp->scr_waddstr(sp, cbuf, cbp - cbuf);			\
 	cbp = cbuf;							\
-}
+} while (0)
 		/*
 		 * Display the character.  We do tab expansion here because
 		 * the screen interface doesn't have any way to set the tab

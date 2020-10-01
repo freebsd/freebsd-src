@@ -241,7 +241,7 @@ vs_paint(
 	 * screen but the column offset is not, we'll end up in the adjust
 	 * code, when we should probably have compressed the screen.
 	 */
-	if (IS_SMALL(sp))
+	if (IS_SMALL(sp)) {
 		if (LNO < HMAP->lno) {
 			lcnt = vs_sm_nlines(sp, HMAP, LNO, sp->t_maxrows);
 			if (lcnt <= HALFSCREEN(sp))
@@ -278,6 +278,7 @@ small_fill:			(void)gp->scr_move(sp, LASTLINE(sp), 0);
 				goto adjust;
 			}
 		}
+	}
 
 	/*
 	 * 6b: Line down, or current screen.
@@ -390,7 +391,7 @@ top:		if (vs_sm_fill(sp, LNO, P_TOP))
 adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 	    (LNO == HMAP->lno || LNO == TMAP->lno)) {
 		cnt = vs_screens(sp, LNO, &CNO);
-		if (LNO == HMAP->lno && cnt < HMAP->soff)
+		if (LNO == HMAP->lno && cnt < HMAP->soff) {
 			if ((HMAP->soff - cnt) > HALFTEXT(sp)) {
 				HMAP->soff = cnt;
 				vs_sm_fill(sp, OOBLNO, P_TOP);
@@ -399,7 +400,8 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 				while (cnt < HMAP->soff)
 					if (vs_sm_1down(sp))
 						return (1);
-		if (LNO == TMAP->lno && cnt > TMAP->soff)
+		}
+		if (LNO == TMAP->lno && cnt > TMAP->soff) {
 			if ((cnt - TMAP->soff) > HALFTEXT(sp)) {
 				TMAP->soff = cnt;
 				vs_sm_fill(sp, OOBLNO, P_BOTTOM);
@@ -408,6 +410,7 @@ adjust:	if (!O_ISSET(sp, O_LEFTRIGHT) &&
 				while (cnt > TMAP->soff)
 					if (vs_sm_1up(sp))
 						return (1);
+		}
 	}
 
 	/*

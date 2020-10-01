@@ -405,7 +405,7 @@ ret:		rval = 1;
 	return (rval);
 }
 
-#define	KEY(key, ec_flags) {						\
+#define	KEY(key, ec_flags) do {						\
 	if ((gcret = v_key(sp, 0, &ev, ec_flags)) != GC_OK)		\
 		return (gcret);						\
 	if (ev.e_value == K_ESCAPE)					\
@@ -413,7 +413,7 @@ ret:		rval = 1;
 	if (F_ISSET(&ev.e_ch, CH_MAPPED))				\
 		*mappedp = 1;						\
 	key = ev.e_c;							\
-}
+} while (0)
 
 /*
  * The O_TILDEOP option makes the ~ command take a motion instead

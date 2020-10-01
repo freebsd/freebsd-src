@@ -111,8 +111,9 @@ join(char *path1, char *path2)
 
 	if (path1[0] == '\0' || path2[0] == '/')
 		return strdup(path2);
-	(void)asprintf(&p, path1[strlen(path1)-1] == '/' ?
-	    "%s%s" : "%s/%s", path1, path2);
+	if (asprintf(&p, path1[strlen(path1)-1] == '/' ?
+	    "%s%s" : "%s/%s", path1, path2) == -1)
+		return NULL;
 	return p;
 }
 
@@ -140,8 +141,13 @@ expanduser(char *str)
 		continue;
 	if (t == p) {
 		/* ~ */
+#ifdef __GLIBC__
+		extern char *secure_getenv(const char *);
+		if ((h = secure_getenv("HOME")) == NULL) {
+#else
 		if (issetugid() != 0 ||
 		    (h = getenv("HOME")) == NULL) {
+#endif
 			if (((h = getlogin()) != NULL &&
 			     (pwd = getpwnam(h)) != NULL) ||
 			    (pwd = getpwuid(getuid())) != NULL)

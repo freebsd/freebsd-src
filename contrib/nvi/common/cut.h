@@ -63,13 +63,13 @@ struct _text {				/* Text: a linked list of lines. */
  * Get named buffer 'name'.
  * Translate upper-case buffer names to lower-case buffer names.
  */
-#define	CBNAME(sp, cbp, nch) {						\
+#define	CBNAME(sp, cbp, nch) do {					\
 	CHAR_T L__name;							\
 	L__name = isupper(nch) ? tolower(nch) : (nch);			\
 	SLIST_FOREACH(cbp, sp->gp->cutq, q)				\
 		if (cbp->name == L__name)				\
 			break;						\
-}
+} while (0)
 
 /* Flags to the cut() routine. */
 #define	CUT_LINEMODE	0x01		/* Cut in line mode. */
