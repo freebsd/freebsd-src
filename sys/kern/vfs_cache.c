@@ -4045,6 +4045,15 @@ static int __noinline
 cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 {
 
+	/*
+	 * Hack: they may be looking up foo/bar, where foo is a
+	 * regular file. In such a case we need to turn ENOTDIR,
+	 * but we may happen to get here with a different error.
+	 */
+	if (fpl->dvp->v_type != VDIR) {
+		error = ENOTDIR;
+	}
+
 	switch (error) {
 	case EAGAIN:
 		/*
