@@ -3,7 +3,6 @@
 .PATH: ${SRCTOP}/lib/libc/iconv
 
 SHLIB_MAJOR= 4
-WARNS?=	6
 CFLAGS+= -I${SRCTOP}/lib/libc/iconv
 
 CFLAGS+=	-Dbool=_Bool

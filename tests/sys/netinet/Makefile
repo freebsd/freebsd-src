@@ -20,6 +20,4 @@ ${PACKAGE}FILESMODE_redirect.py=0555
 
 MAN=
 
-WARNS?=	6
-
 .include <bsd.test.mk>

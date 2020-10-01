@@ -5,6 +5,4 @@ MAN=
 
 LIBADD+=	geom
 
-WARNS?=	6
-
 .include <bsd.prog.mk>

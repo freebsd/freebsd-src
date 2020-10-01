@@ -8,8 +8,6 @@ SHLIBDIR?= /lib
 SHLIB_MAJOR=	7
 CFLAGS+=-DNO__SCCSID -I${.CURDIR}
 
-WARNS?=	6
-
 SRCS=	kvm.c kvm_cptime.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_pcpu.c kvm_private.c kvm_proc.c kvm_vnet.c \
 	kvm_minidump_aarch64.c \
