@@ -643,7 +643,7 @@ dump_freeobjects(dmu_send_cookie_t *dscp, uint64_t firstobj, uint64_t numobjs)
 	 * receiving side.
 	 */
 	if (maxobj > 0) {
-		if (maxobj < firstobj)
+		if (maxobj <= firstobj)
 			return (0);
 
 		if (maxobj < firstobj + numobjs)
@@ -663,8 +663,6 @@ dump_freeobjects(dmu_send_cookie_t *dscp, uint64_t firstobj, uint64_t numobjs)
 			return (SET_ERROR(EINTR));
 		dscp->dsc_pending_op = PENDING_NONE;
 	}
-	if (numobjs == 0)
-		numobjs = UINT64_MAX - firstobj;
 
 	if (dscp->dsc_pending_op == PENDING_FREEOBJECTS) {
 		/*
@@ -2686,12 +2684,15 @@ dmu_send_obj(const char *pool, uint64_t tosnap, uint64_t fromsnap,
 			bcopy(fromredact, dspp.fromredactsnaps, size);
 		}
 
-		if (!dsl_dataset_is_before(dspp.to_ds, fromds, 0)) {
+		boolean_t is_before =
+		    dsl_dataset_is_before(dspp.to_ds, fromds, 0);
+		dspp.is_clone = (dspp.to_ds->ds_dir !=
+		    fromds->ds_dir);
+		dsl_dataset_rele(fromds, FTAG);
+		if (!is_before) {
+			dsl_pool_rele(dspp.dp, FTAG);
 			err = SET_ERROR(EXDEV);
 		} else {
-			dspp.is_clone = (dspp.to_ds->ds_dir !=
-			    fromds->ds_dir);
-			dsl_dataset_rele(fromds, FTAG);
 			err = dmu_send_impl(&dspp);
 		}
 	} else {
