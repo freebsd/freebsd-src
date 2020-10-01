@@ -154,7 +154,7 @@ caddr_t __read_mostly unmapped_buf;
 /* Used below and for softdep flushing threads in ufs/ffs/ffs_softdep.c */
 struct proc *bufdaemonproc;
 
-static bool inmem(struct vnode *vp, daddr_t blkno);
+static int inmem(struct vnode *vp, daddr_t blkno);
 static void vm_hold_free_pages(struct buf *bp, int newbsize);
 static void vm_hold_load_pages(struct buf *bp, vm_offset_t from,
 		vm_offset_t to);
@@ -3586,21 +3586,20 @@ incore(struct bufobj *bo, daddr_t blkno)
  * it also hunts around in the VM system for the data.
  */
 
-static bool
+static int
 inmem(struct vnode * vp, daddr_t blkno)
 {
 	vm_object_t obj;
 	vm_offset_t toff, tinc, size;
-	vm_page_t m, n;
+	vm_page_t m;
 	vm_ooffset_t off;
-	int valid;
 
 	ASSERT_VOP_LOCKED(vp, "inmem");
 
 	if (incore(&vp->v_bufobj, blkno))
-		return (1);
+		return 1;
 	if (vp->v_mount == NULL)
-		return (0);
+		return 0;
 	obj = vp->v_object;
 	if (obj == NULL)
 		return (0);
@@ -3610,30 +3609,24 @@ inmem(struct vnode * vp, daddr_t blkno)
 		size = vp->v_mount->mnt_stat.f_iosize;
 	off = (vm_ooffset_t)blkno * (vm_ooffset_t)vp->v_mount->mnt_stat.f_iosize;
 
+	VM_OBJECT_RLOCK(obj);
 	for (toff = 0; toff < vp->v_mount->mnt_stat.f_iosize; toff += tinc) {
-		m = vm_page_lookup_unlocked(obj, OFF_TO_IDX(off + toff));
-recheck:
-		if (m == NULL)
-			return (0);
-		/*
-		 * Consider page validity only if page mapping didn't change
-		 * during the check.
-		 */
-		valid = vm_page_is_valid(m,
-		    (vm_offset_t)((toff + off) & PAGE_MASK), tinc);
-		n = vm_page_lookup_unlocked(obj, OFF_TO_IDX(off + toff));
-		if (m != n) {
-			m = n;
-			goto recheck;
-		}
-		if (!valid)
-			return (0);
-
+		m = vm_page_lookup(obj, OFF_TO_IDX(off + toff));
+		if (!m)
+			goto notinmem;
 		tinc = size;
 		if (tinc > PAGE_SIZE - ((toff + off) & PAGE_MASK))
 			tinc = PAGE_SIZE - ((toff + off) & PAGE_MASK);
+		if (vm_page_is_valid(m,
+		    (vm_offset_t) ((toff + off) & PAGE_MASK), tinc) == 0)
+			goto notinmem;
 	}
-	return (1);
+	VM_OBJECT_RUNLOCK(obj);
+	return 1;
+
+notinmem:
+	VM_OBJECT_RUNLOCK(obj);
+	return (0);
 }
 
 /*
