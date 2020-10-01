@@ -1193,15 +1193,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 static int
 vmx_handle_cpuid(struct vm *vm, int vcpu, struct vmxctx *vmxctx)
 {
-	int handled, func;
+	int handled;
 
-	func = vmxctx->guest_rax;
-
-	handled = x86_emulate_cpuid(vm, vcpu,
-				    (uint32_t*)(&vmxctx->guest_rax),
-				    (uint32_t*)(&vmxctx->guest_rbx),
-				    (uint32_t*)(&vmxctx->guest_rcx),
-				    (uint32_t*)(&vmxctx->guest_rdx));
+	handled = x86_emulate_cpuid(vm, vcpu, (uint64_t *)&vmxctx->guest_rax,
+	    (uint64_t *)&vmxctx->guest_rbx, (uint64_t *)&vmxctx->guest_rcx,
+	    (uint64_t *)&vmxctx->guest_rdx);
 	return (handled);
 }
 
