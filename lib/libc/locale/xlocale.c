@@ -251,6 +251,7 @@ static int dupcomponent(int type, locale_t base, locale_t new)
 
 locale_t newlocale(int mask, const char *locale, locale_t base)
 {
+	locale_t orig_base;
 	int type;
 	const char *realLocale = locale;
 	int useenv = 0;
@@ -263,6 +264,7 @@ locale_t newlocale(int mask, const char *locale, locale_t base)
 		return (NULL);
 	}
 
+	orig_base = base;
 	FIX_LOCALE(base);
 	copyflags(new, base);
 
@@ -297,6 +299,8 @@ locale_t newlocale(int mask, const char *locale, locale_t base)
 	if (0 == success) {
 		xlocale_release(new);
 		new = NULL;
+	} else if (base == orig_base) {
+		xlocale_release(base);
 	}
 
 	return (new);
