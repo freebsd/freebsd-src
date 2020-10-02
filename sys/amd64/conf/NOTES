@@ -538,6 +538,7 @@ device		ioat		# Intel I/OAT DMA engine
 # Laptop/Notebook options:
 #
 
+device backlight
 
 #
 # I2C Bus

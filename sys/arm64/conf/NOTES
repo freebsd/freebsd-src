@@ -191,6 +191,9 @@ device		regulator
 device		syscon
 device		aw_syscon
 
+# Backlight subsystem
+device		backlight
+
 # Misc devices.
 device		pl330		# ARM PL330 dma controller
 device		xdma		# xDMA framework for SoC on-chip dma controllers
