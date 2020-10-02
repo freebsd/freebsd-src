@@ -112,7 +112,7 @@ TEST_F(ReleaseDir, o_exec)
 	expect_releasedir(ino, ReturnErrno(0));
 	
 	fd = open(FULLPATH, O_EXEC | O_DIRECTORY);
-	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_LE(0, fd) << strerror(errno);
 
 	ASSERT_EQ(0, close(fd)) << strerror(errno);
 }
