@@ -121,6 +121,10 @@ CFLAGS+= -DRMD160_ASM
 ACFLAGS+= -DSKEIN_LOOP=0
 SRCS+= skein_block_asm.S
 CFLAGS+= -DSKEIN_ASM -DSKEIN_USE_ASM=1792 # list of block functions to replace with assembly: 256+512+1024 = 1792
+# 20201002 Add explict Makefile dependency for r366344 (reenabled assembly
+# optimized version). SKEIN_USE_ASM determines which routines should come from
+# the assembly vs C versions, and skein_block needs to be rebuilt if it changes.
+skein_block.o skein_block.pico: Makefile
 .endif
 .if exists(${MACHINE_ARCH}/sha.S) || exists(${MACHINE_ARCH}/rmd160.S) || exists(${MACHINE_ARCH}/skein_block_asm.S)
 ACFLAGS+= -DELF -Wa,--noexecstack
