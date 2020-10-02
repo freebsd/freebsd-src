@@ -733,7 +733,15 @@ zone_put_bucket(uma_zone_t zone, int domain, uma_bucket_t bucket, void *udata,
 			zone_domain_imax_set(zdom, zdom->uzd_nitems);
 		if (STAILQ_EMPTY(&zdom->uzd_buckets))
 			zdom->uzd_seq = bucket->ub_seq;
-		STAILQ_INSERT_TAIL(&zdom->uzd_buckets, bucket, ub_link);
+
+		/*
+		 * Try to promote reuse of recently used items.  For items
+		 * protected by SMR, try to defer reuse to minimize polling.
+		 */
+		if (bucket->ub_seq == SMR_SEQ_INVALID)
+			STAILQ_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
+		else
+			STAILQ_INSERT_TAIL(&zdom->uzd_buckets, bucket, ub_link);
 		ZDOM_UNLOCK(zdom);
 		return;
 	}
