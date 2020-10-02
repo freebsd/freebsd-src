@@ -3331,7 +3331,7 @@ uma_zalloc_smr(uma_zone_t zone, int flags)
 	void *item;
 
 	KASSERT((zone->uz_flags & UMA_ZONE_SMR) != 0,
-	    ("uma_zalloc_arg: called with non-SMR zone.\n"));
+	    ("uma_zalloc_arg: called with non-SMR zone."));
 	if (uma_zalloc_debug(zone, &item, NULL, flags) == EJUSTRETURN)
 		return (item);
 #endif
@@ -3362,7 +3362,7 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	void *item;
 
 	KASSERT((zone->uz_flags & UMA_ZONE_SMR) == 0,
-	    ("uma_zalloc_arg: called with SMR zone.\n"));
+	    ("uma_zalloc_arg: called with SMR zone."));
 	if (uma_zalloc_debug(zone, &item, udata, flags) == EJUSTRETURN)
 		return (item);
 #endif
@@ -4007,7 +4007,7 @@ uma_zfree_smr(uma_zone_t zone, void *item)
 
 #ifdef UMA_ZALLOC_DEBUG
 	KASSERT((zone->uz_flags & UMA_ZONE_SMR) != 0,
-	    ("uma_zfree_smr: called with non-SMR zone.\n"));
+	    ("uma_zfree_smr: called with non-SMR zone."));
 	KASSERT(item != NULL, ("uma_zfree_smr: Called with NULL pointer."));
 	SMR_ASSERT_NOT_ENTERED(zone->uz_smr);
 	if (uma_zfree_debug(zone, item, NULL) == EJUSTRETURN)
@@ -4060,7 +4060,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 
 #ifdef UMA_ZALLOC_DEBUG
 	KASSERT((zone->uz_flags & UMA_ZONE_SMR) == 0,
-	    ("uma_zfree_arg: called with SMR zone.\n"));
+	    ("uma_zfree_arg: called with SMR zone."));
 	if (uma_zfree_debug(zone, item, udata) == EJUSTRETURN)
 		return;
 #endif
@@ -5271,14 +5271,14 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
 		if (slab == NULL) 
-			panic("uma: item %p did not belong to zone %s\n",
+			panic("uma: item %p did not belong to zone %s",
 			    item, zone->uz_name);
 	}
 	keg = zone->uz_keg;
 	freei = slab_item_index(slab, keg, item);
 
 	if (BIT_ISSET(keg->uk_ipers, freei, slab_dbg_bits(slab, keg)))
-		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)\n",
+		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)",
 		    item, zone, zone->uz_name, slab, freei);
 	BIT_SET_ATOMIC(keg->uk_ipers, freei, slab_dbg_bits(slab, keg));
 }
@@ -5297,22 +5297,22 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 	if (slab == NULL) {
 		slab = uma_dbg_getslab(zone, item);
 		if (slab == NULL) 
-			panic("uma: Freed item %p did not belong to zone %s\n",
+			panic("uma: Freed item %p did not belong to zone %s",
 			    item, zone->uz_name);
 	}
 	keg = zone->uz_keg;
 	freei = slab_item_index(slab, keg, item);
 
 	if (freei >= keg->uk_ipers)
-		panic("Invalid free of %p from zone %p(%s) slab %p(%d)\n",
+		panic("Invalid free of %p from zone %p(%s) slab %p(%d)",
 		    item, zone, zone->uz_name, slab, freei);
 
 	if (slab_item(slab, keg, freei) != item)
-		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)\n",
+		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)",
 		    item, zone, zone->uz_name, slab, freei);
 
 	if (!BIT_ISSET(keg->uk_ipers, freei, slab_dbg_bits(slab, keg)))
-		panic("Duplicate free of %p from zone %p(%s) slab %p(%d)\n",
+		panic("Duplicate free of %p from zone %p(%s) slab %p(%d)",
 		    item, zone, zone->uz_name, slab, freei);
 
 	BIT_CLR_ATOMIC(keg->uk_ipers, freei, slab_dbg_bits(slab, keg));
