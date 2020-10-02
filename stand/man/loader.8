@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 11, 2020
+.Dd October 2, 2020
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -652,7 +652,7 @@ Modifies
 .Dv VM_BCACHE_SIZE_MAX .
 .It Va kern.msgbufsize
 Sets the size of the kernel message buffer.
-The default limit of 64KB is usually sufficient unless
+The default limit of 96KB is usually sufficient unless
 large amounts of trace data need to be collected
 between opportunities to examine the buffer or
 dump it to a file.
