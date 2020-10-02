@@ -7,6 +7,7 @@ SUBDIR=	alias \
 	apply \
 	asa \
 	awk \
+	backlight \
 	banner \
 	basename \
 	brandelf \
