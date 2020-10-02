@@ -41,9 +41,11 @@
 #include <linux/module.h>
 #include <linux/workqueue.h>
 #include <linux/kdev_t.h>
+#include <linux/backlight.h>
 #include <asm/atomic.h>
 
 #include <sys/bus.h>
+#include <sys/backlight.h>
 
 struct device;
 struct fwnode_handle;
@@ -114,6 +116,8 @@ struct device {
 	unsigned int	irq_end;
 	const struct attribute_group **groups;
 	struct fwnode_handle *fwnode;
+	struct cdev	*backlight_dev;
+	struct backlight_device	*bd;
 
 	spinlock_t	devres_lock;
 	struct list_head devres_head;

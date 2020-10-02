@@ -91,6 +91,7 @@ CFLAGS+=	-fno-strict-aliasing
 WERROR?=	-Werror
 
 LINUXKPI_GENSRCS+= \
+	backlight_if.h \
 	bus_if.h \
 	device_if.h \
 	pci_if.h \

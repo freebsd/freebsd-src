@@ -31,4 +31,5 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 
 MODULE_VERSION(linuxkpi, 1);
+MODULE_DEPEND(linuxkpi, backlight, 1, 1, 1);
 MODULE_DEPEND(linuxkpi, pci, 1, 1, 1);
