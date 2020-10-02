@@ -506,7 +506,7 @@ twsi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		sc->control_val &= ~TWSI_CONTROL_ACK;
 	TWSI_WRITE(sc, sc->reg_control, sc->control_val | TWSI_CONTROL_START);
 	while (sc->error == 0 && sc->transfer != 0) {
-		pause_sbt("twsi", SBT_1MS * 30, SBT_1MS, 0);
+		tsleep_sbt(sc, 0, "twsi", SBT_1MS * 30, SBT_1MS, 0);
 	}
 	debugf(sc->dev, "pause finish\n");
 
