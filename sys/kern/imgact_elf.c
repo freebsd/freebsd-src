@@ -1459,7 +1459,7 @@ extern int compress_user_cores_level;
 static void cb_put_phdr(vm_map_entry_t, void *);
 static void cb_size_segment(vm_map_entry_t, void *);
 static int core_write(struct coredump_params *, const void *, size_t, off_t,
-    enum uio_seg);
+    enum uio_seg, size_t *);
 static void each_dumpable_segment(struct thread *, segment_callback, void *);
 static int __elfN(corehdr)(struct coredump_params *, int, void *, size_t,
     struct note_info_list *, size_t);
@@ -1519,46 +1519,88 @@ core_compressed_write(void *base, size_t len, off_t offset, void *arg)
 {
 
 	return (core_write((struct coredump_params *)arg, base, len, offset,
-	    UIO_SYSSPACE));
+	    UIO_SYSSPACE, NULL));
 }
 
 static int
 core_write(struct coredump_params *p, const void *base, size_t len,
-    off_t offset, enum uio_seg seg)
+    off_t offset, enum uio_seg seg, size_t *resid)
 {
 
 	return (vn_rdwr_inchunks(UIO_WRITE, p->vp, __DECONST(void *, base),
 	    len, offset, seg, IO_UNIT | IO_DIRECT | IO_RANGELOCKED,
-	    p->active_cred, p->file_cred, NULL, p->td));
+	    p->active_cred, p->file_cred, resid, p->td));
 }
 
 static int
-core_output(void *base, size_t len, off_t offset, struct coredump_params *p,
+core_output(char *base, size_t len, off_t offset, struct coredump_params *p,
     void *tmpbuf)
 {
+	vm_map_t map;
+	struct mount *mp;
+	size_t resid, runlen;
 	int error;
+	bool success;
+
+	KASSERT((uintptr_t)base % PAGE_SIZE == 0,
+	    ("%s: user address %#lx is not page-aligned",
+	    __func__, (uintptr_t)base));
 
 	if (p->comp != NULL)
 		return (compress_chunk(p, base, tmpbuf, len));
 
-	/*
-	 * EFAULT is a non-fatal error that we can get, for example,
-	 * if the segment is backed by a file but extends beyond its
-	 * end.
-	 */
-	error = core_write(p, base, len, offset, UIO_USERSPACE);
-	if (error == EFAULT) {
-		log(LOG_WARNING, "Failed to fully fault in a core file segment "
-		    "at VA %p with size 0x%zx to be written at offset 0x%jx "
-		    "for process %s\n", base, len, offset, curproc->p_comm);
-
+	map = &p->td->td_proc->p_vmspace->vm_map;
+	for (; len > 0; base += runlen, offset += runlen, len -= runlen) {
 		/*
-		 * Write a "real" zero byte at the end of the target region
-		 * in the case this is the last segment.
-		 * The intermediate space will be implicitly zero-filled.
+		 * Attempt to page in all virtual pages in the range.  If a
+		 * virtual page is not backed by the pager, it is represented as
+		 * a hole in the file.  This can occur with zero-filled
+		 * anonymous memory or truncated files, for example.
 		 */
-		error = core_write(p, zero_region, 1, offset + len - 1,
-		    UIO_SYSSPACE);
+		for (runlen = 0; runlen < len; runlen += PAGE_SIZE) {
+			error = vm_fault(map, (uintptr_t)base + runlen,
+			    VM_PROT_READ, VM_FAULT_NOFILL, NULL);
+			if (runlen == 0)
+				success = error == KERN_SUCCESS;
+			else if ((error == KERN_SUCCESS) != success)
+				break;
+		}
+
+		if (success) {
+			error = core_write(p, base, runlen, offset,
+			    UIO_USERSPACE, &resid);
+			if (error != 0) {
+				if (error != EFAULT)
+					break;
+
+				/*
+				 * EFAULT may be returned if the user mapping
+				 * could not be accessed, e.g., because a mapped
+				 * file has been truncated.  Skip the page if no
+				 * progress was made, to protect against a
+				 * hypothetical scenario where vm_fault() was
+				 * successful but core_write() returns EFAULT
+				 * anyway.
+				 */
+				runlen -= resid;
+				if (runlen == 0) {
+					success = false;
+					runlen = PAGE_SIZE;
+				}
+			}
+		}
+		if (!success) {
+			error = vn_start_write(p->vp, &mp, V_WAIT);
+			if (error != 0)
+				break;
+			vn_lock(p->vp, LK_EXCLUSIVE | LK_RETRY);
+			error = vn_truncate_locked(p->vp, offset + runlen,
+			    false, p->td->td_ucred);
+			VOP_UNLOCK(p->vp);
+			vn_finished_write(mp);
+			if (error != 0)
+				break;
+		}
 	}
 	return (error);
 }
@@ -1589,7 +1631,7 @@ sbuf_drain_core_output(void *arg, const char *data, int len)
 		error = compressor_write(p->comp, __DECONST(char *, data), len);
 	else
 		error = core_write(p, __DECONST(void *, data), len, p->offset,
-		    UIO_SYSSPACE);
+		    UIO_SYSSPACE, NULL);
 	if (locked)
 		PROC_LOCK(p->td->td_proc);
 	if (error != 0)
@@ -1681,7 +1723,7 @@ __elfN(coredump)(struct thread *td, struct vnode *vp, off_t limit, int flags)
 		php = (Elf_Phdr *)((char *)hdr + sizeof(Elf_Ehdr)) + 1;
 		offset = round_page(hdrsize + notesz);
 		for (i = 0; i < seginfo.count; i++) {
-			error = core_output((caddr_t)(uintptr_t)php->p_vaddr,
+			error = core_output((char *)(uintptr_t)php->p_vaddr,
 			    php->p_filesz, offset, &params, tmpbuf);
 			if (error != 0)
 				break;
