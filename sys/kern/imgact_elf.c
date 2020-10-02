@@ -1543,8 +1543,7 @@ core_output(char *base, size_t len, off_t offset, struct coredump_params *p,
 	bool success;
 
 	KASSERT((uintptr_t)base % PAGE_SIZE == 0,
-	    ("%s: user address %#lx is not page-aligned",
-	    __func__, (uintptr_t)base));
+	    ("%s: user address %p is not page-aligned", __func__, base));
 
 	if (p->comp != NULL)
 		return (compress_chunk(p, base, tmpbuf, len));
