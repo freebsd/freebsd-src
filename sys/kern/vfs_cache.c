@@ -3948,10 +3948,10 @@ cache_fplookup_need_climb_mount(struct cache_fpl *fpl)
 /*
  * Parse the path.
  *
- * The code is mostly copy-pasted from regular lookup, see lookup().
- * The structure is maintained along with comments for easier maintenance.
- * Deduplicating the code will become feasible after fast path lookup
- * becomes more feature-complete.
+ * The code was originally copy-pasted from regular lookup and despite
+ * clean ups leaves performance on the table. Any modifications here
+ * must take into account that in case off fallback the resulting
+ * nameidata state has to be compatible with the original.
  */
 static int
 cache_fplookup_parse(struct cache_fpl *fpl)
