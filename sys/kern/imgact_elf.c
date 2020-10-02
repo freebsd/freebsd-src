@@ -1760,7 +1760,7 @@ each_dumpable_segment(struct thread *td, segment_callback func, void *closure)
 	vm_map_t map = &p->p_vmspace->vm_map;
 	vm_map_entry_t entry;
 	vm_object_t backing_object, object;
-	boolean_t ignore_entry;
+	bool ignore_entry;
 
 	vm_map_lock_read(map);
 	VM_MAP_ENTRY_FOREACH(entry, map) {
@@ -1799,9 +1799,7 @@ each_dumpable_segment(struct thread *td, segment_callback func, void *closure)
 			VM_OBJECT_RUNLOCK(object);
 			object = backing_object;
 		}
-		ignore_entry = object->type != OBJT_DEFAULT &&
-		    object->type != OBJT_SWAP && object->type != OBJT_VNODE &&
-		    object->type != OBJT_PHYS;
+		ignore_entry = (object->flags & OBJ_FICTITIOUS) != 0;
 		VM_OBJECT_RUNLOCK(object);
 		if (ignore_entry)
 			continue;
