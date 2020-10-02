@@ -784,6 +784,8 @@ device		aesni		# AES-NI OpenCrypto module
 #  apm under `Miscellaneous hardware'
 # above.
 
+device		backlight
+
 # For older notebooks that signal a powerfail condition (external
 # power supply dropped, or battery state low) by issuing an NMI:
 

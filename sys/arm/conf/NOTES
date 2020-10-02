@@ -45,6 +45,9 @@ device		nvmem
 device		regulator
 device		syscon
 
+# Backlight subsystem
+device		backlight
+
 # Undo options from sys/conf/NOTES that we do not want...
 
 nooptions	COMPAT_FREEBSD4

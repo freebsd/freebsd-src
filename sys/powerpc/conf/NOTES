@@ -68,6 +68,9 @@ device		snd_ai2s	# Apple I2S Audio
 device		snd_davbus	# Apple Davbus Audio
 device		adm1030		# Apple G4 MDD fan controller
 
+# Backlight subsystem
+device		backlight
+
 
 #####################################################################
 # Devices we don't want to deal with
