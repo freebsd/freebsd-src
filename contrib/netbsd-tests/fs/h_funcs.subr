@@ -45,7 +45,7 @@ require_fs() {
 
 	# Begin FreeBSD
 	if true; then
-		if kldload -n ${name}; then
+		if kldstat -qm ${name} || kldload -n ${name}; then
 			found=yes
 		else
 			found=no
