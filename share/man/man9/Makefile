@@ -10,6 +10,7 @@ MAN=	accept_filter.9 \
 	alq.9 \
 	altq.9 \
 	atomic.9 \
+	backlight.9 \
 	bhnd.9 \
 	bhnd_erom.9 \
 	bios.9 \
