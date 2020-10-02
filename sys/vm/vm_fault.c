@@ -1476,6 +1476,12 @@ RetryFault:
 		 */
 		if (vm_fault_next(&fs))
 			continue;
+		if ((fs.fault_flags & VM_FAULT_NOFILL) != 0) {
+			if (fs.first_object == fs.object)
+				fault_page_free(&fs.first_m);
+			unlock_and_deallocate(&fs);
+			return (KERN_OUT_OF_BOUNDS);
+		}
 		VM_OBJECT_WUNLOCK(fs.object);
 		vm_fault_zerofill(&fs);
 		/* Don't try to prefault neighboring pages. */
