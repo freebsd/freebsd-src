@@ -228,7 +228,7 @@ iicbb_print_child(device_t bus, device_t dev)
 #ifdef IICBB_DEBUG
 static int i2c_debug = 0;
 
-static SYSCTL_NODE(_hw, OID_AUTO, i2c, CTLFLAG_RW, 0, "i2c debug");
+SYSCTL_DECL(_hw_i2c);
 SYSCTL_INT(_hw_i2c, OID_AUTO, iicbb_debug, CTLFLAG_RWTUN,
     &i2c_debug, 0, "Enable i2c bit-banging driver debug");
 
