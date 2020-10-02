@@ -177,7 +177,6 @@ main(int argc, char *argv[])
 		    state.period,
 		    state.duty,
 		    state.enable);
-		goto fail;
 	} else {
 		if (action & PWM_ENABLE)
 			state.enable = true;
