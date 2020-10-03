@@ -44,10 +44,6 @@
 #include <sys/malloc.h>
 #include <sys/syslog.h>
 #include <net/radix.h>
-#include "opt_mpath.h"
-#ifdef RADIX_MPATH
-#include <net/radix_mpath.h>
-#endif
 #else /* !_KERNEL */
 #include <stdio.h>
 #include <strings.h>

@@ -118,8 +118,6 @@ struct nhop_map {
 };
 static struct nhop_map global_nhop_map;
 
-static void nhop_map_update(struct nhop_map *map, uint32_t idx,
-    char *gw, char *ifname);
 static struct nhop_entry *nhop_get(struct nhop_map *map, uint32_t idx);
 
 
@@ -204,7 +202,7 @@ print_nhop_header(int af1 __unused)
 	}
 }
 
-static void
+void
 nhop_map_update(struct nhop_map *map, uint32_t idx, char *gw, char *ifname)
 {
 	if (idx >= map->size) {
@@ -322,11 +320,6 @@ print_nhop_entry_sysctl(const char *name, struct rt_msghdr *rtm, struct nhop_ext
 	xo_close_instance(name);
 }
 
-struct nhops_map {
-	uint32_t		idx;
-	struct rt_msghdr	*rtm;
-};
-
 static int
 cmp_nh_idx(const void *_a, const void *_b)
 {
@@ -342,15 +335,14 @@ cmp_nh_idx(const void *_a, const void *_b)
 	return (0);
 }
 
-static void
-print_nhops_sysctl(int fibnum, int af)
+void
+dump_nhops_sysctl(int fibnum, int af, struct nhops_dump *nd)
 {
 	size_t needed;
 	int mib[7];
 	char *buf, *next, *lim;
 	struct rt_msghdr *rtm;
 	struct nhop_external *nh;
-	int fam;
 	struct nhops_map *nh_map;
 	size_t nh_count, nh_size;
 
@@ -369,8 +361,6 @@ print_nhops_sysctl(int fibnum, int af)
 	if (sysctl(mib, nitems(mib), buf, &needed, NULL, 0) < 0)
 		err(1, "sysctl: net.route.0.%d.nhdump.%d", af, fibnum);
 	lim  = buf + needed;
-	xo_open_container("nhop-table");
-	xo_open_list("rt-family");
 
 	/*
 	 * nexhops are received unsorted. Collect everything first, sort and then display
@@ -395,9 +385,27 @@ print_nhops_sysctl(int fibnum, int af)
 		nh_count++;
 	}
 
-	if (nh_count > 0) {
+	if (nh_count > 0)
 		qsort(nh_map, nh_count, sizeof(struct nhops_map), cmp_nh_idx);
-		nh = (struct nhop_external *)(nh_map[0].rtm + 1);
+	nd->nh_buf = buf;
+	nd->nh_count = nh_count;
+	nd->nh_map = nh_map;
+}
+
+static void
+print_nhops_sysctl(int fibnum, int af)
+{
+	struct nhops_dump nd;
+	struct nhop_external *nh;
+	int fam;
+	struct rt_msghdr *rtm;
+
+	dump_nhops_sysctl(fibnum, af, &nd);
+
+	xo_open_container("nhop-table");
+	xo_open_list("rt-family");
+	if (nd.nh_count > 0) {
+		nh = (struct nhop_external *)(nd.nh_map[0].rtm + 1);
 		fam = nh->nh_family;
 
 		wid_dst = WID_GW_DEFAULT(fam);
@@ -415,8 +423,8 @@ print_nhops_sysctl(int fibnum, int af)
 
 		print_nhop_header(fam);
 
-		for (size_t i = 0; i < nh_count; i++) {
-			rtm = nh_map[i].rtm;
+		for (size_t i = 0; i < nd.nh_count; i++) {
+			rtm = nd.nh_map[i].rtm;
 			nh = (struct nhop_external *)(rtm + 1);
 			print_nhop_entry_sysctl("nh-entry", rtm, nh);
 		}
@@ -426,7 +434,7 @@ print_nhops_sysctl(int fibnum, int af)
 	}
 	xo_close_list("rt-family");
 	xo_close_container("nhop-table");
-	free(buf);
+	free(nd.nh_buf);
 }
 
 static void

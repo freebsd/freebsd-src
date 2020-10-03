@@ -53,6 +53,10 @@ int rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
 int rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
 
+typedef void route_notification_t(struct rib_cmd_info *rc, void *);
+void rib_decompose_notification(struct rib_cmd_info *rc,
+    route_notification_t *cb, void *cbdata);
+
 int rib_add_redirect(u_int fibnum, struct sockaddr *dst,
   struct sockaddr *gateway, struct sockaddr *author, struct ifnet *ifp,
   int flags, int expire_sec);
@@ -65,6 +69,20 @@ void rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f,
 typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
 void rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
+
+struct route_nhop_data;
+const struct rtentry *rib_lookup_prefix(uint32_t fibnum, int family,
+    const struct sockaddr *dst, const struct sockaddr *netmask,
+    struct route_nhop_data *rnd);
+const struct rtentry *rib_lookup_lpm(uint32_t fibnum, int family,
+    const struct sockaddr *dst, struct route_nhop_data *rnd);
+
+/* Multipath */
+struct nhgrp_object;
+struct weightened_nhop;
+
+struct weightened_nhop *nhgrp_get_nhops(struct nhgrp_object *nhg,
+    uint32_t *pnum_nhops);
 
 enum rib_subscription_type {
 	RIB_NOTIFY_IMMEDIATE,

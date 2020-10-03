@@ -54,5 +54,22 @@ struct ifmap_entry {
 
 struct ifmap_entry *prepare_ifmap(size_t *ifmap_size);
 
+struct rt_msghdr;
+struct nhops_map {
+	uint32_t		idx;
+	struct rt_msghdr	*rtm;
+};
+
+struct nhops_dump {
+	void 		*nh_buf;
+	struct nhops_map *nh_map;
+	size_t		nh_count;
+};
+
+void dump_nhops_sysctl(int fibnum, int af, struct nhops_dump *nd);
+struct nhop_map;
+void nhop_map_update(struct nhop_map *map, uint32_t idx, char *gw, char *ifname);
+
+
 #endif
 

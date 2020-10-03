@@ -32,7 +32,7 @@
  * $FreeBSD$
  */
 #include "opt_ddb.h"
-#include "opt_mpath.h"
+#include "opt_route.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -158,8 +158,7 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
-static SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "");
+SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "");
 
 struct walkarg {
 	int	w_tmemsize;
@@ -650,6 +649,25 @@ fill_addrinfo(struct rt_msghdr *rtm, int len, u_int fibnum, struct rt_addrinfo *
 	return (0);
 }
 
+static struct nhop_object *
+select_nhop(struct nhop_object *nh, const struct sockaddr *gw)
+{
+	if (!NH_IS_NHGRP(nh))
+		return (nh);
+#ifdef ROUTE_MPATH
+	struct weightened_nhop *wn;
+	uint32_t num_nhops;
+	wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
+	if (gw == NULL)
+		return (wn[0].nh);
+	for (int i = 0; i < num_nhops; i++) {
+		if (match_nhop_gw(wn[i].nh, gw))
+			return (wn[i].nh);
+	}
+#endif
+	return (NULL);
+}
+
 /*
  * Handles RTM_GET message from routing socket, returning matching rt.
  *
@@ -663,6 +681,7 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 {
 	RIB_RLOCK_TRACKER;
 	struct rib_head *rnh;
+	struct nhop_object *nh;
 	sa_family_t saf;
 
 	saf = info->rti_info[RTAX_DST]->sa_family;
@@ -690,21 +709,12 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 		RIB_RUNLOCK(rnh);
 		return (ESRCH);
 	}
-#ifdef RADIX_MPATH
-	/*
-	 * for RTM_GET, gate is optional even with multipath.
-	 * if gate == NULL the first match is returned.
-	 * (no need to call rt_mpath_matchgate if gate == NULL)
-	 */
-	if (rt_mpath_capable(rnh) && info->rti_info[RTAX_GATEWAY]) {
-		rc->rc_rt = rt_mpath_matchgate(rc->rc_rt,
-		    info->rti_info[RTAX_GATEWAY]);
-		if (rc->rc_rt == NULL) {
-			RIB_RUNLOCK(rnh);
-			return (ESRCH);
-		}
+
+	nh = select_nhop(rc->rc_rt->rt_nhop, info->rti_info[RTAX_GATEWAY]);
+	if (nh == NULL) {
+		RIB_RUNLOCK(rnh);
+		return (ESRCH);
 	}
-#endif
 	/*
 	 * If performing proxied L2 entry insertion, and
 	 * the actual PPP host entry is found, perform
@@ -740,8 +750,13 @@ handle_rtm_get(struct rt_addrinfo *info, u_int fibnum,
 			RIB_RUNLOCK(rnh);
 			return (ESRCH);
 		}
+		nh = select_nhop(rc->rc_rt->rt_nhop, info->rti_info[RTAX_GATEWAY]);
+		if (nh == NULL) {
+			RIB_RUNLOCK(rnh);
+			return (ESRCH);
+		}
 	}
-	rc->rc_nh_new = rc->rc_rt->rt_nhop;
+	rc->rc_nh_new = nh;
 	rc->rc_nh_weight = rc->rc_rt->rt_weight;
 	RIB_RUNLOCK(rnh);
 
@@ -832,6 +847,24 @@ update_rtm_from_rc(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 	return (0);
 }
 
+static void
+save_del_notification(struct rib_cmd_info *rc, void *_cbdata)
+{
+	struct rib_cmd_info *rc_new = (struct rib_cmd_info *)_cbdata;
+
+	if (rc->rc_cmd == RTM_DELETE)
+		*rc_new = *rc;
+}
+
+static void
+save_add_notification(struct rib_cmd_info *rc, void *_cbdata)
+{
+	struct rib_cmd_info *rc_new = (struct rib_cmd_info *)_cbdata;
+
+	if (rc->rc_cmd == RTM_ADD)
+		*rc_new = *rc;
+}
+
 /*ARGSUSED*/
 static int
 route_output(struct mbuf *m, struct socket *so, ...)
@@ -919,6 +952,15 @@ route_output(struct mbuf *m, struct socket *so, ...)
 #ifdef INET6
 			rti_need_deembed = 1;
 #endif
+#ifdef ROUTE_MPATH
+			if (NH_IS_NHGRP(rc.rc_nh_new) ||
+			    (rc.rc_nh_old && NH_IS_NHGRP(rc.rc_nh_old))) {
+				struct rib_cmd_info rc_simple = {};
+				rib_decompose_notification(&rc,
+				    save_add_notification, (void *)&rc_simple);
+				rc = rc_simple;
+			}
+#endif
 			nh = rc.rc_nh_new;
 			rtm->rtm_index = nh->nh_ifp->if_index;
 		}
@@ -927,6 +969,15 @@ route_output(struct mbuf *m, struct socket *so, ...)
 	case RTM_DELETE:
 		error = rib_action(fibnum, RTM_DELETE, &info, &rc);
 		if (error == 0) {
+#ifdef ROUTE_MPATH
+			if (NH_IS_NHGRP(rc.rc_nh_old) ||
+			    (rc.rc_nh_new && NH_IS_NHGRP(rc.rc_nh_new))) {
+				struct rib_cmd_info rc_simple = {};
+				rib_decompose_notification(&rc,
+				    save_del_notification, (void *)&rc_simple);
+				rc = rc_simple;
+			}
+#endif
 			nh = rc.rc_nh_old;
 			goto report;
 		}
@@ -1708,7 +1759,19 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	if (!can_export_rte(w->w_req->td->td_ucred, rt))
 		return (0);
 	nh = rt->rt_nhop;
-	error = sysctl_dumpnhop(rt, nh, rt->rt_weight, w);
+#ifdef ROUTE_MPATH
+	if (NH_IS_NHGRP(nh)) {
+		struct weightened_nhop *wn;
+		uint32_t num_nhops;
+		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
+		for (int i = 0; i < num_nhops; i++) {
+			error = sysctl_dumpnhop(rt, wn[i].nh, wn[i].weight, w);
+			if (error != 0)
+				return (error);
+		}
+	} else
+#endif
+		error = sysctl_dumpnhop(rt, nh, rt->rt_weight, w);
 
 	return (0);
 }
@@ -1748,6 +1811,7 @@ sysctl_dumpnhop(struct rtentry *rt, struct nhop_object *nh, uint32_t weight,
 			rtm->rtm_flags = rt->rte_flags;
 		rtm->rtm_flags |= nhop_get_rtflags(nh);
 		rt_getmetrics(rt, nh, &rtm->rtm_rmx);
+		rtm->rtm_rmx.rmx_weight = weight;
 		rtm->rtm_index = nh->nh_ifp->if_index;
 		rtm->rtm_addrs = info.rti_addrs;
 		error = SYSCTL_OUT(w->w_req, (caddr_t)rtm, size);
@@ -2028,7 +2092,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	namelen--;
 	if (req->newptr)
 		return (EPERM);
-	if (name[1] == NET_RT_DUMP || name[1] == NET_RT_NHOP) {
+	if (name[1] == NET_RT_DUMP || name[1] == NET_RT_NHOP || name[1] == NET_RT_NHGRP) {
 		if (namelen == 3)
 			fib = req->td->td_proc->p_fibnum;
 		else if (namelen == 4)
@@ -2096,6 +2160,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		}
 		break;
 	case NET_RT_NHOP:
+	case NET_RT_NHGRP:
 		/* Allow dumping one specific af/fib at a time */
 		if (namelen < 4) {
 			error = EINVAL;
@@ -2113,6 +2178,12 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		}
 		if (w.w_op == NET_RT_NHOP)
 			error = nhops_dump_sysctl(rnh, w.w_req);
+		else
+#ifdef ROUTE_MPATH
+			error = nhgrp_dump_sysctl(rnh, w.w_req);
+#else
+			error = ENOTSUP;
+#endif
 		break;
 	case NET_RT_IFLIST:
 	case NET_RT_IFLISTL:

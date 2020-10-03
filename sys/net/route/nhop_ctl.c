@@ -695,7 +695,14 @@ void
 nhop_free_any(struct nhop_object *nh)
 {
 
+#ifdef ROUTE_MPATH
+	if (!NH_IS_NHGRP(nh))
+		nhop_free(nh);
+	else
+		nhgrp_free((struct nhgrp_object *)nh);
+#else
 	nhop_free(nh);
+#endif
 }
 
 /* Helper functions */

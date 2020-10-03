@@ -64,8 +64,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mpath.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -153,9 +151,6 @@ in6_inithead(uint32_t fibnum)
 		return (NULL);
 
 	rh->rnh_preadd = rib6_preadd;
-#ifdef	RADIX_MPATH
-	rt_mpath_init_rnh(rh);
-#endif
 
 	rs = rib_subscribe_internal(rh, nd6_subscription_cb, NULL,
 	    RIB_NOTIFY_IMMEDIATE, true);
