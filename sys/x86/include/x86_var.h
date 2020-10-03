@@ -71,7 +71,6 @@ extern	u_int	cpu_power_eax;
 extern	u_int	cpu_power_ebx;
 extern	u_int	cpu_power_ecx;
 extern	u_int	cpu_power_edx;
-extern	char	ctx_switch_xsave[];
 extern	u_int	hv_base;
 extern	u_int	hv_high;
 extern	char	hv_vendor[];
