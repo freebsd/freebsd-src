@@ -847,6 +847,7 @@ update_rtm_from_rc(struct rt_addrinfo *info, struct rt_msghdr **prtm,
 	return (0);
 }
 
+#ifdef ROUTE_MPATH
 static void
 save_del_notification(struct rib_cmd_info *rc, void *_cbdata)
 {
@@ -864,6 +865,7 @@ save_add_notification(struct rib_cmd_info *rc, void *_cbdata)
 	if (rc->rc_cmd == RTM_ADD)
 		*rc_new = *rc;
 }
+#endif
 
 /*ARGSUSED*/
 static int
