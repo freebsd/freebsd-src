@@ -347,6 +347,9 @@ ktr_enqueuerequest(struct thread *td, struct ktr_request *req)
 	mtx_lock(&ktrace_mtx);
 	STAILQ_INSERT_TAIL(&td->td_proc->p_ktr, req, ktr_list);
 	mtx_unlock(&ktrace_mtx);
+	thread_lock(td);
+	td->td_flags |= TDF_ASTPENDING;
+	thread_unlock(td);
 }
 
 /*

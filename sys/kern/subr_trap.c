@@ -130,9 +130,6 @@ userret(struct thread *td, struct trapframe *frame)
 		PROC_UNLOCK(p);
 	}
 #endif
-#ifdef KTRACE
-	KTRUSERRET(td);
-#endif
 
 	/*
 	 * Charge system time if profiling.
@@ -340,6 +337,10 @@ ast(struct trapframe *framep)
 	 */
 	if (td->td_pflags & TDP_SIGFASTPENDING)
 		sigfastblock_setpend(td, false);
+
+#ifdef KTRACE
+	KTRUSERRET(td);
+#endif
 
 	/*
 	 * We need to check to see if we have to exit or wait due to a
