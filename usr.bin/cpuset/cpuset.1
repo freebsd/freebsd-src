@@ -34,24 +34,24 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl l Ar cpu-list
-.Op Fl n Ar policy:domain-list 
+.Op Fl n Ar policy:domain-list
 .Op Fl s Ar setid
 .Ar cmd ...
 .Nm
 .Op Fl l Ar cpu-list
-.Op Fl n Ar policy:domain-list 
+.Op Fl n Ar policy:domain-list
 .Op Fl s Ar setid
 .Fl p Ar pid
 .Nm
 .Op Fl c
 .Op Fl l Ar cpu-list
-.Op Fl n Ar policy:domain-list 
+.Op Fl n Ar policy:domain-list
 .Fl C
 .Fl p Ar pid
 .Nm
 .Op Fl c
 .Op Fl l Ar cpu-list
-.Op Fl n Ar policy:domain-list 
+.Op Fl n Ar policy:domain-list
 .Op Fl j Ar jail | Fl p Ar pid | Fl t Ar tid | Fl s Ar setid | Fl x Ar irq
 .Nm
 .Fl g
@@ -97,8 +97,8 @@ This last set is the list of all possible CPUs in the system and is
 queried using
 .Fl r .
 .Pp
-Most sets include NUMA memory domain and policy information.  This can be
-inspected with
+Most sets include NUMA memory domain and policy information.
+This can be inspected with
 .Fl g
 and set with
 .Fl n .
@@ -124,8 +124,8 @@ Create a new cpuset and assign the target process to that set.
 The requested operation should reference the cpuset available via the
 target specifier.
 .It Fl d Ar domain
-Specifies a NUMA domain id as the target of the operation.  This can only
-be used to query the cpus visible in each numberd domain.
+Specifies a NUMA domain id as the target of the operation.
+This can only be used to query the cpus visible in each numberd domain.
 .It Fl g
 Causes
 .Nm
@@ -146,8 +146,8 @@ A special list of
 .Dq all
 may be specified in which case the list includes all CPUs from the root set.
 .It Fl n Ar policy:domain-list
-Specifies a list of domains and allocation policy to apply to a target.  Ranges
-may be specified as in
+Specifies a list of domains and allocation policy to apply to a target.
+Ranges may be specified as in
 .Fl l .
 Valid policies include first-touch (ft), round-robin (rr), prefer and
 interleave (il).
