@@ -417,6 +417,7 @@ struct sockproto {
 #define	NET_RT_IFLISTL	5		/* Survey interface list, using 'l'en
 					 * versions of msghdr structs. */
 #define NET_RT_NHOP	6		/* dump routing nexthops */
+#define NET_RT_NHGRP	7		/* dump routing nexthop groups */
 #endif /* __BSD_VISIBLE */
 
 /*

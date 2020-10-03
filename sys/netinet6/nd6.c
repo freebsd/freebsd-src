@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -1591,7 +1592,11 @@ void
 nd6_subscription_cb(struct rib_head *rnh, struct rib_cmd_info *rc, void *arg)
 {
 
+#ifdef ROUTE_MPATH
+	rib_decompose_notification(rc, check_release_defrouter, NULL);
+#else
 	check_release_defrouter(rc, NULL);
+#endif
 }
 
 int
