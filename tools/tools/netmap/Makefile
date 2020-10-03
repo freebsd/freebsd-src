@@ -21,6 +21,8 @@ LDFLAGS += -lm # used by nmreplay
 .include <bsd.prog.mk>
 .include <bsd.lib.mk>
 
+CFLAGS += -Wno-cast-align
+
 all: $(PROGS)
 
 pkt-gen: pkt-gen.o
