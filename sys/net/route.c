@@ -39,7 +39,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_mrouting.h"
-#include "opt_mpath.h"
 #include "opt_route.h"
 
 #include <sys/param.h>

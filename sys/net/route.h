@@ -178,6 +178,7 @@ VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
  */
 
 /* Consumer-visible nexthop info flags */
+#define	NHF_MULTIPATH		0x0008	/* Nexhop is a nexthop group */
 #define	NHF_REJECT		0x0010	/* RTF_REJECT */
 #define	NHF_BLACKHOLE		0x0020	/* RTF_BLACKHOLE */
 #define	NHF_REDIRECT		0x0040	/* RTF_DYNAMIC|RTF_MODIFIED */
@@ -208,6 +209,10 @@ struct rtstat {
 	uint64_t rts_wildcard;		/* lookups satisfied by a wildcard */
 	uint64_t rts_nh_idx_alloc_failure;	/* nexthop index alloc failure*/
 	uint64_t rts_nh_alloc_failure;	/* nexthop allocation failure*/
+	uint64_t rts_add_failure;	/* # of route addition failures */
+	uint64_t rts_add_retry;		/* # of route addition retries */
+	uint64_t rts_del_failure;	/* # of route deletion failure */
+	uint64_t rts_del_retry;		/* # of route deletion retries */
 };
 
 /*

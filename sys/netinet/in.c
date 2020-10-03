@@ -35,8 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_mpath.h"
-
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/systm.h>
@@ -699,14 +697,6 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		 * interface address, we are done here.
 		 */
 		if (ia->ia_flags & IFA_ROUTE) {
-#ifdef RADIX_MPATH
-			if (ia->ia_addr.sin_addr.s_addr ==
-			    target->ia_addr.sin_addr.s_addr) {
-				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-				return (EEXIST);
-			} else
-				break;
-#endif
 			if (V_nosameprefix) {
 				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 				return (EEXIST);

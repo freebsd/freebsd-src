@@ -1002,7 +1002,7 @@ device		lagg
 #
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
 #
-# RADIX_MPATH provides support for equal-cost multi-path routing.
+# ROUTE_MPATH provides support for multipath routing.
 #
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
@@ -1023,7 +1023,7 @@ options 	TCPDEBUG
 options 	TCPPCAP
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK
-options 	RADIX_MPATH
+options 	ROUTE_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
 # various random failures / extreme cases related to mbuf

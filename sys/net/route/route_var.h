@@ -87,6 +87,7 @@ struct rib_head {
 /* Constants */
 #define	RIB_MAX_RETRIES	3
 #define	RT_MAXFIBS	UINT16_MAX
+#define	RIB_MAX_MPATH_WIDTH	64
 
 /* Macro for verifying fields in af-specific 'struct route' structures */
 #define CHK_STRUCT_FIELD_GENERIC(_s1, _f1, _s2, _f2)			\
@@ -113,12 +114,7 @@ _Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new)
 		"ro_dst and " #_dst_new " are at different offset")
 
 struct rib_head *rt_tables_get_rnh(uint32_t table, sa_family_t family);
-void rt_mpath_init_rnh(struct rib_head *rnh);
 int rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum);
-#ifdef RADIX_MPATH
-struct radix_node *rt_mpath_unlink(struct rib_head *rnh,
-    struct rt_addrinfo *info, struct rtentry *rto, int *perror);
-#endif
 struct rib_cmd_info;
 
 VNET_PCPUSTAT_DECLARE(struct rtstat, rtstat);
@@ -202,14 +198,6 @@ struct rtentry {
 /* rtentry rt flag mask */
 #define	RTE_RT_FLAG_MASK	(RTF_UP | RTF_HOST)
 
-/* Nexthop selection */
-#define	_NH2MP(_nh)	((struct nhgrp_object *)(_nh))
-#define	_SELECT_NHOP(_nh, _flowid)	\
-	(_NH2MP(_nh))->nhops[(_flowid) % (_NH2MP(_nh))->mp_size]
-#define	_RT_SELECT_NHOP(_nh, _flowid)	\
-	((!NH_IS_MULTIPATH(_nh)) ? (_nh) : _SELECT_NHOP(_nh, _flowid))
-#define	RT_SELECT_NHOP(_rt, _flowid)	_RT_SELECT_NHOP((_rt)->rt_nhop, _flowid)
-
 /* route_temporal.c */
 void tmproutes_update(struct rib_head *rnh, struct rtentry *rt);
 void tmproutes_init(struct rib_head *rh);
@@ -217,14 +205,24 @@ void tmproutes_destroy(struct rib_head *rh);
 
 /* route_ctl.c */
 struct route_nhop_data {
-	struct nhop_object	*rnd_nhop;
-	uint32_t		rnd_weight;
+	union {
+		struct nhop_object *rnd_nhop;
+		struct nhgrp_object *rnd_nhgrp;
+	};
+	uint32_t rnd_weight;
 };
+
+int change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
+    struct rt_addrinfo *info, struct route_nhop_data *rnd,
+    struct rib_cmd_info *rc);
 int change_route_conditional(struct rib_head *rnh, struct rtentry *rt,
     struct rt_addrinfo *info, struct route_nhop_data *nhd_orig,
     struct route_nhop_data *nhd_new, struct rib_cmd_info *rc);
 struct rtentry *lookup_prefix(struct rib_head *rnh,
     const struct rt_addrinfo *info, struct route_nhop_data *rnd);
+
+bool nhop_can_multipath(const struct nhop_object *nh);
+bool match_nhop_gw(const struct nhop_object *nh, const struct sockaddr *gw);
 int check_info_match_nhop(const struct rt_addrinfo *info,
     const struct rtentry *rt, const struct nhop_object *nh);
 int can_override_nhop(const struct rt_addrinfo *info,
@@ -256,5 +254,57 @@ int nhop_create_from_nhop(struct rib_head *rnh, const struct nhop_object *nh_ori
 void nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu);
 int nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w);
 
+/* MULTIPATH */
+#define	MPF_MULTIPATH	0x08	/* need to be consistent with NHF_MULTIPATH */
+
+struct nhgrp_object {
+	uint16_t		nhg_flags;	/* nexthop group flags */
+	uint8_t			nhg_size;	/* dataplain group size */
+	uint8_t			spare;
+	struct nhop_object	*nhops[0];	/* nhops */
+};
+
+static inline struct nhop_object *
+nhop_select(struct nhop_object *nh, uint32_t flowid)
+{
+
+#ifdef ROUTE_MPATH
+	if (NH_IS_NHGRP(nh)) {
+		struct nhgrp_object *nhg = (struct nhgrp_object *)nh;
+		nh = nhg->nhops[flowid % nhg->nhg_size];
+	}
+#endif
+	return (nh);
+}
+
+
+struct weightened_nhop;
+
+/* mpath_ctl.c */
+int add_route_mpath(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rtentry *rt, struct route_nhop_data *rnd_add,
+    struct route_nhop_data *rnd_orig, struct rib_cmd_info *rc);
+int del_route_mpath(struct rib_head *rh, struct rt_addrinfo *info,
+    struct rtentry *rt, struct nhgrp_object *nhg, struct rib_cmd_info *rc);
+
+/* nhgrp.c */
+int nhgrp_ctl_init(struct nh_control *ctl);
+void nhgrp_ctl_free(struct nh_control *ctl);
+void nhgrp_ctl_unlink_all(struct nh_control *ctl);
+
+
+/* nhgrp_ctl.c */
+int nhgrp_dump_sysctl(struct rib_head *rh, struct sysctl_req *w);
+
+int nhgrp_get_group(struct rib_head *rh, struct weightened_nhop *wn,
+    int num_nhops, struct route_nhop_data *rnd);
+typedef bool nhgrp_filter_cb_t(const struct nhop_object *nh, void *data);
+int nhgrp_get_filtered_group(struct rib_head *rh, const struct nhgrp_object *src,
+    nhgrp_filter_cb_t flt_func, void *flt_data, struct route_nhop_data *rnd);
+int nhgrp_get_addition_group(struct rib_head *rnh,
+    struct route_nhop_data *rnd_orig, struct route_nhop_data *rnd_add,
+    struct route_nhop_data *rnd_new);
+
+void nhgrp_free(struct nhgrp_object *nhg);
 
 #endif

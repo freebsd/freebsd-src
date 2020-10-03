@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_route.h"
-#include "opt_mpath.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -48,13 +47,10 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
+#include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/route/nhop.h>
 #include <net/vnet.h>
-
-#ifdef RADIX_MPATH
-#include <net/radix_mpath.h>
-#endif
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
@@ -80,7 +76,6 @@ fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 	RIB_RLOCK_TRACKER;
 	struct rib_head *rh;
 	struct radix_node *rn;
-	struct rtentry *rt;
 	struct nhop_object *nh;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup: bad fibnum"));
@@ -99,12 +94,7 @@ fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 	RIB_RLOCK(rh);
 	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		rt = RNTORT(rn);
-#ifdef RADIX_MPATH
-		if (rt_mpath_next(rt) != NULL)
-			rt = rt_mpath_selectrte(rt, flowid);
-#endif
-		nh = rt->rt_nhop;
+		nh = nhop_select((RNTORT(rn))->rt_nhop, flowid);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(nh->nh_ifp)) {
 			if (flags & NHR_REF)
@@ -120,7 +110,7 @@ fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 }
 
 inline static int
-check_urpf(const struct nhop_object *nh, uint32_t flags,
+check_urpf_nhop(const struct nhop_object *nh, uint32_t flags,
     const struct ifnet *src_if)
 {
 
@@ -137,21 +127,24 @@ check_urpf(const struct nhop_object *nh, uint32_t flags,
 	return (0);
 }
 
-#ifdef RADIX_MPATH
-inline static int
-check_urpf_mpath(struct rtentry *rt, uint32_t flags,
+static int
+check_urpf(struct nhop_object *nh, uint32_t flags,
     const struct ifnet *src_if)
 {
-
-	while (rt != NULL) {
-		if (check_urpf(rt->rt_nhop, flags, src_if) != 0)
-			return (1);
-		rt = rt_mpath_next(rt);
-	}
-
-	return (0);
-}
+#ifdef ROUTE_MPATH
+	if (NH_IS_NHGRP(nh)) {
+		struct weightened_nhop *wn;
+		uint32_t num_nhops;
+		wn = nhgrp_get_nhops((struct nhgrp_object *)nh, &num_nhops);
+			for (int i = 0; i < num_nhops; i++) {
+				if (check_urpf_nhop(wn[i].nh, flags, src_if) != 0)
+				return (1);
+		}
+		return (0);
+	} else
 #endif
+		return (check_urpf_nhop(nh, flags, src_if));
+}
 
 /*
  * Performs reverse path forwarding lookup.
@@ -169,7 +162,6 @@ fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 	RIB_RLOCK_TRACKER;
 	struct rib_head *rh;
 	struct radix_node *rn;
-	struct rtentry *rt;
 	int ret;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_check_urpf: bad fibnum"));
@@ -186,12 +178,7 @@ fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 	RIB_RLOCK(rh);
 	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		rt = RNTORT(rn);
-#ifdef	RADIX_MPATH
-		ret = check_urpf_mpath(rt, flags, src_if);
-#else
-		ret = check_urpf(rt->rt_nhop, flags, src_if);
-#endif
+		ret = check_urpf(RNTORT(rn)->rt_nhop, flags, src_if);
 		RIB_RUNLOCK(rh);
 		return (ret);
 	}
@@ -206,7 +193,6 @@ fib4_lookup_debugnet(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 {
 	struct rib_head *rh;
 	struct radix_node *rn;
-	struct rtentry *rt;
 	struct nhop_object *nh;
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_debugnet: bad fibnum"));
@@ -225,12 +211,7 @@ fib4_lookup_debugnet(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 	/* unlocked lookup */
 	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		rt = RNTORT(rn);
-#ifdef RADIX_MPATH
-		if (rt_mpath_next(rt) != NULL)
-			rt = rt_mpath_selectrte(rt, 0);
-#endif
-		nh = rt->rt_nhop;
+		nh = nhop_select((RNTORT(rn))->rt_nhop, 0);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(nh->nh_ifp)) {
 			if (flags & NHR_REF)
