@@ -37,6 +37,7 @@
 #include <x86/x86_var.h>
 
 extern char	ctx_switch_xsave[];
+extern char	ctx_switch_xsave32[];
 extern int	hw_lower_amd64_sharedpage;
 extern int	hw_ibrs_disable;
 extern int	hw_ssb_disable;
