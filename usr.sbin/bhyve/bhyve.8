@@ -258,6 +258,8 @@ Virtio network interface.
 Virtio block storage interface.
 .It Li virtio-scsi
 Virtio SCSI interface.
+.It Li virtio-9p
+Virtio 9p (VirtFS) interface.
 .It Li virtio-rnd
 Virtio RNG interface.
 .It Li virtio-console
@@ -372,6 +374,19 @@ are:
 .It Li iid= Ns Ar IID
 Initiator ID to use when sending requests to specified CTL port.
 The default value is 0.
+.El
+.Pp
+9P devices:
+.Bl -tag -width 10n
+.It Pa sharename=/path/to/share[,9p-device-options]
+.El
+.Pp
+The
+.Ar 9p-device-options
+are:
+.Bl -tag -width 10n
+.It Li ro
+Expose the share in read-only mode.
 .El
 .Pp
 TTY devices:
