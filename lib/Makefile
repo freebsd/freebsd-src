@@ -30,6 +30,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	.WAIT \
 	libsqlite3 \
 	geom \
+	lib9p \
 	libalias \
 	libarchive \
 	libauditd \
