@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2020
+.Dd October 3, 2020
 .Dt NETMAP 4
 .Os
 .Sh NAME
@@ -1052,7 +1052,7 @@ void receiver(void)
     for (;;) {
 	poll(&fds, 1, -1);
         while ( (buf = nm_nextpkt(d, &h)) )
-	    consume_pkt(buf, h->len);
+	    consume_pkt(buf, h.len);
     }
     nm_close(d);
 }
