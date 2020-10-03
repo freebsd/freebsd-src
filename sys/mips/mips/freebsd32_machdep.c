@@ -57,6 +57,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
+#include <machine/cpuinfo.h>
 #include <machine/md_var.h>
 #include <machine/reg.h>
 #include <machine/sigframe.h>
@@ -476,6 +477,17 @@ freebsd32_sysarch(struct thread *td, struct freebsd32_sysarch_args *uap)
 	switch (uap->op) {
 	case MIPS_SET_TLS:
 		td->td_md.md_tls = (void *)(intptr_t)uap->parms;
+
+		/*
+		 * If there is an user local register implementation (ULRI)
+		 * update it as well.  Add the TLS and TCB offsets so the
+		 * value in this register is adjusted like in the case of the
+		 * rdhwr trap() instruction handler.
+		 */
+		if (cpuinfo.userlocal_reg == true) {
+			mips_wr_userlocal((unsigned long)(uap->parms +
+			    td->td_md.md_tls_tcb_offset));
+		}
 		return (0);
 	case MIPS_GET_TLS: 
 		tlsbase = (int32_t)(intptr_t)td->td_md.md_tls;
