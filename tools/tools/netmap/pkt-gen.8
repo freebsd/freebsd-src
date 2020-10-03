@@ -95,7 +95,7 @@ for server-side ping-pong operation.
 .It Fl n Ar count
 Number of iterations of the
 .Nm
-function, with 0 meaning infinite).
+function (with 0 meaning infinite).
 In case of
 .Cm tx
 or
@@ -147,10 +147,10 @@ is larger than one, each thread handles a single TX ring (in
 .Cm tx
 mode), a single RX ring (in
 .Cm rx
-mode), or a TX/RX ring couple.
+mode), or a TX/RX ring pair.
 The number of
 .Ar threads
-must be less or equal than the number of TX (or RX) ring available
+must be less than or equal to the number of TX (or RX) ring available
 in the device specified by
 .Ar interface .
 .It Fl T Ar report_ms
@@ -158,7 +158,7 @@ Number of milliseconds between reports.
 .It Fl w Ar wait_for_link_time
 Number of seconds to wait before starting the
 .Nm
-function, useuful to make sure that the network link is up.
+function, useful to make sure that the network link is up.
 A network device driver may take some time to enter netmap mode, or
 to create a new transmit/receive ring pair when
 .Xr netmap 4
@@ -168,7 +168,7 @@ Packet transmission rate.
 Not setting the packet transmission rate tells
 .Nm
 to transmit packets as quickly as possible.
-On servers from 2010 on-wards
+On servers from 2010 onward
 .Xr netmap 4
 is able to completely use all of the bandwidth of a 10 or 40Gbps link,
 so this option should be used unless your intention is to saturate the link.
@@ -231,7 +231,7 @@ This adds 4 bytes of CRC and 20 bytes of framing to each packet.
 .It Fl C Ar tx_slots Ns Oo Cm \&, Ns Ar rx_slots Ns Oo Cm \&, Ns Ar tx_rings Ns Oo Cm \&, Ns Ar rx_rings Oc Oc Oc
 Configuration in terms of number of rings and slots to be used when
 opening the netmap port.
-Such configuration has effect on software ports
+Such configuration has an effect on software ports
 created on the fly, such as VALE ports and netmap pipes.
 The configuration may consist of 1 to 4 numbers separated by commas:
 .Dq tx_slots,rx_slots,tx_rings,rx_rings .
