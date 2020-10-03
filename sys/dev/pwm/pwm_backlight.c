@@ -141,8 +141,8 @@ pwm_backlight_attach(device_t dev)
 
 		if (bootverbose) {
 			device_printf(dev, "Number of levels: %zd\n", sc->nlevels);
-			device_printf(dev, "Configured period time: %lu\n", sc->channel->period);
-			device_printf(dev, "Default duty cycle: %lu\n", sc->channel->duty);
+			device_printf(dev, "Configured period time: %ju\n", (uintmax_t)sc->channel->period);
+			device_printf(dev, "Default duty cycle: %ju\n", (uintmax_t)sc->channel->duty);
 		}
 	} else {
 		/* Get the current backlight level */
@@ -153,8 +153,8 @@ pwm_backlight_attach(device_t dev)
 		if (sc->channel->duty > sc->channel->period)
 			sc->channel->duty = sc->channel->period;
 		if (bootverbose) {
-			device_printf(dev, "Configured period time: %lu\n", sc->channel->period);
-			device_printf(dev, "Default duty cycle: %lu\n", sc->channel->duty);
+			device_printf(dev, "Configured period time: %ju\n", (uintmax_t)sc->channel->period);
+			device_printf(dev, "Default duty cycle: %ju\n", (uintmax_t)sc->channel->duty);
 		}
 	}
 
