@@ -91,7 +91,9 @@ static void rib_notify(struct rib_head *rnh, enum rib_subscription_type type,
     struct rib_cmd_info *rc);
 
 static void destroy_subscription_epoch(epoch_context_t ctx);
+#ifdef ROUTE_MPATH
 static bool rib_can_multipath(struct rib_head *rh);
+#endif
 
 /* Per-vnet multipath routing configuration */
 SYSCTL_DECL(_net_route);
