@@ -145,7 +145,7 @@ static uint32_t decode_gre_hash(const uint8_t *, uint8_t, uint8_t);
  ** Parser + hash function for the IPv4 packet
  **/
 static uint32_t
-decode_ip_n_hash(struct ip *iph, uint8_t hash_split, uint8_t seed)
+decode_ip_n_hash(const struct ip *iph, uint8_t hash_split, uint8_t seed)
 {
 	uint32_t rc = 0;
 
@@ -155,19 +155,19 @@ decode_ip_n_hash(struct ip *iph, uint8_t hash_split, uint8_t seed)
 			ntohs(0xFFFD) + seed,
 			ntohs(0xFFFE) + seed);
 	} else {
-		struct tcphdr *tcph = NULL;
-		struct udphdr *udph = NULL;
+		const struct tcphdr *tcph = NULL;
+		const struct udphdr *udph = NULL;
 
 		switch (iph->ip_p) {
 		case IPPROTO_TCP:
-			tcph = (struct tcphdr *)((uint8_t *)iph + (iph->ip_hl<<2));
+			tcph = (const struct tcphdr *)((const uint8_t *)iph + (iph->ip_hl<<2));
 			rc = sym_hash_fn(ntohl(iph->ip_src.s_addr),
 					 ntohl(iph->ip_dst.s_addr),
 					 ntohs(tcph->th_sport) + seed,
 					 ntohs(tcph->th_dport) + seed);
 			break;
 		case IPPROTO_UDP:
-			udph = (struct udphdr *)((uint8_t *)iph + (iph->ip_hl<<2));
+			udph = (const struct udphdr *)((const uint8_t *)iph + (iph->ip_hl<<2));
 			rc = sym_hash_fn(ntohl(iph->ip_src.s_addr),
 					 ntohl(iph->ip_dst.s_addr),
 					 ntohs(udph->uh_sport) + seed,
@@ -175,11 +175,11 @@ decode_ip_n_hash(struct ip *iph, uint8_t hash_split, uint8_t seed)
 			break;
 		case IPPROTO_IPIP:
 			/* tunneling */
-			rc = decode_ip_n_hash((struct ip *)((uint8_t *)iph + (iph->ip_hl<<2)),
+			rc = decode_ip_n_hash((const struct ip *)((const uint8_t *)iph + (iph->ip_hl<<2)),
 					      hash_split, seed);
 			break;
 		case IPPROTO_GRE:
-			rc = decode_gre_hash((uint8_t *)iph + (iph->ip_hl<<2),
+			rc = decode_gre_hash((const uint8_t *)iph + (iph->ip_hl<<2),
 					hash_split, seed);
 			break;
 		case IPPROTO_ICMP:
@@ -205,7 +205,7 @@ decode_ip_n_hash(struct ip *iph, uint8_t hash_split, uint8_t seed)
  ** Parser + hash function for the IPv6 packet
  **/
 static uint32_t
-decode_ipv6_n_hash(struct ip6_hdr *ipv6h, uint8_t hash_split, uint8_t seed)
+decode_ipv6_n_hash(const struct ip6_hdr *ipv6h, uint8_t hash_split, uint8_t seed)
 {
 	uint32_t saddr, daddr;
 	uint32_t rc = 0;
@@ -226,19 +226,19 @@ decode_ipv6_n_hash(struct ip6_hdr *ipv6h, uint8_t hash_split, uint8_t seed)
 				 ntohs(0xFFFD) + seed,
 				 ntohs(0xFFFE) + seed);
 	} else {
-		struct tcphdr *tcph = NULL;
-		struct udphdr *udph = NULL;
+		const struct tcphdr *tcph = NULL;
+		const struct udphdr *udph = NULL;
 
 		switch(ntohs(ipv6h->ip6_ctlun.ip6_un1.ip6_un1_nxt)) {
 		case IPPROTO_TCP:
-			tcph = (struct tcphdr *)(ipv6h + 1);
+			tcph = (const struct tcphdr *)(ipv6h + 1);
 			rc = sym_hash_fn(ntohl(saddr),
 					 ntohl(daddr),
 					 ntohs(tcph->th_sport) + seed,
 					 ntohs(tcph->th_dport) + seed);
 			break;
 		case IPPROTO_UDP:
-			udph = (struct udphdr *)(ipv6h + 1);
+			udph = (const struct udphdr *)(ipv6h + 1);
 			rc = sym_hash_fn(ntohl(saddr),
 					 ntohl(daddr),
 					 ntohs(udph->uh_sport) + seed,
@@ -246,16 +246,16 @@ decode_ipv6_n_hash(struct ip6_hdr *ipv6h, uint8_t hash_split, uint8_t seed)
 			break;
 		case IPPROTO_IPIP:
 			/* tunneling */
-			rc = decode_ip_n_hash((struct ip *)(ipv6h + 1),
+			rc = decode_ip_n_hash((const struct ip *)(ipv6h + 1),
 					      hash_split, seed);
 			break;
 		case IPPROTO_IPV6:
 			/* tunneling */
-			rc = decode_ipv6_n_hash((struct ip6_hdr *)(ipv6h + 1),
+			rc = decode_ipv6_n_hash((const struct ip6_hdr *)(ipv6h + 1),
 						hash_split, seed);
 			break;
 		case IPPROTO_GRE:
-			rc = decode_gre_hash((uint8_t *)(ipv6h + 1), hash_split, seed);
+			rc = decode_gre_hash((const uint8_t *)(ipv6h + 1), hash_split, seed);
 			break;
 		case IPPROTO_ICMP:
 		case IPPROTO_ESP:
@@ -280,7 +280,7 @@ decode_ipv6_n_hash(struct ip6_hdr *ipv6h, uint8_t hash_split, uint8_t seed)
  *   * (See decode_vlan_n_hash & pkt_hdr_hash functions).
  *    */
 static uint32_t
-decode_others_n_hash(struct ether_header *ethh, uint8_t seed)
+decode_others_n_hash(const struct ether_header *ethh, uint8_t seed)
 {
 	uint32_t saddr, daddr, rc;
 
@@ -305,18 +305,18 @@ decode_others_n_hash(struct ether_header *ethh, uint8_t seed)
  ** Parser + hash function for VLAN packet
  **/
 static inline uint32_t
-decode_vlan_n_hash(struct ether_header *ethh, uint8_t hash_split, uint8_t seed)
+decode_vlan_n_hash(const struct ether_header *ethh, uint8_t hash_split, uint8_t seed)
 {
 	uint32_t rc = 0;
-	struct vlanhdr *vhdr = (struct vlanhdr *)(ethh + 1);
+	const struct vlanhdr *vhdr = (const struct vlanhdr *)(ethh + 1);
 
 	switch (ntohs(vhdr->proto)) {
 	case ETHERTYPE_IP:
-		rc = decode_ip_n_hash((struct ip *)(vhdr + 1),
+		rc = decode_ip_n_hash((const struct ip *)(vhdr + 1),
 				      hash_split, seed);
 		break;
 	case ETHERTYPE_IPV6:
-		rc = decode_ipv6_n_hash((struct ip6_hdr *)(vhdr + 1),
+		rc = decode_ipv6_n_hash((const struct ip6_hdr *)(vhdr + 1),
 					hash_split, seed);
 		break;
 	case ETHERTYPE_ARP:
@@ -336,15 +336,15 @@ uint32_t
 pkt_hdr_hash(const unsigned char *buffer, uint8_t hash_split, uint8_t seed)
 {
 	uint32_t rc = 0;
-	struct ether_header *ethh = (struct ether_header *)buffer;
+	const struct ether_header *ethh = (const struct ether_header *)buffer;
 
 	switch (ntohs(ethh->ether_type)) {
 	case ETHERTYPE_IP:
-		rc = decode_ip_n_hash((struct ip *)(ethh + 1),
+		rc = decode_ip_n_hash((const struct ip *)(ethh + 1),
 				      hash_split, seed);
 		break;
 	case ETHERTYPE_IPV6:
-		rc = decode_ipv6_n_hash((struct ip6_hdr *)(ethh + 1),
+		rc = decode_ipv6_n_hash((const struct ip6_hdr *)(ethh + 1),
 					hash_split, seed);
 		break;
 	case ETHERTYPE_VLAN:
@@ -372,15 +372,15 @@ decode_gre_hash(const uint8_t *grehdr, uint8_t hash_split, uint8_t seed)
 			   !!(*grehdr & 2) + /* Routing */
 			   !!(*grehdr & 4) + /* Key */
 			   !!(*grehdr & 8)); /* Sequence Number */
-	uint16_t proto = ntohs(*(uint16_t *)(void *)(grehdr + 2));
+	uint16_t proto = ntohs(*(const uint16_t *)(const void *)(grehdr + 2));
 
 	switch (proto) {
 	case ETHERTYPE_IP:
-		rc = decode_ip_n_hash((struct ip *)(grehdr + len),
+		rc = decode_ip_n_hash((const struct ip *)(grehdr + len),
 				      hash_split, seed);
 		break;
 	case ETHERTYPE_IPV6:
-		rc = decode_ipv6_n_hash((struct ip6_hdr *)(grehdr + len),
+		rc = decode_ipv6_n_hash((const struct ip6_hdr *)(grehdr + len),
 					hash_split, seed);
 		break;
 	case 0x6558: /* Transparent Ethernet Bridging */
