@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <sys/signalvar.h>
@@ -81,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #define	stmxcsr(addr)		__asm __volatile("stmxcsr %0" : : "m" (*(addr)))
 
 static __inline void
-xrstor(char *addr, uint64_t mask)
+xrstor32(char *addr, uint64_t mask)
 {
 	uint32_t low, hi;
 
@@ -91,7 +92,17 @@ xrstor(char *addr, uint64_t mask)
 }
 
 static __inline void
-xsave(char *addr, uint64_t mask)
+xrstor64(char *addr, uint64_t mask)
+{
+	uint32_t low, hi;
+
+	low = mask;
+	hi = mask >> 32;
+	__asm __volatile("xrstor64 %0" : : "m" (*addr), "a" (low), "d" (hi));
+}
+
+static __inline void
+xsave32(char *addr, uint64_t mask)
 {
 	uint32_t low, hi;
 
@@ -102,13 +113,35 @@ xsave(char *addr, uint64_t mask)
 }
 
 static __inline void
-xsaveopt(char *addr, uint64_t mask)
+xsave64(char *addr, uint64_t mask)
+{
+	uint32_t low, hi;
+
+	low = mask;
+	hi = mask >> 32;
+	__asm __volatile("xsave64 %0" : "=m" (*addr) : "a" (low), "d" (hi) :
+	    "memory");
+}
+
+static __inline void
+xsaveopt32(char *addr, uint64_t mask)
 {
 	uint32_t low, hi;
 
 	low = mask;
 	hi = mask >> 32;
 	__asm __volatile("xsaveopt %0" : "=m" (*addr) : "a" (low), "d" (hi) :
+	    "memory");
+}
+
+static __inline void
+xsaveopt64(char *addr, uint64_t mask)
+{
+	uint32_t low, hi;
+
+	low = mask;
+	hi = mask >> 32;
+	__asm __volatile("xsaveopt64 %0" : "=m" (*addr) : "a" (low), "d" (hi) :
 	    "memory");
 }
 
@@ -123,9 +156,12 @@ void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
 void	ldmxcsr(u_int csr);
 void	stmxcsr(u_int *csr);
-void	xrstor(char *addr, uint64_t mask);
-void	xsave(char *addr, uint64_t mask);
-void	xsaveopt(char *addr, uint64_t mask);
+void	xrstor32(char *addr, uint64_t mask);
+void	xrstor64(char *addr, uint64_t mask);
+void	xsave32(char *addr, uint64_t mask);
+void	xsave64(char *addr, uint64_t mask);
+void	xsaveopt32(char *addr, uint64_t mask);
+void	xsaveopt64(char *addr, uint64_t mask);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
 
@@ -166,24 +202,48 @@ static struct xsave_area_elm_descr {
 } *xsave_area_desc;
 
 static void
-fpusave_xsaveopt(void *addr)
+fpusave_xsaveopt64(void *addr)
 {
-
-	xsaveopt((char *)addr, xsave_mask);
+	xsaveopt64((char *)addr, xsave_mask);
 }
 
 static void
-fpusave_xsave(void *addr)
+fpusave_xsaveopt3264(void *addr)
 {
-
-	xsave((char *)addr, xsave_mask);
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		xsaveopt32((char *)addr, xsave_mask);
+	else
+		xsaveopt64((char *)addr, xsave_mask);
 }
 
 static void
-fpurestore_xrstor(void *addr)
+fpusave_xsave64(void *addr)
 {
+	xsave64((char *)addr, xsave_mask);
+}
 
-	xrstor((char *)addr, xsave_mask);
+static void
+fpusave_xsave3264(void *addr)
+{
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		xsave32((char *)addr, xsave_mask);
+	else
+		xsave64((char *)addr, xsave_mask);
+}
+
+static void
+fpurestore_xrstor64(void *addr)
+{
+	xrstor64((char *)addr, xsave_mask);
+}
+
+static void
+fpurestore_xrstor3264(void *addr)
+{
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		xrstor32((char *)addr, xsave_mask);
+	else
+		xrstor64((char *)addr, xsave_mask);
 }
 
 static void
@@ -216,17 +276,24 @@ DEFINE_IFUNC(, void, fpusave, (void *))
 {
 
 	init_xsave();
-	if (use_xsave)
-		return ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0 ?
-		    fpusave_xsaveopt : fpusave_xsave);
-	return (fpusave_fxsave);
+	if (!use_xsave)
+		return (fpusave_fxsave);
+	if ((cpu_stdext_feature & CPUID_EXTSTATE_XSAVEOPT) != 0) {
+		return ((cpu_stdext_feature & CPUID_STDEXT_NFPUSG) != 0 ?
+		    fpusave_xsaveopt64 : fpusave_xsaveopt3264);
+	}
+	return ((cpu_stdext_feature & CPUID_STDEXT_NFPUSG) != 0 ?
+	    fpusave_xsave64 : fpusave_xsave3264);
 }
 
 DEFINE_IFUNC(, void, fpurestore, (void *))
 {
 
 	init_xsave();
-	return (use_xsave ? fpurestore_xrstor : fpurestore_fxrstor);
+	if (!use_xsave)
+		return (fpurestore_fxrstor);
+	return ((cpu_stdext_feature & CPUID_STDEXT_NFPUSG) != 0 ?
+	    fpurestore_xrstor64 : fpurestore_xrstor3264);
 }
 
 void
@@ -293,6 +360,7 @@ fpuinit_bsp1(void)
 		 * read-only before cpu_startup().
 		 */
 		old_wp = disable_wp();
+		ctx_switch_xsave32[3] |= 0x10;
 		ctx_switch_xsave[3] |= 0x10;
 		restore_wp(old_wp);
 	}
