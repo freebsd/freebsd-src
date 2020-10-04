@@ -733,8 +733,15 @@ rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
 
 	/* Check if updated gateway exists */
 	if ((info->rti_flags & RTF_GATEWAY) &&
-	    (info->rti_info[RTAX_GATEWAY] == NULL))
-		return (EINVAL);
+	    (info->rti_info[RTAX_GATEWAY] == NULL)) {
+
+		/*
+		 * route(8) adds RTF_GATEWAY flag if -interface is not set.
+		 * Remove RTF_GATEWAY to enforce consistency and maintain
+		 * compatibility..
+		 */
+		info->rti_flags &= ~RTF_GATEWAY;
+	}
 
 	/*
 	 * route change is done in multiple steps, with dropping and

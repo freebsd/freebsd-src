@@ -431,8 +431,8 @@ ATF_TC_BODY(rtm_add_v4_gw_direct_success, tc)
 
 	verify_route_message(rtm, RTM_ADD, (struct sockaddr *)&net4,
 	    (struct sockaddr *)&mask4, (struct sockaddr *)&gw4);
-	/* XXX: Currently kernel sets RTF_UP automatically but does NOT report it in the reply */
-	verify_route_message_extra(rtm, c->ifindex, RTF_DONE | RTF_GATEWAY | RTF_STATIC);
+	verify_route_message_extra(rtm, c->ifindex,
+	    RTF_UP | RTF_DONE | RTF_GATEWAY | RTF_STATIC);
 }
 
 ATF_TC_CLEANUP(rtm_add_v4_gw_direct_success, tc)
@@ -568,7 +568,7 @@ ATF_TC_BODY(rtm_change_v4_gw_success, tc)
 	    (struct sockaddr *)&mask4, (struct sockaddr *)&gw4);
 
 	verify_route_message_extra(rtm, if_nametoindex(c->ifnames[1]),
-	    RTF_DONE | RTF_GATEWAY | RTF_STATIC);
+	    RTF_UP | RTF_DONE | RTF_GATEWAY | RTF_STATIC);
 
 	/* Verify the change has actually taken place */
 	prepare_route_message(rtm, RTM_GET, (struct sockaddr *)&net4,
@@ -591,7 +591,7 @@ ATF_TC_BODY(rtm_change_v4_gw_success, tc)
 }
 
 RTM_DECLARE_ROOT_TEST(rtm_change_v4_mtu_success,
-    "Tests IPv4 path  mtu change");
+    "Tests IPv4 path mtu change");
 
 ATF_TC_BODY(rtm_change_v4_mtu_success, tc)
 {
@@ -639,6 +639,55 @@ ATF_TC_BODY(rtm_change_v4_mtu_success, tc)
 	    "expected mtu: %lu, got %lu", test_mtu, rtm->rtm_rmx.rmx_mtu);
 }
 
+RTM_DECLARE_ROOT_TEST(rtm_change_v4_flags_success,
+    "Tests IPv4 path flags change");
+
+ATF_TC_BODY(rtm_change_v4_flags_success, tc)
+{
+	DECLARE_TEST_VARS;
+
+	uint32_t test_flags = RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_STATIC;
+	uint32_t desired_flags;
+
+	c = presetup_ipv4(tc);
+
+	/* Create IPv4 subnetwork with smaller prefix */
+	struct sockaddr_in mask4;
+	struct sockaddr_in net4;
+	struct sockaddr_in gw4;
+	prepare_v4_network(c, &net4, &mask4, &gw4);
+
+	prepare_route_message(rtm, RTM_ADD, (struct sockaddr *)&net4,
+	    (struct sockaddr *)&mask4, (struct sockaddr *)&gw4);
+
+	/* Set test flags during route addition */
+	desired_flags = RTF_UP | RTF_DONE | RTF_GATEWAY | test_flags;
+	rtm->rtm_flags |= test_flags;
+	rtsock_send_rtm(c->rtsock_fd, rtm);
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
+
+	/* Change flags */
+	prepare_route_message(rtm, RTM_CHANGE, (struct sockaddr *)&net4,
+	    (struct sockaddr *)&mask4, NULL);
+	rtm->rtm_flags &= ~test_flags;
+	desired_flags &= ~test_flags;
+
+	rtsock_send_rtm(c->rtsock_fd, rtm);
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
+
+	/* Verify updated flags */
+	verify_route_message_extra(rtm, c->ifindex, desired_flags | RTF_DONE);
+
+	/* Verify the change has actually taken place */
+	prepare_route_message(rtm, RTM_GET, (struct sockaddr *)&net4,
+	    (struct sockaddr *)&mask4, NULL);
+
+	rtsock_send_rtm(c->rtsock_fd, rtm);
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
+
+	verify_route_message_extra(rtm, c->ifindex, desired_flags | RTF_DONE);
+}
+
 
 ATF_TC_WITH_CLEANUP(rtm_add_v6_gu_gw_gu_direct_success);
 ATF_TC_HEAD(rtm_add_v6_gu_gw_gu_direct_success, tc)
@@ -674,8 +723,8 @@ ATF_TC_BODY(rtm_add_v6_gu_gw_gu_direct_success, tc)
 	verify_route_message(rtm, RTM_ADD, (struct sockaddr *)&net6,
 	    (struct sockaddr *)&mask6, (struct sockaddr *)&gw6);
 
-	/* XXX: Currently kernel sets RTF_UP automatically but does NOT report it in the reply */
-	verify_route_message_extra(rtm, c->ifindex, RTF_DONE | RTF_GATEWAY | RTF_STATIC);
+	verify_route_message_extra(rtm, c->ifindex,
+	    RTF_UP | RTF_DONE | RTF_GATEWAY | RTF_STATIC);
 }
 
 ATF_TC_CLEANUP(rtm_add_v6_gu_gw_gu_direct_success, tc)
@@ -791,7 +840,7 @@ ATF_TC_BODY(rtm_change_v6_gw_success, tc)
 	    (struct sockaddr *)&mask6, (struct sockaddr *)&gw6);
 
 	verify_route_message_extra(rtm, if_nametoindex(c->ifnames[1]),
-	    RTF_DONE | RTF_GATEWAY | RTF_STATIC);
+	    RTF_UP | RTF_DONE | RTF_GATEWAY | RTF_STATIC);
 
 	/* Verify the change has actually taken place */
 	prepare_route_message(rtm, RTM_GET, (struct sockaddr *)&net6,
@@ -862,6 +911,55 @@ ATF_TC_BODY(rtm_change_v6_mtu_success, tc)
 	    "expected mtu: %lu, got %lu", test_mtu, rtm->rtm_rmx.rmx_mtu);
 }
 
+RTM_DECLARE_ROOT_TEST(rtm_change_v6_flags_success,
+    "Tests IPv6 path flags change");
+
+ATF_TC_BODY(rtm_change_v6_flags_success, tc)
+{
+	DECLARE_TEST_VARS;
+
+	uint32_t test_flags = RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_STATIC;
+	uint32_t desired_flags;
+
+	c = presetup_ipv6(tc);
+
+	/* Create IPv6 subnetwork with smaller prefix */
+	struct sockaddr_in6 mask6;
+	struct sockaddr_in6 net6;
+	struct sockaddr_in6 gw6;
+	prepare_v6_network(c, &net6, &mask6, &gw6);
+
+	prepare_route_message(rtm, RTM_ADD, (struct sockaddr *)&net6,
+	    (struct sockaddr *)&mask6, (struct sockaddr *)&gw6);
+
+	/* Set test flags during route addition */
+	desired_flags = RTF_UP | RTF_DONE | RTF_GATEWAY | test_flags;
+	rtm->rtm_flags |= test_flags;
+	rtsock_send_rtm(c->rtsock_fd, rtm);
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
+
+	/* Change flags */
+	prepare_route_message(rtm, RTM_CHANGE, (struct sockaddr *)&net6,
+	    (struct sockaddr *)&mask6, NULL);
+	rtm->rtm_flags &= ~test_flags;
+	desired_flags &= ~test_flags;
+
+	rtsock_send_rtm(c->rtsock_fd, rtm);
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
+
+	/* Verify updated flags */
+	verify_route_message_extra(rtm, c->ifindex, desired_flags | RTF_DONE);
+
+	/* Verify the change has actually taken place */
+	prepare_route_message(rtm, RTM_GET, (struct sockaddr *)&net6,
+	    (struct sockaddr *)&mask6, NULL);
+
+	rtsock_send_rtm(c->rtsock_fd, rtm);
+	rtm = rtsock_read_rtm_reply(c->rtsock_fd, buffer, sizeof(buffer), rtm->rtm_seq);
+
+	verify_route_message_extra(rtm, c->ifindex, desired_flags | RTF_DONE);
+}
+
 ATF_TC_WITH_CLEANUP(rtm_add_v4_temporal1_success);
 ATF_TC_HEAD(rtm_add_v4_temporal1_success, tc)
 {
@@ -900,7 +998,8 @@ ATF_TC_BODY(rtm_add_v4_temporal1_success, tc)
 	verify_route_message(rtm, RTM_DELETE, (struct sockaddr *)&net4,
 	    (struct sockaddr *)&mask4, (struct sockaddr *)&gw4);
 
-	verify_route_message_extra(rtm, c->ifindex, RTF_GATEWAY | RTF_DONE | RTF_STATIC);
+	verify_route_message_extra(rtm, c->ifindex,
+	    RTF_DONE | RTF_GATEWAY | RTF_STATIC);
 }
 
 ATF_TC_CLEANUP(rtm_add_v4_temporal1_success, tc)
@@ -946,9 +1045,8 @@ ATF_TC_BODY(rtm_add_v6_temporal1_success, tc)
 	verify_route_message(rtm, RTM_DELETE, (struct sockaddr *)&net6,
 	    (struct sockaddr *)&mask6, (struct sockaddr *)&gw6);
 
-
-	/* XXX: Currently kernel sets RTF_UP automatically but does NOT report it in the reply */
-	verify_route_message_extra(rtm, c->ifindex, RTF_GATEWAY | RTF_DONE | RTF_STATIC);
+	verify_route_message_extra(rtm, c->ifindex,
+	    RTF_DONE | RTF_GATEWAY | RTF_STATIC);
 }
 
 ATF_TC_CLEANUP(rtm_add_v6_temporal1_success, tc)
@@ -1299,8 +1397,10 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rtm_del_v6_gu_prefix_nogw_success);
 	ATF_TP_ADD_TC(tp, rtm_change_v4_gw_success);
 	ATF_TP_ADD_TC(tp, rtm_change_v4_mtu_success);
+	ATF_TP_ADD_TC(tp, rtm_change_v4_flags_success);
 	ATF_TP_ADD_TC(tp, rtm_change_v6_gw_success);
 	ATF_TP_ADD_TC(tp, rtm_change_v6_mtu_success);
+	ATF_TP_ADD_TC(tp, rtm_change_v6_flags_success);
 	/* ifaddr tests */
 	ATF_TP_ADD_TC(tp, rtm_add_v6_gu_ifa_hostroute_success);
 	ATF_TP_ADD_TC(tp, rtm_add_v6_gu_ifa_prefixroute_success);

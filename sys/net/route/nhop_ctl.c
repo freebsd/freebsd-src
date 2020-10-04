@@ -164,8 +164,7 @@ cmp_priv(const struct nhop_priv *_one, const struct nhop_priv *_two)
 	if (memcmp(_one->nh, _two->nh, NHOP_END_CMP) != 0)
 		return (0);
 
-	if ((_one->nh_type != _two->nh_type) ||
-	    (_one->nh_family != _two->nh_family))
+	if (memcmp(_one, _two, NH_PRIV_END_CMP) != 0)
 		return (0);
 
 	return (1);

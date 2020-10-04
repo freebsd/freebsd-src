@@ -965,6 +965,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 #endif
 			nh = rc.rc_nh_new;
 			rtm->rtm_index = nh->nh_ifp->if_index;
+			rtm->rtm_flags = rc.rc_rt->rte_flags | nhop_get_rtflags(nh);
 		}
 		break;
 
