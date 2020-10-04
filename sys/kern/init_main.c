@@ -743,6 +743,14 @@ start_init(void *dummy)
 	p->p_vmspace->vm_maxsaddr = (caddr_t)addr;
 	p->p_vmspace->vm_ssize = 1;
 
+	/* For Multicons, report which console is primary to both */
+	if (boothowto & RB_MULTIPLE) {
+		if (boothowto & RB_SERIAL)
+			printf("Dual Console: Serial Primary, Video Secondary\n");
+		else
+			printf("Dual Console: Video Primary, Serial Secondary\n");
+	}
+
 	if ((var = kern_getenv("init_path")) != NULL) {
 		strlcpy(init_path, var, sizeof(init_path));
 		freeenv(var);
@@ -753,7 +761,7 @@ start_init(void *dummy)
 		pathlen = strlen(path) + 1;
 		if (bootverbose)
 			printf("start_init: trying %s\n", path);
-			
+
 		/*
 		 * Move out the boot flag argument.
 		 */
