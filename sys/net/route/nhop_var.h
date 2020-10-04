@@ -74,19 +74,24 @@ struct nh_control {
 /* Control plane-only nhop data */
 struct nhop_object;
 struct nhop_priv {
-	uint32_t		nh_idx;		/* nexthop index */
+	/* nhop lookup comparison start */
 	uint8_t			nh_family;	/* address family of the lookup */
+	uint8_t			spare;
 	uint16_t		nh_type;	/* nexthop type */
+	uint32_t		rt_flags;	/* routing flags for the control plane */
+	/* nhop lookup comparison end */
+	uint32_t		nh_idx;		/* nexthop index */
 	void			*cb_func;	/* function handling additional rewrite caps */
 	u_int			nh_refcnt;	/* number of references, refcount(9)  */
 	u_int			nh_linked;	/* refcount(9), == 2 if linked to the list */
-	int			rt_flags;	/* routing flags for the control plane */
 	struct nhop_object	*nh;		/* backreference to the dataplane nhop */
 	struct nh_control	*nh_control;	/* backreference to the rnh */
 	struct nhop_priv	*nh_next;	/* hash table membership */
 	struct vnet		*nh_vnet;	/* vnet nhop belongs to */
 	struct epoch_context	nh_epoch_ctx;	/* epoch data for nhop */
 };
+
+#define	NH_PRIV_END_CMP	(__offsetof(struct nhop_priv, nh_idx))
 
 #define	NH_IS_PINNED(_nh)	((!NH_IS_NHGRP(_nh)) && \
 				((_nh)->nh_priv->rt_flags & RTF_PINNED))
