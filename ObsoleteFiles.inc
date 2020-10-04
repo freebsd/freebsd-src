@@ -36,6 +36,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20201004: logo files renamed to type-agnostic gfx-*.lua
+OLD_FILES+=boot/lua/logo-beastie.lua
+OLD_FILES+=boot/lua/logo-beastiebw.lua
+OLD_FILES+=boot/lua/logo-fbsdbw.lua
+OLD_FILES+=boot/lua/logo-orb.lua
+OLD_FILES+=boot/lua/logo-orbbw.lua
+
 # 20200923: memfd_test moved to /usr/tests/sys/posixshm
 OLD_FILES+=usr/tests/sys/kern/memfd_test
 
