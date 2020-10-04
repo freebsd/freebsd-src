@@ -27,7 +27,7 @@ typedef	int	boolean_t;
 # endif
 # define _KERNEL
 # define KERNEL
-# if !defined(solaris) && !defined(linux) && !defined(__sgi) && !defined(hpux)
+# if !defined(solaris)
 #  include <sys/file.h>
 # else
 #  ifdef solaris
