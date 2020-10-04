@@ -109,5 +109,8 @@ device		ukbd		# Allow keyboard like HIDs to control console
 device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 
+# HID support
+device		hid		# Generic HID support
+
 # FDT support
 options 	FDT

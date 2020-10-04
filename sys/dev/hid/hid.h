@@ -28,38 +28,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _USB_HID_H_
-#define	_USB_HID_H_
-
-#ifndef USB_GLOBAL_INCLUDE_FILE
-#include <dev/usb/usb_endian.h>
-#endif
-
-#define	UR_GET_HID_DESCRIPTOR	0x06
-#define	UDESC_HID		0x21
-#define	UDESC_REPORT		0x22
-#define	UDESC_PHYSICAL		0x23
-#define	UR_SET_HID_DESCRIPTOR	0x07
-#define	UR_GET_REPORT		0x01
-#define	UR_SET_REPORT		0x09
-#define	UR_GET_IDLE		0x02
-#define	UR_SET_IDLE		0x0a
-#define	UR_GET_PROTOCOL		0x03
-#define	UR_SET_PROTOCOL		0x0b
-
-struct usb_hid_descriptor {
-	uByte	bLength;
-	uByte	bDescriptorType;
-	uWord	bcdHID;
-	uByte	bCountryCode;
-	uByte	bNumDescriptors;
-	struct {
-		uByte	bDescriptorType;
-		uWord	wDescriptorLength;
-	}	descrs[1];
-} __packed;
-
-#define	USB_HID_DESCRIPTOR_SIZE(n) (9+((n)*3))
+#ifndef _HID_HID_H_
+#define	_HID_HID_H_
 
 /* Usage pages */
 #define	HUP_UNDEFINED		0x0000
@@ -206,7 +176,6 @@ struct usb_hid_descriptor {
 #define	HUM_DEGREE	0x14
 
 #if defined(_KERNEL) || defined(_STANDALONE)
-struct usb_config_descriptor;
 
 #define	HID_ITEM_MAXUSAGE	4
 
@@ -271,14 +240,8 @@ uint32_t hid_get_data_unsigned(const uint8_t *buf, usb_size_t len,
 void hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
 	    struct hid_location *loc, unsigned int value);
 int	hid_is_collection(const void *desc, usb_size_t size, int32_t usage);
-struct usb_hid_descriptor *hid_get_descriptor_from_usb(
-	    struct usb_config_descriptor *cd,
-	    struct usb_interface_descriptor *id);
-usb_error_t usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
-	    void **descp, uint16_t *sizep, struct malloc_type *mem,
-	    uint8_t iface_index);
 int32_t	hid_item_resolution(struct hid_item *hi);
 int	hid_is_mouse(const void *d_ptr, uint16_t d_len);
 int	hid_is_keyboard(const void *d_ptr, uint16_t d_len);
 #endif	/* _KERNEL || _STANDALONE */
-#endif	/* _USB_HID_H_ */
+#endif	/* _HID_HID_H_ */

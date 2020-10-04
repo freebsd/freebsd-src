@@ -348,3 +348,6 @@ device		xenpci			# Xen HVM Hypervisor services driver
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
+
+# HID support
+device		hid			# Generic HID support

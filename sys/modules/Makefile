@@ -129,6 +129,7 @@ SUBDIR=	\
 	${_glxiic} \
 	${_glxsb} \
 	gpio \
+	hid \
 	hifn \
 	${_hpt27xx} \
 	${_hptiop} \

@@ -185,6 +185,7 @@ static const STRUCT_USB_HOST_ID ucycom_devs[] = {
 DRIVER_MODULE(ucycom, uhub, ucycom_driver, ucycom_devclass, NULL, 0);
 MODULE_DEPEND(ucycom, ucom, 1, 1, 1);
 MODULE_DEPEND(ucycom, usb, 1, 1, 1);
+MODULE_DEPEND(ucycom, hid, 1, 1, 1);
 MODULE_VERSION(ucycom, 1);
 USB_PNP_HOST_INFO(ucycom_devs);
 

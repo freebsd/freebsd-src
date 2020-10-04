@@ -130,6 +130,9 @@ device		drm2
 #device		sound
 #device		snd_hda
 
+# HID support
+device		hid			# Generic HID support
+
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data
 device  	fdt_pinctrl

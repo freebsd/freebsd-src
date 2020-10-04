@@ -106,6 +106,9 @@ device		u3g			# USB modems
 #device		wlan_tkip		# 802.11 TKIP support
 #device		wlan_amrr		# AMRR transmit rate control algorithm
 
+# HID support
+device		hid			# Generic HID support
+
 device		vt
 device		kbdmux
 device		ukbd
