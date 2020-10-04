@@ -61,6 +61,35 @@ local function menuEntryName(drawing_menu, entry)
 	return entry.name
 end
 
+local function processFile(gfxname)
+	if gfxname == nil then
+		return false, "Missing filename"
+	end
+
+	local ret = try_include('gfx-' .. gfxname)
+	if ret == nil then
+		return false, "Failed to include gfx-" .. gfxname
+	end
+
+	-- Legacy format
+	if type(ret) ~= "table" then
+		return true
+	end
+
+	for gfxtype, def in pairs(ret) do
+		if gfxtype == "brand" then
+			drawer.addBrand(gfxname, def)
+		elseif gfxtype == "logo" then
+			drawer.addLogo(gfxname, def)
+		else
+			return false, "Unknown graphics type '" .. gfxtype ..
+			    "'"
+		end
+	end
+
+	return true
+end
+
 local function getBranddef(brand)
 	if brand == nil then
 		return nil
@@ -70,7 +99,18 @@ local function getBranddef(brand)
 
 	-- Try to pull it in
 	if branddef == nil then
-		try_include('brand-' .. brand)
+		local res, err = processFile(brand)
+		if not res then
+			-- This fallback should go away after FreeBSD 13.
+			try_include('brand-' .. brand)
+			-- If the fallback also failed, print whatever error
+			-- we encountered in the original processing.
+			if branddefs[brand] == nil then
+				print(err)
+				return nil
+			end
+		end
+
 		branddef = branddefs[brand]
 	end
 
@@ -86,7 +126,18 @@ local function getLogodef(logo)
 
 	-- Try to pull it in
 	if logodef == nil then
-		try_include('logo-' .. logo)
+		local res, err = processFile(logo)
+		if not res then
+			-- This fallback should go away after FreeBSD 13.
+			try_include('logo-' .. logo)
+			-- If the fallback also failed, print whatever error
+			-- we encountered in the original processing.
+			if logodefs[logo] == nil then
+				print(err)
+				return nil
+			end
+		end
+
 		logodef = logodefs[logo]
 	end
 
@@ -364,6 +415,8 @@ drawer.default_bw_logodef = 'orbbw'
 -- drawer module in case it's a filesystem issue.
 drawer.default_fallback_logodef = 'none'
 
+-- These should go away after FreeBSD 13; only available for backwards
+-- compatibility with old logo- files.
 function drawer.addBrand(name, def)
 	branddefs[name] = def
 end
