@@ -1213,6 +1213,7 @@ static driver_t ums_driver = {
 
 DRIVER_MODULE(ums, uhub, ums_driver, ums_devclass, NULL, 0);
 MODULE_DEPEND(ums, usb, 1, 1, 1);
+MODULE_DEPEND(ums, hid, 1, 1, 1);
 #ifdef EVDEV_SUPPORT
 MODULE_DEPEND(ums, evdev, 1, 1, 1);
 #endif

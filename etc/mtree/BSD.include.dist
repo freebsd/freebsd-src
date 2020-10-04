@@ -54,6 +54,8 @@
         ..
         firewire
         ..
+        hid
+        ..
         hwpmc
         ..
         hyperv

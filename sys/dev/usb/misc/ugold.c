@@ -142,6 +142,7 @@ static const STRUCT_USB_HOST_ID ugold_devs[] = {
 
 DRIVER_MODULE(ugold, uhub, ugold_driver, ugold_devclass, NULL, NULL);
 MODULE_DEPEND(ugold, usb, 1, 1, 1);
+MODULE_DEPEND(ugold, hid, 1, 1, 1);
 MODULE_VERSION(ugold, 1);
 USB_PNP_HOST_INFO(ugold_devs);
 

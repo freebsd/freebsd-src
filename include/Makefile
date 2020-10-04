@@ -94,6 +94,10 @@ EVDEV=		input.h \
 		uinput.h
 EVDEVDIR=	${INCLUDEDIR}/dev/evdev
 
+.PATH: ${SRCTOP}/sys/dev/hid
+HID=		hid.h
+HIDDIR=		${INCLUDEDIR}/dev/hid
+
 .PATH: ${SRCTOP}/sys/dev/hyperv/include ${SRCTOP}/sys/dev/hyperv/utilities
 HYPERV=		hv_snapshot.h \
 		hyperv.h
@@ -172,6 +176,7 @@ INCSGROUPS=	INCS \
 		CRYPTO \
 		EVDEV \
 		FS9660 \
+		HID \
 		HYPERV \
 		OPENCRYPTO \
 		PCI \
@@ -287,7 +292,7 @@ copies: .PHONY .META
 		done; \
 	fi
 .endfor
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
@@ -323,7 +328,7 @@ symlinks: .PHONY .META
 	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
 	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
@@ -335,6 +340,8 @@ symlinks: .PHONY .META
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../../sys/dev/evdev/%s ' input.h input-event-codes.h uinput.h) \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev;
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hid/hid.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/hid; \
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/include/hyperv.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/utilities/hv_snapshot.h \

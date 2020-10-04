@@ -113,6 +113,9 @@ device		wlan_amrr		# AMRR transmit rate control algorithm
 #device  	mmc			# SD/MMC protocol
 #device  	mmcsd			# SDCard disk device
 
+# HID support
+device		hid			# Generic HID support
+
 
 # Flattened Device Tree
 options 	FDT			# Configure using FDT/DTB data

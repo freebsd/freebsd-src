@@ -780,91 +780,6 @@ hid_is_collection(const void *desc, usb_size_t size, int32_t usage)
 }
 
 /*------------------------------------------------------------------------*
- *	hid_get_descriptor_from_usb
- *
- * This function will search for a HID descriptor between two USB
- * interface descriptors.
- *
- * Return values:
- * NULL: No more HID descriptors.
- * Else: Pointer to HID descriptor.
- *------------------------------------------------------------------------*/
-struct usb_hid_descriptor *
-hid_get_descriptor_from_usb(struct usb_config_descriptor *cd,
-    struct usb_interface_descriptor *id)
-{
-	struct usb_descriptor *desc = (void *)id;
-
-	if (desc == NULL) {
-		return (NULL);
-	}
-	while ((desc = usb_desc_foreach(cd, desc))) {
-		if ((desc->bDescriptorType == UDESC_HID) &&
-		    (desc->bLength >= USB_HID_DESCRIPTOR_SIZE(0))) {
-			return (void *)desc;
-		}
-		if (desc->bDescriptorType == UDESC_INTERFACE) {
-			break;
-		}
-	}
-	return (NULL);
-}
-
-/*------------------------------------------------------------------------*
- *	usbd_req_get_hid_desc
- *
- * This function will read out an USB report descriptor from the USB
- * device.
- *
- * Return values:
- * NULL: Failure.
- * Else: Success. The pointer should eventually be passed to free().
- *------------------------------------------------------------------------*/
-usb_error_t
-usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
-    void **descp, uint16_t *sizep,
-    struct malloc_type *mem, uint8_t iface_index)
-{
-	struct usb_interface *iface = usbd_get_iface(udev, iface_index);
-	struct usb_hid_descriptor *hid;
-	usb_error_t err;
-
-	if ((iface == NULL) || (iface->idesc == NULL)) {
-		return (USB_ERR_INVAL);
-	}
-	hid = hid_get_descriptor_from_usb
-	    (usbd_get_config_descriptor(udev), iface->idesc);
-
-	if (hid == NULL) {
-		return (USB_ERR_IOERROR);
-	}
-	*sizep = UGETW(hid->descrs[0].wDescriptorLength);
-	if (*sizep == 0) {
-		return (USB_ERR_IOERROR);
-	}
-	if (mtx)
-		mtx_unlock(mtx);
-
-	*descp = malloc(*sizep, mem, M_ZERO | M_WAITOK);
-
-	if (mtx)
-		mtx_lock(mtx);
-
-	if (*descp == NULL) {
-		return (USB_ERR_NOMEM);
-	}
-	err = usbd_req_get_report_descriptor
-	    (udev, mtx, *descp, *sizep, iface_index);
-
-	if (err) {
-		free(*descp, mem);
-		*descp = NULL;
-		return (err);
-	}
-	return (USB_ERR_NORMAL_COMPLETION);
-}
-
-/*------------------------------------------------------------------------*
  * calculate HID item resolution. unit/mm for distances, unit/rad for angles
  *------------------------------------------------------------------------*/
 int32_t
@@ -1013,3 +928,5 @@ hid_is_keyboard(const void *d_ptr, uint16_t d_len)
 		return (1);
 	return (0);
 }
+
+MODULE_VERSION(hid, 1);

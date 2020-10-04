@@ -1072,6 +1072,7 @@ static driver_t wmt_driver = {
 
 DRIVER_MODULE(wmt, uhub, wmt_driver, wmt_devclass, NULL, 0);
 MODULE_DEPEND(wmt, usb, 1, 1, 1);
+MODULE_DEPEND(wmt, hid, 1, 1, 1);
 MODULE_DEPEND(wmt, evdev, 1, 1, 1);
 MODULE_VERSION(wmt, 1);
 USB_PNP_HOST_INFO(wmt_devs);
