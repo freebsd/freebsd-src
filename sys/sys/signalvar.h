@@ -408,6 +408,7 @@ int	sig_ffs(sigset_t *set);
 void	sigfastblock_clear(struct thread *td);
 void	sigfastblock_fetch(struct thread *td);
 void	sigfastblock_setpend(struct thread *td, bool resched);
+int	sig_intr(void);
 void	siginit(struct proc *p);
 void	signotify(struct thread *td);
 void	sigqueue_delete(struct sigqueue *queue, int sig);
