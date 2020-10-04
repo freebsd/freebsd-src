@@ -3139,6 +3139,71 @@ postsig(int sig)
 	return (1);
 }
 
+int
+sig_ast_checksusp(struct thread *td)
+{
+	struct proc *p;
+	int ret;
+
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if ((td->td_flags & TDF_NEEDSUSPCHK) == 0)
+		return (0);
+
+	ret = thread_suspend_check(1);
+	MPASS(ret == 0 || ret == EINTR || ret == ERESTART);
+	return (ret);
+}
+
+int
+sig_ast_needsigchk(struct thread *td)
+{
+	struct proc *p;
+	struct sigacts *ps;
+	int ret, sig;
+
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if ((td->td_flags & TDF_NEEDSIGCHK) == 0)
+		return (0);
+
+	ps = p->p_sigacts;
+	mtx_lock(&ps->ps_mtx);
+	sig = cursig(td);
+	if (sig == -1) {
+		mtx_unlock(&ps->ps_mtx);
+		KASSERT((td->td_flags & TDF_SBDRY) != 0, ("lost TDF_SBDRY"));
+		KASSERT(TD_SBDRY_INTR(td),
+		    ("lost TDF_SERESTART of TDF_SEINTR"));
+		KASSERT((td->td_flags & (TDF_SEINTR | TDF_SERESTART)) !=
+		    (TDF_SEINTR | TDF_SERESTART),
+		    ("both TDF_SEINTR and TDF_SERESTART"));
+		ret = TD_SBDRY_ERRNO(td);
+	} else if (sig != 0) {
+		ret = SIGISMEMBER(ps->ps_sigintr, sig) ? EINTR : ERESTART;
+		mtx_unlock(&ps->ps_mtx);
+	} else {
+		mtx_unlock(&ps->ps_mtx);
+		ret = 0;
+	}
+
+	/*
+	 * Do not go into sleep if this thread was the ptrace(2)
+	 * attach leader.  cursig() consumed SIGSTOP from PT_ATTACH,
+	 * but we usually act on the signal by interrupting sleep, and
+	 * should do that here as well.
+	 */
+	if ((td->td_dbgflags & TDB_FSTP) != 0) {
+		if (ret == 0)
+			ret = EINTR;
+		td->td_dbgflags &= ~TDB_FSTP;
+	}
+
+	return (ret);
+}
+
 void
 proc_wkilled(struct proc *p)
 {
