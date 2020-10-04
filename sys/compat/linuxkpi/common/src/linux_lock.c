@@ -71,7 +71,8 @@ linux_ww_unlock(void)
 
 /* lock a mutex with deadlock avoidance */
 int
-linux_ww_mutex_lock_sub(struct ww_mutex *lock, int catch_signal)
+linux_ww_mutex_lock_sub(struct ww_mutex *lock,
+    struct ww_acquire_ctx *ctx, int catch_signal)
 {
 	struct task_struct *task;
 	struct ww_mutex_thread entry;
@@ -126,6 +127,9 @@ done:
 		if ((struct thread *)SX_OWNER(lock->base.sx.sx_lock) == NULL)
 			cv_signal(&lock->condvar);
 	}
+
+	if (retval == 0)
+		lock->ctx = ctx;
 	linux_ww_unlock();
 	return (retval);
 }
@@ -135,6 +139,7 @@ linux_ww_mutex_unlock_sub(struct ww_mutex *lock)
 {
 	/* protect ww_mutex ownership change */
 	linux_ww_lock();
+	lock->ctx = NULL;
 	sx_xunlock(&lock->base.sx);
 	/* wakeup a lock waiter, if any */
 	cv_signal(&lock->condvar);
