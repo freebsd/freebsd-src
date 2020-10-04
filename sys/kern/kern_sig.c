@@ -3204,6 +3204,24 @@ sig_ast_needsigchk(struct thread *td)
 	return (ret);
 }
 
+int
+sig_intr(void)
+{
+	struct thread *td;
+	struct proc *p;
+	int ret;
+
+	td = curthread;
+	p = td->td_proc;
+
+	PROC_LOCK(p);
+	ret = sig_ast_checksusp(td);
+	if (ret == 0)
+		ret = sig_ast_needsigchk(td);
+	PROC_UNLOCK(p);
+	return (ret);
+}
+
 void
 proc_wkilled(struct proc *p)
 {
