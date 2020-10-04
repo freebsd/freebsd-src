@@ -88,19 +88,19 @@ SYSCTL_DECL(_net_inet);
         ptr, val, sysctl_ipf_int, "I", descr)
 #define SYSCTL_DYN_IPF_NAT(parent, nbr, name, access,ptr, val, descr) \
     SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
-        CTLFLAG_DYN | CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE |access, \
+        CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE |access, \
         ptr, val, sysctl_ipf_int_nat, "I", descr)
 #define SYSCTL_DYN_IPF_STATE(parent, nbr, name, access,ptr, val, descr) \
     SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
-        CTLFLAG_DYN | CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
+        CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
         ptr, val, sysctl_ipf_int_state, "I", descr)
 #define SYSCTL_DYN_IPF_FRAG(parent, nbr, name, access,ptr, val, descr) \
     SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
-        CTLFLAG_DYN | CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
+        CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
 	ptr, val, sysctl_ipf_int_frag, "I", descr)
 #define SYSCTL_DYN_IPF_AUTH(parent, nbr, name, access,ptr, val, descr) \
     SYSCTL_ADD_OID(&ipf_clist, SYSCTL_STATIC_CHILDREN(parent), nbr, name, \
-        CTLFLAG_DYN | CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
+        CTLTYPE_INT | CTLFLAG_VNET | CTLFLAG_MPSAFE | access, \
 	ptr, val, sysctl_ipf_int_auth, "I", descr)
 static struct sysctl_ctx_list ipf_clist;
 #define	CTLFLAG_OFF	0x00800000	/* IPFilter must be disabled */
