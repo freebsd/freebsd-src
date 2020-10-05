@@ -29,7 +29,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd December 3, 2018
+.Dd October 5, 2020
 .Dt PKILL 1
 .Os
 .Sh NAME
@@ -270,6 +270,111 @@ Invalid options were specified on the command line.
 .It 3
 An internal error occurred.
 .El
+.Sh EXAMPLES
+Show the pid of the process holding the
+.Pa /tmp/.X0-lock
+pid file:
+.Bd -literal -offset indent
+$ pgrep -F /tmp/.X0-lock
+1211
+.Ed
+.Pp
+Show the pid and the name of the process including kernel threads in the
+search:
+.Bd -literal -offset indent
+$ pgrep -lS vnlru
+37 vnlru
+.Ed
+.Pp
+Search for processes including kernel threads that match the extended regular
+expression pattern:
+.Bd -literal -offset indent
+$ pgrep -S 'crypto.*[2-3]'
+20
+19
+6
+5
+.Ed
+.Pp
+Show long output for firefox processes:
+.Bd -literal -offset indent
+$ pgrep -l firefox
+1312 firefox
+1309 firefox
+1288 firefox
+1280 firefox
+1279 firefox
+1278 firefox
+1277 firefox
+1264 firefox
+.Ed
+.Pp
+Same as above but just showing the pid of the most recent process:
+.Bd -literal -offset indent
+$ pgrep -n firefox
+1312
+.Ed
+.Pp
+Look for vim processes.
+Match against the full argument list:
+.Bd -literal -offset indent
+$ pgrep -f vim
+44968
+30790
+.Ed
+.Pp
+Same as above but matching against the
+.Ql list
+word and showing the full argument list:
+.Bd -literal -offset indent
+$ pgrep -f -l list
+30790 vim list.txt
+.Ed
+.Pp
+Send
+.Va SIGSTOP
+signal to processes that are an exact match:
+.Bd -literal -offset indent
+$ pkill -SIGSTOP -f -x "vim list.txt"
+.Ed
+.Pp
+Without
+.Fl f
+names over 19 characters will silently fail:
+.Bd -literal -offset indent
+$ vim this_is_a_very_long_file_name &
+[1] 36689
+$
+
+[1]+  Stopped                 vim this_is_a_very_long_file_name
+$ pgrep "vim this"
+$
+.Ed
+.Pp
+Same as above using the
+.Fl f
+flag:
+.Bd -literal -offset indent
+$ pgrep -f "vim this"
+36689
+.Ed
+.Pp
+Find the
+.Xr top 1
+command running in any jail:
+.Bd -literal -offset indent
+$ pgrep -j any top
+34498
+.Ed
+.Pp
+Show all processes running in jail ID 58:
+.Bd -literal -offset indent
+$ pgrep -l -j58 '.*'
+28397 pkg-static
+28396 pkg-static
+28255 sh
+28254 make
+.Ed
 .Sh COMPATIBILITY
 Historically the option
 .Dq Fl j Li 0
