@@ -666,6 +666,8 @@ fillin_program(prog_t *p)
 		if (!*path)
 			errx(1, "Can't perform pwd on: %s\n", p->srcdir);
 
+		/* Chop off trailing newline. */
+		path[strlen(path) - 1] = '\0';
 		p->realsrcdir = strdup(path);
 	}
 
