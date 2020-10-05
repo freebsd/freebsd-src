@@ -538,6 +538,28 @@ t4_sge_modload(void)
 		tscale = 1;
 	}
 
+	if (largest_rx_cluster != MCLBYTES &&
+#if MJUMPAGESIZE != MCLBYTES
+	    largest_rx_cluster != MJUMPAGESIZE &&
+#endif
+	    largest_rx_cluster != MJUM9BYTES &&
+	    largest_rx_cluster != MJUM16BYTES) {
+		printf("Invalid hw.cxgbe.largest_rx_cluster value (%d),"
+		    " using %d instead.\n", largest_rx_cluster, MJUM16BYTES);
+		largest_rx_cluster = MJUM16BYTES;
+	}
+
+	if (safest_rx_cluster != MCLBYTES &&
+#if MJUMPAGESIZE != MCLBYTES
+	    safest_rx_cluster != MJUMPAGESIZE &&
+#endif
+	    safest_rx_cluster != MJUM9BYTES &&
+	    safest_rx_cluster != MJUM16BYTES) {
+		printf("Invalid hw.cxgbe.safest_rx_cluster value (%d),"
+		    " using %d instead.\n", safest_rx_cluster, MJUMPAGESIZE);
+		safest_rx_cluster = MJUMPAGESIZE;
+	}
+
 	extfree_refs = counter_u64_alloc(M_WAITOK);
 	extfree_rels = counter_u64_alloc(M_WAITOK);
 	pullups = counter_u64_alloc(M_WAITOK);
