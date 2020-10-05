@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2012
+.Dd October 5, 2020
 .Dt KENV 1
 .Os
 .Sh NAME
@@ -102,6 +102,44 @@ Almost any printable character except
 .Sq =
 is acceptable as part of a name.
 Quotes are optional and necessary only if the value contains whitespace.
+.Sh EXAMPLES
+Show kernel probe hints variable names and filter for the uart
+device
+.Bd -literal -offset indent
+$ kenv -h -N | grep uart
+hint.uart.0.at
+hint.uart.0.flags
+hint.uart.0.irq
+hint.uart.0.port
+hint.uart.1.at
+hint.uart.1.irq
+hint.uart.1.port
+.Ed
+.Pp
+Show the value of a specific variable:
+.Bd -literal -offset indent
+$ kenv hint.uart.1.at
+isa
+.Ed
+.Pp
+Same as above but adding the name of the variable in the report:
+.Bd -literal -offset indent
+$ kenv -v hint.uart.1.at
+hint.uart.1.at="isa"
+.Ed
+.Pp
+Try to delete a variable and suppress warnings if any:
+.Bd -literal -offset indent
+$ kenv -q -u hint.uart.1.at
+.Ed
+.Pp
+Set the value of the
+.Ev verbose_loading
+variable
+.Bd -literal -offset indent
+$ kenv verbose_loading="YES"
+verbose_loading="YES"
+.Ed
 .Sh SEE ALSO
 .Xr kenv 2 ,
 .Xr config 5 ,
