@@ -575,6 +575,10 @@ static int t4_panic_on_fatal_err = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, panic_on_fatal_err, CTLFLAG_RDTUN,
     &t4_panic_on_fatal_err, 0, "panic on fatal errors");
 
+static int t4_tx_vm_wr = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, tx_vm_wr, CTLFLAG_RWTUN, &t4_tx_vm_wr, 0,
+    "Use VM work requests to transmit packets.");
+
 #ifdef TCP_OFFLOAD
 /*
  * TOE tunables.
@@ -655,6 +659,7 @@ static int sysctl_bitfield_8b(SYSCTL_HANDLER_ARGS);
 static int sysctl_bitfield_16b(SYSCTL_HANDLER_ARGS);
 static int sysctl_btphy(SYSCTL_HANDLER_ARGS);
 static int sysctl_noflowq(SYSCTL_HANDLER_ARGS);
+static int sysctl_tx_vm_wr(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_tmr_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
@@ -1669,6 +1674,8 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 
 	vi->xact_addr_filt = -1;
 	callout_init(&vi->tick, 1);
+	if (sc->flags & IS_VF || t4_tx_vm_wr != 0)
+		vi->flags |= TX_USES_VM_WR;
 
 	/* Allocate an ifnet and set it up */
 	ifp = if_alloc(IFT_ETHER);
@@ -1718,7 +1725,10 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 #endif
 
 	ifp->if_hw_tsomax = IP_MAXPACKET;
-	ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS_TSO;
+	if (vi->flags & TX_USES_VM_WR)
+		ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS_VM_TSO;
+	else
+		ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS_TSO;
 #ifdef RATELIMIT
 	if (is_ethoffload(sc) && vi->nofldtxq != 0)
 		ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS_EO_TSO;
@@ -2096,7 +2106,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct vi_info *vi = ifp->if_softc;
 	struct port_info *pi = vi->pi;
-	struct adapter *sc = pi->adapter;
+	struct adapter *sc;
 	struct sge_txq *txq;
 	void *items[1];
 	int rc;
@@ -2109,7 +2119,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 		return (ENETDOWN);
 	}
 
-	rc = parse_pkt(sc, &m);
+	rc = parse_pkt(&m, vi->flags & TX_USES_VM_WR);
 	if (__predict_false(rc != 0)) {
 		MPASS(m == NULL);			/* was freed already */
 		atomic_add_int(&pi->tx_parse_error, 1);	/* rare, atomic is ok */
@@ -2128,6 +2138,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 #endif
 
 	/* Select a txq. */
+	sc = vi->adapter;
 	txq = &sc->sge.txq[vi->first_txq];
 	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		txq += ((m->m_pkthdr.flowid % (vi->ntxq - vi->rsrv_noflowq)) +
@@ -6499,6 +6510,16 @@ vi_sysctls(struct vi_info *vi)
 		    "Reserve queue 0 for non-flowid packets");
 	}
 
+	if (vi->adapter->flags & IS_VF) {
+		MPASS(vi->flags & TX_USES_VM_WR);
+		SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "tx_vm_wr", CTLFLAG_RD,
+		    NULL, 1, "use VM work requests for transmit");
+	} else {
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_vm_wr",
+		    CTLTYPE_INT | CTLFLAG_RW, vi, 0,
+		    sysctl_tx_vm_wr, "I", "use VM work requestes for transmit");
+	}
+
 #ifdef TCP_OFFLOAD
 	if (vi->nofldrxq != 0) {
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nofldrxq", CTLFLAG_RD,
@@ -6920,6 +6941,63 @@ sysctl_noflowq(SYSCTL_HANDLER_ARGS)
 	else
 		vi->rsrv_noflowq = 0;
 
+	return (rc);
+}
+
+static int
+sysctl_tx_vm_wr(SYSCTL_HANDLER_ARGS)
+{
+	struct vi_info *vi = arg1;
+	struct adapter *sc = vi->adapter;
+	int rc, val, i;
+
+	MPASS(!(sc->flags & IS_VF));
+
+	val = vi->flags & TX_USES_VM_WR ? 1 : 0;
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+
+	if (val != 0 && val != 1)
+		return (EINVAL);
+
+	rc = begin_synchronized_op(sc, vi, HOLD_LOCK | SLEEP_OK | INTR_OK,
+	    "t4txvm");
+	if (rc)
+		return (rc);
+	if (vi->ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		/*
+		 * We don't want parse_pkt to run with one setting (VF or PF)
+		 * and then eth_tx to see a different setting but still use
+		 * stale information calculated by parse_pkt.
+		 */
+		rc = EBUSY;
+	} else {
+		struct port_info *pi = vi->pi;
+		struct sge_txq *txq;
+		uint32_t ctrl0;
+		uint8_t npkt = sc->params.max_pkts_per_eth_tx_pkts_wr;
+
+		if (val) {
+			vi->flags |= TX_USES_VM_WR;
+			vi->ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS_VM_TSO;
+			ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
+			    V_TXPKT_INTF(pi->tx_chan));
+			if (!(sc->flags & IS_VF))
+				npkt--;
+		} else {
+			vi->flags &= ~TX_USES_VM_WR;
+			vi->ifp->if_hw_tsomaxsegcount = TX_SGL_SEGS_TSO;
+			ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT_XT) |
+			    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+			    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
+		}
+		for_each_txq(vi, i, txq) {
+			txq->cpl_ctrl0 = ctrl0;
+			txq->txp.max_npkt = npkt;
+		}
+	}
+	end_synchronized_op(sc, LOCK_HELD);
 	return (rc);
 }
 
