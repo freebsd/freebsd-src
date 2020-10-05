@@ -81,7 +81,7 @@ static int	Nflag, nflag, oflag, qflag, tflag, Tflag, Wflag, xflag;
 static int	oidfmt(int *, int, char *, u_int *);
 static int	parsefile(const char *);
 static int	parse(const char *, int);
-static int	show_var(int *, int);
+static int	show_var(int *, int, bool);
 static int	sysctl_all(int *oid, int len);
 static int	name2oid(const char *, int *);
 
@@ -428,13 +428,13 @@ parse(const char *string, int lineno)
 	if (newvalstr == NULL || dflag) {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 			if (dflag) {
-				i = show_var(mib, len);
+				i = show_var(mib, len, false);
 				if (!i && !bflag)
 					putchar('\n');
 			}
 			sysctl_all(mib, len);
 		} else {
-			i = show_var(mib, len);
+			i = show_var(mib, len, false);
 			if (!i && !bflag)
 				putchar('\n');
 		}
@@ -504,7 +504,7 @@ parse(const char *string, int lineno)
 			break;
 		}
 
-		i = show_var(mib, len);
+		i = show_var(mib, len, false);
 		if (sysctl(mib, len, 0, 0, newval, newsize) == -1) {
 			free(newbuf);
 			if (!i && !bflag)
@@ -532,7 +532,7 @@ parse(const char *string, int lineno)
 			printf(" -> ");
 		i = nflag;
 		nflag = 1;
-		j = show_var(mib, len);
+		j = show_var(mib, len, false);
 		if (!j && !bflag)
 			putchar('\n');
 		nflag = i;
@@ -942,7 +942,7 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
  * Return minus one if we had errors.
  */
 static int
-show_var(int *oid, int nlen)
+show_var(int *oid, int nlen, bool honor_skip)
 {
 	u_char buf[BUFSIZ], *val, *oval, *p;
 	char name[BUFSIZ], fmt[BUFSIZ];
@@ -976,11 +976,11 @@ show_var(int *oid, int nlen)
 	oidfmt(oid, nlen, fmt, &kind);
 	/* if Wflag then only list sysctls that are writeable and not stats. */
 	if (Wflag && ((kind & CTLFLAG_WR) == 0 || (kind & CTLFLAG_STATS) != 0))
-		return 1;
+		return (1);
 
 	/* if Tflag then only list sysctls that are tuneables. */
 	if (Tflag && (kind & CTLFLAG_TUN) == 0)
-		return 1;
+		return (1);
 
 	if (Nflag) {
 		printf("%s", name);
@@ -1012,6 +1012,10 @@ show_var(int *oid, int nlen)
 		printf("%s", buf);
 		return (0);
 	}
+
+	/* bail before fetching the value if we're honoring skip */
+	if (honor_skip && (kind & CTLFLAG_SKIP) != 0)
+		return (1);
 
 	/* don't fetch opaques that we don't know how to print */
 	if (ctltype == CTLTYPE_OPAQUE) {
@@ -1195,15 +1199,17 @@ sysctl_all(int *oid, int len)
 	int name1[22], name2[22];
 	int i, j;
 	size_t l1, l2;
+	bool honor_skip = false;
 
-	name1[0] = 0;
-	name1[1] = 2;
+	name1[0] = CTL_SYSCTL;
+	name1[1] = (oid != NULL || Nflag || dflag || tflag) ?
+	    CTL_SYSCTL_NEXTNOSKIP : CTL_SYSCTL_NEXT;
 	l1 = 2;
 	if (len) {
-		memcpy(name1+2, oid, len * sizeof(int));
+		memcpy(name1 + 2, oid, len * sizeof(int));
 		l1 += len;
 	} else {
-		name1[2] = 1;
+		name1[2] = CTL_KERN;
 		l1++;
 	}
 	for (;;) {
@@ -1225,11 +1231,12 @@ sysctl_all(int *oid, int len)
 			if (name2[i] != oid[i])
 				return (0);
 
-		i = show_var(name2, l2);
+		i = show_var(name2, l2, honor_skip);
 		if (!i && !bflag)
 			putchar('\n');
 
-		memcpy(name1+2, name2, l2 * sizeof(int));
+		memcpy(name1 + 2, name2, l2 * sizeof(int));
 		l1 = 2 + l2;
+		honor_skip = true;
 	}
 }

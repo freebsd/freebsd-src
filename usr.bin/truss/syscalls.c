@@ -2360,6 +2360,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 					fprintf(fp, "oidlabel ");
 					print_sysctl(fp, oid + 2, len - 2);
 					break;
+				case CTL_SYSCTL_NEXTNOSKIP:
+					fprintf(fp, "nextnoskip");
+					break;
 				default:
 					print_sysctl(fp, oid + 1, len - 1);
 				}
