@@ -302,6 +302,7 @@ void	pwd_ensure_dirs(void);
 void	pwd_set_rootvnode(void);
 
 struct pwd *pwd_hold_filedesc(struct filedesc *fdp);
+bool	pwd_hold_smr(struct pwd *pwd);
 struct pwd *pwd_hold(struct thread *td);
 void	pwd_drop(struct pwd *pwd);
 static inline void

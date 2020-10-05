@@ -3344,6 +3344,17 @@ pwd_hold_filedesc(struct filedesc *fdp)
 	return (pwd);
 }
 
+bool
+pwd_hold_smr(struct pwd *pwd)
+{
+
+	MPASS(pwd != NULL);
+	if (__predict_true(refcount_acquire_if_not_zero(&pwd->pwd_refcount))) {
+		return (true);
+	}
+	return (false);
+}
+
 struct pwd *
 pwd_hold(struct thread *td)
 {
@@ -3354,8 +3365,7 @@ pwd_hold(struct thread *td)
 
 	vfs_smr_enter();
 	pwd = vfs_smr_entered_load(&fdp->fd_pwd);
-	MPASS(pwd != NULL);
-	if (__predict_true(refcount_acquire_if_not_zero(&pwd->pwd_refcount))) {
+	if (pwd_hold_smr(pwd)) {
 		vfs_smr_exit();
 		return (pwd);
 	}
