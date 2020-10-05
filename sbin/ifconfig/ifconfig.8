@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2020
+.Dd September 17, 2020
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -559,7 +559,7 @@ If the driver offers user-configurable VLAN support, enable
 reception of extended frames, tag processing in hardware,
 frame filtering in hardware, checksum offloading, or TSO on VLAN,
 respectively.
-Note that this must be issued on a physical interface associated with
+Note that this must be configured on a physical interface associated with
 .Xr vlan 4 ,
 not on a
 .Xr vlan 4
@@ -569,6 +569,21 @@ If the driver offers user-configurable VLAN support, disable
 reception of extended frames, tag processing in hardware,
 frame filtering in hardware, or TSO on VLAN,
 respectively.
+.It Cm vxlanhwcsum , vxlanhwtso
+If the driver offers user-configurable VXLAN support, enable inner checksum
+offloading (receive and transmit) or TSO on VXLAN, respectively.
+Note that this must be configured on a physical interface associated with
+.Xr vxlan 4 ,
+not on a
+.Xr vxlan 4
+interface itself.
+The physical interface is either the interface specified as the vxlandev
+or the interface hosting the vxlanlocal address.
+The driver will offload as much checksum work and TSO as it can reliably
+support, the exact level of offloading may vary between drivers.
+.It Fl vxlanhwcsum , vxlanhwtso
+If the driver offers user-configurable VXLAN support, disable checksum
+offloading (receive and transmit) or TSO on VXLAN, respectively.
 .It Cm vnet Ar jail
 Move the interface to the
 .Xr jail 8 ,
