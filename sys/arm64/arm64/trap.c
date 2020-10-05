@@ -123,30 +123,31 @@ int
 cpu_fetch_syscall_args(struct thread *td)
 {
 	struct proc *p;
-	register_t *ap;
+	register_t *ap, *dst_ap;
 	struct syscall_args *sa;
-	int nap;
 
-	nap = MAXARGS;
 	p = td->td_proc;
-	ap = td->td_frame->tf_x;
 	sa = &td->td_sa;
+	ap = td->td_frame->tf_x;
+	dst_ap = &sa->args[0];
 
 	sa->code = td->td_frame->tf_x[8];
 
-	if (sa->code == SYS_syscall || sa->code == SYS___syscall) {
+	if (__predict_false(sa->code == SYS_syscall || sa->code == SYS___syscall)) {
 		sa->code = *ap++;
-		nap--;
+	} else {
+		*dst_ap++ = *ap++;
 	}
 
-	if (sa->code >= p->p_sysent->sv_size)
+	if (__predict_false(sa->code >= p->p_sysent->sv_size))
 		sa->callp = &p->p_sysent->sv_table[0];
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
 
-	memcpy(sa->args, ap, nap * sizeof(register_t));
-	if (sa->callp->sy_narg > nap)
-		panic("ARM64TODO: Could we have more than %d args?", MAXARGS);
+	KASSERT(sa->callp->sy_narg <= nitems(sa->args),
+	    ("Syscall %d takes too many arguments", sa->code));
+
+	memcpy(dst_ap, ap, (MAXARGS - 1) * sizeof(register_t));
 
 	td->td_retval[0] = 0;
 	td->td_retval[1] = 0;
