@@ -1818,6 +1818,7 @@ dev/gpio/ofw_gpiobus.c		optional fdt gpio
 dev/hid/hid.c			optional hid
 dev/hid/hid_if.m		optional hid
 dev/hid/hidbus.c		optional hidbus
+dev/hid/hidquirk.c		optional hid
 dev/hifn/hifn7751.c		optional hifn
 dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc

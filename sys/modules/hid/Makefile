@@ -2,6 +2,7 @@
 
 SUBDIR = \
 	hid \
-	hidbus
+	hidbus \
+	hidquirk
 
 .include <bsd.subdir.mk>
