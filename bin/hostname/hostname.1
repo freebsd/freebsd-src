@@ -29,7 +29,7 @@
 .\"	@(#)hostname.1	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2016
+.Dd October 5, 2020
 .Dt HOSTNAME 1
 .Os
 .Sh NAME
@@ -66,6 +66,25 @@ name.
 .It Fl d
 Only print domain information.
 .El
+.Sh EXAMPLES
+Set the host name of the machine and check the result:
+.Bd -literal -offset indent
+$ hostname beastie.localdomain.org
+$ hostname
+beastie.localdomain.org
+.Ed
+.Pp
+Do not show domain information:
+.Bd -literal -offset indent
+$ hostname -s
+beastie
+.Ed
+.Pp
+Show only domain information:
+.Bd -literal -offset indent
+$ hostname -d
+localdomain.org
+.Ed
 .Sh SEE ALSO
 .Xr gethostname 3 ,
 .Xr rc.conf 5
