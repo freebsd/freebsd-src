@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2020
+.Dd October 5, 2020
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -710,6 +710,51 @@ auxiliary vector value
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Show binary information about the current shell:
+.Bd -literal -offset indent
+$ procstat binary $$
+  PID COMM                OSREL PATH
+46620 bash              1201000 /usr/local/bin/bash
+.Ed
+.Pp
+Same as above but showing information about open file descriptors:
+.Bd -literal -offset indent
+$ procstat files $$
+  PID COMM                FD T V FLAGS    REF  OFFSET PRO NAME
+46620 bash              text v r r-------   -       - -   /usr/local/bin/bash
+46620 bash              ctty v c rw------   -       - -   /dev/pts/12
+46620 bash               cwd v d r-------   -       - -   /tmp
+46620 bash              root v d r-------   -       - -   /
+46620 bash                 0 v c rw------   7  372071 -   /dev/pts/12
+46620 bash                 1 v c rw------   7  372071 -   /dev/pts/12
+46620 bash                 2 v c rw------   7  372071 -   /dev/pts/12
+46620 bash               255 v c rw------   7  372071 -   /dev/pts/12
+.Ed
+.Pp
+Show the arguments used to launch
+.Xr init 8 :
+.Bd -literal -offset indent
+$ procstat arguments 1
+  PID COMM             ARGS
+    1 init             /sbin/init --
+.Ed
+.Pp
+Extract binary information from a core dump:
+.Bd -literal -offset indent
+$ procstat binary core.36642
+  PID COMM                OSREL PATH
+36642 top               1201000 /usr/bin/top
+.Ed
+.Pp
+Trying to extract information from a core file generated in a different major
+.Fx
+version might show an error like this:
+.Bd -literal -offset indent
+$ procstat mplayer.core
+procstat: kinfo_proc structure size mismatch
+procstat: procstat_getprocs()
+.Ed
 .Sh SEE ALSO
 .Xr fstat 1 ,
 .Xr ps 1 ,
