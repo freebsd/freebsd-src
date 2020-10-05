@@ -498,7 +498,7 @@ ufs_stat(struct vop_stat_args *ap)
 	}
 	VI_UNLOCK(vp);
 
-	sb->st_dev = vp->v_mount->mnt_stat.f_fsid.val[0];
+	sb->st_dev = dev2udev(ITOUMP(ip)->um_dev);
 	sb->st_ino = ip->i_number;
 	sb->st_mode = (ip->i_mode & ~IFMT) | VTTOIF(vp->v_type);
 	sb->st_nlink = ip->i_effnlink;
