@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2020
+.Dd October 5, 2020
 .Dt PWAIT 1
 .Os
 .Sh NAME
@@ -73,7 +73,9 @@ minutes
 hours
 .El
 .It Fl v
-Print the exit status when each process terminates.
+Print the exit status when each process terminates or
+.Ql timeout
+if the timer goes off earlier.
 .El
 .Sh EXIT STATUS
 The
@@ -85,6 +87,52 @@ If the
 flag is specified and a timeout occurs, the exit status will be 124.
 .Pp
 Invalid pids elicit a warning message but are otherwise ignored.
+.Sh EXAMPLES
+Start two
+.Xr sleep 1
+processes in the background.
+The first one will sleep for 30 seconds and the second one for one hour.
+Wait for any of them to finish but no more than 5 seconds.
+Since a timeout occurs the exit status is 124:
+.Bd -literal -offset indent
+$ sleep 30 & sleep 3600 &
+[1] 1646
+[2] 1647
+$ pwait -o -t5 1646 1647
+$?
+124
+.Ed
+.Pp
+Same as above but try to obtain the exit status of the processes.
+In this case
+.Ql timeout
+is shown and the exit status is 124:
+.Bd -literal -offset indent
+$ sleep 30 & sleep 3600 &
+[1] 1652
+[2] 1653
+$ pwait -v -t 5 1652 1653
+timeout
+$?
+124
+.Ed
+.Pp
+Start two
+.Xr sleep 1
+processes in the background sleeping for 30 and 40 seconds respectively.
+Wait 60 seconds for any of them to finish and get their exit codes:
+.Bd -literal -offset indent
+$ sleep 30 & sleep 40 &
+[1] 1674
+[2] 1675
+$ pwait -v -t 60 1674 1675
+1674: exited with status 0.
+1675: exited with status 0.
+[1]-  Done                    sleep 30
+[2]+  Done                    sleep 40
+$ echo $?
+0
+.Ed
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr pkill 1 ,
