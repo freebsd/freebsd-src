@@ -536,8 +536,11 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	MPASS(vi->nnmtxq > 0);
 
 	if ((vi->flags & VI_INIT_DONE) == 0 ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		if_printf(ifp, "cannot enable netmap operation because "
+		    "interface is not UP.\n");
 		return (EAGAIN);
+	}
 
 	rxb = &sc->sge.rx_buf_info[0];
 	for (i = 0; i < SW_ZONE_SIZES; i++, rxb++) {
