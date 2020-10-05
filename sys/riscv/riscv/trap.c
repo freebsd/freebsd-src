@@ -163,7 +163,9 @@ svc_handler(struct trapframe *frame)
 	struct thread *td;
 
 	td = curthread;
-	td->td_frame = frame;
+
+	KASSERT(td->td_frame == frame,
+	    ("%s: td_frame %p != frame %p", __func__, td->td_frame, frame));
 
 	syscallenter(td);
 	syscallret(td);
