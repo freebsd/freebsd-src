@@ -3484,25 +3484,24 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
+	pwd = fpl->pwd;
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 
-	dvs = vget_prep_smr(dvp);
-	if (__predict_false(dvs == VGET_NONE)) {
+	if (!pwd_hold_smr(pwd)) {
 		cache_fpl_smr_exit(fpl);
 		return (cache_fpl_aborted(fpl));
 	}
 
+	dvs = vget_prep_smr(dvp);
 	cache_fpl_smr_exit(fpl);
-
-	vget_finish_ref(dvp, dvs);
-	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
-		vrele(dvp);
+	if (__predict_false(dvs == VGET_NONE)) {
+		pwd_drop(pwd);
 		return (cache_fpl_aborted(fpl));
 	}
 
-	pwd = pwd_hold(curthread);
-	if (fpl->pwd != pwd) {
+	vget_finish_ref(dvp, dvs);
+	if (!vn_seqc_consistent(dvp, dvp_seqc)) {
 		vrele(dvp);
 		pwd_drop(pwd);
 		return (cache_fpl_aborted(fpl));
