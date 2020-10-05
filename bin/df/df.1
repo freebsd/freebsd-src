@@ -29,7 +29,7 @@
 .\"     @(#)df.1	8.3 (Berkeley) 5/8/95
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2017
+.Dd October 5, 2020
 .Dt DF 1
 .Os
 .Sh NAME
@@ -98,12 +98,9 @@ Use unit suffixes: Byte, Kibibyte, Mebibyte, Gibibyte, Tebibyte and
 Pebibyte (based on powers of 1024) in order to reduce the number of
 digits to four or fewer.
 .It Fl H , Fl Fl si
-.Dq Human-readable
-output.
-Use unit suffixes: Byte, Kilobyte, Megabyte,
-Gigabyte, Terabyte and Petabyte (based on powers of 1000) in order to
-reduce the number of
-digits to four or fewer.
+Same as
+.Fl h
+but based on powers of 1000.
 .It Fl i
 Include statistics on the number of free and used inodes.
 In conjunction with the
@@ -159,10 +156,7 @@ command:
 df -t nonfs,nullfs
 .Ed
 .Pp
-lists all file systems except those of type
-.Tn NFS
-and
-.Tn NULLFS .
+lists all file systems except those of type NFS and NULLFS.
 The
 .Xr lsvfs 1
 command can be used to find out the types of file systems
@@ -193,6 +187,52 @@ which allows units of bytes or numbers scaled with the letters
 The allowed range is 512 bytes to 1 GB.
 If the value is outside, it will be set to the appropriate limit.
 .El
+.Sh EXAMPLES
+Show human readable free disk space for all mount points including file system
+type:
+.Bd -literal -offset indent
+$ df -ahT
+Filesystem   Type        Size    Used   Avail Capacity  Mounted on
+/dev/ada1p2  ufs         213G    152G     44G    78%    /
+devfs        devfs       1.0K    1.0K      0B   100%    /dev
+/dev/ada0p1  ufs         1.8T    168G    1.5T    10%    /data
+linsysfs     linsysfs    4.0K    4.0K      0B   100%    /compat/linux/sys
+/dev/da0     msdosfs     7.6G    424M    7.2G     5%    /mnt/usb
+.Ed
+.Pp
+Show previously collected data including inode statistics except for devfs or
+linsysfs file systems.
+Note that the
+.Dq no
+prefix affects all the file systems in the list and the
+.Fl t
+option can be specified only once:
+.Bd -literal -offset indent
+$ df -i -n -t nodevfs,linsysfs
+Filesystem   1K-blocks      Used      Avail Capacity iused     ifree %iused
+Mounted on
+/dev/ada1p2  223235736 159618992   45757888    78% 1657590  27234568    6%   /
+/dev/ada0p1 1892163184 176319420 1564470712    10% 1319710 243300576    1%
+/data
+/dev/da0       7989888    433664    7556224     5%       0         0  100%
+/mnt/usb
+.Ed
+.Pp
+Show human readable information for the file system containing the file
+.Pa /etc/rc.conf
+:
+.Bd -literal -offset indent
+$ df -h /etc/rc.conf
+Filesystem     Size    Used   Avail Capacity  Mounted on
+/dev/ada1p2    213G    152G     44G    78%    /
+.Ed
+.Pp
+Same as above but specifying some file system:
+.Bd -literal -offset indent
+$ df -h /dev/ada1p2
+Filesystem     Size    Used   Avail Capacity  Mounted on
+/dev/ada1p2    213G    152G     44G    78%    /
+.Ed
 .Sh SEE ALSO
 .Xr lsvfs 1 ,
 .Xr quota 1 ,
