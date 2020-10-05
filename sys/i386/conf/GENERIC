@@ -350,4 +350,5 @@ device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
 
 # HID support
+options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support

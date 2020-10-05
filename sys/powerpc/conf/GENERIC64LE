@@ -252,4 +252,5 @@ device          virtio_scsi             # VirtIO SCSI device
 device          virtio_balloon          # VirtIO Memory Balloon device
 
 # HID support
+options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
