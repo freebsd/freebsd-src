@@ -1013,3 +1013,6 @@ AMDSBWD_DEBUG	opt_amdsbwd.h
 # gcov support
 GCOV		opt_global.h
 LINDEBUGFS
+
+# options for HID support
+HID_DEBUG	opt_hid.h

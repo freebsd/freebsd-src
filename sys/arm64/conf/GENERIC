@@ -382,4 +382,5 @@ device		acpi
 makeoptions	MODULES_EXTRA="dtb/allwinner dtb/freescale dtb/imx8 dtb/nvidia dtb/mv dtb/rockchip dtb/rpi"
 
 # HID support
+options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support

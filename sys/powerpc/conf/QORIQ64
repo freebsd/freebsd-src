@@ -122,4 +122,5 @@ device  	ukbd
 device  	ums
 
 # HID support
+options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support

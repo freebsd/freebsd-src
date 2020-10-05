@@ -110,6 +110,7 @@ device		umass		# Disks/Mass storage - Requires scbus and da
 device		ums		# Mouse
 
 # HID support
+options 	HID_DEBUG	# enable debug msgs
 device		hid		# Generic HID support
 
 # FDT support

@@ -4,6 +4,6 @@
 
 KMOD=	hid
 SRCS=	hid.c
-SRCS+=	opt_usb.h
+SRCS+=	opt_hid.h
 
 .include <bsd.kmod.mk>

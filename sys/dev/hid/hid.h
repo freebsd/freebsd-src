@@ -67,6 +67,7 @@
 #define	HUG_GAME_PAD		0x0005
 #define	HUG_KEYBOARD		0x0006
 #define	HUG_KEYPAD		0x0007
+#define	HUG_MULTIAXIS_CNTROLLER	0x0008
 #define	HUG_X			0x0030
 #define	HUG_Y			0x0031
 #define	HUG_Z			0x0032
@@ -102,6 +103,12 @@
 #define	HUG_SYSTEM_MENU_LEFT	0x008b
 #define	HUG_SYSTEM_MENU_UP	0x008c
 #define	HUG_SYSTEM_MENU_DOWN	0x008d
+#define	HUG_SYSTEM_POWER_UP	0x008e
+#define	HUG_SYSTEM_RESTART	0x008f
+#define	HUG_D_PAD_UP		0x0090
+#define	HUG_D_PAD_DOWN		0x0091
+#define	HUG_D_PAD_RIGHT		0x0092
+#define	HUG_D_PAD_LEFT		0x0093
 #define	HUG_APPLE_EJECT		0x00b8
 
 /* Usages Digitizers */
@@ -147,16 +154,21 @@
 #define	HUD_SURFACE_SWITCH	0x0057
 #define	HUD_BUTTONS_SWITCH	0x0058
 #define	HUD_BUTTON_TYPE		0x0059
+#define	HUD_SEC_BARREL_SWITCH	0x005a
 #define	HUD_LATENCY_MODE	0x0060
 
 /* Usages, Consumer */
+#define	HUC_CONTROL		0x0001
+#define	HUC_HEADPHONE		0x0005
 #define	HUC_AC_PAN		0x0238
 
-#define	HID_USAGE2(p,u) (((p) << 16) | (u))
+#define	HID_USAGE2(p,u)		(((p) << 16) | (u))
+#define	HID_GET_USAGE(u)	((u) & 0xffff)
+#define	HID_GET_USAGE_PAGE(u)	(((u) >> 16) & 0xffff)
 
-#define	UHID_INPUT_REPORT 0x01
-#define	UHID_OUTPUT_REPORT 0x02
-#define	UHID_FEATURE_REPORT 0x03
+#define	HID_INPUT_REPORT	0x01
+#define	HID_OUTPUT_REPORT	0x02
+#define	HID_FEATURE_REPORT	0x03
 
 /* Bits in the input/output/feature items */
 #define	HIO_CONST	0x001
@@ -178,6 +190,36 @@
 #if defined(_KERNEL) || defined(_STANDALONE)
 
 #define	HID_ITEM_MAXUSAGE	4
+#define	HID_MAX_AUTO_QUIRK	8	/* maximum number of dynamic quirks */
+#define	HID_PNP_ID_SIZE		20	/* includes null terminator */
+
+/* Declare global HID debug variable. */
+extern int hid_debug;
+
+/* Check if HID debugging is enabled. */
+#ifdef HID_DEBUG_VAR
+#ifdef HID_DEBUG
+#define DPRINTFN(n,fmt,...) do {			\
+	if ((HID_DEBUG_VAR) >= (n)) {			\
+		printf("%s: " fmt,			\
+		    __FUNCTION__ ,##__VA_ARGS__);	\
+	}						\
+} while (0)
+#define DPRINTF(...)	DPRINTFN(1, __VA_ARGS__)
+#else
+#define DPRINTF(...)	do { } while (0)
+#define DPRINTFN(...)	do { } while (0)
+#endif
+#endif
+
+/* Declare parent SYSCTL HID node. */
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_hw_hid);
+#endif
+
+typedef uint32_t hid_size_t;
+
+#define	HID_IN_POLLING_MODE()	(SCHEDULER_STOPPED() || kdb_active)
 
 enum hid_kind {
 	hid_input, hid_output, hid_feature, hid_collection, hid_endcollection
@@ -223,25 +265,71 @@ struct hid_item {
 	struct hid_location loc;
 };
 
+struct hid_absinfo {
+	int32_t min;
+	int32_t max;
+	int32_t res;
+};
+
+struct hid_device_info {
+	char		name[80];
+	char		serial[80];
+	char		idPnP[HID_PNP_ID_SIZE];
+	uint16_t	idBus;
+	uint16_t	idVendor;
+	uint16_t	idProduct;
+	uint16_t	idVersion;
+	hid_size_t	rdescsize;	/* Report descriptor size */
+	uint8_t		autoQuirk[HID_MAX_AUTO_QUIRK];
+};
+
+struct hid_rdesc_info {
+	void		*data;
+	hid_size_t	len;
+	hid_size_t	isize;
+	hid_size_t	osize;
+	hid_size_t	fsize;
+	uint8_t		iid;
+	uint8_t		oid;
+	uint8_t		fid;
+	/* Max sizes for HID requests supported by transport backend */
+	hid_size_t	rdsize;
+	hid_size_t	wrsize;
+	hid_size_t	grsize;
+	hid_size_t	srsize;
+};
+
+typedef void hid_intr_t(void *context, void *data, hid_size_t len);
+typedef bool hid_test_quirk_t(const struct hid_device_info *dev_info,
+    uint16_t quirk);
+
+extern hid_test_quirk_t *hid_test_quirk_p;
+
 /* prototypes from "usb_hid.c" */
 
-struct hid_data *hid_start_parse(const void *d, usb_size_t len, int kindset);
+struct hid_data *hid_start_parse(const void *d, hid_size_t len, int kindset);
 void	hid_end_parse(struct hid_data *s);
 int	hid_get_item(struct hid_data *s, struct hid_item *h);
-int	hid_report_size(const void *buf, usb_size_t len, enum hid_kind k,
+int	hid_report_size(const void *buf, hid_size_t len, enum hid_kind k,
+	    uint8_t id);
+int	hid_report_size_max(const void *buf, hid_size_t len, enum hid_kind k,
 	    uint8_t *id);
-int	hid_locate(const void *desc, usb_size_t size, int32_t usage,
+int	hid_locate(const void *desc, hid_size_t size, int32_t usage,
 	    enum hid_kind kind, uint8_t index, struct hid_location *loc,
 	    uint32_t *flags, uint8_t *id);
-int32_t hid_get_data(const uint8_t *buf, usb_size_t len,
+int32_t hid_get_data(const uint8_t *buf, hid_size_t len,
 	    struct hid_location *loc);
-uint32_t hid_get_data_unsigned(const uint8_t *buf, usb_size_t len,
+uint32_t hid_get_udata(const uint8_t *buf, hid_size_t len,
 	    struct hid_location *loc);
-void hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
+void	hid_put_udata(uint8_t *buf, hid_size_t len,
 	    struct hid_location *loc, unsigned int value);
-int	hid_is_collection(const void *desc, usb_size_t size, int32_t usage);
+int	hid_is_collection(const void *desc, hid_size_t size, int32_t usage);
 int32_t	hid_item_resolution(struct hid_item *hi);
 int	hid_is_mouse(const void *d_ptr, uint16_t d_len);
 int	hid_is_keyboard(const void *d_ptr, uint16_t d_len);
+bool	hid_test_quirk(const struct hid_device_info *dev_info, uint16_t quirk);
+int	hid_add_dynamic_quirk(struct hid_device_info *dev_info,
+	    uint16_t quirk);
+void	hid_quirk_unload(void *arg);
 #endif	/* _KERNEL || _STANDALONE */
 #endif	/* _HID_HID_H_ */

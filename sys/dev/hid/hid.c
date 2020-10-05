@@ -32,44 +32,35 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef USB_GLOBAL_INCLUDE_FILE
-#include USB_GLOBAL_INCLUDE_FILE
-#else
-#include <sys/stdint.h>
-#include <sys/stddef.h>
+#include "opt_hid.h"
+
 #include <sys/param.h>
-#include <sys/queue.h>
-#include <sys/types.h>
-#include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/condvar.h>
-#include <sys/sysctl.h>
-#include <sys/sx.h>
-#include <sys/unistd.h>
-#include <sys/callout.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/priv.h>
+#include <sys/module.h>
+#include <sys/sysctl.h>
 
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbhid.h>
+#define	HID_DEBUG_VAR	hid_debug
+#include <dev/hid/hid.h>
+#include <dev/hid/hidquirk.h>
 
-#define	USB_DEBUG_VAR usb_debug
+/*
+ * Define this unconditionally in case a kernel module is loaded that
+ * has been compiled with debugging options.
+ */
+int	hid_debug = 0;
 
-#include <dev/usb/usb_core.h>
-#include <dev/usb/usb_debug.h>
-#include <dev/usb/usb_process.h>
-#include <dev/usb/usb_device.h>
-#include <dev/usb/usb_request.h>
-#endif			/* USB_GLOBAL_INCLUDE_FILE */
+SYSCTL_NODE(_hw, OID_AUTO, hid, CTLFLAG_RW, 0, "HID debugging");
+SYSCTL_INT(_hw_hid, OID_AUTO, debug, CTLFLAG_RWTUN,
+    &hid_debug, 0, "Debug level");
 
 static void hid_clear_local(struct hid_item *);
 static uint8_t hid_get_byte(struct hid_data *s, const uint16_t wSize);
+
+static hid_test_quirk_t hid_test_quirk_w;
+hid_test_quirk_t *hid_test_quirk_p = &hid_test_quirk_w;
 
 #define	MAXUSAGE 64
 #define	MAXPUSH 4
@@ -180,7 +171,7 @@ hid_switch_rid(struct hid_data *s, struct hid_item *c, int32_t next_rID)
  *	hid_start_parse
  *------------------------------------------------------------------------*/
 struct hid_data *
-hid_start_parse(const void *d, usb_size_t len, int kindset)
+hid_start_parse(const void *d, hid_size_t len, int kindset)
 {
 	struct hid_data *s;
 
@@ -574,7 +565,47 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
  *	hid_report_size
  *------------------------------------------------------------------------*/
 int
-hid_report_size(const void *buf, usb_size_t len, enum hid_kind k, uint8_t *id)
+hid_report_size(const void *buf, hid_size_t len, enum hid_kind k, uint8_t id)
+{
+	struct hid_data *d;
+	struct hid_item h;
+	uint32_t temp;
+	uint32_t hpos;
+	uint32_t lpos;
+	int report_id = 0;
+
+	hpos = 0;
+	lpos = 0xFFFFFFFF;
+
+	for (d = hid_start_parse(buf, len, 1 << k); hid_get_item(d, &h);) {
+		if (h.kind == k && h.report_ID == id) {
+			/* compute minimum */
+			if (lpos > h.loc.pos)
+				lpos = h.loc.pos;
+			/* compute end position */
+			temp = h.loc.pos + (h.loc.size * h.loc.count);
+			/* compute maximum */
+			if (hpos < temp)
+				hpos = temp;
+			if (h.report_ID != 0)
+				report_id = 1;
+		}
+	}
+	hid_end_parse(d);
+
+	/* safety check - can happen in case of currupt descriptors */
+	if (lpos > hpos)
+		temp = 0;
+	else
+		temp = hpos - lpos;
+
+	/* return length in bytes rounded up */
+	return ((temp + 7) / 8 + report_id);
+}
+
+int
+hid_report_size_max(const void *buf, hid_size_t len, enum hid_kind k,
+    uint8_t *id)
 {
 	struct hid_data *d;
 	struct hid_item h;
@@ -627,7 +658,7 @@ hid_report_size(const void *buf, usb_size_t len, enum hid_kind k, uint8_t *id)
  *	hid_locate
  *------------------------------------------------------------------------*/
 int
-hid_locate(const void *desc, usb_size_t size, int32_t u, enum hid_kind k,
+hid_locate(const void *desc, hid_size_t size, int32_t u, enum hid_kind k,
     uint8_t index, struct hid_location *loc, uint32_t *flags, uint8_t *id)
 {
 	struct hid_data *d;
@@ -664,7 +695,7 @@ hid_locate(const void *desc, usb_size_t size, int32_t u, enum hid_kind k,
  *	hid_get_data
  *------------------------------------------------------------------------*/
 static uint32_t
-hid_get_data_sub(const uint8_t *buf, usb_size_t len, struct hid_location *loc,
+hid_get_data_sub(const uint8_t *buf, hid_size_t len, struct hid_location *loc,
     int is_signed)
 {
 	uint32_t hpos = loc->pos;
@@ -708,13 +739,13 @@ hid_get_data_sub(const uint8_t *buf, usb_size_t len, struct hid_location *loc,
 }
 
 int32_t
-hid_get_data(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
+hid_get_data(const uint8_t *buf, hid_size_t len, struct hid_location *loc)
 {
 	return (hid_get_data_sub(buf, len, loc, 1));
 }
 
 uint32_t
-hid_get_data_unsigned(const uint8_t *buf, usb_size_t len, struct hid_location *loc)
+hid_get_udata(const uint8_t *buf, hid_size_t len, struct hid_location *loc)
 {
         return (hid_get_data_sub(buf, len, loc, 0));
 }
@@ -723,7 +754,7 @@ hid_get_data_unsigned(const uint8_t *buf, usb_size_t len, struct hid_location *l
  *	hid_put_data
  *------------------------------------------------------------------------*/
 void
-hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
+hid_put_udata(uint8_t *buf, hid_size_t len,
     struct hid_location *loc, unsigned int value)
 {
 	uint32_t hpos = loc->pos;
@@ -760,7 +791,7 @@ hid_put_data_unsigned(uint8_t *buf, usb_size_t len,
  *	hid_is_collection
  *------------------------------------------------------------------------*/
 int
-hid_is_collection(const void *desc, usb_size_t size, int32_t usage)
+hid_is_collection(const void *desc, hid_size_t size, int32_t usage)
 {
 	struct hid_data *hd;
 	struct hid_item hi;
@@ -927,6 +958,71 @@ hid_is_keyboard(const void *d_ptr, uint16_t d_len)
 	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_KEYBOARD)))
 		return (1);
 	return (0);
+}
+
+/*------------------------------------------------------------------------*
+ *	hid_test_quirk - test a device for a given quirk
+ *
+ * Return values:
+ * false: The HID device does not have the given quirk.
+ * true: The HID device has the given quirk.
+ *------------------------------------------------------------------------*/
+bool
+hid_test_quirk(const struct hid_device_info *dev_info, uint16_t quirk)
+{
+	bool found;
+	uint8_t x;
+
+	if (quirk == HQ_NONE)
+		return (false);
+
+	/* search the automatic per device quirks first */
+	for (x = 0; x != HID_MAX_AUTO_QUIRK; x++) {
+		if (dev_info->autoQuirk[x] == quirk)
+			return (true);
+	}
+
+	/* search global quirk table, if any */
+	found = (hid_test_quirk_p) (dev_info, quirk);
+
+	return (found);
+}
+
+static bool
+hid_test_quirk_w(const struct hid_device_info *dev_info, uint16_t quirk)
+{
+	return (false);			/* no match */
+}
+
+int
+hid_add_dynamic_quirk(struct hid_device_info *dev_info, uint16_t quirk)
+{
+	uint8_t x;
+
+	for (x = 0; x != HID_MAX_AUTO_QUIRK; x++) {
+		if (dev_info->autoQuirk[x] == 0 ||
+		    dev_info->autoQuirk[x] == quirk) {
+			dev_info->autoQuirk[x] = quirk;
+			return (0);     /* success */
+		}
+	}
+	return (ENOSPC);
+}
+
+void
+hid_quirk_unload(void *arg)
+{
+	/* reset function pointer */
+	hid_test_quirk_p = &hid_test_quirk_w;
+#ifdef NOT_YET
+	hidquirk_ioctl_p = &hidquirk_ioctl_w;
+#endif
+
+	/* wait for CPU to exit the loaded functions, if any */
+
+	/* XXX this is a tradeoff */
+
+	pause("WAIT", hz);
 }
 
 MODULE_VERSION(hid, 1);
