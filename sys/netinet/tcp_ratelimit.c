@@ -1137,7 +1137,7 @@ tcp_rl_ifnet_link(void *arg __unused, struct ifnet *ifp, int link_state)
 	int error;
 	struct tcp_rate_set *rs;
 
-	if (((ifp->if_capabilities & IFCAP_TXRTLMT) == 0) ||
+	if (((ifp->if_capenable & IFCAP_TXRTLMT) == 0) ||
 	    (link_state != LINK_STATE_UP)) {
 		/*
 		 * We only care on an interface going up that is rate-limit
@@ -1224,7 +1224,7 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 		/*
 		 * We are setting up a rate for the first time.
 		 */
-		if ((ifp->if_capabilities & IFCAP_TXRTLMT) == 0) {
+		if ((ifp->if_capenable & IFCAP_TXRTLMT) == 0) {
 			/* Not supported by the egress */
 			if (error)
 				*error = ENODEV;
