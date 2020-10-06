@@ -85,6 +85,8 @@ class UnixTest(GenericTest):
 
 class LogChecker():
     def __init__(self):
+        # Clear the dmesg buffer to prevent rotating causes issues
+        os.system('/sbin/dmesg -c > /dev/null')
         # Figure out how big the dmesg buffer is.
         self.dmesgOff = len(check_output("/sbin/dmesg"))
 
