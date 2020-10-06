@@ -194,17 +194,6 @@ SYSCTL_BOOL(_machdep, OID_AUTO, mwait_cpustop_broken, CTLFLAG_RDTUN,
     "Can not reliably wake MONITOR/MWAIT cpus without interrupts");
 
 /*
- * Machine dependent boot() routine
- *
- * I haven't seen anything to put here yet
- * Possibly some stuff might be grafted back here from boot()
- */
-void
-cpu_boot(int howto)
-{
-}
-
-/*
  * Flush the D-cache for non-DMA I/O so that the I-cache can
  * be made coherent later.
  */
