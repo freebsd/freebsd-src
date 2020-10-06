@@ -4058,6 +4058,7 @@ libkern/qsort_r.c		standard
 libkern/random.c		standard
 libkern/scanc.c			standard
 libkern/strcasecmp.c		standard
+libkern/strcasestr.c		standard
 libkern/strcat.c		standard
 libkern/strchr.c		standard
 libkern/strchrnul.c		optional gdb

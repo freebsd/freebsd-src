@@ -168,6 +168,7 @@ void	 qsort_r(void *base, size_t nmemb, size_t size, void *thunk,
 u_long	 random(void);
 int	 scanc(u_int, const u_char *, const u_char *, int);
 int	 strcasecmp(const char *, const char *);
+char	*strcasestr(const char *, const char *);
 char	*strcat(char * __restrict, const char * __restrict);
 char	*strchr(const char *, int);
 char	*strchrnul(const char *, int);

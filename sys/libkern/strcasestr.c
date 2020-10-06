@@ -40,35 +40,29 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
-#include <string.h>
-#include "xlocale_private.h"
+#include <sys/param.h>
+#include <sys/ctype.h>
+#include <sys/libkern.h>
 
 /*
  * Find the first occurrence of find in s, ignore case.
  */
 char *
-strcasestr_l(const char *s, const char *find, locale_t locale)
+strcasestr(const char *s, const char *find)
 {
 	char c, sc;
 	size_t len;
-	FIX_LOCALE(locale);
 
 	if ((c = *find++) != 0) {
-		c = tolower_l((unsigned char)c, locale);
+		c = tolower((unsigned char)c);
 		len = strlen(find);
 		do {
 			do {
 				if ((sc = *s++) == 0)
 					return (NULL);
-			} while ((char)tolower_l((unsigned char)sc, locale) != c);
-		} while (strncasecmp_l(s, find, len, locale) != 0);
+			} while ((char)tolower((unsigned char)sc) != c);
+		} while (strncasecmp(s, find, len) != 0);
 		s--;
 	}
-	return ((char *)s);
-}
-char *
-strcasestr(const char *s, const char *find)
-{
-	return strcasestr_l(s, find, __get_locale());
+	return (__DECONST(char *, s));
 }
