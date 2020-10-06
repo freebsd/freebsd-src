@@ -145,7 +145,8 @@ main(int argc, char *argv[])
 
 		if (argc == 1) {
 			/* ignore a trailing % for user friendlyness */
-			if (argv[0][strlen(argv[0]) - 1] == '%')
+			if (strlen(argv[0]) > 0 &&
+			    argv[0][strlen(argv[0]) - 1] == '%')
 				argv[0][strlen(argv[0]) - 1] = '\0';
 			percent = strtonum(argv[0], 0, 100, &percent_error);
 			if (percent_error)
