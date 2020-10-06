@@ -292,7 +292,7 @@ struct nm_desc {
  * when the descriptor is open correctly, d->self == d
  * Eventually we should also use some magic number.
  */
-#define P2NMD(p)		((struct nm_desc *)(p))
+#define P2NMD(p)		((const struct nm_desc *)(p))
 #define IS_NETMAP_DESC(d)	((d) && P2NMD(d)->self == P2NMD(d))
 #define NETMAP_FD(d)		(P2NMD(d)->fd)
 
@@ -623,7 +623,7 @@ nm_parse(const char *ifname, struct nm_desc *d, char *err)
 	const char *vpname = NULL;
 	u_int namelen;
 	uint32_t nr_ringid = 0, nr_flags;
-	char errmsg[MAXERRMSG] = "";
+	char errmsg[MAXERRMSG] = "", *tmp;
 	long num;
 	uint16_t nr_arg2 = 0;
 	enum { P_START, P_RNGSFXOK, P_GETNUM, P_FLAGS, P_FLAGSOK, P_MEMID } p_state;
@@ -720,12 +720,13 @@ nm_parse(const char *ifname, struct nm_desc *d, char *err)
 			port++;
 			break;
 		case P_GETNUM:
-			num = strtol(port, (char **)&port, 10);
+			num = strtol(port, &tmp, 10);
 			if (num < 0 || num >= NETMAP_RING_MASK) {
 				snprintf(errmsg, MAXERRMSG, "'%ld' out of range [0, %d)",
 						num, NETMAP_RING_MASK);
 				goto fail;
 			}
+			port = tmp;
 			nr_ringid = num & NETMAP_RING_MASK;
 			p_state = P_RNGSFXOK;
 			break;
@@ -767,11 +768,12 @@ nm_parse(const char *ifname, struct nm_desc *d, char *err)
 				snprintf(errmsg, MAXERRMSG, "double setting of memid");
 				goto fail;
 			}
-			num = strtol(port, (char **)&port, 10);
+			num = strtol(port, &tmp, 10);
 			if (num <= 0) {
 				snprintf(errmsg, MAXERRMSG, "invalid memid %ld, must be >0", num);
 				goto fail;
 			}
+			port = tmp;
 			nr_arg2 = num;
 			p_state = P_RNGSFXOK;
 			break;
@@ -1054,7 +1056,7 @@ nm_inject(struct nm_desc *d, const void *buf, size_t size)
 			ring->slot[i].flags = NS_MOREFRAG;
 			nm_pkt_copy(buf, NETMAP_BUF(ring, idx), ring->nr_buf_size);
 			i = nm_ring_next(ring, i);
-			buf = (char *)buf + ring->nr_buf_size;
+			buf = (const char *)buf + ring->nr_buf_size;
 		}
 		idx = ring->slot[i].buf_idx;
 		ring->slot[i].len = rem;
