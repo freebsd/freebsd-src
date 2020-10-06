@@ -220,8 +220,7 @@ page_fault_handler(struct trapframe *frame, int usermode)
 
 	va = trunc_page(stval);
 
-	if ((frame->tf_scause == EXCP_FAULT_STORE) ||
-	    (frame->tf_scause == EXCP_STORE_PAGE_FAULT)) {
+	if (frame->tf_scause == EXCP_STORE_PAGE_FAULT) {
 		ftype = VM_PROT_WRITE;
 	} else if (frame->tf_scause == EXCP_INST_PAGE_FAULT) {
 		ftype = VM_PROT_EXECUTE;
