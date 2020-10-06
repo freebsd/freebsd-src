@@ -1686,7 +1686,7 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 		return (error);
 	}
 
-	m_snd_tag_init(&lst->com, ifp);
+	m_snd_tag_init(&lst->com, ifp, lst->tag->type);
 
 	*ppmt = &lst->com;
 	return (0);

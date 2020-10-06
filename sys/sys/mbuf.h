@@ -141,6 +141,7 @@ struct m_tag {
 struct m_snd_tag {
 	struct ifnet *ifp;		/* network interface tag belongs to */
 	volatile u_int refcount;
+	u_int	type;			/* One of IF_SND_TAG_TYPE_*. */
 };
 
 /*
@@ -833,7 +834,7 @@ int		 m_sanity(struct mbuf *, int);
 struct mbuf	*m_split(struct mbuf *, int, int);
 struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
 struct mbuf	*m_unshare(struct mbuf *, int);
-void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *);
+void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *, u_int);
 void		 m_snd_tag_destroy(struct m_snd_tag *);
 
 static __inline int

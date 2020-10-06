@@ -1128,9 +1128,9 @@ mlx5e_rl_snd_tag_alloc(struct ifnet *ifp,
 	}
 
 	/* store pointer to mbuf tag */
-	MPASS(channel->tag.m_snd_tag.refcount == 0);
-	m_snd_tag_init(&channel->tag.m_snd_tag, ifp);
-	*ppmt = &channel->tag.m_snd_tag;
+	MPASS(channel->tag.refcount == 0);
+	m_snd_tag_init(&channel->tag, ifp, IF_SND_TAG_TYPE_RATE_LIMIT);
+	*ppmt = &channel->tag;
 done:
 	return (error);
 }
@@ -1140,7 +1140,7 @@ int
 mlx5e_rl_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
 {
 	struct mlx5e_rl_channel *channel =
-	    container_of(pmt, struct mlx5e_rl_channel, tag.m_snd_tag);
+	    container_of(pmt, struct mlx5e_rl_channel, tag);
 
 	return (mlx5e_rl_modify(channel->worker, channel, params->rate_limit.max_rate));
 }
@@ -1149,7 +1149,7 @@ int
 mlx5e_rl_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
 {
 	struct mlx5e_rl_channel *channel =
-	    container_of(pmt, struct mlx5e_rl_channel, tag.m_snd_tag);
+	    container_of(pmt, struct mlx5e_rl_channel, tag);
 
 	return (mlx5e_rl_query(channel->worker, channel, params));
 }
@@ -1158,7 +1158,7 @@ void
 mlx5e_rl_snd_tag_free(struct m_snd_tag *pmt)
 {
 	struct mlx5e_rl_channel *channel =
-	    container_of(pmt, struct mlx5e_rl_channel, tag.m_snd_tag);
+	    container_of(pmt, struct mlx5e_rl_channel, tag);
 
 	mlx5e_rl_free(channel->worker, channel);
 }

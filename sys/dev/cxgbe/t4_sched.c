@@ -788,7 +788,7 @@ failed:
 	mtx_init(&cst->lock, "cst_lock", NULL, MTX_DEF);
 	mbufq_init(&cst->pending_tx, INT_MAX);
 	mbufq_init(&cst->pending_fwack, INT_MAX);
-	cxgbe_snd_tag_init(&cst->com, ifp, IF_SND_TAG_TYPE_RATE_LIMIT);
+	m_snd_tag_init(&cst->com, ifp, IF_SND_TAG_TYPE_RATE_LIMIT);
 	cst->flags |= EO_FLOWC_PENDING | EO_SND_TAG_REF;
 	cst->adapter = sc;
 	cst->port_id = pi->port_id;
@@ -805,7 +805,7 @@ failed:
 	 * Queues will be selected later when the connection flowid is available.
 	 */
 
-	*pt = &cst->com.com;
+	*pt = &cst->com;
 	return (0);
 }
 

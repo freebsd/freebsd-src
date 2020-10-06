@@ -156,7 +156,7 @@ struct tls_keyctx {
 #define KEY_DELETE_TX			0x8
 
 struct tlspcb {
-	struct cxgbe_snd_tag com;
+	struct m_snd_tag com;
 	struct vi_info *vi;	/* virtual interface */
 	struct adapter *sc;
 	struct l2t_entry *l2te;	/* L2 table entry used by this connection */
@@ -205,7 +205,7 @@ static int ktls_setup_keys(struct tlspcb *tlsp,
 static inline struct tlspcb *
 mst_to_tls(struct m_snd_tag *t)
 {
-	return ((struct tlspcb *)mst_to_cst(t));
+	return (__containerof(t, struct tlspcb, com));
 }
 
 /* XXX: There are similar versions of these two in tom/t4_tls.c. */
@@ -240,7 +240,7 @@ alloc_tlspcb(struct ifnet *ifp, struct vi_info *vi, int flags)
 	if (tlsp == NULL)
 		return (NULL);
 
-	cxgbe_snd_tag_init(&tlsp->com, ifp, IF_SND_TAG_TYPE_TLS);
+	m_snd_tag_init(&tlsp->com, ifp, IF_SND_TAG_TYPE_TLS);
 	tlsp->vi = vi;
 	tlsp->sc = sc;
 	tlsp->ctrlq = &sc->sge.ctrlq[pi->port_id];
@@ -484,7 +484,7 @@ ktls_set_tcb_fields(struct tlspcb *tlsp, struct tcpcb *tp, struct sge_txq *txq)
 		    tlsp->tid);
 		return (ENOMEM);
 	}
-	m->m_pkthdr.snd_tag = m_snd_tag_ref(&tlsp->com.com);
+	m->m_pkthdr.snd_tag = m_snd_tag_ref(&tlsp->com);
 	m->m_pkthdr.csum_flags |= CSUM_SND_TAG;
 
 	/* FW_ULPTX_WR */
@@ -727,13 +727,13 @@ cxgbe_tls_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	else
 		txq->kern_tls_cbc++;
 	TXQ_UNLOCK(txq);
-	*pt = &tlsp->com.com;
+	*pt = &tlsp->com;
 	return (0);
 
 failed:
 	if (atid >= 0)
 		free_atid(sc, atid);
-	m_snd_tag_rele(&tlsp->com.com);
+	m_snd_tag_rele(&tlsp->com);
 	return (error);
 }
 
@@ -836,7 +836,7 @@ ktls_setup_keys(struct tlspcb *tlsp, const struct ktls_session *tls,
 		    tlsp->tid);
 		return (ENOMEM);
 	}
-	m->m_pkthdr.snd_tag = m_snd_tag_ref(&tlsp->com.com);
+	m->m_pkthdr.snd_tag = m_snd_tag_ref(&tlsp->com);
 	m->m_pkthdr.csum_flags |= CSUM_SND_TAG;
 	kwr = mtod(m, void *);
 	memset(kwr, 0, len);
