@@ -30,12 +30,18 @@ GTESTS?=
 .include <googletest.test.inc.mk>
 
 PROGS_CXX+= ${GTESTS}
-_TESTS+= ${GTESTS}
 .for _T in ${GTESTS}
 BINDIR.${_T}= ${TESTSDIR}
 CXXFLAGS.${_T}+= ${GTESTS_CXXFLAGS}
 MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.cc
+.if !empty(GTESTS_WRAPPER_SH.${_T})
+# A stopgap/workaround to let kyua execute test case one by one
+ATF_TESTS_SH+= ${GTESTS_WRAPPER_SH.${_T}}
+.else
+_TESTS+= ${_T}
 TEST_INTERFACE.${_T}= plain
+.endif
+
 .endfor
 .endif
