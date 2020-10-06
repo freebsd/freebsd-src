@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 02, 2020
+.Dd October 06, 2020
 .Dt BACKLIGHT 8
 .Os
 .Sh NAME
@@ -63,6 +63,7 @@ When querying the brightness level only print the value.
 Query information about the backlight (name, type).
 .It Ar value
 Set the brightness level to this value, must be between 0 and 100.
+A trailing '%' is valid.
 .It Ar incr | +
 .Op Ar value
 Decrement the backlight level.
