@@ -65,28 +65,37 @@ typedef uint64_t unp_gen_t;
  * Stream sockets keep copies of receive sockbuf sb_cc and sb_mbcnt
  * so that changes in the sockbuf may be computed to modify
  * back pressure on the sender accordingly.
+ *
+ * Locking key:
+ * (a) Atomic
+ * (c) Constant
+ * (g) Locked using linkage lock
+ * (l) Locked using list lock
+ * (p) Locked using pcb lock
  */
 LIST_HEAD(unp_head, unpcb);
 
 struct unpcb {
 	/* Cache line 1 */
-	struct	mtx unp_mtx;		/* mutex */
-	struct	unpcb *unp_conn;	/* control block of connected socket */
-	volatile u_int	unp_refcount;
-	short	unp_flags;		/* flags */
-	short	unp_gcflag;		/* Garbage collector flags. */
-	struct	sockaddr_un *unp_addr;	/* bound address of socket */
-	struct	socket *unp_socket;	/* pointer back to socket */
+	struct	mtx unp_mtx;		/* PCB mutex */
+	struct	unpcb *unp_conn;	/* (p) connected socket */
+	volatile u_int unp_refcount;	/* (a, p) atomic refcount */
+	short	unp_flags;		/* (p) PCB flags */
+	short	unp_gcflag;		/* (g) Garbage collector flags */
+	struct	sockaddr_un *unp_addr;	/* (p) bound address of socket */
+	struct	socket *unp_socket;	/* (c) pointer back to socket */
 	/* Cache line 2 */
-	struct	vnode *unp_vnode;	/* if associated with file */
-	struct	xucred unp_peercred;	/* peer credentials, if applicable */
-	LIST_ENTRY(unpcb) unp_reflink;	/* link in unp_refs list */
-	LIST_ENTRY(unpcb) unp_link; 	/* glue on list of all PCBs */
-	struct	unp_head unp_refs;	/* referencing socket linked list */
-	unp_gen_t unp_gencnt;		/* generation count of this instance */
-	struct	file *unp_file;		/* back-pointer to file for gc. */
-	u_int	unp_msgcount;		/* references from message queue */
-	ino_t	unp_ino;		/* fake inode number */
+	u_int	unp_pairbusy;		/* (p) threads acquiring peer locks */
+	struct	vnode *unp_vnode;	/* (p) associated file if applicable */
+	struct	xucred unp_peercred;	/* (p) peer credentials if applicable */
+	LIST_ENTRY(unpcb) unp_reflink;	/* (l) link in unp_refs list */
+	LIST_ENTRY(unpcb) unp_link; 	/* (g) glue on list of all PCBs */
+	struct	unp_head unp_refs;	/* (l) referencing socket linked list */
+	unp_gen_t unp_gencnt;		/* (g) generation count of this item */
+	struct	file *unp_file;		/* (g) back-pointer to file for gc */
+	u_int	unp_msgcount;		/* (g) references from message queue */
+	ino_t	unp_ino;		/* (g) fake inode number */
+	LIST_ENTRY(unpcb) unp_dead;	/* (g) link in dead list */
 } __aligned(CACHE_LINE_SIZE);
 
 /*
@@ -108,6 +117,7 @@ struct unpcb {
  */
 #define	UNP_CONNECTING			0x010	/* Currently connecting. */
 #define	UNP_BINDING			0x020	/* Currently binding. */
+#define	UNP_WAITING			0x040	/* Peer state is changing. */
 
 /*
  * Flags in unp_gcflag.
