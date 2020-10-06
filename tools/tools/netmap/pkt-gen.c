@@ -275,7 +275,7 @@ struct glob_arg {
 #define OPT_TS		16	/* add a timestamp */
 #define OPT_INDIRECT	32	/* use indirect buffers, tx only */
 #define OPT_DUMP	64	/* dump rx/tx traffic */
-#define OPT_RUBBISH	256	/* send wathever the buffers contain */
+#define OPT_RUBBISH	256	/* send whatever the buffers contain */
 #define OPT_RANDOM_SRC  512
 #define OPT_RANDOM_DST  1024
 #define OPT_PPS_STATS   2048
@@ -2360,7 +2360,7 @@ usage(int errcode)
 "             for client-side ping-pong operation, and pong for server-side ping-pong operation.\n"
 "\n"
 "     -n count\n"
-"             Number of iterations of the pkt-gen function, with 0 meaning infinite).  In case of tx or rx,\n"
+"             Number of iterations of the pkt-gen function (with 0 meaning infinite).  In case of tx or rx,\n"
 "             count is the number of packets to receive or transmit.  In case of ping or pong, count is the\n"
 "             number of ping-pong transactions.\n"
 "\n"
@@ -2397,20 +2397,20 @@ usage(int errcode)
 "     -p threads\n"
 "             Number of threads to use.  By default, only a single thread is used to handle all the netmap\n"
 "             rings.  If threads is larger than one, each thread handles a single TX ring (in tx mode), a\n"
-"             single RX ring (in rx mode), or a TX/RX ring couple.  The number of threads must be less or\n"
-"             equal than the number of TX (or RX) ring available in the device specified by interface.\n"
+"             single RX ring (in rx mode), or a TX/RX ring pair.  The number of threads must be less than or\n"
+"             equal to the number of TX (or RX) rings available in the device specified by interface.\n"
 "\n"
 "     -T report_ms\n"
 "             Number of milliseconds between reports.\n"
 "\n"
 "     -w wait_for_link_time\n"
-"             Number of seconds to wait before starting the pkt-gen function, useuful to make sure that the\n"
+"             Number of seconds to wait before starting the pkt-gen function, useful to make sure that the\n"
 "             network link is up.  A network device driver may take some time to enter netmap mode, or to\n"
 "             create a new transmit/receive ring pair when netmap(4) requests one.\n"
 "\n"
 "     -R rate\n"
 "             Packet transmission rate.  Not setting the packet transmission rate tells pkt-gen to transmit\n"
-"             packets as quickly as possible.  On servers from 2010 on-wards netmap(4) is able to com-\n"
+"             packets as quickly as possible.  On servers from 2010 onward netmap(4) is able to com-\n"
 "             pletely use all of the bandwidth of a 10 or 40Gbps link, so this option should be used unless\n"
 "             your intention is to saturate the link.\n"
 "\n"
@@ -2456,7 +2456,7 @@ usage(int errcode)
 "\n"
 "     -C tx_slots[,rx_slots[,tx_rings[,rx_rings]]]\n"
 "             Configuration in terms of number of rings and slots to be used when opening the netmap port.\n"
-"             Such configuration has effect on software ports created on the fly, such as VALE ports and\n"
+"             Such configuration has an effect on software ports created on the fly, such as VALE ports and\n"
 "             netmap pipes.  The configuration may consist of 1 to 4 numbers separated by commas: tx_slots,\n"
 "             rx_slots, tx_rings, rx_rings.  Missing numbers or zeroes stand for default values.  As an\n"
 "             additional convenience, if exactly one number is specified, then this is assigned to both\n"
@@ -2472,7 +2472,7 @@ usage(int errcode)
 "				OPT_INDIRECT	32 (use indirect buffers)\n"
 "				OPT_DUMP	64 (dump rx/tx traffic)\n"
 "				OPT_RUBBISH	256\n"
-"					(send wathever the buffers contain)\n"
+"					(send whatever the buffers contain)\n"
 "				OPT_RANDOM_SRC  512\n"
 "				OPT_RANDOM_DST  1024\n"
 "				OPT_PPS_STATS   2048\n"
