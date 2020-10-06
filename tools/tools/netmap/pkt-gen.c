@@ -42,7 +42,6 @@
 #define NETMAP_WITH_LIBS
 #include <net/netmap_user.h>
 
-
 #include <ctype.h>	// isprint()
 #include <unistd.h>	// sysconf()
 #include <sys/poll.h>
@@ -179,14 +178,14 @@ static inline void CPU_SET(uint32_t i, cpuset_t *p)
 	do {struct timespec t0 = {0,0}; *(b) = t0; } while (0)
 #endif  /* __APPLE__ */
 
-const char *default_payload="netmap pkt-gen DIRECT payload\n"
+static const char *default_payload = "netmap pkt-gen DIRECT payload\n"
 	"http://info.iet.unipi.it/~luigi/netmap/ ";
 
-const char *indirect_payload="netmap pkt-gen indirect payload\n"
+static const char *indirect_payload = "netmap pkt-gen indirect payload\n"
 	"http://info.iet.unipi.it/~luigi/netmap/ ";
 
-int verbose = 0;
-int normalize = 1;
+static int verbose = 0;
+static int normalize = 1;
 
 #define VIRT_HDR_1	10	/* length of a base vnet-hdr */
 #define VIRT_HDR_2	12	/* length of the extenede vnet-hdr */
@@ -218,7 +217,7 @@ struct pkt {
     ((af) == AF_INET ? (p)->ipv4.f: (p)->ipv6.f)
 
 struct ip_range {
-	char *name;
+	const char *name;
 	union {
 		struct {
 			uint32_t start, end; /* same as struct in_addr */
@@ -232,7 +231,7 @@ struct ip_range {
 };
 
 struct mac_range {
-	char *name;
+	const char *name;
 	struct ether_addr start, end;
 };
 
@@ -295,7 +294,7 @@ struct glob_arg {
 	int td_type;
 	void *mmap_addr;
 	char ifname[MAX_IFNAMELEN];
-	char *nmr_config;
+	const char *nmr_config;
 	int dummy_send;
 	int virt_header;	/* send also the virt_header */
 	char *packet_file;	/* -P option */
@@ -620,7 +619,7 @@ system_ncpus(void)
  * If there is no 4th number, then the 3rd is assigned to both #tx-rings
  * and #rx-rings.
  */
-int
+static int
 parse_nmr_config(const char* conf, struct nmreq *nmr)
 {
 	char *w, *tok;
@@ -727,7 +726,7 @@ checksum(const void *data, uint16_t len, uint32_t sum)
 
 	/* Checksum all the pairs of bytes first... */
 	for (i = 0; i < (len & ~1U); i += 2) {
-		sum += (u_int16_t)ntohs(*((u_int16_t *)(addr + i)));
+		sum += (uint16_t)ntohs(*((const uint16_t *)(addr + i)));
 		if (sum > 0xFFFF)
 			sum -= 0xFFFF;
 	}
@@ -1241,7 +1240,7 @@ send_packets(struct netmap_ring *ring, struct pkt *pkt, void *frame,
 /*
  * Index of the highest bit set
  */
-uint32_t
+static uint32_t
 msb64(uint64_t x)
 {
 	uint64_t m = 1ULL << 63;
@@ -2695,7 +2694,7 @@ main_thread(struct glob_arg *g)
 
 struct td_desc {
 	int ty;
-	char *key;
+	const char *key;
 	void *f;
 	int default_burst;
 };
@@ -2715,7 +2714,7 @@ tap_alloc(char *dev)
 {
 	struct ifreq ifr;
 	int fd, err;
-	char *clonedev = TAP_CLONEDEV;
+	const char *clonedev = TAP_CLONEDEV;
 
 	(void)err;
 	(void)dev;

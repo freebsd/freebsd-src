@@ -431,7 +431,7 @@ readpcap(const char *fn)
 
 enum my_pcap_mode { PM_NONE, PM_FAST, PM_FIXED, PM_REAL };
 
-int verbose = 0;
+static int verbose = 0;
 
 static int do_abort = 0;
 
@@ -988,7 +988,8 @@ usage(void)
 static char **
 split_arg(const char *src, int *_ac)
 {
-    char *my = NULL, **av = NULL, *seps = " \t\r\n,";
+    char *my = NULL, **av = NULL;
+    const char *seps = " \t\r\n,";
     int l, i, ac; /* number of entries */
 
     if (!src)
@@ -1127,15 +1128,15 @@ main(int argc, char **argv)
 
 	/* set default values */
 	for (i = 0; i < N_OPTS; i++) {
-	    struct _qs *q = &bp[i].q;
+	    struct _qs *qs = &bp[i].q;
 
-	    q->burst = 128;
-	    q->c_delay.optarg = "0";
-	    q->c_delay.run = null_run_fn;
-	    q->c_loss.optarg = "0";
-	    q->c_loss.run = null_run_fn;
-	    q->c_bw.optarg = "0";
-	    q->c_bw.run = null_run_fn;
+	    qs->burst = 128;
+	    qs->c_delay.optarg = "0";
+	    qs->c_delay.run = null_run_fn;
+	    qs->c_loss.optarg = "0";
+	    qs->c_loss.run = null_run_fn;
+	    qs->c_bw.optarg = "0";
+	    qs->c_bw.run = null_run_fn;
 	}
 
 	// Options:
@@ -1250,10 +1251,10 @@ main(int argc, char **argv)
 
 	/* apply commands */
 	for (i = 0; i < N_OPTS; i++) { /* once per queue */
-		struct _qs *q = &bp[i].q;
-		err += cmd_apply(delay_cfg, d[i], q, &q->c_delay);
-		err += cmd_apply(bw_cfg, b[i], q, &q->c_bw);
-		err += cmd_apply(loss_cfg, l[i], q, &q->c_loss);
+		struct _qs *qs = &bp[i].q;
+		err += cmd_apply(delay_cfg, d[i], qs, &qs->c_delay);
+		err += cmd_apply(bw_cfg, b[i], qs, &qs->c_bw);
+		err += cmd_apply(loss_cfg, l[i], qs, &qs->c_loss);
 	}
 
 	pthread_create(&bp[0].cons_tid, NULL, nmreplay_main, (void*)&bp[0]);
@@ -1287,7 +1288,7 @@ main(int argc, char **argv)
  * the final entry has s = NULL.
  */
 struct _sm {	/* string and multiplier */
-	char *s;
+	const char *s;
 	double m;
 };
 
