@@ -2186,9 +2186,6 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	struct port_info *pi = vi->pi;
 	struct adapter *sc;
 	struct sge_txq *txq;
-#ifdef RATELIMIT
-	struct cxgbe_snd_tag *cst;
-#endif
 	void *items[1];
 	int rc;
 
@@ -2212,8 +2209,7 @@ cxgbe_transmit(struct ifnet *ifp, struct mbuf *m)
 	}
 #ifdef RATELIMIT
 	if (m->m_pkthdr.csum_flags & CSUM_SND_TAG) {
-		cst = mst_to_cst(m->m_pkthdr.snd_tag);
-		if (cst->type == IF_SND_TAG_TYPE_RATE_LIMIT)
+		if (m->m_pkthdr.snd_tag->type == IF_SND_TAG_TYPE_RATE_LIMIT)
 			return (ethofld_transmit(ifp, m));
 	}
 #endif
@@ -2374,14 +2370,6 @@ cxgbe_get_counter(struct ifnet *ifp, ift_counter c)
 }
 
 #if defined(KERN_TLS) || defined(RATELIMIT)
-void
-cxgbe_snd_tag_init(struct cxgbe_snd_tag *cst, struct ifnet *ifp, int type)
-{
-
-	m_snd_tag_init(&cst->com, ifp);
-	cst->type = type;
-}
-
 static int
 cxgbe_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
     struct m_snd_tag **pt)
@@ -2402,8 +2390,6 @@ cxgbe_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	default:
 		error = EOPNOTSUPP;
 	}
-	if (error == 0)
-		MPASS(mst_to_cst(*pt)->type == params->hdr.type);
 	return (error);
 }
 
@@ -2411,10 +2397,8 @@ static int
 cxgbe_snd_tag_modify(struct m_snd_tag *mst,
     union if_snd_tag_modify_params *params)
 {
-	struct cxgbe_snd_tag *cst;
 
-	cst = mst_to_cst(mst);
-	switch (cst->type) {
+	switch (mst->type) {
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (cxgbe_rate_tag_modify(mst, params));
@@ -2428,10 +2412,8 @@ static int
 cxgbe_snd_tag_query(struct m_snd_tag *mst,
     union if_snd_tag_query_params *params)
 {
-	struct cxgbe_snd_tag *cst;
 
-	cst = mst_to_cst(mst);
-	switch (cst->type) {
+	switch (mst->type) {
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (cxgbe_rate_tag_query(mst, params));
@@ -2444,10 +2426,8 @@ cxgbe_snd_tag_query(struct m_snd_tag *mst,
 static void
 cxgbe_snd_tag_free(struct m_snd_tag *mst)
 {
-	struct cxgbe_snd_tag *cst;
 
-	cst = mst_to_cst(mst);
-	switch (cst->type) {
+	switch (mst->type) {
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		cxgbe_rate_tag_free(mst);

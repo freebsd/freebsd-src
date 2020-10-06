@@ -87,13 +87,8 @@ enum {
 	EO_FLUSH_RPL_PENDING	= (1 << 3),	/* credit flush rpl due back */
 };
 
-struct cxgbe_snd_tag {
-	struct m_snd_tag com;
-	int type;
-};
-
 struct cxgbe_rate_tag {
-	struct cxgbe_snd_tag com;
+	struct m_snd_tag com;
 	struct adapter *adapter;
 	u_int flags;
 	struct mtx lock;
@@ -112,17 +107,10 @@ struct cxgbe_rate_tag {
 	uint8_t ncompl;		/* # of completions outstanding. */
 };
 
-static inline struct cxgbe_snd_tag *
-mst_to_cst(struct m_snd_tag *t)
-{
-
-	return (__containerof(t, struct cxgbe_snd_tag, com));
-}
-
 static inline struct cxgbe_rate_tag *
 mst_to_crt(struct m_snd_tag *t)
 {
-	return ((struct cxgbe_rate_tag *)mst_to_cst(t));
+	return (__containerof(t, struct cxgbe_rate_tag, com));
 }
 
 union etid_entry {

@@ -44,7 +44,7 @@ enum {
 };
 
 struct mlx5e_tls_tag {
-	struct mlx5e_snd_tag tag;
+	struct m_snd_tag tag;
 	STAILQ_ENTRY(mlx5e_tls_tag) entry;
 	volatile s32 refs;	/* number of pending mbufs */
 	uint32_t tisn;		/* HW TIS context number */

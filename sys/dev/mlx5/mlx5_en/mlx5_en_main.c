@@ -2141,8 +2141,7 @@ mlx5e_chan_static_init(struct mlx5e_priv *priv, struct mlx5e_channel *c, int ix)
 	c->ix = ix;
 
 	/* setup send tag */
-	c->tag.type = IF_SND_TAG_TYPE_UNLIMITED;
-	m_snd_tag_init(&c->tag.m_snd_tag, c->priv->ifp);
+	m_snd_tag_init(&c->tag, c->priv->ifp, IF_SND_TAG_TYPE_UNLIMITED);
 
 	init_completion(&c->completion);
 
@@ -2166,7 +2165,7 @@ static void
 mlx5e_chan_wait_for_completion(struct mlx5e_channel *c)
 {
 
-	m_snd_tag_rele(&c->tag.m_snd_tag);
+	m_snd_tag_rele(&c->tag);
 	wait_for_completion(&c->completion);
 }
 
@@ -4087,8 +4086,8 @@ mlx5e_ul_snd_tag_alloc(struct ifnet *ifp,
 		/* check if send queue is not running */
 		if (unlikely(pch->sq[0].running == 0))
 			return (ENXIO);
-		m_snd_tag_ref(&pch->tag.m_snd_tag);
-		*ppmt = &pch->tag.m_snd_tag;
+		m_snd_tag_ref(&pch->tag);
+		*ppmt = &pch->tag;
 		return (0);
 	}
 }
@@ -4097,7 +4096,7 @@ int
 mlx5e_ul_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
 {
 	struct mlx5e_channel *pch =
-	    container_of(pmt, struct mlx5e_channel, tag.m_snd_tag);
+	    container_of(pmt, struct mlx5e_channel, tag);
 
 	params->unlimited.max_rate = -1ULL;
 	params->unlimited.queue_level = mlx5e_sq_queue_level(&pch->sq[0]);
@@ -4108,7 +4107,7 @@ void
 mlx5e_ul_snd_tag_free(struct m_snd_tag *pmt)
 {
 	struct mlx5e_channel *pch =
-	    container_of(pmt, struct mlx5e_channel, tag.m_snd_tag);
+	    container_of(pmt, struct mlx5e_channel, tag);
 
 	complete(&pch->completion);
 }
@@ -4142,10 +4141,8 @@ mlx5e_snd_tag_alloc(struct ifnet *ifp,
 static int
 mlx5e_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
 {
-	struct mlx5e_snd_tag *tag =
-	    container_of(pmt, struct mlx5e_snd_tag, m_snd_tag);
 
-	switch (tag->type) {
+	switch (pmt->type) {
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (mlx5e_rl_snd_tag_modify(pmt, params));
@@ -4166,10 +4163,8 @@ mlx5e_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *para
 static int
 mlx5e_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params)
 {
-	struct mlx5e_snd_tag *tag =
-	    container_of(pmt, struct mlx5e_snd_tag, m_snd_tag);
 
-	switch (tag->type) {
+	switch (pmt->type) {
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (mlx5e_rl_snd_tag_query(pmt, params));
@@ -4236,10 +4231,8 @@ mlx5e_ratelimit_query(struct ifnet *ifp __unused, struct if_ratelimit_query_resu
 static void
 mlx5e_snd_tag_free(struct m_snd_tag *pmt)
 {
-	struct mlx5e_snd_tag *tag =
-	    container_of(pmt, struct mlx5e_snd_tag, m_snd_tag);
 
-	switch (tag->type) {
+	switch (pmt->type) {
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		mlx5e_rl_snd_tag_free(pmt);

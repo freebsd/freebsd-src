@@ -90,7 +90,6 @@ static struct mlx5e_sq *
 mlx5e_select_queue_by_send_tag(struct ifnet *ifp, struct mbuf *mb)
 {
 	struct m_snd_tag *mb_tag;
-	struct mlx5e_snd_tag *ptag;
 	struct mlx5e_sq *sq;
 
 	mb_tag = mb->m_pkthdr.snd_tag;
@@ -99,29 +98,27 @@ mlx5e_select_queue_by_send_tag(struct ifnet *ifp, struct mbuf *mb)
 top:
 #endif
 	/* get pointer to sendqueue */
-	ptag = container_of(mb_tag, struct mlx5e_snd_tag, m_snd_tag);
-
-	switch (ptag->type) {
+	switch (mb_tag->type) {
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
-		sq = container_of(ptag,
+		sq = container_of(mb_tag,
 		    struct mlx5e_rl_channel, tag)->sq;
 		break;
 #if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
-		mb_tag = container_of(ptag, struct mlx5e_tls_tag, tag)->rl_tag;
+		mb_tag = container_of(mb_tag, struct mlx5e_tls_tag, tag)->rl_tag;
 		goto top;
 #endif
 #endif
 	case IF_SND_TAG_TYPE_UNLIMITED:
-		sq = &container_of(ptag,
+		sq = &container_of(mb_tag,
 		    struct mlx5e_channel, tag)->sq[0];
-		KASSERT((ptag->m_snd_tag.refcount > 0),
+		KASSERT((mb_tag->refcount > 0),
 		    ("mlx5e_select_queue: Channel refs are zero for unlimited tag"));
 		break;
 #ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS:
-		mb_tag = container_of(ptag, struct mlx5e_tls_tag, tag)->rl_tag;
+		mb_tag = container_of(mb_tag, struct mlx5e_tls_tag, tag)->rl_tag;
 		goto top;
 #endif
 	default:

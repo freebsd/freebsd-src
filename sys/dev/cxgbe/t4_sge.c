@@ -2404,10 +2404,10 @@ set_mbuf_eo_tsclk_tsoff(struct mbuf *m, uint8_t tsclk_tsoff)
 }
 
 static inline int
-needs_eo(struct cxgbe_snd_tag *cst)
+needs_eo(struct m_snd_tag *mst)
 {
 
-	return (cst != NULL && cst->type == IF_SND_TAG_TYPE_RATE_LIMIT);
+	return (mst != NULL && mst->type == IF_SND_TAG_TYPE_RATE_LIMIT);
 }
 #endif
 
@@ -2716,7 +2716,7 @@ parse_pkt(struct mbuf **mp, bool vm_wr)
 	struct tcphdr *tcp;
 #endif
 #if defined(KERN_TLS) || defined(RATELIMIT)
-	struct cxgbe_snd_tag *cst;
+	struct m_snd_tag *mst;
 #endif
 	uint16_t eh_type;
 	uint8_t cflags;
@@ -2740,12 +2740,12 @@ restart:
 	nsegs = count_mbuf_nsegs(m0, 0, &cflags);
 #if defined(KERN_TLS) || defined(RATELIMIT)
 	if (m0->m_pkthdr.csum_flags & CSUM_SND_TAG)
-		cst = mst_to_cst(m0->m_pkthdr.snd_tag);
+		mst = m0->m_pkthdr.snd_tag;
 	else
-		cst = NULL;
+		mst = NULL;
 #endif
 #ifdef KERN_TLS
-	if (cst != NULL && cst->type == IF_SND_TAG_TYPE_TLS) {
+	if (mst != NULL && mst->type == IF_SND_TAG_TYPE_TLS) {
 		int len16;
 
 		cflags |= MC_TLS;
@@ -2794,17 +2794,17 @@ restart:
 	 * checksumming is enabled.  needs_outer_l4_csum happens to check for
 	 * all the right things.
 	 */
-	if (__predict_false(needs_eo(cst) && !needs_outer_l4_csum(m0))) {
+	if (__predict_false(needs_eo(mst) && !needs_outer_l4_csum(m0))) {
 		m_snd_tag_rele(m0->m_pkthdr.snd_tag);
 		m0->m_pkthdr.snd_tag = NULL;
 		m0->m_pkthdr.csum_flags &= ~CSUM_SND_TAG;
-		cst = NULL;
+		mst = NULL;
 	}
 #endif
 
 	if (!needs_hwcsum(m0)
 #ifdef RATELIMIT
-   		 && !needs_eo(cst)
+   		 && !needs_eo(mst)
 #endif
 	)
 		return (0);
@@ -2923,7 +2923,7 @@ restart:
 #endif
 	}
 #ifdef RATELIMIT
-	if (needs_eo(cst)) {
+	if (needs_eo(mst)) {
 		u_int immhdrs;
 
 		/* EO WRs have the headers in the WR and not the GL. */
@@ -6484,7 +6484,7 @@ ethofld_tx(struct cxgbe_rate_tag *cst)
 		cst->tx_credits -= next_credits;
 		cst->tx_nocompl += next_credits;
 		compl = cst->ncompl == 0 || cst->tx_nocompl >= cst->tx_total / 2;
-		ETHER_BPF_MTAP(cst->com.com.ifp, m);
+		ETHER_BPF_MTAP(cst->com.ifp, m);
 		write_ethofld_wr(cst, wr, m, compl);
 		commit_wrq_wr(cst->eo_txq, wr, &cookie);
 		if (compl) {
@@ -6505,7 +6505,7 @@ ethofld_tx(struct cxgbe_rate_tag *cst)
 		 */
 		m->m_pkthdr.snd_tag = NULL;
 		m->m_pkthdr.csum_flags &= ~CSUM_SND_TAG;
-		m_snd_tag_rele(&cst->com.com);
+		m_snd_tag_rele(&cst->com);
 
 		mbufq_enqueue(&cst->pending_fwack, m);
 	}
@@ -6559,10 +6559,10 @@ ethofld_transmit(struct ifnet *ifp, struct mbuf *m0)
 	 * ethofld_tx() in case we are sending the final mbuf after
 	 * the inp was freed.
 	 */
-	m_snd_tag_ref(&cst->com.com);
+	m_snd_tag_ref(&cst->com);
 	ethofld_tx(cst);
 	mtx_unlock(&cst->lock);
-	m_snd_tag_rele(&cst->com.com);
+	m_snd_tag_rele(&cst->com);
 	return (0);
 
 done:
@@ -6633,12 +6633,12 @@ ethofld_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0
 		 * As with ethofld_transmit(), hold an extra reference
 		 * so that the tag is stable across ethold_tx().
 		 */
-		m_snd_tag_ref(&cst->com.com);
+		m_snd_tag_ref(&cst->com);
 		m = mbufq_first(&cst->pending_tx);
 		if (m != NULL && cst->tx_credits >= mbuf_eo_len16(m))
 			ethofld_tx(cst);
 		mtx_unlock(&cst->lock);
-		m_snd_tag_rele(&cst->com.com);
+		m_snd_tag_rele(&cst->com);
 	} else {
 		/*
 		 * There shouldn't be any pending packets if the tag
