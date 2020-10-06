@@ -158,7 +158,7 @@ dump_regs(struct trapframe *frame)
 }
 
 static void
-svc_handler(struct trapframe *frame)
+ecall_handler(struct trapframe *frame)
 {
 	struct thread *td;
 
@@ -172,7 +172,7 @@ svc_handler(struct trapframe *frame)
 }
 
 static void
-data_abort(struct trapframe *frame, int usermode)
+page_fault_handler(struct trapframe *frame, int usermode)
 {
 	struct vm_map *map;
 	uint64_t stval;
@@ -290,7 +290,7 @@ do_trap_supervisor(struct trapframe *frame)
 		break;
 	case EXCP_STORE_PAGE_FAULT:
 	case EXCP_LOAD_PAGE_FAULT:
-		data_abort(frame, 0);
+		page_fault_handler(frame, 0);
 		break;
 	case EXCP_BREAKPOINT:
 #ifdef KDTRACE_HOOKS
@@ -353,11 +353,11 @@ do_trap_user(struct trapframe *frame)
 	case EXCP_STORE_PAGE_FAULT:
 	case EXCP_LOAD_PAGE_FAULT:
 	case EXCP_INST_PAGE_FAULT:
-		data_abort(frame, 1);
+		page_fault_handler(frame, 1);
 		break;
 	case EXCP_USER_ECALL:
 		frame->tf_sepc += 4;	/* Next instruction */
-		svc_handler(frame);
+		ecall_handler(frame);
 		break;
 	case EXCP_ILLEGAL_INSTRUCTION:
 #ifdef FPE
