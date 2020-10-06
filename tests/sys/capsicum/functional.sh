@@ -40,6 +40,13 @@ check()
 		${SRCDIR}/${CAPSICUM_TEST_BIN} --gtest_filter=${tc}
 }
 
+skip()
+{
+	local reason=${1}
+
+	atf_skip "${reason}"
+}
+
 add_testcase()
 {
 	local tc=${1}
@@ -48,7 +55,20 @@ add_testcase()
 	tc_escaped=$(echo ${tc} | sed -e 's/\./__/')
 
 	atf_test_case ${tc_escaped}
-	eval "${tc_escaped}_body() { check ${tc}; }"
+
+	if [ "$(atf_config_get ci false)" = "true" ]; then
+		case "${tc_escaped}" in
+		ForkedOpenatTest_WithFlagInCapabilityMode___|OpenatTest__WithFlag)
+			eval "${tc_escaped}_body() { skip \"http://bugs.freebsd.org/249960\"; }"
+			;;
+		*)
+			eval "${tc_escaped}_body() { check ${tc}; }"
+			;;
+		esac
+	else
+		eval "${tc_escaped}_body() { check ${tc}; }"
+	fi
+
 	atf_add_test_case ${tc_escaped}
 }
 
