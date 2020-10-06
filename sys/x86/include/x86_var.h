@@ -67,7 +67,6 @@ extern	u_int	cpu_mon_mwait_flags;
 extern	u_int	cpu_mon_min_size;
 extern	u_int	cpu_mon_max_size;
 extern	u_int	cpu_maxphyaddr;
-extern	char	ctx_switch_xsave[];
 extern	u_int	hv_high;
 extern	char	hv_vendor[];
 extern	char	kstack[];
