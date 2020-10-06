@@ -903,3 +903,4 @@ driver_t hidbus_driver = {
 
 MODULE_DEPEND(hidbus, hid, 1, 1, 1);
 MODULE_VERSION(hidbus, 1);
+DRIVER_MODULE(hidbus, iichid, hidbus_driver, hidbus_devclass, 0, 0);

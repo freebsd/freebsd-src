@@ -1848,6 +1848,7 @@ dev/iicbus/iicbb.c		optional iicbb
 dev/iicbus/iicbb_if.m		optional iicbb
 dev/iicbus/iicbus.c		optional iicbus
 dev/iicbus/iicbus_if.m		optional iicbus
+dev/iicbus/iichid.c		optional iichid acpi hid iicbus
 dev/iicbus/iiconf.c		optional iicbus
 dev/iicbus/iicsmb.c		optional iicsmb				\
 	dependency	"iicbus_if.h"

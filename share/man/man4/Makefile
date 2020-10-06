@@ -211,6 +211,7 @@ MAN=	aac.4 \
 	iic_gpiomux.4 \
 	iicbb.4 \
 	iicbus.4 \
+	iichid.4 \
 	iicmux.4 \
 	iicsmb.4 \
 	iir.4 \
