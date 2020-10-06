@@ -1725,7 +1725,6 @@ sctp_timeout_handler(void *t)
 	net = (struct sctp_nets *)tmr->net;
 	CURVNET_SET((struct vnet *)tmr->vnet);
 	NET_EPOCH_ENTER(et);
-	did_output = 1;
 	released_asoc_reference = false;
 
 #ifdef SCTP_AUDITING_ENABLED
@@ -1994,7 +1993,6 @@ sctp_timeout_handler(void *t)
 		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 		    "Shutdown guard timer expired");
 		sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
-		did_output = true;
 		/* no need to unlock on tcb its gone */
 		goto out_decr;
 	case SCTP_TIMER_TYPE_AUTOCLOSE:
@@ -2071,7 +2069,6 @@ sctp_timeout_handler(void *t)
 #ifdef INVARIANTS
 		panic("Unknown timer type %d", type);
 #else
-		did_output = false;
 		goto out;
 #endif
 	}
@@ -2155,7 +2152,6 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	    ("sctp_timer_start of type %d: inp = %p, stcb->sctp_ep %p",
 	    t_type, stcb, stcb->sctp_ep));
 	tmr = NULL;
-	to_ticks = 0;
 	if (stcb != NULL) {
 		SCTP_TCB_LOCK_ASSERT(stcb);
 	} else if (inp != NULL) {
