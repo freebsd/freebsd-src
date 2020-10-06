@@ -28,12 +28,17 @@
 .\"     @(#)intro.3	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2017
+.Dd October 6, 2020
 .Dt INTRO 3
 .Os
 .Sh NAME
 .Nm intro
 .Nd introduction to the C libraries
+.Sh SYNOPSIS
+.Nm cc
+.Op Ar flags
+.Ar
+.Op Fl llibrary
 .Sh DESCRIPTION
 This section provides an overview of the C
 library functions, their error returns and other
@@ -47,7 +52,11 @@ must be indicated at compile time with the
 option of the compiler.
 .Pp
 The various libraries (followed by the loader flag):
-.Bl -tag -width "libc (-lc)"
+.Bl -tag -width "libbluetooth (-lbluetooth)"
+.It Em libbluetooth Pq Fl l Ns Ar bluetooth
+The bluetooth library.
+See
+.Xr bluetooth 3 .
 .It Em libc Pq Fl l Ns Ar c
 Standard C library functions.
 When using the C compiler
@@ -57,21 +66,58 @@ to supply the loader flag
 .Fl l Ns Ar c
 for these functions.
 There are several `libraries' or groups of functions included inside of
-.Em libc
-: the standard
-.Tn I/O
-routines,
-database routines,
-bit operators,
-string operators,
-character tests and character operators,
-des encryption routines,
-storage allocation, time functions, signal handling and more.
+.Em libc :
+.Bl -tag -width "XXXXXX"
+.It standard I/O routines
+see
+.Xr stdio 3
+.It database routines
+see
+.Xr db 3
+.It bit operators
+see
+.Xr bitstring 3
+.It string operators
+see
+.Xr string 3
+.It character tests and character operators
+.It storage allocation
+see
+.Xr mpool 3
+.It regular-expressions
+see
+.Xr regex 3
+.It remote procedure calls (RPC)
+see
+.Xr rpc 3
+.It time functions
+see
+.Xr time 3
+.It signal handling
+see
+.Xr signal 3
+.El
+.It Em libcalendar Pq Fl l Ns Ar calendar
+The calendar arithmetic library.
+See
+.Xr calendar 3 .
+.It Em libcam Pq Fl l Ns Ar cam
+The common access method user library.
+See
+.Xr cam 3 .
+.It Em libcrypt Pq Fl l Ns Ar crypt
+The crypt library.
+See
+.Xr crypt 3 .
 .It Em libcurses Pq Fl l Ns Ar curses Fl l Ns Ar termcap
 Terminal independent screen management routines
 for two dimensional non-bitmap display terminals.
-(See
-.Xr ncurses 3 . )
+See
+.Xr ncurses 3 .
+.It Em libcuse Pq Fl l Ns Ar cuse
+The userland character device library.
+See
+.Xr cuse 3 .
 .It Em libcompat Pq Fl l Ns Ar compat
 Functions which are obsolete but are available for compatibility with
 .Bx 4.3 .
@@ -82,32 +128,106 @@ have been included for source code compatibility.
 Use of these routines should, for the most part, be avoided.
 The manual page entry for each compatibility routine
 indicates the proper interface to use.
+.It Em libdevinfo Pq Fl l Ns Ar devinfo
+The Device and Resource Information Utility library.
+See
+.Xr devinfo 3 .
+.It Em libdevstat Pq Fl l Ns Ar devstat
+The Device Statistics library.
+See
+.Xr devstat 3 .
+.It Em libdwarf Pq Fl l Ns Ar dwarf
+The DWARF access library.
+See
+.Xr dwarf 3 .
+.It Em libelf Pq Fl l Ns Ar elf
+The ELF access library.
+See
+.Xr elf 3 .
+.It Em libfetch Pq Fl l Ns Ar fetch
+The file transfer library.
+See
+.Xr fetch 3 .
+.It Em libfigpar Pq Fl l Ns Ar figpar
+The configuration file parsing library.
+See
+.Xr figpar 3 .
+.It Em libgpio Pq Fl l Ns Ar gpio
+The general-purpose input output library (GPIO).
+See
+.Xr gpio 3 .
+.It Em libgssapi Pq Fl l Ns Ar gssapi
+The generic security service application programming
+interface.
+See
+.Xr gssapi 3 .
+.It Em libjail Pq Fl l Ns Ar jail
+The jail library.
+See
+.Xr jail 3 .
 .It Em libkvm Pq Fl l Ns Ar kvm
 Functions used to access kernel memory are in this library.
 They can be used
 against both a running system and a crash dump.
-(See
-.Xr kvm 3 . )
+See
+.Xr kvm 3 .
 .It Em libl Pq Fl l Ns Ar l
 The library for
 .Xr lex 1 .
 .It Em libm Pq Fl l Ns Ar m
-The math library,
-.Em libm .
-The math library is loaded as needed by the Pascal compiler,
-but not by the C compiler which requires the
-.Fl l Ns Ar m
-flag.
-(See
-.Xr math 3 . )
+The math library.
+See
+.Xr math 3 .
+.It Em libmd Pq Fl l Ns Ar md
+The message digest library.
+See
+.Xr md4 3 ,
+.Xr md5 3 ,
+.Xr sha 3 ,
+.Xr sha256 3 ,
+.Xr sha512 3 ,
+.Xr ripemd 3 ,
+.Xr skein 3 .
 .It Em libmp Pq Fl l Ns Ar mp
+.It Em libpam Pq Fl l Ns Ar pam
+The pluggable authentication module library.
+See
+.Xr pam 3 .
+.It Em libpcap Pq Fl l Ns Ar pcap
+The packet capture library.
+See
+.Xr pcap 3 .
+.It Em libpmc Pq Fl l Ns Ar pmc
+The performance counters library.
+See
+.Xr pmc 3 .
+.It Em libpthread Pq Fl l Ns Ar pthread
+The POSIX threads library.
+See
+.Xr pthread 3 .
+.It Em libsysdecode Pq Fl l Ns Ar sysdecode
+The system argument decoding library.
+See
+.Xr sysdecode 3 .
 .It Em libtermcap Pq Fl l Ns Ar termcap
 The terminal independent operation library package.
-(See
-.Xr termcap 3 . )
+See
+.Xr termcap 3 .
+.It Em libusb Pq Fl l Ns Ar usb
+The USB access library.
+See
+.Xr usb 3 .
+.It Em libvgl Pq Fl l Ns Ar vgl
+The video graphics library.
+See
+.Xr vgl 3 .
 .It Em liby Pq Fl l Ns Ar y
 The library for
 .Xr yacc 1 .
+.It Em libz Pq Fl l Ns Ar z
+The general-purpose data compression library.
+See
+.Xr zlib 3 .
 .El
 .Sh FILES
 .Bl -tag -width /usr/lib/libm_p.a -compact
