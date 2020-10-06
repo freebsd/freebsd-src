@@ -1257,6 +1257,7 @@ ndadone(struct cam_periph *periph, union ccb *done_ccb)
 		/* No-op.  We're polling */
 		return;
 	case NDA_CCB_PASS:
+		/* NVME_PASSTHROUGH_CMD runs this CCB and releases it */
 		return;
 	default:
 		break;
