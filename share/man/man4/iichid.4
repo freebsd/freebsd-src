@@ -1,0 +1,96 @@
+.\" Copyright (c) 2020 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 21, 2020
+.Dt IICHID 4
+.Os
+.Sh NAME
+.Nm iichid
+.Nd I2C HID transport driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iichid"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+iichid_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a interface to I2C Human Interface Devices (HIDs).
+.Sh SYSCTL VARIABLES
+Next parameters are available as
+.Xr sysctl 8
+variables.
+Debug parameter is available as
+.Xr loader 8
+tunable as well.
+.Bl -tag -width indent
+.It Va dev.iichid.*.sampling_rate_fast
+Active sampling rate in num/second (for sampling mode).
+.It Va dev.iichid.*.sampling_rate_slow
+Idle sampling rate in num/second (for sampling mode).
+.It Va dev.iichid.*.sampling_hysteresis
+Number of missing samples before enabling of slow mode (for sampling mode).
+.It Va hw.iichid.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh SEE ALSO
+.Xr ig4 4
+.Sh BUGS
+The
+.Nm
+does not support GPIO interrupts yet.
+In that case
+.Nm
+enables sampling mode with periodic polling of hardware by driver means.
+See dev.iichid.*.sampling_*
+.Xr sysctl 4
+variables for tuning of sampling parameters.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.0.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Marc Priggemeyer Aq Mt marc.priggemeyer@gmail.com
+and
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
