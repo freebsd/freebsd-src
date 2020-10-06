@@ -31,7 +31,7 @@
 .\"     @(#)rc.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2019
+.Dd October 6, 2020
 .Dt RC 8
 .Os
 .Sh NAME
@@ -242,7 +242,11 @@ Scripts that are
 .Dq placeholders
 to ensure that certain operations are performed before others.
 In order of startup, these are:
-.Bl -tag -width ".Pa NETWORKING"
+.Bl -tag -width ".Pa FILESYSTEMS"
+.It Pa FILESYSTEMS
+Ensure that root and other critical file systems are mounted.
+This is the default
+.Va $early_late_divider .
 .It Pa NETWORKING
 Ensure basic network services are running, including general
 network configuration.
