@@ -144,6 +144,9 @@ main(int argc, char *argv[])
 			action = BACKLIGHT_SET_BRIGHTNESS;
 
 		if (argc == 1) {
+			/* ignore a trailing % for user friendlyness */
+			if (argv[0][strlen(argv[0]) - 1] == '%')
+				argv[0][strlen(argv[0]) - 1] = '\0';
 			percent = strtonum(argv[0], 0, 100, &percent_error);
 			if (percent_error)
 				errx(1, "Cannot parse brightness level %s: %s",
