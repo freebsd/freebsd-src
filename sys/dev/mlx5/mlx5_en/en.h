@@ -791,11 +791,6 @@ enum {
 	MLX5E_SQ_FULL
 };
 
-struct mlx5e_snd_tag {
-	struct m_snd_tag m_snd_tag;	/* send tag */
-	u32	type;	/* tag type */
-};
-
 struct mlx5e_sq {
 	/* persistant fields */
 	struct	mtx lock;
@@ -876,7 +871,7 @@ mlx5e_sq_queue_level(struct mlx5e_sq *sq)
 
 struct mlx5e_channel {
 	struct mlx5e_rq rq;
-	struct mlx5e_snd_tag tag;
+	struct m_snd_tag tag;
 	struct mlx5e_sq sq[MLX5E_MAX_TX_NUM_TC];
 	struct mlx5e_priv *priv;
 	struct completion completion;

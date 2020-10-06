@@ -1526,12 +1526,13 @@ m_freem(struct mbuf *mb)
 }
 
 void
-m_snd_tag_init(struct m_snd_tag *mst, struct ifnet *ifp)
+m_snd_tag_init(struct m_snd_tag *mst, struct ifnet *ifp, u_int type)
 {
 
 	if_ref(ifp);
 	mst->ifp = ifp;
 	refcount_init(&mst->refcount, 1);
+	mst->type = type;
 	counter_u64_add(snd_tag_count, 1);
 }
 

@@ -2066,7 +2066,7 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 		return (error);
 	}
 
-	m_snd_tag_init(&vst->com, ifp);
+	m_snd_tag_init(&vst->com, ifp, vst->tag->type);
 
 	*ppmt = &vst->com;
 	return (0);
