@@ -290,6 +290,7 @@ do_trap_supervisor(struct trapframe *frame)
 		break;
 	case EXCP_STORE_PAGE_FAULT:
 	case EXCP_LOAD_PAGE_FAULT:
+	case EXCP_INST_PAGE_FAULT:
 		page_fault_handler(frame, 0);
 		break;
 	case EXCP_BREAKPOINT:
