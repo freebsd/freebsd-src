@@ -14,6 +14,7 @@ CFLAGS+=	-I${SRCTOP}/tests
 .PATH: ${SRCTOP}/contrib/capsicum-test
 
 GTESTS+=	capsicum-test
+GTESTS_WRAPPER_SH.capsicum-test=	functional
 
 SRCS.capsicum-test+=	\
 	capsicum-test-main.cc \
@@ -50,6 +51,6 @@ BINMODE.mini-me.setuid=	4555
 
 WARNS.capsicum-test=	3
 
-.endif
+.endif # MK_GOOGLETEST
 
 .include <bsd.test.mk>
