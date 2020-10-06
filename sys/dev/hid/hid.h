@@ -331,5 +331,14 @@ bool	hid_test_quirk(const struct hid_device_info *dev_info, uint16_t quirk);
 int	hid_add_dynamic_quirk(struct hid_device_info *dev_info,
 	    uint16_t quirk);
 void	hid_quirk_unload(void *arg);
+
+int	hid_get_rdesc(device_t, void *, hid_size_t);
+int	hid_read(device_t, void *, hid_size_t, hid_size_t *);
+int	hid_write(device_t, const void *, hid_size_t);
+int	hid_get_report(device_t, void *, hid_size_t, hid_size_t *, uint8_t,
+	    uint8_t);
+int	hid_set_report(device_t, const void *, hid_size_t, uint8_t, uint8_t);
+int	hid_set_idle(device_t, uint16_t, uint8_t);
+int	hid_set_protocol(device_t, uint16_t);
 #endif	/* _KERNEL || _STANDALONE */
 #endif	/* _HID_HID_H_ */
