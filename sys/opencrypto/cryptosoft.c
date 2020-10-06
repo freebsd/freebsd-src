@@ -341,7 +341,7 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 		err = crypto_apply(crp, crp->crp_aad_start, crp->crp_aad_length,
 		    axf->Update, &ctx);
 	if (err)
-		return err;
+		goto out;
 
 	if (CRYPTO_HAS_OUTPUT_BUFFER(crp) &&
 	    CRYPTO_OP_IS_ENCRYPT(crp->crp_op))
@@ -352,38 +352,13 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 		err = crypto_apply(crp, crp->crp_payload_start,
 		    crp->crp_payload_length, axf->Update, &ctx);
 	if (err)
-		return err;
+		goto out;
 
-	switch (axf->type) {
-	case CRYPTO_SHA1:
-	case CRYPTO_SHA2_224:
-	case CRYPTO_SHA2_256:
-	case CRYPTO_SHA2_384:
-	case CRYPTO_SHA2_512:
-		axf->Final(aalg, &ctx);
-		break;
-
-	case CRYPTO_SHA1_HMAC:
-	case CRYPTO_SHA2_224_HMAC:
-	case CRYPTO_SHA2_256_HMAC:
-	case CRYPTO_SHA2_384_HMAC:
-	case CRYPTO_SHA2_512_HMAC:
-	case CRYPTO_RIPEMD160_HMAC:
-		if (sw->sw_octx == NULL)
-			return EINVAL;
-
-		axf->Final(aalg, &ctx);
+	axf->Final(aalg, &ctx);
+	if (sw->sw_octx != NULL) {
 		bcopy(sw->sw_octx, &ctx, axf->ctxsize);
 		axf->Update(&ctx, aalg, axf->hashsize);
 		axf->Final(aalg, &ctx);
-		break;
-
-	case CRYPTO_BLAKE2B:
-	case CRYPTO_BLAKE2S:
-	case CRYPTO_NULL_HMAC:
-	case CRYPTO_POLY1305:
-		axf->Final(aalg, &ctx);
-		break;
 	}
 
 	if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST) {
@@ -398,6 +373,8 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 		crypto_copyback(crp, crp->crp_digest_start, sw->sw_mlen, aalg);
 	}
 	explicit_bzero(aalg, sizeof(aalg));
+out:
+	explicit_bzero(&ctx, sizeof(ctx));
 	return (err);
 }
 
