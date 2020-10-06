@@ -50,15 +50,23 @@ __FBSDID("$FreeBSD$");
 
 #include "kvm_private.h"
 
+#ifdef __amd64__
+#define	__OFFSET_BY_PCPU
+#endif
+
 static struct nlist kvm_pcpu_nl[] = {
 	{ .n_name = "_cpuid_to_pcpu" },
 	{ .n_name = "_mp_maxcpus" },
 	{ .n_name = "_mp_ncpus" },
+#ifdef __OFFSET_BY_PCPU
+	{ .n_name = "___pcpu" },
+#endif
 	{ .n_name = NULL },
 };
 #define	NL_CPUID_TO_PCPU	0
 #define	NL_MP_MAXCPUS		1
 #define	NL_MP_NCPUS		2
+#define	NL___PCPU		3
 
 /*
  * Kernel per-CPU data state.  We cache this stuff on the first
@@ -71,6 +79,9 @@ static struct nlist kvm_pcpu_nl[] = {
 static void **pcpu_data;
 static int maxcpu;
 static int mp_ncpus;
+#ifdef __OFFSET_BY_PCPU
+static unsigned long __pcpu;
+#endif
 
 static int
 _kvm_pcpu_init(kvm_t *kd)
@@ -103,6 +114,17 @@ _kvm_pcpu_init(kvm_t *kd)
 		_kvm_err(kd, kd->program, "cannot read mp_ncpus");
 		return (-1);
 	}
+#ifdef __OFFSET_BY_PCPU
+	if (kvm_pcpu_nl[NL___PCPU].n_value == 0) {
+		_kvm_err(kd, kd->program, "unable to find __pcpu");
+		return (-1);
+	}
+	if (kvm_read(kd, kvm_pcpu_nl[NL___PCPU].n_value, &__pcpu,
+	    sizeof(__pcpu)) != sizeof(__pcpu)) {
+		_kvm_err(kd, kd->program, "cannot read __pcpu");
+		return (-1);
+	}
+#endif
 	len = max * sizeof(void *);
 	data = malloc(len);
 	if (data == NULL) {
@@ -329,6 +351,13 @@ kvm_read_zpcpu(kvm_t *kd, u_long base, void *buf, size_t size, int cpu)
 
 	if (!kvm_native(kd))
 		return (-1);
+	if (mp_ncpus == 0)
+		if (_kvm_pcpu_init(kd) < 0)
+			return (0);
+
+#ifdef __OFFSET_BY_PCPU
+	base += __pcpu;
+#endif
 	return (kvm_read(kd, (uintptr_t)(base + sizeof(struct pcpu) * cpu),
 	    buf, size));
 }
