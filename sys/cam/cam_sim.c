@@ -134,6 +134,7 @@ cam_sim_free(struct cam_sim *sim, int free_devq)
 		mtx = sim->mtx;
 		mtx_assert(mtx, MA_OWNED);
 	}
+	KASSERT(sim->refcount >= 1, ("sim->refcount >= 1"));
 	sim->refcount--;
 	if (sim->refcount > 0) {
 		error = msleep(sim, mtx, PRIBIO, "simfree", 0);
