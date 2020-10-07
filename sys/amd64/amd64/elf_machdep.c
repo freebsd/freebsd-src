@@ -309,11 +309,11 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		case R_X86_64_NONE:	/* none */
 			break;
 
-		case R_X86_64_64:		/* S + A */
+		case R_X86_64_64:	/* S + A */
 			error = lookup(lf, symidx, 1, &addr);
 			val = addr + addend;
 			if (error != 0)
-				return -1;
+				return (-1);
 			if (*where != val)
 				*where = val;
 			break;
@@ -325,7 +325,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			where32 = (Elf32_Addr *)where;
 			val32 = (Elf32_Addr)(addr + addend - (Elf_Addr)where);
 			if (error != 0)
-				return -1;
+				return (-1);
 			if (*where32 != val32)
 				*where32 = val32;
 			break;
@@ -335,7 +335,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			val32 = (Elf32_Addr)(addr + addend);
 			where32 = (Elf32_Addr *)where;
 			if (error != 0)
-				return -1;
+				return (-1);
 			if (*where32 != val32)
 				*where32 = val32;
 			break;
@@ -345,14 +345,15 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			 * There shouldn't be copy relocations in kernel
 			 * objects.
 			 */
-			printf("kldload: unexpected R_COPY relocation\n");
+			printf("kldload: unexpected R_COPY relocation, "
+			    "symbol index %ld\n", symidx);
 			return (-1);
 
 		case R_X86_64_GLOB_DAT:	/* S */
 		case R_X86_64_JMP_SLOT:	/* XXX need addend + offset */
 			error = lookup(lf, symidx, 1, &addr);
 			if (error != 0)
-				return -1;
+				return (-1);
 			if (*where != addr)
 				*where = addr;
 			break;
@@ -372,8 +373,8 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			break;
 
 		default:
-			printf("kldload: unexpected relocation type %ld\n",
-			       rtype);
+			printf("kldload: unexpected relocation type %ld, "
+			    "symbol index %ld\n", rtype, symidx);
 			return (-1);
 	}
 	return (0);

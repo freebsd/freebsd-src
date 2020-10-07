@@ -213,7 +213,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		case R_386_32:		/* S + A */
 			error = lookup(lf, symidx, 1, &addr);
 			if (error != 0)
-				return -1;
+				return (-1);
 			addr += addend;
 			if (*where != addr)
 				*where = addr;
@@ -222,7 +222,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		case R_386_PC32:	/* S + A - P */
 			error = lookup(lf, symidx, 1, &addr);
 			if (error != 0)
-				return -1;
+				return (-1);
 			addr += addend - (Elf_Addr)where;
 			if (*where != addr)
 				*where = addr;
@@ -233,14 +233,15 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			 * There shouldn't be copy relocations in kernel
 			 * objects.
 			 */
-			printf("kldload: unexpected R_COPY relocation\n");
-			return -1;
+			printf("kldload: unexpected R_COPY relocation, "
+			    "symbol index %d\n", symidx);
+			return (-1);
 			break;
 
 		case R_386_GLOB_DAT:	/* S */
 			error = lookup(lf, symidx, 1, &addr);
 			if (error != 0)
-				return -1;
+				return (-1);
 			if (*where != addr)
 				*where = addr;
 			break;
@@ -255,9 +256,9 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 				*where = addr;
 			break;
 		default:
-			printf("kldload: unexpected relocation type %d\n",
-			       rtype);
-			return -1;
+			printf("kldload: unexpected relocation type %d, "
+			    "symbol index %d\n", rtype, symidx);
+			return (-1);
 	}
 	return(0);
 }
