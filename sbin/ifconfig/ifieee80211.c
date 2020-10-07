@@ -2385,8 +2385,7 @@ regdomain_makechannels(
 				    &dc->dc_chaninfo);
 			}
 
-			/* VHT80 */
-			/* XXX dc_vhtcap? */
+			/* VHT80 is mandatory (and so should be VHT40 above). */
 			if (1) {
 				regdomain_addchans(ci, &rd->bands_11ac, reg,
 				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U |
