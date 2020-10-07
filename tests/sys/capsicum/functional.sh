@@ -59,7 +59,10 @@ add_testcase()
 	if [ "$(atf_config_get ci false)" = "true" ]; then
 		case "${tc_escaped}" in
 		ForkedOpenatTest_WithFlagInCapabilityMode___|OpenatTest__WithFlag)
-			eval "${tc_escaped}_body() { skip \"http://bugs.freebsd.org/249960\"; }"
+			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/249960\"; }"
+			;;
+		PipePdfork__WildcardWait)
+			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/244165\"; }"
 			;;
 		*)
 			eval "${tc_escaped}_body() { check ${tc}; }"
