@@ -342,8 +342,8 @@ wdc_do_dump_dui(int fd, char *tmpl, uint8_t data_area,
 		if (first) {
 			hdr_ver = ((buf[len_off] & 0xF) != 0) ?
 			    (buf[len_off]) : (le16dec(buf + len_off));
-			printf("Dumping %ld bytes of version %d log to %s\n", log_len,
-			    hdr_ver, tmpl);
+			printf("Dumping %jd bytes of version %d log to %s\n",
+			    (uintmax_t)log_len, hdr_ver, tmpl);
 			first = 0;
 		}
 		if (write(fd2, buf, resid) != (ssize_t)resid)
