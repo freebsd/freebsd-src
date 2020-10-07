@@ -342,7 +342,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	case R_PPC64_ADDR64:	/* doubleword64 S + A */
 		error = lookup(lf, symidx, 1, &addr);
 		if (error != 0)
-			return -1;
+			return (-1);
 		addr += addend;
 		*where = addr;
 		break;
@@ -369,11 +369,11 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	default:
-		printf("kldload: unexpected relocation type %d\n",
-		    (int) rtype);
-		return -1;
+		printf("kldload: unexpected relocation type %d, "
+		    "symbol index %d\n", (int)rtype, symidx);
+		return (-1);
 	}
-	return(0);
+	return (0);
 }
 
 void
