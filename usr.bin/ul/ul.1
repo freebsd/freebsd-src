@@ -28,7 +28,7 @@
 .\"     @(#)ul.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2004
+.Dd October 7, 2020
 .Dt UL 1
 .Os
 .Sh NAME
@@ -64,11 +64,7 @@ The following options are available:
 .It Fl i
 Underlining is indicated by a separate line containing appropriate
 dashes
-.Ql \- ;
-this is useful when you want to look at the underlining
-which is present in an
-.Xr nroff 1
-output stream on a CRT-terminal.
+.Ql \- .
 .It Fl t Ar terminal
 Overrides the terminal type specified in the environment with
 .Ar terminal .
@@ -85,18 +81,10 @@ as described in
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
-.Xr colcrt 1 ,
 .Xr man 1 ,
-.Xr nroff 1
+.Xr mandoc 1
 .Sh HISTORY
 The
 .Nm
 command appeared in
 .Bx 3.0 .
-.Sh BUGS
-The
-.Xr nroff 1
-command usually outputs a series of backspaces and underlines intermixed
-with the text to indicate underlining.
-No attempt is made to optimize
-the backward motion.
