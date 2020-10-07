@@ -300,13 +300,28 @@ cb_stat(void *arg, void *h, struct stat *sbp)
 
 static int
 cb_diskread(void *arg, int unit, uint64_t from, void *to, size_t size,
-	    size_t *resid)
+    size_t *resid)
 {
 	ssize_t n;
 
-	if (unit < 0 || unit >= ndisks )
+	if (unit < 0 || unit >= ndisks)
 		return (EIO);
 	n = pread(disk_fd[unit], to, size, from);
+	if (n < 0)
+		return (errno);
+	*resid = size - n;
+	return (0);
+}
+
+static int
+cb_diskwrite(void *arg, int unit, uint64_t offset, void *src, size_t size,
+    size_t *resid)
+{
+	ssize_t n;
+
+	if (unit < 0 || unit >= ndisks)
+		return (EIO);
+	n = pwrite(disk_fd[unit], src, size, offset);
 	if (n < 0)
 		return (errno);
 	*resid = size - n;
@@ -611,6 +626,7 @@ static struct loader_callbacks cb = {
 	.stat = cb_stat,
 
 	.diskread = cb_diskread,
+	.diskwrite = cb_diskwrite,
 	.diskioctl = cb_diskioctl,
 
 	.copyin = cb_copyin,
