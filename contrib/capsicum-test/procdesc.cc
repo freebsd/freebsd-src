@@ -763,7 +763,6 @@ TEST_F(PipePdfork, ModeBits) {
 #endif
 
 TEST_F(PipePdfork, WildcardWait) {
-  TEST_SKIPPED("https://bugs.freebsd.org/244165");
   // TODO(FreeBSD): make wildcard wait ignore pdfork()ed children
   // https://bugs.freebsd.org/201054
   TerminateChild();
