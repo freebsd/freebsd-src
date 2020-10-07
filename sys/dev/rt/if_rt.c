@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include "if_rtvar.h"
 #include "if_rtreg.h"
 
+#include <sys/kenv.h>
+
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/if_arp.h>
