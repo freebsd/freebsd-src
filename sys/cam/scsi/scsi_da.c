@@ -1417,6 +1417,15 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+                 * Same as above but enable the quirks for SSD SAMSUNG MZ7*
+                 * connected via SATA-to-SAS interposer and because of this
+                 * starting without "ATA"
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "MZ7*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/*
 		 * SuperTalent TeraDrive CT SSDs
 		 * 4k optimised & trim only works in 4k requests + 4k aligned
 		 */
