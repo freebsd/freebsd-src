@@ -454,12 +454,12 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		break;
 
 	default:
-		printf("kldload: unexpected relocation type %d\n",
-			rtype);
+		printf("kldload: unexpected relocation type %d, "
+		    "symbol index %d\n", rtype, symidx);
 		return (-1);
 	}
 
-	return(0);
+	return (0);
 }
 
 int
