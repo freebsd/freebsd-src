@@ -158,8 +158,6 @@ riscv_cpu_intr(struct trapframe *frame)
 	struct intr_irqsrc *isrc;
 	int active_irq;
 
-	critical_enter();
-
 	KASSERT(frame->tf_scause & EXCP_INTR,
 		("riscv_cpu_intr: wrong frame passed"));
 
@@ -169,18 +167,16 @@ riscv_cpu_intr(struct trapframe *frame)
 	case IRQ_SOFTWARE_USER:
 	case IRQ_SOFTWARE_SUPERVISOR:
 	case IRQ_TIMER_SUPERVISOR:
+		critical_enter();
 		isrc = &isrcs[active_irq].isrc;
 		if (intr_isrc_dispatch(isrc, frame) != 0)
 			printf("stray interrupt %d\n", active_irq);
+		critical_exit();
 		break;
 	case IRQ_EXTERNAL_SUPERVISOR:
 		intr_irq_handler(frame);
 		break;
-	default:
-		break;
 	}
-
-	critical_exit();
 }
 
 #ifdef SMP
