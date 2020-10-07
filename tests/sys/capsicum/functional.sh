@@ -64,6 +64,12 @@ add_testcase()
 		PipePdfork__WildcardWait)
 			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/244165\"; }"
 			;;
+		Capability__NoBypassDAC)
+			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/250178\"; }"
+			;;
+		Pdfork__OtherUserForked)
+			eval "${tc_escaped}_body() { skip \"https://bugs.freebsd.org/250179\"; }"
+			;;
 		*)
 			eval "${tc_escaped}_body() { check ${tc}; }"
 			;;
