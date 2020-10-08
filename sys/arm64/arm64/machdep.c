@@ -1242,6 +1242,15 @@ initarm(struct arm64_bootparams *abp)
 		panic("Invalid bus configuration: %s",
 		    kern_getenv("kern.cfg.order"));
 
+	/*
+	 * Dump the boot metadata. We have to wait for cninit() since console
+	 * output is required. If it's grossly incorrect the kernel will never
+	 * make it this far.
+	 */
+	if ((boothowto & RB_VERBOSE) &&
+	    getenv_is_true("debug.dump_modinfo_at_boot"))
+		preload_dump();
+
 	init_proc0(abp->kern_stack);
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
