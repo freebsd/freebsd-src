@@ -2582,6 +2582,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 					    error != EOPNOTSUPP) {
 						bp->b_error = error;
 						bp->b_ioflags |= BIO_ERROR;
+						bp->b_flags &= ~B_BARRIER;
 						bufdone(bp);
 						return;
 					}
@@ -2594,6 +2595,7 @@ ffs_geom_strategy(struct bufobj *bo, struct buf *bp)
 				if (error != 0 && error != EOPNOTSUPP) {
 					bp->b_error = error;
 					bp->b_ioflags |= BIO_ERROR;
+					bp->b_flags &= ~B_BARRIER;
 					bufdone(bp);
 					return;
 				}
