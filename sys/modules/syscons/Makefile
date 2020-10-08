@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	${_apm} \
-	beastie \
+SUBDIR= beastie \
 	blank \
 	daemon \
 	dragon \
@@ -14,9 +13,5 @@ SUBDIR=	${_apm} \
 	snake \
 	star \
 	warp
-
-.if ${MACHINE_CPUARCH} == "i386"
-_apm=		apm
-.endif
 
 .include <bsd.subdir.mk>

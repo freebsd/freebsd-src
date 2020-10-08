@@ -119,7 +119,6 @@ dev/sbni/if_sbni_isa.c		optional sbni isa
 dev/sbni/if_sbni_pci.c		optional sbni pci
 dev/speaker/spkr.c		optional speaker
 dev/superio/superio.c		optional superio isa
-dev/syscons/apm/apm_saver.c	optional apm_saver apm
 dev/syscons/scvesactl.c		optional sc vga vesa
 dev/syscons/scvgarndr.c		optional sc vga
 dev/tpm/tpm.c			optional tpm
