@@ -639,7 +639,7 @@ vm_page_dump_index_to_pa(int bit)
 		    dump_avail[i] / PAGE_SIZE;
 		if (bit < tot)
 			return ((vm_paddr_t)bit * PAGE_SIZE +
-			    dump_avail[i] & ~PAGE_MASK);
+			    (dump_avail[i] & ~PAGE_MASK));
 		bit -= tot;
 	}
 	return ((vm_paddr_t)NULL);
