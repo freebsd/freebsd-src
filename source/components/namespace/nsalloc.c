@@ -481,7 +481,7 @@ AcpiNsDeleteChildren (
         NodeToDelete = NextNode;
         NextNode = NextNode->Peer;
         AcpiNsDeleteNode (NodeToDelete);
-    };
+    }
 
     /* Clear the parent's child pointer */
 

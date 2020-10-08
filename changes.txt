@@ -1,6 +1,80 @@
 ----------------------------------------
 
 
+25 September 2020. Summary of changes for version 20200925:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Preserve memory opregion mappings. The ACPICA's strategy with respect to 
+the handling of memory mappings associated with memory operation regions 
+is to avoid mapping the entire region at once which may be problematic at 
+least in principle (for example, it may lead to conflicts with 
+overlapping mappings having different attributes created by drivers).  It 
+may also be wasteful, because memory opregions on some systems take up 
+vastchunks of address space while the fields in those regions actually 
+accessed by AML are sparsely distributed.
+
+For this reason, a one-page "window" is mapped for a given opregion on 
+the first memory access through it and if that "window" does not cover an 
+address range accessed through that opregion subsequently, it is unmapped 
+and a new "window" is mapped to replace it.  Next, if the new "window" is 
+not sufficient to access memory through the opregion in question in the 
+future, it will be replaced with yet another "window" and so on.  That 
+may lead to a suboptimal sequence of memory mapping and unmapping 
+operations, for example if two fields in one opregion separated from each 
+other by a sufficiently wide chunk of unused address space are accessed 
+in an alternating pattern.
+
+Added support for 64 bit risc-v compilation.  Useful for acpica tools and 
+incorporating ACPICA into the Firmware Test Suite. Colin Ian King 
+<colin.king@canonical.com>.
+
+Added support for SMBus predefined names (from SMBus Control Method 
+Interface Specification, Version 1.0, December 10, 1999. New predefined 
+names:
+    _SBA
+    _SBI
+    _SBR
+    _SBT
+    _SBW
+
+AML Disassembler: Added a new command, "All <NameSeg". This command will 
+evaluate all objects in the current namespace whose NameString contains 
+the input NameSeg as the last element of the NameString. Useful for 
+debugging.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools: 
+
+iASL: fixed a crash that occurred when predefined objects return packages 
+with lengths that exceed the initializer list.
+
+iASL: added more detail to external resolution error message when 
+compiling multiple definition blocks.
+
+iASL: improve alias analysis by saving object type. If the alias is a 
+method type, the parameter count is also recorded.
+
+AcpiExec: Increase the default loop timeout value. Was 1 second, is now 
+10 seconds. Prevents unnecessary timeouts when executing control methods 
+from the command line.
+
+AcpiHelp/disassembler: Added a bunch of "known" UUIDs to the internal 
+list. Includes:
+    Memory Device
+    Generic Buttons Device
+    NVDIMM Root Device
+    Control Method Battery
+    Device Graphs for _DSD method
+    Hierarchical Data Extension
+....ARM CoreSight Graph
+
+----------------------------------------
+
+
 17 July 2020. Summary of changes for version 20200717:
 
 This release is available at https://acpica.org/downloads
@@ -94,7 +168,7 @@ would need to be updated to match the same behavior as the acpiexec
 utility and since acpiexec can already dump the entire namespace (via the 
 'namespace' command), we no longer have the need to maintain acpinames.
 
-    In order to dump the contents of the ACPI namepsace using acpiexec, 
+    In order to dump the contents of the ACPI namespace using acpiexec,
 execute the following command from the command line:
 
         acpiexec -b "n" [aml files]
@@ -17606,7 +17680,7 @@ bypass the "implicit conversion" mechanism of the Store operator.)
 The ACPI 2.0 semantics for the SizeOf operator are fully
 implemented.  The change is that performing a SizeOf on a
 reference object causes an automatic dereference of the object to
-tha actual value before the size is evaluated. This behavior was
+the actual value before the size is evaluated. This behavior was
 undefined in ACPI 1.0.
 
 The ACPI 2.0 semantics for the Extended IRQ resource descriptor

@@ -83,7 +83,7 @@ set -e		# Abort on any error
 if [ $NPARAM -gt 1 ]; then
 	usage "Wrong argument count ($NPARAM)"
 	exit 1
-	
+
 elif [ $NPARAM -eq 1 ]; then
 	if [ $1 == notest ]; then
 		BUILD_TESTS=0
@@ -131,7 +131,7 @@ if [ $BUILD_TESTS -eq 1 ]; then
 
 	bash build.sh test win
 	bash build.sh test unix
-	
+
 else
 	echo "**** Test suites not built because the notest option was used"
 fi

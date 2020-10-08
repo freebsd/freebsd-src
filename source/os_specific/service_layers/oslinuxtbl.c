@@ -287,7 +287,7 @@ UINT32                  Gbl_TableCount = 0;
  *
  * RETURN:      Status; Converted from errno.
  *
- * DESCRIPTION: Get last errno and conver it to ACPI_STATUS.
+ * DESCRIPTION: Get last errno and convert it to ACPI_STATUS.
  *
  *****************************************************************************/
 

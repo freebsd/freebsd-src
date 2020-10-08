@@ -1404,9 +1404,16 @@ LdNamespace2Begin (
             return (AE_OK);
         }
 
-        /* Save the target node within the alias node */
+        /* Save the target node within the alias node as well as type information */
 
         Node->Object = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, TargetNode);
+        Node->Type = TargetNode->Type;
+        if (Node->Type == ACPI_TYPE_METHOD)
+        {
+            /* Save the parameter count for methods */
+
+            Node->Value = TargetNode->Value;
+        }
     }
 
     return (AE_OK);

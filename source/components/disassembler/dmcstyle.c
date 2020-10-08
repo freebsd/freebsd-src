@@ -744,7 +744,7 @@ AcpiDmIsOptimizationIgnored (
      * Only a small subset of ASL/AML operators can be optimized.
      * Can only optimize/fold if there is no target (or targets)
      * specified for the operator. And of course, the operator
-     * is surrrounded by a Store() operator.
+     * is surrounded by a Store() operator.
      */
     switch (StoreArgument->Common.AmlOpcode)
     {
