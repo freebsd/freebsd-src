@@ -4,8 +4,7 @@
 #
 
 # PROVIDE: pf
-# REQUIRE: FILESYSTEMS netif pflog pfsync
-# BEFORE:  routing
+# REQUIRE: FILESYSTEMS netif pflog pfsync routing
 # KEYWORD: nojailvnet
 
 . /etc/rc.subr
