@@ -729,7 +729,6 @@ device 		hyperv		# HyperV drivers
 #
 # Miscellaneous hardware:
 #
-# apm: Laptop Advanced Power Management (experimental)
 # ipmi: Intelligent Platform Management Interface
 # smapi: System Management Application Program Interface driver
 # smbios: DMI/SMBIOS entry point
@@ -738,10 +737,6 @@ device 		hyperv		# HyperV drivers
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card driver
 # tpm: Trusted Platform Module
-
-# Notes on APM
-#  The flags takes the following meaning for apm0:
-#    0x0020  Statclock is broken.
 
 # Notes on the Specialix SI/XIO driver:
 #  The host card is memory, not IO mapped.
@@ -761,8 +756,6 @@ device 		hyperv		# HyperV drivers
 #  is the only thing truly supported, but apparently a fair percentage
 #  of the Vaio extra features are controlled by this device.
 
-device		apm
-envvar		hint.apm.0.flags="0x20"
 device		ipmi
 device		smapi
 device		smbios
