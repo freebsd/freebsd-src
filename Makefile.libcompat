@@ -10,7 +10,7 @@ __<${_this:T}>__:
 
 # Yes, the flags are redundant.
 LIBCOMPATWMAKEENV+= \
-		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		INSTALL="${INSTALL_CMD} -U" \
 		PATH=${TMPPATH} \
 		SYSROOT=${LIBCOMPATTMP} \
 		LIBDIR=/usr/lib${libcompat} \
