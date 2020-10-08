@@ -77,10 +77,10 @@ int evdev_sysmouse_t_axis = 0;
 SYSCTL_NODE(_kern, OID_AUTO, evdev, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Evdev args");
 #ifdef EVDEV_SUPPORT
-SYSCTL_INT(_kern_evdev, OID_AUTO, rcpt_mask, CTLFLAG_RW, &evdev_rcpt_mask, 0,
+SYSCTL_INT(_kern_evdev, OID_AUTO, rcpt_mask, CTLFLAG_RWTUN, &evdev_rcpt_mask, 0,
     "Who is receiving events: bit0 - sysmouse, bit1 - kbdmux, "
     "bit2 - mouse hardware, bit3 - keyboard hardware");
-SYSCTL_INT(_kern_evdev, OID_AUTO, sysmouse_t_axis, CTLFLAG_RW,
+SYSCTL_INT(_kern_evdev, OID_AUTO, sysmouse_t_axis, CTLFLAG_RWTUN,
     &evdev_sysmouse_t_axis, 0, "Extract T-axis from 0-none, 1-ums, 2-psm");
 #endif
 SYSCTL_NODE(_kern_evdev, OID_AUTO, input, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
