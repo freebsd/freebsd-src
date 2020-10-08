@@ -41,7 +41,6 @@ SUBDIR=	\
 	amr \
 	${_an} \
 	${_aout} \
-	${_apm} \
 	${_arcmsr} \
 	${_allwinner} \
 	${_armv8crypto} \
@@ -744,7 +743,6 @@ _vmm=		vmm
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
-_apm=		apm
 .if ${MK_SOURCELESS_HOST} != "no"
 _ce=		ce
 .endif
