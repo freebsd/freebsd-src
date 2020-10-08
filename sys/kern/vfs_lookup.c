@@ -595,8 +595,17 @@ namei(struct nameidata *ndp)
 	for (;;) {
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
-		if (error != 0)
+		if (error != 0) {
+			/*
+			 * Override an error to not allow user to use
+			 * BENEATH as an oracle.
+			 */
+			if ((ndp->ni_lcf & (NI_LCF_LATCH |
+			    NI_LCF_BENEATH_LATCHED)) == NI_LCF_LATCH)
+				error = ENOTCAPABLE;
 			goto out;
+		}
+
 		/*
 		 * If not a symbolic link, we're done.
 		 */
