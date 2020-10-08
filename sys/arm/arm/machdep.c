@@ -1027,6 +1027,15 @@ initarm(struct arm_boot_params *abp)
 	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	arm_print_kenv();
 
+	/*
+	 * Dump the boot metadata. We have to wait for cninit() since console
+	 * output is required. If it's grossly incorrect the kernel will never
+	 * make it this far.
+	 */
+	if ((boothowto & RB_VERBOSE) &&
+	    getenv_is_true("debug.dump_modinfo_at_boot"))
+		preload_dump();
+
 	env = kern_getenv("kernelname");
 	if (env != NULL) {
 		strlcpy(kernelname, env, sizeof(kernelname));
