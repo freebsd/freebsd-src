@@ -1017,6 +1017,7 @@ MAN+=	\
 	usb.4 \
 	usb_quirk.4 \
 	usb_template.4 \
+	usbhid.4 \
 	usfs.4 \
 	uslcom.4 \
 	uvisor.4 \
