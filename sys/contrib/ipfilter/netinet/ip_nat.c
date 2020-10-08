@@ -5116,8 +5116,8 @@ ipf_nat_out(fin, nat, natadd, nflags)
 
 		ipf_fix_outcksum(0, &fin->fin_ip->ip_sum, msumd, 0);
 	}
-#if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-    defined(linux) || defined(BRIDGE_IPF) || defined(__FreeBSD__)
+#if !defined(_KERNEL) || defined(MENTAT) || \
+    defined(BRIDGE_IPF) || defined(__FreeBSD__)
 	else {
 		/*
 		 * Strictly speaking, this isn't necessary on BSD
@@ -5631,8 +5631,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 		}
 		fin->fin_ip->ip_dst = nat->nat_ndstip;
 		fin->fin_daddr = nat->nat_ndstaddr;
-#if !defined(_KERNEL) || defined(MENTAT) || defined(__sgi) || \
-     defined(__osf__) || defined(linux)
+#if !defined(_KERNEL) || defined(MENTAT)
 		ipf_fix_outcksum(0, &fin->fin_ip->ip_sum, ipsumd, 0);
 #endif
 		break;
