@@ -496,7 +496,7 @@ preload_dump_internal(struct sbuf *sbp)
 	 */
 	bptr = (uint32_t *)preload_metadata;
 	sbuf_putc(sbp, '\n');
-	while (bptr[0] != MODINFO_END || bptr[0] != MODINFO_END) {
+	while (bptr[0] != MODINFO_END || bptr[1] != MODINFO_END) {
 		sbuf_printf(sbp, " %p:\n", bptr);
 		type = *bptr++;
 		len = *bptr++;
