@@ -158,14 +158,11 @@ dump_regs(struct trapframe *frame)
 }
 
 static void
-ecall_handler(struct trapframe *frame)
+ecall_handler(void)
 {
 	struct thread *td;
 
 	td = curthread;
-
-	KASSERT(td->td_frame == frame,
-	    ("%s: td_frame %p != frame %p", __func__, td->td_frame, frame));
 
 	syscallenter(td);
 	syscallret(td);
@@ -324,8 +321,10 @@ do_trap_user(struct trapframe *frame)
 	struct pcb *pcb;
 
 	td = curthread;
-	td->td_frame = frame;
 	pcb = td->td_pcb;
+
+	KASSERT(td->td_frame == frame,
+	    ("%s: td_frame %p != frame %p", __func__, td->td_frame, frame));
 
 	/* Ensure we came from usermode, interrupts disabled */
 	KASSERT((csr_read(sstatus) & (SSTATUS_SPP | SSTATUS_SIE)) == 0,
@@ -357,7 +356,7 @@ do_trap_user(struct trapframe *frame)
 		break;
 	case EXCP_USER_ECALL:
 		frame->tf_sepc += 4;	/* Next instruction */
-		ecall_handler(frame);
+		ecall_handler();
 		break;
 	case EXCP_ILLEGAL_INSTRUCTION:
 #ifdef FPE
