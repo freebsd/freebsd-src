@@ -3212,6 +3212,9 @@ sig_intr(void)
 	int ret;
 
 	td = curthread;
+	if ((td->td_flags & (TDF_NEEDSIGCHK | TDF_NEEDSUSPCHK)) == 0)
+		return (0);
+
 	p = td->td_proc;
 
 	PROC_LOCK(p);
