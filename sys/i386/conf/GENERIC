@@ -198,9 +198,6 @@ device		vt_vga
 
 device		agp			# support several AGP chipsets
 
-# Power management support (see NOTES for more options)
-#device		apm
-
 # PCCARD (PCMCIA) support
 # PCMCIA and cardbus bridge support
 device		cbb			# cardbus (yenta) bridge
