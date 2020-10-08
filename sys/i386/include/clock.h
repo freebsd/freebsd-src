@@ -30,7 +30,6 @@ void	clock_init(void);
  */
 
 void	startrtclock(void);
-void	timer_restore(void);
 void	init_TSC(void);
 void	resume_TSC(void);
 
