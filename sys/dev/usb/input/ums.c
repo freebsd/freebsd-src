@@ -1220,4 +1220,6 @@ MODULE_DEPEND(ums, hid, 1, 1, 1);
 MODULE_DEPEND(ums, evdev, 1, 1, 1);
 #endif
 MODULE_VERSION(ums, 1);
+#ifndef USBHID_ENABLED
 USB_PNP_HOST_INFO(ums_devs);
+#endif
