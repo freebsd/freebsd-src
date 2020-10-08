@@ -257,6 +257,7 @@ extern caddr_t		preload_search_next_name(caddr_t _base);
 extern caddr_t		preload_search_info(caddr_t _mod, int _inf);
 extern void		preload_delete_name(const char *_name);
 extern void		preload_bootstrap_relocate(vm_offset_t _offset);
+extern void		preload_dump(void);
 
 #ifdef KLD_DEBUG
 
