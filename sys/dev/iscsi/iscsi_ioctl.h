@@ -70,7 +70,8 @@ struct iscsi_session_conf {
 	int		isc_iser;
 	char		isc_offload[ISCSI_OFFLOAD_LEN];
 	int		isc_enable;
-	int		isc_spare[4];
+	int		isc_dscp;
+	int		isc_spare[3];
 };
 
 /*
