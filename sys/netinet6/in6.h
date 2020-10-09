@@ -511,6 +511,10 @@ struct route_in6 {
 				    * set/get multicast source filter list.
 				    */
 
+/* The following option deals with the 802.1Q Ethernet Priority Code Point */
+#define	IPV6_VLAN_PCP		75  /* int; set/get PCP used for packet, */
+				    /*      -1 use interface default */
+
 /* to define items, should talk with KAME guys first, for *BSD compatibility */
 
 #define IPV6_RTHDR_LOOSE     0 /* this hop need not be a neighbor. XXX old spec */

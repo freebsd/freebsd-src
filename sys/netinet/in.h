@@ -483,6 +483,10 @@ __END_DECLS
 /* The following option is private; do not use it from user applications. */
 #define	IP_MSFILTER			74   /* set/get filter list */
 
+/* The following option deals with the 802.1Q Ethernet Priority Code Point */
+#define	IP_VLAN_PCP		75   /* int; set/get PCP used for packet, */
+				     /*      -1 use interface default */
+
 /* Protocol Independent Multicast API [RFC3678] */
 #define	MCAST_JOIN_GROUP		80   /* join an any-source group */
 #define	MCAST_LEAVE_GROUP		81   /* leave all sources for group */
