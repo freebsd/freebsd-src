@@ -2300,7 +2300,9 @@ cvthname(struct sockaddr *f)
 	hl = strlen(hname);
 	if (hl > 0 && hname[hl-1] == '.')
 		hname[--hl] = '\0';
-	trimdomain(hname, hl);
+	/* RFC 5424 prefers logging FQDNs. */
+	if (RFC3164OutputFormat)
+		trimdomain(hname, hl);
 	return (hname);
 }
 
@@ -2927,7 +2929,9 @@ cfline(const char *line, const char *prog, const char *host,
 		hl = strlen(f->f_host);
 		if (hl > 0 && f->f_host[hl-1] == '.')
 			f->f_host[--hl] = '\0';
-		trimdomain(f->f_host, hl);
+		/* RFC 5424 prefers logging FQDNs. */
+		if (RFC3164OutputFormat)
+			trimdomain(f->f_host, hl);
 	}
 
 	/* save program name if any */
