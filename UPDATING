@@ -29,7 +29,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 20200923:
 	LINT files are no longer generated. We now include the relevant NOTES
 	files. Note: This may cause conflicts with updating in some cases.
-	        find sys -name LINT\* -rm
+	        find sys -name LINT\* -delete
 	is suggested across this commit	to remove the generated	LINT files.
 
 	If you have tried to update with generated files there, the svn
