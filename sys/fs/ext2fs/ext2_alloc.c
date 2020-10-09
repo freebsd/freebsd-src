@@ -192,7 +192,7 @@ static SYSCTL_NODE(_vfs, OID_AUTO, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
 static int doasyncfree = 1;
 
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0,
-    "Use asychronous writes to update block pointers when freeing blocks");
+    "Use asynchronous writes to update block pointers when freeing blocks");
 
 static int doreallocblks = 0;
 
