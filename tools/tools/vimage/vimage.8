@@ -65,20 +65,17 @@ and
 .
 .Ss Overview
 A virtual image or vimage is a jail with its own independent network
-stack instance.  Every process, socket and network interface present
-in the system is always attached to one, and only one, virtual network
-stack instance (vnet).
-During system bootup sequence a default vnet
-is created to which all the configured interfaces and user processes
-are initially attached.
-Assuming that enough system resources are
-are available, a user with sufficient privileges can create and manage
-a hierarchy of subordinated virtual images.
+stack instance.
+Every process, socket and network interface present in the system is always
+attached to one, and only one, virtual network stack instance (vnet).
+During system bootup sequence a default vnet is created to which all the configured
+interfaces and user processes are initially attached.
+Assuming that enough system resources are are available, a user with sufficient
+privileges can create and manage a hierarchy of subordinated virtual images.
 The
 .Nm
 command allows for creation, deletion and monitoring of virtual images,
-as well as for execution of arbitrary processes in a targeted virtual
-image.
+as well as for execution of arbitrary processes in a targeted virtual image.
 .Ss Invocation
 If invoked with no modifiers, the
 .Nm
@@ -109,12 +106,13 @@ using the same syntax as with the -c form of the command.
 Delete the virtual image
 .Ar vname .
 No processes and/or sockets should exist in the target virtual image
-in order for the delete request to succeed.  Non-loopback interfaces
-residing in the target virtual image will be reassigned to the virtual
-image's parent.
+in order for the delete request to succeed.
+Non-loopback interfaces residing in the target virtual image
+will be reassigned to the virtual image's parent.
 .It Fl l
-List the properties and statistics for virtual images one level
-below the current one in the hierarchy. If an optional argument
+List the properties and statistics for virtual images one level below
+the current one in the hierarchy.
+If an optional argument
 .Ar vname
 is provided, only the information regarding the target virtual image
 .Ar vname
@@ -183,11 +181,12 @@ command exits 0 on success, and >0 if an error occurs.
 .Xr jls 8
 .Sh HISTORY
 Network stack virtualization framework first appeared as a patchset
-against the FreeBSD 4.7 kernel in 2002, and was maintained outside
-of the main FreeBSD tree.
+against the
+.Fx 4.7
+kernel in 2002, and was maintained outside of the main FreeBSD tree.
 As a result of a project sponsored by the FreeBSD Foundation and
-Stiching NLNet, integrated virtualized network stack first appeared
-in FreeBSD 8.0.
+Stiching NLNet, integrated virtualized network stack first appeared in
+.Fx 8.0 .
 .Sh AUTHORS
 .An Marko Zec Aq Mt zec@fer.hr
 .Sh BUGS
