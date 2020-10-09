@@ -233,6 +233,7 @@ int bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map,
     vm_paddr_t start, vm_size_t length, int flags);
 
 bus_dma_tag_t iommu_get_dma_tag(device_t dev, device_t child);
+struct iommu_ctx *iommu_get_dev_ctx(device_t dev);
 
 SYSCTL_DECL(_hw_iommu);
 

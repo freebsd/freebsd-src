@@ -269,14 +269,12 @@ iommu_instantiate_ctx(struct iommu_unit *unit, device_t dev, bool rmrr)
 	return (ctx);
 }
 
-bus_dma_tag_t
-iommu_get_dma_tag(device_t dev, device_t child)
+struct iommu_ctx *
+iommu_get_dev_ctx(device_t dev)
 {
 	struct iommu_unit *unit;
-	struct iommu_ctx *ctx;
-	bus_dma_tag_t res;
 
-	unit = iommu_find(child, bootverbose);
+	unit = iommu_find(dev, bootverbose);
 	/* Not in scope of any IOMMU ? */
 	if (unit == NULL)
 		return (NULL);
@@ -288,8 +286,20 @@ iommu_get_dma_tag(device_t dev, device_t child)
 	dmar_instantiate_rmrr_ctxs(unit);
 #endif
 
-	ctx = iommu_instantiate_ctx(unit, child, false);
-	res = ctx == NULL ? NULL : (bus_dma_tag_t)ctx->tag;
+	return (iommu_instantiate_ctx(unit, dev, false));
+}
+
+bus_dma_tag_t
+iommu_get_dma_tag(device_t dev, device_t child)
+{
+	struct iommu_ctx *ctx;
+	bus_dma_tag_t res;
+
+	ctx = iommu_get_dev_ctx(child);
+	if (ctx == NULL)
+		return (NULL);
+
+	res = (bus_dma_tag_t)ctx->tag;
 	return (res);
 }
 
