@@ -1074,14 +1074,16 @@ UtDoConstant (
 {
     ACPI_STATUS             Status;
     UINT64                  ConvertedInteger;
-    char                    ErrBuf[64];
+    char                    ErrBuf[128];
+    const ACPI_EXCEPTION_INFO *ExceptionInfo;
 
 
     Status = AcpiUtStrtoul64 (String, &ConvertedInteger);
     if (ACPI_FAILURE (Status))
     {
-        sprintf (ErrBuf, "While creating 64-bit constant: %s\n",
-            AcpiFormatException (Status));
+        ExceptionInfo = AcpiUtValidateException ((ACPI_STATUS) Status);
+        sprintf (ErrBuf, " %s while converting to 64-bit integer",
+            ExceptionInfo->Description);
 
         AslCommonError (ASL_ERROR, ASL_MSG_SYNTAX, AslGbl_CurrentLineNumber,
             AslGbl_LogicalLineNumber, AslGbl_CurrentLineOffset,
