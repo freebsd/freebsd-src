@@ -78,6 +78,7 @@ struct target {
 	int			t_session_type;
 	int			t_enable;
 	int			t_protocol;
+	int			t_dscp;
 	char			*t_offload;
 	char			*t_user;
 	char			*t_secret;

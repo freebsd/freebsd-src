@@ -87,6 +87,7 @@ target_new(struct conf *conf)
 	if (targ == NULL)
 		xo_err(1, "calloc");
 	targ->t_conf = conf;
+	targ->t_dscp = -1;
 	TAILQ_INSERT_TAIL(&conf->conf_targets, targ, t_next);
 
 	return (targ);
@@ -358,6 +359,7 @@ conf_from_target(struct iscsi_session_conf *conf,
 		conf->isc_data_digest = ISCSI_DIGEST_CRC32C;
 	else
 		conf->isc_data_digest = ISCSI_DIGEST_NONE;
+	conf->isc_dscp = targ->t_dscp;
 }
 
 static int
@@ -535,6 +537,9 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 			    "Target portal:", conf->isc_target_addr);
 			xo_emit("{L:/%-26s}{V:alias/%s}\n",
 			    "Target alias:", state->iss_target_alias);
+			if (conf->isc_dscp != -1)
+				xo_emit("{L:/%-26s}{V:dscp/0x%02x}\n",
+				    "Target DSCP:", conf->isc_dscp);
 			xo_close_container("target");
 
 			xo_open_container("auth");
