@@ -1,7 +1,7 @@
-.\" 
+.\"
 .\" Copyright (c) 2015 Spectra Logic Corporation
 .\" All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -13,7 +13,7 @@
 .\"    ("Disclaimer") and any redistribution must be conditioned upon
 .\"    including a substantially similar Disclaimer requirement for further
 .\"    binary redistribution.
-.\" 
+.\"
 .\" NO WARRANTY
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 .\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -26,11 +26,11 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGES.
-.\" 
-.\" Authors: Ken Merry           (Spectra Logic Corporation)
-.\" 
-.\" $FreeBSD$
 .\"
+.\" Authors: Ken Merry           (Spectra Logic Corporation)
+.\"
+.\" $FreeBSD$
+.\
 .Dd November 11, 2015
 .Dt CAMDD 8
 .Os
@@ -70,7 +70,7 @@ The following options are available:
 .Bl -tag -width 12n
 .It Fl i | o Ar args
 Specify the input and output device or file.
-Both 
+Both
 .Fl i
 and
 .Fl o
@@ -96,7 +96,7 @@ name and unit number, for instance
 or a regular peripheral driver name and unit number, for instance
 .Dq da5 .
 It can also be the path of a
-.Xr pass 4 
+.Xr pass 4
 or other disk device, like
 .Dq /dev/da5 .
 It may also be a bus:target:lun, for example:
@@ -127,7 +127,7 @@ It does support probing disk sector size and capacity information, and tape
 blocksize and maximum transfer size information.
 The file interface supports standard files, disks, tape drives, special
 devices, pipes and standard input and output.
-If the file is specified as a 
+If the file is specified as a
 .Dq - ,
 standard input or standard output are used.
 For tape devices, the specified blocksize will be the size that
@@ -138,7 +138,7 @@ size.
 So, that means
 .Nm
 will not write anything smaller than the sector size.
-At the end of a transfer, if there isn't sufficient data from the reader 
+At the end of a transfer, if there isn't sufficient data from the reader
 to yield a full block,
 .Nm
 will add zeros on the end of the data from the reader to make up a full
@@ -171,7 +171,7 @@ Specify a desired queue depth for the input or output path.
 will attempt to keep the requested number of requests of the specified
 blocksize queued to the input or output device.
 Queue depths greater than 1 are only supported for the asynchronous
-.Xr pass 4 
+.Xr pass 4
 output method.
 The queue depth is maintained on a best effort basis, and may not be
 possible to maintain for especially fast devices.
@@ -261,7 +261,7 @@ Stop the transfer after 100MB has been written.
 Copy disk da8 using a 1MB blocksize and desired queue depth of 3 to the
 file disk.img.
 .Pp
-.Dl camdd -i file=/etc/rc -o file=- 
+.Dl camdd -i file=/etc/rc -o file=-
 .Pp
 Read the file /etc/rc and write it to standard output.
 .Pp

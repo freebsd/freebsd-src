@@ -58,7 +58,7 @@ line on the bus, and all I/O performed through that instance is done
 with that chip-select line asserted.
 .Pp
 SPI data transfers are inherently bi-directional; there are not separate
-read and write operations. 
+read and write operations.
 When commands and data are sent to a device, data also comes back from
 the device, although in some cases the data may not be useful (or even
 documented or predictable for some devices).
@@ -129,7 +129,7 @@ The setting remains in effect for subsequent transfers; it
 is not necessary to reset this before each transfer.
 .El
 .Sh HINTS CONFIGURATION
-On a 
+On a
 .Xr device.hints 5
 based system, such as
 .Li MIPS ,
