@@ -381,8 +381,6 @@ sysvsem_modload(struct module *module, int cmd, void *arg)
 	switch (cmd) {
 	case MOD_LOAD:
 		error = seminit();
-		if (error != 0)
-			semunload();
 		break;
 	case MOD_UNLOAD:
 		error = semunload();
