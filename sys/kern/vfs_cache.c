@@ -4040,32 +4040,46 @@ cache_fplookup_parse_advance(struct cache_fpl *fpl)
 	}
 }
 
+/*
+ * See the API contract for VOP_FPLOOKUP_VEXEC.
+ */
 static int __noinline
 cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 {
+	struct vnode *dvp;
+	seqc_t dvp_seqc;
+
+	dvp = fpl->dvp;
+	dvp_seqc = fpl->dvp_seqc;
 
 	/*
 	 * Hack: they may be looking up foo/bar, where foo is a
 	 * regular file. In such a case we need to turn ENOTDIR,
 	 * but we may happen to get here with a different error.
 	 */
-	if (fpl->dvp->v_type != VDIR) {
+	if (dvp->v_type != VDIR) {
+		/*
+		 * The check here is predominantly to catch
+		 * EOPNOTSUPP from dead_vnodeops. If the vnode
+		 * gets doomed past this point it is going to
+		 * fail seqc verification.
+		 */
+		if (VN_IS_DOOMED(dvp)) {
+			return (cache_fpl_aborted(fpl));
+		}
 		error = ENOTDIR;
 	}
 
 	switch (error) {
 	case EAGAIN:
-		/*
-		 * Can happen when racing against vgone.
-		 * */
-	case EOPNOTSUPP:
-		cache_fpl_partial(fpl);
+		if (!vn_seqc_consistent(dvp, dvp_seqc)) {
+			error = cache_fpl_aborted(fpl);
+		} else {
+			cache_fpl_partial(fpl);
+		}
 		break;
 	default:
-		/*
-		 * See the API contract for VOP_FPLOOKUP_VEXEC.
-		 */
-		if (!vn_seqc_consistent(fpl->dvp, fpl->dvp_seqc)) {
+		if (!vn_seqc_consistent(dvp, dvp_seqc)) {
 			error = cache_fpl_aborted(fpl);
 		} else {
 			cache_fpl_smr_exit(fpl);
