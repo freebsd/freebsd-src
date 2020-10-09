@@ -44,6 +44,8 @@
 #include <libxo/xo.h>
 
 #include "iscsictl.h"
+#include <netinet/in.h>
+#include <netinet/ip.h>
 
 extern FILE *yyin;
 extern char *yytext;
@@ -61,7 +63,9 @@ extern void	yyrestart(FILE *);
 %token AUTH_METHOD ENABLE HEADER_DIGEST DATA_DIGEST TARGET_NAME TARGET_ADDRESS
 %token INITIATOR_NAME INITIATOR_ADDRESS INITIATOR_ALIAS USER SECRET
 %token MUTUAL_USER MUTUAL_SECRET SEMICOLON SESSION_TYPE PROTOCOL OFFLOAD
-%token IGNORED EQUALS OPENING_BRACKET CLOSING_BRACKET
+%token IGNORED EQUALS OPENING_BRACKET CLOSING_BRACKET DSCP
+%token AF11 AF12 AF13 AF21 AF22 AF23 AF31 AF32 AF33 AF41 AF42 AF43
+%token BE EF CS0 CS1 CS2 CS3 CS4 CS5 CS6 CS7
 
 %union
 {
@@ -127,6 +131,8 @@ target_entry:
 	protocol
 	|
 	ignored
+	|
+	dscp
 	;
 
 target_name:	TARGET_NAME EQUALS STR
@@ -294,6 +300,48 @@ ignored:	IGNORED EQUALS STR
 	{
 		xo_warnx("obsolete statement ignored at line %d", lineno);
 	}
+	;
+
+dscp:		DSCP EQUALS STR
+	{
+		uint64_t tmp;
+
+		if (strcmp($3, "0x") == 0) {
+			tmp = strtol($3 + 2, NULL, 16);
+		} else if (expand_number($3, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($3);
+			return(1);
+		}
+		if (tmp >= 0x40) {
+			yyerror("invalid dscp value");
+			return(1);
+		}
+
+		target->t_dscp = tmp;
+	}
+	| DSCP EQUALS BE	{ target->t_dscp = IPTOS_DSCP_CS0  >> 2 ; }
+	| DSCP EQUALS EF	{ target->t_dscp = IPTOS_DSCP_EF   >> 2 ; }
+	| DSCP EQUALS CS0	{ target->t_dscp = IPTOS_DSCP_CS0  >> 2 ; }
+	| DSCP EQUALS CS1	{ target->t_dscp = IPTOS_DSCP_CS1  >> 2 ; }
+	| DSCP EQUALS CS2	{ target->t_dscp = IPTOS_DSCP_CS2  >> 2 ; }
+	| DSCP EQUALS CS3	{ target->t_dscp = IPTOS_DSCP_CS3  >> 2 ; }
+	| DSCP EQUALS CS4	{ target->t_dscp = IPTOS_DSCP_CS4  >> 2 ; }
+	| DSCP EQUALS CS5	{ target->t_dscp = IPTOS_DSCP_CS5  >> 2 ; }
+	| DSCP EQUALS CS6	{ target->t_dscp = IPTOS_DSCP_CS6  >> 2 ; }
+	| DSCP EQUALS CS7	{ target->t_dscp = IPTOS_DSCP_CS7  >> 2 ; }
+	| DSCP EQUALS AF11	{ target->t_dscp = IPTOS_DSCP_AF11 >> 2 ; }
+	| DSCP EQUALS AF12	{ target->t_dscp = IPTOS_DSCP_AF12 >> 2 ; }
+	| DSCP EQUALS AF13	{ target->t_dscp = IPTOS_DSCP_AF13 >> 2 ; }
+	| DSCP EQUALS AF21	{ target->t_dscp = IPTOS_DSCP_AF21 >> 2 ; }
+	| DSCP EQUALS AF22	{ target->t_dscp = IPTOS_DSCP_AF22 >> 2 ; }
+	| DSCP EQUALS AF23	{ target->t_dscp = IPTOS_DSCP_AF23 >> 2 ; }
+	| DSCP EQUALS AF31	{ target->t_dscp = IPTOS_DSCP_AF31 >> 2 ; }
+	| DSCP EQUALS AF32	{ target->t_dscp = IPTOS_DSCP_AF32 >> 2 ; }
+	| DSCP EQUALS AF33	{ target->t_dscp = IPTOS_DSCP_AF33 >> 2 ; }
+	| DSCP EQUALS AF41	{ target->t_dscp = IPTOS_DSCP_AF41 >> 2 ; }
+	| DSCP EQUALS AF42	{ target->t_dscp = IPTOS_DSCP_AF42 >> 2 ; }
+	| DSCP EQUALS AF43	{ target->t_dscp = IPTOS_DSCP_AF43 >> 2 ; }
 	;
 
 %%
