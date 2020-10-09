@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd June 03, 2020
+.Dd June 3, 2020
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -219,7 +219,8 @@ if they all set
 before binding the port.
 Incoming TCP and UDP connections are distributed among the sharing
 processes based on a hash function of local port number, foreign IP
-address and port number. A maximum of 256 processes can share one socket.
+address and port number.
+A maximum of 256 processes can share one socket.
 .Pp
 .Dv SO_KEEPALIVE
 enables the

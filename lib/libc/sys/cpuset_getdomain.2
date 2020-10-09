@@ -119,7 +119,8 @@ Memory is allocated on a round-robin basis by cycling through each domain in
 .Fa mask .
 .It Dv DOMAINSET_POLICY_FIRSTTOUCH
 Memory is allocated on the domain local to the CPU the requesting thread is
-running on.  Failure to allocate from this domain will fallback to round-robin.
+running on.
+Failure to allocate from this domain will fallback to round-robin.
 .It Dv DOMAINSET_POLICY_PREFER
 Memory is allocated preferentially from the single domain specified in the mask.
 If memory is unavailable the domains listed in the parent cpuset will be
@@ -167,7 +168,7 @@ was either preposterously large or smaller than the kernel set size.
 The calling process did not have the credentials required to complete the
 operation.
 .It Bq Er ECAPMODE
-The calling process attempted to act on a process other than itself, while 
+The calling process attempted to act on a process other than itself, while
 in capability mode.
 See
 .Xr capsicum 4 .
