@@ -179,6 +179,7 @@ MAN=	aac.4 \
 	gpioths.4 \
 	gre.4 \
 	h_ertt.4 \
+	hidbus.4 \
 	hifn.4 \
 	hpet.4 \
 	${_hpt27xx.4} \
