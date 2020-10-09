@@ -577,6 +577,20 @@ after_sack_rexmit:
 		if (len >= tp->t_maxseg)
 			goto send;
 		/*
+		 * As the TCP header options are now
+		 * considered when setting up the initial
+		 * window, we would not send the last segment
+		 * if we skip considering the option length here.
+		 * Note: this may not work when tcp headers change
+		 * very dynamically in the future.
+		 */
+		if ((((tp->t_flags & TF_SIGNATURE) ?
+			PADTCPOLEN(TCPOLEN_SIGNATURE) : 0) +
+		    ((tp->t_flags & TF_RCVD_TSTMP) ?
+			PADTCPOLEN(TCPOLEN_TIMESTAMP) : 0) +
+		    len) >= tp->t_maxseg)
+			goto send;
+		/*
 		 * NOTE! on localhost connections an 'ack' from the remote
 		 * end may occur synchronously with the output and cause
 		 * us to flush a buffer queued with moretocome.  XXX

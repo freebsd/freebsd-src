@@ -80,6 +80,8 @@ struct tcphdr {
 	u_short	th_urp;			/* urgent pointer */
 };
 
+#define	PADTCPOLEN(len)		((((len) / 4) + !!((len) % 4)) * 4)
+
 #define	TCPOPT_EOL		0
 #define	   TCPOLEN_EOL			1
 #define	TCPOPT_PAD		0		/* padding after EOL */
