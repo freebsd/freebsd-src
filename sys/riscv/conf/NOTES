@@ -1,0 +1,96 @@
+#
+# NOTES -- Lines that can be cut/pasted into kernel and hints configs.
+#
+# This file contains machine dependent kernel configuration notes.  For
+# machine independent notes, look in /sys/conf/NOTES.
+#
+# $FreeBSD$
+#
+
+cpu		RISCV
+
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
+
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
+options 	FPE			# Floating-point extension support
+options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	INTRNG			# Include INTRNG framework
+
+# RISC-V SBI console
+device		rcons
+
+# EXT_RESOURCES pseudo devices
+options 	EXT_RESOURCES
+device		clk
+device		phy
+device		regulator
+device		syscon
+device		syscon_power
+device		riscv_syscon
+
+# Backlight subsystem
+device		backlight
+
+# VirtIO support
+device		virtio			# Generic VirtIO bus (required)
+device		virtio_pci		# VirtIO PCI device
+device		vtnet			# VirtIO Ethernet device
+device		virtio_blk		# VirtIO Block device
+device		virtio_mmio		# VirtIO MMIO bus
+device		virtio_random		# VirtIO Entropy device
+
+# NOTE: dtrace introduces CDDL-licensed components into the kernel
+device		dtrace			# dtrace core
+device		dtraceall		# include all dtrace modules
+
+# Serial (COM) ports
+device		uart_lowrisc	# lowRISC UART driver
+device		uart_ns8250	# ns8250-type UART driver
+
+# RTC
+device		goldfish_rtc	# QEMU RTC
+
+# Ethernet drivers
+device		xae		# Xilinx AXI Ethernet MAC
+
+# DMA support
+device		xdma		# DMA interface
+device		axidma		# Xilinx AXI DMA Controller
+
+# SPI
+device		xilinx_spi	# Xilinx AXI Quad-SPI Controller
+
+# SOC-specific
+device		fe310aon
+device		fu540spi
+files		"../sifive/files.sifive"
+
+# Flattened Device Tree
+options 	FDT
+makeoptions	MODULES_EXTRA+="dtb/sifive"
+
+# FreeBSD/riscv didn't exist for these releases
+nooptions 	COMPAT_FREEBSD4
+nooptions 	COMPAT_FREEBSD5
+nooptions 	COMPAT_FREEBSD6
+nooptions 	COMPAT_FREEBSD7
+nooptions 	COMPAT_FREEBSD9
+nooptions 	COMPAT_FREEBSD10
+nooptions 	COMPAT_FREEBSD11
+
+# No support for remote GDB
+nooptions 	GDB
+
+# riscv doesn't support inb/outb, so disable chipset probing which needs it
+nooptions 	PPC_PROBE_CHIPSET
+
+# Makes assumptions about bus tags that aren't true on riscv
+nodevice	snd_cmi
+
+# Don't yet have hwpmc(4)
+nodevice	hwpmc
+nooptions 	HWPMC_HOOKS
