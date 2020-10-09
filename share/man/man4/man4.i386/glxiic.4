@@ -50,8 +50,8 @@ glxiic_load="YES"
 The
 .Nm
 driver supports the System Management Bus controller of the Geode LX
-series CS5536 Companion Device.  The Geode LX is a member of the AMD
-Geode family of integrated x86 system chips.
+series CS5536 Companion Device.
+The Geode LX is a member of the AMD Geode family of integrated x86 system chips.
 .Pp
 Although AMD refers to this device as a System Management Bus (SMBus)
 controller, it is really an I2C controller (it lacks SMBus ALERT# and
@@ -70,17 +70,18 @@ and
 tunable:
 .Bl -tag -width indent
 .It Va dev.glxiic.0.timeout
-This variable controls the I2C bus timeout in milliseconds.  The
-default timeout is 35 milliseconds.  A value of zero disables the
-timeout.
+This variable controls the I2C bus timeout in milliseconds.
+The default timeout is 35 milliseconds.
+A value of zero disables the timeout.
 .El
 .Sh CAVEAT
 The
 .Nm
 driver uses the interrupt line number configured by the board firmware
-by default.  If no interrupt line number has been configured by the
-board firmware (or to override the interrupt line number configured by
-board firmware), place the following line in
+by default.
+If no interrupt line number has been configured by the board firmware
+(or to override the interrupt line number configured by board firmware),
+place the following line in
 .Xr device.hints 5 :
 .Bd -ragged -offset indent
 hint.glxiic.0.irq="10"
