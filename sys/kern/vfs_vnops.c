@@ -2975,18 +2975,22 @@ vn_write_outvp(struct vnode *outvp, char *dat, off_t outoff, off_t xfer,
 		bwillwrite();
 		mp = NULL;
 		error = vn_start_write(outvp, &mp, V_WAIT);
-		if (error == 0) {
+		if (error != 0)
+			break;
+		if (growfile) {
+			error = vn_lock(outvp, LK_EXCLUSIVE);
+			if (error == 0) {
+				error = vn_truncate_locked(outvp, outoff + xfer,
+				    false, cred);
+				VOP_UNLOCK(outvp);
+			}
+		} else {
 			if (MNT_SHARED_WRITES(mp))
 				lckf = LK_SHARED;
 			else
 				lckf = LK_EXCLUSIVE;
 			error = vn_lock(outvp, lckf);
-		}
-		if (error == 0) {
-			if (growfile)
-				error = vn_truncate_locked(outvp, outoff + xfer,
-				    false, cred);
-			else {
+			if (error == 0) {
 				error = vn_rdwr(UIO_WRITE, outvp, dat, xfer2,
 				    outoff, UIO_SYSSPACE, IO_NODELOCKED,
 				    curthread->td_ucred, cred, NULL, curthread);
