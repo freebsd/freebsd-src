@@ -1698,6 +1698,21 @@ vm_page_lookup(vm_object_t object, vm_pindex_t pindex)
 }
 
 /*
+ *	vm_page_lookup_unlocked:
+ *
+ *	Returns the page associated with the object/offset pair specified;
+ *	if none is found, NULL is returned.  The page may be no longer be
+ *	present in the object at the time that this function returns.  Only
+ *	useful for opportunistic checks such as inmem().
+ */
+vm_page_t
+vm_page_lookup_unlocked(vm_object_t object, vm_pindex_t pindex)
+{
+
+	return (vm_radix_lookup_unlocked(&object->rtree, pindex));
+}
+
+/*
  *	vm_page_relookup:
  *
  *	Returns a page that must already have been busied by
