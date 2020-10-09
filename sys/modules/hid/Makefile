@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 SUBDIR = \
-	hid
+	hid \
+	hidbus
 
 .include <bsd.subdir.mk>

@@ -1,0 +1,102 @@
+.\" Copyright (c) 2020 Vladimir Kondratyev <wulf@FreeBSD.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 14, 2020
+.Dt HIDBUS 4
+.Os
+.Sh NAME
+.Nm hidbus
+.Nd generic HID bus driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device hidbus"
+.Cd "device hid"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hidbus_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for multiple HID driver attachments to single HID
+transport backend.
+See
+.Xr iichid 4
+or
+.Xr usbhid 4 .
+.Pp
+Each HID device can have several components, e.g., a keyboard and
+a mouse.
+These components use different report identifiers (a byte) combined into
+groups called collections to distinguish which one data is coming from.
+The
+.Nm
+driver has other drivers attached that handle particular
+kinds of devices and
+.Nm
+broadcasts data to all of them.
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.hid.hidbus.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh SEE ALSO
+.Xr hconf 4 ,
+.Xr hcons 4 ,
+.Xr hgame 4 ,
+.Xr hidraw 4 ,
+.Xr hkbd 4 ,
+.Xr hms 4 ,
+.Xr hmt 4 ,
+.Xr hpen 4 ,
+.Xr hsctrl 4 ,
+.Xr hskbd 4 ,
+.Xr iichid 4 ,
+.Xr usbhid 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 13.0.
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
