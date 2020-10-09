@@ -549,6 +549,7 @@ int	vfs_bio_awrite(struct buf *);
 void	vfs_busy_pages_acquire(struct buf *bp);
 void	vfs_busy_pages_release(struct buf *bp);
 struct buf *incore(struct bufobj *, daddr_t);
+bool	inmem(struct vnode *, daddr_t);
 struct buf *gbincore(struct bufobj *, daddr_t);
 struct buf *gbincore_unlocked(struct bufobj *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
