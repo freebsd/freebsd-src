@@ -6852,8 +6852,8 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
  */
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
-	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
-	struct link_config *lc = &adap->port[idx]->link_cfg;
+	struct port_info *pi = adap->port[idx];
+	u32 bgmap = pi->mps_bg_map;
 	u32 stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 
 #define GET_STAT(name) \
@@ -6922,25 +6922,8 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ppp6		= GET_STAT(RX_PORT_PPP6);
 	p->rx_ppp7		= GET_STAT(RX_PORT_PPP7);
 
-	/*
-	 * The T6's MPS's RX_PORT_CRC_ERROR register doesn't actually count CRC
-	 * errors so get that information from the MAC instead.  Which MAC is in
-	 * use depends on speed and FEC.  The MAC counters clear on reset or
-	 * link state change so we are only reporting errors for this
-	 * incarnation of the link here.
-	 */
-	if (chip_id(adap) != CHELSIO_T6)
-		p->rx_fcs_err = GET_STAT(RX_PORT_CRC_ERROR);
-	else if (lc->link_ok) {
-		if (lc->speed > 25000 ||
-		    (lc->speed == 25000 && lc->fec == FEC_RS)) {
-			p->rx_fcs_err = t4_read_reg64(adap, T5_PORT_REG(idx,
-			    A_MAC_PORT_AFRAMECHECKSEQUENCEERRORS));
-		} else {
-			p->rx_fcs_err = t4_read_reg64(adap, T5_PORT_REG(idx,
-			    A_MAC_PORT_MTIP_1G10G_RX_CRCERRORS));
-		}
-	}
+	if (pi->fcs_reg != -1)
+		p->rx_fcs_err = t4_read_reg64(adap, pi->fcs_reg) - pi->fcs_base;
 
 	if (chip_id(adap) >= CHELSIO_T5) {
 		if (stat_ctl & F_COUNTPAUSESTATRX) {
@@ -10769,12 +10752,6 @@ void t4_clr_port_stats(struct adapter *adap, int idx)
 			t4_write_reg(adap,
 			A_MPS_STAT_RX_BG_0_MAC_TRUNC_FRAME_L + i * 8, 0);
 		}
-	if (chip_id(adap) == CHELSIO_T6) {
-		t4_write_reg64(adap, T5_PORT_REG(idx,
-		    A_MAC_PORT_AFRAMECHECKSEQUENCEERRORS), 0);
-		t4_write_reg64(adap, T5_PORT_REG(idx,
-		    A_MAC_PORT_MTIP_1G10G_RX_CRCERRORS), 0);
-	}
 }
 
 /**
