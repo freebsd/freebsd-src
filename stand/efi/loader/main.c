@@ -717,10 +717,6 @@ parse_uefi_con_out(void)
 	ep = buf + sz;
 	node = (EFI_DEVICE_PATH *)buf;
 	while ((char *)node < ep) {
-		if (IsDevicePathEndType(node)) {
-			if (pci_pending && vid_seen == 0)
-				vid_seen = ++seen;
-		}
 		pci_pending = false;
 		if (DevicePathType(node) == ACPI_DEVICE_PATH &&
 		    DevicePathSubType(node) == ACPI_DP) {
@@ -753,6 +749,8 @@ parse_uefi_con_out(void)
 		}
 		node = NextDevicePathNode(node); /* Skip the end node */
 	}
+	if (pci_pending && vid_seen == 0)
+		vid_seen = ++seen;
 
 	/*
 	 * Truth table for RB_MULTIPLE | RB_SERIAL
