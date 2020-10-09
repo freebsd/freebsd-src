@@ -485,7 +485,8 @@ To free the resources used by the RADIUS library, call
 .Fn rad_close .
 .Ss Server operation
 Server mode operates much alike to client mode, except packet send and receive
-steps are swapped. To operate as server you should obtain server context with
+steps are swapped.
+To operate as server you should obtain server context with
 .Fn rad_server_open
 function, passing opened and bound UDP socket file descriptor as argument.
 You should define allowed clients and their secrets using
@@ -493,9 +494,9 @@ You should define allowed clients and their secrets using
 function. port, timeout and max_tries arguments are ignored in server mode.
 You should call
 .Fn rad_receive_request
-function to receive request from client. If you do not want to block on socket
-read, you are free to use any poll(), select() or non-blocking sockets for
-the socket.
+function to receive request from client.
+If you do not want to block on socket read, you are free to use any
+poll(), select() or non-blocking sockets for the socket.
 Received request can be parsed with same parsing functions as for client.
 To respond to the request you should call
 .Fn rad_create_response

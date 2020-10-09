@@ -251,7 +251,7 @@ The user can query parameters using
 (which uses the
 .Dv MTIOCPARAMGET
 ioctl) and the user can set parameters using
-.Dq mt param -s 
+.Dq mt param -s
 (which uses the
 .Dv MTIOCPARAMSET
 ioctl).
@@ -281,13 +281,13 @@ driver reports entering Programmable Early Warning, Early Warning and End
 of Media conditions by returning a write with 0 bytes written, and
 .Dv errno
 set to 0.
-If 
+If
 .Va eot_warn
 is set to 1, the
 .Nm
 driver will set
 .Dv errno
-to 
+to
 .Dv ENOSPC
 when it enters any of the out of space conditions.
 .It protection.protection_supported
@@ -353,10 +353,10 @@ In addition, when EOM is injected, the tape position status will be updated
 to temporarily show Beyond of the Programmable Early Warning (BPEW) status.
 To see BPEW status, use the
 .Dv MTIOCEXTGET
-ioctl, which is used by the 
-.Dq mt status 
+ioctl, which is used by the
+.Dq mt status
 command.
-To inject an EOM notification, set the 
+To inject an EOM notification, set the
 .Pp
 .Va kern.cam.sa.%d.inject_eom
 .Pp

@@ -119,8 +119,8 @@ yields:
 
     path == "../../../sys/kern"        /* It's correct but ... */
 
-That is correct, but a little redundant. If you wish get the simple
-answer 'kern', do the following.
+That is correct, but a little redundant.
+If you wish get the simple answer 'kern', do the following.
 
     path = abs2rel(realpath("/sys/kern", r1), realpath("/sys", r2),
 								result, MAXPATHLEN);

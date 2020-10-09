@@ -50,33 +50,33 @@ and
 functions compute the sine and cosine of
 .Fa x .
 Using these functions allows argument reduction to occur only
-once instead of twice with individual invocations of 
+once instead of twice with individual invocations of
 .Fn sin
-and 
+and
 .Fn cos .
-Like 
+Like
 .Fn sin
-and 
+and
 .Fn cos ,
 a large magnitude argument may yield a result with little
 or no significance.
 .Sh RETURN VALUES
-Upon returning from 
+Upon returning from
 .Fn sincos ,
 .Fn sincosf ,
 and
 .Fn sincosl ,
-the memory pointed to by 
-.Ar "*s" 
+the memory pointed to by
+.Ar "*s"
 and
-.Ar "*c" 
+.Ar "*c"
 are assigned the values of sine and cosine, respectively.
 .Sh SEE ALSO
 .Xr cos 3 ,
 .Xr sin 3 ,
 .Sh HISTORY
-These functions were added to 
+These functions were added to
 .Fx 9.0
-to aid in writing various complex function contained in 
+to aid in writing various complex function contained in
 .St -isoC-99 .
 

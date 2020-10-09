@@ -314,15 +314,16 @@ This function returns NULL in case of failure.
 .
 .Fn libusb20_tr_get_time_complete
 will return the completion time of an USB transfer in
-millisecond units. This function is most useful for isochronous USB
-transfers when doing echo cancelling.
+millisecond units.
+This function is most useful for isochronous USB transfers when doing echo
+cancelling.
 .
 .Pp
 .
 .Fn libusb20_tr_get_actual_frames
 will return the actual number of USB frames after an USB
-transfer completed. A value of zero means that no data was transferred.
-.
+transfer completed.
+A value of zero means that no data was transferred.
 .Pp
 .
 .Fn libusb20_tr_get_actual_length
@@ -691,9 +692,11 @@ Before this call will succeed the USB device must be opened.
 .Fa setup
 is a pointer to a decoded and host endian SETUP packet.
 .Fa data
-is a pointer to a data transfer buffer associated with the control transaction. This argument can be NULL.
+is a pointer to a data transfer buffer associated with the control transaction.
+This argument can be NULL.
 .Fa pactlen
-is a pointer to a variable that will hold the actual transfer length after the control transaction is complete.
+is a pointer to a variable that will hold the actual transfer length after the
+control transaction is complete.
 .Fa timeout
 is the transaction timeout given in milliseconds.
 A timeout of zero means no timeout.
@@ -792,10 +795,11 @@ The USB device need not be opened when calling this function.
 .Pp
 .
 .Fn libusb20_dev_alloc_config
-will read out and decode the USB config descriptor for
-the given USB device and config index. This function returns a pointer
-to the decoded configuration which must eventually be passed to
-free(). NULL is returned in case of failure.
+will read out and decode the USB config descriptor for the given USB device
+and config index.
+This function returns a pointer to the decoded configuration which must eventually
+be passed to free().
+NULL is returned in case of failure.
 .
 .Pp
 .
@@ -902,8 +906,8 @@ will set the global USB device side mode template to
 The new template is not activated until after the next USB
 enumeration.
 The template number decides how the USB device will present itself to
-the USB Host, like Mass Storage Device, USB Ethernet Device. Also see
-the
+the USB Host, like Mass Storage Device, USB Ethernet Device.
+Also see the
 .Xr usb2_template 4
 module.
 This function returns zero on success else a LIBUSB20_ERROR value is
@@ -966,10 +970,9 @@ returned.
 .Fn libusb20_be_alloc_default
 .Fn libusb20_be_alloc_freebsd
 .Fn libusb20_be_alloc_linux
-These functions are used to allocate a specific USB backend or the
-operating system default USB backend. Allocating a backend is a way to
-scan for currently present USB devices.
-.
+These functions are used to allocate a specific USB backend or the operating system
+default USB backend.
+Allocating a backend is a way to scan for currently present USB devices.
 .Pp
 .
 .Fn libusb20_be_device_foreach

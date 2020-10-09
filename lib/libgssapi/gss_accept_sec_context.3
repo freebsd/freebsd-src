@@ -52,8 +52,9 @@
 .Fa "gss_cred_id_t *delegated_cred_handle"
 .Fc
 .Sh DESCRIPTION
-Allows a remotely initiated security context between the application
-and a remote peer to be established.  The routine may return a
+Allows a remotely initiated security context between the application and a remote
+peer to be established.
+The routine may return a
 .Fa output_token
 which should be transferred to the peer application,
 where the peer application will present it to
@@ -78,7 +79,8 @@ parameters.
 .Pp
 Portable applications should be constructed to use the token length
 and return status to determine whether a token needs to be sent or
-waited for.  Thus a typical portable caller should always invoke
+waited for.
+Thus a typical portable caller should always invoke
 .Fn gss_accept_sec_context
 within a loop:
 .Bd -literal
@@ -166,10 +168,9 @@ returned to a caller
 (i.e. when accompanied by a
 .Dv GSS_S_COMPLETE
 status code), applications
-should not rely on this behavior as the flag was not defined in
-Version 1 of the GSS-API. Instead, applications should be prepared to
-use per-message services after a successful context establishment,
-according to the
+should not rely on this behavior as the flag was not defined in Version 1 of the GSS-API.
+Instead, applications should be prepared to use per-message services after a
+successful context establishment, according to the
 .Dv GSS_C_INTEG_FLAG
 and
 .Dv GSS_C_CONF_FLAG values.
@@ -190,9 +191,10 @@ fails, the
 implementation should not create a context object, and should leave
 the value of the context_handle parameter set to
 .Dv GSS_C_NO_CONTEXT to
-indicate this.  In the event of a failure on a subsequent call, the
-implementation is permitted to delete the "half-built" security
-context (in which case it should set the
+indicate this.
+In the event of a failure on a subsequent call, the implementation is
+permitted to delete the "half-built" security context (in which case it
+should set the
 .Fa context_handle
 parameter to
 .Dv GSS_C_NO_CONTEXT ), but the preferred behavior is to leave the
