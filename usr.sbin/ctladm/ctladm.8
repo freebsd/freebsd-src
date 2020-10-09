@@ -233,8 +233,8 @@ utility take the following optional arguments:
 .It Fl C Ar retries
 Specify the number of times to retry a command in the event of failure.
 .It Fl D Ar device
-Specify the device to open.  This allows opening a device other than the
-default device,
+Specify the device to open.
+This allows opening a device other than the default device,
 .Pa /dev/cam/ctl ,
 to be opened for sending commands.
 .It Fl I Ar id
@@ -272,29 +272,31 @@ READ command to the device, and write the requested data to a file or
 stdout.
 .Bl -tag -width 12n
 .It Fl l Ar lba
-Specify the starting Logical Block Address for the READ.  This can be
-specified in decimal, octal (starting with 0), hexadecimal (starting with
-0x) or any other base supported by
+Specify the starting Logical Block Address for the READ.
+This can be specified in decimal, octal (starting with 0),
+hexadecimal (starting with 0x) or any other base supported by
 .Xr strtoull 3 .
 .It Fl d Ar datalen
 Specify the length, in 512 byte blocks, of the READ request.
 .It Fl f Ar file
-Specify the destination for the data read by the READ command.  Either a
-filename or
+Specify the destination for the data read by the READ command.
+Either a filename or
 .Sq -
 for stdout may be specified.
 .It Fl c Ar cdbsize
 Specify the minimum
 .Tn SCSI
-CDB (Command Data Block) size to be used for the READ request.  Allowable
-values are 6, 10, 12 and 16.  Depending upon the LBA and amount of data
-requested, a larger CDB size may be used to satisfy the request.  (e.g.,
-for LBAs above 0xffffffff, READ(16) must be used to satisfy the request.)
+CDB (Command Data Block) size to be used for the READ request.
+Allowable values are 6, 10, 12 and 16.
+Depending upon the LBA and amount of data requested, a larger CDB
+size may be used to satisfy the request.  (e.g., for LBAs above 0xffffffff,
+READ(16) must be used to satisfy the request.)
 .It Fl b Ar blocksize
 Specify the blocksize of the underlying
 .Tn SCSI
 device, so the transfer length
-can be calculated accurately.  The blocksize can be obtained via the
+can be calculated accurately.
+The blocksize can be obtained via the
 .Tn SCSI
 READ CAPACITY command.
 .It Fl N
@@ -310,29 +312,31 @@ Read data from a file or stdin, and write the data to the device using the
 WRITE command.
 .Bl -tag -width 12n
 .It Fl l Ar lba
-Specify the starting Logical Block Address for the WRITE.  This can be
-specified in decimal, octal (starting with 0), hexadecimal (starting with
-0x) or any other base supported by
+Specify the starting Logical Block Address for the WRITE.
+This can be specified in decimal, octal (starting with 0), hexadecimal
+(starting with 0x) or any other base supported by
 .Xr strtoull 3 .
 .It Fl d Ar atalen
 Specify the length, in 512 byte blocks, of the WRITE request.
 .It Fl f Ar file
-Specify the source for the data to be written by the WRITE command.  Either a
-filename or
+Specify the source for the data to be written by the WRITE command.
+Either a filename or
 .Sq -
 for stdin may be specified.
 .It Fl c Ar cdbsize
 Specify the minimum
 .Tn SCSI
-CDB (Command Data Block) size to be used for the READ request.  Allowable
-values are 6, 10, 12 and 16.  Depending upon the LBA and amount of data
-requested, a larger CDB size may be used to satisfy the request.  (e.g.,
-for LBAs above 0xffffffff, READ(16) must be used to satisfy the request.)
+CDB (Command Data Block) size to be used for the READ request.
+Allowable values are 6, 10, 12 and 16.
+Depending upon the LBA and amount of data requested, a larger CDB size
+may be used to satisfy the request.  (e.g., for LBAs above 0xffffffff, READ(16)
+must be used to satisfy the request.)
 .It Fl b Ar blocksize
 Specify the blocksize of the underlying
 .Tn SCSI
 device, so the transfer length
-can be calculated accurately.  The blocksize can be obtained via the
+can be calculated accurately.
+The blocksize can be obtained via the
 .Tn SCSI
 READ CAPACITY command.
 .It Fl N
@@ -346,18 +350,20 @@ This is to be used for performance testing.
 Send the
 .Tn SCSI
 READ CAPACITY command to the device and display the device size and device
-block size.  By default, READ CAPACITY(10) is
-used.  If the device returns a maximum LBA of 0xffffffff, however,
+block size.
+By default, READ CAPACITY(10) is used.
+If the device returns a maximum LBA of 0xffffffff, however,
 .Nm
 will automatically issue a READ CAPACITY(16), which is implemented as a
-service action of the SERVICE ACTION IN(16) opcode.  The user can specify
-the minimum CDB size with the
+service action of the SERVICE ACTION IN(16) opcode.
+The user can specify the minimum CDB size with the
 .Fl c
-argument.  Valid values for the
+argument.
+Valid values for the
 .Fl c
-option are 10 and 16.  If a 10 byte CDB is specified, the request will be
-automatically reissued with a 16 byte CDB if the maximum LBA returned is
-0xffffffff.
+option are 10 and 16.
+If a 10 byte CDB is specified, the request will be automatically reissued
+with a 16 byte CDB if the maximum LBA returned is 0xffffffff.
 .It Ic modesense
 Send a
 .Tn SCSI
@@ -365,17 +371,21 @@ MODE SENSE command to the device, and display the requested mode page(s) or
 page list.
 .Bl -tag -width 10n
 .It Fl m Ar page
-Specify the mode page to display.  This option and the
+Specify the mode page to display.
+This option and the
 .Fl l
-option are mutually exclusive.  One of the two must be specified, though.
+option are mutually exclusive.
+One of the two must be specified, though.
 Mode page numbers may be specified in decimal or hexadecimal.
 .It Fl l
 Request that the list of mode pages supported by the device be returned.
 This option and the
 .Fl m
-option are mutually exclusive.  One of the two must be specified, though.
+option are mutually exclusive.
+One of the two must be specified, though.
 .It Fl P Ar pc
-Specify the mode page control value.  Possible values are:
+Specify the mode page control value.
+Possible values are:
 .Bl -tag -width 2n -compact
 .It 0
 Current values.
@@ -391,8 +401,8 @@ Disable block descriptors when sending the mode sense request.
 .It Fl S Ar subpage
 Specify the subpage used with the mode sense request.
 .It Fl c Ar cdbsize
-Specify the CDB size used for the mode sense request.  Supported values are
-6 and 10.
+Specify the CDB size used for the mode sense request.
+Supported values are 6 and 10.
 .El
 .It Ic start
 Send the
@@ -401,54 +411,56 @@ START STOP UNIT command to the specified LUN with the start
 bit set.
 .Bl -tag -width 4n
 .It Fl i
-Set the immediate bit in the CDB.  Note that CTL does not support the
-immediate bit, so this is primarily useful for making sure that CTL returns
-the proper error.
+Set the immediate bit in the CDB.
+Note that CTL does not support the immediate bit, so this is primarily
+useful for making sure that CTL returns the proper error.
 .El
 .It Ic stop
 Send the
 .Tn SCSI
 START STOP UNIT command to the specified LUN with the start
-bit cleared.  We use an ordered tag to stop the LUN, so we can guarantee
-that all pending I/O executes before it is stopped.  (CTL guarantees this
-anyway, but
+bit cleared.
+We use an ordered tag to stop the LUN, so we can guarantee that all pending
+I/O executes before it is stopped.
+(CTL guarantees this anyway, but
 .Nm
 sends an ordered tag for completeness.)
 .Bl -tag -width 4n
 .It Fl i
-Set the immediate bit in the CDB.  Note that CTL does not support the
-immediate bit, so this is primarily useful for making sure that CTL returns
-the proper error.
+Set the immediate bit in the CDB.
+Note that CTL does not support the immediate bit, so this is primarily
+useful for making sure that CTL returns the proper error.
 .El
 .It Ic synccache
 Send the
 .Tn SCSI
-SYNCHRONIZE CACHE command to the device.  By default, SYNCHRONIZE
-CACHE(10) is used.  If the specified starting LBA is greater than
-0xffffffff or the length is greater than 0xffff, though,
-SYNCHRONIZE CACHE(16) will be used.  The 16 byte command will also be used
-if the user specifies a 16 byte CDB with the
+SYNCHRONIZE CACHE command to the device.
+By default, SYNCHRONIZE CACHE(10) is used.
+If the specified starting LBA is greater than 0xffffffff or the length is
+greater than 0xffff, though, SYNCHRONIZE CACHE(16) will be used.
+The 16 byte command will also be used if the user specifies a 16 byte CDB with the
 .Fl c
 argument.
 .Bl -tag -width 14n
 .It Fl l Ar lba
-Specify the starting LBA of the cache region to synchronize.  This option is a
-no-op for CTL.  If you send a SYNCHRONIZE CACHE command, it will sync the
-cache for the entire LUN.
+Specify the starting LBA of the cache region to synchronize.
+This option is a no-op for CTL.
+If you send a SYNCHRONIZE CACHE command, it will sync the cache for the entire LUN.
 .It Fl b Ar blockcount
-Specify the length of the cache region to synchronize.  This option is a
-no-op for CTL.  If you send a SYNCHRONIZE CACHE command, it will sync the
-cache for the entire LUN.
+Specify the length of the cache region to synchronize.
+This option is a no-op for CTL.
+If you send a SYNCHRONIZE CACHE command, it will sync the cache for the entire LUN.
 .It Fl r
-Specify relative addressing for the starting LBA.  CTL does not support
-relative addressing, since it only works for linked commands, and CTL
-does not support linked commands.
+Specify relative addressing for the starting LBA.
+CTL does not support relative addressing, since it only works for linked commands,
+and CTL does not support linked commands.
 .It Fl i
 Tell the target to return status immediately after issuing the SYNCHRONIZE CACHE
-command rather than waiting for the cache to finish syncing.  CTL does not
-support this bit.
+command rather than waiting for the cache to finish syncing.
+CTL does not support this bit.
 .It Fl c Ar cdbsize
-Specify the minimum CDB size.  Valid values are 10 and 16 bytes.
+Specify the minimum CDB size.
+Valid values are 10 and 16 bytes.
 .El
 .It Ic lunlist
 List all LUNs registered with CTL.
@@ -457,14 +469,15 @@ Because this command uses the ioctl port, it will only work when the FETDs
 This command is the equivalent of doing a REPORT LUNS on one LUN and then
 an INQUIRY on each LUN in the system.
 .It Ic delay
-Delay commands at the given location.  There are two places where commands
-may be delayed currently: before data is transferred
+Delay commands at the given location.
+There are two places where commands may be delayed currently: before data is transferred
 .Pq Dq datamove
 and just prior to sending status to the host
 .Pq Dq done .
 One of the two must be supplied as an argument to the
 .Fl l
-option.  The
+option.
+The
 .Fl t
 option must also be specified.
 .Bl -tag -width 12n
@@ -473,9 +486,10 @@ Delay command(s) at the specified location.
 This can either be at the data movement stage (datamove) or prior to
 command completion (done).
 .It Fl t Ar delaytime
-Delay command(s) for the specified number of seconds.  This must be
-specified.  If set to 0, it will clear out any previously set delay for
-this particular location (datamove or done).
+Delay command(s) for the specified number of seconds.
+This must be specified.
+If set to 0, it will clear out any previously set delay for this particular
+location (datamove or done).
 .It Fl T Ar delaytype
 Specify the delay type.
 By default, the
@@ -898,11 +912,12 @@ as write protected.
 Set to "on", makes LUN removable.
 .It Va reordering
 Set to "unrestricted", allows target to process commands with SIMPLE task
-attribute in arbitrary order.  Any data integrity exposures related to
-command sequence order shall be explicitly handled by the application
-client through the selection of appropriate commands and task attributes.
-The default value is "restricted".  It improves data integrity, but may
-introduce some additional delays.
+attribute in arbitrary order.
+Any data integrity exposures related to command sequence order shall be
+explicitly handled by the application client through the selection of
+appropriate commands and task attributes.
+The default value is "restricted".
+It improves data integrity, but may introduce some additional delays.
 .It Va serseq
 Set to "on" to serialize consecutive reads/writes.
 Set to "read" to serialize consecutive reads.
