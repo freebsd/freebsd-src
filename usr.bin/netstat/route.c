@@ -772,12 +772,7 @@ rt_stats(void)
 		xo_emit("{W:rtstat: symbol not in namelist}\n");
 		return;
 	}
-	if ((rttaddr = nl[N_RTTRASH].n_value) == 0) {
-		xo_emit("{W:rttrash: symbol not in namelist}\n");
-		return;
-	}
 	kread(rtsaddr, (char *)&rtstat, sizeof (rtstat));
-	kread(rttaddr, (char *)&rttrash, sizeof (rttrash));
 	xo_emit("{T:routing}:\n");
 
 #define	p(f, m) if (rtstat.f || sflag <= 1) \
@@ -793,7 +788,17 @@ rt_stats(void)
 	    "{N:/destination%s found unreachable}\n");
 	p(rts_wildcard, "\t{:wildcard-uses/%hu} "
 	    "{N:/use%s of a wildcard route}\n");
+	p(rts_nh_idx_alloc_failure, "\t{:nexthop-index-alloc-failures/%hu} "
+	    "{N:/nexthop index alloc failure%s}\n");
+	p(rts_nh_alloc_failure, "\t{:nexthop-alloc-failures/%hu} "
+	    "{N:/nexthop allocation failure%s}\n");
 #undef p
+
+	if ((rttaddr = nl[N_RTTRASH].n_value) == 0) {
+		xo_emit("{W:rttrash: symbol not in namelist}\n");
+		return;
+	}
+	kread(rttaddr, (char *)&rttrash, sizeof (rttrash));
 
 	if (rttrash || sflag <= 1)
 		xo_emit("\t{:unused-but-not-freed/%u} "
