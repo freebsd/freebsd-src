@@ -314,6 +314,8 @@ struct port_info {
  	struct port_stats stats;
 	u_int tnl_cong_drops;
 	u_int tx_parse_error;
+	int fcs_reg;
+	uint64_t fcs_base;
 	u_long	tx_toe_tls_records;
 	u_long	tx_toe_tls_octets;
 	u_long	rx_toe_tls_records;
