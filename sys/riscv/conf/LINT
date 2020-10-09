@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+include "../../conf/NOTES"
+include NOTES
