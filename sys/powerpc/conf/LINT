@@ -1,0 +1,9 @@
+# $FreeBSD$
+
+include "../../conf/NOTES"
+include NOTES
+machine		powerpc powerpc
+nodevice	mlx5
+nodevice	mlx5en
+nodevice	mlx5ib
+nooptions	RATELIMIT

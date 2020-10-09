@@ -26,6 +26,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20200923:
+	LINT files are no longer generated. We now include the relevant NOTES
+	files. Note: This may cause conflicts with updating in some cases.
+	        find sys -name LINT\* -rm
+	is suggested across this commit	to remove the generated	LINT files.
+
+	If you have tried to update with generated files there, the svn
+	command you want to un-auger the tree is
+		cd sys/amd64/conf
+		svn revert -R .
+	and then do the above find from the top level. Substitute 'amd64'
+	above with where the error message indicates a conflict.
+
 20200824:
 	OpenZFS support has been integrated. Do not upgrade root pools until
 	the loader is updated to support zstd. Furthermore, we caution against

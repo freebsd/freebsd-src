@@ -1,0 +1,8 @@
+# $FreeBSD$
+
+include LINT
+ident LINT-NOINET
+makeoptions MKMODULESENV+="WITHOUT_INET_SUPPORT="
+nooptions INET
+nodevice gre
+nodevice netmap
