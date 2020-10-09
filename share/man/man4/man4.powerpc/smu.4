@@ -60,45 +60,47 @@ Apple System Management Unit
 .Sh THERMAL MANAGEMENT
 The
 .Nm
-driver provides basic automatic thermal management. Without a userspace
-daemon providing more advanced control, the driver will attempt to maintain
-system temperatures in a conservative range through coarse-grained control of
-system cooling devices (see below). Automatic kernel-level thermal control
-will take over if more than 3 seconds elapses between userspace cooling
-setting adjustments.
+driver provides basic automatic thermal management.
+Without a userspace daemon providing more advanced control, the driver will
+attempt to maintain system temperatures in a conservative range through
+coarse-grained control of system cooling devices (see below).
+Automatic kernel-level thermal control will take over if more than 3
+seconds elapses between userspace cooling setting adjustments.
 .Sh SYSCTL VARIABLES
 The
 .Nm
 driver provides power management services and thermal readout through a
 sysctl interface.
-The following sysctls can be used to control the
-power management behavior and to examine current system power and
-thermal conditions.
+The following sysctls can be used to control the power management behavior
+and to examine current system power and thermal conditions.
 .Bl -tag -width indent
 .It Va dev.smu.%d.server_mode
 Restart after power failure behavior (1 causes system to reboot after power
 cut, 0 causes system to remain off).
 .It Va dev.smu.%d.target_temp
-Target system temperature, in degrees Celsius. The
+Target system temperature, in degrees Celsius.
+The
 .Nm
 driver will attempt to adjust fans to maintain the temperature of the
 warmest component in the system at or below this level.
 .It Va dev.smu.%d.critical_temp
-System critical temperature, in degrees Celsius. If any component in
-the system exceeds this temperature, the machine will be shut down within
-500 ms.
+System critical temperature, in degrees Celsius.
+If any component in the system exceeds this temperature, the machine
+will be shut down within 500 ms.
 .It Va dev.smu.%d.fans.%s.minrpm
 Minimum allowed speed for this fan.
 .It Va dev.smu.%d.fans.%s.maxrpm
 Maximum allowed speed for this fan.
 .It Va dev.smu.%d.fans.%s.rpm
-Current speed for this fan. The fan speed can be adjusted by changing this
-sysctl. If more than 3 seconds elapses between fan speed adjustments, the
-kernel will resume automatic control of the fan.
+Current speed for this fan.
+The fan speed can be adjusted by changing this sysctl.
+If more than 3 seconds elapses between fan speed adjustments, the kernel will
+resume automatic control of the fan.
 .It Va dev.smu.%d.sensors.%s
-Current reading from this sensor. Four sensor types are supported. Temperature
-sensors are in units of degrees Celsius, current sensors in milliamps, voltage
-sensors in millivolts, and power sensors in milliwatts.
+Current reading from this sensor.
+Four sensor types are supported.
+Temperature sensors are in units of degrees Celsius, current sensors in
+milliamps, voltage sensors in millivolts, and power sensors in milliwatts.
 .El
 .Sh LED INTERFACE
 The

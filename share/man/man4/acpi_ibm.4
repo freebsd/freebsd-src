@@ -274,7 +274,7 @@ Speaker volume.
 .It Va dev.acpi_ibm.0.mute
 Indicates, whether the speakers are muted or not.
 .It Va dev.acpi_ibm.0.mic_mute
-Indicates, whether the microphone led (present on some model) is on or not. 
+Indicates, whether the microphone led (present on some model) is on or not.
 Note that this does not mean that the microphone input is muted.
 .It Va dev.acpi_ibm.0.thinklight
 Indicates, whether the ThinkLight keyboard light is activated or not.
@@ -452,8 +452,8 @@ case ${NOTIFY} in
 		if [ $LEVEL -eq 0 ]; then
 			sysctl dev.acpi_ibm.0.mic_led=1
 			mixer rec 0
-		fi 
-		if [ $LEVEL -eq 1 ]; then 
+		fi
+		if [ $LEVEL -eq 1 ]; then
 			sysctl dev.acpi_ibm.0.mic_led=0
 			mixer rec 30
 		fi

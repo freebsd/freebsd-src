@@ -103,7 +103,8 @@ The default behavior is to not delay.
 The environment variables that effect its behavior are:
 .Bl -tag -width bootfile -offset indent
 .It Va loader_logo
-Selects the desired logo in the beastie boot menu. Possible values are:
+Selects the desired logo in the beastie boot menu.
+Possible values are:
 .Dq Li fbsdbw ,
 .Dq Li beastie ,
 .Dq Li beastiebw ,
@@ -112,9 +113,11 @@ Selects the desired logo in the beastie boot menu. Possible values are:
 (default), and
 .Dq Li none .
 .It Va loader_logo_x
-Sets the desired column position of the logo. Default is 46.
+Sets the desired column position of the logo.
+Default is 46.
 .It Va loader_logo_y
-Sets the desired row position of the logo. Default is 4.
+Sets the desired row position of the logo.
+Default is 4.
 .It Va beastie_disable
 If set to
 .Dq YES ,
@@ -122,9 +125,10 @@ the beastie boot menu will be skipped.
 The beastie boot menu is always skipped if running non-x86 hardware.
 .It Va loader_delay
 If set to a number higher than zero, introduces a delay before starting the
-beastie boot menu. During the delay the user can press either Ctrl-C to skip
-the menu or ENTER to proceed to the menu. The default is to not delay when
-loading the menu.
+beastie boot menu.
+During the delay the user can press either Ctrl-C to skip the menu or ENTER
+to proceed to the menu.
+The default is to not delay when loading the menu.
 .El
 .Sh FILES
 .Bl -tag -width /boot/loader.4th -compact

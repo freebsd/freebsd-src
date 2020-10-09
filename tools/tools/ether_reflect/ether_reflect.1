@@ -45,11 +45,13 @@ command implements a simple ethernet packet reflector using the
 .Xr PCAP 3
 library and
 .Xr bpf 4 ,
-the Berkeley Packet Filter.  The program is useful primarily to test
-the low level round trip time of packets through an Ethernet interface
-and/or a switch.  Network protocols, such as IP, and the network stack
-in general are never invoked, only the device driver that implements
-the particular interface is executed.  As the
+the Berkeley Packet Filter.
+The program is useful primarily to test the low level round trip time
+of packets through an Ethernet interface and/or a switch.
+Network protocols, such as IP, and the network stack in general are never
+invoked, only the device driver that implements the particular interface
+is executed.
+As the
 .Nm
 command uses the
 .Xr bpf 4
@@ -67,13 +69,14 @@ ether type for driver testing.
 .It Fl i Ar interface
 Network interface, which can be found with ifconfig(1).
 .It Fl t Ar timeout
-The time, in milliseconds, to wait for a packet.  Lower times decrease
-latency at the cost of CPU.
+The time, in milliseconds, to wait for a packet.
+Lower times decrease latency at the cost of CPU.
 .It Fl p
-Set the device into promiscuous mode before testing.  This is not
-usually necessary.
+Set the device into promiscuous mode before testing.
+This is not usually necessary.
 .It Fl d
-Debug output.  Print various small pieces of debug information.
+Debug output.
+Print various small pieces of debug information.
 .El
 .Sh EXAMPLES
 The following is an example of a typical usage
@@ -84,7 +87,8 @@ command:
 .Dl "ether_reflect -i em0 -t 1"
 .Pp
 Reflect all test packets, those with an ether type of 0x8822, which
-are seen on ineterface em0.  The timeout is 1 millisecond.
+are seen on ineterface em0.
+The timeout is 1 millisecond.
 .Pp
 .Dl "ether_reflect -i em0 -a 00:00:00:aa:bb:cc -t 1"
 .Pp
