@@ -62,7 +62,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
+#include <net/ethernet.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
 #include <net/route.h>
@@ -324,6 +326,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int hlen = sizeof (struct ip);
 	int mtu = 0;
 	int error = 0;
+	int vlan_pcp = -1;
 	struct sockaddr_in *dst, sin;
 	const struct sockaddr_in *gw;
 	struct in_ifaddr *ia = NULL;
@@ -345,6 +348,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			M_HASHTYPE_SET(m, inp->inp_flowtype);
 		}
+		if ((inp->inp_flags2 & INP_2PCP_SET) != 0)
+			vlan_pcp = (inp->inp_flags2 & INP_2PCP_MASK) >>
+			    INP_2PCP_SHIFT;
 #ifdef NUMA
 		m->m_pkthdr.numa_domain = inp->inp_numa_domain;
 #endif
@@ -716,6 +722,9 @@ sendit:
 			goto again;
 		}
 	}
+
+	if (vlan_pcp > -1)
+		EVL_APPLY_PRI(m, vlan_pcp);
 
 	/* IN_LOOPBACK must not appear on the wire - RFC1122. */
 	if (IN_LOOPBACK(ntohl(ip->ip_dst.s_addr)) ||
@@ -1210,6 +1219,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 #ifdef	RSS
 		case IP_RECVRSSBUCKETID:
 #endif
+		case IP_VLAN_PCP:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -1305,6 +1315,28 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 				OPTSET2(INP_RECVRSSBUCKETID, optval);
 				break;
 #endif
+			case IP_VLAN_PCP:
+				if ((optval >= -1) && (optval <=
+				    (INP_2PCP_MASK >> INP_2PCP_SHIFT))) {
+					if (optval == -1) {
+						INP_WLOCK(inp);
+						inp->inp_flags2 &=
+						    ~(INP_2PCP_SET |
+						      INP_2PCP_MASK);
+						INP_WUNLOCK(inp);
+					} else {
+						INP_WLOCK(inp);
+						inp->inp_flags2 |=
+						    INP_2PCP_SET;
+						inp->inp_flags2 &=
+						    ~INP_2PCP_MASK;
+						inp->inp_flags2 |=
+						    optval << INP_2PCP_SHIFT;
+						INP_WUNLOCK(inp);
+					}
+				} else
+					error = EINVAL;
+				break;
 			}
 			break;
 #undef OPTSET
@@ -1425,6 +1457,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_RSSBUCKETID:
 		case IP_RECVRSSBUCKETID:
 #endif
+		case IP_VLAN_PCP:
 			switch (sopt->sopt_name) {
 			case IP_TOS:
 				optval = inp->inp_ip_tos;
@@ -1511,6 +1544,14 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 #endif
 			case IP_BINDMULTI:
 				optval = OPTBIT2(INP_BINDMULTI);
+				break;
+			case IP_VLAN_PCP:
+				if (OPTBIT2(INP_2PCP_SET)) {
+					optval = (inp->inp_flags2 &
+					    INP_2PCP_MASK) >> INP_2PCP_SHIFT;
+				} else {
+					optval = -1;
+				}
 				break;
 			}
 			error = sooptcopyout(sopt, &optval, sizeof optval);
