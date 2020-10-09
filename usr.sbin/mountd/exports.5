@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd Feb 11, 2019
+.Dd February 11, 2019
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -316,9 +316,10 @@ There can only be one NFSv4 root directory per server.
 As such, all entries of this form must specify the same directory path.
 For file systems other than ZFS,
 this location can be any directory and does not
-need to be within an exported file system. If it is not in an exported
-file system, a very limited set of operations are permitted, so that an
-NFSv4 client can traverse the tree to an exported file system.
+need to be within an exported file system.
+If it is not in an exported file system, a very limited set of operations
+are permitted, so that an NFSv4 client can traverse the tree to an
+exported file system.
 Although parts of the NFSv4 tree can be non-exported, the entire NFSv4 tree
 must consist of local file systems capable of being exported via NFS.
 All ZFS file systems in the subtree below the NFSv4 tree root must be
@@ -330,10 +331,11 @@ mount points.
 The
 .Fl sec
 option on these line(s) specifies what security flavors may be used for
-NFSv4 operations that do not use file handles. Since these operations
-(SetClientID, SetClientIDConfirm, Renew, DelegPurge and ReleaseLockOnwer)
-allocate/modify state in the server, it is possible to restrict some clients to
-the use of the krb5[ip] security flavors, via this option.
+NFSv4 operations that do not use file handles.
+Since these operations (SetClientID, SetClientIDConfirm, Renew, DelegPurge
+and ReleaseLockOnwer) allocate/modify state in the server, it is possible
+to restrict some clients to the use of the krb5[ip] security flavors,
+via this option.
 See the
 .Sx EXAMPLES
 section below.
@@ -507,12 +509,13 @@ V4: /wingsdl/nfsv4
 .Ed
 .Pp
 Only one V4: line is needed or allowed to declare where NFSv4 is
-rooted.  The other lines declare specific exported directories with
+rooted.
+The other lines declare specific exported directories with
 their absolute paths given in /etc/exports.
 .Pp
 The exported directories' paths are used for both v3 and v4.
-However, they are interpreted differently for v3 and v4.  A client
-mount command for usr-ports would use the server-absolute name when
+However, they are interpreted differently for v3 and v4.
+A client mount command for usr-ports would use the server-absolute name when
 using nfsv3:
 .Bd -literal -offset indent
 mount server:/wingsdl/nfsv4/usr-ports /mnt/tmp
@@ -525,8 +528,9 @@ mount server:/usr-ports /mnt/tmp
 .Ed
 .Pp
 This also differentiates which version you want if the client can do
-both v3 and v4.  The former will only ever do a v3 mount and the
-latter will only ever do a v4 mount.
+both v3 and v4.
+The former will only ever do a v3 mount and the latter will only ever
+do a v4 mount.
 .Pp
 Note that due to different mount behavior between NFSv3 and NFSv4 a
 NFSv4 mount request for a directory that the client does not have

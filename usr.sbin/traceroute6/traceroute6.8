@@ -99,7 +99,8 @@ Debug mode.
 .It Fl f Ar firsthop
 Specify how many hops to skip in trace.
 .It Fl g Ar gateway
-Specify intermediate gateway. Please note that
+Specify intermediate gateway.
+Please note that
 .Nm
 tries to use routing headers.
 .It Fl I
@@ -150,7 +151,8 @@ The size of probe packets must be a multiple of 4.
 If
 .Ar datalen
 is up to 28, probe packets consist of a SHUTDOWN-ACK chunk possibly bundled
-with a PAD chunk. For larger probe packets, an INIT chunk is used.
+with a PAD chunk.
+For larger probe packets, an INIT chunk is used.
 .It Fl t Ar tclass
 .Ar tclass
 specifies the
