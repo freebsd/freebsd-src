@@ -72,6 +72,7 @@ static int hwcap_present, hwcap2_present;
 static char *canary, *pagesizes, *execpath;
 static void *ps_strings, *timekeep;
 static u_long hwcap, hwcap2;
+static void *fxrng_seed_version;
 
 #ifdef __powerpc__
 static int powerpc_new_auxv_format = 0;
@@ -138,6 +139,10 @@ init_aux(void)
 
 		case AT_PS_STRINGS:
 			ps_strings = aux->a_un.a_ptr;
+			break;
+
+		case AT_FXRNG:
+			fxrng_seed_version = aux->a_un.a_ptr;
 			break;
 #ifdef __powerpc__
 		/*
@@ -349,6 +354,16 @@ _elf_aux_info(int aux, void *buf, int buflen)
 		if (buflen == sizeof(void *)) {
 			if (ps_strings != NULL) {
 				*(void **)buf = ps_strings;
+				res = 0;
+			} else
+				res = ENOENT;
+		} else
+			res = EINVAL;
+		break;
+	case AT_FXRNG:
+		if (buflen == sizeof(void *)) {
+			if (fxrng_seed_version != NULL) {
+				*(void **)buf = fxrng_seed_version;
 				res = 0;
 			} else
 				res = ENOENT;
