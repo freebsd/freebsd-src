@@ -32,6 +32,9 @@ S=	../../..
 
 INCLUDES+= -I$S/contrib/libfdt -I$S/gnu/dts/include 
 
+LINUX_DTS_VERSION!=	       make -C $S/gnu/dts/ -V LINUX_DTS_VERSION
+CFLAGS += -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\"
+
 .if !defined(DEBUG) && !defined(PROFLEVEL)
 STRIP_FLAGS = -S
 .endif

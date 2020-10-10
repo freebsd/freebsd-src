@@ -1,0 +1,3 @@
+# $FreeBSD$
+
+LINUX_DTS_VERSION=5.8
