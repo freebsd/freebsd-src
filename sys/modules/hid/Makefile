@@ -5,4 +5,7 @@ SUBDIR = \
 	hidbus \
 	hidquirk
 
+SUBDIR += \
+	hconf
+
 .include <bsd.subdir.mk>
