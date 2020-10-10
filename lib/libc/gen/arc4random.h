@@ -24,9 +24,33 @@
 /*
  * Stub functions for portability.
  */
+#include <sys/elf.h>
+#include <sys/endian.h>
 #include <sys/mman.h>
+#include <sys/time.h>	/* for sys/vdso.h only. */
+#include <sys/vdso.h>
+#include <machine/atomic.h>
 
+#include <err.h>
+#include <errno.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <stdint.h>
+
+/*
+ * The kernel root seed version is a 64-bit counter, but we truncate it to a
+ * 32-bit value in userspace for the convenience of 32-bit platforms.  32-bit
+ * rollover is not possible with the current reseed interval (1 hour at limit)
+ * without dynamic addition of new random devices (which also force a reseed in
+ * the FXRNG design).  We don't have any dynamic device mechanism at this
+ * time, and anyway something else is very wrong if billions of new devices are
+ * being added.
+ *
+ * As is, it takes roughly 456,000 years of runtime to overflow the 32-bit
+ * version.
+ */
+#define	fxrng_load_acq_generation(x)	atomic_load_acq_32(x)
+static struct vdso_fxrng_generation_1 *vdso_fxrngp;
 
 static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 #define	_ARC4_LOCK()						\
@@ -47,6 +71,28 @@ _getentropy_fail(void)
 	raise(SIGKILL);
 }
 
+static inline void
+_rs_initialize_fxrng(void)
+{
+	struct vdso_fxrng_generation_1 *fxrngp;
+	int error;
+
+	error = _elf_aux_info(AT_FXRNG, &fxrngp, sizeof(fxrngp));
+	if (error != 0) {
+		/*
+		 * New userspace on an old or !RANDOM_FENESTRASX kernel; or an
+		 * arch that does not have a VDSO page.
+		 */
+		return;
+	}
+
+	/* Old userspace on newer kernel. */
+	if (fxrngp->fx_vdso_version != VDSO_FXRNG_VER_1)
+		return;
+
+	vdso_fxrngp = fxrngp;
+}
+
 static inline int
 _rs_allocate(struct _rs **rsp, struct _rsx **rsxp)
 {
@@ -65,12 +111,33 @@ _rs_allocate(struct _rs **rsp, struct _rsx **rsxp)
 		return (-1);
 	}
 #endif
+
+	_rs_initialize_fxrng();
+
 	*rsp = &p->rs;
 	*rsxp = &p->rsx;
 	return (0);
 }
 
+/*
+ * This isn't only detecting fork.  We're also using the existing callback from
+ * _rs_stir_if_needed() to force arc4random(3) to reseed if the fenestrasX root
+ * seed version has changed.  (That is, the root random(4) has reseeded from
+ * pooled entropy.)
+ */
 static inline void
 _rs_forkdetect(void)
 {
+	/* Detect fork (minherit(2) INHERIT_ZERO). */
+	if (__predict_false(rs == NULL || rsx == NULL))
+		return;
+	/* If present, detect kernel FenestrasX seed version change. */
+	if (vdso_fxrngp == NULL)
+		return;
+	if (__predict_true(rsx->rs_seed_generation ==
+	    fxrng_load_acq_generation(&vdso_fxrngp->fx_generation32)))
+		return;
+
+	/* Invalidate rs_buf to force "stir" (reseed). */
+	memset(rs, 0, sizeof(*rs));
 }

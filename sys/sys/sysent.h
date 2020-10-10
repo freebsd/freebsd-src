@@ -144,6 +144,7 @@ struct sysentvec {
 	u_long		*sv_hwcap;	/* Value passed in AT_HWCAP. */
 	u_long		*sv_hwcap2;	/* Value passed in AT_HWCAP2. */
 	const char	*(*sv_machine_arch)(struct proc *);
+	vm_offset_t	sv_fxrng_gen_base;
 };
 
 #define	SV_ILP32	0x000100	/* 32-bit executable. */
@@ -154,6 +155,7 @@ struct sysentvec {
 #define	SV_CAPSICUM	0x020000	/* Force cap_enter() on startup. */
 #define	SV_TIMEKEEP	0x040000	/* Shared page timehands. */
 #define	SV_ASLR		0x080000	/* ASLR allowed. */
+#define	SV_RNG_SEED_VER	0x100000	/* random(4) reseed generation. */
 
 #define	SV_ABI_MASK	0xff
 #define	SV_PROC_FLAG(p, x)	((p)->p_sysent->sv_flags & (x))

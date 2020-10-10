@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/vdso.h>
 
 #include <machine/cpu.h>
 
@@ -108,6 +109,8 @@ fxrng_brng_src_reseed(const struct harvest_event *event)
 	 */
 	rng->brng_generation++;
 	atomic_store_rel_64(&fxrng_root_generation, rng->brng_generation);
+	/* Update VDSO version. */
+	fxrng_push_seed_generation(rng->brng_generation);
 	FXRNG_BRNG_UNLOCK(rng);
 }
 
@@ -129,8 +132,25 @@ fxrng_brng_reseed(const void *entr, size_t sz)
 
 	rng->brng_generation++;
 	atomic_store_rel_64(&fxrng_root_generation, rng->brng_generation);
+	/* Update VDSO version. */
+	fxrng_push_seed_generation(rng->brng_generation);
 	FXRNG_BRNG_UNLOCK(rng);
 }
+
+/*
+ * Sysentvec and VDSO are initialized much later than SI_SUB_RANDOM.  When
+ * they're online, go ahead and push an initial root seed version.
+ * INIT_SYSENTVEC runs at SI_SUB_EXEC:SI_ORDER_ANY, and SI_ORDER_ANY is the
+ * maximum value, so we must run at SI_SUB_EXEC+1.
+ */
+static void
+fxrng_vdso_sysinit(void *dummy __unused)
+{
+	FXRNG_BRNG_LOCK(&fxrng_root);
+	fxrng_push_seed_generation(fxrng_root.brng_generation);
+	FXRNG_BRNG_UNLOCK(&fxrng_root);
+}
+SYSINIT(fxrng_vdso, SI_SUB_EXEC + 1, SI_ORDER_ANY, fxrng_vdso_sysinit, NULL);
 
 /*
  * Grab some bytes off an initialized, current generation RNG.

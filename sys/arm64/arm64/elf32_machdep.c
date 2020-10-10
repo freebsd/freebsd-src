@@ -96,7 +96,8 @@ static struct sysentvec elf32_freebsd_sysvec = {
 	.sv_setregs	= freebsd32_setregs,
 	.sv_fixlimit	= NULL, // XXX
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32 | SV_SHP | SV_TIMEKEEP,
+	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32 | SV_SHP | SV_TIMEKEEP |
+	    SV_RNG_SEED_VER,
 	.sv_set_syscall_retval = freebsd32_set_syscall_retval,
 	.sv_fetch_syscall_args = freebsd32_fetch_syscall_args,
 	.sv_syscallnames = freebsd32_syscallnames,

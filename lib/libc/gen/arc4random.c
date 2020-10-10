@@ -27,6 +27,9 @@
 __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
+#if defined(__FreeBSD__)
+#include <assert.h>
+#endif
 #include <fcntl.h>
 #include <limits.h>
 #include <pthread.h>
@@ -68,6 +71,9 @@ static struct _rs {
 static struct _rsx {
 	chacha_ctx	rs_chacha;	/* chacha context for random keystream */
 	u_char		rs_buf[RSBUFSZ];	/* keystream blocks */
+#ifdef __FreeBSD__
+	uint32_t	rs_seed_generation;	/* 32-bit userspace RNG version */
+#endif
 } *rsx;
 
 static inline int _rs_allocate(struct _rs **, struct _rsx **);
@@ -96,11 +102,43 @@ _rs_stir(void)
 {
 	u_char rnd[KEYSZ + IVSZ];
 
+#if defined(__FreeBSD__)
+	bool need_init;
+
+	/*
+	 * De-couple allocation (which locates the vdso_fxrngp pointer in
+	 * auxinfo) from initialization.  This allows us to read the root seed
+	 * version before we fetch system entropy, maintaining the invariant
+	 * that the PRF was seeded with entropy from rs_seed_generation or a
+	 * later generation.  But never seeded from an earlier generation.
+	 * This invariant prevents us from missing a root reseed event.
+	 */
+	need_init = false;
+	if (rs == NULL) {
+		if (_rs_allocate(&rs, &rsx) == -1)
+			abort();
+		need_init = true;
+	}
+	/*
+	 * Transition period: new userspace on old kernel.  This should become
+	 * a hard error at some point, if the scheme is adopted.
+	 */
+	if (vdso_fxrngp != NULL)
+		rsx->rs_seed_generation =
+		    fxrng_load_acq_generation(&vdso_fxrngp->fx_generation32);
+#endif
+
 	if (getentropy(rnd, sizeof rnd) == -1)
 		_getentropy_fail();
 
+#if !defined(__FreeBSD__)
 	if (!rs)
 		_rs_init(rnd, sizeof(rnd));
+#else /* __FreeBSD__ */
+	assert(rs != NULL);
+	if (need_init)
+		_rs_init(rnd, sizeof(rnd));
+#endif
 	else
 		_rs_rekey(rnd, sizeof(rnd));
 	explicit_bzero(rnd, sizeof(rnd));	/* discard source seed */
