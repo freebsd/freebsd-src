@@ -1389,6 +1389,8 @@ __elfN(freebsd_copyout_auxargs)(struct image_params *imgp, uintptr_t base)
 	AUXARGS_ENTRY(pos, AT_ENVC, imgp->args->envc);
 	AUXARGS_ENTRY_PTR(pos, AT_ENVV, imgp->envv);
 	AUXARGS_ENTRY_PTR(pos, AT_PS_STRINGS, imgp->ps_strings);
+	if (imgp->sysent->sv_fxrng_gen_base != 0)
+		AUXARGS_ENTRY(pos, AT_FXRNG, imgp->sysent->sv_fxrng_gen_base);
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);

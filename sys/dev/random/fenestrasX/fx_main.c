@@ -88,7 +88,8 @@
  *   a while).
  *
  * Not yet implemented, not in scope, or todo:
- *  - Userspace portions -- shared page, like timehands vdso?
+ *  - Various initial seeding sources we don't have yet
+ *  - In particular, VM migration/copy detection
  */
 
 #include <sys/cdefs.h>
