@@ -179,6 +179,7 @@ MAN=	aac.4 \
 	gpioths.4 \
 	gre.4 \
 	h_ertt.4 \
+	hconf.4 \
 	hidbus.4 \
 	hidquirk.4 \
 	hifn.4 \
