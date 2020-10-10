@@ -4165,10 +4165,7 @@ zfs_rename_(vnode_t *sdvp, vnode_t **svpp, struct componentname *scnp,
 			}
 		}
 		if (error == 0) {
-			cache_purge(*svpp);
-			if (*tvpp != NULL)
-				cache_purge(*tvpp);
-			cache_purge_negative(tdvp);
+			cache_rename(sdvp, *svpp, tdvp, *tvpp, scnp, tcnp);
 		}
 	}
 
