@@ -1,0 +1,3 @@
+/ {
+	freebsd,dts-version = LINUX_DTS_VERSION;
+};
