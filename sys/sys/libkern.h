@@ -116,10 +116,12 @@ static __inline int abs(int a) { return (a < 0 ? -a : a); }
 static __inline long labs(long a) { return (a < 0 ? -a : a); }
 static __inline quad_t qabs(quad_t a) { return (a < 0 ? -a : a); }
 
+#ifndef RANDOM_FENESTRASX
 #define	ARC4_ENTR_NONE	0	/* Don't have entropy yet. */
 #define	ARC4_ENTR_HAVE	1	/* Have entropy. */
 #define	ARC4_ENTR_SEED	2	/* Reseeding. */
 extern int arc4rand_iniseed_state;
+#endif
 
 /* Prototypes for non-quad routines. */
 struct malloc_type;
