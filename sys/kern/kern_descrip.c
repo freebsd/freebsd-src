@@ -2708,6 +2708,111 @@ get_locked:
 	return (error);
 }
 
+#ifdef CAPABILITIES
+int
+fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsearch)
+{
+	const struct filedescent *fde;
+	const struct fdescenttbl *fdt;
+	struct filedesc *fdp;
+	struct file *fp;
+	struct vnode *vp;
+	const cap_rights_t *haverights;
+	cap_rights_t rights;
+	seqc_t seq;
+
+	VFS_SMR_ASSERT_ENTERED();
+
+	rights = *ndp->ni_rightsneeded;
+	cap_rights_set_one(&rights, CAP_LOOKUP);
+
+	fdp = curproc->p_fd;
+	fdt = fdp->fd_files;
+	if (__predict_false((u_int)fd >= fdt->fdt_nfiles))
+		return (EBADF);
+	seq = seqc_read_any(fd_seqc(fdt, fd));
+	if (__predict_false(seqc_in_modify(seq)))
+		return (EAGAIN);
+	fde = &fdt->fdt_ofiles[fd];
+	haverights = cap_rights_fde_inline(fde);
+	fp = fde->fde_file;
+	if (__predict_false(fp == NULL))
+		return (EAGAIN);
+	if (__predict_false(cap_check_inline_transient(haverights, &rights)))
+		return (EAGAIN);
+	*fsearch = ((fp->f_flag & FSEARCH) != 0);
+	vp = fp->f_vnode;
+	if (__predict_false(vp == NULL || vp->v_type != VDIR)) {
+		return (EAGAIN);
+	}
+	if (!filecaps_copy(&fde->fde_caps, &ndp->ni_filecaps, false)) {
+		return (EAGAIN);
+	}
+	/*
+	 * Use an acquire barrier to force re-reading of fdt so it is
+	 * refreshed for verification.
+	 */
+	atomic_thread_fence_acq();
+	fdt = fdp->fd_files;
+	if (__predict_false(!seqc_consistent_nomb(fd_seqc(fdt, fd), seq)))
+		return (EAGAIN);
+	/*
+	 * If file descriptor doesn't have all rights,
+	 * all lookups relative to it must also be
+	 * strictly relative.
+	 *
+	 * Not yet supported by fast path.
+	 */
+	CAP_ALL(&rights);
+	if (!cap_rights_contains(&ndp->ni_filecaps.fc_rights, &rights) ||
+	    ndp->ni_filecaps.fc_fcntls != CAP_FCNTL_ALL ||
+	    ndp->ni_filecaps.fc_nioctls != -1) {
+#ifdef notyet
+		ndp->ni_lcf |= NI_LCF_STRICTRELATIVE;
+#else
+		return (EAGAIN);
+#endif
+	}
+	*vpp = vp;
+	return (0);
+}
+#else
+int
+fgetvp_lookup_smr(int fd, struct nameidata *ndp, struct vnode **vpp, bool *fsearch)
+{
+	const struct fdescenttbl *fdt;
+	struct filedesc *fdp;
+	struct file *fp;
+	struct vnode *vp;
+
+	VFS_SMR_ASSERT_ENTERED();
+
+	fdp = curproc->p_fd;
+	fdt = fdp->fd_files;
+	if (__predict_false((u_int)fd >= fdt->fdt_nfiles))
+		return (EBADF);
+	fp = fdt->fdt_ofiles[fd].fde_file;
+	if (__predict_false(fp == NULL))
+		return (EAGAIN);
+	*fsearch = ((fp->f_flag & FSEARCH) != 0);
+	vp = fp->f_vnode;
+	if (__predict_false(vp == NULL || vp->v_type != VDIR)) {
+		return (EAGAIN);
+	}
+	/*
+	 * Use an acquire barrier to force re-reading of fdt so it is
+	 * refreshed for verification.
+	 */
+	atomic_thread_fence_acq();
+	fdt = fdp->fd_files;
+	if (__predict_false(fp != fdt->fdt_ofiles[fd].fde_file))
+		return (EAGAIN);
+	filecaps_fill(&ndp->ni_filecaps);
+	*vpp = vp;
+	return (0);
+}
+#endif
+
 int
 fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
     struct file **fpp, seqc_t *seqp)
