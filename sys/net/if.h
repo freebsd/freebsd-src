@@ -210,7 +210,7 @@ struct if_data {
  *   contains the enabled optional feature & capabilites that can be used
  *   individually per packet and are specified in the mbuf pkthdr.csum_flags
  *   field.  IFCAP_* and CSUM_* do not match one to one and CSUM_* may be
- *   more detailed or differenciated than IFCAP_*.
+ *   more detailed or differentiated than IFCAP_*.
  *   Hwassist features are defined CSUM_* in sys/mbuf.h
  *
  * Capabilities that cannot be arbitrarily changed with ifconfig/ioctl
