@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/fenestrasX/fx_hash.h>
 #include <dev/random/fenestrasX/fx_pool.h>
 #include <dev/random/fenestrasX/fx_priv.h>
+#include <dev/random/fenestrasX/fx_pub.h>
 
 /*
  * Timer-based reseed interval growth factor and limit in seconds. (§ 3.2)

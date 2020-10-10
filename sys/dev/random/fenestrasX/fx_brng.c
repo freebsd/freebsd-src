@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/random/fenestrasX/fx_brng.h>
 #include <dev/random/fenestrasX/fx_priv.h>
+#include <dev/random/fenestrasX/fx_pub.h>
 #include <dev/random/fenestrasX/fx_rng.h>
 
 /*
