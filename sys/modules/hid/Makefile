@@ -6,6 +6,7 @@ SUBDIR = \
 	hidquirk
 
 SUBDIR += \
-	hconf
+	hconf \
+	hmt
 
 .include <bsd.subdir.mk>

@@ -1,6 +1,7 @@
 /*-
- * Copyright (c) 2014-2017 Vladimir Kondratyev <wulf@FreeBSD.org>
- * All rights reserved.
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
+ * Copyright (c) 2014-2020 Vladimir Kondratyev <wulf@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,168 +29,149 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * MS Windows 7/8/10 compatible USB HID Multi-touch Device driver.
+ * MS Windows 7/8/10 compatible HID Multi-touch Device driver.
  * https://msdn.microsoft.com/en-us/library/windows/hardware/jj151569(v=vs.85).aspx
+ * http://download.microsoft.com/download/7/d/d/7dd44bb7-2a7a-4505-ac1c-7227d3d96d5b/hid-over-i2c-protocol-spec-v1-0.docx
  * https://www.kernel.org/doc/Documentation/input/multi-touch-protocol.txt
  */
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/stddef.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-
-#include <dev/hid/hid.h>
-
-#include "usbdevs.h"
-#include <dev/usb/usb.h>
-#include <dev/usb/usbdi.h>
-#include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbhid.h>
-
-#include <dev/usb/quirk/usb_quirk.h>
 
 #include <dev/evdev/evdev.h>
 #include <dev/evdev/input.h>
 
-#define	USB_DEBUG_VAR wmt_debug
-#include <dev/usb/usb_debug.h>
+#define	HID_DEBUG_VAR	hmt_debug
+#include <dev/hid/hid.h>
+#include <dev/hid/hidbus.h>
+#include <dev/hid/hidquirk.h>
 
-static SYSCTL_NODE(_hw_usb, OID_AUTO, wmt, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
-    "USB MSWindows 7/8/10 compatible Multi-touch Device");
-#ifdef USB_DEBUG
-static int wmt_debug = 0;
-SYSCTL_INT(_hw_usb_wmt, OID_AUTO, debug, CTLFLAG_RWTUN,
-    &wmt_debug, 1, "Debug level");
+#include <dev/hid/hconf.h>
+
+static SYSCTL_NODE(_hw_hid, OID_AUTO, hmt, CTLFLAG_RW, 0,
+    "MSWindows 7/8/10 compatible HID Multi-touch Device");
+#ifdef HID_DEBUG
+static int hmt_debug = 0;
+SYSCTL_INT(_hw_hid_hmt, OID_AUTO, debug, CTLFLAG_RWTUN,
+    &hmt_debug, 1, "Debug level");
 #endif
-static bool wmt_timestamps = 0;
-SYSCTL_BOOL(_hw_usb_wmt, OID_AUTO, timestamps, CTLFLAG_RDTUN,
-    &wmt_timestamps, 1, "Enable hardware timestamp reporting");
+static bool hmt_timestamps = 0;
+SYSCTL_BOOL(_hw_hid_hmt, OID_AUTO, timestamps, CTLFLAG_RDTUN,
+    &hmt_timestamps, 1, "Enable hardware timestamp reporting");
 
-#define	WMT_BSIZE	1024	/* bytes, buffer size */
-#define	WMT_BTN_MAX	8	/* Number of buttons supported */
+#define	HMT_BTN_MAX	8	/* Number of buttons supported */
 
-enum {
-	WMT_INTR_DT,
-	WMT_N_TRANSFER,
-};
-
-enum wmt_type {
-	WMT_TYPE_UNKNOWN = 0,	/* HID report descriptor is not probed */
-	WMT_TYPE_UNSUPPORTED,	/* Repdescr does not belong to MT device */
-	WMT_TYPE_TOUCHPAD,
-	WMT_TYPE_TOUCHSCREEN,
-};
-
-enum wmt_input_mode {
-	WMT_INPUT_MODE_MOUSE =		0x0,
-	WMT_INPUT_MODE_MT_TOUCHSCREEN =	0x2,
-	WMT_INPUT_MODE_MT_TOUCHPAD =	0x3,
+enum hmt_type {
+	HMT_TYPE_UNKNOWN = 0,	/* HID report descriptor is not probed */
+	HMT_TYPE_UNSUPPORTED,	/* Repdescr does not belong to MT device */
+	HMT_TYPE_TOUCHPAD,
+	HMT_TYPE_TOUCHSCREEN,
 };
 
 enum {
-	WMT_TIP_SWITCH,
-#define	WMT_SLOT	WMT_TIP_SWITCH
-	WMT_WIDTH,
-#define	WMT_MAJOR	WMT_WIDTH
-	WMT_HEIGHT,
-#define WMT_MINOR	WMT_HEIGHT
-	WMT_ORIENTATION,
-	WMT_X,
-	WMT_Y,
-	WMT_CONTACTID,
-	WMT_PRESSURE,
-	WMT_IN_RANGE,
-	WMT_CONFIDENCE,
-	WMT_TOOL_X,
-	WMT_TOOL_Y,
-	WMT_N_USAGES,
+	HMT_TIP_SWITCH,
+#define	HMT_SLOT	HMT_TIP_SWITCH
+	HMT_WIDTH,
+#define	HMT_MAJOR	HMT_WIDTH
+	HMT_HEIGHT,
+#define HMT_MINOR	HMT_HEIGHT
+	HMT_ORIENTATION,
+	HMT_X,
+	HMT_Y,
+	HMT_CONTACTID,
+	HMT_PRESSURE,
+	HMT_IN_RANGE,
+	HMT_CONFIDENCE,
+	HMT_TOOL_X,
+	HMT_TOOL_Y,
+	HMT_N_USAGES,
 };
 
-#define	WMT_NO_CODE	(ABS_MAX + 10)
-#define	WMT_NO_USAGE	-1
+#define	HMT_NO_CODE	(ABS_MAX + 10)
+#define	HMT_NO_USAGE	-1
 
-struct wmt_hid_map_item {
+struct hmt_hid_map_item {
 	char		name[5];
 	int32_t 	usage;		/* HID usage */
 	uint32_t	code;		/* Evdev event code */
 	bool		required;	/* Required for MT Digitizers */
 };
 
-static const struct wmt_hid_map_item wmt_hid_map[WMT_N_USAGES] = {
-	[WMT_TIP_SWITCH] = {	/* WMT_SLOT */
+static const struct hmt_hid_map_item hmt_hid_map[HMT_N_USAGES] = {
+	[HMT_TIP_SWITCH] = {	/* HMT_SLOT */
 		.name = "TIP",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_SWITCH),
 		.code = ABS_MT_SLOT,
 		.required = true,
 	},
-	[WMT_WIDTH] = {		/* WMT_MAJOR */
+	[HMT_WIDTH] = {		/* HMT_MAJOR */
 		.name = "WDTH",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_WIDTH),
 		.code = ABS_MT_TOUCH_MAJOR,
 		.required = false,
 	},
-	[WMT_HEIGHT] = {	/* WMT_MINOR */
+	[HMT_HEIGHT] = {	/* HMT_MINOR */
 		.name = "HGHT",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_HEIGHT),
 		.code = ABS_MT_TOUCH_MINOR,
 		.required = false,
 	},
-	[WMT_ORIENTATION] = {
+	[HMT_ORIENTATION] = {
 		.name = "ORIE",
-		.usage = WMT_NO_USAGE,
+		.usage = HMT_NO_USAGE,
 		.code = ABS_MT_ORIENTATION,
 		.required = false,
 	},
-	[WMT_X] = {
+	[HMT_X] = {
 		.name = "X",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
 		.code = ABS_MT_POSITION_X,
 		.required = true,
 	},
-	[WMT_Y] = {
+	[HMT_Y] = {
 		.name = "Y",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
 		.code = ABS_MT_POSITION_Y,
 		.required = true,
 	},
-	[WMT_CONTACTID] = {
+	[HMT_CONTACTID] = {
 		.name = "C_ID",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTID),
 		.code = ABS_MT_TRACKING_ID,
 		.required = true,
 	},
-	[WMT_PRESSURE] = {
+	[HMT_PRESSURE] = {
 		.name = "PRES",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_TIP_PRESSURE),
 		.code = ABS_MT_PRESSURE,
 		.required = false,
 	},
-	[WMT_IN_RANGE] = {
+	[HMT_IN_RANGE] = {
 		.name = "RANG",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_IN_RANGE),
 		.code = ABS_MT_DISTANCE,
 		.required = false,
 	},
-	[WMT_CONFIDENCE] = {
+	[HMT_CONFIDENCE] = {
 		.name = "CONF",
 		.usage = HID_USAGE2(HUP_DIGITIZERS, HUD_CONFIDENCE),
-		.code = WMT_NO_CODE,
+		.code = HMT_NO_CODE,
 		.required = false,
 	},
-	[WMT_TOOL_X] = {	/* Shares HID usage with WMT_X */
+	[HMT_TOOL_X] = {	/* Shares HID usage with HMT_X */
 		.name = "TL_X",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X),
 		.code = ABS_MT_TOOL_X,
 		.required = false,
 	},
-	[WMT_TOOL_Y] = {	/* Shares HID usage with WMT_Y */
+	[HMT_TOOL_Y] = {	/* Shares HID usage with HMT_Y */
 		.name = "TL_Y",
 		.usage = HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y),
 		.code = ABS_MT_TOOL_Y,
@@ -197,21 +179,14 @@ static const struct wmt_hid_map_item wmt_hid_map[WMT_N_USAGES] = {
 	},
 };
 
-struct wmt_absinfo {
-	int32_t			min;
-	int32_t			max;
-	int32_t			res;
-};
-
-struct wmt_softc {
+struct hmt_softc {
 	device_t		dev;
-	enum wmt_type		type;
+	enum hmt_type		type;
 
-	struct mtx		mtx;
-	struct wmt_absinfo	ai[WMT_N_USAGES];
-	struct hid_location	locs[MAX_MT_SLOTS][WMT_N_USAGES];
+	struct hid_absinfo	ai[HMT_N_USAGES];
+	struct hid_location	locs[MAX_MT_SLOTS][HMT_N_USAGES];
 	struct hid_location	cont_count_loc;
-	struct hid_location	btn_loc[WMT_BTN_MAX];
+	struct hid_location	btn_loc[HMT_BTN_MAX];
 	struct hid_location	int_btn_loc;
 	struct hid_location	scan_time_loc;
 	int32_t			scan_time_max;
@@ -220,21 +195,19 @@ struct wmt_softc {
 	bool			touch;
 	bool			prev_touch;
 
-	struct usb_xfer		*xfer[WMT_N_TRANSFER];
 	struct evdev_dev	*evdev;
 
-	uint32_t		slot_data[WMT_N_USAGES];
-	uint8_t			caps[howmany(WMT_N_USAGES, 8)];
-	uint8_t			buttons[howmany(WMT_BTN_MAX, 8)];
-	uint32_t		isize;
+	uint32_t		slot_data[HMT_N_USAGES];
+	uint8_t			caps[howmany(HMT_N_USAGES, 8)];
+	uint8_t			buttons[howmany(HMT_BTN_MAX, 8)];
 	uint32_t		nconts_per_report;
 	uint32_t		nconts_todo;
-	uint32_t		report_len;
 	uint8_t			report_id;
 	uint32_t		max_button;
 	bool			has_int_button;
 	bool			is_clickpad;
 	bool			do_timestamps;
+	bool			iichid_sampling;
 
 	struct hid_location	cont_max_loc;
 	uint32_t		cont_max_rlen;
@@ -244,199 +217,186 @@ struct wmt_softc {
 	uint8_t			btn_type_rid;
 	uint32_t		thqa_cert_rlen;
 	uint8_t			thqa_cert_rid;
-	struct hid_location	input_mode_loc;
-	uint32_t		input_mode_rlen;
-	uint8_t			input_mode_rid;
-
-	uint8_t			buf[WMT_BSIZE] __aligned(4);
 };
 
-#define	WMT_FOREACH_USAGE(caps, usage)			\
-	for ((usage) = 0; (usage) < WMT_N_USAGES; ++(usage))	\
+#define	HMT_FOREACH_USAGE(caps, usage)			\
+	for ((usage) = 0; (usage) < HMT_N_USAGES; ++(usage))	\
 		if (isset((caps), (usage)))
 
-static enum wmt_type wmt_hid_parse(struct wmt_softc *, const void *, uint16_t);
-static int wmt_set_input_mode(struct wmt_softc *, enum wmt_input_mode);
+static enum hmt_type hmt_hid_parse(struct hmt_softc *, const void *,
+    hid_size_t, uint32_t, uint8_t);
+static int hmt_set_input_mode(struct hmt_softc *, enum hconf_input_mode);
 
-static usb_callback_t	wmt_intr_callback;
+static hid_intr_t	hmt_intr;
 
-static device_probe_t	wmt_probe;
-static device_attach_t	wmt_attach;
-static device_detach_t	wmt_detach;
+static device_probe_t	hmt_probe;
+static device_attach_t	hmt_attach;
+static device_detach_t	hmt_detach;
 
-#if __FreeBSD_version >= 1200077
-static evdev_open_t	wmt_ev_open;
-static evdev_close_t	wmt_ev_close;
-#else
-static evdev_open_t	wmt_ev_open_11;
-static evdev_close_t	wmt_ev_close_11;
-#endif
+static evdev_open_t	hmt_ev_open;
+static evdev_close_t	hmt_ev_close;
 
-static const struct evdev_methods wmt_evdev_methods = {
-#if __FreeBSD_version >= 1200077
-	.ev_open = &wmt_ev_open,
-	.ev_close = &wmt_ev_close,
-#else
-	.ev_open = &wmt_ev_open_11,
-	.ev_close = &wmt_ev_close_11,
-#endif
+static const struct evdev_methods hmt_evdev_methods = {
+	.ev_open = &hmt_ev_open,
+	.ev_close = &hmt_ev_close,
 };
 
-static const struct usb_config wmt_config[WMT_N_TRANSFER] = {
-	[WMT_INTR_DT] = {
-		.type = UE_INTERRUPT,
-		.endpoint = UE_ADDR_ANY,
-		.direction = UE_DIR_IN,
-		.flags = { .pipe_bof = 1, .short_xfer_ok = 1 },
-		.bufsize = WMT_BSIZE,
-		.callback = &wmt_intr_callback,
-	},
+static const struct hid_device_id hmt_devs[] = {
+	{ HID_TLC(HUP_DIGITIZERS, HUD_TOUCHSCREEN) },
+	{ HID_TLC(HUP_DIGITIZERS, HUD_TOUCHPAD) },
 };
 
 static int
-wmt_probe(device_t dev)
+hmt_ev_close(struct evdev_dev *evdev)
 {
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	struct wmt_softc *sc = device_get_softc(dev);
-	void *d_ptr;
-	uint16_t d_len;
-	int err;
-
-	if (uaa->usb_mode != USB_MODE_HOST)
-		return (ENXIO);
-
-	if (uaa->info.bInterfaceClass != UICLASS_HID)
-		return (ENXIO);
-
-	if (usb_test_quirk(uaa, UQ_WMT_IGNORE))
-		return (ENXIO);
-
-	err = usbd_req_get_hid_desc(uaa->device, NULL,
-	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
-	if (err)
-		return (ENXIO);
-
-	/* Check if report descriptor belongs to a HID multitouch device */
-	if (sc->type == WMT_TYPE_UNKNOWN)
-		sc->type = wmt_hid_parse(sc, d_ptr, d_len);
-	if (sc->type != WMT_TYPE_UNSUPPORTED)
-		err = BUS_PROBE_DEFAULT;
-	else
-		err = ENXIO;
-
-	/* Check HID report length */
-	if (sc->type != WMT_TYPE_UNSUPPORTED &&
-	    (sc->isize <= 0 || sc->isize > WMT_BSIZE)) {
-		DPRINTF("Input size invalid or too large: %d\n", sc->isize);
-		err = ENXIO;
-	}
-
-	free(d_ptr, M_TEMP);
-	return (err);
+	return (hidbus_intr_stop(evdev_get_softc(evdev)));
 }
 
 static int
-wmt_attach(device_t dev)
+hmt_ev_open(struct evdev_dev *evdev)
 {
-	struct usb_attach_arg *uaa = device_get_ivars(dev);
-	struct wmt_softc *sc = device_get_softc(dev);
+	return (hidbus_intr_start(evdev_get_softc(evdev)));
+}
+
+static int
+hmt_probe(device_t dev)
+{
+	struct hmt_softc *sc = device_get_softc(dev);
+	void *d_ptr;
+	hid_size_t d_len;
+	int err;
+
+	err = HIDBUS_LOOKUP_DRIVER_INFO(dev, hmt_devs);
+	if (err != 0)
+		return (err);
+
+	err = hid_get_report_descr(dev, &d_ptr, &d_len);
+	if (err != 0) {
+		device_printf(dev, "could not retrieve report descriptor from "
+		     "device: %d\n", err);
+		return (ENXIO);
+	}
+
+	/* Check if report descriptor belongs to a HID multitouch device */
+	if (sc->type == HMT_TYPE_UNKNOWN)
+		sc->type = hmt_hid_parse(sc, d_ptr, d_len,
+		    hidbus_get_usage(dev), hidbus_get_index(dev));
+	if (sc->type == HMT_TYPE_UNSUPPORTED)
+		return (ENXIO);
+
+	hidbus_set_desc(dev,
+	    sc->type == HMT_TYPE_TOUCHPAD ? "TouchPad" : "TouchScreen");
+
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+hmt_attach(device_t dev)
+{
+	struct hmt_softc *sc = device_get_softc(dev);
+	const struct hid_device_info *hw = hid_get_device_info(dev);
+	void *d_ptr;
+	uint8_t *fbuf = NULL;
+	hid_size_t d_len, fsize;
 	uint32_t cont_count_max;
 	int nbuttons, btn;
 	size_t i;
 	int err;
 
-	device_set_usb_desc(dev);
+	err = hid_get_report_descr(dev, &d_ptr, &d_len);
+	if (err != 0) {
+		device_printf(dev, "could not retrieve report descriptor from "
+		    "device: %d\n", err);
+		return (ENXIO);
+	}
+
 	sc->dev = dev;
 
+	fsize = hid_report_size_max(d_ptr, d_len, hid_feature, NULL);
+	if (fsize != 0)
+		fbuf = malloc(fsize, M_TEMP, M_WAITOK | M_ZERO);
+
 	/* Fetch and parse "Contact count maximum" feature report */
-	if (sc->cont_max_rlen > 0 && sc->cont_max_rlen <= WMT_BSIZE) {
-		err = usbd_req_get_report(uaa->device, NULL, sc->buf,
-		    sc->cont_max_rlen, uaa->info.bIfaceIndex,
-		    UHID_FEATURE_REPORT, sc->cont_max_rid);
-		if (err == USB_ERR_NORMAL_COMPLETION) {
-			cont_count_max = hid_get_udata(sc->buf + 1,
+	if (sc->cont_max_rlen > 1) {
+		err = hid_get_report(dev, fbuf, sc->cont_max_rlen, NULL,
+		    HID_FEATURE_REPORT, sc->cont_max_rid);
+		if (err == 0) {
+			cont_count_max = hid_get_udata(fbuf + 1,
 			    sc->cont_max_rlen - 1, &sc->cont_max_loc);
 			/*
 			 * Feature report is a primary source of
 			 * 'Contact Count Maximum'
 			 */
 			if (cont_count_max > 0)
-				sc->ai[WMT_SLOT].max = cont_count_max - 1;
+				sc->ai[HMT_SLOT].max = cont_count_max - 1;
 		} else
-			DPRINTF("usbd_req_get_report error=(%s)\n",
-			    usbd_errstr(err));
+			DPRINTF("hid_get_report error=%d\n", err);
 	} else
-		DPRINTF("Feature report %hhu size invalid or too large: %u\n",
+		DPRINTF("Feature report %hhu size invalid: %u\n",
 		    sc->cont_max_rid, sc->cont_max_rlen);
 
 	/* Fetch and parse "Button type" feature report */
-	if (sc->btn_type_rlen > 1 && sc->btn_type_rlen <= WMT_BSIZE &&
-	    sc->btn_type_rid != sc->cont_max_rid) {
-		bzero(sc->buf, sc->btn_type_rlen);
-		err = usbd_req_get_report(uaa->device, NULL, sc->buf,
-		    sc->btn_type_rlen, uaa->info.bIfaceIndex,
-		    UHID_FEATURE_REPORT, sc->btn_type_rid);
+	if (sc->btn_type_rlen > 1 && sc->btn_type_rid != sc->cont_max_rid) {
+		bzero(fbuf, fsize);
+		err = hid_get_report(dev, fbuf, sc->btn_type_rlen, NULL,
+		    HID_FEATURE_REPORT, sc->btn_type_rid);
 	}
 	if (sc->btn_type_rlen > 1) {
 		if (err == 0)
-			sc->is_clickpad = hid_get_udata(sc->buf + 1,
+			sc->is_clickpad = hid_get_udata(fbuf + 1,
 			    sc->btn_type_rlen - 1, &sc->btn_type_loc) == 0;
 		else
-			DPRINTF("usbd_req_get_report error=%d\n", err);
+			DPRINTF("hid_get_report error=%d\n", err);
 	}
 
 	/* Fetch THQA certificate to enable some devices like WaveShare */
-	if (sc->thqa_cert_rlen > 0 && sc->thqa_cert_rlen <= WMT_BSIZE &&
-	    sc->thqa_cert_rid != sc->cont_max_rid)
-		(void)usbd_req_get_report(uaa->device, NULL, sc->buf,
-		    sc->thqa_cert_rlen, uaa->info.bIfaceIndex,
-		    UHID_FEATURE_REPORT, sc->thqa_cert_rid);
+	if (sc->thqa_cert_rlen > 1 && sc->thqa_cert_rid != sc->cont_max_rid)
+		(void)hid_get_report(dev, fbuf, sc->thqa_cert_rlen, NULL,
+		    HID_FEATURE_REPORT, sc->thqa_cert_rid);
+
+	free(fbuf, M_TEMP);
 
 	/* Switch touchpad in to absolute multitouch mode */
-	if (sc->type == WMT_TYPE_TOUCHPAD) {
-		err = wmt_set_input_mode(sc, WMT_INPUT_MODE_MT_TOUCHPAD);
+	if (sc->type == HMT_TYPE_TOUCHPAD) {
+		err = hmt_set_input_mode(sc, HCONF_INPUT_MODE_MT_TOUCHPAD);
 		if (err != 0)
 			DPRINTF("Failed to set input mode: %d\n", err);
 	}
 
 	/* Cap contact count maximum to MAX_MT_SLOTS */
-	if (sc->ai[WMT_SLOT].max >= MAX_MT_SLOTS) {
+	if (sc->ai[HMT_SLOT].max >= MAX_MT_SLOTS) {
 		DPRINTF("Hardware reported %d contacts while only %d is "
-		    "supported\n", (int)sc->ai[WMT_SLOT].max+1, MAX_MT_SLOTS);
-		sc->ai[WMT_SLOT].max = MAX_MT_SLOTS - 1;
+		    "supported\n", (int)sc->ai[HMT_SLOT].max+1, MAX_MT_SLOTS);
+		sc->ai[HMT_SLOT].max = MAX_MT_SLOTS - 1;
 	}
 
-	if (/*usb_test_quirk(hw, UQ_MT_TIMESTAMP) ||*/ wmt_timestamps)
+	if (hid_test_quirk(hw, HQ_MT_TIMESTAMP) || hmt_timestamps)
 		sc->do_timestamps = true;
+	if (hid_test_quirk(hw, HQ_IICHID_SAMPLING))
+		sc->iichid_sampling = true;
 
-	mtx_init(&sc->mtx, "wmt lock", NULL, MTX_DEF);
-
-	err = usbd_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
-	    sc->xfer, wmt_config, WMT_N_TRANSFER, sc, &sc->mtx);
-	if (err != USB_ERR_NORMAL_COMPLETION) {
-		DPRINTF("usbd_transfer_setup error=%s\n", usbd_errstr(err));
-		goto detach;
-	}
+	hidbus_set_intr(dev, hmt_intr, sc);
 
 	sc->evdev = evdev_alloc();
 	evdev_set_name(sc->evdev, device_get_desc(dev));
 	evdev_set_phys(sc->evdev, device_get_nameunit(dev));
-	evdev_set_id(sc->evdev, BUS_USB, uaa->info.idVendor,
-	    uaa->info.idProduct, 0);
-	evdev_set_serial(sc->evdev, usb_get_serial(uaa->device));
-	evdev_set_methods(sc->evdev, sc, &wmt_evdev_methods);
+	evdev_set_id(sc->evdev, hw->idBus, hw->idVendor, hw->idProduct,
+	    hw->idVersion);
+	evdev_set_serial(sc->evdev, hw->serial);
+	evdev_set_methods(sc->evdev, dev, &hmt_evdev_methods);
 	evdev_set_flag(sc->evdev, EVDEV_FLAG_MT_STCOMPAT);
+	evdev_set_flag(sc->evdev, EVDEV_FLAG_EXT_EPOCH); /* hidbus child */
 	switch (sc->type) {
-	case WMT_TYPE_TOUCHSCREEN:
+	case HMT_TYPE_TOUCHSCREEN:
 		evdev_support_prop(sc->evdev, INPUT_PROP_DIRECT);
 		break;
-	case WMT_TYPE_TOUCHPAD:
+	case HMT_TYPE_TOUCHPAD:
 		evdev_support_prop(sc->evdev, INPUT_PROP_POINTER);
 		if (sc->is_clickpad)
 			evdev_support_prop(sc->evdev, INPUT_PROP_BUTTONPAD);
 		break;
 	default:
-		KASSERT(0, ("wmt_attach: unsupported touch device type"));
+		KASSERT(0, ("hmt_attach: unsupported touch device type"));
 	}
 	evdev_support_event(sc->evdev, EV_SYN);
 	evdev_support_event(sc->evdev, EV_ABS);
@@ -444,6 +404,8 @@ wmt_attach(device_t dev)
 		evdev_support_event(sc->evdev, EV_MSC);
 		evdev_support_msc(sc->evdev, MSC_TIMESTAMP);
 	}
+	if (sc->iichid_sampling)
+		evdev_set_flag(sc->evdev, EVDEV_FLAG_MT_AUTOREL);
 	nbuttons = 0;
 	if (sc->max_button != 0 || sc->has_int_button) {
 		evdev_support_event(sc->evdev, EV_KEY);
@@ -456,53 +418,51 @@ wmt_attach(device_t dev)
 			}
 		}
 	}
-	WMT_FOREACH_USAGE(sc->caps, i) {
-		if (wmt_hid_map[i].code != WMT_NO_CODE)
-			evdev_support_abs(sc->evdev, wmt_hid_map[i].code,
+	HMT_FOREACH_USAGE(sc->caps, i) {
+		if (hmt_hid_map[i].code != HMT_NO_CODE)
+			evdev_support_abs(sc->evdev, hmt_hid_map[i].code,
 			    sc->ai[i].min, sc->ai[i].max, 0, 0, sc->ai[i].res);
 	}
 
-	err = evdev_register_mtx(sc->evdev, &sc->mtx);
-	if (err)
-		goto detach;
+	err = evdev_register(sc->evdev);
+	if (err) {
+		hmt_detach(dev);
+		return (ENXIO);
+	}
 
 	/* Announce information about the touch device */
 	device_printf(sc->dev, "Multitouch %s with %d external button%s%s\n",
-	    sc->type == WMT_TYPE_TOUCHSCREEN ? "touchscreen" : "touchpad",
+	    sc->type == HMT_TYPE_TOUCHSCREEN ? "touchscreen" : "touchpad",
 	    nbuttons, nbuttons != 1 ? "s" : "",
 	    sc->is_clickpad ? ", click-pad" : "");
 	device_printf(sc->dev,
-	    "%d contacts and [%s%s%s%s%s]. Report range [%d:%d] - [%d:%d]\n",
-	    (int)sc->ai[WMT_SLOT].max + 1,
-	    isset(sc->caps, WMT_IN_RANGE) ? "R" : "",
-	    isset(sc->caps, WMT_CONFIDENCE) ? "C" : "",
-	    isset(sc->caps, WMT_WIDTH) ? "W" : "",
-	    isset(sc->caps, WMT_HEIGHT) ? "H" : "",
-	    isset(sc->caps, WMT_PRESSURE) ? "P" : "",
-	    (int)sc->ai[WMT_X].min, (int)sc->ai[WMT_Y].min,
-	    (int)sc->ai[WMT_X].max, (int)sc->ai[WMT_Y].max);
+	    "%d contacts with [%s%s%s%s%s] properties. Report range [%d:%d] - [%d:%d]\n",
+	    (int)sc->ai[HMT_SLOT].max + 1,
+	    isset(sc->caps, HMT_IN_RANGE) ? "R" : "",
+	    isset(sc->caps, HMT_CONFIDENCE) ? "C" : "",
+	    isset(sc->caps, HMT_WIDTH) ? "W" : "",
+	    isset(sc->caps, HMT_HEIGHT) ? "H" : "",
+	    isset(sc->caps, HMT_PRESSURE) ? "P" : "",
+	    (int)sc->ai[HMT_X].min, (int)sc->ai[HMT_Y].min,
+	    (int)sc->ai[HMT_X].max, (int)sc->ai[HMT_Y].max);
 
 	return (0);
-
-detach:
-	wmt_detach(dev);
-	return (ENXIO);
 }
 
 static int
-wmt_detach(device_t dev)
+hmt_detach(device_t dev)
 {
-	struct wmt_softc *sc = device_get_softc(dev);
+	struct hmt_softc *sc = device_get_softc(dev);
 
 	evdev_free(sc->evdev);
-	usbd_transfer_unsetup(sc->xfer, WMT_N_TRANSFER);
-	mtx_destroy(&sc->mtx);
+
 	return (0);
 }
 
 static void
-wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
+hmt_intr(void *context, void *buf, hid_size_t len)
 {
+	struct hmt_softc *sc = context;
 	size_t usage;
 	uint32_t *slot_data = sc->slot_data;
 	uint32_t cont, btn;
@@ -514,6 +474,37 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	int32_t slot;
 	uint32_t scan_time;
 	int32_t delta;
+	uint8_t id;
+
+	/*
+	 * Special packet of zero length is generated by iichid driver running
+	 * in polling mode at the start of inactivity period to workaround
+	 * "stuck touch" problem caused by miss of finger release events.
+	 * This snippet is to be removed after GPIO interrupt support is added.
+	 */
+	if (sc->iichid_sampling && len == 0) {
+		sc->prev_touch = false;
+		sc->timestamp = 0;
+		for (slot = 0; slot <= sc->ai[HMT_SLOT].max; slot++) {
+			evdev_push_abs(sc->evdev, ABS_MT_SLOT, slot);
+			evdev_push_abs(sc->evdev, ABS_MT_TRACKING_ID, -1);
+		}
+		evdev_sync(sc->evdev);
+		return;
+	}
+
+	/* Ignore irrelevant reports */
+	id = sc->report_id != 0 ? *(uint8_t *)buf : 0;
+	if (sc->report_id != id) {
+		DPRINTF("Skip report with unexpected ID: %hhu\n", id);
+		return;
+	}
+
+	/* Strip leading "report ID" byte */
+	if (sc->report_id != 0) {
+		len--;
+		buf = (uint8_t *)buf + 1;
+	}
 
 	/*
 	 * "In Parallel mode, devices report all contact information in a
@@ -542,12 +533,12 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	if (cont_count != 0)
 		sc->nconts_todo = cont_count;
 
-#ifdef USB_DEBUG
+#ifdef HID_DEBUG
 	DPRINTFN(6, "cont_count:%2u", (unsigned)cont_count);
-	if (wmt_debug >= 6) {
-		WMT_FOREACH_USAGE(sc->caps, usage) {
-			if (wmt_hid_map[usage].usage != WMT_NO_USAGE)
-				printf(" %-4s", wmt_hid_map[usage].name);
+	if (hmt_debug >= 6) {
+		HMT_FOREACH_USAGE(sc->caps, usage) {
+			if (hmt_hid_map[usage].usage != HMT_NO_USAGE)
+				printf(" %-4s", hmt_hid_map[usage].name);
 		}
 		printf("\n");
 	}
@@ -559,20 +550,20 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	/* Use protocol Type B for reporting events */
 	for (cont = 0; cont < cont_count; cont++) {
 		bzero(slot_data, sizeof(sc->slot_data));
-		WMT_FOREACH_USAGE(sc->caps, usage) {
+		HMT_FOREACH_USAGE(sc->caps, usage) {
 			if (sc->locs[cont][usage].size > 0)
 				slot_data[usage] = hid_get_udata(
 				    buf, len, &sc->locs[cont][usage]);
 		}
 
 		slot = evdev_get_mt_slot_by_tracking_id(sc->evdev,
-		    slot_data[WMT_CONTACTID]);
+		    slot_data[HMT_CONTACTID]);
 
-#ifdef USB_DEBUG
+#ifdef HID_DEBUG
 		DPRINTFN(6, "cont%01x: data = ", cont);
-		if (wmt_debug >= 6) {
-			WMT_FOREACH_USAGE(sc->caps, usage) {
-				if (wmt_hid_map[usage].usage != WMT_NO_USAGE)
+		if (hmt_debug >= 6) {
+			HMT_FOREACH_USAGE(sc->caps, usage) {
+				if (hmt_hid_map[usage].usage != HMT_NO_USAGE)
 					printf("%04x ", slot_data[usage]);
 			}
 			printf("slot = %d\n", (int)slot);
@@ -581,28 +572,28 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 
 		if (slot == -1) {
 			DPRINTF("Slot overflow for contact_id %u\n",
-			    (unsigned)slot_data[WMT_CONTACTID]);
+			    (unsigned)slot_data[HMT_CONTACTID]);
 			continue;
 		}
 
-		if (slot_data[WMT_TIP_SWITCH] != 0 &&
-		    !(isset(sc->caps, WMT_CONFIDENCE) &&
-		      slot_data[WMT_CONFIDENCE] == 0)) {
+		if (slot_data[HMT_TIP_SWITCH] != 0 &&
+		    !(isset(sc->caps, HMT_CONFIDENCE) &&
+		      slot_data[HMT_CONFIDENCE] == 0)) {
 			/* This finger is in proximity of the sensor */
 			sc->touch = true;
-			slot_data[WMT_SLOT] = slot;
-			slot_data[WMT_IN_RANGE] = !slot_data[WMT_IN_RANGE];
+			slot_data[HMT_SLOT] = slot;
+			slot_data[HMT_IN_RANGE] = !slot_data[HMT_IN_RANGE];
 			/* Divided by two to match visual scale of touch */
-			width = slot_data[WMT_WIDTH] >> 1;
-			height = slot_data[WMT_HEIGHT] >> 1;
-			slot_data[WMT_ORIENTATION] = width > height;
-			slot_data[WMT_MAJOR] = MAX(width, height);
-			slot_data[WMT_MINOR] = MIN(width, height);
+			width = slot_data[HMT_WIDTH] >> 1;
+			height = slot_data[HMT_HEIGHT] >> 1;
+			slot_data[HMT_ORIENTATION] = width > height;
+			slot_data[HMT_MAJOR] = MAX(width, height);
+			slot_data[HMT_MINOR] = MIN(width, height);
 
-			WMT_FOREACH_USAGE(sc->caps, usage)
-				if (wmt_hid_map[usage].code != WMT_NO_CODE)
+			HMT_FOREACH_USAGE(sc->caps, usage)
+				if (hmt_hid_map[usage].code != HMT_NO_CODE)
 					evdev_push_abs(sc->evdev,
-					    wmt_hid_map[usage].code,
+					    hmt_hid_map[usage].code,
 					    slot_data[usage]);
 		} else {
 			evdev_push_abs(sc->evdev, ABS_MT_SLOT, slot);
@@ -648,193 +639,80 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	}
 }
 
-static void
-wmt_intr_callback(struct usb_xfer *xfer, usb_error_t error)
+static enum hmt_type
+hmt_hid_parse(struct hmt_softc *sc, const void *d_ptr, hid_size_t d_len,
+    uint32_t tlc_usage, uint8_t tlc_index)
 {
-	struct wmt_softc *sc = usbd_xfer_softc(xfer);
-	struct usb_page_cache *pc;
-	uint8_t *buf = sc->buf;
-	int len;
-
-	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
-
-	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_TRANSFERRED:
-		pc = usbd_xfer_get_frame(xfer, 0);
-
-		DPRINTFN(6, "sc=%p actlen=%d\n", sc, len);
-
-		if (len >= (int)sc->report_len ||
-		    (len > 0 && sc->report_id != 0)) {
-			/* Limit report length to the maximum */
-			if (len > (int)sc->report_len)
-				len = sc->report_len;
-
-			usbd_copy_out(pc, 0, buf, len);
-
-			/* Ignore irrelevant reports */
-			if (sc->report_id && *buf != sc->report_id)
-				goto tr_ignore;
-
-			/* Make sure we don't process old data */
-			if (len < sc->report_len)
-				bzero(buf + len, sc->report_len - len);
-
-			/* Strip leading "report ID" byte */
-			if (sc->report_id) {
-				len--;
-				buf++;
-			}
-
-			wmt_process_report(sc, buf, len);
-		} else {
-tr_ignore:
-			DPRINTF("Ignored transfer, %d bytes\n", len);
-		}
-
-	case USB_ST_SETUP:
-tr_setup:
-		usbd_xfer_set_frame_len(xfer, 0, sc->isize);
-		usbd_transfer_submit(xfer);
-		break;
-	default:
-		if (error != USB_ERR_CANCELLED) {
-			/* Try clear stall first */
-			usbd_xfer_set_stall(xfer);
-			goto tr_setup;
-		}
-		break;
-	}
-}
-
-static void
-wmt_ev_close_11(struct evdev_dev *evdev, void *ev_softc)
-{
-	struct wmt_softc *sc = ev_softc;
-
-	mtx_assert(&sc->mtx, MA_OWNED);
-	usbd_transfer_stop(sc->xfer[WMT_INTR_DT]);
-}
-
-static int
-wmt_ev_open_11(struct evdev_dev *evdev, void *ev_softc)
-{
-	struct wmt_softc *sc = ev_softc;
-
-	mtx_assert(&sc->mtx, MA_OWNED);
-	usbd_transfer_start(sc->xfer[WMT_INTR_DT]);
-
-	return (0);
-}
-
-#if __FreeBSD_version >= 1200077
-static int
-wmt_ev_close(struct evdev_dev *evdev)
-{
-	struct wmt_softc *sc = evdev_get_softc(evdev);
-
-	wmt_ev_close_11(evdev, sc);
-
-	return (0);
-}
-
-static int
-wmt_ev_open(struct evdev_dev *evdev)
-{
-	struct wmt_softc *sc = evdev_get_softc(evdev);
-
-	return (wmt_ev_open_11(evdev, sc));
-
-}
-#endif
-
-static enum wmt_type
-wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
-{
+	struct hid_absinfo ai;
 	struct hid_item hi;
 	struct hid_data *hd;
+	uint32_t flags;
 	size_t i;
 	size_t cont = 0;
-	enum wmt_type type = WMT_TYPE_UNSUPPORTED;
+	enum hmt_type type;
 	uint32_t left_btn, btn;
 	int32_t cont_count_max = 0;
 	uint8_t report_id = 0;
-	bool touch_coll = false;
 	bool finger_coll = false;
 	bool cont_count_found = false;
 	bool scan_time_found = false;
 	bool has_int_button = false;
 
-#define WMT_HI_ABSOLUTE(hi)	\
+#define HMT_HI_ABSOLUTE(hi)	\
 	(((hi).flags & (HIO_CONST|HIO_VARIABLE|HIO_RELATIVE)) == HIO_VARIABLE)
 #define	HUMS_THQA_CERT	0xC5
 
-	/* Parse features for maximum contact count */
-	hd = hid_start_parse(d_ptr, d_len, 1 << hid_feature);
-	while (hid_get_item(hd, &hi)) {
-		switch (hi.kind) {
-		case hid_collection:
-			if (hi.collevel == 1 && hi.usage ==
-			    HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHSCREEN)) {
-				touch_coll = true;
-				type = WMT_TYPE_TOUCHSCREEN;
-				left_btn = 1;
-				break;
-			}
-			if (hi.collevel == 1 && hi.usage ==
-			    HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHPAD)) {
-				touch_coll = true;
-				type = WMT_TYPE_TOUCHPAD;
-				left_btn = 2;
-			}
-			break;
-		case hid_endcollection:
-			if (hi.collevel == 0 && touch_coll)
-				touch_coll = false;
-			break;
-		case hid_feature:
-			if (hi.collevel == 1 && touch_coll && hi.usage ==
-			      HID_USAGE2(HUP_MICROSOFT, HUMS_THQA_CERT)) {
-				sc->thqa_cert_rid = hi.report_ID;
-				break;
-			}
-			if (hi.collevel == 1 && touch_coll && hi.usage ==
-			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX)) {
-				cont_count_max = hi.logical_maximum;
-				sc->cont_max_rid = hi.report_ID;
-				sc->cont_max_loc = hi.loc;
-				break;
-			}
-			if (hi.collevel == 1 && touch_coll && hi.usage ==
-			    HID_USAGE2(HUP_DIGITIZERS, HUD_BUTTON_TYPE)) {
-				sc->btn_type_rid = hi.report_ID;
-				sc->btn_type_loc = hi.loc;
-			}
-			break;
-		default:
-			break;
-		}
+	/*
+	 * Get left button usage taking in account MS Precision Touchpad specs.
+	 * For Windows PTP report descriptor assigns buttons in following way:
+	 * Button 1 - Indicates Button State for touchpad button integrated
+	 *            with digitizer.
+	 * Button 2 - Indicates Button State for external button for primary
+	 *            (default left) clicking.
+	 * Button 3 - Indicates Button State for external button for secondary
+	 *            (default right) clicking.
+	 * If a device only supports external buttons, it must still use
+	 * Button 2 and Button 3 to reference the external buttons.
+	 */
+	switch (tlc_usage) {
+	case HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHSCREEN):
+		type = HMT_TYPE_TOUCHSCREEN;
+		left_btn = 1;
+		break;
+	case HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHPAD):
+		type = HMT_TYPE_TOUCHPAD;
+		left_btn = 2;
+		break;
+	default:
+		return (HMT_TYPE_UNSUPPORTED);
 	}
-	hid_end_parse(hd);
 
-	if (type == WMT_TYPE_UNSUPPORTED)
-		return (WMT_TYPE_UNSUPPORTED);
-	/* Maximum contact count is required usage */
-	if (sc->cont_max_rid == 0)
-		return (WMT_TYPE_UNSUPPORTED);
+	/* Parse features for mandatory maximum contact count usage */
+	if (!hidbus_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX), hid_feature,
+	    tlc_index, 0, &sc->cont_max_loc, &flags, &sc->cont_max_rid, &ai) ||
+	    (flags & (HIO_VARIABLE | HIO_RELATIVE)) != HIO_VARIABLE)
+		return (HMT_TYPE_UNSUPPORTED);
 
-	touch_coll = false;
+	cont_count_max = ai.max;
+
+	/* Parse features for button type usage */
+	if (hidbus_locate(d_ptr, d_len,
+	    HID_USAGE2(HUP_DIGITIZERS, HUD_BUTTON_TYPE), hid_feature,
+	    tlc_index, 0, &sc->btn_type_loc, &flags, &sc->btn_type_rid, NULL)
+	    && (flags & (HIO_VARIABLE | HIO_RELATIVE)) != HIO_VARIABLE)
+		sc->btn_type_rid = 0;
+
+	/* Parse features for THQA certificate report ID */
+	hidbus_locate(d_ptr, d_len, HID_USAGE2(HUP_MICROSOFT, HUMS_THQA_CERT),
+	    hid_feature, tlc_index, 0, NULL, NULL, &sc->thqa_cert_rid, NULL);
 
 	/* Parse input for other parameters */
 	hd = hid_start_parse(d_ptr, d_len, 1 << hid_input);
-	while (hid_get_item(hd, &hi)) {
+	HIDBUS_FOREACH_ITEM(hd, &hi, tlc_index) {
 		switch (hi.kind) {
 		case hid_collection:
-			if (hi.collevel == 1 && hi.usage ==
-			    HID_USAGE2(HUP_DIGITIZERS, HUD_TOUCHSCREEN))
-				touch_coll = true;
-			else if (touch_coll && hi.collevel == 2 &&
-			    (report_id == 0 || report_id == hi.report_ID) &&
+			if (hi.collevel == 2 &&
 			    hi.usage == HID_USAGE2(HUP_DIGITIZERS, HUD_FINGER))
 				finger_coll = true;
 			break;
@@ -842,15 +720,13 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 			if (hi.collevel == 1 && finger_coll) {
 				finger_coll = false;
 				cont++;
-			} else if (hi.collevel == 0 && touch_coll)
-				touch_coll = false;
+			}
 			break;
 		case hid_input:
 			/*
-			 * Ensure that all usages are located within the same
-			 * report and proper collection.
+			 * Ensure that all usages belong to the same report
 			 */
-			if (WMT_HI_ABSOLUTE(hi) && touch_coll &&
+			if (HMT_HI_ABSOLUTE(hi) &&
 			    (report_id == 0 || report_id == hi.report_ID))
 				report_id = hi.report_ID;
 			else
@@ -864,7 +740,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 			}
 			if (hi.collevel == 1 &&
 			    hi.usage >= HID_USAGE2(HUP_BUTTON, left_btn) &&
-			    hi.usage <= HID_USAGE2(HUP_BUTTON, WMT_BTN_MAX)) {
+			    hi.usage <= HID_USAGE2(HUP_BUTTON, HMT_BTN_MAX)) {
 				btn = (hi.usage & 0xFFFF) - left_btn;
 				setbit(sc->buttons, btn);
 				sc->btn_loc[btn] = hi.loc;
@@ -894,8 +770,8 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 				break;
 			}
 
-			for (i = 0; i < WMT_N_USAGES; i++) {
-				if (hi.usage == wmt_hid_map[i].usage) {
+			for (i = 0; i < HMT_N_USAGES; i++) {
+				if (hi.usage == hmt_hid_map[i].usage) {
 					/*
 					 * HUG_X usage is an array mapped to
 					 * both ABS_MT_POSITION and ABS_MT_TOOL
@@ -913,7 +789,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 					if (cont > 0)
 						break;
 					setbit(sc->caps, i);
-					sc->ai[i] = (struct wmt_absinfo) {
+					sc->ai[i] = (struct hid_absinfo) {
 					    .max = hi.logical_maximum,
 					    .min = hi.logical_minimum,
 					    .res = hid_item_resolution(&hi),
@@ -930,15 +806,15 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 
 	/* Check for required HID Usages */
 	if (!cont_count_found || !scan_time_found || cont == 0)
-		return (WMT_TYPE_UNSUPPORTED);
-	for (i = 0; i < WMT_N_USAGES; i++) {
-		if (wmt_hid_map[i].required && isclr(sc->caps, i))
-			return (WMT_TYPE_UNSUPPORTED);
+		return (HMT_TYPE_UNSUPPORTED);
+	for (i = 0; i < HMT_N_USAGES; i++) {
+		if (hmt_hid_map[i].required && isclr(sc->caps, i))
+			return (HMT_TYPE_UNSUPPORTED);
 	}
 
 	/* Touchpads must have at least one button */
-	if (type == WMT_TYPE_TOUCHPAD && !sc->max_button && !has_int_button)
-		return (WMT_TYPE_UNSUPPORTED);
+	if (type == HMT_TYPE_TOUCHPAD && !sc->max_button && !has_int_button)
+		return (HMT_TYPE_UNSUPPORTED);
 
 	/*
 	 * According to specifications 'Contact Count Maximum' should be read
@@ -949,21 +825,18 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 		cont_count_max = cont;
 
 	/* Set number of MT protocol type B slots */
-	sc->ai[WMT_SLOT] = (struct wmt_absinfo) {
+	sc->ai[HMT_SLOT] = (struct hid_absinfo) {
 		.min = 0,
 		.max = cont_count_max - 1,
 		.res = 0,
 	};
 
 	/* Report touch orientation if both width and height are supported */
-	if (isset(sc->caps, WMT_WIDTH) && isset(sc->caps, WMT_HEIGHT)) {
-		setbit(sc->caps, WMT_ORIENTATION);
-		sc->ai[WMT_ORIENTATION].max = 1;
+	if (isset(sc->caps, HMT_WIDTH) && isset(sc->caps, HMT_HEIGHT)) {
+		setbit(sc->caps, HMT_ORIENTATION);
+		sc->ai[HMT_ORIENTATION].max = 1;
 	}
 
-	sc->isize = hid_report_size_max(d_ptr, d_len, hid_input, NULL);
-	sc->report_len = hid_report_size(d_ptr, d_len, hid_input,
-	    report_id);
 	sc->cont_max_rlen = hid_report_size(d_ptr, d_len, hid_feature,
 	    sc->cont_max_rid);
 	if (sc->btn_type_rid > 0)
@@ -981,63 +854,57 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 }
 
 static int
-wmt_set_input_mode(struct wmt_softc *sc, enum wmt_input_mode mode)
+hmt_set_input_mode(struct hmt_softc *sc, enum hconf_input_mode mode)
 {
-	struct usb_attach_arg *uaa = device_get_ivars(sc->dev);
-	int err;
+	devclass_t hconf_devclass;
+	device_t hconf;
+	int  err;
 
-	if (sc->input_mode_rlen < 3 || sc->input_mode_rlen > WMT_BSIZE) {
-		DPRINTF("Feature report %hhu size invalid or too large: %u\n",
-		    sc->input_mode_rid, sc->input_mode_rlen);
-		return (USB_ERR_BAD_BUFSIZE);
-	}
+	GIANT_REQUIRED;
 
-	/* Input Mode report is not strictly required to be readable */
-	err = usbd_req_get_report(uaa->device, NULL, sc->buf,
-	    sc->input_mode_rlen, uaa->info.bIfaceIndex,
-	    UHID_FEATURE_REPORT, sc->input_mode_rid);
-	if (err != USB_ERR_NORMAL_COMPLETION)
-		bzero(sc->buf + 1, sc->input_mode_rlen - 1);
+	/* Find touchpad's configuration TLC */
+	hconf = hidbus_find_child(device_get_parent(sc->dev),
+	    HID_USAGE2(HUP_DIGITIZERS, HUD_CONFIG));
+	if (hconf == NULL)
+		return (ENXIO);
 
-	sc->buf[0] = sc->input_mode_rid;
-	hid_put_udata(sc->buf + 1, sc->input_mode_rlen - 1,
-	    &sc->input_mode_loc, mode);
-	err = usbd_req_set_report(uaa->device, NULL, sc->buf,
-	    sc->input_mode_rlen, uaa->info.bIfaceIndex,
-	    UHID_FEATURE_REPORT, sc->input_mode_rid);
+	/* Ensure that hconf driver is attached to configuration TLC */
+	if (device_is_alive(hconf) == 0)
+		device_probe_and_attach(hconf);
+	if (device_is_attached(hconf) == 0)
+		return (ENXIO);
+	hconf_devclass = devclass_find("hconf");
+	if (device_get_devclass(hconf) != hconf_devclass)
+		return (ENXIO);
+
+	/* hconf_set_input_mode can drop the Giant while sleeping */
+	device_busy(hconf);
+	err = hconf_set_input_mode(hconf, mode);
+	device_unbusy(hconf);
 
 	return (err);
 }
 
-#ifndef USBHID_ENABLED
-static const STRUCT_USB_HOST_ID wmt_devs[] = {
-	/* generic HID class w/o boot interface */
-	{USB_IFACE_CLASS(UICLASS_HID),
-	 USB_IFACE_SUBCLASS(0),},
-};
-#endif
+static devclass_t hmt_devclass;
 
-static devclass_t wmt_devclass;
-
-static device_method_t wmt_methods[] = {
-	DEVMETHOD(device_probe, wmt_probe),
-	DEVMETHOD(device_attach, wmt_attach),
-	DEVMETHOD(device_detach, wmt_detach),
+static device_method_t hmt_methods[] = {
+	DEVMETHOD(device_probe,		hmt_probe),
+	DEVMETHOD(device_attach,	hmt_attach),
+	DEVMETHOD(device_detach,	hmt_detach),
 
 	DEVMETHOD_END
 };
 
-static driver_t wmt_driver = {
-	.name = "wmt",
-	.methods = wmt_methods,
-	.size = sizeof(struct wmt_softc),
+static driver_t hmt_driver = {
+	.name = "hmt",
+	.methods = hmt_methods,
+	.size = sizeof(struct hmt_softc),
 };
 
-DRIVER_MODULE(wmt, uhub, wmt_driver, wmt_devclass, NULL, 0);
-MODULE_DEPEND(wmt, usb, 1, 1, 1);
-MODULE_DEPEND(wmt, hid, 1, 1, 1);
-MODULE_DEPEND(wmt, evdev, 1, 1, 1);
-MODULE_VERSION(wmt, 1);
-#ifndef USBHID_ENABLED
-USB_PNP_HOST_INFO(wmt_devs);
-#endif
+DRIVER_MODULE(hmt, hidbus, hmt_driver, hmt_devclass, NULL, 0);
+MODULE_DEPEND(hmt, hidbus, 1, 1, 1);
+MODULE_DEPEND(hmt, hid, 1, 1, 1);
+MODULE_DEPEND(hmt, hconf, 1, 1, 1);
+MODULE_DEPEND(hmt, evdev, 1, 1, 1);
+MODULE_VERSION(hmt, 1);
+HID_PNP_INFO(hmt_devs);
