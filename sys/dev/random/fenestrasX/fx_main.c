@@ -88,7 +88,6 @@
  *   a while).
  *
  * Not yet implemented, not in scope, or todo:
- *  - arc4random(9) injection/replacement
  *  - Userspace portions -- shared page, like timehands vdso?
  */
 
@@ -125,6 +124,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/random/fenestrasX/fx_hash.h>
 #include <dev/random/fenestrasX/fx_pool.h>
 #include <dev/random/fenestrasX/fx_priv.h>
+#include <dev/random/fenestrasX/fx_pub.h>
 #include <dev/random/fenestrasX/fx_rng.h>
 
 struct fxrng_buffered_rng fxrng_root;
@@ -142,7 +142,7 @@ DPCPU_DEFINE_STATIC(struct fxrng_buffered_rng *, fxrng_brng);
  * the root generation number >0.
  */
 static void
-fxrng_alg_read(uint8_t *output, size_t nbytes)
+_fxrng_alg_read(uint8_t *output, size_t nbytes, uint64_t *seed_version_out)
 {
 	struct fxrng_buffered_rng **pcpu_brng_p, *rng, *tmp;
 	struct pcpu *pcpu;
@@ -248,8 +248,30 @@ fxrng_alg_read(uint8_t *output, size_t nbytes)
 have_valid_rng:
 	/* At this point we have a valid, initialized and seeded rng pointer. */
 	FXRNG_BRNG_LOCK(rng);
+	if (seed_version_out != NULL)
+		*seed_version_out = rng->brng_generation;
 	fxrng_brng_read(rng, output, nbytes);
 	FXRNG_BRNG_ASSERT_NOT(rng);
+}
+
+static void
+fxrng_alg_read(uint8_t *output, size_t nbytes)
+{
+	_fxrng_alg_read(output, nbytes, NULL);
+}
+
+/*
+ * External API for arc4random(9) to fetch new key material and associated seed
+ * version in chacha20_randomstir().
+ */
+void
+read_random_key(void *output, size_t nbytes, uint64_t *seed_version_out)
+{
+	/* Ensure _fxrng_alg_read invariant. */
+	if (__predict_false(atomic_load_acq_64(&fxrng_root_generation) == 0))
+		(void)fxrng_alg_seeded();
+
+	_fxrng_alg_read(output, nbytes, seed_version_out);
 }
 
 static void

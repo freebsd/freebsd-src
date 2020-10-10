@@ -28,21 +28,26 @@
  */
 #pragma once
 
-#define	ASSERT(x, fmt, ...) do {					\
-	if (__predict_true(x))					\
-		break;							\
-	panic("%s:%d: Assertion '" #x "' in function %s failed: " fmt, 	\
-	    __FILE__, __LINE__, __func__, ## __VA_ARGS__);		\
-} while (false)
-#ifdef INVARIANTS
-#define	ASSERT_DEBUG(x, fmt, ...) do {					\
-	if (__predict_true(x))					\
-		break;							\
-	panic("%s:%d: Assertion '" #x "' in function %s failed: " fmt, 	\
-	    __FILE__, __LINE__, __func__, ## __VA_ARGS__);		\
-} while (false)
-#else
-#define	ASSERT_DEBUG(...)
-#endif
+#include <sys/systm.h>
 
-extern struct fxrng_buffered_rng fxrng_root;
+/*
+ * The root BRNG seed version, or generation.
+ *
+ * FenestrasX-aware downstream CSPRNGs (i.e., arc4random(9)) should track the
+ * generation number they seeded from, using the read_random_key(9) API below.
+ * If their current seed version is older than the root generation, they should
+ * reseed before producing output.
+ *
+ * The variable is read-only outside of the fenestrasX implementation and
+ * should be accessed using 'atomic_load_acq_64(&fxrng_root_generation)'.
+ * Reseeds are extremely infrequent, so callers may wish to hint to the
+ * compiler that a matching generation is the expected case, with
+ * __predict_true() or __predict_false().
+ */
+extern uint64_t __read_mostly fxrng_root_generation;
+
+/*
+ * A routine for generating seed/key material 
+ * Bypasses random(4) for now, but conceivably could be incorporated into that.
+ */
+void read_random_key(void *buf, size_t nbytes, uint64_t *seed_version_out);
