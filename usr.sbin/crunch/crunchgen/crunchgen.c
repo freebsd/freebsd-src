@@ -639,7 +639,6 @@ fillin_program(prog_t *p)
 {
 	char path[MAXPATHLEN];
 	char line[MAXLINELEN];
-	FILE *f;
 
 	snprintf(line, MAXLINELEN, "filling in parms for %s", p->name);
 	status(line);
@@ -654,22 +653,9 @@ fillin_program(prog_t *p)
 
 	/* Determine the actual srcdir (maybe symlinked). */
 	if (p->srcdir) {
-		snprintf(line, MAXLINELEN, "cd %s && pwd -P", p->srcdir);
-		f = popen(line,"r");
-		if (!f)
-			errx(1, "Can't execute: %s\n", line);
-
-		path[0] = '\0';
-		fgets(path, sizeof path, f);
-		if (pclose(f))
-			errx(1, "Can't execute: %s\n", line);
-
-		if (!*path)
-			errx(1, "Can't perform pwd on: %s\n", p->srcdir);
-
-		/* Chop off trailing newline. */
-		path[strlen(path) - 1] = '\0';
-		p->realsrcdir = strdup(path);
+		p->realsrcdir = realpath(p->srcdir, NULL);
+		if (p->realsrcdir == NULL)
+			errx(1, "Can't resolve path: %s\n", p->srcdir);
 	}
 
 	/* Unless the option to make object files was specified the
