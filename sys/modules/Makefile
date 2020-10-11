@@ -58,6 +58,7 @@ SUBDIR=	\
 	ath_rate \
 	ath_pci \
 	${_autofs} \
+	axgbe \
 	backlight \
 	${_bce} \
 	${_bcm283x_clkman} \
