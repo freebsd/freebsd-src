@@ -76,7 +76,7 @@ options 	PCI_IOV		# PCI SR-IOV support
 # Ethernet NICs
 device		mdio
 device		awg		# Allwinner EMAC Gigabit Ethernet
-device		axgbe		# AMD Opteron A1100 integrated NIC
+device		axa		# AMD Opteron A1100 integrated NIC
 device		neta		# Marvell Armada 370/38x/XP/3700 NIC
 device  	smc		# SMSC LAN91C111
 device		vnic		# Cavium ThunderX NIC

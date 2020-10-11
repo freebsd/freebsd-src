@@ -1,12 +1,12 @@
 /*
  * AMD 10Gb Ethernet driver
  *
- * Copyright (c) 2014-2016,2020 Advanced Micro Devices, Inc.
- *
  * This file is available to you under your choice of the following two
  * licenses:
  *
  * License 1: GPLv2
+ *
+ * Copyright (c) 2014 Advanced Micro Devices, Inc.
  *
  * This file is free software; you may copy, redistribute and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,6 +55,9 @@
  *
  *
  * License 2: Modified BSD
+ *
+ * Copyright (c) 2014 Advanced Micro Devices, Inc.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -110,102 +113,164 @@
  *     ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  *     THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include "xgbe.h"
-#include "xgbe-common.h"
 
-static void
-xgbe_wrapper_tx_descriptor_init(struct xgbe_prv_data *pdata)
+static u64 xgbe_cc_read(const struct cyclecounter *cc)
 {
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	struct xgbe_channel *channel;
-	struct xgbe_ring *ring;
-	struct xgbe_ring_data *rdata;
-	struct xgbe_ring_desc *rdesc;
-	bus_addr_t rdesc_paddr;
-	unsigned int i, j;
+	struct xgbe_prv_data *pdata = container_of(cc,
+						   struct xgbe_prv_data,
+						   tstamp_cc);
+	u64 nsec;
 
-	DBGPR("-->xgbe_wrapper_tx_descriptor_init\n");
+	nsec = pdata->hw_if.get_tstamp_time(pdata);
 
-	for (i = 0; i < pdata->channel_count; i++) {
-
-		channel = pdata->channel[i];
-
-		ring = channel->tx_ring;
-		if (!ring)
-			break;
-
-		rdesc = ring->rdesc;
-		rdesc_paddr = ring->rdesc_paddr;
-
-		for (j = 0; j < ring->rdesc_count; j++) {
-			rdata = XGBE_GET_DESC_DATA(ring, j);
-
-			rdata->rdesc = rdesc;
-			rdata->rdata_paddr = rdesc_paddr;
-
-			rdesc++;
-			rdesc_paddr += sizeof(struct xgbe_ring_desc);
-		}
-
-		ring->cur = 0;
-		ring->dirty = 0;
-		memset(&ring->tx, 0, sizeof(ring->tx));
-
-		hw_if->tx_desc_init(channel);
-	}
-
-	DBGPR("<--xgbe_wrapper_tx_descriptor_init\n");
+	return (nsec);
 }
 
-static void
-xgbe_wrapper_rx_descriptor_init(struct xgbe_prv_data *pdata)
+static int xgbe_adjfreq(struct ptp_clock_info *info, s32 delta)
 {
-	struct xgbe_hw_if *hw_if = &pdata->hw_if;
-	struct xgbe_channel *channel;
-	struct xgbe_ring *ring;
-	struct xgbe_ring_desc *rdesc;
-	struct xgbe_ring_data *rdata;
-	bus_addr_t rdesc_paddr;
-	unsigned int i, j;
+	struct xgbe_prv_data *pdata = container_of(info,
+						   struct xgbe_prv_data,
+						   ptp_clock_info);
+	unsigned long flags;
+	u64 adjust;
+	u32 addend, diff;
+	unsigned int neg_adjust = 0;
 
-	DBGPR("-->xgbe_wrapper_rx_descriptor_init\n");
-
-	for (i = 0; i < pdata->channel_count; i++) {
-
-		channel = pdata->channel[i];
-
-		ring = channel->rx_ring;
-		if (!ring)
-			break;
-
-		rdesc = ring->rdesc;
-		rdesc_paddr = ring->rdesc_paddr;
-
-		for (j = 0; j < ring->rdesc_count; j++) {
-			rdata = XGBE_GET_DESC_DATA(ring, j);
-
-			rdata->rdesc = rdesc;
-			rdata->rdata_paddr = rdesc_paddr;
-
-			rdesc++;
-			rdesc_paddr += sizeof(struct xgbe_ring_desc);
-		}
-
-		ring->cur = 0;
-		ring->dirty = 0;
-
-		hw_if->rx_desc_init(channel);
+	if (delta < 0) {
+		neg_adjust = 1;
+		delta = -delta;
 	}
+
+	adjust = pdata->tstamp_addend;
+	adjust *= delta;
+	diff = div_u64(adjust, 1000000000UL);
+
+	addend = (neg_adjust) ? pdata->tstamp_addend - diff :
+				pdata->tstamp_addend + diff;
+
+	spin_lock_irqsave(&pdata->tstamp_lock, flags);
+
+	pdata->hw_if.update_tstamp_addend(pdata, addend);
+
+	spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
+
+	return (0);
 }
 
-void
-xgbe_init_function_ptrs_desc(struct xgbe_desc_if *desc_if)
+static int xgbe_adjtime(struct ptp_clock_info *info, s64 delta)
 {
+	struct xgbe_prv_data *pdata = container_of(info,
+						   struct xgbe_prv_data,
+						   ptp_clock_info);
+	unsigned long flags;
 
-	desc_if->wrapper_tx_desc_init = xgbe_wrapper_tx_descriptor_init;
-	desc_if->wrapper_rx_desc_init = xgbe_wrapper_rx_descriptor_init;
+	spin_lock_irqsave(&pdata->tstamp_lock, flags);
+	timecounter_adjtime(&pdata->tstamp_tc, delta);
+	spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
+
+	return (0);
+}
+
+static int xgbe_gettime(struct ptp_clock_info *info, struct timespec64 *ts)
+{
+	struct xgbe_prv_data *pdata = container_of(info,
+						   struct xgbe_prv_data,
+						   ptp_clock_info);
+	unsigned long flags;
+	u64 nsec;
+
+	spin_lock_irqsave(&pdata->tstamp_lock, flags);
+
+	nsec = timecounter_read(&pdata->tstamp_tc);
+
+	spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
+
+	*ts = ns_to_timespec64(nsec);
+
+	return (0);
+}
+
+static int xgbe_settime(struct ptp_clock_info *info,
+			const struct timespec64 *ts)
+{
+	struct xgbe_prv_data *pdata = container_of(info,
+						   struct xgbe_prv_data,
+						   ptp_clock_info);
+	unsigned long flags;
+	u64 nsec;
+
+	nsec = timespec64_to_ns(ts);
+
+	spin_lock_irqsave(&pdata->tstamp_lock, flags);
+
+	timecounter_init(&pdata->tstamp_tc, &pdata->tstamp_cc, nsec);
+
+	spin_unlock_irqrestore(&pdata->tstamp_lock, flags);
+
+	return (0);
+}
+
+static int xgbe_enable(struct ptp_clock_info *info,
+    void *request, int on)
+{
+	return (-EOPNOTSUPP);
+}
+
+void xgbe_ptp_register(struct xgbe_prv_data *pdata)
+{
+	struct ptp_clock_info *info = &pdata->ptp_clock_info;
+	//struct ptp_clock *clock;
+	struct cyclecounter *cc = &pdata->tstamp_cc;
+	u64 dividend;
+
+	snprintf(info->name, sizeof(info->name), "axgbe-ptp");
+	//info->owner = THIS_MODULE;
+	info->max_adj = pdata->ptpclk_rate;
+	info->adjfreq = xgbe_adjfreq;
+	info->adjtime = xgbe_adjtime;
+	info->gettime64 = xgbe_gettime;
+	info->settime64 = xgbe_settime;
+	info->enable = xgbe_enable;
+#if 0
+	clock = ptp_clock_register(info, pdata->dev);
+	if (IS_ERR(clock)) {
+		dev_err(pdata->dev, "ptp_clock_register failed\n");
+		return;
+	}
+
+	pdata->ptp_clock = clock;
+#endif
+	/* Calculate the addend:
+	 *   addend = 2^32 / (PTP ref clock / 50Mhz)
+	 *          = (2^32 * 50Mhz) / PTP ref clock
+	 */
+	dividend = 50000000;
+	dividend <<= 32;
+	pdata->tstamp_addend = div_u64(dividend, pdata->ptpclk_rate);
+
+	/* Setup the timecounter */
+	cc->read = xgbe_cc_read;
+	cc->mask = CLOCKSOURCE_MASK(64);
+	cc->mult = 1;
+	cc->shift = 0;
+
+	timecounter_init(&pdata->tstamp_tc, &pdata->tstamp_cc,
+			 ktime_to_ns(ktime_get_real()));
+
+	/* Disable all timestamping to start */
+	XGMAC_IOWRITE(pdata, MAC_TSCR, 0);
+	pdata->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
+	pdata->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
+}
+
+void xgbe_ptp_unregister(struct xgbe_prv_data *pdata)
+{
+#if 0
+	if (pdata->ptp_clock)
+		ptp_clock_unregister(pdata->ptp_clock);
+#endif
 }
