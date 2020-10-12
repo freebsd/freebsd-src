@@ -300,6 +300,7 @@ dev/usb/controller/generic_ehci_acpi.c optional	ehci acpi
 dev/usb/controller/generic_ehci_fdt.c optional	ehci fdt
 dev/usb/controller/generic_ohci.c optional	ohci fdt
 dev/usb/controller/generic_usb_if.m optional	ohci fdt
+dev/usb/controller/musb_otg_allwinner.c	optional musb fdt soc_allwinner_a64
 dev/usb/controller/usb_nop_xceiv.c	optional fdt ext_resources
 dev/usb/controller/generic_xhci.c	optional	xhci fdt
 dev/vnic/mrml_bridge.c		optional	vnic fdt

@@ -161,6 +161,18 @@ DEFINE_CLASS_1(awusbphy_phynode, awusbphy_phynode_class, awusbphy_phynode_method
 #define	CLR4(res, o, m)	WR4(res, o, RD4(res, o) & ~(m))
 #define	SET4(res, o, m)	WR4(res, o, RD4(res, o) | (m))
 
+#define	PHY_CSR		0x00
+#define	 ID_PULLUP_EN		(1 << 17)
+#define	 DPDM_PULLUP_EN		(1 << 16)
+#define	 FORCE_ID		(0x3 << 14)
+#define	 FORCE_ID_SHIFT		14
+#define	 FORCE_ID_LOW		2
+#define	 FORCE_VBUS_VALID	(0x3 << 12)
+#define	 FORCE_VBUS_VALID_SHIFT	12
+#define	 FORCE_VBUS_VALID_HIGH	3
+#define	 VBUS_CHANGE_DET	(1 << 6)
+#define	 ID_CHANGE_DET		(1 << 5)
+#define	 DPDM_CHANGE_DET	(1 << 4)
 #define	OTG_PHY_CFG	0x20
 #define	 OTG_PHY_ROUTE_OTG	(1 << 0)
 #define	PMU_IRQ_ENABLE	0x00
@@ -206,6 +218,7 @@ awusbphy_init(device_t dev)
 	struct awusbphy_softc *sc;
 	phandle_t node;
 	char pname[20];
+	uint32_t val;
 	int error, off, rid;
 	regulator_t reg;
 	hwreset_t rst;
@@ -280,6 +293,16 @@ awusbphy_init(device_t dev)
 			return (ENXIO);
 		}
 	}
+
+	/* Enable OTG PHY for host mode */
+	val = bus_read_4(sc->phy_ctrl, PHY_CSR);
+	val &= ~(VBUS_CHANGE_DET | ID_CHANGE_DET | DPDM_CHANGE_DET);
+	val |= (ID_PULLUP_EN | DPDM_PULLUP_EN);
+	val &= ~FORCE_ID;
+	val |= (FORCE_ID_LOW << FORCE_ID_SHIFT);
+	val &= ~FORCE_VBUS_VALID;
+	val |= (FORCE_VBUS_VALID_HIGH << FORCE_VBUS_VALID_SHIFT);
+	bus_write_4(sc->phy_ctrl, PHY_CSR, val);
 
 	return (0);
 }

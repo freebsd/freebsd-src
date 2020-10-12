@@ -185,6 +185,7 @@ device		aw_usbphy		# Allwinner USB PHY
 device		rk_usb2phy		# Rockchip USB2PHY
 device		rk_typec_phy		# Rockchip TypeC PHY
 device		dwcotg			# DWC OTG controller
+device		musb			# Mentor Graphics USB OTG controller
 device		ohci			# OHCI USB interface
 device		ehci			# EHCI USB interface (USB 2.0)
 device		ehci_mv			# Marvell EHCI USB interface
