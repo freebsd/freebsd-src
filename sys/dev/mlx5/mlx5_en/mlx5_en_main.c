@@ -911,6 +911,30 @@ mlx5e_update_stats_locked(struct mlx5e_priv *priv)
 		}
 	}
 
+#ifdef RATELIMIT
+	/* Collect statistics from all rate-limit queues */
+	for (j = 0; j < priv->rl.param.tx_worker_threads_def; j++) {
+		struct mlx5e_rl_worker *rlw = priv->rl.workers + j;
+
+		for (i = 0; i < priv->rl.param.tx_channels_per_worker_def; i++) {
+			struct mlx5e_rl_channel *channel = rlw->channels + i;
+			struct mlx5e_sq *sq = channel->sq;
+
+			if (sq == NULL)
+				continue;
+
+			sq_stats = &sq->stats;
+
+			tso_packets += sq_stats->tso_packets;
+			tso_bytes += sq_stats->tso_bytes;
+			tx_queue_dropped += sq_stats->dropped;
+			tx_queue_dropped += sq_stats->enobuf;
+			tx_defragged += sq_stats->defragged;
+			tx_offload_none += sq_stats->csum_offload_none;
+		}
+	}
+#endif
+
 	/* update counters */
 	s->tso_packets = tso_packets;
 	s->tso_bytes = tso_bytes;
