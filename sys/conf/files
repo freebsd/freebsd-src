@@ -1820,6 +1820,7 @@ dev/hid/hid.c			optional hid
 dev/hid/hid_if.m		optional hid
 dev/hid/hidbus.c		optional hidbus
 dev/hid/hidquirk.c		optional hid
+dev/hid/hkbd.c			optional hkbd
 dev/hid/hmt.c			optional hmt hconf
 dev/hifn/hifn7751.c		optional hifn
 dev/hptiop/hptiop.c		optional hptiop scbus
@@ -2327,7 +2328,7 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ix inet | ixv inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jedec_dimm/jedec_dimm.c	optional jedec_dimm smbus
 dev/jme/if_jme.c		optional jme pci
-dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt
+dev/kbd/kbd.c			optional atkbd | pckbd | sc | ukbd | vt | hkbd
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le

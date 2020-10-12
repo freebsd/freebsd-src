@@ -183,6 +183,7 @@ MAN=	aac.4 \
 	hidbus.4 \
 	hidquirk.4 \
 	hifn.4 \
+	hkbd.4 \
 	hmt.4 \
 	hpet.4 \
 	${_hpt27xx.4} \

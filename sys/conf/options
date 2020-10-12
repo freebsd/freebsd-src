@@ -1019,3 +1019,4 @@ LINDEBUGFS
 HID_DEBUG	opt_hid.h
 IICHID_DEBUG	opt_hid.h
 IICHID_SAMPLING	opt_hid.h
+HKBD_DFLT_KEYMAP	opt_hkbd.h

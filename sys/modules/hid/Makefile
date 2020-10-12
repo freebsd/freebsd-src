@@ -7,6 +7,7 @@ SUBDIR = \
 
 SUBDIR += \
 	hconf \
+	hkbd \
 	hmt
 
 .include <bsd.subdir.mk>
