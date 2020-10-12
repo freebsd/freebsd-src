@@ -801,9 +801,16 @@ int
 pfi_set_flags(const char *name, int flags)
 {
 	struct epoch_tracker et;
-	struct pfi_kif	*p;
+	struct pfi_kif	*p, *kif;
+
+	kif = malloc(sizeof(*kif), PFI_MTYPE, M_NOWAIT);
+	if (kif == NULL)
+		return (ENOMEM);
 
 	NET_EPOCH_ENTER(et);
+
+	kif = pfi_kif_attach(kif, name);
+
 	RB_FOREACH(p, pfi_ifhead, &V_pfi_ifs) {
 		if (pfi_skip_if(name, p))
 			continue;
@@ -817,13 +824,20 @@ int
 pfi_clear_flags(const char *name, int flags)
 {
 	struct epoch_tracker et;
-	struct pfi_kif	*p;
+	struct pfi_kif *p, *tmp;
 
 	NET_EPOCH_ENTER(et);
-	RB_FOREACH(p, pfi_ifhead, &V_pfi_ifs) {
+	RB_FOREACH_SAFE(p, pfi_ifhead, &V_pfi_ifs, tmp) {
 		if (pfi_skip_if(name, p))
 			continue;
 		p->pfik_flags &= ~flags;
+
+		if (p->pfik_ifp == NULL && p->pfik_group == NULL &&
+		    p->pfik_flags == 0) {
+			/* Delete this kif. */
+			RB_REMOVE(pfi_ifhead, &V_pfi_ifs, p);
+			free(p, PFI_MTYPE);
+		}
 	}
 	NET_EPOCH_EXIT(et);
 	return (0);
