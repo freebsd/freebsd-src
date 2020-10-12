@@ -27,9 +27,11 @@
 #include <sys/elf.h>
 #include <sys/endian.h>
 #include <sys/mman.h>
+#if ARC4RANDOM_FXRNG != 0
 #include <sys/time.h>	/* for sys/vdso.h only. */
 #include <sys/vdso.h>
 #include <machine/atomic.h>
+#endif
 
 #include <err.h>
 #include <errno.h>
@@ -37,6 +39,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#if ARC4RANDOM_FXRNG != 0
 /*
  * The kernel root seed version is a 64-bit counter, but we truncate it to a
  * 32-bit value in userspace for the convenience of 32-bit platforms.  32-bit
@@ -51,6 +54,7 @@
  */
 #define	fxrng_load_acq_generation(x)	atomic_load_acq_32(x)
 static struct vdso_fxrng_generation_1 *vdso_fxrngp;
+#endif
 
 static pthread_mutex_t	arc4random_mtx = PTHREAD_MUTEX_INITIALIZER;
 #define	_ARC4_LOCK()						\
@@ -74,6 +78,7 @@ _getentropy_fail(void)
 static inline void
 _rs_initialize_fxrng(void)
 {
+#if ARC4RANDOM_FXRNG != 0
 	struct vdso_fxrng_generation_1 *fxrngp;
 	int error;
 
@@ -91,6 +96,7 @@ _rs_initialize_fxrng(void)
 		return;
 
 	vdso_fxrngp = fxrngp;
+#endif
 }
 
 static inline int
@@ -131,13 +137,14 @@ _rs_forkdetect(void)
 	/* Detect fork (minherit(2) INHERIT_ZERO). */
 	if (__predict_false(rs == NULL || rsx == NULL))
 		return;
+#if ARC4RANDOM_FXRNG != 0
 	/* If present, detect kernel FenestrasX seed version change. */
 	if (vdso_fxrngp == NULL)
 		return;
 	if (__predict_true(rsx->rs_seed_generation ==
 	    fxrng_load_acq_generation(&vdso_fxrngp->fx_generation32)))
 		return;
-
+#endif
 	/* Invalidate rs_buf to force "stir" (reseed). */
 	memset(rs, 0, sizeof(*rs));
 }

@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 
 #define CHACHA_EMBED
 #define KEYSTREAM_ONLY
+#if defined(__FreeBSD__)
+#define ARC4RANDOM_FXRNG 1
+#else
+#define ARC4RANDOM_FXRNG 0
+#endif
 #include "chacha.c"
 
 #define minimum(a, b) ((a) < (b) ? (a) : (b))
