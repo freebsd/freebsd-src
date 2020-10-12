@@ -85,8 +85,41 @@ set_skip_group_lo_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "set_skip_dynamic" "cleanup"
+set_skip_dynamic_head()
+{
+	atf_set descr "Cope with group changes"
+	atf_set require.user root
+}
+
+set_skip_dynamic_body()
+{
+	pft_init
+
+	set -x
+
+	vnet_mkjail alcatraz
+	jexec alcatraz pfctl -e
+	pft_set_rules alcatraz "set skip on epair" \
+		"block"
+
+	epair=$(vnet_mkepair)
+	ifconfig ${epair}a 192.0.2.2/24 up
+	ifconfig ${epair}b vnet alcatraz
+
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	atf_check -s exit:0 -o ignore jexec alcatraz ping -c 1 192.0.2.2
+}
+
+set_skip_dynamic_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "set_skip_group"
 	atf_add_test_case "set_skip_group_lo"
+	atf_add_test_case "set_skip_dynamic"
 }
