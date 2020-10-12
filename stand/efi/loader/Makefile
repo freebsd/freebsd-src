@@ -84,7 +84,7 @@ LINKS+=		${BINDIR}/${LOADER}.efi ${BINDIR}/loader.efi
 .endif
 
 LDSCRIPT=	${.CURDIR}/../loader/arch/${MACHINE}/ldscript.${MACHINE}
-LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -shared
+LDFLAGS+=	-Wl,-T${LDSCRIPT},-Bsymbolic,-znotext -pie
 
 CLEANFILES+=	loader.efi
 
