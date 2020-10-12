@@ -423,3 +423,17 @@ arm/freescale/imx/imx_i2c.c		optional fsliic
 arm/freescale/imx/imx_machdep.c		optional fdt soc_freescale_imx8
 arm64/freescale/imx/imx7gpc.c		optional fdt soc_freescale_imx8
 dev/ffec/if_ffec.c			optional ffec
+
+# VMware
+dev/vmware/vmxnet3/if_vmx.c		optional	vmx
+dev/vmware/vmci/vmci.c			optional	vmci
+dev/vmware/vmci/vmci_datagram.c		optional	vmci
+dev/vmware/vmci/vmci_doorbell.c		optional	vmci
+dev/vmware/vmci/vmci_driver.c		optional	vmci
+dev/vmware/vmci/vmci_event.c		optional	vmci
+dev/vmware/vmci/vmci_hashtable.c	optional	vmci
+dev/vmware/vmci/vmci_kernel_if.c	optional	vmci
+dev/vmware/vmci/vmci_qpair.c		optional	vmci
+dev/vmware/vmci/vmci_queue_pair.c	optional	vmci
+dev/vmware/vmci/vmci_resource.c		optional	vmci
+dev/vmware/pvscsi/pvscsi.c		optional	pvscsi
