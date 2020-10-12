@@ -294,6 +294,13 @@ aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 	/* Write the prescalar */
 	reg &= ~AW_PWM_CTRL_PRESCALE_MASK;
 	reg |= prescaler;
+
+	reg &= ~AW_PWM_CTRL_MODE_MASK;
+	reg |= AW_PWM_CTRL_CYCLE_MODE;
+
+	reg &= ~AW_PWM_CTRL_PULSE_START;
+	reg &= ~AW_PWM_CTRL_CLK_BYPASS;
+
 	AW_PWM_WRITE(sc, AW_PWM_CTRL, reg);
 
 	/* Write the total/active cycles */
