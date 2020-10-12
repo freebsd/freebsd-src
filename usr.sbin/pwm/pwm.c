@@ -76,7 +76,7 @@ main(int argc, char *argv[])
 {
 	struct pwm_state state;
 	int fd;
-	int period, duty;
+	u_int period, duty;
 	int action, ch;
 	cap_rights_t right_ioctl;
 	const unsigned long pwm_ioctls[] = {PWMGETSTATE, PWMSETSTATE};
@@ -109,16 +109,16 @@ main(int argc, char *argv[])
 			if (action & PWM_SHOW_CONFIG)
 				usage();
 			action |= PWM_PERIOD;
-			period = strtol(optarg, NULL, 10);
+			period = strtoul(optarg, NULL, 10);
 			break;
 		case 'd':
 			if (action & PWM_SHOW_CONFIG)
 				usage();
 			action |= PWM_DUTY;
-			duty = strtol(optarg, &percent, 10);
+			duty = strtoul(optarg, &percent, 10);
 			if (*percent == '%') {
-				if (duty < 0 || duty > 100) {
-					fprintf(stderr, 
+				if (duty > 100) {
+					fprintf(stderr,
 					    "Invalid duty percentage\n");
 					usage();
 				}
@@ -186,11 +186,11 @@ main(int argc, char *argv[])
 			state.period = period;
 		if (action & PWM_DUTY) {
 			if (*percent != '\0')
-				state.duty = state.period * duty / 100;
+				state.duty = (uint64_t)state.period * duty / 100;
 			else
 				state.duty = duty;
 		}
-	
+
 		if (ioctl(fd, PWMSETSTATE, &state) == -1) {
 			fprintf(stderr,
 			  "Cannot configure the pwm controller\n");
