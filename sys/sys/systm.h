@@ -124,6 +124,7 @@ void	vpanic(const char *, __va_list) __dead2 __printflike(1, 0);
 
 
 #if defined(_STANDALONE)
+struct ucred;
 /*
  * Until we have more experience with KASSERTS that are called
  * from the boot loader, they are off. The bootloader does this
