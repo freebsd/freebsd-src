@@ -177,6 +177,7 @@ device		dwc_rk		# Rockchip Designware
 device		dwc_socfpga	# Altera SOCFPGA Ethernet MAC
 device		genet		# Broadcom on RPi4
 device		ffec		# iMX FFEC
+device		vmx		# VMware vmxnet3   
 
 # Etherswitch devices
 device		etherswitch	# Enable etherswitch support
@@ -187,6 +188,7 @@ device		e6000sw		# Marvell mv88e6085 based switches
 device		ahci
 device		scbus
 device		da
+device		pvscsi		# VMware paravirtual scsi
 
 # ATA/SCSI peripherals
 device		cd		# CD
@@ -227,6 +229,7 @@ device		rk_typec_phy		# Rockchip TypeC PHY
 device		dwcotg			# DWC OTG controller
 device		musb			# Mentor Graphics USB OTG controller
 device		ohci			# OHCI USB interface
+device		uhci			# UHCI USB interface
 device		ehci			# EHCI USB interface (USB 2.0)
 device		ehci_mv			# Marvell EHCI USB interface
 device		xhci			# XHCI USB interface (USB 3.0)
@@ -235,6 +238,7 @@ device		aw_dwc3			# Allwinner DWC3 controller
 device		rk_dwc3			# Rockchip DWC3 controller
 device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
+device		ums			# Mouse
 device		umass			# Disks/Mass storage - Requires scbus and da
 
 # USB ethernet support
