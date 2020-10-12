@@ -2330,7 +2330,10 @@ _basic_bootstrap_tools+=usr.bin/ldd
 .endif
 # sysctl/chflags are required for installkernel:
 .if !defined(CROSSBUILD_HOST)
-_basic_bootstrap_tools+=sbin/sysctl bin/chflags
+_basic_bootstrap_tools+=bin/chflags
+# Note: sysctl does not bootstrap on FreeBSD < 13 anymore, but that doesn't
+# matter since we don't need any of the new features for the build.
+_bootstrap_tools_links+=sysctl
 .else
 # When building on non-FreeBSD, install a fake chflags instead since the
 # version from the source tree cannot work. We also don't need sysctl since we
