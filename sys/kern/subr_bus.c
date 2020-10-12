@@ -4956,18 +4956,19 @@ static int
 bus_child_pnpinfo_sb(device_t dev, struct sbuf *sb)
 {
 	char *p;
-	size_t space;
+	ssize_t space;
 
 	MPASS((sb->s_flags & SBUF_INCLUDENUL) == 0);
+	MPASS(sb->s_size >= sb->s_len);
 	if (sb->s_error != 0)
 		return (-1);
-	p = EOB(sb);
-	*p = '\0';	/* sbuf buffer isn't NUL terminated until sbuf_finish() */
 	space = SPACE(sb);
 	if (space <= 1) {
 		sb->s_error = ENOMEM;
 		return (-1);
 	}
+	p = EOB(sb);
+	*p = '\0';	/* sbuf buffer isn't NUL terminated until sbuf_finish() */
 	bus_child_pnpinfo_str(dev, p, space);
 	sb->s_len += strlen(p);
 	return (0);
@@ -4985,18 +4986,19 @@ static int
 bus_child_location_sb(device_t dev, struct sbuf *sb)
 {
 	char *p;
-	size_t space;
+	ssize_t space;
 
 	MPASS((sb->s_flags & SBUF_INCLUDENUL) == 0);
+	MPASS(sb->s_size >= sb->s_len);
 	if (sb->s_error != 0)
 		return (-1);
-	p = EOB(sb);
-	*p = '\0';	/* sbuf buffer isn't NUL terminated until sbuf_finish() */
 	space = SPACE(sb);
 	if (space <= 1) {
 		sb->s_error = ENOMEM;
 		return (-1);
 	}
+	p = EOB(sb);
+	*p = '\0';	/* sbuf buffer isn't NUL terminated until sbuf_finish() */
 	bus_child_location_str(dev, p, space);
 	sb->s_len += strlen(p);
 	return (0);
