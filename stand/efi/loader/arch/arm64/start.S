@@ -142,8 +142,10 @@ _start:
 	/* Save the boot params to the stack */
 	stp	x0, x1, [sp, #-16]!
 
-	adr	x0, __bss_start
-	adr	x1, __bss_end
+	adrp	x0, __bss_start
+	add	x0, x0, :lo12:__bss_start
+	adrp	x1, __bss_end
+	add	x1, x1, :lo12:__bss_end
 
 	b 2f
 
@@ -153,8 +155,10 @@ _start:
 	cmp	x0, x1
 	b.lo	1b
 
-	adr	x0, ImageBase
-	adr	x1, _DYNAMIC
+	adrp	x0, ImageBase
+	add	x0, x0, :lo12:ImageBase
+	adrp	x1, _DYNAMIC
+	add	x1, x1, :lo12:_DYNAMIC
 
 	bl	self_reloc
 
@@ -165,7 +169,8 @@ _start:
 	 * Load the stack to use. The default stack may be too small for
 	 * the lua loader.
 	 */
-	adr	x2, initstack_end
+	adrp	x2, initstack_end
+	add	x2, x2, :lo12:initstack_end
 	mov	sp, x2
 #endif
 
