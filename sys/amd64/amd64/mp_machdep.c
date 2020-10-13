@@ -1094,7 +1094,7 @@ invlop_handler(void)
 	for (;;) {
 		for (initiator_cpu_id = 0; initiator_cpu_id <= mp_maxid;
 		    initiator_cpu_id++) {
-			if (scoreboard[initiator_cpu_id] == 0)
+			if (atomic_load_int(&scoreboard[initiator_cpu_id]) == 0)
 				break;
 		}
 		if (initiator_cpu_id > mp_maxid)
