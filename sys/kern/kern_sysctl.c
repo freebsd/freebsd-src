@@ -1022,11 +1022,15 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int *) arg1;
 	u_int namelen = arg2;
-	int error = 0;
+	int error;
 	struct sysctl_oid *oid;
 	struct sysctl_oid_list *lsp = &sysctl__children, *lsp2;
 	struct rm_priotracker tracker;
 	char buf[10];
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
 
 	SYSCTL_RLOCK(&tracker);
 	while (namelen) {
@@ -1264,6 +1268,10 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 	struct rm_priotracker tracker;
 	int error;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
+
 	SYSCTL_RLOCK(&tracker);
 	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
 	if (error)
@@ -1293,6 +1301,10 @@ sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
 	struct rm_priotracker tracker;
 	int error;
 
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
+
 	SYSCTL_RLOCK(&tracker);
 	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
 	if (error)
@@ -1317,6 +1329,10 @@ sysctl_sysctl_oidlabel(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid *oid;
 	struct rm_priotracker tracker;
 	int error;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error)
+		return (error);
 
 	SYSCTL_RLOCK(&tracker);
 	error = sysctl_find_oid(arg1, arg2, &oid, NULL, req);
