@@ -1384,7 +1384,9 @@ ktls_seq(struct sockbuf *sb, struct mbuf *m)
  * The enq_count argument on return is set to the number of pages of
  * payload data for this entire chain that need to be encrypted via SW
  * encryption.  The returned value should be passed to ktls_enqueue
- * when scheduling encryption of this chain of mbufs.
+ * when scheduling encryption of this chain of mbufs.  To handle the
+ * special case of empty fragments for TLS 1.0 sessions, an empty
+ * fragment counts as one page.
  */
 void
 ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
@@ -1400,12 +1402,16 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 	*enq_cnt = 0;
 	for (m = top; m != NULL; m = m->m_next) {
 		/*
-		 * All mbufs in the chain should be non-empty TLS
-		 * records whose payload does not exceed the maximum
-		 * frame length.
+		 * All mbufs in the chain should be TLS records whose
+		 * payload does not exceed the maximum frame length.
+		 *
+		 * Empty TLS records are permitted when using CBC.
 		 */
-		KASSERT(m->m_len <= maxlen && m->m_len > 0,
+		KASSERT(m->m_len <= maxlen &&
+		    (tls->params.cipher_algorithm == CRYPTO_AES_CBC ?
+		    m->m_len >= 0 : m->m_len > 0),
 		    ("ktls_frame: m %p len %d\n", m, m->m_len));
+
 		/*
 		 * TLS frames require unmapped mbufs to store session
 		 * info.
@@ -1496,7 +1502,11 @@ ktls_frame(struct mbuf *top, struct ktls_session *tls, int *enq_cnt,
 		if (tls->mode == TCP_TLS_MODE_SW) {
 			m->m_flags |= M_NOTREADY;
 			m->m_epg_nrdy = m->m_epg_npgs;
-			*enq_cnt += m->m_epg_npgs;
+			if (__predict_false(tls_len == 0)) {
+				/* TLS 1.0 empty fragment. */
+				*enq_cnt += 1;
+			} else
+				*enq_cnt += m->m_epg_npgs;
 		}
 	}
 }
@@ -1961,7 +1971,11 @@ retry_page:
 			dst_iov[i].iov_len = len;
 		}
 
-		npages += i;
+		if (__predict_false(m->m_epg_npgs == 0)) {
+			/* TLS 1.0 empty fragment. */
+			npages++;
+		} else
+			npages += i;
 
 		error = (*tls->sw_encrypt)(tls,
 		    (const struct tls_record_layer *)m->m_epg_hdr,

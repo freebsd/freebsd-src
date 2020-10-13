@@ -1655,6 +1655,8 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 	int pflags = malloc2vm_flags(how) | VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP |
 	    VM_ALLOC_WIRED;
 
+	MPASS((flags & M_PKTHDR) == 0);
+
 	/*
 	 * len can be zero or an arbitrary large value bound by
 	 * the total data supplied by the uio.
@@ -1668,10 +1670,23 @@ m_uiotombuf_nomap(struct uio *uio, int how, int len, int maxseg, int flags)
 		maxseg = MBUF_PEXT_MAX_PGS * PAGE_SIZE;
 
 	/*
+	 * If total is zero, return an empty mbuf.  This can occur
+	 * for TLS 1.0 connections which send empty fragments as
+	 * a countermeasure against the known-IV weakness in CBC
+	 * ciphersuites.
+	 */
+	if (__predict_false(total == 0)) {
+		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
+		if (mb == NULL)
+			return (NULL);
+		mb->m_epg_flags = EPG_FLAG_ANON;
+		return (mb);
+	}
+
+	/*
 	 * Allocate the pages
 	 */
 	m = NULL;
-	MPASS((flags & M_PKTHDR) == 0);
 	while (total > 0) {
 		mb = mb_alloc_ext_pgs(how, mb_free_mext_pgs);
 		if (mb == NULL)
