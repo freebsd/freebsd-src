@@ -886,6 +886,9 @@ npxdna(void)
 		return (0);
 	td = curthread;
 	critical_enter();
+
+	KASSERT((curpcb->pcb_flags & PCB_NPXNOSAVE) == 0,
+	    ("npxdna while in fpu_kern_enter(FPU_KERN_NOCTX)"));
 	if (__predict_false(PCPU_GET(fpcurthread) == td)) {
 		/*
 		 * Some virtual machines seems to set %cr0.TS at
@@ -1390,8 +1393,34 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 {
 	struct pcb *pcb;
 
-	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) == 0, ("using inuse ctx"));
+	pcb = td->td_pcb;
+	KASSERT((flags & FPU_KERN_NOCTX) != 0 || ctx != NULL,
+	    ("ctx is required when !FPU_KERN_NOCTX"));
+	KASSERT(ctx == NULL || (ctx->flags & FPU_KERN_CTX_INUSE) == 0,
+	    ("using inuse ctx"));
+	KASSERT((pcb->pcb_flags & PCB_NPXNOSAVE) == 0,
+	    ("recursive fpu_kern_enter while in PCB_NPXNOSAVE state"));
 
+	if ((flags & FPU_KERN_NOCTX) != 0) {
+		critical_enter();
+		stop_emulating();
+		if (curthread == PCPU_GET(fpcurthread)) {
+			fpusave(curpcb->pcb_save);
+			PCPU_SET(fpcurthread, NULL);
+		} else {
+			KASSERT(PCPU_GET(fpcurthread) == NULL,
+			    ("invalid fpcurthread"));
+		}
+
+		/*
+		 * This breaks XSAVEOPT tracker, but
+		 * PCB_NPXNOSAVE state is supposed to never need to
+		 * save FPU context at all.
+		 */
+		fpurstor(npx_initialstate);
+		pcb->pcb_flags |= PCB_KERNNPX | PCB_NPXNOSAVE | PCB_NPXINITDONE;
+		return;
+	}
 	if ((flags & FPU_KERN_KTHR) != 0 && is_fpu_kern_thread(0)) {
 		ctx->flags = FPU_KERN_CTX_DUMMY | FPU_KERN_CTX_INUSE;
 		return;
@@ -1416,17 +1445,32 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 {
 	struct pcb *pcb;
 
-	KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
-	    ("leaving not inuse ctx"));
-	ctx->flags &= ~FPU_KERN_CTX_INUSE;
-
-	if (is_fpu_kern_thread(0) && (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
-		return (0);
 	pcb = td->td_pcb;
-	critical_enter();
-	if (curthread == PCPU_GET(fpcurthread))
-		npxdrop();
-	pcb->pcb_save = ctx->prev;
+
+	if ((pcb->pcb_flags & PCB_NPXNOSAVE) != 0) {
+		KASSERT(ctx == NULL, ("non-null ctx after FPU_KERN_NOCTX"));
+		KASSERT(PCPU_GET(fpcurthread) == NULL,
+		    ("non-NULL fpcurthread for PCB_NPXNOSAVE"));
+		CRITICAL_ASSERT(td);
+
+		pcb->pcb_flags &= ~(PCB_NPXNOSAVE | PCB_NPXINITDONE);
+		start_emulating();
+	} else {
+		KASSERT((ctx->flags & FPU_KERN_CTX_INUSE) != 0,
+		    ("leaving not inuse ctx"));
+		ctx->flags &= ~FPU_KERN_CTX_INUSE;
+
+		if (is_fpu_kern_thread(0) &&
+		    (ctx->flags & FPU_KERN_CTX_DUMMY) != 0)
+			return (0);
+		KASSERT((ctx->flags & FPU_KERN_CTX_DUMMY) == 0,
+		    ("dummy ctx"));
+		critical_enter();
+		if (curthread == PCPU_GET(fpcurthread))
+			npxdrop();
+		pcb->pcb_save = ctx->prev;
+	}
+
 	if (pcb->pcb_save == get_pcb_user_save_pcb(pcb)) {
 		if ((pcb->pcb_flags & PCB_NPXUSERINITDONE) != 0)
 			pcb->pcb_flags |= PCB_NPXINITDONE;
