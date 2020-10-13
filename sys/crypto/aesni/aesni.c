@@ -60,11 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
-#if defined(__i386__)
-#include <machine/npx.h>
-#elif defined(__amd64__)
 #include <machine/fpu.h>
-#endif
 
 static struct mtx_padalign *ctx_mtx;
 static struct fpu_kern_ctx **ctx_fpu;
