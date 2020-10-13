@@ -132,9 +132,7 @@ static const char *features_for_read[] = {
 	"com.delphix:device_removal",
 	"com.delphix:obsolete_counts",
 	"com.intel:allocation_classes",
-#ifdef HAS_ZSTD_ZFS
 	"org.freebsd:zstd_compress",
-#endif
 	NULL
 };
 
