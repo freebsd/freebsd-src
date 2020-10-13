@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 21, 2016
+.Dd October 13, 2020
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -426,7 +426,12 @@ property set.
 .It Ic serial Ar string
 The SCSI serial number presented to the initiator.
 .It Ic size Ar size
-The LUN size, in bytes.
+The LUN size, in bytes or by number with a suffix of
+.Sy K , M , G , T
+(for kilobytes, megabytes, gigabytes, or terabytes).
+When the configuration is in UCL format, use the suffix format
+.Sy kKmMgG Ns | Ns Sy bB ,
+(i.e., 4GB, 4gb, and 4Gb are all equivalent).
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/ctl.conf" -compact
@@ -536,7 +541,7 @@ lun {
 	example_0 {
 		path = /dev/zvol/tank/example_0
 		blocksize = 4096
-		size = "4G"
+		size = 4GB
 	}
 
 	example_1 {
