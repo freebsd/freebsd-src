@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 2018
+.Dd October 12, 2020
 .Dt DEVMATCH 8
 .Os
 .Sh NAME
@@ -62,7 +62,7 @@ Parse and use a standard NOMATCH event from
 for matching instead of searching the device tree.
 .It Fl u Fl -unbound
 Attempt to produce a list of those drivers with PNP info whose driver
-tables with that PNP info can't be found.
+tables with that PNP info can not be found.
 .It Fl v Fl -verbose
 Produce more verbose output.
 .El
@@ -94,3 +94,7 @@ logical equivalent in USB, PCI, and others.
 .Pp
 Many drivers currently lack proper PNP table decorations and need to
 be updated.
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 12.0 .
