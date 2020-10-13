@@ -43,11 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/cryptodev.h>
 #include <cryptodev_if.h>
 
-#if defined(__amd64__)
 #include <machine/fpu.h>
-#elif defined(__i386__)
-#include <machine/npx.h>
-#endif
 
 struct blake2_session {
 	size_t mlen;
