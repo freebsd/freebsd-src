@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2020, Ryan Moeller <freqlabs@FreeBSD.org>
+ * Copyright (c) 2020, Kyle Evans <kevans@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <errno.h>
 #include <jail.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -41,7 +43,221 @@ __FBSDID("$FreeBSD$");
 #include <lauxlib.h>
 #include <lualib.h>
 
+#define	JAIL_METATABLE "jail iterator metatable"
+
+/*
+ * Taken from RhodiumToad's lspawn implementation, let static analyzers make
+ * better decisions about the behavior after we raise an error.
+ */
+#if defined(LUA_VERSION_NUM) && defined(LUA_API)
+LUA_API int   (lua_error) (lua_State *L) __dead2;
+#endif
+#if defined(LUA_ERRFILE) && defined(LUALIB_API)
+LUALIB_API int (luaL_argerror) (lua_State *L, int arg, const char *extramsg) __dead2;
+LUALIB_API int (luaL_typeerror) (lua_State *L, int arg, const char *tname) __dead2;
+LUALIB_API int (luaL_error) (lua_State *L, const char *fmt, ...) __dead2;
+#endif
+
 int luaopen_jail(lua_State *);
+
+typedef bool (*getparam_filter)(const char *, void *);
+
+static void getparam_table(lua_State *L, int paramindex,
+    struct jailparam *params, size_t paramoff, size_t *params_countp,
+    getparam_filter keyfilt, void *udata);
+
+struct l_jail_iter {
+	struct jailparam	*params;
+	size_t			params_count;
+	int			jid;
+};
+
+static bool
+l_jail_filter(const char *param_name, void *data __unused)
+{
+
+	/*
+	 * Allowing lastjid will mess up our iteration over all jails on the
+	 * system, as this is a special paramter that indicates where the search
+	 * starts from.  We'll always add jid and name, so just silently remove
+	 * these.
+	 */
+	return (strcmp(param_name, "lastjid") != 0 &&
+	    strcmp(param_name, "jid") != 0 &&
+	    strcmp(param_name, "name") != 0);
+}
+
+static int
+l_jail_iter_next(lua_State *L)
+{
+	struct l_jail_iter *iter, **iterp;
+	struct jailparam *jp;
+	int serrno;
+
+	iterp = (struct l_jail_iter **)luaL_checkudata(L, 1, JAIL_METATABLE);
+	iter = *iterp;
+	luaL_argcheck(L, iter != NULL, 1, "closed jail iterator");
+
+	jp = iter->params;
+	/* Populate lastjid; we must keep it in params[0] for our sake. */
+	if (jailparam_import_raw(&jp[0], &iter->jid, sizeof(iter->jid))) {
+		jailparam_free(jp, iter->params_count);
+		free(jp);
+		free(iter);
+		*iterp = NULL;
+		return (luaL_error(L, "jailparam_import_raw: %s", jail_errmsg));
+	}
+
+	/* The list of requested params was populated back in l_list(). */
+	iter->jid = jailparam_get(jp, iter->params_count, 0);
+	if (iter->jid == -1) {
+		/*
+		 * We probably got an ENOENT to signify the end of the jail
+		 * listing, but just in case we didn't; stash it off and start
+		 * cleaning up.  We'll handle non-ENOENT errors later.
+		 */
+		serrno = errno;
+		jailparam_free(jp, iter->params_count);
+		free(iter->params);
+		free(iter);
+		*iterp = NULL;
+		if (serrno != ENOENT)
+			return (luaL_error(L, "jailparam_get: %s",
+			    strerror(serrno)));
+		return (0);
+	}
+
+	/*
+	 * Finally, we'll fill in the return table with whatever parameters the
+	 * user requested, in addition to the ones we forced with exception to
+	 * lastjid.
+	 */
+	lua_newtable(L);
+	for (size_t i = 0; i < iter->params_count; ++i) {
+		char *value;
+
+		jp = &iter->params[i];
+		if (strcmp(jp->jp_name, "lastjid") == 0)
+			continue;
+		value = jailparam_export(jp);
+		lua_pushstring(L, value);
+		lua_setfield(L, -2, jp->jp_name);
+		free(value);
+	}
+
+	return (1);
+}
+
+static int
+l_jail_iter_close(lua_State *L)
+{
+	struct l_jail_iter *iter, **iterp;
+
+	/*
+	 * Since we're using this as the __gc method as well, there's a good
+	 * chance that it's already been cleaned up by iterating to the end of
+	 * the list.
+	 */
+	iterp = (struct l_jail_iter **)lua_touserdata(L, 1);
+	iter = *iterp;
+	if (iter == NULL)
+		return (0);
+
+	jailparam_free(iter->params, iter->params_count);
+	free(iter->params);
+	free(iter);
+	*iterp = NULL;
+	return (0);
+}
+
+static int
+l_list(lua_State *L)
+{
+	struct l_jail_iter *iter;
+	int nargs;
+
+	nargs = lua_gettop(L);
+	if (nargs >= 1)
+		luaL_checktype(L, 1, LUA_TTABLE);
+
+	iter = malloc(sizeof(*iter));
+	if (iter == NULL)
+		return (luaL_error(L, "malloc: %s", strerror(errno)));
+
+	/*
+	 * lastjid, jid, name + length of the table.  This may be too much if
+	 * we have duplicated one of those fixed parameters.
+	 */
+	iter->params_count = 3 + (nargs != 0 ? lua_rawlen(L, 1) : 0);
+	iter->params = malloc(iter->params_count * sizeof(*iter->params));
+	if (iter->params == NULL) {
+		free(iter);
+		return (luaL_error(L, "malloc params: %s", strerror(errno)));
+	}
+
+	/* The :next() method will populate lastjid before jail_getparam(). */
+	if (jailparam_init(&iter->params[0], "lastjid") == -1) {
+		free(iter->params);
+		free(iter);
+		return (luaL_error(L, "jailparam_init: %s", jail_errmsg));
+	}
+	/* These two will get populated by jail_getparam(). */
+	if (jailparam_init(&iter->params[1], "jid") == -1) {
+		jailparam_free(iter->params, 1);
+		free(iter->params);
+		free(iter);
+		return (luaL_error(L, "jailparam_init: %s",
+		    jail_errmsg));
+	}
+	if (jailparam_init(&iter->params[2], "name") == -1) {
+		jailparam_free(iter->params, 2);
+		free(iter->params);
+		free(iter);
+		return (luaL_error(L, "jailparam_init: %s",
+		    jail_errmsg));
+	}
+
+	/*
+	 * We only need to process additional arguments if we were given any.
+	 * That is, we don't descend into getparam_table if we're passed nothing
+	 * or an empty table.
+	 */
+	iter->jid = 0;
+	if (iter->params_count != 3)
+		getparam_table(L, 1, iter->params, 2, &iter->params_count,
+		    l_jail_filter, NULL);
+
+	/*
+	 * Part of the iterator magic.  We give it an iterator function with a
+	 * metatable defining next() and close() that can be used for manual
+	 * iteration.  iter->jid is how we track which jail we last iterated, to
+	 * be supplied as "lastjid".
+	 */
+	lua_pushcfunction(L, l_jail_iter_next);
+	*(struct l_jail_iter **)lua_newuserdata(L,
+	    sizeof(struct l_jail_iter **)) = iter;
+	luaL_getmetatable(L, JAIL_METATABLE);
+	lua_setmetatable(L, -2);
+	return (2);
+}
+
+static void
+register_jail_metatable(lua_State *L)
+{
+	luaL_newmetatable(L, JAIL_METATABLE);
+	lua_newtable(L);
+	lua_pushcfunction(L, l_jail_iter_next);
+	lua_setfield(L, -2, "next");
+	lua_pushcfunction(L, l_jail_iter_close);
+	lua_setfield(L, -2, "close");
+
+	lua_setfield(L, -2, "__index");
+
+	lua_pushcfunction(L, l_jail_iter_close);
+	lua_setfield(L, -2, "__gc");
+
+	lua_pop(L, 1);
+}
 
 static int
 l_getid(lua_State *L)
@@ -100,12 +316,71 @@ l_allparams(lua_State *L)
 	return (1);
 }
 
+static void
+getparam_table(lua_State *L, int paramindex, struct jailparam *params,
+    size_t params_off, size_t *params_countp, getparam_filter keyfilt,
+    void *udata)
+{
+	size_t params_count;
+	int skipped;
+
+	params_count = *params_countp;
+	skipped = 0;
+	for (size_t i = 1 + params_off; i < params_count; ++i) {
+		const char *param_name;
+
+		lua_rawgeti(L, -1, i - params_off);
+		param_name = lua_tostring(L, -1);
+		if (param_name == NULL) {
+			jailparam_free(params, i - skipped);
+			free(params);
+			luaL_argerror(L, paramindex,
+			    "param names must be strings");
+		}
+		lua_pop(L, 1);
+		if (keyfilt != NULL && !keyfilt(param_name, udata)) {
+			++skipped;
+			continue;
+		}
+		if (jailparam_init(&params[i - skipped], param_name) == -1) {
+			jailparam_free(params, i - skipped);
+			free(params);
+			luaL_error(L, "jailparam_init: %s", jail_errmsg);
+		}
+	}
+	*params_countp -= skipped;
+}
+
+struct getparams_filter_args {
+	int	filter_type;
+};
+
+static bool
+l_getparams_filter(const char *param_name, void *udata)
+{
+	struct getparams_filter_args *gpa;
+
+	gpa = udata;
+
+	/* Skip name or jid, whichever was given. */
+	if (gpa->filter_type == LUA_TSTRING) {
+		if (strcmp(param_name, "name") == 0)
+			return (false);
+	} else /* type == LUA_TNUMBER */ {
+		if (strcmp(param_name, "jid") == 0)
+			return (false);
+	}
+
+	return (true);
+}
+
 static int
 l_getparams(lua_State *L)
 {
 	const char *name;
 	struct jailparam *params;
-	size_t params_count, skipped;
+	size_t params_count;
+	struct getparams_filter_args gpa;
 	int flags, jid, type;
 
 	type = lua_type(L, 1);
@@ -154,40 +429,8 @@ l_getparams(lua_State *L)
 	/*
 	 * Set the remaining param names being requested.
 	 */
-
-	skipped = 0;
-	for (size_t i = 1; i < params_count; ++i) {
-		const char *param_name;
-
-		lua_rawgeti(L, -1, i);
-		param_name = lua_tostring(L, -1);
-		if (param_name == NULL) {
-			jailparam_free(params, i - skipped);
-			free(params);
-			return (luaL_argerror(L, 2,
-			    "param names must be strings"));
-		}
-		lua_pop(L, 1);
-		/* Skip name or jid, whichever was given. */
-		if (type == LUA_TSTRING) {
-			if (strcmp(param_name, "name") == 0) {
-				++skipped;
-				continue;
-			}
-		} else /* type == LUA_TNUMBER */ {
-			if (strcmp(param_name, "jid") == 0) {
-				++skipped;
-				continue;
-			}
-		}
-		if (jailparam_init(&params[i - skipped], param_name) == -1) {
-			jailparam_free(params, i - skipped);
-			free(params);
-			return (luaL_error(L, "jailparam_init: %s",
-			    jail_errmsg));
-		}
-	}
-	params_count -= skipped;
+	gpa.filter_type = type;
+	getparam_table(L, 2, params, 0, &params_count, l_getparams_filter, &gpa);
 
 	/*
 	 * Get the values and convert to a table.
@@ -366,6 +609,13 @@ static const struct luaL_Reg l_jail[] = {
 	 *		or nil, error (string) on error
 	 */
 	{"setparams", l_setparams},
+	/** Get a list of jail parameters for running jails on the system.
+	 * @param params	optional list of parameter names (table of
+	 *			strings)
+	 * @return	iterator (function), jail_obj (object) with next and
+	 *		close methods
+	 */
+	{"list", l_list},
 	{NULL, NULL}
 };
 
@@ -384,6 +634,8 @@ luaopen_jail(lua_State *L)
 	lua_setfield(L, -2, "ATTACH");
 	lua_pushinteger(L, JAIL_DYING);
 	lua_setfield(L, -2, "DYING");
+
+	register_jail_metatable(L);
 
 	return (1);
 }
