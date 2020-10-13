@@ -32,6 +32,7 @@
 .Sh NAME
 .Nm getid ,
 .Nm getname ,
+.Nm list ,
 .Nm allparams ,
 .Nm getparams ,
 .Nm setparams ,
@@ -50,6 +51,7 @@ local jail = require('jail')
 .It Dv jid, err = jail.getid(name)
 .It Dv name, err = jail.getname(jid)
 .It Dv params, err = jail.allparams()
+.It Dv iter, jail_obj = jail.list([params])
 .It Dv jid, res = jail.getparams(jid|name, params [, flags ] )
 .It Dv jid, err = jail.setparams(jid|name, params, flags )
 .It Dv jail.CREATE
@@ -79,6 +81,21 @@ is the name of a jail or a jid in the form of a string.
 Get the name of a jail as a string for the given
 .Fa jid
 .Pq an integer .
+.It Dv iter, jail_obj = jail.list([params])
+Returns an iterator over running jails on the system.
+.Dv params
+is a list of parameters to fetch for each jail as we iterate.
+.Dv jid
+and
+.Dv name
+will always be returned, and may be omitted from
+.Dv params .
+Additionally,
+.Dv params
+may be omitted or an empty table, but not nil.
+.Pp
+See
+.Sx EXAMPLES .
 .It Dv params, err = jail.allparams()
 Get a list of all supported parameter names
 .Pq as strings .
@@ -167,6 +184,10 @@ function returns a jail identifier integer and a table of jail parameters
 with parameter name strings as keys and strings for values on success, or
 .Dv nil
 and an error message string if an error occurred.
+.Pp
+The
+.Fn list
+function returns an iterator over the list of running jails.
 .Sh EXAMPLES
 Set the hostname of jail
 .Dq foo
@@ -192,6 +213,32 @@ if not jid then
     error(res)
 end
 print(res["host.hostname"])
+.Ed
+.Pp
+Iterate over jails on the system:
+.Bd -literal -offset indent
+local jail = require('jail')
+
+-- Recommended: just loop over it
+for jparams in jail.list() do
+    print(jparams["jid"] .. " = " .. jparams["name"])
+end
+
+-- Request path and hostname, too
+for jparams in jail.list({"path", "host.hostname"}) do
+    print(jparams["host.hostname"] .. " mounted at " .. jparams["path"])
+end
+
+-- Raw iteration protocol
+local iter, jail_obj = jail.list()
+
+-- Request the first params
+local jparams = jail_obj:next()
+while jparams do
+    print(jparams["jid"] .. " = " .. jparams["name"])
+    -- Subsequent calls may return nil
+    jparams = jail_obj:next()
+end
 .Ed
 .Sh SEE ALSO
 .Xr jail 2 ,

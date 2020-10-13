@@ -35,10 +35,23 @@ ucl = require("ucl")
 
 name = "demo"
 
--- Create a persistent jail named "demo" with all other parameters default.
-jid, err = jail.setparams(name, {persist = "true"}, jail.CREATE)
-if not jid then
-    error(err)
+local has_demo = false
+
+-- Make sure we don't have a demo jail to start with; "jid" and "name" are
+-- always present.
+for jparams in jail.list() do
+    if jparams["name"] == name then
+        has_demo = true
+        break
+    end
+end
+
+if not has_demo then
+    -- Create a persistent jail named "demo" with all other parameters default.
+    jid, err = jail.setparams(name, {persist = "true"}, jail.CREATE)
+    if not jid then
+        error(err)
+    end
 end
 
 -- Get a list of all known jail parameter names.
@@ -53,8 +66,42 @@ end
 -- Display the jail's parameters as a pretty-printed JSON object.
 print(ucl.to_json(res))
 
+-- Confirm that we still have it for now.
+has_demo = false
+for jparams in jail.list() do
+    if jparams["name"] == name then
+        has_demo = true
+        break
+    end
+end
+
+if not has_demo then
+    print("demo does not exist")
+end
+
 -- Update the "persist" parameter to "false" to remove the jail.
 jid, err = jail.setparams(name, {persist = "false"}, jail.UPDATE)
 if not jid then
     error(err)
+end
+
+-- Verify that the jail is no longer on the system.
+local is_persistent = false
+has_demo = false
+for jparams in jail.list({"persist"}) do
+    if jparams["name"] == name then
+        has_demo = true
+        jid = jparams["jid"]
+        is_persistent = jparams["persist"] ~= "false"
+    end
+end
+
+-- In fact, it does remain until this process ends -- c'est la vie.
+if has_demo then
+    io.write("demo still exists, jid " .. jid .. ", ")
+    if is_persistent then
+        io.write("persistent\n")
+    else
+        io.write("not persistent\n")
+    end
 end
