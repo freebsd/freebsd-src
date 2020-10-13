@@ -301,7 +301,7 @@ data_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
 		break;
 	default:
 		ftype = (esr & ISS_DATA_WnR) == 0 ? VM_PROT_READ :
-		    VM_PROT_READ | VM_PROT_WRITE;
+		    VM_PROT_WRITE;
 		break;
 	}
 

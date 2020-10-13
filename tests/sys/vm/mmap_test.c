@@ -259,6 +259,21 @@ ATF_TC_BODY(mmap__dev_zero_shared, tc)
 	close(fd);
 }
 
+ATF_TC_WITHOUT_HEAD(mmap__write_only);
+ATF_TC_BODY(mmap__write_only, tc)
+{
+	void *p;
+	int pagesize;
+
+	ATF_REQUIRE((pagesize = getpagesize()) > 0);
+	p = mmap(NULL, pagesize, PROT_WRITE, MAP_ANON, -1, 0);
+	ATF_REQUIRE(p != MAP_FAILED);
+
+	*(volatile uint32_t *)p = 0x12345678;
+
+	munmap(p, pagesize);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -266,6 +281,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, mmap__bad_arguments);
 	ATF_TP_ADD_TC(tp, mmap__dev_zero_private);
 	ATF_TP_ADD_TC(tp, mmap__dev_zero_shared);
+	ATF_TP_ADD_TC(tp, mmap__write_only);
 
 	return (atf_no_error());
 }
