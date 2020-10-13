@@ -128,13 +128,13 @@ static char mpt2_reset_magic[] = { 0x00, 0x0f, 0x04, 0x0b, 0x02, 0x07, 0x0d };
  * "aggregate value used where an integer was expected"
  */
 
-typedef union _reply_descriptor {
+typedef union {
         u64 word;
         struct {
                 u32 low;
                 u32 high;
         } u;
-}reply_descriptor,address_descriptor;
+} request_descriptor_t;
 
 /* Rate limit chain-fail messages to 1 per minute */
 static struct timeval mps_chainfail_interval = { 60, 0 };
@@ -1098,7 +1098,7 @@ mps_request_sync(struct mps_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 static void
 mps_enqueue_request(struct mps_softc *sc, struct mps_command *cm)
 {
-	reply_descriptor rd;
+	request_descriptor_t rd;
 	MPS_FUNCTRACE(sc);
 	mps_dprint(sc, MPS_TRACE, "SMID %u cm %p ccb %p\n",
 	    cm->cm_desc.Default.SMID, cm, cm->cm_ccb);

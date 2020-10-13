@@ -129,13 +129,13 @@ static char mpt2_reset_magic[] = { 0x00, 0x0f, 0x04, 0x0b, 0x02, 0x07, 0x0d };
  * Otherwise it will throw this error:
  * "aggregate value used where an integer was expected"
  */
-typedef union _reply_descriptor {
+typedef union {
         u64 word;
         struct {
                 u32 low;
                 u32 high;
         } u;
-} reply_descriptor, request_descriptor;
+} request_descriptor_t;
 
 /* Rate limit chain-fail messages to 1 per minute */
 static struct timeval mpr_chainfail_interval = { 60, 0 };
@@ -1121,7 +1121,7 @@ mpr_request_sync(struct mpr_softc *sc, void *req, MPI2_DEFAULT_REPLY *reply,
 static void
 mpr_enqueue_request(struct mpr_softc *sc, struct mpr_command *cm)
 {
-	request_descriptor rd;
+	request_descriptor_t rd;
 
 	MPR_FUNCTRACE(sc);
 	mpr_dprint(sc, MPR_TRACE, "SMID %u cm %p ccb %p\n",
