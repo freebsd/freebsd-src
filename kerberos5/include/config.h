@@ -975,7 +975,7 @@ static /**/const char *const rcsid[] = { (const char *)rcsid, "@(#)" msg }
 #define HAVE_STRVISX 1
 
 /* Define to 1 if you have the `svis' function. */
-/* #undef HAVE_SVIS */
+#define HAVE_SVIS 1
 
 /* Define if you have the function `swab'. */
 #define HAVE_SWAB 1
