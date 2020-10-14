@@ -47,7 +47,6 @@
 #endif
 
 extern vm_paddr_t phys_avail[PHYS_AVAIL_COUNT];
-extern vm_paddr_t dump_avail[PHYS_AVAIL_COUNT];
 
 /* Domains must be dense (non-sparse) and zero-based. */
 struct mem_affinity {

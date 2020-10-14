@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 
 #include <machine/_inttypes.h>
