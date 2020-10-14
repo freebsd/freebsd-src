@@ -3,12 +3,17 @@
 SUBDIR = \
 	hid \
 	hidbus \
+	hidmap \
 	hidquirk \
 	hidraw
 
 SUBDIR += \
 	hconf \
+	hcons \
 	hkbd \
-	hmt
+	hms \
+	hmt \
+	hsctrl \
+	ps4dshock
 
 .include <bsd.subdir.mk>

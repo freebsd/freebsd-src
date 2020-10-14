@@ -180,11 +180,13 @@ MAN=	aac.4 \
 	gre.4 \
 	h_ertt.4 \
 	hconf.4 \
+	hcons.4 \
 	hidbus.4 \
 	hidquirk.4 \
 	hidraw.4 \
 	hifn.4 \
 	hkbd.4 \
+	hms.4 \
 	hmt.4 \
 	hpet.4 \
 	${_hpt27xx.4} \
@@ -192,6 +194,7 @@ MAN=	aac.4 \
 	${_hptmv.4} \
 	${_hptnr.4} \
 	${_hptrr.4} \
+	hsctrl.4 \
 	${_hv_kvp.4} \
 	${_hv_netvsc.4} \
 	${_hv_storvsc.4} \
@@ -432,6 +435,7 @@ MAN=	aac.4 \
 	ppi.4 \
 	procdesc.4 \
 	proto.4 \
+	ps4dshock.4 \
 	psm.4 \
 	pst.4 \
 	pt.4 \
