@@ -1817,6 +1817,7 @@ dev/gpio/gpiopps.c		optional gpiopps fdt
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
 dev/hid/hconf.c			optional hconf
 dev/hid/hcons.c			optional hcons
+dev/hid/hgame.c			optional hgame
 dev/hid/hid.c			optional hid
 dev/hid/hid_if.m		optional hid
 dev/hid/hidbus.c		optional hidbus
@@ -1826,8 +1827,10 @@ dev/hid/hidraw.c		optional hidraw
 dev/hid/hkbd.c			optional hkbd
 dev/hid/hms.c			optional hms
 dev/hid/hmt.c			optional hmt hconf
+dev/hid/hpen.c			optional hpen
 dev/hid/hsctrl.c		optional hsctrl
 dev/hid/ps4dshock.c		optional ps4dshock
+dev/hid/xb360gp.c		optional xb360gp
 dev/hifn/hifn7751.c		optional hifn
 dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
