@@ -1928,8 +1928,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	if (env != NULL)
 		strlcpy(kernelname, env, sizeof(kernelname));
 
-	cpu_probe_amdc1e();
-
 	kcsan_cpu_init(0);
 
 #ifdef FDT

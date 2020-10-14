@@ -2505,8 +2505,6 @@ init386(int first)
 	thread0.td_pcb->pcb_ext = 0;
 	thread0.td_frame = &proc0_tf;
 
-	cpu_probe_amdc1e();
-
 #ifdef FDT
 	x86_init_fdt();
 #endif
