@@ -190,11 +190,6 @@ typedef unsigned short u_short;
 typedef unsigned int u_int;
 typedef unsigned long u_long;
 
-/* This is needed so that BSNMP doesn't redeclare an incompatible version */
-#define HAVE_STRLCPY 1
-/* The compiler supports __func__ */
-#define HAVE_DECL___FUNC__ 1
-
 /* On MacOS __CONCAT is defined as x ## y, which won't expand macros */
 #undef __CONCAT
 #define __CONCAT1(x, y) x##y

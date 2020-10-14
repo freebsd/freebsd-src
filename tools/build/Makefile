@@ -57,8 +57,8 @@ _WITH_STRSVIS!=	grep -c strsvis ${HOST_INCLUDE_ROOT}/vis.h 2>/dev/null || true
 .PATH: ${.CURDIR}/../../contrib/libc-vis
 INCS+=		vis.h
 SRCS+=		vis.c unvis.c
-CFLAGS.vis.c+=	-I${.CURDIR}/../../contrib/libc-vis
-CFLAGS.unvis.c+=	-I${.CURDIR}/../../contrib/libc-vis
+CFLAGS.vis.c+=	-I${.CURDIR}/../../contrib/libc-vis -DHAVE_VIS=0 -DHAVE_SVIS=0
+CFLAGS.unvis.c+=	-I${.CURDIR}/../../contrib/libc-vis -DHAVE_VIS=0 -DHAVE_SVIS=0
 .endif
 
 _WITH_REALLOCARRAY!= grep -c reallocarray ${HOST_INCLUDE_ROOT}/stdlib.h || true
