@@ -34,10 +34,7 @@
 #ifndef _DEV_IOMMU_IOMMU_H_
 #define _DEV_IOMMU_IOMMU_H_
 
-/* Host or physical memory address, after translation. */
-typedef uint64_t iommu_haddr_t;
-/* Guest or bus address, before translation. */
-typedef uint64_t iommu_gaddr_t;
+#include <dev/iommu/iommu_types.h>
 
 struct bus_dma_tag_common;
 struct iommu_map_entry;
