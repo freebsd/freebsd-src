@@ -208,6 +208,13 @@ iommu_gas_rb_remove(struct iommu_domain *domain, struct iommu_map_entry *entry)
 	RB_REMOVE(iommu_gas_entries_tree, &domain->rb_root, entry);
 }
 
+struct iommu_domain *
+iommu_get_ctx_domain(struct iommu_ctx *ctx)
+{
+
+	return (ctx->domain);
+}
+
 void
 iommu_gas_init_domain(struct iommu_domain *domain)
 {
