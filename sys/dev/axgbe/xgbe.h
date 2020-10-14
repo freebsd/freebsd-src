@@ -117,9 +117,7 @@
 #define __XGBE_H__
 
 #include <sys/param.h>
-#if __FreeBSD_version < 1300000
 #include <sys/kernel.h>
-#endif
 #include <sys/bus.h>
 #include <sys/socket.h>
 #include <sys/bitstring.h>
