@@ -1,0 +1,308 @@
+.\" $NetBSD: uhid.4,v 1.13 2001/12/29 14:41:59 augustss Exp $
+.\"
+.\" Copyright (c) 1999, 2001 The NetBSD Foundation, Inc.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software contributed to The NetBSD Foundation
+.\" by Lennart Augustsson.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
+.\" ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+.\" TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd July 1, 2018
+.Dt HIDRAW 4
+.Os
+.Sh NAME
+.Nm hidraw
+.Nd Raw Access to HID devices
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device hidraw"
+.Cd "device hid"
+.Cd "device hidbus"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hidraw_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a raw interface to Human Interface Devices (HIDs).
+The reports are sent to and received from the device unmodified.
+.Pp
+The device handles 2 sets of
+.Xr ioctl 2
+calls:
+.Pp
+.Fx
+.Xr uhid 4
+\-compatible calls:
+.Bl -tag -width indent
+.It Dv HID_GET_REPORT_ID Pq Vt int
+Get the report identifier used by this HID report.
+.It Dv HID_GET_REPORT_DESC Pq Vt "struct hidraw_gen_descriptor"
+Get the HID report descriptor.
+Copies a maximum of
+.Va hgd_maxlen
+bytes of the report descriptor data into the memory
+specified by
+.Va hgd_data .
+Upon return
+.Va hgd_actlen
+is set to the number of bytes copied.
+Using
+this descriptor the exact layout and meaning of data to/from
+the device can be found.
+The report descriptor is delivered
+without any processing.
+.Bd -literal
+struct hidraw_gen_descriptor {
+	void   *hgd_data;
+	uint16_t hgd_maxlen;
+	uint16_t hgd_actlen;
+	uint8_t	hgd_report_type;
+	...
+};
+.Ed
+.It Dv HID_SET_IMMED Pq Vt int
+Sets the device in a mode where each
+.Xr read 2
+will return the current value of the input report.
+Normally
+a
+.Xr read 2
+will only return the data that the device reports on its
+interrupt pipe.
+This call may fail if the device does not support
+this feature.
+.It Dv HID_GET_REPORT Pq Vt "struct hidraw_gen_descriptor"
+Get a report from the device without waiting for data on
+the interrupt pipe.
+Copies a maximum of
+.Va hgd_maxlen
+bytes of the report data into the memory specified by
+.Va hgd_data .
+Upon return
+.Va hgd_actlen
+is set to the number of bytes copied.
+The
+.Va hgd_report_type
+field indicates which report is requested.
+It should be
+.Dv HID_INPUT_REPORT ,
+.Dv HID_OUTPUT_REPORT ,
+or
+.Dv HID_FEATURE_REPORT .
+On a device which uses numbered reports, the first byte of the returned data
+is the report number.
+The report data begins from the second byte.
+For devices which do not use numbered reports, the report data begins at the
+first byte.
+This call may fail if the device does not support this feature.
+.It Dv HID_SET_REPORT Pq Vt "struct hidraw_gen_descriptor"
+Set a report in the device.
+The
+.Va hgd_report_type
+field indicates which report is to be set.
+It should be
+.Dv HID_INPUT_REPORT ,
+.Dv HID_OUTPUT_REPORT ,
+or
+.Dv HID_FEATURE_REPORT .
+The value of the report is specified by the
+.Va hgd_data
+and the
+.Va hgd_maxlen
+fields.
+On a device which uses numbered reports, the first byte of data to be sent is
+the report number.
+The report data begins from the second byte.
+For devices which do not use numbered reports, the report data begins at the
+first byte.
+This call may fail if the device does not support this feature.
+.El
+.Pp
+Linux
+.Nm
+\-compatible calls:
+.Bl -tag -width indent
+.It Dv HIDIOCGRDESCSIZE Pq Vt int
+Get the HID report descriptor size.
+Returns the size of the device report descriptor to use with
+.Dv HIDIOCGRDESC
+.Xr ioctl 2 .
+.It Dv HIDIOCGRDESC Pq Vt "struct hidraw_report_descriptor"
+Get the HID report descriptor.
+Copies a maximum of
+.Va size
+bytes of the report descriptor data into the memory
+specified by
+.Va value .
+.Bd -literal
+struct hidraw_report_descriptor {
+	uint32_t	size;
+	uint8_t		value[HID_MAX_DESCRIPTOR_SIZE];
+};
+.Ed
+.It Dv HIDIOCGRAWINFO Pq Vt "struct hidraw_devinfo"
+Get structure containing the bus type, the vendor ID (VID), and product ID
+(PID) of the device. The bus type can be one of:
+.Dv BUS_USB
+or
+.Dv BUS_I2C
+which are defined in dev/evdev/input.h.
+.Bd -literal
+struct hidraw_devinfo {
+	uint32_t	bustype;
+	int16_t		vendor;
+	int16_t		product;
+};
+.Ed
+.It Dv HIDIOCGRAWNAME(len) Pq Vt "char[] buf"
+Get device description.
+Copies a maximum of
+.Va len
+bytes of the device description previously set with
+.Xr device_set_desc 9
+procedure into the memory
+specified by
+.Va buf .
+.It Dv HIDIOCGRAWPHYS(len) Pq Vt "char[] buf"
+Get the newbus path to the device.
+.\For Bluetooth devices, it returns the hardware (MAC) address of the device.
+Copies a maximum of
+.Va len
+bytes of the newbus device path
+into the memory
+specified by
+.Va buf .
+.It Dv HIDIOCGFEATURE(len) Pq Vt "void[] buf"
+Get a feature report from the device.
+Copies a maximum of
+.Va len
+bytes of the feature report data into the memory specified by
+.Va buf .
+The first byte of the supplied buffer should be set to the report
+number of the requested report.
+For devices which do not use numbered reports, set the first byte to 0.
+The report will be returned starting at the first byte of the buffer
+(ie: the report number is not returned).
+This call may fail if the device does not support this feature.
+.It Dv HIDIOCSFEATURE(len) Pq Vt "void[] buf"
+Set a feature Report in the device.
+The value of the report is specified by the
+.Va buf
+and the
+.Va len
+parameters.
+Set the first byte of the supplied buffer to the report number.
+For devices which do not use numbered reports, set the first byte to 0.
+The report data begins in the second byte.
+Make sure to set len accordingly, to one more than the length of the report
+(to account for the report number).
+This call may fail if the device does not support this feature.
+.El
+.Pp
+Use
+.Xr read 2
+to get data from the device.
+Data should be read in chunks of the
+size prescribed by the report descriptor.
+On a device which uses numbered reports, the first byte of the returned data
+is the report number.
+The report data begins from the second byte.
+For devices which do not use numbered reports, the report data begins at the
+first byte.
+.Pp
+Use
+.Xr write 2
+to send data to the device.
+Data should be written in chunks of the
+size prescribed by the report descriptor.
+The first byte of the buffer passed to
+.Xr write 2
+should be set to the report number.
+If the device does not use numbered reports, there are 2 operation modes:
+.Nm
+mode and
+.Xr uhid 4
+mode.
+In the
+.Nm
+mode, the first byte should be set to 0 and the report data itself should
+begin at the second byte.
+In the
+.Xr uhid 4
+mode, the report data should begin at the first byte.
+The modes can be switched with issuing one of
+.Dv HIDIOCGRDESC
+or
+.Dv HID_GET_REPORT_DESC
+.Xr ioctl 2
+accordingly.
+Default mode is
+.Nm .
+.Sh SYSCTL VARIABLES
+The following variables are available as both
+.Xr sysctl 8
+variables and
+.Xr loader 8
+tunables:
+.Bl -tag -width indent
+.It Va hw.hid.hidraw.debug
+Debug output level, where 0 is debugging disabled and larger values increase
+debug message verbosity.
+Default is 0.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/hidraw?"
+.It Pa /dev/hidraw?
+.El
+.Sh SEE ALSO
+.Xr usbhidctl 1 ,
+.Xr hid 4 ,
+.Xr hidbus 4 ,
+.Xr uhid 4
+.Sh HISTORY
+The
+.Xr uhid 4
+driver
+appeared in
+.Nx 1.4 .
+.Nm
+protocol support was added in
+.Fx 13
+by
+.An Vladimir Kondratyev Aq Mt wulf@FreeBSD.org .
+This manual page was adopted from
+.Nx
+by
+.An Tom Rhodes Aq Mt trhodes@FreeBSD.org
+in April 2002.

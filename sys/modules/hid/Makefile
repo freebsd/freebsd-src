@@ -3,7 +3,8 @@
 SUBDIR = \
 	hid \
 	hidbus \
-	hidquirk
+	hidquirk \
+	hidraw
 
 SUBDIR += \
 	hconf \

@@ -95,7 +95,8 @@ EVDEV=		input.h \
 EVDEVDIR=	${INCLUDEDIR}/dev/evdev
 
 .PATH: ${SRCTOP}/sys/dev/hid
-HID=		hid.h
+HID=		hid.h \
+		hidraw.h
 HIDDIR=		${INCLUDEDIR}/dev/hid
 
 .PATH: ${SRCTOP}/sys/dev/hyperv/include ${SRCTOP}/sys/dev/hyperv/utilities
@@ -340,7 +341,8 @@ symlinks: .PHONY .META
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../../sys/dev/evdev/%s ' input.h input-event-codes.h uinput.h) \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev;
-	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hid/hid.h \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../sys/dev/hid/%s ' hid.h hidraw.h) \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/hid; \
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/include/hyperv.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
