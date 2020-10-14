@@ -100,7 +100,6 @@ ENTRY(copyinstr)
 
 	adr	x6, copyio_fault /* Get the handler address */
 	SET_FAULT_HANDLER(x6, x7) /* Set the handler */
-	ENTER_USER_ACCESS(w6, x7)
 
 	ldr	x7, =VM_MAXUSER_ADDRESS
 1:	cmp	x0, x7
@@ -113,8 +112,7 @@ ENTRY(copyinstr)
 	sub	x2, x2, #1	/* len-- */
 	cbnz	x2, 1b
 
-2:	EXIT_USER_ACCESS(w6)
-	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
+2:	SET_FAULT_HANDLER(xzr, x7) /* Clear the handler */
 
 
 3:	cbz	x3, 4f		/* Check if done != NULL */
