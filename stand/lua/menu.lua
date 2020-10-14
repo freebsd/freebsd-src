@@ -241,6 +241,7 @@ menu.welcome = {
 			boot_entry_2,
 			menu_entries.prompt,
 			menu_entries.reboot,
+			menu_entries.console,
 			{
 				entry_type = core.MENU_SEPARATOR,
 			},
@@ -279,6 +280,16 @@ menu.welcome = {
 				core.boot()
 			end,
 			alias = {"s", "S"},
+		},
+		console = {
+			entry_type = core.MENU_ENTRY,
+			name = function()
+				return color.highlight("C") .. "ons: " .. core.getConsoleName()
+			end,
+			func = function()
+				core.nextConsoleChoice()
+			end,
+			alias = {"c", "C"},
 		},
 		prompt = {
 			entry_type = core.MENU_RETURN,
