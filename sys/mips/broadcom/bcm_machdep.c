@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
+#include <vm/vm_dumpset.h>
 
 #include <machine/cache.h>
 #include <machine/clock.h>

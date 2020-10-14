@@ -149,6 +149,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
+#include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 
 #include <machine/intr_machdep.h>

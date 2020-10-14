@@ -36,15 +36,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_dumpset.h>
 #include <vm/uma.h>
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 #include <machine/md_var.h>
-#include <machine/vmparam.h>
 
 static int hw_uma_mdpages;
 SYSCTL_INT(_hw, OID_AUTO, uma_mdpages, CTLFLAG_RD, &hw_uma_mdpages, 0,
