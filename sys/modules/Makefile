@@ -224,7 +224,7 @@ SUBDIR=	\
 	mac_seeotheruids \
 	mac_stub \
 	mac_test \
-	malo \
+	${_malo} \
 	md \
 	mdio \
 	mem \
@@ -802,6 +802,12 @@ _cloudabi64=	cloudabi64
 .if ${MACHINE_ARCH:Marmv[67]*} != "" || ${MACHINE_CPUARCH} == "aarch64"
 _bcm283x_clkman=  bcm283x_clkman
 _bcm283x_pwm=  bcm283x_pwm
+.endif
+
+.if !(${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 110000)
+# LLVM 10 crashes when building if_malo_pci.c, fixed in LLVM11:
+# https://bugs.llvm.org/show_bug.cgi?id=44351
+_malo=	malo
 .endif
 
 SUBDIR+=${MODULES_EXTRA}
