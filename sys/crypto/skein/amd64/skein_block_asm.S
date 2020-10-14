@@ -277,7 +277,7 @@ _STK_OFFS_  =   0                   #starting offset from rsp
     StackVar    X_stk  ,8*(WCNT)    #local context vars
     StackVar    ksTwk  ,8*3         #key schedule: tweak words
     StackVar    ksKey  ,8*(WCNT)+8  #key schedule: key   words
-  .if (SKEIN_ASM_UNROLL & (\BLK_BITS)) == 0
+  .if ((SKEIN_ASM_UNROLL) & (\BLK_BITS)) == 0
     StackVar    ksRot ,16*(\KS_CNT) #leave space for "rotation" to happen
   .endif
     StackVar    Wcopy  ,8*(WCNT)    #copy of input block    
@@ -749,7 +749,7 @@ C_label Skein_256_Unroll_Cnt
 # MACRO: eight rounds for 512-bit blocks
 #
 .macro R_512_FourRounds _RR_    #RR = base round number (0 % 8)
-  .if (SKEIN_ASM_UNROLL & 512)
+  .if ((SKEIN_ASM_UNROLL) & 512)
     # here for fully unrolled case.
     _II_ = ((\_RR_)/4) + 1       #key injection counter
     R_512_OneRound  8, 9,10,11,12,13,14,15,%((\_RR_)+0),<movq ksKey+8*(((_II_)+3) % 9)+F_O(%rbp),%rax>,,<movq ksKey+8*(((_II_)+4) % 9)+F_O(%rbp),%rbx>
@@ -978,7 +978,7 @@ rIdx_offs = tmpStk_1024
     movq       %\reg1 , xDebug_1024+8*\w1(%rsp)    # (before inline key injection)
  .endif
 _II_ = ((\_RN0_)/4)+1           #injection count
- .if SKEIN_ASM_UNROLL & 1024   #here to do fully unrolled key injection
+ .if (SKEIN_ASM_UNROLL) & 1024   #here to do fully unrolled key injection
     addq        ksKey+ 8*((_II_+\w0) % 17)(%rsp),%\reg0
     addq        ksKey+ 8*((_II_+\w1) % 17)(%rsp),%\reg1
   .if     \w1 == 13                                #tweak injection
