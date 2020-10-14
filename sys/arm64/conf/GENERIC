@@ -154,6 +154,7 @@ device		scbus
 device		da
 
 # ATA/SCSI peripherals
+device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # NVM Express (NVMe) support
