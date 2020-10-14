@@ -31,8 +31,8 @@
  * $FreeBSD$
  */
 
-#ifndef _SYS_IOMMU_H_
-#define _SYS_IOMMU_H_
+#ifndef _DEV_IOMMU_IOMMU_H_
+#define _DEV_IOMMU_IOMMU_H_
 
 /* Host or physical memory address, after translation. */
 typedef uint64_t iommu_haddr_t;
@@ -237,4 +237,4 @@ struct iommu_ctx *iommu_get_dev_ctx(device_t dev);
 
 SYSCTL_DECL(_hw_iommu);
 
-#endif /* !_SYS_IOMMU_H_ */
+#endif /* !_DEV_IOMMU_IOMMU_H_ */
