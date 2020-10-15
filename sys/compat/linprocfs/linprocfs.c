@@ -1249,7 +1249,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		    0,
 		    0,
 		    (u_long)ino,
-		    *name ? "     " : "",
+		    *name ? "     " : " ",
 		    name
 		    );
 		if (freename)
