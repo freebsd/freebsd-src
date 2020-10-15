@@ -235,14 +235,17 @@ parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
 	const char *walker, *ep;
 	const char *colon, *semi;
 	struct pnp_elt *elt;
-	char *nd;
 	char type[8], key[32];
 	int off;
+	size_t new_desc_size;
+	FILE *fp;
 
 	walker = desc;
 	ep = desc + strlen(desc);
 	off = 0;
-	nd = *new_desc = malloc(strlen(desc) + 1);
+	fp = open_memstream(new_desc, &new_desc_size);
+	if (fp == NULL)
+		err(1, "Could not open new memory stream");
 	if (verbose > 1)
 		printf("Converting %s into a list\n", desc);
 	while (walker < ep) {
@@ -336,42 +339,44 @@ parse_pnp_list(const char *desc, char **new_desc, pnp_list *list)
 			off = elt->pe_offset + sizeof(void *);
 		}
 		if (elt->pe_kind & TYPE_PAIRED) {
-			char *word, *ctx;
+			char *word, *ctx, newtype;
 
 			for (word = strtok_r(key, "/", &ctx);
 			     word; word = strtok_r(NULL, "/", &ctx)) {
-				sprintf(nd, "%c:%s;", elt->pe_kind & TYPE_FLAGGED ? 'J' : 'I',
-				    word);
-				nd += strlen(nd);
+				newtype = elt->pe_kind & TYPE_FLAGGED ? 'J' : 'I';
+				fprintf(fp, "%c:%s;", newtype, word);
 			}
-			
 		}
 		else {
+			char newtype;
+
 			if (elt->pe_kind & TYPE_FLAGGED)
-				*nd++ = 'J';
+				newtype = 'J';
 			else if (elt->pe_kind & TYPE_GE)
-				*nd++ = 'G';
+				newtype = 'G';
 			else if (elt->pe_kind & TYPE_LE)
-				*nd++ = 'L';
+				newtype = 'L';
 			else if (elt->pe_kind & TYPE_MASK)
-				*nd++ = 'M';
+				newtype = 'M';
 			else if (elt->pe_kind & TYPE_INT)
-				*nd++ = 'I';
+				newtype = 'I';
 			else if (elt->pe_kind == TYPE_D)
-				*nd++ = 'D';
+				newtype = 'D';
 			else if (elt->pe_kind == TYPE_Z || elt->pe_kind == TYPE_E)
-				*nd++ = 'Z';
+				newtype = 'Z';
 			else if (elt->pe_kind == TYPE_T)
-				*nd++ = 'T';
+				newtype = 'T';
 			else
 				errx(1, "Impossible type %x\n", elt->pe_kind);
-			*nd++ = ':';
-			strcpy(nd, key);
-			nd += strlen(nd);
-			*nd++ = ';';
+			fprintf(fp, "%c:%s;", newtype, key);
 		}
 	}
-	*nd++ = '\0';
+	if (ferror(fp) != 0) {
+		fclose(fp);
+		errx(1, "Exhausted space converting description %s", desc);
+	}
+	if (fclose(fp) != 0)
+		errx(1, "Failed to close memory stream");
 	return (0);
 err:
 	errx(1, "Parse error of description string %s", desc);
