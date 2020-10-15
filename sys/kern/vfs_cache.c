@@ -311,11 +311,11 @@ static struct mtx __exclusive_cache_line	ncneg_shrink_lock;
 struct neglist {
 	struct mtx		nl_lock;
 	TAILQ_HEAD(, namecache) nl_list;
+	TAILQ_HEAD(, namecache) nl_hotlist;
+	u_long			nl_hotnum;
 } __aligned(CACHE_LINE_SIZE);
 
 static struct neglist neglists[numneglists];
-static struct neglist ncneg_hot;
-static u_long numhotneg;
 
 static inline struct neglist *
 NCP2NEGLIST(struct namecache *ncp)
@@ -471,7 +471,6 @@ static long zap_and_exit_bucket_fail2; STATNODE_ULONG(zap_and_exit_bucket_fail2,
 static long cache_lock_vnodes_cel_3_failures;
 STATNODE_ULONG(cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
-STATNODE_ULONG(numhotneg, "Number of hot negative entries");
 STATNODE_COUNTER(numneg_evicted,
     "Number of negative entries evicted when adding a new entry");
 STATNODE_COUNTER(shrinking_skipped,
@@ -682,6 +681,21 @@ SYSCTL_PROC(_vfs_cache, OID_AUTO, nchstats, CTLTYPE_OPAQUE | CTLFLAG_RD |
     CTLFLAG_MPSAFE, 0, 0, sysctl_nchstats, "LU",
     "VFS cache effectiveness statistics");
 
+static int
+sysctl_hotnum(SYSCTL_HANDLER_ARGS)
+{
+	int i, out;
+
+	out = 0;
+	for (i = 0; i < numneglists; i++)
+		out += neglists[i].nl_hotnum;
+
+	return (SYSCTL_OUT(req, &out, sizeof(out)));
+}
+SYSCTL_PROC(_vfs_cache, OID_AUTO, hotnum, CTLTYPE_INT | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_hotnum, "I",
+    "Number of hot negative entries");
+
 #ifdef DIAGNOSTIC
 /*
  * Grab an atomic snapshot of the name cache hash chain lengths
@@ -802,16 +816,14 @@ cache_negative_hit(struct namecache *ncp)
 	if ((negstate->neg_flag & NEG_HOT) != 0)
 		return;
 	neglist = NCP2NEGLIST(ncp);
-	mtx_lock(&ncneg_hot.nl_lock);
 	mtx_lock(&neglist->nl_lock);
 	if ((negstate->neg_flag & NEG_HOT) == 0) {
-		numhotneg++;
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
-		TAILQ_INSERT_TAIL(&ncneg_hot.nl_list, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&neglist->nl_hotlist, ncp, nc_dst);
+		neglist->nl_hotnum++;
 		negstate->neg_flag |= NEG_HOT;
 	}
 	mtx_unlock(&neglist->nl_lock);
-	mtx_unlock(&ncneg_hot.nl_lock);
 }
 
 static void
@@ -833,72 +845,42 @@ cache_negative_remove(struct namecache *ncp)
 {
 	struct neglist *neglist;
 	struct negstate *negstate;
-	bool hot_locked = false;
-	bool list_locked = false;
 
 	cache_assert_bucket_locked(ncp);
 	neglist = NCP2NEGLIST(ncp);
 	negstate = NCP2NEGSTATE(ncp);
+	mtx_lock(&neglist->nl_lock);
 	if ((negstate->neg_flag & NEG_HOT) != 0) {
-		hot_locked = true;
-		mtx_lock(&ncneg_hot.nl_lock);
-		if ((negstate->neg_flag & NEG_HOT) == 0) {
-			list_locked = true;
-			mtx_lock(&neglist->nl_lock);
-		}
+		TAILQ_REMOVE(&neglist->nl_hotlist, ncp, nc_dst);
+		neglist->nl_hotnum--;
 	} else {
-		list_locked = true;
-		mtx_lock(&neglist->nl_lock);
-		/*
-		 * We may be racing against promotion in lockless lookup.
-		 */
-		if ((negstate->neg_flag & NEG_HOT) != 0) {
-			mtx_unlock(&neglist->nl_lock);
-			hot_locked = true;
-			mtx_lock(&ncneg_hot.nl_lock);
-			mtx_lock(&neglist->nl_lock);
-		}
-	}
-	if ((negstate->neg_flag & NEG_HOT) != 0) {
-		mtx_assert(&ncneg_hot.nl_lock, MA_OWNED);
-		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
-		numhotneg--;
-	} else {
-		mtx_assert(&neglist->nl_lock, MA_OWNED);
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
 	}
-	if (list_locked)
-		mtx_unlock(&neglist->nl_lock);
-	if (hot_locked)
-		mtx_unlock(&ncneg_hot.nl_lock);
+	mtx_unlock(&neglist->nl_lock);
 	atomic_subtract_long(&numneg, 1);
 }
 
-static void
-cache_negative_shrink_select(struct namecache **ncpp,
-    struct neglist **neglistpp)
+static struct neglist *
+cache_negative_shrink_select(void)
 {
 	struct neglist *neglist;
-	struct namecache *ncp;
 	static u_int cycle;
 	u_int i;
 
-	*ncpp = ncp = NULL;
-
+	cycle++;
 	for (i = 0; i < numneglists; i++) {
 		neglist = &neglists[(cycle + i) % numneglists];
-		if (TAILQ_FIRST(&neglist->nl_list) == NULL)
+		if (TAILQ_FIRST(&neglist->nl_list) == NULL &&
+		    TAILQ_FIRST(&neglist->nl_hotlist) == NULL)
 			continue;
 		mtx_lock(&neglist->nl_lock);
-		ncp = TAILQ_FIRST(&neglist->nl_list);
-		if (ncp != NULL)
-			break;
+		if (TAILQ_FIRST(&neglist->nl_list) != NULL ||
+		    TAILQ_FIRST(&neglist->nl_hotlist) != NULL)
+			return (neglist);
 		mtx_unlock(&neglist->nl_lock);
 	}
 
-	*neglistpp = neglist;
-	*ncpp = ncp;
-	cycle++;
+	return (NULL);
 }
 
 static void
@@ -916,28 +898,23 @@ cache_negative_zap_one(void)
 		return;
 	}
 
-	mtx_lock(&ncneg_hot.nl_lock);
-	ncp = TAILQ_FIRST(&ncneg_hot.nl_list);
-	if (ncp != NULL) {
-		neglist = NCP2NEGLIST(ncp);
-		negstate = NCP2NEGSTATE(ncp);
-		mtx_lock(&neglist->nl_lock);
-		MPASS((negstate->neg_flag & NEG_HOT) != 0);
-		TAILQ_REMOVE(&ncneg_hot.nl_list, ncp, nc_dst);
-		TAILQ_INSERT_TAIL(&neglist->nl_list, ncp, nc_dst);
-		negstate->neg_flag &= ~NEG_HOT;
-		numhotneg--;
-		mtx_unlock(&neglist->nl_lock);
-	}
-	mtx_unlock(&ncneg_hot.nl_lock);
-
-	cache_negative_shrink_select(&ncp, &neglist);
-
+	neglist = cache_negative_shrink_select();
 	mtx_unlock(&ncneg_shrink_lock);
-	if (ncp == NULL)
+	if (neglist == NULL) {
 		return;
+	}
 
-	MPASS(ncp->nc_flag & NCF_NEGATIVE);
+	ncp = TAILQ_FIRST(&neglist->nl_hotlist);
+	if (ncp != NULL) {
+		negstate = NCP2NEGSTATE(ncp);
+		TAILQ_REMOVE(&neglist->nl_hotlist, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&neglist->nl_list, ncp, nc_dst);
+		neglist->nl_hotnum--;
+		negstate->neg_flag &= ~NEG_HOT;
+	}
+	ncp = TAILQ_FIRST(&neglist->nl_list);
+	MPASS(ncp != NULL);
+	negstate = NCP2NEGSTATE(ncp);
 	dvlp = VP2VNODELOCK(ncp->nc_dvp);
 	blp = NCP2BUCKETLOCK(ncp);
 	mtx_unlock(&neglist->nl_lock);
@@ -2095,9 +2072,8 @@ nchinit(void *dummy __unused)
 	for (i = 0; i < numneglists; i++) {
 		mtx_init(&neglists[i].nl_lock, "ncnegl", NULL, MTX_DEF);
 		TAILQ_INIT(&neglists[i].nl_list);
+		TAILQ_INIT(&neglists[i].nl_hotlist);
 	}
-	mtx_init(&ncneg_hot.nl_lock, "ncneglh", NULL, MTX_DEF);
-	TAILQ_INIT(&ncneg_hot.nl_list);
 
 	mtx_init(&ncneg_shrink_lock, "ncnegs", NULL, MTX_DEF);
 }
@@ -3413,7 +3389,6 @@ cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
 	neglist = NCP2NEGLIST(oncp);
 	cache_fpl_smr_exit(fpl);
 
-	mtx_lock(&ncneg_hot.nl_lock);
 	mtx_lock(&neglist->nl_lock);
 	/*
 	 * For hash iteration.
@@ -3461,9 +3436,9 @@ cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
 
 	negstate = NCP2NEGSTATE(ncp);
 	if ((negstate->neg_flag & NEG_HOT) == 0) {
-		numhotneg++;
 		TAILQ_REMOVE(&neglist->nl_list, ncp, nc_dst);
-		TAILQ_INSERT_TAIL(&ncneg_hot.nl_list, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&neglist->nl_hotlist, ncp, nc_dst);
+		neglist->nl_hotnum++;
 		negstate->neg_flag |= NEG_HOT;
 	}
 
@@ -3471,13 +3446,11 @@ cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
 	counter_u64_add(numneghits, 1);
 	cache_fpl_smr_exit(fpl);
 	mtx_unlock(&neglist->nl_lock);
-	mtx_unlock(&ncneg_hot.nl_lock);
 	vdrop(dvp);
 	return (cache_fpl_handled(fpl, ENOENT));
 out_abort:
 	cache_fpl_smr_exit(fpl);
 	mtx_unlock(&neglist->nl_lock);
-	mtx_unlock(&ncneg_hot.nl_lock);
 	vdrop(dvp);
 	return (cache_fpl_aborted(fpl));
 }
