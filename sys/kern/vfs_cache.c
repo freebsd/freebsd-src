@@ -305,17 +305,18 @@ SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_revlookup, CTLFLAG_RW,
 
 static struct mtx __exclusive_cache_line	ncneg_shrink_lock;
 
+#define ncneghash	3
+#define	numneglists	(ncneghash + 1)
+
 struct neglist {
 	struct mtx		nl_lock;
 	TAILQ_HEAD(, namecache) nl_list;
 } __aligned(CACHE_LINE_SIZE);
 
-static struct neglist __read_mostly	*neglists;
+static struct neglist neglists[numneglists];
 static struct neglist ncneg_hot;
 static u_long numhotneg;
 
-#define ncneghash	3
-#define	numneglists	(ncneghash + 1)
 static inline struct neglist *
 NCP2NEGLIST(struct namecache *ncp)
 {
@@ -2091,8 +2092,6 @@ nchinit(void *dummy __unused)
 	for (i = 0; i < numvnodelocks; i++)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
 
-	neglists = malloc(sizeof(*neglists) * numneglists, M_VFSCACHE,
-	    M_WAITOK | M_ZERO);
 	for (i = 0; i < numneglists; i++) {
 		mtx_init(&neglists[i].nl_lock, "ncnegl", NULL, MTX_DEF);
 		TAILQ_INIT(&neglists[i].nl_list);
