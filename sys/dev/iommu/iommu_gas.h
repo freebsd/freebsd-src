@@ -31,35 +31,30 @@
  * $FreeBSD$
  */
 
-#ifndef __X86_IOMMU_BUSDMA_DMAR_H
-#define __X86_IOMMU_BUSDMA_DMAR_H
+#ifndef _DEV_IOMMU_IOMMU_GAS_H_
+#define _DEV_IOMMU_IOMMU_GAS_H_
 
-#include <dev/iommu/iommu.h>
-#include <dev/iommu/iommu_gas.h>
+/* Map flags */
+#define	IOMMU_MF_CANWAIT	0x0001
+#define	IOMMU_MF_CANSPLIT	0x0002
+#define	IOMMU_MF_RMRR		0x0004
 
-struct bus_dma_tag_iommu {
-	struct bus_dma_tag_common common;
-	struct iommu_ctx *ctx;
-	device_t owner;
-	int map_count;
-	bus_dma_segment_t *segments;
-};
+#define	IOMMU_PGF_WAITOK	0x0001
+#define	IOMMU_PGF_ZERO		0x0002
+#define	IOMMU_PGF_ALLOC		0x0004
+#define	IOMMU_PGF_NOALLOC	0x0008
+#define	IOMMU_PGF_OBJL		0x0010
 
-struct bus_dmamap_iommu {
-	struct bus_dma_tag_iommu *tag;
-	struct memdesc mem;
-	bus_dmamap_callback_t *callback;
-	void *callback_arg;
-	struct iommu_map_entries_tailq map_entries;
-	TAILQ_ENTRY(bus_dmamap_iommu) delay_link;
-	bool locked;
-	bool cansleep;
-	int flags;
-};
+#define	IOMMU_MAP_ENTRY_PLACE	0x0001	/* Fake entry */
+#define	IOMMU_MAP_ENTRY_RMRR	0x0002	/* Permanent, not linked by
+					   dmamap_link */
+#define	IOMMU_MAP_ENTRY_MAP	0x0004	/* Busdma created, linked by
+					   dmamap_link */
+#define	IOMMU_MAP_ENTRY_UNMAPPED	0x0010	/* No backing pages */
+#define	IOMMU_MAP_ENTRY_QI_NF	0x0020	/* qi task, do not free entry */
+#define	IOMMU_MAP_ENTRY_READ	0x1000	/* Read permitted */
+#define	IOMMU_MAP_ENTRY_WRITE	0x2000	/* Write permitted */
+#define	IOMMU_MAP_ENTRY_SNOOP	0x4000	/* Snoop */
+#define	IOMMU_MAP_ENTRY_TM	0x8000	/* Transient */
 
-#define	BUS_DMAMAP_IOMMU_MALLOC	0x0001
-#define	BUS_DMAMAP_IOMMU_KMEM_ALLOC 0x0002
-
-extern struct bus_dma_impl bus_dma_iommu_impl;
-
-#endif
+#endif /* !_DEV_IOMMU_IOMMU_GAS_H_ */
