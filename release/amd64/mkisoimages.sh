@@ -48,7 +48,7 @@ if [ "$1" = "-b" ]; then
 	# Make EFI system partition.
 	espfilename=$(mktemp /tmp/efiboot.XXXXXX)
 	# ESP file size in KB.
-	espsize="1024"
+	espsize="2048"
 	make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi
 	bootable="$bootable -o bootimage=i386;${espfilename} -o no-emul-boot -o platformid=efi"
 
