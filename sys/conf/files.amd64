@@ -378,18 +378,6 @@ dev/tpm/tpm_acpi.c		optional	tpm acpi
 dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_x86.c		optional	uart
 dev/viawd/viawd.c		optional	viawd
-dev/vmware/vmxnet3/if_vmx.c	optional	vmx
-dev/vmware/vmci/vmci.c			optional	vmci
-dev/vmware/vmci/vmci_datagram.c		optional	vmci
-dev/vmware/vmci/vmci_doorbell.c		optional	vmci
-dev/vmware/vmci/vmci_driver.c		optional	vmci
-dev/vmware/vmci/vmci_event.c		optional	vmci
-dev/vmware/vmci/vmci_hashtable.c	optional	vmci
-dev/vmware/vmci/vmci_kernel_if.c	optional	vmci
-dev/vmware/vmci/vmci_qpair.c		optional	vmci
-dev/vmware/vmci/vmci_queue_pair.c	optional	vmci
-dev/vmware/vmci/vmci_resource.c		optional	vmci
-dev/vmware/pvscsi/pvscsi.c		optional	pvscsi
 dev/vmd/vmd.c			optional	vmd
 dev/vmd/vmd_bus.c		optional	vmd_bus
 dev/wbwd/wbwd.c			optional	wbwd
