@@ -45,7 +45,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	struct buf *pbuf;
 	struct bio *bp;
 	struct vm_page **pages;
-	caddr_t sa;
+	char *base, *sa;
 	u_int iolen, poff;
 	int error, i, npages, maxpages;
 	vm_prot_t prot;
@@ -140,7 +140,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				curthread->td_ru.ru_oublock++;
 			}
 			bp->bio_offset = uio->uio_offset;
-			bp->bio_data = uio->uio_iov[i].iov_base;
+			base = uio->uio_iov[i].iov_base;
 			bp->bio_length = uio->uio_iov[i].iov_len;
 			if (bp->bio_length > dev->si_iosize_max)
 				bp->bio_length = dev->si_iosize_max;
@@ -153,13 +153,13 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 			 * larger than MAXPHYS - PAGE_SIZE must be
 			 * page aligned or it will be fragmented.
 			 */
-			poff = (vm_offset_t)bp->bio_data & PAGE_MASK;
+			poff = (vm_offset_t)base & PAGE_MASK;
 			if (pbuf && bp->bio_length + poff > pbuf->b_kvasize) {
 				if (dev->si_flags & SI_NOSPLIT) {
 					uprintf("%s: request ptr %p is not "
 					    "on a page boundary; cannot split "
 					    "request\n", devtoname(dev),
-					    bp->bio_data);
+					    base);
 					error = EFBIG;
 					goto doerror;
 				}
@@ -174,7 +174,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 			if (pages) {
 				if ((npages = vm_fault_quick_hold_pages(
 				    &curproc->p_vmspace->vm_map,
-				    (vm_offset_t)bp->bio_data, bp->bio_length,
+				    (vm_offset_t)base, bp->bio_length,
 				    prot, pages, maxpages)) < 0) {
 					error = EFAULT;
 					goto doerror;
@@ -190,7 +190,8 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 					bp->bio_data = unmapped_buf;
 					bp->bio_flags |= BIO_UNMAPPED;
 				}
-			}
+			} else
+				bp->bio_data = base;
 
 			csw->d_strategy(bp);
 			if (uio->uio_rw == UIO_READ)
