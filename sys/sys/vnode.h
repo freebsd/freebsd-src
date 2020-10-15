@@ -828,6 +828,7 @@ int	vop_ebadf(struct vop_generic_args *ap);
 int	vop_einval(struct vop_generic_args *ap);
 int	vop_enoent(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
+int	vop_eagain(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
 int	dead_poll(struct vop_poll_args *ap);
@@ -1001,6 +1002,7 @@ extern struct vop_vector default_vnodeops;
 #define VOP_EINVAL	((void*)(uintptr_t)vop_einval)
 #define VOP_ENOENT	((void*)(uintptr_t)vop_enoent)
 #define VOP_EOPNOTSUPP	((void*)(uintptr_t)vop_eopnotsupp)
+#define VOP_EAGAIN	((void*)(uintptr_t)vop_eagain)
 
 /* fifo_vnops.c */
 int	fifo_printinfo(struct vnode *);

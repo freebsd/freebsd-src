@@ -198,6 +198,13 @@ vop_enoent(struct vop_generic_args *ap)
 }
 
 int
+vop_eagain(struct vop_generic_args *ap)
+{
+
+	return (EAGAIN);
+}
+
+int
 vop_null(struct vop_generic_args *ap)
 {
 
