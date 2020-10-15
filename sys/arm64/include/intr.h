@@ -36,7 +36,7 @@
 #include <sys/intr.h>
 
 #ifndef NIRQ
-#define	NIRQ		2048	/* XXX - It should be an option. */
+#define	NIRQ		16384	/* XXX - It should be an option. */
 #endif
 
 static inline void
