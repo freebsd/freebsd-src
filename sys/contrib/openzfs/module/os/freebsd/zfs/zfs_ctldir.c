@@ -798,6 +798,7 @@ zfsctl_common_getacl(struct vop_getacl_args *ap)
 
 static struct vop_vector zfsctl_ops_root = {
 	.vop_default =	&default_vnodeops,
+	.vop_fplookup_vexec = VOP_EAGAIN,
 	.vop_open =	zfsctl_common_open,
 	.vop_close =	zfsctl_common_close,
 	.vop_ioctl =	VOP_EINVAL,
@@ -1115,6 +1116,7 @@ zfsctl_snapdir_getattr(struct vop_getattr_args *ap)
 
 static struct vop_vector zfsctl_ops_snapdir = {
 	.vop_default =	&default_vnodeops,
+	.vop_fplookup_vexec = VOP_EAGAIN,
 	.vop_open =	zfsctl_common_open,
 	.vop_close =	zfsctl_common_close,
 	.vop_getattr =	zfsctl_snapdir_getattr,
@@ -1216,6 +1218,7 @@ zfsctl_snapshot_vptocnp(struct vop_vptocnp_args *ap)
  */
 static struct vop_vector zfsctl_ops_snapshot = {
 	.vop_default =		NULL, /* ensure very restricted access */
+	.vop_fplookup_vexec =	VOP_EAGAIN,
 	.vop_inactive =		zfsctl_snapshot_inactive,
 #if __FreeBSD_version >= 1300045
 	.vop_need_inactive = vop_stdneed_inactive,
