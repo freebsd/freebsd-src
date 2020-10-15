@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
  */
 
 static bool
-check_pf_module_available()
+check_pf_module_available(void)
 {
 	int modid;
 	struct module_stat stat;
