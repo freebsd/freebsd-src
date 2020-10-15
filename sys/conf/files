@@ -3455,6 +3455,18 @@ dev/virtio/random/virtio_random.c	optional	virtio_random
 dev/virtio/console/virtio_console.c	optional	virtio_console
 dev/vkbd/vkbd.c			optional vkbd
 dev/vmgenc/vmgenc_acpi.c	optional acpi
+dev/vmware/vmxnet3/if_vmx.c		optional vmx
+dev/vmware/vmci/vmci.c			optional vmci
+dev/vmware/vmci/vmci_datagram.c		optional vmci
+dev/vmware/vmci/vmci_doorbell.c		optional vmci
+dev/vmware/vmci/vmci_driver.c		optional vmci
+dev/vmware/vmci/vmci_event.c		optional vmci
+dev/vmware/vmci/vmci_hashtable.c	optional vmci
+dev/vmware/vmci/vmci_kernel_if.c	optional vmci
+dev/vmware/vmci/vmci_qpair.c		optional vmci
+dev/vmware/vmci/vmci_queue_pair.c	optional vmci
+dev/vmware/vmci/vmci_resource.c		optional vmci
+dev/vmware/pvscsi/pvscsi.c		optional pvscsi
 dev/vr/if_vr.c			optional vr pci
 dev/vt/colors/vt_termcolors.c	optional vt
 dev/vt/font/vt_font_default.c	optional vt
