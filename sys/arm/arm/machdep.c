@@ -1032,8 +1032,7 @@ initarm(struct arm_boot_params *abp)
 	 * output is required. If it's grossly incorrect the kernel will never
 	 * make it this far.
 	 */
-	if ((boothowto & RB_VERBOSE) &&
-	    getenv_is_true("debug.dump_modinfo_at_boot"))
+	if (getenv_is_true("debug.dump_modinfo_at_boot"))
 		preload_dump();
 
 	env = kern_getenv("kernelname");
