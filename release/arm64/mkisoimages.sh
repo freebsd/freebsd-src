@@ -40,10 +40,10 @@ if [ "$1" = "-b" ]; then
 	BASEBITSDIR="$4"
 
 	# Make an EFI system partition.
-	# The ISO file is a special case, in that it only has a maximum of
-	# 800 KB available for the boot code. So make an 800 KB ESP
 	espfilename=$(mktemp /tmp/efiboot.XXXXXX)
-	make_esp_file ${espfilename} 800 ${BASEBITSDIR}/boot/loader.efi
+	# ESP file size in KB.
+	espsize="1024"
+	make_esp_file ${espfilename} ${espsize} ${BASEBITSDIR}/boot/loader.efi
 
 	bootable="-o bootimage=efi;${espfilename} -o no-emul-boot -o platformid=efi"
 
