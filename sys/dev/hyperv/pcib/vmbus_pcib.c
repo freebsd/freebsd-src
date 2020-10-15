@@ -117,6 +117,31 @@ wait_for_completion(struct completion *c)
 	mtx_unlock(&c->lock);
 }
 
+/*
+ * Return: 0 if completed, a non-zero value if timed out.
+ */
+static int
+wait_for_completion_timeout(struct completion *c, int timeout)
+{
+	int ret;
+
+	mtx_lock(&c->lock);
+
+	if (c->done == 0)
+		mtx_sleep(c, &c->lock, 0, "hvwfc", timeout);
+
+	if (c->done > 0) {
+		c->done--;
+		ret = 0;
+	} else {
+		ret = 1;
+	}
+
+	mtx_unlock(&c->lock);
+
+	return (ret);
+}
+
 #define PCI_MAKE_VERSION(major, minor) ((uint32_t)(((major) << 16) | (major)))
 
 enum {
@@ -438,6 +463,25 @@ struct compose_comp_ctxt {
 	struct tran_int_desc int_desc;
 };
 
+/*
+ * It is possible the device is revoked during initialization.
+ * Check if this happens during wait.
+ * Return: 0 if response arrived, ENODEV if device revoked.
+ */
+static int
+wait_for_response(struct hv_pcibus *hbus, struct completion *c)
+{
+	do {
+		if (vmbus_chan_is_revoked(hbus->sc->chan)) {
+			device_printf(hbus->pcib,
+			    "The device is revoked.\n");
+			return (ENODEV);
+		}
+	} while (wait_for_completion_timeout(c, hz /10) != 0);
+
+	return 0;
+}
+
 static void
 hv_pci_generic_compl(void *context, struct pci_response *resp,
     int resp_packet_size)
@@ -568,7 +612,9 @@ new_pcichild_device(struct hv_pcibus *hbus, struct pci_func_desc *desc)
 	if (ret)
 		goto err;
 
-	wait_for_completion(&comp_pkt.host_event);
+	if (wait_for_response(hbus, &comp_pkt.host_event))
+		goto err;
+
 	free_completion(&comp_pkt.host_event);
 
 	hpdev->desc = *desc;
@@ -1011,10 +1057,15 @@ hv_pci_protocol_negotiation(struct hv_pcibus *hbus)
 	ret = vmbus_chan_send(hbus->sc->chan, VMBUS_CHANPKT_TYPE_INBAND,
 	    VMBUS_CHANPKT_FLAG_RC, version_req, sizeof(*version_req),
 	    (uint64_t)(uintptr_t)&ctxt.pkt);
-	if (ret)
-		goto out;
+	if (!ret)
+		ret = wait_for_response(hbus, &comp_pkt.host_event);
 
-	wait_for_completion(&comp_pkt.host_event);
+	if (ret) {
+		device_printf(hbus->pcib,
+		    "vmbus_pcib failed to request version: %d\n",
+		    ret);
+		goto out;
+	}
 
 	if (comp_pkt.completion_status < 0) {
 		device_printf(hbus->pcib,
@@ -1072,10 +1123,11 @@ hv_pci_enter_d0(struct hv_pcibus *hbus)
 	ret = vmbus_chan_send(hbus->sc->chan, VMBUS_CHANPKT_TYPE_INBAND,
 	    VMBUS_CHANPKT_FLAG_RC, d0_entry, sizeof(*d0_entry),
 	    (uint64_t)(uintptr_t)&ctxt.pkt);
+	if (!ret)
+		ret = wait_for_response(hbus, &comp_pkt.host_event);
+
 	if (ret)
 		goto out;
-
-	wait_for_completion(&comp_pkt.host_event);
 
 	if (comp_pkt.completion_status < 0) {
 		device_printf(hbus->pcib, "vmbus_pcib failed to enable D0\n");
@@ -1125,13 +1177,13 @@ hv_send_resources_allocated(struct hv_pcibus *hbus)
 		    VMBUS_CHANPKT_TYPE_INBAND, VMBUS_CHANPKT_FLAG_RC,
 		    &pkt->message, sizeof(*res_assigned),
 		    (uint64_t)(uintptr_t)pkt);
-		if (ret) {
-			free_completion(&comp_pkt.host_event);
-			break;
-		}
+		if (!ret)
+			ret = wait_for_response(hbus, &comp_pkt.host_event);
 
-		wait_for_completion(&comp_pkt.host_event);
 		free_completion(&comp_pkt.host_event);
+
+		if (ret)
+			break;
 
 		if (comp_pkt.completion_status < 0) {
 			ret = EPROTO;
@@ -1413,9 +1465,11 @@ vmbus_pcib_attach(device_t dev)
 		goto vmbus_close;
 
 	ret = hv_pci_query_relations(hbus);
+	if (!ret)
+		ret = wait_for_response(hbus, hbus->query_comp);
+
 	if (ret)
 		goto vmbus_close;
-	wait_for_completion(hbus->query_comp);
 
 	ret = hv_pci_enter_d0(hbus);
 	if (ret)
