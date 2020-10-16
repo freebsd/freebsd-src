@@ -743,6 +743,8 @@ alg_is_aead(int alg)
 	return (alg_type(alg) == ALG_AEAD);
 }
 
+#define SUPPORTED_SES (CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD | CSP_F_ESN)
+
 /* Various sanity checks on crypto session parameters. */
 static bool
 check_csp(const struct crypto_session_params *csp)
@@ -750,8 +752,7 @@ check_csp(const struct crypto_session_params *csp)
 	struct auth_hash *axf;
 
 	/* Mode-independent checks. */
-	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
-	    0)
+	if ((csp->csp_flags & ~(SUPPORTED_SES)) != 0)
 		return (false);
 	if (csp->csp_ivlen < 0 || csp->csp_cipher_klen < 0 ||
 	    csp->csp_auth_klen < 0 || csp->csp_auth_mlen < 0)

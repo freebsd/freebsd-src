@@ -201,6 +201,15 @@ Sessions with this flag set permit requests with AAD passed in either in
 a region of the input buffer or in a single, virtually-contiguous buffer.
 Sessions without this flag only permit requests with AAD passed in as
 a region in the input buffer.
+.It Dv CSP_F_ESN
+Support requests that use a separate buffer for IPsec ESN (Extended Sequence
+Numbers).
+.Pp
+Sessions with this flag set permit requests with IPsec ESN passed in special
+buffer.
+It is required for IPsec ESN support of encrypt and authenticate mode where
+the high-order 32 bits of the sequence number are appended after the Next
+Header (RFC 4303).
 .El
 .It Fa csp_ivlen
 If either the cipher or authentication algorithms require an explicit
