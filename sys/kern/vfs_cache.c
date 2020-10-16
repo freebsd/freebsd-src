@@ -807,6 +807,23 @@ cache_negative_init(struct namecache *ncp)
 }
 
 static void
+cache_negative_promote(struct namecache *ncp)
+{
+	struct neglist *nl;
+	struct negstate *ns;
+
+	ns = NCP2NEGSTATE(ncp);
+	nl = NCP2NEGLIST(ncp);
+	mtx_assert(&nl->nl_lock, MA_OWNED);
+	if ((ns->neg_flag & NEG_HOT) == 0) {
+		TAILQ_REMOVE(&nl->nl_list, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&nl->nl_hotlist, ncp, nc_dst);
+		nl->nl_hotnum++;
+		ns->neg_flag |= NEG_HOT;
+	}
+}
+
+static void
 cache_negative_hit(struct namecache *ncp)
 {
 	struct neglist *nl;
@@ -817,12 +834,7 @@ cache_negative_hit(struct namecache *ncp)
 		return;
 	nl = NCP2NEGLIST(ncp);
 	mtx_lock(&nl->nl_lock);
-	if ((ns->neg_flag & NEG_HOT) == 0) {
-		TAILQ_REMOVE(&nl->nl_list, ncp, nc_dst);
-		TAILQ_INSERT_TAIL(&nl->nl_hotlist, ncp, nc_dst);
-		nl->nl_hotnum++;
-		ns->neg_flag |= NEG_HOT;
-	}
+	cache_negative_promote(ncp);
 	mtx_unlock(&nl->nl_lock);
 }
 
@@ -3376,7 +3388,6 @@ cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
 	struct componentname *cnp;
 	struct namecache *ncp;
 	struct neglist *nl;
-	struct negstate *ns;
 	struct vnode *dvp;
 	u_char nc_flag;
 
@@ -3434,13 +3445,7 @@ cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
 		goto out_abort;
 	}
 
-	ns = NCP2NEGSTATE(ncp);
-	if ((ns->neg_flag & NEG_HOT) == 0) {
-		TAILQ_REMOVE(&nl->nl_list, ncp, nc_dst);
-		TAILQ_INSERT_TAIL(&nl->nl_hotlist, ncp, nc_dst);
-		nl->nl_hotnum++;
-		ns->neg_flag |= NEG_HOT;
-	}
+	cache_negative_promote(ncp);
 
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
 	counter_u64_add(numneghits, 1);
