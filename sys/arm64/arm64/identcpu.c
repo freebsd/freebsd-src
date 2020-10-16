@@ -883,7 +883,7 @@ static struct mrs_field_value id_aa64pfr0_el0[] = {
 static struct mrs_field id_aa64pfr0_fields[] = {
 	MRS_FIELD(ID_AA64PFR0, CSV3, false, MRS_EXACT, id_aa64pfr0_csv3),
 	MRS_FIELD(ID_AA64PFR0, CSV2, false, MRS_EXACT, id_aa64pfr0_csv2),
-	MRS_FIELD(ID_AA64PFR0, DIT, false, MRS_EXACT, id_aa64pfr0_dit),
+	MRS_FIELD(ID_AA64PFR0, DIT, false, MRS_LOWER, id_aa64pfr0_dit),
 	MRS_FIELD(ID_AA64PFR0, AMU, false, MRS_EXACT, id_aa64pfr0_amu),
 	MRS_FIELD(ID_AA64PFR0, MPAM, false, MRS_EXACT, id_aa64pfr0_mpam),
 	MRS_FIELD(ID_AA64PFR0, SEL2, false, MRS_EXACT, id_aa64pfr0_sel2),
@@ -1257,6 +1257,10 @@ parse_cpu_features_hwcap(void)
 		break;
 	}
 
+	if (ID_AA64ISAR0_FHM_VAL(user_cpu_desc.id_aa64isar0) ==
+	    ID_AA64ISAR0_FHM_IMPL)
+		hwcap |= HWCAP_ASIMDFHM;
+
 	if (ID_AA64ISAR0_DP_VAL(user_cpu_desc.id_aa64isar0) ==
 	    ID_AA64ISAR0_DP_IMPL)
 		hwcap |= HWCAP_ASIMDDP;
@@ -1337,6 +1341,14 @@ parse_cpu_features_hwcap(void)
 	if (ID_AA64ISAR1_DPB_VAL(user_cpu_desc.id_aa64isar1) ==
 	    ID_AA64ISAR1_DPB_DCCVAP)
 		hwcap |= HWCAP_DCPOP;
+
+	if (ID_AA64MMFR2_AT_VAL(user_cpu_desc.id_aa64mmfr2) ==
+	    ID_AA64MMFR2_AT_IMPL)
+		hwcap |= HWCAP_USCAT;
+
+	if (ID_AA64PFR0_DIT_VAL(user_cpu_desc.id_aa64pfr0) ==
+	    ID_AA64PFR0_DIT_PSTATE)
+		hwcap |= HWCAP_DIT;
 
 	if (ID_AA64PFR0_SVE_VAL(user_cpu_desc.id_aa64pfr0) ==
 	    ID_AA64PFR0_SVE_IMPL)
