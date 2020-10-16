@@ -806,6 +806,9 @@ cache_negative_init(struct namecache *ncp)
 	ns->neg_flag = 0;
 }
 
+/*
+ * Move a negative entry to the hot list.
+ */
 static void
 cache_negative_promote(struct namecache *ncp)
 {
@@ -821,6 +824,87 @@ cache_negative_promote(struct namecache *ncp)
 		nl->nl_hotnum++;
 		ns->neg_flag |= NEG_HOT;
 	}
+}
+
+/*
+ * Move a negative entry to the hot list if it matches the lookup.
+ *
+ * We have to take locks, but they may be contended and in the worst
+ * case we may need to go off CPU. We don't want to spin within the
+ * smr section and we can't block with it. Exiting the section means
+ * the found entry could have been evicted. We are going to look it
+ * up again.
+ */
+static bool
+cache_negative_promote_cond(struct vnode *dvp, struct componentname *cnp,
+    struct namecache *oncp, uint32_t hash)
+{
+	struct namecache *ncp;
+	struct neglist *nl;
+	u_char nc_flag;
+
+	nl = NCP2NEGLIST(oncp);
+
+	mtx_lock(&nl->nl_lock);
+	/*
+	 * For hash iteration.
+	 */
+	vfs_smr_enter();
+
+	/*
+	 * Avoid all surprises by only succeeding if we got the same entry and
+	 * bailing completely otherwise.
+	 * XXX There are no provisions to keep the vnode around, meaning we may
+	 * end up promoting a negative entry for a *new* vnode and returning
+	 * ENOENT on its account. This is the error we want to return anyway
+	 * and promotion is harmless.
+	 *
+	 * In particular at this point there can be a new ncp which matches the
+	 * search but hashes to a different neglist.
+	 */
+	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
+		if (ncp == oncp)
+			break;
+	}
+
+	/*
+	 * No match to begin with.
+	 */
+	if (__predict_false(ncp == NULL)) {
+		goto out_abort;
+	}
+
+	/*
+	 * The newly found entry may be something different...
+	 */
+	if (!(ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
+	    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))) {
+		goto out_abort;
+	}
+
+	/*
+	 * ... and not even negative.
+	 */
+	nc_flag = atomic_load_char(&ncp->nc_flag);
+	if ((nc_flag & NCF_NEGATIVE) == 0) {
+		goto out_abort;
+	}
+
+	if (__predict_false(!cache_ncp_canuse(ncp))) {
+		goto out_abort;
+	}
+
+	cache_negative_promote(ncp);
+
+	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
+	counter_u64_add(numneghits, 1);
+	vfs_smr_exit();
+	mtx_unlock(&nl->nl_lock);
+	return (true);
+out_abort:
+	vfs_smr_exit();
+	mtx_unlock(&nl->nl_lock);
+	return (false);
 }
 
 static void
@@ -1455,7 +1539,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	uint32_t hash;
 	enum vgetstate vs;
 	int error;
-	bool whiteout;
+	bool whiteout, neg_hot;
 	u_short nc_flag;
 
 	MPASS((tsp == NULL && ticksp == NULL) || (tsp != NULL && ticksp != NULL));
@@ -1532,21 +1616,23 @@ negative_success:
 		}
 	}
 
-	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
 	cache_out_ts(ncp, tsp, ticksp);
-	counter_u64_add(numneghits, 1);
 	whiteout = (ncp->nc_flag & NCF_WHITE);
-	/*
-	 * TODO: We need to take locks to promote an entry. Code doing it
-	 * in SMR lookup can be modified to be shared.
-	 */
 	ns = NCP2NEGSTATE(ncp);
-	if ((ns->neg_flag & NEG_HOT) == 0 ||
-	    !cache_ncp_canuse(ncp)) {
+	neg_hot = ((ns->neg_flag & NEG_HOT) != 0);
+	if (__predict_false(!cache_ncp_canuse(ncp))) {
 		vfs_smr_exit();
 		goto out_fallback;
 	}
-	vfs_smr_exit();
+	if (neg_hot) {
+		vfs_smr_exit();
+		if (!cache_negative_promote_cond(dvp, cnp, ncp, hash))
+			goto out_fallback;
+	} else {
+		SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
+		counter_u64_add(numneghits, 1);
+		vfs_smr_exit();
+	}
 	if (whiteout)
 		cnp->cn_flags |= ISWHITEOUT;
 	return (ENOENT);
@@ -3373,90 +3459,21 @@ cache_fplookup_vnode_supported(struct vnode *vp)
 	return (vp->v_type != VLNK);
 }
 
-/*
- * Move a negative entry to the hot list.
- *
- * We have to take locks, but they may be contended and in the worst
- * case we may need to go off CPU. We don't want to spin within the
- * smr section and we can't block with it. Instead we are going to
- * look up the entry again.
- */
 static int __noinline
 cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
     uint32_t hash)
 {
 	struct componentname *cnp;
-	struct namecache *ncp;
-	struct neglist *nl;
 	struct vnode *dvp;
-	u_char nc_flag;
 
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 
-	nl = NCP2NEGLIST(oncp);
 	cache_fpl_smr_exit(fpl);
-
-	mtx_lock(&nl->nl_lock);
-	/*
-	 * For hash iteration.
-	 */
-	cache_fpl_smr_enter(fpl);
-
-	/*
-	 * Avoid all surprises by only succeeding if we got the same entry and
-	 * bailing completely otherwise.
-	 * XXX There are no provisions to keep the vnode around, meaning we may
-	 * end up promoting a negative entry for a *new* vnode and returning
-	 * ENOENT on its account. This is the error we want to return anyway
-	 * and promotion is harmless.
-	 *
-	 * In particular at this point there can be a new ncp which matches the
-	 * search but hashes to a different neglist.
-	 */
-	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
-		if (ncp == oncp)
-			break;
-	}
-
-	/*
-	 * No match to begin with.
-	 */
-	if (__predict_false(ncp == NULL)) {
-		goto out_abort;
-	}
-
-	/*
-	 * The newly found entry may be something different...
-	 */
-	if (!(ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
-	    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen))) {
-		goto out_abort;
-	}
-
-	/*
-	 * ... and not even negative.
-	 */
-	nc_flag = atomic_load_char(&ncp->nc_flag);
-	if ((nc_flag & NCF_NEGATIVE) == 0) {
-		goto out_abort;
-	}
-
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
-		goto out_abort;
-	}
-
-	cache_negative_promote(ncp);
-
-	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
-	counter_u64_add(numneghits, 1);
-	cache_fpl_smr_exit(fpl);
-	mtx_unlock(&nl->nl_lock);
-	return (cache_fpl_handled(fpl, ENOENT));
-out_abort:
-	cache_fpl_smr_exit(fpl);
-	mtx_unlock(&nl->nl_lock);
-	return (cache_fpl_aborted(fpl));
+	if (cache_negative_promote_cond(dvp, cnp, oncp, hash))
+		return (cache_fpl_handled(fpl, ENOENT));
+	else
+		return (cache_fpl_aborted(fpl));
 }
 
 /*
