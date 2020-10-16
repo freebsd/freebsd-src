@@ -236,6 +236,10 @@ ah_init(struct secasvar *sav, struct xformsw *xsp)
 
 	memset(&csp, 0, sizeof(csp));
 	csp.csp_mode = CSP_MODE_DIGEST;
+
+	if (sav->flags & SADB_X_SAFLAGS_ESN)
+		csp.csp_flags |= CSP_F_ESN;
+
 	error = ah_init0(sav, xsp, &csp);
 	return error ? error :
 		 crypto_newsession(&sav->tdb_cryptoid, &csp, V_crypto_support);
@@ -654,6 +658,12 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	crp->crp_callback = ah_input_cb;
 	crp->crp_opaque = xd;
 
+	if (sav->flags & SADB_X_SAFLAGS_ESN &&
+	    sav->replay != NULL && sav->replay->wsize != 0) {
+		seqh = htonl(seqh);
+		memcpy(crp->crp_esn, &seqh, sizeof(seqh));
+	}
+
 	/* These are passed as-is to the callback. */
 	xd->sav = sav;
 	xd->nxt = hl;
@@ -834,6 +844,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	uint16_t iplen;
 	int error, rplen, authsize, ahsize, maxpacketsize, roff;
 	uint8_t prot;
+	uint32_t seqh;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	ahx = sav->tdb_authalgxform;
@@ -1030,6 +1041,11 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = ah_output_cb;
 	crp->crp_opaque = xd;
+
+	if (sav->flags & SADB_X_SAFLAGS_ESN && sav->replay != NULL) {
+		seqh = htonl((uint32_t)(sav->replay->count >> IPSEC_SEQH_SHIFT));
+		memcpy(crp->crp_esn, &seqh, sizeof(seqh));
+	}
 
 	/* These are passed as-is to the callback. */
 	xd->sp = sp;
