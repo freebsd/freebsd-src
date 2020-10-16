@@ -314,7 +314,7 @@ aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 	AW_PWM_WRITE(sc, AW_PWM_CTRL, reg);
 
 	/* Write the total/active cycles */
-	reg = ((clk_rate / period_freq) << AW_PWM_PERIOD_TOTAL_SHIFT) |
+	reg = ((clk_rate / period_freq - 1) << AW_PWM_PERIOD_TOTAL_SHIFT) |
 	  ((clk_rate / duty_freq) << AW_PWM_PERIOD_ACTIVE_SHIFT);
 	AW_PWM_WRITE(sc, AW_PWM_PERIOD, reg);
 
