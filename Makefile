@@ -86,6 +86,17 @@
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
+# For individuals wanting to build from source with GCC from ports, first
+# install the appropriate GCC cross toolchain package:
+#   `pkg install ${TARGET_ARCH}-gccN`
+#
+# Once you have installed the necessary cross toolchain, simply pass
+# CROSS_TOOLCHAIN=${TARGET_ARCH}-gccN while building with the above steps,
+# e.g., `make buildworld CROSS_TOOLCHAIN=amd64-gcc6`.
+#
+# The ${TARGET_ARCH}-gccN packages are provided as flavors of the
+# devel/freebsd-gccN ports.
+#
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
 # If TARGET=machine (e.g. powerpc, sparc64, ...) is specified you can
