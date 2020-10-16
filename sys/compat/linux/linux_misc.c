@@ -1373,6 +1373,28 @@ linux_getgroups(struct thread *td, struct linux_getgroups_args *args)
 	return (0);
 }
 
+static bool
+linux_get_dummy_limit(l_uint resource, struct rlimit *rlim)
+{
+
+	switch (resource) {
+	case LINUX_RLIMIT_LOCKS:
+	case LINUX_RLIMIT_SIGPENDING:
+	case LINUX_RLIMIT_MSGQUEUE:
+	case LINUX_RLIMIT_RTTIME:
+		rlim->rlim_cur = LINUX_RLIM_INFINITY;
+		rlim->rlim_max = LINUX_RLIM_INFINITY;
+		return (true);
+	case LINUX_RLIMIT_NICE:
+	case LINUX_RLIMIT_RTPRIO:
+		rlim->rlim_cur = 0;
+		rlim->rlim_max = 0;
+		return (true);
+	default:
+		return (false);
+	}
+}
+
 int
 linux_setrlimit(struct thread *td, struct linux_setrlimit_args *args)
 {
@@ -1404,6 +1426,12 @@ linux_old_getrlimit(struct thread *td, struct linux_old_getrlimit_args *args)
 	struct l_rlimit rlim;
 	struct rlimit bsd_rlim;
 	u_int which;
+
+	if (linux_get_dummy_limit(args->resource, &bsd_rlim)) {
+		rlim.rlim_cur = bsd_rlim.rlim_cur;
+		rlim.rlim_max = bsd_rlim.rlim_max;
+		return (copyout(&rlim, args->rlim, sizeof(rlim)));
+	}
 
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
@@ -1439,6 +1467,12 @@ linux_getrlimit(struct thread *td, struct linux_getrlimit_args *args)
 	struct l_rlimit rlim;
 	struct rlimit bsd_rlim;
 	u_int which;
+
+	if (linux_get_dummy_limit(args->resource, &bsd_rlim)) {
+		rlim.rlim_cur = bsd_rlim.rlim_cur;
+		rlim.rlim_max = bsd_rlim.rlim_max;
+		return (copyout(&rlim, args->rlim, sizeof(rlim)));
+	}
 
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
@@ -2137,6 +2171,14 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 	u_int which;
 	int flags;
 	int error;
+
+	if (args->new == NULL && args->old != NULL) {
+		if (linux_get_dummy_limit(args->resource, &rlim)) {
+			lrlim.rlim_cur = rlim.rlim_cur;
+			lrlim.rlim_max = rlim.rlim_max;
+			return (copyout(&lrlim, args->old, sizeof(lrlim)));
+		}
+	}
 
 	if (args->resource >= LINUX_RLIM_NLIMITS)
 		return (EINVAL);
