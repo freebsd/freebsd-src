@@ -1624,7 +1624,7 @@ negative_success:
 		vfs_smr_exit();
 		goto out_fallback;
 	}
-	if (neg_hot) {
+	if (!neg_hot) {
 		vfs_smr_exit();
 		if (!cache_negative_promote_cond(dvp, cnp, ncp, hash))
 			goto out_fallback;
