@@ -72,6 +72,11 @@ SYSCTL_INT(_compat_linux, OID_AUTO, default_openfiles, CTLFLAG_RWTUN,
     &linux_default_openfiles, 0,
     "Default soft openfiles resource limit, or -1 for unlimited");
 
+int linux_default_stacksize = 8 * 1024 * 1024;
+SYSCTL_INT(_compat_linux, OID_AUTO, default_stacksize, CTLFLAG_RWTUN,
+    &linux_default_stacksize, 0,
+    "Default soft stack size resource limit, or -1 for unlimited");
+
 int linux_ignore_ip_recverr = 1;
 SYSCTL_INT(_compat_linux, OID_AUTO, ignore_ip_recverr, CTLFLAG_RWTUN,
     &linux_ignore_ip_recverr, 0, "Ignore enabling IP_RECVERR");
