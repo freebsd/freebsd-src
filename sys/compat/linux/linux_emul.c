@@ -115,6 +115,29 @@ linux_set_default_openfiles(struct thread *td, struct proc *p)
 	KASSERT(error == 0, ("kern_proc_setrlimit failed"));
 }
 
+/*
+ * The default stack size limit in Linux is 8MB.
+ */
+static void
+linux_set_default_stacksize(struct thread *td, struct proc *p)
+{
+	struct rlimit rlim;
+	int error;
+
+	if (linux_default_stacksize < 0)
+		return;
+
+	PROC_LOCK(p);
+	lim_rlimit_proc(p, RLIMIT_STACK, &rlim);
+	PROC_UNLOCK(p);
+	if (rlim.rlim_cur != rlim.rlim_max ||
+	    rlim.rlim_cur <= linux_default_stacksize)
+		return;
+	rlim.rlim_cur = linux_default_stacksize;
+	error = kern_proc_setrlimit(td, p, RLIMIT_STACK, &rlim);
+	KASSERT(error == 0, ("kern_proc_setrlimit failed"));
+}
+
 void
 linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 {
@@ -145,6 +168,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 		newtd->td_emuldata = em;
 
 		linux_set_default_openfiles(td, p);
+		linux_set_default_stacksize(td, p);
 	} else {
 		p = td->td_proc;
 
