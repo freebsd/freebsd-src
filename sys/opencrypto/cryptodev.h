@@ -377,6 +377,7 @@ struct crypto_session_params {
 
 #define	CSP_F_SEPARATE_OUTPUT	0x0001	/* Requests can use separate output */
 #define	CSP_F_SEPARATE_AAD	0x0002	/* Requests can use separate AAD */
+#define CSP_F_ESN		0x0004  /* Requests can use seperate ESN field */ 
 
 	int		csp_ivlen;	/* IV length in bytes. */
 
@@ -485,6 +486,8 @@ struct cryptop {
 	void		*crp_aad;	/* AAD buffer. */
 	int		crp_aad_start;	/* Location of AAD. */
 	int		crp_aad_length;	/* 0 => no AAD. */
+	uint8_t		crp_esn[4];	/* high-order ESN */
+
 	int		crp_iv_start;	/* Location of IV.  IV length is from
 					 * the session.
 					 */
