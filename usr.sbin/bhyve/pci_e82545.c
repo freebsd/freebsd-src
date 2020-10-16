@@ -1701,18 +1701,18 @@ e82545_write_register(struct e82545_softc *sc, uint32_t offset, uint32_t value)
 		break;
 	case E1000_TDBAL(0):
 		sc->esc_TDBAL = value & ~0xF;
-		if (sc->esc_tx_enabled) {
-			/* Apparently legal */
+		if (sc->esc_tx_enabled)
 			e82545_tx_update_tdba(sc);
-		}
 		break;
 	case E1000_TDBAH(0):
-		//assert(!sc->esc_tx_enabled);		
 		sc->esc_TDBAH = value;
+		if (sc->esc_tx_enabled)
+			e82545_tx_update_tdba(sc);
 		break;
 	case E1000_TDLEN(0):
-		//assert(!sc->esc_tx_enabled);
 		sc->esc_TDLEN = value & ~0xFFF0007F;
+		if (sc->esc_tx_enabled)
+			e82545_tx_update_tdba(sc);
 		break;
 	case E1000_TDH(0):
 		//assert(!sc->esc_tx_enabled);
