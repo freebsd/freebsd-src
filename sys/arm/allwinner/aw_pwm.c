@@ -300,10 +300,6 @@ aw_pwm_channel_config(device_t dev, u_int channel, u_int period, u_int duty)
 	}
 
 	reg = AW_PWM_READ(sc, AW_PWM_CTRL);
-	if (reg & AW_PWM_CTRL_PERIOD_BUSY) {
-		device_printf(sc->dev, "pwm busy\n");
-		return (EBUSY);
-	}
 
 	/* Write the prescalar */
 	reg &= ~AW_PWM_CTRL_PRESCALE_MASK;
