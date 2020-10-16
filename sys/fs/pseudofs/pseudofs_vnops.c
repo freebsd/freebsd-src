@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 	KASSERT((pn)->pn_type == pfstype_symlink,			\
 	    ("%s(): VLNK vnode refers to non-link pfs_node", __func__))
 
+#define	PFS_MAXBUFSIZ		1024 * 1024
+
 /*
  * Returns the fileno, adjusted for target pid
  */
@@ -677,8 +679,8 @@ pfs_read(struct vop_read_args *va)
 		goto ret;
 	}
 	buflen = uio->uio_offset + uio->uio_resid;
-	if (buflen > MAXPHYS)
-		buflen = MAXPHYS;
+	if (buflen > PFS_MAXBUFSIZ)
+		buflen = PFS_MAXBUFSIZ;
 
 	sb = sbuf_new(sb, NULL, buflen + 1, 0);
 	if (sb == NULL) {
