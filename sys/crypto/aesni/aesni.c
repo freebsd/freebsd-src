@@ -249,14 +249,15 @@ aesni_cipher_supported(struct aesni_softc *sc,
 	}
 }
 
+#define SUPPORTED_SES (CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD | CSP_F_ESN)
+
 static int
 aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 {
 	struct aesni_softc *sc;
 
 	sc = device_get_softc(dev);
-	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
-	    0)
+	if ((csp->csp_flags & ~(SUPPORTED_SES)) != 0)
 		return (EINVAL);
 	switch (csp->csp_mode) {
 	case CSP_MODE_DIGEST:
@@ -864,6 +865,10 @@ aesni_cipher_mac(struct aesni_session *ses, struct cryptop *crp,
 		else
 			crypto_apply(crp, crp->crp_payload_start,
 			    crp->crp_payload_length, ses->hash_update, &sctx);
+
+		if (csp->csp_flags & CSP_F_ESN)
+			ses->hash_update(&sctx, crp->crp_esn, 4);
+
 		ses->hash_finalize(res, &sctx);
 
 		/* Outer hash: (K ^ OPAD) || inner hash */
