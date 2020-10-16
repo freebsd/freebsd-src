@@ -259,8 +259,8 @@
 #define	PMAP_PCID_OVERMAX_KERN	0x800
 #define	PMAP_PCID_USER_PT	0x800
 
-#define	PMAP_NO_CR3		(~0UL)
-#define	PMAP_UCR3_NOMASK	(~0UL)
+#define	PMAP_NO_CR3		0xffffffffffffffff
+#define	PMAP_UCR3_NOMASK	0xffffffffffffffff
 
 #ifndef LOCORE
 
