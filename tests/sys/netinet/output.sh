@@ -223,8 +223,16 @@ output_raw_success_cleanup()
 
 mpath_check()
 {
-	if [ "`sysctl -i -n net.route.multipath`" != 1 ]; then
+	if [ `sysctl -iW net.route.multipath | wc -l` != "1" ]; then
 		atf_skip "This test requires ROUTE_MPATH enabled"
+	fi
+}
+
+mpath_enable()
+{
+	jexec $1 sysctl net.route.multipath=1
+	if [ $? != 0 ]; then
+		atf_fail "Setting multipath in jail $1 failed".
 	fi
 }
 
@@ -258,6 +266,7 @@ output_tcp_flowid_mpath_success_body()
 	lo_dst=$(vnet_mkloopback)
 
 	vnet_mkjail ${jname}a ${epair0}a ${epair1}a ${lo_src}
+	mpath_enable ${jname}a
 	# Setup transit IPv4 networks
 	jexec ${jname}a ifconfig ${epair0}a up
 	jexec ${jname}a ifconfig ${epair0}a inet 203.0.113.1/30
@@ -386,6 +395,7 @@ output_udp_flowid_mpath_success_body()
 	lo_dst=$(vnet_mkloopback)
 
 	vnet_mkjail ${jname}a ${epair0}a ${epair1}a ${lo_src}
+	mpath_enable ${jname}a
 	# Setup transit IPv4 networks
 	jexec ${jname}a ifconfig ${epair0}a up
 	jexec ${jname}a ifconfig ${epair0}a inet 203.0.113.1/30
@@ -509,6 +519,7 @@ output_raw_flowid_mpath_success_body()
 	lo_dst=$(vnet_mkloopback)
 
 	vnet_mkjail ${jname}a ${epair0}a ${epair1}a ${lo_src}
+	mpath_enable ${jname}a
 	# Setup transit IPv4 networks
 	jexec ${jname}a ifconfig ${epair0}a up
 	jexec ${jname}a ifconfig ${epair0}a inet 203.0.113.1/30

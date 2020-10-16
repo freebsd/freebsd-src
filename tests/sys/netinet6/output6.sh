@@ -247,10 +247,19 @@ output6_raw_success_cleanup()
 
 mpath_check()
 {
-	if [ "`sysctl -i -n net.route.multipath`" != 1 ]; then
+	if [ `sysctl -iW net.route.multipath | wc -l` != "1" ]; then
 		atf_skip "This test requires ROUTE_MPATH enabled"
 	fi
 }
+
+mpath_enable()
+{
+	jexec $1 sysctl net.route.multipath=1
+	if [ $? != 0 ]; then
+		atf_fail "Setting multipath in jail $1 failed".
+	fi
+}
+
 
 atf_test_case "output6_tcp_flowid_mpath_success" "cleanup"
 output6_tcp_flowid_mpath_success_head()
@@ -282,6 +291,7 @@ output6_tcp_flowid_mpath_success_body()
 	lo_dst=$(vnet_mkloopback)
 
 	vnet_mkjail ${jname}a ${epair0}a ${epair1}a ${lo_src}
+	mpath_enable ${jname}a
 	jls -N
 	# enable link-local IPv6
 	jexec ${jname}a ndp -i ${epair0}a -- -disabled
@@ -422,6 +432,7 @@ output6_udp_flowid_mpath_success_body()
 	lo_dst=$(vnet_mkloopback)
 
 	vnet_mkjail ${jname}a ${epair0}a ${epair1}a ${lo_src}
+	mpath_enable ${jname}a
 	jls -N
 	# enable link-local IPv6
 	jexec ${jname}a ndp -i ${epair0}a -- -disabled
@@ -559,6 +570,7 @@ output6_raw_flowid_mpath_success_body()
 	lo_dst=$(vnet_mkloopback)
 
 	vnet_mkjail ${jname}a ${epair0}a ${epair1}a ${lo_src}
+	mpath_enable ${jname}a
 	jls -N
 	# enable link-local IPv6
 	jexec ${jname}a ndp -i ${epair0}a -- -disabled
