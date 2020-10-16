@@ -253,7 +253,7 @@ printaffinity(void)
 	printf("%s %jd%s mask: ", whichnames[which], (intmax_t)id,
 	    levelnames[level]);
 	printset((struct bitset *)&mask, CPU_SETSIZE);
-	if (dflag)
+	if (dflag || xflag)
 		goto out;
 	if (cpuset_getdomain(level, which, id, sizeof(domain), &domain,
 	    &policy) != 0)
