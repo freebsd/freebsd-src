@@ -327,8 +327,8 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 
 	axf = sw->sw_axf;
 
+	csp = crypto_get_params(crp->crp_session);
 	if (crp->crp_auth_key != NULL) {
-		csp = crypto_get_params(crp->crp_session);
 		swcr_authprepare(axf, sw, crp->crp_auth_key,
 		    csp->csp_auth_klen);
 	}
@@ -353,6 +353,9 @@ swcr_authcompute(struct swcr_session *ses, struct cryptop *crp)
 		    crp->crp_payload_length, axf->Update, &ctx);
 	if (err)
 		goto out;
+
+	if (csp->csp_flags & CSP_F_ESN)
+		axf->Update(&ctx, crp->crp_esn, 4);
 
 	axf->Final(aalg, &ctx);
 	if (sw->sw_octx != NULL) {
@@ -1235,12 +1238,12 @@ swcr_cipher_supported(const struct crypto_session_params *csp)
 	return (true);
 }
 
+#define SUPPORTED_SES (CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD | CSP_F_ESN)
+
 static int
 swcr_probesession(device_t dev, const struct crypto_session_params *csp)
 {
-
-	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
-	    0)
+	if ((csp->csp_flags & ~(SUPPORTED_SES)) != 0)
 		return (EINVAL);
 	switch (csp->csp_mode) {
 	case CSP_MODE_COMPRESS:
