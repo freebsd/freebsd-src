@@ -81,6 +81,7 @@
 ** 1.30.00.00   11/30/2015  Ching Huang     Added support ARC1203
 ** 1.40.00.00   07/11/2017  Ching Huang     Added support ARC1884
 ** 1.40.00.01   10/30/2017  Ching Huang     Fixed release memory resource
+** 1.50.00.00   09/30/2020  Ching Huang     Added support ARC-1886, NVMe/SAS/SATA controller
 ******************************************************************************************
 */
 
@@ -138,7 +139,7 @@ __FBSDID("$FreeBSD$");
 
 #define arcmsr_callout_init(a)	callout_init(a, /*mpsafe*/1);
 
-#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.40.00.01 2017-10-30"
+#define ARCMSR_DRIVER_VERSION	"arcmsr version 1.50.00.00 2020-09-30"
 #include <dev/arcmsr/arcmsr.h>
 /*
 **************************************************************************
@@ -176,6 +177,7 @@ static void arcmsr_polling_devmap(void *arg);
 static void arcmsr_srb_timeout(void *arg);
 static void arcmsr_hbd_postqueue_isr(struct AdapterControlBlock *acb);
 static void arcmsr_hbe_postqueue_isr(struct AdapterControlBlock *acb);
+static void arcmsr_hbf_postqueue_isr(struct AdapterControlBlock *acb);
 static void arcmsr_teardown_intr(device_t dev, struct AdapterControlBlock *acb);
 #ifdef ARCMSR_DEBUG1
 static void arcmsr_dump_data(struct AdapterControlBlock *acb);
@@ -294,19 +296,20 @@ static u_int32_t arcmsr_disable_allintr( struct AdapterControlBlock *acb)
 		break;
 	case ACB_ADAPTER_TYPE_C: {
 			/* disable all outbound interrupt */
-			intmask_org = CHIP_REG_READ32(HBC_MessageUnit, 0, host_int_mask)	; /* disable outbound message0 int */
+			intmask_org = CHIP_REG_READ32(HBC_MessageUnit, 0, host_int_mask); /* disable outbound message0 int */
 			CHIP_REG_WRITE32(HBC_MessageUnit, 0, host_int_mask, intmask_org|ARCMSR_HBCMU_ALL_INTMASKENABLE);
 		}
 		break;
 	case ACB_ADAPTER_TYPE_D: {
 			/* disable all outbound interrupt */
-			intmask_org = CHIP_REG_READ32(HBD_MessageUnit, 0, pcief0_int_enable)	; /* disable outbound message0 int */
+			intmask_org = CHIP_REG_READ32(HBD_MessageUnit, 0, pcief0_int_enable); /* disable outbound message0 int */
 			CHIP_REG_WRITE32(HBD_MessageUnit, 0, pcief0_int_enable, ARCMSR_HBDMU_ALL_INT_DISABLE);
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			/* disable all outbound interrupt */
-			intmask_org = CHIP_REG_READ32(HBC_MessageUnit, 0, host_int_mask)	; /* disable outbound message0 int */
+			intmask_org = CHIP_REG_READ32(HBE_MessageUnit, 0, host_int_mask); /* disable outbound message0 int */
 			CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_mask, intmask_org | ARCMSR_HBEMU_ALL_INTMASKENABLE);
 		}
 		break;
@@ -352,7 +355,8 @@ static void arcmsr_enable_allintr( struct AdapterControlBlock *acb, u_int32_t in
 			acb->outbound_int_enable = mask;
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			/* enable outbound Post Queue, outbound doorbell Interrupt */
 			mask = ~(ARCMSR_HBEMU_OUTBOUND_DOORBELL_ISR | ARCMSR_HBEMU_OUTBOUND_POSTQUEUE_ISR);
 			CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_mask, intmask_org & mask);
@@ -577,7 +581,8 @@ static void arcmsr_flush_adapter_cache(struct AdapterControlBlock *acb)
 			arcmsr_flush_hbd_cache(acb);
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			arcmsr_flush_hbe_cache(acb);
 		}
 		break;
@@ -733,7 +738,8 @@ static void arcmsr_abort_allcmd(struct AdapterControlBlock *acb)
 			arcmsr_abort_hbd_allcmd(acb);
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			arcmsr_abort_hbe_allcmd(acb);
 		}
 		break;
@@ -844,6 +850,7 @@ static void arcmsr_drain_donequeue(struct AdapterControlBlock *acb, u_int32_t fl
 		srb = (struct CommandControlBlock *)(acb->vir2phy_offset+(flag_srb & 0xFFFFFFE0)); /*frame must be 32 bytes aligned*/
 		break;
 	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F:
 		srb = acb->psrb_pool[flag_srb];
 		break;
 	default:
@@ -941,13 +948,14 @@ static void arcmsr_done4abort_postqueue(struct AdapterControlBlock *acb)
 			}
 		}
 		break;
-	case ACB_ADAPTER_TYPE_D: {
-			arcmsr_hbd_postqueue_isr(acb);
-		}
+	case ACB_ADAPTER_TYPE_D:
+		arcmsr_hbd_postqueue_isr(acb);
 		break;
-	case ACB_ADAPTER_TYPE_E: {
-			arcmsr_hbe_postqueue_isr(acb);
-		}
+	case ACB_ADAPTER_TYPE_E:
+		arcmsr_hbe_postqueue_isr(acb);
+		break;
+	case ACB_ADAPTER_TYPE_F:
+		arcmsr_hbf_postqueue_isr(acb);
 		break;
 	}
 }
@@ -1167,7 +1175,19 @@ static void arcmsr_post_srb(struct AdapterControlBlock *acb, struct CommandContr
 			ccb_post_stamp = (srb->smid | ((arc_cdb_size-1) >> 6));
 			CHIP_REG_WRITE32(HBE_MessageUnit, 0, inbound_queueport_high, 0);
 			CHIP_REG_WRITE32(HBE_MessageUnit, 0, inbound_queueport_low, ccb_post_stamp);
-        	}
+		}
+		break;
+	case ACB_ADAPTER_TYPE_F: {
+			u_int32_t ccb_post_stamp, arc_cdb_size;
+
+			if (srb->arc_cdb_size <= 0x300)
+				arc_cdb_size = (srb->arc_cdb_size - 1) >> 6 | 1;
+			else
+				arc_cdb_size = (((srb->arc_cdb_size + 0xff) >> 8) + 2) << 1 | 1;
+			ccb_post_stamp = (srb->smid | arc_cdb_size);
+			CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_queueport_high, 0);
+			CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_queueport_low, ccb_post_stamp);
+		}
 		break;
 	}
 }
@@ -1209,6 +1229,9 @@ static struct QBUFFER *arcmsr_get_iop_rqbuffer( struct AdapterControlBlock *acb)
 
 			qbuffer = (struct QBUFFER *)&phbcmu->message_rbuffer;
 		}
+		break;
+	case ACB_ADAPTER_TYPE_F:
+		qbuffer = (struct QBUFFER *)acb->message_rbuffer;
 		break;
 	}
 	return(qbuffer);
@@ -1252,6 +1275,9 @@ static struct QBUFFER *arcmsr_get_iop_wqbuffer( struct AdapterControlBlock *acb)
 			qbuffer = (struct QBUFFER *)&phbcmu->message_wbuffer;
 		}
 		break;
+	case ACB_ADAPTER_TYPE_F:
+		qbuffer = (struct QBUFFER *)acb->message_wbuffer;
+		break;
 	}
 	return(qbuffer);
 }
@@ -1283,7 +1309,8 @@ static void arcmsr_iop_message_read(struct AdapterControlBlock *acb)
 			CHIP_REG_WRITE32(HBD_MessageUnit, 0, inbound_doorbell, ARCMSR_HBDMU_DRV2IOP_DATA_OUT_READ);
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			/* let IOP know data has been read */
 			acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_DATA_READ_OK;
 			CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, acb->out_doorbell);
@@ -1331,7 +1358,8 @@ static void arcmsr_iop_message_wrote(struct AdapterControlBlock *acb)
 			CHIP_REG_WRITE32(HBD_MessageUnit, 0, inbound_doorbell, ARCMSR_HBDMU_DRV2IOP_DATA_IN_READY);
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			/*
 			** push inbound doorbell tell iop, driver data write ok 
 			** and wait reply on next hwinterrupt for next Qbuffer post
@@ -1432,7 +1460,8 @@ static void arcmsr_stop_adapter_bgrb(struct AdapterControlBlock *acb)
 			arcmsr_stop_hbd_bgrb(acb);
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			arcmsr_stop_hbe_bgrb(acb);
 		}
 		break;
@@ -1671,7 +1700,7 @@ static void	arcmsr_rescan_lun(struct AdapterControlBlock *acb, int target, int l
 	union ccb           *ccb;
 
 	if ((ccb = (union ccb *)xpt_alloc_ccb_nowait()) == NULL)
-			return;
+		return;
 	if (xpt_create_path(&path, NULL, cam_sim_path(acb->psim), target, lun) != CAM_REQ_CMP)
 	{
 		xpt_free_ccb(ccb);
@@ -1760,8 +1789,16 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
 		devicemap = offsetof(struct HBE_MessageUnit, msgcode_rwbuffer[ARCMSR_FW_DEVMAP_OFFSET]);
 		for (target = 0; target < 4; target++) 
 		{
-            		deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0],  devicemap);
-            		devicemap += 4;
+			deviceMapCurrent[target]=bus_space_read_4(acb->btag[0], acb->bhandle[0],  devicemap);
+			devicemap += 4;
+		}
+		break;
+	case ACB_ADAPTER_TYPE_F:
+		devicemap = ARCMSR_FW_DEVMAP_OFFSET;
+		for (target = 0; target < 4; target++)
+		{
+			deviceMapCurrent[target] = acb->msgcode_rwbuffer[devicemap];
+			devicemap += 1;
 		}
 		break;
 	}
@@ -1774,7 +1811,7 @@ static void arcmsr_dr_handle(struct AdapterControlBlock *acb) {
 	** adapter posted CONFIG message 
 	** copy the new map, note if there are differences with the current map
 	*/
-	pDevMap = (u_int8_t	*)&deviceMapCurrent[0];
+	pDevMap = (u_int8_t *)&deviceMapCurrent[0];
 	for (target = 0; target < ARCMSR_MAX_TARGETID - 1; target++) 
 	{
 		if (*pDevMap != acb->device_map[target])
@@ -2002,7 +2039,7 @@ static void arcmsr_hba_postqueue_isr(struct AdapterControlBlock *acb)
 	while((flag_srb = CHIP_REG_READ32(HBA_MessageUnit, 
 		0, outbound_queueport)) != 0xFFFFFFFF) {
 		/* check if command done with no error*/
-	error = (flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE0) ? TRUE : FALSE;
+		error = (flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE0) ? TRUE : FALSE;
 		arcmsr_drain_donequeue(acb, flag_srb, error);
 	}	/*drain reply FIFO*/
 }
@@ -2031,7 +2068,7 @@ static void arcmsr_hbb_postqueue_isr(struct AdapterControlBlock *acb)
 		index %= ARCMSR_MAX_HBB_POSTQUEUE;     /*if last index number set it to 0 */
 		phbbmu->doneq_index = index;
 		/* check if command done with no error*/
-	error = (flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE0)?TRUE:FALSE;
+		error = (flag_srb & ARCMSR_SRBREPLY_FLAG_ERROR_MODE0)?TRUE:FALSE;
 		arcmsr_drain_donequeue(acb, flag_srb, error);
 	}	/*drain reply FIFO*/
 }
@@ -2049,7 +2086,7 @@ static void arcmsr_hbc_postqueue_isr(struct AdapterControlBlock *acb)
 	**               areca cdb command done
 	*****************************************************************************
 	*/
-	bus_dmamap_sync(acb->srb_dmat, acb->srb_dmamap, BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_sync(acb->srb_dmat, acb->srb_dmamap, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	do {
 		flag_srb = CHIP_REG_READ32(HBC_MessageUnit, 0, outbound_queueport_low);
 		if (flag_srb == 0xFFFFFFFF)
@@ -2059,7 +2096,7 @@ static void arcmsr_hbc_postqueue_isr(struct AdapterControlBlock *acb)
 		arcmsr_drain_donequeue(acb, flag_srb, error);
 		throttling++;
 		if(throttling == ARCMSR_HBC_ISR_THROTTLING_LEVEL) {
-			CHIP_REG_WRITE32(HBC_MessageUnit, 0, inbound_doorbell,ARCMSR_HBCMU_DRV2IOP_POSTQUEUE_THROTTLING);
+			CHIP_REG_WRITE32(HBC_MessageUnit, 0, inbound_doorbell, ARCMSR_HBCMU_DRV2IOP_POSTQUEUE_THROTTLING);
 			throttling = 0;
 		}
 	} while(CHIP_REG_READ32(HBC_MessageUnit, 0, host_int_status) & ARCMSR_HBCMU_OUTBOUND_POSTQUEUE_ISR);
@@ -2151,6 +2188,35 @@ static void arcmsr_hbe_postqueue_isr(struct AdapterControlBlock *acb)
 	acb->doneq_index = doneq_index;
 	CHIP_REG_WRITE32(HBE_MessageUnit, 0, reply_post_consumer_index, doneq_index);
 }
+
+static void arcmsr_hbf_postqueue_isr(struct AdapterControlBlock *acb)
+{
+	uint16_t error;
+	uint32_t doneq_index;
+	uint16_t cmdSMID;
+
+	/*
+	*****************************************************************************
+	**               areca cdb command done
+	*****************************************************************************
+	*/
+	bus_dmamap_sync(acb->srb_dmat, acb->srb_dmamap, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	doneq_index = acb->doneq_index;
+	while (1) {
+		cmdSMID = acb->pCompletionQ[doneq_index].cmdSMID;
+		if (cmdSMID == 0xffff)
+			break;
+		error = (acb->pCompletionQ[doneq_index].cmdFlag & ARCMSR_SRBREPLY_FLAG_ERROR_MODE1) ? TRUE : FALSE;
+		arcmsr_drain_donequeue(acb, (u_int32_t)cmdSMID, error);
+		acb->pCompletionQ[doneq_index].cmdSMID = 0xffff;
+		doneq_index++;
+		if (doneq_index >= acb->completionQ_entry)
+			doneq_index = 0;
+	}
+	acb->doneq_index = doneq_index;
+	CHIP_REG_WRITE32(HBF_MessageUnit, 0, reply_post_consumer_index, doneq_index);
+}
+
 /*
 **********************************************************************
 **********************************************************************
@@ -2312,6 +2378,34 @@ static void arcmsr_handle_hbe_isr( struct AdapterControlBlock *acb)
 		host_interrupt_status = CHIP_REG_READ32(HBE_MessageUnit, 0, host_int_status);
 	} while (host_interrupt_status & (ARCMSR_HBEMU_OUTBOUND_POSTQUEUE_ISR | ARCMSR_HBEMU_OUTBOUND_DOORBELL_ISR));
 }
+
+static void arcmsr_handle_hbf_isr( struct AdapterControlBlock *acb)
+{
+	u_int32_t host_interrupt_status;
+	/*
+	*********************************************
+	**   check outbound intstatus 
+	*********************************************
+	*/
+	host_interrupt_status = CHIP_REG_READ32(HBF_MessageUnit, 0, host_int_status) &
+		(ARCMSR_HBEMU_OUTBOUND_POSTQUEUE_ISR |
+		ARCMSR_HBEMU_OUTBOUND_DOORBELL_ISR);
+	if(!host_interrupt_status) {
+		/*it must be share irq*/
+		return;
+	}
+	do {
+		/* MU doorbell interrupts*/
+		if(host_interrupt_status & ARCMSR_HBEMU_OUTBOUND_DOORBELL_ISR) {
+			arcmsr_hbe_doorbell_isr(acb);
+		}
+		/* MU post queue interrupts*/
+		if(host_interrupt_status & ARCMSR_HBEMU_OUTBOUND_POSTQUEUE_ISR) {
+			arcmsr_hbf_postqueue_isr(acb);
+		}
+		host_interrupt_status = CHIP_REG_READ32(HBF_MessageUnit, 0, host_int_status);
+	} while (host_interrupt_status & (ARCMSR_HBEMU_OUTBOUND_POSTQUEUE_ISR | ARCMSR_HBEMU_OUTBOUND_DOORBELL_ISR));
+}
 /*
 ******************************************************************************
 ******************************************************************************
@@ -2333,6 +2427,9 @@ static void arcmsr_interrupt(struct AdapterControlBlock *acb)
 		break;
 	case ACB_ADAPTER_TYPE_E:
 		arcmsr_handle_hbe_isr(acb);
+		break;
+	case ACB_ADAPTER_TYPE_F:
+		arcmsr_handle_hbf_isr(acb);
 		break;
 	default:
 		printf("arcmsr%d: interrupt service,"
@@ -2364,7 +2461,7 @@ static void	arcmsr_polling_devmap(void *arg)
 		CHIP_REG_WRITE32(HBA_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_GET_CONFIG);
 		break;
 
-    	case ACB_ADAPTER_TYPE_B: {
+	case ACB_ADAPTER_TYPE_B: {
 			struct HBB_MessageUnit *phbbmu = (struct HBB_MessageUnit *)acb->pmu;
 			WRITE_CHIP_REG32(0, phbbmu->drv2iop_doorbell, ARCMSR_MESSAGE_GET_CONFIG);
 		}
@@ -2379,13 +2476,24 @@ static void	arcmsr_polling_devmap(void *arg)
 		CHIP_REG_WRITE32(HBD_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_GET_CONFIG);
 		break;
 
-    	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_E:
 		CHIP_REG_WRITE32(HBE_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_GET_CONFIG);
 		acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
 		CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, acb->out_doorbell);
-	    	break;
-	}
+		break;
 
+	case ACB_ADAPTER_TYPE_F: {
+		u_int32_t outMsg1 = CHIP_REG_READ32(HBF_MessageUnit, 0, outbound_msgaddr1);
+		if (!(outMsg1 & ARCMSR_HBFMU_MESSAGE_FIRMWARE_OK) ||
+			(outMsg1 & ARCMSR_HBFMU_MESSAGE_NO_VOLUME_CHANGE))
+			goto nxt6s;
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_GET_CONFIG);
+		acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, acb->out_doorbell);
+		break;
+		}
+	}
+nxt6s:
 	if((acb->acb_flags & ACB_F_SCSISTOPADAPTER) == 0)
 	{
 		callout_reset(&acb->devmap_callout, 5 * hz, arcmsr_polling_devmap, acb);	/* polling per 5 seconds */
@@ -3311,6 +3419,7 @@ static void arcmsr_start_adapter_bgrb(struct AdapterControlBlock *acb)
 		arcmsr_start_hbd_bgrb(acb);
 		break;
 	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F:
 		arcmsr_start_hbe_bgrb(acb);
 		break;
 	}
@@ -3452,7 +3561,7 @@ polling_ccb_retry:
 					break;
 				}
 				if (acb->srboutstandingcount == 0) {
-				    break;
+					break;
 				}
 				goto polling_ccb_retry;
 			}
@@ -3555,12 +3664,12 @@ polling_ccb_retry:
 				break;/*chip FIFO no ccb for completion already*/
 			} else {
 				UDELAY(25000);
-			    if ((poll_count > 100) && (poll_srb != NULL)) {
+				if ((poll_count > 100) && (poll_srb != NULL)) {
 					break;
 				}
-			    if (acb->srboutstandingcount == 0) {
-				    break;
-			    }
+				if (acb->srboutstandingcount == 0) {
+					break;
+				}
 				goto polling_ccb_retry;
 			}
 		}
@@ -3596,25 +3705,21 @@ polling_ccb_retry:
 static void arcmsr_polling_srbdone(struct AdapterControlBlock *acb, struct CommandControlBlock *poll_srb)
 {
 	switch (acb->adapter_type) {
-	case ACB_ADAPTER_TYPE_A: {
-			arcmsr_polling_hba_srbdone(acb, poll_srb);
-		}
+	case ACB_ADAPTER_TYPE_A:
+		arcmsr_polling_hba_srbdone(acb, poll_srb);
 		break;
-	case ACB_ADAPTER_TYPE_B: {
-			arcmsr_polling_hbb_srbdone(acb, poll_srb);
-		}
+	case ACB_ADAPTER_TYPE_B:
+		arcmsr_polling_hbb_srbdone(acb, poll_srb);
 		break;
-	case ACB_ADAPTER_TYPE_C: {
-			arcmsr_polling_hbc_srbdone(acb, poll_srb);
-		}
+	case ACB_ADAPTER_TYPE_C:
+		arcmsr_polling_hbc_srbdone(acb, poll_srb);
 		break;
-	case ACB_ADAPTER_TYPE_D: {
-			arcmsr_polling_hbd_srbdone(acb, poll_srb);
-		}
+	case ACB_ADAPTER_TYPE_D:
+		arcmsr_polling_hbd_srbdone(acb, poll_srb);
 		break;
-	case ACB_ADAPTER_TYPE_E: {
-			arcmsr_polling_hbe_srbdone(acb, poll_srb);
-		}
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F:
+		arcmsr_polling_hbe_srbdone(acb, poll_srb);
 		break;
 	}
 }
@@ -3874,28 +3979,80 @@ static void arcmsr_get_hbe_config(struct AdapterControlBlock *acb)
 **********************************************************************
 **********************************************************************
 */
+static void arcmsr_get_hbf_config(struct AdapterControlBlock *acb)
+{
+	u_int32_t *acb_firm_model = (u_int32_t *)acb->firm_model;
+	u_int32_t *acb_firm_version = (u_int32_t *)acb->firm_version;
+	u_int32_t *acb_device_map = (u_int32_t *)acb->device_map;
+	size_t iop_firm_model = ARCMSR_FW_MODEL_OFFSET;   /*firm_model,15,60-67*/
+	size_t iop_firm_version = ARCMSR_FW_VERS_OFFSET; /*firm_version,17,68-83*/
+	size_t iop_device_map = ARCMSR_FW_DEVMAP_OFFSET;
+	int i;
+
+	CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_GET_CONFIG);
+	acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
+	CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, acb->out_doorbell);
+	if(!arcmsr_hbe_wait_msgint_ready(acb))
+		printf("arcmsr%d: wait 'get adapter firmware miscellaneous data' timeout \n", acb->pci_unit);
+
+	i = 0;
+	while(i < 2) {
+		*acb_firm_model = acb->msgcode_rwbuffer[iop_firm_model];
+		/* 8 bytes firm_model, 15, 60-67*/
+		acb_firm_model++;
+		iop_firm_model++;
+		i++;
+	}
+	i = 0;
+	while(i < 4) {
+		*acb_firm_version = acb->msgcode_rwbuffer[iop_firm_version];
+		/* 16 bytes firm_version, 17, 68-83*/
+		acb_firm_version++;
+		iop_firm_version++;
+		i++;
+	}
+	i = 0;
+	while(i < 4) {
+		*acb_device_map = acb->msgcode_rwbuffer[iop_device_map];
+		acb_device_map++;
+		iop_device_map++;
+		i++;
+	}
+	printf("Areca RAID adapter%d: %s F/W version %s \n", acb->pci_unit, acb->firm_model, acb->firm_version);
+	acb->firm_request_len	= acb->msgcode_rwbuffer[1];	/*firm_request_len,   1, 04-07*/
+	acb->firm_numbers_queue	= acb->msgcode_rwbuffer[2];	/*firm_numbers_queue, 2, 08-11*/
+	acb->firm_sdram_size	= acb->msgcode_rwbuffer[3];	/*firm_sdram_size,    3, 12-15*/
+	acb->firm_ide_channels	= acb->msgcode_rwbuffer[4];	/*firm_ide_channels,  4, 16-19*/
+	acb->firm_cfg_version	= acb->msgcode_rwbuffer[ARCMSR_FW_CFGVER_OFFSET]; /*firm_cfg_version,  25*/
+	if(acb->firm_numbers_queue > ARCMSR_MAX_OUTSTANDING_CMD)
+		acb->maxOutstanding = ARCMSR_MAX_OUTSTANDING_CMD - 1;
+	else
+		acb->maxOutstanding = acb->firm_numbers_queue - 1;
+}
+/*
+**********************************************************************
+**********************************************************************
+*/
 static void arcmsr_get_firmware_spec(struct AdapterControlBlock *acb)
 {
 	switch (acb->adapter_type) {
-	case ACB_ADAPTER_TYPE_A: {
-			arcmsr_get_hba_config(acb);
-		}
+	case ACB_ADAPTER_TYPE_A:
+		arcmsr_get_hba_config(acb);
 		break;
-	case ACB_ADAPTER_TYPE_B: {
-			arcmsr_get_hbb_config(acb);
-		}
+	case ACB_ADAPTER_TYPE_B:
+		arcmsr_get_hbb_config(acb);
 		break;
-	case ACB_ADAPTER_TYPE_C: {
-			arcmsr_get_hbc_config(acb);
-		}
+	case ACB_ADAPTER_TYPE_C:
+		arcmsr_get_hbc_config(acb);
 		break;
-	case ACB_ADAPTER_TYPE_D: {
-			arcmsr_get_hbd_config(acb);
-		}
+	case ACB_ADAPTER_TYPE_D:
+		arcmsr_get_hbd_config(acb);
 		break;
-	case ACB_ADAPTER_TYPE_E: {
-			arcmsr_get_hbe_config(acb);
-		}
+	case ACB_ADAPTER_TYPE_E:
+		arcmsr_get_hbe_config(acb);
+		break;
+	case ACB_ADAPTER_TYPE_F:
+		arcmsr_get_hbf_config(acb);
 		break;
 	}
 }
@@ -3958,7 +4115,8 @@ static void arcmsr_wait_firmware_ready( struct AdapterControlBlock *acb)
 			}
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			while ((CHIP_REG_READ32(HBE_MessageUnit, 0, outbound_msgaddr1) & ARCMSR_HBEMU_MESSAGE_FIRMWARE_OK) == 0)
 			{
 				if (timeout++ > 4000) /* (4000*15)/1000 = 60 sec */
@@ -4011,7 +4169,8 @@ static void arcmsr_clear_doorbell_queue_buffer( struct AdapterControlBlock *acb)
 			CHIP_REG_WRITE32(HBD_MessageUnit, 0, inbound_doorbell, ARCMSR_HBDMU_DRV2IOP_DATA_OUT_READ);
 		}
 		break;
-	case ACB_ADAPTER_TYPE_E: {
+	case ACB_ADAPTER_TYPE_E:
+	case ACB_ADAPTER_TYPE_F: {
 			/* empty doorbell Qbuffer if door bell ringed */
 			acb->in_doorbell = CHIP_REG_READ32(HBE_MessageUnit, 0, iobound_doorbell);
 			CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_status, 0);	/*clear doorbell interrupt */
@@ -4146,6 +4305,27 @@ static u_int32_t arcmsr_iop_confirm(struct AdapterControlBlock *acb)
 			}
 		}
 		break;
+	case ACB_ADAPTER_TYPE_F: {
+			u_int32_t cdb_phyaddr_lo32;
+			cdb_phyaddr_lo32 = srb_phyaddr_lo32 + offsetof(struct CommandControlBlock, arcmsr_cdb);
+			acb->msgcode_rwbuffer[0] = ARCMSR_SIGNATURE_SET_CONFIG;
+			acb->msgcode_rwbuffer[1] = ARCMSR_SIGNATURE_1886;
+			acb->msgcode_rwbuffer[2] = cdb_phyaddr_lo32;
+			acb->msgcode_rwbuffer[3] = srb_phyaddr_hi32;
+			acb->msgcode_rwbuffer[4] = SRB_SIZE;
+			cdb_phyaddr_lo32 = srb_phyaddr_lo32 + ARCMSR_SRBS_POOL_SIZE;
+			acb->msgcode_rwbuffer[5] = cdb_phyaddr_lo32;
+			acb->msgcode_rwbuffer[6] = srb_phyaddr_hi32;
+			acb->msgcode_rwbuffer[7] = COMPLETION_Q_POOL_SIZE;
+			CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr0, ARCMSR_INBOUND_MESG0_SET_CONFIG);
+			acb->out_doorbell ^= ARCMSR_HBEMU_DRV2IOP_MESSAGE_CMD_DONE;
+			CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, acb->out_doorbell);
+			if(!arcmsr_hbe_wait_msgint_ready(acb)) {
+				printf( "arcmsr%d: 'set srb high part physical address' timeout \n", acb->pci_unit);
+				return FALSE;
+			}
+		}
+		break;
 	}
 	return (TRUE);
 }
@@ -4209,7 +4389,7 @@ static void arcmsr_map_free_srb(void *arg, bus_dma_segment_t *segs, int nseg, in
 			return;
 		}
 		if((acb->adapter_type == ACB_ADAPTER_TYPE_C) || (acb->adapter_type == ACB_ADAPTER_TYPE_D)
-			 || (acb->adapter_type == ACB_ADAPTER_TYPE_E))
+			 || (acb->adapter_type == ACB_ADAPTER_TYPE_E) || (acb->adapter_type == ACB_ADAPTER_TYPE_F))
 		{
 			srb_tmp->cdb_phyaddr_low = srb_phyaddr;
 			srb_tmp->cdb_phyaddr_high = (u_int32_t)((srb_phyaddr >> 16) >> 16);
@@ -4224,6 +4404,15 @@ static void arcmsr_map_free_srb(void *arg, bus_dma_segment_t *segs, int nseg, in
 	}
 	if (acb->adapter_type == ACB_ADAPTER_TYPE_E)
 		acb->pCompletionQ = (pCompletion_Q)srb_tmp;
+	else if (acb->adapter_type == ACB_ADAPTER_TYPE_F) {
+		acb->pCompletionQ = (pCompletion_Q)srb_tmp;
+		acb->completeQ_phys = srb_phyaddr;
+		memset(acb->pCompletionQ, 0xff, COMPLETION_Q_POOL_SIZE);
+		acb->message_wbuffer = (u_int32_t *)((unsigned long)acb->pCompletionQ + COMPLETION_Q_POOL_SIZE);
+		acb->message_rbuffer = (u_int32_t *)((unsigned long)acb->message_wbuffer + 0x100);
+		acb->msgcode_rwbuffer = (u_int32_t *)((unsigned long)acb->message_wbuffer + 0x200);
+		memset((void *)acb->message_wbuffer, 0, MESG_RW_BUFFER_SIZE);
+	}
 	acb->vir2phy_offset = (unsigned long)srb_tmp - (unsigned long)srb_phyaddr;
 }
 /*
@@ -4297,6 +4486,13 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		acb->adapter_type = ACB_ADAPTER_TYPE_E;
 		acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
 		max_coherent_size = ARCMSR_SRBS_POOL_SIZE + COMPLETION_Q_POOL_SIZE;
+		acb->completionQ_entry = COMPLETION_Q_POOL_SIZE / sizeof(struct deliver_completeQ);
+		break;
+	case PCIDevVenIDARC1886_:
+	case PCIDevVenIDARC1886:
+		acb->adapter_type = ACB_ADAPTER_TYPE_F;
+		acb->adapter_bus_speed = ACB_BUS_SPEED_12G;
+		max_coherent_size = ARCMSR_SRBS_POOL_SIZE + COMPLETION_Q_POOL_SIZE + MESG_RW_BUFFER_SIZE;
 		acb->completionQ_entry = COMPLETION_Q_POOL_SIZE / sizeof(struct deliver_completeQ);
 		break;
 	case PCIDevVenIDARC1214: {
@@ -4513,7 +4709,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		u_int32_t rid0 = PCIR_BAR(1);
 		vm_offset_t	mem_base0;
 
-		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid0, RF_ACTIVE);
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
 		if(acb->sys_res_arcmsr[0] == NULL) {
 			arcmsr_free_resource(acb);
 			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
@@ -4541,7 +4737,7 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		u_int32_t rid0 = PCIR_BAR(0);
 		vm_offset_t	mem_base0;
 
-		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev,SYS_RES_MEMORY, &rid0, RF_ACTIVE);
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
 		if(acb->sys_res_arcmsr[0] == NULL) {
 			arcmsr_free_resource(acb);
 			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
@@ -4596,6 +4792,44 @@ static u_int32_t arcmsr_initialize(device_t dev)
 		acb->rid[0] = rid0;
 		CHIP_REG_WRITE32(HBE_MessageUnit, 0, host_int_status, 0); /*clear interrupt*/
 		CHIP_REG_WRITE32(HBE_MessageUnit, 0, iobound_doorbell, ARCMSR_HBEMU_DOORBELL_SYNC); /* synchronize doorbell to 0 */
+		}
+		break;
+	case ACB_ADAPTER_TYPE_F: {
+		u_int32_t rid0 = PCIR_BAR(0);
+		vm_offset_t	mem_base0;
+		unsigned long	host_buffer_dma;
+
+		acb->sys_res_arcmsr[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid0, RF_ACTIVE);
+		if(acb->sys_res_arcmsr[0] == NULL) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: bus_alloc_resource failure!\n", device_get_unit(dev));
+			return ENOMEM;
+		}
+		if(rman_get_start(acb->sys_res_arcmsr[0]) <= 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_start failure!\n", device_get_unit(dev));
+			return ENXIO;
+		}
+		mem_base0 = (vm_offset_t) rman_get_virtual(acb->sys_res_arcmsr[0]);
+		if(mem_base0 == 0) {
+			arcmsr_free_resource(acb);
+			printf("arcmsr%d: rman_get_virtual failure!\n", device_get_unit(dev));
+			return ENXIO;
+		}
+		acb->btag[0] = rman_get_bustag(acb->sys_res_arcmsr[0]);
+		acb->bhandle[0] = rman_get_bushandle(acb->sys_res_arcmsr[0]);
+		acb->pmu = (struct MessageUnit_UNION *)mem_base0;
+		acb->doneq_index = 0;
+		acb->in_doorbell = 0;
+		acb->out_doorbell = 0;
+		acb->rid[0] = rid0;
+		arcmsr_wait_firmware_ready(acb);
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, host_int_status, 0); /*clear interrupt*/
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, ARCMSR_HBEMU_DOORBELL_SYNC); /* synchronize doorbell to 0 */
+		host_buffer_dma = acb->completeQ_phys + COMPLETION_Q_POOL_SIZE;
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr0, (u_int32_t)(host_buffer_dma | 1));  /* host buffer low addr, bit0:1 all buffer active */
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, inbound_msgaddr1, (u_int32_t)((host_buffer_dma >> 16) >> 16));/* host buffer high addr */
+		CHIP_REG_WRITE32(HBF_MessageUnit, 0, iobound_doorbell, ARCMSR_HBFMU_DOORBELL_SYNC1);       /* set host buffer physical address */
 		}
 		break;
 	}
@@ -4801,6 +5035,10 @@ static int arcmsr_probe(device_t dev)
 		break;
 	case PCIDevVenIDARC1884:
 		type = "SAS 12G";
+		break;
+	case PCIDevVenIDARC1886_:
+	case PCIDevVenIDARC1886:
+		type = "NVME,SAS-12G,SATA-6G";
 		break;
 	case PCIDevVenIDARC1214:
 	case PCIDevVenIDARC1203:
