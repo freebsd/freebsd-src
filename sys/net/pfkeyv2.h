@@ -348,6 +348,8 @@ _Static_assert(sizeof(struct sadb_x_sa_replay) == 8, "struct size mismatch");
 #define SADB_SASTATE_MAX      3
 
 #define SADB_SAFLAGS_PFS      1
+/* SADB_X_SAFLAGS_ESN was defined in sys/net/pfkeyv2.h in OpenBSD sources */
+#define SADB_X_SAFLAGS_ESN    0x400
 
 /*
  * Though some of these numbers (both _AALG and _EALG) appear to be
