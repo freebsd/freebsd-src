@@ -285,7 +285,7 @@ primary(enum token n)
 
 	if (n == EOI)
 		return 0;		/* missing expression */
-	if (n == LPAREN) {
+    else if (n == LPAREN) {
 		parenlevel++;
 		if ((nn = t_lex(nargc > 0 ? (--nargc, *++t_wp) : NULL)) ==
 		    RPAREN) {
@@ -424,10 +424,9 @@ find_op_1char(const struct t_op *op, const struct t_op *end, const char *s)
 	char c;
 
 	c = s[0];
-	while (op != end) {
+	for (;op != end; op++) {
 		if (c == *op->op_text)
 			return op->op_num;
-		op++;
 	}
 	return OPERAND;
 }
@@ -435,10 +434,9 @@ find_op_1char(const struct t_op *op, const struct t_op *end, const char *s)
 static int
 find_op_2char(const struct t_op *op, const struct t_op *end, const char *s)
 {
-	while (op != end) {
+	for (;op != end; op++) {
 		if (s[0] == op->op_text[0] && s[1] == op->op_text[1])
 			return op->op_num;
-		op++;
 	}
 	return OPERAND;
 }
@@ -484,15 +482,19 @@ isunopoperand(void)
 	char *t;
 	int num;
 
-	if (nargc == 1)
-		return 1;
-	s = *(t_wp + 1);
-	if (nargc == 2)
-		return parenlevel == 1 && strcmp(s, ")") == 0;
-	t = *(t_wp + 2);
-	num = find_op(s);
-	return TOKEN_TYPE(num) == BINOP &&
-	    (parenlevel == 0 || t[0] != ')' || t[1] != '\0');
+    switch (nargc) {
+    case 1:
+        return 1;
+    case 2:
+        s = *(t_wp + 1);
+        return parenlevel == 1 && strcmp(s, ")") == 0;
+    default:
+        s = *(t_wp + 1);
+        t = *(t_wp + 2);
+        num = find_op(s);
+        return TOKEN_TYPE(num) == BINOP &&
+            (parenlevel == 0 || t[0] != ')' || t[1] != '\0');
+    }
 }
 
 static int
@@ -501,15 +503,19 @@ islparenoperand(void)
 	char *s;
 	int num;
 
-	if (nargc == 1)
-		return 1;
-	s = *(t_wp + 1);
-	if (nargc == 2)
-		return parenlevel == 1 && strcmp(s, ")") == 0;
-	if (nargc != 3)
-		return 0;
-	num = find_op(s);
-	return TOKEN_TYPE(num) == BINOP;
+    switch (nargc) {
+    case 1:
+        return 1;
+    case 2:
+        s = *(t_wp + 1);
+        return parenlevel == 1 && strcmp(s, ")") == 0;
+    case 3:
+        s = *(t_wp + 1);
+        num = find_op(s);
+        return TOKEN_TYPE(num) == BINOP;
+    default:
+        return 0;
+    }
 }
 
 static int
@@ -517,12 +523,15 @@ isrparenoperand(void)
 {
 	char *s;
 
-	if (nargc == 1)
-		return 0;
-	s = *(t_wp + 1);
-	if (nargc == 2)
-		return parenlevel == 1 && strcmp(s, ")") == 0;
-	return 0;
+    switch (nargc) {
+    case 1:
+        return 0;
+    case 2:
+        s = *(t_wp + 1);
+        return parenlevel == 1 && strcmp(s, ")") == 0;
+    default:
+        return 0;
+    }
 }
 
 /* atoi with error detection */
@@ -582,17 +591,10 @@ intcmp (const char *s1, const char *s2)
 {
 	intmax_t q1, q2;
 
-
 	q1 = getq(s1);
 	q2 = getq(s2);
 
-	if (q1 > q2)
-		return 1;
-
-	if (q1 < q2)
-		return -1;
-
-	return 0;
+    return (q1 > q2) - (q1 < q2);
 }
 
 static int
