@@ -202,10 +202,9 @@ struct secasvar {
  *  (c) read only except during creation / free
  */
 struct secreplay {
-	u_int32_t count;	/* (m) */
+	u_int64_t count;	/* (m) */
 	u_int wsize;		/* (c) window size, i.g. 4 bytes */
-	u_int32_t seq;		/* (m) used by sender */
-	u_int32_t lastseq;	/* (m) used by receiver */
+	u_int64_t last;		/* (m) used by receiver */
 	u_int32_t *bitmap;	/* (m) used by receiver */
 	u_int bitmap_size;	/* (c) size of the bitmap array */
 	int overflow;		/* (m) overflow flag */

@@ -534,6 +534,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	struct newah *ah;
 	crypto_session_t cryptoid;
 	int hl, rplen, authsize, ahsize, error;
+	uint32_t seqh;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->key_auth != NULL, ("null authentication key"));
@@ -557,7 +558,7 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Check replay window, if applicable. */
 	SECASVAR_LOCK(sav);
 	if (sav->replay != NULL && sav->replay->wsize != 0 &&
-	    ipsec_chkreplay(ntohl(ah->ah_seq), sav) == 0) {
+	    ipsec_chkreplay(ntohl(ah->ah_seq), &seqh, sav) == 0) {
 		SECASVAR_UNLOCK(sav);
 		AHSTAT_INC(ahs_replay);
 		DPRINTF(("%s: packet replay failure: %s\n", __func__,
@@ -925,7 +926,9 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	/* Insert packet replay counter, as requested.  */
 	SECASVAR_LOCK(sav);
 	if (sav->replay) {
-		if (sav->replay->count == ~0 &&
+		if ((sav->replay->count == ~0 ||
+		    (!(sav->flags & SADB_X_SAFLAGS_ESN) &&
+		    ((uint32_t)sav->replay->count) == ~0)) &&
 		    (sav->flags & SADB_X_EXT_CYCSEQ) == 0) {
 			SECASVAR_UNLOCK(sav);
 			DPRINTF(("%s: replay counter wrapped for SA %s/%08lx\n",
@@ -940,7 +943,7 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		if (!V_ipsec_replay)
 #endif
 			sav->replay->count++;
-		ah->ah_seq = htonl(sav->replay->count);
+		ah->ah_seq = htonl((uint32_t)sav->replay->count);
 	}
 	cryptoid = sav->tdb_cryptoid;
 	SECASVAR_UNLOCK(sav);

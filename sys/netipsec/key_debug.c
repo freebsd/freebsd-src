@@ -809,8 +809,8 @@ kdebug_secreplay(struct secreplay *rpl)
 	int len, l;
 
 	IPSEC_ASSERT(rpl != NULL, ("null rpl"));
-	printf(" secreplay{ count=%u bitmap_size=%u wsize=%u seq=%u lastseq=%u",
-	    rpl->count, rpl->bitmap_size, rpl->wsize, rpl->seq, rpl->lastseq);
+	printf(" secreplay{ count=%lu bitmap_size=%u wsize=%u last=%lu",
+	    rpl->count, rpl->bitmap_size, rpl->wsize, rpl->last);
 
 	if (rpl->bitmap == NULL) {
 		printf("  }\n");

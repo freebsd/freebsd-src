@@ -262,6 +262,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	uint8_t *ivp;
 	crypto_session_t cryptoid;
 	int alen, error, hlen, plen;
+	uint32_t seqh;
 
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
 	IPSEC_ASSERT(sav->tdb_encalgxform != NULL, ("null encoding xform"));
@@ -320,7 +321,7 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	 */
 	SECASVAR_LOCK(sav);
 	if (esph != NULL && sav->replay != NULL && sav->replay->wsize != 0) {
-		if (ipsec_chkreplay(ntohl(esp->esp_seq), sav) == 0) {
+		if (ipsec_chkreplay(ntohl(esp->esp_seq), &seqh, sav) == 0) {
 			SECASVAR_UNLOCK(sav);
 			DPRINTF(("%s: packet replay check for %s\n", __func__,
 			    ipsec_sa2str(sav, buf, sizeof(buf))));
@@ -740,7 +741,7 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		if (!V_ipsec_replay)
 #endif
 			sav->replay->count++;
-		replay = htonl(sav->replay->count);
+		replay = htonl((uint32_t)sav->replay->count);
 
 		bcopy((caddr_t) &replay, mtod(mo, caddr_t) + roff +
 		    sizeof(uint32_t), sizeof(uint32_t));
