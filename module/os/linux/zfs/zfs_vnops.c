@@ -1234,8 +1234,8 @@ zfs_access(struct inode *ip, int mode, int flag, cred_t *cr)
  */
 /* ARGSUSED */
 int
-zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags,
-    cred_t *cr, int *direntflags, pathname_t *realpnp)
+zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags, cred_t *cr,
+    int *direntflags, pathname_t *realpnp)
 {
 	zfsvfs_t *zfsvfs = ZTOZSB(zdp);
 	int error = 0;
@@ -2543,7 +2543,7 @@ zfs_setattr_dir(znode_t *dzp)
 	zap_cursor_t	zc;
 	zap_attribute_t	zap;
 	zfs_dirlock_t	*dl;
-	znode_t		*zp;
+	znode_t		*zp = NULL;
 	dmu_tx_t	*tx = NULL;
 	uint64_t	uid, gid;
 	sa_bulk_attr_t	bulk[4];
