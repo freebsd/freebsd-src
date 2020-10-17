@@ -79,6 +79,9 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Name cache");
+
 SDT_PROVIDER_DECLARE(vfs);
 SDT_PROBE_DEFINE3(vfs, namecache, enter, done, "struct vnode *", "char *",
     "struct vnode *");
@@ -277,6 +280,21 @@ cache_ncp_canuse(struct namecache *ncp)
 
 VFS_SMR_DECLARE;
 
+static SYSCTL_NODE(_vfs_cache, OID_AUTO, param, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Name cache parameters");
+
+static u_int __read_mostly	ncsize; /* the size as computed on creation or resizing */
+SYSCTL_UINT(_vfs_cache_param, OID_AUTO, size, CTLFLAG_RW, &ncsize, 0,
+    "Total namecache capacity");
+
+u_int ncsizefactor = 2;
+SYSCTL_UINT(_vfs_cache_param, OID_AUTO, sizefactor, CTLFLAG_RW, &ncsizefactor, 0,
+    "Size factor for namecache");
+
+static u_long __read_mostly	ncnegfactor = 5; /* ratio of negative entries */
+SYSCTL_ULONG(_vfs_cache_param, OID_AUTO, negfactor, CTLFLAG_RW, &ncnegfactor, 0,
+    "Ratio of negative namecache entries");
+
 /*
  * Structures associated with name caching.
  */
@@ -286,15 +304,8 @@ static __read_mostly CK_SLIST_HEAD(nchashhead, namecache) *nchashtbl;/* Hash Tab
 static u_long __read_mostly	nchash;			/* size of hash table */
 SYSCTL_ULONG(_debug, OID_AUTO, nchash, CTLFLAG_RD, &nchash, 0,
     "Size of namecache hash table");
-static u_long __read_mostly	ncnegfactor = 5; /* ratio of negative entries */
-SYSCTL_ULONG(_vfs, OID_AUTO, ncnegfactor, CTLFLAG_RW, &ncnegfactor, 0,
-    "Ratio of negative namecache entries");
 static u_long __exclusive_cache_line	numneg;	/* number of negative entries allocated */
 static u_long __exclusive_cache_line	numcache;/* number of cache entries allocated */
-u_int ncsizefactor = 2;
-SYSCTL_UINT(_vfs, OID_AUTO, ncsizefactor, CTLFLAG_RW, &ncsizefactor, 0,
-    "Size factor for namecache");
-static u_int __read_mostly	ncsize; /* the size as computed on creation or resizing */
 
 struct nchstats	nchstats;		/* cache effectiveness statistics */
 
@@ -433,43 +444,58 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, SYSCTL_NULL_INT_PTR,
 /*
  * The new name cache statistics
  */
-static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+static SYSCTL_NODE(_vfs_cache, OID_AUTO, stats, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Name cache statistics");
-#define STATNODE_ULONG(name, descr)					\
-	SYSCTL_ULONG(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, 0, descr);
-#define STATNODE_COUNTER(name, descr)					\
-	static COUNTER_U64_DEFINE_EARLY(name);				\
-	SYSCTL_COUNTER_U64(_vfs_cache, OID_AUTO, name, CTLFLAG_RD, &name, \
+
+#define STATNODE_ULONG(name, varname, descr)					\
+	SYSCTL_ULONG(_vfs_cache_stats, OID_AUTO, name, CTLFLAG_RD, &varname, 0, descr);
+#define STATNODE_COUNTER(name, varname, descr)					\
+	static COUNTER_U64_DEFINE_EARLY(varname);				\
+	SYSCTL_COUNTER_U64(_vfs_cache_stats, OID_AUTO, name, CTLFLAG_RD, &varname, \
 	    descr);
-STATNODE_ULONG(numneg, "Number of negative cache entries");
-STATNODE_ULONG(numcache, "Number of cache entries");
-STATNODE_COUNTER(numcachehv, "Number of namecache entries with vnodes held");
-STATNODE_COUNTER(numdrops, "Number of dropped entries due to reaching the limit");
-STATNODE_COUNTER(dothits, "Number of '.' hits");
-STATNODE_COUNTER(dotdothits, "Number of '..' hits");
-STATNODE_COUNTER(nummiss, "Number of cache misses");
-STATNODE_COUNTER(nummisszap, "Number of cache misses we do not want to cache");
-STATNODE_COUNTER(numposzaps,
+STATNODE_ULONG(neg, numneg, "Number of negative cache entries");
+STATNODE_ULONG(count, numcache, "Number of cache entries");
+STATNODE_COUNTER(heldvnodes, numcachehv, "Number of namecache entries with vnodes held");
+STATNODE_COUNTER(drops, numdrops, "Number of dropped entries due to reaching the limit");
+STATNODE_COUNTER(dothits, dothits, "Number of '.' hits");
+STATNODE_COUNTER(dotdothis, dotdothits, "Number of '..' hits");
+STATNODE_COUNTER(miss, nummiss, "Number of cache misses");
+STATNODE_COUNTER(misszap, nummisszap, "Number of cache misses we do not want to cache");
+STATNODE_COUNTER(posszaps, numposzaps,
     "Number of cache hits (positive) we do not want to cache");
-STATNODE_COUNTER(numposhits, "Number of cache hits (positive)");
-STATNODE_COUNTER(numnegzaps,
+STATNODE_COUNTER(poshits, numposhits, "Number of cache hits (positive)");
+STATNODE_COUNTER(negzaps, numnegzaps,
     "Number of cache hits (negative) we do not want to cache");
-STATNODE_COUNTER(numneghits, "Number of cache hits (negative)");
+STATNODE_COUNTER(neghits, numneghits, "Number of cache hits (negative)");
 /* These count for vn_getcwd(), too. */
-STATNODE_COUNTER(numfullpathcalls, "Number of fullpath search calls");
-STATNODE_COUNTER(numfullpathfail1, "Number of fullpath search errors (ENOTDIR)");
-STATNODE_COUNTER(numfullpathfail2,
+STATNODE_COUNTER(fullpathcalls, numfullpathcalls, "Number of fullpath search calls");
+STATNODE_COUNTER(fullpathfail1, numfullpathfail1, "Number of fullpath search errors (ENOTDIR)");
+STATNODE_COUNTER(fullpathfail2, numfullpathfail2,
     "Number of fullpath search errors (VOP_VPTOCNP failures)");
-STATNODE_COUNTER(numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
-STATNODE_COUNTER(numfullpathfound, "Number of successful fullpath calls");
-STATNODE_COUNTER(zap_and_exit_bucket_relock_success,
+STATNODE_COUNTER(fullpathfail4, numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
+STATNODE_COUNTER(fullpathfound, numfullpathfound, "Number of successful fullpath calls");
+
+/*
+ * Debug or developer statistics.
+ */
+static SYSCTL_NODE(_vfs_cache, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Name cache debugging");
+#define DEBUGNODE_ULONG(name, descr)					\
+	SYSCTL_ULONG(_vfs_cache_debug, OID_AUTO, name, CTLFLAG_RD, &name, 0, descr);
+#define DEBUGNODE_COUNTER(name, descr)					\
+	static COUNTER_U64_DEFINE_EARLY(name);				\
+	SYSCTL_COUNTER_U64(_vfs_cache_debug, OID_AUTO, name, CTLFLAG_RD, &name, \
+	    descr);
+DEBUGNODE_COUNTER(zap_and_exit_bucket_relock_success,
     "Number of successful removals after relocking");
-static long zap_and_exit_bucket_fail; STATNODE_ULONG(zap_and_exit_bucket_fail,
+static long zap_and_exit_bucket_fail;
+DEBUGNODE_ULONG(zap_and_exit_bucket_fail,
     "Number of times zap_and_exit failed to lock");
-static long zap_and_exit_bucket_fail2; STATNODE_ULONG(zap_and_exit_bucket_fail2,
+static long zap_and_exit_bucket_fail2;
+DEBUGNODE_ULONG(zap_and_exit_bucket_fail2,
     "Number of times zap_and_exit failed to lock");
 static long cache_lock_vnodes_cel_3_failures;
-STATNODE_ULONG(cache_lock_vnodes_cel_3_failures,
+DEBUGNODE_ULONG(cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
 
 static void cache_zap_locked(struct namecache *ncp);
