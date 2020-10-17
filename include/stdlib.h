@@ -225,6 +225,7 @@ long	 mrand48(void);
 long	 nrand48(unsigned short[3]);
 int	 posix_openpt(int);
 char	*ptsname(int);
+int	 ptsname_r(int, char *, size_t);
 int	 putenv(char *);
 long	 random(void);
 unsigned short

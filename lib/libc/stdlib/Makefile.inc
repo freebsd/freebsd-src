@@ -50,7 +50,7 @@ MLINKS+=hcreate.3 hdestroy.3 hcreate.3 hsearch.3
 MLINKS+=hcreate.3 hcreate_r.3 hcreate.3 hdestroy_r.3 hcreate.3 hsearch_r.3
 MLINKS+=insque.3 remque.3
 MLINKS+=lsearch.3 lfind.3
-MLINKS+=ptsname.3 grantpt.3 ptsname.3 unlockpt.3
+MLINKS+=ptsname.3 grantpt.3 ptsname.3 ptsname_r.3 ptsname.3 unlockpt.3
 MLINKS+=qsort.3 heapsort.3 qsort.3 mergesort.3 qsort.3 qsort_r.3 \
 	qsort.3 qsort_s.3
 MLINKS+=rand.3 rand_r.3 rand.3 srand.3
