@@ -296,6 +296,17 @@ SYSCTL_ULONG(_vfs_cache_param, OID_AUTO, negfactor, CTLFLAG_RW, &ncnegfactor, 0,
     "Ratio of negative namecache entries");
 
 /*
+ * Negative entry % of namecahe capacity above which automatic eviction is allowed.
+ *
+ * Check cache_neg_evict_cond for details.
+ */
+static u_int ncnegminpct = 3;
+
+static u_int __read_mostly     neg_min; /* the above recomputed against ncsize */
+SYSCTL_UINT(_vfs_cache_param, OID_AUTO, negmin, CTLFLAG_RD, &neg_min, 0,
+    "Negative entry count above which automatic eviction is allowed");
+
+/*
  * Structures associated with name caching.
  */
 #define NCHHASH(hash) \
@@ -703,6 +714,37 @@ SYSCTL_PROC(_vfs_cache, OID_AUTO, nchstats, CTLTYPE_OPAQUE | CTLFLAG_RD |
     CTLFLAG_MPSAFE, 0, 0, sysctl_nchstats, "LU",
     "VFS cache effectiveness statistics");
 
+static void
+cache_recalc_neg_min(u_int val)
+{
+
+	neg_min = (ncsize * val) / 100;
+}
+
+static int
+sysctl_negminpct(SYSCTL_HANDLER_ARGS)
+{
+	u_int val;
+	int error;
+
+	val = ncnegminpct;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	if (val == ncnegminpct)
+		return (0);
+	if (val < 0 || val > 99)
+		return (EINVAL);
+	ncnegminpct = val;
+	cache_recalc_neg_min(val);
+	return (0);
+}
+
+SYSCTL_PROC(_vfs_cache_param, OID_AUTO, negminpct,
+    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_negminpct,
+    "I", "Negative entry \% of namecahe capacity above which automatic eviction is allowed");
+
 #ifdef DIAGNOSTIC
 /*
  * Grab an atomic snapshot of the name cache hash chain lengths
@@ -1033,7 +1075,7 @@ cache_neg_evict_select(void)
 	return (nl);
 }
 
-static void
+static bool
 cache_neg_evict(void)
 {
 	struct namecache *ncp, *ncp2;
@@ -1044,10 +1086,11 @@ cache_neg_evict(void)
 	struct mtx *blp;
 	uint32_t hash;
 	u_char nlen;
+	bool evicted;
 
 	nl = cache_neg_evict_select();
 	if (nl == NULL) {
-		return;
+		return (false);
 	}
 
 	mtx_lock(&nl->nl_lock);
@@ -1064,7 +1107,7 @@ cache_neg_evict(void)
 		counter_u64_add(neg_evict_skipped_empty, 1);
 		mtx_unlock(&nl->nl_lock);
 		mtx_unlock(&nl->nl_evict_lock);
-		return;
+		return (false);
 	}
 	ns = NCP2NEGSTATE(ncp);
 	nlen = ncp->nc_nlen;
@@ -1088,6 +1131,7 @@ cache_neg_evict(void)
 	if (ncp2 == NULL) {
 		counter_u64_add(neg_evict_skipped_missed, 1);
 		ncp = NULL;
+		evicted = false;
 	} else {
 		MPASS(dvlp == VP2VNODELOCK(ncp->nc_dvp));
 		MPASS(blp == NCP2BUCKETLOCK(ncp));
@@ -1095,11 +1139,41 @@ cache_neg_evict(void)
 		    ncp->nc_name);
 		cache_zap_locked(ncp);
 		counter_u64_add(neg_evicted, 1);
+		evicted = true;
 	}
 	mtx_unlock(blp);
 	mtx_unlock(dvlp);
 	if (ncp != NULL)
 		cache_free(ncp);
+	return (evicted);
+}
+
+/*
+ * Maybe evict a negative entry to create more room.
+ *
+ * The ncnegfactor parameter limits what fraction of the total count
+ * can comprise of negative entries. However, if the cache is just
+ * warming up this leads to excessive evictions.  As such, ncnegminpct
+ * (recomputed to neg_min) dictates whether the above should be
+ * applied.
+ *
+ * Try evicting if the cache is close to full capacity regardless of
+ * other considerations.
+ */
+static bool
+cache_neg_evict_cond(u_long lnumcache)
+{
+	u_long lnumneg;
+
+	if (ncsize - 1000 < lnumcache)
+		goto out_evict;
+	lnumneg = atomic_load_long(&numneg);
+	if (lnumneg < neg_min)
+		return (false);
+	if (lnumneg * ncnegfactor < lnumcache)
+		return (false);
+out_evict:
+	return (cache_neg_evict());
 }
 
 /*
@@ -1994,8 +2068,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * 3. it only ever looks at negative entries.
 	 */
 	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
-	if (numneg * ncnegfactor > lnumcache) {
-		cache_neg_evict();
+	if (cache_neg_evict_cond(lnumcache)) {
 		lnumcache = atomic_load_long(&numcache);
 	}
 	if (__predict_false(lnumcache >= ncsize)) {
@@ -2226,6 +2299,7 @@ nchinit(void *dummy __unused)
 	VFS_SMR_ZONE_SET(cache_zone_large_ts);
 
 	ncsize = desiredvnodes * ncsizefactor;
+	cache_recalc_neg_min(ncnegminpct);
 	nchashtbl = nchinittbl(desiredvnodes * 2, &nchash);
 	ncbuckethash = cache_roundup_2(mp_ncpus * mp_ncpus) - 1;
 	if (ncbuckethash < 7) /* arbitrarily chosen to avoid having one lock */
@@ -2302,6 +2376,7 @@ cache_changesize(u_long newmaxvnodes)
 		}
 	}
 	ncsize = newncsize;
+	cache_recalc_neg_min(ncnegminpct);
 	cache_unlock_all_buckets();
 	cache_unlock_all_vnodes();
 	ncfreetbl(old_nchashtbl);
