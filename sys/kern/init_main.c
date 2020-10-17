@@ -47,6 +47,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_kdb.h"
 #include "opt_init_path.h"
 #include "opt_verbose_sysinit.h"
 
@@ -838,3 +839,51 @@ kick_init(const void *udata __unused)
 	sched_add(td, SRQ_BORING);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_MIDDLE, kick_init, NULL);
+
+/*
+ * DDB(4).
+ */
+#ifdef DDB
+static void
+db_show_print_syinit(struct sysinit *sip, bool ddb)
+{
+	const char *sname, *funcname;
+	c_db_sym_t sym;
+	db_expr_t  offset;
+
+#define xprint(...)							\
+	if (ddb)							\
+		db_printf(__VA_ARGS__);					\
+	else								\
+		printf(__VA_ARGS__)
+
+	if (sip == NULL) {
+		xprint("%s: no sysinit * given\n", __func__);
+		return;
+	}
+
+	sym = db_search_symbol((vm_offset_t)sip, DB_STGY_ANY, &offset);
+	db_symbol_values(sym, &sname, NULL);
+	sym = db_search_symbol((vm_offset_t)sip->func, DB_STGY_PROC, &offset);
+	db_symbol_values(sym, &funcname, NULL);
+	xprint("%s(%p)\n", (sname != NULL) ? sname : "", sip);
+	xprint("  %#08x %#08x\n", sip->subsystem, sip->order);
+	xprint("  %p(%s)(%p)\n",
+	    sip->func, (funcname != NULL) ? funcname : "", sip->udata);
+#undef xprint
+}
+
+DB_SHOW_COMMAND(sysinit, db_show_sysinit)
+{
+	struct sysinit **sipp;
+
+	db_printf("SYSINIT vs Name(Ptr)\n");
+	db_printf("  Subsystem  Order\n");
+	db_printf("  Function(Name)(Arg)\n");
+	for (sipp = sysinit; sipp < sysinit_end; sipp++) {
+		db_show_print_syinit(*sipp, true);
+		if (db_pager_quit)
+			break;
+	}
+}
+#endif /* DDB */
