@@ -47,6 +47,5 @@ log_must chmod 777 $TESTDIR
 
 # Use POSIX ACLs on filesystem
 log_must zfs set acltype=posix $TESTPOOL/$TESTFS
-log_must zfs set xattr=sa $TESTPOOL/$TESTFS
 
 log_pass
