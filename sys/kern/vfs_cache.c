@@ -113,7 +113,7 @@ SDT_PROBE_DEFINE3(vfs, namecache, zap, done, "struct vnode *", "char *",
     "struct vnode *");
 SDT_PROBE_DEFINE2(vfs, namecache, zap_negative, done, "struct vnode *",
     "char *");
-SDT_PROBE_DEFINE2(vfs, namecache, shrink_negative, done, "struct vnode *",
+SDT_PROBE_DEFINE2(vfs, namecache, evict_negative, done, "struct vnode *",
     "char *");
 
 SDT_PROBE_DEFINE3(vfs, fplookup, lookup, done, "struct nameidata", "int", "bool");
@@ -251,9 +251,6 @@ cache_ncp_canuse(struct namecache *ncp)
  * bucketlock	mtx	for access to given set of hash buckets
  * neglist	mtx	negative entry LRU management
  *
- * Additionally, ncneg_shrink_lock mtx is used to have at most one thread
- * shrinking the LRU list.
- *
  * It is legal to take multiple vnodelock and bucketlock locks. The locking
  * order is lower address first. Both are recursive.
  *
@@ -305,13 +302,14 @@ static bool __read_frequently cache_fast_revlookup = true;
 SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_revlookup, CTLFLAG_RW,
     &cache_fast_revlookup, 0, "");
 
-static struct mtx __exclusive_cache_line	ncneg_shrink_lock;
+static u_int __exclusive_cache_line neg_cycle;
 
 #define ncneghash	3
 #define	numneglists	(ncneghash + 1)
 
 struct neglist {
-	struct mtx		nl_lock;
+	struct mtx		nl_evict_lock;
+	struct mtx		nl_lock __aligned(CACHE_LINE_SIZE);
 	TAILQ_HEAD(, namecache) nl_list;
 	TAILQ_HEAD(, namecache) nl_hotlist;
 	u_long			nl_hotnum;
@@ -473,10 +471,6 @@ static long zap_and_exit_bucket_fail2; STATNODE_ULONG(zap_and_exit_bucket_fail2,
 static long cache_lock_vnodes_cel_3_failures;
 STATNODE_ULONG(cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
-STATNODE_COUNTER(numneg_evicted,
-    "Number of negative entries evicted when adding a new entry");
-STATNODE_COUNTER(shrinking_skipped,
-    "Number of times shrinking was already in progress");
 
 static void cache_zap_locked(struct namecache *ncp);
 static int vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf,
@@ -683,21 +677,6 @@ SYSCTL_PROC(_vfs_cache, OID_AUTO, nchstats, CTLTYPE_OPAQUE | CTLFLAG_RD |
     CTLFLAG_MPSAFE, 0, 0, sysctl_nchstats, "LU",
     "VFS cache effectiveness statistics");
 
-static int
-sysctl_hotnum(SYSCTL_HANDLER_ARGS)
-{
-	int i, out;
-
-	out = 0;
-	for (i = 0; i < numneglists; i++)
-		out += neglists[i].nl_hotnum;
-
-	return (SYSCTL_OUT(req, &out, sizeof(out)));
-}
-SYSCTL_PROC(_vfs_cache, OID_AUTO, hotnum, CTLTYPE_INT | CTLFLAG_RD |
-    CTLFLAG_MPSAFE, 0, 0, sysctl_hotnum, "I",
-    "Number of hot negative entries");
-
 #ifdef DIAGNOSTIC
 /*
  * Grab an atomic snapshot of the name cache hash chain lengths
@@ -792,27 +771,77 @@ SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
 /*
  * Negative entries management
  *
- * A variation of LRU scheme is used. New entries are hashed into one of
- * numneglists cold lists. Entries get promoted to the hot list on first hit.
+ * Various workloads create plenty of negative entries and barely use them
+ * afterwards. Moreover malicious users can keep performing bogus lookups
+ * adding even more entries. For example "make tinderbox" as of writing this
+ * comment ends up with 2.6M namecache entries in total, 1.2M of which are
+ * negative.
  *
- * The shrinker will demote hot list head and evict from the cold list in a
- * round-robin manner.
+ * As such, a rather aggressive eviction method is needed. The currently
+ * employed method is a placeholder.
+ *
+ * Entries are split over numneglists separate lists, each of which is further
+ * split into hot and cold entries. Entries get promoted after getting a hit.
+ * Eviction happens on addition of new entry.
  */
+static SYSCTL_NODE(_vfs_cache, OID_AUTO, neg, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "Name cache negative entry statistics");
+
+SYSCTL_ULONG(_vfs_cache_neg, OID_AUTO, count, CTLFLAG_RD, &numneg, 0,
+    "Number of negative cache entries");
+
+static COUNTER_U64_DEFINE_EARLY(neg_created);
+SYSCTL_COUNTER_U64(_vfs_cache_neg, OID_AUTO, created, CTLFLAG_RD, &neg_created,
+    "Number of created negative entries");
+
+static COUNTER_U64_DEFINE_EARLY(neg_evicted);
+SYSCTL_COUNTER_U64(_vfs_cache_neg, OID_AUTO, evicted, CTLFLAG_RD, &neg_evicted,
+    "Number of evicted negative entries");
+
+static COUNTER_U64_DEFINE_EARLY(neg_evict_skipped_empty);
+SYSCTL_COUNTER_U64(_vfs_cache_neg, OID_AUTO, evict_skipped_empty, CTLFLAG_RD,
+    &neg_evict_skipped_empty,
+    "Number of times evicting failed due to lack of entries");
+
+static COUNTER_U64_DEFINE_EARLY(neg_evict_skipped_contended);
+SYSCTL_COUNTER_U64(_vfs_cache_neg, OID_AUTO, evict_skipped_contended, CTLFLAG_RD,
+    &neg_evict_skipped_contended,
+    "Number of times evicting failed due to contention");
+
+SYSCTL_COUNTER_U64(_vfs_cache_neg, OID_AUTO, hits, CTLFLAG_RD, &numneghits,
+    "Number of cache hits (negative)");
+
+static int
+sysctl_neg_hot(SYSCTL_HANDLER_ARGS)
+{
+	int i, out;
+
+	out = 0;
+	for (i = 0; i < numneglists; i++)
+		out += neglists[i].nl_hotnum;
+
+	return (SYSCTL_OUT(req, &out, sizeof(out)));
+}
+SYSCTL_PROC(_vfs_cache_neg, OID_AUTO, hot, CTLTYPE_INT | CTLFLAG_RD |
+    CTLFLAG_MPSAFE, 0, 0, sysctl_neg_hot, "I",
+    "Number of hot negative entries");
+
 static void
-cache_negative_init(struct namecache *ncp)
+cache_neg_init(struct namecache *ncp)
 {
 	struct negstate *ns;
 
 	ncp->nc_flag |= NCF_NEGATIVE;
 	ns = NCP2NEGSTATE(ncp);
 	ns->neg_flag = 0;
+	counter_u64_add(neg_created, 1);
 }
 
 /*
  * Move a negative entry to the hot list.
  */
 static void
-cache_negative_promote(struct namecache *ncp)
+cache_neg_promote(struct namecache *ncp)
 {
 	struct neglist *nl;
 	struct negstate *ns;
@@ -838,7 +867,7 @@ cache_negative_promote(struct namecache *ncp)
  * up again.
  */
 static bool
-cache_negative_promote_cond(struct vnode *dvp, struct componentname *cnp,
+cache_neg_promote_cond(struct vnode *dvp, struct componentname *cnp,
     struct namecache *oncp, uint32_t hash)
 {
 	struct namecache *ncp;
@@ -896,7 +925,7 @@ cache_negative_promote_cond(struct vnode *dvp, struct componentname *cnp,
 		goto out_abort;
 	}
 
-	cache_negative_promote(ncp);
+	cache_neg_promote(ncp);
 
 	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
 	counter_u64_add(numneghits, 1);
@@ -910,7 +939,7 @@ out_abort:
 }
 
 static void
-cache_negative_hit(struct namecache *ncp)
+cache_neg_hit(struct namecache *ncp)
 {
 	struct neglist *nl;
 	struct negstate *ns;
@@ -920,12 +949,12 @@ cache_negative_hit(struct namecache *ncp)
 		return;
 	nl = NCP2NEGLIST(ncp);
 	mtx_lock(&nl->nl_lock);
-	cache_negative_promote(ncp);
+	cache_neg_promote(ncp);
 	mtx_unlock(&nl->nl_lock);
 }
 
 static void
-cache_negative_insert(struct namecache *ncp)
+cache_neg_insert(struct namecache *ncp)
 {
 	struct neglist *nl;
 
@@ -939,7 +968,7 @@ cache_negative_insert(struct namecache *ncp)
 }
 
 static void
-cache_negative_remove(struct namecache *ncp)
+cache_neg_remove(struct namecache *ncp)
 {
 	struct neglist *nl;
 	struct negstate *ns;
@@ -959,30 +988,22 @@ cache_negative_remove(struct namecache *ncp)
 }
 
 static struct neglist *
-cache_negative_shrink_select(void)
+cache_neg_evict_select(void)
 {
 	struct neglist *nl;
-	static u_int cycle;
-	u_int i;
+	u_int c;
 
-	cycle++;
-	for (i = 0; i < numneglists; i++) {
-		nl = &neglists[(cycle + i) % numneglists];
-		if (TAILQ_FIRST(&nl->nl_list) == NULL &&
-		    TAILQ_FIRST(&nl->nl_hotlist) == NULL)
-			continue;
-		mtx_lock(&nl->nl_lock);
-		if (TAILQ_FIRST(&nl->nl_list) != NULL ||
-		    TAILQ_FIRST(&nl->nl_hotlist) != NULL)
-			return (nl);
-		mtx_unlock(&nl->nl_lock);
+	c = atomic_fetchadd_int(&neg_cycle, 1) + 1;
+	nl = &neglists[c % numneglists];
+	if (!mtx_trylock(&nl->nl_evict_lock)) {
+		counter_u64_add(neg_evict_skipped_contended, 1);
+		return (NULL);
 	}
-
-	return (NULL);
+	return (nl);
 }
 
 static void
-cache_negative_zap_one(void)
+cache_neg_evict(void)
 {
 	struct namecache *ncp, *ncp2;
 	struct neglist *nl;
@@ -990,18 +1011,12 @@ cache_negative_zap_one(void)
 	struct mtx *dvlp;
 	struct mtx *blp;
 
-	if (mtx_owner(&ncneg_shrink_lock) != NULL ||
-	    !mtx_trylock(&ncneg_shrink_lock)) {
-		counter_u64_add(shrinking_skipped, 1);
-		return;
-	}
-
-	nl = cache_negative_shrink_select();
-	mtx_unlock(&ncneg_shrink_lock);
+	nl = cache_neg_evict_select();
 	if (nl == NULL) {
 		return;
 	}
 
+	mtx_lock(&nl->nl_lock);
 	ncp = TAILQ_FIRST(&nl->nl_hotlist);
 	if (ncp != NULL) {
 		ns = NCP2NEGSTATE(ncp);
@@ -1011,11 +1026,17 @@ cache_negative_zap_one(void)
 		ns->neg_flag &= ~NEG_HOT;
 	}
 	ncp = TAILQ_FIRST(&nl->nl_list);
-	MPASS(ncp != NULL);
+	if (ncp == NULL) {
+		counter_u64_add(neg_evict_skipped_empty, 1);
+		mtx_unlock(&nl->nl_lock);
+		mtx_unlock(&nl->nl_evict_lock);
+		return;
+	}
 	ns = NCP2NEGSTATE(ncp);
 	dvlp = VP2VNODELOCK(ncp->nc_dvp);
 	blp = NCP2BUCKETLOCK(ncp);
 	mtx_unlock(&nl->nl_lock);
+	mtx_unlock(&nl->nl_evict_lock);
 	mtx_lock(dvlp);
 	mtx_lock(blp);
 	/*
@@ -1031,10 +1052,10 @@ cache_negative_zap_one(void)
 		ncp = NULL;
 	} else {
 		vfs_smr_exit();
-		SDT_PROBE2(vfs, namecache, shrink_negative, done, ncp->nc_dvp,
+		SDT_PROBE2(vfs, namecache, evict_negative, done, ncp->nc_dvp,
 		    ncp->nc_name);
 		cache_zap_locked(ncp);
-		counter_u64_add(numneg_evicted, 1);
+		counter_u64_add(neg_evicted, 1);
 	}
 	mtx_unlock(blp);
 	mtx_unlock(dvlp);
@@ -1074,7 +1095,7 @@ cache_zap_locked(struct namecache *ncp)
 	} else {
 		SDT_PROBE2(vfs, namecache, zap_negative, done, ncp->nc_dvp,
 		    ncp->nc_name);
-		cache_negative_remove(ncp);
+		cache_neg_remove(ncp);
 	}
 	if (ncp->nc_flag & NCF_ISDOTDOT) {
 		if (ncp == ncp->nc_dvp->v_cache_dd) {
@@ -1414,7 +1435,7 @@ negative_success:
 	cache_out_ts(ncp, tsp, ticksp);
 	counter_u64_add(numneghits, 1);
 	whiteout = (ncp->nc_flag & NCF_WHITE);
-	cache_negative_hit(ncp);
+	cache_neg_hit(ncp);
 	mtx_unlock(dvlp);
 	if (whiteout)
 		cnp->cn_flags |= ISWHITEOUT;
@@ -1525,7 +1546,7 @@ negative_success:
 	cache_out_ts(ncp, tsp, ticksp);
 	counter_u64_add(numneghits, 1);
 	whiteout = (ncp->nc_flag & NCF_WHITE);
-	cache_negative_hit(ncp);
+	cache_neg_hit(ncp);
 	mtx_unlock(blp);
 	if (whiteout)
 		cnp->cn_flags |= ISWHITEOUT;
@@ -1628,7 +1649,7 @@ negative_success:
 	}
 	if (!neg_hot) {
 		vfs_smr_exit();
-		if (!cache_negative_promote_cond(dvp, cnp, ncp, hash))
+		if (!cache_neg_promote_cond(dvp, cnp, ncp, hash))
 			goto out_fallback;
 	} else {
 		SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
@@ -1927,15 +1948,15 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * Bugs:
 	 * 1. filesystems may end up tryng to add an already existing entry
 	 * (for example this can happen after a cache miss during concurrent
-	 * lookup), in which case we will call cache_negative_zap_one despite
-	 * not adding anything.
+	 * lookup), in which case we will call cache_neg_evict despite not
+	 * adding anything.
 	 * 2. the routine may fail to free anything and no provisions are made
 	 * to make it try harder (see the inside for failure modes)
 	 * 3. it only ever looks at negative entries.
 	 */
 	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
 	if (numneg * ncnegfactor > lnumcache) {
-		cache_negative_zap_one();
+		cache_neg_evict();
 		lnumcache = atomic_load_long(&numcache);
 	}
 	if (__predict_false(lnumcache >= ncsize)) {
@@ -1956,7 +1977,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	ncp->nc_flag = flag | NCF_WIP;
 	ncp->nc_vp = vp;
 	if (vp == NULL)
-		cache_negative_init(ncp);
+		cache_neg_init(ncp);
 	ncp->nc_dvp = dvp;
 	if (tsp != NULL) {
 		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
@@ -2081,7 +2102,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	} else {
 		if (cnp->cn_flags & ISWHITEOUT)
 			ncp->nc_flag |= NCF_WHITE;
-		cache_negative_insert(ncp);
+		cache_neg_insert(ncp);
 		SDT_PROBE2(vfs, namecache, enter_negative, done, dvp,
 		    ncp->nc_name);
 	}
@@ -2183,12 +2204,11 @@ nchinit(void *dummy __unused)
 		mtx_init(&vnodelocks[i], "ncvn", NULL, MTX_DUPOK | MTX_RECURSE);
 
 	for (i = 0; i < numneglists; i++) {
+		mtx_init(&neglists[i].nl_evict_lock, "ncnege", NULL, MTX_DEF);
 		mtx_init(&neglists[i].nl_lock, "ncnegl", NULL, MTX_DEF);
 		TAILQ_INIT(&neglists[i].nl_list);
 		TAILQ_INIT(&neglists[i].nl_hotlist);
 	}
-
-	mtx_init(&ncneg_shrink_lock, "ncnegs", NULL, MTX_DEF);
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nchinit, NULL);
 
@@ -3485,7 +3505,7 @@ cache_fplookup_negative_promote(struct cache_fpl *fpl, struct namecache *oncp,
 	dvp = fpl->dvp;
 
 	cache_fpl_smr_exit(fpl);
-	if (cache_negative_promote_cond(dvp, cnp, oncp, hash))
+	if (cache_neg_promote_cond(dvp, cnp, oncp, hash))
 		return (cache_fpl_handled(fpl, ENOENT));
 	else
 		return (cache_fpl_aborted(fpl));
