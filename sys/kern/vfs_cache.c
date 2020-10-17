@@ -3815,16 +3815,53 @@ cache_fplookup_dotdot(struct cache_fpl *fpl)
 	return (0);
 }
 
+static int __noinline
+cache_fplookup_neg(struct cache_fpl *fpl, struct namecache *ncp, uint32_t hash)
+{
+	struct negstate *ns;
+	struct vnode *dvp;
+	u_char nc_flag;
+	bool neg_hot;
+
+	dvp = fpl->dvp;
+	nc_flag = atomic_load_char(&ncp->nc_flag);
+	MPASS((nc_flag & NCF_NEGATIVE) != 0);
+	/*
+	 * If they want to create an entry we need to replace this one.
+	 */
+	if (__predict_false(fpl->cnp->cn_nameiop != LOOKUP)) {
+		/*
+		 * TODO
+		 * This should call something similar to
+		 * cache_fplookup_final_modifying.
+		 */
+		return (cache_fpl_partial(fpl));
+	}
+	ns = NCP2NEGSTATE(ncp);
+	neg_hot = ((ns->neg_flag & NEG_HOT) != 0);
+	if (__predict_false(!cache_ncp_canuse(ncp))) {
+		return (cache_fpl_partial(fpl));
+	}
+	if (__predict_false((nc_flag & NCF_WHITE) != 0)) {
+		return (cache_fpl_partial(fpl));
+	}
+	if (!neg_hot) {
+		return (cache_fplookup_negative_promote(fpl, ncp, hash));
+	}
+	SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp, ncp->nc_name);
+	counter_u64_add(numneghits, 1);
+	cache_fpl_smr_exit(fpl);
+	return (cache_fpl_handled(fpl, ENOENT));
+}
+
 static int
 cache_fplookup_next(struct cache_fpl *fpl)
 {
 	struct componentname *cnp;
 	struct namecache *ncp;
-	struct negstate *ns;
 	struct vnode *dvp, *tvp;
 	u_char nc_flag;
 	uint32_t hash;
-	bool neg_hot;
 
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
@@ -3853,28 +3890,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	tvp = atomic_load_ptr(&ncp->nc_vp);
 	nc_flag = atomic_load_char(&ncp->nc_flag);
 	if ((nc_flag & NCF_NEGATIVE) != 0) {
-		/*
-		 * If they want to create an entry we need to replace this one.
-		 */
-		if (__predict_false(fpl->cnp->cn_nameiop != LOOKUP)) {
-			return (cache_fpl_partial(fpl));
-		}
-		ns = NCP2NEGSTATE(ncp);
-		neg_hot = ((ns->neg_flag & NEG_HOT) != 0);
-		if (__predict_false(!cache_ncp_canuse(ncp))) {
-			return (cache_fpl_partial(fpl));
-		}
-		if (__predict_false((nc_flag & NCF_WHITE) != 0)) {
-			return (cache_fpl_partial(fpl));
-		}
-		if (!neg_hot) {
-			return (cache_fplookup_negative_promote(fpl, ncp, hash));
-		}
-		SDT_PROBE2(vfs, namecache, lookup, hit__negative, dvp,
-		    ncp->nc_name);
-		counter_u64_add(numneghits, 1);
-		cache_fpl_smr_exit(fpl);
-		return (cache_fpl_handled(fpl, ENOENT));
+		return (cache_fplookup_neg(fpl, ncp, hash));
 	}
 
 	if (__predict_false(!cache_ncp_canuse(ncp))) {
