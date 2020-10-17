@@ -1905,7 +1905,7 @@ inp_getmoptions(struct inpcb *inp, struct sockopt *sopt)
  * this in order to allow groups to be joined when the routing
  * table has not yet been populated during boot.
  *
- * Returns NULL if no ifp could be found.
+ * Returns NULL if no ifp could be found, otherwise return referenced ifp.
  *
  * FUTURE: Implement IPv4 source-address selection.
  */
@@ -1926,13 +1926,16 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 	if (!in_nullhost(ina)) {
 		IN_IFADDR_RLOCK(&in_ifa_tracker);
 		INADDR_TO_IFP(ina, ifp);
+		if (ifp != NULL)
+			if_ref(ifp);
 		IN_IFADDR_RUNLOCK(&in_ifa_tracker);
 	} else {
-		fibnum = inp ? inp->inp_inc.inc_fibnum : 0;
-		nh = fib4_lookup(fibnum, gsin->sin_addr, 0, 0, 0);
-		if (nh != NULL)
+		fibnum = inp ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB;
+		nh = fib4_lookup(fibnum, gsin->sin_addr, 0, NHR_NONE, 0);
+		if (nh != NULL) {
 			ifp = nh->nh_ifp;
-		else {
+			if_ref(ifp);
+		} else {
 			struct in_ifaddr *ia;
 			struct ifnet *mifp;
 
@@ -1943,6 +1946,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 				if (!(mifp->if_flags & IFF_LOOPBACK) &&
 				     (mifp->if_flags & IFF_MULTICAST)) {
 					ifp = mifp;
+					if_ref(ifp);
 					break;
 				}
 			}
@@ -1966,6 +1970,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 	struct ip_moptions		*imo;
 	struct in_multi			*inm;
 	struct in_msource		*lims;
+	struct epoch_tracker		 et;
 	int				 error, is_new;
 
 	ifp = NULL;
@@ -1997,9 +2002,10 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		if (!IN_MULTICAST(ntohl(gsa->sin.sin_addr.s_addr)))
 			return (EINVAL);
 
+		NET_EPOCH_ENTER(et);
 		if (sopt->sopt_valsize == sizeof(struct ip_mreqn) &&
 		    mreqn.imr_ifindex != 0)
-			ifp = ifnet_byindex(mreqn.imr_ifindex);
+			ifp = ifnet_byindex_ref(mreqn.imr_ifindex);
 		else
 			ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
 			    mreqn.imr_address);
@@ -2023,6 +2029,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 		ssa->sin.sin_addr = mreqs.imr_sourceaddr;
 
+		NET_EPOCH_ENTER(et);
 		ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
 		    mreqs.imr_interface);
 		CTR3(KTR_IGMPV3, "%s: imr_interface = 0x%08x, ifp = %p",
@@ -2065,7 +2072,8 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 
 		if (gsr.gsr_interface == 0 || V_if_index < gsr.gsr_interface)
 			return (EADDRNOTAVAIL);
-		ifp = ifnet_byindex(gsr.gsr_interface);
+		NET_EPOCH_ENTER(et);
+		ifp = ifnet_byindex_ref(gsr.gsr_interface);
 		break;
 
 	default:
@@ -2074,9 +2082,13 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		return (EOPNOTSUPP);
 		break;
 	}
+	NET_EPOCH_EXIT(et);
 
-	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0)
+	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
+		if (ifp != NULL)
+			if_rele(ifp);
 		return (EADDRNOTAVAIL);
+	}
 
 	IN_MULTI_LOCK();
 
@@ -2265,6 +2277,7 @@ out_inp_unlocked:
 		}
 		ip_mfilter_free(imf);
 	}
+	if_rele(ifp);
 	return (error);
 }
 
@@ -2740,7 +2753,6 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct ip_moptions	*imo;
 	int			 error;
-	struct epoch_tracker	et;
 
 	error = 0;
 
@@ -2847,9 +2859,7 @@ inp_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 	case IP_ADD_SOURCE_MEMBERSHIP:
 	case MCAST_JOIN_GROUP:
 	case MCAST_JOIN_SOURCE_GROUP:
-		NET_EPOCH_ENTER(et);
 		error = inp_join_group(inp, sopt);
-		NET_EPOCH_EXIT(et);
 		break;
 
 	case IP_DROP_MEMBERSHIP:
