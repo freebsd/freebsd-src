@@ -803,6 +803,11 @@ SYSCTL_COUNTER_U64(_vfs_cache_neg, OID_AUTO, evict_skipped_empty, CTLFLAG_RD,
     &neg_evict_skipped_empty,
     "Number of times evicting failed due to lack of entries");
 
+static COUNTER_U64_DEFINE_EARLY(neg_evict_skipped_missed);
+SYSCTL_COUNTER_U64(_vfs_cache_neg, OID_AUTO, evict_skipped_missed, CTLFLAG_RD,
+    &neg_evict_skipped_missed,
+    "Number of times evicting failed due to target entry disappearing");
+
 static COUNTER_U64_DEFINE_EARLY(neg_evict_skipped_contended);
 SYSCTL_COUNTER_U64(_vfs_cache_neg, OID_AUTO, evict_skipped_contended, CTLFLAG_RD,
     &neg_evict_skipped_contended,
@@ -1008,8 +1013,11 @@ cache_neg_evict(void)
 	struct namecache *ncp, *ncp2;
 	struct neglist *nl;
 	struct negstate *ns;
+	struct vnode *dvp;
 	struct mtx *dvlp;
 	struct mtx *blp;
+	uint32_t hash;
+	u_char nlen;
 
 	nl = cache_neg_evict_select();
 	if (nl == NULL) {
@@ -1033,25 +1041,30 @@ cache_neg_evict(void)
 		return;
 	}
 	ns = NCP2NEGSTATE(ncp);
-	dvlp = VP2VNODELOCK(ncp->nc_dvp);
-	blp = NCP2BUCKETLOCK(ncp);
+	nlen = ncp->nc_nlen;
+	dvp = ncp->nc_dvp;
+	hash = cache_get_hash(ncp->nc_name, nlen, dvp);
+	dvlp = VP2VNODELOCK(dvp);
+	blp = HASH2BUCKETLOCK(hash);
 	mtx_unlock(&nl->nl_lock);
 	mtx_unlock(&nl->nl_evict_lock);
 	mtx_lock(dvlp);
 	mtx_lock(blp);
 	/*
-	 * Enter SMR to safely check the negative list.
-	 * Even if the found pointer matches, the entry may now be reallocated
-	 * and used by a different vnode.
+	 * Note that since all locks were dropped above, the entry may be
+	 * gone or reallocated to be something else.
 	 */
-	vfs_smr_enter();
-	ncp2 = TAILQ_FIRST(&nl->nl_list);
-	if (ncp != ncp2 || dvlp != VP2VNODELOCK(ncp2->nc_dvp) ||
-	    blp != NCP2BUCKETLOCK(ncp2)) {
-		vfs_smr_exit();
+	CK_SLIST_FOREACH(ncp2, (NCHHASH(hash)), nc_hash) {
+		if (ncp2 == ncp && ncp2->nc_dvp == dvp &&
+		    ncp2->nc_nlen == nlen && (ncp2->nc_flag & NCF_NEGATIVE) != 0)
+			break;
+	}
+	if (ncp2 == NULL) {
+		counter_u64_add(neg_evict_skipped_missed, 1);
 		ncp = NULL;
 	} else {
-		vfs_smr_exit();
+		MPASS(dvlp == VP2VNODELOCK(ncp->nc_dvp));
+		MPASS(blp == NCP2BUCKETLOCK(ncp));
 		SDT_PROBE2(vfs, namecache, evict_negative, done, ncp->nc_dvp,
 		    ncp->nc_name);
 		cache_zap_locked(ncp);
