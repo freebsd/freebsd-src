@@ -273,16 +273,16 @@ rm_tree(char **argv)
 			case FTS_DNR:
 				rval = rmdir(p->fts_accpath);
 				if (rval == 0 || (fflag && errno == ENOENT)) {
-                    if (rval == 0) {
-                        if (vflag)
-                            (void)printf("%s\n",
-                                p->fts_path);
-                        if (info) {
-                            info = 0;
-                            (void)printf("%s\n",
-                                p->fts_path);
-                        }
-                    }
+					if (rval == 0) {
+						if (vflag)
+							(void)printf("%s\n",
+								p->fts_path);
+						if (info) {
+							info = 0;
+							(void)printf("%s\n",
+								p->fts_path);
+						}
+					}
 					continue;
 				}
 				break;
@@ -316,16 +316,16 @@ rm_tree(char **argv)
 			default:
 				rval = unlink(p->fts_accpath);
 				if (rval == 0 || (fflag && errno == ENOENT)) {
-                    if (rval == 0) {
-                        if (vflag)
-                            (void)printf("%s\n",
-                                p->fts_path);
-                        if (info) {
-                            info = 0;
-                            (void)printf("%s\n",
-                                p->fts_path);
-                        }
-                    }
+					if (rval == 0) {
+						if (vflag)
+							(void)printf("%s\n",
+								p->fts_path);
+						if (info) {
+							info = 0;
+							(void)printf("%s\n",
+								p->fts_path);
+						}
+					}
 					continue;
 				}
 			}
@@ -388,19 +388,19 @@ rm_file(char **argv)
 			else
 				rval = unlink(f);
 		}
-        if (rval) {
-            if (!fflag || errno != ENOENT) {
-                warn("%s", f);
-                eval = 1;
-            }
-        } else {
-            if (vflag)
-                (void)printf("%s\n", f);
-            if (info) {
-                info = 0;
-                (void)printf("%s\n", f);
-            }
-        }
+		if (rval) {
+			if (!fflag || errno != ENOENT) {
+				warn("%s", f);
+				eval = 1;
+			}
+		} else {
+			if (vflag)
+				(void)printf("%s\n", f);
+			if (info) {
+				info = 0;
+				(void)printf("%s\n", f);
+			}
+		}
 	}
 }
 
