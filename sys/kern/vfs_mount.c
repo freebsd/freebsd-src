@@ -96,7 +96,7 @@ static uma_zone_t mount_zone;
 struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
 
 /* For any iteration/modification of mountlist */
-struct mtx mountlist_mtx;
+struct mtx_padalign __exclusive_cache_line mountlist_mtx;
 MTX_SYSINIT(mountlist, &mountlist_mtx, "mountlist", MTX_DEF);
 
 EVENTHANDLER_LIST_DEFINE(vfs_mounted);
