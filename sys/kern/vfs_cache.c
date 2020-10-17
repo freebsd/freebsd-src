@@ -1923,8 +1923,21 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 
 	/*
 	 * Avoid blowout in namecache entries.
+	 *
+	 * Bugs:
+	 * 1. filesystems may end up tryng to add an already existing entry
+	 * (for example this can happen after a cache miss during concurrent
+	 * lookup), in which case we will call cache_negative_zap_one despite
+	 * not adding anything.
+	 * 2. the routine may fail to free anything and no provisions are made
+	 * to make it try harder (see the inside for failure modes)
+	 * 3. it only ever looks at negative entries.
 	 */
 	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
+	if (numneg * ncnegfactor > lnumcache) {
+		cache_negative_zap_one();
+		lnumcache = atomic_load_long(&numcache);
+	}
 	if (__predict_false(lnumcache >= ncsize)) {
 		atomic_subtract_long(&numcache, 1);
 		counter_u64_add(numdrops, 1);
@@ -2087,8 +2100,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	atomic_store_char(&ncp->nc_flag, ncp->nc_flag & ~NCF_WIP);
 
 	cache_enter_unlock(&cel);
-	if (numneg * ncnegfactor > lnumcache)
-		cache_negative_zap_one();
 	if (ndd != NULL)
 		cache_free(ndd);
 	return;
