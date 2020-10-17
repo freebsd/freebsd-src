@@ -29,18 +29,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/ck.h>
+#include <sys/epoch.h>
 #include <sys/kernel.h>
 #include <sys/kmem.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
-#include <sys/taskqueue.h>
 #include <sys/taskq.h>
+#include <sys/taskqueue.h>
 #include <sys/zfs_context.h>
-#include <sys/ck.h>
-#include <sys/epoch.h>
+
+#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
+#include <machine/pcb.h>
+#endif
 
 #include <vm/uma.h>
 
@@ -124,8 +127,14 @@ SYSUNINIT(system_taskq_fini, SI_SUB_CONFIGURE, SI_ORDER_ANY, system_taskq_fini,
 static taskqid_t
 __taskq_genid(void)
 {
+	taskqid_t tqid;
 
-	return (atomic_fetchadd_long(&tqidnext, 1) + 1);
+	/*
+	 * Assume a 64-bit counter will not wrap in practice.
+	 */
+	tqid = atomic_add_64_nv(&tqidnext, 1);
+	VERIFY(tqid);
+	return (tqid);
 }
 #else
 static taskqid_t
@@ -134,10 +143,11 @@ __taskq_genid(void)
 	taskqid_t tqid;
 
 	for (;;) {
-		tqid = atomic_fetchadd_int(&tqidnext, 1) + 1;
+		tqid = atomic_add_32_nv(&tqidnext, 1);
 		if (__predict_true(tqid != 0))
 			break;
 	}
+	VERIFY(tqid);
 	return (tqid);
 }
 #endif
@@ -164,7 +174,6 @@ taskq_insert(taskq_ent_t *ent)
 	taskqid_t tqid;
 
 	tqid = __taskq_genid();
-	VERIFY(tqid);
 	ent->tqent_id = tqid;
 	ent->tqent_registered = B_TRUE;
 	sx_xlock(TQIDHASHLOCK(tqid));
