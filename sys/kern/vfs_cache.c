@@ -491,22 +491,20 @@ STATNODE_COUNTER(fullpathfound, numfullpathfound, "Number of successful fullpath
  */
 static SYSCTL_NODE(_vfs_cache, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Name cache debugging");
-#define DEBUGNODE_ULONG(name, descr)					\
-	SYSCTL_ULONG(_vfs_cache_debug, OID_AUTO, name, CTLFLAG_RD, &name, 0, descr);
-#define DEBUGNODE_COUNTER(name, descr)					\
-	static COUNTER_U64_DEFINE_EARLY(name);				\
-	SYSCTL_COUNTER_U64(_vfs_cache_debug, OID_AUTO, name, CTLFLAG_RD, &name, \
+#define DEBUGNODE_ULONG(name, varname, descr)					\
+	SYSCTL_ULONG(_vfs_cache_debug, OID_AUTO, name, CTLFLAG_RD, &varname, 0, descr);
+#define DEBUGNODE_COUNTER(name, varname, descr)					\
+	static COUNTER_U64_DEFINE_EARLY(varname);				\
+	SYSCTL_COUNTER_U64(_vfs_cache_debug, OID_AUTO, name, CTLFLAG_RD, &varname, \
 	    descr);
-DEBUGNODE_COUNTER(zap_and_exit_bucket_relock_success,
+DEBUGNODE_COUNTER(zap_bucket_relock_success, zap_bucket_relock_success,
     "Number of successful removals after relocking");
-static long zap_and_exit_bucket_fail;
-DEBUGNODE_ULONG(zap_and_exit_bucket_fail,
-    "Number of times zap_and_exit failed to lock");
-static long zap_and_exit_bucket_fail2;
-DEBUGNODE_ULONG(zap_and_exit_bucket_fail2,
-    "Number of times zap_and_exit failed to lock");
+static long zap_bucket_fail;
+DEBUGNODE_ULONG(zap_bucket_fail, zap_bucket_fail, "");
+static long zap_bucket_fail2;
+DEBUGNODE_ULONG(zap_bucket_fail2, zap_bucket_fail2, "");
 static long cache_lock_vnodes_cel_3_failures;
-DEBUGNODE_ULONG(cache_lock_vnodes_cel_3_failures,
+DEBUGNODE_ULONG(vnodes_cel_3_failures, cache_lock_vnodes_cel_3_failures,
     "Number of times 3-way vnode locking failed");
 
 static void cache_zap_locked(struct namecache *ncp);
@@ -1325,7 +1323,7 @@ cache_zap_unlocked_bucket(struct namecache *ncp, struct componentname *cnp,
 		cache_zap_locked(rncp);
 		mtx_unlock(blp);
 		cache_unlock_vnodes(dvlp, vlp);
-		counter_u64_add(zap_and_exit_bucket_relock_success, 1);
+		counter_u64_add(zap_bucket_relock_success, 1);
 		return (0);
 	}
 
@@ -1423,7 +1421,7 @@ retry:
 
 	error = cache_zap_locked_bucket(ncp, cnp, hash, blp);
 	if (__predict_false(error != 0)) {
-		zap_and_exit_bucket_fail++;
+		zap_bucket_fail++;
 		goto retry;
 	}
 	counter_u64_add(numposzaps, 1);
@@ -1647,7 +1645,7 @@ negative_success:
 			counter_u64_add(numnegzaps, 1);
 			error = cache_zap_locked_bucket(ncp, cnp, hash, blp);
 			if (__predict_false(error != 0)) {
-				zap_and_exit_bucket_fail2++;
+				zap_bucket_fail2++;
 				goto retry;
 			}
 			cache_free(ncp);
