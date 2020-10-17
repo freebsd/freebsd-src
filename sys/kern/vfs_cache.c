@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DECLARE(vfs);
 SDT_PROBE_DEFINE3(vfs, namecache, enter, done, "struct vnode *", "char *",
     "struct vnode *");
+SDT_PROBE_DEFINE3(vfs, namecache, enter, duplicate, "struct vnode *", "char *",
+    "struct vnode *");
 SDT_PROBE_DEFINE2(vfs, namecache, enter_negative, done, "struct vnode *",
     "char *");
 SDT_PROBE_DEFINE2(vfs, namecache, fullpath_smr, hit, "struct vnode *",
@@ -2001,6 +2003,8 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 				}
 			}
 #endif
+			SDT_PROBE3(vfs, namecache, enter, duplicate, dvp, ncp->nc_name,
+			    vp);
 			goto out_unlock_free;
 		}
 	}
