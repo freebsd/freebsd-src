@@ -337,7 +337,6 @@ int dmu_objset_clone(const char *name, const char *origin);
 int dsl_destroy_snapshots_nvl(struct nvlist *snaps, boolean_t defer,
     struct nvlist *errlist);
 int dmu_objset_snapshot_one(const char *fsname, const char *snapname);
-int dmu_objset_snapshot_tmp(const char *, const char *, int);
 int dmu_objset_find(const char *name, int func(const char *, void *), void *arg,
     int flags);
 void dmu_objset_byteswap(void *buf, size_t size);
@@ -1009,7 +1008,7 @@ extern int dmu_objset_blksize(objset_t *os);
 extern int dmu_snapshot_list_next(objset_t *os, int namelen, char *name,
     uint64_t *id, uint64_t *offp, boolean_t *case_conflict);
 extern int dmu_snapshot_lookup(objset_t *os, const char *name, uint64_t *val);
-extern int dmu_snapshot_realname(objset_t *os, char *name, char *real,
+extern int dmu_snapshot_realname(objset_t *os, const char *name, char *real,
     int maxlen, boolean_t *conflict);
 extern int dmu_dir_list_next(objset_t *os, int namelen, char *name,
     uint64_t *idp, uint64_t *offp);

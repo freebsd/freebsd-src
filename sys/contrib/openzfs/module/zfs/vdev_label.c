@@ -613,7 +613,8 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 			 * as a single mapping.
 			 */
 			for (int i = 0; i < RANGE_TREE_HISTOGRAM_SIZE; i++) {
-				if (1ULL << (i + 1) < vdev_removal_max_span) {
+				if (i + 1 < highbit64(vdev_removal_max_span)
+				    - 1) {
 					to_alloc +=
 					    vd->vdev_mg->mg_histogram[i] <<
 					    (i + 1);
@@ -1433,7 +1434,7 @@ vdev_uberblock_compare(const uberblock_t *ub1, const uberblock_t *ub2)
 
 	/*
 	 * If MMP_VALID(ub) && MMP_SEQ_VALID(ub) then the host has an MMP-aware
-	 * ZFS, e.g. zfsonlinux >= 0.7.
+	 * ZFS, e.g. OpenZFS >= 0.7.
 	 *
 	 * If one ub has MMP and the other does not, they were written by
 	 * different hosts, which matters for MMP.  So we treat no MMP/no SEQ as
