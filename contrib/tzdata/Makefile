@@ -1022,10 +1022,14 @@ tzdata$(VERSION)-rearguard.tar.gz: rearguard.zi set-timestamps.out
 		done
 		sed '1s/$$/-rearguard/' \
 		  <version >tzdata$(VERSION)-rearguard.dir/version
+		: The dummy pacificnew pacifies TZUpdater 2.3.1 and earlier.
+		touch -md 2020-10-12T22:53:00Z \
+		  tzdata$(VERSION)-rearguard.dir/pacificnew
 		touch -cmr version tzdata$(VERSION)-rearguard.dir/version
 		LC_ALL=C && export LC_ALL && \
 		  (cd tzdata$(VERSION)-rearguard.dir && \
-		   tar $(TARFLAGS) -cf - $(COMMON) $(DATA) $(MISC) | \
+		   tar $(TARFLAGS) -cf - \
+			$(COMMON) $(DATA) $(MISC) pacificnew | \
 		     gzip $(GZIPFLAGS)) >$@.out
 		mv $@.out $@
 
