@@ -260,7 +260,11 @@ g_vfs_open(struct vnode *vp, struct g_consumer **cpp, const char *fsname, int wr
 	sc->sc_bo = bo;
 	gp->softc = sc;
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
+	error = g_attach(cp, pp);
+	if (error) {
+		g_wither_geom(gp, ENXIO);
+		return (error);
+	}
 	error = g_access(cp, 1, wr, wr);
 	if (error) {
 		g_wither_geom(gp, ENXIO);

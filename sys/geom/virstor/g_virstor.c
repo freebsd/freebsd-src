@@ -780,9 +780,11 @@ g_virstor_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	gp->orphan = (void *)invalid_call;	/* I really want these to fail. */
 
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
-	error = read_metadata(cp, &md);
-	g_detach(cp);
+	error = g_attach(cp, pp);
+	if (error == 0) {
+		error = read_metadata(cp, &md);
+		g_detach(cp);
+	}
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 
