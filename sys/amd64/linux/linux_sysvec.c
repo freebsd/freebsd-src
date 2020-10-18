@@ -206,24 +206,45 @@ linux_fetch_syscall_args(struct thread *td)
 static void
 linux_set_syscall_retval(struct thread *td, int error)
 {
-	struct trapframe *frame = td->td_frame;
+	struct trapframe *frame;
 
-	/*
-	 * On Linux only %rcx and %r11 values are not preserved across
-	 * the syscall.  So, do not clobber %rdx and %r10.
-	 */
-	td->td_retval[1] = frame->tf_rdx;
-	if (error != EJUSTRETURN)
+	frame = td->td_frame;
+
+	switch (error) {
+	case 0:
+		frame->tf_rax = td->td_retval[0];
+ 		frame->tf_r10 = frame->tf_rcx;
+		break;
+
+	case ERESTART:
+		/*
+		 * Reconstruct pc, we know that 'syscall' is 2 bytes,
+		 * lcall $X,y is 7 bytes, int 0x80 is 2 bytes.
+		 * We saved this in tf_err.
+		 *
+		 */
+		frame->tf_rip -= frame->tf_err;
 		frame->tf_r10 = frame->tf_rcx;
+		break;
+ 
+	case EJUSTRETURN:
+		break;
 
-	cpu_set_syscall_retval(td, error);
-
-	if (__predict_false(error != 0)) {
-		if (error != ERESTART && error != EJUSTRETURN)
-			frame->tf_rax = linux_to_bsd_errno(error);
+	default:
+		frame->tf_rax = linux_to_bsd_errno(error);
+		frame->tf_r10 = frame->tf_rcx;
+		break;
 	}
 
-	 /* Restore all registers. */
+	/*
+	 * Differently from FreeBSD native ABI, on Linux only %rcx
+	 * and %r11 values are not preserved across the syscall.
+	 * Require full context restore to get all registers except
+	 * those two restored at return to usermode.
+	 *
+	 * XXX: Would be great to be able to avoid PCB_FULL_IRET
+	 *      for the error == 0 case.
+	 */
 	set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 }
 
