@@ -1377,6 +1377,9 @@ static bool
 linux_get_dummy_limit(l_uint resource, struct rlimit *rlim)
 {
 
+	if (linux_dummy_rlimits == 0)
+		return (false);
+
 	switch (resource) {
 	case LINUX_RLIMIT_LOCKS:
 	case LINUX_RLIMIT_SIGPENDING:
