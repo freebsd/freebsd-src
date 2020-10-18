@@ -232,8 +232,8 @@ be_mounted_at(libbe_handle_t *lbh, const char *path, nvlist_t *details)
  * usage
  */
 int
-be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
-    char *result_loc)
+be_mount(libbe_handle_t *lbh, const char *bootenv, const char *mountpoint,
+    int flags, char *result_loc)
 {
 	char be[BE_MAXPATHLEN];
 	char mnt_temp[BE_MAXPATHLEN];
@@ -288,7 +288,7 @@ be_mount(libbe_handle_t *lbh, char *bootenv, char *mountpoint, int flags,
  * usage
  */
 int
-be_unmount(libbe_handle_t *lbh, char *bootenv, int flags)
+be_unmount(libbe_handle_t *lbh, const char *bootenv, int flags)
 {
 	int err;
 	char be[BE_MAXPATHLEN];
