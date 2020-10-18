@@ -896,6 +896,8 @@ g_attach(struct g_consumer *cp, struct g_provider *pp)
 	G_VALID_PROVIDER(pp);
 	g_trace(G_T_TOPOLOGY, "g_attach(%p, %p)", cp, pp);
 	KASSERT(cp->provider == NULL, ("attach but attached"));
+	if ((pp->flags & (G_PF_ORPHAN | G_PF_WITHER)) != 0)
+		return (ENXIO);
 	cp->provider = pp;
 	cp->flags &= ~G_CF_ORPHAN;
 	LIST_INSERT_HEAD(&pp->consumers, cp, consumers);

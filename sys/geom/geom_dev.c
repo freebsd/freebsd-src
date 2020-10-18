@@ -346,7 +346,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	cp->private = sc;
 	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	error = g_attach(cp, pp);
-	KASSERT(error == 0,
+	KASSERT(error == 0 || error == ENXIO,
 	    ("g_dev_taste(%s) failed to g_attach, err=%d", pp->name, error));
 
 	make_dev_args_init(&args);

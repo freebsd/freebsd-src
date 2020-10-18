@@ -586,7 +586,12 @@ g_mountver_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 
 	cp = LIST_FIRST(&gp->consumer);
-	g_attach(cp, pp);
+	error = g_attach(cp, pp);
+	if (error != 0) {
+		G_MOUNTVER_DEBUG(0, "Cannot attach to %s; error = %d.", pp->name, error);
+		return (NULL);
+	}
+
 	error = g_mountver_ident_matches(gp);
 	if (error != 0) {
 		g_detach(cp);

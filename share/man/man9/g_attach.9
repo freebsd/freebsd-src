@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2004
+.Dd October 10, 2020
 .Dt G_ATTACH 9
 .Os
 .Sh NAME
@@ -122,6 +122,8 @@ Possible errors:
 .Bl -tag -width Er
 .It Bq Er ELOOP
 The operation creates a topology loop.
+.It Bq Er ENXIO
+Provider got orphaned.
 .El
 .Sh SEE ALSO
 .Xr geom 4 ,
