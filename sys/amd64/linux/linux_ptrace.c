@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #define	LINUX_PTRACE_GETSIGINFO		0x4202
 #define	LINUX_PTRACE_GETREGSET		0x4204
 #define	LINUX_PTRACE_SEIZE		0x4206
+#define	LINUX_PTRACE_GET_SYSCALL_INFO	0x420e
 
 #define	LINUX_PTRACE_EVENT_EXIT		6
 
@@ -557,6 +558,14 @@ linux_ptrace_seize(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
 	return (EINVAL);
 }
 
+static int
+linux_ptrace_get_syscall_info(struct thread *td, pid_t pid, l_ulong addr, l_ulong data)
+{
+
+	linux_msg(td, "PTRACE_GET_SYSCALL_INFO not implemented; returning EINVAL");
+	return (EINVAL);
+}
+
 int
 linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 {
@@ -641,6 +650,9 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		break;
 	case LINUX_PTRACE_SEIZE:
 		error = linux_ptrace_seize(td, pid, uap->addr, uap->data);
+		break;
+	case LINUX_PTRACE_GET_SYSCALL_INFO:
+		error = linux_ptrace_get_syscall_info(td, pid, uap->addr, uap->data);
 		break;
 	default:
 		linux_msg(td, "ptrace(%ld, ...) not implemented; "
