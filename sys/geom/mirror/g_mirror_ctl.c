@@ -449,7 +449,11 @@ err:
 			g_topology_unlock();
 			return;
 		}
-		g_attach(cp, pp);
+		if (g_attach(cp, pp) != 0) {
+			G_MIRROR_DEBUG(1, "Can't attach disk %s.", pp->name);
+			gctl_error(req, "Can't attach disk %s.", pp->name);
+			goto err;
+		}
 		if (g_access(cp, 1, 0, 0) != 0) {
 			G_MIRROR_DEBUG(1, "Can't open disk %s.", pp->name);
 			gctl_error(req, "Can't open disk %s.", pp->name);

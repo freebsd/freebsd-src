@@ -131,7 +131,13 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 
 	gp = g_new_geomf(mp, "%s.bde", pp->name);
 	cp = g_new_consumer(gp);
-	g_attach(cp, pp);
+	error = g_attach(cp, pp);
+	if (error != 0) {
+		g_destroy_consumer(cp);
+		g_destroy_geom(gp);
+		gctl_error(req, "could not attach consumer");
+		return;
+	}
 	error = g_access(cp, 1, 1, 1);
 	if (error) {
 		g_detach(cp);
