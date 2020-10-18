@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/jail.h>
@@ -67,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
+#include <netinet/in_fib.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
@@ -484,6 +486,17 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 		ip->ip_len = htons(m->m_pkthdr.len);
 		ip->ip_src = inp->inp_laddr;
 		ip->ip_dst.s_addr = dst;
+#ifdef ROUTE_MPATH
+		if (CALC_FLOWID_OUTBOUND) {
+			uint32_t hash_type, hash_val;
+
+			hash_val = fib4_calc_software_hash(ip->ip_src,
+			    ip->ip_dst, 0, 0, ip->ip_p, &hash_type);
+			m->m_pkthdr.flowid = hash_val;
+			M_HASHTYPE_SET(m, hash_type);
+			flags |= IP_NODEFAULTFLOWID;
+		}
+#endif
 		if (jailed(inp->inp_cred)) {
 			/*
 			 * prison_local_ip4() would be good enough but would
@@ -519,7 +532,17 @@ rip_output(struct mbuf *m, struct socket *so, ...)
 				return (EINVAL);
 			ip = mtod(m, struct ip *);
 		}
+#ifdef ROUTE_MPATH
+		if (CALC_FLOWID_OUTBOUND) {
+			uint32_t hash_type, hash_val;
 
+			hash_val = fib4_calc_software_hash(ip->ip_dst,
+			    ip->ip_src, 0, 0, ip->ip_p, &hash_type);
+			m->m_pkthdr.flowid = hash_val;
+			M_HASHTYPE_SET(m, hash_type);
+			flags |= IP_NODEFAULTFLOWID;
+		}
+#endif
 		INP_RLOCK(inp);
 		/*
 		 * Don't allow both user specified and setsockopt options,

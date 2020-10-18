@@ -51,4 +51,7 @@ int fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
     uint32_t flags, const struct ifnet *src_if);
 struct nhop_object *fib4_lookup_debugnet(uint32_t fibnum, struct in_addr dst,
     uint32_t scopeid, uint32_t flags);
+uint32_t fib4_calc_software_hash(struct in_addr src, struct in_addr dst,
+    unsigned short src_port, unsigned short dst_port, char proto,
+    uint32_t *phashtype);
 #endif

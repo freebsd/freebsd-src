@@ -307,4 +307,8 @@ int nhgrp_get_addition_group(struct rib_head *rnh,
 
 void nhgrp_free(struct nhgrp_object *nhg);
 
+/* Entropy data used for outbound hashing */
+#define MPATH_ENTROPY_KEY_LEN	40
+extern uint8_t mpath_entropy_key[MPATH_ENTROPY_KEY_LEN];
+
 #endif
