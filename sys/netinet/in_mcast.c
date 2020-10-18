@@ -2009,6 +2009,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		else
 			ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
 			    mreqn.imr_address);
+		NET_EPOCH_EXIT(et);
 		break;
 	}
 	case IP_ADD_SOURCE_MEMBERSHIP: {
@@ -2032,6 +2033,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		NET_EPOCH_ENTER(et);
 		ifp = inp_lookup_mcast_ifp(inp, &gsa->sin,
 		    mreqs.imr_interface);
+		NET_EPOCH_EXIT(et);
 		CTR3(KTR_IGMPV3, "%s: imr_interface = 0x%08x, ifp = %p",
 		    __func__, ntohl(mreqs.imr_interface.s_addr), ifp);
 		break;
@@ -2074,6 +2076,7 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 			return (EADDRNOTAVAIL);
 		NET_EPOCH_ENTER(et);
 		ifp = ifnet_byindex_ref(gsr.gsr_interface);
+		NET_EPOCH_EXIT(et);
 		break;
 
 	default:
@@ -2082,7 +2085,6 @@ inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 		return (EOPNOTSUPP);
 		break;
 	}
-	NET_EPOCH_EXIT(et);
 
 	if (ifp == NULL || (ifp->if_flags & IFF_MULTICAST) == 0) {
 		if (ifp != NULL)
