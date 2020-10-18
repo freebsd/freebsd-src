@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
+#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/errno.h>
@@ -103,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/raw_ip6.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/send.h>
 
@@ -462,6 +464,17 @@ rip6_output(struct mbuf *m, struct socket *so, ...)
 	}
 	ip6 = mtod(m, struct ip6_hdr *);
 
+#ifdef ROUTE_MPATH
+	if (CALC_FLOWID_OUTBOUND) {
+		uint32_t hash_type, hash_val;
+
+		hash_val = fib6_calc_software_hash(&inp->in6p_laddr,
+		    &dstsock->sin6_addr, 0, 0, so->so_proto->pr_protocol,
+		    &hash_type);
+		inp->inp_flowid = hash_val;
+		inp->inp_flowtype = hash_type;
+	}
+#endif
 	/*
 	 * Source address selection.
 	 */

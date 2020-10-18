@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_route.h"
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -115,6 +116,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet6/ip6protosw.h>
 #include <netinet6/ip6_var.h>
+#include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 #include <netinet6/in6_rss.h>
 #include <netinet6/udp6_var.h>
@@ -954,42 +956,20 @@ udp6_output(struct socket *so, int flags_arg, struct mbuf *m,
 	}
 
 	flags = 0;
-#ifdef	RSS
-	{
-		uint32_t hash_val, hash_type;
+#if defined(ROUTE_MPATH) || defined(RSS)
+	if (CALC_FLOWID_OUTBOUND_SENDTO) {
+		uint32_t hash_type, hash_val;
 		uint8_t pr;
 
 		pr = inp->inp_socket->so_proto->pr_protocol;
-		/*
-		 * Calculate an appropriate RSS hash for UDP and
-		 * UDP Lite.
-		 *
-		 * The called function will take care of figuring out
-		 * whether a 2-tuple or 4-tuple hash is required based
-		 * on the currently configured scheme.
-		 *
-		 * Later later on connected socket values should be
-		 * cached in the inpcb and reused, rather than constantly
-		 * re-calculating it.
-		 *
-		 * UDP Lite is a different protocol number and will
-		 * likely end up being hashed as a 2-tuple until
-		 * RSS / NICs grow UDP Lite protocol awareness.
-		 */
-		if (rss_proto_software_hash_v6(faddr, laddr, fport,
-		    inp->inp_lport, pr, &hash_val, &hash_type) == 0) {
-			m->m_pkthdr.flowid = hash_val;
-			M_HASHTYPE_SET(m, hash_type);
-		}
 
-		/*
-		 * Don't override with the inp cached flowid.
-		 *
-		 * Until the whole UDP path is vetted, it may actually
-		 * be incorrect.
-		 */
-		flags |= IP_NODEFAULTFLOWID;
+		hash_val = fib6_calc_packet_hash(laddr, faddr,
+		    inp->inp_lport, fport, pr, &hash_type);
+		m->m_pkthdr.flowid = hash_val;
+		M_HASHTYPE_SET(m, hash_type);
 	}
+	/* do not use inp flowid */
+	flags |= IP_NODEFAULTFLOWID;
 #endif
 
 	UDPSTAT_INC(udps_opackets);

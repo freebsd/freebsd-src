@@ -419,9 +419,6 @@ done:
  *
  * ifpp - XXX: just for statistics
  */
-/*
- * XXX TODO: no flowid is assigned for outbound flows?
- */
 int
 ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
     struct route_in6 *ro, int flags, struct ip6_moptions *im6o,
@@ -775,7 +772,8 @@ again:
 			}
 		}
 
-		nh = fib6_lookup(fibnum, &kdst, scopeid, NHR_NONE, 0);
+		nh = fib6_lookup(fibnum, &kdst, scopeid, NHR_NONE,
+		    m->m_pkthdr.flowid);
 		if (nh == NULL) {
 			IP6STAT_INC(ip6s_noroute);
 			/* No ifp in6_ifstat_inc(ifp, ifs6_out_discard); */
