@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
 #include <net/route/nhop.h>
+#include <net/toeplitz.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -67,6 +68,39 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 
 CHK_STRUCT_ROUTE_COMPAT(struct route_in6, ro_dst);
+
+#ifdef ROUTE_MPATH
+struct _hash_5tuple_ipv6 {
+	struct in6_addr src;
+	struct in6_addr dst;
+	unsigned short src_port;
+	unsigned short dst_port;
+	char proto;
+	char spare[3];
+};
+_Static_assert(sizeof(struct _hash_5tuple_ipv6) == 40,
+    "_hash_5tuple_ipv6 size is wrong");
+
+uint32_t
+fib6_calc_software_hash(const struct in6_addr *src, const struct in6_addr *dst,
+    unsigned short src_port, unsigned short dst_port, char proto,
+    uint32_t *phashtype)
+{
+	struct _hash_5tuple_ipv6 data;
+
+	data.src = *src;
+	data.dst = *dst;
+	data.src_port = src_port;
+	data.dst_port = dst_port;
+	data.proto = proto;
+	data.spare[0] = data.spare[1] = data.spare[2] = 0;
+
+	*phashtype = M_HASHTYPE_OPAQUE_HASH;
+
+	return (toeplitz_hash(MPATH_ENTROPY_KEY_LEN, mpath_entropy_key,
+	  sizeof(data), (uint8_t *)&data));
+}
+#endif
 
 /*
  * Looks up path in fib @fibnum specified by @dst.

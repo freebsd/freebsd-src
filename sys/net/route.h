@@ -125,7 +125,41 @@ VNET_DECLARE(uint32_t, _rt_numfibs);	/* number of existing route tables */
 #define	rt_numfibs		V_rt_numfibs
 VNET_DECLARE(u_int, rt_add_addr_allfibs); /* Announce interfaces to all fibs */
 #define	V_rt_add_addr_allfibs	VNET(rt_add_addr_allfibs)
+
+/* Calculate flowid for locally-originated packets */
+#define	V_fib_hash_outbound	VNET(fib_hash_outbound)
+VNET_DECLARE(u_int, fib_hash_outbound);
+
+/* Outbound flowid generation rules */
+#ifdef RSS
+
+#define fib4_calc_packet_hash		xps_proto_software_hash_v4
+#define fib6_calc_packet_hash		xps_proto_software_hash_v6
+#define	CALC_FLOWID_OUTBOUND_SENDTO	true
+
+#ifdef ROUTE_MPATH
+#define	CALC_FLOWID_OUTBOUND		V_fib_hash_outbound
+#else
+#define	CALC_FLOWID_OUTBOUND		false
 #endif
+
+#else /* !RSS */
+
+#define fib4_calc_packet_hash		fib4_calc_software_hash
+#define fib6_calc_packet_hash		fib6_calc_software_hash
+
+#ifdef ROUTE_MPATH
+#define	CALC_FLOWID_OUTBOUND_SENDTO	V_fib_hash_outbound
+#define	CALC_FLOWID_OUTBOUND		V_fib_hash_outbound
+#else
+#define	CALC_FLOWID_OUTBOUND_SENDTO	false
+#define	CALC_FLOWID_OUTBOUND		false
+#endif
+
+#endif /* RSS */
+
+
+#endif /* _KERNEL */
 
 /*
  * We distinguish between routes to hosts and routes to networks,
