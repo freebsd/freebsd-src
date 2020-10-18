@@ -84,7 +84,7 @@ static const struct opts logpage_opts[] = {
 	    "Page to dump"),
 	OPT("lsp", 'f', arg_uint8, opt, lsp,
 	    "Log Specific Field"),
-	OPT("lsi", 'i', arg_uint16, opt, lsp,
+	OPT("lsi", 'i', arg_uint16, opt, lsi,
 	    "Log Specific Identifier"),
 	OPT("rae", 'r', arg_none, opt, rae,
 	    "Retain Asynchronous Event"),
