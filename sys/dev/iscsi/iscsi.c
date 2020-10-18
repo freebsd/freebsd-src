@@ -367,8 +367,8 @@ iscsi_session_cleanup(struct iscsi_session *is, bool destroy_sim)
 	xpt_async(AC_LOST_DEVICE, is->is_path, NULL);
 
 	if (is->is_simq_frozen) {
-		xpt_release_simq(is->is_sim, 1);
 		is->is_simq_frozen = false;
+		xpt_release_simq(is->is_sim, 1);
 	}
 
 	xpt_free_path(is->is_path);
@@ -1479,8 +1479,8 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		KASSERT(is->is_simq_frozen, ("reconnect without frozen simq"));
 		ISCSI_SESSION_LOCK(is);
 		ISCSI_SESSION_DEBUG(is, "releasing");
-		xpt_release_simq(is->is_sim, 1);
 		is->is_simq_frozen = false;
+		xpt_release_simq(is->is_sim, 1);
 		ISCSI_SESSION_UNLOCK(is);
 
 	} else {
@@ -2351,6 +2351,17 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 	if (is->is_terminating ||
 	    (is->is_connected == false && fail_on_disconnection)) {
 		ccb->ccb_h.status = CAM_DEV_NOT_THERE;
+		xpt_done(ccb);
+		return;
+	}
+
+	/*
+	 * Make sure CAM doesn't sneak in a CCB just after freezing the queue.
+	 */
+	if (is->is_simq_frozen == true) {
+		ccb->ccb_h.status &= ~(CAM_SIM_QUEUED | CAM_STATUS_MASK);
+		ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+		/* Don't freeze the devq - the SIM queue is already frozen. */
 		xpt_done(ccb);
 		return;
 	}
