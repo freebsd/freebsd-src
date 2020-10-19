@@ -707,11 +707,11 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	gp = g_new_geomf(mp, GUZ_DEV_NAME("%s"), pp->name);
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
-	if (error == 0)
-		error = g_access(cp, 1, 0, 0);
-	if (error) {
+	if (error != 0)
+		goto e0;
+	error = g_access(cp, 1, 0, 0);
+	if (error)
 		goto e1;
-	}
 	g_topology_unlock();
 
 	/*
@@ -942,6 +942,7 @@ e2:
 	g_access(cp, -1, 0, 0);
 e1:
 	g_detach(cp);
+e0:
 	g_destroy_consumer(cp);
 	g_destroy_geom(gp);
 
