@@ -19,7 +19,4 @@ LDFLAGS+=	-L${LIBGMOCKDIR}
 
 SRCS+=		gmock_main.cc
 
-HAS_TESTS=
-SUBDIR.${MK_TESTS}+= tests
-
 .include <bsd.lib.mk>
