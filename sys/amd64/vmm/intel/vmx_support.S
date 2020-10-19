@@ -148,33 +148,6 @@ ENTRY(vmx_enter_guest)
 	 */
 	VMX_HOST_SAVE
 
-	/*
-	 * Activate guest pmap on this cpu.
-	 */
-	movq	VMXCTX_PMAP(%rdi), %r11
-	movl	PCPU(CPUID), %eax
-	LK btsl	%eax, PM_ACTIVE(%r11)
-
-	/*
-	 * If 'vmx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
-	 * then we must invalidate all mappings associated with this EPTP.
-	 */
-	movq	PM_EPTGEN(%r11), %r10
-	cmpq	%r10, VMX_EPTGEN(%rsi, %rax, 8)
-	je	guest_restore
-
-	/* Refresh 'vmx->eptgen[curcpu]' */
-	movq	%r10, VMX_EPTGEN(%rsi, %rax, 8)
-
-	/* Setup the invept descriptor on the host stack */
-	mov	%rsp, %r11
-	movq	VMX_EPTP(%rsi), %rax
-	movq	%rax, -16(%r11)
-	movq	$0x0, -8(%r11)
-	mov	$0x1, %eax		/* Single context invalidate */
-	invept	-16(%r11), %rax
-	jbe	invept_error		/* Check invept instruction error */
-
 guest_restore:
 	movl	%edx, %r8d
 	cmpb	$0, guest_l1d_flush_sw(%rip)
@@ -208,10 +181,6 @@ do_launch:
 	movl	$VMX_VMLAUNCH_ERROR, %eax
 	jmp	decode_inst_error
 
-invept_error:
-	movl	$VMX_INVEPT_ERROR, %eax
-	jmp	decode_inst_error
-
 decode_inst_error:
 	movl	$VM_FAIL_VALID, %r11d
 	jz	inst_error
@@ -223,13 +192,6 @@ inst_error:
 	 * The return value is already populated in %eax so we cannot use
 	 * it as a scratch register beyond this point.
 	 */
-
-	/*
-	 * Deactivate guest pmap from this cpu.
-	 */
-	movq	VMXCTX_PMAP(%rdi), %r11
-	movl	PCPU(CPUID), %r10d
-	LK btrl	%r10d, PM_ACTIVE(%r11)
 
 	VMX_HOST_RESTORE
 	VLEAVE
@@ -247,13 +209,6 @@ vmx_exit_guest_flush_rsb:
 	 * Save guest state that is not automatically saved in the vmcs.
 	 */
 	VMX_GUEST_SAVE
-
-	/*
-	 * Deactivate guest pmap from this cpu.
-	 */
-	movq	VMXCTX_PMAP(%rdi), %r11
-	movl	PCPU(CPUID), %r10d
-	LK btrl	%r10d, PM_ACTIVE(%r11)
 
 	VMX_HOST_RESTORE
 
@@ -290,13 +245,6 @@ vmx_exit_guest:
 	 * Save guest state that is not automatically saved in the vmcs.
 	 */
 	VMX_GUEST_SAVE
-
-	/*
-	 * Deactivate guest pmap from this cpu.
-	 */
-	movq	VMXCTX_PMAP(%rdi), %r11
-	movl	PCPU(CPUID), %r10d
-	LK btrl	%r10d, PM_ACTIVE(%r11)
 
 	VMX_HOST_RESTORE
 
