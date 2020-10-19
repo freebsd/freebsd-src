@@ -1427,7 +1427,7 @@ keg_drain_domain(uma_keg_t keg, int domain)
 	LIST_INIT(&freeslabs);
 
 	CTR4(KTR_UMA, "keg_drain %s(%p) domain %d free items: %u",
-	    keg->uk_name, keg, i, dom->ud_free_items);
+	    keg->uk_name, keg, domain, dom->ud_free_items);
 
 	KEG_LOCK(keg, domain);
 
