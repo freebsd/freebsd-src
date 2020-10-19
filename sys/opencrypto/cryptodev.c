@@ -346,6 +346,11 @@ SYSCTL_BOOL(_kern_crypto, OID_AUTO, cryptodev_separate_aad, CTLFLAG_RW,
     &use_separate_aad, 0,
     "Use separate AAD buffer for /dev/crypto requests.");
 
+static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
+SYSCTL_TIMEVAL_SEC(_kern, OID_AUTO, cryptodev_warn_interval, CTLFLAG_RW,
+    &warninterval,
+    "Delay in seconds between warnings of deprecated /dev/crypto algorithms");
+
 static	int cryptof_ioctl(struct file *, u_long, void *,
 		    struct ucred *, struct thread *);
 static	int cryptof_stat(struct file *, struct stat *,
@@ -419,6 +424,7 @@ cryptof_ioctl(
 	struct ucred *active_cred,
 	struct thread *td)
 {
+	static struct timeval keywarn, featwarn;
 	struct crypto_session_params csp;
 	struct fcrypt *fcr = fp->f_data;
 	struct csession *cse;
@@ -818,6 +824,10 @@ bail:
 		break;
 	case CIOCKEY:
 	case CIOCKEY2:
+		if (ratecheck(&keywarn, &warninterval))
+			gone_in(14,
+			    "Asymmetric crypto operations via /dev/crypto");
+
 		if (!crypto_userasymcrypto) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EPERM);		/* XXX compat? */
@@ -833,6 +843,10 @@ bail:
 		mtx_unlock(&Giant);
 		break;
 	case CIOCASYMFEAT:
+		if (ratecheck(&featwarn, &warninterval))
+			gone_in(14,
+			    "Asymmetric crypto features via /dev/crypto");
+
 		if (!crypto_userasymcrypto) {
 			/*
 			 * NB: if user asym crypto operations are
