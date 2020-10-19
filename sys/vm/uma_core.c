@@ -3734,10 +3734,17 @@ zone_import(void *arg, void **bucket, int max, int domain, int flags)
 		stripe = howmany(max, vm_ndomains);
 #endif
 		dom = &keg->uk_domain[slab->us_domain];
-		while (slab->us_freecount && i < max) { 
+		do {
 			bucket[i++] = slab_alloc_item(keg, slab);
-			if (dom->ud_free_items <= keg->uk_reserve)
-				break;
+			if (dom->ud_free_items <= keg->uk_reserve) {
+				/*
+				 * Avoid depleting the reserve after a
+				 * successful item allocation, even if
+				 * M_USE_RESERVE is specified.
+				 */
+				KEG_UNLOCK(keg, slab->us_domain);
+				goto out;
+			}
 #ifdef NUMA
 			/*
 			 * If the zone is striped we pick a new slab for every
@@ -3751,13 +3758,14 @@ zone_import(void *arg, void **bucket, int max, int domain, int flags)
 			    vm_ndomains > 1 && --stripe == 0)
 				break;
 #endif
-		}
+		} while (slab->us_freecount != 0 && i < max);
 		KEG_UNLOCK(keg, slab->us_domain);
+
 		/* Don't block if we allocated any successfully. */
 		flags &= ~M_WAITOK;
 		flags |= M_NOWAIT;
 	}
-
+out:
 	return i;
 }
 
