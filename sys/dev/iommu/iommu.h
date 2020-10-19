@@ -111,6 +111,9 @@ struct iommu_domain {
 	iommu_gaddr_t end;		/* (c) Highest address + 1 in
 					   the guest AS */
 	struct iommu_map_entry *first_place, *last_place; /* (d) */
+	struct iommu_map_entry *msi_entry; /* (d) Arch-specific */
+	iommu_gaddr_t msi_base;		/* (d) Arch-specific */
+	vm_paddr_t msi_phys;		/* (d) Arch-specific */
 	u_int flags;			/* (u) */
 };
 
