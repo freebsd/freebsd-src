@@ -1475,7 +1475,7 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 		if ((pcb->pcb_flags & PCB_NPXUSERINITDONE) != 0) {
 			pcb->pcb_flags |= PCB_NPXINITDONE;
 			if ((pcb->pcb_flags & PCB_KERNNPX_THR) == 0)
-				pcb->pcb_flags |= ~PCB_KERNNPX;
+				pcb->pcb_flags &= ~PCB_KERNNPX;
 		} else if ((pcb->pcb_flags & PCB_KERNNPX_THR) == 0)
 			pcb->pcb_flags &= ~(PCB_NPXINITDONE | PCB_KERNNPX);
 	} else {
