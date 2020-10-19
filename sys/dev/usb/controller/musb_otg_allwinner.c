@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define	DRD_EP_MAX		5
+#define	DRD_EP_MAX_H3		4
 
 #define	MUSB2_REG_AWIN_VEND0	0x0043
 #define	VEND0_PIO_MODE		0
@@ -89,12 +90,24 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun4i-a10-musb",	AWUSB_OKAY },
 	{ "allwinner,sun6i-a31-musb",	AWUSB_OKAY },
 	{ "allwinner,sun8i-a33-musb",	AWUSB_OKAY | AWUSB_NO_CONFDATA },
+	{ "allwinner,sun8i-h3-musb",	AWUSB_OKAY | AWUSB_NO_CONFDATA },
 	{ NULL,				0 }
 };
 
 static const struct musb_otg_ep_cfg musbotg_ep_allwinner[] = {
 	{
-		.ep_end = 5,
+		.ep_end = DRD_EP_MAX,
+		.ep_fifosz_shift = 9,
+		.ep_fifosz_reg = MUSB2_VAL_FIFOSZ_512,
+	},
+	{
+		.ep_end = -1,
+	},
+};
+
+static const struct musb_otg_ep_cfg musbotg_ep_allwinner_h3[] = {
+	{
+		.ep_end = DRD_EP_MAX_H3,
 		.ep_fifosz_shift = 9,
 		.ep_fifosz_reg = MUSB2_VAL_FIFOSZ_512,
 	},
@@ -445,8 +458,13 @@ awusbdrd_attach(device_t dev)
 	sc->sc.sc_id = 0;
 	sc->sc.sc_platform_data = sc;
 	sc->sc.sc_mode = MUSB2_HOST_MODE;	/* XXX HOST vs DEVICE mode */
-	sc->sc.sc_ep_max = DRD_EP_MAX;
-	sc->sc.sc_ep_cfg = musbotg_ep_allwinner;
+	if (ofw_bus_is_compatible(dev, "allwinner,sun8i-h3-musb")) {
+		sc->sc.sc_ep_cfg = musbotg_ep_allwinner_h3;
+		sc->sc.sc_ep_max = DRD_EP_MAX_H3;
+	} else {
+		sc->sc.sc_ep_cfg = musbotg_ep_allwinner;
+		sc->sc.sc_ep_max = DRD_EP_MAX;
+	}
 
 	error = bus_setup_intr(dev, sc->res[1], INTR_MPSAFE | INTR_TYPE_BIO,
 	    NULL, awusbdrd_intr, sc, &sc->sc.sc_intr_hdl);
