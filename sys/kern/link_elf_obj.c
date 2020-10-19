@@ -914,6 +914,9 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 		error = ENOMEM;
 		goto out;
 	}
+#if VM_NRESERVLEVEL > 0
+	vm_object_color(ef->object, 0);
+#endif
 
 	/*
 	 * In order to satisfy amd64's architectural requirements on the
