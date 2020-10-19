@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2020
+.Dd October 19, 2020
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -369,6 +369,7 @@ The attack filter will drop an incoming frame if any of these conditions is
 true: src ip/ip6 == dst ip/ip6; tcp and src/dst ip is not unicast; src/dst ip is
 loopback (127.x.y.z); src ip6 is not unicast; src/dst ip6 is loopback (::1/128)
 or unspecified (::/128); tcp and src/dst ip6 is mcast (ff00::/8).
+This facility is available on T4 and T5 based cards only.
 .It Va hw.cxgbe.drop_ip_fragments
 Set to 1 to drop all incoming IP fragments.
 Default is 0.
@@ -378,9 +379,11 @@ Set to 1 to drop incoming frames with Layer 2 length or checksum errors.
 Default is 1.
 .It Va hw.cxgbe.drop_pkts_with_l3_errors
 Set to 1 to drop incoming frames with IP version, length, or checksum errors.
+The IP checksum is validated for TCP or UDP packets only.
 Default is 0.
 .It Va hw.cxgbe.drop_pkts_with_l4_errors
-Set to 1 to drop incoming frames with Layer 4 length, checksum, or other errors.
+Set to 1 to drop incoming frames with Layer 4 (TCP or UDP) length,
+checksum, or other errors.
 Default is 0.
 .El
 .Sh SUPPORT

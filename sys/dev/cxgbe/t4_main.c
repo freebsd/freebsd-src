@@ -4823,7 +4823,7 @@ set_params__post_init(struct adapter *sc)
 	    F_DROPERRORIPHDRLEN | F_DROPERRORTCPHDRLEN | F_DROPERRORPKTLEN |
 	    F_DROPERRORTCPOPT | F_DROPERRORCSUMIP | F_DROPERRORCSUM;
 	val = 0;
-	if (t4_attack_filter != 0) {
+	if (chip_id(sc) < CHELSIO_T6 && t4_attack_filter != 0) {
 		t4_set_reg_field(sc, A_TP_GLOBAL_CONFIG, F_ATTACKFILTERENABLE,
 		    F_ATTACKFILTERENABLE);
 		val |= F_DROPERRORATTACK;
