@@ -38,6 +38,12 @@ __FBSDID("$FreeBSD$");
 
 #include "assym.inc"
 
+.macro check_user_access user_arg, limit, bad_addr_func
+	ldr	x7, =(\limit)
+	cmp	x\user_arg, x7
+	b.cs	\bad_addr_func
+.endm
+
 /*
  * One of the fu* or su* functions failed, return -1.
  */
@@ -53,9 +59,7 @@ END(fsu_fault)
  * int casueword32(volatile uint32_t *, uint32_t, uint32_t *, uint32_t)
  */
 ENTRY(casueword32)
-	ldr	x4, =(VM_MAXUSER_ADDRESS-3)
-	cmp	x0, x4
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	mov	w5, #1
 	SET_FAULT_HANDLER(x6, x4)	/* And set it */
@@ -75,9 +79,7 @@ END(casueword32)
  * int casueword(volatile u_long *, u_long, u_long *, u_long)
  */
 ENTRY(casueword)
-	ldr	x4, =(VM_MAXUSER_ADDRESS-7)
-	cmp	x0, x4
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS-7), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	mov	w5, #1
 	SET_FAULT_HANDLER(x6, x4)	/* And set it */
@@ -97,9 +99,7 @@ END(casueword)
  * int fubyte(volatile const void *)
  */
 ENTRY(fubyte)
-	ldr	x1, =VM_MAXUSER_ADDRESS
-	cmp	x0, x1
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x1)	/* And set it */
 	ldtrb	w0, [x0]		/* Try loading the data */
@@ -111,9 +111,7 @@ END(fubyte)
  * int fuword(volatile const void *)
  */
 ENTRY(fuword16)
-	ldr	x1, =(VM_MAXUSER_ADDRESS-1)
-	cmp	x0, x1
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS-1), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x1)	/* And set it */
 	ldtrh	w0, [x0]		/* Try loading the data */
@@ -125,9 +123,7 @@ END(fuword16)
  * int32_t fueword32(volatile const void *, int32_t *)
  */
 ENTRY(fueword32)
-	ldr	x2, =(VM_MAXUSER_ADDRESS-3)
-	cmp	x0, x2
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x2)	/* And set it */
 	ldtr	w0, [x0]		/* Try loading the data */
@@ -143,9 +139,7 @@ END(fueword32)
  */
 ENTRY(fueword)
 EENTRY(fueword64)
-	ldr	x2, =(VM_MAXUSER_ADDRESS-7)
-	cmp	x0, x2
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS-7), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x2)	/* And set it */
 	ldtr	x0, [x0]		/* Try loading the data */
@@ -160,9 +154,7 @@ END(fueword)
  * int subyte(volatile void *, int)
  */
 ENTRY(subyte)
-	ldr	x2, =VM_MAXUSER_ADDRESS
-	cmp	x0, x2
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x2)	/* And set it */
 	sttrb	w1, [x0]		/* Try storing the data */
@@ -175,9 +167,7 @@ END(subyte)
  * int suword16(volatile void *, int)
  */
 ENTRY(suword16)
-	ldr	x2, =(VM_MAXUSER_ADDRESS-1)
-	cmp	x0, x2
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS-1), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x2)	/* And set it */
 	sttrh	w1, [x0]		/* Try storing the data */
@@ -190,9 +180,7 @@ END(suword16)
  * int suword32(volatile void *, int)
  */
 ENTRY(suword32)
-	ldr	x2, =(VM_MAXUSER_ADDRESS-3)
-	cmp	x0, x2
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x2)	/* And set it */
 	sttr	w1, [x0]		/* Try storing the data */
@@ -206,9 +194,7 @@ END(suword32)
  */
 ENTRY(suword)
 EENTRY(suword64)
-	ldr	x2, =(VM_MAXUSER_ADDRESS-7)
-	cmp	x0, x2
-	b.cs	fsu_fault_nopcb
+	check_user_access 0, (VM_MAXUSER_ADDRESS-7), fsu_fault_nopcb
 	adr	x6, fsu_fault		/* Load the fault handler */
 	SET_FAULT_HANDLER(x6, x2)	/* And set it */
 	sttr	x1, [x0]		/* Try storing the data */
