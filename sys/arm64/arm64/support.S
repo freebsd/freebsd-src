@@ -64,11 +64,11 @@ ENTRY(casueword32)
 	mov	w5, #1
 	SET_FAULT_HANDLER(x6, x4)	/* And set it */
 	ENTER_USER_ACCESS(w6, x4)
-1:	ldxr	w4, [x0]		/* Load-exclusive the data */
+	ldxr	w4, [x0]		/* Load-exclusive the data */
 	cmp	w4, w1			/* Compare */
-	b.ne	2f			/* Not equal, exit */
+	b.ne	1f			/* Not equal, exit */
 	stxr	w5, w3, [x0]		/* Store the new data */
-2:	EXIT_USER_ACCESS(w6)
+1:	EXIT_USER_ACCESS(w6)
 	SET_FAULT_HANDLER(xzr, x6)	/* Reset the fault handler */
 	str	w4, [x2]		/* Store the read data */
 	mov	w0, w5			/* Result same as store status */
@@ -84,11 +84,11 @@ ENTRY(casueword)
 	mov	w5, #1
 	SET_FAULT_HANDLER(x6, x4)	/* And set it */
 	ENTER_USER_ACCESS(w6, x4)
-1:	ldxr	x4, [x0]		/* Load-exclusive the data */
+	ldxr	x4, [x0]		/* Load-exclusive the data */
 	cmp	x4, x1			/* Compare */
-	b.ne	2f			/* Not equal, exit */
+	b.ne	1f			/* Not equal, exit */
 	stxr	w5, x3, [x0]		/* Store the new data */
-2:	EXIT_USER_ACCESS(w6)
+1:	EXIT_USER_ACCESS(w6)
 	SET_FAULT_HANDLER(xzr, x6)	/* Reset the fault handler */
 	str	x4, [x2]		/* Store the read data */
 	mov	w0, w5			/* Result same as store status */
