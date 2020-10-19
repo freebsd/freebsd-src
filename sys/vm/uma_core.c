@@ -1415,6 +1415,63 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 	uma_total_dec(PAGE_SIZE * keg->uk_ppera);
 }
 
+static void
+keg_drain_domain(uma_keg_t keg, int domain)
+{
+	struct slabhead freeslabs;
+	uma_domain_t dom;
+	uma_slab_t slab, tmp;
+	uint32_t i, stofree, stokeep, partial;
+
+	dom = &keg->uk_domain[domain];
+	LIST_INIT(&freeslabs);
+
+	CTR4(KTR_UMA, "keg_drain %s(%p) domain %d free items: %u",
+	    keg->uk_name, keg, i, dom->ud_free_items);
+
+	KEG_LOCK(keg, domain);
+
+	/*
+	 * Are the free items in partially allocated slabs sufficient to meet
+	 * the reserve? If not, compute the number of fully free slabs that must
+	 * be kept.
+	 */
+	partial = dom->ud_free_items - dom->ud_free_slabs * keg->uk_ipers;
+	if (partial < keg->uk_reserve) {
+		stokeep = min(dom->ud_free_slabs,
+		    howmany(keg->uk_reserve - partial, keg->uk_ipers));
+	} else {
+		stokeep = 0;
+	}
+	stofree = dom->ud_free_slabs - stokeep;
+
+	/*
+	 * Partition the free slabs into two sets: those that must be kept in
+	 * order to maintain the reserve, and those that may be released back to
+	 * the system.  Since one set may be much larger than the other,
+	 * populate the smaller of the two sets and swap them if necessary.
+	 */
+	for (i = min(stofree, stokeep); i > 0; i--) {
+		slab = LIST_FIRST(&dom->ud_free_slab);
+		LIST_REMOVE(slab, us_link);
+		LIST_INSERT_HEAD(&freeslabs, slab, us_link);
+	}
+	if (stofree > stokeep)
+		LIST_SWAP(&freeslabs, &dom->ud_free_slab, uma_slab, us_link);
+
+	if ((keg->uk_flags & UMA_ZFLAG_HASH) != 0) {
+		LIST_FOREACH(slab, &freeslabs, us_link)
+			UMA_HASH_REMOVE(&keg->uk_hash, slab);
+	}
+	dom->ud_free_items -= stofree * keg->uk_ipers;
+	dom->ud_free_slabs -= stofree;
+	dom->ud_pages -= stofree * keg->uk_ppera;
+	KEG_UNLOCK(keg, domain);
+
+	LIST_FOREACH_SAFE(slab, &freeslabs, us_link, tmp)
+		keg_free_slab(keg, slab, keg->uk_ipers);
+}
+
 /*
  * Frees pages from a keg back to the system.  This is done on demand from
  * the pageout daemon.
@@ -1424,35 +1481,12 @@ keg_free_slab(uma_keg_t keg, uma_slab_t slab, int start)
 static void
 keg_drain(uma_keg_t keg)
 {
-	struct slabhead freeslabs;
-	uma_domain_t dom;
-	uma_slab_t slab, tmp;
-	int i, n;
+	int i;
 
-	if (keg->uk_flags & UMA_ZONE_NOFREE || keg->uk_freef == NULL)
+	if ((keg->uk_flags & UMA_ZONE_NOFREE) != 0)
 		return;
-
-	for (i = 0; i < vm_ndomains; i++) {
-		CTR4(KTR_UMA, "keg_drain %s(%p) domain %d free items: %u",
-		    keg->uk_name, keg, i, dom->ud_free_items);
-		dom = &keg->uk_domain[i];
-		LIST_INIT(&freeslabs);
-
-		KEG_LOCK(keg, i);
-		if ((keg->uk_flags & UMA_ZFLAG_HASH) != 0) {
-			LIST_FOREACH(slab, &dom->ud_free_slab, us_link)
-				UMA_HASH_REMOVE(&keg->uk_hash, slab);
-		}
-		n = dom->ud_free_slabs;
-		LIST_SWAP(&freeslabs, &dom->ud_free_slab, uma_slab, us_link);
-		dom->ud_free_slabs = 0;
-		dom->ud_free_items -= n * keg->uk_ipers;
-		dom->ud_pages -= n * keg->uk_ppera;
-		KEG_UNLOCK(keg, i);
-
-		LIST_FOREACH_SAFE(slab, &freeslabs, us_link, tmp)
-			keg_free_slab(keg, slab, keg->uk_ipers);
-	}
+	for (i = 0; i < vm_ndomains; i++)
+		keg_drain_domain(keg, i);
 }
 
 static void
@@ -2411,6 +2445,9 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 		SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "align", CTLFLAG_RD, &keg->uk_align, 0,
 		    "item alignment mask");
+		SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
+		    "reserve", CTLFLAG_RD, &keg->uk_reserve, 0,
+		    "number of reserved items");
 		SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 		    "efficiency", CTLFLAG_RD | CTLTYPE_INT | CTLFLAG_MPSAFE,
 		    keg, 0, sysctl_handle_uma_slab_efficiency, "I",
