@@ -677,7 +677,7 @@ iommu_gas_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 
 int
 iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
-    iommu_gaddr_t end)
+    iommu_gaddr_t end, struct iommu_map_entry **entry0)
 {
 	struct iommu_map_entry *entry;
 	int error;
@@ -692,6 +692,8 @@ iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
 	IOMMU_DOMAIN_UNLOCK(domain);
 	if (error != 0)
 		iommu_gas_free_entry(domain, entry);
+	else if (entry0 != NULL)
+		*entry0 = entry;
 	return (error);
 }
 
