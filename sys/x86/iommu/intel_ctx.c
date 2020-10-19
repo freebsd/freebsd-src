@@ -366,7 +366,7 @@ dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 			goto fail;
 		/* Disable local apic region access */
 		error = iommu_gas_reserve_region(iodom, 0xfee00000,
-		    0xfeefffff + 1);
+		    0xfeefffff + 1, &iodom->msi_entry);
 		if (error != 0)
 			goto fail;
 	}
