@@ -3,7 +3,7 @@
 .\" This file is in the public domain.
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2019
+.Dd October 18, 2020
 .Dt MOTD 5
 .Os
 .Sh NAME
@@ -22,6 +22,14 @@ prepended to
 and the contents are written to
 .Pa /var/run/motd .
 .Pp
+.Pa /var/run/motd
+can be updated without a system reboot by manually restarting the
+motd service after updating
+.Pa /etc/motd.template:
+.Bd -literal -offset -ident -compact
+service motd restart
+.Ed
+.Pp
 Individual users may suppress the display of this file by
 creating a file named
 .Dq Pa .hushlogin
@@ -39,7 +47,7 @@ Suppresses output of
 .El
 .Sh EXAMPLES
 .Bd -literal
-FreeBSD 2.1.6.1-RELEASE (GENERIC) #0: Sun Dec 29 03:08:31 PST 1996
+FreeBSD 12.1-RELEASE (GENERIC) #0: Sun Dec 29 03:08:31 PST 2019
 
 /home is full.  Please cleanup your directories.
 .Ed
