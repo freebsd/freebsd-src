@@ -446,16 +446,6 @@ t4_rcvd_locked(struct toedev *tod, struct tcpcb *tp)
 	SOCKBUF_LOCK_ASSERT(sb);
 
 	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
-	if (ulp_mode(toep) == ULP_MODE_TLS) {
-		if (toep->tls.rcv_over >= rx_credits) {
-			toep->tls.rcv_over -= rx_credits;
-			rx_credits = 0;
-		} else {
-			rx_credits -= toep->tls.rcv_over;
-			toep->tls.rcv_over = 0;
-		}
-	}
-
 	if (rx_credits > 0 &&
 	    (tp->rcv_wnd <= 32 * 1024 || rx_credits >= 64 * 1024 ||
 	    (rx_credits >= 16 * 1024 && tp->rcv_wnd <= 128 * 1024) ||

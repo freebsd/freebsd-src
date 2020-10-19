@@ -2045,11 +2045,9 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 #endif
 
 	tp->rcv_nxt += pdu_length;
-	if (tp->rcv_wnd < pdu_length) {
-		toep->tls.rcv_over += pdu_length - tp->rcv_wnd;
-		tp->rcv_wnd = 0;
-	} else
-		tp->rcv_wnd -= pdu_length;
+	KASSERT(tp->rcv_wnd >= pdu_length,
+	    ("%s: negative window size", __func__));
+	tp->rcv_wnd -= pdu_length;
 
 	/* XXX: Not sure what to do about urgent data. */
 
