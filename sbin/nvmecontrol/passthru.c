@@ -292,7 +292,7 @@ static struct cmd io_pass_cmd = {
 	.ctx_size = sizeof(struct options),
 	.opts = opts,
 	.args = args,
-	.descr = "Send a pass through Admin command to the specified device",
+	.descr = "Send a pass through I/O command to the specified device",
 };
 
 CMD_COMMAND(admin_pass_cmd);
