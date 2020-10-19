@@ -734,7 +734,7 @@ ktls_try_toe(struct socket *so, struct ktls_session *tls, int direction)
 		return (ECONNRESET);
 	}
 	tp = intotcpcb(inp);
-	if (tp->tod == NULL) {
+	if (!(tp->t_flags & TF_TOE)) {
 		INP_WUNLOCK(inp);
 		return (EOPNOTSUPP);
 	}
