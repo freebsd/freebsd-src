@@ -94,6 +94,8 @@ struct intr_irqsrc {
 	intr_irq_filter_t *	isrc_filter;
 	void *			isrc_arg;
 #endif
+	/* Used by MSI interrupts to store the iommu details */
+	void *			isrc_iommu;
 };
 
 /* Intr interface for PIC. */

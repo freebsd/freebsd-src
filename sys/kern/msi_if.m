@@ -32,6 +32,9 @@
 INTERFACE msi;
 
 HEADER {
+	#include <machine/bus.h>
+	#include <dev/iommu/iommu_msi.h>
+
 	struct intr_irqsrc;
 };
 
@@ -72,3 +75,8 @@ METHOD int map_msi {
 	uint32_t	*data;
 };
 
+METHOD int iommu_init {
+	device_t	dev;
+	device_t	child;
+	struct iommu_domain **domain;
+};
