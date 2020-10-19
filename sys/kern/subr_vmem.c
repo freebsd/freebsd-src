@@ -266,8 +266,8 @@ bt_isfree(bt_t *bt)
  * allocation will not fail once bt_fill() passes.  To do so we cache
  * at least the maximum possible tag allocations in the arena.
  */
-static int
-bt_fill(vmem_t *vm, int flags)
+static __noinline int
+_bt_fill(vmem_t *vm, int flags)
 {
 	bt_t *bt;
 
@@ -305,6 +305,14 @@ bt_fill(vmem_t *vm, int flags)
 		return ENOMEM;
 
 	return 0;
+}
+
+static inline int
+bt_fill(vmem_t *vm, int flags)
+{
+	if (vm->vm_nfreetags >= BT_MAXALLOC)
+		return (0);
+	return (_bt_fill(vm, flags));
 }
 
 /*
@@ -1104,7 +1112,7 @@ retry:
 	/*
 	 * Make sure we have enough tags to complete the operation.
 	 */
-	if (vm->vm_nfreetags < BT_MAXALLOC && bt_fill(vm, flags) != 0)
+	if (bt_fill(vm, flags) != 0)
 		goto out;
 
 	/*
@@ -1387,11 +1395,9 @@ vmem_xalloc(vmem_t *vm, const vmem_size_t size0, vmem_size_t align,
 		 * Make sure we have enough tags to complete the
 		 * operation.
 		 */
-		if (vm->vm_nfreetags < BT_MAXALLOC &&
-		    bt_fill(vm, flags) != 0) {
-			error = ENOMEM;
+		error = bt_fill(vm, flags);
+		if (error != 0)
 			break;
-		}
 
 		/*
 	 	 * Scan freelists looking for a tag that satisfies the
@@ -1510,13 +1516,12 @@ vmem_add(vmem_t *vm, vmem_addr_t addr, vmem_size_t size, int flags)
 {
 	int error;
 
-	error = 0;
 	flags &= VMEM_FLAGS;
+
 	VMEM_LOCK(vm);
-	if (vm->vm_nfreetags >= BT_MAXALLOC || bt_fill(vm, flags) == 0)
+	error = bt_fill(vm, flags);
+	if (error == 0)
 		vmem_add1(vm, addr, size, BT_TYPE_SPAN_STATIC);
-	else
-		error = ENOMEM;
 	VMEM_UNLOCK(vm);
 
 	return (error);
