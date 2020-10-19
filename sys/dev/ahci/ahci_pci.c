@@ -37,12 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
+#include <sys/taskqueue.h>
+#include <sys/tree.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#include <dev/iommu/iommu.h>
 #include "ahci.h"
 
 static int force_ahci = 1;
@@ -248,7 +252,10 @@ static const struct {
 	{0x2365197b, 0x00, "JMicron JMB365",	AHCI_Q_NOFORCE},
 	{0x2366197b, 0x00, "JMicron JMB366",	AHCI_Q_NOFORCE},
 	{0x2368197b, 0x00, "JMicron JMB368",	AHCI_Q_NOFORCE},
+	{0x2392197b, 0x00, "JMicron JMB388",	AHCI_Q_IOMMU_BUSWIDE},
 	{0x0585197b, 0x00, "JMicron JMB58x",	0},
+	{0x01221c28, 0x00, "Lite-On Plextor M6E (Marvell 88SS9183)",
+	    AHCI_Q_IOMMU_BUSWIDE},
 	{0x611111ab, 0x00, "Marvell 88SE6111",	AHCI_Q_NOFORCE | AHCI_Q_NOPMP |
 	    AHCI_Q_1CH | AHCI_Q_EDGEIS},
 	{0x612111ab, 0x00, "Marvell 88SE6121",	AHCI_Q_NOFORCE | AHCI_Q_NOPMP |
@@ -257,19 +264,28 @@ static const struct {
 	    AHCI_Q_4CH | AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
 	{0x614511ab, 0x00, "Marvell 88SE6145",	AHCI_Q_NOFORCE | AHCI_Q_NOPMP |
 	    AHCI_Q_4CH | AHCI_Q_EDGEIS | AHCI_Q_NONCQ | AHCI_Q_NOCOUNT},
-	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS},
-	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_ALTSIG},
-	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS|AHCI_Q_SATA2},
+	{0x91201b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS |
+	    AHCI_Q_IOMMU_BUSWIDE},
+	{0x91231b4b, 0x11, "Marvell 88SE912x",	AHCI_Q_ALTSIG |
+	    AHCI_Q_IOMMU_BUSWIDE},
+	{0x91231b4b, 0x00, "Marvell 88SE912x",	AHCI_Q_EDGEIS | AHCI_Q_SATA2 |
+	    AHCI_Q_IOMMU_BUSWIDE},
 	{0x91251b4b, 0x00, "Marvell 88SE9125",	0},
-	{0x91281b4b, 0x00, "Marvell 88SE9128",	AHCI_Q_ALTSIG},
-	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_ALTSIG},
-	{0x91721b4b, 0x00, "Marvell 88SE9172",	0},
-	{0x91821b4b, 0x00, "Marvell 88SE9182",	0},
-	{0x91831b4b, 0x00, "Marvell 88SS9183",	0},
-	{0x91a01b4b, 0x00, "Marvell 88SE91Ax",	0},
+	{0x91281b4b, 0x00, "Marvell 88SE9128",	AHCI_Q_ALTSIG |
+	    AHCI_Q_IOMMU_BUSWIDE},
+	{0x91301b4b, 0x00, "Marvell 88SE9130",  AHCI_Q_ALTSIG |
+	    AHCI_Q_IOMMU_BUSWIDE},
+	{0x91701b4b, 0x00, "Marvell 88SE9170",	AHCI_Q_IOMMU_BUSWIDE},
+	{0x91721b4b, 0x00, "Marvell 88SE9172",	AHCI_Q_IOMMU_BUSWIDE},
+	{0x917a1b4b, 0x00, "Marvell 88SE917A",	AHCI_Q_IOMMU_BUSWIDE},
+	{0x91821b4b, 0x00, "Marvell 88SE9182",	AHCI_Q_IOMMU_BUSWIDE},
+	{0x91831b4b, 0x00, "Marvell 88SS9183",	AHCI_Q_IOMMU_BUSWIDE},
+	{0x91a01b4b, 0x00, "Marvell 88SE91Ax",	AHCI_Q_IOMMU_BUSWIDE},
 	{0x92151b4b, 0x00, "Marvell 88SE9215",  0},
-	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_ALTSIG},
-	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_ALTSIG},
+	{0x92201b4b, 0x00, "Marvell 88SE9220",  AHCI_Q_ALTSIG |
+	    AHCI_Q_IOMMU_BUSWIDE},
+	{0x92301b4b, 0x00, "Marvell 88SE9230",  AHCI_Q_ALTSIG |
+	    AHCI_Q_IOMMU_BUSWIDE},
 	{0x92351b4b, 0x00, "Marvell 88SE9235",  0},
 	{0x06201103, 0x00, "HighPoint RocketRAID 620",	0},
 	{0x06201b4b, 0x00, "HighPoint RocketRAID 620",	0},
@@ -280,8 +296,8 @@ static const struct {
 	{0x06441103, 0x00, "HighPoint RocketRAID 644",	0},
 	{0x06441b4b, 0x00, "HighPoint RocketRAID 644",	0},
 	{0x06411103, 0x00, "HighPoint RocketRAID 640L",	0},
-	{0x06421103, 0x00, "HighPoint RocketRAID 642L",	0},
-	{0x06451103, 0x00, "HighPoint RocketRAID 644L",	0},
+	{0x06421103, 0x00, "HighPoint RocketRAID 642L",	AHCI_Q_IOMMU_BUSWIDE},
+	{0x06451103, 0x00, "HighPoint RocketRAID 644L",	AHCI_Q_IOMMU_BUSWIDE},
 	{0x044c10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044d10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
 	{0x044e10de, 0x00, "NVIDIA MCP65",	AHCI_Q_NOAA},
@@ -482,6 +498,16 @@ ahci_pci_attach(device_t dev)
 	     ahci_ids[i].rev > revid))
 		i++;
 	ctlr->quirks = ahci_ids[i].quirks;
+
+	if (ctlr->quirks & AHCI_Q_IOMMU_BUSWIDE) {
+		/*
+		 * The controller issues DMA requests from PCI function 1,
+		 * but the device is not multifunction.
+		 * Ref: https://bugzilla.kernel.org/show_bug.cgi?id=42679
+		 */
+		bus_dma_iommu_set_buswide(dev);
+	}
+
 	/* Limit speed for my onboard JMicron external port.
 	 * It is not eSATA really, limit to SATA 1 */
 	if (pci_get_devid(dev) == 0x2363197b &&
