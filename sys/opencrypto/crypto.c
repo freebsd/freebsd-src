@@ -1142,6 +1142,7 @@ crypto_kregister(u_int32_t driverid, int kalg, u_int32_t flags)
 				, kalg
 				, flags
 			);
+		gone_in_dev(cap->cc_dev, 14, "asymmetric crypto");
 		err = 0;
 	} else
 		err = EINVAL;
