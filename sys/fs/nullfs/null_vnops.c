@@ -227,6 +227,7 @@ null_bypass(struct vop_generic_args *ap)
 	struct vnode *old_vps[VDESC_MAX_VPS];
 	struct vnode **vps_p[VDESC_MAX_VPS];
 	struct vnode ***vppp;
+	struct vnode *lvp;
 	struct vnodeop_desc *descp = ap->a_desc;
 	int reles, i;
 
@@ -295,6 +296,23 @@ null_bypass(struct vop_generic_args *ap)
 		if (descp->vdesc_vp_offsets[i] == VDESC_NO_OFFSET)
 			break;   /* bail out at end of list */
 		if (old_vps[i]) {
+			lvp = *(vps_p[i]);
+
+			/*
+			 * If lowervp was unlocked during VOP
+			 * operation, nullfs upper vnode could have
+			 * been reclaimed, which changes its v_vnlock
+			 * back to private v_lock.  In this case we
+			 * must move lock ownership from lower to
+			 * upper (reclaimed) vnode.
+			 */
+			if (lvp != NULLVP &&
+			    VOP_ISLOCKED(lvp) == LK_EXCLUSIVE &&
+			    old_vps[i]->v_vnlock != lvp->v_vnlock) {
+				VOP_UNLOCK(lvp);
+				VOP_LOCK(old_vps[i], LK_EXCLUSIVE | LK_RETRY);
+			}
+
 			*(vps_p[i]) = old_vps[i];
 #if 0
 			if (reles & VDESC_VP0_WILLUNLOCK)
