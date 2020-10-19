@@ -95,15 +95,19 @@ ENTRY(casueword)
 	ret				/* Return */
 END(casueword)
 
+.macro fsudata insn, ret_reg, user_arg
+	adr	x7, fsu_fault		/* Load the fault handler */
+	SET_FAULT_HANDLER(x7, x6)	/* And set it */
+	\insn	\ret_reg, [x\user_arg]	/* Try accessing the data */
+	SET_FAULT_HANDLER(xzr, x6)	/* Reset the fault handler */
+.endm
+
 /*
  * int fubyte(volatile const void *)
  */
 ENTRY(fubyte)
 	check_user_access 0, (VM_MAXUSER_ADDRESS), fsu_fault_nopcb
-	adr	x6, fsu_fault		/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x1)	/* And set it */
-	ldtrb	w0, [x0]		/* Try loading the data */
-	SET_FAULT_HANDLER(xzr, x1)	/* Reset the fault handler */
+	fsudata	ldtrb, w0, 0
 	ret				/* Return */
 END(fubyte)
 
@@ -112,10 +116,7 @@ END(fubyte)
  */
 ENTRY(fuword16)
 	check_user_access 0, (VM_MAXUSER_ADDRESS-1), fsu_fault_nopcb
-	adr	x6, fsu_fault		/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x1)	/* And set it */
-	ldtrh	w0, [x0]		/* Try loading the data */
-	SET_FAULT_HANDLER(xzr, x1)	/* Reset the fault handler */
+	fsudata	ldtrh, w0, 0
 	ret				/* Return */
 END(fuword16)
 
@@ -124,10 +125,7 @@ END(fuword16)
  */
 ENTRY(fueword32)
 	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
-	adr	x6, fsu_fault		/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x2)	/* And set it */
-	ldtr	w0, [x0]		/* Try loading the data */
-	SET_FAULT_HANDLER(xzr, x2)	/* Reset the fault handler */
+	fsudata	ldtr, w0, 0
 	str	w0, [x1]		/* Save the data in kernel space */
 	mov	w0, #0			/* Success */
 	ret				/* Return */
@@ -140,10 +138,7 @@ END(fueword32)
 ENTRY(fueword)
 EENTRY(fueword64)
 	check_user_access 0, (VM_MAXUSER_ADDRESS-7), fsu_fault_nopcb
-	adr	x6, fsu_fault		/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x2)	/* And set it */
-	ldtr	x0, [x0]		/* Try loading the data */
-	SET_FAULT_HANDLER(xzr, x2)	/* Reset the fault handler */
+	fsudata	ldtr, x0, 0
 	str	x0, [x1]		/* Save the data in kernel space */
 	mov	x0, #0			/* Success */
 	ret				/* Return */
@@ -155,10 +150,7 @@ END(fueword)
  */
 ENTRY(subyte)
 	check_user_access 0, (VM_MAXUSER_ADDRESS), fsu_fault_nopcb
-	adr	x6, fsu_fault		/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x2)	/* And set it */
-	sttrb	w1, [x0]		/* Try storing the data */
-	SET_FAULT_HANDLER(xzr, x2)	/* Reset the fault handler */
+	fsudata	sttrb, w1, 0
 	mov	x0, #0			/* Success */
 	ret				/* Return */
 END(subyte)
@@ -168,10 +160,7 @@ END(subyte)
  */
 ENTRY(suword16)
 	check_user_access 0, (VM_MAXUSER_ADDRESS-1), fsu_fault_nopcb
-	adr	x6, fsu_fault		/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x2)	/* And set it */
-	sttrh	w1, [x0]		/* Try storing the data */
-	SET_FAULT_HANDLER(xzr, x2)	/* Reset the fault handler */
+	fsudata	sttrh, w1, 0
 	mov	x0, #0			/* Success */
 	ret				/* Return */
 END(suword16)
@@ -181,10 +170,7 @@ END(suword16)
  */
 ENTRY(suword32)
 	check_user_access 0, (VM_MAXUSER_ADDRESS-3), fsu_fault_nopcb
-	adr	x6, fsu_fault		/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x2)	/* And set it */
-	sttr	w1, [x0]		/* Try storing the data */
-	SET_FAULT_HANDLER(xzr, x2)	/* Reset the fault handler */
+	fsudata	sttr, w1, 0
 	mov	x0, #0			/* Success */
 	ret				/* Return */
 END(suword32)
@@ -195,10 +181,7 @@ END(suword32)
 ENTRY(suword)
 EENTRY(suword64)
 	check_user_access 0, (VM_MAXUSER_ADDRESS-7), fsu_fault_nopcb
-	adr	x6, fsu_fault		/* Load the fault handler */
-	SET_FAULT_HANDLER(x6, x2)	/* And set it */
-	sttr	x1, [x0]		/* Try storing the data */
-	SET_FAULT_HANDLER(xzr, x2)	/* Reset the fault handler */
+	fsudata	sttr, x1, 0
 	mov	x0, #0			/* Success */
 	ret				/* Return */
 EEND(suword64)
