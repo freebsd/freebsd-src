@@ -129,6 +129,7 @@ SDT_PROBE_DECLARE(vfs, namei, lookup, return);
  */
 struct negstate {
 	u_char neg_flag;
+	u_char neg_hit;
 };
 _Static_assert(sizeof(struct negstate) <= sizeof(struct vnode *),
     "the state must fit in a union with a pointer without growing it");
@@ -905,18 +906,27 @@ cache_neg_init(struct namecache *ncp)
 	ncp->nc_flag |= NCF_NEGATIVE;
 	ns = NCP2NEGSTATE(ncp);
 	ns->neg_flag = 0;
+	ns->neg_hit = 0;
 	counter_u64_add(neg_created, 1);
 }
+
+#define CACHE_NEG_PROMOTION_THRESH 2
 
 static bool
 cache_neg_hit_prep(struct namecache *ncp)
 {
 	struct negstate *ns;
+	u_char n;
 
 	ns = NCP2NEGSTATE(ncp);
-	if ((ns->neg_flag & NEG_HOT) != 0)
-		return (true);
-	return (false);
+	n = atomic_load_char(&ns->neg_hit);
+	for (;;) {
+		if (n >= CACHE_NEG_PROMOTION_THRESH)
+			return (false);
+		if (atomic_fcmpset_8(&ns->neg_hit, &n, n + 1))
+			break;
+	}
+	return (n + 1 == CACHE_NEG_PROMOTION_THRESH);
 }
 
 /*
@@ -971,6 +981,7 @@ cache_neg_demote_locked(struct namecache *ncp)
 	TAILQ_INSERT_TAIL(&nl->nl_list, ncp, nc_dst);
 	nl->nl_hotnum--;
 	ns->neg_flag &= ~NEG_HOT;
+	atomic_store_char(&ns->neg_hit, 0);
 }
 
 /*
@@ -1098,7 +1109,7 @@ cache_neg_remove(struct namecache *ncp)
 }
 
 static struct neglist *
-cache_neg_evict_select(void)
+cache_neg_evict_select_list(void)
 {
 	struct neglist *nl;
 	u_int c;
@@ -1110,6 +1121,33 @@ cache_neg_evict_select(void)
 		return (NULL);
 	}
 	return (nl);
+}
+
+static struct namecache *
+cache_neg_evict_select_entry(struct neglist *nl)
+{
+	struct namecache *ncp, *lncp;
+	struct negstate *ns, *lns;
+	int i;
+
+	mtx_assert(&nl->nl_evict_lock, MA_OWNED);
+	mtx_assert(&nl->nl_lock, MA_OWNED);
+	ncp = TAILQ_FIRST(&nl->nl_list);
+	if (ncp == NULL)
+		return (NULL);
+	lncp = ncp;
+	lns = NCP2NEGSTATE(lncp);
+	for (i = 1; i < 4; i++) {
+		ncp = TAILQ_NEXT(ncp, nc_dst);
+		if (ncp == NULL)
+			break;
+		ns = NCP2NEGSTATE(ncp);
+		if (ns->neg_hit < lns->neg_hit) {
+			lncp = ncp;
+			lns = ns;
+		}
+	}
+	return (lncp);
 }
 
 static bool
@@ -1125,7 +1163,7 @@ cache_neg_evict(void)
 	u_char nlen;
 	bool evicted;
 
-	nl = cache_neg_evict_select();
+	nl = cache_neg_evict_select_list();
 	if (nl == NULL) {
 		return (false);
 	}
@@ -1135,7 +1173,7 @@ cache_neg_evict(void)
 	if (ncp != NULL) {
 		cache_neg_demote_locked(ncp);
 	}
-	ncp = TAILQ_FIRST(&nl->nl_list);
+	ncp = cache_neg_evict_select_entry(nl);
 	if (ncp == NULL) {
 		counter_u64_add(neg_evict_skipped_empty, 1);
 		mtx_unlock(&nl->nl_lock);
