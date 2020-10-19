@@ -1794,6 +1794,8 @@ freevnode(struct vnode *vp)
 	VNASSERT(vp->v_cache_dd == NULL, vp, ("vp has namecache for .."));
 	VNASSERT(TAILQ_EMPTY(&vp->v_rl.rl_waiters), vp,
 	    ("Dangling rangelock waiters"));
+	VNASSERT((vp->v_iflag & (VI_DOINGINACT | VI_OWEINACT)) == 0, vp,
+	    ("Leaked inactivation"));
 	VI_UNLOCK(vp);
 #ifdef MAC
 	mac_vnode_destroy(vp);
@@ -3803,7 +3805,7 @@ vgonel(struct vnode *vp)
 	struct thread *td;
 	struct mount *mp;
 	vm_object_t object;
-	bool active, oweinact;
+	bool active, doinginact, oweinact;
 
 	ASSERT_VOP_ELOCKED(vp, "vgonel");
 	ASSERT_VI_LOCKED(vp, "vgonel");
@@ -3825,11 +3827,17 @@ vgonel(struct vnode *vp)
 	vp->v_irflag |= VIRF_DOOMED;
 
 	/*
-	 * Check to see if the vnode is in use.  If so, we have to call
-	 * VOP_CLOSE() and VOP_INACTIVE().
+	 * Check to see if the vnode is in use.  If so, we have to
+	 * call VOP_CLOSE() and VOP_INACTIVE().
+	 *
+	 * It could be that VOP_INACTIVE() requested reclamation, in
+	 * which case we should avoid recursion, so check
+	 * VI_DOINGINACT.  This is not precise but good enough.
 	 */
 	active = vp->v_usecount > 0;
 	oweinact = (vp->v_iflag & VI_OWEINACT) != 0;
+	doinginact = (vp->v_iflag & VI_DOINGINACT) != 0;
+
 	/*
 	 * If we need to do inactive VI_OWEINACT will be set.
 	 */
@@ -3850,7 +3858,7 @@ vgonel(struct vnode *vp)
 	 */
 	if (active)
 		VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
-	if (oweinact || active) {
+	if ((oweinact || active) && !doinginact) {
 		VI_LOCK(vp);
 		vinactivef(vp);
 		VI_UNLOCK(vp);
