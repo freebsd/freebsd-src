@@ -358,37 +358,6 @@ MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 MKMODULESENV+=	__MPATH="${__MPATH}"
 .endif
 
-# Architecture and output format arguments for objcopy to convert image to
-# object file
-
-.if ${MFS_IMAGE:Uno} != "no"
-.if empty(MD_ROOT_SIZE_CONFIGURED)
-.if !defined(EMBEDFS_FORMAT.${MACHINE_ARCH})
-EMBEDFS_FORMAT.${MACHINE_ARCH}!= awk -F'"' '/OUTPUT_FORMAT/ {print $$2}' ${LDSCRIPT}
-.if empty(EMBEDFS_FORMAT.${MACHINE_ARCH})
-.undef EMBEDFS_FORMAT.${MACHINE_ARCH}
-.endif
-.endif
-
-.if !defined(EMBEDFS_ARCH.${MACHINE_ARCH})
-EMBEDFS_ARCH.${MACHINE_ARCH}!= sed -n '/OUTPUT_ARCH/s/.*(\(.*\)).*/\1/p' ${LDSCRIPT}
-.if empty(EMBEDFS_ARCH.${MACHINE_ARCH})
-.undef EMBEDFS_ARCH.${MACHINE_ARCH}
-.endif
-.endif
-
-EMBEDFS_FORMAT.arm?=		elf32-littlearm
-EMBEDFS_FORMAT.armv6?=		elf32-littlearm
-EMBEDFS_FORMAT.armv7?=		elf32-littlearm
-EMBEDFS_FORMAT.aarch64?=	elf64-littleaarch64
-EMBEDFS_FORMAT.mips?=		elf32-tradbigmips
-EMBEDFS_FORMAT.mipsel?=		elf32-tradlittlemips
-EMBEDFS_FORMAT.mips64?=		elf64-tradbigmips
-EMBEDFS_FORMAT.mips64el?=	elf64-tradlittlemips
-EMBEDFS_FORMAT.riscv64?=	elf64-littleriscv
-.endif
-.endif
-
 # Detect kernel config options that force stack frames to be turned on.
 DDB_ENABLED!=	grep DDB opt_ddb.h || true ; echo
 DTR_ENABLED!=	grep KDTRACE_FRAME opt_kdtrace.h || true ; echo
