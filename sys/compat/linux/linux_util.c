@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -193,6 +194,24 @@ linux_driver_get_major_minor(const char *node, int *major, int *minor)
 	}
 
 	return (1);
+}
+
+int
+linux_vn_get_major_minor(const struct vnode *vp, int *major, int *minor)
+{
+	int error;
+
+	if (vp->v_type != VCHR)
+		return (ENOTBLK);
+	dev_lock();
+	if (vp->v_rdev == NULL) {
+		dev_unlock();
+		return (ENXIO);
+	}
+	error = linux_driver_get_major_minor(devtoname(vp->v_rdev),
+	    major, minor);
+	dev_unlock();
+	return (error);
 }
 
 char *

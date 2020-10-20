@@ -123,6 +123,7 @@ int	linux_device_register_handler(struct linux_device_handler *h);
 int	linux_device_unregister_handler(struct linux_device_handler *h);
 char	*linux_driver_get_name_dev(device_t dev);
 int	linux_driver_get_major_minor(const char *node, int *major, int *minor);
+int	linux_vn_get_major_minor(const struct vnode *vn, int *major, int *minor);
 char	*linux_get_char_devices(void);
 void	linux_free_get_char_devices(char *string);
 

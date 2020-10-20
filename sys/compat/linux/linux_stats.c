@@ -80,11 +80,8 @@ translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
 	if (rootdevmp != NULL && vp->v_mount->mnt_vfc == rootdevmp->mnt_vfc)
 		sb->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
 
-	if (vp->v_type == VCHR && vp->v_rdev != NULL &&
-	    linux_driver_get_major_minor(devtoname(vp->v_rdev),
-	    &major, &minor) == 0) {
+	if (linux_vn_get_major_minor(vp, &major, &minor) == 0)
 		sb->st_rdev = (major << 8 | minor);
-	}
 }
 
 static int
@@ -140,9 +137,7 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 		if (mp != NULL && mp->mnt_vfc == rootdevmp->mnt_vfc)
 			buf->st_dev = rootdevmp->mnt_stat.f_fsid.val[0];
 	}
-	if (vp != NULL && vp->v_rdev != NULL &&
-	    linux_driver_get_major_minor(devtoname(vp->v_rdev),
-					 &major, &minor) == 0) {
+	if (linux_vn_get_major_minor(vp, &major, &minor) == 0) {
 		buf->st_rdev = (major << 8 | minor);
 	} else if (fp->f_type == DTYPE_PTS) {
 		struct tty *tp = fp->f_data;
