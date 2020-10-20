@@ -70,7 +70,7 @@ main(int argc, char *argv[])
 
 	dev_fd = open(_PATH_DEV_VERIEXEC, O_WRONLY, 0);
 
-	while ((c = getopt(argc, argv, "C:i:x:vz:")) != -1) {
+	while ((c = getopt(argc, argv, "C:i:xvz:")) != -1) {
 		switch (c) {
 		case 'C':
 			Cdir = optarg;
