@@ -3486,7 +3486,12 @@ scsi_cdb_string(u_int8_t *cdb_ptr, char *cdb_string, size_t len)
 
 	/* ENOMEM just means that the fixed buffer is full, OK to ignore */
 	error = sbuf_finish(&sb);
-	if (error != 0 && error != ENOMEM)
+	if (error != 0 &&
+#ifdef _KERNEL
+	    error != ENOMEM)
+#else
+	    errno != ENOMEM)
+#endif
 		return ("");
 
 	return(sbuf_data(&sb));

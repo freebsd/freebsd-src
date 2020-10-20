@@ -316,7 +316,12 @@ ata_cmd_string(struct ata_cmd *cmd, char *cmd_string, size_t len)
 	ata_cmd_sbuf(cmd, &sb);
 
 	error = sbuf_finish(&sb);
-	if (error != 0 && error != ENOMEM)
+	if (error != 0 &&
+#ifdef _KERNEL
+	    error != ENOMEM)
+#else
+	    errno != ENOMEM)
+#endif
 		return ("");
 
 	return(sbuf_data(&sb));
@@ -346,7 +351,12 @@ ata_res_string(struct ata_res *res, char *res_string, size_t len)
 	ata_res_sbuf(res, &sb);
 
 	error = sbuf_finish(&sb);
-	if (error != 0 && error != ENOMEM)
+	if (error != 0 &&
+#ifdef _KERNEL
+	    error != ENOMEM)
+#else
+	    errno != ENOMEM)
+#endif
 		return ("");
 
 	return(sbuf_data(&sb));
