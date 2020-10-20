@@ -1976,9 +1976,23 @@ usbd_setup_device_desc(struct usb_device *udev, struct mtx *mtx)
 		/* get partial device descriptor, some devices crash on this */
 		err = usbd_req_get_desc(udev, mtx, NULL, &udev->ddesc,
 		    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
-		if (err != 0)
-			break;
-
+		if (err != 0) {
+			DPRINTF("Trying fallback for getting the USB device descriptor\n");
+			/* try 8 bytes bMaxPacketSize */
+			udev->ddesc.bMaxPacketSize = 8;
+			/* get full device descriptor */
+			err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
+			if (err == 0)
+				break;
+			/* try 16 bytes bMaxPacketSize */
+			udev->ddesc.bMaxPacketSize = 16;
+			/* get full device descriptor */
+			err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
+			if (err == 0)
+				break;
+			/* try 32/64 bytes bMaxPacketSize */
+			udev->ddesc.bMaxPacketSize = 32;
+		}
 		/* get the full device descriptor */
 		err = usbd_req_get_device_desc(udev, mtx, &udev->ddesc);
 		break;
