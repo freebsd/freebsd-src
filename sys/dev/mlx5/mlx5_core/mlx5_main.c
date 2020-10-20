@@ -1664,9 +1664,8 @@ static void remove_one(struct pci_dev *pdev)
 	struct mlx5_priv *priv = &dev->priv;
 
 	if (mlx5_unload_one(dev, priv, true)) {
-		mlx5_core_err(dev, "mlx5_unload_one failed\n");
-		mlx5_health_cleanup(dev);
-		return;
+		mlx5_core_err(dev, "mlx5_unload_one() failed, leaked %lld bytes\n",
+		    (long long)(dev->priv.fw_pages * MLX5_ADAPTER_PAGE_SIZE));
 	}
 
 	mlx5_pagealloc_cleanup(dev);
