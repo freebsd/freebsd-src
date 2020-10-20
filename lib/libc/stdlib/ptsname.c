@@ -76,7 +76,7 @@ __strong_reference(__isptmaster, unlockpt);
  *              associated with the specified master.
  */
 int
-ptsname_r(int fildes, char *buffer, size_t buflen)
+__ptsname_r(int fildes, char *buffer, size_t buflen)
 {
 
 	if (buflen <= sizeof(_PATH_DEV)) {
@@ -101,6 +101,8 @@ ptsname_r(int fildes, char *buffer, size_t buflen)
 	return (0);
 }
 
+__strong_reference(__ptsname_r, ptsname_r);
+
 /*
  * ptsname():  return the pathname of the slave pseudo-terminal device
  *             associated with the specified master.
@@ -108,10 +110,10 @@ ptsname_r(int fildes, char *buffer, size_t buflen)
 char *
 ptsname(int fildes)
 {
-	static char pt_slave[sizeof _PATH_DEV + SPECNAMELEN];
+	static char pt_slave[sizeof(_PATH_DEV) + SPECNAMELEN];
 
-	if (ptsname_r(fildes, pt_slave, sizeof(pt_slave)) == 0)
+	if (__ptsname_r(fildes, pt_slave, sizeof(pt_slave)) == 0)
 		return (pt_slave);
-	else
-		return (NULL);
+
+	return (NULL);
 }
