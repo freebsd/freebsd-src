@@ -1276,6 +1276,27 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/pid/mem
+ */
+static int
+linprocfs_doprocmem(PFS_FILL_ARGS)
+{
+	ssize_t resid;
+	int error;
+
+	resid = uio->uio_resid;
+	error = procfs_doprocmem(PFS_FILL_ARGNAMES);
+
+	if (uio->uio_rw == UIO_READ && resid != uio->uio_resid)
+		return (0);
+
+	if (error == EFAULT)
+		error = EIO;
+
+	return (error);
+}
+
+/*
  * Criteria for interface name translation
  */
 #define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
@@ -1853,7 +1874,7 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, &procfs_notsystem, NULL, 0);
 	pfs_create_file(dir, "maps", &linprocfs_doprocmaps,
 	    NULL, NULL, NULL, PFS_RD);
-	pfs_create_file(dir, "mem", &procfs_doprocmem,
+	pfs_create_file(dir, "mem", &linprocfs_doprocmem,
 	    procfs_attr_rw, &procfs_candebug, NULL, PFS_RDWR | PFS_RAW);
 	pfs_create_file(dir, "mounts", &linprocfs_domtab,
 	    NULL, NULL, NULL, PFS_RD);
