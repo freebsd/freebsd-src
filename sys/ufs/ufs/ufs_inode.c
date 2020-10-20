@@ -106,7 +106,6 @@ int
 ufs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct thread *a_td;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -173,7 +172,7 @@ ufs_inactive(ap)
 			(void)chkiq(ip, -1, NOCRED, FORCE);
 #endif
 #ifdef UFS_EXTATTR
-		ufs_extattr_vnode_inactive(vp, ap->a_td);
+		ufs_extattr_vnode_inactive(vp);
 #endif
 		/*
 		 * Setting the mode to zero needs to wait for the inode
