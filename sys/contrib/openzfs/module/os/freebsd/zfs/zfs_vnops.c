@@ -6507,8 +6507,7 @@ zfs_vptocnp(struct vop_vptocnp_args *ap)
 	error = vget(covered_vp, LK_SHARED | LK_VNHELD, curthread);
 #endif
 	if (error == 0) {
-		error = VOP_VPTOCNP(covered_vp, ap->a_vpp, ap->a_cred,
-		    ap->a_buf, ap->a_buflen);
+		error = VOP_VPTOCNP(covered_vp, ap->a_vpp, ap->a_buf, ap->a_buflen);
 		vput(covered_vp);
 	}
 	vn_lock(vp, ltype | LK_RETRY);
