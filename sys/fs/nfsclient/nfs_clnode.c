@@ -239,8 +239,10 @@ ncl_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np;
+	struct thread *td;
 	boolean_t retv;
 
+	td = curthread;
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		/*
 		 * Since mmap()'d files do I/O after VOP_CLOSE(), the NFSv4
@@ -256,14 +258,14 @@ ncl_inactive(struct vop_inactive_args *ap)
 		} else
 			retv = TRUE;
 		if (retv == TRUE) {
-			(void)ncl_flush(vp, MNT_WAIT, ap->a_td, 1, 0);
-			(void)nfsrpc_close(vp, 1, ap->a_td);
+			(void)ncl_flush(vp, MNT_WAIT, td, 1, 0);
+			(void)nfsrpc_close(vp, 1, td);
 		}
 	}
 
 	np = VTONFS(vp);
 	NFSLOCKNODE(np);
-	ncl_releasesillyrename(vp, ap->a_td);
+	ncl_releasesillyrename(vp, td);
 
 	/*
 	 * NMODIFIED means that there might be dirty/stale buffers

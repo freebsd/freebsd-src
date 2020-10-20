@@ -593,7 +593,7 @@ ext2_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
-	struct thread *td = ap->a_td;
+	struct thread *td = curthread;
 	int mode, error = 0;
 
 	/*
