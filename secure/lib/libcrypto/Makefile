@@ -459,7 +459,7 @@ opensslconf.h: opensslconf.h.in
 PICFLAG+=	-DOPENSSL_PIC
 
 .if defined(ASM_${MACHINE_CPUARCH})
-.PATH:	${.CURDIR}/${MACHINE_CPUARCH}
+.PATH:	${SRCTOP}/sys/crypto/openssl/${MACHINE_CPUARCH}
 .if defined(ASM_amd64)
 .PATH:	${LCRYPTO_SRC}/crypto/bn/asm
 .endif
