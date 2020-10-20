@@ -379,10 +379,11 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 			continue;
 
 		it = (struct in_ifaddr *)ifa;
-		iaIsFirst = false;
 		if (it->ia_addr.sin_addr.s_addr == addr->sin_addr.s_addr &&
 		    prison_check_ip4(td->td_ucred, &addr->sin_addr) == 0)
 			ia = it;
+		else
+			iaIsFirst = false;
 	}
 	IF_ADDR_RUNLOCK(ifp);
 
