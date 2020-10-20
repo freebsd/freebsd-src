@@ -5821,7 +5821,7 @@ zfs_freebsd_inactive(struct vop_inactive_args *ap)
 {
 	vnode_t *vp = ap->a_vp;
 
-	zfs_inactive(vp, ap->a_td->td_ucred, NULL);
+	zfs_inactive(vp, curthread->td_ucred, NULL);
 	return (0);
 }
 
@@ -5829,7 +5829,6 @@ zfs_freebsd_inactive(struct vop_inactive_args *ap)
 #ifndef _SYS_SYSPROTO_H_
 struct vop_need_inactive_args {
 	struct vnode *a_vp;
-	struct thread *a_td;
 };
 #endif
 
