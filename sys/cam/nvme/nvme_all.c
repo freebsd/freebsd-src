@@ -153,7 +153,12 @@ nvme_cmd_string(const struct nvme_command *cmd, char *cmd_string, size_t len)
 	nvme_cmd_sbuf(cmd, &sb);
 
 	error = sbuf_finish(&sb);
-	if (error != 0 && error != ENOMEM)
+	if (error != 0 &&
+#ifdef _KERNEL
+	    error != ENOMEM)
+#else
+	    errno != ENOMEM)
+#endif
 		return ("");
 
 	return(sbuf_data(&sb));
