@@ -78,7 +78,7 @@ m_ether_tcpip_hash(const uint32_t flags, const struct mbuf *m,
 		struct ether_vlan_header vlan;
 		uint32_t port;
 	} buf;
-	struct ether_header *eh;
+	const struct ether_header *eh;
 	const struct ether_vlan_header *vlan;
 #ifdef INET
 	const struct ip *ip;
