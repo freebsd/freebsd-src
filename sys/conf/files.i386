@@ -77,6 +77,9 @@ compat/linux/linux.c		optional compat_linux
 compat/ndis/winx32_wrap.S	optional ndisapi pci
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/des/arch/i386/des_enc.S	optional netsmb
+crypto/openssl/i386/sha1-586.S	optional ossl
+crypto/openssl/i386/sha256-586.S	optional ossl
+crypto/openssl/i386/sha512-586.S	optional ossl
 dev/agp/agp_ali.c		optional agp
 dev/agp/agp_amd.c		optional agp
 dev/agp/agp_amd64.c		optional agp
