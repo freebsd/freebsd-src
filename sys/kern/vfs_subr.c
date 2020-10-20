@@ -3524,7 +3524,7 @@ vinactivef(struct vnode *vp)
 		vm_object_page_clean(obj, 0, 0, 0);
 		VM_OBJECT_WUNLOCK(obj);
 	}
-	VOP_INACTIVE(vp, curthread);
+	VOP_INACTIVE(vp);
 	VI_LOCK(vp);
 	VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
 	    ("vinactive: lost VI_DOINGINACT"));

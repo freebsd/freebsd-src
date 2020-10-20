@@ -397,7 +397,6 @@ vop_readlink {
 
 vop_inactive {
 	IN struct vnode *vp;
-	IN struct thread *td;
 };
 
 %! need_inactive	debugpre	vop_need_inactive_debugpre
