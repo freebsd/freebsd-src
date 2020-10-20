@@ -768,6 +768,7 @@ device		tpm
 device		padlock_rng	# VIA Padlock RNG
 device		rdrand_rng	# Intel Bull Mountain RNG
 device		aesni		# AES-NI OpenCrypto module
+device		ossl		# OpenSSL OpenCrypto module
 
 #
 # Laptop/Notebook options:
