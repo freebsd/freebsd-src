@@ -909,7 +909,6 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct vnode **dvp = ap->a_vpp;
 	struct vnode *lvp, *ldvp;
-	struct ucred *cred = ap->a_cred;
 	struct mount *mp;
 	int error, locked;
 
@@ -921,7 +920,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	VOP_UNLOCK(vp); /* vp is held by vn_vptocnp_locked that called us */
 	ldvp = lvp;
 	vref(lvp);
-	error = vn_vptocnp(&ldvp, cred, ap->a_buf, ap->a_buflen);
+	error = vn_vptocnp(&ldvp, ap->a_buf, ap->a_buflen);
 	vdrop(lvp);
 	if (error != 0) {
 		vn_lock(vp, locked | LK_RETRY);

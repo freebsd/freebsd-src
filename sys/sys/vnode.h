@@ -657,8 +657,7 @@ int	insmntque1(struct vnode *vp, struct mount *mp,
 int	insmntque(struct vnode *vp, struct mount *mp);
 u_quad_t init_va_filerev(void);
 int	speedup_syncer(void);
-int	vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf,
-	    size_t *buflen);
+int	vn_vptocnp(struct vnode **vp, char *buf, size_t *buflen);
 int	vn_getcwd(char *buf, char **retbuf, size_t *buflen);
 int	vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf);
 int	vn_fullpath_global(struct vnode *vp, char **retbuf, char **freebuf);

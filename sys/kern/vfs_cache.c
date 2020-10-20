@@ -2811,7 +2811,7 @@ vn_dd_from_dst(struct vnode *vp)
 }
 
 int
-vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
+vn_vptocnp(struct vnode **vp, char *buf, size_t *buflen)
 {
 	struct vnode *dvp;
 	struct namecache *ncp;
@@ -2853,7 +2853,7 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 
 	mtx_unlock(vlp);
 	vn_lock(*vp, LK_SHARED | LK_RETRY);
-	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
+	error = VOP_VPTOCNP(*vp, &dvp, buf, buflen);
 	vput(*vp);
 	if (error) {
 		counter_u64_add(numfullpathfail2, 1);
@@ -2952,7 +2952,7 @@ vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 			    error, vp, NULL);
 			break;
 		}
-		error = vn_vptocnp(&vp, curthread->td_ucred, buf, &buflen);
+		error = vn_vptocnp(&vp, buf, &buflen);
 		if (error)
 			break;
 		if (buflen == 0) {
@@ -3151,7 +3151,7 @@ vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 	if (vp->v_type != VDIR) {
 		*buflen -= 1;
 		buf[*buflen] = '\0';
-		error = vn_vptocnp(&vp, curthread->td_ucred, buf, buflen);
+		error = vn_vptocnp(&vp, buf, buflen);
 		if (error)
 			return (error);
 		if (*buflen == 0) {
