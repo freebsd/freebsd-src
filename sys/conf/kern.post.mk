@@ -457,24 +457,9 @@ vnode_if_typedef.h:
 
 .if ${MFS_IMAGE:Uno} != "no"
 .if empty(MD_ROOT_SIZE_CONFIGURED)
-# Generate an object file from the file system image to embed in the kernel
-# via linking. Make sure the contents are in the mfs section and rename the
-# start/end/size variables to __start_mfs, __stop_mfs, and mfs_size,
-# respectively.
-embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE}
-	${OBJCOPY} --input-target binary \
-	    --output-target ${EMBEDFS_FORMAT.${MACHINE_ARCH}} \
-	    --binary-architecture ${EMBEDFS_ARCH.${MACHINE_ARCH}} \
-	    ${MFS_IMAGE} ${.TARGET}
-	${OBJCOPY} \
-	    --rename-section .data=mfs,contents,alloc,load,readonly,data \
-	    --redefine-sym \
-		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_size=__mfs_root_size \
-	    --redefine-sym \
-		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_start=mfs_root \
-	    --redefine-sym \
-		_binary_${MFS_IMAGE:C,[^[:alnum:]],_,g}_end=mfs_root_end \
-	    ${.TARGET}
+embedfs_${MFS_IMAGE:T:R}.o: ${MFS_IMAGE} $S/dev/md/embedfs.S
+	${CC} ${CFLAGS} ${ACFLAGS} -DMFS_IMAGE="${MFS_IMAGE}" -c \
+	    $S/dev/md/embedfs.S -o ${.TARGET}
 .endif
 .endif
 
