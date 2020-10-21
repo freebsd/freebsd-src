@@ -17,7 +17,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -185,17 +185,17 @@ struct ifvlan {
 	struct	ifvlantrunk *ifv_trunk;
 	struct	ifnet *ifv_ifp;
 #define	TRUNK(ifv)	((ifv)->ifv_trunk)
-#define	PARENT(ifv)	((ifv)->ifv_trunk->parent)
+#define	PARENT(ifv)	(TRUNK(ifv)->parent)
 	void	*ifv_cookie;
 	int	ifv_pflags;	/* special flags we have set on parent */
 	int	ifv_capenable;
 	int	ifv_encaplen;	/* encapsulation length */
 	int	ifv_mtufudge;	/* MTU fudged by this much */
 	int	ifv_mintu;	/* min transmission unit */
-	uint16_t ifv_proto;	/* encapsulation ethertype */
-	uint16_t ifv_tag;	/* tag to apply on packets leaving if */
-	uint16_t ifv_vid;	/* VLAN ID */
-	uint8_t	ifv_pcp;	/* Priority Code Point (PCP). */
+	struct  ether_8021q_tag ifv_qtag;
+#define ifv_proto	ifv_qtag.proto
+#define ifv_vid		ifv_qtag.vid
+#define ifv_pcp		ifv_qtag.pcp
 	struct task lladdr_task;
 	CK_SLIST_HEAD(, vlan_mc_entry) vlan_mc_listhead;
 #ifndef VLAN_ARRAY
@@ -222,9 +222,9 @@ static eventhandler_tag ifdetach_tag;
 static eventhandler_tag iflladdr_tag;
 
 /*
- * if_vlan uses two module-level synchronizations primitives to allow concurrent 
- * modification of vlan interfaces and (mostly) allow for vlans to be destroyed 
- * while they are being used for tx/rx. To accomplish this in a way that has 
+ * if_vlan uses two module-level synchronizations primitives to allow concurrent
+ * modification of vlan interfaces and (mostly) allow for vlans to be destroyed
+ * while they are being used for tx/rx. To accomplish this in a way that has
  * acceptable performance and cooperation with other parts of the network stack
  * there is a non-sleepable epoch(9) and an sx(9).
  *
@@ -244,7 +244,7 @@ static eventhandler_tag iflladdr_tag;
 static struct sx _VLAN_SX_ID;
 
 #define VLAN_LOCKING_INIT() \
-	sx_init(&_VLAN_SX_ID, "vlan_sx")
+	sx_init_flags(&_VLAN_SX_ID, "vlan_sx", SX_RECURSE)
 
 #define VLAN_LOCKING_DESTROY() \
 	sx_destroy(&_VLAN_SX_ID)
@@ -306,7 +306,8 @@ static	int vlan_output(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *dst, struct route *ro);
 static	void vlan_unconfig(struct ifnet *ifp);
 static	void vlan_unconfig_locked(struct ifnet *ifp, int departing);
-static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
+static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag,
+	uint16_t proto);
 static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
 static	void vlan_trunk_capabilities(struct ifnet *ifp);
@@ -760,7 +761,7 @@ vlan_pcp(struct ifnet *ifp, uint16_t *pcpp)
 
 /*
  * Return a driver specific cookie for this interface.  Synchronization
- * with setcookie must be provided by the driver. 
+ * with setcookie must be provided by the driver.
  */
 static void *
 vlan_cookie(struct ifnet *ifp)
@@ -811,16 +812,6 @@ vlan_devat(struct ifnet *ifp, uint16_t vid)
 }
 
 /*
- * Recalculate the cached VLAN tag exposed via the MIB.
- */
-static void
-vlan_tag_recalculate(struct ifvlan *ifv)
-{
-
-       ifv->ifv_tag = EVL_MAKETAG(ifv->ifv_vid, ifv->ifv_pcp, 0);
-}
-
-/*
  * VLAN support can be loaded as a module.  The only place in the
  * system that's intimately aware of this is ether_input.  We hook
  * into this code through vlan_input_p which is defined there and
@@ -867,7 +858,7 @@ vlan_modevent(module_t mod, int type, void *data)
 #else
 			       "hash tables with chaining"
 #endif
-			
+
 			       "\n");
 		break;
 	case MOD_UNLOAD:
@@ -926,7 +917,7 @@ VNET_SYSUNINIT(vnet_vlan_uninit, SI_SUB_INIT_IF, SI_ORDER_ANY,
 #endif
 
 /*
- * Check for <etherif>.<vlan> style interface names.
+ * Check for <etherif>.<vlan>[.<vlan> ...] style interface names.
  */
 static struct ifnet *
 vlan_clone_match_ethervid(const char *name, int *vidp)
@@ -937,7 +928,7 @@ vlan_clone_match_ethervid(const char *name, int *vidp)
 	int vid;
 
 	strlcpy(ifname, name, IFNAMSIZ);
-	if ((cp = strchr(ifname, '.')) == NULL)
+	if ((cp = strrchr(ifname, '.')) == NULL)
 		return (NULL);
 	*cp = '\0';
 	if ((ifp = ifunit_ref(ifname)) == NULL)
@@ -990,6 +981,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	int unit;
 	int error;
 	int vid;
+	uint16_t proto;
 	struct ifvlan *ifv;
 	struct ifnet *ifp;
 	struct ifnet *p;
@@ -998,14 +990,15 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	struct vlanreq vlr;
 	static const u_char eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
+	proto = ETHERTYPE_VLAN;
+
 	/*
-	 * There are 3 (ugh) ways to specify the cloned device:
+	 * There are two ways to specify the cloned device:
 	 * o pass a parameter block with the clone request.
-	 * o specify parameters in the text of the clone device name
 	 * o specify no parameters and get an unattached device that
 	 *   must be configured separately.
-	 * The first technique is preferred; the latter two are
-	 * supported for backwards compatibility.
+	 * The first technique is preferred; the latter is supported
+	 * for backwards compatibility.
 	 *
 	 * XXXRW: Note historic use of the word "tag" here.  New ioctls may be
 	 * called for.
@@ -1023,10 +1016,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			return (error);
 		}
 		vid = vlr.vlr_tag;
+		proto = vlr.vlr_proto;
 		wildcard = (unit < 0);
-	} else if ((p = vlan_clone_match_ethervid(name, &vid)) != NULL) {
-		unit = -1;
-		wildcard = 0;
 	} else {
 		p = NULL;
 		error = ifc_name2unit(name, &unit);
@@ -1092,7 +1083,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	sdl->sdl_type = IFT_L2VLAN;
 
 	if (p != NULL) {
-		error = vlan_config(ifv, p, vid);
+		error = vlan_config(ifv, p, vid, proto);
 		if_rele(p);
 		if (error != 0) {
 			/*
@@ -1117,7 +1108,9 @@ static int
 vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct ifvlan *ifv = ifp->if_softc;
-	int unit = ifp->if_dunit;
+
+	if (ifp->if_vlantrunk)
+		return (EBUSY);
 
 	ether_ifdetach(ifp);	/* first, remove it from system-wide lists */
 	vlan_unconfig(ifp);	/* now it can be unconfigured and freed */
@@ -1130,7 +1123,7 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	NET_EPOCH_WAIT();
 	if_free(ifp);
 	free(ifv, M_VLAN);
-	ifc_free_unit(ifc, unit);
+	ifc_free_unit(ifc, ifp->if_dunit);
 
 	return (0);
 }
@@ -1196,7 +1189,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 		return (ENETDOWN);
 	}
 
-	if (!ether_8021q_frame(&m, ifp, p, ifv->ifv_vid, ifv->ifv_pcp)) {
+	if (!ether_8021q_frame(&m, ifp, p, &ifv->ifv_qtag)) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return (0);
 	}
@@ -1223,12 +1216,19 @@ vlan_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	NET_EPOCH_ASSERT();
 
+	/*
+	 * Find the first non-VLAN parent interface.
+	 */
 	ifv = ifp->if_softc;
-	if (TRUNK(ifv) == NULL) {
-		m_freem(m);
-		return (ENETDOWN);
-	}
-	p = PARENT(ifv);
+	do {
+		if (TRUNK(ifv) == NULL) {
+			m_freem(m);
+			return (ENETDOWN);
+		}
+		p = PARENT(ifv);
+		ifv = p->if_softc;
+	} while (p->if_type == IFT_L2VLAN);
+
 	return p->if_output(ifp, m, dst, ro);
 }
 
@@ -1357,7 +1357,8 @@ vlan_lladdr_fn(void *arg, int pending __unused)
 }
 
 static int
-vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
+vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid,
+	uint16_t proto)
 {
 	struct epoch_tracker et;
 	struct ifvlantrunk *trunk;
@@ -1369,6 +1370,7 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 	 * they handle the tagging and headers themselves.
 	 */
 	if (p->if_type != IFT_ETHER &&
+	    p->if_type != IFT_L2VLAN &&
 	    (p->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
 		return (EPROTONOSUPPORT);
 	if ((p->if_flags & VLAN_IFFLAGS) != VLAN_IFFLAGS)
@@ -1400,11 +1402,10 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t vid)
 
 	ifv->ifv_vid = vid;	/* must set this before vlan_inshash() */
 	ifv->ifv_pcp = 0;       /* Default: best effort delivery. */
-	vlan_tag_recalculate(ifv);
 	error = vlan_inshash(trunk, ifv);
 	if (error)
 		goto done;
-	ifv->ifv_proto = ETHERTYPE_VLAN;
+	ifv->ifv_proto = proto;
 	ifv->ifv_encaplen = ETHER_VLAN_ENCAP_LEN;
 	ifv->ifv_mintu = ETHERMIN;
 	ifv->ifv_pflags = 0;
@@ -1915,7 +1916,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		}
 		oldmtu = ifp->if_mtu;
-		error = vlan_config(ifv, p, vlr.vlr_tag);
+		error = vlan_config(ifv, p, vlr.vlr_tag, vlr.vlr_proto);
 		if_rele(p);
 
 		/*
@@ -1943,11 +1944,12 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			strlcpy(vlr.vlr_parent, PARENT(ifv)->if_xname,
 			    sizeof(vlr.vlr_parent));
 			vlr.vlr_tag = ifv->ifv_vid;
+			vlr.vlr_proto = ifv->ifv_proto;
 		}
 		VLAN_SUNLOCK();
 		error = copyout(&vlr, ifr_data_get_ptr(ifr), sizeof(vlr));
 		break;
-		
+
 	case SIOCSIFFLAGS:
 		/*
 		 * We should propagate selected flags to the parent,
@@ -2001,7 +2003,6 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		ifv->ifv_pcp = ifr->ifr_vlan_pcp;
 		ifp->if_pcp = ifv->ifv_pcp;
-		vlan_tag_recalculate(ifv);
 		/* broadcast event about PCP change */
 		EVENTHANDLER_INVOKE(ifnet_event, ifp, IFNET_EVENT_PCP);
 		break;

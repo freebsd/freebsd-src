@@ -582,7 +582,7 @@ they support in their capabilities.
 is a synonym for enabling all available WOL mechanisms.
 To disable WOL use
 .Fl wol .
-.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwcsum, vlanhwtso
+.It Cm vlanmtu , vlanhwtag , vlanhwfilter , vlanhwcsum , vlanhwtso
 If the driver offers user-configurable VLAN support, enable
 reception of extended frames, tag processing in hardware,
 frame filtering in hardware, checksum offloading, or TSO on VLAN,
@@ -592,7 +592,7 @@ Note that this must be configured on a physical interface associated with
 not on a
 .Xr vlan 4
 interface itself.
-.It Fl vlanmtu , vlanhwtag , vlanhwfilter , vlanhwtso
+.It Fl vlanmtu , vlanhwtag, vlanhwfilter, vlanhwtso
 If the driver offers user-configurable VLAN support, disable
 reception of extended frames, tag processing in hardware,
 frame filtering in hardware, or TSO on VLAN,
@@ -2696,7 +2696,7 @@ interfaces:
 Set the VLAN tag value to
 .Ar vlan_tag .
 This value is a 12-bit VLAN Identifier (VID) which is used to create an 802.1Q
-VLAN header for packets sent from the
+or 802.1ad VLAN header for packets sent from the
 .Xr vlan 4
 interface.
 Note that
@@ -2704,6 +2704,15 @@ Note that
 and
 .Cm vlandev
 must both be set at the same time.
+.It Cm vlanproto Ar vlan_proto
+Set the VLAN encapsulation protocol to
+.Ar vlan_proto .
+Supported encapsulation protocols are currently
+.Dq 802.1Q
+and
+.Dq 802.1ad .
+The default encapsulation protocol is
+.Dq 802.1Q .
 .It Cm vlanpcp Ar priority_code_point
 Priority code point
 .Pq Dv PCP
