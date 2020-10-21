@@ -1268,10 +1268,8 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 			 */
 			PHOLD(curproc);
 			buf = uma_zalloc(pbuf_zone, M_WAITOK);
-			buf->b_data = pt->buf;
-			buf->b_bufsize = pt->len;
 			buf->b_iocmd = pt->is_read ? BIO_READ : BIO_WRITE;
-			if (vmapbuf(buf, 1) < 0) {
+			if (vmapbuf(buf, pt->buf, pt->len, 1) < 0) {
 				ret = EFAULT;
 				goto err;
 			}

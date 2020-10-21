@@ -955,18 +955,12 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		 */
 		mapinfo->bp[i] = uma_zalloc(pbuf_zone, M_WAITOK);
 
-		/* put our pointer in the data slot */
-		mapinfo->bp[i]->b_data = *data_ptrs[i];
-
-		/* set the transfer length, we know it's < MAXPHYS */
-		mapinfo->bp[i]->b_bufsize = lengths[i];
-
 		/* set the direction */
 		mapinfo->bp[i]->b_iocmd = (dirs[i] == CAM_DIR_OUT) ?
 		    BIO_WRITE : BIO_READ;
 
 		/* Map the buffer into kernel memory. */
-		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
+		if (vmapbuf(mapinfo->bp[i], *data_ptrs[i], lengths[i], 1) < 0) {
 			uma_zfree(pbuf_zone, mapinfo->bp[i]);
 			goto fail;
 		}
