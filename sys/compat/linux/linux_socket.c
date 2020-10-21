@@ -513,8 +513,11 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	if (retval_socket != 0)
 		return (retval_socket);
 	domain = linux_to_bsd_domain(args->domain);
-	if (domain == -1)
+	if (domain == -1) {
+		linux_msg(curthread, "unsupported socket domain %d, type %d, protocol %d",
+		    args->domain, args->type & LINUX_SOCK_TYPE_MASK, args->protocol);
 		return (EAFNOSUPPORT);
+	}
 
 	retval_socket = kern_socket(td, domain, type, args->protocol);
 	if (retval_socket)
