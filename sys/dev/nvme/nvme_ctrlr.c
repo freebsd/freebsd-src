@@ -1474,22 +1474,24 @@ nvme_ctrlr_shutdown(struct nvme_controller *ctrlr)
 {
 	uint32_t	cc;
 	uint32_t	csts;
-	int		ticks = 0;
+	int		ticks = 0, timeout;
 
 	cc = nvme_mmio_read_4(ctrlr, cc);
 	cc &= ~(NVME_CC_REG_SHN_MASK << NVME_CC_REG_SHN_SHIFT);
 	cc |= NVME_SHN_NORMAL << NVME_CC_REG_SHN_SHIFT;
 	nvme_mmio_write_4(ctrlr, cc, cc);
 
+	timeout = ctrlr->cdata.rtd3e == 0 ? 5 * hz :
+	    ((uint64_t)ctrlr->cdata.rtd3e * hz + 999999) / 1000000;
 	while (1) {
 		csts = nvme_mmio_read_4(ctrlr, csts);
 		if (csts == 0xffffffff)		/* Hot unplug. */
 			break;
 		if (NVME_CSTS_GET_SHST(csts) == NVME_SHST_COMPLETE)
 			break;
-		if (ticks++ > 5*hz) {
+		if (ticks++ > timeout) {
 			nvme_printf(ctrlr, "did not complete shutdown within"
-			    " 5 seconds of notification\n");
+			    " %d ticks of notification\n", timeout);
 			break;
 		}
 		pause("nvme shn", 1);
