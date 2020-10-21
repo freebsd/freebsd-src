@@ -1219,8 +1219,9 @@ fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx)
 	if (pcb->pcb_save == get_pcb_user_save_pcb(pcb)) {
 		if ((pcb->pcb_flags & PCB_USERFPUINITDONE) != 0) {
 			set_pcb_flags(pcb, PCB_FPUINITDONE);
-			clear_pcb_flags(pcb, PCB_KERNFPU);
-		} else
+			if ((pcb->pcb_flags & PCB_KERNFPU_THR) == 0)
+				clear_pcb_flags(pcb, PCB_KERNFPU);
+		} else if ((pcb->pcb_flags & PCB_KERNFPU_THR) == 0)
 			clear_pcb_flags(pcb, PCB_FPUINITDONE | PCB_KERNFPU);
 	} else {
 		if ((ctx->flags & FPU_KERN_CTX_FPUINITDONE) != 0)
@@ -1243,7 +1244,7 @@ fpu_kern_thread(u_int flags)
 	    ("mangled pcb_save"));
 	KASSERT(PCB_USER_FPU(curpcb), ("recursive call"));
 
-	set_pcb_flags(curpcb, PCB_KERNFPU);
+	set_pcb_flags(curpcb, PCB_KERNFPU | PCB_KERNFPU_THR);
 	return (0);
 }
 
@@ -1253,7 +1254,7 @@ is_fpu_kern_thread(u_int flags)
 
 	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
 		return (0);
-	return ((curpcb->pcb_flags & PCB_KERNFPU) != 0);
+	return ((curpcb->pcb_flags & PCB_KERNFPU_THR) != 0);
 }
 
 /*
