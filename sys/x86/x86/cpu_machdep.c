@@ -485,7 +485,9 @@ cpu_mwait_usable(void)
 }
 
 void (*cpu_idle_hook)(sbintime_t) = NULL;	/* ACPI idle hook. */
-static int	cpu_ident_amdc1e = 0;	/* AMD C1E supported. */
+
+int cpu_amdc1e_bug = 0;			/* AMD C1E APIC workaround required. */
+
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
 SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RWTUN, &idle_mwait,
     0, "Use MONITOR/MWAIT for short idle");
@@ -586,35 +588,6 @@ cpu_idle_spin(sbintime_t sbt)
 	}
 }
 
-/*
- * C1E renders the local APIC timer dead, so we disable it by
- * reading the Interrupt Pending Message register and clearing
- * both C1eOnCmpHalt (bit 28) and SmiOnCmpHalt (bit 27).
- * 
- * Reference:
- *   "BIOS and Kernel Developer's Guide for AMD NPT Family 0Fh Processors"
- *   #32559 revision 3.00+
- */
-#define	MSR_AMDK8_IPM		0xc0010055
-#define	AMDK8_SMIONCMPHALT	(1ULL << 27)
-#define	AMDK8_C1EONCMPHALT	(1ULL << 28)
-#define	AMDK8_CMPHALT		(AMDK8_SMIONCMPHALT | AMDK8_C1EONCMPHALT)
-
-void
-cpu_probe_amdc1e(void)
-{
-
-	/*
-	 * Detect the presence of C1E capability mostly on latest
-	 * dual-cores (or future) k8 family.
-	 */
-	if (cpu_vendor_id == CPU_VENDOR_AMD &&
-	    (cpu_id & 0x00000f00) == 0x00000f00 &&
-	    (cpu_id & 0x0fff0000) >=  0x00040000) {
-		cpu_ident_amdc1e = 1;
-	}
-}
-
 void (*cpu_idle_fn)(sbintime_t) = cpu_idle_acpi;
 
 void
@@ -644,10 +617,11 @@ cpu_idle(int busy)
 	}
 
 	/* Apply AMD APIC timer C1E workaround. */
-	if (cpu_ident_amdc1e && cpu_disable_c3_sleep) {
+	if (cpu_amdc1e_bug && cpu_disable_c3_sleep) {
 		msr = rdmsr(MSR_AMDK8_IPM);
-		if (msr & AMDK8_CMPHALT)
-			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
+		if ((msr & (AMDK8_SMIONCMPHALT | AMDK8_C1EONCMPHALT)) != 0)
+			wrmsr(MSR_AMDK8_IPM, msr & ~(AMDK8_SMIONCMPHALT |
+			    AMDK8_C1EONCMPHALT));
 	}
 
 	/* Call main idle method. */

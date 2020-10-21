@@ -1078,6 +1078,7 @@
 #define	MSR_NB_CFG1	0xc001001f	/* NB configuration 1 */
 #define	MSR_K8_UCODE_UPDATE 0xc0010020	/* update microcode */
 #define	MSR_MC0_CTL_MASK 0xc0010044
+#define	MSR_AMDK8_IPM	0xc0010055
 #define	MSR_P_STATE_LIMIT 0xc0010061	/* P-state Current Limit Register */
 #define	MSR_P_STATE_CONTROL 0xc0010062	/* P-state Control Register */
 #define	MSR_P_STATE_STATUS 0xc0010063	/* P-state Status Register */
@@ -1093,6 +1094,9 @@
 
 /* MSR_VM_CR related */
 #define	VM_CR_SVMDIS		0x10	/* SVM: disabled by BIOS */
+
+#define	AMDK8_SMIONCMPHALT	(1ULL << 27)
+#define	AMDK8_C1EONCMPHALT	(1ULL << 28)
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */

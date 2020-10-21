@@ -721,8 +721,8 @@ initializecpu(void)
 				break;
 			}
 			break;
-#ifdef CPU_ATHLON_SSE_HACK
 		case CPU_VENDOR_AMD:
+#ifdef CPU_ATHLON_SSE_HACK
 			/*
 			 * Sometimes the BIOS doesn't enable SSE instructions.
 			 * According to AMD document 20734, the mobile
@@ -739,8 +739,16 @@ initializecpu(void)
 				do_cpuid(1, regs);
 				cpu_feature = regs[3];
 			}
-			break;
 #endif
+			/*
+			 * Detect C1E that breaks APIC.  See comment in
+			 * amd64/initcpu.c.
+			 */
+			if ((CPUID_TO_FAMILY(cpu_id) == 0xf ||
+			    CPUID_TO_FAMILY(cpu_id) == 0x10) &&
+			    (cpu_feature2 & CPUID2_HV) == 0)
+				cpu_amdc1e_bug = 1;
+			break;
 		case CPU_VENDOR_CENTAUR:
 			init_via();
 			break;

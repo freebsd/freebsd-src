@@ -89,6 +89,7 @@ extern	int	hw_ssb_active;
 extern	int	x86_taa_enable;
 extern	int	cpu_flush_rsb_ctxsw;
 extern	int	x86_rngds_mitg_enable;
+extern	int	cpu_amdc1e_bug;
 
 struct	pcb;
 struct	thread;
