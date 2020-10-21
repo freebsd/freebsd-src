@@ -21,7 +21,7 @@ SCRIPTS=	blocking \
 
 SCRIPTSDIR= ${SHAREDIR}/dtrace
 
-DSRCS=		mbuf.d
+DSRCS=		mbuf.d ipfw.d
 
 FILES=		${DSRCS}
 FILESDIR=	/usr/lib/dtrace
