@@ -512,11 +512,11 @@ static void cache_zap_locked(struct namecache *ncp);
 static int vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf,
     char **freebuf, size_t *buflen);
 static int vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
-    char **retbuf, size_t *buflen, bool slash_prefixed, size_t addend);
+    char **retbuf, size_t *buflen, size_t addend);
 static int vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *buflen);
 static int vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf,
-    char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
+    char **retbuf, size_t *len, size_t addend);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -2687,7 +2687,7 @@ vn_getcwd(char *buf, char **retbuf, size_t *buflen)
 	vfs_smr_enter();
 	pwd = pwd_get_smr();
 	error = vn_fullpath_any_smr(pwd->pwd_cdir, pwd->pwd_rdir, buf, retbuf,
-	    buflen, false, 0);
+	    buflen, 0);
 	VFS_SMR_ASSERT_NOT_ENTERED();
 	if (error < 0) {
 		pwd = pwd_hold(curthread);
@@ -2753,7 +2753,7 @@ vn_fullpath(struct vnode *vp, char **retbuf, char **freebuf)
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	vfs_smr_enter();
 	pwd = pwd_get_smr();
-	error = vn_fullpath_any_smr(vp, pwd->pwd_rdir, buf, retbuf, &buflen, false, 0);
+	error = vn_fullpath_any_smr(vp, pwd->pwd_rdir, buf, retbuf, &buflen, 0);
 	VFS_SMR_ASSERT_NOT_ENTERED();
 	if (error < 0) {
 		pwd = pwd_hold(curthread);
@@ -2785,7 +2785,7 @@ vn_fullpath_global(struct vnode *vp, char **retbuf, char **freebuf)
 	buflen = MAXPATHLEN;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	vfs_smr_enter();
-	error = vn_fullpath_any_smr(vp, rootvnode, buf, retbuf, &buflen, false, 0);
+	error = vn_fullpath_any_smr(vp, rootvnode, buf, retbuf, &buflen, 0);
 	VFS_SMR_ASSERT_NOT_ENTERED();
 	if (error < 0) {
 		error = vn_fullpath_any(vp, rootvnode, buf, retbuf, &buflen);
@@ -2887,7 +2887,7 @@ vn_vptocnp(struct vnode **vp, char *buf, size_t *buflen)
  */
 static int
 vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
-    size_t *len, bool slash_prefixed, size_t addend)
+    size_t *len, size_t addend)
 {
 #ifdef KDTRACE_HOOKS
 	struct vnode *startvp = vp;
@@ -2895,16 +2895,19 @@ vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 	struct vnode *vp1;
 	size_t buflen;
 	int error;
+	bool slash_prefixed;
 
 	VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
 	VNPASS(vp->v_usecount > 0, vp);
 
 	buflen = *len;
 
-	if (!slash_prefixed) {
+	slash_prefixed = true;
+	if (addend == 0) {
 		MPASS(*len >= 2);
 		buflen--;
 		buf[buflen] = '\0';
+		slash_prefixed = false;
 	}
 
 	error = 0;
@@ -3006,7 +3009,7 @@ cache_rev_failed_impl(int *reason, int line)
 
 static int
 vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
-    char **retbuf, size_t *buflen, bool slash_prefixed, size_t addend)
+    char **retbuf, size_t *buflen, size_t addend)
 {
 #ifdef KDTRACE_HOOKS
 	struct vnode *startvp = vp;
@@ -3032,14 +3035,14 @@ vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
 
 	orig_buflen = *buflen;
 
-	if (!slash_prefixed) {
+	if (addend == 0) {
 		MPASS(*buflen >= 2);
 		*buflen -= 1;
 		buf[*buflen] = '\0';
 	}
 
 	if (vp == rdir || vp == rootvnode) {
-		if (!slash_prefixed) {
+		if (addend == 0) {
 			*buflen -= 1;
 			buf[*buflen] = '/';
 		}
@@ -3137,8 +3140,7 @@ static int
 vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
     size_t *buflen)
 {
-	size_t orig_buflen;
-	bool slash_prefixed;
+	size_t orig_buflen, addend;
 	int error;
 
 	if (*buflen < 2)
@@ -3147,7 +3149,7 @@ vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 	orig_buflen = *buflen;
 
 	vref(vp);
-	slash_prefixed = false;
+	addend = 0;
 	if (vp->v_type != VDIR) {
 		*buflen -= 1;
 		buf[*buflen] = '\0';
@@ -3160,11 +3162,10 @@ vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 		}
 		*buflen -= 1;
 		buf[*buflen] = '/';
-		slash_prefixed = true;
+		addend = orig_buflen - *buflen;
 	}
 
-	return (vn_fullpath_dir(vp, rdir, buf, retbuf, buflen, slash_prefixed,
-	    orig_buflen - *buflen));
+	return (vn_fullpath_dir(vp, rdir, buf, retbuf, buflen, addend));
 }
 
 /*
@@ -3189,15 +3190,12 @@ vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf, char **freebuf,
 	struct vnode *vp;
 	size_t addend;
 	int error;
-	bool slash_prefixed;
 	enum vtype type;
 
 	if (*buflen < 2)
 		return (EINVAL);
 	if (*buflen > MAXPATHLEN)
 		*buflen = MAXPATHLEN;
-
-	slash_prefixed = false;
 
 	buf = malloc(*buflen, M_TEMP, M_WAITOK);
 
@@ -3239,20 +3237,19 @@ vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf, char **freebuf,
 		tmpbuf[0] = '/';
 		memcpy(&tmpbuf[1], cnp->cn_nameptr, cnp->cn_namelen);
 		tmpbuf[addend - 1] = '\0';
-		slash_prefixed = true;
 		vp = ndp->ni_dvp;
 	}
 
 	vfs_smr_enter();
 	pwd = pwd_get_smr();
 	error = vn_fullpath_any_smr(vp, pwd->pwd_rdir, buf, retbuf, buflen,
-	    slash_prefixed, addend);
+	    addend);
 	VFS_SMR_ASSERT_NOT_ENTERED();
 	if (error < 0) {
 		pwd = pwd_hold(curthread);
 		vref(vp);
 		error = vn_fullpath_dir(vp, pwd->pwd_rdir, buf, retbuf, buflen,
-		    slash_prefixed, addend);
+		    addend);
 		pwd_drop(pwd);
 		if (error != 0)
 			goto out_bad;
