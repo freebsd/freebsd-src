@@ -6069,5 +6069,5 @@ ieee80211_ctor(void)
 	for (i = 0; i < nitems(ieee80211_cmds);  i++)
 		cmd_register(&ieee80211_cmds[i]);
 	af_register(&af_ieee80211);
-	clone_setdefcallback("wlan", wlan_create);
+	clone_setdefcallback_prefix("wlan", wlan_create);
 }
