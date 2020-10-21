@@ -628,3 +628,35 @@ ifconfig_set_vlantag(ifconfig_handle_t *h, const char *name,
 	}
 	return (0);
 }
+
+int
+ifconfig_list_cloners(ifconfig_handle_t *h, char **bufp, size_t *lenp)
+{
+	struct if_clonereq ifcr;
+	char *buf;
+
+	memset(&ifcr, 0, sizeof(ifcr));
+	*bufp = NULL;
+	*lenp = 0;
+
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCIFGCLONERS, &ifcr) < 0)
+		return (-1);
+
+	buf = malloc(ifcr.ifcr_total * IFNAMSIZ);
+	if (buf == NULL) {
+		h->error.errtype = OTHER;
+		h->error.errcode = ENOMEM;
+		return (-1);
+	}
+
+	ifcr.ifcr_count = ifcr.ifcr_total;
+	ifcr.ifcr_buffer = buf;
+	if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCIFGCLONERS, &ifcr) < 0) {
+		free(buf);
+		return (-1);
+	}
+
+	*bufp = buf;
+	*lenp = ifcr.ifcr_total;
+	return (0);
+}
