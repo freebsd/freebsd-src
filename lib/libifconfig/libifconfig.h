@@ -279,3 +279,13 @@ int ifconfig_create_interface_vlan(ifconfig_handle_t *h, const char *name,
 
 int ifconfig_set_vlantag(ifconfig_handle_t *h, const char *name,
     const char *vlandev, const unsigned short vlantag);
+
+/** Gets the names of all interface cloners available on the system
+ * @param bufp	Set to the address of the names buffer on success or NULL
+ *              if an error occurs.  This buffer must be freed when done.
+ * @param lenp	Set to the number of names in the returned buffer or 0
+ * 		if an error occurs.  Each name is contained within an
+ * 		IFNAMSIZ length slice of the buffer, for a total buffer
+ * 		length of *lenp * IFNAMSIZ bytes.
+ */
+int ifconfig_list_cloners(ifconfig_handle_t *h, char **bufp, size_t *lenp);

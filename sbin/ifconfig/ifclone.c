@@ -41,6 +41,7 @@ static const char rcsid[] =
 #include <net/if.h>
 
 #include <err.h>
+#include <libifconfig.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,45 +52,27 @@ static const char rcsid[] =
 static void
 list_cloners(void)
 {
-	struct if_clonereq ifcr;
-	char *cp, *buf;
-	int idx;
-	int s;
+	ifconfig_handle_t *lifh;
+	char *cloners;
+	size_t cloners_count;
 
-	s = socket(AF_LOCAL, SOCK_DGRAM, 0);
-	if (s == -1)
-		err(1, "socket(AF_LOCAL,SOCK_DGRAM)");
+	lifh = ifconfig_open();
+	if (lifh == NULL)
+		return;
 
-	memset(&ifcr, 0, sizeof(ifcr));
+	if (ifconfig_list_cloners(lifh, &cloners, &cloners_count) < 0)
+		errc(1, ifconfig_err_errno(lifh), "unable to list cloners");
+	ifconfig_close(lifh);
 
-	if (ioctl(s, SIOCIFGCLONERS, &ifcr) < 0)
-		err(1, "SIOCIFGCLONERS for count");
-
-	buf = malloc(ifcr.ifcr_total * IFNAMSIZ);
-	if (buf == NULL)
-		err(1, "unable to allocate cloner name buffer");
-
-	ifcr.ifcr_count = ifcr.ifcr_total;
-	ifcr.ifcr_buffer = buf;
-
-	if (ioctl(s, SIOCIFGCLONERS, &ifcr) < 0)
-		err(1, "SIOCIFGCLONERS for names");
-
-	/*
-	 * In case some disappeared in the mean time, clamp it down.
-	 */
-	if (ifcr.ifcr_count > ifcr.ifcr_total)
-		ifcr.ifcr_count = ifcr.ifcr_total;
-
-	for (cp = buf, idx = 0; idx < ifcr.ifcr_count; idx++, cp += IFNAMSIZ) {
-		if (idx > 0)
+	for (const char *name = cloners;
+	    name < cloners + cloners_count * IFNAMSIZ;
+	    name += IFNAMSIZ) {
+		if (name > cloners)
 			putchar(' ');
-		printf("%s", cp);
+		printf("%s", name);
 	}
-
 	putchar('\n');
-	free(buf);
-	close(s);
+	free(cloners);
 }
 
 struct clone_defcb {
