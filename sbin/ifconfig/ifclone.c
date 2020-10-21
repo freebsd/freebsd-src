@@ -49,6 +49,11 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
+typedef enum {
+	MT_PREFIX,
+	MT_FILTER,
+} clone_match_type;
+
 static void
 list_cloners(void)
 {
@@ -76,7 +81,11 @@ list_cloners(void)
 }
 
 struct clone_defcb {
-	char ifprefix[IFNAMSIZ];
+	union {
+		char ifprefix[IFNAMSIZ];
+		clone_match_func *ifmatch;
+	};
+	clone_match_type clone_mt;
 	clone_callback_func *clone_cb;
 	SLIST_ENTRY(clone_defcb) next;
 };
@@ -85,12 +94,25 @@ static SLIST_HEAD(, clone_defcb) clone_defcbh =
    SLIST_HEAD_INITIALIZER(clone_defcbh);
 
 void
-clone_setdefcallback(const char *ifprefix, clone_callback_func *p)
+clone_setdefcallback_prefix(const char *ifprefix, clone_callback_func *p)
 {
 	struct clone_defcb *dcp;
 
 	dcp = malloc(sizeof(*dcp));
 	strlcpy(dcp->ifprefix, ifprefix, IFNAMSIZ-1);
+	dcp->clone_mt = MT_PREFIX;
+	dcp->clone_cb = p;
+	SLIST_INSERT_HEAD(&clone_defcbh, dcp, next);
+}
+
+void
+clone_setdefcallback_filter(clone_match_func *filter, clone_callback_func *p)
+{
+	struct clone_defcb *dcp;
+
+	dcp = malloc(sizeof(*dcp));
+	dcp->ifmatch  = filter;
+	dcp->clone_mt = MT_FILTER;
 	dcp->clone_cb = p;
 	SLIST_INSERT_HEAD(&clone_defcbh, dcp, next);
 }
@@ -114,8 +136,14 @@ ifclonecreate(int s, void *arg)
 	if (clone_cb == NULL) {
 		/* Try to find a default callback */
 		SLIST_FOREACH(dcp, &clone_defcbh, next) {
-			if (strncmp(dcp->ifprefix, ifr.ifr_name,
-			    strlen(dcp->ifprefix)) == 0) {
+			if ((dcp->clone_mt == MT_PREFIX) &&
+			    (strncmp(dcp->ifprefix, ifr.ifr_name,
+			             strlen(dcp->ifprefix)) == 0)) {
+				clone_cb = dcp->clone_cb;
+				break;
+			}
+			if ((dcp->clone_mt == MT_FILTER) &&
+			          dcp->ifmatch(ifr.ifr_name)) {
 				clone_cb = dcp->clone_cb;
 				break;
 			}
