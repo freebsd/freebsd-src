@@ -363,5 +363,5 @@ lagg_ctor(void)
 	for (i = 0; i < nitems(lagg_cmds);  i++)
 		cmd_register(&lagg_cmds[i]);
 	af_register(&af_lagg);
-	clone_setdefcallback("lagg", lagg_create);
+	clone_setdefcallback_prefix("lagg", lagg_create);
 }
