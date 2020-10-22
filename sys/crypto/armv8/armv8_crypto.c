@@ -207,6 +207,7 @@ armv8_crypto_probesession(device_t dev,
 		default:
 			return (EINVAL);
 		}
+		break;
 	default:
 		return (EINVAL);
 	}
