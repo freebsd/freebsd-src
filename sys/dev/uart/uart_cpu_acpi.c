@@ -120,11 +120,46 @@ uart_cpu_acpi_spcr(int devtype, struct uart_devinfo *di)
 		    (int)spcr->SerialPort.SpaceId);
 		goto out;
 	}
-	if (spcr->SerialPort.AccessWidth == 0)
+	switch (spcr->SerialPort.AccessWidth) {
+	case 0: /* EFI_ACPI_6_0_UNDEFINED */
+		/* FALLTHROUGH */
+	case 1: /* EFI_ACPI_6_0_BYTE */
+		di->bas.regiowidth = 1;
+		break;
+	case 2: /* EFI_ACPI_6_0_WORD */
+		di->bas.regiowidth = 2;
+		break;
+	case 3: /* EFI_ACPI_6_0_DWORD */
+		di->bas.regiowidth = 4;
+		break;
+	case 4: /* EFI_ACPI_6_0_QWORD */
+		di->bas.regiowidth = 8;
+		break;
+	default:
+		printf("UART unsupported access width: %d!\n",
+		    (int)spcr->SerialPort.AccessWidth);
+		goto out;
+	}
+	switch (spcr->SerialPort.BitWidth) {
+	case 0:
+		/* FALLTHROUGH */
+	case 8:
 		di->bas.regshft = 0;
-	else
-		di->bas.regshft = spcr->SerialPort.AccessWidth - 1;
-	di->bas.regiowidth = spcr->SerialPort.BitWidth / 8;
+		break;
+	case 16:
+		di->bas.regshft = 1;
+		break;
+	case 32:
+		di->bas.regshft = 2;
+		break;
+	case 64:
+		di->bas.regshft = 3;
+		break;
+	default:
+		printf("UART unsupported bit width: %d!\n",
+		    (int)spcr->SerialPort.BitWidth);
+		goto out;
+	}
 	switch (spcr->BaudRate) {
 	case 0:
 		/* Special value; means "keep current value unchanged". */
