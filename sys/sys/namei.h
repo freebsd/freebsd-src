@@ -125,16 +125,19 @@ int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 /*
  * namei operational modifier flags, stored in ni_cnd.flags
  */
+#define	NC_NOMAKEENTRY	0x0001	/* name must not be added to cache */
+#define	NC_KEEPPOSENTRY	0x0002	/* don't evict a positive entry */
+#define	NOCACHE		NC_NOMAKEENTRY	/* for compatibility with older code */
 #define	LOCKLEAF	0x0004	/* lock vnode on return */
 #define	LOCKPARENT	0x0008	/* want parent vnode returned locked */
 #define	WANTPARENT	0x0010	/* want parent vnode returned unlocked */
-#define	NOCACHE		0x0020	/* name must not be left in cache */
+/* UNUSED		0x0020 */
 #define	FOLLOW		0x0040	/* follow symbolic links */
 #define	BENEATH		0x0080	/* No escape from the start dir */
 #define	LOCKSHARED	0x0100	/* Shared lock leaf */
 #define	NOFOLLOW	0x0000	/* do not follow symbolic links (pseudo) */
 #define	RBENEATH	0x100000000ULL /* No escape, even tmp, from start dir */
-#define	MODMASK		0xf000001fcULL	/* mask of operational modifiers */
+#define	MODMASK		0xf000001ffULL	/* mask of operational modifiers */
 /*
  * Namei parameter descriptors.
  *
