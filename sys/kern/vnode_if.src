@@ -336,6 +336,7 @@ vop_rename {
 %% mkdir	vpp	- E -
 %! mkdir	pre	vop_mkdir_pre
 %! mkdir	post	vop_mkdir_post
+%! mkdir	debugpost vop_mkdir_debugpost
 
 vop_mkdir {
 	IN struct vnode *dvp;

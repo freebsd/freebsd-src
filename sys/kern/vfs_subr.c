@@ -5587,6 +5587,18 @@ vop_mkdir_post(void *ap, int rc)
 		VFS_KNOTE_LOCKED(dvp, NOTE_WRITE | NOTE_LINK);
 }
 
+#ifdef DEBUG_VFS_LOCKS
+void
+vop_mkdir_debugpost(void *ap, int rc)
+{
+	struct vop_mkdir_args *a;
+
+	a = ap;
+	if (!rc)
+		cache_validate(a->a_dvp, *a->a_vpp, a->a_cnp);
+}
+#endif
+
 void
 vop_mknod_pre(void *ap)
 {

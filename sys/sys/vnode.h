@@ -644,6 +644,15 @@ void	cache_purge_negative(struct vnode *vp);
 void	cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
     struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp);
 void	cache_purgevfs(struct mount *mp);
+#ifdef INVARIANTS
+void	cache_validate(struct vnode *dvp, struct vnode *vp,
+	    struct componentname *cnp);
+#else
+static inline void
+cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
+{
+}
+#endif
 int	change_dir(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	freebsd11_cvtnstat(struct stat *sb, struct nstat *nsb);
@@ -880,6 +889,7 @@ void	vop_lock_debugpost(void *a, int rc);
 void	vop_unlock_debugpre(void *a);
 void	vop_need_inactive_debugpre(void *a);
 void	vop_need_inactive_debugpost(void *a, int rc);
+void	vop_mkdir_debugpost(void *a, int rc);
 #else
 #define	vop_fplookup_vexec_debugpre(x)		do { } while (0)
 #define	vop_fplookup_vexec_debugpost(x, y)	do { } while (0)
@@ -889,6 +899,7 @@ void	vop_need_inactive_debugpost(void *a, int rc);
 #define	vop_unlock_debugpre(x)			do { } while (0)
 #define	vop_need_inactive_debugpre(x)		do { } while (0)
 #define	vop_need_inactive_debugpost(x, y)	do { } while (0)
+#define	vop_mkdir_debugpost(x, y)		do { } while (0)
 #endif
 
 void	vop_rename_fail(struct vop_rename_args *ap);

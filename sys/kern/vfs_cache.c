@@ -1676,7 +1676,8 @@ cache_lookup_fallback(struct vnode *dvp, struct vnode **vpp, struct componentnam
 	int error;
 	bool whiteout;
 
-	MPASS((cnp->cn_flags & (MAKEENTRY | ISDOTDOT)) == MAKEENTRY);
+	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
+	MPASS((cnp->cn_flags & (MAKEENTRY | NC_KEEPPOSENTRY)) != 0);
 
 retry:
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
@@ -1768,7 +1769,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 
 	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
 
-	if ((cnp->cn_flags & MAKEENTRY) == 0) {
+	if ((cnp->cn_flags & (MAKEENTRY | NC_KEEPPOSENTRY)) == 0) {
 		cache_remove_cnp(dvp, cnp);
 		return (0);
 	}
@@ -2595,6 +2596,35 @@ cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
 		cache_remove_cnp(tdvp, tcnp);
 	}
 }
+
+#ifdef INVARIANTS
+/*
+ * Validate that if an entry exists it matches.
+ */
+void
+cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
+{
+	struct namecache *ncp;
+	struct mtx *blp;
+	uint32_t hash;
+
+	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
+	if (CK_SLIST_EMPTY(NCHHASH(hash)))
+		return;
+	blp = HASH2BUCKETLOCK(hash);
+	mtx_lock(blp);
+	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
+		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
+		    !bcmp(ncp->nc_name, cnp->cn_nameptr, ncp->nc_nlen)) {
+			if (ncp->nc_vp != vp)
+				panic("%s: mismatch (%p != %p); ncp %p [%s] dvp %p vp %p\n",
+				    __func__, vp, ncp->nc_vp, ncp, ncp->nc_name, ncp->nc_dvp,
+				    ncp->nc_vp);
+		}
+	}
+	mtx_unlock(blp);
+}
+#endif
 
 /*
  * Flush all entries referencing a particular filesystem.
