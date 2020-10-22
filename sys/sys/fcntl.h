@@ -135,6 +135,10 @@ typedef	__pid_t		pid_t;
 
 #if __BSD_VISIBLE
 #define	O_VERIFY	0x00200000	/* open only after verification */
+#define	O_BENEATH	0x00400000	/* Fail if not under cwd */
+#define	O_RESOLVE_BENEATH 0x00800000	/* As O_BENEATH, but do not allow
+					   resolve to walk out of cwd even to
+					   return back */
 #endif
 
 /*
@@ -208,10 +212,15 @@ typedef	__pid_t		pid_t;
 /*
  * Miscellaneous flags for the *at() syscalls.
  */
-#define	AT_EACCESS		0x100	/* Check access using effective user and group ID */
-#define	AT_SYMLINK_NOFOLLOW	0x200   /* Do not follow symbolic links */
-#define	AT_SYMLINK_FOLLOW	0x400	/* Follow symbolic link */
-#define	AT_REMOVEDIR		0x800	/* Remove directory instead of file */
+#define	AT_EACCESS		0x0100	/* Check access using effective user
+					   and group ID */
+#define	AT_SYMLINK_NOFOLLOW	0x0200	/* Do not follow symbolic links */
+#define	AT_SYMLINK_FOLLOW	0x0400	/* Follow symbolic link */
+#define	AT_REMOVEDIR		0x0800	/* Remove directory instead of file */
+#define	AT_BENEATH		0x1000	/* Fail if not under dirfd */
+#define	AT_RESOLVE_BENEATH	0x2000	/* As AT_BENEATH, but do not allow
+					   resolve to walk out of dirfd even
+					   to return back */
 #endif
 
 /*

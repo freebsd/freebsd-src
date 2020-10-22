@@ -184,6 +184,23 @@ vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp)
 	return (vn_open_cred(ndp, flagp, cmode, 0, td->td_ucred, fp));
 }
 
+static uint64_t
+open2nameif(int fmode, u_int vn_open_flags)
+{
+	uint64_t res;
+
+	res = ISOPEN | LOCKLEAF;
+	if ((fmode & O_BENEATH) != 0)
+		res |= BENEATH;
+	if ((fmode & O_RESOLVE_BENEATH) != 0)
+		res |= RBENEATH;
+	if ((vn_open_flags & VN_OPEN_NOAUDIT) == 0)
+		res |= AUDITVNODE1;
+	if ((vn_open_flags & VN_OPEN_NOCAPCHECK) != 0)
+		res |= NOCAPCHECK;
+	return (res);
+}
+
 /*
  * Common code for vnode open operations via a name lookup.
  * Lookup the vnode and invoke VOP_CREATE if needed.
@@ -210,17 +227,14 @@ restart:
 		return (EINVAL);
 	else if ((fmode & (O_CREAT | O_DIRECTORY)) == O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
+		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags);
 		/*
 		 * Set NOCACHE to avoid flushing the cache when
 		 * rolling in many files at once.
 		*/
-		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF | NOCACHE;
+		ndp->ni_cnd.cn_flags |= LOCKPARENT | NOCACHE;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
-		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
-			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
-		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
-			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
 		if ((vn_open_flags & VN_OPEN_INVFS) == 0)
 			bwillwrite();
 		if ((error = namei(ndp)) != 0)
@@ -275,14 +289,11 @@ restart:
 		}
 	} else {
 		ndp->ni_cnd.cn_nameiop = LOOKUP;
-		ndp->ni_cnd.cn_flags = ISOPEN |
-		    ((fmode & O_NOFOLLOW) ? NOFOLLOW : FOLLOW) | LOCKLEAF;
-		if (!(fmode & FWRITE))
+		ndp->ni_cnd.cn_flags = open2nameif(fmode, vn_open_flags);
+		ndp->ni_cnd.cn_flags |= (fmode & O_NOFOLLOW) != 0 ? NOFOLLOW :
+		    FOLLOW;
+		if ((fmode & FWRITE) == 0)
 			ndp->ni_cnd.cn_flags |= LOCKSHARED;
-		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
-			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
-		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
-			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		vp = ndp->ni_vp;
