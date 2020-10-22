@@ -2578,10 +2578,10 @@ ahci_setup_fis(struct ahci_channel *ch, struct ahci_cmd_tab *ctp, union ccb *ccb
 		fis[9] = ccb->ataio.cmd.lba_mid_exp;
 		fis[10] = ccb->ataio.cmd.lba_high_exp;
 		fis[11] = ccb->ataio.cmd.features_exp;
+		fis[12] = ccb->ataio.cmd.sector_count;
 		if (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) {
-			fis[12] = tag << 3;
-		} else {
-			fis[12] = ccb->ataio.cmd.sector_count;
+			fis[12] &= 0xf8;
+			fis[12] |= tag << 3;
 		}
 		fis[13] = ccb->ataio.cmd.sector_count_exp;
 		fis[15] = ATA_A_4BIT;
