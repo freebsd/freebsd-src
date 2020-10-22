@@ -2423,9 +2423,9 @@ vxlan_encap_header(struct vxlan_softc *sc, struct mbuf *m, int ipoff,
  * Return the CSUM_INNER_* equivalent of CSUM_* caps.
  */
 static uint32_t
-csum_flags_to_inner_flags(uint32_t csum_flags_in, uint32_t encap)
+csum_flags_to_inner_flags(uint32_t csum_flags_in, const uint32_t encap)
 {
-	uint32_t csum_flags = CSUM_ENCAP_VXLAN;
+	uint32_t csum_flags = encap;
 	const uint32_t v4 = CSUM_IP | CSUM_IP_UDP | CSUM_IP_TCP;
 
 	/*
