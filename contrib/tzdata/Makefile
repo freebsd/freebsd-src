@@ -1023,7 +1023,7 @@ tzdata$(VERSION)-rearguard.tar.gz: rearguard.zi set-timestamps.out
 		sed '1s/$$/-rearguard/' \
 		  <version >tzdata$(VERSION)-rearguard.dir/version
 		: The dummy pacificnew pacifies TZUpdater 2.3.1 and earlier.
-		touch -md 2020-10-12T22:53:00Z \
+		TZ=UTC0 touch -mt 202010122253.00 \
 		  tzdata$(VERSION)-rearguard.dir/pacificnew
 		touch -cmr version tzdata$(VERSION)-rearguard.dir/version
 		LC_ALL=C && export LC_ALL && \
