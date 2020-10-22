@@ -2007,7 +2007,6 @@ netmap_mem2_if_new(struct netmap_adapter *na, struct netmap_priv_d *priv)
 	len = sizeof(struct netmap_if) + (ntot * sizeof(ssize_t));
 	nifp = netmap_if_malloc(na->nm_mem, len);
 	if (nifp == NULL) {
-		NMA_UNLOCK(na->nm_mem);
 		return NULL;
 	}
 
