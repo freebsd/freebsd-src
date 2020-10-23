@@ -1537,6 +1537,15 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tp = intotcpcb(inp);
 
+	if (__predict_false(ulp_mode(toep) == ULP_MODE_TLS &&
+	   toep->flags & TPF_TLS_RECEIVE)) {
+		/* Received "raw" data on a TLS socket. */
+		CTR3(KTR_CXGBE, "%s: tid %u, raw TLS data (%d bytes)",
+		    __func__, tid, len);
+		do_rx_data_tls(cpl, toep, m);
+		return (0);
+	}
+
 	if (__predict_false(tp->rcv_nxt != be32toh(cpl->seq)))
 		ddp_placed = be32toh(cpl->seq) - tp->rcv_nxt;
 
