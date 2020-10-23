@@ -903,34 +903,46 @@ cxgbe_rate_tag_free(struct m_snd_tag *mst)
 	mtx_unlock(&cst->lock);
 }
 
-#define CXGBE_MAX_FLOWS 4000	/* Testing show so far thats all this adapter can do */
-#define CXGBE_UNIQUE_RATE_COUNT 16 /* Number of unique rates that can be setup */
-
 void
-cxgbe_ratelimit_query(struct ifnet *ifp __unused,
-     struct if_ratelimit_query_results *q)
+cxgbe_ratelimit_query(struct ifnet *ifp, struct if_ratelimit_query_results *q)
 {
-	/*
-	 * This is a skeleton and needs future work
-	 * by the driver supporters. It should be
-	 * enhanced to look at the specific type of
-	 * interface and select approprate values
-	 * for these settings. This example goes
-	 * with an earlier card (t5), it has a maximum
-	 * number of 16 rates that the first guys in
-	 * select (thus the flags value RT_IS_SELECTABLE).
-	 * If it was a fixed table then we would setup a
-	 * const array (example mlx5). Note the card tested
-	 * can only support reasonably 4000 flows before
-	 * the adapter has issues with sending so here 
-	 * we limit the number of flows using hardware
-	 * pacing to that number, other cards may
-	 * be able to raise or eliminate this limit.
-	 */
+	struct vi_info *vi = ifp->if_softc;
+	struct adapter *sc = vi->adapter;
+
 	q->rate_table = NULL;
 	q->flags = RT_IS_SELECTABLE;
-	q->max_flows = CXGBE_MAX_FLOWS;
-	q->number_of_rates = CXGBE_UNIQUE_RATE_COUNT;
-	q->min_segment_burst = 4;	/* Driver emits 4 in a burst */
+	/*
+	 * Absolute max limits from the firmware configuration.  Practical
+	 * limits depend on the burstsize, pktsize (ifp->if_mtu ultimately) and
+	 * the card's cclk.
+	 */
+	q->max_flows = sc->tids.netids;
+	q->number_of_rates = sc->chip_params->nsched_cls;
+	q->min_segment_burst = 4; /* matches PKTSCHED_BURST in the firmware. */
+
+#if 1
+	if (chip_id(sc) < CHELSIO_T6) {
+		/* Based on testing by rrs@ with a T580 at burstsize = 4. */
+		MPASS(q->min_segment_burst == 4);
+		q->max_flows = max(4000, q->max_flows);
+	} else {
+		/* XXX: TBD, carried forward from T5 for now. */
+		q->max_flows = max(4000, q->max_flows);
+	}
+
+	/*
+	 * XXX: tcp_ratelimit.c grabs all available rates on link-up before it
+	 * even knows whether hw pacing will be used or not.  This prevents
+	 * other consumers like SO_MAX_PACING_RATE or those using cxgbetool or
+	 * the private ioctls from using any of traffic classes.
+	 *
+	 * Underreport the number of rates to tcp_ratelimit so that it doesn't
+	 * hog all of them.  This can be removed if/when tcp_ratelimit switches
+	 * to making its allocations on first-use rather than link-up.  There is
+	 * nothing wrong with one particular consumer reserving all the classes
+	 * but it should do so only if it'll actually use hw rate limiting.
+	 */
+	q->number_of_rates /= 4;
+#endif
 }
 #endif
