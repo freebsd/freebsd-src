@@ -2204,7 +2204,6 @@ ufs_rmdir(ap)
 			softdep_revert_rmdir(dp, ip);
 		goto out;
 	}
-	cache_purge(dvp);
 	/*
 	 * The only stuff left in the directory is "." and "..". The "."
 	 * reference is inconsequential since we are quashing it. The soft
