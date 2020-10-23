@@ -64,6 +64,24 @@
 #include <fs/cuse/cuse_defs.h>
 #include <fs/cuse/cuse_ioctl.h>
 
+static int
+cuse_modevent(module_t mod, int type, void *data)
+{
+	switch (type) {
+	case MOD_LOAD:
+	case MOD_UNLOAD:
+		return (0);
+	default:
+		return (EOPNOTSUPP);
+	}
+}
+
+static moduledata_t cuse_mod = {
+	.name = "cuse",
+	.evhand = &cuse_modevent,
+};
+
+DECLARE_MODULE(cuse, cuse_mod, SI_SUB_DEVFS, SI_ORDER_FIRST);
 MODULE_VERSION(cuse, 1);
 
 /*
