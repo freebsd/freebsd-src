@@ -34,7 +34,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_acpi.h"
-#include "opt_iommu.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -268,22 +267,3 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 	tc = (struct bus_dma_tag_common *)dmat;
 	return (tc->impl->tag_destroy(dmat));
 }
-
-#ifndef IOMMU
-bool bus_dma_iommu_set_buswide(device_t dev);
-int bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map,   
-    vm_paddr_t start, vm_size_t length, int flags);
-
-bool
-bus_dma_iommu_set_buswide(device_t dev)
-{
-	return (false);
-}
-
-int
-bus_dma_iommu_load_ident(bus_dma_tag_t dmat, bus_dmamap_t map,
-    vm_paddr_t start, vm_size_t length, int flags)
-{
-	return (0);
-}
-#endif
