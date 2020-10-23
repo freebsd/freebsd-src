@@ -1121,24 +1121,12 @@ restart:
 		if (vp->v_type == VBAD || vp->v_type == VNON)
 			goto next_iter;
 
-		if (!VI_TRYLOCK(vp))
-			goto next_iter;
-
-		if (vp->v_usecount > 0 || vp->v_holdcnt == 0 ||
-		    (!reclaim_nc_src && !LIST_EMPTY(&vp->v_cache_src)) ||
-		    VN_IS_DOOMED(vp) || vp->v_type == VNON) {
-			VI_UNLOCK(vp);
-			goto next_iter;
-		}
-
 		object = atomic_load_ptr(&vp->v_object);
 		if (object == NULL || object->resident_page_count > trigger) {
-			VI_UNLOCK(vp);
 			goto next_iter;
 		}
 
-		vholdl(vp);
-		VI_UNLOCK(vp);
+		vhold(vp);
 		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
 		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
 		mtx_unlock(&vnode_list_mtx);
@@ -1235,21 +1223,18 @@ restart:
 		 * blocking.
 		 */
 		if (vp->v_holdcnt > 0 || (mnt_op != NULL && (mp = vp->v_mount) != NULL &&
-		    mp->mnt_op != mnt_op) || !VI_TRYLOCK(vp)) {
+		    mp->mnt_op != mnt_op)) {
 			continue;
 		}
 		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
 		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
 		if (__predict_false(vp->v_type == VBAD || vp->v_type == VNON)) {
-			VI_UNLOCK(vp);
 			continue;
 		}
-		vholdl(vp);
+		vhold(vp);
 		count--;
 		mtx_unlock(&vnode_list_mtx);
-		VI_UNLOCK(vp);
 		vtryrecycle(vp);
-		vdrop(vp);
 		mtx_lock(&vnode_list_mtx);
 		goto restart;
 	}
@@ -1520,6 +1505,7 @@ vtryrecycle(struct vnode *vp)
 		CTR2(KTR_VFS,
 		    "%s: impossible to recycle, vp %p lock is already held",
 		    __func__, vp);
+		vdrop(vp);
 		return (EWOULDBLOCK);
 	}
 	/*
@@ -1530,6 +1516,7 @@ vtryrecycle(struct vnode *vp)
 		CTR2(KTR_VFS,
 		    "%s: impossible to recycle, cannot start the write for %p",
 		    __func__, vp);
+		vdrop(vp);
 		return (EBUSY);
 	}
 	/*
@@ -1541,7 +1528,7 @@ vtryrecycle(struct vnode *vp)
 	VI_LOCK(vp);
 	if (vp->v_usecount) {
 		VOP_UNLOCK(vp);
-		VI_UNLOCK(vp);
+		vdropl(vp);
 		vn_finished_write(vnmp);
 		CTR2(KTR_VFS,
 		    "%s: impossible to recycle, %p is already referenced",
@@ -1553,7 +1540,7 @@ vtryrecycle(struct vnode *vp)
 		vgonel(vp);
 	}
 	VOP_UNLOCK(vp);
-	VI_UNLOCK(vp);
+	vdropl(vp);
 	vn_finished_write(vnmp);
 	return (0);
 }
