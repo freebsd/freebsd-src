@@ -277,21 +277,29 @@ xhci_pci_attach(device_t self)
 
 	rid = 0;
 	if (xhci_use_msix && (msix_table = pci_msix_table_bar(self)) >= 0) {
-		sc->sc_msix_res = bus_alloc_resource_any(self, SYS_RES_MEMORY,
-		    &msix_table, RF_ACTIVE);
-		if (sc->sc_msix_res == NULL) {
-			/* May not be enabled */
-			device_printf(self,
-			    "Unable to map MSI-X table \n");
+		if (msix_table == PCI_XHCI_CBMEM) {
+			sc->sc_msix_res = sc->sc_io_res;
 		} else {
+			sc->sc_msix_res = bus_alloc_resource_any(self,
+			    SYS_RES_MEMORY, &msix_table, RF_ACTIVE);
+			if (sc->sc_msix_res == NULL) {
+				/* May not be enabled */
+				device_printf(self,
+				    "Unable to map MSI-X table\n");
+			}
+		}
+		if (sc->sc_msix_res != NULL) {
 			count = 1;
 			if (pci_alloc_msix(self, &count) == 0) {
 				if (bootverbose)
 					device_printf(self, "MSI-X enabled\n");
 				rid = 1;
 			} else {
-				bus_release_resource(self, SYS_RES_MEMORY,
-				    msix_table, sc->sc_msix_res);
+				if (sc->sc_msix_res != sc->sc_io_res) {
+					bus_release_resource(self,
+					    SYS_RES_MEMORY,
+					    msix_table, sc->sc_msix_res);
+				}
 				sc->sc_msix_res = NULL;
 			}
 		}
@@ -387,15 +395,15 @@ xhci_pci_detach(device_t self)
 		sc->sc_irq_res = NULL;
 		pci_release_msi(self);
 	}
+	if (sc->sc_msix_res != NULL && sc->sc_msix_res != sc->sc_io_res) {
+		bus_release_resource(self, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_msix_res), sc->sc_msix_res);
+		sc->sc_msix_res = NULL;
+	}
 	if (sc->sc_io_res) {
 		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
 		    sc->sc_io_res);
 		sc->sc_io_res = NULL;
-	}
-	if (sc->sc_msix_res) {
-		bus_release_resource(self, SYS_RES_MEMORY,
-		    rman_get_rid(sc->sc_msix_res), sc->sc_msix_res);
-		sc->sc_msix_res = NULL;
 	}
 
 	xhci_uninit(sc);
