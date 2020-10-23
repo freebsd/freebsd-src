@@ -71,7 +71,9 @@ struct vm_phys_seg {
 #if VM_NRESERVLEVEL > 0
 	vm_reserv_t	first_reserv;
 #endif
+#ifdef __aarch64__
 	void		*md_first;
+#endif
 	int		domain;
 	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER_MAX];
 };
