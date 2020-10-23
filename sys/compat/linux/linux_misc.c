@@ -2001,7 +2001,15 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		error = copyout(comm, (void *)(register_t)args->arg2,
 		    strlen(comm) + 1);
 		break;
+	case LINUX_PR_GET_SECCOMP:
+	case LINUX_PR_SET_SECCOMP:
+		/*
+		 * Same as returned by Linux without CONFIG_SECCOMP enabled.
+		 */
+		error = EINVAL;
+		break;
 	default:
+		linux_msg(td, "unsupported prctl option %d", args->option);
 		error = EINVAL;
 		break;
 	}
