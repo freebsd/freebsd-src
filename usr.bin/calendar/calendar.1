@@ -28,7 +28,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd September 29, 2020
+.Dd Oktober 23, 2020
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -245,7 +245,15 @@ A chdir is done into this directory if it exists.
 calendar file to use if no calendar file exists in the current directory.
 .It Pa ~/.calendar/nomail
 do not send mail if this file exists.
+.It Pa /usr/share/calendar
+system wide location of calendar files provided as part of the base system.
+.It Pa /usr/local/share/calendar
+system wide location for calendar files provided by a port or package.
 .El
+.Pp
+The order of precedence in searches for a calendar file is:
+current directory, ~/.calendar, /usr/local/share/calendar, /usr/share/calendar.
+Files of similar names are ignored in lower precedence locations.
 .Pp
 The following default calendar files are provided in
 .Pa /usr/share/calendar :
