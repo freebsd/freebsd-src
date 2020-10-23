@@ -91,6 +91,13 @@ global:
 	gelf_update_symshndx;
 	gelf_xlatetof;
 	gelf_xlatetom;
+};
+
+R1.1 {
+global:
+	elf32_getchdr;
+	elf64_getchdr;
+	gelf_getchdr;
 local:
 	*;
-};
+} R1.0;
