@@ -2332,8 +2332,6 @@ zfs_rmdir_(vnode_t *dvp, vnode_t *vp, const char *name, cred_t *cr)
 		return (error);
 	}
 
-	cache_purge(dvp);
-
 	error = zfs_link_destroy(dzp, name, zp, tx, ZEXISTS, NULL);
 
 	if (error == 0) {
