@@ -54,6 +54,8 @@
 #define	LINUX_PR_SET_KEEPCAPS	8	/* Set drop capabilities on setuid */
 #define	LINUX_PR_SET_NAME	15	/* Set process name. */
 #define	LINUX_PR_GET_NAME	16	/* Get process name. */
+#define	LINUX_PR_GET_SECCOMP	21
+#define	LINUX_PR_SET_SECCOMP	22
 
 #define	LINUX_MAX_COMM_LEN	16	/* Maximum length of the process name. */
 
