@@ -924,10 +924,10 @@ cxgbe_ratelimit_query(struct ifnet *ifp, struct if_ratelimit_query_results *q)
 	if (chip_id(sc) < CHELSIO_T6) {
 		/* Based on testing by rrs@ with a T580 at burstsize = 4. */
 		MPASS(q->min_segment_burst == 4);
-		q->max_flows = max(4000, q->max_flows);
+		q->max_flows = min(4000, q->max_flows);
 	} else {
 		/* XXX: TBD, carried forward from T5 for now. */
-		q->max_flows = max(4000, q->max_flows);
+		q->max_flows = min(4000, q->max_flows);
 	}
 
 	/*
