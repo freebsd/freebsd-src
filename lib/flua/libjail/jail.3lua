@@ -30,11 +30,13 @@
 .Dt JAIL 3lua
 .Os
 .Sh NAME
+.Nm attach ,
 .Nm getid ,
 .Nm getname ,
 .Nm list ,
 .Nm allparams ,
 .Nm getparams ,
+.Nm remove ,
 .Nm setparams ,
 .Nm CREATE ,
 .Nm UPDATE ,
@@ -48,11 +50,13 @@ local jail = require('jail')
 .Ed
 .Pp
 .Bl -tag -width XXXX -compact
+.It Dv ok, err = jail.attach(jid|name)
 .It Dv jid, err = jail.getid(name)
 .It Dv name, err = jail.getname(jid)
 .It Dv params, err = jail.allparams()
 .It Dv iter, jail_obj = jail.list([params])
 .It Dv jid, res = jail.getparams(jid|name, params [, flags ] )
+.It Dv ok, err = jail.remove(jid|name)
 .It Dv jid, err = jail.setparams(jid|name, params, flags )
 .It Dv jail.CREATE
 .It Dv jail.UPDATE
@@ -71,6 +75,11 @@ and
 .Xr jail_set 2
 system calls.
 .Bl -tag -width XXXX
+.It Dv ok, err = jail.attach(jid|name)
+Attach to the given jail, identified by an integer
+.Fa jid
+or the
+.Fa name .
 .It Dv jid, err = jail.getid(name)
 Get the jail identifier
 .Pq jid
@@ -114,6 +123,11 @@ See the list of flags below.
 Only the
 .Dv DYING
 flag is valid to set.
+.It Dv ok, err = jail.remove(jid|name)
+Remove the given jail, identified by an integer
+.Fa jid
+or the
+.Fa name .
 .It Dv jid, err = jail.setparams(jid|name, params [, flags ] )
 Set parameters for a given jail.
 This is used to create, update, attach to, or destroy a jail.
@@ -188,6 +202,14 @@ and an error message string if an error occurred.
 The
 .Fn list
 function returns an iterator over the list of running jails.
+.Pp
+The
+.Fn attach
+and
+.Fn remove
+functions return true on success, or
+.Dv nil
+and an error message string if an error occurred.
 .Sh EXAMPLES
 Set the hostname of jail
 .Dq foo
