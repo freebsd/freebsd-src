@@ -707,6 +707,8 @@ program_key_context(struct tcpcb *tp, struct toepcb *toep,
 				 V_TCB_TLS_SEQ(M_TCB_TLS_SEQ),
 				 V_TCB_TLS_SEQ(0));
 		t4_clear_rx_quiesce(toep);
+
+		toep->flags |= TPF_TLS_RECEIVE;
 	} else {
 		unsigned short pdus_per_ulp;
 
@@ -1064,6 +1066,7 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		tls_stop_handshake_timer(toep);
 
 		toep->flags &= ~TPF_FORCE_CREDITS;
+		toep->flags |= TPF_TLS_RECEIVE;
 
 		/*
 		 * RX key tags are an index into the key portion of MA
@@ -2218,6 +2221,135 @@ do_rx_tls_cmp(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	INP_WUNLOCK(inp);
 	CURVNET_RESTORE();
 	return (0);
+}
+
+void
+do_rx_data_tls(const struct cpl_rx_data *cpl, struct toepcb *toep,
+    struct mbuf *m)
+{
+	struct inpcb *inp = toep->inp;
+	struct tls_ofld_info *tls_ofld = &toep->tls;
+	struct tls_hdr *hdr;
+	struct tcpcb *tp;
+	struct socket *so;
+	struct sockbuf *sb;
+	int error, len, rx_credits;
+
+	len = m->m_pkthdr.len;
+
+	INP_WLOCK_ASSERT(inp);
+
+	so = inp_inpcbtosocket(inp);
+	tp = intotcpcb(inp);
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK(sb);
+	CURVNET_SET(toep->vnet);
+
+	tp->rcv_nxt += len;
+	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
+	tp->rcv_wnd -= len;
+
+	/* Do we have a full TLS header? */
+	if (len < sizeof(*hdr)) {
+		CTR3(KTR_CXGBE, "%s: tid %u len %d: too short for a TLS header",
+		    __func__, toep->tid, len);
+		so->so_error = EMSGSIZE;
+		goto out;
+	}
+	hdr = mtod(m, struct tls_hdr *);
+
+	/* Is the header valid? */
+	if (be16toh(hdr->version) != tls_ofld->k_ctx.proto_ver) {
+		CTR3(KTR_CXGBE, "%s: tid %u invalid version %04x",
+		    __func__, toep->tid, be16toh(hdr->version));
+		error = EINVAL;
+		goto report_error;
+	}
+	if (be16toh(hdr->length) < sizeof(*hdr)) {
+		CTR3(KTR_CXGBE, "%s: tid %u invalid length %u",
+		    __func__, toep->tid, be16toh(hdr->length));
+		error = EBADMSG;
+		goto report_error;
+	}
+
+	/* Did we get a truncated record? */
+	if (len < be16toh(hdr->length)) {
+		CTR4(KTR_CXGBE, "%s: tid %u truncated TLS record (%d vs %u)",
+		    __func__, toep->tid, len, be16toh(hdr->length));
+
+		error = EMSGSIZE;
+		goto report_error;
+	}
+
+	/* Is the header type unknown? */
+	switch (hdr->type) {
+	case CONTENT_TYPE_CCS:
+	case CONTENT_TYPE_ALERT:
+	case CONTENT_TYPE_APP_DATA:
+	case CONTENT_TYPE_HANDSHAKE:
+		break;
+	default:
+		CTR3(KTR_CXGBE, "%s: tid %u invalid TLS record type %u",
+		    __func__, toep->tid, hdr->type);
+		error = EBADMSG;
+		goto report_error;
+	}
+
+	/*
+	 * Just punt.  Although this could fall back to software
+	 * decryption, this case should never really happen.
+	 */
+	CTR4(KTR_CXGBE, "%s: tid %u dropping TLS record type %u, length %u",
+	    __func__, toep->tid, hdr->type, be16toh(hdr->length));
+	error = EBADMSG;
+
+report_error:
+#ifdef KERN_TLS
+	if (toep->tls.mode == TLS_MODE_KTLS)
+		so->so_error = error;
+	else
+#endif
+	{
+		/*
+		 * Report errors by sending an empty TLS record
+		 * with an error record type.
+		 */
+		hdr->type = CONTENT_TYPE_ERROR;
+
+		/* Trim this CPL's mbuf to only include the TLS header. */
+		KASSERT(m->m_len == len && m->m_next == NULL,
+		    ("%s: CPL spans multiple mbufs", __func__));
+		m->m_len = TLS_HEADER_LENGTH;
+		m->m_pkthdr.len = TLS_HEADER_LENGTH;
+
+		sbappendstream_locked(sb, m, 0);
+		m = NULL;
+	}
+
+out:
+	/*
+	 * This connection is going to die anyway, so probably don't
+	 * need to bother with returning credits.
+	 */
+	rx_credits = sbspace(sb) > tp->rcv_wnd ? sbspace(sb) - tp->rcv_wnd : 0;
+#ifdef VERBOSE_TRACES
+	CTR4(KTR_CXGBE, "%s: tid %u rx_credits %u rcv_wnd %u",
+	    __func__, toep->tid, rx_credits, tp->rcv_wnd);
+#endif
+	if (rx_credits > 0 && sbused(sb) + tp->rcv_wnd < sb->sb_lowat) {
+		rx_credits = send_rx_credits(toep->vi->adapter, toep,
+		    rx_credits);
+		tp->rcv_wnd += rx_credits;
+		tp->rcv_adv += rx_credits;
+	}
+
+	sorwakeup_locked(so);
+	SOCKBUF_UNLOCK_ASSERT(sb);
+
+	INP_WUNLOCK(inp);
+	CURVNET_RESTORE();
+
+	m_freem(m);
 }
 
 void
