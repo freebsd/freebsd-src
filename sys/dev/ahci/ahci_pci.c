@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_iommu.h"
-
 #include <sys/param.h>
 #include <sys/module.h>
 #include <sys/systm.h>
@@ -501,7 +499,6 @@ ahci_pci_attach(device_t dev)
 		i++;
 	ctlr->quirks = ahci_ids[i].quirks;
 
-#ifdef IOMMU
 	if (ctlr->quirks & AHCI_Q_IOMMU_BUSWIDE) {
 		/*
 		 * The controller issues DMA requests from PCI function 1,
@@ -510,7 +507,6 @@ ahci_pci_attach(device_t dev)
 		 */
 		bus_dma_iommu_set_buswide(dev);
 	}
-#endif
 
 	/* Limit speed for my onboard JMicron external port.
 	 * It is not eSATA really, limit to SATA 1 */
