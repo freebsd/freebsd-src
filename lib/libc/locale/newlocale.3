@@ -26,7 +26,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd September 17, 2011
+.Dd October 2, 2020
 .Dt NEWLOCALE 3
 .Os
 .Sh NAME
@@ -46,7 +46,20 @@ defines the components that the new locale will have set to the locale with the
 name specified in the
 .Fa locale
 parameter.
-Any other components will be inherited from
+Any components not specified in
+.Fa mask
+will be inherited from the locale referenced by
+.Fa base ,
+if
+.Fa base
+is not
+.Dv NULL .
+If the call is successful, the state of the locale referenced by
+.Fa base
+is unspecified, and it must not be accessed.
+The special locale
+.Dv LC_GLOBAL_LOCALE
+may not be specified for
 .Fa base .
 The
 .Fa mask
