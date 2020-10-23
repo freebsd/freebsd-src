@@ -3353,7 +3353,8 @@ intel_ntb_peer_db_set(device_t dev, uint64_t bits)
 	uint64_t db;
 
 	if ((bits & ~ntb->db_valid_mask) != 0) {
-		device_printf(ntb->device, "Invalid doorbell bits %lx\n", bits);
+		device_printf(ntb->device, "Invalid doorbell bits %#jx\n",
+		    (uintmax_t)bits);
 		return;
 	}
 
