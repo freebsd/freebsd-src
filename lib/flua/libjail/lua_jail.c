@@ -575,6 +575,68 @@ l_setparams(lua_State *L)
 	return (1);
 }
 
+static int
+l_attach(lua_State *L)
+{
+	int jid, type;
+
+	type = lua_type(L, 1);
+	luaL_argcheck(L, type == LUA_TSTRING || type == LUA_TNUMBER, 1,
+	    "expected a jail name (string) or id (integer)");
+
+	if (lua_isstring(L, 1)) {
+		/* Resolve it to a jid. */
+		jid = jail_getid(lua_tostring(L, 1));
+		if (jid == -1) {
+			lua_pushnil(L);
+			lua_pushstring(L, jail_errmsg);
+			return (2);
+		}
+	} else {
+		jid = lua_tointeger(L, 1);
+	}
+
+	if (jail_attach(jid) == -1) {
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(errno));
+		return (2);
+	}
+
+	lua_pushboolean(L, 1);
+	return (1);
+}
+
+static int
+l_remove(lua_State *L)
+{
+	int jid, type;
+
+	type = lua_type(L, 1);
+	luaL_argcheck(L, type == LUA_TSTRING || type == LUA_TNUMBER, 1,
+	    "expected a jail name (string) or id (integer)");
+
+	if (lua_isstring(L, 1)) {
+		/* Resolve it to a jid. */
+		jid = jail_getid(lua_tostring(L, 1));
+		if (jid == -1) {
+			lua_pushnil(L);
+			lua_pushstring(L, jail_errmsg);
+			return (2);
+		}
+	} else {
+		jid = lua_tointeger(L, 1);
+	}
+
+	if (jail_remove(jid) == -1) {
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(errno));
+		return (2);
+	}
+
+	lua_pushboolean(L, 1);
+	return (1);
+}
+
 static const struct luaL_Reg l_jail[] = {
 	/** Get id of a jail by name.
 	 * @param name	jail name (string)
@@ -616,6 +678,18 @@ static const struct luaL_Reg l_jail[] = {
 	 *		close methods
 	 */
 	{"list", l_list},
+	/** Attach to a running jail.
+	 * @param jail	jail name (string) or id (integer)
+	 * @return	true (boolean)
+	 *		or nil, error (string) on error
+	 */
+	{"attach", l_attach},
+	/** Remove a running jail.
+	 * @param jail	jail name (string) or id (integer)
+	 * @return	true (boolean)
+	 *		or nil, error (string) on error
+	 */
+	{"remove", l_remove},
 	{NULL, NULL}
 };
 
