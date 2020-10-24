@@ -110,6 +110,7 @@ SDT_PROBE_DEFINE2(vfs, namecache, removecnp, hit, "struct vnode *",
 SDT_PROBE_DEFINE2(vfs, namecache, removecnp, miss, "struct vnode *",
     "struct componentname *");
 SDT_PROBE_DEFINE1(vfs, namecache, purge, done, "struct vnode *");
+SDT_PROBE_DEFINE1(vfs, namecache, purge, batch, "int");
 SDT_PROBE_DEFINE1(vfs, namecache, purge_negative, done, "struct vnode *");
 SDT_PROBE_DEFINE1(vfs, namecache, purgevfs, done, "struct mount *");
 SDT_PROBE_DEFINE3(vfs, namecache, zap, done, "struct vnode *", "char *",
@@ -165,6 +166,8 @@ struct	namecache_ts {
 	int	nc_pad;
 	struct namecache nc_nc;
 };
+
+TAILQ_HEAD(cache_freebatch, namecache);
 
 /*
  * At least mips n32 performs 64-bit accesses to timespec as found
@@ -624,6 +627,27 @@ cache_free(struct namecache *ncp)
 	}
 	cache_free_uma(ncp);
 	atomic_subtract_long(&numcache, 1);
+}
+
+static void
+cache_free_batch(struct cache_freebatch *batch)
+{
+	struct namecache *ncp, *nnp;
+	int i;
+
+	i = 0;
+	if (TAILQ_EMPTY(batch))
+		goto out;
+	TAILQ_FOREACH_SAFE(ncp, batch, nc_dst, nnp) {
+		if ((ncp->nc_flag & NCF_DVDROP) != 0) {
+			cache_drop_vnode(ncp->nc_dvp);
+		}
+		cache_free_uma(ncp);
+		i++;
+	}
+	atomic_subtract_long(&numcache, i);
+out:
+	SDT_PROBE1(vfs, namecache, purge, batch, i);
 }
 
 /*
@@ -2524,11 +2548,11 @@ cache_changesize(u_long newmaxvnodes)
 static void
 cache_purge_impl(struct vnode *vp)
 {
-	TAILQ_HEAD(, namecache) ncps;
-	struct namecache *ncp, *nnp;
+	struct cache_freebatch batch;
+	struct namecache *ncp;
 	struct mtx *vlp, *vlp2;
 
-	TAILQ_INIT(&ncps);
+	TAILQ_INIT(&batch);
 	vlp = VP2VNODELOCK(vp);
 	vlp2 = NULL;
 	mtx_lock(vlp);
@@ -2537,13 +2561,13 @@ retry:
 		ncp = LIST_FIRST(&vp->v_cache_src);
 		if (!cache_zap_locked_vnode_kl2(ncp, vp, &vlp2))
 			goto retry;
-		TAILQ_INSERT_TAIL(&ncps, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&batch, ncp, nc_dst);
 	}
 	while (!TAILQ_EMPTY(&vp->v_cache_dst)) {
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
 		if (!cache_zap_locked_vnode_kl2(ncp, vp, &vlp2))
 			goto retry;
-		TAILQ_INSERT_TAIL(&ncps, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&batch, ncp, nc_dst);
 	}
 	ncp = vp->v_cache_dd;
 	if (ncp != NULL) {
@@ -2551,15 +2575,13 @@ retry:
 		   ("lost dotdot link"));
 		if (!cache_zap_locked_vnode_kl2(ncp, vp, &vlp2))
 			goto retry;
-		TAILQ_INSERT_TAIL(&ncps, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&batch, ncp, nc_dst);
 	}
 	KASSERT(vp->v_cache_dd == NULL, ("incomplete purge"));
 	mtx_unlock(vlp);
 	if (vlp2 != NULL)
 		mtx_unlock(vlp2);
-	TAILQ_FOREACH_SAFE(ncp, &ncps, nc_dst, nnp) {
-		cache_free(ncp);
-	}
+	cache_free_batch(&batch);
 }
 
 /*
@@ -2617,26 +2639,24 @@ cache_purge_vgone(struct vnode *vp)
 void
 cache_purge_negative(struct vnode *vp)
 {
-	TAILQ_HEAD(, namecache) ncps;
+	struct cache_freebatch batch;
 	struct namecache *ncp, *nnp;
 	struct mtx *vlp;
 
 	SDT_PROBE1(vfs, namecache, purge_negative, done, vp);
 	if (LIST_EMPTY(&vp->v_cache_src))
 		return;
-	TAILQ_INIT(&ncps);
+	TAILQ_INIT(&batch);
 	vlp = VP2VNODELOCK(vp);
 	mtx_lock(vlp);
 	LIST_FOREACH_SAFE(ncp, &vp->v_cache_src, nc_src, nnp) {
 		if (!(ncp->nc_flag & NCF_NEGATIVE))
 			continue;
 		cache_zap_negative_locked_vnode_kl(ncp, vp);
-		TAILQ_INSERT_TAIL(&ncps, ncp, nc_dst);
+		TAILQ_INSERT_TAIL(&batch, ncp, nc_dst);
 	}
 	mtx_unlock(vlp);
-	TAILQ_FOREACH_SAFE(ncp, &ncps, nc_dst, nnp) {
-		cache_free(ncp);
-	}
+	cache_free_batch(&batch);
 }
 
 void
