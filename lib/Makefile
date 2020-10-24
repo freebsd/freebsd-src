@@ -142,6 +142,11 @@ SUBDIR_DEPEND_liblzma= ${_libthr}
 SUBDIR_DEPEND_libpcap= ofed
 .endif
 
+.if !defined(COMPAT_32BIT)
+SUBDIR+=	flua
+SUBDIR_DEPEND_flua=	libjail
+.endif
+
 # NB: keep these sorted by MK_* knobs
 
 SUBDIR.${MK_ATM}+=	libngatm
