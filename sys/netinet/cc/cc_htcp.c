@@ -271,8 +271,10 @@ static void
 htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	struct htcp *htcp_data;
+	u_int mss;
 
 	htcp_data = ccv->cc_data;
+	mss = tcp_maxseg(ccv->ccvc.tcp);
 
 	switch (type) {
 	case CC_NDUPACK:
@@ -311,6 +313,10 @@ htcp_cong_signal(struct cc_var *ccv, uint32_t type)
 		break;
 
 	case CC_RTO:
+		CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
+						 CCV(ccv, snd_cwnd)) / 2 / mss,
+					     2) * mss;
+		CCV(ccv, snd_cwnd) = mss;
 		/*
 		 * Grab the current time and record it so we know when the
 		 * most recent congestion event was. Only record it when the
