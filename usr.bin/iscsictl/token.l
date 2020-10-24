@@ -69,6 +69,7 @@ protocol		{ return PROTOCOL; }
 offload			{ return OFFLOAD; }
 port			{ return IGNORED; }
 dscp			{ return DSCP; }
+pcp			{ return PCP; }
 MaxConnections		{ return IGNORED; }
 TargetAlias		{ return IGNORED; }
 TargetPortalGroupTag	{ return IGNORED; }

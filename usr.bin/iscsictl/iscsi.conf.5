@@ -155,6 +155,13 @@ and
 codepoints.
 Default is no specified dscp codepoint, which means the default
 of the outgoing interface is used.
+.It Cm pcp
+The 802.1Q Priority CodePoint used for sending packets.
+The PCP can be set to a value in the range between
+.Qq Ar 0
+to
+.Qq Ar 7 .
+When omitted, the default for the outgoing interface is used.
 .El
 .Sh FILES
 .Bl -tag -width indent

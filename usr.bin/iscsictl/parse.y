@@ -133,6 +133,8 @@ target_entry:
 	ignored
 	|
 	dscp
+	|
+	pcp
 	;
 
 target_name:	TARGET_NAME EQUALS STR
@@ -306,6 +308,8 @@ dscp:		DSCP EQUALS STR
 	{
 		uint64_t tmp;
 
+		if (target->t_dscp != -1)
+			xo_errx(1, "duplicated dscp at line %d", lineno);
 		if (strcmp($3, "0x") == 0) {
 			tmp = strtol($3 + 2, NULL, 16);
 		} else if (expand_number($3, &tmp) != 0) {
@@ -342,6 +346,27 @@ dscp:		DSCP EQUALS STR
 	| DSCP EQUALS AF41	{ target->t_dscp = IPTOS_DSCP_AF41 >> 2 ; }
 	| DSCP EQUALS AF42	{ target->t_dscp = IPTOS_DSCP_AF42 >> 2 ; }
 	| DSCP EQUALS AF43	{ target->t_dscp = IPTOS_DSCP_AF43 >> 2 ; }
+	;
+
+pcp:	PCP EQUALS STR
+	{
+		uint64_t tmp;
+
+		if (target->t_pcp != -1)
+			xo_errx(1, "duplicated pcp at line %d", lineno);
+
+		if (expand_number($3, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($3);
+			return(1);
+		}
+		if (!((tmp >=0) && (tmp <= 7))) {
+			yyerror("invalid pcp value");
+			return(1);
+		}
+
+		target->t_pcp = tmp;
+	}
 	;
 
 %%
