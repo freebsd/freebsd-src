@@ -91,4 +91,10 @@ xa_err(void *ptr)
 	return (PTR_ERR_OR_ZERO(ptr));
 }
 
+static inline void
+xa_init(struct xarray *xa)
+{
+	xa_init_flags(xa, 0);
+}
+
 #endif		/* _LINUX_XARRAY_H_ */
