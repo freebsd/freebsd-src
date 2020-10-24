@@ -32,7 +32,7 @@
 .\"     @(#)pwd.1	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2016
+.Dd October 24, 2020
 .Dt PWD 1
 .Os
 .Sh NAME
@@ -74,10 +74,30 @@ Logical current working directory.
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Show current working directory with symbolic links resolved:
+.Bd -literal -offset indent
+$ /bin/pwd
+/usr/home/fernape
+.Ed
+.Pp
+Show the logical current directory.
+Then use
+.Xr file 1
+to inspect the
+.Pa /home
+directory:
+.Bd -literal -offset indent
+$ /bin/pwd -L
+/home/fernape
+$ file /home
+/home: symbolic link to usr/home
+.Ed
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr cd 1 ,
 .Xr csh 1 ,
+.Xr realpath 1 ,
 .Xr sh 1 ,
 .Xr getcwd 3
 .Sh STANDARDS
