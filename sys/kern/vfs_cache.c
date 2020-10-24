@@ -305,7 +305,7 @@ SYSCTL_ULONG(_vfs_cache_param, OID_AUTO, negfactor, CTLFLAG_RW, &ncnegfactor, 0,
     "Ratio of negative namecache entries");
 
 /*
- * Negative entry % of namecahe capacity above which automatic eviction is allowed.
+ * Negative entry % of namecache capacity above which automatic eviction is allowed.
  *
  * Check cache_neg_evict_cond for details.
  */
@@ -750,7 +750,7 @@ sysctl_negminpct(SYSCTL_HANDLER_ARGS)
 
 SYSCTL_PROC(_vfs_cache_param, OID_AUTO, negminpct,
     CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RW, NULL, 0, sysctl_negminpct,
-    "I", "Negative entry \% of namecahe capacity above which automatic eviction is allowed");
+    "I", "Negative entry \% of namecache capacity above which automatic eviction is allowed");
 
 #ifdef DIAGNOSTIC
 /*
