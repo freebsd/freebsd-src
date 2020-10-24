@@ -65,8 +65,8 @@ extern void	yyrestart(FILE *);
 %token DISCOVERY_AUTH_GROUP DISCOVERY_FILTER DSCP FOREIGN
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 %token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
-%token PATH PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
-%token TAG TARGET TIMEOUT
+%token PATH PCP PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL
+%token SIZE STR TAG TARGET TIMEOUT
 %token AF11 AF12 AF13 AF21 AF22 AF23 AF31 AF32 AF33 AF41 AF42 AF43
 %token BE EF CS0 CS1 CS2 CS3 CS4 CS5 CS6 CS7
 
@@ -359,6 +359,8 @@ portal_group_entry:
 	portal_group_tag
 	|
 	portal_group_dscp
+	|
+	portal_group_pcp
 	;
 
 portal_group_discovery_auth_group:	DISCOVERY_AUTH_GROUP STR
@@ -512,6 +514,24 @@ portal_group_dscp
 | DSCP AF43	{ portal_group->pg_dscp = IPTOS_DSCP_AF43 >> 2 ; }
 	;
 
+portal_group_pcp:	PCP STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			return (1);
+		}
+		if (!((tmp >= 0) && (tmp <= 7))) {
+			yyerror("invalid pcp value");
+			free($2);
+			return (1);
+		}
+
+		portal_group->pg_pcp = tmp;
+	}
+	;
 
 lun:	LUN lun_name
     OPENING_BRACKET lun_entries CLOSING_BRACKET
