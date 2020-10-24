@@ -1349,6 +1349,13 @@ ether_8021q_frame(struct mbuf **mp, struct ifnet *ife, struct ifnet *p,
 	}
 
 	/*
+	 * If PCP is set in mbuf, use it
+	 */
+	if ((*mp)->m_flags & M_VLANTAG) {
+		pcp = EVL_PRIOFTAG((*mp)->m_pkthdr.ether_vtag);
+	}
+
+	/*
 	 * If underlying interface can do VLAN tag insertion itself,
 	 * just pass the packet along. However, we need some way to
 	 * tell the interface where the packet came from so that it

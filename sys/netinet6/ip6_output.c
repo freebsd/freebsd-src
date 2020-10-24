@@ -90,7 +90,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
+#include <net/ethernet.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
@@ -344,6 +346,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	struct in6_addr odst;
 	u_char *nexthdrp;
 	int error = 0;
+	int vlan_pcp = -1;
 	struct in6_ifaddr *ia = NULL;
 	u_long mtu;
 	int alwaysfrag, dontfrag;
@@ -367,6 +370,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			M_HASHTYPE_SET(m, inp->inp_flowtype);
 		}
+		if ((inp->inp_flags2 & INP_2PCP_SET) != 0)
+			vlan_pcp = (inp->inp_flags2 & INP_2PCP_MASK) >>
+			    INP_2PCP_SHIFT;
 	}
 
 #if defined(IPSEC) || defined(IPSEC_SUPPORT)
@@ -917,6 +923,8 @@ again:
 	}
 
 passout:
+	if (vlan_pcp > -1)
+		EVL_APPLY_PRI(m, vlan_pcp);
 	/*
 	 * Send the packet to the outgoing interface.
 	 * If necessary, do IPv6 fragmentation before sending.
@@ -1110,6 +1118,8 @@ sendorfree:
 				m->m_pkthdr.snd_tag = NULL;
 			}
 #endif
+			if (vlan_pcp > -1)
+				EVL_APPLY_PRI(m, vlan_pcp);
 			error = nd6_output_ifp(ifp, origifp, m, dst,
 			    (struct route *)ro);
 #ifdef RATELIMIT
@@ -1600,6 +1610,7 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 #ifdef	RSS
 			case IPV6_RSS_LISTEN_BUCKET:
 #endif
+			case IPV6_VLAN_PCP:
 				if (optname == IPV6_BINDANY && td != NULL) {
 					error = priv_check(td,
 					    PRIV_NETINET_BINDANY);
@@ -1791,6 +1802,29 @@ do {									\
 					}
 					break;
 #endif
+				case IPV6_VLAN_PCP:
+					if ((optval >= -1) && (optval <=
+					    (INP_2PCP_MASK >> INP_2PCP_SHIFT))) {
+						if (optval == -1) {
+							INP_WLOCK(inp);
+							inp->inp_flags2 &=
+							    ~(INP_2PCP_SET |
+							    INP_2PCP_MASK);
+							INP_WUNLOCK(inp);
+						} else {
+							INP_WLOCK(inp);
+							inp->inp_flags2 |=
+							    INP_2PCP_SET;
+							inp->inp_flags2 &=
+							    ~INP_2PCP_MASK;
+							inp->inp_flags2 |=
+							    optval <<
+							    INP_2PCP_SHIFT;
+							INP_WUNLOCK(inp);
+						}
+					} else
+						error = EINVAL;
+					break;
 				}
 				break;
 
@@ -2015,6 +2049,7 @@ do {									\
 			case IPV6_RECVRSSBUCKETID:
 #endif
 			case IPV6_BINDMULTI:
+			case IPV6_VLAN_PCP:
 				switch (optname) {
 
 				case IPV6_RECVHOPOPTS:
@@ -2113,7 +2148,17 @@ do {									\
 					optval = OPTBIT2(INP_BINDMULTI);
 					break;
 
+				case IPV6_VLAN_PCP:
+					if (OPTBIT2(INP_2PCP_SET)) {
+						optval = (inp->inp_flags2 &
+							    INP_2PCP_MASK) >>
+							    INP_2PCP_SHIFT;
+					} else {
+						optval = -1;
+					}
+					break;
 				}
+
 				if (error)
 					break;
 				error = sooptcopyout(sopt, &optval,
