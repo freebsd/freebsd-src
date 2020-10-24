@@ -626,6 +626,7 @@ portal_group_new(struct conf *conf, const char *name)
 	pg->pg_conf = conf;
 	pg->pg_tag = 0;		/* Assigned later in conf_apply(). */
 	pg->pg_dscp = -1;
+	pg->pg_pcp = -1;
 	TAILQ_INSERT_TAIL(&conf->conf_portal_groups, pg, pg_next);
 
 	return (pg);
@@ -2210,6 +2211,32 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 					    IPPROTO_IPV6, IPV6_TCLASS,
 					    &tos, sizeof(tos)) == -1)
 						log_warn("setsockopt(IPV6_TCLASS) "
+						    "failed for %s",
+						    newp->p_listen);
+				}
+			}
+			if (newpg->pg_pcp != -1) {
+				struct sockaddr sa;
+				int len = sizeof(sa);
+				getsockname(newp->p_socket, &sa, &len);
+				/*
+				 * Only allow the 6-bit DSCP
+				 * field to be modified
+				 */
+				int pcp = newpg->pg_pcp;
+				if (sa.sa_family == AF_INET) {
+					if (setsockopt(newp->p_socket,
+					    IPPROTO_IP, IP_VLAN_PCP,
+					    &pcp, sizeof(pcp)) == -1)
+						log_warn("setsockopt(IP_VLAN_PCP) "
+						    "failed for %s",
+						    newp->p_listen);
+				} else
+				if (sa.sa_family == AF_INET6) {
+					if (setsockopt(newp->p_socket,
+					    IPPROTO_IPV6, IPV6_VLAN_PCP,
+					    &pcp, sizeof(pcp)) == -1)
+						log_warn("setsockopt(IPV6_VLAN_PCP) "
 						    "failed for %s",
 						    newp->p_listen);
 				}

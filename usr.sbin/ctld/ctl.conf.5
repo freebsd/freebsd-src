@@ -258,6 +258,13 @@ well-defined
 and
 .Qq Ar AFxx
 codepoints.
+.It Ic pcp Ar value
+The 802.1Q Priority CodePoint used for sending packets.
+The PCP can be set to a value in the range between
+.Qq Ar 0
+to
+.Qq Ar 7 .
+When omitted, the default for the outgoing interface is used.
 .El
 .Ss target Context
 .Bl -tag -width indent
