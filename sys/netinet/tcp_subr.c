@@ -3248,6 +3248,12 @@ tcp_inptoxtp(const struct inpcb *inp, struct xtcpcb *xt)
 		xt->t_sndzerowin = tp->t_sndzerowin;
 		xt->t_sndrexmitpack = tp->t_sndrexmitpack;
 		xt->t_rcvoopack = tp->t_rcvoopack;
+		xt->t_rcv_wnd = tp->rcv_wnd;
+		xt->t_snd_wnd = tp->snd_wnd;
+		xt->t_snd_cwnd = tp->snd_cwnd;
+		xt->t_snd_ssthresh = tp->snd_ssthresh;
+		xt->t_maxseg = tp->t_maxseg;
+		xt->xt_ecn = (tp->t_flags & TF_ECN_PERMIT) ? 1 : 0;
 
 		now = getsbinuptime();
 #define	COPYTIMER(ttt)	do {						\

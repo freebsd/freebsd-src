@@ -85,6 +85,8 @@ __FBSDID("$FreeBSD$");
 #include "netstat.h"
 #include "nl_defs.h"
 
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+
 #ifdef INET
 static void inetprint(const char *, struct in_addr *, int, const char *, int,
     const int);
@@ -204,6 +206,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 	struct xinpcb *inp;
 	struct xinpgen *xig, *oxig;
 	struct xsocket *so;
+	int fnamelen, cnamelen;
 
 	istcp = 0;
 	switch (proto) {
@@ -235,6 +238,28 @@ protopr(u_long off, const char *name, int af1, int proto)
 
 	if (!pcblist_sysctl(proto, name, &buf))
 		return;
+
+	if (cflag || Cflag) {
+		fnamelen = strlen("Stack");
+		cnamelen = strlen("CC");
+		oxig = xig = (struct xinpgen *)buf;
+		for (xig = (struct xinpgen*)((char *)xig + xig->xig_len);
+		    xig->xig_len > sizeof(struct xinpgen);
+		    xig = (struct xinpgen *)((char *)xig + xig->xig_len)) {
+			if (istcp) {
+				tp = (struct xtcpcb *)xig;
+				inp = &tp->xt_inp;
+			} else {
+				continue;
+			}
+			if (so->xso_protocol != proto)
+				continue;
+			if (inp->inp_gencnt > oxig->xig_gen)
+				continue;
+			fnamelen = max(fnamelen, (int)strlen(tp->xt_stack));
+			cnamelen = max(cnamelen, (int)strlen(tp->xt_cc));
+		}
+	}
 
 	oxig = xig = (struct xinpgen *)buf;
 	for (xig = (struct xinpgen *)((char *)xig + xig->xig_len);
@@ -341,9 +366,19 @@ protopr(u_long off, const char *name, int af1, int proto)
 				xo_emit("  {T:/%8.8s} {T:/%5.5s}",
 				    "flowid", "ftype");
 			}
+			if (cflag) {
+				xo_emit(" {T:/%-*.*s}",
+					fnamelen, fnamelen, "Stack");
+			}
 			if (Cflag)
-				xo_emit(" {T:/%-*.*s}", TCP_CA_NAME_MAX,
-				    TCP_CA_NAME_MAX, "CC");
+				xo_emit(" {T:/%-*.*s} {T:/%10.10s}"
+					" {T:/%10.10s} {T:/%5.5s}"
+					" {T:/%3.3s}", cnamelen,
+					cnamelen, "CC",
+					"cwin",
+					"ssthresh",
+					"MSS",
+					"ECN");
 			if (Pflag)
 				xo_emit(" {T:/%s}", "Log ID");
 			xo_emit("\n");
@@ -518,9 +553,24 @@ protopr(u_long off, const char *name, int af1, int proto)
 			    inp->inp_flowtype);
 		}
 		if (istcp) {
+			if (cflag)
+				xo_emit(" {:stack/%-*.*s}",
+					
+					fnamelen, fnamelen, tp->xt_stack);
 			if (Cflag)
-				xo_emit(" {:cc/%-*.*s}", TCP_CA_NAME_MAX,
-				    TCP_CA_NAME_MAX, tp->xt_cc);
+				xo_emit(" {:cc/%-*.*s}"
+					" {:snd-cwnd/%10lu}"
+					" {:snd-ssthresh/%10lu}"
+					" {:t-maxseg/%5u} {:ecn/%3s}",
+					cnamelen, cnamelen, tp->xt_cc,
+					tp->t_snd_cwnd, tp->t_snd_ssthresh,
+					tp->t_maxseg,
+					(tp->t_state >= TCPS_ESTABLISHED ?
+					    (tp->xt_ecn > 0 ?
+						(tp->xt_ecn == 1 ?
+						    "ecn" : "ace")
+						: "off")
+					    : "n/a"));
 			if (Pflag)
 				xo_emit(" {:log-id/%s}",
 				    tp->xt_logid[0] == '\0' ?
