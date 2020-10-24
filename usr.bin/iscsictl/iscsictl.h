@@ -79,6 +79,7 @@ struct target {
 	int			t_enable;
 	int			t_protocol;
 	int			t_dscp;
+	int			t_pcp;
 	char			*t_offload;
 	char			*t_user;
 	char			*t_secret;
