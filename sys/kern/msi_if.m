@@ -38,6 +38,22 @@ HEADER {
 	struct intr_irqsrc;
 };
 
+#
+# Default implementations of some methods.
+#
+CODE {
+	static int
+	iommu_init(device_t dev, device_t child, struct iommu_domain **domain)
+	{
+		*domain = NULL;
+		return (0);
+	}
+	static void
+	iommu_deinit(device_t dev, device_t child)
+	{
+	}
+};
+
 METHOD int alloc_msi {
 	device_t	dev;
 	device_t	child;
@@ -79,4 +95,9 @@ METHOD int iommu_init {
 	device_t	dev;
 	device_t	child;
 	struct iommu_domain **domain;
-};
+} DEFAULT iommu_init;
+
+METHOD void iommu_deinit {
+	device_t	dev;
+	device_t	child;
+} DEFAULT iommu_deinit;

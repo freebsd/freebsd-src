@@ -727,6 +727,31 @@ iommu_map(struct iommu_domain *domain,
 	return (error);
 }
 
+void
+iommu_unmap_msi(struct iommu_ctx *ctx)
+{
+	struct iommu_map_entry *entry;
+	struct iommu_domain *domain;
+
+	domain = ctx->domain;
+	entry = domain->msi_entry;
+	if (entry == NULL)
+		return;
+
+	domain->ops->unmap(domain, entry->start, entry->end -
+	    entry->start, IOMMU_PGF_WAITOK);
+
+	IOMMU_DOMAIN_LOCK(domain);
+	iommu_gas_free_space(domain, entry);
+	IOMMU_DOMAIN_UNLOCK(domain);
+
+	iommu_gas_free_entry(domain, entry);
+
+	domain->msi_entry = NULL;
+	domain->msi_base = 0;
+	domain->msi_phys = 0;
+}
+
 int
 iommu_map_msi(struct iommu_ctx *ctx, iommu_gaddr_t size, int offset,
     u_int eflags, u_int flags, vm_page_t *ma)
