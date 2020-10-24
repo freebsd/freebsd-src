@@ -128,6 +128,7 @@ struct portal_group {
 	char				*pg_offload;
 	char				*pg_redirection;
 	int				pg_dscp;
+	int				pg_pcp;
 
 	uint16_t			pg_tag;
 };
