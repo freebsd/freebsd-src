@@ -28,7 +28,7 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 22, 2019
+.Dd October 2, 2020
 .Dt PING 8
 .Os
 .Sh NAME
@@ -39,6 +39,7 @@ packets to network hosts
 .Sh SYNOPSIS
 .Nm
 .Op Fl AaDdfHnoQqRrv
+.Op Fl C Ar pcp
 .Op Fl c Ar count
 .Op Fl G Ar sweepmaxsize
 .Op Fl g Ar sweepminsize
@@ -57,6 +58,7 @@ packets to network hosts
 .Ar host
 .Nm
 .Op Fl AaDdfHLnoQqRrv
+.Op Fl C Ar pcp
 .Op Fl c Ar count
 .Op Fl I Ar iface
 .Op Fl i Ar wait
@@ -112,6 +114,9 @@ Include a bell
 character in the output when any packet is received.
 This option is ignored
 if other format options are present.
+.It Fl C Ar pcp
+Add an 802.1p Ethernet Priority Code Point when sending a packet.
+0..7 uses that specific PCP, -1 uses the interface default PCP (or none).
 .It Fl c Ar count
 Stop after sending
 (and receiving)

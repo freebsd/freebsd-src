@@ -155,6 +155,7 @@ static int options;
 #define	F_TIME		0x100000
 #define	F_SWEEP		0x200000
 #define	F_WAITTIME	0x400000
+#define	F_IP_VLAN_PCP	0x800000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -247,7 +248,7 @@ main(int argc, char *const *argv)
 	u_long alarmtimeout;
 	long ltmp;
 	int almost_done, ch, df, hold, i, icmp_len, mib[4], preload;
-	int ssend_errno, srecv_errno, tos, ttl;
+	int ssend_errno, srecv_errno, tos, ttl, pcp;
 	char ctrl[CMSG_SPACE(sizeof(struct timespec))];
 	char hnamebuf[MAXHOSTNAMELEN], snamebuf[MAXHOSTNAMELEN];
 #ifdef IP_OPTIONS
@@ -295,11 +296,11 @@ main(int argc, char *const *argv)
 		err(EX_OSERR, "srecv socket");
 	}
 
-	alarmtimeout = df = preload = tos = 0;
+	alarmtimeout = df = preload = tos = pcp = 0;
 
 	outpack = outpackhdr + sizeof(struct ip);
 	while ((ch = getopt(argc, argv,
-		"Aac:DdfG:g:Hh:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:"
+		"AaC:c:DdfG:g:Hh:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -313,6 +314,13 @@ main(int argc, char *const *argv)
 			break;
 		case 'a':
 			options |= F_AUDIBLE;
+			break;
+		case 'C':
+			options |= F_IP_VLAN_PCP;
+			ltmp = strtol(optarg, &ep, 0);
+			if (*ep || ep == optarg || ltmp > 7 || ltmp < -1)
+				errx(EX_USAGE, "invalid PCP: `%s'", optarg);
+			pcp = ltmp;
 			break;
 		case 'c':
 			ltmp = strtol(optarg, &ep, 0);
@@ -665,6 +673,10 @@ main(int argc, char *const *argv)
 	if (options & F_SO_DONTROUTE)
 		(void)setsockopt(ssend, SOL_SOCKET, SO_DONTROUTE, (char *)&hold,
 		    sizeof(hold));
+	if (options & F_IP_VLAN_PCP) {
+		(void)setsockopt(ssend, IPPROTO_IP, IP_VLAN_PCP, (char *)&pcp,
+		    sizeof(pcp));
+	}
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 	if (options & F_POLICY) {
@@ -1762,11 +1774,11 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: ping [-AaDdfHnoQqRrv] [-c count] [-G sweepmaxsize] [-g sweepminsize]",
+"usage: ping [-AaDdfHnoQqRrv] [-C pcp] [-c count] [-G sweepmaxsize] [-g sweepminsize]",
 "            [-h sweepincrsize] [-i wait] [-l preload] [-M mask | time] [-m ttl]",
 "           " SECOPT " [-p pattern] [-S src_addr] [-s packetsize] [-t timeout]",
 "            [-W waittime] [-z tos] host",
-"       ping [-AaDdfHLnoQqRrv] [-c count] [-I iface] [-i wait] [-l preload]",
+"       ping [-AaDdfHLnoQqRrv] [-C pcp] [-c count] [-I iface] [-i wait] [-l preload]",
 "            [-M mask | time] [-m ttl]" SECOPT " [-p pattern] [-S src_addr]",
 "            [-s packetsize] [-T ttl] [-t timeout] [-W waittime]",
 "            [-z tos] mcast-group");
