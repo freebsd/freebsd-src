@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/capsicum.h>
 #include <sys/wait.h>
+#include <netinet/in.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -275,6 +276,25 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 	if (setsockopt(conn->conn_socket, SOL_SOCKET, SO_SNDBUF,
 	    &sockbuf, sizeof(sockbuf)) == -1)
 		log_warn("setsockopt(SO_SNDBUF) failed");
+	if (conn->conn_conf.isc_dscp != -1) {
+		int tos = conn->conn_conf.isc_dscp << 2;
+		if (to_ai->ai_family == AF_INET) {
+			if (setsockopt(conn->conn_socket,
+			    IPPROTO_IP, IP_TOS,
+			    &tos, sizeof(tos)) == -1)
+				log_warn("setsockopt(IP_TOS) "
+				    "failed for %s",
+				    from_addr);
+		} else
+		if (to_ai->ai_family == AF_INET6) {
+			if (setsockopt(conn->conn_socket,
+			    IPPROTO_IPV6, IPV6_TCLASS,
+			    &tos, sizeof(tos)) == -1)
+				log_warn("setsockopt(IPV6_TCLASS) "
+				    "failed for %s",
+				    from_addr);
+		}
+	}
 	if (from_ai != NULL) {
 		error = bind(conn->conn_socket, from_ai->ai_addr,
 		    from_ai->ai_addrlen);

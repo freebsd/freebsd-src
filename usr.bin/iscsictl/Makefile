@@ -7,7 +7,7 @@ CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${SRCTOP}/sys/dev/iscsi
 MAN=		iscsi.conf.5 iscsictl.8
 
-LIBADD=		xo
+LIBADD=		util xo
 
 YFLAGS+=	-v
 LFLAGS+=	-i
