@@ -1372,7 +1372,7 @@ main(int argc, char *argv[])
 			errx(2, "%s", jail_errmsg);
 		case JAIL_SYS_NEW:
 			if (jail_attach(opt_j) < 0)
-				errx(3, "%s", jail_errmsg);
+				err(3, "jail_attach()");
 			/* Set back to -1 for normal output in vnet jail. */
 			opt_j = -1;
 			break;
