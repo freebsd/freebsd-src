@@ -109,6 +109,7 @@ static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	v_init_counters(struct vnode *);
 static void	vgonel(struct vnode *);
+static bool	vhold_recycle(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
 static void	vfs_knl_assert_locked(void *arg);
@@ -1126,7 +1127,8 @@ restart:
 			goto next_iter;
 		}
 
-		vhold(vp);
+		if (!vhold_recycle(vp))
+			goto next_iter;
 		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
 		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
 		mtx_unlock(&vnode_list_mtx);
@@ -1231,7 +1233,8 @@ restart:
 		if (__predict_false(vp->v_type == VBAD || vp->v_type == VNON)) {
 			continue;
 		}
-		vhold(vp);
+		if (!vhold_recycle(vp))
+			continue;
 		count--;
 		mtx_unlock(&vnode_list_mtx);
 		vtryrecycle(vp);
@@ -3248,12 +3251,10 @@ vholdnz(struct vnode *vp)
  * However, while this is more performant, it hinders debugging by eliminating
  * the previously mentioned invariant.
  */
-bool
-vhold_smr(struct vnode *vp)
+static bool __always_inline
+_vhold_cond(struct vnode *vp)
 {
 	int count;
-
-	VFS_SMR_ASSERT_ENTERED();
 
 	count = atomic_load_int(&vp->v_holdcnt);
 	for (;;) {
@@ -3270,6 +3271,28 @@ vhold_smr(struct vnode *vp)
 			return (true);
 		}
 	}
+}
+
+bool
+vhold_smr(struct vnode *vp)
+{
+
+	VFS_SMR_ASSERT_ENTERED();
+	return (_vhold_cond(vp));
+}
+
+/*
+ * Special case for vnode recycling.
+ *
+ * Vnodes are present on the global list until UMA takes them out.
+ * Attempts to recycle only need the relevant lock and have no use for SMR.
+ */
+static bool
+vhold_recycle(struct vnode *vp)
+{
+
+	mtx_assert(&vnode_list_mtx, MA_OWNED);
+	return (_vhold_cond(vp));
 }
 
 static void __noinline
