@@ -552,9 +552,9 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	else
 		getbinuptime(&bp->bio_t0);
 	if (g_collectstats & G_STATS_CONSUMERS)
-		devstat_start_transaction(cp->stat, &bp->bio_t0);
+		devstat_start_transaction_bio_t0(cp->stat, bp);
 	if (g_collectstats & G_STATS_PROVIDERS)
-		devstat_start_transaction(pp->stat, &bp->bio_t0);
+		devstat_start_transaction_bio_t0(pp->stat, bp);
 #ifdef INVARIANTS
 	atomic_add_int(&cp->nstart, 1);
 #endif
