@@ -952,6 +952,7 @@ oidfmt(int *oid, int len, char *fmt, u_int *kind)
 static int
 show_var(int *oid, int nlen, bool honor_skip)
 {
+	static int skip_len = 0, skip_oid[CTL_MAXNAME];
 	u_char buf[BUFSIZ], *val, *oval, *p;
 	char name[BUFSIZ], fmt[BUFSIZ];
 	const char *sep, *sep1, *prntype;
@@ -1021,9 +1022,21 @@ show_var(int *oid, int nlen, bool honor_skip)
 		return (0);
 	}
 
+	/* keep track of encountered skip nodes, ignoring descendants */
+	if (skip_len == 0 && (kind & CTLFLAG_SKIP) != 0) {
+		/* Save this oid so we can skip descendants. */
+		skip_len = nlen * sizeof(int);
+		memcpy(skip_oid, oid, skip_len);
+	}
+
 	/* bail before fetching the value if we're honoring skip */
-	if (honor_skip && (kind & CTLFLAG_SKIP) != 0)
-		return (1);
+	if (honor_skip) {
+		if (0 < skip_len && skip_len <= nlen * (int)sizeof(int) &&
+		    memcmp(skip_oid, oid, skip_len) == 0)
+			return (1);
+		/* Not a skip node or descendant of a skip node. */
+		skip_len = 0;
+	}
 
 	/* don't fetch opaques that we don't know how to print */
 	if (ctltype == CTLTYPE_OPAQUE) {
