@@ -281,6 +281,8 @@
             ..
             find_interface
             ..
+            flua
+            ..
             hast
             ..
             hostapd
@@ -856,6 +858,8 @@
             man2
             ..
             man3
+            ..
+            man3lua
             ..
             man4
                 aarch64
