@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2019  Mark Nudelman
+ * Copyright (C) 1984-2020  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -88,7 +88,7 @@ struct ungot {
 };
 static struct ungot* ungot = NULL;
 
-static void multi_search();
+static void multi_search LESSPARAMS((char *pattern, int n, int silent));
 
 /*
  * Move the cursor to start of prompt line before executing a command.
@@ -1800,6 +1800,12 @@ commands(VOID_PARAM)
 			optgetname = FALSE;
 			mca_opt_toggle();
 			c = getcc();
+			cbuf = opt_toggle_disallowed(c);
+			if (cbuf != NULL)
+			{
+				error(cbuf, NULL_PARG);
+				break;
+			}
 			goto again;
 
 		case A_DISP_OPTION:

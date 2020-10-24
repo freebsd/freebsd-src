@@ -41,7 +41,7 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
               that only arguments containing metacharacters are quoted
 
 [1mSEE ALSO[0m
-       less(1)
+       [1mless[22m(1)
 
 [1mAUTHOR[0m
        This  manual  page  was written by Thomas Schoepf <schoepf@debian.org>,
@@ -51,4 +51,4 @@ LESSECHO(1)                 General Commands Manual                LESSECHO(1)
 
 
 
-                           Version 551: 11 Jun 2019                LESSECHO(1)
+                           Version 563: 13 Jun 2020                LESSECHO(1)

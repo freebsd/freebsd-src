@@ -4,7 +4,7 @@ EMAIL = bug-less@gnu.org
 HOMEPAGE = http://www.greenwoodsoftware.com/less
 SHELL = /bin/sh
 GIT = git
-NROFF = nroff -man
+NROFF = nroff -t -man
 
 srcdir = .
 
@@ -52,8 +52,7 @@ help.c: less.hlp
 	${srcdir}/mkhelp.pl < less.hlp > help.c
 	if cmp -s help.c help.c.old; then mv -f help.c.old help.c; fi
 
-${srcdir}/configure: ${srcdir}/configure.ac \
-		${srcdir}/Makefile.in
+${srcdir}/configure ${srcdir}/defines.h.in: ${srcdir}/configure.ac ${srcdir}/Makefile.in
 	cd ${srcdir}; autoheader; autoconf
 
 funcs.h: ${SRC:%=${srcdir}/%}
@@ -66,6 +65,7 @@ lint:
 
 clean: 
 	rm -f Makefile config.status config.log config.cache defines.h stamp-h \
+		configure defines.h.in funcs.h help.c \
 		README NEWS \
 		less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man 
 
@@ -93,8 +93,6 @@ ${srcdir}/lesskey.nro: ${srcdir}/lesskey.nro.VER ${srcdir}/version.c
 	${REPLACE_VERSION} ${srcdir}/lesskey.nro.VER
 ${srcdir}/lessecho.nro: ${srcdir}/lessecho.nro.VER ${srcdir}/version.c
 	${REPLACE_VERSION} ${srcdir}/lessecho.nro.VER
-${srcdir}/less.hlp: ${srcdir}/less.hlp.VER ${srcdir}/version.c
-	${REPLACE_VERSION} ${srcdir}/less.hlp.VER
 
 ${srcdir}/less.man: ${srcdir}/less.nro
 	${NROFF} ${srcdir}/less.nro >${srcdir}/less.man
@@ -114,10 +112,10 @@ wide.uni: unicode/EastAsianWidth.txt
 
 unicode/UnicodeData.txt:
 	mkdir -p unicode
-	curl -s -o $@ ftp://ftp.unicode.org/Public/UNIDATA/UnicodeData.txt
+	curl -s -u 'anonymous:${EMAIL}' -o $@ ftp://ftp.unicode.org/Public/UNIDATA/UnicodeData.txt
 unicode/EastAsianWidth.txt:
 	mkdir -p unicode
-	curl -s -o $@ ftp://ftp.unicode.org/Public/UNIDATA/EastAsianWidth.txt
+	curl -s -u 'anonymous:${EMAIL}' -o $@ ftp://ftp.unicode.org/Public/UNIDATA/EastAsianWidth.txt
 
 distfiles: ${DISTFILES}
 

@@ -12,14 +12,14 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        [1mlesskey --version[0m
 
 [1mDESCRIPTION[0m
-       [4mLesskey[24m  is  used  to specify a set of key bindings to be used by [4mless.[0m
+       [4mLesskey[24m  is  used  to specify a set of key bindings to be used by [4mless[24m.
        The input file is a text file which describes the key bindings.  If the
        input  file is "-", standard input is read.  If no input file is speci-
        fied, a standard filename is used as the name of the input file,  which
        depends  on  the  system being used: On Unix systems, $HOME/.lesskey is
        used; on MS-DOS systems, $HOME/_lesskey is used; and  on  OS/2  systems
        $HOME/lesskey.ini  is used, or $INIT/lesskey.ini if $HOME is undefined.
-       The output file is a binary file which is used by [4mless.[24m  If  no  output
+       The output file is a binary file which is used by [4mless[24m.  If  no  output
        file  is  specified,  and  the environment variable LESSKEY is set, the
        value of LESSKEY is used as the name of the output file.  Otherwise,  a
        standard filename is used as the name of the output file, which depends
@@ -46,7 +46,6 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
 
        Blank  lines  and  lines which start with a pound sign (#) are ignored,
        except for the special section header lines.
-
 
 [1mCOMMAND SECTION[0m
        The command section begins with the line
@@ -100,144 +99,146 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        include caret, space, tab and the backslash itself.
 
        An action may be followed by an "extra" string.  When such a command is
-       entered while running [4mless,[24m the action is performed, and then the extra
-       string is parsed, just as if it were typed in to  [4mless.[24m   This  feature
+       entered while running [4mless[24m, the action is performed, and then the extra
+       string is parsed, just as if it were typed in to  [4mless[24m.   This  feature
        can  be used in certain cases to extend the functionality of a command.
        For example, see the "{" and ":t" commands in the example  below.   The
        extra  string  has  a  special meaning for the "quit" action: when [4mless[0m
        quits, first character of the extra string is used as its exit status.
 
-
 [1mEXAMPLE[0m
        The following input file describes the set of default command keys used
        by less:
 
+
             #command
-            \r        forw-line
-            \n        forw-line
-            e         forw-line
-            j         forw-line
-            \kd       forw-line
-            ^E        forw-line
-            ^N        forw-line
-            k         back-line
-            y         back-line
-            ^Y        back-line
-            ^K        back-line
-            ^P        back-line
-            J         forw-line-force
-            K         back-line-force
-            Y         back-line-force
-            d         forw-scroll
-            ^D        forw-scroll
-            u         back-scroll
-            ^U        back-scroll
-            \40       forw-screen
-            f         forw-screen
-            ^F        forw-screen
-            ^V        forw-screen
-            \kD       forw-screen
-            b         back-screen
-            ^B        back-screen
-            \ev       back-screen
-            \kU       back-screen
-            z         forw-window
-            w         back-window
-            \e\40          forw-screen-force
-            F         forw-forever
-            \eF       forw-until-hilite
-            R         repaint-flush
-            r         repaint
-            ^R        repaint
-            ^L        repaint
-            \eu       undo-hilite
-            g         goto-line
-            \kh       goto-line
-            <         goto-line
-            \e<       goto-line
-            p         percent
-            %         percent
-            \e[       left-scroll
-            \e]       right-scroll
-            \e(       left-scroll
-            \e)       right-scroll
-            \kl       left-scroll
-            \kr       right-scroll
-            \e{       no-scroll
-            \e}       end-scroll
-            {         forw-bracket {}
-            }         back-bracket {}
-            (         forw-bracket ()
-            )         back-bracket ()
-            [         forw-bracket []
-            ]         back-bracket []
-            \e^F      forw-bracket
-            \e^B      back-bracket
-            G         goto-end
-            \e>       goto-end
-            >         goto-end
-            \ke       goto-end
-            \eG       goto-end-buffered
-            =         status
-            ^G        status
-            :f        status
-            /         forw-search
-            ?         back-search
-            \e/       forw-search *
-            \e?       back-search *
-            n         repeat-search
-            \en       repeat-search-all
-            N         reverse-search
-            \eN       reverse-search-all
-            &         filter
-            m         set-mark
-            M         set-mark-bottom
-            \em       clear-mark
-            '         goto-mark
-            ^X^X      goto-mark
-            E         examine
-            :e        examine
-            ^X^V      examine
-            :n        next-file
-            :p        prev-file
-            t         next-tag
-            T         prev-tag
-            :x        index-file
-            :d        remove-file
-            -         toggle-option
-            :t        toggle-option t
-            s         toggle-option o
-            _         display-option
-            |         pipe
-            v         visual
-            !         shell
-            +         firstcmd
-            H         help
-            h         help
-            V         version
-            0         digit
-            1         digit
-            2         digit
-            3         digit
-            4         digit
-            5         digit
-            6         digit
-            7         digit
-            8         digit
-            9         digit
-            q         quit
-            Q         quit
-            :q        quit
-            :Q        quit
-            ZZ        quit
+            \r         forw-line
+            \n         forw-line
+            e          forw-line
+            j          forw-line
+            \kd        forw-line
+            ^E         forw-line
+            ^N         forw-line
+            k          back-line
+            y          back-line
+            ^Y         back-line
+            ^K         back-line
+            ^P         back-line
+            J          forw-line-force
+            K          back-line-force
+            Y          back-line-force
+            d          forw-scroll
+            ^D         forw-scroll
+
+            u          back-scroll
+            ^U         back-scroll
+            \40        forw-screen
+            f          forw-screen
+            ^F         forw-screen
+            ^V         forw-screen
+            \kD        forw-screen
+            b          back-screen
+            ^B         back-screen
+            \ev        back-screen
+            \kU        back-screen
+            z          forw-window
+            w          back-window
+            \e\40      forw-screen-force
+            F          forw-forever
+            \eF        forw-until-hilite
+            R          repaint-flush
+            r          repaint
+            ^R         repaint
+            ^L         repaint
+            \eu        undo-hilite
+            g          goto-line
+            \kh        goto-line
+            <          goto-line
+            \e<        goto-line
+            p          percent
+            %          percent
+            \e[        left-scroll
+            \e]        right-scroll
+            \e(        left-scroll
+            \e)        right-scroll
+            \kl        left-scroll
+            \kr        right-scroll
+            \e{        no-scroll
+            \e}        end-scroll
+            {          forw-bracket {}
+            }          back-bracket {}
+            (          forw-bracket ()
+            )          back-bracket ()
+            [          forw-bracket []
+            ]          back-bracket []
+            \e^F       forw-bracket
+            \e^B       back-bracket
+            G          goto-end
+            \e>        goto-end
+            >          goto-end
+            \ke        goto-end
+            \eG        goto-end-buffered
+            =          status
+            ^G         status
+            :f         status
+            /          forw-search
+            ?          back-search
+            \e/        forw-search *
+            \e?        back-search *
+            n          repeat-search
+            \en        repeat-search-all
+            N          reverse-search
+            \eN        reverse-search-all
+            &          filter
+            m          set-mark
+            M          set-mark-bottom
+            \em        clear-mark
+            '          goto-mark
+            ^X^X       goto-mark
+
+            E          examine
+            :e         examine
+            ^X^V       examine
+            :n         next-file
+            :p         prev-file
+            t          next-tag
+            T          prev-tag
+            :x         index-file
+            :d         remove-file
+            -          toggle-option
+            :t         toggle-option t
+            s          toggle-option o
+            _          display-option
+            |          pipe
+            v          visual
+            !          shell
+            +          firstcmd
+            H          help
+            h          help
+            V          version
+            0          digit
+            1          digit
+            2          digit
+            3          digit
+            4          digit
+            5          digit
+            6          digit
+            7          digit
+            8          digit
+            9          digit
+            q          quit
+            Q          quit
+            :q         quit
+            :Q         quit
+            ZZ         quit
 
 
 [1mPRECEDENCE[0m
        Commands  specified  by  [4mlesskey[24m  take precedence over the default com-
        mands.  A default command key may be disabled by including  it  in  the
-       input  file  with  the  action  "invalid".  Alternatively, a key may be
-       defined to do nothing by using the action  "noaction".   "noaction"  is
-       similar to "invalid", but [4mless[24m will give an error beep for an "invalid"
+       input  file with the action "invalid".  Alternatively, a key may be de-
+       fined to do nothing by using the action "noaction".  "noaction" is sim-
+       ilar  to  "invalid",  but [4mless[24m will give an error beep for an "invalid"
        command, but not for a "noaction" command.  In  addition,  ALL  default
        commands may be disabled by adding this control line to the input file:
 
@@ -251,7 +252,6 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        enable all necessary actions.  For example, failure to provide a "quit"
        command can lead to frustration.
 
-
 [1mLINE EDITING SECTION[0m
        The line-editing section begins with the line:
 
@@ -262,41 +262,40 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        specified  in  the #command section.  The line-editing section consists
        of a list of keys and actions, one per line as in the example below.
 
-
 [1mEXAMPLE[0m
        The following input file describes the set of default line-editing keys
        used by less:
 
-            #line-edit
-            \t        forw-complete
-            \17       back-complete
-            \e\t      back-complete
-            ^L        expand
-            ^V        literal
-            ^A        literal
-            \el       right
-            \kr       right
-            \eh       left
-            \kl       left
-            \eb       word-left
-            \e\kl     word-left
-            \ew       word-right
-            \e\kr     word-right
-            \ei       insert
-            \ex       delete
-            \kx       delete
-            \eX       word-delete
-            \ekx      word-delete
-            \e\b      word-backspace
-            \e0       home
-            \kh       home
-            \e$       end
-            \ke       end
-            \ek       up
-            \ku       up
-            \ej       down
-            ^G        abort
 
+            #line-edit
+            \t           forw-complete
+            \17          back-complete
+            \e\t         back-complete
+            ^L           expand
+            ^V           literal
+            ^A           literal
+            \el          right
+            \kr          right
+            \eh          left
+            \kl          left
+            \eb          word-left
+            \e\kl        word-left
+            \ew          word-right
+            \e\kr        word-right
+            \ei          insert
+            \ex          delete
+            \kx          delete
+            \eX          word-delete
+            \ekx         word-delete
+            \e\b         word-backspace
+            \e0          home
+            \kh          home
+            \e$          end
+            \ke          end
+            \ek          up
+            \ku          up
+            \ej          down
+            ^G           abort
 
 
 [1mLESS ENVIRONMENT VARIABLES[0m
@@ -308,36 +307,32 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        Each line consists of an environment variable name, an equals sign  (=)
        and  the value to be assigned to the environment variable.  White space
        before and after the equals sign is  ignored.   Variables  assigned  in
-       this  way  are visible only to [4mless.[24m  If a variable is specified in the
+       this  way  are visible only to [4mless[24m.  If a variable is specified in the
        system environment and also in a lesskey file, the value in the lesskey
        file  takes precedence.  Although the lesskey file can be used to over-
        ride variables set in the environment, the main  purpose  of  assigning
        variables  in the lesskey file is simply to have all [4mless[24m configuration
        information stored in one file.
 
-
 [1mEXAMPLE[0m
        The following input file sets the -i option whenever [4mless[24m is  run,  and
        specifies the character set to be "latin1":
 
-            #env
-            LESS = -i
-            LESSCHARSET = latin1
-
+                 #env
+                 LESS = -i
+                 LESSCHARSET = latin1
 
 
 [1mSEE ALSO[0m
-       less(1)
-
+       [1mless[22m(1)
 
 [1mWARNINGS[0m
        On  MS-DOS and OS/2 systems, certain keys send a sequence of characters
        which start with a NUL character (0).  This  NUL  character  should  be
        represented as \340 in a lesskey file.
 
-
 [1mCOPYRIGHT[0m
-       Copyright (C) 1984-2019  Mark Nudelman
+       Copyright (C) 1984-2020  Mark Nudelman
 
        less  is  part of the GNU project and is free software.  You can redis-
        tribute it and/or modify it under the terms of either (1) the GNU  Gen-
@@ -354,11 +349,10 @@ LESSKEY(1)                  General Commands Manual                 LESSKEY(1)
        NESS  FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
        more details.
 
-
 [1mAUTHOR[0m
        Mark Nudelman
        Send bug reports or comments to <bug-less@gnu.org>.
 
 
 
-                           Version 551: 11 Jun 2019                 LESSKEY(1)
+                           Version 563: 13 Jun 2020                 LESSKEY(1)

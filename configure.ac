@@ -24,6 +24,7 @@ AC_SYS_LARGEFILE
 
 # Checks for general libraries.
 AC_CHECK_LIB(tinfo, tgoto, [have_tinfo=yes], [have_tinfo=no])
+AC_CHECK_LIB(tinfow, tgoto, [have_tinfow=yes], [have_tinfow=no])
 AC_CHECK_LIB(xcurses, initscr, [have_xcurses=yes], [have_xcurses=no])
 AC_CHECK_LIB(ncursesw, initscr, [have_ncursesw=yes], [have_ncursesw=no])
 AC_CHECK_LIB(ncurses, initscr, [have_ncurses=yes], [have_ncurses=no])
@@ -55,6 +56,19 @@ if test $curses_broken = 0; then
 if test "x$TERMLIBS" = x; then
   if test $have_tinfo = yes; then
     TERMLIBS="-ltinfo"
+    SAVE_LIBS=$LIBS
+    LIBS="$LIBS $TERMLIBS"
+    AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
+      [termok=yes], [termok=no])
+    LIBS=$SAVE_LIBS
+    if test $termok = no; then TERMLIBS=""; fi
+  fi
+fi
+
+# -- Try tinfow.
+if test "x$TERMLIBS" = x; then
+  if test $have_tinfow = yes; then
+    TERMLIBS="-ltinfow"
     SAVE_LIBS=$LIBS
     LIBS="$LIBS $TERMLIBS"
     AC_TRY_LINK(, [tgetent(0,0); tgetflag(0); tgetnum(0); tgetstr(0,0);],
