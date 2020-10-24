@@ -30,44 +30,42 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/types.h>
-#include <sys/systm.h>
+#include <sys/devctl.h>
 #include <sys/eventhandler.h>
+#include <sys/kernel.h>
+#include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
-#include <sys/devctl.h>
-#include <sys/module.h>
+#include <sys/systm.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
-#include <net/route.h>
+#include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/infiniband.h>
-#include <net/bpf.h>
-#include <net/if_llatbl.h>
-#include <net/netisr.h>
+#include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
-#include <net/if_types.h>
 #include <net/if_media.h>
 #include <net/if_lagg.h>
-
-#include <netinet/in.h>
+#include <net/if_llatbl.h>
+#include <net/if_types.h>
+#include <net/netisr.h>
+#include <net/route.h>
 #include <netinet/if_ether.h>
+#include <netinet/in.h>
 #include <netinet/ip6.h>
-
 #include <netinet6/in6_var.h>
 #include <netinet6/nd6.h>
 
 #include <security/mac/mac_framework.h>
 
 /* if_lagg(4) support */
-struct mbuf *(*lagg_input_infiniband_p)(struct ifnet *, struct mbuf *); 
+struct mbuf *(*lagg_input_infiniband_p)(struct ifnet *, struct mbuf *);
 
 #ifdef INET
 static inline void
-infiniband_ipv4_multicast_map(uint32_t addr,
-    const uint8_t *broadcast, uint8_t *buf)
+infiniband_ipv4_multicast_map(
+    uint32_t addr, const uint8_t *broadcast, uint8_t *buf)
 {
 	uint8_t scope;
 
@@ -99,8 +97,8 @@ infiniband_ipv4_multicast_map(uint32_t addr,
 
 #ifdef INET6
 static inline void
-infiniband_ipv6_multicast_map(const struct in6_addr *addr,
-    const uint8_t *broadcast, uint8_t *buf)
+infiniband_ipv6_multicast_map(
+    const struct in6_addr *addr, const uint8_t *broadcast, uint8_t *buf)
 {
 	uint8_t scope;
 
@@ -128,7 +126,7 @@ infiniband_bpf_mtap(struct ifnet *ifp, struct mbuf *mb)
 {
 	struct infiniband_header *ibh;
 	struct ether_header eh;
-  
+
 	if (mb->m_len < sizeof(*ibh))
 		return;
 
@@ -198,7 +196,7 @@ infiniband_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			if (error) {
 				if (error == EWOULDBLOCK)
 					error = 0;
-				m = NULL;	/* mbuf is consumed by resolver */
+				m = NULL; /* mbuf is consumed by resolver */
 				goto bad;
 			}
 		}
@@ -265,7 +263,7 @@ infiniband_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 			if (error) {
 				if (error == EWOULDBLOCK)
 					error = 0;
-				m = NULL;	/* mbuf is consumed by resolver */
+				m = NULL; /* mbuf is consumed by resolver */
 				goto bad;
 			}
 		}
@@ -410,8 +408,8 @@ done:
 }
 
 static int
-infiniband_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
-    struct sockaddr *sa)
+infiniband_resolvemulti(
+    struct ifnet *ifp, struct sockaddr **llsa, struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 #ifdef INET
@@ -442,8 +440,8 @@ infiniband_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sdl = link_init_sdl(ifp, *llsa, IFT_INFINIBAND);
 		sdl->sdl_alen = INFINIBAND_ADDR_LEN;
 		e_addr = LLADDR(sdl);
-		infiniband_ipv4_multicast_map(sin->sin_addr.s_addr, ifp->if_broadcastaddr,
-		    e_addr);
+		infiniband_ipv4_multicast_map(
+		    sin->sin_addr.s_addr, ifp->if_broadcastaddr, e_addr);
 		*llsa = (struct sockaddr *)sdl;
 		return (0);
 #endif
@@ -462,7 +460,8 @@ infiniband_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sdl = link_init_sdl(ifp, *llsa, IFT_INFINIBAND);
 		sdl->sdl_alen = INFINIBAND_ADDR_LEN;
 		e_addr = LLADDR(sdl);
-		infiniband_ipv6_multicast_map(&sin6->sin6_addr, ifp->if_broadcastaddr, e_addr);
+		infiniband_ipv6_multicast_map(
+		    &sin6->sin6_addr, ifp->if_broadcastaddr, e_addr);
 		*llsa = (struct sockaddr *)sdl;
 		return (0);
 #endif
@@ -487,7 +486,7 @@ infiniband_ifattach(struct ifnet *ifp, const uint8_t *lla, const uint8_t *llb)
 	ifp->if_resolvemulti = infiniband_resolvemulti;
 
 	if (ifp->if_baudrate == 0)
-		ifp->if_baudrate = IF_Gbps(10);	/* default value */
+		ifp->if_baudrate = IF_Gbps(10); /* default value */
 	if (llb != NULL)
 		ifp->if_broadcastaddr = llb;
 
