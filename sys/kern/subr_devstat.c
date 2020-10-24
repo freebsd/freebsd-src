@@ -256,6 +256,17 @@ devstat_start_transaction_bio(struct devstat *ds, struct bio *bp)
 		return;
 
 	binuptime(&bp->bio_t0);
+	devstat_start_transaction_bio_t0(ds, bp);
+}
+
+void
+devstat_start_transaction_bio_t0(struct devstat *ds, struct bio *bp)
+{
+
+	/* sanity check */
+	if (ds == NULL)
+		return;
+
 	devstat_start_transaction(ds, &bp->bio_t0);
 	DTRACE_DEVSTAT_BIO_START();
 }
