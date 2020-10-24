@@ -154,7 +154,18 @@ syscallenter(struct thread *td)
 			td->td_pflags &= ~TDP_NERRNO;
 		else
 			td->td_errno = error;
+
+		/*
+		 * Note that some syscall implementations (e.g., sys_execve)
+		 * will commit the audit record just before their final return.
+		 * These were done under the assumption that nothing of interest
+		 * would happen between their return and here, where we would
+		 * normally commit the audit record.  These assumptions will
+		 * need to be revisited should any substantial logic be added
+		 * above.
+		 */
 		AUDIT_SYSCALL_EXIT(error, td);
+
 #ifdef KDTRACE_HOOKS
 		/* Give the syscall:::return DTrace probe a chance to fire. */
 		if (__predict_false(sa->callp->sy_return != 0))
