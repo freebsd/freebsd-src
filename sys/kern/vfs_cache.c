@@ -174,6 +174,19 @@ struct	namecache_ts {
  */
 #define CACHE_ZONE_ALIGNMENT	UMA_ALIGNOF(time_t)
 
+/*
+ * TODO: the initial value of CACHE_PATH_CUTOFF was inherited from the
+ * 4.4 BSD codebase. Later on struct namecache was tweaked to become
+ * smaller and the value was bumped to retain the total size, but it
+ * was never re-evaluated for suitability. A simple test counting
+ * lengths during package building shows that the value of 45 covers
+ * about 86% of all added entries, reaching 99% at 65.
+ *
+ * Regardless of the above, use of dedicated zones instead of malloc may be
+ * inducing additional waste. This may be hard to address as said zones are
+ * tied to VFS SMR. Even if retaining them, the current split should be
+ * reevaluated.
+ */
 #ifdef __LP64__
 #define	CACHE_PATH_CUTOFF	45
 #define	CACHE_LARGE_PAD		6
@@ -211,6 +224,8 @@ _Static_assert((CACHE_ZONE_LARGE_TS_SIZE % (CACHE_ZONE_ALIGNMENT + 1)) == 0, "ba
  * Flags in negstate.neg_flag
  */
 #define NEG_HOT		0x01
+
+static bool	cache_neg_evict_cond(u_long lnumcache);
 
 /*
  * Mark an entry as invalid.
@@ -380,61 +395,6 @@ VP2VNODELOCK(struct vnode *vp)
 	return (&vnodelocks[(((uintptr_t)(vp) >> 8) & ncvnodehash)]);
 }
 
-/*
- * UMA zones for the VFS cache.
- *
- * The small cache is used for entries with short names, which are the
- * most common.  The large cache is used for entries which are too big to
- * fit in the small cache.
- */
-static uma_zone_t __read_mostly cache_zone_small;
-static uma_zone_t __read_mostly cache_zone_small_ts;
-static uma_zone_t __read_mostly cache_zone_large;
-static uma_zone_t __read_mostly cache_zone_large_ts;
-
-static struct namecache *
-cache_alloc(int len, int ts)
-{
-	struct namecache_ts *ncp_ts;
-	struct namecache *ncp;
-
-	if (__predict_false(ts)) {
-		if (len <= CACHE_PATH_CUTOFF)
-			ncp_ts = uma_zalloc_smr(cache_zone_small_ts, M_WAITOK);
-		else
-			ncp_ts = uma_zalloc_smr(cache_zone_large_ts, M_WAITOK);
-		ncp = &ncp_ts->nc_nc;
-	} else {
-		if (len <= CACHE_PATH_CUTOFF)
-			ncp = uma_zalloc_smr(cache_zone_small, M_WAITOK);
-		else
-			ncp = uma_zalloc_smr(cache_zone_large, M_WAITOK);
-	}
-	return (ncp);
-}
-
-static void
-cache_free(struct namecache *ncp)
-{
-	struct namecache_ts *ncp_ts;
-
-	MPASS(ncp != NULL);
-	if ((ncp->nc_flag & NCF_DVDROP) != 0)
-		vdrop(ncp->nc_dvp);
-	if (__predict_false(ncp->nc_flag & NCF_TS)) {
-		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
-		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
-			uma_zfree_smr(cache_zone_small_ts, ncp_ts);
-		else
-			uma_zfree_smr(cache_zone_large_ts, ncp_ts);
-	} else {
-		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
-			uma_zfree_smr(cache_zone_small, ncp);
-		else
-			uma_zfree_smr(cache_zone_large, ncp);
-	}
-}
-
 static void
 cache_out_ts(struct namecache *ncp, struct timespec *tsp, int *ticksp)
 {
@@ -544,6 +504,126 @@ cache_assert_vnode_locked(struct vnode *vp)
 
 	vlp = VP2VNODELOCK(vp);
 	cache_assert_vlp_locked(vlp);
+}
+
+/*
+ * Directory vnodes with entries are held for two reasons:
+ * 1. make them less of a target for reclamation in vnlru
+ * 2. suffer smaller performance penalty in locked lookup as requeieing is avoided
+ *
+ * Note this preferably would not be done and it's a hold over from. It will be
+ * feasible to eliminate altogether if all filesystems start supporting
+ * lockless lookup.
+ */
+static void
+cache_hold_vnode(struct vnode *vp)
+{
+
+	cache_assert_vnode_locked(vp);
+	VNPASS(LIST_EMPTY(&vp->v_cache_src), vp);
+	vhold(vp);
+	counter_u64_add(numcachehv, 1);
+}
+
+static void
+cache_drop_vnode(struct vnode *vp)
+{
+
+	/*
+	 * Called after all locks are dropped, meaning we can't assert
+	 * on the state of v_cache_src.
+	 */
+	vdrop(vp);
+	counter_u64_add(numcachehv, -1);
+}
+
+/*
+ * UMA zones.
+ */
+static uma_zone_t __read_mostly cache_zone_small;
+static uma_zone_t __read_mostly cache_zone_small_ts;
+static uma_zone_t __read_mostly cache_zone_large;
+static uma_zone_t __read_mostly cache_zone_large_ts;
+
+static struct namecache *
+cache_alloc_uma(int len, bool ts)
+{
+	struct namecache_ts *ncp_ts;
+	struct namecache *ncp;
+
+	if (__predict_false(ts)) {
+		if (len <= CACHE_PATH_CUTOFF)
+			ncp_ts = uma_zalloc_smr(cache_zone_small_ts, M_WAITOK);
+		else
+			ncp_ts = uma_zalloc_smr(cache_zone_large_ts, M_WAITOK);
+		ncp = &ncp_ts->nc_nc;
+	} else {
+		if (len <= CACHE_PATH_CUTOFF)
+			ncp = uma_zalloc_smr(cache_zone_small, M_WAITOK);
+		else
+			ncp = uma_zalloc_smr(cache_zone_large, M_WAITOK);
+	}
+	return (ncp);
+}
+
+static void
+cache_free_uma(struct namecache *ncp)
+{
+	struct namecache_ts *ncp_ts;
+
+	if (__predict_false(ncp->nc_flag & NCF_TS)) {
+		ncp_ts = __containerof(ncp, struct namecache_ts, nc_nc);
+		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
+			uma_zfree_smr(cache_zone_small_ts, ncp_ts);
+		else
+			uma_zfree_smr(cache_zone_large_ts, ncp_ts);
+	} else {
+		if (ncp->nc_nlen <= CACHE_PATH_CUTOFF)
+			uma_zfree_smr(cache_zone_small, ncp);
+		else
+			uma_zfree_smr(cache_zone_large, ncp);
+	}
+}
+
+static struct namecache *
+cache_alloc(int len, bool ts)
+{
+	u_long lnumcache;
+
+	/*
+	 * Avoid blowout in namecache entries.
+	 *
+	 * Bugs:
+	 * 1. filesystems may end up tryng to add an already existing entry
+	 * (for example this can happen after a cache miss during concurrent
+	 * lookup), in which case we will call cache_neg_evict despite not
+	 * adding anything.
+	 * 2. the routine may fail to free anything and no provisions are made
+	 * to make it try harder (see the inside for failure modes)
+	 * 3. it only ever looks at negative entries.
+	 */
+	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
+	if (cache_neg_evict_cond(lnumcache)) {
+		lnumcache = atomic_load_long(&numcache);
+	}
+	if (__predict_false(lnumcache >= ncsize)) {
+		atomic_subtract_long(&numcache, 1);
+		counter_u64_add(numdrops, 1);
+		return (NULL);
+	}
+	return (cache_alloc_uma(len, ts));
+}
+
+static void
+cache_free(struct namecache *ncp)
+{
+
+	MPASS(ncp != NULL);
+	if ((ncp->nc_flag & NCF_DVDROP) != 0) {
+		cache_drop_vnode(ncp->nc_dvp);
+	}
+	cache_free_uma(ncp);
+	atomic_subtract_long(&numcache, 1);
 }
 
 /*
@@ -1298,10 +1378,8 @@ cache_zap_locked(struct namecache *ncp)
 		LIST_REMOVE(ncp, nc_src);
 		if (LIST_EMPTY(&ncp->nc_dvp->v_cache_src)) {
 			ncp->nc_flag |= NCF_DVDROP;
-			counter_u64_add(numcachehv, -1);
 		}
 	}
-	atomic_subtract_long(&numcache, 1);
 }
 
 static void
@@ -2110,7 +2188,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	uint32_t hash;
 	int flag;
 	int len;
-	u_long lnumcache;
 
 	VNPASS(dvp != vp, dvp);
 	VNPASS(!VN_IS_DOOMED(dvp), dvp);
@@ -2135,27 +2212,9 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		}
 	}
 
-	/*
-	 * Avoid blowout in namecache entries.
-	 *
-	 * Bugs:
-	 * 1. filesystems may end up tryng to add an already existing entry
-	 * (for example this can happen after a cache miss during concurrent
-	 * lookup), in which case we will call cache_neg_evict despite not
-	 * adding anything.
-	 * 2. the routine may fail to free anything and no provisions are made
-	 * to make it try harder (see the inside for failure modes)
-	 * 3. it only ever looks at negative entries.
-	 */
-	lnumcache = atomic_fetchadd_long(&numcache, 1) + 1;
-	if (cache_neg_evict_cond(lnumcache)) {
-		lnumcache = atomic_load_long(&numcache);
-	}
-	if (__predict_false(lnumcache >= ncsize)) {
-		atomic_subtract_long(&numcache, 1);
-		counter_u64_add(numdrops, 1);
+	ncp = cache_alloc(cnp->cn_namelen, tsp != NULL);
+	if (ncp == NULL)
 		return;
-	}
 
 	cache_celockstate_init(&cel);
 	ndd = NULL;
@@ -2165,7 +2224,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	 * Calculate the hash key and setup as much of the new
 	 * namecache entry as possible before acquiring the lock.
 	 */
-	ncp = cache_alloc(cnp->cn_namelen, tsp != NULL);
 	ncp->nc_flag = flag | NCF_WIP;
 	ncp->nc_vp = vp;
 	if (vp == NULL)
@@ -2276,8 +2334,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 
 	if (flag != NCF_ISDOTDOT) {
 		if (LIST_EMPTY(&dvp->v_cache_src)) {
-			vhold(dvp);
-			counter_u64_add(numcachehv, 1);
+			cache_hold_vnode(dvp);
 		}
 		LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
 	}
@@ -2318,7 +2375,6 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 	return;
 out_unlock_free:
 	cache_enter_unlock(&cel);
-	atomic_subtract_long(&numcache, 1);
 	cache_free(ncp);
 	return;
 }
