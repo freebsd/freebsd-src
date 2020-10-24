@@ -52,16 +52,6 @@ SYSCTL_BOOL(_hw_nvme, OID_AUTO, verbose_cmd_dump, CTLFLAG_RWTUN,
     &nvme_verbose_cmd_dump, 0,
     "enable verbose command printting when a command fails");
 
-/*
- * CTLTYPE_S64 and sysctl_handle_64 were added in r217616.  Define these
- *  explicitly here for older kernels that don't include the r217616
- *  changeset.
- */
-#ifndef CTLTYPE_S64
-#define CTLTYPE_S64		CTLTYPE_QUAD
-#define sysctl_handle_64	sysctl_handle_quad
-#endif
-
 static void
 nvme_dump_queue(struct nvme_qpair *qpair)
 {
