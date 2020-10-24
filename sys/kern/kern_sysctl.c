@@ -1126,9 +1126,13 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			 * We have reached a node with a full name match and are
 			 * looking for the next oid in its children.
 			 *
+			 * For CTL_SYSCTL_NEXTNOSKIP we are done.
+			 *
 			 * For CTL_SYSCTL_NEXT we skip CTLTYPE_NODE (unless it
 			 * has a handler) and move on to the children.
 			 */
+			if (!honor_skip)
+				return (0);
 			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
 				return (0);
 			if (oidp->oid_handler) 
@@ -1163,9 +1167,13 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			/*
 			 * We have reached the next oid.
 			 *
+			 * For CTL_SYSCTL_NEXTNOSKIP we are done.
+			 *
 			 * For CTL_SYSCTL_NEXT we skip CTLTYPE_NODE (unless it
 			 * has a handler) and move on to the children.
 			 */
+			if (!honor_skip)
+				return (0);
 			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
 				return (0);
 			if (oidp->oid_handler)
