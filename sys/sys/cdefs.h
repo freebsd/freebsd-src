@@ -75,9 +75,9 @@
  * having a compiler-agnostic source tree.
  */
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if defined(__GNUC__)
 
-#if __GNUC__ >= 3 || defined(__INTEL_COMPILER)
+#if __GNUC__ >= 3
 #define	__GNUCLIKE_ASM 3
 #define	__GNUCLIKE_MATH_BUILTIN_CONSTANTS
 #else
@@ -87,15 +87,9 @@
 #define	__GNUCLIKE___OFFSETOF 1
 #define	__GNUCLIKE___SECTION 1
 
-#ifndef __INTEL_COMPILER
 #define	__GNUCLIKE_CTOR_SECTION_HANDLING 1
-#endif
 
 #define	__GNUCLIKE_BUILTIN_CONSTANT_P 1
-#if defined(__INTEL_COMPILER) && defined(__cplusplus) && \
-   __INTEL_COMPILER < 800
-#undef __GNUCLIKE_BUILTIN_CONSTANT_P
-#endif
 
 #if (__GNUC_MINOR__ > 95 || __GNUC__ >= 3)
 #define	__GNUCLIKE_BUILTIN_VARARGS 1
@@ -114,10 +108,8 @@
 #define	__compiler_membar()	__asm __volatile(" " : : : "memory")
 #endif
 
-#ifndef __INTEL_COMPILER
 #define	__GNUCLIKE_BUILTIN_NEXT_ARG 1
 #define	__GNUCLIKE_MATH_BUILTIN_RELOPS
-#endif
 
 #define	__GNUCLIKE_BUILTIN_MEMCPY 1
 
@@ -133,12 +125,12 @@
 
 #define	__CC_SUPPORTS_DYNAMIC_ARRAY_INIT 1
 
-#endif /* __GNUC__ || __INTEL_COMPILER */
+#endif /* __GNUC__ */
 
 /*
  * Macro to test if we're using a specific version of gcc or later.
  */
-#if defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#if defined(__GNUC__)
 #define	__GNUC_PREREQ__(ma, mi)	\
 	(__GNUC__ > (ma) || __GNUC__ == (ma) && __GNUC_MINOR__ >= (mi))
 #else
@@ -212,18 +204,18 @@
  * a feature that we cannot live without.
  */
 #define	__weak_symbol	__attribute__((__weak__))
-#if !__GNUC_PREREQ__(2, 5) && !defined(__INTEL_COMPILER)
+#if !__GNUC_PREREQ__(2, 5)
 #define	__dead2
 #define	__pure2
 #define	__unused
 #endif
-#if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7 && !defined(__INTEL_COMPILER)
+#if __GNUC__ == 2 && __GNUC_MINOR__ >= 5 && __GNUC_MINOR__ < 7
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused
 /* XXX Find out what to do for __packed, __aligned and __section */
 #endif
-#if __GNUC_PREREQ__(2, 7) || defined(__INTEL_COMPILER)
+#if __GNUC_PREREQ__(2, 7)
 #define	__dead2		__attribute__((__noreturn__))
 #define	__pure2		__attribute__((__const__))
 #define	__unused	__attribute__((__unused__))
@@ -360,7 +352,7 @@
 #define	__pure
 #endif
 
-#if __GNUC_PREREQ__(3, 1) || (defined(__INTEL_COMPILER) && __INTEL_COMPILER >= 800)
+#if __GNUC_PREREQ__(3, 1)
 #define	__always_inline	__attribute__((__always_inline__))
 #else
 #define	__always_inline
@@ -393,11 +385,11 @@
 #endif
 
 /* XXX: should use `#if __STDC_VERSION__ < 199901'. */
-#if !__GNUC_PREREQ__(2, 7) && !defined(__INTEL_COMPILER)
+#if !__GNUC_PREREQ__(2, 7)
 #define	__func__	NULL
 #endif
 
-#if (defined(__INTEL_COMPILER) || (defined(__GNUC__) && __GNUC__ >= 2)) && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
+#if (defined(__GNUC__) && __GNUC__ >= 2) && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
 #define	__LONG_LONG_SUPPORTED
 #endif
 
@@ -514,7 +506,7 @@
  * that are known to support the features properly (old versions of gcc-2
  * didn't permit keeping the keywords out of the application namespace).
  */
-#if !__GNUC_PREREQ__(2, 7) && !defined(__INTEL_COMPILER)
+#if !__GNUC_PREREQ__(2, 7)
 #define	__printflike(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
 #define	__format_arg(fmtarg)
@@ -534,18 +526,16 @@
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
 #if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
-    defined(__GNUC__) && !defined(__INTEL_COMPILER)
+    defined(__GNUC__)
 #define	__printf0like(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #else
 #define	__printf0like(fmtarg, firstvararg)
 #endif
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
-#ifndef __INTEL_COMPILER
+#if defined(__GNUC__)
 #define	__strong_reference(sym,aliassym)	\
 	extern __typeof (sym) aliassym __attribute__ ((__alias__ (#sym)))
-#endif
 #ifdef __STDC__
 #define	__weak_reference(sym,alias)	\
 	__asm__(".weak " #alias);	\
@@ -571,12 +561,12 @@
 #define	__sym_default(impl,sym,verid)	\
 	__asm__(".symver impl, sym@@@verid")
 #endif	/* __STDC__ */
-#endif	/* __GNUC__ || __INTEL_COMPILER */
+#endif	/* __GNUC__ */
 
 #define	__GLOBL1(sym)	__asm__(".globl " #sym)
 #define	__GLOBL(sym)	__GLOBL1(sym)
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#if defined(__GNUC__)
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
 #else
 /*
