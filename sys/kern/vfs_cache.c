@@ -188,7 +188,7 @@ TAILQ_HEAD(cache_freebatch, namecache);
  * Regardless of the above, use of dedicated zones instead of malloc may be
  * inducing additional waste. This may be hard to address as said zones are
  * tied to VFS SMR. Even if retaining them, the current split should be
- * reevaluated.
+ * re-evaluated.
  */
 #ifdef __LP64__
 #define	CACHE_PATH_CUTOFF	45
@@ -597,7 +597,7 @@ cache_alloc(int len, bool ts)
 	 * Avoid blowout in namecache entries.
 	 *
 	 * Bugs:
-	 * 1. filesystems may end up tryng to add an already existing entry
+	 * 1. filesystems may end up trying to add an already existing entry
 	 * (for example this can happen after a cache miss during concurrent
 	 * lookup), in which case we will call cache_neg_evict despite not
 	 * adding anything.
@@ -3285,12 +3285,12 @@ vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 /*
  * Resolve an arbitrary vnode to a pathname (taking care of hardlinks).
  *
- * Since the namecache does not track handlings, the caller is expected to first
+ * Since the namecache does not track hardlinks, the caller is expected to first
  * look up the target vnode with SAVENAME | WANTPARENT flags passed to namei.
  *
  * Then we have 2 cases:
  * - if the found vnode is a directory, the path can be constructed just by
- *   fullowing names up the chain
+ *   following names up the chain
  * - otherwise we populate the buffer with the saved name and start resolving
  *   from the parent
  */
@@ -3327,7 +3327,7 @@ vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf, char **freebuf,
 	 * populate part of the buffer and descend to vn_fullpath_dir with
 	 * vp == vp_crossmp. Prevent the problem by checking for VBAD.
 	 *
-	 * This should be atomic_load(&vp->v_type) but it is ilegal to take
+	 * This should be atomic_load(&vp->v_type) but it is illegal to take
 	 * an address of a bit field, even if said field is sized to char.
 	 * Work around the problem by reading the value into a full-sized enum
 	 * and then re-reading it with atomic_load which will still prevent
