@@ -514,6 +514,20 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 		return (retval_socket);
 	domain = linux_to_bsd_domain(args->domain);
 	if (domain == -1) {
+		if (args->domain == LINUX_AF_NETLINK &&
+		    args->protocol == LINUX_NETLINK_ROUTE) {
+			linux_msg(curthread,
+			    "unsupported socket(AF_NETLINK, %d, NETLINK_ROUTE)", type);
+			return (EAFNOSUPPORT);
+		}
+		    
+		if (args->domain == LINUX_AF_NETLINK &&
+		    args->protocol == LINUX_NETLINK_UEVENT) {
+			linux_msg(curthread,
+			    "unsupported socket(AF_NETLINK, %d, NETLINK_UEVENT)", type);
+			return (EAFNOSUPPORT);
+		}
+	
 		linux_msg(curthread, "unsupported socket domain %d, type %d, protocol %d",
 		    args->domain, args->type & LINUX_SOCK_TYPE_MASK, args->protocol);
 		return (EAFNOSUPPORT);
