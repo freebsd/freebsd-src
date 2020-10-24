@@ -58,6 +58,10 @@ struct l_sockaddr {
 #define	LINUX_AF_IPX		4
 #define	LINUX_AF_APPLETALK	5
 #define	LINUX_AF_INET6		10
+#define	LINUX_AF_NETLINK	16
+
+#define	LINUX_NETLINK_ROUTE	0
+#define	LINUX_NETLINK_UEVENT	15
 
 /*
  * net device flags
