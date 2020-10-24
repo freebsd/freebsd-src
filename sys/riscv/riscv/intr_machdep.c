@@ -158,10 +158,10 @@ riscv_cpu_intr(struct trapframe *frame)
 	struct intr_irqsrc *isrc;
 	int active_irq;
 
-	KASSERT(frame->tf_scause & EXCP_INTR,
+	KASSERT((frame->tf_scause & SCAUSE_INTR) != 0,
 		("riscv_cpu_intr: wrong frame passed"));
 
-	active_irq = frame->tf_scause & EXCP_MASK;
+	active_irq = frame->tf_scause & SCAUSE_CODE;
 
 	switch (active_irq) {
 	case IRQ_SOFTWARE_USER:

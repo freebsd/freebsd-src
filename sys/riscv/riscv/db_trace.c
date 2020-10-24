@@ -101,12 +101,12 @@ db_stack_trace_cmd(struct unwind_state *frame)
 
 			tf = (struct trapframe *)(uintptr_t)frame->sp;
 
-			if (tf->tf_scause & EXCP_INTR)
+			if ((tf->tf_scause & SCAUSE_INTR) != 0)
 				db_printf("--- interrupt %ld\n",
-				    tf->tf_scause & EXCP_MASK);
+				    tf->tf_scause & SCAUSE_CODE);
 			else
 				db_printf("--- exception %ld, tval = %#lx\n",
-				    tf->tf_scause & EXCP_MASK,
+				    tf->tf_scause & SCAUSE_CODE,
 				    tf->tf_stval);
 			frame->sp = tf->tf_sp;
 			frame->fp = tf->tf_s[0];

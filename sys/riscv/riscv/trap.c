@@ -217,9 +217,9 @@ page_fault_handler(struct trapframe *frame, int usermode)
 
 	va = trunc_page(stval);
 
-	if (frame->tf_scause == EXCP_STORE_PAGE_FAULT) {
+	if (frame->tf_scause == SCAUSE_STORE_PAGE_FAULT) {
 		ftype = VM_PROT_WRITE;
-	} else if (frame->tf_scause == EXCP_INST_PAGE_FAULT) {
+	} else if (frame->tf_scause == SCAUSE_INST_PAGE_FAULT) {
 		ftype = VM_PROT_EXECUTE;
 	} else {
 		ftype = VM_PROT_READ;
@@ -232,7 +232,7 @@ page_fault_handler(struct trapframe *frame, int usermode)
 	if (error != KERN_SUCCESS) {
 		if (usermode) {
 			call_trapsignal(td, sig, ucode, (void *)stval,
-			    frame->tf_scause & EXCP_MASK);
+			    frame->tf_scause & SCAUSE_CODE);
 		} else {
 			if (pcb->pcb_onfault != 0) {
 				frame->tf_a[0] = error;
@@ -262,8 +262,8 @@ do_trap_supervisor(struct trapframe *frame)
 	KASSERT((csr_read(sstatus) & (SSTATUS_SPP | SSTATUS_SIE)) ==
 	    SSTATUS_SPP, ("Came from S mode with interrupts enabled"));
 
-	exception = frame->tf_scause & EXCP_MASK;
-	if (frame->tf_scause & EXCP_INTR) {
+	exception = frame->tf_scause & SCAUSE_CODE;
+	if ((frame->tf_scause & SCAUSE_INTR) != 0) {
 		/* Interrupt */
 		riscv_cpu_intr(frame);
 		return;
@@ -278,18 +278,18 @@ do_trap_supervisor(struct trapframe *frame)
 	    curthread, frame->tf_sepc, frame);
 
 	switch (exception) {
-	case EXCP_FAULT_LOAD:
-	case EXCP_FAULT_STORE:
-	case EXCP_FAULT_FETCH:
+	case SCAUSE_LOAD_ACCESS_FAULT:
+	case SCAUSE_STORE_ACCESS_FAULT:
+	case SCAUSE_INST_ACCESS_FAULT:
 		dump_regs(frame);
 		panic("Memory access exception at 0x%016lx\n", frame->tf_sepc);
 		break;
-	case EXCP_STORE_PAGE_FAULT:
-	case EXCP_LOAD_PAGE_FAULT:
-	case EXCP_INST_PAGE_FAULT:
+	case SCAUSE_STORE_PAGE_FAULT:
+	case SCAUSE_LOAD_PAGE_FAULT:
+	case SCAUSE_INST_PAGE_FAULT:
 		page_fault_handler(frame, 0);
 		break;
-	case EXCP_BREAKPOINT:
+	case SCAUSE_BREAKPOINT:
 #ifdef KDTRACE_HOOKS
 		if (dtrace_invop_jump_addr != NULL &&
 		    dtrace_invop_jump_addr(frame) == 0)
@@ -302,7 +302,7 @@ do_trap_supervisor(struct trapframe *frame)
 		panic("No debugger in kernel.\n");
 #endif
 		break;
-	case EXCP_ILLEGAL_INSTRUCTION:
+	case SCAUSE_ILLEGAL_INSTRUCTION:
 		dump_regs(frame);
 		panic("Illegal instruction at 0x%016lx\n", frame->tf_sepc);
 		break;
@@ -330,8 +330,8 @@ do_trap_user(struct trapframe *frame)
 	KASSERT((csr_read(sstatus) & (SSTATUS_SPP | SSTATUS_SIE)) == 0,
 	    ("Came from U mode with interrupts enabled"));
 
-	exception = frame->tf_scause & EXCP_MASK;
-	if (frame->tf_scause & EXCP_INTR) {
+	exception = frame->tf_scause & SCAUSE_CODE;
+	if ((frame->tf_scause & SCAUSE_INTR) != 0) {
 		/* Interrupt */
 		riscv_cpu_intr(frame);
 		return;
@@ -342,23 +342,23 @@ do_trap_user(struct trapframe *frame)
 	    curthread, frame->tf_sepc, frame);
 
 	switch (exception) {
-	case EXCP_FAULT_LOAD:
-	case EXCP_FAULT_STORE:
-	case EXCP_FAULT_FETCH:
+	case SCAUSE_LOAD_ACCESS_FAULT:
+	case SCAUSE_STORE_ACCESS_FAULT:
+	case SCAUSE_INST_ACCESS_FAULT:
 		call_trapsignal(td, SIGBUS, BUS_ADRERR, (void *)frame->tf_sepc,
 		    exception);
 		userret(td, frame);
 		break;
-	case EXCP_STORE_PAGE_FAULT:
-	case EXCP_LOAD_PAGE_FAULT:
-	case EXCP_INST_PAGE_FAULT:
+	case SCAUSE_STORE_PAGE_FAULT:
+	case SCAUSE_LOAD_PAGE_FAULT:
+	case SCAUSE_INST_PAGE_FAULT:
 		page_fault_handler(frame, 1);
 		break;
-	case EXCP_USER_ECALL:
+	case SCAUSE_ECALL_USER:
 		frame->tf_sepc += 4;	/* Next instruction */
 		ecall_handler();
 		break;
-	case EXCP_ILLEGAL_INSTRUCTION:
+	case SCAUSE_ILLEGAL_INSTRUCTION:
 #ifdef FPE
 		if ((pcb->pcb_fpflags & PCB_FP_STARTED) == 0) {
 			/*
@@ -376,7 +376,7 @@ do_trap_user(struct trapframe *frame)
 		    exception);
 		userret(td, frame);
 		break;
-	case EXCP_BREAKPOINT:
+	case SCAUSE_BREAKPOINT:
 		call_trapsignal(td, SIGTRAP, TRAP_BRKPT, (void *)frame->tf_sepc,
 		    exception);
 		userret(td, frame);
