@@ -202,9 +202,9 @@ dtrace_trap(struct trapframe *frame, u_int type)
 		 * All the rest will be handled in the usual way.
 		 */
 		switch (type) {
-		case EXCP_FAULT_LOAD:
-		case EXCP_FAULT_STORE:
-		case EXCP_FAULT_FETCH:
+		case SCAUSE_LOAD_ACCESS_FAULT:
+		case SCAUSE_STORE_ACCESS_FAULT:
+		case SCAUSE_INST_ACCESS_FAULT:
 			/* Flag a bad address. */
 			cpu_core[curcpu].cpuc_dtrace_flags |= CPU_DTRACE_BADADDR;
 			cpu_core[curcpu].cpuc_dtrace_illval = 0;
