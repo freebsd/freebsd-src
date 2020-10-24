@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2020
+.Dd October 2, 2020
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -45,6 +45,9 @@ packets to network hosts
 .\" .Op Fl ADdEfmnNqRtvwW
 .Bk -words
 .Op Fl b Ar bufsiz
+.Ek
+.Bk -words
+.Op Fl C Ar pcp
 .Ek
 .Bk -words
 .Op Fl c Ar count
@@ -144,6 +147,9 @@ This is an experimental option.
 .El
 .It Fl b Ar bufsiz
 Set socket buffer size.
+.It Fl C Ar pcp
+Add an 802.1p Ethernet Priority Code Point when sending a packet.
+0..7 uses that specific PCP, -1 uses the interface default PCP (or none).
 .It Fl c Ar count
 Stop after sending
 (and receiving)
