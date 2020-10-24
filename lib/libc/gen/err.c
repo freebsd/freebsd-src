@@ -161,7 +161,7 @@ warnc(int code, const char *fmt, ...)
 void
 vwarnc(int code, const char *fmt, va_list ap)
 {
-	static int saved_errno;
+	int saved_errno;
 
 	saved_errno = errno;
 	if (err_file == NULL)
@@ -187,7 +187,7 @@ warnx(const char *fmt, ...)
 void
 vwarnx(const char *fmt, va_list ap)
 {
-	static int saved_errno;
+	int saved_errno;
 
 	saved_errno = errno;
 	if (err_file == NULL)
