@@ -787,15 +787,16 @@ void
 tcp_sack_partialack(struct tcpcb *tp, struct tcphdr *th)
 {
 	int num_segs = 1;
+	u_int maxseg = tcp_maxseg(tp);
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 	tcp_timer_activate(tp, TT_REXMT, 0);
 	tp->t_rtttime = 0;
 	/* Send one or 2 segments based on how much new data was acked. */
-	if ((BYTES_THIS_ACK(tp, th) / tp->t_maxseg) >= 2)
+	if ((BYTES_THIS_ACK(tp, th) / maxseg) >= 2)
 		num_segs = 2;
 	tp->snd_cwnd = (tp->sackhint.sack_bytes_rexmit +
-	    (tp->snd_nxt - tp->sack_newdata) + num_segs * tp->t_maxseg);
+	    (tp->snd_nxt - tp->sack_newdata) + num_segs * maxseg);
 	if (tp->snd_cwnd > tp->snd_ssthresh)
 		tp->snd_cwnd = tp->snd_ssthresh;
 	tp->t_flags |= TF_ACKNOW;

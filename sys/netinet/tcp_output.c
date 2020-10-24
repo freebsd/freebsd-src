@@ -322,7 +322,7 @@ again:
 			sendalot = 1;
 			TCPSTAT_INC(tcps_sack_rexmits);
 			TCPSTAT_ADD(tcps_sack_rexmit_bytes,
-			    min(len, tp->t_maxseg));
+			    min(len, tcp_maxseg(tp)));
 		}
 	}
 after_sack_rexmit:
@@ -841,7 +841,6 @@ send:
 			if (flags & TH_SYN)
 				to.to_flags |= TOF_SACKPERM;
 			else if (TCPS_HAVEESTABLISHED(tp->t_state) &&
-			    (tp->t_flags & TF_SACK_PERMIT) &&
 			    tp->rcv_numsacks > 0) {
 				to.to_flags |= TOF_SACK;
 				to.to_nsacks = tp->rcv_numsacks;
