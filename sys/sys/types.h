@@ -300,9 +300,6 @@ typedef	struct vm_page	*vm_page_t;
 #define	__bool_true_false_are_defined	1
 #define	false	0
 #define	true	1
-#if __STDC_VERSION__ < 199901L && __GNUC__ < 3 && !defined(__INTEL_COMPILER)
-typedef	int	_Bool;
-#endif
 typedef	_Bool	bool;
 #endif /* !__bool_true_false_are_defined && !__cplusplus */
 #endif /* KERNEL || _STANDALONE */
