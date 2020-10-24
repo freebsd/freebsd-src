@@ -1163,7 +1163,6 @@ cache_neg_evict(void)
 {
 	struct namecache *ncp, *ncp2;
 	struct neglist *nl;
-	struct negstate *ns;
 	struct vnode *dvp;
 	struct mtx *dvlp;
 	struct mtx *blp;
@@ -1188,7 +1187,6 @@ cache_neg_evict(void)
 		mtx_unlock(&nl->nl_evict_lock);
 		return (false);
 	}
-	ns = NCP2NEGSTATE(ncp);
 	nlen = ncp->nc_nlen;
 	dvp = ncp->nc_dvp;
 	hash = cache_get_hash(ncp->nc_name, nlen, dvp);
@@ -4322,11 +4320,9 @@ cache_fplookup_parse_advance(struct cache_fpl *fpl)
 static int __noinline
 cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 {
-	struct componentname *cnp;
 	struct vnode *dvp;
 	seqc_t dvp_seqc;
 
-	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 
