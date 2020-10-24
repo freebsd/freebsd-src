@@ -233,13 +233,14 @@ cache_ncp_invalidate(struct namecache *ncp)
  * All places which elide locks are supposed to call this after they are
  * done with reading from an entry.
  */
-static bool
-cache_ncp_canuse(struct namecache *ncp)
-{
-
-	atomic_thread_fence_acq();
-	return ((atomic_load_char(&ncp->nc_flag) & (NCF_INVALID | NCF_WIP)) == 0);
-}
+#define cache_ncp_canuse(ncp)	({					\
+	struct namecache *_ncp = (ncp);					\
+	u_char _nc_flag;						\
+									\
+	atomic_thread_fence_acq();					\
+	_nc_flag = atomic_load_char(&_ncp->nc_flag);			\
+	__predict_true((_nc_flag & (NCF_INVALID | NCF_WIP)) == 0);	\
+})
 
 /*
  * Name caching works as follows:
@@ -1056,7 +1057,7 @@ cache_neg_promote_cond(struct vnode *dvp, struct componentname *cnp,
 		goto out_abort;
 	}
 
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		goto out_abort;
 	}
 
@@ -1834,7 +1835,7 @@ negative_success:
 	cache_out_ts(ncp, tsp, ticksp);
 	whiteout = (ncp->nc_flag & NCF_WHITE);
 	neg_promote = cache_neg_hit_prep(ncp);
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		cache_neg_hit_abort(ncp);
 		vfs_smr_exit();
 		goto out_fallback;
@@ -4008,7 +4009,7 @@ cache_fplookup_dotdot(struct cache_fpl *fpl)
 		fpl->tvp = ncp->nc_dvp;
 	}
 
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		return (cache_fpl_aborted(fpl));
 	}
 
@@ -4041,7 +4042,7 @@ cache_fplookup_neg(struct cache_fpl *fpl, struct namecache *ncp, uint32_t hash)
 		return (cache_fpl_partial(fpl));
 	}
 	neg_promote = cache_neg_hit_prep(ncp);
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		cache_neg_hit_abort(ncp);
 		return (cache_fpl_partial(fpl));
 	}
@@ -4096,7 +4097,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 		return (cache_fplookup_neg(fpl, ncp, hash));
 	}
 
-	if (__predict_false(!cache_ncp_canuse(ncp))) {
+	if (!cache_ncp_canuse(ncp)) {
 		return (cache_fpl_partial(fpl));
 	}
 
