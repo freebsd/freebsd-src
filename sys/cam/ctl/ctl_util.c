@@ -740,8 +740,9 @@ ctl_io_sbuf(union ctl_io *io, struct sbuf *sb)
 	case CTL_IO_SCSI:
 		sbuf_cat(sb, path_str);
 		ctl_scsi_command_string(&io->scsiio, NULL, sb);
-		sbuf_printf(sb, " Tag: %#x/%d\n",
-			    io->scsiio.tag_num, io->scsiio.tag_type);
+		sbuf_printf(sb, " Tag: %#x/%d, Prio: %d\n",
+			    io->scsiio.tag_num, io->scsiio.tag_type,
+			    io->scsiio.priority);
 		break;
 	case CTL_IO_TASK:
 		sbuf_cat(sb, path_str);

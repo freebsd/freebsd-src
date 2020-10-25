@@ -1917,6 +1917,8 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 		atiop->tag_action = 0;
 		break;
 	}
+	atiop->priority = (aep->at_cmnd.fcp_cmnd_task_attribute &
+	    FCP_CMND_PRIO_MASK) >> FCP_CMND_PRIO_SHIFT;
 	atp->orig_datalen = aep->at_cmnd.cdb_dl.sf.fcp_cmnd_dl;
 	atp->bytes_xfered = 0;
 	atp->lun = lun;
