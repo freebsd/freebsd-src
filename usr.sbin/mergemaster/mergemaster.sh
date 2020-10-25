@@ -143,7 +143,7 @@ diff_loop () {
 	echo '   ======================================================================   '
 	echo ''
         (
-          echo "  *** Displaying differences between ${COMPFILE} and installed version:"
+          echo "  *** Displaying differences between installed version and ${COMPFILE}:"
           echo ''
           diff ${DIFF_FLAG} ${DIFF_OPTIONS} "${DESTDIR}${COMPFILE#.}" "${COMPFILE}"
         ) | ${PAGER}
