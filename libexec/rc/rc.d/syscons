@@ -151,7 +151,7 @@ kbdcontrol_load_keymap()
 		if [ -n "${keymap_vt}" ]; then
 			errmsg=`kbdcontrol < ${kbddev} -l ${keymap_vt} 2>&1`
 			if [ -z "${errmsg}" ]; then
-		    		_sc_keymap_msg="New keymap: In /etc/rc.conf replace 'keymap=${keymap}' by 'keymap=${keymap_vt}'"
+				_sc_keymap_msg="New keymap: In /etc/rc.conf replace 'keymap=${keymap}' by 'keymap=${keymap_vt}'"
 			fi
 		else
 			_sc_keymap_msg="No replacement found for keymap '${keymap}'.
