@@ -1603,6 +1603,8 @@ ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto)
 		m_freem(m);
 		return;
 	}
+	/* Direct packet to correct FIB based on interface config */
+	M_SETFIB(m, ifp->if_fib);
 	/*
 	 * Dispatch frame to upper layer.
 	 */
