@@ -546,7 +546,8 @@ default:							\
 #define	XS_TAG_TYPE(ccb)	\
 	((ccb->tag_action == MSG_SIMPLE_Q_TAG)? REQFLAG_STAG : \
 	 ((ccb->tag_action == MSG_HEAD_OF_Q_TAG)? REQFLAG_HTAG : REQFLAG_OTAG))
-		
+
+#define	XS_PRIORITY(ccb)	(ccb)->priority
 
 #define	XS_SETERR(ccb, v)	(ccb)->ccb_h.status &= ~CAM_STATUS_MASK, \
 				(ccb)->ccb_h.status |= v

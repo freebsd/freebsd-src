@@ -4554,7 +4554,9 @@ isp_start(XS_T *xs)
 		} else {
 			ttype = FCP_CMND_TASK_ATTR_SIMPLE;
 		}
-		((ispreqt7_t *)reqp)->req_task_attribute = ttype;
+		((ispreqt7_t *)reqp)->req_task_attribute = ttype |
+		    ((XS_PRIORITY(xs) << FCP_CMND_PRIO_SHIFT) &
+		     FCP_CMND_PRIO_MASK);
 	} else if (IS_FC(isp)) {
 		/*
 		 * See comment in isp_intr_respq
