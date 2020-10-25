@@ -1036,6 +1036,7 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	XS_SNSASCQ(xs)		dereferences XS_SNSP to get the current stored Additional Sense Code Qualifier
  *	XS_TAG_P(xs)		predicate of whether this command should be tagged
  *	XS_TAG_TYPE(xs)		which type of tag to use
+ *	XS_PRIORITY(xs)		command priority for SIMPLE tag
  *	XS_SETERR(xs)		set error state
  *
  *		HBA_NOERROR	command has no erros
