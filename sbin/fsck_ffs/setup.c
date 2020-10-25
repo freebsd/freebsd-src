@@ -330,7 +330,7 @@ readsb(int listerr)
 	int bad, ret;
 	struct fs *fs;
 
-	super = bflag ? bflag * dev_bsize : STDSB;
+	super = bflag ? bflag * dev_bsize : STDSB_NOHASHFAIL;
 	readcnt[sblk.b_type]++;
 	if ((ret = sbget(fsreadfd, &fs, super)) != 0) {
 		switch (ret) {
