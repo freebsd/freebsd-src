@@ -59,7 +59,6 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
-int	subdir(const char *, const char *);
 static void	usage(void) __dead2;
 
 int
@@ -104,10 +103,6 @@ main(int argc, char *argv[])
 	if (checkpath(argv[1], source) != 0)
 		err(EX_USAGE, "%s", source);
 
-	if (subdir(target, source) || subdir(source, target))
-		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
-		    argv[0], target, argv[1]);
-
 	build_iovec(&iov, &iovlen, "fstype", nullfs, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", source, (size_t)-1);
 	build_iovec(&iov, &iovlen, "target", target, (size_t)-1);
@@ -119,21 +114,6 @@ main(int argc, char *argv[])
 			err(1, "%s", source);
 	}
 	exit(0);
-}
-
-int
-subdir(const char *p, const char *dir)
-{
-	int l;
-
-	l = strlen(dir);
-	if (l <= 1)
-		return (1);
-
-	if ((strncmp(p, dir, l) == 0) && (p[l] == '/' || p[l] == '\0'))
-		return (1);
-
-	return (0);
 }
 
 static void
