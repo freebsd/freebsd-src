@@ -6,7 +6,9 @@ NO_WERROR=
 WARNS?=	2
 
 CFLAGS.h_raw+=	-fstack-protector-all -Wstack-protector
-.if ${COMPILER_TYPE} == "clang"
+.if ${COMPILER_TYPE} == "clang" && ${CC} == "cc"
+# Only use -fsanitize=bounds when using the in-tree compiler.  Otherwise
+# we may link to a sanitizer library targeted at a newer kernel/libc.
 CFLAGS.h_raw+=	-fsanitize=bounds
 .elif ${COMPILER_TYPE} == "gcc"
 CFLAGS.h_raw+=	--param ssp-buffer-size=1
