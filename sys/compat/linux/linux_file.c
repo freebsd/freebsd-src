@@ -715,8 +715,16 @@ linux_renameat2(struct thread *td, struct linux_renameat2_args *args)
 		    args->flags & (LINUX_RENAME_NOREPLACE |
 		    LINUX_RENAME_WHITEOUT))
 			return (EINVAL);
+#if 0
+		/*
+		 * This spams the console on Ubuntu Focal.
+		 *
+		 * What's needed here is a general mechanism to let users know
+		 * about missing features without hogging the system.
+		 */
 		linux_msg(td, "renameat2 unsupported flags 0x%x",
 		    args->flags);
+#endif
 		return (EINVAL);
 	}
 
