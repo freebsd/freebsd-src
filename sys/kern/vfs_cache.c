@@ -3607,13 +3607,24 @@ cache_fpl_checkpoint(struct cache_fpl *fpl, struct nameidata_saved *snd)
 }
 
 static void
-cache_fpl_restore(struct cache_fpl *fpl, struct nameidata_saved *snd)
+cache_fpl_restore_partial(struct cache_fpl *fpl, struct nameidata_saved *snd)
 {
 
 	fpl->ndp->ni_cnd.cn_flags = snd->cn_flags;
 	fpl->ndp->ni_cnd.cn_namelen = snd->cn_namelen;
 	fpl->ndp->ni_cnd.cn_nameptr = snd->cn_nameptr;
 	fpl->ndp->ni_pathlen = snd->ni_pathlen;
+}
+
+static void
+cache_fpl_restore_abort(struct cache_fpl *fpl, struct nameidata_saved *snd)
+{
+
+	cache_fpl_restore_partial(fpl, snd);
+	/*
+	 * It is 0 on entry by API contract.
+	 */
+	fpl->ndp->ni_resflags = 0;
 }
 
 #ifdef INVARIANTS
@@ -3846,7 +3857,7 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 		return (cache_fpl_aborted(fpl));
 	}
 
-	cache_fpl_restore(fpl, &fpl->snd);
+	cache_fpl_restore_partial(fpl, &fpl->snd);
 
 	ndp->ni_startdir = dvp;
 	cnp->cn_flags |= MAKEENTRY;
@@ -4696,6 +4707,7 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	if (cnp->cn_pnbuf[0] == '/') {
 		cache_fpl_handle_root(ndp, &dvp);
+		ndp->ni_resflags |= NIRES_ABS;
 	} else {
 		if (ndp->ni_dirfd == AT_FDCWD) {
 			dvp = pwd->pwd_cdir;
@@ -4730,7 +4742,7 @@ out:
 		 */
 		break;
 	case CACHE_FPL_STATUS_ABORTED:
-		cache_fpl_restore(&fpl, &orig);
+		cache_fpl_restore_abort(&fpl, &orig);
 		break;
 	}
 	return (error);
