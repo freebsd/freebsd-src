@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sdt.h>
 
+#include <security/audit/audit.h>
+
 #include <arm64/linux/linux.h>
 #include <arm64/linux/linux_proto.h>
 #include <compat/linux/linux_dtrace.h>
@@ -78,6 +80,7 @@ linux_execve(struct thread *td, struct linux_execve_args *uap)
 	}
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
+	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
 	return (error);
 }
 
