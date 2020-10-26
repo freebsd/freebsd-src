@@ -197,13 +197,6 @@ sbi_shutdown(void)
 }
 
 static __inline void
-sbi_clear_ipi(void)
-{
-
-	(void)SBI_CALL0(SBI_CLEAR_IPI, 0);
-}
-
-static __inline void
 sbi_send_ipi(const unsigned long *hart_mask)
 {
 
