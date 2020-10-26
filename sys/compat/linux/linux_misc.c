@@ -874,6 +874,13 @@ linux_utimensat(struct thread *td, struct linux_utimensat_args *args)
 			return (0);
 	}
 
+	if (!LUSECONVPATH(td)) {
+		if (args->pathname != NULL) {
+			return (kern_utimensat(td, dfd, args->pathname,
+			    UIO_USERSPACE, timesp, UIO_SYSSPACE, flags));
+		}
+	}
+
 	if (args->pathname != NULL)
 		LCONVPATHEXIST_AT(td, args->pathname, &path, dfd);
 	else if (args->flags != 0)
