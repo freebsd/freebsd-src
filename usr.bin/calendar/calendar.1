@@ -28,7 +28,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2020
+.Dd October 25, 2020
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -255,8 +255,8 @@ The order of precedence in searches for a calendar file is:
 current directory, ~/.calendar, /usr/local/share/calendar, /usr/share/calendar.
 Files of similar names are ignored in lower precedence locations.
 .Pp
-The following default calendar files are provided in
-.Pa /usr/share/calendar :
+The following default calendar files are provided by the
+deskutils/calendar-data port.
 .Pp
 .Bl -tag -width calendar.southafrica -compact
 .It Pa calendar.all
@@ -291,8 +291,8 @@ Other holidays, including the not-well-known, obscure, and
 obscure.
 .It Pa calendar.judaic
 Jewish holidays.
-The entries for this calendar have been obtained from the port
-deskutils/hebcal.
+The entries for this calendar have been obtained from the
+deskutils/hebcal port.
 .It Pa calendar.music
 Musical events, births, and deaths.
 Strongly oriented toward rock 'n' roll.
