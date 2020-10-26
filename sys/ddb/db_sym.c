@@ -371,8 +371,21 @@ db_search_symbol(db_addr_t val, db_strategy_t strategy, db_expr_t *offp)
 	unsigned int	diff;
 	size_t		newdiff;
 	int		i;
-	c_db_sym_t	ret = C_DB_SYM_NULL, sym;
+	c_db_sym_t	ret, sym;
 
+	/*
+	 * The kernel will never map the first page, so any symbols in that
+	 * range cannot refer to addresses.  Some third-party assembly files
+	 * define internal constants which appear in their symbol table.
+	 * Avoiding the lookup for those symbols avoids replacing small offsets
+	 * with those symbols during disassembly.
+	 */
+	if (val < PAGE_SIZE) {
+		*offp = 0;
+		return (C_DB_SYM_NULL);
+	}
+
+	ret = C_DB_SYM_NULL;
 	newdiff = diff = val;
 	for (i = 0; i < db_nsymtab; i++) {
 	    sym = X_db_search_symbol(&db_symtabs[i], val, strategy, &newdiff);
