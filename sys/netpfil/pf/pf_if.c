@@ -258,8 +258,10 @@ pfi_kif_unref(struct pfi_kif *kif)
 	if (kif->pfik_rulerefs > 0)
 		return;
 
-	/* kif referencing an existing ifnet or group should exist. */
-	if (kif->pfik_ifp != NULL || kif->pfik_group != NULL || kif == V_pfi_all)
+	/* kif referencing an existing ifnet or group or holding flags should
+	 * exist. */
+	if (kif->pfik_ifp != NULL || kif->pfik_group != NULL ||
+	    kif == V_pfi_all || kif->pfik_flags != 0)
 		return;
 
 	RB_REMOVE(pfi_ifhead, &V_pfi_ifs, kif);
@@ -814,7 +816,7 @@ pfi_clear_flags(const char *name, int flags)
 		p->pfik_flags &= ~flags;
 
 		if (p->pfik_ifp == NULL && p->pfik_group == NULL &&
-		    p->pfik_flags == 0) {
+		    p->pfik_flags == 0 && p->pfik_rulerefs == 0) {
 			/* Delete this kif. */
 			RB_REMOVE(pfi_ifhead, &V_pfi_ifs, p);
 			free(p, PFI_MTYPE);
