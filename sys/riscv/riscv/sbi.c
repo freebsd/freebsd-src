@@ -183,8 +183,6 @@ sbi_init(void)
 	    ("SBI doesn't implement sbi_console_putchar()"));
 	KASSERT(sbi_probe_extension(SBI_CONSOLE_GETCHAR) != 0,
 	    ("SBI doesn't implement sbi_console_getchar()"));
-	KASSERT(sbi_probe_extension(SBI_CLEAR_IPI) != 0,
-	    ("SBI doesn't implement sbi_clear_ipi()"));
 	KASSERT(sbi_probe_extension(SBI_SEND_IPI) != 0,
 	    ("SBI doesn't implement sbi_send_ipi()"));
 	KASSERT(sbi_probe_extension(SBI_REMOTE_FENCE_I) != 0,

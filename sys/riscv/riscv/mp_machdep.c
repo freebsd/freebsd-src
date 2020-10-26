@@ -317,7 +317,7 @@ ipi_handler(void *arg)
 	u_int cpu, ipi;
 	int bit;
 
-	sbi_clear_ipi();
+	csr_clear(sip, SIP_SSIP);
 
 	cpu = PCPU_GET(cpuid);
 
