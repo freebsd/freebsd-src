@@ -109,6 +109,8 @@ cal_fopen(const char *file)
 	FILE *fp;
 	char *home = getenv("HOME");
 	unsigned int i;
+	struct stat sb;
+	static bool warned = false;
 
 	if (home == NULL || *home == '\0') {
 		warnx("Cannot get home directory");
@@ -129,6 +131,10 @@ cal_fopen(const char *file)
 	}
 
 	warnx("can't open calendar file \"%s\"", file);
+	if (!warned && stat(_PATH_INCLUDE_LOCAL, &sb) != 0) {
+		warnx("calendar data files now provided by calendar-data pkg.");
+		warned = true;
+	}
 
 	return (NULL);
 }
