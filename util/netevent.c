@@ -373,12 +373,7 @@ comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 	if(sent == -1) {
 		if(!udp_send_errno_needs_log(addr, addrlen))
 			return 0;
-#ifndef USE_WINSOCK
-		verbose(VERB_OPS, "sendto failed: %s", strerror(errno));
-#else
-		verbose(VERB_OPS, "sendto failed: %s", 
-			wsa_strerror(WSAGetLastError()));
-#endif
+		verbose(VERB_OPS, "sendto failed: %s", sock_strerror(errno));
 		log_addr(VERB_OPS, "remote address is", 
 			(struct sockaddr_storage*)addr, addrlen);
 		return 0;
@@ -739,7 +734,7 @@ static void
 setup_tcp_handler(struct comm_point* c, int fd, int cur, int max) 
 {
 	int handler_usage;
-	log_assert(c->type == comm_tcp);
+	log_assert(c->type == comm_tcp || c->type == comm_http);
 	log_assert(c->fd == -1);
 	sldns_buffer_clear(c->buffer);
 #ifdef USE_DNSCRYPT
@@ -845,7 +840,6 @@ int comm_point_perform_accept(struct comm_point* c,
 			return -1;
 		}
 #endif
-		log_err_addr("accept failed", strerror(errno), addr, *addrlen);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() == WSAEINPROGRESS ||
 			WSAGetLastError() == WSAECONNRESET)
@@ -854,9 +848,9 @@ int comm_point_perform_accept(struct comm_point* c,
 			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_READ);
 			return -1;
 		}
-		log_err_addr("accept failed", wsa_strerror(WSAGetLastError()),
-			addr, *addrlen);
 #endif
+		log_err_addr("accept failed", sock_strerror(errno), addr,
+			*addrlen);
 		return -1;
 	}
 	if(c->tcp_conn_limit && c->type == comm_tcp_accept) {
@@ -914,6 +908,42 @@ comm_point_tcp_win_bio_cb(struct comm_point* c, void* thessl)
 }
 #endif
 
+#ifdef HAVE_NGHTTP2
+/** Create http2 session server.  Per connection, after TCP accepted.*/
+static int http2_session_server_create(struct http2_session* h2_session)
+{
+	log_assert(h2_session->callbacks);
+	h2_session->is_drop = 0;
+	if(nghttp2_session_server_new(&h2_session->session,
+			h2_session->callbacks,
+		h2_session) == NGHTTP2_ERR_NOMEM) {
+		log_err("failed to create nghttp2 session server");
+		return 0;
+	}
+
+	return 1;
+}
+
+/** Submit http2 setting to session. Once per session. */
+static int http2_submit_settings(struct http2_session* h2_session)
+{
+	int ret;
+	nghttp2_settings_entry settings[1] = {
+		{NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS,
+		 h2_session->c->http2_max_streams}};
+
+	ret = nghttp2_submit_settings(h2_session->session, NGHTTP2_FLAG_NONE,
+		settings, 1);
+	if(ret) {
+		verbose(VERB_QUERY, "http2: submit_settings failed, "
+			"error: %s", nghttp2_strerror(ret));
+		return 0;
+	}
+	return 1;
+}
+#endif /* HAVE_NGHTTP2 */
+
+
 void 
 comm_point_tcp_accept_callback(int fd, short event, void* arg)
 {
@@ -935,7 +965,28 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 	/* clear leftover flags from previous use, and then set the
 	 * correct event base for the event structure for libevent */
 	ub_event_free(c_hdl->ev->ev);
-	c_hdl->ev->ev = ub_event_new(c_hdl->ev->base->eb->base, -1, UB_EV_PERSIST | UB_EV_READ | UB_EV_TIMEOUT, comm_point_tcp_handle_callback, c_hdl);
+
+	if(c_hdl->type == comm_http) {
+#ifdef HAVE_NGHTTP2
+		if(!c_hdl->h2_session ||
+			!http2_session_server_create(c_hdl->h2_session)) {
+			log_warn("failed to create nghttp2");
+			return;
+		}
+		if(!c_hdl->h2_session ||
+			!http2_submit_settings(c_hdl->h2_session)) {
+			log_warn("failed to submit http2 settings");
+			return;
+		}
+#endif
+		c_hdl->ev->ev = ub_event_new(c_hdl->ev->base->eb->base, -1,
+			UB_EV_PERSIST | UB_EV_READ | UB_EV_TIMEOUT,
+			comm_point_http_handle_callback, c_hdl);
+	} else {
+		c_hdl->ev->ev = ub_event_new(c_hdl->ev->base->eb->base, -1,
+			UB_EV_PERSIST | UB_EV_READ | UB_EV_TIMEOUT,
+			comm_point_tcp_handle_callback, c_hdl);
+	}
 	if(!c_hdl->ev->ev) {
 		log_warn("could not ub_event_new, dropped tcp");
 		return;
@@ -1167,6 +1218,18 @@ ssl_handshake(struct comm_point* c)
 		 * in c->ssl when the ssl object was created from ssl_ctx */
 		log_addr(VERB_ALGO, "SSL connection", &c->repinfo.addr,
 			c->repinfo.addrlen);
+	}
+
+	/* check if http2 use is negotiated */
+	if(c->type == comm_http && c->h2_session) {
+		const unsigned char *alpn;
+		unsigned int alpnlen = 0;
+		SSL_get0_alpn_selected(c->ssl, &alpn, &alpnlen);
+		if(alpnlen == 2 && memcmp("h2", alpn, 2) == 0) {
+			/* connection upgraded to HTTP2 */
+			c->tcp_do_toggle_rw = 0;
+			c->use_h2 = 1;
+		}
 	}
 
 	/* setup listen rw correctly */
@@ -1435,8 +1498,6 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 			if(errno == ECONNRESET && verbosity < 2)
 				return 0; /* silence reset by peer */
 #endif
-			log_err_addr("read (in tcp s)", strerror(errno),
-				&c->repinfo.addr, c->repinfo.addrlen);
 #else /* USE_WINSOCK */
 			if(WSAGetLastError() == WSAECONNRESET)
 				return 0;
@@ -1447,10 +1508,9 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 					UB_EV_READ);
 				return 1;
 			}
-			log_err_addr("read (in tcp s)", 
-				wsa_strerror(WSAGetLastError()),
-				&c->repinfo.addr, c->repinfo.addrlen);
 #endif
+			log_err_addr("read (in tcp s)", sock_strerror(errno),
+				&c->repinfo.addr, c->repinfo.addrlen);
 			return 0;
 		} 
 		c->tcp_byte_count += r;
@@ -1483,8 +1543,6 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return 1;
-		log_err_addr("read (in tcp r)", strerror(errno),
-			&c->repinfo.addr, c->repinfo.addrlen);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() == WSAECONNRESET)
 			return 0;
@@ -1494,10 +1552,9 @@ comm_point_tcp_handle_read(int fd, struct comm_point* c, int short_ok)
 			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_READ);
 			return 1;
 		}
-		log_err_addr("read (in tcp r)",
-			wsa_strerror(WSAGetLastError()),
-			&c->repinfo.addr, c->repinfo.addrlen);
 #endif
+		log_err_addr("read (in tcp r)", sock_strerror(errno),
+			&c->repinfo.addr, c->repinfo.addrlen);
 		return 0;
 	}
 	sldns_buffer_skip(c->buffer, r);
@@ -1716,8 +1773,6 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 		if(errno == ECONNRESET && verbosity < 2)
 			return 0; /* silence reset by peer */
 #endif
-		log_err_addr("tcp send r", strerror(errno),
-			&c->repinfo.addr, c->repinfo.addrlen);
 #else
 		if(WSAGetLastError() == WSAEINPROGRESS)
 			return 1;
@@ -1727,9 +1782,9 @@ comm_point_tcp_handle_write(int fd, struct comm_point* c)
 		}
 		if(WSAGetLastError() == WSAECONNRESET && verbosity < 2)
 			return 0; /* silence reset by peer */
-		log_err_addr("tcp send r", wsa_strerror(WSAGetLastError()),
-			&c->repinfo.addr, c->repinfo.addrlen);
 #endif
+		log_err_addr("tcp send r", sock_strerror(errno),
+			&c->repinfo.addr, c->repinfo.addrlen);
 		return 0;
 	}
 	sldns_buffer_skip(buffer, r);
@@ -1914,8 +1969,6 @@ http_read_more(int fd, struct comm_point* c)
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return 1;
-		log_err_addr("read (in http r)", strerror(errno),
-			&c->repinfo.addr, c->repinfo.addrlen);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() == WSAECONNRESET)
 			return 0;
@@ -1925,10 +1978,9 @@ http_read_more(int fd, struct comm_point* c)
 			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_READ);
 			return 1;
 		}
-		log_err_addr("read (in http r)",
-			wsa_strerror(WSAGetLastError()),
-			&c->repinfo.addr, c->repinfo.addrlen);
 #endif
+		log_err_addr("read (in http r)", sock_strerror(errno),
+			&c->repinfo.addr, c->repinfo.addrlen);
 		return 0;
 	}
 	sldns_buffer_skip(c->buffer, r);
@@ -2186,11 +2238,209 @@ http_chunked_segment(struct comm_point* c)
 	return 1;
 }
 
+#ifdef HAVE_NGHTTP2
+/** Create new http2 session. Called when creating handling comm point. */
+struct http2_session* http2_session_create(struct comm_point* c)
+{
+	struct http2_session* session = calloc(1, sizeof(*session));
+	if(!session) {
+		log_err("malloc failure while creating http2 session");
+		return NULL;
+	}
+	session->c = c;
+
+	return session;
+}
+#endif
+
+/** Delete http2 session. After closing connection or on error */
+void http2_session_delete(struct http2_session* h2_session)
+{
+#ifdef HAVE_NGHTTP2
+	if(h2_session->callbacks)
+		nghttp2_session_callbacks_del(h2_session->callbacks);
+	free(h2_session);
+#else
+	(void)h2_session;
+#endif
+}
+
+#ifdef HAVE_NGHTTP2
+struct http2_stream* http2_stream_create(int32_t stream_id)
+{
+	struct http2_stream* h2_stream = calloc(1, sizeof(*h2_stream));
+	if(!h2_stream) {
+		log_err("malloc failure while creating http2 stream");
+		return NULL;
+	}
+	h2_stream->stream_id = stream_id;
+	return h2_stream;
+}
+
+/** Delete http2 stream. After session delete or stream close callback */
+static void http2_stream_delete(struct http2_session* h2_session,
+	struct http2_stream* h2_stream)
+{
+	if(h2_stream->mesh_state) {
+		mesh_state_remove_reply(h2_stream->mesh, h2_stream->mesh_state,
+			h2_session->c);
+		h2_stream->mesh_state = NULL;
+	}
+	http2_req_stream_clear(h2_stream);
+	free(h2_stream);
+}
+#endif
+
+void http2_stream_add_meshstate(struct http2_stream* h2_stream,
+	struct mesh_area* mesh, struct mesh_state* m)
+{
+	h2_stream->mesh = mesh;
+	h2_stream->mesh_state = m;
+}
+
+/** delete http2 session server. After closing connection. */
+static void http2_session_server_delete(struct http2_session* h2_session)
+{
+#ifdef HAVE_NGHTTP2
+	struct http2_stream* h2_stream, *next;
+	nghttp2_session_del(h2_session->session); /* NULL input is fine */
+	h2_session->session = NULL;
+	for(h2_stream = h2_session->first_stream; h2_stream;) {
+		next = h2_stream->next;
+		http2_stream_delete(h2_session, h2_stream);
+		h2_stream = next;
+	}
+	h2_session->first_stream = NULL;
+	h2_session->is_drop = 0;
+	h2_session->postpone_drop = 0;
+	h2_session->c->h2_stream = NULL;
+#endif
+	(void)h2_session;
+}
+
+#ifdef HAVE_NGHTTP2
+void http2_session_add_stream(struct http2_session* h2_session,
+	struct http2_stream* h2_stream)
+{
+	if(h2_session->first_stream)
+		h2_session->first_stream->prev = h2_stream;
+	h2_stream->next = h2_session->first_stream;
+	h2_session->first_stream = h2_stream;
+}
+
+/** remove stream from session linked list. After stream close callback or
+ * closing connection */
+void http2_session_remove_stream(struct http2_session* h2_session,
+	struct http2_stream* h2_stream)
+{
+	if(h2_stream->prev)
+		h2_stream->prev->next = h2_stream->next;
+	else
+		h2_session->first_stream = h2_stream->next;
+	if(h2_stream->next)
+		h2_stream->next->prev = h2_stream->prev;
+
+}
+
+int http2_stream_close_cb(nghttp2_session* ATTR_UNUSED(session),
+	int32_t stream_id, uint32_t ATTR_UNUSED(error_code), void* cb_arg)
+{
+	struct http2_stream* h2_stream;
+	struct http2_session* h2_session = (struct http2_session*)cb_arg;
+	if(!(h2_stream = nghttp2_session_get_stream_user_data(
+		h2_session->session, stream_id))) {
+		return 0;
+	}
+	http2_session_remove_stream(h2_session, h2_stream);
+	http2_stream_delete(h2_session, h2_stream);
+	return 0;
+}
+
+ssize_t http2_recv_cb(nghttp2_session* ATTR_UNUSED(session), uint8_t* buf,
+	size_t len, int ATTR_UNUSED(flags), void* cb_arg)
+{
+#ifdef HAVE_SSL
+	struct http2_session* h2_session = (struct http2_session*)cb_arg;
+	int r;
+
+	log_assert(h2_session->c->type == comm_http);
+	log_assert(h2_session->c->h2_session);
+
+	if(!h2_session->c->ssl)
+		return 0;
+
+	ERR_clear_error();
+	r = SSL_read(h2_session->c->ssl, buf, len);
+	if(r <= 0) {
+		int want = SSL_get_error(h2_session->c->ssl, r);
+		if(want == SSL_ERROR_ZERO_RETURN) {
+			return NGHTTP2_ERR_EOF;
+		} else if(want == SSL_ERROR_WANT_READ) {
+			return NGHTTP2_ERR_WOULDBLOCK;
+		} else if(want == SSL_ERROR_WANT_WRITE) {
+			h2_session->c->ssl_shake_state = comm_ssl_shake_hs_write;
+			comm_point_listen_for_rw(h2_session->c, 0, 1);
+			return NGHTTP2_ERR_WOULDBLOCK;
+		} else if(want == SSL_ERROR_SYSCALL) {
+#ifdef ECONNRESET
+			if(errno == ECONNRESET && verbosity < 2)
+				return NGHTTP2_ERR_CALLBACK_FAILURE;
+#endif
+			if(errno != 0)
+				log_err("SSL_read syscall: %s",
+					strerror(errno));
+			return NGHTTP2_ERR_CALLBACK_FAILURE;
+		}
+		log_crypto_err("could not SSL_read");
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	}
+	return r;
+#else
+	(void)buf;
+	(void)len;
+	(void)cb_arg;
+	return -1;
+#endif
+}
+#endif /* HAVE_NGHTTP2 */
+
+/** Handle http2 read */
+static int
+comm_point_http2_handle_read(int ATTR_UNUSED(fd), struct comm_point* c)
+{
+#ifdef HAVE_NGHTTP2
+	int ret;
+	log_assert(c->h2_session);
+	log_assert(c->ssl);
+
+	/* reading until recv cb returns NGHTTP2_ERR_WOULDBLOCK */
+	ret = nghttp2_session_recv(c->h2_session->session);
+	if(ret) {
+		if(ret != NGHTTP2_ERR_EOF &&
+			ret != NGHTTP2_ERR_CALLBACK_FAILURE) {
+			verbose(VERB_QUERY, "http2: session_recv failed, "
+				"error: %s", nghttp2_strerror(ret));
+		}
+		return 0;
+	}
+	if(nghttp2_session_want_write(c->h2_session->session)) {
+		c->tcp_is_reading = 0;
+		comm_point_stop_listening(c);
+		comm_point_start_listening(c, -1, c->tcp_timeout_msec);
+	} else if(!nghttp2_session_want_read(c->h2_session->session))
+		return 0; /* connection can be closed */
+	return 1;
+#else
+	(void)c;
+	return 0;
+#endif
+}
+
 /**
- * Handle http reading callback. 
+ * Handle http reading callback.
  * @param fd: file descriptor of socket.
  * @param c: comm point to read from into buffer.
- * @return: 0 on error 
+ * @return: 0 on error
  */
 static int
 comm_point_http_handle_read(int fd, struct comm_point* c)
@@ -2210,6 +2460,18 @@ comm_point_http_handle_read(int fd, struct comm_point* c)
 
 	if(!c->tcp_is_reading)
 		return 1;
+
+	if(c->use_h2) {
+		return comm_point_http2_handle_read(fd, c);
+	}
+
+	/* http version is <= http/1.1 */
+
+	if(c->http_min_version >= http_version_2) {
+		/* HTTP/2 failed, not allowed to use lower version. */
+		return 0;
+	}
+
 	/* read more data */
 	if(c->ssl) {
 		if(!ssl_http_read_more(c))
@@ -2220,7 +2482,9 @@ comm_point_http_handle_read(int fd, struct comm_point* c)
 	}
 
 	sldns_buffer_flip(c->buffer);
+
 	while(sldns_buffer_remaining(c->buffer) > 0) {
+		/* Handle HTTP/1.x data */
 		/* if we are reading headers, read more headers */
 		if(c->http_in_headers || c->http_in_chunk_headers) {
 			/* if header is done, process the header */
@@ -2364,8 +2628,6 @@ http_write_more(int fd, struct comm_point* c)
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return 1;
-		log_err_addr("http send r", strerror(errno),
-			&c->repinfo.addr, c->repinfo.addrlen);
 #else
 		if(WSAGetLastError() == WSAEINPROGRESS)
 			return 1;
@@ -2373,13 +2635,90 @@ http_write_more(int fd, struct comm_point* c)
 			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_WRITE);
 			return 1; 
 		}
-		log_err_addr("http send r", wsa_strerror(WSAGetLastError()),
-			&c->repinfo.addr, c->repinfo.addrlen);
 #endif
+		log_err_addr("http send r", sock_strerror(errno),
+			&c->repinfo.addr, c->repinfo.addrlen);
 		return 0;
 	}
 	sldns_buffer_skip(c->buffer, r);
 	return 1;
+}
+
+#ifdef HAVE_NGHTTP2
+ssize_t http2_send_cb(nghttp2_session* ATTR_UNUSED(session), const uint8_t* buf,
+	size_t len, int ATTR_UNUSED(flags), void* cb_arg)
+{
+#ifdef HAVE_SSL
+	int r;
+	struct http2_session* h2_session = (struct http2_session*)cb_arg;
+	log_assert(h2_session->c->type == comm_http);
+	log_assert(h2_session->c->h2_session);
+
+	if(!h2_session->c->ssl)
+		return 0;
+
+	ERR_clear_error();
+	r = SSL_write(h2_session->c->ssl, buf, len);
+	if(r <= 0) {
+		int want = SSL_get_error(h2_session->c->ssl, r);
+		if(want == SSL_ERROR_ZERO_RETURN) {
+			return NGHTTP2_ERR_CALLBACK_FAILURE;
+		} else if(want == SSL_ERROR_WANT_READ) {
+			h2_session->c->ssl_shake_state = comm_ssl_shake_hs_read;
+			comm_point_listen_for_rw(h2_session->c, 1, 0);
+			return NGHTTP2_ERR_WOULDBLOCK;
+		} else if(want == SSL_ERROR_WANT_WRITE) {
+			return NGHTTP2_ERR_WOULDBLOCK;
+		} else if(want == SSL_ERROR_SYSCALL) {
+#ifdef EPIPE
+			if(errno == EPIPE && verbosity < 2)
+				return NGHTTP2_ERR_CALLBACK_FAILURE;
+#endif
+			if(errno != 0)
+				log_err("SSL_write syscall: %s",
+					strerror(errno));
+			return NGHTTP2_ERR_CALLBACK_FAILURE;
+		}
+		log_crypto_err("could not SSL_write");
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	}
+	return r;
+#else
+	(void)buf;
+	(void)len;
+	(void)cb_arg;
+	return -1;
+#endif
+}
+#endif /* HAVE_NGHTTP2 */
+
+/** Handle http2 writing */
+static int
+comm_point_http2_handle_write(int ATTR_UNUSED(fd), struct comm_point* c)
+{
+#ifdef HAVE_NGHTTP2
+	int ret;
+	log_assert(c->h2_session);
+	log_assert(c->ssl);
+
+	ret = nghttp2_session_send(c->h2_session->session);
+	if(ret) {
+		verbose(VERB_QUERY, "http2: session_send failed, "
+			"error: %s", nghttp2_strerror(ret));
+		return 0;
+	}
+
+	if(nghttp2_session_want_read(c->h2_session->session)) {
+		c->tcp_is_reading = 1;
+		comm_point_stop_listening(c);
+		comm_point_start_listening(c, -1, c->tcp_timeout_msec);
+	} else if(!nghttp2_session_want_write(c->h2_session->session))
+		return 0; /* connection can be closed */
+	return 1;
+#else
+	(void)c;
+	return 0;
+#endif
 }
 
 /** 
@@ -2413,6 +2752,18 @@ comm_point_http_handle_write(int fd, struct comm_point* c)
 #endif /* HAVE_SSL */
 	if(c->tcp_is_reading)
 		return 1;
+
+	if(c->use_h2) {
+		return comm_point_http2_handle_write(fd, c);
+	}
+
+	/* http version is <= http/1.1 */
+
+	if(c->http_min_version >= http_version_2) {
+		/* HTTP/2 failed, not allowed to use lower version. */
+		return 0;
+	}
+
 	/* if we are writing, write more */
 	if(c->ssl) {
 		if(!ssl_http_write_more(c))
@@ -2724,11 +3075,129 @@ comm_point_create_tcp_handler(struct comm_base *base,
 	return c;
 }
 
+static struct comm_point* 
+comm_point_create_http_handler(struct comm_base *base, 
+	struct comm_point* parent, size_t bufsize, int harden_large_queries,
+	uint32_t http_max_streams, char* http_endpoint,
+	comm_point_callback_type* callback, void* callback_arg)
+{
+	struct comm_point* c = (struct comm_point*)calloc(1,
+		sizeof(struct comm_point));
+	short evbits;
+	if(!c)
+		return NULL;
+	c->ev = (struct internal_event*)calloc(1,
+		sizeof(struct internal_event));
+	if(!c->ev) {
+		free(c);
+		return NULL;
+	}
+	c->ev->base = base;
+	c->fd = -1;
+	c->buffer = sldns_buffer_new(bufsize);
+	if(!c->buffer) {
+		free(c->ev);
+		free(c);
+		return NULL;
+	}
+	c->timeout = (struct timeval*)malloc(sizeof(struct timeval));
+	if(!c->timeout) {
+		sldns_buffer_free(c->buffer);
+		free(c->ev);
+		free(c);
+		return NULL;
+	}
+	c->tcp_is_reading = 0;
+	c->tcp_byte_count = 0;
+	c->tcp_parent = parent;
+	c->tcp_timeout_msec = parent->tcp_timeout_msec;
+	c->tcp_conn_limit = parent->tcp_conn_limit;
+	c->tcl_addr = NULL;
+	c->tcp_keepalive = 0;
+	c->max_tcp_count = 0;
+	c->cur_tcp_count = 0;
+	c->tcp_handlers = NULL;
+	c->tcp_free = NULL;
+	c->type = comm_http;
+	c->tcp_do_close = 1;
+	c->do_not_close = 0;
+	c->tcp_do_toggle_rw = 1; /* will be set to 0 after http2 upgrade */
+	c->tcp_check_nb_connect = 0;
+#ifdef USE_MSG_FASTOPEN
+	c->tcp_do_fastopen = 0;
+#endif
+#ifdef USE_DNSCRYPT
+	c->dnscrypt = 0;
+	c->dnscrypt_buffer = NULL;
+#endif
+	c->repinfo.c = c;
+	c->callback = callback;
+	c->cb_arg = callback_arg;
+
+	c->http_min_version = http_version_2;
+	c->http2_stream_max_qbuffer_size = bufsize;
+	if(harden_large_queries && bufsize > 512)
+		c->http2_stream_max_qbuffer_size = 512;
+	c->http2_max_streams = http_max_streams;
+	if(!(c->http_endpoint = strdup(http_endpoint))) {
+		log_err("could not strdup http_endpoint");
+		sldns_buffer_free(c->buffer);
+		free(c->timeout);
+		free(c->ev);
+		free(c);
+		return NULL;
+	}
+	c->use_h2 = 0;
+#ifdef HAVE_NGHTTP2
+	if(!(c->h2_session = http2_session_create(c))) {
+		log_err("could not create http2 session");
+		free(c->http_endpoint);
+		sldns_buffer_free(c->buffer);
+		free(c->timeout);
+		free(c->ev);
+		free(c);
+		return NULL;
+	}
+	if(!(c->h2_session->callbacks = http2_req_callbacks_create())) {
+		log_err("could not create http2 callbacks");
+		http2_session_delete(c->h2_session);
+		free(c->http_endpoint);
+		sldns_buffer_free(c->buffer);
+		free(c->timeout);
+		free(c->ev);
+		free(c);
+		return NULL;
+	}
+#endif
+	
+	/* add to parent free list */
+	c->tcp_free = parent->tcp_free;
+	parent->tcp_free = c;
+	/* ub_event stuff */
+	evbits = UB_EV_PERSIST | UB_EV_READ | UB_EV_TIMEOUT;
+	c->ev->ev = ub_event_new(base->eb->base, c->fd, evbits,
+		comm_point_http_handle_callback, c);
+	if(c->ev->ev == NULL)
+	{
+		log_err("could not set http handler event");
+		parent->tcp_free = c->tcp_free;
+		http2_session_delete(c->h2_session);
+		sldns_buffer_free(c->buffer);
+		free(c->timeout);
+		free(c->ev);
+		free(c);
+		return NULL;
+	}
+	return c;
+}
+
 struct comm_point* 
 comm_point_create_tcp(struct comm_base *base, int fd, int num,
-	int idle_timeout, struct tcl_list* tcp_conn_limit, size_t bufsize,
-	struct sldns_buffer* spoolbuf, comm_point_callback_type* callback,
-	void* callback_arg)
+	int idle_timeout, int harden_large_queries,
+	uint32_t http_max_streams, char* http_endpoint,
+	struct tcl_list* tcp_conn_limit, size_t bufsize,
+	struct sldns_buffer* spoolbuf, enum listen_type port_type,
+	comm_point_callback_type* callback, void* callback_arg)
 {
 	struct comm_point* c = (struct comm_point*)calloc(1,
 		sizeof(struct comm_point));
@@ -2792,10 +3261,24 @@ comm_point_create_tcp(struct comm_base *base, int fd, int num,
 		comm_point_delete(c);
 		return NULL;
 	}
-	/* now prealloc the tcp handlers */
+	/* now prealloc the handlers */
 	for(i=0; i<num; i++) {
-		c->tcp_handlers[i] = comm_point_create_tcp_handler(base,
-			c, bufsize, spoolbuf, callback, callback_arg);
+		if(port_type == listen_type_tcp ||
+			port_type == listen_type_ssl ||
+			port_type == listen_type_tcp_dnscrypt) {
+			c->tcp_handlers[i] = comm_point_create_tcp_handler(base,
+				c, bufsize, spoolbuf, callback, callback_arg);
+		} else if(port_type == listen_type_http) {
+			c->tcp_handlers[i] = comm_point_create_http_handler(
+				base, c, bufsize, harden_large_queries,
+				http_max_streams, http_endpoint,
+				callback, callback_arg);
+		}
+		else {
+			log_err("could not create tcp handler, unknown listen "
+				"type");
+			return NULL;
+		}
 		if(!c->tcp_handlers[i]) {
 			comm_point_delete(c);
 			return NULL;
@@ -3079,6 +3562,9 @@ comm_point_close(struct comm_point* c)
 	tcl_close_connection(c->tcl_addr);
 	if(c->tcp_req_info)
 		tcp_req_info_clear(c->tcp_req_info);
+	if(c->h2_session)
+		http2_session_server_delete(c->h2_session);
+
 	/* close fd after removing from event lists, or epoll.. is messed up */
 	if(c->fd != -1 && !c->do_not_close) {
 		if(c->type == comm_tcp || c->type == comm_http) {
@@ -3087,11 +3573,7 @@ comm_point_close(struct comm_point* c)
 			ub_winsock_tcp_wouldblock(c->ev->ev, UB_EV_WRITE);
 		}
 		verbose(VERB_ALGO, "close fd %d", c->fd);
-#ifndef USE_WINSOCK
-		close(c->fd);
-#else
-		closesocket(c->fd);
-#endif
+		sock_close(c->fd);
 	}
 	c->fd = -1;
 }
@@ -3106,6 +3588,10 @@ comm_point_delete(struct comm_point* c)
 		SSL_shutdown(c->ssl);
 		SSL_free(c->ssl);
 #endif
+	}
+	if(c->type == comm_http && c->http_endpoint) {
+		free(c->http_endpoint);
+		c->http_endpoint = NULL;
 	}
 	comm_point_close(c);
 	if(c->tcp_handlers) {
@@ -3124,6 +3610,9 @@ comm_point_delete(struct comm_point* c)
 #endif
 		if(c->tcp_req_info) {
 			tcp_req_info_delete(c->tcp_req_info);
+		}
+		if(c->h2_session) {
+			http2_session_delete(c->h2_session);
 		}
 	}
 	ub_event_free(c->ev->ev);
@@ -3170,6 +3659,17 @@ comm_point_send_reply(struct comm_reply *repinfo)
 #endif
 		if(repinfo->c->tcp_req_info) {
 			tcp_req_info_send_reply(repinfo->c->tcp_req_info);
+		} else if(repinfo->c->use_h2) {
+			if(!http2_submit_dns_response(repinfo->c->h2_session)) {
+				comm_point_drop_reply(repinfo);
+				return;
+			}
+			repinfo->c->h2_stream = NULL;
+			repinfo->c->tcp_is_reading = 0;
+			comm_point_stop_listening(repinfo->c);
+			comm_point_start_listening(repinfo->c, -1,
+				repinfo->c->tcp_timeout_msec);
+			return;
 		} else {
 			comm_point_start_listening(repinfo->c, -1,
 				repinfo->c->tcp_timeout_msec);
@@ -3188,6 +3688,16 @@ comm_point_drop_reply(struct comm_reply* repinfo)
 		return;
 	if(repinfo->c->tcp_req_info)
 		repinfo->c->tcp_req_info->is_drop = 1;
+	if(repinfo->c->type == comm_http) {
+		if(repinfo->c->h2_session) {
+			repinfo->c->h2_session->is_drop = 1;
+			if(!repinfo->c->h2_session->postpone_drop)
+				reclaim_http_handler(repinfo->c);
+			return;
+		}
+		reclaim_http_handler(repinfo->c);
+		return;
+	}
 	reclaim_tcp_handler(repinfo->c);
 }
 
@@ -3232,11 +3742,7 @@ comm_point_start_listening(struct comm_point* c, int newfd, int msec)
 	}
 	if(newfd != -1) {
 		if(c->fd != -1) {
-#ifndef USE_WINSOCK
-			close(c->fd);
-#else
-			closesocket(c->fd);
-#endif
+			sock_close(c->fd);
 		}
 		c->fd = newfd;
 		ub_event_set_fd(c->ev->ev, c->fd);

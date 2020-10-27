@@ -314,16 +314,16 @@ struct packed_rrset_data {
     class RRSetData_RRLen:
         def __init__(self, obj): self.obj = obj
         def __getitem__(self, index): return _unboundmodule._get_data_rr_len(self.obj, index)
-        def __len__(self): return obj.count + obj.rrsig_count
+        def __len__(self): return self.obj.count + self.obj.rrsig_count
     class RRSetData_RRTTL:
         def __init__(self, obj): self.obj = obj
         def __getitem__(self, index): return _unboundmodule._get_data_rr_ttl(self.obj, index)
         def __setitem__(self, index, value): _unboundmodule._set_data_rr_ttl(self.obj, index, value)
-        def __len__(self): return obj.count + obj.rrsig_count
+        def __len__(self): return self.obj.count + self.obj.rrsig_count
     class RRSetData_RRData:
         def __init__(self, obj): self.obj = obj
         def __getitem__(self, index): return _unboundmodule._get_data_rr_data(self.obj, index)
-        def __len__(self): return obj.count + obj.rrsig_count
+        def __len__(self): return self.obj.count + self.obj.rrsig_count
 %}
 
 %inline %{
@@ -404,12 +404,12 @@ struct dns_msg {
     class ReplyInfo_RRSet:
         def __init__(self, obj): self.obj = obj
         def __getitem__(self, index): return _unboundmodule._rrset_rrsets_get(self.obj, index)
-        def __len__(self): return obj.rrset_count
+        def __len__(self): return self.obj.rrset_count
 
     class ReplyInfo_Ref:
         def __init__(self, obj): self.obj = obj
         def __getitem__(self, index): return _unboundmodule._rrset_ref_get(self.obj, index)
-        def __len__(self): return obj.rrset_count
+        def __len__(self): return self.obj.rrset_count
 %}
 
 %inline %{
@@ -992,8 +992,6 @@ struct config_file {
    struct config_strlist* trust_anchor_file_list;
    struct config_strlist* trust_anchor_list;
    struct config_strlist* trusted_keys_file_list;
-   char* dlv_anchor_file;
-   struct config_strlist* dlv_anchor_list;
    int max_ttl;
    int32_t val_date_override;
    int bogus_ttl;

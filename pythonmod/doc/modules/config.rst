@@ -256,14 +256,6 @@ config_file
    
       Files with trusted DNSKEYs in named.conf format, list.
    
-   .. attribute:: dlv_anchor_file
-   
-      DLV anchor file.
-   
-   .. attribute:: dlv_anchor_list
-   
-      DLV anchor inline.
-
    .. attribute:: max_ttl
    
       The number of seconds maximal TTL used for RRsets and messages.

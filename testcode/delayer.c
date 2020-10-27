@@ -372,11 +372,7 @@ service_send(struct ringbuf* ring, struct timeval* now, sldns_buffer* pkt,
 			sldns_buffer_limit(pkt), 0, 
 			(struct sockaddr*)srv_addr, srv_len);
 		if(sent == -1) {
-#ifndef USE_WINSOCK
-			log_err("sendto: %s", strerror(errno));
-#else
-			log_err("sendto: %s", wsa_strerror(WSAGetLastError()));
-#endif
+			log_err("sendto: %s", sock_strerror(errno));
 		} else if(sent != (ssize_t)sldns_buffer_limit(pkt)) {
 			log_err("sendto: partial send");
 		}
@@ -398,13 +394,12 @@ do_proxy(struct proxy* p, int retsock, sldns_buffer* pkt)
 #ifndef USE_WINSOCK
 			if(errno == EAGAIN || errno == EINTR)
 				return;
-			log_err("recv: %s", strerror(errno));
 #else
 			if(WSAGetLastError() == WSAEINPROGRESS ||
 				WSAGetLastError() == WSAEWOULDBLOCK)
 				return;
-			log_err("recv: %s", wsa_strerror(WSAGetLastError()));
 #endif
+			log_err("recv: %s", sock_strerror(errno));
 			return;
 		}
 		sldns_buffer_set_limit(pkt, (size_t)r);
@@ -414,11 +409,7 @@ do_proxy(struct proxy* p, int retsock, sldns_buffer* pkt)
 		r = sendto(retsock, (void*)sldns_buffer_begin(pkt), (size_t)r, 
 			0, (struct sockaddr*)&p->addr, p->addr_len);
 		if(r == -1) {
-#ifndef USE_WINSOCK
-			log_err("sendto: %s", strerror(errno));
-#else
-			log_err("sendto: %s", wsa_strerror(WSAGetLastError()));
-#endif
+			log_err("sendto: %s", sock_strerror(errno));
 		}
 	}
 }
@@ -469,11 +460,7 @@ find_create_proxy(struct sockaddr_storage* from, socklen_t from_len,
 	if(!p) fatal_exit("out of memory");
 	p->s = socket(serv_ip6?AF_INET6:AF_INET, SOCK_DGRAM, 0);
 	if(p->s == -1) {
-#ifndef USE_WINSOCK
-		fatal_exit("socket: %s", strerror(errno));
-#else
-		fatal_exit("socket: %s", wsa_strerror(WSAGetLastError()));
-#endif
+		fatal_exit("socket: %s", sock_strerror(errno));
 	}
 	fd_set_nonblock(p->s);
 	memmove(&p->addr, from, from_len);
@@ -507,14 +494,12 @@ service_recv(int s, struct ringbuf* ring, sldns_buffer* pkt,
 #ifndef USE_WINSOCK
 			if(errno == EAGAIN || errno == EINTR)
 				return;
-			fatal_exit("recvfrom: %s", strerror(errno));
 #else
 			if(WSAGetLastError() == WSAEWOULDBLOCK || 
 				WSAGetLastError() == WSAEINPROGRESS)
 				return;
-			fatal_exit("recvfrom: %s", 
-				wsa_strerror(WSAGetLastError()));
 #endif
+			fatal_exit("recvfrom: %s", sock_strerror(errno));
 		}
 		sldns_buffer_set_limit(pkt, (size_t)len);
 		/* find its proxy element */
@@ -550,15 +535,9 @@ tcp_proxy_delete(struct tcp_proxy* p)
 		free(s);
 		s = sn;
 	}
-#ifndef USE_WINSOCK
-	close(p->client_s);
+	sock_close(p->client_s);
 	if(p->server_s != -1)
-		close(p->server_s);
-#else
-	closesocket(p->client_s);
-	if(p->server_s != -1)
-		closesocket(p->server_s);
-#endif
+		sock_close(p->server_s);
 	free(p);
 }
 
@@ -577,14 +556,13 @@ service_tcp_listen(int s, fd_set* rorig, int* max, struct tcp_proxy** proxies,
 #ifndef USE_WINSOCK
 		if(errno == EAGAIN || errno == EINTR)
 			return;
-		fatal_exit("accept: %s", strerror(errno));
 #else
 		if(WSAGetLastError() == WSAEWOULDBLOCK || 
 			WSAGetLastError() == WSAEINPROGRESS ||
 			WSAGetLastError() == WSAECONNRESET)
 			return;
-		fatal_exit("accept: %s", wsa_strerror(WSAGetLastError()));
 #endif
+		fatal_exit("accept: %s", sock_strerror(errno));
 	}
 	p = (struct tcp_proxy*)calloc(1, sizeof(*p));
 	if(!p) fatal_exit("out of memory");
@@ -595,11 +573,7 @@ service_tcp_listen(int s, fd_set* rorig, int* max, struct tcp_proxy** proxies,
 	p->server_s = socket(addr_is_ip6(srv_addr, srv_len)?AF_INET6:AF_INET,
 		SOCK_STREAM, 0);
 	if(p->server_s == -1) {
-#ifndef USE_WINSOCK
-		fatal_exit("tcp socket: %s", strerror(errno));
-#else
-		fatal_exit("tcp socket: %s", wsa_strerror(WSAGetLastError()));
-#endif
+		fatal_exit("tcp socket: %s", sock_strerror(errno));
 	}
 	fd_set_nonblock(p->client_s);
 	fd_set_nonblock(p->server_s);
@@ -607,16 +581,14 @@ service_tcp_listen(int s, fd_set* rorig, int* max, struct tcp_proxy** proxies,
 #ifndef USE_WINSOCK
 		if(errno != EINPROGRESS) {
 			log_err("tcp connect: %s", strerror(errno));
-			close(p->server_s);
-			close(p->client_s);
 #else
 		if(WSAGetLastError() != WSAEWOULDBLOCK &&
 			WSAGetLastError() != WSAEINPROGRESS) {
 			log_err("tcp connect: %s", 
 				wsa_strerror(WSAGetLastError()));
-			closesocket(p->server_s);
-			closesocket(p->client_s);
 #endif
+			sock_close(p->server_s);
+			sock_close(p->client_s);
 			free(p);
 			return;
 		}
@@ -650,13 +622,12 @@ tcp_relay_read(int s, struct tcp_send_list** first,
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return 1;
-		log_err("tcp read: %s", strerror(errno));
 #else
 		if(WSAGetLastError() == WSAEINPROGRESS || 
 			WSAGetLastError() == WSAEWOULDBLOCK)
 			return 1;
-		log_err("tcp read: %s", wsa_strerror(WSAGetLastError()));
 #endif
+		log_err("tcp read: %s", sock_strerror(errno));
 		return 0;
 	} else if(r == 0) {
 		/* connection closed */
@@ -708,14 +679,12 @@ tcp_relay_write(int s, struct tcp_send_list** first,
 #ifndef USE_WINSOCK
 			if(errno == EAGAIN || errno == EINTR)
 				return 1;
-			log_err("tcp write: %s", strerror(errno));
 #else
 			if(WSAGetLastError() == WSAEWOULDBLOCK || 
 				WSAGetLastError() == WSAEINPROGRESS)
 				return 1;
-			log_err("tcp write: %s", 
-				wsa_strerror(WSAGetLastError()));
 #endif
+			log_err("tcp write: %s", sock_strerror(errno));
 			return 0;
 		} else if(r == 0) {
 			/* closed */
@@ -769,11 +738,7 @@ service_tcp_relay(struct tcp_proxy** tcp_proxies, struct timeval* now,
 			log_addr(1, "read tcp answer", &p->addr, p->addr_len);
 			if(!tcp_relay_read(p->server_s, &p->answerlist, 
 				&p->answerlast, now, delay, pkt)) {
-#ifndef USE_WINSOCK
-				close(p->server_s);
-#else
-				closesocket(p->server_s);
-#endif
+				sock_close(p->server_s);
 				FD_CLR(FD_SET_T p->server_s, worig);
 				FD_CLR(FD_SET_T p->server_s, rorig);
 				p->server_s = -1;
@@ -901,11 +866,7 @@ proxy_list_clear(struct proxy* p)
 			"%u returned\n", i++, from, port, (int)p->numreuse+1,
 			(unsigned)p->numwait, (unsigned)p->numsent, 
 			(unsigned)p->numreturn);
-#ifndef USE_WINSOCK
-		close(p->s);
-#else
-		closesocket(p->s);
-#endif
+		sock_close(p->s);
 		free(p);
 		p = np;
 	}
@@ -1034,11 +995,7 @@ service(const char* bind_str, int bindport, const char* serv_str,
 	/* bind UDP port */
 	if((s = socket(str_is_ip6(bind_str)?AF_INET6:AF_INET,
 		SOCK_DGRAM, 0)) == -1) {
-#ifndef USE_WINSOCK
-		fatal_exit("socket: %s", strerror(errno));
-#else
-		fatal_exit("socket: %s", wsa_strerror(WSAGetLastError()));
-#endif
+		fatal_exit("socket: %s", sock_strerror(errno));
 	}
 	i=0;
 	if(bindport == 0) {
@@ -1051,11 +1008,7 @@ service(const char* bind_str, int bindport, const char* serv_str,
 			exit(1);
 		}
 		if(bind(s, (struct sockaddr*)&bind_addr, bind_len) == -1) {
-#ifndef USE_WINSOCK
-			log_err("bind: %s", strerror(errno));
-#else
-			log_err("bind: %s", wsa_strerror(WSAGetLastError()));
-#endif
+			log_err("bind: %s", sock_strerror(errno));
 			if(i--==0)
 				fatal_exit("cannot bind any port");
 			bindport = 1024 + ((int)arc4random())%64000;
@@ -1065,39 +1018,22 @@ service(const char* bind_str, int bindport, const char* serv_str,
 	/* and TCP port */
 	if((listen_s = socket(str_is_ip6(bind_str)?AF_INET6:AF_INET,
 		SOCK_STREAM, 0)) == -1) {
-#ifndef USE_WINSOCK
-		fatal_exit("tcp socket: %s", strerror(errno));
-#else
-		fatal_exit("tcp socket: %s", wsa_strerror(WSAGetLastError()));
-#endif
+		fatal_exit("tcp socket: %s", sock_strerror(errno));
 	}
 #ifdef SO_REUSEADDR
 	if(1) {
 		int on = 1;
 		if(setsockopt(listen_s, SOL_SOCKET, SO_REUSEADDR, (void*)&on,
 			(socklen_t)sizeof(on)) < 0)
-#ifndef USE_WINSOCK
 			fatal_exit("setsockopt(.. SO_REUSEADDR ..) failed: %s",
-				strerror(errno));
-#else
-			fatal_exit("setsockopt(.. SO_REUSEADDR ..) failed: %s",
-				wsa_strerror(WSAGetLastError()));
-#endif
+				sock_strerror(errno));
 	}
 #endif
 	if(bind(listen_s, (struct sockaddr*)&bind_addr, bind_len) == -1) {
-#ifndef USE_WINSOCK
-		fatal_exit("tcp bind: %s", strerror(errno));
-#else
-		fatal_exit("tcp bind: %s", wsa_strerror(WSAGetLastError()));
-#endif
+		fatal_exit("tcp bind: %s", sock_strerror(errno));
 	}
 	if(listen(listen_s, 5) == -1) {
-#ifndef USE_WINSOCK
-		fatal_exit("tcp listen: %s", strerror(errno));
-#else
-		fatal_exit("tcp listen: %s", wsa_strerror(WSAGetLastError()));
-#endif
+		fatal_exit("tcp listen: %s", sock_strerror(errno));
 	}
 	fd_set_nonblock(listen_s);
 	printf("listening on port: %d\n", bindport);
@@ -1109,13 +1045,8 @@ service(const char* bind_str, int bindport, const char* serv_str,
 
 	/* cleanup */
 	verbose(1, "cleanup");
-#ifndef USE_WINSOCK
-	close(s);
-	close(listen_s);
-#else
-	closesocket(s);
-	closesocket(listen_s);
-#endif
+	sock_close(s);
+	sock_close(listen_s);
 	sldns_buffer_free(pkt);
 	ring_delete(ring);
 }

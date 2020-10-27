@@ -233,12 +233,7 @@ perfsetup(struct perfinfo* info)
 			addr_is_ip6(&info->dest, info->destlen)?
 			AF_INET6:AF_INET, SOCK_DGRAM, 0);
 		if(info->io[i].fd == -1) {
-#ifndef USE_WINSOCK
-			fatal_exit("socket: %s", strerror(errno));
-#else
-			fatal_exit("socket: %s", 
-				wsa_strerror(WSAGetLastError()));
-#endif
+			fatal_exit("socket: %s", sock_strerror(errno));
 		}
 		if(info->io[i].fd > info->maxfd)
 			info->maxfd = info->io[i].fd;
@@ -260,11 +255,7 @@ perffree(struct perfinfo* info)
 	if(!info) return;
 	if(info->io) {
 		for(i=0; i<info->io_num; i++) {
-#ifndef USE_WINSOCK
-			close(info->io[i].fd);
-#else
-			closesocket(info->io[i].fd);
-#endif
+			sock_close(info->io[i].fd);
 		}
 		free(info->io);
 	}
@@ -285,11 +276,7 @@ perfsend(struct perfinfo* info, size_t n, struct timeval* now)
 	/*log_hex("send", info->qlist_data[info->qlist_idx],
 		info->qlist_len[info->qlist_idx]);*/
 	if(r == -1) {
-#ifndef USE_WINSOCK
-		log_err("sendto: %s", strerror(errno));
-#else
-		log_err("sendto: %s", wsa_strerror(WSAGetLastError()));
-#endif
+		log_err("sendto: %s", sock_strerror(errno));
 	} else if(r != (ssize_t)info->qlist_len[info->qlist_idx]) {
 		log_err("partial sendto");
 	}
@@ -309,11 +296,7 @@ perfreply(struct perfinfo* info, size_t n, struct timeval* now)
 	r = recv(info->io[n].fd, (void*)sldns_buffer_begin(info->buf),
 		sldns_buffer_capacity(info->buf), 0);
 	if(r == -1) {
-#ifndef USE_WINSOCK
-		log_err("recv: %s", strerror(errno));
-#else
-		log_err("recv: %s", wsa_strerror(WSAGetLastError()));
-#endif
+		log_err("recv: %s", sock_strerror(errno));
 	} else {
 		info->by_rcode[LDNS_RCODE_WIRE(sldns_buffer_begin(
 			info->buf))]++;

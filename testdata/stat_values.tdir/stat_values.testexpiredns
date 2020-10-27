@@ -1,0 +1,13 @@
+; nameserver test file
+$ORIGIN expired.
+$TTL 3600
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+REPLY QR AA NOERROR
+ADJUST copy_id
+SECTION QUESTION
+servfail	IN	A
+SECTION ANSWER
+servfail    1 IN A 192.0.2.1
+ENTRY_END

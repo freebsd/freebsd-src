@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Jul 27, 2020" "NLnet Labs" "unbound 1.11.0"
+.TH "unbound-control" "8" "Oct  8, 2020" "NLnet Labs" "unbound 1.12.0"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -506,6 +506,14 @@ negative cache.
 Memory in bytes in used by the TCP and TLS stream wait buffers.  These are
 answers waiting to be written back to the clients.
 .TP
+.I mem.http.query_buffer
+Memory in bytes used by the HTTP/2 query buffers. Containing (partial) DNS
+queries waiting for request stream completion.
+.TP
+.I mem.http.response_buffer
+Memory in bytes used by the HTTP/2 response buffers. Containing DNS responses
+waiting to be written back to the clients.
+.TP
 .I histogram.<sec>.<usec>.to.<sec>.<usec>
 Shows a histogram, summed over all threads. Every element counts the
 recursive queries whose reply time fit between the lower and upper bound.
@@ -544,6 +552,11 @@ These are also counted in num.query.tcp, because TLS uses TCP.
 .I num.query.tls.resume
 Number of TLS session resumptions, these are queries over TLS towards
 the unbound server where the client negotiated a TLS session resumption key.
+.TP
+.I num.query.https
+Number of queries that were made using HTTPS towards the unbound server.
+These are also counted in num.query.tcp and num.query.tls, because HTTPS
+uses TLS and TCP.
 .TP
 .I num.query.ipv6
 Number of queries that were made using IPv6 towards the unbound server.

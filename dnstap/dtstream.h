@@ -49,6 +49,7 @@ struct dt_msg_entry;
 struct dt_io_list_item;
 struct dt_io_thread;
 struct config_file;
+struct comm_base;
 
 /**
  * A message buffer with dnstap messages queued up.  It is per-worker.
@@ -68,11 +69,15 @@ struct dt_msg_queue {
 	/** current size of the buffer, in bytes.  data bytes of messages.
 	 * If a new message make it more than maxsize, the buffer is full */
 	size_t cursize;
+	/** number of messages in the queue */
+	int msgcount;
 	/** list of messages.  The messages are added to the back and taken
 	 * out from the front. */
 	struct dt_msg_entry* first, *last;
 	/** reference to the io thread to wakeup */
 	struct dt_io_thread* dtio;
+	/** the wakeup timer for dtio, on worker event base */
+	struct comm_timer* wakeup_timer;
 };
 
 /**
@@ -166,6 +171,10 @@ struct dt_io_thread {
 	 * for the current message length that precedes the frame */
 	size_t cur_msg_len_done;
 
+	/** lock on wakeup_timer_enabled */
+	lock_basic_type wakeup_timer_lock;
+	/** if wakeup timer is enabled in some thread */
+	int wakeup_timer_enabled;
 	/** command pipe that stops the pipe if closed.  Used to quit
 	 * the program. [0] is read, [1] is written to. */
 	int commandpipe[2];
@@ -233,9 +242,10 @@ struct dt_io_list_item {
 
 /**
  * Create new (empty) worker message queue. Limit set to default on max.
+ * @param base: event base for wakeup timer.
  * @return NULL on malloc failure or a new queue (not locked).
  */
-struct dt_msg_queue* dt_msg_queue_create(void);
+struct dt_msg_queue* dt_msg_queue_create(struct comm_base* base);
 
 /**
  * Delete a worker message queue.  It has to be unlinked from access,
@@ -257,6 +267,9 @@ void dt_msg_queue_delete(struct dt_msg_queue* mq);
  * @param len: length of buffer.
  */
 void dt_msg_queue_submit(struct dt_msg_queue* mq, void* buf, size_t len);
+
+/** timer callback to wakeup dtio thread to process messages */
+void mq_wakeup_cb(void* arg);
 
 /**
  * Create IO thread.

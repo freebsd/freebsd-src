@@ -388,11 +388,7 @@ send_em(const char* svr, int udp, int usessl, int noanswer, int onarrival,
 		SSL_free(ssl);
 		SSL_CTX_free(ctx);
 	}
-#ifndef USE_WINSOCK
-	close(fd);
-#else
-	closesocket(fd);
-#endif
+	sock_close(fd);
 	sldns_buffer_free(buf);
 	printf("orderly exit\n");
 }

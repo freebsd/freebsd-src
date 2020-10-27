@@ -92,7 +92,7 @@
 #include <TargetConditionals.h>
 #endif
 
-#if defined(TARGET_OS_TV) || defined(TARGET_OS_WATCH)
+#if (defined(TARGET_OS_TV) && TARGET_OS_TV) || (defined(TARGET_OS_WATCH) && TARGET_OS_WATCH)
 #undef HAVE_FORK
 #endif
 

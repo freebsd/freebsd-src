@@ -24,6 +24,8 @@ else
 	exit 1
 fi
 
+echo "> wait for log to happen on timer"
+sleep 3
 echo "> check tap.log for dnstap info"
 # see if it logged the information in tap.log
 # wait for a moment for filesystem to catch up.
