@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <limits.h>
 #include <nl_types.h>
+#include <paths.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,7 +59,9 @@ __FBSDID("$FreeBSD$");
 
 #include "../locale/xlocale_private.h"
 
-#define _DEFAULT_NLS_PATH "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:/usr/local/share/nls/%L/%N.cat:/usr/local/share/nls/%N/%L"
+#define _DEFAULT_NLS_PATH "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:"	\
+				_PATH_LOCALBASE "/share/nls/%L/%N.cat:"		\
+				_PATH_LOCALBASE "/share/nls/%N/%L"
 
 #define RLOCK(fail)	{ int ret;						\
 			  if (__isthreaded &&					\

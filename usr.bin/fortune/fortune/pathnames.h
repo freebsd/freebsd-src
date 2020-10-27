@@ -30,5 +30,7 @@
  *	$FreeBSD$
  */
 
+#include <paths.h>
+
 #define	FORTDIR		"/usr/share/games/fortune:" \
-			"/usr/local/share/games/fortune"
+			_PATH_LOCALBASE "/share/games/fortune"
