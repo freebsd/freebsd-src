@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 06, 2020
+.Dd October 27, 2020
 .Dt BACKLIGHT 8
 .Os
 .Sh NAME
@@ -31,21 +31,21 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl f Ar device
-.Op Fl q
 .Op Fl i
+.Op Fl q
 .Op Ar value
 .Nm
 .Op Fl f Ar device
-incr | +
+.Cm incr Ns | Ns Cm +
 .Op Ar value
 .Nm
 .Op Fl f Ar device
-decr | -
+.Cm decr Ns | Ns Cm -
 .Op Ar value
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to configure brightness levels for registered backlights
+utility can be used to configure brightness levels for registered backlights.
 .Pp
 The options are as follows:
 .Bl -tag -width "-f device"
@@ -57,30 +57,27 @@ is used.
 If an unqualified name is provided,
 .Pa /dev/backlight
 is automatically prepended.
-.It Fl q
-When querying the brightness level only print the value.
 .It Fl i
 Query information about the backlight (name, type).
+.It Fl q
+When querying the brightness level only print the value.
 .It Ar value
 Set the brightness level to this value, must be between 0 and 100.
-A trailing '%' is valid.
-.It Ar incr | +
-.Op Ar value
+A trailing
+.Dq %
+is valid.
+.It Cm incr Ns | Ns Cm + Op Ar value
 Decrement the backlight level.
 If no value is specified a default of 10 percent is used.
-.It Ar decr | -
-.Op Ar value
+.It Cm decr Ns | Ns Cm - Op Ar value
 Increment the backlight level.
 If no value is specified a default of 10 percent is used.
 .El
 .Sh EXAMPLES
-.Bl -bullet
-.It
 Show the current brightness level
-.Bd -literal
+.Bd -literal -offset indent
 backlight -f /dev/backlight/backlight0
 .Ed
-.El
 .Sh SEE ALSO
 .Xr backlight 9
 .Sh HISTORY
