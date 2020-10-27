@@ -4838,8 +4838,6 @@ pmap_remove_pages(pmap_t pmap)
 	int allfree, field, freed, idx, lvl;
 	vm_paddr_t pa;
 
-	KASSERT(pmap == PCPU_GET(curpmap), ("non-current pmap %p", pmap));
-
 	lock = NULL;
 
 	SLIST_INIT(&free);
