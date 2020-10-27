@@ -33,8 +33,10 @@
  * $FreeBSD$
  */
 
+#include <paths.h>
+
 #define	_PATH_EX	"/usr/bin/ex"
 #define	_PATH_HELP	"/usr/share/misc/mail.help"
 #define	_PATH_TILDE	"/usr/share/misc/mail.tildehelp"
-#define	_PATH_MASTER_RC	"/usr/share/misc/mail.rc:/usr/local/etc/mail.rc:/etc/mail.rc"
+#define	_PATH_MASTER_RC	"/usr/share/misc/mail.rc:" _PATH_LOCALBASE "/etc/mail.rc:/etc/mail.rc"
 #define	_PATH_LESS	"/usr/bin/less"

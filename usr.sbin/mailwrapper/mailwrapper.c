@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <err.h>
+#include <paths.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -105,7 +106,7 @@ main(int argc, char *argv[], char *envp[])
 	addarg(&al, argv[0]);
 
 	snprintf(localmailerconf, MAXPATHLEN, "%s/etc/mail/mailer.conf",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : "/usr/local");
+	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _PATH_LOCALBASE);
 
 	mailerconf = localmailerconf;
 	if ((config = fopen(localmailerconf, "r")) == NULL)

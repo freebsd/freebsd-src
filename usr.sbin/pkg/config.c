@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <ucl.h>
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdbool.h>
 #include <unistd.h>
 
@@ -454,7 +455,7 @@ config_init(void)
 	}
 
 	/* Read LOCALBASE/etc/pkg.conf first. */
-	localbase = getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE;
+	localbase = getenv("LOCALBASE") ? getenv("LOCALBASE") : _PATH_LOCALBASE;
 	snprintf(confpath, sizeof(confpath), "%s/etc/pkg.conf",
 	    localbase);
 

@@ -41,12 +41,13 @@
 #include <getopt.h>
 #include <errno.h>
 #include <err.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 
 #ifndef DIR_TEMPLATE
-#define	DIR_TEMPLATE	"/usr/local/libdata/athprom"
+#define	DIR_TEMPLATE	_PATH_LOCALBASE "/libdata/athprom"
 #endif
 
 struct	ath_diag atd;
