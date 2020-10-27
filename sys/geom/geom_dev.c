@@ -550,9 +550,6 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		if (error == 0 && *(u_int *)data == 0)
 			error = ENOENT;
 		break;
-	case DIOCGFRONTSTUFF:
-		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
-		break;
 #ifdef COMPAT_FREEBSD11
 	case DIOCSKERNELDUMP_FREEBSD11:
 	    {
