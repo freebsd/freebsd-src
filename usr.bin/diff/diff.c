@@ -210,17 +210,6 @@ main(int argc, char **argv)
 			diff_format = D_NREVERSE;
 			break;
 		case 'p':
-			/*
-			 * If it's not unset and it's not set to context or
-			 * unified, we'll error out here as a conflicting
-			 * format.  If it's unset, we'll go ahead and set it to
-			 * context.
-			 */
-			if (FORMAT_MISMATCHED(D_CONTEXT) &&
-			    FORMAT_MISMATCHED(D_UNIFIED))
-				conflicting_format();
-			if (diff_format == D_UNSET)
-				diff_format = D_CONTEXT;
 			dflags |= D_PROTOTYPE;
 			break;
 		case 'P':
@@ -320,6 +309,8 @@ main(int argc, char **argv)
 		newarg = optind != prevoptind;
 		prevoptind = optind;
 	}
+	if (diff_format == D_UNSET && (dflags & D_PROTOTYPE) != 0)
+		diff_format = D_CONTEXT;
 	if (diff_format == D_UNSET)
 		diff_format = D_NORMAL;
 	argc -= optind;
