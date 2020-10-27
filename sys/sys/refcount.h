@@ -63,7 +63,7 @@ refcount_init(volatile u_int *count, u_int value)
 {
 	KASSERT(!REFCOUNT_SATURATED(value),
 	    ("invalid initial refcount value %u", value));
-	*count = value;
+	atomic_store_int(count, value);
 }
 
 static __inline u_int
@@ -95,13 +95,14 @@ refcount_acquiren(volatile u_int *count, u_int n)
 static __inline __result_use_check bool
 refcount_acquire_checked(volatile u_int *count)
 {
-	u_int lcount;
+	u_int old;
 
-	for (lcount = *count;;) {
-		if (__predict_false(REFCOUNT_SATURATED(lcount + 1)))
+	old = atomic_load_int(count);
+	for (;;) {
+		if (__predict_false(REFCOUNT_SATURATED(old + 1)))
 			return (false);
-		if (__predict_true(atomic_fcmpset_int(count, &lcount,
-		    lcount + 1) == 1))
+		if (__predict_true(atomic_fcmpset_int(count, &old,
+		    old + 1) == 1))
 			return (true);
 	}
 }
@@ -115,7 +116,7 @@ refcount_acquire_if_gt(volatile u_int *count, u_int n)
 {
 	u_int old;
 
-	old = *count;
+	old = atomic_load_int(count);
 	for (;;) {
 		if (old <= n)
 			return (false);
@@ -174,7 +175,7 @@ refcount_release_if_gt(volatile u_int *count, u_int n)
 
 	KASSERT(n > 0,
 	    ("refcount_release_if_gt: Use refcount_release for final ref"));
-	old = *count;
+	old = atomic_load_int(count);
 	for (;;) {
 		if (old <= n)
 			return (false);
