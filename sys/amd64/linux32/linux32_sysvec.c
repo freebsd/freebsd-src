@@ -678,7 +678,7 @@ linux32_set_syscall_retval(struct thread *td, int error)
 
 	if (__predict_false(error != 0)) {
 		if (error != ERESTART && error != EJUSTRETURN)
-			frame->tf_rax = linux_to_bsd_errno(error);
+			frame->tf_rax = bsd_to_linux_errno(error);
 	}
 }
 
