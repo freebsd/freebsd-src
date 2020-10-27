@@ -81,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <x86/ifunc.h>
 #include <x86/sysarch.h>
 
+#include <security/audit/audit.h>
+
 #include <amd64/linux/linux.h>
 #include <amd64/linux/linux_proto.h>
 #include <compat/linux/linux_emul.h>
@@ -107,6 +109,7 @@ linux_execve(struct thread *td, struct linux_execve_args *args)
 	free(path, M_TEMP);
 	if (error == 0)
 		error = linux_common_execve(td, &eargs);
+	AUDIT_SYSCALL_EXIT(error == EJUSTRETURN ? 0 : error, td);
 	return (error);
 }
 

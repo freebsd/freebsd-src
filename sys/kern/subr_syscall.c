@@ -142,6 +142,16 @@ syscallenter(struct thread *td)
 
 	AUDIT_SYSCALL_ENTER(sa->code, td);
 	error = (sa->callp->sy_call)(td, sa->args);
+
+	/*
+	 * Note that some syscall implementations (e.g., sys_execve)
+	 * will commit the audit record just before their final return.
+	 * These were done under the assumption that nothing of interest
+	 * would happen between their return and here, where we would
+	 * normally commit the audit record.  These assumptions will
+	 * need to be revisited should any substantial logic be added
+	 * above.
+	 */
 	AUDIT_SYSCALL_EXIT(error, td);
 
 	/* Save the latest error return value. */
