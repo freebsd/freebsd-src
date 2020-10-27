@@ -1226,9 +1226,11 @@ vnlru_free_locked(int count, struct vfsops *mnt_op)
 		count = max_vnlru_free;
 	ocount = count;
 	mvp = vnode_list_free_marker;
-restart:
 	vp = mvp;
-	while (count > 0) {
+	for (;;) {
+		if (count == 0) {
+			break;
+		}
 		vp = TAILQ_NEXT(vp, v_vnodelist);
 		if (__predict_false(vp == NULL)) {
 			TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
@@ -1237,17 +1239,16 @@ restart:
 		}
 		if (__predict_false(vp->v_type == VMARKER))
 			continue;
-
+		if (vp->v_holdcnt > 0)
+			continue;
 		/*
 		 * Don't recycle if our vnode is from different type
 		 * of mount point.  Note that mp is type-safe, the
 		 * check does not reach unmapped address even if
 		 * vnode is reclaimed.
-		 * Don't recycle if we can't get the interlock without
-		 * blocking.
 		 */
-		if (vp->v_holdcnt > 0 || (mnt_op != NULL && (mp = vp->v_mount) != NULL &&
-		    mp->mnt_op != mnt_op)) {
+		if (mnt_op != NULL && (mp = vp->v_mount) != NULL &&
+		    mp->mnt_op != mnt_op) {
 			continue;
 		}
 		if (__predict_false(vp->v_type == VBAD || vp->v_type == VNON)) {
@@ -1257,11 +1258,11 @@ restart:
 			continue;
 		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
 		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
-		count--;
 		mtx_unlock(&vnode_list_mtx);
-		vtryrecycle(vp);
+		if (vtryrecycle(vp) == 0)
+			count--;
 		mtx_lock(&vnode_list_mtx);
-		goto restart;
+		vp = mvp;
 	}
 	return (ocount - count);
 }
