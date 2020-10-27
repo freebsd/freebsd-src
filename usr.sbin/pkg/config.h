@@ -31,7 +31,8 @@
 #ifndef _PKG_CONFIG_H
 #define _PKG_CONFIG_H
 
-#define _LOCALBASE "/usr/local"
+#include <paths.h>
+
 #define URL_SCHEME_PREFIX "pkg+"
 
 typedef enum {

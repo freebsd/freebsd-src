@@ -179,7 +179,7 @@ main(int argc, char *argv[])
 	cmd_init();
 
 	cmd_load_dir("/lib/nvmecontrol", NULL, NULL);
-	cmd_load_dir("/usr/local/lib/nvmecontrol", NULL, NULL);
+	cmd_load_dir(_PATH_LOCALBASE "/lib/nvmecontrol", NULL, NULL);
 
 	cmd_dispatch(argc, argv, NULL);
 

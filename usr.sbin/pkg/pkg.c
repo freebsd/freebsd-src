@@ -1046,7 +1046,7 @@ main(int argc, char *argv[])
 	yes = false;
 
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
+	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _PATH_LOCALBASE);
 
 	if (argc > 1 && strcmp(argv[1], "bootstrap") == 0) {
 		bootstrap_only = true;
