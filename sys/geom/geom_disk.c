@@ -498,8 +498,6 @@ g_disk_start(struct bio *bp)
 			break;
 		else if (g_handleattr_int(bp, "GEOM::fwheads", dp->d_fwheads))
 			break;
-		else if (g_handleattr_off_t(bp, "GEOM::frontstuff", 0))
-			break;
 		else if (g_handleattr_str(bp, "GEOM::ident", dp->d_ident))
 			break;
 		else if (g_handleattr_str(bp, "GEOM::descr", dp->d_descr))
