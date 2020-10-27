@@ -109,7 +109,7 @@ static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	v_init_counters(struct vnode *);
 static void	vgonel(struct vnode *);
-static bool	vhold_recycle(struct vnode *);
+static bool	vhold_recycle_free(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
 static void	vfs_knl_assert_locked(void *arg);
@@ -561,6 +561,11 @@ vnode_init(void *mem, int size, int flags)
 
 	vp->v_dbatchcpu = NOCPU;
 
+	/*
+	 * Check vhold_recycle_free for an explanation.
+	 */
+	vp->v_holdcnt = VHOLD_NO_SMR;
+	vp->v_type = VNON;
 	mtx_lock(&vnode_list_mtx);
 	TAILQ_INSERT_BEFORE(vnode_list_free_marker, vp, v_vnodelist);
 	mtx_unlock(&vnode_list_mtx);
@@ -1127,8 +1132,25 @@ restart:
 			goto next_iter;
 		}
 
-		if (!vhold_recycle(vp))
+		/*
+		 * Handle races against vnode allocation. Filesystems lock the
+		 * vnode some time after it gets returned from getnewvnode,
+		 * despite type and hold count being manipulated earlier.
+		 * Resorting to checking v_mount restores guarantees present
+		 * before the global list was reworked to contain all vnodes.
+		 */
+		if (!VI_TRYLOCK(vp))
 			goto next_iter;
+		if (__predict_false(vp->v_type == VBAD || vp->v_type == VNON)) {
+			VI_UNLOCK(vp);
+			goto next_iter;
+		}
+		if (vp->v_mount == NULL) {
+			VI_UNLOCK(vp);
+			goto next_iter;
+		}
+		vholdl(vp);
+		VI_UNLOCK(vp);
 		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
 		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
 		mtx_unlock(&vnode_list_mtx);
@@ -1228,13 +1250,13 @@ restart:
 		    mp->mnt_op != mnt_op)) {
 			continue;
 		}
-		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
-		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
 		if (__predict_false(vp->v_type == VBAD || vp->v_type == VNON)) {
 			continue;
 		}
-		if (!vhold_recycle(vp))
+		if (!vhold_recycle_free(vp))
 			continue;
+		TAILQ_REMOVE(&vnode_list, mvp, v_vnodelist);
+		TAILQ_INSERT_AFTER(&vnode_list, vp, mvp, v_vnodelist);
 		count--;
 		mtx_unlock(&vnode_list_mtx);
 		vtryrecycle(vp);
@@ -3251,10 +3273,12 @@ vholdnz(struct vnode *vp)
  * However, while this is more performant, it hinders debugging by eliminating
  * the previously mentioned invariant.
  */
-static bool __always_inline
-_vhold_cond(struct vnode *vp)
+bool
+vhold_smr(struct vnode *vp)
 {
 	int count;
+
+	VFS_SMR_ASSERT_ENTERED();
 
 	count = atomic_load_int(&vp->v_holdcnt);
 	for (;;) {
@@ -3263,7 +3287,6 @@ _vhold_cond(struct vnode *vp)
 			    ("non-zero hold count with flags %d\n", count));
 			return (false);
 		}
-
 		VNASSERT(count >= 0, vp, ("invalid hold count %d\n", count));
 		if (atomic_fcmpset_int(&vp->v_holdcnt, &count, count + 1)) {
 			if (count == 0)
@@ -3273,26 +3296,45 @@ _vhold_cond(struct vnode *vp)
 	}
 }
 
-bool
-vhold_smr(struct vnode *vp)
-{
-
-	VFS_SMR_ASSERT_ENTERED();
-	return (_vhold_cond(vp));
-}
-
 /*
- * Special case for vnode recycling.
+ * Hold a free vnode for recycling.
  *
- * Vnodes are present on the global list until UMA takes them out.
- * Attempts to recycle only need the relevant lock and have no use for SMR.
+ * Note: vnode_init references this comment.
+ *
+ * Attempts to recycle only need the global vnode list lock and have no use for
+ * SMR.
+ *
+ * However, vnodes get inserted into the global list before they get fully
+ * initialized and stay there until UMA decides to free the memory. This in
+ * particular means the target can be found before it becomes usable and after
+ * it becomes recycled. Picking up such vnodes is guarded with v_holdcnt set to
+ * VHOLD_NO_SMR.
+ *
+ * Note: the vnode may gain more references after we transition the count 0->1.
  */
 static bool
-vhold_recycle(struct vnode *vp)
+vhold_recycle_free(struct vnode *vp)
 {
+	int count;
 
 	mtx_assert(&vnode_list_mtx, MA_OWNED);
-	return (_vhold_cond(vp));
+
+	count = atomic_load_int(&vp->v_holdcnt);
+	for (;;) {
+		if (count & VHOLD_NO_SMR) {
+			VNASSERT((count & ~VHOLD_NO_SMR) == 0, vp,
+			    ("non-zero hold count with flags %d\n", count));
+			return (false);
+		}
+		VNASSERT(count >= 0, vp, ("invalid hold count %d\n", count));
+		if (count > 0) {
+			return (false);
+		}
+		if (atomic_fcmpset_int(&vp->v_holdcnt, &count, count + 1)) {
+			vn_freevnodes_dec();
+			return (true);
+		}
+	}
 }
 
 static void __noinline
