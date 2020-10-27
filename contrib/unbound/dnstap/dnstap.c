@@ -134,9 +134,15 @@ dt_create(struct config_file* cfg)
 
 	if(cfg->dnstap && cfg->dnstap_socket_path && cfg->dnstap_socket_path[0] &&
 		(cfg->dnstap_ip==NULL || cfg->dnstap_ip[0]==0)) {
+		char* p = fname_after_chroot(cfg->dnstap_socket_path, cfg, 1);
+		if(!p) {
+			log_err("malloc failure");
+			return NULL;
+		}
 		verbose(VERB_OPS, "attempting to connect to dnstap socket %s",
-			cfg->dnstap_socket_path);
-		check_socket_file(cfg->dnstap_socket_path);
+			p);
+		check_socket_file(p);
+		free(p);
 	}
 
 	env = (struct dt_env *) calloc(1, sizeof(struct dt_env));
@@ -240,9 +246,9 @@ dt_apply_cfg(struct dt_env *env, struct config_file *cfg)
 }
 
 int
-dt_init(struct dt_env *env)
+dt_init(struct dt_env *env, struct comm_base* base)
 {
-	env->msgqueue = dt_msg_queue_create();
+	env->msgqueue = dt_msg_queue_create(base);
 	if(!env->msgqueue) {
 		log_err("malloc failure");
 		return 0;

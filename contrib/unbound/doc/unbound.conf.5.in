@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Jul 27, 2020" "NLnet Labs" "unbound 1.11.0"
+.TH "unbound.conf" "5" "Oct  8, 2020" "NLnet Labs" "unbound 1.12.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -122,7 +122,8 @@ The port number, default 53, on which the server responds to queries.
 Interface to use to connect to the network. This interface is listened to
 for queries from clients, and answers to clients are given from it.
 Can be given multiple times to work on several interfaces. If none are
-given the default is to listen to localhost.
+given the default is to listen to localhost.  If an interface name is used
+instead of an ip address, the list of ip addresses on that interface are used.
 The interfaces are not changed on a reload (kill \-HUP) but only on restart.
 A port number can be specified with @port (without spaces between
 interface and port number), if not specified the default port (from
@@ -206,12 +207,11 @@ accepted. For larger installations increasing this value is a good idea.
 Number of bytes size to advertise as the EDNS reassembly buffer size.
 This is the value put into datagrams over UDP towards peers.  The actual
 buffer size is determined by msg\-buffer\-size (both for TCP and UDP).  Do
-not set higher than that value.  Default is 4096 which is RFC recommended.
-If you have fragmentation reassembly problems, usually seen as timeouts,
-then a value of 1472 can fix it.  Setting to 512 bypasses even the most
-stringent path MTU problems, but is seen as extreme, since the amount
-of TCP fallback generated is excessive (probably also for this resolver,
-consider tuning the outgoing tcp number).
+not set higher than that value.  Default is 1232 which is the DNS Flag Day 2020
+recommendation. Setting to 512 bypasses even the most stringent path MTU
+problems, but is seen as extreme, since the amount of TCP fallback generated is
+excessive (probably also for this resolver, consider tuning the outgoing tcp
+number).
 .TP
 .B max\-udp\-size: \fI<number>
 Maximum UDP response size (not applied to TCP response).  65536 disables the
@@ -484,15 +484,16 @@ Alternate syntax for \fBtls\-upstream\fR.  If both are present in the config
 file the last is used.
 .TP
 .B tls\-service\-key: \fI<file>
-If enabled, the server provides TLS service on the TCP ports marked
-implicitly or explicitly for TLS service with tls\-port.  The file must
-contain the private key for the TLS session, the public certificate is in
-the tls\-service\-pem file and it must also be specified if tls\-service\-key
-is specified.  The default is "", turned off.  Enabling or disabling
-this service requires a restart (a reload is not enough), because the
-key is read while root permissions are held and before chroot (if any).
-The ports enabled implicitly or explicitly via \fBtls\-port:\fR do not provide
-normal DNS TCP service.
+If enabled, the server provides DNS-over-TLS or DNS-over-HTTPS service on the
+TCP ports marked implicitly or explicitly for these services with tls\-port or
+https\-port. The file must contain the private key for the TLS session, the
+public certificate is in the tls\-service\-pem file and it must also be
+specified if tls\-service\-key is specified.  The default is "", turned off.
+Enabling or disabling this service requires a restart (a reload is not enough),
+because the key is read while root permissions are held and before chroot (if any).
+The ports enabled implicitly or explicitly via \fBtls\-port:\fR and
+\fBhttps\-port:\fR do not provide normal DNS TCP service. Unbound needs to be
+compiled with libnghttp2 in order to provide DNS-over-HTTPS.
 .TP
 .B ssl\-service\-key: \fI<file>
 Alternate syntax for \fBtls\-service\-key\fR.
@@ -556,6 +557,35 @@ TLS 1.3 connections.  Use "" for defaults, and that is the default.
 Enable or disable sending the SNI extension on TLS connections.
 Default is yes.
 Changing the value requires a reload.
+.TP
+.B https\-port: \fI<number>
+The port number on which to provide DNS-over-HTTPS service, default 443, only
+interfaces configured with that port number as @number get the HTTPS service.
+.TP
+.B http\-endpoint: \fI<endpoint string>
+The HTTP endpoint to provide DNS-over-HTTPS service on. Default "/dns-query".
+.TP
+.B http\-max\-streams: \fI<number of streams>
+Number used in the SETTINGS_MAX_CONCURRENT_STREAMS parameter in the HTTP/2
+SETTINGS frame for DNS-over-HTTPS connections. Default 100.
+.TP
+.B http\-query\-buffer\-size: \fI<size in bytes>
+Maximum number of bytes used for all HTTP/2 query buffers combined. These
+buffers contain (partial) DNS queries waiting for request stream completion.
+An RST_STREAM frame will be send to streams exceeding this limit. Default is 4
+megabytes. A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes,
+megabytes or gigabytes (1024*1024 bytes in a megabyte).
+.TP
+.B http\-response\-buffer\-size: \fI<size in bytes>
+Maximum number of bytes used for all HTTP/2 response buffers combined. These
+buffers contain DNS responses waiting to be written back to the clients.
+An RST_STREAM frame will be send to streams exceeding this limit. Default is 4
+megabytes. A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes,
+megabytes or gigabytes (1024*1024 bytes in a megabyte).
+.TP
+.B http\-nodelay: \fI<yes or no>
+Set TCP_NODELAY socket option on sockets used to provide DNS-over-HTTPS service.
+Ignored if the option is not available. Default is yes.
 .TP
 .B use\-systemd: \fI<yes or no>
 Enable or disable systemd socket activation.
@@ -853,11 +883,14 @@ authority servers and checks if the reply still has the correct casing.
 Disabled by default.
 This feature is an experimental implementation of draft dns\-0x20.
 .TP
-.B caps\-whitelist: \fI<domain>
-Whitelist the domain so that it does not receive caps\-for\-id perturbed
+.B caps\-exempt: \fI<domain>
+Exempt the domain so that it does not receive caps\-for\-id perturbed
 queries.  For domains that do not support 0x20 and also fail with fallback
 because they keep sending different answers, like some load balancers.
 Can be given multiple times, for different domains.
+.TP
+.B caps\-whitelist: \fI<yes or no>
+Alternate syntax for \fBcaps\-exempt\fR.
 .TP
 .B qname\-minimisation: \fI<yes or no>
 Send minimum amount of information to upstream servers to enhance privacy.
@@ -1010,26 +1043,11 @@ Send RFC8145 key tag query after trust anchor priming. Default is yes.
 .B root\-key\-sentinel: \fI<yes or no>
 Root key trust anchor sentinel. Default is yes.
 .TP
-.B dlv\-anchor\-file: \fI<filename>
-This option was used during early days DNSSEC deployment when no parent-side
-DS record registrations were easily available.  Nowadays, it is best to have
-DS records registered with the parent zone (many top level zones are signed).
-File with trusted keys for DLV (DNSSEC Lookaside Validation). Both DS and
-DNSKEY entries can be used in the file, in the same format as for
-\fItrust\-anchor\-file:\fR statements. Only one DLV can be configured, more
-would be slow. The DLV configured is used as a root trusted DLV, this
-means that it is a lookaside for the root. Default is "", or no dlv anchor
-file. DLV is going to be decommissioned.  Please do not use it any more.
-.TP
-.B dlv\-anchor: \fI<"Resource Record">
-Much like trust\-anchor, this is a DLV anchor with the DS or DNSKEY inline.
-DLV is going to be decommissioned.  Please do not use it any more.
-.TP
 .B domain\-insecure: \fI<domain name>
 Sets domain name to be insecure, DNSSEC chain of trust is ignored towards
 the domain name.  So a trust anchor above the domain name can not make the
 domain secure with a DS record, such a DS record is then ignored.
-Also keys from DLV are ignored for the domain.  Can be given multiple times
+Can be given multiple times
 to specify multiple domains that are treated as if unsigned.  If you set
 trust anchors for the domain they override this setting (and the domain
 is secured).
@@ -1108,7 +1126,7 @@ later on.  Default is "no".
 .B serve\-expired\-ttl: \fI<seconds>
 Limit serving of expired responses to configured seconds after expiration. 0
 disables the limit.  This option only applies when \fBserve\-expired\fR is
-enabled.  A suggested value per draft-ietf-dnsop-serve-stale-10 is between
+enabled.  A suggested value per RFC 8767 is between
 86400 (1 day) and 259200 (3 days).  The default is 0.
 .TP
 .B serve\-expired\-ttl\-reset: \fI<yes or no>
@@ -1120,14 +1138,14 @@ expired records will be served as long as there are queries for it.  Default is
 .B serve\-expired\-reply\-ttl: \fI<seconds>
 TTL value to use when replying with expired data.  If
 \fBserve\-expired\-client\-timeout\fR is also used then it is RECOMMENDED to
-use 30 as the value (draft-ietf-dnsop-serve-stale-10).  The default is 30.
+use 30 as the value (RFC 8767).  The default is 30.
 .TP
 .B serve\-expired\-client\-timeout: \fI<msec>
 Time in milliseconds before replying to the client with expired data.  This
 essentially enables the serve-stale behavior as specified in
-draft-ietf-dnsop-serve-stale-10 that first tries to resolve before immediately
+RFC 8767 that first tries to resolve before immediately
 responding with expired data.  A recommended value per
-draft-ietf-dnsop-serve-stale-10 is 1800.  Setting this to 0 will disable this
+RFC 8767 is 1800.  Setting this to 0 will disable this
 behavior.  Default is 0.
 .TP
 .B val\-nsec3\-keysize\-iterations: \fI<"list of values">
@@ -1516,6 +1534,16 @@ servers set. The default for fast\-server\-permil is 0.
 Set the number of servers that should be used for fast server selection. Only
 use the fastest specified number of servers with the fast\-server\-permil
 option, that turns this on or off. The default is to use the fastest 3 servers.
+.TP 5
+.B edns\-client\-tag: \fI<IP netblock> <tag data>
+Include an edns-client-tag option in queries with destination address matching
+the configured IP netblock. This configuration option can be used multiple
+times. The most specific match will be used. The tag data is configured in
+decimal format, from 0 to 65535.
+.TP 5
+.B edns\-client\-tag\-opcode: \fI<opcode>
+EDNS0 option code for the edns-client-tag option, from 0 to 65535. Default is
+16, as assigned by IANA.
 .SS "Remote Control Options"
 In the
 .B remote\-control:
@@ -1718,16 +1746,16 @@ uses the SOA timer values and performs SOA UDP queries to detect zone changes.
 If the update fetch fails, the timers in the SOA record are used to time
 another fetch attempt.  Until the SOA expiry timer is reached.  Then the
 zone is expired.  When a zone is expired, queries are SERVFAIL, and
-any new serial number is accepted from the master (even if older), and if
+any new serial number is accepted from the primary (even if older), and if
 fallback is enabled, the fallback activates to fetch from the upstream instead
 of the SERVFAIL.
 .TP
 .B name: \fI<zone name>
 Name of the authority zone.
 .TP
-.B master: \fI<IP address or host name>
+.B primary: \fI<IP address or host name>
 Where to download a copy of the zone from, with AXFR and IXFR.  Multiple
-masters can be specified.  They are all tried if one fails.
+primaries can be specified.  They are all tried if one fails.
 With the "ip#name" notation a AXFR over TLS can be used.
 If you point it at another Unbound instance, it would not work because
 that does not support AXFR/IXFR for the zone, but if you used \fBurl:\fR to download
@@ -1736,27 +1764,31 @@ If you specify the hostname, you cannot use the domain from the zonefile,
 because it may not have that when retrieving that data, instead use a plain
 IP address to avoid a circular dependency on retrieving that IP address.
 .TP
+.B master: \fI<IP address or host name>
+Alternate syntax for \fBprimary\fR.
+.TP
 .B url: \fI<url to zonefile>
 Where to download a zonefile for the zone.  With http or https.  An example
 for the url is "http://www.example.com/example.org.zone".  Multiple url
 statements can be given, they are tried in turn.  If only urls are given
 the SOA refresh timer is used to wait for making new downloads.  If also
-masters are listed, the masters are first probed with UDP SOA queries to
+primaries are listed, the primaries are first probed with UDP SOA queries to
 see if the SOA serial number has changed, reducing the number of downloads.
-If none of the urls work, the masters are tried with IXFR and AXFR.
+If none of the urls work, the primaries are tried with IXFR and AXFR.
 For https, the \fBtls\-cert\-bundle\fR and the hostname from the url are used
 to authenticate the connection.
 If you specify a hostname in the URL, you cannot use the domain from the
 zonefile, because it may not have that when retrieving that data, instead
 use a plain IP address to avoid a circular dependency on retrieving that IP
-address.  Avoid dependencies on name lookups by using a notation like "http://192.0.2.1/unbound-master/example.com.zone", with an explicit IP address.
+address.  Avoid dependencies on name lookups by using a notation like
+"http://192.0.2.1/unbound-primaries/example.com.zone", with an explicit IP address.
 .TP
 .B allow\-notify: \fI<IP address or host name or netblockIP/prefix>
 With allow\-notify you can specify additional sources of notifies.
 When notified, the server attempts to first probe and then zone transfer.
-If the notify is from a master, it first attempts that master.  Otherwise
-other masters are attempted.  If there are no masters, but only urls, the
-file is downloaded when notified.  The masters from master: statements are
+If the notify is from a primary, it first attempts that primary.  Otherwise
+other primaries are attempted.  If there are no primaries, but only urls, the
+file is downloaded when notified.  The primaries from primary: statements are
 allowed notify by default.
 .TP
 .B fallback\-enabled: \fI<yes or no>
@@ -1784,7 +1816,7 @@ downstream clients, and use the zone data as a local copy to speed up lookups.
 .B zonefile: \fI<filename>
 The filename where the zone is stored.  If not given then no zonefile is used.
 If the file does not exist or is empty, unbound will attempt to fetch zone
-data (eg. from the master servers).
+data (eg. from the primary servers).
 .SS "View Options"
 .LP
 There may be multiple
@@ -1951,14 +1983,16 @@ The ECS module must be configured in the \fBmodule\-config:\fR "subnetcache
 validator iterator" directive and be compiled into the daemon to be
 enabled.  These settings go in the \fBserver:\fR section.
 .LP
-If the destination address is whitelisted with Unbound will add the EDNS0
-option to the query containing the relevant part of the client's address. When
-an answer contains the ECS option the response and the option are placed in a
-specialized cache. If the authority indicated no support, the response is
+If the destination address is allowed in the configuration Unbound will add the
+EDNS0 option to the query containing the relevant part of the client's address.
+When an answer contains the ECS option the response and the option are placed in
+a specialized cache. If the authority indicated no support, the response is
 stored in the regular cache.
 .LP
 Additionally, when a client includes the option in its queries, Unbound will
-forward the option to the authority if present in the whitelist, or
+forward the option when sending the query to addresses that are explicitly
+allowed in the configuration using \fBsend\-client\-subnet\fR. The option will
+always be forwarded, regardless the allowed addresses, if
 \fBclient\-subnet\-always\-forward\fR is set to yes. In this case the lookup in
 the regular cache is skipped.
 .LP
@@ -1979,11 +2013,11 @@ given multiple times. Zones not listed will not receive edns-subnet information,
 unless hosted by authority specified in \fBsend\-client\-subnet\fR.
 .TP
 .B client\-subnet\-always\-forward: \fI<yes or no>\fR
-Specify whether the ECS whitelist check (configured using
+Specify whether the ECS address check (configured using
 \fBsend\-client\-subnet\fR) is applied for all queries, even if the triggering
 query contains an ECS record, or only for queries for which the ECS record is
 generated using the querier address (and therefore did not contain ECS data in
-the client query). If enabled, the whitelist check is skipped when the client
+the client query). If enabled, the address check is skipped when the client
 query contains an ECS record. Default is no.
 .TP
 .B max\-client\-subnet\-ipv6: \fI<number>\fR
@@ -2073,10 +2107,13 @@ to yes, the hook will be called and the A/AAAA answer will be returned to the
 client.  If set to no, the hook will not be called and the answer to the
 A/AAAA query will be SERVFAIL.  Mainly used for testing.  Defaults to no.
 .TP
-.B ipsecmod\-whitelist: \fI<domain>\fR
-Whitelist the domain so that the module logic will be executed.  Can
-be given multiple times, for different domains.  If the option is not
-specified, all domains are treated as being whitelisted (default).
+.B ipsecmod\-allow: \fI<domain>\fR
+Allow the ipsecmod functionality for the domain so that the module logic will be
+executed.  Can be given multiple times, for different domains.  If the option is
+not specified, all domains are treated as being allowed (default).
+.TP
+.B ipsecmod\-whitelist: \fI<yes or no>
+Alternate syntax for \fBipsecmod\-allow\fR.
 .SS "Cache DB Module Options"
 .LP
 The Cache DB module must be configured in the \fBmodule\-config:\fR
@@ -2110,7 +2147,7 @@ even if some data have expired in terms of DNS TTL or the Redis server has
 cached too much data;
 if necessary the Redis server must be configured to limit the cache size,
 preferably with some kind of least-recently-used eviction policy.
-Additionaly, the \fBredis\-expire\-records\fR option can be used in order to
+Additionally, the \fBredis\-expire\-records\fR option can be used in order to
 set the relative DNS TTL of the message as timeout to the Redis records; keep
 in mind that some additional memory is used per key and that the expire
 information is stored as absolute Unix timestamps in Redis (computer time must
@@ -2273,33 +2310,36 @@ are applied after
 .B name: \fI<zone name>
 Name of the authority zone.
 .TP
-.B master: \fI<IP address or host name>
+.B primary: \fI<IP address or host name>
 Where to download a copy of the zone from, with AXFR and IXFR.  Multiple
-masters can be specified.  They are all tried if one fails.
+primaries can be specified.  They are all tried if one fails.
+.TP
+.B master: \fI<IP address or host name>
+Alternate syntax for \fBprimary\fR.
 .TP
 .B url: \fI<url to zonefile>
 Where to download a zonefile for the zone.  With http or https.  An example
 for the url is "http://www.example.com/example.org.zone".  Multiple url
 statements can be given, they are tried in turn.  If only urls are given
 the SOA refresh timer is used to wait for making new downloads.  If also
-masters are listed, the masters are first probed with UDP SOA queries to
+primaries are listed, the primaries are first probed with UDP SOA queries to
 see if the SOA serial number has changed, reducing the number of downloads.
-If none of the urls work, the masters are tried with IXFR and AXFR.
+If none of the urls work, the primaries are tried with IXFR and AXFR.
 For https, the \fBtls\-cert\-bundle\fR and the hostname from the url are used
 to authenticate the connection.
 .TP
 .B allow\-notify: \fI<IP address or host name or netblockIP/prefix>
 With allow\-notify you can specify additional sources of notifies.
 When notified, the server attempts to first probe and then zone transfer.
-If the notify is from a master, it first attempts that master.  Otherwise
-other masters are attempted.  If there are no masters, but only urls, the
-file is downloaded when notified.  The masters from master: statements are
+If the notify is from a primary, it first attempts that primary.  Otherwise
+other primaries are attempted.  If there are no primaries, but only urls, the
+file is downloaded when notified.  The primaries from primary: statements are
 allowed notify by default.
 .TP
 .B zonefile: \fI<filename>
 The filename where the zone is stored.  If not given then no zonefile is used.
 If the file does not exist or is empty, unbound will attempt to fetch zone
-data (eg. from the master servers).
+data (eg. from the primary servers).
 .TP
 .B rpz\-action\-override: \fI<action>
 Always use this RPZ action for matching triggers from this zone. Possible action

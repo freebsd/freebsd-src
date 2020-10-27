@@ -131,6 +131,19 @@ struct config_file {
 	/** if SNI is to be used */
 	int tls_use_sni;
 
+	/** port on which to provide DNS over HTTPS service */
+	int https_port;
+	/** endpoint for HTTP service */
+	char* http_endpoint;
+	/** MAX_CONCURRENT_STREAMS HTTP/2 setting */
+	uint32_t http_max_streams;
+	/** maximum size of all HTTP2 query buffers combined. */
+	size_t http_query_buffer_size;
+	/** maximum size of all HTTP2 response buffers combined. */
+	size_t http_response_buffer_size;
+	/** set TCP_NODELAY option for http sockets */
+	int http_nodelay;
+
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
 	/** number of outgoing tcp buffers per (per thread) */
@@ -331,10 +344,6 @@ struct config_file {
 	struct config_strlist* auto_trust_anchor_file_list;
 	/** files with trusted DNSKEYs in named.conf format, list */
 	struct config_strlist* trusted_keys_file_list;
-	/** DLV anchor file */
-	char* dlv_anchor_file;
-	/** DLV anchor inline */
-	struct config_strlist* dlv_anchor_list;
 	/** insecure domain list */
 	struct config_strlist* domain_insecure;
 	/** send key tag query */
@@ -553,6 +562,11 @@ struct config_file {
 	/** SHM data - key for the shm */
 	int shm_key;
 
+	/** list of EDNS client tag entries, linked list */
+	struct config_str2list* edns_client_tags;
+	/** EDNS opcode to use for EDNS client tags */
+	uint16_t edns_client_tag_opcode;
+
 	/** DNSCrypt */
 	/** true to enable dnscrypt */
 	int dnscrypt;
@@ -625,6 +639,10 @@ extern gid_t cfg_gid;
 extern int autr_permit_small_holddown;
 /** size (in bytes) of stream wait buffers max */
 extern size_t stream_wait_max;
+/** size (in bytes) of all total HTTP2 query buffers max */
+extern size_t http2_query_buffer_max;
+/** size (in bytes) of all total HTTP2 response buffers max */
+extern size_t http2_response_buffer_max;
 
 /**
  * Stub config options
@@ -969,6 +987,9 @@ void config_deldblstrlist(struct config_str2list* list);
  * @param list: list.
  */
 void config_deltrplstrlist(struct config_str3list* list);
+
+/** delete string array */
+void config_del_strarray(char** array, int num);
 
 /** delete stringbytelist */
 void config_del_strbytelist(struct config_strbytelist* list);

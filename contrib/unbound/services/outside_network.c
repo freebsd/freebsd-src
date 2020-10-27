@@ -58,6 +58,7 @@
 #include "util/net_help.h"
 #include "util/random.h"
 #include "util/fptr_wlist.h"
+#include "util/edns.h"
 #include "sldns/sbuffer.h"
 #include "dnstap/dnstap.h"
 #ifdef HAVE_OPENSSL_SSL_H
@@ -165,11 +166,7 @@ pick_outgoing_tcp(struct waiting_tcp* w, int s)
 	if(num == 0) {
 		log_err("no TCP outgoing interfaces of family");
 		log_addr(VERB_OPS, "for addr", &w->addr, w->addrlen);
-#ifndef USE_WINSOCK
-		close(s);
-#else
-		closesocket(s);
-#endif
+		sock_close(s);
 		return 0;
 	}
 #ifdef INET6
@@ -188,14 +185,8 @@ pick_outgoing_tcp(struct waiting_tcp* w, int s)
 		((struct sockaddr_in6*)&pi->addr)->sin6_port = 0;
 	else	((struct sockaddr_in*)&pi->addr)->sin_port = 0;
 	if(bind(s, (struct sockaddr*)&pi->addr, pi->addrlen) != 0) {
-#ifndef USE_WINSOCK
-		log_err("outgoing tcp: bind: %s", strerror(errno));
-		close(s);
-#else
-		log_err("outgoing tcp: bind: %s", 
-			wsa_strerror(WSAGetLastError()));
-		closesocket(s);
-#endif
+		log_err("outgoing tcp: bind: %s", sock_strerror(errno));
+		sock_close(s);
 		return 0;
 	}
 	log_addr(VERB_ALGO, "tcp bound to src", &pi->addr, pi->addrlen);
@@ -225,13 +216,8 @@ outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen, int tcp_mss,
 		s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	}
 	if(s == -1) {
-#ifndef USE_WINSOCK
-		log_err_addr("outgoing tcp: socket", strerror(errno),
+		log_err_addr("outgoing tcp: socket", sock_strerror(errno),
 			addr, addrlen);
-#else
-		log_err_addr("outgoing tcp: socket", 
-			wsa_strerror(WSAGetLastError()), addr, addrlen);
-#endif
 		return -1;
 	}
 
@@ -2111,9 +2097,20 @@ outnet_serviced_query(struct outside_network* outnet,
 {
 	struct serviced_query* sq;
 	struct service_callback* cb;
+	struct edns_tag_addr* client_tag_addr;
+
 	if(!inplace_cb_query_call(env, qinfo, flags, addr, addrlen, zone, zonelen,
 		qstate, qstate->region))
 			return NULL;
+
+	if((client_tag_addr = edns_tag_addr_lookup(&env->edns_tags->client_tags,
+		addr, addrlen))) {
+		uint16_t client_tag = htons(client_tag_addr->tag_data);
+		edns_opt_list_append(&qstate->edns_opts_back_out,
+			env->edns_tags->client_tag_opcode, 2,
+			(uint8_t*)&client_tag, qstate->region);
+	}
+
 	serviced_gen_query(buff, qinfo->qname, qinfo->qname_len, qinfo->qtype,
 		qinfo->qclass, flags);
 	sq = lookup_serviced(outnet, buff, dnssec, addr, addrlen,

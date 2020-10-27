@@ -112,6 +112,9 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_TCP_UPSTREAM VAR_SSL_UPSTREAM
 %token VAR_SSL_SERVICE_KEY VAR_SSL_SERVICE_PEM VAR_SSL_PORT VAR_FORWARD_FIRST
 %token VAR_STUB_SSL_UPSTREAM VAR_FORWARD_SSL_UPSTREAM VAR_TLS_CERT_BUNDLE
+%token VAR_HTTPS_PORT VAR_HTTP_ENDPOINT VAR_HTTP_MAX_STREAMS
+%token VAR_HTTP_QUERY_BUFFER_SIZE VAR_HTTP_RESPONSE_BUFFER_SIZE
+%token VAR_HTTP_NODELAY
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
 %token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE
 %token VAR_UNBLOCK_LAN_ZONES VAR_INSECURE_LAN_ZONES
@@ -175,7 +178,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_IPSET VAR_IPSET_NAME_V4 VAR_IPSET_NAME_V6
 %token VAR_TLS_SESSION_TICKET_KEYS VAR_RPZ VAR_TAGS VAR_RPZ_ACTION_OVERRIDE
 %token VAR_RPZ_CNAME_OVERRIDE VAR_RPZ_LOG VAR_RPZ_LOG_NAME
-%token VAR_DYNLIB VAR_DYNLIB_FILE
+%token VAR_DYNLIB VAR_DYNLIB_FILE VAR_EDNS_CLIENT_TAG VAR_EDNS_CLIENT_TAG_OPCODE
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -244,6 +247,9 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_log_queries | server_log_replies | server_tcp_upstream | server_ssl_upstream |
 	server_log_local_actions |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
+	server_https_port | server_http_endpoint | server_http_max_streams |
+	server_http_query_buffer_size | server_http_response_buffer_size |
+	server_http_nodelay |
 	server_minimal_responses | server_rrset_roundrobin | server_max_udp_size |
 	server_so_reuseport | server_delay_close |
 	server_unblock_lan_zones | server_insecure_lan_zones |
@@ -285,7 +291,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_unknown_server_time_limit | server_log_tag_queryreply |
 	server_stream_wait_size | server_tls_ciphers |
 	server_tls_ciphersuites | server_tls_session_ticket_keys |
-	server_tls_use_sni
+	server_tls_use_sni | server_edns_client_tag |
+	server_edns_client_tag_opcode
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -969,6 +976,61 @@ server_tls_use_sni: VAR_TLS_USE_SNI STRING_ARG
 		free($2);
 	}
 	;
+server_https_port: VAR_HTTPS_PORT STRING_ARG
+	{
+		OUTYY(("P(server_https_port:%s)\n", $2));
+		if(atoi($2) == 0)
+			yyerror("port number expected");
+		else cfg_parser->cfg->https_port = atoi($2);
+	};
+server_http_endpoint: VAR_HTTP_ENDPOINT STRING_ARG
+	{
+		OUTYY(("P(server_http_endpoint:%s)\n", $2));
+		free(cfg_parser->cfg->http_endpoint);
+		if($2 && $2[0] != '/') {
+			cfg_parser->cfg->http_endpoint = malloc(strlen($2)+2);
+			if(!cfg_parser->cfg->http_endpoint)
+				yyerror("out of memory");
+			cfg_parser->cfg->http_endpoint[0] = '/';
+			memmove(cfg_parser->cfg->http_endpoint+1, $2,
+				strlen($2)+1);
+			free($2);
+		} else {
+			cfg_parser->cfg->http_endpoint = $2;
+		}
+	};
+server_http_max_streams: VAR_HTTP_MAX_STREAMS STRING_ARG
+	{
+		OUTYY(("P(server_http_max_streams:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->http_max_streams = atoi($2);
+		free($2);
+	};
+server_http_query_buffer_size: VAR_HTTP_QUERY_BUFFER_SIZE STRING_ARG
+	{
+		OUTYY(("P(server_http_query_buffer_size:%s)\n", $2));
+		if(!cfg_parse_memsize($2,
+			&cfg_parser->cfg->http_query_buffer_size))
+			yyerror("memory size expected");
+		free($2);
+	};
+server_http_response_buffer_size: VAR_HTTP_RESPONSE_BUFFER_SIZE STRING_ARG
+	{
+		OUTYY(("P(server_http_response_buffer_size:%s)\n", $2));
+		if(!cfg_parse_memsize($2,
+			&cfg_parser->cfg->http_response_buffer_size))
+			yyerror("memory size expected");
+		free($2);
+	};
+server_http_nodelay: VAR_HTTP_NODELAY STRING_ARG
+	{
+		OUTYY(("P(server_http_nodelay:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->http_nodelay = (strcmp($2, "yes")==0);
+		free($2);
+	};
 server_use_systemd: VAR_USE_SYSTEMD STRING_ARG
 	{
 		OUTYY(("P(server_use_systemd:%s)\n", $2));
@@ -1120,15 +1182,15 @@ server_root_hints: VAR_ROOT_HINTS STRING_ARG
 server_dlv_anchor_file: VAR_DLV_ANCHOR_FILE STRING_ARG
 	{
 		OUTYY(("P(server_dlv_anchor_file:%s)\n", $2));
-		free(cfg_parser->cfg->dlv_anchor_file);
-		cfg_parser->cfg->dlv_anchor_file = $2;
+		log_warn("option dlv-anchor-file ignored: DLV is decommissioned");
+		free($2);
 	}
 	;
 server_dlv_anchor: VAR_DLV_ANCHOR STRING_ARG
 	{
 		OUTYY(("P(server_dlv_anchor:%s)\n", $2));
-		if(!cfg_strlist_insert(&cfg_parser->cfg->dlv_anchor_list, $2))
-			yyerror("out of memory");
+		log_warn("option dlv-anchor ignored: DLV is decommissioned");
+		free($2);
 	}
 	;
 server_auto_trust_anchor_file: VAR_AUTO_TRUST_ANCHOR_FILE STRING_ARG
@@ -2401,6 +2463,32 @@ server_ipsecmod_strict: VAR_IPSECMOD_STRICT STRING_ARG
 		OUTYY(("P(Compiled without IPsec module, ignoring)\n"));
 		free($2);
 	#endif
+	}
+	;
+server_edns_client_tag: VAR_EDNS_CLIENT_TAG STRING_ARG STRING_ARG
+	{
+		int tag_data;
+		OUTYY(("P(server_edns_client_tag:%s %s)\n", $2, $3));
+		tag_data = atoi($3);
+		if(tag_data > 65535 || tag_data < 0 ||
+			(tag_data == 0 && (strlen($3) != 1 || $3[0] != '0')))
+			yyerror("edns-client-tag data invalid, needs to be a "
+				"number from 0 to 65535");
+		if(!cfg_str2list_insert(
+			&cfg_parser->cfg->edns_client_tags, $2, $3))
+			fatal_exit("out of memory adding "
+				"edns-client-tag");
+	}
+	;
+server_edns_client_tag_opcode: VAR_EDNS_CLIENT_TAG_OPCODE STRING_ARG
+	{
+		OUTYY(("P(edns_client_tag_opcode:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("option code expected");
+		else if(atoi($2) > 65535 || atoi($2) < 0)
+			yyerror("option code must be in interval [0, 65535]");
+		else cfg_parser->cfg->edns_client_tag_opcode = atoi($2);
+
 	}
 	;
 stub_name: VAR_NAME STRING_ARG

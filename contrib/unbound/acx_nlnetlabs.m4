@@ -2,7 +2,8 @@
 # Copyright 2009, Wouter Wijngaards, NLnet Labs.   
 # BSD licensed.
 #
-# Version 34
+# Version 35
+# 2020-08-24 Use EVP_sha256 instead of HMAC_Update (for openssl-3.0.0).
 # 2016-03-21 Check -ldl -pthread for libcrypto for ldns and openssl 1.1.0.
 # 2016-03-21 Use HMAC_Update instead of HMAC_CTX_Init (for openssl-1.1.0).
 # 2016-01-04 -D_DEFAULT_SOURCE defined with -D_BSD_SOURCE for Linux glibc 2.20
@@ -673,16 +674,16 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                 ACX_RUNTIME_PATH_ADD([$ssldir/lib])
             fi
         
-            AC_MSG_CHECKING([for HMAC_Update in -lcrypto])
+            AC_MSG_CHECKING([for EVP_sha256 in -lcrypto])
             LIBS="$LIBS -lcrypto"
             LIBSSL_LIBS="$LIBSSL_LIBS -lcrypto"
             AC_TRY_LINK(, [
-                int HMAC_Update(void);
-                (void)HMAC_Update();
+                int EVP_sha256(void);
+                (void)EVP_sha256();
               ], [
                 AC_MSG_RESULT(yes)
-                AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
-                          [If you have HMAC_Update])
+                AC_DEFINE([HAVE_EVP_SHA256], 1,
+                          [If you have EVP_sha256])
               ], [
                 AC_MSG_RESULT(no)
                 # check if -lwsock32 or -lgdi32 are needed.	
@@ -692,11 +693,11 @@ AC_DEFUN([ACX_SSL_CHECKS], [
 		LIBSSL_LIBS="$LIBSSL_LIBS -lgdi32 -lws2_32"
                 AC_MSG_CHECKING([if -lcrypto needs -lgdi32])
                 AC_TRY_LINK([], [
-                    int HMAC_Update(void);
-                    (void)HMAC_Update();
+                    int EVP_sha256(void);
+                    (void)EVP_sha256();
                   ],[
-                    AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
-                        [If you have HMAC_Update])
+                    AC_DEFINE([HAVE_EVP_SHA256], 1,
+                        [If you have EVP_sha256])
                     AC_MSG_RESULT(yes) 
                   ],[
                     AC_MSG_RESULT(no)
@@ -706,11 +707,11 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                     LIBSSL_LIBS="$LIBSSL_LIBS -ldl"
                     AC_MSG_CHECKING([if -lcrypto needs -ldl])
                     AC_TRY_LINK([], [
-                        int HMAC_Update(void);
-                        (void)HMAC_Update();
+                        int EVP_sha256(void);
+                        (void)EVP_sha256();
                       ],[
-                        AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
-                            [If you have HMAC_Update])
+                        AC_DEFINE([HAVE_EVP_SHA256], 1,
+                            [If you have EVP_sha256])
                         AC_MSG_RESULT(yes) 
                       ],[
                         AC_MSG_RESULT(no)
@@ -720,11 +721,11 @@ AC_DEFUN([ACX_SSL_CHECKS], [
                         LIBSSL_LIBS="$LIBSSL_LIBS -ldl -pthread"
                         AC_MSG_CHECKING([if -lcrypto needs -ldl -pthread])
                         AC_TRY_LINK([], [
-                            int HMAC_Update(void);
-                            (void)HMAC_Update();
+                            int EVP_sha256(void);
+                            (void)EVP_sha256();
                           ],[
-                            AC_DEFINE([HAVE_HMAC_UPDATE], 1, 
-                                [If you have HMAC_Update])
+                            AC_DEFINE([HAVE_EVP_SHA256], 1,
+                                [If you have EVP_sha256])
                             AC_MSG_RESULT(yes) 
                           ],[
                             AC_MSG_RESULT(no)

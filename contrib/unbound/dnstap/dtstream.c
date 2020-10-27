@@ -68,6 +68,8 @@
 #define DTIO_RECONNECT_TIMEOUT_MAX 1000
 /** the msec to wait for reconnect slow, to stop busy spinning on reconnect */
 #define DTIO_RECONNECT_TIMEOUT_SLOW 1000
+/** number of messages before wakeup of thread */
+#define DTIO_MSG_FOR_WAKEUP 32
 
 /** maximum length of received frame */
 #define DTIO_RECV_FRAME_MAX_LEN 1000
@@ -99,13 +101,18 @@ static int dtio_enable_brief_write(struct dt_io_thread* dtio);
 #endif
 
 struct dt_msg_queue*
-dt_msg_queue_create(void)
+dt_msg_queue_create(struct comm_base* base)
 {
 	struct dt_msg_queue* mq = calloc(1, sizeof(*mq));
 	if(!mq) return NULL;
 	mq->maxsize = 1*1024*1024; /* set max size of buffer, per worker,
 		about 1 M should contain 64K messages with some overhead,
 		or a whole bunch smaller ones */
+	mq->wakeup_timer = comm_timer_create(base, mq_wakeup_cb, mq);
+	if(!mq->wakeup_timer) {
+		free(mq);
+		return NULL;
+	}
 	lock_basic_init(&mq->lock);
 	lock_protect(&mq->lock, mq, sizeof(*mq));
 	return mq;
@@ -125,6 +132,7 @@ dt_msg_queue_clear(struct dt_msg_queue* mq)
 	mq->first = NULL;
 	mq->last = NULL;
 	mq->cursize = 0;
+	mq->msgcount = 0;
 }
 
 void
@@ -133,6 +141,7 @@ dt_msg_queue_delete(struct dt_msg_queue* mq)
 	if(!mq) return;
 	lock_basic_destroy(&mq->lock);
 	dt_msg_queue_clear(mq);
+	comm_timer_delete(mq->wakeup_timer);
 	free(mq);
 }
 
@@ -149,15 +158,14 @@ static void dtio_wakeup(struct dt_io_thread* dtio)
 #ifndef USE_WINSOCK
 			if(errno == EINTR || errno == EAGAIN)
 				continue;
-			log_err("dnstap io wakeup: write: %s", strerror(errno));
 #else
 			if(WSAGetLastError() == WSAEINPROGRESS)
 				continue;
 			if(WSAGetLastError() == WSAEWOULDBLOCK)
 				continue;
-			log_err("dnstap io stop: write: %s",
-				wsa_strerror(WSAGetLastError()));
 #endif
+			log_err("dnstap io wakeup: write: %s",
+				sock_strerror(errno));
 			break;
 		}
 		break;
@@ -165,9 +173,56 @@ static void dtio_wakeup(struct dt_io_thread* dtio)
 }
 
 void
+mq_wakeup_cb(void* arg)
+{
+	struct dt_msg_queue* mq = (struct dt_msg_queue*)arg;
+	/* even if the dtio is already active, because perhaps much
+	 * traffic suddenly, we leave the timer running to save on
+	 * managing it, the once a second timer is less work then
+	 * starting and stopping the timer frequently */
+	lock_basic_lock(&mq->dtio->wakeup_timer_lock);
+	mq->dtio->wakeup_timer_enabled = 0;
+	lock_basic_unlock(&mq->dtio->wakeup_timer_lock);
+	dtio_wakeup(mq->dtio);
+}
+
+/** start timer to wakeup dtio because there is content in the queue */
+static void
+dt_msg_queue_start_timer(struct dt_msg_queue* mq)
+{
+	struct timeval tv;
+	/* Start a timer to process messages to be logged.
+	 * If we woke up the dtio thread for every message, the wakeup
+	 * messages take up too much processing power.  If the queue
+	 * fills up the wakeup happens immediately.  The timer wakes it up
+	 * if there are infrequent messages to log. */
+
+	/* we cannot start a timer in dtio thread, because it is a different
+	 * thread and its event base is in use by the other thread, it would
+	 * give race conditions if we tried to modify its event base,
+	 * and locks would wait until it woke up, and this is what we do. */
+
+	/* do not start the timer if a timer already exists, perhaps
+	 * in another worker.  So this variable is protected by a lock in
+	 * dtio */
+	lock_basic_lock(&mq->dtio->wakeup_timer_lock);
+	if(mq->dtio->wakeup_timer_enabled) {
+		lock_basic_unlock(&mq->dtio->wakeup_timer_lock);
+		return;
+	}
+	mq->dtio->wakeup_timer_enabled = 1; /* we are going to start one */
+	lock_basic_unlock(&mq->dtio->wakeup_timer_lock);
+
+	/* start the timer, in mq, in the event base of our worker */
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	comm_timer_set(mq->wakeup_timer, &tv);
+}
+
+void
 dt_msg_queue_submit(struct dt_msg_queue* mq, void* buf, size_t len)
 {
-	int wakeup = 0;
+	int wakeupnow = 0, wakeupstarttimer = 0;
 	struct dt_msg_entry* entry;
 
 	/* check conditions */
@@ -198,9 +253,15 @@ dt_msg_queue_submit(struct dt_msg_queue* mq, void* buf, size_t len)
 
 	/* aqcuire lock */
 	lock_basic_lock(&mq->lock);
-	/* list was empty, wakeup dtio */
+	/* if list was empty, start timer for (eventual) wakeup */
 	if(mq->first == NULL)
-		wakeup = 1;
+		wakeupstarttimer = 1;
+	/* if list contains more than wakeupnum elements, wakeup now,
+	 * or if list is (going to be) almost full */
+	if(mq->msgcount == DTIO_MSG_FOR_WAKEUP ||
+		(mq->cursize < mq->maxsize * 9 / 10 &&
+		mq->cursize+len >= mq->maxsize * 9 / 10))
+		wakeupnow = 1;
 	/* see if it is going to fit */
 	if(mq->cursize + len > mq->maxsize) {
 		/* buffer full, or congested. */
@@ -211,6 +272,7 @@ dt_msg_queue_submit(struct dt_msg_queue* mq, void* buf, size_t len)
 		return;
 	}
 	mq->cursize += len;
+	mq->msgcount ++;
 	/* append to list */
 	if(mq->last) {
 		mq->last->next = entry;
@@ -221,13 +283,19 @@ dt_msg_queue_submit(struct dt_msg_queue* mq, void* buf, size_t len)
 	/* release lock */
 	lock_basic_unlock(&mq->lock);
 
-	if(wakeup)
+	if(wakeupnow) {
 		dtio_wakeup(mq->dtio);
+	} else if(wakeupstarttimer) {
+		dt_msg_queue_start_timer(mq);
+	}
 }
 
 struct dt_io_thread* dt_io_thread_create(void)
 {
 	struct dt_io_thread* dtio = calloc(1, sizeof(*dtio));
+	lock_basic_init(&dtio->wakeup_timer_lock);
+	lock_protect(&dtio->wakeup_timer_lock, &dtio->wakeup_timer_enabled,
+		sizeof(dtio->wakeup_timer_enabled));
 	return dtio;
 }
 
@@ -235,6 +303,7 @@ void dt_io_thread_delete(struct dt_io_thread* dtio)
 {
 	struct dt_io_list_item* item, *nextitem;
 	if(!dtio) return;
+	lock_basic_destroy(&dtio->wakeup_timer_lock);
 	item=dtio->io_list;
 	while(item) {
 		nextitem = item->next;
@@ -279,7 +348,8 @@ int dt_io_thread_apply_cfg(struct dt_io_thread* dtio, struct config_file *cfg)
 			return 0;
 		}
 		free(dtio->socket_path);
-		dtio->socket_path = strdup(cfg->dnstap_socket_path);
+		dtio->socket_path = fname_after_chroot(cfg->dnstap_socket_path,
+			cfg, 1);
 		if(!dtio->socket_path) {
 			log_err("dnstap setup: malloc failure");
 			return 0;
@@ -416,6 +486,7 @@ static int dt_msg_queue_pop(struct dt_msg_queue* mq, void** buf,
 		mq->first = entry->next;
 		if(!entry->next) mq->last = NULL;
 		mq->cursize -= entry->len;
+		mq->msgcount --;
 		lock_basic_unlock(&mq->lock);
 
 		*buf = entry->buf;
@@ -587,11 +658,7 @@ static void dtio_del_output_event(struct dt_io_thread* dtio)
 /** close dtio socket and set it to -1 */
 static void dtio_close_fd(struct dt_io_thread* dtio)
 {
-#ifndef USE_WINSOCK
-	close(dtio->fd);
-#else
-	closesocket(dtio->fd);
-#endif
+	sock_close(dtio->fd);
 	dtio->fd = -1;
 }
 
@@ -659,13 +726,8 @@ static int dtio_check_nb_connect(struct dt_io_thread* dtio)
 		char* to = dtio->socket_path;
 		if(!to) to = dtio->ip_str;
 		if(!to) to = "";
-#ifndef USE_WINSOCK
 		log_err("dnstap io: failed to connect to \"%s\": %s",
-			to, strerror(error));
-#else
-		log_err("dnstap io: failed to connect to \"%s\": %s",
-			to, wsa_strerror(error));
-#endif
+			to, sock_strerror(error));
 		return -1; /* error, close it */
 	}
 
@@ -742,7 +804,6 @@ static int dtio_write_buf(struct dt_io_thread* dtio, uint8_t* buf,
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return 0;
-		log_err("dnstap io: failed send: %s", strerror(errno));
 #else
 		if(WSAGetLastError() == WSAEINPROGRESS)
 			return 0;
@@ -752,9 +813,8 @@ static int dtio_write_buf(struct dt_io_thread* dtio, uint8_t* buf,
 				UB_EV_WRITE);
 			return 0;
 		}
-		log_err("dnstap io: failed send: %s",
-			wsa_strerror(WSAGetLastError()));
 #endif
+		log_err("dnstap io: failed send: %s", sock_strerror(errno));
 		return -1;
 	}
 	return ret;
@@ -778,7 +838,6 @@ static int dtio_write_with_writev(struct dt_io_thread* dtio)
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return 0;
-		log_err("dnstap io: failed writev: %s", strerror(errno));
 #else
 		if(WSAGetLastError() == WSAEINPROGRESS)
 			return 0;
@@ -788,9 +847,8 @@ static int dtio_write_with_writev(struct dt_io_thread* dtio)
 				UB_EV_WRITE);
 			return 0;
 		}
-		log_err("dnstap io: failed writev: %s",
-			wsa_strerror(WSAGetLastError()));
 #endif
+		log_err("dnstap io: failed writev: %s", sock_strerror(errno));
 		/* close the channel */
 		dtio_del_output_event(dtio);
 		dtio_close_output(dtio);
@@ -1115,6 +1173,8 @@ static int dtio_read_accept_frame(struct dt_io_thread* dtio)
 					goto close_connection;
 				}
 				dtio->accept_frame_received = 1;
+				if(!dtio_add_output_event_write(dtio))
+					goto close_connection;
 				return 1;
 			} else {
 				/* unknow content type */
@@ -1482,15 +1542,13 @@ void dtio_cmd_cb(int fd, short ATTR_UNUSED(bits), void* arg)
 #ifndef USE_WINSOCK
 		if(errno == EINTR || errno == EAGAIN)
 			return; /* ignore this */
-		log_err("dnstap io: failed to read: %s", strerror(errno));
 #else
 		if(WSAGetLastError() == WSAEINPROGRESS)
 			return;
 		if(WSAGetLastError() == WSAEWOULDBLOCK)
 			return;
-		log_err("dnstap io: failed to read: %s",
-			wsa_strerror(WSAGetLastError()));
 #endif
+		log_err("dnstap io: failed to read: %s", sock_strerror(errno));
 		/* and then fall through to quit the thread */
 	} else if(r == 0) {
 		verbose(VERB_ALGO, "dnstap io: cmd channel closed");
@@ -1852,13 +1910,8 @@ static int dtio_open_output_local(struct dt_io_thread* dtio)
 	struct sockaddr_un s;
 	dtio->fd = socket(AF_LOCAL, SOCK_STREAM, 0);
 	if(dtio->fd == -1) {
-#ifndef USE_WINSOCK
 		log_err("dnstap io: failed to create socket: %s",
-			strerror(errno));
-#else
-		log_err("dnstap io: failed to create socket: %s",
-			wsa_strerror(WSAGetLastError()));
-#endif
+			sock_strerror(errno));
 		return 0;
 	}
 	memset(&s, 0, sizeof(s));
@@ -1873,13 +1926,13 @@ static int dtio_open_output_local(struct dt_io_thread* dtio)
 	if(connect(dtio->fd, (struct sockaddr*)&s, (socklen_t)sizeof(s))
 		== -1) {
 		char* to = dtio->socket_path;
-#ifndef USE_WINSOCK
+		if(dtio->reconnect_timeout > DTIO_RECONNECT_TIMEOUT_MIN &&
+			verbosity < 4) {
+			dtio_close_fd(dtio);
+			return 0; /* no log retries on low verbosity */
+		}
 		log_err("dnstap io: failed to connect to \"%s\": %s",
-			to, strerror(errno));
-#else
-		log_err("dnstap io: failed to connect to \"%s\": %s",
-			to, wsa_strerror(WSAGetLastError()));
-#endif
+			to, sock_strerror(errno));
 		dtio_close_fd(dtio);
 		return 0;
 	}
@@ -1904,18 +1957,18 @@ static int dtio_open_output_tcp(struct dt_io_thread* dtio)
 	}
 	dtio->fd = socket(addr.ss_family, SOCK_STREAM, 0);
 	if(dtio->fd == -1) {
-#ifndef USE_WINSOCK
-		log_err("can't create socket: %s", strerror(errno));
-#else
-		log_err("can't create socket: %s",
-			wsa_strerror(WSAGetLastError()));
-#endif
+		log_err("can't create socket: %s", sock_strerror(errno));
 		return 0;
 	}
 	fd_set_nonblock(dtio->fd);
 	if(connect(dtio->fd, (struct sockaddr*)&addr, addrlen) == -1) {
 		if(errno == EINPROGRESS)
 			return 1; /* wait until connect done*/
+		if(dtio->reconnect_timeout > DTIO_RECONNECT_TIMEOUT_MIN &&
+			verbosity < 4) {
+			dtio_close_fd(dtio);
+			return 0; /* no log retries on low verbosity */
+		}
 #ifndef USE_WINSOCK
 		if(tcp_connect_errno_needs_log(
 			(struct sockaddr *)&addr, addrlen)) {
@@ -2097,15 +2150,14 @@ void dt_io_thread_stop(struct dt_io_thread* dtio)
 #ifndef USE_WINSOCK
 			if(errno == EINTR || errno == EAGAIN)
 				continue;
-			log_err("dnstap io stop: write: %s", strerror(errno));
 #else
 			if(WSAGetLastError() == WSAEINPROGRESS)
 				continue;
 			if(WSAGetLastError() == WSAEWOULDBLOCK)
 				continue;
-			log_err("dnstap io stop: write: %s",
-				wsa_strerror(WSAGetLastError()));
 #endif
+			log_err("dnstap io stop: write: %s",
+				sock_strerror(errno));
 			break;
 		}
 		break;
