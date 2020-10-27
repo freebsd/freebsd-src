@@ -1418,7 +1418,9 @@ gicv3_its_release_msix(device_t dev, device_t child, struct intr_irqsrc *isrc)
 
 	sc = device_get_softc(dev);
 	girq = (struct gicv3_its_irqsrc *)isrc;
+	mtx_lock_spin(&sc->sc_its_dev_lock);
 	gicv3_its_release_irqsrc(sc, girq);
+	mtx_unlock_spin(&sc->sc_its_dev_lock);
 	its_dev->lpis.lpi_busy--;
 
 	if (its_dev->lpis.lpi_busy == 0)
