@@ -890,9 +890,8 @@ dns_cache_lookup(struct module_env* env,
 		lock_rw_unlock(&rrset->entry.lock);
 	}
 
-	/* construct DS, DNSKEY, DLV messages from rrset cache. */
-	if((qtype == LDNS_RR_TYPE_DS || qtype == LDNS_RR_TYPE_DNSKEY ||
-		qtype == LDNS_RR_TYPE_DLV) &&
+	/* construct DS, DNSKEY messages from rrset cache. */
+	if((qtype == LDNS_RR_TYPE_DS || qtype == LDNS_RR_TYPE_DNSKEY) &&
 		(rrset=rrset_cache_lookup(env->rrset_cache, qname, qnamelen, 
 		qtype, qclass, 0, now, 0))) {
 		/* if the rrset is from the additional section, and the

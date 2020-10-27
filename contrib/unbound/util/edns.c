@@ -43,11 +43,92 @@
 #include "util/edns.h"
 #include "util/config_file.h"
 #include "util/netevent.h"
+#include "util/net_help.h"
 #include "util/regional.h"
 #include "util/data/msgparse.h"
 #include "util/data/msgreply.h"
 
+#if 0
+/* XXX: remove me */
 #include "edns.h"
+#endif
+
+struct edns_tags* edns_tags_create(void)
+{
+	struct edns_tags* edns_tags = calloc(1, sizeof(struct edns_tags));
+	if(!edns_tags)
+		return NULL;
+	if(!(edns_tags->region = regional_create())) {
+		edns_tags_delete(edns_tags);
+		return NULL;
+	}
+	return edns_tags;
+}
+
+void edns_tags_delete(struct edns_tags* edns_tags)
+{
+	if(!edns_tags)
+		return;
+	regional_destroy(edns_tags->region);
+	free(edns_tags);
+}
+
+static int
+edns_tags_client_insert(struct edns_tags* edns_tags,
+	struct sockaddr_storage* addr, socklen_t addrlen, int net,
+	uint16_t tag_data)
+{
+	struct edns_tag_addr* eta = regional_alloc_zero(edns_tags->region,
+		sizeof(struct edns_tag_addr));
+	if(!eta)
+		return 0;
+	eta->tag_data = tag_data;
+	if(!addr_tree_insert(&edns_tags->client_tags, &eta->node, addr, addrlen,
+		net)) {
+		verbose(VERB_QUERY, "duplicate EDNS client tag ignored.");
+	}
+	return 1;
+}
+
+int edns_tags_apply_cfg(struct edns_tags* edns_tags,
+	struct config_file* config)
+{
+	struct config_str2list* c;
+	regional_free_all(edns_tags->region);
+	addr_tree_init(&edns_tags->client_tags);
+
+	for(c=config->edns_client_tags; c; c=c->next) {
+		struct sockaddr_storage addr;
+		socklen_t addrlen;
+		int net;
+		uint16_t tag_data;
+		log_assert(c->str && c->str2);
+
+		if(!netblockstrtoaddr(c->str, UNBOUND_DNS_PORT, &addr, &addrlen,
+			&net)) {
+			log_err("cannot parse EDNS client tag IP netblock: %s",
+				c->str);
+			return 0;
+		}
+		tag_data = atoi(c->str2); /* validated in config parser */
+		if(!edns_tags_client_insert(edns_tags, &addr, addrlen, net,
+			tag_data)) {
+			log_err("out of memory while adding EDNS tags");
+			return 0;
+		}
+	}
+	edns_tags->client_tag_opcode = config->edns_client_tag_opcode;
+
+	addr_tree_init_parents(&edns_tags->client_tags);
+	return 1;
+}
+
+struct edns_tag_addr*
+edns_tag_addr_lookup(rbtree_type* tree, struct sockaddr_storage* addr,
+	socklen_t addrlen)
+{
+	return (struct edns_tag_addr*)addr_tree_lookup(tree, addr, addrlen);
+}
 
 static int edns_keepalive(struct edns_data* edns_out, struct edns_data* edns_in,
 		struct comm_point* c, struct regional* region)

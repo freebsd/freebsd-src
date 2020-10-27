@@ -174,11 +174,11 @@ get_state ( ) {
 if test "$1" = "autoconf" ; then
 	if test ! -f $conf; then
 		echo no "($conf does not exist)"
-		exit 1
+		exit 0
 	fi
 	if test ! -d `dirname $state`; then
 		echo no "(`dirname $state` directory does not exist)"
-		exit 1
+		exit 0
 	fi
 	echo yes
 	exit 0

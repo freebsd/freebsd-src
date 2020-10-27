@@ -496,4 +496,10 @@ void listen_sslctx_delete_ticket_keys(void);
  */
 int netblockdnametoaddr(uint8_t* dname, size_t dnamelen,
 	struct sockaddr_storage* addr, socklen_t* addrlen, int* net, int* af);
+
+/** Return strerror or wsastrerror for socket error printout */
+char* sock_strerror(int errn);
+/** close the socket with close, or wsa closesocket */
+void sock_close(int socket);
+
 #endif /* NET_HELP_H */
