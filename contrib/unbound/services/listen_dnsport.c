@@ -53,6 +53,7 @@
 #include "util/config_file.h"
 #include "util/net_help.h"
 #include "sldns/sbuffer.h"
+#include "sldns/parseutil.h"
 #include "services/mesh.h"
 #include "util/fptr_wlist.h"
 #include "util/locks.h"
@@ -70,6 +71,13 @@
 #include <systemd/sd-daemon.h>
 #endif
 
+#ifdef HAVE_IFADDRS_H
+#include <ifaddrs.h>
+#endif
+#ifdef HAVE_NET_IF_H
+#include <net/if.h>
+#endif
+
 /** number of queued TCP connections for listen() */
 #define TCP_BACKLOG 256 
 
@@ -79,11 +87,23 @@
 #ifndef THREADS_DISABLED
 /** lock on the counter of stream buffer memory */
 static lock_basic_type stream_wait_count_lock;
+/** lock on the counter of HTTP2 query buffer memory */
+static lock_basic_type http2_query_buffer_count_lock;
+/** lock on the counter of HTTP2 response buffer memory */
+static lock_basic_type http2_response_buffer_count_lock;
 #endif
 /** size (in bytes) of stream wait buffers */
 static size_t stream_wait_count = 0;
 /** is the lock initialised for stream wait buffers */
 static int stream_wait_lock_inited = 0;
+/** size (in bytes) of HTTP2 query buffers */
+static size_t http2_query_buffer_count = 0;
+/** is the lock initialised for HTTP2 query buffers */
+static int http2_query_buffer_lock_inited = 0;
+/** size (in bytes) of HTTP2 response buffers */
+static size_t http2_response_buffer_count = 0;
+/** is the lock initialised for HTTP2 response buffers */
+static int http2_response_buffer_lock_inited = 0;
 
 /**
  * Debug print of the getaddrinfo returned address.
@@ -221,16 +241,14 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			*noproto = 1;
 			return -1;
 		}
-		log_err("can't create socket: %s", strerror(errno));
 #else
 		if(WSAGetLastError() == WSAEAFNOSUPPORT || 
 			WSAGetLastError() == WSAEPROTONOSUPPORT) {
 			*noproto = 1;
 			return -1;
 		}
-		log_err("can't create socket: %s", 
-			wsa_strerror(WSAGetLastError()));
 #endif
+		log_err("can't create socket: %s", sock_strerror(errno));
 		*noproto = 0;
 		return -1;
 	}
@@ -243,9 +261,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #ifdef SO_REUSEADDR
 		if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void*)&on, 
 			(socklen_t)sizeof(on)) < 0) {
-#ifndef USE_WINSOCK
 			log_err("setsockopt(.. SO_REUSEADDR ..) failed: %s",
-				strerror(errno));
+				sock_strerror(errno));
+#ifndef USE_WINSOCK
 			if(errno != ENOSYS) {
 				close(s);
 				*noproto = 0;
@@ -253,8 +271,6 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 				return -1;
 			}
 #else
-			log_err("setsockopt(.. SO_REUSEADDR ..) failed: %s",
-				wsa_strerror(WSAGetLastError()));
 			closesocket(s);
 			*noproto = 0;
 			*inuse = 0;
@@ -346,16 +362,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		if(setsockopt(s, SOL_SOCKET, SO_RCVBUFFORCE, (void*)&rcv, 
 			(socklen_t)sizeof(rcv)) < 0) {
 			if(errno != EPERM) {
-#    ifndef USE_WINSOCK
 				log_err("setsockopt(..., SO_RCVBUFFORCE, "
-					"...) failed: %s", strerror(errno));
-				close(s);
-#    else
-				log_err("setsockopt(..., SO_RCVBUFFORCE, "
-					"...) failed: %s", 
-					wsa_strerror(WSAGetLastError()));
-				closesocket(s);
-#    endif
+					"...) failed: %s", sock_strerror(errno));
+				sock_close(s);
 				*noproto = 0;
 				*inuse = 0;
 				return -1;
@@ -363,16 +372,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #  endif /* SO_RCVBUFFORCE */
 			if(setsockopt(s, SOL_SOCKET, SO_RCVBUF, (void*)&rcv, 
 				(socklen_t)sizeof(rcv)) < 0) {
-#  ifndef USE_WINSOCK
 				log_err("setsockopt(..., SO_RCVBUF, "
-					"...) failed: %s", strerror(errno));
-				close(s);
-#  else
-				log_err("setsockopt(..., SO_RCVBUF, "
-					"...) failed: %s", 
-					wsa_strerror(WSAGetLastError()));
-				closesocket(s);
-#  endif
+					"...) failed: %s", sock_strerror(errno));
+				sock_close(s);
 				*noproto = 0;
 				*inuse = 0;
 				return -1;
@@ -405,16 +407,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		if(setsockopt(s, SOL_SOCKET, SO_SNDBUFFORCE, (void*)&snd, 
 			(socklen_t)sizeof(snd)) < 0) {
 			if(errno != EPERM) {
-#    ifndef USE_WINSOCK
 				log_err("setsockopt(..., SO_SNDBUFFORCE, "
-					"...) failed: %s", strerror(errno));
-				close(s);
-#    else
-				log_err("setsockopt(..., SO_SNDBUFFORCE, "
-					"...) failed: %s", 
-					wsa_strerror(WSAGetLastError()));
-				closesocket(s);
-#    endif
+					"...) failed: %s", sock_strerror(errno));
+				sock_close(s);
 				*noproto = 0;
 				*inuse = 0;
 				return -1;
@@ -422,16 +417,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #  endif /* SO_SNDBUFFORCE */
 			if(setsockopt(s, SOL_SOCKET, SO_SNDBUF, (void*)&snd, 
 				(socklen_t)sizeof(snd)) < 0) {
-#  ifndef USE_WINSOCK
 				log_err("setsockopt(..., SO_SNDBUF, "
-					"...) failed: %s", strerror(errno));
-				close(s);
-#  else
-				log_err("setsockopt(..., SO_SNDBUF, "
-					"...) failed: %s", 
-					wsa_strerror(WSAGetLastError()));
-				closesocket(s);
-#  endif
+					"...) failed: %s", sock_strerror(errno));
+				sock_close(s);
 				*noproto = 0;
 				*inuse = 0;
 				return -1;
@@ -461,16 +449,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			int val=(v6only==2)?0:1;
 			if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, 
 				(void*)&val, (socklen_t)sizeof(val)) < 0) {
-#ifndef USE_WINSOCK
 				log_err("setsockopt(..., IPV6_V6ONLY"
-					", ...) failed: %s", strerror(errno));
-				close(s);
-#else
-				log_err("setsockopt(..., IPV6_V6ONLY"
-					", ...) failed: %s", 
-					wsa_strerror(WSAGetLastError()));
-				closesocket(s);
-#endif
+					", ...) failed: %s", sock_strerror(errno));
+				sock_close(s);
 				*noproto = 0;
 				*inuse = 0;
 				return -1;
@@ -488,16 +469,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		 */
 		if (setsockopt(s, IPPROTO_IPV6, IPV6_USE_MIN_MTU,
 			(void*)&on, (socklen_t)sizeof(on)) < 0) {
-#  ifndef USE_WINSOCK
 			log_err("setsockopt(..., IPV6_USE_MIN_MTU, "
-				"...) failed: %s", strerror(errno));
-			close(s);
-#  else
-			log_err("setsockopt(..., IPV6_USE_MIN_MTU, "
-				"...) failed: %s", 
-				wsa_strerror(WSAGetLastError()));
-			closesocket(s);
-#  endif
+				"...) failed: %s", sock_strerror(errno));
+			sock_close(s);
 			*noproto = 0;
 			*inuse = 0;
 			return -1;
@@ -510,15 +484,9 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		 */
 		if (setsockopt(s, IPPROTO_IPV6, IPV6_MTU,
 			(void*)&mtu, (socklen_t)sizeof(mtu)) < 0) {
-#  ifndef USE_WINSOCK
 			log_err("setsockopt(..., IPV6_MTU, ...) failed: %s", 
-				strerror(errno));
-			close(s);
-#  else
-			log_err("setsockopt(..., IPV6_MTU, ...) failed: %s", 
-				wsa_strerror(WSAGetLastError()));
-			closesocket(s);
-#  endif
+				sock_strerror(errno));
+			sock_close(s);
 			*noproto = 0;
 			*inuse = 0;
 			return -1;
@@ -542,12 +510,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			if (errno != EINVAL) {
 				log_err("setsockopt(..., IP_MTU_DISCOVER, IP_PMTUDISC_OMIT...) failed: %s",
 					strerror(errno));
-
-#    ifndef USE_WINSOCK
-				close(s);
-#    else
-				closesocket(s);
-#    endif
+				sock_close(s);
 				*noproto = 0;
 				*inuse = 0;
 				return -1;
@@ -564,11 +527,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 				&action, (socklen_t)sizeof(action)) < 0) {
 				log_err("setsockopt(..., IP_MTU_DISCOVER, IP_PMTUDISC_DONT...) failed: %s",
 					strerror(errno));
-#    ifndef USE_WINSOCK
-				close(s);
-#    else
-				closesocket(s);
-#    endif
+				sock_close(s);
 				*noproto = 0;
 				*inuse = 0;
 				return -1;
@@ -580,11 +539,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 			&off, (socklen_t)sizeof(off)) < 0) {
 			log_err("setsockopt(..., IP_DONTFRAG, ...) failed: %s",
 				strerror(errno));
-#    ifndef USE_WINSOCK
-			close(s);
-#    else
-			closesocket(s);
-#    endif
+			sock_close(s);
 			*noproto = 0;
 			*inuse = 0;
 			return -1;
@@ -614,7 +569,6 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 				(struct sockaddr_storage*)addr, addrlen);
 		}
 #endif /* EADDRINUSE */
-		close(s);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() != WSAEADDRINUSE &&
 			WSAGetLastError() != WSAEADDRNOTAVAIL &&
@@ -623,18 +577,14 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 				wsa_strerror(WSAGetLastError()),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
-		closesocket(s);
 #endif /* USE_WINSOCK */
+		sock_close(s);
 		return -1;
 	}
 	if(!fd_set_nonblock(s)) {
 		*noproto = 0;
 		*inuse = 0;
-#ifndef USE_WINSOCK
-		close(s);
-#else
-		closesocket(s);
-#endif
+		sock_close(s);
 		return -1;
 	}
 	return s;
@@ -642,7 +592,8 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 
 int
 create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
-	int* reuseport, int transparent, int mss, int freebind, int use_systemd, int dscp)
+	int* reuseport, int transparent, int mss, int nodelay, int freebind,
+	int use_systemd, int dscp)
 {
 	int s;
 	char* err;
@@ -678,29 +629,38 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 			*noproto = 1;
 			return -1;
 		}
-		log_err("can't create socket: %s", strerror(errno));
 #else
 		if(WSAGetLastError() == WSAEAFNOSUPPORT ||
 			WSAGetLastError() == WSAEPROTONOSUPPORT) {
 			*noproto = 1;
 			return -1;
 		}
-		log_err("can't create socket: %s", 
-			wsa_strerror(WSAGetLastError()));
 #endif
+		log_err("can't create socket: %s", sock_strerror(errno));
 		return -1;
+	}
+	if(nodelay) {
+#if defined(IPPROTO_TCP) && defined(TCP_NODELAY)
+		if(setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void*)&on,
+			(socklen_t)sizeof(on)) < 0) {
+			#ifndef USE_WINSOCK
+			log_err(" setsockopt(.. TCP_NODELAY ..) failed: %s",
+				strerror(errno));
+			#else
+			log_err(" setsockopt(.. TCP_NODELAY ..) failed: %s",
+				wsa_strerror(WSAGetLastError()));
+			#endif
+		}
+#else
+		log_warn(" setsockopt(TCP_NODELAY) unsupported");
+#endif /* defined(IPPROTO_TCP) && defined(TCP_NODELAY) */
 	}
 	if (mss > 0) {
 #if defined(IPPROTO_TCP) && defined(TCP_MAXSEG)
 		if(setsockopt(s, IPPROTO_TCP, TCP_MAXSEG, (void*)&mss,
 			(socklen_t)sizeof(mss)) < 0) {
-			#ifndef USE_WINSOCK
 			log_err(" setsockopt(.. TCP_MAXSEG ..) failed: %s",
-				strerror(errno));
-			#else
-			log_err(" setsockopt(.. TCP_MAXSEG ..) failed: %s",
-				wsa_strerror(WSAGetLastError()));
-			#endif
+				sock_strerror(errno));
 		} else {
 			verbose(VERB_ALGO,
 				" tcp socket mss set to %d", mss);
@@ -717,15 +677,9 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 #ifdef SO_REUSEADDR
 	if(setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void*)&on, 
 		(socklen_t)sizeof(on)) < 0) {
-#ifndef USE_WINSOCK
 		log_err("setsockopt(.. SO_REUSEADDR ..) failed: %s",
-			strerror(errno));
-		close(s);
-#else
-		log_err("setsockopt(.. SO_REUSEADDR ..) failed: %s",
-			wsa_strerror(WSAGetLastError()));
-		closesocket(s);
-#endif
+			sock_strerror(errno));
+		sock_close(s);
 		return -1;
 	}
 #endif /* SO_REUSEADDR */
@@ -760,15 +714,9 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 	if(addr->ai_family == AF_INET6 && v6only) {
 		if(setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, 
 			(void*)&on, (socklen_t)sizeof(on)) < 0) {
-#ifndef USE_WINSOCK
 			log_err("setsockopt(..., IPV6_V6ONLY, ...) failed: %s",
-				strerror(errno));
-			close(s);
-#else
-			log_err("setsockopt(..., IPV6_V6ONLY, ...) failed: %s",
-				wsa_strerror(WSAGetLastError()));
-			closesocket(s);
-#endif
+				sock_strerror(errno));
+			sock_close(s);
 			return -1;
 		}
 	}
@@ -815,32 +763,22 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 				(struct sockaddr_storage*)addr->ai_addr,
 				addr->ai_addrlen);
 		}
-		close(s);
 #else
 		log_err_addr("can't bind socket", 
 			wsa_strerror(WSAGetLastError()),
 			(struct sockaddr_storage*)addr->ai_addr,
 			addr->ai_addrlen);
-		closesocket(s);
 #endif
+		sock_close(s);
 		return -1;
 	}
 	if(!fd_set_nonblock(s)) {
-#ifndef USE_WINSOCK
-		close(s);
-#else
-		closesocket(s);
-#endif
+		sock_close(s);
 		return -1;
 	}
 	if(listen(s, TCP_BACKLOG) == -1) {
-#ifndef USE_WINSOCK
-		log_err("can't listen: %s", strerror(errno));
-		close(s);
-#else
-		log_err("can't listen: %s", wsa_strerror(WSAGetLastError()));
-		closesocket(s);
-#endif
+		log_err("can't listen: %s", sock_strerror(errno));
+		sock_close(s);
 		return -1;
 	}
 #ifdef USE_TCP_FASTOPEN
@@ -894,34 +832,6 @@ set_ip_dscp(int socket, int addrfamily, int dscp)
 	}
 	return NULL;
 }
-
-#  ifndef USE_WINSOCK
-char*
-sock_strerror(int errn)
-{
-	return strerror(errn);
-}
-
-void
-sock_close(int socket)
-{
-	close(socket);
-}
-
-#  else
-char*
-sock_strerror(int ATTR_UNUSED(errn))
-{
-	return wsa_strerror(WSAGetLastError());
-}
-
-void
-sock_close(int socket)
-{
-	closesocket(socket);
-}
-
-#  endif /* USE_WINSOCK */
 
 int
 create_local_accept_sock(const char *path, int* noproto, int use_systemd)
@@ -983,11 +893,7 @@ create_local_accept_sock(const char *path, int* noproto, int use_systemd)
 	return s;
 
 err:
-#ifndef USE_WINSOCK
-	close(s);
-#else
-	closesocket(s);
-#endif
+	sock_close(s);
 	return -1;
 
 #ifdef HAVE_SYSTEMD
@@ -1009,7 +915,8 @@ err:
 static int
 make_sock(int stype, const char* ifname, const char* port, 
 	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
-	int* reuseport, int transparent, int tcp_mss, int freebind, int use_systemd, int dscp)
+	int* reuseport, int transparent, int tcp_mss, int nodelay, int freebind,
+	int use_systemd, int dscp)
 {
 	struct addrinfo *res = NULL;
 	int r, s, inuse, noproto;
@@ -1045,7 +952,8 @@ make_sock(int stype, const char* ifname, const char* port,
 		}
 	} else	{
 		s = create_tcp_accept_sock(res, v6only, &noproto, reuseport,
-			transparent, tcp_mss, freebind, use_systemd, dscp);
+			transparent, tcp_mss, nodelay, freebind, use_systemd,
+			dscp);
 		if(s == -1 && noproto && hints->ai_family == AF_INET6){
 			*noip6 = 1;
 		}
@@ -1058,7 +966,8 @@ make_sock(int stype, const char* ifname, const char* port,
 static int
 make_sock_port(int stype, const char* ifname, const char* port, 
 	struct addrinfo *hints, int v6only, int* noip6, size_t rcv, size_t snd,
-	int* reuseport, int transparent, int tcp_mss, int freebind, int use_systemd, int dscp)
+	int* reuseport, int transparent, int tcp_mss, int nodelay, int freebind,
+	int use_systemd, int dscp)
 {
 	char* s = strchr(ifname, '@');
 	if(s) {
@@ -1079,11 +988,13 @@ make_sock_port(int stype, const char* ifname, const char* port,
 		newif[s-ifname] = 0;
 		(void)strlcpy(p, s+1, sizeof(p));
 		p[strlen(s+1)]=0;
-		return make_sock(stype, newif, p, hints, v6only, noip6,
-			rcv, snd, reuseport, transparent, tcp_mss, freebind, use_systemd, dscp);
+		return make_sock(stype, newif, p, hints, v6only, noip6, rcv,
+			snd, reuseport, transparent, tcp_mss, nodelay, freebind,
+			use_systemd, dscp);
 	}
 	return make_sock(stype, ifname, port, hints, v6only, noip6, rcv, snd,
-		reuseport, transparent, tcp_mss, freebind, use_systemd, dscp);
+		reuseport, transparent, tcp_mss, nodelay, freebind, use_systemd,
+		dscp);
 }
 
 /**
@@ -1182,6 +1093,18 @@ if_is_ssl(const char* ifname, const char* port, int ssl_port,
 	return 0;
 }
 
+/** see if interface is https, its port number == the https port number */
+static int
+if_is_https(const char* ifname, const char* port, int https_port)
+{
+	char* p = strchr(ifname, '@');
+	if(!p && atoi(port) == https_port)
+		return 1;
+	if(p && atoi(p+1) == https_port)
+		return 1;
+	return 0;
+}
+
 /**
  * Helper for ports_open. Creates one interface (or NULL for default).
  * @param ifname: The interface ip address.
@@ -1196,11 +1119,13 @@ if_is_ssl(const char* ifname, const char* port, int ssl_port,
  * @param snd: send buffer size for UDP
  * @param ssl_port: ssl service port number
  * @param tls_additional_port: list of additional ssl service port numbers.
+ * @param https_port: DoH service port number
  * @param reuseport: try to set SO_REUSEPORT if nonNULL and true.
  * 	set to false on exit if reuseport failed due to no kernel support.
  * @param transparent: set IP_TRANSPARENT socket option.
  * @param tcp_mss: maximum segment size of tcp socket. default if zero.
  * @param freebind: set IP_FREEBIND socket option.
+ * @param http2_nodelay: set TCP_NODELAY on HTTP/2 connection
  * @param use_systemd: if true, fetch sockets from systemd.
  * @param dnscrypt_port: dnscrypt service port number
  * @param dscp: DSCP to use.
@@ -1210,11 +1135,13 @@ static int
 ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp, 
 	struct addrinfo *hints, const char* port, struct listen_port** list,
 	size_t rcv, size_t snd, int ssl_port,
-	struct config_strlist* tls_additional_port, int* reuseport,
-	int transparent, int tcp_mss, int freebind, int use_systemd,
-	int dnscrypt_port, int dscp)
+	struct config_strlist* tls_additional_port, int https_port,
+	int* reuseport, int transparent, int tcp_mss, int freebind,
+	int http2_nodelay, int use_systemd, int dnscrypt_port, int dscp)
 {
 	int s, noip6=0;
+	int is_https = if_is_https(ifname, port, https_port);
+	int nodelay = is_https && http2_nodelay;
 #ifdef USE_DNSCRYPT
 	int is_dnscrypt = ((strchr(ifname, '@') && 
 			atoi(strchr(ifname, '@')+1) == dnscrypt_port) ||
@@ -1229,7 +1156,7 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 	if(do_auto) {
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1, 
 			&noip6, rcv, snd, reuseport, transparent,
-			tcp_mss, freebind, use_systemd, dscp)) == -1) {
+			tcp_mss, nodelay, freebind, use_systemd, dscp)) == -1) {
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
 				return 1;
@@ -1238,27 +1165,19 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		}
 		/* getting source addr packet info is highly non-portable */
 		if(!set_recvpktinfo(s, hints->ai_family)) {
-#ifndef USE_WINSOCK
-			close(s);
-#else
-			closesocket(s);
-#endif
+			sock_close(s);
 			return 0;
 		}
 		if(!port_insert(list, s,
 		   is_dnscrypt?listen_type_udpancil_dnscrypt:listen_type_udpancil)) {
-#ifndef USE_WINSOCK
-			close(s);
-#else
-			closesocket(s);
-#endif
+			sock_close(s);
 			return 0;
 		}
 	} else if(do_udp) {
 		/* regular udp socket */
 		if((s = make_sock_port(SOCK_DGRAM, ifname, port, hints, 1, 
 			&noip6, rcv, snd, reuseport, transparent,
-			tcp_mss, freebind, use_systemd, dscp)) == -1) {
+			tcp_mss, nodelay, freebind, use_systemd, dscp)) == -1) {
 			if(noip6) {
 				log_warn("IPv6 protocol not available");
 				return 1;
@@ -1267,19 +1186,24 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		}
 		if(!port_insert(list, s,
 		   is_dnscrypt?listen_type_udp_dnscrypt:listen_type_udp)) {
-#ifndef USE_WINSOCK
-			close(s);
-#else
-			closesocket(s);
-#endif
+			sock_close(s);
 			return 0;
 		}
 	}
 	if(do_tcp) {
 		int is_ssl = if_is_ssl(ifname, port, ssl_port,
 			tls_additional_port);
+		enum listen_type port_type;
+		if(is_ssl)
+			port_type = listen_type_ssl;
+		else if(is_https)
+			port_type = listen_type_http;
+		else if(is_dnscrypt)
+			port_type = listen_type_tcp_dnscrypt;
+		else
+			port_type = listen_type_tcp;
 		if((s = make_sock_port(SOCK_STREAM, ifname, port, hints, 1, 
-			&noip6, 0, 0, reuseport, transparent, tcp_mss,
+			&noip6, 0, 0, reuseport, transparent, tcp_mss, nodelay,
 			freebind, use_systemd, dscp)) == -1) {
 			if(noip6) {
 				/*log_warn("IPv6 protocol not available");*/
@@ -1289,13 +1213,8 @@ ports_create_if(const char* ifname, int do_auto, int do_udp, int do_tcp,
 		}
 		if(is_ssl)
 			verbose(VERB_ALGO, "setup TCP for SSL service");
-		if(!port_insert(list, s, is_ssl?listen_type_ssl:
-			(is_dnscrypt?listen_type_tcp_dnscrypt:listen_type_tcp))) {
-#ifndef USE_WINSOCK
-			close(s);
-#else
-			closesocket(s);
-#endif
+		if(!port_insert(list, s, port_type)) {
+			sock_close(s);
 			return 0;
 		}
 	}
@@ -1324,7 +1243,8 @@ listen_cp_insert(struct comm_point* c, struct listen_dnsport* front)
 struct listen_dnsport* 
 listen_create(struct comm_base* base, struct listen_port* ports,
 	size_t bufsize, int tcp_accept_count, int tcp_idle_timeout,
-	struct tcl_list* tcp_conn_limit, void* sslctx,
+	int harden_large_queries, uint32_t http_max_streams,
+	char* http_endpoint, struct tcl_list* tcp_conn_limit, void* sslctx,
 	struct dt_env* dtenv, comm_point_callback_type* cb, void *cb_arg)
 {
 	struct listen_dnsport* front = (struct listen_dnsport*)
@@ -1344,6 +1264,14 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 		lock_basic_init(&stream_wait_count_lock);
 		stream_wait_lock_inited = 1;
 	}
+	if(!http2_query_buffer_lock_inited) {
+		lock_basic_init(&http2_query_buffer_count_lock);
+		http2_query_buffer_lock_inited = 1;
+	}
+	if(!http2_response_buffer_lock_inited) {
+		lock_basic_init(&http2_response_buffer_count_lock);
+		http2_response_buffer_lock_inited = 1;
+	}
 
 	/* create comm points as needed */
 	while(ports) {
@@ -1356,14 +1284,36 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 				ports->ftype == listen_type_tcp_dnscrypt)
 			cp = comm_point_create_tcp(base, ports->fd, 
 				tcp_accept_count, tcp_idle_timeout,
+				harden_large_queries, 0, NULL,
 				tcp_conn_limit, bufsize, front->udp_buff,
-				cb, cb_arg);
-		else if(ports->ftype == listen_type_ssl) {
+				ports->ftype, cb, cb_arg);
+		else if(ports->ftype == listen_type_ssl ||
+			ports->ftype == listen_type_http) {
 			cp = comm_point_create_tcp(base, ports->fd, 
 				tcp_accept_count, tcp_idle_timeout,
+				harden_large_queries,
+				http_max_streams, http_endpoint,
 				tcp_conn_limit, bufsize, front->udp_buff,
-				cb, cb_arg);
+				ports->ftype, cb, cb_arg);
 			cp->ssl = sslctx;
+			if(ports->ftype == listen_type_http) {
+				if(!sslctx) {
+				log_warn("HTTPS port configured, but no TLS "
+					"tls-service-key or tls-service-pem "
+					"set");
+				}
+#ifndef HAVE_SSL_CTX_SET_ALPN_SELECT_CB
+				log_warn("Unbound is not compiled with an "
+					"OpenSSL version supporting ALPN "
+					" (OpenSSL >= 1.0.2). This is required "
+					"to use DNS-over-HTTPS");
+#endif
+#ifndef HAVE_NGHTTP2_NGHTTP2_H
+				log_warn("Unbound is not compiled with "
+					"nghttp2. This is required to use "
+					"DNS-over-HTTPS.");
+#endif
+			}
 		} else if(ports->ftype == listen_type_udpancil ||
 				  ports->ftype == listen_type_udpancil_dnscrypt)
 			cp = comm_point_create_udp_ancil(base, ports->fd, 
@@ -1437,10 +1387,173 @@ listen_delete(struct listen_dnsport* front)
 		stream_wait_lock_inited = 0;
 		lock_basic_destroy(&stream_wait_count_lock);
 	}
+	if(http2_query_buffer_lock_inited) {
+		http2_query_buffer_lock_inited = 0;
+		lock_basic_destroy(&http2_query_buffer_count_lock);
+	}
+	if(http2_response_buffer_lock_inited) {
+		http2_response_buffer_lock_inited = 0;
+		lock_basic_destroy(&http2_response_buffer_count_lock);
+	}
+}
+
+#ifdef HAVE_GETIFADDRS
+static int
+resolve_ifa_name(struct ifaddrs *ifas, const char *search_ifa, char ***ip_addresses, int *ip_addresses_size)
+{
+	struct ifaddrs *ifa;
+	int last_ip_addresses_size = *ip_addresses_size;
+
+	for(ifa = ifas; ifa != NULL; ifa = ifa->ifa_next) {
+		sa_family_t family;
+		const char* atsign;
+#ifdef INET6      /* |   address ip    | % |  ifa name  | @ |  port  | nul */
+		char addr_buf[INET6_ADDRSTRLEN + 1 + IF_NAMESIZE + 1 + 16 + 1];
+#else
+		char addr_buf[INET_ADDRSTRLEN + 1 + 16 + 1];
+#endif
+
+		if((atsign=strrchr(search_ifa, '@')) != NULL) {
+			if(strlen(ifa->ifa_name) != (size_t)(atsign-search_ifa)
+			   || strncmp(ifa->ifa_name, search_ifa,
+			   atsign-search_ifa) != 0)
+				continue;
+		} else {
+			if(strcmp(ifa->ifa_name, search_ifa) != 0)
+				continue;
+			atsign = "";
+		}
+
+		if(ifa->ifa_addr == NULL)
+			continue;
+
+		family = ifa->ifa_addr->sa_family;
+		if(family == AF_INET) {
+			char a4[INET_ADDRSTRLEN + 1];
+			struct sockaddr_in *in4 = (struct sockaddr_in *)
+				ifa->ifa_addr;
+			if(!inet_ntop(family, &in4->sin_addr, a4, sizeof(a4))) {
+				log_err("inet_ntop failed");
+				return 0;
+			}
+			snprintf(addr_buf, sizeof(addr_buf), "%s%s",
+				a4, atsign);
+		}
+#ifdef INET6
+		else if(family == AF_INET6) {
+			struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)
+				ifa->ifa_addr;
+			char a6[INET6_ADDRSTRLEN + 1];
+			char if_index_name[IF_NAMESIZE + 1];
+			if_index_name[0] = 0;
+			if(!inet_ntop(family, &in6->sin6_addr, a6, sizeof(a6))) {
+				log_err("inet_ntop failed");
+				return 0;
+			}
+			if_indextoname(in6->sin6_scope_id,
+				(char *)if_index_name);
+			if (strlen(if_index_name) != 0) {
+				snprintf(addr_buf, sizeof(addr_buf),
+					"%s%%%s%s", a6, if_index_name, atsign);
+			} else {
+				snprintf(addr_buf, sizeof(addr_buf), "%s%s",
+					a6, atsign);
+			}
+		}
+#endif
+		else {
+			continue;
+		}
+		verbose(4, "interface %s has address %s", search_ifa, addr_buf);
+
+		*ip_addresses = realloc(*ip_addresses, sizeof(char *) * (*ip_addresses_size + 1));
+		if(!*ip_addresses) {
+			log_err("realloc failed: out of memory");
+			return 0;
+		}
+		(*ip_addresses)[*ip_addresses_size] = strdup(addr_buf);
+		if(!(*ip_addresses)[*ip_addresses_size]) {
+			log_err("strdup failed: out of memory");
+			return 0;
+		}
+		(*ip_addresses_size)++;
+	}
+
+	if (*ip_addresses_size == last_ip_addresses_size) {
+		*ip_addresses = realloc(*ip_addresses, sizeof(char *) * (*ip_addresses_size + 1));
+		if(!*ip_addresses) {
+			log_err("realloc failed: out of memory");
+			return 0;
+		}
+		(*ip_addresses)[*ip_addresses_size] = strdup(search_ifa);
+		if(!(*ip_addresses)[*ip_addresses_size]) {
+			log_err("strdup failed: out of memory");
+			return 0;
+		}
+		(*ip_addresses_size)++;
+	}
+	return 1;
+}
+#endif /* HAVE_GETIFADDRS */
+
+int resolve_interface_names(struct config_file* cfg, char*** resif,
+	int* num_resif)
+{
+#ifdef HAVE_GETIFADDRS
+	int i;
+	struct ifaddrs *addrs = NULL;
+	if(cfg->num_ifs == 0) {
+		*resif = NULL;
+		*num_resif = 0;
+		return 1;
+	}
+	if(getifaddrs(&addrs) == -1) {
+		log_err("failed to list interfaces: getifaddrs: %s",
+			strerror(errno));
+		freeifaddrs(addrs);
+		return 0;
+	}
+	for(i=0; i<cfg->num_ifs; i++) {
+		if(!resolve_ifa_name(addrs, cfg->ifs[i], resif, num_resif)) {
+			freeifaddrs(addrs);
+			config_del_strarray(*resif, *num_resif);
+			*resif = NULL;
+			*num_resif = 0;
+			return 0;
+		}
+	}
+	freeifaddrs(addrs);
+	return 1;
+#else
+	int i;
+	if(cfg->num_ifs == 0) {
+		*resif = NULL;
+		*num_resif = 0;
+		return 1;
+	}
+	*num_resif = cfg->num_ifs;
+	*resif = calloc(*num_resif, sizeof(**resif));
+	if(!*resif) {
+		log_err("out of memory");
+		return 0;
+	}
+	for(i=0; i<*num_resif; i++) {
+		(*resif)[i] = strdup(cfg->ifs[i]);
+		if(!((*resif)[i])) {
+			log_err("out of memory");
+			config_del_strarray(*resif, *num_resif);
+			*resif = NULL;
+			*num_resif = 0;
+			return 0;
+		}
+	}
+	return 1;
+#endif /* HAVE_GETIFADDRS */
 }
 
 struct listen_port* 
-listening_ports_open(struct config_file* cfg, int* reuseport)
+listening_ports_open(struct config_file* cfg, char** ifs, int num_ifs,
+	int* reuseport)
 {
 	struct listen_port* list = NULL;
 	struct addrinfo hints;
@@ -1459,7 +1572,7 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_flags = AI_PASSIVE;
 	/* no name lookups on our listening ports */
-	if(cfg->num_ifs > 0)
+	if(num_ifs > 0)
 		hints.ai_flags |= AI_NUMERICHOST;
 	hints.ai_family = AF_UNSPEC;
 #ifndef INET6
@@ -1469,7 +1582,7 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 		return NULL;
 	}
 	/* create ip4 and ip6 ports so that return addresses are nice. */
-	if(do_auto || cfg->num_ifs == 0) {
+	if(do_auto || num_ifs == 0) {
 		if(do_ip6) {
 			hints.ai_family = AF_INET6;
 			if(!ports_create_if(do_auto?"::0":"::1", 
@@ -1477,8 +1590,9 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, cfg->tls_additional_port,
-				reuseport, cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->https_port, reuseport, cfg->ip_transparent,
+				cfg->tcp_mss, cfg->ip_freebind,
+				cfg->http_nodelay, cfg->use_systemd,
 				cfg->dnscrypt_port, cfg->ip_dscp)) {
 				listening_ports_free(list);
 				return NULL;
@@ -1491,24 +1605,26 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 				&hints, portbuf, &list,
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, cfg->tls_additional_port,
-				reuseport, cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->https_port, reuseport, cfg->ip_transparent,
+				cfg->tcp_mss, cfg->ip_freebind,
+				cfg->http_nodelay, cfg->use_systemd,
 				cfg->dnscrypt_port, cfg->ip_dscp)) {
 				listening_ports_free(list);
 				return NULL;
 			}
 		}
-	} else for(i = 0; i<cfg->num_ifs; i++) {
-		if(str_is_ip6(cfg->ifs[i])) {
+	} else for(i = 0; i<num_ifs; i++) {
+		if(str_is_ip6(ifs[i])) {
 			if(!do_ip6)
 				continue;
 			hints.ai_family = AF_INET6;
-			if(!ports_create_if(cfg->ifs[i], 0, cfg->do_udp, 
+			if(!ports_create_if(ifs[i], 0, cfg->do_udp,
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, cfg->tls_additional_port,
-				reuseport, cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->https_port, reuseport, cfg->ip_transparent,
+				cfg->tcp_mss, cfg->ip_freebind,
+				cfg->http_nodelay, cfg->use_systemd,
 				cfg->dnscrypt_port, cfg->ip_dscp)) {
 				listening_ports_free(list);
 				return NULL;
@@ -1517,12 +1633,13 @@ listening_ports_open(struct config_file* cfg, int* reuseport)
 			if(!do_ip4)
 				continue;
 			hints.ai_family = AF_INET;
-			if(!ports_create_if(cfg->ifs[i], 0, cfg->do_udp, 
+			if(!ports_create_if(ifs[i], 0, cfg->do_udp,
 				do_tcp, &hints, portbuf, &list, 
 				cfg->so_rcvbuf, cfg->so_sndbuf,
 				cfg->ssl_port, cfg->tls_additional_port,
-				reuseport, cfg->ip_transparent,
-				cfg->tcp_mss, cfg->ip_freebind, cfg->use_systemd,
+				cfg->https_port, reuseport, cfg->ip_transparent,
+				cfg->tcp_mss, cfg->ip_freebind,
+				cfg->http_nodelay, cfg->use_systemd,
 				cfg->dnscrypt_port, cfg->ip_dscp)) {
 				listening_ports_free(list);
 				return NULL;
@@ -1538,11 +1655,7 @@ void listening_ports_free(struct listen_port* list)
 	while(list) {
 		nx = list->next;
 		if(list->fd != -1) {
-#ifndef USE_WINSOCK
-			close(list->fd);
-#else
-			closesocket(list->fd);
-#endif
+			sock_close(list->fd);
 		}
 		free(list);
 		list = nx;
@@ -1964,3 +2077,739 @@ size_t tcp_req_info_get_stream_buffer_size(void)
 	lock_basic_unlock(&stream_wait_count_lock);
 	return s;
 }
+
+size_t http2_get_query_buffer_size(void)
+{
+	size_t s;
+	if(!http2_query_buffer_lock_inited)
+		return http2_query_buffer_count;
+	lock_basic_lock(&http2_query_buffer_count_lock);
+	s = http2_query_buffer_count;
+	lock_basic_unlock(&http2_query_buffer_count_lock);
+	return s;
+}
+
+size_t http2_get_response_buffer_size(void)
+{
+	size_t s;
+	if(!http2_response_buffer_lock_inited)
+		return http2_response_buffer_count;
+	lock_basic_lock(&http2_response_buffer_count_lock);
+	s = http2_response_buffer_count;
+	lock_basic_unlock(&http2_response_buffer_count_lock);
+	return s;
+}
+
+#ifdef HAVE_NGHTTP2
+/** nghttp2 callback. Used to copy response from rbuffer to nghttp2 session */
+static ssize_t http2_submit_response_read_callback(
+	nghttp2_session* ATTR_UNUSED(session),
+	int32_t stream_id, uint8_t* buf, size_t length, uint32_t* data_flags,
+	nghttp2_data_source* source, void* ATTR_UNUSED(cb_arg))
+{
+	struct http2_stream* h2_stream;
+	struct http2_session* h2_session = source->ptr;
+	size_t copylen = length;
+	if(!(h2_stream = nghttp2_session_get_stream_user_data(
+		h2_session->session, stream_id))) {
+		verbose(VERB_QUERY, "http2: cannot get stream data, closing "
+			"stream");
+		return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+	}
+	if(!h2_stream->rbuffer ||
+		sldns_buffer_remaining(h2_stream->rbuffer) == 0) {
+		verbose(VERB_QUERY, "http2: cannot submit buffer. No data "
+			"available in rbuffer");
+		/* rbuffer will be free'd in frame close cb */
+		return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+	}
+
+	if(copylen > sldns_buffer_remaining(h2_stream->rbuffer))
+		copylen = sldns_buffer_remaining(h2_stream->rbuffer);
+	if(copylen > SSIZE_MAX)
+		copylen = SSIZE_MAX; /* will probably never happen */
+
+	memcpy(buf, sldns_buffer_current(h2_stream->rbuffer), copylen);
+	sldns_buffer_skip(h2_stream->rbuffer, copylen);
+
+	if(sldns_buffer_remaining(h2_stream->rbuffer) == 0) {
+		*data_flags |= NGHTTP2_DATA_FLAG_EOF;
+		lock_basic_lock(&http2_response_buffer_count_lock);
+		http2_response_buffer_count -=
+			sldns_buffer_capacity(h2_stream->rbuffer);
+		lock_basic_unlock(&http2_response_buffer_count_lock);
+		sldns_buffer_free(h2_stream->rbuffer);
+		h2_stream->rbuffer = NULL;
+	}
+
+	return copylen;
+}
+
+/**
+ * Send RST_STREAM frame for stream.
+ * @param h2_session: http2 session to submit frame to
+ * @param h2_stream: http2 stream containing frame ID to use in RST_STREAM
+ * @return 0 on error, 1 otherwise
+ */
+static int http2_submit_rst_stream(struct http2_session* h2_session,
+		struct http2_stream* h2_stream)
+{
+	int ret = nghttp2_submit_rst_stream(h2_session->session,
+		NGHTTP2_FLAG_NONE, h2_stream->stream_id,
+		NGHTTP2_INTERNAL_ERROR);
+	if(ret) {
+		verbose(VERB_QUERY, "http2: nghttp2_submit_rst_stream failed, "
+			"error: %s", nghttp2_strerror(ret));
+		return 0;
+	}
+	return 1;
+}
+
+/**
+ * DNS response ready to be submitted to nghttp2, to be prepared for sending
+ * out. Response is stored in c->buffer. Copy to rbuffer because the c->buffer
+ * might be used before this will be sent out.
+ * @param h2_session: http2 session, containing c->buffer which contains answer
+ * @return 0 on error, 1 otherwise
+ */
+int http2_submit_dns_response(struct http2_session* h2_session)
+{
+	int ret;
+	nghttp2_data_provider data_prd;
+	char status[4];
+	nghttp2_nv headers[2];
+	struct http2_stream* h2_stream = h2_session->c->h2_stream;
+	size_t rlen;
+
+	if(h2_stream->rbuffer) {
+		log_err("http2 submit response error: rbuffer already "
+			"exists");
+		return 0;
+	}
+	if(sldns_buffer_remaining(h2_session->c->buffer) == 0) {
+		log_err("http2 submit response error: c->buffer not complete");
+		return 0;
+	}
+
+	if(snprintf(status, 4, "%d", h2_stream->status) != 3) {
+		verbose(VERB_QUERY, "http2: submit response error: "
+			"invalid status");
+		return 0;
+	}
+
+	rlen = sldns_buffer_remaining(h2_session->c->buffer);
+	lock_basic_lock(&http2_response_buffer_count_lock);
+	if(http2_response_buffer_count + rlen > http2_response_buffer_max) {
+		lock_basic_unlock(&http2_response_buffer_count_lock);
+		verbose(VERB_ALGO, "reset HTTP2 stream, no space left, "
+			"in https-response-buffer-size");
+		return http2_submit_rst_stream(h2_session, h2_stream);
+	}
+	http2_response_buffer_count += rlen;
+	lock_basic_unlock(&http2_response_buffer_count_lock);
+
+	if(!(h2_stream->rbuffer = sldns_buffer_new(rlen))) {
+		lock_basic_lock(&http2_response_buffer_count_lock);
+		http2_response_buffer_count -= rlen;
+		lock_basic_unlock(&http2_response_buffer_count_lock);
+		log_err("http2 submit response error: malloc failure");
+		return 0;
+	}
+
+	headers[0].name = (uint8_t*)":status";
+	headers[0].namelen = 7;
+	headers[0].value = (uint8_t*)status;
+	headers[0].valuelen = 3;
+	headers[0].flags = NGHTTP2_NV_FLAG_NONE;
+
+	headers[1].name = (uint8_t*)"content-type";
+	headers[1].namelen = 12;
+	headers[1].value = (uint8_t*)"application/dns-message";
+	headers[1].valuelen = 23;
+	headers[1].flags = NGHTTP2_NV_FLAG_NONE;
+
+	/*TODO be nice and add the content-length header
+	headers[2].name = (uint8_t*)"content-length";
+	headers[2].namelen = 14;
+	headers[2].value = 
+	headers[2].valuelen = 
+	headers[2].flags = NGHTTP2_NV_FLAG_NONE;
+	*/
+
+	sldns_buffer_write(h2_stream->rbuffer,
+		sldns_buffer_current(h2_session->c->buffer),
+		sldns_buffer_remaining(h2_session->c->buffer));
+	sldns_buffer_flip(h2_stream->rbuffer);
+
+	data_prd.source.ptr = h2_session;
+	data_prd.read_callback = http2_submit_response_read_callback;
+	ret = nghttp2_submit_response(h2_session->session, h2_stream->stream_id,
+		headers, 2, &data_prd);
+	if(ret) {
+		verbose(VERB_QUERY, "http2: set_stream_user_data failed, "
+			"error: %s", nghttp2_strerror(ret));
+		return 0;
+	}
+	return 1;
+}
+#else
+int http2_submit_dns_response(void* ATTR_UNUSED(v))
+{
+	return 0;
+}
+#endif
+
+#ifdef HAVE_NGHTTP2
+/** HTTP status to descriptive string */
+static char* http_status_to_str(enum http_status s)
+{
+	switch(s) {
+		case HTTP_STATUS_OK:
+			return "OK";
+		case HTTP_STATUS_BAD_REQUEST:
+			return "Bad Request";
+		case HTTP_STATUS_NOT_FOUND:
+			return "Not Found";
+		case HTTP_STATUS_PAYLOAD_TOO_LARGE:
+			return "Payload Too Large";
+		case HTTP_STATUS_URI_TOO_LONG:
+			return "URI Too Long";
+		case HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE:
+			return "Unsupported Media Type";
+		case HTTP_STATUS_NOT_IMPLEMENTED:
+			return "Not Implemented";
+	}
+	return "Status Unknown";
+}
+
+/** nghttp2 callback. Used to copy error message to nghttp2 session */
+static ssize_t http2_submit_error_read_callback(
+	nghttp2_session* ATTR_UNUSED(session),
+	int32_t stream_id, uint8_t* buf, size_t length, uint32_t* data_flags,
+	nghttp2_data_source* source, void* ATTR_UNUSED(cb_arg))
+{
+	struct http2_stream* h2_stream;
+	struct http2_session* h2_session = source->ptr;
+	char* msg;
+	if(!(h2_stream = nghttp2_session_get_stream_user_data(
+		h2_session->session, stream_id))) {
+		verbose(VERB_QUERY, "http2: cannot get stream data, closing "
+			"stream");
+		return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+	}
+	*data_flags |= NGHTTP2_DATA_FLAG_EOF;
+	msg = http_status_to_str(h2_stream->status);
+	if(length < strlen(msg))
+		return 0; /* not worth trying over multiple frames */
+	memcpy(buf, msg, strlen(msg));
+	return strlen(msg);
+
+}
+
+/**
+ * HTTP error response ready to be submitted to nghttp2, to be prepared for
+ * sending out. Message body will contain descriptive string for HTTP status.
+ * @param h2_session: http2 session to submit to
+ * @param h2_stream: http2 stream containing HTTP status to use for error
+ * @return 0 on error, 1 otherwise
+ */
+static int http2_submit_error(struct http2_session* h2_session,
+	struct http2_stream* h2_stream)
+{
+	int ret;
+	char status[4];
+	nghttp2_data_provider data_prd;
+	nghttp2_nv headers[1]; /* will be copied by nghttp */
+	if(snprintf(status, 4, "%d", h2_stream->status) != 3) {
+		verbose(VERB_QUERY, "http2: submit error failed, "
+			"invalid status");
+		return 0;
+	}
+	headers[0].name = (uint8_t*)":status";
+	headers[0].namelen = 7;
+	headers[0].value = (uint8_t*)status;
+	headers[0].valuelen = 3;
+	headers[0].flags = NGHTTP2_NV_FLAG_NONE;
+
+	data_prd.source.ptr = h2_session;
+	data_prd.read_callback = http2_submit_error_read_callback;
+
+	ret = nghttp2_submit_response(h2_session->session, h2_stream->stream_id,
+		headers, 1, &data_prd);
+	if(ret) {
+		verbose(VERB_QUERY, "http2: submit error failed, "
+			"error: %s", nghttp2_strerror(ret));
+		return 0;
+	}
+	return 1;
+}
+
+/**
+ * Start query handling. Query is stored in the stream, and will be free'd here.
+ * @param h2_session: http2 session, containing comm point
+ * @param h2_stream: stream containing buffered query
+ * @return: -1 on error, 1 if answer is stored in c->buffer, 0 if there is no
+ * reply available (yet).
+ */
+static int http2_query_read_done(struct http2_session* h2_session,
+	struct http2_stream* h2_stream)
+{
+	log_assert(h2_stream->qbuffer);
+
+	if(h2_session->c->h2_stream) {
+		verbose(VERB_ALGO, "http2_query_read_done failure: shared "
+			"buffer already assigned to stream");
+		return -1;
+	}
+	if(sldns_buffer_remaining(h2_session->c->buffer) <
+		sldns_buffer_remaining(h2_stream->qbuffer)) {
+		/* qbuffer will be free'd in frame close cb */
+		sldns_buffer_clear(h2_session->c->buffer);
+		verbose(VERB_ALGO, "http2_query_read_done failure: can't fit "
+			"qbuffer in c->buffer");
+		return -1;
+	}
+
+	sldns_buffer_write(h2_session->c->buffer,
+		sldns_buffer_current(h2_stream->qbuffer),
+		sldns_buffer_remaining(h2_stream->qbuffer));
+
+	lock_basic_lock(&http2_query_buffer_count_lock);
+	http2_query_buffer_count -= sldns_buffer_capacity(h2_stream->qbuffer);
+	lock_basic_unlock(&http2_query_buffer_count_lock);
+	sldns_buffer_free(h2_stream->qbuffer);
+	h2_stream->qbuffer = NULL;
+
+	sldns_buffer_flip(h2_session->c->buffer);
+	h2_session->c->h2_stream = h2_stream;
+	fptr_ok(fptr_whitelist_comm_point(h2_session->c->callback));
+	if((*h2_session->c->callback)(h2_session->c, h2_session->c->cb_arg,
+		NETEVENT_NOERROR, &h2_session->c->repinfo)) {
+		return 1; /* answer in c->buffer */
+	}
+	sldns_buffer_clear(h2_session->c->buffer);
+	h2_session->c->h2_stream = NULL;
+	return 0; /* mesh state added, or dropped */
+}
+
+/** nghttp2 callback. Used to check if the received frame indicates the end of a
+ * stream. Gather collected request data and start query handling. */
+static int http2_req_frame_recv_cb(nghttp2_session* session,
+	const nghttp2_frame* frame, void* cb_arg)
+{
+	struct http2_session* h2_session = (struct http2_session*)cb_arg;
+	struct http2_stream* h2_stream;
+	int query_read_done;
+
+	if((frame->hd.type != NGHTTP2_DATA &&
+		frame->hd.type != NGHTTP2_HEADERS) ||
+		!(frame->hd.flags & NGHTTP2_FLAG_END_STREAM)) {
+			return 0;
+	}
+
+	if(!(h2_stream = nghttp2_session_get_stream_user_data(
+		session, frame->hd.stream_id)))
+		return 0;
+
+	if(h2_stream->invalid_endpoint) {
+		h2_stream->status = HTTP_STATUS_NOT_FOUND;
+		goto submit_http_error;
+	}
+
+	if(h2_stream->invalid_content_type) {
+		h2_stream->status = HTTP_STATUS_UNSUPPORTED_MEDIA_TYPE;
+		goto submit_http_error;
+	}
+
+	if(h2_stream->http_method != HTTP_METHOD_GET &&
+		h2_stream->http_method != HTTP_METHOD_POST) {
+		h2_stream->status = HTTP_STATUS_NOT_IMPLEMENTED;
+		goto submit_http_error;
+	}
+
+	if(h2_stream->query_too_large) {
+		if(h2_stream->http_method == HTTP_METHOD_POST)
+			h2_stream->status = HTTP_STATUS_PAYLOAD_TOO_LARGE;
+		else
+			h2_stream->status = HTTP_STATUS_URI_TOO_LONG;
+		goto submit_http_error;
+	}
+
+	if(!h2_stream->qbuffer) {
+		h2_stream->status = HTTP_STATUS_BAD_REQUEST;
+		goto submit_http_error;
+	}
+
+	if(h2_stream->status) {
+submit_http_error:
+		verbose(VERB_QUERY, "http2 request invalid, returning :status="
+			"%d", h2_stream->status);
+		if(!http2_submit_error(h2_session, h2_stream)) {
+			return NGHTTP2_ERR_CALLBACK_FAILURE;
+		}
+		return 0;
+	}
+	h2_stream->status = HTTP_STATUS_OK;
+
+	sldns_buffer_flip(h2_stream->qbuffer);
+	h2_session->postpone_drop = 1;
+	query_read_done = http2_query_read_done(h2_session, h2_stream);
+	if(query_read_done < 0)
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	else if(!query_read_done) {
+		if(h2_session->is_drop) {
+			/* connection needs to be closed. Return failure to make
+			 * sure no other action are taken anymore on comm point.
+			 * failure will result in reclaiming (and closing)
+			 * of comm point. */
+			verbose(VERB_QUERY, "http2 query dropped in worker cb");
+			h2_session->postpone_drop = 0;
+			return NGHTTP2_ERR_CALLBACK_FAILURE;
+		}
+		/* nothing to submit right now, query added to mesh. */
+		h2_session->postpone_drop = 0;
+		return 0;
+	}
+	if(!http2_submit_dns_response(h2_session)) {
+		sldns_buffer_clear(h2_session->c->buffer);
+		h2_session->c->h2_stream = NULL;
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	}
+	verbose(VERB_QUERY, "http2 query submitted to session");
+	sldns_buffer_clear(h2_session->c->buffer);
+	h2_session->c->h2_stream = NULL;
+	return 0;
+}
+
+/** nghttp2 callback. Used to detect start of new streams. */
+static int http2_req_begin_headers_cb(nghttp2_session* session,
+	const nghttp2_frame* frame, void* cb_arg)
+{
+	struct http2_session* h2_session = (struct http2_session*)cb_arg;
+	struct http2_stream* h2_stream;
+	int ret;
+	if(frame->hd.type != NGHTTP2_HEADERS ||
+		frame->headers.cat != NGHTTP2_HCAT_REQUEST) {
+		/* only interrested in request headers */
+		return 0;
+	}
+	if(!(h2_stream = http2_stream_create(frame->hd.stream_id))) {
+		log_err("malloc failure while creating http2 stream");
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	}
+	http2_session_add_stream(h2_session, h2_stream);
+	ret = nghttp2_session_set_stream_user_data(session,
+		frame->hd.stream_id, h2_stream);
+	if(ret) {
+		/* stream does not exist */
+		verbose(VERB_QUERY, "http2: set_stream_user_data failed, "
+			"error: %s", nghttp2_strerror(ret));
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	}
+
+	return 0;
+}
+
+/**
+ * base64url decode, store in qbuffer
+ * @param h2_session: http2 session
+ * @param h2_stream: http2 stream
+ * @param start: start of the base64 string
+ * @param length: length of the base64 string
+ * @return: 0 on error, 1 otherwise. query will be stored in h2_stream->qbuffer,
+ * buffer will be NULL is unparseble.
+ */
+static int http2_buffer_uri_query(struct http2_session* h2_session,
+	struct http2_stream* h2_stream, const uint8_t* start, size_t length)
+{
+	size_t expectb64len;
+	int b64len;
+	if(h2_stream->http_method == HTTP_METHOD_POST)
+		return 1;
+	if(length == 0)
+		return 1;
+	if(h2_stream->qbuffer) {
+		verbose(VERB_ALGO, "http2_req_header fail, "
+			"qbuffer already set");
+		return 0;
+	}
+
+	/* calculate size, might be a bit bigger than the real
+	 * decoded buffer size */
+	expectb64len = sldns_b64_pton_calculate_size(length);
+	log_assert(expectb64len > 0);
+	if(expectb64len >
+		h2_session->c->http2_stream_max_qbuffer_size) {
+		h2_stream->query_too_large = 1;
+		return 1;
+	}
+
+	lock_basic_lock(&http2_query_buffer_count_lock);
+	if(http2_query_buffer_count + expectb64len > http2_query_buffer_max) {
+		lock_basic_unlock(&http2_query_buffer_count_lock);
+		verbose(VERB_ALGO, "reset HTTP2 stream, no space left, "
+			"in http2-query-buffer-size");
+		return http2_submit_rst_stream(h2_session, h2_stream);
+	}
+	http2_query_buffer_count += expectb64len;
+	lock_basic_unlock(&http2_query_buffer_count_lock);
+	if(!(h2_stream->qbuffer = sldns_buffer_new(expectb64len))) {
+		lock_basic_lock(&http2_query_buffer_count_lock);
+		http2_query_buffer_count -= expectb64len;
+		lock_basic_unlock(&http2_query_buffer_count_lock);
+		log_err("http2_req_header fail, qbuffer "
+			"malloc failure");
+		return 0;
+	}
+
+	if(!(b64len = sldns_b64url_pton(
+		(char const *)start, length,
+		sldns_buffer_current(h2_stream->qbuffer),
+		expectb64len)) || b64len < 0) {
+		lock_basic_lock(&http2_query_buffer_count_lock);
+		http2_query_buffer_count -= expectb64len;
+		lock_basic_unlock(&http2_query_buffer_count_lock);
+		sldns_buffer_free(h2_stream->qbuffer);
+		h2_stream->qbuffer = NULL;
+		/* return without error, method can be an
+		 * unknown POST */
+		return 1;
+	}
+	sldns_buffer_skip(h2_stream->qbuffer, (size_t)b64len);
+	return 1;
+}
+
+/** nghttp2 callback. Used to parse headers from HEADER frames. */
+static int http2_req_header_cb(nghttp2_session* session,
+	const nghttp2_frame* frame, const uint8_t* name, size_t namelen,
+	const uint8_t* value, size_t valuelen, uint8_t ATTR_UNUSED(flags),
+	void* cb_arg)
+{
+	struct http2_stream* h2_stream = NULL;
+	struct http2_session* h2_session = (struct http2_session*)cb_arg;
+	/* nghttp2 deals with CONTINUATION frames and provides them as part of
+	 * the HEADER */
+	if(frame->hd.type != NGHTTP2_HEADERS ||
+		frame->headers.cat != NGHTTP2_HCAT_REQUEST) {
+		/* only interrested in request headers */
+		return 0;
+	}
+	if(!(h2_stream = nghttp2_session_get_stream_user_data(session,
+		frame->hd.stream_id)))
+		return 0;
+
+	/* earlier checks already indicate we can stop handling this query */
+	if(h2_stream->http_method == HTTP_METHOD_UNSUPPORTED ||
+		h2_stream->invalid_content_type ||
+		h2_stream->invalid_endpoint)
+		return 0;
+
+
+	/* nghttp2 performs some sanity checks in the headers, including:
+	 * name and value are guaranteed to be null terminated
+	 * name is guaranteed to be lowercase
+	 * content-length value is guaranteed to contain digits
+	 */
+
+	if(!h2_stream->http_method && namelen == 7 &&
+		memcmp(":method", name, namelen) == 0) {
+		/* Case insensitive check on :method value to be on the safe
+		 * side. I failed to find text about case sensitivity in specs.
+		 */
+		if(valuelen == 3 && strcasecmp("GET", (const char*)value) == 0)
+			h2_stream->http_method = HTTP_METHOD_GET;
+		else if(valuelen == 4 &&
+			strcasecmp("POST", (const char*)value) == 0) {
+			h2_stream->http_method = HTTP_METHOD_POST;
+			if(h2_stream->qbuffer) {
+				/* POST method uses query from DATA frames */
+				lock_basic_lock(&http2_query_buffer_count_lock);
+				http2_query_buffer_count -=
+					sldns_buffer_capacity(h2_stream->qbuffer);
+				lock_basic_unlock(&http2_query_buffer_count_lock);
+				sldns_buffer_free(h2_stream->qbuffer);
+				h2_stream->qbuffer = NULL;
+			}
+		} else
+			h2_stream->http_method = HTTP_METHOD_UNSUPPORTED;
+		return 0;
+	}
+	if(namelen == 5 && memcmp(":path", name, namelen) == 0) {
+		/* :path may contain DNS query, depending on method. Method might
+		 * not be known yet here, so check after finishing receiving
+		 * stream. */
+#define	HTTP_QUERY_PARAM "?dns="
+		size_t el = strlen(h2_session->c->http_endpoint);
+		size_t qpl = strlen(HTTP_QUERY_PARAM);
+
+		if(valuelen < el || memcmp(h2_session->c->http_endpoint,
+			value, el) != 0) {
+			h2_stream->invalid_endpoint = 1;
+			return 0;
+		}
+		/* larger than endpoint only allowed if it is for the query
+		 * parameter */
+		if(valuelen <= el+qpl ||
+			memcmp(HTTP_QUERY_PARAM, value+el, qpl) != 0) {
+			if(valuelen != el)
+				h2_stream->invalid_endpoint = 1;
+			return 0;
+		}
+
+		if(!http2_buffer_uri_query(h2_session, h2_stream,
+			value+(el+qpl), valuelen-(el+qpl))) {
+			return NGHTTP2_ERR_CALLBACK_FAILURE;
+		}
+		return 0;
+	}
+	/* Content type is a SHOULD (rfc7231#section-3.1.1.5) when using POST,
+	 * and not needed when using GET. Don't enfore.
+	 * If set only allow lowercase "application/dns-message".
+	 *
+	 * Clients SHOULD (rfc8484#section-4.1) set an accept header, but MUST
+	 * be able to handle "application/dns-message". Since that is the only
+	 * content-type supported we can ignore the accept header.
+	 */
+	if((namelen == 12 && memcmp("content-type", name, namelen) == 0)) {
+		if(valuelen != 23 || memcmp("application/dns-message", value,
+			valuelen) != 0) {
+			h2_stream->invalid_content_type = 1;
+		}
+	}
+
+	/* Only interested in content-lentg for POST (on not yet known) method.
+	 */
+	if((!h2_stream->http_method ||
+		h2_stream->http_method == HTTP_METHOD_POST) &&
+		!h2_stream->content_length && namelen  == 14 &&
+		memcmp("content-length", name, namelen) == 0) {
+		if(valuelen > 5) {
+			h2_stream->query_too_large = 1;
+			return 0;
+		}
+		/* guaranteed to only contian digits and be null terminated */
+		h2_stream->content_length = atoi((const char*)value);
+		if(h2_stream->content_length >
+			h2_session->c->http2_stream_max_qbuffer_size) {
+			h2_stream->query_too_large = 1;
+			return 0;
+		}
+	}
+	return 0;
+}
+
+/** nghttp2 callback. Used to get data from DATA frames, which can contain
+ * queries in POST requests. */
+static int http2_req_data_chunk_recv_cb(nghttp2_session* ATTR_UNUSED(session),
+	uint8_t ATTR_UNUSED(flags), int32_t stream_id, const uint8_t* data,
+	size_t len, void* cb_arg)
+{
+	struct http2_session* h2_session = (struct http2_session*)cb_arg;
+	struct http2_stream* h2_stream;
+	size_t qlen = 0;
+
+	if(!(h2_stream = nghttp2_session_get_stream_user_data(
+		h2_session->session, stream_id))) {
+		return 0;
+	}
+
+	if(h2_stream->query_too_large)
+		return 0;
+
+	if(!h2_stream->qbuffer) {
+		if(h2_stream->content_length) {
+			if(h2_stream->content_length < len)
+				/* getting more data in DATA frame than
+				 * advertised in content-length header. */
+				return NGHTTP2_ERR_CALLBACK_FAILURE;
+			qlen = h2_stream->content_length;
+		} else if(len <= h2_session->c->http2_stream_max_qbuffer_size) {
+			/* setting this to msg-buffer-size can result in a lot
+			 * of memory consuption. Most queries should fit in a
+			 * single DATA frame, and most POST queries will
+			 * containt content-length which does not impose this
+			 * limit. */
+			qlen = len;
+		}
+	}
+	if(!h2_stream->qbuffer && qlen) {
+		lock_basic_lock(&http2_query_buffer_count_lock);
+		if(http2_query_buffer_count + qlen > http2_query_buffer_max) {
+			lock_basic_unlock(&http2_query_buffer_count_lock);
+			verbose(VERB_ALGO, "reset HTTP2 stream, no space left, "
+				"in http2-query-buffer-size");
+			return http2_submit_rst_stream(h2_session, h2_stream);
+		}
+		http2_query_buffer_count += qlen;
+		lock_basic_unlock(&http2_query_buffer_count_lock);
+		if(!(h2_stream->qbuffer = sldns_buffer_new(qlen))) {
+			lock_basic_lock(&http2_query_buffer_count_lock);
+			http2_query_buffer_count -= qlen;
+			lock_basic_unlock(&http2_query_buffer_count_lock);
+		}
+	}
+
+	if(!h2_stream->qbuffer ||
+		sldns_buffer_remaining(h2_stream->qbuffer) < len) {
+		verbose(VERB_ALGO, "http2 data_chunck_recv failed. Not enough "
+			"buffer space for POST query. Can happen on multi "
+			"frame requests without content-length header");
+		h2_stream->query_too_large = 1;
+		return 0;
+	}
+
+	sldns_buffer_write(h2_stream->qbuffer, data, len);
+
+	return 0;
+}
+
+void http2_req_stream_clear(struct http2_stream* h2_stream)
+{
+	if(h2_stream->qbuffer) {
+		lock_basic_lock(&http2_query_buffer_count_lock);
+		http2_query_buffer_count -=
+			sldns_buffer_capacity(h2_stream->qbuffer);
+		lock_basic_unlock(&http2_query_buffer_count_lock);
+		sldns_buffer_free(h2_stream->qbuffer);
+		h2_stream->qbuffer = NULL;
+	}
+	if(h2_stream->rbuffer) {
+		lock_basic_lock(&http2_response_buffer_count_lock);
+		http2_response_buffer_count -=
+			sldns_buffer_capacity(h2_stream->rbuffer);
+		lock_basic_unlock(&http2_response_buffer_count_lock);
+		sldns_buffer_free(h2_stream->rbuffer);
+		h2_stream->rbuffer = NULL;
+	}
+}
+
+nghttp2_session_callbacks* http2_req_callbacks_create()
+{
+	nghttp2_session_callbacks *callbacks;
+	if(nghttp2_session_callbacks_new(&callbacks) == NGHTTP2_ERR_NOMEM) {
+		log_err("failed to initialize nghttp2 callback");
+		return NULL;
+	}
+	/* reception of header block started, used to create h2_stream */
+	nghttp2_session_callbacks_set_on_begin_headers_callback(callbacks,
+		http2_req_begin_headers_cb);
+	/* complete frame received, used to get data from stream if frame
+	 * has end stream flag, and start processing query */
+	nghttp2_session_callbacks_set_on_frame_recv_callback(callbacks,
+		http2_req_frame_recv_cb);
+	/* get request info from headers */
+	nghttp2_session_callbacks_set_on_header_callback(callbacks,
+		http2_req_header_cb);
+	/* get data from DATA frames, containing POST query */
+	nghttp2_session_callbacks_set_on_data_chunk_recv_callback(callbacks,
+		http2_req_data_chunk_recv_cb);
+
+	/* generic HTTP2 callbacks */
+	nghttp2_session_callbacks_set_recv_callback(callbacks, http2_recv_cb);
+	nghttp2_session_callbacks_set_send_callback(callbacks, http2_send_cb);
+	nghttp2_session_callbacks_set_on_stream_close_callback(callbacks,
+		http2_stream_close_cb);
+
+	return callbacks;
+}
+#endif /* HAVE_NGHTTP2 */

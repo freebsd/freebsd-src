@@ -67,8 +67,6 @@ struct val_anchors {
 	 * contents of type trust_anchor.
 	 */
 	rbtree_type* tree;
-	/** The DLV trust anchor (if one is configured, else NULL) */
-	struct trust_anchor* dlv_anchor;
 	/** Autotrust global data, anchors sorted by next probe time */
 	struct autr_global_data* autr;
 };

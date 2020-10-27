@@ -54,6 +54,10 @@
 
 #if defined(USE_MINI_EVENT) && !defined(USE_WINSOCK)
 
+#ifdef	HAVE_SYS_SELECT_H
+/* for fd_set on OpenBSD */
+#include <sys/select.h>
+#endif
 #include <sys/time.h>
 
 #ifndef HAVE_EVENT_BASE_FREE
