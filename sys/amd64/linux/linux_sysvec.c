@@ -231,7 +231,7 @@ linux_set_syscall_retval(struct thread *td, int error)
 		break;
 
 	default:
-		frame->tf_rax = linux_to_bsd_errno(error);
+		frame->tf_rax = bsd_to_linux_errno(error);
 		frame->tf_r10 = frame->tf_rcx;
 		break;
 	}

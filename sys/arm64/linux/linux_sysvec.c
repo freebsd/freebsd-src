@@ -142,10 +142,8 @@ linux_set_syscall_retval(struct thread *td, int error)
 	cpu_set_syscall_retval(td, error);
 
 	if (__predict_false(error != 0)) {
-		if (error != ERESTART && error != EJUSTRETURN) {
-			td->td_frame->tf_x[0] =
-				linux_to_bsd_errno(error);
-		}
+		if (error != ERESTART && error != EJUSTRETURN)
+			td->td_frame->tf_x[0] = bsd_to_linux_errno(error);
 	}
 }
 

@@ -11,7 +11,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_errno.inc>
 
 int
-linux_to_bsd_errno(int error)
+bsd_to_linux_errno(int error)
 {
 
 	KASSERT(error >= 0 && error <= ELAST,
