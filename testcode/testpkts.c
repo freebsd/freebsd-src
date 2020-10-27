@@ -501,7 +501,7 @@ add_edns(uint8_t* pktbuf, size_t pktsize, int do_flag, uint8_t *ednsdata,
 {
 	uint8_t edns[] = {0x00, /* root label */
 		0x00, LDNS_RR_TYPE_OPT, /* type */
-		0x10, 0x00, /* class is UDPSIZE 4096 */
+		0x04, 0xD0, /* class is UDPSIZE 1232 */
 		0x00, /* TTL[0] is ext rcode */
 		0x00, /* TTL[1] is edns version */
 		(uint8_t)(do_flag?0x80:0x00), 0x00, /* TTL[2-3] is edns flags, DO */

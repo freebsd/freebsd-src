@@ -43,6 +43,9 @@
 #define LISTEN_DNSPORT_H
 
 #include "util/netevent.h"
+#ifdef HAVE_NGHTTP2_NGHTTP2_H
+#include <nghttp2/nghttp2.h>
+#endif
 struct listen_list;
 struct config_file;
 struct addrinfo;
@@ -94,8 +97,9 @@ enum listen_type {
 	/** tcp type + dnscrypt */
 	listen_type_tcp_dnscrypt,
 	/** udp ipv6 (v4mapped) for use with ancillary data + dnscrypt*/
-	listen_type_udpancil_dnscrypt
-
+	listen_type_udpancil_dnscrypt,
+	/** HTTP(2) over TLS over TCP */
+	listen_type_http
 };
 
 /**
@@ -117,18 +121,31 @@ struct listen_port {
  * interfaces for IP4 and/or IP6, for UDP and/or TCP.
  * On the given port number. It creates the sockets.
  * @param cfg: settings on what ports to open.
+ * @param ifs: interfaces to open, array of IP addresses, "ip[@port]".
+ * @param num_ifs: length of ifs.
  * @param reuseport: set to true if you want reuseport, or NULL to not have it,
  *   set to false on exit if reuseport failed to apply (because of no
  *   kernel support).
  * @return: linked list of ports or NULL on error.
  */
 struct listen_port* listening_ports_open(struct config_file* cfg,
-	int* reuseport);
+	char** ifs, int num_ifs, int* reuseport);
 
 /**
  * Close and delete the (list of) listening ports.
  */
 void listening_ports_free(struct listen_port* list);
+
+/**
+ * Resolve interface names in config and store result IP addresses
+ * @param cfg: config
+ * @param resif: string array (malloced array of malloced strings) with
+ * 	result.  NULL if cfg has none.
+ * @param num_resif: length of resif.  Zero if cfg has zero num_ifs.
+ * @return 0 on failure.
+ */
+int resolve_interface_names(struct config_file* cfg, char*** resif,
+	int* num_resif);
 
 /**
  * Create commpoints with for this thread for the shared ports.
@@ -139,6 +156,9 @@ void listening_ports_free(struct listen_port* list);
  * @param tcp_accept_count: max number of simultaneous TCP connections 
  * 	from clients.
  * @param tcp_idle_timeout: idle timeout for TCP connections in msec.
+ * @param harden_large_queries: whether query size should be limited.
+ * @param http_max_streams: maximum number of HTTP/2 streams per connection.
+ * @param http_endpoint: HTTP endpoint to service queries on
  * @param tcp_conn_limit: TCP connection limit info.
  * @param sslctx: nonNULL if ssl context.
  * @param dtenv: nonNULL if dnstap enabled.
@@ -147,11 +167,12 @@ void listening_ports_free(struct listen_port* list);
  * @param cb_arg: user data argument for callback function.
  * @return: the malloced listening structure, ready for use. NULL on error.
  */
-struct listen_dnsport* listen_create(struct comm_base* base,
-	struct listen_port* ports, size_t bufsize,
-	int tcp_accept_count, int tcp_idle_timeout,
-	struct tcl_list* tcp_conn_limit, void* sslctx,
-	struct dt_env *dtenv, comm_point_callback_type* cb, void* cb_arg);
+struct listen_dnsport*
+listen_create(struct comm_base* base, struct listen_port* ports,
+	size_t bufsize, int tcp_accept_count, int tcp_idle_timeout,
+	int harden_large_queries, uint32_t http_max_streams,
+	char* http_endpoint, struct tcl_list* tcp_conn_limit, void* sslctx,
+	struct dt_env* dtenv, comm_point_callback_type* cb, void *cb_arg);
 
 /**
  * delete the listening structure
@@ -221,13 +242,15 @@ int create_udp_sock(int family, int socktype, struct sockaddr* addr,
  * 	listening UDP port.  Set to false on return if it failed to do so.
  * @param transparent: set IP_TRANSPARENT socket option.
  * @param mss: maximum segment size of the socket. if zero, leaves the default. 
+ * @param nodelay: if true set TCP_NODELAY and TCP_QUICKACK socket options.
  * @param freebind: set IP_FREEBIND socket option.
  * @param use_systemd: if true, fetch sockets from systemd.
  * @param dscp: DSCP to use.
  * @return: the socket. -1 on error.
  */
 int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
-	int* reuseport, int transparent, int mss, int freebind, int use_systemd, int dscp);
+	int* reuseport, int transparent, int mss, int nodelay, int freebind,
+	int use_systemd, int dscp);
 
 /**
  * Create and bind local listening socket
@@ -369,7 +392,34 @@ int tcp_req_info_handle_read_close(struct tcp_req_info* req);
 /** get the size of currently used tcp stream wait buffers (in bytes) */
 size_t tcp_req_info_get_stream_buffer_size(void);
 
+/** get the size of currently used HTTP2 query buffers (in bytes) */
+size_t http2_get_query_buffer_size(void);
+/** get the size of currently used HTTP2 response buffers (in bytes) */
+size_t http2_get_response_buffer_size(void);
+
+#ifdef HAVE_NGHTTP2
+/** 
+ * Create nghttp2 callbacks to handle HTTP2 requests.
+ * @return malloc'ed struct, NULL on failure
+ */
+nghttp2_session_callbacks* http2_req_callbacks_create();
+
+/** Free http2 stream buffers and decrease buffer counters */
+void http2_req_stream_clear(struct http2_stream* h2_stream);
+
+/**
+ * DNS response ready to be submitted to nghttp2, to be prepared for sending
+ * out. Response is stored in c->buffer. Copy to rbuffer because the c->buffer
+ * might be used before this will be send out.
+ * @param h2_session: http2 session, containing c->buffer which contains answer
+ * @param h2_stream: http2 stream, containing buffer to store answer in
+ * @return 0 on error, 1 otherwise
+ */
+int http2_submit_dns_response(struct http2_session* h2_session);
+#else
+int http2_submit_dns_response(void* v);
+#endif /* HAVE_NGHTTP2 */
+
 char* set_ip_dscp(int socket, int addrfamily, int ds);
-char* sock_strerror(int errn);
 
 #endif /* LISTEN_DNSPORT_H */

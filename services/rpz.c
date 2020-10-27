@@ -597,8 +597,18 @@ rpz_insert_rr(struct rpz* r, uint8_t* azname, size_t aznamelen, uint8_t* dname,
 	uint8_t* policydname;
 
 	if(!dname_subdomain_c(dname, azname)) {
-		log_err("RPZ: name of record to insert into RPZ is not a "
-			"subdomain of the configured name of the RPZ zone");
+		char* dname_str = sldns_wire2str_dname(dname, dnamelen);
+		char* azname_str = sldns_wire2str_dname(azname, aznamelen);
+		if(dname_str && azname_str) {
+			log_err("RPZ: name of record (%s) to insert into RPZ is not a "
+				"subdomain of the configured name of the RPZ zone (%s)",
+				dname_str, azname_str);
+		} else {
+			log_err("RPZ: name of record to insert into RPZ is not a "
+				"subdomain of the configured name of the RPZ zone");
+		}
+		free(dname_str);
+		free(azname_str);
 		return 0;
 	}
 

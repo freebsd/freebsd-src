@@ -624,8 +624,6 @@ morechecks(struct config_file* cfg)
 		cfg->auto_trust_anchor_file_list, cfg->chrootdir, cfg);
 	check_chroot_filelist_wild("trusted-keys-file",
 		cfg->trusted_keys_file_list, cfg->chrootdir, cfg);
-	check_chroot_string("dlv-anchor-file", &cfg->dlv_anchor_file,
-		cfg->chrootdir, cfg);
 #ifdef USE_IPSECMOD
 	if(cfg->ipsecmod_enabled && strstr(cfg->module_conf, "ipsecmod")) {
 		/* only check hook if enabled */

@@ -31,6 +31,7 @@
 /unbound.h
 /asynclook
 /delayer
+/dohclient
 /lock-verify
 /memstats
 /perf

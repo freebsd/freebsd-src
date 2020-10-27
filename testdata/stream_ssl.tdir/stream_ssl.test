@@ -11,11 +11,12 @@ get_make
 
 # first test streamtcp against the server unbound.
 echo "> streamtcp -s www.example.com A IN"
-$PRE/streamtcp -s -f 127.0.0.1@$SERV_PORT www.example.com. A IN >outfile 2>&1
+$PRE/streamtcp -s -f 127.0.0.1@$SERV_PORT www.example.com. A IN >outfile 2>outerr
 if test "$?" -ne 0; then
 	echo "exit status not OK"
 	echo "> cat logfiles"
 	cat outfile
+	cat outerr
 	echo "SSLSERVICE"
 	cat unboundserv.log
 	echo "SSLCLIENT"
@@ -27,6 +28,7 @@ else
 fi
 echo "> cat logfiles"
 cat outfile
+cat outerr
 echo "SSLSERVICE"
 cat unboundserv.log
 echo "SSLCLIENT"

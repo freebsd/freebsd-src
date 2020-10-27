@@ -101,10 +101,11 @@ dt_apply_cfg(struct dt_env *env, struct config_file *cfg);
 /**
  * Initialize per-worker state in dnstap environment object.
  * @param env: dnstap environment object to initialize, created with dt_create().
+ * @param base: event base for wakeup timer.
  * @return: true on success, false on failure.
  */
 int
-dt_init(struct dt_env *env);
+dt_init(struct dt_env *env, struct comm_base* base);
 
 /**
  * Deletes the per-worker state created by dt_init

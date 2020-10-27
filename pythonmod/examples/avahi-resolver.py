@@ -59,6 +59,8 @@
 # |   num-threads: 32
 # |   cache-max-negative-ttl: 60
 # |   cache-max-ttl: 60
+# | python:
+# |   python-script: path/to/this/file
 #
 #
 # The plugin can also be run interactively. Provide the name and
