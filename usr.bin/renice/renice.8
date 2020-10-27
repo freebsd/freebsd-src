@@ -28,7 +28,7 @@
 .\"     @(#)renice.8	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd October 27, 2020
 .Dt RENICE 8
 .Os
 .Sh NAME
@@ -37,22 +37,18 @@
 .Sh SYNOPSIS
 .Nm
 .Ar priority
-.Op Oo Fl p Oc Ar pid ...
-.Op Oo Fl g Oc Ar pgrp ...
-.Op Oo Fl u Oc Ar user ...
+.Op Oo Fl gpu Oc Ar target
 .Nm
 .Fl n Ar increment
-.Op Oo Fl p Oc Ar pid ...
-.Op Oo Fl g Oc Ar pgrp ...
-.Op Oo Fl u Oc Ar user ...
+.Op Oo Fl gpu Oc Ar target
 .Sh DESCRIPTION
 The
 .Nm
 utility alters the
 scheduling priority of one or more running processes.
 The following
-.Ar who
-parameters are interpreted as process ID's, process group
+.Ar target
+parameters are interpreted as process ID's (the default), process group
 ID's, user ID's or user names.
 The
 .Nm Ns 'ing
@@ -62,27 +58,25 @@ The
 .Nm Ns 'ing
 of a user causes all processes owned by the user to have
 their scheduling priority altered.
-By default, the processes to be affected are specified by
-their process ID's.
 .Pp
 The following options are available:
 .Bl -tag -width indent
-.It Fl g
-Force
-.Ar who
-parameters to be interpreted as process group ID's.
 .It Fl n
 Instead of changing the specified processes to the given priority,
 interpret the following argument as an increment to be applied to
 the current priority of each process.
-.It Fl u
-Force the
-.Ar who
-parameters to be interpreted as user names or user ID's.
+.It Fl g
+Interpret
+.Ar target
+parameters as process group ID's.
 .It Fl p
-Reset the
-.Ar who
-interpretation to be (the default) process ID's.
+Interpret
+.Ar target
+parameters as process ID's (the default).
+.It Fl u
+Interpret
+.Ar target
+parameters as user names or user ID's.
 .El
 .Pp
 Users other than the super-user may only alter the priority of
