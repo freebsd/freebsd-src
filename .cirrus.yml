@@ -1,7 +1,9 @@
 # $FreeBSD$
 
 freebsd_instance:
-  image: freebsd-12-1-release-amd64
+  # image: freebsd-12-1-stable-amd64
+  # We need a newer image to install llvm11
+  image_family: freebsd-12-1-snap
   cpu: 8
   memory: 24G
 
@@ -12,14 +14,14 @@ task:
   only_if: $CIRRUS_BRANCH != 'svn_head'
   timeout_in: 120m
   install_script:
-  - pkg install -y qemu-devel uefi-edk2-qemu-x86_64
+  - pkg install -y qemu-devel uefi-edk2-qemu-x86_64 llvm11
   setup_user_script:
   - pw useradd user
   - mkdir -p /usr/obj/$(pwd -P)
   - chown user:user /usr/obj/$(pwd -P)
   script:
-  - su user -c "make -j$(sysctl -n hw.ncpu) WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
+  - su user -c "make -j$(sysctl -n hw.ncpu) CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes buildworld buildkernel"
   package_script:
-  - su user -c "make WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
+  - su user -c "make CROSS_TOOLCHAIN=llvm11 WITHOUT_TOOLCHAIN=yes PKG_FORMAT=tar packages"
   test_script:
   - sh tools/boot/ci-qemu-test.sh
