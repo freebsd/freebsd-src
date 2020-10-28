@@ -5,10 +5,8 @@
 .PATH:		${ZFSOSSRC}/spl
 .PATH:		${OZFS}/module/zstd/lib
 ZFSSRC=		zfs.c nvlist.c skein.c skein_block.c list.c
-.if ${MACHINE_ARCH} != aarch64
 ZFSSRC+=	zstd_shim.c zstd.c
 CFLAGS+=	-DHAS_ZSTD_ZFS
-.endif
 SRCS+=		${ZFSSRC}
 
 CFLAGS+=	-I${LDRSRC}
