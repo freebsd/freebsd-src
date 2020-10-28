@@ -213,7 +213,7 @@ token(char *line, FILE *out, bool *skip)
 	}
 
 	if (strncmp(line, "ifdef", 5) == 0) {
-		walk = line + 6;
+		walk = line + 5;
 		trimlr(&walk);
 
 		if (*walk == '\0') {
