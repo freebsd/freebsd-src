@@ -407,11 +407,11 @@ FreeBSD 5.2           |      |                 |                       |
  |     |           10.15.1   |           |        |            DragonFly 5.6.2
  |     |              |      *--NetBSD   |        |                    |
  |     v              |      |   9.0     |        |                    |
- |                    |      |           |        |                    |
- |                    |      |           |        |            DragonFly 5.8
- |                    |      |           |        |                    |
- |                    |      |           |        |            DragonFly 5.6.3
- |                    |      |        NetBSD      |                    |
+ |  FreeBSD           |      |           |        |                    |
+ |   12.2             |      |           |        |            DragonFly 5.8
+ |     |              |      |           |        |                    |
+ |     |              |      |           |        |            DragonFly 5.6.3
+ |     v              |      |        NetBSD      |                    |
  |                    |      |         8.2        |                    |
  |                    |      |                    |                    |
 FreeBSD 13 -current   |  NetBSD -current   OpenBSD -current    DragonFly -current
@@ -810,6 +810,7 @@ NetBSD 9.0 		2020-02-14 [NBD]
 DragonFly 5.8 		2020-03-03 [DFB]
 DragonFly 5.6.3 	2020-03-11 [DFB]
 NetBSD 8.2 		2020-03-31 [NBD]
+FreeBSD 12.2		2020-10-27 [FBD]
 
 Bibliography
 ------------------------
