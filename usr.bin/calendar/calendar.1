@@ -28,7 +28,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd October 25, 2020
+.Dd October 28, 2020
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -198,7 +198,13 @@ file is preprocessed by a limited subset of
 .Xr cpp 1
 internally, allowing the inclusion of shared files such as
 lists of company holidays or meetings.
-This limited subset consists of \fB#include #ifndef #endif\fR and \fB#define\fR.
+This limited subset consists of \fB#include #ifdef #ifndef #else
+#endif\fR and \fB#define\fR. Conditions can be nested, but not check
+for matching begin and end directives is performed.
+Included files are parsed in their own scope.
+They have no read or write access to condition variables defined in
+an outer scope and open conditional blocks are implicitly closed.
+.Pp
 If the shared file is not referenced by a full pathname,
 .Nm
 searches in the current (or home) directory first, and then in the
@@ -346,9 +352,12 @@ double-check the start and end time of solar and lunar events.
 .Sh BUGS
 The
 .Nm
-internal cpp does not support nested conditions and will continue
-parsing of the input file on the next #endif even in nested contexts.
-It does only recognise #include, #define, #ifdef and #ifndef.
+does only recognise the cpp directives #include, #define, #ifdef,
+#ifndef and #else.
+It supports nested conditions, but does not perform any validation
+on the correct use and nesting of conditions.
+#endif without prior #ifdef or #define is ignored and #else outside
+a conditional section skips input lines up to the next #endif.
 .Pp
 There is no possibility to properly specify the local position
 needed for solar and lunar calculations.
