@@ -1066,9 +1066,10 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 
 	if (!(ctx->ifc_flags & IFC_NETMAP_TX_IRQ))
 		if (kring->nr_hwtail != nm_prev(kring->nr_hwcur, lim)) {
-			callout_reset_sbt(&txq->ift_netmap_timer,
+			callout_reset_sbt_on(&txq->ift_netmap_timer,
 			    NETMAP_TX_TIMER_US * SBT_1US, SBT_1US,
-			    iflib_netmap_timer, txq, txq->ift_netmap_timer.c_cpu);
+			    iflib_netmap_timer, txq,
+			    txq->ift_netmap_timer.c_cpu, 0);
 		}
 	return (0);
 }
