@@ -212,6 +212,21 @@ token(char *line, FILE *out, bool *skip)
 		return (T_OK);
 	}
 
+	if (strncmp(line, "ifdef", 5) == 0) {
+		walk = line + 6;
+		trimlr(&walk);
+
+		if (*walk == '\0') {
+			warnx("Expecting arguments after #ifdef");
+			return (T_ERR);
+		}
+
+		if (definitions == NULL || sl_find(definitions, walk) == NULL)
+			*skip = true;
+
+		return (T_OK);
+	}
+
 	if (strncmp(line, "ifndef", 6) == 0) {
 		walk = line + 6;
 		trimlr(&walk);

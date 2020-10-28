@@ -346,11 +346,9 @@ double-check the start and end time of solar and lunar events.
 .Sh BUGS
 The
 .Nm
-internal cpp does not correctly do #ifndef and will discard the rest
-of the file if a #ifndef is triggered.
-It also has a maximum of 50 include file and/or 100 #defines
-and only recognises #include, #define and
-#ifndef.
+internal cpp does not support nested conditions and will continue
+parsing of the input file on the next #endif even in nested contexts.
+It does only recognise #include, #define, #ifdef and #ifndef.
 .Pp
 There is no possibility to properly specify the local position
 needed for solar and lunar calculations.
