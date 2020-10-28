@@ -36,113 +36,123 @@
  *            include/uapi/asm-generic/errno.h
  */
 const int linux_errtbl[ELAST + 1] = {
-	-0,
-	-1,
-	-2,
-	-3,
-	-4,
-	-5,
-	-6,
-	-7,
-	-8,
-	-9,
+	/* [0, 9] */
+	[0] = -0,
+	[EPERM] = -1,
+	[ENOENT] = -2,
+	[ESRCH] = -3,
+	[EINTR] = -4,
+	[EIO] = -5,
+	[ENXIO] = -6,
+	[E2BIG] = -7,
+	[ENOEXEC] = -8,
+	[EBADF] = -9,
 
-	-10,
-	-35,	/* EDEADLK */
-	-12,
-	-13,
-	-14,
-	-15,
-	-16,
-	-17,
-	-18,
-	-19,
+	/* [10, 19] */
+	[ECHILD] = -10,
+	[EDEADLK] = -35,
+	[ENOMEM] = -12,
+	[EACCES] = -13,
+	[EFAULT] = -14,
+	[ENOTBLK] = -15,
+	[EBUSY] = -16,
+	[EEXIST] = -17,
+	[EXDEV] = -18,
+	[ENODEV] = -19,
 
-	-20,
-	-21,
-	-22,
-	-23,
-	-24,
-	-25,
-	-26,
-	-27,
-	-28,
-	-29,
+	/* [20, 29] */
+	[ENOTDIR] = -20,
+	[EISDIR] = -21,
+	[EINVAL] = -22,
+	[ENFILE] = -23,
+	[EMFILE] = -24,
+	[ENOTTY] = -25,
+	[ETXTBSY] = -26,
+	[EFBIG] = -27,
+	[ENOSPC] = -28,
+	[ESPIPE] = -29,
 
-	-30,
-	-31,
-	-32,
-	-33,
-	-34,
-	-11,	/* EAGAIN */
-	-115,
-	-114,
-	-88,
-	-89,
+	/* [30, 39] */
+	[EROFS] = -30,
+	[EMLINK] = -31,
+	[EPIPE] = -32,
+	[EDOM] = -33,
+	[ERANGE] = -34,
+	[EAGAIN] = -11,
+	[EINPROGRESS] = -115,
+	[EALREADY] = -114,
+	[ENOTSOCK] = -88,
+	[EDESTADDRREQ] = -89,
 
-	-90,
-	-91,
-	-92,
-	-93,
-	-94,
-	-95,
-	-96,
-	-97,
-	-98,
-	-99,
+	/* [40, 49] */
+	[EMSGSIZE] = -90,
+	[EPROTOTYPE] = -91,
+	[ENOPROTOOPT] = -92,
+	[EPROTONOSUPPORT] = -93,
+	[ESOCKTNOSUPPORT] = -94,
+	[EOPNOTSUPP] = -95,
+	[EPFNOSUPPORT] = -96,
+	[EAFNOSUPPORT] = -97,
+	[EADDRINUSE] = -98,
+	[EADDRNOTAVAIL] = -99,
 
-	-100,
-	-101,
-	-102,
-	-103,
-	-104,
-	-105,
-	-106,
-	-107,
-	-108,
-	-109,
+	/* [50, 59] */
+	[ENETDOWN] = -100,
+	[ENETUNREACH] = -101,
+	[ENETRESET] = -102,
+	[ECONNABORTED] = -103,
+	[ECONNRESET] = -104,
+	[ENOBUFS] = -105,
+	[EISCONN] = -106,
+	[ENOTCONN] = -107,
+	[ESHUTDOWN] = -108,
+	[ETOOMANYREFS] = -109,
 
-	-110,
-	-111,
-	-40,
-	-36,
-	-112,
-	-113,
-	-39,
-	-11,
-	-87,
-	-122,
+	/* [60, 69] */
+	[ETIMEDOUT] = -110,
+	[ECONNREFUSED] = -111,
+	[ELOOP] = -40,
+	[ENAMETOOLONG] = -36,
+	[EHOSTDOWN] = -112,
+	[EHOSTUNREACH] = -113,
+	[ENOTEMPTY] = -39,
+	[EPROCLIM] = -11,
+	[EUSERS] = -87,
+	[EDQUOT] = -122,
 
-	-116,
-	-66,
-	-6,	/* EBADRPC -> ENXIO */
-	-6,	/* ERPCMISMATCH -> ENXIO */
-	-6,	/* EPROGUNAVAIL -> ENXIO */
-	-6,	/* EPROGMISMATCH -> ENXIO */
-	-6,	/* EPROCUNAVAIL -> ENXIO */
-	-37,
-	-38,
-	-9,
+	/* [70, 79] */
+	[ESTALE] = -116,
+	[EREMOTE] = -66,
+	[EBADRPC] = -6,		/* EBADRPC -> ENXIO */
+	[ERPCMISMATCH] = -6,	/* ERPCMISMATCH -> ENXIO */
+	[EPROGUNAVAIL] = -6,	/* EPROGUNAVAIL -> ENXIO */
+	[EPROGMISMATCH] = -6,	/* EPROGMISMATCH -> ENXIO */
+	[EPROCUNAVAIL] = -6,	/* EPROCUNAVAIL -> ENXIO */
+	[ENOLCK] = -37,
+	[ENOSYS] = -38,
+	[EFTYPE] = -9,
 
-	-6,	/* EAUTH -> ENXIO */
-	-6,	/* ENEEDAUTH -> ENXIO */
-	-43,
-	-42,
-	-75,
-	-125,
-	-84,
-	-61,
-	-22,	/* EDOOFUS -> EINVAL */
-	-74,
+	/* [80, 89] */
+	[EAUTH] = -6,		/* EAUTH -> ENXIO */
+	[ENEEDAUTH] = -6,	/* ENEEDAUTH -> ENXIO */
+	[EIDRM] = -43,
+	[ENOMSG] = -42,
+	[EOVERFLOW] = -75,
+	[ECANCELED] = -125,
+	[EILSEQ] = -84,
+	[ENOATTR] = -61,
+	[EDOOFUS] = -22,	/* EDOOFUS -> EINVAL */
+	[EBADMSG] = -74,
 
-	-72,
-	-67,
-	-71,
-	-1,	/* ENOTCAPABLE -> EPERM */
-	-1,	/* ECAPMODE -> EPERM */
-	-131,	/* ENOTRECOVERABLE */
-	-130,	/* EOWNERDEAD */
-	-22,	/* EINTEGRITY -> EINVAL */
+	/* [90, 99] */
+	[EMULTIHOP] = -72,
+	[ENOLINK] = -67,
+	[EPROTO] = -71,
+	[ENOTCAPABLE] = -1,	/* ENOTCAPABLE -> EPERM */
+	[ECAPMODE] = -1,	/* ECAPMODE -> EPERM */
+	[ENOTRECOVERABLE] = -131,	/* ENOTRECOVERABLE */
+	[EOWNERDEAD] = -130,	/* EOWNERDEAD */
+	[EINTEGRITY] = -22,	/* EINTEGRITY -> EINVAL */
 };
 
 _Static_assert(ELAST == 97,
