@@ -102,7 +102,7 @@ static const struct aw_usbphy_conf h3_usbphy_conf = {
 	.num_phys = 4,
 	.phy_type = AWUSBPHY_TYPE_H3,
 	.pmu_unk1 = true,
-	.phy0_route = false,
+	.phy0_route = true,
 };
 
 static const struct aw_usbphy_conf a64_usbphy_conf = {
@@ -167,8 +167,10 @@ DEFINE_CLASS_1(awusbphy_phynode, awusbphy_phynode_class, awusbphy_phynode_method
 #define	 FORCE_ID		(0x3 << 14)
 #define	 FORCE_ID_SHIFT		14
 #define	 FORCE_ID_LOW		2
+#define	 FORCE_ID_HIGH		3
 #define	 FORCE_VBUS_VALID	(0x3 << 12)
 #define	 FORCE_VBUS_VALID_SHIFT	12
+#define	 FORCE_VBUS_VALID_LOW	2
 #define	 FORCE_VBUS_VALID_HIGH	3
 #define	 VBUS_CHANGE_DET	(1 << 6)
 #define	 ID_CHANGE_DET		(1 << 5)
@@ -182,18 +184,6 @@ DEFINE_CLASS_1(awusbphy_phynode, awusbphy_phynode_class, awusbphy_phynode_method
 #define	 PMU_ULPI_BYPASS	(1 << 0)
 #define	PMU_UNK_H3	0x10
 #define	 PMU_UNK_H3_CLR		0x2
-#define	PHY_CSR		0x00
-#define	 ID_PULLUP_EN		(1 << 17)
-#define	 DPDM_PULLUP_EN		(1 << 16)
-#define	 FORCE_ID		(0x3 << 14)
-#define	 FORCE_ID_SHIFT		14
-#define	 FORCE_ID_LOW		2
-#define	 FORCE_VBUS_VALID	(0x3 << 12)
-#define	 FORCE_VBUS_VALID_SHIFT	12
-#define	 FORCE_VBUS_VALID_HIGH	3
-#define	 VBUS_CHANGE_DET	(1 << 6)
-#define	 ID_CHANGE_DET		(1 << 5)
-#define	 DPDM_CHANGE_DET	(1 << 4)
 
 static void
 awusbphy_configure(device_t dev, int phyno)
@@ -327,7 +317,12 @@ awusbphy_vbus_detect(device_t dev, int *val)
 		return (0);
 	}
 
-	*val = 0;
+	/* TODO check vbus_power-supply. */
+
+	/*
+	 * If there is no way to detect, assume present.
+	 */
+	*val = 1;
 	return (0);
 }
 
@@ -361,10 +356,11 @@ awusbphy_phy_enable(struct phynode *phynode, bool enable)
 		if (error)
 			goto out;
 
-		if (vbus_det == 1) {
+		/* TODO check vbus_power-supply as well. */
+		if (sc->vbus_det_valid && vbus_det == 1) {
 			if (bootverbose)
-				device_printf(dev, "External VBUS detected, not enabling the regulator\n");
-
+				device_printf(dev, "External VBUS detected, "
+				    "not enabling the regulator\n");
 			return (0);
 		}
 	}
@@ -418,37 +414,40 @@ awusbphy_set_mode(struct phynode *phynode, int mode)
 		return (0);
 	}
 
+	if (sc->mode == mode)
+		return (0);
+	if (mode == PHY_USB_MODE_OTG)	/* TODO */
+		return (EOPNOTSUPP);
+
+	error = awusbphy_vbus_detect(dev, &vbus_det);
+	if (error != 0)
+		return (error);
+
+	val = bus_read_4(sc->phy_ctrl, PHY_CSR);
+	val &= ~(VBUS_CHANGE_DET | ID_CHANGE_DET | DPDM_CHANGE_DET);
+	val |= (ID_PULLUP_EN | DPDM_PULLUP_EN);
+	val &= ~FORCE_VBUS_VALID;
+	val |= (vbus_det ? FORCE_VBUS_VALID_HIGH : FORCE_VBUS_VALID_LOW) <<
+	    FORCE_VBUS_VALID_SHIFT;
+	val &= ~FORCE_ID;
+
 	switch (mode) {
 	case PHY_USB_MODE_HOST:
-		val = bus_read_4(sc->phy_ctrl, PHY_CSR);
-		val &= ~(VBUS_CHANGE_DET | ID_CHANGE_DET | DPDM_CHANGE_DET);
-		val |= (ID_PULLUP_EN | DPDM_PULLUP_EN);
-		val &= ~FORCE_ID;
 		val |= (FORCE_ID_LOW << FORCE_ID_SHIFT);
-		val &= ~FORCE_VBUS_VALID;
-		val |= (FORCE_VBUS_VALID_HIGH << FORCE_VBUS_VALID_SHIFT);
-		bus_write_4(sc->phy_ctrl, PHY_CSR, val);
-		if (sc->phy_conf->phy0_route == true) {
-			error = awusbphy_vbus_detect(dev, &vbus_det);
-			if (error)
-				goto out;
-			if (vbus_det == 0)
-				CLR4(sc->phy_ctrl, OTG_PHY_CFG,
-				  OTG_PHY_ROUTE_OTG);
-			else
-				SET4(sc->phy_ctrl, OTG_PHY_CFG,
-				  OTG_PHY_ROUTE_OTG);
-		}
+		if (sc->phy_conf->phy0_route)
+			CLR4(sc->phy_ctrl, OTG_PHY_CFG, OTG_PHY_ROUTE_OTG);
 		break;
-	case PHY_USB_MODE_OTG:
-		/* TODO */
+	case PHY_USB_MODE_DEVICE:
+		val |= (FORCE_ID_HIGH << FORCE_ID_SHIFT);
+		if (sc->phy_conf->phy0_route)
+			SET4(sc->phy_ctrl, OTG_PHY_CFG, OTG_PHY_ROUTE_OTG);
 		break;
+	default:
+		return (EINVAL);
 	}
 
+	bus_write_4(sc->phy_ctrl, PHY_CSR, val);
 	sc->mode = mode;
-
-
-out:
 	return (0);
 }
 
