@@ -164,7 +164,7 @@ passthru(const struct cmd *f, int argc, char *argv[])
 
 	if (arg_parse(argc, argv, f))
 		return;
-	open_dev(argv[optind], &fd, 1, 1);
+	open_dev(opt.dev, &fd, 1, 1);
 
 	if (opt.read && opt.write)
 		errx(1, "need exactly one of --read or --write");
