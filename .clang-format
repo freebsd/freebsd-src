@@ -102,9 +102,12 @@ IncludeCategories:
   - Regex: '^<sys/param\.h>'
     Priority: 2
     SortPriority: 22
-  - Regex: '^<sys.*/'
+  - Regex: '^<sys/systm\.h>'
     Priority: 2
     SortPriority: 23
+  - Regex: '^<sys.*/'
+    Priority: 2
+    SortPriority: 24
   - Regex: '^<vm/vm\.h>'
     Priority: 3
     SortPriority: 30
