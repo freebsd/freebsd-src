@@ -605,7 +605,7 @@ nscreate(const struct cmd *f, int argc, char *argv[])
 	pt.len = sizeof(struct nvme_namespace_data);
 	pt.is_read = 0; /* passthrough writes data to ctrlr */
 	if ((result = ioctl(fd, NVME_PASSTHROUGH_CMD, &pt)) < 0)
-		errx(1, "ioctl request to %s failed: %d", argv[optind], result);
+		errx(1, "ioctl request to %s failed: %d", create_opt.dev, result);
 
 	if (nvme_completion_is_error(&pt.cpl)) {
 		errx(1, "namespace creation failed: %s",
@@ -822,7 +822,7 @@ nsdetach(const struct cmd *f, int argc, char *argv[])
 	pt.len = sizeof(clist);
 
 	if ((result = ioctl(fd, NVME_PASSTHROUGH_CMD, &pt)) < 0)
-		errx(1, "ioctl request to %s failed: %d", argv[optind], result);
+		errx(1, "ioctl request to %s failed: %d", detach_opt.dev, result);
 
 	if (nvme_completion_is_error(&pt.cpl)) {
 		errx(1, "namespace detach failed: %s",
