@@ -197,5 +197,6 @@ int linux_to_bsd_bits_(int value, struct bsd_to_linux_bitmap *bitmap,
 #define	BITMAP_1t1_LINUX(_name)	BITMAP_EASY_LINUX(_name, LINUX_##_name)
 
 int bsd_to_linux_errno(int error);
+void linux_check_errtbl(void);
 
 #endif /* _LINUX_MI_H_ */
