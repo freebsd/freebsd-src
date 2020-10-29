@@ -1252,6 +1252,10 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		    *name ? "     " : " ",
 		    name
 		    );
+		if (error == -1) {
+			linux_msg(td, "cannot fill /proc/self/maps; "
+			    "consider bumping PFS_MAXBUFSIZ");
+		}
 		if (freename)
 			free(freename, M_TEMP);
 		vm_map_lock_read(map);
