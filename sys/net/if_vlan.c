@@ -1782,10 +1782,10 @@ vlan_capabilities(struct ifvlan *ifv)
 	 * this ever changes, then a new IFCAP_VLAN_TXTLS can be
 	 * defined.
 	 */
-	if (p->if_capabilities & IFCAP_TXTLS)
-		cap |= p->if_capabilities & IFCAP_TXTLS;
-	if (p->if_capenable & IFCAP_TXTLS)
-		ena |= mena & IFCAP_TXTLS;
+	if (p->if_capabilities & (IFCAP_TXTLS | IFCAP_TXTLS_RTLMT))
+		cap |= p->if_capabilities & (IFCAP_TXTLS | IFCAP_TXTLS_RTLMT);
+	if (p->if_capenable & (IFCAP_TXTLS | IFCAP_TXTLS_RTLMT))
+		ena |= mena & (IFCAP_TXTLS | IFCAP_TXTLS_RTLMT);
 
 	ifp->if_capabilities = cap;
 	ifp->if_capenable = ena;
