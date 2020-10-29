@@ -221,8 +221,10 @@ main(int argc, char *argv[])
 			(void)setegid(pw->pw_gid);
 			(void)initgroups(pw->pw_name, pw->pw_gid);
 			(void)seteuid(pw->pw_uid);
-			if (!chdir(pw->pw_dir))
+			if (!chdir(pw->pw_dir)) {
+				setenv("HOME", pw->pw_dir, 1);
 				cal();
+			}
 			(void)seteuid(0);
 		}
 	else
