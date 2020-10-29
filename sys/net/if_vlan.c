@@ -2047,7 +2047,7 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 		parent = PARENT(ifv);
 	else
 		parent = NULL;
-	if (parent == NULL || parent->if_snd_tag_alloc == NULL) {
+	if (parent == NULL) {
 		NET_EPOCH_EXIT(et);
 		return (EOPNOTSUPP);
 	}
@@ -2060,7 +2060,7 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 		return (ENOMEM);
 	}
 
-	error = parent->if_snd_tag_alloc(parent, params, &vst->tag);
+	error = m_snd_tag_alloc(parent, params, &vst->tag);
 	if_rele(parent);
 	if (error) {
 		free(vst, M_VLAN);
