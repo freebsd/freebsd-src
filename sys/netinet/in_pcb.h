@@ -884,7 +884,7 @@ in_pcboutput_txrtlmt_locked(struct inpcb *, struct ifnet *,
 int	in_pcbattach_txrtlmt(struct inpcb *, struct ifnet *, uint32_t, uint32_t,
 	    uint32_t, struct m_snd_tag **);
 void	in_pcbdetach_txrtlmt(struct inpcb *);
-void    in_pcbdetach_tag(struct ifnet *ifp, struct m_snd_tag *mst);
+void    in_pcbdetach_tag(struct m_snd_tag *);
 int	in_pcbmodify_txrtlmt(struct inpcb *, uint32_t);
 int	in_pcbquery_txrtlmt(struct inpcb *, uint32_t *);
 int	in_pcbquery_txrlevel(struct inpcb *, uint32_t *);
