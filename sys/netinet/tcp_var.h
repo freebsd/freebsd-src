@@ -246,6 +246,7 @@ struct tcpcb {
 	int	t_dupacks;		/* consecutive dup acks recd */
 	int	t_lognum;		/* Number of log entries */
 	int	t_loglimit;		/* Maximum number of log entries */
+	int64_t	t_pacing_rate;		/* bytes / sec, -1 => unlimited */
 	struct tcp_log_stailq t_logs;	/* Log buffer */
 	struct tcp_log_id_node *t_lin;
 	struct tcp_log_id_bucket *t_lib;

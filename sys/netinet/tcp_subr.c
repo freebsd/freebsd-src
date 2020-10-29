@@ -1783,6 +1783,7 @@ tcp_newtcpcb(struct inpcb *inp)
 	/* Initialize the per-TCPCB log data. */
 	tcp_log_tcpcbinit(tp);
 #endif
+	tp->t_pacing_rate = -1;
 	if (tp->t_fb->tfb_tcp_fb_init) {
 		if ((*tp->t_fb->tfb_tcp_fb_init)(tp)) {
 			refcount_release(&tp->t_fb->tfb_refcnt);
