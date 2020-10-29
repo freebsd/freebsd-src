@@ -959,12 +959,6 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		 */
 		mapinfo->bp[i] = getpbuf(NULL);
 
-		/* put our pointer in the data slot */
-		mapinfo->bp[i]->b_data = *data_ptrs[i];
-
-		/* set the transfer length, we know it's < MAXPHYS */
-		mapinfo->bp[i]->b_bufsize = lengths[i];
-
 		/* set the direction */
 		mapinfo->bp[i]->b_iocmd = (dirs[i] == CAM_DIR_OUT) ?
 		    BIO_WRITE : BIO_READ;
@@ -977,7 +971,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		 * into a larger area of VM, or if userland races against
 		 * vmapbuf() after the useracc() check.
 		 */
-		if (vmapbuf(mapinfo->bp[i], 1) < 0) {
+		if (vmapbuf(mapinfo->bp[i], *data_ptrs[i], lengths[i], 1) < 0) {
 			relpbuf(mapinfo->bp[i], NULL);
 			goto fail;
 		}
