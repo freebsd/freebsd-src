@@ -187,13 +187,13 @@ struct sem_undo {
 #define	SEM_ALIGN(bytes) roundup2(bytes, sizeof(long))
 
 /* actual size of an undo structure */
-#define SEMUSZ	SEM_ALIGN(offsetof(struct sem_undo, un_ent[SEMUME]))
+#define SEMUSZ(x)	SEM_ALIGN(offsetof(struct sem_undo, un_ent[(x)]))
 
 /*
  * Macro to find a particular sem_undo vector
  */
 #define SEMU(ix) \
-	((struct sem_undo *)(((intptr_t)semu)+ix * seminfo.semusz))
+	((struct sem_undo *)(((intptr_t)semu) + (ix) * seminfo.semusz))
 
 /*
  * semaphore info struct
@@ -205,7 +205,7 @@ struct seminfo seminfo = {
 	.semmsl =	SEMMSL,	/* max # of semaphores per id */
 	.semopm =	SEMOPM,	/* max # of operations per semop call */
 	.semume =	SEMUME,	/* max # of undo entries per process */
-	.semusz =	SEMUSZ,	/* size in bytes of undo structure */
+	.semusz =	SEMUSZ(SEMUME),	/* size in bytes of undo structure */
 	.semvmx =	SEMVMX,	/* semaphore maximum value */
 	.semaem =	SEMAEM,	/* adjust on exit max value */
 };
@@ -222,7 +222,7 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, semopm, CTLFLAG_RDTUN, &seminfo.semopm, 0,
     "Max operations per semop call");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semume, CTLFLAG_RDTUN, &seminfo.semume, 0,
     "Max undo entries per process");
-SYSCTL_INT(_kern_ipc, OID_AUTO, semusz, CTLFLAG_RDTUN, &seminfo.semusz, 0,
+SYSCTL_INT(_kern_ipc, OID_AUTO, semusz, CTLFLAG_RD, &seminfo.semusz, 0,
     "Size in bytes of undo structure");
 SYSCTL_INT(_kern_ipc, OID_AUTO, semvmx, CTLFLAG_RWTUN, &seminfo.semvmx, 0,
     "Semaphore maximum value");
@@ -284,6 +284,7 @@ seminit(void)
 	    M_WAITOK | M_ZERO);
 	sema_mtx = malloc(sizeof(struct mtx) * seminfo.semmni, M_SEM,
 	    M_WAITOK | M_ZERO);
+	seminfo.semusz = SEMUSZ(seminfo.semume);
 	semu = malloc(seminfo.semmnu * seminfo.semusz, M_SEM, M_WAITOK);
 
 	for (i = 0; i < seminfo.semmni; i++) {
