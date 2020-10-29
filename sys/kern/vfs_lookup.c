@@ -507,6 +507,8 @@ namei(struct nameidata *ndp)
 	KASSERT(ndp->ni_debugflags == NAMEI_DBG_INITED,
 	    ("%s: bad debugflags %d", __func__, ndp->ni_debugflags));
 	ndp->ni_debugflags |= NAMEI_DBG_CALLED;
+	if (ndp->ni_startdir != NULL)
+		ndp->ni_debugflags |= NAMEI_DBG_HADSTARTDIR;
 	/*
 	 * For NDVALIDATE.
 	 *
