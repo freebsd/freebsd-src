@@ -1525,6 +1525,16 @@ m_freem(struct mbuf *mb)
 		mb = m_free(mb);
 }
 
+int
+m_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **mstp)
+{
+
+	if (ifp->if_snd_tag_alloc == NULL)
+		return (EOPNOTSUPP);
+	return (ifp->if_snd_tag_alloc(ifp, params, mstp));
+}
+
 void
 m_snd_tag_init(struct m_snd_tag *mst, struct ifnet *ifp, u_int type)
 {

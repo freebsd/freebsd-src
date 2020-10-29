@@ -1808,7 +1808,7 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 		LAGG_RUNLOCK();
 		return (EOPNOTSUPP);
 	}
-	if (lp->lp_ifp == NULL || lp->lp_ifp->if_snd_tag_alloc == NULL) {
+	if (lp->lp_ifp == NULL) {
 		LAGG_RUNLOCK();
 		return (EOPNOTSUPP);
 	}
@@ -1822,7 +1822,7 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 		return (ENOMEM);
 	}
 
-	error = lp_ifp->if_snd_tag_alloc(lp_ifp, params, &lst->tag);
+	error = m_snd_tag_alloc(lp_ifp, params, &lst->tag);
 	if_rele(lp_ifp);
 	if (error) {
 		free(lst, M_LAGG);

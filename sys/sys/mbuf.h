@@ -754,6 +754,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	MBUF_EXTPGS_MEM_NAME	"mbuf_extpgs"
 
 #ifdef _KERNEL
+union if_snd_tag_alloc_params;
 
 #ifdef WITNESS
 #define	MBUF_CHECKSLEEP(how) do {					\
@@ -834,6 +835,8 @@ int		 m_sanity(struct mbuf *, int);
 struct mbuf	*m_split(struct mbuf *, int, int);
 struct mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
 struct mbuf	*m_unshare(struct mbuf *, int);
+int		 m_snd_tag_alloc(struct ifnet *,
+		    union if_snd_tag_alloc_params *, struct m_snd_tag **);
 void		 m_snd_tag_init(struct m_snd_tag *, struct ifnet *, u_int);
 void		 m_snd_tag_destroy(struct m_snd_tag *);
 
