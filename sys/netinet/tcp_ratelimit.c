@@ -470,7 +470,6 @@ rl_attach_txrtlmt(struct ifnet *ifp,
 		error = ifp->if_snd_tag_alloc(ifp, &params, tag);
 #ifdef INET
 		if (error == 0) {
-			if_ref((*tag)->ifp);
 			counter_u64_add(rate_limit_set_ok, 1);
 			counter_u64_add(rate_limit_active, 1);
 		} else
