@@ -259,6 +259,7 @@ restart:
 				if ((error = vn_start_write(NULL, &mp,
 				    V_XSLEEP | PCATCH)) != 0)
 					return (error);
+				NDREINIT(ndp);
 				goto restart;
 			}
 			if ((vn_open_flags & VN_OPEN_NAMECACHE) != 0)
