@@ -191,7 +191,8 @@ struct m_snd_tag;
 #define	IF_SND_TAG_TYPE_RATE_LIMIT 0
 #define	IF_SND_TAG_TYPE_UNLIMITED 1
 #define	IF_SND_TAG_TYPE_TLS 2
-#define	IF_SND_TAG_TYPE_MAX 3
+#define	IF_SND_TAG_TYPE_TLS_RATE_LIMIT 3
+#define	IF_SND_TAG_TYPE_MAX 4
 
 struct if_snd_tag_alloc_header {
 	uint32_t type;		/* send tag type, see IF_SND_TAG_XXX */
@@ -213,6 +214,13 @@ struct if_snd_tag_alloc_tls {
 	const struct ktls_session *tls;
 };
 
+struct if_snd_tag_alloc_tls_rate_limit {
+	struct if_snd_tag_alloc_header hdr;
+	struct inpcb *inp;
+	const struct ktls_session *tls;
+	uint64_t max_rate;	/* in bytes/s */
+};
+
 struct if_snd_tag_rate_limit_params {
 	uint64_t max_rate;	/* in bytes/s */
 	uint32_t queue_level;	/* 0 (empty) .. 65535 (full) */
@@ -226,16 +234,19 @@ union if_snd_tag_alloc_params {
 	struct if_snd_tag_alloc_rate_limit rate_limit;
 	struct if_snd_tag_alloc_rate_limit unlimited;
 	struct if_snd_tag_alloc_tls tls;
+	struct if_snd_tag_alloc_tls_rate_limit tls_rate_limit;
 };
 
 union if_snd_tag_modify_params {
 	struct if_snd_tag_rate_limit_params rate_limit;
 	struct if_snd_tag_rate_limit_params unlimited;
+	struct if_snd_tag_rate_limit_params tls_rate_limit;
 };
 
 union if_snd_tag_query_params {
 	struct if_snd_tag_rate_limit_params rate_limit;
 	struct if_snd_tag_rate_limit_params unlimited;
+	struct if_snd_tag_rate_limit_params tls_rate_limit;
 };
 
 /* Query return flags */

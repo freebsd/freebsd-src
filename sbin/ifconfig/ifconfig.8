@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 25, 2020
+.Dd October 28, 2020
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -561,6 +561,10 @@ It will always disable TLS for
 .Xr ip 4
 and
 .Xr ip6 4 .
+.It Cm txtlsrtlmt
+Enable use of rate limiting (packet pacing) for TLS offload.
+.It Fl txtlsrtlmt
+Disable use of rate limiting for TLS offload.
 .It Cm nomap
 If the driver supports unmapped network buffers,
 enable them on the interface.

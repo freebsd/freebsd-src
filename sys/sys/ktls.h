@@ -222,6 +222,9 @@ int ktls_get_rx_mode(struct socket *so);
 int ktls_set_tx_mode(struct socket *so, int mode);
 int ktls_get_tx_mode(struct socket *so);
 int ktls_output_eagain(struct inpcb *inp, struct ktls_session *tls);
+#ifdef RATELIMIT
+int ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate);
+#endif
 
 static inline struct ktls_session *
 ktls_hold(struct ktls_session *tls)

@@ -1219,6 +1219,9 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
     uint64_t bytes_per_sec, int flags, int *error)
 {
 	const struct tcp_hwrate_limit_table *rte;
+#ifdef KERN_TLS
+	struct ktls_session *tls;
+#endif
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
@@ -1233,17 +1236,30 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			return (NULL);
 		}
 #ifdef KERN_TLS
+		tls = NULL;
 		if (tp->t_inpcb->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
-			/*
-			 * We currently can't do both TLS and hardware
-			 * pacing
-			 */
-			if (error)
-				*error = EINVAL;
-			return (NULL);
+			tls = tp->t_inpcb->inp_socket->so_snd.sb_tls_info;
+
+			if ((ifp->if_capenable & IFCAP_TXTLS_RTLMT) == 0 ||
+			    tls->mode != TCP_TLS_MODE_IFNET) {
+				if (error)
+					*error = ENODEV;
+				return (NULL);
+			}
 		}
 #endif
 		rte = rt_setup_rate(tp->t_inpcb, ifp, bytes_per_sec, flags, error);
+#ifdef KERN_TLS
+		if (rte != NULL && tls != NULL && tls->snd_tag != NULL) {
+			/*
+			 * Fake a route change error to reset the TLS
+			 * send tag.  This will convert the existing
+			 * tag to a TLS ratelimit tag.
+			 */
+			MPASS(tls->snd_tag->type == IF_SND_TAG_TYPE_TLS);
+			ktls_output_eagain(tp->t_inpcb, tls);
+		}
+#endif
 	} else {
 		/*
 		 * We are modifying a rate, wrong interface?
@@ -1264,13 +1280,39 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 {
 	const struct tcp_hwrate_limit_table *nrte;
 	const struct tcp_rate_set *rs;
+#ifdef KERN_TLS
+	struct ktls_session *tls = NULL;
+#endif
 	int is_indirect = 0;
 	int err;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
-	if ((tp->t_inpcb->inp_snd_tag == NULL) ||
-	    (crte == NULL)) {
+	if (crte == NULL) {
+		/* Wrong interface */
+		if (error)
+			*error = EINVAL;
+		return (NULL);
+	}
+
+#ifdef KERN_TLS
+	if (tp->t_inpcb->inp_socket->so_snd.sb_flags & SB_TLS_IFNET) {
+		tls = tp->t_inpcb->inp_socket->so_snd.sb_tls_info;
+		MPASS(tls->mode == TCP_TLS_MODE_IFNET);
+		if (tls->snd_tag != NULL &&
+		    tls->snd_tag->type != IF_SND_TAG_TYPE_TLS_RATE_LIMIT) {
+			/*
+			 * NIC probably doesn't support ratelimit TLS
+			 * tags if it didn't allocate one when an
+			 * existing rate was present, so ignore.
+			 */
+			if (error)
+				*error = EOPNOTSUPP;
+			return (NULL);
+		}
+	}
+#endif
+	if (tp->t_inpcb->inp_snd_tag == NULL) {
 		/* Wrong interface */
 		if (error)
 			*error = EINVAL;
@@ -1327,7 +1369,12 @@ re_rate:
 		return (NULL);
 	}
 	/* Change rates to our new entry */
-	err = in_pcbmodify_txrtlmt(tp->t_inpcb, nrte->rate);
+#ifdef KERN_TLS
+	if (tls != NULL)
+		err = ktls_modify_txrtlmt(tls, nrte->rate);
+	else
+#endif
+		err = in_pcbmodify_txrtlmt(tp->t_inpcb, nrte->rate);
 	if (err) {
 		if (error)
 			*error = err;
@@ -1365,6 +1412,13 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 			rs_defer_destroy(rs);
 		mtx_unlock(&rs_mtx);
 	}
+
+	/*
+	 * XXX: If this connection is using ifnet TLS, should we
+	 * switch it to using an unlimited rate, or perhaps use
+	 * ktls_output_eagain() to reset the send tag to a plain
+	 * TLS tag?
+	 */
 	in_pcbdetach_txrtlmt(tp->t_inpcb);
 }
 
