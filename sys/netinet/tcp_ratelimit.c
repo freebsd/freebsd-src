@@ -1220,6 +1220,8 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 {
 	const struct tcp_hwrate_limit_table *rte;
 
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
 	if (tp->t_inpcb->inp_snd_tag == NULL) {
 		/*
 		 * We are setting up a rate for the first time.
@@ -1250,6 +1252,7 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			*error = EINVAL;
 		rte = NULL;
 	}
+	tp->t_pacing_rate = rte->rate;
 	*error = 0;
 	return (rte);
 }
@@ -1263,6 +1266,8 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 	const struct tcp_rate_set *rs;
 	int is_indirect = 0;
 	int err;
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	if ((tp->t_inpcb->inp_snd_tag == NULL) ||
 	    (crte == NULL)) {
@@ -1330,6 +1335,7 @@ re_rate:
 	}
 	if (error)
 		*error = 0;
+	tp->t_pacing_rate = nrte->rate;
 	return (nrte);
 }
 
@@ -1340,6 +1346,9 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 	struct tcp_rate_set *rs;
 	uint64_t pre;
 
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	tp->t_pacing_rate = -1;
 	crs = crte->ptbl;
 	/*
 	 * Now we must break the const
