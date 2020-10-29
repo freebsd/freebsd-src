@@ -132,12 +132,14 @@ cpu_set_syscall_retval(struct thread *td, int error)
 
 	frame = td->td_frame;
 
-	switch (error) {
-	case 0:
+	if (__predict_true(error == 0)) {
 		frame->tf_a[0] = td->td_retval[0];
 		frame->tf_a[1] = td->td_retval[1];
 		frame->tf_t[0] = 0;		/* syscall succeeded */
-		break;
+		return;
+	}
+
+	switch (error) {
 	case ERESTART:
 		frame->tf_sepc -= 4;		/* prev instruction */
 		break;
