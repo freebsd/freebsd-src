@@ -3333,7 +3333,7 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
 	if (ifp->if_snd_tag_alloc == NULL) {
 		error = EOPNOTSUPP;
 	} else {
-		error = ifp->if_snd_tag_alloc(ifp, &params, &inp->inp_snd_tag);
+		error = ifp->if_snd_tag_alloc(ifp, &params, st);
 
 #ifdef INET
 		if (error == 0) {
