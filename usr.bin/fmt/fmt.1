@@ -30,7 +30,7 @@
 .\"
 .\" Modified by Gareth McCaughan to describe the new version of `fmt'
 .\" rather than the old one.
-.Dd December 1, 2017
+.Dd October 29, 2020
 .Dt FMT 1
 .Os
 .Sh NAME
@@ -89,10 +89,6 @@ Try to format mail header lines contained in the input sensibly.
 Format lines beginning with a
 .Ql \&.
 (dot) character.
-Normally,
-.Nm
-does not fill these lines, for compatibility with
-.Xr nroff 1 .
 .It Fl p
 Allow indented paragraphs.
 Without the
@@ -159,10 +155,23 @@ environment variables affect the execution of
 .Nm
 as described in
 .Xr environ 7 .
+.Sh EXAMPLES
+Center the text in standard input:
+.Bd -literal -offset indent
+$ echo -e 'The merit of all things\enlies\enin their difficulty' | fmt -c
+                     The merit of all things
+                               lies
+                       in their difficulty
+.Ed
+.Pp
+Format the text in standard input collapsing spaces:
+.Bd -literal -offset indent
+$ echo -e 'Multiple   spaces    will be collapsed' | fmt -s
+Multiple spaces will be collapsed
+.Ed
 .Sh SEE ALSO
 .Xr fold 1 ,
-.Xr mail 1 ,
-.Xr nroff 1
+.Xr mail 1
 .Sh HISTORY
 The
 .Nm
