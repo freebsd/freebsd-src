@@ -67,6 +67,9 @@ linux_common_modevent(module_t mod, int type, void *data)
 
 	switch(type) {
 	case MOD_LOAD:
+#ifdef INVARIANTS
+		linux_check_errtbl();
+#endif
 		linux_dev_shm_create();
 		linux_osd_jail_register();
 		linux_exit_tag = EVENTHANDLER_REGISTER(process_exit,

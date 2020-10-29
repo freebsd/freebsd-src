@@ -8,6 +8,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <compat/linux/linux.h>
+#include <compat/linux/linux_errno.h>
 #include <compat/linux/linux_errno.inc>
 
 int
@@ -19,3 +20,16 @@ bsd_to_linux_errno(int error)
 
 	return (linux_errtbl[error]);
 }
+
+#ifdef INVARIANTS
+void
+linux_check_errtbl(void)
+{
+	int i;
+
+	for (i = 1; i < sizeof(linux_errtbl); i++) {
+		KASSERT(linux_errtbl[i] != 0,
+		    ("%s: linux_errtbl[%d] == 0", __func__, i));
+	}
+}
+#endif
