@@ -3347,20 +3347,10 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
 }
 
 void
-in_pcbdetach_tag(struct ifnet *ifp, struct m_snd_tag *mst)
+in_pcbdetach_tag(struct m_snd_tag *mst)
 {
-	if (ifp == NULL)
-		return;
 
-	/*
-	 * If the device was detached while we still had reference(s)
-	 * on the ifp, we assume if_snd_tag_free() was replaced with
-	 * stubs.
-	 */
-	ifp->if_snd_tag_free(mst);
-
-	/* release reference count on network interface */
-	if_rele(ifp);
+	m_snd_tag_rele(mst);
 #ifdef INET
 	counter_u64_add(rate_limit_active, -1);
 #endif
