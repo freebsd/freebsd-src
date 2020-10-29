@@ -1001,7 +1001,8 @@ hdac_unsolq_flush(struct hdac_softc *sc)
 			sc->unsolq_rp %= HDAC_UNSOLQ_MAX;
 			cad = sc->unsolq[sc->unsolq_rp++];
 			sc->unsolq_rp %= HDAC_UNSOLQ_MAX;
-			if ((child = sc->codecs[cad].dev) != NULL)
+			if ((child = sc->codecs[cad].dev) != NULL &&
+			    device_is_attached(child))
 				HDAC_UNSOL_INTR(child, resp);
 			ret++;
 		}
