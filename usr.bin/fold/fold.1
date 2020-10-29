@@ -28,7 +28,7 @@
 .\"	@(#)fold.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2015
+.Dd October 29, 2020
 .Dt FOLD 1
 .Os
 .Sh NAME
@@ -76,6 +76,22 @@ environment variables affect the execution of
 .Nm
 as described in
 .Xr environ 7 .
+.Sh EXAMPLES
+Fold text in standard input with a width of 20 columns:
+.Bd -literal -offset indent
+$ echo "I am smart enough to know that I am dumb" | fold -w 15
+I am smart enou
+gh to know that
+ I am dumb
+.Ed
+.Pp
+Same as above but breaking lines after the last blank character:
+.Bd -literal -offset indent
+$ echo "I am smart enough to know that I am dumb" | fold -s -w 15
+I am smart
+enough to know
+that I am dumb
+.Ed
 .Sh SEE ALSO
 .Xr expand 1 ,
 .Xr fmt 1
