@@ -464,18 +464,14 @@ rl_attach_txrtlmt(struct ifnet *ifp,
 		.rate_limit.flags = M_NOWAIT,
 	};
 
-	if (ifp->if_snd_tag_alloc == NULL) {
-		error = EOPNOTSUPP;
-	} else {
-		error = ifp->if_snd_tag_alloc(ifp, &params, tag);
+	error = m_snd_tag_alloc(ifp, &params, tag);
 #ifdef INET
-		if (error == 0) {
-			counter_u64_add(rate_limit_set_ok, 1);
-			counter_u64_add(rate_limit_active, 1);
-		} else
-			counter_u64_add(rate_limit_alloc_fail, 1);
+	if (error == 0) {
+		counter_u64_add(rate_limit_set_ok, 1);
+		counter_u64_add(rate_limit_active, 1);
+	} else if (error != EOPNOTSUPP)
+		counter_u64_add(rate_limit_alloc_fail, 1);
 #endif
-	}
 	return (error);
 }
 
@@ -1014,13 +1010,7 @@ rt_find_real_interface(struct ifnet *ifp, struct inpcb *inp, int *error)
 #else
 	params.rate_limit.hdr.flowtype = M_HASHTYPE_OPAQUE_HASH;
 #endif
-	tag = NULL;
-	if (ifp->if_snd_tag_alloc) {
-		if (error)
-			*error = ENODEV;
-		return (NULL);
-	}
-	err = ifp->if_snd_tag_alloc(ifp, &params, &tag);
+	err = m_snd_tag_alloc(ifp, &params, &tag);
 	if (err) {
 		/* Failed to setup a tag? */
 		if (error)

@@ -834,10 +834,6 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	params.hdr.numa_domain = inp->inp_numa_domain;
 	INP_RUNLOCK(inp);
 
-	if (ifp->if_snd_tag_alloc == NULL) {
-		error = EOPNOTSUPP;
-		goto out;
-	}
 	if ((ifp->if_capenable & IFCAP_NOMAP) == 0) {	
 		error = EOPNOTSUPP;
 		goto out;
@@ -853,7 +849,7 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 			goto out;
 		}
 	}
-	error = ifp->if_snd_tag_alloc(ifp, &params, mstp);
+	error = m_snd_tag_alloc(ifp, &params, mstp);
 out:
 	if_rele(ifp);
 	return (error);

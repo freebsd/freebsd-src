@@ -396,7 +396,7 @@ mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
 		goto failure;
 	}
 
-	error = ifp->if_snd_tag_alloc(ifp, &rl_params, &ptag->rl_tag);
+	error = m_snd_tag_alloc(ifp, &rl_params, &ptag->rl_tag);
 	if (error)
 		goto failure;
 
