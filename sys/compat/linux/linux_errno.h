@@ -88,7 +88,7 @@
 #define	LINUX_EUNATCH		49
 
 #define	LINUX_ENOCSI		50
-#define	LINUX_L2HLT		51
+#define	LINUX_EL2HLT		51
 #define	LINUX_EBADE		52
 #define	LINUX_EBADR		53
 #define	LINUX_EXFULL		54
