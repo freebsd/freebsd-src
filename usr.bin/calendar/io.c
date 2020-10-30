@@ -311,16 +311,19 @@ cal_parse(FILE *in, FILE *out)
 				c = strstr(buf, "//");
 				cc = strstr(buf, "/*");
 				if (c != NULL && (cc == NULL || c - cc < 0)) {
+					/* single line comment */
 					*c = '\0';
 					linelen = c - buf;
 					break;
 				} else if (cc != NULL) {
 					c = strstr(cc + 2, "*/");
 					if (c != NULL) {
+						/* multi-line comment ending on same line */
 						c += 2;
-						memmove(cc, c, c - buf + linelen);
+						memmove(cc, c, buf + linelen + 1 - c);
 						linelen -= c - cc;
 					} else {
+						/* multi-line comment */
 						*cc = '\0';
 						linelen = cc - buf;
 						incomment = true;
