@@ -21,7 +21,7 @@ extern	int	openkmem __P((char *, char *));
 extern	int	kmemcpy __P((char *, long, int));
 extern	int	kstrncpy __P((char *, long, int));
 
-#if defined(__NetBSD__) || defined(__OpenBSD)
+#if defined(__NetBSD__)
 # include <paths.h>
 #endif
 
