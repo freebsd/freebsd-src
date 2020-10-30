@@ -68,7 +68,7 @@ aarch64)
 	cpu_module=nexus/armv8crypto
 	;;
 amd64|i386)
-	cpu_module=nexus/aesni
+	cpu_module="nexus/aesni nexus/ossl"
 	;;
 esac
 
