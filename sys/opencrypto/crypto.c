@@ -411,8 +411,8 @@ crypto_terminate(struct proc **pp, void *q)
 }
 
 static void
-hmac_init_pad(struct auth_hash *axf, const char *key, int klen, void *auth_ctx,
-    uint8_t padval)
+hmac_init_pad(const struct auth_hash *axf, const char *key, int klen,
+    void *auth_ctx, uint8_t padval)
 {
 	uint8_t hmac_key[HMAC_MAX_BLOCK_LEN];
 	u_int i;
@@ -442,7 +442,7 @@ hmac_init_pad(struct auth_hash *axf, const char *key, int klen, void *auth_ctx,
 }
 
 void
-hmac_init_ipad(struct auth_hash *axf, const char *key, int klen,
+hmac_init_ipad(const struct auth_hash *axf, const char *key, int klen,
     void *auth_ctx)
 {
 
@@ -450,7 +450,7 @@ hmac_init_ipad(struct auth_hash *axf, const char *key, int klen,
 }
 
 void
-hmac_init_opad(struct auth_hash *axf, const char *key, int klen,
+hmac_init_opad(const struct auth_hash *axf, const char *key, int klen,
     void *auth_ctx)
 {
 
