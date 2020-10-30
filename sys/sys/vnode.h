@@ -641,9 +641,10 @@ void	cache_vnode_init(struct vnode *vp);
 void	cache_purge(struct vnode *vp);
 void	cache_purge_vgone(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
-void	cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
-    struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp);
 void	cache_purgevfs(struct mount *mp);
+void	cache_vop_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
+    struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp);
+void	cache_vop_rmdir(struct vnode *dvp, struct vnode *vp);
 #ifdef INVARIANTS
 void	cache_validate(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp);

@@ -2659,8 +2659,11 @@ cache_purge_negative(struct vnode *vp)
 	cache_free_batch(&batch);
 }
 
+/*
+ * Entry points for modifying VOP operations.
+ */
 void
-cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
+cache_vop_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
     struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp)
 {
 
@@ -2678,6 +2681,15 @@ cache_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
 	} else {
 		cache_remove_cnp(tdvp, tcnp);
 	}
+}
+
+void
+cache_vop_rmdir(struct vnode *dvp, struct vnode *vp)
+{
+
+	ASSERT_VOP_IN_SEQC(dvp);
+	ASSERT_VOP_IN_SEQC(vp);
+	cache_purge(vp);
 }
 
 #ifdef INVARIANTS

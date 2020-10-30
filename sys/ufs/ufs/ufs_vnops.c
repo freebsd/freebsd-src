@@ -1629,7 +1629,7 @@ relock:
 	 * name that references the old i-node if it has other links
 	 * or open file descriptors.
 	 */
-	cache_rename(fdvp, fvp, tdvp, tvp, fcnp, tcnp);
+	cache_vop_rename(fdvp, fvp, tdvp, tvp, fcnp, tcnp);
 
 unlockout:
 	if (want_seqc_end) {
@@ -2220,7 +2220,7 @@ ufs_rmdir(ap)
 		DIP_SET(ip, i_nlink, ip->i_nlink);
 		UFS_INODE_SET_FLAG(ip, IN_CHANGE);
 	}
-	cache_purge(vp);
+	cache_vop_rmdir(dvp, vp);
 #ifdef UFS_DIRHASH
 	/* Kill any active hash; i_effnlink == 0, so it will not come back. */
 	if (ip->i_dirhash != NULL)
