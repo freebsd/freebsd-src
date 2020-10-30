@@ -383,13 +383,11 @@ mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
 #if defined(RATELIMIT) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		rl_params.hdr.type = IF_SND_TAG_TYPE_RATE_LIMIT;
-		rl_params.max_rate = params->tls_rate_limit.max_rate;
+		rl_params.rate_limit.max_rate = params->tls_rate_limit.max_rate;
 		break;
 #endif
 	case IF_SND_TAG_TYPE_TLS:
 		rl_params.hdr.type = IF_SND_TAG_TYPE_UNLIMITED;
-		if (error)
-			goto failure;
 		break;
 	default:
 		error = EOPNOTSUPP;
