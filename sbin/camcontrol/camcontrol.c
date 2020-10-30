@@ -9988,6 +9988,13 @@ usage(int printlong)
 "        camcontrol timestamp  [dev_id][generic_args] <-r [-f format|-m|-U]>|\n"
 "                              <-s <-f format -T time | -U >>\n"
 "        camcontrol devtype    [dev_id]\n"
+"        camcontrol mmcsdcmd   [dev_id] [[-c mmc_opcode] [-a mmc_arg]\n"
+"                                  [-f mmc_flags] [-l data_len]\n"
+"                                  [-W [-b data_byte]]] |\n"
+"                              [-F frequency] |\n"
+"                              [-I]\n"
+"                              [-1 | -4]\n"
+"                              [-S high|normal]\n"
 "                              \n"
 "        camcontrol help\n");
 	if (!printlong)
@@ -10034,6 +10041,7 @@ usage(int printlong)
 "epc         send ATA Extended Power Conditions commands\n"
 "timestamp   report or set the device's timestamp\n"
 "devtype     report the type of device\n"
+"mmcsdcmd    send the given MMC command, needs -c and -a as well\n"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -10242,6 +10250,18 @@ usage(int printlong)
 "-f format         the format of the time string passed into strptime(3)\n"
 "-T time           the time value passed into strptime(3)\n"
 "-U                set the timestamp of the device to UTC time\n"
+"mmcsdcmd arguments:\n"
+"-c mmc_cmd        MMC command to send to the card\n"
+"-a mmc_arg        Argument for the MMC command\n"
+"-f mmc_flag       Flags to set for the MMC command\n"
+"-l data_len       Expect data_len bytes of data in reply and display them\n"
+"-W                Fill the data buffer before invoking the MMC command\n"
+"-b data_byte      One byte of data to fill the data buffer with\n"
+"-F frequency      Operating frequency to set on the controller\n"
+"-4                Set bus width to 4 bit\n"
+"-1                Set bus width to 8 bit\n"
+"-S high | std     Set high-speed or standard timing\n"
+"-I                Display various card and host controller information\n"
 );
 }
 
