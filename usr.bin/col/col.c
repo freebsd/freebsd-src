@@ -100,7 +100,7 @@ struct line_str {
 };
 
 static void	addto_lineno(int *, int);
-static LINE   *alloc_line(void);
+static LINE	*alloc_line(void);
 static void	dowarn(int);
 static void	flush_line(LINE *);
 static void	flush_lines(int);
@@ -109,7 +109,7 @@ static void	free_line(LINE *);
 static void	usage(void);
 
 static CSET	last_set;		/* char_set of last char printed */
-static LINE    *lines;
+static LINE	*lines;
 static int	compress_spaces;	/* if doing space -> tab conversion */
 static int	fine;			/* if `fine' resolution (half lines) */
 static int	max_bufd_lines;		/* max # of half lines to keep in memory */
@@ -340,8 +340,16 @@ main(int argc, char **argv)
 	}
 	if (ferror(stdin))
 		err(1, NULL);
-	if (extra_lines)
+	if (extra_lines) {
+		/*
+		 * Extra lines only exist if no lines have been flushed
+		 * yet. This means that 'lines' must point to line zero
+		 * after we flush the extra lines.
+		 */
 		flush_lines(extra_lines);
+		l = lines;
+		this_line = 0;
+	}
 
 	/* goto the last line that had a character on it */
 	for (; l->l_next; l = l->l_next)
@@ -353,14 +361,22 @@ main(int argc, char **argv)
 		PUTC(SI);
 
 	/* flush out the last few blank lines */
-	if (max_line > this_line)
-		nblank_lines = max_line - this_line;
-	if (max_line & 1)
-		nblank_lines++;
+	if (max_line >= this_line)
+		nblank_lines = max_line - this_line + (max_line & 1);
+	if (nblank_lines == 0)
+		/* end with a newline even if the source doesn't */
+		nblank_lines = 2;
 	flush_blanks();
 	exit(0);
 }
 
+/*
+ * Prints the first 'nflush' lines. Printed lines are freed.
+ * After this function returns, 'lines' points to the first
+ * of the remaining lines, and 'nblank_lines' will have the
+ * number of half line feeds between the final flushed line
+ * and the first remaining line.
+ */
 static void
 flush_lines(int nflush)
 {
@@ -372,11 +388,10 @@ flush_lines(int nflush)
 		if (l->l_line) {
 			flush_blanks();
 			flush_line(l);
+			free(l->l_line);
 		}
-		if (l->l_line || l->l_next)
+		if (l->l_next)
 			nblank_lines++;
-		if (l->l_line)
-			(void)free(l->l_line);
 		free_line(l);
 	}
 	if (lines)
@@ -384,9 +399,8 @@ flush_lines(int nflush)
 }
 
 /*
- * Print a number of newline/half newlines.  If fine flag is set, nblank_lines
- * is the number of half line feeds, otherwise it is the number of whole line
- * feeds.
+ * Print a number of newline/half newlines.
+ * nblank_lines is the number of half line feeds.
  */
 static void
 flush_blanks(void)
