@@ -87,6 +87,15 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 		if (oldp != NULL)
 			memmove(oldp, _PATH_STDPATH, sizeof(_PATH_STDPATH));
 		return (0);
+	case USER_LOCALBASE:
+		if (oldp && orig_oldlen < sizeof(_PATH_LOCALBASE)) {
+			errno = ENOMEM;
+			return -1;
+		}
+		*oldlenp = sizeof(_PATH_LOCALBASE);
+		if (oldp != NULL)
+			memmove(oldp, _PATH_LOCALBASE, sizeof(_PATH_LOCALBASE));
+		return(0);
 	}
 
 	if (oldp && *oldlenp < sizeof(int)) {
