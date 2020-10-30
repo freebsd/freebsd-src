@@ -55,7 +55,6 @@ set_new_encoding(void)
 	const char *newenc;
 
 	newenc = nl_langinfo(CODESET);
-	fprintf(stderr, "NEWENC=%s\n", newenc); // DEBUG
 	if (currentEncoding == NULL) {
 		currentEncoding = strdup(newenc);
 		if (currentEncoding == NULL)
@@ -99,14 +98,13 @@ convert(char *input)
 			else
 				err(1, "Initialization failure");
 		}
-	fprintf(stderr, "CONV=%p\n", conv); // DEBUG
 	}
 
 	inleft = strlen(input);
 	inbuf = input;
 
-	outlen = inleft + 3;
-	if ((output = malloc(outlen)) == NULL)
+	outlen = inleft;
+	if ((output = malloc(outlen + 1)) == NULL)
 		errx(1, "convert: cannot allocate memory");
 
 	for (;;) {
@@ -114,9 +112,7 @@ convert(char *input)
 		outbuf = output + converted;
 		outleft = outlen - converted;
 
-		fprintf(stderr, "-< %s %p %ld %ld\n", inbuf, outbuf, inleft, outleft); // DEBUG
 		converted = iconv(conv, (char **) &inbuf, &inleft, &outbuf, &outleft);
-		fprintf(stderr, "-> %ld %s %p %ld %ld\n", converted, inbuf, outbuf, inleft, outleft); // DEBUG
 		if (converted != (size_t) -1 || errno == EINVAL) {
 			/* finished or invalid multibyte, so truncate and ignore */
 			break;
