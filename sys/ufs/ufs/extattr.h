@@ -95,7 +95,7 @@ struct extattr {
  *	content referenced by eap.
  */
 #define	EXTATTR_NEXT(eap) \
-	((struct extattr *)(((u_char *)(eap)) + (eap)->ea_length))
+	((struct extattr *)(__DECONST(char *, (eap)) + (eap)->ea_length))
 #define	EXTATTR_CONTENT(eap) \
 	(void *)(((u_char *)(eap)) + EXTATTR_BASE_LENGTH(eap))
 #define	EXTATTR_CONTENT_SIZE(eap) \
