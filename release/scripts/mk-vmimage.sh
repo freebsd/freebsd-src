@@ -93,15 +93,7 @@ main() {
 		. "${VMCONFIG}"
 	fi
 
-	case ${TARGET}:${TARGET_ARCH} in
-		arm64:aarch64)
-			ROOTLABEL="ufs"
-			NOSWAP=1
-			;;
-		*)
-			ROOTLABEL="gpt"
-			;;
-	esac
+	ROOTLABEL="gpt"
 
 	vm_create_base
 	vm_install_base
