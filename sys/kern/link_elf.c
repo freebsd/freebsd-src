@@ -1129,7 +1129,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 		goto out;
 	}
 #else
-	mapbase = malloc(mapsize, M_LINKER, M_EXEC | M_WAITOK);
+	mapbase = malloc_exec(mapsize, M_LINKER, M_WAITOK);
 #endif
 	ef->address = mapbase;
 
