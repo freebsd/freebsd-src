@@ -278,6 +278,8 @@ cal_parse(FILE *in, FILE *out)
 	char *pp, p;
 	struct tm tm;
 	int flags;
+	char *c, *cc;
+	bool incomment = false;
 
 	/* Unused */
 	tm.tm_sec = 0;
@@ -289,8 +291,55 @@ cal_parse(FILE *in, FILE *out)
 		return (1);
 
 	while ((linelen = getline(&line, &linecap, in)) > 0) {
-		if (*line == '#') {
-			switch (token(line+1, out, &skip)) {
+		buf = line;
+		if (buf[linelen - 1] == '\n')
+			buf[--linelen] = '\0';
+
+		if (incomment) {
+			c = strstr(buf, "*/");
+			if (c) {
+				c += 2;
+				linelen -= c - buf;
+				buf = c;
+				incomment = false;
+			} else {
+				continue;
+			}
+		}
+		if (!incomment) {
+			do {
+				c = strstr(buf, "//");
+				cc = strstr(buf, "/*");
+				if (c != NULL && (cc == NULL || c - cc < 0)) {
+					*c = '\0';
+					linelen = c - buf;
+					break;
+				} else if (cc != NULL) {
+					c = strstr(cc + 2, "*/");
+					if (c != NULL) {
+						c += 2;
+						memmove(cc, c, c - buf + linelen);
+						linelen -= c - cc;
+					} else {
+						*cc = '\0';
+						linelen = cc - buf;
+						incomment = true;
+						break;
+					}
+				}
+			} while (c != NULL || cc != NULL);
+		}
+
+		for (l = linelen;
+		     l > 0 && isspace((unsigned char)buf[l - 1]);
+		     l--)
+			;
+		buf[l] = '\0';
+		if (buf[0] == '\0')
+			continue;
+
+		if (buf == line && *buf == '#') {
+			switch (token(buf+1, out, &skip)) {
 			case T_ERR:
 				free(line);
 				return (1);
@@ -304,15 +353,6 @@ cal_parse(FILE *in, FILE *out)
 		}
 
 		if (skip != 0)
-			continue;
-
-		buf = line;
-		for (l = linelen;
-		     l > 0 && isspace((unsigned char)buf[l - 1]);
-		     l--)
-			;
-		buf[l] = '\0';
-		if (buf[0] == '\0')
 			continue;
 
 		/*
