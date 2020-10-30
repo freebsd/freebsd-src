@@ -1200,9 +1200,8 @@ ffs_findextattr(u_char *ptr, u_int length, int nspace, const char *name,
 	eap = (struct extattr *)ptr;
 	eaend = (struct extattr *)(ptr + length);
 	for (; eap < eaend; eap = EXTATTR_NEXT(eap)) {
-		/* make sure this entry is complete */
-		if (EXTATTR_NEXT(eap) > eaend)
-			break;
+		KASSERT(EXTATTR_NEXT(eap) <= eaend,
+		    ("extattr next %p beyond %p", EXTATTR_NEXT(eap), eaend));
 		if (eap->ea_namespace != nspace || eap->ea_namelength != nlen
 		    || memcmp(eap->ea_name, name, nlen) != 0)
 			continue;
@@ -1216,8 +1215,9 @@ ffs_findextattr(u_char *ptr, u_int length, int nspace, const char *name,
 }
 
 static int
-ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
+ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td)
 {
+	const struct extattr *eap, *eaend, *eapnext;
 	struct inode *ip;
 	struct ufs2_dinode *dp;
 	struct fs *fs;
@@ -1231,10 +1231,10 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	fs = ITOFS(ip);
 	dp = ip->i_din2;
 	easize = dp->di_extsize;
-	if ((uoff_t)easize + extra > UFS_NXADDR * fs->fs_bsize)
+	if ((uoff_t)easize > UFS_NXADDR * fs->fs_bsize)
 		return (EFBIG);
 
-	eae = malloc(easize + extra, M_TEMP, M_WAITOK);
+	eae = malloc(easize, M_TEMP, M_WAITOK);
 
 	liovec.iov_base = eae;
 	liovec.iov_len = easize;
@@ -1249,7 +1249,17 @@ ffs_rdextattr(u_char **p, struct vnode *vp, struct thread *td, int extra)
 	error = ffs_extread(vp, &luio, IO_EXT | IO_SYNC);
 	if (error) {
 		free(eae, M_TEMP);
-		return(error);
+		return (error);
+	}
+	/* Validate disk xattrfile contents. */
+	for (eap = (void *)eae, eaend = (void *)(eae + easize); eap < eaend;
+	    eap = eapnext) {
+		eapnext = EXTATTR_NEXT(eap);
+		/* Bogusly short entry or bogusly long entry. */
+		if (eap->ea_length < sizeof(*eap) || eapnext > eaend) {
+			free(eae, M_TEMP);
+			return (EINTEGRITY);
+		}
 	}
 	*p = eae;
 	return (0);
@@ -1300,7 +1310,7 @@ ffs_open_ea(struct vnode *vp, struct ucred *cred, struct thread *td)
 		return (0);
 	}
 	dp = ip->i_din2;
-	error = ffs_rdextattr(&ip->i_ea_area, vp, td, 0);
+	error = ffs_rdextattr(&ip->i_ea_area, vp, td);
 	if (error) {
 		ffs_unlock_ea(vp);
 		return (error);
@@ -1606,9 +1616,8 @@ vop_listextattr {
 	eap = (struct extattr *)ip->i_ea_area;
 	eaend = (struct extattr *)(ip->i_ea_area + ip->i_ea_len);
 	for (; error == 0 && eap < eaend; eap = EXTATTR_NEXT(eap)) {
-		/* make sure this entry is complete */
-		if (EXTATTR_NEXT(eap) > eaend)
-			break;
+		KASSERT(EXTATTR_NEXT(eap) <= eaend,
+		    ("extattr next %p beyond %p", EXTATTR_NEXT(eap), eaend));
 		if (eap->ea_namespace != ap->a_attrnamespace)
 			continue;
 
