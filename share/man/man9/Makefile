@@ -1483,6 +1483,11 @@ MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist_add_stringf.9 \
 	nv.9 nvlist_add_stringv.9 \
 	nv.9 nvlist_add_string_array.9 \
+	nv.9 nvlist_append_bool_array.9 \
+	nv.9 nvlist_append_descriptor_array.9 \
+	nv.9 nvlist_append_nvlist_array.9 \
+	nv.9 nvlist_append_number_array.9 \
+	nv.9 nvlist_append_string_array.9 \
 	nv.9 nvlist_clone.9 \
 	nv.9 nvlist_create.9 \
 	nv.9 nvlist_destroy.9 \
