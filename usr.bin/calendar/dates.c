@@ -64,6 +64,7 @@ struct cal_day {
 	struct cal_month *month;	/* points back */
 	struct cal_year	*year;		/* points back */
 	struct event *events;
+	struct event *lastevent;
 };
 
 int debug_remember = 0;
@@ -446,8 +447,13 @@ void
 addtodate(struct event *e, int year, int month, int day)
 {
 	struct cal_day *d;
+	struct event *ee;
 
 	d = find_day(year, month, day);
-	e->next = d->events;
-	d->events = e;
+	ee = d->lastevent;
+	if (ee != NULL)
+		ee->next = e;
+	else
+		d->events = e;
+	d->lastevent = e;
 }
