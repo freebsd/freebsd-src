@@ -228,7 +228,7 @@ static smr_t buf_trie_smr;
 
 /* Zone for allocation of new vnodes - used exclusively by getnewvnode() */
 static uma_zone_t vnode_zone;
-static uma_zone_t vnodepoll_zone;
+MALLOC_DEFINE(M_VNODEPOLL, "VN POLL", "vnode poll");
 
 __read_frequently smr_t vfs_smr;
 
@@ -660,8 +660,6 @@ vntblinit(void *dummy __unused)
 	vnode_zone = uma_zcreate("VNODE", sizeof (struct vnode), NULL, NULL,
 	    vnode_init, vnode_fini, UMA_ALIGN_PTR, 0);
 	uma_zone_set_smr(vnode_zone, vfs_smr);
-	vnodepoll_zone = uma_zcreate("VNODEPOLL", sizeof (struct vpollinfo),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	/*
 	 * Preallocate enough nodes to support one-per buf so that
 	 * we can not fail an insert.  reassignbuf() callers can not
@@ -4788,7 +4786,7 @@ destroy_vpollinfo_free(struct vpollinfo *vi)
 
 	knlist_destroy(&vi->vpi_selinfo.si_note);
 	mtx_destroy(&vi->vpi_lock);
-	uma_zfree(vnodepoll_zone, vi);
+	free(vi, M_VNODEPOLL);
 }
 
 static void
@@ -4810,7 +4808,7 @@ v_addpollinfo(struct vnode *vp)
 
 	if (vp->v_pollinfo != NULL)
 		return;
-	vi = uma_zalloc(vnodepoll_zone, M_WAITOK | M_ZERO);
+	vi = malloc(sizeof(*vi), M_VNODEPOLL, M_WAITOK | M_ZERO);
 	mtx_init(&vi->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 	knlist_init(&vi->vpi_selinfo.si_note, vp, vfs_knllock,
 	    vfs_knlunlock, vfs_knl_assert_locked, vfs_knl_assert_unlocked);
