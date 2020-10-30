@@ -75,7 +75,7 @@ SYSCTL_NODE(_vfs, OID_AUTO, tmpfs, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 
 static long tmpfs_pages_reserved = TMPFS_PAGES_MINRESERVED;
 
-static uma_zone_t tmpfs_dirent_pool;
+MALLOC_DEFINE(M_TMPFSDIR, "tmpfs dir", "tmpfs dirent structure");
 static uma_zone_t tmpfs_node_pool;
 VFS_SMR_DECLARE;
 
@@ -129,9 +129,6 @@ tmpfs_node_fini(void *mem, int size)
 void
 tmpfs_subr_init(void)
 {
-	tmpfs_dirent_pool = uma_zcreate("TMPFS dirent",
-	    sizeof(struct tmpfs_dirent), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
 	tmpfs_node_pool = uma_zcreate("TMPFS node",
 	    sizeof(struct tmpfs_node), tmpfs_node_ctor, tmpfs_node_dtor,
 	    tmpfs_node_init, tmpfs_node_fini, UMA_ALIGN_PTR, 0);
@@ -142,7 +139,6 @@ void
 tmpfs_subr_uninit(void)
 {
 	uma_zdestroy(tmpfs_node_pool);
-	uma_zdestroy(tmpfs_dirent_pool);
 }
 
 static int
@@ -506,7 +502,7 @@ tmpfs_alloc_dirent(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 {
 	struct tmpfs_dirent *nde;
 
-	nde = uma_zalloc(tmpfs_dirent_pool, M_WAITOK);
+	nde = malloc(sizeof(*nde), M_TMPFSDIR, M_WAITOK);
 	nde->td_node = node;
 	if (name != NULL) {
 		nde->ud.td_name = malloc(len, M_TMPFSNAME, M_WAITOK);
@@ -542,7 +538,7 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de)
 	}
 	if (!tmpfs_dirent_duphead(de) && de->ud.td_name != NULL)
 		free(de->ud.td_name, M_TMPFSNAME);
-	uma_zfree(tmpfs_dirent_pool, de);
+	free(de, M_TMPFSDIR);
 }
 
 void
