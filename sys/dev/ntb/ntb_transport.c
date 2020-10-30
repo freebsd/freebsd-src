@@ -355,7 +355,7 @@ ntb_transport_attach(device_t dev)
 	spad_count = ntb_spad_count(dev);
 	db_bitmap = ntb_db_valid_mask(dev);
 	db_count = flsll(db_bitmap);
-	KASSERT(db_bitmap == (1 << db_count) - 1,
+	KASSERT(db_bitmap == ((uint64_t)1 << db_count) - 1,
 	    ("Doorbells are not sequential (%jx).\n", db_bitmap));
 
 	if (nt->mw_count == 0) {
