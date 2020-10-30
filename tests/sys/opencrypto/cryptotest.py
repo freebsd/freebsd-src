@@ -51,7 +51,7 @@ def katg(base, glob):
     return iglob(os.path.join(katdir, base, glob))
 
 aesmodules = [ 'cryptosoft0', 'aesni0', 'armv8crypto0', 'ccr0', 'ccp0', 'safexcel0' ]
-shamodules = [ 'cryptosoft0', 'aesni0', 'armv8crypto0', 'ccr0', 'ccp0', 'safexcel0' ]
+shamodules = [ 'cryptosoft0', 'aesni0', 'armv8crypto0', 'ccr0', 'ccp0', 'ossl0', 'safexcel0' ]
 
 def GenTestCase(cname):
     try:
@@ -456,6 +456,7 @@ aesni = GenTestCase('aesni0')
 armv8crypto = GenTestCase('armv8crypto0')
 ccr = GenTestCase('ccr0')
 ccp = GenTestCase('ccp0')
+ossl = GenTestCase('ossl0')
 safexcel = GenTestCase('safexcel0')
 
 if __name__ == '__main__':
