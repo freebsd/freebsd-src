@@ -346,12 +346,12 @@ static int smbios_type1_initializer(struct smbios_structure *template_entry,
     uint16_t *n, uint16_t *size);
 
 const char *smbios_type1_strings[] = {
-	" ",		/* manufacturer string */
-	"BHYVE",	/* product name string */
-	"1.0",		/* version string */
-	"None",		/* serial number string */
-	"None",		/* sku string */
-	" ",		/* family name string */
+	"FreeBSD",		/* manufacturer string */
+	"BHYVE",		/* product name string */
+	"1.0",			/* version string */
+	"None",			/* serial number string */
+	"None",			/* sku string */
+	"Virtual Machine",	/* family name string */
 	NULL
 };
 
