@@ -78,7 +78,7 @@ usage(bool explicit)
 	    "\tbectl check\n"
 	    "\tbectl create [-r] [-e {nonActiveBe | beName@snapshot}] beName\n"
 	    "\tbectl create [-r] beName@snapshot\n"
-	    "\tbectl destroy [-F] {beName | beName@snapshot}\n"
+	    "\tbectl destroy [-Fo] {beName | beName@snapshot}\n"
 	    "\tbectl export sourceBe\n"
 	    "\tbectl import targetBe\n"
 	    "\tbectl jail {-b | -U} [{-o key=value | -u key}]... "
