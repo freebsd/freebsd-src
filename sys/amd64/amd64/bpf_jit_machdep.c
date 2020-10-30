@@ -602,7 +602,7 @@ bpf_jit_compile(struct bpf_insn *prog, u_int nins, size_t *size)
 
 		*size = stream.cur_ip;
 #ifdef _KERNEL
-		stream.ibuf = malloc(*size, M_BPFJIT, M_EXEC | M_NOWAIT);
+		stream.ibuf = malloc_exec(*size, M_BPFJIT, M_NOWAIT);
 		if (stream.ibuf == NULL)
 			break;
 #else

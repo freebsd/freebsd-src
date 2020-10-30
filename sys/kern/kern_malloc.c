@@ -618,13 +618,14 @@ void *
 	unsigned long osize = size;
 #endif
 
+	MPASS((flags & M_EXEC) == 0);
 #ifdef MALLOC_DEBUG
 	va = NULL;
 	if (malloc_dbg(&va, &size, mtp, flags) != 0)
 		return (va);
 #endif
 
-	if (size <= kmem_zmax && (flags & M_EXEC) == 0) {
+	if (size <= kmem_zmax) {
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
 		indx = kmemsize[size >> KMEM_ZSHIFT];
@@ -640,10 +641,11 @@ void *
 		va = malloc_large(&size, DOMAINSET_RR(), flags);
 		malloc_type_allocated(mtp, va == NULL ? 0 : size);
 	}
-	if (flags & M_WAITOK)
-		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
-	else if (va == NULL)
+	if (__predict_false(va == NULL)) {
+		KASSERT((flags & M_WAITOK) == 0,
+		    ("malloc(M_WAITOK) returned NULL"));
 		t_malloc_fail = time_uptime;
+	}
 #ifdef DEBUG_REDZONE
 	if (va != NULL)
 		va = redzone_setup(va, osize);
@@ -682,40 +684,102 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
     int flags)
 {
 	struct vm_domainset_iter di;
-	caddr_t ret;
+	caddr_t va;
 	int domain;
 	int indx;
 
 #if defined(DEBUG_REDZONE)
 	unsigned long osize = size;
 #endif
+	MPASS((flags & M_EXEC) == 0);
 #ifdef MALLOC_DEBUG
-	ret= NULL;
-	if (malloc_dbg(&ret, &size, mtp, flags) != 0)
-		return (ret);
+	va = NULL;
+	if (malloc_dbg(&va, &size, mtp, flags) != 0)
+		return (va);
 #endif
-	if (size <= kmem_zmax && (flags & M_EXEC) == 0) {
+	if (size <= kmem_zmax) {
 		vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
 		do {
-			ret = malloc_domain(&size, &indx, mtp, domain, flags);
-		} while (ret == NULL &&
+			va = malloc_domain(&size, &indx, mtp, domain, flags);
+		} while (va == NULL &&
 		    vm_domainset_iter_policy(&di, &domain) == 0);
-		malloc_type_zone_allocated(mtp, ret == NULL ? 0 : size, indx);
+		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
 	} else {
 		/* Policy is handled by kmem. */
-		ret = malloc_large(&size, ds, flags);
-		malloc_type_allocated(mtp, ret == NULL ? 0 : size);
+		va = malloc_large(&size, ds, flags);
+		malloc_type_allocated(mtp, va == NULL ? 0 : size);
 	}
-
-	if (flags & M_WAITOK)
-		KASSERT(ret != NULL, ("malloc(M_WAITOK) returned NULL"));
-	else if (ret == NULL)
+	if (__predict_false(va == NULL)) {
+		KASSERT((flags & M_WAITOK) == 0,
+		    ("malloc(M_WAITOK) returned NULL"));
 		t_malloc_fail = time_uptime;
+	}
 #ifdef DEBUG_REDZONE
-	if (ret != NULL)
-		ret = redzone_setup(ret, osize);
+	if (va != NULL)
+		va = redzone_setup(va, osize);
 #endif
-	return (ret);
+	return (va);
+}
+
+/*
+ * Allocate an executable area.
+ */
+void *
+malloc_exec(size_t size, struct malloc_type *mtp, int flags)
+{
+	caddr_t va;
+#if defined(DEBUG_REDZONE)
+	unsigned long osize = size;
+#endif
+
+	flags |= M_EXEC;
+#ifdef MALLOC_DEBUG
+	va = NULL;
+	if (malloc_dbg(&va, &size, mtp, flags) != 0)
+		return (va);
+#endif
+	va = malloc_large(&size, DOMAINSET_RR(), flags);
+	malloc_type_allocated(mtp, va == NULL ? 0 : size);
+	if (__predict_false(va == NULL)) {
+		KASSERT((flags & M_WAITOK) == 0,
+		    ("malloc(M_WAITOK) returned NULL"));
+		t_malloc_fail = time_uptime;
+	}
+#ifdef DEBUG_REDZONE
+	if (va != NULL)
+		va = redzone_setup(va, osize);
+#endif
+	return ((void *) va);
+}
+
+void *
+malloc_domainset_exec(size_t size, struct malloc_type *mtp, struct domainset *ds,
+    int flags)
+{
+	caddr_t va;
+#if defined(DEBUG_REDZONE)
+	unsigned long osize = size;
+#endif
+
+	flags |= M_EXEC;
+#ifdef MALLOC_DEBUG
+	va = NULL;
+	if (malloc_dbg(&va, &size, mtp, flags) != 0)
+		return (va);
+#endif
+	/* Policy is handled by kmem. */
+	va = malloc_large(&size, ds, flags);
+	malloc_type_allocated(mtp, va == NULL ? 0 : size);
+	if (__predict_false(va == NULL)) {
+		KASSERT((flags & M_WAITOK) == 0,
+		    ("malloc(M_WAITOK) returned NULL"));
+		t_malloc_fail = time_uptime;
+	}
+#ifdef DEBUG_REDZONE
+	if (va != NULL)
+		va = redzone_setup(va, osize);
+#endif
+	return (va);
 }
 
 void *
