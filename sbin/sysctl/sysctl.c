@@ -344,13 +344,13 @@ parse_numeric(const char *newvalstr, const char *fmt, u_int kind,
 static int
 parse(const char *string, int lineno)
 {
-	int len, i, j;
+	int len, i, j, save_errno;
 	const void *newval;
 	char *newvalstr = NULL;
 	void *newbuf;
 	size_t newsize = Bflag;
 	int mib[CTL_MAXNAME];
-	char *cp, *bufp, buf[BUFSIZ], fmt[BUFSIZ], line[BUFSIZ];
+	char *cp, *bufp, *buf, fmt[BUFSIZ], line[BUFSIZ];
 	u_int kind;
 
 	if (lineno)
@@ -365,11 +365,7 @@ parse(const char *string, int lineno)
 	 * Whitespace surrounding the delimiter is trimmed.
 	 * Quotes around the value are stripped.
 	 */
-	cp = buf;
-	if (snprintf(buf, BUFSIZ, "%s", string) >= BUFSIZ) {
-		warnx("oid too long: '%s'%s", string, line);
-		return (1);
-	}
+	cp = buf = strdup(string);
 	bufp = strsep(&cp, "=:");
 	if (cp != NULL) {
 		/* Tflag just lists tunables, do not allow assignment */
@@ -403,22 +399,24 @@ parse(const char *string, int lineno)
 	 */
 	len = name2oid(bufp, mib);
 	if (len < 0) {
-		if (iflag)
+		if (iflag) {
+			free(buf);
 			return (0);
-		if (qflag)
-			return (1);
-		else {
+		}
+		if (!qflag) {
 			if (errno == ENOENT) {
 				warnx("unknown oid '%s'%s", bufp, line);
 			} else {
 				warn("unknown oid '%s'%s", bufp, line);
 			}
-			return (1);
 		}
+		free(buf);
+		return (1);
 	}
 
 	if (oidfmt(mib, len, fmt, &kind)) {
 		warn("couldn't find format of oid '%s'%s", bufp, line);
+		free(buf);
 		if (iflag)
 			return (1);
 		else
@@ -430,6 +428,7 @@ parse(const char *string, int lineno)
 	 * show the node and its children.  Otherwise, set the new value.
 	 */
 	if (newvalstr == NULL || dflag) {
+		free(buf);
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 			if (dflag) {
 				i = show_var(mib, len, false);
@@ -450,6 +449,7 @@ parse(const char *string, int lineno)
 	 */
 	if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 		warnx("oid '%s' isn't a leaf node%s", bufp, line);
+		free(buf);
 		return (1);
 	}
 
@@ -459,6 +459,7 @@ parse(const char *string, int lineno)
 			warnx("Tunable values are set in /boot/loader.conf");
 		} else
 			warnx("oid '%s' is read only%s", bufp, line);
+		free(buf);
 		return (1);
 	}
 
@@ -477,6 +478,7 @@ parse(const char *string, int lineno)
 	case CTLTYPE_U64:
 		if (strlen(newvalstr) == 0) {
 			warnx("empty numeric value");
+			free(buf);
 			return (1);
 		}
 		/* FALLTHROUGH */
@@ -485,6 +487,7 @@ parse(const char *string, int lineno)
 	default:
 		warnx("oid '%s' is type %d, cannot set that%s",
 		    bufp, kind & CTLTYPE, line);
+		free(buf);
 		return (1);
 	}
 
@@ -503,6 +506,7 @@ parse(const char *string, int lineno)
 				warnx("invalid %s '%s'%s",
 				    ctl_typename[kind & CTLTYPE], cp, line);
 				free(newbuf);
+				free(buf);
 				return (1);
 			}
 		}
@@ -515,10 +519,12 @@ parse(const char *string, int lineno)
 	 */
 	i = show_var(mib, len, false);
 	if (sysctl(mib, len, 0, 0, newval, newsize) == -1) {
+		save_errno = errno;
 		free(newbuf);
+		free(buf);
 		if (!i && !bflag)
 			putchar('\n');
-		switch (errno) {
+		switch (save_errno) {
 		case EOPNOTSUPP:
 			warnx("%s: value is not available%s",
 			    string, line);
@@ -532,11 +538,12 @@ parse(const char *string, int lineno)
 			    string, line);
 			return (1);
 		default:
-			warn("%s%s", string, line);
+			warnc(save_errno, "%s%s", string, line);
 			return (1);
 		}
 	}
 	free(newbuf);
+	free(buf);
 	if (!bflag)
 		printf(" -> ");
 	i = nflag;
