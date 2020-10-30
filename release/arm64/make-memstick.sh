@@ -45,7 +45,7 @@ make_esp_file ${espfilename} ${fat32min} ${1}/boot/loader.efi
 
 mkimg -s gpt \
     -p efi:=${espfilename} \
-    -p freebsd:=${2}.part \
+    -p freebsd-ufs:=${2}.part \
     -o ${2}
 rm ${espfilename}
 rm ${2}.part
