@@ -4126,7 +4126,7 @@ mlx5e_snd_tag_alloc(struct ifnet *ifp,
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (mlx5e_rl_snd_tag_alloc(ifp, params, ppmt));
-#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		return (mlx5e_tls_snd_tag_alloc(ifp, params, ppmt));
 #endif
@@ -4150,7 +4150,7 @@ mlx5e_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *para
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (mlx5e_rl_snd_tag_modify(pmt, params));
-#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		return (mlx5e_tls_snd_tag_modify(pmt, params));
 #endif
@@ -4172,7 +4172,7 @@ mlx5e_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *params
 #ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		return (mlx5e_rl_snd_tag_query(pmt, params));
-#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		return (mlx5e_tls_snd_tag_query(pmt, params));
 #endif
@@ -4241,7 +4241,7 @@ mlx5e_snd_tag_free(struct m_snd_tag *pmt)
 	case IF_SND_TAG_TYPE_RATE_LIMIT:
 		mlx5e_rl_snd_tag_free(pmt);
 		break;
-#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		mlx5e_tls_snd_tag_free(pmt);
 		break;

@@ -380,7 +380,7 @@ mlx5e_tls_snd_tag_alloc(struct ifnet *ifp,
 	memset(&rl_params, 0, sizeof(rl_params));
 	rl_params.hdr = params->hdr;
 	switch (params->hdr.type) {
-#if defined(RATELIMIT) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		rl_params.hdr.type = IF_SND_TAG_TYPE_RATE_LIMIT;
 		rl_params.rate_limit.max_rate = params->tls_rate_limit.max_rate;
@@ -416,7 +416,7 @@ failure:
 int
 mlx5e_tls_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *params)
 {
-#if defined(RATELIMIT) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef RATELIMIT
 	union if_snd_tag_modify_params rl_params;
 	struct mlx5e_tls_tag *ptag =
 	    container_of(pmt, struct mlx5e_tls_tag, tag);
@@ -424,7 +424,7 @@ mlx5e_tls_snd_tag_modify(struct m_snd_tag *pmt, union if_snd_tag_modify_params *
 #endif
 
 	switch (pmt->type) {
-#if defined(RATELIMIT) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		memset(&rl_params, 0, sizeof(rl_params));
 		rl_params.rate_limit.max_rate = params->tls_rate_limit.max_rate;
@@ -445,7 +445,7 @@ mlx5e_tls_snd_tag_query(struct m_snd_tag *pmt, union if_snd_tag_query_params *pa
 	int error;
 
 	switch (pmt->type) {
-#if defined(RATELIMIT) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef RATELIMIT
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 #endif
 	case IF_SND_TAG_TYPE_TLS:
@@ -690,7 +690,7 @@ mlx5e_sq_tls_xmit(struct mlx5e_sq *sq, struct mlx5e_xmit_args *parg, struct mbuf
 	ptag = mb->m_pkthdr.snd_tag;
 
 	if (
-#if defined(RATELIMIT) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef RATELIMIT
 	    ptag->type != IF_SND_TAG_TYPE_TLS_RATE_LIMIT &&
 #endif
 	    ptag->type != IF_SND_TAG_TYPE_TLS)

@@ -104,7 +104,7 @@ top:
 		sq = container_of(mb_tag,
 		    struct mlx5e_rl_channel, tag)->sq;
 		break;
-#if defined(KERN_TLS) && defined(IF_SND_TAG_TYPE_TLS_RATE_LIMIT)
+#ifdef KERN_TLS
 	case IF_SND_TAG_TYPE_TLS_RATE_LIMIT:
 		mb_tag = container_of(mb_tag, struct mlx5e_tls_tag, tag)->rl_tag;
 		goto top;
