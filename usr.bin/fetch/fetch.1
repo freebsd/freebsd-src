@@ -389,14 +389,14 @@ Silently try to fetch the URLs passed as parameters.
 The first one will fail.
 If the second URL succeeds the third one will not be tried:
 .Bd -literal -offset indent
-$ fetch -1 -q https://www.freebsd.org/bad.html \\
-	ftp.freebsd.org/pub/FreeBSD/README.TXT \\
+$ fetch -1 -q https://www.freebsd.org/bad.html \e
+	ftp.freebsd.org/pub/FreeBSD/README.TXT \e
 	https://www.fake.url
 fetch: https://www.freebsd.org/bad.html: Not Found
 .Ed
 .Pp
 Be verbose when retrieving the
-.Ql README.TXT
+.Pa README.TXT
 file:
 .Bd -literal -offset indent
 $ fetch -v ftp.freebsd.org/pub/FreeBSD/README.TXT
@@ -408,8 +408,9 @@ README.TXT                                            4259  B   44 MBps    00s
 .Ed
 .Pp
 Quietly save the
-.Ql README.TXT file as
-.Ql myreadme.txt
+.Pa README.TXT
+file as
+.Pa myreadme.txt
 and do not delete the output file under any circumstances:
 .Bd -literal -offset indent
 fetch -o myreadme.txt -q -R ftp.freebsd.org/pub/FreeBSD/README.TXT
@@ -424,7 +425,7 @@ $ fetch -s ftp.freebsd.org/pub/FreeBSD/README.TXT
 .Ed
 .Pp
 Restart the transfer of the
-.Ql README.TXT
+.Pa README.TXT
 file and retry the transfer upon soft failures:
 .Bd -literal -offset indent
 $ fetch -a -r http://ftp.freebsd.org/pub/FreeBSD/README.TXT
