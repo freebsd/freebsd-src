@@ -24,40 +24,46 @@ write_partition_layout() {
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
-			# Create an ESP
-			espfilename=$(mktemp /tmp/efiboot.XXXXXX)
-			make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
-			mkimg -s gpt -f ${VMFORMAT} \
-				-b ${BOOTFILES}/i386/pmbr/pmbr \
-				-p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot \
-				-p efi:=${espfilename} \
-				${SWAPOPT} \
-				-p freebsd-ufs/rootfs:=${VMBASE} \
-				-o ${VMIMAGE}
-			rm ${espfilename}
+			ESP=yes
+			SCHEME=gpt
+			BOOTPARTS="-b ${BOOTFILES}/i386/pmbr/pmbr \
+				   -p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot"
+			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
 			;;
 		arm64:aarch64)
-			# Create an ESP
-			espfilename=$(mktemp /tmp/efiboot.XXXXXX)
-			make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
-			mkimg -s mbr -f ${VMFORMAT} \
-				-p efi:=${espfilename} \
-				-p freebsd:=${VMBASE} \
-				-o ${VMIMAGE}
-			rm ${espfilename}
+			ESP=yes
+			SCHEME=mbr
+			BOOTPARTS=
+			ROOTFSPART="-p freebsd:=${VMBASE}"
 			;;
 		powerpc:powerpc*)
-			mkimg -s apm -f ${VMFORMAT} \
-				-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs \
-				${SWAPOPT} \
-				-p freebsd-ufs/rootfs:=${VMBASE} \
-				-o ${VMIMAGE}
+			ESP=no
+			SCHEME=apm
+			BOOTPARTS="-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs"
+			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
 			;;
 		*)
 			# ENOTSUPP
 			return 1
 			;;
 	esac
+
+	if [ ${ESP} = "yes" ]; then
+		# Create an ESP
+		espfilename=$(mktemp /tmp/efiboot.XXXXXX)
+		make_esp_file ${espfilename} ${fat32min} ${BOOTFILES}/efi/loader_lua/loader_lua.efi
+		BOOTPARTS="${BOOTPARTS} -p efi:=${espfilename}"
+	fi
+
+	mkimg -s ${SCHEME} -f ${VMFORMAT} \
+		${BOOTPARTS} \
+		${SWAPOPT} \
+		${ROOTFSPART} \
+		-o ${VMIMAGE}
+
+	if [ ${ESP} = "yes" ]; then
+		rm ${espfilename}
+	fi
 
 	return 0
 }
