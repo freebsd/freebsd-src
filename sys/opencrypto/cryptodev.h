@@ -683,9 +683,9 @@ SYSCTL_DECL(_kern_crypto);
 /* Helper routines for drivers to initialize auth contexts for HMAC. */
 struct auth_hash;
 
-void	hmac_init_ipad(struct auth_hash *axf, const char *key, int klen,
+void	hmac_init_ipad(const struct auth_hash *axf, const char *key, int klen,
     void *auth_ctx);
-void	hmac_init_opad(struct auth_hash *axf, const char *key, int klen,
+void	hmac_init_opad(const struct auth_hash *axf, const char *key, int klen,
     void *auth_ctx);
 
 /*
