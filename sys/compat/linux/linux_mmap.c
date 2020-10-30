@@ -394,6 +394,16 @@ linux_madvise_common(struct thread *td, uintptr_t addr, size_t len, int behav)
 	case LINUX_MADV_SOFT_OFFLINE:
 		linux_msg(curthread, "unsupported madvise MADV_SOFT_OFFLINE");
 		return (EINVAL);
+	case -1:
+		/*
+		 * -1 is sometimes used as a dummy value to detect simplistic
+		 * madvise(2) stub implementations.  This safeguard is used by
+		 * BoringSSL, for example, before assuming MADV_WIPEONFORK is
+		 * safe to use.  Don't produce an "unsupported" error message
+		 * for this special dummy value, which is unlikely to be used
+		 * by any new advisory behavior feature.
+		 */
+		return (EINVAL);
 	default:
 		linux_msg(curthread, "unsupported madvise behav %d", behav);
 		return (EINVAL);
