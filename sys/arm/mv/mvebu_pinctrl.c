@@ -44,14 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/simplebus.h>
+#include <dev/extres/syscon/syscon.h>
+
+#include <dev/fdt/fdt_pinctrl.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/fdt/fdt_pinctrl.h>
-
-#include "opt_soc.h"
+#include "syscon_if.h"
 
 #define	PINS_PER_REG	8
 #define	BITS_PER_PIN	4
@@ -68,7 +68,6 @@ struct mv_padconf {
 	size_t		npins;
 };
 
-#ifdef SOC_MARVELL_8K
 const static struct mv_pins ap806_pins[] = {
 	{"mpp0", {"gpio", "sdio", NULL, "spi0"}},
 	{"mpp1", {"gpio", "sdio", NULL, "spi0"}},
@@ -96,29 +95,22 @@ const struct mv_padconf ap806_padconf = {
 	.npins = nitems(ap806_pins),
 	.pins = ap806_pins,
 };
-#endif
 
 struct mv_pinctrl_softc {
 	device_t		dev;
-	struct resource		*res;
+	struct syscon		*syscon;
 
 	struct mv_padconf	*padconf;
 };
 
-static struct resource_spec mv_pinctrl_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1, 0 }
-};
 
 static struct ofw_compat_data compat_data[] = {
-#ifdef SOC_MARVELL_8K
 	{"marvell,ap806-pinctrl", (uintptr_t)&ap806_padconf},
-#endif
 	{NULL,             0}
 };
 
-#define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
-#define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+#define	RD4(sc, reg)		SYSCON_READ_4((sc)->syscon, (reg))
+#define	WR4(sc, reg, val)	SYSCON_WRITE_4((sc)->syscon, (reg), (val))
 
 static void
 mv_pinctrl_configure_pin(struct mv_pinctrl_softc *sc, uint32_t pin,
@@ -200,10 +192,12 @@ mv_pinctrl_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
-	sc->padconf = (struct mv_padconf *)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+	sc->padconf = (struct mv_padconf *)
+	    ofw_bus_search_compatible(dev,compat_data)->ocd_data;
 
-	if (bus_alloc_resources(dev, mv_pinctrl_res_spec, &sc->res) != 0) {
-		device_printf(dev, "cannot allocate resources for device\n");
+	if (SYSCON_GET_HANDLE(sc->dev, &sc->syscon) != 0 ||
+	    sc->syscon == NULL) {
+		device_printf(dev, "cannot get syscon for device\n");
 		return (ENXIO);
 	}
 

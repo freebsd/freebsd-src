@@ -236,6 +236,7 @@ device		aw_ccu		# Allwinner clock controller
 device		aw_nmi		# Allwinner NMI support
 device		mv_cp110_icu	# Marvell CP110 ICU
 device		mv_ap806_gicp	# Marvell AP806 GICP
+device		mv_ap806_sei	# Marvell AP806 SEI
 
 # Real-time clock support
 device		aw_rtc		# Allwinner Real-time Clock

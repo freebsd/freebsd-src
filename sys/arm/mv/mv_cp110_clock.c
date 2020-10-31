@@ -44,17 +44,17 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <dev/fdt/simplebus.h>
+#include <dev/extres/clk/clk_fixed.h>
+#include <dev/extres/clk/clk_gate.h>
+#include <dev/extres/syscon/syscon.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <dev/extres/clk/clk_fixed.h>
-#include <dev/extres/clk/clk_gate.h>
-
 #include <arm/mv/mv_cp110_clock.h>
 
 #include "clkdev_if.h"
+#include "syscon_if.h"
 
 /* Clocks */
 static struct clk_fixed_def cp110_clk_pll_0 = {
@@ -126,24 +126,19 @@ static struct cp110_gate cp110_gates[] = {
 };
 
 struct mv_cp110_clock_softc {
-	struct simplebus_softc	simplebus_sc;
 	device_t		dev;
-	struct resource		*res;
+	struct syscon		*syscon;
 	struct mtx		mtx;
 };
 
-static struct resource_spec mv_cp110_clock_res_spec[] = {
-	{ SYS_RES_MEMORY,	0,	RF_ACTIVE | RF_SHAREABLE },
-	{ -1, 0 }
-};
 
 static struct ofw_compat_data compat_data[] = {
 	{"marvell,cp110-clock", 1},
 	{NULL,             0}
 };
 
-#define	RD4(sc, reg)		bus_read_4((sc)->res, (reg))
-#define	WR4(sc, reg, val)	bus_write_4((sc)->res, (reg), (val))
+#define	RD4(sc, reg)		SYSCON_READ_4((sc)->syscon, (reg))
+#define	WR4(sc, reg, val)	SYSCON_WRITE_4((sc)->syscon, (reg), (val))
 
 static char *
 mv_cp110_clock_name(device_t dev, const char *name)
@@ -201,8 +196,9 @@ mv_cp110_clock_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	if (bus_alloc_resources(dev, mv_cp110_clock_res_spec, &sc->res) != 0) {
-		device_printf(dev, "cannot allocate resources for device\n");
+	if (SYSCON_GET_HANDLE(sc->dev, &sc->syscon) != 0 ||
+	    sc->syscon == NULL) {
+		device_printf(dev, "cannot get syscon for device\n");
 		return (ENXIO);
 	}
 
