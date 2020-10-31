@@ -182,6 +182,7 @@ device		uart_snps
 device		pl011
 
 # USB support
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
 device		aw_usbphy		# Allwinner USB PHY
 device		rk_usb2phy		# Rockchip USB2PHY
 device		rk_typec_phy		# Rockchip TypeC PHY
