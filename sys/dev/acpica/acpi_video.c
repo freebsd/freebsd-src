@@ -846,6 +846,9 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 				break;
 			}
 		break;
+	case VID_NOTIFY_DISP_OFF:
+		acpi_pwr_switch_consumer(handle, ACPI_STATE_D3);
+		break;
 	}
 	if (new_level != level) {
 		vo_set_brightness(vo, new_level);
