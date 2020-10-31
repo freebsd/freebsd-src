@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2018
+.Dd Oct 31, 2020
 .Dt UHID 4
 .Os
 .Sh NAME
@@ -131,6 +131,11 @@ and the
 .Va ugd_maxlen
 fields.
 This call may fail if the device does not support this feature.
+.It Dv USB_GET_DEVICEINFO Pq Vt "struct usb_device_info"
+Returns information about the device, like USB vendor ID and USB product ID.
+This call will not issue any USB transactions.
+Also refer to
+.Xr ugen 4 .
 .El
 .Pp
 Use
