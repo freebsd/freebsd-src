@@ -40,12 +40,14 @@
 #include <libelftc.h>
 #include <libgen.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include <libcasper.h>
 #include <casper/cap_fileargs.h>
@@ -87,6 +89,7 @@ ELFTC_VCSID("$Id: readelf.c 3769 2019-06-29 15:15:02Z emaste $");
 #define	RE_WW	0x00040000
 #define	RE_W	0x00080000
 #define	RE_X	0x00100000
+#define	RE_Z	0x00200000
 
 /*
  * dwarf dump options.
@@ -189,6 +192,7 @@ static struct option longopts[] = {
 	{"arch-specific", no_argument, NULL, 'A'},
 	{"archive-index", no_argument, NULL, 'c'},
 	{"debug-dump", optional_argument, NULL, OPTION_DEBUG_DUMP},
+	{"decompress", no_argument, 0, 'z'},
 	{"dynamic", no_argument, NULL, 'd'},
 	{"file-header", no_argument, NULL, 'h'},
 	{"full-section-name", no_argument, NULL, 'N'},
@@ -6900,17 +6904,96 @@ get_symbol_value(struct readelf *re, int symtab, int i)
 	return (sym.st_value);
 }
 
+/*
+ * Decompress a data section if needed (using ZLIB).
+ * Returns true if sucessful, false otherwise.
+ */
+static bool decompress_section(struct section *s,
+    unsigned char *compressed_data_buffer, uint64_t compressed_size,
+    unsigned char **ret_buf, uint64_t *ret_sz)
+{
+	GElf_Shdr sh;
+
+	if (gelf_getshdr(s->scn, &sh) == NULL)
+		errx(EXIT_FAILURE, "gelf_getshdr() failed: %s", elf_errmsg(-1));
+
+	if (sh.sh_flags & SHF_COMPRESSED) {
+		int ret;
+		GElf_Chdr chdr;
+		Elf64_Xword inflated_size;
+		unsigned char *uncompressed_data_buffer = NULL;
+		Elf64_Xword uncompressed_size;
+		z_stream strm;
+
+		if (gelf_getchdr(s->scn, &chdr) == NULL)
+			errx(EXIT_FAILURE, "gelf_getchdr() failed: %s", elf_errmsg(-1));
+		if (chdr.ch_type != ELFCOMPRESS_ZLIB) {
+			warnx("unknown compression type: %d", chdr.ch_type);
+			return (false);
+		}
+
+		inflated_size = 0;
+		uncompressed_size = chdr.ch_size;
+		uncompressed_data_buffer = malloc(uncompressed_size);
+		compressed_data_buffer += sizeof(chdr);
+		compressed_size -= sizeof(chdr);
+
+		strm.zalloc = Z_NULL;
+		strm.zfree = Z_NULL;
+		strm.opaque = Z_NULL;
+		strm.avail_in = compressed_size;
+		strm.avail_out = uncompressed_size;
+		ret = inflateInit(&strm);
+
+		if (ret != Z_OK)
+			goto fail;
+		/*
+		 * The section can contain several compressed buffers,
+		 * so decompress in a loop until all data is inflated.
+		 */
+		while (inflated_size < compressed_size) {
+			strm.next_in = compressed_data_buffer + inflated_size;
+			strm.next_out = uncompressed_data_buffer + inflated_size;
+			ret = inflate(&strm, Z_FINISH);
+			if (ret != Z_STREAM_END)
+				goto fail;
+			inflated_size = uncompressed_size - strm.avail_out;
+			ret = inflateReset(&strm);
+			if (ret != Z_OK)
+				goto fail;
+		}
+		if (strm.avail_out != 0)
+			warnx("Warning: wrong info in compression header.");
+		ret = inflateEnd(&strm);
+		if (ret != Z_OK)
+			goto fail;
+		*ret_buf = uncompressed_data_buffer;
+		*ret_sz = uncompressed_size;
+		return (true);
+fail:
+		inflateEnd(&strm);
+		if (strm.msg)
+			warnx("%s", strm.msg);
+		else
+			warnx("ZLIB error: %d", ret);
+		free(uncompressed_data_buffer);
+		return (false);
+	}
+	return (false);
+}
+
 static void
 hex_dump(struct readelf *re)
 {
 	struct section *s;
 	Elf_Data *d;
-	uint8_t *buf;
+	uint8_t *buf, *new_buf;
 	size_t sz, nbytes;
 	uint64_t addr;
 	int elferr, i, j;
 
 	for (i = 1; (size_t) i < re->shnum; i++) {
+		new_buf = NULL;
 		s = &re->sl[i];
 		if (find_dumpop(re, (size_t) i, s->name, HEX_DUMP, -1) == NULL)
 			continue;
@@ -6932,6 +7015,11 @@ hex_dump(struct readelf *re)
 		buf = d->d_buf;
 		sz = d->d_size;
 		addr = s->addr;
+		if (re->options & RE_Z) {
+			if (decompress_section(s, d->d_buf, d->d_size,
+			    &new_buf, &sz))
+				buf = new_buf;
+		}
 		printf("\nHex dump of section '%s':\n", s->name);
 		while (sz > 0) {
 			printf("  0x%8.8jx ", (uintmax_t)addr);
@@ -6955,6 +7043,7 @@ hex_dump(struct readelf *re)
 			addr += nbytes;
 			sz -= nbytes;
 		}
+		free(new_buf);
 	}
 }
 
@@ -6963,11 +7052,13 @@ str_dump(struct readelf *re)
 {
 	struct section *s;
 	Elf_Data *d;
-	unsigned char *start, *end, *buf_end;
+	unsigned char *start, *end, *buf_end, *new_buf;
 	unsigned int len;
+	size_t sz;
 	int i, j, elferr, found;
 
 	for (i = 1; (size_t) i < re->shnum; i++) {
+		new_buf = NULL;
 		s = &re->sl[i];
 		if (find_dumpop(re, (size_t) i, s->name, STR_DUMP, -1) == NULL)
 			continue;
@@ -6986,9 +7077,15 @@ str_dump(struct readelf *re)
 			    s->name);
 			continue;
 		}
-		buf_end = (unsigned char *) d->d_buf + d->d_size;
-		start = (unsigned char *) d->d_buf;
 		found = 0;
+		start = d->d_buf;
+		sz = d->d_size;
+		if (re->options & RE_Z) {
+			if (decompress_section(s, d->d_buf, d->d_size,
+			    &new_buf, &sz))
+				start = new_buf;
+		}
+		buf_end = start + sz;
 		printf("\nString dump of section '%s':\n", s->name);
 		for (;;) {
 			while (start < buf_end && !isprint(*start))
@@ -7009,6 +7106,7 @@ str_dump(struct readelf *re)
 				break;
 			start = end + 1;
 		}
+		free(new_buf);
 		if (!found)
 			printf("  No strings found in this section.");
 		putchar('\n');
@@ -7634,6 +7732,7 @@ Usage: %s [options] file...\n\
                            Display DWARF information.\n\
   -x INDEX | --hex-dump=INDEX\n\
                            Display contents of a section as hexadecimal.\n\
+  -z | --decompress        Decompress the contents of a section before displaying it.\n\
   -A | --arch-specific     (accepted, but ignored)\n\
   -D | --use-dynamic       Print the symbol table specified by the DT_SYMTAB\n\
                            entry in the \".dynamic\" section.\n\
@@ -7668,7 +7767,7 @@ main(int argc, char **argv)
 	memset(re, 0, sizeof(*re));
 	STAILQ_INIT(&re->v_dumpop);
 
-	while ((opt = getopt_long(argc, argv, "AacDdegHhIi:lNnp:rSstuVvWw::x:",
+	while ((opt = getopt_long(argc, argv, "AacDdegHhIi:lNnp:rSstuVvWw::x:z",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case '?':
@@ -7764,6 +7863,9 @@ main(int argc, char **argv)
 			else
 				add_dumpop(re, 0, optarg, HEX_DUMP,
 				    DUMP_BY_NAME);
+			break;
+		case 'z':
+			re->options |= RE_Z;
 			break;
 		case OPTION_DEBUG_DUMP:
 			re->options |= RE_W;
