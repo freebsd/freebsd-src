@@ -153,7 +153,7 @@ cal_fopen(const char *file)
 	warnx(format " in %s/%s/%s line %d", arg1, cal_home, cal_dir, cal_file, cal_line)
 
 static int
-token(char *line, FILE *out, int *skip)
+token(char *line, FILE *out, int *skip, int *unskip)
 {
 	char *walk, c, a;
 	const char *this_cal_home;
@@ -164,6 +164,13 @@ token(char *line, FILE *out, int *skip)
 	if (strncmp(line, "endif", 5) == 0) {
 		if (*skip > 0)
 			--*skip;
+		else if (*unskip > 0)
+			--*unskip;
+		else {
+			WARN0("#endif without prior #ifdef or #ifndef");
+			return (T_ERR);
+		}
+
 		return (T_OK);
 	}
 
@@ -178,7 +185,9 @@ token(char *line, FILE *out, int *skip)
 
 		if (*skip != 0 || definitions == NULL || sl_find(definitions, walk) == NULL)
 			++*skip;
-
+		else
+			++*unskip;
+		
 		return (T_OK);
 	}
 
@@ -193,6 +202,8 @@ token(char *line, FILE *out, int *skip)
 
 		if (*skip != 0 || (definitions != NULL && sl_find(definitions, walk) != NULL))
 			++*skip;
+		else
+			++*unskip;
 
 		return (T_OK);
 	}
@@ -206,10 +217,18 @@ token(char *line, FILE *out, int *skip)
 			return (T_ERR);
 		}
 
-		if (*skip == 0)
+		if (*unskip == 0) {
+			if (*skip == 0) {
+				WARN0("#else without prior #ifdef or #ifndef");
+				return (T_ERR);
+			} else if (*skip == 1) {
+				*skip = 0;
+				*unskip = 1;
+			}
+		} else if (*unskip == 1) {
 			*skip = 1;
-		else if (*skip == 1)
-			*skip = 0;
+			*unskip = 0;
+		}
 
 		return (T_OK);
 	}
@@ -267,7 +286,25 @@ token(char *line, FILE *out, int *skip)
 			return (T_ERR);
 		}
 
-		sl_add(definitions, strdup(walk));
+		if (sl_find(definitions, walk) == NULL)
+			sl_add(definitions, strdup(walk));
+		return (T_OK);
+	}
+
+	if (strncmp(line, "undef", 5) == 0) {
+		if (definitions != NULL) {
+			walk = line + 5;
+			trimlr(&walk);
+
+			if (*walk == '\0') {
+				WARN0("Expecting arguments after #undef");
+				return (T_ERR);
+			}
+
+			walk = sl_find(definitions, walk);
+			if (walk != NULL)
+				walk[0] = '\0';
+		}
 		return (T_OK);
 	}
 
@@ -299,6 +336,7 @@ cal_parse(FILE *in, FILE *out)
 	int day[MAXCOUNT];
 	int year[MAXCOUNT];
 	int skip = 0;
+	int unskip = 0;
 	char dbuf[80];
 	char *pp, p;
 	struct tm tm;
@@ -369,7 +407,7 @@ cal_parse(FILE *in, FILE *out)
 			continue;
 
 		if (buf == line && *buf == '#') {
-			switch (token(buf+1, out, &skip)) {
+			switch (token(buf+1, out, &skip, &unskip)) {
 			case T_ERR:
 				free(line);
 				return (1);
@@ -448,8 +486,7 @@ cal_parse(FILE *in, FILE *out)
 		if (count < 0) {
 			/* Show error status based on return value */
 			if (debug)
-				fprintf(stderr, "Ignored: \"%s\" in %s/%s/%s line %d\n",
-				    buf, cal_home, cal_dir, cal_file, cal_line);
+				WARN1("Ignored: \"%s\"", buf);
 			if (count == -1)
 				continue;
 			count = -count + 1;
@@ -469,12 +506,15 @@ cal_parse(FILE *in, FILE *out)
 			(void)strftime(dbuf, sizeof(dbuf),
 			    d_first ? "%e %b" : "%b %e", &tm);
 			if (debug)
-				fprintf(stderr, "got \"%s\" in  %s/%s/%s line %d\n",
-				    pp, cal_home, cal_dir, cal_file, cal_line);
+				WARN1("got \"%s\"", pp);
 			events[i] = event_add(year[i], month[i], day[i], dbuf,
 			    ((flags &= F_VARIABLE) != 0) ? 1 : 0, pp,
 			    extradata[i]);
 		}
+	}
+	while (skip-- > 0 || unskip-- > 0) {
+		cal_line++;
+		WARN0("Missing #endif assumed");
 	}
 
 	free(line);
