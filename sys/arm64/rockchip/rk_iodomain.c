@@ -45,17 +45,20 @@ __FBSDID("$FreeBSD$");
 
 #define	RK3288_GRF_IO_VSEL		0x380
 #define	RK3399_GRF_IO_VSEL		0xe640
-#define	RK3399_PMUGRF_IO_VSEL		0x180
+#define	RK3399_PMUGRF_SOC_CON0		0x180
 
 struct rk_iodomain_supply {
 	char		*name;
 	uint32_t	bit;
 };
 
+struct rk_iodomain_softc;
+
 struct rk_iodomain_conf {
 	struct rk_iodomain_supply	*supply;
 	int				nsupply;
 	uint32_t			grf_reg;
+	void				(*init)(struct rk_iodomain_softc *sc);
 };
 
 struct rk_iodomain_softc {
@@ -101,10 +104,12 @@ static struct rk_iodomain_supply rk3399_pmu_supply[] = {
 	{"pmu1830-supply", 9},
 };
 
+static void rk3399_pmu_init(struct rk_iodomain_softc *sc);
 static struct rk_iodomain_conf rk3399_pmu_conf = {
 	.supply = rk3399_pmu_supply,
 	.nsupply = nitems(rk3399_pmu_supply),
-	.grf_reg = RK3399_PMUGRF_IO_VSEL,
+	.grf_reg = RK3399_PMUGRF_SOC_CON0,
+	.init = rk3399_pmu_init,
 };
 
 static struct ofw_compat_data compat_data[] = {
@@ -113,6 +118,14 @@ static struct ofw_compat_data compat_data[] = {
 	{"rockchip,rk3399-pmu-io-voltage-domain", (uintptr_t)&rk3399_pmu_conf},
 	{NULL,             0}
 };
+
+static void
+rk3399_pmu_init(struct rk_iodomain_softc *sc)
+{
+
+	SYSCON_WRITE_4(sc->grf, RK3399_PMUGRF_SOC_CON0,
+	    (1 << 8) | (1 << (8 + 16)));	/* set pmu1830_volsel */
+}
 
 static void
 rk_iodomain_set(struct rk_iodomain_softc *sc)
@@ -141,6 +154,8 @@ rk_iodomain_set(struct rk_iodomain_softc *sc)
 	}
 
 	SYSCON_WRITE_4(sc->grf, sc->conf->grf_reg, reg | mask);
+	if (sc->conf->init != NULL)
+		 sc->conf->init(sc);
 }
 
 static int
@@ -204,4 +219,4 @@ static driver_t rk_iodomain_driver = {
 static devclass_t rk_iodomain_devclass;
 
 EARLY_DRIVER_MODULE(rk_iodomain, simplebus, rk_iodomain_driver,
-  rk_iodomain_devclass, 0, 0, BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_MIDDLE);
+  rk_iodomain_devclass, 0, 0, BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
