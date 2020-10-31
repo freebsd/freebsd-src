@@ -64,14 +64,10 @@ __FBSDID("$FreeBSD$");
 
 #define MV_GLOBAL_CONTROL_REG		0x8000
 #define PCIE_APP_LTSSM_EN		(1 << 2)
-//#define PCIE_DEVICE_TYPE_SHIFT		4
-//#define PCIE_DEVICE_TYPE_MASK		0xF
-//#define PCIE_DEVICE_TYPE_RC		0x4/
 
 #define MV_GLOBAL_STATUS_REG		0x8008
 #define	 MV_STATUS_RDLH_LINK_UP			(1 << 1)
 #define  MV_STATUS_PHY_LINK_UP			(1 << 9)
-
 
 #define MV_INT_CAUSE1			0x801C
 #define MV_INT_MASK1			0x8020
@@ -90,11 +86,7 @@ __FBSDID("$FreeBSD$");
 #define MV_ARUSER_REG			0x805C
 #define MV_AWUSER_REG			0x8060
 
-
-
 #define	MV_MAX_LANES	8
-
-
 struct pci_mv_softc {
 	struct pci_dw_softc	dw_sc;
 	device_t		dev;
@@ -112,7 +104,6 @@ static struct ofw_compat_data compat_data[] = {
 	{NULL,		 	  0},
 };
 
-
 static int
 pci_mv_phy_init(struct pci_mv_softc *sc)
 {
@@ -121,18 +112,23 @@ pci_mv_phy_init(struct pci_mv_softc *sc)
 	for (i = 0; i < MV_MAX_LANES; i++) {
 		rv =  phy_get_by_ofw_idx(sc->dev, sc->node, i, &(sc->phy[i]));
 		if (rv != 0 && rv != ENOENT) {
-	  		device_printf(sc->dev, "Cannot get phy[%d]\n", i);
-	  		goto fail;
-	  	}
-	  	if (sc->phy[i] == NULL)
-	  		continue;
-	  	rv = phy_enable(sc->phy[i]);
-	  	if (rv != 0) {
-	  		device_printf(sc->dev, "Cannot enable phy[%d]\n", i);
-	  		goto fail;
-	  	}
-	  }
-	  return (0);
+			device_printf(sc->dev, "Cannot get phy[%d]\n", i);
+/* XXX revert when phy driver will be implemented */
+#if 0
+		goto fail;
+#else
+		continue;
+#endif
+		}
+		if (sc->phy[i] == NULL)
+			continue;
+		rv = phy_enable(sc->phy[i]);
+		if (rv != 0) {
+			device_printf(sc->dev, "Cannot enable phy[%d]\n", i);
+			goto fail;
+		}
+	}
+	return (0);
 
 fail:
 	for (i = 0; i < MV_MAX_LANES; i++) {
@@ -173,13 +169,14 @@ pci_mv_init(struct pci_mv_softc *sc)
 	/* Enable local interrupts */
 	pci_dw_dbi_wr4(sc->dev, DW_MSI_INTR0_MASK, 0xFFFFFFFF);
 	pci_dw_dbi_wr4(sc->dev, MV_INT_MASK1, 0xFFFFFFFF);
-	pci_dw_dbi_wr4(sc->dev, MV_INT_MASK2, 0xFFFFFFFF);
+	pci_dw_dbi_wr4(sc->dev, MV_INT_MASK2, 0xFFFFFFFD);
 	pci_dw_dbi_wr4(sc->dev, MV_INT_CAUSE1, 0xFFFFFFFF);
 	pci_dw_dbi_wr4(sc->dev, MV_INT_CAUSE2, 0xFFFFFFFF);
 
 	/* Errors have own interrupt, not yet populated in DTt */
 	pci_dw_dbi_wr4(sc->dev, MV_ERR_INT_MASK, 0);
 }
+
 static int pci_mv_intr(void *arg)
 {
 	struct pci_mv_softc *sc = arg;
@@ -188,8 +185,6 @@ static int pci_mv_intr(void *arg)
 	/* Ack all interrups */
 	cause1 = pci_dw_dbi_rd4(sc->dev, MV_INT_CAUSE1);
 	cause2 = pci_dw_dbi_rd4(sc->dev, MV_INT_CAUSE2);
-	if (cause1 == 0 || cause2 == 0)
-		return(FILTER_STRAY);
 
 	pci_dw_dbi_wr4(sc->dev, MV_INT_CAUSE1, cause1);
 	pci_dw_dbi_wr4(sc->dev, MV_INT_CAUSE2, cause2);
