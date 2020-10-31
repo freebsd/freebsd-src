@@ -220,6 +220,8 @@
      (rev) << GITS_IIDR_REVISION_SHIFT |		\
      (impl) << GITS_IIDR_IMPLEMENTOR_SHIFT)
 
+#define	 GITS_IIDR_IMPL_ARM		(0x43B)
+#define	 GITS_IIDR_PROD_GIC500		(0x0)
 #define	 GITS_IIDR_IMPL_CAVIUM		(0x34c)
 #define	 GITS_IIDR_PROD_THUNDER		(0xa1)
 #define	 GITS_IIDR_VAR_THUNDER_1	(0x0)
@@ -359,6 +361,18 @@
 #define		LPI_CONF_PRIO_MASK	(0xFC)
 #define		LPI_CONF_GROUP1		(1 << 1)
 #define		LPI_CONF_ENABLE		(1 << 0)
+
+/*
+ * GIC 500 ITS tracking facility
+ */
+#define		GITS_TRKCTLR		0xC000
+#define		GITS_TRKR		0xC004
+#define		GITS_TRKDIDR		0xC008
+#define		GITS_TRKPIDR		0xC00C
+#define		GITS_TRKVIDR		0xC010
+#define		GITS_TRKTGTR		0xC014
+#define		GITS_TRKICR 		0xC018
+#define		GITS_TRKLCR		0xC018
 
 /*
  * CPU interface
