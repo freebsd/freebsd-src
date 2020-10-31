@@ -351,6 +351,12 @@ acpi_video_shutdown(device_t dev)
 }
 
 static void
+acpi_video_invoke_event_handler(void *context)
+{
+	EVENTHANDLER_INVOKE(acpi_video_event, (int)(intptr_t)context);
+}
+
+static void
 acpi_video_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 {
 	struct acpi_video_softc *sc;
@@ -402,6 +408,8 @@ acpi_video_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 		device_printf(sc->device, "unknown notify event 0x%x\n",
 		    notify);
 	}
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_video_invoke_event_handler,
+	    (void *)(uintptr_t)notify);
 }
 
 static void
@@ -752,6 +760,9 @@ acpi_video_vo_notify_handler(ACPI_HANDLE handle, UINT32 notify, void *context)
 
 out:
 	ACPI_SERIAL_END(video_output);
+
+	AcpiOsExecute(OSL_NOTIFY_HANDLER, acpi_video_invoke_event_handler,
+	    (void *)(uintptr_t)notify);
 }
 
 /* ARGSUSED */
