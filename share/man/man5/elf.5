@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 18, 2005
+.Dd March 11, 2020
 .Dt ELF 5
 .Os
 .Sh NAME
@@ -1275,6 +1275,55 @@ member.
 .It Dv r_addend
 This member specifies a constant addend used to compute the value to be
 stored into the relocatable field.
+.El
+.Ss Note Section
+ELF note sections consist of entries with the following format:
+.Bl -column -offset indent "namesz" "32 bits" "Null-terminated originator name"
+.Sy Field       Ta Sy Size    Ta Sy Description
+.It Va namesz   Ta 32 bits    Ta Size of "name"
+.It Va descsz   Ta 32 bits    Ta Size of "desc"
+.It Va type     Ta 32 bits    Ta OS-dependent note type
+.It Va name     Ta Va namesz  Ta Null-terminated originator name
+.It Va desc     Ta Va descsz  Ta OS-dependent note data
+.El
+.Pp
+The
+.Va name
+and
+.Va desc
+fields are padded to ensure 4-byte alignemnt.
+.Va namesz
+and
+.Va descsz
+specify the unpadded length.
+.Pp
+.Fx
+defines the following ELF note types
+.Po with corresponding interpretation of
+.Va desc Pc :
+.Bl -tag -width 4n
+.It Dv NT_FREEBSD_ABI_TAG Pq Value: 1
+Indicates the OS ABI version in a form of a 32-bit integer containing expected
+ABI version
+.Po i.e.,
+.Dv __FreeBSD_version Pc .
+.It Dv NT_FREEBSD_NOINIT_TAG Pq Value: 2
+Indicates that the C startup does not call initialization routines, and thus
+.Xr rtld 1
+must do so.
+.Va desc
+is ignored.
+.It Dv NT_FREEBSD_ARCH_TAG Pq Value: 3
+Contains the MACHINE_ARCH that the executable was built for.
+.It Dv NT_FREEBSD_FEATURE_CTL Pq Value: 4
+Contains a bitmask of mitigations and features to enable:
+.Bl -column "NT_FREEBSD_FCTL_PROTMAX_DISABLE" "0x00" "Disable implicit PROT_MAX"
+.Sy Name                         Ta Sy Value Ta Sy Description
+.It NT_FREEBSD_FCTL_ASLR_DISABLE    Ta 0x01     Ta Disable ASLR
+.It NT_FREEBSD_FCTL_PROTMAX_DISABLE Ta 0x02     Ta Disable implicit PROT_MAX
+.It NT_FREEBSD_FCTL_STKGAP_DISABLE  Ta 0x04     Ta Disable stack gap
+.It NT_FREEBSD_FCTL_WXNEEDED        Ta 0x08     Ta Binary makes W+X mappings
+.El
 .El
 .Sh SEE ALSO
 .Xr as 1 ,
