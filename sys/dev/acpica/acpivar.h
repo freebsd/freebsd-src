@@ -433,6 +433,8 @@ typedef void (*acpi_event_handler_t)(void *, int);
 
 EVENTHANDLER_DECLARE(acpi_sleep_event, acpi_event_handler_t);
 EVENTHANDLER_DECLARE(acpi_wakeup_event, acpi_event_handler_t);
+EVENTHANDLER_DECLARE(acpi_acad_event, acpi_event_handler_t);
+EVENTHANDLER_DECLARE(acpi_video_event, acpi_event_handler_t);
 
 /* Device power control. */
 ACPI_STATUS	acpi_pwr_wake_enable(ACPI_HANDLE consumer, int enable);
