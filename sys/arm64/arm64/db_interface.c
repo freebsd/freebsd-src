@@ -118,12 +118,25 @@ db_read_bytes(vm_offset_t addr, size_t size, char *data)
 	void *prev_jb;
 	const char *src;
 	int ret;
+	uint64_t tmp64;
+	uint32_t tmp32;
+	uint16_t tmp16;
 
 	prev_jb = kdb_jmpbuf(jb);
 	ret = setjmp(jb);
 
 	if (ret == 0) {
 		src = (const char *)addr;
+		if (size == 8 && (addr & 7) == 0) {
+			tmp64 = *((const int *)src);
+			src = (const char *)&tmp64;
+		} else if (size == 4 && (addr & 3) == 0) {
+			tmp32 = *((const int *)src);
+			src = (const char *)&tmp32;
+		} else if (size == 2 && (addr & 1) == 0) {
+			tmp16 = *((const short *)src);
+			src = (const char *)&tmp16;
+		}
 		while (size-- > 0)
 			*data++ = *src++;
 	}
@@ -142,14 +155,33 @@ db_write_bytes(vm_offset_t addr, size_t size, char *data)
 	void *prev_jb;
 	char *dst;
 	int ret;
+	uint64_t tmp64;
+	uint32_t tmp32;
+	uint16_t tmp16;
 
 	prev_jb = kdb_jmpbuf(jb);
 	ret = setjmp(jb);
 	if (ret == 0) {
-		dst = (char *)addr;
-		while (size-- > 0)
-			*dst++ = *data++;
-
+		if (size == 8 && (addr & 7) == 0) {
+			dst = (char *)&tmp64;
+			while (size-- > 0)
+				*dst++ = *data++;
+			*((uint64_t *)addr) = tmp64;
+		} else if (size == 4 && (addr & 3) == 0) {
+			dst = (char *)&tmp32;
+			while (size-- > 0)
+				*dst++ = *data++;
+			*((uint32_t *)addr) = tmp32;
+		} else if (size == 2 && (addr & 1) == 0) {
+			dst = (char *)&tmp16;
+			while (size-- > 0)
+				*dst++ = *data++;
+			*((uint32_t *)addr) = tmp16;
+		} else {
+			dst = (char *)addr;
+			while (size-- > 0)
+				*dst++ = *data++;
+		}
 		dsb(ish);
 
 		/* Clean D-cache and invalidate I-cache */
