@@ -54,11 +54,12 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_SYSCON);
 
-static uint32_t syscon_generic_read_4(struct syscon *syscon, bus_size_t offset);
-static int syscon_generic_write_4(struct syscon *syscon, bus_size_t offset,
-    uint32_t val);
-static int syscon_generic_modify_4(struct syscon *syscon, bus_size_t offset,
-    uint32_t clear_bits, uint32_t set_bits);
+static uint32_t syscon_generic_unlocked_read_4(struct syscon *syscon,
+    bus_size_t offset);
+static int syscon_generic_unlocked_write_4(struct syscon *syscon,
+    bus_size_t offset, uint32_t val);
+static int syscon_generic_unlocked_modify_4(struct syscon *syscon,
+    bus_size_t offset, uint32_t clear_bits, uint32_t set_bits);
 static int syscon_generic_detach(device_t dev);
 /*
  * Generic syscon driver (FDT)
@@ -77,9 +78,9 @@ static struct ofw_compat_data compat_data[] = {
 #define SYSCON_ASSERT_UNLOCKED(_sc)	mtx_assert(&(_sc)->mtx, MA_NOTOWNED);
 
 static syscon_method_t syscon_generic_methods[] = {
-	SYSCONMETHOD(syscon_read_4,	syscon_generic_read_4),
-	SYSCONMETHOD(syscon_write_4,	syscon_generic_write_4),
-	SYSCONMETHOD(syscon_modify_4,	syscon_generic_modify_4),
+	SYSCONMETHOD(syscon_unlocked_read_4,  syscon_generic_unlocked_read_4),
+	SYSCONMETHOD(syscon_unlocked_write_4, syscon_generic_unlocked_write_4),
+	SYSCONMETHOD(syscon_unlocked_modify_4, syscon_generic_unlocked_modify_4),
 
 	SYSCONMETHOD_END
 };
@@ -87,48 +88,60 @@ DEFINE_CLASS_1(syscon_generic, syscon_generic_class, syscon_generic_methods,
     0, syscon_class);
 
 static uint32_t
-syscon_generic_read_4(struct syscon *syscon, bus_size_t offset)
+syscon_generic_unlocked_read_4(struct syscon *syscon, bus_size_t offset)
 {
 	struct syscon_generic_softc *sc;
 	uint32_t val;
 
 	sc = device_get_softc(syscon->pdev);
-
-	SYSCON_LOCK(sc);
+	SYSCON_ASSERT_UNLOCKED(sc);
 	val = bus_read_4(sc->mem_res, offset);
-	SYSCON_UNLOCK(sc);
 	return (val);
 }
 
 static int
-syscon_generic_write_4(struct syscon *syscon, bus_size_t offset, uint32_t val)
+syscon_generic_unlocked_write_4(struct syscon *syscon, bus_size_t offset, uint32_t val)
 {
 	struct syscon_generic_softc *sc;
 
 	sc = device_get_softc(syscon->pdev);
-
-	SYSCON_LOCK(sc);
+	SYSCON_ASSERT_UNLOCKED(sc);
 	bus_write_4(sc->mem_res, offset, val);
-	SYSCON_UNLOCK(sc);
 	return (0);
 }
 
 static int
-syscon_generic_modify_4(struct syscon *syscon, bus_size_t offset,
+syscon_generic_unlocked_modify_4(struct syscon *syscon, bus_size_t offset,
     uint32_t clear_bits, uint32_t set_bits)
 {
 	struct syscon_generic_softc *sc;
 	uint32_t val;
 
 	sc = device_get_softc(syscon->pdev);
-
-	SYSCON_LOCK(sc);
+	SYSCON_ASSERT_UNLOCKED(sc);
 	val = bus_read_4(sc->mem_res, offset);
 	val &= ~clear_bits;
 	val |= set_bits;
 	bus_write_4(sc->mem_res, offset, val);
-	SYSCON_UNLOCK(sc);
 	return (0);
+}
+
+static void
+syscon_generic_lock(device_t dev)
+{
+	struct syscon_generic_softc *sc;
+
+	sc = device_get_softc(dev);
+	SYSCON_LOCK(sc);
+}
+
+static void
+syscon_generic_unlock(device_t dev)
+{
+	struct syscon_generic_softc *sc;
+
+	sc = device_get_softc(dev);
+	SYSCON_UNLOCK(sc);
 }
 
 static int
@@ -206,6 +219,9 @@ static device_method_t syscon_generic_dmethods[] = {
 	DEVMETHOD(device_probe,		syscon_generic_probe),
 	DEVMETHOD(device_attach,	syscon_generic_attach),
 	DEVMETHOD(device_detach,	syscon_generic_detach),
+
+	DEVMETHOD(syscon_device_lock,	syscon_generic_lock),
+	DEVMETHOD(syscon_device_unlock,	syscon_generic_unlock),
 
 	DEVMETHOD_END
 };

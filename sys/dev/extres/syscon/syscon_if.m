@@ -35,6 +35,36 @@ HEADER {
 	int syscon_get_handle_default(device_t dev, struct syscon **syscon);
 }
 
+CODE {
+	#include <sys/systm.h>
+	#include <sys/bus.h>
+
+	int
+	syscon_get_handle_default(device_t dev, struct syscon **syscon)
+	{
+		device_t parent;
+
+		parent = device_get_parent(dev);
+		if (parent == NULL)
+			return (ENODEV);
+		return (SYSCON_GET_HANDLE(parent, syscon));
+	}
+
+	static void
+	syscon_device_lock_default(device_t dev)
+	{
+
+		panic("syscon_device_lock is not implemented");
+	};
+
+	static void
+	syscon_device_unlock_default(device_t dev)
+	{
+
+		panic("syscon_device_unlock is not implemented");
+	};
+}
+
 METHOD int init {
 	struct syscon	*syscon;
 };
@@ -63,6 +93,38 @@ METHOD int modify_4 {
 	uint32_t	clear_bits;
 	uint32_t	set_bits;
 };
+
+/**
+ * Unlocked verion of access function
+ */
+METHOD uint32_t unlocked_read_4 {
+	struct syscon	*syscon;
+	bus_size_t	offset;
+};
+
+METHOD int unlocked_write_4 {
+	struct syscon	*syscon;
+	bus_size_t	offset;
+	uint32_t	val;
+};
+
+METHOD int unlocked_modify_4 {
+	struct syscon	*syscon;
+	bus_size_t	offset;
+	uint32_t	clear_bits;
+	uint32_t	set_bits;
+};
+
+/**
+* Locking for exclusive access to underlying device
+*/
+METHOD void device_lock {
+	device_t	dev;
+} DEFAULT syscon_device_lock_default;
+
+METHOD void device_unlock {
+	device_t	dev;
+} DEFAULT syscon_device_unlock_default;
 
 /**
  * Get syscon handle from parent driver
