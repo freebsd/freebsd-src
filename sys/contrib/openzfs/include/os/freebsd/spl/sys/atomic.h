@@ -188,6 +188,8 @@ atomic_cas_ptr(volatile void *target, void *cmp,  void *newval)
  */
 #undef atomic_add_64
 #define	atomic_add_64(ptr, val) *(ptr) += val
+#undef atomic_sub_64
+#define	atomic_sub_64(ptr, val) *(ptr) -= val
 #endif /* !_STANDALONE */
 
 #endif	/* !_OPENSOLARIS_SYS_ATOMIC_H_ */
