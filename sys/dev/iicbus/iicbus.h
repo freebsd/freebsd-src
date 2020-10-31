@@ -77,6 +77,12 @@ IICBUS_ACCESSOR(addr,		ADDR,		uint32_t)
 #define	IICBUS_FDT_PNP_INFO(t)
 #endif
 
+#ifdef DEV_ACPI
+#define	IICBUS_ACPI_PNP_INFO(t)	ACPICOMPAT_PNP_INFO(t, iicbus)
+#else
+#define	IICBUS_ACPI_PNP_INFO(t)
+#endif
+
 int  iicbus_generic_intr(device_t dev, int event, char *buf);
 void iicbus_init_frequency(device_t dev, u_int bus_freq);
 
