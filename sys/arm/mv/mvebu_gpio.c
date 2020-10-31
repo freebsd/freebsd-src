@@ -864,6 +864,6 @@ static device_method_t mvebu_gpio_methods[] = {
 static devclass_t mvebu_gpio_devclass;
 static DEFINE_CLASS_0(gpio, mvebu_gpio_driver, mvebu_gpio_methods,
     sizeof(struct mvebu_gpio_softc));
-EARLY_DRIVER_MODULE(gpio, simplebus, mvebu_gpio_driver,
+EARLY_DRIVER_MODULE(mvebu_gpio, simplebus, mvebu_gpio_driver,
      mvebu_gpio_devclass, NULL, NULL,
      BUS_PASS_TIMER + BUS_PASS_ORDER_LAST);
