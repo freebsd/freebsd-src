@@ -232,6 +232,20 @@ extern int	acpi_quirks;
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
 
 /*
+ * Plug and play information for device matching.  Matching table format
+ * is compatible with ids parameter of ACPI_ID_PROBE bus method.
+ *
+ * XXX: While ACPI_ID_PROBE matches against _HID and all _CIDs, current
+ *      acpi_pnpinfo_str() exports only _HID and first _CID.  That means second
+ *      and further _CIDs should be added to both acpi_pnpinfo_str() and
+ *      ACPICOMPAT_PNP_INFO if device matching against them is required.
+ */
+#define	ACPICOMPAT_PNP_INFO(t, busname)					\
+	MODULE_PNP_INFO("Z:_HID", busname, t##hid, t, nitems(t)-1);	\
+	MODULE_PNP_INFO("Z:_CID", busname, t##cid, t, nitems(t)-1);
+#define	ACPI_PNP_INFO(t)	ACPICOMPAT_PNP_INFO(t, acpi)
+
+/*
  * Note that the low ivar values are reserved to provide
  * interface compatibility with ISA drivers which can also
  * attach to ACPI.
