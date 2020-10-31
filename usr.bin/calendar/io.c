@@ -448,7 +448,8 @@ cal_parse(FILE *in, FILE *out)
 		if (count < 0) {
 			/* Show error status based on return value */
 			if (debug)
-				fprintf(stderr, "Ignored: %s\n", buf);
+				fprintf(stderr, "Ignored: \"%s\" in %s/%s/%s line %d\n",
+				    buf, cal_home, cal_dir, cal_file, cal_line);
 			if (count == -1)
 				continue;
 			count = -count + 1;
@@ -468,7 +469,8 @@ cal_parse(FILE *in, FILE *out)
 			(void)strftime(dbuf, sizeof(dbuf),
 			    d_first ? "%e %b" : "%b %e", &tm);
 			if (debug)
-				fprintf(stderr, "got %s\n", pp);
+				fprintf(stderr, "got \"%s\" in  %s/%s/%s line %d\n",
+				    pp, cal_home, cal_dir, cal_file, cal_line);
 			events[i] = event_add(year[i], month[i], day[i], dbuf,
 			    ((flags &= F_VARIABLE) != 0) ? 1 : 0, pp,
 			    extradata[i]);
