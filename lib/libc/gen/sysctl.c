@@ -79,7 +79,7 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 
 	switch (name[1]) {
 	case USER_CS_PATH:
-		if (oldp == NULL && orig_oldlen < sizeof(_PATH_STDPATH)) {
+		if (oldp != NULL && orig_oldlen < sizeof(_PATH_STDPATH)) {
 			errno = ENOMEM;
 			return (-1);
 		}
@@ -88,7 +88,7 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 			memmove(oldp, _PATH_STDPATH, sizeof(_PATH_STDPATH));
 		return (0);
 	case USER_LOCALBASE:
-		if (oldp == NULL && orig_oldlen < sizeof(_PATH_LOCALBASE)) {
+		if (oldp != NULL && orig_oldlen < sizeof(_PATH_LOCALBASE)) {
 			errno = ENOMEM;
 			return (-1);
 		}
