@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/eventhandler.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -115,6 +116,7 @@ acpi_acad_get_status(void *context)
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
 	    "%s Line\n", newstatus ? "On" : "Off");
 	acpi_UserNotify("ACAD", h, newstatus);
+	EVENTHANDLER_INVOKE(acpi_acad_event, newstatus);
     } else
 	ACPI_SERIAL_END(acad);
 }
