@@ -1,1 +1,2 @@
 # $FreeBSD$
+CFLAGS+=	-mfpu=none
