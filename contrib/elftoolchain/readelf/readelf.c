@@ -6909,8 +6909,8 @@ get_symbol_value(struct readelf *re, int symtab, int i)
  * Returns true if sucessful, false otherwise.
  */
 static bool decompress_section(struct section *s,
-    unsigned char *compressed_data_buffer, uint64_t compressed_size,
-    unsigned char **ret_buf, uint64_t *ret_sz)
+    unsigned char *compressed_data_buffer, size_t compressed_size,
+    unsigned char **ret_buf, size_t *ret_sz)
 {
 	GElf_Shdr sh;
 
