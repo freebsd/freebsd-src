@@ -29,11 +29,15 @@
 #ifndef DEV_SYSCON_GENERIC_H
 #define DEV_SYSCON_GENERIC_H
 
+#include <dev/fdt/simplebus.h>
+
 struct syscon_generic_softc {
+	struct simplebus_softc	simplebus;
 	device_t		dev;
 	struct syscon		*syscon;
 	struct resource		*mem_res;
 	struct mtx		mtx;
+	bool			simplebus_attached;
 };
 
 DECLARE_CLASS(syscon_generic_driver);

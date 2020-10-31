@@ -116,6 +116,16 @@ simplebus_probe(device_t dev)
  
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
+	/*
+	 * XXX We should attach only to pure' compatible = "simple-bus"',
+	 * without any other compatible string.
+	 * For now, filter only know cases:
+	 * "syscon", "simple-bus"; is handled by fdt/syscon driver
+	 * "simple-mfd", "simple-bus"; is handled by fdt/simple-mfd driver
+	 */
+	if (ofw_bus_is_compatible(dev, "syscon") ||
+	    ofw_bus_is_compatible(dev, "simple-mfd"))
+		return (ENXIO);
 
 	/*
 	 * FDT data puts a "simple-bus" compatible string on many things that
