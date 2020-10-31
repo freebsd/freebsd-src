@@ -68,12 +68,12 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 	if (retval || name[0] != CTL_USER)
 		return (retval);
 
-	if (newp != NULL) {
-		errno = EPERM;
-		return (-1);
-	}
 	if (namelen != 2) {
 		errno = EINVAL;
+		return (-1);
+	}
+	if (newp != NULL && name[1] != USER_LOCALBASE) {
+		errno = EPERM;
 		return (-1);
 	}
 
@@ -88,13 +88,21 @@ sysctl(const int *name, u_int namelen, void *oldp, size_t *oldlenp,
 			memmove(oldp, _PATH_STDPATH, sizeof(_PATH_STDPATH));
 		return (0);
 	case USER_LOCALBASE:
-		if (oldp != NULL && orig_oldlen < sizeof(_PATH_LOCALBASE)) {
-			errno = ENOMEM;
-			return (-1);
+		if (oldlenp != NULL) {
+			if (oldp == NULL) {
+				if (*oldlenp == 1)
+					*oldlenp = sizeof(_PATH_LOCALBASE);
+			} else {
+				if (*oldlenp != 1)
+					return (retval);
+				if (orig_oldlen < sizeof(_PATH_LOCALBASE)) {
+					errno = ENOMEM;
+					return (-1);
+				}
+				*oldlenp = sizeof(_PATH_LOCALBASE);
+				memmove(oldp, _PATH_LOCALBASE, sizeof(_PATH_LOCALBASE));
+			}
 		}
-		*oldlenp = sizeof(_PATH_LOCALBASE);
-		if (oldp != NULL)
-			memmove(oldp, _PATH_LOCALBASE, sizeof(_PATH_LOCALBASE));
 		return (0);
 	}
 

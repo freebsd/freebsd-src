@@ -652,8 +652,11 @@ SYSCTL_INT(_user, USER_STREAM_MAX, stream_max, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, 0, "Min Maximum number of streams a process may have open at one time");
 SYSCTL_INT(_user, USER_TZNAME_MAX, tzname_max, CTLFLAG_RD,
     SYSCTL_NULL_INT_PTR, 0, "Min Maximum number of types supported for timezone names");
-SYSCTL_STRING(_user, USER_LOCALBASE, localbase, CTLFLAG_RD,
-    "", 0, "Prefix used to install and locate add-on packages");
+
+static char localbase[MAXPATHLEN] = "";
+
+SYSCTL_STRING(_user, USER_LOCALBASE, localbase, CTLFLAG_RWTUN,
+    localbase, sizeof(localbase), "Prefix used to install and locate add-on packages");
 
 #include <sys/vnode.h>
 SYSCTL_INT(_debug_sizeof, OID_AUTO, vnode, CTLFLAG_RD,
