@@ -47,6 +47,8 @@ struct simplebus_softc {
 
 	struct simplebus_range *ranges;
 	int nranges;
+#define	SB_FLAG_NO_RANGES	(1 << 0) /* Bus doesn't have ranges property */
+	int flags;
 
 	pcell_t acells, scells;
 };
@@ -63,4 +65,9 @@ struct simplebus_devinfo *simplebus_setup_dinfo(device_t dev, phandle_t node,
     struct simplebus_devinfo *di);
 int simplebus_fill_ranges(phandle_t node,
     struct simplebus_softc *sc);
+
+int simplebus_attach(device_t dev);
+int simplebus_attach_impl(device_t dev);
+int simplebus_detach(device_t dev);
+
 #endif	/* _FDT_SIMPLEBUS_H */
