@@ -75,6 +75,10 @@ static const char *calendarHomes[] = {".calendar", _PATH_INCLUDE_LOCAL, _PATH_IN
 static const char *calendarNoMail = "nomail";/* don't sent mail if file exist */
 
 static char path[MAXPATHLEN];
+static const char *cal_home;
+static const char *cal_dir;
+static const char *cal_file;
+static int cal_line;
 
 struct fixs neaster, npaskha, ncny, nfullmoon, nnewmoon;
 struct fixs nmarequinox, nsepequinox, njunsolstice, ndecsolstice;
@@ -118,7 +122,7 @@ cal_fopen(const char *file)
 	}
 
 	if (chdir(home) != 0) {
-		warnx("Cannot enter home directory");
+		warnx("Cannot enter home directory \"%s\"", home);
 		return (NULL);
 	}
 
@@ -126,8 +130,12 @@ cal_fopen(const char *file)
 		if (chdir(calendarHomes[i]) != 0)
 			continue;
 
-		if ((fp = fopen(file, "r")) != NULL)
+		if ((fp = fopen(file, "r")) != NULL) {
+			cal_home = home;
+			cal_dir = calendarHomes[i];
+			cal_file = file;
 			return (fp);
+		}
 	}
 
 	warnx("can't open calendar file \"%s\"", file);
@@ -139,10 +147,19 @@ cal_fopen(const char *file)
 	return (NULL);
 }
 
+#define	WARN0(format)		   \
+	warnx(format " in %s/%s/%s line %d", cal_home, cal_dir, cal_file, cal_line)
+#define	WARN1(format, arg1)		   \
+	warnx(format " in %s/%s/%s line %d", arg1, cal_home, cal_dir, cal_file, cal_line)
+
 static int
 token(char *line, FILE *out, int *skip)
 {
 	char *walk, c, a;
+	const char *this_cal_home;
+	const char *this_cal_dir;
+	const char *this_cal_file;
+	int this_cal_line;
 
 	if (strncmp(line, "endif", 5) == 0) {
 		if (*skip > 0)
@@ -155,7 +172,7 @@ token(char *line, FILE *out, int *skip)
 		trimlr(&walk);
 
 		if (*walk == '\0') {
-			warnx("Expecting arguments after #ifdef");
+			WARN0("Expecting arguments after #ifdef");
 			return (T_ERR);
 		}
 
@@ -170,7 +187,7 @@ token(char *line, FILE *out, int *skip)
 		trimlr(&walk);
 
 		if (*walk == '\0') {
-			warnx("Expecting arguments after #ifndef");
+			WARN0("Expecting arguments after #ifndef");
 			return (T_ERR);
 		}
 
@@ -185,7 +202,7 @@ token(char *line, FILE *out, int *skip)
 		trimlr(&walk);
 
 		if (*walk != '\0') {
-			warnx("Expecting no arguments after #else");
+			WARN0("Expecting no arguments after #else");
 			return (T_ERR);
 		}
 
@@ -206,12 +223,12 @@ token(char *line, FILE *out, int *skip)
 		trimlr(&walk);
 
 		if (*walk == '\0') {
-			warnx("Expecting arguments after #include");
+			WARN0("Expecting arguments after #include");
 			return (T_ERR);
 		}
 
 		if (*walk != '<' && *walk != '\"') {
-			warnx("Excecting '<' or '\"' after #include");
+			WARN0("Excecting '<' or '\"' after #include");
 			return (T_ERR);
 		}
 
@@ -220,13 +237,21 @@ token(char *line, FILE *out, int *skip)
 		c = walk[strlen(walk) - 1];
 
 		if (a != c) {
-			warnx("Unterminated include expecting '%c'", a);
+			WARN1("Unterminated include expecting '%c'", a);
 			return (T_ERR);
 		}
 		walk[strlen(walk) - 1] = '\0';
 
+		this_cal_home = cal_home;
+		this_cal_dir = cal_dir;
+		this_cal_file = cal_file;
+		this_cal_line = cal_line;
 		if (cal_parse(cal_fopen(walk), out))
 			return (T_ERR);
+		cal_home = this_cal_home;
+		cal_dir = this_cal_dir;
+		cal_file = this_cal_file;
+		cal_line = this_cal_line;
 
 		return (T_OK);
 	}
@@ -238,7 +263,7 @@ token(char *line, FILE *out, int *skip)
 		trimlr(&walk);
 
 		if (*walk == '\0') {
-			warnx("Expecting arguments after #define");
+			WARN0("Expecting arguments after #define");
 			return (T_ERR);
 		}
 
@@ -290,7 +315,9 @@ cal_parse(FILE *in, FILE *out)
 	if (in == NULL)
 		return (1);
 
+	cal_line = 0;
 	while ((linelen = getline(&line, &linecap, in)) > 0) {
+		cal_line++;
 		buf = line;
 		if (buf[linelen - 1] == '\n')
 			buf[--linelen] = '\0';
