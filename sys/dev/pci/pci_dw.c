@@ -156,7 +156,7 @@ pci_dw_check_dev(struct pci_dw_softc *sc, u_int bus, u_int slot, u_int func,
 	int rv;
 
 	if (bus < sc->bus_start || bus > sc->bus_end || slot > PCI_SLOTMAX ||
-	    func > PCI_FUNCMAX || reg > PCI_REGMAX)
+	    func > PCI_FUNCMAX || reg > PCIE_REGMAX)
 		return (false);
 
 	/* link is needed for access to all non-root busses */
@@ -234,7 +234,7 @@ pci_dw_setup_hw(struct pci_dw_softc *sc)
 		return (rv);
 
 	/* If we have enouht viewports ..*/
-	if (sc->num_viewport >= 3) {
+	if (sc->num_viewport >= 3 && sc->io_range.size != 0) {
 		/* Setup outbound I/O window */
 		rv = pci_dw_map_out_atu(sc, 0, IATU_CTRL1_TYPE_MEM,
 		    sc->io_range.host, sc->io_range.pci, sc->io_range.size);
@@ -345,7 +345,7 @@ pci_dw_decode_ranges(struct pci_dw_softc *sc, struct ofw_pci_range *ranges,
 			}
 		}
 	}
-	if ((sc->io_range.size == 0) || (sc->mem_range.size == 0)) {
+	if (sc->mem_range.size == 0) {
 		device_printf(sc->dev,
 		    " Not all required ranges are found in DT\n");
 		return (ENXIO);
@@ -373,10 +373,6 @@ pci_dw_read_config(device_t dev, u_int bus, u_int slot,
 	sc = device_get_softc(dev);
 
 	if (!pci_dw_check_dev(sc, bus, slot, func, reg))
-		return (0xFFFFFFFFU);
-
-	if ((slot > PCI_SLOTMAX) || (func > PCI_FUNCMAX) ||
-	    (reg > PCI_REGMAX))
 		return (0xFFFFFFFFU);
 
 	if (bus == sc->root_bus) {
@@ -424,10 +420,6 @@ pci_dw_write_config(device_t dev, u_int bus, u_int slot,
 
 	sc = device_get_softc(dev);
 	if (!pci_dw_check_dev(sc, bus, slot, func, reg))
-		return;
-
-	if ((slot > PCI_SLOTMAX) || (func > PCI_FUNCMAX) ||
-	    (reg > PCI_REGMAX))
 		return;
 
 	if (bus == sc->root_bus) {
