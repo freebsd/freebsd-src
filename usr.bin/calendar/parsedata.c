@@ -312,10 +312,7 @@ allfine:
 
 }
 
-void
-remember(int *rememberindex, int *y, int *m, int *d, char **ed, int yy, int mm,
-    int dd, char *extra);
-void
+static void
 remember(int *rememberindex, int *y, int *m, int *d, char **ed, int yy, int mm,
     int dd, char *extra)
 {
