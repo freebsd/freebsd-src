@@ -54,7 +54,6 @@ static struct conf *conf;
 static struct target *target;
 
 extern void	yyerror(const char *);
-extern int	yylex(void);
 extern void	yyrestart(FILE *);
 
 %}
@@ -359,7 +358,7 @@ pcp:	PCP EQUALS STR
 			free($3);
 			return(1);
 		}
-		if (!((tmp >=0) && (tmp <= 7))) {
+		if (tmp > 7) {
 			yyerror("invalid pcp value");
 			return(1);
 		}
