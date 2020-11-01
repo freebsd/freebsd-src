@@ -102,8 +102,7 @@ ifmedia_removeall(struct ifmedia *ifm)
 {
 	struct ifmedia_entry *entry;
 
-	for (entry = LIST_FIRST(&ifm->ifm_list); entry;
-	     entry = LIST_FIRST(&ifm->ifm_list)) {
+	while ((entry = LIST_FIRST(&ifm->ifm_list)) != NULL) {
 		LIST_REMOVE(entry, ifm_list);
 		free(entry, M_IFADDR);
 	}
