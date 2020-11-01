@@ -54,7 +54,6 @@ static struct target *target = NULL;
 static struct lun *lun = NULL;
 
 extern void	yyerror(const char *);
-extern int	yylex(void);
 extern void	yyrestart(FILE *);
 
 %}
@@ -522,7 +521,7 @@ portal_group_pcp:	PCP STR
 			free($2);
 			return (1);
 		}
-		if (!((tmp >= 0) && (tmp <= 7))) {
+		if (tmp > 7) {
 			yyerror("invalid pcp value");
 			free($2);
 			return (1);
