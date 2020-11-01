@@ -26,14 +26,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20101030:
+20201030:
 	The internal pre-processor in the calendar(1) program has been
 	extended to support more C pre-processor commands (e.g. #ifdef, #else,
 	and #undef) and to detect unbalanced conditional statements.
 	Error messages have been extended to include the filename and line
 	number if processing stops to help fixing malformed data files.
 
-20101026:
+20201026:
 	All the data files for the calendar(1) program, except calendar.freebsd,
 	have been moved to the deskutils/calendar-data port, much like the
 	jewish calendar entries were moved to deskutils/hebcal years ago. After
