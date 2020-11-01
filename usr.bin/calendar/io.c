@@ -147,10 +147,22 @@ cal_fopen(const char *file)
 	return (NULL);
 }
 
+static char*
+cal_path(void)
+{
+	static char buffer[MAXPATHLEN + 10];
+
+	if (cal_dir[0] == '/')
+		snprintf(buffer, sizeof(buffer), "%s/%s", cal_dir, cal_file);
+	else
+		snprintf(buffer, sizeof(buffer), "%s/%s/%s", cal_home, cal_dir, cal_file);
+	return (buffer);
+}
+
 #define	WARN0(format)		   \
-	warnx(format " in %s/%s/%s line %d", cal_home, cal_dir, cal_file, cal_line)
+	warnx(format " in %s line %d", cal_path(), cal_line)
 #define	WARN1(format, arg1)		   \
-	warnx(format " in %s/%s/%s line %d", arg1, cal_home, cal_dir, cal_file, cal_line)
+	warnx(format " in %s line %d", arg1, cal_path(), cal_line)
 
 static int
 token(char *line, FILE *out, int *skip, int *unskip)
