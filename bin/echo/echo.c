@@ -104,7 +104,7 @@ main(int argc, char *argv[])
 		len = strlen(argv[0]);
 
 		/*
-		 * If the next argument is NULL then this is this
+		 * If the next argument is NULL then this is
 		 * the last argument, therefore we need to check
 		 * for a trailing \c.
 		 */
