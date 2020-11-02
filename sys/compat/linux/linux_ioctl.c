@@ -275,8 +275,8 @@ linux_ioctl_hdio(struct thread *td, struct linux_ioctl_args *args)
 	default:
 		/* XXX */
 		linux_msg(td,
-			"ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
-			args->fd, (int)(args->cmd & 0xffff),
+			"%s fd=%d, cmd=0x%x ('%c',%d) is not implemented",
+			__func__, args->fd, args->cmd,
 			(int)(args->cmd & 0xff00) >> 8,
 			(int)(args->cmd & 0xff));
 		break;
@@ -3670,8 +3670,8 @@ linux_ioctl_fallback(struct thread *td, struct linux_ioctl_args *args)
 		return (ENOTSUP);
 
 	default:
-		linux_msg(td, "ioctl fd=%d, cmd=0x%x ('%c',%d) is not implemented",
-		    args->fd, (int)(args->cmd & 0xffff),
+		linux_msg(td, "%s fd=%d, cmd=0x%x ('%c',%d) is not implemented",
+		    __func__, args->fd, args->cmd,
 		    (int)(args->cmd & 0xff00) >> 8, (int)(args->cmd & 0xff));
 		break;
 	}
