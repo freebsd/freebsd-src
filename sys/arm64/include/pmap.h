@@ -187,6 +187,12 @@ bool	pmap_get_tables(pmap_t, vm_offset_t, pd_entry_t **, pd_entry_t **,
 
 int	pmap_fault(pmap_t, uint64_t, uint64_t);
 
+/* System MMU (SMMU). */
+int pmap_senter(pmap_t pmap, vm_offset_t va, vm_paddr_t pa, vm_prot_t prot,
+    u_int flags);
+int pmap_sremove(pmap_t pmap, vm_offset_t va);
+void pmap_sremove_pages(pmap_t pmap);
+
 struct pcb *pmap_switch(struct thread *, struct thread *);
 
 extern void (*pmap_clean_stage2_tlbi)(void);
