@@ -23,6 +23,9 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR=	 vmci vmxnet3
+SUBDIR=	 vmxnet3
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
+SUBDIR+= vmci
+.endif
 
 .include <bsd.subdir.mk>

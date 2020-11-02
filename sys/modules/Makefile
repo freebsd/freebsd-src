@@ -527,6 +527,7 @@ _mthca=		mthca
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
+_vmware=	vmware
 .endif
 
 .if ${MK_NAND} != "no" || defined(ALL_MODULES)
@@ -668,7 +669,6 @@ _scsi_low=	scsi_low
 _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
-_vmware=	vmware
 _wbwd=		wbwd
 _wi=		wi
 _xe=		xe
