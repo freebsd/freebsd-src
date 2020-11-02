@@ -937,7 +937,8 @@ SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_FIRST, sysctl_register_all, NULL);
  * {CTL_SYSCTL, CTL_SYSCTL_DEBUG}		printf the entire MIB-tree.
  * {CTL_SYSCTL, CTL_SYSCTL_NAME, ...}		return the name of the "..."
  *						OID.
- * {CTL_SYSCTL, CTL_SYSCTL_NEXT, ...}		return the next OID.
+ * {CTL_SYSCTL, CTL_SYSCTL_NEXT, ...}		return the next OID, honoring
+ *						CTLFLAG_SKIP.
  * {CTL_SYSCTL, CTL_SYSCTL_NAME2OID}		return the OID of the name in
  *						"new"
  * {CTL_SYSCTL, CTL_SYSCTL_OIDFMT, ...}		return the kind & format info
@@ -946,6 +947,8 @@ SYSINIT(sysctl, SI_SUB_KMEM, SI_ORDER_FIRST, sysctl_register_all, NULL);
  *						"..." OID.
  * {CTL_SYSCTL, CTL_SYSCTL_OIDLABEL, ...}	return the aggregation label of
  *						the "..." OID.
+ * {CTL_SYSCTL, CTL_SYSCTL_NEXTNOSKIP, ...}	return the next OID, ignoring
+ *						CTLFLAG_SKIP.
  */
 
 #ifdef SYSCTL_DEBUG
@@ -1086,9 +1089,13 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 static SYSCTL_NODE(_sysctl, CTL_SYSCTL_NAME, name, CTLFLAG_RD |
     CTLFLAG_MPSAFE | CTLFLAG_CAPRD, sysctl_sysctl_name, "");
 
+/*
+ * Walk the sysctl subtree at lsp until we find the given name,
+ * and return the next name in order by oid_number.
+ */
 static int
 sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
-	int *next, int *len, int level, struct sysctl_oid **oidpp)
+    int *next, int *len, int level, bool honor_skip)
 {
 	struct sysctl_oid *oidp;
 
@@ -1096,54 +1103,95 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 	*len = level;
 	SLIST_FOREACH(oidp, lsp, oid_link) {
 		*next = oidp->oid_number;
-		*oidpp = oidp;
 
-		if ((oidp->oid_kind & (CTLFLAG_SKIP | CTLFLAG_DORMANT)) != 0)
+		if ((oidp->oid_kind & CTLFLAG_DORMANT) != 0)
 			continue;
 
-		if (!namelen) {
+		if (honor_skip && (oidp->oid_kind & CTLFLAG_SKIP) != 0)
+			continue;
+
+		if (namelen == 0) {
+			/*
+			 * We have reached a node with a full name match and are
+			 * looking for the next oid in its children.
+			 *
+			 * For CTL_SYSCTL_NEXTNOSKIP we are done.
+			 *
+			 * For CTL_SYSCTL_NEXT we skip CTLTYPE_NODE (unless it
+			 * has a handler) and move on to the children.
+			 */
+			if (!honor_skip)
+				return (0);
 			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
 				return (0);
 			if (oidp->oid_handler) 
-				/* We really should call the handler here...*/
 				return (0);
 			lsp = SYSCTL_CHILDREN(oidp);
-			if (!sysctl_sysctl_next_ls(lsp, 0, 0, next+1, 
-				len, level+1, oidpp))
+			if (!sysctl_sysctl_next_ls(lsp, NULL, 0, next + 1, len,
+			    level + 1, honor_skip))
 				return (0);
+			/*
+			 * There were no useable children in this node.
+			 * Continue searching for the next oid at this level.
+			 */
 			goto emptynode;
 		}
 
+		/*
+		 * No match yet. Continue seeking the given name.
+		 *
+		 * We are iterating in order by oid_number, so skip oids lower
+		 * than the one we are looking for.
+		 *
+		 * When the current oid_number is higher than the one we seek,
+		 * that means we have reached the next oid in the sequence and
+		 * should return it.
+		 *
+		 * If the oid_number matches the name at this level then we
+		 * have to find a node to continue searching at the next level.
+		 */
 		if (oidp->oid_number < *name)
 			continue;
-
 		if (oidp->oid_number > *name) {
+			/*
+			 * We have reached the next oid.
+			 *
+			 * For CTL_SYSCTL_NEXTNOSKIP we are done.
+			 *
+			 * For CTL_SYSCTL_NEXT we skip CTLTYPE_NODE (unless it
+			 * has a handler) and move on to the children.
+			 */
+			if (!honor_skip)
+				return (0);
 			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
 				return (0);
 			if (oidp->oid_handler)
 				return (0);
 			lsp = SYSCTL_CHILDREN(oidp);
-			if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, 
-				next+1, len, level+1, oidpp))
+			if (!sysctl_sysctl_next_ls(lsp, name + 1, namelen - 1,
+			    next + 1, len, level + 1, honor_skip))
 				return (0);
 			goto next;
 		}
 		if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
 			continue;
-
 		if (oidp->oid_handler)
 			continue;
-
 		lsp = SYSCTL_CHILDREN(oidp);
-		if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, next+1, 
-			len, level+1, oidpp))
+		if (!sysctl_sysctl_next_ls(lsp, name + 1, namelen - 1,
+		    next + 1, len, level + 1, honor_skip))
 			return (0);
 	next:
+		/*
+		 * There were no useable children in this node.
+		 * Continue searching for the next oid at the root level.
+		 */
 		namelen = 1;
 	emptynode:
+		/* Reset len in case a failed recursive call changed it. */
 		*len = level;
 	}
-	return (1);
+	return (ENOENT);
 }
 
 static int
@@ -1151,18 +1199,18 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int *) arg1;
 	u_int namelen = arg2;
-	int i, j, error;
-	struct sysctl_oid *oid;
+	int len, error;
 	struct sysctl_oid_list *lsp = &sysctl__children;
 	struct rm_priotracker tracker;
-	int newoid[CTL_MAXNAME];
+	int next[CTL_MAXNAME];
 
 	SYSCTL_RLOCK(&tracker);
-	i = sysctl_sysctl_next_ls(lsp, name, namelen, newoid, &j, 1, &oid);
+	error = sysctl_sysctl_next_ls(lsp, name, namelen, next, &len, 1,
+	    oidp->oid_number == CTL_SYSCTL_NEXT);
 	SYSCTL_RUNLOCK(&tracker);
-	if (i)
-		return (ENOENT);
-	error = SYSCTL_OUT(req, newoid, j * sizeof (int));
+	if (error)
+		return (error);
+	error = SYSCTL_OUT(req, next, len * sizeof (int));
 	return (error);
 }
 
@@ -1171,6 +1219,9 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
  * capability mode.
  */
 static SYSCTL_NODE(_sysctl, CTL_SYSCTL_NEXT, next, CTLFLAG_RD |
+    CTLFLAG_MPSAFE | CTLFLAG_CAPRD, sysctl_sysctl_next, "");
+
+static SYSCTL_NODE(_sysctl, CTL_SYSCTL_NEXTNOSKIP, nextnoskip, CTLFLAG_RD |
     CTLFLAG_MPSAFE | CTLFLAG_CAPRD, sysctl_sysctl_next, "");
 
 static int
