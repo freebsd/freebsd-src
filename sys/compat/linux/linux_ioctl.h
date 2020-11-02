@@ -747,8 +747,8 @@
 #define	FBSD_LUSB_GET_POWER_USAGE	0xffdd
 #define	FBSD_LUSB_DEVICESTATS		0xffdc
 
-#define	FBSD_LUSB_MAX			0xffff
-#define	FBSD_LUSB_MIN			0xffdc
+#define	LINUX_IOCTL_FBSD_LUSB_MAX	0xffff
+#define	LINUX_IOCTL_FBSD_LUSB_MIN	0xffdc
 
 /*
  * Linux btrfs clone operation
@@ -767,8 +767,8 @@
 /*
  * kcov(4) shims
  */
-#define	LINUX_KCOV_MIN			0x6300
-#define	LINUX_KCOV_MAX			0x63ff
+#define	LINUX_IOCTL_KCOV_MIN		0x6300
+#define	LINUX_IOCTL_KCOV_MAX		0x63ff
 #define	LINUX_KCOV_INIT_TRACE		0x6301
 #define	LINUX_KCOV_ENABLE		0x6364
 #define	LINUX_KCOV_DISABLE		0x6365
