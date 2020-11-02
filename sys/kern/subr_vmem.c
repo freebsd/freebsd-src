@@ -359,6 +359,24 @@ bt_free(vmem_t *vm, bt_t *bt)
 }
 
 /*
+ * Hide MAXALLOC tags before dropping the arena lock to ensure that a
+ * concurrent allocation attempt does not grab them.
+ */
+static void
+bt_save(vmem_t *vm)
+{
+	KASSERT(vm->vm_nfreetags >= BT_MAXALLOC,
+	    ("%s: insufficient free tags %d", __func__, vm->vm_nfreetags));
+	vm->vm_nfreetags -= BT_MAXALLOC;
+}
+
+static void
+bt_restore(vmem_t *vm)
+{
+	vm->vm_nfreetags += BT_MAXALLOC;
+}
+
+/*
  * freelist[0] ... [1, 1]
  * freelist[1] ... [2, 2]
  *  :
@@ -886,16 +904,11 @@ vmem_import(vmem_t *vm, vmem_size_t size, vmem_size_t align, int flags)
 	if (vm->vm_limit != 0 && vm->vm_limit < vm->vm_size + size)
 		return (ENOMEM);
 
-	/*
-	 * Hide MAXALLOC tags so we're guaranteed to be able to add this
-	 * span and the tag we want to allocate from it.
-	 */
-	MPASS(vm->vm_nfreetags >= BT_MAXALLOC);
-	vm->vm_nfreetags -= BT_MAXALLOC;
+	bt_save(vm);
 	VMEM_UNLOCK(vm);
 	error = (vm->vm_importfn)(vm->vm_arg, size, flags, &addr);
 	VMEM_LOCK(vm);
-	vm->vm_nfreetags += BT_MAXALLOC;
+	bt_restore(vm);
 	if (error)
 		return (ENOMEM);
 
@@ -1023,19 +1036,23 @@ vmem_try_fetch(vmem_t *vm, const vmem_size_t size, vmem_size_t align, int flags)
 	 */
 	if (vm->vm_qcache_max != 0 || vm->vm_reclaimfn != NULL) {
 		avail = vm->vm_size - vm->vm_inuse;
+		bt_save(vm);
 		VMEM_UNLOCK(vm);
 		if (vm->vm_qcache_max != 0)
 			qc_drain(vm);
 		if (vm->vm_reclaimfn != NULL)
 			vm->vm_reclaimfn(vm, flags);
 		VMEM_LOCK(vm);
+		bt_restore(vm);
 		/* If we were successful retry even NOWAIT. */
 		if (vm->vm_size - vm->vm_inuse > avail)
 			return (1);
 	}
 	if ((flags & M_NOWAIT) != 0)
 		return (0);
+	bt_save(vm);
 	VMEM_CONDVAR_WAIT(vm);
+	bt_restore(vm);
 	return (1);
 }
 
@@ -1083,13 +1100,14 @@ vmem_xalloc_nextfit(vmem_t *vm, const vmem_size_t size, vmem_size_t align,
 
 	error = ENOMEM;
 	VMEM_LOCK(vm);
-retry:
+
 	/*
 	 * Make sure we have enough tags to complete the operation.
 	 */
 	if (bt_fill(vm, flags) != 0)
 		goto out;
 
+retry:
 	/*
 	 * Find the next free tag meeting our constraints.  If one is found,
 	 * perform the allocation.
@@ -1364,15 +1382,14 @@ vmem_xalloc(vmem_t *vm, const vmem_size_t size0, vmem_size_t align,
 	 */
 	first = bt_freehead_toalloc(vm, size, strat);
 	VMEM_LOCK(vm);
-	for (;;) {
-		/*
-		 * Make sure we have enough tags to complete the
-		 * operation.
-		 */
-		error = bt_fill(vm, flags);
-		if (error != 0)
-			break;
 
+	/*
+	 * Make sure we have enough tags to complete the operation.
+	 */
+	error = bt_fill(vm, flags);
+	if (error != 0)
+		goto out;
+	for (;;) {
 		/*
 	 	 * Scan freelists looking for a tag that satisfies the
 		 * allocation.  If we're doing BESTFIT we may encounter
