@@ -147,6 +147,8 @@ static int numzones = MALLOC_DEBUG_MAXZONES;
  * Small malloc(9) memory allocations are allocated from a set of UMA buckets
  * of various sizes.
  *
+ * Warning: the layout of the struct is duplicated in libmemstat for KVM support.
+ *
  * XXX: The comment here used to read "These won't be powers of two for
  * long."  It's possible that a significant amount of wasted memory could be
  * recovered by tuning the sizes of these buckets.
@@ -213,6 +215,19 @@ SYSCTL_PROC(_vm, OID_AUTO, kmem_map_free,
     CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_kmem_map_free, "LU", "Free space in kmem");
 
+static SYSCTL_NODE(_vm, OID_AUTO, malloc, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Malloc information");
+
+static u_int vm_malloc_zone_count = nitems(kmemzones);
+SYSCTL_UINT(_vm_malloc, OID_AUTO, zone_count,
+    CTLFLAG_RD, &vm_malloc_zone_count, 0,
+    "Number of malloc zones");
+
+static int sysctl_vm_malloc_zone_sizes(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vm_malloc, OID_AUTO, zone_sizes,
+    CTLFLAG_RD | CTLTYPE_OPAQUE | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_vm_malloc_zone_sizes, "S", "Zone sizes used by malloc");
+
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
  */
@@ -272,6 +287,19 @@ sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
 	else
 		size = limit - size;
 	return (sysctl_handle_long(oidp, &size, 0, req));
+}
+
+static int
+sysctl_vm_malloc_zone_sizes(SYSCTL_HANDLER_ARGS)
+{
+	int sizes[nitems(kmemzones)];
+	int i;
+
+	for (i = 0; i < nitems(kmemzones); i++) {
+		sizes[i] = kmemzones[i].kz_size;
+	}
+
+	return (SYSCTL_OUT(req, &sizes, sizeof(sizes)));
 }
 
 /*
