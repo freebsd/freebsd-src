@@ -3631,6 +3631,7 @@ linux_ioctl_fallback(struct thread *td, struct linux_ioctl_args *args)
 
 	switch (args->cmd & 0xffff) {
 	case LINUX_BTRFS_IOC_CLONE:
+	case LINUX_F2FS_IOC_GET_FEATURES:
 	case LINUX_FS_IOC_FIEMAP:
 		return (ENOTSUP);
 
