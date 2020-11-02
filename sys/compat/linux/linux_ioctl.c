@@ -102,70 +102,35 @@ __FBSDID("$FreeBSD$");
 
 CTASSERT(LINUX_IFNAMSIZ == IFNAMSIZ);
 
-static linux_ioctl_function_t linux_ioctl_cdrom;
-static linux_ioctl_function_t linux_ioctl_vfat;
-static linux_ioctl_function_t linux_ioctl_console;
-static linux_ioctl_function_t linux_ioctl_hdio;
-static linux_ioctl_function_t linux_ioctl_disk;
-static linux_ioctl_function_t linux_ioctl_socket;
-static linux_ioctl_function_t linux_ioctl_sound;
-static linux_ioctl_function_t linux_ioctl_termio;
-static linux_ioctl_function_t linux_ioctl_private;
-static linux_ioctl_function_t linux_ioctl_drm;
-static linux_ioctl_function_t linux_ioctl_sg;
-static linux_ioctl_function_t linux_ioctl_v4l;
-static linux_ioctl_function_t linux_ioctl_v4l2;
-static linux_ioctl_function_t linux_ioctl_special;
-static linux_ioctl_function_t linux_ioctl_fbsd_usb;
-static linux_ioctl_function_t linux_ioctl_evdev;
-static linux_ioctl_function_t linux_ioctl_kcov;
+#define	DEFINE_LINUX_IOCTL_SET(shortname, SHORTNAME)		\
+static linux_ioctl_function_t linux_ioctl_ ## shortname;	\
+static struct linux_ioctl_handler shortname ## _handler = {	\
+	.func = linux_ioctl_ ## shortname,			\
+	.low = LINUX_IOCTL_ ## SHORTNAME ## _MIN,		\
+	.high = LINUX_IOCTL_ ## SHORTNAME ## _MAX,		\
+};								\
+DATA_SET(linux_ioctl_handler_set, shortname ## _handler)
 
-static struct linux_ioctl_handler cdrom_handler =
-{ linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
-static struct linux_ioctl_handler vfat_handler =
-{ linux_ioctl_vfat, LINUX_IOCTL_VFAT_MIN, LINUX_IOCTL_VFAT_MAX };
-static struct linux_ioctl_handler console_handler =
-{ linux_ioctl_console, LINUX_IOCTL_CONSOLE_MIN, LINUX_IOCTL_CONSOLE_MAX };
-static struct linux_ioctl_handler hdio_handler =
-{ linux_ioctl_hdio, LINUX_IOCTL_HDIO_MIN, LINUX_IOCTL_HDIO_MAX };
-static struct linux_ioctl_handler disk_handler =
-{ linux_ioctl_disk, LINUX_IOCTL_DISK_MIN, LINUX_IOCTL_DISK_MAX };
-static struct linux_ioctl_handler socket_handler =
-{ linux_ioctl_socket, LINUX_IOCTL_SOCKET_MIN, LINUX_IOCTL_SOCKET_MAX };
-static struct linux_ioctl_handler sound_handler =
-{ linux_ioctl_sound, LINUX_IOCTL_SOUND_MIN, LINUX_IOCTL_SOUND_MAX };
-static struct linux_ioctl_handler private_handler =
-{ linux_ioctl_private, LINUX_IOCTL_PRIVATE_MIN, LINUX_IOCTL_PRIVATE_MAX };
-static struct linux_ioctl_handler drm_handler =
-{ linux_ioctl_drm, LINUX_IOCTL_DRM_MIN, LINUX_IOCTL_DRM_MAX };
-static struct linux_ioctl_handler sg_handler =
-{ linux_ioctl_sg, LINUX_IOCTL_SG_MIN, LINUX_IOCTL_SG_MAX };
-static struct linux_ioctl_handler video_handler =
-{ linux_ioctl_v4l, LINUX_IOCTL_VIDEO_MIN, LINUX_IOCTL_VIDEO_MAX };
-static struct linux_ioctl_handler video2_handler =
-{ linux_ioctl_v4l2, LINUX_IOCTL_VIDEO2_MIN, LINUX_IOCTL_VIDEO2_MAX };
-static struct linux_ioctl_handler fbsd_usb =
-{ linux_ioctl_fbsd_usb, FBSD_LUSB_MIN, FBSD_LUSB_MAX };
-static struct linux_ioctl_handler evdev_handler =
-{ linux_ioctl_evdev, LINUX_IOCTL_EVDEV_MIN, LINUX_IOCTL_EVDEV_MAX };
-static struct linux_ioctl_handler kcov_handler =
-{ linux_ioctl_kcov, LINUX_KCOV_MIN, LINUX_KCOV_MAX };
+DEFINE_LINUX_IOCTL_SET(cdrom, CDROM);
+DEFINE_LINUX_IOCTL_SET(vfat, VFAT);
+DEFINE_LINUX_IOCTL_SET(console, CONSOLE);
+DEFINE_LINUX_IOCTL_SET(hdio, HDIO);
+DEFINE_LINUX_IOCTL_SET(disk, DISK);
+DEFINE_LINUX_IOCTL_SET(socket, SOCKET);
+DEFINE_LINUX_IOCTL_SET(sound, SOUND);
+DEFINE_LINUX_IOCTL_SET(termio, TERMIO);
+DEFINE_LINUX_IOCTL_SET(private, PRIVATE);
+DEFINE_LINUX_IOCTL_SET(drm, DRM);
+DEFINE_LINUX_IOCTL_SET(sg, SG);
+DEFINE_LINUX_IOCTL_SET(v4l, VIDEO);
+DEFINE_LINUX_IOCTL_SET(v4l2, VIDEO2);
+DEFINE_LINUX_IOCTL_SET(fbsd_usb, FBSD_LUSB);
+DEFINE_LINUX_IOCTL_SET(evdev, EVDEV);
+DEFINE_LINUX_IOCTL_SET(kcov, KCOV);
 
-DATA_SET(linux_ioctl_handler_set, cdrom_handler);
-DATA_SET(linux_ioctl_handler_set, vfat_handler);
-DATA_SET(linux_ioctl_handler_set, console_handler);
-DATA_SET(linux_ioctl_handler_set, hdio_handler);
-DATA_SET(linux_ioctl_handler_set, disk_handler);
-DATA_SET(linux_ioctl_handler_set, socket_handler);
-DATA_SET(linux_ioctl_handler_set, sound_handler);
-DATA_SET(linux_ioctl_handler_set, private_handler);
-DATA_SET(linux_ioctl_handler_set, drm_handler);
-DATA_SET(linux_ioctl_handler_set, sg_handler);
-DATA_SET(linux_ioctl_handler_set, video_handler);
-DATA_SET(linux_ioctl_handler_set, video2_handler);
-DATA_SET(linux_ioctl_handler_set, fbsd_usb);
-DATA_SET(linux_ioctl_handler_set, evdev_handler);
-DATA_SET(linux_ioctl_handler_set, kcov_handler);
+#undef DEFINE_LINUX_IOCTL_SET
+
+static int linux_ioctl_special(struct thread *, struct linux_ioctl_args *);
 
 /*
  * Keep sorted by low.
