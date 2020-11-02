@@ -70,17 +70,12 @@ ASSYM(VMXCTX_HOST_RSP, offsetof(struct vmxctx, host_rsp));
 ASSYM(VMXCTX_HOST_RBX, offsetof(struct vmxctx, host_rbx));
 
 ASSYM(VMXCTX_INST_FAIL_STATUS, offsetof(struct vmxctx, inst_fail_status));
-ASSYM(VMXCTX_PMAP, offsetof(struct vmxctx, pmap));
-
-ASSYM(VMX_EPTGEN, offsetof(struct vmx, eptgen));
-ASSYM(VMX_EPTP, offsetof(struct vmx, eptp));
 
 ASSYM(VM_FAIL_INVALID,	VM_FAIL_INVALID);
 ASSYM(VM_FAIL_VALID,	VM_FAIL_VALID);
 ASSYM(VMX_GUEST_VMEXIT, VMX_GUEST_VMEXIT);
 ASSYM(VMX_VMRESUME_ERROR, VMX_VMRESUME_ERROR);
 ASSYM(VMX_VMLAUNCH_ERROR, VMX_VMLAUNCH_ERROR);
-ASSYM(VMX_INVEPT_ERROR, VMX_INVEPT_ERROR);
 
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 

@@ -2822,7 +2822,6 @@ vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 	switch (rc) {
 	case VMX_VMRESUME_ERROR:
 	case VMX_VMLAUNCH_ERROR:
-	case VMX_INVEPT_ERROR:
 		vmexit->u.vmx.inst_type = rc;
 		break;
 	default:
@@ -2925,6 +2924,29 @@ vmx_dr_leave_guest(struct vmxctx *vmxctx)
 	wrmsr(MSR_DEBUGCTLMSR, vmxctx->host_debugctl);
 	load_dr7(vmxctx->host_dr7);
 	write_rflags(read_rflags() | vmxctx->host_tf);
+}
+
+static __inline void
+vmx_pmap_activate(struct vmx *vmx, pmap_t pmap)
+{
+	long eptgen;
+	int cpu;
+
+	cpu = curcpu;
+
+	CPU_SET_ATOMIC(cpu, &pmap->pm_active);
+	eptgen = atomic_load_long(&pmap->pm_eptgen);
+	if (eptgen != vmx->eptgen[cpu]) {
+		vmx->eptgen[cpu] = eptgen;
+		invept(INVEPT_TYPE_SINGLE_CONTEXT,
+		    (struct invept_desc){ .eptp = vmx->eptp, ._res = 0 });
+	}
+}
+
+static __inline void
+vmx_pmap_deactivate(struct vmx *vmx, pmap_t pmap)
+{
+	CPU_CLR_ATOMIC(curcpu, &pmap->pm_active);
 }
 
 static int
@@ -3075,11 +3097,19 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		 */
 		vmx_msr_guest_enter_tsc_aux(vmx, vcpu);
 
-		vmx_run_trace(vmx, vcpu);
 		vmx_dr_enter_guest(vmxctx);
-		rc = vmx_enter_guest(vmxctx, vmx, launched);
-		vmx_dr_leave_guest(vmxctx);
 
+		/*
+		 * Mark the EPT as active on this host CPU and invalidate
+		 * EPTP-tagged TLB entries if required.
+		 */
+		vmx_pmap_activate(vmx, pmap);
+
+		vmx_run_trace(vmx, vcpu);
+		rc = vmx_enter_guest(vmxctx, vmx, launched);
+
+		vmx_pmap_deactivate(vmx, pmap);
+		vmx_dr_leave_guest(vmxctx);
 		vmx_msr_guest_exit_tsc_aux(vmx, vcpu);
 
 		bare_lgdt(&gdtr);

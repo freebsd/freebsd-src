@@ -142,7 +142,6 @@ CTASSERT((offsetof(struct vmx, pir_desc[0]) & 63) == 0);
 #define	VMX_GUEST_VMEXIT	0
 #define	VMX_VMRESUME_ERROR	1
 #define	VMX_VMLAUNCH_ERROR	2
-#define	VMX_INVEPT_ERROR	3
 int	vmx_enter_guest(struct vmxctx *ctx, struct vmx *vmx, int launched);
 void	vmx_call_isr(uintptr_t entry);
 
