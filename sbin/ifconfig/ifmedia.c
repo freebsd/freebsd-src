@@ -566,7 +566,7 @@ get_media_options(int type, const char *val)
 	struct ifmedia_description *desc;
 	struct ifmedia_type_to_subtype *ttos;
 	char *optlist, *optptr;
-	int option = 0, i, rval = 0;
+	int option, i, rval = 0;
 
 	/* We muck with the string, so copy it. */
 	optlist = strdup(val);
@@ -587,12 +587,13 @@ get_media_options(int type, const char *val)
 	 */
 	optptr = optlist;
 	for (; (optptr = strtok(optptr, ",")) != NULL; optptr = NULL) {
+		option = -1;
 		for (i = 0; ttos->options[i].desc != NULL; i++) {
 			option = lookup_media_word(ttos->options[i].desc, optptr);
 			if (option != -1)
 				break;
 		}
-		if (option == 0)
+		if (option == -1)
 			errx(1, "unknown option: %s", optptr);
 		rval |= option;
 	}
