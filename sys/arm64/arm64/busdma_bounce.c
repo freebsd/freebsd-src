@@ -501,13 +501,6 @@ static int
 bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
     bus_dmamap_t *mapp)
 {
-	/*
-	 * XXX ARM64TODO:
-	 * This bus_dma implementation requires IO-Coherent architecutre.
-	 * If IO-Coherency is not guaranteed, the BUS_DMA_COHERENT flag has
-	 * to be implented using non-cacheable memory.
-	 */
-
 	vm_memattr_t attr;
 	int mflags;
 
@@ -830,7 +823,19 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 		sgsize = MIN(buflen, dmat->common.maxsegsz);
 		if (map->pagesneeded != 0 &&
 		    must_bounce(dmat, map, curaddr, sgsize)) {
-			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
+			/*
+			 * The attempt to split a physically continuous buffer
+			 * seems very controversial, it's unclear whether we
+			 * can do this in all cases. Also, memory for bounced
+			 * buffers is allocated as pages, so we cannot
+			 * guarantee multipage alignment.
+			 */
+			KASSERT(dmat->common.alignment <= PAGE_SIZE,
+			    ("bounced buffer cannot have alignment bigger "
+			    "than PAGE_SIZE: %lu", dmat->common.alignment));
+			sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
+			sgsize = roundup2(sgsize, dmat->common.alignment);
+			sgsize = MIN(sgsize, dmat->common.maxsegsz);
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 			    sgsize);
 		} else if ((map->flags & DMAMAP_COHERENT) == 0) {
@@ -843,11 +848,11 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 				sl++;
 				sl->vaddr = 0;
 				sl->paddr = curaddr;
-				sl->datacount = sgsize;
 				sl->pages = PHYS_TO_VM_PAGE(curaddr);
 				KASSERT(sl->pages != NULL,
 				    ("%s: page at PA:0x%08lx is not in "
 				    "vm_page_array", __func__, curaddr));
+				sl->datacount = sgsize;
 			} else
 				sl->datacount += sgsize;
 		}
@@ -880,6 +885,11 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	vm_offset_t kvaddr, vaddr, sl_vend;
 	int error;
 
+	KASSERT((map->flags & DMAMAP_FROM_DMAMEM) != 0 ||
+	    dmat->common.alignment <= PAGE_SIZE,
+	    ("loading user buffer with alignment bigger than PAGE_SIZE is not "
+	    "supported"));
+
 	if (segs == NULL)
 		segs = dmat->segments;
 
@@ -895,6 +905,11 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		}
 	}
 
+	/*
+	 * XXX Optimally we should parse input buffer for physically
+	 * continuous segments first and then pass these segment into
+	 * load loop.
+	 */
 	sl = map->slist + map->sync_count - 1;
 	vaddr = (vm_offset_t)buf;
 	sl_pend = 0;
@@ -916,15 +931,25 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		 * Compute the segment size, and adjust counts.
 		 */
 		max_sgsize = MIN(buflen, dmat->common.maxsegsz);
-		sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
+		if ((map->flags & DMAMAP_FROM_DMAMEM) != 0) {
+			sgsize = max_sgsize;
+		} else {
+			sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
+			sgsize = MIN(sgsize, max_sgsize);
+		}
+
 		if (map->pagesneeded != 0 &&
 		    must_bounce(dmat, map, curaddr, sgsize)) {
+			/* See comment in bounce_bus_dmamap_load_phys */
+			KASSERT(dmat->common.alignment <= PAGE_SIZE,
+			    ("bounced buffer cannot have alignment bigger "
+			    "than PAGE_SIZE: %lu", dmat->common.alignment));
+			sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
 			sgsize = roundup2(sgsize, dmat->common.alignment);
 			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
 		} else if ((map->flags & DMAMAP_COHERENT) == 0) {
-			sgsize = MIN(sgsize, max_sgsize);
 			if (map->sync_count > 0) {
 				sl_pend = sl->paddr + sl->datacount;
 				sl_vend = sl->vaddr + sl->datacount;
@@ -934,7 +959,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			    (kvaddr != 0 && kvaddr != sl_vend) ||
 			    (curaddr != sl_pend)) {
 				if (++map->sync_count > dmat->common.nsegments)
-					goto cleanup;
+					break;
 				sl++;
 				sl->vaddr = kvaddr;
 				sl->paddr = curaddr;
@@ -950,8 +975,6 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 				sl->datacount = sgsize;
 			} else
 				sl->datacount += sgsize;
-		} else {
-			sgsize = MIN(sgsize, max_sgsize);
 		}
 		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
 		    segp);
@@ -961,7 +984,6 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		buflen -= sgsize;
 	}
 
-cleanup:
 	/*
 	 * Did we fit?
 	 */
