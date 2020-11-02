@@ -16,13 +16,17 @@ VMDK_DESC=	VMWare, VirtualBox disk image
 QCOW2_DESC=	Qemu, KVM disk image
 RAW_DESC=	Unformatted raw disk image
 
-CLOUDWARE?=	EC2 \
+CLOUDWARE?=	BASIC-CI \
+		EC2 \
 		GCE \
 		VAGRANT-VIRTUALBOX \
 		VAGRANT-VMWARE
 AZURE_FORMAT=	vhdf
 AZURE_DESC=	Microsoft Azure platform image
 AZURE_DISK=	${OSRELEASE}.${AZURE_FORMAT}
+BASIC-CI_FORMAT=	raw
+BASIC-CI_DESC=		Image for CI
+BASIC-CI_DISK=	${OSRELEASE}.${BASIC-CI_FORMAT}
 EC2_FORMAT=	raw
 EC2_DESC=	Amazon EC2 image
 EC2_DISK=	${OSRELEASE}.${EC2_FORMAT}
