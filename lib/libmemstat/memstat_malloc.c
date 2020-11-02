@@ -44,10 +44,22 @@
 #include "memstat.h"
 #include "memstat_internal.h"
 
+static int memstat_malloc_zone_count;
+static int memstat_malloc_zone_sizes[32];
+
+static int	memstat_malloc_zone_init(void);
+static int	memstat_malloc_zone_init_kvm(kvm_t *kvm);
+
 static struct nlist namelist[] = {
 #define	X_KMEMSTATISTICS	0
 	{ .n_name = "_kmemstatistics" },
-#define	X_MP_MAXCPUS		1
+#define	X_KMEMZONES		1
+	{ .n_name = "_kmemzones" },
+#define	X_NUMZONES		2
+	{ .n_name = "_numzones" },
+#define	X_VM_MALLOC_ZONE_COUNT	3
+	{ .n_name = "_vm_malloc_zone_count" },
+#define	X_MP_MAXCPUS		4
 	{ .n_name = "_mp_maxcpus" },
 	{ .n_name = "" },
 };
@@ -108,6 +120,11 @@ retry:
 	}
 	if (size != sizeof(count)) {
 		list->mtl_error = MEMSTAT_ERROR_DATAERROR;
+		return (-1);
+	}
+
+	if (memstat_malloc_zone_init() == -1) {
+		list->mtl_error = MEMSTAT_ERROR_VERSION;
 		return (-1);
 	}
 
@@ -333,6 +350,12 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		return (-1);
 	}
 
+	ret = memstat_malloc_zone_init_kvm(kvm);
+	if (ret != 0) {
+		list->mtl_error = ret;
+		return (-1);
+	}
+
 	mp_ncpus = kvm_getncpus(kvm);
 
 	for (typep = kmemstatistics; typep != NULL; typep = type.ks_next) {
@@ -413,6 +436,112 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		mtp->mt_bytes = mtp->mt_memalloced - mtp->mt_memfreed;
 		mtp->mt_count = mtp->mt_numallocs - mtp->mt_numfrees;
 	}
+
+	return (0);
+}
+
+static int
+memstat_malloc_zone_init(void)
+{
+	size_t size;
+
+	size = sizeof(memstat_malloc_zone_count);
+	if (sysctlbyname("vm.malloc.zone_count", &memstat_malloc_zone_count,
+	    &size, NULL, 0) < 0) {
+		return (-1);
+	}
+
+	if (memstat_malloc_zone_count > (int)nitems(memstat_malloc_zone_sizes)) {
+		return (-1);
+	}
+
+	size = sizeof(memstat_malloc_zone_sizes);
+	if (sysctlbyname("vm.malloc.zone_sizes", &memstat_malloc_zone_sizes,
+	    &size, NULL, 0) < 0) {
+		return (-1);
+	}
+
+	return (0);
+}
+
+/*
+ * Copied from kern_malloc.c
+ *
+ * kz_zone is an array sized at compilation time, the size is exported in
+ * "numzones". Below we need to iterate kz_size.
+ */
+struct memstat_kmemzone {
+	int kz_size;
+	const char *kz_name;
+	void *kz_zone[1];
+};
+
+static int
+memstat_malloc_zone_init_kvm(kvm_t *kvm)
+{
+	struct memstat_kmemzone *kmemzones, *kz;
+	int numzones, objsize, allocsize, ret;
+	int i;
+
+	ret = kread_symbol(kvm, X_VM_MALLOC_ZONE_COUNT,
+	    &memstat_malloc_zone_count, sizeof(memstat_malloc_zone_count), 0);
+	if (ret != 0) {
+		return (ret);
+	}
+
+	ret = kread_symbol(kvm, X_NUMZONES, &numzones, sizeof(numzones), 0);
+	if (ret != 0) {
+		return (ret);
+	}
+
+	objsize = __offsetof(struct memstat_kmemzone, kz_zone) +
+	    sizeof(void *) * numzones;
+
+	allocsize = objsize * memstat_malloc_zone_count;
+	kmemzones = malloc(allocsize);
+	if (kmemzones == NULL) {
+		return (MEMSTAT_ERROR_NOMEMORY);
+	}
+	ret = kread_symbol(kvm, X_KMEMZONES, kmemzones, allocsize, 0);
+	if (ret != 0) {
+		free(kmemzones);
+		return (ret);
+	}
+
+	kz = kmemzones;
+	for (i = 0; i < (int)nitems(memstat_malloc_zone_sizes); i++) {
+		memstat_malloc_zone_sizes[i] = kz->kz_size;
+		kz = (struct memstat_kmemzone *)((char *)kz + objsize);
+	}
+
+	free(kmemzones);
+	return (0);
+}
+
+size_t
+memstat_malloc_zone_get_count(void)
+{
+
+	return (memstat_malloc_zone_count);
+}
+
+size_t
+memstat_malloc_zone_get_size(size_t n)
+{
+
+	if (n >= nitems(memstat_malloc_zone_sizes)) {
+		return (-1);
+	}
+
+	return (memstat_malloc_zone_sizes[n]);
+}
+
+int
+memstat_malloc_zone_used(const struct memory_type *mtp, size_t n)
+{
+
+	if (memstat_get_sizemask(mtp) & (1 << n))
+		return (1);
 
 	return (0);
 }

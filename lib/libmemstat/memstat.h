@@ -118,6 +118,13 @@ int	memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle);
 int	memstat_kvm_uma(struct memory_type_list *list, void *kvm_handle);
 
 /*
+ * General malloc routines.
+ */
+size_t	memstat_malloc_zone_get_count(void);
+size_t	memstat_malloc_zone_get_size(size_t n);
+int	memstat_malloc_zone_used(const struct memory_type *mtp, size_t n);
+
+/*
  * Accessor methods for struct memory_type.
  */
 const char	*memstat_get_name(const struct memory_type *mtp);
