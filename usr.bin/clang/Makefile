@@ -16,6 +16,10 @@ SUBDIR+=	llvm-nm
 SUBDIR+=	llvm-objdump
 SUBDIR+=	llvm-symbolizer
 
+.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLVM_CXXFILT} != "no"
+SUBDIR+=	llvm-cxxfilt
+.endif
+
 .if ${MK_CLANG_EXTRAS} != "no"
 SUBDIR+=	bugpoint
 SUBDIR+=	llc
@@ -23,7 +27,6 @@ SUBDIR+=	lli
 SUBDIR+=	llvm-as
 SUBDIR+=	llvm-bcanalyzer
 SUBDIR+=	llvm-cxxdump
-SUBDIR+=	llvm-cxxfilt
 SUBDIR+=	llvm-diff
 SUBDIR+=	llvm-dis
 SUBDIR+=	llvm-dwarfdump
