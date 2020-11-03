@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2020
+.Dd November 3, 2020
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -615,6 +615,25 @@ is going to be built with Python 3.7 support.)
 .Li # Ic cd /usr/ports/devel/py-pip
 .Li # Ic env FLAVOR=py37 make build
 .Ed
+.It Sy Example 4\&: No Setting Ports Options via Xr make.conf 5
+.Pp
+The following lines present various ways of configuring ports options via
+.Xr make.conf 5
+(as an alternative to, e.g., running
+.Dq Li make config ) :
+.Bd -literal -offset 2n
+# Enable NLS for all ports unless configured otherwise
+# using the options dialog.
+OPTIONS_SET=		NLS
+# Disable DOCS for all ports overriding the options set
+# via the options dialog.
+OPTIONS_UNSET_FORCE=	DOCS
+# Disable DOCS and EXAMPLES for the shells/zsh port.
+shells_zsh_UNSET=	DOCS EXAMPLES
+.Ed
+.Pp
+These and other options-related variables are documented in
+.Pa /usr/ports/Mk/bsd.options.mk .
 .El
 .Sh SEE ALSO
 .Xr make 1 ,
