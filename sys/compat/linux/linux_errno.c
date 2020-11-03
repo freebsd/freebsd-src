@@ -27,7 +27,7 @@ linux_check_errtbl(void)
 {
 	int i;
 
-	for (i = 1; i < sizeof(linux_errtbl); i++) {
+	for (i = 1; i < nitems(linux_errtbl); i++) {
 		KASSERT(linux_errtbl[i] != 0,
 		    ("%s: linux_errtbl[%d] == 0", __func__, i));
 	}
