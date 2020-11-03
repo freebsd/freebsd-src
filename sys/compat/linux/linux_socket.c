@@ -502,6 +502,17 @@ goout:
 	return (error);
 }
 
+static const char *linux_netlink_names[] = {
+	[LINUX_NETLINK_ROUTE] = "ROUTE",
+	[LINUX_NETLINK_SOCK_DIAG] = "SOCK_DIAG",
+	[LINUX_NETLINK_NFLOG] = "NFLOG",
+	[LINUX_NETLINK_SELINUX] = "SELINUX",
+	[LINUX_NETLINK_AUDIT] = "AUDIT",
+	[LINUX_NETLINK_FIB_LOOKUP] = "FIB_LOOKUP",
+	[LINUX_NETLINK_NETFILTER] = "NETFILTER",
+	[LINUX_NETLINK_KOBJECT_UEVENT] = "KOBJECT_UEVENT",
+};
+
 int
 linux_socket(struct thread *td, struct linux_socket_args *args)
 {
@@ -516,22 +527,29 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 		return (retval_socket);
 	domain = linux_to_bsd_domain(args->domain);
 	if (domain == -1) {
-		if (args->domain == LINUX_AF_NETLINK &&
-		    args->protocol == LINUX_NETLINK_ROUTE) {
-			linux_msg(curthread,
-			    "unsupported socket(AF_NETLINK, %d, NETLINK_ROUTE)", type);
-			return (EAFNOSUPPORT);
+		/* Mask off SOCK_NONBLOCK / CLOEXEC for error messages. */
+		type = args->type & LINUX_SOCK_TYPE_MASK;
+		if (args->domain == LINUX_AF_NETLINK) {
+			const char *nl_name;
+
+			if (args->protocol >= 0 &&
+			    args->protocol < nitems(linux_netlink_names))
+				nl_name = linux_netlink_names[args->protocol];
+			else
+				nl_name = NULL;
+			if (nl_name != NULL)
+				linux_msg(curthread,
+				    "unsupported socket(AF_NETLINK, %d, "
+				    "NETLINK_%s)", type, nl_name);
+			else
+				linux_msg(curthread,
+				    "unsupported socket(AF_NETLINK, %d, %d)",
+				    type, args->protocol);
+		} else {
+			linux_msg(curthread, "unsupported socket domain %d, "
+			    "type %d, protocol %d", args->domain, type,
+			    args->protocol);
 		}
-		    
-		if (args->domain == LINUX_AF_NETLINK &&
-		    args->protocol == LINUX_NETLINK_UEVENT) {
-			linux_msg(curthread,
-			    "unsupported socket(AF_NETLINK, %d, NETLINK_UEVENT)", type);
-			return (EAFNOSUPPORT);
-		}
-	
-		linux_msg(curthread, "unsupported socket domain %d, type %d, protocol %d",
-		    args->domain, args->type & LINUX_SOCK_TYPE_MASK, args->protocol);
 		return (EAFNOSUPPORT);
 	}
 
