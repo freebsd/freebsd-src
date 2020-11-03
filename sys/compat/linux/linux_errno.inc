@@ -38,7 +38,7 @@
  * XXX: The "XXX" comments below should be replaced with rationale
  *      for the errno value chosen.
  */
-const int linux_errtbl[ELAST + 1] = {
+static const int linux_errtbl[ELAST + 1] = {
 	/* [0, 9] */
 	[0] = -0,
 	[EPERM] = -LINUX_EPERM,
