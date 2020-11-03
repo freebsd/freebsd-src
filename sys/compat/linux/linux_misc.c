@@ -1955,7 +1955,6 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		return (copyout(&pdeath_signal,
 		    (void *)(register_t)args->arg2,
 		    sizeof(pdeath_signal)));
-		break;
 	case LINUX_PR_SET_DUMPABLE:
 		linux_msg(td, "unsupported prctl PR_SET_DUMPABLE");
 		error = EINVAL;
