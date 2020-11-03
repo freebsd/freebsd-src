@@ -239,31 +239,29 @@ get_rca(struct cam_periph *periph) {
 /*
  * Figure out if CCB execution resulted in error.
  * Look at both CAM-level errors and on MMC protocol errors.
+ *
+ * Return value is always MMC error.
 */
 static int
 mmc_handle_reply(union ccb *ccb)
 {
-
 	KASSERT(ccb->ccb_h.func_code == XPT_MMC_IO,
 	    ("ccb %p: cannot handle non-XPT_MMC_IO errors, got func_code=%d",
 		ccb, ccb->ccb_h.func_code));
 
-	/* TODO: maybe put MMC-specific handling into cam.c/cam_error_print altogether */
-	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)) {
-		if (ccb->mmcio.cmd.error != 0) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("CMD%d failed, err %d (%s)\n",
-			       ccb->mmcio.cmd.opcode,
-			       ccb->mmcio.cmd.error,
-			       mmc_errmsg[ccb->mmcio.cmd.error]);
-			return (EIO);
-		}
-	} else {
-		cam_error_print(ccb, CAM_ESF_ALL, CAM_EPF_ALL);
-		return (EIO);
-	}
+	/* CAM-level error should always correspond to MMC-level error */
+	if (((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) &&
+	  (ccb->mmcio.cmd.error != MMC_ERR_NONE))
+		panic("CCB status is OK but MMC error != MMC_ERR_NONE");
 
-	return (0); /* Normal return */
+	if (ccb->mmcio.cmd.error != MMC_ERR_NONE) {
+		xpt_print_path(ccb->ccb_h.path);
+		printf("CMD%d failed, err %d (%s)\n",
+		  ccb->mmcio.cmd.opcode,
+		  ccb->mmcio.cmd.error,
+		  mmc_errmsg[ccb->mmcio.cmd.error]);
+	}
+	return (ccb->mmcio.cmd.error);
 }
 
 static uint32_t
