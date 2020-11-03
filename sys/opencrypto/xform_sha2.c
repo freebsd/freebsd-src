@@ -70,7 +70,7 @@ struct auth_hash auth_hash_sha2_224 = {
 	.blocksize = SHA2_224_BLOCK_LEN,
 	.Init = (void (*)(void *)) SHA224_Init,
 	.Update = SHA224Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) SHA224_Final,
+	.Final = (void (*)(uint8_t *, void *)) SHA224_Final,
 };
 
 struct auth_hash auth_hash_sha2_256 = {
@@ -82,7 +82,7 @@ struct auth_hash auth_hash_sha2_256 = {
 	.blocksize = SHA2_256_BLOCK_LEN,
 	.Init = (void (*)(void *)) SHA256_Init,
 	.Update = SHA256Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) SHA256_Final,
+	.Final = (void (*)(uint8_t *, void *)) SHA256_Final,
 };
 
 struct auth_hash auth_hash_sha2_384 = {
@@ -94,7 +94,7 @@ struct auth_hash auth_hash_sha2_384 = {
 	.blocksize = SHA2_384_BLOCK_LEN,
 	.Init = (void (*)(void *)) SHA384_Init,
 	.Update = SHA384Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) SHA384_Final,
+	.Final = (void (*)(uint8_t *, void *)) SHA384_Final,
 };
 
 struct auth_hash auth_hash_sha2_512 = {
@@ -106,7 +106,7 @@ struct auth_hash auth_hash_sha2_512 = {
 	.blocksize = SHA2_512_BLOCK_LEN,
 	.Init = (void (*)(void *)) SHA512_Init,
 	.Update = SHA512Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) SHA512_Final,
+	.Final = (void (*)(uint8_t *, void *)) SHA512_Final,
 };
 
 /* Authentication instances */
@@ -119,7 +119,7 @@ struct auth_hash auth_hash_hmac_sha2_224 = {
 	.blocksize = SHA2_224_BLOCK_LEN,
 	.Init = (void (*)(void *)) SHA224_Init,
 	.Update = SHA224Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) SHA224_Final,
+	.Final = (void (*)(uint8_t *, void *)) SHA224_Final,
 };
 
 struct auth_hash auth_hash_hmac_sha2_256 = {
@@ -131,7 +131,7 @@ struct auth_hash auth_hash_hmac_sha2_256 = {
 	.blocksize = SHA2_256_BLOCK_LEN,
 	.Init = (void (*)(void *)) SHA256_Init,
 	.Update = SHA256Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) SHA256_Final,
+	.Final = (void (*)(uint8_t *, void *)) SHA256_Final,
 };
 
 struct auth_hash auth_hash_hmac_sha2_384 = {
@@ -143,7 +143,7 @@ struct auth_hash auth_hash_hmac_sha2_384 = {
 	.blocksize = SHA2_384_BLOCK_LEN,
 	.Init = (void (*)(void *)) SHA384_Init,
 	.Update = SHA384Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) SHA384_Final,
+	.Final = (void (*)(uint8_t *, void *)) SHA384_Final,
 };
 
 struct auth_hash auth_hash_hmac_sha2_512 = {
@@ -155,7 +155,7 @@ struct auth_hash auth_hash_hmac_sha2_512 = {
 	.blocksize = SHA2_512_BLOCK_LEN,
 	.Init = (void (*)(void *)) SHA512_Init,
 	.Update = SHA512Update_int,
-	.Final = (void (*)(u_int8_t *, void *)) SHA512_Final,
+	.Final = (void (*)(uint8_t *, void *)) SHA512_Final,
 };
 
 /*

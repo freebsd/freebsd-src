@@ -72,53 +72,53 @@ SDT_PROBE_DEFINE1(opencrypto, dev, ioctl, error, "int"/*line number*/);
 #include <compat/freebsd32/freebsd32.h>
 
 struct session_op32 {
-	u_int32_t	cipher;
-	u_int32_t	mac;
-	u_int32_t	keylen;
-	u_int32_t	key;
+	uint32_t	cipher;
+	uint32_t	mac;
+	uint32_t	keylen;
+	uint32_t	key;
 	int		mackeylen;
-	u_int32_t	mackey;
-	u_int32_t	ses;
+	uint32_t	mackey;
+	uint32_t	ses;
 };
 
 struct session2_op32 {
-	u_int32_t	cipher;
-	u_int32_t	mac;
-	u_int32_t	keylen;
-	u_int32_t	key;
+	uint32_t	cipher;
+	uint32_t	mac;
+	uint32_t	keylen;
+	uint32_t	key;
 	int		mackeylen;
-	u_int32_t	mackey;
-	u_int32_t	ses;
+	uint32_t	mackey;
+	uint32_t	ses;
 	int		crid;
 	int		pad[4];
 };
 
 struct crypt_op32 {
-	u_int32_t	ses;
-	u_int16_t	op;
-	u_int16_t	flags;
+	uint32_t	ses;
+	uint16_t	op;
+	uint16_t	flags;
 	u_int		len;
-	u_int32_t	src, dst;
-	u_int32_t	mac;
-	u_int32_t	iv;
+	uint32_t	src, dst;
+	uint32_t	mac;
+	uint32_t	iv;
 };
 
 struct crypt_aead32 {
-	u_int32_t	ses;
-	u_int16_t	op;
-	u_int16_t	flags;
+	uint32_t	ses;
+	uint16_t	op;
+	uint16_t	flags;
 	u_int		len;
 	u_int		aadlen;
 	u_int		ivlen;
-	u_int32_t	src;
-	u_int32_t	dst;
-	u_int32_t	aad;
-	u_int32_t	tag;
-	u_int32_t	iv;
+	uint32_t	src;
+	uint32_t	dst;
+	uint32_t	aad;
+	uint32_t	tag;
+	uint32_t	iv;
 };
 
 struct crparam32 {
-	u_int32_t	crp_p;
+	uint32_t	crp_p;
 	u_int		crp_nbits;
 };
 
@@ -309,7 +309,7 @@ struct csession {
 	TAILQ_ENTRY(csession) next;
 	crypto_session_t cses;
 	volatile u_int	refs;
-	u_int32_t	ses;
+	uint32_t	ses;
 	struct mtx	lock;		/* for op submission */
 
 	struct enc_xform *txform;
@@ -437,7 +437,7 @@ cryptof_ioctl(
 	void *mackey = NULL;
 	struct crypt_kop *kop;
 	crypto_session_t cses;
-	u_int32_t ses;
+	uint32_t ses;
 	int error = 0, crid;
 	union {
 		struct session2_op sopc;
@@ -806,7 +806,7 @@ bail:
 			session2_op_to_op(sop, data);
 		break;
 	case CIOCFSESSION:
-		ses = *(u_int32_t *)data;
+		ses = *(uint32_t *)data;
 		if (!csedelete(fcr, ses)) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);

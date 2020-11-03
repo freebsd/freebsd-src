@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #ifndef unsupported
 
 /* constant table */
-static u_int32_t _K[] = { 0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6 };
+static uint32_t _K[] = { 0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6 };
 #define	K(t)	_K[(t) / 20]
 
 #define	F0(b, c, d)	(((b) & (c)) | ((~(b)) & (d)))
@@ -94,9 +94,9 @@ static void
 sha1_step(ctxt)
 	struct sha1_ctxt *ctxt;
 {
-	u_int32_t	a, b, c, d, e;
+	uint32_t	a, b, c, d, e;
 	size_t t, s;
-	u_int32_t	tmp;
+	uint32_t	tmp;
 
 #if BYTE_ORDER == LITTLE_ENDIAN
 	struct sha1_ctxt tctxt;
@@ -225,7 +225,7 @@ sha1_pad(ctxt)
 void
 sha1_loop(ctxt, input, len)
 	struct sha1_ctxt *ctxt;
-	const u_int8_t *input;
+	const uint8_t *input;
 	size_t len;
 {
 	size_t gaplen;
@@ -253,9 +253,9 @@ sha1_loop(ctxt, input, len)
 void
 sha1_result(struct sha1_ctxt *ctxt, char digest0[static SHA1_RESULTLEN])
 {
-	u_int8_t *digest;
+	uint8_t *digest;
 
-	digest = (u_int8_t *)digest0;
+	digest = (uint8_t *)digest0;
 	sha1_pad(ctxt);
 #if BYTE_ORDER == BIG_ENDIAN
 	bcopy(&ctxt->h.b8[0], digest, SHA1_RESULTLEN);
