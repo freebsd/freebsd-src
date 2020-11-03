@@ -1937,7 +1937,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	int error = 0, max_size;
 	struct proc *p = td->td_proc;
 	char comm[LINUX_MAX_COMM_LEN];
-	int pdeath_signal;
+	int pdeath_signal, trace_state;
 
 	switch (args->option) {
 	case LINUX_PR_SET_PDEATHSIG:
@@ -1955,10 +1955,46 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		return (copyout(&pdeath_signal,
 		    (void *)(register_t)args->arg2,
 		    sizeof(pdeath_signal)));
+	/*
+	 * In Linux, this flag controls if set[gu]id processes can coredump.
+	 * There are additional semantics imposed on processes that cannot
+	 * coredump:
+	 * - Such processes can not be ptraced.
+	 * - There are some semantics around ownership of process-related files
+	 *   in the /proc namespace.
+	 *
+	 * In FreeBSD, we can (and by default, do) disable setuid coredump
+	 * system-wide with 'sugid_coredump.'  We control tracability on a
+	 * per-process basis with the procctl PROC_TRACE (=> P2_NOTRACE flag).
+	 * By happy coincidence, P2_NOTRACE also prevents coredumping.  So the
+	 * procctl is roughly analogous to Linux's DUMPABLE.
+	 *
+	 * So, proxy these knobs to the corresponding PROC_TRACE setting.
+	 */
+	case LINUX_PR_GET_DUMPABLE:
+		error = kern_procctl(td, P_PID, p->p_pid, PROC_TRACE_STATUS,
+		    &trace_state);
+		if (error != 0)
+			return (error);
+		td->td_retval[0] = (trace_state != -1);
+		return (0);
 	case LINUX_PR_SET_DUMPABLE:
-		linux_msg(td, "unsupported prctl PR_SET_DUMPABLE");
-		error = EINVAL;
-		break;
+		/*
+		 * It is only valid for userspace to set one of these two
+		 * flags, and only one at a time.
+		 */
+		switch (args->arg2) {
+		case LINUX_SUID_DUMP_DISABLE:
+			trace_state = PROC_TRACE_CTL_DISABLE_EXEC;
+			break;
+		case LINUX_SUID_DUMP_USER:
+			trace_state = PROC_TRACE_CTL_ENABLE;
+			break;
+		default:
+			return (EINVAL);
+		}
+		return (kern_procctl(td, P_PID, p->p_pid, PROC_TRACE_CTL,
+		    &trace_state));
 	case LINUX_PR_GET_KEEPCAPS:
 		/*
 		 * Indicate that we always clear the effective and
