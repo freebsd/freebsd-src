@@ -51,6 +51,7 @@ int		timeoutnetwork = MAX_TIMEOUTS * TIMEOUT;
 int		maxtimeouts = MAX_TIMEOUTS;
 uint16_t	segsize = SEGSIZE;
 uint16_t	pktsize = SEGSIZE + 4;
+uint16_t	windowsize = WINDOWSIZE;
 
 int	acting_as_client;
 

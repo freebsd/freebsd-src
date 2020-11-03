@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 #define TIMEOUT_MAX	255		/* Maximum timeout value */
 #define MIN_TIMEOUTS	3
 
+/* For the windowsize option */
+#define	WINDOWSIZE	1
+#define	WINDOWSIZE_MIN	1
+#define	WINDOWSIZE_MAX	65535
+
 extern int	timeoutpacket;
 extern int	timeoutnetwork;
 extern int	maxtimeouts;
@@ -53,6 +58,7 @@ int	settimeouts(int timeoutpacket, int timeoutnetwork, int maxtimeouts);
 
 extern uint16_t	segsize;
 extern uint16_t	pktsize;
+extern uint16_t	windowsize;
 
 extern int	acting_as_client;
 

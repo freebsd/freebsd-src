@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdalign.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -87,6 +88,13 @@ recv_ack(uint16_t blocknum)
 {
 	char hdr[] = {0, 4, blocknum >> 8, blocknum & 0xFF};
 	RECV(hdr, NULL, 0);
+}
+
+static void
+recv_oack(const char *options, size_t options_len)
+{
+	char hdr[] = {0, 6};
+	RECV(hdr, options, options_len);
 }
 
 /*
@@ -159,6 +167,11 @@ send_ack(uint16_t blocknum)
 
 }
 
+/*
+ * build an option string
+ */
+#define OPTION_STR(name, value)	name "\000" value "\000"
+
 /* 
  * send a read request to tftpd.
  * @param	filename	filename as a string, absolute or relative
@@ -166,12 +179,22 @@ send_ack(uint16_t blocknum)
  */
 #define SEND_RRQ(filename, mode) SEND_STR("\0\001" filename "\0" mode "\0")
 
+/*
+ * send a read request with options
+ */
+#define SEND_RRQ_OPT(filename, mode, options) SEND_STR("\0\001" filename "\0" mode "\000" options)
+
 /* 
  * send a write request to tftpd.
  * @param	filename	filename as a string, absolute or relative
  * @param	mode		either "octet" or "netascii"
  */
 #define SEND_WRQ(filename, mode) SEND_STR("\0\002" filename "\0" mode "\0")
+
+/*
+ * send a write request with options
+ */
+#define SEND_WRQ_OPT(filename, mode, options) SEND_STR("\0\002" filename "\0" mode "\000" options)
 
 /* Define a test case, for both IPv4 and IPv6 */
 #define TFTPD_TC_DEFINE(name, head, ...) \
@@ -573,6 +596,32 @@ TFTPD_TC_DEFINE(rrq_medium,)
 }
 
 /*
+ * Read a medium file with a window size of 2.
+ */
+TFTPD_TC_DEFINE(rrq_medium_window,)
+{
+	int fd;
+	size_t i;
+	uint32_t contents[192];
+	char options[] = OPTION_STR("windowsize", "2");
+
+	for (i = 0; i < nitems(contents); i++)
+		contents[i] = i;
+
+	fd = open("medium.txt", O_RDWR | O_CREAT, 0644);
+	ATF_REQUIRE(fd >= 0);
+	write_all(fd, contents, sizeof(contents));
+	close(fd);
+
+	SEND_RRQ_OPT("medium.txt", "octet", OPTION_STR("windowsize", "2"));
+	recv_oack(options, sizeof(options) - 1);
+	send_ack(0);
+	recv_data(1, (const char*)&contents[0], 512);
+	recv_data(2, (const char*)&contents[128], 256);
+	send_ack(2);
+}
+
+/*
  * Read a file in netascii format
  */
 TFTPD_TC_DEFINE(rrq_netascii,)
@@ -649,6 +698,59 @@ TFTPD_TC_DEFINE(rrq_small,)
 	SEND_RRQ("small.txt", "octet");
 	recv_data(1, contents, strlen(contents) + 1);
 	send_ack(1);
+}
+
+/*
+ * Read a file following the example in RFC 7440.
+ */
+TFTPD_TC_DEFINE(rrq_window_rfc7440,)
+{
+	int fd;
+	size_t i;
+	char options[] = OPTION_STR("windowsize", "4");
+	alignas(uint32_t) char contents[13 * 512 - 4];
+	uint32_t *u32p;
+
+	u32p = (uint32_t *)contents;
+	for (i = 0; i < sizeof(contents) / sizeof(uint32_t); i++)
+		u32p[i] = i;
+
+	fd = open("rfc7440.txt", O_RDWR | O_CREAT, 0644);
+	ATF_REQUIRE(fd >= 0);
+	write_all(fd, contents, sizeof(contents));
+	close(fd);
+
+	SEND_RRQ_OPT("rfc7440.txt", "octet", OPTION_STR("windowsize", "4"));
+	recv_oack(options, sizeof(options) - 1);
+	send_ack(0);
+	recv_data(1, &contents[0 * 512], 512);
+	recv_data(2, &contents[1 * 512], 512);
+	recv_data(3, &contents[2 * 512], 512);
+	recv_data(4, &contents[3 * 512], 512);
+	send_ack(4);
+	recv_data(5, &contents[4 * 512], 512);
+	recv_data(6, &contents[5 * 512], 512);
+	recv_data(7, &contents[6 * 512], 512);
+	recv_data(8, &contents[7 * 512], 512);
+
+	/* ACK 5 as if 6-8 were dropped. */
+	send_ack(5);
+	recv_data(6, &contents[5 * 512], 512);
+	recv_data(7, &contents[6 * 512], 512);
+	recv_data(8, &contents[7 * 512], 512);
+	recv_data(9, &contents[8 * 512], 512);
+	send_ack(9);
+	recv_data(10, &contents[9 * 512], 512);
+	recv_data(11, &contents[10 * 512], 512);
+	recv_data(12, &contents[11 * 512], 512);
+	recv_data(13, &contents[12 * 512], 508);
+
+	/* Drop ACK and after timeout receive 10-13. */
+	recv_data(10, &contents[9 * 512], 512);
+	recv_data(11, &contents[10 * 512], 512);
+	recv_data(12, &contents[11 * 512], 512);
+	recv_data(13, &contents[12 * 512], 508);
+	send_ack(13);
 }
 
 /*
@@ -872,6 +974,38 @@ TFTPD_TC_DEFINE(wrq_medium,)
 }
 
 /*
+ * Write a medium file with a window size of 2.
+ */
+TFTPD_TC_DEFINE(wrq_medium_window,)
+{
+	int fd;
+	size_t i;
+	ssize_t r;
+	uint32_t contents[192];
+	char buffer[1024];
+	char options[] = OPTION_STR("windowsize", "2");
+
+	for (i = 0; i < nitems(contents); i++)
+		contents[i] = i;
+
+	fd = open("medium.txt", O_RDWR | O_CREAT, 0666);
+	ATF_REQUIRE(fd >= 0);
+	close(fd);
+
+	SEND_WRQ_OPT("medium.txt", "octet", OPTION_STR("windowsize", "2"));
+	recv_oack(options, sizeof(options) - 1);
+	send_data(1, (const char*)&contents[0], 512);
+	send_data(2, (const char*)&contents[128], 256);
+	recv_ack(2);
+
+	fd = open("medium.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
+	r = read(fd, buffer, sizeof(buffer));
+	close(fd);
+	require_bufeq((const char*)contents, 768, buffer, r);
+}
+
+/*
  * Write a file in netascii format
  */
 TFTPD_TC_DEFINE(wrq_netascii,)
@@ -965,6 +1099,70 @@ TFTPD_TC_DEFINE(wrq_truncate,)
 	ATF_REQUIRE_EQ(sb.st_size, 0);
 }
 
+/*
+ * Write a file following the example in RFC 7440.
+ */
+TFTPD_TC_DEFINE(wrq_window_rfc7440,)
+{
+	int fd;
+	size_t i;
+	ssize_t r;
+	char options[] = OPTION_STR("windowsize", "4");
+	alignas(uint32_t) char contents[13 * 512 - 4];
+	char buffer[sizeof(contents)];
+	uint32_t *u32p;
+
+	u32p = (uint32_t *)contents;
+	for (i = 0; i < sizeof(contents) / sizeof(uint32_t); i++)
+		u32p[i] = i;
+
+	fd = open("rfc7440.txt", O_RDWR | O_CREAT, 0666);
+	ATF_REQUIRE(fd >= 0);
+	close(fd);
+
+	SEND_WRQ_OPT("rfc7440.txt", "octet", OPTION_STR("windowsize", "4"));
+	recv_oack(options, sizeof(options) - 1);
+	send_data(1, &contents[0 * 512], 512);
+	send_data(2, &contents[1 * 512], 512);
+	send_data(3, &contents[2 * 512], 512);
+	send_data(4, &contents[3 * 512], 512);
+	recv_ack(4);
+	send_data(5, &contents[4 * 512], 512);
+
+	/* Drop 6-8. */
+	recv_ack(5);
+	send_data(6, &contents[5 * 512], 512);
+	send_data(7, &contents[6 * 512], 512);
+	send_data(8, &contents[7 * 512], 512);
+	send_data(9, &contents[8 * 512], 512);
+	recv_ack(9);
+
+	/* Drop 11. */
+	send_data(10, &contents[9 * 512], 512);
+	send_data(12, &contents[11 * 512], 512);
+
+	/*
+	 * We can't send 13 here as tftpd has probably already seen 12
+	 * and sent the ACK of 10 if running locally.  While it would
+	 * recover by sending another ACK of 10, our state machine
+	 * would be out of sync.
+	 */
+
+	/* Ignore ACK for 10 and resend 10-13. */
+	recv_ack(10);
+	send_data(10, &contents[9 * 512], 512);
+	send_data(11, &contents[10 * 512], 512);
+	send_data(12, &contents[11 * 512], 512);
+	send_data(13, &contents[12 * 512], 508);
+	recv_ack(13);
+
+	fd = open("rfc7440.txt", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
+	r = read(fd, buffer, sizeof(buffer));
+	close(fd);
+	require_bufeq(contents, sizeof(contents), buffer, r);
+}
+
 
 /*
  * Main
@@ -981,10 +1179,12 @@ ATF_TP_ADD_TCS(tp)
 	TFTPD_TC_ADD(tp, rrq_eaccess);
 	TFTPD_TC_ADD(tp, rrq_empty);
 	TFTPD_TC_ADD(tp, rrq_medium);
+	TFTPD_TC_ADD(tp, rrq_medium_window);
 	TFTPD_TC_ADD(tp, rrq_netascii);
 	TFTPD_TC_ADD(tp, rrq_nonexistent);
 	TFTPD_TC_ADD(tp, rrq_path_max);
 	TFTPD_TC_ADD(tp, rrq_small);
+	TFTPD_TC_ADD(tp, rrq_window_rfc7440);
 	TFTPD_TC_ADD(tp, unknown_modes);
 	TFTPD_TC_ADD(tp, unknown_opcode);
 	TFTPD_TC_ADD(tp, w_flag);
@@ -994,10 +1194,12 @@ ATF_TP_ADD_TCS(tp)
 	TFTPD_TC_ADD(tp, wrq_eaccess);
 	TFTPD_TC_ADD(tp, wrq_eaccess_world_readable);
 	TFTPD_TC_ADD(tp, wrq_medium);
+	TFTPD_TC_ADD(tp, wrq_medium_window);
 	TFTPD_TC_ADD(tp, wrq_netascii);
 	TFTPD_TC_ADD(tp, wrq_nonexistent);
 	TFTPD_TC_ADD(tp, wrq_small);
 	TFTPD_TC_ADD(tp, wrq_truncate);
+	TFTPD_TC_ADD(tp, wrq_window_rfc7440);
 
 	return (atf_no_error());
 }

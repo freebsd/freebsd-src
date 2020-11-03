@@ -36,4 +36,7 @@ int	read_init(int fd, FILE *f, const char *mode);
 size_t	read_file(char *buffer, int count);
 int	read_close(void);
 
+int	seek_file(off_t offset);
+off_t	tell_file(void);
+
 int	synchnet(int peer);
