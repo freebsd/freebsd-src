@@ -111,11 +111,6 @@ FEATURE(sysv_shm, "System V shared memory segments support");
 
 static MALLOC_DEFINE(M_SHM, "shm", "SVID compatible shared memory segments");
 
-static int shmget_allocate_segment(struct thread *td,
-    struct shmget_args *uap, int mode);
-static int shmget_existing(struct thread *td, struct shmget_args *uap,
-    int mode, int segnum);
-
 #define	SHMSEG_FREE     	0x0200
 #define	SHMSEG_REMOVED  	0x0400
 #define	SHMSEG_ALLOCATED	0x0800
@@ -134,6 +129,10 @@ static void shm_deallocate_segment(struct shmid_kernel *);
 static int shm_find_segment_by_key(struct prison *, key_t);
 static struct shmid_kernel *shm_find_segment(struct prison *, int, bool);
 static int shm_delete_mapping(struct vmspace *vm, struct shmmap_state *);
+static int shmget_allocate_segment(struct thread *td, key_t key, size_t size,
+    int mode);
+static int shmget_existing(struct thread *td, size_t size, int shmflg,
+    int mode, int segnum);
 static void shmrealloc(void);
 static int shminit(void);
 static int sysvshm_modload(struct module *, int, void *);
@@ -659,7 +658,7 @@ done:
 }
 
 static int
-shmget_existing(struct thread *td, struct shmget_args *uap, int mode,
+shmget_existing(struct thread *td, size_t size, int shmflg, int mode,
     int segnum)
 {
 	struct shmid_kernel *shmseg;
@@ -671,35 +670,34 @@ shmget_existing(struct thread *td, struct shmget_args *uap, int mode,
 	KASSERT(segnum >= 0 && segnum < shmalloced,
 	    ("segnum %d shmalloced %d", segnum, shmalloced));
 	shmseg = &shmsegs[segnum];
-	if ((uap->shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
+	if ((shmflg & (IPC_CREAT | IPC_EXCL)) == (IPC_CREAT | IPC_EXCL))
 		return (EEXIST);
 #ifdef MAC
-	error = mac_sysvshm_check_shmget(td->td_ucred, shmseg, uap->shmflg);
+	error = mac_sysvshm_check_shmget(td->td_ucred, shmseg, shmflg);
 	if (error != 0)
 		return (error);
 #endif
-	if (uap->size != 0 && uap->size > shmseg->u.shm_segsz)
+	if (size != 0 && size > shmseg->u.shm_segsz)
 		return (EINVAL);
 	td->td_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->u.shm_perm);
 	return (0);
 }
 
 static int
-shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
+shmget_allocate_segment(struct thread *td, key_t key, size_t size, int mode)
 {
 	struct ucred *cred = td->td_ucred;
 	struct shmid_kernel *shmseg;
 	vm_object_t shm_object;
 	int i, segnum;
-	size_t size;
 
 	SYSVSHM_ASSERT_LOCKED();
 
-	if (uap->size < shminfo.shmmin || uap->size > shminfo.shmmax)
+	if (size < shminfo.shmmin || size > shminfo.shmmax)
 		return (EINVAL);
 	if (shm_nused >= shminfo.shmmni) /* Any shmids left? */
 		return (ENOSPC);
-	size = round_page(uap->size);
+	size = round_page(size);
 	if (shm_committed + btoc(size) > shminfo.shmall)
 		return (ENOMEM);
 	if (shm_last_free < 0) {
@@ -755,10 +753,10 @@ shmget_allocate_segment(struct thread *td, struct shmget_args *uap, int mode)
 	shmseg->u.shm_perm.cuid = shmseg->u.shm_perm.uid = cred->cr_uid;
 	shmseg->u.shm_perm.cgid = shmseg->u.shm_perm.gid = cred->cr_gid;
 	shmseg->u.shm_perm.mode = (mode & ACCESSPERMS) | SHMSEG_ALLOCATED;
-	shmseg->u.shm_perm.key = uap->key;
+	shmseg->u.shm_perm.key = key;
 	shmseg->u.shm_perm.seq = (shmseg->u.shm_perm.seq + 1) & 0x7fff;
 	shmseg->cred = crhold(cred);
-	shmseg->u.shm_segsz = uap->size;
+	shmseg->u.shm_segsz = size;
 	shmseg->u.shm_cpid = td->td_proc->p_pid;
 	shmseg->u.shm_lpid = shmseg->u.shm_nattch = 0;
 	shmseg->u.shm_atime = shmseg->u.shm_dtime = 0;
@@ -791,16 +789,18 @@ sys_shmget(struct thread *td, struct shmget_args *uap)
 	mode = uap->shmflg & ACCESSPERMS;
 	SYSVSHM_LOCK();
 	if (uap->key == IPC_PRIVATE) {
-		error = shmget_allocate_segment(td, uap, mode);
+		error = shmget_allocate_segment(td, uap->key, uap->size, mode);
 	} else {
 		segnum = shm_find_segment_by_key(td->td_ucred->cr_prison,
 		    uap->key);
 		if (segnum >= 0)
-			error = shmget_existing(td, uap, mode, segnum);
+			error = shmget_existing(td, uap->size, uap->shmflg,
+			    mode, segnum);
 		else if ((uap->shmflg & IPC_CREAT) == 0)
 			error = ENOENT;
 		else
-			error = shmget_allocate_segment(td, uap, mode);
+			error = shmget_allocate_segment(td, uap->key,
+			    uap->size, mode);
 	}
 	SYSVSHM_UNLOCK();
 	return (error);
