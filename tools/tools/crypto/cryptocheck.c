@@ -492,7 +492,7 @@ ocf_hash(const struct alg *alg, const char *buffer, size_t size, char *digest,
 	ocf_init_cop(&ses, &cop);
 	cop.op = 0;
 	cop.len = size;
-	cop.src = __DECONST(char *, buffer);
+	cop.src = buffer;
 	cop.mac = digest;
 
 	if (ioctl(ses.fd, CIOCCRYPT, &cop) < 0) {
@@ -596,7 +596,7 @@ ocf_hmac(const struct alg *alg, const char *buffer, size_t size,
 
 	ocf_init_sop(&sop);
 	sop.mackeylen = key_len;
-	sop.mackey = __DECONST(char *, key);
+	sop.mackey = key;
 	sop.mac = alg->mac;
 	if (!ocf_init_session(&sop, "HMAC", alg->name, &ses))
 		return (false);
@@ -604,7 +604,7 @@ ocf_hmac(const struct alg *alg, const char *buffer, size_t size,
 	ocf_init_cop(&ses, &cop);
 	cop.op = 0;
 	cop.len = size;
-	cop.src = __DECONST(char *, buffer);
+	cop.src = buffer;
 	cop.mac = digest;
 
 	if (ioctl(ses.fd, CIOCCRYPT, &cop) < 0) {
@@ -709,7 +709,7 @@ ocf_init_cipher_session(const struct alg *alg, const char *key, size_t key_len,
 
 	ocf_init_sop(&sop);
 	sop.keylen = key_len;
-	sop.key = __DECONST(char *, key);
+	sop.key = key;
 	sop.cipher = alg->cipher;
 	return (ocf_init_session(&sop, "cipher", alg->name, ses));
 }
@@ -723,9 +723,9 @@ ocf_cipher(const struct ocf_session *ses, const struct alg *alg, const char *iv,
 	ocf_init_cop(ses, &cop);
 	cop.op = op;
 	cop.len = size;
-	cop.src = __DECONST(char *, input);
+	cop.src = input;
 	cop.dst = output;
-	cop.iv = __DECONST(char *, iv);
+	cop.iv = iv;
 
 	if (ioctl(ses->fd, CIOCCRYPT, &cop) < 0) {
 		warn("cryptodev %s (%zu) cipher failed for device %s",
@@ -841,10 +841,10 @@ ocf_init_eta_session(const struct alg *alg, const char *cipher_key,
 
 	ocf_init_sop(&sop);
 	sop.keylen = cipher_key_len;
-	sop.key = __DECONST(char *, cipher_key);
+	sop.key = cipher_key;
 	sop.cipher = alg->cipher;
 	sop.mackeylen = auth_key_len;
-	sop.mackey = __DECONST(char *, auth_key);
+	sop.mackey = auth_key;
 	sop.mac = alg->mac;
 	return (ocf_init_session(&sop, "ETA", alg->name, ses));
 }
@@ -864,11 +864,11 @@ ocf_eta(const struct ocf_session *ses, const char *iv, size_t iv_len,
 		caead.len = size;
 		caead.aadlen = aad_len;
 		caead.ivlen = iv_len;
-		caead.src = __DECONST(char *, input);
+		caead.src = input;
 		caead.dst = output;
-		caead.aad = __DECONST(char *, aad);
+		caead.aad = aad;
 		caead.tag = digest;
-		caead.iv = __DECONST(char *, iv);
+		caead.iv = iv;
 
 		ret = ioctl(ses->fd, CIOCCRYPTAEAD, &caead);
 	} else {
@@ -877,10 +877,10 @@ ocf_eta(const struct ocf_session *ses, const char *iv, size_t iv_len,
 		ocf_init_cop(ses, &cop);
 		cop.op = op;
 		cop.len = size;
-		cop.src = __DECONST(char *, input);
+		cop.src = input;
 		cop.dst = output;
 		cop.mac = digest;
-		cop.iv = __DECONST(char *, iv);
+		cop.iv = iv;
 
 		ret = ioctl(ses->fd, CIOCCRYPT, &cop);
 	}
@@ -1078,7 +1078,7 @@ ocf_gmac(const struct alg *alg, const char *input, size_t size, const char *key,
 
 	ocf_init_sop(&sop);
 	sop.mackeylen = key_len;
-	sop.mackey = __DECONST(char *, key);
+	sop.mackey = key;
 	sop.mac = alg->mac;
 	if (!ocf_init_session(&sop, "GMAC", alg->name, &ses))
 		return (false);
@@ -1086,7 +1086,7 @@ ocf_gmac(const struct alg *alg, const char *input, size_t size, const char *key,
 	ocf_init_cop(&ses, &cop);
 	cop.op = 0;
 	cop.len = size;
-	cop.src = __DECONST(char *, input);
+	cop.src = input;
 	cop.mac = tag;
 	cop.iv = iv;
 
@@ -1298,7 +1298,7 @@ ocf_init_aead_session(const struct alg *alg, const char *key, size_t key_len,
 
 	ocf_init_sop(&sop);
 	sop.keylen = key_len;
-	sop.key = __DECONST(char *, key);
+	sop.key = key;
 	sop.cipher = alg->cipher;
 	return (ocf_init_session(&sop, "AEAD", alg->name, ses));
 }
@@ -1315,11 +1315,11 @@ ocf_aead(const struct ocf_session *ses, const char *iv, size_t iv_len,
 	caead.len = size;
 	caead.aadlen = aad_len;
 	caead.ivlen = iv_len;
-	caead.src = __DECONST(char *, input);
+	caead.src = input;
 	caead.dst = output;
-	caead.aad = __DECONST(char *, aad);
+	caead.aad = aad;
 	caead.tag = tag;
-	caead.iv = __DECONST(char *, iv);
+	caead.iv = iv;
 
 	if (ioctl(ses->fd, CIOCCRYPTAEAD, &caead) < 0)
 		return (errno);
