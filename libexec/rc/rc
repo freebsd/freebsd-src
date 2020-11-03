@@ -59,6 +59,8 @@ else
 	_boot="quietstart"
 fi
 
+_localbase=`/sbin/sysctl -n user.localbase 2> /dev/null`
+
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
 if [ ${dlv:=0} -ne 0 -o -f /etc/diskless ]; then
 	sh /etc/rc.initdiskless
