@@ -222,6 +222,8 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_LINGER);
 	case LINUX_SO_REUSEPORT:
 		return (SO_REUSEPORT_LB);
+	case LINUX_SO_PASSCRED:
+		return (LOCAL_CREDS_PERSISTENT);
 	case LINUX_SO_PEERCRED:
 		return (LOCAL_PEERCRED);
 	case LINUX_SO_RCVLOWAT:
@@ -1445,6 +1447,9 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
 		switch (name) {
+		case LOCAL_CREDS_PERSISTENT:
+			level = SOL_LOCAL;
+			break;
 		case SO_RCVTIMEO:
 			/* FALLTHROUGH */
 		case SO_SNDTIMEO:
@@ -1522,6 +1527,9 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	case SOL_SOCKET:
 		name = linux_to_bsd_so_sockopt(args->optname);
 		switch (name) {
+		case LOCAL_CREDS_PERSISTENT:
+			level = SOL_LOCAL;
+			break;
 		case SO_RCVTIMEO:
 			/* FALLTHROUGH */
 		case SO_SNDTIMEO:
