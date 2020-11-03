@@ -50,6 +50,7 @@
 					 * Second arg is a ptr to return the
 					 * signal.
 					 */
+#define	LINUX_PR_GET_DUMPABLE	3
 #define	LINUX_PR_SET_DUMPABLE	4
 #define	LINUX_PR_GET_KEEPCAPS	7	/* Get drop capabilities on setuid */
 #define	LINUX_PR_SET_KEEPCAPS	8	/* Set drop capabilities on setuid */
@@ -61,6 +62,11 @@
 #define	LINUX_PR_SET_PTRACER	1499557217
 
 #define	LINUX_MAX_COMM_LEN	16	/* Maximum length of the process name. */
+
+/* For GET/SET DUMPABLE */
+#define	LINUX_SUID_DUMP_DISABLE	0	/* Don't coredump setuid processes. */
+#define	LINUX_SUID_DUMP_USER	1	/* Dump as user of process. */
+#define	LINUX_SUID_DUMP_ROOT	2	/* Dump as root. */
 
 #define	LINUX_MREMAP_MAYMOVE	1
 #define	LINUX_MREMAP_FIXED	2
