@@ -189,6 +189,7 @@ device		rk_typec_phy		# Rockchip TypeC PHY
 device		dwcotg			# DWC OTG controller
 device		musb			# Mentor Graphics USB OTG controller
 device		ohci			# OHCI USB interface
+device		uhci			# UHCI USB interface
 device		ehci			# EHCI USB interface (USB 2.0)
 device		ehci_mv			# Marvell EHCI USB interface
 device		xhci			# XHCI PCI->USB interface (USB 3.0)
