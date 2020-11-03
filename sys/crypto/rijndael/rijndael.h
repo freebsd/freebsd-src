@@ -45,11 +45,11 @@ void	rijndael_set_key(rijndael_ctx *, const u_char *, int);
 void	rijndael_decrypt(const rijndael_ctx *, const u_char *, u_char *);
 void	rijndael_encrypt(const rijndael_ctx *, const u_char *, u_char *);
 
-int	rijndaelKeySetupEnc(u_int32_t [/*4*(Nr+1)*/], const u_int8_t [], int);
-int	rijndaelKeySetupDec(u_int32_t [/*4*(Nr+1)*/], const u_int8_t [], int);
-void	rijndaelEncrypt(const u_int32_t [/*4*(Nr+1)*/], int,
-	const u_int8_t[16], u_int8_t [16]);
-void	rijndaelDecrypt(const u_int32_t [/*4*(Nr+1)*/], int,
-	const u_int8_t [16], u_int8_t [16]);
+int	rijndaelKeySetupEnc(uint32_t [/*4*(Nr+1)*/], const uint8_t [], int);
+int	rijndaelKeySetupDec(uint32_t [/*4*(Nr+1)*/], const uint8_t [], int);
+void	rijndaelEncrypt(const uint32_t [/*4*(Nr+1)*/], int,
+	const uint8_t[16], uint8_t [16]);
+void	rijndaelDecrypt(const uint32_t [/*4*(Nr+1)*/], int,
+	const uint8_t [16], uint8_t [16]);
 
 #endif /* __RIJNDAEL_H */

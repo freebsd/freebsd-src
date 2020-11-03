@@ -893,10 +893,10 @@ swcr_eta(struct swcr_session *ses, struct cryptop *crp)
 static int
 swcr_compdec(struct swcr_session *ses, struct cryptop *crp)
 {
-	u_int8_t *data, *out;
+	uint8_t *data, *out;
 	struct comp_algo *cxf;
 	int adj;
-	u_int32_t result;
+	uint32_t result;
 
 	cxf = ses->swcr_compdec.sw_cxf;
 

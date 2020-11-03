@@ -53,13 +53,13 @@ __FBSDID("$FreeBSD$");
 #include <opencrypto/xform_auth.h>
 #include <opencrypto/xform_enc.h>
 
-static	int null_setkey(void *, const u_int8_t *, int);
+static	int null_setkey(void *, const uint8_t *, int);
 static	void null_crypt(void *, const uint8_t *, uint8_t *);
 
 static	void null_init(void *);
 static	void null_reinit(void *ctx, const uint8_t *buf, u_int len);
 static	int null_update(void *, const void *, u_int);
-static	void null_final(u_int8_t *, void *);
+static	void null_final(uint8_t *, void *);
 
 /* Encryption instances */
 struct enc_xform enc_xform_null = {
@@ -125,8 +125,8 @@ null_update(void *ctx, const void *buf, u_int len)
 }
 
 static void
-null_final(u_int8_t *buf, void *ctx)
+null_final(uint8_t *buf, void *ctx)
 {
-	if (buf != (u_int8_t *) 0)
+	if (buf != (uint8_t *) 0)
 		bzero(buf, 12);
 }
