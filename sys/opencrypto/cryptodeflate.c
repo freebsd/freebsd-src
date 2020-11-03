@@ -82,11 +82,7 @@ crypto_zfree(void *nil, void *ptr)
  */
 
 uint32_t
-deflate_global(data, size, decomp, out)
-	uint8_t *data;
-	uint32_t size;
-	int decomp;
-	uint8_t **out;
+deflate_global(uint8_t *data, uint32_t size, int decomp, uint8_t **out)
 {
 	/* decomp indicates whether we compress (0) or decompress (1) */
 
