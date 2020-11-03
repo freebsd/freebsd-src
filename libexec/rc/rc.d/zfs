@@ -6,6 +6,7 @@
 # PROVIDE: zfs
 # REQUIRE: zfsbe
 # BEFORE: FILESYSTEMS var
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 
