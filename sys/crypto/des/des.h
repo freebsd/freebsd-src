@@ -56,7 +56,7 @@ extern "C" {
 #endif
 
 /* must be 32bit quantity */
-#define DES_LONG u_int32_t
+#define DES_LONG uint32_t
 
 typedef unsigned char des_cblock[8];
 typedef struct des_ks_struct

@@ -117,9 +117,9 @@ static	struct mtx crypto_drivers_mtx;		/* lock on driver table */
 struct cryptocap {
 	device_t	cc_dev;
 	uint32_t	cc_hid;
-	u_int32_t	cc_sessions;		/* (d) # of sessions */
-	u_int32_t	cc_koperations;		/* (d) # os asym operations */
-	u_int8_t	cc_kalg[CRK_ALGORITHM_MAX + 1];
+	uint32_t	cc_sessions;		/* (d) # of sessions */
+	uint32_t	cc_koperations;		/* (d) # os asym operations */
+	uint8_t		cc_kalg[CRK_ALGORITHM_MAX + 1];
 
 	int		cc_flags;		/* (d) flags */
 #define CRYPTOCAP_F_CLEANUP	0x80000000	/* needs resource cleanup */
@@ -173,8 +173,8 @@ struct crypto_ret_worker {
 	TAILQ_HEAD(,cryptop) crp_ret_q;		/* callback queue for symetric jobs */
 	TAILQ_HEAD(,cryptkop) crp_ret_kq;	/* callback queue for asym jobs */
 
-	u_int32_t reorder_ops;		/* total ordered sym jobs received */
-	u_int32_t reorder_cur_seq;	/* current sym job dispatched */
+	uint32_t reorder_ops;		/* total ordered sym jobs received */
+	uint32_t reorder_cur_seq;	/* current sym job dispatched */
 
 	struct proc *cryptoretproc;
 };
@@ -611,7 +611,7 @@ crypto_cipher(const struct crypto_session_params *csp)
 }
 
 static struct cryptocap *
-crypto_checkdriver(u_int32_t hid)
+crypto_checkdriver(uint32_t hid)
 {
 
 	return (hid >= crypto_drivers_size ? NULL : crypto_drivers[hid]);
@@ -1119,7 +1119,7 @@ crypto_getcaps(int hid)
  * is called once for each algorithm supported a driver.
  */
 int
-crypto_kregister(u_int32_t driverid, int kalg, u_int32_t flags)
+crypto_kregister(uint32_t driverid, int kalg, uint32_t flags)
 {
 	struct cryptocap *cap;
 	int err;
@@ -1159,7 +1159,7 @@ crypto_kregister(u_int32_t driverid, int kalg, u_int32_t flags)
  * requests.
  */
 int
-crypto_unregister_all(u_int32_t driverid)
+crypto_unregister_all(uint32_t driverid)
 {
 	struct cryptocap *cap;
 
@@ -1190,7 +1190,7 @@ crypto_unregister_all(u_int32_t driverid)
  * the driver is now ready for cryptop's and/or cryptokop's.
  */
 int
-crypto_unblock(u_int32_t driverid, int what)
+crypto_unblock(uint32_t driverid, int what)
 {
 	struct cryptocap *cap;
 	int err;

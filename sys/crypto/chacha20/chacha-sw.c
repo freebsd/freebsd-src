@@ -18,7 +18,7 @@ chacha20_xform_setkey(void *ctx, const uint8_t *key, int len)
 }
 
 static void
-chacha20_xform_reinit(void *ctx, const u_int8_t *iv)
+chacha20_xform_reinit(void *ctx, const uint8_t *iv)
 {
 
 	chacha_ivsetup(ctx, iv + 8, iv);

@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <crypto/rijndael/rijndael.h>
 #include <opencrypto/xform_enc.h>
 
-static	int rijndael128_setkey(void *, const u_int8_t *, int);
+static	int rijndael128_setkey(void *, const uint8_t *, int);
 static	void rijndael128_encrypt(void *, const uint8_t *, uint8_t *);
 static	void rijndael128_decrypt(void *, const uint8_t *, uint8_t *);
 

@@ -50,10 +50,10 @@ struct enc_xform {
 	int type;
 	char *name;
 	size_t ctxsize;
-	u_int16_t blocksize;	/* Required input block size -- 1 for stream ciphers. */
+	uint16_t blocksize;	/* Required input block size -- 1 for stream ciphers. */
 	uint16_t native_blocksize;	/* Used for stream ciphers. */
-	u_int16_t ivsize;
-	u_int16_t minkey, maxkey;
+	uint16_t ivsize;
+	uint16_t minkey, maxkey;
 
 	/*
 	 * Encrypt/decrypt a single block.  For stream ciphers this
@@ -62,7 +62,7 @@ struct enc_xform {
 	void (*encrypt) (void *, const uint8_t *, uint8_t *);
 	void (*decrypt) (void *, const uint8_t *, uint8_t *);
 	int (*setkey) (void *, const uint8_t *, int len);
-	void (*reinit) (void *, const u_int8_t *);
+	void (*reinit) (void *, const uint8_t *);
 
 	/*
 	 * For stream ciphers, encrypt/decrypt the final partial block
@@ -84,16 +84,16 @@ extern struct enc_xform enc_xform_chacha20;
 extern struct enc_xform enc_xform_ccm;
 
 struct aes_icm_ctx {
-	u_int32_t	ac_ek[4*(RIJNDAEL_MAXNR + 1)];
+	uint32_t	ac_ek[4*(RIJNDAEL_MAXNR + 1)];
 	/* ac_block is initialized to IV */
-	u_int8_t	ac_block[AESICM_BLOCKSIZE];
+	uint8_t		ac_block[AESICM_BLOCKSIZE];
 	int		ac_nr;
 };
 
 struct aes_xts_ctx {
 	rijndael_ctx key1;
 	rijndael_ctx key2;
-	u_int8_t tweak[AES_XTS_BLOCKSIZE];
+	uint8_t tweak[AES_XTS_BLOCKSIZE];
 };
 
 #endif /* _CRYPTO_XFORM_ENC_H_ */

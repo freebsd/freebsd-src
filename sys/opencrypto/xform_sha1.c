@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 static	void SHA1Init_int(void *);
 static	int SHA1Update_int(void *, const void *, u_int);
-static	void SHA1Final_int(u_int8_t *, void *);
+static	void SHA1Final_int(uint8_t *, void *);
 
 /* Plain hash */
 struct auth_hash auth_hash_sha1 = {
@@ -99,7 +99,7 @@ SHA1Update_int(void *ctx, const void *buf, u_int len)
 }
 
 static void
-SHA1Final_int(u_int8_t *blk, void *ctx)
+SHA1Final_int(uint8_t *blk, void *ctx)
 {
 	SHA1Final(blk, ctx);
 }
