@@ -198,12 +198,20 @@ file is preprocessed by a limited subset of
 .Xr cpp 1
 internally, allowing the inclusion of shared files such as
 lists of company holidays or meetings.
-This limited subset consists of \fB#include #ifdef #ifndef #else
-#endif\fR and \fB#define\fR. Conditions can be nested, but not check
-for matching begin and end directives is performed.
-Included files are parsed in their own scope.
-They have no read or write access to condition variables defined in
-an outer scope and open conditional blocks are implicitly closed.
+This limited subset consists of \fB#include\fR, \fB#define\fR,
+\fB#undef\fR, \fB#ifdef\fR, \fB#ifndef\fR, and \fB#else\fR.
+.Pp
+Conditions can be nested and the consistency of opening and closing
+instructions is checked.
+Only the first word after #define is used as the name of the
+condition variable being defined.
+More than word following #ifdef, #ifndef, or #undef is a ayntax
+error, since names cannot include white-space.
+Included files are parsed in a global scope with regard to the condition
+variables being defined or tested therein.
+All conditional blocks are implicitly closed at the end of a file,
+and missing #endif instructions are assumed to be present on implied
+succeeding lines.
 .Pp
 If the shared file is not referenced by a full pathname,
 .Nm
