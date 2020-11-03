@@ -68,19 +68,13 @@ struct comp_algo comp_algo_deflate = {
  */
 
 static uint32_t
-deflate_compress(data, size, out)
-	uint8_t *data;
-	uint32_t size;
-	uint8_t **out;
+deflate_compress(uint8_t *data, uint32_t size, uint8_t **out)
 {
 	return deflate_global(data, size, 0, out);
 }
 
 static uint32_t
-deflate_decompress(data, size, out)
-	uint8_t *data;
-	uint32_t size;
-	uint8_t **out;
+deflate_decompress(uint8_t *data, uint32_t size, uint8_t **out)
 {
 	return deflate_global(data, size, 1, out);
 }
