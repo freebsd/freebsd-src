@@ -1040,7 +1040,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			break;
 		}
 
-		if (unp2->unp_flags & UNP_WANTCRED)
+		if (unp2->unp_flags & UNP_WANTCRED_MASK)
 			control = unp_addsockcred(td, control);
 		if (unp->unp_addr != NULL)
 			from = (struct sockaddr *)unp->unp_addr;
@@ -1094,12 +1094,13 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			break;
 		}
 		SOCKBUF_LOCK(&so2->so_rcv);
-		if (unp2->unp_flags & UNP_WANTCRED) {
+		if (unp2->unp_flags & UNP_WANTCRED_MASK) {
 			/*
-			 * Credentials are passed only once on SOCK_STREAM
-			 * and SOCK_SEQPACKET.
+			 * Credentials are passed only once on SOCK_STREAM and
+			 * SOCK_SEQPACKET (LOCAL_CREDS => WANTCRED_ONESHOT), or
+			 * forever (LOCAL_CREDS_PERSISTENT => WANTCRED_ALWAYS).
 			 */
-			unp2->unp_flags &= ~UNP_WANTCRED;
+			unp2->unp_flags &= ~UNP_WANTCRED_ONESHOT;
 			control = unp_addsockcred(td, control);
 		}
 
@@ -1405,7 +1406,13 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 
 		case LOCAL_CREDS:
 			/* Unlocked read. */
-			optval = unp->unp_flags & UNP_WANTCRED ? 1 : 0;
+			optval = unp->unp_flags & UNP_WANTCRED_ONESHOT ? 1 : 0;
+			error = sooptcopyout(sopt, &optval, sizeof(optval));
+			break;
+
+		case LOCAL_CREDS_PERSISTENT:
+			/* Unlocked read. */
+			optval = unp->unp_flags & UNP_WANTCRED_ALWAYS ? 1 : 0;
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
 
@@ -1424,28 +1431,38 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	case SOPT_SET:
 		switch (sopt->sopt_name) {
 		case LOCAL_CREDS:
+		case LOCAL_CREDS_PERSISTENT:
 		case LOCAL_CONNWAIT:
 			error = sooptcopyin(sopt, &optval, sizeof(optval),
 					    sizeof(optval));
 			if (error)
 				break;
 
-#define	OPTSET(bit) do {						\
+#define	OPTSET(bit, exclusive) do {					\
 	UNP_PCB_LOCK(unp);						\
-	if (optval)							\
-		unp->unp_flags |= bit;					\
-	else								\
-		unp->unp_flags &= ~bit;					\
+	if (optval) {							\
+		if ((unp->unp_flags & (exclusive)) != 0) {		\
+			UNP_PCB_UNLOCK(unp);				\
+			error = EINVAL;					\
+			break;						\
+		}							\
+		unp->unp_flags |= (bit);				\
+	} else								\
+		unp->unp_flags &= ~(bit);				\
 	UNP_PCB_UNLOCK(unp);						\
 } while (0)
 
 			switch (sopt->sopt_name) {
 			case LOCAL_CREDS:
-				OPTSET(UNP_WANTCRED);
+				OPTSET(UNP_WANTCRED_ONESHOT, UNP_WANTCRED_ALWAYS);
+				break;
+
+			case LOCAL_CREDS_PERSISTENT:
+				OPTSET(UNP_WANTCRED_ALWAYS, UNP_WANTCRED_ONESHOT);
 				break;
 
 			case LOCAL_CONNWAIT:
-				OPTSET(UNP_CONNWAIT);
+				OPTSET(UNP_CONNWAIT, 0);
 				break;
 
 			default:
@@ -1651,8 +1668,7 @@ unp_copy_peercred(struct thread *td, struct unpcb *client_unp,
 	memcpy(&server_unp->unp_peercred, &listen_unp->unp_peercred,
 	    sizeof(server_unp->unp_peercred));
 	server_unp->unp_flags |= UNP_HAVEPC;
-	if (listen_unp->unp_flags & UNP_WANTCRED)
-		client_unp->unp_flags |= UNP_WANTCRED;
+	client_unp->unp_flags |= (listen_unp->unp_flags & UNP_WANTCRED_MASK);
 }
 
 static int
@@ -2853,8 +2869,12 @@ db_print_unpflags(int unp_flags)
 		db_printf("%sUNP_HAVEPC", comma ? ", " : "");
 		comma = 1;
 	}
-	if (unp_flags & UNP_WANTCRED) {
-		db_printf("%sUNP_WANTCRED", comma ? ", " : "");
+	if (unp_flags & UNP_WANTCRED_ALWAYS) {
+		db_printf("%sUNP_WANTCRED_ALWAYS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (unp_flags & UNP_WANTCRED_ONESHOT) {
+		db_printf("%sUNP_WANTCRED_ONESHOT", comma ? ", " : "");
 		comma = 1;
 	}
 	if (unp_flags & UNP_CONNWAIT) {

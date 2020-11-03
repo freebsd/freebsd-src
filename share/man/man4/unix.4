@@ -28,7 +28,7 @@
 .\"     @(#)unix.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd August 3, 2020
+.Dd November 2, 2020
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -201,7 +201,7 @@ which can be set with
 .Xr setsockopt 2
 and tested with
 .Xr getsockopt 2 :
-.Bl -tag -width ".Dv LOCAL_CONNWAIT"
+.Bl -tag -width ".Dv LOCAL_CREDS_PERSISTENT"
 .It Dv LOCAL_CREDS
 This option may be enabled on
 .Dv SOCK_DGRAM ,
@@ -287,6 +287,19 @@ such as error messages.
 Therefore, a message accompanied by a particular
 .Fa sc_euid
 value should not be trusted as being from that user.
+.It Dv LOCAL_CREDS_PERSISTENT
+This option is similar to
+.Dv LOCAL_CREDS ,
+except that socket credentials are passed on every read from a
+.Dv SOCK_STREAM
+or
+.Dv SOCK_SEQPACKET
+socket, instead of just the first read.
+The
+.Dv LOCAL_CREDS
+and
+.Dv LOCAL_CREDS_PERSISTENT
+options are mutually exclusive.
 .It Dv LOCAL_CONNWAIT
 Used with
 .Dv SOCK_STREAM
