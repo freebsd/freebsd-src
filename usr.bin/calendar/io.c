@@ -468,8 +468,7 @@ cal_parse(FILE *in, FILE *out)
 		 * and does not run iconv(), this variable has little use.
 		 */
 		if (strncmp(buf, "LANG=", 5) == 0) {
-			(void)setlocale(LC_ALL, buf + 5);
-			d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+			(void)setlocale(LC_CTYPE, buf + 5);
 #ifdef WITH_ICONV
 			if (!doall)
 				set_new_encoding();
