@@ -56,6 +56,7 @@ struct vector_str {
 };
 
 #define BUFFER_GROWFACTOR	1.618
+#define BUFFER_GROW(x)		(((x)+0.5)*BUFFER_GROWFACTOR)
 
 #define	ELFTC_FAILURE		0
 #define	ELFTC_ISDIGIT(C) 	(isdigit((C) & 0xFF))
