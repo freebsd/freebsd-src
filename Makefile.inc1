@@ -25,7 +25,8 @@
 #	LOCAL_XTOOL_DIRS="list of dirs" to add additional dirs to the
 #	    cross-tools target
 #	METALOG="path to metadata log" to write permission and ownership
-#	    when NO_ROOT is set.  (default: ${DESTDIR}/METALOG)
+#	    when NO_ROOT is set.  (default: ${DESTDIR}/${DISTDIR}/METALOG,
+#           check /etc/make.conf for DISTDIR)
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
 #	BUILDENV_SHELL= shell to launch for the buildenv target (def:${SHELL})
