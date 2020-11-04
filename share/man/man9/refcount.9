@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2019
+.Dd November 2, 2020
 .Dt REFCOUNT 9
 .Os
 .Sh NAME
@@ -46,6 +46,8 @@
 .In sys/refcount.h
 .Ft void
 .Fn refcount_init "volatile u_int *count" "u_int value"
+.Ft u_int
+.Fn refcount_load "volatile u_int *count"
 .Ft void
 .Fn refcount_acquire "volatile u_int *count"
 .Ft bool
@@ -54,6 +56,8 @@
 .Fn refcount_acquire_if_not_zero "volatile u_int *count"
 .Ft bool
 .Fn refcount_release "volatile u_int *count"
+.Ft bool
+.Fn refcount_release_if_last "volatile u_int *count"
 .Ft bool
 .Fn refcount_release_if_not_last "volatile u_int *count"
 .Sh DESCRIPTION
@@ -73,6 +77,16 @@ The
 function is used to set the initial value of the counter to
 .Fa value .
 It is normally used when creating a reference-counted object.
+.Pp
+The
+.Fn refcount_load
+function returns a snapshot of the counter value.
+This value may immediately become out-of-date in the absence of external
+synchronization.
+.Fn refcount_load
+should be used instead of relying on the properties of the
+.Vt volatile
+qualifier.
 .Pp
 The
 .Fn refcount_acquire
@@ -119,16 +133,33 @@ the last reference;
 otherwise, it returns false.
 .Pp
 The
+.Fn refcount_release_if_last
+and
 .Fn refcount_release_if_not_last
-is a variant of
+functions are variants of
 .Fn refcount_release
-which only drops the reference when it is not the last reference.
-In other words, the function returns
+which only drop the reference when it is or is not the last reference,
+respectively.
+In other words,
+.Fn refcount_release_if_last
+returns
+.Dv true
+when
+.Fa *count
+is equal to one, in which case it is decremented to zero.
+Otherwise,
+.Fa *count
+is not modified and the function returns
+.Dv false .
+Similarly,
+.Fn refcount_release_if_not_last
+returns
 .Dv true
 when
 .Fa *count
 is greater than one, in which case
-.Fa *count is decremented.
+.Fa *count
+is decremented.
 Otherwise, if
 .Fa *count
 is equal to one, the reference is not released and the function returns
