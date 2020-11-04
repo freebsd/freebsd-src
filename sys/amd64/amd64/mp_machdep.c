@@ -305,22 +305,22 @@ init_secondary(void)
 	pc->pc_common_tss.tss_rsp0 = 0;
 
 	/* The doublefault stack runs on IST1. */
-	np = ((struct nmi_pcpu *)&doublefault_stack[PAGE_SIZE]) - 1;
+	np = ((struct nmi_pcpu *)&doublefault_stack[DBLFAULT_STACK_SIZE]) - 1;
 	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist1 = (long)np;
 
 	/* The NMI stack runs on IST2. */
-	np = ((struct nmi_pcpu *) &nmi_stack[PAGE_SIZE]) - 1;
+	np = ((struct nmi_pcpu *)&nmi_stack[NMI_STACK_SIZE]) - 1;
 	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist2 = (long)np;
 
 	/* The MC# stack runs on IST3. */
-	np = ((struct nmi_pcpu *) &mce_stack[PAGE_SIZE]) - 1;
+	np = ((struct nmi_pcpu *)&mce_stack[MCE_STACK_SIZE]) - 1;
 	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist3 = (long)np;
 
 	/* The DB# stack runs on IST4. */
-	np = ((struct nmi_pcpu *) &dbg_stack[PAGE_SIZE]) - 1;
+	np = ((struct nmi_pcpu *)&dbg_stack[DBG_STACK_SIZE]) - 1;
 	np->np_pcpu = (register_t)pc;
 	pc->pc_common_tss.tss_ist4 = (long)np;
 
@@ -481,13 +481,14 @@ native_start_all_aps(void)
 		/* allocate and set up an idle stack data page */
 		bootstacks[cpu] = (void *)kmem_malloc(kstack_pages * PAGE_SIZE,
 		    M_WAITOK | M_ZERO);
-		doublefault_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK |
-		    M_ZERO);
-		mce_stack = (char *)kmem_malloc(PAGE_SIZE, M_WAITOK | M_ZERO);
+		doublefault_stack = (char *)kmem_malloc(DBLFAULT_STACK_SIZE,
+		    M_WAITOK | M_ZERO);
+		mce_stack = (char *)kmem_malloc(MCE_STACK_SIZE,
+		    M_WAITOK | M_ZERO);
 		nmi_stack = (char *)kmem_malloc_domainset(
-		    DOMAINSET_PREF(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+		    DOMAINSET_PREF(domain), NMI_STACK_SIZE, M_WAITOK | M_ZERO);
 		dbg_stack = (char *)kmem_malloc_domainset(
-		    DOMAINSET_PREF(domain), PAGE_SIZE, M_WAITOK | M_ZERO);
+		    DOMAINSET_PREF(domain), DBG_STACK_SIZE, M_WAITOK | M_ZERO);
 		dpcpu = (void *)kmem_malloc_domainset(DOMAINSET_PREF(domain),
 		    DPCPU_SIZE, M_WAITOK | M_ZERO);
 
