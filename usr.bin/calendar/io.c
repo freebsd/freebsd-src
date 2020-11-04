@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
-#include <langinfo.h>
 #include <locale.h>
 #include <pwd.h>
 #include <stdbool.h>
@@ -159,7 +158,9 @@ cal_path(void)
 {
 	static char buffer[MAXPATHLEN + 10];
 
-	if (cal_dir[0] == '/')
+	if (cal_dir == NULL)
+		snprintf(buffer, sizeof(buffer), "%s", cal_file);
+	else if (cal_dir[0] == '/')
 		snprintf(buffer, sizeof(buffer), "%s/%s", cal_dir, cal_file);
 	else
 		snprintf(buffer, sizeof(buffer), "%s/%s/%s", cal_home, cal_dir, cal_file);
@@ -181,14 +182,14 @@ token(char *line, FILE *out, int *skip, int *unskip)
 	int this_cal_line;
 
 	if (strncmp(line, "endif", 5) == 0) {
-		if (*skip > 0)
-			--*skip;
-		else if (*unskip > 0)
-			--*unskip;
-		else {
+		if (*skip + *unskip == 0) {
 			WARN0("#endif without prior #ifdef or #ifndef");
 			return (T_ERR);
 		}
+		if (*skip > 0)
+			--*skip;
+		else
+			--*unskip;
 
 		return (T_OK);
 	}
@@ -247,18 +248,17 @@ token(char *line, FILE *out, int *skip, int *unskip)
 			WARN0("Expecting no arguments after #else");
 			return (T_ERR);
 		}
+		if (*skip + *unskip == 0) {
+			WARN0("#else without prior #ifdef or #ifndef");
+			return (T_ERR);
+		}
 
-		if (*unskip == 0) {
-			if (*skip == 0) {
-				WARN0("#else without prior #ifdef or #ifndef");
-				return (T_ERR);
-			} else if (*skip == 1) {
-				*skip = 0;
-				*unskip = 1;
-			}
-		} else if (*unskip == 1) {
-			*skip = 1;
-			*unskip = 0;
+		if (*skip == 0) {
+			++*skip;
+			--*unskip;
+		} else if (*skip == 1) {
+			--*skip;
+			++*unskip;
 		}
 
 		return (T_OK);
@@ -366,7 +366,6 @@ cal_parse(FILE *in, FILE *out)
 	size_t linecap = 0;
 	ssize_t linelen;
 	ssize_t l;
-	static int d_first = -1;
 	static int count = 0;
 	int i;
 	int month[MAXCOUNT];
@@ -374,18 +373,10 @@ cal_parse(FILE *in, FILE *out)
 	int year[MAXCOUNT];
 	int skip = 0;
 	int unskip = 0;
-	char dbuf[80];
 	char *pp, p;
-	struct tm tm;
 	int flags;
 	char *c, *cc;
 	bool incomment = false;
-
-	/* Unused */
-	tm.tm_sec = 0;
-	tm.tm_min = 0;
-	tm.tm_hour = 0;
-	tm.tm_wday = 0;
 
 	if (in == NULL)
 		return (1);
@@ -468,7 +459,7 @@ cal_parse(FILE *in, FILE *out)
 		 * and does not run iconv(), this variable has little use.
 		 */
 		if (strncmp(buf, "LANG=", 5) == 0) {
-			(void)setlocale(LC_CTYPE, buf + 5);
+			(void)setlocale(LC_ALL, buf + 5);
 #ifdef WITH_ICONV
 			if (!doall)
 				set_new_encoding();
@@ -532,18 +523,10 @@ cal_parse(FILE *in, FILE *out)
 		while (pp[1] == '\t')
 			pp++;
 
-		if (d_first < 0)
-			d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
-
 		for (i = 0; i < count; i++) {
-			tm.tm_mon = month[i] - 1;
-			tm.tm_mday = day[i];
-			tm.tm_year = year[i] - 1900;
-			(void)strftime(dbuf, sizeof(dbuf),
-			    d_first ? "%e %b" : "%b %e", &tm);
 			if (debug)
 				WARN1("got \"%s\"", pp);
-			events[i] = event_add(year[i], month[i], day[i], dbuf,
+			events[i] = event_add(year[i], month[i], day[i],
 			    ((flags &= F_VARIABLE) != 0) ? 1 : 0, pp,
 			    extradata[i]);
 		}
@@ -592,6 +575,7 @@ opencalin(void)
 	FILE *fpin;
 
 	/* open up calendar file */
+	cal_file = calendarFile;
 	if ((fpin = fopen(calendarFile, "r")) == NULL) {
 		if (doall) {
 			if (chdir(calendarHomes[0]) != 0)
