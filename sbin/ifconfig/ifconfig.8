@@ -92,15 +92,11 @@ or other operating parameters.
 The following options are available:
 .Bl -tag -width indent
 .It Ar address
-For the
-.Tn DARPA Ns -Internet
-family,
+For the DARPA-Internet family,
 the address is either a host name present in the host name data
 base,
 .Xr hosts 5 ,
-or a
-.Tn DARPA
-Internet address expressed in the Internet standard
+or a DARPA Internet address expressed in the Internet standard
 .Dq dot notation .
 .Pp
 It is also possible to use the CIDR notation (also known as the
@@ -131,9 +127,7 @@ parameter below for more information.
 .\" (Ethernet, FDDI, and Token Ring) interfaces,
 .\" which use the hardware physical address,
 .\" and on interfaces other than the first.
-.\" For the
-.\" .Tn ISO
-.\" family, addresses are specified as a long hexadecimal string,
+.\" For the ISO family, addresses are specified as a long hexadecimal string,
 .\" as in the Xerox family.
 .\" However, two consecutive dots imply a zero
 .\" byte, and the dots are optional, if the user wishes to (carefully)
@@ -320,12 +314,8 @@ Enable the use of the Address Resolution Protocol
 .Pq Xr arp 4
 in mapping
 between network level addresses and link level addresses (default).
-This is currently implemented for mapping between
-.Tn DARPA
-Internet
-addresses and
-.Tn IEEE
-802 48-bit MAC addresses (Ethernet, FDDI, and Token Ring addresses).
+This is currently implemented for mapping between DARPA Internet addresses
+and IEEE 802 48-bit MAC addresses (Ethernet, FDDI, and Token Ring addresses).
 .It Fl arp
 Disable the use of the Address Resolution Protocol
 .Pq Xr arp 4 .
@@ -425,8 +415,7 @@ of the interface to
 Some interfaces support the mutually exclusive use of one of several
 different physical media connectors.
 For example, a 10Mbit/s Ethernet
-interface might support the use of either
-.Tn AUI
+interface might support the use of either AUI
 or twisted pair connectors.
 Setting the media type to
 .Cm 10base5/AUI
@@ -564,7 +553,7 @@ Note that this must be configured on a physical interface associated with
 not on a
 .Xr vlan 4
 interface itself.
-.It Fl vlanmtu , vlanhwtag, vlanhwfilter, vlanhwtso
+.It Fl vlanmtu , vlanhwtag , vlanhwfilter , vlanhwtso
 If the driver offers user-configurable VLAN support, disable
 reception of extended frames, tag processing in hardware,
 frame filtering in hardware, or TSO on VLAN,
@@ -620,16 +609,12 @@ Destroy the specified network pseudo-device.
 Another name for the
 .Cm create
 parameter.
-Included for
-.Tn Solaris
-compatibility.
+Included for Solaris compatibility.
 .It Cm unplumb
 Another name for the
 .Cm destroy
 parameter.
-Included for
-.Tn Solaris
-compatibility.
+Included for Solaris compatibility.
 .It Cm metric Ar n
 Set the routing metric of the interface to
 .Ar n ,
@@ -1942,9 +1927,7 @@ string or as a string of hexadecimal digits preceded by
 .Ql 0x .
 For maximum portability, hex keys are recommended;
 the mapping of text keys to WEP encryption is usually driver-specific.
-In particular, the
-.Tn Windows
-drivers do this mapping differently to
+In particular, the Windows drivers do this mapping differently to
 .Fx .
 A key may be cleared by setting it to
 .Ql - .
