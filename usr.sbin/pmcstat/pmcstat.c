@@ -374,7 +374,7 @@ pmcstat_show_usage(void)
 	    "\t -R file\t read events from \"file\"\n"
 	    "\t -S spec\t allocate a system-wide sampling PMC\n"
 	    "\t -T\t\t start in top mode\n"
-	    "\t -U \t\n merged user kernel stack capture\n"
+	    "\t -U \t\t merged user kernel stack capture\n"
 	    "\t -W\t\t (toggle) show counts per context switch\n"
 	    "\t -a file\t print sampled PCs and callgraph to \"file\"\n"
 	    "\t -c cpu-list\t set cpus for subsequent system-wide PMCs\n"
