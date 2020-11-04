@@ -257,7 +257,7 @@ vmspace_alloc(vm_offset_t min, vm_offset_t max, pmap_pinit_t pinit)
 	}
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, vmspace_pmap(vm), min, max);
-	vm->vm_refcnt = 1;
+	refcount_init(&vm->vm_refcnt, 1);
 	vm->vm_shm = NULL;
 	vm->vm_swrss = 0;
 	vm->vm_tsize = 0;
@@ -316,10 +316,7 @@ vmspace_free(struct vmspace *vm)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "vmspace_free() called");
 
-	if (vm->vm_refcnt == 0)
-		panic("vmspace_free: attempt to free already freed vmspace");
-
-	if (atomic_fetchadd_int(&vm->vm_refcnt, -1) == 1)
+	if (refcount_release(&vm->vm_refcnt))
 		vmspace_dofree(vm);
 }
 
@@ -339,45 +336,42 @@ vmspace_exitfree(struct proc *p)
 void
 vmspace_exit(struct thread *td)
 {
-	int refcnt;
 	struct vmspace *vm;
 	struct proc *p;
-
-	/*
-	 * Release user portion of address space.
-	 * This releases references to vnodes,
-	 * which could cause I/O if the file has been unlinked.
-	 * Need to do this early enough that we can still sleep.
-	 *
-	 * The last exiting process to reach this point releases as
-	 * much of the environment as it can. vmspace_dofree() is the
-	 * slower fallback in case another process had a temporary
-	 * reference to the vmspace.
-	 */
+	bool released;
 
 	p = td->td_proc;
 	vm = p->p_vmspace;
-	atomic_add_int(&vmspace0.vm_refcnt, 1);
-	refcnt = vm->vm_refcnt;
-	do {
-		if (refcnt > 1 && p->p_vmspace != &vmspace0) {
-			/* Switch now since other proc might free vmspace */
+
+	/*
+	 * Prepare to release the vmspace reference.  The thread that releases
+	 * the last reference is responsible for tearing down the vmspace.
+	 * However, threads not releasing the final reference must switch to the
+	 * kernel's vmspace0 before the decrement so that the subsequent pmap
+	 * deactivation does not modify a freed vmspace.
+	 */
+	refcount_acquire(&vmspace0.vm_refcnt);
+	if (!(released = refcount_release_if_last(&vm->vm_refcnt))) {
+		if (p->p_vmspace != &vmspace0) {
 			PROC_VMSPACE_LOCK(p);
 			p->p_vmspace = &vmspace0;
 			PROC_VMSPACE_UNLOCK(p);
 			pmap_activate(td);
 		}
-	} while (!atomic_fcmpset_int(&vm->vm_refcnt, &refcnt, refcnt - 1));
-	if (refcnt == 1) {
+		released = refcount_release(&vm->vm_refcnt);
+	}
+	if (released) {
+		/*
+		 * pmap_remove_pages() expects the pmap to be active, so switch
+		 * back first if necessary.
+		 */
 		if (p->p_vmspace != vm) {
-			/* vmspace not yet freed, switch back */
 			PROC_VMSPACE_LOCK(p);
 			p->p_vmspace = vm;
 			PROC_VMSPACE_UNLOCK(p);
 			pmap_activate(td);
 		}
 		pmap_remove_pages(vmspace_pmap(vm));
-		/* Switch now since this proc will free vmspace */
 		PROC_VMSPACE_LOCK(p);
 		p->p_vmspace = &vmspace0;
 		PROC_VMSPACE_UNLOCK(p);
@@ -396,21 +390,13 @@ struct vmspace *
 vmspace_acquire_ref(struct proc *p)
 {
 	struct vmspace *vm;
-	int refcnt;
 
 	PROC_VMSPACE_LOCK(p);
 	vm = p->p_vmspace;
-	if (vm == NULL) {
+	if (vm == NULL || !refcount_acquire_if_not_zero(&vm->vm_refcnt)) {
 		PROC_VMSPACE_UNLOCK(p);
 		return (NULL);
 	}
-	refcnt = vm->vm_refcnt;
-	do {
-		if (refcnt <= 0) { 	/* Avoid 0->1 transition */
-			PROC_VMSPACE_UNLOCK(p);
-			return (NULL);
-		}
-	} while (!atomic_fcmpset_int(&vm->vm_refcnt, &refcnt, refcnt + 1));
 	if (vm != p->p_vmspace) {
 		PROC_VMSPACE_UNLOCK(p);
 		vmspace_free(vm);
@@ -442,7 +428,7 @@ vmspace_switch_aio(struct vmspace *newvm)
 
 	/* XXX: Need some way to assert that this is an aio daemon. */
 
-	KASSERT(newvm->vm_refcnt > 0,
+	KASSERT(refcount_load(&newvm->vm_refcnt) > 0,
 	    ("vmspace_switch_aio: newvm unreferenced"));
 
 	oldvm = curproc->p_vmspace;
@@ -453,7 +439,7 @@ vmspace_switch_aio(struct vmspace *newvm)
 	 * Point to the new address space and refer to it.
 	 */
 	curproc->p_vmspace = newvm;
-	atomic_add_int(&newvm->vm_refcnt, 1);
+	refcount_acquire(&newvm->vm_refcnt);
 
 	/* Activate the new mapping. */
 	pmap_activate(curthread);
@@ -4777,7 +4763,7 @@ vmspace_unshare(struct proc *p)
 	struct vmspace *newvmspace;
 	vm_ooffset_t fork_charge;
 
-	if (oldvmspace->vm_refcnt == 1)
+	if (refcount_load(&oldvmspace->vm_refcnt) == 1)
 		return (0);
 	fork_charge = 0;
 	newvmspace = vmspace_fork(oldvmspace, &fork_charge);

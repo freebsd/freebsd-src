@@ -1159,8 +1159,9 @@ aio_daemon(void *_id)
 
 	KASSERT(p->p_vmspace == myvm,
 	    ("AIOD: bad vmspace for exiting daemon"));
-	KASSERT(myvm->vm_refcnt > 1,
-	    ("AIOD: bad vm refcnt for exiting daemon: %d", myvm->vm_refcnt));
+	KASSERT(refcount_load(&myvm->vm_refcnt) > 1,
+	    ("AIOD: bad vm refcnt for exiting daemon: %d",
+	    refcount_load(&myvm->vm_refcnt)));
 	kproc_exit(0);
 }
 
