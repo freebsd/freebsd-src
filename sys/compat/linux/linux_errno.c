@@ -31,5 +31,11 @@ linux_check_errtbl(void)
 		KASSERT(linux_errtbl[i] != 0,
 		    ("%s: linux_errtbl[%d] == 0", __func__, i));
 	}
+
+	for (i = 1; i < nitems(linux_to_bsd_errtbl); i++) {
+		KASSERT(linux_to_bsd_errtbl[i] != 0,
+		    ("%s: linux_to_bsd_errtbl[%d] == 0", __func__, i));
+	}
+
 }
 #endif
