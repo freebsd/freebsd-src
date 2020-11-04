@@ -390,7 +390,7 @@ test_rfc7539_poly1305_vectors(int crid, const char *modname)
 ATF_TC_WITHOUT_HEAD(poly1305_vectors);
 ATF_TC_BODY(poly1305_vectors, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_rfc7539_poly1305_vectors(CRYPTO_FLAG_SOFTWARE, "nexus/cryptosoft");
 }
 
