@@ -619,7 +619,7 @@ struct ieee80211_rx_stats {
 	} evm;
 
 	/* 32 bits */
-	uint8_t c_phytype;		/* PHY type, FW flags above */
+	uint8_t c_phytype;		/* PHY type, FP flags above */
 	uint8_t c_vhtnss;		/* VHT - number of spatial streams */
 	uint8_t c_pad2[2];
 };
