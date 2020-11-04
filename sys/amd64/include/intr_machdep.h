@@ -41,4 +41,9 @@ struct nmi_pcpu {
 	register_t	__padding;	/* pad to 16 bytes */
 };
 
+#define	DBLFAULT_STACK_SIZE	PAGE_SIZE
+#define	NMI_STACK_SIZE		PAGE_SIZE
+#define	MCE_STACK_SIZE		PAGE_SIZE
+#define	DBG_STACK_SIZE		PAGE_SIZE
+
 #endif	/* !__MACHINE_INTR_MACHDEP_H__ */
