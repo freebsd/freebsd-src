@@ -878,10 +878,15 @@ db_show_rm(const struct lock_object *lock)
  * problem at some point. The easiest way to lessen it is to provide a bitmap.
  */
 
+#define	RMS_NOOWNER	((void *)0x1)
+#define	RMS_TRANSIENT	((void *)0x2)
+#define	RMS_FLAGMASK	0xf
+
 void
 rms_init(struct rmslock *rms, const char *name)
 {
 
+	rms->owner = RMS_NOOWNER;
 	rms->writers = 0;
 	rms->readers = 0;
 	mtx_init(&rms->mtx, name, NULL, MTX_DEF | MTX_NEW);
@@ -922,6 +927,7 @@ rms_rlock(struct rmslock *rms)
 {
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+	MPASS(atomic_load_ptr(&rms->owner) != curthread);
 
 	critical_enter();
 	zpcpu_set_protected(rms->readers_influx, 1);
@@ -940,6 +946,8 @@ rms_rlock(struct rmslock *rms)
 int
 rms_try_rlock(struct rmslock *rms)
 {
+
+	MPASS(atomic_load_ptr(&rms->owner) != curthread);
 
 	critical_enter();
 	zpcpu_set_protected(rms->readers_influx, 1);
@@ -1054,23 +1062,33 @@ rms_wlock(struct rmslock *rms)
 {
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+	MPASS(atomic_load_ptr(&rms->owner) != curthread);
 
 	mtx_lock(&rms->mtx);
 	rms->writers++;
 	if (rms->writers > 1) {
-		msleep(&rms->writers, &rms->mtx, (PUSER - 1) | PDROP,
+		msleep(&rms->owner, &rms->mtx, (PUSER - 1),
 		    mtx_name(&rms->mtx), 0);
 		MPASS(rms->readers == 0);
-		return;
+		KASSERT(rms->owner == RMS_TRANSIENT,
+		    ("%s: unexpected owner value %p\n", __func__,
+		    rms->owner));
+		goto out_grab;
 	}
+
+	KASSERT(rms->owner == RMS_NOOWNER,
+	    ("%s: unexpected owner value %p\n", __func__, rms->owner));
 
 	rms_wlock_switch(rms);
 
-	if (rms->readers > 0)
-		msleep(&rms->writers, &rms->mtx, (PUSER - 1) | PDROP,
+	if (rms->readers > 0) {
+		msleep(&rms->writers, &rms->mtx, (PUSER - 1),
 		    mtx_name(&rms->mtx), 0);
-	else
-		mtx_unlock(&rms->mtx);
+	}
+
+out_grab:
+	rms->owner = curthread;
+	mtx_unlock(&rms->mtx);
 	MPASS(rms->readers == 0);
 }
 
@@ -1079,12 +1097,27 @@ rms_wunlock(struct rmslock *rms)
 {
 
 	mtx_lock(&rms->mtx);
+	KASSERT(rms->owner == curthread,
+	    ("%s: unexpected owner value %p\n", __func__, rms->owner));
 	MPASS(rms->writers >= 1);
 	MPASS(rms->readers == 0);
 	rms->writers--;
-	if (rms->writers > 0)
-		wakeup_one(&rms->writers);
-	else
+	if (rms->writers > 0) {
+		wakeup_one(&rms->owner);
+		rms->owner = RMS_TRANSIENT;
+	} else {
 		wakeup(&rms->readers);
+		rms->owner = RMS_NOOWNER;
+	}
 	mtx_unlock(&rms->mtx);
+}
+
+void
+rms_unlock(struct rmslock *rms)
+{
+
+	if (rms_wowned(rms))
+		rms_wunlock(rms);
+	else
+		rms_runlock(rms);
 }
