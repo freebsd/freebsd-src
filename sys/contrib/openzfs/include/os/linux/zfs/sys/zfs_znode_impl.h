@@ -76,7 +76,7 @@ extern "C" {
 #define	ZFS_ENTER_ERROR(zfsvfs, error)				\
 do {								\
 	rrm_enter_read(&(zfsvfs)->z_teardown_lock, FTAG);	\
-	if ((zfsvfs)->z_unmounted) {				\
+	if (unlikely((zfsvfs)->z_unmounted)) {			\
 		ZFS_EXIT(zfsvfs);				\
 		return (error);					\
 	}							\
@@ -95,7 +95,7 @@ do {								\
 /* Verifies the znode is valid. */
 #define	ZFS_VERIFY_ZP_ERROR(zp, error)				\
 do {								\
-	if ((zp)->z_sa_hdl == NULL) {				\
+	if (unlikely((zp)->z_sa_hdl == NULL)) {			\
 		ZFS_EXIT(ZTOZSB(zp));				\
 		return (error);					\
 	}							\
