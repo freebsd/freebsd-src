@@ -180,4 +180,8 @@
 #define	LINUX_ERFKILL		132
 #define	LINUX_EHWPOISON		133
 
+#ifdef _KERNEL
+#define	LINUX_ELAST		LINUX_EHWPOISON
+#endif
+
 #endif /* _LINUX_ERRNO_H_ */
