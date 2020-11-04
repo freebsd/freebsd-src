@@ -70,7 +70,7 @@ reset(const struct cmd *f, int argc, char *argv[])
 	free(path);
 
 	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0)
-		err(1, "reset request to %s failed", argv[optind]);
+		err(1, "reset request to %s failed", opt.dev);
 
 	exit(0);
 }
