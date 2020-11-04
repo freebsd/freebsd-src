@@ -1453,7 +1453,7 @@ zfs_lookup_lock(vnode_t *dvp, vnode_t *vp, const char *name, int lkflags)
 		ASSERT_VOP_LOCKED(dvp, __func__);
 #ifdef DIAGNOSTIC
 	if ((zdp->z_pflags & ZFS_XATTR) == 0)
-		VERIFY(!RRM_LOCK_HELD(&zfsvfs->z_teardown_lock));
+		VERIFY(!ZFS_TEARDOWN_HELD(zfsvfs));
 #endif
 
 	if (name[0] == 0 || (name[0] == '.' && name[1] == 0)) {
@@ -6550,7 +6550,7 @@ zfs_lock(struct vop_lock1_args *ap)
 		zp = vp->v_data;
 		if (vp->v_mount != NULL && !VN_IS_DOOMED(vp) &&
 		    zp != NULL && (zp->z_pflags & ZFS_XATTR) == 0)
-			VERIFY(!RRM_LOCK_HELD(&zp->z_zfsvfs->z_teardown_lock));
+			VERIFY(!ZFS_TEARDOWN_HELD(zp->z_zfsvfs));
 	}
 	return (err);
 }
