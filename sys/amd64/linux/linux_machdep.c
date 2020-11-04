@@ -126,7 +126,7 @@ linux_set_upcall_kse(struct thread *td, register_t stack)
 
 	/*
 	 * The newly created Linux thread returns
-	 * to the user space by the same path that a parent do.
+	 * to the user space by the same path that a parent does.
 	 */
 	td->td_frame->tf_rax = 0;
 	return (0);
