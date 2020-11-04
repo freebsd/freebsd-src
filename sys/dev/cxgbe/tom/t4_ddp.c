@@ -1347,7 +1347,7 @@ hold_aio(struct toepcb *toep, struct kaiocb *job, struct pageset **pps)
 
 	ps->offset = pgoff;
 	ps->len = job->uaiocb.aio_nbytes;
-	atomic_add_int(&vm->vm_refcnt, 1);
+	refcount_acquire(&vm->vm_refcnt);
 	ps->vm = vm;
 	ps->start = start;
 
