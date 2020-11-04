@@ -28,7 +28,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2020
+.Dd November 4, 2020
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -218,12 +218,14 @@ If the shared file is not referenced by a full pathname,
 searches in the current (or home) directory first, and then in the
 directory
 .Pa /usr/share/calendar .
-Empty lines and lines protected by the C commenting syntax
+Empty lines and text protected by the C commenting syntax
 .Pq Li /* ... */
+or
+.Pq Li //
 are ignored.
 .Pp
 Some possible calendar entries (<tab> characters highlighted by
-\fB\et\fR sequence)
+\fB\et\fR sequence):
 .Bd -unfilled -offset indent
 LANG=C
 Easter=Ostern
