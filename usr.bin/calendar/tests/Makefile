@@ -2,9 +2,17 @@
 
 PACKAGE=	tests
 
-TAP_TESTS_SH=	legacy_test
+TAP_TESTS_SH=	comment_test cond_test legacy_test
 
+TEST_METADATA.comment_test+=	timeout="600"
+TEST_METADATA.cond_test+=	timeout="600"
 TEST_METADATA.legacy_test+=	timeout="600"
+
+${PACKAGE}FILES+=		calendar.comment
+${PACKAGE}FILES+=		regress.comment.out
+
+${PACKAGE}FILES+=		calendar.cond
+${PACKAGE}FILES+=		regress.cond.out
 
 ${PACKAGE}FILES+=		calendar.calibrate
 ${PACKAGE}FILES+=		regress.a1.out

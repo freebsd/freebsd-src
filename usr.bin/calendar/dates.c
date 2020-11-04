@@ -444,12 +444,12 @@ find_day(int yy, int mm, int dd)
 }
 
 void
-addtodate(struct event *e, int year, int month, int day)
+addtodate(struct event *e)
 {
 	struct cal_day *d;
 	struct event *ee;
 
-	d = find_day(year, month, day);
+	d = find_day(e->year, e->month, e->day);
 	ee = d->lastevent;
 	if (ee != NULL)
 		ee->next = e;
