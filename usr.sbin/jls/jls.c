@@ -505,17 +505,13 @@ quoted_print(int pflags, char *name, char *value)
 {
 	int qc;
 	char *p = value;
-	char *param_name_value;
 
 	/* An empty string needs quoting. */
 	if (!*p) {
-		asprintf(&param_name_value, "{k:%s}{d:%s/\"\"}", name, name);
-		xo_emit(param_name_value);
-		free(param_name_value);
+		xo_emit("{ea:/%s}{da:/\"\"}", name, value, name);
 		return;
 	}
 
-	asprintf(&param_name_value, "{:%s/%%s}", name);
 	/*
 	 * The value will be surrounded by quotes if it contains spaces
 	 * or quotes.
@@ -528,9 +524,7 @@ quoted_print(int pflags, char *name, char *value)
 	if (qc && pflags & PRINT_QUOTED)
 		xo_emit("{P:/%c}", qc);
 
-	xo_emit(param_name_value, value);
-
-	free(param_name_value);
+	xo_emit("{a:/%s}", name, value);
 
 	if (qc && pflags & PRINT_QUOTED)
 		xo_emit("{P:/%c}", qc);
