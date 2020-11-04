@@ -153,7 +153,7 @@ get_strlen_sum(const struct vector_str *v)
 /**
  * @brief Deallocate resource in vector_str.
  */
-void
+static void
 vector_str_dest(struct vector_str *v)
 {
 	size_t i;
@@ -174,7 +174,7 @@ vector_str_dest(struct vector_str *v)
  * @param l Length of the string.
  * @return -1 at failed, 0 at not found, 1 at found.
  */
-int
+static int
 vector_str_find(const struct vector_str *v, const char *o, size_t l)
 {
 	size_t i;
@@ -197,7 +197,7 @@ vector_str_find(const struct vector_str *v, const char *o, size_t l)
  * @param l Length of the string.
  * @return NULL at failed or NUL terminated new allocated string.
  */
-char *
+static char *
 vector_str_get_flat(const struct vector_str *v, size_t *l)
 {
 	ssize_t elem_pos, elem_size, rtn_size;
@@ -263,7 +263,7 @@ vector_str_grow(struct vector_str *v)
  * @brief Initialize vector_str.
  * @return false at failed, true at success.
  */
-bool
+static bool
 vector_str_init(struct vector_str *v)
 {
 
@@ -287,7 +287,7 @@ vector_str_init(struct vector_str *v)
  * @brief Remove last element in vector_str.
  * @return false at failed, true at success.
  */
-bool
+static bool
 vector_str_pop(struct vector_str *v)
 {
 
@@ -309,7 +309,7 @@ vector_str_pop(struct vector_str *v)
  * @brief Push back string to vector.
  * @return false at failed, true at success.
  */
-bool
+static bool
 vector_str_push(struct vector_str *v, const char *str, size_t len)
 {
 
@@ -333,7 +333,7 @@ vector_str_push(struct vector_str *v, const char *str, size_t len)
  * @brief Push front org vector to det vector.
  * @return false at failed, true at success.
  */
-bool
+static bool
 vector_str_push_vector_head(struct vector_str *dst, struct vector_str *org)
 {
 	size_t i, j, tmp_cap;
@@ -373,7 +373,7 @@ vector_str_push_vector_head(struct vector_str *dst, struct vector_str *org)
  * @brief Push org vector to the tail of det vector.
  * @return false at failed, true at success.
  */
-bool
+static bool
 vector_str_push_vector(struct vector_str *dst, struct vector_str *org)
 {
 	size_t i, j, tmp_cap;
@@ -416,7 +416,7 @@ vector_str_push_vector(struct vector_str *dst, struct vector_str *org)
  * If r_len is not NULL, string length will be returned.
  * @return NULL at failed or NUL terminated new allocated string.
  */
-char *
+static char *
 vector_str_substr(const struct vector_str *v, size_t begin, size_t end,
     size_t *r_len)
 {
