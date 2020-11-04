@@ -970,6 +970,8 @@ pmap_bootstrap(vm_offset_t l0pt, vm_offset_t l1pt, vm_paddr_t kernstart,
 	kernel_pmap->pm_l0_paddr = l0pt - kern_delta;
 	kernel_pmap->pm_cookie = COOKIE_FROM(-1, INT_MIN);
 	kernel_pmap->pm_stage = PM_STAGE1;
+	kernel_pmap->pm_levels = 4;
+	kernel_pmap->pm_ttbr = kernel_pmap->pm_l0_paddr;
 	kernel_pmap->pm_asid_set = &asids;
 
 	/* Assume the address we were loaded to is a valid physical address */
@@ -1714,33 +1716,37 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_root.rt_root = 0;
 	pmap->pm_cookie = COOKIE_FROM(ASID_RESERVED_FOR_PID_0, INT_MIN);
 	pmap->pm_stage = PM_STAGE1;
+	pmap->pm_levels = 4;
+	pmap->pm_ttbr = pmap->pm_l0_paddr;
 	pmap->pm_asid_set = &asids;
 
 	PCPU_SET(curpmap, pmap);
 }
 
 int
-pmap_pinit_stage(pmap_t pmap, enum pmap_stage stage)
+pmap_pinit_stage(pmap_t pmap, enum pmap_stage stage, int levels)
 {
-	vm_page_t l0pt;
+	vm_page_t m;
 
 	/*
 	 * allocate the l0 page
 	 */
-	while ((l0pt = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+	while ((m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		vm_wait(NULL);
 
-	pmap->pm_l0_paddr = VM_PAGE_TO_PHYS(l0pt);
+	pmap->pm_l0_paddr = VM_PAGE_TO_PHYS(m);
 	pmap->pm_l0 = (pd_entry_t *)PHYS_TO_DMAP(pmap->pm_l0_paddr);
 
-	if ((l0pt->flags & PG_ZERO) == 0)
+	if ((m->flags & PG_ZERO) == 0)
 		pagezero(pmap->pm_l0);
 
 	pmap->pm_root.rt_root = 0;
 	bzero(&pmap->pm_stats, sizeof(pmap->pm_stats));
 	pmap->pm_cookie = COOKIE_FROM(-1, INT_MAX);
 
+	MPASS(levels == 3 || levels == 4);
+	pmap->pm_levels = levels;
 	pmap->pm_stage = stage;
 	switch (stage) {
 	case PM_STAGE1:
@@ -1757,6 +1763,18 @@ pmap_pinit_stage(pmap_t pmap, enum pmap_stage stage)
 	/* XXX Temporarily disable deferred ASID allocation. */
 	pmap_alloc_asid(pmap);
 
+	/*
+	 * Allocate the level 1 entry to use as the root. This will increase
+	 * the refcount on the level 1 page so it won't be removed until
+	 * pmap_release() is called.
+	 */
+	if (pmap->pm_levels == 3) {
+		PMAP_LOCK(pmap);
+		m = _pmap_alloc_l3(pmap, NUL2E + NUL1E, NULL);
+		PMAP_UNLOCK(pmap);
+	}
+	pmap->pm_ttbr = VM_PAGE_TO_PHYS(m);
+
 	return (1);
 }
 
@@ -1764,7 +1782,7 @@ int
 pmap_pinit(pmap_t pmap)
 {
 
-	return (pmap_pinit_stage(pmap, PM_STAGE1));
+	return (pmap_pinit_stage(pmap, PM_STAGE1, 4));
 }
 
 /*
@@ -2017,9 +2035,28 @@ retry:
 void
 pmap_release(pmap_t pmap)
 {
+	boolean_t rv;
+	struct spglist free;
 	struct asid_set *set;
 	vm_page_t m;
 	int asid;
+
+	if (pmap->pm_levels != 4) {
+		PMAP_ASSERT_STAGE2(pmap);
+		KASSERT(pmap->pm_stats.resident_count == 1,
+		    ("pmap_release: pmap resident count %ld != 0",
+		    pmap->pm_stats.resident_count));
+		KASSERT((pmap->pm_l0[0] & ATTR_DESCR_VALID) == ATTR_DESCR_VALID,
+		    ("pmap_release: Invalid l0 entry: %lx", pmap->pm_l0[0]));
+
+		SLIST_INIT(&free);
+		m = PHYS_TO_VM_PAGE(pmap->pm_ttbr);
+		PMAP_LOCK(pmap);
+		rv = pmap_unwire_l3(pmap, 0, m, &free);
+		PMAP_UNLOCK(pmap);
+		MPASS(rv == TRUE);
+		vm_page_free_pages_toq(&free, true);
+	}
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
@@ -6514,7 +6551,7 @@ pmap_to_ttbr0(pmap_t pmap)
 {
 
 	return (ASID_TO_OPERAND(COOKIE_TO_ASID(pmap->pm_cookie)) |
-	    pmap->pm_l0_paddr);
+	    pmap->pm_ttbr);
 }
 
 static bool
