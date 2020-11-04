@@ -113,6 +113,7 @@ struct atkbdc_quirks {
 };
 
 static struct atkbdc_quirks quirks[] = {
+    {"coreboot", "System76", NULL, 0},
     {"coreboot", NULL, NULL,
 	KBDC_QUIRK_KEEP_ACTIVATED | KBDC_QUIRK_IGNORE_PROBE_RESULT |
 	KBDC_QUIRK_RESET_AFTER_PROBE | KBDC_QUIRK_SETLEDS_ON_INIT},
