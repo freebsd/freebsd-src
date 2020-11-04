@@ -72,6 +72,7 @@ struct rm_priotracker {
 
 struct rmslock {
 	struct mtx mtx;
+	struct thread *owner;
 	int	writers;
 	int	readers;
 	int	*readers_pcpu;
