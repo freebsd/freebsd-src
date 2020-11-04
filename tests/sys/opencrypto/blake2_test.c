@@ -185,14 +185,14 @@ test_blake2s_vectors(const char *devname, const char *modname)
 ATF_TC_WITHOUT_HEAD(blake2b_vectors);
 ATF_TC_BODY(blake2b_vectors, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_blake2b_vectors("cryptosoft0", "nexus/cryptosoft");
 }
 
 ATF_TC_WITHOUT_HEAD(blake2s_vectors);
 ATF_TC_BODY(blake2s_vectors, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_blake2s_vectors("cryptosoft0", "nexus/cryptosoft");
 }
 
@@ -200,14 +200,14 @@ ATF_TC_BODY(blake2s_vectors, tc)
 ATF_TC_WITHOUT_HEAD(blake2b_vectors_x86);
 ATF_TC_BODY(blake2b_vectors_x86, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_blake2b_vectors("blaketwo0", "nexus/blake2");
 }
 
 ATF_TC_WITHOUT_HEAD(blake2s_vectors_x86);
 ATF_TC_BODY(blake2s_vectors_x86, tc)
 {
-	ATF_REQUIRE_SYSCTL_INT("kern.cryptodevallowsoft", 1);
+	ATF_REQUIRE_SYSCTL_INT("kern.crypto.allow_soft", 1);
 	test_blake2s_vectors("blaketwo0", "nexus/blake2");
 }
 #endif
