@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
+#include <sys/refcount.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
@@ -549,7 +550,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 		 * COW locally.
 		 */
 		if ((flags & RFMEM) == 0) {
-			if (p1->p_vmspace->vm_refcnt > 1) {
+			if (refcount_load(&p1->p_vmspace->vm_refcnt) > 1) {
 				error = vmspace_unshare(p1);
 				if (error)
 					return (error);
@@ -561,7 +562,7 @@ vm_forkproc(struct thread *td, struct proc *p2, struct thread *td2,
 
 	if (flags & RFMEM) {
 		p2->p_vmspace = p1->p_vmspace;
-		atomic_add_int(&p1->p_vmspace->vm_refcnt, 1);
+		refcount_acquire(&p1->p_vmspace->vm_refcnt);
 	}
 	dset = td2->td_domain.dr_policy;
 	while (vm_page_count_severe_set(&dset->ds_mask)) {
