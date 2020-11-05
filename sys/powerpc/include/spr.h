@@ -492,13 +492,13 @@
 
 #define	SPR_MMCR2		0x311
 #define	  SPR_MMCR2_CNBIT(n, bit) ((bit) << (((5 - (n)) * 9) + 10))
-#define	  SPR_MMCR2_FCNS(n)	  SPR_MMCR2_CNBIT(n, 0x100UL)
-#define	  SPR_MMCR2_FCNP0(n)	  SPR_MMCR2_CNBIT(n, 0x080UL)
-#define	  SPR_MMCR2_FCNP1(n)	  SPR_MMCR2_CNBIT(n, 0x040UL)
-#define	  SPR_MMCR2_FCNM1(n)	  SPR_MMCR2_CNBIT(n, 0x020UL)
-#define	  SPR_MMCR2_FCNM0(n)	  SPR_MMCR2_CNBIT(n, 0x010UL)
-#define	  SPR_MMCR2_FCNWAIT(n)	  SPR_MMCR2_CNBIT(n, 0x008UL)
-#define	  SPR_MMCR2_FCNH(n)	  SPR_MMCR2_CNBIT(n, 0x004UL)
+#define	  SPR_MMCR2_FCNS(n)	  SPR_MMCR2_CNBIT(n, 0x100ULL)
+#define	  SPR_MMCR2_FCNP0(n)	  SPR_MMCR2_CNBIT(n, 0x080ULL)
+#define	  SPR_MMCR2_FCNP1(n)	  SPR_MMCR2_CNBIT(n, 0x040ULL)
+#define	  SPR_MMCR2_FCNM1(n)	  SPR_MMCR2_CNBIT(n, 0x020ULL)
+#define	  SPR_MMCR2_FCNM0(n)	  SPR_MMCR2_CNBIT(n, 0x010ULL)
+#define	  SPR_MMCR2_FCNWAIT(n)	  SPR_MMCR2_CNBIT(n, 0x008ULL)
+#define	  SPR_MMCR2_FCNH(n)	  SPR_MMCR2_CNBIT(n, 0x004ULL)
 /* Freeze Counter N in Hypervisor/Supervisor/Problem states */
 #define	  SPR_MMCR2_FCNHSP(n)					\
 		(SPR_MMCR2_FCNS(n) | SPR_MMCR2_FCNP0(n) |	\
