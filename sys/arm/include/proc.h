@@ -82,7 +82,6 @@ struct syscall_args {
 	u_int code;
 	struct sysent *callp;
 	register_t args[MAXARGS];
-	u_int nap;
 } __aligned(8);
 
 #endif /* !_MACHINE_PROC_H_ */
