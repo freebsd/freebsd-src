@@ -29,17 +29,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/ctype.h>
-#include <sys/sbuf.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/imgact_binmisc.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 
@@ -97,7 +94,7 @@ MALLOC_DEFINE(M_BINMISC, KMOD_NAME, "misc binary image activator");
 static SLIST_HEAD(, imgact_binmisc_entry) interpreter_list =
 	SLIST_HEAD_INITIALIZER(interpreter_list);
 
-static int interp_list_entry_count = 0;
+static int interp_list_entry_count;
 
 static struct sx interp_list_sx;
 
@@ -703,8 +700,7 @@ imgact_binmisc_exec(struct image_params *imgp)
 	*d = '\0';
 	sx_sunlock(&interp_list_sx);
 
-	if (!error)
-		imgp->interpreter_name = imgp->args->begin_argv;
+	imgp->interpreter_name = imgp->args->begin_argv;
 
 done:
 	if (sname)
