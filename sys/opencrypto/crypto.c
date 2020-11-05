@@ -286,7 +286,9 @@ keybuf_init(void)
 }
 
 /* It'd be nice if we could store these in some kind of secure memory... */
-struct keybuf * get_keybuf(void) {
+struct keybuf *
+get_keybuf(void)
+{
 
         return (keybuf);
 }
