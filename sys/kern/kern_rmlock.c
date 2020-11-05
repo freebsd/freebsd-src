@@ -890,8 +890,8 @@ rms_init(struct rmslock *rms, const char *name)
 	rms->writers = 0;
 	rms->readers = 0;
 	mtx_init(&rms->mtx, name, NULL, MTX_DEF | MTX_NEW);
-	rms->readers_pcpu = uma_zalloc_pcpu(pcpu_zone_int, M_WAITOK | M_ZERO);
-	rms->readers_influx = uma_zalloc_pcpu(pcpu_zone_int, M_WAITOK | M_ZERO);
+	rms->readers_pcpu = uma_zalloc_pcpu(pcpu_zone_4, M_WAITOK | M_ZERO);
+	rms->readers_influx = uma_zalloc_pcpu(pcpu_zone_4, M_WAITOK | M_ZERO);
 }
 
 void
@@ -901,8 +901,8 @@ rms_destroy(struct rmslock *rms)
 	MPASS(rms->writers == 0);
 	MPASS(rms->readers == 0);
 	mtx_destroy(&rms->mtx);
-	uma_zfree_pcpu(pcpu_zone_int, rms->readers_pcpu);
-	uma_zfree_pcpu(pcpu_zone_int, rms->readers_influx);
+	uma_zfree_pcpu(pcpu_zone_4, rms->readers_pcpu);
+	uma_zfree_pcpu(pcpu_zone_4, rms->readers_influx);
 }
 
 static void __noinline
