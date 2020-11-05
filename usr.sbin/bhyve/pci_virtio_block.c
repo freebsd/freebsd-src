@@ -523,7 +523,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->vbsc_cfg.vbc_writeback = 0;
 	sc->vbsc_cfg.max_discard_sectors = VTBLK_MAX_DISCARD_SECT;
 	sc->vbsc_cfg.max_discard_seg = VTBLK_MAX_DISCARD_SEG;
-	sc->vbsc_cfg.discard_sector_alignment = sectsz / VTBLK_BSIZE;
+	sc->vbsc_cfg.discard_sector_alignment = MAX(sectsz, sts) / VTBLK_BSIZE;
 
 	/*
 	 * Should we move some of this into virtio.c?  Could
