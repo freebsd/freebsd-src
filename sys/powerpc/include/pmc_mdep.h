@@ -79,6 +79,7 @@ union pmc_md_op_pmcallocate {
 #if	_KERNEL
 
 struct pmc_md_powerpc_pmc {
+	uint64_t	pm_powerpc_overflowcnt;
 	uint32_t	pm_powerpc_evsel;
 };
 

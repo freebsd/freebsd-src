@@ -119,6 +119,7 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
 	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")	\
 	__PMC_CPU(PPC_E500,     0x340,  "PowerPC e500 Core")	\
 	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
+	__PMC_CPU(PPC_POWER8,   0x390,  "IBM POWER8")		\
 	__PMC_CPU(GENERIC, 	0x400,  "Generic")		\
 	__PMC_CPU(ARMV7_CORTEX_A5,	0x500,	"ARMv7 Cortex A5")	\
 	__PMC_CPU(ARMV7_CORTEX_A7,	0x501,	"ARMv7 Cortex A7")	\
@@ -164,7 +165,8 @@ enum pmc_cputype {
 	__PMC_CLASS(ARMV8,	0x11,	"ARMv8")			\
 	__PMC_CLASS(MIPS74K,	0x12,	"MIPS 74K")			\
 	__PMC_CLASS(E500,	0x13,	"Freescale e500 class")		\
-	__PMC_CLASS(BERI,	0x14,	"MIPS BERI")
+	__PMC_CLASS(BERI,	0x14,	"MIPS BERI")			\
+	__PMC_CLASS(POWER8,	0x15,	"IBM POWER8 class")
 
 enum pmc_class {
 #undef  __PMC_CLASS
@@ -173,7 +175,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_E500
+#define	PMC_CLASS_LAST	PMC_CLASS_POWER8
 
 /*
  * A PMC can be in the following states:
