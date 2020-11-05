@@ -181,13 +181,6 @@ VNET_DEFINE_STATIC(vifi_t, numvifs);
 #define	V_numvifs		VNET(numvifs)
 VNET_DEFINE_STATIC(struct vif *, viftable);
 #define	V_viftable		VNET(viftable)
-/*
- * No one should be able to "query" this before initialisation happened in 
- * vnet_mroute_init(), so we should still be fine.
- */
-SYSCTL_OPAQUE(_net_inet_ip, OID_AUTO, viftable, CTLFLAG_VNET | CTLFLAG_RD,
-    &VNET_NAME(viftable), sizeof(*V_viftable) * MAXVIFS, "S,vif[MAXVIFS]",
-    "IPv4 Multicast Interfaces (struct vif[MAXVIFS], netinet/ip_mroute.h)");
 
 static struct mtx vif_mtx;
 #define	VIF_LOCK()		mtx_lock(&vif_mtx)
@@ -2803,6 +2796,30 @@ out_locked:
 static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD,
     sysctl_mfctable, "IPv4 Multicast Forwarding Table "
     "(struct *mfc[mfchashsize], netinet/ip_mroute.h)");
+
+static int
+sysctl_viflist(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	if (req->newptr)
+		return (EPERM);
+	if (V_viftable == NULL)		/* XXX unlocked */
+		return (0);
+	error = sysctl_wire_old_buffer(req, sizeof(*V_viftable) * MAXVIFS);
+	if (error)
+		return (error);
+
+	VIF_LOCK();
+	error = SYSCTL_OUT(req, V_viftable, sizeof(*V_viftable) * MAXVIFS);
+	VIF_UNLOCK();
+	return (error);
+}
+
+SYSCTL_PROC(_net_inet_ip, OID_AUTO, viftable,
+    CTLTYPE_OPAQUE | CTLFLAG_VNET | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_viflist, "S,vif[MAXVIFS]",
+    "IPv4 Multicast Interfaces (struct vif[MAXVIFS], netinet/ip_mroute.h)");
 
 static void
 vnet_mroute_init(const void *unused __unused)
