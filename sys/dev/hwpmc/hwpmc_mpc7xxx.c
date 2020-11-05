@@ -48,12 +48,15 @@ __FBSDID("$FreeBSD$");
 				 PMC_CAP_WRITE | PMC_CAP_INVERT |	\
 				 PMC_CAP_QUALIFIER)
 
-#define PPC_SET_PMC1SEL(r, x)	((r & ~(SPR_MMCR0_PMC1SEL(0x3f))) | SPR_MMCR0_PMC1SEL(x))
-#define PPC_SET_PMC2SEL(r, x)	((r & ~(SPR_MMCR0_PMC2SEL(0x3f))) | SPR_MMCR0_PMC2SEL(x))
+#define PPC_SET_PMC1SEL(r, x)	((r & ~(SPR_MMCR0_74XX_PMC1SEL(0x3f))) | \
+				SPR_MMCR0_74XX_PMC1SEL(x))
+#define PPC_SET_PMC2SEL(r, x)	((r & ~(SPR_MMCR0_74XX_PMC2SEL(0x3f))) | \
+				SPR_MMCR0_74XX_PMC2SEL(x))
 #define PPC_SET_PMC3SEL(r, x)	((r & ~(SPR_MMCR1_PMC3SEL(0x1f))) | SPR_MMCR1_PMC3SEL(x))
 #define PPC_SET_PMC4SEL(r, x)	((r & ~(SPR_MMCR1_PMC4SEL(0x1f))) | SPR_MMCR1_PMC4SEL(x))
 #define PPC_SET_PMC5SEL(r, x)	((r & ~(SPR_MMCR1_PMC5SEL(0x1f))) | SPR_MMCR1_PMC5SEL(x))
-#define PPC_SET_PMC6SEL(r, x)	((r & ~(SPR_MMCR1_PMC6SEL(0x3f))) | SPR_MMCR1_PMC6SEL(x))
+#define PPC_SET_PMC6SEL(r, x)	((r & ~(SPR_MMCR1_74XX_PMC6SEL(0x3f))) | \
+				SPR_MMCR1_74XX_PMC6SEL(x))
 
 /* Change this when we support more than just the 7450. */
 #define MPC7XXX_MAX_PMCS	6
@@ -318,22 +321,22 @@ mpc7xxx_pmcn_read(unsigned int pmc)
 {
 	switch (pmc) {
 		case 0:
-			return mfspr(SPR_PMC1);
+			return mfspr(SPR_PMC1_74XX);
 			break;
 		case 1:
-			return mfspr(SPR_PMC2);
+			return mfspr(SPR_PMC2_74XX);
 			break;
 		case 2:
-			return mfspr(SPR_PMC3);
+			return mfspr(SPR_PMC3_74XX);
 			break;
 		case 3:
-			return mfspr(SPR_PMC4);
+			return mfspr(SPR_PMC4_74XX);
 			break;
 		case 4:
-			return mfspr(SPR_PMC5);
+			return mfspr(SPR_PMC5_74XX);
 			break;
 		case 5:
-			return mfspr(SPR_PMC6);
+			return mfspr(SPR_PMC6_74XX);
 		default:
 			panic("Invalid PMC number: %d\n", pmc);
 	}
@@ -344,22 +347,22 @@ mpc7xxx_pmcn_write(unsigned int pmc, uint32_t val)
 {
 	switch (pmc) {
 		case 0:
-			mtspr(SPR_PMC1, val);
+			mtspr(SPR_PMC1_74XX, val);
 			break;
 		case 1:
-			mtspr(SPR_PMC2, val);
+			mtspr(SPR_PMC2_74XX, val);
 			break;
 		case 2:
-			mtspr(SPR_PMC3, val);
+			mtspr(SPR_PMC3_74XX, val);
 			break;
 		case 3:
-			mtspr(SPR_PMC4, val);
+			mtspr(SPR_PMC4_74XX, val);
 			break;
 		case 4:
-			mtspr(SPR_PMC5, val);
+			mtspr(SPR_PMC5_74XX, val);
 			break;
 		case 5:
-			mtspr(SPR_PMC6, val);
+			mtspr(SPR_PMC6_74XX, val);
 			break;
 		default:
 			panic("Invalid PMC number: %d\n", pmc);
@@ -452,34 +455,34 @@ mpc7xxx_start_pmc(int cpu, int ri)
 	/* Enable the PMC. */
 	switch (ri) {
 	case 0:
-		pmc_mmcr = mfspr(SPR_MMCR0);
+		pmc_mmcr = mfspr(SPR_MMCR0_74XX);
 		pmc_mmcr = PPC_SET_PMC1SEL(pmc_mmcr, config);
-		mtspr(SPR_MMCR0, pmc_mmcr);
+		mtspr(SPR_MMCR0_74XX, pmc_mmcr);
 		break;
 	case 1:
-		pmc_mmcr = mfspr(SPR_MMCR0);
+		pmc_mmcr = mfspr(SPR_MMCR0_74XX);
 		pmc_mmcr = PPC_SET_PMC2SEL(pmc_mmcr, config);
-		mtspr(SPR_MMCR0, pmc_mmcr);
+		mtspr(SPR_MMCR0_74XX, pmc_mmcr);
 		break;
 	case 2:
-		pmc_mmcr = mfspr(SPR_MMCR1);
+		pmc_mmcr = mfspr(SPR_MMCR1_74XX);
 		pmc_mmcr = PPC_SET_PMC3SEL(pmc_mmcr, config);
-		mtspr(SPR_MMCR1, pmc_mmcr);
+		mtspr(SPR_MMCR1_74XX, pmc_mmcr);
 		break;
 	case 3:
-		pmc_mmcr = mfspr(SPR_MMCR0);
+		pmc_mmcr = mfspr(SPR_MMCR0_74XX);
 		pmc_mmcr = PPC_SET_PMC4SEL(pmc_mmcr, config);
-		mtspr(SPR_MMCR0, pmc_mmcr);
+		mtspr(SPR_MMCR0_74XX, pmc_mmcr);
 		break;
 	case 4:
-		pmc_mmcr = mfspr(SPR_MMCR1);
+		pmc_mmcr = mfspr(SPR_MMCR1_74XX);
 		pmc_mmcr = PPC_SET_PMC5SEL(pmc_mmcr, config);
-		mtspr(SPR_MMCR1, pmc_mmcr);
+		mtspr(SPR_MMCR1_74XX, pmc_mmcr);
 		break;
 	case 5:
-		pmc_mmcr = mfspr(SPR_MMCR1);
+		pmc_mmcr = mfspr(SPR_MMCR1_74XX);
 		pmc_mmcr = PPC_SET_PMC6SEL(pmc_mmcr, config);
-		mtspr(SPR_MMCR1, pmc_mmcr);
+		mtspr(SPR_MMCR1_74XX, pmc_mmcr);
 		break;
 	default:
 		break;
@@ -490,10 +493,10 @@ mpc7xxx_start_pmc(int cpu, int ri)
 	 */
 	config = ~pm->pm_md.pm_powerpc.pm_powerpc_evsel & POWERPC_PMC_ENABLE;
 
-	pmc_mmcr = mfspr(SPR_MMCR0);
+	pmc_mmcr = mfspr(SPR_MMCR0_74XX);
 	pmc_mmcr &= ~SPR_MMCR0_FC;
 	pmc_mmcr |= config;
-	mtspr(SPR_MMCR0, pmc_mmcr);
+	mtspr(SPR_MMCR0_74XX, pmc_mmcr);
 
 	return 0;
 }
@@ -513,34 +516,34 @@ mpc7xxx_stop_pmc(int cpu, int ri)
 	 */
 	switch (ri) {
 	case 0:
-		pmc_mmcr = mfspr(SPR_MMCR0);
+		pmc_mmcr = mfspr(SPR_MMCR0_74XX);
 		pmc_mmcr = PPC_SET_PMC1SEL(pmc_mmcr, 0);
-		mtspr(SPR_MMCR0, pmc_mmcr);
+		mtspr(SPR_MMCR0_74XX, pmc_mmcr);
 		break;
 	case 1:
-		pmc_mmcr = mfspr(SPR_MMCR0);
+		pmc_mmcr = mfspr(SPR_MMCR0_74XX);
 		pmc_mmcr = PPC_SET_PMC2SEL(pmc_mmcr, 0);
-		mtspr(SPR_MMCR0, pmc_mmcr);
+		mtspr(SPR_MMCR0_74XX, pmc_mmcr);
 		break;
 	case 2:
-		pmc_mmcr = mfspr(SPR_MMCR1);
+		pmc_mmcr = mfspr(SPR_MMCR1_74XX);
 		pmc_mmcr = PPC_SET_PMC3SEL(pmc_mmcr, 0);
-		mtspr(SPR_MMCR1, pmc_mmcr);
+		mtspr(SPR_MMCR1_74XX, pmc_mmcr);
 		break;
 	case 3:
-		pmc_mmcr = mfspr(SPR_MMCR0);
+		pmc_mmcr = mfspr(SPR_MMCR0_74XX);
 		pmc_mmcr = PPC_SET_PMC4SEL(pmc_mmcr, 0);
-		mtspr(SPR_MMCR0, pmc_mmcr);
+		mtspr(SPR_MMCR0_74XX, pmc_mmcr);
 		break;
 	case 4:
-		pmc_mmcr = mfspr(SPR_MMCR1);
+		pmc_mmcr = mfspr(SPR_MMCR1_74XX);
 		pmc_mmcr = PPC_SET_PMC5SEL(pmc_mmcr, 0);
-		mtspr(SPR_MMCR1, pmc_mmcr);
+		mtspr(SPR_MMCR1_74XX, pmc_mmcr);
 		break;
 	case 5:
-		pmc_mmcr = mfspr(SPR_MMCR1);
+		pmc_mmcr = mfspr(SPR_MMCR1_74XX);
 		pmc_mmcr = PPC_SET_PMC6SEL(pmc_mmcr, 0);
-		mtspr(SPR_MMCR1, pmc_mmcr);
+		mtspr(SPR_MMCR1_74XX, pmc_mmcr);
 		break;
 	default:
 		break;
@@ -577,9 +580,9 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 	}
 
 	/* Clear the MMCRs, and set FC, to disable all PMCs. */
-	mtspr(SPR_MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE |
+	mtspr(SPR_MMCR0_74XX, SPR_MMCR0_FC | SPR_MMCR0_PMXE |
 	    SPR_MMCR0_FCECE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE);
-	mtspr(SPR_MMCR1, 0);
+	mtspr(SPR_MMCR1_74XX, 0);
 
 	return 0;
 }
@@ -587,11 +590,11 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 static int
 mpc7xxx_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
-	uint32_t mmcr0 = mfspr(SPR_MMCR0);
+	uint32_t mmcr0 = mfspr(SPR_MMCR0_74XX);
 
 	mtmsr(mfmsr() & ~PSL_PMM);
 	mmcr0 |= SPR_MMCR0_FC;
-	mtspr(SPR_MMCR0, mmcr0);
+	mtspr(SPR_MMCR0_74XX, mmcr0);
 
 	free(powerpc_pcpu[cpu]->pc_ppcpmcs, M_PMC);
 	free(powerpc_pcpu[cpu], M_PMC);
@@ -678,7 +681,7 @@ mpc7xxx_intr(struct trapframe *tf)
 
 	pac = powerpc_pcpu[cpu];
 
-	config  = mfspr(SPR_MMCR0) & ~SPR_MMCR0_FC;
+	config  = mfspr(SPR_MMCR0_74XX) & ~SPR_MMCR0_FC;
 
 	/*
 	 * look for all PMCs that have interrupted:
@@ -717,7 +720,7 @@ mpc7xxx_intr(struct trapframe *tf)
 
 	/* Re-enable PERF exceptions. */
 	if (retval)
-		mtspr(SPR_MMCR0, config | SPR_MMCR0_PMXE);
+		mtspr(SPR_MMCR0_74XX, config | SPR_MMCR0_PMXE);
 
 	return (retval);
 }

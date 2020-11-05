@@ -276,28 +276,28 @@ ppc970_pmcn_read(unsigned int pmc)
 
 	switch (pmc) {
 		case 0:
-			val = mfspr(SPR_970PMC1);
+			val = mfspr(SPR_PMC1);
 			break;
 		case 1:
-			val = mfspr(SPR_970PMC2);
+			val = mfspr(SPR_PMC2);
 			break;
 		case 2:
-			val = mfspr(SPR_970PMC3);
+			val = mfspr(SPR_PMC3);
 			break;
 		case 3:
-			val = mfspr(SPR_970PMC4);
+			val = mfspr(SPR_PMC4);
 			break;
 		case 4:
-			val = mfspr(SPR_970PMC5);
+			val = mfspr(SPR_PMC5);
 			break;
 		case 5:
-			val = mfspr(SPR_970PMC6);
+			val = mfspr(SPR_PMC6);
 			break;
 		case 6:
-			val = mfspr(SPR_970PMC7);
+			val = mfspr(SPR_PMC7);
 			break;
 		case 7:
-			val = mfspr(SPR_970PMC8);
+			val = mfspr(SPR_PMC8);
 			break;
 		default:
 			panic("Invalid PMC number: %d\n", pmc);
@@ -311,28 +311,28 @@ ppc970_pmcn_write(unsigned int pmc, uint32_t val)
 {
 	switch (pmc) {
 		case 0:
-			mtspr(SPR_970PMC1, val);
+			mtspr(SPR_PMC1, val);
 			break;
 		case 1:
-			mtspr(SPR_970PMC2, val);
+			mtspr(SPR_PMC2, val);
 			break;
 		case 2:
-			mtspr(SPR_970PMC3, val);
+			mtspr(SPR_PMC3, val);
 			break;
 		case 3:
-			mtspr(SPR_970PMC4, val);
+			mtspr(SPR_PMC4, val);
 			break;
 		case 4:
-			mtspr(SPR_970PMC5, val);
+			mtspr(SPR_PMC5, val);
 			break;
 		case 5:
-			mtspr(SPR_970PMC6, val);
+			mtspr(SPR_PMC6, val);
 			break;
 		case 6:
-			mtspr(SPR_970PMC7, val);
+			mtspr(SPR_PMC7, val);
 			break;
 		case 7:
-			mtspr(SPR_970PMC8, val);
+			mtspr(SPR_PMC8, val);
 			break;
 		default:
 			panic("Invalid PMC number: %d\n", pmc);
@@ -378,9 +378,9 @@ ppc970_set_pmc(int cpu, int ri, int config)
 	switch (ri) {
 	case 0:
 	case 1:
-		pmc_mmcr = mfspr(SPR_970MMCR0);
+		pmc_mmcr = mfspr(SPR_MMCR0);
 		pmc_mmcr = PPC970_SET_MMCR0_PMCSEL(pmc_mmcr, config, ri);
-		mtspr(SPR_970MMCR0, pmc_mmcr);
+		mtspr(SPR_MMCR0, pmc_mmcr);
 		break;
 	case 2:
 	case 3:
@@ -388,9 +388,9 @@ ppc970_set_pmc(int cpu, int ri, int config)
 	case 5:
 	case 6:
 	case 7:
-		pmc_mmcr = mfspr(SPR_970MMCR1);
+		pmc_mmcr = mfspr(SPR_MMCR1);
 		pmc_mmcr = PPC970_SET_MMCR1_PMCSEL(pmc_mmcr, config, ri);
-		mtspr(SPR_970MMCR1, pmc_mmcr);
+		mtspr(SPR_MMCR1, pmc_mmcr);
 		break;
 	}
 	return 0;
@@ -416,10 +416,10 @@ ppc970_start_pmc(int cpu, int ri)
 	 */
 	config = ~pm->pm_md.pm_powerpc.pm_powerpc_evsel & POWERPC_PMC_ENABLE;
 
-	pmc_mmcr = mfspr(SPR_970MMCR0);
+	pmc_mmcr = mfspr(SPR_MMCR0);
 	pmc_mmcr &= ~SPR_MMCR0_FC;
 	pmc_mmcr |= config;
-	mtspr(SPR_970MMCR0, pmc_mmcr);
+	mtspr(SPR_MMCR0, pmc_mmcr);
 
 	return 0;
 }
@@ -505,7 +505,7 @@ ppc970_intr(struct trapframe *tf)
 	 * If found, we call a helper to process the interrupt.
 	 */
 
-	config  = mfspr(SPR_970MMCR0) & ~SPR_MMCR0_FC;
+	config  = mfspr(SPR_MMCR0) & ~SPR_MMCR0_FC;
 	for (i = 0; i < PPC970_MAX_PMCS; i++) {
 		if ((pm = pac->pc_ppcpmcs[i].phw_pmc) == NULL ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
@@ -535,7 +535,7 @@ ppc970_intr(struct trapframe *tf)
 
 	/* Re-enable PERF exceptions. */
 	if (retval)
-		mtspr(SPR_970MMCR0, config | SPR_MMCR0_PMXE);
+		mtspr(SPR_MMCR0, config | SPR_MMCR0_PMXE);
 
 	return (retval);
 }
@@ -571,10 +571,10 @@ ppc970_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	/* Clear the MMCRs, and set FC, to disable all PMCs. */
 	/* 970 PMC is not counted when set to 0x08 */
-	mtspr(SPR_970MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE |
+	mtspr(SPR_MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE |
 	    SPR_MMCR0_FCECE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE |
-	    SPR_970MMCR0_PMC1SEL(0x8) | SPR_970MMCR0_PMC2SEL(0x8));
-	mtspr(SPR_970MMCR1, 0x4218420);
+	    SPR_MMCR0_PMC1SEL(0x8) | SPR_MMCR0_PMC2SEL(0x8));
+	mtspr(SPR_MMCR1, 0x4218420);
 
 	return 0;
 }
