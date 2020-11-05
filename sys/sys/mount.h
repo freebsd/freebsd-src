@@ -463,6 +463,7 @@ struct mntoptnames {
 #define	MNTK_VMSETSIZE_BUG	0x00010000
 #define	MNTK_UNIONFS	0x00020000	/* A hack for F_ISUNIONSTACK */
 #define	MNTK_FPLOOKUP	0x00040000	/* fast path lookup is supported */
+#define	MNTK_SUSPEND_ALL	0x00080000 /* Suspended by all-fs suspension */
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
@@ -1047,6 +1048,9 @@ void	vfs_dump_mount_counters(struct mount *);
 
 enum mount_counter { MNT_COUNT_REF, MNT_COUNT_LOCKREF, MNT_COUNT_WRITEOPCOUNT };
 int	vfs_mount_fetch_counter(struct mount *, enum mount_counter);
+
+void suspend_all_fs(void);
+void resume_all_fs(void);
 
 /*
  * Code transitioning mnt_vfs_ops to > 0 issues IPIs until it observes

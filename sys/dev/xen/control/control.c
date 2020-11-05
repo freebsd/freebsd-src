@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/kdb.h>
 #include <sys/module.h>
+#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
@@ -204,6 +205,7 @@ xctrl_suspend()
 	xs_lock();
 	stop_all_proc();
 	xs_unlock();
+	suspend_all_fs();
 	EVENTHANDLER_INVOKE(power_suspend);
 
 #ifdef EARLY_AP_STARTUP
@@ -317,6 +319,7 @@ xctrl_suspend()
 	}
 #endif
 
+	resume_all_fs();
 	resume_all_proc();
 
 	EVENTHANDLER_INVOKE(power_resume);
