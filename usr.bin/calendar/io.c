@@ -172,6 +172,16 @@ cal_path(void)
 #define	WARN1(format, arg1)		   \
 	warnx(format " in %s line %d", arg1, cal_path(), cal_line)
 
+static char*
+cmptoken(char *line, const char* token)
+{
+	char len = strlen(token);
+
+	if (strncmp(line, token, len) != 0)
+		return NULL;
+	return (line + len);
+}
+
 static int
 token(char *line, FILE *out, int *skip, int *unskip)
 {
@@ -181,7 +191,10 @@ token(char *line, FILE *out, int *skip, int *unskip)
 	const char *this_cal_file;
 	int this_cal_line;
 
-	if (strncmp(line, "endif", 5) == 0) {
+	while (isspace(*line))
+		line++;
+
+	if (cmptoken(line, "endif")) {
 		if (*skip + *unskip == 0) {
 			WARN0("#endif without prior #ifdef or #ifndef");
 			return (T_ERR);
@@ -194,8 +207,8 @@ token(char *line, FILE *out, int *skip, int *unskip)
 		return (T_OK);
 	}
 
-	if (strncmp(line, "ifdef", 5) == 0) {
-		walk = line + 5;
+	walk = cmptoken(line, "ifdef");
+	if (walk != NULL) {
 		sep = trimlr(&walk);
 
 		if (*walk == '\0') {
@@ -217,8 +230,8 @@ token(char *line, FILE *out, int *skip, int *unskip)
 		return (T_OK);
 	}
 
-	if (strncmp(line, "ifndef", 6) == 0) {
-		walk = line + 6;
+	walk = cmptoken(line, "ifndef");
+	if (walk != NULL) {
 		sep = trimlr(&walk);
 
 		if (*walk == '\0') {
@@ -240,8 +253,8 @@ token(char *line, FILE *out, int *skip, int *unskip)
 		return (T_OK);
 	}
 
-	if (strncmp(line, "else", 4) == 0) {
-		walk = line + 4;
+	walk = cmptoken(line, "else");
+	if (walk != NULL) {
 		(void)trimlr(&walk);
 
 		if (*walk != '\0') {
@@ -267,9 +280,8 @@ token(char *line, FILE *out, int *skip, int *unskip)
 	if (*skip != 0)
 		return (T_OK);
 
-	if (strncmp(line, "include", 7) == 0) {
-		walk = line + 7;
-
+	walk = cmptoken(line, "include");
+	if (walk != NULL) {
 		(void)trimlr(&walk);
 
 		if (*walk == '\0') {
@@ -306,10 +318,10 @@ token(char *line, FILE *out, int *skip, int *unskip)
 		return (T_OK);
 	}
 
-	if (strncmp(line, "define", 6) == 0) {
+	walk = cmptoken(line, "define");
+	if (walk != NULL) {
 		if (definitions == NULL)
 			definitions = sl_init();
-		walk = line + 6;
 		sep = trimlr(&walk);
 		*sep = '\0';
 
@@ -323,9 +335,9 @@ token(char *line, FILE *out, int *skip, int *unskip)
 		return (T_OK);
 	}
 
-	if (strncmp(line, "undef", 5) == 0) {
+	walk = cmptoken(line, "undef");
+	if (walk != NULL) {
 		if (definitions != NULL) {
-			walk = line + 5;
 			sep = trimlr(&walk);
 
 			if (*walk == '\0') {
@@ -345,8 +357,32 @@ token(char *line, FILE *out, int *skip, int *unskip)
 		return (T_OK);
 	}
 
-	return (T_PROCESS);
+	walk = cmptoken(line, "warning");
+	if (walk != NULL) {
+		(void)trimlr(&walk);
+		WARN1("Warning: %s", walk);
+	}
 
+	walk = cmptoken(line, "error");
+	if (walk != NULL) {
+		(void)trimlr(&walk);
+		WARN1("Error: %s", walk);
+		return (T_ERR);
+	}
+
+	WARN1("Undefined pre-processor command \"#%s\"", line);
+	return (T_ERR);
+}
+
+static void
+setup_locale(const char *locale)
+{
+	(void)setlocale(LC_ALL, locale);
+#ifdef WITH_ICONV
+	if (!doall)
+		set_new_encoding();
+#endif
+	setnnames();
 }
 
 #define	REPLACE(string, slen, struct_) \
@@ -361,6 +397,7 @@ token(char *line, FILE *out, int *skip, int *unskip)
 static int
 cal_parse(FILE *in, FILE *out)
 {
+	char *mylocale = NULL;
 	char *line = NULL;
 	char *buf;
 	size_t linecap = 0;
@@ -459,12 +496,9 @@ cal_parse(FILE *in, FILE *out)
 		 * and does not run iconv(), this variable has little use.
 		 */
 		if (strncmp(buf, "LANG=", 5) == 0) {
-			(void)setlocale(LC_ALL, buf + 5);
-#ifdef WITH_ICONV
-			if (!doall)
-				set_new_encoding();
-#endif
-			setnnames();
+			if (mylocale == NULL)
+				mylocale = strdup(setlocale(LC_ALL, NULL));
+			setup_locale(buf + 5);
 			continue;
 		}
 		/* Parse special definitions: Easter, Paskha etc */
@@ -538,6 +572,10 @@ cal_parse(FILE *in, FILE *out)
 
 	free(line);
 	fclose(in);
+	if (mylocale != NULL) {
+		setup_locale(mylocale);
+		free(mylocale);
+	}
 
 	return (0);
 }
