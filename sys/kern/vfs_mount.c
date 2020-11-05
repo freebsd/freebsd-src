@@ -127,13 +127,13 @@ mount_init(void *mem, int size, int flags)
 	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	mtx_init(&mp->mnt_listmtx, "struct mount vlist mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_explock, PVFS, "explock", 0, 0);
-	mp->mnt_thread_in_ops_pcpu = uma_zalloc_pcpu(pcpu_zone_int,
+	mp->mnt_thread_in_ops_pcpu = uma_zalloc_pcpu(pcpu_zone_4,
 	    M_WAITOK | M_ZERO);
-	mp->mnt_ref_pcpu = uma_zalloc_pcpu(pcpu_zone_int,
+	mp->mnt_ref_pcpu = uma_zalloc_pcpu(pcpu_zone_4,
 	    M_WAITOK | M_ZERO);
-	mp->mnt_lockref_pcpu = uma_zalloc_pcpu(pcpu_zone_int,
+	mp->mnt_lockref_pcpu = uma_zalloc_pcpu(pcpu_zone_4,
 	    M_WAITOK | M_ZERO);
-	mp->mnt_writeopcount_pcpu = uma_zalloc_pcpu(pcpu_zone_int,
+	mp->mnt_writeopcount_pcpu = uma_zalloc_pcpu(pcpu_zone_4,
 	    M_WAITOK | M_ZERO);
 	mp->mnt_ref = 0;
 	mp->mnt_vfs_ops = 1;
@@ -147,10 +147,10 @@ mount_fini(void *mem, int size)
 	struct mount *mp;
 
 	mp = (struct mount *)mem;
-	uma_zfree_pcpu(pcpu_zone_int, mp->mnt_writeopcount_pcpu);
-	uma_zfree_pcpu(pcpu_zone_int, mp->mnt_lockref_pcpu);
-	uma_zfree_pcpu(pcpu_zone_int, mp->mnt_ref_pcpu);
-	uma_zfree_pcpu(pcpu_zone_int, mp->mnt_thread_in_ops_pcpu);
+	uma_zfree_pcpu(pcpu_zone_4, mp->mnt_writeopcount_pcpu);
+	uma_zfree_pcpu(pcpu_zone_4, mp->mnt_lockref_pcpu);
+	uma_zfree_pcpu(pcpu_zone_4, mp->mnt_ref_pcpu);
+	uma_zfree_pcpu(pcpu_zone_4, mp->mnt_thread_in_ops_pcpu);
 	lockdestroy(&mp->mnt_explock);
 	mtx_destroy(&mp->mnt_listmtx);
 	mtx_destroy(&mp->mnt_mtx);
