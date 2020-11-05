@@ -2405,7 +2405,31 @@ regdomain_makechannels(
 				    &dc->dc_chaninfo);
 			}
 
-			/* XXX TODO: VHT80P80, VHT160 */
+			/* VHT160 */
+			if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(
+			    dc->dc_vhtcaps)) {
+				regdomain_addchans(ci, &rd->bands_11ac, reg,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U |
+				    IEEE80211_CHAN_VHT160,
+				    &dc->dc_chaninfo);
+				regdomain_addchans(ci, &rd->bands_11ac, reg,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D |
+				    IEEE80211_CHAN_VHT160,
+				    &dc->dc_chaninfo);
+			}
+
+			/* VHT80P80 */
+			if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(
+			    dc->dc_vhtcaps)) {
+				regdomain_addchans(ci, &rd->bands_11ac, reg,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40U |
+				    IEEE80211_CHAN_VHT80P80,
+				    &dc->dc_chaninfo);
+				regdomain_addchans(ci, &rd->bands_11ac, reg,
+				    IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D |
+				    IEEE80211_CHAN_VHT80P80,
+				    &dc->dc_chaninfo);
+			}
 		}
 
 		if (!LIST_EMPTY(&rd->bands_11ng) && dc->dc_htcaps != 0) {

@@ -153,13 +153,10 @@ ieee80211_vht_vattach(struct ieee80211vap *vap)
 	    IEEE80211_FVHT_VHT
 	    | IEEE80211_FVHT_USEVHT40
 	    | IEEE80211_FVHT_USEVHT80;
-#if 0
-	/* XXX TODO: enable VHT80+80, VHT160 capabilities */
-	if (XXX TODO FIXME)
+	if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(vap->iv_vhtcaps))
 		vap->iv_flags_vht |= IEEE80211_FVHT_USEVHT160;
-	if (XXX TODO FIXME)
+	if (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(vap->iv_vhtcaps))
 		vap->iv_flags_vht |= IEEE80211_FVHT_USEVHT80P80;
-#endif
 
 	memcpy(&vap->iv_vht_mcsinfo, &ic->ic_vht_mcsinfo,
 	    sizeof(struct ieee80211_vht_mcs_info));
@@ -202,15 +199,11 @@ ieee80211_vht_announce(struct ieee80211com *ic)
 		return;
 
 	/* Channel width */
-	ic_printf(ic, "[VHT] Channel Widths: 20MHz, 40MHz, 80MHz");
-	if (_IEEE80211_MASKSHIFT(ic->ic_vhtcaps,
-	    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) >= 1)
-		printf(" 160MHz");
-	if (_IEEE80211_MASKSHIFT(ic->ic_vhtcaps,
-	    IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_MASK) == 2)
-		printf(" 80+80MHz");
-	printf("\n");
-
+	ic_printf(ic, "[VHT] Channel Widths: 20MHz, 40MHz, 80MHz%s%s\n",
+	    (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160MHZ(ic->ic_vhtcaps)) ?
+		", 160MHz" : "",
+	    (IEEE80211_VHTCAP_SUPP_CHAN_WIDTH_IS_160_80P80MHZ(ic->ic_vhtcaps)) ?
+		 ", 80+80MHz" : "");
 	/* Features */
 	ic_printf(ic, "[VHT] Features: %b\n", ic->ic_vhtcaps,
 	    IEEE80211_VHTCAP_BITS);
