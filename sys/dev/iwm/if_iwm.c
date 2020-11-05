@@ -354,7 +354,6 @@ static struct ieee80211_node *
 static uint8_t	iwm_rate_from_ucode_rate(uint32_t);
 static int	iwm_rate2ridx(struct iwm_softc *, uint8_t);
 static void	iwm_setrates(struct iwm_softc *, struct iwm_node *, int);
-static int	iwm_media_change(struct ifnet *);
 static int	iwm_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static void	iwm_endscan_cb(void *, int);
 static int	iwm_send_bt_init_conf(struct iwm_softc *);
@@ -4412,31 +4411,6 @@ iwm_setrates(struct iwm_softc *sc, struct iwm_node *in, int rix)
 	}
 }
 
-static int
-iwm_media_change(struct ifnet *ifp)
-{
-#if 0
-	struct ieee80211vap *vap = ifp->if_softc;
-	struct ieee80211com *ic = vap->iv_ic;
-	struct iwm_softc *sc = ic->ic_softc;
-#endif
-	int error;
-
-	error = ieee80211_media_change(ifp);
-	if (error != 0)
-		return (error);
-
-#if 0
-	IWM_LOCK(sc);
-	if (ic->ic_nrunning > 0) {
-		iwm_stop(sc);
-		iwm_init(sc);
-	}
-	IWM_UNLOCK(sc);
-#endif
-	return (0);
-}
-
 static void
 iwm_bring_down_firmware(struct iwm_softc *sc, struct ieee80211vap *vap)
 {
@@ -6431,8 +6405,8 @@ iwm_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	ieee80211_ratectl_init(vap);
 	/* Complete setup. */
-	ieee80211_vap_attach(vap, iwm_media_change, ieee80211_media_status,
-	    mac);
+	ieee80211_vap_attach(vap, ieee80211_media_change,
+	    ieee80211_media_status, mac);
 	ic->ic_opmode = opmode;
 
 	return vap;
