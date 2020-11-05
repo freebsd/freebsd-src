@@ -623,6 +623,50 @@ pfs_open(struct vop_open_args *va)
 	PFS_RETURN (0);
 }
 
+struct sbuf_seek_helper {
+	off_t		skip_bytes;
+	struct uio	*uio;
+};
+
+static int
+pfs_sbuf_uio_drain(void *arg, const char *data, int len)
+{
+	struct sbuf_seek_helper *ssh;
+	struct uio *uio;
+	int error, skipped;
+
+	ssh = arg;
+	uio = ssh->uio;
+	skipped = 0;
+
+	/* Need to discard first uio_offset bytes. */
+	if (ssh->skip_bytes > 0) {
+		if (ssh->skip_bytes >= len) {
+			ssh->skip_bytes -= len;
+			return (len);
+		}
+
+		data += ssh->skip_bytes;
+		len -= ssh->skip_bytes;
+		skipped = ssh->skip_bytes;
+		ssh->skip_bytes = 0;
+	}
+
+	error = uiomove(__DECONST(void *, data), len, uio);
+	if (error != 0)
+		return (-error);
+
+	/*
+	 * The fill function has more to emit, but the reader is finished.
+	 * This is similar to the truncated read case for non-draining PFS
+	 * sbufs, and should be handled appropriately in fill-routines.
+	 */
+	if (uio->uio_resid == 0)
+		return (-ENOBUFS);
+
+	return (skipped + len);
+}
+
 /*
  * Read from a file
  */
@@ -636,7 +680,8 @@ pfs_read(struct vop_read_args *va)
 	struct proc *proc;
 	struct sbuf *sb = NULL;
 	int error, locked;
-	off_t buflen;
+	off_t buflen, buflim;
+	struct sbuf_seek_helper ssh;
 
 	PFS_TRACE(("%s", pn->pn_name));
 	pfs_assert_not_owned(pn);
@@ -678,14 +723,28 @@ pfs_read(struct vop_read_args *va)
 		error = EINVAL;
 		goto ret;
 	}
-	buflen = uio->uio_offset + uio->uio_resid;
-	if (buflen > PFS_MAXBUFSIZ)
-		buflen = PFS_MAXBUFSIZ;
+	buflen = uio->uio_offset + uio->uio_resid + 1;
+	if (pn->pn_flags & PFS_AUTODRAIN)
+		/*
+		 * We can use a smaller buffer if we can stream output to the
+		 * consumer.
+		 */
+		buflim = PAGE_SIZE;
+	else
+		buflim = PFS_MAXBUFSIZ;
+	if (buflen > buflim)
+		buflen = buflim;
 
-	sb = sbuf_new(sb, NULL, buflen + 1, 0);
+	sb = sbuf_new(sb, NULL, buflen, 0);
 	if (sb == NULL) {
 		error = EIO;
 		goto ret;
+	}
+
+	if (pn->pn_flags & PFS_AUTODRAIN) {
+		ssh.skip_bytes = uio->uio_offset;
+		ssh.uio = uio;
+		sbuf_set_drain(sb, pfs_sbuf_uio_drain, &ssh);
 	}
 
 	error = pn_fill(curthread, proc, pn, sb, uio);
@@ -700,9 +759,23 @@ pfs_read(struct vop_read_args *va)
 	 * the data length. Then just use the full length because an
 	 * overflowed sbuf must be full.
 	 */
-	if (sbuf_finish(sb) == 0)
-		buflen = sbuf_len(sb);
-	error = uiomove_frombuf(sbuf_data(sb), buflen, uio);
+	error = sbuf_finish(sb);
+	if ((pn->pn_flags & PFS_AUTODRAIN)) {
+		/*
+		 * ENOBUFS just indicates early termination of the fill
+		 * function as the caller's buffer was already filled.  Squash
+		 * to zero.
+		 */
+		if (uio->uio_resid == 0 && error == ENOBUFS)
+			error = 0;
+	} else {
+		if (error == 0)
+			buflen = sbuf_len(sb);
+		else
+			/* The trailing byte is not valid. */
+			buflen--;
+		error = uiomove_frombuf(sbuf_data(sb), buflen, uio);
+	}
 	sbuf_delete(sb);
 ret:
 	vn_lock(vn, locked | LK_RETRY);
