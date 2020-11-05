@@ -2074,6 +2074,7 @@ static int
 umass_cam_attach_sim(struct umass_softc *sc)
 {
 	struct cam_devq *devq;		/* Per device Queue */
+	cam_status status;
 
 	/*
 	 * A HBA is attached to the CAM layer.
@@ -2102,11 +2103,12 @@ umass_cam_attach_sim(struct umass_softc *sc)
 	}
 
 	mtx_lock(&sc->sc_mtx);
-
-	if (xpt_bus_register(sc->sc_sim, sc->sc_dev,
-	    sc->sc_unit) != CAM_SUCCESS) {
+	status = xpt_bus_register(sc->sc_sim, sc->sc_dev, sc->sc_unit);
+	if (status != CAM_SUCCESS) {
 		cam_sim_free(sc->sc_sim, /* free_devq */ TRUE);
 		mtx_unlock(&sc->sc_mtx);
+		printf("%s: xpt_bus_register failed with status %#x\n",
+		    __func__, status);
 		return (ENOMEM);
 	}
 	mtx_unlock(&sc->sc_mtx);
@@ -2132,14 +2134,22 @@ umass_cam_attach(struct umass_softc *sc)
 static void
 umass_cam_detach_sim(struct umass_softc *sc)
 {
+	cam_status status;
+
 	if (sc->sc_sim != NULL) {
-		if (xpt_bus_deregister(cam_sim_path(sc->sc_sim))) {
+		status = xpt_bus_deregister(cam_sim_path(sc->sc_sim));
+		if (status == CAM_REQ_CMP) {
 			/* accessing the softc is not possible after this */
 			sc->sc_sim->softc = NULL;
+			DPRINTF(sc, UDMASS_SCSI, "%s: %s:%d:%d caling "
+			    "cam_sim_free sim %p refc %u mtx %p\n",
+			    __func__, sc->sc_name, cam_sim_path(sc->sc_sim),
+			    sc->sc_unit, sc->sc_sim,
+			    sc->sc_sim->refcount, sc->sc_sim->mtx);
 			cam_sim_free(sc->sc_sim, /* free_devq */ TRUE);
 		} else {
-			panic("%s: CAM layer is busy\n",
-			    sc->sc_name);
+			panic("%s: %s: CAM layer is busy: %#x\n",
+			    __func__, sc->sc_name, status);
 		}
 		sc->sc_sim = NULL;
 	}
