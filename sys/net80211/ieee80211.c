@@ -158,7 +158,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 
 		/*
 		 * Setup the HT40/VHT40 upper/lower bits.
-		 * The VHT80 math is done elsewhere.
+		 * The VHT80/... math is done elsewhere.
 		 */
 		if (IEEE80211_IS_CHAN_HT40(c) && c->ic_extieee == 0)
 			c->ic_extieee = ieee80211_mhz2ieee(c->ic_freq +
@@ -167,8 +167,8 @@ ieee80211_chan_init(struct ieee80211com *ic)
 
 		/* Update VHT math */
 		/*
-		 * XXX VHT again, note that this assumes VHT80 channels
-		 * are legit already
+		 * XXX VHT again, note that this assumes VHT80/... channels
+		 * are legit already.
 		 */
 		set_vht_extchan(c);
 
@@ -712,8 +712,8 @@ ieee80211_vap_attach(struct ieee80211vap *vap, ifm_change_cb_t media_change,
 	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_VHT);
 	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT40);
 	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80);
-	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80P80);
 	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT160);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80P80);
 	IEEE80211_UNLOCK(ic);
 
 	return 1;
@@ -767,8 +767,8 @@ ieee80211_vap_detach(struct ieee80211vap *vap)
 	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_VHT);
 	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT40);
 	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80);
-	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80P80);
 	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT160);
+	ieee80211_syncflag_vht_locked(ic, IEEE80211_FVHT_USEVHT80P80);
 
 	/* NB: this handles the bpfdetach done below */
 	ieee80211_syncflag_ext_locked(ic, IEEE80211_FEXT_BPF);
@@ -1160,7 +1160,7 @@ struct vht_chan_range vht80_chan_ranges[] = {
 	{ 5570, 5650 },
 	{ 5650, 5730 },
 	{ 5735, 5815 },
-	{ 0, 0, }
+	{ 0, 0 }
 };
 
 static int

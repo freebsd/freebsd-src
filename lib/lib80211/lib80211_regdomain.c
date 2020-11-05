@@ -191,11 +191,11 @@ decode_flag(struct mystate *mt, const char *p, int len)
 		FLAG(IEEE80211_CHAN_VHT20),
 		FLAG(IEEE80211_CHAN_VHT40),
 		FLAG(IEEE80211_CHAN_VHT80),
+		FLAG(IEEE80211_CHAN_VHT160),
 		/*
 		 * XXX VHT80P80? This likely should be done by
 		 * 80MHz chan logic in net80211 / ifconfig.
 		 */
-		FLAG(IEEE80211_CHAN_VHT160),
 		FLAG(IEEE80211_CHAN_ST),
 		FLAG(IEEE80211_CHAN_TURBO),
 		FLAG(IEEE80211_CHAN_PASSIVE),

@@ -70,7 +70,7 @@ struct ieee80211vap;
 struct ieee80211_scanparams;
 
 /*
- * Information element ``blob''.  We use this structure
+ * Information element (IE) ``blob''.  We use this structure
  * to capture management frame payloads that need to be
  * retained.  Information elements within the payload that
  * we need to consult have references recorded.
