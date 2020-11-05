@@ -130,7 +130,6 @@ struct event {
 	int	month;
 	int	day;
 	int	var;
-	char	*date;
 	char	*text;
 	char	*extra;
 	struct event *next;

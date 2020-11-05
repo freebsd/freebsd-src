@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <iconv.h>
 #include <errno.h>
 #include <langinfo.h>
-#include <locale.h>
 
 static iconv_t conv = (iconv_t)-1;
 static char *currentEncoding = NULL;
@@ -204,13 +203,7 @@ event_print_all(FILE *fp)
 	struct tm tm;
 	char dbuf[80];
 	static int d_first;
-	const char *lang;
 
-	lang = getenv("LANG");
-	if (lang == NULL)
-		lang = "C";
-	if (setlocale(LC_ALL, lang) == NULL)
-		(void)setlocale(LC_ALL, "C");
 	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
 
 	while (walkthrough_dates(&e) != 0) {
