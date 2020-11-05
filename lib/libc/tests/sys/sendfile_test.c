@@ -781,7 +781,7 @@ hdtr_negative_bad_pointers_test(int domain)
 	hdtr3.trl_cnt = 1;
 	hdtr3.trailers = (struct iovec*)-1;
 
-	fd = open(SOURCE_FILE, O_CREAT|O_RDWR);
+	fd = open(SOURCE_FILE, O_CREAT|O_RDWR, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	server_sock = setup_tcp_server(domain, port);
@@ -836,7 +836,7 @@ offset_negative_value_less_than_zero_test(int domain)
 	server_sock = setup_tcp_server(domain, port);
 	client_sock = setup_tcp_client(domain, port);
 
-	fd = open(SOURCE_FILE, O_CREAT|O_RDWR);
+	fd = open(SOURCE_FILE, O_CREAT|O_RDWR, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	error = sendfile(fd, client_sock, -1, 0, NULL, NULL, SF_FLAGS(0, 0));
@@ -985,7 +985,7 @@ s_negative_not_connected_socket_test(int domain)
 	port = generate_random_port(__LINE__ + domain);
 	client_sock = setup_tcp_server(domain, port);
 
-	fd = open(SOURCE_FILE, O_CREAT|O_RDWR);
+	fd = open(SOURCE_FILE, O_CREAT|O_RDWR, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	error = sendfile(fd, client_sock, 0, 0, NULL, NULL, SF_FLAGS(0, 0));
@@ -1037,7 +1037,7 @@ ATF_TC_BODY(s_negative_not_descriptor, tc)
 
 	client_sock = -1;
 
-	fd = open(SOURCE_FILE, O_CREAT|O_RDWR);
+	fd = open(SOURCE_FILE, O_CREAT|O_RDWR, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	error = sendfile(fd, client_sock, 0, 0, NULL, NULL, SF_FLAGS(0, 0));
@@ -1058,7 +1058,7 @@ ATF_TC_BODY(s_negative_not_socket_file_descriptor, tc)
 {
 	int client_sock, error, fd;
 
-	fd = open(SOURCE_FILE, O_CREAT|O_RDWR);
+	fd = open(SOURCE_FILE, O_CREAT|O_RDWR, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	client_sock = open(_PATH_DEVNULL, O_WRONLY);
@@ -1079,7 +1079,7 @@ s_negative_udp_socket_test(int domain)
 	port = generate_random_port(__LINE__ + domain);
 	client_sock = setup_client(domain, SOCK_DGRAM, port);
 
-	fd = open(SOURCE_FILE, O_CREAT|O_RDWR);
+	fd = open(SOURCE_FILE, O_CREAT|O_RDWR, 0600);
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 
 	error = sendfile(fd, client_sock, 0, 0, NULL, NULL, SF_FLAGS(0, 0));
