@@ -138,6 +138,14 @@
 #define	IEEE80211_FVHT_USEVHT80P80 0x000000010	/* CONF: Use VHT 80+80 */
 #endif
 
+/* Helper macros unified. */
+#ifndef	_IEEE80211_MASKSHIFT
+#define	_IEEE80211_MASKSHIFT(_v, _f)	(((_v) & _f) >> _f##_S)
+#endif
+#ifndef	_IEEE80211_SHIFTMASK
+#define	_IEEE80211_SHIFTMASK(_v, _f)	(((_v) << _f##_S) & _f)
+#endif
+
 #define	MAXCHAN	1536		/* max 1.5K channels */
 
 #define	MAXCOL	78
@@ -2706,7 +2714,6 @@ printie(const char* tag, const uint8_t *ie, size_t ielen, int maxlen)
 static void
 printwmeparam(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 {
-#define	MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	static const char *acnames[] = { "BE", "BK", "VO", "VI" };
 	const struct ieee80211_wme_param *wme =
 	    (const struct ieee80211_wme_param *) ie;
@@ -2721,17 +2728,17 @@ printwmeparam(const char *tag, const u_int8_t *ie, size_t ielen, int maxlen)
 		const struct ieee80211_wme_acparams *ac =
 		    &wme->params_acParams[i];
 
-		printf(" %s[%saifsn %u cwmin %u cwmax %u txop %u]"
-			, acnames[i]
-			, MS(ac->acp_aci_aifsn, WME_PARAM_ACM) ? "acm " : ""
-			, MS(ac->acp_aci_aifsn, WME_PARAM_AIFSN)
-			, MS(ac->acp_logcwminmax, WME_PARAM_LOGCWMIN)
-			, MS(ac->acp_logcwminmax, WME_PARAM_LOGCWMAX)
-			, LE_READ_2(&ac->acp_txop)
-		);
+		printf(" %s[%saifsn %u cwmin %u cwmax %u txop %u]", acnames[i],
+		    _IEEE80211_MASKSHIFT(ac->acp_aci_aifsn, WME_PARAM_ACM) ?
+			"acm " : "",
+		    _IEEE80211_MASKSHIFT(ac->acp_aci_aifsn, WME_PARAM_AIFSN),
+		    _IEEE80211_MASKSHIFT(ac->acp_logcwminmax,
+			WME_PARAM_LOGCWMIN),
+		    _IEEE80211_MASKSHIFT(ac->acp_logcwminmax,
+			WME_PARAM_LOGCWMAX),
+		    LE_READ_2(&ac->acp_txop));
 	}
 	printf(">");
-#undef MS
 }
 
 static void
