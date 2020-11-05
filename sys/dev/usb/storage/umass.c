@@ -2105,6 +2105,7 @@ umass_cam_attach_sim(struct umass_softc *sc)
 
 	if (xpt_bus_register(sc->sc_sim, sc->sc_dev,
 	    sc->sc_unit) != CAM_SUCCESS) {
+		cam_sim_free(sc->sc_sim, /* free_devq */ TRUE);
 		mtx_unlock(&sc->sc_mtx);
 		return (ENOMEM);
 	}
