@@ -272,7 +272,6 @@ struct mbuf *
 ieee80211_ff_decap(struct ieee80211_node *ni, struct mbuf *m)
 {
 #define	FF_LLC_SIZE	(sizeof(struct ether_header) + sizeof(struct llc))
-#define	MS(x,f)	(((x) & f) >> f##_S)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct llc *llc;
 	uint32_t ath;
@@ -301,7 +300,7 @@ ieee80211_ff_decap(struct ieee80211_node *ni, struct mbuf *m)
 		return m;
 	m_adj(m, FF_LLC_SIZE);
 	m_copydata(m, 0, sizeof(uint32_t), (caddr_t) &ath);
-	if (MS(ath, ATH_FF_PROTO) != ATH_FF_PROTO_L2TUNNEL) {
+	if (_IEEE80211_MASKSHIFT(ath, ATH_FF_PROTO) != ATH_FF_PROTO_L2TUNNEL) {
 		IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_ANY,
 		    ni->ni_macaddr, "fast-frame",
 		    "unsupport tunnel protocol, header 0x%x", ath);
@@ -350,7 +349,6 @@ ieee80211_ff_decap(struct ieee80211_node *ni, struct mbuf *m)
 	}
 	/* XXX verify framelen against mbuf contents */
 	return n;				/* 2nd delivered by caller */
-#undef MS
 #undef FF_LLC_SIZE
 }
 

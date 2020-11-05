@@ -2216,7 +2216,6 @@ static uint8_t *
 ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme,
     int uapsd_enable)
 {
-#define	SM(_v, _f)	(((_v) << _f##_S) & _f)
 #define	ADDSHORT(frm, v) do {	\
 	le16enc(frm, v);	\
 	frm += 2;		\
@@ -2243,17 +2242,18 @@ ieee80211_add_wme_param(uint8_t *frm, struct ieee80211_wme_state *wme,
 	for (i = 0; i < WME_NUM_AC; i++) {
 		const struct wmeParams *ac =
 		       &wme->wme_bssChanParams.cap_wmeParams[i];
-		*frm++ = SM(i, WME_PARAM_ACI)
-		       | SM(ac->wmep_acm, WME_PARAM_ACM)
-		       | SM(ac->wmep_aifsn, WME_PARAM_AIFSN)
+		*frm++ = _IEEE80211_SHIFTMASK(i, WME_PARAM_ACI)
+		       | _IEEE80211_SHIFTMASK(ac->wmep_acm, WME_PARAM_ACM)
+		       | _IEEE80211_SHIFTMASK(ac->wmep_aifsn, WME_PARAM_AIFSN)
 		       ;
-		*frm++ = SM(ac->wmep_logcwmax, WME_PARAM_LOGCWMAX)
-		       | SM(ac->wmep_logcwmin, WME_PARAM_LOGCWMIN)
+		*frm++ = _IEEE80211_SHIFTMASK(ac->wmep_logcwmax,
+			    WME_PARAM_LOGCWMAX)
+		       | _IEEE80211_SHIFTMASK(ac->wmep_logcwmin,
+			    WME_PARAM_LOGCWMIN)
 		       ;
 		ADDSHORT(frm, ac->wmep_txopLimit);
 	}
 	return frm;
-#undef SM
 #undef ADDSHORT
 }
 #undef WME_OUI_BYTES

@@ -733,9 +733,9 @@ MALLOC_DECLARE(M_80211_VAP);
 
 #define	IEEE80211_COM_DETACHED	0x00000001	/* ieee80211_ifdetach called */
 #define	IEEE80211_COM_REF_ADD	0x00000002	/* add / remove reference */
-#define	IEEE80211_COM_REF_M	0xfffffffe	/* reference counter bits */
+#define	IEEE80211_COM_REF	0xfffffffe	/* reference counter bits */
 #define	IEEE80211_COM_REF_S	1
-#define	IEEE80211_COM_REF_MAX	(IEEE80211_COM_REF_M >> IEEE80211_COM_REF_S)
+#define	IEEE80211_COM_REF_MAX	(IEEE80211_COM_REF >> IEEE80211_COM_REF_S)
 
 int	ic_printf(struct ieee80211com *, const char *, ...) __printflike(2, 3);
 void	ieee80211_ifattach(struct ieee80211com *);
@@ -1010,6 +1010,10 @@ ieee80211_get_node_txpower(struct ieee80211_node *ni)
 	"\13WME\14ACL\15WPA\16RADKEYS\17RADDUMP\20RADIUS\21DOT1XSM\22HWMP" \
 	"\23POWER\24STATE\25OUTPUT\26SCAN\27AUTH\30ASSOC\31NODE\32ELEMID" \
 	"\33XRATE\34INPUT\35CRYPTO\36DUPMPKTS\37DEBUG\04011N"
+
+/* Helper macros unified. */
+#define	_IEEE80211_MASKSHIFT(_v, _f)	(((_v) & _f) >> _f##_S)
+#define	_IEEE80211_SHIFTMASK(_v, _f)	(((_v) << _f##_S) & _f)
 
 #ifdef IEEE80211_DEBUG
 #define	ieee80211_msg(_vap, _m)	((_vap)->iv_debug & (_m))

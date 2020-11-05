@@ -918,10 +918,6 @@ malo_fix2rate(int fix_rate)
 	return (fix_rate < nitems(rates) ? rates[fix_rate] : 0);
 }
 
-/* idiomatic shorthands: MS = mask+shift, SM = shift+mask */
-#define	MS(v,x)			(((v) & x) >> x##_S)
-#define	SM(v,x)			(((v) << x##_S) & x)
-
 /*
  * Process completed xmit descriptors from the specified queue.
  */
@@ -962,7 +958,8 @@ malo_tx_processq(struct malo_softc *sc, struct malo_txq *txq)
 			status = le32toh(ds->status);
 			if (status & MALO_TXD_STATUS_OK) {
 				uint16_t format = le16toh(ds->format);
-				uint8_t txant = MS(format, MALO_TXD_ANTENNA);
+				uint8_t txant =_IEEE80211_MASKSHIFT(
+				    format, MALO_TXD_ANTENNA);
 
 				sc->malo_stats.mst_ant_tx[txant]++;
 				if (status & MALO_TXD_STATUS_OK_RETRY)

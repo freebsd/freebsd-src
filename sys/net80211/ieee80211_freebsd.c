@@ -309,7 +309,6 @@ ieee80211_sysctl_vdetach(struct ieee80211vap *vap)
 	}
 }
 
-#define	MS(_v, _f)	(((_v) & _f##_M) >> _f##_S)
 int
 ieee80211_com_vincref(struct ieee80211vap *vap)
 {
@@ -322,7 +321,8 @@ ieee80211_com_vincref(struct ieee80211vap *vap)
 		return (ENETDOWN);
 	}
 
-	if (MS(ostate, IEEE80211_COM_REF) == IEEE80211_COM_REF_MAX) {
+	if (_IEEE80211_MASKSHIFT(ostate, IEEE80211_COM_REF) ==
+	    IEEE80211_COM_REF_MAX) {
 		atomic_subtract_32(&vap->iv_com_state, IEEE80211_COM_REF_ADD);
 		return (EOVERFLOW);
 	}
@@ -337,7 +337,7 @@ ieee80211_com_vdecref(struct ieee80211vap *vap)
 
 	ostate = atomic_fetchadd_32(&vap->iv_com_state, -IEEE80211_COM_REF_ADD);
 
-	KASSERT(MS(ostate, IEEE80211_COM_REF) != 0,
+	KASSERT(_IEEE80211_MASKSHIFT(ostate, IEEE80211_COM_REF) != 0,
 	    ("com reference counter underflow"));
 
 	(void) ostate;
@@ -350,10 +350,10 @@ ieee80211_com_vdetach(struct ieee80211vap *vap)
 
 	sleep_time = msecs_to_ticks(250);
 	atomic_set_32(&vap->iv_com_state, IEEE80211_COM_DETACHED);
-	while (MS(atomic_load_32(&vap->iv_com_state), IEEE80211_COM_REF) != 0)
+	while (_IEEE80211_MASKSHIFT(atomic_load_32(&vap->iv_com_state),
+	    IEEE80211_COM_REF) != 0)
 		pause("comref", sleep_time);
 }
-#undef	MS
 
 int
 ieee80211_node_dectestref(struct ieee80211_node *ni)

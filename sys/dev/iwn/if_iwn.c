@@ -7439,7 +7439,6 @@ static int
 iwn_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
     int baparamset, int batimeout, int baseqctl)
 {
-#define MS(_v, _f)	(((_v) & _f) >> _f##_S)
 	struct iwn_softc *sc = ni->ni_ic->ic_softc;
 	struct iwn_ops *ops = &sc->ops;
 	struct iwn_node *wn = (void *)ni;
@@ -7450,8 +7449,8 @@ iwn_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 
 	DPRINTF(sc, IWN_DEBUG_TRACE, "->Doing %s\n", __func__);
 
-	tid = MS(le16toh(baparamset), IEEE80211_BAPS_TID);
-	ssn = MS(le16toh(baseqctl), IEEE80211_BASEQ_START);
+	tid = _IEEE80211_MASKSHIFT(le16toh(baparamset), IEEE80211_BAPS_TID);
+	ssn = _IEEE80211_MASKSHIFT(le16toh(baseqctl), IEEE80211_BASEQ_START);
 
 	if (wn->id == IWN_ID_UNDEFINED)
 		return (ENOENT);
@@ -7468,7 +7467,6 @@ iwn_ampdu_rx_start(struct ieee80211_node *ni, struct ieee80211_rx_ampdu *rap,
 	if (error != 0)
 		return error;
 	return sc->sc_ampdu_rx_start(ni, rap, baparamset, batimeout, baseqctl);
-#undef MS
 }
 
 /*
