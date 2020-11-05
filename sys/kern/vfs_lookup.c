@@ -149,7 +149,7 @@ struct nameicap_tracker {
 };
 
 /* Zone for cap mode tracker elements used for dotdot capability checks. */
-static uma_zone_t nt_zone;
+MALLOC_DEFINE(M_NAMEITRACKER, "namei_tracker", "namei tracking for dotdot");
 
 static void
 nameiinit(void *dummy __unused)
@@ -157,8 +157,6 @@ nameiinit(void *dummy __unused)
 
 	namei_zone = uma_zcreate("NAMEI", MAXPATHLEN, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	nt_zone = uma_zcreate("rentr", sizeof(struct nameicap_tracker),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	vfs_vector_op_register(&crossmp_vnodeops);
 	getnewvnode("crossmp", NULL, &crossmp_vnodeops, &vp_crossmp);
 }
@@ -190,7 +188,7 @@ nameicap_tracker_add(struct nameidata *ndp, struct vnode *dp)
 			return;
 		ndp->ni_lcf |= NI_LCF_BENEATH_LATCHED;
 	}
-	nt = uma_zalloc(nt_zone, M_WAITOK);
+	nt = malloc(sizeof(*nt), M_NAMEITRACKER, M_WAITOK);
 	vhold(dp);
 	nt->dp = dp;
 	TAILQ_INSERT_TAIL(&ndp->ni_cap_tracker, nt, nm_link);
@@ -206,7 +204,7 @@ nameicap_cleanup(struct nameidata *ndp, bool clean_latch)
 	TAILQ_FOREACH_SAFE(nt, &ndp->ni_cap_tracker, nm_link, nt1) {
 		TAILQ_REMOVE(&ndp->ni_cap_tracker, nt, nm_link);
 		vdrop(nt->dp);
-		uma_zfree(nt_zone, nt);
+		free(nt, M_NAMEITRACKER);
 	}
 	if (clean_latch && (ndp->ni_lcf & NI_LCF_LATCH) != 0) {
 		ndp->ni_lcf &= ~NI_LCF_LATCH;
