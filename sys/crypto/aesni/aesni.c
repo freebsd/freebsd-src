@@ -237,16 +237,35 @@ aesni_cipher_supported(struct aesni_softc *sc,
 	switch (csp->csp_cipher_alg) {
 	case CRYPTO_AES_CBC:
 	case CRYPTO_AES_ICM:
+		switch (csp->csp_cipher_klen * 8) {
+		case 128:
+		case 192:
+		case 256:
+			break;
+		default:
+			CRYPTDEB("invalid CBC/ICM key length");
+			return (false);
+		}
 		if (csp->csp_ivlen != AES_BLOCK_LEN)
 			return (false);
-		return (sc->has_aes);
+		break;
 	case CRYPTO_AES_XTS:
+		switch (csp->csp_cipher_klen * 8) {
+		case 256:
+		case 512:
+			break;
+		default:
+			CRYPTDEB("invalid XTS key length");
+			return (false);
+		}
 		if (csp->csp_ivlen != AES_XTS_IV_LEN)
 			return (false);
-		return (sc->has_aes);
+		break;
 	default:
 		return (false);
 	}
+
+	return (true);
 }
 
 #define SUPPORTED_SES (CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD | CSP_F_ESN)
@@ -271,6 +290,15 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 	case CSP_MODE_AEAD:
 		switch (csp->csp_cipher_alg) {
 		case CRYPTO_AES_NIST_GCM_16:
+			switch (csp->csp_cipher_klen * 8) {
+			case 128:
+			case 192:
+			case 256:
+				break;
+			default:
+				CRYPTDEB("invalid GCM key length");
+				return (EINVAL);
+			}
 			if (csp->csp_auth_mlen != 0 &&
 			    csp->csp_auth_mlen != GMAC_DIGEST_LEN)
 				return (EINVAL);
@@ -279,6 +307,15 @@ aesni_probesession(device_t dev, const struct crypto_session_params *csp)
 				return (EINVAL);
 			break;
 		case CRYPTO_AES_CCM_16:
+			switch (csp->csp_cipher_klen * 8) {
+			case 128:
+			case 192:
+			case 256:
+				break;
+			default:
+				CRYPTDEB("invalid CCM key length");
+				return (EINVAL);
+			}
 			if (csp->csp_auth_mlen != 0 &&
 			    csp->csp_auth_mlen != AES_CBC_MAC_HASH_LEN)
 				return (EINVAL);
@@ -519,41 +556,6 @@ aesni_authprepare(struct aesni_session *ses, int klen)
 }
 
 static int
-aesni_cipherprepare(const struct crypto_session_params *csp)
-{
-
-	switch (csp->csp_cipher_alg) {
-	case CRYPTO_AES_ICM:
-	case CRYPTO_AES_NIST_GCM_16:
-	case CRYPTO_AES_CCM_16:
-	case CRYPTO_AES_CBC:
-		switch (csp->csp_cipher_klen * 8) {
-		case 128:
-		case 192:
-		case 256:
-			break;
-		default:
-			CRYPTDEB("invalid CBC/ICM/GCM key length");
-			return (EINVAL);
-		}
-		break;
-	case CRYPTO_AES_XTS:
-		switch (csp->csp_cipher_klen * 8) {
-		case 256:
-		case 512:
-			break;
-		default:
-			CRYPTDEB("invalid XTS key length");
-			return (EINVAL);
-		}
-		break;
-	default:
-		return (EINVAL);
-	}
-	return (0);
-}
-
-static int
 aesni_cipher_setup(struct aesni_session *ses,
     const struct crypto_session_params *csp)
 {
@@ -600,10 +602,6 @@ aesni_cipher_setup(struct aesni_session *ses,
 		if (error != 0)
 			return (error);
 	}
-
-	error = aesni_cipherprepare(csp);
-	if (error != 0)
-		return (error);
 
 	kt = is_fpu_kern_thread(0) || (csp->csp_cipher_alg == 0);
 	if (!kt) {
