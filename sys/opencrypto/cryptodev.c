@@ -904,8 +904,6 @@ bail:
 	return (error);
 }
 
-static int cryptodev_cb(struct cryptop *);
-
 static struct cryptop_data *
 cod_alloc(struct csession *cse, size_t aad_len, size_t len, struct thread *td)
 {
@@ -933,6 +931,23 @@ cod_free(struct cryptop_data *cod)
 	free(cod->obuf, M_XDATA);
 	free(cod->buf, M_XDATA);
 	free(cod, M_XDATA);
+}
+
+static int
+cryptodev_cb(struct cryptop *crp)
+{
+	struct cryptop_data *cod = crp->crp_opaque;
+
+	/*
+	 * Lock to ensure the wakeup() is not missed by the loops
+	 * waiting on cod->done in cryptodev_op() and
+	 * cryptodev_aead().
+	 */
+	mtx_lock(&cod->cse->lock);
+	cod->done = true;
+	mtx_unlock(&cod->cse->lock);
+	wakeup(cod);
+	return (0);
 }
 
 static int
@@ -1338,23 +1353,6 @@ bail:
 	cod_free(cod);
 
 	return (error);
-}
-
-static int
-cryptodev_cb(struct cryptop *crp)
-{
-	struct cryptop_data *cod = crp->crp_opaque;
-
-	/*
-	 * Lock to ensure the wakeup() is not missed by the loops
-	 * waiting on cod->done in cryptodev_op() and
-	 * cryptodev_aead().
-	 */
-	mtx_lock(&cod->cse->lock);
-	cod->done = true;
-	mtx_unlock(&cod->cse->lock);
-	wakeup(cod);
-	return (0);
 }
 
 static void
