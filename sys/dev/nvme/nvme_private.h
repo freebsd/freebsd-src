@@ -113,7 +113,6 @@ MALLOC_DECLARE(M_NVME);
 #define CACHE_LINE_SIZE		(64)
 #endif
 
-extern uma_zone_t	nvme_request_zone;
 extern int32_t		nvme_retry_count;
 extern bool		nvme_verbose_cmd_dump;
 
@@ -489,7 +488,7 @@ _nvme_allocate_request(nvme_cb_fn_t cb_fn, void *cb_arg)
 {
 	struct nvme_request *req;
 
-	req = uma_zalloc(nvme_request_zone, M_NOWAIT | M_ZERO);
+	req = malloc(sizeof(*req), M_NVME, M_NOWAIT | M_ZERO);
 	if (req != NULL) {
 		req->cb_fn = cb_fn;
 		req->cb_arg = cb_arg;
@@ -551,7 +550,7 @@ nvme_allocate_request_ccb(union ccb *ccb, nvme_cb_fn_t cb_fn, void *cb_arg)
 	return (req);
 }
 
-#define nvme_free_request(req)	uma_zfree(nvme_request_zone, req)
+#define nvme_free_request(req)	free(req, M_NVME)
 
 void	nvme_notify_async_consumers(struct nvme_controller *ctrlr,
 				    const struct nvme_completion *async_cpl,

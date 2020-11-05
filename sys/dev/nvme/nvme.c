@@ -49,7 +49,6 @@ struct nvme_consumer {
 struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
 #define	INVALID_CONSUMER_ID	0xFFFF
 
-uma_zone_t	nvme_request_zone;
 int32_t		nvme_retry_count;
 
 MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
@@ -61,9 +60,6 @@ nvme_init(void)
 {
 	uint32_t	i;
 
-	nvme_request_zone = uma_zcreate("nvme_request",
-	    sizeof(struct nvme_request), NULL, NULL, NULL, NULL, 0, 0);
-
 	for (i = 0; i < NVME_MAX_CONSUMERS; i++)
 		nvme_consumer[i].id = INVALID_CONSUMER_ID;
 }
@@ -73,7 +69,6 @@ SYSINIT(nvme_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_init, NULL);
 static void
 nvme_uninit(void)
 {
-	uma_zdestroy(nvme_request_zone);
 }
 
 SYSUNINIT(nvme_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_uninit, NULL);
