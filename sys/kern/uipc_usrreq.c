@@ -2651,7 +2651,7 @@ unp_gc(__unused void *arg, int pending)
 			 * NULL.
 			 */
 			if (f != NULL && unp->unp_msgcount != 0 &&
-			    f->f_count == unp->unp_msgcount) {
+			    refcount_load(&f->f_count) == unp->unp_msgcount) {
 				LIST_INSERT_HEAD(&unp_deadhead, unp, unp_dead);
 				unp->unp_gcflag |= UNPGC_DEAD;
 				unp->unp_gcrefs = unp->unp_msgcount;
@@ -2714,7 +2714,7 @@ unp_gc(__unused void *arg, int pending)
 		unp->unp_gcflag &= ~UNPGC_DEAD;
 		f = unp->unp_file;
 		if (unp->unp_msgcount == 0 || f == NULL ||
-		    f->f_count != unp->unp_msgcount ||
+		    refcount_load(&f->f_count) != unp->unp_msgcount ||
 		    !fhold(f))
 			continue;
 		unref[total++] = f;
