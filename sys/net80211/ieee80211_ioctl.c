@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
@@ -72,7 +71,8 @@ static int ieee80211_scanreq(struct ieee80211vap *,
 		struct ieee80211_scan_req *);
 
 static int
-ieee80211_ioctl_getkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
+ieee80211_ioctl_getkey(u_long cmd, struct ieee80211vap *vap,
+    struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_node *ni;
@@ -106,8 +106,7 @@ ieee80211_ioctl_getkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	ik.ik_flags = wk->wk_flags & (IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV);
 	if (wk->wk_keyix == vap->iv_def_txkey)
 		ik.ik_flags |= IEEE80211_KEY_DEFAULT;
-	/* XXX TODO: move priv check to ieee80211_freebsd.c */
-	if (priv_check(curthread, PRIV_NET80211_VAP_GETKEY) == 0) {
+	if (ieee80211_priv_check_vap_getkey(cmd, vap, NULL) == 0) {
 		/* NB: only root can read key data */
 		ik.ik_keyrsc = wk->wk_keyrsc[IEEE80211_NONQOS_TID];
 		ik.ik_keytsc = wk->wk_keytsc;
@@ -822,8 +821,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 			return EINVAL;
 		len = (u_int) vap->iv_nw_keys[kid].wk_keylen;
 		/* NB: only root can read WEP keys */
-		/* XXX TODO: move priv check to ieee80211_freebsd.c */
-		if (priv_check(curthread, PRIV_NET80211_VAP_GETKEY) == 0) {
+		if (ieee80211_priv_check_vap_getkey(cmd, vap, NULL) == 0) {
 			bcopy(vap->iv_nw_keys[kid].wk_key, tmpkey, len);
 		} else {
 			bzero(tmpkey, len);
@@ -916,7 +914,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_NOBRIDGE) == 0;
 		break;
 	case IEEE80211_IOC_WPAKEY:
-		error = ieee80211_ioctl_getkey(vap, ireq);
+		error = ieee80211_ioctl_getkey(cmd, vap, ireq);
 		break;
 	case IEEE80211_IOC_CHANINFO:
 		error = ieee80211_ioctl_getchaninfo(vap, ireq);
@@ -3628,8 +3626,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				(struct ieee80211req *) data);
 		break;
 	case SIOCS80211:
-		/* XXX TODO: move priv check to ieee80211_freebsd.c */
-		error = priv_check(curthread, PRIV_NET80211_VAP_MANAGE);
+		error = ieee80211_priv_check_vap_manage(cmd, vap, ifp);
 		if (error == 0)
 			error = ieee80211_ioctl_set80211(vap, cmd,
 					(struct ieee80211req *) data);
@@ -3675,8 +3672,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		break;
 	case SIOCSIFLLADDR:
-		/* XXX TODO: move priv check to ieee80211_freebsd.c */
-		error = priv_check(curthread, PRIV_NET80211_VAP_SETMAC);
+		error = ieee80211_priv_check_vap_setmac(cmd, vap, ifp);
 		if (error == 0)
 			break;
 		/* Fallthrough */

@@ -72,6 +72,42 @@ SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 static const char wlanname[] = "wlan";
 static struct if_clone *wlan_cloner;
 
+/*
+ * priv(9) NET80211 checks.
+ * Return 0 if operation is allowed, E* (usually EPERM) otherwise.
+ */
+int
+ieee80211_priv_check_vap_getkey(u_long cmd __unused,
+     struct ieee80211vap *vap __unused, struct ifnet *ifp __unused)
+{
+
+	return (priv_check(curthread, PRIV_NET80211_VAP_GETKEY));
+}
+
+int
+ieee80211_priv_check_vap_manage(u_long cmd __unused,
+     struct ieee80211vap *vap __unused, struct ifnet *ifp __unused)
+{
+
+	return (priv_check(curthread, PRIV_NET80211_VAP_MANAGE));
+}
+
+int
+ieee80211_priv_check_vap_setmac(u_long cmd __unused,
+     struct ieee80211vap *vap __unused, struct ifnet *ifp __unused)
+{
+
+	return (priv_check(curthread, PRIV_NET80211_VAP_SETMAC));
+}
+
+int
+ieee80211_priv_check_create_vap(u_long cmd __unused,
+    struct ieee80211vap *vap __unused, struct ifnet *ifp __unused)
+{
+
+	return (priv_check(curthread, PRIV_NET80211_CREATE_VAP));
+}
+
 static int
 wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
@@ -80,7 +116,7 @@ wlan_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct ieee80211com *ic;
 	int error;
 
-	error = priv_check(curthread, PRIV_NET80211_CREATE_VAP);
+	error = ieee80211_priv_check_create_vap(0, NULL, NULL);
 	if (error)
 		return error;
 

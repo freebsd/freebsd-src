@@ -41,6 +41,19 @@
 #include <sys/time.h>
 
 /*
+ * priv(9) NET80211 checks.
+ */
+struct ieee80211vap;
+int ieee80211_priv_check_vap_getkey(u_long, struct ieee80211vap *,
+    struct ifnet *);
+int ieee80211_priv_check_vap_manage(u_long, struct ieee80211vap *,
+    struct ifnet *);
+int ieee80211_priv_check_vap_setmac(u_long, struct ieee80211vap *,
+    struct ifnet *);
+int ieee80211_priv_check_create_vap(u_long, struct ieee80211vap *,
+    struct ifnet *);
+
+/*
  * Common state locking definitions.
  */
 typedef struct {
