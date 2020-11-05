@@ -2863,7 +2863,7 @@ fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 			 * This re-read is not any more racy than using the
 			 * return value from fcmpset.
 			 */
-			if (fp->f_count != 0)
+			if (refcount_load(&fp->f_count) != 0)
 				return (EBADF);
 			/*
 			 * Force a reload. Other thread could reallocate the
@@ -3833,7 +3833,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			xf.xf_data = (uintptr_t)fp->f_data;
 			xf.xf_vnode = (uintptr_t)fp->f_vnode;
 			xf.xf_type = (uintptr_t)fp->f_type;
-			xf.xf_count = fp->f_count;
+			xf.xf_count = refcount_load(&fp->f_count);
 			xf.xf_msgcount = 0;
 			xf.xf_offset = foffset_get(fp);
 			xf.xf_flag = fp->f_flag;
@@ -3916,7 +3916,7 @@ export_file_to_kinfo(struct file *fp, int fd, cap_rights_t *rightsp,
 	else
 		cap_rights_init_zero(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
-	kif->kf_ref_count = fp->f_count;
+	kif->kf_ref_count = refcount_load(&fp->f_count);
 	kif->kf_offset = foffset_get(fp);
 
 	/*
@@ -4446,7 +4446,7 @@ db_print_file(struct file *fp, int header)
 	p = file_to_first_proc(fp);
 	db_printf("%*p %6s %*p %08x %04x %5d %6d %*p %5d %s\n", XPTRWIDTH,
 	    fp, file_type_to_name(fp->f_type), XPTRWIDTH, fp->f_data,
-	    fp->f_flag, 0, fp->f_count, 0, XPTRWIDTH, fp->f_vnode,
+	    fp->f_flag, 0, refcount_load(&fp->f_count), 0, XPTRWIDTH, fp->f_vnode,
 	    p != NULL ? p->p_pid : -1, p != NULL ? p->p_comm : "-");
 
 #undef XPTRWIDTH
