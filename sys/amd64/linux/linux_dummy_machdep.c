@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 2013 Dmitry Chagin
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,55 +35,40 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/proc.h>
 
-#include <amd64/linux32/linux.h>
-#include <amd64/linux32/linux32_proto.h>
+#include <amd64/linux/linux.h>
+#include <amd64/linux/linux_proto.h>
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_util.h>
 
 /* DTrace init */
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
-UNIMPLEMENTED(break);
-UNIMPLEMENTED(ftime);
-UNIMPLEMENTED(gtty);
-UNIMPLEMENTED(stty);
-UNIMPLEMENTED(lock);
-UNIMPLEMENTED(mpx);
-UNIMPLEMENTED(prof);
-UNIMPLEMENTED(profil);
-UNIMPLEMENTED(ulimit);
+/*
+ * Before adding new stubs to this file, please check if a stub can be added to
+ * the machine-independent code in sys/compat/linux/linux_dummy.c (or
+ * sys/x86/linux/linux_dummy_x86.c).
+ */
 
-DUMMY(stime);
-DUMMY(olduname);
-DUMMY(uname);
-DUMMY(bdflush);
-DUMMY(ptrace);
+UNIMPLEMENTED(get_thread_area);
+UNIMPLEMENTED(set_thread_area);
+UNIMPLEMENTED(uselib);
+
+DUMMY(modify_ldt);
+
+DUMMY(ioperm);
+DUMMY(io_setup);
+DUMMY(io_destroy);
+DUMMY(io_getevents);
+DUMMY(io_submit);
+DUMMY(io_cancel);
 DUMMY(mq_open);
 DUMMY(mq_unlink);
 DUMMY(mq_timedsend);
 DUMMY(mq_timedreceive);
 DUMMY(mq_notify);
 DUMMY(mq_getsetattr);
-/* Linux 4.11: */
-DUMMY(arch_prctl);
-/* Linux 5.0: */
-DUMMY(clock_gettime64);
-DUMMY(clock_settime64);
-DUMMY(clock_adjtime64);
-DUMMY(clock_getres_time64);
-DUMMY(clock_nanosleep_time64);
-DUMMY(timer_gettime64);
-DUMMY(timer_settime64);
-DUMMY(timerfd_gettime64);
-DUMMY(timerfd_settime64);
-DUMMY(utimensat_time64);
-DUMMY(pselect6_time64);
-DUMMY(ppoll_time64);
-DUMMY(io_pgetevents_time64);
-DUMMY(recvmmsg_time64);
-DUMMY(mq_timedsend_time64);
-DUMMY(mq_timedreceive_time64);
-DUMMY(semtimedop_time64);
-DUMMY(rt_sigtimedwait_time64);
-DUMMY(futex_time64);
-DUMMY(sched_rr_get_interval_time64);
+DUMMY(readahead);
+DUMMY(restart_syscall);
+DUMMY(semtimedop);
+/* Linux 3.15: */
+DUMMY(kexec_file_load);
