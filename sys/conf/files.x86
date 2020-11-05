@@ -291,6 +291,15 @@ dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
 dev/itwd/itwd.c							optional itwd
+dev/qat/qat.c			optional qat
+dev/qat/qat_ae.c		optional qat
+dev/qat/qat_c2xxx.c		optional qat
+dev/qat/qat_c3xxx.c		optional qat
+dev/qat/qat_c62x.c		optional qat
+dev/qat/qat_d15xx.c		optional qat
+dev/qat/qat_dh895xcc.c		optional qat
+dev/qat/qat_hw15.c		optional qat
+dev/qat/qat_hw17.c		optional qat
 libkern/x86/crc32_sse42.c	standard
 #
 # x86 shared code between IA32 and AMD64 architectures
