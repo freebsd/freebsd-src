@@ -351,13 +351,13 @@ SYSCTL_TIMEVAL_SEC(_kern, OID_AUTO, cryptodev_warn_interval, CTLFLAG_RW,
     &warninterval,
     "Delay in seconds between warnings of deprecated /dev/crypto algorithms");
 
-static	int cryptof_ioctl(struct file *, u_long, void *,
-		    struct ucred *, struct thread *);
-static	int cryptof_stat(struct file *, struct stat *,
-		    struct ucred *, struct thread *);
-static	int cryptof_close(struct file *, struct thread *);
-static	int cryptof_fill_kinfo(struct file *, struct kinfo_file *,
-		    struct filedesc *);
+static int cryptof_ioctl(struct file *, u_long, void *, struct ucred *,
+    struct thread *);
+static int cryptof_stat(struct file *, struct stat *, struct ucred *,
+    struct thread *);
+static int cryptof_close(struct file *, struct thread *);
+static int cryptof_fill_kinfo(struct file *, struct kinfo_file *,
+    struct filedesc *);
 
 static struct fileops cryptofops = {
     .fo_read = invfo_rdwr,
@@ -381,12 +381,12 @@ static struct csession *csecreate(struct fcrypt *, crypto_session_t,
     struct auth_hash *, void *);
 static void csefree(struct csession *);
 
-static	int cryptodev_op(struct csession *, const struct crypt_op *,
-			struct ucred *, struct thread *td);
-static	int cryptodev_aead(struct csession *, struct crypt_aead *,
-			struct ucred *, struct thread *);
-static	int cryptodev_key(struct crypt_kop *);
-static	int cryptodev_find(struct crypt_find_op *);
+static int cryptodev_op(struct csession *, const struct crypt_op *,
+    struct ucred *, struct thread *);
+static int cryptodev_aead(struct csession *, struct crypt_aead *,
+    struct ucred *, struct thread *);
+static int cryptodev_key(struct crypt_kop *);
+static int cryptodev_find(struct crypt_find_op *);
 
 /*
  * Check a crypto identifier to see if it requested
@@ -417,12 +417,8 @@ checkforsoftware(int *cridp)
 
 /* ARGSUSED */
 static int
-cryptof_ioctl(
-	struct file *fp,
-	u_long cmd,
-	void *data,
-	struct ucred *active_cred,
-	struct thread *td)
+cryptof_ioctl(struct file *fp, u_long cmd, void *data,
+    struct ucred *active_cred, struct thread *td)
 {
 	static struct timeval keywarn, featwarn;
 	struct crypto_session_params csp;
@@ -940,11 +936,8 @@ cod_free(struct cryptop_data *cod)
 }
 
 static int
-cryptodev_op(
-	struct csession *cse,
-	const struct crypt_op *cop,
-	struct ucred *active_cred,
-	struct thread *td)
+cryptodev_op(struct csession *cse, const struct crypt_op *cop,
+    struct ucred *active_cred, struct thread *td)
 {
 	struct cryptop_data *cod = NULL;
 	struct cryptop *crp = NULL;
@@ -1154,11 +1147,8 @@ bail:
 }
 
 static int
-cryptodev_aead(
-	struct csession *cse,
-	struct crypt_aead *caead,
-	struct ucred *active_cred,
-	struct thread *td)
+cryptodev_aead(struct csession *cse, struct crypt_aead *caead,
+    struct ucred *active_cred, struct thread *td)
 {
 	struct cryptop_data *cod = NULL;
 	struct cryptop *crp = NULL;
@@ -1515,11 +1505,8 @@ cryptodev_find(struct crypt_find_op *find)
 
 /* ARGSUSED */
 static int
-cryptof_stat(
-	struct file *fp,
-	struct stat *sb,
-	struct ucred *active_cred,
-	struct thread *td)
+cryptof_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
+    struct thread *td)
 {
 
 	return (EOPNOTSUPP);
@@ -1545,7 +1532,8 @@ cryptof_close(struct file *fp, struct thread *td)
 }
 
 static int
-cryptof_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+cryptof_fill_kinfo(struct file *fp, struct kinfo_file *kif,
+    struct filedesc *fdp)
 {
 
 	kif->kf_type = KF_TYPE_CRYPTO;
@@ -1634,7 +1622,8 @@ csefree(struct csession *cse)
 }
 
 static int
-cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
+    struct thread *td)
 {
 	struct file *f;
 	struct fcrypt *fcr;
