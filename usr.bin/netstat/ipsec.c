@@ -147,7 +147,7 @@ static struct val2str ipsec_espnames[] = {
 	{ SADB_EALG_NULL, "null", },
 	{ SADB_X_EALG_CAST128CBC, "cast128-cbc", },
 	{ SADB_X_EALG_BLOWFISHCBC, "blowfish-cbc", },
-	{ SADB_X_EALG_RIJNDAELCBC, "rijndael-cbc", },
+	{ SADB_X_EALG_AESCBC, "aes-cbc", },
 	{ SADB_X_EALG_CAMELLIACBC, "camellia-cbc", },
 	{ SADB_X_EALG_AESCTR, "aes-ctr", },
 	{ SADB_X_EALG_AESGCM16, "aes-gcm-16", },

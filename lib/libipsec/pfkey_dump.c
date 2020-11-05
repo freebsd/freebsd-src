@@ -181,8 +181,8 @@ static struct val2str str_alg_enc[] = {
 #endif
 	{ SADB_X_EALG_CAST128CBC, "cast128-cbc", },
 	{ SADB_X_EALG_BLOWFISHCBC, "blowfish-cbc", },
-#ifdef SADB_X_EALG_RIJNDAELCBC
-	{ SADB_X_EALG_RIJNDAELCBC, "rijndael-cbc", },
+#ifdef SADB_X_EALG_AESCBC
+	{ SADB_X_EALG_AESCBC, "aes-cbc", },
 #endif
 #ifdef SADB_X_EALG_TWOFISHCBC
 	{ SADB_X_EALG_TWOFISHCBC, "twofish-cbc", },

@@ -383,6 +383,7 @@ _Static_assert(sizeof(struct sadb_x_sa_replay) == 8, "struct size mismatch");
 #define SADB_EALG_NULL		11
 #define SADB_X_EALG_RIJNDAELCBC	12
 #define SADB_X_EALG_AES		12
+#define	SADB_X_EALG_AESCBC	12
 #define SADB_X_EALG_AESCTR	13
 #define SADB_X_EALG_AESGCM8	18	/* RFC4106 */
 #define SADB_X_EALG_AESGCM12	19
