@@ -159,7 +159,7 @@ struct selfd {
 	u_int			sf_refs;
 };
 
-static uma_zone_t selfd_zone;
+MALLOC_DEFINE(M_SELFD, "selfd", "selfd");
 static struct mtx_pool *mtxpool_select;
 
 #ifdef __LP64__
@@ -1691,11 +1691,11 @@ selfdalloc(struct thread *td, void *cookie)
 
 	stp = td->td_sel;
 	if (stp->st_free1 == NULL)
-		stp->st_free1 = uma_zalloc(selfd_zone, M_WAITOK|M_ZERO);
+		stp->st_free1 = malloc(sizeof(*stp->st_free1), M_SELFD, M_WAITOK|M_ZERO);
 	stp->st_free1->sf_td = stp;
 	stp->st_free1->sf_cookie = cookie;
 	if (stp->st_free2 == NULL)
-		stp->st_free2 = uma_zalloc(selfd_zone, M_WAITOK|M_ZERO);
+		stp->st_free2 = malloc(sizeof(*stp->st_free2), M_SELFD, M_WAITOK|M_ZERO);
 	stp->st_free2->sf_td = stp;
 	stp->st_free2->sf_cookie = cookie;
 }
@@ -1713,7 +1713,7 @@ selfdfree(struct seltd *stp, struct selfd *sfp)
 		mtx_unlock(sfp->sf_mtx);
 	}
 	if (refcount_release(&sfp->sf_refs))
-		uma_zfree(selfd_zone, sfp);
+		free(sfp, M_SELFD);
 }
 
 /* Drain the waiters tied to all the selfd belonging the specified selinfo. */
@@ -1827,7 +1827,7 @@ doselwakeup(struct selinfo *sip, int pri)
 		cv_broadcastpri(&stp->st_wait, pri);
 		mtx_unlock(&stp->st_mtx);
 		if (refcount_release(&sfp->sf_refs))
-			uma_zfree(selfd_zone, sfp);
+			free(sfp, M_SELFD);
 	}
 	mtx_unlock(sip->si_mtx);
 }
@@ -1888,9 +1888,9 @@ seltdfini(struct thread *td)
 	if (stp == NULL)
 		return;
 	if (stp->st_free1)
-		uma_zfree(selfd_zone, stp->st_free1);
+		free(stp->st_free1, M_SELFD);
 	if (stp->st_free2)
-		uma_zfree(selfd_zone, stp->st_free2);
+		free(stp->st_free2, M_SELFD);
 	td->td_sel = NULL;
 	cv_destroy(&stp->st_wait);
 	mtx_destroy(&stp->st_mtx);
@@ -1920,8 +1920,6 @@ static void
 selectinit(void *dummy __unused)
 {
 
-	selfd_zone = uma_zcreate("selfd", sizeof(struct selfd), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	mtxpool_select = mtx_pool_create("select mtxpool", 128, MTX_DEF);
 }
 
