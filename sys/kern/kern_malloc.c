@@ -1031,6 +1031,23 @@ reallocf(void *addr, size_t size, struct malloc_type *mtp, int flags)
 }
 
 /*
+ * 	malloc_size: returns the number of bytes allocated for a request of the
+ * 		     specified size
+ */
+size_t
+malloc_size(size_t size)
+{
+	int indx;
+
+	if (size > kmem_zmax)
+		return (0);
+	if (size & KMEM_ZMASK)
+		size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
+	indx = kmemsize[size >> KMEM_ZSHIFT];
+	return (kmemzones[indx].kz_size);
+}
+
+/*
  *	malloc_usable_size: returns the usable size of the allocation.
  */
 size_t
