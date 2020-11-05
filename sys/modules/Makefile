@@ -301,6 +301,7 @@ SUBDIR=	\
 	puc \
 	pwm \
 	${_qat} \
+	${_qatfw} \
 	${_qlxge} \
 	${_qlxgb} \
 	${_qlxgbe} \
@@ -632,6 +633,7 @@ _ocs_fc=	ocs_fc
 _ossl=		ossl
 _pccard=	pccard
 _qat=		qat
+_qatfw=		qatfw
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _rdma=		rdma
 .endif
