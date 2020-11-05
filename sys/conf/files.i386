@@ -52,6 +52,7 @@ cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
+compat/linux/linux_dummy.c	optional compat_linux
 compat/linux/linux_event.c	optional compat_linux
 compat/linux/linux_emul.c	optional compat_linux
 compat/linux/linux_errno.c	optional compat_linux
@@ -200,7 +201,7 @@ i386/i386/vm86.c		standard
 i386/i386/vm_machdep.c		standard
 i386/linux/imgact_linux.c	optional compat_linux
 i386/linux/linux_copyout.c	optional compat_linux
-i386/linux/linux_dummy.c	optional compat_linux
+i386/linux/linux_dummy_machdep.c	optional compat_linux
 i386/linux/linux_machdep.c	optional compat_linux
 i386/linux/linux_ptrace.c	optional compat_linux
 i386/linux/linux_sysent.c	optional compat_linux
@@ -240,6 +241,7 @@ x86/isa/atpic.c			optional atpic
 x86/isa/elcr.c			optional atpic | apic
 x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
+x86/linux/linux_dummy_x86.c	optional compat_linux
 x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mptable.c		optional apic

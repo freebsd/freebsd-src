@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 2013 Dmitry Chagin
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 
-#include <i386/linux/linux.h>
-#include <i386/linux/linux_proto.h>
+#ifdef COMPAT_LINUX32
+#include <machine/../linux32/linux.h>
+#include <machine/../linux32/linux32_proto.h>
+#else
+#include <machine/../linux/linux.h>
+#include <machine/../linux/linux_proto.h>
+#endif
+
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_util.h>
 
@@ -44,40 +52,25 @@ __FBSDID("$FreeBSD$");
 LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
 
 UNIMPLEMENTED(afs_syscall);
-UNIMPLEMENTED(break);
 UNIMPLEMENTED(create_module);	/* Added in Linux 1.0 removed in 2.6. */
-UNIMPLEMENTED(ftime);
+UNIMPLEMENTED(epoll_ctl_old);
+UNIMPLEMENTED(epoll_wait_old);
 UNIMPLEMENTED(get_kernel_syms);	/* Added in Linux 1.0 removed in 2.6. */
 UNIMPLEMENTED(getpmsg);
-UNIMPLEMENTED(gtty);
-UNIMPLEMENTED(stty);
-UNIMPLEMENTED(lock);
-UNIMPLEMENTED(mpx);
 UNIMPLEMENTED(nfsservctl);	/* Added in Linux 2.2 removed in 3.1. */
-UNIMPLEMENTED(prof);
-UNIMPLEMENTED(profil);
 UNIMPLEMENTED(putpmsg);
 UNIMPLEMENTED(query_module);	/* Added in Linux 2.2 removed in 2.6. */
-UNIMPLEMENTED(ulimit);
+UNIMPLEMENTED(security);
 UNIMPLEMENTED(vserver);
 
-DUMMY(stime);
-DUMMY(fstat);
-DUMMY(olduname);
-DUMMY(uname);
-DUMMY(vhangup);
-DUMMY(vm86old);
-DUMMY(swapoff);
-DUMMY(adjtimex);
-DUMMY(init_module);
-DUMMY(delete_module);
-DUMMY(quotactl);
-DUMMY(bdflush);
-DUMMY(sysfs);
-DUMMY(vm86);
 DUMMY(setfsuid);
 DUMMY(setfsgid);
+DUMMY(vhangup);
 DUMMY(pivot_root);
+DUMMY(adjtimex);
+DUMMY(swapoff);
+DUMMY(init_module);
+DUMMY(delete_module);
 DUMMY(lookup_dcookie);
 DUMMY(remap_file_pages);
 DUMMY(mbind);
@@ -91,7 +84,6 @@ DUMMY(keyctl);
 /* Linux 2.6.13: */
 DUMMY(ioprio_set);
 DUMMY(ioprio_get);
-DUMMY(inotify_init);
 DUMMY(inotify_add_watch);
 DUMMY(inotify_rm_watch);
 /* Linux 2.6.16: */
@@ -102,8 +94,6 @@ DUMMY(tee);
 DUMMY(vmsplice);
 /* Linux 2.6.18: */
 DUMMY(move_pages);
-/* Linux 2.6.22: */
-DUMMY(signalfd);
 /* Linux 2.6.27: */
 DUMMY(signalfd4);
 DUMMY(inotify_init1);
@@ -146,37 +136,6 @@ DUMMY(pwritev2);
 DUMMY(pkey_mprotect);
 DUMMY(pkey_alloc);
 DUMMY(pkey_free);
-/* Linux 4.11: */
-DUMMY(statx);
-DUMMY(arch_prctl);
-/* Linux 4.18: */
-DUMMY(io_pgetevents);
-DUMMY(rseq);
-/* Linux 5.0: */
-DUMMY(clock_gettime64);
-DUMMY(clock_settime64);
-DUMMY(clock_adjtime64);
-DUMMY(clock_getres_time64);
-DUMMY(clock_nanosleep_time64);
-DUMMY(timer_gettime64);
-DUMMY(timer_settime64);
-DUMMY(timerfd_gettime64);
-DUMMY(timerfd_settime64);
-DUMMY(utimensat_time64);
-DUMMY(pselect6_time64);
-DUMMY(ppoll_time64);
-DUMMY(io_pgetevents_time64);
-DUMMY(recvmmsg_time64);
-DUMMY(mq_timedsend_time64);
-DUMMY(mq_timedreceive_time64);
-DUMMY(semtimedop_time64);
-DUMMY(rt_sigtimedwait_time64);
-DUMMY(futex_time64);
-DUMMY(sched_rr_get_interval_time64);
-DUMMY(pidfd_send_signal);
-DUMMY(io_uring_setup);
-DUMMY(io_uring_enter);
-DUMMY(io_uring_register);
 
 #define DUMMY_XATTR(s)						\
 int								\

@@ -412,6 +412,7 @@ amd64/linux32/linux32_support.s	optional	compat_linux32		\
 	dependency 	"linux32_assym.h"
 amd64/linux32/linux32_sysent.c	optional	compat_linux32
 amd64/linux32/linux32_sysvec.c	optional	compat_linux32
+compat/linux/linux_dummy.c	optional	compat_linux32
 compat/linux/linux_emul.c	optional	compat_linux32
 compat/linux/linux_errno.c	optional	compat_linux32
 compat/linux/linux_file.c	optional	compat_linux32
@@ -435,6 +436,7 @@ compat/linux/linux_vdso.c	optional	compat_linux32
 compat/linux/linux_common.c	optional	compat_linux32
 compat/linux/linux_event.c	optional	compat_linux32
 compat/linux/linux.c		optional	compat_linux32
+x86/linux/linux_dummy_x86.c	optional	compat_linux32
 dev/amr/amr_linux.c		optional	compat_linux32 amr
 dev/mfi/mfi_linux.c		optional	compat_linux32 mfi
 compat/ndis/winx64_wrap.S	optional	ndisapi pci

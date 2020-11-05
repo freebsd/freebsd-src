@@ -6,6 +6,9 @@ CFLAGS+=-DCOMPAT_FREEBSD32 -DCOMPAT_LINUX32
 .endif
 
 .PATH: ${SRCTOP}/sys/compat/linux ${SRCTOP}/sys/${MACHINE_CPUARCH}/linux${SFX}
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+.PATH: ${SRCTOP}/sys/x86/linux
+.endif
 
 VDSO=	linux${SFX}_vdso
 
@@ -18,6 +21,9 @@ SRCS=	linux_fork.c linux${SFX}_dummy.c linux_file.c linux_event.c \
 	linux_timer.c linux_vdso.c \
 	opt_inet6.h opt_compat.h opt_posix.h opt_usb.h vnode_if.h \
 	device_if.h bus_if.h
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+SRCS+=	linux_dummy_x86.c
+.endif
 .if ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	linux${SFX}_support.s
 .else
