@@ -156,7 +156,9 @@ struct tmpfs_node {
 	 * when the node is removed from list and unlocked.
 	 */
 	LIST_ENTRY(tmpfs_node)	tn_entries;	/* (m) */
-	bool			tn_attached;	/* (m) */
+
+	/* Node identifier. */
+	ino_t			tn_id;		/* (c) */
 
 	/*
 	 * The node's type.  Any of 'VBLK', 'VCHR', 'VDIR', 'VFIFO',
@@ -166,8 +168,10 @@ struct tmpfs_node {
 	 */
 	enum vtype		tn_type;	/* (c) */
 
-	/* Node identifier. */
-	ino_t			tn_id;		/* (c) */
+	/*
+	 * See the top comment. Reordered here to fill LP64 hole.
+	 */
+	bool			tn_attached;	/* (m) */
 
 	/*
 	 * Node's internal status.  This is used by several file system
