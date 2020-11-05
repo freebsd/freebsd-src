@@ -412,6 +412,7 @@
 #define	  Mx_CTR_PPCS		0x02000000 /* Priv/user state compare mode */
 #define	  Mx_CTR_TLB_INDX	0x000001f0 /* TLB index mask */
 #define	  Mx_CTR_TLB_INDX_BITPOS	8	  /* TLB index shift */
+
 #define	SPR_MI_AP		0x312	/* ..8 IMMU access protection */
 #define	  Mx_GP_SUPER(n)	(0 << (2*(15-(n)))) /* access is supervisor */
 #define	  Mx_GP_PAGE		(1 << (2*(15-(n)))) /* access is page protect */
@@ -441,25 +442,67 @@
 #define	SPR_MD_AP		0x31a	/* ..8 DMMU access protection */
 #define	SPR_MD_EPN		0x31b	/* ..8 DMMU effective number */
 
-#define	SPR_970MMCR0		0x31b	/* ... Monitor Mode Control Register 0 (PPC 970) */
-#define	  SPR_970MMCR0_PMC1SEL(x) ((x) << 8) /* PMC1 selector (970) */
-#define	  SPR_970MMCR0_PMC2SEL(x) ((x) << 1) /* PMC2 selector (970) */
-#define	SPR_970MMCR1		0x31e	/* ... Monitor Mode Control Register 1 (PPC 970) */
-#define	  SPR_970MMCR1_PMC3SEL(x)	  (((x) & 0x1f) << 27) /* PMC 3 selector */
-#define	  SPR_970MMCR1_PMC4SEL(x)	  (((x) & 0x1f) << 22) /* PMC 4 selector */
-#define	  SPR_970MMCR1_PMC5SEL(x)	  (((x) & 0x1f) << 17) /* PMC 5 selector */
-#define	  SPR_970MMCR1_PMC6SEL(x)	  (((x) & 0x1f) << 12) /* PMC 6 selector */
-#define	  SPR_970MMCR1_PMC7SEL(x)	  (((x) & 0x1f) << 7) /* PMC 7 selector */
-#define	  SPR_970MMCR1_PMC8SEL(x)	  (((x) & 0x1f) << 2) /* PMC 8 selector */
-#define	SPR_970MMCRA		0x312	/* ... Monitor Mode Control Register 2 (PPC 970) */
-#define	SPR_970PMC1		0x313	/* ... PMC 1 */
-#define	SPR_970PMC2		0x314	/* ... PMC 2 */
-#define	SPR_970PMC3		0x315	/* ... PMC 3 */
-#define	SPR_970PMC4		0x316	/* ... PMC 4 */
-#define	SPR_970PMC5		0x317	/* ... PMC 5 */
-#define	SPR_970PMC6		0x318	/* ... PMC 6 */
-#define	SPR_970PMC7		0x319	/* ... PMC 7 */
-#define	SPR_970PMC8		0x31a	/* ... PMC 8 */
+#define	SPR_MMCRA		0x312	/* ... Monitor Mode Control Register A */
+#define	SPR_PMC1		0x313	/* ... PMC 1 */
+#define	SPR_PMC2		0x314	/* ... PMC 2 */
+#define	SPR_PMC3		0x315	/* ... PMC 3 */
+#define	SPR_PMC4		0x316	/* ... PMC 4 */
+#define	SPR_PMC5		0x317	/* ... PMC 5 */
+#define	SPR_PMC6		0x318	/* ... PMC 6 */
+#define	SPR_PMC7		0x319	/* ... PMC 7 */
+#define	SPR_PMC8		0x31a	/* ... PMC 8 */
+
+#define	SPR_MMCR0		0x31b	/* ... Monitor Mode Control Register 0 */
+#define	  SPR_MMCR0_FC		  0x80000000 /* Freeze counters */
+#define	  SPR_MMCR0_FCS		  0x40000000 /* Freeze counters in supervisor mode */
+#define	  SPR_MMCR0_FCP		  0x20000000 /* Freeze counters in user mode */
+#define	  SPR_MMCR0_FCM1	  0x10000000 /* Freeze counters when mark=1 */
+#define	  SPR_MMCR0_FCM0	  0x08000000 /* Freeze counters when mark=0 */
+#define	  SPR_MMCR0_PMXE	  0x04000000 /* Enable PM interrupt */
+#define	  SPR_MMCR0_PMAE	  0x04000000 /* PM Alert Enable */
+#define	  SPR_MMCR0_FCECE	  0x02000000 /* Freeze counters after event */
+#define	  SPR_MMCR0_TBSEL_15	  0x01800000 /* Count bit 15 of TBL */
+#define	  SPR_MMCR0_TBSEL_19	  0x01000000 /* Count bit 19 of TBL */
+#define	  SPR_MMCR0_TBSEL_23	  0x00800000 /* Count bit 23 of TBL */
+#define	  SPR_MMCR0_TBSEL_31	  0x00000000 /* Count bit 31 of TBL */
+#define	  SPR_MMCR0_TBEE	  0x00400000 /* Time-base event enable */
+#define	  SPR_MMCR0_THRESHOLD(x)  ((x) << 16) /* Threshold value */
+#define	  SPR_MMCR0_PMC1CE	  0x00008000 /* PMC1 condition enable */
+#define	  SPR_MMCR0_PMCNCE	  0x00004000 /* PMCn condition enable */
+#define	  SPR_MMCR0_TRIGGER	  0x00002000 /* Trigger */
+#define	  SPR_MMCR0_PMAO	  0x00000080 /* PM Alert Occurred */
+#define	  SPR_MMCR0_FCPC	  0x00001000 /* Freeze Counters in Problem State Cond. */
+#define	  SPR_MMCR0_FC56	  0x00000010 /* Freeze Counters 5-6 */
+#define	  SPR_MMCR0_PMC1SEL(x)	  ((x) << 8) /* PMC1 selector (970) */
+#define	  SPR_MMCR0_PMC2SEL(x)	  ((x) << 1) /* PMC2 selector (970) */
+#define	  SPR_MMCR0_74XX_PMC1SEL(x)	(((x) & 0x3f) << 6) /* PMC1 selector */
+#define	  SPR_MMCR0_74XX_PMC2SEL(x)	(((x) & 0x3f) << 0) /* PMC2 selector */
+
+#define	SPR_MMCR1		0x31e	/* ... Monitor Mode Control Register 1 */
+#define	  SPR_MMCR1_PMC3SEL(x)	  (((x) & 0x1f) << 27) /* PMC 3 selector */
+#define	  SPR_MMCR1_PMC4SEL(x)	  (((x) & 0x1f) << 22) /* PMC 4 selector */
+#define	  SPR_MMCR1_PMC5SEL(x)	  (((x) & 0x1f) << 17) /* PMC 5 selector */
+#define	  SPR_MMCR1_PMC6SEL(x)	  (((x) & 0x1f) << 12) /* PMC 6 selector */
+#define	  SPR_MMCR1_74XX_PMC6SEL(x)	(((x) & 0x3f) << 11) /* PMC 6 selector */
+#define	  SPR_MMCR1_PMC7SEL(x)	  (((x) & 0x1f) << 7) /* PMC 7 selector */
+#define	  SPR_MMCR1_PMC8SEL(x)	  (((x) & 0x1f) << 2) /* PMC 8 selector */
+#define	  SPR_MMCR1_P8_PMCSEL_ALL	0xffffffff
+#define	  SPR_MMCR1_P8_PMCNSEL_MASK(n)	(0xffUL << ((3-(n))*8))
+#define	  SPR_MMCR1_P8_PMCNSEL(n, v)	((unsigned long)(v) << ((3-(n))*8))
+
+#define	SPR_MMCR2		0x311
+#define	  SPR_MMCR2_CNBIT(n, bit) ((bit) << (((5 - (n)) * 9) + 10))
+#define	  SPR_MMCR2_FCNS(n)	  SPR_MMCR2_CNBIT(n, 0x100UL)
+#define	  SPR_MMCR2_FCNP0(n)	  SPR_MMCR2_CNBIT(n, 0x080UL)
+#define	  SPR_MMCR2_FCNP1(n)	  SPR_MMCR2_CNBIT(n, 0x040UL)
+#define	  SPR_MMCR2_FCNM1(n)	  SPR_MMCR2_CNBIT(n, 0x020UL)
+#define	  SPR_MMCR2_FCNM0(n)	  SPR_MMCR2_CNBIT(n, 0x010UL)
+#define	  SPR_MMCR2_FCNWAIT(n)	  SPR_MMCR2_CNBIT(n, 0x008UL)
+#define	  SPR_MMCR2_FCNH(n)	  SPR_MMCR2_CNBIT(n, 0x004UL)
+/* Freeze Counter N in Hypervisor/Supervisor/Problem states */
+#define	  SPR_MMCR2_FCNHSP(n)					\
+		(SPR_MMCR2_FCNS(n) | SPR_MMCR2_FCNP0(n) |	\
+		    SPR_MMCR2_FCNP1(n) | SPR_MMCR2_FCNH(n))
 
 #define	SPR_M_TWB		0x31c	/* ..8 MMU tablewalk base */
 #define	  M_TWB_L1TB		0xfffff000 /* level-1 translation base */
@@ -502,41 +545,19 @@
 #define	SPR_UMMCR0		0x3a8	/* .6. User Monitor Mode Control Register 0 */
 #define	SPR_USIA		0x3ab	/* .6. User Sampled Instruction Address */
 #define	SPR_UMMCR1		0x3ac	/* .6. User Monitor Mode Control Register 1 */
-#define	SPR_MMCR2		0x3b0	/* .6. Monitor Mode Control Register 2 */
-#define	  SPR_MMCR2_THRESHMULT_32	  0x80000000 /* Multiply MMCR0 threshold by 32 */
-#define	  SPR_MMCR2_THRESHMULT_2	  0x00000000 /* Multiply MMCR0 threshold by 2 */
-#define	SPR_PMC5		0x3b1	/* .6. Performance Counter Register 5 */
-#define	SPR_PMC6		0x3b2	/* .6. Performance Counter Register 6 */
-#define	SPR_MMCR0		0x3b8	/* .6. Monitor Mode Control Register 0 */
-#define	  SPR_MMCR0_FC		  0x80000000 /* Freeze counters */
-#define	  SPR_MMCR0_FCS		  0x40000000 /* Freeze counters in supervisor mode */
-#define	  SPR_MMCR0_FCP		  0x20000000 /* Freeze counters in user mode */
-#define	  SPR_MMCR0_FCM1	  0x10000000 /* Freeze counters when mark=1 */
-#define	  SPR_MMCR0_FCM0	  0x08000000 /* Freeze counters when mark=0 */
-#define	  SPR_MMCR0_PMXE	  0x04000000 /* Enable PM interrupt */
-#define	  SPR_MMCR0_FCECE	  0x02000000 /* Freeze counters after event */
-#define	  SPR_MMCR0_TBSEL_15	  0x01800000 /* Count bit 15 of TBL */
-#define	  SPR_MMCR0_TBSEL_19	  0x01000000 /* Count bit 19 of TBL */
-#define	  SPR_MMCR0_TBSEL_23	  0x00800000 /* Count bit 23 of TBL */
-#define	  SPR_MMCR0_TBSEL_31	  0x00000000 /* Count bit 31 of TBL */
-#define	  SPR_MMCR0_TBEE	  0x00400000 /* Time-base event enable */
-#define	  SPR_MMCRO_THRESHOLD(x)  ((x) << 16) /* Threshold value */
-#define	  SPR_MMCR0_PMC1CE	  0x00008000 /* PMC1 condition enable */
-#define	  SPR_MMCR0_PMCNCE	  0x00004000 /* PMCn condition enable */
-#define	  SPR_MMCR0_TRIGGER	  0x00002000 /* Trigger */
-#define	  SPR_MMCR0_PMC1SEL(x)	  (((x) & 0x3f) << 6) /* PMC1 selector */
-#define	  SPR_MMCR0_PMC2SEL(x)	  (((x) & 0x3f) << 0) /* PMC2 selector */
-#define	SPR_PMC1		0x3b9	/* .6. Performance Counter Register 1 */
-#define	SPR_PMC2		0x3ba	/* .6. Performance Counter Register 2 */
+#define	SPR_MMCR2_74XX		0x3b0	/* .6. Monitor Mode Control Register 2 */
+#define	  SPR_MMCR2_74XX_THRESHMULT_32	  0x80000000 /* Multiply MMCR0 threshold by 32 */
+#define	  SPR_MMCR2_74XX_THRESHMULT_2	  0x00000000 /* Multiply MMCR0 threshold by 2 */
+#define	SPR_PMC5_74XX		0x3b1	/* .6. Performance Counter Register 5 */
+#define	SPR_PMC6_74XX		0x3b2	/* .6. Performance Counter Register 6 */
+#define	SPR_MMCR0_74XX		0x3b8	/* .6. Monitor Mode Control Register 0 */
+#define	SPR_PMC1_74XX		0x3b9	/* .6. Performance Counter Register 1 */
+#define	SPR_PMC2_74XX		0x3ba	/* .6. Performance Counter Register 2 */
 #define	SPR_SIA			0x3bb	/* .6. Sampled Instruction Address */
-#define	SPR_MMCR1		0x3bc	/* .6. Monitor Mode Control Register 2 */
-#define	  SPR_MMCR1_PMC3SEL(x)	  (((x) & 0x1f) << 27) /* PMC 3 selector */
-#define	  SPR_MMCR1_PMC4SEL(x)	  (((x) & 0x1f) << 22) /* PMC 4 selector */
-#define	  SPR_MMCR1_PMC5SEL(x)	  (((x) & 0x1f) << 17) /* PMC 5 selector */
-#define	  SPR_MMCR1_PMC6SEL(x)	  (((x) & 0x3f) << 11) /* PMC 6 selector */
+#define	SPR_MMCR1_74XX		0x3bc	/* .6. Monitor Mode Control Register 2 */
 
-#define	SPR_PMC3		0x3bd	/* .6. Performance Counter Register 3 */
-#define	SPR_PMC4		0x3be	/* .6. Performance Counter Register 4 */
+#define	SPR_PMC3_74XX		0x3bd	/* .6. Performance Counter Register 3 */
+#define	SPR_PMC4_74XX		0x3be	/* .6. Performance Counter Register 4 */
 #define	SPR_DMISS		0x3d0	/* .68 Data TLB Miss Address Register */
 #define	SPR_DCMP		0x3d1	/* .68 Data TLB Compare Register */
 #define	SPR_HASH1		0x3d2	/* .68 Primary Hash Address Register */
