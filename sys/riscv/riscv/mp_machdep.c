@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cpu.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/malloc.h>
@@ -265,6 +266,9 @@ init_secondary(uint64_t hart)
 
 	/* Enable external (PLIC) interrupts */
 	csr_set(sie, SIE_SEIE);
+
+	/* Activate this hart in the kernel pmap. */
+	CPU_SET_ATOMIC(hart, &kernel_pmap->pm_active);
 
 	/* Activate process 0's pmap. */
 	pmap_activate_boot(vmspace_pmap(proc0.p_vmspace));
