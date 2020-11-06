@@ -63,7 +63,7 @@
 #define	M_EXEC		0x4000		/* allocate executable space */
 #define	M_NEXTFIT	0x8000		/* only for vmem, follow cursor */
 
-#define	M_MAGIC		877983977	/* time when first defined :-) */
+#define	M_VERSION	2020110501
 
 /*
  * Two malloc type structures are present: malloc_type, which is used by a
@@ -104,18 +104,17 @@ struct malloc_type_internal {
 					/* DTrace probe ID array. */
 	u_char		mti_zone;
 	struct malloc_type_stats	*mti_stats;
+	u_long		mti_spare[8];
 };
 
 /*
- * Public data structure describing a malloc type.  Private data is hung off
- * of ks_handle to avoid encoding internal malloc(9) data structures in
- * modules, which will statically allocate struct malloc_type.
+ * Public data structure describing a malloc type.
  */
 struct malloc_type {
 	struct malloc_type *ks_next;	/* Next in global chain. */
-	u_long		 ks_magic;	/* Detect programmer error. */
+	u_long		 ks_version;	/* Detect programmer error. */
 	const char	*ks_shortdesc;	/* Printable type name. */
-	void		*ks_handle;	/* Priv. data, was lo_class. */
+	struct malloc_type_internal ks_mti;
 };
 
 /*
@@ -141,7 +140,12 @@ struct malloc_type_header {
 #ifdef _KERNEL
 #define	MALLOC_DEFINE(type, shortdesc, longdesc)			\
 	struct malloc_type type[1] = {					\
-		{ NULL, M_MAGIC, shortdesc, NULL }			\
+		{							\
+			.ks_next = NULL,				\
+			.ks_version = M_VERSION,			\
+			.ks_shortdesc = shortdesc,			\
+			.ks_mti = { 0 },				\
+		}							\
 	};								\
 	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_THIRD, malloc_init,	\
 	    type);							\
