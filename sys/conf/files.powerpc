@@ -26,6 +26,7 @@ dev/agp/agp_apple.c		optional	agp powermac
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_e500.c		optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
+dev/hwpmc/hwpmc_power8.c	optional	hwpmc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/hwpmc/hwpmc_ppc970.c	optional	hwpmc
 dev/iicbus/ad7417.c		optional	ad7417 powermac
