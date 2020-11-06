@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2013
+.Dd November 6, 2020
 .Dt PKG 7
 .Os
 .Sh NAME
@@ -69,11 +69,8 @@ If already installed, the command requested will be forwarded to the real
 Install
 .Xr pkg 8
 from a local package instead of fetching from remote.
-If a
-.Pa pkg.txz.sig
-file exists and
-signature checking is enabled, then the signature will be verified
-before installing the package.
+If signature checking is enabled, then the correct signature file
+must exist and the signature valid before the package will be installed.
 If the
 .Fl f
 flag is specified, then
