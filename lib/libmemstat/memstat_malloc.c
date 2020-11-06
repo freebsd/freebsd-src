@@ -317,7 +317,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 	int hint_dontsearch, j, mp_maxcpus, mp_ncpus, ret;
 	char name[MEMTYPE_MAXNAME];
 	struct malloc_type_stats mts;
-	struct malloc_type_internal mti, *mtip;
+	struct malloc_type_internal *mtip;
 	struct malloc_type type, *typep;
 	kvm_t *kvm;
 
@@ -372,18 +372,17 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 			list->mtl_error = ret;
 			return (-1);
 		}
+		if (type.ks_version != M_VERSION) {
+			warnx("type %s with unsupported version %lu; skipped",
+			    name, type.ks_version);
+			continue;
+		}
 
 		/*
 		 * Since our compile-time value for MAXCPU may differ from the
 		 * kernel's, we populate our own array.
 		 */
-		mtip = type.ks_handle;
-		ret = kread(kvm, mtip, &mti, sizeof(mti), 0);
-		if (ret != 0) {
-			_memstat_mtl_empty(list);
-			list->mtl_error = ret;
-			return (-1);
-		}
+		mtip = &type.ks_mti;
 
 		if (hint_dontsearch == 0) {
 			mtp = memstat_mtl_find(list, ALLOCATOR_MALLOC, name);
@@ -404,7 +403,7 @@ memstat_kvm_malloc(struct memory_type_list *list, void *kvm_handle)
 		 */
 		_memstat_mt_reset_stats(mtp, mp_maxcpus);
 		for (j = 0; j < mp_ncpus; j++) {
-			ret = kread_zpcpu(kvm, (u_long)mti.mti_stats, &mts,
+			ret = kread_zpcpu(kvm, (u_long)mtip->mti_stats, &mts,
 			    sizeof(mts), j);
 			if (ret != 0) {
 				_memstat_mtl_empty(list);
