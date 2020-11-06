@@ -29,21 +29,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_compat.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/sdt.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 
-#ifdef COMPAT_LINUX32
-#include <machine/../linux32/linux.h>
-#include <machine/../linux32/linux32_proto.h>
-#else
+/*
+ * Including linux vs linux32 here is arbitrary -- the syscall args structures
+ * (proto.h) are not dereferenced by the DUMMY stub implementations, and
+ * suitable for use by both native and compat32 entrypoints.
+ */
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
-#endif
 
 #include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_util.h>
