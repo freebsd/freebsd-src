@@ -103,7 +103,7 @@ init_amd(void)
 	case 0x10:
 	case 0x12:
 		if ((cpu_feature2 & CPUID2_HV) == 0)
-			wrmsr(0xc0011029, rdmsr(0xc0011029) | 1);
+			wrmsr(MSR_DE_CFG, rdmsr(MSR_DE_CFG) | 1);
 		break;
 	}
 
@@ -152,9 +152,9 @@ init_amd(void)
 	if (CPUID_TO_FAMILY(cpu_id) == 0x17 && CPUID_TO_MODEL(cpu_id) == 0x1 &&
 	    (cpu_feature2 & CPUID2_HV) == 0) {
 		/* 1021 */
-		msr = rdmsr(0xc0011029);
+		msr = rdmsr(MSR_DE_CFG);
 		msr |= 0x2000;
-		wrmsr(0xc0011029, msr);
+		wrmsr(MSR_DE_CFG, msr);
 
 		/* 1033 */
 		msr = rdmsr(MSR_LS_CFG);
