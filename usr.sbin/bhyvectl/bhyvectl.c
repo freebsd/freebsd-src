@@ -299,11 +299,11 @@ static int get_vmcb_virq, get_avic_table;
  */
 static int get_pinbased_ctls, get_procbased_ctls, get_procbased_ctls2;
 static int get_eptp, get_io_bitmap, get_tsc_offset;
-static int get_vmcs_entry_interruption_info, set_vmcs_entry_interruption_info;
+static int get_vmcs_entry_interruption_info;
 static int get_vmcs_interruptibility;
 uint32_t vmcs_entry_interruption_info;
 static int get_vmcs_gpa, get_vmcs_gla;
-static int get_exception_bitmap, set_exception_bitmap, exception_bitmap;
+static int get_exception_bitmap;
 static int get_cr0_mask, get_cr0_shadow;
 static int get_cr4_mask, get_cr4_shadow;
 static int get_cr3_targets;
@@ -528,26 +528,11 @@ vm_get_vmcs_field(struct vmctx *ctx, int vcpu, int field, uint64_t *ret_val)
 }
 
 static int
-vm_set_vmcs_field(struct vmctx *ctx, int vcpu, int field, uint64_t val)
-{
-
-	return (vm_set_register(ctx, vcpu, VMCS_IDENT(field), val));
-}
-
-static int
 vm_get_vmcb_field(struct vmctx *ctx, int vcpu, int off, int bytes,
 	uint64_t *ret_val)
 {
 
 	return (vm_get_register(ctx, vcpu, VMCB_ACCESS(off, bytes), ret_val));
-}
-
-static int
-vm_set_vmcb_field(struct vmctx *ctx, int vcpu, int off, int bytes,
-	uint64_t val)
-{
-	
-	return (vm_set_register(ctx, vcpu, VMCB_ACCESS(off, bytes), val));
 }
 
 enum {
@@ -581,8 +566,6 @@ enum {
 	SET_TR,
 	SET_LDTR,
 	SET_X2APIC_STATE,
-	SET_EXCEPTION_BITMAP,
-	SET_VMCS_ENTRY_INTERRUPTION_INFO,
 	SET_CAP,
 	CAPNAME,
 	UNASSIGN_PPTDEV,
@@ -1361,8 +1344,6 @@ setup_options(bool cpu_intel)
 		{ "set-tr",	REQ_ARG,	0,	SET_TR },
 		{ "set-ldtr",	REQ_ARG,	0,	SET_LDTR },
 		{ "set-x2apic-state",REQ_ARG,	0,	SET_X2APIC_STATE },
-		{ "set-exception-bitmap",
-				REQ_ARG,	0, SET_EXCEPTION_BITMAP },
 		{ "capname",	REQ_ARG,	0,	CAPNAME },
 		{ "unassign-pptdev", REQ_ARG,	0,	UNASSIGN_PPTDEV },
 		{ "setcap",	REQ_ARG,	0,	SET_CAP },
@@ -1492,8 +1473,6 @@ setup_options(bool cpu_intel)
 		{ "get-vmcs-host-pat",	NO_ARG,	&get_host_pat,	1 },
 		{ "get-vmcs-host-cr0",
 					NO_ARG,	&get_host_cr0,	1 },
-		{ "set-vmcs-entry-interruption-info",
-				REQ_ARG, 0, SET_VMCS_ENTRY_INTERRUPTION_INFO },
 		{ "get-vmcs-exit-qualification",
 				NO_ARG,	&get_vmcs_exit_qualification, 1 },
 		{ "get-vmcs-exit-inst-length",
@@ -1822,14 +1801,6 @@ main(int argc, char *argv[])
 			x2apic_state = strtol(optarg, NULL, 0);
 			set_x2apic_state = 1;
 			break;
-		case SET_EXCEPTION_BITMAP:
-			exception_bitmap = strtoul(optarg, NULL, 0);
-			set_exception_bitmap = 1;
-			break;
-		case SET_VMCS_ENTRY_INTERRUPTION_INFO:
-			vmcs_entry_interruption_info = strtoul(optarg, NULL, 0);
-			set_vmcs_entry_interruption_info = 1;
-			break;
 		case SET_CAP:
 			capval = strtoul(optarg, NULL, 0);
 			setcap = 1;
@@ -2012,22 +1983,6 @@ main(int argc, char *argv[])
 
 	if (!error && unassign_pptdev)
 		error = vm_unassign_pptdev(ctx, bus, slot, func);
-
-	if (!error && set_exception_bitmap) {
-		if (cpu_intel)
-			error = vm_set_vmcs_field(ctx, vcpu,
-						  VMCS_EXCEPTION_BITMAP,
-						  exception_bitmap);
-		else
-			error = vm_set_vmcb_field(ctx, vcpu,
-						  VMCB_OFF_EXC_INTERCEPT,
-						  4, exception_bitmap);
-	}
-
-	if (!error && cpu_intel && set_vmcs_entry_interruption_info) {
-		error = vm_set_vmcs_field(ctx, vcpu, VMCS_ENTRY_INTR_INFO,
-					  vmcs_entry_interruption_info);
-	}
 
 	if (!error && inject_nmi) {
 		error = vm_inject_nmi(ctx, vcpu);
