@@ -1760,6 +1760,7 @@ out:
 		moea64_syncicache(pmap, va, pa, PAGE_SIZE);
 	}
 
+#if VM_NRESERVLEVEL > 0
 	/*
 	 * Try to promote pages.
 	 *
@@ -1773,6 +1774,7 @@ out:
 	    (m->flags & PG_FICTITIOUS) == 0 &&
 	    vm_reserv_level_iffullpop(m) == 0)
 		moea64_sp_promote(pmap, va, m);
+#endif
 
 	return (KERN_SUCCESS);
 }
