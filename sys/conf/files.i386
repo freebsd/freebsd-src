@@ -52,6 +52,7 @@ cddl/dev/dtrace/i386/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/i386/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
+compat/linux/linux_common.c	optional compat_linux
 compat/linux/linux_dummy.c	optional compat_linux
 compat/linux/linux_event.c	optional compat_linux
 compat/linux/linux_emul.c	optional compat_linux
