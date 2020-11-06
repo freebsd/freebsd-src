@@ -374,13 +374,6 @@ static struct fileops cryptofops = {
     .fo_fill_kinfo = cryptof_fill_kinfo,
 };
 
-static struct csession *csefind(struct fcrypt *, u_int);
-static bool csedelete(struct fcrypt *, u_int);
-static struct csession *csecreate(struct fcrypt *, crypto_session_t,
-    struct crypto_session_params *, struct enc_xform *, void *,
-    struct auth_hash *, void *);
-static void csefree(struct csession *);
-
 /*
  * Check a crypto identifier to see if it requested
  * a software device/driver.  This can be done either
@@ -409,7 +402,7 @@ checkforsoftware(int *cridp)
 }
 
 static int
-cryptodev_create_session(struct fcrypt *fcr, struct session2_op *sop)
+cse_create(struct fcrypt *fcr, struct session2_op *sop)
 {
 	struct crypto_session_params csp;
 	struct csession *cse;
@@ -685,15 +678,27 @@ cryptodev_create_session(struct fcrypt *fcr, struct session2_op *sop)
 		goto bail;
 	}
 
-	cse = csecreate(fcr, cses, &csp, txform, key, thash, mackey);
+	cse = malloc(sizeof(struct csession), M_XDATA, M_WAITOK | M_ZERO);
+	mtx_init(&cse->lock, "cryptodev", "crypto session lock", MTX_DEF);
+	refcount_init(&cse->refs, 1);
+	cse->key = key;
+	cse->mackey = mackey;
+	cse->mode = csp.csp_mode;
+	cse->cses = cses;
+	cse->txform = txform;
+	if (thash != NULL)
+		cse->hashsize = thash->hashsize;
+	else if (csp.csp_cipher_alg == CRYPTO_AES_NIST_GCM_16)
+		cse->hashsize = AES_GMAC_HASH_LEN;
+	else if (csp.csp_cipher_alg == CRYPTO_AES_CCM_16)
+		cse->hashsize = AES_CBC_MAC_HASH_LEN;
+	cse->ivsize = csp.csp_ivlen;
 
-	if (cse == NULL) {
-		crypto_freesession(cses);
-		error = EINVAL;
-		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-		CRYPTDEB("csecreate");
-		goto bail;
-	}
+	mtx_lock(&fcr->lock);
+	TAILQ_INSERT_TAIL(&fcr->csessions, cse, next);
+	cse->ses = fcr->sesn++;
+	mtx_unlock(&fcr->lock);
+
 	sop->ses = cse->ses;
 
 	/* return hardware/driver id */
@@ -704,6 +709,56 @@ bail:
 		free(mackey, M_XDATA);
 	}
 	return (error);
+}
+
+static struct csession *
+cse_find(struct fcrypt *fcr, u_int ses)
+{
+	struct csession *cse;
+
+	mtx_lock(&fcr->lock);
+	TAILQ_FOREACH(cse, &fcr->csessions, next) {
+		if (cse->ses == ses) {
+			refcount_acquire(&cse->refs);
+			mtx_unlock(&fcr->lock);
+			return (cse);
+		}
+	}
+	mtx_unlock(&fcr->lock);
+	return (NULL);
+}
+
+static void
+cse_free(struct csession *cse)
+{
+
+	if (!refcount_release(&cse->refs))
+		return;
+	crypto_freesession(cse->cses);
+	mtx_destroy(&cse->lock);
+	if (cse->key)
+		free(cse->key, M_XDATA);
+	if (cse->mackey)
+		free(cse->mackey, M_XDATA);
+	free(cse, M_XDATA);
+}
+
+static bool
+cse_delete(struct fcrypt *fcr, u_int ses)
+{
+	struct csession *cse;
+
+	mtx_lock(&fcr->lock);
+	TAILQ_FOREACH(cse, &fcr->csessions, next) {
+		if (cse->ses == ses) {
+			TAILQ_REMOVE(&fcr->csessions, cse, next);
+			mtx_unlock(&fcr->lock);
+			cse_free(cse);
+			return (true);
+		}
+	}
+	mtx_unlock(&fcr->lock);
+	return (false);
 }
 
 static struct cryptop_data *
@@ -1383,26 +1438,26 @@ cryptof_ioctl(struct file *fp, u_long cmd, void *data,
 		} else
 			sop = (struct session2_op *)data;
 
-		error = cryptodev_create_session(fcr, sop);
+		error = cse_create(fcr, sop);
 		if (cmd == CIOCGSESSION && error == 0)
 			session2_op_to_op(sop, data);
 		break;
 	case CIOCFSESSION:
 		ses = *(uint32_t *)data;
-		if (!csedelete(fcr, ses)) {
+		if (!cse_delete(fcr, ses)) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);
 		}
 		break;
 	case CIOCCRYPT:
 		cop = (struct crypt_op *)data;
-		cse = csefind(fcr, cop->ses);
+		cse = cse_find(fcr, cop->ses);
 		if (cse == NULL) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);
 		}
 		error = cryptodev_op(cse, cop, active_cred, td);
-		csefree(cse);
+		cse_free(cse);
 		break;
 	case CIOCKEY:
 	case CIOCKEY2:
@@ -1449,13 +1504,13 @@ cryptof_ioctl(struct file *fp, u_long cmd, void *data,
 		break;
 	case CIOCCRYPTAEAD:
 		caead = (struct crypt_aead *)data;
-		cse = csefind(fcr, caead->ses);
+		cse = cse_find(fcr, caead->ses);
 		if (cse == NULL) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);
 		}
 		error = cryptodev_aead(cse, caead, active_cred, td);
-		csefree(cse);
+		cse_free(cse);
 		break;
 	default:
 		error = EINVAL;
@@ -1511,7 +1566,7 @@ cryptof_close(struct file *fp, struct thread *td)
 		KASSERT(cse->refs == 1,
 		    ("%s: crypto session %p with %d refs", __func__, cse,
 		    cse->refs));
-		csefree(cse);
+		cse_free(cse);
 	}
 	free(fcr, M_XDATA);
 	fp->f_data = NULL;
@@ -1525,87 +1580,6 @@ cryptof_fill_kinfo(struct file *fp, struct kinfo_file *kif,
 
 	kif->kf_type = KF_TYPE_CRYPTO;
 	return (0);
-}
-
-static struct csession *
-csefind(struct fcrypt *fcr, u_int ses)
-{
-	struct csession *cse;
-
-	mtx_lock(&fcr->lock);
-	TAILQ_FOREACH(cse, &fcr->csessions, next) {
-		if (cse->ses == ses) {
-			refcount_acquire(&cse->refs);
-			mtx_unlock(&fcr->lock);
-			return (cse);
-		}
-	}
-	mtx_unlock(&fcr->lock);
-	return (NULL);
-}
-
-static bool
-csedelete(struct fcrypt *fcr, u_int ses)
-{
-	struct csession *cse;
-
-	mtx_lock(&fcr->lock);
-	TAILQ_FOREACH(cse, &fcr->csessions, next) {
-		if (cse->ses == ses) {
-			TAILQ_REMOVE(&fcr->csessions, cse, next);
-			mtx_unlock(&fcr->lock);
-			csefree(cse);
-			return (true);
-		}
-	}
-	mtx_unlock(&fcr->lock);
-	return (false);
-}
-	
-struct csession *
-csecreate(struct fcrypt *fcr, crypto_session_t cses,
-    struct crypto_session_params *csp, struct enc_xform *txform,
-    void *key, struct auth_hash *thash, void *mackey)
-{
-	struct csession *cse;
-
-	cse = malloc(sizeof(struct csession), M_XDATA, M_NOWAIT | M_ZERO);
-	if (cse == NULL)
-		return NULL;
-	mtx_init(&cse->lock, "cryptodev", "crypto session lock", MTX_DEF);
-	refcount_init(&cse->refs, 1);
-	cse->key = key;
-	cse->mackey = mackey;
-	cse->mode = csp->csp_mode;
-	cse->cses = cses;
-	cse->txform = txform;
-	if (thash != NULL)
-		cse->hashsize = thash->hashsize;
-	else if (csp->csp_cipher_alg == CRYPTO_AES_NIST_GCM_16)
-		cse->hashsize = AES_GMAC_HASH_LEN;
-	else if (csp->csp_cipher_alg == CRYPTO_AES_CCM_16)
-		cse->hashsize = AES_CBC_MAC_HASH_LEN;
-	cse->ivsize = csp->csp_ivlen;
-	mtx_lock(&fcr->lock);
-	TAILQ_INSERT_TAIL(&fcr->csessions, cse, next);
-	cse->ses = fcr->sesn++;
-	mtx_unlock(&fcr->lock);
-	return (cse);
-}
-
-static void
-csefree(struct csession *cse)
-{
-
-	if (!refcount_release(&cse->refs))
-		return;
-	crypto_freesession(cse->cses);
-	mtx_destroy(&cse->lock);
-	if (cse->key)
-		free(cse->key, M_XDATA);
-	if (cse->mackey)
-		free(cse->mackey, M_XDATA);
-	free(cse, M_XDATA);
 }
 
 static int
