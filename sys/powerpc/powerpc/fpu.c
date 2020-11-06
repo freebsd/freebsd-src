@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 static void
 save_fpu_int(struct thread *td)
 {
-	int	msr;
+	register_t msr;
 	struct	pcb *pcb;
 
 	pcb = td->td_pcb;
@@ -102,7 +102,7 @@ save_fpu_int(struct thread *td)
 void
 enable_fpu(struct thread *td)
 {
-	int	msr;
+	register_t msr;
 	struct	pcb *pcb;
 	struct	trapframe *tf;
 
@@ -208,3 +208,58 @@ save_fpu_nodrop(struct thread *td)
 	if (td == PCPU_GET(fputhread))
 		save_fpu_int(td);
 }
+
+
+/*
+ * Clear Floating-Point Status and Control Register
+ */
+void
+cleanup_fpscr()
+{
+	register_t msr;
+	msr = mfmsr();
+	mtmsr(msr | PSL_FP | PSL_VSX);
+
+	mtfsf(0);
+
+	isync();
+	mtmsr(msr);
+}
+
+
+/*
+ *  * Returns the current fp exception
+ *   */
+u_int
+get_fpu_exception(struct thread *td)
+{
+	register_t msr;
+	u_int ucode;
+	register_t reg;
+
+	critical_enter();
+
+	msr = mfmsr();
+	mtmsr(msr | PSL_FP);
+
+	reg = mffs();
+
+	isync();
+	mtmsr(msr);
+
+	critical_exit();
+
+	if (reg & FPSCR_ZX)
+		ucode = FPE_FLTDIV;
+	else if (reg & FPSCR_OX)
+		ucode = FPE_FLTOVF;
+	else if (reg & FPSCR_UX)
+		ucode = FPE_FLTUND;
+	else if (reg & FPSCR_XX)
+		ucode = FPE_FLTRES;
+	else
+		ucode = FPE_FLTINV;
+
+	return ucode;
+}
+

@@ -75,6 +75,8 @@
 void    enable_fpu(struct thread *);
 void    save_fpu(struct thread *);
 void    save_fpu_nodrop(struct thread *);
+void    cleanup_fpscr(void);
+u_int   get_fpu_exception(struct thread *);
 
 #endif /* _KERNEL */
 
