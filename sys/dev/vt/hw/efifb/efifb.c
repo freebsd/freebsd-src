@@ -102,6 +102,7 @@ vt_efifb_init(struct vt_device *vd)
 	struct fb_info	*info;
 	struct efi_fb	*efifb;
 	caddr_t		kmdp;
+	int		roff, goff, boff;
 
 	info = vd->vd_softc;
 	if (info == NULL)
@@ -126,10 +127,14 @@ vt_efifb_init(struct vt_device *vd)
 	/* Stride in bytes, not pixels */
 	info->fb_stride = efifb->fb_stride * (info->fb_bpp / NBBY);
 
+	roff = ffs(efifb->fb_mask_red) - 1;
+	goff = ffs(efifb->fb_mask_green) - 1;
+	boff = ffs(efifb->fb_mask_blue) - 1;
 	vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
-	    efifb->fb_mask_red, ffs(efifb->fb_mask_red) - 1,
-	    efifb->fb_mask_green, ffs(efifb->fb_mask_green) - 1,
-	    efifb->fb_mask_blue, ffs(efifb->fb_mask_blue) - 1);
+	    efifb->fb_mask_red >> roff, roff,
+	    efifb->fb_mask_green >> goff, goff,
+	    efifb->fb_mask_blue >> boff, boff);
+	info->fb_cmsize = NCOLORS;
 
 	info->fb_size = info->fb_height * info->fb_stride;
 	info->fb_pbase = efifb->fb_addr;
