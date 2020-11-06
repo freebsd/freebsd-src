@@ -141,6 +141,7 @@ powernv_attach(platform_t plat)
 	phandle_t opal;
 	int res, len, idx;
 	register_t msr;
+	bool has_lp;
 
 	/* Ping OPAL again just to make sure */
 	opal_check();
@@ -228,6 +229,7 @@ powernv_attach(platform_t plat)
 		    sizeof(arr));
 		len /= 4;
 		idx = 0;
+		has_lp = false;
 		while (len > 0) {
 			shift = arr[idx];
 			slb_encoding = arr[idx + 1];
@@ -238,17 +240,21 @@ powernv_attach(platform_t plat)
 				lp_size = arr[idx];
 				lp_encoding = arr[idx+1];
 				if (slb_encoding == SLBV_L && lp_encoding == 0)
-					break;
+					has_lp = true;
+
+				if (slb_encoding == SLB_PGSZ_4K_4K &&
+				    lp_encoding == LP_4K_16M)
+					moea64_has_lp_4k_16m = true;
 
 				idx += 2;
 				len -= 2;
 				nptlp--;
 			}
-			if (nptlp && slb_encoding == SLBV_L && lp_encoding == 0)
+			if (has_lp && moea64_has_lp_4k_16m)
 				break;
 		}
 
-		if (len == 0)
+		if (!has_lp)
 			panic("Standard large pages (SLB[L] = 1, PTE[LP] = 0) "
 			    "not supported by this system.");
 
