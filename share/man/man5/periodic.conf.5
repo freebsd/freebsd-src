@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2020
+.Dd November 6, 2020
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -289,6 +289,57 @@ Set to
 if you want the
 .Pa /etc/mail/aliases
 file backed up and modifications to be displayed in your daily output.
+.It Va daily_backup_zfs_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to create backup of the output generated from the
+.Xr zfs-list 8
+and
+.Xr zpool-list 8
+utilities.
+.It Va daily_backup_zfs_list_flags
+.Pq Vt str
+Set to the arguments for the
+.Xr zfs-list 8
+utility.
+The default is standard behavior.
+.It Va daily_backup_zpool_list_flags
+.Pq Vt str
+Set to the arguments for the
+.Xr zpool-list 8
+utility.
+The default is
+.Fl v .
+.It Va daily_backup_zfs_props_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to create backup of the output generated from the
+.Xr zfs-get 8
+and
+.Xr zpool-get 8
+utilities.
+.It Va daily_backup_zfs_get_flags
+.Pq Vt str
+Set to the arguments for the
+.Xr zfs-get 8
+utility.
+The default is
+.Cm all .
+.It Va daily_backup_zpool_get_flags
+.Pq Vt str
+Set to the arguments for the
+.Xr zpool-get 8
+utility.
+The default is
+.Cm all .
+.It Va daily_backup_zfs_verbose
+.Pq Vt bool
+Set to
+.Dq Li YES
+to report a diff between the new backup and the existing backup
+in the daily output.
 .It Va daily_calendar_enable
 .Pq Vt bool
 Set to
