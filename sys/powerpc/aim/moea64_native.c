@@ -211,6 +211,8 @@ TLBIE(uint64_t vpn, uint64_t oldptehi)
 	 */
 	__asm __volatile("li 0, 0 \n tlbie %0, 0" :: "r"(vpn) : "r0", "memory");
 	__asm __volatile("eieio; tlbsync; ptesync" ::: "memory");
+done:
+
 #else
 	vpn_hi = (uint32_t)(vpn >> 32);
 	vpn_lo = (uint32_t)vpn;
@@ -235,7 +237,6 @@ TLBIE(uint64_t vpn, uint64_t oldptehi)
 	intr_restore(intr);
 #endif
 
-done:
 	/* No barriers or special ops -- taken care of by ptesync above */
 	if (need_lock)
 		tlbie_lock = 0;
