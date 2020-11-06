@@ -381,13 +381,6 @@ static struct csession *csecreate(struct fcrypt *, crypto_session_t,
     struct auth_hash *, void *);
 static void csefree(struct csession *);
 
-static int cryptodev_op(struct csession *, const struct crypt_op *,
-    struct ucred *, struct thread *);
-static int cryptodev_aead(struct csession *, struct crypt_aead *,
-    struct ucred *, struct thread *);
-static int cryptodev_key(struct crypt_kop *);
-static int cryptodev_find(struct crypt_find_op *);
-
 /*
  * Check a crypto identifier to see if it requested
  * a software device/driver.  This can be done either
@@ -710,194 +703,6 @@ bail:
 		free(key, M_XDATA);
 		free(mackey, M_XDATA);
 	}
-	return (error);
-}
-
-/* ARGSUSED */
-static int
-cryptof_ioctl(struct file *fp, u_long cmd, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-	static struct timeval keywarn, featwarn;
-	struct fcrypt *fcr = fp->f_data;
-	struct csession *cse;
-	struct session2_op *sop;
-	struct crypt_op *cop;
-	struct crypt_aead *caead;
-	struct crypt_kop *kop;
-	uint32_t ses;
-	int error = 0;
-	union {
-		struct session2_op sopc;
-#ifdef COMPAT_FREEBSD32
-		struct crypt_op copc;
-		struct crypt_aead aeadc;
-		struct crypt_kop kopc;
-#endif
-	} thunk;
-#ifdef COMPAT_FREEBSD32
-	u_long cmd32;
-	void *data32;
-
-	cmd32 = 0;
-	data32 = NULL;
-	switch (cmd) {
-	case CIOCGSESSION32:
-		cmd32 = cmd;
-		data32 = data;
-		cmd = CIOCGSESSION;
-		data = &thunk.sopc;
-		session_op_from_32((struct session_op32 *)data32, &thunk.sopc);
-		break;
-	case CIOCGSESSION232:
-		cmd32 = cmd;
-		data32 = data;
-		cmd = CIOCGSESSION2;
-		data = &thunk.sopc;
-		session2_op_from_32((struct session2_op32 *)data32,
-		    &thunk.sopc);
-		break;
-	case CIOCCRYPT32:
-		cmd32 = cmd;
-		data32 = data;
-		cmd = CIOCCRYPT;
-		data = &thunk.copc;
-		crypt_op_from_32((struct crypt_op32 *)data32, &thunk.copc);
-		break;
-	case CIOCCRYPTAEAD32:
-		cmd32 = cmd;
-		data32 = data;
-		cmd = CIOCCRYPTAEAD;
-		data = &thunk.aeadc;
-		crypt_aead_from_32((struct crypt_aead32 *)data32, &thunk.aeadc);
-		break;
-	case CIOCKEY32:
-	case CIOCKEY232:
-		cmd32 = cmd;
-		data32 = data;
-		if (cmd == CIOCKEY32)
-			cmd = CIOCKEY;
-		else
-			cmd = CIOCKEY2;
-		data = &thunk.kopc;
-		crypt_kop_from_32((struct crypt_kop32 *)data32, &thunk.kopc);
-		break;
-	}
-#endif
-
-	switch (cmd) {
-	case CIOCGSESSION:
-	case CIOCGSESSION2:
-		if (cmd == CIOCGSESSION) {
-			session2_op_from_op(data, &thunk.sopc);
-			sop = &thunk.sopc;
-		} else
-			sop = (struct session2_op *)data;
-
-		error = cryptodev_create_session(fcr, sop);
-		if (cmd == CIOCGSESSION && error == 0)
-			session2_op_to_op(sop, data);
-		break;
-	case CIOCFSESSION:
-		ses = *(uint32_t *)data;
-		if (!csedelete(fcr, ses)) {
-			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-			return (EINVAL);
-		}
-		break;
-	case CIOCCRYPT:
-		cop = (struct crypt_op *)data;
-		cse = csefind(fcr, cop->ses);
-		if (cse == NULL) {
-			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-			return (EINVAL);
-		}
-		error = cryptodev_op(cse, cop, active_cred, td);
-		csefree(cse);
-		break;
-	case CIOCKEY:
-	case CIOCKEY2:
-		if (ratecheck(&keywarn, &warninterval))
-			gone_in(14,
-			    "Asymmetric crypto operations via /dev/crypto");
-
-		if (!crypto_userasymcrypto) {
-			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-			return (EPERM);		/* XXX compat? */
-		}
-		kop = (struct crypt_kop *)data;
-		if (cmd == CIOCKEY) {
-			/* NB: crypto core enforces s/w driver use */
-			kop->crk_crid =
-			    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
-		}
-		mtx_lock(&Giant);
-		error = cryptodev_key(kop);
-		mtx_unlock(&Giant);
-		break;
-	case CIOCASYMFEAT:
-		if (ratecheck(&featwarn, &warninterval))
-			gone_in(14,
-			    "Asymmetric crypto features via /dev/crypto");
-
-		if (!crypto_userasymcrypto) {
-			/*
-			 * NB: if user asym crypto operations are
-			 * not permitted return "no algorithms"
-			 * so well-behaved applications will just
-			 * fallback to doing them in software.
-			 */
-			*(int *)data = 0;
-		} else {
-			error = crypto_getfeat((int *)data);
-			if (error)
-				SDT_PROBE1(opencrypto, dev, ioctl, error,
-				    __LINE__);
-		}
-		break;
-	case CIOCFINDDEV:
-		error = cryptodev_find((struct crypt_find_op *)data);
-		break;
-	case CIOCCRYPTAEAD:
-		caead = (struct crypt_aead *)data;
-		cse = csefind(fcr, caead->ses);
-		if (cse == NULL) {
-			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-			return (EINVAL);
-		}
-		error = cryptodev_aead(cse, caead, active_cred, td);
-		csefree(cse);
-		break;
-	default:
-		error = EINVAL;
-		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
-		break;
-	}
-
-#ifdef COMPAT_FREEBSD32
-	switch (cmd32) {
-	case CIOCGSESSION32:
-		if (error == 0)
-			session_op_to_32(data, data32);
-		break;
-	case CIOCGSESSION232:
-		if (error == 0)
-			session2_op_to_32(data, data32);
-		break;
-	case CIOCCRYPT32:
-		if (error == 0)
-			crypt_op_to_32(data, data32);
-		break;
-	case CIOCCRYPTAEAD32:
-		if (error == 0)
-			crypt_aead_to_32(data, data32);
-		break;
-	case CIOCKEY32:
-	case CIOCKEY232:
-		crypt_kop_to_32(data, data32);
-		break;
-	}
-#endif
 	return (error);
 }
 
@@ -1496,6 +1301,193 @@ cryptodev_find(struct crypt_find_op *find)
 			return (ENOENT);
 	}
 	return (0);
+}
+
+static int
+cryptof_ioctl(struct file *fp, u_long cmd, void *data,
+    struct ucred *active_cred, struct thread *td)
+{
+	static struct timeval keywarn, featwarn;
+	struct fcrypt *fcr = fp->f_data;
+	struct csession *cse;
+	struct session2_op *sop;
+	struct crypt_op *cop;
+	struct crypt_aead *caead;
+	struct crypt_kop *kop;
+	uint32_t ses;
+	int error = 0;
+	union {
+		struct session2_op sopc;
+#ifdef COMPAT_FREEBSD32
+		struct crypt_op copc;
+		struct crypt_aead aeadc;
+		struct crypt_kop kopc;
+#endif
+	} thunk;
+#ifdef COMPAT_FREEBSD32
+	u_long cmd32;
+	void *data32;
+
+	cmd32 = 0;
+	data32 = NULL;
+	switch (cmd) {
+	case CIOCGSESSION32:
+		cmd32 = cmd;
+		data32 = data;
+		cmd = CIOCGSESSION;
+		data = &thunk.sopc;
+		session_op_from_32((struct session_op32 *)data32, &thunk.sopc);
+		break;
+	case CIOCGSESSION232:
+		cmd32 = cmd;
+		data32 = data;
+		cmd = CIOCGSESSION2;
+		data = &thunk.sopc;
+		session2_op_from_32((struct session2_op32 *)data32,
+		    &thunk.sopc);
+		break;
+	case CIOCCRYPT32:
+		cmd32 = cmd;
+		data32 = data;
+		cmd = CIOCCRYPT;
+		data = &thunk.copc;
+		crypt_op_from_32((struct crypt_op32 *)data32, &thunk.copc);
+		break;
+	case CIOCCRYPTAEAD32:
+		cmd32 = cmd;
+		data32 = data;
+		cmd = CIOCCRYPTAEAD;
+		data = &thunk.aeadc;
+		crypt_aead_from_32((struct crypt_aead32 *)data32, &thunk.aeadc);
+		break;
+	case CIOCKEY32:
+	case CIOCKEY232:
+		cmd32 = cmd;
+		data32 = data;
+		if (cmd == CIOCKEY32)
+			cmd = CIOCKEY;
+		else
+			cmd = CIOCKEY2;
+		data = &thunk.kopc;
+		crypt_kop_from_32((struct crypt_kop32 *)data32, &thunk.kopc);
+		break;
+	}
+#endif
+
+	switch (cmd) {
+	case CIOCGSESSION:
+	case CIOCGSESSION2:
+		if (cmd == CIOCGSESSION) {
+			session2_op_from_op(data, &thunk.sopc);
+			sop = &thunk.sopc;
+		} else
+			sop = (struct session2_op *)data;
+
+		error = cryptodev_create_session(fcr, sop);
+		if (cmd == CIOCGSESSION && error == 0)
+			session2_op_to_op(sop, data);
+		break;
+	case CIOCFSESSION:
+		ses = *(uint32_t *)data;
+		if (!csedelete(fcr, ses)) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			return (EINVAL);
+		}
+		break;
+	case CIOCCRYPT:
+		cop = (struct crypt_op *)data;
+		cse = csefind(fcr, cop->ses);
+		if (cse == NULL) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			return (EINVAL);
+		}
+		error = cryptodev_op(cse, cop, active_cred, td);
+		csefree(cse);
+		break;
+	case CIOCKEY:
+	case CIOCKEY2:
+		if (ratecheck(&keywarn, &warninterval))
+			gone_in(14,
+			    "Asymmetric crypto operations via /dev/crypto");
+
+		if (!crypto_userasymcrypto) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			return (EPERM);		/* XXX compat? */
+		}
+		kop = (struct crypt_kop *)data;
+		if (cmd == CIOCKEY) {
+			/* NB: crypto core enforces s/w driver use */
+			kop->crk_crid =
+			    CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
+		}
+		mtx_lock(&Giant);
+		error = cryptodev_key(kop);
+		mtx_unlock(&Giant);
+		break;
+	case CIOCASYMFEAT:
+		if (ratecheck(&featwarn, &warninterval))
+			gone_in(14,
+			    "Asymmetric crypto features via /dev/crypto");
+
+		if (!crypto_userasymcrypto) {
+			/*
+			 * NB: if user asym crypto operations are
+			 * not permitted return "no algorithms"
+			 * so well-behaved applications will just
+			 * fallback to doing them in software.
+			 */
+			*(int *)data = 0;
+		} else {
+			error = crypto_getfeat((int *)data);
+			if (error)
+				SDT_PROBE1(opencrypto, dev, ioctl, error,
+				    __LINE__);
+		}
+		break;
+	case CIOCFINDDEV:
+		error = cryptodev_find((struct crypt_find_op *)data);
+		break;
+	case CIOCCRYPTAEAD:
+		caead = (struct crypt_aead *)data;
+		cse = csefind(fcr, caead->ses);
+		if (cse == NULL) {
+			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+			return (EINVAL);
+		}
+		error = cryptodev_aead(cse, caead, active_cred, td);
+		csefree(cse);
+		break;
+	default:
+		error = EINVAL;
+		SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
+		break;
+	}
+
+#ifdef COMPAT_FREEBSD32
+	switch (cmd32) {
+	case CIOCGSESSION32:
+		if (error == 0)
+			session_op_to_32(data, data32);
+		break;
+	case CIOCGSESSION232:
+		if (error == 0)
+			session2_op_to_32(data, data32);
+		break;
+	case CIOCCRYPT32:
+		if (error == 0)
+			crypt_op_to_32(data, data32);
+		break;
+	case CIOCCRYPTAEAD32:
+		if (error == 0)
+			crypt_aead_to_32(data, data32);
+		break;
+	case CIOCKEY32:
+	case CIOCKEY232:
+		crypt_kop_to_32(data, data32);
+		break;
+	}
+#endif
+	return (error);
 }
 
 /* ARGSUSED */
