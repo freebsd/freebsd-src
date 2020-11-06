@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2020
+.Dd November 6, 2020
 .Dt CRYPTO 4
 .Os
 .Sh NAME
@@ -209,15 +209,15 @@ is returned.
 .It Dv CIOCGSESSION Fa struct session_op *sessp
 .Bd -literal
 struct session_op {
-    u_int32_t cipher;	/* e.g. CRYPTO_DES_CBC */
-    u_int32_t mac;	/* e.g. CRYPTO_MD5_HMAC */
+    uint32_t cipher;	/* e.g. CRYPTO_AES_CBC */
+    uint32_t mac;	/* e.g. CRYPTO_SHA2_256_HMAC */
 
-    u_int32_t keylen;	/* cipher key */
+    uint32_t keylen;	/* cipher key */
     const void *key;
     int mackeylen;	/* mac key */
     const void *mackey;
 
-    u_int32_t ses;	/* returns: ses # */
+    uint32_t ses;	/* returns: ses # */
 };
 
 .Ed
@@ -267,15 +267,15 @@ stand-alone non-fused operation.
 .It Dv CIOCGSESSION2 Fa struct session2_op *sessp
 .Bd -literal
 struct session2_op {
-    u_int32_t cipher;	/* e.g. CRYPTO_DES_CBC */
-    u_int32_t mac;	/* e.g. CRYPTO_MD5_HMAC */
+    uint32_t cipher;	/* e.g. CRYPTO_AES_CBC */
+    uint32_t mac;	/* e.g. CRYPTO_SHA2_256_HMAC */
 
-    u_int32_t keylen;	/* cipher key */
+    uint32_t keylen;	/* cipher key */
     const void *key;
     int mackeylen;	/* mac key */
     const void *mackey;
 
-    u_int32_t ses;	/* returns: ses # */
+    uint32_t ses;	/* returns: ses # */
     int	crid;		/* driver id + flags (rw) */
     int	pad[4];		/* for future expansion */
 };
@@ -291,13 +291,14 @@ field must be initialized to zero.
 .It Dv CIOCCRYPT Fa struct crypt_op *cr_op
 .Bd -literal
 struct crypt_op {
-    u_int32_t ses;
-    u_int16_t op;	/* e.g. COP_ENCRYPT */
-    u_int16_t flags;
+    uint32_t ses;
+    uint16_t op;	/* e.g. COP_ENCRYPT */
+    uint16_t flags;
     u_int len;
-    caddr_t src, dst;
-    caddr_t mac;		/* must be large enough for result */
-    caddr_t iv;
+    const void *src;
+    void *dst;
+    void *mac;		/* must be large enough for result */
+    const void *iv;
 };
 
 .Ed
@@ -330,16 +331,17 @@ and the output buffer will remain unchanged.
 .It Dv CIOCCRYPTAEAD Fa struct crypt_aead *cr_aead
 .Bd -literal
 struct crypt_aead {
-    u_int32_t ses;
-    u_int16_t op;	/* e.g. COP_ENCRYPT */
-    u_int16_t flags;
+    uint32_t ses;
+    uint16_t op;	/* e.g. COP_ENCRYPT */
+    uint16_t flags;
     u_int len;
     u_int aadlen;
     u_int ivlen;
-    caddr_t src, dst;
-    caddr_t aad;
-    caddr_t tag;		/* must be large enough for result */
-    caddr_t iv;
+    const void *src;
+    void *dst;
+    const void *aad;	/* additional authenticated data */
+    void *tag;		/* must fit for chosen TAG length */
+    const void *iv;
 };
 
 .Ed
