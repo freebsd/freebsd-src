@@ -77,6 +77,8 @@ vm_offset_t virtual_end;
 caddr_t crashdumpmap;
 
 int pmap_bootstrapped;
+/* Default level 0 reservations consist of 512 pages (2MB superpage). */
+int vm_level_0_order = 9;
 
 #ifdef AIM
 int

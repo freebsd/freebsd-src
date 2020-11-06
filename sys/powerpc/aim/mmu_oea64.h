@@ -82,12 +82,18 @@ int64_t		moea64_pte_insert(struct pvo_entry *);
 int64_t		moea64_pte_unset(struct pvo_entry *);
 int64_t		moea64_pte_clear(struct pvo_entry *, uint64_t);
 int64_t		moea64_pte_synch(struct pvo_entry *);
+int64_t		moea64_pte_insert_sp(struct pvo_entry *);
+int64_t		moea64_pte_unset_sp(struct pvo_entry *);
+int64_t		moea64_pte_replace_sp(struct pvo_entry *);
 
 typedef int64_t	(*moea64_pte_replace_t)(struct pvo_entry *, int);
 typedef int64_t	(*moea64_pte_insert_t)(struct pvo_entry *);
 typedef int64_t	(*moea64_pte_unset_t)(struct pvo_entry *);
 typedef int64_t	(*moea64_pte_clear_t)(struct pvo_entry *, uint64_t);
 typedef int64_t	(*moea64_pte_synch_t)(struct pvo_entry *);
+typedef int64_t	(*moea64_pte_insert_sp_t)(struct pvo_entry *);
+typedef int64_t	(*moea64_pte_unset_sp_t)(struct pvo_entry *);
+typedef int64_t	(*moea64_pte_replace_sp_t)(struct pvo_entry *);
 
 struct moea64_funcs {
 	moea64_pte_replace_t	pte_replace;
@@ -95,6 +101,9 @@ struct moea64_funcs {
 	moea64_pte_unset_t	pte_unset;
 	moea64_pte_clear_t	pte_clear;
 	moea64_pte_synch_t	pte_synch;
+	moea64_pte_insert_sp_t	pte_insert_sp;
+	moea64_pte_unset_sp_t	pte_unset_sp;
+	moea64_pte_replace_sp_t	pte_replace_sp;
 };
 
 extern struct moea64_funcs *moea64_ops;
@@ -128,5 +137,6 @@ extern uint64_t		moea64_large_page_mask;
 extern u_long		moea64_pteg_count;
 extern u_long		moea64_pteg_mask;
 extern int		n_slbs;
+extern bool		moea64_has_lp_4k_16m;
 
 #endif /* _POWERPC_AIM_MMU_OEA64_H */
