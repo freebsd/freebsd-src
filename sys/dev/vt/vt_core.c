@@ -725,13 +725,22 @@ vt_scroll(struct vt_window *vw, int offset, int whence)
 }
 
 static int
-vt_machine_kbdevent(int c)
+vt_machine_kbdevent(struct vt_device *vd, int c)
 {
 
 	switch (c) {
 	case SPCLKEY | DBG: /* kbdmap(5) keyword `debug`. */
-		if (vt_kbd_debug)
+		if (vt_kbd_debug) {
 			kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
+#if VT_ALT_TO_ESC_HACK
+			/*
+			 * There's an unfortunate conflict between SPCLKEY|DBG
+			 * and VT_ALT_TO_ESC_HACK.  Just assume they didn't mean
+			 * it if we got to here.
+			 */
+			vd->vd_kbstate &= ~ALKED;
+#endif
+		}
 		return (1);
 	case SPCLKEY | HALT: /* kbdmap(5) keyword `halt`. */
 		if (vt_kbd_halt)
@@ -864,7 +873,7 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 		return (0);
 #endif
 
-	if (vt_machine_kbdevent(c))
+	if (vt_machine_kbdevent(vd, c))
 		return (0);
 
 	if (vw->vw_flags & VWF_SCROLL) {
