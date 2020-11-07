@@ -1,0 +1,12 @@
+dependency 1
+*** Error code 1 (ignored)
+dependency 2
+*** Error code 7 (ignored)
+dependency 3
+other 1
+*** Error code 1 (ignored)
+other 2
+main 1
+*** Error code 1 (ignored)
+main 2
+exit status 0

@@ -1,0 +1,9 @@
+make: "cond-func.mk" line 29: warning: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 29: Malformed conditional (!defined(A B))
+make: "cond-func.mk" line 44: warning: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 44: Malformed conditional (!defined(A&B))
+make: "cond-func.mk" line 47: warning: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 47: Malformed conditional (!defined(A|B))
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

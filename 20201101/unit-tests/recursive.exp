@@ -1,0 +1,5 @@
+make: "recursive.mk" line 34: Unclosed variable "MISSING_PAREN"
+make: "recursive.mk" line 35: Unclosed variable "MISSING_BRACE"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

@@ -1,0 +1,4 @@
+: parse time
+: .BEGIN
+: all
+exit status 0

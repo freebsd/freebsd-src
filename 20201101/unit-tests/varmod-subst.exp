@@ -1,0 +1,51 @@
+mod-subst:
+:a b b c:
+:a b b c:
+: b c:
+:a c:
+:x__ 3 x__ 3:
+12345
+mod-subst-delimiter:
+1 two 3 horizontal tabulator
+1 two 3 space
+1 two 3 exclamation mark
+1 two 3 double quotes
+1 two 3 hash
+1 two 3 dollar
+1 two 3 percent
+1 two 3 apostrophe
+1 two 3 opening parenthesis
+1 two 3 closing parenthesis
+1 two 3 digit
+1 two 3 colon
+1 two 3 less than sign
+1 two 3 equal sign
+1 two 3 greater than sign
+1 two 3 question mark
+1 two 3 at
+1 two 3 letter
+1 two 3 opening bracket
+1 two 3 backslash
+1 two 3 closing bracket
+1 two 3 caret
+1 two 3 opening brace
+1 two 3 vertical line
+1 two 3 closing brace
+1 two 3 tilde
+mod-subst-chain:
+A B c.
+make: Unknown modifier 'i'
+.
+mod-subst-dollar:$1:
+mod-subst-dollar:$2:
+mod-subst-dollar:$3:
+mod-subst-dollar:$4:
+mod-subst-dollar:$5:
+mod-subst-dollar:$6:
+mod-subst-dollar:$7:
+mod-subst-dollar:$8:
+mod-subst-dollar:$40:
+mod-subst-dollar:U8:
+mod-subst-dollar:$$$$:
+mod-subst-dollar:$$$good3
+exit status 0
