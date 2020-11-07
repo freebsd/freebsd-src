@@ -58,16 +58,16 @@ __FBSDID("$FreeBSD$");
  * Node of the interpreter list.
  */
 typedef struct imgact_binmisc_entry {
+	SLIST_ENTRY(imgact_binmisc_entry) link;
 	char				 *ibe_name;
 	uint8_t				 *ibe_magic;
-	uint32_t			  ibe_moffset;
-	uint32_t			  ibe_msize;
 	uint8_t				 *ibe_mask;
 	uint8_t				 *ibe_interpreter;
 	uint32_t			  ibe_interp_argcnt;
 	uint32_t			  ibe_interp_length;
 	uint32_t			  ibe_flags;
-	SLIST_ENTRY(imgact_binmisc_entry) link;
+	uint32_t			  ibe_moffset;
+	uint32_t			  ibe_msize;
 } imgact_binmisc_entry_t;
 
 /*
