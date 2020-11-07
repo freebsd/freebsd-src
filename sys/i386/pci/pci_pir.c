@@ -4,8 +4,8 @@
  * Copyright (c) 1997, Stefan Esser <se@freebsd.org>
  * Copyright (c) 2000, Michael Smith <msmith@freebsd.org>
  * Copyright (c) 2000, BSDi
- * Copyright (c) 2004, John Baldwin <jhb@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2004, John Baldwin <jhb@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
