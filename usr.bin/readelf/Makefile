@@ -8,7 +8,7 @@ READELFDIR=	${ELFTCDIR}/readelf
 PROG=	readelf
 SRCS=	readelf.c
 
-LIBADD=	dwarf elftc elf
+LIBADD=	dwarf elftc elf z
 
 CFLAGS+=-I${ELFTCDIR}/libelftc -I${ELFTCDIR}/common
 

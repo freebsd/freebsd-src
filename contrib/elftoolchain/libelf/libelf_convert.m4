@@ -1022,7 +1022,7 @@ _libelf_cvt_NOTE_tof(unsigned char *dst, size_t dsz, unsigned char *src,
 		count -= sizeof(Elf_Note);
 
 		if (count < sz)
-			sz = count;
+			return (0);
 
 		(void) memcpy(dst, src, sz);
 

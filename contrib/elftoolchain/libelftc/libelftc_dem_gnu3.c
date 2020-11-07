@@ -2135,10 +2135,10 @@ cpp_demangle_read_sname(struct cpp_demangle_data *ddata)
 	if (err == 0)
 		return (0);
 
-	assert(ddata->output.size > 0);
+	assert(ddata->cur_output->size > 0);
 	if (vector_read_cmd_find(&ddata->cmd, READ_TMPL) == NULL)
 		ddata->last_sname =
-		    ddata->output.container[ddata->output.size - 1];
+		    ddata->cur_output->container[ddata->output.size - 1];
 
 	ddata->cur += len;
 
@@ -2421,7 +2421,7 @@ cpp_demangle_read_tmpl_args(struct cpp_demangle_data *ddata)
 		return (0);
 
 	limit = 0;
-	v = &ddata->output;
+	v = ddata->cur_output;
 	for (;;) {
 		idx = v->size;
 		if (!cpp_demangle_read_tmpl_arg(ddata))
@@ -3909,7 +3909,7 @@ vector_read_cmd_push(struct vector_read_cmd *v, enum read_cmd cmd, void *data)
 		return (0);
 
 	if (v->size == v->capacity) {
-		tmp_cap = v->capacity * BUFFER_GROWFACTOR;
+		tmp_cap = BUFFER_GROW(v->capacity);
 		if ((tmp_r_ctn = malloc(sizeof(*tmp_r_ctn) * tmp_cap)) == NULL)
 			return (0);
 		for (i = 0; i < v->size; ++i)
@@ -3974,7 +3974,7 @@ vector_type_qualifier_push(struct vector_type_qualifier *v,
 		return (0);
 
 	if (v->size == v->capacity) {
-		tmp_cap = v->capacity * BUFFER_GROWFACTOR;
+		tmp_cap = BUFFER_GROW(v->capacity);
 		if ((tmp_ctn = malloc(sizeof(enum type_qualifier) * tmp_cap))
 		    == NULL)
 			return (0);

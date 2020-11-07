@@ -94,7 +94,11 @@
 #elif	defined(__powerpc64__)
 
 #define	LIBELF_ARCH		EM_PPC64
+#if	__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+#define	LIBELF_BYTEORDER	ELFDATA2LSB
+#else
 #define	LIBELF_BYTEORDER	ELFDATA2MSB
+#endif
 #define	LIBELF_CLASS		ELFCLASS64
 
 #elif	defined(__powerpc__)

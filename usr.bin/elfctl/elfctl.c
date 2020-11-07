@@ -66,6 +66,10 @@ static struct ControlFeatures featurelist[] = {
 	{ "protmax",	NT_FREEBSD_FCTL_PROTMAX_DISABLE,
 	    "Disable implicit PROT_MAX" },
 	{ "stackgap",	NT_FREEBSD_FCTL_STKGAP_DISABLE, "Disable stack gap" },
+	{ "wxneeded",	NT_FREEBSD_FCTL_WXNEEDED, "Requires W+X mappings" },
+#ifdef NT_FREEBSD_FCTL_LA48
+	{ "la48",	NT_FREEBSD_FCTL_LA48, "amd64: Limit user VA to 48bit" },
+#endif
 };
 
 static struct option long_opts[] = {

@@ -23,7 +23,7 @@
 .\"
 .\" $Id: gelf.3 3743 2019-06-12 19:36:30Z jkoshy $
 .\"
-.Dd June 12, 2019
+.Dd October 23, 2020
 .Dt GELF 3
 .Os
 .Sh NAME
@@ -45,6 +45,8 @@ The GElf API defines the following class-independent data structures:
 .Bl -tag -width GElf_Sxword
 .It Vt GElf_Addr
 A representation of ELF addresses.
+.It Vt GElf_Chdr
+A class-independent representation of an ELF Compression Header.
 .It Vt GElf_Dyn
 A class-independent representation of ELF
 .Sy .dynamic
@@ -144,6 +146,8 @@ native representation.
 .El
 .It "Retrieving ELF Data"
 .Bl -tag -compact -width indent
+.It Fn gelf_getchdr
+Retrieve an ELF Compression Header from the underlying ELF descriptor.
 .It Fn gelf_getdyn
 Retrieve an ELF
 .Sy .dynamic

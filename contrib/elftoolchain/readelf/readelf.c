@@ -38,12 +38,14 @@
 #include <libelftc.h>
 #include <libgen.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include "_elftc.h"
 
@@ -82,6 +84,7 @@ ELFTC_VCSID("$Id: readelf.c 3769 2019-06-29 15:15:02Z emaste $");
 #define	RE_WW	0x00040000
 #define	RE_W	0x00080000
 #define	RE_X	0x00100000
+#define	RE_Z	0x00200000
 
 /*
  * dwarf dump options.
@@ -184,6 +187,7 @@ static struct option longopts[] = {
 	{"arch-specific", no_argument, NULL, 'A'},
 	{"archive-index", no_argument, NULL, 'c'},
 	{"debug-dump", optional_argument, NULL, OPTION_DEBUG_DUMP},
+	{"decompress", no_argument, 0, 'z'},
 	{"dynamic", no_argument, NULL, 'd'},
 	{"file-header", no_argument, NULL, 'h'},
 	{"full-section-name", no_argument, NULL, 'N'},
@@ -223,6 +227,15 @@ struct flag_desc {
 struct mips_option {
 	uint64_t flag;
 	const char *desc;
+};
+
+struct loc_at {
+	Dwarf_Attribute la_at;
+	Dwarf_Unsigned la_off;
+	Dwarf_Unsigned la_lowpc;
+	Dwarf_Half la_cu_psize;
+	Dwarf_Half la_cu_osize;
+	Dwarf_Half la_cu_ver;
 };
 
 static void add_dumpop(struct readelf *re, size_t si, const char *sn, int op,
@@ -313,11 +326,13 @@ static void dump_mips_specific_info(struct readelf *re);
 static void dump_notes(struct readelf *re);
 static void dump_notes_content(struct readelf *re, const char *buf, size_t sz,
     off_t off);
-static void dump_notes_data(const char *name, uint32_t type, const char *buf,
-    size_t sz);
+static void dump_notes_data(struct readelf *re, const char *name,
+    uint32_t type, const char *buf, size_t sz);
 static void dump_svr4_hash(struct section *s);
 static void dump_svr4_hash64(struct readelf *re, struct section *s);
 static void dump_gnu_hash(struct readelf *re, struct section *s);
+static void dump_gnu_property_type_0(struct readelf *re, const char *buf,
+    size_t sz);
 static void dump_hash(struct readelf *re);
 static void dump_phdr(struct readelf *re);
 static void dump_ppc_attributes(uint8_t *p, uint8_t *pe);
@@ -341,6 +356,7 @@ static const char *get_string(struct readelf *re, int strtab, size_t off);
 static const char *get_symbol_name(struct readelf *re, int symtab, int i);
 static uint64_t get_symbol_value(struct readelf *re, int symtab, int i);
 static void load_sections(struct readelf *re);
+static int loc_at_comparator(const void *la1, const void *la2);
 static const char *mips_abi_fp(uint64_t fp);
 static const char *note_type(const char *note_name, unsigned int et,
     unsigned int nt);
@@ -359,7 +375,8 @@ static const char *ppc_abi_vector(uint64_t vec);
 static void readelf_usage(int status);
 static void readelf_version(void);
 static void search_loclist_at(struct readelf *re, Dwarf_Die die,
-    Dwarf_Unsigned lowpc);
+    Dwarf_Unsigned lowpc, struct loc_at **la_list,
+    size_t *la_list_len, size_t *la_list_cap);
 static void search_ver(struct readelf *re);
 static const char *section_type(unsigned int mach, unsigned int stype);
 static void set_cu_context(struct readelf *re, Dwarf_Half psize,
@@ -1265,6 +1282,7 @@ note_type_xen(unsigned int nt)
 	case 15: return "XEN_ELFNOTE_INIT_P2M";
 	case 16: return "XEN_ELFNOTE_MOD_START_PFN";
 	case 17: return "XEN_ELFNOTE_SUPPORTED_FEATURES";
+	case 18: return "XEN_ELFNOTE_PHYS32_ENTRY";
 	default: return (note_type_unknown(nt));
 	}
 }
@@ -2882,6 +2900,9 @@ static struct flag_desc dt_flags_1[] = {
 	{ 0x400000,		"NORELOC" },
 	{ 0x800000,		"SYMINTPOSE" },
 	{ 0x1000000,		"GLOBAUDIT" },
+	{ 0x02000000,		"SINGLETON" },
+	{ 0x04000000,		"STUB" },
+	{ DF_1_PIE,		"PIE" },
 	{ 0, NULL }
 };
 
@@ -3508,6 +3529,62 @@ dump_gnu_hash(struct readelf *re, struct section *s)
 	free(bl);
 }
 
+static struct flag_desc gnu_property_x86_feature_1_and_bits[] = {
+	{ GNU_PROPERTY_X86_FEATURE_1_IBT,	"IBT" },
+	{ GNU_PROPERTY_X86_FEATURE_1_SHSTK,	"SHSTK" },
+	{ 0, NULL }
+};
+
+static void
+dump_gnu_property_type_0(struct readelf *re, const char *buf, size_t sz)
+{
+	size_t i;
+	uint32_t type, prop_sz;
+
+	printf("      Properties: ");
+	while (sz > 0) {
+		if (sz < 8)
+			goto bad;
+
+		type = *(const uint32_t *)(const void *)buf;
+		prop_sz = *(const uint32_t *)(const void *)(buf + 4);
+		buf += 8;
+		sz -= 8;
+
+		if (prop_sz > sz)
+			goto bad;
+
+		if (type >= GNU_PROPERTY_LOPROC &&
+		    type <= GNU_PROPERTY_HIPROC) {
+			if (re->ehdr.e_machine != EM_X86_64) {
+				printf("machine type %x unknown\n",
+				    re->ehdr.e_machine);
+				goto unknown;
+			}
+			switch (type) {
+			case GNU_PROPERTY_X86_FEATURE_1_AND:
+				printf("x86 features:");
+				if (prop_sz != 4)
+					goto bad;
+				dump_flags(gnu_property_x86_feature_1_and_bits,
+				    *(const uint32_t *)(const void *)buf);
+				break;
+			}
+		}
+
+		buf += roundup2(prop_sz, 8);
+		sz -= roundup2(prop_sz, 8);
+	}
+	return;
+bad:
+	printf("corrupt GNU property\n");
+unknown:
+	printf("remaining description data:");
+	for (i = 0; i < sz; i++)
+		printf(" %02x", (unsigned char)buf[i]);
+	printf("\n");
+}
+
 static void
 dump_hash(struct readelf *re)
 {
@@ -3595,12 +3672,51 @@ dump_notes(struct readelf *re)
 
 static struct flag_desc note_feature_ctl_flags[] = {
 	{ NT_FREEBSD_FCTL_ASLR_DISABLE,		"ASLR_DISABLE" },
+	{ NT_FREEBSD_FCTL_PROTMAX_DISABLE,	"PROTMAX_DISABLE" },
+	{ NT_FREEBSD_FCTL_STKGAP_DISABLE,	"STKGAP_DISABLE" },
+	{ NT_FREEBSD_FCTL_WXNEEDED,		"WXNEEDED" },
 	{ 0, NULL }
 };
 
-static void
-dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
+static bool
+dump_note_string(const char *description, const char *s, size_t len)
 {
+	size_t i;
+
+	if (len == 0 || s[--len] != '\0') {
+		return (false);
+	} else {
+		for (i = 0; i < len; i++)
+			if (!isprint(s[i]))
+				return (false);
+	}
+
+	printf("   %s: %s\n", description, s);
+	return (true);
+}
+
+struct note_desc {
+	uint32_t type;
+	const char *description;
+	bool (*fp)(const char *, const char *, size_t);
+};
+
+static struct note_desc xen_notes[] = {
+	{ 5, "Xen version", dump_note_string },
+	{ 6, "Guest OS", dump_note_string },
+	{ 7, "Guest version", dump_note_string },
+	{ 8, "Loader", dump_note_string },
+	{ 9, "PAE mode", dump_note_string },
+	{ 10, "Features", dump_note_string },
+	{ 11, "BSD symtab", dump_note_string },
+	{ 0, NULL, NULL }
+};
+
+static void
+dump_notes_data(struct readelf *re, const char *name, uint32_t type,
+    const char *buf, size_t sz)
+{
+	struct note_desc *nd;
 	size_t i;
 	const uint32_t *ubuf;
 
@@ -3631,6 +3747,27 @@ dump_notes_data(const char *name, uint32_t type, const char *buf, size_t sz)
 			dump_flags(note_feature_ctl_flags, ubuf[0]);
 			return;
 		}
+	} else if (strcmp(name, "GNU") == 0) {
+		switch (type) {
+		case NT_GNU_PROPERTY_TYPE_0:
+			dump_gnu_property_type_0(re, buf, sz);
+			return;
+		case NT_GNU_BUILD_ID:
+			printf("   Build ID: ");
+			for (i = 0; i < sz; i++)
+				printf("%02x", (unsigned char)buf[i]);
+			printf("\n");
+			return;
+		}
+	} else if (strcmp(name, "Xen") == 0) {
+		for (nd = xen_notes; nd->description != NULL; nd++) {
+			if (nd->type == type) {
+				if (nd->fp(nd->description, buf, sz))
+					return;
+				else
+					break;
+			}
+		}
 	}
 unknown:
 	printf("   description data:");
@@ -3644,6 +3781,7 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 {
 	Elf_Note *note;
 	const char *end, *name;
+	uint32_t namesz, descsz;
 
 	printf("\nNotes at offset %#010jx with length %#010jx:\n",
 	    (uintmax_t) off, (uintmax_t) sz);
@@ -3655,9 +3793,16 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 			return;
 		}
 		note = (Elf_Note *)(uintptr_t) buf;
+		namesz = roundup2(note->n_namesz, 4);
+		descsz = roundup2(note->n_descsz, 4);
+		if (namesz < note->n_namesz || descsz < note->n_descsz ||
+		    buf + namesz + descsz > end) {
+			warnx("invalid note header");
+			return;
+		}
 		buf += sizeof(Elf_Note);
 		name = buf;
-		buf += roundup2(note->n_namesz, 4);
+		buf += namesz;
 		/*
 		 * The name field is required to be nul-terminated, and
 		 * n_namesz includes the terminating nul in observed
@@ -3675,8 +3820,8 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 		printf("  %-13s %#010jx", name, (uintmax_t) note->n_descsz);
 		printf("      %s\n", note_type(name, re->ehdr.e_type,
 		    note->n_type));
-		dump_notes_data(name, note->n_type, buf, note->n_descsz);
-		buf += roundup2(note->n_descsz, 4);
+		dump_notes_data(re, name, note->n_type, buf, note->n_descsz);
+		buf += descsz;
 	}
 }
 
@@ -6140,21 +6285,27 @@ dump_dwarf_str(struct readelf *re)
 	}
 }
 
-struct loc_at {
-	Dwarf_Attribute la_at;
-	Dwarf_Unsigned la_off;
-	Dwarf_Unsigned la_lowpc;
-	Dwarf_Half la_cu_psize;
-	Dwarf_Half la_cu_osize;
-	Dwarf_Half la_cu_ver;
-	TAILQ_ENTRY(loc_at) la_next;
-};
+static int
+loc_at_comparator(const void *la1, const void *la2)
+{
+	const struct loc_at *left, *right;
 
-static TAILQ_HEAD(, loc_at) lalist = TAILQ_HEAD_INITIALIZER(lalist);
+	left = (const struct loc_at *)la1;
+	right = (const struct loc_at *)la2;
+
+	if (left->la_off > right->la_off)
+		return (1);
+	else if (left->la_off < right->la_off)
+		return (-1);
+	else
+		return (0);
+}
 
 static void
-search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc)
+search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc,
+    struct loc_at **la_list, size_t *la_list_len, size_t *la_list_cap)
 {
+	struct loc_at *la;
 	Dwarf_Attribute *attr_list;
 	Dwarf_Die ret_die;
 	Dwarf_Unsigned off;
@@ -6163,7 +6314,6 @@ search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc)
 	Dwarf_Half attr, form;
 	Dwarf_Bool is_info;
 	Dwarf_Error de;
-	struct loc_at *la, *nla;
 	int i, ret;
 
 	is_info = dwarf_get_die_infotypes_flag(die);
@@ -6211,33 +6361,21 @@ search_loclist_at(struct readelf *re, Dwarf_Die die, Dwarf_Unsigned lowpc)
 		} else
 			continue;
 
-		TAILQ_FOREACH(la, &lalist, la_next) {
-			if (off == la->la_off)
-				break;
-			if (off < la->la_off) {
-				if ((nla = malloc(sizeof(*nla))) == NULL)
-					err(EXIT_FAILURE, "malloc failed");
-				nla->la_at = attr_list[i];
-				nla->la_off = off;
-				nla->la_lowpc = lowpc;
-				nla->la_cu_psize = re->cu_psize;
-				nla->la_cu_osize = re->cu_osize;
-				nla->la_cu_ver = re->cu_ver;
-				TAILQ_INSERT_BEFORE(la, nla, la_next);
-				break;
-			}
+		if (*la_list_cap == *la_list_len) {
+			*la_list = realloc(*la_list,
+			    *la_list_cap * 2 * sizeof(**la_list));
+			if (*la_list == NULL)
+				err(EXIT_FAILURE, "realloc failed");
+			*la_list_cap *= 2;
 		}
-		if (la == NULL) {
-			if ((nla = malloc(sizeof(*nla))) == NULL)
-				err(EXIT_FAILURE, "malloc failed");
-			nla->la_at = attr_list[i];
-			nla->la_off = off;
-			nla->la_lowpc = lowpc;
-			nla->la_cu_psize = re->cu_psize;
-			nla->la_cu_osize = re->cu_osize;
-			nla->la_cu_ver = re->cu_ver;
-			TAILQ_INSERT_TAIL(&lalist, nla, la_next);
-		}
+		la = &((*la_list)[*la_list_len]);
+		la->la_at = attr_list[i];
+		la->la_off = off;
+		la->la_lowpc = lowpc;
+		la->la_cu_psize = re->cu_psize;
+		la->la_cu_osize = re->cu_osize;
+		la->la_cu_ver = re->cu_ver;
+		(*la_list_len)++;
 	}
 
 cont_search:
@@ -6246,14 +6384,16 @@ cont_search:
 	if (ret == DW_DLV_ERROR)
 		warnx("dwarf_child: %s", dwarf_errmsg(de));
 	else if (ret == DW_DLV_OK)
-		search_loclist_at(re, ret_die, lowpc);
+		search_loclist_at(re, ret_die, lowpc, la_list,
+		    la_list_len, la_list_cap);
 
 	/* Search sibling. */
 	ret = dwarf_siblingof_b(re->dbg, die, &ret_die, is_info, &de);
 	if (ret == DW_DLV_ERROR)
 		warnx("dwarf_siblingof: %s", dwarf_errmsg(de));
 	else if (ret == DW_DLV_OK)
-		search_loclist_at(re, ret_die, lowpc);
+		search_loclist_at(re, ret_die, lowpc, la_list,
+		    la_list_len, la_list_cap);
 }
 
 static void
@@ -6536,9 +6676,15 @@ dump_dwarf_loclist(struct readelf *re)
 	Dwarf_Signed lcnt;
 	Dwarf_Half tag, version, pointer_size, off_size;
 	Dwarf_Error de;
-	struct loc_at *la;
+	struct loc_at *la_list, *left, *right, *la;
+	size_t la_list_len, la_list_cap;
+	unsigned int duplicates, k;
 	int i, j, ret, has_content;
 
+	la_list_len = 0;
+	la_list_cap = 200;
+	if ((la_list = calloc(la_list_cap, sizeof(struct loc_at))) == NULL)
+		errx(EXIT_FAILURE, "calloc failed");
 	/* Search .debug_info section. */
 	while ((ret = dwarf_next_cu_header_b(re->dbg, NULL, &version, NULL,
 	    &pointer_size, &off_size, NULL, NULL, &de)) == DW_DLV_OK) {
@@ -6559,7 +6705,8 @@ dump_dwarf_loclist(struct readelf *re)
 		}
 
 		/* Search attributes for reference to .debug_loc section. */
-		search_loclist_at(re, die, lowpc);
+		search_loclist_at(re, die, lowpc, &la_list,
+		    &la_list_len, &la_list_cap);
 	}
 	if (ret == DW_DLV_ERROR)
 		warnx("dwarf_next_cu_header: %s", dwarf_errmsg(de));
@@ -6591,17 +6738,37 @@ dump_dwarf_loclist(struct readelf *re)
 			 * Search attributes for reference to .debug_loc
 			 * section.
 			 */
-			search_loclist_at(re, die, lowpc);
+			search_loclist_at(re, die, lowpc, &la_list,
+			    &la_list_len, &la_list_cap);
 		}
 		if (ret == DW_DLV_ERROR)
 			warnx("dwarf_next_cu_header: %s", dwarf_errmsg(de));
 	} while (dwarf_next_types_section(re->dbg, &de) == DW_DLV_OK);
 
-	if (TAILQ_EMPTY(&lalist))
+	if (la_list_len == 0) {
+		free(la_list);
 		return;
+	}
+
+	/* Sort la_list using loc_at_comparator. */
+	qsort(la_list, la_list_len, sizeof(struct loc_at), loc_at_comparator);
+
+	/* Get rid of the duplicates in la_list. */
+	duplicates = 0;
+	for (k = 1; k < la_list_len; ++k) {
+		left = &la_list[k - 1 - duplicates];
+		right = &la_list[k];
+
+		if (left->la_off == right->la_off)
+			duplicates++;
+		else
+			la_list[k - duplicates] = *right;
+	}
+	la_list_len -= duplicates;
 
 	has_content = 0;
-	TAILQ_FOREACH(la, &lalist, la_next) {
+	for (k = 0; k < la_list_len; ++k) {
+		la = &la_list[k];
 		if ((ret = dwarf_loclist_n(la->la_at, &llbuf, &lcnt, &de)) !=
 		    DW_DLV_OK) {
 			if (ret != DW_DLV_NO_ENTRY)
@@ -6651,6 +6818,8 @@ dump_dwarf_loclist(struct readelf *re)
 
 	if (!has_content)
 		printf("\nSection '.debug_loc' has no debugging data.\n");
+
+	free(la_list);
 }
 
 /*
@@ -6730,17 +6899,96 @@ get_symbol_value(struct readelf *re, int symtab, int i)
 	return (sym.st_value);
 }
 
+/*
+ * Decompress a data section if needed (using ZLIB).
+ * Returns true if sucessful, false otherwise.
+ */
+static bool decompress_section(struct section *s,
+    unsigned char *compressed_data_buffer, size_t compressed_size,
+    unsigned char **ret_buf, size_t *ret_sz)
+{
+	GElf_Shdr sh;
+
+	if (gelf_getshdr(s->scn, &sh) == NULL)
+		errx(EXIT_FAILURE, "gelf_getshdr() failed: %s", elf_errmsg(-1));
+
+	if (sh.sh_flags & SHF_COMPRESSED) {
+		int ret;
+		GElf_Chdr chdr;
+		Elf64_Xword inflated_size;
+		unsigned char *uncompressed_data_buffer = NULL;
+		Elf64_Xword uncompressed_size;
+		z_stream strm;
+
+		if (gelf_getchdr(s->scn, &chdr) == NULL)
+			errx(EXIT_FAILURE, "gelf_getchdr() failed: %s", elf_errmsg(-1));
+		if (chdr.ch_type != ELFCOMPRESS_ZLIB) {
+			warnx("unknown compression type: %d", chdr.ch_type);
+			return (false);
+		}
+
+		inflated_size = 0;
+		uncompressed_size = chdr.ch_size;
+		uncompressed_data_buffer = malloc(uncompressed_size);
+		compressed_data_buffer += sizeof(chdr);
+		compressed_size -= sizeof(chdr);
+
+		strm.zalloc = Z_NULL;
+		strm.zfree = Z_NULL;
+		strm.opaque = Z_NULL;
+		strm.avail_in = compressed_size;
+		strm.avail_out = uncompressed_size;
+		ret = inflateInit(&strm);
+
+		if (ret != Z_OK)
+			goto fail;
+		/*
+		 * The section can contain several compressed buffers,
+		 * so decompress in a loop until all data is inflated.
+		 */
+		while (inflated_size < compressed_size) {
+			strm.next_in = compressed_data_buffer + inflated_size;
+			strm.next_out = uncompressed_data_buffer + inflated_size;
+			ret = inflate(&strm, Z_FINISH);
+			if (ret != Z_STREAM_END)
+				goto fail;
+			inflated_size = uncompressed_size - strm.avail_out;
+			ret = inflateReset(&strm);
+			if (ret != Z_OK)
+				goto fail;
+		}
+		if (strm.avail_out != 0)
+			warnx("Warning: wrong info in compression header.");
+		ret = inflateEnd(&strm);
+		if (ret != Z_OK)
+			goto fail;
+		*ret_buf = uncompressed_data_buffer;
+		*ret_sz = uncompressed_size;
+		return (true);
+fail:
+		inflateEnd(&strm);
+		if (strm.msg)
+			warnx("%s", strm.msg);
+		else
+			warnx("ZLIB error: %d", ret);
+		free(uncompressed_data_buffer);
+		return (false);
+	}
+	return (false);
+}
+
 static void
 hex_dump(struct readelf *re)
 {
 	struct section *s;
 	Elf_Data *d;
-	uint8_t *buf;
+	uint8_t *buf, *new_buf;
 	size_t sz, nbytes;
 	uint64_t addr;
 	int elferr, i, j;
 
 	for (i = 1; (size_t) i < re->shnum; i++) {
+		new_buf = NULL;
 		s = &re->sl[i];
 		if (find_dumpop(re, (size_t) i, s->name, HEX_DUMP, -1) == NULL)
 			continue;
@@ -6762,6 +7010,11 @@ hex_dump(struct readelf *re)
 		buf = d->d_buf;
 		sz = d->d_size;
 		addr = s->addr;
+		if (re->options & RE_Z) {
+			if (decompress_section(s, d->d_buf, d->d_size,
+			    &new_buf, &sz))
+				buf = new_buf;
+		}
 		printf("\nHex dump of section '%s':\n", s->name);
 		while (sz > 0) {
 			printf("  0x%8.8jx ", (uintmax_t)addr);
@@ -6785,6 +7038,7 @@ hex_dump(struct readelf *re)
 			addr += nbytes;
 			sz -= nbytes;
 		}
+		free(new_buf);
 	}
 }
 
@@ -6793,11 +7047,13 @@ str_dump(struct readelf *re)
 {
 	struct section *s;
 	Elf_Data *d;
-	unsigned char *start, *end, *buf_end;
+	unsigned char *start, *end, *buf_end, *new_buf;
 	unsigned int len;
+	size_t sz;
 	int i, j, elferr, found;
 
 	for (i = 1; (size_t) i < re->shnum; i++) {
+		new_buf = NULL;
 		s = &re->sl[i];
 		if (find_dumpop(re, (size_t) i, s->name, STR_DUMP, -1) == NULL)
 			continue;
@@ -6816,9 +7072,15 @@ str_dump(struct readelf *re)
 			    s->name);
 			continue;
 		}
-		buf_end = (unsigned char *) d->d_buf + d->d_size;
-		start = (unsigned char *) d->d_buf;
 		found = 0;
+		start = d->d_buf;
+		sz = d->d_size;
+		if (re->options & RE_Z) {
+			if (decompress_section(s, d->d_buf, d->d_size,
+			    &new_buf, &sz))
+				start = new_buf;
+		}
+		buf_end = start + sz;
 		printf("\nString dump of section '%s':\n", s->name);
 		for (;;) {
 			while (start < buf_end && !isprint(*start))
@@ -6839,6 +7101,7 @@ str_dump(struct readelf *re)
 				break;
 			start = end + 1;
 		}
+		free(new_buf);
 		if (!found)
 			printf("  No strings found in this section.");
 		putchar('\n');
@@ -6998,7 +7261,6 @@ dump_elf(struct readelf *re)
 static void
 dump_dwarf(struct readelf *re)
 {
-	struct loc_at *la, *_la;
 	Dwarf_Error de;
 	int error;
 
@@ -7035,11 +7297,6 @@ dump_dwarf(struct readelf *re)
 		dump_dwarf_str(re);
 	if (re->dop & DW_O)
 		dump_dwarf_loclist(re);
-
-	TAILQ_FOREACH_SAFE(la, &lalist, la_next, _la) {
-		TAILQ_REMOVE(&lalist, la, la_next);
-		free(la);
-	}
 
 	dwarf_finish(re->dbg, &de);
 }
@@ -7470,6 +7727,7 @@ Usage: %s [options] file...\n\
                            Display DWARF information.\n\
   -x INDEX | --hex-dump=INDEX\n\
                            Display contents of a section as hexadecimal.\n\
+  -z | --decompress        Decompress the contents of a section before displaying it.\n\
   -A | --arch-specific     (accepted, but ignored)\n\
   -D | --use-dynamic       Print the symbol table specified by the DT_SYMTAB\n\
                            entry in the \".dynamic\" section.\n\
@@ -7502,7 +7760,7 @@ main(int argc, char **argv)
 	memset(re, 0, sizeof(*re));
 	STAILQ_INIT(&re->v_dumpop);
 
-	while ((opt = getopt_long(argc, argv, "AacDdegHhIi:lNnp:rSstuVvWw::x:",
+	while ((opt = getopt_long(argc, argv, "AacDdegHhIi:lNnp:rSstuVvWw::x:z",
 	    longopts, NULL)) != -1) {
 		switch(opt) {
 		case '?':
@@ -7598,6 +7856,9 @@ main(int argc, char **argv)
 			else
 				add_dumpop(re, 0, optarg, HEX_DUMP,
 				    DUMP_BY_NAME);
+			break;
+		case 'z':
+			re->options |= RE_Z;
 			break;
 		case OPTION_DEBUG_DUMP:
 			re->options |= RE_W;
