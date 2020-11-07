@@ -53,6 +53,8 @@
 #define	IBF_ENABLED	0x0001	/* Entry is active. */
 #define	IBF_USE_MASK	0x0002	/* Use mask on header magic field. */
 
+#define	IBF_VALID_UFLAGS	0x0003	/* Bits allowed from userland. */
+
 /*
  * Used with sysctlbyname() to pass imgact bin misc entries in and out of the
  * kernel.
