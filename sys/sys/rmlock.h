@@ -149,14 +149,18 @@ rms_wowned(struct rmslock *rms)
 	return (rms->owner == curthread);
 }
 
+#ifdef INVARIANTS
 /*
- * Only valid to call if you hold the lock in some manner.
+ * For assertion purposes.
+ *
+ * Main limitation is that we at best can tell there are readers, but not
+ * whether curthread is one of them.
  */
 static inline int
 rms_rowned(struct rmslock *rms)
 {
 
-	return (rms->readers > 0);
+	return (rms->debug_readers > 0);
 }
 
 static inline int
@@ -168,6 +172,7 @@ rms_owned_any(struct rmslock *rms)
 
 	return (rms_rowned(rms));
 }
+#endif
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RMLOCK_H_ */
