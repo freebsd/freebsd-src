@@ -97,21 +97,22 @@ syscallenter(struct thread *td)
 		if (p->p_ptevents & PTRACE_SCE)
 			ptracestop((td), SIGTRAP, NULL);
 		PROC_UNLOCK(p);
-	}
-	if (__predict_false((td->td_dbgflags & TDB_USERWR) != 0)) {
-		/*
-		 * Reread syscall number and arguments if debugger
-		 * modified registers or memory.
-		 */
-		error = (p->p_sysent->sv_fetch_syscall_args)(td);
-		se = sa->callp;
+
+		if ((td->td_dbgflags & TDB_USERWR) != 0) {
+			/*
+			 * Reread syscall number and arguments if debugger
+			 * modified registers or memory.
+			 */
+			error = (p->p_sysent->sv_fetch_syscall_args)(td);
+			se = sa->callp;
 #ifdef KTRACE
-		if (KTRPOINT(td, KTR_SYSCALL))
-			ktrsyscall(sa->code, se->sy_narg, sa->args);
+			if (KTRPOINT(td, KTR_SYSCALL))
+				ktrsyscall(sa->code, se->sy_narg, sa->args);
 #endif
-		if (error != 0) {
-			td->td_errno = error;
-			goto retval;
+			if (error != 0) {
+				td->td_errno = error;
+				goto retval;
+			}
 		}
 	}
 
