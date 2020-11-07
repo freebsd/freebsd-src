@@ -434,6 +434,8 @@ sysctl_kern_binmisc(SYSCTL_HANDLER_ARGS)
 			return (error);
 		if (IBE_VERSION != xbe.xbe_version)
 			return (EINVAL);
+		if ((xbe.xbe_flags & ~IBF_VALID_UFLAGS) != 0)
+			return (EINVAL);
 		if (interp_list_entry_count == IBE_MAX_ENTRIES)
 			return (ENOSPC);
 		error = imgact_binmisc_add_entry(&xbe);
