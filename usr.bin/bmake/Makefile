@@ -12,7 +12,7 @@ CFLAGS+= -I${.CURDIR}
 CLEANDIRS+= FreeBSD
 CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.112 2020/08/28 16:26:17 sjg Exp $
+#	$Id: Makefile,v 1.113 2020/10/26 17:55:09 sjg Exp $
 
 PROG?=	${.CURDIR:T}
 
@@ -34,7 +34,6 @@ SRCS= \
 	metachar.c \
 	parse.c \
 	str.c \
-	strlist.c \
 	suff.c \
 	targ.c \
 	trace.c \

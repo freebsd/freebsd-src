@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.66 2020/07/10 16:34:38 sjg Exp $
+dnl	$Id: configure.in,v 1.67 2020/10/19 19:47:50 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20200710], [sjg@NetBSD.org])
+AC_INIT([bmake], [20201018], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -38,7 +38,7 @@ CYGWIN*|MINGW*) use_makefile=no;;
 *) use_makefile=yes;;
 esac
 AC_ARG_WITH(makefile,
-[ --without-makefile dissable use of generated makefile],
+[ --without-makefile disable use of generated makefile],
 [case "${withval}" in
 yes|no) use_makefile=${withval};;
 *) AC_MSG_ERROR(bad value ${withval} given for makefile) ;;
@@ -46,7 +46,7 @@ esac])
 dnl
 use_meta=yes
 AC_ARG_WITH(meta,
-[ --without-meta dissable use of meta-mode],
+[ --without-meta disable use of meta-mode],
 [case "${withval}" in
 yes|no) use_meta=${withval};;
 *) AC_MSG_ERROR(bad value ${withval} given for meta) ;;
@@ -128,7 +128,6 @@ dnl AC_C_CROSS
 dnl
 
 dnl Checks for header files.
-AC_INCLUDES_DEFAULT
 AC_HEADER_SYS_WAIT
 AC_HEADER_DIRENT
 dnl Keep this list sorted
@@ -352,7 +351,7 @@ dnl
 dnl And this can be handy to do with out.
 dnl
 AC_ARG_ENABLE(pwd-override,
-[  --disable-pwd-override  disable \$PWD overriding getcwd()],
+[  --disable-pwd-override  disable $PWD overriding getcwd()],
 [case "${enableval}" in
 yes)   ;;
 no)    CPPFLAGS="$CPPFLAGS -DNO_PWD_OVERRIDE" ;;
@@ -363,7 +362,7 @@ dnl Just for grins
 dnl
 AC_ARG_ENABLE(check-make-chdir,
 [  --disable-check-make-chdir disable make trying to guess 
-	when it should automatically cd \${.CURDIR}],
+	when it should automatically cd ${.CURDIR}],
 [case "${enableval}" in
 yes)   ;;
 no)    CPPFLAGS="$CPPFLAGS -DNO_CHECK_MAKE_CHDIR" ;;

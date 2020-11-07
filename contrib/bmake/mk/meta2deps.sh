@@ -75,7 +75,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.13 2020/08/19 17:51:53 sjg Exp $
+#	$Id: meta2deps.sh,v 1.14 2020/10/02 03:11:17 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -139,6 +139,11 @@ add_list() {
 
 _excludes_f() {
     egrep -v "$EXCLUDES"
+}
+
+error() {
+    echo "ERROR: $@" >&2
+    exit 1
 }
 
 meta2deps() {
@@ -234,8 +239,8 @@ meta2deps() {
 	;;
     *) cat /dev/null "$@";;
     esac 2> /dev/null |
-    sed -e 's,^CWD,C C,;/^[CREFLM] /!d' -e "s,',,g" |
-    $_excludes |
+    sed -e 's,^CWD,C C,;/^[CREFLMV] /!d' -e "s,',,g" |
+    $_excludes | ( version=no
     while read op pid path junk
     do
 	: op=$op pid=$pid path=$path
@@ -247,6 +252,12 @@ meta2deps() {
 		SB=`echo $CWD | sed 's,/obj.*,,'`
 	    fi
 	    SRCTOP=${SRCTOP:-$SB/src}
+	    case "$verion" in
+	    no) ;;		# ignore
+	    0) error "no filemon data";;
+	    *) ;;
+	    esac
+            version=0
 	    continue
 	    ;;
 	$pid,$pid) ;;
@@ -261,6 +272,7 @@ meta2deps() {
 	esac
 
 	case "$op,$path" in
+	V,*) version=$path; continue;;
 	W,*srcrel|*.dirdep) continue;;
 	C,*)
 	    case "$path" in
@@ -366,6 +378,9 @@ meta2deps() {
 	    echo $dir;;
 	esac
     done > $tf.dirdep
+    case "$version" in
+    0) error "no filemon data";;
+    esac ) || exit 1
     _nl=echo
     for f in $tf.dirdep $tf.qual $tf.srcdep
     do

@@ -1,4 +1,9 @@
-: .BEGIN
-: all
-: .END
+: .BEGIN '${VAR}'
+: all '${VAR}'
+: end-action '${VAR}'
+: .END '${VAR}'
+: .END '${VAR}' deferred
+: .BEGIN 'Should not be expanded.' deferred
+: all 'Should not be expanded.' deferred
+: end-action 'Should not be expanded.' deferred
 exit status 0

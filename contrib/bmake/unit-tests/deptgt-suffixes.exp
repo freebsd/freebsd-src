@@ -1,5 +1,5 @@
 #*** Suffixes:
-# `.custom-null' [1]  (SUFF_NULL)
+# ".custom-null" (num 1, ref 1) (SUFF_NULL)
 #	To: 
 #	From: 
 #	Search Path: . .. 

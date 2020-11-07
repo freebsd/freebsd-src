@@ -1,4 +1,4 @@
-# $NetBSD: varname-dot-includes.mk,v 1.1 2020/08/28 03:51:06 rillig Exp $
+# $NetBSD: varname-dot-includes.mk,v 1.2 2020/09/13 16:53:19 rillig Exp $
 #
 # Tests for the special .INCLUDES variable, which is not documented in the
 # manual page.
@@ -12,8 +12,8 @@
 .INCLUDES: .h
 
 # The .INCLUDES variable is not yet available.
-.if defined(${.INCLUDES:Q})
-.error
+.if defined(.INCLUDES)
+.  error
 .endif
 
 all:

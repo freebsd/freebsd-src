@@ -1,4 +1,4 @@
-# $NetBSD: posix1.mk,v 1.4 2020/08/10 18:19:58 rillig Exp $
+# $NetBSD: posix1.mk,v 1.6 2020/10/24 08:50:17 rillig Exp $
 
 # Keep the default suffixes from interfering, just in case.
 .SUFFIXES:
@@ -55,14 +55,14 @@ suffix-substitution:
 # In the past substitutions did not work with the D/F forms and those
 # forms were not available for $?.  (PR 49085)
 
-ARFLAGS = -rcv
+ARFLAGS=	-rcv
 
 localvars: lib.a
 
 # $@ = target or archive name	$< = implied source
-# $* = target without suffix 	$? = sources newer than target
+# $* = target without suffix	$? = sources newer than target
 # $% = archive member name
-LOCALS = \
+LOCALS= \
 	"Local variables\n\
 	\$${@}=\"${@}\" \$${<}=\"${<}\"\n\
 	\$${*}=\"${*}\" \$${?}=\"${?}\"\n\
@@ -70,7 +70,7 @@ LOCALS = \
 
 # $XD = directory part of X	$XF = file part of X
 # X is one of the local variables.
-LOCAL_ALTERNATIVES = \
+LOCAL_ALTERNATIVES= \
 	"Directory and filename parts of local variables\n\
 	\$${@D}=\"${@D}\" \$${@F}=\"${@F}\"\n\
 	\$${<D}=\"${<D}\" \$${<F}=\"${<F}\"\n\
@@ -80,15 +80,15 @@ LOCAL_ALTERNATIVES = \
 
 # Do all kinds of meaningless substitutions on local variables to see
 # if they work.  Add, remove and replace things.
-VAR2 = .o
-VAR3 = foo
-LOCAL_SUBSTITUTIONS = \
+VAR2=	.o
+VAR3=	foo
+LOCAL_SUBSTITUTIONS= \
 	"Local variable substitutions\n\
 	\$${@:.o=}=\"${@:.o=}\" \$${<:.c=.C}=\"${<:.c=.C}\"\n\
 	\$${*:=.h}=\"${*:=.h}\" \$${?:.h=.H}=\"${?:.h=.H}\"\n\
 	\$${%%:=}=\"${%:=}\"\n\n"
 
-LOCAL_ALTERNATIVE_SUBSTITUTIONS = \
+LOCAL_ALTERNATIVE_SUBSTITUTIONS= \
 	"Target with suffix transformations\n\
 	\$${@D:=append}=\"${@D:=append}\"\n\
 	\$${@F:.o=.O}=\"${@F:.o=.O}\"\n\

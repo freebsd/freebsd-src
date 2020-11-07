@@ -1,1 +1,8 @@
-exit status 0
+fail
+*** Error code 1 (continuing)
+
+Stop.
+make: stopped in unit-tests
+.ERROR_TARGET='all'
+.ERROR_CMD=''
+exit status 1

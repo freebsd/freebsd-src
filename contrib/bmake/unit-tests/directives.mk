@@ -1,4 +1,4 @@
-# $NetBSD: directives.mk,v 1.5 2020/07/28 20:57:59 rillig Exp $
+# $NetBSD: directives.mk,v 1.6 2020/10/24 08:46:08 rillig Exp $
 #
 # Tests for parsing directives, in the same order as in the manual page.
 #
@@ -120,21 +120,21 @@
 .info which branch is taken on misspelling after false?
 .if 0
 .elsif 1
-.info 1 taken
+.  info 1 taken
 .elsif 2
-.info 2 taken
+.  info 2 taken
 .else
-.info else taken
+.  info else taken
 .endif
 
 .info which branch is taken on misspelling after true?
 .if 1
 .elsif 1
-.info 1 taken
+.  info 1 taken
 .elsif 2
-.info 2 taken
+.  info 2 taken
 .else
-.info else taken
+.  info else taken
 .endif
 
 .indented none

@@ -1197,11 +1197,11 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      [4mExpression[24m may also be an arithmetic or string comparison.  Variable
      expansion is performed on both sides of the comparison, after which the
-     integral values are compared.  A value is interpreted as hexadecimal if
+     numerical values are compared.  A value is interpreted as hexadecimal if
      it is preceded by 0x, otherwise it is decimal; octal numbers are not sup-
      ported.  The standard C relational operators are all supported.  If after
      variable expansion, either the left or right hand side of a `[1m==[22m' or `[1m!=[22m'
-     operator is not an integral value, then string comparison is performed
+     operator is not a numerical value, then string comparison is performed
      between the expanded variables.  If no relational operator is given, it
      is assumed that the expanded variable is being compared against 0, or an
      empty string in the case of a string comparison.
@@ -1568,4 +1568,4 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
 
      There is no way of escaping a space character in a filename.
 
-FreeBSD 11.3                    August 28, 2020                   FreeBSD 11.3
+FreeBSD 11.3                   November 1, 2020                   FreeBSD 11.3

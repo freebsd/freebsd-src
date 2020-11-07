@@ -1,5 +1,8 @@
 make: "cond-cmp-string.mk" line 18: Malformed conditional (str != str)
 make: "cond-cmp-string.mk" line 37: Malformed conditional ("string" != "str""ing")
+make: "cond-cmp-string.mk" line 42: warning: String comparison operator must be either == or !=
+make: "cond-cmp-string.mk" line 42: Malformed conditional (!("value" = "value"))
+make: "cond-cmp-string.mk" line 49: Malformed conditional (!("value" === "value"))
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

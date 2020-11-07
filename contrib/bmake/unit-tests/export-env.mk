@@ -1,14 +1,14 @@
-# $Id: export-env.mk,v 1.1.1.2 2016/02/18 20:35:24 sjg Exp $
+# $NetBSD: export-env.mk,v 1.4 2020/10/24 08:50:17 rillig Exp $
 
 # our normal .export, subsequent changes affect the environment
-UT_TEST=this
+UT_TEST=	this
 .export UT_TEST
-UT_TEST:= ${.PARSEFILE}
+UT_TEST:=	${.PARSEFILE}
 
 # not so with .export-env
-UT_ENV=exported
+UT_ENV=	exported
 .export-env UT_ENV
-UT_ENV=not-exported
+UT_ENV=	not-exported
 
 # gmake style export goes further; affects nothing but the environment
 UT_EXP=before-export

@@ -1,8 +1,10 @@
-# $NetBSD: opt-keep-going.mk,v 1.3 2020/08/23 14:28:04 rillig Exp $
+# $NetBSD: opt-keep-going.mk,v 1.4 2020/10/18 18:12:42 rillig Exp $
 #
 # Tests for the -k command line option, which stops building a target as soon
 # as an error is detected, but continues building the other, independent
 # targets, as far as possible.
+
+.MAKEFLAGS: -d0			# switch stdout to being line-buffered
 
 all: dependency other
 

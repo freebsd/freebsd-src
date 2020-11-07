@@ -1,3 +1,31 @@
+2020-11-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201101
+
+	* dirdeps.mk: most leaf makefiles are not suitable for building
+	dirdeps.cache so if RELDIR is not "." use dirdeps.mk
+
+2020-10-28  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201028
+
+	* dirdeps.mk: if we don't have :range use equivalent of M_RANGE
+	when building dirdeps.cache for leaf directory use -f dirdeps.mk
+
+	* sys.vars.mk: add M_JOT and M_RANGE
+
+2020-10-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201001
+
+	* meta2deps.{py,sh}: throw an error if we don't see filemon version
+
+2020-09-09  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20200909
+
+	* dirdeps-cache-update.mk: use cache_update_dirdep as guard target
+
 2020-08-26  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* dirdeps.mk: ensure we cannot confuse a static cache for dynamic

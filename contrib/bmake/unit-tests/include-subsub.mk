@@ -1,7 +1,7 @@
-# $NetBSD: include-subsub.mk,v 1.1 2020/05/17 12:36:26 rillig Exp $
+# $NetBSD: include-subsub.mk,v 1.3 2020/09/05 18:13:47 rillig Exp $
 
-.if ${.INCLUDEDFROMFILE:T} == "include-sub.mk"
-LOG+=		subsub-ok
+.if ${.INCLUDEDFROMFILE} == "include-sub.mk"
+.  info subsub-ok
 .else
-LOG+=		subsub-fail
+.  warning subsub-fail(${.INCLUDEDFROMFILE})
 .endif
