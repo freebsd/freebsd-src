@@ -1,7 +1,7 @@
 /*-
- * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  * Copyright (c) 2013 Roger Pau Monné <roger.pau@citrix.com>
  * All rights reserved.
+ * Copyright (c) 2003 John Baldwin <jhb@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
