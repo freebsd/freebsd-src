@@ -207,21 +207,34 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 
 	case FIONREAD:
 		/* Unlocked read. */
-		*(int *)data = sbavail(&so->so_rcv);
+		if (SOLISTENING(so)) {
+			error = EINVAL;
+		} else {
+			*(int *)data = sbavail(&so->so_rcv);
+		}
 		break;
 
 	case FIONWRITE:
 		/* Unlocked read. */
-		*(int *)data = sbavail(&so->so_snd);
+		if (SOLISTENING(so)) {
+			error = EINVAL;
+		} else {
+			*(int *)data = sbavail(&so->so_snd);
+		}
 		break;
 
 	case FIONSPACE:
 		/* Unlocked read. */
-		if ((so->so_snd.sb_hiwat < sbused(&so->so_snd)) ||
-		    (so->so_snd.sb_mbmax < so->so_snd.sb_mbcnt))
-			*(int *)data = 0;
-		else
-			*(int *)data = sbspace(&so->so_snd);
+		if (SOLISTENING(so)) {
+			error = EINVAL;
+		} else {
+			if ((so->so_snd.sb_hiwat < sbused(&so->so_snd)) ||
+			    (so->so_snd.sb_mbmax < so->so_snd.sb_mbcnt)) {
+				*(int *)data = 0;
+			} else {
+				*(int *)data = sbspace(&so->so_snd);
+			}
+		}
 		break;
 
 	case FIOSETOWN:
@@ -242,7 +255,11 @@ soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
 
 	case SIOCATMARK:
 		/* Unlocked read. */
-		*(int *)data = (so->so_rcv.sb_state & SBS_RCVATMARK) != 0;
+		if (SOLISTENING(so)) {
+			error = EINVAL;
+		} else {
+			*(int *)data = (so->so_rcv.sb_state & SBS_RCVATMARK) != 0;
+		}
 		break;
 	default:
 		/*
