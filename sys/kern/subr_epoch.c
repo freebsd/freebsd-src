@@ -72,6 +72,10 @@ typedef struct epoch_record {
 	volatile struct epoch_tdlist er_tdlist;
 	volatile uint32_t er_gen;
 	uint32_t er_cpuid;
+#ifdef INVARIANTS
+	/* Used to verify record ownership for non-preemptible epochs. */
+	struct thread *er_td;
+#endif
 } __aligned(EPOCH_ALIGN)     *epoch_record_t;
 
 struct epoch {
@@ -377,6 +381,9 @@ done:
 void
 epoch_free(epoch_t epoch)
 {
+#ifdef INVARIANTS
+	int cpu;
+#endif
 
 	EPOCH_LOCK();
 
@@ -390,6 +397,21 @@ epoch_free(epoch_t epoch)
 	 * to zero, by calling epoch_wait() on the global_epoch:
 	 */
 	epoch_wait(global_epoch);
+#ifdef INVARIANTS
+	CPU_FOREACH(cpu) {
+		epoch_record_t er;
+
+		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
+
+		/*
+		 * Sanity check: none of the records should be in use anymore.
+		 * We drained callbacks above and freeing the pcpu records is
+		 * imminent.
+		 */
+		MPASS(er->er_td == NULL);
+		MPASS(TAILQ_EMPTY(&er->er_tdlist));
+	}
+#endif
 	uma_zfree_pcpu(pcpu_zone_record, epoch->e_pcpu_record);
 	mtx_destroy(&epoch->e_drain_mtx);
 	sx_destroy(&epoch->e_drain_sx);
@@ -434,6 +456,8 @@ _epoch_enter_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 	sched_pin();
 	td->td_pre_epoch_prio = td->td_priority;
 	er = epoch_currecord(epoch);
+	/* Record-level tracking is reserved for non-preemptible epochs. */
+	MPASS(er->er_td == NULL);
 	TAILQ_INSERT_TAIL(&er->er_tdlist, et, et_link);
 	ck_epoch_begin(&er->er_record, &et->et_section);
 	critical_exit();
@@ -448,6 +472,15 @@ epoch_enter(epoch_t epoch)
 	INIT_CHECK(epoch);
 	critical_enter();
 	er = epoch_currecord(epoch);
+#ifdef INVARIANTS
+	if (er->er_record.active == 0) {
+		MPASS(er->er_td == NULL);
+		er->er_td = curthread;
+	} else {
+		/* We've recursed, just make sure our accounting isn't wrong. */
+		MPASS(er->er_td == curthread);
+	}
+#endif
 	ck_epoch_begin(&er->er_record, NULL);
 }
 
@@ -468,6 +501,8 @@ _epoch_exit_preempt(epoch_t epoch, epoch_tracker_t et EPOCH_FILE_LINE)
 	MPASS(et->et_td == td);
 #ifdef INVARIANTS
 	et->et_td = (void*)0xDEADBEEF;
+	/* Record-level tracking is reserved for non-preemptible epochs. */
+	MPASS(er->er_td == NULL);
 #endif
 	ck_epoch_end(&er->er_record, &et->et_section);
 	TAILQ_REMOVE(&er->er_tdlist, et, et_link);
@@ -488,6 +523,11 @@ epoch_exit(epoch_t epoch)
 	INIT_CHECK(epoch);
 	er = epoch_currecord(epoch);
 	ck_epoch_end(&er->er_record, NULL);
+#ifdef INVARIANTS
+	MPASS(er->er_td == curthread);
+	if (er->er_record.active == 0)
+		er->er_td = NULL;
+#endif
 	critical_exit();
 }
 
@@ -777,17 +817,17 @@ epoch_call_task(void *arg __unused)
 	}
 }
 
-int
-in_epoch_verbose(epoch_t epoch, int dump_onfail)
+static int
+in_epoch_verbose_preempt(epoch_t epoch, int dump_onfail)
 {
+	epoch_record_t er;
 	struct epoch_tracker *tdwait;
 	struct thread *td;
-	epoch_record_t er;
 
+	MPASS(epoch != NULL);
+	MPASS((epoch->e_flags & EPOCH_PREEMPT) != 0);
 	td = curthread;
 	if (THREAD_CAN_SLEEP())
-		return (0);
-	if (__predict_false((epoch) == NULL))
 		return (0);
 	critical_enter();
 	er = epoch_currecord(epoch);
@@ -807,6 +847,66 @@ in_epoch_verbose(epoch_t epoch, int dump_onfail)
 #endif
 	critical_exit();
 	return (0);
+}
+
+#ifdef INVARIANTS
+static void
+epoch_assert_nocpu(epoch_t epoch, struct thread *td)
+{
+	epoch_record_t er;
+	int cpu;
+	bool crit;
+
+	crit = td->td_critnest > 0;
+
+	/* Check for a critical section mishap. */
+	CPU_FOREACH(cpu) {
+		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
+		KASSERT(er->er_td != td,
+		    ("%s critical section in epoch '%s', from cpu %d",
+		    (crit ? "exited" : "re-entered"), epoch->e_name, cpu));
+	}
+}
+#else
+#define	epoch_assert_nocpu(e, td)
+#endif
+
+int
+in_epoch_verbose(epoch_t epoch, int dump_onfail)
+{
+	epoch_record_t er;
+	struct thread *td;
+
+	if (__predict_false((epoch) == NULL))
+		return (0);
+	if ((epoch->e_flags & EPOCH_PREEMPT) != 0)
+		return (in_epoch_verbose_preempt(epoch, dump_onfail));
+
+	/*
+	 * The thread being in a critical section is a necessary
+	 * condition to be correctly inside a non-preemptible epoch,
+	 * so it's definitely not in this epoch.
+	 */
+	td = curthread;
+	if (td->td_critnest == 0) {
+		epoch_assert_nocpu(epoch, td);
+		return (0);
+	}
+
+	/*
+	 * The current cpu is in a critical section, so the epoch record will be
+	 * stable for the rest of this function.  Knowing that the record is not
+	 * active is sufficient for knowing whether we're in this epoch or not,
+	 * since it's a pcpu record.
+	 */
+	er = epoch_currecord(epoch);
+	if (er->er_record.active == 0) {
+		epoch_assert_nocpu(epoch, td);
+		return (0);
+	}
+
+	MPASS(er->er_td == td);
+	return (1);
 }
 
 int
