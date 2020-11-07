@@ -1,4 +1,4 @@
-# $NetBSD: varmod-to-separator.mk,v 1.3 2020/08/31 19:58:21 rillig Exp $
+# $NetBSD: varmod-to-separator.mk,v 1.6 2020/11/01 14:36:25 rillig Exp $
 #
 # Tests for the :ts variable modifier, which joins the words of the variable
 # using an arbitrary character as word separator.
@@ -95,24 +95,75 @@ WORDS=	one two three four five six
 .  warning The separator \012 is not interpreted in octal ASCII.
 .endif
 
+# The octal number can have as many digits as it wants.
+.if ${WORDS:[1..2]:ts\000000000000000000000000012:tu} != "ONE${.newline}TWO"
+.  warning The separator \012 cannot have many leading zeroes.
+.endif
+
+# The value of the separator character must not be outside the value space
+# for an unsigned character though.
+#
+# Since 2020-11-01, these out-of-bounds values are rejected.
+.if ${WORDS:[1..3]:ts\400:tu}
+.  warning The separator \400 is accepted even though it is out of bounds.
+.else
+.  warning The separator \400 is accepted even though it is out of bounds.
+.endif
+
 # The separator can be given as hexadecimal number.
 .if ${WORDS:[1..3]:ts\xa:tu} != "ONE${.newline}TWO${.newline}THREE"
 .  warning The separator \xa is not interpreted in hexadecimal ASCII.
 .endif
+
+# The hexadecimal number must be in the range of an unsigned char.
+#
+# Since 2020-11-01, these out-of-bounds values are rejected.
+.if ${WORDS:[1..3]:ts\x100:tu}
+.  warning The separator \x100 is accepted even though it is out of bounds.
+.else
+.  warning The separator \x100 is accepted even though it is out of bounds.
+.endif
+
+# Negative numbers are not allowed for the separator character.
+.if ${WORDS:[1..3]:ts\-300:tu}
+.  warning The separator \-300 is accepted even though it is negative.
+.else
+.  warning The separator \-300 is accepted even though it is negative.
+.endif
+
+# The character number is interpreted as octal number by default.
+# The digit '8' is not an octal digit though.
+.if ${1 2 3:L:ts\8:tu}
+.  warning The separator \8 is accepted even though it is not octal.
+.else
+.  warning The separator \8 is accepted even though it is not octal.
+.endif
+
+# Trailing characters after the octal character number are rejected.
+.if ${1 2 3:L:ts\100L}
+.  warning The separator \100L is accepted even though it contains an 'L'.
+.else
+.  warning The separator \100L is accepted even though it contains an 'L'.
+.endif
+
+# Trailing characters after the hexadecimal character number are rejected.
+.if ${1 2 3:L:ts\x40g}
+.  warning The separator \x40g is accepted even though it contains a 'g'.
+.else
+.  warning The separator \x40g is accepted even though it contains a 'g'.
+.endif
+
 
 # In the :t modifier, the :t must be followed by any of A, l, s, u.
 .if ${WORDS:tx} != "anything"
 .  info This line is not reached because of the malformed condition.
 .  info If this line were reached, it would be visible in the -dcpv log.
 .endif
-.info Parsing continues here.
 
 # After the backslash, only n, t, an octal number, or x and a hexadecimal
 # number are allowed.
 .if ${WORDS:t\X} != "anything"
 .  info This line is not reached.
 .endif
-.info Parsing continues here.
 
 all:
-	@:;

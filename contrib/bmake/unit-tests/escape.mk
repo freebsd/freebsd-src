@@ -1,4 +1,4 @@
-# $Id: escape.mk,v 1.1.1.3 2020/01/22 01:07:14 sjg Exp $
+# $NetBSD: escape.mk,v 1.13 2020/10/24 08:50:17 rillig Exp $
 #
 # Test backslash escaping.
 
@@ -44,8 +44,8 @@ all: .PHONY
 
 # Some variables to be expanded in tests
 #
-a = aaa
-A = ${a}
+a=	aaa
+A=	${a}
 
 # Backslash at end of line in a comment\
 should continue the comment. \
@@ -57,13 +57,13 @@ __printvars: .USE .MADE
 
 # Embedded backslash in variable should be taken literally.
 #
-VAR1BS = 111\111
-VAR1BSa = 111\${a}
-VAR1BSA = 111\${A}
-VAR1BSda = 111\$${a}
-VAR1BSdA = 111\$${A}
-VAR1BSc = 111\# backslash escapes comment char, so this is part of the value
-VAR1BSsc = 111\ # This is a comment.  Value ends with <backslash><space>
+VAR1BS=		111\111
+VAR1BSa=	111\${a}
+VAR1BSA=	111\${A}
+VAR1BSda=	111\$${a}
+VAR1BSdA=	111\$${A}
+VAR1BSc=	111\# backslash escapes comment char, so this is part of the value
+VAR1BSsc=	111\ # This is a comment.  Value ends with <backslash><space>
 
 all: var-1bs
 var-1bs: .PHONY __printvars VAR1BS VAR1BSa VAR1BSA VAR1BSda VAR1BSdA \
@@ -71,13 +71,13 @@ var-1bs: .PHONY __printvars VAR1BS VAR1BSa VAR1BSA VAR1BSda VAR1BSdA \
 
 # Double backslash in variable should be taken as two literal backslashes.
 #
-VAR2BS = 222\\222
-VAR2BSa = 222\\${a}
-VAR2BSA = 222\\${A}
-VAR2BSda = 222\\$${a}
-VAR2BSdA = 222\\$${A}
-VAR2BSc = 222\\# backslash does not escape comment char, so this is a comment
-VAR2BSsc = 222\\ # This is a comment.  Value ends with <backslash><backslash>
+VAR2BS=		222\\222
+VAR2BSa=	222\\${a}
+VAR2BSA=	222\\${A}
+VAR2BSda=	222\\$${a}
+VAR2BSdA=	222\\$${A}
+VAR2BSc=	222\\# backslash does not escape comment char, so this is a comment
+VAR2BSsc=	222\\ # This is a comment.  Value ends with <backslash><backslash>
 
 all: var-2bs
 var-2bs: .PHONY __printvars VAR2BS VAR2BSa VAR2BSA VAR2BSda VAR2BSdA \
@@ -85,19 +85,19 @@ var-2bs: .PHONY __printvars VAR2BS VAR2BSa VAR2BSA VAR2BSda VAR2BSdA \
 
 # Backslash-newline in a variable setting is replaced by a single space.
 #
-VAR1BSNL = 111\
+VAR1BSNL=	111\
 111
-VAR1BSNLa = 111\
+VAR1BSNLa=	111\
 ${a}
-VAR1BSNLA = 111\
+VAR1BSNLA=	111\
 ${A}
-VAR1BSNLda = 111\
+VAR1BSNLda=	111\
 $${a}
-VAR1BSNLdA = 111\
+VAR1BSNLdA=	111\
 $${A}
-VAR1BSNLc = 111\
+VAR1BSNLc=	111\
 # this should be processed as a comment
-VAR1BSNLsc = 111\
+VAR1BSNLsc=	111\
  # this should be processed as a comment
 
 all: var-1bsnl
@@ -113,19 +113,19 @@ var-1bsnl: .PHONY __printvars \
 # generate syntax errors regardless of whether or not they are
 # treated as part of the value.
 #
-VAR2BSNL = 222\\
+VAR2BSNL=	222\\
 222=
-VAR2BSNLa = 222\\
+VAR2BSNLa=	222\\
 ${a}=
-VAR2BSNLA = 222\\
+VAR2BSNLA=	222\\
 ${A}=
-VAR2BSNLda = 222\\
+VAR2BSNLda=	222\\
 $${a}=
-VAR2BSNLdA = 222\\
+VAR2BSNLdA=	222\\
 $${A}=
-VAR2BSNLc = 222\\
+VAR2BSNLc=	222\\
 # this should be processed as a comment
-VAR2BSNLsc = 222\\
+VAR2BSNLsc=	222\\
  # this should be processed as a comment
 
 all: var-2bsnl
@@ -140,19 +140,19 @@ var-2bsnl: .PHONY __printvars \
 # generate syntax errors regardless of whether or not they are
 # treated as part of the value.
 #
-VAR3BSNL = 333\\\
+VAR3BSNL=	333\\\
 333=
-VAR3BSNLa = 333\\\
+VAR3BSNLa=	333\\\
 ${a}=
-VAR3BSNLA = 333\\\
+VAR3BSNLA=	333\\\
 ${A}=
-VAR3BSNLda = 333\\\
+VAR3BSNLda=	333\\\
 $${a}=
-VAR3BSNLdA = 333\\\
+VAR3BSNLdA=	333\\\
 $${A}=
-VAR3BSNLc = 333\\\
+VAR3BSNLc=	333\\\
 # this should be processed as a comment
-VAR3BSNLsc = 333\\\
+VAR3BSNLsc=	333\\\
  # this should be processed as a comment
 
 all: var-3bsnl
@@ -163,20 +163,20 @@ var-3bsnl: .PHONY __printvars \
 # Backslash-newline in a variable setting, plus any amount of white space
 # on the next line, is replaced by a single space.
 #
-VAR1BSNL00= first line\
+VAR1BSNL00=	first line\
 
 # above line is entirely empty, and this is a comment
-VAR1BSNL0= first line\
+VAR1BSNL0=	first line\
 no space on second line
-VAR1BSNLs= first line\
+VAR1BSNLs=	first line\
  one space on second line
-VAR1BSNLss= first line\
+VAR1BSNLss=	first line\
   two spaces on second line
-VAR1BSNLt= first line\
+VAR1BSNLt=	first line\
 	one tab on second line
-VAR1BSNLtt= first line\
+VAR1BSNLtt=	first line\
 		two tabs on second line
-VAR1BSNLxx= first line\
+VAR1BSNLxx=	first line\
   	 	 	 many spaces and tabs [  	 ] on second line
 
 all: var-1bsnl-space

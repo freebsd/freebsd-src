@@ -1,4 +1,4 @@
-/*	$NetBSD: trace.h,v 1.3 2008/04/28 20:24:14 martin Exp $	*/
+/*	$NetBSD: trace.h,v 1.4 2020/10/18 17:19:54 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
@@ -34,7 +34,7 @@
  *	Definitions pertaining to the tracing of jobs in parallel mode.
  */
 
-typedef enum {
+typedef enum TrEvent {
 	MAKESTART,
 	MAKEEND,
 	MAKEERROR,

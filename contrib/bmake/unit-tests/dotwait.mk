@@ -1,9 +1,9 @@
-# $NetBSD: dotwait.mk,v 1.2 2017/10/08 20:44:19 sjg Exp $
+# $NetBSD: dotwait.mk,v 1.3 2020/10/24 08:50:17 rillig Exp $
 
-THISMAKEFILE:= ${.PARSEDIR}/${.PARSEFILE}
+THISMAKEFILE:=	${.PARSEDIR}/${.PARSEFILE}
 
-TESTS= simple recursive shared cycle
-PAUSE= sleep 1
+TESTS=	simple recursive shared cycle
+PAUSE=	sleep 1
 
 # Use a .for loop rather than dependencies here, to ensure
 # that the tests are run one by one, with parallelism

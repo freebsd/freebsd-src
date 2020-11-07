@@ -1,4 +1,4 @@
-# $NetBSD: varmod-assign.mk,v 1.6 2020/08/25 21:16:53 rillig Exp $
+# $NetBSD: varmod-assign.mk,v 1.8 2020/10/18 21:37:24 rillig Exp $
 #
 # Tests for the obscure ::= variable modifiers, which perform variable
 # assignments during evaluation, just like the = operator in C.
@@ -51,13 +51,25 @@ SINK3:=	${1:?${THEN3::=then3${IT3::=t3}}:${ELSE3::=else3${IE3::=e3}}}${THEN3}${E
 SINK4:=	${0:?${THEN4::=then4${IT4::=t4}}:${ELSE4::=else4${IE4::=e4}}}${THEN4}${ELSE4}${IT4}${IE4}
 
 mod-assign-empty:
-	# Assigning to the empty variable would obviously not work since that variable
-	# is write-protected.  Therefore it is rejected early as a "bad modifier".
-	@echo ${::=value}
+	# Assigning to the empty variable would obviously not work since that
+	# variable is write-protected.  Therefore it is rejected early with a
+	# "Bad modifier" message.
+	#
+	# XXX: The error message is hard to read since the variable name is
+	# empty.  This leads to a trailing space in the error message.
+	@echo $@: ${::=value}
+
+	# In this variant, it is not as obvious that the name of the
+	# expression is empty.  Assigning to it is rejected as well, with the
+	# same "Bad modifier" message.
+	#
+	# XXX: The error message is hard to read since the variable name is
+	# empty.  This leads to a trailing space in the error message.
 	@echo $@: ${:Uvalue::=overwritten}
 
-	# The :L modifier sets the variable's value to its name.
-	# Since the name is still "VAR", assigning to that variable works.
+	# The :L modifier sets the value of the expression to its variable
+	# name.  The name of the expression is "VAR", therefore assigning to
+	# that variable works.
 	@echo $@: ${VAR:L::=overwritten} VAR=${VAR}
 
 mod-assign-parse:
@@ -79,3 +91,17 @@ mod-assign-shell-error:
 	# FIXME: the error message says: "previous" returned non-zero status
 	@${SH_ERR::=previous}
 	@${SH_ERR::!= echo word; false } echo err=${SH_ERR}
+
+# XXX: The ::= modifier expands its right-hand side, exactly once.
+# This differs subtly from normal assignments such as '+=' or '=', which copy
+# their right-hand side literally.
+APPEND.prev=		previous
+APPEND.var=		${APPEND.prev}
+APPEND.indirect=	indirect $${:Unot expanded}
+APPEND.dollar=		$${APPEND.indirect}
+.if ${APPEND.var::+=${APPEND.dollar}} != ""
+.  error
+.endif
+.if ${APPEND.var} != "previous indirect \${:Unot expanded}"
+.  error
+.endif

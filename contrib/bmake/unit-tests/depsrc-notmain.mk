@@ -1,8 +1,11 @@
-# $NetBSD: depsrc-notmain.mk,v 1.2 2020/08/16 14:25:16 rillig Exp $
+# $NetBSD: depsrc-notmain.mk,v 1.3 2020/09/05 15:57:12 rillig Exp $
 #
-# Tests for the special source .NOTMAIN in dependency declarations.
+# Tests for the special source .NOTMAIN in dependency declarations,
+# which prevents the associated target from becoming the default target
+# to be made.
 
-# TODO: Implementation
+ignored: .NOTMAIN
+	: ${.TARGET}
 
 all:
-	@:;
+	: ${.TARGET}

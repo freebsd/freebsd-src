@@ -1,19 +1,32 @@
-ParseReadLine (8): 'ORIG_SHELL:=	${.SHELL}'
+ParseReadLine (10): 'ORIG_SHELL:=	${.SHELL}'
+Global:ORIG_SHELL = 
 Var_Parse: ${.SHELL} with VARE_WANTRES|VARE_ASSIGN
 Global:delete .SHELL (not found)
 Command:.SHELL = (details omitted)
-ParseReadLine (10): '.SHELL=		overwritten'
+Global:ORIG_SHELL = (details omitted)
+ParseReadLine (12): '.SHELL=		overwritten'
 Global:.SHELL = overwritten
+CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
 Var_Parse: ${.SHELL} != ${ORIG_SHELL} with VARE_UNDEFERR|VARE_WANTRES
-ParseReadLine (18): '.undef .SHELL'
+Var_Parse: ${ORIG_SHELL} with VARE_UNDEFERR|VARE_WANTRES
+lhs = "(details omitted)", rhs = "(details omitted)", op = !=
+ParseReadLine (19): '.MAKEFLAGS: .SHELL+=appended'
+ParseDoDependency(.MAKEFLAGS: .SHELL+=appended)
+Ignoring append to .SHELL since it is read-only
+CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
+Var_Parse: ${.SHELL} != ${ORIG_SHELL} with VARE_UNDEFERR|VARE_WANTRES
+Var_Parse: ${ORIG_SHELL} with VARE_UNDEFERR|VARE_WANTRES
+lhs = "(details omitted)", rhs = "(details omitted)", op = !=
+ParseReadLine (27): '.undef .SHELL'
 Global:delete .SHELL
-ParseReadLine (19): '.SHELL=		newly overwritten'
+ParseReadLine (28): '.SHELL=		newly overwritten'
 Global:.SHELL = newly overwritten
+CondParser_Eval: ${.SHELL} != ${ORIG_SHELL}
 Var_Parse: ${.SHELL} != ${ORIG_SHELL} with VARE_UNDEFERR|VARE_WANTRES
-ParseReadLine (24): 'all:'
-ParseReadLine (25): '	@echo ${.SHELL:M*}'
-Var_Parse: ${.SHELL:M*} with VARE_WANTRES
-Applying ${.SHELL:M...} to "(details omitted)" (eflags = VARE_WANTRES, vflags = VAR_READONLY)
-Pattern[.SHELL] for [(details omitted)] is [*]
-Result of ${.SHELL:M*} is "(details omitted)" (eflags = VARE_WANTRES, vflags = VAR_READONLY)
+Var_Parse: ${ORIG_SHELL} with VARE_UNDEFERR|VARE_WANTRES
+lhs = "(details omitted)", rhs = "(details omitted)", op = !=
+ParseReadLine (33): '.MAKEFLAGS: -d0'
+ParseDoDependency(.MAKEFLAGS: -d0)
+Global:.MAKEFLAGS =  -r -k -d cpv -d
+Global:.MAKEFLAGS =  -r -k -d cpv -d 0
 exit status 0

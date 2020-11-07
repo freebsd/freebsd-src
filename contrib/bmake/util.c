@@ -1,29 +1,21 @@
-/*	$NetBSD: util.c,v 1.58 2020/08/01 14:47:49 rillig Exp $	*/
+/*	$NetBSD: util.c,v 1.64 2020/10/06 21:51:33 rillig Exp $	*/
 
 /*
  * Missing stuff from OS's
  *
- *	$Id: util.c,v 1.36 2020/08/01 23:08:14 sjg Exp $
+ *	$Id: util.c,v 1.39 2020/10/10 19:42:02 sjg Exp $
  */
-#if defined(__MINT__) || defined(__linux__)
-#include <signal.h>
-#endif
 
-#include "make.h"
-
-#ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: util.c,v 1.58 2020/08/01 14:47:49 rillig Exp $";
-#else
-#ifndef lint
-__RCSID("$NetBSD: util.c,v 1.58 2020/08/01 14:47:49 rillig Exp $");
-#endif
-#endif
-
+#include <sys/param.h>
 #include <errno.h>
 #include <time.h>
 #include <signal.h>
 
-#if !defined(HAVE_STRERROR)
+#include "make.h"
+
+MAKE_RCSID("$NetBSD: util.c,v 1.64 2020/10/06 21:51:33 rillig Exp $");
+
+#if !defined(MAKE_NATIVE) && !defined(HAVE_STRERROR)
 extern int errno, sys_nerr;
 extern char *sys_errlist[];
 
@@ -350,8 +342,8 @@ getcwd(path, sz)
 #endif
 
 /* force posix signals */
-void (*
-bmake_signal(int s, void (*a)(int)))(int)
+SignalProc
+bmake_signal(int s, SignalProc a)
 {
     struct sigaction sa, osa;
 
@@ -495,6 +487,7 @@ strftime(char *buf, size_t len, const char *fmt, const struct tm *tm)
 		buf += s;
 		len -= s;
 	}
+	return buf - b;
 }
 #endif
 

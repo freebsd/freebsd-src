@@ -1,8 +1,5 @@
-ax:Q b c d eb
-bcd.e
-&
-anchor-dollar: value
-anchor-dollar: valux
-mismatch: file.cpp file.h
-mismatch: renamed.c other.c
-exit status 0
+make: Unfinished modifier for word203 ('=' missing)
+make: "varmod-sysv.mk" line 210: Malformed conditional (${word203:L:from${:D=}to})
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

@@ -1,19 +1,19 @@
-# $Id: modmisc.mk,v 1.1.1.15 2020/08/23 15:52:08 sjg Exp $
+# $NetBSD: modmisc.mk,v 1.49 2020/10/24 08:50:17 rillig Exp $
 #
 # miscellaneous modifier tests
 
 # do not put any dirs in this list which exist on some
 # but not all target systems - an exists() check is below.
-path=:/bin:/tmp::/:.:/no/such/dir:.
+path=		:/bin:/tmp::/:.:/no/such/dir:.
 # strip cwd from path.
-MOD_NODOT=S/:/ /g:N.:ts:
-# and decorate, note that $'s need to be doubled. Also note that 
+MOD_NODOT=	S/:/ /g:N.:ts:
+# and decorate, note that $'s need to be doubled. Also note that
 # the modifier_variable can be used with other modifiers.
-MOD_NODOTX=S/:/ /g:N.:@d@'$$d'@
+MOD_NODOTX=	S/:/ /g:N.:@d@'$$d'@
 # another mod - pretend it is more interesting
-MOD_HOMES=S,/home/,/homes/,
-MOD_OPT=@d@$${exists($$d):?$$d:$${d:S,/usr,/opt,}}@
-MOD_SEP=S,:, ,g
+MOD_HOMES=	S,/home/,/homes/,
+MOD_OPT=	@d@$${exists($$d):?$$d:$${d:S,/usr,/opt,}}@
+MOD_SEP=	S,:, ,g
 
 all:	modvar modvarloop modsysv emptyvar undefvar
 all:	mod-quote
@@ -32,8 +32,8 @@ modvar:
 	@echo "path=${path:${MOD_HOMES}:${MOD_NODOTX}:ts:}"
 
 .for d in ${path:${MOD_SEP}:N.} /usr/xbin
-path_$d?= ${d:${MOD_OPT}:${MOD_HOMES}}/
-paths+= ${d:${MOD_OPT}:${MOD_HOMES}}
+path_$d?=	${d:${MOD_OPT}:${MOD_HOMES}}/
+paths+=		${d:${MOD_OPT}:${MOD_HOMES}}
 .endfor
 
 modvarloop:
@@ -67,18 +67,18 @@ mod-break-many-words:
 # To apply a modifier indirectly via another variable, the whole
 # modifier must be put into a single variable.
 .if ${value:L:${:US}${:U,value,replacement,}} != "S,value,replacement,}"
-.warning unexpected
+.  warning unexpected
 .endif
 
 # Adding another level of indirection (the 2 nested :U expressions) helps.
 .if ${value:L:${:U${:US}${:U,value,replacement,}}} != "replacement"
-.warning unexpected
+.  warning unexpected
 .endif
 
 # Multiple indirect modifiers can be applied one after another as long as
 # they are separated with colons.
 .if ${value:L:${:US,a,A,}:${:US,e,E,}} != "vAluE"
-.warning unexpected
+.  warning unexpected
 .endif
 
 # An indirect variable that evaluates to the empty string is allowed though.
@@ -87,6 +87,6 @@ mod-break-many-words:
 # M.little-endian=	S,1234,4321,
 # M.big-endian=		# none
 .if ${value:L:${:Dempty}S,a,A,} != "vAlue"
-.warning unexpected
+.  warning unexpected
 .endif
 

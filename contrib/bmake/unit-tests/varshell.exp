@@ -1,6 +1,6 @@
-make: "varshell.mk" line 5: warning: "/bin/no/such/command 2> /dev/null" returned non-zero status
-make: "varshell.mk" line 8: warning: "false" returned non-zero status
-make: "varshell.mk" line 9: warning: "echo "output before the error"; false" returned non-zero status
+make: "varshell.mk" line 6: warning: "/bin/no/such/command 2> /dev/null" returned non-zero status
+make: "varshell.mk" line 9: warning: "false" returned non-zero status
+make: "varshell.mk" line 10: warning: "echo "output before the error"; false" returned non-zero status
 EXEC_FAILED=''
 TERMINATED_BY_SIGNAL=''
 ERROR_NO_OUTPUT=''

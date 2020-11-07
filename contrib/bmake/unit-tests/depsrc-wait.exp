@@ -1,1 +1,13 @@
+--- a ---
+echo a
+a
+--- b1 ---
+echo b1
+b1
+--- b ---
+echo b
+b
+--- x ---
+echo x
+x
 exit status 0
