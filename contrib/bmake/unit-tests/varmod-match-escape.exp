@@ -1,3 +1,61 @@
+Global:SPECIALS = \: : \\ * \*
+CondParser_Eval: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}}
+Var_Parse: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${SPECIALS:M...} to "\: : \\ * \*" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+Var_Parse: ${:U}\: with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
+Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
 Pattern[SPECIALS] for [\: : \\ * \*] is [\:]
+ModifyWords: split "\: : \\ * \*" into 5 words
+VarMatch [\:] [\:]
+VarMatch [:] [\:]
+VarMatch [\\] [\:]
+VarMatch [*] [\:]
+VarMatch [\*] [\:]
+Result of ${SPECIALS:M${:U}\:} is ":" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+Var_Parse: ${SPECIALS:M\:${:U}} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${SPECIALS:M...} to "\: : \\ * \*" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+Var_Parse: ${:U} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
+Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
 Pattern[SPECIALS] for [\: : \\ * \*] is [:]
-exit status 0
+ModifyWords: split "\: : \\ * \*" into 5 words
+VarMatch [\:] [:]
+VarMatch [:] [:]
+VarMatch [\\] [:]
+VarMatch [*] [:]
+VarMatch [\*] [:]
+Result of ${SPECIALS:M\:${:U}} is ":" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+lhs = ":", rhs = ":", op = !=
+Global:VALUES = : :: :\:
+CondParser_Eval: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:}
+Var_Parse: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${VALUES:M...} to ": :: :\:" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+Var_Parse: ${:U:} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
+Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Pattern[VALUES] for [: :: :\:] is [:]
+ModifyWords: split ": :: :\:" into 3 words
+VarMatch [:] [:]
+VarMatch [::] [:]
+VarMatch [:\:] [:]
+Result of ${VALUES:M\:${:U\:}} is ":" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+Var_Parse: ${VALUES:M${:U\:}\:} with VARE_UNDEFERR|VARE_WANTRES
+Applying ${VALUES:M...} to ": :: :\:" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+Var_Parse: ${:U\:}\: with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
+Result of ${:U\:} is ":" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Pattern[VALUES] for [: :: :\:] is [:\:]
+ModifyWords: split ": :: :\:" into 3 words
+VarMatch [:] [:\:]
+VarMatch [::] [:\:]
+VarMatch [:\:] [:\:]
+Result of ${VALUES:M${:U\:}\:} is "::" (VARE_UNDEFERR|VARE_WANTRES, none, none)
+lhs = ":", rhs = "::", op = !=
+make: "varmod-match-escape.mk" line 42: warning: XXX: Oops
+Global:.MAKEFLAGS =  -r -k -d cv -d
+Global:.MAKEFLAGS =  -r -k -d cv -d 0
+make: "varmod-match-escape.mk" line 67: Dollar followed by nothing
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

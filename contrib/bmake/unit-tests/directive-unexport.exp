@@ -1,1 +1,5 @@
+make: "directive-unexport.mk" line 14: UT_A=a UT_B=b UT_C=c
+make: "directive-unexport.mk" line 15: UT_A UT_B UT_C
+make: "directive-unexport.mk" line 23: UT_A=a UT_B=b UT_C=c
+make: "directive-unexport.mk" line 24: 
 exit status 0

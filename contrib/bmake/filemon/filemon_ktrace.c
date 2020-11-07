@@ -1,4 +1,4 @@
-/*	$NetBSD: filemon_ktrace.c,v 1.2 2020/01/19 20:22:57 riastradh Exp $	*/
+/*	$NetBSD: filemon_ktrace.c,v 1.3 2020/10/18 11:54:43 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
@@ -478,7 +478,7 @@ filemon_dispatch(struct filemon *F)
 		 */
 		/* XXX What to do if syscall code doesn't match?  */
 		if (S->i == S->npath && S->syscode == ret->ktr_code)
-			(*S->show)(F, S, ret);
+			S->show(F, S, ret);
 
 		/* Free the state now that it is no longer active.  */
 		for (i = 0; i < S->i; i++)
@@ -771,7 +771,7 @@ filemon_sys_exit(struct filemon *F, const struct filemon_key *key,
     const struct ktr_syscall *call)
 {
 	const register_t *args = (const void *)&call[1];
-	int status = args[0];
+	int status = (int)args[0];
 
 	if (F->out) {
 		fprintf(F->out, "X %jd %d\n", (intmax_t)key->pid, status);
@@ -806,7 +806,7 @@ filemon_sys_open(struct filemon *F, const struct filemon_key *key,
 
 	if (call->ktr_argsize < 2)
 		return NULL;
-	flags = args[1];
+	flags = (int)args[1];
 
 	if ((flags & O_RDWR) == O_RDWR)
 		return syscall_enter(F, key, call, 1, &show_open_readwrite);
@@ -827,8 +827,8 @@ filemon_sys_openat(struct filemon *F, const struct filemon_key *key,
 
 	if (call->ktr_argsize < 3)
 		return NULL;
-	fd = args[0];
-	flags = args[2];
+	fd = (int)args[0];
+	flags = (int)args[2];
 
 	if (fd == AT_CWD) {
 		if ((flags & O_RDWR) == O_RDWR)

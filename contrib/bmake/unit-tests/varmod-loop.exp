@@ -3,6 +3,7 @@
 :x1y x2y x3y:
 :mod-loop-varname: :x1y x2y x3y: ::
 :x1y x2y x3y:
+empty: :xy xy xy:
 mod-loop-resolve:w1d2d3w w2i3w w1i2d3 2i${RES3}w w1d2d3 2i${RES3} 1i${RES2}w:
 mod-loop-varname-dollar:(1) (2) (3).
 mod-loop-varname-dollar:() () ().

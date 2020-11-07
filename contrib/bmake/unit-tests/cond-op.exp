@@ -1,5 +1,7 @@
 make: "cond-op.mk" line 45: Malformed conditional ("!word" == !word)
-make: "cond-op.mk" line 57: Parsing continues until here.
+make: "cond-op.mk" line 70: Malformed conditional (0 ${ERR::=evaluated})
+make: "cond-op.mk" line 74: warning: After detecting a parse error, the rest is evaluated.
+make: "cond-op.mk" line 78: Parsing continues until here.
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

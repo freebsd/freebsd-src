@@ -1,18 +1,18 @@
-# $Id: export.mk,v 1.1.1.4 2020/08/08 22:34:25 sjg Exp $
+# $NetBSD: export.mk,v 1.10 2020/10/24 08:50:17 rillig Exp $
 
-UT_TEST=export
-UT_FOO=foo${BAR}
-UT_FU=fubar
-UT_ZOO=hoopie
-UT_NO=all
+UT_TEST=	export
+UT_FOO=		foo${BAR}
+UT_FU=		fubar
+UT_ZOO=		hoopie
+UT_NO=		all
 # believe it or not, we expect this one to come out with $UT_FU unexpanded.
-UT_DOLLAR= This is $$UT_FU
+UT_DOLLAR=	This is $$UT_FU
 
 .export UT_FU UT_FOO
 .export UT_DOLLAR
 
 .if !defined(.MAKE.PID)
-.error .MAKE.PID must be defined
+.  error .MAKE.PID must be defined
 .endif
 @=	at
 %=	percent
@@ -29,15 +29,18 @@ ${:U!}=	exclamation		# A direct != would try to run "exclamation"
 .export %
 .export *
 .export !
+# This is exported (see the .rawout file) but not displayed since the dash
+# shell filters it out.  To reach consistent output for each shell, the
+# ampersand is filtered out already by FILTER_CMD.
 .export &
 # This is ignored because it is undefined.
 .export UNDEFINED
 
-BAR=bar is ${UT_FU}
+BAR=	bar is ${UT_FU}
 
-.MAKE.EXPORTED+= UT_ZOO UT_TEST
+.MAKE.EXPORTED+=	UT_ZOO UT_TEST
 
-FILTER_CMD?=	egrep -v '^(MAKEFLAGS|PATH|PWD|SHLVL|_)='
+FILTER_CMD?=	egrep -v '^(MAKEFLAGS|MALLOC_OPTIONS|PATH|PWD|SHLVL|_|&)='
 
 all:
 	@env | ${FILTER_CMD} | sort

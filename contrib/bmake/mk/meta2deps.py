@@ -37,7 +37,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.33 2020/08/19 17:51:53 sjg Exp $
+	$Id: meta2deps.py,v 1.34 2020/10/02 03:11:17 sjg Exp $
 
 	Copyright (c) 2011-2020, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -510,6 +510,7 @@ class MetaFile:
                     continue
                 self.parse_path(path, cwd, w[0], w)
 
+        assert(version > 0)
         if not file:
             f.close()
 

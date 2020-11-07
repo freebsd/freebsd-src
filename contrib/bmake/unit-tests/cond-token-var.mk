@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-var.mk,v 1.3 2020/08/20 19:43:42 rillig Exp $
+# $NetBSD: cond-token-var.mk,v 1.4 2020/10/24 08:46:08 rillig Exp $
 #
 # Tests for variables in .if conditions.
 
@@ -6,19 +6,19 @@ DEF=	defined
 
 # A defined variable may appear on either side of the comparison.
 .if ${DEF} == ${DEF}
-.info ok
+.  info ok
 .else
-.error
+.  error
 .endif
 
 # A variable that appears on the left-hand side must be defined.
 .if ${UNDEF} == ${DEF}
-.error
+.  error
 .endif
 
 # A variable that appears on the right-hand side must be defined.
 .if ${DEF} == ${UNDEF}
-.error
+.  error
 .endif
 
 # A defined variable may appear as an expression of its own.

@@ -1,1 +1,11 @@
-exit status 0
+CondParser_Eval: !(${:UINF} > 1e100)
+make: "cond-cmp-numeric.mk" line 11: warning: String comparison operator must be either == or !=
+make: "cond-cmp-numeric.mk" line 11: Malformed conditional (!(${:UINF} > 1e100))
+CondParser_Eval: ${:UNaN} > NaN
+make: "cond-cmp-numeric.mk" line 16: warning: String comparison operator must be either == or !=
+make: "cond-cmp-numeric.mk" line 16: Malformed conditional (${:UNaN} > NaN)
+CondParser_Eval: !(${:UNaN} == NaN)
+lhs = "NaN", rhs = "NaN", op = ==
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

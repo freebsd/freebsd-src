@@ -1,1 +1,4 @@
+Global:VAR = value
+Global:.MAKEFLAGS =  -r -k -d v -d
+Global:.MAKEFLAGS =  -r -k -d v -d 0
 exit status 0

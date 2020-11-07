@@ -245,7 +245,7 @@
 #define PACKAGE_NAME "bmake"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "bmake 20200710"
+#define PACKAGE_STRING "bmake 20201018"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "bmake"
@@ -254,7 +254,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "20200710"
+#define PACKAGE_VERSION "20201018"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

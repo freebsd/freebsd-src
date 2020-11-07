@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.289 2020/08/28 17:15:04 rillig Exp $
+.\"	$NetBSD: make.1,v 1.290 2020/11/01 20:24:45 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd August 28, 2020
+.Dd November 1, 2020
 .Dt BMAKE 1
 .Os
 .Sh NAME
@@ -1872,7 +1872,7 @@ has been defined and has commands associated with it.
 .Ar Expression
 may also be an arithmetic or string comparison.
 Variable expansion is
-performed on both sides of the comparison, after which the integral
+performed on both sides of the comparison, after which the numerical
 values are compared.
 A value is interpreted as hexadecimal if it is
 preceded by 0x, otherwise it is decimal; octal numbers are not supported.
@@ -1882,7 +1882,7 @@ variable expansion, either the left or right hand side of a
 .Ql Ic ==
 or
 .Ql Ic "!="
-operator is not an integral value, then
+operator is not a numerical value, then
 string comparison is performed between the expanded
 variables.
 If no relational operator is given, it is assumed that the expanded

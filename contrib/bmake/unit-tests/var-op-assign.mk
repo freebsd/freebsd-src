@@ -1,4 +1,4 @@
-# $NetBSD: var-op-assign.mk,v 1.4 2020/08/25 16:20:32 rillig Exp $
+# $NetBSD: var-op-assign.mk,v 1.6 2020/10/24 08:50:17 rillig Exp $
 #
 # Tests for the = variable assignment operator, which overwrites an existing
 # variable or creates it.
@@ -13,7 +13,7 @@ VAR=	value
 # is discarded.  Otherwise the value would start with a single tab.
 #
 .if ${VAR} != "value"
-.error
+.  error
 .endif
 
 # Whitespace to the left of the assignment operator is ignored as well.
@@ -26,12 +26,12 @@ VAR=	value
 # The '$' needs to be escaped with another '$', otherwise it would refer to
 # another variable.
 #
-VAR	=new value and \# some $$ special characters	# comment
+VAR=	new value and \# some $$ special characters	# comment
 
 # When a string literal appears in a condition, the escaping rules are
 # different.  Run make with the -dc option to see the details.
 .if ${VAR} != "new value and \# some \$ special characters"
-.error ${VAR}
+.  error ${VAR}
 .endif
 
 # The variable value may contain references to other variables.
@@ -71,11 +71,11 @@ VARNAME_PAREN=	VAR(spaces in parentheses)
 VARNAME_BRACES=	VAR{spaces in braces}
 
 .if ${${VARNAME_PAREN}} != "()"
-.error
+.  error
 .endif
 
 .if ${${VARNAME_BRACES}} != "{}"
-.error
+.  error
 .endif
 
 # In safe mode, parsing would stop immediately after the "VARIABLE NAME="

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-subst-regex.mk,v 1.3 2020/08/28 17:15:04 rillig Exp $
+# $NetBSD: varmod-subst-regex.mk,v 1.5 2020/10/31 12:20:36 rillig Exp $
 #
 # Tests for the :C,from,to, variable modifier.
 
@@ -10,26 +10,26 @@ all: mod-regex-errors
 # the regular expression "a b" since these words don't contain any
 # whitespace.
 .if ${:Ua b b c:C,a b,,} != "a b b c"
-.error
+.  error
 .endif
 
 # Using the '1' modifier does not change anything.  The '1' modifier just
 # means to apply at most 1 replacement in the whole variable expression.
 .if ${:Ua b b c:C,a b,,1} != "a b b c"
-.error
+.  error
 .endif
 
 # The 'W' modifier treats the whole variable value as a single big word,
 # containing whitespace.  This big word matches the regular expression,
 # therefore it gets replaced.  Whitespace is preserved after replacing.
 .if ${:Ua b b c:C,a b,,W} != " b c"
-.error
+.  error
 .endif
 
 # The 'g' modifier does not have any effect here since each of the words
 # contains the character 'b' a single time.
 .if ${:Ua b b c:C,b,,g} != "a c"
-.error
+.  error
 .endif
 
 # The first :C modifier has the 'W' modifier, which makes the whole
@@ -39,7 +39,7 @@ all: mod-regex-errors
 # 'W' modifier would be preserved, only a single underscore would have been
 # replaced with an 'x'.
 .if ${:U1 2 3 1 2 3:C,1 2,___,Wg:C,_,x,} != "x__ 3 x__ 3"
-.error
+.  error
 .endif
 
 # The regular expression does not match in the first word.
@@ -48,19 +48,36 @@ all: mod-regex-errors
 # and since the matches must not overlap, the next possible match would
 # start at the 6, but at that point, there is only one character left,
 # and that cannot match the regular expression "..".  Therefore only the
-# "45" is doubled in the result.
+# "45" is doubled in the third word.
 .if ${:U1 23 456:C,..,\0\0,} != "1 2323 45456"
-.error
+.  error
 .endif
 
 # The modifier '1' applies the replacement at most once, across the whole
-# variable value, no matter whether it is a single big word or many small
+# expression value, no matter whether it is a single big word or many small
 # words.
 #
 # Up to 2020-08-28, the manual page said that the modifiers '1' and 'g'
-# were orthogonal, which was wrong.
+# were orthogonal, which was wrong.  It doesn't make sense to specify both
+# 'g' and '1' at the same time.
 .if ${:U12345 12345:C,.,\0\0,1} != "112345 12345"
-.error
+.  error
+.endif
+
+# A regular expression that matches the empty string applies before every
+# single character of the word.
+# XXX: Most other places where regular expression are used match at the end
+# of the string as well.
+.if ${:U1a2b3c:C,a*,*,g} != "*1**2*b*3*c"
+.  error
+.endif
+
+# A dot in the regular expression matches any character, even a newline.
+# In most other contexts where regular expressions are used, a dot matches
+# any character except newline.  In make, regcomp is called without
+# REG_NEWLINE, thus newline is an ordinary character.
+.if ${:U"${.newline}":C,.,.,g} != "..."
+.  error
 .endif
 
 # Multiple asterisks form an invalid regular expression.  This produces an

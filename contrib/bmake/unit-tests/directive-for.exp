@@ -1,1 +1,19 @@
+make: "directive-for.mk" line 100: outer
+make: "directive-for.mk" line 125: a:\ a:\file.txt
+make: "directive-for.mk" line 125: d:\\
+make: "directive-for.mk" line 125: d:\\file.txt
+make: "directive-for.mk" line 132: ( ( (
+make: "directive-for.mk" line 132: [ [ [
+make: "directive-for.mk" line 132: { { {
+make: "directive-for.mk" line 132: ) ) )
+make: "directive-for.mk" line 132: ] ] ]
+make: "directive-for.mk" line 132: } } }
+make: "directive-for.mk" line 132: (()) (()) (())
+make: "directive-for.mk" line 132: [[]] [[]] [[]]
+make: "directive-for.mk" line 132: {{}} {{}} {{}}
+make: "directive-for.mk" line 132: )( )( )(
+make: "directive-for.mk" line 132: ][ ][ ][
+make: "directive-for.mk" line 132: }{ }{ }{
+make: "directive-for.mk" line 140: outer value value
+make: "directive-for.mk" line 140: outer "quoted" \"quoted\"
 exit status 0

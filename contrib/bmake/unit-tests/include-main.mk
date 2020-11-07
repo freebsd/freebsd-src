@@ -1,30 +1,43 @@
-# $NetBSD: include-main.mk,v 1.2 2020/07/27 20:55:59 rillig Exp $
+# $NetBSD: include-main.mk,v 1.5 2020/09/05 18:18:05 rillig Exp $
 #
-# Demonstrates that the .INCLUDEDFROMFILE magic variable does not behave
+# Until 2020-09-05, the .INCLUDEDFROMFILE magic variable did not behave
 # as described in the manual page.
 #
 # The manual page says that it is the "filename of the file this Makefile
-# was included from", while in reality it is the "filename in which the
-# latest .include happened". See parse.c, function ParseSetIncludeFile.
+# was included from", while before 2020-09-05 it was the "filename in which
+# the latest .include happened". See parse.c, function ParseSetIncludeFile.
 #
+# Since 2020-09-05, the .INCLUDEDFROMDIR and .INCLUDEDFROMFILE variables
+# properly handle nested includes and even .for loops.
 
 .if !defined(.INCLUDEDFROMFILE)
-LOG+=		main-before-ok
+.  info main-before-ok
 .else
-.  for f in ${.INCLUDEDFROMFILE}
-LOG+=		main-before-fail\(${f:Q}\)
-.  endfor
+.  warning main-before-fail(${.INCLUDEDFROMFILE})
 .endif
+
+.for i in once
+.  if !defined(${.INCLUDEDFROMFILE})
+.    info main-before-for-ok
+.  else
+.    warning main-before-for-fail(${.INCLUDEDFROMFILE})
+.  endif
+.endfor
 
 .include "include-sub.mk"
 
 .if !defined(.INCLUDEDFROMFILE)
-LOG+=		main-after-ok
+.  info main-after-ok
 .else
-.  for f in ${.INCLUDEDFROMFILE}
-LOG+=		main-after-fail\(${f:Q}\)
-.  endfor
+.  warning main-after-fail(${.INCLUDEDFROMFILE})
 .endif
 
-all:
-	@printf '%s\n' ${LOG}
+.for i in once
+.  if !defined(${.INCLUDEDFROMFILE})
+.    info main-after-for-ok
+.  else
+.    warning main-after-for-fail(${.INCLUDEDFROMFILE})
+.  endif
+.endfor
+
+all:	# nothing

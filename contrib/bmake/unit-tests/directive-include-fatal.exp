@@ -1,0 +1,4 @@
+make: "directive-include-fatal.mk" line 13: Malformed conditional (${UNDEF})
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1
