@@ -1871,9 +1871,9 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			STAILQ_FOREACH(sl, &shead, next) {
 				if (sl->sl_socket < 0)
 					continue;
-				if (sl->sl_sa != NULL &&
-				    (sl->sl_family == AF_LOCAL ||
-				     sl->sl_family == AF_UNSPEC))
+				if (sl->sl_sa == NULL ||
+				    sl->sl_family == AF_UNSPEC ||
+				    sl->sl_family == AF_LOCAL) {
 					continue;
 				lsent = sendmsg(sl->sl_socket, &msghdr, 0);
 				if (lsent == (ssize_t)il->totalsize)
