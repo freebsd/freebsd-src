@@ -1,0 +1,9 @@
+make: "opt-debug-lint.mk" line 19: Variable "X" is undefined
+make: "opt-debug-lint.mk" line 41: Variable "UNDEF" is undefined
+make: "opt-debug-lint.mk" line 61: Missing delimiter ':' after modifier "L"
+make: "opt-debug-lint.mk" line 61: Missing delimiter ':' after modifier "P"
+make: "opt-debug-lint.mk" line 67: Missing delimiter ':' after indirect modifier "${:UL}"
+make: Unknown modifier '$'
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

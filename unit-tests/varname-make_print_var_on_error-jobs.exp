@@ -1,0 +1,7 @@
+fail
+*** [all] Error code 1
+
+make: stopped in unit-tests
+.ERROR_TARGET='all'
+.ERROR_CMD='@: command before @echo fail; false @: command after, with variable expressions expanded'
+exit status 1

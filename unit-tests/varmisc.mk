@@ -1,4 +1,5 @@
-# $Id: varmisc.mk,v 1.19 2020/08/31 16:28:10 sjg Exp $
+# $Id: varmisc.mk,v 1.20 2020/10/26 17:43:57 sjg Exp $
+# $NetBSD: varmisc.mk,v 1.26 2020/10/24 08:50:17 rillig Exp $
 #
 # Miscellaneous variable tests.
 
@@ -12,10 +13,10 @@ all: varerror-unclosed
 unmatched_var_paren:
 	@echo ${foo::=foo-text}
 
-True = ${echo true >&2:L:sh}TRUE
-False= ${echo false >&2:L:sh}FALSE
+True=	${echo true >&2:L:sh}TRUE
+False=	${echo false >&2:L:sh}FALSE
 
-VSET= is set
+VSET=	is set
 .undef UNDEF
 
 U_false:
@@ -46,7 +47,7 @@ NQ_none:
 	@echo do not evaluate or expand :? if discarding
 	@echo ${VSET:U${1:L:?${True}:${False}}}
 
-April1= 1459494000
+April1=	1459494000
 
 # slightly contorted syntax to use utc via variable
 strftime:
@@ -54,11 +55,11 @@ strftime:
 	@echo date=${%Y%m%d:L:${gmtime=${April1}:L}}
 
 # big jumps to handle 3 digits per step
-M_cmpv.units = 1 1000 1000000
-M_cmpv = S,., ,g:_:range:@i@+ $${_:[-$$i]} \* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
+M_cmpv.units=	1 1000 1000000
+M_cmpv=		S,., ,g:_:range:@i@+ $${_:[-$$i]} \* $${M_cmpv.units:[$$i]}@:S,^,expr 0 ,1:sh
 
-Version = 123.456.789
-cmpv.only = target specific vars
+Version=	123.456.789
+cmpv.only=	target specific vars
 
 cmpv:
 	@echo Version=${Version} == ${Version:${M_cmpv}}
@@ -67,11 +68,11 @@ cmpv:
 
 # catch misshandling of nested vars in .for loop
 MAN=
-MAN1= make.1
+MAN1=	make.1
 .for s in 1 2
-.if defined(MAN$s) && !empty(MAN$s)
-MAN+= ${MAN$s}
-.endif
+.  if defined(MAN$s) && !empty(MAN$s)
+MAN+=	${MAN$s}
+.  endif
 .endfor
 
 manok:
@@ -106,7 +107,7 @@ save-dollars:
 .undef APPENDED
 APPENDED+=	value
 .if ${APPENDED} != "value"
-.error "${APPENDED}"
+.  error "${APPENDED}"
 .endif
 
 # Appending to an empty variable adds a space between the old value
@@ -114,7 +115,7 @@ APPENDED+=	value
 APPENDED=	# empty
 APPENDED+=	value
 .if ${APPENDED} != " value"
-.error "${APPENDED}"
+.  error "${APPENDED}"
 .endif
 
 # Appending to parameterized variables works as well.
@@ -122,7 +123,7 @@ PARAM=		param
 VAR.${PARAM}=	1
 VAR.${PARAM}+=	2
 .if ${VAR.param} != "1 2"
-.error "${VAR.param}"
+.  error "${VAR.param}"
 .endif
 
 # The variable name can contain arbitrary characters.
@@ -134,13 +135,13 @@ PARAM=		+
 VAR.${PARAM}=	1
 VAR.${PARAM}+=	2
 .if ${VAR.+} != "1 2"
-.error "${VAR.+}"
+.  error "${VAR.+}"
 .endif
 .for param in + ! ?
 VAR.${param}=	${param}
 .endfor
 .if ${VAR.+} != "+" || ${VAR.!} != "!" || ${VAR.?} != "?"
-.error "${VAR.+}" "${VAR.!}" "${VAR.?}"
+.  error "${VAR.+}" "${VAR.!}" "${VAR.?}"
 .endif
 
 # Appending to a variable from the environment creates a copy of that variable
@@ -199,8 +200,8 @@ UNCLOSED_INDIR_1=	${UNCLOSED_ORIG
 UNCLOSED_INDIR_2=	${UNCLOSED_INDIR_1}
 
 FLAGS=	one two
-FLAGS+= ${FLAGS.${.ALLSRC:M*.c:T:u}}
-FLAGS.target2.c = three four
+FLAGS+=	${FLAGS.${.ALLSRC:M*.c:T:u}}
+FLAGS.target2.c= three four
 
 target1.c:
 target2.c:

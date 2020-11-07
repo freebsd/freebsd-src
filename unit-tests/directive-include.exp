@@ -1,0 +1,5 @@
+CondParser_Eval: ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
+lhs = "directive-include.mk null", rhs = "directive-include.mk null", op = !=
+CondParser_Eval: ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
+lhs = "directive-include.mk null", rhs = "directive-include.mk null", op = !=
+exit status 0

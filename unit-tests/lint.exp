@@ -1,4 +1,4 @@
 make: In the :@ modifier of "VAR", the variable name "${:Ubar:S,b,v,}" must not contain a dollar.
 y@:Q}
 xvaluey
-exit status 0
+exit status 2

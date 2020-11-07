@@ -1,0 +1,5 @@
+: from nothing to a
+: from a to b
+: from b to c
+: from c to nothing
+exit status 0

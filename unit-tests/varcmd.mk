@@ -1,13 +1,13 @@
-# $Id: varcmd.mk,v 1.1.1.3 2017/12/08 03:37:54 sjg Exp $
+# $NetBSD: varcmd.mk,v 1.5 2020/10/24 08:50:17 rillig Exp $
 #
 # Test behaviour of recursive make and vars set on command line.
 
-FU=fu
-FOO?=foo
+FU=	fu
+FOO?=	foo
 .if !empty(.TARGETS)
-TAG=${.TARGETS}
+TAG=	${.TARGETS}
 .endif
-TAG?=default
+TAG?=	default
 
 all:	one
 
@@ -43,11 +43,11 @@ VAR=Internal
 four:	show
 	@${.MAKE} -f ${MAKEFILE} five
 
-M = x
-V.y = is y
-V.x = is x
-V := ${V.$M}
-K := ${V}
+M=	x
+V.y=	is y
+V.x=	is x
+V:=	${V.$M}
+K:=	${V}
 
 show-v:
 	@echo '${TAG} v=${V} k=${K}'

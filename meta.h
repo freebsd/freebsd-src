@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.h,v 1.7 2020/07/03 08:13:23 rillig Exp $ */
+/*      $NetBSD: meta.h,v 1.8 2020/10/19 23:43:55 rillig Exp $ */
 
 /*
  * Things needed for 'meta' mode.
@@ -38,9 +38,8 @@ typedef struct BuildMon {
     FILE	*mfp;
 } BuildMon;
 
-extern Boolean useMeta;
+struct Job;
 
-struct Job;				/* not defined yet */
 void meta_init(void);
 void meta_finish(void);
 void meta_mode_init(const char *);
@@ -57,3 +56,5 @@ Boolean meta_oodate(GNode *, Boolean);
 void meta_compat_start(void);
 void meta_compat_child(void);
 void meta_compat_parent(pid_t);
+
+extern Boolean useMeta;
