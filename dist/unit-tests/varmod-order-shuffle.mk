@@ -1,4 +1,4 @@
-# $NetBSD: varmod-order-shuffle.mk,v 1.3 2020/08/16 20:43:01 rillig Exp $
+# $NetBSD: varmod-order-shuffle.mk,v 1.5 2020/10/24 08:46:08 rillig Exp $
 #
 # Tests for the :Ox variable modifier, which returns the words of the
 # variable, shuffled.
@@ -6,6 +6,8 @@
 # As of 2020-08-16, make uses random(3) seeded by the current time in seconds.
 # This makes the random numbers completely predictable since there is no other
 # part of make that uses random numbers.
+#
+# Tags: probabilistic
 
 NUMBERS=	one two three four five six seven eight nine ten
 
@@ -19,20 +21,20 @@ NUMBERS=	one two three four five six seven eight nine ten
 shuffled1:=	${NUMBERS:Ox}
 shuffled2:=	${NUMBERS:Ox}
 .if ${shuffled1} == ${shuffled2}
-.error ${shuffled1} == ${shuffled2}
+.  error ${shuffled1} == ${shuffled2}
 .endif
 
 # Sorting the list before shuffling it has no effect.
 shuffled1:=	${NUMBERS:O:Ox}
 shuffled2:=	${NUMBERS:O:Ox}
 .if ${shuffled1} == ${shuffled2}
-.error ${shuffled1} == ${shuffled2}
+.  error ${shuffled1} == ${shuffled2}
 .endif
 
 # Sorting after shuffling must produce the original numbers.
 sorted:=	${NUMBERS:Ox:O}
 .if ${sorted} != ${NUMBERS:O}
-.error ${sorted} != ${NUMBERS:O}
+.  error ${sorted} != ${NUMBERS:O}
 .endif
 
 all:

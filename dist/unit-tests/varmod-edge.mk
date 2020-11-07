@@ -1,4 +1,4 @@
-# $NetBSD: varmod-edge.mk,v 1.12 2020/08/08 13:29:09 rillig Exp $
+# $NetBSD: varmod-edge.mk,v 1.13 2020/10/24 08:46:08 rillig Exp $
 #
 # Tests for edge cases in variable modifiers.
 #
@@ -163,9 +163,9 @@ EXP.colons=	# empty
 
 .for test in ${TESTS}
 .  if ${MOD.${test}} == ${EXP.${test}}
-.info ok ${test}
+.    info ok ${test}
 .  else
-.warning error in ${test}: expected "${EXP.${test}}", got "${MOD.${test}}"
+.    warning error in ${test}: expected "${EXP.${test}}", got "${MOD.${test}}"
 .  endif
 .endfor
 

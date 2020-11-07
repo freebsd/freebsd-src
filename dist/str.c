@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.64 2020/08/30 19:56:02 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.70 2020/10/24 20:51:49 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -68,20 +68,10 @@
  * SUCH DAMAGE.
  */
 
-#ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: str.c,v 1.64 2020/08/30 19:56:02 rillig Exp $";
-#else
-#include <sys/cdefs.h>
-#ifndef lint
-#if 0
-static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
-#else
-__RCSID("$NetBSD: str.c,v 1.64 2020/08/30 19:56:02 rillig Exp $");
-#endif
-#endif				/* not lint */
-#endif
-
 #include "make.h"
+
+/*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
+MAKE_RCSID("$NetBSD: str.c,v 1.70 2020/10/24 20:51:49 rillig Exp $");
 
 /* Return the concatenation of s1 and s2, freshly allocated. */
 char *
@@ -157,7 +147,7 @@ Str_Words(const char *str, Boolean expand)
 	str_len = strlen(str);
 	words_buf = bmake_malloc(strlen(str) + 1);
 
-	words_cap = MAX((str_len / 5), 50);
+	words_cap = str_len / 5 > 50 ? str_len / 5 : 50;
 	words = bmake_malloc((words_cap + 1) * sizeof(char *));
 
 	/*
@@ -179,7 +169,7 @@ Str_Words(const char *str, Boolean expand)
 				else
 					break;
 			} else {
-				inquote = (char)ch;
+				inquote = ch;
 				/* Don't miss "" or '' */
 				if (word_start == NULL && str_p[1] == inquote) {
 					if (!expand) {
@@ -276,46 +266,6 @@ Str_Words(const char *str, Boolean expand)
 done:
 	words[words_len] = NULL;
 	return (Words){ words, words_len, words_buf };
-}
-
-/*
- * Str_FindSubstring -- See if a string contains a particular substring.
- *
- * Input:
- *	string		String to search.
- *	substring	Substring to find in string.
- *
- * Results: If string contains substring, the return value is the location of
- * the first matching instance of substring in string.  If string doesn't
- * contain substring, the return value is NULL.  Matching is done on an exact
- * character-for-character basis with no wildcards or special characters.
- *
- * Side effects: None.
- */
-char *
-Str_FindSubstring(const char *string, const char *substring)
-{
-	const char *a, *b;
-
-	/*
-	 * First scan quickly through the two strings looking for a single-
-	 * character match.  When it's found, then compare the rest of the
-	 * substring.
-	 */
-
-	for (b = substring; *string != 0; string++) {
-		if (*string != *b)
-			continue;
-		a = string;
-		for (;;) {
-			if (*b == 0)
-				return UNCONST(string);
-			if (*a++ != *b++)
-				break;
-		}
-		b = substring;
-	}
-	return NULL;
 }
 
 /*

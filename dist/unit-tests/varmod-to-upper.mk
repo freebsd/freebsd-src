@@ -1,18 +1,18 @@
-# $NetBSD: varmod-to-upper.mk,v 1.4 2020/08/28 17:21:02 rillig Exp $
+# $NetBSD: varmod-to-upper.mk,v 1.5 2020/10/24 08:46:08 rillig Exp $
 #
 # Tests for the :tu variable modifier, which returns the words in the
 # variable value, converted to uppercase.
 
 .if ${:UUPPER:tu} != "UPPER"
-.error
+.  error
 .endif
 
 .if ${:Ulower:tu} != "LOWER"
-.error
+.  error
 .endif
 
 .if ${:UMixeD case.:tu} != "MIXED CASE."
-.error
+.  error
 .endif
 
 # The :tu and :tl modifiers operate on the variable value as a single string,

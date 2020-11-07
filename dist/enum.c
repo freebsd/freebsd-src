@@ -1,4 +1,4 @@
-/*	$NetBSD: enum.c,v 1.6 2020/09/01 20:34:51 rillig Exp $	*/
+/*	$NetBSD: enum.c,v 1.12 2020/10/05 19:27:47 rillig Exp $	*/
 
 /*
  Copyright (c) 2020 Roland Illig <rillig@NetBSD.org>
@@ -27,20 +27,9 @@
  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: enum.c,v 1.6 2020/09/01 20:34:51 rillig Exp $";
-#else
-#include <sys/cdefs.h>
-#ifndef lint
-__RCSID("$NetBSD: enum.c,v 1.6 2020/09/01 20:34:51 rillig Exp $");
-#endif
-#endif
+#include "make.h"
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "enum.h"
+MAKE_RCSID("$NetBSD: enum.c,v 1.12 2020/10/05 19:27:47 rillig Exp $");
 
 /* Convert a bitset into a string representation, showing the names of the
  * individual bits.
@@ -59,7 +48,7 @@ Enum_FlagsToString(char *buf, size_t buf_size,
 		size_t name_len;
 
 		if ((value & spec->es_value) != spec->es_value)
-			    continue;
+			continue;
 		value &= ~spec->es_value;
 
 		assert(buf_size >= sep_len + 1);
@@ -93,8 +82,8 @@ const char *
 Enum_ValueToString(int value, const EnumToStringSpec *spec)
 {
 	for (; spec->es_name[0] != '\0'; spec++) {
-	    if (value == spec->es_value)
-	        return spec->es_name;
+		if (value == spec->es_value)
+			return spec->es_name;
 	}
 	abort(/* unknown enum value */);
 }

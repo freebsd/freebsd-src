@@ -1,4 +1,3 @@
-&=ampersand
 MAKELEVEL=1
 UT_DOLLAR=This is $UT_FU
 UT_FOO=foobar is fubar

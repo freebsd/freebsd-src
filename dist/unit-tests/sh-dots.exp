@@ -1,15 +1,22 @@
 first first
 hidden hidden
 make: exec(...) failed (No such file or directory)
+*** Error code 1 (ignored)
 hidden delayed hidden
 repeated repeated
 commented commented
-*** Error code 1 (ignored)
 ...	# Run the below commands later
 <normalized: ...: not found>
+*** Error code 127 (ignored)
 commented delayed commented
+indirect regular
+indirect-space regular
+... 
+make: exec(...) failed (No such file or directory)
+*** Error code 1 (ignored)
+indirect-space deferred
 first delayed first
 repeated delayed repeated
 repeated delayed twice repeated
-*** Error code 127 (ignored)
+indirect deferred
 exit status 0

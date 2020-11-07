@@ -1,0 +1,34 @@
+echo '3   spaces'; false
+3   spaces
+
+*** Failed target:  fail-spaces
+*** Failed command: echo '3 spaces'; false
+*** Error code 1 (continuing)
+echo \  indented; false
+  indented
+
+*** Failed target:  fail-escaped-space
+*** Failed command: echo \ indented; false
+*** Error code 1 (continuing)
+echo 'line1
+line2'; false
+line1
+line2
+
+*** Failed target:  fail-newline
+*** Failed command: echo 'line1 line2'; false
+*** Error code 1 (continuing)
+echo 'line1 line2'; false
+line1 line2
+
+*** Failed target:  fail-multiline
+*** Failed command: echo 'line1 line2'; false
+*** Error code 1 (continuing)
+echo	'word1'							 'word2'; false
+word1 word2
+
+*** Failed target:  fail-multiline-intention
+*** Failed command: echo 'word1' 'word2'; false
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+exit status 0

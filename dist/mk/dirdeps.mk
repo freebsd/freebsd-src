@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.125 2020/08/26 21:49:45 sjg Exp $
+# $Id: dirdeps.mk,v 1.130 2020/11/02 00:34:30 sjg Exp $
 
 # Copyright (c) 2010-2020, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
@@ -209,12 +209,9 @@ DEP_$v ?= ${$v}
 # so we need to construct a set of modifiers to fill in the gaps.
 .if ${MAKE_VERSION} >= 20170130
 _tspec_x := ${TARGET_SPEC_VARS:range}
-.elif ${TARGET_SPEC_VARS:[#]} > 10
-# seriously? better have jot(1) or equivalent to produce suitable sequence
-_tspec_x := ${${JOT:Ujot} ${TARGET_SPEC_VARS:[#]}:L:sh}
 .else
-# we can provide the sequence ourselves
-_tspec_x := ${1 2 3 4 5 6 7 8 9 10:L:[1..${TARGET_SPEC_VARS:[#]}]}
+# do it the hard way
+_tspec_x := ${TARGET_SPEC_VARS:[#]:@x@i=1;while [ $$i -le $x ]; do echo $$i; i=$$((i + 1)); done;@:sh}
 .endif
 # this handles unqualified entries
 M_dep_qual_fixes = C;(/[^/.,]+)$$;\1.$${DEP_TARGET_SPEC};
@@ -494,6 +491,11 @@ dirdeps-cached:	${DIRDEPS_CACHE} .MAKE
 	@MAKELEVEL=${.MAKE.LEVEL} ${.MAKE} -C ${_CURDIR} -f ${DIRDEPS_CACHE} \
 		dirdeps MK_DIRDEPS_CACHE=no BUILD_DIRDEPS=no
 
+# leaf makefiles rarely work for building DIRDEPS_CACHE
+.if ${RELDIR} != "."
+BUILD_DIRDEPS_MAKEFILE ?= -f dirdeps.mk
+.endif
+
 # these should generally do
 BUILD_DIRDEPS_MAKEFILE ?=
 BUILD_DIRDEPS_TARGETS ?= ${.TARGETS}
@@ -517,6 +519,7 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	${BUILD_DIRDEPS_MAKEFILE} \
 	${BUILD_DIRDEPS_TARGETS} BUILD_DIRDEPS_CACHE=yes \
 	.MAKE.DEPENDFILE=.none \
+	${"${DEBUG_DIRDEPS:Nno}":?DEBUG_DIRDEPS='${DEBUG_DIRDEPS}':} \
 	${.MAKEFLAGS:tW:S,-D ,-D,g:tw:M*WITH*} \
 	${.MAKEFLAGS:tW:S,-d ,-d,g:tw:M-d*} \
 	3>&1 1>&2 | sed 's,${SRCTOP},$${SRCTOP},g;s,_{,$${,g' >> ${.TARGET}.new && \
@@ -627,6 +630,7 @@ __qual_depdirs += ${__hostdpadd}
 .endif
 
 .if ${_debug_reldir}
+.info DEP_DIRDEPS_FILTER=${DEP_DIRDEPS_FILTER:ts:}
 .info depdirs=${__depdirs}
 .info qualified=${__qual_depdirs}
 .info unqualified=${__unqual_depdirs}

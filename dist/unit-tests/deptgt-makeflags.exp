@@ -1,1 +1,9 @@
+Global:delete DOLLAR (not found)
+Command:DOLLAR = $$$$
+Global:.MAKEOVERRIDES =  VAR DOLLAR
+CondParser_Eval: ${DOLLAR} != "\$\$"
+Var_Parse: ${DOLLAR} != "\$\$" with VARE_UNDEFERR|VARE_WANTRES
+lhs = "$$", rhs = "$$", op = !=
+Global:.MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d
+Global:.MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d 0
 exit status 0

@@ -1,23 +1,24 @@
+# $NetBSD: modts.mk,v 1.7 2020/10/24 08:50:17 rillig Exp $
 
-LIST= one two three
-LIST+= four five six
+LIST=	one two three
+LIST+=	four five six
 
-FU_mod-ts = a / b / cool
+FU_mod-ts=	a / b / cool
 
-AAA= a a a
-B.aaa= Baaa
+AAA=	a a a
+B.aaa=	Baaa
 
 all:   mod-ts mod-ts-space
 
 # Use print or printf iff they are builtin.
-# XXX note that this causes problems, when make decides 
+# XXX note that this causes problems, when make decides
 # there is no need to use a shell, so avoid where possible.
 .if ${(type print) 2> /dev/null || echo:L:sh:Mbuiltin} != ""
-PRINT= print -r --
+PRINT=  print -r --
 .elif ${(type printf) 2> /dev/null || echo:L:sh:Mbuiltin} != ""
-PRINT= printf '%s\n'
+PRINT=  printf '%s\n'
 .else
-PRINT= echo
+PRINT=	echo
 .endif
 
 mod-ts:
