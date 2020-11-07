@@ -946,6 +946,21 @@ intr_resolve_irq(device_t dev, intptr_t xref, struct intr_map_data *data,
 	}
 }
 
+bool
+intr_is_per_cpu(struct resource *res)
+{
+	u_int res_id;
+	struct intr_irqsrc *isrc;
+
+	res_id = (u_int)rman_get_start(res);
+	isrc = intr_map_get_isrc(res_id);
+
+	if (isrc == NULL)
+		panic("Attempt to get isrc for non-active resource id: %u\n",
+		    res_id);
+	return ((isrc->isrc_flags & INTR_ISRCF_PPI) != 0);
+}
+
 int
 intr_activate_irq(device_t dev, struct resource *res)
 {
