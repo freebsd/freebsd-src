@@ -48,7 +48,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 3504 2016-12-17 15:33:16Z kaiwang27 $");
+ELFTC_VCSID("$Id: nm.c 3722 2019-03-23 17:01:58Z jkoshy $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);
@@ -179,7 +179,7 @@ static int		cmp_size(const void *, const void *);
 static int		cmp_value(const void *, const void *);
 static void		filter_dest(void);
 static int		filter_insert(fn_filter);
-static void		get_opt(int, char **);
+static void		get_opt(int *, char ***);
 static int		get_sym(Elf *, struct sym_head *, int, size_t, size_t,
 			    const char *, const char **, int);
 static const char *	get_sym_name(Elf *, const GElf_Sym *, size_t,
@@ -441,18 +441,18 @@ parse_demangle_option(const char *opt)
 }
 
 static void
-get_opt(int argc, char **argv)
+get_opt(int *argc, char ***argv)
 {
 	int ch;
 	bool is_posix, oflag;
 
-	if (argc <= 0 || argv == NULL)
+	if (*argc <= 0 || *argv == NULL)
 		return;
 
 	oflag = is_posix = false;
 	nm_opts.t = RADIX_HEX;
-	while ((ch = getopt_long(argc, argv, "ABCDF:PSVaefghlnoprst:uvx",
-		    nm_longopts, NULL)) != -1) {
+	while ((ch = getopt_long(*argc, *argv, "ABCDF:PSVaefghlnoprst:uvx",
+	    nm_longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'A':
 			nm_opts.print_name = PRINT_NAME_FULL;
@@ -573,6 +573,8 @@ get_opt(int argc, char **argv)
 			usage(1);
 		}
 	}
+	*argc -= optind;
+	*argv += optind;
 
 	/*
 	 * In POSIX mode, the '-o' option controls the output radix.
@@ -1143,7 +1145,6 @@ read_elf(Elf *elf, const char *filename, Elf_Kind kind)
 	Elf_Arhdr *arhdr;
 	Elf_Scn *scn;
 	GElf_Shdr shdr;
-	GElf_Half i;
 	Dwarf_Line *lbuf;
 	Dwarf_Unsigned lineno;
 	Dwarf_Signed lcount, filecount;
@@ -1158,7 +1159,7 @@ read_elf(Elf *elf, const char *filename, Elf_Kind kind)
 	struct var_info_entry *var;
 	const char *shname, *objname;
 	char *type_table, **sec_table, *sfile, **src_files;
-	size_t shstrndx, shnum, dynndx, strndx;
+	size_t i, shstrndx, shnum, dynndx, strndx;
 	int ret, rtn, e_err;
 
 #define	OBJNAME	(objname == NULL ? filename : objname)
@@ -2115,8 +2116,8 @@ main(int argc, char **argv)
 	int rtn;
 
 	global_init();
-	get_opt(argc, argv);
-	rtn = read_files(argc - optind, argv + optind);
+	get_opt(&argc, &argv);
+	rtn = read_files(argc, argv);
 	global_dest();
 
 	exit(rtn);

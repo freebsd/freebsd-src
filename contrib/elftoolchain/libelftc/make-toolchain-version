@@ -3,7 +3,7 @@
 # This script generates a project-wide version identifier for use by
 # the `elftc_version()' API.
 #
-# $Id: make-toolchain-version 3414 2016-02-16 22:55:28Z jkoshy $
+# $Id: make-toolchain-version 3731 2019-04-06 14:28:34Z jkoshy $
 
 #
 # Defaults.
@@ -33,6 +33,32 @@ usage()
     exit 1
 }
 
+# Determine the revision number for the source tree.
+#
+# - If CVS is detected, we use the string `unknown'.
+# - If SVN is detected, we use the `svninfo' tool to determine the
+#   in-tree revision number.
+# - Otherwise, we use `git --describe'.
+get_revision_string()
+{
+    v="unknown:unknown"
+    if [ -d CVS ]; then     # Look for CVS (NetBSD).
+        v="cvs:unknown"
+    elif [ -d .svn ]; then  # An SVN checkout (SourceForge or FreeBSD).
+        svnversion="$(svnversion 2>/dev/null)"
+        if [ -n "${svnversion}" ]; then
+            v="svn:${svnversion}"
+        fi
+    else        # Try git (DragonflyBSD).
+        gitversion="$(git describe --all --dirty --long 2> /dev/null)"
+        if [ -n "${gitversion}" ]; then
+            v="git:${gitversion}"
+	fi
+    fi
+
+    echo "${v}"
+}
+
 #
 # Parse options.
 #
@@ -51,37 +77,14 @@ done
 
 [ -n "${top}" ] || usage
 
-# Try to determine the in-tree revision number.
-#
-# This script attempts to handle the case where our sources have been
-# incorporated into an operating system's base sources.
-#
-# - If SVN is detected, we use the `svninfo' tool to determine the
-#   in-tree revision number.
-# - If CVS is detected, we use the string `unknown'.
-# - Otherwise, we use `git --describe'.
-
 curdir=`pwd`
 cd ${top} || usage "ERROR: Cannot change directory to \"${top}\"."
 
-if [ -d CVS ]; then		# Look for CVS (NetBSD).
-    versionstring=" cvs:unknown"
-else				# Try git (DragonFlyBSD).
-    gitversion="$(git describe --all --dirty --long 2> /dev/null)"
-    if [ -n "${gitversion}" ]; then
-        versionstring=" git:${gitversion}"
-    else   # Assume an SVN checkout (SourceForge or FreeBSD).
-        svnversion="$(svnversion)"
-        if [ -n "${svnversion}" ]; then
-	    versionstring=" svn:$(svnversion)"
-        fi
-    fi
-fi
-
-if [ -z "${versionstring}" ]; then
-    echo "ERROR: cannot determine a revision number." 1>&2
+# Determine the in-tree revision number.
+versionstring="$(get_revision_string)" || {
+    echo "ERROR: cannot determine a revision number." 1>&2;
     exit 1
-fi
+}
 
 cd ${curdir} || usage "Cannot change back to ${curdir}."
 
@@ -100,7 +103,7 @@ cat > ${tmpfile} <<EOF
 const char *
 elftc_version(void)
 {
-	return "${elftcname} ${version} ${buildhost}${versionstring}";
+	return "${elftcname} ${version} ${buildhost} ${versionstring}";
 }
 EOF
 

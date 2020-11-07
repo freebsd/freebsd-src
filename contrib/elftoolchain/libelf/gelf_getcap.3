@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: gelf_getcap.3 189 2008-07-20 10:38:08Z jkoshy $
+.\" $Id: gelf_getcap.3 3734 2019-04-22 14:10:49Z jkoshy $
 .\"
-.Dd August 29, 2006
-.Os
+.Dd April 22, 2019
 .Dt GELF_GETCAP 3
+.Os
 .Sh NAME
 .Nm gelf_getcap ,
 .Nm gelf_update_cap
@@ -113,6 +113,12 @@ was not associated with a section of type
 .Dv SHT_SUNW_cap .
 .It Bq Er ELF_E_RANGE
 A value was not representable in the target type.
+.It Bq Er ELF_E_VERSION
+The
+.Vt Elf_Data
+descriptor denoted by argument
+.Ar data
+is associated with an ELF object with an unsupported version.
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,

@@ -152,7 +152,7 @@ vector_str_grow(struct vector_str *v)
 
 	assert(v->capacity > 0);
 
-	tmp_cap = v->capacity * BUFFER_GROWFACTOR;
+	tmp_cap = BUFFER_GROW(v->capacity);
 
 	assert(tmp_cap > v->capacity);
 
@@ -253,7 +253,7 @@ vector_str_push_vector_head(struct vector_str *dst, struct vector_str *org)
 	if (dst == NULL || org == NULL)
 		return (false);
 
-	tmp_cap = (dst->size + org->size) * BUFFER_GROWFACTOR;
+	tmp_cap = BUFFER_GROW(dst->size + org->size);
 
 	if ((tmp_ctn = malloc(sizeof(char *) * tmp_cap)) == NULL)
 		return (false);
@@ -293,7 +293,7 @@ vector_str_push_vector(struct vector_str *dst, struct vector_str *org)
 	if (dst == NULL || org == NULL)
 		return (false);
 
-	tmp_cap = (dst->size + org->size) * BUFFER_GROWFACTOR;
+	tmp_cap = BUFFER_GROW(dst->size + org->size);
 
 	if ((tmp_ctn = malloc(sizeof(char *) * tmp_cap)) == NULL)
 		return (false);

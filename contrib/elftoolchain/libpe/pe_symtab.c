@@ -33,7 +33,7 @@ ELFTC_VCSID("$Id: pe_symtab.c 3312 2016-01-10 09:23:51Z kaiwang27 $");
 int
 pe_update_symtab(PE *pe, char *symtab, size_t sz, unsigned int nsym)
 {
-	PE_Scn *ps;
+	PE_Scn *ps, *pstmp;
 	PE_SecBuf *sb;
 	PE_SecHdr *sh;
 
@@ -48,7 +48,7 @@ pe_update_symtab(PE *pe, char *symtab, size_t sz, unsigned int nsym)
 	}
 
 	/* Remove the old symbol table. */
-	STAILQ_FOREACH(ps, &pe->pe_scn, ps_next) {
+	STAILQ_FOREACH_SAFE(ps, &pe->pe_scn, ps_next, pstmp) {
 		if (ps->ps_ndx == 0xFFFFFFFFU)
 			libpe_release_scn(ps);
 	}

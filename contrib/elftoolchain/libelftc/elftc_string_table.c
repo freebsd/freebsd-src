@@ -36,7 +36,7 @@
 #include "libelftc.h"
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: elftc_string_table.c 2869 2013-01-06 13:29:18Z jkoshy $");
+ELFTC_VCSID("$Id: elftc_string_table.c 3750 2019-06-28 01:12:10Z emaste $");
 
 #define	ELFTC_STRING_TABLE_DEFAULT_SIZE			(4*1024)
 #define ELFTC_STRING_TABLE_EXPECTED_STRING_SIZE		16
@@ -44,7 +44,7 @@ ELFTC_VCSID("$Id: elftc_string_table.c 2869 2013-01-06 13:29:18Z jkoshy $");
 #define	ELFTC_STRING_TABLE_POOL_SIZE_INCREMENT		(4*1024)
 
 struct _Elftc_String_Table_Entry {
-	int		ste_idx;
+	ssize_t		ste_idx;
 	SLIST_ENTRY(_Elftc_String_Table_Entry) ste_next;
 };
 
@@ -64,9 +64,9 @@ struct _Elftc_String_Table_Entry {
 	} while (0)
 
 struct _Elftc_String_Table {
-	unsigned int		st_len; /* length and flags */
+	size_t		st_len; /* length and flags */
 	int		st_nbuckets;
-	int		st_string_pool_size;
+	size_t		st_string_pool_size;
 	char		*st_string_pool;
 	SLIST_HEAD(_Elftc_String_Table_Bucket,
 	    _Elftc_String_Table_Entry) st_buckets[];
@@ -86,7 +86,7 @@ elftc_string_table_find_hash_entry(Elftc_String_Table *st, const char *string,
 		*rhashindex = hashindex;
 
 	SLIST_FOREACH(ste, &st->st_buckets[hashindex], ste_next) {
-		s = st->st_string_pool + abs(ste->ste_idx);
+		s = st->st_string_pool + labs(ste->ste_idx);
 
 		assert(s > st->st_string_pool &&
 		    s < st->st_string_pool + st->st_string_pool_size);
@@ -102,7 +102,7 @@ static int
 elftc_string_table_add_to_pool(Elftc_String_Table *st, const char *string)
 {
 	char *newpool;
-	int len, newsize, stlen;
+	size_t len, newsize, stlen;
 
 	len = strlen(string) + 1; /* length, including the trailing NUL */
 	stlen = ELFTC_STRING_TABLE_LENGTH(st);
@@ -119,17 +119,17 @@ elftc_string_table_add_to_pool(Elftc_String_Table *st, const char *string)
 		st->st_string_pool_size = newsize;
 	}
 
-	strcpy(st->st_string_pool + stlen, string);
+	memcpy(st->st_string_pool + stlen, string, len);
 	ELFTC_STRING_TABLE_UPDATE_LENGTH(st, stlen + len);
 
 	return (stlen);
 }
 
 Elftc_String_Table *
-elftc_string_table_create(int sizehint)
+elftc_string_table_create(size_t sizehint)
 {
-	int n, nbuckets, tablesize;
 	struct _Elftc_String_Table *st;
+	int n, nbuckets, tablesize;
 
 	if (sizehint < ELFTC_STRING_TABLE_DEFAULT_SIZE)
 		sizehint = ELFTC_STRING_TABLE_DEFAULT_SIZE;
@@ -167,21 +167,19 @@ elftc_string_table_destroy(Elftc_String_Table *st)
 
 	for (n = 0; n < st->st_nbuckets; n++)
 		SLIST_FOREACH_SAFE(s, &st->st_buckets[n], ste_next, t)
-		    free(s);
+			free(s);
 	free(st->st_string_pool);
 	free(st);
-
-	return;
 }
 
 Elftc_String_Table *
-elftc_string_table_from_section(Elf_Scn *scn, int sizehint)
+elftc_string_table_from_section(Elf_Scn *scn, size_t sizehint)
 {
-	int len;
 	Elf_Data *d;
 	GElf_Shdr sh;
 	const char *s, *end;
 	Elftc_String_Table *st;
+	size_t len;
 
 	/* Verify the type of the section passed in. */
 	if (gelf_getshdr(scn, &sh) == NULL ||
@@ -237,7 +235,8 @@ elftc_string_table_image(Elftc_String_Table *st, size_t *size)
 	char *r, *s, *end;
 	struct _Elftc_String_Table_Entry *ste;
 	struct _Elftc_String_Table_Bucket *head;
-	int copied, hashindex, offset, length, newsize;
+	size_t copied, offset, length, newsize;
+	int hashindex;
 
 	/*
 	 * For the common case of a string table has not seen
@@ -305,8 +304,9 @@ elftc_string_table_image(Elftc_String_Table *st, size_t *size)
 size_t
 elftc_string_table_insert(Elftc_String_Table *st, const char *string)
 {
-	int hashindex, idx;
 	struct _Elftc_String_Table_Entry *ste;
+	ssize_t idx;
+	int hashindex;
 
 	hashindex = 0;
 
@@ -318,7 +318,7 @@ elftc_string_table_insert(Elftc_String_Table *st, const char *string)
 		if ((ste = malloc(sizeof(*ste))) == NULL)
 			return (0);
 		if ((ste->ste_idx = elftc_string_table_add_to_pool(st,
-			    string)) == 0) {
+		    string)) == 0) {
 			free(ste);
 			return (0);
 		}
@@ -328,7 +328,7 @@ elftc_string_table_insert(Elftc_String_Table *st, const char *string)
 
 	idx = ste->ste_idx;
 	if (idx < 0) 		/* Undelete. */
-		ste->ste_idx = idx = (- idx);
+		ste->ste_idx = idx = -idx;
 
 	return (idx);
 }
@@ -336,8 +336,9 @@ elftc_string_table_insert(Elftc_String_Table *st, const char *string)
 size_t
 elftc_string_table_lookup(Elftc_String_Table *st, const char *string)
 {
-	int hashindex, idx;
 	struct _Elftc_String_Table_Entry *ste;
+	ssize_t idx;
+	int hashindex;
 
 	ste = elftc_string_table_find_hash_entry(st, string, &hashindex);
 
@@ -352,17 +353,17 @@ elftc_string_table_lookup(Elftc_String_Table *st, const char *string)
 int
 elftc_string_table_remove(Elftc_String_Table *st, const char *string)
 {
-	int idx;
 	struct _Elftc_String_Table_Entry *ste;
+	ssize_t idx;
 
 	ste = elftc_string_table_find_hash_entry(st, string, NULL);
 
 	if (ste == NULL || (idx = ste->ste_idx) < 0)
 		return (ELFTC_FAILURE);
 
-	assert(idx > 0 && idx < (int) ELFTC_STRING_TABLE_LENGTH(st));
+	assert(idx > 0 && (size_t)idx < ELFTC_STRING_TABLE_LENGTH(st));
 
-	ste->ste_idx = (- idx);
+	ste->ste_idx = -idx;
 
 	ELFTC_STRING_TABLE_SET_COMPACTION_FLAG(st);
 

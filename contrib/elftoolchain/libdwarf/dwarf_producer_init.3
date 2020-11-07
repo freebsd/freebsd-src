@@ -22,13 +22,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_producer_init.3 3182 2015-04-10 16:08:10Z emaste $
+.\" $Id: dwarf_producer_init.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd August 20, 2011
-.Os
 .Dt DWARF_PRODUCER_INIT 3
+.Os
 .Sh NAME
-.Nm dwarf_producer_init
+.Nm dwarf_producer_init ,
 .Nm dwarf_producer_init_b
 .Nd allocate a DWARF producer descriptor
 .Sh LIBRARY
@@ -79,7 +79,6 @@ The argument
 .Ar flags
 specifies additional characteristics of the DWARF producer instance.
 The following flags are recognized:
-.Pp
 .Bl -tag -width "Dv DW_DLC_ISA_MIPS"
 .It Dv DW_DLC_ISA_IA64
 .Pq Deprecated
@@ -229,6 +228,23 @@ In case of an error, they return
 .Dv DW_DLV_BADADDR
 and set the argument
 .Ar err .
+.Sh EXAMPLES
+To initialize a
+.Vt Dwarf_P_Debug
+instance for a MIPS32 big endian object, use:
+.Bd -literal -offset indent
+Dwarf_P_Debug dbg;
+Dwarf_Unsigned flags;
+Dwarf_Error de;
+
+/* ... assume cb_func points to the callback function ... */
+
+flags = DW_DLC_WRITE | DW_DLC_SIZE_32 | DW_DLC_ISA_MIPS |
+    DW_DLC_STREAM_RELOCATIONS | DW_DLC_TARGET_BIGENDIAN;
+if ((dbg = dwarf_producer_init(flags, cb_func, NULL, NULL, &de)) ==
+    DW_DLV_BADADDR)
+	warnx("dwarf_producer_init failed: %s", dwarf_errmsg(-1));
+.Ed
 .Sh ERRORS
 These functions can fail with:
 .Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
@@ -272,23 +288,6 @@ were both set in argument
 .It Bq Er DW_DLE_MEMORY
 An out of memory condition was encountered.
 .El
-.Sh EXAMPLES
-To initialize a
-.Vt Dwarf_P_Debug
-instance for a MIPS32 big endian object, use:
-.Bd -literal -offset indent
-Dwarf_P_Debug dbg;
-Dwarf_Unsigned flags;
-Dwarf_Error de;
-
-/* ... assume cb_func points to the callback function ... */
-
-flags = DW_DLC_WRITE | DW_DLC_SIZE_32 | DW_DLC_ISA_MIPS |
-    DW_DLC_STREAM_RELOCATIONS | DW_DLC_TARGET_BIGENDIAN;
-if ((dbg = dwarf_producer_init(flags, cb_func, NULL, NULL, &de)) ==
-    DW_DLV_BADADDR)
-	warnx("dwarf_producer_init failed: %s", dwarf_errmsg(-1));
-.Ed
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_errmsg 3 ,

@@ -162,6 +162,9 @@ enum Elf_Error {
 	ELF_E_SEQUENCE,	/* API calls out of sequence */
 	ELF_E_UNIMPL,	/* Feature is unimplemented */
 	ELF_E_VERSION,	/* Unknown API version */
+	ELF_E_INVALID_SECTION_FLAGS, /* Invalid ELF section header flags */
+	ELF_E_INVALID_SECTION_TYPE, /* Invalid ELF section header type */
+	ELF_E_NOT_COMPRESSED, /* Section is not compressed */
 	ELF_E_NUM	/* Max error number */
 };
 
@@ -227,6 +230,7 @@ unsigned int	elf_version(unsigned int _version);
 long		elf32_checksum(Elf *_elf);
 size_t		elf32_fsize(Elf_Type _type, size_t _count,
 			unsigned int _version);
+Elf32_Chdr	*elf32_getchdr(Elf_Scn *_scn);
 Elf32_Ehdr	*elf32_getehdr(Elf *_elf);
 Elf32_Phdr	*elf32_getphdr(Elf *_elf);
 Elf32_Shdr	*elf32_getshdr(Elf_Scn *_scn);
@@ -240,6 +244,7 @@ Elf_Data	*elf32_xlatetom(Elf_Data *_dst, const Elf_Data *_src,
 long		elf64_checksum(Elf *_elf);
 size_t		elf64_fsize(Elf_Type _type, size_t _count,
 			unsigned int _version);
+Elf64_Chdr	*elf64_getchdr(Elf_Scn *_scn);
 Elf64_Ehdr	*elf64_getehdr(Elf *_elf);
 Elf64_Phdr	*elf64_getphdr(Elf *_elf);
 Elf64_Shdr	*elf64_getshdr(Elf_Scn *_scn);

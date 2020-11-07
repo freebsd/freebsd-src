@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_attr.c 3064 2014-06-06 19:35:55Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_attr.c 3748 2019-06-28 01:11:13Z emaste $");
 
 int
 _dwarf_attr_alloc(Dwarf_Die die, Dwarf_Attribute *atp, Dwarf_Error *error)
@@ -100,7 +100,6 @@ _dwarf_attr_init(Dwarf_Debug dbg, Dwarf_Section *ds, uint64_t *offsetp,
     uint64_t form, int indirect, Dwarf_Error *error)
 {
 	struct _Dwarf_Attribute atref;
-	Dwarf_Section *str;
 	int ret;
 
 	ret = DW_DLE_NONE;
@@ -183,9 +182,7 @@ _dwarf_attr_init(Dwarf_Debug dbg, Dwarf_Section *ds, uint64_t *offsetp,
 		break;
 	case DW_FORM_strp:
 		atref.u[0].u64 = dbg->read(ds->ds_data, offsetp, dwarf_size);
-		str = _dwarf_find_section(dbg, ".debug_str");
-		assert(str != NULL);
-		atref.u[1].s = (char *) str->ds_data + atref.u[0].u64;
+		atref.u[1].s = _dwarf_strtab_get_table(dbg) + atref.u[0].u64;
 		break;
 	case DW_FORM_ref_sig8:
 		atref.u[0].u64 = 8;

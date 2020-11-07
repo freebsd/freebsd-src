@@ -21,13 +21,13 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: gelf.3 3195 2015-05-12 17:22:19Z emaste $
+.\" $Id: gelf.3 3743 2019-06-12 19:36:30Z jkoshy $
 .\"
-.Dd September 1, 2006
-.Os
+.Dd October 23, 2020
 .Dt GELF 3
+.Os
 .Sh NAME
-.Nm GElf
+.Nm gelf
 .Nd class-independent API for ELF manipulation
 .Sh LIBRARY
 .Lb libelf
@@ -45,6 +45,8 @@ The GElf API defines the following class-independent data structures:
 .Bl -tag -width GElf_Sxword
 .It Vt GElf_Addr
 A representation of ELF addresses.
+.It Vt GElf_Chdr
+A class-independent representation of an ELF Compression Header.
 .It Vt GElf_Dyn
 A class-independent representation of ELF
 .Sy .dynamic
@@ -115,7 +117,7 @@ routines will signal an error if a GElf value is out of range
 for the underlying ELF data type.
 .Ss Namespace use
 The GElf interface uses the following symbols:
-.Bl -tag
+.Bl -tag -width indent
 .It GElf_*
 Class-independent data types.
 .It gelf_*
@@ -125,16 +127,16 @@ For functions defined in the API set.
 This section provides an overview of the GElf programming APIs.
 Further information is provided in the manual page of each function
 listed here.
-.Bl -tag
+.Bl -tag -width indent
 .It "Allocating ELF Data Structures"
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn gelf_newehdr
 Allocate a new ELF Executable Header.
 .It Fn gelf_newphdr
 Allocate a new ELF Program Header Table.
 .El
 .It "Data Translation"
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn gelf_xlatetof
 Translate the native representation of an ELF data structure to its
 file representation.
@@ -143,7 +145,9 @@ Translate from the file representation of an ELF data structure to a
 native representation.
 .El
 .It "Retrieving ELF Data"
-.Bl -tag -compact
+.Bl -tag -compact -width indent
+.It Fn gelf_getchdr
+Retrieve an ELF Compression Header from the underlying ELF descriptor.
 .It Fn gelf_getdyn
 Retrieve an ELF
 .Sy .dynamic
@@ -162,7 +166,7 @@ Retrieve an ELF Section Header Table entry from the underlying ELF descriptor.
 Retrieve an ELF symbol table entry.
 .El
 .It Queries
-.Bl -tag -compact
+.Bl -tag -compact -width indent
 .It Fn gelf_checksum
 Retrieves the ELF checksum for an ELF descriptor.
 .It Fn gelf_fsize
@@ -192,7 +196,10 @@ Copy back an ELF symbol table entry.
 .Xr elf 3 ,
 .Xr elf 5
 .Sh HISTORY
-The GELF(3) API first appeared in System V Release 4.
+The
+.Nm
+API first appeared in
+.At V.4 .
 This implementation of the API first appeared in
 .Fx 7.0 .
 .Sh AUTHORS

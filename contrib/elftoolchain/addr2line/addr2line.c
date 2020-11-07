@@ -25,6 +25,8 @@
  */
 
 #include <sys/param.h>
+#include <sys/tree.h>
+
 #include <dwarf.h>
 #include <err.h>
 #include <fcntl.h>
@@ -33,11 +35,11 @@
 #include <libdwarf.h>
 #include <libelftc.h>
 #include <libgen.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "uthash.h"
 #include "_elftc.h"
 
 ELFTC_VCSID("$Id: addr2line.c 3499 2016-11-25 16:06:29Z emaste $");
@@ -55,13 +57,15 @@ struct Func {
 };
 
 struct CU {
+	RB_ENTRY(CU) entry;
 	Dwarf_Off off;
 	Dwarf_Unsigned lopc;
 	Dwarf_Unsigned hipc;
 	char **srcfiles;
 	Dwarf_Signed nsrcfiles;
 	STAILQ_HEAD(, Func) funclist;
-	UT_hash_handle hh;
+	Dwarf_Die die;
+	Dwarf_Debug dbg;
 };
 
 static struct option longopts[] = {
@@ -78,10 +82,22 @@ static struct option longopts[] = {
 	{"version", no_argument, NULL, 'V'},
 	{NULL, 0, NULL, 0}
 };
+
 static int demangle, func, base, inlines, print_addr, pretty_print;
 static char unknown[] = { '?', '?', '\0' };
 static Dwarf_Addr section_base;
-static struct CU *culist;
+/* Need a new curlopc that stores last lopc value. */
+static Dwarf_Unsigned curlopc = ~0ULL;
+static RB_HEAD(cutree, CU) cuhead = RB_INITIALIZER(&cuhead);
+
+static int
+lopccmp(struct CU *e1, struct CU *e2)
+{
+	return (e1->lopc < e2->lopc ? -1 : e1->lopc > e2->lopc);
+}
+
+RB_PROTOTYPE(cutree, CU, entry, lopccmp);
+RB_GENERATE(cutree, CU, entry, lopccmp)
 
 #define	USAGE_MESSAGE	"\
 Usage: %s [options] hexaddress...\n\
@@ -330,7 +346,8 @@ cont_search:
 		collect_func(dbg, ret_die, parent, cu);
 
 	/* Cleanup */
-	dwarf_dealloc(dbg, die, DW_DLA_DIE);
+	if (die != cu->die)
+		dwarf_dealloc(dbg, die, DW_DLA_DIE);
 
 	if (abst_die != NULL)
 		dwarf_dealloc(dbg, abst_die, DW_DLA_DIE);
@@ -376,6 +393,122 @@ print_inlines(struct CU *cu, struct Func *f, Dwarf_Unsigned call_file,
 		    f->call_line);
 }
 
+static struct CU *
+culookup(Dwarf_Unsigned addr)
+{
+	struct CU find, *res;
+
+	find.lopc = addr;
+	res = RB_NFIND(cutree, &cuhead, &find);
+	if (res != NULL) {
+		if (res->lopc != addr)
+			res = RB_PREV(cutree, &cuhead, res);
+		if (res != NULL && addr >= res->lopc && addr < res->hipc)
+			return (res);
+	} else {
+		res = RB_MAX(cutree, &cuhead);
+		if (res != NULL && addr >= res->lopc && addr < res->hipc)
+			return (res);
+	}
+	return (NULL);
+}
+
+/*
+ * Check whether addr falls into range(s) of current CU, and save current CU
+ * to lookup tree if so.
+ */
+static int
+check_range(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
+    struct CU **cu)
+{
+	Dwarf_Error de;
+	Dwarf_Unsigned addr_base, lopc, hipc;
+	Dwarf_Off ranges_off;
+	Dwarf_Signed ranges_cnt;
+	Dwarf_Ranges *ranges;
+	int i, ret;
+	bool in_range;
+
+	addr_base = 0;
+	ranges = NULL;
+	ranges_cnt = 0;
+	in_range = false;
+
+	ret = dwarf_attrval_unsigned(die, DW_AT_ranges, &ranges_off, &de);
+	if (ret == DW_DLV_NO_ENTRY) {
+		if (dwarf_attrval_unsigned(die, DW_AT_low_pc, &lopc, &de) ==
+		    DW_DLV_OK) {
+			if (lopc == curlopc)
+				return (DW_DLV_ERROR);
+			if (dwarf_attrval_unsigned(die, DW_AT_high_pc, &hipc,
+				&de) == DW_DLV_OK) {
+				/*
+				 * Check if the address falls into the PC
+				 * range of this CU.
+				 */
+				if (handle_high_pc(die, lopc, &hipc) !=
+					DW_DLV_OK)
+					return (DW_DLV_ERROR);
+			} else {
+				/* Assume ~0ULL if DW_AT_high_pc not present */
+				hipc = ~0ULL;
+			}
+
+			if (addr >= lopc && addr < hipc) {
+				in_range = true;
+			}
+		}
+	} else if (ret == DW_DLV_OK) {
+		ret = dwarf_get_ranges(dbg, ranges_off, &ranges,
+			&ranges_cnt, NULL, &de);
+		if (ret != DW_DLV_OK)
+			return (ret);
+
+		if (!ranges || ranges_cnt <= 0)
+			return (DW_DLV_ERROR);
+
+		for (i = 0; i < ranges_cnt; i++) {
+			if (ranges[i].dwr_type == DW_RANGES_END)
+				return (DW_DLV_NO_ENTRY);
+
+			if (ranges[i].dwr_type ==
+				DW_RANGES_ADDRESS_SELECTION) {
+				addr_base = ranges[i].dwr_addr2;
+				continue;
+			}
+
+			/* DW_RANGES_ENTRY */
+			lopc = ranges[i].dwr_addr1 + addr_base;
+			hipc = ranges[i].dwr_addr2 + addr_base;
+
+			if (lopc == curlopc)
+				return (DW_DLV_ERROR);
+
+			if (addr >= lopc && addr < hipc){
+				in_range = true;
+				break;
+			}
+		}
+	} else {
+		return (DW_DLV_ERROR);
+	}
+	
+	if (in_range) {
+		if ((*cu = calloc(1, sizeof(struct CU))) == NULL)
+			err(EXIT_FAILURE, "calloc");
+		(*cu)->lopc = lopc;
+		(*cu)->hipc = hipc;
+		(*cu)->die = die;
+		(*cu)->dbg = dbg;
+		STAILQ_INIT(&(*cu)->funclist);
+		RB_INSERT(cutree, &cuhead, *cu);
+		curlopc = lopc;
+		return (DW_DLV_OK);
+	} else {
+		return (DW_DLV_NO_ENTRY);
+	}
+}
+
 static void
 translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 {
@@ -383,10 +516,9 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 	Dwarf_Line *lbuf;
 	Dwarf_Error de;
 	Dwarf_Half tag;
-	Dwarf_Unsigned lopc, hipc, addr, lineno, plineno;
+	Dwarf_Unsigned addr, lineno, plineno;
 	Dwarf_Signed lcount;
 	Dwarf_Addr lineaddr, plineaddr;
-	Dwarf_Off off;
 	struct CU *cu;
 	struct Func *f;
 	const char *funcname;
@@ -398,11 +530,31 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 	addr += section_base;
 	lineno = 0;
 	file = unknown;
-	cu = NULL;
 	die = NULL;
+	ret = DW_DLV_OK;
 
-	while ((ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL,
-	    &de)) ==  DW_DLV_OK) {
+	cu = culookup(addr);
+	if (cu != NULL) {
+		die = cu->die;
+		dbg = cu->dbg;
+		goto status_ok;
+	}
+
+	while (true) {
+		/*
+		 * We resume the CU scan from the last place we found a match.
+		 * Because when we have 2 sequential addresses, and the second
+		 * one is of the next CU, it is faster to just go to the next CU
+		 * instead of starting from the beginning.
+		 */
+		ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL,
+		    &de);
+		if (ret == DW_DLV_NO_ENTRY) {
+			if (curlopc == ~0ULL)
+				goto out;
+			ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL,
+			    NULL, &de);
+		}
 		die = NULL;
 		while (dwarf_siblingof(dbg, die, &ret_die, &de) == DW_DLV_OK) {
 			if (die != NULL)
@@ -418,51 +570,17 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 			if (tag == DW_TAG_compile_unit)
 				break;
 		}
+
 		if (ret_die == NULL) {
 			warnx("could not find DW_TAG_compile_unit die");
 			goto next_cu;
 		}
-		if (dwarf_attrval_unsigned(die, DW_AT_low_pc, &lopc, &de) ==
-		    DW_DLV_OK) {
-			if (dwarf_attrval_unsigned(die, DW_AT_high_pc, &hipc,
-			   &de) == DW_DLV_OK) {
-				/*
-				 * Check if the address falls into the PC
-				 * range of this CU.
-				 */
-				if (handle_high_pc(die, lopc, &hipc) !=
-				    DW_DLV_OK)
-					goto out;
-			} else {
-				/* Assume ~0ULL if DW_AT_high_pc not present */
-				hipc = ~0ULL;
-			}
-
-			/*
-			 * Record the CU in the hash table for faster lookup
-			 * later.
-			 */
-			if (dwarf_dieoffset(die, &off, &de) != DW_DLV_OK) {
-				warnx("dwarf_dieoffset failed: %s",
-				    dwarf_errmsg(de));
-				goto out;
-			}
-			HASH_FIND(hh, culist, &off, sizeof(off), cu);
-			if (cu == NULL) {
-				if ((cu = calloc(1, sizeof(*cu))) == NULL)
-					err(EXIT_FAILURE, "calloc");
-				cu->off = off;
-				cu->lopc = lopc;
-				cu->hipc = hipc;
-				STAILQ_INIT(&cu->funclist);
-				HASH_ADD(hh, culist, off, sizeof(off), cu);
-			}
-
-			if (addr >= lopc && addr < hipc)
-				break;
-		}
-
-	next_cu:
+		ret = check_range(dbg, die, addr, &cu);
+		if (ret == DW_DLV_OK)
+			break;
+		if (ret == DW_DLV_ERROR)
+			goto out;
+next_cu:
 		if (die != NULL) {
 			dwarf_dealloc(dbg, die, DW_DLA_DIE);
 			die = NULL;
@@ -472,6 +590,7 @@ translate(Dwarf_Debug dbg, Elf *e, const char* addrstr)
 	if (ret != DW_DLV_OK || die == NULL)
 		goto out;
 
+status_ok:
 	switch (dwarf_srclines(die, &lbuf, &lcount, &de)) {
 	case DW_DLV_OK:
 		break;
@@ -570,21 +689,6 @@ out:
 	    cu->srcfiles != NULL && f != NULL && f->inlined_caller != NULL)
 		print_inlines(cu, f->inlined_caller, f->call_file,
 		    f->call_line);
-
-	if (die != NULL)
-		dwarf_dealloc(dbg, die, DW_DLA_DIE);
-
-	/*
-	 * Reset internal CU pointer, so we will start from the first CU
-	 * next round.
-	 */
-	while (ret != DW_DLV_NO_ENTRY) {
-		if (ret == DW_DLV_ERROR)
-			errx(EXIT_FAILURE, "dwarf_next_cu_header: %s",
-			    dwarf_errmsg(de));
-		ret = dwarf_next_cu_header(dbg, NULL, NULL, NULL, NULL, NULL,
-		    &de);
-	}
 }
 
 static void

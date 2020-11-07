@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_bfd_find_target.3 3516 2017-02-10 02:33:08Z emaste $
+.\" $Id: elftc_bfd_find_target.3 3752 2019-06-28 01:12:53Z emaste $
 .\"
-.Dd November 30, 2011
+.Dd February 12, 2020
+.Dt ELFTC_BFD_FIND_TARGET 3
 .Os
-.Dt ELFTC_BFD_FIND_TARGET
 .Sh NAME
 .Nm elftc_bfd_find_target ,
 .Nm elftc_bfd_target_byteorder ,
@@ -48,6 +48,8 @@
 .Fn elftc_bfd_target_flavor "Elftc_Bfd_Target *target"
 .Ft "unsigned int"
 .Fn elftc_bfd_target_machine "Elftc_Bfd_Target *target"
+.Ft "unsigned int"
+.Fn elftc_bfd_target_osabi "Elftc_Bfd_Target *target"
 .Sh DESCRIPTION
 Function
 .Fn elftc_bfd_find_target
@@ -76,6 +78,9 @@ Known descriptor names and their properties include:
 .It Li elf32-powerpc Ta ELF Ta MSB Ta 32
 .It Li elf32-powerpc-freebsd Ta ELF Ta MSB Ta 32
 .It Li elf32-powerpcle Ta ELF Ta LSB Ta 32
+.It Li elf32-riscv Ta ELF Ta LSB Ta 32
+.It Li elf64-riscv Ta ELF Ta LSB Ta 64
+.It Li elf64-riscv-freebsd Ta ELF Ta LSB Ta 64
 .It Li elf32-sh Ta ELF Ta MSB Ta 32
 .It Li elf32-shl Ta ELF Ta LSB Ta 32
 .It Li elf32-sh-nbsd Ta ELF Ta MSB Ta 32

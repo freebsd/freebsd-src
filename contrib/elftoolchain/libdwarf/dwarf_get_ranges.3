@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_get_ranges.3 3182 2015-04-10 16:08:10Z emaste $
+.\" $Id: dwarf_get_ranges.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd November 9, 2011
-.Os
 .Dt DWARF_GET_RANGES 3
+.Os
 .Sh NAME
 .Nm dwarf_get_ranges
 .Nd retrieve non-contiguous address ranges
@@ -159,23 +159,6 @@ The application should not attempt to directly free this pointer.
 Portable code should instead use
 .Fn dwarf_ranges_dealloc
 to indicate that the memory may be freed.
-.Sh COMPATIBILITY
-Function
-.Fn dwarf_get_ranges_a
-is identical to
-.Fn dwarf_get_ranges ,
-except that it requires one additional argument
-.Ar die
-denoting the debugging information entry associated with
-the address range list.
-In this implementation of the
-.Lb libdwarf ,
-the argument
-.Ar die
-is ignored, and function
-.Fn dwarf_get_ranges_a
-is only provided for compatibility with other implementations of the
-DWARF(3) API.
 .Sh RETURN VALUES
 These functions
 return
@@ -189,21 +172,7 @@ In case of an error, they return
 .Dv DW_DLV_ERROR
 and set the argument
 .Ar err .
-.Sh ERRORS
-These function can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
-.It Bq Er DW_DLE_ARGUMENT
-One of the arguments
-.Ar dbg ,
-.Ar ranges
-or
-.Ar cnt
-was NULL.
-.It Bq Er DW_DLE_NO_ENTRY
-There is no address range list at the specified offset
-.Ar offset .
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To retrieve the address range list associated with a debugging
 information entry, use:
 .Bd -literal -offset indent
@@ -253,6 +222,37 @@ for (i = 0; (Dwarf_Unsigned) i < attr_count; i++) {
 	}
 }
 .Ed
+.Sh COMPATIBILITY
+Function
+.Fn dwarf_get_ranges_a
+is identical to
+.Fn dwarf_get_ranges ,
+except that it requires one additional argument
+.Ar die
+denoting the debugging information entry associated with
+the address range list.
+In this implementation of the
+.Lb libdwarf ,
+the argument
+.Ar die
+is ignored, and function
+.Fn dwarf_get_ranges_a
+is only provided for compatibility with other implementations of the
+DWARF(3) API.
+.Sh ERRORS
+These function can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar ranges
+or
+.Ar cnt
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+There is no address range list at the specified offset
+.Ar offset .
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_ranges_dealloc 3

@@ -22,11 +22,11 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: readelf.1 3486 2016-08-22 14:10:05Z emaste $
+.\" $Id: readelf.1 3753 2019-06-28 01:13:13Z emaste $
 .\"
-.Dd September 13, 2012
-.Os
+.Dd October 31, 2020
 .Dt READELF 1
+.Os
 .Sh NAME
 .Nm readelf
 .Nd display information about ELF objects
@@ -49,6 +49,7 @@
 .Fl -debug-dump Ns Op Ns = Ns Ar long-option-name , Ns ...
 .Oc
 .Op Fl x Ar section | Fl -hex-dump Ns = Ns Ar section
+.Op Fl z | Fl -decompress
 .Op Fl A | Fl -arch-specific
 .Op Fl D | Fl -use-dynamic
 .Op Fl H | Fl -help
@@ -113,6 +114,8 @@ Print symbol tables.
 .It Fl t | Fl -section-details
 Print additional information about sections, such as the flags
 fields in section headers.
+Implies
+.Fl S .
 .It Fl v | Fl -version
 Prints a version identifier for
 .Nm
@@ -155,6 +158,13 @@ Display the contents of the specified section in hexadecimal.
 The argument
 .Ar section
 should be the name of a section or a numeric section index.
+.It Fl z | Fl -decompress
+Decompress contents of sections specified by
+.Fl x
+or
+.Fl p
+before displaying.
+If the specified section is not compressed, it is displayed as is.
 .It Fl A | Fl -arch-specific
 This option is accepted but is currently unimplemented.
 .It Fl D | Fl -use-dynamic

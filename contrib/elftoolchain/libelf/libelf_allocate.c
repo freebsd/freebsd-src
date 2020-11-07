@@ -36,32 +36,25 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_allocate.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: libelf_allocate.c 3738 2019-05-05 21:49:06Z jkoshy $");
 
 Elf *
 _libelf_allocate_elf(void)
 {
 	Elf *e;
 
-	if ((e = malloc(sizeof(*e))) == NULL) {
+	if ((e = calloc((size_t) 1, sizeof(*e))) == NULL) {
 		LIBELF_SET_ERROR(RESOURCE, errno);
 		return NULL;
 	}
 
 	e->e_activations = 1;
-	e->e_hdr.e_rawhdr = NULL;
 	e->e_byteorder   = ELFDATANONE;
 	e->e_class       = ELFCLASSNONE;
 	e->e_cmd         = ELF_C_NULL;
 	e->e_fd          = -1;
-	e->e_flags	 = 0;
 	e->e_kind        = ELF_K_NONE;
-	e->e_parent      = NULL;
-	e->e_rawfile     = NULL;
-	e->e_rawsize     = 0;
 	e->e_version     = LIBELF_PRIVATE(version);
-
-	(void) memset(&e->e_u, 0, sizeof(e->e_u));
 
 	return (e);
 }
@@ -76,47 +69,41 @@ _libelf_init_elf(Elf *e, Elf_Kind kind)
 
 	switch (kind) {
 	case ELF_K_ELF:
-		STAILQ_INIT(&e->e_u.e_elf.e_scn);
+		RB_INIT(&e->e_u.e_elf.e_scn);
 		break;
 	default:
 		break;
 	}
 }
 
-#define	FREE(P)		do {				\
-		if (P)					\
-			free(P);			\
-	} while (0)
-
-
-Elf *
+void
 _libelf_release_elf(Elf *e)
 {
 	Elf_Arhdr *arh;
 
 	switch (e->e_kind) {
 	case ELF_K_AR:
-		FREE(e->e_u.e_ar.e_symtab);
+		free(e->e_u.e_ar.e_symtab);
 		break;
 
 	case ELF_K_ELF:
 		switch (e->e_class) {
 		case ELFCLASS32:
-			FREE(e->e_u.e_elf.e_ehdr.e_ehdr32);
-			FREE(e->e_u.e_elf.e_phdr.e_phdr32);
+			free(e->e_u.e_elf.e_ehdr.e_ehdr32);
+			free(e->e_u.e_elf.e_phdr.e_phdr32);
 			break;
 		case ELFCLASS64:
-			FREE(e->e_u.e_elf.e_ehdr.e_ehdr64);
-			FREE(e->e_u.e_elf.e_phdr.e_phdr64);
+			free(e->e_u.e_elf.e_ehdr.e_ehdr64);
+			free(e->e_u.e_elf.e_phdr.e_phdr64);
 			break;
 		}
 
-		assert(STAILQ_EMPTY(&e->e_u.e_elf.e_scn));
+		assert(RB_EMPTY(&e->e_u.e_elf.e_scn));
 
 		if (e->e_flags & LIBELF_F_AR_HEADER) {
 			arh = e->e_hdr.e_arhdr;
-			FREE(arh->ar_name);
-			FREE(arh->ar_rawname);
+			free(arh->ar_name);
+			free(arh->ar_rawname);
 			free(arh);
 		}
 
@@ -127,8 +114,6 @@ _libelf_release_elf(Elf *e)
 	}
 
 	free(e);
-
-	return (NULL);
 }
 
 struct _Libelf_Data *
@@ -174,7 +159,7 @@ _libelf_allocate_scn(Elf *e, size_t ndx)
 	STAILQ_INIT(&s->s_data);
 	STAILQ_INIT(&s->s_rawdata);
 
-	STAILQ_INSERT_TAIL(&e->e_u.e_elf.e_scn, s, s_next);
+	RB_INSERT(scntree, &e->e_u.e_elf.e_scn, s);
 
 	return (s);
 }
@@ -202,7 +187,7 @@ _libelf_release_scn(Elf_Scn *s)
 
 	assert(e != NULL);
 
-	STAILQ_REMOVE(&e->e_u.e_elf.e_scn, s, _Elf_Scn, s_next);
+	RB_REMOVE(scntree, &e->e_u.e_elf.e_scn, s);
 
 	free(s);
 

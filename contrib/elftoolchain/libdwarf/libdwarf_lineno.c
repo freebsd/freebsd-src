@@ -33,9 +33,10 @@ _dwarf_lineno_add_file(Dwarf_LineInfo li, uint8_t **p, const char *compdir,
     Dwarf_Error *error, Dwarf_Debug dbg)
 {
 	Dwarf_LineFile lf;
-	const char *dirname;
+	FILE *filepath;
+	const char *incdir;
 	uint8_t *src;
-	int slen;
+	size_t slen;
 
 	src = *p;
 
@@ -54,20 +55,33 @@ _dwarf_lineno_add_file(Dwarf_LineInfo li, uint8_t **p, const char *compdir,
 		return (DW_DLE_DIR_INDEX_BAD);
 	}
 
-	/* Make full pathname if need. */
+	/* Make a full pathname if needed. */
 	if (*lf->lf_fname != '/') {
-		dirname = compdir;
+		filepath = open_memstream(&lf->lf_fullpath, &slen);
+		if (filepath == NULL) {
+			free(lf);
+			DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
+			return (DW_DLE_MEMORY);
+		}
+
 		if (lf->lf_dirndx > 0)
-			dirname = li->li_incdirs[lf->lf_dirndx - 1];
-		if (dirname != NULL) {
-			slen = strlen(dirname) + strlen(lf->lf_fname) + 2;
-			if ((lf->lf_fullpath = malloc(slen)) == NULL) {
-				free(lf);
-				DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
-				return (DW_DLE_MEMORY);
-			}
-			snprintf(lf->lf_fullpath, slen, "%s/%s", dirname,
-			    lf->lf_fname);
+			incdir = li->li_incdirs[lf->lf_dirndx - 1];
+		else
+			incdir = NULL;
+
+		/*
+		 * Prepend the compilation directory if the directory table
+		 * entry is relative.
+		 */
+		if (incdir == NULL || *incdir != '/')
+			fprintf(filepath, "%s/", compdir);
+		if (incdir != NULL)
+			fprintf(filepath, "%s/", incdir);
+		fprintf(filepath, "%s", lf->lf_fname);
+		if (fclose(filepath) != 0) {
+			free(lf);
+			DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
+			return (DW_DLE_MEMORY);
 		}
 	}
 

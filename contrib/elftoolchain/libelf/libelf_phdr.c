@@ -31,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_phdr.c 3174 2015-03-27 17:13:41Z emaste $");
+ELFTC_VCSID("$Id: libelf_phdr.c 3732 2019-04-22 11:08:38Z jkoshy $");
 
 void *
 _libelf_getphdr(Elf *e, int ec)
@@ -42,8 +42,7 @@ _libelf_getphdr(Elf *e, int ec)
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
 	void *ehdr, *phdr;
-	int (*xlator)(unsigned char *_d, size_t _dsz, unsigned char *_s,
-	    size_t _c, int _swap);
+	_libelf_translator_function *xlator;
 
 	assert(ec == ELFCLASS32 || ec == ELFCLASS64);
 
@@ -78,14 +77,18 @@ _libelf_getphdr(Elf *e, int ec)
 
 	assert(fsz > 0);
 
+	if (phoff + fsz < phoff) {	/* Numeric overflow. */
+		LIBELF_SET_ERROR(HEADER, 0);
+		return (NULL);
+	}
+
 	if ((uint64_t) e->e_rawsize < (phoff + fsz)) {
 		LIBELF_SET_ERROR(HEADER, 0);
 		return (NULL);
 	}
 
-	msz = _libelf_msize(ELF_T_PHDR, ec, EV_CURRENT);
-
-	assert(msz > 0);
+	if ((msz = _libelf_msize(ELF_T_PHDR, ec, EV_CURRENT)) == 0)
+		return (NULL);
 
 	if ((phdr = calloc(phnum, msz)) == NULL) {
 		LIBELF_SET_ERROR(RESOURCE, 0);
@@ -98,7 +101,8 @@ _libelf_getphdr(Elf *e, int ec)
 		e->e_u.e_elf.e_phdr.e_phdr64 = phdr;
 
 
-	xlator = _libelf_get_translator(ELF_T_PHDR, ELF_TOMEMORY, ec);
+	xlator = _libelf_get_translator(ELF_T_PHDR, ELF_TOMEMORY, ec,
+	    _libelf_elfmachine(e));
 	(*xlator)(phdr, phnum * msz, e->e_rawfile + phoff, phnum,
 	    e->e_byteorder != LIBELF_PRIVATE(byteorder));
 
@@ -125,9 +129,8 @@ _libelf_newphdr(Elf *e, int ec, size_t count)
 	assert(ec == ELFCLASS32 || ec == ELFCLASS64);
 	assert(e->e_version == EV_CURRENT);
 
-	msz = _libelf_msize(ELF_T_PHDR, ec, e->e_version);
-
-	assert(msz > 0);
+	if ((msz = _libelf_msize(ELF_T_PHDR, ec, e->e_version)) == 0)
+		return (NULL);
 
 	newphdr = NULL;
 	if (count > 0 && (newphdr = calloc(count, msz)) == NULL) {

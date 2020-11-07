@@ -24,8 +24,8 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <ctype.h>
 #include <err.h>
@@ -46,7 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: strings.c 3571 2017-09-14 02:04:50Z emaste $");
+ELFTC_VCSID("$Id: strings.c 3648 2018-11-22 23:26:43Z emaste $");
 
 enum radix_style {
 	RADIX_DECIMAL,
@@ -64,7 +64,7 @@ enum encoding_style {
 };
 
 #define PRINTABLE(c)						\
-      ((c) >= 0 && (c) <= 255 && 				\
+      ((c) >= 0 && (c) <= 255 &&				\
 	  ((c) == '\t' || isprint((c)) ||			\
 	      (encoding == ENCODING_8BIT && (c) > 127)))
 
@@ -84,11 +84,11 @@ static struct option strings_longopts[] = {
 	{ NULL, 0, NULL, 0 }
 };
 
-long	getcharacter(void);
+int	getcharacter(FILE *, long *);
 int	handle_file(const char *);
-int	handle_elf(const char *, int);
-int	handle_binary(const char *, int);
-int	find_strings(const char *, off_t, off_t);
+int	handle_elf(const char *, FILE *);
+int	handle_binary(const char *, FILE *, size_t);
+int	find_strings(const char *, FILE *, off_t, off_t);
 void	show_version(void);
 void	usage(void);
 
@@ -109,8 +109,8 @@ main(int argc, char **argv)
 		    elf_errmsg(-1));
 
 	while ((ch = getopt_long(argc, argv, "1234567890ae:fhn:ot:Vv",
-	    strings_longopts, NULL)) != -1)
-		switch((char)ch) {
+	    strings_longopts, NULL)) != -1) {
+		switch ((char)ch) {
 		case 'a':
 			entire_file = 1;
 			break;
@@ -183,14 +183,15 @@ main(int argc, char **argv)
 			usage();
 			/* NOTREACHED */
 		}
+	}
 	argc -= optind;
 	argv += optind;
 
-	if (!min_len)
+	if (min_len == 0)
 		min_len = 4;
-	if (!*argv)
-		rc = find_strings("{standard input}", 0, 0);
-	else while (*argv) {
+	if (*argv == NULL)
+		rc = find_strings("{standard input}", stdin, 0, 0);
+	else while (*argv != NULL) {
 		if (handle_file(*argv) != 0)
 			rc = 1;
 		argv++;
@@ -201,19 +202,19 @@ main(int argc, char **argv)
 int
 handle_file(const char *name)
 {
-	int fd, rt;
+	FILE *pfile;
+	int rt;
 
 	if (name == NULL)
 		return (1);
-	if (freopen(name, "rb", stdin) == NULL) {
+	pfile = fopen(name, "rb");
+	if (pfile == NULL) {
 		warnx("'%s': %s", name, strerror(errno));
 		return (1);
 	}
 
-	fd = fileno(stdin);
-	if (fd < 0)
-		return (1);
-	rt = handle_elf(name, fd);
+	rt = handle_elf(name, pfile);
+	fclose(pfile);
 	return (rt);
 }
 
@@ -222,15 +223,11 @@ handle_file(const char *name)
  * treated as a binary file. This would include text file, core dumps ...
  */
 int
-handle_binary(const char *name, int fd)
+handle_binary(const char *name, FILE *pfile, size_t size)
 {
-	struct stat buf;
 
-	memset(&buf, 0, sizeof(struct stat));
-	(void) lseek(fd, (off_t)0, SEEK_SET);
-	if (!fstat(fd, &buf))
-		return (find_strings(name, (off_t)0, buf.st_size));
-	return (1);
+	(void)fseeko(pfile, 0, SEEK_SET);
+	return (find_strings(name, pfile, 0, size));
 }
 
 /*
@@ -240,35 +237,40 @@ handle_binary(const char *name, int fd)
  * different archs as flat binary files(has to overridden using -a).
  */
 int
-handle_elf(const char *name, int fd)
+handle_elf(const char *name, FILE *pfile)
 {
+	struct stat buf;
 	GElf_Ehdr elfhdr;
 	GElf_Shdr shdr;
 	Elf *elf;
 	Elf_Scn *scn;
-	int rc;
+	int rc, fd;
 
 	rc = 0;
+	fd = fileno(pfile);
+	if (fstat(fd, &buf) < 0)
+		return (1);
+
 	/* If entire file is chosen, treat it as a binary file */
 	if (entire_file)
-		return (handle_binary(name, fd));
+		return (handle_binary(name, pfile, buf.st_size));
 
-	(void) lseek(fd, (off_t)0, SEEK_SET);
+	(void)lseek(fd, 0, SEEK_SET);
 	elf = elf_begin(fd, ELF_C_READ, NULL);
 	if (elf_kind(elf) != ELF_K_ELF) {
-		(void) elf_end(elf);
-		return (handle_binary(name, fd));
+		(void)elf_end(elf);
+		return (handle_binary(name, pfile, buf.st_size));
 	}
 
 	if (gelf_getehdr(elf, &elfhdr) == NULL) {
-		(void) elf_end(elf);
+		(void)elf_end(elf);
 		warnx("%s: ELF file could not be processed", name);
 		return (1);
 	}
 
 	if (elfhdr.e_shnum == 0 && elfhdr.e_type == ET_CORE) {
-		(void) elf_end(elf);
-		return (handle_binary(name, fd));
+		(void)elf_end(elf);
+		return (handle_binary(name, pfile, buf.st_size));
 	} else {
 		scn = NULL;
 		while ((scn = elf_nextscn(elf, scn)) != NULL) {
@@ -276,12 +278,12 @@ handle_elf(const char *name, int fd)
 				continue;
 			if (shdr.sh_type != SHT_NOBITS &&
 			    (shdr.sh_flags & SHF_ALLOC) != 0) {
-				rc = find_strings(name, shdr.sh_offset,
+				rc = find_strings(name, pfile, shdr.sh_offset,
 				    shdr.sh_size);
 			}
 		}
 	}
-	(void) elf_end(elf);
+	(void)elf_end(elf);
 	return (rc);
 }
 
@@ -289,51 +291,52 @@ handle_elf(const char *name, int fd)
  * Retrieves a character from input stream based on the encoding
  * type requested.
  */
-long
-getcharacter(void)
+int
+getcharacter(FILE *pfile, long *rt)
 {
-	long rt;
-	int i;
-	char buf[4], c;
+	int i, c;
+	char buf[4];
 
-	rt = EOF;
 	for(i = 0; i < encoding_size; i++) {
-		c = getc(stdin);
-		if (feof(stdin))
-			return (EOF);
+		c = getc(pfile);
+		if (c == EOF)
+			return (-1);
 		buf[i] = c;
 	}
 
-	switch(encoding) {
+	switch (encoding) {
 	case ENCODING_7BIT:
 	case ENCODING_8BIT:
-		rt = buf[0];
+		*rt = buf[0];
 		break;
 	case ENCODING_16BIT_BIG:
-		rt = (buf[0] << 8) | buf[1];
+		*rt = (buf[0] << 8) | buf[1];
 		break;
 	case ENCODING_16BIT_LITTLE:
-		 rt = buf[0] | (buf[1] << 8);
-		 break;
+		*rt = buf[0] | (buf[1] << 8);
+		break;
 	case ENCODING_32BIT_BIG:
-		rt = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
-           	    ((long) buf[2] << 8) | buf[3];
-           	break;
+		*rt = ((long) buf[0] << 24) | ((long) buf[1] << 16) |
+		    ((long) buf[2] << 8) | buf[3];
+		break;
 	case ENCODING_32BIT_LITTLE:
-		rt = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
-        	    ((long) buf[3] << 24);
-           	break;
+		*rt = buf[0] | ((long) buf[1] << 8) | ((long) buf[2] << 16) |
+		    ((long) buf[3] << 24);
+		break;
+	default:
+		return (-1);
 	}
-	return (rt);
+
+	return (0);
 }
 
 /*
- * Input stream stdin is read until the end of file is reached or until
+ * Input stream is read until the end of file is reached or until
  * the section size is reached in case of ELF files. Contiguous
  * characters of >= min_size(default 4) will be displayed.
  */
 int
-find_strings(const char *name, off_t offset, off_t size)
+find_strings(const char *name, FILE *pfile, off_t offset, off_t size)
 {
 	off_t cur_off, start_off;
 	char *obuf;
@@ -341,74 +344,71 @@ find_strings(const char *name, off_t offset, off_t size)
 	int i;
 
 	if ((obuf = (char*)calloc(1, min_len + 1)) == NULL) {
-		(void) fprintf(stderr, "Unable to allocate memory: %s\n",
-		     strerror(errno));
+		fprintf(stderr, "Unable to allocate memory: %s\n",
+		    strerror(errno));
 		return (1);
 	}
 
-	(void) fseeko(stdin, offset, SEEK_SET);
+	(void)fseeko(pfile, offset, SEEK_SET);
 	cur_off = offset;
 	start_off = 0;
-	while(1) {
+	for (;;) {
 		if ((offset + size) && (cur_off >= offset + size))
 			break;
 		start_off = cur_off;
-		memset(obuf, 0, min_len+1);
+		memset(obuf, 0, min_len + 1);
 		for(i = 0; i < min_len; i++) {
-			c = getcharacter();
-			if (c == EOF && feof(stdin))
+			if (getcharacter(pfile, &c) < 0)
 				goto _exit1;
-		 	if (PRINTABLE(c)) {
-		 		obuf[i] = c;
-		 		obuf[i+1] = 0;
-		 		cur_off += encoding_size;
-		 	} else {
+			if (PRINTABLE(c)) {
+				obuf[i] = c;
+				obuf[i + 1] = 0;
+				cur_off += encoding_size;
+			} else {
 				if (encoding == ENCODING_8BIT &&
 				    (uint8_t)c > 127) {
-			 		obuf[i] = c;
-			 		obuf[i+1] = 0;
-			 		cur_off += encoding_size;
-			 		continue;
-			 	}
-	 			cur_off += encoding_size;
-	 			break;
-		 	}
+					obuf[i] = c;
+					obuf[i + 1] = 0;
+					cur_off += encoding_size;
+					continue;
+				}
+				cur_off += encoding_size;
+				break;
+			}
 		}
 
 		if (i >= min_len && ((cur_off <= offset + size) ||
 		    !(offset + size))) {
 			if (show_filename)
-				printf ("%s: ", name);
+				printf("%s: ", name);
 			if (show_loc) {
-				switch(radix) {
+				switch (radix) {
 				case RADIX_DECIMAL:
-					(void) printf("%7ju ",
-					    (uintmax_t)start_off);
+					printf("%7ju ", (uintmax_t)start_off);
 					break;
 				case RADIX_HEX:
-					(void) printf("%7jx ",
-					    (uintmax_t)start_off);
+					printf("%7jx ", (uintmax_t)start_off);
 					break;
 				case RADIX_OCTAL:
-					(void) printf("%7jo ",
-					    (uintmax_t)start_off);
+					printf("%7jo ", (uintmax_t)start_off);
 					break;
 				}
 			}
 			printf("%s", obuf);
 
-			while(1) {
+			for (;;) {
 				if ((offset + size) &&
 				    (cur_off >= offset + size))
 					break;
-				c = getcharacter();
+				if (getcharacter(pfile, &c) < 0)
+					break;
 				cur_off += encoding_size;
 				if (encoding == ENCODING_8BIT &&
 				    (uint8_t)c > 127) {
-			 		putchar(c);
-			 		continue;
-			 	}
-				if (!PRINTABLE(c) || c == EOF)
+					putchar(c);
+					continue;
+				}
+				if (!PRINTABLE(c))
 					break;
 				putchar(c);
 			}
@@ -436,13 +436,15 @@ Usage: %s [options] [file...]\n\
 void
 usage(void)
 {
-	(void) fprintf(stderr, USAGE_MESSAGE, ELFTC_GETPROGNAME());
+
+	fprintf(stderr, USAGE_MESSAGE, ELFTC_GETPROGNAME());
 	exit(EXIT_FAILURE);
 }
 
 void
 show_version(void)
 {
-        (void) printf("%s (%s)\n", ELFTC_GETPROGNAME(), elftc_version());
+
+        printf("%s (%s)\n", ELFTC_GETPROGNAME(), elftc_version());
         exit(EXIT_SUCCESS);
 }

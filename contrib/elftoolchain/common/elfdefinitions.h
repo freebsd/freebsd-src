@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfdefinitions.h 3515 2017-01-24 22:04:22Z emaste $
+ * $Id: elfdefinitions.h 3769 2019-06-29 15:15:02Z emaste $
  */
 
 /*
@@ -33,7 +33,7 @@
  *   See: http://www.sco.com/developers/gabi/latest/ch4.intro.html
  * - The May 1998 (version 1.5) draft of "The ELF-64 object format".
  * - Processor-specific ELF ABI definitions for sparc, i386, amd64, mips,
- *   ia64, and powerpc processors.
+ *   ia64, powerpc, and RISC-V processors.
  * - The "Linkers and Libraries Guide", from Sun Microsystems.
  */
 
@@ -72,7 +72,39 @@ _ELF_DEFINE_DF(DF_TEXTREL,          0x4,			\
 _ELF_DEFINE_DF(DF_BIND_NOW,         0x8,			\
 	"process relocation entries at load time")		\
 _ELF_DEFINE_DF(DF_STATIC_TLS,       0x10,			\
-	"uses static thread-local storage")
+	"uses static thread-local storage")			\
+_ELF_DEFINE_DF(DF_1_BIND_NOW,       0x1,			\
+	"process relocation entries at load time")		\
+_ELF_DEFINE_DF(DF_1_GLOBAL,         0x2,			\
+	"unused")						\
+_ELF_DEFINE_DF(DF_1_GROUP,          0x4,			\
+	"object is a member of a group")			\
+_ELF_DEFINE_DF(DF_1_NODELETE,       0x8,			\
+	"object cannot be deleted from a process")		\
+_ELF_DEFINE_DF(DF_1_LOADFLTR,       0x10,			\
+	"immediate load filtees")				\
+_ELF_DEFINE_DF(DF_1_INITFIRST,      0x20,			\
+	"initialize object first")				\
+_ELF_DEFINE_DF(DF_1_NOOPEN,         0x40,			\
+	"disallow dlopen()")					\
+_ELF_DEFINE_DF(DF_1_ORIGIN,         0x80,			\
+	"object being loaded may refer to $ORIGIN")		\
+_ELF_DEFINE_DF(DF_1_DIRECT,         0x100,			\
+	"direct bindings enabled")				\
+_ELF_DEFINE_DF(DF_1_INTERPOSE,      0x400,			\
+	"object is interposer")					\
+_ELF_DEFINE_DF(DF_1_NODEFLIB,       0x800,			\
+	"ignore default library search path")			\
+_ELF_DEFINE_DF(DF_1_NODUMP,         0x1000,			\
+	"disallow dldump()")					\
+_ELF_DEFINE_DF(DF_1_CONFALT,        0x2000,			\
+	"object is a configuration alternative")		\
+_ELF_DEFINE_DF(DF_1_ENDFILTEE,      0x4000,			\
+	"filtee terminates filter search")			\
+_ELF_DEFINE_DF(DF_1_DISPRELDNE,     0x8000,			\
+	"displacement relocation done")				\
+_ELF_DEFINE_DF(DF_1_DISPRELPND,     0x10000,			\
+	"displacement relocation pending")
 #undef	_ELF_DEFINE_DF
 #define	_ELF_DEFINE_DF(N, V, DESCR)	N = V ,
 enum {
@@ -426,6 +458,22 @@ _ELF_DEFINE_EF(EF_PPC_RELOCATABLE,  0x00010000UL,			\
 	"-mrelocatable flag")						\
 _ELF_DEFINE_EF(EF_PPC_RELOCATABLE_LIB, 0x00008000UL,			\
 	"-mrelocatable-lib flag")					\
+_ELF_DEFINE_EF(EF_RISCV_RVC,	    0x00000001UL,			\
+	"Compressed instruction extension")				\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_MASK, 0x00000006UL,			\
+	"Floating point ABI")						\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_SOFT, 0x00000000UL,			\
+	"Software emulated floating point")				\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_SINGLE, 0x00000002UL,			\
+	"Single precision floating point")				\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_DOUBLE, 0x00000004UL,			\
+	"Double precision floating point")				\
+_ELF_DEFINE_EF(EF_RISCV_FLOAT_ABI_QUAD, 0x00000006UL,			\
+	"Quad precision floating point")				\
+_ELF_DEFINE_EF(EF_RISCV_RVE,	    0x00000008UL,			\
+	"RV32E embedded ABI")						\
+_ELF_DEFINE_EF(EF_RISCV_TSO,	    0x00000010UL,			\
+	"RVTSO memory consistency model")				\
 _ELF_DEFINE_EF(EF_SPARC_EXT_MASK,   0x00ffff00UL,			\
 	"Vendor Extension mask")					\
 _ELF_DEFINE_EF(EF_SPARC_32PLUS,     0x00000100UL,			\
@@ -2448,7 +2496,10 @@ _ELF_DEFINE_NT(NT_PSTATUS,	10,	"Linux process status")		\
 _ELF_DEFINE_NT(NT_FPREGS,	12,	"Linux floating point regset")	\
 _ELF_DEFINE_NT(NT_PSINFO,	13,	"Linux process information")	\
 _ELF_DEFINE_NT(NT_LWPSTATUS,	16,	"Linux lwpstatus_t type")	\
-_ELF_DEFINE_NT(NT_LWPSINFO,	17,	"Linux lwpinfo_t type")
+_ELF_DEFINE_NT(NT_LWPSINFO,	17,	"Linux lwpinfo_t type")		\
+_ELF_DEFINE_NT(NT_FREEBSD_NOINIT_TAG,	2,	"FreeBSD no .init tag")	\
+_ELF_DEFINE_NT(NT_FREEBSD_ARCH_TAG,	3,	"FreeBSD arch tag")	\
+_ELF_DEFINE_NT(NT_FREEBSD_FEATURE_CTL,	4,	"FreeBSD feature control")
 
 #undef	_ELF_DEFINE_NT
 #define	_ELF_DEFINE_NT(N, V, DESCR)	N = V ,
@@ -2806,7 +2857,8 @@ typedef struct {
 
 #define ELF64_R_SYM(I)		((I) >> 32)
 #define ELF64_R_TYPE(I)		((I) & 0xFFFFFFFFUL)
-#define ELF64_R_INFO(S,T)	(((S) << 32) + ((T) & 0xFFFFFFFFUL))
+#define ELF64_R_INFO(S,T)	\
+	(((Elf64_Xword) (S) << 32) + ((T) & 0xFFFFFFFFUL))
 
 /*
  * Symbol versioning structures.

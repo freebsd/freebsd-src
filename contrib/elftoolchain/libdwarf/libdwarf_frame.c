@@ -468,9 +468,9 @@ _dwarf_frame_section_init(Dwarf_Debug dbg, Dwarf_FrameSec *frame_sec,
 
 		if (length > ds->ds_size - offset ||
 		    (length == 0 && !eh_frame)) {
-			DWARF_SET_ERROR(dbg, error,
-			    DW_DLE_DEBUG_FRAME_LENGTH_BAD);
-			return (DW_DLE_DEBUG_FRAME_LENGTH_BAD);
+			ret = DW_DLE_DEBUG_FRAME_LENGTH_BAD;
+			DWARF_SET_ERROR(dbg, error, ret);
+			goto fail_cleanup;
 		}
 
 		/* Check terminator for .eh_frame */

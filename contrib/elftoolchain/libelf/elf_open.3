@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_open.3 3181 2015-04-10 13:22:51Z emaste $
+.\" $Id: elf_open.3 3743 2019-06-12 19:36:30Z jkoshy $
 .\"
-.Dd May 31, 2012
-.Os
+.Dd June 12, 2019
 .Dt ELF_OPEN 3
+.Os
 .Sh NAME
 .Nm elf_open
 .Nd open ELF objects and ar(1) archives
@@ -43,7 +43,9 @@ The functions
 .Fn elf_open
 and
 .Fn elf_openmemory
-are extensions to the ELF(3) API, for the internal use of the
+are extensions to the
+.Xr elf 3
+API, for the internal use of the
 Elftoolchain project.
 Portable applications should not use these functions.
 .Pp
@@ -67,8 +69,13 @@ archive contained in the memory area pointed to by the argument
 The argument
 .Ar sz
 specifies the size of the memory area in bytes.
+.Sh RETURN VALUES
+The function returns a pointer to a ELF descriptor if successful, or
+NULL if an error occurred.
 .Sh COMPATIBILITY
-These functions are non-standard extensions to the ELF(3) API set.
+These functions are non-standard extensions to the
+.Xr elf 3
+API set.
 .Pp
 The behavior of these functions differs from their counterparts
 .Xr elf_begin 3
@@ -79,9 +86,6 @@ and
 .Xr ar 1
 archives, returning an Elf descriptor of type
 .Dv ELF_K_NONE .
-.Sh RETURN VALUES
-The function returns a pointer to a ELF descriptor if successful, or
-NULL if an error occurred.
 .Sh ERRORS
 These functions can fail with the following errors:
 .Bl -tag -width "[ELF_E_RESOURCE]"

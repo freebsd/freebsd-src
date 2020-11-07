@@ -30,7 +30,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3516 2017-02-10 02:33:08Z emaste $");
+ELFTC_VCSID("$Id: libelftc_bfdtarget.c 3752 2019-06-28 01:12:53Z emaste $");
 
 struct _Elftc_Bfd_Target _libelftc_targets[] = {
 
@@ -313,6 +313,31 @@ struct _Elftc_Bfd_Target _libelftc_targets[] = {
 		.bt_byteorder = ELFDATA2LSB,
 		.bt_elfclass  = ELFCLASS64,
 		.bt_machine   = EM_PPC64,
+	},
+
+	{
+		.bt_name      = "elf32-riscv",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2LSB,
+		.bt_elfclass  = ELFCLASS32,
+		.bt_machine   = EM_RISCV,
+	},
+
+	{
+		.bt_name      = "elf64-riscv",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2LSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_RISCV,
+	},
+
+	{
+		.bt_name      = "elf64-riscv-freebsd",
+		.bt_type      = ETF_ELF,
+		.bt_byteorder = ELFDATA2MSB,
+		.bt_elfclass  = ELFCLASS64,
+		.bt_machine   = EM_RISCV,
+		.bt_osabi     = ELFOSABI_FREEBSD,
 	},
 
 	{

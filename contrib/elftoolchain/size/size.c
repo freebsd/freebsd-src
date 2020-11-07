@@ -211,7 +211,7 @@ main(int argc, char **argv)
         return (rc);
 }
 
-static Elf_Data *
+static int
 xlatetom(Elf *elf, GElf_Ehdr *elfhdr, void *_src, void *_dst,
     Elf_Type type, size_t size)
 {
@@ -224,7 +224,8 @@ xlatetom(Elf *elf, GElf_Ehdr *elfhdr, void *_src, void *_dst,
 	dst.d_buf = _dst;
 	dst.d_version = elfhdr->e_version;
 	dst.d_size = size;
-	return (gelf_xlatetom(elf, &dst, &src, elfhdr->e_ident[EI_DATA]));
+	return (gelf_xlatetom(elf, &dst, &src, elfhdr->e_ident[EI_DATA]) !=
+	    NULL ? 0 : 1);
 }
 
 #define NOTE_OFFSET_32(nhdr, namesz, offset) 			\
@@ -285,12 +286,12 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 	while (data != NULL && offset + sizeof(Elf32_Nhdr) < segment_end) {
 		nhdr = (Elf32_Nhdr *)(uintptr_t)((char*)data + offset);
 		memset(&nhdr_l, 0, sizeof(Elf32_Nhdr));
-		if (!xlatetom(elf, elfhdr, &nhdr->n_type, &nhdr_l.n_type,
-			ELF_T_WORD, sizeof(Elf32_Word)) ||
-		    !xlatetom(elf, elfhdr, &nhdr->n_descsz, &nhdr_l.n_descsz,
-			ELF_T_WORD, sizeof(Elf32_Word)) ||
-		    !xlatetom(elf, elfhdr, &nhdr->n_namesz, &nhdr_l.n_namesz,
-			ELF_T_WORD, sizeof(Elf32_Word)))
+		if (xlatetom(elf, elfhdr, &nhdr->n_type, &nhdr_l.n_type,
+		    ELF_T_WORD, sizeof(Elf32_Word)) != 0 ||
+		    xlatetom(elf, elfhdr, &nhdr->n_descsz, &nhdr_l.n_descsz,
+		    ELF_T_WORD, sizeof(Elf32_Word)) != 0 ||
+		    xlatetom(elf, elfhdr, &nhdr->n_namesz, &nhdr_l.n_namesz,
+		    ELF_T_WORD, sizeof(Elf32_Word)) != 0)
 			break;
 
 		if (offset + sizeof(Elf32_Nhdr) +
@@ -327,10 +328,10 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 						pid = PID64(nhdr,
 						    nhdr_l.n_namesz, 40);
 				}
-				xlatetom(elf, elfhdr, &raw_size, &raw_size,
-				    ELF_T_WORD, sizeof(uint64_t));
-				xlatetom(elf, elfhdr, &pid, &pid, ELF_T_WORD,
-				    sizeof(pid_t));
+				(void)xlatetom(elf, elfhdr, &raw_size,
+				    &raw_size, ELF_T_WORD, sizeof(uint64_t));
+				(void)xlatetom(elf, elfhdr, &pid, &pid,
+				    ELF_T_WORD, sizeof(pid_t));
 			}
 
 			if (raw_size != 0 && style == STYLE_SYSV) {

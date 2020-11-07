@@ -21,51 +21,52 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: ar.1 3230 2015-07-27 17:11:38Z emaste $
+.\" $Id: ar.1 3642 2018-10-14 14:24:28Z jkoshy $
 .\"
-.Dd July 27, 2015
-.Os
+.Dd September 30, 2018
 .Dt AR 1
+.Os
 .Sh NAME
 .Nm ar
 .Nd manage archives
 .Sh SYNOPSIS
 .Nm
 .Fl d
-.Op Fl T
 .Op Fl f
 .Op Fl j
+.Op Fl T
 .Op Fl v
 .Op Fl z
 .Ar archive
 .Ar
 .Nm
 .Fl m
-.Op Fl T
 .Op Fl a Ar position-after
 .Op Fl b Ar position-before
 .Op Fl f
 .Op Fl i Ar position-before
 .Op Fl j
 .Op Fl s | Fl S
+.Op Fl T
 .Op Fl z
 .Ar archive
 .Ar
 .Nm
 .Fl p
-.Op Fl T
 .Op Fl f
+.Op Fl s
+.Op Fl T
 .Op Fl v
 .Ar archive
 .Op Ar
 .Nm
 .Fl q
-.Op Fl T
 .Op Fl c
 .Op Fl D
 .Op Fl f
 .Op Fl F Ar flavor | Fl -flavor Ar flavor
 .Op Fl s | Fl S
+.Op Fl T
 .Op Fl U
 .Op Fl v
 .Op Fl z
@@ -73,7 +74,6 @@
 .Ar
 .Nm
 .Fl r
-.Op Fl T
 .Op Fl a Ar position-after
 .Op Fl b Ar position-before
 .Op Fl c
@@ -83,6 +83,7 @@
 .Op Fl i Ar position-before
 .Op Fl j
 .Op Fl s | Fl S
+.Op Fl T
 .Op Fl u
 .Op Fl U
 .Op Fl v
@@ -99,6 +100,7 @@
 .Nm
 .Fl t
 .Op Fl f
+.Op Fl s
 .Op Fl T
 .Op Fl v
 .Ar archive
@@ -106,9 +108,10 @@
 .Nm
 .Fl x
 .Op Fl C
-.Op Fl T
 .Op Fl f
 .Op Fl o
+.Op Fl s
+.Op Fl T
 .Op Fl u
 .Op Fl v
 .Ar archive

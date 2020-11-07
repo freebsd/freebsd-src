@@ -71,3 +71,10 @@ elftc_bfd_target_machine(Elftc_Bfd_Target *tgt)
 
 	return (tgt->bt_machine);
 }
+
+unsigned int
+elftc_bfd_target_osabi(Elftc_Bfd_Target *tgt)
+{
+
+	return (tgt->bt_osabi);
+}

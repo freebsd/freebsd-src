@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_get_fde_list.3 2122 2011-11-09 15:35:14Z jkoshy $
+.\" $Id: dwarf_get_fde_list.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd November 9, 2011
-.Os
 .Dt DWARF_GET_FDE_LIST 3
+.Os
 .Sh NAME
 .Nm dwarf_get_fde_list
 .Nd retrieve frame information
@@ -132,23 +132,7 @@ In case of an error, they return
 .Dv DW_DLV_ERROR
 and set the argument
 .Ar err .
-.Sh ERRORS
-These functions may fail with the following errors:
-.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
-.It Bq Er DW_DLE_ARGUMENT
-One of the arguments
-.Va dbg ,
-.Va cie_list ,
-.Va cie_count ,
-.Va fde_list
-or
-.Va fde_count
-was NULL.
-.It Bq Er DW_DLE_NO_ENTRY
-There is no frame information associated with the giving DWARF debug
-context.
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To obtain frame information from the
 .Dq ".debug_frame"
 section, use:
@@ -202,17 +186,33 @@ for (i = 0; i < fde_count; i++) {
 dwarf_fde_cie_list_dealloc(dbg, cie_list, cie_count, fde_list,
     fde_count);
 .Ed
+.Sh ERRORS
+These functions may fail with the following errors:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Va dbg ,
+.Va cie_list ,
+.Va cie_count ,
+.Va fde_list
+or
+.Va fde_count
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+There is no frame information associated with the giving DWARF debug
+context.
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
+.Xr dwarf_fde_cie_list_dealloc 3 ,
 .Xr dwarf_get_cie_index 3 ,
 .Xr dwarf_get_cie_of_fde 3 ,
 .Xr dwarf_get_fde_at_pc 3 ,
 .Xr dwarf_get_fde_instr_bytes 3 ,
 .Xr dwarf_get_fde_n 3 ,
 .Xr dwarf_get_fde_range 3 ,
-.Xr dwarf_fde_cie_list_dealloc 3 ,
 .Xr dwarf_set_frame_cfa_value 3 ,
-.Xr dwarf_set_frame_rule_table_size 3 ,
 .Xr dwarf_set_frame_rule_initial_value 3 ,
+.Xr dwarf_set_frame_rule_table_size 3 ,
 .Xr dwarf_set_frame_same_value 3 ,
 .Xr dwarf_set_frame_undefined_value 3

@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_get_macro_details.3 2071 2011-10-27 03:20:00Z jkoshy $
+.\" $Id: dwarf_get_macro_details.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd March 20, 2011
-.Os
 .Dt DWARF_GET_MACRO_DETAILS 3
+.Os
 .Sh NAME
 .Nm dwarf_get_macro_details
 .Nd retrieve macro information
@@ -150,23 +150,7 @@ In case of an error, it returns
 .Dv DW_DLV_ERROR
 and sets the argument
 .Ar err .
-.Sh ERRORS
-Function
-.Fn dwarf_get_macro_details
-can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
-.It Bq Er DW_DLE_ARGUMENT
-One of the arguments
-.Ar dbg ,
-.Ar entry_cnt
-or
-.Ar details
-was NULL.
-.It Bq Er DW_DLE_NO_ENTRY
-There is no more macro information at the specified offset
-.Ar offset .
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To loop through all the macro information entries associated with
 a DWARF debug context:
 .Bd -literal -offset indent
@@ -185,6 +169,22 @@ while (dwarf_get_macro_details(dbg, offset, 0,
 	offset = md[cnt - 1].dmd_offset + 1;
 }
 .Ed
+.Sh ERRORS
+Function
+.Fn dwarf_get_macro_details
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_NO_ENTRY"
+.It Bq Er DW_DLE_ARGUMENT
+One of the arguments
+.Ar dbg ,
+.Ar entry_cnt
+or
+.Ar details
+was NULL.
+.It Bq Er DW_DLE_NO_ENTRY
+There is no more macro information at the specified offset
+.Ar offset .
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_dealloc 3 ,

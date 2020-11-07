@@ -59,9 +59,7 @@ _dwarf_abbrev_add(Dwarf_CU cu, uint64_t entry, uint64_t tag, uint8_t children,
 		HASH_ADD(ab_hh, cu->cu_abbrev_hash, ab_entry,
 		    sizeof(ab->ab_entry), ab);
 
-	if (abp != NULL)
-		*abp = ab;
-
+	*abp = ab;
 	return (DW_DLE_NONE);
 }
 

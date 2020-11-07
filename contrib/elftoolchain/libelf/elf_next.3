@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_next.3 189 2008-07-20 10:38:08Z jkoshy $
+.\" $Id: elf_next.3 3698 2019-02-28 06:34:42Z jkoshy $
 .\"
-.Dd June 17, 2006
-.Os
+.Dd February 27, 2019
 .Dt ELF_NEXT 3
+.Os
 .Sh NAME
 .Nm elf_next
 .Nd provide sequential access to the next archive member
@@ -88,6 +88,9 @@ Argument
 was not associated with a containing
 .Xr ar 1
 archive.
+.It Bq Er ELF_E_ARGUMENT
+An error was encountered while parsing the archive containing argument
+.Ar elf .
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,

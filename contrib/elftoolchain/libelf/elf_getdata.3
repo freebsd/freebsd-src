@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elf_getdata.3 3181 2015-04-10 13:22:51Z emaste $
+.\" $Id: elf_getdata.3 3734 2019-04-22 14:10:49Z jkoshy $
 .\"
-.Dd January 26, 2011
-.Os
+.Dd April 22, 2019
 .Dt ELF_GETDATA 3
+.Os
 .Sh NAME
 .Nm elf_getdata ,
 .Nm elf_newdata ,
@@ -144,7 +144,7 @@ structures of type
 .Dv ELF_T_BYTE .
 .Ss Special handling of zero-sized and SHT_NOBITS sections
 For sections of type
-.Dv SHT_NOBITS,
+.Dv SHT_NOBITS ,
 and for zero-sized sections,
 the functions
 .Fn elf_getdata
@@ -214,7 +214,12 @@ is incorrect.
 .It Bq Er ELF_E_UNIMPL
 The section type associated with section
 .Ar scn
-is currently unsupported by the library.
+is not supported.
+.It Bq Er ELF_E_VERSION
+Section
+.Ar scn
+was associated with an ELF object with an unsupported
+version.
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,

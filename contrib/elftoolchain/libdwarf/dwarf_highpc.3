@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_highpc.3 3092 2014-09-02 22:09:30Z kaiwang27 $
+.\" $Id: dwarf_highpc.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd July 22, 2014
-.Os
 .Dt DWARF_HIGHPC 3
+.Os
 .Sh NAME
 .Nm dwarf_arrayorder ,
 .Nm dwarf_bitoffset ,
@@ -155,7 +155,8 @@ or
 if the caller is not interested in the respective value.
 .Sh RETURN VALUES
 These functions return
-.Dv DW_DLV_OK on success.
+.Dv DW_DLV_OK
+on success.
 .Pp
 If the debugging information entry descriptor denoted by argument
 .Ar die
@@ -189,5 +190,5 @@ had no requested attribute.
 .Xr dwarf 3 ,
 .Xr dwarf_attr 3 ,
 .Xr dwarf_attrlist 3 ,
-.Xr dwarf_hasattr 3 ,
-.Xr dwarf_get_form_class 3
+.Xr dwarf_get_form_class 3 ,
+.Xr dwarf_hasattr 3

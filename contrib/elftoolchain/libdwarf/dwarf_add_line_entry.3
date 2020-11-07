@@ -22,11 +22,11 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_add_line_entry.3 3182 2015-04-10 16:08:10Z emaste $
+.\" $Id: dwarf_add_line_entry.3 3644 2018-10-15 19:55:01Z jkoshy $
 .\"
 .Dd June 30, 2013
-.Os
 .Dt DWARF_ADD_LINE_ENTRY 3
+.Os
 .Sh NAME
 .Nm dwarf_add_line_entry
 .Nd add a line number information entry to a producer instance
@@ -109,24 +109,7 @@ returns
 .Dv DW_DLV_NOCOUNT
 and sets the argument
 .Ar err .
-.Sh ERRORS
-Function
-.Fn dwarf_add_line_entry
-can fail with:
-.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
-.It Bq Er DW_DLE_ARGUMENT
-Argument
-.Ar dbg
-was NULL.
-.It Bq Er DW_DLE_ARGUMENT
-The function
-.Xr dwarf_lne_set_address 3
-was not called before calling this function.
-.It Bq Er DW_DLE_MEMORY
-An out of memory condition was encountered during the execution of the
-function.
-.El
-.Sh EXAMPLE
+.Sh EXAMPLES
 To add line number information to the producer instance, use:
 .Bd -literal -offset indent
 Dwarf_P_Debug dbg;
@@ -154,6 +137,23 @@ if (dwarf_add_line_entry(dbg, filendx, 10, 258, 0, 1, 1, &de) !=
 	errx(EXIT_FAILURE, "dwarf_add_line_entry failed: %s",
 	    dwarf_errmsg(-1));
 .Ed
+.Sh ERRORS
+Function
+.Fn dwarf_add_line_entry
+can fail with:
+.Bl -tag -width ".Bq Er DW_DLE_ARGUMENT"
+.It Bq Er DW_DLE_ARGUMENT
+Argument
+.Ar dbg
+was NULL.
+.It Bq Er DW_DLE_ARGUMENT
+The function
+.Xr dwarf_lne_set_address 3
+was not called before calling this function.
+.It Bq Er DW_DLE_MEMORY
+An out of memory condition was encountered during the execution of the
+function.
+.El
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_add_directory_decl 3 ,

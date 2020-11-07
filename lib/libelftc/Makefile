@@ -38,6 +38,19 @@ MAN+=	elftc.3 \
 	elftc_string_table_create.3 \
 	elftc_version.3
 
+MLINKS+= \
+	elftc_bfd_find_target.3 elftc_bfd_target_class.3 \
+	elftc_bfd_find_target.3 elftc_bfd_target_byteorder.3 \
+	elftc_bfd_find_target.3 elftc_bfd_target_flavor.3 \
+	elftc_bfd_find_target.3 elftc_bfd_target_machine.3 \
+	elftc_string_table_create.3 elftc_string_table_destroy.3 \
+	elftc_string_table_create.3 elftc_string_table_from_section.3 \
+	elftc_string_table_create.3 elftc_string_table_image.3 \
+	elftc_string_table_create.3 elftc_string_table_insert.3 \
+	elftc_string_table_create.3 elftc_string_table_lookup.3 \
+	elftc_string_table_create.3 elftc_string_table_remove.3 \
+	elftc_string_table_create.3 elftc_string_table_to_string.3
+
 # This same hack is in lib/libelf/Makefile and usr.bin/readelf/Makefile
 # We need to link against the correct version of these files. One
 # solution is to include ../../sys in the include path. This causes

@@ -21,11 +21,11 @@
 .\" out of the use of this software, even if advised of the possibility of
 .\" such damage.
 .\"
-.\" $Id: elftc_copyfile.3 2315 2011-12-11 09:28:55Z jkoshy $
+.\" $Id: elftc_copyfile.3 3645 2018-10-15 20:17:14Z jkoshy $
 .\"
 .Dd December 11, 2011
-.Os
 .Dt ELFTC_COPYFILE 3
+.Os
 .Sh NAME
 .Nm elftc_copyfile
 .Nd convenience function to copy data
@@ -51,23 +51,23 @@ offset at the beginning of the file.
 The argument
 .Ar ofd
 should contain a file descriptor opened for writing.
-.Sh RETURN VALUE
+.Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
 The function
 .Fn elftc_copyfile
 may fail with any of the errors returned by
 .Xr fstat 2 ,
-.Xr malloc 3 ,
-.Xr mmap 2 ,
-.Xr munmap 2 ,
-.Xr read 2
-or
-.Xr write 2 .
-.Sh SEE ALSO
-.Xr fstat 2 ,
-.Xr malloc 3 ,
 .Xr mmap 2 ,
 .Xr munmap 2 ,
 .Xr read 2 ,
-.Xr write 2
+.Xr write 2 ,
+or
+.Xr malloc 3 .
+.Sh SEE ALSO
+.Xr fstat 2 ,
+.Xr mmap 2 ,
+.Xr munmap 2 ,
+.Xr read 2 ,
+.Xr write 2 ,
+.Xr malloc 3
