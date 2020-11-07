@@ -70,13 +70,15 @@ struct rm_priotracker {
 
 #include <sys/_mutex.h>
 
+struct rmslock_pcpu;
+
 struct rmslock {
 	struct mtx mtx;
 	struct thread *owner;
+	struct rmslock_pcpu *pcpu;
 	int	writers;
 	int	readers;
-	int	*readers_pcpu;
-	int	*readers_influx;
+	int	debug_readers;
 };
 
 #endif /* !_SYS__RMLOCK_H_ */
