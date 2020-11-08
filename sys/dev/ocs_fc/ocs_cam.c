@@ -579,9 +579,9 @@ int32_t ocs_scsi_recv_cmd(ocs_io_t *io, uint64_t lun, uint8_t *cdb,
 
 		if (flags & OCS_SCSI_CMD_SIMPLE)
 			atio->tag_action = MSG_SIMPLE_Q_TAG;
-		else if (flags &  FCP_TASK_ATTR_HEAD_OF_QUEUE)
+		else if (flags & OCS_SCSI_CMD_HEAD_OF_QUEUE)
 			atio->tag_action = MSG_HEAD_OF_Q_TAG;
-		else if (flags & FCP_TASK_ATTR_ORDERED)
+		else if (flags & OCS_SCSI_CMD_ORDERED)
 			atio->tag_action = MSG_ORDERED_Q_TAG;
 		else
 			atio->tag_action = 0;
