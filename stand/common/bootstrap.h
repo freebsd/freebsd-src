@@ -111,10 +111,10 @@ struct console
 	/* reinit XXX may need more args */
 	int		(* c_init)(int arg);
 	/* emit c */
-	void	(* c_out)(int c);
-	int		(* c_in)(void);
+	void		(* c_out)(int c);
 	/* wait for and return input */
-	/* return nonzer if input waiting */
+	int		(* c_in)(void);
+	/* return nonzero if input waiting */
 	int		(* c_ready)(void);
 };
 extern struct console *consoles[];
