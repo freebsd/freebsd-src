@@ -51,4 +51,7 @@ struct localedef_bootstrap_xlocale_component {
 	char unused;
 };
 
+/* This must agree with the definition in xlocale_private.h. */
+#define XLOCALE_DEF_VERSION_LEN 12
+
 #endif /* _LOCALDEF_BOOTSTRAP_XLOCALE_PRIVATE_H */

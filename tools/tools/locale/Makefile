@@ -187,6 +187,8 @@ extract-${CLDRFILES_${N}:T}:: ${CLDRFILES_${N}:T} ${UNIDIR}
 	cd ${UNIDIR} && unzip -o ../${CLDRFILES_${N}:T}
 extract: extract-${CLDRFILES_${N}:T}
 .endfor
+	grep 'name="version"' ${UNIDIR}/tools/build.xml | \
+		sed 's/.* value="//;s/".*//' > ${UNIDIR}/cldr-version
 patch::
 .if exists(${PATCHDIR})
 	cd ${UNIDIR} && cat ${PATCHDIR}/patch-* | patch

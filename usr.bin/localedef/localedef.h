@@ -55,6 +55,8 @@ extern int undefok;	/* mostly ignore undefined symbols */
 extern int warnok;
 extern int warnings;
 
+extern char *version;
+
 int yylex(void);
 void yyerror(const char *);
 _Noreturn void errf(const char *, ...) __printflike(1, 2);
