@@ -124,7 +124,7 @@ ifmedia_add(struct ifmedia *ifm, int mword, int data, void *aux)
 			printf("ifmedia_add: null ifm\n");
 			return;
 		}
-		printf("Adding entry for ");
+		printf("Adding entry for (%#010x) ", mword);
 		ifmedia_printword(mword);
 	}
 #endif
@@ -230,8 +230,8 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 #ifdef IFMEDIA_DEBUG
 			if (ifmedia_debug) {
 				printf(
-				    "ifmedia_ioctl: no media found for 0x%x\n", 
-				    newmedia);
+		    "ifmedia_ioctl: no media found for %#010x mask %#010x\n", 
+				    newmedia, ifm->ifm_mask);
 			}
 #endif
 			return (ENXIO);
@@ -338,7 +338,7 @@ ifmedia_match(struct ifmedia *ifm, int target, int mask)
 #if defined(IFMEDIA_DEBUG) || defined(DIAGNOSTIC)
 			if (match) {
 				printf("ifmedia_match: multiple match for "
-				    "0x%x/0x%x\n", target, mask);
+				    "%#010x/%#010x\n", target, mask);
 			}
 #endif
 			match = next;
