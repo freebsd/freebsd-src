@@ -2305,7 +2305,12 @@ COMMON ITEMS:
 
 	[1] If you have third party modules, such as vmware, you
 	should disable them at this point so they don't crash your
-	system on reboot.
+	system on reboot. Alternatively, you should rebuild all the
+	modules you have in your system and install them as well.  If
+	you are running -current, you should seriously consider
+	placing all sources to all the modules for your system (or
+	symlinks to them) in /usr/local/sys/modules so this happens
+	automatically...
 
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p
