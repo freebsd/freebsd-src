@@ -61,7 +61,7 @@
  * By default, interface address routes are added to the fib of the interface.
  * Once set to non-zero, adds interface address route to all fibs.
  */
-VNET_DEFINE(u_int, rt_add_addr_allfibs) = 1;
+VNET_DEFINE(u_int, rt_add_addr_allfibs) = 0;
 SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(rt_add_addr_allfibs), 0, "");
 
