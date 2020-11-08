@@ -155,4 +155,33 @@ void	linux_free_get_char_devices(char *string);
 #define	LINUX_CTR6(f, m, p1, p2, p3, p4, p5, p6)
 #endif
 
-#endif /* !_LINUX_UTIL_H_ */
+/*
+ * Some macros for rate limiting messages:
+ *  - noisy if compat.linux.debug = 1
+ *  - print only once if compat.linux.debug > 1
+ */
+#define LINUX_RATELIMIT_MSG_NOTTESTED(_what)			\
+	do {						\
+		static int seen = 0;			\
+							\
+		if (seen == 0 && linux_debug >= 2) {			\
+			linux_msg(curthread, "%s is not tested, please report on emulation@FreeBSD.org how it works", _what);	\
+							\
+			if (linux_debug < 3)		\
+				seen = 1;		\
+		}					\
+	} while (0)
+
+#define LINUX_RATELIMIT_MSG_OPT1(_message, _opt1)	 	\
+	do {							\
+		static int seen = 0;				\
+								\
+		if (seen == 0) {				\
+			linux_msg(curthread, _message, _opt1);	\
+								\
+			if (linux_debug < 3)			\
+				seen = 1;			\
+		}						\
+	} while (0)
+
+#endif /* ! _LINUX_UTIL_H_ */
