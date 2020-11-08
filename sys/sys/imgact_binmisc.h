@@ -47,6 +47,11 @@
 #define	IBE_INTERP_LEN_MAX	(MAXPATHLEN + IBE_ARG_LEN_MAX)
 #define	IBE_MAX_ENTRIES	64	/* Max number of interpreter entries. */
 
+/* We only map the first page for identification purposes. */
+#define	IBE_MATCH_MAX	PAGE_SIZE
+_Static_assert(IBE_MAGIC_MAX <= IBE_MATCH_MAX,
+    "Cannot identify binaries past the first page.");
+
 /*
  * Imgact bin misc interpreter entry flags.
  */

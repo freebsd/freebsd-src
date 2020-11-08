@@ -236,6 +236,8 @@ imgact_binmisc_add_entry(ximgact_binmisc_entry_t *xbe)
 
 	if (xbe->xbe_msize > IBE_MAGIC_MAX)
 		return (EINVAL);
+	if (xbe->xbe_moffset + xbe->xbe_msize > IBE_MATCH_MAX)
+		return (EINVAL);
 
 	for(cnt = 0, p = xbe->xbe_name; *p != 0; cnt++, p++)
 		if (cnt >= IBE_NAME_MAX || !isascii((int)*p))
