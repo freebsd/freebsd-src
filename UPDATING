@@ -2303,14 +2303,16 @@ COMMON ITEMS:
 	messages there.  If in doubt, please track -stable which has
 	much fewer pitfalls.
 
-	[1] If you have third party modules, such as vmware, you
-	should disable them at this point so they don't crash your
-	system on reboot. Alternatively, you should rebuild all the
-	modules you have in your system and install them as well.  If
-	you are running -current, you should seriously consider
-	placing all sources to all the modules for your system (or
-	symlinks to them) in /usr/local/sys/modules so this happens
-	automatically...
+	[1] If you have third party modules, such as vmware, you should disable
+	them at this point so they don't crash your system on
+	reboot. Alternatively, you should rebuild all the modules you have in
+	your system and install them as well.  If you are running -current, you
+	should seriously consider placing all sources to all the modules for
+	your system (or symlinks to them) in /usr/local/sys/modules so this
+	happens automatically. If all your modules come from ports, then adding
+	the port origin directories to PORTS_MODULES instead is also automatic
+	and effective, eg:
+	     PORTS_MODULES+=x11/nvidia-driver
 
 	[3] From the bootblocks, boot -s, and then do
 		fsck -p
@@ -2319,8 +2321,8 @@ COMMON ITEMS:
 		sh /etc/rc.d/zfs start	# mount zfs filesystem, if needed
 		cd src			# full path to source
 		adjkerntz -i		# if CMOS is wall time
-	Also, when doing a major release upgrade, it is required that
-	you boot into single user mode to do the installworld.
+	Also, when doing a major release upgrade, it is required that you boot
+	into single user mode to do the installworld.
 
 	[4] Note: This step is non-optional.  Failure to do this step
 	can result in a significant reduction in the functionality of the
