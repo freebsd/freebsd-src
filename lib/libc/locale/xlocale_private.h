@@ -91,6 +91,9 @@ struct xlocale_refcounted {
 	/** Function used to destroy this component, if one is required*/
 	void(*destructor)(void*);
 };
+
+#define XLOCALE_DEF_VERSION_LEN 12
+
 /**
  * Header for a locale component.  All locale components must begin with this
  * header.
@@ -99,6 +102,8 @@ struct xlocale_component {
 	struct xlocale_refcounted header;
 	/** Name of the locale used for this component. */
 	char locale[ENCODING_LEN+1];
+	/** Version of the definition for this component. */
+	char version[XLOCALE_DEF_VERSION_LEN];
 };
 
 /**

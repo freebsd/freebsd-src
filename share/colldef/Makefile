@@ -7,10 +7,13 @@ FILESNAME=	LC_COLLATE
 .SUFFIXES:	.src .LC_COLLATE
 MAPLOC=		${.CURDIR}/../../tools/tools/locale/etc/final-maps
 
+CLDR_VERSION=	"34.0"
+
 .include <bsd.endian.mk>
 
 .src.LC_COLLATE:
 	localedef ${LOCALEDEF_ENDIAN} -D -U -i ${.IMPSRC} \
+	-V ${CLDR_VERSION} \
 	-f ${MAPLOC}/map.${.TARGET:T:R:E:C/@.*//} ${.OBJDIR}/${.IMPSRC:T:R}
 
 LOCALES+=	af_ZA.UTF-8
@@ -227,6 +230,7 @@ FILES+=	$t.LC_COLLATE
 FILESDIR_$t.LC_COLLATE=	${LOCALEDIR}/$t
 $t.LC_COLLATE: ${.CURDIR}/$f.src
 	localedef ${LOCALEDEF_ENDIAN} -D -U -i ${.ALLSRC} \
+	-V ${CLDR_VERSION} \
 		-f ${MAPLOC}/map.${.TARGET:T:R:E:C/@.*//} \
 		${.OBJDIR}/${.TARGET:T:R}
 .endfor

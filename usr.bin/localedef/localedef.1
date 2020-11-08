@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2018
+.Dd November 8, 2020
 .Dt LOCALEDEF 1
 .Os
 .Sh NAME
@@ -135,6 +135,14 @@ If not supplied, then default screen widths will be assumed, which will
 generally not account for East Asian encodings requiring more than a single
 character cell to display, nor for combining or accent marks that occupy
 no additional screen width.
+.It Fl V Ar version
+Specifies a version string describing the version of the locale definition.
+This string can be retrieved with
+.Xr querylocale 3 ,
+and is intended to allow applications to detect locale definition changes.
+Currently it is stored only for the
+.Sy LC_COLLATE
+category.
 .El
 .Pp
 The following operands are required:
@@ -198,6 +206,7 @@ If an error is detected, no permanent output will be created.
 .Xr locale 1 ,
 .Xr iconv_open 3 ,
 .Xr nl_langinfo 3 ,
+.Xr querylocale 3 ,
 .Xr strftime 3 ,
 .Xr environ 7
 .Sh WARNINGS
