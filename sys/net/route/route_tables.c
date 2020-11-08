@@ -183,6 +183,11 @@ grow_rtables(uint32_t num_tables)
 	new_rt_tables = mallocarray(num_tables * (AF_MAX + 1), sizeof(void *),
 	    M_RTABLE, M_WAITOK | M_ZERO);
 
+	if ((num_tables > 1) && (V_rt_add_addr_allfibs == 0))
+		printf("WARNING: Adding ifaddrs to all fibs has been turned off "
+			"by default. Consider tuning %s if needed\n",
+			"net.add_addr_allfibs");
+
 	/*
 	 * Current rt_tables layout:
 	 * fib0[af0, af1, af2, .., AF_MAX]fib1[af0, af1, af2, .., Af_MAX]..
