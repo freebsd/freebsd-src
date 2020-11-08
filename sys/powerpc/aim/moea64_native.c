@@ -384,7 +384,7 @@ moea64_pte_clear_native(struct pvo_entry *pvo, uint64_t ptebit)
 static __always_inline int64_t
 moea64_pte_unset_locked(volatile struct lpte *pt, uint64_t vpn)
 {
-	uint64_t ptelo;
+	uint64_t ptelo, ptehi;
 
 	/*
 	 * Invalidate the pte, briefly locking it to collect RC bits. No
@@ -392,9 +392,10 @@ moea64_pte_unset_locked(volatile struct lpte *pt, uint64_t vpn)
 	 */
 	isync();
 	critical_enter();
-	pt->pte_hi = htobe64((be64toh(pt->pte_hi) & ~LPTE_VALID) | LPTE_LOCKED);
+	ptehi = (be64toh(pt->pte_hi) & ~LPTE_VALID) | LPTE_LOCKED;
+	pt->pte_hi = htobe64(ptehi);
 	PTESYNC();
-	TLBIE(vpn, pt->pte_hi);
+	TLBIE(vpn, ptehi);
 	ptelo = be64toh(pt->pte_lo);
 	*((volatile int32_t *)(&pt->pte_hi) + 1) = 0; /* Release lock */
 	critical_exit();
@@ -416,7 +417,7 @@ moea64_pte_unset_native(struct pvo_entry *pvo)
 
 	rw_rlock(&moea64_eviction_lock);
 
-	if ((be64toh(pt->pte_hi & LPTE_AVPN_MASK)) != pvo_ptevpn) {
+	if ((be64toh(pt->pte_hi) & LPTE_AVPN_MASK) != pvo_ptevpn) {
 		/* Evicted */
 		STAT_MOEA64(moea64_pte_overflow--);
 		ret = -1;
@@ -433,7 +434,7 @@ moea64_pte_replace_inval_native(struct pvo_entry *pvo,
     volatile struct lpte *pt)
 {
 	struct lpte properpt;
-	uint64_t ptelo;
+	uint64_t ptelo, ptehi;
 
 	moea64_pte_from_pvo(pvo, &properpt);
 
@@ -452,9 +453,10 @@ moea64_pte_replace_inval_native(struct pvo_entry *pvo,
 	 */
 	isync();
 	critical_enter();
-	pt->pte_hi = htobe64((be64toh(pt->pte_hi) & ~LPTE_VALID) | LPTE_LOCKED);
+	ptehi = (be64toh(pt->pte_hi) & ~LPTE_VALID) | LPTE_LOCKED;
+	pt->pte_hi = htobe64(ptehi);
 	PTESYNC();
-	TLBIE(pvo->pvo_vpn, pt->pte_hi);
+	TLBIE(pvo->pvo_vpn, ptehi);
 	ptelo = be64toh(pt->pte_lo);
 	EIEIO();
 	pt->pte_lo = htobe64(properpt.pte_lo);
