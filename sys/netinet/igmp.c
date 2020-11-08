@@ -230,16 +230,15 @@ VNET_DEFINE_STATIC(int, current_state_timers_running);	/* IGMPv1/v2 host
 #define	V_state_change_timers_running	VNET(state_change_timers_running)
 #define	V_current_state_timers_running	VNET(current_state_timers_running)
 
+VNET_PCPUSTAT_DEFINE(struct igmpstat, igmpstat);
+VNET_PCPUSTAT_SYSINIT(igmpstat);
+VNET_PCPUSTAT_SYSUNINIT(igmpstat);
+
 VNET_DEFINE_STATIC(LIST_HEAD(, igmp_ifsoftc), igi_head) =
     LIST_HEAD_INITIALIZER(igi_head);
-VNET_DEFINE_STATIC(struct igmpstat, igmpstat) = {
-	.igps_version = IGPS_VERSION_3,
-	.igps_len = sizeof(struct igmpstat),
-};
 VNET_DEFINE_STATIC(struct timeval, igmp_gsrdelay) = {10, 0};
 
 #define	V_igi_head			VNET(igi_head)
-#define	V_igmpstat			VNET(igmpstat)
 #define	V_igmp_gsrdelay			VNET(igmp_gsrdelay)
 
 VNET_DEFINE_STATIC(int, igmp_recvifkludge) = 1;
@@ -263,7 +262,8 @@ VNET_DEFINE_STATIC(int, igmp_default_version) = IGMP_VERSION_3;
  */
 SYSCTL_PROC(_net_inet_igmp, IGMPCTL_STATS, stats,
     CTLFLAG_VNET | CTLTYPE_STRUCT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    &VNET_NAME(igmpstat), 0, sysctl_igmp_stat, "S,igmpstat", "");
+    &VNET_NAME(igmpstat), 0, sysctl_igmp_stat, "S,igmpstat",
+    "IGMP statistics (struct igmpstat, netinet/igmp_var.h)");
 SYSCTL_INT(_net_inet_igmp, OID_AUTO, recvifkludge, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(igmp_recvifkludge), 0,
     "Rewrite IGMPv1/v2 reports from 0.0.0.0 to contain subnet address");
@@ -347,22 +347,31 @@ sysctl_igmp_stat(SYSCTL_HANDLER_ARGS)
 	int error;
 	char *p;
 
-	error = sysctl_wire_old_buffer(req, sizeof(V_igmpstat));
+	error = sysctl_wire_old_buffer(req, sizeof(struct igmpstat));
 	if (error)
 		return (error);
 
 	if (req->oldptr != NULL) {
-		if (req->oldlen < sizeof(V_igmpstat))
+		if (req->oldlen < sizeof(struct igmpstat))
 			error = ENOMEM;
-		else 
-			error = SYSCTL_OUT(req, &V_igmpstat,
-			    sizeof(V_igmpstat));
+		else {
+			/*
+			 * Copy the counters, and explicitly set the struct's
+			 * version and length fields.
+			 */
+			COUNTER_ARRAY_COPY(VNET(igmpstat), &igps0,
+			    sizeof(struct igmpstat) / sizeof(uint64_t));
+			igps0.igps_version = IGPS_VERSION_3;
+			igps0.igps_len = IGPS_VERSION3_LEN;
+			error = SYSCTL_OUT(req, &igps0,
+			    sizeof(struct igmpstat));
+		}
 	} else
-		req->validlen = sizeof(V_igmpstat);
+		req->validlen = sizeof(struct igmpstat);
 	if (error)
 		goto out;
 	if (req->newptr != NULL) {
-		if (req->newlen < sizeof(V_igmpstat))
+		if (req->newlen < sizeof(struct igmpstat))
 			error = ENOMEM;
 		else
 			error = SYSCTL_IN(req, &igps0,
@@ -379,12 +388,8 @@ sysctl_igmp_stat(SYSCTL_HANDLER_ARGS)
 			error = EINVAL;
 			goto out;
 		}
-		/*
-		 * Avoid overwrite of the version and length field.
-		 */
-		igps0.igps_version = V_igmpstat.igps_version;
-		igps0.igps_len = V_igmpstat.igps_len;
-		bcopy(&igps0, &V_igmpstat, sizeof(V_igmpstat));
+		COUNTER_ARRAY_ZERO(VNET(igmpstat),
+		    sizeof(struct igmpstat) / sizeof(uint64_t));
 	}
 out:
 	return (error);
