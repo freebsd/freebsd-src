@@ -483,7 +483,7 @@ on1:
 	return (tt);
 }
 
-struct radix_node *
+static struct radix_node *
 rn_addmask(void *n_arg, struct radix_mask_head *maskhead, int search, int skip)
 {
 	unsigned char *netmask = n_arg;
