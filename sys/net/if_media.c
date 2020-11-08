@@ -213,7 +213,7 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 	int error = 0;
 
 	if (ifp == NULL || ifr == NULL || ifm == NULL)
-		return(EINVAL);
+		return (EINVAL);
 
 	switch (cmd) {
 
@@ -244,10 +244,9 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 		 *     Keep going in case the connected media changed.
 		 *     Similarly, if best match changed (kernel debugger?).
 		 */
-		if ((IFM_SUBTYPE(newmedia) != IFM_AUTO) &&
-		    (newmedia == ifm->ifm_media) &&
-		    (match == ifm->ifm_cur))
-			return 0;
+		if (IFM_SUBTYPE(newmedia) != IFM_AUTO &&
+		    newmedia == ifm->ifm_media && match == ifm->ifm_cur)
+			return (0);
 
 		/*
 		 * We found a match, now make the driver switch to it.
@@ -347,7 +346,7 @@ ifmedia_match(struct ifmedia *ifm, int target, int mask)
 		}
 	}
 
-	return match;
+	return (match);
 }
 
 /*
@@ -363,7 +362,8 @@ ifmedia_baudrate(int mword)
 	int i;
 
 	for (i = 0; ifmedia_baudrate_descriptions[i].ifmb_word != 0; i++) {
-		if (IFM_TYPE_MATCH(mword, ifmedia_baudrate_descriptions[i].ifmb_word))
+		if (IFM_TYPE_MATCH(mword, ifmedia_baudrate_descriptions[i].
+		    ifmb_word))
 			return (ifmedia_baudrate_descriptions[i].ifmb_baudrate);
 	}
 
