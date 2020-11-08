@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -96,7 +97,8 @@ linux_msg(const struct thread *td, const char *fmt, ...)
 		return;
 
 	p = td->td_proc;
-	printf("linux: pid %d (%s): ", (int)p->p_pid, p->p_comm);
+	printf("linux: jid %d pid %d (%s): ", p->p_ucred->cr_prison->pr_id,
+	    (int)p->p_pid, p->p_comm);
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);

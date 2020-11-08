@@ -63,7 +63,7 @@ static unsigned linux_osd_jail_slot;
 SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Linux mode");
 
-int linux_debug = 1;
+int linux_debug = 3;
 SYSCTL_INT(_compat_linux, OID_AUTO, debug, CTLFLAG_RWTUN,
     &linux_debug, 0, "Log warnings from linux(4); or 0 to disable");
 

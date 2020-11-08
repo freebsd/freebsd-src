@@ -112,12 +112,37 @@ linux_to_bsd_ip_sockopt(int opt)
 {
 
 	switch (opt) {
+	/* known and translated sockopts */
 	case LINUX_IP_TOS:
 		return (IP_TOS);
 	case LINUX_IP_TTL:
 		return (IP_TTL);
+	case LINUX_IP_HDRINCL:
+		return (IP_HDRINCL);
 	case LINUX_IP_OPTIONS:
 		return (IP_OPTIONS);
+	case LINUX_IP_RECVOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_RECVOPTS");
+		return (IP_RECVOPTS);
+	case LINUX_IP_RETOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_REETOPTS");
+		return (IP_RETOPTS);
+	case LINUX_IP_RECVTTL:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_RECVTTL");
+		return (IP_RECVTTL);
+	case LINUX_IP_RECVTOS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_RECVTOS");
+		return (IP_RECVTOS);
+	case LINUX_IP_FREEBIND:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_FREEBIND");
+		return (IP_BINDANY);
+	case LINUX_IP_IPSEC_POLICY:
+		/* we have this option, but not documented in ip(4) manpage */
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_IPSEC_POLICY");
+		return (IP_IPSEC_POLICY);
+	case LINUX_IP_MINTTL:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_MINTTL");
+		return (IP_MINTTL);
 	case LINUX_IP_MULTICAST_IF:
 		return (IP_MULTICAST_IF);
 	case LINUX_IP_MULTICAST_TTL:
@@ -128,10 +153,120 @@ linux_to_bsd_ip_sockopt(int opt)
 		return (IP_ADD_MEMBERSHIP);
 	case LINUX_IP_DROP_MEMBERSHIP:
 		return (IP_DROP_MEMBERSHIP);
-	case LINUX_IP_HDRINCL:
-		return (IP_HDRINCL);
+	case LINUX_IP_UNBLOCK_SOURCE:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_UNBLOCK_SOURCE");
+		return (IP_UNBLOCK_SOURCE);
+	case LINUX_IP_BLOCK_SOURCE:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_BLOCK_SOURCE");
+		return (IP_BLOCK_SOURCE);
+	case LINUX_IP_ADD_SOURCE_MEMBERSHIP:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_ADD_SOURCE_MEMBERSHIP");
+		return (IP_ADD_SOURCE_MEMBERSHIP);
+	case LINUX_IP_DROP_SOURCE_MEMBERSHIP:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_DROP_SOURCE_MEMBERSHIP");
+		return (IP_DROP_SOURCE_MEMBERSHIP);
+	case LINUX_MCAST_JOIN_GROUP:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_MCAST_JOIN_GROUP");
+		return (MCAST_JOIN_GROUP);
+	case LINUX_MCAST_LEAVE_GROUP:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_MCAST_LEAVE_GROUP");
+		return (MCAST_LEAVE_GROUP);
+	case LINUX_MCAST_JOIN_SOURCE_GROUP:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_MCAST_JOIN_SOURCE_GROUP");
+		return (MCAST_JOIN_SOURCE_GROUP);
+	case LINUX_MCAST_LEAVE_SOURCE_GROUP:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv4 socket option IP_MCAST_LEAVE_SOURCE_GROUP");
+		return (MCAST_LEAVE_SOURCE_GROUP);
+
+	/* known but not implemented sockopts */
+	case LINUX_IP_ROUTER_ALERT:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_ROUTER_ALERT (%d), you can not do user-space routing from linux programs",
+		    opt);
+		return (-2);
+	case LINUX_IP_PKTINFO:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_PKTINFO (%d), you can not get extended packet info for datagram sockets in linux programs",
+		    opt);
+		return (-2);
+	case LINUX_IP_PKTOPTIONS:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_PKTOPTIONS (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IP_MTU_DISCOVER:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_MTU_DISCOVER (%d), your linux program can not control path-MTU discovery",
+		    opt);
+		return (-2);
+	case LINUX_IP_RECVERR:
+		/* needed by steam */
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_RECVERR (%d), you can not get extended reliability info in linux programs",
+		    opt);
+		return (-2);
+	case LINUX_IP_MTU:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_MTU (%d), your linux program can not control the MTU on this socket",
+		    opt);
+		return (-2);
+	case LINUX_IP_XFRM_POLICY:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_XFRM_POLICY (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IP_PASSSEC:
+		/* needed by steam */
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_PASSSEC (%d), you can not get IPSEC related credential information associated with this socket in linux programs -- if you do not use IPSEC, you can ignore this",
+		    opt);
+		return (-2);
+	case LINUX_IP_TRANSPARENT:
+		/* IP_BINDANY or more? */
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_TRANSPARENT (%d), you can not enable transparent proxying in linux programs -- note, IP_FREEBIND is supported, no idea if the FreeBSD IP_BINDANY is equivalent to the Linux IP_TRANSPARENT or not, any info is welcome",
+		    opt);
+		return (-2);
+	case LINUX_IP_NODEFRAG:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_NODEFRAG (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IP_CHECKSUM:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_CHECKSUM (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IP_BIND_ADDRESS_NO_PORT:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_BIND_ADDRESS_NO_PORT (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IP_RECVFRAGSIZE:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_RECVFRAGSIZE (%d)",
+		    opt);
+		return (-2);
+	case LINUX_MCAST_MSFILTER:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_MCAST_MSFILTER (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IP_MULTICAST_ALL:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_MULTICAST_ALL (%d), your linux program will not see all multicast groups joined by the entire system, only those the program joined itself on this socket",
+		    opt);
+		return (-2);
+	case LINUX_IP_UNICAST_IF:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv4 socket option IP_UNICAST_IF (%d)",
+		    opt);
+		return (-2);
+
+	/* unknown sockopts */
+	default:
+		return (-1);
 	}
-	return (-1);
 }
 
 static int
@@ -139,6 +274,28 @@ linux_to_bsd_ip6_sockopt(int opt)
 {
 
 	switch (opt) {
+	/* known and translated sockopts */
+	case LINUX_IPV6_2292PKTINFO:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_2292PKTINFO");
+		return (IPV6_2292PKTINFO);
+	case LINUX_IPV6_2292HOPOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_2292HOPOPTS");
+		return (IPV6_2292HOPOPTS);
+	case LINUX_IPV6_2292DSTOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_2292DSTOPTS");
+		return (IPV6_2292DSTOPTS);
+	case LINUX_IPV6_2292RTHDR:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_2292RTHDR");
+		return (IPV6_2292RTHDR);
+	case LINUX_IPV6_2292PKTOPTIONS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_2292PKTOPTIONS");
+		return (IPV6_2292PKTOPTIONS);
+	case LINUX_IPV6_CHECKSUM:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_CHECKSUM");
+		return (IPV6_CHECKSUM);
+	case LINUX_IPV6_2292HOPLIMIT:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_2292HOPLIMIT");
+		return (IPV6_2292HOPLIMIT);
 	case LINUX_IPV6_NEXTHOP:
 		return (IPV6_NEXTHOP);
 	case LINUX_IPV6_UNICAST_HOPS:
@@ -155,40 +312,194 @@ linux_to_bsd_ip6_sockopt(int opt)
 		return (IPV6_LEAVE_GROUP);
 	case LINUX_IPV6_V6ONLY:
 		return (IPV6_V6ONLY);
-	case LINUX_IPV6_DONTFRAG:
-		return (IPV6_DONTFRAG);
-#if 0
-	case LINUX_IPV6_CHECKSUM:
-		return (IPV6_CHECKSUM);
+	case LINUX_IPV6_IPSEC_POLICY:
+		/* we have this option, but not documented in ip6(4) manpage */
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_IPSEC_POLICY");
+		return (IPV6_IPSEC_POLICY);
+	case LINUX_MCAST_JOIN_GROUP:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_JOIN_GROUP");
+		return (IPV6_JOIN_GROUP);
+	case LINUX_MCAST_LEAVE_GROUP:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_LEAVE_GROUP");
+		return (IPV6_LEAVE_GROUP);
 	case LINUX_IPV6_RECVPKTINFO:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_RECVPKTINFO");
 		return (IPV6_RECVPKTINFO);
 	case LINUX_IPV6_PKTINFO:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_PKTINFO");
 		return (IPV6_PKTINFO);
 	case LINUX_IPV6_RECVHOPLIMIT:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_RECVHOPLIMIT");
 		return (IPV6_RECVHOPLIMIT);
 	case LINUX_IPV6_HOPLIMIT:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_HOPLIMIT");
 		return (IPV6_HOPLIMIT);
 	case LINUX_IPV6_RECVHOPOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_RECVHOPOPTS");
 		return (IPV6_RECVHOPOPTS);
 	case LINUX_IPV6_HOPOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_HOPOPTS");
 		return (IPV6_HOPOPTS);
 	case LINUX_IPV6_RTHDRDSTOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_RTHDRDSTOPTS");
 		return (IPV6_RTHDRDSTOPTS);
 	case LINUX_IPV6_RECVRTHDR:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_RECVRTHDR");
 		return (IPV6_RECVRTHDR);
 	case LINUX_IPV6_RTHDR:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_RTHDR");
 		return (IPV6_RTHDR);
 	case LINUX_IPV6_RECVDSTOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_RECVDSTOPTS");
 		return (IPV6_RECVDSTOPTS);
 	case LINUX_IPV6_DSTOPTS:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_DSTOPTS");
 		return (IPV6_DSTOPTS);
 	case LINUX_IPV6_RECVPATHMTU:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_RECVPATHMTU");
 		return (IPV6_RECVPATHMTU);
 	case LINUX_IPV6_PATHMTU:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_PATHMTU");
 		return (IPV6_PATHMTU);
-#endif
+	case LINUX_IPV6_DONTFRAG:
+		return (IPV6_DONTFRAG);
+	case LINUX_IPV6_AUTOFLOWLABEL:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_AUTOFLOWLABEL");
+		return (IPV6_AUTOFLOWLABEL);
+	case LINUX_IPV6_ORIGDSTADDR:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_ORIGDSTADDR");
+		return (IPV6_ORIGDSTADDR);
+	case LINUX_IPV6_FREEBIND:
+		LINUX_RATELIMIT_MSG_NOTTESTED("IPv6 socket option IPV6_FREEBIND");
+		return (IPV6_BINDANY);
+
+	/* known but not implemented sockopts */
+	case LINUX_IPV6_ADDRFORM:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_ADDRFORM (%d), you linux program can not convert the socket to IPv4",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_AUTHHDR:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_AUTHHDR (%d), your linux program can not get the authentication header info of IPv6 packets",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_FLOWINFO:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_FLOWINFO (%d), your linux program can not get the flowid of IPv6 packets",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_ROUTER_ALERT:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_ROUTER_ALERT (%d), you can not do user-space routing from linux programs",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_MTU_DISCOVER:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_MTU_DISCOVER (%d), your linux program can not control path-MTU discovery",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_MTU:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_MTU (%d), your linux program can not control the MTU on this socket",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_JOIN_ANYCAST:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_JOIN_ANYCAST (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_LEAVE_ANYCAST:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_LEAVE_ANYCAST (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_MULTICAST_ALL:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_MULTICAST_ALL (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_ROUTER_ALERT_ISOLATE:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_ROUTER_ALERT_ISOLATE (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_FLOWLABEL_MGR:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_FLOWLABEL_MGR (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_FLOWINFO_SEND:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_FLOWINFO_SEND (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_XFRM_POLICY:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_XFRM_POLICY (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_HDRINCL:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_HDRINCL (%d)",
+		    opt);
+		return (-2);
+	case LINUX_MCAST_BLOCK_SOURCE:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option MCAST_BLOCK_SOURCE (%d), your linux program may see more multicast stuff than it wants",
+		    opt);
+		return (-2);
+	case LINUX_MCAST_UNBLOCK_SOURCE:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option MCAST_UNBLOCK_SOURCE (%d), your linux program may not see all the multicast stuff it wants",
+		    opt);
+		return (-2);
+	case LINUX_MCAST_JOIN_SOURCE_GROUP:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option MCAST_JOIN_SOURCE_GROUP (%d), your linux program is not able to join a multicast source group",
+		    opt);
+		return (-2);
+	case LINUX_MCAST_LEAVE_SOURCE_GROUP:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option MCAST_LEAVE_SOURCE_GROUP (%d), your linux program is not able to leave a multicast source group -- but it was also not able to join one, so no issue",
+		    opt);
+		return (-2);
+	case LINUX_MCAST_MSFILTER:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option MCAST_MSFILTER (%d), your linux program can not manipulate the multicast filter, it may see more multicast data than it wants to see",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_ADDR_PREFERENCES:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_ADDR_PREFERENCES (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_MINHOPCOUNT:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_MINHOPCOUNT (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_TRANSPARENT:
+		/* IP_BINDANY or more? */
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_TRANSPARENT (%d), you can not enable transparent proxying in linux programs -- note, IP_FREEBIND is supported, no idea if the FreeBSD IP_BINDANY is equivalent to the Linux IP_TRANSPARENT or not, any info is welcome",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_UNICAST_IF:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_UNICAST_IF (%d)",
+		    opt);
+		return (-2);
+	case LINUX_IPV6_RECVFRAGSIZE:
+		LINUX_RATELIMIT_MSG_OPT1(
+		    "unsupported IPv6 socket option IPV6_RECVFRAGSIZE (%d)",
+		    opt);
+		return (-2);
+
+	/* unknown sockopts */
+	default:
+		return (-1);
 	}
-	return (-1);
 }
 
 static int
@@ -290,20 +601,24 @@ linux_to_bsd_msg_flags(int flags)
 		ret_flags |= MSG_WAITALL;
 	if (flags & LINUX_MSG_NOSIGNAL)
 		ret_flags |= MSG_NOSIGNAL;
-#if 0 /* not handled */
 	if (flags & LINUX_MSG_PROXY)
-		;
+		LINUX_RATELIMIT_MSG_OPT1("socket message flag MSG_PROXY (%d) not handled",
+		    LINUX_MSG_PROXY);
 	if (flags & LINUX_MSG_FIN)
-		;
+		LINUX_RATELIMIT_MSG_OPT1("socket message flag MSG_FIN (%d) not handled",
+		    LINUX_MSG_FIN);
 	if (flags & LINUX_MSG_SYN)
-		;
+		LINUX_RATELIMIT_MSG_OPT1("socket message flag MSG_SYN (%d) not handled",
+		    LINUX_MSG_SYN);
 	if (flags & LINUX_MSG_CONFIRM)
-		;
+		LINUX_RATELIMIT_MSG_OPT1("socket message flag MSG_CONFIRM (%d) not handled",
+		    LINUX_MSG_CONFIRM);
 	if (flags & LINUX_MSG_RST)
-		;
+		LINUX_RATELIMIT_MSG_OPT1("socket message flag MSG_RST (%d) not handled",
+		    LINUX_MSG_RST);
 	if (flags & LINUX_MSG_ERRQUEUE)
-		;
-#endif
+		LINUX_RATELIMIT_MSG_OPT1("socket message flag MSG_ERRQUEUE (%d) not handled",
+		    LINUX_MSG_ERRQUEUE);
 	return (ret_flags);
 }
 
@@ -1505,10 +1820,11 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		name = -1;
 		break;
 	}
-	if (name == -1) {
-		linux_msg(curthread,
-		    "unsupported setsockopt level %d optname %d",
-		    args->level, args->optname);
+	if (name < 0) {
+		if (name == -1)
+			linux_msg(curthread,
+			    "unsupported setsockopt level %d optname %d",
+			    args->level, args->optname);
 		return (ENOPROTOOPT);
 	}
 
@@ -1605,10 +1921,11 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		name = -1;
 		break;
 	}
-	if (name == -1) {
-		linux_msg(curthread,
-		    "unsupported getsockopt level %d optname %d",
-		    args->level, args->optname);
+	if (name < 0) {
+		if (name == -1)
+			linux_msg(curthread,
+			    "unsupported getsockopt level %d optname %d",
+			    args->level, args->optname);
 		return (EINVAL);
 	}
 

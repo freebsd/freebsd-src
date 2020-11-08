@@ -98,7 +98,12 @@ tunables:
 .It Va compat.linux.debug
 Enable debugging messages.
 Set to 0 to silence them.
-Defaults to 1.
+Defaults to 3.
+A setting of 1 prints debug messages, tells about unimplemented stuff (only
+once).
+Set to 2 is like 1, but also prints messages about implemented but not tested
+stuff (only once).
+Setting it to 3 or higher is like 2, but no rate limiting of messages.
 .It Va compat.linux.default_openfiles
 Default soft openfiles resource limit for Linux applications.
 Set to -1 to disable the limit.
