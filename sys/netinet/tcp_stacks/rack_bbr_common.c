@@ -458,6 +458,7 @@ ctf_do_queued_segments(struct socket *so, struct tcpcb *tp, int have_pkt)
 			/* We lost the tcpcb (maybe a RST came in)? */
 			return(1);
 		}
+		tcp_handle_wakeup(tp, so);
 	}
 	return (0);
 }
