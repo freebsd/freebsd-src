@@ -27,12 +27,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2013
+.Dd November 8, 2020
 .Dt QUERYLOCALE 3
 .Os
 .Sh NAME
 .Nm querylocale
-.Nd Look up the locale name for a specified category
+.Nd Look up the locale name or version for a specified category
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -40,11 +40,22 @@
 .Ft const char *
 .Fn querylocale "int mask" "locale_t locale"
 .Sh DESCRIPTION
-Returns the name of the locale for the category specified by
+Returns the name or version of the locale for the category specified by
 .Fa mask .
-This possible values for the mask are the same as those in
-.Xr newlocale 3 .
-If more than one bit in the mask is set, the returned value is undefined.
+The possible values for the mask are the same as those in
+.Xr newlocale 3 ,
+when requesting the locale name.
+Specify the bitwise OR of
+.Fa LC_VERSION_MASK
+and another mask value to request a version string.
+Version strings can be compared to detect changes to the locale's definition.
+The structure of the version string is unspecified.
+Currently, version information is only available for
+.Fa LC_COLLATE_MASK ,
+and an empty string is returned for other categories.
+If more than one bit in the mask is set, not counting
+.Fa LC_VERSION_MASK ,
+the returned value is undefined.
 .Sh SEE ALSO
 .Xr duplocale 3 ,
 .Xr freelocale 3 ,
@@ -52,3 +63,12 @@ If more than one bit in the mask is set, the returned value is undefined.
 .Xr newlocale 3 ,
 .Xr uselocale 3 ,
 .Xr xlocale 3
+.Sh HISTORY
+The
+.Fn querylocale
+function first appeared in
+.Fx 9.1 ,
+and is based on the function of the same name in Darwin.
+.Fa LC_VERSION_MASK
+first appeared in
+.Fx 13.0 .

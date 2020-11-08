@@ -50,6 +50,8 @@ my $UNIDIR = undef;
 my $ETCDIR = undef;
 my $TYPE = undef;
 
+my $CLDR_VERSION = undef;
+
 my $result = GetOptions (
 		"unidir=s"	=> \$UNIDIR,
 		"etc=s"		=> \$ETCDIR,
@@ -500,6 +502,12 @@ EOF
 
 
 sub transform_collation {
+	# Read the CLDR version
+	open(FIN, "$UNIDIR/cldr-version") or die "Cannot open cldr-version";
+	read FIN, $CLDR_VERSION, -s FIN;
+	close(FIN);
+	$CLDR_VERSION =~ s/\s*$//;
+
 	foreach my $l (sort keys(%languages)) {
 	foreach my $f (sort keys(%{$languages{$l}})) {
 	foreach my $c (sort keys(%{$languages{$l}{$f}{data}})) {
@@ -861,8 +869,11 @@ sub make_makefile {
 	my $SRCOUT4 = "";
 	my $MAPLOC;
 	if ($TYPE eq "colldef") {
+		# In future, we might want to try to put the CLDR version into
+		# the .src files with some new syntax, instead of the makefile.
 		$SRCOUT = "localedef \${LOCALEDEF_ENDIAN} -D -U " .
 			"-i \${.IMPSRC} \\\n" .
+			"\t-V \${CLDR_VERSION} \\\n" .
 			"\t-f \${MAPLOC}/map.\${.TARGET:T:R:E:C/@.*//} " .
 			"\${.OBJDIR}/\${.IMPSRC:T:R}";
 		$MAPLOC = "MAPLOC=\t\t\${.CURDIR}/../../tools/tools/" .
@@ -875,6 +886,7 @@ sub make_makefile {
 			"\$t.LC_COLLATE: \${.CURDIR}/\$f.src\n" .
 			"\tlocaledef \${LOCALEDEF_ENDIAN} -D -U " .
 			"-i \${.ALLSRC} \\\n" .
+			"\t-V \${CLDR_VERSION} \\\n" .
 			"\t\t-f \${MAPLOC}/map.\${.TARGET:T:R:E:C/@.*//} \\\n" .
 			"\t\t\${.OBJDIR}/\${.TARGET:T:R}\n" .
 			".endfor\n\n";
@@ -916,6 +928,13 @@ FILESNAME=	$FILESNAMES{$TYPE}
 .SUFFIXES:	.src .${SRCOUT2}
 ${MAPLOC}
 EOF
+
+	if ($TYPE eq "colldef") {
+		print FOUT <<EOF;
+CLDR_VERSION=	"${CLDR_VERSION}"
+
+EOF
+	}
 
 	if ($TYPE eq "colldef" || $TYPE eq "ctypedef") {
 		print FOUT <<EOF;
