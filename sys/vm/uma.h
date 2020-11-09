@@ -668,6 +668,9 @@ size_t uma_zone_memory(uma_zone_t zone);
  */
 extern uma_zone_t pcpu_zone_4;
 extern uma_zone_t pcpu_zone_8;
+extern uma_zone_t pcpu_zone_16;
+extern uma_zone_t pcpu_zone_32;
+extern uma_zone_t pcpu_zone_64;
 
 /*
  * Exported statistics structures to be used by user space monitoring tools.
