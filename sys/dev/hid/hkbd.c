@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/kdb.h>
 #include <sys/epoch.h>
+#include <sys/taskqueue.h>
+
+#include <machine/atomic.h>
 
 #define	HID_DEBUG_VAR hkbd_debug
 #include <dev/hid/hid.h>
@@ -139,6 +142,8 @@ struct hkbd_softc {
 	struct hid_location sc_loc_numlock;
 	struct hid_location sc_loc_capslock;
 	struct hid_location sc_loc_scrolllock;
+	struct mtx sc_mtx;
+	struct task sc_task;
 	struct callout sc_callout;
 	struct hkbd_data sc_ndata;
 	struct hkbd_data sc_odata;
@@ -178,9 +183,8 @@ struct hkbd_softc {
 	int	sc_led_size;
 	int	sc_kbd_size;
 
-	uint16_t sc_inputs;
-	uint16_t sc_inputhead;
-	uint16_t sc_inputtail;
+	uint32_t sc_inputhead;
+	uint32_t sc_inputtail;
 
 	uint8_t	sc_iface_index;
 	uint8_t	sc_iface_no;
@@ -211,15 +215,27 @@ struct hkbd_softc {
 			 SCAN_PREFIX_CTL | SCAN_PREFIX_SHIFT)
 #define	SCAN_CHAR(c)	((c) & 0x7f)
 
-#define	HKBD_LOCK()		do {			\
+#define	HKBD_LOCK(sc)		do {			\
+	if (!HID_IN_POLLING_MODE())			\
+		mtx_lock(&(sc)->sc_mtx);		\
+} while (0)
+#define	HKBD_UNLOCK(sc)		do {			\
+	if (!HID_IN_POLLING_MODE())			\
+		mtx_unlock(&(sc)->sc_mtx);		\
+} while (0)
+#define	HKBD_LOCK_ASSERT(sc)	do {			\
+	if (!HID_IN_POLLING_MODE())			\
+		mtx_assert(&(sc)->sc_mtx, MA_OWNED);	\
+} while (0)
+#define	SYSCONS_LOCK()		do {			\
 	if (!HID_IN_POLLING_MODE())			\
 		mtx_lock(&Giant);			\
 } while (0)
-#define	HKBD_UNLOCK()		do {			\
+#define	SYSCONS_UNLOCK()	do {			\
 	if (!HID_IN_POLLING_MODE())			\
 		mtx_unlock(&Giant);			\
 } while (0)
-#define	HKBD_LOCK_ASSERT()	do {			\
+#define	SYSCONS_LOCK_ASSERT()	do {			\
 	if (!HID_IN_POLLING_MODE())			\
 		mtx_assert(&Giant, MA_OWNED);		\
 } while (0)
@@ -292,15 +308,16 @@ static int	hkbd_ioctl(keyboard_t *, u_long, caddr_t);
 static int	hkbd_enable(keyboard_t *);
 static int	hkbd_disable(keyboard_t *);
 static void	hkbd_interrupt(struct hkbd_softc *);
-static void	hkbd_event_keyinput(struct hkbd_softc *);
 
-static device_probe_t hkbd_probe;
-static device_attach_t hkbd_attach;
-static device_detach_t hkbd_detach;
-static device_resume_t hkbd_resume;
+static task_fn_t	hkbd_event_keyinput;
+
+static device_probe_t	hkbd_probe;
+static device_attach_t	hkbd_attach;
+static device_detach_t	hkbd_detach;
+static device_resume_t	hkbd_resume;
 
 #ifdef EVDEV_SUPPORT
-static evdev_event_t hkbd_ev_event;
+static evdev_event_t	hkbd_ev_event;
 
 static const struct evdev_methods hkbd_evdev_methods = {
 	.ev_event = hkbd_ev_event,
@@ -365,8 +382,9 @@ hkbd_start_timer(struct hkbd_softc *sc)
 static void
 hkbd_put_key(struct hkbd_softc *sc, uint32_t key)
 {
+	uint32_t tail;
 
-	HKBD_LOCK_ASSERT();
+	HKBD_LOCK_ASSERT(sc);
 
 	DPRINTF("0x%02x (%d) %s\n", key, key,
 	    (key & KEY_RELEASE) ? "released" : "pressed");
@@ -377,13 +395,10 @@ hkbd_put_key(struct hkbd_softc *sc, uint32_t key)
 		    evdev_hid2key(KEY_INDEX(key)), !(key & KEY_RELEASE));
 #endif
 
-	if (sc->sc_inputs < HKBD_IN_BUF_SIZE) {
+	tail = (sc->sc_inputtail + 1) % HKBD_IN_BUF_SIZE;
+	if (tail != atomic_load_acq_32(&sc->sc_inputhead)) {
 		sc->sc_input[sc->sc_inputtail] = key;
-		++(sc->sc_inputs);
-		++(sc->sc_inputtail);
-		if (sc->sc_inputtail >= HKBD_IN_BUF_SIZE) {
-			sc->sc_inputtail = 0;
-		}
+		atomic_store_rel_32(&sc->sc_inputtail, tail);
 	} else {
 		DPRINTF("input buffer is full\n");
 	}
@@ -393,7 +408,7 @@ static void
 hkbd_do_poll(struct hkbd_softc *sc, uint8_t wait)
 {
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 	KASSERT((sc->sc_flags & HKBD_FLAG_POLLING) != 0,
 	    ("hkbd_do_poll called when not polling\n"));
 	DPRINTFN(2, "polling\n");
@@ -406,7 +421,8 @@ hkbd_do_poll(struct hkbd_softc *sc, uint8_t wait)
 		 * Note that we currently hold the Giant, but it's also used
 		 * as the transfer mtx, so we must release it while waiting.
 		 */
-		while (sc->sc_inputs == 0) {
+		while (sc->sc_inputhead ==
+		    atomic_load_acq_32(&sc->sc_inputtail)) {
 			/*
 			 * Give USB threads a chance to run.  Note that
 			 * kern_yield performs DROP_GIANT + PICKUP_GIANT.
@@ -418,7 +434,7 @@ hkbd_do_poll(struct hkbd_softc *sc, uint8_t wait)
 		return;
 	}
 
-	while (sc->sc_inputs == 0) {
+	while (sc->sc_inputhead == sc->sc_inputtail) {
 		hidbus_intr_poll(sc->sc_dev);
 
 		/* Delay-optimised support for repetition of keys */
@@ -440,9 +456,10 @@ hkbd_do_poll(struct hkbd_softc *sc, uint8_t wait)
 static int32_t
 hkbd_get_key(struct hkbd_softc *sc, uint8_t wait)
 {
+	uint32_t head;
 	int32_t c;
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 	KASSERT(!HID_IN_POLLING_MODE() ||
 	    (sc->sc_flags & HKBD_FLAG_POLLING) != 0,
 	    ("not polling in kdb or panic\n"));
@@ -450,15 +467,13 @@ hkbd_get_key(struct hkbd_softc *sc, uint8_t wait)
 	if (sc->sc_flags & HKBD_FLAG_POLLING)
 		hkbd_do_poll(sc, wait);
 
-	if (sc->sc_inputs == 0) {
+	head = sc->sc_inputhead;
+	if (head == atomic_load_acq_32(&sc->sc_inputtail)) {
 		c = -1;
 	} else {
-		c = sc->sc_input[sc->sc_inputhead];
-		--(sc->sc_inputs);
-		++(sc->sc_inputhead);
-		if (sc->sc_inputhead >= HKBD_IN_BUF_SIZE) {
-			sc->sc_inputhead = 0;
-		}
+		c = sc->sc_input[head];
+		head = (head + 1) % HKBD_IN_BUF_SIZE;
+		atomic_store_rel_32(&sc->sc_inputhead, head);
 	}
 	return (c);
 }
@@ -469,7 +484,7 @@ hkbd_interrupt(struct hkbd_softc *sc)
 	const uint32_t now = sc->sc_time_ms;
 	unsigned key;
 
-	HKBD_LOCK_ASSERT();
+	HKBD_LOCK_ASSERT(sc);
 
 	/* Check for key changes, the order is:
 	 * 1. Modifier keys down
@@ -548,20 +563,22 @@ hkbd_interrupt(struct hkbd_softc *sc)
 #endif
 
 	/* wakeup keyboard system */
-	hkbd_event_keyinput(sc);
+	if (!HID_IN_POLLING_MODE())
+		taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
 }
 
 static void
-hkbd_event_keyinput(struct hkbd_softc *sc)
+hkbd_event_keyinput(void *context, int pending)
 {
+	struct hkbd_softc *sc = context;
 	int c;
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	if ((sc->sc_flags & HKBD_FLAG_POLLING) != 0)
 		return;
 
-	if (sc->sc_inputs == 0)
+	if (sc->sc_inputhead == atomic_load_acq_32(&sc->sc_inputtail))
 		return;
 
 	if (KBD_IS_ACTIVE(&sc->sc_kbd) &&
@@ -583,7 +600,7 @@ hkbd_timeout(void *arg)
 	struct hkbd_softc *sc = arg;
 	struct epoch_tracker et;
 
-	HKBD_LOCK_ASSERT();
+	HKBD_LOCK_ASSERT(sc);
 
 	sc->sc_time_ms += sc->sc_delay;
 	sc->sc_delay = 0;
@@ -593,9 +610,10 @@ hkbd_timeout(void *arg)
 	epoch_exit_preempt(INPUT_EPOCH, &et);
 
 	/* Make sure any leftover key events gets read out */
-	hkbd_event_keyinput(sc);
+	taskqueue_enqueue(taskqueue_swi_giant, &sc->sc_task);
 
-	if (hkbd_any_key_pressed(sc) || (sc->sc_inputs != 0)) {
+	if (hkbd_any_key_pressed(sc) ||
+	    atomic_load_acq_32(&sc->sc_inputhead) != sc->sc_inputtail) {
 		hkbd_start_timer(sc);
 	}
 }
@@ -634,7 +652,7 @@ hkbd_intr_callback(void *context, void *data, hid_size_t len)
 	uint8_t modifiers;
 	int offset;
 
-	HKBD_LOCK_ASSERT();
+	HKBD_LOCK_ASSERT(sc);
 
 	DPRINTF("actlen=%d bytes\n", len);
 
@@ -746,6 +764,8 @@ hkbd_probe(device_t dev)
 	error = HIDBUS_LOOKUP_DRIVER_INFO(dev, hkbd_devs);
 	if (error != 0)
                 return (error);
+
+	hidbus_set_desc(dev, "Keyboard");
 
 	return (BUS_PROBE_DEFAULT);
 }
@@ -869,21 +889,21 @@ hkbd_attach(device_t dev)
 #endif
 
 	sc->sc_dev = dev;
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	kbd_init_struct(kbd, HKBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);
 
 	kbd->kb_data = (void *)sc;
 
-	hidbus_set_desc(dev, "Keyboard");
-
 	sc->sc_mode = K_XLATE;
 
-	callout_init_mtx(&sc->sc_callout, &Giant, 0);
+	mtx_init(&sc->sc_mtx, "hkbd lock", NULL, MTX_DEF);
+	TASK_INIT(&sc->sc_task, 0, hkbd_event_keyinput, sc);
+	callout_init_mtx(&sc->sc_callout, &sc->sc_mtx, 0);
 
 	hidbus_set_intr(dev, hkbd_intr_callback, sc);
-	/* interrupt handler will be called with Giant taken */
-	hidbus_set_lock(dev, &Giant);
+	/* interrupt handler will be called with hkbd mutex taken */
+	hidbus_set_lock(dev, &sc->sc_mtx);
 	/* interrupt handler can be called during panic */
 	hidbus_set_flags(dev, hidbus_get_flags(dev) & HIDBUS_FLAG_CAN_POLL);
 
@@ -1005,13 +1025,15 @@ hkbd_detach(device_t dev)
 	struct hkbd_softc *sc = device_get_softc(dev);
 	int error;
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	DPRINTF("\n");
 
 	sc->sc_flags |= HKBD_FLAG_GONE;
 
+	HKBD_LOCK(sc);
 	callout_stop(&sc->sc_callout);
+	HKBD_UNLOCK(sc);
 
 	/* kill any stuck keys */
 	if (sc->sc_flags & HKBD_FLAG_ATTACHED) {
@@ -1022,9 +1044,13 @@ hkbd_detach(device_t dev)
 		memset(&sc->sc_ndata, 0, sizeof(sc->sc_ndata));
 
 		/* process releasing of all keys */
+		HKBD_LOCK(sc);
 		hkbd_interrupt(sc);
+		HKBD_UNLOCK(sc);
+		taskqueue_drain(taskqueue_swi_giant, &sc->sc_task);
 	}
 
+	mtx_destroy(&sc->sc_mtx);
 	hkbd_disable(&sc->sc_kbd);
 
 #ifdef KBD_INSTALL_CDEV
@@ -1063,7 +1089,7 @@ hkbd_resume(device_t dev)
 {
 	struct hkbd_softc *sc = device_get_softc(dev);
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	hkbd_clear_state(&sc->sc_kbd);
 
@@ -1143,9 +1169,9 @@ static int
 hkbd_enable(keyboard_t *kbd)
 {
 
-	HKBD_LOCK();
+	SYSCONS_LOCK();
 	KBD_ACTIVATE(kbd);
-	HKBD_UNLOCK();
+	SYSCONS_UNLOCK();
 
 	return (0);
 }
@@ -1155,9 +1181,9 @@ static int
 hkbd_disable(keyboard_t *kbd)
 {
 
-	HKBD_LOCK();
+	SYSCONS_LOCK();
 	KBD_DEACTIVATE(kbd);
-	HKBD_UNLOCK();
+	SYSCONS_UNLOCK();
 
 	return (0);
 }
@@ -1169,7 +1195,7 @@ hkbd_check(keyboard_t *kbd)
 {
 	struct hkbd_softc *sc = kbd->kb_data;
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (0);
@@ -1182,7 +1208,7 @@ hkbd_check(keyboard_t *kbd)
 		return (1);
 	}
 #endif
-	if (sc->sc_inputs > 0) {
+	if (sc->sc_inputhead != atomic_load_acq_32(&sc->sc_inputtail)) {
 		return (1);
 	}
 	return (0);
@@ -1194,7 +1220,7 @@ hkbd_check_char_locked(keyboard_t *kbd)
 {
 	struct hkbd_softc *sc = kbd->kb_data;
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (0);
@@ -1211,9 +1237,9 @@ hkbd_check_char(keyboard_t *kbd)
 {
 	int result;
 
-	HKBD_LOCK();
+	SYSCONS_LOCK();
 	result = hkbd_check_char_locked(kbd);
-	HKBD_UNLOCK();
+	SYSCONS_UNLOCK();
 
 	return (result);
 }
@@ -1231,7 +1257,7 @@ hkbd_read(keyboard_t *kbd, int wait)
 
 #endif
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (-1);
@@ -1280,7 +1306,7 @@ hkbd_read_char_locked(keyboard_t *kbd, int wait)
 	uint32_t scancode;
 #endif
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	if (!KBD_IS_ACTIVE(kbd))
 		return (NOKEY);
@@ -1453,9 +1479,9 @@ hkbd_read_char(keyboard_t *kbd, int wait)
 {
 	uint32_t keycode;
 
-	HKBD_LOCK();
+	SYSCONS_LOCK();
 	keycode = hkbd_read_char_locked(kbd, wait);
-	HKBD_UNLOCK();
+	SYSCONS_UNLOCK();
 
 	return (keycode);
 }
@@ -1476,7 +1502,7 @@ hkbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 
 #endif
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	switch (cmd) {
 	case KDGKBMODE:		/* get keyboard mode */
@@ -1649,9 +1675,9 @@ hkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 			return (EDEADLK);	/* best I could come up with */
 		/* FALLTHROUGH */
 	default:
-		HKBD_LOCK();
+		SYSCONS_LOCK();
 		result = hkbd_ioctl_locked(kbd, cmd, arg);
-		HKBD_UNLOCK();
+		SYSCONS_UNLOCK();
 		return (result);
 	}
 }
@@ -1662,7 +1688,7 @@ hkbd_clear_state(keyboard_t *kbd)
 {
 	struct hkbd_softc *sc = kbd->kb_data;
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 
 	sc->sc_flags &= ~(HKBD_FLAG_COMPOSE | HKBD_FLAG_POLLING);
 	sc->sc_state &= LOCK_MASK;	/* preserve locking key state */
@@ -1697,7 +1723,7 @@ hkbd_poll(keyboard_t *kbd, int on)
 {
 	struct hkbd_softc *sc = kbd->kb_data;
 
-	HKBD_LOCK();
+	SYSCONS_LOCK();
 	/*
 	 * Keep a reference count on polling to allow recursive
 	 * cngrab() during a panic for example.
@@ -1714,7 +1740,7 @@ hkbd_poll(keyboard_t *kbd, int on)
 		sc->sc_flags &= ~HKBD_FLAG_POLLING;
 		sc->sc_delay = 0;
 	}
-	HKBD_UNLOCK();
+	SYSCONS_UNLOCK();
 
 	return (0);
 }
@@ -1730,7 +1756,7 @@ hkbd_set_leds(struct hkbd_softc *sc, uint8_t leds)
 	int len;
 	int error;
 
-	HKBD_LOCK_ASSERT();
+	SYSCONS_LOCK_ASSERT();
 	DPRINTF("leds=0x%02x\n", leds);
 
 #ifdef HID_DEBUG
@@ -1784,9 +1810,9 @@ hkbd_set_leds(struct hkbd_softc *sc, uint8_t leds)
 	DPRINTF("len=%d, id=%d\n", len, id);
 
 	/* start data transfer */
-	HKBD_UNLOCK();
+	SYSCONS_UNLOCK();
 	error = hid_write(sc->sc_dev, buf, len);
-	HKBD_LOCK();
+	SYSCONS_LOCK();
 
 	return (error);
 }
