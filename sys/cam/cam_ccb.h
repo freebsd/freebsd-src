@@ -785,6 +785,8 @@ struct ccb_ataio {
 	u_int32_t  resid;		/* Transfer residual length: 2's comp */
 	u_int8_t   ata_flags;		/* Flags for the rest of the buffer */
 #define ATA_FLAG_AUX 0x1
+#define ATA_FLAG_ICC 0x2
+	uint8_t    icc;			/* Isochronous Command Completion */
 	uint32_t   aux;
 	uint32_t   unused;
 };
