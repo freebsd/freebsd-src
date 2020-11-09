@@ -207,7 +207,6 @@ double	 drand48(void);
 double	 erand48(unsigned short[3]);
 /* char	*fcvt(double, int, int * __restrict, int * __restrict); */
 /* char	*gcvt(double, int, int * __restrict, int * __restrict); */
-int	 grantpt(int);
 char	*initstate(unsigned int, char *, size_t);
 long	 jrand48(unsigned short[3]);
 char	*l64a(long);
@@ -219,8 +218,6 @@ char	*mktemp(char *);
 #endif
 long	 mrand48(void);
 long	 nrand48(unsigned short[3]);
-int	 posix_openpt(int);
-char	*ptsname(int);
 int	 putenv(char *);
 long	 random(void);
 unsigned short
@@ -228,8 +225,18 @@ unsigned short
 char	*setstate(/* const */ char *);
 void	 srand48(long);
 void	 srandom(unsigned int);
+#endif /* __XSI_VISIBLE */
+
+#if __XSI_VISIBLE
+int	 grantpt(int);
+int	 posix_openpt(int);
+char	*ptsname(int);
 int	 unlockpt(int);
 #endif /* __XSI_VISIBLE */
+#if __BSD_VISIBLE
+/* ptsname_r will be included in POSIX issue 8 */
+int	 ptsname_r(int, char *, size_t);
+#endif
 
 #if __BSD_VISIBLE
 extern const char *malloc_conf;

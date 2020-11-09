@@ -124,6 +124,10 @@ FBSD_1.5 {
 	set_constraint_handler_s;
 };
 
+FBSD_1.6 {
+	ptsname_r;
+};
+
 FBSDprivate_1.0 {
 	__system;
 	_system;
