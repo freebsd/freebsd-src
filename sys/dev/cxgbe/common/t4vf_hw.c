@@ -382,3 +382,49 @@ int t4vf_prep_adapter(struct adapter *adapter)
 
 	return 0;
 }
+
+/*
+ *	t4vf_get_vf_mac - Get the MAC address to be set to the VI of this VF.
+ *	@adapter: The adapter
+ *	@port: The port associated with vf
+ *	@naddr: the number of ACL MAC addresses returned in addr
+ *	@addr: Placeholder for MAC addresses
+ *
+ *	Find the MAC address to be set to the VF's VI. The requested MAC address
+ *	is from the host OS via callback in the PF driver.
+ */
+int t4vf_get_vf_mac(struct adapter *adapter, unsigned int port,
+		    unsigned int *naddr, u8 *addr)
+{
+	struct fw_acl_mac_cmd cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_ACL_MAC_CMD) |
+			      F_FW_CMD_REQUEST |
+			      F_FW_CMD_READ);
+	cmd.en_to_len16 = cpu_to_be32((unsigned int)FW_LEN16(cmd));
+	ret = t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), &cmd);
+	if (ret)
+		return ret;
+
+	if (cmd.nmac < *naddr)
+		*naddr = cmd.nmac;
+
+	switch (port) {
+	case 3:
+		memcpy(addr, cmd.macaddr3, sizeof(cmd.macaddr3));
+		break;
+	case 2:
+		memcpy(addr, cmd.macaddr2, sizeof(cmd.macaddr2));
+		break;
+	case 1:
+		memcpy(addr, cmd.macaddr1, sizeof(cmd.macaddr1));
+		break;
+	case 0:
+		memcpy(addr, cmd.macaddr0, sizeof(cmd.macaddr0));
+		break;
+	}
+
+	return ret;
+}
