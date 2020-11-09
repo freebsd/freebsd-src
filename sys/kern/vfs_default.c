@@ -663,6 +663,7 @@ vop_stdgetwritemount(ap)
 	} */ *ap;
 {
 	struct mount *mp;
+	struct mount_pcpu *mpcpu;
 	struct vnode *vp;
 
 	/*
@@ -680,12 +681,12 @@ vop_stdgetwritemount(ap)
 		*(ap->a_mpp) = NULL;
 		return (0);
 	}
-	if (vfs_op_thread_enter(mp)) {
+	if (vfs_op_thread_enter(mp, mpcpu)) {
 		if (mp == vp->v_mount) {
-			vfs_mp_count_add_pcpu(mp, ref, 1);
-			vfs_op_thread_exit(mp);
+			vfs_mp_count_add_pcpu(mpcpu, ref, 1);
+			vfs_op_thread_exit(mp, mpcpu);
 		} else {
-			vfs_op_thread_exit(mp);
+			vfs_op_thread_exit(mp, mpcpu);
 			mp = NULL;
 		}
 	} else {

@@ -1761,13 +1761,14 @@ vn_closefile(struct file *fp, struct thread *td)
 static int
 vn_start_write_refed(struct mount *mp, int flags, bool mplocked)
 {
+	struct mount_pcpu *mpcpu;
 	int error, mflags;
 
 	if (__predict_true(!mplocked) && (flags & V_XSLEEP) == 0 &&
-	    vfs_op_thread_enter(mp)) {
+	    vfs_op_thread_enter(mp, mpcpu)) {
 		MPASS((mp->mnt_kern_flag & MNTK_SUSPEND) == 0);
-		vfs_mp_count_add_pcpu(mp, writeopcount, 1);
-		vfs_op_thread_exit(mp);
+		vfs_mp_count_add_pcpu(mpcpu, writeopcount, 1);
+		vfs_op_thread_exit(mp, mpcpu);
 		return (0);
 	}
 
@@ -1917,15 +1918,16 @@ vn_start_secondary_write(struct vnode *vp, struct mount **mpp, int flags)
 void
 vn_finished_write(struct mount *mp)
 {
+	struct mount_pcpu *mpcpu;
 	int c;
 
 	if (mp == NULL)
 		return;
 
-	if (vfs_op_thread_enter(mp)) {
-		vfs_mp_count_sub_pcpu(mp, writeopcount, 1);
-		vfs_mp_count_sub_pcpu(mp, ref, 1);
-		vfs_op_thread_exit(mp);
+	if (vfs_op_thread_enter(mp, mpcpu)) {
+		vfs_mp_count_sub_pcpu(mpcpu, writeopcount, 1);
+		vfs_mp_count_sub_pcpu(mpcpu, ref, 1);
+		vfs_op_thread_exit(mp, mpcpu);
 		return;
 	}
 
