@@ -380,6 +380,53 @@ crypto_terminate(struct proc **pp, void *q)
 }
 
 static void
+hmac_init_pad(const struct auth_hash *axf, const char *key, int klen,
+    void *auth_ctx, uint8_t padval)
+{
+	uint8_t hmac_key[HMAC_MAX_BLOCK_LEN];
+	u_int i;
+
+	KASSERT(axf->blocksize <= sizeof(hmac_key),
+	    ("Invalid HMAC block size %d", axf->blocksize));
+
+	/*
+	 * If the key is larger than the block size, use the digest of
+	 * the key as the key instead.
+	 */
+	memset(hmac_key, 0, sizeof(hmac_key));
+	if (klen > axf->blocksize) {
+		axf->Init(auth_ctx);
+		axf->Update(auth_ctx, key, klen);
+		axf->Final(hmac_key, auth_ctx);
+		klen = axf->hashsize;
+	} else
+		memcpy(hmac_key, key, klen);
+
+	for (i = 0; i < axf->blocksize; i++)
+		hmac_key[i] ^= padval;
+
+	axf->Init(auth_ctx);
+	axf->Update(auth_ctx, hmac_key, axf->blocksize);
+	explicit_bzero(hmac_key, sizeof(hmac_key));
+}
+
+void
+hmac_init_ipad(const struct auth_hash *axf, const char *key, int klen,
+    void *auth_ctx)
+{
+
+	hmac_init_pad(axf, key, klen, auth_ctx, HMAC_IPAD_VAL);
+}
+
+void
+hmac_init_opad(const struct auth_hash *axf, const char *key, int klen,
+    void *auth_ctx)
+{
+
+	hmac_init_pad(axf, key, klen, auth_ctx, HMAC_OPAD_VAL);
+}
+
+static void
 crypto_destroy(void)
 {
 	struct crypto_ret_worker *ret_worker;
