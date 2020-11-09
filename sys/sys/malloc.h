@@ -92,6 +92,9 @@ struct malloc_type_stats {
 	uint64_t	_mts_reserved3;	/* Reserved field. */
 };
 
+_Static_assert(sizeof(struct malloc_type_stats) == 64,
+    "allocations come from pcpu_zone_64");
+
 /*
  * Index definitions for the mti_probes[] array.
  */
