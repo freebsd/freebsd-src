@@ -23,6 +23,11 @@ SRCS=	linux_compat.c \
 	linux_work.c \
 	linux_xarray.c
 
+.if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
+    ${MACHINE_CPUARCH} == "i386"
+SRCS+=	opt_acpi.h linux_acpi.c
+.endif
+
 SRCS+=	${LINUXKPI_GENSRCS}
 
 CFLAGS+= -I${SRCTOP}/sys/compat/linuxkpi/common/include
