@@ -5494,7 +5494,7 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	unsigned int i, fwd_sz, m_size;
 	uint32_t str_seq;
 	struct sctp_stream_in *strm;
-	struct sctp_queued_to_read *control, *sv;
+	struct sctp_queued_to_read *control, *ncontrol, *sv;
 
 	asoc = &stcb->asoc;
 	if ((fwd_sz = ntohs(fwd->ch.chunk_length)) < sizeof(struct sctp_forward_tsn_chunk)) {
@@ -5654,14 +5654,14 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 			}
 			strm = &asoc->strmin[sid];
 			if (ordered) {
-				TAILQ_FOREACH(control, &strm->inqueue, next_instrm) {
+				TAILQ_FOREACH_SAFE(control, &strm->inqueue, next_instrm, ncontrol) {
 					if (SCTP_MID_GE(asoc->idata_supported, mid, control->mid)) {
 						sctp_flush_reassm_for_str_seq(stcb, asoc, strm, control, ordered, new_cum_tsn);
 					}
 				}
 			} else {
 				if (asoc->idata_supported) {
-					TAILQ_FOREACH(control, &strm->uno_inqueue, next_instrm) {
+					TAILQ_FOREACH_SAFE(control, &strm->uno_inqueue, next_instrm, ncontrol) {
 						if (SCTP_MID_GE(asoc->idata_supported, mid, control->mid)) {
 							sctp_flush_reassm_for_str_seq(stcb, asoc, strm, control, ordered, new_cum_tsn);
 						}
