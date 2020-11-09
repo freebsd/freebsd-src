@@ -496,6 +496,10 @@ device         nvd     # expose NVMe namespaces as disks, depends on nvme
 device		pmspcv
 
 #
+# Intel QuickAssist
+device		qat
+
+#
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
 # it's tested on a big-endian machine
 #

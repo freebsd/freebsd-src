@@ -419,6 +419,15 @@ dev/nvme/nvme_util.c		optional	nvme
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	rdrand_rng
 dev/random/nehemiah.c		optional	padlock_rng
+dev/qat/qat.c			optional	qat
+dev/qat/qat_ae.c		optional	qat
+dev/qat/qat_c2xxx.c		optional	qat
+dev/qat/qat_c3xxx.c		optional	qat
+dev/qat/qat_c62x.c		optional	qat
+dev/qat/qat_d15xx.c		optional	qat
+dev/qat/qat_dh895xcc.c		optional	qat
+dev/qat/qat_hw15.c		optional	qat
+dev/qat/qat_hw17.c		optional	qat
 dev/qlxge/qls_dbg.c		optional	qlxge pci
 dev/qlxge/qls_dump.c		optional	qlxge pci
 dev/qlxge/qls_hw.c		optional	qlxge pci
