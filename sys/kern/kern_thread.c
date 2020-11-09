@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #ifdef	HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
+#include <sys/priv.h>
 
 #include <security/audit/audit.h>
 
@@ -142,6 +143,12 @@ static lwpid_t tid_buffer[TID_BUFFER_SIZE];
 static int tid_head, tid_tail;
 static MALLOC_DEFINE(M_TIDHASH, "tidhash", "thread hash");
 
+static int maxthread;
+SYSCTL_INT(_kern, OID_AUTO, maxthread, CTLFLAG_RDTUN,
+    &maxthread, 0, "Maximum number of threads");
+
+static int nthreads;
+
 struct	tidhashhead *tidhashtbl;
 u_long	tidhash;
 struct	rwlock tidhash_lock;
@@ -154,7 +161,24 @@ EVENTHANDLER_LIST_DEFINE(thread_fini);
 static lwpid_t
 tid_alloc(void)
 {
-	lwpid_t	tid;
+	static struct timeval lastfail;
+	static int curfail;
+	int nthreads_new;
+	lwpid_t tid;
+
+	nthreads_new = atomic_fetchadd_int(&nthreads, 1) + 1;
+	if (nthreads_new >= maxthread - 100) {
+		if (priv_check_cred(curthread->td_ucred, PRIV_MAXPROC) != 0 ||
+		    nthreads_new >= maxthread) {
+			atomic_subtract_int(&nthreads, 1);
+			if (ppsratecheck(&lastfail, &curfail, 1)) {
+				printf("maxthread limit exceeded by uid %u "
+				"(pid %d); consider increasing kern.maxthread\n",
+				curthread->td_ucred->cr_ruid, curproc->p_pid);
+			}
+			return (-1);
+		}
+	}
 
 	tid = alloc_unr(tid_unrhdr);
 	if (tid != -1)
@@ -185,6 +209,7 @@ tid_free(lwpid_t tid)
 	mtx_unlock(&tid_lock);
 	if (tmp_tid != -1)
 		free_unr(tid_unrhdr, tmp_tid);
+	atomic_subtract_int(&nthreads, 1);
 }
 
 /*
@@ -199,8 +224,6 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td->td_state = TDS_INACTIVE;
 	td->td_lastcpu = td->td_oncpu = NOCPU;
 
-	td->td_tid = tid_alloc();
-
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
 	 * running and is thereby implicitly waiting to be on the receiving
@@ -208,7 +231,6 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	 */
 	td->td_critnest = 1;
 	td->td_lend_user_pri = PRI_MAX;
-	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 #ifdef AUDIT
 	audit_thread_alloc(td);
 #endif
@@ -253,9 +275,6 @@ thread_dtor(void *mem, int size, void *arg)
 	osd_thread_exit(td);
 	td_softdep_cleanup(td);
 	MPASS(td->td_su == NULL);
-
-	EVENTHANDLER_DIRECT_INVOKE(thread_dtor, td);
-	tid_free(td->td_tid);
 }
 
 /*
@@ -325,6 +344,8 @@ proc_linkup(struct proc *p, struct thread *td)
 	thread_link(td, p);
 }
 
+extern int max_threads_per_proc;
+
 /*
  * Initialize global thread allocation resources.
  */
@@ -332,6 +353,22 @@ void
 threadinit(void)
 {
 	uint32_t flags;
+
+	/*
+	 * Place an upper limit on threads which can be allocated.
+	 *
+	 * Note that other factors may make the de facto limit much lower.
+	 *
+	 * Platform limits are somewhat arbitrary but deemed "more than good
+	 * enough" for the foreseable future.
+	 */
+	if (maxthread == 0) {
+#ifdef _LP64
+		maxthread = MIN(maxproc * max_threads_per_proc, 1000000);
+#else
+		maxthread = MIN(maxproc * max_threads_per_proc, 100000);
+#endif
+	}
 
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
 
@@ -415,16 +452,25 @@ struct thread *
 thread_alloc(int pages)
 {
 	struct thread *td;
+	lwpid_t tid;
 
 	thread_reap(); /* check if any zombies to get */
 
-	td = (struct thread *)uma_zalloc(thread_zone, M_WAITOK);
+	tid = tid_alloc();
+	if (tid == -1) {
+		return (NULL);
+	}
+
+	td = uma_zalloc(thread_zone, M_WAITOK);
 	KASSERT(td->td_kstack == 0, ("thread_alloc got thread with kstack"));
 	if (!vm_thread_new(td, pages)) {
 		uma_zfree(thread_zone, td);
+		tid_free(tid);
 		return (NULL);
 	}
+	td->td_tid = tid;
 	cpu_thread_alloc(td);
+	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 	return (td);
 }
 
@@ -447,6 +493,7 @@ void
 thread_free(struct thread *td)
 {
 
+	EVENTHANDLER_DIRECT_INVOKE(thread_dtor, td);
 	lock_profile_thread_exit(td);
 	if (td->td_cpuset)
 		cpuset_rel(td->td_cpuset);
@@ -455,6 +502,8 @@ thread_free(struct thread *td)
 	if (td->td_kstack != 0)
 		vm_thread_dispose(td);
 	callout_drain(&td->td_slpcallout);
+	tid_free(td->td_tid);
+	td->td_tid = -1;
 	uma_zfree(thread_zone, td);
 }
 

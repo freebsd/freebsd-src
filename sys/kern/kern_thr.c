@@ -67,7 +67,7 @@ __FBSDID("$FreeBSD$");
 static SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "thread allocation");
 
-static int max_threads_per_proc = 1500;
+int max_threads_per_proc = 1500;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
     &max_threads_per_proc, 0, "Limit on threads per proc");
 
