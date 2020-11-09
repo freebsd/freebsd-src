@@ -104,7 +104,7 @@ struct bufobj {
 	void		*bo_private;	/* private pointer */
 	struct bufv	bo_clean;	/* i Clean buffers */
 	struct bufv	bo_dirty;	/* i Dirty buffers */
-	long		bo_numoutput;	/* i Writes in progress */
+	int		bo_numoutput;	/* i Writes in progress */
 	u_int		bo_flag;	/* i Flags */
 	int		bo_domain;	/* - Clean queue affinity */
 	int		bo_bsize;	/* - Block size for i/o */
