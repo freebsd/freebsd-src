@@ -31,12 +31,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2008
+.Dd October 17, 2020
 .Dt PTSNAME 3
 .Os
 .Sh NAME
 .Nm grantpt ,
 .Nm ptsname ,
+.Nm ptsname_r ,
 .Nm unlockpt
 .Nd pseudo-terminal access functions
 .Sh LIBRARY
@@ -47,6 +48,8 @@
 .Fn grantpt "int fildes"
 .Ft "char *"
 .Fn ptsname "int fildes"
+.Ft "int"
+.Fn ptsname_r "int fildes" "char *buffer" "size_t buflen"
 .Ft int
 .Fn unlockpt "int fildes"
 .Sh DESCRIPTION
@@ -87,12 +90,23 @@ and
 have been called.
 .Pp
 The
+.Fn ptsname_r
+function is the thread-safe version of
+.Fn ptsname .
+The caller must provide storage for the results of the full pathname of
+the slave device in the
+.Fa buffer
+and
+.Fa bufsize
+arguments.
+.Pp
+The
 .Fn unlockpt
 function clears the lock held on the pseudo-terminal pair
 for the master device specified with
 .Fa fildes .
 .Sh RETURN VALUES
-.Rv -std grantpt unlockpt
+.Rv -std grantpt ptsname_r unlockpt
 .Pp
 The
 .Fn ptsname
@@ -103,7 +117,8 @@ pointer is returned.
 .Sh ERRORS
 The
 .Fn grantpt ,
-.Fn ptsname
+.Fn ptsname ,
+.Fn ptsname_r
 and
 .Fn unlockpt
 functions may fail and set
@@ -116,6 +131,16 @@ is not a valid open file descriptor.
 .It Bq Er EINVAL
 .Fa fildes
 is not a master pseudo-terminal device.
+.El
+.Pp
+In addition, the
+.Fn ptsname_r
+function may set
+.Va errno
+to:
+.Bl -tag -width Er
+.It Bq Er ERANGE
+The buffer was too small.
 .El
 .Pp
 In addition, the
