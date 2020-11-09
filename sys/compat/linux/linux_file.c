@@ -1181,13 +1181,15 @@ linux_pwritev(struct thread *td, struct linux_pwritev_args *uap)
 int
 linux_mount(struct thread *td, struct linux_mount_args *args)
 {
-	char fstypename[MFSNAMELEN];
-	char *mntonname, *mntfromname;
+	struct mntarg *ma = NULL;
+	char *fstypename, *mntonname, *mntfromname, *data;
 	int error, fsflags;
 
+	fstypename = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 	mntonname = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 	mntfromname = malloc(MNAMELEN, M_TEMP, M_WAITOK);
-	error = copyinstr(args->filesystemtype, fstypename, MFSNAMELEN - 1,
+	data = NULL;
+	error = copyinstr(args->filesystemtype, fstypename, MNAMELEN - 1,
 	    NULL);
 	if (error != 0)
 		goto out;
@@ -1208,6 +1210,31 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 		strcpy(fstypename, "linprocfs");
 	} else if (strcmp(fstypename, "vfat") == 0) {
 		strcpy(fstypename, "msdosfs");
+	} else if (strcmp(fstypename, "fuse") == 0) {
+		char *fuse_options, *fuse_option, *fuse_name;
+
+		if (strcmp(mntfromname, "fuse") == 0)
+			strcpy(mntfromname, "/dev/fuse");
+
+		strcpy(fstypename, "fusefs");
+		data = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+		error = copyinstr(args->data, data, MNAMELEN - 1, NULL);
+		if (error != 0)
+			goto out;
+
+		fuse_options = data;
+		while ((fuse_option = strsep(&fuse_options, ",")) != NULL) {
+			fuse_name = strsep(&fuse_option, "=");
+			if (fuse_name == NULL || fuse_option == NULL)
+				goto out;
+			ma = mount_arg(ma, fuse_name, fuse_option, -1);
+		}
+
+		/*
+		 * The FUSE server uses Linux errno values instead of FreeBSD
+		 * ones; add a flag to tell fuse(4) to do errno translation.
+		 */
+		ma = mount_arg(ma, "linux_errnos", "1", -1);
 	}
 
 	fsflags = 0;
@@ -1225,14 +1252,15 @@ linux_mount(struct thread *td, struct linux_mount_args *args)
 	if (args->rwflag & LINUX_MS_REMOUNT)
 		fsflags |= MNT_UPDATE;
 
-	error = kernel_vmount(fsflags,
-	    "fstype", fstypename,
-	    "fspath", mntonname,
-	    "from", mntfromname,
-	    NULL);
+	ma = mount_arg(ma, "fstype", fstypename, -1);
+	ma = mount_arg(ma, "fspath", mntonname, -1);
+	ma = mount_arg(ma, "from", mntfromname, -1);
+	error = kernel_mount(ma, fsflags);
 out:
+	free(fstypename, M_TEMP);
 	free(mntonname, M_TEMP);
 	free(mntfromname, M_TEMP);
+	free(data, M_TEMP);
 	return (error);
 }
 
