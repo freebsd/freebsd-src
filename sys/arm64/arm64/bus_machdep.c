@@ -136,40 +136,36 @@ static void
 generic_bs_sr_1(void *t, bus_space_handle_t bsh,
     bus_size_t offset, uint8_t value, size_t count)
 {
-	bus_addr_t addr = bsh + offset;
 
-	for (; count != 0; count--, addr++)
-		generic_bs_w_1(t, bsh, addr, value);
+	for (; count != 0; count--, offset++)
+		generic_bs_w_1(t, bsh, offset, value);
 }
 
 static void
 generic_bs_sr_2(void *t, bus_space_handle_t bsh,
 		       bus_size_t offset, uint16_t value, size_t count)
 {
-	bus_addr_t addr = bsh + offset;
 
-	for (; count != 0; count--, addr += 2)
-		generic_bs_w_2(t, bsh, addr, value);
+	for (; count != 0; count--, offset += 2)
+		generic_bs_w_2(t, bsh, offset, value);
 }
 
 static void
 generic_bs_sr_4(void *t, bus_space_handle_t bsh,
     bus_size_t offset, uint32_t value, size_t count)
 {
-	bus_addr_t addr = bsh + offset;
 
-	for (; count != 0; count--, addr += 4)
-		generic_bs_w_4(t, bsh, addr, value);
+	for (; count != 0; count--, offset += 4)
+		generic_bs_w_4(t, bsh, offset, value);
 }
 
 static void
 generic_bs_sr_8(void *t, bus_space_handle_t bsh, bus_size_t offset,
     uint64_t value, size_t count)
 {
-	bus_addr_t addr = bsh + offset;
 
-	for (; count != 0; count--, addr += 8)
-		generic_bs_w_8(t, bsh, addr, value);
+	for (; count != 0; count--, offset += 8)
+		generic_bs_w_8(t, bsh, offset, value);
 }
 
 struct bus_space memmap_bus = {
