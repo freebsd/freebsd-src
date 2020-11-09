@@ -49,9 +49,9 @@ def katg(base, glob):
 		raise unittest.SkipTest("Missing %s test vectors" % (base))
 	return iglob(os.path.join(katdir, base, glob))
 
-aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0', 'safexcel0' ]
+aesmodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0', 'safexcel0', 'qat0' ]
 desmodules = [ 'cryptosoft0', ]
-shamodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0', 'safexcel0' ]
+shamodules = [ 'cryptosoft0', 'aesni0', 'ccr0', 'ccp0', 'safexcel0', 'qat0' ]
 
 def GenTestCase(cname):
 	try:
@@ -471,6 +471,7 @@ aesni = GenTestCase('aesni0')
 ccr = GenTestCase('ccr0')
 ccp = GenTestCase('ccp0')
 safexcel = GenTestCase('safexcel0')
+qat = GenTestCase('qat0')
 
 if __name__ == '__main__':
 	unittest.main()
