@@ -165,12 +165,10 @@ static int	soreceive_rcvoob(struct socket *so, struct uio *uio,
 		    int flags);
 static void	so_rdknl_lock(void *);
 static void	so_rdknl_unlock(void *);
-static void	so_rdknl_assert_locked(void *);
-static void	so_rdknl_assert_unlocked(void *);
+static void	so_rdknl_assert_lock(void *, int);
 static void	so_wrknl_lock(void *);
 static void	so_wrknl_unlock(void *);
-static void	so_wrknl_assert_locked(void *);
-static void	so_wrknl_assert_unlocked(void *);
+static void	so_wrknl_assert_lock(void *, int);
 
 static void	filt_sordetach(struct knote *kn);
 static int	filt_soread(struct knote *kn, long hint);
@@ -550,9 +548,9 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	mac_socket_create(cred, so);
 #endif
 	knlist_init(&so->so_rdsel.si_note, so, so_rdknl_lock, so_rdknl_unlock,
-	    so_rdknl_assert_locked, so_rdknl_assert_unlocked);
+	    so_rdknl_assert_lock);
 	knlist_init(&so->so_wrsel.si_note, so, so_wrknl_lock, so_wrknl_unlock,
-	    so_wrknl_assert_locked, so_wrknl_assert_unlocked);
+	    so_wrknl_assert_lock);
 	/*
 	 * Auto-sizing of socket buffers is managed by the protocols and
 	 * the appropriate flags must be set in the pru_attach function.
@@ -729,9 +727,9 @@ sonewconn(struct socket *head, int connstatus)
 	mac_socket_newconn(head, so);
 #endif
 	knlist_init(&so->so_rdsel.si_note, so, so_rdknl_lock, so_rdknl_unlock,
-	    so_rdknl_assert_locked, so_rdknl_assert_unlocked);
+	    so_rdknl_assert_lock);
 	knlist_init(&so->so_wrsel.si_note, so, so_wrknl_lock, so_wrknl_unlock,
-	    so_wrknl_assert_locked, so_wrknl_assert_unlocked);
+	    so_wrknl_assert_lock);
 	VNET_SO_ASSERT(head);
 	if (soreserve(so, head->sol_sbsnd_hiwat, head->sol_sbrcv_hiwat)) {
 		sodealloc(so);
@@ -823,9 +821,9 @@ sopeeloff(struct socket *head)
 	mac_socket_newconn(head, so);
 #endif
 	knlist_init(&so->so_rdsel.si_note, so, so_rdknl_lock, so_rdknl_unlock,
-	    so_rdknl_assert_locked, so_rdknl_assert_unlocked);
+	    so_rdknl_assert_lock);
 	knlist_init(&so->so_wrsel.si_note, so, so_wrknl_lock, so_wrknl_unlock,
-	    so_wrknl_assert_locked, so_wrknl_assert_unlocked);
+	    so_wrknl_assert_lock);
 	VNET_SO_ASSERT(head);
 	if (soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat)) {
 		sodealloc(so);
@@ -4189,25 +4187,21 @@ so_rdknl_unlock(void *arg)
 }
 
 static void
-so_rdknl_assert_locked(void *arg)
+so_rdknl_assert_lock(void *arg, int what)
 {
 	struct socket *so = arg;
 
-	if (SOLISTENING(so))
-		SOCK_LOCK_ASSERT(so);
-	else
-		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-}
-
-static void
-so_rdknl_assert_unlocked(void *arg)
-{
-	struct socket *so = arg;
-
-	if (SOLISTENING(so))
-		SOCK_UNLOCK_ASSERT(so);
-	else
-		SOCKBUF_UNLOCK_ASSERT(&so->so_rcv);
+	if (what == LA_LOCKED) {
+		if (SOLISTENING(so))
+			SOCK_LOCK_ASSERT(so);
+		else
+			SOCKBUF_LOCK_ASSERT(&so->so_rcv);
+	} else {
+		if (SOLISTENING(so))
+			SOCK_UNLOCK_ASSERT(so);
+		else
+			SOCKBUF_UNLOCK_ASSERT(&so->so_rcv);
+	}
 }
 
 static void
@@ -4233,25 +4227,21 @@ so_wrknl_unlock(void *arg)
 }
 
 static void
-so_wrknl_assert_locked(void *arg)
+so_wrknl_assert_lock(void *arg, int what)
 {
 	struct socket *so = arg;
 
-	if (SOLISTENING(so))
-		SOCK_LOCK_ASSERT(so);
-	else
-		SOCKBUF_LOCK_ASSERT(&so->so_snd);
-}
-
-static void
-so_wrknl_assert_unlocked(void *arg)
-{
-	struct socket *so = arg;
-
-	if (SOLISTENING(so))
-		SOCK_UNLOCK_ASSERT(so);
-	else
-		SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
+	if (what == LA_LOCKED) {
+		if (SOLISTENING(so))
+			SOCK_LOCK_ASSERT(so);
+		else
+			SOCKBUF_LOCK_ASSERT(&so->so_snd);
+	} else {
+		if (SOLISTENING(so))
+			SOCK_UNLOCK_ASSERT(so);
+		else
+			SOCKBUF_UNLOCK_ASSERT(&so->so_snd);
+	}
 }
 
 /*

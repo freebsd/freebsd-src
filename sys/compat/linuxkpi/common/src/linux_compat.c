@@ -422,22 +422,15 @@ linux_kq_unlock(void *arg)
 }
 
 static void
-linux_kq_lock_owned(void *arg)
+linux_kq_assert_lock(void *arg, int what)
 {
 #ifdef INVARIANTS
 	spinlock_t *s = arg;
 
-	mtx_assert(&s->m, MA_OWNED);
-#endif
-}
-
-static void
-linux_kq_lock_unowned(void *arg)
-{
-#ifdef INVARIANTS
-	spinlock_t *s = arg;
-
-	mtx_assert(&s->m, MA_NOTOWNED);
+	if (what == LA_LOCKED)
+		mtx_assert(&s->m, MA_OWNED);
+	else
+		mtx_assert(&s->m, MA_NOTOWNED);
 #endif
 }
 
@@ -457,8 +450,7 @@ linux_file_alloc(void)
 	/* setup fields needed by kqueue support */
 	spin_lock_init(&filp->f_kqlock);
 	knlist_init(&filp->f_selinfo.si_note, &filp->f_kqlock,
-	    linux_kq_lock, linux_kq_unlock,
-	    linux_kq_lock_owned, linux_kq_lock_unowned);
+	    linux_kq_lock, linux_kq_unlock, linux_kq_assert_lock);
 
 	return (filp);
 }
