@@ -71,23 +71,13 @@
 	#define offsetof(type, member)  ((size_t)(&((type *)0)->member))
 #endif
 
-#if __FreeBSD_version >= 500005
-    #define ARCMSR_LOCK_INIT(l, s)	mtx_init(l, s, NULL, MTX_DEF)
-    #define ARCMSR_LOCK_DESTROY(l)	mtx_destroy(l)
-    #define ARCMSR_LOCK_ACQUIRE(l)	mtx_lock(l)
-    #define ARCMSR_LOCK_RELEASE(l)	mtx_unlock(l)
-    #define ARCMSR_LOCK_TRY(l)		mtx_trylock(l)
-    #define arcmsr_htole32(x)		htole32(x)
-    typedef struct mtx			arcmsr_lock_t;
-#else
-    #define ARCMSR_LOCK_INIT(l, s)	simple_lock_init(l)
-    #define ARCMSR_LOCK_DESTROY(l)
-    #define ARCMSR_LOCK_ACQUIRE(l)	simple_lock(l)
-    #define ARCMSR_LOCK_RELEASE(l)	simple_unlock(l)
-    #define ARCMSR_LOCK_TRY(l)		simple_lock_try(l)
-    #define arcmsr_htole32(x)		(x)
-    typedef struct simplelock		arcmsr_lock_t;
-#endif
+#define ARCMSR_LOCK_INIT(l, s)		mtx_init(l, s, NULL, MTX_DEF)
+#define ARCMSR_LOCK_DESTROY(l)		mtx_destroy(l)
+#define ARCMSR_LOCK_ACQUIRE(l)		mtx_lock(l)
+#define ARCMSR_LOCK_RELEASE(l)		mtx_unlock(l)
+#define ARCMSR_LOCK_TRY(l)		mtx_trylock(l)
+#define arcmsr_htole32(x)		htole32(x)
+typedef struct mtx			arcmsr_lock_t;
 
 /*
 **********************************************************************************
@@ -160,6 +150,8 @@
 #define PCIDevVenIDARC1880              0x188017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1882              0x188217D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1884              0x188417D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1886_             0x188917D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1886              0x188A17D3 /* Vendor Device ID	*/
 
 #ifndef PCIR_BARS
 	#define PCIR_BARS	0x10
@@ -468,7 +460,7 @@ struct CMD_MESSAGE_FIELD {
 
 /*ARCMSR_HBAMU_MESSAGE_FIRMWARE_OK*/
 #define ARCMSR_HBDMU_MESSAGE_FIRMWARE_OK		0x80000000
-/* 
+/*
 *******************************************************************************
 **                SPEC. for Areca HBE adapter
 *******************************************************************************
@@ -489,8 +481,22 @@ struct CMD_MESSAGE_FIELD {
 #define ARCMSR_HBEMU_DOORBELL_SYNC			0x100
 #define ARCMSR_ARC188X_RESET_ADAPTER			0x00000004
 /*
+*******************************************************************************
+**                SPEC. for Areca HBF adapter
+*******************************************************************************
+*/
+#define ARCMSR_SIGNATURE_1886				0x188617D3
+// Doorbell and interrupt definition are same as Type E adapter
+/* ARC-1886 doorbell sync */
+#define ARCMSR_HBFMU_DOORBELL_SYNC			0x100
+//set host rw buffer physical address at inbound message 0, 1 (low,high)
+#define ARCMSR_HBFMU_DOORBELL_SYNC1			0x300
+#define ARCMSR_HBFMU_MESSAGE_FIRMWARE_OK		0x80000000
+#define ARCMSR_HBFMU_MESSAGE_NO_VOLUME_CHANGE		0x20000000
+
+/*
 *********************************************************************
-** Message Unit structure
+**     Messaging Unit (MU) of Type A processor
 *********************************************************************
 */
 struct HBA_MessageUnit
@@ -554,7 +560,7 @@ struct HBB_RWBUFFER
 };
 /*
 *********************************************************************
-** 
+**      Messaging Unit (MU) of Type B processor(MARVEL)
 *********************************************************************
 */
 struct HBB_MessageUnit
@@ -573,7 +579,7 @@ struct HBB_MessageUnit
 
 /*
 *********************************************************************
-** 
+**      Messaging Unit (MU) of Type C processor(LSI)
 *********************************************************************
 */
 struct HBC_MessageUnit {
@@ -648,7 +654,7 @@ struct HBC_MessageUnit {
 };
 /*
 *********************************************************************
-** 
+**      Messaging Unit (MU) of Type D processor
 *********************************************************************
 */
 struct InBound_SRB {
@@ -717,7 +723,7 @@ struct HBD_MessageUnit0 {
 };
 /*
 *********************************************************************
-** 
+**      Messaging Unit (MU) of Type E processor(LSI)
 *********************************************************************
 */
 struct HBE_MessageUnit {
@@ -793,6 +799,80 @@ struct HBE_MessageUnit {
 	u_int32_t	msgcode_rwbuffer[256];                      /*2200 23FF*/
 };
 
+/*
+*********************************************************************
+**      Messaging Unit (MU) of Type F processor(LSI)
+*********************************************************************
+*/
+struct HBF_MessageUnit {
+	u_int32_t	iobound_doorbell;                           /*0000 0003*/
+	u_int32_t	write_sequence_3xxx;	                    /*0004 0007*/
+	u_int32_t	host_diagnostic_3xxx;	                    /*0008 000B*/
+	u_int32_t	posted_outbound_doorbell;	            /*000C 000F*/
+	u_int32_t	master_error_attribute;	                    /*0010 0013*/
+	u_int32_t	master_error_address_low;	            /*0014 0017*/
+	u_int32_t	master_error_address_high;	            /*0018 001B*/
+	u_int32_t	hcb_size;                                   /*001C 001F*/
+	u_int32_t	inbound_doorbell;	                    /*0020 0023*/
+	u_int32_t	diagnostic_rw_data;	                    /*0024 0027*/
+	u_int32_t	diagnostic_rw_address_low;	            /*0028 002B*/
+	u_int32_t	diagnostic_rw_address_high;	            /*002C 002F*/
+	u_int32_t	host_int_status;	                    /*0030 0033 host interrupt status*/
+	u_int32_t	host_int_mask;     	                    /*0034 0037 host interrupt mask*/
+	u_int32_t	dcr_data;	                            /*0038 003B*/
+	u_int32_t	dcr_address;                                /*003C 003F*/
+	u_int32_t	inbound_queueport;                          /*0040 0043 port32 host inbound queue port*/
+	u_int32_t	outbound_queueport;                         /*0044 0047 port32 host outbound queue port*/
+	u_int32_t	hcb_pci_address_low;                        /*0048 004B*/
+	u_int32_t	hcb_pci_address_high;                       /*004C 004F*/
+	u_int32_t	iop_int_status;                             /*0050 0053*/
+	u_int32_t	iop_int_mask;                               /*0054 0057*/
+	u_int32_t	iop_inbound_queue_port;                     /*0058 005B*/
+	u_int32_t	iop_outbound_queue_port;                    /*005C 005F*/
+	u_int32_t	inbound_free_list_index;                    /*0060 0063*/
+	u_int32_t	inbound_post_list_index;                    /*0064 0067*/
+	u_int32_t	reply_post_producer_index;                  /*0068 006B*/
+	u_int32_t	reply_post_consumer_index;                  /*006C 006F*/
+	u_int32_t	inbound_doorbell_clear;                     /*0070 0073*/
+	u_int32_t	i2o_message_unit_control;                   /*0074 0077*/
+	u_int32_t	last_used_message_source_address_low;       /*0078 007B*/
+	u_int32_t	last_used_message_source_address_high;	    /*007C 007F*/
+	u_int32_t	pull_mode_data_byte_count[4];               /*0080 008F*/
+	u_int32_t	message_dest_address_index;                 /*0090 0093*/
+	u_int32_t	done_queue_not_empty_int_counter_timer;     /*0094 0097*/
+	u_int32_t	utility_A_int_counter_timer;                /*0098 009B*/
+	u_int32_t	outbound_doorbell;                          /*009C 009F*/
+	u_int32_t	outbound_doorbell_clear;                    /*00A0 00A3*/
+	u_int32_t	message_source_address_index;               /*00A4 00A7*/
+	u_int32_t	message_done_queue_index;                   /*00A8 00AB*/
+	u_int32_t	reserved0;                                  /*00AC 00AF*/
+	u_int32_t	inbound_msgaddr0;                           /*00B0 00B3 scratchpad0*/
+	u_int32_t	inbound_msgaddr1;                           /*00B4 00B7 scratchpad1*/
+	u_int32_t	outbound_msgaddr0;                          /*00B8 00BB scratchpad2*/
+	u_int32_t	outbound_msgaddr1;                          /*00BC 00BF scratchpad3*/
+	u_int32_t	inbound_queueport_low;                      /*00C0 00C3 port64 host inbound queue port low*/
+	u_int32_t	inbound_queueport_high;                     /*00C4 00C7 port64 host inbound queue port high*/
+	u_int32_t	outbound_queueport_low;                     /*00C8 00CB port64 host outbound queue port low*/
+	u_int32_t	outbound_queueport_high;                    /*00CC 00CF port64 host outbound queue port high*/
+	u_int32_t	iop_inbound_queue_port_low;                 /*00D0 00D3*/
+	u_int32_t	iop_inbound_queue_port_high;                /*00D4 00D7*/
+	u_int32_t	iop_outbound_queue_port_low;                /*00D8 00DB*/
+	u_int32_t	iop_outbound_queue_port_high;               /*00DC 00DF*/
+	u_int32_t	message_dest_queue_port_low;                /*00E0 00E3*/
+	u_int32_t	message_dest_queue_port_high;               /*00E4 00E7*/
+	u_int32_t	last_used_message_dest_address_low;         /*00E8 00EB*/
+	u_int32_t	last_used_message_dest_address_high;        /*00EC 00EF*/
+	u_int32_t	message_done_queue_base_address_low;        /*00F0 00F3*/
+	u_int32_t	message_done_queue_base_address_high;       /*00F4 00F7*/
+	u_int32_t	host_diagnostic;                            /*00F8 00FB*/
+	u_int32_t	write_sequence;                             /*00FC 00FF*/
+	u_int32_t	reserved1[46];                              /*0100 01B7*/
+	u_int32_t	reply_post_producer_index1;                  /*01B8 01BB*/
+	u_int32_t	reply_post_consumer_index1;                  /*01BC 01BF*/
+};
+
+#define	MESG_RW_BUFFER_SIZE	(256 * 3)
+
 typedef struct deliver_completeQ {
 	u_int16_t	cmdFlag;
 	u_int16_t	cmdSMID;
@@ -815,6 +895,7 @@ struct MessageUnit_UNION
         	struct HBC_MessageUnit		hbcmu;
         	struct HBD_MessageUnit0		hbdmu;
         	struct HBE_MessageUnit		hbemu;
+        	struct HBF_MessageUnit		hbfmu;
 	} muu;
 };
 /* 
@@ -1138,15 +1219,15 @@ struct ARCMSR_CDB {
 	u_int8_t     	TargetID;         /* 01h   should be 0--15        */
 	u_int8_t     	LUN;              /* 02h   should be 0--7         */
 	u_int8_t     	Function;         /* 03h   should be 1            */
-	
+
 	u_int8_t     	CdbLength;        /* 04h   not used now           */
 	u_int8_t     	sgcount;          /* 05h                          */
 	u_int8_t     	Flags;            /* 06h                          */
 	u_int8_t     	msgPages;         /* 07h                          */
-	
+
 	u_int32_t    	Context;          /* 08h   Address of this request */
 	u_int32_t    	DataLength;       /* 0ch   not used now           */
-	
+
 	u_int8_t     	Cdb[16];          /* 10h   SCSI CDB               */
 	/*
 	********************************************************
@@ -1155,9 +1236,9 @@ struct ARCMSR_CDB {
 	********************************************************
 	*/
 	u_int8_t     	DeviceStatus;     /* 20h   if error                */
-	
+
 	u_int8_t     	SenseData[15];    /* 21h   output                  */        
-	
+
 	union {
 		struct SG32ENTRY	sg32entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h   Scatter gather address  */
 		struct SG64ENTRY	sg64entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h                           */
@@ -1242,10 +1323,11 @@ struct CommandControlBlock {
 #define ACB_ADAPTER_TYPE_C	0x00000002	/* hbc L IOP */
 #define ACB_ADAPTER_TYPE_D	0x00000003	/* hbd M IOP */
 #define ACB_ADAPTER_TYPE_E	0x00000004	/* hbd L IOP */
+#define ACB_ADAPTER_TYPE_F	0x00000005	/* hbd L IOP */
 
 struct AdapterControlBlock {
 	u_int32_t		adapter_type;		/* adapter A,B..... */
-	
+
 	bus_space_tag_t		btag[2];
 	bus_space_handle_t	bhandle[2];
 	bus_dma_tag_t		parent_dmat;
@@ -1253,18 +1335,14 @@ struct AdapterControlBlock {
 	bus_dma_tag_t		srb_dmat;		/* dmat for freesrb */
 	bus_dmamap_t		srb_dmamap;
 	device_t		pci_dev;
-#if __FreeBSD_version < 503000
-	dev_t			ioctl_dev;
-#else
 	struct cdev		*ioctl_dev;
-#endif
 	int			pci_unit;
-	
+
 	struct resource		*sys_res_arcmsr[2];
 	struct resource		*irqres[ARCMSR_NUM_MSIX_VECTORS];
 	void			*ih[ARCMSR_NUM_MSIX_VECTORS]; /* interrupt handle */
 	int			irq_id[ARCMSR_NUM_MSIX_VECTORS];
-	
+
 	/* Hooks into the CAM XPT */
 	struct			cam_sim *psim;
 	struct			cam_path *ppath;
@@ -1280,32 +1358,35 @@ struct AdapterControlBlock {
 //	unsigned long				srb_phyaddr;
 	/* Offset is used in making arc cdb physical to virtual calculations */
 	u_int32_t		outbound_int_enable;
-	
+
 	struct MessageUnit_UNION	*pmu;		/* message unit ATU inbound base address0 */
-	
+	uint32_t		*message_wbuffer;	//0x000 - COMPORT_IN  (to be sent to ROC)
+	uint32_t		*message_rbuffer;	//0x100 - COMPORT_OUT (to be sent to Host)
+	uint32_t		*msgcode_rwbuffer;	//0x200 - BIOS_AREA
+
 	u_int8_t		adapter_index;
 	u_int8_t		irq;
 	u_int16_t		acb_flags;
-	
+
 	struct CommandControlBlock *psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
 	struct CommandControlBlock *srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */
 	int32_t			workingsrb_doneindex;		/* done srb array index */
 	int32_t			workingsrb_startindex;		/* start srb array index  */
 	int32_t			srboutstandingcount;
-	
+
 	u_int8_t		rqbuffer[ARCMSR_MAX_QBUFFER];	/* data collection buffer for read from 80331 */
 	u_int32_t		rqbuf_firstindex;		/* first of read buffer  */
 	u_int32_t		rqbuf_lastindex;		/* last of read buffer   */
-	
+
 	u_int8_t		wqbuffer[ARCMSR_MAX_QBUFFER];	/* data collection buffer for write to 80331  */
 	u_int32_t		wqbuf_firstindex;		/* first of write buffer */
 	u_int32_t		wqbuf_lastindex;		/* last of write buffer  */
-	
+
 	arcmsr_lock_t		isr_lock;
 	arcmsr_lock_t		srb_lock;
 	arcmsr_lock_t		postDone_lock;
 	arcmsr_lock_t		qbuffer_lock;
-	
+
 	u_int8_t		devstate[ARCMSR_MAX_TARGETID][ARCMSR_MAX_TARGETLUN]; /* id0 ..... id15,lun0...lun7 */
 	u_int32_t		num_resets;
 	u_int32_t		num_aborts;
@@ -1331,6 +1412,7 @@ struct AdapterControlBlock {
 	pCompletion_Q		pCompletionQ;
 	int			msix_vectors;
 	int			rid[2];
+	unsigned long		completeQ_phys;
 };/* HW_DEVICE_EXTENSION */
 /* acb_flags */
 #define ACB_F_SCSISTOPADAPTER           0x0001
@@ -2514,9 +2596,6 @@ struct SENSE_DATA {
 **************************************************************************
 */
 
-
-
-
 /*
 *************************************************************************************************************************************
 **                       80331 Address Translation Unit Register Definitions
@@ -3042,8 +3121,6 @@ struct SENSE_DATA {
 ***************************************************************************************  
 */
 
-
-
 /*
 ***********************************************************************************
 **  ATU Interrupt Line Register - ATUILR
@@ -3170,8 +3247,6 @@ struct SENSE_DATA {
 **  					ANS:IB_Address=B145 012CH
 ***********************************************************************************
 */
-
-
 
 /*
 ***********************************************************************************
@@ -4401,8 +4476,6 @@ struct SENSE_DATA {
 *****************************************************************
 */
 
-
-
 /*
 **************************************************************************
 **               Inbound Read Completions Data Parity Errors
@@ -4460,7 +4533,6 @@ struct SENSE_DATA {
 **	Detected Parity Error bit in the ATUISR. When set, no action.
 ***************************************************************************
 */
-
 
 /*
 ***************************************************************************
@@ -4566,7 +4638,6 @@ struct SENSE_DATA {
 **  the internal bus of the 80331.
 *****************************************************************************
 */
-
 
 /*
 ******************************************************************************************************
