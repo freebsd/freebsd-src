@@ -734,17 +734,18 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 int
 vfs_busy(struct mount *mp, int flags)
 {
+	struct mount_pcpu *mpcpu;
 
 	MPASS((flags & ~MBF_MASK) == 0);
 	CTR3(KTR_VFS, "%s: mp %p with flags %d", __func__, mp, flags);
 
-	if (vfs_op_thread_enter(mp)) {
+	if (vfs_op_thread_enter(mp, mpcpu)) {
 		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
 		MPASS((mp->mnt_kern_flag & MNTK_UNMOUNT) == 0);
 		MPASS((mp->mnt_kern_flag & MNTK_REFEXPIRE) == 0);
-		vfs_mp_count_add_pcpu(mp, ref, 1);
-		vfs_mp_count_add_pcpu(mp, lockref, 1);
-		vfs_op_thread_exit(mp);
+		vfs_mp_count_add_pcpu(mpcpu, ref, 1);
+		vfs_mp_count_add_pcpu(mpcpu, lockref, 1);
+		vfs_op_thread_exit(mp, mpcpu);
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_unlock(&mountlist_mtx);
 		return (0);
@@ -794,15 +795,16 @@ vfs_busy(struct mount *mp, int flags)
 void
 vfs_unbusy(struct mount *mp)
 {
+	struct mount_pcpu *mpcpu;
 	int c;
 
 	CTR2(KTR_VFS, "%s: mp %p", __func__, mp);
 
-	if (vfs_op_thread_enter(mp)) {
+	if (vfs_op_thread_enter(mp, mpcpu)) {
 		MPASS((mp->mnt_kern_flag & MNTK_DRAINING) == 0);
-		vfs_mp_count_sub_pcpu(mp, lockref, 1);
-		vfs_mp_count_sub_pcpu(mp, ref, 1);
-		vfs_op_thread_exit(mp);
+		vfs_mp_count_sub_pcpu(mpcpu, lockref, 1);
+		vfs_mp_count_sub_pcpu(mpcpu, ref, 1);
+		vfs_op_thread_exit(mp, mpcpu);
 		return;
 	}
 
@@ -6399,18 +6401,19 @@ restart:
 int
 vfs_cache_root(struct mount *mp, int flags, struct vnode **vpp)
 {
+	struct mount_pcpu *mpcpu;
 	struct vnode *vp;
 	int error;
 
-	if (!vfs_op_thread_enter(mp))
+	if (!vfs_op_thread_enter(mp, mpcpu))
 		return (vfs_cache_root_fallback(mp, flags, vpp));
 	vp = atomic_load_ptr(&mp->mnt_rootvnode);
 	if (vp == NULL || VN_IS_DOOMED(vp)) {
-		vfs_op_thread_exit(mp);
+		vfs_op_thread_exit(mp, mpcpu);
 		return (vfs_cache_root_fallback(mp, flags, vpp));
 	}
 	vrefact(vp);
-	vfs_op_thread_exit(mp);
+	vfs_op_thread_exit(mp, mpcpu);
 	error = vn_lock(vp, flags);
 	if (error != 0) {
 		vrele(vp);
