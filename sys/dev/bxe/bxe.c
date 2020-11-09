@@ -2520,7 +2520,7 @@ bxe_probe(device_t dev)
 
             /* Print out the device identity. */
             snprintf(descbuf, BXE_DEVDESC_MAX,
-                     "%s (%c%d) BXE v:%s\n", t->bxe_name,
+                     "%s (%c%d) BXE v:%s", t->bxe_name,
                      (((pci_read_config(dev, PCIR_REVID, 4) &
                         0xf0) >> 4) + 'A'),
                      (pci_read_config(dev, PCIR_REVID, 4) & 0xf),
