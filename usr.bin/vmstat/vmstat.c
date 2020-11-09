@@ -1500,7 +1500,7 @@ domemstat_zone(void)
 	}
 	xo_open_container("memory-zone-statistics");
 	xo_emit("{T:/%-20s} {T:/%6s} {T:/%6s} {T:/%8s} {T:/%8s} {T:/%8s} {T:/%8s}"
-	    "{T:/%4s} {T:/%4s}\n\n", "ITEM", "SIZE",
+	    "{T:/%4s} {T:/%4s}\n", "ITEM", "SIZE",
 	    "LIMIT", "USED", "FREE", "REQ", "FAIL", "SLEEP", "XDOMAIN");
 	xo_open_list("zone");
 	for (mtp = memstat_mtl_first(mtlp); mtp != NULL;
@@ -1526,7 +1526,6 @@ domemstat_zone(void)
 	memstat_mtl_free(mtlp);
 	xo_close_list("zone");
 	xo_close_container("memory-zone-statistics");
-	xo_emit("\n");
 }
 
 static void
