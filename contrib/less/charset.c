@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2019  Mark Nudelman
+ * Copyright (C) 1984-2020  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -509,7 +509,7 @@ prutfchar(ch)
  */
 	public int
 utf_len(ch)
-	unsigned char ch;
+	int ch;
 {
 	if ((ch & 0x80) == 0)
 		return 1;

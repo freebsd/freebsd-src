@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2019  Mark Nudelman
+ * Copyright (C) 1984-2020  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -219,7 +219,7 @@ jump_loc(pos, sline)
 		nline -= sindex;
 		if (nline > 0)
 			forw(nline, position(BOTTOM_PLUS_ONE), 1, 0, 0);
-		else if (nline < 0)
+		else
 			back(-nline, position(TOP), 1, 0);
 #if HILITE_SEARCH
 		if (show_attn)
