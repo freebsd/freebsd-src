@@ -112,8 +112,7 @@ static void	vgonel(struct vnode *);
 static bool	vhold_recycle_free(struct vnode *);
 static void	vfs_knllock(void *arg);
 static void	vfs_knlunlock(void *arg);
-static void	vfs_knl_assert_locked(void *arg);
-static void	vfs_knl_assert_unlocked(void *arg);
+static void	vfs_knl_assert_lock(void *arg, int what);
 static void	destroy_vpollinfo(struct vpollinfo *vi);
 static int	v_inval_buf_range_locked(struct vnode *vp, struct bufobj *bo,
 		    daddr_t startlbn, daddr_t endlbn);
@@ -4811,7 +4810,7 @@ v_addpollinfo(struct vnode *vp)
 	vi = malloc(sizeof(*vi), M_VNODEPOLL, M_WAITOK | M_ZERO);
 	mtx_init(&vi->vpi_lock, "vnode pollinfo", NULL, MTX_DEF);
 	knlist_init(&vi->vpi_selinfo.si_note, vp, vfs_knllock,
-	    vfs_knlunlock, vfs_knl_assert_locked, vfs_knl_assert_unlocked);
+	    vfs_knlunlock, vfs_knl_assert_lock);
 	VI_LOCK(vp);
 	if (vp->v_pollinfo != NULL) {
 		VI_UNLOCK(vp);
@@ -6060,22 +6059,15 @@ vfs_knlunlock(void *arg)
 }
 
 static void
-vfs_knl_assert_locked(void *arg)
+vfs_knl_assert_lock(void *arg, int what)
 {
 #ifdef DEBUG_VFS_LOCKS
 	struct vnode *vp = arg;
 
-	ASSERT_VOP_LOCKED(vp, "vfs_knl_assert_locked");
-#endif
-}
-
-static void
-vfs_knl_assert_unlocked(void *arg)
-{
-#ifdef DEBUG_VFS_LOCKS
-	struct vnode *vp = arg;
-
-	ASSERT_VOP_UNLOCKED(vp, "vfs_knl_assert_unlocked");
+	if (what == LA_LOCKED)
+		ASSERT_VOP_LOCKED(vp, "vfs_knl_assert_locked");
+	else
+		ASSERT_VOP_UNLOCKED(vp, "vfs_knl_assert_unlocked");
 #endif
 }
 
