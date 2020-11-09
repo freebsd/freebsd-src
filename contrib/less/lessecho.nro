@@ -1,4 +1,4 @@
-.TH LESSECHO 1 "Version 551: 11 Jun 2019"
+.TH LESSECHO 1 "Version 563: 13 Jun 2020"
 .SH NAME
 lessecho \- expand metacharacters
 .SH SYNOPSIS
@@ -44,7 +44,7 @@ Specifies "n" to be the escape char for metachars, as an integer.
 Specifies that all arguments are to be quoted.
 The default is that only arguments containing metacharacters are quoted
 .SH "SEE ALSO"
-less(1)
+.BR less (1)
 .SH AUTHOR
 This manual page was written by Thomas Schoepf <schoepf@debian.org>,
 for the Debian GNU/Linux system (but may be used by others).

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2019  Mark Nudelman
+ * Copyright (C) 1984-2020  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -23,8 +23,9 @@
 static struct loption *pendopt;
 public int plusoption = FALSE;
 
-static char *optstring();
-static int flip_triple();
+static char *optstring LESSPARAMS((char *s, char **p_str, char *printopt,
+    char *validchars));
+static int flip_triple LESSPARAMS((int val, int lc));
 
 extern int screen_trashed;
 extern int less_is_more;
@@ -523,6 +524,24 @@ opt_prompt(o)
 	if (o == NULL || (o->otype & (STRING|NUMBER)) == 0)
 		return ("?");
 	return (o->odesc[0]);
+}
+
+/*
+ * If the specified option can be toggled, return NULL.
+ * Otherwise return an appropriate error message.
+ */
+	public char *
+opt_toggle_disallowed(c)
+	int c;
+{
+	switch (c)
+	{
+	case 'o':
+		if (ch_getflags() & CH_CANSEEK)
+			return "Input is not a pipe";
+		break;
+	}
+	return NULL;
 }
 
 /*

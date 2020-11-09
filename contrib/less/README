@@ -7,9 +7,9 @@
 **************************************************************************
 **************************************************************************
 
-                            Less, version 551
+                            Less, version 563
 
-    This is the distribution of less, version 551, released 11 Jun 2019.
+    This is the distribution of less, version 563, released 13 Jun 2020.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -32,6 +32,14 @@ This is the distribution of "less", a paginator similar to "more" or "pg".
 The formatted manual page is in less.man.
 The manual page nroff source is in less.nro.
 Major changes made since the last posted version are in NEWS.
+
+=======================================================================
+PRE-INSTALLATION (when using git)
+
+If you are building from a clone of a git repository,
+type "make -f Makefile.aut".
+If you are building from a numbered release package (a tar or zip file 
+with a name like less-999.tar.gz or less-999.zip), you should skip this step. 
 
 =======================================================================
 INSTALLATION (Unix systems only):
