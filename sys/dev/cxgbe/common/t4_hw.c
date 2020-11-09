@@ -10202,6 +10202,48 @@ void t4_idma_monitor(struct adapter *adapter,
 }
 
 /**
+ *     t4_set_vf_mac - Set MAC address for the specified VF
+ *     @adapter: The adapter
+ *     @pf: the PF used to instantiate the VFs
+ *     @vf: one of the VFs instantiated by the specified PF
+ *     @naddr: the number of MAC addresses
+ *     @addr: the MAC address(es) to be set to the specified VF
+ */
+int t4_set_vf_mac(struct adapter *adapter, unsigned int pf, unsigned int vf,
+		  unsigned int naddr, u8 *addr)
+{
+	struct fw_acl_mac_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_ACL_MAC_CMD) |
+				    F_FW_CMD_REQUEST |
+				    F_FW_CMD_WRITE |
+				    V_FW_ACL_MAC_CMD_PFN(pf) |
+				    V_FW_ACL_MAC_CMD_VFN(vf));
+
+	/* Note: Do not enable the ACL */
+	cmd.en_to_len16 = cpu_to_be32((unsigned int)FW_LEN16(cmd));
+	cmd.nmac = naddr;
+
+	switch (pf) {
+	case 3:
+		memcpy(cmd.macaddr3, addr, sizeof(cmd.macaddr3));
+		break;
+	case 2:
+		memcpy(cmd.macaddr2, addr, sizeof(cmd.macaddr2));
+		break;
+	case 1:
+		memcpy(cmd.macaddr1, addr, sizeof(cmd.macaddr1));
+		break;
+	case 0:
+		memcpy(cmd.macaddr0, addr, sizeof(cmd.macaddr0));
+		break;
+	}
+
+	return t4_wr_mbox(adapter, adapter->mbox, &cmd, sizeof(cmd), &cmd);
+}
+
+/**
  *	t4_read_pace_tbl - read the pace table
  *	@adap: the adapter
  *	@pace_vals: holds the returned values
