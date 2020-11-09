@@ -300,6 +300,7 @@ fuse_vfsop_mount(struct mount *mp)
 
 	uint64_t mntopts, __mntopts;
 	uint32_t max_read;
+	int linux_errnos;
 	int daemon_timeout;
 	int fd;
 
@@ -312,6 +313,7 @@ fuse_vfsop_mount(struct mount *mp)
 
 	subtype = NULL;
 	max_read = ~0;
+	linux_errnos = 0;
 	err = 0;
 	mntopts = 0;
 	__mntopts = 0;
@@ -337,6 +339,7 @@ fuse_vfsop_mount(struct mount *mp)
 	FUSE_FLAGOPT(intr, FSESS_INTR);
 
 	(void)vfs_scanopt(opts, "max_read=", "%u", &max_read);
+	(void)vfs_scanopt(opts, "linux_errnos", "%d", &linux_errnos);
 	if (vfs_scanopt(opts, "timeout=", "%u", &daemon_timeout) == 1) {
 		if (daemon_timeout < FUSE_MIN_DAEMON_TIMEOUT)
 			daemon_timeout = FUSE_MIN_DAEMON_TIMEOUT;
@@ -411,6 +414,7 @@ fuse_vfsop_mount(struct mount *mp)
 	data->dataflags |= mntopts;
 	data->max_read = max_read;
 	data->daemon_timeout = daemon_timeout;
+	data->linux_errnos = linux_errnos;
 	data->mnt_flag = mp->mnt_flag & MNT_UPDATEMASK;
 	FUSE_UNLOCK();
 
