@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 
 FEATURE(process_descriptors, "Process Descriptors");
 
-static uma_zone_t procdesc_zone;
+MALLOC_DEFINE(M_PROCDESC, "procdesc", "process descriptors");
 
 static fo_poll_t	procdesc_poll;
 static fo_kqfilter_t	procdesc_kqfilter;
@@ -115,22 +115,6 @@ static struct fileops procdesc_ops = {
 	.fo_fill_kinfo = procdesc_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE,
 };
-
-/*
- * Initialize with VFS so that process descriptors are available along with
- * other file descriptor types.  As long as it runs before init(8) starts,
- * there shouldn't be a problem.
- */
-static void
-procdesc_init(void *dummy __unused)
-{
-
-	procdesc_zone = uma_zcreate("procdesc", sizeof(struct procdesc),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	if (procdesc_zone == NULL)
-		panic("procdesc_init: procdesc_zone not initialized");
-}
-SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, procdesc_init, NULL);
 
 /*
  * Return a locked process given a process descriptor, or ESRCH if it has
@@ -229,7 +213,7 @@ procdesc_new(struct proc *p, int flags)
 {
 	struct procdesc *pd;
 
-	pd = uma_zalloc(procdesc_zone, M_WAITOK | M_ZERO);
+	pd = malloc(sizeof(*pd), M_PROCDESC, M_WAITOK | M_ZERO);
 	pd->pd_proc = p;
 	pd->pd_pid = p->p_pid;
 	p->p_procdesc = pd;
@@ -290,7 +274,7 @@ procdesc_free(struct procdesc *pd)
 
 		knlist_destroy(&pd->pd_selinfo.si_note);
 		PROCDESC_LOCK_DESTROY(pd);
-		uma_zfree(procdesc_zone, pd);
+		free(pd, M_PROCDESC);
 	}
 }
 
