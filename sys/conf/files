@@ -4528,6 +4528,8 @@ nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 # Linux Kernel Programming Interface
 compat/linuxkpi/common/src/linux_kmod.c		optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
+compat/linuxkpi/common/src/linux_acpi.c		optional compat_linuxkpi acpi \
+	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_compat.c	optional compat_linuxkpi \
 	compile-with "${LINUXKPI_C}"
 compat/linuxkpi/common/src/linux_current.c	optional compat_linuxkpi \
