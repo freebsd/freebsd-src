@@ -10525,7 +10525,7 @@ rack_handoff_ok(struct tcpcb *tp)
 	if ((tp->t_state == TCPS_SYN_SENT) ||
 	    (tp->t_state == TCPS_SYN_RECEIVED)) {
 		/*
-		 * We really don't know if you support sack, 
+		 * We really don't know if you support sack,
 		 * you have to get to ESTAB or beyond to tell.
 		 */
 		return (EAGAIN);
@@ -10868,6 +10868,26 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		ctf_do_dropwithreset(m, tp, th, BANDLIM_RST_OPENPORT, tlen);
 		return(1);
 	}
+
+	/*
+	 * Parse options on any incoming segment.
+	 */
+	tcp_dooptions(&to, (u_char *)(th + 1),
+	    (th->th_off << 2) - sizeof(struct tcphdr),
+	    (thflags & TH_SYN) ? TO_SYN : 0);
+
+	/*
+	 * If timestamps were negotiated during SYN/ACK and a
+	 * segment without a timestamp is received, silently drop
+	 * the segment.
+	 * See section 3.2 of RFC 7323.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
+		way_out = 5;
+		retval = 0;
+		goto done_with_input;
+	}
+
 	/*
 	 * Segment received on connection. Reset idle time and keep-alive
 	 * timer. XXX: This should be done after segment validation to
@@ -10920,12 +10940,6 @@ rack_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			rack_cong_signal(tp, th, CC_ECN);
 		}
 	}
-	/*
-	 * Parse options on any incoming segment.
-	 */
-	tcp_dooptions(&to, (u_char *)(th + 1),
-	    (th->th_off << 2) - sizeof(struct tcphdr),
-	    (thflags & TH_SYN) ? TO_SYN : 0);
 
 	/*
 	 * If echoed timestamp is later than the current time, fall back to
