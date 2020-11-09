@@ -224,8 +224,7 @@ struct knlist {
 	struct	klist	kl_list;
 	void    (*kl_lock)(void *);	/* lock function */
 	void    (*kl_unlock)(void *);
-	void	(*kl_assert_locked)(void *);
-	void	(*kl_assert_unlocked)(void *);
+	void	(*kl_assert_lock)(void *, int);
 	void	*kl_lockarg;		/* argument passed to lock functions */
 	int	kl_autodestroy;
 };
@@ -334,8 +333,7 @@ void	knlist_add(struct knlist *knl, struct knote *kn, int islocked);
 void	knlist_remove(struct knlist *knl, struct knote *kn, int islocked);
 int	knlist_empty(struct knlist *knl);
 void	knlist_init(struct knlist *knl, void *lock, void (*kl_lock)(void *),
-	    void (*kl_unlock)(void *), void (*kl_assert_locked)(void *),
-	    void (*kl_assert_unlocked)(void *));
+	    void (*kl_unlock)(void *), void (*kl_assert_lock)(void *, int));
 void	knlist_init_mtx(struct knlist *knl, struct mtx *lock);
 void	knlist_init_rw_reader(struct knlist *knl, struct rwlock *lock);
 void	knlist_destroy(struct knlist *knl);
