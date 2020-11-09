@@ -11430,12 +11430,6 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 #ifdef STATS
 	stats_voi_update_abs_ulong(tp->t_stats, VOI_TCP_FRWIN, tiwin);
 #endif
-	/*
-	 * Parse options on any incoming segment.
-	 */
-	tcp_dooptions(&to, (u_char *)(th + 1),
-	    (th->th_off << 2) - sizeof(struct tcphdr),
-	    (thflags & TH_SYN) ? TO_SYN : 0);
 
 	if (m->m_flags & M_TSTMP) {
 		/* Prefer the hardware timestamp if present */
@@ -11458,6 +11452,23 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		 * Ok just get the current time.
 		 */
 		bbr->r_ctl.rc_rcvtime = lcts = cts = tcp_get_usecs(&bbr->rc_tv);
+	}
+	/*
+	 * Parse options on any incoming segment.
+	 */
+	tcp_dooptions(&to, (u_char *)(th + 1),
+	    (th->th_off << 2) - sizeof(struct tcphdr),
+	    (thflags & TH_SYN) ? TO_SYN : 0);
+
+	/*
+	 * If timestamps were negotiated during SYN/ACK and a
+	 * segment without a timestamp is received, silently drop
+	 * the segment.
+	 * See section 3.2 of RFC 7323.
+	 */
+	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
+		retval = 0;
+		goto done_with_input;
 	}
 	/*
 	 * If echoed timestamp is later than the current time, fall back to

@@ -1212,6 +1212,40 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		}
 
 		/*
+		 * If timestamps were not negotiated during SYN/ACK and a
+		 * segment without a timestamp is received, ignore the
+		 * timestamp and process the packet normally.
+		 * See section 3.2 of RFC 7323.
+		 */
+		if (!(sc->sc_flags & SCF_TIMESTAMP) &&
+		    (to->to_flags & TOF_TS)) {
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+				log(LOG_DEBUG, "%s; %s: Timestamp not "
+				    "expected, segment processed normally\n",
+				    s, __func__);
+				free(s, M_TCPLOG);
+				s = NULL;
+			}
+		}
+
+		/*
+		 * If timestamps were negotiated during SYN/ACK and a
+		 * segment without a timestamp is received, silently drop
+		 * the segment.
+		 * See section 3.2 of RFC 7323.
+		 */
+		if ((sc->sc_flags & SCF_TIMESTAMP) &&
+		    !(to->to_flags & TOF_TS)) {
+			SCH_UNLOCK(sch);
+			if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+				log(LOG_DEBUG, "%s; %s: Timestamp missing, "
+				    "segment silently dropped\n", s, __func__);
+				free(s, M_TCPLOG);
+			}
+			return (-1);  /* Do not send RST */
+		}
+
+		/*
 		 * Pull out the entry to unlock the bucket row.
 		 *
 		 * NOTE: We must decrease TCPS_SYN_RECEIVED count here, not
@@ -1254,32 +1288,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			log(LOG_DEBUG, "%s; %s: SEQ %u != IRS+1 %u, segment "
 			    "rejected\n", s, __func__, th->th_seq, sc->sc_irs);
 		goto failed;
-	}
-
-	/*
-	 * If timestamps were not negotiated during SYN/ACK they
-	 * must not appear on any segment during this session.
-	 */
-	if (!(sc->sc_flags & SCF_TIMESTAMP) && (to->to_flags & TOF_TS)) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL)))
-			log(LOG_DEBUG, "%s; %s: Timestamp not expected, "
-			    "segment rejected\n", s, __func__);
-		goto failed;
-	}
-
-	/*
-	 * If timestamps were negotiated during SYN/ACK they should
-	 * appear on every segment during this session.
-	 * XXXAO: This is only informal as there have been unverified
-	 * reports of non-compliants stacks.
-	 */
-	if ((sc->sc_flags & SCF_TIMESTAMP) && !(to->to_flags & TOF_TS)) {
-		if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
-			log(LOG_DEBUG, "%s; %s: Timestamp missing, "
-			    "no action\n", s, __func__);
-			free(s, M_TCPLOG);
-			s = NULL;
-		}
 	}
 
 	*lsop = syncache_socket(sc, *lsop, m);
