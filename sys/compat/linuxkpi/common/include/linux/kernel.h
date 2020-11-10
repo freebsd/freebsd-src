@@ -135,10 +135,7 @@ extern const volatile int lkpi_build_bug_on_zero;
 #define	ALIGN(x, y)		roundup2((x), (y))
 #undef PTR_ALIGN
 #define	PTR_ALIGN(p, a)		((__typeof(p))ALIGN((uintptr_t)(p), (a)))
-#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION >= 50000
-/* Moved from linuxkpi_gplv2 */
 #define	IS_ALIGNED(x, a)	(((x) & ((__typeof(x))(a) - 1)) == 0)
-#endif
 #define	DIV_ROUND_UP(x, n)	howmany(x, n)
 #define	__KERNEL_DIV_ROUND_UP(x, n)	howmany(x, n)
 #define	DIV_ROUND_UP_ULL(x, n)	DIV_ROUND_UP((unsigned long long)(x), (n))
