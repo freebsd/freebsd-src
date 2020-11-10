@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/rmlock.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -104,6 +105,18 @@ __FBSDID("$FreeBSD$");
 #ifdef MAC
 #include <security/mac/mac_framework.h>
 #endif
+
+#define	IPFW_PROBE(probe, arg0, arg1, arg2, arg3, arg4, arg5)		\
+    SDT_PROBE6(ipfw, , , probe, arg0, arg1, arg2, arg3, arg4, arg5)
+
+SDT_PROVIDER_DEFINE(ipfw);
+SDT_PROBE_DEFINE6(ipfw, , , rule__matched,
+    "int",			/* retval */
+    "int",			/* af */
+    "void *",			/* src addr */
+    "void *",			/* dst addr */
+    "struct ip_fw_args *",	/* args */
+    "struct ip_fw *"		/* rule */);
 
 /*
  * static variables followed by global ones.
@@ -3188,6 +3201,13 @@ do {						\
 		struct ip_fw *rule = chain->map[f_pos];
 		/* Update statistics */
 		IPFW_INC_RULE_COUNTER(rule, pktlen);
+		IPFW_PROBE(rule__matched, retval,
+		    is_ipv4 ? AF_INET : AF_INET6,
+		    is_ipv4 ? (uintptr_t)&src_ip :
+		        (uintptr_t)&args->f_id.src_ip6,
+		    is_ipv4 ? (uintptr_t)&dst_ip :
+		        (uintptr_t)&args->f_id.dst_ip6,
+		    args, rule);
 	} else {
 		retval = IP_FW_DENY;
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
