@@ -1325,19 +1325,6 @@ thread_single_end(struct proc *p, int mode)
 		kick_proc0();
 }
 
-struct thread *
-thread_find(struct proc *p, lwpid_t tid)
-{
-	struct thread *td;
-
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-	FOREACH_THREAD_IN_PROC(p, td) {
-		if (td->td_tid == tid)
-			break;
-	}
-	return (td);
-}
-
 /* Locate a thread by number; return with proc lock held. */
 struct thread *
 tdfind(lwpid_t tid, pid_t pid)
