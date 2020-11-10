@@ -178,6 +178,10 @@ LDFLAGS_LAST+= -L${STAGE_LIBDIR}
 # we can use this but should not update it.
 UPDATE_DEPENDFILE= NO
 .endif
+# Don't require filemon for makeman.
+.if make(showconfig)
+UPDATE_DEPENDFILE= NO
+.endif
 
 # define the list of places that contain files we are responsible for
 .MAKE.META.BAILIWICK = ${SB} ${OBJROOT} ${STAGE_ROOT}
