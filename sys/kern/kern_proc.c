@@ -2748,7 +2748,6 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	struct stack *st;
 	struct sbuf sb;
 	struct proc *p;
-	bool locked;
 
 	name = (int *)arg1;
 	error = pget((pid_t)name[0], PGET_NOTINEXEC | PGET_WANTREAD, &p);
@@ -2789,14 +2788,12 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		i++;
 	}
 	PROC_UNLOCK(p);
-	locked = false;
 	numthreads = i;
 	for (i = 0; i < numthreads; i++) {
 		td = tdfind(lwpidarray[i], p->p_pid);
 		if (td == NULL) {
 			continue;
 		}
-		locked = true;
 		bzero(kkstp, sizeof(*kkstp));
 		(void)sbuf_new(&sb, kkstp->kkst_trace,
 		    sizeof(kkstp->kkst_trace), SBUF_FIXEDLEN);
@@ -2810,7 +2807,6 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 			kkstp->kkst_state = KKST_STATE_RUNNING;
 		thread_unlock(td);
 		PROC_UNLOCK(p);
-		locked = false;
 		stack_sbuf_print(&sb, st);
 		sbuf_finish(&sb);
 		sbuf_delete(&sb);
@@ -2818,10 +2814,7 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 		if (error)
 			break;
 	}
-	if (!locked)
-		PROC_LOCK(p);
-	_PRELE(p);
-	PROC_UNLOCK(p);
+	PRELE(p);
 	if (lwpidarray != NULL)
 		free(lwpidarray, M_TEMP);
 	stack_destroy(st);
