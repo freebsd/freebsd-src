@@ -136,8 +136,6 @@ static void thread_zombie(struct thread *);
 static int thread_unsuspend_one(struct thread *td, struct proc *p,
     bool boundary);
 
-#define TID_BUFFER_SIZE	1024
-
 static struct mtx tid_lock;
 static bitstr_t *tid_bitmap;
 
