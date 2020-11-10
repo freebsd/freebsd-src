@@ -28,7 +28,7 @@ __FBSDID("$FreeBSD$");
 
 typedef void (*crt_func)(void);
 
-static crt_func __JCR_LIST__[] __section(".jcr") __used = {
+static crt_func __JCR_END__[] __section(".jcr") __used = {
 	(crt_func)0
 };
 
