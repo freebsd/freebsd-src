@@ -204,6 +204,19 @@ zio_init(void)
 
 		if (align != 0) {
 			char name[36];
+			if (cflags == data_cflags) {
+				/*
+				 * Resulting kmem caches would be identical.
+				 * Save memory by creating only one.
+				 */
+				(void) snprintf(name, sizeof (name),
+				    "zio_buf_comb_%lu", (ulong_t)size);
+				zio_buf_cache[c] = kmem_cache_create(name,
+				    size, align, NULL, NULL, NULL, NULL, NULL,
+				    cflags);
+				zio_data_buf_cache[c] = zio_buf_cache[c];
+				continue;
+			}
 			(void) snprintf(name, sizeof (name), "zio_buf_%lu",
 			    (ulong_t)size);
 			zio_buf_cache[c] = kmem_cache_create(name, size,
@@ -234,37 +247,55 @@ zio_init(void)
 void
 zio_fini(void)
 {
-	size_t c;
-	kmem_cache_t *last_cache = NULL;
-	kmem_cache_t *last_data_cache = NULL;
+	size_t i, j, n;
+	kmem_cache_t *cache;
 
-	for (c = 0; c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT; c++) {
-#ifdef _ILP32
-		/*
-		 * Cache size limited to 1M on 32-bit platforms until ARC
-		 * buffers no longer require virtual address space.
-		 */
-		if (((c + 1) << SPA_MINBLOCKSHIFT) > zfs_max_recordsize)
-			break;
-#endif
+	n = SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT;
+
 #if defined(ZFS_DEBUG) && !defined(_KERNEL)
-		if (zio_buf_cache_allocs[c] != zio_buf_cache_frees[c])
+	for (i = 0; i < n; i++) {
+		if (zio_buf_cache_allocs[i] != zio_buf_cache_frees[i])
 			(void) printf("zio_fini: [%d] %llu != %llu\n",
-			    (int)((c + 1) << SPA_MINBLOCKSHIFT),
-			    (long long unsigned)zio_buf_cache_allocs[c],
-			    (long long unsigned)zio_buf_cache_frees[c]);
+			    (int)((i + 1) << SPA_MINBLOCKSHIFT),
+			    (long long unsigned)zio_buf_cache_allocs[i],
+			    (long long unsigned)zio_buf_cache_frees[i]);
+	}
 #endif
-		if (zio_buf_cache[c] != last_cache) {
-			last_cache = zio_buf_cache[c];
-			kmem_cache_destroy(zio_buf_cache[c]);
-		}
-		zio_buf_cache[c] = NULL;
 
-		if (zio_data_buf_cache[c] != last_data_cache) {
-			last_data_cache = zio_data_buf_cache[c];
-			kmem_cache_destroy(zio_data_buf_cache[c]);
+	/*
+	 * The same kmem cache can show up multiple times in both zio_buf_cache
+	 * and zio_data_buf_cache. Do a wasteful but trivially correct scan to
+	 * sort it out.
+	 */
+	for (i = 0; i < n; i++) {
+		cache = zio_buf_cache[i];
+		if (cache == NULL)
+			continue;
+		for (j = i; j < n; j++) {
+			if (cache == zio_buf_cache[j])
+				zio_buf_cache[j] = NULL;
+			if (cache == zio_data_buf_cache[j])
+				zio_data_buf_cache[j] = NULL;
 		}
-		zio_data_buf_cache[c] = NULL;
+		kmem_cache_destroy(cache);
+	}
+
+	for (i = 0; i < n; i++) {
+		cache = zio_data_buf_cache[i];
+		if (cache == NULL)
+			continue;
+		for (j = i; j < n; j++) {
+			if (cache == zio_data_buf_cache[j])
+				zio_data_buf_cache[j] = NULL;
+		}
+		kmem_cache_destroy(cache);
+	}
+
+	for (i = 0; i < n; i++) {
+		if (zio_buf_cache[i] != NULL)
+			panic("zio_fini: zio_buf_cache[%d] != NULL", (int)i);
+		if (zio_data_buf_cache[i] != NULL)
+			panic("zio_fini: zio_data_buf_cache[%d] != NULL", (int)i);
 	}
 
 	kmem_cache_destroy(zio_link_cache);
