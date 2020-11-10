@@ -2791,6 +2791,10 @@ zone_dtor(void *arg, int size, void *udata)
 	rw_wlock(&uma_rwlock);
 	LIST_REMOVE(zone, uz_link);
 	rw_wunlock(&uma_rwlock);
+	if ((zone->uz_flags & (UMA_ZONE_SECONDARY | UMA_ZFLAG_CACHE)) == 0) {
+		keg = zone->uz_keg;
+		keg->uk_reserve = 0;
+	}
 	zone_reclaim(zone, M_WAITOK, true);
 
 	/*
