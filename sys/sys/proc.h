@@ -1153,7 +1153,6 @@ void	thread_suspend_one(struct thread *td);
 void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
 void	thread_wait(struct proc *p);
-struct thread	*thread_find(struct proc *p, lwpid_t tid);
 
 void	stop_all_proc(void);
 void	resume_all_proc(void);
