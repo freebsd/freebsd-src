@@ -216,6 +216,7 @@ fi
 create_be_dirs "${srcdir}" "${objdir}" || errx "Unable to create BE dirs"
 mount -t nullfs "${srcdir}" "${BE_MNTPT}${srcdir}" || errx "Unable to mount src"
 mount -t nullfs "${objdir}" "${BE_MNTPT}${objdir}" || errx "Unable to mount obj"
+mount -t devfs devfs "${BE_MNTPT}/dev" || errx "Unable to mount devfs"
 
 chroot ${BE_MNTPT} make "$@" -C ${srcdir} installworld || \
 	errx "Installworld failed!"
