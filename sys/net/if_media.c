@@ -301,15 +301,17 @@ ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr, struct ifmedia *ifm,
 		 * allocate.
 		 */
 		i = 0;
-		LIST_FOREACH(ep, &ifm->ifm_list, ifm_list)
-			if (i++ < ifmr->ifm_count) {
+		LIST_FOREACH(ep, &ifm->ifm_list, ifm_list) {
+			if (i < ifmr->ifm_count) {
 				error = copyout(&ep->ifm_media,
-				    ifmr->ifm_ulist + i - 1, sizeof(int));
-				if (error)
+				    ifmr->ifm_ulist + i, sizeof(int));
+				if (error != 0)
 					break;
 			}
+			i++;
+		}
 		if (error == 0 && i > ifmr->ifm_count)
-			error = ifmr->ifm_count ? E2BIG : 0;
+			error = ifmr->ifm_count != 0 ? E2BIG : 0;
 		ifmr->ifm_count = i;
 		break;
 	}
