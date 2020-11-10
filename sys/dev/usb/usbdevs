@@ -1885,6 +1885,7 @@ product ELV USBI2C		0xe00f	USB-I2C interface
 product EMS DUAL_SHOOTER	0x0003	PSX gun controller converter
 
 /* Emtec products */
+product EMTEC DANEELEC4GB	0x1e20 USB DISK Pro PMAP
 product EMTEC RUF2PS 		0x2240 Flash Drive
 
 /* Encore products */
