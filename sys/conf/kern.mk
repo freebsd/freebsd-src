@@ -230,15 +230,15 @@ CFLAGS+=	-mretpoline
 #
 # Initialize stack variables on function entry
 #
-.if defined(MK_INIT_ALL_ZERO) && ${MK_INIT_ALL_ZERO} == "yes"
-.if defined(COMPILER_FEATURES) && ${COMPILER_FEATURES:Minit-all}
+.if ${MK_INIT_ALL_ZERO} == "yes"
+.if ${COMPILER_FEATURES:Minit-all}
 CFLAGS+= -ftrivial-auto-var-init=zero \
     -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
 .else
 .warning InitAll (zeros) requested but not support by compiler
 .endif
-.elif defined(MK_INIT_ALL_PATTERN) && ${MK_INIT_ALL_PATTERN} == "yes"
-.if defined(COMPILER_FEATURES) && ${COMPILER_FEATURES:Minit-all}
+.elif ${MK_INIT_ALL_PATTERN} == "yes"
+.if ${COMPILER_FEATURES:Minit-all}
 CFLAGS+= -ftrivial-auto-var-init=pattern
 .else
 .warning InitAll (pattern) requested but not support by compiler
