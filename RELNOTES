@@ -157,6 +157,13 @@ r352304:
 	ntpd is no longer by default locked in memory. rlimit memlock 32
 	or rlimit memlock 0 can be used to restore this behaviour.
 
+r351863:
+	rc.subr(8) now honors ${name}_env in all rc(8) scripts.  Previously,
+	environment variables set by a user via ${name}_env were ignored
+	if the service defined a custom *_cmd variable to control the behavior
+	of the run_rc_command function, e.g., start_cmd, instead of relying on
+	the variables like command and command_args,
+
 r351770,r352920,r352922,r352923:
 	dd(1) now supports conv=fsync, conv=fdatasync, oflag=fsync, oflag=sync,
 	and iflag=fullblock flags, compatible with illumos and GNU.
