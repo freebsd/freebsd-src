@@ -10,6 +10,11 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r366267:
+        Kernel option ACPI_DMAR was renamed to IOMMU.  amd64's IOMMU subsystem
+        was split out from amd64 DMAR support and is now generic, i.e., it can
+        be used by all architectures.
+
 r364896:
 	A series of commits ending with r364896 added NFS over TLS
 	to the kernel.  This is believed to be compatible with
