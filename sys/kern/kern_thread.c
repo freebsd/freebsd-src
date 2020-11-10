@@ -138,8 +138,8 @@ static int thread_unsuspend_one(struct thread *td, struct proc *p,
 
 #define TID_BUFFER_SIZE	1024
 
-struct mtx tid_lock;
-bitstr_t *tid_bitmap;
+static struct mtx tid_lock;
+static bitstr_t *tid_bitmap;
 
 static MALLOC_DEFINE(M_TIDHASH, "tidhash", "thread hash");
 
@@ -195,7 +195,7 @@ tid_alloc(void)
 		KASSERT(tid != -1, ("unexpectedly ran out of IDs"));
 	}
 	bit_set(tid_bitmap, tid);
-	trytid++;
+	trytid = tid + 1;
 	mtx_unlock(&tid_lock);
 	return (tid + NO_PID);
 }
