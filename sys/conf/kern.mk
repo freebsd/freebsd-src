@@ -228,6 +228,24 @@ CFLAGS+=	-mretpoline
 .endif
 
 #
+# Initialize stack variables on function entry
+#
+.if ${MK_INIT_ALL_ZERO} == "yes"
+.if ${COMPILER_FEATURES:Minit-all}
+CFLAGS+= -ftrivial-auto-var-init=zero \
+    -enable-trivial-auto-var-init-zero-knowing-it-will-be-removed-from-clang
+.else
+.warning InitAll (zeros) requested but not support by compiler
+.endif
+.elif ${MK_INIT_ALL_PATTERN} == "yes"
+.if ${COMPILER_FEATURES:Minit-all}
+CFLAGS+= -ftrivial-auto-var-init=pattern
+.else
+.warning InitAll (pattern) requested but not support by compiler
+.endif
+.endif
+
+#
 # Add -gdwarf-2 when compiling -g. The default starting in clang v3.4
 # and gcc 4.8 is to generate DWARF version 4. However, our tools don't
 # cope well with DWARF 4, so force it to genereate DWARF2, which they

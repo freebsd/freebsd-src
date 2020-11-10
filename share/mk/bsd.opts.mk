@@ -71,6 +71,8 @@ __DEFAULT_NO_OPTIONS = \
     BIND_NOW \
     CCACHE_BUILD \
     CTF \
+    INIT_ALL_PATTERN \
+    INIT_ALL_ZERO \
     INSTALL_AS_USER \
     PIE \
     RETPOLINE \
@@ -84,6 +86,10 @@ __DEFAULT_DEPENDENT_OPTIONS = \
 
 
 .include <bsd.mkopt.mk>
+
+.if ${MK_INIT_ALL_PATTERN} == "yes" && ${MK_INIT_ALL_ZERO} == "yes"
+.error WITH_INIT_ALL_PATTERN and WITH_INIT_ALL_ZERO are mutually exclusive.
+.endif
 
 #
 # Supported NO_* options (if defined, MK_* will be forced to "no",
