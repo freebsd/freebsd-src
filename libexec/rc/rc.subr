@@ -1024,6 +1024,9 @@ run_rc_command()
 		     _postcmd=\$${rc_arg}_postcmd
 
 		if [ -n "$_cmd" ]; then
+			if [ -n "$_env" ]; then
+				eval "export -- $_env"
+			fi
 			_run_rc_precmd || return 1
 			_run_rc_doit "$_cmd $rc_extra_args" || return 1
 			_run_rc_postcmd
