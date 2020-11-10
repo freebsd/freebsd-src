@@ -109,8 +109,6 @@ static int	ugen_set_interface(struct usb_fifo *, uint8_t, uint8_t);
 static int	ugen_get_cdesc(struct usb_fifo *, struct usb_gen_descriptor *);
 static int	ugen_get_sdesc(struct usb_fifo *, struct usb_gen_descriptor *);
 static int	ugen_get_iface_driver(struct usb_fifo *f, struct usb_gen_descriptor *ugd);
-static int	usb_gen_fill_deviceinfo(struct usb_fifo *,
-		    struct usb_device_info *);
 static int	ugen_re_enumerate(struct usb_fifo *);
 static int	ugen_iface_ioctl(struct usb_fifo *, u_long, void *, int);
 static uint8_t	ugen_fs_get_complete(struct usb_fifo *, uint8_t *);
@@ -817,7 +815,7 @@ ugen_get_iface_driver(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
 }
 
 /*------------------------------------------------------------------------*
- *	usb_gen_fill_deviceinfo
+ *	ugen_fill_deviceinfo
  *
  * This function dumps information about an USB device to the
  * structure pointed to by the "di" argument.
@@ -826,8 +824,8 @@ ugen_get_iface_driver(struct usb_fifo *f, struct usb_gen_descriptor *ugd)
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-static int
-usb_gen_fill_deviceinfo(struct usb_fifo *f, struct usb_device_info *di)
+int
+ugen_fill_deviceinfo(struct usb_fifo *f, struct usb_device_info *di)
 {
 	struct usb_device *udev;
 	struct usb_device *hub;
@@ -2216,7 +2214,7 @@ ugen_ioctl_post(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	case USB_DEVICEINFO:
 	case USB_GET_DEVICEINFO:
-		error = usb_gen_fill_deviceinfo(f, addr);
+		error = ugen_fill_deviceinfo(f, addr);
 		break;
 
 	case USB_DEVICESTATS:

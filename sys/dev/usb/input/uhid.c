@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbhid.h>
 #include <dev/usb/usb_ioctl.h>
+#include <dev/usb/usb_generic.h>
 
 #define	USB_DEBUG_VAR uhid_debug
 #include <dev/usb/usb_debug.h>
@@ -143,11 +144,13 @@ static usb_fifo_cmd_t uhid_stop_write;
 static usb_fifo_open_t uhid_open;
 static usb_fifo_close_t uhid_close;
 static usb_fifo_ioctl_t uhid_ioctl;
+static usb_fifo_ioctl_t uhid_ioctl_post;
 
 static struct usb_fifo_methods uhid_fifo_methods = {
 	.f_open = &uhid_open,
 	.f_close = &uhid_close,
 	.f_ioctl = &uhid_ioctl,
+	.f_ioctl_post = &uhid_ioctl_post,
 	.f_start_read = &uhid_start_read,
 	.f_stop_read = &uhid_stop_read,
 	.f_start_write = &uhid_start_write,
@@ -644,6 +647,24 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 
 	case USB_GET_REPORT_ID:
 		*(int *)addr = 0;	/* XXX: we only support reportid 0? */
+		break;
+
+	default:
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
+}
+
+static int
+uhid_ioctl_post(struct usb_fifo *fifo, u_long cmd, void *addr,
+    int fflags)
+{
+	int error;
+
+	switch (cmd) {
+	case USB_GET_DEVICEINFO:
+		error = ugen_fill_deviceinfo(fifo, addr);
 		break;
 
 	default:
