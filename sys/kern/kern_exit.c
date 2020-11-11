@@ -358,7 +358,7 @@ exit1(struct thread *td, int rval, int signo)
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
-	 * F_SETOWN with our pid.
+	 * F_SETOWN with our pid.  The P_WEXIT flag interlocks with fsetown().
 	 */
 	funsetownlst(&p->p_sigiolst);
 
