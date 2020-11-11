@@ -354,6 +354,7 @@ extern int max_threads_per_proc;
 void
 threadinit(void)
 {
+	lwpid_t tid0;
 	uint32_t flags;
 
 	/*
@@ -374,6 +375,9 @@ threadinit(void)
 
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
 	tid_bitmap = bit_alloc(maxthread, M_TIDHASH, M_WAITOK);
+	tid0 = tid_alloc();
+	if (tid0 != THREAD0_TID)
+		panic("tid0 %d != %d\n", tid0, THREAD0_TID);
 
 	flags = UMA_ZONE_NOFREE;
 #ifdef __aarch64__

@@ -855,6 +855,7 @@ MALLOC_DECLARE(M_SUBPROC);
  */
 #define	PID_MAX		99999
 #define	NO_PID		100000
+#define	THREAD0_TID	NO_PID
 extern pid_t pid_max;
 
 #define	SESS_LEADER(p)	((p)->p_session->s_leader == (p))
