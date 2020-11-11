@@ -175,29 +175,106 @@ static void vm_map_wire_entry_failure(vm_map_t map, vm_map_entry_t entry,
 			start = end;			\
 		}
 
+#ifndef UMA_MD_SMALL_ALLOC
+
+/*
+ * Allocate a new slab for kernel map entries.  The kernel map may be locked or
+ * unlocked, depending on whether the request is coming from the kernel map or a
+ * submap.  This function allocates a virtual address range directly from the
+ * kernel map instead of the kmem_* layer to avoid recursion on the kernel map
+ * lock and also to avoid triggering allocator recursion in the vmem boundary
+ * tag allocator.
+ */
+static void *
+kmapent_alloc(uma_zone_t zone, vm_size_t bytes, int domain, uint8_t *pflag,
+    int wait)
+{
+	vm_offset_t addr;
+	int error, locked;
+
+	*pflag = UMA_SLAB_PRIV;
+
+	if (!(locked = vm_map_locked(kernel_map)))
+		vm_map_lock(kernel_map);
+	addr = vm_map_findspace(kernel_map, vm_map_min(kernel_map), bytes);
+	if (addr + bytes < addr || addr + bytes > vm_map_max(kernel_map))
+		panic("%s: kernel map is exhausted", __func__);
+	error = vm_map_insert(kernel_map, NULL, 0, addr, addr + bytes,
+	    VM_PROT_RW, VM_PROT_RW, MAP_NOFAULT);
+	if (error != KERN_SUCCESS)
+		panic("%s: vm_map_insert() failed: %d", __func__, error);
+	if (!locked)
+		vm_map_unlock(kernel_map);
+	error = kmem_back_domain(domain, kernel_object, addr, bytes, M_NOWAIT |
+	    M_USE_RESERVE | (wait & M_ZERO));
+	if (error == KERN_SUCCESS) {
+		return ((void *)addr);
+	} else {
+		if (!locked)
+			vm_map_lock(kernel_map);
+		vm_map_delete(kernel_map, addr, bytes);
+		if (!locked)
+			vm_map_unlock(kernel_map);
+		return (NULL);
+	}
+}
+
+static void
+kmapent_free(void *item, vm_size_t size, uint8_t pflag)
+{
+	vm_offset_t addr;
+	int error;
+
+	if ((pflag & UMA_SLAB_PRIV) == 0)
+		/* XXX leaked */
+		return;
+
+	addr = (vm_offset_t)item;
+	kmem_unback(kernel_object, addr, size);
+	error = vm_map_remove(kernel_map, addr, addr + size);
+	KASSERT(error == KERN_SUCCESS,
+	    ("%s: vm_map_remove failed: %d", __func__, error));
+}
+
+/*
+ * The worst-case upper bound on the number of kernel map entries that may be
+ * created before the zone must be replenished in _vm_map_unlock().
+ */
+#define	KMAPENT_RESERVE		1
+
+#endif /* !UMD_MD_SMALL_ALLOC */
+
 /*
  *	vm_map_startup:
  *
- *	Initialize the vm_map module.  Must be called before
- *	any other vm_map routines.
+ *	Initialize the vm_map module.  Must be called before any other vm_map
+ *	routines.
  *
- *	Map and entry structures are allocated from the general
- *	purpose memory pool with some exceptions:
- *
- *	- The kernel map and kmem submap are allocated statically.
- *	- Kernel map entries are allocated out of a static pool.
- *
- *	These restrictions are necessary since malloc() uses the
- *	maps and requires map entries.
+ *	User map and entry structures are allocated from the general purpose
+ *	memory pool.  Kernel maps are statically defined.  Kernel map entries
+ *	require special handling to avoid recursion; see the comments above
+ *	kmapent_alloc() and in vm_map_entry_create().
  */
-
 void
 vm_map_startup(void)
 {
 	mtx_init(&map_sleep_mtx, "vm map sleep mutex", NULL, MTX_DEF);
+
+	/*
+	 * Disable the use of per-CPU buckets: map entry allocation is
+	 * serialized by the kernel map lock.
+	 */
 	kmapentzone = uma_zcreate("KMAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_MTXCLASS | UMA_ZONE_VM);
+	    UMA_ZONE_VM | UMA_ZONE_NOBUCKET);
+#ifndef UMA_MD_SMALL_ALLOC
+	/* Reserve an extra map entry for use when replenishing the reserve. */
+	uma_zone_reserve(kmapentzone, KMAPENT_RESERVE + 1);
+	uma_prealloc(kmapentzone, KMAPENT_RESERVE + 1);
+	uma_zone_set_allocf(kmapentzone, kmapent_alloc);
+	uma_zone_set_freef(kmapentzone, kmapent_free);
+#endif
+
 	mapentzone = uma_zcreate("MAP ENTRY", sizeof(struct vm_map_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	vmspace_zone = uma_zcreate("VMSPACE", sizeof(struct vmspace), NULL,
@@ -616,9 +693,15 @@ _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
 
 	VM_MAP_UNLOCK_CONSISTENT(map);
-	if (map->system_map)
+	if (map->system_map) {
+#ifndef UMA_MD_SMALL_ALLOC
+		if (map == kernel_map && (map->flags & MAP_REPLENISH) != 0) {
+			uma_prealloc(kmapentzone, 1);
+			map->flags &= ~MAP_REPLENISH;
+		}
+#endif
 		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
-	else {
+	} else {
 		sx_xunlock_(&map->lock, file, line);
 		vm_map_process_deferred();
 	}
@@ -638,9 +721,11 @@ void
 _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 {
 
-	if (map->system_map)
+	if (map->system_map) {
+		KASSERT((map->flags & MAP_REPLENISH) == 0,
+		    ("%s: MAP_REPLENISH leaked", __func__));
 		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
-	else {
+	} else {
 		sx_sunlock_(&map->lock, file, line);
 		vm_map_process_deferred();
 	}
@@ -712,6 +797,8 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map) {
+		KASSERT((map->flags & MAP_REPLENISH) == 0,
+		    ("%s: MAP_REPLENISH leaked", __func__));
 		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	} else {
 		VM_MAP_UNLOCK_CONSISTENT(map);
@@ -755,10 +842,13 @@ _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line)
 
 	VM_MAP_UNLOCK_CONSISTENT(map);
 	mtx_lock(&map_sleep_mtx);
-	if (map->system_map)
+	if (map->system_map) {
+		KASSERT((map->flags & MAP_REPLENISH) == 0,
+		    ("%s: MAP_REPLENISH leaked", __func__));
 		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
-	else
+	} else {
 		sx_xunlock_(&map->lock, file, line);
+	}
 	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps",
 	    timo));
 }
@@ -881,12 +971,33 @@ vm_map_entry_create(vm_map_t map)
 {
 	vm_map_entry_t new_entry;
 
-	if (map->system_map)
+#ifndef UMA_MD_SMALL_ALLOC
+	if (map == kernel_map) {
+		VM_MAP_ASSERT_LOCKED(map);
+
+		/*
+		 * A new slab of kernel map entries cannot be allocated at this
+		 * point because the kernel map has not yet been updated to
+		 * reflect the caller's request.  Therefore, we allocate a new
+		 * map entry, dipping into the reserve if necessary, and set a
+		 * flag indicating that the reserve must be replenished before
+		 * the map is unlocked.
+		 */
+		new_entry = uma_zalloc(kmapentzone, M_NOWAIT | M_NOVM);
+		if (new_entry == NULL) {
+			new_entry = uma_zalloc(kmapentzone,
+			    M_NOWAIT | M_NOVM | M_USE_RESERVE);
+			kernel_map->flags |= MAP_REPLENISH;
+		}
+	} else
+#endif
+	if (map->system_map) {
 		new_entry = uma_zalloc(kmapentzone, M_NOWAIT);
-	else
+	} else {
 		new_entry = uma_zalloc(mapentzone, M_WAITOK);
-	if (new_entry == NULL)
-		panic("vm_map_entry_create: kernel resources exhausted");
+	}
+	KASSERT(new_entry != NULL,
+	    ("vm_map_entry_create: kernel resources exhausted"));
 	return (new_entry);
 }
 
@@ -1771,6 +1882,8 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length)
 	vm_map_entry_t header, llist, rlist, root, y;
 	vm_size_t left_length, max_free_left, max_free_right;
 	vm_offset_t gap_end;
+
+	VM_MAP_ASSERT_LOCKED(map);
 
 	/*
 	 * Request must fit within min/max VM address and must avoid
