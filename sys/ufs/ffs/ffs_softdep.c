@@ -1464,7 +1464,7 @@ worklist_speedup(mp)
 }
 
 static void
-softdep_send_speedup(struct ufsmount *ump, size_t shortage, u_int flags)
+softdep_send_speedup(struct ufsmount *ump, off_t shortage, u_int flags)
 {
 	struct buf *bp;
 
@@ -1474,7 +1474,7 @@ softdep_send_speedup(struct ufsmount *ump, size_t shortage, u_int flags)
 	bp = malloc(sizeof(*bp), M_TRIM, M_WAITOK | M_ZERO);
 	bp->b_iocmd = BIO_SPEEDUP;
 	bp->b_ioflags = flags;
-	bp->b_bcount = shortage;
+	bp->b_bcount = omin(shortage, LONG_MAX);
 	g_vfs_strategy(ump->um_bo, bp);
 	bufwait(bp);
 	free(bp, M_TRIM);
