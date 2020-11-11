@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/smr.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -1800,15 +1801,17 @@ restore_host_tss(void)
 }
 
 static void
-check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
+svm_pmap_activate(struct svm_softc *sc, int vcpuid, pmap_t pmap)
 {
 	struct svm_vcpu *vcpustate;
 	struct vmcb_ctrl *ctrl;
 	long eptgen;
+	int cpu;
 	bool alloc_asid;
 
-	KASSERT(CPU_ISSET(thiscpu, &pmap->pm_active), ("%s: nested pmap not "
-	    "active on cpu %u", __func__, thiscpu));
+	cpu = curcpu;
+	CPU_SET_ATOMIC(cpu, &pmap->pm_active);
+	smr_enter(pmap->pm_eptsmr);
 
 	vcpustate = svm_get_vcpu(sc, vcpuid);
 	ctrl = svm_get_vmcb_ctrl(sc, vcpuid);
@@ -1849,10 +1852,10 @@ check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
 	 */
 
 	alloc_asid = false;
-	eptgen = pmap->pm_eptgen;
+	eptgen = atomic_load_long(&pmap->pm_eptgen);
 	ctrl->tlb_ctrl = VMCB_TLB_FLUSH_NOTHING;
 
-	if (vcpustate->asid.gen != asid[thiscpu].gen) {
+	if (vcpustate->asid.gen != asid[cpu].gen) {
 		alloc_asid = true;	/* (c) and (d) */
 	} else if (vcpustate->eptgen != eptgen) {
 		if (flush_by_asid())
@@ -1869,10 +1872,10 @@ check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
 	}
 
 	if (alloc_asid) {
-		if (++asid[thiscpu].num >= nasid) {
-			asid[thiscpu].num = 1;
-			if (++asid[thiscpu].gen == 0)
-				asid[thiscpu].gen = 1;
+		if (++asid[cpu].num >= nasid) {
+			asid[cpu].num = 1;
+			if (++asid[cpu].gen == 0)
+				asid[cpu].gen = 1;
 			/*
 			 * If this cpu does not support "flush-by-asid"
 			 * then flush the entire TLB on a generation
@@ -1882,8 +1885,8 @@ check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
 			if (!flush_by_asid())
 				ctrl->tlb_ctrl = VMCB_TLB_FLUSH_ALL;
 		}
-		vcpustate->asid.gen = asid[thiscpu].gen;
-		vcpustate->asid.num = asid[thiscpu].num;
+		vcpustate->asid.gen = asid[cpu].gen;
+		vcpustate->asid.num = asid[cpu].num;
 
 		ctrl->asid = vcpustate->asid.num;
 		svm_set_dirty(sc, vcpuid, VMCB_CACHE_ASID);
@@ -1900,6 +1903,13 @@ check_asid(struct svm_softc *sc, int vcpuid, pmap_t pmap, u_int thiscpu)
 	KASSERT(ctrl->asid != 0, ("Guest ASID must be non-zero"));
 	KASSERT(ctrl->asid == vcpustate->asid.num,
 	    ("ASID mismatch: %u/%u", ctrl->asid, vcpustate->asid.num));
+}
+
+static void
+svm_pmap_deactivate(pmap_t pmap)
+{
+	smr_exit(pmap->pm_eptsmr);
+	CPU_CLR_ATOMIC(curcpu, &pmap->pm_active);
 }
 
 static __inline void
@@ -2083,14 +2093,11 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		svm_inj_interrupts(svm_sc, vcpu, vlapic);
 
-		/* Activate the nested pmap on 'curcpu' */
-		CPU_SET_ATOMIC_ACQ(curcpu, &pmap->pm_active);
-
 		/*
 		 * Check the pmap generation and the ASID generation to
 		 * ensure that the vcpu does not use stale TLB mappings.
 		 */
-		check_asid(svm_sc, vcpu, pmap, curcpu);
+		svm_pmap_activate(svm_sc, vcpu, pmap);
 
 		ctrl->vmcb_clean = vmcb_clean & ~vcpustate->dirty;
 		vcpustate->dirty = 0;
@@ -2102,7 +2109,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 		svm_launch(vmcb_pa, gctx, get_pcpu());
 		svm_dr_leave_guest(gctx);
 
-		CPU_CLR_ATOMIC(curcpu, &pmap->pm_active);
+		svm_pmap_deactivate(pmap);
 
 		/*
 		 * The host GDTR and IDTR is saved by VMRUN and restored
