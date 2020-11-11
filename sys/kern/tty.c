@@ -464,6 +464,19 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 			sig = 0;
 		}
 		PGRP_LOCK(pg);
+
+		/*
+		 * pg may no longer be our process group.
+		 * Re-check after locking process group.
+		 */
+		PROC_LOCK(p);
+		if (p->p_pgrp != pg) {
+			PROC_UNLOCK(p);
+			PGRP_UNLOCK(pg);
+			continue;
+		}
+
+		PROC_UNLOCK(p);
 		pgsignal(pg, ksi.ksi_signo, 1, &ksi);
 		PGRP_UNLOCK(pg);
 
