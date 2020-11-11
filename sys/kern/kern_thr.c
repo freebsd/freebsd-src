@@ -353,14 +353,13 @@ kern_thr_exit(struct thread *td)
 		return (0);
 	}
 
-	p->p_pendingexits++;
 	td->td_dbgflags |= TDB_EXIT;
-	if (p->p_ptevents & PTRACE_LWP)
+	if (p->p_ptevents & PTRACE_LWP) {
+		p->p_pendingexits++;
 		ptracestop(td, SIGTRAP, NULL);
-	PROC_UNLOCK(p);
+		p->p_pendingexits--;
+	}
 	tidhash_remove(td);
-	PROC_LOCK(p);
-	p->p_pendingexits--;
 
 	/*
 	 * The check above should prevent all other threads from this
