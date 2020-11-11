@@ -156,6 +156,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/ifunc.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
+#include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/specialreg.h>
@@ -9637,16 +9638,16 @@ pmap_pti_init(void)
 	CPU_FOREACH(i) {
 		/* Doublefault stack IST 1 */
 		va = common_tss[i].tss_ist1;
-		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
+		pmap_pti_add_kva_locked(va - DBLFAULT_STACK_SIZE, va, false);
 		/* NMI stack IST 2 */
 		va = common_tss[i].tss_ist2 + sizeof(struct nmi_pcpu);
-		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
+		pmap_pti_add_kva_locked(va - NMI_STACK_SIZE, va, false);
 		/* MC# stack IST 3 */
 		va = common_tss[i].tss_ist3 + sizeof(struct nmi_pcpu);
-		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
+		pmap_pti_add_kva_locked(va - MCE_STACK_SIZE, va, false);
 		/* DB# stack IST 4 */
 		va = common_tss[i].tss_ist4 + sizeof(struct nmi_pcpu);
-		pmap_pti_add_kva_locked(va - PAGE_SIZE, va, false);
+		pmap_pti_add_kva_locked(va - DBG_STACK_SIZE, va, false);
 	}
 	pmap_pti_add_kva_locked((vm_offset_t)kernphys + KERNBASE,
 	    (vm_offset_t)etext, true);
