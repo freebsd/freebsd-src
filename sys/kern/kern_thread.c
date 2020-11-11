@@ -149,8 +149,10 @@ static int nthreads;
 
 static LIST_HEAD(tidhashhead, thread) *tidhashtbl;
 static u_long	tidhash;
-static struct	rwlock tidhash_lock;
-#define	TIDHASH(tid)	(&tidhashtbl[(tid) & tidhash])
+static u_long	tidhashlock;
+static struct	rwlock *tidhashtbl_lock;
+#define	TIDHASH(tid)		(&tidhashtbl[(tid) & tidhash])
+#define	TIDHASHLOCK(tid)	(&tidhashtbl_lock[(tid) & tidhashlock])
 
 EVENTHANDLER_LIST_DEFINE(thread_ctor);
 EVENTHANDLER_LIST_DEFINE(thread_dtor);
@@ -355,6 +357,7 @@ extern int max_threads_per_proc;
 void
 threadinit(void)
 {
+	u_long i;
 	lwpid_t tid0;
 	uint32_t flags;
 
@@ -395,7 +398,13 @@ threadinit(void)
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    32 - 1, flags);
 	tidhashtbl = hashinit(maxproc / 2, M_TIDHASH, &tidhash);
-	rw_init(&tidhash_lock, "tidhash");
+	tidhashlock = (tidhash + 1) / 64;
+	if (tidhashlock > 0)
+		tidhashlock--;
+	tidhashtbl_lock = malloc(sizeof(*tidhashtbl_lock) * (tidhashlock + 1),
+	    M_TIDHASH, M_WAITOK | M_ZERO);
+	for (i = 0; i < tidhashlock + 1; i++)
+		rw_init(&tidhashtbl_lock[i], "tidhash");
 }
 
 /*
@@ -1351,7 +1360,7 @@ tdfind_hash(lwpid_t tid, pid_t pid, struct proc **pp, struct thread **tdp)
 	bool locked;
 
 	run = 0;
-	rw_rlock(&tidhash_lock);
+	rw_rlock(TIDHASHLOCK(tid));
 	locked = true;
 	LIST_FOREACH(td, TIDHASH(tid), td_hash) {
 		if (td->td_tid != tid) {
@@ -1364,11 +1373,11 @@ tdfind_hash(lwpid_t tid, pid_t pid, struct proc **pp, struct thread **tdp)
 			break;
 		}
 		if (run > RUN_THRESH) {
-			if (rw_try_upgrade(&tidhash_lock)) {
+			if (rw_try_upgrade(TIDHASHLOCK(tid))) {
 				LIST_REMOVE(td, td_hash);
 				LIST_INSERT_HEAD(TIDHASH(td->td_tid),
 					td, td_hash);
-				rw_wunlock(&tidhash_lock);
+				rw_wunlock(TIDHASHLOCK(tid));
 				locked = false;
 				break;
 			}
@@ -1376,7 +1385,7 @@ tdfind_hash(lwpid_t tid, pid_t pid, struct proc **pp, struct thread **tdp)
 		break;
 	}
 	if (locked)
-		rw_runlock(&tidhash_lock);
+		rw_runlock(TIDHASHLOCK(tid));
 	if (td == NULL)
 		return (false);
 	*pp = p;
@@ -1421,15 +1430,16 @@ tdfind(lwpid_t tid, pid_t pid)
 void
 tidhash_add(struct thread *td)
 {
-	rw_wlock(&tidhash_lock);
+	rw_wlock(TIDHASHLOCK(td->td_tid));
 	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
-	rw_wunlock(&tidhash_lock);
+	rw_wunlock(TIDHASHLOCK(td->td_tid));
 }
 
 void
 tidhash_remove(struct thread *td)
 {
-	rw_wlock(&tidhash_lock);
+
+	rw_wlock(TIDHASHLOCK(td->td_tid));
 	LIST_REMOVE(td, td_hash);
-	rw_wunlock(&tidhash_lock);
+	rw_wunlock(TIDHASHLOCK(td->td_tid));
 }
