@@ -128,9 +128,7 @@ SDT_PROBE_DEFINE(proc, , , lwp__exit);
  */
 static uma_zone_t thread_zone;
 
-TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
-static struct mtx zombie_lock;
-MTX_SYSINIT(zombie_lock, &zombie_lock, "zombie lock", MTX_SPIN);
+static __exclusive_cache_line struct thread *thread_zombies;
 
 static void thread_zombie(struct thread *);
 static int thread_unsuspend_one(struct thread *td, struct proc *p,
@@ -409,14 +407,20 @@ threadinit(void)
 
 /*
  * Place an unused thread on the zombie list.
- * Use the slpq as that must be unused by now.
  */
 void
 thread_zombie(struct thread *td)
 {
-	mtx_lock_spin(&zombie_lock);
-	TAILQ_INSERT_HEAD(&zombie_threads, td, td_slpq);
-	mtx_unlock_spin(&zombie_lock);
+	struct thread *ztd;
+
+	ztd = atomic_load_ptr(&thread_zombies);
+	for (;;) {
+		td->td_zombie = ztd;
+		if (atomic_fcmpset_rel_ptr((uintptr_t *)&thread_zombies,
+		    (uintptr_t *)&ztd, (uintptr_t)td))
+			break;
+		continue;
+	}
 }
 
 /*
@@ -430,29 +434,27 @@ thread_stash(struct thread *td)
 }
 
 /*
- * Reap zombie resources.
+ * Reap zombie threads.
  */
 void
 thread_reap(void)
 {
-	struct thread *td_first, *td_next;
+	struct thread *itd, *ntd;
 
 	/*
-	 * Don't even bother to lock if none at this instant,
-	 * we really don't care about the next instant.
+	 * Reading upfront is pessimal if followed by concurrent atomic_swap,
+	 * but most of the time the list is empty.
 	 */
-	if (!TAILQ_EMPTY(&zombie_threads)) {
-		mtx_lock_spin(&zombie_lock);
-		td_first = TAILQ_FIRST(&zombie_threads);
-		if (td_first)
-			TAILQ_INIT(&zombie_threads);
-		mtx_unlock_spin(&zombie_lock);
-		while (td_first) {
-			td_next = TAILQ_NEXT(td_first, td_slpq);
-			thread_cow_free(td_first);
-			thread_free(td_first);
-			td_first = td_next;
-		}
+	if (thread_zombies == NULL)
+		return;
+
+	itd = (struct thread *)atomic_swap_ptr((uintptr_t *)&thread_zombies,
+	    (uintptr_t)NULL);
+	while (itd != NULL) {
+		ntd = itd->td_zombie;
+		thread_cow_free(itd);
+		thread_free(itd);
+		itd = ntd;
 	}
 }
 
