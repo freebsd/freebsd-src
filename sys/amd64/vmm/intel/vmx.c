@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/smr.h>
 #include <sys/sysctl.h>
 
 #include <vm/vm.h>
@@ -1273,7 +1274,7 @@ vmx_invvpid(struct vmx *vmx, int vcpu, pmap_t pmap, int running)
 	 * Note also that this will invalidate mappings tagged with 'vpid'
 	 * for "all" EP4TAs.
 	 */
-	if (pmap->pm_eptgen == vmx->eptgen[curcpu]) {
+	if (atomic_load_long(&pmap->pm_eptgen) == vmx->eptgen[curcpu]) {
 		invvpid_desc._res1 = 0;
 		invvpid_desc._res2 = 0;
 		invvpid_desc.vpid = vmxstate->vpid;
@@ -2948,6 +2949,7 @@ vmx_pmap_activate(struct vmx *vmx, pmap_t pmap)
 	cpu = curcpu;
 
 	CPU_SET_ATOMIC(cpu, &pmap->pm_active);
+	smr_enter(pmap->pm_eptsmr);
 	eptgen = atomic_load_long(&pmap->pm_eptgen);
 	if (eptgen != vmx->eptgen[cpu]) {
 		vmx->eptgen[cpu] = eptgen;
@@ -2959,6 +2961,7 @@ vmx_pmap_activate(struct vmx *vmx, pmap_t pmap)
 static __inline void
 vmx_pmap_deactivate(struct vmx *vmx, pmap_t pmap)
 {
+	smr_exit(pmap->pm_eptsmr);
 	CPU_CLR_ATOMIC(curcpu, &pmap->pm_active);
 }
 
