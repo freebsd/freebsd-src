@@ -229,7 +229,10 @@ struct thread {
 	struct proc	*td_proc;	/* (*) Associated process. */
 	TAILQ_ENTRY(thread) td_plist;	/* (*) All threads in this proc. */
 	TAILQ_ENTRY(thread) td_runq;	/* (t) Run queue. */
-	TAILQ_ENTRY(thread) td_slpq;	/* (t) Sleep queue. */
+	union	{
+		TAILQ_ENTRY(thread) td_slpq;	/* (t) Sleep queue. */
+		struct thread *td_zombie; /* Zombie list linkage */
+	};
 	TAILQ_ENTRY(thread) td_lockq;	/* (t) Lock queue. */
 	LIST_ENTRY(thread) td_hash;	/* (d) Hash chain. */
 	struct cpuset	*td_cpuset;	/* (t) CPU affinity mask. */
