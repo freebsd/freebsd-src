@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #ifdef COMPAT_FREEBSD32
+#include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 #endif
 
@@ -4127,11 +4128,6 @@ sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 }
 
 #ifdef COMPAT_FREEBSD32
-
-struct timespec32 {
-	int32_t tv_sec;
-	int32_t tv_nsec;
-};
 
 struct umtx_time32 {
 	struct	timespec32	timeout;
