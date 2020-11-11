@@ -147,9 +147,10 @@ SYSCTL_INT(_kern, OID_AUTO, maxthread, CTLFLAG_RDTUN,
 
 static int nthreads;
 
-struct	tidhashhead *tidhashtbl;
-u_long	tidhash;
-struct	rwlock tidhash_lock;
+static LIST_HEAD(tidhashhead, thread) *tidhashtbl;
+static u_long	tidhash;
+static struct	rwlock tidhash_lock;
+#define	TIDHASH(tid)	(&tidhashtbl[(tid) & tidhash])
 
 EVENTHANDLER_LIST_DEFINE(thread_ctor);
 EVENTHANDLER_LIST_DEFINE(thread_dtor);
@@ -1329,13 +1330,65 @@ thread_single_end(struct proc *p, int mode)
 		kick_proc0();
 }
 
-/* Locate a thread by number; return with proc lock held. */
+/*
+ * Locate a thread by number and return with proc lock held.
+ *
+ * thread exit establishes proc -> tidhash lock ordering, but lookup
+ * takes tidhash first and needs to return locked proc.
+ *
+ * The problem is worked around by relying on type-safety of both
+ * structures and doing the work in 2 steps:
+ * - tidhash-locked lookup which saves both thread and proc pointers
+ * - proc-locked verification that the found thread still matches
+ */
+static bool
+tdfind_hash(lwpid_t tid, pid_t pid, struct proc **pp, struct thread **tdp)
+{
+#define RUN_THRESH	16
+	struct proc *p;
+	struct thread *td;
+	int run;
+	bool locked;
+
+	run = 0;
+	rw_rlock(&tidhash_lock);
+	locked = true;
+	LIST_FOREACH(td, TIDHASH(tid), td_hash) {
+		if (td->td_tid != tid) {
+			run++;
+			continue;
+		}
+		p = td->td_proc;
+		if (pid != -1 && p->p_pid != pid) {
+			td = NULL;
+			break;
+		}
+		if (run > RUN_THRESH) {
+			if (rw_try_upgrade(&tidhash_lock)) {
+				LIST_REMOVE(td, td_hash);
+				LIST_INSERT_HEAD(TIDHASH(td->td_tid),
+					td, td_hash);
+				rw_wunlock(&tidhash_lock);
+				locked = false;
+				break;
+			}
+		}
+		break;
+	}
+	if (locked)
+		rw_runlock(&tidhash_lock);
+	if (td == NULL)
+		return (false);
+	*pp = p;
+	*tdp = td;
+	return (true);
+}
+
 struct thread *
 tdfind(lwpid_t tid, pid_t pid)
 {
-#define RUN_THRESH	16
+	struct proc *p;
 	struct thread *td;
-	int run = 0;
 
 	td = curthread;
 	if (td->td_tid == tid) {
@@ -1345,34 +1398,24 @@ tdfind(lwpid_t tid, pid_t pid)
 		return (td);
 	}
 
-	rw_rlock(&tidhash_lock);
-	LIST_FOREACH(td, TIDHASH(tid), td_hash) {
-		if (td->td_tid == tid) {
-			if (pid != -1 && td->td_proc->p_pid != pid) {
-				td = NULL;
-				break;
-			}
-			PROC_LOCK(td->td_proc);
-			if (td->td_proc->p_state == PRS_NEW) {
-				PROC_UNLOCK(td->td_proc);
-				td = NULL;
-				break;
-			}
-			if (run > RUN_THRESH) {
-				if (rw_try_upgrade(&tidhash_lock)) {
-					LIST_REMOVE(td, td_hash);
-					LIST_INSERT_HEAD(TIDHASH(td->td_tid),
-						td, td_hash);
-					rw_wunlock(&tidhash_lock);
-					return (td);
-				}
-			}
-			break;
+	for (;;) {
+		if (!tdfind_hash(tid, pid, &p, &td))
+			return (NULL);
+		PROC_LOCK(p);
+		if (td->td_tid != tid) {
+			PROC_UNLOCK(p);
+			continue;
 		}
-		run++;
+		if (td->td_proc != p) {
+			PROC_UNLOCK(p);
+			continue;
+		}
+		if (p->p_state == PRS_NEW) {
+			PROC_UNLOCK(p);
+			return (NULL);
+		}
+		return (td);
 	}
-	rw_runlock(&tidhash_lock);
-	return (td);
 }
 
 void
