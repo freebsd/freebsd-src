@@ -1145,7 +1145,8 @@ lagg_port_output(struct ifnet *ifp, struct mbuf *m,
 	switch (dst->sa_family) {
 		case pseudo_AF_HDRCMPLT:
 		case AF_UNSPEC:
-			return ((*lp->lp_output)(ifp, m, dst, ro));
+			if (lp != NULL)
+				return ((*lp->lp_output)(ifp, m, dst, ro));
 	}
 
 	/* drop any other frames */
