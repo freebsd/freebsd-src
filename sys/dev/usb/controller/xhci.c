@@ -4020,6 +4020,9 @@ xhci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
     struct usb_endpoint *ep)
 {
 	struct xhci_endpoint_ext *pepext;
+	struct xhci_softc *sc;
+	uint8_t index;
+	uint8_t epno;
 
 	DPRINTFN(2, "endpoint=%p, addr=%d, endpt=%d, mode=%d\n",
 	    ep, udev->address, edesc->bEndpointAddress, udev->flags.usb_mode);
@@ -4036,6 +4039,18 @@ xhci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	USB_BUS_LOCK(udev->bus);
 	pepext->trb_halted = 1;
 	pepext->trb_running = 0;
+
+	/*
+	 * When doing an alternate setting, except for control
+	 * endpoints, we need to re-configure the XHCI endpoint
+	 * context:
+	 */
+	if ((edesc->bEndpointAddress & UE_ADDR) != 0) {
+		sc = XHCI_BUS2SC(udev->bus);
+		index = udev->controller_slot_id;
+		epno = XHCI_EPNO2EPID(edesc->bEndpointAddress);
+		sc->sc_hw.devs[index].ep_configured &= ~(1U << epno);
+	}
 	USB_BUS_UNLOCK(udev->bus);
 }
 
