@@ -139,9 +139,14 @@ nvme_attach(device_t dev)
 }
 
 int
-nvme_detach (device_t dev)
+nvme_detach(device_t dev)
 {
 	struct nvme_controller	*ctrlr = DEVICE2SOFTC(dev);
+
+	if (ctrlr->config_hook.ich_arg != NULL) {
+		config_intrhook_disestablish(&ctrlr->config_hook);
+		ctrlr->config_hook.ich_arg = NULL;
+	}
 
 	nvme_ctrlr_destruct(ctrlr, dev);
 	return (0);
