@@ -4467,9 +4467,9 @@ get_params__post_init(struct adapter *sc)
 		    "failed to query parameters (post_init2): %d.\n", rc);
 		return (rc);
 	}
-	MPASS(val[0] >= sc->sge.iq_start);
+	MPASS((int)val[0] >= sc->sge.iq_start);
 	sc->sge.iqmap_sz = val[0] - sc->sge.iq_start + 1;
-	MPASS(val[1] >= sc->sge.eq_start);
+	MPASS((int)val[1] >= sc->sge.eq_start);
 	sc->sge.eqmap_sz = val[1] - sc->sge.eq_start + 1;
 
 	if (chip_id(sc) >= CHELSIO_T6) {
