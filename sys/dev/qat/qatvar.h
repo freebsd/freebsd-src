@@ -594,7 +594,7 @@ struct qat_crypto_desc {
 	bus_addr_t qcd_desc_paddr;
 	bus_addr_t qcd_hash_state_paddr;
 
-	enum fw_slice qcd_slices[MAX_FW_SLICE];
+	enum fw_slice qcd_slices[MAX_FW_SLICE + 1];
 	enum fw_la_cmd_id qcd_cmd_id;
 	enum hw_cipher_dir qcd_cipher_dir;
 

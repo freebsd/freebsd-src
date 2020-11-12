@@ -2616,7 +2616,7 @@ qat_aefw_suof_load(struct qat_softc *sc, struct qat_dmamem *dma)
 static int
 qat_aefw_suof_write(struct qat_softc *sc)
 {
-	struct qat_suof_image *qsi = NULL;
+	struct qat_suof_image *qsi;
 	int i, error = 0;
 
 	for (i = 0; i < sc->sc_aefw_suof.qafs_num_simgs; i++) {
@@ -2626,21 +2626,20 @@ qat_aefw_suof_write(struct qat_softc *sc)
 		if (error)
 			return error;
 		error = qat_aefw_auth(sc, &qsi->qsi_dma);
-		if (error)
-			goto fail;
+		if (error) {
+			qat_free_dmamem(sc, &qsi->qsi_dma);
+			return error;
+		}
 		error = qat_aefw_suof_load(sc, &qsi->qsi_dma);
-		if (error)
-			goto fail;
-
+		if (error) {
+			qat_free_dmamem(sc, &qsi->qsi_dma);
+			return error;
+		}
 		qat_free_dmamem(sc, &qsi->qsi_dma);
 	}
 	qat_free_mem(sc->sc_aefw_suof.qafs_simg);
 
 	return 0;
-fail:
-	if (qsi != NULL)
-		qat_free_dmamem(sc, &qsi->qsi_dma);
-	return error;
 }
 
 static int
