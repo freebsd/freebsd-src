@@ -98,15 +98,12 @@ static int uaudio_default_rate = 0;		/* use rate list */
 static int uaudio_default_bits = 32;
 static int uaudio_default_channels = 0;		/* use default */
 static int uaudio_buffer_ms = 8;
-
-#ifdef USB_DEBUG
-static int uaudio_debug;
+static bool uaudio_handle_hid = true;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB uaudio");
-
-SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
-    &uaudio_debug, 0, "uaudio debug level");
+SYSCTL_BOOL(_hw_usb_uaudio, OID_AUTO, handle_hid, CTLFLAG_RWTUN,
+    &uaudio_handle_hid, 0, "uaudio handles any HID volume/mute keys, if set");
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_rate, CTLFLAG_RWTUN,
     &uaudio_default_rate, 0, "uaudio default sample rate");
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_bits, CTLFLAG_RWTUN,
@@ -138,6 +135,12 @@ SYSCTL_PROC(_hw_usb_uaudio, OID_AUTO, buffer_ms,
     CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof(int),
     uaudio_buffer_ms_sysctl, "I",
     "uaudio buffering delay from 2ms to 8ms");
+
+#ifdef USB_DEBUG
+static int uaudio_debug;
+
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
+    &uaudio_debug, 0, "uaudio debug level");
 #else
 #define	uaudio_debug 0
 #endif
@@ -1116,10 +1119,12 @@ uaudio_attach(device_t dev)
 		goto detach;
 	}
 
-	if (uaudio_hid_probe(sc, uaa) == 0) {
-		device_printf(dev, "HID volume keys found.\n");
-	} else {
-		device_printf(dev, "No HID volume keys found.\n");
+	if (uaudio_handle_hid) {
+		if (uaudio_hid_probe(sc, uaa) == 0) {
+			device_printf(dev, "HID volume keys found.\n");
+		} else {
+			device_printf(dev, "No HID volume keys found.\n");
+		}
 	}
 
 	/* reload all mixer settings */
