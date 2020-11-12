@@ -144,7 +144,7 @@ static int maxthread;
 SYSCTL_INT(_kern, OID_AUTO, maxthread, CTLFLAG_RDTUN,
     &maxthread, 0, "Maximum number of threads");
 
-static int nthreads;
+static __exclusive_cache_line int nthreads;
 
 static LIST_HEAD(tidhashhead, thread) *tidhashtbl;
 static u_long	tidhash;
@@ -158,29 +158,52 @@ EVENTHANDLER_LIST_DEFINE(thread_dtor);
 EVENTHANDLER_LIST_DEFINE(thread_init);
 EVENTHANDLER_LIST_DEFINE(thread_fini);
 
-static lwpid_t
-tid_alloc(void)
+static bool
+thread_count_inc(void)
 {
 	static struct timeval lastfail;
 	static int curfail;
-	static lwpid_t trytid;
-	lwpid_t tid;
+	int nthreads_new;
 
-	mtx_lock(&tid_lock);
-	if (nthreads + 1 >= maxthread - 100) {
+	thread_reap();
+
+	nthreads_new = atomic_fetchadd_int(&nthreads, 1) + 1;
+	if (nthreads_new >= maxthread - 100) {
 		if (priv_check_cred(curthread->td_ucred, PRIV_MAXPROC) != 0 ||
-		    nthreads + 1 >= maxthread) {
-			mtx_unlock(&tid_lock);
+		    nthreads_new >= maxthread) {
+			atomic_subtract_int(&nthreads, 1);
 			if (ppsratecheck(&lastfail, &curfail, 1)) {
 				printf("maxthread limit exceeded by uid %u "
 				"(pid %d); consider increasing kern.maxthread\n",
 				curthread->td_ucred->cr_ruid, curproc->p_pid);
 			}
-			return (-1);
+			return (false);
 		}
 	}
+	return (true);
+}
 
-	nthreads++;
+static void
+thread_count_sub(int n)
+{
+
+	atomic_subtract_int(&nthreads, n);
+}
+
+static void
+thread_count_dec(void)
+{
+
+	thread_count_sub(1);
+}
+
+static lwpid_t
+tid_alloc(void)
+{
+	static lwpid_t trytid;
+	lwpid_t tid;
+
+	mtx_lock(&tid_lock);
 	/*
 	 * It is an invariant that the bitmap is big enough to hold maxthread
 	 * IDs. If we got to this point there has to be at least one free.
@@ -212,7 +235,6 @@ tid_free_locked(lwpid_t rtid)
 	KASSERT(bit_test(tid_bitmap, tid) != 0,
 	    ("thread ID %d not allocated\n", rtid));
 	bit_clear(tid_bitmap, tid);
-	nthreads--;
 }
 
 static void
@@ -398,6 +420,10 @@ threadinit(void)
 
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
 	tid_bitmap = bit_alloc(maxthread, M_TIDHASH, M_WAITOK);
+	/*
+	 * Handle thread0.
+	 */
+	thread_count_inc();
 	tid0 = tid_alloc();
 	if (tid0 != THREAD0_TID)
 		panic("tid0 %d != %d\n", tid0, THREAD0_TID);
@@ -482,6 +508,7 @@ thread_reap(void)
 		thread_free_batched(itd);
 		if (tidbatchn == nitems(tidbatch)) {
 			tid_free_batch(tidbatch, tidbatchn);
+			thread_count_sub(tidbatchn);
 			tidbatchn = 0;
 		}
 		itd = ntd;
@@ -489,6 +516,7 @@ thread_reap(void)
 
 	if (tidbatchn != 0) {
 		tid_free_batch(tidbatch, tidbatchn);
+		thread_count_sub(tidbatchn);
 	}
 }
 
@@ -501,18 +529,17 @@ thread_alloc(int pages)
 	struct thread *td;
 	lwpid_t tid;
 
-	thread_reap(); /* check if any zombies to get */
-
-	tid = tid_alloc();
-	if (tid == -1) {
+	if (!thread_count_inc()) {
 		return (NULL);
 	}
 
+	tid = tid_alloc();
 	td = uma_zalloc(thread_zone, M_WAITOK);
 	KASSERT(td->td_kstack == 0, ("thread_alloc got thread with kstack"));
 	if (!vm_thread_new(td, pages)) {
 		uma_zfree(thread_zone, td);
 		tid_free(tid);
+		thread_count_dec();
 		return (NULL);
 	}
 	td->td_tid = tid;
@@ -564,6 +591,7 @@ thread_free(struct thread *td)
 	tid = td->td_tid;
 	thread_free_batched(td);
 	tid_free(tid);
+	thread_count_dec();
 }
 
 void
