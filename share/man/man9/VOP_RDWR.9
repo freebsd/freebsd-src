@@ -44,7 +44,7 @@
 .Ft int
 .Fn VOP_WRITE "struct vnode *vp" "struct uio *uio" "int ioflag" "struct ucred *cred"
 .Sh DESCRIPTION
-These entry points read or write the contents of a file
+These entry points read or write the contents of a file.
 .Pp
 The arguments are:
 .Bl -tag -width ioflag
@@ -66,7 +66,7 @@ read-ahead hint (in units of file system blocks) that the file system
 should attempt.
 The low 16 bits are a bit mask which can contain
 the following flags:
-.Bl -tag -width ".Dv IO_NODELOCKED"
+.Bl -tag -width "IO_NODELOCKED"
 .It Dv IO_UNIT
 Do I/O as atomic unit.
 .It Dv IO_APPEND
