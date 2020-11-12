@@ -1003,6 +1003,17 @@ t4opt_to_tcpopt(const struct tcp_options *t4opt, struct tcpopt *to)
 		to->to_flags |= TOF_SACKPERM;
 }
 
+static bool
+encapsulated_syn(struct adapter *sc, const struct cpl_pass_accept_req *cpl)
+{
+	u_int hlen = be32toh(cpl->hdr_len);
+
+	if (chip_id(sc) >= CHELSIO_T6)
+		return (G_T6_ETH_HDR_LEN(hlen) > sizeof(struct ether_vlan_header));
+	else
+		return (G_ETH_HDR_LEN(hlen) > sizeof(struct ether_vlan_header));
+}
+
 static void
 pass_accept_req_to_protohdrs(struct adapter *sc, const struct mbuf *m,
     struct in_conninfo *inc, struct tcphdr *th, uint8_t *iptos)
@@ -1194,22 +1205,38 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 	CTR4(KTR_CXGBE, "%s: stid %u, tid %u, lctx %p", __func__, stid, tid,
 	    lctx);
 
+	/*
+	 * Figure out the port the SYN arrived on.  We'll look for an exact VI
+	 * match in a bit but in case we don't find any we'll use the main VI as
+	 * the incoming ifnet.
+	 */
+	l2info = be16toh(cpl->l2info);
+	pi = sc->port[G_SYN_INTF(l2info)];
+	hw_ifp = pi->vi[0].ifp;
+	m->m_pkthdr.rcvif = hw_ifp;
+
 	CURVNET_SET(lctx->vnet);	/* before any potential REJECT */
+
+	/*
+	 * If VXLAN/NVGRE parsing is enabled then SYNs in the inner traffic will
+	 * also hit the listener.  We don't want to offload those.
+	 */
+	if (encapsulated_syn(sc, cpl)) {
+		REJECT_PASS_ACCEPT_REQ(true);
+	}
 
 	/*
 	 * Use the MAC index to lookup the associated VI.  If this SYN didn't
 	 * match a perfect MAC filter, punt.
 	 */
-	l2info = be16toh(cpl->l2info);
-	pi = sc->port[G_SYN_INTF(l2info)];
 	if (!(l2info & F_SYN_XACT_MATCH)) {
-		REJECT_PASS_ACCEPT_REQ(false);
+		REJECT_PASS_ACCEPT_REQ(true);
 	}
 	for_each_vi(pi, v, vi) {
 		if (vi->xact_addr_filt == G_SYN_MAC_IDX(l2info))
 			goto found;
 	}
-	REJECT_PASS_ACCEPT_REQ(false);
+	REJECT_PASS_ACCEPT_REQ(true);
 found:
 	hw_ifp = vi->ifp;	/* the cxgbe ifnet */
 	m->m_pkthdr.rcvif = hw_ifp;
