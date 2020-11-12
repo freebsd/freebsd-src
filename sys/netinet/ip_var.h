@@ -182,6 +182,7 @@ struct inpcbinfo;
 
 VNET_DECLARE(int, ip_defttl);			/* default IP ttl */
 VNET_DECLARE(int, ipforwarding);		/* ip forwarding */
+VNET_DECLARE(int, ipsendredirects);
 #ifdef IPSTEALTH
 VNET_DECLARE(int, ipstealth);			/* stealth forwarding */
 #endif
@@ -197,6 +198,7 @@ extern struct	pr_usrreqs rip_usrreqs;
 #define	V_ip_id			VNET(ip_id)
 #define	V_ip_defttl		VNET(ip_defttl)
 #define	V_ipforwarding		VNET(ipforwarding)
+#define	V_ipsendredirects	VNET(ipsendredirects)
 #ifdef IPSTEALTH
 #define	V_ipstealth		VNET(ipstealth)
 #endif
