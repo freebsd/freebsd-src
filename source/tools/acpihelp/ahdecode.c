@@ -155,6 +155,7 @@
 #include "acpihelp.h"
 #include "acpredef.h"
 
+BOOLEAN                  AslGbl_VerboseErrors = TRUE;
 
 /* Local prototypes */
 

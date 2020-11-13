@@ -181,6 +181,7 @@ const AH_UUID  Gbl_AcpiUuids[] =
     {"Physical Presence Interface", UUID_PHYSICAL_PRESENCE},
 
     {"[Non-volatile DIMM and NFIT table]",       NULL},
+    {"NVDIMM Device",               UUID_NFIT_DIMM},
     {"Volatile Memory Region",      UUID_VOLATILE_MEMORY},
     {"Persistent Memory Region",    UUID_PERSISTENT_MEMORY},
     {"NVDIMM Control Region",       UUID_CONTROL_REGION},
@@ -189,6 +190,10 @@ const AH_UUID  Gbl_AcpiUuids[] =
     {"Volatile Virtual CD",         UUID_VOLATILE_VIRTUAL_CD},
     {"Persistent Virtual Disk",     UUID_PERSISTENT_VIRTUAL_DISK},
     {"Persistent Virtual CD",       UUID_PERSISTENT_VIRTUAL_CD},
+    {"Microsoft NVDIMM Command set",UUID_NFIT_DIMM_N_MSFT},
+    {"HP NDIMM HPE1",               UUID_NFIT_DIMM_N_HPE1},
+    {"HP NDIMM HPE2",               UUID_NFIT_DIMM_N_HPE2},
+    {"Virtual NVDIMM",              UUID_NFIT_DIMM_N_HYPERV},
 
     {"[Processor Properties]",      NULL},
     {"Cache Properties",            UUID_CACHE_PROPERTIES},

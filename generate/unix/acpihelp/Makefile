@@ -22,7 +22,8 @@ vpath %.c \
     $(ACPIHELP)\
     $(ACPICA_COMMON)\
     $(ACPICA_UTILITIES)\
-    $(ACPICA_OSL)
+    $(ACPICA_OSL)\
+    $(ASL_COMPILER)
 
 HEADERS = \
     $(wildcard $(ACPIHELP)/*.h)
@@ -40,6 +41,7 @@ OBJECTS = \
 	$(OBJDIR)/ahmain.o\
 	$(OBJDIR)/ahtable.o\
 	$(OBJDIR)/ahuuids.o\
+	$(OBJDIR)/aslmessages.o\
 	$(OBJDIR)/getopt.o\
 	$(OBJDIR)/osunixxf.o\
 	$(OBJDIR)/utdebug.o\

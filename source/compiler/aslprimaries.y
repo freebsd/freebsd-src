@@ -500,7 +500,7 @@ DivideTerm
 EISAIDTerm
     : PARSEOP_EISAID
         PARSEOP_OPEN_PAREN
-        StringData
+        StringLiteral
         PARSEOP_CLOSE_PAREN         {$$ = TrSetOpIntegerValue (PARSEOP_EISAID, $3);}
     | PARSEOP_EISAID
         PARSEOP_OPEN_PAREN
@@ -635,7 +635,7 @@ FprintfTerm
     : PARSEOP_FPRINTF
         PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_FPRINTF);}
         TermArg ','
-        StringData
+        StringLiteral
         PrintfArgList
         PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,3,$4,$6,$7);}
     | PARSEOP_FPRINTF
@@ -1091,7 +1091,7 @@ PowerResTerm
 PrintfTerm
     : PARSEOP_PRINTF
         PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_PRINTF);}
-        StringData
+        StringLiteral
         PrintfArgList
         PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,$4,$5);}
     | PARSEOP_PRINTF
@@ -1412,7 +1412,7 @@ ToStringTerm
 ToUUIDTerm
     : PARSEOP_TOUUID
         PARSEOP_OPEN_PAREN
-        StringData
+        StringLiteral
         PARSEOP_CLOSE_PAREN         {$$ = TrSetOpIntegerValue (PARSEOP_TOUUID, $3);}
     | PARSEOP_TOUUID
         PARSEOP_OPEN_PAREN
@@ -1422,7 +1422,7 @@ ToUUIDTerm
 UnicodeTerm
     : PARSEOP_UNICODE
         PARSEOP_OPEN_PAREN          {$<n>$ = TrCreateLeafOp (PARSEOP_UNICODE);}
-        StringData
+        StringLiteral
         PARSEOP_CLOSE_PAREN         {$$ = TrLinkOpChildren ($<n>3,2,0,$4);}
     | PARSEOP_UNICODE
         PARSEOP_OPEN_PAREN

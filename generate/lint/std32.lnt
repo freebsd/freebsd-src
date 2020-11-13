@@ -6,7 +6,7 @@
 -d_MSC_VER=1
 +fll            // enable long long
 +rw(__asm)      // enable in-line assembly
--esym( 950, __asm) 
+-esym( 950, __asm)
                      // Used to track stack use
 -si4 -sp4
 

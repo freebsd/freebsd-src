@@ -538,7 +538,7 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /* TYPE_TRANSLATION */          OP_TABLE_ENTRY (AML_BYTE_OP,                1,                              0,                  0),
 /* UART_SERIALBUS */            OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
 /* UART_SERIALBUSV2 */          OP_TABLE_ENTRY (AML_DEFAULT_ARG_OP,         0,                              0,                  0),
-/* UNICODE */                   OP_TABLE_ENTRY (AML_BUFFER_OP,              0,                              OP_AML_PACKAGE,     0),
+/* UNICODE */                   OP_TABLE_ENTRY (AML_BUFFER_OP,              0,                              OP_AML_PACKAGE,     ACPI_BTYPE_BUFFER),
 /* UNLOAD */                    OP_TABLE_ENTRY (AML_UNLOAD_OP,              0,                              0,                  0),
 /* UPDATERULE_ONES */           OP_TABLE_ENTRY (AML_BYTE_OP,                AML_FIELD_UPDATE_WRITE_AS_ONES, 0,                  0),
 /* UPDATERULE_PRESERVE */       OP_TABLE_ENTRY (AML_BYTE_OP,                AML_FIELD_UPDATE_PRESERVE,      0,                  0),
