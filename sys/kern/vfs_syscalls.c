@@ -1384,6 +1384,8 @@ restart:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
+	if (error == ERELOOKUP)
+		goto restart;
 	return (error);
 }
 
@@ -1470,6 +1472,8 @@ out:
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	if (error == ERELOOKUP)
+		goto restart;
 	return (error);
 }
 
@@ -1568,7 +1572,7 @@ kern_linkat(struct thread *td, int fd1, int fd2, const char *path1,
 			return (error);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		error = kern_linkat_vp(td, nd.ni_vp, fd2, path2, segflag);
-	} while (error ==  EAGAIN);
+	} while (error ==  EAGAIN || error == ERELOOKUP);
 	return (error);
 }
 
@@ -1741,6 +1745,8 @@ out2:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
+	if (error == ERELOOKUP)
+		goto restart;
 out:
 	if (segflg != UIO_SYSSPACE)
 		uma_zfree(namei_zone, tmppath);
@@ -1791,6 +1797,8 @@ restart:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_dvp);
 	vn_finished_write(mp);
+	if (error == ERELOOKUP)
+		goto restart;
 	return (error);
 }
 
@@ -1937,6 +1945,8 @@ out:
 		vrele(vp);
 	else
 		vput(vp);
+	if (error == ERELOOKUP)
+		goto restart;
 fdout:
 	if (fp != NULL)
 		fdrop(fp, td);
@@ -3395,7 +3405,8 @@ kern_truncate(struct thread *td, const char *path, enum uio_seg pathseg,
 	int error;
 
 	if (length < 0)
-		return(EINVAL);
+		return (EINVAL);
+retry:
 	NDINIT(&nd, LOOKUP, FOLLOW | AUDITVNODE1, pathseg, path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -3424,6 +3435,8 @@ kern_truncate(struct thread *td, const char *path, enum uio_seg pathseg,
 	vn_finished_write(mp);
 	vn_rangelock_unlock(vp, rl_cookie);
 	vrele(vp);
+	if (error == ERELOOKUP)
+		goto retry;
 	return (error);
 }
 
@@ -3479,6 +3492,7 @@ kern_fsync(struct thread *td, int fd, bool fullsync)
 	if (!fullsync)
 		/* XXXKIB: compete outstanding aio writes */;
 #endif
+retry:
 	error = vn_start_write(vp, &mp, V_WAIT | PCATCH);
 	if (error != 0)
 		goto drop;
@@ -3498,6 +3512,8 @@ kern_fsync(struct thread *td, int fd, bool fullsync)
 	error = fullsync ? VOP_FSYNC(vp, MNT_WAIT, td) : VOP_FDATASYNC(vp, td);
 	VOP_UNLOCK(vp);
 	vn_finished_write(mp);
+	if (error == ERELOOKUP)
+		goto retry;
 drop:
 	fdrop(fp, td);
 	return (error);
@@ -3679,7 +3695,7 @@ again:
 	 * are links to the same vnode), then there is nothing to do.
 	 */
 	if (fvp == tvp)
-		error = -1;
+		error = ERESTART;
 #ifdef MAC
 	else
 		error = mac_vnode_check_rename_to(td->td_ucred, tdvp,
@@ -3708,8 +3724,10 @@ out:
 out1:
 	if (fromnd.ni_startdir)
 		vrele(fromnd.ni_startdir);
-	if (error == -1)
+	if (error == ERESTART)
 		return (0);
+	if (error == ERELOOKUP)
+		goto again;
 	return (error);
 }
 
@@ -3803,6 +3821,8 @@ out:
 	if (error == 0)
 		vput(nd.ni_vp);
 	vn_finished_write(mp);
+	if (error == ERELOOKUP)
+		goto restart;
 	return (error);
 }
 
@@ -3903,6 +3923,8 @@ out:
 		vrele(nd.ni_dvp);
 	else
 		vput(nd.ni_dvp);
+	if (error == ERELOOKUP)
+		goto restart;
 fdout:
 	if (fp != NULL)
 		fdrop(fp, td);
@@ -4416,7 +4438,8 @@ kern_fhlinkat(struct thread *td, int fd, const char *path,
 		if (error != 0)
 			return (error);
 		VOP_UNLOCK(vp);
-	} while ((error = kern_linkat_vp(td, vp, fd, path, pathseg)) == EAGAIN);
+		error = kern_linkat_vp(td, vp, fd, path, pathseg);
+	} while (error == EAGAIN || error == ERELOOKUP);
 	return (error);
 }
 
