@@ -1446,13 +1446,17 @@ pipe_poll(struct file *fp, int events, struct ucred *active_cred,
 	}
 
 	if (revents == 0) {
-		if (fp->f_flag & FREAD && events & (POLLIN | POLLRDNORM)) {
+		/*
+		 * Add ourselves regardless of eventmask as we have to return
+		 * POLLHUP even if it was not asked for.
+		 */
+		if ((fp->f_flag & FREAD) != 0) {
 			selrecord(td, &rpipe->pipe_sel);
 			if (SEL_WAITING(&rpipe->pipe_sel))
 				rpipe->pipe_state |= PIPE_SEL;
 		}
 
-		if (fp->f_flag & FWRITE && events & (POLLOUT | POLLWRNORM)) {
+		if ((fp->f_flag & FWRITE) != 0) {
 			selrecord(td, &wpipe->pipe_sel);
 			if (SEL_WAITING(&wpipe->pipe_sel))
 				wpipe->pipe_state |= PIPE_SEL;
