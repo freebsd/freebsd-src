@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <sys/endian.h>
 
@@ -183,7 +184,7 @@ get_log_buffer(uint32_t size)
 	void	*buf;
 
 	if ((buf = malloc(size)) == NULL)
-		errx(1, "unable to malloc %u bytes", size);
+		errx(EX_OSERR, "unable to malloc %u bytes", size);
 
 	memset(buf, 0, size);
 	return (buf);
@@ -217,7 +218,7 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "get log page request failed");
+		err(EX_IOERR, "get log page request failed");
 
 	/* Convert data to host endian */
 	switch (log_page) {
@@ -259,7 +260,7 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 	}
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "get log page request returned error");
+		errx(EX_IOERR, "get log page request returned error");
 }
 
 static void
@@ -659,7 +660,7 @@ logpage_help(void)
 		fprintf(stderr, "0x%02x     %-10s %s\n", f->log_page, v, f->name);
 	}
 
-	exit(1);
+	exit(EX_USAGE);
 }
 
 static void
@@ -697,7 +698,8 @@ logpage(const struct cmd *f, int argc, char *argv[])
 	}
 	free(path);
 
-	read_controller_data(fd, &cdata);
+	if (read_controller_data(fd, &cdata))
+		errx(EX_IOERR, "Identify request failed");
 
 	ns_smart = (cdata.lpa >> NVME_CTRLR_DATA_LPA_NS_SMART_SHIFT) &
 		NVME_CTRLR_DATA_LPA_NS_SMART_MASK;
@@ -709,10 +711,10 @@ logpage(const struct cmd *f, int argc, char *argv[])
 	 */
 	if (nsid != NVME_GLOBAL_NAMESPACE_TAG) {
 		if (opt.page != NVME_LOG_HEALTH_INFORMATION)
-			errx(1, "log page %d valid only at controller level",
+			errx(EX_USAGE, "log page %d valid only at controller level",
 			    opt.page);
 		if (ns_smart == 0)
-			errx(1,
+			errx(EX_UNAVAILABLE,
 			    "controller does not support per namespace "
 			    "smart/health information");
 	}
