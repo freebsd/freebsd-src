@@ -68,6 +68,11 @@ __DEFAULT_NO_OPTIONS = \
 # affected by KERNEL_SYMBOLS, FORMAT_EXTENSIONS, CTF and SSP.
 
 # Things that don't work based on the CPU
+.if ${MACHINE} == "amd64"
+# PR251083 conflict between INIT_ALL_ZERO and ifunc memset
+BROKEN_OPTIONS+= INIT_ALL_ZERO
+.endif
+
 .if ${MACHINE_CPUARCH} == "arm"
 . if ${MACHINE_ARCH:Marmv[67]*} == ""
 BROKEN_OPTIONS+= CDDL ZFS
