@@ -52,16 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
-#ifdef MOUNT_CHAR_DEVS
-#include <ufs/ufs/ufsmount.h>
-#endif
 #include <err.h>
 #include <getopt.h>
 #include <libutil.h>
 #include <locale.h>
-#ifdef MOUNT_CHAR_DEVS
-#include <mntopts.h>
-#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -106,9 +100,6 @@ imax(int a, int b)
 
 static int	aflag = 0, cflag, hflag, iflag, kflag, lflag = 0, nflag, Tflag;
 static int	thousands;
-#ifdef MOUNT_CHAR_DEVS
-static struct	ufs_args mdev;
-#endif
 
 static const struct option long_options[] =
 {
@@ -123,21 +114,11 @@ main(int argc, char *argv[])
 	struct statfs statfsbuf, totalbuf;
 	struct maxwidths maxwidths;
 	struct statfs *mntbuf;
-#ifdef MOUNT_CHAR_DEVS
-	struct iovec *iov = NULL;
-#endif
 	const char *fstype;
-#ifdef MOUNT_CHAR_DEVS
-	char *mntpath;
-	char errmsg[255] = {0};
-#endif
 	char *mntpt;
 	const char **vfslist;
 	int i, mntsize;
 	int ch, rv;
-#ifdef MOUNT_CHAR_DEVS
-	int iovlen = 0;
-#endif
 
 	fstype = "ufs";
 	(void)setlocale(LC_ALL, "");
@@ -255,66 +236,15 @@ main(int argc, char *argv[])
 				continue;
 			}
 		} else if (S_ISCHR(stbuf.st_mode)) {
-			if ((mntpt = getmntpt(*argv)) == NULL) {
-#ifdef MOUNT_CHAR_DEVS
-				xo_warnx(
-				    "df on unmounted devices is deprecated");
-				mdev.fspec = *argv;
-				mntpath = strdup("/tmp/df.XXXXXX");
-				if (mntpath == NULL) {
-					xo_warn("strdup failed");
-					rv = 1;
-					continue;
-				}
-				mntpt = mkdtemp(mntpath);
-				if (mntpt == NULL) {
-					xo_warn("mkdtemp(\"%s\") failed", mntpath);
-					rv = 1;
-					free(mntpath);
-					continue;
-				}
-				if (iov != NULL)
-					free_iovec(&iov, &iovlen);
-				build_iovec_argf(&iov, &iovlen, "fstype", "%s",
-				    fstype);
-				build_iovec_argf(&iov, &iovlen, "fspath", "%s",
-				    mntpath);
-				build_iovec_argf(&iov, &iovlen, "from", "%s",
-				    *argv);
-				build_iovec(&iov, &iovlen, "errmsg", errmsg,
-				    sizeof(errmsg));
-				if (nmount(iov, iovlen,
-				    MNT_RDONLY|MNT_NOEXEC) < 0) {
-					if (errmsg[0])
-						xo_warn("%s: %s", *argv,
-						    errmsg);
-					else
-						xo_warn("%s", *argv);
-					rv = 1;
-					(void)rmdir(mntpt);
-					free(mntpath);
-					continue;
-				} else if (statfs(mntpt, &statfsbuf) == 0) {
-					statfsbuf.f_mntonname[0] = '\0';
-					prtstat(&statfsbuf, &maxwidths);
-					if (cflag)
-						addstat(&totalbuf, &statfsbuf);
-				} else {
-					xo_warn("%s", *argv);
-					rv = 1;
-				}
-				(void)unmount(mntpt, 0);
-				(void)rmdir(mntpt);
-				free(mntpath);
-				continue;
-#else
+			mntpt = getmntpt(*argv);
+			if (mntpt == NULL) {
 				xo_warnx("%s: not mounted", *argv);
 				rv = 1;
 				continue;
-#endif
 			}
-		} else
+		} else {
 			mntpt = *argv;
+		}
 
 		/*
 		 * Statfs does not take a `wait' flag, so we cannot
