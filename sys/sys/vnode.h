@@ -729,6 +729,8 @@ bool	vn_isdisk_error(struct vnode *vp, int *errp);
 bool	vn_isdisk(struct vnode *vp);
 int	_vn_lock(struct vnode *vp, int flags, const char *file, int line);
 #define vn_lock(vp, flags) _vn_lock(vp, flags, __FILE__, __LINE__)
+void	vn_lock_pair(struct vnode *vp1, bool vp1_locked, struct vnode *vp2,
+	    bool vp2_locked);
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    u_int vn_open_flags, struct ucred *cred, struct file *fp);
