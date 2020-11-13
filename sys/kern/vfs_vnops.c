@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
+#include <sys/prng.h>
 #include <sys/sx.h>
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
@@ -275,6 +276,10 @@ restart:
 			vn_finished_write(mp);
 			if (error) {
 				NDFREE(ndp, NDF_ONLY_PNBUF);
+				if (error == ERELOOKUP) {
+					NDREINIT(ndp);
+					goto restart;
+				}
 				return (error);
 			}
 			fmode &= ~O_TRUNC;
@@ -1524,6 +1529,7 @@ vn_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 
 	vp = fp->f_vnode;
 
+retry:
 	/*
 	 * Lock the whole range for truncation.  Otherwise split i/o
 	 * might happen partly before and partly after the truncation.
@@ -1550,6 +1556,8 @@ out:
 	vn_finished_write(mp);
 out1:
 	vn_rangelock_unlock(vp, rl_cookie);
+	if (error == ERELOOKUP)
+		goto retry;
 	return (error);
 }
 
@@ -3317,4 +3325,92 @@ vn_fallocate(struct file *fp, off_t offset, off_t len, struct thread *td)
 	}
 
 	return (error);
+}
+
+static u_long vn_lock_pair_pause_cnt;
+SYSCTL_ULONG(_debug, OID_AUTO, vn_lock_pair_pause, CTLFLAG_RD,
+    &vn_lock_pair_pause_cnt, 0,
+    "Count of vn_lock_pair deadlocks");
+
+static void
+vn_lock_pair_pause(const char *wmesg)
+{
+	atomic_add_long(&vn_lock_pair_pause_cnt, 1);
+	pause(wmesg, prng32_bounded(hz / 10));
+}
+
+/*
+ * Lock pair of vnodes vp1, vp2, avoiding lock order reversal.
+ * vp1_locked indicates whether vp1 is exclusively locked; if not, vp1
+ * must be unlocked.  Same for vp2 and vp2_locked.  One of the vnodes
+ * can be NULL.
+ *
+ * The function returns with both vnodes exclusively locked, and
+ * guarantees that it does not create lock order reversal with other
+ * threads during its execution.  Both vnodes could be unlocked
+ * temporary (and reclaimed).
+ */
+void
+vn_lock_pair(struct vnode *vp1, bool vp1_locked, struct vnode *vp2,
+    bool vp2_locked)
+{
+	int error;
+
+	if (vp1 == NULL && vp2 == NULL)
+		return;
+	if (vp1 != NULL) {
+		if (vp1_locked)
+			ASSERT_VOP_ELOCKED(vp1, "vp1");
+		else
+			ASSERT_VOP_UNLOCKED(vp1, "vp1");
+	} else {
+		vp1_locked = true;
+	}
+	if (vp2 != NULL) {
+		if (vp2_locked)
+			ASSERT_VOP_ELOCKED(vp2, "vp2");
+		else
+			ASSERT_VOP_UNLOCKED(vp2, "vp2");
+	} else {
+		vp2_locked = true;
+	}
+	if (!vp1_locked && !vp2_locked) {
+		vn_lock(vp1, LK_EXCLUSIVE | LK_RETRY);
+		vp1_locked = true;
+	}
+
+	for (;;) {
+		if (vp1_locked && vp2_locked)
+			break;
+		if (vp1_locked && vp2 != NULL) {
+			if (vp1 != NULL) {
+				error = VOP_LOCK1(vp2, LK_EXCLUSIVE | LK_NOWAIT,
+				    __FILE__, __LINE__);
+				if (error == 0)
+					break;
+				VOP_UNLOCK(vp1);
+				vp1_locked = false;
+				vn_lock_pair_pause("vlp1");
+			}
+			vn_lock(vp2, LK_EXCLUSIVE | LK_RETRY);
+			vp2_locked = true;
+		}
+		if (vp2_locked && vp1 != NULL) {
+			if (vp2 != NULL) {
+				error = VOP_LOCK1(vp1, LK_EXCLUSIVE | LK_NOWAIT,
+				    __FILE__, __LINE__);
+				if (error == 0)
+					break;
+				VOP_UNLOCK(vp2);
+				vp2_locked = false;
+				vn_lock_pair_pause("vlp2");
+			}
+			vn_lock(vp1, LK_EXCLUSIVE | LK_RETRY);
+			vp1_locked = true;
+		}
+	}
+	if (vp1 != NULL)
+		ASSERT_VOP_ELOCKED(vp1, "vp1 ret");
+	if (vp2 != NULL)
+		ASSERT_VOP_ELOCKED(vp2, "vp2 ret");
 }
