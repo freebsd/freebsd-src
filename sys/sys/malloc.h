@@ -147,7 +147,6 @@ struct malloc_type_header {
 			.ks_next = NULL,				\
 			.ks_version = M_VERSION,			\
 			.ks_shortdesc = shortdesc,			\
-			.ks_mti = { 0 },				\
 		}							\
 	};								\
 	SYSINIT(type##_init, SI_SUB_KMEM, SI_ORDER_THIRD, malloc_init,	\
