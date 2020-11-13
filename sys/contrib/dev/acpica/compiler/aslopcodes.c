@@ -798,7 +798,13 @@ OpcDoUuId (
     }
     else
     {
+        /* Convert UUID string to a buffer, check for a known UUID */
+
         AcpiUtConvertStringToUuid (InString, Buffer);
+        if (!AcpiAhMatchUuid (Buffer))
+        {
+            AslError (ASL_REMARK, ASL_MSG_UUID_NOT_FOUND, Op, NULL);
+        }
     }
 
     /* Change Op to a Buffer */
