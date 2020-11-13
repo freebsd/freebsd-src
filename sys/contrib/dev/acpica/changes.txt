@@ -1,6 +1,94 @@
 ----------------------------------------
 
 
+13 November 2020. Summary of changes for version 20201113:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Interpreter: fixed a memory leak by using use existing buffer in _HID 
+repair. There was a memory leak that occurred when a _CID object is 
+defined as a package containing string objects. When _CID is checked for 
+any possible repairs, it calls a helper function to repair _HID (because 
+_CID basically contains multiple _HID entries). The _HID repair function 
+assumes that string objects are standalone objects that are not contained 
+inside of any packages. The _HID repair function replaced the string 
+object with a brand new object and attempted to delete the old object by 
+decrementing the reference count of the old object. Strings inside of 
+packages have a reference count of 2 so the _HID repair function leaves 
+this object in a dangling state and causes a memory leak. Instead of 
+allocating a brand new object and removing the old object, use the 
+existing object when repairing the _HID object.
+
+Added function trace macros to improve namespace debugging. The namespace 
+repair mechanism does not have function tracing macros. Add several trace 
+macros to improve debuggability.
+
+Handle "orphan" _REG methods for GPIO OpRegions. Before this change 
+AcpiEvExecuteRegMethods() had special handling to handle "orphan" (no 
+matching OpRegion declared) _REG methods for EC nodes. On Intel Cherry 
+Trail devices there are 2 possible ACPI OpRegions for accessing GPIOs. 
+The standard GeneralPurposeIo OpRegion and the Cherry Trail - specific 
+UserDefined 0x9X OpRegions. Having 2 different types of OpRegions leads 
+to potential issues with checks for OpRegion availability, or in other 
+words checks if _REG has been called for the OpRegion which the ACPI code 
+wants to use. Except for the "orphan" EC handling, ACPICA core does not 
+call _REG on an ACPI node which does not define an OpRegion matching the 
+type being registered; and the reference design DSDT, from which most 
+Cherry Trail DSDTs are derived, does not define GeneralPurposeIo, nor 
+UserDefined(0x93) OpRegions for the GPO2 (UID 3) device, because no pins 
+were assigned ACPI controlled functions in the reference design. Together 
+this leads to the perfect storm, at least on the Cherry Trail based 
+Medion Akayo E1239T. This design does use a GPO2 pin from its ACPI code 
+and has added the Cherry Trail specific UserDefined(0x93) opregion to its 
+GPO2 ACPI node to access this pin. But it uses a "has _REG been called" 
+availability check for the standard GeneralPurposeIo OpRegion. This 
+clearly is a bug in the DSDT, but this does work under Windows. This 
+issue leads to the intel vbtn driver reporting the device always being in 
+tablet-mode at boot, even if it is in laptop mode. Which in turn causes 
+userspace to ignore touchpad events. So in other words, this issue causes 
+the touchpad to not work at boot. This change fixes this by extending the 
+"orphan" _REG method handling to also apply to GPIO address-space 
+handlers.
+
+
+2) iASL Compiler/Disassembler and ACPICA tools: 
+
+iASL: Added more info to namespace dump file (-ln option). In a separate 
+section of the dump file (after the main namespace dump), emit the full 
+pathname for each namespace node, its type, and the ASL filename and line 
+number where it is declared.
+
+AcpiHelp: Added an option to display/decode iASL exceptions. Option is: -
+x [Hex Value] where "Hex Value" is the iASL exception code. If Hex Value 
+is omitted, all iASL exceptions are displayed.
+
+iASL: Use StringLiteral instead of StringData for some ASL macros. The 
+use of the stringData rule allows for some "string" oriented opcodes 
+(Such as ToString, ToHexString, etc.) None of which make sense with the 
+macros in question. This change modifies the StringData part of the rule 
+for these macros to a simple string  literal - thus disallowing the use 
+of ToString, ToHexString, etc.
+The following ASL operators (macros) are affected:
+EisaId
+Fprintf
+Printf
+ToUuid
+Unicode
+Note: The MS compiler requires the use of string literals for these 
+operators also.
+
+iASL: Added a remark for an unknown UUID: ASL_MSG_UUID_NOT_FOUND. Search 
+the list of "known" UUIDs for the input to the ToUUID macro.
+
+Added 5 new UUIDs to the known UUID table. All related to NVDIMM and the 
+NFIT table.
+
+
+----------------------------------------
+
 25 September 2020. Summary of changes for version 20200925:
 
 This release is available at https://acpica.org/downloads
@@ -41,7 +129,7 @@ names:
     _SBT
     _SBW
 
-AML Disassembler: Added a new command, "All <NameSeg". This command will 
+AML Disassembler: Added a new command, "All <NameSeg>". This command will 
 evaluate all objects in the current namespace whose NameString contains 
 the input NameSeg as the last element of the NameString. Useful for 
 debugging.
@@ -54,6 +142,11 @@ with lengths that exceed the initializer list.
 
 iASL: added more detail to external resolution error message when 
 compiling multiple definition blocks.
+
+iASL: added a remark for an attempt to create a nameseg or namestring 
+containing lower-case letters. This should prevent declaring multiple 
+namesegs or namestrings in an attempt to refer to different objects (with 
+different cases), but actually refer to the same object(s).
 
 iASL: improve alias analysis by saving object type. If the alias is a 
 method type, the parameter count is also recorded.
@@ -3702,7 +3795,7 @@ iASL compiler, all ACPICA utilities, and the test suites.
 Events: Introduce ACPI_GPE_DISPATCH_RAW_HANDLER to fix GPE storm issues.
 A raw gpe handling mechanism was created to allow better handling of GPE
 storms that aren't easily managed by the normal handler. The raw handler
-allows disabling/renabling of the the GPE so that interrupt storms can be
+allows disabling/renabling of the GPE so that interrupt storms can be
 avoided in cases where events cannot be timely serviced. In this 
 scenario, handlers should use the AcpiSetGpe() API to disable/enable the 
 GPE. This API will leave the reference counts undisturbed, thereby 
