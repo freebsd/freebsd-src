@@ -616,8 +616,8 @@ struct pf_ksrc_node {
 	struct pf_addr	 raddr;
 	union pf_rule_ptr rule;
 	struct pfi_kif	*kif;
-	u_int64_t	 bytes[2];
-	u_int64_t	 packets[2];
+	counter_u64_t	 bytes[2];
+	counter_u64_t	 packets[2];
 	u_int32_t	 states;
 	u_int32_t	 conn;
 	struct pf_threshold	conn_rate;

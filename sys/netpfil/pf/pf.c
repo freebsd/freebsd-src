@@ -702,6 +702,19 @@ pf_find_src_node(struct pf_addr *src, struct pf_rule *rule, sa_family_t af,
 	return (n);
 }
 
+static void
+pf_free_src_node(struct pf_ksrc_node *sn)
+{
+
+	for (int i = 0; i < 2; i++) {
+		if (sn->bytes[i])
+			counter_u64_free(sn->bytes[i]);
+		if (sn->packets[i])
+			counter_u64_free(sn->packets[i]);
+	}
+	uma_zfree(V_pf_sources_z, sn);
+}
+
 static int
 pf_insert_src_node(struct pf_ksrc_node **sn, struct pf_rule *rule,
     struct pf_addr *src, sa_family_t af)
@@ -728,6 +741,17 @@ pf_insert_src_node(struct pf_ksrc_node **sn, struct pf_rule *rule,
 		if ((*sn) == NULL) {
 			PF_HASHROW_UNLOCK(sh);
 			return (-1);
+		}
+
+		for (int i = 0; i < 2; i++) {
+			(*sn)->bytes[i] = counter_u64_alloc(M_NOWAIT);
+			(*sn)->packets[i] = counter_u64_alloc(M_NOWAIT);
+
+			if ((*sn)->bytes[i] == NULL || (*sn)->packets[i] == NULL) {
+				pf_free_src_node(*sn);
+				PF_HASHROW_UNLOCK(sh);
+				return (-1);
+			}
 		}
 
 		pf_init_threshold(&(*sn)->conn_rate,
@@ -773,7 +797,7 @@ pf_free_src_nodes(struct pf_ksrc_node_list *head)
 	u_int count = 0;
 
 	LIST_FOREACH_SAFE(sn, head, entry, tmp) {
-		uma_zfree(V_pf_sources_z, sn);
+		pf_free_src_node(sn);
 		count++;
 	}
 
@@ -6322,12 +6346,16 @@ done:
 				s->nat_rule.ptr->bytes[dirndx] += pd.tot_len;
 			}
 			if (s->src_node != NULL) {
-				s->src_node->packets[dirndx]++;
-				s->src_node->bytes[dirndx] += pd.tot_len;
+				counter_u64_add(s->src_node->packets[dirndx],
+				    1);
+				counter_u64_add(s->src_node->bytes[dirndx],
+				    pd.tot_len);
 			}
 			if (s->nat_src_node != NULL) {
-				s->nat_src_node->packets[dirndx]++;
-				s->nat_src_node->bytes[dirndx] += pd.tot_len;
+				counter_u64_add(s->nat_src_node->packets[dirndx],
+				    1);
+				counter_u64_add(s->nat_src_node->bytes[dirndx],
+				    pd.tot_len);
 			}
 			dirndx = (dir == s->direction) ? 0 : 1;
 			counter_u64_add(s->packets[dirndx], 1);
@@ -6721,12 +6749,16 @@ done:
 				s->nat_rule.ptr->bytes[dirndx] += pd.tot_len;
 			}
 			if (s->src_node != NULL) {
-				s->src_node->packets[dirndx]++;
-				s->src_node->bytes[dirndx] += pd.tot_len;
+				counter_u64_add(s->src_node->packets[dirndx],
+				    1);
+				counter_u64_add(s->src_node->bytes[dirndx],
+				    pd.tot_len);
 			}
 			if (s->nat_src_node != NULL) {
-				s->nat_src_node->packets[dirndx]++;
-				s->nat_src_node->bytes[dirndx] += pd.tot_len;
+				counter_u64_add(s->nat_src_node->packets[dirndx],
+				    1);
+				counter_u64_add(s->nat_src_node->bytes[dirndx],
+				    pd.tot_len);
 			}
 			dirndx = (dir == s->direction) ? 0 : 1;
 			counter_u64_add(s->packets[dirndx], 1);

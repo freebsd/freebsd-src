@@ -1163,8 +1163,11 @@ pf_src_node_copy(const struct pf_ksrc_node *in, struct pf_src_node *out)
 	if (in->rule.ptr != NULL)
 		out->rule.nr = in->rule.ptr->nr;
 
-	bcopy(&in->bytes, &out->bytes, sizeof(u_int64_t) * 2);
-	bcopy(&in->packets, &out->packets, sizeof(u_int64_t) * 2);
+	for (int i = 0; i < 2; i++) {
+		out->bytes[i] = counter_u64_fetch(in->bytes[i]);
+		out->packets[i] = counter_u64_fetch(in->packets[i]);
+	}
+
 	out->states = in->states;
 	out->conn = in->conn;
 	out->af = in->af;
