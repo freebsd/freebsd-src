@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -102,12 +103,14 @@ devlist(const struct cmd *f, int argc, char *argv[])
 			continue;
 
 		found++;
-		read_controller_data(fd, &cdata);
+		if (read_controller_data(fd, &cdata))
+			continue;
 		nvme_strvis(mn, cdata.mn, sizeof(mn), NVME_MODEL_NUMBER_LENGTH);
 		printf("%6s: %s\n", name, mn);
 
 		for (i = 0; i < cdata.nn; i++) {
-			read_namespace_data(fd, i + 1, &nsdata);
+			if (read_namespace_data(fd, i + 1, &nsdata))
+				continue;
 			if (nsdata.nsze == 0)
 				continue;
 			sprintf(name, "%s%d%s%d", NVME_CTRLR_PREFIX, ctrlr,
@@ -124,7 +127,7 @@ devlist(const struct cmd *f, int argc, char *argv[])
 
 	if (found == 0) {
 		printf("No NVMe controllers found.\n");
-		exit(1);
+		exit(EX_UNAVAILABLE);
 	}
 
 	exit(0);

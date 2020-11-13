@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -261,10 +262,10 @@ resvacquire(const struct cmd *f, int argc, char *argv[])
 	pt.is_read = 0;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "acquire request failed");
+		err(EX_IOERR, "acquire request failed");
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "acquire request returned error");
+		errx(EX_IOERR, "acquire request returned error");
 
 	close(fd);
 	exit(0);
@@ -299,10 +300,10 @@ resvregister(const struct cmd *f, int argc, char *argv[])
 	pt.is_read = 0;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "register request failed");
+		err(EX_IOERR, "register request failed");
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "register request returned error");
+		errx(EX_IOERR, "register request returned error");
 
 	close(fd);
 	exit(0);
@@ -336,10 +337,10 @@ resvrelease(const struct cmd *f, int argc, char *argv[])
 	pt.is_read = 0;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "release request failed");
+		err(EX_IOERR, "release request failed");
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "release request returned error");
+		errx(EX_IOERR, "release request returned error");
 
 	close(fd);
 	exit(0);
@@ -375,10 +376,10 @@ resvreport(const struct cmd *f, int argc, char *argv[])
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "report request failed");
+		err(EX_IOERR, "report request failed");
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "report request returned error");
+		errx(EX_IOERR, "report request returned error");
 
 	close(fd);
 

@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 #include <stdbool.h>
 
@@ -123,7 +124,8 @@ wdc_append_serial_name(int fd, char *buf, size_t len, const char *suffix)
 
 	len -= strlen(buf);
 	buf += strlen(buf);
-	read_controller_data(fd, &cdata);
+	if (read_controller_data(fd, &cdata))
+		errx(EX_IOERR, "Identify request failed");
 	memcpy(sn, cdata.sn, NVME_SERIAL_NUMBER_LENGTH);
 	walker = sn + NVME_SERIAL_NUMBER_LENGTH - 1;
 	while (walker > sn && *walker == ' ')
@@ -151,9 +153,9 @@ wdc_get_data(int fd, uint32_t opcode, uint32_t len, uint32_t off, uint32_t cmd,
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "wdc_get_data request failed");
+		err(EX_IOERR, "wdc_get_data request failed");
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "wdc_get_data request returned error");
+		errx(EX_IOERR, "wdc_get_data request returned error");
 }
 
 static void
@@ -174,7 +176,7 @@ wdc_do_dump_e6(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 	offset = 0;
 	hdr = malloc(len);
 	if (hdr == NULL)
-		errx(1, "Can't get buffer to read dump");
+		errx(EX_OSERR, "Can't get buffer to read dump");
 	wdc_get_data(fd, opcode, len, offset, cmd, hdr, len, false);
 	if (memcmp("E6LG", hdr, 4) == 0) {
 		e6lg_flag = true;
@@ -183,10 +185,10 @@ wdc_do_dump_e6(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 	/* XXX overwrite protection? */
 	fd2 = open(tmpl, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd2 < 0)
-		err(1, "open %s", tmpl);
+		err(EX_CANTCREAT, "open %s", tmpl);
 	buf = aligned_alloc(PAGE_SIZE, NVME_MAX_XFER_SIZE);
 	if (buf == NULL)
-		errx(1, "Can't get buffer to read dump");
+		errx(EX_OSERR, "Can't get buffer to read dump");
 	offset = 0;
 	len = NVME_MAX_XFER_SIZE;
 	first = 1;
@@ -198,7 +200,7 @@ wdc_do_dump_e6(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 		if (first) {
 			len = be32dec(buf + len_off);
 			if (len == 0)
-				errx(1, "No data for %s", suffix);
+				errx(EX_PROTOCOL, "No data for %s", suffix);
 
 			printf("Dumping %d bytes of version %d.%d log to %s\n", len,
 			    buf[8], buf[9], tmpl);
@@ -212,7 +214,7 @@ wdc_do_dump_e6(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 			first = 0;
 		}
 		if (write(fd2, buf, resid) != (ssize_t)resid)
-			err(1, "write");
+			err(EX_IOERR, "write");
 		offset += resid;
 		len -= resid;
 	} while (len > 0);
@@ -238,9 +240,9 @@ wdc_get_data_dui(int fd, uint32_t opcode, uint32_t len, uint64_t off,
 	pt.is_read = 1;
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "wdc_get_data_dui request failed");
+		err(EX_IOERR, "wdc_get_data_dui request failed");
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "wdc_get_data_dui request returned error");
+		errx(EX_IOERR, "wdc_get_data_dui request returned error");
 }
 
 static uint8_t
@@ -274,7 +276,7 @@ wdc_get_dui_log_size(int fd, uint32_t opcode, uint8_t data_area,
 	len = 1024;
 	hdr = (uint8_t*)malloc(len);
 	if (hdr == NULL)
-		errx(1, "Can't get buffer to read header");
+		errx(EX_OSERR, "Can't get buffer to read header");
 	wdc_get_data_dui(fd, opcode, len, 0, hdr, len);
 
 	hdr += len_off;
@@ -307,7 +309,7 @@ wdc_get_dui_log_size(int fd, uint32_t opcode, uint8_t data_area,
 		}
 	}
 	else
-		errx(1, "ERROR : No valid header ");
+		errx(EX_PROTOCOL, "ERROR : No valid header ");
 
 	*log_size = dui_size;
 	free(hdr);
@@ -326,13 +328,13 @@ wdc_do_dump_dui(int fd, char *tmpl, uint8_t data_area,
 	wdc_append_serial_name(fd, tmpl, MAXPATHLEN, suffix);
 	wdc_get_dui_log_size(fd, opcode, data_area, &log_len, len_off);
 	if (log_len == 0)
-		errx(1, "No data for %s", suffix);
+		errx(EX_PROTOCOL, "No data for %s", suffix);
 	fd2 = open(tmpl, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd2 < 0)
-		err(1, "open %s", tmpl);
+		err(EX_CANTCREAT, "open %s", tmpl);
 	buf = aligned_alloc(PAGE_SIZE, NVME_MAX_XFER_SIZE);
 	if (buf == NULL)
-		errx(1, "Can't get buffer to read dump");
+		errx(EX_OSERR, "Can't get buffer to read dump");
 	offset = 0;
 	first = 1;
 
@@ -347,7 +349,7 @@ wdc_do_dump_dui(int fd, char *tmpl, uint8_t data_area,
 			first = 0;
 		}
 		if (write(fd2, buf, resid) != (ssize_t)resid)
-			err(1, "write");
+			err(EX_IOERR, "write");
 		offset += resid;
 		log_len -= resid;
 	}
@@ -376,7 +378,8 @@ wdc_cap_diag(const struct cmd *f, int argc, char *argv[])
 	}
 	strlcpy(tmpl, opt.template, sizeof(tmpl));
 	open_dev(opt.dev, &fd, 1, 1);
-	read_controller_data(fd, &cdata);
+	if (read_controller_data(fd, &cdata))
+		errx(EX_IOERR, "Identify request failed");
 	vid = cdata.vid;
 
 	switch (vid) {
@@ -390,11 +393,10 @@ wdc_cap_diag(const struct cmd *f, int argc, char *argv[])
 		    WDC_NVME_CAP_DIAG_OPCODE_FA, 512);
 		break;
 	default:
-		errx(1, "ERROR : WDC: unsupported device (%#x) for this command", vid);
+		errx(EX_UNAVAILABLE, "ERROR : WDC: unsupported device (%#x) for this command", vid);
 	}
 	close(fd);
-
-	exit(1);	
+	exit(0);
 }
 
 static void
