@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 
 #define SMBIOS_BASE		0xF1000
 
+#define FIRMWARE_VERSION	"13.0"
+#define FIRMWARE_RELEASE_DATE	"11/10/2020"
+
 /* BHYVE_ACPI_BASE - SMBIOS_BASE) */
 #define	SMBIOS_MAX_LENGTH	(0xF2400 - 0xF1000)
 
@@ -323,9 +326,9 @@ struct smbios_table_type0 smbios_type0_template = {
 };
 
 const char *smbios_type0_strings[] = {
-	"BHYVE",	/* vendor string */
-	"1.00",		/* bios version string */
-	"03/14/2014",	/* bios release date string */
+	"BHYVE",		/* vendor string */
+	FIRMWARE_VERSION,	/* bios version string */
+	FIRMWARE_RELEASE_DATE,	/* bios release date string */
 	NULL
 };
 
