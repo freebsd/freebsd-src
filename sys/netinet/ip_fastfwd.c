@@ -118,7 +118,11 @@ ip_redir_alloc(struct mbuf *m, struct nhop_object *nh,
     struct ip *ip, in_addr_t *addr)
 {
 	struct mbuf *mcopy = m_gethdr(M_NOWAIT, m->m_type);
-	if (mcopy != NULL && !m_dup_pkthdr(mcopy, m, M_NOWAIT)) {
+
+	if (mcopy == NULL)
+		return (NULL);
+
+	if (m_dup_pkthdr(mcopy, m, M_NOWAIT) == 0) {
 		/*
 		 * It's probably ok if the pkthdr dup fails (because
 		 * the deep copy of the tag chain failed), but for now
