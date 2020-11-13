@@ -131,17 +131,18 @@ ip_redir_alloc(struct mbuf *m, struct nhop_object *nh,
 		 */
 		m_free(mcopy);
 		return (NULL);
-	} 
+	}
 	mcopy->m_len = min(ntohs(ip->ip_len), M_TRAILINGSPACE(mcopy));
 	mcopy->m_pkthdr.len = mcopy->m_len;
 	m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
-	
+
 	if (nh != NULL &&
 	    ((nh->nh_flags & (NHF_REDIRECT|NHF_DEFAULT)) == 0)) {
 		struct in_ifaddr *nh_ia = (struct in_ifaddr *)(nh->nh_ifa);
 		u_long src = ntohl(ip->ip_src.s_addr);
-		
-		if (nh_ia != NULL && (src & nh_ia->ia_subnetmask) == nh_ia->ia_subnet) {
+
+		if (nh_ia != NULL &&
+		    (src & nh_ia->ia_subnetmask) == nh_ia->ia_subnet) {
 			if (nh->nh_flags & NHF_GATEWAY)
 				*addr = nh->gw4_sa.sin_addr.s_addr;
 			else

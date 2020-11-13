@@ -111,7 +111,7 @@ SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_VNET | CTLFLAG_RW
     &VNET_NAME(ipforwarding), 0,
     "Enable IP forwarding between interfaces");
 
-/* 
+/*
  * Respond with an ICMP host redirect when we forward a packet out of
  * the same interface on which it was received.  See RFC 792.
  */
