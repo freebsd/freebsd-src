@@ -1937,7 +1937,10 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 		}
 		if (bo->bo_dirty.bv_cnt > 0) {
 			BO_UNLOCK(bo);
-			if ((error = BO_SYNC(bo, MNT_WAIT)) != 0)
+			do {
+				error = BO_SYNC(bo, MNT_WAIT);
+			} while (error == ERELOOKUP);
+			if (error != 0)
 				return (error);
 			/*
 			 * XXX We could save a lock/unlock if this was only
@@ -3678,7 +3681,9 @@ loop:
 				vm_object_page_clean(vp->v_object, 0, 0, 0);
 				VM_OBJECT_WUNLOCK(vp->v_object);
 			}
-			error = VOP_FSYNC(vp, MNT_WAIT, td);
+			do {
+				error = VOP_FSYNC(vp, MNT_WAIT, td);
+			} while (error == ERELOOKUP);
 			if (error != 0) {
 				VOP_UNLOCK(vp);
 				vdrop(vp);

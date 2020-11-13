@@ -671,6 +671,8 @@ restart:
 	vput(nd.ni_dvp);
 	if (error) {
 		vn_finished_write(mp);
+		if (error == ERELOOKUP)
+			goto restart;
 		goto error;
 	}
 	vp = nd.ni_vp;
