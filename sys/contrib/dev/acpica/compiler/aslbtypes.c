@@ -672,7 +672,7 @@ AnMapObjTypeToBtype (
  *
  * PARAMETERS:  Btype               - Bitfield of ACPI types
  *
- * RETURN:      The Etype corresponding the the Btype
+ * RETURN:      The Etype corresponding the Btype
  *
  * DESCRIPTION: Convert a bitfield type to an encoded type
  *

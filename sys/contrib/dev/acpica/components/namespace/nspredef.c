@@ -223,13 +223,14 @@ AcpiNsCheckReturnValue (
     ACPI_STATUS                 Status;
     const ACPI_PREDEFINED_INFO  *Predefined;
 
+    ACPI_FUNCTION_TRACE (NsCheckReturnValue);
 
     /* If not a predefined name, we cannot validate the return object */
 
     Predefined = Info->Predefined;
     if (!Predefined)
     {
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     /*
@@ -239,7 +240,7 @@ AcpiNsCheckReturnValue (
     if ((ReturnStatus != AE_OK) &&
         (ReturnStatus != AE_CTRL_RETURN_VALUE))
     {
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     /*
@@ -259,7 +260,7 @@ AcpiNsCheckReturnValue (
         (!Predefined->Info.ExpectedBtypes) ||
         (Predefined->Info.ExpectedBtypes == ACPI_RTYPE_ALL))
     {
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     /*
@@ -325,7 +326,7 @@ Exit:
         Node->Flags |= ANOBJ_EVALUATED;
     }
 
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
