@@ -2117,11 +2117,6 @@ update: .PHONY
 # which don't have the APIs required by the targets built in bootstrap-tools,
 # build-tools or cross-tools.
 #
-
-# libnv and libsbuf are requirements for config(8), which is an unconditional
-# bootstrap-tool.
-_config_deps= lib/libnv lib/libsbuf
-
 legacy: .PHONY
 .if ${BOOTSTRAPPING} < ${MINIMUM_SUPPORTED_OSREL} && ${BOOTSTRAPPING} != 0
 	@echo "ERROR: Source upgrades from versions prior to ${MINIMUM_SUPPORTED_REL} are not supported."; \
