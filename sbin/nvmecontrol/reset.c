@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -70,7 +71,7 @@ reset(const struct cmd *f, int argc, char *argv[])
 	free(path);
 
 	if (ioctl(fd, NVME_RESET_CONTROLLER) < 0)
-		err(1, "reset request to %s failed", opt.dev);
+		err(EX_IOERR, "reset request to %s failed", opt.dev);
 
 	exit(0);
 }
