@@ -28,6 +28,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/imgact_binmisc.h>
+#include <sys/linker.h>
+#include <sys/module.h>
+#include <sys/sysctl.h>
+
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
@@ -36,12 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include <sys/types.h>
-#include <sys/imgact_binmisc.h>
-#include <sys/linker.h>
-#include <sys/module.h>
-#include <sys/sysctl.h>
 
 enum cmd {
 	CMD_ADD = 0,
@@ -134,7 +134,7 @@ static char const *cmd_sysctl_name[] = {
 	IBE_SYSCTL_NAME_LIST
 };
 
-static void
+static void __dead2
 usage(const char *format, ...)
 {
 	va_list args;
@@ -150,7 +150,7 @@ usage(const char *format, ...)
 	fprintf(stderr, "\n");
 	fprintf(stderr, "usage: %s command [args...]\n\n", __progname);
 
-	for(i = 0; i < ( sizeof (cmds) / sizeof (cmds[0])); i++) {
+	for(i = 0; i < nitems(cmds); i++) {
 		fprintf(stderr, "%s:\n", cmds[i].desc);
 		fprintf(stderr, "\t%s %s %s\n\n", __progname, cmds[i].name,
 		    cmds[i].args);
@@ -159,7 +159,7 @@ usage(const char *format, ...)
 	exit (error);
 }
 
-static void
+static void __dead2
 fatal(const char *format, ...)
 {
 	va_list args;
@@ -232,7 +232,7 @@ demux_cmd(__unused int argc, char *const argv[])
 	optind = 1;
 	optreset = 1;
 
-	for(i = 0; i < ( sizeof (cmds) / sizeof (cmds[0])); i++) {
+	for(i = 0; i < nitems(cmds); i++) {
 		if (!strcasecmp(cmds[i].name, argv[0])) {
 			return (i);
 		}
@@ -505,7 +505,7 @@ main(int argc, char **argv)
 			free(xbe_outp);
 			fatal("Fatal: %s", strerror(errno));
 		}
-		for(i = 0; i < (xbe_out_sz / sizeof(xbe_out)); i++)
+		for(i = 0; i < howmany(xbe_out_sz, sizeof(xbe_out)); i++)
 			printxbe(&xbe_outp[i]);
 	}
 
