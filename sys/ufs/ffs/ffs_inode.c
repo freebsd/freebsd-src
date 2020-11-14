@@ -462,6 +462,8 @@ ffs_truncate(vp, length, flags, cred)
 		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
 		if (error)
 			return (error);
+		ffs_inode_bwrite(vp, bp, flags);
+
 		/*
 		 * When we are doing soft updates and the UFS_BALLOC
 		 * above fills in a direct block hole with a full sized
@@ -473,6 +475,10 @@ ffs_truncate(vp, length, flags, cred)
 		if (DOINGSOFTDEP(vp) && lbn < UFS_NDADDR &&
 		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
 		    (error = ffs_syncvnode(vp, MNT_WAIT, 0)) != 0)
+			return (error);
+
+		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
+		if (error)
 			return (error);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
