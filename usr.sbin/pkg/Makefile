@@ -25,6 +25,6 @@ MAN=	pkg.7
 
 CFLAGS+=-I${SRCTOP}/contrib/libucl/include
 .PATH:	${SRCTOP}/contrib/libucl/include
-LIBADD=	archive fetch ucl sbuf crypto ssl
+LIBADD=	archive fetch ucl sbuf crypto ssl util
 
 .include <bsd.prog.mk>
