@@ -2,6 +2,7 @@
 /*
  * dot.c
  *
+ * Copyright (c) 2019 Lutz Donnerhacke
  * Copyright (c) 2004 Brian Fundakowski Feldman
  * Copyright (c) 1996-1999 Whistle Communications, Inc.
  * All rights reserved.
@@ -53,9 +54,11 @@ static int DotCmd(int ac, char **av);
 
 const struct ngcmd dot_cmd = {
 	DotCmd,
-	"dot [outputfile]",
+	"dot [-c] [outputfile]",
 	"Produce a GraphViz (.dot) of the entire netgraph.",
-	"If no outputfile is specified, stdout will be assumed.",
+	"If no outputfile is specified, stdout will be assumed."
+	" The optional -c argument generates a graph without separate"
+	" structures for edge names. Such a graph is more compact.",
 	{ "graphviz", "confdot" }
 };
 
@@ -66,12 +69,16 @@ DotCmd(int ac, char **av)
 	struct namelist *nlist;
 	FILE *f = stdout;
 	int ch;
+	int compact = 0;
 	u_int i;
 
 	/* Get options */
 	optind = 1;
-	while ((ch = getopt(ac, av, "")) != -1) {
+	while ((ch = getopt(ac, av, "c")) != -1) {
 		switch (ch) {
+		case 'c':
+			compact = 1;
+			break;
 		case '?':
 		default:
 			return (CMDRTN_USAGE);
@@ -109,9 +116,14 @@ DotCmd(int ac, char **av)
 	}
 
 	nlist = (struct namelist *)nlresp->data;
-	fprintf(f, "graph netgraph {\n");
-	/* TODO: implement rank = same or subgraphs at some point */
-	fprintf(f, "\tedge [ weight = 1.0 ];\n");
+	if (compact) {
+		fprintf(f, "digraph netgraph {\n");
+		fprintf(f, "\tedge [ dir = \"none\", fontsize = 10 ];\n");
+	} else {
+		fprintf(f, "graph netgraph {\n");
+		/* TODO: implement rank = same or subgraphs at some point */
+		fprintf(f, "\tedge [ weight = 1.0 ];\n");
+	}
 	fprintf(f, "\tnode [ shape = record, fontsize = 12 ] {\n");
 	for (i = 0; i < nlist->numnames; i++)
 		fprintf(f, "\t\t\"%jx\" [ label = \"{%s:|{%s|[%jx]:}}\" ];\n",
@@ -159,30 +171,40 @@ DotCmd(int ac, char **av)
 			continue;
 		}
 
-		fprintf(f, "\tnode [ shape = octagon, fontsize = 10 ] {\n");
-		for (j = 0; j < ninfo->hooks; j++)
-			fprintf(f, "\t\t\"%jx.%s\" [ label = \"%s\" ];\n",
-			    (uintmax_t)nlist->nodeinfo[i].id,
-			    hlist->link[j].ourhook, hlist->link[j].ourhook);
-		fprintf(f, "\t};\n");
+		if (!compact) {
+			fprintf(f, "\tnode [ shape = octagon, fontsize = 10 ] {\n");
+			for (j = 0; j < ninfo->hooks; j++)
+				fprintf(f, "\t\t\"%jx.%s\" [ label = \"%s\" ];\n",
+				    (uintmax_t)nlist->nodeinfo[i].id,
+				    hlist->link[j].ourhook, hlist->link[j].ourhook);
+			fprintf(f, "\t};\n");
 
-		fprintf(f, "\t{\n\t\tedge [ weight = 2.0, style = bold ];\n");
-		for (j = 0; j < ninfo->hooks; j++)
-			fprintf(f, "\t\t\"%jx\" -- \"%jx.%s\";\n",
-			    (uintmax_t)nlist->nodeinfo[i].id,
-			    (uintmax_t)nlist->nodeinfo[i].id,
-			    hlist->link[j].ourhook);
-		fprintf(f, "\t};\n");
+			fprintf(f, "\t{\n\t\tedge [ weight = 2.0, style = bold ];\n");
+			for (j = 0; j < ninfo->hooks; j++)
+				fprintf(f, "\t\t\"%jx\" -- \"%jx.%s\";\n",
+				    (uintmax_t)nlist->nodeinfo[i].id,
+				    (uintmax_t)nlist->nodeinfo[i].id,
+				    hlist->link[j].ourhook);
+			fprintf(f, "\t};\n");
+		}
 
 		for (j = 0; j < ninfo->hooks; j++) {
 			/* Only print the edges going in one direction. */
 			if (hlist->link[j].nodeinfo.id > nlist->nodeinfo[i].id)
 				continue;
-			fprintf(f, "\t\"%jx.%s\" -- \"%jx.%s\";\n",
-			    (uintmax_t)nlist->nodeinfo[i].id,
-			    hlist->link[j].ourhook,
-			    (uintmax_t)hlist->link[j].nodeinfo.id,
-			    hlist->link[j].peerhook);
+			if (compact) {
+				fprintf(f, "\t\"%jx\" -> \"%jx\" [ headlabel = \"%s\", taillabel = \"%s\" ] ;\n",
+				    (uintmax_t)hlist->link[j].nodeinfo.id,
+				    (uintmax_t)nlist->nodeinfo[i].id,
+				    hlist->link[j].ourhook,
+				    hlist->link[j].peerhook);
+			} else {
+				fprintf(f, "\t\"%jx.%s\" -- \"%jx.%s\";\n",
+				    (uintmax_t)nlist->nodeinfo[i].id,
+				    hlist->link[j].ourhook,
+				    (uintmax_t)hlist->link[j].nodeinfo.id,
+				    hlist->link[j].peerhook);
+			}
 		}
 		free(hlresp);
 	}
