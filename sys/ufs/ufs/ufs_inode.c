@@ -166,7 +166,8 @@ ufs_inactive(ap)
 		isize += ip->i_din2->di_extsize;
 	if (ip->i_effnlink <= 0 && isize && !UFS_RDONLY(ip))
 		error = UFS_TRUNCATE(vp, (off_t)0, IO_EXT | IO_NORMAL, NOCRED);
-	if (ip->i_nlink <= 0 && ip->i_mode && !UFS_RDONLY(ip)) {
+	if (ip->i_nlink <= 0 && ip->i_mode != 0 && !UFS_RDONLY(ip) &&
+	    (vp->v_iflag & VI_OWEINACT) == 0) {
 #ifdef QUOTA
 		if (!getinoquota(ip))
 			(void)chkiq(ip, -1, NOCRED, FORCE);
@@ -207,10 +208,12 @@ out:
 	 * If we are done with the inode, reclaim it
 	 * so that it can be reused immediately.
 	 */
-	if (ip->i_mode == 0)
+	if (ip->i_mode == 0 && (vp->v_iflag & VI_OWEINACT) == 0)
 		vrecycle(vp);
 	if (mp != NULL)
 		vn_finished_secondary_write(mp);
+	if (error == ERELOOKUP)
+		error = 0;
 	return (error);
 }
 

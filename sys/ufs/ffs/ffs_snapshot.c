@@ -301,6 +301,8 @@ restart:
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vn_finished_write(wrtmp);
 		vrele(nd.ni_dvp);
+		if (error == ERELOOKUP)
+			goto restart;
 		return (error);
 	}
 	vp = nd.ni_vp;
@@ -368,8 +370,12 @@ restart:
 		if (error)
 			goto out;
 		bawrite(nbp);
-		if (cg % 10 == 0)
-			ffs_syncvnode(vp, MNT_WAIT, 0);
+		if (cg % 10 == 0) {
+			error = ffs_syncvnode(vp, MNT_WAIT, 0);
+			/* vp possibly reclaimed if unlocked */
+			if (error != 0)
+				goto out;
+		}
 	}
 	/*
 	 * Copy all the cylinder group maps. Although the
@@ -391,8 +397,8 @@ restart:
 			goto out;
 		error = cgaccount(cg, vp, nbp, 1);
 		bawrite(nbp);
-		if (cg % 10 == 0)
-			ffs_syncvnode(vp, MNT_WAIT, 0);
+		if (cg % 10 == 0 && error == 0)
+			error = ffs_syncvnode(vp, MNT_WAIT, 0);
 		if (error)
 			goto out;
 	}
