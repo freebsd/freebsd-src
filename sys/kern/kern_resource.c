@@ -1236,6 +1236,14 @@ lim_free(struct plimit *limp)
 		free((void *)limp, M_PLIMIT);
 }
 
+void
+lim_freen(struct plimit *limp, int n)
+{
+
+	if (refcount_releasen(&limp->pl_refcnt, n))
+		free((void *)limp, M_PLIMIT);
+}
+
 /*
  * Make a copy of the plimit structure.
  * We share these structures copy-on-write after fork.
