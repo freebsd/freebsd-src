@@ -65,6 +65,11 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
+#ifndef _SSIZE_T_DECLARED
+typedef __ssize_t	ssize_t;
+#define _SSIZE_T_DECLARED
+#endif
+
 #ifndef _UID_T_DECLARED
 typedef	__uid_t		uid_t;
 #define	_UID_T_DECLARED

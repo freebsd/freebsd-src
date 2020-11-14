@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/sysctl.h>
+#include <sys/limits.h>
 #include <stdlib.h>
 #include <paths.h>
 #include <libutil.h>
@@ -66,10 +67,16 @@ getlocalbase(char *path, size_t pathlen)
 #endif
 
 	tmplen = strlcpy(path, tmppath, pathlen);
-	if ((tmplen < 0) || (tmplen >= (ssize_t)pathlen)) {
+	if ((tmplen < 0) || (tmplen >= pathlen)) {
 		errno = ENOMEM;
-		tmplen = -1;
+		return (-1);
 	}
 
-	return (tmplen);
+	/* It's unlikely that the buffer would be this big */
+	if (tmplen >= SSIZE_MAX) {
+		errno = ENOMEM;
+		return (-1);
+	}
+
+	return ((ssize_t)tmplen);
 }
