@@ -63,6 +63,7 @@ struct ucred {
 	struct mtx cr_mtx;
 	u_int	cr_ref;			/* (c) reference count */
 	u_int	cr_users;		/* (c) proc + thread using this cred */
+	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 #define	cr_startcopy cr_uid
 	uid_t	cr_uid;			/* effective user id */
 	uid_t	cr_ruid;		/* real user id */
@@ -78,7 +79,6 @@ struct ucred {
 	void 		*cr_pspare2[2];	/* general use 2 */
 #define	cr_endcopy	cr_label
 	struct label	*cr_label;	/* MAC label */
-	struct auditinfo_addr	cr_audit;	/* Audit properties. */
 	gid_t	*cr_groups;		/* groups */
 	int	cr_agroups;		/* Available groups */
 	gid_t   cr_smallgroups[XU_NGROUPS];	/* storage for small groups */
