@@ -129,7 +129,7 @@ credbatch_prep(struct credbatch *crb)
 }
 void	credbatch_add(struct credbatch *crb, struct thread *td);
 static inline void
-credbatch_process(struct credbatch *crb)
+credbatch_process(struct credbatch *crb __unused)
 {
 
 }
