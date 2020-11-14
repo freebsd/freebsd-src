@@ -30,7 +30,7 @@ deps: {
         version: "%VERSION%"
     }
 }
-directories {
+directories: {
     /dev = "y";
     /tmp = "y";
 }
