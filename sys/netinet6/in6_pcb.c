@@ -464,7 +464,8 @@ in6_pcbconnect_mbuf(struct inpcb *inp, struct sockaddr *nam,
 			rehash = false;
 			error = in_pcb_lport_dest(inp,
 			    (struct sockaddr *) &laddr6, &inp->inp_lport,
-			    (struct sockaddr *) sin6, sin6->sin6_port, cred, 0);
+			    (struct sockaddr *) sin6, sin6->sin6_port, cred,
+			    INPLOOKUP_WILDCARD);
 			if (error)
 				return (error);
 		}
