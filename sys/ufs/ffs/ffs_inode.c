@@ -67,6 +67,17 @@ __FBSDID("$FreeBSD$");
 static int ffs_indirtrunc(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, ufs2_daddr_t *);
 
+static void
+ffs_inode_bwrite(struct vnode *vp, struct buf *bp, int flags)
+{
+	if ((flags & IO_SYNC) != 0)
+		bwrite(bp);
+	else if (DOINGASYNC(vp))
+		bdwrite(bp);
+	else
+		bawrite(bp);
+}
+
 /*
  * Update the access, modified, and inode change times as specified by the
  * IN_ACCESS, IN_UPDATE, and IN_CHANGE flags respectively.  Write the inode
@@ -357,12 +368,7 @@ ffs_truncate(vp, length, flags, cred)
 		DIP_SET(ip, i_size, length);
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (flags & IO_SYNC)
-			bwrite(bp);
-		else if (DOINGASYNC(vp))
-			bdwrite(bp);
-		else
-			bawrite(bp);
+		ffs_inode_bwrite(vp, bp, flags);
 		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 		return (ffs_update(vp, waitforupdate));
 	}
@@ -478,12 +484,7 @@ ffs_truncate(vp, length, flags, cred)
 		allocbuf(bp, size);
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
-		if (flags & IO_SYNC)
-			bwrite(bp);
-		else if (DOINGASYNC(vp))
-			bdwrite(bp);
-		else
-			bawrite(bp);
+		ffs_inode_bwrite(vp, bp, flags);
 		UFS_INODE_SET_FLAG(ip, IN_SIZEMOD | IN_CHANGE | IN_UPDATE);
 	}
 	/*
