@@ -537,6 +537,8 @@ thread_reap(void)
 	struct thread *itd, *ntd;
 	struct tidbatch tidbatch;
 	int tdcount;
+	struct plimit *lim;
+	int limcount;
 
 	/*
 	 * Reading upfront is pessimal if followed by concurrent atomic_swap,
@@ -552,11 +554,23 @@ thread_reap(void)
 
 	tidbatch_prep(&tidbatch);
 	tdcount = 0;
+	lim = NULL;
+	limcount = 0;
 	while (itd != NULL) {
 		ntd = itd->td_zombie;
 		EVENTHANDLER_DIRECT_INVOKE(thread_dtor, itd);
 		tidbatch_add(&tidbatch, itd);
-		thread_cow_free(itd);
+		MPASS(itd->td_realucred != NULL);
+		crcowfree(itd);
+		MPASS(itd->td_limit != NULL);
+		if (lim != itd->td_limit) {
+			if (limcount != 0) {
+				lim_freen(lim, limcount);
+				limcount = 0;
+			}
+		}
+		lim = itd->td_limit;
+		limcount++;
 		thread_free_batched(itd);
 		tidbatch_process(&tidbatch);
 		tdcount++;
@@ -571,6 +585,8 @@ thread_reap(void)
 	if (tdcount != 0) {
 		thread_count_sub(tdcount);
 	}
+	MPASS(limcount != 0);
+	lim_freen(lim, limcount);
 }
 
 /*
