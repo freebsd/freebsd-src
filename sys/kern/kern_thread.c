@@ -259,6 +259,54 @@ tid_free_batch(lwpid_t *batch, int n)
 }
 
 /*
+ * Batching for thread reapping.
+ */
+struct tidbatch {
+	lwpid_t tab[16];
+	int n;
+};
+
+static void
+tidbatch_prep(struct tidbatch *tb)
+{
+
+	tb->n = 0;
+}
+
+static void
+tidbatch_add(struct tidbatch *tb, struct thread *td)
+{
+
+	KASSERT(tb->n < nitems(tb->tab),
+	    ("%s: count too high %d", __func__, tb->n));
+	tb->tab[tb->n] = td->td_tid;
+	tb->n++;
+}
+
+static void
+tidbatch_process(struct tidbatch *tb)
+{
+
+	KASSERT(tb->n <= nitems(tb->tab),
+	    ("%s: count too high %d", __func__, tb->n));
+	if (tb->n == nitems(tb->tab)) {
+		tid_free_batch(tb->tab, tb->n);
+		tb->n = 0;
+	}
+}
+
+static void
+tidbatch_final(struct tidbatch *tb)
+{
+
+	KASSERT(tb->n <= nitems(tb->tab),
+	    ("%s: count too high %d", __func__, tb->n));
+	if (tb->n != 0) {
+		tid_free_batch(tb->tab, tb->n);
+	}
+}
+
+/*
  * Prepare a thread for use.
  */
 static int
@@ -487,8 +535,8 @@ void
 thread_reap(void)
 {
 	struct thread *itd, *ntd;
-	lwpid_t tidbatch[16];
-	int tidbatchn;
+	struct tidbatch tidbatch;
+	int tdcount;
 
 	/*
 	 * Reading upfront is pessimal if followed by concurrent atomic_swap,
@@ -499,24 +547,29 @@ thread_reap(void)
 
 	itd = (struct thread *)atomic_swap_ptr((uintptr_t *)&thread_zombies,
 	    (uintptr_t)NULL);
-	tidbatchn = 0;
+	if (itd == NULL)
+		return;
+
+	tidbatch_prep(&tidbatch);
+	tdcount = 0;
 	while (itd != NULL) {
 		ntd = itd->td_zombie;
-		tidbatch[tidbatchn] = itd->td_tid;
-		tidbatchn++;
+		EVENTHANDLER_DIRECT_INVOKE(thread_dtor, itd);
+		tidbatch_add(&tidbatch, itd);
 		thread_cow_free(itd);
 		thread_free_batched(itd);
-		if (tidbatchn == nitems(tidbatch)) {
-			tid_free_batch(tidbatch, tidbatchn);
-			thread_count_sub(tidbatchn);
-			tidbatchn = 0;
+		tidbatch_process(&tidbatch);
+		tdcount++;
+		if (tdcount == 32) {
+			thread_count_sub(tdcount);
+			tdcount = 0;
 		}
 		itd = ntd;
 	}
 
-	if (tidbatchn != 0) {
-		tid_free_batch(tidbatch, tidbatchn);
-		thread_count_sub(tidbatchn);
+	tidbatch_final(&tidbatch);
+	if (tdcount != 0) {
+		thread_count_sub(tdcount);
 	}
 }
 
@@ -567,7 +620,6 @@ static void
 thread_free_batched(struct thread *td)
 {
 
-	EVENTHANDLER_DIRECT_INVOKE(thread_dtor, td);
 	lock_profile_thread_exit(td);
 	if (td->td_cpuset)
 		cpuset_rel(td->td_cpuset);
@@ -588,6 +640,7 @@ thread_free(struct thread *td)
 {
 	lwpid_t tid;
 
+	EVENTHANDLER_DIRECT_INVOKE(thread_dtor, td);
 	tid = td->td_tid;
 	thread_free_batched(td);
 	tid_free(tid);
