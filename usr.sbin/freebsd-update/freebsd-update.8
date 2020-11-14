@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 24, 2019
+.Dd November 14, 2020
 .Dt FREEBSD-UPDATE 8
 .Os
 .Sh NAME
@@ -193,6 +193,20 @@ System", since if the system has been tampered with
 it cannot be trusted to operate correctly.
 If you intend to use this command for intrusion-detection
 purposes, make sure you boot from a secure disk (e.g., a CD).
+.El
+.Sh ENVIRONMENT
+.Bl -tag -width "PAGER"
+.It Ev PAGER
+The pager program used to present various reports during the execution.
+.Po
+Default:
+.Dq Pa /usr/bin/less .
+.Pc
+.Pp
+.Ev PAGER
+can be set to
+.Dq cat
+when a non-interactive pager is desired.
 .El
 .Sh FILES
 .Bl -tag -width "/etc/freebsd-update.conf"
