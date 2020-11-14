@@ -1481,9 +1481,9 @@ relock:
 		if (error)
 			goto bad;
 		/* Setup tdvp for directory compaction if needed. */
-		if (tdp->i_count && tdp->i_endoff &&
-		    tdp->i_endoff < tdp->i_size)
-			endoff = tdp->i_endoff;
+		if (I_COUNT(tdp) != 0 && I_ENDOFF(tdp) != 0 &&
+		    I_ENDOFF(tdp) < tdp->i_size)
+			endoff = I_ENDOFF(tdp);
 	} else {
 		if (ITODEV(tip) != ITODEV(tdp) || ITODEV(tip) != ITODEV(fip))
 			panic("ufs_rename: EXDEV");
@@ -1611,7 +1611,7 @@ relock:
 		} else if (DOINGSUJ(tdvp))
 			/* Journal must account for each new link. */
 			softdep_setup_dotdot_link(tdp, fip);
-		fip->i_offset = mastertemplate.dot_reclen;
+		SET_I_OFFSET(fip, mastertemplate.dot_reclen);
 		ufs_dirrewrite(fip, fdp, newparent, DT_DIR, 0);
 		cache_purge(fdvp);
 	}

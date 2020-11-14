@@ -8764,11 +8764,11 @@ softdep_change_directoryentry_offset(bp, dp, base, oldloc, newloc, entrysize)
 	if (MOUNTEDSUJ(mp)) {
 		flags = DEPALLOC;
 		jmvref = newjmvref(dp, de->d_ino,
-		    dp->i_offset + (oldloc - base),
-		    dp->i_offset + (newloc - base));
+		    I_OFFSET(dp) + (oldloc - base),
+		    I_OFFSET(dp) + (newloc - base));
 	}
-	lbn = lblkno(ump->um_fs, dp->i_offset);
-	offset = blkoff(ump->um_fs, dp->i_offset);
+	lbn = lblkno(ump->um_fs, I_OFFSET(dp));
+	offset = blkoff(ump->um_fs, I_OFFSET(dp));
 	oldoffset = offset + (oldloc - base);
 	newoffset = offset + (newloc - base);
 	ACQUIRE_LOCK(ump);
@@ -9280,7 +9280,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	jremref = dotremref = dotdotremref = NULL;
 	if (DOINGSUJ(dvp)) {
 		if (isrmdir) {
-			jremref = newjremref(dirrem, dp, ip, dp->i_offset,
+			jremref = newjremref(dirrem, dp, ip, I_OFFSET(dp),
 			    ip->i_effnlink + 2);
 			dotremref = newjremref(dirrem, ip, ip, DOT_OFFSET,
 			    ip->i_effnlink + 1);
@@ -9288,12 +9288,12 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 			    dp->i_effnlink + 1);
 			dotdotremref->jr_state |= MKDIR_PARENT;
 		} else
-			jremref = newjremref(dirrem, dp, ip, dp->i_offset,
+			jremref = newjremref(dirrem, dp, ip, I_OFFSET(dp),
 			    ip->i_effnlink + 1);
 	}
 	ACQUIRE_LOCK(ump);
-	lbn = lblkno(ump->um_fs, dp->i_offset);
-	offset = blkoff(ump->um_fs, dp->i_offset);
+	lbn = lblkno(ump->um_fs, I_OFFSET(dp));
+	offset = blkoff(ump->um_fs, I_OFFSET(dp));
 	pagedep_lookup(UFSTOVFS(ump), bp, dp->i_number, lbn, DEPALLOC,
 	    &pagedep);
 	dirrem->dm_pagedep = pagedep;
@@ -9304,7 +9304,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * the jremref is preserved for any potential diradd in this
 	 * location.  This can not coincide with a rmdir.
 	 */
-	if (dp->i_offset == DOTDOT_OFFSET) {
+	if (I_OFFSET(dp) == DOTDOT_OFFSET) {
 		if (isrmdir)
 			panic("newdirrem: .. directory change during remove?");
 		jremref = cancel_mkdir_dotdot(dp, dirrem, jremref);
@@ -9405,7 +9405,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 
 	mp = ITOVFS(dp);
 	ump = VFSTOUFS(mp);
-	offset = blkoff(ump->um_fs, dp->i_offset);
+	offset = blkoff(ump->um_fs, I_OFFSET(dp));
 	KASSERT(MOUNTEDSOFTDEP(mp) != 0,
 	   ("softdep_setup_directory_change called on non-softdep filesystem"));
 
@@ -9508,7 +9508,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 		KASSERT(jaddref != NULL && jaddref->ja_parent == dp->i_number,
 		    ("softdep_setup_directory_change: bad jaddref %p",
 		    jaddref));
-		jaddref->ja_diroff = dp->i_offset;
+		jaddref->ja_diroff = I_OFFSET(dp);
 		jaddref->ja_diradd = dap;
 		LIST_INSERT_HEAD(&pagedep->pd_diraddhd[DIRADDHASH(offset)],
 		    dap, da_pdlist);
@@ -9527,7 +9527,7 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	 * committed when need to move the dot and dotdot references to
 	 * this new name.
 	 */
-	if (inodedep->id_mkdiradd && dp->i_offset != DOTDOT_OFFSET)
+	if (inodedep->id_mkdiradd && I_OFFSET(dp) != DOTDOT_OFFSET)
 		merge_diradd(inodedep, dap);
 	FREE_LOCK(ump);
 }

@@ -44,11 +44,23 @@
 #include <sys/queue.h>
 #include <ufs/ufs/dinode.h>
 #include <sys/seqc.h>
+#ifdef DIAGNOSTIC
+#include <sys/stack.h>
+#endif
 
 /*
  * This must agree with the definition in <ufs/ufs/dir.h>.
  */
 #define	doff_t		int32_t
+
+#ifdef DIAGNOSTIC
+struct iown_tracker {
+	struct thread	*tr_owner;
+	struct stack	tr_st;
+	struct stack	tr_unlock;
+	int		tr_gen;
+};
+#endif
 
 /*
  * The inode is used to describe each active (or recently active) file in the
@@ -94,6 +106,12 @@ struct inode {
 	doff_t	  i_endoff;	/* End of useful stuff in directory. */
 	doff_t	  i_diroff;	/* Offset in dir, where we found last entry. */
 	doff_t	  i_offset;	/* Offset of free space in directory. */
+#ifdef DIAGNOSTIC
+	int			i_lock_gen;
+	struct iown_tracker	i_count_tracker;
+	struct iown_tracker	i_endoff_tracker;
+	struct iown_tracker	i_offset_tracker;
+#endif
 
 	int	i_nextclustercg; /* last cg searched for cluster */
 
@@ -254,6 +272,35 @@ struct ufid {
 	uint32_t  ufid_ino;	/* File number (ino). */
 	uint32_t  ufid_gen;	/* Generation number. */
 };
+
+#ifdef DIAGNOSTIC
+void ufs_init_trackers(struct inode *ip);
+void ufs_unlock_tracker(struct inode *ip);
+
+doff_t ufs_get_i_offset(struct inode *ip, const char *file, int line);
+void ufs_set_i_offset(struct inode *ip, doff_t off, const char *file, int line);
+#define	I_OFFSET(ip)		ufs_get_i_offset(ip, __FILE__, __LINE__)
+#define	SET_I_OFFSET(ip, off)	ufs_set_i_offset(ip, off, __FILE__, __LINE__)
+
+int32_t ufs_get_i_count(struct inode *ip, const char *file, int line);
+void ufs_set_i_count(struct inode *ip, int32_t cnt, const char *file, int line);
+#define	I_COUNT(ip)		ufs_get_i_count(ip, __FILE__, __LINE__)
+#define	SET_I_COUNT(ip, cnt)	ufs_set_i_count(ip, cnt, __FILE__, __LINE__)
+
+doff_t ufs_get_i_endoff(struct inode *ip, const char *file, int line);
+void ufs_set_i_endoff(struct inode *ip, doff_t off, const char *file, int line);
+#define	I_ENDOFF(ip)		ufs_get_i_endoff(ip, __FILE__, __LINE__)
+#define	SET_I_ENDOFF(ip, off)	ufs_set_i_endoff(ip, off, __FILE__, __LINE__)
+
+#else
+#define	I_OFFSET(ip)		((ip)->i_offset)
+#define	SET_I_OFFSET(ip, off)	((ip)->i_offset = (off))
+#define	I_COUNT(ip)		((ip)->i_count)
+#define	SET_I_COUNT(ip, cnt)	((ip)->i_count = cnt)
+#define	I_ENDOFF(ip)		((ip)->i_endoff)
+#define	SET_I_ENDOFF(ip, off)	((ip)->i_endoff = off)
+#endif
+
 #endif /* _KERNEL */
 
 #endif /* !_UFS_UFS_INODE_H_ */

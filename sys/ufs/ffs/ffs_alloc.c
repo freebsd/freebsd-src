@@ -3468,7 +3468,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			break;
 		}
 		dp = VTOI(dvp);
-		dp->i_offset = 12;	/* XXX mastertemplate.dot_reclen */
+		SET_I_OFFSET(dp, 12);	/* XXX mastertemplate.dot_reclen */
 		error = ufs_dirrewrite(dp, VTOI(fdvp), (ino_t)cmd.size,
 		    DT_DIR, 0);
 		cache_purge(fdvp);
