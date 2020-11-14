@@ -58,6 +58,9 @@
 .Ft const char * Ns
 .Fn be_root_path "libbe_handle_t *hdl"
 .Pp
+.Ft int Ns
+.Fn be_snapshot "libbe_handle_t *hdl" "const char *be_name" "const char *snap_name" "bool recursive" "char *result"
+.Pp
 .Ft bool Ns
 .Fn be_is_auto_snapshot_name "libbe_handle_t *hdl" "const char *snap"
 .Pp
@@ -214,6 +217,30 @@ active on reboot.
 The
 .Fn be_root_path
 function returns the boot environment root path.
+.Pp
+The
+.Fn be_snapshot
+function creates a snapshot of
+.Fa be_name
+named
+.Fa snap_name .
+A
+.Dv NULL
+.Fa snap_name
+may be used, indicating that
+.Fn be_snaphot
+should derive the snapshot name from the current date and time.
+If
+.Fa recursive
+is set, then
+.Fn be_snapshot
+will recursively snapshot the dataset.
+If
+.Fa result
+is not
+.Dv NULL ,
+then it will be populated with the final
+.Dq Fa be_name Ns @ Ns Fa snap_name .
 .Pp
 The
 .Fn be_is_auto_snapshot_name
