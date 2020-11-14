@@ -33,10 +33,14 @@
 
 #include <linux/device.h>
 
+#if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
+
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 
 #define	ACPI_HANDLE(dev)	\
     ((dev)->bsddev != NULL ? bsd_acpi_get_handle((dev)->bsddev) : NULL)
+
+#endif
 
 #endif /* _LINUX_ACPI_H_ */
