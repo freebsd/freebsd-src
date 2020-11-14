@@ -38,6 +38,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20201004: logo files renamed to type-agnostic gfx-*.lua
+OLD_FILES+=boot/lua/logo-beastie.lua
+OLD_FILES+=boot/lua/logo-beastiebw.lua
+OLD_FILES+=boot/lua/logo-fbsdbw.lua
+OLD_FILES+=boot/lua/logo-orb.lua
+OLD_FILES+=boot/lua/logo-orbbw.lua
+
 # 20200722: new clang import which bumps version from 10.0.0 to 10.0.1.
 OLD_FILES+=usr/lib/clang/10.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/10.0.0/include/cuda_wrappers/complex
