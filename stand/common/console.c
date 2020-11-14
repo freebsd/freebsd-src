@@ -49,97 +49,102 @@ static int	twiddle_set(struct env_var *ev, int flags, const void *value);
 void
 cons_probe(void)
 {
-    int			cons;
-    int			active;
-    char		*prefconsole;
+	int	cons;
+	int	active;
+	char	*prefconsole;
 
-    /* We want a callback to install the new value when this var changes. */
-    env_setenv("twiddle_divisor", EV_VOLATILE, "1", twiddle_set, env_nounset);
-
-    /* Do all console probes */
-    for (cons = 0; consoles[cons] != NULL; cons++) {
-	consoles[cons]->c_flags = 0;
- 	consoles[cons]->c_probe(consoles[cons]);
-    }
-    /* Now find the first working one */
-    active = -1;
-    for (cons = 0; consoles[cons] != NULL && active == -1; cons++) {
-	consoles[cons]->c_flags = 0;
- 	consoles[cons]->c_probe(consoles[cons]);
-	if (consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT))
-	    active = cons;
-    }
-    /* Force a console even if all probes failed */
-    if (active == -1)
-	active = 0;
-
-    /* Check to see if a console preference has already been registered */
-    prefconsole = getenv("console");
-    if (prefconsole != NULL)
-	prefconsole = strdup(prefconsole);
-    if (prefconsole != NULL) {
-	unsetenv("console");		/* we want to replace this */
-	cons_change(prefconsole);
-    } else {
-	consoles[active]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
-	consoles[active]->c_init(0);
-	prefconsole = strdup(consoles[active]->c_name);
-    }
-
-    printf("Consoles: ");
-    for (cons = 0; consoles[cons] != NULL; cons++)
-	if (consoles[cons]->c_flags & (C_ACTIVEIN | C_ACTIVEOUT))
-	    printf("%s  ", consoles[cons]->c_desc);
-    printf("\n");
-
-    if (prefconsole != NULL) {
-	env_setenv("console", EV_VOLATILE, prefconsole, cons_set,
+	/* We want a callback to install the new value when this var changes. */
+	env_setenv("twiddle_divisor", EV_VOLATILE, "1", twiddle_set,
 	    env_nounset);
-	free(prefconsole);
-    }
+
+	/* Do all console probes */
+	for (cons = 0; consoles[cons] != NULL; cons++) {
+		consoles[cons]->c_flags = 0;
+		consoles[cons]->c_probe(consoles[cons]);
+	}
+	/* Now find the first working one */
+	active = -1;
+	for (cons = 0; consoles[cons] != NULL && active == -1; cons++) {
+		consoles[cons]->c_flags = 0;
+		consoles[cons]->c_probe(consoles[cons]);
+		if (consoles[cons]->c_flags == (C_PRESENTIN | C_PRESENTOUT))
+			active = cons;
+	}
+	/* Force a console even if all probes failed */
+	if (active == -1)
+		active = 0;
+
+	/* Check to see if a console preference has already been registered */
+	prefconsole = getenv("console");
+	if (prefconsole != NULL)
+		prefconsole = strdup(prefconsole);
+	if (prefconsole != NULL) {
+		unsetenv("console");		/* we want to replace this */
+		cons_change(prefconsole);
+	} else {
+		consoles[active]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
+		consoles[active]->c_init(0);
+		prefconsole = strdup(consoles[active]->c_name);
+	}
+
+	printf("Consoles: ");
+	for (cons = 0; consoles[cons] != NULL; cons++)
+		if (consoles[cons]->c_flags & (C_ACTIVEIN | C_ACTIVEOUT))
+			printf("%s  ", consoles[cons]->c_desc);
+	printf("\n");
+
+	if (prefconsole != NULL) {
+		env_setenv("console", EV_VOLATILE, prefconsole, cons_set,
+		    env_nounset);
+		free(prefconsole);
+	}
 }
 
 int
 getchar(void)
 {
-    int		cons;
-    int		rv;
+	int	cons;
+	int	rv;
 
-    /* Loop forever polling all active consoles */
-    for(;;)
-	for (cons = 0; consoles[cons] != NULL; cons++)
-	    if ((consoles[cons]->c_flags & (C_PRESENTIN | C_ACTIVEIN)) ==
-		(C_PRESENTIN | C_ACTIVEIN) &&
-		((rv = consoles[cons]->c_in()) != -1))
-		return(rv);
+	/* Loop forever polling all active consoles */
+	for (;;) {
+		for (cons = 0; consoles[cons] != NULL; cons++) {
+			if ((consoles[cons]->c_flags &
+			    (C_PRESENTIN | C_ACTIVEIN)) ==
+			    (C_PRESENTIN | C_ACTIVEIN) &&
+			    ((rv = consoles[cons]->c_in()) != -1))
+				return (rv);
+		}
+	}
 }
 
 int
 ischar(void)
 {
-    int		cons;
+	int	cons;
 
-    for (cons = 0; consoles[cons] != NULL; cons++)
-	if ((consoles[cons]->c_flags & (C_PRESENTIN | C_ACTIVEIN)) ==
-	    (C_PRESENTIN | C_ACTIVEIN) &&
-	    (consoles[cons]->c_ready() != 0))
-		return(1);
-    return(0);
+	for (cons = 0; consoles[cons] != NULL; cons++)
+		if ((consoles[cons]->c_flags & (C_PRESENTIN | C_ACTIVEIN)) ==
+		    (C_PRESENTIN | C_ACTIVEIN) &&
+		    (consoles[cons]->c_ready() != 0))
+			return (1);
+	return (0);
 }
 
 void
 putchar(int c)
 {
-    int		cons;
+	int	cons;
 
-    /* Expand newlines */
-    if (c == '\n')
-	putchar('\r');
+	/* Expand newlines */
+	if (c == '\n')
+		putchar('\r');
 
-    for (cons = 0; consoles[cons] != NULL; cons++)
-	if ((consoles[cons]->c_flags & (C_PRESENTOUT | C_ACTIVEOUT)) ==
-	    (C_PRESENTOUT | C_ACTIVEOUT))
-	    consoles[cons]->c_out(c);
+	for (cons = 0; consoles[cons] != NULL; cons++) {
+		if ((consoles[cons]->c_flags & (C_PRESENTOUT | C_ACTIVEOUT)) ==
+		    (C_PRESENTOUT | C_ACTIVEOUT))
+			consoles[cons]->c_out(c);
+	}
 }
 
 /*
@@ -148,12 +153,12 @@ putchar(int c)
 static int
 cons_find(const char *name)
 {
-    int		cons;
+	int	cons;
 
-    for (cons = 0; consoles[cons] != NULL; cons++)
-	if (!strcmp(consoles[cons]->c_name, name))
-	    return (cons);
-    return (-1);
+	for (cons = 0; consoles[cons] != NULL; cons++)
+		if (strcmp(consoles[cons]->c_name, name) == 0)
+			return (cons);
+	return (-1);
 }
 
 /*
@@ -162,22 +167,23 @@ cons_find(const char *name)
 static int
 cons_set(struct env_var *ev, int flags, const void *value)
 {
-    int		ret;
+	int	ret;
 
-    if ((value == NULL) || (cons_check(value) == 0)) {
-	/*
-	 * Return CMD_OK instead of CMD_ERROR to prevent forth syntax error,
-	 * which would prevent it processing any further loader.conf entries.
-	 */
+	if ((value == NULL) || (cons_check(value) == 0)) {
+		/*
+		 * Return CMD_OK instead of CMD_ERROR to prevent forth syntax
+		 * error, which would prevent it processing any further
+		 * loader.conf entries.
+		 */
+		return (CMD_OK);
+	}
+
+	ret = cons_change(value);
+	if (ret != CMD_OK)
+		return (ret);
+
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
 	return (CMD_OK);
-    }
-
-    ret = cons_change(value);
-    if (ret != CMD_OK)
-	return (ret);
-
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-    return (CMD_OK);
 }
 
 /*
@@ -186,36 +192,36 @@ cons_set(struct env_var *ev, int flags, const void *value)
 static int
 cons_check(const char *string)
 {
-    int		cons, found, failed;
-    char	*curpos, *dup, *next;
+	int	cons, found, failed;
+	char	*curpos, *dup, *next;
 
-    dup = next = strdup(string);
-    found = failed = 0;
-    while (next != NULL) {
-	curpos = strsep(&next, " ,");
-	if (*curpos != '\0') {
-	    cons = cons_find(curpos);
-	    if (cons == -1) {
-		printf("console %s is invalid!\n", curpos);
-		failed++;
-	    } else {
-		found++;
-	    }
+	dup = next = strdup(string);
+	found = failed = 0;
+	while (next != NULL) {
+		curpos = strsep(&next, " ,");
+		if (*curpos != '\0') {
+			cons = cons_find(curpos);
+			if (cons == -1) {
+				printf("console %s is invalid!\n", curpos);
+				failed++;
+			} else {
+				found++;
+			}
+		}
 	}
-    }
 
-    free(dup);
+	free(dup);
 
-    if (found == 0)
-	printf("no valid consoles!\n");
+	if (found == 0)
+		printf("no valid consoles!\n");
 
-    if (found == 0 || failed != 0) {
-	printf("Available consoles:\n");
-	for (cons = 0; consoles[cons] != NULL; cons++)
-	    printf("    %s\n", consoles[cons]->c_name);
-    }
+	if (found == 0 || failed != 0) {
+		printf("Available consoles:\n");
+		for (cons = 0; consoles[cons] != NULL; cons++)
+			printf("    %s\n", consoles[cons]->c_name);
+	}
 
-    return (found);
+	return (found);
 }
 
 /*
@@ -224,56 +230,64 @@ cons_check(const char *string)
 static int
 cons_change(const char *string)
 {
-    int		cons, active;
-    char	*curpos, *dup, *next;
+	int	cons, active;
+	char	*curpos, *dup, *next;
 
-    /* Disable all consoles */
-    for (cons = 0; consoles[cons] != NULL; cons++) {
-	consoles[cons]->c_flags &= ~(C_ACTIVEIN | C_ACTIVEOUT);
-    }
-
-    /* Enable selected consoles */
-    dup = next = strdup(string);
-    active = 0;
-    while (next != NULL) {
-	curpos = strsep(&next, " ,");
-	if (*curpos == '\0')
-		continue;
-	cons = cons_find(curpos);
-	if (cons >= 0) {
-	    consoles[cons]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
-	    consoles[cons]->c_init(0);
-	    if ((consoles[cons]->c_flags & (C_PRESENTIN | C_PRESENTOUT)) ==
-		(C_PRESENTIN | C_PRESENTOUT)) {
-		active++;
-		continue;
-	    }
-
-	    if (active != 0) {
-		/* If no consoles have initialised we wouldn't see this. */
-		printf("console %s failed to initialize\n", consoles[cons]->c_name);
-	    }
-	}
-    }
-
-    free(dup);
-
-    if (active == 0) {
-	/* All requested consoles failed to initialise, try to recover. */
+	/* Disable all consoles */
 	for (cons = 0; consoles[cons] != NULL; cons++) {
-	    consoles[cons]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
-	    consoles[cons]->c_init(0);
-	    if ((consoles[cons]->c_flags &
-		(C_PRESENTIN | C_PRESENTOUT)) ==
-		(C_PRESENTIN | C_PRESENTOUT))
-		active++;
+		consoles[cons]->c_flags &= ~(C_ACTIVEIN | C_ACTIVEOUT);
 	}
 
-	if (active == 0)
-	    return (CMD_ERROR); /* Recovery failed. */
-    }
+	/* Enable selected consoles */
+	dup = next = strdup(string);
+	active = 0;
+	while (next != NULL) {
+		curpos = strsep(&next, " ,");
+		if (*curpos == '\0')
+			continue;
+		cons = cons_find(curpos);
+		if (cons >= 0) {
+			consoles[cons]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
+			consoles[cons]->c_init(0);
+			if ((consoles[cons]->c_flags &
+			    (C_PRESENTIN | C_PRESENTOUT)) ==
+			    (C_PRESENTIN | C_PRESENTOUT)) {
+				active++;
+				continue;
+			}
 
-    return (CMD_OK);
+			if (active != 0) {
+				/*
+				 * If no consoles have initialised we
+				 * wouldn't see this.
+				 */
+				printf("console %s failed to initialize\n",
+				    consoles[cons]->c_name);
+			}
+		}
+	}
+
+	free(dup);
+
+	if (active == 0) {
+		/*
+		 * All requested consoles failed to initialise,
+		 * try to recover.
+		 */
+		for (cons = 0; consoles[cons] != NULL; cons++) {
+			consoles[cons]->c_flags |= C_ACTIVEIN | C_ACTIVEOUT;
+			consoles[cons]->c_init(0);
+			if ((consoles[cons]->c_flags &
+			    (C_PRESENTIN | C_PRESENTOUT)) ==
+			    (C_PRESENTIN | C_PRESENTOUT))
+				active++;
+		}
+
+		if (active == 0)
+			return (CMD_ERROR); /* Recovery failed. */
+	}
+
+	return (CMD_OK);
 }
 
 /*
@@ -287,16 +301,16 @@ cons_change(const char *string)
 static int
 twiddle_set(struct env_var *ev, int flags, const void *value)
 {
-    u_long tdiv;
-    char * eptr;
+	u_long tdiv;
+	char *eptr;
 
-    tdiv = strtoul(value, &eptr, 0);
-    if (*(const char *)value == 0 || *eptr != 0) {
-	printf("invalid twiddle_divisor '%s'\n", (const char *)value);
-	return (CMD_ERROR);
-    }
-    twiddle_divisor((u_int)tdiv);
-    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+	tdiv = strtoul(value, &eptr, 0);
+	if (*(const char *)value == 0 || *eptr != 0) {
+		printf("invalid twiddle_divisor '%s'\n", (const char *)value);
+		return (CMD_ERROR);
+	}
+	twiddle_divisor((u_int)tdiv);
+	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
 
-    return(CMD_OK);
+	return (CMD_OK);
 }
