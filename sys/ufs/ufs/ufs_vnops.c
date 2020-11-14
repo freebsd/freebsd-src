@@ -1006,10 +1006,16 @@ ufs_remove(ap)
 	td = curthread;
 	ip = VTOI(vp);
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
-	    (VTOI(dvp)->i_flags & APPEND)) {
-		error = EPERM;
-		goto out;
+	    (VTOI(dvp)->i_flags & APPEND))
+		return (EPERM);
+	if (DOINGSOFTDEP(dvp)) {
+		error = softdep_prelink(dvp, vp, true);
+		if (error != 0) {
+			MPASS(error == ERELOOKUP);
+			return (error);
+		}
 	}
+
 #ifdef UFS_GJOURNAL
 	ufs_gjournal_orphan(vp);
 #endif
@@ -1030,7 +1036,6 @@ ufs_remove(ap)
 		(void) VOP_FSYNC(dvp, MNT_WAIT, td);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	}
-out:
 	return (error);
 }
 
@@ -1067,6 +1072,15 @@ ufs_link(ap)
 	if ((cnp->cn_flags & HASBUF) == 0)
 		panic("ufs_link: no name");
 #endif
+
+	if (DOINGSOFTDEP(tdvp)) {
+		error = softdep_prelink(tdvp, vp, true);
+		if (error != 0) {
+			MPASS(error == ERELOOKUP);
+			return (error);
+		}
+	}
+
 	if (VTOI(tdvp)->i_effnlink < 2) {
 		print_bad_link_count("ufs_link", tdvp);
 		error = EINVAL;
@@ -1089,6 +1103,7 @@ ufs_link(ap)
 		error = EPERM;
 		goto out;
 	}
+
 	ip->i_effnlink++;
 	ip->i_nlink++;
 	DIP_SET(ip, i_nlink, ip->i_nlink);
@@ -1128,6 +1143,15 @@ ufs_whiteout(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct direct newdir;
 	int error = 0;
+
+	if (DOINGSOFTDEP(dvp) && (ap->a_flags == CREATE ||
+	    ap->a_flags == DELETE)) {
+		error = softdep_prelink(dvp, NULL, true);
+		if (error != 0) {
+			MPASS(error == ERELOOKUP);
+			return (error);
+		}
+	}
 
 	switch (ap->a_flags) {
 	case LOOKUP:
@@ -1338,6 +1362,18 @@ relock:
 			goto relock;
 		}
 	}
+
+	if (DOINGSOFTDEP(fdvp)) {
+		error = softdep_prerename(fdvp, fvp, tdvp, tvp);
+		if (error != 0) {
+			if (error == ERELOOKUP) {
+				atomic_add_int(&rename_restarts, 1);
+				goto relock;
+			}
+			goto releout;
+		}
+	}
+
 	fdp = VTOI(fdvp);
 	fip = VTOI(fvp);
 	tdp = VTOI(tdvp);
@@ -1649,8 +1685,10 @@ unlockout:
 	 * are no longer needed.
 	 */
 	if (error == 0 && endoff != 0) {
-		error = UFS_TRUNCATE(tdvp, endoff, IO_NORMAL |
-		    (DOINGASYNC(tdvp) ? 0 : IO_SYNC), tcnp->cn_cred);
+		do {
+			error = UFS_TRUNCATE(tdvp, endoff, IO_NORMAL |
+			    (DOINGASYNC(tdvp) ? 0 : IO_SYNC), tcnp->cn_cred);
+		} while (error == ERELOOKUP);
 		if (error != 0 && !ffs_fsfail_cleanup(VFSTOUFS(mp), error))
 			vn_printf(tdvp,
 			    "ufs_rename: failed to truncate, error %d\n",
@@ -1668,8 +1706,11 @@ unlockout:
 		 */
 		error = 0;
 	}
-	if (error == 0 && tdp->i_flag & IN_NEEDSYNC)
-		error = VOP_FSYNC(tdvp, MNT_WAIT, td);
+	if (error == 0 && tdp->i_flag & IN_NEEDSYNC) {
+		do {
+			error = VOP_FSYNC(tdvp, MNT_WAIT, td);
+		} while (error == ERELOOKUP);
+	}
 	vput(tdvp);
 	return (error);
 
@@ -1918,6 +1959,7 @@ ufs_mkdir(ap)
 	}
 	dmode = vap->va_mode & 0777;
 	dmode |= IFDIR;
+
 	/*
 	 * Must simulate part of ufs_makeinode here to acquire the inode,
 	 * but not have it entered in the parent directory. The entry is
@@ -1928,6 +1970,15 @@ ufs_mkdir(ap)
 		error = EINVAL;
 		goto out;
 	}
+
+	if (DOINGSOFTDEP(dvp)) {
+		error = softdep_prelink(dvp, NULL, true);
+		if (error != 0) {
+			MPASS(error == ERELOOKUP);
+			return (error);
+		}
+	}
+
 	error = UFS_VALLOC(dvp, dmode, cnp->cn_cred, &tvp);
 	if (error)
 		goto out;
@@ -2184,6 +2235,14 @@ ufs_rmdir(ap)
 		error = EINVAL;
 		goto out;
 	}
+	if (DOINGSOFTDEP(dvp)) {
+		error = softdep_prelink(dvp, vp, false);
+		if (error != 0) {
+			MPASS(error == ERELOOKUP);
+			return (error);
+		}
+	}
+
 #ifdef UFS_GJOURNAL
 	ufs_gjournal_orphan(vp);
 #endif
@@ -2702,6 +2761,13 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 	if (pdir->i_effnlink < 2) {
 		print_bad_link_count(callfunc, dvp);
 		return (EINVAL);
+	}
+	if (DOINGSOFTDEP(dvp)) {
+		error = softdep_prelink(dvp, NULL, true);
+		if (error != 0) {
+			MPASS(error == ERELOOKUP);
+			return (error);
+		}
 	}
 	error = UFS_VALLOC(dvp, mode, cnp->cn_cred, &tvp);
 	if (error)

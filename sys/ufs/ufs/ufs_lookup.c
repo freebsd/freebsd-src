@@ -961,27 +961,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			bdwrite(bp);
 			if ((dp->i_flag & IN_NEEDSYNC) == 0)
 				return (UFS_UPDATE(dvp, 0));
-			/*
-			 * We have just allocated a directory block in an
-			 * indirect block.  We must prevent holes in the
-			 * directory created if directory entries are
-			 * written out of order.  To accomplish this we
-			 * fsync when we extend a directory into indirects.
-			 * During rename it's not safe to drop the tvp lock
-			 * so sync must be delayed until it is.
-			 *
-			 * This synchronous step could be removed if fsck and
-			 * the kernel were taught to fill in sparse
-			 * directories rather than panic.
-			 */
-			if (isrename)
-				return (0);
-			if (tvp != NULL)
-				VOP_UNLOCK(tvp);
-			(void) VOP_FSYNC(dvp, MNT_WAIT, td);
-			if (tvp != NULL)
-				vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
-			return (error);
+			return (0);
 		}
 		if (DOINGASYNC(dvp)) {
 			bdwrite(bp);
