@@ -1,0 +1,110 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+.\"
+.\" Copyright 2020 Scott Long
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd Oct 28, 2020
+.Dt GETLOCALBASE 3
+.Os
+.Sh NAME
+.Nm getlocalbase
+.Nd "return the path to the local software directory"
+.Sh LIBRARY
+.Lb libutil
+.Sh SYNOPSIS
+.In libutil.h
+.Ft ssize_t
+.Fn getlocalbase "char *path" "size_t len"
+.Sh DESCRIPTION
+The
+.Fn getlocalbase
+function returns the path to the local software base directory.
+Normally this is the
+.Pa /usr/local
+directory.
+First the
+.Ev LOCALBASE
+environment variable is checked.
+If that doesn't exist then the
+.Va user.localbase
+sysctl is checked.
+If that also doesn't exist then the value of the
+.Dv _PATH_LOCALBASE
+compile-time variable is used.
+If that is undefined then the default of
+.Pa /usr/local
+is used.
+.Pp
+The
+.Fa path
+argument points to a caller-supplied buffer to hold the resulting pathname.
+The
+.Fa len
+argument is the length of the caller-supplied buffer.
+.Sh IMPLEMENTATION NOTES
+Calls to
+.Fn getlocalpath
+will perform a setugid check on the running binary before checking the
+environment.
+.Sh RETURN VALUES
+If the request completes without error, the size of the string copied into the
+buffer, including the terminating NUL, is returned.
+If an error occurred or the buffer was too small to hold the string,
+.Fn getlocalbase
+returns -1 and sets
+.Em errno
+to indicate the error condition.
+.Sh ENVIRONMENT
+The
+.Fn getlocalbase
+library function retrieves the
+.Ev LOCALBASE
+environment variable.
+.Sh ERRORS
+The
+.Fn getlocalbase
+function will fail and set
+.Va errno
+for the following conditions:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+One of the passed in parameters is NULL or zero.
+.It Bq Er ENOMEM
+There isn't enough space in the passed in buffer to hold the pathname string.
+.El
+.Sh SEE ALSO
+.Xr env 1 ,
+.Xr src.conf 5 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+library function first appeared in
+.Fx 13.0 .
+.Sh AUTHORS
+This
+manual page was written by
+.An Scott Long Aq Mt scottl@FreeBSD.org .
