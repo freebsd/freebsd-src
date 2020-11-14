@@ -536,6 +536,7 @@ thread_reap(void)
 {
 	struct thread *itd, *ntd;
 	struct tidbatch tidbatch;
+	struct credbatch credbatch;
 	int tdcount;
 	struct plimit *lim;
 	int limcount;
@@ -553,6 +554,7 @@ thread_reap(void)
 		return;
 
 	tidbatch_prep(&tidbatch);
+	credbatch_prep(&credbatch);
 	tdcount = 0;
 	lim = NULL;
 	limcount = 0;
@@ -560,8 +562,7 @@ thread_reap(void)
 		ntd = itd->td_zombie;
 		EVENTHANDLER_DIRECT_INVOKE(thread_dtor, itd);
 		tidbatch_add(&tidbatch, itd);
-		MPASS(itd->td_realucred != NULL);
-		crcowfree(itd);
+		credbatch_add(&credbatch, itd);
 		MPASS(itd->td_limit != NULL);
 		if (lim != itd->td_limit) {
 			if (limcount != 0) {
@@ -573,6 +574,7 @@ thread_reap(void)
 		limcount++;
 		thread_free_batched(itd);
 		tidbatch_process(&tidbatch);
+		credbatch_process(&credbatch);
 		tdcount++;
 		if (tdcount == 32) {
 			thread_count_sub(tdcount);
@@ -582,6 +584,7 @@ thread_reap(void)
 	}
 
 	tidbatch_final(&tidbatch);
+	credbatch_final(&credbatch);
 	if (tdcount != 0) {
 		thread_count_sub(tdcount);
 	}

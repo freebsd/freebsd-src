@@ -114,6 +114,28 @@ struct xucred {
 struct proc;
 struct thread;
 
+struct credbatch {
+	struct ucred *cred;
+	int users;
+	int ref;
+};
+
+static inline void
+credbatch_prep(struct credbatch *crb)
+{
+	crb->cred = NULL;
+	crb->users = 0;
+	crb->ref = 0;
+}
+void	credbatch_add(struct credbatch *crb, struct thread *td);
+static inline void
+credbatch_process(struct credbatch *crb)
+{
+
+}
+void	credbatch_add(struct credbatch *crb, struct thread *td);
+void	credbatch_final(struct credbatch *crb);
+
 void	change_egid(struct ucred *newcred, gid_t egid);
 void	change_euid(struct ucred *newcred, struct uidinfo *euip);
 void	change_rgid(struct ucred *newcred, gid_t rgid);
