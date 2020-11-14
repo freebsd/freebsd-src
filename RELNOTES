@@ -10,6 +10,14 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r367423:
+	This commit added a new startup scripts variable called
+	nfsv4_server_only which uses the -R option on mountd added by r367026.
+	When nfsv4_server_only is set to "YES" in /etc/rc.conf, the NFS server
+	only handles NFSv4 and does not register with rpcbind.  As such, rpcbind
+	does not need to be running.  Useful for sites which consider rpcbind a
+	security issue.
+
 r366267:
         Kernel option ACPI_DMAR was renamed to IOMMU.  amd64's IOMMU subsystem
         was split out from amd64 DMAR support and is now generic, i.e., it can
