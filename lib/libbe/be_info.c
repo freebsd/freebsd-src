@@ -294,7 +294,7 @@ be_prop_list_free(nvlist_t *be_list)
  * Usage
  */
 int
-be_exists(libbe_handle_t *lbh, char *be)
+be_exists(libbe_handle_t *lbh, const char *be)
 {
 	char buf[BE_MAXPATHLEN];
 

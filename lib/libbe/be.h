@@ -111,8 +111,8 @@ typedef enum {
 	BE_MNT_DEEP		= 1 << 1,
 } be_mount_opt_t;
 
-int be_mount(libbe_handle_t *, char *, char *, int, char *);
-int be_unmount(libbe_handle_t *, char *, int);
+int be_mount(libbe_handle_t *, const char *, const char *, int, char *);
+int be_unmount(libbe_handle_t *, const char *, int);
 int be_mounted_at(libbe_handle_t *, const char *path, nvlist_t *);
 
 /* Error related functions: be_error.c */
@@ -124,7 +124,7 @@ void libbe_print_on_error(libbe_handle_t *, bool);
 int be_root_concat(libbe_handle_t *, const char *, char *);
 int be_validate_name(libbe_handle_t * __unused, const char *);
 int be_validate_snap(libbe_handle_t *, const char *);
-int be_exists(libbe_handle_t *, char *);
+int be_exists(libbe_handle_t *, const char *);
 
 int be_export(libbe_handle_t *, const char *, int fd);
 int be_import(libbe_handle_t *, const char *, int fd);
