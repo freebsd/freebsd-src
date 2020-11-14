@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <fetch.h>
+#include <libutil.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -1037,6 +1038,7 @@ main(int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
 	const char *pkgarg;
+	size_t len;
 	int i;
 	bool bootstrap_only, force, yes;
 
@@ -1045,8 +1047,11 @@ main(int argc, char *argv[])
 	pkgarg = NULL;
 	yes = false;
 
-	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _PATH_LOCALBASE);
+	if ((len = getlocalbase(pkgpath, MAXPATHLEN)) != 0) {
+		fprintf(stderr, "Cannot determine local path\n");
+		exit(EXIT_FAILURE);
+	}
+	strlcat(pkgpath, "/sbin/pkg", MAXPATHLEN - len);
 
 	if (argc > 1 && strcmp(argv[1], "bootstrap") == 0) {
 		bootstrap_only = true;
