@@ -135,7 +135,7 @@ static int thread_unsuspend_one(struct thread *td, struct proc *p,
     bool boundary);
 static void thread_free_batched(struct thread *td);
 
-static struct mtx tid_lock;
+static __exclusive_cache_line struct mtx tid_lock;
 static bitstr_t *tid_bitmap;
 
 static MALLOC_DEFINE(M_TIDHASH, "tidhash", "thread hash");
