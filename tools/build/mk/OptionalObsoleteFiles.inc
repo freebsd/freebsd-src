@@ -1538,7 +1538,6 @@ OLD_FILES+=usr/bin/lli
 OLD_FILES+=usr/bin/llvm-as
 OLD_FILES+=usr/bin/llvm-bcanalyzer
 OLD_FILES+=usr/bin/llvm-cxxdump
-OLD_FILES+=usr/bin/llvm-cxxfilt
 OLD_FILES+=usr/bin/llvm-diff
 OLD_FILES+=usr/bin/llvm-dis
 OLD_FILES+=usr/bin/llvm-dwarfdump
@@ -1562,7 +1561,6 @@ OLD_FILES+=usr/share/man/man1/llc.1.gz
 OLD_FILES+=usr/share/man/man1/lli.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-as.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-bcanalyzer.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-cxxfilt.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-diff.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dwarfdump.1
@@ -1577,6 +1575,11 @@ OLD_FILES+=usr/share/man/man1/opt.1.gz
 
 .if ${MK_CLANG_EXTRAS} == no && ${MK_CLANG_FORMAT} == no
 OLD_FILES+=usr/bin/clang-format
+.endif
+
+.if ${MK_CLANG_EXTRAS} == no && ${MK_LLVM_CXXFILT} == no
+OLD_FILES+=usr/bin/llvm-cxxfilt
+OLD_FILES+=usr/share/man/man1/llvm-cxxfilt.1.gz
 .endif
 
 .if ${MK_CPP} == no
