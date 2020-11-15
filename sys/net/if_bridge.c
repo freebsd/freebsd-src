@@ -186,17 +186,41 @@ extern void	nd6_setmtu(struct ifnet *);
 
 /*
  * Bridge locking
+ *
+ * The bridge relies heavily on the epoch(9) system to protect its data
+ * structures. This means we can safely use CK_LISTs while in NET_EPOCH, but we
+ * must ensure there is only one writer at a time.
+ *
+ * That is: for read accesses we only need to be in NET_EPOCH, but for write
+ * accesses we must hold:
+ *
+ *  - BRIDGE_RT_LOCK, for any change to bridge_rtnodes
+ *  - BRIDGE_LOCK, for any other change
+ *
+ * The BRIDGE_LOCK is a sleepable lock, because it is held accross ioctl()
+ * calls to bridge member interfaces and these ioctl()s can sleep.
+ * The BRIDGE_RT_LOCK is a non-sleepable mutex, because it is sometimes
+ * required while we're in NET_EPOCH and then we're not allowed to sleep.
  */
 #define BRIDGE_LOCK_INIT(_sc)		do {			\
-	mtx_init(&(_sc)->sc_mtx, "if_bridge", NULL, MTX_DEF);	\
+	sx_init(&(_sc)->sc_sx, "if_bridge");			\
+	mtx_init(&(_sc)->sc_rt_mtx, "if_bridge rt", NULL, MTX_DEF);	\
 } while (0)
 #define BRIDGE_LOCK_DESTROY(_sc)	do {	\
-	mtx_destroy(&(_sc)->sc_mtx);		\
+	sx_destroy(&(_sc)->sc_sx);		\
+	mtx_destroy(&(_sc)->sc_rt_mtx);		\
 } while (0)
-#define BRIDGE_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define BRIDGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define BRIDGE_LOCK_ASSERT(_sc)		mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
-#define BRIDGE_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
+#define BRIDGE_LOCK(_sc)		sx_xlock(&(_sc)->sc_sx)
+#define BRIDGE_UNLOCK(_sc)		sx_xunlock(&(_sc)->sc_sx)
+#define BRIDGE_LOCK_ASSERT(_sc)		sx_assert(&(_sc)->sc_sx, SX_XLOCKED)
+#define BRIDGE_LOCK_OR_NET_EPOCH_ASSERT(_sc)	\
+	    MPASS(in_epoch(net_epoch_preempt) || sx_xlocked(&(_sc)->sc_sx))
+#define BRIDGE_UNLOCK_ASSERT(_sc)	sx_assert(&(_sc)->sc_sx, SX_UNLOCKED)
+#define BRIDGE_RT_LOCK(_sc)		mtx_lock(&(_sc)->sc_rt_mtx)
+#define BRIDGE_RT_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_rt_mtx)
+#define BRIDGE_RT_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_rt_mtx, MA_OWNED)
+#define BRIDGE_RT_LOCK_OR_NET_EPOCH_ASSERT(_sc)	\
+	    MPASS(in_epoch(net_epoch_preempt) || mtx_owned(&(_sc)->sc_rt_mtx))
 
 /*
  * Bridge interface list entry.
@@ -237,7 +261,8 @@ struct bridge_rtnode {
 struct bridge_softc {
 	struct ifnet		*sc_ifp;	/* make this an interface */
 	LIST_ENTRY(bridge_softc) sc_list;
-	struct mtx		sc_mtx;
+	struct sx		sc_sx;
+	struct mtx		sc_rt_mtx;
 	uint32_t		sc_brtmax;	/* max # of addresses */
 	uint32_t		sc_brtcnt;	/* cur. # of addresses */
 	uint32_t		sc_brttimeout;	/* rt timeout in seconds */
@@ -255,8 +280,8 @@ struct bridge_softc {
 	struct epoch_context	sc_epoch_ctx;
 };
 
-VNET_DEFINE_STATIC(struct mtx, bridge_list_mtx);
-#define	V_bridge_list_mtx	VNET(bridge_list_mtx)
+VNET_DEFINE_STATIC(struct sx, bridge_list_sx);
+#define	V_bridge_list_sx	VNET(bridge_list_sx)
 static eventhandler_tag bridge_detach_cookie;
 
 int	bridge_rtable_prune_period = BRIDGE_RTABLE_PRUNE_PERIOD;
@@ -539,11 +564,11 @@ const int bridge_control_table_size = nitems(bridge_control_table);
 
 VNET_DEFINE_STATIC(LIST_HEAD(, bridge_softc), bridge_list);
 #define	V_bridge_list	VNET(bridge_list)
-#define	BRIDGE_LIST_LOCK_INIT(x)	mtx_init(&V_bridge_list_mtx,	\
-					    "if_bridge list", NULL, MTX_DEF)
-#define	BRIDGE_LIST_LOCK_DESTROY(x)	mtx_destroy(&V_bridge_list_mtx)
-#define	BRIDGE_LIST_LOCK(x)		mtx_lock(&V_bridge_list_mtx)
-#define	BRIDGE_LIST_UNLOCK(x)		mtx_unlock(&V_bridge_list_mtx)
+#define	BRIDGE_LIST_LOCK_INIT(x)	sx_init(&V_bridge_list_sx,	\
+					    "if_bridge list")
+#define	BRIDGE_LIST_LOCK_DESTROY(x)	sx_destroy(&V_bridge_list_sx)
+#define	BRIDGE_LIST_LOCK(x)		sx_xlock(&V_bridge_list_sx)
+#define	BRIDGE_LIST_UNLOCK(x)		sx_xunlock(&V_bridge_list_sx)
 
 VNET_DEFINE_STATIC(struct if_clone *, bridge_cloner);
 #define	V_bridge_cloner	VNET(bridge_cloner)
@@ -676,7 +701,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	/* Initialize our routing table. */
 	bridge_rtable_init(sc);
 
-	callout_init_mtx(&sc->sc_brcallout, &sc->sc_mtx, 0);
+	callout_init_mtx(&sc->sc_brcallout, &sc->sc_rt_mtx, 0);
 
 	CK_LIST_INIT(&sc->sc_iflist);
 	CK_LIST_INIT(&sc->sc_spanlist);
@@ -762,7 +787,6 @@ bridge_clone_destroy(struct ifnet *ifp)
 	struct bridge_iflist *bif;
 	struct epoch_tracker et;
 
-	NET_EPOCH_ENTER_ET(et);
 	BRIDGE_LOCK(sc);
 
 	bridge_stop(ifp, 1);
@@ -779,6 +803,8 @@ bridge_clone_destroy(struct ifnet *ifp)
 	bridge_rtable_fini(sc);
 
 	BRIDGE_UNLOCK(sc);
+
+	NET_EPOCH_ENTER_ET(et);
 
 	callout_drain(&sc->sc_brcallout);
 
@@ -818,9 +844,8 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ifdrv *ifd = (struct ifdrv *) data;
 	const struct bridge_control *bc;
 	int error = 0, oldmtu;
-	struct epoch_tracker et;
 
-	NET_EPOCH_ENTER_ET(et);
+	BRIDGE_LOCK(sc);
 
 	switch (cmd) {
 
@@ -867,9 +892,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		oldmtu = ifp->if_mtu;
-		BRIDGE_LOCK(sc);
 		error = (*bc->bc_func)(sc, &args);
-		BRIDGE_UNLOCK(sc);
 		if (error)
 			break;
 
@@ -896,16 +919,16 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * If interface is marked down and it is running,
 			 * then stop and disable it.
 			 */
-			BRIDGE_LOCK(sc);
 			bridge_stop(ifp, 1);
-			BRIDGE_UNLOCK(sc);
 		} else if ((ifp->if_flags & IFF_UP) &&
 		    !(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			/*
 			 * If interface is marked up and it is stopped, then
 			 * start it.
 			 */
+			BRIDGE_UNLOCK(sc);
 			(*ifp->if_init)(sc);
+			BRIDGE_LOCK(sc);
 		}
 		break;
 
@@ -918,7 +941,6 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			sc->sc_ifp->if_mtu = ifr->ifr_mtu;
 			break;
 		}
-		BRIDGE_LOCK(sc);
 		CK_LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 			if (bif->bif_ifp->if_mtu != ifr->ifr_mtu) {
 				log(LOG_NOTICE, "%s: invalid MTU: %u(%s)"
@@ -931,18 +953,19 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 		if (!error)
 			sc->sc_ifp->if_mtu = ifr->ifr_mtu;
-		BRIDGE_UNLOCK(sc);
 		break;
 	default:
 		/*
 		 * drop the lock as ether_ioctl() will call bridge_start() and
 		 * cause the lock to be recursed.
 		 */
+		BRIDGE_UNLOCK(sc);
 		error = ether_ioctl(ifp, cmd, data);
+		BRIDGE_LOCK(sc);
 		break;
 	}
 
-	NET_EPOCH_EXIT_ET(et);
+	BRIDGE_UNLOCK(sc);
 
 	return (error);
 }
@@ -974,9 +997,7 @@ bridge_mutecaps(struct bridge_softc *sc)
 		/* strip off mask bits and enable them again if allowed */
 		enabled &= ~BRIDGE_IFCAPS_MASK;
 		enabled |= mask;
-		BRIDGE_UNLOCK(sc);
 		bridge_set_ifcap(sc, bif, enabled);
-		BRIDGE_LOCK(sc);
 	}
 }
 
@@ -986,8 +1007,6 @@ bridge_set_ifcap(struct bridge_softc *sc, struct bridge_iflist *bif, int set)
 	struct ifnet *ifp = bif->bif_ifp;
 	struct ifreq ifr;
 	int error, mask, stuck;
-
-	BRIDGE_UNLOCK_ASSERT(sc);
 
 	bzero(&ifr, sizeof(ifr));
 	ifr.ifr_reqcap = set;
@@ -1018,7 +1037,7 @@ bridge_lookup_member(struct bridge_softc *sc, const char *name)
 	struct bridge_iflist *bif;
 	struct ifnet *ifp;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	BRIDGE_LOCK_OR_NET_EPOCH_ASSERT(sc);
 
 	CK_LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		ifp = bif->bif_ifp;
@@ -1039,7 +1058,7 @@ bridge_lookup_member_if(struct bridge_softc *sc, struct ifnet *member_ifp)
 {
 	struct bridge_iflist *bif;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	BRIDGE_LOCK_OR_NET_EPOCH_ASSERT(sc);
 
 	CK_LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
 		if (bif->bif_ifp == member_ifp)
@@ -1102,14 +1121,15 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 
 	bridge_linkcheck(sc);
 	bridge_mutecaps(sc);	/* recalcuate now this interface is removed */
+	BRIDGE_RT_LOCK(sc);
 	bridge_rtdelete(sc, ifs, IFBF_FLUSHALL);
+	BRIDGE_RT_UNLOCK(sc);
 	KASSERT(bif->bif_addrcnt == 0,
 	    ("%s: %d bridge routes referenced", __func__, bif->bif_addrcnt));
 
 	ifs->if_bridge_output = NULL;
 	ifs->if_bridge_input = NULL;
 	ifs->if_bridge_linkstate = NULL;
-	BRIDGE_UNLOCK(sc);
 	if (!gone) {
 		switch (ifs->if_type) {
 		case IFT_ETHER:
@@ -1136,7 +1156,6 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 		bridge_set_ifcap(sc, bif, bif->bif_savedcaps);
 	}
 	bstp_destroy(&bif->bif_stp);	/* prepare to free */
-	BRIDGE_LOCK(sc);
 
 	epoch_call(net_epoch_preempt, &bif->bif_epoch_ctx,
 	    bridge_delete_member_cb);
@@ -1216,9 +1235,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 		 */
 		CK_LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
  			if (in6ifa_llaonifp(bif->bif_ifp)) {
-				BRIDGE_UNLOCK(sc);
 				in6_ifdetach(bif->bif_ifp);
-				BRIDGE_LOCK(sc);
 				if_printf(sc->sc_ifp,
 				    "IPv6 addresses on %s have been removed "
 				    "before adding it as a member to prevent "
@@ -1227,9 +1244,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 			}
 		}
 		if (in6ifa_llaonifp(ifs)) {
-			BRIDGE_UNLOCK(sc);
 			in6_ifdetach(ifs);
-			BRIDGE_LOCK(sc);
 			if_printf(sc->sc_ifp,
 			    "IPv6 addresses on %s have been removed "
 			    "before adding it as a member to prevent "
@@ -1287,9 +1302,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	switch (ifs->if_type) {
 		case IFT_ETHER:
 		case IFT_L2VLAN:
-			BRIDGE_UNLOCK(sc);
 			error = ifpromisc(ifs, 1);
-			BRIDGE_LOCK(sc);
 			break;
 	}
 
@@ -1471,10 +1484,8 @@ bridge_ioctl_gifs(struct bridge_softc *sc, void *arg)
 		len -= sizeof(breq);
 	}
 
-	BRIDGE_UNLOCK(sc);
 	bifc->ifbic_len = sizeof(breq) * count;
 	error = copyout(outbuf, bifc->ifbic_req, bifc->ifbic_len);
-	BRIDGE_LOCK(sc);
 	free(outbuf, M_TEMP);
 	return (error);
 }
@@ -1524,10 +1535,8 @@ bridge_ioctl_rts(struct bridge_softc *sc, void *arg)
 		len -= sizeof(bareq);
 	}
 out:
-	BRIDGE_UNLOCK(sc);
 	bac->ifbac_len = sizeof(bareq) * count;
 	error = copyout(outbuf, bac->ifbac_req, bac->ifbac_len);
-	BRIDGE_LOCK(sc);
 	free(outbuf, M_TEMP);
 	return (error);
 }
@@ -1537,19 +1546,21 @@ bridge_ioctl_saddr(struct bridge_softc *sc, void *arg)
 {
 	struct ifbareq *req = arg;
 	struct bridge_iflist *bif;
+	struct epoch_tracker et;
 	int error;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	NET_EPOCH_ENTER_ET(et);
 
 	bif = bridge_lookup_member(sc, req->ifba_ifsname);
-	if (bif == NULL)
+	if (bif == NULL) {
+		NET_EPOCH_EXIT_ET(et);
 		return (ENOENT);
+	}
 
 	/* bridge_rtupdate() may acquire the lock. */
-	BRIDGE_UNLOCK(sc);
 	error = bridge_rtupdate(sc, req->ifba_dst, req->ifba_vlan, bif, 1,
 	    req->ifba_flags);
-	BRIDGE_LOCK(sc);
+	NET_EPOCH_EXIT_ET(et);
 
 	return (error);
 }
@@ -1585,7 +1596,10 @@ bridge_ioctl_flush(struct bridge_softc *sc, void *arg)
 {
 	struct ifbreq *req = arg;
 
+	BRIDGE_RT_LOCK(sc);
 	bridge_rtflush(sc, req->ifbr_ifsflags);
+	BRIDGE_RT_UNLOCK(sc);
+
 	return (0);
 }
 
@@ -1853,10 +1867,8 @@ bridge_ioctl_gifsstp(struct bridge_softc *sc, void *arg)
 		len -= sizeof(bpreq);
 	}
 
-	BRIDGE_UNLOCK(sc);
 	bifstp->ifbpstp_len = sizeof(bpreq) * count;
 	error = copyout(outbuf, bifstp->ifbpstp_req, bifstp->ifbpstp_len);
-	BRIDGE_LOCK(sc);
 	free(outbuf, M_TEMP);
 	return (error);
 }
@@ -1888,7 +1900,6 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
 	struct bridge_softc *sc = ifp->if_bridge;
 	struct bridge_iflist *bif;
-	struct epoch_tracker et;
 
 	if (ifp->if_flags & IFF_RENAMING)
 		return;
@@ -1899,7 +1910,6 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 		 */
 		return;
 	}
-	NET_EPOCH_ENTER_ET(et);
 	/* Check if the interface is a bridge member */
 	if (sc != NULL) {
 		BRIDGE_LOCK(sc);
@@ -1909,7 +1919,6 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 			bridge_delete_member(sc, bif, 1);
 
 		BRIDGE_UNLOCK(sc);
-		NET_EPOCH_EXIT_ET(et);
 		return;
 	}
 
@@ -1926,7 +1935,6 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 		BRIDGE_UNLOCK(sc);
 	}
 	BRIDGE_LIST_UNLOCK();
-	NET_EPOCH_EXIT_ET(et);
 }
 
 /*
@@ -1968,10 +1976,13 @@ bridge_stop(struct ifnet *ifp, int disable)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
+	BRIDGE_RT_LOCK(sc);
 	callout_stop(&sc->sc_brcallout);
+
 	bstp_stop(&sc->sc_stp);
 
 	bridge_rtflush(sc, IFBF_FLUSHDYN);
+	BRIDGE_RT_UNLOCK(sc);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 }
@@ -2718,8 +2729,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 	struct bridge_rtnode *brt;
 	int error;
 
-	MPASS(in_epoch(net_epoch_preempt));
-	BRIDGE_UNLOCK_ASSERT(sc);
+	BRIDGE_LOCK_OR_NET_EPOCH_ASSERT(sc);
 
 	/* Check the source address is valid and not multicast. */
 	if (ETHER_IS_MULTICAST(dst) ||
@@ -2736,24 +2746,24 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 	 * update it, otherwise create a new one.
 	 */
 	if ((brt = bridge_rtnode_lookup(sc, dst, vlan)) == NULL) {
-		BRIDGE_LOCK(sc);
+		BRIDGE_RT_LOCK(sc);
 
 		/* Check again, now that we have the lock. There could have
 		 * been a race and we only want to insert this once. */
 		if ((brt = bridge_rtnode_lookup(sc, dst, vlan)) != NULL) {
-			BRIDGE_UNLOCK(sc);
+			BRIDGE_RT_UNLOCK(sc);
 			return (0);
 		}
 
 		if (sc->sc_brtcnt >= sc->sc_brtmax) {
 			sc->sc_brtexceeded++;
-			BRIDGE_UNLOCK(sc);
+			BRIDGE_RT_UNLOCK(sc);
 			return (ENOSPC);
 		}
 		/* Check per interface address limits (if enabled) */
 		if (bif->bif_addrmax && bif->bif_addrcnt >= bif->bif_addrmax) {
 			bif->bif_addrexceeded++;
-			BRIDGE_UNLOCK(sc);
+			BRIDGE_RT_UNLOCK(sc);
 			return (ENOSPC);
 		}
 
@@ -2764,7 +2774,7 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 		 */
 		brt = uma_zalloc(V_bridge_rtnode_zone, M_NOWAIT | M_ZERO);
 		if (brt == NULL) {
-			BRIDGE_UNLOCK(sc);
+			BRIDGE_RT_UNLOCK(sc);
 			return (ENOMEM);
 		}
 		brt->brt_vnet = curvnet;
@@ -2779,22 +2789,22 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst, uint16_t vlan,
 
 		if ((error = bridge_rtnode_insert(sc, brt)) != 0) {
 			uma_zfree(V_bridge_rtnode_zone, brt);
-			BRIDGE_UNLOCK(sc);
+			BRIDGE_RT_UNLOCK(sc);
 			return (error);
 		}
 		brt->brt_dst = bif;
 		bif->bif_addrcnt++;
 
-		BRIDGE_UNLOCK(sc);
+		BRIDGE_RT_UNLOCK(sc);
 	}
 
 	if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC &&
 	    brt->brt_dst != bif) {
-		BRIDGE_LOCK(sc);
+		BRIDGE_RT_LOCK(sc);
 		brt->brt_dst->bif_addrcnt--;
 		brt->brt_dst = bif;
 		brt->brt_dst->bif_addrcnt++;
-		BRIDGE_UNLOCK(sc);
+		BRIDGE_RT_UNLOCK(sc);
 	}
 
 	if ((flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC)
@@ -2835,7 +2845,8 @@ bridge_rttrim(struct bridge_softc *sc)
 {
 	struct bridge_rtnode *brt, *nbrt;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	MPASS(in_epoch(net_epoch_preempt));
+	BRIDGE_RT_LOCK_ASSERT(sc);
 
 	/* Make sure we actually need to do this. */
 	if (sc->sc_brtcnt <= sc->sc_brtmax)
@@ -2865,7 +2876,7 @@ bridge_timer(void *arg)
 {
 	struct bridge_softc *sc = arg;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	BRIDGE_RT_LOCK_ASSERT(sc);
 
 	/* Destruction of rtnodes requires a proper vnet context */
 	CURVNET_SET(sc->sc_ifp->if_vnet);
@@ -2887,7 +2898,7 @@ bridge_rtage(struct bridge_softc *sc)
 {
 	struct bridge_rtnode *brt, *nbrt;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	BRIDGE_RT_LOCK_ASSERT(sc);
 
 	CK_LIST_FOREACH_SAFE(brt, &sc->sc_rtlist, brt_list, nbrt) {
 		if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC) {
@@ -2907,7 +2918,7 @@ bridge_rtflush(struct bridge_softc *sc, int full)
 {
 	struct bridge_rtnode *brt, *nbrt;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	BRIDGE_RT_LOCK_ASSERT(sc);
 
 	CK_LIST_FOREACH_SAFE(brt, &sc->sc_rtlist, brt_list, nbrt) {
 		if (full || (brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC)
@@ -2926,7 +2937,7 @@ bridge_rtdaddr(struct bridge_softc *sc, const uint8_t *addr, uint16_t vlan)
 	struct bridge_rtnode *brt;
 	int found = 0;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	BRIDGE_RT_LOCK(sc);
 
 	/*
 	 * If vlan is zero then we want to delete for all vlans so the lookup
@@ -2936,6 +2947,8 @@ bridge_rtdaddr(struct bridge_softc *sc, const uint8_t *addr, uint16_t vlan)
 		bridge_rtnode_destroy(sc, brt);
 		found = 1;
 	}
+
+	BRIDGE_RT_UNLOCK(sc);
 
 	return (found ? 0 : ENOENT);
 }
@@ -2950,7 +2963,7 @@ bridge_rtdelete(struct bridge_softc *sc, struct ifnet *ifp, int full)
 {
 	struct bridge_rtnode *brt, *nbrt;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	BRIDGE_RT_LOCK_ASSERT(sc);
 
 	CK_LIST_FOREACH_SAFE(brt, &sc->sc_rtlist, brt_list, nbrt) {
 		if (brt->brt_ifp == ifp && (full ||
@@ -3054,7 +3067,7 @@ bridge_rtnode_lookup(struct bridge_softc *sc, const uint8_t *addr, uint16_t vlan
 	uint32_t hash;
 	int dir;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	BRIDGE_RT_LOCK_OR_NET_EPOCH_ASSERT(sc);
 
 	hash = bridge_rthash(sc, addr);
 	CK_LIST_FOREACH(brt, &sc->sc_rthash[hash], brt_hash) {
@@ -3081,7 +3094,7 @@ bridge_rtnode_insert(struct bridge_softc *sc, struct bridge_rtnode *brt)
 	uint32_t hash;
 	int dir;
 
-	BRIDGE_LOCK_ASSERT(sc);
+	BRIDGE_RT_LOCK_ASSERT(sc);
 
 	hash = bridge_rthash(sc, brt->brt_addr);
 
@@ -3137,7 +3150,8 @@ bridge_rtnode_destroy_cb(struct epoch_context *ctx)
 static void
 bridge_rtnode_destroy(struct bridge_softc *sc, struct bridge_rtnode *brt)
 {
-	BRIDGE_LOCK_ASSERT(sc);
+
+	BRIDGE_RT_LOCK_ASSERT(sc);
 
 	CK_LIST_REMOVE(brt, brt_hash);
 
@@ -3161,7 +3175,7 @@ bridge_rtable_expire(struct ifnet *ifp, int age)
 	struct bridge_rtnode *brt;
 
 	CURVNET_SET(ifp->if_vnet);
-	BRIDGE_LOCK(sc);
+	BRIDGE_RT_LOCK(sc);
 
 	/*
 	 * If the age is zero then flush, otherwise set all the expiry times to
@@ -3178,7 +3192,7 @@ bridge_rtable_expire(struct ifnet *ifp, int age)
 				brt->brt_expire = time_uptime + age;
 		}
 	}
-	BRIDGE_UNLOCK(sc);
+	BRIDGE_RT_UNLOCK(sc);
 	CURVNET_RESTORE();
 }
 
@@ -3713,7 +3727,7 @@ bridge_linkcheck(struct bridge_softc *sc)
 	struct bridge_iflist *bif;
 	int new_link, hasls;
 
-	MPASS(in_epoch(net_epoch_preempt));
+	BRIDGE_LOCK_OR_NET_EPOCH_ASSERT(sc);
 
 	new_link = LINK_STATE_DOWN;
 	hasls = 0;
