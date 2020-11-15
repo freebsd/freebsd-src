@@ -1004,7 +1004,7 @@ ata_identify_init(struct ahci_port* p, int atapi)
 		ata_ident->capabilities1 = ATA_SUPPORT_LBA |
 			ATA_SUPPORT_DMA;
 		ata_ident->capabilities2 = (1 << 14 | 1);
-		ata_ident->atavalid = ATA_FLAG_54_58 | ATA_FLAG_64_70;
+		ata_ident->atavalid = ATA_FLAG_64_70 | ATA_FLAG_88;
 		ata_ident->obsolete62 = 0x3f;
 		ata_ident->mwdmamodes = 7;
 		if (p->xfermode & ATA_WDMA0)
@@ -1053,8 +1053,7 @@ ata_identify_init(struct ahci_port* p, int atapi)
 		ata_ident->capabilities1 = ATA_SUPPORT_DMA |
 			ATA_SUPPORT_LBA | ATA_SUPPORT_IORDY;
 		ata_ident->capabilities2 = (1 << 14);
-		ata_ident->atavalid = ATA_FLAG_54_58 |
-			ATA_FLAG_64_70;
+		ata_ident->atavalid = ATA_FLAG_64_70 | ATA_FLAG_88;
 		if (p->mult_sectors)
 			ata_ident->multi = (ATA_MULTI_VALID | p->mult_sectors);
 		if (sectors <= 0x0fffffff) {
