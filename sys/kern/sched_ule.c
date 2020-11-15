@@ -1900,7 +1900,7 @@ sched_lend_user_prio_cond(struct thread *td, u_char prio)
 		goto lend;
 	if (td->td_user_pri != min(prio, td->td_base_user_pri))
 		goto lend;
-	if (td->td_priority >= td->td_user_pri)
+	if (td->td_priority != td->td_user_pri)
 		goto lend;
 	return;
 
