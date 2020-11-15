@@ -105,10 +105,10 @@ main(int argc, char *argv[], char *envp[])
 	initarg(&al);
 	addarg(&al, argv[0]);
 
-	if ((len = getlocalbase(localmailerconf, MAXPATHLEN)) != 0) 
+	if ((len = getlocalbase(localmailerconf, MAXPATHLEN)) <= 0) 
 		err(EX_OSERR, "cannot determine local path");
 
-	strlcat(localmailerconf, "/etc/mail/mailer.conf", MAXPATHLEN - len);
+	strlcat(localmailerconf, "/etc/mail/mailer.conf", MAXPATHLEN);
 
 	mailerconf = localmailerconf;
 	if ((config = fopen(localmailerconf, "r")) == NULL)
