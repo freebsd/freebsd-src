@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2014
+.Dd November 1, 2020
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -372,6 +372,17 @@ Where to find/put distfiles, normally
 .Pa distfiles/
 in
 .Va PORTSDIR .
+.It Va SU_CMD
+Command used to elevate privilege to configure and install a port.
+The unprivileged user must have write access to
+.Va WRKDIRPREFIX
+and
+.Va DISTDIR .
+The default is
+.Ql /usr/bin/su root -c .
+Many users set it to
+.Ql /usr/local/bin/sudo -E sh -c
+for convenience.
 .It Va PACKAGES
 Used only for the
 .Cm package
