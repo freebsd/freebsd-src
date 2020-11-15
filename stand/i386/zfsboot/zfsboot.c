@@ -161,6 +161,8 @@ ptov(uintptr_t x)
 	return (PTOV(x));
 }
 
+int main(void);
+
 int
 main(void)
 {
