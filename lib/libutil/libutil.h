@@ -65,11 +65,6 @@ typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
 #endif
 
-#ifndef _SSIZE_T_DECLARED
-typedef __ssize_t	ssize_t;
-#define _SSIZE_T_DECLARED
-#endif
-
 #ifndef _UID_T_DECLARED
 typedef	__uid_t		uid_t;
 #define	_UID_T_DECLARED
@@ -103,7 +98,6 @@ int	flopen(const char *_path, int _flags, ...);
 int	flopenat(int _dirfd, const char *_path, int _flags, ...);
 int	forkpty(int *_amaster, char *_name,
 	    struct termios *_termp, struct winsize *_winp);
-ssize_t	getlocalbase(char *path, size_t pathlen);
 void	hexdump(const void *_ptr, int _length, const char *_hdr, int _flags);
 int	humanize_number(char *_buf, size_t _len, int64_t _number,
 	    const char *_suffix, int _scale, int _flags);

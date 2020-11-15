@@ -96,7 +96,7 @@ void cmd_register(struct cmd *, struct cmd *);
 int arg_parse(int argc, char * const *argv, const struct cmd *f);
 void arg_help(int argc, char * const *argv, const struct cmd *f);
 void cmd_init(void);
-void cmd_load_dir(char *dir, cmd_load_cb_t *cb, void *argp);
+void cmd_load_dir(const char *dir, cmd_load_cb_t *cb, void *argp);
 int cmd_dispatch(int argc, char *argv[], const struct cmd *);
 
 #endif /* COMND_H */
