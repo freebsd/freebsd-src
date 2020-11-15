@@ -187,7 +187,7 @@ main(int argc, char *argv[])
 	snprintf(locallib, MAXPATHLEN, "/lib/nvmecontrol");
 	cmd_load_dir(locallib, NULL, NULL);
 	if ((len = getlocalbase(locallib, MAXPATHLEN)) > 0) {
-		strlcat(locallib, "/lib/nvmecontrol", MAXPATHLEN - len);
+		strlcat(locallib, "/lib/nvmecontrol", MAXPATHLEN);
 		cmd_load_dir(locallib, NULL, NULL);
 	}
 

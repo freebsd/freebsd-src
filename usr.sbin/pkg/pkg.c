@@ -1047,11 +1047,11 @@ main(int argc, char *argv[])
 	pkgarg = NULL;
 	yes = false;
 
-	if ((len = getlocalbase(pkgpath, MAXPATHLEN)) != 0) {
+	if ((len = getlocalbase(pkgpath, MAXPATHLEN)) <= 0) {
 		fprintf(stderr, "Cannot determine local path\n");
 		exit(EXIT_FAILURE);
 	}
-	strlcat(pkgpath, "/sbin/pkg", MAXPATHLEN - len);
+	strlcat(pkgpath, "/sbin/pkg", MAXPATHLEN);
 
 	if (argc > 1 && strcmp(argv[1], "bootstrap") == 0) {
 		bootstrap_only = true;
