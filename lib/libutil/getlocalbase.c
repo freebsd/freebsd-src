@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 ssize_t
 getlocalbase(char *path, size_t pathlen)
 {
-	size_t tmplen;
+	ssize_t tmplen;
 	const char *tmppath;
 
 	if ((pathlen == 0) || (path == NULL)) {
@@ -49,13 +49,20 @@ getlocalbase(char *path, size_t pathlen)
 		return (-1);
 	}
 
+	/* It's unlikely that the buffer would be this big */
+	if (pathlen > SSIZE_MAX) {
+		errno = ENOMEM;
+		return (-1);
+	}
+
 	tmppath = NULL;
-	tmplen = pathlen;
+	tmplen = (size_t)pathlen;
 	if (issetugid() == 0)
 		tmppath = getenv("LOCALBASE");
 
 	if ((tmppath == NULL) &&
-	    (sysctlbyname("user.localbase", path, &tmplen, NULL, 0) == 0)) {
+	    (sysctlbyname("user.localbase", path, (size_t *)&tmplen, NULL,
+	    0) == 0)) {
 		return (tmplen);
 	}
 
@@ -67,13 +74,13 @@ getlocalbase(char *path, size_t pathlen)
 #endif
 
 	tmplen = strlcpy(path, tmppath, pathlen);
-	if ((tmplen < 0) || (tmplen >= pathlen)) {
+	if ((tmplen < 0) || (tmplen >= (ssize_t)pathlen)) {
 		errno = ENOMEM;
 		return (-1);
 	}
 
 	/* It's unlikely that the buffer would be this big */
-	if (tmplen >= SSIZE_MAX) {
+	if (tmplen > SSIZE_MAX) {
 		errno = ENOMEM;
 		return (-1);
 	}
