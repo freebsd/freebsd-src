@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2020
+.Dd November 1, 2020
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -390,7 +390,10 @@ The unprivileged user must have write access to
 and
 .Va DISTDIR .
 The default is
-.Ql /usr/bin/su root -c
+.Ql /usr/bin/su root -c .
+Many users set it to
+.Ql /usr/local/bin/sudo -E sh -c
+for convenience.
 .It Va PACKAGES
 Used only for the
 .Cm package
