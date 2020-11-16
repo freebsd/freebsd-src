@@ -509,6 +509,7 @@ struct mlx5_ib_mr {
 	int			live;
 	void			*descs_alloc;
 	int			access_flags; /* Needed for rereg MR */
+	struct mlx5_async_work	cb_work;
 };
 
 struct mlx5_ib_mw {
@@ -693,6 +694,8 @@ struct mlx5_ib_dev {
 	/* Array with num_ports elements */
 	struct mlx5_ib_port	*port;
 	struct mlx5_ib_congestion congestion;
+
+	struct mlx5_async_ctx	async_ctx;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)
