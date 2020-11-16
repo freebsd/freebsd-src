@@ -32,7 +32,7 @@
 #include <dev/mlx5/driver.h>
 #include <dev/mlx5/mlx5_ifc.h>
 
-
+struct mlx5_eqe;
 struct mlx5_core_cq {
 	u32			cqn;
 	int			cqe_sz;
@@ -40,7 +40,7 @@ struct mlx5_core_cq {
 	__be32		       *arm_db;
 	unsigned		vector;
 	int			irqn;
-	void (*comp)		(struct mlx5_core_cq *);
+	void (*comp)		(struct mlx5_core_cq *, struct mlx5_eqe *);
 	void (*event)		(struct mlx5_core_cq *, int);
 	struct mlx5_uar	       *uar;
 	u32			cons_index;

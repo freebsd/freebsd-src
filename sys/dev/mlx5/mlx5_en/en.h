@@ -149,7 +149,7 @@ MALLOC_DECLARE(M_MLX5EN);
 struct mlx5_core_dev;
 struct mlx5e_cq;
 
-typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *);
+typedef void (mlx5e_cq_comp_t)(struct mlx5_core_cq *, struct mlx5_eqe *);
 
 #define	mlx5_en_err(_dev, format, ...)				\
 	if_printf(_dev, "ERR: ""%s:%d:(pid %d): " format, \
@@ -1107,8 +1107,8 @@ int	mlx5e_open_locked(struct ifnet *);
 int	mlx5e_close_locked(struct ifnet *);
 
 void	mlx5e_cq_error_event(struct mlx5_core_cq *mcq, int event);
-void	mlx5e_rx_cq_comp(struct mlx5_core_cq *);
-void	mlx5e_tx_cq_comp(struct mlx5_core_cq *);
+mlx5e_cq_comp_t mlx5e_rx_cq_comp;
+mlx5e_cq_comp_t mlx5e_tx_cq_comp;
 struct mlx5_cqe64 *mlx5e_get_cqe(struct mlx5e_cq *cq);
 
 void	mlx5e_dim_work(struct work_struct *);

@@ -871,7 +871,7 @@ select_queue:
 }
 
 void
-mlx5e_tx_cq_comp(struct mlx5_core_cq *mcq)
+mlx5e_tx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 {
 	struct mlx5e_sq *sq = container_of(mcq, struct mlx5e_sq, cq.mcq);
 

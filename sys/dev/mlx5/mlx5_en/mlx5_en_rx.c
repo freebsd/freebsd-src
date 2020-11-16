@@ -537,7 +537,7 @@ wq_ll_pop:
 }
 
 void
-mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq)
+mlx5e_rx_cq_comp(struct mlx5_core_cq *mcq, struct mlx5_eqe *eqe __unused)
 {
 	struct mlx5e_rq *rq = container_of(mcq, struct mlx5e_rq, cq.mcq);
 	int i = 0;
