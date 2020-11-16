@@ -355,6 +355,7 @@ exit1(struct thread *td, int rval, int signo)
 	PROC_UNLOCK(p);
 
 	umtx_thread_exit(td);
+	seltdfini(td);
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
