@@ -21,32 +21,39 @@ write_partition_layout() {
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
-			mkimg -s gpt -f ${VMFORMAT} \
-				-b ${BOOTFILES}/i386/pmbr/pmbr \
-				-p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot \
-				-p efi:=${BOOTFILES}/efi/boot1/boot1.efifat \
-				${SWAPOPT} \
-				-p freebsd-ufs/rootfs:=${VMBASE} \
-				-o ${VMIMAGE}
+			ESP=yes
+			SCHEME=gpt
+			BOOTPARTS="-b ${BOOTFILES}/i386/pmbr/pmbr \
+				   -p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot"
+			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
 			;;
 		arm64:aarch64)
-			mkimg -s mbr -f ${VMFORMAT} \
-				-p efi:=${BOOTFILES}/efi/boot1/boot1.efifat \
-				-p freebsd:=${VMBASE} \
-				-o ${VMIMAGE}
+			ESP=yes
+			SCHEME=mbr
+			BOOTPARTS=
+			ROOTFSPART="-p freebsd:=${VMBASE}"
 			;;
 		powerpc:powerpc*)
-			mkimg -s apm -f ${VMFORMAT} \
-				-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs \
-				${SWAPOPT} \
-				-p freebsd-ufs/rootfs:=${VMBASE} \
-				-o ${VMIMAGE}
+			ESP=no
+			SCHEME=apm
+			BOOTPARTS="-p apple-boot/bootfs:=${BOOTFILES}/powerpc/boot1.chrp/boot1.hfs"
+			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
 			;;
 		*)
 			# ENOTSUPP
 			return 1
 			;;
 	esac
+
+	if [ ${ESP} = "yes" ]; then
+		BOOTPARTS="${BOOTPARTS} -p efi:=${BOOTFILES}/efi/boot1/boot1.efifat"
+	fi
+
+	mkimg -s ${SCHEME} -f ${VMFORMAT} \
+		${BOOTPARTS} \
+		${SWAPOPT} \
+		${ROOTFSPART} \
+		-o ${VMIMAGE}
 
 	return 0
 }
