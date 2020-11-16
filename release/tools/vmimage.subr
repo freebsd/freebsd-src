@@ -29,9 +29,9 @@ write_partition_layout() {
 			;;
 		arm64:aarch64)
 			ESP=yes
-			SCHEME=mbr
+			SCHEME=gpt
 			BOOTPARTS=
-			ROOTFSPART="-p freebsd:=${VMBASE}"
+			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
 			;;
 		powerpc:powerpc*)
 			ESP=no
