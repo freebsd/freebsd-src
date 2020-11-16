@@ -573,7 +573,8 @@ qat_detach(device_t dev)
 		sc->sc_ih_cookie = NULL;
 	}
 	if (sc->sc_ih != NULL) {
-		(void)bus_release_resource(dev, SYS_RES_IRQ, i + 1, sc->sc_ih);
+		(void)bus_release_resource(dev, SYS_RES_IRQ,
+		    sc->sc_hw.qhw_num_banks + 1, sc->sc_ih);
 		sc->sc_ih = NULL;
 	}
 	pci_release_msi(dev);
