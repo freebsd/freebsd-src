@@ -127,6 +127,12 @@ SUBDIR:=${SUBDIR} ${SUBDIR.yes} ${SUBDIR.yes.yes}
 SUBDIR:=${SUBDIR:u}
 .endif
 
+.if defined(SUBDIR.)
+.error ${.CURDIR}: Found variable SUBDIR. with value "${SUBDIR.}". This was \
+        probably caused by using SUBDIR.$${MK_FOO} without including \
+        <src.opts.mk> or by using an invalid $${MK_FOO} option.
+.endif
+
 # Subdir code shared among 'make <subdir>', 'make <target>' and SUBDIR_PARALLEL.
 _SUBDIR_SH=	\
 		if test -d ${.CURDIR}/$${dir}.${MACHINE_ARCH}; then \
