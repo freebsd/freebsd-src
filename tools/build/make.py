@@ -81,14 +81,6 @@ def bootstrap_bmake(source_root, objdir_prefix):
         "--with-default-sys-path=" + str(bmake_install_dir / "share/mk"),
         "--with-machine=amd64",  # TODO? "--with-machine-arch=amd64",
         "--without-filemon", "--prefix=" + str(bmake_install_dir)]
-
-    if Path("/bin/sh").resolve().name == "dash":
-        # Note: we have to avoid using dash as the default shell since it
-        # filters out variables containing characters such as '-' and that
-        # breaks the bmake bootstrap tests.
-        # TODO: remove this when the bootstrap tests have been fixed.
-        configure_args.append("--with-defshell=/bin/bash")
-
     run(["sh", bmake_source_dir / "boot-strap"] + configure_args,
         cwd=str(bmake_build_dir), env=env)
 
