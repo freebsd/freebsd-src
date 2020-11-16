@@ -40,8 +40,8 @@ write_partition_layout() {
 			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
 			;;
 		*)
-			# ENOTSUPP
-			return 1
+			echo "vmimage.subr: unsupported target '${TARGET}:${TARGET_ARCH}'" >&2
+			exit 1
 			;;
 	esac
 
