@@ -211,6 +211,11 @@ arm64/coresight/coresight_tmc_fdt.c		optional fdt
 arm64/intel/firmware.c				optional soc_intel_stratix10
 arm64/intel/stratix10-soc-fpga-mgr.c		optional soc_intel_stratix10
 arm64/intel/stratix10-svc.c			optional soc_intel_stratix10
+arm64/iommu/iommu.c				optional iommu
+arm64/iommu/iommu_if.m				optional iommu
+arm64/iommu/smmu.c				optional iommu
+arm64/iommu/smmu_acpi.c				optional acpi iommu
+arm64/iommu/smmu_quirks.c			optional iommu
 arm64/qoriq/ls1046_gpio.c			optional ls1046_gpio gpio fdt SOC_NXP_LS
 arm64/qoriq/clk/ls1046a_clkgen.c		optional clk SOC_NXP_LS
 arm64/qoriq/clk/qoriq_clk_pll.c			optional clk SOC_NXP_LS
@@ -314,6 +319,8 @@ dev/iicbus/sy8106a.c		optional	sy8106a fdt
 dev/iicbus/twsi/mv_twsi.c	optional	twsi fdt
 dev/iicbus/twsi/a10_twsi.c	optional	twsi fdt
 dev/iicbus/twsi/twsi.c		optional	twsi fdt
+dev/iommu/busdma_iommu.c	optional	iommu
+dev/iommu/iommu_gas.c		optional	iommu
 dev/mbox/mbox_if.m		optional	soc_brcm_bcm2837
 dev/mmc/host/dwmmc.c		optional	dwmmc fdt
 dev/mmc/host/dwmmc_altera.c	optional	dwmmc dwmmc_altera fdt
