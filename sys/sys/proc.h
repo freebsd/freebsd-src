@@ -498,6 +498,7 @@ do {									\
 #define	TDP_EXECVMSPC	0x40000000 /* Execve destroyed old vmspace */
 
 #define	TDP2_SBPAGES	0x00000001 /* Owns sbusy on some pages */
+#define	TDP2_COMPAT32RB	0x00000002 /* compat32 robust lists */
 
 /*
  * Reasons that the current thread can not be run yet.

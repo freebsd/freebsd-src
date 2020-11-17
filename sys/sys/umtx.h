@@ -199,5 +199,6 @@ void umtx_thread_init(struct thread *);
 void umtx_thread_fini(struct thread *);
 void umtx_thread_alloc(struct thread *);
 void umtx_thread_exit(struct thread *);
+
 #endif /* !_KERNEL */
 #endif /* !_SYS_UMTX_H_ */
