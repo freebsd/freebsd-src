@@ -1024,7 +1024,7 @@ LZ4_uncompress_unknownOutputSize(const char *source, char *dest, int isize,
 }
 
 #if defined(_KERNEL) || defined(_FAKE_KERNEL)
-extern void
+void
 lz4_init(void)
 {
 
@@ -1034,7 +1034,7 @@ lz4_init(void)
 #endif
 }
 
-extern void
+void
 lz4_fini(void)
 {
 
