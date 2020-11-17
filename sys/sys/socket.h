@@ -510,7 +510,7 @@ struct cmsgcred {
 };
 
 /*
- * Socket credentials.
+ * Socket credentials (LOCAL_CREDS).
  */
 struct sockcred {
 	uid_t	sc_uid;			/* real user id */
@@ -526,6 +526,22 @@ struct sockcred {
  */
 #define	SOCKCREDSIZE(ngrps) \
 	(sizeof(struct sockcred) + (sizeof(gid_t) * ((ngrps) - 1)))
+
+/*
+ * Socket credentials (LOCAL_CREDS_PERSISTENT).
+ */
+struct sockcred2 {
+	int	sc_version;		/* version of this structure */
+	pid_t	sc_pid;			/* PID of sending process */
+	uid_t	sc_uid;			/* real user id */
+	uid_t	sc_euid;		/* effective user id */
+	gid_t	sc_gid;			/* real group id */
+	gid_t	sc_egid;		/* effective group id */
+	int	sc_ngroups;		/* number of supplemental groups */
+	gid_t	sc_groups[1];		/* variable length */
+};
+#define	SOCKCRED2SIZE(ngrps) \
+	(sizeof(struct sockcred2) + (sizeof(gid_t) * ((ngrps) - 1)))
 
 #endif /* __BSD_VISIBLE */
 
@@ -571,6 +587,7 @@ struct sockcred {
 #define	SCM_REALTIME	0x05		/* timestamp (struct timespec) */
 #define	SCM_MONOTONIC	0x06		/* timestamp (struct timespec) */
 #define	SCM_TIME_INFO	0x07		/* timestamp info */
+#define	SCM_CREDS2	0x08		/* process creds (struct sockcred2) */
 
 struct sock_timestamp_info {
 	__uint32_t	st_info_flags;

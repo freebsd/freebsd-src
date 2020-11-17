@@ -644,6 +644,8 @@ bsd_to_linux_cmsg_type(int cmsg_type)
 		return (LINUX_SCM_RIGHTS);
 	case SCM_CREDS:
 		return (LINUX_SCM_CREDENTIALS);
+	case SCM_CREDS2:
+		return (LINUX_SCM_CREDENTIALS);
 	case SCM_TIMESTAMP:
 		return (LINUX_SCM_TIMESTAMP);
 	}
@@ -1508,6 +1510,7 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 {
 	struct cmsghdr *cm;
 	struct cmsgcred *cmcred;
+	struct sockcred2 *scred;
 	struct l_cmsghdr *linux_cmsg = NULL;
 	struct l_ucred linux_ucred;
 	socklen_t datalen, maxlen, outlen;
@@ -1627,6 +1630,16 @@ linux_recvmsg_common(struct thread *td, l_int s, struct l_msghdr *msghdr,
 				linux_ucred.pid = cmcred->cmcred_pid;
 				linux_ucred.uid = cmcred->cmcred_uid;
 				linux_ucred.gid = cmcred->cmcred_gid;
+				data = &linux_ucred;
+				datalen = sizeof(linux_ucred);
+				break;
+
+			case SCM_CREDS2:
+				scred = data;
+				bzero(&linux_ucred, sizeof(linux_ucred));
+				linux_ucred.pid = scred->sc_pid;
+				linux_ucred.uid = scred->sc_uid;
+				linux_ucred.gid = scred->sc_gid;
 				data = &linux_ucred;
 				datalen = sizeof(linux_ucred);
 				break;
