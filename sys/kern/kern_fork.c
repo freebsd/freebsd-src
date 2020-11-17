@@ -414,11 +414,17 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		fd = fdinit(p1->p_fd, false, NULL);
 		fdtol = NULL;
 	} else if (fr->fr_flags & RFFDG) {
-		pd = pdcopy(p1->p_pd);
+		if (fr->fr_flags2 & FR2_SHARE_PATHS)
+			pd = pdshare(p1->p_pd);
+		else
+			pd = pdcopy(p1->p_pd);
 		fd = fdcopy(p1->p_fd);
 		fdtol = NULL;
 	} else {
-		pd = pdshare(p1->p_pd);
+		if (fr->fr_flags2 & FR2_SHARE_PATHS)
+			pd = pdcopy(p1->p_pd);
+		else
+			pd = pdshare(p1->p_pd);
 		fd = fdshare(p1->p_fd);
 		if (p1->p_fdtol == NULL)
 			p1->p_fdtol = filedesc_to_leader_alloc(NULL, NULL,

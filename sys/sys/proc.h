@@ -1017,7 +1017,8 @@ struct	fork_req {
 	int 		fr_pd_flags;
 	struct filecaps	*fr_pd_fcaps;
 	int 		fr_flags2;
-#define	FR2_DROPSIG_CAUGHT	0x00001	/* Drop caught non-DFL signals */
+#define	FR2_DROPSIG_CAUGHT	0x00000001 /* Drop caught non-DFL signals */
+#define	FR2_SHARE_PATHS		0x00000002 /* Invert sense of RFFDG for paths */
 };
 
 /*
