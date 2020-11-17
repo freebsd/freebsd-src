@@ -77,7 +77,7 @@ run_timer(void *arg)
 }
 
 void
-init_timer(struct timer_list *t)
+vchiq_init_timer(struct timer_list *t)
 {
 	mtx_init(&t->mtx, "dahdi timer lock", NULL, MTX_SPIN);
 	callout_init(&t->callout, 1);
@@ -89,15 +89,15 @@ init_timer(struct timer_list *t)
 }
 
 void
-setup_timer(struct timer_list *t, void (*function)(unsigned long), unsigned long data)
+vchiq_setup_timer(struct timer_list *t, void (*function)(unsigned long), unsigned long data)
 {
 	t->function = function;
 	t->data = data;
-	init_timer(t);
+	vchiq_init_timer(t);
 }
 
 void
-mod_timer(struct timer_list *t, unsigned long expires)
+vchiq_mod_timer(struct timer_list *t, unsigned long expires)
 {
 	mtx_lock_spin(&t->mtx);
 	callout_reset(&t->callout, expires - jiffies, run_timer, t);
@@ -105,13 +105,13 @@ mod_timer(struct timer_list *t, unsigned long expires)
 }
 
 void
-add_timer(struct timer_list *t)
+vchiq_add_timer(struct timer_list *t)
 {
-	mod_timer(t, t->expires);
+	vchiq_mod_timer(t, t->expires);
 }
 
 int
-del_timer_sync(struct timer_list *t)
+vchiq_del_timer_sync(struct timer_list *t)
 {
 	mtx_lock_spin(&t->mtx);
 	callout_stop(&t->callout);
@@ -122,9 +122,9 @@ del_timer_sync(struct timer_list *t)
 }
 
 int
-del_timer(struct timer_list *t)
+vchiq_del_timer(struct timer_list *t)
 {
-	del_timer_sync(t);
+	vchiq_del_timer_sync(t);
 	return 0;
 }
 
