@@ -1329,7 +1329,7 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	struct make_dev_args	md_args;
 	uint32_t	cap_lo;
 	uint32_t	cap_hi;
-	uint32_t	to, vs;
+	uint32_t	to, vs, pmrcap;
 	uint8_t		mpsmin;
 	int		status, timeout_period;
 
@@ -1352,20 +1352,32 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	cap_hi = nvme_mmio_read_4(ctrlr, cap_hi);
 	if (bootverbose) {
 		device_printf(dev, "CapHi: 0x%08x: DSTRD %u%s, CSS %x%s, "
-		    "MPSMIN %u, MPSMAX %u %s%s\n", cap_hi,
+		    "MPSMIN %u, MPSMAX %u%s%s\n", cap_hi,
 		    NVME_CAP_HI_DSTRD(cap_hi),
-		    NVME_CAP_HI_NSSRS(cap_lo) ? ", NSSRS" : "",
+		    NVME_CAP_HI_NSSRS(cap_hi) ? ", NSSRS" : "",
 		    NVME_CAP_HI_CSS(cap_hi),
-		    NVME_CAP_HI_BPS(cap_lo) ? ", BPS" : "",
+		    NVME_CAP_HI_BPS(cap_hi) ? ", BPS" : "",
 		    NVME_CAP_HI_MPSMIN(cap_hi),
 		    NVME_CAP_HI_MPSMAX(cap_hi),
-		    NVME_CAP_HI_PMRS(cap_lo) ? ", PMRS" : "",
-		    NVME_CAP_HI_CMBS(cap_lo) ? ", CMBS" : "");
+		    NVME_CAP_HI_PMRS(cap_hi) ? ", PMRS" : "",
+		    NVME_CAP_HI_CMBS(cap_hi) ? ", CMBS" : "");
 	}
 	if (bootverbose) {
 		vs = nvme_mmio_read_4(ctrlr, vs);
 		device_printf(dev, "Version: 0x%08x: %d.%d\n", vs,
 		    NVME_MAJOR(vs), NVME_MINOR(vs));
+	}
+	if (bootverbose && NVME_CAP_HI_PMRS(cap_hi)) {
+		pmrcap = nvme_mmio_read_4(ctrlr, pmrcap);
+		device_printf(dev, "PMRCap: 0x%08x: BIR %u%s%s, PMRTU %u, "
+		    "PMRWBM %x, PMRTO %u%s\n", pmrcap,
+		    NVME_PMRCAP_BIR(pmrcap),
+		    NVME_PMRCAP_RDS(pmrcap) ? ", RDS" : "",
+		    NVME_PMRCAP_WDS(pmrcap) ? ", WDS" : "",
+		    NVME_PMRCAP_PMRTU(pmrcap),
+		    NVME_PMRCAP_PMRWBM(pmrcap),
+		    NVME_PMRCAP_PMRTO(pmrcap),
+		    NVME_PMRCAP_CMSS(pmrcap) ? ", CMSS" : "");
 	}
 
 	ctrlr->dstrd = NVME_CAP_HI_DSTRD(cap_hi) + 2;
