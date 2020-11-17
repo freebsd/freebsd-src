@@ -1603,7 +1603,7 @@ cpuset_thread0(void)
 	CPU_COPY(&all_cpus, &set->cs_mask);
 	LIST_INIT(&set->cs_children);
 	LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
-	set->cs_ref = 1;
+	refcount_init(&set->cs_ref, 1);
 	set->cs_flags = CPU_SET_ROOT | CPU_SET_RDONLY;
 	set->cs_domain = &domainset0;
 	cpuset_zero = set;
@@ -2414,7 +2414,7 @@ DB_SHOW_COMMAND(cpusets, db_show_cpusets)
 
 	LIST_FOREACH(set, &cpuset_ids, cs_link) {
 		db_printf("set=%p id=%-6u ref=%-6d flags=0x%04x parent id=%d\n",
-		    set, set->cs_id, set->cs_ref, set->cs_flags,
+		    set, set->cs_id, refcount_load(&set->cs_ref), set->cs_flags,
 		    (set->cs_parent != NULL) ? set->cs_parent->cs_id : 0);
 		db_printf("  cpu mask=");
 		ddb_display_cpuset(&set->cs_mask);
