@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kerneldump.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <vm/vm.h>
@@ -79,6 +80,12 @@ caddr_t crashdumpmap;
 int pmap_bootstrapped;
 /* Default level 0 reservations consist of 512 pages (2MB superpage). */
 int vm_level_0_order = 9;
+
+SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+
+int superpages_enabled = 0;
+SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled, CTLFLAG_RDTUN,
+    &superpages_enabled, 0, "Enable support for transparent superpages");
 
 #ifdef AIM
 int

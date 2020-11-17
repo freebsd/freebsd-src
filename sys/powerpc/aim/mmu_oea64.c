@@ -319,12 +319,7 @@ static void		moea64_remove_locked(pmap_t, vm_offset_t,
 /* MD page flag indicating that the page is a superpage. */
 #define	MDPG_ATTR_SP		0x40000000
 
-static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0,
-    "VM/pmap parameters");
-
-static int superpages_enabled = 0;
-SYSCTL_INT(_vm_pmap, OID_AUTO, superpages_enabled, CTLFLAG_RDTUN,
-    &superpages_enabled, 0, "Enable support for transparent superpages");
+SYSCTL_DECL(_vm_pmap);
 
 static SYSCTL_NODE(_vm_pmap, OID_AUTO, sp, CTLFLAG_RD, 0,
     "SP page mapping counters");
@@ -1968,7 +1963,11 @@ moea64_init()
 
 	/*
 	 * Are large page mappings enabled?
+	 *
+	 * While HPT superpages are not better tested, leave it disabled by
+	 * default.
 	 */
+	superpages_enabled = 0;
 	TUNABLE_INT_FETCH("vm.pmap.superpages_enabled", &superpages_enabled);
 	if (superpages_enabled) {
 		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
