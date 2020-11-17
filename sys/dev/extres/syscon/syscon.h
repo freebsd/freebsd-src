@@ -73,6 +73,7 @@ struct syscon *syscon_create_ofw_node(device_t pdev,
 phandle_t syscon_get_ofw_node(struct syscon *syscon);
 int syscon_get_by_ofw_property(device_t consumer, phandle_t node, char *name,
     struct syscon **syscon);
+int syscon_get_by_ofw_node(device_t cdev, phandle_t node, struct syscon **syscon);
 #endif
 
 #endif /* DEV_SYSCON_H */
