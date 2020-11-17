@@ -385,11 +385,8 @@ SYSCTL_INT(_machdep, OID_AUTO, nkpt, CTLFLAG_RD, &nkpt, 0,
 
 vm_paddr_t dmaplimit;
 
-SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+SYSCTL_DECL(_vm_pmap);
 
-static int pg_ps_enabled = 1;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
-    &pg_ps_enabled, 0, "Are large page mappings enabled?");
 #ifdef INVARIANTS
 #define VERBOSE_PMAP 0
 #define VERBOSE_PROTECT 0
@@ -904,7 +901,7 @@ mmu_radix_kenter(vm_offset_t va, vm_paddr_t pa)
 bool
 mmu_radix_ps_enabled(pmap_t pmap)
 {
-	return (pg_ps_enabled && (pmap->pm_flags & PMAP_PDE_SUPERPAGE) != 0);
+	return (superpages_enabled && (pmap->pm_flags & PMAP_PDE_SUPERPAGE) != 0);
 }
 
 static pt_entry_t *
@@ -3609,8 +3606,8 @@ mmu_radix_init()
 	/*
 	 * Are large page mappings enabled?
 	 */
-	TUNABLE_INT_FETCH("vm.pmap.pg_ps_enabled", &pg_ps_enabled);
-	if (pg_ps_enabled) {
+	TUNABLE_INT_FETCH("vm.pmap.superpages_enabled", &superpages_enabled);
+	if (superpages_enabled) {
 		KASSERT(MAXPAGESIZES > 1 && pagesizes[1] == 0,
 		    ("pmap_init: can't assign to pagesizes[1]"));
 		pagesizes[1] = L3_PAGE_SIZE;
