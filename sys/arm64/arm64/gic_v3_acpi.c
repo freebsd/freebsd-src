@@ -262,7 +262,7 @@ gic_v3_acpi_attach(device_t dev)
 
 	err = gic_v3_acpi_count_regions(dev);
 	if (err != 0)
-		goto error;
+		goto count_error;
 
 	err = gic_v3_attach(dev);
 	if (err != 0)
@@ -294,12 +294,13 @@ gic_v3_acpi_attach(device_t dev)
 	return (0);
 
 error:
+	/* Failure so free resources */
+	gic_v3_detach(dev);
+count_error:
 	if (bootverbose) {
 		device_printf(dev,
 		    "Failed to attach. Error %d\n", err);
 	}
-	/* Failure so free resources */
-	gic_v3_detach(dev);
 
 	return (err);
 }
