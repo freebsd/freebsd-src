@@ -316,7 +316,20 @@ readsuper(void *devfd, struct fs **fsp, off_t sblockloc, int isaltsblk,
 	    fs->fs_ncg >= 1 &&
 	    fs->fs_bsize >= MINBSIZE &&
 	    fs->fs_bsize <= MAXBSIZE &&
-	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE)) {
+	    fs->fs_bsize >= roundup(sizeof(struct fs), DEV_BSIZE) &&
+	    fs->fs_sbsize <= SBLOCKSIZE) {
+		/*
+		 * If the filesystem has been run on a kernel without
+		 * metadata check hashes, disable them.
+		 */
+		if ((fs->fs_flags & FS_METACKHASH) == 0)
+			fs->fs_metackhash = 0;
+		/*
+		 * Clear any check-hashes that are not maintained
+		 * by this kernel. Also clear any unsupported flags.
+		 */
+		fs->fs_metackhash &= CK_SUPPORTED;
+		fs->fs_flags &= FS_SUPPORTED;
 		/* Have to set for old filesystems that predate this field */
 		fs->fs_sblockactualloc = sblockloc;
 		/* Not yet any summary information */

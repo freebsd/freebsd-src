@@ -475,6 +475,7 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define	CK_INODE	0x0004	/* inodes */
 #define	CK_INDIR	0x0008	/* indirect blocks */
 #define	CK_DIR		0x0010	/* directory contents */
+#define	CK_SUPPORTED	0x0002	/* supported flags, others cleared at mount */
 /*
  * The BX_FSPRIV buffer b_xflags are used to track types of data in buffers.
  */
