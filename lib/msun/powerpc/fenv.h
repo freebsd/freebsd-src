@@ -148,7 +148,7 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 	union __fpscr __r;
 
 	if (__excepts & FE_INVALID)
-		__excepts |= FE_ALL_EXCEPT;
+		__excepts |= FE_ALL_INVALID;
 	__mffs(&__r);
 	__r.__bits.__reg &= ~__excepts;
 	__r.__bits.__reg |= *__flagp & __excepts;
