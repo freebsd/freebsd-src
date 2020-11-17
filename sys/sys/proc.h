@@ -519,7 +519,7 @@ do {									\
 #define	TDP_SIGFASTPENDING 0x80000000 /* Pending signal due to sigfastblock */
 
 #define	TDP2_SBPAGES	0x00000001 /* Owns sbusy on some pages */
-#define	TDP2_COMPAT32RB	0x00000002 /* compat32 robust lists */
+#define	TDP2_COMPAT32RB	0x00000002 /* compat32 ABI for robust lists */
 
 /*
  * Reasons that the current thread can not be run yet.
