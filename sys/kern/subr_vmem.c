@@ -521,7 +521,7 @@ bt_insseg_tail(vmem_t *vm, bt_t *bt)
 }
 
 static void
-bt_remfree(vmem_t *vm, bt_t *bt)
+bt_remfree(vmem_t *vm __unused, bt_t *bt)
 {
 
 	MPASS(bt->bt_type == BT_TYPE_FREE);
@@ -734,10 +734,9 @@ static int
 vmem_rehash(vmem_t *vm, vmem_size_t newhashsize)
 {
 	bt_t *bt;
-	int i;
 	struct vmem_hashlist *newhashlist;
 	struct vmem_hashlist *oldhashlist;
-	vmem_size_t oldhashsize;
+	vmem_size_t i, oldhashsize;
 
 	MPASS(newhashsize > 0);
 
@@ -766,9 +765,8 @@ vmem_rehash(vmem_t *vm, vmem_size_t newhashsize)
 	}
 	VMEM_UNLOCK(vm);
 
-	if (oldhashlist != vm->vm_hash0) {
+	if (oldhashlist != vm->vm_hash0)
 		free(oldhashlist, M_VMEM);
-	}
 
 	return 0;
 }
@@ -1242,7 +1240,7 @@ vmem_t *
 vmem_init(vmem_t *vm, const char *name, vmem_addr_t base, vmem_size_t size,
     vmem_size_t quantum, vmem_size_t qcache_max, int flags)
 {
-	int i;
+	vmem_size_t i;
 
 	MPASS(quantum > 0);
 	MPASS((quantum & (quantum - 1)) == 0);
@@ -1483,7 +1481,7 @@ vmem_free(vmem_t *vm, vmem_addr_t addr, vmem_size_t size)
 }
 
 void
-vmem_xfree(vmem_t *vm, vmem_addr_t addr, vmem_size_t size)
+vmem_xfree(vmem_t *vm, vmem_addr_t addr, vmem_size_t size __unused)
 {
 	bt_t *bt;
 	bt_t *t;
