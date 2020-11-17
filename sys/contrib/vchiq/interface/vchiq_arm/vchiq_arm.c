@@ -1754,7 +1754,7 @@ vchiq_arm_init_state(VCHIQ_STATE_T *state, VCHIQ_ARM_STATE_T *arm_state)
 
 		arm_state->suspend_timer_timeout = SUSPEND_TIMER_TIMEOUT_MS;
 		arm_state->suspend_timer_running = 0;
-		init_timer(&arm_state->suspend_timer);
+		vchiq_init_timer(&arm_state->suspend_timer);
 		arm_state->suspend_timer.data = (unsigned long)(state);
 		arm_state->suspend_timer.function = suspend_timer_callback;
 
@@ -1892,11 +1892,11 @@ set_resume_state(VCHIQ_ARM_STATE_T *arm_state,
 inline void
 start_suspend_timer(VCHIQ_ARM_STATE_T *arm_state)
 {
-	del_timer(&arm_state->suspend_timer);
+	vchiq_del_timer(&arm_state->suspend_timer);
 	arm_state->suspend_timer.expires = jiffies +
 		msecs_to_jiffies(arm_state->
 			suspend_timer_timeout);
-	add_timer(&arm_state->suspend_timer);
+	vchiq_add_timer(&arm_state->suspend_timer);
 	arm_state->suspend_timer_running = 1;
 }
 
@@ -1905,7 +1905,7 @@ static inline void
 stop_suspend_timer(VCHIQ_ARM_STATE_T *arm_state)
 {
 	if (arm_state->suspend_timer_running) {
-		del_timer(&arm_state->suspend_timer);
+		vchiq_del_timer(&arm_state->suspend_timer);
 		arm_state->suspend_timer_running = 0;
 	}
 }
