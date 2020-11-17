@@ -334,14 +334,14 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
-
 	/* 
 	 * Save FPU state if needed. User may have changed it on
 	 * signal handler 
 	 */ 
 	if (uc.uc_mcontext.mc_srr1 & PSL_FP)
 		save_fpu(td);
+
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
 	     td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);
@@ -836,8 +836,6 @@ freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
-
 	/*
 	 * Save FPU state if needed. User may have changed it on
 	 * signal handler
@@ -845,6 +843,7 @@ freebsd32_sigreturn(struct thread *td, struct freebsd32_sigreturn_args *uap)
 	if (uc.uc_mcontext.mc_srr1 & PSL_FP)
 		save_fpu(td);
 
+	kern_sigprocmask(td, SIG_SETMASK, &uc.uc_sigmask, NULL, 0);
 
 	CTR3(KTR_SIG, "sigreturn: return td=%p pc=%#x sp=%#x",
 	     td, uc.uc_mcontext.mc_srr0, uc.uc_mcontext.mc_gpr[1]);
