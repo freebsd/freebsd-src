@@ -165,6 +165,7 @@ wdc_do_dump_e6(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 	int first;
 	int fd2;
 	uint8_t *buf, *hdr;
+	uint64_t max_xfer_size;
 	uint32_t len, offset;
 	size_t resid;
 	bool e6lg_flag = false;
@@ -186,15 +187,17 @@ wdc_do_dump_e6(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 	fd2 = open(tmpl, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd2 < 0)
 		err(EX_CANTCREAT, "open %s", tmpl);
-	buf = aligned_alloc(PAGE_SIZE, NVME_MAX_XFER_SIZE);
+	if (ioctl(fd, NVME_GET_MAX_XFER_SIZE, &max_xfer_size) < 0)
+		err(EX_IOERR, "query max transfer size failed");
+	buf = aligned_alloc(PAGE_SIZE, max_xfer_size);
 	if (buf == NULL)
 		errx(EX_OSERR, "Can't get buffer to read dump");
 	offset = 0;
-	len = NVME_MAX_XFER_SIZE;
+	len = max_xfer_size;
 	first = 1;
 
 	do {
-		resid = len > NVME_MAX_XFER_SIZE ? NVME_MAX_XFER_SIZE : len;
+		resid = MIN(len, max_xfer_size);
 		wdc_get_data(fd, opcode, resid, offset, cmd, buf, resid, e6lg_flag);
 
 		if (first) {
@@ -321,6 +324,7 @@ wdc_do_dump_dui(int fd, char *tmpl, uint8_t data_area,
 {
 	int fd2, first;
 	uint8_t *buf;
+	uint64_t max_xfer_size;
 	uint16_t hdr_ver;
 	uint64_t log_len, offset;
 	size_t resid;
@@ -332,14 +336,16 @@ wdc_do_dump_dui(int fd, char *tmpl, uint8_t data_area,
 	fd2 = open(tmpl, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 	if (fd2 < 0)
 		err(EX_CANTCREAT, "open %s", tmpl);
-	buf = aligned_alloc(PAGE_SIZE, NVME_MAX_XFER_SIZE);
+	if (ioctl(fd, NVME_GET_MAX_XFER_SIZE, &max_xfer_size) < 0)
+		err(EX_IOERR, "query max transfer size failed");
+	buf = aligned_alloc(PAGE_SIZE, max_xfer_size);
 	if (buf == NULL)
 		errx(EX_OSERR, "Can't get buffer to read dump");
 	offset = 0;
 	first = 1;
 
 	while (log_len > 0) {
-		resid = log_len > NVME_MAX_XFER_SIZE ? NVME_MAX_XFER_SIZE : log_len;
+		resid = MIN(log_len, max_xfer_size);
 		wdc_get_data_dui(fd, opcode, resid, offset, buf, resid);
 		if (first) {
 			hdr_ver = ((buf[len_off] & 0xF) != 0) ?
