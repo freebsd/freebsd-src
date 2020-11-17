@@ -241,7 +241,7 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 	u_int mss;
 
 	cwin = CCV(ccv, snd_cwnd);
-	mss = CCV(ccv, t_maxseg);
+	mss = tcp_maxseg(ccv->ccvc.tcp);
 	nreno = ccv->cc_data;
 	beta = (nreno == NULL) ? V_newreno_beta : nreno->beta;
 	beta_ecn = (nreno == NULL) ? V_newreno_beta_ecn : nreno->beta_ecn;
@@ -278,6 +278,12 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 			CCV(ccv, snd_cwnd) = cwin;
 			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
 		}
+		break;
+	case CC_RTO:
+		CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
+						 CCV(ccv, snd_cwnd)) / 2 / mss,
+					     2) * mss;
+		CCV(ccv, snd_cwnd) = mss;
 		break;
 	}
 }
