@@ -74,8 +74,8 @@ The information is formatted and supplied to an editor for changes.
 Only the information that the user is allowed to change is displayed.
 .Pp
 The options are as follows:
-.Bl -tag -width indent
-.It Fl a
+.Bl -tag -width "-e expiretime"
+.It Fl a Ar list
 The super-user is allowed to directly supply a user database
 entry, in the format specified by
 .Xr passwd 5 ,
@@ -84,15 +84,15 @@ This argument must be a colon
 .Pq Dq \&:
 separated list of all the
 user database fields, although they may be empty.
-.It Fl p
-The super-user is allowed to directly supply an encrypted password field,
-in the format used by
-.Xr crypt 3 ,
-as an argument.
 .It Fl e Ar expiretime
 Change the account expire time.
 This option is used to set the expire time
 from a script as if it was done in the interactive editor.
+.It Fl p Ar encpass
+The super-user is allowed to directly supply an encrypted password field,
+in the format used by
+.Xr crypt 3 ,
+as an argument.
 .It Fl s Ar newshell
 Attempt to change the user's shell to
 .Ar newshell .
@@ -376,19 +376,7 @@ change a user's NIS password with
 There are also a few extra option flags that are available when
 .Nm
 is compiled with NIS support:
-.Bl -tag -width indent
-.It Fl l
-Force
-.Nm
-to modify the local copy of a user's password
-information in the event that a user exists in both
-the local and NIS databases.
-.It Fl y
-Opposite effect of
-.Fl l .
-This flag is largely redundant since
-.Nm
-operates on NIS entries by default if NIS is enabled.
+.Bl -tag -width "-d domain"
 .It Fl d Ar domain
 Specify a particular NIS domain.
 The
@@ -426,6 +414,12 @@ option can be used in conjunction with the
 .Fl d
 option, in which case the user-specified hostname will override
 the default.
+.It Fl l
+Force
+.Nm
+to modify the local copy of a user's password
+information in the event that a user exists in both
+the local and NIS databases.
 .It Fl o
 Force the use of RPC-based updates when communicating with
 .Xr rpc.yppasswdd 8
@@ -443,6 +437,12 @@ flag can be used to force
 to use the standard update mechanism instead.
 This option is provided
 mainly for testing purposes.
+.It Fl y
+Opposite effect of
+.Fl l .
+This flag is largely redundant since
+.Nm
+operates on NIS entries by default if NIS is enabled.
 .El
 .Sh FILES
 .Bl -tag -width /etc/master.passwd -compact
