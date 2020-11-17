@@ -789,6 +789,8 @@ static struct aw_clk_init a64_init_clks[] = {
 	{"ahb1", "pll_periph0", 0, false},
 	{"ahb2", "pll_periph0", 0, false},
 	{"dram", "pll_ddr0", 0, false},
+	{"pll_de", NULL, 432000000, true},
+	{"de", "pll_de", 0, true},
 };
 
 static int
