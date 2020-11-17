@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 13, 2017
+.Dd November 16, 2020
 .Dt _UMTX_OP 2
 .Os
 .Sh NAME
@@ -1101,6 +1101,15 @@ The arguments to the request are:
 .It Fa obj
 Pointer to the semaphore (of type
 .Vt struct _usem2 ) .
+.It Fa uaddr
+Size of the memory passed in via the
+.Fa uaddr2
+argument.
+.It Fa uaddr2
+Optional pointer to a structure of type
+.Vt struct _umtx_time ,
+which may be followed by a structure of type
+.Vt struct timespec .
 .El
 .Pp
 Put the requesting thread onto a sleep queue if the semaphore counter
@@ -1124,6 +1133,18 @@ An unblocked signal delivered during such wait results in sleep
 interruption and
 .Er EINTR
 error.
+.Pp
+If
+.Dv UMTX_ABSTIME
+was not set, and the operation was interrupted and the caller passed in a
+.Fa uaddr2
+large enough to hold a
+.Vt struct timespec
+following the initial
+.Vt struct _umtx_time ,
+then the
+.Vt struct timespec
+is updated to contain the unslept amount.
 .It Dv UMTX_OP_SEM2_WAKE
 Wake up waiters on semaphore lock.
 The arguments to the request are:
