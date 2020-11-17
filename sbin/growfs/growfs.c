@@ -1442,6 +1442,12 @@ main(int argc, char **argv)
 			errc(1, ret, "unable to read superblock");
 		}
 	}
+	/*
+	 * Check for unclean filesystem.
+	 */
+	if (fs->fs_clean == 0 ||
+	    (fs->fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) != 0)
+		errx(1, "%s is not clean - run fsck.\n", *argv);
 	memcpy(&osblock, fs, fs->fs_sbsize);
 	free(fs);
 	memcpy((void *)&fsun1, (void *)&fsun2, osblock.fs_sbsize);
