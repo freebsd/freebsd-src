@@ -308,7 +308,7 @@ static int	unp_internalize(struct mbuf **, struct thread *);
 static void	unp_internalize_fp(struct file *);
 static int	unp_externalize(struct mbuf *, struct mbuf **, int);
 static int	unp_externalize_fp(struct file *);
-static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
+static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *, int);
 static void	unp_process_defers(void * __unused, int);
 
 static void
@@ -1043,7 +1043,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		}
 
 		if (unp2->unp_flags & UNP_WANTCRED_MASK)
-			control = unp_addsockcred(td, control);
+			control = unp_addsockcred(td, control,
+			    unp2->unp_flags);
 		if (unp->unp_addr != NULL)
 			from = (struct sockaddr *)unp->unp_addr;
 		else
@@ -1102,8 +1103,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			 * SOCK_SEQPACKET (LOCAL_CREDS => WANTCRED_ONESHOT), or
 			 * forever (LOCAL_CREDS_PERSISTENT => WANTCRED_ALWAYS).
 			 */
+			control = unp_addsockcred(td, control, unp2->unp_flags);
 			unp2->unp_flags &= ~UNP_WANTCRED_ONESHOT;
-			control = unp_addsockcred(td, control);
 		}
 
 		/*
@@ -2383,34 +2384,58 @@ out:
 }
 
 static struct mbuf *
-unp_addsockcred(struct thread *td, struct mbuf *control)
+unp_addsockcred(struct thread *td, struct mbuf *control, int mode)
 {
 	struct mbuf *m, *n, *n_prev;
-	struct sockcred *sc;
 	const struct cmsghdr *cm;
-	int ngroups;
-	int i;
+	int ngroups, i, cmsgtype;
+	size_t ctrlsz;
 
 	ngroups = MIN(td->td_ucred->cr_ngroups, CMGROUP_MAX);
-	m = sbcreatecontrol(NULL, SOCKCREDSIZE(ngroups), SCM_CREDS, SOL_SOCKET);
+	if (mode & UNP_WANTCRED_ALWAYS) {
+		ctrlsz = SOCKCRED2SIZE(ngroups);
+		cmsgtype = SCM_CREDS2;
+	} else {
+		ctrlsz = SOCKCREDSIZE(ngroups);
+		cmsgtype = SCM_CREDS;
+	}
+
+	m = sbcreatecontrol(NULL, ctrlsz, cmsgtype, SOL_SOCKET);
 	if (m == NULL)
 		return (control);
 
-	sc = (struct sockcred *) CMSG_DATA(mtod(m, struct cmsghdr *));
-	sc->sc_uid = td->td_ucred->cr_ruid;
-	sc->sc_euid = td->td_ucred->cr_uid;
-	sc->sc_gid = td->td_ucred->cr_rgid;
-	sc->sc_egid = td->td_ucred->cr_gid;
-	sc->sc_ngroups = ngroups;
-	for (i = 0; i < sc->sc_ngroups; i++)
-		sc->sc_groups[i] = td->td_ucred->cr_groups[i];
+	if (mode & UNP_WANTCRED_ALWAYS) {
+		struct sockcred2 *sc;
+
+		sc = (void *)CMSG_DATA(mtod(m, struct cmsghdr *));
+		sc->sc_version = 0;
+		sc->sc_pid = td->td_proc->p_pid;
+		sc->sc_uid = td->td_ucred->cr_ruid;
+		sc->sc_euid = td->td_ucred->cr_uid;
+		sc->sc_gid = td->td_ucred->cr_rgid;
+		sc->sc_egid = td->td_ucred->cr_gid;
+		sc->sc_ngroups = ngroups;
+		for (i = 0; i < sc->sc_ngroups; i++)
+			sc->sc_groups[i] = td->td_ucred->cr_groups[i];
+	} else {
+		struct sockcred *sc;
+
+		sc = (void *)CMSG_DATA(mtod(m, struct cmsghdr *));
+		sc->sc_uid = td->td_ucred->cr_ruid;
+		sc->sc_euid = td->td_ucred->cr_uid;
+		sc->sc_gid = td->td_ucred->cr_rgid;
+		sc->sc_egid = td->td_ucred->cr_gid;
+		sc->sc_ngroups = ngroups;
+		for (i = 0; i < sc->sc_ngroups; i++)
+			sc->sc_groups[i] = td->td_ucred->cr_groups[i];
+	}
 
 	/*
 	 * Unlink SCM_CREDS control messages (struct cmsgcred), since just
 	 * created SCM_CREDS control message (struct sockcred) has another
 	 * format.
 	 */
-	if (control != NULL)
+	if (control != NULL && cmsgtype == SCM_CREDS)
 		for (n = control, n_prev = NULL; n != NULL;) {
 			cm = mtod(n, struct cmsghdr *);
     			if (cm->cmsg_level == SOL_SOCKET &&
