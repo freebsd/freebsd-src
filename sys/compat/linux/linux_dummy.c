@@ -101,8 +101,6 @@ DUMMY(perf_event_open);
 DUMMY(fanotify_init);
 DUMMY(fanotify_mark);
 /* Linux 2.6.39: */
-DUMMY(name_to_handle_at);
-DUMMY(open_by_handle_at);
 DUMMY(clock_adjtime);
 /* Linux 3.0: */
 DUMMY(setns);

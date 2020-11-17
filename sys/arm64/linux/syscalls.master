@@ -1473,10 +1473,20 @@
 		int linux_fanotify_mark(void);
 	}
 264	AUE_NULL	STD	{
-		int linux_name_to_handle_at(void);
+		int linux_name_to_handle_at(
+		    l_int dirfd,
+		    const char *name,
+		    struct l_file_handle *handle,
+		    l_int *mnt_id,
+		    l_int flags
+		);
 	}
 265	AUE_NULL	STD	{
-		int linux_open_by_handle_at(void);
+		int linux_open_by_handle_at(
+		    l_int mountdirfd,
+		    struct l_file_handle *handle,
+		    l_int flags
+		);
 	}
 266	AUE_NULL	STD	{
 		int linux_clock_adjtime(void);
