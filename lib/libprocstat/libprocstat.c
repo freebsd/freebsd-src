@@ -460,6 +460,7 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 {
 	struct file file;
 	struct filedesc filed;
+	struct pwddesc pathsd;
 	struct fdescenttbl *fdt;
 	struct pwd pwd;
 	unsigned long pwd_addr;
@@ -484,15 +485,20 @@ procstat_getfiles_kvm(struct procstat *procstat, struct kinfo_proc *kp, int mmap
 	kd = procstat->kd;
 	if (kd == NULL)
 		return (NULL);
-	if (kp->ki_fd == NULL)
+	if (kp->ki_fd == NULL || kp->ki_pd == NULL)
 		return (NULL);
 	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &filed,
 	    sizeof(filed))) {
 		warnx("can't read filedesc at %p", (void *)kp->ki_fd);
 		return (NULL);
 	}
+	if (!kvm_read_all(kd, (unsigned long)kp->ki_pd, &pathsd,
+	    sizeof(pathsd))) {
+		warnx("can't read pwddesc at %p", (void *)kp->ki_pd);
+		return (NULL);
+	}
 	haspwd = false;
-	pwd_addr = (unsigned long)(FILEDESC_KVM_LOAD_PWD(&filed));
+	pwd_addr = (unsigned long)(PWDDESC_KVM_LOAD_PWD(&pathsd));
 	if (pwd_addr != 0) {
 		if (!kvm_read_all(kd, pwd_addr, &pwd, sizeof(pwd))) {
 			warnx("can't read fd_pwd at %p", (void *)pwd_addr);
@@ -2086,18 +2092,18 @@ procstat_freegroups(struct procstat *procstat __unused, gid_t *groups)
 static int
 procstat_getumask_kvm(kvm_t *kd, struct kinfo_proc *kp, unsigned short *maskp)
 {
-	struct filedesc fd;
+	struct pwddesc pd;
 
 	assert(kd != NULL);
 	assert(kp != NULL);
-	if (kp->ki_fd == NULL)
+	if (kp->ki_pd == NULL)
 		return (-1);
-	if (!kvm_read_all(kd, (unsigned long)kp->ki_fd, &fd, sizeof(fd))) {
-		warnx("can't read filedesc at %p for pid %d", kp->ki_fd,
+	if (!kvm_read_all(kd, (unsigned long)kp->ki_pd, &pd, sizeof(pd))) {
+		warnx("can't read pwddesc at %p for pid %d", kp->ki_pd,
 		    kp->ki_pid);
 		return (-1);
 	}
-	*maskp = fd.fd_cmask;
+	*maskp = pd.pd_cmask;
 	return (0);
 }
 

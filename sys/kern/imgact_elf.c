@@ -2507,12 +2507,12 @@ note_procstat_umask(void *arg, struct sbuf *sb, size_t *sizep)
 	int structsize;
 
 	p = (struct proc *)arg;
-	size = sizeof(structsize) + sizeof(p->p_fd->fd_cmask);
+	size = sizeof(structsize) + sizeof(p->p_pd->pd_cmask);
 	if (sb != NULL) {
 		KASSERT(*sizep == size, ("invalid size"));
-		structsize = sizeof(p->p_fd->fd_cmask);
+		structsize = sizeof(p->p_pd->pd_cmask);
 		sbuf_bcat(sb, &structsize, sizeof(structsize));
-		sbuf_bcat(sb, &p->p_fd->fd_cmask, sizeof(p->p_fd->fd_cmask));
+		sbuf_bcat(sb, &p->p_pd->pd_cmask, sizeof(p->p_pd->pd_cmask));
 	}
 	*sizep = size;
 }
