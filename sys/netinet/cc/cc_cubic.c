@@ -78,7 +78,7 @@ static void	cubic_conn_init(struct cc_var *ccv);
 static int	cubic_mod_init(void);
 static void	cubic_post_recovery(struct cc_var *ccv);
 static void	cubic_record_rtt(struct cc_var *ccv);
-static void	cubic_ssthresh_update(struct cc_var *ccv);
+static void	cubic_ssthresh_update(struct cc_var *ccv, uint32_t maxseg);
 static void	cubic_after_idle(struct cc_var *ccv);
 
 struct cubic {
@@ -90,19 +90,28 @@ struct cubic {
 	unsigned long	max_cwnd;
 	/* cwnd at the previous congestion event. */
 	unsigned long	prev_max_cwnd;
+	/* A copy of prev_max_cwnd. Used for CC_RTO_ERR */
+	unsigned long	prev_max_cwnd_cp;
 	/* various flags */
 	uint32_t	flags;
 #define CUBICFLAG_CONG_EVENT	0x00000001	/* congestion experienced */
 #define CUBICFLAG_IN_SLOWSTART	0x00000002	/* in slow start */
 #define CUBICFLAG_IN_APPLIMIT	0x00000004	/* application limited */
+#define CUBICFLAG_RTO_EVENT	0x00000008	/* RTO experienced */
 	/* Minimum observed rtt in ticks. */
 	int		min_rtt_ticks;
 	/* Mean observed rtt between congestion epochs. */
 	int		mean_rtt_ticks;
 	/* ACKs since last congestion event. */
 	int		epoch_ack_count;
-	/* Time of last congestion event in ticks. */
+	/* Timestamp (in ticks) of arriving in congestion avoidance from last
+	 * congestion event.
+	 */
 	int		t_last_cong;
+	/* Timestamp (in ticks) of a previous congestion event. Used for
+	 * CC_RTO_ERR.
+	 */
+	int		t_last_cong_prev;
 };
 
 static MALLOC_DEFINE(M_CUBIC, "cubic data",
@@ -142,7 +151,14 @@ cubic_ack_received(struct cc_var *ccv, uint16_t type)
 			cubic_data->flags |= CUBICFLAG_IN_SLOWSTART;
 			newreno_cc_algo.ack_received(ccv, type);
 		} else {
-			if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
+			if ((cubic_data->flags & CUBICFLAG_RTO_EVENT) &&
+			    (cubic_data->flags & CUBICFLAG_IN_SLOWSTART)) {
+				/* RFC8312 Section 4.7 */
+				cubic_data->flags &= ~(CUBICFLAG_RTO_EVENT |
+						       CUBICFLAG_IN_SLOWSTART);
+				cubic_data->max_cwnd = CCV(ccv, snd_cwnd);
+				cubic_data->K = 0;
+			} else if (cubic_data->flags & (CUBICFLAG_IN_SLOWSTART |
 						 CUBICFLAG_IN_APPLIMIT)) {
 				cubic_data->flags &= ~(CUBICFLAG_IN_SLOWSTART |
 						       CUBICFLAG_IN_APPLIMIT);
@@ -274,10 +290,10 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 	case CC_NDUPACK:
 		if (!IN_FASTRECOVERY(CCV(ccv, t_flags))) {
 			if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
-				cubic_ssthresh_update(ccv);
+				cubic_ssthresh_update(ccv, mss);
 				cubic_data->flags |= CUBICFLAG_CONG_EVENT;
 				cubic_data->t_last_cong = ticks;
-				cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
+				cubic_data->K = cubic_k(cubic_data->max_cwnd / mss);
 			}
 			ENTER_RECOVERY(CCV(ccv, t_flags));
 		}
@@ -285,36 +301,34 @@ cubic_cong_signal(struct cc_var *ccv, uint32_t type)
 
 	case CC_ECN:
 		if (!IN_CONGRECOVERY(CCV(ccv, t_flags))) {
-			cubic_ssthresh_update(ccv);
+			cubic_ssthresh_update(ccv, mss);
 			cubic_data->flags |= CUBICFLAG_CONG_EVENT;
 			cubic_data->t_last_cong = ticks;
-			cubic_data->K = cubic_k(cubic_data->max_cwnd / CCV(ccv, t_maxseg));
+			cubic_data->K = cubic_k(cubic_data->max_cwnd / mss);
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 			ENTER_CONGRECOVERY(CCV(ccv, t_flags));
 		}
 		break;
 
 	case CC_RTO:
-		CCV(ccv, snd_ssthresh) = max(min(CCV(ccv, snd_wnd),
-						 CCV(ccv, snd_cwnd)) / 2 / mss,
-					     2) * mss;
-		CCV(ccv, snd_cwnd) = mss;
-		/*
-		 * Grab the current time and record it so we know when the
-		 * most recent congestion event was. Only record it when the
-		 * timeout has fired more than once, as there is a reasonable
-		 * chance the first one is a false alarm and may not indicate
-		 * congestion.
-		 * This will put Cubic firmly into the concave / TCP friendly
-		 * region, for a slower ramp-up after two consecutive RTOs.
-		 */
-		if (CCV(ccv, t_rxtshift) >= 2) {
-			cubic_data->flags |= CUBICFLAG_CONG_EVENT;
-			cubic_data->t_last_cong = ticks;
-			cubic_data->max_cwnd = CCV(ccv, snd_cwnd_prev);
-			cubic_data->K = cubic_k(cubic_data->max_cwnd /
-						CCV(ccv, t_maxseg));
+		/* RFC8312 Section 4.7 */
+		if (CCV(ccv, t_rxtshift) == 1) {
+			cubic_data->t_last_cong_prev = cubic_data->t_last_cong;
+			cubic_data->prev_max_cwnd_cp = cubic_data->prev_max_cwnd;
 		}
+		cubic_data->flags |= CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT;
+		cubic_data->prev_max_cwnd = cubic_data->max_cwnd;
+		CCV(ccv, snd_ssthresh) = ((uint64_t)CCV(ccv, snd_cwnd) *
+					  CUBIC_BETA) >> CUBIC_SHIFT;
+		CCV(ccv, snd_cwnd) = mss;
+		break;
+
+	case CC_RTO_ERR:
+		cubic_data->flags &= ~(CUBICFLAG_CONG_EVENT | CUBICFLAG_RTO_EVENT);
+		cubic_data->max_cwnd = cubic_data->prev_max_cwnd;
+		cubic_data->prev_max_cwnd = cubic_data->prev_max_cwnd_cp;
+		cubic_data->t_last_cong = cubic_data->t_last_cong_prev;
+		cubic_data->K = cubic_k(cubic_data->max_cwnd / mss);
 		break;
 	}
 }
@@ -437,7 +451,7 @@ cubic_record_rtt(struct cc_var *ccv)
  * Update the ssthresh in the event of congestion.
  */
 static void
-cubic_ssthresh_update(struct cc_var *ccv)
+cubic_ssthresh_update(struct cc_var *ccv, uint32_t maxseg)
 {
 	struct cubic *cubic_data;
 	uint32_t ssthresh;
@@ -467,7 +481,7 @@ cubic_ssthresh_update(struct cc_var *ccv)
 		ssthresh = ((uint64_t)cwnd *
 		    CUBIC_BETA) >> CUBIC_SHIFT;
 	}
-	CCV(ccv, snd_ssthresh) = max(ssthresh, 2 * CCV(ccv, t_maxseg));
+	CCV(ccv, snd_ssthresh) = max(ssthresh, 2 * maxseg);
 }
 
 
