@@ -43,29 +43,51 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#ifdef __aarch64__
 #include "opt_soc.h"
+#endif
 
 #include <dev/extres/clk/clk_div.h>
 #include <dev/extres/clk/clk_fixed.h>
 #include <dev/extres/clk/clk_mux.h>
+
+#include <dev/extres/hwreset/hwreset.h>
 
 #include <arm/allwinner/clkng/aw_ccung.h>
 
 #include <gnu/dts/include/dt-bindings/clock/sun8i-de2.h>
 #include <gnu/dts/include/dt-bindings/reset/sun8i-de2.h>
 
+enum CCU_DE2 {
+	H3_CCU = 1,
+	A64_CCU,
+};
+
 /* Non exported clocks */
 #define	CLK_MIXER0_DIV	3
 #define	CLK_MIXER1_DIV	4
 #define	CLK_WB_DIV	5
 
-static struct aw_ccung_reset de2_ccu_resets[] = {
+static struct aw_ccung_reset h3_de2_ccu_resets[] = {
+	CCU_RESET(RST_MIXER0, 0x08, 0)
+	CCU_RESET(RST_WB, 0x08, 2)
+};
+
+static struct aw_ccung_reset a64_de2_ccu_resets[] = {
 	CCU_RESET(RST_MIXER0, 0x08, 0)
 	CCU_RESET(RST_MIXER1, 0x08, 1)
 	CCU_RESET(RST_WB, 0x08, 2)
 };
 
-static struct aw_ccung_gate de2_ccu_gates[] = {
+static struct aw_ccung_gate h3_de2_ccu_gates[] = {
+	CCU_GATE(CLK_BUS_MIXER0, "mixer0", "mixer0-div", 0x00, 0)
+	CCU_GATE(CLK_BUS_WB, "wb", "wb-div", 0x00, 2)
+
+	CCU_GATE(CLK_MIXER0, "bus-mixer0", "bus-de", 0x04, 0)
+	CCU_GATE(CLK_WB, "bus-wb", "bus-de", 0x04, 2)
+};
+
+static struct aw_ccung_gate a64_de2_ccu_gates[] = {
 	CCU_GATE(CLK_BUS_MIXER0, "mixer0", "mixer0-div", 0x00, 0)
 	CCU_GATE(CLK_BUS_MIXER1, "mixer1", "mixer1-div", 0x00, 1)
 	CCU_GATE(CLK_BUS_WB, "wb", "wb-div", 0x00, 2)
@@ -95,7 +117,7 @@ NM_CLK(mixer1_div_clk,
     4, 4, 0, 0,				/* M flags */
     0, 0,				/* mux */
     0,					/* gate */
-    AW_CLK_SCALE_CHANGE);	/* flags */
+    AW_CLK_SCALE_CHANGE);		/* flags */
 
 NM_CLK(wb_div_clk,
     CLK_WB_DIV,				/* id */
@@ -105,16 +127,22 @@ NM_CLK(wb_div_clk,
     8, 4, 0, 0,				/* M flags */
     0, 0,				/* mux */
     0,					/* gate */
-    AW_CLK_SCALE_CHANGE);	/* flags */
+    AW_CLK_SCALE_CHANGE);		/* flags */
 
-static struct aw_ccung_clk de2_ccu_clks[] = {
+static struct aw_ccung_clk h3_de2_ccu_clks[] = {
+	{ .type = AW_CLK_NM, .clk.nm = &mixer0_div_clk},
+	{ .type = AW_CLK_NM, .clk.nm = &wb_div_clk},
+};
+
+static struct aw_ccung_clk a64_de2_ccu_clks[] = {
 	{ .type = AW_CLK_NM, .clk.nm = &mixer0_div_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &mixer1_div_clk},
 	{ .type = AW_CLK_NM, .clk.nm = &wb_div_clk},
 };
 
 static struct ofw_compat_data compat_data[] = {
-	{"allwinner,sun50i-a64-de2-clk", 1},
+	{"allwinner,sun8i-h3-de2-clk", H3_CCU},
+	{"allwinner,sun50i-a64-de2-clk", A64_CCU},
 	{NULL,             0}
 };
 
@@ -136,15 +164,61 @@ static int
 ccu_de2_attach(device_t dev)
 {
 	struct aw_ccung_softc *sc;
+	phandle_t node;
+	clk_t mod, bus;
+	hwreset_t rst_de;
+	enum CCU_DE2 type;
 
 	sc = device_get_softc(dev);
+	node = ofw_bus_get_node(dev);
 
-	sc->resets = de2_ccu_resets;
-	sc->nresets = nitems(de2_ccu_resets);
-	sc->gates = de2_ccu_gates;
-	sc->ngates = nitems(de2_ccu_gates);
-	sc->clks = de2_ccu_clks;
-	sc->nclks = nitems(de2_ccu_clks);
+	type = (enum CCU_DE2)ofw_bus_search_compatible(dev, compat_data)->ocd_data;
+
+	switch (type) {
+	case H3_CCU:
+		sc->resets = h3_de2_ccu_resets;
+		sc->nresets = nitems(h3_de2_ccu_resets);
+		sc->gates = h3_de2_ccu_gates;
+		sc->ngates = nitems(h3_de2_ccu_gates);
+		sc->clks = h3_de2_ccu_clks;
+		sc->nclks = nitems(h3_de2_ccu_clks);
+		break;
+	case A64_CCU:
+		sc->resets = a64_de2_ccu_resets;
+		sc->nresets = nitems(a64_de2_ccu_resets);
+		sc->gates = a64_de2_ccu_gates;
+		sc->ngates = nitems(a64_de2_ccu_gates);
+		sc->clks = a64_de2_ccu_clks;
+		sc->nclks = nitems(a64_de2_ccu_clks);
+		break;
+	}
+
+	if (hwreset_get_by_ofw_idx(dev, node, 0, &rst_de) != 0) {
+		device_printf(dev, "Cannot get de reset\n");
+		return (ENXIO);
+	}
+	if (hwreset_deassert(rst_de) != 0) {
+		device_printf(dev, "Cannot de-assert de reset\n");
+		return (ENXIO);
+	}
+
+	if (clk_get_by_ofw_name(dev, node, "mod", &mod) != 0) {
+		device_printf(dev, "Cannot get mod clock\n");
+		return (ENXIO);
+	}
+	if (clk_enable(mod) != 0) {
+		device_printf(dev, "Cannot enable mod clock\n");
+		return (ENXIO);
+	}
+
+	if (clk_get_by_ofw_name(dev, node, "bus", &bus) != 0) {
+		device_printf(dev, "Cannot get bus clock\n");
+		return (ENXIO);
+	}
+	if (clk_enable(bus) != 0) {
+		device_printf(dev, "Cannot enable bus clock\n");
+		return (ENXIO);
+	}
 
 	return (aw_ccung_attach(dev));
 }
