@@ -260,6 +260,7 @@ static const STRUCT_USB_HOST_ID uplcom_devs[] = {
 	UPLCOM_DEV(ALCOR, AU9720),		/* Alcor AU9720 USB 2.0-RS232 */
 	UPLCOM_DEV(ANCHOR, SERIAL),		/* Anchor Serial adapter */
 	UPLCOM_DEV(ATEN, UC232A),		/* PLANEX USB-RS232 URS-03 */
+	UPLCOM_DEV(ATEN, UC232B),		/* Prolific USB-RS232 Controller D */
 	UPLCOM_DEV(BELKIN, F5U257),		/* Belkin F5U257 USB to Serial */
 	UPLCOM_DEV(COREGA, CGUSBRS232R),	/* Corega CG-USBRS232R */
 	UPLCOM_DEV(EPSON, CRESSI_EDY),		/* Cressi Edy diving computer */
