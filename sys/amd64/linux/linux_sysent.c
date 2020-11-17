@@ -320,8 +320,8 @@ struct sysent linux_sysent[] = {
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fanotify_init, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 300 = linux_fanotify_init */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_fanotify_mark, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 301 = linux_fanotify_mark */
 	{ .sy_narg = AS(linux_prlimit64_args), .sy_call = (sy_call_t *)linux_prlimit64, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 302 = linux_prlimit64 */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_name_to_handle_at, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 303 = linux_name_to_handle_at */
-	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_open_by_handle_at, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 304 = linux_open_by_handle_at */
+	{ .sy_narg = AS(linux_name_to_handle_at_args), .sy_call = (sy_call_t *)linux_name_to_handle_at, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 303 = linux_name_to_handle_at */
+	{ .sy_narg = AS(linux_open_by_handle_at_args), .sy_call = (sy_call_t *)linux_open_by_handle_at, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 304 = linux_open_by_handle_at */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)linux_clock_adjtime, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 305 = linux_clock_adjtime */
 	{ .sy_narg = AS(linux_syncfs_args), .sy_call = (sy_call_t *)linux_syncfs, .sy_auevent = AUE_SYNC, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 306 = linux_syncfs */
 	{ .sy_narg = AS(linux_sendmmsg_args), .sy_call = (sy_call_t *)linux_sendmmsg, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 307 = linux_sendmmsg */
