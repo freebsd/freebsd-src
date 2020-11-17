@@ -367,6 +367,7 @@ exit1(struct thread *td, int rval, int signo)
 	 * Close open files and release open-file table.
 	 * This may block!
 	 */
+	pdescfree(td);
 	fdescfree(td);
 
 	/*

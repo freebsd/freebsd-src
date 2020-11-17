@@ -668,7 +668,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 		fci->flags = O_CREAT | flags;
 		if (fuse_libabi_geq(data, 7, 12)) {
 			insize = sizeof(*fci);
-			fci->umask = td->td_proc->p_fd->fd_cmask;
+			fci->umask = td->td_proc->p_pd->pd_cmask;
 		} else {
 			insize = sizeof(struct fuse_open_in);
 		}
@@ -1269,7 +1269,7 @@ fuse_vnop_mkdir(struct vop_mkdir_args *ap)
 		return ENXIO;
 	}
 	fmdi.mode = MAKEIMODE(vap->va_type, vap->va_mode);
-	fmdi.umask = curthread->td_proc->p_fd->fd_cmask;
+	fmdi.umask = curthread->td_proc->p_pd->pd_cmask;
 
 	return (fuse_internal_newentry(dvp, vpp, cnp, FUSE_MKDIR, &fmdi,
 	    sizeof(fmdi), VDIR));

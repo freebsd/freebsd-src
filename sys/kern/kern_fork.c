@@ -332,16 +332,22 @@ fork_norfproc(struct thread *td, int flags)
 	 */
 	if (flags & RFCFDG) {
 		struct filedesc *fdtmp;
+		struct pwddesc *pdtmp;
+		pdtmp = pdinit(td->td_proc->p_pd, false);
 		fdtmp = fdinit(td->td_proc->p_fd, false, NULL);
+		pdescfree(td);
 		fdescfree(td);
 		p1->p_fd = fdtmp;
+		p1->p_pd = pdtmp;
 	}
 
 	/*
 	 * Unshare file descriptors (from parent).
 	 */
-	if (flags & RFFDG)
+	if (flags & RFFDG) {
 		fdunshare(td);
+		pdunshare(td);
+	}
 
 fail:
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
@@ -360,6 +366,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	struct proc *p1, *pptr;
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
+	struct pwddesc *pd;
 	struct sigacts *newsigacts;
 
 	p1 = td->td_proc;
@@ -403,12 +410,15 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	 * Copy filedesc.
 	 */
 	if (fr->fr_flags & RFCFDG) {
+		pd = pdinit(p1->p_pd, false);
 		fd = fdinit(p1->p_fd, false, NULL);
 		fdtol = NULL;
 	} else if (fr->fr_flags & RFFDG) {
+		pd = pdcopy(p1->p_pd);
 		fd = fdcopy(p1->p_fd);
 		fdtol = NULL;
 	} else {
+		pd = pdshare(p1->p_pd);
 		fd = fdshare(p1->p_fd);
 		if (p1->p_fdtol == NULL)
 			p1->p_fdtol = filedesc_to_leader_alloc(NULL, NULL,
@@ -498,6 +508,7 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	p2->p_textvp = p1->p_textvp;
 	p2->p_fd = fd;
 	p2->p_fdtol = fdtol;
+	p2->p_pd = pd;
 
 	if (p1->p_flag2 & P2_INHERIT_PROTECTED) {
 		p2->p_flag |= P_PROTECTED;
