@@ -105,8 +105,6 @@ static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td);
 static int kern_fhlinkat(struct thread *td, int fd, const char *path,
     enum uio_seg pathseg, fhandle_t *fhp);
-static int kern_getfhat(struct thread *td, int flags, int fd,
-    const char *path, enum uio_seg pathseg, fhandle_t *fhp);
 static int kern_readlink_vp(struct vnode *vp, char *buf, enum uio_seg bufseg,
     size_t count, struct thread *td);
 static int kern_linkat_vp(struct thread *td, struct vnode *vp, int fd,
@@ -4315,7 +4313,7 @@ sys_lgetfh(struct thread *td, struct lgetfh_args *uap)
 {
 
 	return (kern_getfhat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->fname,
-	    UIO_USERSPACE, uap->fhp));
+	    UIO_USERSPACE, uap->fhp, UIO_USERSPACE));
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -4329,7 +4327,7 @@ sys_getfh(struct thread *td, struct getfh_args *uap)
 {
 
 	return (kern_getfhat(td, 0, AT_FDCWD, uap->fname, UIO_USERSPACE,
-	    uap->fhp));
+	    uap->fhp, UIO_USERSPACE));
 }
 
 /*
@@ -4355,12 +4353,12 @@ sys_getfhat(struct thread *td, struct getfhat_args *uap)
 	    AT_RESOLVE_BENEATH)) != 0)
 		return (EINVAL);
 	return (kern_getfhat(td, uap->flags, uap->fd, uap->path, UIO_USERSPACE,
-	    uap->fhp));
+	    uap->fhp, UIO_USERSPACE));
 }
 
-static int
+int
 kern_getfhat(struct thread *td, int flags, int fd, const char *path,
-    enum uio_seg pathseg, fhandle_t *fhp)
+    enum uio_seg pathseg, fhandle_t *fhp, enum uio_seg fhseg)
 {
 	struct nameidata nd;
 	fhandle_t fh;
@@ -4382,8 +4380,12 @@ kern_getfhat(struct thread *td, int flags, int fd, const char *path,
 	fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;
 	error = VOP_VPTOFH(vp, &fh.fh_fid);
 	vput(vp);
-	if (error == 0)
-		error = copyout(&fh, fhp, sizeof (fh));
+	if (error == 0) {
+		if (fhseg == UIO_USERSPACE)
+			error = copyout(&fh, fhp, sizeof (fh));
+		else
+			memcpy(fhp, &fh, sizeof(fh));
+	}
 	return (error);
 }
 
@@ -4493,6 +4495,12 @@ struct fhopen_args {
 int
 sys_fhopen(struct thread *td, struct fhopen_args *uap)
 {
+	return (kern_fhopen(td, uap->u_fhp, uap->flags));
+}
+
+int
+kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags)
+{
 	struct mount *mp;
 	struct vnode *vp;
 	struct fhandle fhp;
@@ -4504,11 +4512,11 @@ sys_fhopen(struct thread *td, struct fhopen_args *uap)
 	if (error != 0)
 		return (error);
 	indx = -1;
-	fmode = FFLAGS(uap->flags);
+	fmode = FFLAGS(flags);
 	/* why not allow a non-read/write open for our lockd? */
 	if (((fmode & (FREAD | FWRITE)) == 0) || (fmode & O_CREAT))
 		return (EINVAL);
-	error = copyin(uap->u_fhp, &fhp, sizeof(fhp));
+	error = copyin(u_fhp, &fhp, sizeof(fhp));
 	if (error != 0)
 		return(error);
 	/* find the mount point */

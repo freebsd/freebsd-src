@@ -36,6 +36,7 @@
 #define	LINUX_AT_EACCESS		0x200
 #define	LINUX_AT_REMOVEDIR		0x200
 #define	LINUX_AT_SYMLINK_FOLLOW		0x400
+#define	LINUX_AT_EMPTY_PATH		0x1000
 
 /*
  * posix_fadvise advice
@@ -173,5 +174,11 @@
 #define LINUX_HUGETLB_FLAG_ENCODE_1GB	(30 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
 #define LINUX_HUGETLB_FLAG_ENCODE_2GB	(31 << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
 #define LINUX_HUGETLB_FLAG_ENCODE_16GB	(34U << LINUX_HUGETLB_FLAG_ENCODE_SHIFT)
+
+struct l_file_handle {
+	l_uint handle_bytes;
+	l_int handle_type;
+	unsigned char f_handle[0];
+};
 
 #endif	/* !_LINUX_FILE_H_ */
