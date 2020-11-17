@@ -169,9 +169,11 @@ Allow devices behind the LPC PCI-ISA bridge to be configured.
 The only supported devices are the TTY-class devices
 .Ar com1
 and
-.Ar com2
-and the boot ROM device
-.Ar bootrom .
+.Ar com2 ,
+the boot ROM device
+.Ar bootrom ,
+and the debug/test device
+.Ar pc-testdev .
 .Pp
 .Ar help
 print a list of supported LPC devices.
@@ -277,7 +279,8 @@ Intel e82545 network interface.
 .It Li uart
 PCI 16550 serial device.
 .It Li lpc
-LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports and a boot ROM.
+LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports, a boot ROM, and,
+optionally, the debug/test device.
 The LPC bridge emulation can only be configured on bus 0.
 .It Li fbuf
 Raw framebuffer device attached to VNC server.
