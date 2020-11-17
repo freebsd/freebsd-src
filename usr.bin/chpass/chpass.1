@@ -28,7 +28,7 @@
 .\"     @(#)chpass.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd December 30, 1993
+.Dd November 17, 2020
 .Dt CHPASS 1
 .Os
 .Sh NAME
@@ -41,19 +41,13 @@
 .Nd add or change user database information
 .Sh SYNOPSIS
 .Nm
+.Op Fl loy
 .Op Fl a Ar list
-.Op Fl p Ar encpass
-.Op Fl e Ar expiretime
-.Op Fl s Ar newshell
-.Op user
-.Nm
-.Op Fl oly
-.Op Fl a Ar list
-.Op Fl p Ar encpass
-.Op Fl e Ar expiretime
-.Op Fl s Ar newshell
 .Op Fl d Ar domain
+.Op Fl e Ar expiretime
 .Op Fl h Ar host
+.Op Fl p Ar encpass
+.Op Fl s Ar newshell
 .Op user
 .Sh DESCRIPTION
 The
@@ -216,7 +210,7 @@ Note that
 .Xr finger 1
 will display the office location and office phone together under the
 heading
-.Ar Office: .
+.Ar Office\&: .
 .Pp
 The user's
 .Ar home directory
@@ -313,7 +307,7 @@ changing other fields could be added, this would lead to
 compatibility problems with other NIS-capable systems.
 Even though the super-user may supply data for other fields
 while editing an entry, the extra information (other than the
-password -- see below) will be silently discarded.
+password \(em see below) will be silently discarded.
 .Pp
 Exception: the super-user on the NIS master server is permitted to
 change any field.
