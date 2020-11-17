@@ -198,5 +198,22 @@ void umtx_thread_init(struct thread *);
 void umtx_thread_fini(struct thread *);
 void umtx_thread_alloc(struct thread *);
 void umtx_thread_exit(struct thread *);
+
+struct umtx_copyops {
+	int	(*copyin_timeout)(const void *uaddr, struct timespec *tsp);
+	int	(*copyin_umtx_time)(const void *uaddr, size_t size,
+	    struct _umtx_time *tp);
+	int	(*copyin_robust_lists)(const void *uaddr, size_t size,
+	    struct umtx_robust_lists_params *rbp);
+	int	(*copyout_timeout)(void *uaddr, size_t size,
+	    struct timespec *tsp);
+	const size_t	timespec_sz;
+	const size_t	umtx_time_sz;
+	const bool	compat32;
+};
+
+#ifdef COMPAT_FREEBSD32
+extern const struct umtx_copyops umtx_native_ops32;
+#endif
 #endif /* !_KERNEL */
 #endif /* !_SYS_UMTX_H_ */
