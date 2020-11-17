@@ -159,8 +159,9 @@ static void
 update_firmware(int fd, uint8_t *payload, int32_t payload_size, uint8_t fwug)
 {
 	struct nvme_pt_command	pt;
-	uint64_t                max_xfer_size;
-	int32_t			off, resid, size;
+	uint64_t		max_xfer_size;
+	int32_t			off;
+	uint32_t		resid, size;
 	void			*chunk;
 
 	off = 0;
@@ -175,8 +176,7 @@ update_firmware(int fd, uint8_t *payload, int32_t payload_size, uint8_t fwug)
 		errx(EX_OSERR, "unable to malloc %zd bytes", (size_t)max_xfer_size);
 
 	while (resid > 0) {
-		size = (resid >= (int32_t)max_xfer_size) ?
-		    max_xfer_size : resid;
+		size = (resid >= max_xfer_size) ?  max_xfer_size : resid;
 		memcpy(chunk, payload + off, size);
 
 		memset(&pt, 0, sizeof(pt));
