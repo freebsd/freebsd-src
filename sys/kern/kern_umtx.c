@@ -219,9 +219,11 @@ struct abs_timeout {
 	struct timespec end;
 };
 
+#ifdef COMPAT_FREEBSD32
 _Static_assert(sizeof(struct umutex) == sizeof(struct umutex32), "umutex32");
 _Static_assert(__offsetof(struct umutex, m_spare[0]) ==
     __offsetof(struct umutex32, m_spare[0]), "m_spare32");
+#endif
 
 int umtx_shm_vnobj_persistent = 0;
 SYSCTL_INT(_kern_ipc, OID_AUTO, umtx_vnode_persistent, CTLFLAG_RWTUN,
