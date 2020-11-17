@@ -700,6 +700,7 @@ interpret:
 		 * cannot be shared after an exec.
 		 */
 		fdunshare(td);
+		pdunshare(td);
 		/* close files on exec */
 		fdcloseexec(td);
 	}

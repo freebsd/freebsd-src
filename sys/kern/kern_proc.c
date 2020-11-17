@@ -1144,6 +1144,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_traceflag = p->p_traceflag;
 #endif
 	kp->ki_fd = p->p_fd;
+	kp->ki_pd = p->p_pd;
 	kp->ki_vmspace = p->p_vmspace;
 	kp->ki_flag = p->p_flag;
 	kp->ki_flag2 = p->p_flag2;
@@ -2967,7 +2968,7 @@ sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
 	u_int namelen = arg2;
 	struct proc *p;
 	int error;
-	u_short fd_cmask;
+	u_short cmask;
 	pid_t pid;
 
 	if (namelen != 1)
@@ -2976,7 +2977,7 @@ sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
 	pid = (pid_t)name[0];
 	p = curproc;
 	if (pid == p->p_pid || pid == 0) {
-		fd_cmask = p->p_fd->fd_cmask;
+		cmask = p->p_pd->pd_cmask;
 		goto out;
 	}
 
@@ -2984,10 +2985,10 @@ sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
 	if (error != 0)
 		return (error);
 
-	fd_cmask = p->p_fd->fd_cmask;
+	cmask = p->p_pd->pd_cmask;
 	PRELE(p);
 out:
-	error = SYSCTL_OUT(req, &fd_cmask, sizeof(fd_cmask));
+	error = SYSCTL_OUT(req, &cmask, sizeof(cmask));
 	return (error);
 }
 

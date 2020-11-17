@@ -597,6 +597,7 @@ struct proc {
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Open files. */
 	struct filedesc_to_leader *p_fdtol; /* (b) Tracking node */
+	struct pwddesc	*p_pd;		/* (b) Cwd, chroot, jail, umask */
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct plimit	*p_limit;	/* (c) Resource limits. */
 	struct callout	p_limco;	/* (c) Limit callout handle */
