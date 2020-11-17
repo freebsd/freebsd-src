@@ -455,6 +455,12 @@ temporary copy of the password file
 .It Pa /etc/shells
 the list of approved shells
 .El
+.Sh EXAMPLES
+Change the shell of the current user to
+.Ql /usr/local/bin/zsh :
+.Bd -literal -offset indent
+chsh -s /usr/local/bin/zsh
+.Ed
 .Sh SEE ALSO
 .Xr finger 1 ,
 .Xr login 1 ,
