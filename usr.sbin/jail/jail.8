@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2020
+.Dd November 18, 2020
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -587,6 +587,13 @@ and resource limits.
 The jail root may bind to ports lower than 1024.
 .It Va allow.unprivileged_proc_debug
 Unprivileged processes in the jail may use debugging facilities.
+.It Va allow.suser
+The value of the jail's
+.Va security.bsd.suser_enabled
+sysctl.
+The super-user will be disabled automatically if its parent system has it
+disabled.
+The super-user is enabled by default.
 .El
 .El
 .Pp
@@ -1267,6 +1274,7 @@ Changes to these variables by a jailed process do not affect the host
 environment, only the jail environment.
 These variables are
 .Va kern.securelevel ,
+.Va security.bsd.suser_enabled ,
 .Va kern.hostname ,
 .Va kern.domainname ,
 .Va kern.hostid ,
