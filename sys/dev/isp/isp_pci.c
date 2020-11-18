@@ -1520,8 +1520,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		len += (N_XCMDS * XCMD_SIZE);
 	if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    len, 1, len, 0, busdma_lock_mutex, &isp->isp_lock,
-	    &isp->isp_osinfo.reqdmat)) {
+	    len, 1, len, 0, NULL, NULL, &isp->isp_osinfo.reqdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create request DMA tag");
 		goto bad;
 	}
@@ -1534,7 +1533,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	isp->isp_rquest = base;
 	im.error = 0;
 	if (bus_dmamap_load(isp->isp_osinfo.reqdmat, isp->isp_osinfo.reqmap,
-	    base, len, imc, &im, 0) || im.error) {
+	    base, len, imc, &im, BUS_DMA_NOWAIT) || im.error) {
 		isp_prt(isp, ISP_LOGERR, "error loading request DMA map %d", im.error);
 		goto bad;
 	}
@@ -1562,8 +1561,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	len = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 	if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    len, 1, len, 0, busdma_lock_mutex, &isp->isp_lock,
-	    &isp->isp_osinfo.respdmat)) {
+	    len, 1, len, 0, NULL, NULL, &isp->isp_osinfo.respdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create response DMA tag");
 		goto bad;
 	}
@@ -1576,7 +1574,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	isp->isp_result = base;
 	im.error = 0;
 	if (bus_dmamap_load(isp->isp_osinfo.respdmat, isp->isp_osinfo.respmap,
-	    base, len, imc, &im, 0) || im.error) {
+	    base, len, imc, &im, BUS_DMA_NOWAIT) || im.error) {
 		isp_prt(isp, ISP_LOGERR, "error loading response DMA map %d", im.error);
 		goto bad;
 	}
@@ -1592,8 +1590,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		len = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 		if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
 		    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-		    len, 1, len, 0, busdma_lock_mutex, &isp->isp_lock,
-		    &isp->isp_osinfo.atiodmat)) {
+		    len, 1, len, 0, NULL, NULL, &isp->isp_osinfo.atiodmat)) {
 			isp_prt(isp, ISP_LOGERR, "cannot create ATIO DMA tag");
 			goto bad;
 		}
@@ -1606,7 +1603,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		isp->isp_atioq = base;
 		im.error = 0;
 		if (bus_dmamap_load(isp->isp_osinfo.atiodmat, isp->isp_osinfo.atiomap,
-		    base, len, imc, &im, 0) || im.error) {
+		    base, len, imc, &im, BUS_DMA_NOWAIT) || im.error) {
 			isp_prt(isp, ISP_LOGERR, "error loading ATIO DMA map %d", im.error);
 			goto bad;
 		}
@@ -1619,8 +1616,8 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	if (IS_FC(isp)) {
 		if (bus_dma_tag_create(isp->isp_osinfo.dmat, 64, slim,
 		    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-		    2*QENTRY_LEN, 1, 2*QENTRY_LEN, 0, busdma_lock_mutex,
-		    &isp->isp_lock, &isp->isp_osinfo.iocbdmat)) {
+		    2*QENTRY_LEN, 1, 2*QENTRY_LEN, 0, NULL, NULL,
+		    &isp->isp_osinfo.iocbdmat)) {
 			goto bad;
 		}
 		if (bus_dmamem_alloc(isp->isp_osinfo.iocbdmat,
@@ -1629,14 +1626,14 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		isp->isp_iocb = base;
 		im.error = 0;
 		if (bus_dmamap_load(isp->isp_osinfo.iocbdmat, isp->isp_osinfo.iocbmap,
-		    base, 2*QENTRY_LEN, imc, &im, 0) || im.error)
+		    base, 2*QENTRY_LEN, imc, &im, BUS_DMA_NOWAIT) || im.error)
 			goto bad;
 		isp->isp_iocb_dma = im.maddr;
 
 		if (bus_dma_tag_create(isp->isp_osinfo.dmat, 64, slim,
 		    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-		    ISP_FC_SCRLEN, 1, ISP_FC_SCRLEN, 0, busdma_lock_mutex,
-		    &isp->isp_lock, &isp->isp_osinfo.scdmat))
+		    ISP_FC_SCRLEN, 1, ISP_FC_SCRLEN, 0, NULL, NULL,
+		    &isp->isp_osinfo.scdmat))
 			goto bad;
 		for (cmap = 0; cmap < isp->isp_nchan; cmap++) {
 			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
@@ -1646,7 +1643,8 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 			FCPARAM(isp, cmap)->isp_scratch = base;
 			im.error = 0;
 			if (bus_dmamap_load(isp->isp_osinfo.scdmat, fc->scmap,
-			    base, ISP_FC_SCRLEN, imc, &im, 0) || im.error) {
+			    base, ISP_FC_SCRLEN, imc, &im, BUS_DMA_NOWAIT) ||
+			    im.error) {
 				bus_dmamem_free(isp->isp_osinfo.scdmat,
 				    base, fc->scmap);
 				FCPARAM(isp, cmap)->isp_scratch = NULL;
