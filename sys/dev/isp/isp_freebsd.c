@@ -1320,6 +1320,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					if (isp->isp_dblev & ISP_LOGTDEBUG1) {
 						isp_print_bytes(isp, "FCP Response Frame After Swizzling", MIN_FCP_RESPONSE_SIZE + sense_length, atp->ests);
 					}
+					bus_dmamap_sync(isp->isp_osinfo.ecmd_dmat, isp->isp_osinfo.ecmd_map, BUS_DMASYNC_PREWRITE);
 					addr = isp->isp_osinfo.ecmd_dma;
 					addr += ((((isp_ecmd_t *)atp->ests) - isp->isp_osinfo.ecmd_base) * XCMD_SIZE);
 					isp_prt(isp, ISP_LOGTDEBUG0, "%s: ests base %p vaddr %p ecmd_dma %jx addr %jx len %u", __func__, isp->isp_osinfo.ecmd_base, atp->ests,
@@ -1469,6 +1470,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					if (isp->isp_dblev & ISP_LOGTDEBUG1) {
 						isp_print_bytes(isp, "FCP Response Frame After Swizzling", MIN_FCP_RESPONSE_SIZE + sense_length, atp->ests);
 					}
+					bus_dmamap_sync(isp->isp_osinfo.ecmd_dmat, isp->isp_osinfo.ecmd_map, BUS_DMASYNC_PREWRITE);
 					addr = isp->isp_osinfo.ecmd_dma;
 					addr += ((((isp_ecmd_t *)atp->ests) - isp->isp_osinfo.ecmd_base) * XCMD_SIZE);
 					isp_prt(isp, ISP_LOGTDEBUG0, "%s: ests base %p vaddr %p ecmd_dma %jx addr %jx len %u", __func__, isp->isp_osinfo.ecmd_base, atp->ests,
@@ -4309,6 +4311,7 @@ isp_timer(void *arg)
 	callout_reset(&isp->isp_osinfo.tmo, isp_timer_count, isp_timer, isp);
 }
 
+#ifdef	ISP_TARGET_MODE
 isp_ecmd_t *
 isp_get_ecmd(ispsoftc_t *isp)
 {
@@ -4325,3 +4328,4 @@ isp_put_ecmd(ispsoftc_t *isp, isp_ecmd_t *ecmd)
 	ecmd->next = isp->isp_osinfo.ecmd_free;
 	isp->isp_osinfo.ecmd_free = ecmd;
 }
+#endif

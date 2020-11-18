@@ -75,6 +75,7 @@
 
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 
+#ifdef	ISP_TARGET_MODE
 #define	N_XCMDS		64
 #define	XCMD_SIZE	512
 struct ispsoftc;
@@ -85,7 +86,6 @@ typedef union isp_ecmd {
 isp_ecmd_t *	isp_get_ecmd(struct ispsoftc *);
 void		isp_put_ecmd(struct ispsoftc *, isp_ecmd_t *);
 
-#ifdef	ISP_TARGET_MODE
 #define	ATPDPSIZE	4096
 #define	ATPDPHASHSIZE	32
 #define	ATPDPHASH(x)	((((x) >> 24) ^ ((x) >> 16) ^ ((x) >> 8) ^ (x)) &  \
@@ -305,9 +305,13 @@ struct isposinfo {
 	int			exec_throttle;
 	int			cont_max;
 
+#ifdef	ISP_TARGET_MODE
+	bus_dma_tag_t		ecmd_dmat;
+	bus_dmamap_t		ecmd_map;
 	bus_addr_t		ecmd_dma;
 	isp_ecmd_t *		ecmd_base;
 	isp_ecmd_t *		ecmd_free;
+#endif
 
 	/*
 	 * Per-type private storage...
