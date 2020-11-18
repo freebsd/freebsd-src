@@ -1285,8 +1285,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					}
 				} else {
 					bus_addr_t addr;
-					char buf[XCMD_SIZE];
-					fcp_rsp_iu_t *rp;
+					fcp_rsp_iu_t rp;
 
 					if (atp->ests == NULL) {
 						atp->ests = isp_get_ecmd(isp);
@@ -1295,29 +1294,28 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 							break;
 						}
 					}
-					memset(buf, 0, sizeof (buf));
-					rp = (fcp_rsp_iu_t *)buf;
+					memset(&rp, 0, sizeof(rp));
 					if (fctape) {
 						cto->ct_flags |= CT7_CONFIRM|CT7_EXPLCT_CONF;
-						rp->fcp_rsp_bits |= FCP_CONF_REQ;
+						rp.fcp_rsp_bits |= FCP_CONF_REQ;
 					}
 					cto->ct_flags |= CT7_FLAG_MODE2;
-	        			rp->fcp_rsp_scsi_status = cso->scsi_status;
+					rp.fcp_rsp_scsi_status = cso->scsi_status;
 					if (resid < 0) {
-						rp->fcp_rsp_resid = -resid;
-						rp->fcp_rsp_bits |= FCP_RESID_OVERFLOW;
+						rp.fcp_rsp_resid = -resid;
+						rp.fcp_rsp_bits |= FCP_RESID_OVERFLOW;
 					} else if (resid > 0) {
-						rp->fcp_rsp_resid = resid;
-						rp->fcp_rsp_bits |= FCP_RESID_UNDERFLOW;
+						rp.fcp_rsp_resid = resid;
+						rp.fcp_rsp_bits |= FCP_RESID_UNDERFLOW;
 					}
 					if (sense_length) {
-	        				rp->fcp_rsp_snslen = sense_length;
+						rp.fcp_rsp_snslen = sense_length;
 						cto->ct_senselen = sense_length;
-						rp->fcp_rsp_bits |= FCP_SNSLEN_VALID;
-						isp_put_fcp_rsp_iu(isp, rp, atp->ests);
+						rp.fcp_rsp_bits |= FCP_SNSLEN_VALID;
+						isp_put_fcp_rsp_iu(isp, &rp, atp->ests);
 						memcpy(((fcp_rsp_iu_t *)atp->ests)->fcp_rsp_extra, &cso->sense_data, sense_length);
 					} else {
-						isp_put_fcp_rsp_iu(isp, rp, atp->ests);
+						isp_put_fcp_rsp_iu(isp, &rp, atp->ests);
 					}
 					if (isp->isp_dblev & ISP_LOGTDEBUG1) {
 						isp_print_bytes(isp, "FCP Response Frame After Swizzling", MIN_FCP_RESPONSE_SIZE + sense_length, atp->ests);
@@ -1437,8 +1435,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 					}
 				} else {
 					bus_addr_t addr;
-					char buf[XCMD_SIZE];
-					fcp_rsp_iu_t *rp;
+					fcp_rsp_iu_t rp;
 
 					if (atp->ests == NULL) {
 						atp->ests = isp_get_ecmd(isp);
@@ -1447,28 +1444,27 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 							break;
 						}
 					}
-					memset(buf, 0, sizeof (buf));
-					rp = (fcp_rsp_iu_t *)buf;
+					memset(&rp, 0, sizeof(rp));
 					if (fctape) {
 						cto->ct_flags |= CT2_CONFIRM;
-						rp->fcp_rsp_bits |= FCP_CONF_REQ;
+						rp.fcp_rsp_bits |= FCP_CONF_REQ;
 					}
 					cto->ct_flags |= CT2_FLAG_MODE2;
-	        			rp->fcp_rsp_scsi_status = cso->scsi_status;
+					rp.fcp_rsp_scsi_status = cso->scsi_status;
 					if (resid < 0) {
-						rp->fcp_rsp_resid = -resid;
-						rp->fcp_rsp_bits |= FCP_RESID_OVERFLOW;
+						rp.fcp_rsp_resid = -resid;
+						rp.fcp_rsp_bits |= FCP_RESID_OVERFLOW;
 					} else if (resid > 0) {
-						rp->fcp_rsp_resid = resid;
-						rp->fcp_rsp_bits |= FCP_RESID_UNDERFLOW;
+						rp.fcp_rsp_resid = resid;
+						rp.fcp_rsp_bits |= FCP_RESID_UNDERFLOW;
 					}
 					if (sense_length) {
-	        				rp->fcp_rsp_snslen = sense_length;
-						rp->fcp_rsp_bits |= FCP_SNSLEN_VALID;
-						isp_put_fcp_rsp_iu(isp, rp, atp->ests);
+						rp.fcp_rsp_snslen = sense_length;
+						rp.fcp_rsp_bits |= FCP_SNSLEN_VALID;
+						isp_put_fcp_rsp_iu(isp, &rp, atp->ests);
 						memcpy(((fcp_rsp_iu_t *)atp->ests)->fcp_rsp_extra, &cso->sense_data, sense_length);
 					} else {
-						isp_put_fcp_rsp_iu(isp, rp, atp->ests);
+						isp_put_fcp_rsp_iu(isp, &rp, atp->ests);
 					}
 					if (isp->isp_dblev & ISP_LOGTDEBUG1) {
 						isp_print_bytes(isp, "FCP Response Frame After Swizzling", MIN_FCP_RESPONSE_SIZE + sense_length, atp->ests);
