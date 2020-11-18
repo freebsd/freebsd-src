@@ -150,10 +150,10 @@
  */
 #define	PCI_VENDOR_ID_AMAZON	0x1d0f
 
-#define	PCI_DEV_ID_ENA_PF	0x0ec2
-#define	PCI_DEV_ID_ENA_LLQ_PF	0x1ec2
-#define	PCI_DEV_ID_ENA_VF	0xec20
-#define	PCI_DEV_ID_ENA_LLQ_VF	0xec21
+#define	PCI_DEV_ID_ENA_PF		0x0ec2
+#define	PCI_DEV_ID_ENA_PF_RSERV0	0x1ec2
+#define	PCI_DEV_ID_ENA_VF		0xec20
+#define	PCI_DEV_ID_ENA_VF_RSERV0	0xec21
 
 /*
  * Flags indicating current ENA driver state

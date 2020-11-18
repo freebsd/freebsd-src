@@ -179,9 +179,9 @@ static char ena_version[] = DEVICE_NAME DRV_MODULE_NAME " v" DRV_MODULE_VERSION;
 
 static ena_vendor_info_t ena_vendor_info_array[] = {
     { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_PF, 0},
-    { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_LLQ_PF, 0},
+    { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_PF_RSERV0, 0},
     { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_VF, 0},
-    { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_LLQ_VF, 0},
+    { PCI_VENDOR_ID_AMAZON, PCI_DEV_ID_ENA_VF_RSERV0, 0},
     /* Last entry */
     { 0, 0, 0 }
 };
