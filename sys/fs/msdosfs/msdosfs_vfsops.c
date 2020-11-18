@@ -792,7 +792,7 @@ msdosfs_unmount(struct mount *mp, int mntflags)
 		printf("freef %p, freeb %p, mount %p\n",
 		    TAILQ_NEXT(vp, v_vnodelist), vp->v_vnodelist.tqe_prev,
 		    vp->v_mount);
-		printf("cleanblkhd %p, dirtyblkhd %p, numoutput %ld, type %d\n",
+		printf("cleanblkhd %p, dirtyblkhd %p, numoutput %d, type %d\n",
 		    TAILQ_FIRST(&vp->v_bufobj.bo_clean.bv_hd),
 		    TAILQ_FIRST(&vp->v_bufobj.bo_dirty.bv_hd),
 		    vp->v_bufobj.bo_numoutput, vp->v_type);
