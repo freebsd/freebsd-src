@@ -42,10 +42,10 @@
  * Server stats structure
  */
 struct nfsrvstats {
-	int	srvrpc_errs;
-	int	srv_errs;
+	int	reserved_0;
+	int	reserved_1;
 	int	srvcache_inproghits;
-	int	srvcache_idemdonehits;
+	int	reserved_2;
 	int	srvcache_nonidemdonehits;
 	int	srvcache_misses;
 	int	srvvop_writes;
