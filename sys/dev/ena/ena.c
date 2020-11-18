@@ -200,7 +200,7 @@ ena_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 int
 ena_dma_alloc(device_t dmadev, bus_size_t size,
-    ena_mem_handle_t *dma , int mapflags)
+    ena_mem_handle_t *dma, int mapflags, bus_size_t alignment)
 {
 	struct ena_adapter* adapter = device_get_softc(dmadev);
 	uint32_t maxsize;
@@ -214,7 +214,7 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 		dma_space_addr = BUS_SPACE_MAXADDR;
 
 	error = bus_dma_tag_create(bus_get_dma_tag(dmadev), /* parent */
-	    8, 0,	      /* alignment, bounds 		*/
+	    alignment, 0,     /* alignment, bounds 		*/
 	    dma_space_addr,   /* lowaddr of exclusion window	*/
 	    BUS_SPACE_MAXADDR,/* highaddr of exclusion window	*/
 	    NULL, NULL,	      /* filter, filterarg 		*/
