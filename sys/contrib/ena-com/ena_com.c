@@ -449,19 +449,21 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 	size = io_cq->cdesc_entry_size_in_bytes * io_cq->q_depth;
 	io_cq->bus = ena_dev->bus;
 
-	ENA_MEM_ALLOC_COHERENT_NODE(ena_dev->dmadev,
-			size,
-			io_cq->cdesc_addr.virt_addr,
-			io_cq->cdesc_addr.phys_addr,
-			io_cq->cdesc_addr.mem_handle,
-			ctx->numa_node,
-			prev_node);
+	ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(ena_dev->dmadev,
+					    size,
+					    io_cq->cdesc_addr.virt_addr,
+					    io_cq->cdesc_addr.phys_addr,
+					    io_cq->cdesc_addr.mem_handle,
+					    ctx->numa_node,
+					    prev_node,
+					    ENA_CDESC_RING_SIZE_ALIGNMENT);
 	if (!io_cq->cdesc_addr.virt_addr) {
-		ENA_MEM_ALLOC_COHERENT(ena_dev->dmadev,
-				       size,
-				       io_cq->cdesc_addr.virt_addr,
-				       io_cq->cdesc_addr.phys_addr,
-				       io_cq->cdesc_addr.mem_handle);
+		ENA_MEM_ALLOC_COHERENT_ALIGNED(ena_dev->dmadev,
+					       size,
+					       io_cq->cdesc_addr.virt_addr,
+					       io_cq->cdesc_addr.phys_addr,
+					       io_cq->cdesc_addr.mem_handle,
+					       ENA_CDESC_RING_SIZE_ALIGNMENT);
 	}
 
 	if (!io_cq->cdesc_addr.virt_addr) {
