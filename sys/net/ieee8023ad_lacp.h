@@ -292,8 +292,10 @@ struct lacp_softc {
 #define LACP_LOCK_ASSERT(_lsc)		mtx_assert(&(_lsc)->lsc_mtx, MA_OWNED)
 
 struct mbuf	*lacp_input(struct lagg_port *, struct mbuf *);
-struct lagg_port *lacp_select_tx_port(struct lagg_softc *, struct mbuf *);
-struct lagg_port *lacp_select_tx_port_by_hash(struct lagg_softc *, uint32_t, uint8_t);
+struct lagg_port *lacp_select_tx_port(struct lagg_softc *, struct mbuf *,
+    int *);
+struct lagg_port *lacp_select_tx_port_by_hash(struct lagg_softc *, uint32_t,
+    uint8_t, int *);
 void		lacp_attach(struct lagg_softc *);
 void		lacp_detach(void *);
 void		lacp_init(struct lagg_softc *);
