@@ -177,14 +177,14 @@ struct fadvise_info {
 };
 
 struct file {
-	void		*f_data;	/* file descriptor specific data */
-	struct fileops	*f_ops;		/* File operations */
-	struct ucred	*f_cred;	/* associated credentials. */
-	struct vnode 	*f_vnode;	/* NULL or applicable vnode */
-	short		f_type;		/* descriptor type */
-	short		f_vnread_flags; /* (f) Sleep lock for f_offset */
 	volatile u_int	f_flag;		/* see fcntl.h */
 	volatile u_int 	f_count;	/* reference count */
+	void		*f_data;	/* file descriptor specific data */
+	struct fileops	*f_ops;		/* File operations */
+	struct vnode 	*f_vnode;	/* NULL or applicable vnode */
+	struct ucred	*f_cred;	/* associated credentials. */
+	short		f_type;		/* descriptor type */
+	short		f_vnread_flags; /* (f) Sleep lock for f_offset */
 	/*
 	 *  DTYPE_VNODE specific fields.
 	 */
