@@ -172,6 +172,7 @@ static int	ena_enable_msix_and_set_admin_interrupts(struct ena_adapter *);
 static void ena_update_on_link_change(void *, struct ena_admin_aenq_entry *);
 static void	unimplemented_aenq_handler(void *,
     struct ena_admin_aenq_entry *);
+static int	ena_copy_eni_metrics(struct ena_adapter *);
 static void	ena_timer_service(void *);
 
 static char ena_version[] = DEVICE_NAME DRV_MODULE_NAME " v" DRV_MODULE_VERSION;
@@ -3215,6 +3216,44 @@ static void ena_update_hints(struct ena_adapter *adapter,
 	}
 }
 
+/**
+ * ena_copy_eni_metrics - Get and copy ENI metrics from the HW.
+ * @adapter: ENA device adapter
+ *
+ * Returns 0 on success, EOPNOTSUPP if current HW doesn't support those metrics
+ * and other error codes on failure.
+ *
+ * This function can possibly cause a race with other calls to the admin queue.
+ * Because of that, the caller should either lock this function or make sure
+ * that there is no race in the current context.
+ */
+static int
+ena_copy_eni_metrics(struct ena_adapter *adapter)
+{
+	static bool print_once = true;
+	int rc;
+
+	rc = ena_com_get_eni_stats(adapter->ena_dev, &adapter->eni_metrics);
+
+	if (rc != 0) {
+		if (rc == ENA_COM_UNSUPPORTED) {
+			if (print_once) {
+				device_printf(adapter->pdev,
+				    "Retrieving ENI metrics is not supported.\n");
+				print_once = false;
+			} else {
+				ena_trace(NULL, ENA_DBG,
+				    "Retrieving ENI metrics is not supported.\n");
+			}
+		} else {
+			device_printf(adapter->pdev,
+			    "Failed to get ENI metrics: %d\n", rc);
+		}
+	}
+
+	return (rc);
+}
+
 static void
 ena_timer_service(void *data)
 {
@@ -3229,6 +3268,38 @@ ena_timer_service(void *data)
 	check_for_missing_completions(adapter);
 
 	check_for_empty_rx_ring(adapter);
+
+	/*
+	 * User controller update of the ENI metrics.
+	 * If the delay was set to 0, then the stats shouldn't be updated at
+	 * all.
+	 * Otherwise, wait 'eni_metrics_sample_interval' seconds, before
+	 * updating stats.
+	 * As timer service is executed every second, it's enough to increment
+	 * appropriate counter each time the timer service is executed.
+	 */
+	if ((adapter->eni_metrics_sample_interval != 0) &&
+	    (++adapter->eni_metrics_sample_interval_cnt >=
+	     adapter->eni_metrics_sample_interval)) {
+		/*
+		 * There is no race with other admin queue calls, as:
+		 *   - Timer service runs after interface is up, so all
+		 *     configuration calls to the admin queue are finished.
+		 *   - After interface is up, the driver doesn't use (at least
+		 *     for now) other functions writing to the admin queue.
+		 *
+		 * It may change in the future, so in that situation, the lock
+		 * will be needed. ENA_LOCK_*() cannot be used for that purpose,
+		 * as callout ena_timer_service is protected by them. It could
+		 * lead to the deadlock if callout_drain() would hold the lock
+		 * before ena_copy_eni_metrics() was executed. It's advised to
+		 * use separate lock in that situation which will be used only
+		 * for the admin queue.
+		 */
+		(void)ena_copy_eni_metrics(adapter);
+		adapter->eni_metrics_sample_interval_cnt = 0;
+	}
+
 
 	if (host_info != NULL)
 		ena_update_host_info(host_info, adapter->ifp);
