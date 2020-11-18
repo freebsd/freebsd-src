@@ -106,7 +106,7 @@ main(int argc, char *argv[], char *envp[])
 	addarg(&al, argv[0]);
 
 	snprintf(localmailerconf, MAXPATHLEN, "%s/etc/mail/mailer.conf",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _PATH_LOCALBASE);
+	    getlocalbase());
 
 	mailerconf = localmailerconf;
 	if ((config = fopen(localmailerconf, "r")) == NULL)
