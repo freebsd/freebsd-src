@@ -106,6 +106,8 @@ extern struct ena_bus_space ebs;
 #define ENA_ADMQ	(1 << 8) /* Detailed info about admin queue. 	      */
 #define ENA_NETMAP	(1 << 9) /* Detailed info about netmap. 	      */
 
+#define DEFAULT_ALLOC_ALIGNMENT	8
+
 extern int ena_log_level;
 
 #define ena_trace_raw(level, fmt, args...)			\
@@ -285,7 +287,7 @@ typedef uint64_t ena_time_t;
 void	ena_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nseg,
     int error);
 int	ena_dma_alloc(device_t dmadev, bus_size_t size, ena_mem_handle_t *dma,
-    int mapflags);
+    int mapflags, bus_size_t alignment);
 
 static inline uint32_t
 ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
@@ -313,19 +315,29 @@ ena_reg_read32(struct ena_bus *bus, bus_size_t offset)
 		(void)(size);						\
 		free(ptr, M_DEVBUF);					\
 	} while (0)
-#define ENA_MEM_ALLOC_COHERENT_NODE(dmadev, size, virt, phys, handle, node, \
-    dev_node)								\
+#define ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt, phys,	\
+    handle, node, dev_node, alignment) 					\
 	do {								\
 		((virt) = NULL);					\
 		(void)(dev_node);					\
 	} while (0)
 
-#define ENA_MEM_ALLOC_COHERENT(dmadev, size, virt, phys, dma)		\
+#define ENA_MEM_ALLOC_COHERENT_NODE(dmadev, size, virt, phys, handle,	\
+    node, dev_node)							\
+	ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(dmadev, size, virt,		\
+	    phys, handle, node, dev_node, DEFAULT_ALLOC_ALIGNMENT)
+
+#define ENA_MEM_ALLOC_COHERENT_ALIGNED(dmadev, size, virt, phys, dma,	\
+    alignment)								\
 	do {								\
-		ena_dma_alloc((dmadev), (size), &(dma), 0);		\
+		ena_dma_alloc((dmadev), (size), &(dma), 0, alignment);	\
 		(virt) = (void *)(dma).vaddr;				\
 		(phys) = (dma).paddr;					\
 	} while (0)
+
+#define ENA_MEM_ALLOC_COHERENT(dmadev, size, virt, phys, dma)		\
+	ENA_MEM_ALLOC_COHERENT_ALIGNED(dmadev, size, virt,		\
+	    phys, dma, DEFAULT_ALLOC_ALIGNMENT)
 
 #define ENA_MEM_FREE_COHERENT(dmadev, size, virt, phys, dma)		\
 	do {								\
