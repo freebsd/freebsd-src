@@ -43,12 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <fetch.h>
+#include <libutil.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 #include <ucl.h>
 
 #include <openssl/err.h>
@@ -1045,8 +1045,7 @@ main(int argc, char *argv[])
 	pkgarg = NULL;
 	yes = false;
 
-	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _PATH_LOCALBASE);
+	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg", getlocalbase());
 
 	if (argc > 1 && strcmp(argv[1], "bootstrap") == 0) {
 		bootstrap_only = true;

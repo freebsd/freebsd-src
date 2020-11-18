@@ -287,7 +287,7 @@ bad_arg:
  * Loads all the .so's from the specified directory.
  */
 void
-cmd_load_dir(const char *dir __unused, cmd_load_cb_t cb __unused, void *argp __unused)
+cmd_load_dir(const char *dir, cmd_load_cb_t cb, void *argp)
 {
 	DIR *d;
 	struct dirent *dent;
