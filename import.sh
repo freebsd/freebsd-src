@@ -65,7 +65,7 @@ tar zxf $TARBALL
 
 # steps unique to bmake
 VERSION=`grep '^_MAKE_VERSION' bmake/VERSION | sed 's,.*=[[:space:]]*,,'`
-rm -rf bmake/missing
+#rm -rf bmake/missing
 
 # the rest should be common
 ('cd' dist && $SVN list -R) | grep -v '/$' | sort > $TF.old
