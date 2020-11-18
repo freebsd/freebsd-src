@@ -1,5 +1,5 @@
 /*-
- * BSD LICENSE
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
@@ -171,7 +171,8 @@ static inline bool ena_com_is_doorbell_needed(struct ena_com_io_sq *io_sq,
 						   llq_info->descs_per_entry);
 	}
 
-	ena_trc_dbg("queue: %d num_descs: %d num_entries_needed: %d\n",
+	ena_trc_dbg(ena_com_io_sq_to_ena_dev(io_sq),
+		    "Queue: %d num_descs: %d num_entries_needed: %d\n",
 		    io_sq->qid, num_descs, num_entries_needed);
 
 	return num_entries_needed > io_sq->entries_in_tx_burst_left;
@@ -182,14 +183,16 @@ static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 	u16 max_entries_in_tx_burst = io_sq->llq_info.max_entries_in_tx_burst;
 	u16 tail = io_sq->tail;
 
-	ena_trc_dbg("write submission queue doorbell for queue: %d tail: %d\n",
+	ena_trc_dbg(ena_com_io_sq_to_ena_dev(io_sq),
+		    "Write submission queue doorbell for queue: %d tail: %d\n",
 		    io_sq->qid, tail);
 
 	ENA_REG_WRITE32(io_sq->bus, tail, io_sq->db_addr);
 
 	if (is_llq_max_tx_burst_exists(io_sq)) {
-		ena_trc_dbg("reset available entries in tx burst for queue %d to %d\n",
-			     io_sq->qid, max_entries_in_tx_burst);
+		ena_trc_dbg(ena_com_io_sq_to_ena_dev(io_sq),
+			    "Reset available entries in tx burst for queue %d to %d\n",
+			    io_sq->qid, max_entries_in_tx_burst);
 		io_sq->entries_in_tx_burst_left = max_entries_in_tx_burst;
 	}
 
@@ -207,7 +210,8 @@ static inline int ena_com_update_dev_comp_head(struct ena_com_io_cq *io_cq)
 		need_update = unreported_comp > (io_cq->q_depth / ENA_COMP_HEAD_THRESH);
 
 		if (unlikely(need_update)) {
-			ena_trc_dbg("Write completion queue doorbell for queue %d: head: %d\n",
+			ena_trc_dbg(ena_com_io_cq_to_ena_dev(io_cq),
+				    "Write completion queue doorbell for queue %d: head: %d\n",
 				    io_cq->qid, head);
 			ENA_REG_WRITE32(io_cq->bus, head, io_cq->cq_head_db_reg);
 			io_cq->last_head_update = head;
@@ -271,7 +275,8 @@ static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
 
 	*req_id = READ_ONCE16(cdesc->req_id);
 	if (unlikely(*req_id >= io_cq->q_depth)) {
-		ena_trc_err("Invalid req id %d\n", cdesc->req_id);
+		ena_trc_err(ena_com_io_cq_to_ena_dev(io_cq),
+			    "Invalid req id %d\n", cdesc->req_id);
 		return ENA_COM_INVAL;
 	}
 

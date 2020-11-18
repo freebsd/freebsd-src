@@ -514,20 +514,4 @@ ena_trigger_reset(struct ena_adapter *adapter,
 	}
 }
 
-static inline int
-validate_rx_req_id(struct ena_ring *rx_ring, uint16_t req_id)
-{
-	if (likely(req_id < rx_ring->ring_size))
-		return (0);
-
-	device_printf(rx_ring->adapter->pdev, "Invalid rx req_id: %hu\n",
-	    req_id);
-	counter_u64_add(rx_ring->rx_stats.bad_req_id, 1);
-
-	/* Trigger device reset */
-	ena_trigger_reset(rx_ring->adapter, ENA_REGS_RESET_INV_RX_REQ_ID);
-
-	return (EFAULT);
-}
-
 #endif /* !(ENA_H) */
