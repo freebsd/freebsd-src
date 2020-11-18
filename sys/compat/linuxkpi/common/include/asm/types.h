@@ -31,7 +31,7 @@
 #ifndef	_ASM_TYPES_H_
 #define	_ASM_TYPES_H_
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_STANDALONE)
 
 #include <sys/types.h>
 
@@ -59,6 +59,6 @@ typedef vm_paddr_t dma64_addr_t;
 
 typedef unsigned short umode_t;
 
-#endif	/* _KERNEL */
+#endif	/* _KERNEL || _STANDALONE */
 
 #endif	/* _ASM_TYPES_H_ */
