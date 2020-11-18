@@ -226,14 +226,14 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 	    NULL,	      /* lockarg 			*/
 	    &dma->tag);
 	if (unlikely(error != 0)) {
-		ena_trace(ENA_ALERT, "bus_dma_tag_create failed: %d\n", error);
+		ena_trace(NULL, ENA_ALERT, "bus_dma_tag_create failed: %d\n", error);
 		goto fail_tag;
 	}
 
 	error = bus_dmamem_alloc(dma->tag, (void**) &dma->vaddr,
 	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &dma->map);
 	if (unlikely(error != 0)) {
-		ena_trace(ENA_ALERT, "bus_dmamem_alloc(%ju) failed: %d\n",
+		ena_trace(NULL, ENA_ALERT, "bus_dmamem_alloc(%ju) failed: %d\n",
 		    (uintmax_t)size, error);
 		goto fail_map_create;
 	}
@@ -242,7 +242,7 @@ ena_dma_alloc(device_t dmadev, bus_size_t size,
 	error = bus_dmamap_load(dma->tag, dma->map, dma->vaddr,
 	    size, ena_dmamap_callback, &dma->paddr, mapflags);
 	if (unlikely((error != 0) || (dma->paddr == 0))) {
-		ena_trace(ENA_ALERT, ": bus_dmamap_load failed: %d\n", error);
+		ena_trace(NULL, ENA_ALERT, ": bus_dmamap_load failed: %d\n", error);
 		goto fail_map_load;
 	}
 
@@ -315,7 +315,7 @@ ena_probe(device_t dev)
 	while (ent->vendor_id != 0) {
 		if ((pci_vendor_id == ent->vendor_id) &&
 		    (pci_device_id == ent->device_id)) {
-			ena_trace(ENA_DBG, "vendor=%x device=%x\n",
+			ena_trace(NULL, ENA_DBG, "vendor=%x device=%x\n",
 			    pci_vendor_id, pci_device_id);
 
 			sprintf(adapter_name, DEVICE_DESC);
@@ -345,7 +345,7 @@ ena_change_mtu(if_t ifp, int new_mtu)
 
 	rc = ena_com_set_dev_mtu(adapter->ena_dev, new_mtu);
 	if (likely(rc == 0)) {
-		ena_trace(ENA_DBG, "set MTU to %d\n", new_mtu);
+		ena_trace(NULL, ENA_DBG, "set MTU to %d\n", new_mtu);
 		if_setmtu(ifp, new_mtu);
 	} else {
 		device_printf(adapter->pdev, "Failed to set MTU to %d\n",
@@ -666,7 +666,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 		err = bus_dmamap_create(adapter->tx_buf_tag, 0,
 		    &tx_ring->tx_buffer_info[i].dmamap);
 		if (unlikely(err != 0)) {
-			ena_trace(ENA_ALERT,
+			ena_trace(NULL, ENA_ALERT,
 			    "Unable to create Tx DMA map for buffer %d\n",
 			    i);
 			goto err_map_release;
@@ -679,7 +679,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 				err = bus_dmamap_create(adapter->tx_buf_tag, 0,
 				    &map[j]);
 				if (unlikely(err != 0)) {
-					ena_trace(ENA_ALERT, "Unable to create "
+					ena_trace(NULL, ENA_ALERT, "Unable to create "
 					    "Tx DMA for buffer %d %d\n", i, j);
 					goto err_map_release;
 				}
@@ -693,7 +693,7 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	tx_ring->enqueue_tq = taskqueue_create_fast("ena_tx_enque", M_NOWAIT,
 	    taskqueue_thread_enqueue, &tx_ring->enqueue_tq);
 	if (unlikely(tx_ring->enqueue_tq == NULL)) {
-		ena_trace(ENA_ALERT,
+		ena_trace(NULL, ENA_ALERT,
 		    "Unable to create taskqueue for enqueue task\n");
 		i = tx_ring->ring_size;
 		goto err_map_release;
@@ -878,7 +878,7 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 		err = bus_dmamap_create(adapter->rx_buf_tag, 0,
 		    &(rx_ring->rx_buffer_info[i].map));
 		if (err != 0) {
-			ena_trace(ENA_ALERT,
+			ena_trace(NULL, ENA_ALERT,
 			    "Unable to create Rx DMA map for buffer %d\n", i);
 			goto err_buf_info_unmap;
 		}
@@ -891,7 +891,7 @@ ena_setup_rx_resources(struct ena_adapter *adapter, unsigned int qid)
 			device_printf(adapter->pdev,
 			    "LRO[%d] Initialization failed!\n", qid);
 		} else {
-			ena_trace(ENA_INFO,
+			ena_trace(NULL, ENA_INFO,
 			    "RX Soft LRO[%d] Initialized\n", qid);
 			rx_ring->lro.ifp = adapter->ifp;
 		}
@@ -1022,13 +1022,13 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 	rx_info->mbuf->m_pkthdr.len = rx_info->mbuf->m_len = mlen;
 
 	/* Map packets for DMA */
-	ena_trace(ENA_DBG | ENA_RSC | ENA_RXPTH,
+	ena_trace(NULL, ENA_DBG | ENA_RSC | ENA_RXPTH,
 	    "Using tag %p for buffers' DMA mapping, mbuf %p len: %d\n",
 	    adapter->rx_buf_tag,rx_info->mbuf, rx_info->mbuf->m_len);
 	error = bus_dmamap_load_mbuf_sg(adapter->rx_buf_tag, rx_info->map,
 	    rx_info->mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (unlikely((error != 0) || (nsegs != 1))) {
-		ena_trace(ENA_WARNING, "failed to map mbuf, error: %d, "
+		ena_trace(NULL, ENA_WARNING, "failed to map mbuf, error: %d, "
 		    "nsegs: %d\n", error, nsegs);
 		counter_u64_add(rx_ring->rx_stats.dma_mapping_err, 1);
 		goto exit;
@@ -1041,7 +1041,7 @@ ena_alloc_rx_mbuf(struct ena_adapter *adapter,
 	ena_buf->paddr = segs[0].ds_addr;
 	ena_buf->len = mlen;
 
-	ena_trace(ENA_DBG | ENA_RSC | ENA_RXPTH,
+	ena_trace(NULL, ENA_DBG | ENA_RSC | ENA_RXPTH,
 	    "ALLOC RX BUF: mbuf %p, rx_info %p, len %d, paddr %#jx\n",
 	    rx_info->mbuf, rx_info,ena_buf->len, (uintmax_t)ena_buf->paddr);
 
@@ -1059,7 +1059,7 @@ ena_free_rx_mbuf(struct ena_adapter *adapter, struct ena_ring *rx_ring,
 {
 
 	if (rx_info->mbuf == NULL) {
-		ena_trace(ENA_WARNING, "Trying to free unallocated buffer\n");
+		ena_trace(NULL, ENA_WARNING, "Trying to free unallocated buffer\n");
 		return;
 	}
 
@@ -1084,7 +1084,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 	uint32_t i;
 	int rc;
 
-	ena_trace(ENA_DBG | ENA_RXPTH | ENA_RSC, "refill qid: %d\n",
+	ena_trace(NULL, ENA_DBG | ENA_RXPTH | ENA_RSC, "refill qid: %d\n",
 	    rx_ring->qid);
 
 	next_to_use = rx_ring->next_to_use;
@@ -1092,7 +1092,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 	for (i = 0; i < num; i++) {
 		struct ena_rx_buffer *rx_info;
 
-		ena_trace(ENA_DBG | ENA_RXPTH | ENA_RSC,
+		ena_trace(NULL, ENA_DBG | ENA_RXPTH | ENA_RSC,
 		    "RX buffer - next to use: %d\n", next_to_use);
 
 		req_id = rx_ring->free_rx_ids[next_to_use];
@@ -1104,7 +1104,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 #endif /* DEV_NETMAP */
 			rc = ena_alloc_rx_mbuf(adapter, rx_ring, rx_info);
 		if (unlikely(rc != 0)) {
-			ena_trace(ENA_WARNING,
+			ena_trace(NULL, ENA_WARNING,
 			    "failed to alloc buffer for rx queue %d\n",
 			    rx_ring->qid);
 			break;
@@ -1112,7 +1112,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 		rc = ena_com_add_single_rx_desc(rx_ring->ena_com_io_sq,
 		    &rx_info->ena_buf, req_id);
 		if (unlikely(rc != 0)) {
-			ena_trace(ENA_WARNING,
+			ena_trace(NULL, ENA_WARNING,
 			    "failed to add buffer for rx queue %d\n",
 			    rx_ring->qid);
 			break;
@@ -1123,7 +1123,7 @@ ena_refill_rx_bufs(struct ena_ring *rx_ring, uint32_t num)
 
 	if (unlikely(i < num)) {
 		counter_u64_add(rx_ring->rx_stats.refil_partial, 1);
-		ena_trace(ENA_WARNING,
+		ena_trace(NULL, ENA_WARNING,
 		     "refilled rx qid %d with only %d mbufs (from %d)\n",
 		     rx_ring->qid, i, num);
 	}
@@ -1332,7 +1332,7 @@ ena_refill_all_rx_bufs(struct ena_adapter *adapter)
 		bufs_num = rx_ring->ring_size - 1;
 		rc = ena_refill_rx_bufs(rx_ring, bufs_num);
 		if (unlikely(rc != bufs_num))
-			ena_trace(ENA_WARNING, "refilling Queue %d failed. "
+			ena_trace(NULL, ENA_WARNING, "refilling Queue %d failed. "
 			    "Allocated %d buffers from: %d\n", i, rc, bufs_num);
 #ifdef DEV_NETMAP
 		rx_ring->initialized = true;
@@ -1373,7 +1373,7 @@ ena_free_tx_bufs(struct ena_adapter *adapter, unsigned int qid)
 			    qid, i);
 			print_once = false;
 		} else {
-			ena_trace(ENA_DBG,
+			ena_trace(NULL, ENA_DBG,
 			    "free uncompleted tx mbuf qid %d idx 0x%x\n",
 			     qid, i);
 		}
@@ -1589,7 +1589,7 @@ ena_enable_msix(struct ena_adapter *adapter)
 	adapter->msix_entries = malloc(msix_vecs * sizeof(struct msix_entry),
 	    M_DEVBUF, M_WAITOK | M_ZERO);
 
-	ena_trace(ENA_DBG, "trying to enable MSI-X, vectors: %d\n", msix_vecs);
+	ena_trace(NULL, ENA_DBG, "trying to enable MSI-X, vectors: %d\n", msix_vecs);
 
 	for (i = 0; i < msix_vecs; i++) {
 		adapter->msix_entries[i].entry = i;
@@ -1667,7 +1667,7 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		adapter->irq_tbl[irq_idx].data = &adapter->que[i];
 		adapter->irq_tbl[irq_idx].vector =
 		    adapter->msix_entries[irq_idx].vector;
-		ena_trace(ENA_INFO | ENA_IOQ, "ena_setup_io_intr vector: %d\n",
+		ena_trace(NULL, ENA_INFO | ENA_IOQ, "ena_setup_io_intr vector: %d\n",
 		    adapter->msix_entries[irq_idx].vector);
 
 		/*
@@ -1717,7 +1717,7 @@ ena_request_mgmnt_irq(struct ena_adapter *adapter)
 	return (rc);
 
 err_res_free:
-	ena_trace(ENA_INFO | ENA_ADMQ, "releasing resource for irq %d\n",
+	ena_trace(NULL, ENA_INFO | ENA_ADMQ, "releasing resource for irq %d\n",
 	    irq->vector);
 	rcc = bus_release_resource(adapter->pdev, SYS_RES_IRQ,
 	    irq->vector, irq->res);
@@ -1770,7 +1770,7 @@ ena_request_io_irq(struct ena_adapter *adapter)
 		}
 		irq->requested = true;
 
-		ena_trace(ENA_INFO, "queue %d - cpu %d\n",
+		ena_trace(NULL, ENA_INFO, "queue %d - cpu %d\n",
 		    i - ENA_IO_IRQ_FIRST_IDX, irq->cpu);
 	}
 
@@ -1817,7 +1817,7 @@ ena_free_mgmnt_irq(struct ena_adapter *adapter)
 
 	irq = &adapter->irq_tbl[ENA_MGMNT_IRQ_IDX];
 	if (irq->requested) {
-		ena_trace(ENA_INFO | ENA_ADMQ, "tear down irq: %d\n",
+		ena_trace(NULL, ENA_INFO | ENA_ADMQ, "tear down irq: %d\n",
 		    irq->vector);
 		rc = bus_teardown_intr(adapter->pdev, irq->res, irq->cookie);
 		if (unlikely(rc != 0))
@@ -1827,7 +1827,7 @@ ena_free_mgmnt_irq(struct ena_adapter *adapter)
 	}
 
 	if (irq->res != NULL) {
-		ena_trace(ENA_INFO | ENA_ADMQ, "release resource irq: %d\n",
+		ena_trace(NULL, ENA_INFO | ENA_ADMQ, "release resource irq: %d\n",
 		    irq->vector);
 		rc = bus_release_resource(adapter->pdev, SYS_RES_IRQ,
 		    irq->vector, irq->res);
@@ -1847,7 +1847,7 @@ ena_free_io_irq(struct ena_adapter *adapter)
 	for (int i = ENA_IO_IRQ_FIRST_IDX; i < adapter->msix_vecs; i++) {
 		irq = &adapter->irq_tbl[i];
 		if (irq->requested) {
-			ena_trace(ENA_INFO | ENA_IOQ, "tear down irq: %d\n",
+			ena_trace(NULL, ENA_INFO | ENA_IOQ, "tear down irq: %d\n",
 			    irq->vector);
 			rc = bus_teardown_intr(adapter->pdev, irq->res,
 			    irq->cookie);
@@ -1859,7 +1859,7 @@ ena_free_io_irq(struct ena_adapter *adapter)
 		}
 
 		if (irq->res != NULL) {
-			ena_trace(ENA_INFO | ENA_IOQ, "release resource irq: %d\n",
+			ena_trace(NULL, ENA_INFO | ENA_IOQ, "release resource irq: %d\n",
 			    irq->vector);
 			rc = bus_release_resource(adapter->pdev, SYS_RES_IRQ,
 			    irq->vector, irq->res);
@@ -2006,21 +2006,21 @@ create_queues_with_size_backoff(struct ena_adapter *adapter)
 		/* Allocate transmit descriptors */
 		rc = ena_setup_all_tx_resources(adapter);
 		if (unlikely(rc != 0)) {
-			ena_trace(ENA_ALERT, "err_setup_tx\n");
+			ena_trace(NULL, ENA_ALERT, "err_setup_tx\n");
 			goto err_setup_tx;
 		}
 
 		/* Allocate receive descriptors */
 		rc = ena_setup_all_rx_resources(adapter);
 		if (unlikely(rc != 0)) {
-			ena_trace(ENA_ALERT, "err_setup_rx\n");
+			ena_trace(NULL, ENA_ALERT, "err_setup_rx\n");
 			goto err_setup_rx;
 		}
 
 		/* Create IO queues for Rx & Tx */
 		rc = ena_create_io_queues(adapter);
 		if (unlikely(rc != 0)) {
-			ena_trace(ENA_ALERT,
+			ena_trace(NULL, ENA_ALERT,
 			    "create IO queues failed\n");
 			goto err_io_que;
 		}
@@ -2037,7 +2037,7 @@ err_setup_tx:
 		 * error straightaway.
 		 */
 		if (unlikely(rc != ENOMEM)) {
-			ena_trace(ENA_ALERT,
+			ena_trace(NULL, ENA_ALERT,
 			    "Queue creation failed with error code: %d\n", rc);
 			return (rc);
 		}
@@ -2092,12 +2092,12 @@ ena_up(struct ena_adapter *adapter)
 	/* setup interrupts for IO queues */
 	rc = ena_setup_io_intr(adapter);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_ALERT, "error setting up IO interrupt\n");
+		ena_trace(NULL, ENA_ALERT, "error setting up IO interrupt\n");
 		goto error;
 	}
 	rc = ena_request_io_irq(adapter);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_ALERT, "err_req_irq\n");
+		ena_trace(NULL, ENA_ALERT, "err_req_irq\n");
 		goto error;
 	}
 
@@ -2112,7 +2112,7 @@ ena_up(struct ena_adapter *adapter)
 
 	rc = create_queues_with_size_backoff(adapter);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_ALERT,
+		ena_trace(NULL, ENA_ALERT,
 		    "error creating queues with size backoff\n");
 		goto err_create_queues_with_backoff;
 	}
@@ -2194,7 +2194,7 @@ static void
 ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct ena_adapter *adapter = if_getsoftc(ifp);
-	ena_trace(ENA_DBG, "enter\n");
+	ena_trace(NULL, ENA_DBG, "enter\n");
 
 	ENA_LOCK_LOCK(adapter);
 
@@ -2203,7 +2203,7 @@ ena_media_status(if_t ifp, struct ifmediareq *ifmr)
 
 	if (!ENA_FLAG_ISSET(ENA_FLAG_LINK_UP, adapter)) {
 		ENA_LOCK_UNLOCK(adapter);
-		ena_trace(ENA_INFO, "Link is down\n");
+		ena_trace(NULL, ENA_INFO, "Link is down\n");
 		return;
 	}
 
@@ -2397,7 +2397,7 @@ ena_setup_ifnet(device_t pdev, struct ena_adapter *adapter,
 
 	ifp = adapter->ifp = if_gethandle(IFT_ETHER);
 	if (unlikely(ifp == NULL)) {
-		ena_trace(ENA_ALERT, "can not allocate ifnet structure\n");
+		ena_trace(NULL, ENA_ALERT, "can not allocate ifnet structure\n");
 		return (ENXIO);
 	}
 	if_initname(ifp, device_get_name(pdev), device_get_unit(pdev));
@@ -2534,7 +2534,7 @@ ena_enable_wc(struct resource *res)
 	/* Enable write combining */
 	rc = pmap_change_attr(va, len, VM_MEMATTR_WRITE_COMBINING);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_ALERT, "pmap_change_attr failed, %d\n", rc);
+		ena_trace(NULL, ENA_ALERT, "pmap_change_attr failed, %d\n", rc);
 		return (rc);
 	}
 
@@ -2745,7 +2745,7 @@ ena_rss_init_default_deferred(void *arg)
 
 	dc = devclass_find("ena");
 	if (unlikely(dc == NULL)) {
-		ena_trace(ENA_ALERT, "No devclass ena\n");
+		ena_trace(NULL, ENA_ALERT, "No devclass ena\n");
 		return;
 	}
 
@@ -2776,7 +2776,7 @@ ena_config_host_info(struct ena_com_dev *ena_dev, device_t dev)
 	/* Allocate only the host info */
 	rc = ena_com_allocate_host_info(ena_dev);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_ALERT, "Cannot allocate host info\n");
+		ena_trace(NULL, ENA_ALERT, "Cannot allocate host info\n");
 		return;
 	}
 
@@ -2801,9 +2801,9 @@ ena_config_host_info(struct ena_com_dev *ena_dev, device_t dev)
 	rc = ena_com_set_host_attributes(ena_dev);
 	if (unlikely(rc != 0)) {
 		if (rc == EOPNOTSUPP)
-			ena_trace(ENA_WARNING, "Cannot set host attributes\n");
+			ena_trace(NULL, ENA_WARNING, "Cannot set host attributes\n");
 		else
-			ena_trace(ENA_ALERT, "Cannot set host attributes\n");
+			ena_trace(NULL, ENA_ALERT, "Cannot set host attributes\n");
 
 		goto err;
 	}
@@ -3057,7 +3057,7 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 		if (unlikely(time_offset > adapter->missing_tx_timeout)) {
 
 			if (!tx_buf->print_once)
-				ena_trace(ENA_WARNING, "Found a Tx that wasn't "
+				ena_trace(NULL, ENA_WARNING, "Found a Tx that wasn't "
 				    "completed on time, qid %d, index %d.\n",
 				    tx_ring->qid, i);
 
@@ -3786,11 +3786,11 @@ static void ena_notification(void *adapter_data,
 	struct ena_adapter *adapter = (struct ena_adapter *)adapter_data;
 	struct ena_admin_ena_hw_hints *hints;
 
-	ENA_WARN(aenq_e->aenq_common_desc.group != ENA_ADMIN_NOTIFICATION,
+	ENA_WARN(NULL, aenq_e->aenq_common_desc.group != ENA_ADMIN_NOTIFICATION,
 	    "Invalid group(%x) expected %x\n",	aenq_e->aenq_common_desc.group,
 	    ENA_ADMIN_NOTIFICATION);
 
-	switch (aenq_e->aenq_common_desc.syndrom) {
+	switch (aenq_e->aenq_common_desc.syndrome) {
 	case ENA_ADMIN_UPDATE_HINTS:
 		hints =
 		    (struct ena_admin_ena_hw_hints *)(&aenq_e->inline_data_w4);
@@ -3799,7 +3799,7 @@ static void ena_notification(void *adapter_data,
 	default:
 		device_printf(adapter->pdev,
 		    "Invalid aenq notification link state %d\n",
-		    aenq_e->aenq_common_desc.syndrom);
+		    aenq_e->aenq_common_desc.syndrome);
 	}
 }
 
