@@ -1763,6 +1763,7 @@ lookup_snd_tag_port(struct ifnet *ifp, uint32_t flowid, uint32_t flowtype,
 	struct lagg_port *lp;
 	struct lagg_lb *lb;
 	uint32_t hash, p;
+	int err;
 
 	sc = ifp->if_softc;
 
@@ -1783,7 +1784,7 @@ lookup_snd_tag_port(struct ifnet *ifp, uint32_t flowid, uint32_t flowtype,
 		    flowtype == M_HASHTYPE_NONE)
 			return (NULL);
 		hash = flowid >> sc->flowid_shift;
-		return (lacp_select_tx_port_by_hash(sc, hash, numa_domain));
+		return (lacp_select_tx_port_by_hash(sc, hash, numa_domain, &err));
 	default:
 		return (NULL);
 	}
@@ -2580,12 +2581,13 @@ static int
 lagg_lacp_start(struct lagg_softc *sc, struct mbuf *m)
 {
 	struct lagg_port *lp;
+	int err;
 
-	lp = lacp_select_tx_port(sc, m);
+	lp = lacp_select_tx_port(sc, m, &err);
 	if (lp == NULL) {
 		if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
-		return (ENETDOWN);
+		return (err);
 	}
 
 	/* Send mbuf */
