@@ -4080,8 +4080,9 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 	if (vp->v_vflag & VV_READLINK)
 		strlcat(buf, "|VV_READLINK", sizeof(buf));
 	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC | VV_ETERNALDEV |
-	    VV_CACHEDLABEL | VV_COPYONWRITE | VV_SYSTEM | VV_PROCDEP |
-	    VV_NOKNOTE | VV_DELETED | VV_MD | VV_FORCEINSMQ);
+	    VV_CACHEDLABEL | VV_VMSIZEVNLOCK | VV_COPYONWRITE | VV_SYSTEM |
+	    VV_PROCDEP | VV_NOKNOTE | VV_DELETED | VV_MD | VV_FORCEINSMQ |
+	    VV_READLINK);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -4109,9 +4110,10 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		snprintf(buf2, sizeof(buf2), "|VMP(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
 	}
-	printf("    flags (%s)\n", buf + 1);
+	printf("    flags (%s)", buf + 1);
 	if (mtx_owned(VI_MTX(vp)))
 		printf(" VI_LOCKed");
+	printf("\n");
 	if (vp->v_object != NULL)
 		printf("    v_object %p ref %d pages %d "
 		    "cleanbuf %d dirtybuf %d\n",
