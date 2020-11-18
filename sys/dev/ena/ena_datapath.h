@@ -1,5 +1,5 @@
 /*-
- * BSD LICENSE
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
