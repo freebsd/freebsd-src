@@ -107,8 +107,8 @@ sysctl_kern_suser_enabled(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_security_bsd, OID_AUTO, suser_enabled, CTLTYPE_INT |
-    CTLFLAG_RWTUN | CTLFLAG_PRISON, 0, 0, &sysctl_kern_suser_enabled, "I",
-    "Processes with uid 0 have privilege");
+    CTLFLAG_RWTUN | CTLFLAG_PRISON | CTLFLAG_MPSAFE, 0, 0,
+    &sysctl_kern_suser_enabled, "I", "Processes with uid 0 have privilege");
 
 static int	unprivileged_mlock = 1;
 SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_mlock, CTLFLAG_RWTUN,
