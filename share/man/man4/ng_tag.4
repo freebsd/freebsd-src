@@ -150,9 +150,7 @@ If
 .Va strip
 flag is non-zero, then found tag is deleted from list of packet tags.
 .It Dv NGM_TAG_GET_HOOKIN Pq Ic gethookin
-This command takes an
-.Tn ASCII
-string argument, the hook name, and returns the
+This command takes an ASCII string argument, the hook name, and returns the
 corresponding
 .Vt "struct ng_tag_hookin"
 as shown above.
@@ -176,22 +174,16 @@ Other variables mean basically the same as in
 .Vt "struct ng_tag_hookin"
 shown above, except used for setting values in a new tag.
 .It Dv NGM_TAG_GET_HOOKOUT Pq Ic gethookout
-This command takes an
-.Tn ASCII
-string argument, the hook name, and returns the
+This command takes an ASCII string argument, the hook name, and returns the
 corresponding
 .Vt "struct ng_tag_hookout"
 as shown above.
 .It Dv NGM_TAG_GET_STATS Pq Ic getstats
-This command takes an
-.Tn ASCII
-string argument, the hook name, and returns the
+This command takes an ASCII string argument, the hook name, and returns the
 statistics associated with the hook as a
 .Vt "struct ng_tag_hookstat" .
 .It Dv NGM_TAG_CLR_STATS Pq Ic clrstats
-This command takes an
-.Tn ASCII
-string argument, the hook name, and clears the
+This command takes an ASCII string argument, the hook name, and clears the
 statistics associated with the hook.
 .It Dv NGM_TAG_GETCLR_STATS Pq Ic getclrstats
 This command is identical to
@@ -199,7 +191,7 @@ This command is identical to
 except that the statistics are also atomically cleared.
 .El
 .Pp
-.Em Note:
+.Em Note :
 statistics counters as well as three statistics messages above work
 only if code was compiled with the
 .Dv NG_TAG_DEBUG
