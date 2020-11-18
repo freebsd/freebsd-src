@@ -98,6 +98,8 @@ int	flopen(const char *_path, int _flags, ...);
 int	flopenat(int _dirfd, const char *_path, int _flags, ...);
 int	forkpty(int *_amaster, char *_name,
 	    struct termios *_termp, struct winsize *_winp);
+const char *
+	getlocalbase(void);
 void	hexdump(const void *_ptr, int _length, const char *_hdr, int _flags);
 int	humanize_number(char *_buf, size_t _len, int64_t _number,
 	    const char *_suffix, int _scale, int _flags);
