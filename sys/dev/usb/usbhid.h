@@ -205,7 +205,7 @@ struct usb_hid_descriptor {
 #define	HUM_INCH	0x13
 #define	HUM_DEGREE	0x14
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_STANDALONE)
 struct usb_config_descriptor;
 
 enum hid_kind {
@@ -274,5 +274,5 @@ usb_error_t usbd_req_get_hid_desc(struct usb_device *udev, struct mtx *mtx,
 int32_t	hid_item_resolution(struct hid_item *hi);
 int	hid_is_mouse(const void *d_ptr, uint16_t d_len);
 int	hid_is_keyboard(const void *d_ptr, uint16_t d_len);
-#endif					/* _KERNEL */
-#endif					/* _USB_HID_H_ */
+#endif	/* _KERNEL || _STANDALONE */
+#endif	/* _USB_HID_H_ */

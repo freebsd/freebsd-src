@@ -27,9 +27,12 @@
 #ifndef _BSD_KERNEL_H_
 #define	_BSD_KERNEL_H_
 
-#define	_KERNEL
+#if !defined(_STANDALONE)
+#error "_STANDALONE is not defined!"
+#endif
+
 #undef __FreeBSD_version
-#define	__FreeBSD_version 1100000
+#define	__FreeBSD_version 1300000
 
 #include <sys/cdefs.h>
 #include <sys/queue.h>
