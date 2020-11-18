@@ -1093,6 +1093,7 @@ for COMPFILE in `find . | sort` ; do
   fi
 done
 
+# Compare regular files
 for COMPFILE in `find . -type f | sort`; do
 
   # First, check to see if the file exists in DESTDIR.  If not, the
@@ -1182,6 +1183,119 @@ for COMPFILE in `find . -type f | sort`; do
   fi # Yes, the file still remains to be checked
 done # This is for the for way up there at the beginning of the comparison
 
+ask_answer_for_symbolic_link () {
+  HANDLE_COMPSYMLINK=''
+  while true; do
+    echo "  Use 'd' to delete the temporary ${COMPSYMLINK}"
+    echo "  Use 'i' to install the temporary ${COMPSYMLINK}"
+    echo ''
+    echo "  Default is to leave the temporary symbolic link to deal with by hand"
+    echo ''
+    echo -n "How should I deal with this? [Leave it for later] "
+    read HANDLE_COMPSYMLINK
+    case ${HANDLE_COMPSYMLINK} in
+      ''|[dDiI])
+        break
+        ;;
+      *)
+        echo "invalid choice: ${HANDLE_COMPSYMLINK}"
+        echo ''
+        HANDLE_COMPSYMLINK=''
+        ;;
+    esac
+  done
+}
+
+install_symbolic_link () {
+  rm -f ${DESTDIR}${COMPSYMLINK#.} > /dev/null 2>&1
+  if [ -L ${DESTDIR}${COMPSYMLINK#.} ]; then
+    return 1
+  fi
+  cp -a ${COMPSYMLINK} ${DESTDIR}${COMPSYMLINK#.} > /dev/null 2>&1
+  if [ ! -L ${DESTDIR}${COMPSYMLINK#.} ]; then
+    return 1
+  fi
+  return 0
+}
+
+handle_symbolic_link () {
+  case ${HANDLE_COMPSYMLINK} in
+    [dD])
+      rm ${COMPSYMLINK}
+      echo ''
+      echo "   *** Deleting ${COMPSYMLINK}"
+      echo ''
+      return 1
+      ;;
+    [iI])
+      echo ''
+      if install_symbolic_link; then
+        rm ${COMPSYMLINK}
+        echo "   *** ${COMPSYMLINK} installed successfully"
+        return 2
+      else
+        echo "   *** Problem installing ${COMPSYMLINK}, it will remain to merge by hand"
+        return 3
+      fi
+      echo ''
+      ;;
+    '')
+      echo ''
+      echo "   *** ${COMPSYMLINK} will remain for your consideration"
+      echo ''
+      return 0
+      ;;
+  esac
+}
+
+# Compare symblic links
+for COMPSYMLINK in `find . -type l | sort`; do
+  if [ ! -L "${DESTDIR}${COMPSYMLINK#.}" ]; then
+    if [ -n "${AUTO_RUN}" -a -z "${AUTO_INSTALL}" ]; then
+      echo "   *** ${COMPSYMLINK} will remain for your consideration"
+      continue
+    else
+      echo ''
+      echo "  *** There is no installed version of ${COMPSYMLINK}"
+      echo ''
+      if [ -n "${AUTO_INSTALL}" ]; then
+        HANDLE_COMPSYMLINK="i"
+      else
+        ask_answer_for_symbolic_link
+      fi
+      handle_symbolic_link
+      if [ -n "${AUTO_INSTALL}" -a $? -eq 2 ]; then
+        AUTO_INSTALLED_FILES="${AUTO_INSTALLED_FILES}      ${DESTDIR}${COMPSYMLINK#.}
+"
+      fi
+    fi
+  elif [ $(readlink ${COMPSYMLINK}) = $(readlink ${DESTDIR}${COMPSYMLINK#.}) ]; then
+    echo " *** Temp ${COMPSYMLINK} and installed are the same, deleting"
+    rm ${COMPSYMLINK}
+  else
+    if [ -n "${AUTO_RUN}" -a -z "${AUTO_UPGRADE}" ]; then
+      echo "   *** ${COMPSYMLINK} will remain for your consideration"
+      continue
+    else
+      echo ''
+      echo " *** Target of temp symbolic link is differnt from that of installed one"
+      echo "     Temp (${COMPSYMLINK}): $(readlink ${COMPSYMLINK})"
+      echo "     Installed (${DESTDIR}${COMPSYMLINK#.})): $(readlink ${DESTDIR}${COMPSYMLINK#.})"
+      echo ''
+      if [ -n "${AUTO_UPGRADE}" ]; then
+        HANDLE_COMPSYMLINK="i"
+      else
+        ask_answer_for_symbolic_link
+      fi
+      handle_symbolic_link
+      if [ -n "${AUTO_UPGRADE}" -a $? -eq 2 ]; then
+        AUTO_UPGRADED_FILES="${AUTO_UPGRADED_FILES}      ${DESTDIR}${COMPSYMLINK#.}
+"
+      fi
+    fi
+  fi
+done
+
 echo ''
 echo "*** Comparison complete"
 
@@ -1193,10 +1307,10 @@ fi
 
 echo ''
 
-TEST_FOR_FILES=`find ${TEMPROOT} -type f -size +0 2>/dev/null`
+TEST_FOR_FILES=`find ${TEMPROOT} -type f -size +0 -or -type l 2>/dev/null`
 if [ -n "${TEST_FOR_FILES}" ]; then
   echo "*** Files that remain for you to merge by hand:"
-  find "${TEMPROOT}" -type f -size +0 | sort
+  find "${TEMPROOT}" -type f -size +0 -or -type l | sort
   echo ''
 
   case "${AUTO_RUN}" in
