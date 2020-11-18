@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <paths.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -178,11 +179,13 @@ get_nsid(int fd, char **ctrlr_str, uint32_t *nsid)
 int
 main(int argc, char *argv[])
 {
+	static char dir[MAXPATHLEN];
 
 	cmd_init();
 
 	cmd_load_dir("/lib/nvmecontrol", NULL, NULL);
-	cmd_load_dir(_PATH_LOCALBASE "/lib/nvmecontrol", NULL, NULL);
+	snprintf(dir, MAXPATHLEN, "%s/lib/nvmecontrol", getlocalbase());
+	cmd_load_dir(dir, NULL, NULL);
 
 	cmd_dispatch(argc, argv, NULL);
 
