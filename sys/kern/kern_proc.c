@@ -686,7 +686,8 @@ pgdelete(struct pgrp *pgrp)
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
-	 * F_SETOWN with our pgid.
+	 * F_SETOWN with our pgid.  The proctree lock ensures that
+	 * new sigio structures will not be added after this point.
 	 */
 	funsetownlst(&pgrp->pg_sigiolst);
 

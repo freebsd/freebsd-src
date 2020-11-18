@@ -320,7 +320,7 @@ struct thread;
 #define	SIGIO_TRYLOCK()	mtx_trylock(&sigio_lock)
 #define	SIGIO_UNLOCK()	mtx_unlock(&sigio_lock)
 #define	SIGIO_LOCKED()	mtx_owned(&sigio_lock)
-#define	SIGIO_ASSERT(type)	mtx_assert(&sigio_lock, type)
+#define	SIGIO_ASSERT_LOCKED(type) mtx_assert(&sigio_lock, MA_OWNED)
 
 extern struct mtx	sigio_lock;
 

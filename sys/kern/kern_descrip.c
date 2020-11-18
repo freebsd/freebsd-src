@@ -954,6 +954,40 @@ unlock:
 	return (error);
 }
 
+static void
+sigiofree(struct sigio *sigio)
+{
+	crfree(sigio->sio_ucred);
+	free(sigio, M_SIGIO);
+}
+
+static struct sigio *
+funsetown_locked(struct sigio *sigio)
+{
+	struct proc *p;
+	struct pgrp *pg;
+
+	SIGIO_ASSERT_LOCKED();
+
+	if (sigio == NULL)
+		return (NULL);
+	*(sigio->sio_myref) = NULL;
+	if (sigio->sio_pgid < 0) {
+		pg = sigio->sio_pgrp;
+		PGRP_LOCK(pg);
+		SLIST_REMOVE(&sigio->sio_pgrp->pg_sigiolst, sigio,
+		    sigio, sio_pgsigio);
+		PGRP_UNLOCK(pg);
+	} else {
+		p = sigio->sio_proc;
+		PROC_LOCK(p);
+		SLIST_REMOVE(&sigio->sio_proc->p_sigiolst, sigio,
+		    sigio, sio_pgsigio);
+		PROC_UNLOCK(p);
+	}
+	return (sigio);
+}
+
 /*
  * If sigio is on the list associated with a process or process group,
  * disable signalling from the device, remove sigio from the list and
@@ -964,92 +998,82 @@ funsetown(struct sigio **sigiop)
 {
 	struct sigio *sigio;
 
+	/* Racy check, consumers must provide synchronization. */
 	if (*sigiop == NULL)
 		return;
+
 	SIGIO_LOCK();
-	sigio = *sigiop;
-	if (sigio == NULL) {
-		SIGIO_UNLOCK();
-		return;
-	}
-	*(sigio->sio_myref) = NULL;
-	if ((sigio)->sio_pgid < 0) {
-		struct pgrp *pg = (sigio)->sio_pgrp;
-		PGRP_LOCK(pg);
-		SLIST_REMOVE(&sigio->sio_pgrp->pg_sigiolst, sigio,
-			    sigio, sio_pgsigio);
-		PGRP_UNLOCK(pg);
-	} else {
-		struct proc *p = (sigio)->sio_proc;
-		PROC_LOCK(p);
-		SLIST_REMOVE(&sigio->sio_proc->p_sigiolst, sigio,
-			    sigio, sio_pgsigio);
-		PROC_UNLOCK(p);
-	}
+	sigio = funsetown_locked(*sigiop);
 	SIGIO_UNLOCK();
-	crfree(sigio->sio_ucred);
-	free(sigio, M_SIGIO);
+	if (sigio != NULL)
+		sigiofree(sigio);
 }
 
 /*
- * Free a list of sigio structures.
- * We only need to lock the SIGIO_LOCK because we have made ourselves
- * inaccessible to callers of fsetown and therefore do not need to lock
- * the proc or pgrp struct for the list manipulation.
+ * Free a list of sigio structures.  The caller must ensure that new sigio
+ * structures cannot be added after this point.  For process groups this is
+ * guaranteed using the proctree lock; for processes, the P_WEXIT flag serves
+ * as an interlock.
  */
 void
 funsetownlst(struct sigiolst *sigiolst)
 {
 	struct proc *p;
 	struct pgrp *pg;
-	struct sigio *sigio;
+	struct sigio *sigio, *tmp;
 
+	/* Racy check. */
 	sigio = SLIST_FIRST(sigiolst);
 	if (sigio == NULL)
 		return;
+
 	p = NULL;
 	pg = NULL;
 
+	SIGIO_LOCK();
+	sigio = SLIST_FIRST(sigiolst);
+	if (sigio == NULL) {
+		SIGIO_UNLOCK();
+		return;
+	}
+
 	/*
-	 * Every entry of the list should belong
-	 * to a single proc or pgrp.
+	 * Every entry of the list should belong to a single proc or pgrp.
 	 */
 	if (sigio->sio_pgid < 0) {
 		pg = sigio->sio_pgrp;
-		PGRP_LOCK_ASSERT(pg, MA_NOTOWNED);
+		sx_assert(&proctree_lock, SX_XLOCKED);
+		PGRP_LOCK(pg);
 	} else /* if (sigio->sio_pgid > 0) */ {
 		p = sigio->sio_proc;
-		PROC_LOCK_ASSERT(p, MA_NOTOWNED);
+		PROC_LOCK(p);
+		KASSERT((p->p_flag & P_WEXIT) != 0,
+		    ("%s: process %p is not exiting", __func__, p));
 	}
 
-	SIGIO_LOCK();
-	while ((sigio = SLIST_FIRST(sigiolst)) != NULL) {
-		*(sigio->sio_myref) = NULL;
+	SLIST_FOREACH(sigio, sigiolst, sio_pgsigio) {
+		*sigio->sio_myref = NULL;
 		if (pg != NULL) {
 			KASSERT(sigio->sio_pgid < 0,
 			    ("Proc sigio in pgrp sigio list"));
 			KASSERT(sigio->sio_pgrp == pg,
 			    ("Bogus pgrp in sigio list"));
-			PGRP_LOCK(pg);
-			SLIST_REMOVE(&pg->pg_sigiolst, sigio, sigio,
-			    sio_pgsigio);
-			PGRP_UNLOCK(pg);
 		} else /* if (p != NULL) */ {
 			KASSERT(sigio->sio_pgid > 0,
 			    ("Pgrp sigio in proc sigio list"));
 			KASSERT(sigio->sio_proc == p,
 			    ("Bogus proc in sigio list"));
-			PROC_LOCK(p);
-			SLIST_REMOVE(&p->p_sigiolst, sigio, sigio,
-			    sio_pgsigio);
-			PROC_UNLOCK(p);
 		}
-		SIGIO_UNLOCK();
-		crfree(sigio->sio_ucred);
-		free(sigio, M_SIGIO);
-		SIGIO_LOCK();
 	}
+
+	if (pg != NULL)
+		PGRP_UNLOCK(pg);
+	else
+		PROC_UNLOCK(p);
 	SIGIO_UNLOCK();
+
+	SLIST_FOREACH_SAFE(sigio, sigiolst, sio_pgsigio, tmp)
+		sigiofree(sigio);
 }
 
 /*
@@ -1063,7 +1087,7 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 {
 	struct proc *proc;
 	struct pgrp *pgrp;
-	struct sigio *sigio;
+	struct sigio *osigio, *sigio;
 	int ret;
 
 	if (pgid == 0) {
@@ -1073,13 +1097,14 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 
 	ret = 0;
 
-	/* Allocate and fill in the new sigio out of locks. */
 	sigio = malloc(sizeof(struct sigio), M_SIGIO, M_WAITOK);
 	sigio->sio_pgid = pgid;
 	sigio->sio_ucred = crhold(curthread->td_ucred);
 	sigio->sio_myref = sigiop;
 
 	sx_slock(&proctree_lock);
+	SIGIO_LOCK();
+	osigio = funsetown_locked(*sigiop);
 	if (pgid > 0) {
 		proc = pfind(pgid);
 		if (proc == NULL) {
@@ -1095,20 +1120,21 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 		 * restrict FSETOWN to the current process or process
 		 * group for maximum safety.
 		 */
-		PROC_UNLOCK(proc);
 		if (proc->p_session != curthread->td_proc->p_session) {
+			PROC_UNLOCK(proc);
 			ret = EPERM;
 			goto fail;
 		}
 
-		pgrp = NULL;
+		sigio->sio_proc = proc;
+		SLIST_INSERT_HEAD(&proc->p_sigiolst, sigio, sio_pgsigio);
+		PROC_UNLOCK(proc);
 	} else /* if (pgid < 0) */ {
 		pgrp = pgfind(-pgid);
 		if (pgrp == NULL) {
 			ret = ESRCH;
 			goto fail;
 		}
-		PGRP_UNLOCK(pgrp);
 
 		/*
 		 * Policy - Don't allow a process to FSETOWN a process
@@ -1119,44 +1145,28 @@ fsetown(pid_t pgid, struct sigio **sigiop)
 		 * group for maximum safety.
 		 */
 		if (pgrp->pg_session != curthread->td_proc->p_session) {
+			PGRP_UNLOCK(pgrp);
 			ret = EPERM;
 			goto fail;
 		}
 
-		proc = NULL;
-	}
-	funsetown(sigiop);
-	if (pgid > 0) {
-		PROC_LOCK(proc);
-		/*
-		 * Since funsetownlst() is called without the proctree
-		 * locked, we need to check for P_WEXIT.
-		 * XXX: is ESRCH correct?
-		 */
-		if ((proc->p_flag & P_WEXIT) != 0) {
-			PROC_UNLOCK(proc);
-			ret = ESRCH;
-			goto fail;
-		}
-		SLIST_INSERT_HEAD(&proc->p_sigiolst, sigio, sio_pgsigio);
-		sigio->sio_proc = proc;
-		PROC_UNLOCK(proc);
-	} else {
-		PGRP_LOCK(pgrp);
 		SLIST_INSERT_HEAD(&pgrp->pg_sigiolst, sigio, sio_pgsigio);
 		sigio->sio_pgrp = pgrp;
 		PGRP_UNLOCK(pgrp);
 	}
 	sx_sunlock(&proctree_lock);
-	SIGIO_LOCK();
 	*sigiop = sigio;
 	SIGIO_UNLOCK();
+	if (osigio != NULL)
+		sigiofree(osigio);
 	return (0);
 
 fail:
+	SIGIO_UNLOCK();
 	sx_sunlock(&proctree_lock);
-	crfree(sigio->sio_ucred);
-	free(sigio, M_SIGIO);
+	sigiofree(sigio);
+	if (osigio != NULL)
+		sigiofree(osigio);
 	return (ret);
 }
 
