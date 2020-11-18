@@ -25,7 +25,7 @@ SRCS=	linux_compat.c \
 
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386"
-SRCS+=	opt_acpi.h linux_acpi.c
+SRCS+=	opt_acpi.h acpi_if.h linux_acpi.c
 .endif
 
 SRCS+=	${LINUXKPI_GENSRCS}
