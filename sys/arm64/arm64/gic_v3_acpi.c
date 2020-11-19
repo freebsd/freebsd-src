@@ -88,6 +88,7 @@ struct madt_table_data {
 	device_t dev;
 	ACPI_MADT_GENERIC_DISTRIBUTOR *dist;
 	int count;
+	bool rdist_use_gicc;
 };
 
 static void
@@ -120,12 +121,16 @@ static void
 rdist_map(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
 	ACPI_MADT_GENERIC_REDISTRIBUTOR *redist;
+	ACPI_MADT_GENERIC_INTERRUPT *intr;
 	struct madt_table_data *madt_data;
+	rman_res_t count;
 
 	madt_data = (struct madt_table_data *)arg;
 
 	switch(entry->Type) {
 	case ACPI_MADT_TYPE_GENERIC_REDISTRIBUTOR:
+		if (madt_data->rdist_use_gicc)
+			break;
 		redist = (ACPI_MADT_GENERIC_REDISTRIBUTOR *)entry;
 
 		madt_data->count++;
@@ -133,6 +138,23 @@ rdist_map(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		    SYS_RES_MEMORY, madt_data->count, redist->BaseAddress,
 		    redist->Length);
 		break;
+
+	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
+		if (!madt_data->rdist_use_gicc)
+			break;
+
+		intr = (ACPI_MADT_GENERIC_INTERRUPT *)entry;
+
+		madt_data->count++;
+		/*
+		 * Map the two 64k redistributor frames.
+		 */
+		count = GICR_RD_BASE_SIZE + GICR_SGI_BASE_SIZE;
+		if (madt_data->dist->Version == ACPI_MADT_GIC_VERSION_V4)
+			count += GICR_VLPI_BASE_SIZE + GICR_RESERVED_SIZE;
+		BUS_SET_RESOURCE(madt_data->parent, madt_data->dev,
+		    SYS_RES_MEMORY, madt_data->count, intr->GicrBaseAddress,
+		    count);
 
 	default:
 		break;
@@ -190,8 +212,18 @@ gic_v3_acpi_identify(driver_t *driver, device_t parent)
 	    madt_data.dist->BaseAddress, 128 * 1024);
 
 	madt_data.dev = dev;
+	madt_data.rdist_use_gicc = false;
 	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
 	    rdist_map, &madt_data);
+	if (madt_data.count == 0) {
+		/*
+		 * No redistributors found, fall back to use the GICR
+		 * address from the GICC sub-table.
+		 */
+		madt_data.rdist_use_gicc = true;
+		acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
+		    rdist_map, &madt_data);
+	}
 
 	acpi_set_private(dev, (void *)(uintptr_t)madt_data.dist->Version);
 
@@ -224,6 +256,15 @@ madt_count_redistrib(ACPI_SUBTABLE_HEADER *entry, void *arg)
 		sc->gic_redists.nregions++;
 }
 
+static void
+madt_count_gicc_redistrib(ACPI_SUBTABLE_HEADER *entry, void *arg)
+{
+	struct gic_v3_softc *sc = arg;
+
+	if (entry->Type == ACPI_MADT_TYPE_GENERIC_INTERRUPT)
+		sc->gic_redists.nregions++;
+}
+
 static int
 gic_v3_acpi_count_regions(device_t dev)
 {
@@ -245,6 +286,12 @@ gic_v3_acpi_count_regions(device_t dev)
 
 	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
 	    madt_count_redistrib, sc);
+	/* Fall back to use the distributor GICR base address */
+	if (sc->gic_redists.nregions == 0) {
+		acpi_walk_subtables(madt + 1,
+		    (char *)madt + madt->Header.Length,
+		    madt_count_gicc_redistrib, sc);
+	}
 	acpi_unmap_table(madt);
 
 	return (sc->gic_redists.nregions > 0 ? 0 : ENXIO);
