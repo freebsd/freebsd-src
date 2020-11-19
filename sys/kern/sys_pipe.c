@@ -614,14 +614,17 @@ pipespace(struct pipe *cpipe, int size)
 static __inline int
 pipelock(struct pipe *cpipe, int catch)
 {
-	int error;
+	int error, prio;
 
 	PIPE_LOCK_ASSERT(cpipe, MA_OWNED);
+
+	prio = PRIBIO;
+	if (catch)
+		prio |= PCATCH;
 	while (cpipe->pipe_state & PIPE_LOCKFL) {
 		cpipe->pipe_state |= PIPE_LWANT;
 		error = msleep(cpipe, PIPE_MTX(cpipe),
-		    catch ? (PRIBIO | PCATCH) : PRIBIO,
-		    "pipelk", 0);
+		    prio, "pipelk", 0);
 		if (error != 0)
 			return (error);
 	}
