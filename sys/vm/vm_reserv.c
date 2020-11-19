@@ -63,8 +63,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_phys.h>
 #include <vm/vm_pagequeue.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 #include <vm/vm_reserv.h>
 
@@ -780,7 +780,7 @@ out:
 		}
 	} else
 		return (NULL);
-	KASSERT(vm_phys_domain(m) == domain,
+	KASSERT(vm_page_domain(m) == domain,
 	    ("vm_reserv_alloc_contig: Page domain does not match requested."));
 
 	/*

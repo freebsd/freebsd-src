@@ -3470,7 +3470,7 @@ moea64_page_array_startup(long pages)
 	}
 
 	for (i = 0; phys_avail[i + 1] != 0; i+= 2) {
-		domain = _vm_phys_domain(phys_avail[i]);
+		domain = vm_phys_domain(phys_avail[i]);
 		KASSERT(domain < MAXMEMDOM,
 		    ("Invalid phys_avail NUMA domain %d!\n", domain));
 		size = btoc(phys_avail[i + 1] - phys_avail[i]);
