@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/ctype.h>
 #include <sys/linker.h>
+#include <sys/mount.h>
 #include <sys/power.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
@@ -3045,6 +3046,7 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 
     EVENTHANDLER_INVOKE(power_suspend_early);
     stop_all_proc();
+    suspend_all_fs();
     EVENTHANDLER_INVOKE(power_suspend);
 
 #ifdef EARLY_AP_STARTUP
@@ -3204,6 +3206,7 @@ backout:
     }
 #endif
 
+    resume_all_fs();
     resume_all_proc();
 
     EVENTHANDLER_INVOKE(power_resume);
