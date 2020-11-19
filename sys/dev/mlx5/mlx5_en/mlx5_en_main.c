@@ -3913,6 +3913,14 @@ mlx5e_setup_pauseframes(struct mlx5e_priv *priv)
 	PRIV_UNLOCK(priv);
 }
 
+static void
+mlx5e_ifm_add(struct mlx5e_priv *priv, int type)
+{
+	ifmedia_add(&priv->media, type | IFM_ETHER, 0, NULL);
+	ifmedia_add(&priv->media, type | IFM_ETHER | IFM_FDX |
+	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+}
+
 static void *
 mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 {
@@ -4088,21 +4096,12 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 			    mlx5e_mode_table[i][j];
 			if (media_entry.baudrate == 0)
 				continue;
-			if (MLX5E_PROT_MASK(i) & eth_proto_cap) {
-				ifmedia_add(&priv->media,
-				    media_entry.subtype |
-				    IFM_ETHER, 0, NULL);
-				ifmedia_add(&priv->media,
-				    media_entry.subtype |
-				    IFM_ETHER | IFM_FDX |
-				    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
-			}
+			if (MLX5E_PROT_MASK(i) & eth_proto_cap)
+				mlx5e_ifm_add(priv, media_entry.subtype);
 		}
 	}
 
-	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO, 0, NULL);
-	ifmedia_add(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
-	    IFM_ETH_RXPAUSE | IFM_ETH_TXPAUSE, 0, NULL);
+	mlx5e_ifm_add(priv, IFM_AUTO);
 
 	/* Set autoselect by default */
 	ifmedia_set(&priv->media, IFM_ETHER | IFM_AUTO | IFM_FDX |
