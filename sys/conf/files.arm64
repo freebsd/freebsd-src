@@ -367,7 +367,6 @@ dev/vnic/thunder_bgx.c		optional	vnic pci
 dev/vnic/thunder_mdio_fdt.c	optional	vnic fdt
 dev/vnic/thunder_mdio.c		optional	vnic
 dev/vnic/lmac_if.m		optional	inet | inet6 | vnic
-kern/kern_clocksource.c		standard
 kern/msi_if.m			optional	intrng
 kern/pic_if.m			optional	intrng
 kern/subr_devmap.c		standard
