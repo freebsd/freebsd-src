@@ -140,7 +140,7 @@ __FBSDID("$FreeBSD$");
 /* #define PIPE_NODIRECT */
 
 #define PIPE_PEER(pipe)	\
-	(((pipe)->pipe_state & PIPE_NAMED) ? (pipe) : ((pipe)->pipe_peer))
+	(((pipe)->pipe_type & PIPE_TYPE_NAMED) ? (pipe) : ((pipe)->pipe_peer))
 
 /*
  * interfaces to the outside world
@@ -403,7 +403,7 @@ pipe_named_ctor(struct pipe **ppipe, struct thread *td)
 	error = pipe_paircreate(td, &pp);
 	if (error != 0)
 		return (error);
-	pp->pp_rpipe.pipe_state |= PIPE_NAMED;
+	pp->pp_rpipe.pipe_type |= PIPE_TYPE_NAMED;
 	*ppipe = &pp->pp_rpipe;
 	return (0);
 }
@@ -413,7 +413,7 @@ pipe_dtor(struct pipe *dpipe)
 {
 	struct pipe *peer;
 
-	peer = (dpipe->pipe_state & PIPE_NAMED) != 0 ? dpipe->pipe_peer : NULL;
+	peer = (dpipe->pipe_type & PIPE_TYPE_NAMED) != 0 ? dpipe->pipe_peer : NULL;
 	funsetown(&dpipe->pipe_sigio);
 	pipeclose(dpipe);
 	if (peer != NULL) {
@@ -1328,7 +1328,7 @@ pipe_truncate(struct file *fp, off_t length, struct ucred *active_cred,
 	int error;
 
 	cpipe = fp->f_data;
-	if (cpipe->pipe_state & PIPE_NAMED)
+	if (cpipe->pipe_type & PIPE_TYPE_NAMED)
 		error = vnops.fo_truncate(fp, length, active_cred, td);
 	else
 		error = invfo_truncate(fp, length, active_cred, td);
@@ -1443,7 +1443,7 @@ pipe_poll(struct file *fp, int events, struct ucred *active_cred,
 
 	levents = events &
 	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
-	if (rpipe->pipe_state & PIPE_NAMED && fp->f_flag & FREAD && levents &&
+	if (rpipe->pipe_type & PIPE_TYPE_NAMED && fp->f_flag & FREAD && levents &&
 	    fp->f_pipegen == rpipe->pipe_wgen)
 		events |= POLLINIGNEOF;
 
@@ -1496,22 +1496,21 @@ pipe_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
 #endif
 
 	pipe = fp->f_data;
-	PIPE_LOCK(pipe);
 #ifdef MAC
-	error = mac_pipe_check_stat(active_cred, pipe->pipe_pair);
-	if (error) {
+	if (mac_pipe_check_stat_enabled()) {
+		PIPE_LOCK(pipe);
+		error = mac_pipe_check_stat(active_cred, pipe->pipe_pair);
 		PIPE_UNLOCK(pipe);
-		return (error);
+		if (error) {
+			return (error);
+		}
 	}
 #endif
 
 	/* For named pipes ask the underlying filesystem. */
-	if (pipe->pipe_state & PIPE_NAMED) {
-		PIPE_UNLOCK(pipe);
+	if (pipe->pipe_type & PIPE_TYPE_NAMED) {
 		return (vnops.fo_stat(fp, ub, active_cred, td));
 	}
-
-	PIPE_UNLOCK(pipe);
 
 	bzero(ub, sizeof(*ub));
 	ub->st_mode = S_IFIFO;
@@ -1554,7 +1553,7 @@ pipe_chmod(struct file *fp, mode_t mode, struct ucred *active_cred, struct threa
 	int error;
 
 	cpipe = fp->f_data;
-	if (cpipe->pipe_state & PIPE_NAMED)
+	if (cpipe->pipe_type & PIPE_TYPE_NAMED)
 		error = vn_chmod(fp, mode, active_cred, td);
 	else
 		error = invfo_chmod(fp, mode, active_cred, td);
@@ -1569,7 +1568,7 @@ pipe_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 	int error;
 
 	cpipe = fp->f_data;
-	if (cpipe->pipe_state & PIPE_NAMED)
+	if (cpipe->pipe_type & PIPE_TYPE_NAMED)
 		error = vn_chown(fp, uid, gid, active_cred, td);
 	else
 		error = invfo_chown(fp, uid, gid, active_cred, td);
@@ -1758,7 +1757,7 @@ filt_piperead(struct knote *kn, long hint)
 		kn->kn_data = rpipe->pipe_pages.cnt;
 
 	if ((rpipe->pipe_state & PIPE_EOF) != 0 &&
-	    ((rpipe->pipe_state & PIPE_NAMED) == 0 ||
+	    ((rpipe->pipe_type & PIPE_TYPE_NAMED) == 0 ||
 	    fp->f_pipegen != rpipe->pipe_wgen)) {
 		kn->kn_flags |= EV_EOF;
 		return (1);
@@ -1778,7 +1777,7 @@ filt_pipewrite(struct knote *kn, long hint)
 	 * knlist and the list lock (i.e., the pipe lock) is therefore not held.
 	 */
 	if (wpipe->pipe_present == PIPE_ACTIVE ||
-	    (wpipe->pipe_state & PIPE_NAMED) != 0) {
+	    (wpipe->pipe_type & PIPE_TYPE_NAMED) != 0) {
 		PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 
 		if (wpipe->pipe_state & PIPE_DIRECTW) {

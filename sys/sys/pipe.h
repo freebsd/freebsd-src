@@ -95,7 +95,11 @@ struct pipemapping {
 #define PIPE_LWANT	0x200	/* Process wants exclusive access to pointers/data. */
 #define PIPE_DIRECTW	0x400	/* Pipe direct write active. */
 #define PIPE_DIRECTOK	0x800	/* Direct mode ok. */
-#define PIPE_NAMED	0x1000	/* Is a named pipe. */
+
+/*
+ * Bits in pipe_type.
+ */
+#define PIPE_TYPE_NAMED	0x001	/* Is a named pipe. */
 
 /*
  * Per-pipe data structure.
@@ -111,7 +115,8 @@ struct pipe {
 	struct	sigio *pipe_sigio;	/* information for async I/O */
 	struct	pipe *pipe_peer;	/* link with other direction */
 	struct	pipepair *pipe_pair;	/* container structure pointer */
-	u_int	pipe_state;		/* pipe status info */
+	u_short	pipe_state;		/* pipe status info */
+	u_short	pipe_type;		/* pipe type info */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
 	int	pipe_present;		/* still present? */
 	int	pipe_wgen;		/* writer generation for named pipe */
