@@ -110,7 +110,6 @@ dev/tsec/if_tsec_fdt.c		optional	tsec
 dev/uart/uart_cpu_powerpc.c	optional	uart
 dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 dev/vt/hw/ofwfb/ofwfb.c		optional	vt aim
-kern/kern_clocksource.c		standard
 kern/subr_atomic64.c		optional	powerpc | powerpcspe
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr

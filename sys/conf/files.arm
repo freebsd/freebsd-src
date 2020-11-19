@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-kern/kern_clocksource.c			standard
-
 arm/arm/autoconf.c		standard
 arm/arm/bcopy_page.S		standard
 arm/arm/bcopyinout.S		standard

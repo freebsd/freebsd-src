@@ -211,7 +211,6 @@ i386/pci/pci_cfgreg.c		optional pci
 i386/pci/pci_pir.c		optional pci
 isa/syscons_isa.c		optional sc
 isa/vga_isa.c			optional vga
-kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/subr_sfbuf.c		standard
 libkern/divdi3.c		standard
