@@ -111,7 +111,7 @@ memioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
 			    &td->td_proc->p_vmspace->vm_pmap, me->me_vaddr);
 			if (me->me_paddr != 0) {
 				me->me_state = ME_STATE_MAPPED;
-				me->me_domain = _vm_phys_domain(me->me_paddr);
+				me->me_domain = vm_phys_domain(me->me_paddr);
 			} else {
 				me->me_state = ME_STATE_VALID;
 			}

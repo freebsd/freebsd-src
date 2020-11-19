@@ -70,6 +70,7 @@
 #define	_VM_PAGE_
 
 #include <vm/pmap.h>
+#include <vm/_vm_phys.h>
 
 /*
  *	Management of resident (logical) pages.
@@ -993,6 +994,22 @@ vm_page_none_valid(vm_page_t m)
 {
 
 	return (m->valid == 0);
+}
+
+static inline int
+vm_page_domain(vm_page_t m)
+{
+#ifdef NUMA
+	int domn, segind;
+
+	segind = m->segind;
+	KASSERT(segind < vm_phys_nsegs, ("segind %d m %p", segind, m));
+	domn = vm_phys_segs[segind].domain;
+	KASSERT(domn >= 0 && domn < vm_ndomains, ("domain %d m %p", domn, m));
+	return (domn);
+#else
+	return (0);
+#endif
 }
 
 #endif				/* _KERNEL */
