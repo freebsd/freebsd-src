@@ -622,9 +622,13 @@ pipelock(struct pipe *cpipe, int catch)
 	if (catch)
 		prio |= PCATCH;
 	while (cpipe->pipe_state & PIPE_LOCKFL) {
-		cpipe->pipe_state |= PIPE_LWANT;
+		KASSERT(cpipe->pipe_waiters >= 0,
+		    ("%s: bad waiter count %d", __func__,
+		    cpipe->pipe_waiters));
+		cpipe->pipe_waiters++;
 		error = msleep(cpipe, PIPE_MTX(cpipe),
 		    prio, "pipelk", 0);
+		cpipe->pipe_waiters--;
 		if (error != 0)
 			return (error);
 	}
@@ -642,10 +646,12 @@ pipeunlock(struct pipe *cpipe)
 	PIPE_LOCK_ASSERT(cpipe, MA_OWNED);
 	KASSERT(cpipe->pipe_state & PIPE_LOCKFL,
 		("Unlocked pipe passed to pipeunlock"));
+	KASSERT(cpipe->pipe_waiters >= 0,
+	    ("%s: bad waiter count %d", __func__,
+	    cpipe->pipe_waiters));
 	cpipe->pipe_state &= ~PIPE_LOCKFL;
-	if (cpipe->pipe_state & PIPE_LWANT) {
-		cpipe->pipe_state &= ~PIPE_LWANT;
-		wakeup(cpipe);
+	if (cpipe->pipe_waiters > 0) {
+		wakeup_one(cpipe);
 	}
 }
 
