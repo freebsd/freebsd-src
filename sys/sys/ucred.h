@@ -128,12 +128,13 @@ credbatch_prep(struct credbatch *crb)
 	crb->ref = 0;
 }
 void	credbatch_add(struct credbatch *crb, struct thread *td);
+
 static inline void
 credbatch_process(struct credbatch *crb __unused)
 {
 
 }
-void	credbatch_add(struct credbatch *crb, struct thread *td);
+
 void	credbatch_final(struct credbatch *crb);
 
 void	change_egid(struct ucred *newcred, gid_t egid);

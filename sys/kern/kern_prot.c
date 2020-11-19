@@ -2082,6 +2082,7 @@ crfree_final(struct ucred *cr)
 	    __func__, cr->cr_users, cr));
 	KASSERT(cr->cr_ref == 0, ("%s: ref %d not == 0 on cred %p",
 	    __func__, cr->cr_ref, cr));
+
 	/*
 	 * Some callers of crget(), such as nfs_statfs(), allocate a temporary
 	 * credential, but don't allocate a uidinfo structure.
