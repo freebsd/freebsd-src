@@ -41,9 +41,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_callout_profiling.h"
 #include "opt_ddb.h"
-#if defined(__arm__)
-#include "opt_timer.h"
-#endif
 #include "opt_rss.h"
 
 #include <sys/param.h>
@@ -74,9 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #endif
 
-#ifndef NO_EVENTTIMERS
 DPCPU_DECLARE(sbintime_t, hardclocktime);
-#endif
 
 SDT_PROVIDER_DEFINE(callout_execute);
 SDT_PROBE_DEFINE1(callout_execute, , , callout__start, "struct callout *");
@@ -527,9 +522,8 @@ next:
 		 */
 	} while (((int)(firstb - lastb)) <= 0);
 	cc->cc_firstevent = last;
-#ifndef NO_EVENTTIMERS
 	cpu_new_callout(curcpu, last, first);
-#endif
+
 #ifdef CALLOUT_PROFILING
 	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
 	avg_mpcalls_dir += (mpcalls_dir * 1000 - avg_mpcalls_dir) >> 8;
@@ -594,7 +588,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	LIST_INSERT_HEAD(&cc->cc_callwheel[bucket], c, c_links.le);
 	if (cc->cc_bucket == bucket)
 		cc_exec_next(cc) = c;
-#ifndef NO_EVENTTIMERS
+
 	/*
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
@@ -606,7 +600,6 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 		cc->cc_firstevent = sbt;
 		cpu_new_callout(cpu, sbt, c->c_time);
 	}
-#endif
 }
 
 static void
@@ -851,15 +844,7 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
 	}
 	if ((flags & C_HARDCLOCK) != 0 && sbt < tick_sbt)
 		sbt = tick_sbt;
-	if ((flags & C_HARDCLOCK) != 0 ||
-#ifdef NO_EVENTTIMERS
-	    sbt >= sbt_timethreshold) {
-		to_sbt = getsbinuptime();
-
-		/* Add safety belt for the case of hz > 1000. */
-		to_sbt += tc_tick_sbt - tick_sbt;
-#else
-	    sbt >= sbt_tickthreshold) {
+	if ((flags & C_HARDCLOCK) != 0 || sbt >= sbt_tickthreshold) {
 		/*
 		 * Obtain the time of the last hardclock() call on
 		 * this CPU directly from the kern_clocksource.c.
@@ -872,7 +857,6 @@ callout_when(sbintime_t sbt, sbintime_t precision, int flags,
 		spinlock_enter();
 		to_sbt = DPCPU_GET(hardclocktime);
 		spinlock_exit();
-#endif
 #endif
 		if (cold && to_sbt == 0)
 			to_sbt = sbinuptime();
