@@ -2892,7 +2892,7 @@ vm_page_reclaim_run(int req_class, int domain, u_long npages, vm_page_t m_run,
 unlock:
 			VM_OBJECT_WUNLOCK(object);
 		} else {
-			MPASS(vm_phys_domain(m) == domain);
+			MPASS(vm_page_domain(m) == domain);
 			vmd = VM_DOMAIN(domain);
 			vm_domain_free_lock(vmd);
 			order = m->order;
@@ -2923,7 +2923,7 @@ unlock:
 		cnt = 0;
 		vm_domain_free_lock(vmd);
 		do {
-			MPASS(vm_phys_domain(m) == domain);
+			MPASS(vm_page_domain(m) == domain);
 			SLIST_REMOVE_HEAD(&free, plinks.s.ss);
 			vm_phys_free_pages(m, 0);
 			cnt++;
@@ -3597,7 +3597,7 @@ vm_page_pqbatch_submit(vm_page_t m, uint8_t queue)
 	    ("page %p is unmanaged", m));
 	KASSERT(queue < PQ_COUNT, ("invalid queue %d", queue));
 
-	domain = vm_phys_domain(m);
+	domain = vm_page_domain(m);
 	pq = &vm_pagequeue_domain(m)->vmd_pagequeues[queue];
 
 	critical_enter();

@@ -649,24 +649,6 @@ vm_phys_register_domains(int ndomains, struct mem_affinity *affinity,
 #endif
 }
 
-int
-_vm_phys_domain(vm_paddr_t pa)
-{
-#ifdef NUMA
-	int i;
-
-	if (vm_ndomains == 1)
-		return (0);
-	for (i = 0; mem_affinity[i].end != 0; i++)
-		if (mem_affinity[i].start <= pa &&
-		    mem_affinity[i].end >= pa)
-			return (mem_affinity[i].domain);
-	return (-1);
-#else
-	return (0);
-#endif
-}
-
 /*
  * Split a contiguous, power of two-sized set of physical pages.
  *

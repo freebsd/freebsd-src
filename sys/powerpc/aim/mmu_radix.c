@@ -6312,7 +6312,7 @@ mmu_radix_page_array_startup(long pages)
 	/* TODO: NUMA vm_page_array.  Blocked out until then (copied from amd64). */
 	for (va = start; va < end; va += L3_PAGE_SIZE) {
 		pfn = first_page + (va - start) / sizeof(struct vm_page);
-		domain = _vm_phys_domain(ptoa(pfn));
+		domain = vm_phys_domain(ptoa(pfn));
 		l2e = pmap_pml2e(kernel_pmap, va);
 		if ((be64toh(*l2e) & PG_V) == 0) {
 			pa = vm_phys_early_alloc(domain, PAGE_SIZE);

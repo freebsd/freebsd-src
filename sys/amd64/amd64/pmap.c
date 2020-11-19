@@ -452,7 +452,7 @@ static __inline int
 pc_to_domain(struct pv_chunk *pc)
 {
 
-	return (_vm_phys_domain(DMAP_TO_PHYS((vm_offset_t)pc)));
+	return (vm_phys_domain(DMAP_TO_PHYS((vm_offset_t)pc)));
 }
 #else
 static __inline int
@@ -4611,7 +4611,7 @@ pmap_page_array_startup(long pages)
 	end = start + pages * sizeof(struct vm_page);
 	for (va = start; va < end; va += NBPDR) {
 		pfn = first_page + (va - start) / sizeof(struct vm_page);
-		domain = _vm_phys_domain(ptoa(pfn));
+		domain = vm_phys_domain(ptoa(pfn));
 		pdpe = pmap_pdpe(kernel_pmap, va);
 		if ((*pdpe & X86_PG_V) == 0) {
 			pa = vm_phys_early_alloc(domain, PAGE_SIZE);
@@ -5147,7 +5147,7 @@ retry:
 	pc->pc_map[0] = PC_FREE0 & ~1ul;	/* preallocated bit 0 */
 	pc->pc_map[1] = PC_FREE1;
 	pc->pc_map[2] = PC_FREE2;
-	pvc = &pv_chunks[_vm_phys_domain(m->phys_addr)];
+	pvc = &pv_chunks[vm_phys_domain(m->phys_addr)];
 	mtx_lock(&pvc->pvc_lock);
 	TAILQ_INSERT_TAIL(&pvc->pvc_list, pc, pc_lru);
 	mtx_unlock(&pvc->pvc_lock);

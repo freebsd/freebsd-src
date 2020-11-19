@@ -3254,7 +3254,7 @@ item_domain(void *item)
 {
 	int domain;
 
-	domain = _vm_phys_domain(vtophys(item));
+	domain = vm_phys_domain(vtophys(item));
 	KASSERT(domain >= 0 && domain < vm_ndomains,
 	    ("%s: unknown domain for item %p", __func__, item));
 	return (domain);

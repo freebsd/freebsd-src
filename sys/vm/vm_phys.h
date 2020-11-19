@@ -42,11 +42,7 @@
 
 #ifdef _KERNEL
 
-#ifndef VM_NFREEORDER_MAX
-#define	VM_NFREEORDER_MAX	VM_NFREEORDER
-#endif
-
-extern vm_paddr_t phys_avail[PHYS_AVAIL_COUNT];
+extern vm_paddr_t phys_avail[];
 
 /* Domains must be dense (non-sparse) and zero-based. */
 struct mem_affinity {
@@ -58,28 +54,6 @@ struct mem_affinity {
 extern struct mem_affinity *mem_affinity;
 extern int *mem_locality;
 #endif
-
-struct vm_freelist {
-	struct pglist pl;
-	int lcnt;
-};
-
-struct vm_phys_seg {
-	vm_paddr_t	start;
-	vm_paddr_t	end;
-	vm_page_t	first_page;
-#if VM_NRESERVLEVEL > 0
-	vm_reserv_t	first_reserv;
-#endif
-#ifdef __aarch64__
-	void		*md_first;
-#endif
-	int		domain;
-	struct vm_freelist (*free_queues)[VM_NFREEPOOL][VM_NFREEORDER_MAX];
-};
-
-extern struct vm_phys_seg vm_phys_segs[];
-extern int vm_phys_nsegs;
 
 /*
  * The following functions are only to be used by the virtual memory system.
@@ -114,29 +88,23 @@ void vm_phys_early_startup(void);
 int vm_phys_avail_largest(void);
 vm_paddr_t vm_phys_avail_size(int i);
 
-/*
- *
- *	vm_phys_domain:
- *
- *	Return the index of the domain the page belongs to.
- */
 static inline int
-vm_phys_domain(vm_page_t m)
+vm_phys_domain(vm_paddr_t pa)
 {
 #ifdef NUMA
-	int domn, segind;
+	int i;
 
-	/* XXXKIB try to assert that the page is managed */
-	segind = m->segind;
-	KASSERT(segind < vm_phys_nsegs, ("segind %d m %p", segind, m));
-	domn = vm_phys_segs[segind].domain;
-	KASSERT(domn < vm_ndomains, ("domain %d m %p", domn, m));
-	return (domn);
+	if (vm_ndomains == 1)
+		return (0);
+	for (i = 0; mem_affinity[i].end != 0; i++)
+		if (mem_affinity[i].start <= pa &&
+		    mem_affinity[i].end >= pa)
+			return (mem_affinity[i].domain);
+	return (-1);
 #else
 	return (0);
 #endif
 }
-int _vm_phys_domain(vm_paddr_t pa);
 
 #endif	/* _KERNEL */
 #endif	/* !_VM_PHYS_H_ */
