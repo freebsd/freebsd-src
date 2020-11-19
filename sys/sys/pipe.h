@@ -116,9 +116,10 @@ struct pipe {
 	struct	pipe *pipe_peer;	/* link with other direction */
 	struct	pipepair *pipe_pair;	/* container structure pointer */
 	u_short	pipe_state;		/* pipe status info */
-	u_short	pipe_type;		/* pipe type info */
+	u_char	pipe_type;		/* pipe type info */
+	u_char	pipe_present;		/* still present? */
+	int	pipe_waiters;		/* pipelock waiters */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
-	int	pipe_present;		/* still present? */
 	int	pipe_wgen;		/* writer generation for named pipe */
 	ino_t	pipe_ino;		/* fake inode for stat(2) */
 };
