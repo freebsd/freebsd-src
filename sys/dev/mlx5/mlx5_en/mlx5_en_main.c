@@ -4074,8 +4074,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	/* Set default media status */
 	priv->media_status_last = IFM_AVALID;
-	priv->media_active_last = IFM_ETHER | IFM_AUTO |
-	    IFM_ETH_RXPAUSE | IFM_FDX;
+	priv->media_active_last = IFM_ETHER | IFM_AUTO | IFM_FDX;
 
 	/* setup default pauseframes configuration */
 	mlx5e_setup_pauseframes(priv);
@@ -4095,7 +4094,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 		mlx5_en_err(ifp, "Query port media capability failed, %d\n", err);
 	}
 
-	ifmedia_init(&priv->media, IFM_IMASK | IFM_ETH_FMASK,
+	ifmedia_init(&priv->media, IFM_IMASK,
 	    mlx5e_media_change, mlx5e_media_status);
 
 	speeds_num = ext ? MLX5E_EXT_LINK_SPEEDS_NUMBER : MLX5E_LINK_SPEEDS_NUMBER;
