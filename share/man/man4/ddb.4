@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2019
+.Dd November 19, 2020
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -87,6 +87,16 @@ which is the default
 unless the
 .Dv KDB_UNATTENDED
 option is specified.
+Similarly, if the
+.Va debug.debugger_on_recursive_panic
+variable is set to
+.Dv 1 ,
+then the debugger will be invoked on a recursive kernel panic.
+This variable has a default value of
+.Dv 0 ,
+and has no effect if
+.Va debug.debugger_on_panic
+is already set non-zero.
 .Pp
 The current location is called
 .Va dot .

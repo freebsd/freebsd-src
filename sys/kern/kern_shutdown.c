@@ -127,6 +127,11 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
     CTLFLAG_RWTUN | CTLFLAG_SECURE,
     &debugger_on_panic, 0, "Run debugger on kernel panic");
 
+static bool debugger_on_recursive_panic = false;
+SYSCTL_BOOL(_debug, OID_AUTO, debugger_on_recursive_panic,
+    CTLFLAG_RWTUN | CTLFLAG_SECURE,
+    &debugger_on_recursive_panic, 0, "Run debugger on recursive kernel panic");
+
 int debugger_on_trap = 0;
 SYSCTL_INT(_debug, OID_AUTO, debugger_on_trap,
     CTLFLAG_RWTUN | CTLFLAG_SECURE,
@@ -899,6 +904,8 @@ vpanic(const char *fmt, va_list ap)
 		kdb_backtrace();
 	if (debugger_on_panic)
 		kdb_enter(KDB_WHY_PANIC, "panic");
+	else if (!newpanic && debugger_on_recursive_panic)
+		kdb_enter(KDB_WHY_PANIC, "re-panic");
 #endif
 	/*thread_lock(td); */
 	td->td_flags |= TDF_INPANIC;
