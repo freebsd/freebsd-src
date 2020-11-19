@@ -28,7 +28,7 @@
 .\"     From: @(#)savecore.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2018
+.Dd November 17, 2020
 .Dt SAVECORE 8
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Op Ar device ...
 .Nm
 .Op Fl -libxo
-.Op Fl fkvz
+.Op Fl fkuvz
 .Op Fl m Ar maxdumps
 .Op Ar directory Op Ar device ...
 .Sh DESCRIPTION
@@ -92,6 +92,8 @@ Once the number of stored dumps is equal to
 .Ar maxdumps
 the counter will restart from
 .Dv 0 .
+.It Fl u
+Uncompress the dump in case it was compressed by the kernel.
 .It Fl v
 Print out some additional debugging information.
 Specify twice for more information.

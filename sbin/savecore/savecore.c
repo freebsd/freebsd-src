@@ -86,6 +86,9 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #include <time.h>
 #include <unistd.h>
+#define	Z_SOLO
+#include <zlib.h>
+#include <zstd.h>
 
 #include <libcasper.h>
 #include <casper/cap_fileargs.h>
@@ -102,7 +105,7 @@ __FBSDID("$FreeBSD$");
 
 static cap_channel_t *capsyslog;
 static fileargs_t *capfa;
-static bool checkfor, compress, clear, force, keep;	/* flags */
+static bool checkfor, compress, uncompress, clear, force, keep;	/* flags */
 static int verbose;
 static int nfound, nsaved, nerr;			/* statistics */
 static int maxdumps;
@@ -441,22 +444,155 @@ compare_magic(const struct kerneldumpheader *kdh, const char *magic)
 #define BLOCKSIZE (1<<12)
 #define BLOCKMASK (~(BLOCKSIZE-1))
 
-static int
-DoRegularFile(int fd, off_t dumpsize, u_int sectorsize, bool sparse, char *buf,
-    const char *device, const char *filename, FILE *fp)
+static size_t
+sparsefwrite(const char *buf, size_t nr, FILE *fp)
 {
-	int he, hs, nr, nw, wl;
+	size_t nw, he, hs;
+
+	for (nw = 0; nw < nr; nw = he) {
+		/* find a contiguous block of zeroes */
+		for (hs = nw; hs < nr; hs += BLOCKSIZE) {
+			for (he = hs; he < nr && buf[he] == 0; ++he)
+				/* nothing */ ;
+			/* is the hole long enough to matter? */
+			if (he >= hs + BLOCKSIZE)
+				break;
+		}
+
+		/* back down to a block boundary */
+		he &= BLOCKMASK;
+
+		/*
+		 * 1) Don't go beyond the end of the buffer.
+		 * 2) If the end of the buffer is less than
+		 *    BLOCKSIZE bytes away, we're at the end
+		 *    of the file, so just grab what's left.
+		 */
+		if (hs + BLOCKSIZE > nr)
+			hs = he = nr;
+
+		/*
+		 * At this point, we have a partial ordering:
+		 *     nw <= hs <= he <= nr
+		 * If hs > nw, buf[nw..hs] contains non-zero
+		 * data. If he > hs, buf[hs..he] is all zeroes.
+		 */
+		if (hs > nw)
+			if (fwrite(buf + nw, hs - nw, 1, fp) != 1)
+				break;
+		if (he > hs)
+			if (fseeko(fp, he - hs, SEEK_CUR) == -1)
+				break;
+	}
+
+	return (nw);
+}
+
+static char *zbuf;
+static size_t zbufsize;
+
+static size_t
+GunzipWrite(z_stream *z, char *in, size_t insize, FILE *fp)
+{
+	static bool firstblock = true;		/* XXX not re-entrable/usable */
+	const size_t hdrlen = 10;
+	size_t nw = 0;
+	int rv;
+
+	z->next_in = in;
+	z->avail_in = insize;
+	/*
+	 * Since contrib/zlib for some reason is compiled
+	 * without GUNZIP define, we need to skip the gzip
+	 * header manually.  Kernel puts minimal 10 byte
+	 * header, see sys/kern/subr_compressor.c:gz_reset().
+	 */
+	if (firstblock) {
+		z->next_in += hdrlen;
+		z->avail_in -= hdrlen;
+		firstblock = false;
+	}
+	do {
+		z->next_out = zbuf;
+		z->avail_out = zbufsize;
+		rv = inflate(z, Z_NO_FLUSH);
+		if (rv != Z_OK && rv != Z_STREAM_END) {
+			logmsg(LOG_ERR, "decompression failed: %s", z->msg);
+			return (-1);
+		}
+		nw += sparsefwrite(zbuf, zbufsize - z->avail_out, fp);
+	} while (z->avail_in > 0 && rv != Z_STREAM_END);
+
+	return (nw);
+}
+
+static size_t
+ZstdWrite(ZSTD_DCtx *Zctx, char *in, size_t insize, FILE *fp)
+{
+	ZSTD_inBuffer Zin;
+	ZSTD_outBuffer Zout;
+	size_t nw = 0;
+	int rv;
+
+	Zin.src = in;
+	Zin.size = insize;
+	Zin.pos = 0;
+	do {
+		Zout.dst = zbuf;
+		Zout.size = zbufsize;
+		Zout.pos = 0;
+		rv = ZSTD_decompressStream(Zctx, &Zout, &Zin);
+		if (ZSTD_isError(rv)) {
+			logmsg(LOG_ERR, "decompression failed: %s",
+			    ZSTD_getErrorName(rv));
+			return (-1);
+		}
+		nw += sparsefwrite(zbuf, Zout.pos, fp);
+	} while (Zin.pos < Zin.size && rv != 0);
+
+	return (nw);
+}
+
+static int
+DoRegularFile(int fd, off_t dumpsize, u_int sectorsize, bool sparse,
+    uint8_t compression, char *buf, const char *device,
+    const char *filename, FILE *fp)
+{
+	size_t nr, nw, wl;
 	off_t dmpcnt, origsize;
+	z_stream z;		/* gzip */
+	ZSTD_DCtx *Zctx;	/* zstd */
 
 	dmpcnt = 0;
 	origsize = dumpsize;
-	he = 0;
+	if (compression == KERNELDUMP_COMP_GZIP) {
+		memset(&z, 0, sizeof(z));
+		z.zalloc = Z_NULL;
+		z.zfree = Z_NULL;
+		if (inflateInit2(&z, -MAX_WBITS) != Z_OK) {
+			logmsg(LOG_ERR, "failed to initialize zlib: %s", z.msg);
+			return (-1);
+		}
+		zbufsize = BUFFERSIZE;
+	} else if (compression == KERNELDUMP_COMP_ZSTD) {
+		if ((Zctx = ZSTD_createDCtx()) == NULL) {
+			logmsg(LOG_ERR, "failed to initialize zstd");
+			return (-1);
+		}
+		zbufsize = ZSTD_DStreamOutSize();
+	}
+	if (zbufsize > 0)
+		if ((zbuf = malloc(zbufsize)) == NULL) {
+			logmsg(LOG_ERR, "failed to alloc decompression buffer");
+			return (-1);
+		}
+
 	while (dumpsize > 0) {
 		wl = BUFFERSIZE;
-		if (wl > dumpsize)
+		if (wl > (size_t)dumpsize)
 			wl = dumpsize;
 		nr = read(fd, buf, roundup(wl, sectorsize));
-		if (nr != (int)roundup(wl, sectorsize)) {
+		if (nr != roundup(wl, sectorsize)) {
 			if (nr == 0)
 				logmsg(LOG_WARNING,
 				    "WARNING: EOF on dump device");
@@ -465,48 +601,16 @@ DoRegularFile(int fd, off_t dumpsize, u_int sectorsize, bool sparse, char *buf,
 			nerr++;
 			return (-1);
 		}
-		if (!sparse) {
+		if (compression == KERNELDUMP_COMP_GZIP)
+			nw = GunzipWrite(&z, buf, nr, fp);
+		else if (compression == KERNELDUMP_COMP_ZSTD)
+			nw = ZstdWrite(Zctx, buf, nr, fp);
+		else if (!sparse)
 			nw = fwrite(buf, 1, wl, fp);
-		} else {
-			for (nw = 0; nw < nr; nw = he) {
-				/* find a contiguous block of zeroes */
-				for (hs = nw; hs < nr; hs += BLOCKSIZE) {
-					for (he = hs; he < nr && buf[he] == 0;
-					    ++he)
-						/* nothing */ ;
-					/* is the hole long enough to matter? */
-					if (he >= hs + BLOCKSIZE)
-						break;
-				}
-
-				/* back down to a block boundary */
-				he &= BLOCKMASK;
-
-				/*
-				 * 1) Don't go beyond the end of the buffer.
-				 * 2) If the end of the buffer is less than
-				 *    BLOCKSIZE bytes away, we're at the end
-				 *    of the file, so just grab what's left.
-				 */
-				if (hs + BLOCKSIZE > nr)
-					hs = he = nr;
-
-				/*
-				 * At this point, we have a partial ordering:
-				 *     nw <= hs <= he <= nr
-				 * If hs > nw, buf[nw..hs] contains non-zero
-				 * data. If he > hs, buf[hs..he] is all zeroes.
-				 */
-				if (hs > nw)
-					if (fwrite(buf + nw, hs - nw, 1, fp)
-					    != 1)
-					break;
-				if (he > hs)
-					if (fseeko(fp, he - hs, SEEK_CUR) == -1)
-						break;
-			}
-		}
-		if (nw != wl) {
+		else
+			nw = sparsefwrite(buf, wl, fp);
+		if ((compression == KERNELDUMP_COMP_NONE && nw != wl) ||
+		    (compression != KERNELDUMP_COMP_NONE && nw < 0)) {
 			logmsg(LOG_ERR,
 			    "write error on %s file: %m", filename);
 			logmsg(LOG_WARNING,
@@ -692,11 +796,14 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 		}
 		switch (kdhl.compression) {
 		case KERNELDUMP_COMP_NONE:
+			uncompress = false;
 			break;
 		case KERNELDUMP_COMP_GZIP:
 		case KERNELDUMP_COMP_ZSTD:
 			if (compress && verbose)
 				printf("dump is already compressed\n");
+			if (uncompress && verbose)
+				printf("dump to be uncompressed\n");
 			compress = false;
 			iscompressed = true;
 			break;
@@ -820,7 +927,7 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 		snprintf(corename, sizeof(corename), "%s.%d.gz",
 		    istextdump ? "textdump.tar" :
 		    (isencrypted ? "vmcore_encrypted" : "vmcore"), bounds);
-	else if (iscompressed && !isencrypted)
+	else if (iscompressed && !isencrypted && !uncompress)
 		snprintf(corename, sizeof(corename), "vmcore.%d.%s", bounds,
 		    (kdhl.compression == KERNELDUMP_COMP_GZIP) ? "gz" : "zst");
 	else
@@ -901,8 +1008,9 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 			goto closeall;
 	} else {
 		if (DoRegularFile(fddev, dumplength, sectorsize,
-		    !(compress || iscompressed || isencrypted), buf, device,
-		    corename, core) < 0) {
+		    !(compress || iscompressed || isencrypted),
+		    uncompress ? kdhl.compression : KERNELDUMP_COMP_NONE,
+		    buf, device, corename, core) < 0) {
 			goto closeall;
 		}
 	}
@@ -927,7 +1035,7 @@ DoFile(const char *savedir, int savedirfd, const char *device)
 			    "key.last");
 		}
 	}
-	if (compress || iscompressed) {
+	if ((iscompressed && !uncompress) || compress) {
 		snprintf(linkname, sizeof(linkname), "%s.last.%s",
 		    istextdump ? "textdump.tar" :
 		    (isencrypted ? "vmcore_encrypted" : "vmcore"),
@@ -1123,7 +1231,7 @@ main(int argc, char **argv)
 	if (argc < 0)
 		exit(1);
 
-	while ((ch = getopt(argc, argv, "Ccfkm:vz")) != -1)
+	while ((ch = getopt(argc, argv, "Ccfkm:uvz")) != -1)
 		switch(ch) {
 		case 'C':
 			checkfor = true;
@@ -1144,6 +1252,9 @@ main(int argc, char **argv)
 				exit(1);
 			}
 			break;
+		case 'u':
+			uncompress = true;
+			break;
 		case 'v':
 			verbose++;
 			break;
@@ -1159,6 +1270,8 @@ main(int argc, char **argv)
 	if (clear && (compress || keep))
 		usage();
 	if (maxdumps > 0 && (checkfor || clear))
+		usage();
+	if (compress && uncompress)
 		usage();
 	argc -= optind;
 	argv += optind;
