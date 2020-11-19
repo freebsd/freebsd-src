@@ -3545,7 +3545,8 @@ vm_pqbatch_process_page(struct vm_pagequeue *pq, vm_page_t m, uint8_t queue)
 			counter_u64_add(queue_nops, 1);
 			break;
 		}
-		KASSERT(old.queue != PQ_NONE || (old.flags & PGA_QUEUE_STATE_MASK) == 0,
+		KASSERT(old.queue != PQ_NONE ||
+		    (old.flags & PGA_QUEUE_STATE_MASK) == 0,
 		    ("%s: page %p has unexpected queue state", __func__, m));
 
 		new = old;
