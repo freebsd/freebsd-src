@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd August 7, 2020
+.Dd November 19, 2020
 .Dt GREP 1
 .Os
 .Sh NAME
@@ -456,13 +456,27 @@ An error occurred.
 .Sh EXAMPLES
 .Bl -dash
 .It
-To find all occurrences of the word
+Find all occurrences of the pattern
 .Sq patricia
 in a file:
 .Pp
 .Dl $ grep 'patricia' myfile
 .It
-To find all occurrences of the pattern
+Same as above but looking only for complete words:
+.Pp
+.Dl $ grep -w 'patricia' myfile
+.It
+Count occurrences of the exact pattern
+.Sq FOO
+:
+.Pp
+.Dl $ grep -c FOO myfile
+.It
+Same as above but ignoring case:
+.Pp
+.Dl $ grep -c -i FOO myfile
+.It
+Find all occurrences of the pattern
 .Ql .Pp
 at the beginning of a line:
 .Pp
@@ -480,20 +494,55 @@ escapes the
 .Ql \&. ,
 which would otherwise match any character.
 .It
-To find all lines in a file which do not contain the words
+Find all lines in a file which do not contain the words
 .Sq foo
 or
 .Sq bar :
 .Pp
 .Dl $ grep -v -e 'foo' -e 'bar' myfile
 .It
-A simple example of an extended regular expression:
+Peruse the file
+.Sq calendar
+looking for either 19, 20, or 25 using extended regular expressions:
 .Pp
 .Dl $ egrep '19|20|25' calendar
+.It
+Show matching lines and the name of the
+.Sq *.h
+files which contain the pattern
+.Sq FIXME .
+Do the search recursively from the
+.Pa /usr/src/sys/arm
+directory
 .Pp
-Peruses the file
-.Sq calendar
-looking for either 19, 20, or 25.
+.Dl $ grep -H -R FIXME --include=*.h /usr/src/sys/arm/
+.It
+Same as above but show only the name of the matching file:
+.Pp
+.Dl $ grep -l -R FIXME --include=*.h /usr/src/sys/arm/
+.It
+Show lines containing the text
+.Sq foo .
+The matching part of the output is colored and every line is prefixed with
+the line number and the offset in the file for those lines that matched.
+.Pp
+.Dl $ grep -b --colour -n foo myfile
+.It
+Show lines that match the extended regular expression patterns read from the
+standard input:
+.Pp
+.Dl $ echo -e 'Free\enBSD\enAll.*reserved' | grep -E -f - myfile
+.It
+Show lines from the output of the
+.Xr pciconf 8
+command matching the specified extended regular expression along with
+three lines of leading context and one line of trailing context:
+.Pp
+.Dl $ pciconf -lv | grep -B3 -A1 -E 'class.*=.*storage'
+.It
+Suppress any output and use the exit status to show an appropriate message:
+.Pp
+.Dl $ grep -q foo myfile && echo File matches
 .El
 .Sh SEE ALSO
 .Xr ed 1 ,
