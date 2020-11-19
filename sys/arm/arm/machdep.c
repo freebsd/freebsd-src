@@ -48,7 +48,6 @@
 #include "opt_kstack_pages.h"
 #include "opt_platform.h"
 #include "opt_sched.h"
-#include "opt_timer.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -304,16 +303,12 @@ cpu_idle(int busy)
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d", busy, curcpu);
 	spinlock_enter();
-#ifndef NO_EVENTTIMERS
 	if (!busy)
 		cpu_idleclock();
-#endif
 	if (!sched_runnable())
 		cpu_sleep(0);
-#ifndef NO_EVENTTIMERS
 	if (!busy)
 		cpu_activeclock();
-#endif
 	spinlock_exit();
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done", busy, curcpu);
 }
@@ -325,21 +320,6 @@ cpu_idle_wakeup(int cpu)
 	return (0);
 }
 
-#ifdef NO_EVENTTIMERS
-/*
- * Most ARM platforms don't need to do anything special to init their clocks
- * (they get intialized during normal device attachment), and by not defining a
- * cpu_initclocks() function they get this generic one.  Any platform that needs
- * to do something special can just provide their own implementation, which will
- * override this one due to the weak linkage.
- */
-void
-arm_generic_initclocks(void)
-{
-}
-__weak_reference(arm_generic_initclocks, cpu_initclocks);
-
-#else
 void
 cpu_initclocks(void)
 {
@@ -353,7 +333,6 @@ cpu_initclocks(void)
 	cpu_initclocks_bsp();
 #endif
 }
-#endif
 
 #ifdef PLATFORM
 void
