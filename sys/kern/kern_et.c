@@ -37,8 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/timeet.h>
 
-#include "opt_timer.h"
-
 SLIST_HEAD(et_eventtimers_list, eventtimer);
 static struct et_eventtimers_list eventtimers = SLIST_HEAD_INITIALIZER(et_eventtimers);
 
@@ -130,9 +128,7 @@ void
 et_change_frequency(struct eventtimer *et, uint64_t newfreq)
 {
 
-#ifndef NO_EVENTTIMERS
 	cpu_et_frequency(et, newfreq);
-#endif
 }
 
 /*

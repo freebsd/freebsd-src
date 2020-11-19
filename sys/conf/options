@@ -180,7 +180,6 @@ NEW_PCIB	opt_global.h
 NO_ADAPTIVE_MUTEXES	opt_adaptive_mutexes.h
 NO_ADAPTIVE_RWLOCKS
 NO_ADAPTIVE_SX
-NO_EVENTTIMERS		opt_timer.h
 NO_OBSOLETE_CODE	opt_global.h
 NO_SYSCTL_DESCR	opt_global.h
 NSWBUF_MIN	opt_param.h
