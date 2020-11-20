@@ -224,6 +224,10 @@ static void dwc_stop_dma(struct dwc_softc *sc);
 
 static void dwc_tick(void *arg);
 
+/* Pause time field in the transmitted control frame */
+static int dwc_pause_time = 0xffff;
+TUNABLE_INT("hw.dwc.pause_time", &dwc_pause_time);
+
 /*
  * MIIBUS functions
  */
@@ -333,6 +337,15 @@ dwc_miibus_statchg(device_t dev)
 	else
 		reg &= ~(CONF_DM);
 	WRITE4(sc, MAC_CONFIGURATION, reg);
+
+	reg = FLOW_CONTROL_UP;
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
+		reg |= FLOW_CONTROL_TX;
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
+		reg |= FLOW_CONTROL_RX;
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
+		reg |= dwc_pause_time << FLOW_CONTROL_PT_SHIFT;
+	WRITE4(sc, FLOW_CONTROL, reg);
 
 	IF_DWC_SET_SPEED(dev, IFM_SUBTYPE(mii->mii_media_active));
 
