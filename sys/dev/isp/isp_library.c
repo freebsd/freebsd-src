@@ -61,30 +61,25 @@ const char *isp_class3_roles[4] = {
  * Called with the first queue entry at least partially filled out.
  */
 int
-isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t totalcnt, isp_ddir_t ddir, ispds64_t *ecmd)
+isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs)
 {
 	ispcontreq64_t crq;
-	uint8_t type, nqe;
-	uint32_t seg, seglim, nxt, nxtnxt, ddf;
+	uint8_t type, nqe = 1;
+	uint32_t seg, seglim, nxt, nxtnxt;
 	ispds64_t *dsp64 = NULL;
 	void *qe0, *qe1;
 
 	qe0 = isp_getrqentry(isp);
-	if (qe0 == NULL) {
+	if (qe0 == NULL)
 		return (CMD_EAGAIN);
-	}
 	nxt = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));
-
 	type = ((isphdr_t *)fqe)->rqs_entry_type;
-	nqe = 1;
 
 	/*
 	 * If we have no data to transmit, just copy the first IOCB and start it up.
 	 */
-	if (ddir == ISP_NOXFR) {
-		ddf = 0;
+	if (nsegs == 0)
 		goto copy_and_sync;
-	}
 
 	/*
 	 * First figure out how many pieces of data to transfer, what
@@ -92,7 +87,6 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 	 */
 	switch (type) {
 	case RQSTYPE_T7RQS:
-		ddf = (ddir == ISP_TO_DEVICE)? FCP_CMND_DATA_WRITE : FCP_CMND_DATA_READ;
 		dsp64 = &((ispreqt7_t *)fqe)->req_dataseg;
 		seglim = 1;
 		break;
@@ -103,7 +97,7 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs, uint32_t to
 		break;
 #endif
 	default:
-		return (CMD_COMPLETE);
+		panic("%s: unsupported IOCB type 0x%x\n", __func__, type);
 	}
 	if (seglim > nsegs)
 		seglim = nsegs;
@@ -146,9 +140,7 @@ copy_and_sync:
 	((isphdr_t *)fqe)->rqs_entry_count = nqe;
 	switch (type) {
 	case RQSTYPE_T7RQS:
-		((ispreqt7_t *)fqe)->req_alen_datadir = ddf;
 		((ispreqt7_t *)fqe)->req_seg_count = nsegs;
-		((ispreqt7_t *)fqe)->req_dl = totalcnt;
 		isp_put_request_t7(isp, fqe, qe0);
 		break;
 #ifdef	ISP_TARGET_MODE
@@ -162,13 +154,13 @@ copy_and_sync:
 		break;
 #endif
 	default:
-		return (CMD_COMPLETE);
+		panic("%s: unsupported IOCB type 0x%x\n", __func__, type);
 	}
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
 		isp_print_bytes(isp, "first queue entry", QENTRY_LEN, qe0);
 	}
 	ISP_ADD_REQUEST(isp, nxt);
-	return (CMD_QUEUED);
+	return (0);
 }
 
 uint32_t
@@ -500,13 +492,9 @@ isp_clear_commands(ispsoftc_t *isp)
 		switch (ISP_H2HT(hdp->handle)) {
 		case ISP_HANDLE_INITIATOR: {
 			XS_T *xs = hdp->cmd;
-			if (XS_XFRLEN(xs)) {
-				ISP_DMAFREE(isp, xs, hdp->handle);
-				XS_SET_RESID(xs, XS_XFRLEN(xs));
-			} else {
-				XS_SET_RESID(xs, 0);
-			}
+			ISP_DMAFREE(isp, xs);
 			isp_destroy_handle(isp, hdp->handle);
+			XS_SET_RESID(xs, XS_XFRLEN(xs));
 			XS_SETERR(xs, HBA_BUSRESET);
 			isp_done(xs);
 			break;
@@ -515,7 +503,7 @@ isp_clear_commands(ispsoftc_t *isp)
 		case ISP_HANDLE_TARGET: {
 			ct7_entry_t ctio;
 
-			ISP_DMAFREE(isp, hdp->cmd, hdp->handle);
+			ISP_DMAFREE(isp, hdp->cmd);
 			ISP_MEMZERO(&ctio, sizeof(ct7_entry_t));
 			ctio.ct_syshandle = hdp->handle;
 			ctio.ct_nphdl = CT_HBA_RESET;

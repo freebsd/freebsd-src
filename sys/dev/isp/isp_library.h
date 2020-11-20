@@ -38,8 +38,7 @@
  * This used to be platform specific, but basically once you get the segment
  * stuff figured out, you can make all the code in one spot.
  */
-typedef enum { ISP_TO_DEVICE, ISP_FROM_DEVICE, ISP_NOXFR} isp_ddir_t;
-int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t, uint32_t, isp_ddir_t, ispds64_t *);
+int isp_send_cmd(ispsoftc_t *, void *, void *, uint32_t);
 
 /*
  * Handle management functions.

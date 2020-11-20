@@ -2822,35 +2822,31 @@ isp_start(XS_T *xs)
 		goto start_again;
 	}
 
-	reqp->req_header.rqs_entry_count = 1;
-	reqp->req_header.rqs_entry_type = RQSTYPE_T7RQS;
-
-	/*
-	 * Set task attributes
-	 */
-	if (XS_TAG_P(xs))
-		reqp->req_task_attribute = XS_TAG_TYPE(xs);
-	else
-		reqp->req_task_attribute = FCP_CMND_TASK_ATTR_SIMPLE;
-	reqp->req_task_attribute |= (XS_PRIORITY(xs) << FCP_CMND_PRIO_SHIFT) &
-	     FCP_CMND_PRIO_MASK;
-
 	/*
 	 * NB: we do not support long CDBs (yet)
 	 */
 	cdblen = XS_CDBLEN(xs);
-
 	if (cdblen > sizeof (reqp->req_cdb)) {
 		isp_prt(isp, ISP_LOGERR, "Command Length %u too long for this chip", cdblen);
 		XS_SETERR(xs, HBA_REQINVAL);
 		return (CMD_COMPLETE);
 	}
 
+	reqp->req_header.rqs_entry_type = RQSTYPE_T7RQS;
+	reqp->req_header.rqs_entry_count = 1;
 	reqp->req_nphdl = lp->handle;
-	reqp->req_tidlo = lp->portid;
-	reqp->req_tidhi = lp->portid >> 16;
-	reqp->req_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(xs));
+	reqp->req_time = XS_TIME(xs);
 	be64enc(reqp->req_lun, CAM_EXTLUN_BYTE_SWIZZLE(XS_LUN(xs)));
+	if (XS_XFRIN(xs))
+		reqp->req_alen_datadir = FCP_CMND_DATA_READ;
+	else if (XS_XFROUT(xs))
+		reqp->req_alen_datadir = FCP_CMND_DATA_WRITE;
+	if (XS_TAG_P(xs))
+		reqp->req_task_attribute = XS_TAG_TYPE(xs);
+	else
+		reqp->req_task_attribute = FCP_CMND_TASK_ATTR_SIMPLE;
+	reqp->req_task_attribute |= (XS_PRIORITY(xs) << FCP_CMND_PRIO_SHIFT) &
+	     FCP_CMND_PRIO_MASK;
 	if (FCPARAM(isp, XS_CHANNEL(xs))->fctape_enabled && (lp->prli_word3 & PRLI_WD3_RETRY)) {
 		if (FCP_NEXT_CRN(isp, &reqp->req_crn, xs)) {
 			isp_prt(isp, ISP_LOG_WARN1,
@@ -2860,8 +2856,11 @@ isp_start(XS_T *xs)
 			return (CMD_EAGAIN);
 		}
 	}
-	reqp->req_time = XS_TIME(xs);
 	ISP_MEMCPY(reqp->req_cdb, XS_CDBP(xs), cdblen);
+	reqp->req_dl = XS_XFRLEN(xs);
+	reqp->req_tidlo = lp->portid;
+	reqp->req_tidhi = lp->portid >> 16;
+	reqp->req_vpidx = ISP_GET_VPIDX(isp, XS_CHANNEL(xs));
 
 	/* Whew. Thankfully the same for type 7 requests */
 	reqp->req_handle = isp_allocate_handle(isp, xs, ISP_HANDLE_INITIATOR);
@@ -2878,7 +2877,7 @@ isp_start(XS_T *xs)
 	 * The callee is responsible for adding all requests at this point.
 	 */
 	dmaresult = ISP_DMASETUP(isp, xs, reqp);
-	if (dmaresult != CMD_QUEUED) {
+	if (dmaresult != 0) {
 		isp_destroy_handle(isp, reqp->req_handle);
 		/*
 		 * dmasetup sets actual error in packet, and
@@ -2887,7 +2886,7 @@ isp_start(XS_T *xs)
 		return (dmaresult);
 	}
 	isp_xs_prt(isp, xs, ISP_LOGDEBUG0, "START cmd cdb[0]=0x%x datalen %ld", XS_CDBP(xs)[0], (long) XS_XFRLEN(xs));
-	return (CMD_QUEUED);
+	return (0);
 }
 
 /*
@@ -3442,8 +3441,7 @@ isp_intr_respq(ispsoftc_t *isp)
 		isp_prt(isp, ISP_LOGDEBUG2, "asked for %lu got raw resid %lu settled for %lu",
 		    (u_long)XS_XFRLEN(xs), (u_long)resid, (u_long)XS_GET_RESID(xs));
 
-		if (XS_XFRLEN(xs))
-			ISP_DMAFREE(isp, xs, sp->req_handle);
+		ISP_DMAFREE(isp, xs);
 		isp_destroy_handle(isp, sp->req_handle);
 
 		ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
