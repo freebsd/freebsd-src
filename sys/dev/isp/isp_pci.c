@@ -57,7 +57,6 @@ static void isp_pci_wr_reg_2600(ispsoftc_t *, int, uint32_t);
 static void isp_pci_run_isr_2400(ispsoftc_t *);
 static int isp_pci_mbxdma(ispsoftc_t *);
 static void isp_pci_mbxdmafree(ispsoftc_t *);
-static int isp_pci_dmasetup(ispsoftc_t *, XS_T *, void *);
 static int isp_pci_irqsetup(ispsoftc_t *);
 
 static struct ispmdvec mdvec_2400 = {
@@ -65,8 +64,7 @@ static struct ispmdvec mdvec_2400 = {
 	isp_pci_rd_reg_2400,
 	isp_pci_wr_reg_2400,
 	isp_pci_mbxdma,
-	isp_pci_dmasetup,
-	isp_common_dmateardown,
+	isp_send_cmd,
 	isp_pci_irqsetup,
 	NULL
 };
@@ -76,8 +74,7 @@ static struct ispmdvec mdvec_2500 = {
 	isp_pci_rd_reg_2400,
 	isp_pci_wr_reg_2400,
 	isp_pci_mbxdma,
-	isp_pci_dmasetup,
-	isp_common_dmateardown,
+	isp_send_cmd,
 	isp_pci_irqsetup,
 	NULL
 };
@@ -87,8 +84,7 @@ static struct ispmdvec mdvec_2600 = {
 	isp_pci_rd_reg_2600,
 	isp_pci_wr_reg_2600,
 	isp_pci_mbxdma,
-	isp_pci_dmasetup,
-	isp_common_dmateardown,
+	isp_send_cmd,
 	isp_pci_irqsetup,
 	NULL
 };
@@ -98,8 +94,7 @@ static struct ispmdvec mdvec_2700 = {
 	isp_pci_rd_reg_2600,
 	isp_pci_wr_reg_2600,
 	isp_pci_mbxdma,
-	isp_pci_dmasetup,
-	isp_common_dmateardown,
+	isp_send_cmd,
 	isp_pci_irqsetup,
 	NULL
 };
@@ -1230,96 +1225,6 @@ isp_pci_mbxdmafree(ispsoftc_t *isp)
 		bus_dma_tag_destroy(isp->isp_osinfo.reqdmat);
 		isp->isp_rquest = NULL;
 	}
-}
-
-typedef struct {
-	ispsoftc_t *isp;
-	void *cmd_token;
-	void *rq;	/* original request */
-	int error;
-} mush_t;
-
-#define	MUSHERR_NOQENTRIES	-2
-
-static void
-dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
-{
-	mush_t *mp = (mush_t *) arg;
-	ispsoftc_t *isp= mp->isp;
-	struct ccb_scsiio *csio = mp->cmd_token;
-	isp_ddir_t ddir;
-	int sdir;
-
-	if (error) {
-		mp->error = error;
-		return;
-	}
-	if (nseg == 0) {
-		ddir = ISP_NOXFR;
-	} else {
-		if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-			ddir = ISP_FROM_DEVICE;
-		} else {
-			ddir = ISP_TO_DEVICE;
-		}
-		if ((csio->ccb_h.func_code == XPT_CONT_TARGET_IO) ^
-		    ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)) {
-			sdir = BUS_DMASYNC_PREREAD;
-		} else {
-			sdir = BUS_DMASYNC_PREWRITE;
-		}
-		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap,
-		    sdir);
-	}
-
-	error = isp_send_cmd(isp, mp->rq, dm_segs, nseg, XS_XFRLEN(csio),
-	    ddir, (ispds64_t *)csio->req_map);
-	switch (error) {
-	case CMD_EAGAIN:
-		mp->error = MUSHERR_NOQENTRIES;
-		break;
-	case CMD_QUEUED:
-		break;
-	default:
-		mp->error = EIO;
-		break;
-	}
-}
-
-static int
-isp_pci_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *ff)
-{
-	mush_t mush, *mp;
-	int error;
-
-	mp = &mush;
-	mp->isp = isp;
-	mp->cmd_token = csio;
-	mp->rq = ff;
-	mp->error = 0;
-
-	error = bus_dmamap_load_ccb(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap,
-	    (union ccb *)csio, dma2, mp, BUS_DMA_NOWAIT);
-	if (error && mp->error == 0) {
-#ifdef	DIAGNOSTIC
-		isp_prt(isp, ISP_LOGERR, "error %d in dma mapping code", error);
-#endif
-		mp->error = error;
-	}
-	if (mp->error) {
-		int retval = CMD_COMPLETE;
-		if (mp->error == MUSHERR_NOQENTRIES) {
-			retval = CMD_EAGAIN;
-		} else if (mp->error == EFBIG) {
-			csio->ccb_h.status = CAM_REQ_TOO_BIG;
-		} else if (mp->error == EINVAL) {
-			csio->ccb_h.status = CAM_REQ_INVALID;
-		} else {
-			csio->ccb_h.status = CAM_UNREC_HBA_ERROR;
-		}
-		return (retval);
-	}
-	return (CMD_QUEUED);
 }
 
 static int
