@@ -214,6 +214,7 @@ static void dwc_setup_rxfilter(struct dwc_softc *sc);
 static void dwc_setup_core(struct dwc_softc *sc);
 static void dwc_enable_mac(struct dwc_softc *sc, bool enable);
 static void dwc_init_dma(struct dwc_softc *sc);
+static void dwc_stop_dma(struct dwc_softc *sc);
 
 static inline uint32_t
 next_rxidx(struct dwc_softc *sc, uint32_t curidx)
@@ -359,7 +360,6 @@ static void
 dwc_stop_locked(struct dwc_softc *sc)
 {
 	struct ifnet *ifp;
-	uint32_t reg;
 
 	DWC_ASSERT_LOCKED(sc);
 
@@ -370,22 +370,8 @@ dwc_stop_locked(struct dwc_softc *sc)
 
 	callout_stop(&sc->dwc_callout);
 
-	/* Stop DMA TX */
-	reg = READ4(sc, OPERATION_MODE);
-	reg &= ~(MODE_ST);
-	WRITE4(sc, OPERATION_MODE, reg);
-
-	/* Flush TX */
-	reg = READ4(sc, OPERATION_MODE);
-	reg |= (MODE_FTF);
-	WRITE4(sc, OPERATION_MODE, reg);
-
+	dwc_stop_dma(sc);
 	dwc_enable_mac(sc, false);
-
-	/* Stop DMA RX */
-	reg = READ4(sc, OPERATION_MODE);
-	reg &= ~(MODE_SR);
-	WRITE4(sc, OPERATION_MODE, reg);
 }
 
 static void dwc_clear_stats(struct dwc_softc *sc)
@@ -816,6 +802,29 @@ dwc_init_dma(struct dwc_softc *sc)
 	/* Start DMA */
 	reg = READ4(sc, OPERATION_MODE);
 	reg |= (MODE_ST | MODE_SR);
+	WRITE4(sc, OPERATION_MODE, reg);
+}
+
+static void
+dwc_stop_dma(struct dwc_softc *sc)
+{
+	uint32_t reg;
+
+	DWC_ASSERT_LOCKED(sc);
+
+	/* Stop DMA TX */
+	reg = READ4(sc, OPERATION_MODE);
+	reg &= ~(MODE_ST);
+	WRITE4(sc, OPERATION_MODE, reg);
+
+	/* Flush TX */
+	reg = READ4(sc, OPERATION_MODE);
+	reg |= (MODE_FTF);
+	WRITE4(sc, OPERATION_MODE, reg);
+
+	/* Stop DMA RX */
+	reg = READ4(sc, OPERATION_MODE);
+	reg &= ~(MODE_SR);
 	WRITE4(sc, OPERATION_MODE, reg);
 }
 
