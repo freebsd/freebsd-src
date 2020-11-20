@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/module.h>
-#include <sys/taskqueue.h>
 #include <sys/gpio.h>
 
 #include <net/bpf.h>
@@ -199,7 +198,6 @@ struct awg_softc {
 	device_t		dev;
 	device_t		miibus;
 	struct callout		stat_ch;
-	struct task		link_task;
 	void			*ih;
 	u_int			mdc_div_ratio_m;
 	int			link;
@@ -284,10 +282,13 @@ awg_miibus_writereg(device_t dev, int phy, int reg, int val)
 }
 
 static void
-awg_update_link_locked(struct awg_softc *sc)
+awg_miibus_statchg(device_t dev)
 {
+	struct awg_softc *sc;
 	struct mii_data *mii;
 	uint32_t val;
+
+	sc = device_get_softc(dev);
 
 	AWG_ASSERT_LOCKED(sc);
 
@@ -343,28 +344,6 @@ awg_update_link_locked(struct awg_softc *sc)
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
 		val |= awg_pause_time << PAUSE_TIME_SHIFT;
 	WR4(sc, EMAC_TX_FLOW_CTL, val);
-}
-
-static void
-awg_link_task(void *arg, int pending)
-{
-	struct awg_softc *sc;
-
-	sc = arg;
-
-	AWG_LOCK(sc);
-	awg_update_link_locked(sc);
-	AWG_UNLOCK(sc);
-}
-
-static void
-awg_miibus_statchg(device_t dev)
-{
-	struct awg_softc *sc;
-
-	sc = device_get_softc(dev);
-
-	taskqueue_enqueue(taskqueue_swi, &sc->link_task);
 }
 
 static void
@@ -1873,7 +1852,6 @@ awg_attach(device_t dev)
 
 	mtx_init(&sc->mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK, MTX_DEF);
 	callout_init_mtx(&sc->stat_ch, &sc->mtx, 0);
-	TASK_INIT(&sc->link_task, 0, awg_link_task, sc);
 
 	/* Setup clocks and regulators */
 	error = awg_setup_extres(dev);
