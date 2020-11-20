@@ -730,9 +730,7 @@ isp_handle_ctio7(ispsoftc_t *isp, ct7_entry_t *ct)
 			isp_prt(isp, pl, "NO xs for CTIO (handle 0x%x) status 0x%x", ct->ct_syshandle, ct->ct_nphdl);
 		}
 	} else {
-		if ((ct->ct_flags & CT7_DATAMASK) != CT7_NO_DATA) {
-			ISP_DMAFREE(isp, xs, ct->ct_syshandle);
-		}
+		ISP_DMAFREE(isp, xs);
 		if (ct->ct_flags & CT7_SENDSTATUS) {
 			/*
 			 * Sent status and command complete.

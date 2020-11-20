@@ -65,8 +65,7 @@ struct ispmdvec {
 	uint32_t	(*dv_rd_reg) (ispsoftc_t *, int);
 	void		(*dv_wr_reg) (ispsoftc_t *, int, uint32_t);
 	int		(*dv_mbxdma) (ispsoftc_t *);
-	int		(*dv_dmaset) (ispsoftc_t *, XS_T *, void *);
-	void		(*dv_dmaclr) (ispsoftc_t *, XS_T *, uint32_t);
+	int		(*dv_send_cmd) (ispsoftc_t *, void *, void *, uint32_t);
 	int		(*dv_irqsetup) (ispsoftc_t *);
 	void		(*dv_dregs) (ispsoftc_t *, const char *);
 	const void *	dv_ispfw;	/* ptr to f/w */
@@ -98,12 +97,8 @@ struct ispmdvec {
 #define	ISP_MBOXDMASETUP(isp)	\
 	(*(isp)->isp_mdvec->dv_mbxdma)((isp))
 
-#define	ISP_DMASETUP(isp, xs, req)	\
-	(*(isp)->isp_mdvec->dv_dmaset)((isp), (xs), (req))
-
-#define	ISP_DMAFREE(isp, xs, hndl)		\
-	if ((isp)->isp_mdvec->dv_dmaclr)	\
-	    (*(isp)->isp_mdvec->dv_dmaclr)((isp), (xs), (hndl))
+#define	ISP_SEND_CMD(isp, qe, segp, nseg)	\
+	(*(isp)->isp_mdvec->dv_send_cmd)((isp), (qe), (segp), (nseg))
 
 #define	ISP_IRQSETUP(isp)	\
 	(((isp)->isp_mdvec->dv_irqsetup) ? (*(isp)->isp_mdvec->dv_irqsetup)(isp) : 0)
@@ -683,8 +678,7 @@ int isp_start(XS_T *);
 /* these values are what isp_start returns */
 #define	CMD_COMPLETE	101	/* command completed */
 #define	CMD_EAGAIN	102	/* busy- maybe retry later */
-#define	CMD_QUEUED	103	/* command has been queued for execution */
-#define	CMD_RQLATER 	104	/* requeue this command later */
+#define	CMD_RQLATER	103	/* requeue this command later */
 
 /*
  * Command Completion Point- Core layers call out from this with completed cmds
@@ -867,6 +861,8 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	XS_CDBP(xs)		gets a pointer to the scsi CDB ""
  *	XS_CDBLEN(xs)		gets the CDB's length ""
  *	XS_XFRLEN(xs)		gets the associated data transfer length ""
+ *	XS_XFRIN(xs)		gets IN direction
+ *	XS_XFROUT(xs)		gets OUT direction
  *	XS_TIME(xs)		gets the time (in seconds) for this command
  *	XS_GET_RESID(xs)	gets the current residual count
  *	XS_GET_RESID(xs, resid)	sets the current residual count

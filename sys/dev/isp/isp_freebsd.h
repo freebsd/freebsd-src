@@ -341,6 +341,9 @@ struct isposinfo {
 #define	ISP_INLINE
 #endif
 
+#define	ISP_DMASETUP(isp, xs, req)	isp_dmasetup(isp, xs, req)
+#define	ISP_DMAFREE(isp, xs)		isp_dmafree(isp, xs)
+
 #define	NANOTIME_T		struct timespec
 #define	GET_NANOTIME		nanotime
 #define	GET_NANOSEC(x)		((x)->tv_sec * 1000000000 + (x)->tv_nsec)
@@ -472,6 +475,8 @@ default:							\
 
 #define	XS_CDBLEN(ccb)		(ccb)->cdb_len
 #define	XS_XFRLEN(ccb)		(ccb)->dxfer_len
+#define	XS_XFRIN(ccb)		(((ccb)->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN)
+#define	XS_XFROUT(ccb)		(((ccb)->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 #define	XS_TIME(ccb)	\
 	(((ccb)->ccb_h.timeout > 0xffff * 1000 - 999) ? 0 : \
 	  (((ccb)->ccb_h.timeout + 999) / 1000))
@@ -638,7 +643,8 @@ int isp_fc_scratch_acquire(ispsoftc_t *, int);
 void isp_platform_intr(void *);
 void isp_platform_intr_resp(void *);
 void isp_platform_intr_atio(void *);
-void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
+int isp_dmasetup(ispsoftc_t *, XS_T *, void *);
+void isp_dmafree(ispsoftc_t *, struct ccb_scsiio *);
 void isp_fcp_reset_crn(ispsoftc_t *, int, uint32_t, int);
 int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 

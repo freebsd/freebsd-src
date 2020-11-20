@@ -1270,7 +1270,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 		 */
 		cto->ct_syshandle = handle;
 		dmaresult = ISP_DMASETUP(isp, cso, cto);
-		if (dmaresult != CMD_QUEUED) {
+		if (dmaresult != 0) {
 			isp_destroy_handle(isp, handle);
 			isp_free_pcmd(isp, ccb);
 			if (dmaresult == CMD_EAGAIN) {
@@ -2033,9 +2033,7 @@ isp_watchdog(void *arg)
 		/*
 		 * After this point, the command is really dead.
 		 */
-		if (XS_XFRLEN(xs)) {
-			ISP_DMAFREE(isp, xs, handle);
-		} 
+		ISP_DMAFREE(isp, xs);
 		isp_destroy_handle(isp, handle);
 		isp_prt(isp, ISP_LOGERR, "%s: timeout for handle 0x%x", __func__, handle);
 		XS_SETERR(xs, CAM_CMD_TIMEOUT);
@@ -2234,9 +2232,7 @@ isp_loop_dead(ispsoftc_t *isp, int chan)
 				continue;
 			}
 
-			if (XS_XFRLEN(xs)) {
-				ISP_DMAFREE(isp, xs, isp->isp_xflist[i].handle);
-			}
+			ISP_DMAFREE(isp, xs);
 			isp_destroy_handle(isp, isp->isp_xflist[i].handle);
 			isp_prt(isp, ISP_LOGWARN, "command handle 0x%x for %d.%d.%jx could not be aborted and was destroyed",
 			    isp->isp_xflist[i].handle, chan, XS_TGT(xs),
@@ -2457,7 +2453,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				break;
 			}
 		}
-		ccb->csio.req_map = NULL;
 #ifdef	DIAGNOSTIC
 		if (ccb->ccb_h.target_id >= ISP_MAX_TARGETS(isp)) {
 			xpt_print(ccb->ccb_h.path, "invalid target\n");
@@ -2479,7 +2474,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		error = isp_start((XS_T *) ccb);
 		switch (error) {
-		case CMD_QUEUED:
+		case 0:
 			ccb->ccb_h.status |= CAM_SIM_QUEUED;
 			if (ccb->ccb_h.timeout == CAM_TIME_INFINITY)
 				break;
@@ -2541,8 +2536,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		}
-		ccb->ccb_h.spriv_field0 = 0;
-		ccb->ccb_h.spriv_ptr1 = isp;
 
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 			ccb->atio.tag_id = 0;
@@ -3444,14 +3437,91 @@ isp_platform_intr_atio(void *arg)
 	ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_CLEAR_RISC_INT);
 }
 
-void
-isp_common_dmateardown(ispsoftc_t *isp, struct ccb_scsiio *csio, uint32_t hdl)
+typedef struct {
+	ispsoftc_t		*isp;
+	struct ccb_scsiio	*csio;
+	void			*qe;
+	int			error;
+} mush_t;
+
+static void
+isp_dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 {
-	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
-		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_POSTREAD);
-	} else {
-		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_POSTWRITE);
+	mush_t *mp = (mush_t *) arg;
+	ispsoftc_t *isp= mp->isp;
+	struct ccb_scsiio *csio = mp->csio;
+	bus_dmasync_op_t op;
+
+	if (error) {
+		mp->error = error;
+		return;
 	}
+	if ((csio->ccb_h.func_code == XPT_CONT_TARGET_IO) ^
+	    ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN))
+		op = BUS_DMASYNC_PREREAD;
+	else
+		op = BUS_DMASYNC_PREWRITE;
+	bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, op);
+
+	mp->error = ISP_SEND_CMD(isp, mp->qe, dm_segs, nseg);
+	if (mp->error)
+		isp_dmafree(isp, csio);
+}
+
+int
+isp_dmasetup(ispsoftc_t *isp, struct ccb_scsiio *csio, void *qe)
+{
+	mush_t mp;
+	int error;
+
+	if (XS_XFRLEN(csio)) {
+		mp.isp = isp;
+		mp.csio = csio;
+		mp.qe = qe;
+		mp.error = 0;
+		error = bus_dmamap_load_ccb(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap,
+		    (union ccb *)csio, isp_dma2, &mp, BUS_DMA_NOWAIT);
+		if (error == 0)
+			error = mp.error;
+	} else {
+		error = ISP_SEND_CMD(isp, qe, NULL, 0);
+	}
+	switch (error) {
+	case 0:
+	case CMD_COMPLETE:
+	case CMD_EAGAIN:
+	case CMD_RQLATER:
+		break;
+	case ENOMEM:
+		error = CMD_EAGAIN;
+		break;
+	case EINVAL:
+	case EFBIG:
+		csio->ccb_h.status = CAM_REQ_INVALID;
+		error = CMD_COMPLETE;
+		break;
+	default:
+		csio->ccb_h.status = CAM_UNREC_HBA_ERROR;
+		error = CMD_COMPLETE;
+		break;
+	}
+	return (error);
+}
+
+void
+isp_dmafree(ispsoftc_t *isp, struct ccb_scsiio *csio)
+{
+	bus_dmasync_op_t op;
+
+	if (XS_XFRLEN(csio) == 0)
+		return;
+
+	if ((csio->ccb_h.func_code == XPT_CONT_TARGET_IO) ^
+	    ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN))
+		op = BUS_DMASYNC_POSTREAD;
+	else
+		op = BUS_DMASYNC_POSTWRITE;
+	bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, op);
 	bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
 }
 
