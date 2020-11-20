@@ -374,6 +374,7 @@ tcp_twstart(struct tcpcb *tp)
 /*
  * Returns 1 if the TIME_WAIT state was killed and we should start over,
  * looking for a pcb in the listen state.  Returns 0 otherwise.
+ * It be called with to == NULL only for pure SYN-segments.
  */
 int
 tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
@@ -397,6 +398,8 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 		goto drop;
 
 	thflags = th->th_flags;
+	KASSERT(to != NULL || (thflags & (TH_SYN | TH_ACK)) == TH_SYN,
+	        ("tcp_twcheck: called without options on a non-SYN segment"));
 
 	/*
 	 * NOTE: for FIN_WAIT_2 (to be added later),
@@ -410,16 +413,6 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	 */
 	if (thflags & TH_RST)
 		goto drop;
-
-	/*
-	 * If timestamps were negotiated during SYN/ACK and a
-	 * segment without a timestamp is received, silently drop
-	 * the segment.
-	 * See section 3.2 of RFC 7323.
-	 */
-	if (((to->to_flags & TOF_TS) == 0) && (tw->t_recent != 0)) {
-		goto drop;
-	}
 
 #if 0
 /* PAWS not needed at the moment */
@@ -454,6 +447,16 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	 */
 	if ((thflags & TH_ACK) == 0)
 		goto drop;
+
+	/*
+	 * If timestamps were negotiated during SYN/ACK and a
+	 * segment without a timestamp is received, silently drop
+	 * the segment.
+	 * See section 3.2 of RFC 7323.
+	 */
+	if (((to->to_flags & TOF_TS) == 0) && (tw->t_recent != 0)) {
+		goto drop;
+	}
 
 	/*
 	 * Reset the 2MSL timer if this is a duplicate FIN.
