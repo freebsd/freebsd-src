@@ -1591,6 +1591,10 @@ KERNCONF=${KERNFAST}
 .endif
 .if ${TARGET_ARCH} == "powerpc64"
 KERNCONF?=	GENERIC64
+.elif ${TARGET_ARCH} == "powerpc64le"
+KERNCONF?=	GENERIC64LE
+.elif ${TARGET_ARCH} == "powerpcspe"
+KERNCONF?=	MPC85XXSPE
 .else
 KERNCONF?=	GENERIC
 .endif
