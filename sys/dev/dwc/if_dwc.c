@@ -155,7 +155,6 @@ __FBSDID("$FreeBSD$");
 #define	RDESC0_FS		(1U <<  9)	/* First Descriptor */
 #define	RDESC0_LS		(1U <<  8)	/* Last Descriptor */
 #define	RDESC0_ICE		(1U <<  7)	/* IPC Checksum Error */
-#define	RDESC0_GF		(1U <<  7)	/* Giant Frame */
 #define	RDESC0_LC		(1U <<  6)	/* Late Collision */
 #define	RDESC0_FT		(1U <<  5)	/* Frame Type */
 #define	RDESC0_RWT		(1U <<  4)	/* Receive Watchdog Timeout */
@@ -628,7 +627,7 @@ dwc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 inline static void
 dwc_setup_txdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr,
-    uint32_t len)
+  uint32_t len, uint32_t flags)
 {
 	uint32_t desc0, desc1;
 
@@ -641,10 +640,10 @@ dwc_setup_txdesc(struct dwc_softc *sc, int idx, bus_addr_t paddr,
 		if (sc->mactype != DWC_GMAC_EXT_DESC) {
 			desc0 = 0;
 			desc1 = NTDESC1_TCH | NTDESC1_FS | NTDESC1_LS |
-			    NTDESC1_IC | len;
+			    NTDESC1_IC | len | flags;
 		} else {
 			desc0 = ETDESC0_TCH | ETDESC0_FS | ETDESC0_LS |
-			    ETDESC0_IC;
+			    ETDESC0_IC | flags;
 			desc1 = len;
 		}
 		++sc->txcount;
@@ -667,6 +666,7 @@ dwc_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 	struct bus_dma_segment seg;
 	int error, nsegs;
 	struct mbuf * m;
+	uint32_t flags = 0;
 
 	if ((m = m_defrag(*mp, M_NOWAIT)) == NULL)
 		return (ENOMEM);
@@ -685,7 +685,21 @@ dwc_setup_txbuf(struct dwc_softc *sc, int idx, struct mbuf **mp)
 
 	sc->txbuf_map[idx].mbuf = m;
 
-	dwc_setup_txdesc(sc, idx, seg.ds_addr, seg.ds_len);
+	if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0) {
+		if ((m->m_pkthdr.csum_flags & (CSUM_TCP|CSUM_UDP)) != 0) {
+			if (sc->mactype != DWC_GMAC_EXT_DESC)
+				flags = NTDESC1_CIC_FULL;
+			else
+				flags = ETDESC0_CIC_FULL;
+		} else {
+			if (sc->mactype != DWC_GMAC_EXT_DESC)
+				flags = NTDESC1_CIC_HDR;
+			else
+				flags = ETDESC0_CIC_HDR;
+		}
+	}
+
+	dwc_setup_txdesc(sc, idx, seg.ds_addr, seg.ds_len, flags);
 
 	return (0);
 }
@@ -807,6 +821,18 @@ dwc_rxfinish_one(struct dwc_softc *sc, struct dwc_hwdesc *desc,
 	m->m_len = len;
 	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
+	if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0 &&
+	  (rdesc0 & RDESC0_FT) != 0) {
+		m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
+		if ((rdesc0 & RDESC0_ICE) == 0)
+			m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+		if ((rdesc0 & RDESC0_PCE) == 0) {
+			m->m_pkthdr.csum_flags |=
+				CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xffff;
+		}
+	}
+
 	/* Remove trailing FCS */
 	m_adj(m, -ETHER_CRC_LEN);
 
@@ -893,7 +919,7 @@ setup_dma(struct dwc_softc *sc)
 			    "could not create TX buffer DMA map.\n");
 			goto out;
 		}
-		dwc_setup_txdesc(sc, idx, 0, 0);
+		dwc_setup_txdesc(sc, idx, 0, 0, 0);
 	}
 
 	/*
@@ -1139,6 +1165,14 @@ dwc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			/* No work to do except acknowledge the change took */
 			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
 		}
+		if (mask & IFCAP_RXCSUM)
+			if_togglecapenable(ifp, IFCAP_RXCSUM);
+		if (mask & IFCAP_TXCSUM)
+			if_togglecapenable(ifp, IFCAP_TXCSUM);
+		if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
+			if_sethwassistbits(ifp, CSUM_IP | CSUM_UDP | CSUM_TCP, 0);
+		else
+			if_sethwassistbits(ifp, 0, CSUM_IP | CSUM_UDP | CSUM_TCP);
 		break;
 
 	default:
@@ -1173,7 +1207,7 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 		bus_dmamap_unload(sc->txbuf_tag, bmap->map);
 		m_freem(bmap->mbuf);
 		bmap->mbuf = NULL;
-		dwc_setup_txdesc(sc, sc->tx_idx_tail, 0, 0);
+		dwc_setup_txdesc(sc, sc->tx_idx_tail, 0, 0, 0);
 		sc->tx_idx_tail = next_txidx(sc, sc->tx_idx_tail);
 		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
@@ -1212,6 +1246,7 @@ dwc_rxfinish_locked(struct dwc_softc *sc)
 			if (error != 0)
 				panic("dwc_setup_rxbuf failed:  error %d\n",
 				    error);
+
 		}
 		sc->rx_idx = next_rxidx(sc, sc->rx_idx);
 	}
@@ -1561,7 +1596,8 @@ dwc_attach(device_t dev)
 	if_setinitfn(ifp, dwc_init);
 	if_setsendqlen(ifp, TX_DESC_COUNT - 1);
 	if_setsendqready(sc->ifp);
-	if_setcapabilities(sc->ifp, IFCAP_VLAN_MTU);
+	if_sethwassist(sc->ifp, CSUM_IP | CSUM_UDP | CSUM_TCP);
+	if_setcapabilities(sc->ifp, IFCAP_VLAN_MTU | IFCAP_HWCSUM);
 	if_setcapenable(sc->ifp, if_getcapabilities(sc->ifp));
 
 	/* Attach the mii driver. */
