@@ -941,6 +941,18 @@ awg_setup_dma(device_t dev)
 	return (0);
 }
 
+static void
+awg_dma_start_tx(struct awg_softc *sc)
+{
+	uint32_t val;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	/* Start and run TX DMA */
+	val = RD4(sc, EMAC_TX_CTL_1);
+	WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_START);
+}
+
 /*
  * if_ functions
  */
@@ -949,7 +961,6 @@ static void
 awg_start_locked(struct awg_softc *sc)
 {
 	struct mbuf *m;
-	uint32_t val;
 	if_t ifp;
 	int cnt, err;
 
@@ -984,9 +995,7 @@ awg_start_locked(struct awg_softc *sc)
 		bus_dmamap_sync(sc->tx.desc_tag, sc->tx.desc_map,
 		    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 
-		/* Start and run TX DMA */
-		val = RD4(sc, EMAC_TX_CTL_1);
-		WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_START);
+		awg_dma_start_tx(sc);
 	}
 }
 
