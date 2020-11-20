@@ -117,6 +117,8 @@ static struct atkbdc_quirks quirks[] = {
     {"coreboot", NULL, NULL,
 	KBDC_QUIRK_KEEP_ACTIVATED | KBDC_QUIRK_IGNORE_PROBE_RESULT |
 	KBDC_QUIRK_RESET_AFTER_PROBE | KBDC_QUIRK_SETLEDS_ON_INIT},
+    /* KBDC hangs on Lenovo X120e and X121e after disabling AUX MUX */
+    {NULL, "LENOVO", NULL, KBDC_QUIRK_DISABLE_MUX_PROBE},
     {NULL, NULL, NULL, 0}
 };
 
