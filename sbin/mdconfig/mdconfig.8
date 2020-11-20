@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2017
+.Dd November 6, 2020
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -235,7 +235,7 @@ checksums or cryptographic signatures.
 Request a specific unit number or device name for the
 .Xr md 4
 device instead of automatic allocation.
-If a device name is specified, it must be start with
+If a device name is specified, it must start with
 .Dq md
 followed by the unit number.
 .El
@@ -324,11 +324,8 @@ The
 .Nm
 utility first appeared in
 .Fx 5.0
-as a cleaner replacement for the
-.Xr vn 4
-and
-.Xr vnconfig 8
-combo.
+as a cleaner replacement for the vn kernel module
+and the vnconfig utility combo.
 .Sh AUTHORS
 The
 .Nm
