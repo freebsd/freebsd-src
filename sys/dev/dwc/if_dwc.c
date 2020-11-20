@@ -983,25 +983,26 @@ dwc_txstart_locked(struct dwc_softc *sc)
 
 	ifp = sc->ifp;
 
-	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
+	if ((if_getdrvflags(ifp) & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING)
 		return;
 
 	enqueued = 0;
 
 	for (;;) {
 		if (sc->txcount == (TX_DESC_COUNT - 1)) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
 			break;
 		}
 
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
+		m = if_dequeue(ifp);
 		if (m == NULL)
 			break;
 		if (dwc_setup_txbuf(sc, sc->tx_idx_head, &m) != 0) {
-			 IFQ_DRV_PREPEND(&ifp->if_snd, m);
+			if_sendq_prepend(ifp, m);
 			break;
 		}
-		BPF_MTAP(ifp, m);
+		if_bpfmtap(ifp, m);
 		sc->tx_idx_head = next_txidx(sc, sc->tx_idx_head);
 		++enqueued;
 	}
@@ -1029,7 +1030,7 @@ dwc_init_locked(struct dwc_softc *sc)
 
 	DWC_ASSERT_LOCKED(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		return;
 
 	dwc_setup_rxfilter(sc);
@@ -1065,7 +1066,7 @@ dwc_stop_locked(struct dwc_softc *sc)
 	DWC_ASSERT_LOCKED(sc);
 
 	ifp = sc->ifp;
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	sc->tx_watchdog_count = 0;
 	sc->stats_harvest_count = 0;
 
@@ -1081,7 +1082,7 @@ dwc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct dwc_softc *sc;
 	struct mii_data *mii;
 	struct ifreq *ifr;
-	int mask, error;
+	int flags, mask, error;
 
 	sc = ifp->if_softc;
 	ifr = (struct ifreq *)data;
@@ -1090,25 +1091,25 @@ dwc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		DWC_LOCK(sc);
-		if (ifp->if_flags & IFF_UP) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				if ((ifp->if_flags ^ sc->if_flags) &
-				    (IFF_PROMISC | IFF_ALLMULTI))
+		if (if_getflags(ifp) & IFF_UP) {
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+				flags = if_getflags(ifp) ^ sc->if_flags;
+				if ((flags & (IFF_PROMISC|IFF_ALLMULTI)) != 0)
 					dwc_setup_rxfilter(sc);
 			} else {
 				if (!sc->is_detaching)
 					dwc_init_locked(sc);
 			}
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 				dwc_stop_locked(sc);
 		}
-		sc->if_flags = ifp->if_flags;
+		sc->if_flags = if_getflags(ifp);
 		DWC_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
 			DWC_LOCK(sc);
 			dwc_setup_rxfilter(sc);
 			DWC_UNLOCK(sc);
@@ -1120,10 +1121,10 @@ dwc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
 		break;
 	case SIOCSIFCAP:
-		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
 		if (mask & IFCAP_VLAN_MTU) {
 			/* No work to do except acknowledge the change took */
-			ifp->if_capenable ^= IFCAP_VLAN_MTU;
+			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
 		}
 		break;
 
@@ -1161,7 +1162,7 @@ dwc_txfinish_locked(struct dwc_softc *sc)
 		bmap->mbuf = NULL;
 		dwc_setup_txdesc(sc, sc->tx_idx_tail, 0, 0);
 		sc->tx_idx_tail = next_txidx(sc, sc->tx_idx_tail);
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	}
 
@@ -1300,7 +1301,7 @@ dwc_tick(void *arg)
 
 	ifp = sc->ifp;
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
 	    return;
 
 	/*
@@ -1541,15 +1542,14 @@ dwc_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_capabilities = IFCAP_VLAN_MTU;
-	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_start = dwc_txstart;
-	ifp->if_ioctl = dwc_ioctl;
-	ifp->if_init = dwc_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, TX_DESC_COUNT - 1);
-	ifp->if_snd.ifq_drv_maxlen = TX_DESC_COUNT - 1;
-	IFQ_SET_READY(&ifp->if_snd);
+	if_setflags(sc->ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
+	if_setstartfn(ifp, dwc_txstart);
+	if_setioctlfn(ifp, dwc_ioctl);
+	if_setinitfn(ifp, dwc_init);
+	if_setsendqlen(ifp, TX_DESC_COUNT - 1);
+	if_setsendqready(sc->ifp);
+	if_setcapabilities(sc->ifp, IFCAP_VLAN_MTU);
+	if_setcapenable(sc->ifp, if_getcapabilities(sc->ifp));
 
 	/* Attach the mii driver. */
 	error = mii_attach(dev, &sc->miibus, ifp, dwc_media_change,
