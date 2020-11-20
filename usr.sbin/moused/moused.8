@@ -147,7 +147,8 @@ is enabled, the
 option can be used to set the
 .Ar distance
 (in pixels) that the mouse must move before a scroll event
-is generated.  This effectively controls the scrolling speed.
+is generated.
+This effectively controls the scrolling speed.
 The default
 .Ar distance
 is 2 pixels.
@@ -240,20 +241,21 @@ drive the pointer quickly across the screen.
 The
 .Ar exp
 value specifies the exponent, which is basically
-the amount of acceleration.  Useful values are in the
-range 1.1 to 2.0, but it depends on your mouse hardware
-and your personal preference.  A value of 1.0 means no
-exponential acceleration.  A value of 2.0 means squared
-acceleration (i.e. if you move the mouse twice as fast,
-the pointer will move four times as fast on the screen).
+the amount of acceleration.
+Useful values are in the range 1.1 to 2.0, but it depends on
+your mouse hardware and your personal preference.
+A value of 1.0 means no exponential acceleration.
+A value of 2.0 means squared acceleration (i.e. if
+you move the mouse twice as fast, the pointer will move
+four times as fast on the screen).
 Values beyond 2.0 are possible but not recommended.
 A good value to start is probably 1.5.
 .Pp
 The optional
 .Ar offset
-value specifies the distance at which the acceleration
-begins.  The default is 1.0, which means that the
-acceleration is applied to movements larger than one unit.
+value specifies the distance at which the acceleration begins.
+The default is 1.0, which means that the acceleration is applied
+to movements larger than one unit.
 If you specify a larger value, it takes more speed for
 the acceleration to kick in, i.e. the speed range for
 small and accurate movements is wider.
@@ -263,8 +265,8 @@ not satisfied with the behaviour, try a value of 2.0.
 Note that the
 .Fl A
 option interacts badly with the X server's own acceleration,
-which doesn't work very well anyway.  Therefore it is
-recommended to switch it off if necessary:
+which doesn't work very well anyway.
+Therefore it is recommended to switch it off if necessary:
 .Dq xset m 1 .
 .It Fl a Ar X Ns Op , Ns Ar Y
 Accelerate or decelerate the mouse input.
