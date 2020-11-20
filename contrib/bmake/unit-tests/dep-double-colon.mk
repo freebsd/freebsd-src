@@ -1,6 +1,9 @@
-# $NetBSD: dep-double-colon.mk,v 1.4 2020/09/26 15:41:53 rillig Exp $
+# $NetBSD: dep-double-colon.mk,v 1.5 2020/11/15 20:20:58 rillig Exp $
 #
-# Tests for the :: operator in dependency declarations.
+# Tests for the '::' operator in dependency declarations, which allows
+# several dependency groups for a single node, each having its own attributes
+# and dependencies.  In the code, the additional dependency groups are called
+# cohorts.
 
 all::
 	@echo 'command 1a'

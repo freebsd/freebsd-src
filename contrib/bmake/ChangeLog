@@ -1,3 +1,78 @@
+2020-11-17  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20201117
+	Merge with NetBSD make, pick up
+	o fix some unit-tests when dash is .SHELL
+	o rename Targ_NewGN to GNode_New
+	o make some GNode functions const
+	o main.c: call Targ_Init before Var_Init
+	cleanup PrintOnError, getTmpdir and ParseBoolean
+	o var.c: fix error message of failed :!cmd! modifier
+
+2020-11-14  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20201114
+	Merge with NetBSD make, pick up
+	o replace a few HashTable_CreateEntry with HashTable_Set
+	o clean up cached_stats
+	o rename DEFAULT to defaultNode
+	o remove redundant struct make_stat
+	o cond.c: in lint mode, check for ".else <cond>"
+	use bitset for IfState
+	replace large switch with if-else in Cond_EvalLine
+	o job.c: clean up JobExec, JobStart, JobDoOutput
+	use stderr for error message about failed touch
+	clean up Job_Touch
+	replace macro DBPRINTF with JobPrintln
+	rename JobState to JobStatus
+	main.c: switch cache for realpath from GNode to HashTable
+	clean up Fatal
+	clean up InitDefSysIncPath
+	use progname instead of hard-coded 'make' in warning
+	rename Main_SetVarObjdir to SetVarObjdir
+	make.1: document the -S option
+	make.c: fix debug output for GNode details
+	use symbolic names in debug output of GNodes
+
+2020-11-12  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: fix --with-force-machine-arch
+
+	* VERSION (_MAKE_VERSION): 20201112
+	Merge with NetBSD make, pick up
+	o allow env var MAKE_OBJDIR_CHECK_WRITABLE=no to skip writable
+	checks in InitObjdir.  Explicit .OBJDIR target always allows
+	read-only directory.
+	o cond.c: clean up Cond_EvalLine
+
+2020-11-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20201111
+	Merge with NetBSD make, pick up
+	o more unit-tests
+	o style cleanup
+	remove redundant parentheses from sizeof operator
+	replace character literal 0 with '\0'.
+	replace pointer literal 0 with NULL.
+	remove redundant parentheses.
+	replace (expr & mask) == 0 with !(expr & mask).
+	use strict typing in conditions of the form !var
+	o rename Make_OODate to GNode_IsOODate
+	o rename Make_TimeStamp to GNode_UpdateYoungestChild
+	o rename Var_Set_with_flags to Var_SetWithFlags
+	o rename dieQuietly to shouldDieQuietly
+	o buf.c: make API of Buf_Init simpler
+	o compat.c: clean up Compat_Make, Compat_RunCommand,
+	CompatDeleteTarget and CompatInterrupt
+	o cond.c: in lint mode, only allow '&&' and '||', not '&' and '|'
+	clean up CondParser_Comparison
+	o main.c: rename getBoolean and s2Boolean
+	rename MAKEFILE_PREFERENCE for consistency
+	o parse.c: replace strstr in ParseMaybeSubMake with optimized code
+	o var.c: rename VARE_ASSIGN to VARE_KEEP_DOLLAR
+	replace emptyString with allocated empty string
+	error out on unclosed expressions after the colon
+
 2020-11-01  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20201101

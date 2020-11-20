@@ -16,7 +16,8 @@ CFLAGS="@CFLAGS@ -I. -I${srcdir} @DEFS@ @CPPFLAGS@ -DMAKE_NATIVE ${XDEFS} -DBMAK
 MAKE_VERSION=@_MAKE_VERSION@
 
 MDEFS="-DMAKE_VERSION=\"$MAKE_VERSION\" \
--D@force_machine@MACHINE=\"@machine@\" -DMACHINE_ARCH=\"@machine_arch@\" \
+-D@force_machine@MACHINE=\"@machine@\" \
+-D@force_machine_arch@MACHINE_ARCH=\"@machine_arch@\" \
 -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\""
 
 

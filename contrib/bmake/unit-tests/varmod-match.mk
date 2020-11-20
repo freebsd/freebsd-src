@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match.mk,v 1.5 2020/09/13 05:36:26 rillig Exp $
+# $NetBSD: varmod-match.mk,v 1.6 2020/11/15 18:33:41 rillig Exp $
 #
 # Tests for the :M variable modifier, which filters words that match the
 # given pattern.
@@ -50,6 +50,11 @@ ${:U*}=		asterisk
 .if ${:Ua \$ sign any-asterisk:M*\$*} != "any-asterisk"
 .  error
 .endif
+
+# TODO: ${VAR:M(((}}}}
+# TODO: ${VAR:M{{{)))}
+# TODO: ${VAR:M${UNBALANCED}}
+# TODO: ${VAR:M${:U(((\}\}\}}}
 
 all:
 	@:;

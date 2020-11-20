@@ -1,6 +1,7 @@
-# $NetBSD: modword.mk,v 1.4 2020/11/01 13:55:31 rillig Exp $
+# $NetBSD: modword.mk,v 1.5 2020/11/15 20:20:58 rillig Exp $
 #
 # Test behaviour of new :[] modifier
+# TODO: When was this modifier new?
 
 all: mod-squarebrackets mod-S-W mod-C-W mod-tW-tw
 

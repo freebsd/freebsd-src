@@ -1,4 +1,4 @@
-# $NetBSD: cond-token-plain.mk,v 1.4 2020/09/12 17:47:24 rillig Exp $
+# $NetBSD: cond-token-plain.mk,v 1.6 2020/11/15 14:58:14 rillig Exp $
 #
 # Tests for plain tokens (that is, string literals without quotes)
 # in .if conditions.
@@ -14,7 +14,7 @@
 # parser gets to see it.
 #
 # XXX: The error message is missing for this malformed condition.
-# The right-hand side of the comparison is just a '"'.
+# The right-hand side of the comparison is just a '"', before unescaping.
 .if ${:U} != "#hash"
 .  error
 .endif
@@ -31,16 +31,19 @@
 # comment handling anymore.  The comments are supposed to be stripped off
 # in a very early parsing phase.
 #
+# See https://gnats.netbsd.org/19596 for example makefiles demonstrating the
+# original problems.  This workaround is probably not needed anymore.
+#
 # XXX: Missing error message for the malformed condition. The right-hand
-# side is double-quotes, backslash, backslash.
-# XXX: It is unexpected that the right-hand side evaluates to a single
-# backslash.
+# side before unescaping is double-quotes, backslash, backslash.
 .if ${:U\\} != "\\#hash"
 .  error
 .endif
 
 # The right-hand side of a comparison is not parsed as a token, therefore
 # the code from CondParser_Token does not apply to it.
+# TODO: Explain the consequences.
+# TODO: Does this mean that more syntactic variants are allowed here?
 .if ${:U\#hash} != \#hash
 .  error
 .endif

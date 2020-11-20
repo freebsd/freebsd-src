@@ -1,8 +1,10 @@
-# $NetBSD: depsrc-make.mk,v 1.3 2020/09/05 15:57:12 rillig Exp $
+# $NetBSD: depsrc-make.mk,v 1.4 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the special source .MAKE in dependency declarations, which
 # executes the commands of the target even if the -n or -t command line
 # options are given.
+
+# TODO: Add a test for the -t command line option.
 
 .MAKEFLAGS: -n
 

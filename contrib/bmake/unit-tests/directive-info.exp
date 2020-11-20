@@ -1,1 +1,14 @@
-exit status 0
+make: "directive-info.mk" line 7: begin .info tests
+make: "directive-info.mk" line 8: Unknown directive "inf"
+make: "directive-info.mk" line 9: Unknown directive "info"
+make: "directive-info.mk" line 10: message
+make: "directive-info.mk" line 11: indented message
+make: "directive-info.mk" line 12: Unknown directive "information"
+make: "directive-info.mk" line 13: message
+make: "directive-info.mk" line 18: Unknown directive "info"
+make: "directive-info.mk" line 19: Unknown directive "info"
+make: "directive-info.mk" line 22: Unknown directive "info-message"
+make: "directive-info.mk" line 23: no-target: no-source
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

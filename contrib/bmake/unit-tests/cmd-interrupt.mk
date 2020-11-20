@@ -1,4 +1,4 @@
-# $NetBSD: cmd-interrupt.mk,v 1.2 2020/08/28 18:16:22 rillig Exp $
+# $NetBSD: cmd-interrupt.mk,v 1.3 2020/11/15 14:07:53 rillig Exp $
 #
 # Tests for interrupting a command.
 #
@@ -22,7 +22,7 @@ all: clean-before interrupt-ordinary interrupt-phony interrupt-precious clean-af
 clean-before clean-after: .PHONY
 	@rm -f cmd-interrupt-ordinary cmd-interrupt-phony cmd-interrupt-precious
 
-interrupt-ordinary: .PHONY
+interrupt-ordinary:
 	@${.MAKE} ${MAKEFLAGS} -f ${MAKEFILE} cmd-interrupt-ordinary || true
 	# The ././ is necessary to work around the file cache.
 	@echo ${.TARGET}: ${exists(././cmd-interrupt-ordinary) :? error : ok }

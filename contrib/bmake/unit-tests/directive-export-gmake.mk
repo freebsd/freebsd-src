@@ -1,4 +1,4 @@
-# $NetBSD: directive-export-gmake.mk,v 1.2 2020/10/19 18:59:53 rillig Exp $
+# $NetBSD: directive-export-gmake.mk,v 1.3 2020/11/17 20:16:44 rillig Exp $
 #
 # Tests for the export directive (without leading dot), as in GNU make.
 
@@ -39,8 +39,8 @@ export VAR=  leading spaces
 # may be silently discarded.  One such shell is dash, which is the default
 # shell on Ubuntu and Debian.
 export VAR =trailing space in varname
-.if ${:!env | grep trailing!} != "VAR =trailing space in varname"
-.  if ${:!env | grep trailing!} != "" # for dash
+.if ${:!env | grep trailing || true!} != "VAR =trailing space in varname"
+.  if ${:!env | grep trailing || true!} != "" # for dash
 .    error
 .  endif
 .endif

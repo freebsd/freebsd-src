@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.h,v 1.31 2020/10/25 19:19:07 rillig Exp $	*/
+/*	$NetBSD: hash.h,v 1.33 2020/11/14 21:29:44 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -103,13 +103,13 @@ typedef struct HashIter {
     HashEntry *entry;		/* Next entry to check in current bucket. */
 } HashIter;
 
-static inline MAKE_ATTR_UNUSED void *
+MAKE_INLINE void *
 HashEntry_Get(HashEntry *h)
 {
     return h->value;
 }
 
-static inline MAKE_ATTR_UNUSED void
+MAKE_INLINE void
 HashEntry_Set(HashEntry *h, void *datum)
 {
     h->value = datum;
@@ -122,6 +122,7 @@ void *HashTable_FindValue(HashTable *, const char *);
 unsigned int Hash_Hash(const char *);
 void *HashTable_FindValueHash(HashTable *, const char *, unsigned int);
 HashEntry *HashTable_CreateEntry(HashTable *, const char *, Boolean *);
+HashEntry *HashTable_Set(HashTable *, const char *, void *);
 void HashTable_DeleteEntry(HashTable *, HashEntry *);
 void HashTable_DebugStats(HashTable *, const char *);
 

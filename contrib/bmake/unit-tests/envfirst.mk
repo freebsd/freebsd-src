@@ -1,6 +1,8 @@
-# $NetBSD: envfirst.mk,v 1.3 2020/10/24 08:46:08 rillig Exp $
+# $NetBSD: envfirst.mk,v 1.4 2020/11/09 20:50:56 rillig Exp $
 #
 # The -e option makes environment variables stronger than global variables.
+
+.MAKEFLAGS: -e
 
 .if ${FROM_ENV} != value-from-env
 .  error ${FROM_ENV}

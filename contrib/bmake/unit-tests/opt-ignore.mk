@@ -1,4 +1,4 @@
-# $NetBSD: opt-ignore.mk,v 1.4 2020/10/18 18:12:42 rillig Exp $
+# $NetBSD: opt-ignore.mk,v 1.5 2020/11/09 20:50:56 rillig Exp $
 #
 # Tests for the -i command line option, which ignores the exit status of the
 # shell commands, and just continues with the next command, even from the same
@@ -11,6 +11,7 @@
 # failed?
 
 .MAKEFLAGS: -d0			# switch stdout to being line-buffered
+.MAKEFLAGS: -i
 
 all: dependency other
 

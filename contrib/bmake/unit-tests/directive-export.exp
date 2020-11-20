@@ -1,1 +1,4 @@
-exit status 0
+make: "directive-export.mk" line 25: Unknown directive "expor"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1
