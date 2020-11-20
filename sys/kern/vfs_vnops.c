@@ -3007,8 +3007,8 @@ vn_write_outvp(struct vnode *outvp, char *dat, off_t outoff, off_t xfer,
 				    curthread->td_ucred, cred, NULL, curthread);
 				outoff += xfer2;
 				xfer -= xfer2;
+				VOP_UNLOCK(outvp);
 			}
-			VOP_UNLOCK(outvp);
 		}
 		if (mp != NULL)
 			vn_finished_write(mp);
