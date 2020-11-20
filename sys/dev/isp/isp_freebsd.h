@@ -349,8 +349,6 @@ struct isposinfo {
 #define	GET_NANOSEC(x)		((x)->tv_sec * 1000000000 + (x)->tv_nsec)
 #define	NANOTIME_SUB		isp_nanotime_sub
 
-#define	MAXISPREQUEST(isp)	1024
-
 #define	MEMORYBARRIER(isp, type, offset, size, chan)		\
 switch (type) {							\
 case SYNC_REQUEST:						\

@@ -128,20 +128,15 @@ struct ispmdvec {
 
 /*
  * Request/Response Queue defines and macros.
- * The maximum is defined per platform (and can be based on board type).
  */
 /* This is the size of a queue entry (request and response) */
 #define	QENTRY_LEN			64
-/* Both request and result queue length must be a power of two */
-#define	RQUEST_QUEUE_LEN(x)		MAXISPREQUEST(x)
-#ifdef	ISP_TARGET_MODE
-#define	RESULT_QUEUE_LEN(x)		MAXISPREQUEST(x)
-#else
-#define	RESULT_QUEUE_LEN(x)		\
-	(((MAXISPREQUEST(x) >> 2) < 64)? 64 : MAXISPREQUEST(x) >> 2)
-#endif
-#define	ISP_QUEUE_ENTRY(q, idx)		(((uint8_t *)q) + ((idx) * QENTRY_LEN))
-#define	ISP_QUEUE_SIZE(n)		((n) * QENTRY_LEN)
+/* Queue lengths must be a power of two and at least 8 elements. */
+#define	RQUEST_QUEUE_LEN(x)		8192
+#define	RESULT_QUEUE_LEN(x)		1024
+#define	ATIO_QUEUE_LEN(x)		1024
+#define	ISP_QUEUE_ENTRY(q, idx)		(((uint8_t *)q) + ((size_t)(idx) * QENTRY_LEN))
+#define	ISP_QUEUE_SIZE(n)		((size_t)(n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
 #define	ISP_QFREE(in, out, qlen)	\
 	((in == out)? (qlen - 1) : ((in > out)? \
@@ -944,7 +939,7 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
 /*
  * This function handles new response queue entry appropriate for target mode.
  */
-int isp_target_notify(ispsoftc_t *, void *, uint32_t *);
+int isp_target_notify(ispsoftc_t *, void *, uint32_t *, uint16_t);
 
 /*
  * This function externalizes the ability to acknowledge an Immediate Notify request.

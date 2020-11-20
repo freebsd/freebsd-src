@@ -98,7 +98,7 @@ static const uint8_t alpa_map[] = {
 /*
  * Local function prototypes.
  */
-static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *);
+static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *, uint16_t);
 static void isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *, uint32_t *);
 static void isp_clear_portdb(ispsoftc_t *, int);
 static void isp_mark_portdb(ispsoftc_t *, int);
@@ -912,7 +912,7 @@ isp_init(ispsoftc_t *isp)
 
 #ifdef	ISP_TARGET_MODE
 	/* unconditionally set up the ATIO queue if we support target mode */
-	icbp->icb_atioqlen = RESULT_QUEUE_LEN(isp);
+	icbp->icb_atioqlen = ATIO_QUEUE_LEN(isp);
 	if (icbp->icb_atioqlen < 8) {
 		isp_prt(isp, ISP_LOGERR, "bad ATIO queue length %d", icbp->icb_atioqlen);
 		return;
@@ -3179,14 +3179,15 @@ isp_intr_atioq(ispsoftc_t *isp)
 		case RQSTYPE_ATIO:
 		case RQSTYPE_NOTIFY_ACK:	/* Can be set to ATIO queue.*/
 		case RQSTYPE_ABTS_RCVD:		/* Can be set to ATIO queue.*/
-			(void) isp_target_notify(isp, addr, &oop);
+			(void) isp_target_notify(isp, addr, &oop,
+			    ATIO_QUEUE_LEN(isp));
 			break;
 		case RQSTYPE_RPT_ID_ACQ:	/* Can be set to ATIO queue.*/
 		default:
 			isp_print_qentry(isp, "?ATIOQ entry?", oop, addr);
 			break;
 		}
-		optr = ISP_NXT_QENTRY(oop, RESULT_QUEUE_LEN(isp));
+		optr = ISP_NXT_QENTRY(oop, ATIO_QUEUE_LEN(isp));
 	}
 	if (isp->isp_atioodx != optr) {
 		ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, optr);
@@ -3287,7 +3288,8 @@ isp_intr_respq(ispsoftc_t *isp)
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			continue;
-		} else if (isp_handle_other_response(isp, etype, hp, &cptr)) {
+		} else if (isp_handle_other_response(isp, etype, hp,
+		    &cptr, RESULT_QUEUE_LEN(isp))) {
 			/* More then one IOCB could be consumed. */
 			while (sptr != cptr) {
 				ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
@@ -3729,7 +3731,7 @@ isp_intr_async(ispsoftc_t *isp, uint16_t mbox)
  */
 
 static int
-isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *optrp)
+isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *optrp, uint16_t ql)
 {
 	isp_ridacq_t rid;
 	int chan, c;
@@ -3794,7 +3796,7 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 	case RQSTYPE_ABTS_RCVD:		/* Can be set to ATIO queue. */
 	case RQSTYPE_ABTS_RSP:
 #ifdef	ISP_TARGET_MODE
-		return (isp_target_notify(isp, hp, optrp));
+		return (isp_target_notify(isp, hp, optrp, ql));
 #endif
 		/* FALLTHROUGH */
 	default:

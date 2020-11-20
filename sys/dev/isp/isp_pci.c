@@ -1009,9 +1009,9 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 
 #ifdef	ISP_TARGET_MODE
 	/*
-	 * Allocate and map ATIO queue on 24xx with target mode.
+	 * Allocate and map ATIO queue.
 	 */
-	len = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
+	len = ISP_QUEUE_SIZE(ATIO_QUEUE_LEN(isp));
 	if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    len, 1, len, 0, NULL, NULL, &isp->isp_osinfo.atiodmat)) {
