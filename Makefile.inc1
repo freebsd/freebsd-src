@@ -20,8 +20,12 @@
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
 #	LOCAL_MTREE="list of mtree files" to process to allow local directories
 #	    to be created before files are installed
+#	LOCAL_LEGACY_DIRS="list of dirs" to add additional dirs to the legacy
+#	    target
+#	LOCAL_BSTOOL_DIRS="list of dirs" to add additional dirs to the
+#	    bootstrap-tools target
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
-#	    list
+#	    target
 #	LOCAL_XTOOL_DIRS="list of dirs" to add additional dirs to the
 #	    cross-tools target
 #	METALOG="path to metadata log" to write permission and ownership
@@ -2127,7 +2131,9 @@ legacy: .PHONY
 	false
 .endif
 
-.for _tool in tools/build
+.for _tool in \
+  tools/build \
+  ${LOCAL_LEGACY_DIRS}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,includes,all,install)"; \
 	    cd ${.CURDIR}/${_tool}; \
 	    if [ -z "${NO_OBJWALK}" ]; then ${MAKE} DIRPRFX=${_tool}/ obj; fi; \
@@ -2458,7 +2464,8 @@ bootstrap-tools: ${_bt}-links .PHONY
     ${_crunchgen} \
     ${_nmtree} \
     ${_vtfontcvt} \
-    ${_localedef}
+    ${_localedef} \
+    ${LOCAL_BSTOOL_DIRS}
 ${_bt}-${_tool}: ${_bt}-links .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
