@@ -481,11 +481,11 @@ dwc_init_locked(struct dwc_softc *sc)
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-
 	dwc_setup_rxfilter(sc);
 	dwc_setup_core(sc);
 	dwc_init_dma(sc);
+
+	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 
 	/*
 	 * Call mii_mediachg() which will call back into dwc_miibus_statchg()
