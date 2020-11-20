@@ -212,6 +212,7 @@ static void dwc_rxfinish_locked(struct dwc_softc *sc);
 static void dwc_stop_locked(struct dwc_softc *sc);
 static void dwc_setup_rxfilter(struct dwc_softc *sc);
 static void dwc_setup_core(struct dwc_softc *sc);
+static void dwc_enable_mac(struct dwc_softc *sc, bool enable);
 static void dwc_init_dma(struct dwc_softc *sc);
 
 static inline uint32_t
@@ -483,6 +484,7 @@ dwc_init_locked(struct dwc_softc *sc)
 
 	dwc_setup_rxfilter(sc);
 	dwc_setup_core(sc);
+	dwc_enable_mac(sc, true);
 	dwc_init_dma(sc);
 
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
@@ -778,10 +780,23 @@ dwc_setup_core(struct dwc_softc *sc)
 
 	DWC_ASSERT_LOCKED(sc);
 
-	/* Enable transmitters */
+	/* Enable core */
 	reg = READ4(sc, MAC_CONFIGURATION);
 	reg |= (CONF_JD | CONF_ACS | CONF_BE);
-	reg |= (CONF_TE | CONF_RE);
+	WRITE4(sc, MAC_CONFIGURATION, reg);
+}
+
+static void
+dwc_enable_mac(struct dwc_softc *sc, bool enable)
+{
+	uint32_t reg;
+
+	DWC_ASSERT_LOCKED(sc);
+	reg = READ4(sc, MAC_CONFIGURATION);
+	if (enable)
+		reg |= CONF_TE | CONF_RE;
+	else
+		reg &= ~(CONF_TE | CONF_RE);
 	WRITE4(sc, MAC_CONFIGURATION, reg);
 }
 
