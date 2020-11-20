@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -115,10 +116,10 @@ power_set(int fd, int power_val, int workload, int perm)
 	pt.cmd.cdw11 = htole32(power_val | (workload << 5));
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "set feature power mgmt request failed");
+		err(EX_IOERR, "set feature power mgmt request failed");
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "set feature power mgmt request returned error");
+		errx(EX_IOERR, "set feature power mgmt request returned error");
 }
 
 static void
@@ -131,10 +132,10 @@ power_show(int fd)
 	pt.cmd.cdw10 = htole32(NVME_FEAT_POWER_MANAGEMENT);
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
-		err(1, "set feature power mgmt request failed");
+		err(EX_IOERR, "set feature power mgmt request failed");
 
 	if (nvme_completion_is_error(&pt.cpl))
-		errx(1, "set feature power mgmt request returned error");
+		errx(EX_IOERR, "set feature power mgmt request returned error");
 
 	printf("Current Power Mode is %d\n", pt.cpl.cdw0);
 }
@@ -164,7 +165,8 @@ power(const struct cmd *f, int argc, char *argv[])
 	free(path);
 
 	if (opt.list) {
-		read_controller_data(fd, &cdata);
+		if (read_controller_data(fd, &cdata))
+			errx(EX_IOERR, "Identify request failed");
 		power_list(&cdata);
 		goto out;
 	}

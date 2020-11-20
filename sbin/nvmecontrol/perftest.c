@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "nvmecontrol.h"
@@ -180,7 +181,7 @@ perftest(const struct cmd *f, int argc, char *argv[])
 	io_test.size = opt.size;
 	open_dev(opt.dev, &fd, 1, 1);
 	if (ioctl(fd, ioctl_cmd, &io_test) < 0)
-		err(1, "ioctl NVME_IO_TEST failed");
+		err(EX_IOERR, "ioctl NVME_IO_TEST failed");
 
 	close(fd);
 	print_perftest(&io_test, opt.perthread);

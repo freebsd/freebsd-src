@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
 #include "comnd.h"
@@ -77,7 +78,7 @@ gen_usage(const struct cmd *t)
 	SLIST_FOREACH(walker, &t->subcmd, link) {
 		print_usage(walker);
 	}
-	exit(1);
+	exit(EX_USAGE);
 }
 
 int
@@ -158,7 +159,7 @@ arg_help(int argc __unused, char * const *argv, const struct cmd *f)
 			fprintf(stderr, "%-30.30s - %s\n", buf, opts[i].descr);
 		}
 	}
-	exit(1);
+	exit(EX_USAGE);
 }
 
 static int
@@ -188,10 +189,10 @@ arg_parse(int argc, char * const * argv, const struct cmd *f)
 			n++;
 	lopts = malloc((n + 2) * sizeof(struct option));
 	if (lopts == NULL)
-		err(1, "option memory");
+		err(EX_OSERR, "option memory");
 	p = shortopts = malloc((2 * n + 3) * sizeof(char));
 	if (shortopts == NULL)
-		err(1, "shortopts memory");
+		err(EX_OSERR, "shortopts memory");
 	idx = 0;
 	for (i = 0; i < n; i++) {
 		lopts[i].name = opts[i].long_arg;
@@ -279,7 +280,7 @@ bad_arg:
 	fprintf(stderr, "Bad value to --%s: %s\n", opts[idx].long_arg, optarg);
 	free(lopts);
 	free(shortopts);
-	exit(1);
+	exit(EX_USAGE);
 }
 
 /*
@@ -301,7 +302,7 @@ cmd_load_dir(const char *dir __unused, cmd_load_cb_t cb __unused, void *argp __u
 			continue;
 		asprintf(&path, "%s/%s", dir, dent->d_name);
 		if (path == NULL)
-			err(1, "Can't malloc for path, giving up.");
+			err(EX_OSERR, "Can't malloc for path, giving up.");
 		if ((h = dlopen(path, RTLD_NOW | RTLD_GLOBAL)) == NULL)
 			warnx("Can't load %s: %s", path, dlerror());
 		else {
