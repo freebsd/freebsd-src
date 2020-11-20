@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2020
+.Dd November 12, 2020
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -571,6 +571,16 @@ may also be used as needed elsewhere within the list.
 If set, this variable supplies a list of additional mtrees relative to the
 root of the source tree to use as part of the
 .Cm hierarchy
+target.
+.It Va LOCAL_LEGACY_DIRS
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm legacy
+target.
+.It Va LOCAL_BSTOOL_DIRS
+If set, this variable supplies a list of additional directories relative to
+the root of the source tree to build as part of the
+.Cm bootstrap-tools
 target.
 .It Va LOCAL_TOOL_DIRS
 If set, this variable supplies a list of additional directories relative to
