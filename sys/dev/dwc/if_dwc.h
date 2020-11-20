@@ -70,6 +70,10 @@
 #define	 GMII_ADDRESS_GB	(1 << 0)	/* Busy */
 #define	GMII_DATA		0x14
 #define	FLOW_CONTROL		0x18
+#define	 FLOW_CONTROL_PT_SHIFT	16
+#define	 FLOW_CONTROL_UP	(1 << 3)	/* Unicast pause enable */
+#define	 FLOW_CONTROL_RX	(1 << 2)	/* RX Flow control enable */
+#define	 FLOW_CONTROL_TX	(1 << 1)	/* TX Flow control enable */
 #define	GMAC_VLAN_TAG		0x1C
 #define	VERSION			0x20
 #define	DEBUG			0x24
