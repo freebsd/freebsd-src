@@ -893,7 +893,9 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	int i, error, cmap = 0;
 	bus_size_t slim;	/* segment size */
 	struct imush im;
+#ifdef	ISP_TARGET_MODE
 	isp_ecmd_t *ecmd;
+#endif
 
 	/* Already been here? If so, leave... */
 	if (isp->isp_xflist != NULL)
