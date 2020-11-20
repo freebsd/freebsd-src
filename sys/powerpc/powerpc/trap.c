@@ -503,7 +503,7 @@ trap(struct trapframe *frame)
 		ksi.ksi_addr = (void *)addr;
 		ksi.ksi_trapno = type;
 		if (uprintf_signal) {
-			uprintf("pid %d comm %s: signal %d code %d type %d "
+			uprintf("pid %d comm %s: signal %d code %d type 0x%x "
 				"addr 0x%lx r1 0x%lx srr0 0x%lx srr1 0x%lx\n",
 			        p->p_pid, p->p_comm, sig, ucode, type,
 				(u_long)addr, (u_long)frame->fixreg[1],
