@@ -1153,7 +1153,7 @@ out:
 	return (0);
 }
 
-static int
+static void
 dwc_get_hwaddr(struct dwc_softc *sc, uint8_t *hwaddr)
 {
 	uint32_t hi, lo, rnd;
@@ -1185,8 +1185,6 @@ dwc_get_hwaddr(struct dwc_softc *sc, uint8_t *hwaddr)
 		hwaddr[4] = rnd >>  8;
 		hwaddr[5] = rnd >>  0;
 	}
-
-	return (0);
 }
 
 #define	GPIO_ACTIVE_LOW 1
@@ -1336,10 +1334,7 @@ dwc_attach(device_t dev)
 	}
 
 	/* Read MAC before reset */
-	if (dwc_get_hwaddr(sc, macaddr)) {
-		device_printf(sc->dev, "can't get mac\n");
-		return (ENXIO);
-	}
+	dwc_get_hwaddr(sc, macaddr);
 
 	/* Reset the PHY if needed */
 	if (dwc_reset(dev) != 0) {
