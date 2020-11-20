@@ -211,6 +211,8 @@ static void dwc_txfinish_locked(struct dwc_softc *sc);
 static void dwc_rxfinish_locked(struct dwc_softc *sc);
 static void dwc_stop_locked(struct dwc_softc *sc);
 static void dwc_setup_rxfilter(struct dwc_softc *sc);
+static void dwc_setup_core(struct dwc_softc *sc);
+static void dwc_init_dma(struct dwc_softc *sc);
 
 static inline uint32_t
 next_rxidx(struct dwc_softc *sc, uint32_t curidx)
@@ -473,7 +475,6 @@ static void
 dwc_init_locked(struct dwc_softc *sc)
 {
 	struct ifnet *ifp = sc->ifp;
-	uint32_t reg;
 
 	DWC_ASSERT_LOCKED(sc);
 
@@ -483,26 +484,8 @@ dwc_init_locked(struct dwc_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	dwc_setup_rxfilter(sc);
-
-	/* Initializa DMA and enable transmitters */
-	reg = READ4(sc, OPERATION_MODE);
-	reg |= (MODE_TSF | MODE_OSF | MODE_FUF);
-	reg &= ~(MODE_RSF);
-	reg |= (MODE_RTC_LEV32 << MODE_RTC_SHIFT);
-	WRITE4(sc, OPERATION_MODE, reg);
-
-	WRITE4(sc, INTERRUPT_ENABLE, INT_EN_DEFAULT);
-
-	/* Start DMA */
-	reg = READ4(sc, OPERATION_MODE);
-	reg |= (MODE_ST | MODE_SR);
-	WRITE4(sc, OPERATION_MODE, reg);
-
-	/* Enable transmitters */
-	reg = READ4(sc, MAC_CONFIGURATION);
-	reg |= (CONF_JD | CONF_ACS | CONF_BE);
-	reg |= (CONF_TE | CONF_RE);
-	WRITE4(sc, MAC_CONFIGURATION, reg);
+	dwc_setup_core(sc);
+	dwc_init_dma(sc);
 
 	/*
 	 * Call mii_mediachg() which will call back into dwc_miibus_statchg()
@@ -786,6 +769,42 @@ dwc_setup_rxfilter(struct dwc_softc *sc)
 		for (i = 0; i < nhash; i++)
 			WRITE4(sc, HASH_TABLE_REG(i), ctx.hash[i]);
 	}
+}
+
+static void
+dwc_setup_core(struct dwc_softc *sc)
+{
+	uint32_t reg;
+
+	DWC_ASSERT_LOCKED(sc);
+
+	/* Enable transmitters */
+	reg = READ4(sc, MAC_CONFIGURATION);
+	reg |= (CONF_JD | CONF_ACS | CONF_BE);
+	reg |= (CONF_TE | CONF_RE);
+	WRITE4(sc, MAC_CONFIGURATION, reg);
+}
+
+static void
+dwc_init_dma(struct dwc_softc *sc)
+{
+	uint32_t reg;
+
+	DWC_ASSERT_LOCKED(sc);
+
+	/* Initializa DMA and enable transmitters */
+	reg = READ4(sc, OPERATION_MODE);
+	reg |= (MODE_TSF | MODE_OSF | MODE_FUF);
+	reg &= ~(MODE_RSF);
+	reg |= (MODE_RTC_LEV32 << MODE_RTC_SHIFT);
+	WRITE4(sc, OPERATION_MODE, reg);
+
+	WRITE4(sc, INTERRUPT_ENABLE, INT_EN_DEFAULT);
+
+	/* Start DMA */
+	reg = READ4(sc, OPERATION_MODE);
+	reg |= (MODE_ST | MODE_SR);
+	WRITE4(sc, OPERATION_MODE, reg);
 }
 
 static int
