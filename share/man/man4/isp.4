@@ -1,4 +1,4 @@
-.\" Copyright (c) 2009-2018 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2009-2020 Alexander Motin <mav@FreeBSD.org>
 .\" Copyright (c) 2006 Marcus Alves Grando
 .\" Copyright (c) 1998-2001 Matthew Jacob, for NASA/Ames Research Center
 .\"
@@ -26,12 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2019
+.Dd November 19, 2020
 .Dt ISP 4
 .Os
 .Sh NAME
 .Nm isp
-.Nd Qlogic based SPI and FibreChannel SCSI Host Adapters
+.Nd Qlogic FibreChannel SCSI Host Adapters driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -51,23 +51,16 @@ ispfw_load="YES"
 .Ed
 .Sh DESCRIPTION
 This driver provides access to
-.Tn SPI
-or
 .Tn FibreChannel
 SCSI devices.
 .Pp
-SPI supports initiator mode for Ultra SCSI and wide mode transactions for
-.Tn SCSI ,
-Ultra2 LVD (1080, 1280), and Ultra3 LVD (10160, 12160).
-.Pp
-Fibre Channel supports initiator and target modes of FCP SCSI profile,
-utilizing Class 3 and Class 2 (2200 and later) connections.
+It supports initiator and target modes of FCP SCSI profile,
+utilizing Class 3 and Class 2 connections.
 Support is available for Public and Private loops, Point-to-Point
 and Fabric connections.
 .Pp
-FC-Tape is supported on 4Gb (2400) and newer controllers.
-FC-Tape is highly recommended for connections to tape drives that support
-it.
+Supported FC-Tape functionality is highly recommended for connections
+to tape drives that support it.
 It encompasses four elements from the T-10 FCP-4 specification:
 .Bl -bullet -offset indent
 .It
@@ -100,39 +93,8 @@ Cards supported by the
 .Nm
 driver include:
 .Bl -tag -width xxxxxx -offset indent
-.It Qlogic 1000
-Fast Wide, Ultra Fast Wide cards, Single Ended or Differential SBus cards.
-.It Qlogic 1020
-Fast Wide and Differential Fast Wide SCSI PCI cards.
-.It Qlogic 1040
-Ultra Wide and Differential Ultra Wide SCSI PCI cards.
-Also known as the DEC KZPBA-CA (single ended) and KZPBA-CB (HVD differential).
-.It Qlogic 1080
-LVD Ultra2 Wide SCSI PCI cards.
-.It Qlogic 10160
-LVD Ultra3 Wide SCSI PCI cards.
-.It Qlogic 1240
-Dual Bus Ultra Wide and Differential Ultra Wide SCSI PCI cards.
-.It Qlogic 1280
-Dual Bus LVD Ultra2 Wide SCSI PCI cards.
-.It Qlogic 12160
-Dual Bus LVD Ultra3 Wide SCSI PCI cards.
-.It Qlogic 210X
-Copper and Optical Fibre Channel Arbitrated Loop PCI cards (single, dual).
-.It Qlogic 220X
-Copper and Optical Fibre Channel Arbitrated Loop PCI cards (single, dual, quad).
-.It Qlogic 2300
-Optical 2Gb Fibre Channel PCI cards.
-.It Qlogic 2312
-Optical 2Gb Fibre Channel PCI cards.
-.It Qlogic 234X
-Optical 2Gb Fibre Channel PCI cards (2312 chipset, single and dual attach).
-.It Qlogic 2322
-Optical 2Gb Fibre Channel PCIe cards.
-.It Qlogic 200
-Dell branded version of the QLogic 2312.
 .It Qlogic 2422
-Optical 4Gb Fibre Channel PCI cards.
+Optical 4Gb Fibre Channel PCI-X cards.
 .It Qlogic 246x (aka 2432)
 Optical 4Gb Fibre Channel PCIe cards.
 .It Qlogic 256x (aka 2532)
@@ -260,6 +222,3 @@ Later improvement was done by
 .An Alexander Motin Aq Mt mav@FreeBSD.org .
 .Sh BUGS
 The driver currently ignores some NVRAM settings.
-.Pp
-Fabric support for 2100 cards has been so problematic, and these cards are so
-old now that it is just not worth your time to try it.

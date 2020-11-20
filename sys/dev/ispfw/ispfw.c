@@ -39,16 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #if	defined(ISP_ALL) || !defined(KLD_MODULE) 
-#define	ISP_1040	1
-#define	ISP_1040_IT	1
-#define	ISP_1080	1
-#define	ISP_1080_IT	1
-#define	ISP_12160	1
-#define	ISP_12160_IT	1
-#define	ISP_2100	1
-#define	ISP_2200	1
-#define	ISP_2300	1
-#define	ISP_2322	1
 #define	ISP_2400	1
 #define	ISP_2500	1
 #endif
@@ -57,27 +47,6 @@ __FBSDID("$FreeBSD$");
 #define	MODULE_NAME	"ispfw"
 #endif
 
-#if	defined(ISP_1040) || defined(ISP_1040_IT)
-#include <dev/ispfw/asm_1040.h>
-#endif
-#if	defined(ISP_1080) || defined(ISP_1080_IT)
-#include <dev/ispfw/asm_1080.h>
-#endif
-#if	defined(ISP_12160) || defined(ISP_12160_IT)
-#include <dev/ispfw/asm_12160.h>
-#endif
-#if	defined(ISP_2100)
-#include <dev/ispfw/asm_2100.h>
-#endif
-#if	defined(ISP_2200)
-#include <dev/ispfw/asm_2200.h>
-#endif
-#if	defined(ISP_2300)
-#include <dev/ispfw/asm_2300.h>
-#endif
-#if	defined(ISP_2322)
-#include <dev/ispfw/asm_2322.h>
-#endif
 #if	defined(ISP_2400)
 #include <dev/ispfw/asm_2400.h>
 #endif
@@ -85,27 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ispfw/asm_2500.h>
 #endif
 
-#if	defined(ISP_1040)
-static int	isp_1040_loaded;
-#endif
-#if	defined(ISP_1080)
-static int	isp_1080_loaded;
-#endif
-#if	defined(ISP_12160)
-static int	isp_12160_loaded;
-#endif
-#if	defined(ISP_2100)
-static int	isp_2100_loaded;
-#endif
-#if	defined(ISP_2200)
-static int	isp_2200_loaded;
-#endif
-#if	defined(ISP_2300)
-static int	isp_2300_loaded;
-#endif
-#if	defined(ISP_2322)
-static int	isp_2322_loaded;
-#endif
 #if	defined(ISP_2400)
 static int	isp_2400_loaded;
 #endif
@@ -139,27 +87,6 @@ static int
 do_load_fw(void)
 {
 
-#if	defined(ISP_1040)
-	RMACRO(isp_1040);
-#endif
-#if	defined(ISP_1080)
-	RMACRO(isp_1080);
-#endif
-#if	defined(ISP_12160)
-	RMACRO(isp_12160);
-#endif
-#if	defined(ISP_2100)
-	RMACRO(isp_2100);
-#endif
-#if	defined(ISP_2200)
-	RMACRO(isp_2200);
-#endif
-#if	defined(ISP_2300)
-	RMACRO(isp_2300);
-#endif
-#if	defined(ISP_2322)
-	RMACRO(isp_2322);
-#endif
 #if	defined(ISP_2400)
 	RMACRO(isp_2400);
 #endif
@@ -174,27 +101,6 @@ do_unload_fw(void)
 {
 	int error = 0;
 
-#if	defined(ISP_1040)
-	UMACRO(isp_1040);
-#endif
-#if	defined(ISP_1080)
-	UMACRO(isp_1080);
-#endif
-#if	defined(ISP_12160)
-	UMACRO(isp_12160);
-#endif
-#if	defined(ISP_2100)
-	UMACRO(isp_2100);
-#endif
-#if	defined(ISP_2200)
-	UMACRO(isp_2200);
-#endif
-#if	defined(ISP_2300)
-	UMACRO(isp_2300);
-#endif
-#if	defined(ISP_2322)
-	UMACRO(isp_2322);
-#endif
 #if	defined(ISP_2400)
 	UMACRO(isp_2400);
 #endif
@@ -221,20 +127,6 @@ static moduledata_t ispfw_mod = {
 };
 #if	defined(ISP_ALL) || !defined(KLD_MODULE) 
 DECLARE_MODULE(ispfw, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_1040)
-DECLARE_MODULE(isp_1040, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_1080)
-DECLARE_MODULE(isp_1080, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_12160)
-DECLARE_MODULE(isp_12160, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_2100)
-DECLARE_MODULE(isp_2100, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_2200)
-DECLARE_MODULE(isp_2200, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_2300)
-DECLARE_MODULE(isp_2300, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-#elif	defined(ISP_2322)
-DECLARE_MODULE(isp_2322, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2400)
 DECLARE_MODULE(isp_2400, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
 #elif	defined(ISP_2500)

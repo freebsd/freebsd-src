@@ -4,6 +4,7 @@
  *
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions
  *
+ * Copyright (c) 2009-2020 Alexander Motin <mav@FreeBSD.org>
  * Copyright (c) 1997-2008 by Matthew Jacob
  * All rights reserved.
  *
@@ -67,11 +68,6 @@
 
 #define	ISP_PLATFORM_VERSION_MAJOR	7
 #define	ISP_PLATFORM_VERSION_MINOR	10
-
-/*
- * Efficiency- get rid of SBus code && tests unless we need them.
- */
-#define	ISP_SBUS_SUPPORTED	0
 
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 
@@ -237,24 +233,6 @@ struct isp_fc {
 	int			num_threads;
 };
 
-struct isp_spi {
-	struct cam_sim *sim;
-	struct cam_path *path;
-	uint32_t
-		simqfrozen	: 3,
-		iid		: 4;
-#ifdef	ISP_TARGET_MODE
-	struct tslist		lun_hash[LUN_HASH_SIZE];
-	struct isp_ccbq		waitq;		/* waiting CCBs */
-	struct ntpdlist		ntfree;
-	inot_private_data_t	ntpool[ATPDPSIZE];
-	struct atpdlist		atfree;
-	struct atpdlist		atused[ATPDPHASHSIZE];
-	atio_private_data_t	atpool[ATPDPSIZE];
-#endif
-	int			num_threads;
-};
-
 struct isposinfo {
 	/*
 	 * Linkage, locking, and identity
@@ -318,32 +296,18 @@ struct isposinfo {
 	 */
 	union {
 		struct isp_fc *fc;
-		struct isp_spi *spi;
 		void *ptr;
 	} pc;
 
 	int			is_exiting;
 };
 #define	ISP_FC_PC(isp, chan)	(&(isp)->isp_osinfo.pc.fc[(chan)])
-#define	ISP_SPI_PC(isp, chan)	(&(isp)->isp_osinfo.pc.spi[(chan)])
 #define	ISP_GET_PC(isp, chan, tag, rslt)		\
-	if (IS_SCSI(isp)) {				\
-		rslt = ISP_SPI_PC(isp, chan)-> tag;	\
-	} else {					\
-		rslt = ISP_FC_PC(isp, chan)-> tag;	\
-	}
+	rslt = ISP_FC_PC(isp, chan)->tag
 #define	ISP_GET_PC_ADDR(isp, chan, tag, rp)		\
-	if (IS_SCSI(isp)) {				\
-		rp = &ISP_SPI_PC(isp, chan)-> tag;	\
-	} else {					\
-		rp = &ISP_FC_PC(isp, chan)-> tag;	\
-	}
+	rp = &ISP_FC_PC(isp, chan)->tag
 #define	ISP_SET_PC(isp, chan, tag, val)			\
-	if (IS_SCSI(isp)) {				\
-		ISP_SPI_PC(isp, chan)-> tag = val;	\
-	} else {					\
-		ISP_FC_PC(isp, chan)-> tag = val;	\
-	}
+	ISP_FC_PC(isp, chan)-> tag = val
 
 #define	FCP_NEXT_CRN	isp_fcp_next_crn
 #define	isp_lock	isp_osinfo.lock
@@ -382,7 +346,7 @@ struct isposinfo {
 #define	GET_NANOSEC(x)		((x)->tv_sec * 1000000000 + (x)->tv_nsec)
 #define	NANOTIME_SUB		isp_nanotime_sub
 
-#define	MAXISPREQUEST(isp)	((IS_FC(isp) || IS_ULTRA2(isp))? 1024 : 256)
+#define	MAXISPREQUEST(isp)	1024
 
 #define	MEMORYBARRIER(isp, type, offset, size, chan)		\
 switch (type) {							\
@@ -497,22 +461,6 @@ default:							\
         d->ds_basehi = DMA_HI32(e->ds_addr);	\
         d->ds_count = e->ds_len;		\
 }
-#define XS_GET_DMA_SEG(a, b, c)			\
-{						\
-	ispds_t *d = a;				\
-	bus_dma_segment_t *e = b;		\
-	uint32_t f = c;				\
-	e += f;					\
-        d->ds_base = DMA_LO32(e->ds_addr);	\
-        d->ds_count = e->ds_len;		\
-}
-#if (BUS_SPACE_MAXADDR > UINT32_MAX)
-#define XS_NEED_DMA64_SEG(s, n)					\
-	(((bus_dma_segment_t *)s)[n].ds_addr +			\
-	    ((bus_dma_segment_t *)s)[n].ds_len > UINT32_MAX)
-#else
-#define XS_NEED_DMA64_SEG(s, n)	(0)
-#endif
 #define	XS_ISP(ccb)		cam_sim_softc(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_CHANNEL(ccb)		cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path))
 #define	XS_TGT(ccb)		(ccb)->ccb_h.target_id
@@ -547,9 +495,11 @@ default:							\
 	(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) && \
 	 (ccb)->tag_action != CAM_TAG_ACTION_NONE)
 
-#define	XS_TAG_TYPE(ccb)	\
-	((ccb->tag_action == MSG_SIMPLE_Q_TAG)? REQFLAG_STAG : \
-	 ((ccb->tag_action == MSG_HEAD_OF_Q_TAG)? REQFLAG_HTAG : REQFLAG_OTAG))
+#define	XS_TAG_TYPE(ccb)				\
+	((ccb->tag_action == MSG_HEAD_OF_QUEUE_TASK)? FCP_CMND_TASK_ATTR_HEAD:\
+	 ((ccb->tag_action == MSG_ORDERED_TASK) ? FCP_CMND_TASK_ATTR_ORDERED :\
+	 ((ccb->tag_action == MSG_ACA_TASK) ? FCP_CMND_TASK_ATTR_ACA :	\
+	  FCP_CMND_TASK_ATTR_SIMPLE)))
 
 #define	XS_PRIORITY(ccb)	(ccb)->priority
 
@@ -594,10 +544,7 @@ default:							\
 #define	DEFAULT_FRAMESIZE(isp)		isp->isp_osinfo.framesize
 #define	DEFAULT_EXEC_THROTTLE(isp)	isp->isp_osinfo.exec_throttle
 
-#define	DEFAULT_ROLE(isp, chan)	\
-	(IS_FC(isp)? ISP_FC_PC(isp, chan)->def_role : ISP_ROLE_INITIATOR)
-
-#define	DEFAULT_IID(isp, chan)		isp->isp_osinfo.pc.spi[chan].iid
+#define	DEFAULT_ROLE(isp, chan)		ISP_FC_PC(isp, chan)->def_role
 
 #define	DEFAULT_LOOPID(x, chan)		isp->isp_osinfo.pc.fc[chan].default_id
 
@@ -608,28 +555,12 @@ default:							\
 
 
 #if	BYTE_ORDER == BIG_ENDIAN
-#ifdef	ISP_SBUS_SUPPORTED
-#define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
-#define	ISP_IOXPUT_16(isp, s, d)				\
-	*(d) = (isp->isp_bustype == ISP_BT_SBUS)? s : bswap16(s)
-#define	ISP_IOXPUT_32(isp, s, d)				\
-	*(d) = (isp->isp_bustype == ISP_BT_SBUS)? s : bswap32(s)
-#define	ISP_IOXGET_8(isp, s, d)		d = (*((uint8_t *)s))
-#define	ISP_IOXGET_16(isp, s, d)				\
-	d = (isp->isp_bustype == ISP_BT_SBUS)?			\
-	*((uint16_t *)s) : bswap16(*((uint16_t *)s))
-#define	ISP_IOXGET_32(isp, s, d)				\
-	d = (isp->isp_bustype == ISP_BT_SBUS)?			\
-	*((uint32_t *)s) : bswap32(*((uint32_t *)s))
-
-#else	/* ISP_SBUS_SUPPORTED */
 #define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
 #define	ISP_IOXPUT_16(isp, s, d)	*(d) = bswap16(s)
 #define	ISP_IOXPUT_32(isp, s, d)	*(d) = bswap32(s)
 #define	ISP_IOXGET_8(isp, s, d)		d = (*((uint8_t *)s))
 #define	ISP_IOXGET_16(isp, s, d)	d = bswap16(*((uint16_t *)s))
 #define	ISP_IOXGET_32(isp, s, d)	d = bswap32(*((uint32_t *)s))
-#endif
 #define	ISP_SWIZZLE_NVRAM_WORD(isp, rp)	*rp = bswap16(*rp)
 #define	ISP_SWIZZLE_NVRAM_LONG(isp, rp)	*rp = bswap32(*rp)
 
@@ -639,7 +570,6 @@ default:							\
 #define	ISP_IOZPUT_8(isp, s, d)		*(d) = s
 #define	ISP_IOZPUT_16(isp, s, d)	*(d) = s
 #define	ISP_IOZPUT_32(isp, s, d)	*(d) = s
-
 
 #else
 #define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
@@ -654,11 +584,9 @@ default:							\
 #define	ISP_IOZPUT_8(isp, s, d)		*(d) = s
 #define	ISP_IOZPUT_16(isp, s, d)	*(d) = bswap16(s)
 #define	ISP_IOZPUT_32(isp, s, d)	*(d) = bswap32(s)
-
 #define	ISP_IOZGET_8(isp, s, d)		d = (*((uint8_t *)(s)))
 #define	ISP_IOZGET_16(isp, s, d)	d = bswap16(*((uint16_t *)(s)))
 #define	ISP_IOZGET_32(isp, s, d)	d = bswap32(*((uint32_t *)(s)))
-
 #endif
 
 #define	ISP_SWAP16(isp, s)	bswap16(s)
@@ -697,10 +625,6 @@ extern int isp_gone_device_time;
 extern int isp_quickboot_time;
 
 /*
- * Platform private flags
- */
-
-/*
  * Platform Library Functions
  */
 void isp_prt(ispsoftc_t *, int level, const char *, ...) __printflike(3, 4);
@@ -725,10 +649,6 @@ int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 	if ((l) == ISP_LOGALL || ((l)& (i)->isp_dblev) != 0) {		\
                 xpt_print(p, __VA_ARGS__);				\
         }
-
-/*
- * Platform specific inline functions
- */
 
 /*
  * ISP General Library functions

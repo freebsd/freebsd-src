@@ -28,13 +28,6 @@
 
 
 SUBDIR = ispfw
-SUBDIR += isp_1040
-SUBDIR += isp_1080
-SUBDIR += isp_12160
-SUBDIR += isp_2100
-SUBDIR += isp_2200
-SUBDIR += isp_2300
-SUBDIR += isp_2322
 SUBDIR += isp_2400
 SUBDIR += isp_2500
 
