@@ -1,0 +1,11 @@
+#*** Input graph:
+# all, made UNMADE, type OP_DEPENDS, flags none
+# makeinfo, made UNMADE, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
+# make-index, made UNMADE, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+# braces-dot, made UNMADE, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+# braces-no-dot, made UNMADE, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+# braces-no-dot-modifier, made UNMADE, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
+# parentheses-dot, made UNMADE, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+# parentheses-no-dot, made UNMADE, type OP_DEPENDS|OP_SUBMAKE|OP_HAS_COMMANDS, flags none
+
+exit status 0

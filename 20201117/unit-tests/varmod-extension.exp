@@ -1,0 +1,10 @@
+extension of 'a/b/c' is ''
+extension of 'def' is ''
+extension of 'a.b.c' is 'c'
+extension of 'a.b/c' is 'b/c'
+extension of 'a' is ''
+extension of 'a.a' is 'a'
+extension of '.gitignore' is 'gitignore'
+extension of 'a' is ''
+extension of 'a.a' is 'a'
+exit status 0

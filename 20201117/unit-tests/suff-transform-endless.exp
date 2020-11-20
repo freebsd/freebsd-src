@@ -1,0 +1,4 @@
+make: "suff-transform-endless.mk" line 36: prevent endless loop
+
+make: stopped in unit-tests
+exit status 1

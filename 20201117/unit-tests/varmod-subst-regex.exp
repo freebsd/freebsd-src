@@ -1,0 +1,23 @@
+make: Regex compilation error: (details omitted)
+mod-regex-compile-error: C,word,____,:Q}.
+make: No subexpression \1
+make: No subexpression \1
+make: No subexpression \1
+make: No subexpression \1
+mod-regex-limits:11-missing:1 6
+mod-regex-limits:11-ok:1 22 446
+make: No subexpression \2
+make: No subexpression \2
+make: No subexpression \2
+make: No subexpression \2
+mod-regex-limits:22-missing:1 6
+make: No subexpression \2
+make: No subexpression \2
+make: No subexpression \2
+make: No subexpression \2
+mod-regex-limits:22-missing:1 6
+mod-regex-limits:22-ok:1 33 556
+mod-regex-limits:capture:ihgfedcbaabcdefghijABCDEFGHIJa0a1a2rest
+make: Regex compilation error: (details omitted)
+mod-regex-errors:
+exit status 0

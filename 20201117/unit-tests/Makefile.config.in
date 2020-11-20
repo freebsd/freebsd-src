@@ -1,0 +1,4 @@
+# $Id: Makefile.config.in,v 1.1 2018/12/30 17:14:24 sjg Exp $
+
+srcdir= @srcdir@
+DIFF_FLAGS?= @diff_u@

@@ -1,0 +1,17 @@
+#*** Input graph:
+# all, made UNMADE, type OP_DEPENDS|OP_HAS_COMMANDS, flags none
+# made-target, made UNMADE, type OP_DEPENDS, flags none
+# made-target-no-sources, made UNMADE, type OP_DEPENDS, flags none
+# made-source, made UNMADE, type OP_DEPENDS, flags none
+# unmade-target, made UNMADE, type OP_DEPENDS, flags none
+# unmade-sources, made UNMADE, type none, flags none
+# unmade-silent-source, made UNMADE, type OP_SILENT, flags none
+# unmade-target-no-sources, made UNMADE, type OP_DEPENDS, flags none
+
+
+#
+#   Files that are only sources:
+#	unmade-sources [unmade-sources]
+#	unmade-silent-source [unmade-silent-source] .SILENT
+#*** Transformations:
+exit status 0

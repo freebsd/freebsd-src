@@ -1,0 +1,10 @@
+root of 'a/b/c' is 'a/b/c'
+root of 'def' is 'def'
+root of 'a.b.c' is 'a.b'
+root of 'a.b/c' is 'a'
+root of 'a' is 'a'
+root of 'a.a' is 'a'
+root of '.gitignore' is ''
+root of 'a' is 'a'
+root of 'a.a' is 'a'
+exit status 0

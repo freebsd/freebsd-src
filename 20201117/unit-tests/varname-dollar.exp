@@ -1,0 +1,5 @@
+make: "varname-dollar.mk" line 16: dollar is $.
+make: "varname-dollar.mk" line 17: dollar in braces is .
+make: "varname-dollar.mk" line 25: dollar is $.
+make: "varname-dollar.mk" line 26: dollar in braces is dollar.
+exit status 0
