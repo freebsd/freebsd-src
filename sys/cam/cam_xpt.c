@@ -178,7 +178,7 @@ struct cam_doneq {
 };
 
 static struct cam_doneq cam_doneqs[MAXCPU];
-static int cam_num_doneqs;
+static u_int __read_mostly cam_num_doneqs;
 static struct proc *cam_proc;
 
 SYSCTL_INT(_kern_cam, OID_AUTO, num_doneqs, CTLFLAG_RDTUN,
@@ -4620,7 +4620,7 @@ xpt_done(union ccb *done_ccb)
 
 	/* Store the time the ccb was in the sim */
 	done_ccb->ccb_h.qos.periph_data = cam_iosched_delta_t(done_ccb->ccb_h.qos.periph_data);
-	hash = (done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
+	hash = (u_int)(done_ccb->ccb_h.path_id + done_ccb->ccb_h.target_id +
 	    done_ccb->ccb_h.target_lun) % cam_num_doneqs;
 	queue = &cam_doneqs[hash];
 	mtx_lock(&queue->cam_doneq_mtx);
