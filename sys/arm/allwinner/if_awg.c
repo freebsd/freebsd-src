@@ -705,24 +705,70 @@ awg_setup_rxfilter(struct awg_softc *sc)
 }
 
 static void
-awg_enable_intr(struct awg_softc *sc)
+awg_setup_core(struct awg_softc *sc)
+{
+	uint32_t val;
+
+	AWG_ASSERT_LOCKED(sc);
+	/* Configure DMA burst length and priorities */
+	val = awg_burst_len << BASIC_CTL_BURST_LEN_SHIFT;
+	if (awg_rx_tx_pri)
+		val |= BASIC_CTL_RX_TX_PRI;
+	WR4(sc, EMAC_BASIC_CTL_1, val);
+
+	/* Enable transmitter */
+	val = RD4(sc, EMAC_TX_CTL_0);
+	WR4(sc, EMAC_TX_CTL_0, val | TX_EN);
+
+	/* Enable receiver */
+	val = RD4(sc, EMAC_RX_CTL_0);
+	WR4(sc, EMAC_RX_CTL_0, val | RX_EN | CHECK_CRC);
+}
+
+static void
+awg_enable_dma_intr(struct awg_softc *sc)
 {
 	/* Enable interrupts */
 	WR4(sc, EMAC_INT_EN, RX_INT_EN | TX_INT_EN | TX_BUF_UA_INT_EN);
 }
 
 static void
-awg_disable_intr(struct awg_softc *sc)
+awg_disable_dma_intr(struct awg_softc *sc)
 {
 	/* Disable interrupts */
 	WR4(sc, EMAC_INT_EN, 0);
 }
 
 static void
+awg_init_dma(struct awg_softc *sc)
+{
+	uint32_t val;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	/* Enable interrupts */
+#ifdef DEVICE_POLLING
+	if ((if_getcapenable(sc->ifp) & IFCAP_POLLING) == 0)
+		awg_enable_dma_intr(sc);
+	else
+		awg_disable_dma_intr(sc);
+#else
+	awg_enable_dma_intr(sc);
+#endif
+
+	/* Enable transmit DMA */
+	val = RD4(sc, EMAC_TX_CTL_1);
+	WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_EN | TX_MD | TX_NEXT_FRAME);
+
+	/* Enable receive DMA */
+	val = RD4(sc, EMAC_RX_CTL_1);
+	WR4(sc, EMAC_RX_CTL_1, val | RX_DMA_EN | RX_MD);
+}
+
+static void
 awg_init_locked(struct awg_softc *sc)
 {
 	struct mii_data *mii;
-	uint32_t val;
 	if_t ifp;
 
 	mii = device_get_softc(sc->miibus);
@@ -734,38 +780,8 @@ awg_init_locked(struct awg_softc *sc)
 		return;
 
 	awg_setup_rxfilter(sc);
-
-	/* Configure DMA burst length and priorities */
-	val = awg_burst_len << BASIC_CTL_BURST_LEN_SHIFT;
-	if (awg_rx_tx_pri)
-		val |= BASIC_CTL_RX_TX_PRI;
-	WR4(sc, EMAC_BASIC_CTL_1, val);
-
-	/* Enable interrupts */
-#ifdef DEVICE_POLLING
-	if ((if_getcapenable(ifp) & IFCAP_POLLING) == 0)
-		awg_enable_intr(sc);
-	else
-		awg_disable_intr(sc);
-#else
-	awg_enable_intr(sc);
-#endif
-
-	/* Enable transmit DMA */
-	val = RD4(sc, EMAC_TX_CTL_1);
-	WR4(sc, EMAC_TX_CTL_1, val | TX_DMA_EN | TX_MD | TX_NEXT_FRAME);
-
-	/* Enable receive DMA */
-	val = RD4(sc, EMAC_RX_CTL_1);
-	WR4(sc, EMAC_RX_CTL_1, val | RX_DMA_EN | RX_MD);
-
-	/* Enable transmitter */
-	val = RD4(sc, EMAC_TX_CTL_0);
-	WR4(sc, EMAC_TX_CTL_0, val | TX_EN);
-
-	/* Enable receiver */
-	val = RD4(sc, EMAC_RX_CTL_0);
-	WR4(sc, EMAC_RX_CTL_0, val | RX_EN | CHECK_CRC);
+	awg_setup_core(sc);
+	awg_init_dma(sc);
 
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
 
@@ -813,7 +829,7 @@ awg_stop(struct awg_softc *sc)
 	WR4(sc, EMAC_RX_CTL_0, val & ~RX_EN);
 
 	/* Disable interrupts */
-	awg_disable_intr(sc);
+	awg_disable_dma_intr(sc);
 
 	/* Disable transmit DMA */
 	val = RD4(sc, EMAC_TX_CTL_1);
@@ -1101,13 +1117,13 @@ awg_ioctl(if_t ifp, u_long cmd, caddr_t data)
 				if (error != 0)
 					break;
 				AWG_LOCK(sc);
-				awg_disable_intr(sc);
+				awg_disable_dma_intr(sc);
 				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				AWG_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
 				AWG_LOCK(sc);
-				awg_enable_intr(sc);
+				awg_enable_dma_intr(sc);
 				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 				AWG_UNLOCK(sc);
 			}
