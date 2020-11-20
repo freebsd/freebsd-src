@@ -781,6 +781,31 @@ awg_init_dma(struct awg_softc *sc)
 }
 
 static void
+awg_stop_dma(struct awg_softc *sc)
+{
+	uint32_t val;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	/* Stop transmit DMA and flush data in the TX FIFO */
+	val = RD4(sc, EMAC_TX_CTL_1);
+	val &= ~TX_DMA_EN;
+	val |= FLUSH_TX_FIFO;
+	WR4(sc, EMAC_TX_CTL_1, val);
+
+	/* Disable interrupts */
+	awg_disable_dma_intr(sc);
+
+	/* Disable transmit DMA */
+	val = RD4(sc, EMAC_TX_CTL_1);
+	WR4(sc, EMAC_TX_CTL_1, val & ~TX_DMA_EN);
+
+	/* Disable receive DMA */
+	val = RD4(sc, EMAC_RX_CTL_1);
+	WR4(sc, EMAC_RX_CTL_1, val & ~RX_DMA_EN);
+}
+
+static void
 awg_init_locked(struct awg_softc *sc)
 {
 	struct mii_data *mii;
@@ -830,24 +855,8 @@ awg_stop(struct awg_softc *sc)
 
 	callout_stop(&sc->stat_ch);
 
-	/* Stop transmit DMA and flush data in the TX FIFO */
-	val = RD4(sc, EMAC_TX_CTL_1);
-	val &= ~TX_DMA_EN;
-	val |= FLUSH_TX_FIFO;
-	WR4(sc, EMAC_TX_CTL_1, val);
-
+	awg_stop_dma(sc);
 	awg_enable_mac(sc, false);
-
-	/* Disable interrupts */
-	awg_disable_dma_intr(sc);
-
-	/* Disable transmit DMA */
-	val = RD4(sc, EMAC_TX_CTL_1);
-	WR4(sc, EMAC_TX_CTL_1, val & ~TX_DMA_EN);
-
-	/* Disable receive DMA */
-	val = RD4(sc, EMAC_RX_CTL_1);
-	WR4(sc, EMAC_RX_CTL_1, val & ~RX_DMA_EN);
 
 	sc->link = 0;
 
