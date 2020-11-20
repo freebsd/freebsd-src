@@ -716,14 +716,29 @@ awg_setup_core(struct awg_softc *sc)
 		val |= BASIC_CTL_RX_TX_PRI;
 	WR4(sc, EMAC_BASIC_CTL_1, val);
 
-	/* Enable transmitter */
-	val = RD4(sc, EMAC_TX_CTL_0);
-	WR4(sc, EMAC_TX_CTL_0, val | TX_EN);
-
-	/* Enable receiver */
-	val = RD4(sc, EMAC_RX_CTL_0);
-	WR4(sc, EMAC_RX_CTL_0, val | RX_EN | CHECK_CRC);
 }
+
+static void
+awg_enable_mac(struct awg_softc *sc, bool enable)
+{
+	uint32_t tx, rx;
+
+	AWG_ASSERT_LOCKED(sc);
+
+	tx = RD4(sc, EMAC_TX_CTL_0);
+	rx = RD4(sc, EMAC_RX_CTL_0);
+	if (enable) {
+		tx |= TX_EN;
+		rx |= RX_EN | CHECK_CRC;
+	} else {
+		tx &= ~TX_EN;
+		rx &= ~(RX_EN | CHECK_CRC);
+	}
+
+	WR4(sc, EMAC_TX_CTL_0, tx);
+	WR4(sc, EMAC_RX_CTL_0, rx);
+}
+
 
 static void
 awg_enable_dma_intr(struct awg_softc *sc)
@@ -781,6 +796,7 @@ awg_init_locked(struct awg_softc *sc)
 
 	awg_setup_rxfilter(sc);
 	awg_setup_core(sc);
+	awg_enable_mac(sc, true);
 	awg_init_dma(sc);
 
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
@@ -820,13 +836,7 @@ awg_stop(struct awg_softc *sc)
 	val |= FLUSH_TX_FIFO;
 	WR4(sc, EMAC_TX_CTL_1, val);
 
-	/* Disable transmitter */
-	val = RD4(sc, EMAC_TX_CTL_0);
-	WR4(sc, EMAC_TX_CTL_0, val & ~TX_EN);
-
-	/* Disable receiver */
-	val = RD4(sc, EMAC_RX_CTL_0);
-	WR4(sc, EMAC_RX_CTL_0, val & ~RX_EN);
+	awg_enable_mac(sc, false);
 
 	/* Disable interrupts */
 	awg_disable_dma_intr(sc);
