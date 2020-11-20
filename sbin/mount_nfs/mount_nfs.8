@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2019
+.Dd November 20, 2020
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -403,6 +403,12 @@ interval.)
 .It Cm timeo Ns = Ns Aq Ar value
 Alias for
 .Cm timeout .
+.It Cm tls
+This option specifies that the connection to the server must use TLS
+per RFC NNNN.
+TLS is only supported for TCP connections and the
+.Xr rpc.tlsclntd 8
+daemon must be running for an NFS over TCP connection to use TLS.
 .It Cm udp
 Use UDP transport.
 .It Cm vers Ns = Ns Aq Ar vers_number
@@ -537,6 +543,7 @@ Same as
 .Xr mount 8 ,
 .Xr nfsd 8 ,
 .Xr nfsiod 8 ,
+.Xr rpc.tlsclntd 8 ,
 .Xr showmount 8
 .Sh HISTORY
 A version of the
