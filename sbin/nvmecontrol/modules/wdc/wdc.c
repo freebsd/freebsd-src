@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "nvmecontrol.h"
 
@@ -61,14 +62,18 @@ static struct options
 {
 	const char *template;
 	const char *dev;
+	uint8_t data_area;
 } opt = {
 	.template = NULL,
 	.dev = NULL,
+	.data_area = 0,
 };
 
 static const struct opts opts[] = {
 	OPT("template", 'o', arg_string, opt, template,
 	    "Template for paths to use for different logs"),
+	OPT("data-area", 'd', arg_uint8, opt, data_area,
+	    "Data-area to retrieve up to"),
 	OPT_END
 };
 
@@ -88,10 +93,26 @@ static struct cmd cap_diag_cmd = {
 
 CMD_SUBCOMMAND(wdc_cmd, cap_diag_cmd);
 
-#define WDC_NVME_TOC_SIZE	8
+#define WDC_NVME_VID				0x1c58
+#define WDC_NVME_VID_2				0x1b96
+#define WDC_NVME_VID_3				0x15b7
 
-#define WDC_NVME_CAP_DIAG_OPCODE	0xe6
-#define WDC_NVME_CAP_DIAG_CMD		0x0000
+#define WDC_NVME_TOC_SIZE			0x8
+#define WDC_NVME_LOG_SIZE_HDR_LEN		0x8
+#define WDC_NVME_CAP_DIAG_OPCODE_E6		0xe6
+#define WDC_NVME_CAP_DIAG_CMD			0x0000
+#define WDC_NVME_CAP_DIAG_OPCODE_FA		0xfa
+#define WDC_NVME_DUI_MAX_SECTIONS_V0		0x3c
+#define WDC_NVME_DUI_MAX_SECTIONS_V1		0x3a
+#define WDC_NVME_DUI_MAX_SECTIONS_V2		0x26
+#define WDC_NVME_DUI_MAX_SECTIONS_V3		0x23
+
+typedef enum wdc_dui_header {
+	WDC_DUI_HEADER_VER_0 = 0,
+	WDC_DUI_HEADER_VER_1,
+	WDC_DUI_HEADER_VER_2,
+	WDC_DUI_HEADER_VER_3,
+} wdc_dui_header;
 
 static void
 wdc_append_serial_name(int fd, char *buf, size_t len, const char *suffix)
@@ -108,25 +129,26 @@ wdc_append_serial_name(int fd, char *buf, size_t len, const char *suffix)
 	while (walker > sn && *walker == ' ')
 		walker--;
 	*++walker = '\0';
-	snprintf(buf, len, "%s%s.bin", sn, suffix);
+	snprintf(buf, len, "_%s_%s.bin", sn, suffix);
 }
 
 static void
 wdc_get_data(int fd, uint32_t opcode, uint32_t len, uint32_t off, uint32_t cmd,
-    uint8_t *buffer, size_t buflen)
+    uint8_t *buffer, size_t buflen, bool e6lg_flag)
 {
 	struct nvme_pt_command	pt;
 
 	memset(&pt, 0, sizeof(pt));
 	pt.cmd.opc = opcode;
-	pt.cmd.cdw10 = htole32(len / sizeof(uint32_t));	/* - 1 like all the others ??? */
-	pt.cmd.cdw11 = htole32(off / sizeof(uint32_t));
+	pt.cmd.cdw10 = htole32(len / sizeof(uint32_t));
 	pt.cmd.cdw12 = htole32(cmd);
+	if (e6lg_flag)
+		pt.cmd.cdw11 = htole32(off / sizeof(uint32_t));
+	else
+		pt.cmd.cdw13 = htole32(off / sizeof(uint32_t));
 	pt.buf = buffer;
 	pt.len = buflen;
 	pt.is_read = 1;
-//	printf("opcode %#x cdw10(len) %#x cdw11(offset?) %#x cdw12(cmd/sub) %#x buflen %zd\n",
-//	    (int)opcode, (int)cdw10, (int)cdw11, (int)cdw12, buflen);
 
 	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
 		err(1, "wdc_get_data request failed");
@@ -135,16 +157,28 @@ wdc_get_data(int fd, uint32_t opcode, uint32_t len, uint32_t off, uint32_t cmd,
 }
 
 static void
-wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
+wdc_do_dump_e6(int fd, char *tmpl, const char *suffix, uint32_t opcode,
     uint32_t cmd, int len_off)
 {
 	int first;
 	int fd2;
-	uint8_t *buf;
+	uint8_t *buf, *hdr;
 	uint32_t len, offset;
 	size_t resid;
+	bool e6lg_flag = false;
 
 	wdc_append_serial_name(fd, tmpl, MAXPATHLEN, suffix);
+
+	/* Read Log Dump header */
+	len = WDC_NVME_LOG_SIZE_HDR_LEN;
+	offset = 0;
+	hdr = malloc(len);
+	if (hdr == NULL)
+		errx(1, "Can't get buffer to read dump");
+	wdc_get_data(fd, opcode, len, offset, cmd, hdr, len, false);
+	if (memcmp("E6LG", hdr, 4) == 0) {
+		e6lg_flag = true;
+	}
 
 	/* XXX overwrite protection? */
 	fd2 = open(tmpl, O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -159,15 +193,13 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 
 	do {
 		resid = len > NVME_MAX_XFER_SIZE ? NVME_MAX_XFER_SIZE : len;
-		wdc_get_data(fd, opcode, resid, offset, cmd, buf, resid);
+		wdc_get_data(fd, opcode, resid, offset, cmd, buf, resid, e6lg_flag);
 
 		if (first) {
 			len = be32dec(buf + len_off);
 			if (len == 0)
 				errx(1, "No data for %s", suffix);
-			if (memcmp("E6LG", buf, 4) != 0)
-				printf("Expected header of E6LG, found '%4.4s' instead\n",
-				    buf);
+
 			printf("Dumping %d bytes of version %d.%d log to %s\n", len,
 			    buf[8], buf[9], tmpl);
 			/*
@@ -184,6 +216,142 @@ wdc_do_dump(int fd, char *tmpl, const char *suffix, uint32_t opcode,
 		offset += resid;
 		len -= resid;
 	} while (len > 0);
+	free(hdr);
+	free(buf);
+	close(fd2);
+}
+
+static void
+wdc_get_data_dui(int fd, uint32_t opcode, uint32_t len, uint64_t off,
+    uint8_t *buffer, size_t buflen)
+{
+	struct nvme_pt_command	pt;
+
+	memset(&pt, 0, sizeof(pt));
+	pt.cmd.opc = opcode;
+	pt.cmd.nsid = NONE;
+	pt.cmd.cdw10 = htole32((len / sizeof(uint32_t)) - 1) ;
+	pt.cmd.cdw12 = htole32(off & 0xFFFFFFFFu);
+	pt.cmd.cdw13 = htole32(off >> 32);
+	pt.buf = buffer;
+	pt.len = buflen;
+	pt.is_read = 1;
+
+	if (ioctl(fd, NVME_PASSTHROUGH_CMD, &pt) < 0)
+		err(1, "wdc_get_data_dui request failed");
+	if (nvme_completion_is_error(&pt.cpl))
+		errx(1, "wdc_get_data_dui request returned error");
+}
+
+static uint8_t
+wdc_get_dui_max_sections(uint16_t header_ver)
+{
+	switch (header_ver) {
+	case WDC_DUI_HEADER_VER_0:
+		return WDC_NVME_DUI_MAX_SECTIONS_V0;
+	case WDC_DUI_HEADER_VER_1:
+		return WDC_NVME_DUI_MAX_SECTIONS_V1;
+	case WDC_DUI_HEADER_VER_2:
+		return WDC_NVME_DUI_MAX_SECTIONS_V2;
+	case WDC_DUI_HEADER_VER_3:
+		return WDC_NVME_DUI_MAX_SECTIONS_V3;
+	}
+	return 0;
+}
+
+static void
+wdc_get_dui_log_size(int fd, uint32_t opcode, uint8_t data_area,
+	uint64_t *log_size, int len_off)
+{
+	uint8_t *hdr;
+	uint8_t max_sections;
+	int i, j;
+	uint16_t hdr_ver;
+	uint16_t len;
+	uint64_t dui_size;
+
+	dui_size = 0;
+	len = 1024;
+	hdr = (uint8_t*)malloc(len);
+	if (hdr == NULL)
+		errx(1, "Can't get buffer to read header");
+	wdc_get_data_dui(fd, opcode, len, 0, hdr, len);
+
+	hdr += len_off;
+	hdr_ver = ((*hdr & 0xF) != 0)? *hdr : le16dec(hdr);
+	max_sections = wdc_get_dui_max_sections(hdr_ver);
+
+	if (hdr_ver == 0 || hdr_ver == 1) {
+		dui_size = (uint64_t)le32dec(hdr + 4);
+		if (dui_size == 0) {
+			hdr += 8;
+			for (i = 0, j = 0; i < (int)max_sections; i++, j+=8)
+				dui_size += (uint64_t)le32dec(hdr + j + 4);
+		}
+	} else if (hdr_ver == 2 || hdr_ver == 3) {
+		if (data_area == 0) {
+			dui_size = le64dec(hdr + 4);
+			if (dui_size == 0) {
+				hdr += 12;
+				for (i = 0, j = 0 ; i < (int)max_sections; i++, j+=12)
+					dui_size += le64dec(hdr + j + 4);
+			}
+		} else {
+			hdr += 12;
+			for (i = 0, j = 0; i < (int)max_sections; i++, j+=12) {
+				if (le16dec(hdr + j + 2) <= data_area)
+					dui_size += le64dec(hdr + j + 4);
+				else
+					break;
+			}
+		}
+	}
+	else
+		errx(1, "ERROR : No valid header ");
+
+	*log_size = dui_size;
+	free(hdr);
+}
+
+static void
+wdc_do_dump_dui(int fd, char *tmpl, uint8_t data_area,
+	const char *suffix, uint32_t opcode, int len_off)
+{
+	int fd2, first;
+	uint8_t *buf;
+	uint16_t hdr_ver;
+	uint64_t log_len, offset;
+	size_t resid;
+
+	wdc_append_serial_name(fd, tmpl, MAXPATHLEN, suffix);
+	wdc_get_dui_log_size(fd, opcode, data_area, &log_len, len_off);
+	if (log_len == 0)
+		errx(1, "No data for %s", suffix);
+	fd2 = open(tmpl, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd2 < 0)
+		err(1, "open %s", tmpl);
+	buf = aligned_alloc(PAGE_SIZE, NVME_MAX_XFER_SIZE);
+	if (buf == NULL)
+		errx(1, "Can't get buffer to read dump");
+	offset = 0;
+	first = 1;
+
+	while (log_len > 0) {
+		resid = log_len > NVME_MAX_XFER_SIZE ? NVME_MAX_XFER_SIZE : log_len;
+		wdc_get_data_dui(fd, opcode, resid, offset, buf, resid);
+		if (first) {
+			hdr_ver = ((buf[len_off] & 0xF) != 0) ?
+			    (buf[len_off]) : (le16dec(buf + len_off));
+			printf("Dumping %jd bytes of version %d log to %s\n",
+			    (uintmax_t)log_len, hdr_ver, tmpl);
+			first = 0;
+		}
+		if (write(fd2, buf, resid) != (ssize_t)resid)
+			err(1, "write");
+		offset += resid;
+		log_len -= resid;
+	}
+
 	free(buf);
 	close(fd2);
 }
@@ -193,6 +361,8 @@ wdc_cap_diag(const struct cmd *f, int argc, char *argv[])
 {
 	char tmpl[MAXPATHLEN];
  	int fd;
+	struct nvme_controller_data	cdata;
+	uint32_t vid;
 
 	if (arg_parse(argc, argv, f))
 		return;
@@ -200,11 +370,28 @@ wdc_cap_diag(const struct cmd *f, int argc, char *argv[])
 		fprintf(stderr, "Missing template arg.\n");
 		arg_help(argc, argv, f);
 	}
+	if (opt.data_area > 4) {
+		fprintf(stderr, "Data area range 1-4, supplied %d.\n", opt.data_area);
+		arg_help(argc, argv, f);
+	}
 	strlcpy(tmpl, opt.template, sizeof(tmpl));
 	open_dev(opt.dev, &fd, 1, 1);
-	wdc_do_dump(fd, tmpl, "cap_diag", WDC_NVME_CAP_DIAG_OPCODE,
-	    WDC_NVME_CAP_DIAG_CMD, 4);
+	read_controller_data(fd, &cdata);
+	vid = cdata.vid;
 
+	switch (vid) {
+	case WDC_NVME_VID :
+	case WDC_NVME_VID_2 :
+		wdc_do_dump_e6(fd, tmpl, "cap_diag", WDC_NVME_CAP_DIAG_OPCODE_E6,
+		    WDC_NVME_CAP_DIAG_CMD, 4);
+		break;
+	case WDC_NVME_VID_3 :
+		wdc_do_dump_dui(fd, tmpl, opt.data_area, "cap_diag",
+		    WDC_NVME_CAP_DIAG_OPCODE_FA, 512);
+		break;
+	default:
+		errx(1, "ERROR : WDC: unsupported device (%#x) for this command", vid);
+	}
 	close(fd);
 
 	exit(1);	
