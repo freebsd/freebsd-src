@@ -1,6 +1,8 @@
-# $NetBSD: varmod-loop.mk,v 1.5 2020/10/31 12:34:03 rillig Exp $
+# $NetBSD: varmod-loop.mk,v 1.8 2020/11/12 00:40:55 rillig Exp $
 #
 # Tests for the :@var@...${var}...@ variable modifier.
+
+.MAKE.SAVE_DOLLARS=	yes
 
 all: mod-loop-varname
 all: mod-loop-resolve
@@ -57,7 +59,7 @@ mod-loop-varname-dollar:
 	@echo $@:${1 2 3:L:@v$$@($v)@:Q}.
 	@echo $@:${1 2 3:L:@v$$$@($v)@:Q}.
 
-# Demonstrate that it is possible to generate dollar characters using the
+# Demonstrate that it is possible to generate dollar signs using the
 # :@ modifier.
 #
 # These are edge cases that could have resulted in a parse error as well
@@ -100,3 +102,46 @@ mod-loop-dollar:
 .if defined(var)
 .  error
 .endif
+
+# Assignment using the ':=' operator, combined with the :@var@ modifier
+#
+8_DOLLARS=	$$$$$$$$
+# This string literal is written with 8 dollars, and this is saved as the
+# variable value.  But as soon as this value is evaluated, it goes through
+# Var_Subst, which replaces each '$$' with a single '$'.  This could be
+# prevented by VARE_KEEP_DOLLAR, but that flag is usually removed before
+# expanding subexpressions.  See ApplyModifier_Loop and ParseModifierPart
+# for examples.
+#
+.MAKEFLAGS: -dcp
+USE_8_DOLLARS=	${:U1:@var@${8_DOLLARS}@} ${8_DOLLARS} $$$$$$$$
+.if ${USE_8_DOLLARS} != "\$\$\$\$ \$\$\$\$ \$\$\$\$"
+.  error
+.endif
+#
+SUBST_CONTAINING_LOOP:= ${USE_8_DOLLARS}
+# The ':=' assignment operator evaluates the variable value using the flag
+# VARE_KEEP_DOLLAR, which means that some dollar signs are preserved, but not
+# all.  The dollar signs in the top-level expression and in the indirect
+# ${8_DOLLARS} are preserved.
+#
+# The variable modifier :@var@ does not preserve the dollar signs though, no
+# matter in which context it is evaluated.  What happens in detail is:
+# First, the modifier part "${8_DOLLARS}" is parsed without expanding it.
+# Next, each word of the value is expanded on its own, and at this moment
+# in ApplyModifier_Loop, the VARE_KEEP_DOLLAR flag is not passed down to
+# ModifyWords, resulting in "$$$$" for the first word of USE_8_DOLLARS.
+#
+# The remaining words of USE_8_DOLLARS are not affected by any variable
+# modifier and are thus expanded with the flag VARE_KEEP_DOLLAR in action.
+# The variable SUBST_CONTAINING_LOOP therefore gets assigned the raw value
+# "$$$$ $$$$$$$$ $$$$$$$$".
+#
+# The variable expression in the condition then expands this raw stored value
+# once, resulting in "$$ $$$$ $$$$".  The effects from VARE_KEEP_DOLLAR no
+# longer take place since they had only been active during the evaluation of
+# the variable assignment.
+.if ${SUBST_CONTAINING_LOOP} != "\$\$ \$\$\$\$ \$\$\$\$"
+.  error
+.endif
+.MAKEFLAGS: -d0

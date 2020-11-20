@@ -1,4 +1,4 @@
-# $NetBSD: escape.mk,v 1.13 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: escape.mk,v 1.14 2020/11/03 17:38:45 rillig Exp $
 #
 # Test backslash escaping.
 
@@ -187,7 +187,7 @@ var-1bsnl-space: .PHONY __printvars \
 # Backslash-newline in a command is retained.
 #
 # The "#" in "# second line without space" makes it a comment instead
-# of a syntax error if the preceding line is parsed incorretly.
+# of a syntax error if the preceding line is parsed incorrectly.
 # The ":" in "third line':" makes it look like the start of a
 # target instead of a syntax error if the first line is parsed incorrectly.
 #
@@ -220,7 +220,7 @@ cmd-1bsnl-eof:
 # XXX: This may differ from POSIX, but matches gmake.
 #
 # When make passes two backslashes to the shell, the shell will pass one
-# backslash to the echo commant.
+# backslash to the echo command.
 #
 all: cmd-2bsnl
 cmd-2bsnl: .PHONY

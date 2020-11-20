@@ -1,4 +1,4 @@
-# $NetBSD: varmod-subst.mk,v 1.4 2020/10/24 08:46:08 rillig Exp $
+# $NetBSD: varmod-subst.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the :S,from,to, variable modifier.
 
@@ -8,55 +8,72 @@ all: mod-subst-chain
 all: mod-subst-dollar
 
 WORDS=		sequences of letters
+
 .if ${WORDS:S,,,} != ${WORDS}
 .  warning The empty pattern matches something.
 .endif
+
 .if ${WORDS:S,e,*,1} != "s*quences of letters"
 .  warning The :S modifier flag '1' is not applied exactly once.
 .endif
+
 .if ${WORDS:S,f,*,1} != "sequences o* letters"
 .  warning The :S modifier flag '1' is only applied to the first word,\
 	 not to the first occurrence.
 .endif
+
 .if ${WORDS:S,e,*,} != "s*quences of l*tters"
 .  warning The :S modifier does not replace every first match per word.
 .endif
+
 .if ${WORDS:S,e,*,g} != "s*qu*nc*s of l*tt*rs"
 .  warning The :S modifier flag 'g' does not replace every occurrence.
 .endif
+
 .if ${WORDS:S,^sequ,occurr,} != "occurrences of letters"
 .  warning The :S modifier fails for a short match anchored at the start.
 .endif
+
 .if ${WORDS:S,^of,with,} != "sequences with letters"
 .  warning The :S modifier fails for an exact match anchored at the start.
 .endif
+
 .if ${WORDS:S,^office,does not match,} != ${WORDS}
 .  warning The :S modifier matches a too long pattern anchored at the start.
 .endif
+
 .if ${WORDS:S,f$,r,} != "sequences or letters"
 .  warning The :S modifier fails for a short match anchored at the end.
 .endif
+
 .if ${WORDS:S,s$,,} != "sequence of letter"
 .  warning The :S modifier fails to replace one occurrence per word.
 .endif
+
 .if ${WORDS:S,of$,,} != "sequences letters"
 .  warning The :S modifier fails for an exact match anchored at the end.
 .endif
+
 .if ${WORDS:S,eof$,,} != ${WORDS}
 .  warning The :S modifier matches a too long pattern anchored at the end.
 .endif
+
 .if ${WORDS:S,^of$,,} != "sequences letters"
 .  warning The :S modifier does not match a word anchored at both ends.
 .endif
+
 .if ${WORDS:S,^o$,,} != ${WORDS}
 .  warning The :S modifier matches a prefix anchored at both ends.
 .endif
+
 .if ${WORDS:S,^f$,,} != ${WORDS}
 .  warning The :S modifier matches a suffix anchored at both ends.
 .endif
+
 .if ${WORDS:S,^eof$,,} != ${WORDS}
 .  warning The :S modifier matches a too long prefix anchored at both ends.
 .endif
+
 .if ${WORDS:S,^office$,,} != ${WORDS}
 .  warning The :S modifier matches a too long suffix anchored at both ends.
 .endif
@@ -78,30 +95,41 @@ mod-subst-delimiter:
 	@echo ${:U1 2 3:S	2	two	:Q} horizontal tabulator
 	@echo ${:U1 2 3:S 2 two :Q} space
 	@echo ${:U1 2 3:S!2!two!:Q} exclamation mark
-	@echo ${:U1 2 3:S"2"two":Q} double quotes
+	@echo ${:U1 2 3:S"2"two":Q} quotation mark
 	# In shell command lines, the hash does not need to be escaped.
 	# It needs to be escaped in variable assignment lines though.
-	@echo ${:U1 2 3:S#2#two#:Q} hash
-	@echo ${:U1 2 3:S$2$two$:Q} dollar
-	@echo ${:U1 2 3:S%2%two%:Q} percent
+	@echo ${:U1 2 3:S#2#two#:Q} number sign
+	@echo ${:U1 2 3:S$2$two$:Q} dollar sign
+	@echo ${:U1 2 3:S%2%two%:Q} percent sign
+	@echo ${:U1 2 3:S&2&two&:Q} ampersand
 	@echo ${:U1 2 3:S'2'two':Q} apostrophe
-	@echo ${:U1 2 3:S(2(two(:Q} opening parenthesis
-	@echo ${:U1 2 3:S)2)two):Q} closing parenthesis
+	@echo ${:U1 2 3:S(2(two(:Q} left parenthesis
+	@echo ${:U1 2 3:S)2)two):Q} right parenthesis
+	@echo ${:U1 2 3:S*2*two*:Q} asterisk
+	@echo ${:U1 2 3:S+2+two+:Q} plus sign
+	@echo ${:U1 2 3:S,2,two,:Q} comma
+	@echo ${:U1 2 3:S-2-two-:Q} hyphen-minus
+	@echo ${:U1 2 3:S.2.two.:Q} full stop
+	@echo ${:U1 2 3:S/2/two/:Q} solidus
 	@echo ${:U1 2 3:S121two1:Q} digit
 	@echo ${:U1 2 3:S:2:two::Q} colon
-	@echo ${:U1 2 3:S<2<two<:Q} less than sign
-	@echo ${:U1 2 3:S=2=two=:Q} equal sign
-	@echo ${:U1 2 3:S>2>two>:Q} greater than sign
+	@echo ${:U1 2 3:S;2;two;:Q} semicolon
+	@echo ${:U1 2 3:S<2<two<:Q} less-than sign
+	@echo ${:U1 2 3:S=2=two=:Q} equals sign
+	@echo ${:U1 2 3:S>2>two>:Q} greater-than sign
 	@echo ${:U1 2 3:S?2?two?:Q} question mark
-	@echo ${:U1 2 3:S@2@two@:Q} at
-	@echo ${:U1 2 3:Sa2atwoa:Q} letter
-	@echo ${:U1 2 3:S[2[two[:Q} opening bracket
-	@echo ${:U1 2 3:S\2\two\:Q} backslash
-	@echo ${:U1 2 3:S]2]two]:Q} closing bracket
-	@echo ${:U1 2 3:S^2^two^:Q} caret
-	@echo ${:U1 2 3:S{2{two{:Q} opening brace
+	@echo ${:U1 2 3:S@2@two@:Q} commercial at
+	@echo ${:U1 2 3:SA2AtwoA:Q} capital letter
+	@echo ${:U1 2 3:S[2[two[:Q} left square bracket
+	@echo ${:U1 2 3:S\2\two\:Q} reverse solidus
+	@echo ${:U1 2 3:S]2]two]:Q} right square bracket
+	@echo ${:U1 2 3:S^2^two^:Q} circumflex accent
+	@echo ${:U1 2 3:S_2_two_:Q} low line
+	@echo ${:U1 2 3:S`2`two`:Q} grave accent
+	@echo ${:U1 2 3:Sa2atwoa:Q} small letter
+	@echo ${:U1 2 3:S{2{two{:Q} left curly bracket
 	@echo ${:U1 2 3:S|2|two|:Q} vertical line
-	@echo ${:U1 2 3:S}2}two}:Q} closing brace
+	@echo ${:U1 2 3:S}2}two}:Q} right curly bracket
 	@echo ${:U1 2 3:S~2~two~:Q} tilde
 
 # The :S and :C modifiers can be chained without a separating ':'.
@@ -121,7 +149,7 @@ mod-subst-chain:
 	# modifiers with the matching modifiers.
 	@echo ${:Uvalue:S,a,x,i}.
 
-# No matter how many dollar characters there are, they all get merged
+# No matter how many dollar signs there are, they all get merged
 # into a single dollar by the :S modifier.
 #
 # As of 2020-08-09, this is because ParseModifierPart sees a '$' and
@@ -145,7 +173,7 @@ mod-subst-dollar:
 	@echo $@:${:U40:S,^,$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$,:Q}:
 # This generates no dollar at all:
 	@echo $@:${:UU8:S,^,${:U$$$$$$$$},:Q}:
-# Here is an alternative way to generate dollar characters.
+# Here is an alternative way to generate dollar signs.
 # It's unexpectedly complicated though.
 	@echo $@:${:U:range=5:ts\x24:C,[0-9],,g:Q}:
 # In modifiers, dollars are escaped using the backslash, not using another

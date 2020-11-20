@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.h,v 1.34 2020/09/27 16:59:02 rillig Exp $	*/
+/*	$NetBSD: buf.h,v 1.36 2020/11/10 00:32:12 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -94,7 +94,7 @@ typedef struct Buffer {
 void Buf_Expand_1(Buffer *);
 
 /* Buf_AddByte adds a single byte to a buffer. */
-static inline MAKE_ATTR_UNUSED void
+MAKE_INLINE void
 Buf_AddByte(Buffer *buf, char byte)
 {
     size_t old_len = buf->len++;
@@ -106,13 +106,13 @@ Buf_AddByte(Buffer *buf, char byte)
     end[1] = '\0';
 }
 
-static inline MAKE_ATTR_UNUSED size_t
+MAKE_INLINE size_t
 Buf_Len(const Buffer *buf)
 {
     return buf->len;
 }
 
-static inline MAKE_ATTR_UNUSED Boolean
+MAKE_INLINE Boolean
 Buf_EndsWith(const Buffer *buf, char ch)
 {
     return buf->len > 0 && buf->data[buf->len - 1] == ch;
@@ -124,7 +124,8 @@ void Buf_AddStr(Buffer *, const char *);
 void Buf_AddInt(Buffer *, int);
 char *Buf_GetAll(Buffer *, size_t *);
 void Buf_Empty(Buffer *);
-void Buf_Init(Buffer *, size_t);
+void Buf_Init(Buffer *);
+void Buf_InitSize(Buffer *, size_t);
 char *Buf_Destroy(Buffer *, Boolean);
 char *Buf_DestroyCompact(Buffer *);
 

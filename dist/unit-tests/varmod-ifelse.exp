@@ -3,6 +3,14 @@ make: "varmod-ifelse.mk" line 27: Malformed conditional (${${:Uvariable expressi
 make: Bad conditional expression ` == ""' in  == ""?bad-assign:bad-assign
 make: Bad conditional expression ` == ""' in  == ""?bad-cond:bad-cond
 make: "varmod-ifelse.mk" line 44: Malformed conditional (${${UNDEF} == "":?bad-cond:bad-cond})
+make: Bad conditional expression `1 == == 2' in 1 == == 2?yes:no
+make: "varmod-ifelse.mk" line 66: Malformed conditional (${1 == == 2:?yes:no} != "")
+CondParser_Eval: "${1 == == 2:?yes:no}" != ""
+CondParser_Eval: 1 == == 2
+lhs = 1.000000, rhs = 0.000000, op = ==
+make: Bad conditional expression `1 == == 2' in 1 == == 2?yes:no
+lhs = "", rhs = "", op = !=
+make: "varmod-ifelse.mk" line 92: warning: Oops, the parse error should have been propagated.
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

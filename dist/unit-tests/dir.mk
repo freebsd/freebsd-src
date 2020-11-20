@@ -1,4 +1,4 @@
-# $NetBSD: dir.mk,v 1.7 2020/10/31 21:30:03 rillig Exp $
+# $NetBSD: dir.mk,v 1.8 2020/11/03 18:42:33 rillig Exp $
 #
 # Tests for dir.c.
 
@@ -64,7 +64,8 @@ fetch fetch-post extract extract-post:
 	: $@
 
 # The expansions may have duplicates.
-# These are merged together because of the dependency line.
+# When the source of the dependency line is expanded later, each of the
+# expanded words will be the same.
 all: dup-{1,1,1,1,1,1,1}
 
 dup-1:

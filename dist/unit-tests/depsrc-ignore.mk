@@ -1,11 +1,10 @@
-# $NetBSD: depsrc-ignore.mk,v 1.4 2020/08/29 16:13:27 rillig Exp $
+# $NetBSD: depsrc-ignore.mk,v 1.5 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the special source .IGNORE in dependency declarations,
 # which ignores any command failures for that target.
 #
-# Even though ignore-errors fails, the all target is still made.
-# Since the all target is not marked with .IGNORE, it stops at the
-# first failing command.
+# Even though 'ignore-errors' fails, 'all' is still made.  Since 'all' is
+# not marked with .IGNORE, it stops at the first failing command.
 #
 # XXX: The ordering of the messages in the output is confusing.
 # The "ignored" comes much too late to be related to the "false
@@ -24,8 +23,8 @@
 # This is what actually happens, as of 2020-08-29.  To verify it, set the
 # following breakpoints in CompatRunCommand:
 #
-# * the "!silent" line, to see all commands.
-# * the "fflush" line, to see stdout being flushed.
+# * the "!silent" line, to see all commands
+# * the "fflush" line, to see stdout being flushed
 # * the "status = WEXITSTATUS" line
 # * the "(continuing)" line
 # * the "(ignored)" line

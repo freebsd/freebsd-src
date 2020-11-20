@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-unary.mk,v 1.1 2020/09/14 06:22:59 rillig Exp $
+# $NetBSD: cond-cmp-unary.mk,v 1.2 2020/11/11 07:30:11 rillig Exp $
 #
 # Tests for unary comparisons in .if conditions, that is, comparisons with
 # a single operand.  If the operand is a number, it is compared to zero,
@@ -25,6 +25,9 @@
 .endif
 
 # The empty string may come from a variable expression.
+#
+# XXX: As of 2020-11-11, this empty string is interpreted "as a number" in
+# EvalNotEmpty, which is plain wrong.  The bug is in TryParseNumber.
 .if ${:U}
 .  error
 .endif
@@ -37,6 +40,18 @@
 
 # A non-zero number from a variable expression evaluates to true.
 .if !${:U12345}
+.  error
+.endif
+
+# A string of whitespace should evaluate to false.
+#
+# XXX: As of 2020-11-11, the implementation in EvalNotEmpty does not skip
+# whitespace before testing for the end.  This was probably an oversight in
+# a commit from 1992-04-15 saying "A variable is empty when it just contains
+# spaces".
+.if ${:U   }
+.  info This is only reached because of a bug in EvalNotEmpty.
+.else
 .  error
 .endif
 

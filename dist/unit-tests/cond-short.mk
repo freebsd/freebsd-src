@@ -1,11 +1,14 @@
-# $NetBSD: cond-short.mk,v 1.11 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: cond-short.mk,v 1.12 2020/11/15 14:58:14 rillig Exp $
 #
 # Demonstrates that in conditions, the right-hand side of an && or ||
 # is only evaluated if it can actually influence the result.
+# This is called 'short-circuit evaluation' and is the usual evaluation
+# mode in most programming languages.  A notable exception is Ada, which
+# distinguishes between the operators 'And', 'And Then', 'Or', 'Or Else'.
 #
 # Between 2015-10-11 and 2020-06-28, the right-hand side of an && or ||
 # operator was always evaluated, which was wrong.
-#
+# TODO: Had the evaluation been correct at some time before 2015-11-12?
 
 # The && operator.
 
@@ -113,6 +116,9 @@ VAR=	# empty again, for the following tests
 # make sure these do not cause complaint
 #.MAKEFLAGS: -dc
 
+# TODO: Rewrite this whole section and check all the conditions and variables.
+# Several of the assumptions are probably wrong here.
+# TODO: replace 'x=' with '.info' or '.error'.
 V42=	42
 iV1=	${V42}
 iV2=	${V66}
@@ -166,6 +172,17 @@ x=	Ok
 x=	Fail
 .endif
 x!=	echo '0 || ${iV2:U2} < ${V42}: $x' >&2; echo
+
+# TODO: Has this always worked?  There may have been a time, maybe around
+# 2000, when make would complain about the "Malformed conditional" because
+# UNDEF is not defined.
+.if defined(UNDEF) && ${UNDEF} != "undefined"
+.  error
+.endif
+
+# TODO: Test each modifier to make sure it is skipped when it is irrelevant
+# for the result.  Since this test is already quite long, do that in another
+# test.
 
 all:
 	@:;:

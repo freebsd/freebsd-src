@@ -1,4 +1,4 @@
-# $NetBSD: directive-include.mk,v 1.3 2020/10/31 23:01:23 rillig Exp $
+# $NetBSD: directive-include.mk,v 1.4 2020/11/03 17:17:31 rillig Exp $
 #
 # Tests for the .include directive, which includes another file.
 
@@ -21,6 +21,11 @@
 .if ${.MAKE.MAKEFILES:T} != "${.PARSEFILE} null"
 .  error
 .endif
+
+.include "nonexistent.mk"
+.include "/dev/null"		# size 0
+# including a directory technically succeeds, but shouldn't.
+#.include "."			# directory
 
 all:
 	@:;

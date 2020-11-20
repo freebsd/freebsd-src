@@ -1,4 +1,4 @@
-# $NetBSD: directive-unexport.mk,v 1.4 2020/10/30 23:54:42 sjg Exp $
+# $NetBSD: directive-unexport.mk,v 1.5 2020/11/03 17:17:31 rillig Exp $
 #
 # Tests for the .unexport directive.
 
@@ -22,6 +22,10 @@ UT_C=	c
 
 .info ${:!env|sort|grep '^UT_'!}
 .info ${.MAKE.EXPORTED}
+
+.unexpor			# misspelled
+.unexport			# oops: missing argument
+.unexporting works		# oops: misspelled
 
 all:
 	@:;

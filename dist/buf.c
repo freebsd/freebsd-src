@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.c,v 1.42 2020/10/24 20:51:49 rillig Exp $	*/
+/*	$NetBSD: buf.c,v 1.44 2020/11/07 14:11:58 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -75,7 +75,7 @@
 #include "make.h"
 
 /*	"@(#)buf.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: buf.c,v 1.42 2020/10/24 20:51:49 rillig Exp $");
+MAKE_RCSID("$NetBSD: buf.c,v 1.44 2020/11/07 14:11:58 rillig Exp $");
 
 /* Make space in the buffer for adding a single byte. */
 void
@@ -155,17 +155,20 @@ Buf_Empty(Buffer *buf)
     buf->data[0] = '\0';
 }
 
-/* Initialize a buffer.
- * If the given initial capacity is 0, a reasonable default is used. */
+/* Initialize a buffer. */
 void
-Buf_Init(Buffer *buf, size_t cap)
+Buf_InitSize(Buffer *buf, size_t cap)
 {
-    if (cap <= 0)
-	cap = 256;
     buf->cap = cap;
     buf->len = 0;
     buf->data = bmake_malloc(cap);
     buf->data[0] = '\0';
+}
+
+void
+Buf_Init(Buffer *buf)
+{
+    Buf_InitSize(buf, 256);
 }
 
 /* Reset the buffer.

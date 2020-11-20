@@ -1,4 +1,4 @@
-/*	$NetBSD: lst.h,v 1.84 2020/10/28 02:43:16 rillig Exp $	*/
+/*	$NetBSD: lst.h,v 1.85 2020/11/10 00:32:12 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -118,7 +118,7 @@ void Lst_Destroy(List *, LstFreeProc);
 
 /* Get information about a list */
 
-static inline MAKE_ATTR_UNUSED Boolean
+MAKE_INLINE Boolean
 Lst_IsEmpty(List *list) { return list->first == NULL; }
 
 /* Find the first node that contains the given datum, or NULL. */
@@ -173,7 +173,7 @@ void Vector_Init(Vector *, size_t);
 
 /* Return the pointer to the given item in the vector.
  * The returned data is valid until the next modifying operation. */
-static inline MAKE_ATTR_UNUSED void *
+MAKE_INLINE void *
 Vector_Get(Vector *v, size_t i)
 {
     unsigned char *items = v->items;

@@ -1,5 +1,5 @@
 Var_Set("${:U}", "cmdline-u", ...) name expands to empty string - ignored
-Var_Set("", "cmline-plain", ...) name expands to empty string - ignored
+Var_Set("", "cmdline-plain", ...) name expands to empty string - ignored
 Var_Set("", "default", ...) name expands to empty string - ignored
 Var_Set("", "assigned", ...) name expands to empty string - ignored
 Var_Set("", "appended", ...) name expands to empty string - ignored
