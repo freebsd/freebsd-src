@@ -517,7 +517,7 @@ static int verbose = PSM_DEBUG;
 static int synaptics_support = 1;
 static int trackpoint_support = 1;
 static int elantech_support = 1;
-static int mux_disabled = 0;
+static int mux_disabled = -1;
 
 /* for backward compatibility */
 #define	OLD_MOUSE_GETHWINFO	_IOR('M', 1, old_mousehw_t)
@@ -6292,7 +6292,8 @@ enable_synaptics_mux(struct psm_softc *sc, enum probearg arg)
 	int active_ports_count = 0;
 	int active_ports_mask = 0;
 
-	if (mux_disabled != 0)
+	if (mux_disabled == 1 || (mux_disabled == -1 &&
+	    (kbdc->quirks & KBDC_QUIRK_DISABLE_MUX_PROBE) != 0))
 		return (FALSE);
 
 	version = enable_aux_mux(kbdc);
