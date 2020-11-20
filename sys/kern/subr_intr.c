@@ -588,9 +588,6 @@ intr_isrc_assign_cpu(void *arg, int cpu)
 	struct intr_irqsrc *isrc = arg;
 	int error;
 
-	if (isrc->isrc_dev != intr_irq_root_dev)
-		return (EINVAL);
-
 	mtx_lock(&isrc_table_lock);
 	if (cpu == NOCPU) {
 		CPU_ZERO(&isrc->isrc_cpu);
