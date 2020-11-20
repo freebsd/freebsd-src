@@ -1,1 +1,11 @@
-exit status 0
+make: "directive-warning.mk" line 7: Unknown directive "warn"
+make: "directive-warning.mk" line 8: Unknown directive "warn"
+make: "directive-warning.mk" line 9: Unknown directive "warnin"
+make: "directive-warning.mk" line 10: Unknown directive "warnin"
+make: "directive-warning.mk" line 11: Unknown directive "warning"
+make: "directive-warning.mk" line 12: warning: message
+make: "directive-warning.mk" line 13: Unknown directive "warnings"
+make: "directive-warning.mk" line 14: warning: messages
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

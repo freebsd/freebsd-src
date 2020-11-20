@@ -1,1 +1,17 @@
-exit status 0
+make: "directive-elif.mk" line 7: begin .elif misspellings tests, part 1
+make: "directive-elif.mk" line 9: 1-then
+make: "directive-elif.mk" line 18: begin .elif misspellings tests, part 2
+make: "directive-elif.mk" line 29: begin .elif misspellings tests, part 3
+make: "directive-elif.mk" line 41: which branch is taken on misspelling after false?
+make: "directive-elif.mk" line 49: else
+make: "directive-elif.mk" line 52: which branch is taken on misspelling after true?
+make: "directive-elif.mk" line 54: 1-then
+make: "directive-elif.mk" line 55: Unknown directive "elsif"
+make: "directive-elif.mk" line 56: 1-elsif
+make: "directive-elif.mk" line 57: Unknown directive "elsif"
+make: "directive-elif.mk" line 58: 2-elsif
+make: "directive-elif.mk" line 64: if-less elif
+make: "directive-elif.mk" line 69: warning: extra elif
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

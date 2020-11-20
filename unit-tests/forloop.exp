@@ -1,17 +1,17 @@
-x=one
-x="two and three"
-x=four
-x="five"
-x=-I/this
-x=-I"This or that"
-x=-Ithat
-x="-DTHIS=\"this and that\""
-cfl=-I/this -I"This or that" -Ithat "-DTHIS=\"this and that\""
-newline-item=(a)
-a=one b="two and three"
-a=four b="five"
-a=ONE b="TWO AND THREE"
-a=FOUR b="FIVE"
+make: "forloop.mk" line 14: x=one
+make: "forloop.mk" line 14: x="two and three"
+make: "forloop.mk" line 14: x=four
+make: "forloop.mk" line 14: x="five"
+make: "forloop.mk" line 20: x=-I/this
+make: "forloop.mk" line 20: x=-I"This or that"
+make: "forloop.mk" line 20: x=-Ithat
+make: "forloop.mk" line 20: x="-DTHIS=\"this and that\""
+make: "forloop.mk" line 27: cfl=-I/this -I"This or that" -Ithat "-DTHIS=\"this and that\""
+make: "forloop.mk" line 41: newline-item=(a)
+make: "forloop.mk" line 47: a=one b="two and three"
+make: "forloop.mk" line 47: a=four b="five"
+make: "forloop.mk" line 47: a=ONE b="TWO AND THREE"
+make: "forloop.mk" line 47: a=FOUR b="FIVE"
 We expect an error next:
 make: "forloop.mk" line 46: Wrong number of words (9) in .for substitution list with 2 variables
 make: Fatal errors encountered -- cannot continue

@@ -1,1 +1,4 @@
-exit status 0
+make: "directive-undef.mk" line 16: Unknown directive "unde"
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

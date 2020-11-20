@@ -1,0 +1,5 @@
+make warning: OBJDIR/roobj: Permission denied.
+/tmp
+OBJDIR/roobj
+OBJDIR/roobj
+exit status 0

@@ -1,1 +1,2 @@
+make: "directive-ifdef.mk" line 12: Function calls in .ifdef are possible.
 exit status 0

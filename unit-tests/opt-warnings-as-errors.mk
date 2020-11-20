@@ -1,6 +1,8 @@
-# $NetBSD: opt-warnings-as-errors.mk,v 1.3 2020/08/23 14:28:04 rillig Exp $
+# $NetBSD: opt-warnings-as-errors.mk,v 1.4 2020/11/09 20:50:56 rillig Exp $
 #
 # Tests for the -W command line option, which turns warnings into errors.
+
+.MAKEFLAGS: -W
 
 .warning message 1
 .warning message 2

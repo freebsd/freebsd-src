@@ -1,4 +1,4 @@
-# $NetBSD: moderrs.mk,v 1.24 2020/11/01 14:36:25 rillig Exp $
+# $NetBSD: moderrs.mk,v 1.25 2020/11/15 20:20:58 rillig Exp $
 #
 # various modifier error tests
 
@@ -123,7 +123,7 @@ mod-regex-delimiter: print-header print-footer
 # always set; some may be missing.  Warn about these.
 #
 # Since there is no way to turn off this warning, the combination of
-# alternative matches and capturing groups is not widely used.
+# alternative matches and capturing groups is seldom used, if at all.
 #
 # A newly added modifier 'U' such as in :C,(a.)|(b.),\1\2,U might be added
 # for treating undefined capturing groups as empty, but that would create a

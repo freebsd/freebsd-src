@@ -1,11 +1,10 @@
-# $NetBSD: cond-func-empty.mk,v 1.8 2020/09/23 08:11:28 rillig Exp $
+# $NetBSD: cond-func-empty.mk,v 1.10 2020/11/15 14:07:53 rillig Exp $
 #
 # Tests for the empty() function in .if conditions, which tests a variable
 # expression for emptiness.
 #
 # Note that the argument in the parentheses is indeed a variable name,
-# optionally followed by variable modifiers.  This is like the defined()
-# function.
+# optionally followed by variable modifiers.
 #
 
 .undef UNDEF
@@ -25,13 +24,15 @@ WORD=	word
 .  error
 .endif
 
-# The :S modifier replaces the empty value with an actual word, and
-# after that the expression is no longer empty.  Because the variable
-# was undefined in the first place, the expression has the flag VAR_JUNK
-# but not VAR_KEEP, therefore it is still considered undefined.
-# Only very few variable modifiers turn an undefined variable expression
-# into a defined variable expression.  The :U and :D modifiers belong to
-# that group, but :S doesn't (see VAR_KEEP).
+# The :S modifier replaces the empty value with an actual word.  The
+# expression is now no longer empty, but it is still possible to see whether
+# the expression was based on an undefined variable.  The expression has the
+# flag VEF_UNDEF.
+#
+# The expression does not have the flag VEF_DEF though, therefore it is still
+# considered undefined.  Yes, indeed, undefined but not empty.  There are a
+# few variable modifiers that turn an undefined expression into a defined
+# expression, among them :U and :D, but not :S.
 #
 # XXX: This is hard to explain to someone who doesn't know these
 # implementation details.
@@ -49,13 +50,14 @@ WORD=	word
 .endif
 
 # And now to the surprising part.  Applying the following :S modifier to the
-# undefined variable makes it non-empty, but the marker VAR_JUNK is preserved
-# nevertheless.  The :U modifier that follows only looks at VAR_JUNK to decide
-# whether the variable is defined or not.  This kind of makes sense since the
-# :U modifier tests the _variable_, not the _expression_.
+# undefined expression makes it non-empty, but the marker VEF_UNDEF is
+# preserved nevertheless.  The :U modifier that follows only looks at the
+# VEF_UNDEF flag to decide whether the variable is defined or not.  This kind
+# of makes sense since the :U modifier tests the _variable_, not the
+# _expression_.
 #
-# But since the variable was undefined to begin with, the fallback value is
-# used in this expression.
+# But since the variable was undefined to begin with, the fallback value from
+# the :U modifier is used in this expression.
 #
 .if ${UNDEF:S,^$,value,W:Ufallback} != "fallback"
 .  error
@@ -128,7 +130,7 @@ ${:U }=	space
 # If everything goes well, the argument expands to "WORD", and that variable
 # is defined at the beginning of this file.  The surrounding 'W' and 'D'
 # ensure that the parser in ParseEmptyArg has the correct position, both
-# before and after the call to Var_ParsePP.
+# before and after the call to Var_Parse.
 .if empty(W${:UOR}D)
 .  error
 .endif
@@ -143,6 +145,13 @@ ${:U WORD }=	variable name with spaces
 
 # Now there is a variable named " WORD ", and it is not empty.
 .if empty ( WORD )
+.  error
+.endif
+
+# Parse error: missing closing parenthesis.
+.if empty(WORD
+.  error
+.else
 .  error
 .endif
 

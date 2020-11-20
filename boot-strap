@@ -107,6 +107,10 @@
 #		set "machine_arch" to override that determined by
 #		machine.sh
 #
+#	--with-force_machine_arch="machine_arch"
+#		force "machine_arch" to override that determined by
+#		machine.sh
+#
 #	--with-default-sys-path="syspath"
 #		set an explicit default "syspath" which is where bmake
 #		will look for sys.mk and friends.
@@ -115,7 +119,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.53 2020/09/16 02:12:01 sjg Exp $
+#	$Id: boot-strap,v 1.54 2020/11/13 21:47:25 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #

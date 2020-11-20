@@ -1,1 +1,6 @@
+make: "cond-op-not.mk" line 29: Not empty evaluates to true.
+make: "cond-op-not.mk" line 37: Not space evaluates to false.
+make: "cond-op-not.mk" line 41: Not 0 evaluates to true.
+make: "cond-op-not.mk" line 49: Not 1 evaluates to false.
+make: "cond-op-not.mk" line 55: Not word evaluates to false.
 exit status 0

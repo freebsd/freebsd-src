@@ -1,4 +1,4 @@
-# $NetBSD: directive-undef.mk,v 1.4 2020/10/24 08:46:08 rillig Exp $
+# $NetBSD: directive-undef.mk,v 1.5 2020/11/03 17:17:31 rillig Exp $
 #
 # Tests for the .undef directive.
 
@@ -12,6 +12,10 @@
 .if ${1:U_}${2:U_}${3:U_} != _23
 .  warning $1$2$3
 .endif
+
+.unde				# misspelled
+.undef				# oops: missing argument
+.undefined			# oops: misspelled
 
 all:
 	@:;

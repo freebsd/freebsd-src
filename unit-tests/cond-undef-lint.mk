@@ -1,4 +1,4 @@
-# $NetBSD: cond-undef-lint.mk,v 1.2 2020/09/14 07:13:29 rillig Exp $
+# $NetBSD: cond-undef-lint.mk,v 1.3 2020/11/15 14:58:14 rillig Exp $
 #
 # Tests for defined and undefined variables in .if conditions, in lint mode.
 #
@@ -42,6 +42,10 @@ DEF=		defined
 .endif
 
 # The variable VAR.defined is not defined and thus generates an error message.
+#
+# TODO: This pattern looks a lot like CFLAGS.${OPSYS}, which is at least
+# debatable.  Or would any practical use of CFLAGS.${OPSYS} be via an indirect
+# expression, as in the next example?
 .if ${VAR.${DEF}}
 .  error
 .else

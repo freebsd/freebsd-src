@@ -1,7 +1,11 @@
-# $NetBSD: depsrc-usebefore.mk,v 1.5 2020/08/22 11:53:18 rillig Exp $
+# $NetBSD: depsrc-usebefore.mk,v 1.6 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the special source .USEBEFORE in dependency declarations,
 # which allows to prepend common commands to other targets.
+#
+# See also:
+#	.USE
+#	depsrc-use.mk
 
 all: action directly
 

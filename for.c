@@ -1,4 +1,4 @@
-/*	$NetBSD: for.c,v 1.112 2020/10/31 18:41:07 rillig Exp $	*/
+/*	$NetBSD: for.c,v 1.115 2020/11/07 21:04:43 rillig Exp $	*/
 
 /*
  * Copyright (c) 1992, The Regents of the University of California.
@@ -60,15 +60,7 @@
 #include "make.h"
 
 /*	"@(#)for.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: for.c,v 1.112 2020/10/31 18:41:07 rillig Exp $");
-
-/* The .for loop substitutes the items as ${:U<value>...}, which means
- * that characters that break this syntax must be backslash-escaped. */
-typedef enum ForEscapes {
-    FOR_SUB_ESCAPE_CHAR = 0x0001,
-    FOR_SUB_ESCAPE_BRACE = 0x0002,
-    FOR_SUB_ESCAPE_PAREN = 0x0004
-} ForEscapes;
+MAKE_RCSID("$NetBSD: for.c,v 1.115 2020/11/07 21:04:43 rillig Exp $");
 
 static int forLevel = 0;	/* Nesting level */
 
@@ -120,30 +112,6 @@ For_Free(For *f)
     free(f);
 }
 
-static ForEscapes
-GetEscapes(const char *word)
-{
-    const char *p;
-    ForEscapes escapes = 0;
-
-    for (p = word; *p != '\0'; p++) {
-	switch (*p) {
-	case ':':
-	case '$':
-	case '\\':
-	    escapes |= FOR_SUB_ESCAPE_CHAR;
-	    break;
-	case ')':
-	    escapes |= FOR_SUB_ESCAPE_PAREN;
-	    break;
-	case '}':
-	    escapes |= FOR_SUB_ESCAPE_BRACE;
-	    break;
-	}
-    }
-    return escapes;
-}
-
 static Boolean
 IsFor(const char *p)
 {
@@ -191,11 +159,11 @@ For_Eval(const char *line)
      */
 
     f = bmake_malloc(sizeof *f);
-    Buf_Init(&f->body, 0);
+    Buf_Init(&f->body);
     Vector_Init(&f->vars, sizeof(ForVar));
     f->items.words = NULL;
     f->items.freeIt = NULL;
-    Buf_Init(&f->curBody, 0);
+    Buf_Init(&f->curBody);
     f->short_var = FALSE;
     f->sub_next = 0;
 
@@ -302,7 +270,7 @@ for_var_len(const char *var)
     size_t len;
 
     var_start = *var;
-    if (var_start == 0)
+    if (var_start == '\0')
 	/* just escape the $ */
 	return 0;
 
@@ -315,7 +283,7 @@ for_var_len(const char *var)
 	return 1;
 
     depth = 1;
-    for (len = 1; (ch = var[len++]) != 0;) {
+    for (len = 1; (ch = var[len++]) != '\0';) {
 	if (ch == var_start)
 	    depth++;
 	else if (ch == var_end && --depth == 0)
@@ -326,18 +294,30 @@ for_var_len(const char *var)
     return 0;
 }
 
+/* The .for loop substitutes the items as ${:U<value>...}, which means
+ * that characters that break this syntax must be backslash-escaped. */
+static Boolean
+NeedsEscapes(const char *word, char endc)
+{
+    const char *p;
+
+    for (p = word; *p != '\0'; p++) {
+	if (*p == ':' || *p == '$' || *p == '\\' || *p == endc)
+	    return TRUE;
+    }
+    return FALSE;
+}
+
 /* While expanding the body of a .for loop, write the item in the ${:U...}
- * expression, escaping characters as needed. See ApplyModifier_Defined. */
+ * expression, escaping characters as needed.
+ *
+ * The result is later unescaped by ApplyModifier_Defined. */
 static void
 Buf_AddEscaped(Buffer *cmds, const char *item, char ech)
 {
-    ForEscapes escapes = GetEscapes(item);
     char ch;
 
-    /* If there were no escapes, or the only escape is the other variable
-     * terminator, then just substitute the full string */
-    if (!(escapes & (ech == ')' ? ~(unsigned)FOR_SUB_ESCAPE_BRACE
-				: ~(unsigned)FOR_SUB_ESCAPE_PAREN))) {
+    if (!NeedsEscapes(item, ech)) {
 	Buf_AddStr(cmds, item);
 	return;
     }
