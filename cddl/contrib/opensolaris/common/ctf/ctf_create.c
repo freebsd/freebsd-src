@@ -615,7 +615,7 @@ ctf_add_generic(ctf_file_t *fp, uint_t flag, const char *name, ctf_dtdef_t **rp)
 	if ((dtd = ctf_alloc(sizeof (ctf_dtdef_t))) == NULL)
 		return (ctf_set_errno(fp, EAGAIN));
 
-	if (name != NULL && (s = ctf_strdup(name)) == NULL) {
+	if (name != NULL && *name != '\0' && (s = ctf_strdup(name)) == NULL) {
 		ctf_free(dtd, sizeof (ctf_dtdef_t));
 		return (ctf_set_errno(fp, EAGAIN));
 	}
@@ -1217,7 +1217,7 @@ membadd(const char *name, ctf_id_t type, ulong_t offset, void *arg)
 	if ((dmd = ctf_alloc(sizeof (ctf_dmdef_t))) == NULL)
 		return (ctf_set_errno(ctb->ctb_file, EAGAIN));
 
-	if (name != NULL && (s = ctf_strdup(name)) == NULL) {
+	if (name != NULL && *name != '\0' && (s = ctf_strdup(name)) == NULL) {
 		ctf_free(dmd, sizeof (ctf_dmdef_t));
 		return (ctf_set_errno(ctb->ctb_file, EAGAIN));
 	}
