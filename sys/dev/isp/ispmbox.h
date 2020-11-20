@@ -2,7 +2,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- *  Copyright (c) 2009-2018 Alexander Motin <mav@FreeBSD.org>
+ *  Copyright (c) 2009-2020 Alexander Motin <mav@FreeBSD.org>
  *  Copyright (c) 1997-2009 by Matthew Jacob
  *  All rights reserved.
  * 
@@ -243,7 +243,7 @@
 #define	ASYNC_SYSTEM_ERROR		0x8002
 #define	ASYNC_RQS_XFER_ERR		0x8003
 #define	ASYNC_RSP_XFER_ERR		0x8004
-#define	ASYNC_QWAKEUP			0x8005
+#define	ASYNC_ATIO_XFER_ERR		0x8005
 #define	ASYNC_TIMEOUT_RESET		0x8006
 #define	ASYNC_DEVICE_RESET		0x8007
 #define	ASYNC_EXTMSG_UNDERRUN		0x800A
@@ -340,23 +340,9 @@
 
 typedef struct {
 	uint32_t	ds_base;
-	uint32_t	ds_count;
-} ispds_t;
-
-typedef struct {
-	uint32_t	ds_base;
 	uint32_t	ds_basehi;
 	uint32_t	ds_count;
 } ispds64_t;
-
-#define	DSTYPE_32BIT	0
-#define	DSTYPE_64BIT	1
-typedef struct {
-	uint16_t	ds_type;	/* 0-> ispds_t, 1-> ispds64_t */
-	uint32_t	ds_segment;	/* unused */
-	uint32_t	ds_base;	/* 32 bit address of DSD list */
-} ispdslist_t;
-
 
 typedef struct {
 	uint8_t		rqs_entry_type;
@@ -418,34 +404,6 @@ typedef struct {
 #define	RQSTYPE_ABTS_RCVD	0x54	/* 24XX only */
 #define	RQSTYPE_ABTS_RSP	0x55	/* 24XX only */
 
-
-#define	ISP_RQDSEG	4
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint8_t		req_lun_trn;
-	uint8_t		req_target;
-	uint16_t	req_cdblen;
-	uint16_t	req_flags;
-	uint16_t	req_reserved;
-	uint16_t	req_time;
-	uint16_t	req_seg_count;
-	uint8_t		req_cdb[12];
-	ispds_t		req_dataseg[ISP_RQDSEG];
-} ispreq_t;
-#define	ISP_RQDSEG_A64	2
-
-typedef struct {
-	isphdr_t	mrk_header;
-	uint32_t	mrk_handle;
-	uint8_t		mrk_reserved0;
-	uint8_t		mrk_target;
-	uint16_t	mrk_modifier;
-	uint16_t	mrk_flags;
-	uint16_t	mrk_lun;
-	uint8_t		mrk_reserved1[48];
-} isp_marker_t;
-	
 typedef struct {
 	isphdr_t	mrk_header;
 	uint32_t	mrk_handle;
@@ -458,112 +416,11 @@ typedef struct {
 	uint8_t		mrk_lun[8];
 	uint8_t		mrk_reserved3[40];
 } isp_marker_24xx_t;
-	
 
 #define SYNC_DEVICE	0
 #define SYNC_TARGET	1
 #define SYNC_ALL	2
 #define SYNC_LIP	3
-
-#define	ISP_RQDSEG_T2		3
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint8_t		req_lun_trn;
-	uint8_t		req_target;
-	uint16_t	req_scclun;
-	uint16_t	req_flags;
-	uint8_t		req_crn;
-	uint8_t		req_reserved;
-	uint16_t	req_time;
-	uint16_t	req_seg_count;
-	uint8_t		req_cdb[16];
-	uint32_t	req_totalcnt;
-	ispds_t		req_dataseg[ISP_RQDSEG_T2];
-} ispreqt2_t;
-
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint16_t	req_target;
-	uint16_t	req_scclun;
-	uint16_t	req_flags;
-	uint8_t		req_crn;
-	uint8_t		req_reserved;
-	uint16_t	req_time;
-	uint16_t	req_seg_count;
-	uint8_t		req_cdb[16];
-	uint32_t	req_totalcnt;
-	ispds_t		req_dataseg[ISP_RQDSEG_T2];
-} ispreqt2e_t;
-
-#define	ISP_RQDSEG_T3		2
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint8_t		req_lun_trn;
-	uint8_t		req_target;
-	uint16_t	req_scclun;
-	uint16_t	req_flags;
-	uint8_t		req_crn;
-	uint8_t		req_reserved;
-	uint16_t	req_time;
-	uint16_t	req_seg_count;
-	uint8_t		req_cdb[16];
-	uint32_t	req_totalcnt;
-	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
-} ispreqt3_t;
-#define	ispreq64_t	ispreqt3_t	/* same as.... */
-
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint16_t	req_target;
-	uint16_t	req_scclun;
-	uint16_t	req_flags;
-	uint8_t		req_crn;
-	uint8_t		req_reserved;
-	uint16_t	req_time;
-	uint16_t	req_seg_count;
-	uint8_t		req_cdb[16];
-	uint32_t	req_totalcnt;
-	ispds64_t	req_dataseg[ISP_RQDSEG_T3];
-} ispreqt3e_t;
-
-/* req_flag values */
-#define	REQFLAG_NODISCON	0x0001
-#define	REQFLAG_HTAG		0x0002
-#define	REQFLAG_OTAG		0x0004
-#define	REQFLAG_STAG		0x0008
-#define	REQFLAG_TARGET_RTN	0x0010
-
-#define	REQFLAG_NODATA		0x0000
-#define	REQFLAG_DATA_IN		0x0020
-#define	REQFLAG_DATA_OUT	0x0040
-#define	REQFLAG_DATA_UNKNOWN	0x0060
-
-#define	REQFLAG_DISARQ		0x0100
-#define	REQFLAG_FRC_ASYNC	0x0200
-#define	REQFLAG_FRC_SYNC	0x0400
-#define	REQFLAG_FRC_WIDE	0x0800
-#define	REQFLAG_NOPARITY	0x1000
-#define	REQFLAG_STOPQ		0x2000
-#define	REQFLAG_XTRASNS		0x4000
-#define	REQFLAG_PRIORITY	0x8000
-
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint8_t		req_lun_trn;
-	uint8_t		req_target;
-	uint16_t	req_cdblen;
-	uint16_t	req_flags;
-	uint16_t	req_reserved;
-	uint16_t	req_time;
-	uint16_t	req_seg_count;
-	uint8_t		req_cdb[44];
-} ispextreq_t;
-
 
 /*
  * ISP24XX structures
@@ -632,33 +489,11 @@ typedef struct {
 #define	ISP24XX_ABRT_OKAY	0x00	/* in nphdl on return */
 #define	ISP24XX_ABRT_ENXIO	0x31	/* in nphdl on return */
 
-#define	ISP_CDSEG	7
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_reserved;
-	ispds_t		req_dataseg[ISP_CDSEG];
-} ispcontreq_t;
-
 #define	ISP_CDSEG64	5
 typedef struct {
 	isphdr_t	req_header;
 	ispds64_t	req_dataseg[ISP_CDSEG64];
 } ispcontreq64_t;
-
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handle;
-	uint16_t	req_scsi_status;
-	uint16_t	req_completion_status;
-	uint16_t	req_state_flags;
-	uint16_t	req_status_flags;
-	uint16_t	req_time;
-#define	req_response_len	req_time	/* FC only */
-	uint16_t	req_sense_len;
-	uint32_t	req_resid;
-	uint8_t		req_response[8];	/* FC only */
-	uint8_t		req_sense_data[32];
-} ispstatusreq_t;
 
 /*
  * Status Continuation
@@ -717,29 +552,6 @@ typedef struct {
 	uint32_t	ctp_cmd_bcnt;	/* Command byte count */
 	ispds64_t	ctp_dataseg[2];
 } isp_ct_pt_t;
-
-/*
- * MS Passthru IOCB
- */
-typedef struct {
-	isphdr_t	ms_header;
-	uint32_t	ms_handle;
-	uint16_t	ms_nphdl;	/* handle in high byte for !2k f/w */
-	uint16_t	ms_status;
-	uint16_t	ms_flags;
-	uint16_t	ms_reserved1;	/* low 8 bits */
-	uint16_t	ms_time;
-	uint16_t	ms_cmd_cnt;	/* Command DSD count */
-	uint16_t	ms_tot_cnt;	/* Total DSD Count */
-	uint8_t		ms_type;	/* MS type */
-	uint8_t		ms_r_ctl;	/* R_CTL */
-	uint16_t	ms_rxid;	/* RX_ID */
-	uint16_t	ms_reserved2;
-	uint32_t	ms_handle2;
-	uint32_t	ms_rsp_bcnt;	/* Response byte count */
-	uint32_t	ms_cmd_bcnt;	/* Command byte count */
-	ispds64_t	ms_dataseg[2];
-} isp_ms_t;
 
 /* 
  * Completion Status Codes.
@@ -848,20 +660,8 @@ typedef struct {
 #endif
 
 /*
- * About Firmware returns an 'attribute' word in mailbox 6.
- * These attributes are for 2200 and 2300.
+ * About Firmware returns an 'attribute' word.
  */
-#define	ISP_FW_ATTR_TMODE	0x0001
-#define	ISP_FW_ATTR_SCCLUN	0x0002
-#define	ISP_FW_ATTR_FABRIC	0x0004
-#define	ISP_FW_ATTR_CLASS2	0x0008
-#define	ISP_FW_ATTR_FCTAPE	0x0010
-#define	ISP_FW_ATTR_IP		0x0020
-#define	ISP_FW_ATTR_VI		0x0040
-#define	ISP_FW_ATTR_VI_SOLARIS	0x0080
-#define	ISP_FW_ATTR_2KLOGINS	0x0100	/* just a guess... */
-
-/* and these are for the 2400 */
 #define	ISP2400_FW_ATTR_CLASS2	0x0001
 #define	ISP2400_FW_ATTR_IP	0x0002
 #define	ISP2400_FW_ATTR_MULTIID	0x0004
@@ -885,150 +685,29 @@ typedef struct {
 #define	ISP2400_FW_ATTR_ATIOMQ	0x0400000000
 
 /*
- * These are either manifestly true or are dependent on f/w attributes
- */
-#define	ISP_CAP_TMODE(isp)	\
-	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_TMODE))
-#define	ISP_CAP_SCCFW(isp)	\
-	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_SCCLUN))
-#define	ISP_CAP_2KLOGIN(isp)	\
-	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_2KLOGINS))
-
-/*
  * This is only true for 24XX cards with this f/w attribute
  */
 #define	ISP_CAP_MULTI_ID(isp)	\
-	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID) : 0)
+	(isp->isp_fwattr & ISP2400_FW_ATTR_MULTIID)
 #define	ISP_GET_VPIDX(isp, tag) \
 	(ISP_CAP_MULTI_ID(isp) ? tag : 0)
 #define	ISP_CAP_MSIX(isp)	\
-	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_MSIX) : 0)
+	(isp->isp_fwattr & ISP2400_FW_ATTR_MSIX)
 #define	ISP_CAP_VP0(isp)	\
-	(IS_24XX(isp)? (isp->isp_fwattr & ISP2400_FW_ATTR_VP0) : 0)
-
-/*
- * This is true manifestly or is dependent on a f/w attribute
- * but may or may not actually be *enabled*. In any case, it
- * is enabled on a per-channel basis.
- */
-#define	ISP_CAP_FCTAPE(isp)	\
-	(IS_24XX(isp)? 1 : (isp->isp_fwattr & ISP_FW_ATTR_FCTAPE))
+	(isp->isp_fwattr & ISP2400_FW_ATTR_VP0)
 
 #define	ISP_FCTAPE_ENABLED(isp, chan)	\
-	(IS_24XX(isp)? (FCPARAM(isp, chan)->isp_xfwoptions & ICB2400_OPT2_FCTAPE) != 0 : (FCPARAM(isp, chan)->isp_xfwoptions & ICBXOPT_FCTAPE) != 0)
+	((FCPARAM(isp, chan)->isp_xfwoptions & ICB2400_OPT2_FCTAPE) != 0)
 
 /*
- * Reduced Interrupt Operation Response Queue Entries
- */
-
-typedef struct {
-	isphdr_t	req_header;
-	uint32_t	req_handles[15];
-} isp_rio1_t;
-
-typedef struct {
-	isphdr_t	req_header;
-	uint16_t	req_handles[30];
-} isp_rio2_t;
-
-/*
- * FC (ISP2100/ISP2200/ISP2300/ISP2400) specific data structures
+ * FC specific data structures
  */
 
 /*
  * Initialization Control Block
- *
- * Version One (prime) format.
  */
-typedef struct {
-	uint8_t		icb_version;
-	uint8_t		icb_reserved0;
-	uint16_t	icb_fwoptions;
-	uint16_t	icb_maxfrmlen;
-	uint16_t	icb_maxalloc;
-	uint16_t	icb_execthrottle;
-	uint8_t		icb_retry_count;
-	uint8_t		icb_retry_delay;
-	uint8_t		icb_portname[8];
-	uint16_t	icb_hardaddr;
-	uint8_t		icb_iqdevtype;
-	uint8_t		icb_logintime;
-	uint8_t		icb_nodename[8];
-	uint16_t	icb_rqstout;
-	uint16_t	icb_rspnsin;
-	uint16_t	icb_rqstqlen;
-	uint16_t	icb_rsltqlen;
-	uint16_t	icb_rqstaddr[4];
-	uint16_t	icb_respaddr[4];
-	uint16_t	icb_lunenables;
-	uint8_t		icb_ccnt;
-	uint8_t		icb_icnt;
-	uint16_t	icb_lunetimeout;
-	uint16_t	icb_reserved1;
-	uint16_t	icb_xfwoptions;
-	uint8_t		icb_racctimer;
-	uint8_t		icb_idelaytimer;
-	uint16_t	icb_zfwoptions;
-	uint16_t	icb_reserved2[13];
-} isp_icb_t;
 
 #define	ICB_VERSION1	1
-
-#define	ICBOPT_EXTENDED		0x8000
-#define	ICBOPT_BOTH_WWNS	0x4000
-#define	ICBOPT_FULL_LOGIN	0x2000
-#define	ICBOPT_STOP_ON_QFULL	0x1000	/* 2200/2100 only */
-#define	ICBOPT_PREV_ADDRESS	0x0800
-#define	ICBOPT_SRCHDOWN		0x0400
-#define	ICBOPT_NOLIP		0x0200
-#define	ICBOPT_PDBCHANGE_AE	0x0100
-#define	ICBOPT_TGT_TYPE		0x0080
-#define	ICBOPT_INI_ADISC	0x0040
-#define	ICBOPT_INI_DISABLE	0x0020
-#define	ICBOPT_TGT_ENABLE	0x0010
-#define	ICBOPT_FAST_POST	0x0008
-#define	ICBOPT_FULL_DUPLEX	0x0004
-#define	ICBOPT_FAIRNESS		0x0002
-#define	ICBOPT_HARD_ADDRESS	0x0001
-
-#define	ICBXOPT_NO_LOGOUT	0x8000	/* no logout on link failure */
-#define	ICBXOPT_FCTAPE_CCQ	0x4000	/* FC-Tape Command Queueing */
-#define	ICBXOPT_FCTAPE_CONFIRM	0x2000
-#define	ICBXOPT_FCTAPE		0x1000
-#define	ICBXOPT_CLASS2_ACK0	0x0200
-#define	ICBXOPT_CLASS2		0x0100
-#define	ICBXOPT_NO_PLAY		0x0080	/* don't play if can't get hard addr */
-#define	ICBXOPT_TOPO_MASK	0x0070
-#define	ICBXOPT_LOOP_ONLY	0x0000
-#define	ICBXOPT_PTP_ONLY	0x0010
-#define	ICBXOPT_LOOP_2_PTP	0x0020
-#define	ICBXOPT_PTP_2_LOOP	0x0030
-/*
- * The lower 4 bits of the xfwoptions field are the OPERATION MODE bits.
- * RIO is not defined for the 23XX cards (just 2200)
- */
-#define	ICBXOPT_RIO_OFF		0
-#define	ICBXOPT_RIO_16BIT	1
-#define	ICBXOPT_RIO_32BIT	2
-#define	ICBXOPT_RIO_16BIT_IOCB	3
-#define	ICBXOPT_RIO_32BIT_IOCB	4
-#define	ICBXOPT_ZIO		5	
-#define	ICBXOPT_TIMER_MASK	0x7
-
-#define	ICBZOPT_RATE_MASK	0xC000
-#define	ICBZOPT_RATE_1GB	0x0000
-#define	ICBZOPT_RATE_AUTO	0x8000
-#define	ICBZOPT_RATE_2GB	0x4000
-#define	ICBZOPT_50_OHM		0x2000
-#define	ICBZOPT_NO_LOCAL_PLOGI	0x0080
-#define	ICBZOPT_ENA_OOF		0x0040	/* out of order frame handling */
-#define	ICBZOPT_RSPSZ_MASK	0x0030
-#define	ICBZOPT_RSPSZ_24	0x0000
-#define	ICBZOPT_RSPSZ_12	0x0010
-#define	ICBZOPT_RSPSZ_24A	0x0020
-#define	ICBZOPT_RSPSZ_32	0x0030
-#define	ICBZOPT_SOFTID		0x0002
-#define	ICBZOPT_ENA_RDXFR_RDY	0x0001
 
 /* 2400 F/W options */
 #define	ICB2400_OPT1_BOTH_WWNS		0x00004000
@@ -1278,69 +957,9 @@ typedef struct {
  * Port Data Base Element
  */
 
-typedef struct {
-	uint16_t	pdb_options;
-	uint8_t		pdb_mstate;
-	uint8_t		pdb_sstate;
-	uint8_t		pdb_hardaddr_bits[4];
-	uint8_t		pdb_portid_bits[4];
-	uint8_t		pdb_nodename[8];
-	uint8_t		pdb_portname[8];
-	uint16_t	pdb_execthrottle;
-	uint16_t	pdb_exec_count;
-	uint8_t		pdb_retry_count;
-	uint8_t		pdb_retry_delay;
-	uint16_t	pdb_resalloc;
-	uint16_t	pdb_curalloc;
-	uint16_t	pdb_qhead;
-	uint16_t	pdb_qtail;
-	uint16_t	pdb_tl_next;
-	uint16_t	pdb_tl_last;
-	uint16_t	pdb_features;	/* PLOGI, Common Service */
-	uint16_t	pdb_pconcurrnt;	/* PLOGI, Common Service */
-	uint16_t	pdb_roi;	/* PLOGI, Common Service */
-	uint8_t		pdb_target;
-	uint8_t		pdb_initiator;	/* PLOGI, Class 3 Control Flags */
-	uint16_t	pdb_rdsiz;	/* PLOGI, Class 3 */
-	uint16_t	pdb_ncseq;	/* PLOGI, Class 3 */
-	uint16_t	pdb_noseq;	/* PLOGI, Class 3 */
-	uint16_t	pdb_labrtflg;
-	uint16_t	pdb_lstopflg;
-	uint16_t	pdb_sqhead;
-	uint16_t	pdb_sqtail;
-	uint16_t	pdb_ptimer;
-	uint16_t	pdb_nxt_seqid;
-	uint16_t	pdb_fcount;
-	uint16_t	pdb_prli_len;
-	uint16_t	pdb_prli_svc0;
-	uint16_t	pdb_prli_svc3;
-	uint16_t	pdb_loopid;
-	uint16_t	pdb_il_ptr;
-	uint16_t	pdb_sl_ptr;
-} isp_pdb_21xx_t;
-
-#define	PDB_OPTIONS_XMITTING	(1<<11)
-#define	PDB_OPTIONS_LNKXMIT	(1<<10)
-#define	PDB_OPTIONS_ABORTED	(1<<9)
-#define	PDB_OPTIONS_ADISC	(1<<1)
-
-#define	PDB_STATE_DISCOVERY	0
-#define	PDB_STATE_WDISC_ACK	1
-#define	PDB_STATE_PLOGI		2
-#define	PDB_STATE_PLOGI_ACK	3
-#define	PDB_STATE_PRLI		4
-#define	PDB_STATE_PRLI_ACK	5
-#define	PDB_STATE_LOGGED_IN	6
-#define	PDB_STATE_PORT_UNAVAIL	7
-#define	PDB_STATE_PRLO		8
-#define	PDB_STATE_PRLO_ACK	9
-#define	PDB_STATE_PLOGO		10
-#define	PDB_STATE_PLOG_ACK	11
-
 #define	SVC3_ROLE_MASK		0x30
 #define	SVC3_ROLE_SHIFT		4
 
-#define	BITS2WORD(x)		((x)[0] << 16 | (x)[3] << 8 | (x)[2])
 #define	BITS2WORD_24XX(x)	((x)[0] << 16 | (x)[1] << 8 | (x)[2])
 
 /*
@@ -1393,32 +1012,8 @@ typedef struct {
 } isp_pdb_t;
 
 /*
- * Port/Node Name List Element
- */
-typedef struct {
-	uint8_t		pnnle_name[8];
-	uint16_t	pnnle_handle;
-	uint16_t	pnnle_reserved;
-} isp_pnnle_t;
-
-#define	PNNL_OPTIONS_NODE_NAMES	(1<<0)
-#define	PNNL_OPTIONS_PORT_DATA	(1<<2)
-#define	PNNL_OPTIONS_INITIATORS	(1<<3)
-
-/*
  * Port and N-Port Handle List Element
  */
-typedef struct {
-	uint16_t	pnhle_port_id_lo;
-	uint16_t	pnhle_port_id_hi_handle;
-} isp_pnhle_21xx_t;
-
-typedef struct {
-	uint16_t	pnhle_port_id_lo;
-	uint16_t	pnhle_port_id_hi;
-	uint16_t	pnhle_handle;
-} isp_pnhle_23xx_t;
-
 typedef struct {
 	uint16_t	pnhle_port_id_lo;
 	uint16_t	pnhle_port_id_hi;
@@ -1764,157 +1359,8 @@ typedef struct {
 } els_t;
 
 /*
- * A handy package structure for running FC-SCSI commands internally
- */
-typedef struct {
-	uint16_t	handle;
-	uint16_t	lun;
-	uint32_t	
-		channel : 8,
-		portid	: 24;
-	uint32_t	timeout;
-	union {
-		struct {
-			uint32_t data_length;
-			uint32_t 
-				no_wait : 1,
-				do_read : 1;
-			uint8_t cdb[16];
-			void *data_ptr;
-		} beg;
-		struct {
-			uint32_t data_residual;
-			uint8_t status;
-			uint8_t pad;
-			uint16_t sense_length;
-			uint8_t sense_data[32];
-		} end;
-	} fcd;
-} isp_xcmd_t;
-
-/*
  * Target Mode related definitions
  */
-#define	QLTM_SENSELEN	18	/* non-FC cards only */
-#define QLTM_SVALID	0x80
-
-/*
- * Structure for Enable Lun and Modify Lun queue entries
- */
-typedef struct {
-	isphdr_t	le_header;
-	uint32_t	le_reserved;
-	uint8_t		le_lun;
-	uint8_t		le_rsvd;
-	uint8_t		le_ops;		/* Modify LUN only */
-	uint8_t		le_tgt;		/* Not for FC */
-	uint32_t	le_flags;	/* Not for FC */
-	uint8_t		le_status;
-	uint8_t		le_reserved2;
-	uint8_t		le_cmd_count;
-	uint8_t		le_in_count;
-	uint8_t		le_cdb6len;	/* Not for FC */
-	uint8_t		le_cdb7len;	/* Not for FC */
-	uint16_t	le_timeout;
-	uint16_t	le_reserved3[20];
-} lun_entry_t;
-
-/*
- * le_flags values
- */
-#define LUN_TQAE	0x00000002	/* bit1  Tagged Queue Action Enable */
-#define LUN_DSSM	0x01000000	/* bit24 Disable Sending SDP Message */
-#define	LUN_DISAD	0x02000000	/* bit25 Disable autodisconnect */
-#define LUN_DM		0x40000000	/* bit30 Disconnects Mandatory */
-
-/*
- * le_ops values
- */
-#define LUN_CCINCR	0x01	/* increment command count */
-#define LUN_CCDECR	0x02	/* decrement command count */
-#define LUN_ININCR	0x40	/* increment immed. notify count */
-#define LUN_INDECR	0x80	/* decrement immed. notify count */
-
-/*
- * le_status values
- */
-#define	LUN_OK		0x01	/* we be rockin' */
-#define LUN_ERR		0x04	/* request completed with error */
-#define LUN_INVAL	0x06	/* invalid request */
-#define LUN_NOCAP	0x16	/* can't provide requested capability */
-#define LUN_ENABLED	0x3E	/* LUN already enabled */
-
-/*
- * Immediate Notify Entry structure
- */
-#define IN_MSGLEN	8	/* 8 bytes */
-#define IN_RSVDLEN	8	/* 8 words */
-typedef struct {
-	isphdr_t	in_header;
-	uint32_t	in_reserved;
-	uint8_t		in_lun;		/* lun */
-	uint8_t		in_iid;		/* initiator */
-	uint8_t		in_reserved2;
-	uint8_t		in_tgt;		/* target */
-	uint32_t	in_flags;
-	uint8_t		in_status;
-	uint8_t		in_rsvd2;
-	uint8_t		in_tag_val;	/* tag value */
-	uint8_t		in_tag_type;	/* tag type */
-	uint16_t	in_seqid;	/* sequence id */
-	uint8_t		in_msg[IN_MSGLEN];	/* SCSI message bytes */
-	uint16_t	in_reserved3[IN_RSVDLEN];
-	uint8_t		in_sense[QLTM_SENSELEN];/* suggested sense data */
-} in_entry_t;
-
-typedef struct {
-	isphdr_t	in_header;
-	uint32_t	in_reserved;
-	uint8_t		in_lun;		/* lun */
-	uint8_t		in_iid;		/* initiator */
-	uint16_t	in_scclun;
-	uint32_t	in_reserved2;
-	uint16_t	in_status;
-	uint16_t	in_task_flags;
-	uint16_t	in_seqid;	/* sequence id */
-} in_fcentry_t;
-
-typedef struct {
-	isphdr_t	in_header;
-	uint32_t	in_reserved;
-	uint16_t	in_iid;		/* initiator */
-	uint16_t	in_scclun;
-	uint32_t	in_reserved2;
-	uint16_t	in_status;
-	uint16_t	in_task_flags;
-	uint16_t	in_seqid;	/* sequence id */
-} in_fcentry_e_t;
-
-/*
- * Values for the in_status field
- */
-#define	IN_REJECT	0x0D	/* Message Reject message received */
-#define IN_RESET	0x0E	/* Bus Reset occurred */
-#define IN_NO_RCAP	0x16	/* requested capability not available */
-#define IN_IDE_RECEIVED	0x33	/* Initiator Detected Error msg received */
-#define IN_RSRC_UNAVAIL	0x34	/* resource unavailable */
-#define IN_MSG_RECEIVED	0x36	/* SCSI message received */
-#define	IN_ABORT_TASK	0x20	/* task named in RX_ID is being aborted (FC) */
-#define	IN_PORT_LOGOUT	0x29	/* port has logged out (FC) */
-#define	IN_PORT_CHANGED	0x2A	/* port changed */
-#define	IN_GLOBAL_LOGO	0x2E	/* all ports logged out */
-#define	IN_NO_NEXUS	0x3B	/* Nexus not established */
-#define	IN_SRR_RCVD	0x45	/* SRR received */
-
-/*
- * Values for the in_task_flags field- should only get one at a time!
- */
-#define	TASK_FLAGS_RESERVED_MASK	(0xe700)
-#define	TASK_FLAGS_CLEAR_ACA		(1<<14)
-#define	TASK_FLAGS_TARGET_RESET		(1<<13)
-#define	TASK_FLAGS_LUN_RESET		(1<<12)
-#define	TASK_FLAGS_CLEAR_TASK_SET	(1<<10)
-#define	TASK_FLAGS_ABORT_TASK_SET	(1<<9)
 
 /*
  * ISP24XX Immediate Notify
@@ -2016,66 +1462,9 @@ typedef struct {
 #define	IN24XX_PORT_CHANGED_PORT_CHANGE	0x05
 
 /*
- * Notify Acknowledge Entry structure
- */
-#define NA_RSVDLEN	22
-typedef struct {
-	isphdr_t	na_header;
-	uint32_t	na_reserved;
-	uint8_t		na_lun;		/* lun */
-	uint8_t		na_iid;		/* initiator */
-	uint8_t		na_reserved2;
-	uint8_t		na_tgt;		/* target */
-	uint32_t	na_flags;
-	uint8_t		na_status;
-	uint8_t		na_event;
-	uint16_t	na_seqid;	/* sequence id */
-	uint16_t	na_reserved3[NA_RSVDLEN];
-} na_entry_t;
-
-/*
- * Value for the na_event field
- */
-#define NA_RST_CLRD	0x80	/* Clear an async event notification */
-#define	NA_OK		0x01	/* Notify Acknowledge Succeeded */
-#define	NA_INVALID	0x06	/* Invalid Notify Acknowledge */
-
-#define	NA2_RSVDLEN	21
-typedef struct {
-	isphdr_t	na_header;
-	uint32_t	na_reserved;
-	uint8_t		na_reserved1;
-	uint8_t		na_iid;		/* initiator loop id */
-	uint16_t	na_response;
-	uint16_t	na_flags;
-	uint16_t	na_reserved2;
-	uint16_t	na_status;
-	uint16_t	na_task_flags;
-	uint16_t	na_seqid;	/* sequence id */
-	uint16_t	na_reserved3[NA2_RSVDLEN];
-} na_fcentry_t;
-
-typedef struct {
-	isphdr_t	na_header;
-	uint32_t	na_reserved;
-	uint16_t	na_iid;		/* initiator loop id */
-	uint16_t	na_response;	/* response code */
-	uint16_t	na_flags;
-	uint16_t	na_reserved2;
-	uint16_t	na_status;
-	uint16_t	na_task_flags;
-	uint16_t	na_seqid;	/* sequence id */
-	uint16_t	na_reserved3[NA2_RSVDLEN];
-} na_fcentry_e_t;
-
-#define	NAFC_RCOUNT	0x80	/* increment resource count */
-#define NAFC_RST_CLRD	0x20	/* Clear LIP Reset */
-#define	NAFC_TVALID	0x10	/* task mangement response code is valid */
-
-/*
  * ISP24XX Notify Acknowledge
  */
-
+#define	NA_OK		0x01	/* Notify Acknowledge Succeeded */
 typedef struct {
 	isphdr_t	na_header;
 	uint32_t	na_handle;
@@ -2101,159 +1490,6 @@ typedef struct {
 	uint8_t		na_reserved6[6];
 	uint16_t	na_oxid;
 } na_fcentry_24xx_t;
-
-/*
- * Accept Target I/O Entry structure
- */
-#define ATIO_CDBLEN	26
-
-typedef struct {
-	isphdr_t	at_header;
-	uint16_t	at_reserved;
-	uint16_t	at_handle;
-	uint8_t		at_lun;		/* lun */
-	uint8_t		at_iid;		/* initiator */
-	uint8_t		at_cdblen; 	/* cdb length */
-	uint8_t		at_tgt;		/* target */
-	uint32_t	at_flags;
-	uint8_t		at_status;	/* firmware status */
-	uint8_t		at_scsi_status;	/* scsi status */
-	uint8_t		at_tag_val;	/* tag value */
-	uint8_t		at_tag_type;	/* tag type */
-	uint8_t		at_cdb[ATIO_CDBLEN];	/* received CDB */
-	uint8_t		at_sense[QLTM_SENSELEN];/* suggested sense data */
-} at_entry_t;
-
-/*
- * at_flags values
- */
-#define AT_NODISC	0x00008000	/* disconnect disabled */
-#define AT_TQAE		0x00000002	/* Tagged Queue Action enabled */
-
-/*
- * at_status values
- */
-#define AT_PATH_INVALID	0x07	/* ATIO sent to firmware for disabled lun */
-#define	AT_RESET	0x0E	/* SCSI Bus Reset Occurred */
-#define AT_PHASE_ERROR	0x14	/* Bus phase sequence error */
-#define AT_NOCAP	0x16	/* Requested capability not available */
-#define AT_BDR_MSG	0x17	/* Bus Device Reset msg received */
-#define AT_CDB		0x3D	/* CDB received */
-/*
- * Macros to create and fetch and test concatenated handle and tag value macros
- * (SPI only)
- */
-#define	AT_MAKE_TAGID(tid, aep)						\
-	tid = aep->at_handle;						\
-	if (aep->at_flags & AT_TQAE) {					\
-		tid |= (aep->at_tag_val << 16);				\
-		tid |= (1 << 24);					\
-	}
-
-#define	CT_MAKE_TAGID(tid, ct)						\
-	tid = ct->ct_fwhandle;						\
-	if (ct->ct_flags & CT_TQAE) {					\
-		tid |= (ct->ct_tag_val << 16);				\
-		tid |= (1 << 24);					\
-	}
-
-#define	AT_HAS_TAG(val)		((val) & (1 << 24))
-#define	AT_GET_TAG(val)		(((val) >> 16) & 0xff)
-#define	AT_GET_HANDLE(val)	((val) & 0xffff)
-
-#define	IN_MAKE_TAGID(tid, inp)						\
-	tid = inp->in_seqid;						\
-	tid |= (inp->in_tag_val << 16);					\
-	tid |= (1 << 24)
-
-/*
- * Accept Target I/O Entry structure, Type 2
- */
-#define ATIO2_CDBLEN	16
-
-typedef struct {
-	isphdr_t	at_header;
-	uint32_t	at_reserved;
-	uint8_t		at_lun;		/* lun or reserved */
-	uint8_t		at_iid;		/* initiator */
-	uint16_t	at_rxid; 	/* response ID */
-	uint16_t	at_flags;
-	uint16_t	at_status;	/* firmware status */
-	uint8_t		at_crn;		/* command reference number */
-	uint8_t		at_taskcodes;
-	uint8_t		at_taskflags;
-	uint8_t		at_execodes;
-	uint8_t		at_cdb[ATIO2_CDBLEN];	/* received CDB */
-	uint32_t	at_datalen;		/* allocated data len */
-	uint16_t	at_scclun;		/* SCC Lun or reserved */
-	uint16_t	at_wwpn[4];		/* WWPN of initiator */
-	uint16_t	at_reserved2[6];
-	uint16_t	at_oxid;
-} at2_entry_t;
-
-typedef struct {
-	isphdr_t	at_header;
-	uint32_t	at_reserved;
-	uint16_t	at_iid;		/* initiator */
-	uint16_t	at_rxid; 	/* response ID */
-	uint16_t	at_flags;
-	uint16_t	at_status;	/* firmware status */
-	uint8_t		at_crn;		/* command reference number */
-	uint8_t		at_taskcodes;
-	uint8_t		at_taskflags;
-	uint8_t		at_execodes;
-	uint8_t		at_cdb[ATIO2_CDBLEN];	/* received CDB */
-	uint32_t	at_datalen;		/* allocated data len */
-	uint16_t	at_scclun;		/* SCC Lun or reserved */
-	uint16_t	at_wwpn[4];		/* WWPN of initiator */
-	uint16_t	at_reserved2[6];
-	uint16_t	at_oxid;
-} at2e_entry_t;
-
-#define	ATIO2_WWPN_OFFSET	0x2A
-#define	ATIO2_OXID_OFFSET	0x3E
-
-#define	ATIO2_TC_ATTR_MASK	0x7
-#define	ATIO2_TC_ATTR_SIMPLEQ	0
-#define	ATIO2_TC_ATTR_HEADOFQ	1
-#define	ATIO2_TC_ATTR_ORDERED	2
-#define	ATIO2_TC_ATTR_ACAQ	4
-#define	ATIO2_TC_ATTR_UNTAGGED	5
-
-#define	ATIO2_EX_WRITE		0x1
-#define	ATIO2_EX_READ		0x2
-/*
- * Macros to create and fetch and test concatenated handle and tag value macros
- */
-#define	AT2_MAKE_TAGID(tid, bus, inst, aep)				\
-	tid = aep->at_rxid;						\
-	tid |= (((uint64_t)inst) << 32);				\
-	tid |= (((uint64_t)bus) << 48)
-
-#define	CT2_MAKE_TAGID(tid, bus, inst, ct)				\
-	tid = ct->ct_rxid;						\
-	tid |= (((uint64_t)inst) << 32);				\
-	tid |= (((uint64_t)(bus & 0xff)) << 48)
-
-#define	AT2_HAS_TAG(val)	1
-#define	AT2_GET_TAG(val)	((val) & 0xffffffff)
-#define	AT2_GET_INST(val)	(((val) >> 32) & 0xffff)
-#define	AT2_GET_HANDLE		AT2_GET_TAG
-#define	AT2_GET_BUS(val)	(((val) >> 48) & 0xff)
-
-#define	FC_HAS_TAG	AT2_HAS_TAG
-#define	FC_GET_TAG	AT2_GET_TAG
-#define	FC_GET_INST	AT2_GET_INST
-#define	FC_GET_HANDLE	AT2_GET_HANDLE
-
-#define	IN_FC_MAKE_TAGID(tid, bus, inst, seqid)				\
-	tid = seqid;							\
-	tid |= (((uint64_t)inst) << 32);				\
-	tid |= (((uint64_t)(bus & 0xff)) << 48)
-
-#define	FC_TAG_INSERT_INST(tid, inst)					\
-	tid &= ~0x0000ffff00000000ull;					\
-	tid |= (((uint64_t)inst) << 32)
 
 /*
  * 24XX ATIO Definition
@@ -2282,244 +1518,7 @@ typedef struct {
 } at7_entry_t;
 #define	AT7_NORESRC_RXID	0xffffffff
 
-
-/*
- * Continue Target I/O Entry structure
- * Request from driver. The response from the
- * ISP firmware is the same except that the last 18
- * bytes are overwritten by suggested sense data if
- * the 'autosense valid' bit is set in the status byte.
- */
-typedef struct {
-	isphdr_t	ct_header;
-	uint16_t	ct_syshandle;
-	uint16_t	ct_fwhandle;	/* required by f/w */
-	uint8_t		ct_lun;	/* lun */
-	uint8_t		ct_iid;	/* initiator id */
-	uint8_t		ct_reserved2;
-	uint8_t		ct_tgt;	/* our target id */
-	uint32_t	ct_flags;
-	uint8_t 	ct_status;	/* isp status */
-	uint8_t 	ct_scsi_status;	/* scsi status */
-	uint8_t 	ct_tag_val;	/* tag value */
-	uint8_t 	ct_tag_type;	/* tag type */
-	uint32_t	ct_xfrlen;	/* transfer length */
-	uint32_t	ct_resid;	/* residual length */
-	uint16_t	ct_timeout;
-	uint16_t	ct_seg_count;
-	ispds_t		ct_dataseg[ISP_RQDSEG];
-} ct_entry_t;
-
-/*
- * For some of the dual port SCSI adapters, port (bus #) is reported
- * in the MSbit of ct_iid. Bit fields are a bit too awkward here.
- *
- * Note that this does not apply to FC adapters at all which can and
- * do report IIDs between 0x81 && 0xfe (or 0x7ff) which represent devices
- * that have logged in across a SCSI fabric.
- */
-#define	GET_IID_VAL(x)		(x & 0x3f)
-#define	GET_BUS_VAL(x)		((x >> 7) & 0x1)
-#define	SET_IID_VAL(y, x)	y = ((y & ~0x3f) | (x & 0x3f))
-#define	SET_BUS_VAL(y, x)	y = ((y & 0x3f) | ((x & 0x1) << 7))
-
-/*
- * ct_flags values
- */
-#define CT_TQAE		0x00000002	/* bit  1, Tagged Queue Action enable */
-#define CT_DATA_IN	0x00000040	/* bits 6&7, Data direction - *to* initiator */
-#define CT_DATA_OUT	0x00000080	/* bits 6&7, Data direction - *from* initiator */
-#define CT_NO_DATA	0x000000C0	/* bits 6&7, Data direction */
-#define	CT_CCINCR	0x00000100	/* bit 8, autoincrement atio count */
-#define CT_DATAMASK	0x000000C0	/* bits 6&7, Data direction */
-#define	CT_INISYNCWIDE	0x00004000	/* bit 14, Do Sync/Wide Negotiation */
-#define CT_NODISC	0x00008000	/* bit 15, Disconnects disabled */
-#define CT_DSDP		0x01000000	/* bit 24, Disable Save Data Pointers */
-#define CT_SENDRDP	0x04000000	/* bit 26, Send Restore Pointers msg */
-#define CT_SENDSTATUS	0x80000000	/* bit 31, Send SCSI status byte */
-
-/*
- * ct_status values
- * - set by the firmware when it returns the CTIO
- */
-#define CT_OK		0x01	/* completed without error */
-#define CT_ABORTED	0x02	/* aborted by host */
-#define CT_ERR		0x04	/* see sense data for error */
-#define CT_INVAL	0x06	/* request for disabled lun */
-#define CT_NOPATH	0x07	/* invalid ITL nexus */
-#define	CT_INVRXID	0x08	/* (FC only) Invalid RX_ID */
-#define	CT_DATA_OVER	0x09	/* (FC only) Data Overrun */
-#define CT_RSELTMO	0x0A	/* reselection timeout after 2 tries */
-#define CT_TIMEOUT	0x0B	/* timed out */
-#define CT_RESET	0x0E	/* SCSI Bus Reset occurred */
-#define	CT_PARITY	0x0F	/* Uncorrectable Parity Error */
-#define	CT_BUS_ERROR	0x10	/* (FC Only) DMA PCI Error */
-#define	CT_PANIC	0x13	/* Unrecoverable Error */
-#define CT_PHASE_ERROR	0x14	/* Bus phase sequence error */
-#define	CT_DATA_UNDER	0x15	/* (FC only) Data Underrun */
-#define CT_BDR_MSG	0x17	/* Bus Device Reset msg received */
-#define CT_TERMINATED	0x19	/* due to Terminate Transfer mbox cmd */
-#define	CT_PORTUNAVAIL	0x28	/* port not available */
-#define	CT_LOGOUT	0x29	/* port logout */
-#define	CT_PORTCHANGED	0x2A	/* port changed */
-#define	CT_IDE		0x33	/* Initiator Detected Error */
-#define CT_NOACK	0x35	/* Outstanding Immed. Notify. entry */
-#define	CT_SRR		0x45	/* SRR Received */
-#define	CT_LUN_RESET	0x48	/* Lun Reset Received */
-
 #define	CT_HBA_RESET	0xffff	/* pseudo error - command destroyed by HBA reset*/
-
-/*
- * When the firmware returns a CTIO entry, it may overwrite the last
- * part of the structure with sense data. This starts at offset 0x2E
- * into the entry, which is in the middle of ct_dataseg[1]. Rather
- * than define a new struct for this, I'm just using the sense data
- * offset.
- */
-#define CTIO_SENSE_OFFSET	0x2E
-
-/*
- * Entry length in u_longs. All entries are the same size so
- * any one will do as the numerator.
- */
-#define UINT32_ENTRY_SIZE	(sizeof(at_entry_t)/sizeof(uint32_t))
-
-/*
- * QLA2100 CTIO (type 2) entry
- */
-#define	MAXRESPLEN	26
-typedef struct {
-	isphdr_t	ct_header;
-	uint32_t	ct_syshandle;
-	uint8_t		ct_lun;		/* lun */
-	uint8_t		ct_iid;		/* initiator id */
-	uint16_t	ct_rxid;	/* response ID */
-	uint16_t	ct_flags;
-	uint16_t 	ct_status;	/* isp status */
-	uint16_t	ct_timeout;
-	uint16_t	ct_seg_count;
-	uint32_t	ct_reloff;	/* relative offset */
-	uint32_t	ct_resid;	/* residual length */
-	union {
-		/*
-		 * The three different modes that the target driver
-		 * can set the CTIO{2,3,4} up as.
-		 *
-		 * The first is for sending FCP_DATA_IUs as well as
-		 * (optionally) sending a terminal SCSI status FCP_RSP_IU.
-		 *
-		 * The second is for sending SCSI sense data in an FCP_RSP_IU.
-		 * Note that no FCP_DATA_IUs will be sent.
-		 *
-		 * The third is for sending FCP_RSP_IUs as built specifically
-		 * in system memory as located by the isp_dataseg.
-		 */
-		struct {
-			uint32_t _reserved;
-			uint16_t _reserved2;
-			uint16_t ct_scsi_status;
-			uint32_t ct_xfrlen;
-			union {
-				ispds_t ct_dataseg[ISP_RQDSEG_T2];
-				ispds64_t ct_dataseg64[ISP_RQDSEG_T3];
-				ispdslist_t ct_dslist;
-			} u;
-		} m0;
-		struct {
-			uint16_t _reserved;
-			uint16_t _reserved2;
-			uint16_t ct_senselen;
-			uint16_t ct_scsi_status;
-			uint16_t ct_resplen;
-			uint8_t  ct_resp[MAXRESPLEN];
-		} m1;
-		struct {
-			uint32_t _reserved;
-			uint16_t _reserved2;
-			uint16_t _reserved3;
-			uint32_t ct_datalen;
-			union {
-				ispds_t	ct_fcp_rsp_iudata_32;
-				ispds64_t ct_fcp_rsp_iudata_64;
-			} u;
-		} m2;
-	} rsp;
-} ct2_entry_t;
-
-typedef struct {
-	isphdr_t	ct_header;
-	uint32_t	ct_syshandle;
-	uint16_t	ct_iid;		/* initiator id */
-	uint16_t	ct_rxid;	/* response ID */
-	uint16_t	ct_flags;
-	uint16_t 	ct_status;	/* isp status */
-	uint16_t	ct_timeout;
-	uint16_t	ct_seg_count;
-	uint32_t	ct_reloff;	/* relative offset */
-	uint32_t	ct_resid;	/* residual length */
-	union {
-		struct {
-			uint32_t _reserved;
-			uint16_t _reserved2;
-			uint16_t ct_scsi_status;
-			uint32_t ct_xfrlen;
-			union {
-				ispds_t ct_dataseg[ISP_RQDSEG_T2];
-				ispds64_t ct_dataseg64[ISP_RQDSEG_T3];
-				ispdslist_t ct_dslist;
-			} u;
-		} m0;
-		struct {
-			uint16_t _reserved;
-			uint16_t _reserved2;
-			uint16_t ct_senselen;
-			uint16_t ct_scsi_status;
-			uint16_t ct_resplen;
-			uint8_t  ct_resp[MAXRESPLEN];
-		} m1;
-		struct {
-			uint32_t _reserved;
-			uint16_t _reserved2;
-			uint16_t _reserved3;
-			uint32_t ct_datalen;
-			union {
-				ispds_t	ct_fcp_rsp_iudata_32;
-				ispds64_t ct_fcp_rsp_iudata_64;
-			} u;
-		} m2;
-	} rsp;
-} ct2e_entry_t;
-
-/*
- * ct_flags values for CTIO2
- */
-#define	CT2_FLAG_MODE0	0x0000
-#define	CT2_FLAG_MODE1	0x0001
-#define	CT2_FLAG_MODE2	0x0002
-#define		CT2_FLAG_MMASK	0x0003
-#define CT2_DATA_IN	0x0040	/* *to* initiator */
-#define CT2_DATA_OUT	0x0080	/* *from* initiator */
-#define CT2_NO_DATA	0x00C0
-#define 	CT2_DATAMASK	0x00C0
-#define	CT2_CCINCR	0x0100
-#define	CT2_FASTPOST	0x0200
-#define	CT2_CONFIRM	0x2000
-#define	CT2_TERMINATE	0x4000
-#define CT2_SENDSTATUS	0x8000
-
-/*
- * ct_status values are (mostly) the same as that for ct_entry.
- */
-
-/*
- * ct_scsi_status values- the low 8 bits are the normal SCSI status
- * we know and love. The upper 8 bits are validity markers for FCP_RSP_IU
- * fields.
- */
-#define	CT2_RSPLEN_VALID	0x0100
-#define	CT2_SNSLEN_VALID	0x0200
-#define	CT2_DATA_OVER		0x0400
-#define	CT2_DATA_UNDER		0x0800
 
 /*
  * ISP24XX CTIO
@@ -2708,11 +1707,10 @@ typedef struct {
  * can deal with based not on the size of the segment counter
  * (which is 16 bits), but on the size of the number of 
  * queue entries field (which is 8 bits). We assume no
- * segments in the first queue entry, so we can either
- * have 7 dma segments per continuation entry or 5
- * (for 64 bit dma).. multiplying out by 254....
+ * segments in the first queue entry, so we can have
+ * have 5 dma segments per continuation entry...
+ * multiplying out by 254....
  */
-#define	ISP_NSEG_MAX	1778
 #define	ISP_NSEG64_MAX	1270
 
 #endif	/* _ISPMBOX_H */
