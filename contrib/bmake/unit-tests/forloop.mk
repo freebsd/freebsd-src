@@ -1,4 +1,4 @@
-# $NetBSD: forloop.mk,v 1.6 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: forloop.mk,v 1.7 2020/11/03 17:37:57 rillig Exp $
 
 all: for-loop
 
@@ -11,40 +11,40 @@ XTRA_LIST=	xtra
 .else
 
 .  for x in ${LIST}
-X!=	echo 'x=$x' >&2; echo
+.    info x=$x
 .  endfor
 
 CFL=	-I/this -I"This or that" -Ithat "-DTHIS=\"this and that\""
 cfl=
 .  for x in ${CFL}
-X!=	echo 'x=$x' >&2; echo
+.    info x=$x
 .    if empty(cfl)
 cfl=	$x
 .    else
 cfl+=	$x
 .    endif
 .  endfor
-X!=	echo 'cfl=${cfl}' >&2; echo
+.  info cfl=${cfl}
 
 .  if ${cfl} != ${CFL}
-.    error ${.newline}'${cfl}' != ${.newline}'${CFL}'
+.    error ${.newline}${cfl} != ${.newline}${CFL}
 .  endif
 
 .  for a b in ${EMPTY}
-X!=	echo 'a=$a b=$b' >&2; echo
+.    info a=$a b=$b
 .  endfor
 
 # Since at least 1993, iteration stops at the first newline.
 # Back then, the .newline variable didn't exist, therefore it was unlikely
 # that a newline ever occurred.
 .  for var in a${.newline}b${.newline}c
-X!=	echo 'newline-item=('${var:Q}')' 1>&2; echo
+.    info newline-item=(${var})
 .  endfor
 
 .endif	# for-fail
 
 .for a b in ${LIST} ${LIST:tu} ${XTRA_LIST}
-X!=	echo 'a=$a b=$b' >&2; echo
+.  info a=$a b=$b
 .endfor
 
 for-loop:

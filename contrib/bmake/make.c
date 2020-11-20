@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.186 2020/11/01 17:47:26 rillig Exp $	*/
+/*	$NetBSD: make.c,v 1.209 2020/11/16 22:31:42 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -68,33 +68,28 @@
  * SUCH DAMAGE.
  */
 
-/*-
- * make.c --
- *	The functions which perform the examination of targets and
- *	their suitability for creation
+/* Examination of targets and their suitability for creation.
  *
  * Interface:
- *	Make_Run	Initialize things for the module and recreate
- *			whatever needs recreating. Returns TRUE if
- *			work was (or would have been) done and FALSE
- *			otherwise.
+ *	Make_Run	Initialize things for the module. Returns TRUE if
+ *			work was (or would have been) done.
  *
- *	Make_Update	Update all parents of a given child. Performs
- *			various bookkeeping chores like the updating
+ *	Make_Update	After a target is made, update all its parents.
+ *			Perform various bookkeeping chores like the updating
  *			of the youngestChild field of the parent, filling
- *			of the IMPSRC context variable, etc. It will
- *			place the parent on the toBeMade queue if it
- *			should be.
+ *			of the IMPSRC context variable, etc. Place the parent
+ *			on the toBeMade queue if it should be.
  *
- *	Make_TimeStamp	Function to set the parent's youngestChild field
- *			based on a child's modification time.
+ *	GNode_UpdateYoungestChild
+ *			Update the node's youngestChild field based on the
+ *			child's modification time.
  *
  *	Make_DoAllVar	Set up the various local variables for a
  *			target, including the .ALLSRC variable, making
  *			sure that any variable that needs to exist
  *			at the very least has the empty value.
  *
- *	Make_OODate	Determine if a target is out-of-date.
+ *	GNode_IsOODate	Determine if a target is out-of-date.
  *
  *	Make_HandleUse	See if a child is a .USE node for a parent
  *			and perform the .USE actions if so.
@@ -107,17 +102,16 @@
 #include "job.h"
 
 /*	"@(#)make.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: make.c,v 1.186 2020/11/01 17:47:26 rillig Exp $");
+MAKE_RCSID("$NetBSD: make.c,v 1.209 2020/11/16 22:31:42 rillig Exp $");
 
 /* Sequence # to detect recursion. */
-static unsigned int checked = 1;
+static unsigned int checked_seqno = 1;
 
 /* The current fringe of the graph.
  * These are nodes which await examination by MakeOODate.
  * It is added to by Make_Update and subtracted from by MakeStartJobs */
 static GNodeList *toBeMade;
 
-static int MakeCheckOrder(void *, void *);
 static int MakeBuildParent(void *, void *);
 
 void
@@ -185,11 +179,37 @@ GNode_ShouldExecute(GNode *gn)
 
 /* Update the youngest child of the node, according to the given child. */
 void
-Make_TimeStamp(GNode *pgn, GNode *cgn)
+GNode_UpdateYoungestChild(GNode *gn, GNode *cgn)
 {
-    if (pgn->youngestChild == NULL || cgn->mtime > pgn->youngestChild->mtime) {
-	pgn->youngestChild = cgn;
+    if (gn->youngestChild == NULL || cgn->mtime > gn->youngestChild->mtime)
+	gn->youngestChild = cgn;
+}
+
+static Boolean
+IsOODateRegular(GNode *gn)
+{
+    /* These rules are inherited from the original Make. */
+
+    if (gn->youngestChild != NULL) {
+	if (gn->mtime < gn->youngestChild->mtime) {
+	    DEBUG1(MAKE, "modified before source \"%s\"...",
+		   GNode_Path(gn->youngestChild));
+	    return TRUE;
+	}
+	return FALSE;
     }
+
+    if (gn->mtime == 0 && !(gn->type & OP_OPTIONAL)) {
+	DEBUG0(MAKE, "non-existent and no sources...");
+	return TRUE;
+    }
+
+    if (gn->type & OP_DOUBLEDEP) {
+	DEBUG0(MAKE, ":: operator and no sources...");
+	return TRUE;
+    }
+
+    return FALSE;
 }
 
 /* See if the node is out of date with respect to its sources.
@@ -204,7 +224,7 @@ Make_TimeStamp(GNode *pgn, GNode *cgn)
  * may be changed.
  */
 Boolean
-Make_OODate(GNode *gn)
+GNode_IsOODate(GNode *gn)
 {
     Boolean         oodate;
 
@@ -212,14 +232,13 @@ Make_OODate(GNode *gn)
      * Certain types of targets needn't even be sought as their datedness
      * doesn't depend on their modification time...
      */
-    if ((gn->type & (OP_JOIN|OP_USE|OP_USEBEFORE|OP_EXEC)) == 0) {
-	(void)Dir_MTime(gn, 1);
+    if (!(gn->type & (OP_JOIN|OP_USE|OP_USEBEFORE|OP_EXEC))) {
+	Dir_UpdateMTime(gn, TRUE);
 	if (DEBUG(MAKE)) {
-	    if (gn->mtime != 0) {
+	    if (gn->mtime != 0)
 		debug_printf("modified %s...", Targ_FmtTime(gn->mtime));
-	    } else {
+	    else
 		debug_printf("non-existent...");
-	    }
 	}
     }
 
@@ -244,8 +263,7 @@ Make_OODate(GNode *gn)
 	 */
 	DEBUG0(MAKE, ".USE node...");
 	oodate = FALSE;
-    } else if ((gn->type & OP_LIB) &&
-	       ((gn->mtime==0) || Arch_IsLib(gn))) {
+    } else if ((gn->type & OP_LIB) && (gn->mtime == 0 || Arch_IsLib(gn))) {
 	DEBUG0(MAKE, "library...");
 
 	/*
@@ -261,7 +279,7 @@ Make_OODate(GNode *gn)
 	 */
 	DEBUG0(MAKE, ".JOIN node...");
 	DEBUG1(MAKE, "source %smade...", gn->flags & CHILDMADE ? "" : "not ");
-	oodate = (gn->flags & CHILDMADE) ? TRUE : FALSE;
+	oodate = (gn->flags & CHILDMADE) != 0;
     } else if (gn->type & (OP_FORCE|OP_EXEC|OP_PHONY)) {
 	/*
 	 * A node which is the object of the force (!) operator or which has
@@ -277,30 +295,7 @@ Make_OODate(GNode *gn)
 	    }
 	}
 	oodate = TRUE;
-    } else if ((gn->youngestChild != NULL &&
-		gn->mtime < gn->youngestChild->mtime) ||
-	       (gn->youngestChild == NULL &&
-		((gn->mtime == 0 && !(gn->type & OP_OPTIONAL))
-		 || gn->type & OP_DOUBLEDEP)))
-    {
-	/*
-	 * A node whose modification time is less than that of its
-	 * youngest child or that has no children (youngestChild == NULL) and
-	 * either doesn't exist (mtime == 0) and it isn't optional
-	 * or was the object of a * :: operator is out-of-date.
-	 * Why? Because that's the way Make does it.
-	 */
-	if (DEBUG(MAKE)) {
-	    if (gn->youngestChild != NULL &&
-		gn->mtime < gn->youngestChild->mtime) {
-		debug_printf("modified before source %s...",
-			     GNode_Path(gn->youngestChild));
-	    } else if (gn->mtime == 0) {
-		debug_printf("non-existent and no sources...");
-	    } else {
-		debug_printf(":: operator and no sources...");
-	    }
-	}
+    } else if (IsOODateRegular(gn)) {
 	oodate = TRUE;
     } else {
 	/*
@@ -314,7 +309,7 @@ Make_OODate(GNode *gn)
 	    if (gn->flags & FORCE)
 		debug_printf("non existing child...");
 	}
-	oodate = (gn->flags & FORCE) ? TRUE : FALSE;
+	oodate = (gn->flags & FORCE) != 0;
     }
 
 #ifdef USE_META
@@ -333,46 +328,24 @@ Make_OODate(GNode *gn)
     if (!oodate) {
 	GNodeListNode *ln;
 	for (ln = gn->parents->first; ln != NULL; ln = ln->next)
-	    Make_TimeStamp(ln->datum, gn);
+	    GNode_UpdateYoungestChild(ln->datum, gn);
     }
 
     return oodate;
 }
 
-/* Add the node to the list if it needs to be examined. */
-static int
-MakeAddChild(void *gnp, void *lp)
+static void
+PretendAllChildrenAreMade(GNode *pgn)
 {
-    GNode *gn = gnp;
-    GNodeList *l = lp;
+    GNodeListNode *ln;
 
-    if ((gn->flags & REMAKE) == 0 && !(gn->type & (OP_USE|OP_USEBEFORE))) {
-	DEBUG2(MAKE, "MakeAddChild: need to examine %s%s\n",
-	       gn->name, gn->cohort_num);
-	Lst_Enqueue(l, gn);
+    for (ln = pgn->children->first; ln != NULL; ln = ln->next) {
+	GNode *cgn = ln->datum;
+
+	Dir_UpdateMTime(cgn, FALSE);	/* cgn->path may get updated as well */
+	GNode_UpdateYoungestChild(pgn, cgn);
+	pgn->unmade--;
     }
-    return 0;
-}
-
-/* Find the pathname of a child that was already made.
- *
- * The path and mtime of the node and the youngestChild of the parent are
- * updated; the unmade children count of the parent is decremented.
- *
- * Input:
- *	gnp		the node to find
- */
-static int
-MakeFindChild(void *gnp, void *pgnp)
-{
-    GNode *gn = gnp;
-    GNode *pgn = pgnp;
-
-    (void)Dir_MTime(gn, 0);
-    Make_TimeStamp(pgn, gn);
-    pgn->unmade--;
-
-    return 0;
 }
 
 /* Called by Make_Run and SuffApplyTransform on the downward pass to handle
@@ -394,9 +367,9 @@ Make_HandleUse(GNode *cgn, GNode *pgn)
     GNodeListNode *ln;	/* An element in the children list */
 
 #ifdef DEBUG_SRC
-    if ((cgn->type & (OP_USE|OP_USEBEFORE|OP_TRANSFORM)) == 0) {
+    if (!(cgn->type & (OP_USE|OP_USEBEFORE|OP_TRANSFORM))) {
 	debug_printf("Make_HandleUse: called for plain node %s\n", cgn->name);
-	return;
+	return;		/* XXX: debug mode should not affect control flow */
     }
 #endif
 
@@ -457,10 +430,10 @@ MakeHandleUse(GNode *cgn, GNode *pgn, GNodeListNode *ln)
 {
     Boolean unmarked;
 
-    unmarked = ((cgn->type & OP_MARK) == 0);
+    unmarked = !(cgn->type & OP_MARK);
     cgn->type |= OP_MARK;
 
-    if ((cgn->type & (OP_USE|OP_USEBEFORE)) == 0)
+    if (!(cgn->type & (OP_USE|OP_USEBEFORE)))
 	return;
 
     if (unmarked)
@@ -493,7 +466,10 @@ HandleUseNodes(GNode *gn)
 time_t
 Make_Recheck(GNode *gn)
 {
-    time_t mtime = Dir_MTime(gn, 1);
+    time_t mtime;
+
+    Dir_UpdateMTime(gn, TRUE);
+    mtime = gn->mtime;
 
 #ifndef RECHECK
     /*
@@ -512,13 +488,11 @@ Make_Recheck(GNode *gn)
      * In this case, if the definitions produced by yacc haven't changed
      * from before, parse.h won't have been updated and gn->mtime will
      * reflect the current modification time for parse.h. This is
-     * something of a kludge, I admit, but it's a useful one..
-     * XXX: People like to use a rule like
+     * something of a kludge, I admit, but it's a useful one.
      *
-     * FRC:
-     *
-     * To force things that depend on FRC to be made, so we have to
-     * check for gn->children being empty as well...
+     * XXX: People like to use a rule like "FRC:" to force things that
+     * depend on FRC to be made, so we have to check for gn->children
+     * being empty as well.
      */
     if (!Lst_IsEmpty(gn->commands) || Lst_IsEmpty(gn->children)) {
 	gn->mtime = now;
@@ -535,7 +509,7 @@ Make_Recheck(GNode *gn)
      * using the same file from a common server), there are times
      * when the modification time of a file created on a remote
      * machine will not be modified before the local stat() implied by
-     * the Dir_MTime occurs, thus leading us to believe that the file
+     * the Dir_UpdateMTime occurs, thus leading us to believe that the file
      * is unchanged, wreaking havoc with files that depend on this one.
      *
      * I have decided it is better to make too much than to make too
@@ -543,8 +517,8 @@ Make_Recheck(GNode *gn)
      * -- ardeb 1/12/88
      */
     /*
-     * Christos, 4/9/92: If we are  saving commands pretend that
-     * the target is made now. Otherwise archives with ... rules
+     * Christos, 4/9/92: If we are saving commands, pretend that
+     * the target is made now. Otherwise archives with '...' rules
      * don't work!
      */
     if (!GNode_ShouldExecute(gn) || (gn->type & OP_SAVE_CMDS) ||
@@ -552,12 +526,14 @@ Make_Recheck(GNode *gn)
 	DEBUG2(MAKE, " recheck(%s): update time from %s to now\n",
 	       gn->name, Targ_FmtTime(gn->mtime));
 	gn->mtime = now;
-    }
-    else {
+    } else {
 	DEBUG2(MAKE, " recheck(%s): current update time: %s\n",
 	       gn->name, Targ_FmtTime(gn->mtime));
     }
 #endif
+
+    /* XXX: The returned mtime may differ from gn->mtime.
+     * Intentionally? */
     return mtime;
 }
 
@@ -579,6 +555,25 @@ UpdateImplicitParentsVars(GNode *cgn, const char *cname)
 		Var_Set(PREFIX, cpref, pgn);
 	}
     }
+}
+
+/* See if a .ORDER rule stops us from building this node. */
+static Boolean
+IsWaitingForOrder(GNode *gn)
+{
+    GNodeListNode *ln;
+
+    for (ln = gn->order_pred->first; ln != NULL; ln = ln->next) {
+	GNode *ogn = ln->datum;
+
+	if (ogn->made >= MADE || !(ogn->flags & REMAKE))
+	    continue;
+
+	DEBUG2(MAKE, "IsWaitingForOrder: Waiting for .ORDER node \"%s%s\"\n",
+	       ogn->name, ogn->cohort_num);
+	return TRUE;
+    }
+    return FALSE;
 }
 
 /* Perform update on the parents of a node. Used by JobFinish once
@@ -610,7 +605,7 @@ Make_Update(GNode *cgn)
     GNode	*centurion;
 
     /* It is save to re-examine any nodes again */
-    checked++;
+    checked_seqno++;
 
     cname = GNode_VarTarget(cgn);
 
@@ -647,11 +642,11 @@ Make_Update(GNode *cgn)
     for (ln = parents->first; ln != NULL; ln = ln->next) {
 	GNode *pgn = ln->datum;
 
-	if (DEBUG(MAKE))
-	    debug_printf("inspect parent %s%s: flags %x, "
-			 "type %x, made %d, unmade %d ",
-			 pgn->name, pgn->cohort_num, pgn->flags,
-			 pgn->type, pgn->made, pgn->unmade - 1);
+	if (DEBUG(MAKE)) {
+	    debug_printf("inspect parent %s%s: ", pgn->name, pgn->cohort_num);
+	    GNode_FprintDetails(opts.debug_file, "", pgn, "");
+	    debug_printf(", unmade %d ", pgn->unmade - 1);
+	}
 
 	if (!(pgn->flags & REMAKE)) {
 	    /* This parent isn't needed */
@@ -674,10 +669,10 @@ Make_Update(GNode *cgn)
 	    continue;
 	}
 
-	if ( ! (cgn->type & (OP_EXEC|OP_USE|OP_USEBEFORE))) {
+	if (!(cgn->type & (OP_EXEC | OP_USE | OP_USEBEFORE))) {
 	    if (cgn->made == MADE)
 		pgn->flags |= CHILDMADE;
-	    (void)Make_TimeStamp(pgn, cgn);
+	    GNode_UpdateYoungestChild(pgn, cgn);
 	}
 
 	/*
@@ -716,11 +711,10 @@ Make_Update(GNode *cgn)
 	    DEBUG0(MAKE, "- not deferred\n");
 	    continue;
 	}
-	assert(pgn->order_pred != NULL);
-	if (Lst_ForEachUntil(pgn->order_pred, MakeCheckOrder, 0)) {
-	    /* A .ORDER rule stops us building this */
+
+	if (IsWaitingForOrder(pgn))
 	    continue;
-	}
+
 	if (DEBUG(MAKE)) {
 	    debug_printf("- %s%s made, schedule %s%s (made %d)\n",
 			 cgn->name, cgn->cohort_num,
@@ -771,7 +765,7 @@ MakeAddAllSrc(GNode *cgn, GNode *pgn)
 	return;
     cgn->type |= OP_MARK;
 
-    if ((cgn->type & (OP_EXEC|OP_USE|OP_USEBEFORE|OP_INVISIBLE)) == 0) {
+    if (!(cgn->type & (OP_EXEC|OP_USE|OP_USEBEFORE|OP_INVISIBLE))) {
 	const char *child, *allsrc;
 
 	if (cgn->type & OP_ARCHV)
@@ -798,9 +792,9 @@ MakeAddAllSrc(GNode *cgn, GNode *pgn)
 	     * the start of the make. This is to keep pmake from getting
 	     * confused if something else updates the parent after the
 	     * make starts (shouldn't happen, I know, but sometimes it
-	     * does). In such a case, if we've updated the kid, the parent
+	     * does). In such a case, if we've updated the child, the parent
 	     * is likely to have a modification time later than that of
-	     * the kid and anything that relies on the OODATE variable will
+	     * the child and anything that relies on the OODATE variable will
 	     * be hosed.
 	     *
 	     * XXX: This will cause all made children to go in the OODATE
@@ -838,12 +832,10 @@ Make_DoAllVar(GNode *gn)
     for (ln = gn->children->first; ln != NULL; ln = ln->next)
 	MakeAddAllSrc(ln->datum, gn);
 
-    if (!Var_Exists(OODATE, gn)) {
+    if (!Var_Exists(OODATE, gn))
 	Var_Set(OODATE, "", gn);
-    }
-    if (!Var_Exists(ALLSRC, gn)) {
+    if (!Var_Exists(ALLSRC, gn))
 	Var_Set(ALLSRC, "", gn);
-    }
 
     if (gn->type & OP_JOIN)
 	Var_Set(TARGET, GNode_VarAllsrc(gn), gn);
@@ -851,31 +843,20 @@ Make_DoAllVar(GNode *gn)
 }
 
 static int
-MakeCheckOrder(void *v_bn, void *ignore MAKE_ATTR_UNUSED)
-{
-    GNode *bn = v_bn;
-
-    if (bn->made >= MADE || !(bn->flags & REMAKE))
-	return 0;
-
-    DEBUG2(MAKE, "MakeCheckOrder: Waiting for .ORDER node %s%s\n",
-	   bn->name, bn->cohort_num);
-    return 1;
-}
-
-static int
 MakeBuildChild(void *v_cn, void *toBeMade_next)
 {
     GNode *cn = v_cn;
 
-    DEBUG4(MAKE, "MakeBuildChild: inspect %s%s, made %d, type %x\n",
-	   cn->name, cn->cohort_num, cn->made, cn->type);
+    if (DEBUG(MAKE)) {
+	debug_printf("MakeBuildChild: inspect %s%s, ",
+	       cn->name, cn->cohort_num);
+	GNode_FprintDetails(opts.debug_file, "", cn, "\n");
+    }
     if (cn->made > DEFERRED)
 	return 0;
 
     /* If this node is on the RHS of a .ORDER, check LHSs. */
-    assert(cn->order_pred);
-    if (Lst_ForEachUntil(cn->order_pred, MakeCheckOrder, 0)) {
+    if (IsWaitingForOrder(cn)) {
 	/* Can't build this (or anything else in this child list) yet */
 	cn->made = DEFERRED;
 	return 0;			/* but keep looking */
@@ -899,7 +880,7 @@ MakeBuildChild(void *v_cn, void *toBeMade_next)
     return cn->type & OP_WAIT && cn->unmade > 0;
 }
 
-/* When a .ORDER LHS node completes we do this on each RHS */
+/* When a .ORDER LHS node completes, we do this on each RHS. */
 static int
 MakeBuildParent(void *v_pn, void *toBeMade_next)
 {
@@ -918,21 +899,21 @@ MakeBuildParent(void *v_pn, void *toBeMade_next)
 
 /* Start as many jobs as possible, taking them from the toBeMade queue.
  *
- * If the query flag was given to pmake, no job will be started,
+ * If the -q option was given, no job will be started,
  * but as soon as an out-of-date target is found, this function
- * returns TRUE. At all other times, this function returns FALSE.
+ * returns TRUE. In all other cases, this function returns FALSE.
  */
 static Boolean
 MakeStartJobs(void)
 {
-    GNode	*gn;
-    int		have_token = 0;
+    GNode *gn;
+    Boolean have_token = FALSE;
 
     while (!Lst_IsEmpty(toBeMade)) {
 	/* Get token now to avoid cycling job-list when we only have 1 token */
 	if (!have_token && !Job_TokenWithdraw())
 	    break;
-	have_token = 1;
+	have_token = TRUE;
 
 	gn = Lst_Dequeue(toBeMade);
 	DEBUG2(MAKE, "Examining %s%s...\n", gn->name, gn->cohort_num);
@@ -943,13 +924,13 @@ MakeStartJobs(void)
 	    make_abort(gn, __LINE__);
 	}
 
-	if (gn->checked_seqno == checked) {
+	if (gn->checked_seqno == checked_seqno) {
 	    /* We've already looked at this node since a job finished... */
 	    DEBUG2(MAKE, "already checked %s%s\n", gn->name, gn->cohort_num);
 	    gn->made = DEFERRED;
 	    continue;
 	}
-	gn->checked_seqno = checked;
+	gn->checked_seqno = checked_seqno;
 
 	if (gn->unmade != 0) {
 	    /*
@@ -964,14 +945,13 @@ MakeStartJobs(void)
 	}
 
 	gn->made = BEINGMADE;
-	if (Make_OODate(gn)) {
+	if (GNode_IsOODate(gn)) {
 	    DEBUG0(MAKE, "out-of-date\n");
-	    if (opts.queryFlag) {
+	    if (opts.queryFlag)
 		return TRUE;
-	    }
 	    Make_DoAllVar(gn);
 	    Job_Make(gn);
-	    have_token = 0;
+	    have_token = FALSE;
 	} else {
 	    DEBUG0(MAKE, "up-to-date\n");
 	    gn->made = UPTODATE;
@@ -994,6 +974,7 @@ MakeStartJobs(void)
     return FALSE;
 }
 
+/* Print the status of a .ORDER node. */
 static void
 MakePrintStatusOrderNode(GNode *ogn, GNode *gn)
 {
@@ -1074,7 +1055,7 @@ MakePrintStatus(GNode *gn, int *errors)
      * print out the cycle by recursing on its children.
      */
     if (!(gn->flags & CYCLE)) {
-	/* Fist time we've seen this node, check all children */
+	/* First time we've seen this node, check all children */
 	gn->flags |= CYCLE;
 	MakePrintStatusList(gn->children, errors);
 	/* Mark that this node needn't be processed again */
@@ -1103,6 +1084,25 @@ MakePrintStatusList(GNodeList *gnodes, int *errors)
 	    break;
 }
 
+static void
+ExamineLater(GNodeList *examine, GNodeList *toBeExamined)
+{
+    ListNode *ln;
+
+    for (ln = toBeExamined->first; ln != NULL; ln = ln->next) {
+	GNode *gn = ln->datum;
+
+	if (gn->flags & REMAKE)
+	    continue;
+	if (gn->type & (OP_USE | OP_USEBEFORE))
+	    continue;
+
+	DEBUG2(MAKE, "ExamineLater: need to examine \"%s%s\"\n",
+	       gn->name, gn->cohort_num);
+	Lst_Enqueue(examine, gn);
+    }
+}
+
 /* Expand .USE nodes and create a new targets list.
  *
  * Input:
@@ -1111,17 +1111,8 @@ MakePrintStatusList(GNodeList *gnodes, int *errors)
 void
 Make_ExpandUse(GNodeList *targs)
 {
-    GNodeList *examine;		/* List of targets to examine */
-
-    {
-	/* XXX: Why is it necessary to copy the list? There shouldn't be
-	 * any modifications to the list, at least the function name
-	 * ExpandUse doesn't suggest that. */
-	GNodeListNode *ln;
-	examine = Lst_New();
-	for (ln = targs->first; ln != NULL; ln = ln->next)
-	    Lst_Append(examine, ln->datum);
-    }
+    GNodeList *examine = Lst_New();	/* Queue of targets to examine */
+    Lst_AppendAll(examine, targs);
 
     /*
      * Make an initial downward pass over the graph, marking nodes to be made
@@ -1151,9 +1142,8 @@ Make_ExpandUse(GNodeList *targs)
 	 * expansions.
 	 */
 	if (gn->type & OP_ARCHV) {
-	    char *eoa, *eon;
-	    eoa = strchr(gn->name, '(');
-	    eon = strchr(gn->name, ')');
+	    char *eoa = strchr(gn->name, '(');
+	    char *eon = strchr(gn->name, ')');
 	    if (eoa == NULL || eon == NULL)
 		continue;
 	    *eoa = '\0';
@@ -1164,23 +1154,22 @@ Make_ExpandUse(GNodeList *targs)
 	    *eon = ')';
 	}
 
-	(void)Dir_MTime(gn, 0);
+	Dir_UpdateMTime(gn, FALSE);
 	Var_Set(TARGET, GNode_Path(gn), gn);
 	UnmarkChildren(gn);
 	HandleUseNodes(gn);
 
-	if ((gn->type & OP_MADE) == 0)
+	if (!(gn->type & OP_MADE))
 	    Suff_FindDeps(gn);
 	else {
-	    /* Pretend we made all this node's children */
-	    Lst_ForEachUntil(gn->children, MakeFindChild, gn);
+	    PretendAllChildrenAreMade(gn);
 	    if (gn->unmade != 0)
-		    printf("Warning: %s%s still has %d unmade children\n",
-			    gn->name, gn->cohort_num, gn->unmade);
+		printf("Warning: %s%s still has %d unmade children\n",
+		       gn->name, gn->cohort_num, gn->unmade);
 	}
 
 	if (gn->unmade != 0)
-	    Lst_ForEachUntil(gn->children, MakeAddChild, examine);
+	    ExamineLater(examine, gn->children);
     }
 
     Lst_Free(examine);
@@ -1218,7 +1207,7 @@ Make_ProcessWait(GNodeList *targs)
      * Perhaps this should be done earlier...
      */
 
-    pgn = Targ_NewGN(".MAIN");
+    pgn = GNode_New(".MAIN");
     pgn->flags = REMAKE;
     pgn->type = OP_PHONY | OP_DEPENDS;
     /* Get it displayed in the diag dumps */
@@ -1353,9 +1342,9 @@ Make_Run(GNodeList *targs)
 	MakePrintStatusList(targs, &errors);
 	if (DEBUG(MAKE)) {
 	    debug_printf("done: errors %d\n", errors);
-	    if (errors)
+	    if (errors > 0)
 		Targ_PrintGraph(4);
 	}
     }
-    return errors != 0;
+    return errors > 0;
 }

@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-string.mk,v 1.11 2020/10/30 14:53:31 rillig Exp $
+# $NetBSD: cond-cmp-string.mk,v 1.13 2020/11/15 14:07:53 rillig Exp $
 #
 # Tests for string comparisons in .if conditions.
 
@@ -19,9 +19,14 @@
 .  error
 .endif
 
-# The left-hand side of the comparison requires a defined variable.
-# The variable named "" is not defined, but applying the :U modifier to it
-# makes it "kind of defined" (see VAR_KEEP).  Therefore it is ok here.
+# The left-hand side of the comparison requires that any variable expression
+# is defined.
+#
+# The variable named "" is never defined, nevertheless it can be used as a
+# starting point for variable expressions.  Applying the :U modifier to such
+# an undefined expression turns it into a defined expression.
+#
+# See ApplyModifier_Defined and VEF_DEF.
 .if ${:Ustr} != "str"
 .  error
 .endif
@@ -33,8 +38,10 @@
 .endif
 
 # It is not possible to concatenate two string literals to form a single
-# string.
+# string.  In C, Python and the shell this is possible, but not in make.
 .if "string" != "str""ing"
+.  error
+.else
 .  error
 .endif
 
@@ -86,5 +93,18 @@
 # Adding a space at the beginning of the quoted variable expression works
 # though.
 .if ${:U word } != " ${:Uword} "
+.  error
+.endif
+
+# If at least one side of the comparison is a string literal, the string
+# comparison is performed.
+.if 12345 != "12345"
+.  error
+.endif
+
+# If at least one side of the comparison is a string literal, the string
+# comparison is performed.  The ".0" in the left-hand side makes the two
+# sides of the equation unequal.
+.if 12345.0 == "12345"
 .  error
 .endif

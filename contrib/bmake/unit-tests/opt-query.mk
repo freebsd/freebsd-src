@@ -1,10 +1,12 @@
-# $NetBSD: opt-query.mk,v 1.3 2020/08/19 05:13:18 rillig Exp $
+# $NetBSD: opt-query.mk,v 1.4 2020/11/09 20:50:56 rillig Exp $
 #
 # Tests for the -q command line option.
 #
 # The -q option only looks at the dependencies between the targets.
 # None of the commands in the targets are run, not even those that are
 # prefixed with '+'.
+
+.MAKEFLAGS: -q
 
 # This command cannot be prevented from being run since it is used at parse
 # time, and any later variable assignments may depend on its result.

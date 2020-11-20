@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-jobs.mk,v 1.4 2020/10/05 19:27:48 rillig Exp $
+# $NetBSD: opt-debug-jobs.mk,v 1.5 2020/11/12 21:54:52 rillig Exp $
 #
 # Tests for the -dj command line option, which adds debug logging about
 # running jobs in multiple shells.
@@ -24,3 +24,10 @@ all:
 	# This allows to copy and paste the whole command, without having
 	# to unescape anything.
 	: 'single' and "double" quotes
+
+	# Avoid a race condition in the debug output.  Without sleeping,
+	# it is not guaranteed that the two lines "exited/stopped" and
+	# "JobFinish" are output earlier than the stdout of the actual shell
+	# commands.  The '@' prefix avoids that this final command gets into
+	# another race condition with the "exited/stopped" line.
+	@sleep 1

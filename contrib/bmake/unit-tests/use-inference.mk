@@ -1,4 +1,4 @@
-# $NetBSD: use-inference.mk,v 1.1 2020/08/09 16:32:28 rillig Exp $
+# $NetBSD: use-inference.mk,v 1.2 2020/11/05 00:41:04 rillig Exp $
 #
 # Demonstrate that .USE rules do not have an effect on inference rules.
 # At least not in the special case where the inference rule does not
@@ -33,3 +33,6 @@ use-inference.from:		# assume it exists
 # This is strange since make definitely knows about the .from.to suffix
 # inference rule.  But it seems to ignore it, maybe because it doesn't
 # have any associated commands.
+
+# XXX: Despite the error message "don't know how to make", the exit status
+# is 0.  This is inconsistent.

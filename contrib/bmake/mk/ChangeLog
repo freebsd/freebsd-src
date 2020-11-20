@@ -1,3 +1,10 @@
+2020-11-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201106
+
+	* meta.autodep.mk: use OBJ_EXTENSIONS rather than hardcode sed
+	args to tweak extensions for local deps.
+
 2020-11-01  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20201101

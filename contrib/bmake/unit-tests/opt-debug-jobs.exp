@@ -10,7 +10,9 @@ echo ":  variable"
 echo ": 'single' and \"double\" quotes"
 { : 'single' and "double" quotes 
 } || exit $?
-Running all locally
+{ sleep 1 
+} || exit $?
+Running all
 	Command: sh 
 JobExec(all): pid <pid> added to jobs table
 job table @ job started

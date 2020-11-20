@@ -1,4 +1,4 @@
-/* $NetBSD: lst.c,v 1.91 2020/10/28 02:43:16 rillig Exp $ */
+/* $NetBSD: lst.c,v 1.92 2020/11/08 01:29:26 rillig Exp $ */
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -34,7 +34,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: lst.c,v 1.91 2020/10/28 02:43:16 rillig Exp $");
+MAKE_RCSID("$NetBSD: lst.c,v 1.92 2020/11/08 01:29:26 rillig Exp $");
 
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
@@ -45,11 +45,11 @@ MAKE_RCSID("$NetBSD: lst.c,v 1.91 2020/10/28 02:43:16 rillig Exp $");
 static ListNode *
 LstNodeNew(ListNode *prev, ListNode *next, void *datum)
 {
-    ListNode *node = bmake_malloc(sizeof *node);
-    node->prev = prev;
-    node->next = next;
-    node->datum = datum;
-    return node;
+    ListNode *ln = bmake_malloc(sizeof *ln);
+    ln->prev = prev;
+    ln->next = next;
+    ln->datum = datum;
+    return ln;
 }
 
 /* Create and initialize a new, empty list. */
@@ -68,12 +68,11 @@ Lst_New(void)
 void
 Lst_Free(List *list)
 {
-    ListNode *node;
-    ListNode *next;
+    ListNode *ln, *next;
 
-    for (node = list->first; node != NULL; node = next) {
-	next = node->next;
-	free(node);
+    for (ln = list->first; ln != NULL; ln = next) {
+	next = ln->next;
+	free(ln);
     }
 
     free(list);
@@ -84,37 +83,32 @@ Lst_Free(List *list)
 void
 Lst_Destroy(List *list, LstFreeProc freeProc)
 {
-    ListNode *node;
-    ListNode *next;
+    ListNode *ln, *next;
 
-    for (node = list->first; node != NULL; node = next) {
-	next = node->next;
-	freeProc(node->datum);
-	free(node);
+    for (ln = list->first; ln != NULL; ln = next) {
+	next = ln->next;
+	freeProc(ln->datum);
+	free(ln);
     }
 
     free(list);
 }
 
-/*
- * Functions to modify a list
- */
-
 /* Insert a new node with the datum before the given node. */
 void
-Lst_InsertBefore(List *list, ListNode *node, void *datum)
+Lst_InsertBefore(List *list, ListNode *ln, void *datum)
 {
     ListNode *newNode;
 
     assert(datum != NULL);
 
-    newNode = LstNodeNew(node->prev, node, datum);
+    newNode = LstNodeNew(ln->prev, ln, datum);
 
-    if (node->prev != NULL)
-	node->prev->next = newNode;
-    node->prev = newNode;
+    if (ln->prev != NULL)
+	ln->prev->next = newNode;
+    ln->prev = newNode;
 
-    if (node == list->first)
+    if (ln == list->first)
 	list->first = newNode;
 }
 
@@ -122,18 +116,18 @@ Lst_InsertBefore(List *list, ListNode *node, void *datum)
 void
 Lst_Prepend(List *list, void *datum)
 {
-    ListNode *node;
+    ListNode *ln;
 
     assert(datum != NULL);
 
-    node = LstNodeNew(NULL, list->first, datum);
+    ln = LstNodeNew(NULL, list->first, datum);
 
     if (list->first == NULL) {
-	list->first = node;
-	list->last = node;
+	list->first = ln;
+	list->last = ln;
     } else {
-	list->first->prev = node;
-	list->first = node;
+	list->first->prev = ln;
+	list->first = ln;
     }
 }
 
@@ -141,71 +135,69 @@ Lst_Prepend(List *list, void *datum)
 void
 Lst_Append(List *list, void *datum)
 {
-    ListNode *node;
+    ListNode *ln;
 
     assert(datum != NULL);
 
-    node = LstNodeNew(list->last, NULL, datum);
+    ln = LstNodeNew(list->last, NULL, datum);
 
     if (list->last == NULL) {
-	list->first = node;
-	list->last = node;
+	list->first = ln;
+	list->last = ln;
     } else {
-	list->last->next = node;
-	list->last = node;
+	list->last->next = ln;
+	list->last = ln;
     }
 }
 
 /* Remove the given node from the given list.
  * The datum stored in the node must be freed by the caller, if necessary. */
 void
-Lst_Remove(List *list, ListNode *node)
+Lst_Remove(List *list, ListNode *ln)
 {
     /* unlink it from its neighbors */
-    if (node->next != NULL)
-	node->next->prev = node->prev;
-    if (node->prev != NULL)
-	node->prev->next = node->next;
+    if (ln->next != NULL)
+	ln->next->prev = ln->prev;
+    if (ln->prev != NULL)
+	ln->prev->next = ln->next;
 
     /* unlink it from the list */
-    if (list->first == node)
-	list->first = node->next;
-    if (list->last == node)
-	list->last = node->prev;
+    if (list->first == ln)
+	list->first = ln->next;
+    if (list->last == ln)
+	list->last = ln->prev;
 }
 
 /* Replace the datum in the given node with the new datum. */
 void
-LstNode_Set(ListNode *node, void *datum)
+LstNode_Set(ListNode *ln, void *datum)
 {
     assert(datum != NULL);
 
-    node->datum = datum;
+    ln->datum = datum;
 }
 
-/* Replace the datum in the given node to NULL.
+/* Replace the datum in the given node with NULL.
  * Having NULL values in a list is unusual though. */
 void
-LstNode_SetNull(ListNode *node)
+LstNode_SetNull(ListNode *ln)
 {
-    node->datum = NULL;
+    ln->datum = NULL;
 }
 
-/*
- * Functions for entire lists
- */
-
-/* Return the first node that contains the given datum, or NULL. */
+/* Return the first node that contains the given datum, or NULL.
+ *
+ * Time complexity: O(length(list)) */
 ListNode *
 Lst_FindDatum(List *list, const void *datum)
 {
-    ListNode *node;
+    ListNode *ln;
 
     assert(datum != NULL);
 
-    for (node = list->first; node != NULL; node = node->next)
-	if (node->datum == datum)
-	    return node;
+    for (ln = list->first; ln != NULL; ln = ln->next)
+	if (ln->datum == datum)
+	    return ln;
 
     return NULL;
 }
@@ -213,32 +205,32 @@ Lst_FindDatum(List *list, const void *datum)
 int
 Lst_ForEachUntil(List *list, LstActionUntilProc proc, void *procData)
 {
-    ListNode *node;
+    ListNode *ln;
     int result = 0;
 
-    for (node = list->first; node != NULL; node = node->next) {
-	result = proc(node->datum, procData);
+    for (ln = list->first; ln != NULL; ln = ln->next) {
+	result = proc(ln->datum, procData);
 	if (result != 0)
 	    break;
     }
     return result;
 }
 
-/* Move all nodes from list2 to the end of list1.
- * List2 is destroyed and freed. */
+/* Move all nodes from src to the end of dst.
+ * The source list is destroyed and freed. */
 void
-Lst_MoveAll(List *list1, List *list2)
+Lst_MoveAll(List *dst, List *src)
 {
-    if (list2->first != NULL) {
-	list2->first->prev = list1->last;
-	if (list1->last != NULL)
-	    list1->last->next = list2->first;
+    if (src->first != NULL) {
+	src->first->prev = dst->last;
+	if (dst->last != NULL)
+	    dst->last->next = src->first;
 	else
-	    list1->first = list2->first;
+	    dst->first = src->first;
 
-	list1->last = list2->last;
+	dst->last = src->last;
     }
-    free(list2);
+    free(src);
 }
 
 /* Copy the element data from src to the start of dst. */

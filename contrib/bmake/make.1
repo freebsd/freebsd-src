@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.290 2020/11/01 20:24:45 rillig Exp $
+.\"	$NetBSD: make.1,v 1.292 2020/11/14 22:19:13 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd November 1, 2020
+.Dd November 14, 2020
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nd maintain program dependencies
 .Sh SYNOPSIS
 .Nm
-.Op Fl BeikNnqrstWwX
+.Op Fl BeikNnqrSstWwX
 .Op Fl C Ar directory
 .Op Fl D Ar variable
 .Op Fl d Ar flags
@@ -329,6 +329,10 @@ Do not execute any commands, but exit 0 if the specified targets are
 up-to-date and 1, otherwise.
 .It Fl r
 Do not use the built-in rules specified in the system makefile.
+.It Fl S
+Stop processing if an error is encountered.
+This is the default behavior and the opposite of
+.Fl k .
 .It Fl s
 Do not echo any commands as they are executed.
 Equivalent to specifying
@@ -1101,6 +1105,15 @@ to the specified directory if it exists, and set
 and
 .Ql Ev PWD
 to that directory before executing any targets.
+.Pp
+Except in the case of an explicit
+.Ql Ic .OBJDIR
+target, 
+.Nm
+will check that the specified directory is writable and ignore it if not.
+This check can be skipped by setting the environment variable
+.Ql Ev MAKE_OBJDIR_CHECK_WRITABLE
+to "no".
 .
 .It Va .PARSEDIR
 A path to the directory of the current

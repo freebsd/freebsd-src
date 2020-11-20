@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.193 2020/10/31 17:39:20 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.210 2020/11/14 21:29:44 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -100,9 +100,9 @@
  *			then all the directories above it in turn until
  *			the path is found or we reach the root ("/").
  *
- *	Dir_MTime	Return the modification time of a node. The file
- *			is searched for along the default search path.
- *			The path and mtime fields of the node are filled in.
+ *	Dir_UpdateMTime
+ *			Update the modification time and path of a node with
+ *			data from the file corresponding to the node.
  *
  *	Dir_AddDir	Add a directory to a search path.
  *
@@ -134,7 +134,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.193 2020/10/31 17:39:20 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.210 2020/11/14 21:29:44 rillig Exp $");
 
 #define DIR_DEBUG0(text) DEBUG0(DIR, text)
 #define DIR_DEBUG1(fmt, arg1) DEBUG1(DIR, fmt, arg1)
@@ -168,9 +168,9 @@ MAKE_RCSID("$NetBSD: dir.c,v 1.193 2020/10/31 17:39:20 rillig Exp $");
  *	the process too much, it could severely affect the amount of
  *	parallelism available as each directory open would take another file
  *	descriptor out of play for handling I/O for another job. Given that
- *	it is only recently that UNIX OS's have taken to allowing more than
- *	20 or 32 file descriptors for a process, this doesn't seem acceptable
- *	to me.
+ *	it is only recently (as of 1993 or earlier) that UNIX OS's have taken
+ *	to allowing more than 20 or 32 file descriptors for a process, this
+ *	doesn't seem acceptable to me.
  *
  * 3)	record the mtime of the directory in the CachedDir structure and
  *	verify the directory hasn't changed since the contents were cached.
@@ -184,11 +184,11 @@ MAKE_RCSID("$NetBSD: dir.c,v 1.193 2020/10/31 17:39:20 rillig Exp $");
  *	resort to using stat in its place.
  *
  * An additional thing to consider is that pmake is used primarily to create
- * C programs and until recently pcc-based compilers refused to allow you to
- * specify where the resulting object file should be placed. This forced all
- * objects to be created in the current directory. This isn't meant as a full
- * excuse, just an explanation of some of the reasons for the caching used
- * here.
+ * C programs and until recently (as of 1993 or earlier) pcc-based compilers
+ * refused to allow you to specify where the resulting object file should be
+ * placed. This forced all objects to be created in the current directory.
+ * This isn't meant as a full excuse, just an explanation of some of the
+ * reasons for the caching used here.
  *
  * One more note: the location of a target's file is only performed on the
  * downward traversal of the graph and then only for terminal nodes in the
@@ -204,7 +204,7 @@ MAKE_RCSID("$NetBSD: dir.c,v 1.193 2020/10/31 17:39:20 rillig Exp $");
  * Given that an access() is essentially a stat() without the copyout() call,
  * and that the same filesystem overhead would have to be incurred in
  * Dir_MTime, it made sense to replace the access() with a stat() and record
- * the mtime in a cache for when Dir_MTime was actually called.
+ * the mtime in a cache for when Dir_UpdateMTime was actually called.
  */
 
 typedef List CachedDirList;
@@ -253,12 +253,10 @@ OpenDirs_Find(OpenDirs *odirs, const char *name)
 static void
 OpenDirs_Add(OpenDirs *odirs, CachedDir *cdir)
 {
-    HashEntry *he = HashTable_FindEntry(&odirs->table, cdir->name);
-    if (he != NULL)
+    if (HashTable_FindEntry(&odirs->table, cdir->name) != NULL)
 	return;
-    he = HashTable_CreateEntry(&odirs->table, cdir->name, NULL);
     Lst_Append(odirs->list, cdir);
-    HashEntry_Set(he, odirs->list->last);
+    HashTable_Set(&odirs->table, cdir->name, odirs->list->last);
 }
 
 static void
@@ -273,10 +271,10 @@ OpenDirs_Remove(OpenDirs *odirs, const char *name)
     Lst_Remove(odirs->list, ln);
 }
 
-static OpenDirs openDirs;	/* the list of all open directories */
+static OpenDirs openDirs;	/* all cached directories */
 
 /*
- * Variables for gathering statistics on the efficiency of the cashing
+ * Variables for gathering statistics on the efficiency of the caching
  * mechanism.
  */
 static int hits;		/* Found in directory cache */
@@ -300,74 +298,50 @@ static HashTable mtimes;
 
 static HashTable lmtimes;	/* same as mtimes but for lstat */
 
-/*
- * We use stat(2) a lot, cache the results.
- * mtime and mode are all we care about.
- */
-struct cache_st {
-    time_t lmtime;		/* lstat */
-    time_t mtime;		/* stat */
-    mode_t mode;
-};
-
-/* minimize changes below */
 typedef enum CachedStatsFlags {
-    CST_LSTAT = 0x01,		/* call lstat(2) instead of stat(2) */
-    CST_UPDATE = 0x02		/* ignore existing cached entry */
+    CST_NONE	= 0,
+    CST_LSTAT	= 1 << 0,	/* call lstat(2) instead of stat(2) */
+    CST_UPDATE	= 1 << 1	/* ignore existing cached entry */
 } CachedStatsFlags;
 
-/* Returns 0 and the result of stat(2) or lstat(2) in *mst, or -1 on error. */
+/* Returns 0 and the result of stat(2) or lstat(2) in *out_cst,
+ * or -1 on error. */
 static int
-cached_stats(HashTable *htp, const char *pathname, struct make_stat *mst,
+cached_stats(const char *pathname, struct cached_stat *out_cst,
 	     CachedStatsFlags flags)
 {
-    HashEntry *entry;
+    HashTable *tbl = flags & CST_LSTAT ? &lmtimes : &mtimes;
     struct stat sys_st;
-    struct cache_st *cst;
+    struct cached_stat *cst;
     int rc;
 
-    if (!pathname || !pathname[0])
-	return -1;
+    if (pathname == NULL || pathname[0] == '\0')
+	return -1;		/* This can happen in meta mode. */
 
-    entry = HashTable_FindEntry(htp, pathname);
-
-    if (entry && !(flags & CST_UPDATE)) {
-	cst = HashEntry_Get(entry);
-
-	mst->mst_mode = cst->mode;
-	mst->mst_mtime = (flags & CST_LSTAT) ? cst->lmtime : cst->mtime;
-	if (mst->mst_mtime) {
-	    DIR_DEBUG2("Using cached time %s for %s\n",
-		       Targ_FmtTime(mst->mst_mtime), pathname);
-	    return 0;
-	}
+    cst = HashTable_FindValue(tbl, pathname);
+    if (cst != NULL && !(flags & CST_UPDATE)) {
+	*out_cst = *cst;
+	DIR_DEBUG2("Using cached time %s for %s\n",
+		   Targ_FmtTime(cst->cst_mtime), pathname);
+	return 0;
     }
 
-    rc = (flags & CST_LSTAT)
-	 ? lstat(pathname, &sys_st)
-	 : stat(pathname, &sys_st);
+    rc = (flags & CST_LSTAT ? lstat : stat)(pathname, &sys_st);
     if (rc == -1)
-	return -1;
+	return -1;		/* don't cache negative lookups */
 
     if (sys_st.st_mtime == 0)
 	sys_st.st_mtime = 1;	/* avoid confusion with missing file */
 
-    mst->mst_mode = sys_st.st_mode;
-    mst->mst_mtime = sys_st.st_mtime;
+    if (cst == NULL) {
+	cst = bmake_malloc(sizeof *cst);
+	HashTable_Set(tbl, pathname, cst);
+    }
 
-    if (entry == NULL)
-	entry = HashTable_CreateEntry(htp, pathname, NULL);
-    if (HashEntry_Get(entry) == NULL) {
-	HashEntry_Set(entry, bmake_malloc(sizeof(*cst)));
-	memset(HashEntry_Get(entry), 0, sizeof(*cst));
-    }
-    cst = HashEntry_Get(entry);
-    if (flags & CST_LSTAT) {
-	cst->lmtime = sys_st.st_mtime;
-    } else {
-	cst->mtime = sys_st.st_mtime;
-    }
-    cst->mode = sys_st.st_mode;
+    cst->cst_mtime = sys_st.st_mtime;
+    cst->cst_mode = sys_st.st_mode;
+
+    *out_cst = *cst;
     DIR_DEBUG2("   Caching %s for %s\n",
 	       Targ_FmtTime(sys_st.st_mtime), pathname);
 
@@ -375,15 +349,15 @@ cached_stats(HashTable *htp, const char *pathname, struct make_stat *mst,
 }
 
 int
-cached_stat(const char *pathname, struct make_stat *st)
+cached_stat(const char *pathname, struct cached_stat *cst)
 {
-    return cached_stats(&mtimes, pathname, st, 0);
+    return cached_stats(pathname, cst, CST_NONE);
 }
 
 int
-cached_lstat(const char *pathname, struct make_stat *st)
+cached_lstat(const char *pathname, struct cached_stat *cst)
 {
-    return cached_stats(&lmtimes, pathname, st, CST_LSTAT);
+    return cached_stats(pathname, cst, CST_LSTAT);
 }
 
 /* Initialize the directories module. */
@@ -401,7 +375,7 @@ Dir_InitDir(const char *cdname)
 {
     Dir_InitCur(cdname);
 
-    dotLast = bmake_malloc(sizeof(CachedDir));
+    dotLast = bmake_malloc(sizeof *dotLast);
     dotLast->refCount = 1;
     dotLast->hits = 0;
     dotLast->name = bmake_strdup(".DOTLAST");
@@ -416,23 +390,31 @@ Dir_InitCur(const char *cdname)
 {
     CachedDir *dir;
 
-    if (cdname != NULL) {
+    if (cdname == NULL)
+	return;
+
+    /*
+     * Our build directory is not the same as our source directory.
+     * Keep this one around too.
+     */
+    dir = Dir_AddDir(NULL, cdname);
+    if (dir == NULL)
+	return;
+
+    /* XXX: Reference counting is wrong here.
+     * If this function is called repeatedly with the same directory name,
+     * its reference count increases each time even though the number of
+     * actual references stays the same. */
+
+    dir->refCount++;
+    if (cur != NULL && cur != dir) {
 	/*
-	 * Our build directory is not the same as our source directory.
-	 * Keep this one around too.
+	 * We've been here before, clean up.
 	 */
-	if ((dir = Dir_AddDir(NULL, cdname))) {
-	    dir->refCount++;
-	    if (cur && cur != dir) {
-		/*
-		 * We've been here before, clean up.
-		 */
-		cur->refCount--;
-		Dir_Destroy(cur);
-	    }
-	    cur = dir;
-	}
+	cur->refCount--;
+	Dir_Destroy(cur);
     }
+    cur = dir;
 }
 
 /* (Re)initialize "dot" (current/object directory) path hash.
@@ -587,6 +569,9 @@ DirMatchFiles(const char *pattern, CachedDir *dir, StringList *expansions)
     const char *dirName = dir->name;
     Boolean isDot = dirName[0] == '.' && dirName[1] == '\0';
     HashIter hi;
+
+    /* XXX: Iterating over all hash entries is inefficient.  If the pattern
+     * is a plain string without any wildcards, a direct lookup is faster. */
 
     HashIter_Init(&hi, &dir->files);
     while (HashIter_Next(&hi) != NULL) {
@@ -879,13 +864,13 @@ DirLookup(CachedDir *dir, const char *base)
 static char *
 DirLookupSubdir(CachedDir *dir, const char *name)
 {
-    struct make_stat mst;
+    struct cached_stat cst;
     char *file = dir == dot ? bmake_strdup(name)
 			    : str_concat3(dir->name, "/", name);
 
     DIR_DEBUG1("checking %s ...\n", file);
 
-    if (cached_stat(file, &mst) == 0) {
+    if (cached_stat(file, &cst) == 0) {
 	nearmisses++;
 	return file;
     }
@@ -974,7 +959,7 @@ Dir_FindFile(const char *name, SearchPath *path)
     const char *base;		/* Terminal name of file */
     Boolean hasLastDot = FALSE;	/* true if we should search dot last */
     Boolean hasSlash;		/* true if 'name' contains a / */
-    struct make_stat mst;	/* Buffer for stat, if necessary */
+    struct cached_stat cst;	/* Buffer for stat, if necessary */
     const char *trailing_dot = ".";
 
     /*
@@ -1176,7 +1161,7 @@ Dir_FindFile(const char *name, SearchPath *path)
      * When searching for $(FILE), we will find it in $(INSTALLDIR)
      * b/c we added it here. This is not good...
      */
-#ifdef notdef
+#if 0
     if (base == trailing_dot) {
 	base = strrchr(name, '/');
 	base++;
@@ -1198,17 +1183,17 @@ Dir_FindFile(const char *name, SearchPath *path)
     } else {
 	return NULL;
     }
-#else /* !notdef */
+#else
     DIR_DEBUG1("   Looking for \"%s\" ...\n", name);
 
     bigmisses++;
-    if (cached_stat(name, &mst) == 0) {
+    if (cached_stat(name, &cst) == 0) {
 	return bmake_strdup(name);
     }
 
     DIR_DEBUG0("   failed. Returning NULL\n");
     return NULL;
-#endif /* notdef */
+#endif
 }
 
 
@@ -1225,7 +1210,7 @@ Dir_FindFile(const char *name, SearchPath *path)
 char *
 Dir_FindHereOrAbove(const char *here, const char *search_path)
 {
-    struct make_stat mst;
+    struct cached_stat cst;
     char *dirbase, *dirbase_end;
     char *try, *try_end;
 
@@ -1238,12 +1223,12 @@ Dir_FindHereOrAbove(const char *here, const char *search_path)
 
 	/* try and stat(2) it ... */
 	try = str_concat3(dirbase, "/", search_path);
-	if (cached_stat(try, &mst) != -1) {
+	if (cached_stat(try, &cst) != -1) {
 	    /*
 	     * success!  if we found a file, chop off
 	     * the filename so we return a directory.
 	     */
-	    if ((mst.mst_mode & S_IFMT) != S_IFDIR) {
+	    if ((cst.cst_mode & S_IFMT) != S_IFDIR) {
 		try_end = try + strlen(try);
 		while (try_end > try && *try_end != '/')
 		    try_end--;
@@ -1275,36 +1260,27 @@ Dir_FindHereOrAbove(const char *here, const char *search_path)
     return NULL;
 }
 
-/*-
- *-----------------------------------------------------------------------
- * Dir_MTime  --
- *	Find the modification time of the file described by gn along the
- *	search path dirSearchPath.
+/* Search gn along dirSearchPath and store its modification time in gn->mtime.
+ * If no file is found, store 0 instead.
  *
- * Input:
- *	gn		the file whose modification time is desired
- *
- * Results:
- *	The modification time or 0 if it doesn't exist
- *
- * Side Effects:
- *	The modification time is placed in the node's mtime slot.
- *	If the node didn't have a path entry before, and Dir_FindFile
- *	found one for it, the full name is placed in the path slot.
- *-----------------------------------------------------------------------
- */
-time_t
-Dir_MTime(GNode *gn, Boolean recheck)
+ * The found file is stored in gn->path, unless the node already had a path. */
+void
+Dir_UpdateMTime(GNode *gn, Boolean recheck)
 {
-    char *fullName;		/* the full pathname of name */
-    struct make_stat mst;	/* buffer for finding the mod time */
+    char *fullName;
+    struct cached_stat cst;
 
     if (gn->type & OP_ARCHV) {
-	return Arch_MTime(gn);
-    } else if (gn->type & OP_PHONY) {
+	Arch_UpdateMTime(gn);
+	return;
+    }
+
+    if (gn->type & OP_PHONY) {
 	gn->mtime = 0;
-	return 0;
-    } else if (gn->path == NULL) {
+	return;
+    }
+
+    if (gn->path == NULL) {
 	if (gn->type & OP_NOPATH)
 	    fullName = NULL;
 	else {
@@ -1344,25 +1320,24 @@ Dir_MTime(GNode *gn, Boolean recheck)
 	fullName = gn->path;
     }
 
-    if (fullName == NULL) {
+    if (fullName == NULL)
 	fullName = bmake_strdup(gn->name);
-    }
 
-    if (cached_stats(&mtimes, fullName, &mst, recheck ? CST_UPDATE : 0) < 0) {
+    if (cached_stats(fullName, &cst, recheck ? CST_UPDATE : CST_NONE) < 0) {
 	if (gn->type & OP_MEMBER) {
 	    if (fullName != gn->path)
 		free(fullName);
-	    return Arch_MemMTime(gn);
-	} else {
-	    mst.mst_mtime = 0;
+	    Arch_UpdateMemberMTime(gn);
+	    return;
 	}
+
+	cst.cst_mtime = 0;
     }
 
     if (fullName != NULL && gn->path == NULL)
 	gn->path = fullName;
 
-    gn->mtime = mst.mst_mtime;
-    return gn->mtime;
+    gn->mtime = cst.cst_mtime;
 }
 
 /* Read the list of filenames in the directory and store the result
@@ -1387,6 +1362,7 @@ Dir_AddDir(SearchPath *path, const char *name)
     if (path != NULL && strcmp(name, ".DOTLAST") == 0) {
 	SearchPathNode *ln;
 
+	/* XXX: Linear search gets slow with thousands of entries. */
 	for (ln = path->first; ln != NULL; ln = ln->next) {
 	    CachedDir *pathDir = ln->datum;
 	    if (strcmp(pathDir->name, name) == 0)
@@ -1410,7 +1386,7 @@ Dir_AddDir(SearchPath *path, const char *name)
     DIR_DEBUG1("Caching %s ...", name);
 
     if ((d = opendir(name)) != NULL) {
-	dir = bmake_malloc(sizeof(CachedDir));
+	dir = bmake_malloc(sizeof *dir);
 	dir->name = bmake_strdup(name);
 	dir->hits = 0;
 	dir->refCount = 1;
@@ -1480,7 +1456,7 @@ Dir_MakeFlags(const char *flag, SearchPath *path)
     Buffer buf;
     SearchPathNode *ln;
 
-    Buf_Init(&buf, 0);
+    Buf_Init(&buf);
 
     if (path != NULL) {
 	for (ln = path->first; ln != NULL; ln = ln->next) {

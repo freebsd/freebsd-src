@@ -12,7 +12,7 @@ CFLAGS+= -I${.CURDIR}
 CLEANDIRS+= FreeBSD
 CLEANFILES+= bootstrap
 
-#	$Id: Makefile,v 1.113 2020/10/26 17:55:09 sjg Exp $
+#	$Id: Makefile,v 1.114 2020/11/13 21:47:25 sjg Exp $
 
 PROG?=	${.CURDIR:T}
 
@@ -61,6 +61,12 @@ CFLAGS+= -D_PATH_DEFSYSPATH=\"${DEFAULT_SYS_PATH}\"
 CFLAGS+= -I. -I${srcdir} ${XDEFS} -DMAKE_NATIVE
 CFLAGS+= ${COPTS.${.ALLSRC:M*.c:T:u}}
 COPTS.main.c+= "-DMAKE_VERSION=\"${_MAKE_VERSION}\""
+
+.for x in FORCE_MACHINE FORCE_MACHINE_ARCH
+.ifdef $x
+COPTS.main.c+= "-D$x=\"${$x}\""
+.endif
+.endfor
 
 # meta mode can be useful even without filemon
 # should be set by now

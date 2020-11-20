@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.67 2020/10/19 19:47:50 sjg Exp $
+dnl	$Id: configure.in,v 1.69 2020/11/14 07:40:43 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20201018], [sjg@NetBSD.org])
+AC_INIT([bmake], [20201112], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -38,7 +38,7 @@ CYGWIN*|MINGW*) use_makefile=no;;
 *) use_makefile=yes;;
 esac
 AC_ARG_WITH(makefile,
-[ --without-makefile disable use of generated makefile],
+[  --without-makefile disable use of generated makefile],
 [case "${withval}" in
 yes|no) use_makefile=${withval};;
 *) AC_MSG_ERROR(bad value ${withval} given for makefile) ;;
@@ -46,14 +46,14 @@ esac])
 dnl
 use_meta=yes
 AC_ARG_WITH(meta,
-[ --without-meta disable use of meta-mode],
+[  --without-meta disable use of meta-mode],
 [case "${withval}" in
 yes|no) use_meta=${withval};;
 *) AC_MSG_ERROR(bad value ${withval} given for meta) ;;
 esac])
 dnl
 AC_ARG_WITH(filemon,
-[ --with-filemon={no,dev,ktrace,path/filemon.h} indicate filemon method for meta-mode. Path to filemon.h implies dev],
+[  --with-filemon={no,dev,ktrace,path/filemon.h} indicate filemon method for meta-mode. Path to filemon.h implies dev],
 [ case "/${withval}" in
 /no) use_filemon=no;;
 /*trace) filemon_h=no use_filemon="${withval}";;
@@ -308,7 +308,7 @@ AC_ARG_WITH(force_machine_arch,
 [case "${withval}" in
 yes)   force_machine_arch=FORCE_;;
 no)    ;;
-*)     force_machine_arch=FORCE_; machine_arch=$with_force_machine;;
+*)     force_machine_arch=FORCE_; machine_arch=$with_force_machine_arch;;
 esac])
 dnl
 AC_ARG_WITH(machine_arch,
@@ -321,7 +321,7 @@ esac])
 dnl
 dnl Tell them what we ended up with
 dnl
-echo "Using: ${force_machine}MACHINE=$machine, MACHINE_ARCH=$machine_arch" 1>&6
+echo "Using: ${force_machine}MACHINE=$machine, ${force_machine_arch}MACHINE_ARCH=$machine_arch" 1>&6
 dnl
 dnl Allow folk to control _PATH_DEFSYSPATH
 dnl
@@ -407,6 +407,7 @@ dnl
 AC_SUBST(machine)
 AC_SUBST(force_machine)
 AC_SUBST(machine_arch)
+AC_SUBST(force_machine_arch)
 AC_SUBST(mksrc)
 AC_SUBST(default_sys_path)
 AC_SUBST(INSTALL)

@@ -1,9 +1,10 @@
-# $NetBSD: varmod-undefined.mk,v 1.6 2020/10/24 08:46:08 rillig Exp $
+# $NetBSD: varmod-undefined.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the :U variable modifier, which returns the given string
 # if the variable is undefined.
 #
 # See also:
+#	directive-for.mk
 #	varmod-defined.mk
 
 # The pattern ${:Uword} is heavily used when expanding .for loops.

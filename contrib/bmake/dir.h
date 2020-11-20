@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.h,v 1.32 2020/10/25 10:00:20 rillig Exp $	*/
+/*	$NetBSD: dir.h,v 1.34 2020/11/14 19:24:24 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -101,7 +101,7 @@ Boolean Dir_HasWildcards(const char *);
 void Dir_Expand(const char *, SearchPath *, StringList *);
 char *Dir_FindFile(const char *, SearchPath *);
 char *Dir_FindHereOrAbove(const char *, const char *);
-time_t Dir_MTime(GNode *, Boolean);
+void Dir_UpdateMTime(GNode *, Boolean);
 CachedDir *Dir_AddDir(SearchPath *, const char *);
 char *Dir_MakeFlags(const char *, SearchPath *);
 void Dir_ClearPath(SearchPath *);
@@ -112,12 +112,12 @@ void Dir_Destroy(void *);
 SearchPath *Dir_CopyDirSearchPath(void);
 
 /* Stripped-down variant of struct stat. */
-struct make_stat {
-    time_t mst_mtime;
-    mode_t mst_mode;
+struct cached_stat {
+    time_t cst_mtime;
+    mode_t cst_mode;
 };
 
-int cached_lstat(const char *, struct make_stat *);
-int cached_stat(const char *, struct make_stat *);
+int cached_lstat(const char *, struct cached_stat *);
+int cached_stat(const char *, struct cached_stat *);
 
 #endif /* MAKE_DIR_H */

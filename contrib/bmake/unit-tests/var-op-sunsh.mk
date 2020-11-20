@@ -1,4 +1,4 @@
-# $NetBSD: var-op-sunsh.mk,v 1.5 2020/10/04 08:32:52 rillig Exp $
+# $NetBSD: var-op-sunsh.mk,v 1.6 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the :sh= variable assignment operator, which runs its right-hand
 # side through the shell.  It is a seldom-used alternative to the !=
@@ -117,6 +117,8 @@ VAR :sh +=	echo two
 .if ${VAR} != "one echo two"
 .  error ${VAR}
 .endif
+
+# TODO: test VAR:sh!=command
 
 all:
 	@:;

@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.55 2020/10/25 19:28:44 rillig Exp $	*/
+/*	$NetBSD: hash.c,v 1.57 2020/11/14 21:29:44 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -74,7 +74,7 @@
 #include "make.h"
 
 /*	"@(#)hash.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: hash.c,v 1.55 2020/10/25 19:28:44 rillig Exp $");
+MAKE_RCSID("$NetBSD: hash.c,v 1.57 2020/11/14 21:29:44 rillig Exp $");
 
 /*
  * The ratio of # entries to # buckets at which we rebuild the table to
@@ -128,7 +128,7 @@ void
 HashTable_Init(HashTable *t)
 {
 	unsigned int n = 16, i;
-	HashEntry **buckets = bmake_malloc(sizeof(*buckets) * n);
+	HashEntry **buckets = bmake_malloc(sizeof *buckets * n);
 	for (i = 0; i < n; i++)
 		buckets[i] = NULL;
 
@@ -195,7 +195,7 @@ HashTable_Enlarge(HashTable *t)
 	HashEntry **oldBuckets = t->buckets;
 	unsigned int newSize = 2 * oldSize;
 	unsigned int newMask = newSize - 1;
-	HashEntry **newBuckets = bmake_malloc(sizeof(*newBuckets) * newSize);
+	HashEntry **newBuckets = bmake_malloc(sizeof *newBuckets * newSize);
 	size_t i;
 
 	for (i = 0; i < newSize; i++)
@@ -239,7 +239,7 @@ HashTable_CreateEntry(HashTable *t, const char *key, Boolean *out_isNew)
 	if (t->numEntries >= rebuildLimit * t->bucketsSize)
 		HashTable_Enlarge(t);
 
-	he = bmake_malloc(sizeof(*he) + keylen);
+	he = bmake_malloc(sizeof *he + keylen);
 	he->value = NULL;
 	he->key_hash = h;
 	memcpy(he->key, key, keylen + 1);
@@ -250,6 +250,14 @@ HashTable_CreateEntry(HashTable *t, const char *key, Boolean *out_isNew)
 
 	if (out_isNew != NULL)
 		*out_isNew = TRUE;
+	return he;
+}
+
+HashEntry *
+HashTable_Set(HashTable *t, const char *key, void *value)
+{
+	HashEntry *he = HashTable_CreateEntry(t, key, NULL);
+	HashEntry_Set(he, value);
 	return he;
 }
 

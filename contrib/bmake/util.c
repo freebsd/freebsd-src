@@ -1,9 +1,9 @@
-/*	$NetBSD: util.c,v 1.64 2020/10/06 21:51:33 rillig Exp $	*/
+/*	$NetBSD: util.c,v 1.68 2020/11/16 18:29:49 rillig Exp $	*/
 
 /*
  * Missing stuff from OS's
  *
- *	$Id: util.c,v 1.39 2020/10/10 19:42:02 sjg Exp $
+ *	$Id: util.c,v 1.41 2020/11/18 03:58:32 sjg Exp $
  */
 
 #include <sys/param.h>
@@ -13,7 +13,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: util.c,v 1.64 2020/10/06 21:51:33 rillig Exp $");
+MAKE_RCSID("$NetBSD: util.c,v 1.68 2020/11/16 18:29:49 rillig Exp $");
 
 #if !defined(MAKE_NATIVE) && !defined(HAVE_STRERROR)
 extern int errno, sys_nerr;
@@ -24,10 +24,9 @@ strerror(int e)
 {
     static char buf[100];
     if (e < 0 || e >= sys_nerr) {
-	snprintf(buf, sizeof(buf), "Unknown error %d", e);
+	snprintf(buf, sizeof buf, "Unknown error %d", e);
 	return buf;
-    }
-    else
+    } else
 	return sys_errlist[e];
 }
 #endif
@@ -96,7 +95,7 @@ setenv(const char *name, const char *value, int rewrite)
 	}
 
 	if (*value == '=')			/* no `=' in value */
-		++value;
+		value++;
 	l_value = strlen(value);
 
 	/* find if already exists */
@@ -291,8 +290,7 @@ getwd(char *pathname)
 	    for (d = readdir(dp); d != NULL; d = readdir(dp))
 		if (d->d_fileno == st_cur.st_ino)
 		    break;
-	}
-	else {
+	} else {
 	    /*
 	     * Parent has a different device. This is a mount point so we
 	     * need to stat every member
@@ -384,14 +382,14 @@ vsnprintf(char *s, size_t n, const char *fmt, va_list args)
 	 * We cast to void * to make everyone happy.
 	 */
 	fakebuf._ptr = (void *)s;
-	fakebuf._cnt = n-1;
+	fakebuf._cnt = n - 1;
 	fakebuf._file = -1;
 	_doprnt(fmt, args, &fakebuf);
 	fakebuf._cnt++;
 	putc('\0', &fakebuf);
-	if (fakebuf._cnt<0)
+	if (fakebuf._cnt < 0)
 	    fakebuf._cnt = 0;
-	return n-fakebuf._cnt-1;
+	return n - fakebuf._cnt - 1;
 #else
 #ifndef _PATH_DEVNULL
 # define _PATH_DEVNULL "/dev/null"

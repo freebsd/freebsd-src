@@ -1,7 +1,6 @@
-# $NetBSD: modts.mk,v 1.7 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: modts.mk,v 1.8 2020/11/03 18:42:33 rillig Exp $
 
-LIST=	one two three
-LIST+=	four five six
+LIST=	one two three four five six
 
 FU_mod-ts=	a / b / cool
 

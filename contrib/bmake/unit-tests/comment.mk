@@ -1,4 +1,4 @@
-# $NetBSD: comment.mk,v 1.2 2020/09/07 19:17:36 rillig Exp $
+# $NetBSD: comment.mk,v 1.3 2020/11/15 14:07:53 rillig Exp $
 #
 # Demonstrate how comments are written in makefiles.
 
@@ -12,7 +12,7 @@ that \
 goes \
 on and on.
 
- # Comments can be indented, but that is rather unusual.
+ # Comments can be indented with spaces, but that is rather unusual.
 
 	# Comments can be indented with a tab.
 	# These are not shell commands, they are just makefile comments.
@@ -21,6 +21,8 @@ on and on.
 .endif			# And after the closing directive.
 
 VAR=			# This comment makes the variable value empty.
+			# ParseGetLine removes any whitespace before the
+			# comment.
 .if ${VAR} != ""
 .  error
 .endif
@@ -35,7 +37,9 @@ VAR=	value
 .  error
 .endif
 
-# This is NOT an escaped comment due to the double backslashes \\
+# This comment ends with 2 backslashes.  An even number of backslashes does
+# not count as a line continuation, therefore the variable assignment that
+# follows is actively interpreted. \\
 VAR=	not part of the comment
 .if ${VAR} != "not part of the comment"
 .  error
@@ -55,7 +59,7 @@ WORDS=	${VAR:[#]} [#
 .  error
 .endif
 
-# An odd number of comment signs makes a line continuation, \\\
+# An odd number of backslashes makes a line continuation, \\\
 no matter if it is 3 or 5 \\\\\
 or 9 backslashes. \\\\\\\\\
 This is the last line of the comment.
