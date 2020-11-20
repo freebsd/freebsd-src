@@ -380,10 +380,7 @@ dwc_stop_locked(struct dwc_softc *sc)
 	reg |= (MODE_FTF);
 	WRITE4(sc, OPERATION_MODE, reg);
 
-	/* Stop transmitters */
-	reg = READ4(sc, MAC_CONFIGURATION);
-	reg &= ~(CONF_TE | CONF_RE);
-	WRITE4(sc, MAC_CONFIGURATION, reg);
+	dwc_enable_mac(sc, false);
 
 	/* Stop DMA RX */
 	reg = READ4(sc, OPERATION_MODE);
