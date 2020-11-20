@@ -1,4 +1,9 @@
-# $NetBSD: cond1.mk,v 1.2 2020/10/24 08:34:59 rillig Exp $
+# $NetBSD: cond1.mk,v 1.3 2020/11/15 14:58:14 rillig Exp $
+
+# TODO: Convert these tests into tutorial form.
+# TODO: Split these tests by topic.
+# TODO: Use better variable names and expression values that actually express
+# the intended behavior.  uname(1) has nothing to do with conditions.
 
 # hard code these!
 TEST_UNAME_S= NetBSD

@@ -1,11 +1,12 @@
-# $NetBSD: var-op-assign.mk,v 1.6 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: var-op-assign.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the = variable assignment operator, which overwrites an existing
 # variable or creates it.
 
 # This is a simple variable assignment.
 # To the left of the assignment operator '=' there is the variable name,
-# and to the right is the variable value.
+# and to the right is the variable value.  The variable value is stored as-is,
+# it is not expanded in any way.
 #
 VAR=	value
 
@@ -36,9 +37,15 @@ VAR=	new value and \# some $$ special characters	# comment
 
 # The variable value may contain references to other variables.
 # In this example, the reference is to the variable with the empty name,
-# which always expands to an empty string.  This alone would not produce
-# any side-effects, therefore the variable has a :!...! modifier that
-# executes a shell command.
+# which is never defined.
+#
+# This alone would not produce any side-effects, therefore the variable has
+# a :!...! modifier that executes a shell command.  The :!...! modifier turns
+# an undefined expression into a defined one, see ApplyModifier_ShellCommand,
+# the call to ApplyModifiersState_Define.
+#
+# Since the right-hand side of a '=' assignment is not expanded at the time
+# when the variable is defined, the first command is not run at all.
 VAR=	${:! echo 'not yet evaluated' 1>&2 !}
 VAR=	${:! echo 'this will be evaluated later' 1>&2 !}
 
@@ -48,7 +55,7 @@ VAR=	${:! echo 'this will be evaluated later' 1>&2 !}
 .endif
 
 # In a variable assignment, the variable name must consist of a single word.
-#
+# The following line therefore generates a parse error.
 VARIABLE NAME=	variable value
 
 # But if the whitespace appears inside parentheses or braces, everything is

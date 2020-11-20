@@ -6,4 +6,5 @@ Var_Parse: ${DOLLAR} != "\$\$" with VARE_UNDEFERR|VARE_WANTRES
 lhs = "$$", rhs = "$$", op = !=
 Global:.MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d
 Global:.MAKEFLAGS =  -r -k -D VAR -D VAR -d cv -d 0
+make: Unterminated quoted string [make VAR=initial UNBALANCED=']
 exit status 0

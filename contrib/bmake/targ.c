@@ -1,4 +1,4 @@
-/*	$NetBSD: targ.c,v 1.126 2020/10/30 07:19:30 rillig Exp $	*/
+/*	$NetBSD: targ.c,v 1.135 2020/11/16 22:28:44 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -68,19 +68,17 @@
  * SUCH DAMAGE.
  */
 
-/*-
- * targ.c --
- *	Functions for maintaining the Lst allTargets. Target nodes are
- *	kept in two structures: a Lst and a hash table.
+/*
+ * Maintaining the targets and sources, which are both implemented as GNode.
  *
  * Interface:
- *	Targ_Init	Initialization procedure.
+ *	Targ_Init	Initialize the module.
  *
- *	Targ_End	Clean up the module
+ *	Targ_End	Clean up the module.
  *
  *	Targ_List	Return the list of all targets so far.
  *
- *	Targ_NewGN	Create a new GNode for the passed target
+ *	GNode_New	Create a new GNode for the passed target
  *			(string). The node is *not* placed in the
  *			hash table, though all its fields are
  *			initialized.
@@ -121,23 +119,26 @@
 #include "dir.h"
 
 /*	"@(#)targ.c	8.2 (Berkeley) 3/19/94"	*/
-MAKE_RCSID("$NetBSD: targ.c,v 1.126 2020/10/30 07:19:30 rillig Exp $");
+MAKE_RCSID("$NetBSD: targ.c,v 1.135 2020/11/16 22:28:44 rillig Exp $");
 
-static GNodeList *allTargets;	/* the list of all targets found so far */
-#ifdef CLEANUP
-static GNodeList *allGNs;	/* List of all the GNodes */
-#endif
-static HashTable targets;	/* a hash table of same */
+/* All target nodes found so far, but not the source nodes. */
+static GNodeList *allTargets;
+static HashTable allTargetsByName;
 
 #ifdef CLEANUP
-static void TargFreeGN(void *);
+static GNodeList *allNodes;
+
+static void GNode_Free(void *);
 #endif
 
 void
 Targ_Init(void)
 {
     allTargets = Lst_New();
-    HashTable_Init(&targets);
+    HashTable_Init(&allTargetsByName);
+#ifdef CLEANUP
+    allNodes = Lst_New();
+#endif
 }
 
 void
@@ -146,56 +147,67 @@ Targ_End(void)
     Targ_Stats();
 #ifdef CLEANUP
     Lst_Free(allTargets);
-    if (allGNs != NULL)
-	Lst_Destroy(allGNs, TargFreeGN);
-    HashTable_Done(&targets);
+    HashTable_Done(&allTargetsByName);
+    Lst_Destroy(allNodes, GNode_Free);
 #endif
 }
 
 void
 Targ_Stats(void)
 {
-    HashTable_DebugStats(&targets, "targets");
+    HashTable_DebugStats(&allTargetsByName, "targets");
 }
 
-/* Return the list of all targets. */
+/*
+ * Return the list of all targets, which are all nodes that appear on the
+ * left-hand side of a dependency declaration such as "target: source".
+ * The returned list does not contain pure sources.
+ */
 GNodeList *
 Targ_List(void)
 {
     return allTargets;
 }
 
-/* Create and initialize a new graph node. The gnode is added to the list of
- * all gnodes.
+/* Create a new graph node, but don't register it anywhere.
  *
- * Input:
- *	name		the name of the node, such as "clean", "src.c", ".END"
+ * Graph nodes that appear on the left-hand side of a dependency line such
+ * as "target: source" are called targets.  XXX: In some cases (like the
+ * .ALLTARGETS variable), all nodes are called targets as well, even if they
+ * never appear on the left-hand side.  This is a mistake.
+ *
+ * Typical names for graph nodes are:
+ *	"src.c" (an ordinary file)
+ *	"clean" (a .PHONY target)
+ *	".END" (a special hook target)
+ *	"-lm" (a library)
+ *	"libc.a(isspace.o)" (an archive member)
  */
 GNode *
-Targ_NewGN(const char *name)
+GNode_New(const char *name)
 {
     GNode *gn;
 
-    gn = bmake_malloc(sizeof(GNode));
+    gn = bmake_malloc(sizeof *gn);
     gn->name = bmake_strdup(name);
     gn->uname = NULL;
     gn->path = NULL;
     gn->type = name[0] == '-' && name[1] == 'l' ? OP_LIB : 0;
-    gn->unmade = 0;
-    gn->unmade_cohorts = 0;
-    gn->cohort_num[0] = '\0';
-    gn->centurion = NULL;
-    gn->made = UNMADE;
     gn->flags = 0;
-    gn->checked_seqno = 0;
+    gn->made = UNMADE;
+    gn->unmade = 0;
     gn->mtime = 0;
     gn->youngestChild = NULL;
     gn->implicitParents = Lst_New();
-    gn->cohorts = Lst_New();
     gn->parents = Lst_New();
     gn->children = Lst_New();
     gn->order_pred = Lst_New();
     gn->order_succ = Lst_New();
+    gn->cohorts = Lst_New();
+    gn->cohort_num[0] = '\0';
+    gn->unmade_cohorts = 0;
+    gn->centurion = NULL;
+    gn->checked_seqno = 0;
     HashTable_Init(&gn->context);
     gn->commands = Lst_New();
     gn->suffix = NULL;
@@ -203,9 +215,7 @@ Targ_NewGN(const char *name)
     gn->lineno = 0;
 
 #ifdef CLEANUP
-    if (allGNs == NULL)
-	allGNs = Lst_New();
-    Lst_Append(allGNs, gn);
+    Lst_Append(allNodes, gn);
 #endif
 
     return gn;
@@ -213,24 +223,29 @@ Targ_NewGN(const char *name)
 
 #ifdef CLEANUP
 static void
-TargFreeGN(void *gnp)
+GNode_Free(void *gnp)
 {
     GNode *gn = gnp;
 
     free(gn->name);
     free(gn->uname);
     free(gn->path);
-
-    Lst_Free(gn->implicitParents);
-    Lst_Free(gn->cohorts);
-    Lst_Free(gn->parents);
-    Lst_Free(gn->children);
-    Lst_Free(gn->order_succ);
-    Lst_Free(gn->order_pred);
-    HashTable_Done(&gn->context);
-    Lst_Free(gn->commands);
-
-    /* XXX: does gn->suffix need to be freed? It is reference-counted. */
+    /* gn->youngestChild is not owned by this node. */
+    Lst_Free(gn->implicitParents); /* ... but not the nodes themselves, */
+    Lst_Free(gn->parents);	/* as they are not owned by this node. */
+    Lst_Free(gn->children);	/* likewise */
+    Lst_Free(gn->order_pred);	/* likewise */
+    Lst_Free(gn->order_succ);	/* likewise */
+    Lst_Free(gn->cohorts);	/* likewise */
+    HashTable_Done(&gn->context); /* ... but not the variables themselves,
+				 * even though they are owned by this node.
+				 * XXX: they should probably be freed. */
+    Lst_Free(gn->commands);	/* ... but not the commands themselves,
+				 * as they may be shared with other nodes. */
+    /* gn->suffix is not owned by this node. */
+    /* XXX: gn->suffix should be unreferenced here.  This requires a thorough
+     * check that the reference counting is done correctly in all places,
+     * otherwise a suffix might be freed too early. */
 
     free(gn);
 }
@@ -240,7 +255,7 @@ TargFreeGN(void *gnp)
 GNode *
 Targ_FindNode(const char *name)
 {
-    return HashTable_FindValue(&targets, name);
+    return HashTable_FindValue(&allTargetsByName, name);
 }
 
 /* Get the existing global node, or create it. */
@@ -248,7 +263,7 @@ GNode *
 Targ_GetNode(const char *name)
 {
     Boolean isNew;
-    HashEntry *he = HashTable_CreateEntry(&targets, name, &isNew);
+    HashEntry *he = HashTable_CreateEntry(&allTargetsByName, name, &isNew);
     if (!isNew)
 	return HashEntry_Get(he);
 
@@ -259,14 +274,16 @@ Targ_GetNode(const char *name)
     }
 }
 
-/* Create a node, register it in .ALLTARGETS but don't store it in the
+/*
+ * Create a node, register it in .ALLTARGETS but don't store it in the
  * table of global nodes.  This means it cannot be found by name.
  *
- * This is used for internal nodes, such as cohorts or .WAIT nodes. */
+ * This is used for internal nodes, such as cohorts or .WAIT nodes.
+ */
 GNode *
 Targ_NewInternalNode(const char *name)
 {
-    GNode *gn = Targ_NewGN(name);
+    GNode *gn = GNode_New(name);
     Var_Append(".ALLTARGETS", name, VAR_GLOBAL);
     Lst_Append(allTargets, gn);
     if (doing_depend)
@@ -274,8 +291,10 @@ Targ_NewInternalNode(const char *name)
     return gn;
 }
 
-/* Return the .END node, which contains the commands to be executed when
- * everything else is done. */
+/*
+ * Return the .END node, which contains the commands to be run when
+ * everything else has been made.
+ */
 GNode *Targ_GetEndNode(void)
 {
     /* Save the node locally to avoid having to search for it all the time. */
@@ -303,31 +322,33 @@ Targ_FindList(StringList *names)
 
 /* Return true if should ignore errors when creating gn. */
 Boolean
-Targ_Ignore(GNode *gn)
+Targ_Ignore(const GNode *gn)
 {
     return opts.ignoreErrors || gn->type & OP_IGNORE;
 }
 
 /* Return true if be silent when creating gn. */
 Boolean
-Targ_Silent(GNode *gn)
+Targ_Silent(const GNode *gn)
 {
     return opts.beSilent || gn->type & OP_SILENT;
 }
 
 /* See if the given target is precious. */
 Boolean
-Targ_Precious(GNode *gn)
+Targ_Precious(const GNode *gn)
 {
+    /* XXX: Why are '::' targets precious? */
     return allPrecious || gn->type & (OP_PRECIOUS | OP_DOUBLEDEP);
 }
 
-/******************* DEBUG INFO PRINTING ****************/
+/*
+ * The main target to be made; only for debugging output.
+ * See mainNode in parse.c for the definitive source.
+ */
+static GNode *mainTarg;
 
-static GNode	  *mainTarg;	/* the main target, as set by Targ_SetMain */
-
-/* Set our idea of the main target we'll be creating. Used for debugging
- * output. */
+/* Remember the main target to make; only used for debugging. */
 void
 Targ_SetMain(GNode *gn)
 {
@@ -459,12 +480,12 @@ Targ_PrintNode(GNode *gn, int pass)
 	    debug_printf("# *** MAIN TARGET ***\n");
 	}
 	if (pass >= 2) {
-	    if (gn->unmade) {
+	    if (gn->unmade > 0) {
 		debug_printf("# %d unmade children\n", gn->unmade);
 	    } else {
 		debug_printf("# No unmade children\n");
 	    }
-	    if (! (gn->type & (OP_JOIN|OP_USE|OP_USEBEFORE|OP_EXEC))) {
+	    if (!(gn->type & (OP_JOIN|OP_USE|OP_USEBEFORE|OP_EXEC))) {
 		if (gn->mtime != 0) {
 		    debug_printf("# last modified %s: %s\n",
 			    Targ_FmtTime(gn->mtime),
@@ -532,20 +553,27 @@ Targ_PrintGraph(int pass)
 {
     debug_printf("#*** Input graph:\n");
     Targ_PrintNodes(allTargets, pass);
-    debug_printf("\n\n");
-    debug_printf("#\n#   Files that are only sources:\n");
+    debug_printf("\n");
+    debug_printf("\n");
+
+    debug_printf("#\n");
+    debug_printf("#   Files that are only sources:\n");
     PrintOnlySources();
+
     debug_printf("#*** Global Variables:\n");
     Var_Dump(VAR_GLOBAL);
+
     debug_printf("#*** Command-line Variables:\n");
     Var_Dump(VAR_CMDLINE);
+
     debug_printf("\n");
     Dir_PrintDirectories();
     debug_printf("\n");
+
     Suff_PrintAll();
 }
 
-/* Propagate some type information to cohort nodes (those from the ::
+/* Propagate some type information to cohort nodes (those from the '::'
  * dependency operator).
  *
  * Should be called after the makefiles are parsed but before any action is

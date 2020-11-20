@@ -1,4 +1,4 @@
-# $NetBSD: varmod.mk,v 1.3 2020/09/13 07:42:20 rillig Exp $
+# $NetBSD: varmod.mk,v 1.4 2020/11/02 17:30:22 rillig Exp $
 #
 # Tests for variable modifiers, such as :Q, :S,from,to or :Ufallback.
 
@@ -45,6 +45,15 @@ DOLLAR2=	${:U\$}
 
 # A '$' followed by nothing is an error as well.
 .if ${:Uword:@word@${word}$@} != "word"
+.  error
+.endif
+
+# The variable modifier :P does not fall back to the SysV modifier.
+# Therefore the modifier :P=RE generates a parse error.
+# XXX: The .error should not be reached since the variable expression is
+# malformed.
+VAR=	STOP
+.if ${VAR:P=RE} != "STORE"
 .  error
 .endif
 

@@ -1,4 +1,4 @@
-# $NetBSD: varmod-to-separator.mk,v 1.6 2020/11/01 14:36:25 rillig Exp $
+# $NetBSD: varmod-to-separator.mk,v 1.7 2020/11/15 20:20:58 rillig Exp $
 #
 # Tests for the :ts variable modifier, which joins the words of the variable
 # using an arbitrary character as word separator.
@@ -165,5 +165,11 @@ WORDS=	one two three four five six
 .if ${WORDS:t\X} != "anything"
 .  info This line is not reached.
 .endif
+
+# TODO: This modifier used to accept decimal numbers as well, in the form
+# ':ts\120'.  When has this been changed to octal, and what happens now
+# for ':ts\90' ('Z' in decimal ASCII, undefined in octal)?
+
+# TODO: :ts\x1F600
 
 all:

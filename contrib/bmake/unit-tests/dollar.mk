@@ -1,6 +1,6 @@
-# $NetBSD: dollar.mk,v 1.3 2020/05/17 09:37:48 rillig Exp $
+# $NetBSD: dollar.mk,v 1.4 2020/11/03 18:21:36 rillig Exp $
 #
-# Test the various places where a dollar character can appear and
+# Test the various places where a dollar sign can appear and
 # see what happens.  There are lots of surprises here.
 #
 
@@ -30,7 +30,7 @@ ${:U'}=			single-quote-var-value'
 all:
 	$H 'Printing dollar from literals and variables'
 
-	$C 'To survive the parser, a dollar character must be doubled.'
+	$C 'To survive the parser, a dollar sign must be doubled.'
 	$T	'1 dollar literal'	'$'
 	$T	'1 dollar literal eol'	''$
 	$T	'2 dollar literal'	'$$'

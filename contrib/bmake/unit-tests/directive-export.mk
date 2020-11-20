@@ -1,4 +1,4 @@
-# $NetBSD: directive-export.mk,v 1.3 2020/10/29 17:27:12 rillig Exp $
+# $NetBSD: directive-export.mk,v 1.4 2020/11/03 17:17:31 rillig Exp $
 #
 # Tests for the .export directive.
 
@@ -20,6 +20,12 @@ VAR=		value $$ ${INDIRECT}
 .if ${:!env | grep '^VAR' || true!} != ""
 .  error
 .endif
+
+# Tests for parsing the .export directive.
+.expor				# misspelled
+.export				# oops: missing argument
+.export VARNAME
+.exporting works		# oops: misspelled
 
 all:
 	@:;

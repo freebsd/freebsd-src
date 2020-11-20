@@ -75,7 +75,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.14 2020/10/02 03:11:17 sjg Exp $
+#	$Id: meta2deps.sh,v 1.15 2020/11/08 06:31:08 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -257,7 +257,7 @@ meta2deps() {
 	    0) error "no filemon data";;
 	    *) ;;
 	    esac
-            version=0
+	    version=0
 	    continue
 	    ;;
 	$pid,$pid) ;;

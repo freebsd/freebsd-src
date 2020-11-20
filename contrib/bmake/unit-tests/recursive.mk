@@ -1,4 +1,4 @@
-# $NetBSD: recursive.mk,v 1.3 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: recursive.mk,v 1.4 2020/11/09 20:50:56 rillig Exp $
 #
 # In -dL mode, a variable may get expanded before it makes sense.
 # This would stop make from doing anything since the "recursive" error
@@ -10,6 +10,8 @@
 #
 # Seen in pkgsrc/x11/libXfixes, and probably many more package that use
 # GNU Automake.
+
+.MAKEFLAGS: -dL
 
 AM_V_lt=	${am__v_lt_${V}}
 am__v_lt_=	${am__v_lt_${AM_DEFAULT_VERBOSITY}}

@@ -1,4 +1,4 @@
-/*	$NetBSD: filemon_ktrace.c,v 1.3 2020/10/18 11:54:43 rillig Exp $	*/
+/*	$NetBSD: filemon_ktrace.c,v 1.4 2020/11/05 17:27:16 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
@@ -198,7 +198,7 @@ filemon_open(void)
 	int error;
 
 	/* Allocate and zero a struct filemon object.  */
-	F = calloc(1, sizeof(*F));
+	F = calloc(1, sizeof *F);
 	if (F == NULL)
 		return NULL;
 

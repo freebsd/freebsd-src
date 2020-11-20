@@ -1,4 +1,4 @@
-# $NetBSD: varname-makefile.mk,v 1.2 2020/09/05 06:25:38 rillig Exp $
+# $NetBSD: varname-makefile.mk,v 1.3 2020/11/09 22:36:44 rillig Exp $
 #
 # Tests for the special MAKEFILE variable, which contains the current
 # makefile from the -f command line option.
@@ -41,4 +41,9 @@ MAKEFILE=	overwritten
 .endif
 
 all:
-	@:;
+	# MAKEFILE is the file that appeared last in the command line.
+	: In the end, MAKEFILE is ${MAKEFILE}.
+
+# Additional makefiles can be added while reading a makefile.  They will be
+# read in order.
+.MAKEFLAGS: -f /dev/null

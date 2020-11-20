@@ -1,5 +1,13 @@
 make: "deptgt.mk" line 10: warning: Extra target ignored
 make: "deptgt.mk" line 28: Unassociated shell command ": command3		# parse error, since targets == NULL"
+ParseReadLine (34): '${:U}: empty-source'
+ParseDoDependency(: empty-source)
+ParseReadLine (35): '	: command for empty targets list'
+ParseReadLine (36): ': empty-source'
+ParseDoDependency(: empty-source)
+ParseReadLine (37): '	: command for empty targets list'
+ParseReadLine (38): '.MAKEFLAGS: -d0'
+ParseDoDependency(.MAKEFLAGS: -d0)
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

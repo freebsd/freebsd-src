@@ -1,4 +1,4 @@
-/*	$NetBSD: nonints.h,v 1.149 2020/11/01 00:24:57 rillig Exp $	*/
+/*	$NetBSD: nonints.h,v 1.162 2020/11/16 21:48:18 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -79,8 +79,8 @@ void Arch_End(void);
 Boolean Arch_ParseArchive(char **, GNodeList *, GNode *);
 void Arch_Touch(GNode *);
 void Arch_TouchLib(GNode *);
-time_t Arch_MTime(GNode *);
-time_t Arch_MemMTime(GNode *);
+void Arch_UpdateMTime(GNode *gn);
+void Arch_UpdateMemberMTime(GNode *gn);
 void Arch_FindLib(GNode *, SearchPath *);
 Boolean Arch_LibOODate(GNode *);
 Boolean Arch_IsLib(GNode *);
@@ -107,6 +107,7 @@ void JobReapChild(pid_t, WAIT_T, Boolean);
 #endif
 
 /* main.c */
+Boolean GetBooleanVar(const char *, Boolean);
 void Main_ParseArgLine(const char *);
 void MakeMode(const char *);
 char *Cmd_Exec(const char *, const char **);
@@ -118,8 +119,7 @@ void Finish(int) MAKE_ATTR_DEAD;
 int eunlink(const char *);
 void execDie(const char *, const char *);
 char *getTmpdir(void);
-Boolean s2Boolean(const char *, Boolean);
-Boolean getBoolean(const char *, Boolean);
+Boolean ParseBoolean(const char *, Boolean);
 char *cached_realpath(const char *, char *);
 
 /* parse.c */
@@ -159,7 +159,7 @@ typedef struct Words {
 } Words;
 
 Words Str_Words(const char *, Boolean);
-static inline MAKE_ATTR_UNUSED void
+MAKE_INLINE void
 Words_Free(Words w) {
     free(w.words);
     free(w.freeIt);
@@ -199,15 +199,15 @@ void Targ_End(void);
 
 void Targ_Stats(void);
 GNodeList *Targ_List(void);
-GNode *Targ_NewGN(const char *);
+GNode *GNode_New(const char *);
 GNode *Targ_FindNode(const char *);
 GNode *Targ_GetNode(const char *);
 GNode *Targ_NewInternalNode(const char *);
 GNode *Targ_GetEndNode(void);
 GNodeList *Targ_FindList(StringList *);
-Boolean Targ_Ignore(GNode *);
-Boolean Targ_Silent(GNode *);
-Boolean Targ_Precious(GNode *);
+Boolean Targ_Ignore(const GNode *);
+Boolean Targ_Silent(const GNode *);
+Boolean Targ_Precious(const GNode *);
 void Targ_SetMain(GNode *);
 void Targ_PrintCmds(GNode *);
 void Targ_PrintNode(GNode *, int);
@@ -223,21 +223,40 @@ void Var_End(void);
 
 typedef enum VarEvalFlags {
     VARE_NONE		= 0,
-    /* Treat undefined variables as errors. */
-    VARE_UNDEFERR	= 0x01,
-    /* Expand and evaluate variables during parsing. */
-    VARE_WANTRES	= 0x02,
-    /* In an assignment using the ':=' operator, keep '$$' as '$$' instead
-     * of reducing it to a single '$'. */
-    VARE_ASSIGN		= 0x04
+
+    /* Expand and evaluate variables during parsing.
+     *
+     * TODO: Document what Var_Parse and Var_Subst return when this flag
+     * is not set. */
+    VARE_WANTRES	= 1 << 0,
+
+    /* Treat undefined variables as errors.
+     * Must only be used in combination with VARE_WANTRES. */
+    VARE_UNDEFERR	= 1 << 1,
+
+    /* Keep '$$' as '$$' instead of reducing it to a single '$'.
+     *
+     * Used in variable assignments using the ':=' operator.  It allows
+     * multiple such assignments to be chained without accidentally expanding
+     * '$$file' to '$file' in the first assignment and interpreting it as
+     * '${f}' followed by 'ile' in the next assignment.
+     *
+     * See also preserveUndefined, which preserves subexpressions that are
+     * based on undefined variables; maybe that can be converted to a flag
+     * as well. */
+    VARE_KEEP_DOLLAR	= 1 << 2
 } VarEvalFlags;
 
-typedef enum VarSet_Flags {
-    VAR_NO_EXPORT	= 0x01,	/* do not export */
+typedef enum VarSetFlags {
+    VAR_SET_NONE	= 0,
+
+    /* do not export */
+    VAR_SET_NO_EXPORT	= 1 << 0,
+
     /* Make the variable read-only. No further modification is possible,
      * except for another call to Var_Set with the same flag. */
-    VAR_SET_READONLY	= 0x02
-} VarSet_Flags;
+    VAR_SET_READONLY	= 1 << 1
+} VarSetFlags;
 
 /* The state of error handling returned by Var_Parse.
  *
@@ -296,7 +315,7 @@ typedef enum VarParseResult {
 
 void Var_Delete(const char *, GNode *);
 void Var_Set(const char *, const char *, GNode *);
-void Var_Set_with_flags(const char *, const char *, GNode *, VarSet_Flags);
+void Var_SetWithFlags(const char *, const char *, GNode *, VarSetFlags);
 void Var_Append(const char *, const char *, GNode *);
 Boolean Var_Exists(const char *, GNode *);
 const char *Var_Value(const char *, GNode *, void **);
