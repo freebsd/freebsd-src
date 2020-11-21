@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2018
+.Dd November 21, 2020
 .Dt BRIDGE 8
 .Os
 .Sh NAME
@@ -49,6 +49,20 @@ forwards packets without copying the packets payload (zero-copy mode), unless
 explicitly prevented by the
 .Fl c
 flag.
+.Pp
+When bridging two physical ports, it is necessary that both NICS are in
+promiscuous mode, otherwise unicast traffic directed to other hosts will
+be dropped by the hardware, and bridging will not work.
+.Pp
+When bridging the hardware rings of a physical port with the corresponding
+host rings, it is necessary to turn off the offloads, because netmap does
+not prepare the NIC rings with offload information.
+Example:
+.Bd -literal -offset intent
+ifconfig em0 -rxcsum -txcsum -tso4 -tso6 -lro
+.Ed
+.Pp
+Available options:
 .Bl -tag -width Ds
 .It Fl i Ar port
 Name of the netmap port.
@@ -71,8 +85,8 @@ Disable zero-copy mode.
 .El
 .Sh SEE ALSO
 .Xr netmap 4 ,
-.Xr pkt-gen 8 ,
-.Xr lb 8
+.Xr lb 8 ,
+.Xr pkt-gen 8
 .Sh AUTHORS
 .An -nosplit
 .Nm
