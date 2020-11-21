@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
-#include <sys/eventhandler.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
@@ -99,8 +98,6 @@ static void	itimer_enter(struct itimer *);
 static void	itimer_leave(struct itimer *);
 static struct itimer *itimer_find(struct proc *, int);
 static void	itimers_alloc(struct proc *);
-static void	itimers_event_hook_exec(void *arg, struct proc *p, struct image_params *imgp);
-static void	itimers_event_hook_exit(void *arg, struct proc *p);
 static int	realtimer_create(struct itimer *);
 static int	realtimer_gettime(struct itimer *, struct itimerspec *);
 static int	realtimer_settime(struct itimer *, int,
@@ -109,7 +106,7 @@ static int	realtimer_delete(struct itimer *);
 static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
 
-int		register_posix_clock(int, struct kclock *);
+static int	register_posix_clock(int, const struct kclock *);
 void		itimer_fire(struct itimer *it);
 int		itimespecfix(struct timespec *ts);
 
@@ -1086,12 +1083,11 @@ ppsratecheck(struct timeval *lasttime, int *curpps, int maxpps)
 static void
 itimer_start(void)
 {
-	struct kclock rt_clock = {
+	static const struct kclock rt_clock = {
 		.timer_create  = realtimer_create,
 		.timer_delete  = realtimer_delete,
 		.timer_settime = realtimer_settime,
 		.timer_gettime = realtimer_gettime,
-		.event_hook    = NULL
 	};
 
 	itimer_zone = uma_zcreate("itimer", sizeof(struct itimer),
@@ -1101,14 +1097,10 @@ itimer_start(void)
 	p31b_setcfg(CTL_P1003_1B_TIMERS, 200112L);
 	p31b_setcfg(CTL_P1003_1B_DELAYTIMER_MAX, INT_MAX);
 	p31b_setcfg(CTL_P1003_1B_TIMER_MAX, TIMER_MAX);
-	EVENTHANDLER_REGISTER(process_exit, itimers_event_hook_exit,
-		(void *)ITIMER_EV_EXIT, EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(process_exec, itimers_event_hook_exec,
-		(void *)ITIMER_EV_EXEC, EVENTHANDLER_PRI_ANY);
 }
 
-int
-register_posix_clock(int clockid, struct kclock *clk)
+static int
+register_posix_clock(int clockid, const struct kclock *clk)
 {
 	if ((unsigned)clockid >= MAX_CLOCKS) {
 		printf("%s: invalid clockid\n", __func__);
@@ -1714,46 +1706,41 @@ itimers_alloc(struct proc *p)
 	}
 }
 
-static void
-itimers_event_hook_exec(void *arg, struct proc *p, struct image_params *imgp __unused)
-{
-	itimers_event_hook_exit(arg, p);
-}
-
 /* Clean up timers when some process events are being triggered. */
 static void
-itimers_event_hook_exit(void *arg, struct proc *p)
+itimers_event_exit_exec(int start_idx, struct proc *p)
 {
 	struct itimers *its;
 	struct itimer *it;
-	int event = (int)(intptr_t)arg;
 	int i;
 
-	if (p->p_itimers != NULL) {
-		its = p->p_itimers;
-		for (i = 0; i < MAX_CLOCKS; ++i) {
-			if (posix_clocks[i].event_hook != NULL)
-				CLOCK_CALL(i, event_hook, (p, i, event));
-		}
-		/*
-		 * According to susv3, XSI interval timers should be inherited
-		 * by new image.
-		 */
-		if (event == ITIMER_EV_EXEC)
-			i = 3;
-		else if (event == ITIMER_EV_EXIT)
-			i = 0;
-		else
-			panic("unhandled event");
-		for (; i < TIMER_MAX; ++i) {
-			if ((it = its->its_timers[i]) != NULL)
-				kern_ktimer_delete(curthread, i);
-		}
-		if (its->its_timers[0] == NULL &&
-		    its->its_timers[1] == NULL &&
-		    its->its_timers[2] == NULL) {
-			free(its, M_SUBPROC);
-			p->p_itimers = NULL;
-		}
+	its = p->p_itimers;
+	if (its == NULL)
+		return;
+
+	for (i = start_idx; i < TIMER_MAX; ++i) {
+		if ((it = its->its_timers[i]) != NULL)
+			kern_ktimer_delete(curthread, i);
 	}
+	if (its->its_timers[0] == NULL && its->its_timers[1] == NULL &&
+	    its->its_timers[2] == NULL) {
+		free(its, M_SUBPROC);
+		p->p_itimers = NULL;
+	}
+}
+
+void
+itimers_exec(struct proc *p)
+{
+	/*
+	 * According to susv3, XSI interval timers should be inherited
+	 * by new image.
+	 */
+	itimers_event_exit_exec(3, p);
+}
+
+void
+itimers_exit(struct proc *p)
+{
+	itimers_event_exit_exec(0, p);
 }
