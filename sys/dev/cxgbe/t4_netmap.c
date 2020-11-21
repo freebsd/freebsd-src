@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <machine/bus.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_media.h>
@@ -586,6 +588,8 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 
 		alloc_nm_rxq_hwq(vi, nm_rxq, tnl_cong(vi->pi, nm_cong_drop));
 		nm_rxq->fl_hwidx = hwidx;
+		nm_rxq->bb_zone = rxb->zone;
+		nm_rxq->bb = uma_zalloc(nm_rxq->bb_zone, M_WAITOK);
 		slot = netmap_reset(na, NR_RX, i, 0);
 		MPASS(slot != NULL);	/* XXXNM: error check, not assert */
 
@@ -628,6 +632,31 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	return (cxgbe_netmap_rss(sc, vi, ifp, na));
 }
 
+static void
+flush_nm_rxq(struct adapter *sc, struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
+{
+	int i, n;
+	u_int fl_pidx, fl_pidx_target, hw_cidx_desc;
+	const uint64_t ba = pmap_kextract((vm_offset_t)nm_rxq->bb);
+
+	hw_cidx_desc = nm_rxq->fl_cidx / 8;
+	if (hw_cidx_desc == 0)
+		fl_pidx_target = nm_rxq->fl_sidx2 - 8;
+	else
+		fl_pidx_target = (hw_cidx_desc - 1) * 8;
+	MPASS((fl_pidx_target & 7) == 0);
+
+	fl_pidx = nm_rxq->fl_pidx;
+	MPASS((fl_pidx & 7) == 0);
+	for (n = 0; fl_pidx != fl_pidx_target; n++) {
+		for (i = 0; i < 8; i++, fl_pidx++)
+			nm_rxq->fl_desc[fl_pidx] = htobe64(ba | nm_rxq->fl_hwidx);
+		if (__predict_false(fl_pidx == nm_rxq->fl_sidx2))
+			fl_pidx = 0;
+	}
+	t4_write_reg(sc, sc->sge_kdoorbell_reg, nm_rxq->fl_db_val | V_PIDX(n));
+}
+
 static int
 cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
     struct netmap_adapter *na)
@@ -651,6 +680,23 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 	rc = cxgbe_netmap_rss(sc, vi, ifp, na);
 	if (rc != 0)
 		return (rc);	/* error message logged already. */
+
+	/*
+	 * First pass over the rx queues to make sure they're all caught up.
+	 *
+	 * The freelists could be out of buffers and we may need to arrange
+	 * things so that any packets still in flight (after TP's cong_drop
+	 * logic but not yet DMA'd) have somewhere to go and do not block the
+	 * pipeline.  Do this before trying to free any queue.
+	 */
+	for_each_nm_rxq(vi, i, nm_rxq) {
+		nm_state = atomic_load_int(&nm_rxq->nm_state);
+		kring = na->rx_rings[nm_rxq->nid];
+		if (nm_state == NM_OFF || !nm_kring_pending_off(kring))
+			continue;
+		MPASS(nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID);
+		flush_nm_rxq(sc, vi, nm_rxq);
+	}
 
 	for_each_nm_txq(vi, i, nm_txq) {
 		struct sge_qstat *spg = (void *)&nm_txq->desc[nm_txq->sidx];
@@ -688,6 +734,8 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 			pause("nmst", 1);
 
 		free_nm_rxq_hwq(vi, nm_rxq);
+		uma_zfree(nm_rxq->bb_zone, nm_rxq->bb);
+		nm_rxq->bb = NULL;
 
 		/* XXX: netmap, not the driver, should do this. */
 		kring->rhead = kring->rcur = kring->nr_hwcur = 0;
