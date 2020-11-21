@@ -446,8 +446,6 @@ umtxq_sysinit(void *arg __unused)
 	umtx_init_profiling();
 #endif
 	mtx_init(&umtx_lock, "umtx lock", NULL, MTX_DEF);
-	EVENTHANDLER_REGISTER(process_exec, umtx_exec_hook, NULL,
-	    EVENTHANDLER_PRI_ANY);
 	umtx_shm_init();
 }
 
@@ -4356,12 +4354,11 @@ umtx_thread_alloc(struct thread *td)
  * exec() hook.
  *
  * Clear robust lists for all process' threads, not delaying the
- * cleanup to thread_exit hook, since the relevant address space is
+ * cleanup to thread exit, since the relevant address space is
  * destroyed right now.
  */
-static void
-umtx_exec_hook(void *arg __unused, struct proc *p,
-    struct image_params *imgp __unused)
+void
+umtx_exec(struct proc *p)
 {
 	struct thread *td;
 
@@ -4383,7 +4380,7 @@ umtx_exec_hook(void *arg __unused, struct proc *p,
 }
 
 /*
- * thread_exit() hook.
+ * thread exit hook.
  */
 void
 umtx_thread_exit(struct thread *td)
