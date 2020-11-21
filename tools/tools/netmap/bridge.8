@@ -58,7 +58,7 @@ When bridging the hardware rings of a physical port with the corresponding
 host rings, it is necessary to turn off the offloads, because netmap does
 not prepare the NIC rings with offload information.
 Example:
-.Bd -literal -offset intent
+.Bd -literal -offset indent
 ifconfig em0 -rxcsum -txcsum -tso4 -tso6 -lro
 .Ed
 .Pp
