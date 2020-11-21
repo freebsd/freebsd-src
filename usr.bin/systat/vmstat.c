@@ -303,12 +303,12 @@ labelkre(void)
 	clear();
 	mvprintw(STATROW, STATCOL + 6, "users    Load");
 	mvprintw(STATROW + 1, STATCOL + 3, "Mem usage:    %%Phy   %%Kmem");
-	mvprintw(MEMROW, MEMCOL, "Mem:       REAL            VIRTUAL");
-	mvprintw(MEMROW + 1, MEMCOL, "        Tot   Share      Tot    Share");
+	mvprintw(MEMROW, MEMCOL, "Mem:      REAL           VIRTUAL");
+	mvprintw(MEMROW + 1, MEMCOL, "       Tot   Share     Tot    Share");
 	mvprintw(MEMROW + 2, MEMCOL, "Act");
 	mvprintw(MEMROW + 3, MEMCOL, "All");
 
-	mvprintw(MEMROW + 1, MEMCOL + 41, "Free");
+	mvprintw(MEMROW + 1, MEMCOL + 40, "Free");
 
 	mvprintw(PAGEROW, PAGECOL,     "         VN PAGER   SWAP PAGER");
 	mvprintw(PAGEROW + 1, PAGECOL, "         in   out     in   out");
@@ -458,15 +458,15 @@ showkre(void)
 	putfloat(100.0 * s.v_kmem_map_size / kmem_size,
 	   STATROW + 1, STATCOL + 22, 2, 0, 1);
 
-	sysputpage(wnd, MEMROW + 2, MEMCOL + 4, 7, total.t_arm, 0);
-	sysputpage(wnd, MEMROW + 2, MEMCOL + 12, 7, total.t_armshr, 0);
-	sysputpage(wnd, MEMROW + 2, MEMCOL + 20, 8, total.t_avm, 0);
-	sysputpage(wnd, MEMROW + 2, MEMCOL + 29, 8, total.t_avmshr, 0);
-	sysputpage(wnd, MEMROW + 3, MEMCOL + 4, 7, total.t_rm, 0);
-	sysputpage(wnd, MEMROW + 3, MEMCOL + 12, 7, total.t_rmshr, 0);
-	sysputpage(wnd, MEMROW + 3, MEMCOL + 20, 8, total.t_vm, 0);
-	sysputpage(wnd, MEMROW + 3, MEMCOL + 29, 8, total.t_vmshr, 0);
-	sysputpage(wnd, MEMROW + 2, MEMCOL + 38, 7, total.t_free, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 4, 6, total.t_arm, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 12, 6, total.t_armshr, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 20, 6, total.t_avm, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 29, 6, total.t_avmshr, 0);
+	sysputpage(wnd, MEMROW + 3, MEMCOL + 4, 6, total.t_rm, 0);
+	sysputpage(wnd, MEMROW + 3, MEMCOL + 12, 6, total.t_rmshr, 0);
+	sysputpage(wnd, MEMROW + 3, MEMCOL + 20, 6, total.t_vm, 0);
+	sysputpage(wnd, MEMROW + 3, MEMCOL + 29, 6, total.t_vmshr, 0);
+	sysputpage(wnd, MEMROW + 2, MEMCOL + 38, 6, total.t_free, 0);
 	putint(total.t_rq - 1, PROCSROW + 2, PROCSCOL, 3);
 	putint(total.t_pw, PROCSROW + 2, PROCSCOL + 4, 3);
 	putint(total.t_dw, PROCSROW + 2, PROCSCOL + 8, 3);
