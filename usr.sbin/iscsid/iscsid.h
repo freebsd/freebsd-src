@@ -57,6 +57,7 @@ struct connection {
 	uint8_t			conn_isid[6];
 	uint16_t		conn_tsih;
 	uint32_t		conn_statsn;
+	int			conn_protocol_level;
 	int			conn_header_digest;
 	int			conn_data_digest;
 	bool			conn_initial_r2t;

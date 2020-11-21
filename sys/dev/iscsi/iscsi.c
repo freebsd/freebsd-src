@@ -1426,6 +1426,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 	    sizeof(is->is_target_alias));
 	is->is_tsih = handoff->idh_tsih;
 	is->is_statsn = handoff->idh_statsn;
+	is->is_protocol_level = handoff->idh_protocol_level;
 	is->is_initial_r2t = handoff->idh_initial_r2t;
 	is->is_immediate_data = handoff->idh_immediate_data;
 

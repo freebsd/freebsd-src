@@ -171,6 +171,7 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 	/*
 	 * Default values, from RFC 3720, section 12.
 	 */
+	conn->conn_protocol_level = 0;
 	conn->conn_header_digest = CONN_DIGEST_NONE;
 	conn->conn_data_digest = CONN_DIGEST_NONE;
 	conn->conn_initial_r2t = true;
@@ -328,6 +329,7 @@ handoff(struct connection *conn)
 	    sizeof(idh.idh_target_alias));
 	idh.idh_tsih = conn->conn_tsih;
 	idh.idh_statsn = conn->conn_statsn;
+	idh.idh_protocol_level = conn->conn_protocol_level;
 	idh.idh_header_digest = conn->conn_header_digest;
 	idh.idh_data_digest = conn->conn_data_digest;
 	idh.idh_initial_r2t = conn->conn_initial_r2t;
