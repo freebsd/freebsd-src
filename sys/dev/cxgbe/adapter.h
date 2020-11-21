@@ -749,6 +749,9 @@ struct sge_nm_rxq {
 	bus_dma_tag_t fl_desc_tag;
 	bus_dmamap_t fl_desc_map;
 	bus_addr_t fl_ba;
+
+	void *bb;		/* bit bucket for packets with nowhere to go. */
+	uma_zone_t bb_zone;
 };
 
 #define INVALID_NM_TXQ_CNTXT_ID ((u_int)(-1))
