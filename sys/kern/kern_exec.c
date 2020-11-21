@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/timers.h>
 #include <sys/umtx.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
@@ -1049,6 +1050,7 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 
 	sigfastblock_clear(td);
 	umtx_exec(p);
+	itimers_exec(p);
 
 	EVENTHANDLER_DIRECT_INVOKE(process_exec, p, imgp);
 
