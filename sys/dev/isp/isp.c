@@ -737,11 +737,8 @@ isp_init(ispsoftc_t *isp)
 		icbp->icb_maxfrmlen = ICB_DFLT_FRMLEN;
 	}
 
-	icbp->icb_execthrottle = DEFAULT_EXEC_THROTTLE(isp);
-	if (icbp->icb_execthrottle < 1 && !IS_26XX(isp)) {
-		isp_prt(isp, ISP_LOGERR, "bad execution throttle of %d- using %d", DEFAULT_EXEC_THROTTLE(isp), ICB_DFLT_THROTTLE);
-		icbp->icb_execthrottle = ICB_DFLT_THROTTLE;
-	}
+	if (!IS_26XX(isp))
+		icbp->icb_execthrottle = 0xffff;
 
 	/*
 	 * Set target exchange count. Take half if we are supporting both roles.
@@ -4425,7 +4422,6 @@ isp_setdfltfcparm(ispsoftc_t *isp, int chan)
 	 * Establish some default parameters.
 	 */
 	fcp->role = DEFAULT_ROLE(isp, chan);
-	fcp->isp_maxalloc = ICB_DFLT_ALLOC;
 	fcp->isp_retry_delay = ICB_DFLT_RDELAY;
 	fcp->isp_retry_count = ICB_DFLT_RCOUNT;
 	fcp->isp_loopid = DEFAULT_LOOPID(isp, chan);
@@ -4594,16 +4590,14 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 	uint64_t wwn;
 
 	isp_prt(isp, ISP_LOGDEBUG0,
-	    "NVRAM 0x%08x%08x 0x%08x%08x exchg_cnt %d maxframelen %d",
+	    "NVRAM 0x%08x%08x 0x%08x%08x maxframelen %d",
 	    (uint32_t) (ISP2400_NVRAM_NODE_NAME(nvram_data) >> 32),
 	    (uint32_t) (ISP2400_NVRAM_NODE_NAME(nvram_data)),
 	    (uint32_t) (ISP2400_NVRAM_PORT_NAME(nvram_data) >> 32),
 	    (uint32_t) (ISP2400_NVRAM_PORT_NAME(nvram_data)),
-	    ISP2400_NVRAM_EXCHANGE_COUNT(nvram_data),
 	    ISP2400_NVRAM_MAXFRAMELENGTH(nvram_data));
 	isp_prt(isp, ISP_LOGDEBUG0,
-	    "NVRAM execthr %d loopid %d fwopt1 0x%x fwopt2 0x%x fwopt3 0x%x",
-	    ISP2400_NVRAM_EXECUTION_THROTTLE(nvram_data),
+	    "NVRAM loopid %d fwopt1 0x%x fwopt2 0x%x fwopt3 0x%x",
 	    ISP2400_NVRAM_HARDLOOPID(nvram_data),
 	    ISP2400_NVRAM_FIRMWARE_OPTIONS1(nvram_data),
 	    ISP2400_NVRAM_FIRMWARE_OPTIONS2(nvram_data),
@@ -4624,19 +4618,12 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 	}
 	fcp->isp_wwnn_nvram = wwn;
 
-	if (ISP2400_NVRAM_EXCHANGE_COUNT(nvram_data)) {
-		fcp->isp_maxalloc = ISP2400_NVRAM_EXCHANGE_COUNT(nvram_data);
-	}
 	if ((isp->isp_confopts & ISP_CFG_OWNFSZ) == 0) {
 		DEFAULT_FRAMESIZE(isp) =
 		    ISP2400_NVRAM_MAXFRAMELENGTH(nvram_data);
 	}
 	if ((isp->isp_confopts & ISP_CFG_OWNLOOPID) == 0) {
 		fcp->isp_loopid = ISP2400_NVRAM_HARDLOOPID(nvram_data);
-	}
-	if ((isp->isp_confopts & ISP_CFG_OWNEXCTHROTTLE) == 0) {
-		DEFAULT_EXEC_THROTTLE(isp) =
-			ISP2400_NVRAM_EXECUTION_THROTTLE(nvram_data);
 	}
 	fcp->isp_fwoptions = ISP2400_NVRAM_FIRMWARE_OPTIONS1(nvram_data);
 	fcp->isp_xfwoptions = ISP2400_NVRAM_FIRMWARE_OPTIONS2(nvram_data);
