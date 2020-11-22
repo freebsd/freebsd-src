@@ -10,6 +10,7 @@ TESTSDIR=	${TESTSBASE}/sys/kern
 #ATF_TESTS_C+=	kcov
 ATF_TESTS_C+=	kern_copyin
 ATF_TESTS_C+=	kern_descrip_test
+ATF_TESTS_C+=	fdgrowtable_test
 ATF_TESTS_C+=	kill_zombie
 ATF_TESTS_C+=	ptrace_test
 TEST_METADATA.ptrace_test+=		timeout="15"
@@ -46,6 +47,7 @@ LIBADD.ptrace_test+=			pthread
 LIBADD.unix_seqpacket_test+=		pthread
 LIBADD.kcov+=				pthread
 LIBADD.sendfile_helper+=		pthread
+LIBADD.fdgrowtable_test+=		util pthread kvm procstat
 
 NETBSD_ATF_TESTS_C+=	lockf_test
 NETBSD_ATF_TESTS_C+=	mqueue_test
