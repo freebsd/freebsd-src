@@ -1408,7 +1408,9 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 
 	oatp = isp_find_atpd(isp, chan, aep->at_rxid);
 	if (oatp) {
-		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] tag wraparound in isp_handle_platforms_atio7 (N-Port Handle 0x%04x S_ID 0x%04x OX_ID 0x%04x) oatp state %d",
+		isp_prt(isp, oatp->state == ATPD_STATE_LAST_CTIO ? ISP_LOGTDEBUG0 :
+		    ISP_LOGWARN, "[0x%x] tag wraparound (N-Port Handle "
+		    "0x%04x S_ID 0x%04x OX_ID 0x%04x) oatp state %d",
 		    aep->at_rxid, nphdl, sid, aep->at_hdr.ox_id, oatp->state);
 		/*
 		 * It's not a "no resource" condition- but we can treat it like one
@@ -1418,7 +1420,8 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	atp = isp_get_atpd(isp, chan, aep->at_rxid);
 	if (atp == NULL) {
 		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] out of atps", aep->at_rxid);
-		goto noresrc;
+		isp_endcmd(isp, aep, nphdl, chan, SCSI_BUSY, 0);
+		return;
 	}
 	atp->word3 = lp->prli_word3;
 	atp->state = ATPD_STATE_ATIO;
@@ -1477,8 +1480,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	xpt_done((union ccb *)atiop);
 	return;
 noresrc:
-	if (atp)
-		isp_put_atpd(isp, chan, atp);
+	KASSERT(atp == NULL, ("%s: atp is not NULL on noresrc!\n"));
 	ntp = isp_get_ntpd(isp, chan);
 	if (ntp == NULL) {
 		isp_endcmd(isp, aep, nphdl, chan, SCSI_STATUS_BUSY, 0);
@@ -2207,7 +2209,7 @@ isp_loop_dead(ispsoftc_t *isp, int chan)
 		if (lp->state == FC_PORTDB_STATE_NIL)
 			continue;
 
-		for (i = 0; i < isp->isp_maxcmds; i++) {
+		for (i = 0; i < ISP_HANDLE_NUM(isp); i++) {
 			struct ccb_scsiio *xs;
 
 			if (ISP_H2HT(isp->isp_xflist[i].handle) != ISP_HANDLE_INITIATOR) {

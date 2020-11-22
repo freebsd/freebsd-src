@@ -579,6 +579,8 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		return;
 	}
 	isp->isp_maxcmds = mbs.param[3];
+	/* Limit to the maximum of our hardcoded handle format (16K now). */
+	isp->isp_maxcmds = MIN(isp->isp_maxcmds, ISP_HANDLE_MAX - ISP_HANDLE_RESERVE);
 	isp_prt(isp, ISP_LOGCONFIG, "%d max I/O command limit set", isp->isp_maxcmds);
 
 	/*
@@ -744,9 +746,10 @@ isp_init(ispsoftc_t *isp)
 	 * Set target exchange count. Take half if we are supporting both roles.
 	 */
 	if (icbp->icb_fwoptions1 & ICB2400_OPT1_TGT_ENABLE) {
-		icbp->icb_xchgcnt = isp->isp_maxcmds;
 		if ((icbp->icb_fwoptions1 & ICB2400_OPT1_INI_DISABLE) == 0)
-			icbp->icb_xchgcnt >>= 1;
+			icbp->icb_xchgcnt = MIN(isp->isp_maxcmds / 2, ATPDPSIZE);
+		else
+			icbp->icb_xchgcnt = isp->isp_maxcmds;
 	}
 
 
@@ -3535,7 +3538,7 @@ isp_intr_async(ispsoftc_t *isp, uint16_t mbox)
 			 */
 			if (topo == TOPO_NL_PORT || topo == TOPO_FL_PORT) {
 				int i, j;
-				for (i = j = 0; i < isp->isp_maxcmds; i++) {
+				for (i = j = 0; i < ISP_HANDLE_NUM(isp); i++) {
 					XS_T *xs;
 					isp_hdl_t *hdp;
 
