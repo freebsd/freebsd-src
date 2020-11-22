@@ -1143,7 +1143,7 @@ rt_checkdelroute(struct radix_node *rn, void *arg)
  * @report: true if rtsock notification is needed.
  */
 void
-rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f, void *arg, bool report)
+rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool report)
 {
 	struct rib_head *rnh;
 	struct rt_delinfo di;

@@ -342,7 +342,7 @@ struct rt_msghdr {
 
 struct rtentry;
 struct nhop_object;
-typedef int rt_filter_f_t(const struct rtentry *, const struct nhop_object *,
+typedef int rib_filter_f_t(const struct rtentry *, const struct nhop_object *,
     void *);
 
 struct rt_addrinfo {
@@ -351,7 +351,7 @@ struct rt_addrinfo {
 	struct	sockaddr *rti_info[RTAX_MAX];	/* Sockaddr data */
 	struct	ifaddr *rti_ifa;		/* value of rt_ifa addr */
 	struct	ifnet *rti_ifp;			/* route interface */
-	rt_filter_f_t	*rti_filter;		/* filter function */
+	rib_filter_f_t	*rti_filter;		/* filter function */
 	void	*rti_filterdata;		/* filter paramenters */
 	u_long	rti_mflags;			/* metrics RTV_ flags */
 	u_long	rti_spare;			/* Will be used for fib */

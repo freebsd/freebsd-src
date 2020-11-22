@@ -178,6 +178,6 @@ in_ifadown(struct ifaddr *ifa, int delete)
 	arg.ifa = ifa;
 	arg.del = delete;
 
-	rt_foreach_fib_walk_del(AF_INET, in_ifadownkill, &arg);
+	rib_foreach_table_walk_del(AF_INET, in_ifadownkill, &arg);
 	ifa->ifa_flags &= ~IFA_ROUTE;		/* XXXlocking? */
 }

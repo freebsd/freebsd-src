@@ -71,21 +71,96 @@ __FBSDID("$FreeBSD$");
  * Calls @wa_f with @arg for each entry in the table specified by
  * @af and @fibnum.
  *
- * Table is traversed under read lock.
+ * @ss_t callback is called before and after the tree traversal
+ *  while holding table lock.
+ *
+ * Table is traversed under read lock unless @wlock is set.
  */
 void
-rib_walk(int af, u_int fibnum, rt_walktree_f_t *wa_f, void *arg)
+rib_walk_ext(uint32_t fibnum, int family, bool wlock, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg)
 {
 	RIB_RLOCK_TRACKER;
 	struct rib_head *rnh;
 
-	if ((rnh = rt_tables_get_rnh(fibnum, af)) == NULL)
+	if ((rnh = rt_tables_get_rnh(fibnum, family)) == NULL)
 		return;
 
-	RIB_RLOCK(rnh);
+	if (wlock)
+		RIB_WLOCK(rnh);
+	else
+		RIB_RLOCK(rnh);
+	if (hook_f != NULL)
+		hook_f(rnh, RIB_WALK_HOOK_PRE, arg);
 	rnh->rnh_walktree(&rnh->head, (walktree_f_t *)wa_f, arg);
-	RIB_RUNLOCK(rnh);
+	if (hook_f != NULL)
+		hook_f(rnh, RIB_WALK_HOOK_POST, arg);
+	if (wlock)
+		RIB_WUNLOCK(rnh);
+	else
+		RIB_RUNLOCK(rnh);
 }
+
+/*
+ * Calls @wa_f with @arg for each entry in the table specified by
+ * @af and @fibnum.
+ *
+ * Table is traversed under read lock unless @wlock is set.
+ */
+void
+rib_walk(uint32_t fibnum, int family, bool wlock, rib_walktree_f_t *wa_f,
+    void *arg)
+{
+
+	rib_walk_ext(fibnum, family, wlock, wa_f, NULL, arg);
+}
+
+/*
+ * Iterates over all existing fibs in system calling
+ *  @hook_f function before/after traversing each fib.
+ *  Calls @wa_f function for each element in current fib.
+ * If af is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
+void
+rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg)
+{
+
+	for (uint32_t fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		/* Do we want some specific family? */
+		if (family != AF_UNSPEC) {
+			rib_walk_ext(fibnum, family, wlock, wa_f, hook_f, arg); 
+			continue;
+		}
+
+		for (int i = 1; i <= AF_MAX; i++)
+			rib_walk_ext(fibnum, i, wlock, wa_f, hook_f, arg);
+	}
+}
+
+/*
+ * Iterates over all existing fibs in system and deletes each element
+ *  for which @filter_f function returns non-zero value.
+ * If @family is not AF_UNSPEC, iterates over fibs in particular
+ * address family.
+ */
+void
+rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg)
+{
+
+	for (uint32_t fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		/* Do we want some specific family? */
+		if (family != AF_UNSPEC) {
+			rib_walk_del(fibnum, family, filter_f, arg, 0);
+			continue;
+		}
+
+		for (int i = 1; i <= AF_MAX; i++)
+			rib_walk_del(fibnum, i, filter_f, arg, 0);
+	}
+}
+
 
 /*
  * Wrapper for the control plane functions for performing af-agnostic
