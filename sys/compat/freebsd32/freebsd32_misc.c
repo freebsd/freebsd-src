@@ -3766,11 +3766,3 @@ freebsd32_sched_rr_get_interval(struct thread *td,
 	}
 	return (error);
 }
-
-int
-freebsd32__umtx_op(struct thread *td, struct freebsd32__umtx_op_args *uap)
-{
-
-	return (kern__umtx_op(td, uap->obj, uap->op, uap->val, uap->uaddr,
-	    uap->uaddr2, &umtx_native_ops32));
-}
