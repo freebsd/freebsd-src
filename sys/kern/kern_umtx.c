@@ -219,7 +219,41 @@ struct abs_timeout {
 	struct timespec end;
 };
 
+struct umtx_copyops {
+	int	(*copyin_timeout)(const void *uaddr, struct timespec *tsp);
+	int	(*copyin_umtx_time)(const void *uaddr, size_t size,
+	    struct _umtx_time *tp);
+	int	(*copyin_robust_lists)(const void *uaddr, size_t size,
+	    struct umtx_robust_lists_params *rbp);
+	int	(*copyout_timeout)(void *uaddr, size_t size,
+	    struct timespec *tsp);
+	const size_t	timespec_sz;
+	const size_t	umtx_time_sz;
+	const bool	compat32;
+};
+
 #ifdef COMPAT_FREEBSD32
+struct umtx_time32 {
+	struct	timespec32	_timeout;
+	uint32_t		_flags;
+	uint32_t		_clockid;
+};
+
+struct umtx_robust_lists_params_compat32 {
+	uint32_t	robust_list_offset;
+	uint32_t	robust_priv_list_offset;
+	uint32_t	robust_inact_offset;
+};
+
+struct umutex32 {
+	volatile __lwpid_t	m_owner;	/* Owner of the mutex */
+	__uint32_t		m_flags;	/* Flags of the mutex */
+	__uint32_t		m_ceilings[2];	/* Priority protect ceiling */
+	__uint32_t		m_rb_lnk;	/* Robust linkage */
+	__uint32_t		m_pad;
+	__uint32_t		m_spare[2];
+};
+
 _Static_assert(sizeof(struct umutex) == sizeof(struct umutex32), "umutex32");
 _Static_assert(__offsetof(struct umutex, m_spare[0]) ==
     __offsetof(struct umutex32, m_spare[0]), "m_spare32");
@@ -4291,7 +4325,7 @@ const struct umtx_copyops umtx_native_ops32 = {
 };
 #endif
 
-int
+static int
 kern__umtx_op(struct thread *td, void *obj, int op, unsigned long val,
     void *uaddr1, void *uaddr2, const struct umtx_copyops *ops)
 {
@@ -4315,6 +4349,16 @@ sys__umtx_op(struct thread *td, struct _umtx_op_args *uap)
 	return (kern__umtx_op(td, uap->obj, uap->op, uap->val, uap->uaddr1,
 	    uap->uaddr2, &umtx_native_ops));
 }
+
+#ifdef COMPAT_FREEBSD32
+int
+freebsd32__umtx_op(struct thread *td, struct freebsd32__umtx_op_args *uap)
+{
+
+	return (kern__umtx_op(td, uap->obj, uap->op, uap->val, uap->uaddr,
+	    uap->uaddr2, &umtx_native_ops32));
+}
+#endif
 
 void
 umtx_thread_init(struct thread *td)
