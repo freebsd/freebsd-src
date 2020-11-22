@@ -101,6 +101,13 @@
 #define	UMTX_OP_SHM		25
 #define	UMTX_OP_ROBUST_LISTS	26
 
+/*
+ * Flags for ops; the double-underbar convention must be maintained for future
+ * additions for the sake of libsysdecode.
+ */
+#define	UMTX_OP__I386		0x40000000
+#define	UMTX_OP__32BIT		0x80000000
+
 /* Flags for UMTX_OP_CV_WAIT */
 #define	CVWAIT_CHECK_UNPARKING	0x01
 #define	CVWAIT_ABSTIME		0x02
