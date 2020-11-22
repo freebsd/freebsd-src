@@ -26,6 +26,7 @@
  ** POSSIBILITY OF SUCH DAMAGE.
  **/
 /* $FreeBSD$ */
+
 /* for func prototypes */
 #include "pkt_hash.h"
 
