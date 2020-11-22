@@ -61,14 +61,24 @@ int rib_add_redirect(u_int fibnum, struct sockaddr *dst,
   struct sockaddr *gateway, struct sockaddr *author, struct ifnet *ifp,
   int flags, int expire_sec);
 
-typedef int rt_walktree_f_t(struct rtentry *, void *);
-void rib_walk(int af, u_int fibnum, rt_walktree_f_t *wa_f, void *arg);
-void rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f,
+enum rib_walk_hook {
+	RIB_WALK_HOOK_PRE,	/* Hook is called before iteration */
+	RIB_WALK_HOOK_POST,	/* Hook is called after iteration */
+};
+typedef int rib_walktree_f_t(struct rtentry *, void *);
+typedef void rib_walk_hook_f_t(struct rib_head *rnh, enum rib_walk_hook stage,
+  void *arg);
+void rib_walk(uint32_t fibnum, int af, bool wlock, rib_walktree_f_t *wa_f,
+  void *arg);
+void rib_walk_ext(uint32_t fibnum, int af, bool wlock, rib_walktree_f_t *wa_f,
+  rib_walk_hook_f_t *hook_f, void *arg);
+
+void rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f,
   void *arg, bool report);
 
-typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
-void rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
-void rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
+void rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
+  rib_walk_hook_f_t *hook_f, void *arg);
+void rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg);
 
 struct route_nhop_data;
 const struct rtentry *rib_lookup_prefix(uint32_t fibnum, int family,
