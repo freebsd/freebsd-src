@@ -1112,9 +1112,9 @@ gotmaxcmds:
 	}
 	isp->isp_osinfo.pcmd_free = &isp->isp_osinfo.pcmd_pool[0];
 
-	len = sizeof (isp_hdl_t) * isp->isp_maxcmds;
+	len = sizeof(isp_hdl_t) * ISP_HANDLE_NUM(isp);
 	isp->isp_xflist = (isp_hdl_t *) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
-	for (len = 0; len < isp->isp_maxcmds - 1; len++)
+	for (len = 0; len < ISP_HANDLE_NUM(isp) - 1; len++)
 		isp->isp_xflist[len].cmd = &isp->isp_xflist[len+1];
 	isp->isp_xffree = isp->isp_xflist;
 

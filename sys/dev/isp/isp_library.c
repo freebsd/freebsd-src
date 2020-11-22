@@ -195,7 +195,7 @@ isp_find_handle(ispsoftc_t *isp, void *xs)
 	uint32_t i, foundhdl = ISP_HANDLE_FREE;
 
 	if (xs != NULL) {
-		for (i = 0; i < isp->isp_maxcmds; i++) {
+		for (i = 0; i < ISP_HANDLE_NUM(isp); i++) {
 			if (isp->isp_xflist[i].cmd != xs) {
 				continue;
 			}
@@ -486,7 +486,7 @@ isp_clear_commands(ispsoftc_t *isp)
 	isp_notify_t notify;
 #endif
 
-	for (tmp = 0; isp->isp_xflist && tmp < isp->isp_maxcmds; tmp++) {
+	for (tmp = 0; isp->isp_xflist && tmp < ISP_HANDLE_NUM(isp); tmp++) {
 
 		hdp = &isp->isp_xflist[tmp];
 		switch (ISP_H2HT(hdp->handle)) {
