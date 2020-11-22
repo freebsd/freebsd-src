@@ -742,6 +742,7 @@ isp_init(ispsoftc_t *isp)
 	if (!IS_26XX(isp))
 		icbp->icb_execthrottle = 0xffff;
 
+#ifdef	ISP_TARGET_MODE
 	/*
 	 * Set target exchange count. Take half if we are supporting both roles.
 	 */
@@ -751,7 +752,7 @@ isp_init(ispsoftc_t *isp)
 		else
 			icbp->icb_xchgcnt = isp->isp_maxcmds;
 	}
-
+#endif
 
 	ownloopid = (isp->isp_confopts & ISP_CFG_OWNLOOPID) != 0;
 	icbp->icb_hardaddr = fcp->isp_loopid;
