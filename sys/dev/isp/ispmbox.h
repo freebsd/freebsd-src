@@ -653,13 +653,6 @@ typedef struct {
 #define	RQSTF_LOGOUT			0x2000
 
 /*
- * Miscellaneous
- */
-#ifndef	ISP_EXEC_THROTTLE
-#define	ISP_EXEC_THROTTLE	16
-#endif
-
-/*
  * About Firmware returns an 'attribute' word.
  */
 #define	ISP2400_FW_ATTR_CLASS2	0x0001
@@ -769,8 +762,6 @@ typedef struct {
 #define	ICB_MIN_FRMLEN		256
 #define	ICB_MAX_FRMLEN		2112
 #define	ICB_DFLT_FRMLEN		1024
-#define	ICB_DFLT_ALLOC		256
-#define	ICB_DFLT_THROTTLE	16
 #define	ICB_DFLT_RDELAY		5
 #define	ICB_DFLT_RCOUNT		3
 

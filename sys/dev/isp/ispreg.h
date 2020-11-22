@@ -219,8 +219,6 @@ typedef struct {
 
 #define	ISP2400_NVRAM_VERSION(c)		((c)[4] | ((c)[5] << 8))
 #define	ISP2400_NVRAM_MAXFRAMELENGTH(c)		(((c)[12]) | ((c)[13] << 8))
-#define	ISP2400_NVRAM_EXECUTION_THROTTLE(c)	(((c)[14]) | ((c)[15] << 8))
-#define	ISP2400_NVRAM_EXCHANGE_COUNT(c)		(((c)[16]) | ((c)[17] << 8))
 #define	ISP2400_NVRAM_HARDLOOPID(c)		((c)[18] | ((c)[19] << 8))
 
 #define	ISP2400_NVRAM_PORT_NAME(c)	(\

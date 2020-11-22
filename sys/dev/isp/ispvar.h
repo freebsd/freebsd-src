@@ -359,7 +359,6 @@ typedef struct {
 	uint16_t		isp_loopid;		/* hard loop id */
 	uint16_t		isp_sns_hdl;		/* N-port handle for SNS */
 	uint16_t		isp_lasthdl;		/* only valid for channel 0 */
-	uint16_t		isp_maxalloc;
 	uint16_t		isp_fabric_params;
 	uint16_t		isp_login_hdl;		/* Logging in handle */
 	uint8_t			isp_retry_delay;
@@ -541,7 +540,6 @@ struct ispsoftc {
 #define	ISP_CFG_FCTAPE		0x200	/* enable FC-Tape */
 #define	ISP_CFG_OWNFSZ		0x400	/* override NVRAM frame size */
 #define	ISP_CFG_OWNLOOPID	0x800	/* override NVRAM loopid */
-#define	ISP_CFG_OWNEXCTHROTTLE	0x1000	/* override NVRAM execution throttle */
 #define	ISP_CFG_4GB		0x2000	/* force 4Gb connection (24XX only) */
 #define	ISP_CFG_8GB		0x4000	/* force 8Gb connection (25XX only) */
 #define	ISP_CFG_16GB		0x8000	/* force 16Gb connection (26XX only) */
@@ -893,7 +891,6 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *	XS_SENSE_VALID(xs)		indicates whether sense is valid
  *
  *	DEFAULT_FRAMESIZE(ispsoftc_t *)		Default Frame Size
- *	DEFAULT_EXEC_THROTTLE(ispsoftc_t *)	Default Execution Throttle
  *
  *	DEFAULT_ROLE(ispsoftc_t *, int)		Get Default Role for a channel
  *	DEFAULT_LOOPID(ispsoftc_t *, int)	Default FC Loop ID
