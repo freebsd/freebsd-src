@@ -1496,6 +1496,9 @@ dwc_attach(device_t dev)
 	uint32_t reg;
 	char *phy_mode;
 	phandle_t node;
+	uint32_t txpbl, rxpbl;
+	bool nopblx8 = false;
+	bool fixed_burst = false;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -1512,6 +1515,15 @@ dwc_attach(device_t dev)
 			sc->phy_mode = PHY_MODE_RMII;
 		OF_prop_free(phy_mode);
 	}
+
+	if (OF_getencprop(node, "snps,txpbl", &txpbl, sizeof(uint32_t)) <= 0)
+		txpbl = 8;
+	if (OF_getencprop(node, "snps,rxpbl", &rxpbl, sizeof(uint32_t)) <= 0)
+		rxpbl = 8;
+	if (OF_hasprop(node, "snps,no-pbl-x8") == 1)
+		nopblx8 = true;
+	if (OF_hasprop(node, "snps,fixed-burst") == 1)
+		fixed_burst = true;
 
 	if (IF_DWC_INIT(dev) != 0)
 		return (ENXIO);
@@ -1550,12 +1562,13 @@ dwc_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (sc->mactype != DWC_GMAC_EXT_DESC) {
-		reg = BUS_MODE_FIXEDBURST;
-		reg |= (BUS_MODE_PRIORXTX_41 << BUS_MODE_PRIORXTX_SHIFT);
-	} else
-		reg = (BUS_MODE_EIGHTXPBL);
-	reg |= (BUS_MODE_PBL_BEATS_8 << BUS_MODE_PBL_SHIFT);
+	reg = BUS_MODE_USP;
+	if (!nopblx8)
+		reg |= BUS_MODE_EIGHTXPBL;
+	reg |= (txpbl << BUS_MODE_PBL_SHIFT);
+	reg |= (rxpbl << BUS_MODE_RPBL_SHIFT);
+	if (fixed_burst)
+		reg |= BUS_MODE_FIXEDBURST;
 	WRITE4(sc, BUS_MODE, reg);
 
 	/*

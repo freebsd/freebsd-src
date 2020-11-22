@@ -220,6 +220,8 @@
 /* DMA */
 #define	BUS_MODE		0x1000
 #define	 BUS_MODE_EIGHTXPBL	(1 << 24) /* Multiplies PBL by 8 */
+#define	 BUS_MODE_USP		(1 << 23)
+#define	 BUS_MODE_RPBL_SHIFT	17 /* Single block transfer size */
 #define	 BUS_MODE_FIXEDBURST	(1 << 16)
 #define	 BUS_MODE_PRIORXTX_SHIFT	14
 #define	 BUS_MODE_PRIORXTX_41	3
