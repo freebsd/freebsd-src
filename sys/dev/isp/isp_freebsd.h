@@ -280,7 +280,6 @@ struct isposinfo {
 	 * misc- needs to be sorted better XXXXXX
 	 */
 	int			framesize;
-	int			exec_throttle;
 	int			cont_max;
 
 #ifdef	ISP_TARGET_MODE
@@ -545,7 +544,6 @@ default:							\
 #define	XS_SENSE_VALID(xs)	(((xs)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
 
 #define	DEFAULT_FRAMESIZE(isp)		isp->isp_osinfo.framesize
-#define	DEFAULT_EXEC_THROTTLE(isp)	isp->isp_osinfo.exec_throttle
 
 #define	DEFAULT_ROLE(isp, chan)		ISP_FC_PC(isp, chan)->def_role
 
