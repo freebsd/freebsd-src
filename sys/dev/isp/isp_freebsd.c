@@ -1480,7 +1480,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	xpt_done((union ccb *)atiop);
 	return;
 noresrc:
-	KASSERT(atp == NULL, ("%s: atp is not NULL on noresrc!\n"));
+	KASSERT(atp == NULL, ("%s: atp is not NULL on noresrc!\n", __func__));
 	ntp = isp_get_ntpd(isp, chan);
 	if (ntp == NULL) {
 		isp_endcmd(isp, aep, nphdl, chan, SCSI_STATUS_BUSY, 0);
