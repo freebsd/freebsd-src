@@ -173,10 +173,8 @@ static int isp_pci_attach (device_t);
 static int isp_pci_detach (device_t);
 
 
-#define	ISP_PCD(isp)	((struct isp_pcisoftc *)isp)->pci_dev
 struct isp_pcisoftc {
 	ispsoftc_t			pci_isp;
-	device_t			pci_dev;
 	struct resource *		regs;
 	struct resource *		regs1;
 	struct resource *		regs2;
@@ -449,7 +447,6 @@ isp_pci_attach(device_t dev)
 	size_t psize, xsize;
 	char fwname[32];
 
-	pcs->pci_dev = dev;
 	isp->isp_dev = dev;
 	isp->isp_nchan = 1;
 	mtx_init(&isp->isp_lock, "isp", NULL, MTX_DEF);
@@ -464,7 +461,6 @@ isp_pci_attach(device_t dev)
 	pcs->regs = pcs->regs2 = NULL;
 	pcs->rgd = pcs->rtp = 0;
 
-	pcs->pci_dev = dev;
 	isp->isp_nchan += isp_nvports;
 	switch (pci_get_devid(dev)) {
 	case PCI_QLOGIC_ISP2422:
@@ -883,9 +879,10 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 isp_pci_mbxdma(ispsoftc_t *isp)
 {
+	bus_dma_tag_t ptag;
 	caddr_t base;
 	uint32_t len;
-	int i, error, cmap = 0;
+	int i, error, cmap;
 	bus_size_t slim;	/* segment size */
 	struct imush im;
 #ifdef	ISP_TARGET_MODE
@@ -898,28 +895,21 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	if (isp->isp_rquest != NULL && isp->isp_maxcmds == 0)
 		return (0);
 	ISP_UNLOCK(isp);
-	if (isp->isp_rquest != NULL)
-		goto gotmaxcmds;
 
+	ptag = bus_get_dma_tag(isp->isp_osinfo.dev);
 	if (sizeof (bus_size_t) > 4)
 		slim = (bus_size_t) (1ULL << 32);
 	else
 		slim = (bus_size_t) (1UL << 31);
-	if (bus_dma_tag_create(bus_get_dma_tag(ISP_PCD(isp)), 1, slim,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
-	    (ISP_NSEG64_MAX - 1) * PAGE_SIZE, ISP_NSEG64_MAX,
-	    (ISP_NSEG64_MAX - 1) * PAGE_SIZE, 0,
-	    busdma_lock_mutex, &isp->isp_lock, &isp->isp_osinfo.dmat)) {
-		ISP_LOCK(isp);
-		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
-		return (1);
-	}
+
+	if (isp->isp_rquest != NULL)
+		goto gotmaxcmds;
 
 	/*
 	 * Allocate and map the request queue.
 	 */
 	len = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
-	if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
+	if (bus_dma_tag_create(ptag, QENTRY_LEN, slim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    len, 1, len, 0, NULL, NULL, &isp->isp_osinfo.reqdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create request DMA tag");
@@ -947,7 +937,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	 * Allocate region for external DMA addressable command/status structures.
 	 */
 	len = N_XCMDS * XCMD_SIZE;
-	if (bus_dma_tag_create(isp->isp_osinfo.dmat, XCMD_SIZE, slim,
+	if (bus_dma_tag_create(ptag, XCMD_SIZE, slim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    len, 1, len, 0, NULL, NULL, &isp->isp_osinfo.ecmd_dmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create ECMD DMA tag");
@@ -956,7 +946,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	if (bus_dmamem_alloc(isp->isp_osinfo.ecmd_dmat, (void **)&base,
 	    BUS_DMA_COHERENT, &isp->isp_osinfo.ecmd_map) != 0) {
 		isp_prt(isp, ISP_LOGERR, "cannot allocate ECMD DMA memory");
-		bus_dma_tag_destroy(isp->isp_osinfo.reqdmat);
+		bus_dma_tag_destroy(isp->isp_osinfo.ecmd_dmat);
 		goto bad;
 	}
 	isp->isp_osinfo.ecmd_base = (isp_ecmd_t *)base;
@@ -984,7 +974,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	 * Allocate and map the result queue.
 	 */
 	len = ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
-	if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
+	if (bus_dma_tag_create(ptag, QENTRY_LEN, slim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    len, 1, len, 0, NULL, NULL, &isp->isp_osinfo.respdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create response DMA tag");
@@ -1012,7 +1002,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	 * Allocate and map ATIO queue.
 	 */
 	len = ISP_QUEUE_SIZE(ATIO_QUEUE_LEN(isp));
-	if (bus_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
+	if (bus_dma_tag_create(ptag, QENTRY_LEN, slim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    len, 1, len, 0, NULL, NULL, &isp->isp_osinfo.atiodmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create ATIO DMA tag");
@@ -1036,7 +1026,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	isp->isp_atioq_dma = im.maddr;
 #endif
 
-	if (bus_dma_tag_create(isp->isp_osinfo.dmat, 64, slim,
+	if (bus_dma_tag_create(ptag, 64, slim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    2*QENTRY_LEN, 1, 2*QENTRY_LEN, 0, NULL, NULL,
 	    &isp->isp_osinfo.iocbdmat)) {
@@ -1052,7 +1042,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		goto bad;
 	isp->isp_iocb_dma = im.maddr;
 
-	if (bus_dma_tag_create(isp->isp_osinfo.dmat, 64, slim,
+	if (bus_dma_tag_create(ptag, 64, slim,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    ISP_FC_SCRLEN, 1, ISP_FC_SCRLEN, 0, NULL, NULL,
 	    &isp->isp_osinfo.scdmat))
@@ -1094,6 +1084,12 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 
 gotmaxcmds:
+	if (bus_dma_tag_create(ptag, 1, slim,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    (ISP_NSEG64_MAX - 1) * PAGE_SIZE, ISP_NSEG64_MAX,
+	    (ISP_NSEG64_MAX - 1) * PAGE_SIZE, 0,
+	    busdma_lock_mutex, &isp->isp_lock, &isp->isp_osinfo.dmat))
+		goto bad;
 	len = isp->isp_maxcmds * sizeof (struct isp_pcmd);
 	isp->isp_osinfo.pcmd_pool = (struct isp_pcmd *)
 	    malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
@@ -1148,6 +1144,10 @@ isp_pci_mbxdmafree(ispsoftc_t *isp)
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		isp->isp_osinfo.pcmd_pool = NULL;
 	}
+	if (isp->isp_osinfo.dmat) {
+		bus_dma_tag_destroy(isp->isp_osinfo.dmat);
+		isp->isp_osinfo.dmat = NULL;
+	}
 	for (i = 0; i < isp->isp_nchan; i++) {
 		struct isp_fc *fc = ISP_FC_PC(isp, i);
 		if (FCPARAM(isp, i)->isp_scdma != 0) {
@@ -1166,8 +1166,11 @@ isp_pci_mbxdmafree(ispsoftc_t *isp)
 			free(n, M_DEVBUF);
 		}
 	}
-	if (isp->isp_iocb_dma != 0) {
+	if (isp->isp_osinfo.scdmat) {
 		bus_dma_tag_destroy(isp->isp_osinfo.scdmat);
+		isp->isp_osinfo.scdmat = NULL;
+	}
+	if (isp->isp_iocb_dma != 0) {
 		bus_dmamap_unload(isp->isp_osinfo.iocbdmat,
 		    isp->isp_osinfo.iocbmap);
 		isp->isp_iocb_dma = 0;
