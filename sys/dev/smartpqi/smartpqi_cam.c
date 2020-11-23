@@ -623,7 +623,6 @@ static void smartpqi_lun_rescan(struct pqisrc_softstate *softs, int target,
 		return;
 	}
 
-	bzero(ccb, sizeof(union ccb));
 	xpt_setup_ccb(&ccb->ccb_h, path, 5);
 	ccb->ccb_h.func_code = XPT_SCAN_LUN;
 	ccb->ccb_h.cbfcnp = smartpqi_lunrescan_cb;
