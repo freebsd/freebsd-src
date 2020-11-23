@@ -346,6 +346,7 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td = (struct thread *)mem;
 	td->td_state = TDS_INACTIVE;
 	td->td_lastcpu = td->td_oncpu = NOCPU;
+	td->td_allocdomain = vm_phys_domain(vtophys(td));
 
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
@@ -544,7 +545,7 @@ thread_zombie(struct thread *td)
 	struct thread_domain_data *tdd;
 	struct thread *ztd;
 
-	tdd = &thread_domain_data[vm_phys_domain(vtophys(td))];
+	tdd = &thread_domain_data[td->td_allocdomain];
 	ztd = atomic_load_ptr(&tdd->tdd_zombies);
 	for (;;) {
 		td->td_zombie = ztd;
