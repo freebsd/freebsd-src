@@ -1051,6 +1051,8 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	sigfastblock_clear(td);
 	umtx_exec(p);
 	itimers_exec(p);
+	if (sv->sv_onexec != NULL)
+		sv->sv_onexec(p, imgp);
 
 	EVENTHANDLER_DIRECT_INVOKE(process_exec, p, imgp);
 
