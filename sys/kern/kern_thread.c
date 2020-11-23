@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/selinfo.h>
 #include <sys/syscallsubr.h>
+#include <sys/dtrace_bsd.h>
 #include <sys/sysent.h>
 #include <sys/turnstile.h>
 #include <sys/taskqueue.h>
@@ -358,6 +359,9 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 #ifdef AUDIT
 	audit_thread_alloc(td);
 #endif
+#ifdef KDTRACE_HOOKS
+	kdtrace_thread_ctor(td);
+#endif
 	umtx_thread_alloc(td);
 	MPASS(td->td_sel == NULL);
 	return (0);
@@ -395,6 +399,9 @@ thread_dtor(void *mem, int size, void *arg)
 #endif
 #ifdef AUDIT
 	audit_thread_free(td);
+#endif
+#ifdef KDTRACE_HOOKS
+	kdtrace_thread_dtor(td);
 #endif
 	/* Free all OSD associated to this thread. */
 	osd_thread_exit(td);

@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/stack.h>
 #include <sys/stat.h>
+#include <sys/dtrace_bsd.h>
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
 #include <sys/tty.h>
@@ -207,6 +208,9 @@ proc_ctor(void *mem, int size, void *arg, int flags)
 	struct thread *td;
 
 	p = (struct proc *)mem;
+#ifdef KDTRACE_HOOKS
+	kdtrace_proc_ctor(p);
+#endif
 	EVENTHANDLER_DIRECT_INVOKE(process_ctor, p);
 	td = FIRST_THREAD_IN_PROC(p);
 	if (td != NULL) {
@@ -243,6 +247,9 @@ proc_dtor(void *mem, int size, void *arg)
 		EVENTHANDLER_DIRECT_INVOKE(thread_dtor, td);
 	}
 	EVENTHANDLER_DIRECT_INVOKE(process_dtor, p);
+#ifdef KDTRACE_HOOKS
+	kdtrace_proc_dtor(p);
+#endif
 	if (p->p_ksi != NULL)
 		KASSERT(! KSI_ONQ(p->p_ksi), ("SIGCHLD queue"));
 }

@@ -67,21 +67,19 @@ kdtrace_proc_size()
 	return (KDTRACE_PROC_SIZE);
 }
 
-static void
-kdtrace_proc_ctor(void *arg __unused, struct proc *p)
+void
+kdtrace_proc_ctor(struct proc *p)
 {
 
 	p->p_dtrace = malloc(KDTRACE_PROC_SIZE, M_KDTRACE, M_WAITOK|M_ZERO);
 }
 
-static void
-kdtrace_proc_dtor(void *arg __unused, struct proc *p)
+void
+kdtrace_proc_dtor(struct proc *p)
 {
 
-	if (p->p_dtrace != NULL) {
-		free(p->p_dtrace, M_KDTRACE);
-		p->p_dtrace = NULL;
-	}
+	free(p->p_dtrace, M_KDTRACE);
+	p->p_dtrace = NULL;
 }
 
 /* Return the DTrace thread data size compiled in the kernel hooks. */
@@ -92,38 +90,17 @@ kdtrace_thread_size()
 	return (KDTRACE_THREAD_SIZE);
 }
 
-static void
-kdtrace_thread_ctor(void *arg __unused, struct thread *td)
+void
+kdtrace_thread_ctor(struct thread *td)
 {
 
 	td->td_dtrace = malloc(KDTRACE_THREAD_SIZE, M_KDTRACE, M_WAITOK|M_ZERO);
 }
 
-static void
-kdtrace_thread_dtor(void *arg __unused, struct thread *td)
+void
+kdtrace_thread_dtor(struct thread *td)
 {
 
-	if (td->td_dtrace != NULL) {
-		free(td->td_dtrace, M_KDTRACE);
-		td->td_dtrace = NULL;
-	}
+	free(td->td_dtrace, M_KDTRACE);
+	td->td_dtrace = NULL;
 }
-
-/*
- *  Initialise the kernel DTrace hooks.
- */
-static void
-init_dtrace(void *dummy __unused)
-{
-
-	EVENTHANDLER_REGISTER(process_ctor, kdtrace_proc_ctor, NULL,
-	    EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(process_dtor, kdtrace_proc_dtor, NULL,
-	    EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(thread_ctor, kdtrace_thread_ctor, NULL,
-	    EVENTHANDLER_PRI_ANY);
-	EVENTHANDLER_REGISTER(thread_dtor, kdtrace_thread_dtor, NULL,
-	    EVENTHANDLER_PRI_ANY);
-}
-
-SYSINIT(kdtrace, SI_SUB_KDTRACE, SI_ORDER_FIRST, init_dtrace, NULL);

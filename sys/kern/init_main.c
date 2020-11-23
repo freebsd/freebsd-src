@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/loginclass.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/dtrace_bsd.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
@@ -607,6 +608,10 @@ proc0_init(void *dummy __unused)
 	 */
 	EVENTHANDLER_DIRECT_INVOKE(process_init, p);
 	EVENTHANDLER_DIRECT_INVOKE(thread_init, td);
+#ifdef KDTRACE_HOOKS
+	kdtrace_proc_ctor(p);
+	kdtrace_thread_ctor(td);
+#endif
 	EVENTHANDLER_DIRECT_INVOKE(process_ctor, p);
 	EVENTHANDLER_DIRECT_INVOKE(thread_ctor, td);
 
