@@ -478,6 +478,7 @@ nvme_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
 	uint64_t *bus_addr = (uint64_t *)arg;
 
+	KASSERT(nseg == 1, ("number of segments (%d) is not 1", nseg));
 	if (error != 0)
 		printf("nvme_single_map err %d\n", error);
 	*bus_addr = seg[0].ds_addr;
