@@ -199,14 +199,13 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 }
 
 void
-linux_proc_exit(void *arg __unused, struct proc *p)
+linux_on_exit(struct proc *p)
 {
 	struct linux_pemuldata *pem;
 	struct epoll_emuldata *emd;
 	struct thread *td = curthread;
 
-	if (__predict_false(SV_CURPROC_ABI() != SV_ABI_LINUX))
-		return;
+	MPASS(SV_CURPROC_ABI() == SV_ABI_LINUX);
 
 	LINUX_CTR3(proc_exit, "thread(%d) proc(%d) p %p",
 	    td->td_tid, p->p_pid, p);
@@ -313,7 +312,7 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 }
 
 void
-linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
+linux_on_exec(struct proc *p, struct image_params *imgp)
 {
 	struct thread *td;
 	struct thread *othertd;
@@ -322,55 +321,52 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 #endif
 
 	td = curthread;
+	MPASS((imgp->sysent->sv_flags & SV_ABI_MASK) == SV_ABI_LINUX);
 
 	/*
-	 * In a case of execing to Linux binary we create Linux
-	 * emuldata thread entry.
+	 * When execing to Linux binary, we create Linux emuldata
+	 * thread entry.
 	 */
-	if (__predict_false((imgp->sysent->sv_flags & SV_ABI_MASK) ==
-	    SV_ABI_LINUX)) {
-		if (SV_PROC_ABI(p) == SV_ABI_LINUX) {
-			/*
-			 * Process already was under Linuxolator
-			 * before exec.  Update emuldata to reflect
-			 * single-threaded cleaned state after exec.
-			 */
-			linux_proc_init(td, NULL, 0);
-		} else {
-			/*
-			 * We are switching the process to Linux emulator.
-			 */
-			linux_proc_init(td, td, 0);
-
-			/*
-			 * Create a transient td_emuldata for all suspended
-			 * threads, so that p->p_sysent->sv_thread_detach() ==
-			 * linux_thread_detach() can find expected but unused
-			 * emuldata.
-			 */
-			FOREACH_THREAD_IN_PROC(td->td_proc, othertd) {
-				if (othertd != td) {
-					linux_proc_init(td, othertd,
-					    LINUX_CLONE_THREAD);
-				}
-			}
-		}
-#if defined(__amd64__)
+	if (SV_PROC_ABI(p) == SV_ABI_LINUX) {
 		/*
-		 * An IA32 executable which has executable stack will have the
-		 * READ_IMPLIES_EXEC personality flag set automatically.
+		 * Process already was under Linuxolator
+		 * before exec.  Update emuldata to reflect
+		 * single-threaded cleaned state after exec.
 		 */
-		if (SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
-		    imgp->stack_prot & VM_PROT_EXECUTE) {
-			pem = pem_find(p);
-			pem->persona |= LINUX_READ_IMPLIES_EXEC;
+		linux_proc_init(td, NULL, 0);
+	} else {
+		/*
+		 * We are switching the process to Linux emulator.
+		 */
+		linux_proc_init(td, td, 0);
+
+		/*
+		 * Create a transient td_emuldata for all suspended
+		 * threads, so that p->p_sysent->sv_thread_detach() ==
+		 * linux_thread_detach() can find expected but unused
+		 * emuldata.
+		 */
+		FOREACH_THREAD_IN_PROC(td->td_proc, othertd) {
+			if (othertd == td)
+				continue;
+			linux_proc_init(td, othertd, LINUX_CLONE_THREAD);
 		}
-#endif
 	}
+#if defined(__amd64__)
+	/*
+	 * An IA32 executable which has executable stack will have the
+	 * READ_IMPLIES_EXEC personality flag set automatically.
+	 */
+	if (SV_PROC_FLAG(td->td_proc, SV_ILP32) &&
+	    imgp->stack_prot & VM_PROT_EXECUTE) {
+		pem = pem_find(p);
+		pem->persona |= LINUX_READ_IMPLIES_EXEC;
+	}
+#endif
 }
 
 void
-linux_thread_dtor(void *arg __unused, struct thread *td)
+linux_thread_dtor(struct thread *td)
 {
 	struct linux_emuldata *em;
 
