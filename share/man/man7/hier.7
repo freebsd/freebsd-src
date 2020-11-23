@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2020
+.Dd November 23, 2020
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -54,7 +54,7 @@ Compiled flattened device tree (FDT) files; see
 and
 .Xr dtc 1
 .It Pa efi/
-Mount point for EFI System Partition (ESP) on UEFI systems.
+Mount point for EFI System Partition (ESP) on UEFI systems
 .It Pa firmware/
 loadable kernel modules containing binary firmware for hardware that needs
 firmware downloaded to it to function
@@ -62,9 +62,8 @@ firmware downloaded to it to function
 pure kernel executable (the operating system loaded into memory
 at boot time) and kernel modules
 .It Pa modules/
-third-party loadable kernel modules;
-see
-.Xr kldstat 8
+third-party loadable kernel modules, such as the ones installed from
+.Xr ports 7
 .It Pa overlays/
 Compiled flattened device tree (FDT) overlays; see
 .Xr fdt 4
@@ -197,8 +196,9 @@ contains the majority of user utilities and applications
 .It Pa bin/
 common utilities, programming tools, and applications
 .It Pa compat/
-files needed to support binary compatibility with other operating systems,
-such as Linux
+files needed to support binary compatibility with other operating systems;
+see
+.Xr linux 4
 .It Pa include/
 standard C include files
 .Pp
@@ -435,7 +435,7 @@ tree
 .Xr ports 7 ,
 the
 .Fx
-ports collection.
+ports collection
 .It Pa sbin/
 system daemons & system utilities (executed by users)
 .It Pa share/
@@ -604,8 +604,8 @@ see
 .El
 .Pp
 .It Pa src/
-.Bx ,
-third-party, and/or local source files
+.Fx
+source code
 .Pp
 .Bl -tag -width "kerberos5/" -compact
 .It Pa bin/
@@ -734,10 +734,8 @@ source code for files in
 .It Pa tests/
 The
 .Fx
-test suite.
-See
+test suite; see
 .Xr tests 7
-for more details.
 .El
 .It Pa /var/
 multi-purpose log, temporary, transient, and spool files
