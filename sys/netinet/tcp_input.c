@@ -1695,7 +1695,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	}
 	/*
 	 * If timestamps were not negotiated during SYN/ACK and a
-	 * segment without a timestamp is received, ignore the
+	 * segment with a timestamp is received, ignore the
 	 * timestamp and process the packet normally.
 	 * See section 3.2 of RFC 7323.
 	 */
