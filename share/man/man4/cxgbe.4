@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2020
+.Dd October 19, 2020
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -362,6 +362,29 @@ The default value is 0 and should be changed only if PF and VF interfaces need
 to communicate with each other.
 Different interfaces can be assigned different values using the
 dev.<port>.X.tx_vm_wr sysctl when the interface is administratively down.
+.It Va hw.cxgbe.attack_filter
+Set to 1 to enable the "attack filter".
+Default is 0.
+The attack filter will drop an incoming frame if any of these conditions is
+true: src ip/ip6 == dst ip/ip6; tcp and src/dst ip is not unicast; src/dst ip is
+loopback (127.x.y.z); src ip6 is not unicast; src/dst ip6 is loopback (::1/128)
+or unspecified (::/128); tcp and src/dst ip6 is mcast (ff00::/8).
+This facility is available on T4 and T5 based cards only.
+.It Va hw.cxgbe.drop_ip_fragments
+Set to 1 to drop all incoming IP fragments.
+Default is 0.
+Note that this drops valid frames.
+.It Va hw.cxgbe.drop_pkts_with_l2_errors
+Set to 1 to drop incoming frames with Layer 2 length or checksum errors.
+Default is 1.
+.It Va hw.cxgbe.drop_pkts_with_l3_errors
+Set to 1 to drop incoming frames with IP version, length, or checksum errors.
+The IP checksum is validated for TCP or UDP packets only.
+Default is 0.
+.It Va hw.cxgbe.drop_pkts_with_l4_errors
+Set to 1 to drop incoming frames with Layer 4 (TCP or UDP) length,
+checksum, or other errors.
+Default is 0.
 .El
 .Sh SUPPORT
 For general information and support,

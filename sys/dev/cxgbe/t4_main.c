@@ -579,6 +579,46 @@ static int t4_tx_vm_wr = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, tx_vm_wr, CTLFLAG_RWTUN, &t4_tx_vm_wr, 0,
     "Use VM work requests to transmit packets.");
 
+/*
+ * Set to non-zero to enable the attack filter.  A packet that matches any of
+ * these conditions will get dropped on ingress:
+ * 1) IP && source address == destination address.
+ * 2) TCP/IP && source address is not a unicast address.
+ * 3) TCP/IP && destination address is not a unicast address.
+ * 4) IP && source address is loopback (127.x.y.z).
+ * 5) IP && destination address is loopback (127.x.y.z).
+ * 6) IPv6 && source address == destination address.
+ * 7) IPv6 && source address is not a unicast address.
+ * 8) IPv6 && source address is loopback (::1/128).
+ * 9) IPv6 && destination address is loopback (::1/128).
+ * 10) IPv6 && source address is unspecified (::/128).
+ * 11) IPv6 && destination address is unspecified (::/128).
+ * 12) TCP/IPv6 && source address is multicast (ff00::/8).
+ * 13) TCP/IPv6 && destination address is multicast (ff00::/8).
+ */
+static int t4_attack_filter = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, attack_filter, CTLFLAG_RDTUN,
+    &t4_attack_filter, 0, "Drop suspicious traffic");
+
+static int t4_drop_ip_fragments = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, drop_ip_fragments, CTLFLAG_RDTUN,
+    &t4_drop_ip_fragments, 0, "Drop IP fragments");
+
+static int t4_drop_pkts_with_l2_errors = 1;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, drop_pkts_with_l2_errors, CTLFLAG_RDTUN,
+    &t4_drop_pkts_with_l2_errors, 0,
+    "Drop all frames with Layer 2 length or checksum errors");
+
+static int t4_drop_pkts_with_l3_errors = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, drop_pkts_with_l3_errors, CTLFLAG_RDTUN,
+    &t4_drop_pkts_with_l3_errors, 0,
+    "Drop all frames with IP version, length, or checksum errors");
+
+static int t4_drop_pkts_with_l4_errors = 0;
+SYSCTL_INT(_hw_cxgbe, OID_AUTO, drop_pkts_with_l4_errors, CTLFLAG_RDTUN,
+    &t4_drop_pkts_with_l4_errors, 0,
+    "Drop all frames with Layer 4 length, checksum, or other errors");
+
 #ifdef TCP_OFFLOAD
 /*
  * TOE tunables.
@@ -4547,7 +4587,7 @@ get_params__post_init(struct adapter *sc)
 static int
 set_params__post_init(struct adapter *sc)
 {
-	uint32_t param, val;
+	uint32_t mask, param, val;
 #ifdef TCP_OFFLOAD
 	int i, v, shift;
 #endif
@@ -4567,6 +4607,33 @@ set_params__post_init(struct adapter *sc)
 	val = 1 << (G_MASKSIZE(t4_read_reg(sc, A_TP_RSS_CONFIG_TNL)) - 1);
 	t4_set_reg_field(sc, A_TP_RSS_CONFIG_TNL, V_MASKFILTER(M_MASKFILTER),
 	    V_MASKFILTER(val - 1));
+
+	mask = F_DROPERRORANY | F_DROPERRORMAC | F_DROPERRORIPVER |
+	    F_DROPERRORFRAG | F_DROPERRORATTACK | F_DROPERRORETHHDRLEN |
+	    F_DROPERRORIPHDRLEN | F_DROPERRORTCPHDRLEN | F_DROPERRORPKTLEN |
+	    F_DROPERRORTCPOPT | F_DROPERRORCSUMIP | F_DROPERRORCSUM;
+	val = 0;
+	if (chip_id(sc) < CHELSIO_T6 && t4_attack_filter != 0) {
+		t4_set_reg_field(sc, A_TP_GLOBAL_CONFIG, F_ATTACKFILTERENABLE,
+		    F_ATTACKFILTERENABLE);
+		val |= F_DROPERRORATTACK;
+	}
+	if (t4_drop_ip_fragments != 0) {
+		t4_set_reg_field(sc, A_TP_GLOBAL_CONFIG, F_FRAGMENTDROP,
+		    F_FRAGMENTDROP);
+		val |= F_DROPERRORFRAG;
+	}
+	if (t4_drop_pkts_with_l2_errors != 0)
+		val |= F_DROPERRORMAC | F_DROPERRORETHHDRLEN;
+	if (t4_drop_pkts_with_l3_errors != 0) {
+		val |= F_DROPERRORIPVER | F_DROPERRORIPHDRLEN |
+		    F_DROPERRORCSUMIP;
+	}
+	if (t4_drop_pkts_with_l4_errors != 0) {
+		val |= F_DROPERRORTCPHDRLEN | F_DROPERRORPKTLEN |
+		    F_DROPERRORTCPOPT | F_DROPERRORCSUM;
+	}
+	t4_set_reg_field(sc, A_TP_ERR_CONFIG, mask, val);
 
 #ifdef TCP_OFFLOAD
 	/*
