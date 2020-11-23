@@ -987,7 +987,7 @@ END_DEBUG
 	sdev = sbp_next_dev(target, sdev->lun_id + 1);
 	if (sdev == NULL) {
 		SBP_UNLOCK(sbp);
-		free(ccb, M_SBP);
+		xpt_free_ccb(ccb);
 		return;
 	}
 	/* reuse ccb */
@@ -1019,9 +1019,9 @@ SBP_DEBUG(0)
 	device_printf(sdev->target->sbp->fd.dev,
 		"%s:%s\n", __func__, sdev->bustgtlun);
 END_DEBUG
-	ccb = malloc(sizeof(union ccb), M_SBP, M_NOWAIT | M_ZERO);
+	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
-		printf("sbp_cam_scan_target: malloc failed\n");
+		printf("sbp_cam_scan_target: xpt_alloc_ccb_nowait() failed\n");
 		return;
 	}
 	SBP_UNLOCK(target->sbp);
