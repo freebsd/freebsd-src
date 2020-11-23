@@ -36,7 +36,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd August 6, 2020
+.Dd November 23, 2020
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -1029,23 +1029,17 @@ while reporting size of 10 terabytes,
 .Pp
 .Dl ctladm create -b ramdisk -s 10T -o capacity=10G
 .Pp
-Create a LUN using the block backend, and specify the file
-.Pa src/usr.sbin/ctladm/ctladm.8
-as the backing store.
-The size of the LUN will be derived from the size of the file.
-.Pp
-.Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8
-.Pp
-Create a LUN using the block backend, specify the file
-.Pa src/usr.sbin/ctladm/ctladm.8
+Create a LUN using the block backend, specify the ZFS volume
+.Pa tank/example
 as the backing store, and specify the
 .Tn SCSI
 VPD page 0x80 and 0x83 serial number
 .Fl ( S )
 and device ID
 .Fl ( d ) .
+The size of the LUN will be derived from the size of the ZVOL.
 .Pp
-.Dl ctladm create -b block -o file=src/usr.sbin/ctladm/ctladm.8 -S MYSERIAL321 -d MYDEVID123
+.Dl ctladm create -b block -o file=/dev/zvol/tank/example -S MYSERIAL321 -d MYDEVID123
 .Pp
 Use to specify generic options on ioctl frontend port, now it is
 only possible to set pp and/or vp port number.
