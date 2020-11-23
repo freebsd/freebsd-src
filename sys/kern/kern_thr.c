@@ -353,6 +353,9 @@ kern_thr_exit(struct thread *td)
 		return (0);
 	}
 
+	if (p->p_sysent->sv_ontdexit != NULL)
+		p->p_sysent->sv_ontdexit(td);
+
 	td->td_dbgflags |= TDB_EXIT;
 	if (p->p_ptevents & PTRACE_LWP) {
 		p->p_pendingexits++;

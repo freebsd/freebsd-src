@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/signalvar.h>
+#include <sys/sysent.h>
 #include <sys/sx.h>
 #include <sys/umtx.h>
 #include <sys/unistd.h>
@@ -355,6 +356,10 @@ kthread_exit(void)
 		PROC_UNLOCK(p);
 		kproc_exit(0);
 	}
+
+	if (p->p_sysent->sv_ontdexit != NULL)
+		p->p_sysent->sv_ontdexit(td);
+
 	tidhash_remove(td);
 	umtx_thread_exit(td);
 	tdsigcleanup(td);
