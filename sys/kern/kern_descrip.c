@@ -821,7 +821,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	struct filedesc *fdp;
 	struct filedescent *oldfde, *newfde;
 	struct proc *p;
-	struct file *delfp;
+	struct file *delfp, *oldfp;
 	u_long *oioctls, *nioctls;
 	int error, maxfd;
 
@@ -860,7 +860,8 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	}
 
 	oldfde = &fdp->fd_ofiles[old];
-	if (!fhold(oldfde->fde_file))
+	oldfp = oldfde->fde_file;
+	if (!fhold(oldfp))
 		goto unlock;
 
 	/*
@@ -872,14 +873,14 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	case FDDUP_NORMAL:
 	case FDDUP_FCNTL:
 		if ((error = fdalloc(td, new, &new)) != 0) {
-			fdrop(oldfde->fde_file, td);
+			fdrop(oldfp, td);
 			goto unlock;
 		}
 		break;
 	case FDDUP_MUSTREPLACE:
 		/* Target file descriptor must exist. */
 		if (fget_locked(fdp, new) == NULL) {
-			fdrop(oldfde->fde_file, td);
+			fdrop(oldfp, td);
 			goto unlock;
 		}
 		break;
@@ -900,7 +901,7 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 				PROC_UNLOCK(p);
 				if (error != 0) {
 					error = EMFILE;
-					fdrop(oldfde->fde_file, td);
+					fdrop(oldfp, td);
 					goto unlock;
 				}
 			}
@@ -915,6 +916,12 @@ kern_dup(struct thread *td, u_int mode, int flags, int old, int new)
 	}
 
 	KASSERT(old != new, ("new fd is same as old"));
+
+	/* Refetch oldfde because the table may have grown and old one freed. */
+	oldfde = &fdp->fd_ofiles[old];
+	KASSERT(oldfp == oldfde->fde_file,
+	    ("fdt_ofiles shift from growth observed at fd %d",
+	    old));
 
 	newfde = &fdp->fd_ofiles[new];
 	delfp = newfde->fde_file;
