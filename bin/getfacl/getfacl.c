@@ -85,10 +85,10 @@ getgname(gid_t gid)
 
 /*
  * return an ACL corresponding to the permissions
- * contained in struct stat
+ * contained in mode_t
  */
 static acl_t
-acl_from_stat(const struct stat *sb)
+acl_from_mode(const mode_t mode)
 {
 	acl_t acl;
 	acl_entry_t entry;
@@ -111,13 +111,13 @@ acl_from_stat(const struct stat *sb)
 		return NULL;
 
 	/* calculate user mode */
-	if (sb->st_mode & S_IRUSR)
+	if (mode & S_IRUSR)
 		if (acl_add_perm(perms, ACL_READ) == -1)
 			return NULL;
-	if (sb->st_mode & S_IWUSR)
+	if (mode & S_IWUSR)
 		if (acl_add_perm(perms, ACL_WRITE) == -1)
 			return NULL;
-	if (sb->st_mode & S_IXUSR)
+	if (mode & S_IXUSR)
 		if (acl_add_perm(perms, ACL_EXECUTE) == -1)
 			return NULL;
 	if (acl_set_permset(entry, perms) == -1)
@@ -135,13 +135,13 @@ acl_from_stat(const struct stat *sb)
 		return NULL;
 
 	/* calculate group mode */
-	if (sb->st_mode & S_IRGRP)
+	if (mode & S_IRGRP)
 		if (acl_add_perm(perms, ACL_READ) == -1)
 			return NULL;
-	if (sb->st_mode & S_IWGRP)
+	if (mode & S_IWGRP)
 		if (acl_add_perm(perms, ACL_WRITE) == -1)
 			return NULL;
-	if (sb->st_mode & S_IXGRP)
+	if (mode & S_IXGRP)
 		if (acl_add_perm(perms, ACL_EXECUTE) == -1)
 			return NULL;
 	if (acl_set_permset(entry, perms) == -1)
@@ -159,13 +159,13 @@ acl_from_stat(const struct stat *sb)
 		return NULL;
 
 	/* calculate other mode */
-	if (sb->st_mode & S_IROTH)
+	if (mode & S_IROTH)
 		if (acl_add_perm(perms, ACL_READ) == -1)
 			return NULL;
-	if (sb->st_mode & S_IWOTH)
+	if (mode & S_IWOTH)
 		if (acl_add_perm(perms, ACL_WRITE) == -1)
 			return NULL;
-	if (sb->st_mode & S_IXOTH)
+	if (mode & S_IXOTH)
 		if (acl_add_perm(perms, ACL_EXECUTE) == -1)
 			return NULL;
 	if (acl_set_permset(entry, perms) == -1)
@@ -229,9 +229,9 @@ print_acl(char *path, acl_type_t type, int hflag, int iflag, int nflag,
 		errno = 0;
 		if (type == ACL_TYPE_DEFAULT)
 			return(0);
-		acl = acl_from_stat(&sb);
+		acl = acl_from_mode(sb.st_mode);
 		if (!acl) {
-			warn("%s: acl_from_stat() failed", path);
+			warn("%s: acl_from_mode() failed", path);
 			return(-1);
 		}
 	}
