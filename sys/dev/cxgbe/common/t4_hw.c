@@ -6852,7 +6852,8 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
  */
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
-	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
+	struct port_info *pi = adap->port[idx];
+	u32 bgmap = pi->mps_bg_map;
 	u32 stat_ctl = t4_read_reg(adap, A_MPS_STAT_CTL);
 
 #define GET_STAT(name) \
@@ -6902,7 +6903,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ucast_frames	= GET_STAT(RX_PORT_UCAST);
 	p->rx_too_long		= GET_STAT(RX_PORT_MTU_ERROR);
 	p->rx_jabber		= GET_STAT(RX_PORT_MTU_CRC_ERROR);
-	p->rx_fcs_err		= GET_STAT(RX_PORT_CRC_ERROR);
 	p->rx_len_err		= GET_STAT(RX_PORT_LEN_ERROR);
 	p->rx_symbol_err	= GET_STAT(RX_PORT_SYM_ERROR);
 	p->rx_runt		= GET_STAT(RX_PORT_LESS_64B);
@@ -6921,6 +6921,9 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ppp5		= GET_STAT(RX_PORT_PPP5);
 	p->rx_ppp6		= GET_STAT(RX_PORT_PPP6);
 	p->rx_ppp7		= GET_STAT(RX_PORT_PPP7);
+
+	if (pi->fcs_reg != -1)
+		p->rx_fcs_err = t4_read_reg64(adap, pi->fcs_reg) - pi->fcs_base;
 
 	if (chip_id(adap) >= CHELSIO_T5) {
 		if (stat_ctl & F_COUNTPAUSESTATRX) {

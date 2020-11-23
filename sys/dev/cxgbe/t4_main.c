@@ -1166,6 +1166,23 @@ t4_attach(device_t dev)
 		mtx_init(&pi->pi_lock, pi->lockname, 0, MTX_DEF);
 		sc->chan_map[pi->tx_chan] = i;
 
+		/*
+		 * The MPS counter for FCS errors doesn't work correctly on the
+		 * T6 so we use the MAC counter here.  Which MAC is in use
+		 * depends on the link settings which will be known when the
+		 * link comes up.
+		 */
+		if (is_t6(sc)) {
+			pi->fcs_reg = -1;
+		} else if (is_t4(sc)) {
+			pi->fcs_reg = PORT_REG(pi->tx_chan,
+			    A_MPS_PORT_STAT_RX_PORT_CRC_ERROR_L);
+		} else {
+			pi->fcs_reg = T5_PORT_REG(pi->tx_chan,
+			    A_MPS_PORT_STAT_RX_PORT_CRC_ERROR_L);
+		}
+		pi->fcs_base = 0;
+
 		/* All VIs on this port share this media. */
 		ifmedia_init(&pi->media, IFM_IMASK, cxgbe_media_change,
 		    cxgbe_media_status);
@@ -6677,154 +6694,87 @@ cxgbe_sysctls(struct port_info *pi)
 	    &pi->tx_parse_error, 0,
 	    "# of tx packets with invalid length or # of segments");
 
-#define SYSCTL_ADD_T4_REG64(pi, name, desc, reg) \
-	SYSCTL_ADD_OID(ctx, children, OID_AUTO, name, \
-	    CTLTYPE_U64 | CTLFLAG_RD, sc, reg, \
-	    sysctl_handle_t4_reg64, "QU", desc)
+#define T4_REGSTAT(name, stat, desc) \
+    SYSCTL_ADD_OID(ctx, children, OID_AUTO, #name, \
+        CTLTYPE_U64 | CTLFLAG_RD, sc, \
+	(is_t4(sc) ? PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##stat##_L) : \
+	T5_PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_##stat##_L)), \
+        sysctl_handle_t4_reg64, "QU", desc)
 
-	SYSCTL_ADD_T4_REG64(pi, "tx_octets", "# of octets in good frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_BYTES_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_frames", "total # of good frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_FRAMES_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_bcast_frames", "# of broadcast frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_BCAST_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_mcast_frames", "# of multicast frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_MCAST_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ucast_frames", "# of unicast frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_UCAST_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_error_frames", "# of error frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_ERROR_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_frames_64",
-	    "# of tx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_64B_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_frames_65_127",
-	    "# of tx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_65B_127B_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_frames_128_255",
-	    "# of tx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_128B_255B_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_frames_256_511",
-	    "# of tx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_256B_511B_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_frames_512_1023",
-	    "# of tx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_512B_1023B_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_frames_1024_1518",
-	    "# of tx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_1024B_1518B_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_frames_1519_max",
-	    "# of tx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_1519B_MAX_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_drop", "# of dropped tx frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_DROP_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_pause", "# of pause frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PAUSE_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ppp0", "# of PPP prio 0 frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PPP0_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ppp1", "# of PPP prio 1 frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PPP1_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ppp2", "# of PPP prio 2 frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PPP2_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ppp3", "# of PPP prio 3 frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PPP3_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ppp4", "# of PPP prio 4 frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PPP4_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ppp5", "# of PPP prio 5 frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PPP5_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ppp6", "# of PPP prio 6 frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PPP6_L));
-	SYSCTL_ADD_T4_REG64(pi, "tx_ppp7", "# of PPP prio 7 frames transmitted",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_TX_PORT_PPP7_L));
-
-	SYSCTL_ADD_T4_REG64(pi, "rx_octets", "# of octets in good frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_BYTES_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_frames", "total # of good frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_FRAMES_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_bcast_frames", "# of broadcast frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_BCAST_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_mcast_frames", "# of multicast frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_MCAST_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ucast_frames", "# of unicast frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_UCAST_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_too_long", "# of frames exceeding MTU",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_MTU_ERROR_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_jabber", "# of jabber frames",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_MTU_CRC_ERROR_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_fcs_err",
-	    "# of frames received with bad FCS",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_CRC_ERROR_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_len_err",
-	    "# of frames received with length error",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_LEN_ERROR_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_symbol_err", "symbol errors",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_SYM_ERROR_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_runt", "# of short frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_LESS_64B_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_frames_64",
-	    "# of rx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_64B_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_frames_65_127",
-	    "# of rx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_65B_127B_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_frames_128_255",
-	    "# of rx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_128B_255B_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_frames_256_511",
-	    "# of rx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_256B_511B_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_frames_512_1023",
-	    "# of rx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_512B_1023B_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_frames_1024_1518",
-	    "# of rx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_1024B_1518B_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_frames_1519_max",
-	    "# of rx frames in this range",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_1519B_MAX_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_pause", "# of pause frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PAUSE_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ppp0", "# of PPP prio 0 frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PPP0_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ppp1", "# of PPP prio 1 frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PPP1_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ppp2", "# of PPP prio 2 frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PPP2_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ppp3", "# of PPP prio 3 frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PPP3_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ppp4", "# of PPP prio 4 frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PPP4_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ppp5", "# of PPP prio 5 frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PPP5_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ppp6", "# of PPP prio 6 frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PPP6_L));
-	SYSCTL_ADD_T4_REG64(pi, "rx_ppp7", "# of PPP prio 7 frames received",
-	    PORT_REG(pi->tx_chan, A_MPS_PORT_STAT_RX_PORT_PPP7_L));
-
-#undef SYSCTL_ADD_T4_REG64
-
-#define SYSCTL_ADD_T4_PORTSTAT(name, desc) \
+/* We get these from port_stats and they may be stale by up to 1s */
+#define T4_PORTSTAT(name, desc) \
 	SYSCTL_ADD_UQUAD(ctx, children, OID_AUTO, #name, CTLFLAG_RD, \
 	    &pi->stats.name, desc)
 
-	/* We get these from port_stats and they may be stale by up to 1s */
-	SYSCTL_ADD_T4_PORTSTAT(rx_ovflow0,
-	    "# drops due to buffer-group 0 overflows");
-	SYSCTL_ADD_T4_PORTSTAT(rx_ovflow1,
-	    "# drops due to buffer-group 1 overflows");
-	SYSCTL_ADD_T4_PORTSTAT(rx_ovflow2,
-	    "# drops due to buffer-group 2 overflows");
-	SYSCTL_ADD_T4_PORTSTAT(rx_ovflow3,
-	    "# drops due to buffer-group 3 overflows");
-	SYSCTL_ADD_T4_PORTSTAT(rx_trunc0,
-	    "# of buffer-group 0 truncated packets");
-	SYSCTL_ADD_T4_PORTSTAT(rx_trunc1,
-	    "# of buffer-group 1 truncated packets");
-	SYSCTL_ADD_T4_PORTSTAT(rx_trunc2,
-	    "# of buffer-group 2 truncated packets");
-	SYSCTL_ADD_T4_PORTSTAT(rx_trunc3,
-	    "# of buffer-group 3 truncated packets");
+	T4_REGSTAT(tx_octets, TX_PORT_BYTES, "# of octets in good frames");
+	T4_REGSTAT(tx_frames, TX_PORT_FRAMES, "total # of good frames");
+	T4_REGSTAT(tx_bcast_frames, TX_PORT_BCAST, "# of broadcast frames");
+	T4_REGSTAT(tx_mcast_frames, TX_PORT_MCAST, "# of multicast frames");
+	T4_REGSTAT(tx_ucast_frames, TX_PORT_UCAST, "# of unicast frames");
+	T4_REGSTAT(tx_error_frames, TX_PORT_ERROR, "# of error frames");
+	T4_REGSTAT(tx_frames_64, TX_PORT_64B, "# of tx frames in this range");
+	T4_REGSTAT(tx_frames_65_127, TX_PORT_65B_127B, "# of tx frames in this range");
+	T4_REGSTAT(tx_frames_128_255, TX_PORT_128B_255B, "# of tx frames in this range");
+	T4_REGSTAT(tx_frames_256_511, TX_PORT_256B_511B, "# of tx frames in this range");
+	T4_REGSTAT(tx_frames_512_1023, TX_PORT_512B_1023B, "# of tx frames in this range");
+	T4_REGSTAT(tx_frames_1024_1518, TX_PORT_1024B_1518B, "# of tx frames in this range");
+	T4_REGSTAT(tx_frames_1519_max, TX_PORT_1519B_MAX, "# of tx frames in this range");
+	T4_REGSTAT(tx_drop, TX_PORT_DROP, "# of dropped tx frames");
+	T4_REGSTAT(tx_pause, TX_PORT_PAUSE, "# of pause frames transmitted");
+	T4_REGSTAT(tx_ppp0, TX_PORT_PPP0, "# of PPP prio 0 frames transmitted");
+	T4_REGSTAT(tx_ppp1, TX_PORT_PPP1, "# of PPP prio 1 frames transmitted");
+	T4_REGSTAT(tx_ppp2, TX_PORT_PPP2, "# of PPP prio 2 frames transmitted");
+	T4_REGSTAT(tx_ppp3, TX_PORT_PPP3, "# of PPP prio 3 frames transmitted");
+	T4_REGSTAT(tx_ppp4, TX_PORT_PPP4, "# of PPP prio 4 frames transmitted");
+	T4_REGSTAT(tx_ppp5, TX_PORT_PPP5, "# of PPP prio 5 frames transmitted");
+	T4_REGSTAT(tx_ppp6, TX_PORT_PPP6, "# of PPP prio 6 frames transmitted");
+	T4_REGSTAT(tx_ppp7, TX_PORT_PPP7, "# of PPP prio 7 frames transmitted");
 
-#undef SYSCTL_ADD_T4_PORTSTAT
+	T4_REGSTAT(rx_octets, RX_PORT_BYTES, "# of octets in good frames");
+	T4_REGSTAT(rx_frames, RX_PORT_FRAMES, "total # of good frames");
+	T4_REGSTAT(rx_bcast_frames, RX_PORT_BCAST, "# of broadcast frames");
+	T4_REGSTAT(rx_mcast_frames, RX_PORT_MCAST, "# of multicast frames");
+	T4_REGSTAT(rx_ucast_frames, RX_PORT_UCAST, "# of unicast frames");
+	T4_REGSTAT(rx_too_long, RX_PORT_MTU_ERROR, "# of frames exceeding MTU");
+	T4_REGSTAT(rx_jabber, RX_PORT_MTU_CRC_ERROR, "# of jabber frames");
+	if (is_t6(sc)) {
+		T4_PORTSTAT(rx_fcs_err,
+		    "# of frames received with bad FCS since last link up");
+	} else {
+		T4_REGSTAT(rx_fcs_err, RX_PORT_CRC_ERROR,
+		    "# of frames received with bad FCS");
+	}
+	T4_REGSTAT(rx_len_err, RX_PORT_LEN_ERROR, "# of frames received with length error");
+	T4_REGSTAT(rx_symbol_err, RX_PORT_SYM_ERROR, "symbol errors");
+	T4_REGSTAT(rx_runt, RX_PORT_LESS_64B, "# of short frames received");
+	T4_REGSTAT(rx_frames_64, RX_PORT_64B, "# of rx frames in this range");
+	T4_REGSTAT(rx_frames_65_127, RX_PORT_65B_127B, "# of rx frames in this range");
+	T4_REGSTAT(rx_frames_128_255, RX_PORT_128B_255B, "# of rx frames in this range");
+	T4_REGSTAT(rx_frames_256_511, RX_PORT_256B_511B, "# of rx frames in this range");
+	T4_REGSTAT(rx_frames_512_1023, RX_PORT_512B_1023B, "# of rx frames in this range");
+	T4_REGSTAT(rx_frames_1024_1518, RX_PORT_1024B_1518B, "# of rx frames in this range");
+	T4_REGSTAT(rx_frames_1519_max, RX_PORT_1519B_MAX, "# of rx frames in this range");
+	T4_REGSTAT(rx_pause, RX_PORT_PAUSE, "# of pause frames received");
+	T4_REGSTAT(rx_ppp0, RX_PORT_PPP0, "# of PPP prio 0 frames received");
+	T4_REGSTAT(rx_ppp1, RX_PORT_PPP1, "# of PPP prio 1 frames received");
+	T4_REGSTAT(rx_ppp2, RX_PORT_PPP2, "# of PPP prio 2 frames received");
+	T4_REGSTAT(rx_ppp3, RX_PORT_PPP3, "# of PPP prio 3 frames received");
+	T4_REGSTAT(rx_ppp4, RX_PORT_PPP4, "# of PPP prio 4 frames received");
+	T4_REGSTAT(rx_ppp5, RX_PORT_PPP5, "# of PPP prio 5 frames received");
+	T4_REGSTAT(rx_ppp6, RX_PORT_PPP6, "# of PPP prio 6 frames received");
+	T4_REGSTAT(rx_ppp7, RX_PORT_PPP7, "# of PPP prio 7 frames received");
+
+	T4_PORTSTAT(rx_ovflow0, "# drops due to buffer-group 0 overflows");
+	T4_PORTSTAT(rx_ovflow1, "# drops due to buffer-group 1 overflows");
+	T4_PORTSTAT(rx_ovflow2, "# drops due to buffer-group 2 overflows");
+	T4_PORTSTAT(rx_ovflow3, "# drops due to buffer-group 3 overflows");
+	T4_PORTSTAT(rx_trunc0, "# of buffer-group 0 truncated packets");
+	T4_PORTSTAT(rx_trunc1, "# of buffer-group 1 truncated packets");
+	T4_PORTSTAT(rx_trunc2, "# of buffer-group 2 truncated packets");
+	T4_PORTSTAT(rx_trunc3, "# of buffer-group 3 truncated packets");
+
+#undef T4_REGSTAT
+#undef T4_PORTSTAT
 
 	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "tx_toe_tls_records",
 	    CTLFLAG_RD, &pi->tx_toe_tls_records,
@@ -10188,6 +10138,12 @@ clear_stats(struct adapter *sc, u_int port_id)
 
 	/* MAC stats */
 	t4_clr_port_stats(sc, pi->tx_chan);
+	if (is_t6(sc)) {
+		if (pi->fcs_reg != -1)
+			pi->fcs_base = t4_read_reg64(sc, pi->fcs_reg);
+		else
+			pi->stats.rx_fcs_err = 0;
+	}
 	pi->tx_parse_error = 0;
 	pi->tnl_cong_drops = 0;
 	mtx_lock(&sc->reg_lock);
@@ -10348,17 +10304,37 @@ t4_os_link_changed(struct port_info *pi)
 {
 	struct vi_info *vi;
 	struct ifnet *ifp;
-	struct link_config *lc;
+	struct link_config *lc = &pi->link_cfg;
+	struct adapter *sc = pi->adapter;
 	int v;
 
 	PORT_LOCK_ASSERT_OWNED(pi);
+
+	if (is_t6(sc)) {
+		if (lc->link_ok) {
+			if (lc->speed > 25000 ||
+			    (lc->speed == 25000 && lc->fec == FEC_RS)) {
+				pi->fcs_reg = T5_PORT_REG(pi->tx_chan,
+				    A_MAC_PORT_AFRAMECHECKSEQUENCEERRORS);
+			} else {
+				pi->fcs_reg = T5_PORT_REG(pi->tx_chan,
+				    A_MAC_PORT_MTIP_1G10G_RX_CRCERRORS);
+			}
+			pi->fcs_base = t4_read_reg64(sc, pi->fcs_reg);
+			pi->stats.rx_fcs_err = 0;
+		} else {
+			pi->fcs_reg = -1;
+		}
+	} else {
+		MPASS(pi->fcs_reg != -1);
+		MPASS(pi->fcs_base == 0);
+	}
 
 	for_each_vi(pi, v, vi) {
 		ifp = vi->ifp;
 		if (ifp == NULL)
 			continue;
 
-		lc = &pi->link_cfg;
 		if (lc->link_ok) {
 			ifp->if_baudrate = IF_Mbps(lc->speed);
 			if_link_state_change(ifp, LINK_STATE_UP);
