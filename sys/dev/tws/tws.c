@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
+#include <cam/cam_xpt.h>
 
 MALLOC_DEFINE(M_TWS, "twsbuf", "buffers used by tws driver");
 int tws_queue_depth = TWS_MAX_REQS;
@@ -412,7 +413,7 @@ tws_detach(device_t dev)
     callout_drain(&sc->stats_timer);
     free(sc->reqs, M_TWS);
     free(sc->sense_bufs, M_TWS);
-    free(sc->scan_ccb, M_TWS);
+    xpt_free_ccb(sc->scan_ccb);
     if (sc->ioctl_data_mem)
             bus_dmamem_free(sc->data_tag, sc->ioctl_data_mem, sc->ioctl_data_map);
     if (sc->data_tag)
@@ -597,7 +598,7 @@ tws_init(struct tws_softc *sc)
                       M_WAITOK | M_ZERO);
     sc->sense_bufs = malloc(sizeof(struct tws_sense) * tws_queue_depth, M_TWS,
                       M_WAITOK | M_ZERO);
-    sc->scan_ccb = malloc(sizeof(union ccb), M_TWS, M_WAITOK | M_ZERO);
+    sc->scan_ccb = xpt_alloc_ccb();
     if (bus_dmamem_alloc(sc->data_tag, (void **)&sc->ioctl_data_mem,
             (BUS_DMA_NOWAIT | BUS_DMA_ZERO), &sc->ioctl_data_map)) {
         device_printf(sc->tws_dev, "Cannot allocate ioctl data mem\n");
