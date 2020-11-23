@@ -165,6 +165,11 @@ extern dtrace_nfsclient_nfs23_done_probe_func_t
 size_t	kdtrace_proc_size(void);
 size_t	kdtrace_thread_size(void);
 
+void	kdtrace_proc_ctor(struct proc *p);
+void	kdtrace_proc_dtor(struct proc *p);
+void	kdtrace_thread_ctor(struct thread *td);
+void	kdtrace_thread_dtor(struct thread *td);
+
 /*
  * OpenSolaris compatible time functions returning nanoseconds.
  * On OpenSolaris these return hrtime_t which we define as uint64_t.
