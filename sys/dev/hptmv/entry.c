@@ -2008,15 +2008,10 @@ hpt_attach(device_t dev)
 	}
 
 
-	if ((ccb = xpt_alloc_ccb()) != NULL)
-	{
-		ccb->ccb_h.pinfo.priority = 1;
-		ccb->ccb_h.pinfo.index = CAM_UNQUEUED_INDEX;
-	}
-	else
-	{
-		return ENOMEM;
-	}
+	ccb = xpt_alloc_ccb();
+	ccb->ccb_h.pinfo.priority = 1;
+	ccb->ccb_h.pinfo.index = CAM_UNQUEUED_INDEX;
+
 	/*
 	 * Create the device queue for our SIM(s).
 	 */
