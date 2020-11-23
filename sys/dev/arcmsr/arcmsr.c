@@ -1707,7 +1707,6 @@ static void	arcmsr_rescan_lun(struct AdapterControlBlock *acb, int target, int l
 		return;
 	}
 /*	printf("arcmsr_rescan_lun: Rescan Target=%x, Lun=%x\n", target, lun); */
-	bzero(ccb, sizeof(union ccb));
 	xpt_setup_ccb(&ccb->ccb_h, path, 5);
 	ccb->ccb_h.func_code = XPT_SCAN_LUN;
 	ccb->ccb_h.cbfcnp = arcmsr_rescanLun_cb;
