@@ -2008,9 +2008,8 @@ hpt_attach(device_t dev)
 	}
 
 
-	if((ccb = (union ccb *)malloc(sizeof(*ccb), M_DEVBUF, M_WAITOK)) != (union ccb*)NULL)
+	if ((ccb = xpt_alloc_ccb()) != NULL)
 	{
-		bzero(ccb, sizeof(*ccb));
 		ccb->ccb_h.pinfo.priority = 1;
 		ccb->ccb_h.pinfo.index = CAM_UNQUEUED_INDEX;
 	}
@@ -2065,7 +2064,7 @@ hpt_attach(device_t dev)
 	ccb->csa.callback = hpt_async;
 	ccb->csa.callback_arg = hpt_vsim;
 	xpt_action((union ccb *)ccb);
-	free(ccb, M_DEVBUF);
+	xpt_free_ccb(ccb);
 
 	if (device_get_unit(dev) == 0) {
 		/* Start the work thread.  XXX */
