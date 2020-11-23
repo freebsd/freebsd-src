@@ -416,7 +416,7 @@ node is destroyed.
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li ETHERNET Ta Ar inet Ta IFATTACH Ta
 Notification when the default VNET instance of the
-.Ar inet
+.Em inet
 interface is attached.
 .El
 .Pp
@@ -454,18 +454,18 @@ provider size has changed.
 .Bl -column "System" "Subsystem" "1234567" -compact
 .Sy "System" Ta Sy "Subsystem" Ta Sy "Type" Ta Sy "Description"
 .It Li IFNET
-.It Li IFNET Ta Ar inet Ta Ta
+.It Li IFNET Ta Em inet Ta Ta
 The
 .Dq subsystem
 is the actual name of the network interface on which the event
 took place.
-.It Li IFNET Ta Ar inet Ta Li LINK_UP Ta
+.It Li IFNET Ta Em inet Ta Li LINK_UP Ta
 Carrier status changed to UP.
-.It Li IFNET Ta Ar inet Ta Li LINK_DOWN Ta
+.It Li IFNET Ta Em inet Ta Li LINK_DOWN Ta
 Carrier status changed to DOWN.
-.It Li IFNET Ta Ar inet Ta Li ATTACH Ta
+.It Li IFNET Ta Em inet Ta Li ATTACH Ta
 The network interface is attached to the system.
-.It Li IFNET Ta Ar inet Ta Li DETACH Ta
+.It Li IFNET Ta Em inet Ta Li DETACH Ta
 The network interface is detached from the system.
 .El
 .Pp
