@@ -52,10 +52,10 @@ struct linux_emuldata	*em_find(struct thread *);
 
 int	linux_exec_imgact_try(struct image_params *);
 void	linux_proc_init(struct thread *, struct thread *, int);
-void	linux_proc_exit(void *, struct proc *);
+void	linux_on_exit(struct proc *);
 void	linux_schedtail(struct thread *);
-void	linux_proc_exec(void *, struct proc *, struct image_params *);
-void	linux_thread_dtor(void *arg __unused, struct thread *);
+void	linux_on_exec(struct proc *, struct image_params *);
+void	linux_thread_dtor(struct thread *);
 void	linux_thread_detach(struct thread *);
 int	linux_common_execve(struct thread *, struct image_args *);
 
