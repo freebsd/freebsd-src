@@ -1311,6 +1311,8 @@ t4_attach(device_t dev)
 	s->nm_txq = malloc(s->nnmtxq * sizeof(struct sge_nm_txq),
 	    M_CXGBE, M_ZERO | M_WAITOK);
 #endif
+	MPASS(s->niq <= s->iqmap_sz);
+	MPASS(s->neq <= s->eqmap_sz);
 
 	s->ctrlq = malloc(nports * sizeof(struct sge_wrq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
@@ -1318,9 +1320,9 @@ t4_attach(device_t dev)
 	    M_ZERO | M_WAITOK);
 	s->txq = malloc(s->ntxq * sizeof(struct sge_txq), M_CXGBE,
 	    M_ZERO | M_WAITOK);
-	s->iqmap = malloc(s->niq * sizeof(struct sge_iq *), M_CXGBE,
+	s->iqmap = malloc(s->iqmap_sz * sizeof(struct sge_iq *), M_CXGBE,
 	    M_ZERO | M_WAITOK);
-	s->eqmap = malloc(s->neq * sizeof(struct sge_eq *), M_CXGBE,
+	s->eqmap = malloc(s->eqmap_sz * sizeof(struct sge_eq *), M_CXGBE,
 	    M_ZERO | M_WAITOK);
 
 	sc->irq = malloc(sc->intr_count * sizeof(struct irq), M_CXGBE,
@@ -4298,6 +4300,19 @@ get_params__post_init(struct adapter *sc)
 	    ("%s: L2 table size (%u) larger than expected (%u)",
 	    __func__, sc->vres.l2t.size, L2T_SIZE));
 	sc->params.core_vdd = val[6];
+
+	param[0] = FW_PARAM_PFVF(IQFLINT_END);
+	param[1] = FW_PARAM_PFVF(EQ_END);
+	rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 2, param, val);
+	if (rc != 0) {
+		device_printf(sc->dev,
+		    "failed to query parameters (post_init2): %d.\n", rc);
+		return (rc);
+	}
+	MPASS((int)val[0] >= sc->sge.iq_start);
+	sc->sge.iqmap_sz = val[0] - sc->sge.iq_start + 1;
+	MPASS((int)val[1] >= sc->sge.eq_start);
+	sc->sge.eqmap_sz = val[1] - sc->sge.eq_start + 1;
 
 	if (chip_id(sc) >= CHELSIO_T6) {
 

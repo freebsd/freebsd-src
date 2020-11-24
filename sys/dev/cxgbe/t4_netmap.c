@@ -188,9 +188,9 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	nm_rxq->iq_cntxt_id = be16toh(c.iqid);
 	nm_rxq->iq_abs_id = be16toh(c.physiqid);
 	cntxt_id = nm_rxq->iq_cntxt_id - sc->sge.iq_start;
-	if (cntxt_id >= sc->sge.niq) {
+	if (cntxt_id >= sc->sge.iqmap_sz) {
 		panic ("%s: nm_rxq->iq_cntxt_id (%d) more than the max (%d)",
-		    __func__, cntxt_id, sc->sge.niq - 1);
+		    __func__, cntxt_id, sc->sge.iqmap_sz - 1);
 	}
 	sc->sge.iqmap[cntxt_id] = (void *)nm_rxq;
 
@@ -201,9 +201,9 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	nm_rxq->fl_db_threshold = chip_id(sc) <= CHELSIO_T5 ? 8 : 4;
 	MPASS(nm_rxq->fl_sidx == na->num_rx_desc);
 	cntxt_id = nm_rxq->fl_cntxt_id - sc->sge.eq_start;
-	if (cntxt_id >= sc->sge.neq) {
+	if (cntxt_id >= sc->sge.eqmap_sz) {
 		panic("%s: nm_rxq->fl_cntxt_id (%d) more than the max (%d)",
-		    __func__, cntxt_id, sc->sge.neq - 1);
+		    __func__, cntxt_id, sc->sge.eqmap_sz - 1);
 	}
 	sc->sge.eqmap[cntxt_id] = (void *)nm_rxq;
 
@@ -300,9 +300,9 @@ alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 
 	nm_txq->cntxt_id = G_FW_EQ_ETH_CMD_EQID(be32toh(c.eqid_pkd));
 	cntxt_id = nm_txq->cntxt_id - sc->sge.eq_start;
-	if (cntxt_id >= sc->sge.neq)
+	if (cntxt_id >= sc->sge.eqmap_sz)
 	    panic("%s: nm_txq->cntxt_id (%d) more than the max (%d)", __func__,
-		cntxt_id, sc->sge.neq - 1);
+		cntxt_id, sc->sge.eqmap_sz - 1);
 	sc->sge.eqmap[cntxt_id] = (void *)nm_txq;
 
 	nm_txq->pidx = nm_txq->cidx = 0;
