@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2019
+.Dd November 24, 2020
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -465,12 +465,10 @@ By default
 allows TLSv1 and newer when negotiating the connecting with the remote
 peer.
 You can change this behavior by setting the
-.Ev SSL_ALLOW_SSL3
-environment variable to allow SSLv3 and
 .Ev SSL_NO_TLS1 ,
 .Ev SSL_NO_TLS1_1 and
 .Ev SSL_NO_TLS1_2
-to disable TLS 1.0, 1.1 and 1.2 respectively.
+environment variables to disable TLS 1.0, 1.1 and 1.2 respectively.
 .Sh AUTHENTICATION
 Apart from setting the appropriate environment variables and
 specifying the user name and password in the URL or the
@@ -675,8 +673,6 @@ IPv6 addresses must enclose the address in brackets.
 If no port is specified, the default is 1080.
 This setting will supercede a connection to an
 .Ev HTTP_PROXY .
-.It Ev SSL_ALLOW_SSL3
-Allow SSL version 3 when negotiating the connection (not recommended).
 .It Ev SSL_CA_CERT_FILE
 CA certificate bundle containing trusted CA certificates.
 Default value: See HTTPS SCHEME above.
