@@ -53,7 +53,23 @@ void isp_destroy_handle(ispsoftc_t *, uint32_t);
 /*
  * Request Queue allocation
  */
-void *isp_getrqentry(ispsoftc_t *);
+inline int
+isp_rqentry_avail(ispsoftc_t *isp, uint32_t num)
+{
+	if (ISP_QAVAIL(isp) >= num)
+		return (1);
+	/* We don't have enough in cached.  Reread the hardware. */
+	isp->isp_reqodx = ISP_READ(isp, BIU2400_REQOUTP);
+	return (ISP_QAVAIL(isp) >= num);
+}
+
+inline void *
+isp_getrqentry(ispsoftc_t *isp)
+{
+	if (!isp_rqentry_avail(isp, 1))
+		return (NULL);
+	return (ISP_QUEUE_ENTRY(isp->isp_rquest, isp->isp_reqidx));
+}
 
 /*
  * Queue Entry debug functions
