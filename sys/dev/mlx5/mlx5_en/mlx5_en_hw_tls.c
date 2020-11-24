@@ -466,7 +466,6 @@ mlx5e_tls_snd_tag_free(struct m_snd_tag *pmt)
 	    container_of(pmt, struct mlx5e_tls_tag, tag);
 	struct mlx5e_priv *priv;
 
-	MPASS(ptag->rl_tag->refcount == 1);
 	m_snd_tag_rele(ptag->rl_tag);
 
 	MLX5E_TLS_TAG_LOCK(ptag);
