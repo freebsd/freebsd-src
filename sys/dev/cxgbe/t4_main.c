@@ -9020,8 +9020,10 @@ sysctl_tids(SYSCTL_HANDLER_ARGS)
 			if (b)
 				sbuf_printf(sb, "%u-%u, ", t->tid_base, b - 1);
 			sbuf_printf(sb, "%u-%u", hb, t->ntids - 1);
-		} else
-			sbuf_printf(sb, "%u-%u", t->tid_base, t->ntids - 1);
+		} else {
+			sbuf_printf(sb, "%u-%u", t->tid_base, t->tid_base +
+			    t->ntids - 1);
+		}
 		sbuf_printf(sb, ", in use: %u\n",
 		    atomic_load_acq_int(&t->tids_in_use));
 	}
