@@ -3915,7 +3915,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
 		speed = fwcap_top_speed(lc->pcaps);
 
 	fec = 0;
-	if (fec_supported(lc->pcaps)) {
+	if (fec_supported(speed)) {
 		if (lc->requested_fec == FEC_AUTO) {
 			if (lc->pcaps & FW_PORT_CAP32_FORCE_FEC) {
 				if (speed & FW_PORT_CAP32_SPEED_100G) {
