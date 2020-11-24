@@ -3225,6 +3225,7 @@ isp_intr_respq(ispsoftc_t *isp)
 	XS_T *xs, *cont_xs;
 	uint8_t qe[QENTRY_LEN];
 	isp24xx_statusreq_t *sp = (isp24xx_statusreq_t *)qe;
+	ispstatus_cont_t *scp = (ispstatus_cont_t *)qe;
 	isphdr_t *hp;
 	uint8_t *resp, *snsp;
 	int buddaboom, completion_status, cont = 0, etype, i;
@@ -3272,7 +3273,6 @@ isp_intr_respq(ispsoftc_t *isp)
 				req_state_flags = 0;
 			resid = sp->req_resid;
 		} else if (etype == RQSTYPE_STATUS_CONT) {
-			ispstatus_cont_t *scp = (ispstatus_cont_t *)qe;
 			isp_get_cont_response(isp, (ispstatus_cont_t *)hp, scp);
 			if (cont > 0) {
 				i = min(cont, sizeof(scp->req_sense_data));
@@ -3310,24 +3310,13 @@ isp_intr_respq(ispsoftc_t *isp)
 
 		buddaboom = 0;
 		if (sp->req_header.rqs_flags & RQSFLAG_MASK) {
-			if (sp->req_header.rqs_flags & RQSFLAG_CONTINUATION) {
-				isp_print_qentry(isp, "unexpected continuation segment",
-				    cptr, hp);
-				continue;
-			}
-			if (sp->req_header.rqs_flags & RQSFLAG_FULL) {
-				isp_prt(isp, ISP_LOG_WARN1, "internal queues full");
-				/*
-				 * We'll synthesize a QUEUE FULL message below.
-				 */
-			}
-			if (sp->req_header.rqs_flags & RQSFLAG_BADHEADER) {
-				isp_print_qentry(isp, "bad header flag",
+			if (sp->req_header.rqs_flags & RQSFLAG_BADTYPE) {
+				isp_print_qentry(isp, "invalid entry type",
 				    cptr, hp);
 				buddaboom++;
 			}
-			if (sp->req_header.rqs_flags & RQSFLAG_BADPACKET) {
-				isp_print_qentry(isp, "bad request packet",
+			if (sp->req_header.rqs_flags & RQSFLAG_BADPARAM) {
+				isp_print_qentry(isp, "invalid entry parameter",
 				    cptr, hp);
 				buddaboom++;
 			}
@@ -3337,7 +3326,7 @@ isp_intr_respq(ispsoftc_t *isp)
 				buddaboom++;
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADORDER) {
-				isp_print_qentry(isp, "invalid IOCB ordering",
+				isp_print_qentry(isp, "invalid entry order",
 				    cptr, hp);
 				continue;
 			}
