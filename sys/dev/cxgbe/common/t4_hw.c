@@ -6957,7 +6957,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
  */
 void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 {
-	u32 bgmap = adap2pinfo(adap, idx)->mps_bg_map;
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
@@ -6982,14 +6981,18 @@ void t4_get_lb_stats(struct adapter *adap, int idx, struct lb_port_stats *p)
 	p->frames_1519_max	= GET_STAT(1519B_MAX);
 	p->drop			= GET_STAT(DROP_FRAMES);
 
-	p->ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
-	p->ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
-	p->ovflow2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_DROP_FRAME) : 0;
-	p->ovflow3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_DROP_FRAME) : 0;
-	p->trunc0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_LB_TRUNC_FRAME) : 0;
-	p->trunc1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_LB_TRUNC_FRAME) : 0;
-	p->trunc2 = (bgmap & 4) ? GET_STAT_COM(RX_BG_2_LB_TRUNC_FRAME) : 0;
-	p->trunc3 = (bgmap & 8) ? GET_STAT_COM(RX_BG_3_LB_TRUNC_FRAME) : 0;
+	if (idx < adap->params.nports) {
+		u32 bg = adap2pinfo(adap, idx)->mps_bg_map;
+
+		p->ovflow0 = (bg & 1) ? GET_STAT_COM(RX_BG_0_LB_DROP_FRAME) : 0;
+		p->ovflow1 = (bg & 2) ? GET_STAT_COM(RX_BG_1_LB_DROP_FRAME) : 0;
+		p->ovflow2 = (bg & 4) ? GET_STAT_COM(RX_BG_2_LB_DROP_FRAME) : 0;
+		p->ovflow3 = (bg & 8) ? GET_STAT_COM(RX_BG_3_LB_DROP_FRAME) : 0;
+		p->trunc0 = (bg & 1) ? GET_STAT_COM(RX_BG_0_LB_TRUNC_FRAME) : 0;
+		p->trunc1 = (bg & 2) ? GET_STAT_COM(RX_BG_1_LB_TRUNC_FRAME) : 0;
+		p->trunc2 = (bg & 4) ? GET_STAT_COM(RX_BG_2_LB_TRUNC_FRAME) : 0;
+		p->trunc3 = (bg & 8) ? GET_STAT_COM(RX_BG_3_LB_TRUNC_FRAME) : 0;
+	}
 
 #undef GET_STAT
 #undef GET_STAT_COM
