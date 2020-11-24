@@ -1,15 +1,15 @@
 # $FreeBSD$
-# $Id: meta.stage.mk,v 1.55 2017/10/27 01:17:09 sjg Exp $
+# $Id: meta.stage.mk,v 1.60 2020/08/19 17:51:53 sjg Exp $
 #
 #	@(#) Copyright (c) 2011-2017, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -19,9 +19,11 @@
 .if !target(__${.PARSEFILE}__)
 # the guard target is defined later
 
+.-include <local.meta.stage.mk>
+
 .if ${.MAKE.DEPENDFILE_PREFERENCE:U${.MAKE.DEPENDFILE}:M*.${MACHINE}} != ""
 # this is generally safer anyway
-_dirdep ?= ${RELDIR}.${MACHINE}
+_dirdep ?= ${RELDIR}.${TARGET_SPEC:U${MACHINE}}
 .else
 _dirdep ?= ${RELDIR}
 .endif
@@ -68,7 +70,7 @@ LN_CP_SCRIPT = LnCp() { \
 # a warning is handy when bootstapping different options.
 STAGE_CONFLICT?= ERROR
 .if ${STAGE_CONFLICT:tl} == "error"
-STAGE_CONFLICT_ACTION= exit 1;
+STAGE_CONFLICT_ACTION= exit 1
 .else
 STAGE_CONFLICT_ACTION=
 .endif
@@ -79,8 +81,10 @@ STAGE_DIRDEP_SCRIPT = ${LN_CP_SCRIPT}; StageDirdep() { \
   t=$$1; \
   if [ -s $$t.dirdep ]; then \
 	cmp -s .dirdep $$t.dirdep && return; \
-	echo "${STAGE_CONFLICT}: $$t installed by `cat $$t.dirdep` not ${_dirdep}" >&2; \
-	${STAGE_CONFLICT_ACTION} \
+	x=`cat $$t.dirdep`; \
+	case "${RELDIR}:${_dirdep}" in $${x%.*}:$${x}*) ;; \
+	*) echo "${STAGE_CONFLICT}: $$t installed by $$x not ${_dirdep}" >&2; \
+	${STAGE_CONFLICT_ACTION} ;; esac; \
   fi; \
   LnCp .dirdep $$t.dirdep || exit 1; }
 
@@ -142,7 +146,7 @@ _STAGE_AS_BASENAME_USE:        .USE .dirdep ${.TARGET:T}
 
 .if !empty(STAGE_INCSDIR)
 .if !empty(STAGE_INCS)
-stage_incs: ${STAGE_INCS}
+stage_incs: ${STAGE_INCS:N*\**}
 .endif
 .if target(stage_incs) || !empty(.ALLTARGETS:Mstage_includes)
 STAGE_TARGETS += stage_incs
@@ -157,7 +161,7 @@ stage_incs:	.dirdep
 
 .if !empty(STAGE_LIBDIR)
 .if !empty(STAGE_LIBS)
-stage_libs: ${STAGE_LIBS}
+stage_libs: ${STAGE_LIBS:N*\**}
 .endif
 .if target(stage_libs)
 STAGE_TARGETS += stage_libs
@@ -192,7 +196,7 @@ CLEANFILES += ${STAGE_SETS:@s@stage*$s@}
 # some makefiles need to populate multiple directories
 .for s in ${STAGE_SETS:O:u}
 .if !empty(STAGE_FILES.$s)
-stage_files.$s: ${STAGE_FILES.$s}
+stage_files.$s: ${STAGE_FILES.$s:N*\**}
 .endif
 .if target(stage_files.$s) || target(stage_files${s:S,^,.,:N._default})
 STAGE_TARGETS += stage_files
@@ -206,7 +210,7 @@ stage_files.$s:	.dirdep
 STAGE_FILES ?= ${.ALLSRC:N.dirdep:Nstage_*}
 stage_files:	.dirdep
 .endif
-	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s}
+	@${STAGE_FILE_SCRIPT}; StageFiles ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_FILES.$s:O}
 	@touch $@
 .endif
 .endif
@@ -263,7 +267,7 @@ CLEANFILES += ${STAGE_AS_SETS:@s@stage*$s@}
 # both operations happen together
 .for s in ${STAGE_AS_SETS:O:u}
 .if !empty(STAGE_AS.$s)
-stage_as.$s: ${STAGE_AS.$s}
+stage_as.$s: ${STAGE_AS.$s:N*\**}
 .endif
 .if target(stage_as.$s)
 STAGE_TARGETS += stage_as
@@ -272,13 +276,13 @@ STAGE_AS.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 .stage_as.$s:
 stage_as:	stage_as.$s
 stage_as.$s:	.dirdep
-	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
+	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS.$s:O:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
 	@touch $@
 .endif
 .endif
 
 .if !empty(STAGE_AS_AND_SYMLINK.$s)
-stage_as_and_symlink.$s: ${STAGE_AS_AND_SYMLINK.$s}
+stage_as_and_symlink.$s: ${STAGE_AS_AND_SYMLINK.$s:N*\**}
 .endif
 .if target(stage_as_and_symlink.$s)
 STAGE_TARGETS += stage_as_and_symlink
@@ -287,8 +291,8 @@ STAGE_AS_AND_SYMLINK.$s ?= ${.ALLSRC:N.dirdep:Nstage_*}
 .stage_as_and_symlink.$s:
 stage_as_and_symlink:	stage_as_and_symlink.$s
 stage_as_and_symlink.$s:	.dirdep
-	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
-	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:@f@${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}} $f@}
+	@${STAGE_AS_SCRIPT}; StageAs ${FLAGS.$@} ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:O:@f@$f ${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}}@}
+	@${STAGE_LINKS_SCRIPT}; StageLinks -s ${STAGE_FILES_DIR.$s:U${STAGE_DIR.$s}:${STAGE_DIR_FILTER}} ${STAGE_AS_AND_SYMLINK.$s:O:@f@${STAGE_AS_${f:tA}:U${STAGE_AS_${f:T}:U${f:T}}} $f@}
 	@touch $@
 .endif
 .endif
