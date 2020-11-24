@@ -55,6 +55,8 @@
 #define OCS_SCSI_CMD_ACA		(1U << 6)
 #define OCS_SCSI_FIRST_BURST_ERR	(1U << 7)
 #define OCS_SCSI_FIRST_BURST_ABORTED	(1U << 8)
+#define OCS_SCSI_PRIORITY_MASK		0xf0000
+#define OCS_SCSI_PRIORITY_SHIFT		16
 
 /* ocs_scsi_send_rd_data/recv_wr_data/send_resp flags */
 #define OCS_SCSI_LAST_DATAPHASE		(1U << 0)
@@ -352,17 +354,18 @@ extern int32_t ocs_scsi_del_target(ocs_node_t *node, ocs_scsi_del_target_reason_
 
 extern int32_t ocs_scsi_send_rd_io(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len,
 	ocs_scsi_dif_info_t *dif_info,
-	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len, ocs_scsi_rsp_io_cb_t cb, void *arg);
+	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len, ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags);
 extern int32_t ocs_scsi_send_wr_io(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len,
 	ocs_scsi_dif_info_t *dif_info,
-	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len, ocs_scsi_rsp_io_cb_t cb, void *arg);
+	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len, ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags);
 extern int32_t ocs_scsi_send_wr_io_first_burst(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len,
 	ocs_scsi_dif_info_t *dif_info,
 	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len, uint32_t first_burst,
-	ocs_scsi_rsp_io_cb_t cb, void *arg);
+	ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags);
 extern int32_t ocs_scsi_send_tmf(ocs_node_t *node, ocs_io_t *io, ocs_io_t *io_to_abort, uint64_t lun,
 	ocs_scsi_tmf_cmd_e tmf, ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t len, ocs_scsi_rsp_io_cb_t cb, void *arg);
-extern int32_t ocs_scsi_send_nodata_io(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len, ocs_scsi_rsp_io_cb_t cb, void *arg);
+extern int32_t ocs_scsi_send_nodata_io(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len,
+	ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags);
 extern void ocs_scsi_del_target_complete(ocs_node_t *node);
 
 typedef enum {

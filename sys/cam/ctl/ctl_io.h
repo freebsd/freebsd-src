@@ -322,6 +322,7 @@ struct ctl_scsiio {
 	uint8_t	   sense_len;		/* Returned sense length */
 	uint8_t	   scsi_status;		/* SCSI status byte */
 	uint8_t	   sense_residual;	/* Unused. */
+	uint8_t	   priority;		/* Command priority */
 	uint32_t   residual;		/* Unused */
 	uint32_t   tag_num;		/* tag number */
 	ctl_tag_type tag_type;		/* simple, ordered, head of queue,etc.*/
@@ -482,6 +483,7 @@ struct ctl_ha_msg_scsi {
 	uint8_t			cdb_len;	/* CDB length */
 	uint8_t			scsi_status; /* SCSI status byte */
 	uint8_t			sense_len;   /* Returned sense length */
+	uint8_t			priority;    /* Command priority */
 	uint32_t		port_status; /* trans status, set by FETD,
 						0 = good*/
 	uint32_t		kern_data_resid; /* for DATAMOVE_DONE */

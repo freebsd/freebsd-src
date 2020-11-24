@@ -1819,6 +1819,8 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		mpi_control |= MPI2_SCSIIO_CONTROL_SIMPLEQ;
 		break;
 	}
+	mpi_control |= (csio->priority << MPI2_SCSIIO_CONTROL_TASKPRI_SHIFT) &
+	    MPI2_SCSIIO_CONTROL_TASKPRI_MASK;
 	mpi_control |= sc->mapping_table[csio->ccb_h.target_id].TLR_bits;
 	req->Control = htole32(mpi_control);
 	if (MPS_SET_LUN(req->LUN, csio->ccb_h.target_lun) != 0) {

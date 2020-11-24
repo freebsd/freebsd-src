@@ -857,6 +857,7 @@ ocs_get_flags_fcp_cmd(fcp_cmnd_iu_t *cmnd)
 		flags |= OCS_SCSI_CMD_UNTAGGED;
 		break;
 	}
+	flags |= (uint32_t)cmnd->command_priority << OCS_SCSI_PRIORITY_SHIFT;
 	if (cmnd->wrdata)
 		flags |= OCS_SCSI_CMD_DIR_IN;
 	if (cmnd->rddata)

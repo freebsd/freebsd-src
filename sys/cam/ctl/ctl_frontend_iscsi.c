@@ -519,6 +519,8 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 	io->io_hdr.nexus.initid = cs->cs_ctl_initid;
 	io->io_hdr.nexus.targ_port = cs->cs_target->ct_port.targ_port;
 	io->io_hdr.nexus.targ_lun = ctl_decode_lun(be64toh(bhssc->bhssc_lun));
+	io->scsiio.priority = (bhssc->bhssc_pri & BHSSC_PRI_MASK) >>
+	    BHSSC_PRI_SHIFT;
 	io->scsiio.tag_num = bhssc->bhssc_initiator_task_tag;
 	switch ((bhssc->bhssc_flags & BHSSC_FLAGS_ATTR)) {
 	case BHSSC_FLAGS_ATTR_UNTAGGED:

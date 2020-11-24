@@ -301,7 +301,7 @@ ocs_scsi_send_io(ocs_hw_io_type_e type, ocs_node_t *node, ocs_io_t *io, uint64_t
 	ocs_scsi_tmf_cmd_e tmf, uint8_t *cdb, uint32_t cdb_len,
 	ocs_scsi_dif_info_t *dif_info,
 	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len, uint32_t first_burst,
-	ocs_scsi_rsp_io_cb_t cb, void *arg);
+	ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags);
 
 /**
  * @brief Target response completion callback.
@@ -2280,12 +2280,12 @@ int32_t
 ocs_scsi_send_rd_io(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len,
 	ocs_scsi_dif_info_t *dif_info,
 	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len,
-	ocs_scsi_rsp_io_cb_t cb, void *arg)
+	ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags)
 {
 	int32_t rc;
 
 	rc = ocs_scsi_send_io(OCS_HW_IO_INITIATOR_READ, node, io, lun, 0, cdb, cdb_len, dif_info, sgl, sgl_count,
-			      wire_len, 0, cb, arg);
+			      wire_len, 0, cb, arg, flags);
 
 	return rc;
 }
@@ -2319,12 +2319,12 @@ ocs_scsi_send_rd_io(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uin
 int32_t ocs_scsi_send_wr_io(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len,
 	ocs_scsi_dif_info_t *dif_info,
 	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len,
-	ocs_scsi_rsp_io_cb_t cb, void *arg)
+	ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags)
 {
 	int32_t rc;
 
 	rc = ocs_scsi_send_io(OCS_HW_IO_INITIATOR_WRITE, node, io, lun, 0, cdb, cdb_len, dif_info, sgl, sgl_count,
-			      wire_len, 0, cb, arg);
+			      wire_len, 0, cb, arg, flags);
 
 	return rc;
 }
@@ -2360,12 +2360,12 @@ int32_t
 ocs_scsi_send_wr_io_first_burst(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len,
 	ocs_scsi_dif_info_t *dif_info,
 	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len, uint32_t first_burst,
-	ocs_scsi_rsp_io_cb_t cb, void *arg)
+	ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags)
 {
 	int32_t rc;
 
 	rc = ocs_scsi_send_io(OCS_HW_IO_INITIATOR_WRITE, node, io, lun, 0, cdb, cdb_len, dif_info, sgl, sgl_count,
-			      wire_len, 0, cb, arg);
+			      wire_len, 0, cb, arg, flags);
 
 	return rc;
 }
@@ -2391,11 +2391,11 @@ ocs_scsi_send_wr_io_first_burst(ocs_node_t *node, ocs_io_t *io, uint64_t lun, vo
  * @return Returns 0 on success, or a negative error code value on failure.
  */
 int32_t ocs_scsi_send_nodata_io(ocs_node_t *node, ocs_io_t *io, uint64_t lun, void *cdb, uint32_t cdb_len,
-	ocs_scsi_rsp_io_cb_t cb, void *arg)
+	ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags)
 {
 	int32_t rc;
 
-	rc = ocs_scsi_send_io(OCS_HW_IO_INITIATOR_NODATA, node, io, lun, 0, cdb, cdb_len, NULL, NULL, 0, 0, 0, cb, arg);
+	rc = ocs_scsi_send_io(OCS_HW_IO_INITIATOR_NODATA, node, io, lun, 0, cdb, cdb_len, NULL, NULL, 0, 0, 0, cb, arg, flags);
 
 	return rc;
 }
@@ -2461,7 +2461,7 @@ ocs_scsi_send_tmf(ocs_node_t *node, ocs_io_t *io, ocs_io_t *io_to_abort, uint64_
 	} else {
 		io->display_name = "tmf";
 		rc = ocs_scsi_send_io(OCS_HW_IO_INITIATOR_READ, node, io, lun, tmf, NULL, 0, NULL,
-				      sgl, sgl_count, len, 0, cb, arg);
+				      sgl, sgl_count, len, 0, cb, arg, 0);
 	}
 
 	return rc;
@@ -2498,7 +2498,7 @@ static int32_t ocs_scsi_send_io(ocs_hw_io_type_e type, ocs_node_t *node, ocs_io_
 	ocs_scsi_tmf_cmd_e tmf, uint8_t *cdb, uint32_t cdb_len,
 	ocs_scsi_dif_info_t *dif_info,
 	ocs_scsi_sgl_t *sgl, uint32_t sgl_count, uint32_t wire_len, uint32_t first_burst,
-	ocs_scsi_rsp_io_cb_t cb, void *arg)
+	ocs_scsi_rsp_io_cb_t cb, void *arg, uint32_t flags)
 {
 	int32_t rc;
 	ocs_t *ocs;
@@ -2583,6 +2583,18 @@ static int32_t ocs_scsi_send_io(ocs_hw_io_type_e type, ocs_node_t *node, ocs_io_
 			return -1;
 		}
 	}
+	if (flags & OCS_SCSI_CMD_HEAD_OF_QUEUE)
+		cmnd->task_attribute = FCP_TASK_ATTR_HEAD_OF_QUEUE;
+	else if (flags & OCS_SCSI_CMD_ORDERED)
+		cmnd->task_attribute = FCP_TASK_ATTR_ORDERED;
+	else if (flags & OCS_SCSI_CMD_UNTAGGED)
+		cmnd->task_attribute = FCP_TASK_ATTR_UNTAGGED;
+	else if (flags & OCS_SCSI_CMD_ACA)
+		cmnd->task_attribute = FCP_TASK_ATTR_ACA;
+	else
+		cmnd->task_attribute = FCP_TASK_ATTR_SIMPLE;
+	cmnd->command_priority = (flags & OCS_SCSI_PRIORITY_MASK) >>
+	    OCS_SCSI_PRIORITY_SHIFT;
 
 	switch (tmf) {
 	case OCS_SCSI_TMF_QUERY_TASK_SET:

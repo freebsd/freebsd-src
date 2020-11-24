@@ -583,8 +583,12 @@ int32_t ocs_scsi_recv_cmd(ocs_io_t *io, uint64_t lun, uint8_t *cdb,
 			atio->tag_action = MSG_HEAD_OF_Q_TAG;
 		else if (flags & OCS_SCSI_CMD_ORDERED)
 			atio->tag_action = MSG_ORDERED_Q_TAG;
+		else if (flags & OCS_SCSI_CMD_ACA)
+			atio->tag_action = MSG_ACA_TASK;
 		else
-			atio->tag_action = 0;
+			atio->tag_action = CAM_TAG_ACTION_NONE;
+		atio->priority = (flags & OCS_SCSI_PRIORITY_MASK) >>
+		    OCS_SCSI_PRIORITY_SHIFT;
 
 		atio->cdb_len = cdb_len;
 		ocs_memcpy(atio->cdb_io.cdb_bytes, cdb, cdb_len);
@@ -1780,7 +1784,7 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 	ocs_node_t *node = NULL;
 	ocs_io_t *io = NULL;
 	ocs_scsi_sgl_t sgl[OCS_FC_MAX_SGL];
-	int32_t sgl_count;
+	int32_t flags, sgl_count;
 
 	ocs_fcport	*fcp = NULL;
 	fcp = FCPORT(ocs, cam_sim_bus(xpt_path_sim((ccb)->ccb_h.path)));
@@ -1842,13 +1846,32 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 		io->timeout = ccb->ccb_h.timeout;
 	}
 
+	switch (csio->tag_action) {
+	case MSG_HEAD_OF_Q_TAG:
+		flags = OCS_SCSI_CMD_HEAD_OF_QUEUE;
+		break;
+	case MSG_ORDERED_Q_TAG:
+		flags = OCS_SCSI_CMD_ORDERED;
+		break;
+	case MSG_ACA_TASK:
+		flags = OCS_SCSI_CMD_ACA;
+		break;
+	case CAM_TAG_ACTION_NONE:
+	case MSG_SIMPLE_Q_TAG:
+	default:
+		flags = OCS_SCSI_CMD_SIMPLE;
+		break;
+	}
+	flags |= (csio->priority << OCS_SCSI_PRIORITY_SHIFT) &
+	    OCS_SCSI_PRIORITY_MASK;
+
 	switch (ccb->ccb_h.flags & CAM_DIR_MASK) {
 	case CAM_DIR_NONE:
 		rc = ocs_scsi_send_nodata_io(node, io, ccb_h->target_lun,
 				ccb->ccb_h.flags & CAM_CDB_POINTER ? 
 				csio->cdb_io.cdb_ptr: csio->cdb_io.cdb_bytes,
 				csio->cdb_len,
-				ocs_scsi_initiator_io_cb, ccb);
+				ocs_scsi_initiator_io_cb, ccb, flags);
 		break;
 	case CAM_DIR_IN:
 		rc = ocs_scsi_send_rd_io(node, io, ccb_h->target_lun,
@@ -1857,7 +1880,7 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 				csio->cdb_len,
 				NULL,
 				sgl, sgl_count, csio->dxfer_len,
-				ocs_scsi_initiator_io_cb, ccb);
+				ocs_scsi_initiator_io_cb, ccb, flags);
 		break;
 	case CAM_DIR_OUT:
 		rc = ocs_scsi_send_wr_io(node, io, ccb_h->target_lun,
@@ -1866,7 +1889,7 @@ ocs_initiator_io(struct ocs_softc *ocs, union ccb *ccb)
 				csio->cdb_len,
 				NULL,
 				sgl, sgl_count, csio->dxfer_len,
-				ocs_scsi_initiator_io_cb, ccb);
+				ocs_scsi_initiator_io_cb, ccb, flags);
 		break;
 	default:
 		panic("%s invalid data direction %08x\n", __func__, 

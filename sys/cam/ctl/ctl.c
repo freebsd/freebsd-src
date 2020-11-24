@@ -1457,6 +1457,7 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			if (softc->ha_mode != CTL_HA_MODE_XFER)
 				io->io_hdr.flags |= CTL_FLAG_INT_COPY;
 			io->io_hdr.nexus = msg->hdr.nexus;
+			io->scsiio.priority = msg->scsi.priority;
 			io->scsiio.tag_num = msg->scsi.tag_num;
 			io->scsiio.tag_type = msg->scsi.tag_type;
 #ifdef CTL_TIME_IO
@@ -11616,8 +11617,9 @@ ctl_scsiio_precheck(struct ctl_softc *softc, struct ctl_scsiio *ctsio)
 		msg_info.hdr.nexus = ctsio->io_hdr.nexus;
 		msg_info.scsi.tag_num = ctsio->tag_num;
 		msg_info.scsi.tag_type = ctsio->tag_type;
-		msg_info.scsi.cdb_len = ctsio->cdb_len;
 		memcpy(msg_info.scsi.cdb, ctsio->cdb, CTL_MAX_CDBLEN);
+		msg_info.scsi.cdb_len = ctsio->cdb_len;
+		msg_info.scsi.priority = ctsio->priority;
 
 		if ((isc_retval = ctl_ha_msg_send(CTL_HA_CHAN_CTL, &msg_info,
 		    sizeof(msg_info.scsi) - sizeof(msg_info.scsi.sense_data),
@@ -12497,12 +12499,13 @@ ctl_datamove(union ctl_io *io)
 			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
 			sbuf_printf(&sb, "\n");
 			sbuf_cat(&sb, path_str);
-			sbuf_printf(&sb, "Tag: 0x%04x, type %d\n",
-				    io->scsiio.tag_num, io->scsiio.tag_type);
+			sbuf_printf(&sb, "Tag: 0x%04x/%d, Prio: %d\n",
+				    io->scsiio.tag_num, io->scsiio.tag_type,
+				    io->scsiio.priority);
 			break;
 		case CTL_IO_TASK:
-			sbuf_printf(&sb, "Task I/O type: %d, Tag: 0x%04x, "
-				    "Tag Type: %d\n", io->taskio.task_action,
+			sbuf_printf(&sb, "Task Action: %d Tag: 0x%04x/%d\n",
+				    io->taskio.task_action,
 				    io->taskio.tag_num, io->taskio.tag_type);
 			break;
 		default:
@@ -12997,12 +13000,13 @@ ctl_process_done(union ctl_io *io)
 			ctl_scsi_command_string(&io->scsiio, NULL, &sb);
 			sbuf_printf(&sb, "\n");
 			sbuf_cat(&sb, path_str);
-			sbuf_printf(&sb, "Tag: 0x%04x, type %d\n",
-				    io->scsiio.tag_num, io->scsiio.tag_type);
+			sbuf_printf(&sb, "Tag: 0x%04x/%d, Prio: %d\n",
+				    io->scsiio.tag_num, io->scsiio.tag_type,
+				    io->scsiio.priority);
 			break;
 		case CTL_IO_TASK:
-			sbuf_printf(&sb, "Task I/O type: %d, Tag: 0x%04x, "
-				    "Tag Type: %d\n", io->taskio.task_action,
+			sbuf_printf(&sb, "Task Action: %d Tag: 0x%04x/%d\n",
+				    io->taskio.task_action,
 				    io->taskio.tag_num, io->taskio.tag_type);
 			break;
 		default:

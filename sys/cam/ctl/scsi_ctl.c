@@ -1153,6 +1153,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		} else {
 			io->io_hdr.nexus.targ_lun = atio->ccb_h.target_lun;
 		}
+		io->scsiio.priority = atio->priority;
 		io->scsiio.tag_num = atio->tag_id;
 		switch (atio->tag_action) {
 		case CAM_TAG_ACTION_NONE:
