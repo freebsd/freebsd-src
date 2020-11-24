@@ -2834,6 +2834,8 @@ dev/re/if_re.c			optional re
 dev/rl/if_rl.c			optional rl pci
 dev/rndtest/rndtest.c		optional rndtest
 #
+dev/rtsx/rtsx.c			optional rtsx pci
+#
 dev/rtwn/if_rtwn.c		optional rtwn
 dev/rtwn/if_rtwn_beacon.c	optional rtwn
 dev/rtwn/if_rtwn_calib.c	optional rtwn

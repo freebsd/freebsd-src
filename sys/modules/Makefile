@@ -316,6 +316,7 @@ SUBDIR=	\
 	re \
 	rl \
 	${_rockchip} \
+	rtsx \
 	rtwn \
 	rtwn_pci \
 	rtwn_usb \
