@@ -353,10 +353,8 @@ typedef struct {
 } isphdr_t;
 
 /* RQS Flag definitions */
-#define	RQSFLAG_CONTINUATION	0x01
-#define	RQSFLAG_FULL		0x02
-#define	RQSFLAG_BADHEADER	0x04
-#define	RQSFLAG_BADPACKET	0x08
+#define	RQSFLAG_BADTYPE		0x04
+#define	RQSFLAG_BADPARAM	0x08
 #define	RQSFLAG_BADCOUNT	0x10
 #define	RQSFLAG_BADORDER	0x20
 #define	RQSFLAG_MASK		0x3f
