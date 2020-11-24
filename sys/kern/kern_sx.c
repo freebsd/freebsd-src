@@ -573,7 +573,7 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	GIANT_DECLARE;
 	uintptr_t tid, setx;
 #ifdef ADAPTIVE_SX
-	volatile struct thread *owner;
+	struct thread *owner;
 	u_int i, n, spintries = 0;
 	enum { READERS, WRITER } sleep_reason = READERS;
 	bool in_critical = false;
@@ -1020,7 +1020,7 @@ _sx_slock_hard(struct sx *sx, int opts, uintptr_t x LOCK_FILE_LINE_ARG_DEF)
 	GIANT_DECLARE;
 	struct thread *td;
 #ifdef ADAPTIVE_SX
-	volatile struct thread *owner;
+	struct thread *owner;
 	u_int i, n, spintries = 0;
 #endif
 #ifdef LOCK_PROFILING
