@@ -512,8 +512,10 @@ pf_cleanup_tagset(struct pf_tagset *ts)
 static uint16_t
 tagname2hashindex(const struct pf_tagset *ts, const char *tagname)
 {
+	size_t len;
 
-	return (murmur3_32_hash(tagname, strlen(tagname), ts->seed) & ts->mask);
+	len = strnlen(tagname, PF_TAG_NAME_SIZE - 1);
+	return (murmur3_32_hash(tagname, len, ts->seed) & ts->mask);
 }
 
 static uint16_t
