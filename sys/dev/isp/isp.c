@@ -3216,7 +3216,7 @@ isp_intr_mbox(ispsoftc_t *isp, uint16_t mbox0)
 			continue;
 		isp->isp_mboxtmp[i] = ISP_READ(isp, MBOX_OFF(i));
 	}
-	MBOX_NOTIFY_COMPLETE(isp);
+	isp->isp_mboxbsy = 0;
 }
 
 void
@@ -3489,7 +3489,7 @@ isp_intr_async(ispsoftc_t *isp, uint16_t mbox)
 		if (isp->isp_mboxbsy) {
 			isp->isp_obits = 1;
 			isp->isp_mboxtmp[0] = MBOX_HOST_INTERFACE_ERROR;
-			MBOX_NOTIFY_COMPLETE(isp);
+			isp->isp_mboxbsy = 0;
 		}
 		/*
 		 * It's up to the handler for isp_async to reinit stuff and
@@ -4243,7 +4243,7 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 {
 	const char *cname, *xname, *sname;
 	char tname[16], mname[16];
-	unsigned int ibits, obits, box, opcode;
+	unsigned int ibits, obits, box, opcode, t, to;
 
 	opcode = mbp->param[0];
 	if (opcode > MAX_FC_OPCODE) {
@@ -4279,14 +4279,6 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 		return;
 	}
 
-	/*
-	 * Get exclusive usage of mailbox registers.
-	 */
-	if (MBOX_ACQUIRE(isp)) {
-		mbp->param[0] = MBOX_REGS_BUSY;
-		goto out;
-	}
-
 	for (box = 0; box < ISP_NMBOX(isp); box++) {
 		if (ibits & (1 << box)) {
 			isp_prt(isp, ISP_LOGDEBUG3, "IN mbox %d = 0x%04x", box,
@@ -4297,10 +4289,6 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 	}
 
 	isp->isp_lastmbxcmd = opcode;
-
-	/*
-	 * We assume that we can't overwrite a previous command.
-	 */
 	isp->isp_obits = obits;
 	isp->isp_mboxbsy = 1;
 
@@ -4312,14 +4300,24 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 	/*
 	 * While we haven't finished the command, spin our wheels here.
 	 */
-	MBOX_WAIT_COMPLETE(isp, mbp);
+	to = (mbp->timeout == 0) ? MBCMD_DEFAULT_TIMEOUT : mbp->timeout;
+	for (t = 0; t < to; t += 100) {
+		if (!isp->isp_mboxbsy)
+			break;
+		ISP_RUN_ISR(isp);
+		if (!isp->isp_mboxbsy)
+			break;
+		ISP_DELAY(100);
+	}
 
 	/*
 	 * Did the command time out?
 	 */
-	if (mbp->param[0] == MBOX_TIMEOUT) {
+	if (isp->isp_mboxbsy) {
 		isp->isp_mboxbsy = 0;
-		MBOX_RELEASE(isp);
+		isp_prt(isp, ISP_LOGWARN, "Mailbox Command (0x%x) Timeout (%uus) (%s:%d)",
+		    isp->isp_lastmbxcmd, to, mbp->func, mbp->lineno);
+		mbp->param[0] = MBOX_TIMEOUT;
 		goto out;
 	}
 
@@ -4334,8 +4332,6 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 		}
 	}
 
-	isp->isp_mboxbsy = 0;
-	MBOX_RELEASE(isp);
 out:
 	if (mbp->logval == 0 || mbp->param[0] == MBOX_COMMAND_COMPLETE)
 		return;
