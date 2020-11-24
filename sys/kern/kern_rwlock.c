@@ -948,11 +948,6 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 	if (SCHEDULER_STOPPED())
 		return;
 
-#if defined(ADAPTIVE_RWLOCKS)
-	lock_delay_arg_init(&lda, &rw_delay);
-#elif defined(KDTRACE_HOOKS)
-	lock_delay_arg_init_noadapt(&lda);
-#endif
 	if (__predict_false(v == RW_UNLOCKED))
 		v = RW_READ_VALUE(rw);
 
@@ -970,6 +965,12 @@ __rw_wlock_hard(volatile uintptr_t *c, uintptr_t v LOCK_FILE_LINE_ARG_DEF)
 	if (LOCK_LOG_TEST(&rw->lock_object, 0))
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    rw->lock_object.lo_name, (void *)rw->rw_lock, file, line);
+
+#if defined(ADAPTIVE_RWLOCKS)
+	lock_delay_arg_init(&lda, &rw_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init_noadapt(&lda);
+#endif
 
 #ifdef HWPMC_HOOKS
 	PMC_SOFT_CALL( , , lock, failed);
