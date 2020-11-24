@@ -831,11 +831,6 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
  *		various objects so that the ISP's and the system's view
  *		of the same object is consistent.
  *
- *	MBOX_ACQUIRE(ispsoftc_t *)		acquire lock on mailbox regs
- *	MBOX_WAIT_COMPLETE(ispsoftc_t *, mbreg_t *) wait for cmd to be done
- *	MBOX_NOTIFY_COMPLETE(ispsoftc_t *)	notification of mbox cmd donee
- *	MBOX_RELEASE(ispsoftc_t *)		release lock on mailbox regs
- *
  *	FC_SCRATCH_ACQUIRE(ispsoftc_t *, chan)	acquire lock on FC scratch area
  *						return -1 if you cannot
  *	FC_SCRATCH_RELEASE(ispsoftc_t *, chan)	acquire lock on FC scratch area

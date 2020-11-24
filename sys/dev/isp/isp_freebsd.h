@@ -269,11 +269,6 @@ struct isposinfo {
 	struct isp_pcmd *	pcmd_pool;
 	struct isp_pcmd *	pcmd_free;
 
-	int			mbox_sleeping;
-	int			mbox_sleep_ok;
-	int			mboxbsy;
-	int			mboxcmd_done;
-
 	struct callout		tmo;	/* general timer */
 
 	/*
@@ -427,11 +422,6 @@ case SYNC_IFORCPU:						\
 default:							\
 	break;							\
 }
-
-#define	MBOX_ACQUIRE			isp_mbox_acquire
-#define	MBOX_WAIT_COMPLETE		isp_mbox_wait_complete
-#define	MBOX_NOTIFY_COMPLETE		isp_mbox_notify_done
-#define	MBOX_RELEASE			isp_mbox_release
 
 #define	FC_SCRATCH_ACQUIRE		isp_fc_scratch_acquire
 #define	FC_SCRATCH_RELEASE(isp, chan)	isp->isp_osinfo.pc.fc[chan].fcbsy = 0
@@ -631,10 +621,6 @@ extern int isp_quickboot_time;
 void isp_prt(ispsoftc_t *, int level, const char *, ...) __printflike(3, 4);
 void isp_xs_prt(ispsoftc_t *, XS_T *, int level, const char *, ...) __printflike(4, 5);
 uint64_t isp_nanotime_sub(struct timespec *, struct timespec *);
-int isp_mbox_acquire(ispsoftc_t *);
-void isp_mbox_wait_complete(ispsoftc_t *, mbreg_t *);
-void isp_mbox_notify_done(ispsoftc_t *);
-void isp_mbox_release(ispsoftc_t *);
 int isp_fc_scratch_acquire(ispsoftc_t *, int);
 void isp_platform_intr(void *);
 void isp_platform_intr_resp(void *);
