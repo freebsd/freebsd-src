@@ -1722,13 +1722,12 @@ siis_setup_fis(device_t dev, struct siis_cmd *ctp, union ccb *ccb, int tag)
 		fis[9] = ccb->ataio.cmd.lba_mid_exp;
 		fis[10] = ccb->ataio.cmd.lba_high_exp;
 		fis[11] = ccb->ataio.cmd.features_exp;
+		fis[12] = ccb->ataio.cmd.sector_count;
 		if (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) {
-			fis[12] = tag << 3;
-			fis[13] = 0;
-		} else {
-			fis[12] = ccb->ataio.cmd.sector_count;
-			fis[13] = ccb->ataio.cmd.sector_count_exp;
+			fis[12] &= 0x07;
+			fis[12] |= tag << 3;
 		}
+		fis[13] = ccb->ataio.cmd.sector_count_exp;
 		if (ccb->ataio.ata_flags & ATA_FLAG_ICC)
 			fis[14] = ccb->ataio.icc;
 		fis[15] = ATA_A_4BIT;

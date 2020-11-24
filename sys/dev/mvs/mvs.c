@@ -1495,7 +1495,8 @@ mvs_execute_transaction(struct mvs_slot *slot)
 		crqb->cmd[i++] = ccb->ataio.cmd.features;
 		crqb->cmd[i++] = 0x11;
 		if (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) {
-			crqb->cmd[i++] = slot->tag << 3;
+			crqb->cmd[i++] = (slot->tag << 3) |
+			    (ccb->ataio.cmd.sector_count & 0x07);
 			crqb->cmd[i++] = 0x12;
 		} else {
 			crqb->cmd[i++] = ccb->ataio.cmd.sector_count_exp;
