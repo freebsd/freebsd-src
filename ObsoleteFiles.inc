@@ -914,9 +914,9 @@ OLD_FILES+=usr/share/man/man1/gdbserver.1.gz
 OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 
 # 20200327: OCF refactoring
-OLD_FILES+=usr/share/man/man9/crypto_find_driver.9
-OLD_FILES+=usr/share/man/man9/crypto_register.9
-OLD_FILES+=usr/share/man/man9/crypto_unregister.9
+OLD_FILES+=usr/share/man/man9/crypto_find_driver.9.gz
+OLD_FILES+=usr/share/man/man9/crypto_register.9.gz
+OLD_FILES+=usr/share/man/man9/crypto_unregister.9.gz
 
 # 20200323: INTERNALLIB don't install headers anymore
 OLD_FILES+=usr/include/libelftc.h
