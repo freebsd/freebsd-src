@@ -333,6 +333,7 @@
  * All IOCB Queue entries are this size
  */
 #define	QENTRY_LEN			64
+#define	QENTRY_MAX			255
 
 /*
  * Command Structure Definitions
@@ -1694,14 +1695,12 @@ typedef struct {
 /*
  * Miscellaneous
  *
- * These are the limits of the number of dma segments we
- * can deal with based not on the size of the segment counter
- * (which is 16 bits), but on the size of the number of 
- * queue entries field (which is 8 bits). We assume no
- * segments in the first queue entry, so we can have
- * have 5 dma segments per continuation entry...
- * multiplying out by 254....
+ * This is the limit of the number of dma segments we can deal with based
+ * not on the size of the segment counter (which is 16 bits), but on the
+ * size of the number of queue entries field (which is 8 bits).  We assume
+ * one segment in the first queue entry, plus we can have 5 segments per
+ * continuation entry, multiplied by maximum of continuation entries.
  */
-#define	ISP_NSEG64_MAX	1270
+#define	ISP_NSEG64_MAX	(1 + (QENTRY_MAX - 1) * 5)
 
 #endif	/* _ISPMBOX_H */

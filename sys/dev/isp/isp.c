@@ -263,6 +263,9 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		return;
 	}
 
+	isp->isp_reqidx = isp->isp_reqodx = 0;
+	isp->isp_resodx = 0;
+	isp->isp_atioodx = 0;
 	ISP_WRITE(isp, BIU2400_REQINP, 0);
 	ISP_WRITE(isp, BIU2400_REQOUTP, 0);
 	ISP_WRITE(isp, BIU2400_RSPINP, 0);
@@ -573,14 +576,16 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	}
 	isp_prt(isp, ISP_LOGCONFIG, "%s", buf);
 
+	/*
+	 * For the maximum number of commands take free exchange control block
+	 * buffer count reported by firmware, limiting it to the maximum of our
+	 * hardcoded handle format (16K now) minus some management reserve.
+	 */
 	MBSINIT(&mbs, MBOX_GET_RESOURCE_COUNT, MBLOGALL, 0);
 	isp_mboxcmd(isp, &mbs);
-	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+	if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
 		return;
-	}
-	isp->isp_maxcmds = mbs.param[3];
-	/* Limit to the maximum of our hardcoded handle format (16K now). */
-	isp->isp_maxcmds = MIN(isp->isp_maxcmds, ISP_HANDLE_MAX - ISP_HANDLE_RESERVE);
+	isp->isp_maxcmds = MIN(mbs.param[3], ISP_HANDLE_MAX - ISP_HANDLE_RESERVE);
 	isp_prt(isp, ISP_LOGCONFIG, "%d max I/O command limit set", isp->isp_maxcmds);
 
 	/*
@@ -888,6 +893,8 @@ isp_init(ispsoftc_t *isp)
 		isp_prt(isp, ISP_LOGERR, "No valid WWNs to use");
 		return;
 	}
+	icbp->icb_rspnsin = isp->isp_resodx;
+	icbp->icb_rqstout = isp->isp_reqidx;
 	icbp->icb_retry_count = fcp->isp_retry_count;
 
 	icbp->icb_rqstqlen = RQUEST_QUEUE_LEN(isp);
@@ -913,6 +920,7 @@ isp_init(ispsoftc_t *isp)
 
 #ifdef	ISP_TARGET_MODE
 	/* unconditionally set up the ATIO queue if we support target mode */
+	icbp->icb_atio_in = isp->isp_atioodx;
 	icbp->icb_atioqlen = ATIO_QUEUE_LEN(isp);
 	if (icbp->icb_atioqlen < 8) {
 		isp_prt(isp, ISP_LOGERR, "bad ATIO queue length %d", icbp->icb_atioqlen);
@@ -1031,11 +1039,6 @@ isp_init(ispsoftc_t *isp)
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return;
 	}
-	isp->isp_reqidx = 0;
-	isp->isp_reqodx = 0;
-	isp->isp_residx = 0;
-	isp->isp_resodx = 0;
-	isp->isp_atioodx = 0;
 
 	/*
 	 * Whatever happens, we're now committed to being here.
@@ -3237,8 +3240,6 @@ isp_intr_respq(ispsoftc_t *isp)
 	}
 
 	iptr = ISP_READ(isp, BIU2400_RSPINP);
-	isp->isp_residx = iptr;
-
 	optr = isp->isp_resodx;
 	while (optr != iptr) {
 		sptr = cptr = optr;
