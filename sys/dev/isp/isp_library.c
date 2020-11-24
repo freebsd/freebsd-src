@@ -65,7 +65,7 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs)
 {
 	ispcontreq64_t crq;
 	uint8_t type, nqe = 1;
-	uint32_t seg, seglim, nxt, nxtnxt;
+	uint32_t seg, seglim, nxt;
 	ispds64_t *dsp64 = NULL;
 	void *qe0, *qe1;
 
@@ -109,14 +109,8 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs)
 	 * Second, start building additional continuation segments as needed.
 	 */
 	while (seg < nsegs) {
-		nxtnxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
-		if (nxtnxt == isp->isp_reqodx) {
-			isp->isp_reqodx = ISP_READ(isp, BIU2400_REQOUTP);
-			if (nxtnxt == isp->isp_reqodx)
-				return (CMD_EAGAIN);
-		}
-		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
-		nxt = nxtnxt;
+		if (!isp_rqentry_avail(isp, ++nqe))
+			return (CMD_EAGAIN);
 
 		ISP_MEMZERO(&crq, QENTRY_LEN);
 		crq.req_header.rqs_entry_type = RQSTYPE_A64_CONT;
@@ -128,13 +122,16 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, void *segp, uint32_t nsegs)
 			seglim = nsegs;
 		while (seg < seglim)
 			XS_GET_DMA64_SEG(dsp64++, segp, seg++);
+
+		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
 		isp_put_cont64_req(isp, &crq, qe1);
 		if (isp->isp_dblev & ISP_LOGDEBUG1) {
 			isp_print_bytes(isp, "additional queue entry",
 			    QENTRY_LEN, qe1);
 		}
-		nqe++;
-        }
+
+		nxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
+	}
 
 copy_and_sync:
 	((isphdr_t *)fqe)->rqs_entry_count = nqe;
@@ -216,26 +213,6 @@ isp_destroy_handle(ispsoftc_t *isp, uint32_t handle)
 		isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)].cmd = isp->isp_xffree;
 		isp->isp_xffree = &isp->isp_xflist[(handle & ISP_HANDLE_CMD_MASK)];
 	}
-}
-
-/*
- * Make sure we have space to put something on the request queue.
- * Return a pointer to that entry if we do. A side effect of this
- * function is to update the output index. The input index
- * stays the same.
- */
-void *
-isp_getrqentry(ispsoftc_t *isp)
-{
-	uint32_t next;
-
-	next = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));
-	if (next == isp->isp_reqodx) {
-		isp->isp_reqodx = ISP_READ(isp, BIU2400_REQOUTP);
-		if (next == isp->isp_reqodx)
-			return (NULL);
-	}
-	return (ISP_QUEUE_ENTRY(isp->isp_rquest, isp->isp_reqidx));
 }
 
 #define	TBA	(4 * (((QENTRY_LEN >> 2) * 3) + 1) + 1)

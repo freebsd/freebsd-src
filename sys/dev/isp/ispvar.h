@@ -131,16 +131,17 @@ struct ispmdvec {
  */
 /* This is the size of a queue entry (request and response) */
 #define	QENTRY_LEN			64
-/* Queue lengths must be a power of two and at least 8 elements. */
+/*
+ * Hardware requires queue lengths of at least 8 elements.  Driver requires
+ * lengths to be a power of two, and request queue of at least 256 elements.
+ */
 #define	RQUEST_QUEUE_LEN(x)		8192
 #define	RESULT_QUEUE_LEN(x)		1024
 #define	ATIO_QUEUE_LEN(x)		1024
 #define	ISP_QUEUE_ENTRY(q, idx)		(((uint8_t *)q) + ((size_t)(idx) * QENTRY_LEN))
 #define	ISP_QUEUE_SIZE(n)		((size_t)(n) * QENTRY_LEN)
 #define	ISP_NXT_QENTRY(idx, qlen)	(((idx) + 1) & ((qlen)-1))
-#define	ISP_QFREE(in, out, qlen)	\
-	((in == out)? (qlen - 1) : ((in > out)? \
-	((qlen - 1) - (in - out)) : (out - in - 1)))
+#define	ISP_QFREE(in, out, qlen)	((out - in - 1) & ((qlen) - 1))
 #define	ISP_QAVAIL(isp)	\
 	ISP_QFREE(isp->isp_reqidx, isp->isp_reqodx, RQUEST_QUEUE_LEN(isp))
 
@@ -472,7 +473,6 @@ struct ispsoftc {
 	volatile mbreg_t	isp_curmbx;	/* currently active mailbox command */
 	volatile uint32_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile uint32_t	isp_reqidx;	/* index of next request */
-	volatile uint32_t	isp_residx;	/* index of last ISP write */
 	volatile uint32_t	isp_resodx;	/* index of next result */
 	volatile uint32_t	isp_atioodx;	/* index of next ATIO */
 	volatile uint32_t	isp_obits;	/* mailbox command output */
@@ -480,6 +480,7 @@ struct ispsoftc {
 	volatile uint16_t	isp_mboxtmp[MAX_MAILBOX];
 	volatile uint16_t	isp_lastmbxcmd;	/* last mbox command sent */
 	volatile uint16_t	isp_seqno;	/* running sequence number */
+	u_int			isp_rqovf;	/* request queue overflow */
 
 	/*
 	 * Active commands are stored here, indexed by handle functions.
