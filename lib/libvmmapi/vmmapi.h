@@ -181,6 +181,7 @@ int	vm_setup_pptdev_msi(struct vmctx *ctx, int vcpu, int bus, int slot,
 int	vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot,
 	    int func, int idx, uint64_t addr, uint64_t msg,
 	    uint32_t vector_control);
+int	vm_disable_pptdev_msix(struct vmctx *ctx, int bus, int slot, int func);
 
 int	vm_get_intinfo(struct vmctx *ctx, int vcpu, uint64_t *i1, uint64_t *i2);
 int	vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t exit_intinfo);

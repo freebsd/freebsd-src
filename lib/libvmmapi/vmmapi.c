@@ -1017,6 +1017,19 @@ vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
 	return ioctl(ctx->fd, VM_PPTDEV_MSIX, &pptmsix);
 }
 
+int
+vm_disable_pptdev_msix(struct vmctx *ctx, int bus, int slot, int func)
+{
+	struct vm_pptdev ppt;
+
+	bzero(&ppt, sizeof(ppt));
+	ppt.bus = bus;
+	ppt.slot = slot;
+	ppt.func = func;
+
+	return ioctl(ctx->fd, VM_PPTDEV_DISABLE_MSIX, &ppt);
+}
+
 uint64_t *
 vm_get_stats(struct vmctx *ctx, int vcpu, struct timeval *ret_tv,
 	     int *ret_entries)
@@ -1641,7 +1654,8 @@ vm_get_ioctls(size_t *len)
 	    VM_ISA_DEASSERT_IRQ, VM_ISA_PULSE_IRQ, VM_ISA_SET_IRQ_TRIGGER,
 	    VM_SET_CAPABILITY, VM_GET_CAPABILITY, VM_BIND_PPTDEV,
 	    VM_UNBIND_PPTDEV, VM_MAP_PPTDEV_MMIO, VM_PPTDEV_MSI,
-	    VM_PPTDEV_MSIX, VM_INJECT_NMI, VM_STATS, VM_STAT_DESC,
+	    VM_PPTDEV_MSIX, VM_PPTDEV_DISABLE_MSIX,
+	    VM_INJECT_NMI, VM_STATS, VM_STAT_DESC,
 	    VM_SET_X2APIC_STATE, VM_GET_X2APIC_STATE,
 	    VM_GET_HPET_CAPABILITIES, VM_GET_GPA_PMAP, VM_GLA2GPA,
 	    VM_GLA2GPA_NOFAULT,
