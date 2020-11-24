@@ -5,11 +5,11 @@
 #
 # SYNOPSIS:
 #	meta2deps.sh SB="SB" "meta" ...
-#	
+#
 # DESCRIPTION:
 #	This script looks each "meta" file and extracts the
 #	information needed to deduce build and src dependencies.
-#	
+#
 #	To do this, we extract the 'CWD' record as well as all the
 #	syscall traces which describe 'R'ead, 'C'hdir and 'E'xec
 #	syscalls.
@@ -76,20 +76,20 @@
 
 # RCSid:
 #	$FreeBSD$
-#	$Id: meta2deps.sh,v 1.12 2016/12/13 20:44:16 sjg Exp $
+#	$Id: meta2deps.sh,v 1.14 2020/10/02 03:11:17 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions 
-# are met: 
+# modification, are permitted provided that the following conditions
+# are met:
 # 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer. 
+#    notice, this list of conditions and the following disclaimer.
 # 2. Redistributions in binary form must reproduce the above copyright
 #    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.  
-# 
+#    documentation and/or other materials provided with the distribution.
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 # "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 # LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
@@ -100,14 +100,14 @@
 # DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 # THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 meta2src() {
     cat /dev/null "$@" |
     sed -n '/^R .*\.[chyl]$/s,^..[0-9]* ,,p' |
     sort -u
 }
-    
+
 meta2dirs() {
     cat /dev/null "$@" |
     sed -n '/^R .*\/.*\.[a-z0-9][^\/]*$/s,^..[0-9]* \(.*\)/[^/]*$,\1,p' |
@@ -142,6 +142,11 @@ _excludes_f() {
     egrep -v "$EXCLUDES"
 }
 
+error() {
+    echo "ERROR: $@" >&2
+    exit 1
+}
+
 meta2deps() {
     DPDEPS=
     SRCTOPS=$SRCTOP
@@ -168,7 +173,7 @@ meta2deps() {
     case "$MACHINE" in
     host) _ht=$HOST_TARGET;;
     esac
-    
+
     for o in $OBJROOTS
     do
 	case "$MACHINE,/$o/" in
@@ -202,7 +207,7 @@ meta2deps() {
     obj_re=
     add_list '|' -s '/*' src_re $SRCTOPS
     add_list '|' -s '*' obj_re $OBJROOTS
-    
+
     [ -z "$RELDIR" ] && unset DPDEPS
     tf=/tmp/m2d$$-$USER
     rm -f $tf.*
@@ -235,8 +240,8 @@ meta2deps() {
 	;;
     *) cat /dev/null "$@";;
     esac 2> /dev/null |
-    sed -e 's,^CWD,C C,;/^[CREFLM] /!d' -e "s,',,g" |
-    $_excludes |
+    sed -e 's,^CWD,C C,;/^[CREFLMV] /!d' -e "s,',,g" |
+    $_excludes | ( version=no
     while read op pid path junk
     do
 	: op=$op pid=$pid path=$path
@@ -248,6 +253,12 @@ meta2deps() {
 		SB=`echo $CWD | sed 's,/obj.*,,'`
 	    fi
 	    SRCTOP=${SRCTOP:-$SB/src}
+	    case "$verion" in
+	    no) ;;		# ignore
+	    0) error "no filemon data";;
+	    *) ;;
+	    esac
+	    version=0
 	    continue
 	    ;;
 	$pid,$pid) ;;
@@ -262,6 +273,7 @@ meta2deps() {
 	esac
 
 	case "$op,$path" in
+	V,*) version=$path; continue;;
 	W,*srcrel|*.dirdep) continue;;
 	C,*)
 	    case "$path" in
@@ -273,10 +285,10 @@ meta2deps() {
 	    eval cwd_$pid=$cwd
 	    continue
 	    ;;
-	F,*) # $path is new pid  
+	F,*) # $path is new pid
 	    eval cwd_$path=$cwd ldir_$path=$ldir
 	    continue
-	    ;;	  
+	    ;;
 	*)  dir=${path%/*}
 	    case "$path" in
 	    $src_re|$obj_re) ;;
@@ -367,6 +379,9 @@ meta2deps() {
 	    echo $dir;;
 	esac
     done > $tf.dirdep
+    case "$version" in
+    0) error "no filemon data";;
+    esac ) || exit 1
     _nl=echo
     for f in $tf.dirdep $tf.qual $tf.srcdep
     do

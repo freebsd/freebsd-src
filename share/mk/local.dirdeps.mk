@@ -179,8 +179,6 @@ DIRDEPS+=	usr.bin/yacc.host
 .endif
 _DPADD= ${DPADD} ${_PROGS_DPADD}
 .if !empty(_DPADD)
-# Taken from meta.autodep.mk (where it only does something with
-# BUILD_AT_LEVEL0, which we don't use).
 # This only works for DPADD with full OBJ/SRC paths, which is mostly just
 # _INTERNALLIBS.
 _DP_DIRDEPS= \

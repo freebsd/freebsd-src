@@ -1,7 +1,8 @@
 # $FreeBSD$
-# $Id: dirdeps.mk,v 1.100 2019/11/12 06:47:58 sjg Exp $
+# $Id: dirdeps.mk,v 1.130 2020/11/02 00:34:30 sjg Exp $
 
-# Copyright (c) 2010-2013, Juniper Networks, Inc.
+# Copyright (c) 2010-2020, Simon J. Gerraty
+# Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -41,7 +42,7 @@
 #	or .<target_spec> suffix (see TARGET_SPEC_VARS below),
 #	for example to force building something for the pseudo
 #	machines "host" or "common" regardless of current ${MACHINE}.
-#	
+#
 #	All unqualified entries end up being qualified with .${TARGET_SPEC}
 #	and partially qualified (if TARGET_SPEC_VARS has multiple
 #	entries) are also expanded to a full .<target_spec>.
@@ -50,28 +51,21 @@
 #
 #	The fully qualified directory entries are used to construct a
 #	dependency graph that will drive the build later.
-#	
+#
 #	Also, for each fully qualified directory target, we will search
 #	using ${.MAKE.DEPENDFILE_PREFERENCE} to find additional
 #	dependencies.  We use Makefile.depend (default value for
 #	.MAKE.DEPENDFILE_PREFIX) to refer to these makefiles to
 #	distinguish them from others.
-#	
+#
 #	Before each Makefile.depend file is read, we set
 #	DEP_RELDIR to be the RELDIR (path relative to SRCTOP) for
 #	its directory, and DEP_MACHINE etc according to the .<target_spec>
 #	represented by the suffix of the corresponding target.
-#	
+#
 #	Since each Makefile.depend file includes dirdeps.mk, this
 #	processing is recursive and results in .MAKE.LEVEL 0 learning the
 #	dependencies of the tree wrt the initial directory (_DEP_RELDIR).
-#
-# BUILD_AT_LEVEL0
-#	Indicates whether .MAKE.LEVEL 0 builds anything:
-#	if "no" sub-makes are used to build everything,
-#	if "yes" sub-makes are only used to build for other machines.
-#	It is best to use "no", but this can require fixing some
-#	makefiles to not do anything at .MAKE.LEVEL 0.
 #
 # TARGET_SPEC_VARS
 #	The default value is just MACHINE, and for most environments
@@ -113,12 +107,12 @@
 #		# make sure we know what TARGET_SPEC is
 #		# as we may need it to find Makefile.depend*
 #		TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
-#	
+#
 #	The following variables can influence the initial DIRDEPS
 #	computation with regard to the TARGET_SPECs that will be
 #	built.
 #	Most should also be considered by init.mk
-#	
+#
 #	ONLY_TARGET_SPEC_LIST
 #		Defines a list of TARGET_SPECs for which the current
 #		directory can be built.
@@ -137,6 +131,19 @@
 #		A list of MACHINEs the current directory should not be
 #		built for.
 #
+# _build_xtra_dirs
+#	local.dirdeps.mk can add targets to this variable.
+#	They will be hooked into the build, but independent of
+#	any other DIRDEP.
+#
+#	This allows for adding TESTS to the build, such that the build
+#	if any test fails, but without the risk of introducing
+#	circular dependencies.
+
+now_utc ?= ${%s:L:gmtime}
+.if !defined(start_utc)
+start_utc := ${now_utc}
+.endif
 
 .if !target(bootstrap) && (make(bootstrap) || \
 	make(bootstrap-this) || \
@@ -156,11 +163,6 @@ _DIRDEP_USE_LEVEL?= 0
 # do some setup we only need once
 _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
-
-now_utc = ${%s:L:gmtime}
-.if !defined(start_utc)
-start_utc := ${now_utc}
-.endif
 
 .if ${MAKEFILE:T} == ${.PARSEFILE} && empty(DIRDEPS) && ${.TARGETS:Uall:M*/*} != ""
 # This little trick let's us do
@@ -208,12 +210,9 @@ DEP_$v ?= ${$v}
 # so we need to construct a set of modifiers to fill in the gaps.
 .if ${MAKE_VERSION} >= 20170130
 _tspec_x := ${TARGET_SPEC_VARS:range}
-.elif ${TARGET_SPEC_VARS:[#]} > 10
-# seriously? better have jot(1) or equivalent to produce suitable sequence
-_tspec_x := ${${JOT:Ujot} ${TARGET_SPEC_VARS:[#]}:L:sh}
 .else
-# we can provide the sequence ourselves
-_tspec_x := ${1 2 3 4 5 6 7 8 9 10:L:[1..${TARGET_SPEC_VARS:[#]}]}
+# do it the hard way
+_tspec_x := ${TARGET_SPEC_VARS:[#]:@x@i=1;while [ $$i -le $x ]; do echo $$i; i=$$((i + 1)); done;@:sh}
 .endif
 # this handles unqualified entries
 M_dep_qual_fixes = C;(/[^/.,]+)$$;\1.$${DEP_TARGET_SPEC};
@@ -223,6 +222,7 @@ _tspec_m$i := ${TARGET_SPEC_VARS:[2..$i]:@w@[^,]+@:ts,}
 _tspec_a$i := ,${TARGET_SPEC_VARS:[$i..-1]:@v@$$$${DEP_$v}@:ts,}
 M_dep_qual_fixes += C;(\.${_tspec_m$i})$$;\1${_tspec_a$i};
 .endfor
+TARGET_SPEC_VARSr := ${TARGET_SPEC_VARS:[-1..1]}
 .else
 # A harmless? default.
 M_dep_qual_fixes = U
@@ -307,6 +307,7 @@ DEP_MACHINE := ${_DEP_TARGET_SPEC}
 
 # reset each time through
 _build_all_dirs =
+_build_xtra_dirs =
 
 # the first time we are included the _DIRDEP_USE target will not be defined
 # we can use this as a clue to do initialization and other one time things.
@@ -337,7 +338,18 @@ BUILD_DIRDEPS ?= yes
 
 .if ${MK_DIRDEPS_CACHE} == "yes"
 # this is where we will cache all our work
-DIRDEPS_CACHE ?= ${_OBJDIR:tA}/dirdeps.cache${.TARGETS:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
+DIRDEPS_CACHE ?= ${_OBJDIR:tA}/dirdeps.cache${_TARGETS:U${.TARGETS}:Nall:O:u:ts-:S,/,_,g:S,^,.,:N.}
+.endif
+
+.if ${DEBUG_DIRDEPS:@x@${DEP_RELDIR:M$x}${${DEP_RELDIR}.${DEP_MACHINE}:L:M$x}@} != ""
+_debug_reldir = 1
+.else
+_debug_reldir = 0
+.endif
+.if ${DEBUG_DIRDEPS:@x@${DEP_RELDIR:M$x}${${DEP_RELDIR}.depend:L:M$x}@} != ""
+_debug_search = 1
+.else
+_debug_search = 0
 .endif
 
 # pickup customizations
@@ -382,6 +394,18 @@ DIRDEPS_FILTER += M${_DEP_RELDIR}
 DIRDEP_MAKE ?= ${.MAKE}
 DIRDEP_DIR ?= ${.TARGET:R}
 
+# if you want us to report load averages during build
+# DIRDEP_USE_PRELUDE += ${DIRDEP_LOADAVG_REPORT};
+
+DIRDEP_LOADAVG_CMD ?= ${UPTIME:Uuptime} | sed 's,.*\(load\),\1,'
+DIRDEP_LOADAVG_LAST = 0
+# yes the expression here is a bit complicated,
+# the trick is to only eval ${DIRDEP_LOADAVG_LAST::=${now_utc}}
+# when we want to report.
+DIRDEP_LOADAVG_REPORT = \
+	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTEVAL:U60} - ${DIRDEP_LOADAVG_LAST}:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
+	echo "${TRACER}`${DIRDEP_LOADAVG_CMD}`"
+
 # we suppress SUBDIR when visiting the leaves
 # we assume sys.mk will set MACHINE_ARCH
 # you can add extras to DIRDEP_USE_ENV
@@ -389,7 +413,7 @@ DIRDEP_DIR ?= ${.TARGET:R}
 _DIRDEP_USE:	.USE .MAKE
 	@for m in ${.MAKE.MAKEFILE_PREFERENCE}; do \
 		test -s ${.TARGET:R}/$$m || continue; \
-		echo "${TRACER}Checking ${.TARGET:R} for ${.TARGET:E} ..."; \
+		echo "${TRACER}Checking ${.TARGET:S,${SRCTOP}/,,} for ${.TARGET:E} ..."; \
 		${DIRDEP_USE_PRELUDE} \
 		MACHINE_ARCH= NO_SUBDIR=1 ${DIRDEP_USE_ENV} \
 		TARGET_SPEC=${.TARGET:E} \
@@ -468,10 +492,19 @@ dirdeps-cached:	${DIRDEPS_CACHE} .MAKE
 	@MAKELEVEL=${.MAKE.LEVEL} ${.MAKE} -C ${_CURDIR} -f ${DIRDEPS_CACHE} \
 		dirdeps MK_DIRDEPS_CACHE=no BUILD_DIRDEPS=no
 
+# leaf makefiles rarely work for building DIRDEPS_CACHE
+.if ${RELDIR} != "."
+BUILD_DIRDEPS_MAKEFILE ?= -f dirdeps.mk
+.endif
+
 # these should generally do
-BUILD_DIRDEPS_MAKEFILE ?= ${MAKEFILE}
+BUILD_DIRDEPS_MAKEFILE ?=
 BUILD_DIRDEPS_TARGETS ?= ${.TARGETS}
 
+.if ${DIRDEPS_CACHE} != ${STATIC_DIRDEPS_CACHE:Uno} && ${DIRDEPS_CACHE:M${SRCTOP}/*} == ""
+# export this for dirdeps-cache-update.mk
+DYNAMIC_DIRDEPS_CACHE := ${DIRDEPS_CACHE}
+.export DYNAMIC_DIRDEPS_CACHE
 # we need the .meta file to ensure we update if
 # any of the Makefile.depend* changed.
 # We do not want to compare the command line though.
@@ -483,40 +516,34 @@ ${DIRDEPS_CACHE}:	.META .NOMETA_CMP
 	+@MAKELEVEL=${.MAKE.LEVEL} DIRDEPS_CACHE=${DIRDEPS_CACHE} \
 	DIRDEPS="${DIRDEPS}" \
 	TARGET_SPEC=${TARGET_SPEC} \
-	MAKEFLAGS= ${.MAKE} -C ${_CURDIR} -f ${BUILD_DIRDEPS_MAKEFILE} \
+	MAKEFLAGS= ${DIRDEP_CACHE_MAKE:U${.MAKE}} -C ${_CURDIR} \
+	${BUILD_DIRDEPS_MAKEFILE} \
 	${BUILD_DIRDEPS_TARGETS} BUILD_DIRDEPS_CACHE=yes \
 	.MAKE.DEPENDFILE=.none \
+	${"${DEBUG_DIRDEPS:Nno}":?DEBUG_DIRDEPS='${DEBUG_DIRDEPS}':} \
 	${.MAKEFLAGS:tW:S,-D ,-D,g:tw:M*WITH*} \
-	3>&1 1>&2 | sed 's,${SRCTOP},$${SRCTOP},g' >> ${.TARGET}.new && \
+	${.MAKEFLAGS:tW:S,-d ,-d,g:tw:M-d*} \
+	3>&1 1>&2 | sed 's,${SRCTOP},$${SRCTOP},g;s,_{,$${,g' >> ${.TARGET}.new && \
 	mv ${.TARGET}.new ${.TARGET}
 
+.endif
 .endif
 .elif !target(_count_dirdeps)
 # we want to capture the dirdeps count in the cache
 .END: _count_dirdeps
 _count_dirdeps: .NOMETA
-	@echo '.info $${.newline}$${TRACER}Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]}' >&3
+	@{ echo; echo '.info $${.newline}$${TRACER}Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]} ${DIRDEP_INFO_XTRAS}'; } >&3
 
 .endif
 .elif !make(dirdeps) && !target(_count_dirdeps)
 beforedirdeps: _count_dirdeps
 _count_dirdeps: .NOMETA
-	@echo "${TRACER}Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]} seconds=`expr ${now_utc} - ${start_utc}`"
+	@echo "${TRACER}Makefiles read: total=${.MAKE.MAKEFILES:[#]} depend=${.MAKE.MAKEFILES:M*depend*:[#]} dirdeps=${.ALLTARGETS:M${SRCTOP}*:O:u:[#]} ${DIRDEP_INFO_XTRAS} seconds=`expr ${now_utc} - ${start_utc}`"
 
 .endif
 .endif
 
 .if ${BUILD_DIRDEPS} == "yes"
-.if ${DEBUG_DIRDEPS:@x@${DEP_RELDIR:M$x}${${DEP_RELDIR}.${DEP_MACHINE}:L:M$x}@} != ""
-_debug_reldir = 1
-.else
-_debug_reldir = 0
-.endif
-.if ${DEBUG_DIRDEPS:@x@${DEP_RELDIR:M$x}${${DEP_RELDIR}.depend:L:M$x}@} != ""
-_debug_search = 1
-.else
-_debug_search = 0
-.endif
 
 # the rest is done repeatedly for every Makefile.depend we read.
 # if we are anything but the original dir we care only about the
@@ -568,19 +595,7 @@ _build_dirs =
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # pickup other machines for this dir if necessary
-.if ${BUILD_AT_LEVEL0:Uyes} == "no"
 _build_dirs += ${_machines:@m@${_CURDIR}.$m@}
-.else
-_build_dirs += ${_machines:N${DEP_TARGET_SPEC}:@m@${_CURDIR}.$m@}
-.if ${DEP_TARGET_SPEC} == ${TARGET_SPEC}
-# pickup local dependencies now
-.if ${MAKE_VERSION} < 20160220
-.-include <.depend>
-.else
-.dinclude <.depend>
-.endif
-.endif
-.endif
 .endif
 
 .if ${_debug_reldir}
@@ -616,6 +631,7 @@ __qual_depdirs += ${__hostdpadd}
 .endif
 
 .if ${_debug_reldir}
+.info DEP_DIRDEPS_FILTER=${DEP_DIRDEPS_FILTER:ts:}
 .info depdirs=${__depdirs}
 .info qualified=${__qual_depdirs}
 .info unqualified=${__unqual_depdirs}
@@ -633,7 +649,7 @@ _build_dirs := ${_build_dirs:${M_dep_qual_fixes:ts:}:O:u}
 
 .endif				# empty DIRDEPS
 
-_build_all_dirs += ${_build_dirs}
+_build_all_dirs += ${_build_dirs} ${_build_xtra_dirs}
 _build_all_dirs := ${_build_all_dirs:O:u}
 
 # Normally if doing make -V something,
@@ -642,19 +658,14 @@ _build_all_dirs := ${_build_all_dirs:O:u}
 .if ${.MAKEFLAGS:M-V${_V_READ_DIRDEPS}} == ""
 .if !empty(_build_all_dirs)
 .if ${BUILD_DIRDEPS_CACHE} == "yes"
-# guard against _build_all_dirs being too big for a single command line
-# first get list of dirs that need _DIRDEP_USE
-# then export that and _build_all_dirs
+x!= echo; { echo; echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}'; } >&3
+# guard against _new_dirdeps being too big for a single command line
 _new_dirdeps := ${_build_all_dirs:@x@${target($x):?:$x}@}
-.export _new_dirdeps _build_all_dirs
-x!= echo; { echo '\# ${DEP_RELDIR}.${DEP_TARGET_SPEC}'; \
-	echo "dirdeps: \\"; \
-	for x in $$_build_all_dirs; do echo "	$$x \\"; done; echo; \
-	for x in $$_new_dirdeps; do echo "$$x: _DIRDEP_USE"; done; echo; } >&3
+.export _build_xtra_dirs _new_dirdeps
 .if !empty(DEP_EXPORT_VARS)
 # Discouraged, but there are always exceptions.
 # Handle it here rather than explain how.
-x!= { echo; ${DEP_EXPORT_VARS:@v@echo '$v=${$v}';@} echo '.export ${DEP_EXPORT_VARS}'; echo; } >&3; echo
+x!= echo; { echo; ${DEP_EXPORT_VARS:@v@echo '$v=${$v}';@} echo '.export ${DEP_EXPORT_VARS}'; echo; } >&3
 .endif
 .else
 # this makes it all happen
@@ -673,6 +684,10 @@ DEP_EXPORT_VARS=
 
 # this builds the dependency graph
 .for m in ${_machines}
+.if ${BUILD_DIRDEPS_CACHE} == "yes" && !empty(_build_dirs)
+x!= echo; { echo; echo 'DIRDEPS.${_this_dir}.$m = \'; } >&3
+_cache_deps =
+.endif
 # it would be nice to do :N${.TARGET}
 .if !empty(__qual_depdirs)
 .for q in ${__qual_depdirs:${M_dep_qual_fixes:ts:}:E:O:u:N$m}
@@ -680,10 +695,7 @@ DEP_EXPORT_VARS=
 .info ${DEP_RELDIR}.$m: graph: ${_build_dirs:M*.$q}
 .endif
 .if ${BUILD_DIRDEPS_CACHE} == "yes"
-_cache_deps := ${_build_dirs:M*.$q}
-.export _cache_deps
-x!= echo; { echo "${_this_dir}.$m: \\"; \
-	for x in $$_cache_deps; do echo "	$$x \\"; done; echo; } >&3
+_cache_deps += ${_build_dirs:M*.$q}
 .else
 ${_this_dir}.$m: ${_build_dirs:M*.$q}
 .endif
@@ -693,10 +705,17 @@ ${_this_dir}.$m: ${_build_dirs:M*.$q}
 .info ${DEP_RELDIR}.$m: graph: ${_build_dirs:M*.$m:N${_this_dir}.$m}
 .endif
 .if ${BUILD_DIRDEPS_CACHE} == "yes"
-_cache_deps := ${_build_dirs:M*.$m:N${_this_dir}.$m}
+.if !empty(_build_dirs)
+_cache_deps += ${_build_dirs:M*.$m:N${_this_dir}.$m}
+.if !empty(_cache_deps)
 .export _cache_deps
-x!= echo; { echo "${_this_dir}.$m: \\"; \
-	for x in $$_cache_deps; do echo "       $$x \\"; done; echo; } >&3
+x!= echo; for x in $$_cache_deps; do echo "	$$x \\"; done >&3
+.endif
+x!= echo; { echo; echo '${_this_dir}.$m: $${DIRDEPS.${_this_dir}.$m}'; \
+	echo; echo 'dirdeps: ${_this_dir}.$m \'; \
+	for x in $$_build_xtra_dirs; do echo "	$$x \\"; done; \
+	echo; for x in $$_new_dirdeps; do echo "$$x: _DIRDEP_USE"; done; } >&3
+.endif
 .else
 ${_this_dir}.$m: ${_build_dirs:M*.$m:N${_this_dir}.$m}
 .endif
@@ -765,6 +784,27 @@ _DEP_RELDIR := ${RELDIR}
 # Since we are/should be included by .MAKE.DEPENDFILE
 # This is a final opportunity to add/hook global rules.
 .-include <local.dirdeps-build.mk>
+
+# skip _reldir_{finish,failed} if not included from Makefile.depend*
+# or not in meta mode
+.if !defined(WITHOUT_META_STATS) && ${.INCLUDEDFROMFILE:U:M${.MAKE.DEPENDFILE_PREFIX}*} != "" && ${.MAKE.MODE:Mmeta} != ""
+
+meta_stats= meta=${empty(.MAKE.META.FILES):?0:${.MAKE.META.FILES:[#]}} \
+	created=${empty(.MAKE.META.CREATED):?0:${.MAKE.META.CREATED:[#]}}
+
+.if !target(_reldir_finish)
+.END: _reldir_finish
+_reldir_finish: .NOMETA
+	@echo "${TRACER}Finished ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
+.endif
+
+.if !target(_reldir_failed)
+.ERROR: _reldir_failed
+_reldir_failed: .NOMETA
+	@echo "${TRACER}Failed ${RELDIR}.${TARGET_SPEC} seconds=$$(( ${now_utc} - ${start_utc} )) ${meta_stats}"
+.endif
+
+.endif
 
 # pickup local dependencies
 .if ${MAKE_VERSION} < 20160220
