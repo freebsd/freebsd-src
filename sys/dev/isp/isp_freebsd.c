@@ -109,6 +109,11 @@ isp_role_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 {
+	fcparam *fcp = FCPARAM(isp, chan);
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
+	char name[16];
 	struct cam_sim *sim;
 	struct cam_path *path;
 #ifdef	ISP_TARGET_MODE
@@ -130,12 +135,6 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		cam_sim_free(sim, FALSE);
 		return (ENXIO);
 	}
-
-	fcparam *fcp = FCPARAM(isp, chan);
-	struct isp_fc *fc = ISP_FC_PC(isp, chan);
-	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
-	struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
-	char name[16];
 
 	ISP_LOCK(isp);
 	fc->sim = sim;
@@ -221,22 +220,16 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 static void
 isp_detach_chan(ispsoftc_t *isp, int chan)
 {
-	struct cam_sim *sim;
-	struct cam_path *path;
-	int *num_threads;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 
-	ISP_GET_PC(isp, chan, sim, sim);
-	ISP_GET_PC(isp, chan, path, path);
-	ISP_GET_PC_ADDR(isp, chan, num_threads, num_threads);
-
-	xpt_free_path(path);
-	xpt_bus_deregister(cam_sim_path(sim));
-	cam_sim_free(sim, FALSE);
+	xpt_free_path(fc->path);
+	xpt_bus_deregister(cam_sim_path(fc->sim));
+	cam_sim_free(fc->sim, FALSE);
 
 	/* Wait for the channel's spawned threads to exit. */
-	wakeup(isp->isp_osinfo.pc.ptr);
-	while (*num_threads != 0)
-		mtx_sleep(isp, &isp->isp_lock, PRIBIO, "isp_reap", 100);
+	wakeup(fc);
+	while (fc->num_threads != 0)
+		mtx_sleep(&fc->num_threads, &isp->isp_lock, PRIBIO, "isp_reap", 0);
 }
 
 int
@@ -271,16 +264,11 @@ isp_attach(ispsoftc_t *isp)
 	return (0);
 
 unwind:
-	while (--chan >= 0) {
-		struct cam_sim *sim;
-		struct cam_path *path;
-
-		ISP_GET_PC(isp, chan, sim, sim);
-		ISP_GET_PC(isp, chan, path, path);
-		xpt_free_path(path);
-		xpt_bus_deregister(cam_sim_path(sim));
-		cam_sim_free(sim, FALSE);
-	}
+	ISP_LOCK(isp);
+	isp->isp_osinfo.is_exiting = 1;
+	while (--chan >= 0)
+		isp_detach_chan(isp, chan);
+	ISP_UNLOCK(isp);
 	cam_simq_free(isp->isp_osinfo.devq);
 	isp->isp_osinfo.devq = NULL;
 	return (-1);
@@ -673,7 +661,7 @@ static void isp_put_atpd(ispsoftc_t *, int, atio_private_data_t *);
 static inot_private_data_t *isp_get_ntpd(ispsoftc_t *, int);
 static inot_private_data_t *isp_find_ntpd(ispsoftc_t *, int, uint32_t, uint32_t);
 static void isp_put_ntpd(ispsoftc_t *, int, inot_private_data_t *);
-static cam_status create_lun_state(ispsoftc_t *, int, struct cam_path *, tstate_t **);
+static tstate_t *create_lun_state(ispsoftc_t *, int, struct cam_path *);
 static void destroy_lun_state(ispsoftc_t *, int, tstate_t *);
 static void isp_enable_lun(ispsoftc_t *, union ccb *);
 static void isp_disable_lun(ispsoftc_t *, union ccb *);
@@ -690,15 +678,12 @@ static void isp_target_mark_aborted_early(ispsoftc_t *, int chan, tstate_t *, ui
 static ISP_INLINE tstate_t *
 get_lun_statep(ispsoftc_t *isp, int bus, lun_id_t lun)
 {
-	tstate_t *tptr = NULL;
-	struct tslist *lhp;
+	struct isp_fc *fc = ISP_FC_PC(isp, bus);
+	tstate_t *tptr;
 
-	if (bus < isp->isp_nchan) {
-		ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
-		SLIST_FOREACH(tptr, lhp, next) {
-			if (tptr->ts_lun == lun)
-				return (tptr);
-		}
+	SLIST_FOREACH(tptr, &fc->lun_hash[LUN_HASH_FUNC(lun)], next) {
+		if (tptr->ts_lun == lun)
+			return (tptr);
 	}
 	return (NULL);
 }
@@ -733,26 +718,24 @@ isp_atio_restart(ispsoftc_t *isp, int bus, tstate_t *tptr)
 static void
 isp_tmcmd_restart(ispsoftc_t *isp)
 {
+	struct isp_fc *fc;
 	tstate_t *tptr;
 	union ccb *ccb;
-	struct tslist *lhp;
-	struct isp_ccbq *waitq;
 	int bus, i;
 
 	for (bus = 0; bus < isp->isp_nchan; bus++) {
+		fc = ISP_FC_PC(isp, bus);
 		for (i = 0; i < LUN_HASH_SIZE; i++) {
-			ISP_GET_PC_ADDR(isp, bus, lun_hash[i], lhp);
-			SLIST_FOREACH(tptr, lhp, next)
+			SLIST_FOREACH(tptr, &fc->lun_hash[i], next)
 				isp_atio_restart(isp, bus, tptr);
 		}
 
 		/*
 		 * We only need to do this once per channel.
 		 */
-		ISP_GET_PC_ADDR(isp, bus, waitq, waitq);
-		ccb = (union ccb *)TAILQ_FIRST(waitq);
+		ccb = (union ccb *)TAILQ_FIRST(&fc->waitq);
 		if (ccb != NULL) {
-			TAILQ_REMOVE(waitq, &ccb->ccb_h, sim_links.tqe);
+			TAILQ_REMOVE(&fc->waitq, &ccb->ccb_h, sim_links.tqe);
 			isp_target_start_ctio(isp, ccb, FROM_TIMER);
 		}
 	}
@@ -763,17 +746,14 @@ isp_tmcmd_restart(ispsoftc_t *isp)
 static atio_private_data_t *
 isp_get_atpd(ispsoftc_t *isp, int chan, uint32_t tag)
 {
-	struct atpdlist *atfree;
-	struct atpdlist *atused;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 	atio_private_data_t *atp;
 
-	ISP_GET_PC_ADDR(isp, chan, atfree, atfree);
-	atp = LIST_FIRST(atfree);
+	atp = LIST_FIRST(&fc->atfree);
 	if (atp) {
 		LIST_REMOVE(atp, next);
 		atp->tag = tag;
-		ISP_GET_PC(isp, chan, atused, atused);
-		LIST_INSERT_HEAD(&atused[ATPDPHASH(tag)], atp, next);
+		LIST_INSERT_HEAD(&fc->atused[ATPDPHASH(tag)], atp, next);
 	}
 	return (atp);
 }
@@ -781,11 +761,10 @@ isp_get_atpd(ispsoftc_t *isp, int chan, uint32_t tag)
 static atio_private_data_t *
 isp_find_atpd(ispsoftc_t *isp, int chan, uint32_t tag)
 {
-	struct atpdlist *atused;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 	atio_private_data_t *atp;
 
-	ISP_GET_PC(isp, chan, atused, atused);
-	LIST_FOREACH(atp, &atused[ATPDPHASH(tag)], next) {
+	LIST_FOREACH(atp, &fc->atused[ATPDPHASH(tag)], next) {
 		if (atp->tag == tag)
 			return (atp);
 	}
@@ -795,25 +774,23 @@ isp_find_atpd(ispsoftc_t *isp, int chan, uint32_t tag)
 static void
 isp_put_atpd(ispsoftc_t *isp, int chan, atio_private_data_t *atp)
 {
-	struct atpdlist *atfree;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 
-	if (atp->ests) {
+	if (atp->ests)
 		isp_put_ecmd(isp, atp->ests);
-	}
 	LIST_REMOVE(atp, next);
 	memset(atp, 0, sizeof (*atp));
-	ISP_GET_PC_ADDR(isp, chan, atfree, atfree);
-	LIST_INSERT_HEAD(atfree, atp, next);
+	LIST_INSERT_HEAD(&fc->atfree, atp, next);
 }
 
 static void
 isp_dump_atpd(ispsoftc_t *isp, int chan)
 {
-	atio_private_data_t *atp, *atpool;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+	atio_private_data_t *atp;
 	const char *states[8] = { "Free", "ATIO", "CAM", "CTIO", "LAST_CTIO", "PDON", "?6", "7" };
 
-	ISP_GET_PC(isp, chan, atpool, atpool);
-	for (atp = atpool; atp < &atpool[ATPDPSIZE]; atp++) {
+	for (atp = fc->atpool; atp < &fc->atpool[ATPDPSIZE]; atp++) {
 		if (atp->state == ATPD_STATE_FREE)
 			continue;
 		isp_prt(isp, ISP_LOGALL, "Chan %d ATP [0x%x] origdlen %u bytes_xfrd %u lun %jx nphdl 0x%04x s_id 0x%06x d_id 0x%06x oxid 0x%04x state %s",
@@ -824,24 +801,22 @@ isp_dump_atpd(ispsoftc_t *isp, int chan)
 static inot_private_data_t *
 isp_get_ntpd(ispsoftc_t *isp, int chan)
 {
-	struct ntpdlist *ntfree;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 	inot_private_data_t *ntp;
 
-	ISP_GET_PC_ADDR(isp, chan, ntfree, ntfree);
-	ntp = STAILQ_FIRST(ntfree);
+	ntp = STAILQ_FIRST(&fc->ntfree);
 	if (ntp)
-		STAILQ_REMOVE_HEAD(ntfree, next);
+		STAILQ_REMOVE_HEAD(&fc->ntfree, next);
 	return (ntp);
 }
 
 static inot_private_data_t *
 isp_find_ntpd(ispsoftc_t *isp, int chan, uint32_t tag_id, uint32_t seq_id)
 {
-	inot_private_data_t *ntp, *ntp2;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+	inot_private_data_t *ntp;
 
-	ISP_GET_PC(isp, chan, ntpool, ntp);
-	ISP_GET_PC_ADDR(isp, chan, ntpool[ATPDPSIZE], ntp2);
-	for (; ntp < ntp2; ntp++) {
+	for (ntp = fc->ntpool; ntp < &fc->ntpool[ATPDPSIZE]; ntp++) {
 		if (ntp->tag_id == tag_id && ntp->seq_id == seq_id)
 			return (ntp);
 	}
@@ -851,41 +826,37 @@ isp_find_ntpd(ispsoftc_t *isp, int chan, uint32_t tag_id, uint32_t seq_id)
 static void
 isp_put_ntpd(ispsoftc_t *isp, int chan, inot_private_data_t *ntp)
 {
-	struct ntpdlist *ntfree;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
 
 	ntp->tag_id = ntp->seq_id = 0;
-	ISP_GET_PC_ADDR(isp, chan, ntfree, ntfree);
-	STAILQ_INSERT_HEAD(ntfree, ntp, next);
+	STAILQ_INSERT_HEAD(&fc->ntfree, ntp, next);
 }
 
-static cam_status
-create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rslt)
+tstate_t *
+create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path)
 {
+	struct isp_fc *fc = ISP_FC_PC(isp, bus);
 	lun_id_t lun;
-	struct tslist *lhp;
 	tstate_t *tptr;
 
 	lun = xpt_path_lun_id(path);
 	tptr = malloc(sizeof (tstate_t), M_DEVBUF, M_NOWAIT|M_ZERO);
-	if (tptr == NULL) {
-		return (CAM_RESRC_UNAVAIL);
-	}
+	if (tptr == NULL)
+		return (NULL);
 	tptr->ts_lun = lun;
 	SLIST_INIT(&tptr->atios);
 	SLIST_INIT(&tptr->inots);
 	STAILQ_INIT(&tptr->restart_queue);
-	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
-	SLIST_INSERT_HEAD(lhp, tptr, next);
-	*rslt = tptr;
+	SLIST_INSERT_HEAD(&fc->lun_hash[LUN_HASH_FUNC(lun)], tptr, next);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, path, "created tstate\n");
-	return (CAM_REQ_CMP);
+	return (tptr);
 }
 
 static void
 destroy_lun_state(ispsoftc_t *isp, int bus, tstate_t *tptr)
 {
+	struct isp_fc *fc = ISP_FC_PC(isp, bus);
 	union ccb *ccb;
-	struct tslist *lhp;
 	inot_private_data_t *ntp;
 
 	while ((ccb = (union ccb *)SLIST_FIRST(&tptr->atios)) != NULL) {
@@ -903,8 +874,7 @@ destroy_lun_state(ispsoftc_t *isp, int bus, tstate_t *tptr)
 		STAILQ_REMOVE_HEAD(&tptr->restart_queue, next);
 		isp_put_ntpd(isp, bus, ntp);
 	}
-	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(tptr->ts_lun)], lhp);
-	SLIST_REMOVE(lhp, tptr, tstate, next);
+	SLIST_REMOVE(&fc->lun_hash[LUN_HASH_FUNC(tptr->ts_lun)], tptr, tstate, next);
 	free(tptr, M_DEVBUF);
 }
 
@@ -912,17 +882,14 @@ static void
 isp_enable_lun(ispsoftc_t *isp, union ccb *ccb)
 {
 	tstate_t *tptr;
-	int bus;
-	target_id_t target;
-	lun_id_t lun;
+	int bus = XS_CHANNEL(ccb);
+	target_id_t target = ccb->ccb_h.target_id;
+	lun_id_t lun = ccb->ccb_h.target_lun;
 
 	/*
 	 * We only support either target and lun both wildcard
 	 * or target and lun both non-wildcard.
 	 */
-	bus = XS_CHANNEL(ccb);
-	target = ccb->ccb_h.target_id;
-	lun = ccb->ccb_h.target_lun;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0|ISP_LOGCONFIG, ccb->ccb_h.path,
 	    "enabling lun %jx\n", (uintmax_t)lun);
 	if ((target == CAM_TARGET_WILDCARD) != (lun == CAM_LUN_WILDCARD)) {
@@ -938,8 +905,9 @@ isp_enable_lun(ispsoftc_t *isp, union ccb *ccb)
 		xpt_done(ccb);
 		return;
 	}
-	ccb->ccb_h.status = create_lun_state(isp, bus, ccb->ccb_h.path, &tptr);
-	if (ccb->ccb_h.status != CAM_REQ_CMP) {
+	tptr = create_lun_state(isp, bus, ccb->ccb_h.path);
+	if (tptr == NULL) {
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 		xpt_done(ccb);
 		return;
 	}
@@ -951,14 +919,11 @@ isp_enable_lun(ispsoftc_t *isp, union ccb *ccb)
 static void
 isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 {
-	tstate_t *tptr = NULL;
-	int bus;
-	target_id_t target;
-	lun_id_t lun;
+	tstate_t *tptr;
+	int bus = XS_CHANNEL(ccb);
+	target_id_t target = ccb->ccb_h.target_id;
+	lun_id_t lun = ccb->ccb_h.target_lun;
 
-	bus = XS_CHANNEL(ccb);
-	target = ccb->ccb_h.target_id;
-	lun = ccb->ccb_h.target_lun;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0|ISP_LOGCONFIG, ccb->ccb_h.path,
 	    "disabling lun %jx\n", (uintmax_t)lun);
 	if ((target == CAM_TARGET_WILDCARD) != (lun == CAM_LUN_WILDCARD)) {
@@ -993,7 +958,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 	isp_prt(isp, ISP_LOGTDEBUG0, "%s: ENTRY[0x%x] how %u xfrlen %u sendstatus %d sense_len %u", __func__, ccb->csio.tag_id, how, ccb->csio.dxfer_len,
 	    (ccb->ccb_h.flags & CAM_SEND_STATUS) != 0, ((ccb->ccb_h.flags & CAM_SEND_SENSE)? ccb->csio.sense_len : 0));
 
-	ISP_GET_PC_ADDR(isp, XS_CHANNEL(ccb), waitq, waitq);
+	waitq = &ISP_FC_PC(isp, XS_CHANNEL(ccb))->waitq;
 	switch (how) {
 	case FROM_CAM:
 		/*
@@ -1971,7 +1936,8 @@ bad:
 static void
 isp_target_mark_aborted_early(ispsoftc_t *isp, int chan, tstate_t *tptr, uint32_t tag_id)
 {
-	atio_private_data_t *atp, *atpool;
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+	atio_private_data_t *atp;
 	inot_private_data_t *ntp, *tmp;
 	uint32_t this_tag_id;
 
@@ -1992,8 +1958,7 @@ isp_target_mark_aborted_early(ispsoftc_t *isp, int chan, tstate_t *tptr, uint32_
 	/*
 	 * Now mark other ones dead as well.
 	 */
-	ISP_GET_PC(isp, chan, atpool, atpool);
-	for (atp = atpool; atp < &atpool[ATPDPSIZE]; atp++) {
+	for (atp = fc->atpool; atp < &fc->atpool[ATPDPSIZE]; atp++) {
 		if (atp->lun != tptr->ts_lun)
 			continue;
 		if ((uint64_t)tag_id == TAG_ANY || atp->tag == tag_id)
@@ -2131,7 +2096,7 @@ isp_gdt_task(void *arg, int pending)
 {
 	struct isp_fc *fc = arg;
 	ispsoftc_t *isp = fc->isp;
-	int chan = fc - isp->isp_osinfo.pc.fc;
+	int chan = fc - ISP_FC_PC(isp, 0);
 	fcportdb_t *lp;
 	struct ac_contract ac;
 	struct ac_device_changed *adc;
@@ -2294,7 +2259,7 @@ isp_kthread(void *arg)
 {
 	struct isp_fc *fc = arg;
 	ispsoftc_t *isp = fc->isp;
-	int chan = fc - isp->isp_osinfo.pc.fc;
+	int chan = fc - ISP_FC_PC(isp, 0);
 	int slp = 0, d;
 	int lb, lim;
 
@@ -2355,6 +2320,7 @@ isp_kthread(void *arg)
 		msleep(fc, &isp->isp_lock, PRIBIO, "ispf", slp * hz);
 	}
 	fc->num_threads -= 1;
+	wakeup(&fc->num_threads);
 	ISP_UNLOCK(isp);
 	kthread_exit();
 }
@@ -3359,13 +3325,12 @@ isp_nanotime_sub(struct timespec *b, struct timespec *a)
 int
 isp_fc_scratch_acquire(ispsoftc_t *isp, int chan)
 {
-	int ret = 0;
-	if (isp->isp_osinfo.pc.fc[chan].fcbsy) {
-		ret = -1;
-	} else {
-		isp->isp_osinfo.pc.fc[chan].fcbsy = 1;
-	}
-	return (ret);
+	struct isp_fc *fc = ISP_FC_PC(isp, chan);
+
+	if (fc->fcbsy)
+		return (-1);
+	fc->fcbsy = 1;
+	return (0);
 }
 
 void
@@ -3533,7 +3498,7 @@ isp_fcp_next_crn(ispsoftc_t *isp, uint8_t *crnp, XS_T *cmd)
 	chan = XS_CHANNEL(cmd);
 	tgt = XS_TGT(cmd);
 	lun = XS_LUN(cmd);
-	fc = &isp->isp_osinfo.pc.fc[chan];
+	fc = ISP_FC_PC(isp, chan);
 	idx = NEXUS_HASH(tgt, lun);
 	nxp = fc->nexus_hash[idx];
 

@@ -543,8 +543,8 @@ isp_pci_attach(device_t dev)
 		device_printf(dev, "cannot allocate parameter data\n");
 		goto bad;
 	}
-	isp->isp_osinfo.pc.ptr = malloc(xsize, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (isp->isp_osinfo.pc.ptr == NULL) {
+	isp->isp_osinfo.fc = malloc(xsize, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (isp->isp_osinfo.fc == NULL) {
 		device_printf(dev, "cannot allocate parameter data\n");
 		goto bad;
 	}
@@ -651,9 +651,9 @@ bad:
 		free(pcs->pci_isp.isp_param, M_DEVBUF);
 		pcs->pci_isp.isp_param = NULL;
 	}
-	if (pcs->pci_isp.isp_osinfo.pc.ptr) {
-		free(pcs->pci_isp.isp_osinfo.pc.ptr, M_DEVBUF);
-		pcs->pci_isp.isp_osinfo.pc.ptr = NULL;
+	if (pcs->pci_isp.isp_osinfo.fc) {
+		free(pcs->pci_isp.isp_osinfo.fc, M_DEVBUF);
+		pcs->pci_isp.isp_osinfo.fc = NULL;
 	}
 	mtx_destroy(&isp->isp_lock);
 	return (ENXIO);
@@ -689,9 +689,9 @@ isp_pci_detach(device_t dev)
 		free(pcs->pci_isp.isp_param, M_DEVBUF);
 		pcs->pci_isp.isp_param = NULL;
 	}
-	if (pcs->pci_isp.isp_osinfo.pc.ptr) {
-		free(pcs->pci_isp.isp_osinfo.pc.ptr, M_DEVBUF);
-		pcs->pci_isp.isp_osinfo.pc.ptr = NULL;
+	if (pcs->pci_isp.isp_osinfo.fc) {
+		free(pcs->pci_isp.isp_osinfo.fc, M_DEVBUF);
+		pcs->pci_isp.isp_osinfo.fc = NULL;
 	}
 	mtx_destroy(&isp->isp_lock);
 	return (0);

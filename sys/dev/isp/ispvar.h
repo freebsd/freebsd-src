@@ -447,22 +447,17 @@ struct ispsoftc {
 	 * may contain some volatile state (e.g., current loop state).
 	 */
 
-	void * 			isp_param;	/* type specific */
+	fcparam			*isp_param;	/* Per-channel storage. */
 	uint64_t		isp_fwattr;	/* firmware attributes */
 	uint16_t		isp_fwrev[3];	/* Loaded F/W revision */
 	uint16_t		isp_maxcmds;	/* max possible I/O cmds */
+	uint16_t		isp_nchan;	/* number of channels */
+	uint16_t		isp_dblev;	/* debug log mask */
 	uint8_t			isp_type;	/* HBA Chip Type */
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
 	uint8_t			isp_nirq;	/* number of IRQs */
-	uint16_t		isp_nchan;	/* number of channels */
-
-	uint32_t		isp_clock	: 8,	/* input clock */
-						: 5,
-				isp_port	: 1,	/* 23XX/24XX only */
-				isp_loaded_fw	: 1,	/* loaded firmware */
-				isp_dblev	: 16;	/* debug log mask */
-
-
+	uint8_t			isp_port;	/* physical port on a card */
+	uint8_t			isp_loaded_fw;	/* loaded firmware */
 	uint32_t		isp_confopts;	/* config options */
 
 	/*
@@ -508,7 +503,7 @@ struct ispsoftc {
 #endif
 };
 
-#define	FCPARAM(isp, chan)	(&((fcparam *)(isp)->isp_param)[(chan)])
+#define	FCPARAM(isp, chan)	(&(isp)->isp_param[(chan)])
 
 #define	ISP_SET_SENDMARKER(isp, chan, val)	\
     FCPARAM(isp, chan)->sendmarker = val	\
