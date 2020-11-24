@@ -2212,10 +2212,11 @@ device		cardbus
 # mmc 		MMC/SD bus
 # mmcsd		MMC/SD memory card
 # sdhci		Generic PCI SD Host Controller
-#
+# rtsx		Realtek SD card reader (RTS5209, RTS5227, ...)
 device		mmc
 device		mmcsd
 device		sdhci
+device		rtsx
 
 #
 # SMB bus
