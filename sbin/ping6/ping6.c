@@ -2868,7 +2868,8 @@ usage(void)
 	    " [-P policy]"
 #endif
 	    " [-S sourceaddr] [-s packetsize]\n"
-	    "             [-t timeout] [-W waittime] [hops ...] host\n");
+	    "             [-t timeout] [-W waittime] [-z tclass] [hops ...] "
+	    "host\n");
 	exit(1);
 }
 
