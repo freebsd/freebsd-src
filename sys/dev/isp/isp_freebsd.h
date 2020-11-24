@@ -286,22 +286,13 @@ struct isposinfo {
 #endif
 
 	/*
-	 * Per-type private storage...
+	 * Per-channel storage.
 	 */
-	union {
-		struct isp_fc *fc;
-		void *ptr;
-	} pc;
+	struct isp_fc		*fc;
 
 	int			is_exiting;
 };
-#define	ISP_FC_PC(isp, chan)	(&(isp)->isp_osinfo.pc.fc[(chan)])
-#define	ISP_GET_PC(isp, chan, tag, rslt)		\
-	rslt = ISP_FC_PC(isp, chan)->tag
-#define	ISP_GET_PC_ADDR(isp, chan, tag, rp)		\
-	rp = &ISP_FC_PC(isp, chan)->tag
-#define	ISP_SET_PC(isp, chan, tag, val)			\
-	ISP_FC_PC(isp, chan)-> tag = val
+#define	ISP_FC_PC(isp, chan)	(&(isp)->isp_osinfo.fc[(chan)])
 
 #define	FCP_NEXT_CRN	isp_fcp_next_crn
 #define	isp_lock	isp_osinfo.lock
@@ -424,7 +415,7 @@ default:							\
 }
 
 #define	FC_SCRATCH_ACQUIRE		isp_fc_scratch_acquire
-#define	FC_SCRATCH_RELEASE(isp, chan)	isp->isp_osinfo.pc.fc[chan].fcbsy = 0
+#define	FC_SCRATCH_RELEASE(isp, chan)	ISP_FC_PC(isp, chan)->fcbsy = 0
 
 #ifndef	SCSI_GOOD
 #define	SCSI_GOOD	SCSI_STATUS_OK
@@ -537,7 +528,7 @@ default:							\
 
 #define	DEFAULT_ROLE(isp, chan)		ISP_FC_PC(isp, chan)->def_role
 
-#define	DEFAULT_LOOPID(x, chan)		isp->isp_osinfo.pc.fc[chan].default_id
+#define	DEFAULT_LOOPID(isp, chan)	ISP_FC_PC(isp, chan)->default_id
 
 #define DEFAULT_NODEWWN(isp, chan)  	isp_default_wwn(isp, chan, 0, 1)
 #define DEFAULT_PORTWWN(isp, chan)  	isp_default_wwn(isp, chan, 0, 0)
