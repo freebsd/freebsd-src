@@ -1,16 +1,16 @@
 # $FreeBSD$
-# $Id: meta.sys.mk,v 1.34 2019/01/24 19:36:25 sjg Exp $
+# $Id: meta.sys.mk,v 1.38 2020/08/19 17:51:53 sjg Exp $
 
 #
-#	@(#) Copyright (c) 2010, Simon J. Gerraty
+#	@(#) Copyright (c) 2010-2020, Simon J. Gerraty
 #
 #	This file is provided in the hope that it will
 #	be of use.  There is absolutely NO WARRANTY.
 #	Permission to copy, redistribute or otherwise
-#	use this file is hereby granted provided that 
+#	use this file is hereby granted provided that
 #	the above copyright notice and this notice are
-#	left intact. 
-#      
+#	left intact.
+#
 #	Please send copies of changes and bug-fixes to:
 #	sjg@crufty.net
 #
@@ -129,9 +129,11 @@ META_NOECHO= :
 # ignore mtime of shell
 # and mtime of makefiles does not matter in meta mode
 .MAKE.META.IGNORE_PATHS += \
-        ${MAKEFILE} \
-        ${SHELL} \
-        ${SYS_MK_DIR}
+	${MAKEFILE} \
+	${MAKE_SHELL} \
+	${SHELL} \
+	${SYS_MK_DIR} \
+
 
 .if ${UPDATE_DEPENDFILE:Uyes:tl} != "no"
 .if ${.MAKEFLAGS:Uno:M-k} != ""
@@ -154,12 +156,6 @@ dirdeps:
 # the first .MAIN: is what counts
 # by default dirdeps is all we want at level0
 .MAIN: dirdeps
-# tell dirdeps.mk what we want
-BUILD_AT_LEVEL0 = no
-.endif
-.if ${.TARGETS:Nall} == "" 
-# it works best if we do everything via sub-makes
-BUILD_AT_LEVEL0 ?= no
 .endif
 
 .endif

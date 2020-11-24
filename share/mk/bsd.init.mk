@@ -55,9 +55,13 @@ $xGRP=	${_gid}
 # - make install is used without other targets.  This is to avoid breaking
 #   things like 'make all install' or 'make foo install'.
 # - non-build targets are called
-.if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.LEVEL:U1} == 0 && \
-    ${BUILD_AT_LEVEL0:Uyes:tl} == "no" && !make(clean*) && !make(*clean)
+.if ${MK_DIRDEPS_BUILD} == "yes" && ${.MAKE.LEVEL} == 0
+# targets that are ok at level 0
+DIRDEPS_BUILD_LEVEL0_TARGETS += clean* destroy*
+M_ListToSkip?= O:u:S,^,N,:ts:
+.if ${.TARGETS:Uall:${DIRDEPS_BUILD_LEVEL0_TARGETS:${M_ListToSkip}}} != ""
 _SKIP_BUILD=	not building at level 0
+.endif
 .elif !empty(.MAKEFLAGS:M-V${_V_DO_BUILD}) || \
     ${.TARGETS:M*install*} == ${.TARGETS} || \
     ${.TARGETS:Mclean*} == ${.TARGETS} || \
