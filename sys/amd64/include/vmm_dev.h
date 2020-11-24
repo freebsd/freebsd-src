@@ -301,6 +301,7 @@ enum {
 	IOCNUM_MAP_PPTDEV_MMIO = 42,
 	IOCNUM_PPTDEV_MSI = 43,
 	IOCNUM_PPTDEV_MSIX = 44,
+	IOCNUM_PPTDEV_DISABLE_MSIX = 45,
 
 	/* statistics */
 	IOCNUM_VM_STATS = 50, 
@@ -413,6 +414,8 @@ enum {
 	_IOW('v', IOCNUM_PPTDEV_MSI, struct vm_pptdev_msi)
 #define	VM_PPTDEV_MSIX \
 	_IOW('v', IOCNUM_PPTDEV_MSIX, struct vm_pptdev_msix)
+#define	VM_PPTDEV_DISABLE_MSIX \
+	_IOW('v', IOCNUM_PPTDEV_DISABLE_MSIX, struct vm_pptdev)
 #define VM_INJECT_NMI \
 	_IOW('v', IOCNUM_INJECT_NMI, struct vm_nmi)
 #define	VM_STATS \

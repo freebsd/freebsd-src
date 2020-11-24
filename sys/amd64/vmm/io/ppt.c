@@ -518,6 +518,10 @@ ppt_setup_msi(struct vm *vm, int vcpu, int bus, int slot, int func,
 	if (ppt->vm != vm)		/* Make sure we own this device */
 		return (EBUSY);
 
+	/* Reject attempts to enable MSI while MSI-X is active. */
+	if (ppt->msix.num_msgs != 0 && numvec != 0)
+		return (EBUSY);
+
 	/* Free any allocated resources */
 	ppt_teardown_msi(ppt);
 
@@ -605,6 +609,10 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 	if (ppt == NULL)
 		return (ENOENT);
 	if (ppt->vm != vm)		/* Make sure we own this device */
+		return (EBUSY);
+
+	/* Reject attempts to enable MSI-X while MSI is active. */
+	if (ppt->msi.num_msgs != 0)
 		return (EBUSY);
 
 	dinfo = device_get_ivars(ppt->dev);
@@ -698,5 +706,20 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 		ppt_teardown_msix_intr(ppt, idx);
 	}
 
+	return (0);
+}
+
+int
+ppt_disable_msix(struct vm *vm, int bus, int slot, int func)
+{
+	struct pptdev *ppt;
+
+	ppt = ppt_find(bus, slot, func);
+	if (ppt == NULL)
+		return (ENOENT);
+	if (ppt->vm != vm)		/* Make sure we own this device */
+		return (EBUSY);
+
+	ppt_teardown_msix(ppt);
 	return (0);
 }

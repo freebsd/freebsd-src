@@ -514,6 +514,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 				       pptmsix->addr, pptmsix->msg,
 				       pptmsix->vector_control);
 		break;
+	case VM_PPTDEV_DISABLE_MSIX:
+		pptdev = (struct vm_pptdev *)data;
+		error = ppt_disable_msix(sc->vm, pptdev->bus, pptdev->slot,
+					 pptdev->func);
+		break;
 	case VM_MAP_PPTDEV_MMIO:
 		pptmmio = (struct vm_pptdev_mmio *)data;
 		error = ppt_map_mmio(sc->vm, pptmmio->bus, pptmmio->slot,
