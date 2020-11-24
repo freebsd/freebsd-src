@@ -207,7 +207,7 @@ might_bounce(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t paddr,
 {
 
 	/* Memory allocated by bounce_bus_dmamem_alloc won't bounce */
-	if ((map->flags & DMAMAP_FROM_DMAMEM) != 0)
+	if (map && (map->flags & DMAMAP_FROM_DMAMEM) != 0)
 		return (false);
 
 	if ((dmat->bounce_flags & BF_COULD_BOUNCE) != 0)
