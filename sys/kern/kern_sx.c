@@ -620,12 +620,6 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	if (SCHEDULER_STOPPED())
 		return (0);
 
-#if defined(ADAPTIVE_SX)
-	lock_delay_arg_init(&lda, &sx_delay);
-#elif defined(KDTRACE_HOOKS)
-	lock_delay_arg_init_noadapt(&lda);
-#endif
-
 	if (__predict_false(x == SX_LOCK_UNLOCKED))
 		x = SX_READ_VALUE(sx);
 
@@ -644,6 +638,12 @@ _sx_xlock_hard(struct sx *sx, uintptr_t x, int opts LOCK_FILE_LINE_ARG_DEF)
 	if (LOCK_LOG_TEST(&sx->lock_object, 0))
 		CTR5(KTR_LOCK, "%s: %s contested (lock=%p) at %s:%d", __func__,
 		    sx->lock_object.lo_name, (void *)sx->sx_lock, file, line);
+
+#if defined(ADAPTIVE_SX)
+	lock_delay_arg_init(&lda, &sx_delay);
+#elif defined(KDTRACE_HOOKS)
+	lock_delay_arg_init_noadapt(&lda);
+#endif
 
 #ifdef HWPMC_HOOKS
 	PMC_SOFT_CALL( , , lock, failed);
