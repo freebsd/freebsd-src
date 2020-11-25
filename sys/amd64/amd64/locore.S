@@ -36,8 +36,9 @@
 /*
  * Compiled KERNBASE location
  */
-	.globl	kernbase, loc_PTmap, loc_PDmap, loc_PDPmap, dmapbase, dmapend
+	.globl	kernbase, kernload, loc_PTmap, loc_PDmap, loc_PDPmap, dmapbase, dmapend
 	.set	kernbase,KERNBASE
+	.set    kernload,KERNLOAD
 	.set	dmapbase,DMAP_MIN_ADDRESS
 	.set	dmapend,DMAP_MAX_ADDRESS
 

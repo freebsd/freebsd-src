@@ -149,6 +149,14 @@
 #endif
 
 /*
+ * Kernel physical load address. Needs to be aligned at 2MB superpage
+ * boundary.
+ */
+#ifndef KERNLOAD
+#define	KERNLOAD	0x200000
+#endif
+
+/*
  * Virtual addresses of things.  Derived from the page directory and
  * page table indexes from pmap.h for precision.
  *
