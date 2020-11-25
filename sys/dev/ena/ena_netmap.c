@@ -1,5 +1,5 @@
 /*-
- * BSD LICENSE
+ * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
@@ -88,7 +88,7 @@ ena_netmap_attach(struct ena_adapter *adapter)
 {
 	struct netmap_adapter na;
 
-	ena_trace(ENA_NETMAP, "netmap attach\n");
+	ena_trace(NULL, ENA_NETMAP, "netmap attach\n");
 
 	bzero(&na, sizeof(na));
 	na.na_flags = NAF_MOREFRAG;
@@ -126,12 +126,12 @@ ena_netmap_alloc_rx_slot(struct ena_adapter *adapter,
 	nm_i = kring->nr_hwcur;
 	head = kring->rhead;
 
-	ena_trace(ENA_NETMAP | ENA_DBG, "nr_hwcur: %d, nr_hwtail: %d, "
+	ena_trace(NULL, ENA_NETMAP | ENA_DBG, "nr_hwcur: %d, nr_hwtail: %d, "
 	    "rhead: %d, rcur: %d, rtail: %d\n", kring->nr_hwcur,
 	    kring->nr_hwtail, kring->rhead, kring->rcur, kring->rtail);
 
 	if ((nm_i == head) && rx_ring->initialized) {
-		ena_trace(ENA_NETMAP, "No free slots in netmap ring\n");
+		ena_trace(NULL, ENA_NETMAP, "No free slots in netmap ring\n");
 		return (ENOMEM);
 	}
 
@@ -150,7 +150,7 @@ ena_netmap_alloc_rx_slot(struct ena_adapter *adapter,
 
 	rc = netmap_load_map(na, adapter->rx_buf_tag, rx_info->map, addr);
 	if (rc != 0) {
-		ena_trace(ENA_WARNING, "DMA mapping error\n");
+		ena_trace(NULL, ENA_WARNING, "DMA mapping error\n");
 		return (rc);
 	}
 	bus_dmamap_sync(adapter->rx_buf_tag, rx_info->map, BUS_DMASYNC_PREREAD);
@@ -210,7 +210,7 @@ ena_netmap_free_rx_slot(struct ena_adapter *adapter,
 
 	slot = &kring->ring->slot[nm_i];
 
-	ENA_ASSERT(slot->buf_idx == 0, "Overwrite slot buf\n");
+	ENA_WARN(slot->buf_idx != 0, NULL, "Overwrite slot buf\n");
 	slot->buf_idx = rx_info->netmap_buf_idx;
 	slot->flags = NS_BUF_CHANGED;
 
@@ -252,7 +252,7 @@ ena_netmap_reset_ring(struct ena_adapter *adapter, int qid, enum txrx x)
 		return;
 
 	netmap_reset(NA(adapter->ifp), x, qid, 0);
-	ena_trace(ENA_NETMAP, "%s ring %d is in netmap mode\n",
+	ena_trace(NULL, ENA_NETMAP, "%s ring %d is in netmap mode\n",
 	    (x == NR_TX) ? "Tx" : "Rx", qid);
 }
 
@@ -282,7 +282,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 	ena_down(adapter);
 
 	if (onoff) {
-		ena_trace(ENA_NETMAP, "netmap on\n");
+		ena_trace(NULL, ENA_NETMAP, "netmap on\n");
 		for_rx_tx(t) {
 			for (i = 0; i <= nma_get_nrings(na, t); i++) {
 				kring = NMR(na, t)[i];
@@ -293,7 +293,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 		}
 		nm_set_native_flags(na);
 	} else {
-		ena_trace(ENA_NETMAP, "netmap off\n");
+		ena_trace(NULL, ENA_NETMAP, "netmap off\n");
 		nm_clear_native_flags(na);
 		for_rx_tx(t) {
 			for (i = 0; i <= nma_get_nrings(na, t); i++) {
@@ -307,7 +307,7 @@ ena_netmap_reg(struct netmap_adapter *na, int onoff)
 
 	rc = ena_up(adapter);
 	if (rc != 0) {
-		ena_trace(ENA_WARNING, "ena_up failed with rc=%d\n", rc);
+		ena_trace(NULL, ENA_WARNING, "ena_up failed with rc=%d\n", rc);
 		adapter->reset_reason = ENA_REGS_RESET_DRIVER_INVALID_STATE;
 		nm_clear_native_flags(na);
 		ena_destroy_device(adapter, false);
@@ -401,7 +401,7 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 
 	adapter = ctx->adapter;
 	if (ena_netmap_count_slots(ctx) > adapter->max_tx_sgl_size) {
-		ena_trace(ENA_WARNING, "Too many slots per packet\n");
+		ena_trace(NULL, ENA_WARNING, "Too many slots per packet\n");
 		return (EINVAL);
 	}
 
@@ -438,7 +438,7 @@ ena_netmap_tx_frame(struct ena_netmap_ctx *ctx)
 	rc = ena_com_prepare_tx(ctx->io_sq, &ena_tx_ctx, &nb_hw_desc);
 	if (unlikely(rc != 0)) {
 		if (likely(rc == ENA_COM_NO_MEM)) {
-			ena_trace(ENA_NETMAP | ENA_DBG | ENA_TXPTH,
+			ena_trace(NULL, ENA_NETMAP | ENA_DBG | ENA_TXPTH,
 			    "Tx ring[%d] is out of space\n", tx_ring->que->id);
 		} else {
 			device_printf(adapter->pdev,
@@ -532,13 +532,13 @@ ena_netmap_map_single_slot(struct netmap_adapter *na, struct netmap_slot *slot,
 
 	*vaddr = PNMB(na, slot, paddr);
 	if (unlikely(vaddr == NULL)) {
-		ena_trace(ENA_ALERT, "Slot address is NULL\n");
+		ena_trace(NULL, ENA_ALERT, "Slot address is NULL\n");
 		return (EINVAL);
 	}
 
 	rc = netmap_load_map(na, dmatag, dmamap, *vaddr);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_ALERT, "Failed to map slot %d for DMA\n",
+		ena_trace(NULL, ENA_ALERT, "Failed to map slot %d for DMA\n",
 		    slot->buf_idx);
 		return (EINVAL);
 	}
@@ -626,7 +626,7 @@ ena_netmap_tx_map_slots(struct ena_netmap_ctx *ctx,
 			delta = push_len - slot_head_len;
 		}
 
-		ena_trace(ENA_NETMAP | ENA_DBG | ENA_TXPTH,
+		ena_trace(NULL, ENA_NETMAP | ENA_DBG | ENA_TXPTH,
 		    "slot: %d header_buf->vaddr: %p push_len: %d\n",
 		    slot->buf_idx, *push_hdr, push_len);
 
@@ -860,7 +860,7 @@ ena_netmap_tx_clean_one(struct ena_netmap_ctx *ctx, uint16_t req_id)
 	/* Next, retain the sockets back to the userspace */
 	for (n = 0; n < nm_info->sockets_used; n++) {
 		ctx->nm_i = nm_next(ctx->nm_i, ctx->lim);
-		ENA_ASSERT(ctx->slots[ctx->nm_i].buf_idx == 0,
+		ENA_WARN(ctx->slots[ctx->nm_i].buf_idx != 0, NULL,
 		    "Tx idx is not 0.\n");
 		ctx->slots[ctx->nm_i].buf_idx = nm_info->socket_buf_idx[n];
 		ctx->slots[ctx->nm_i].flags = NS_BUF_CHANGED;
@@ -882,7 +882,7 @@ validate_tx_req_id(struct ena_ring *tx_ring, uint16_t req_id)
 	if (likely(req_id < tx_ring->ring_size))
 		return (0);
 
-	ena_trace(ENA_WARNING, "Invalid req_id: %hu\n", req_id);
+	ena_trace(NULL, ENA_WARNING, "Invalid req_id: %hu\n", req_id);
 	counter_u64_add(tx_ring->tx_stats.bad_req_id, 1);
 
 	ena_trigger_reset(adapter, ENA_REGS_RESET_INV_TX_REQ_ID);
@@ -949,6 +949,7 @@ static inline int
 ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 {
 	struct ena_com_rx_ctx ena_rx_ctx;
+	enum ena_regs_reset_reason_types reset_reason;
 	int rc, len = 0;
 	uint16_t buf, nm;
 
@@ -959,16 +960,22 @@ ena_netmap_rx_frame(struct ena_netmap_ctx *ctx)
 
 	rc = ena_com_rx_pkt(ctx->io_cq, ctx->io_sq, &ena_rx_ctx);
 	if (unlikely(rc != 0)) {
-		ena_trace(ENA_ALERT, "Too many desc from the device.\n");
-		counter_u64_add(ctx->ring->rx_stats.bad_desc_num, 1);
-		ena_trigger_reset(ctx->adapter,
-		    ENA_REGS_RESET_TOO_MANY_RX_DESCS);
+		ena_trace(NULL, ENA_ALERT,
+		    "Failed to read pkt from the device with error: %d\n", rc);
+		if (rc == ENA_COM_NO_SPACE) {
+			counter_u64_add(ctx->ring->rx_stats.bad_desc_num, 1);
+			reset_reason = ENA_REGS_RESET_TOO_MANY_RX_DESCS;
+		} else {
+			counter_u64_add(ctx->ring->rx_stats.bad_req_id, 1);
+			reset_reason = ENA_REGS_RESET_INV_RX_REQ_ID;
+		}
+		ena_trigger_reset(ctx->adapter, reset_reason);
 		return (rc);
 	}
 	if (unlikely(ena_rx_ctx.descs == 0))
 		return (ENA_NETMAP_NO_MORE_FRAMES);
 
-        ena_trace(ENA_NETMAP | ENA_DBG, "Rx: q %d got packet from ena. descs #:"
+        ena_trace(NULL, ENA_NETMAP | ENA_DBG, "Rx: q %d got packet from ena. descs #:"
 	    " %d l3 proto %d l4 proto %d hash: %x\n", ctx->ring->qid,
 	    ena_rx_ctx.descs, ena_rx_ctx.l3_proto, ena_rx_ctx.l4_proto,
 	    ena_rx_ctx.hash);
@@ -1017,19 +1024,15 @@ ena_netmap_rx_load_desc(struct ena_netmap_ctx *ctx, uint16_t buf, int *len)
 {
 	struct ena_rx_buffer *rx_info;
 	uint16_t req_id;
-	int rc;
 
 	req_id = ctx->ring->ena_bufs[buf].req_id;
-	rc = validate_rx_req_id(ctx->ring, req_id);
-	if (unlikely(rc != 0))
-		return (rc);
-
 	rx_info = &ctx->ring->rx_buffer_info[req_id];
 	bus_dmamap_sync(ctx->adapter->rx_buf_tag, rx_info->map,
 	    BUS_DMASYNC_POSTREAD);
 	netmap_unload_map(ctx->na, ctx->adapter->rx_buf_tag, rx_info->map);
 
-	ENA_ASSERT(ctx->slots[ctx->nm_i].buf_idx == 0, "Rx idx is not 0.\n");
+	ENA_WARN(ctx->slots[ctx->nm_i].buf_idx != 0, NULL,
+	    "Rx idx is not 0.\n");
 
 	ctx->slots[ctx->nm_i].buf_idx = rx_info->netmap_buf_idx;
 	rx_info->netmap_buf_idx = 0;
@@ -1041,7 +1044,7 @@ ena_netmap_rx_load_desc(struct ena_netmap_ctx *ctx, uint16_t buf, int *len)
 	ctx->slots[ctx->nm_i].len = ctx->ring->ena_bufs[buf].len;
 	*len += ctx->slots[ctx->nm_i].len;
 	ctx->ring->free_rx_ids[ctx->nt] = req_id;
-	ena_trace(ENA_DBG, "rx_info %p, buf_idx %d, paddr %jx, nm: %d\n",
+	ena_trace(NULL, ENA_DBG, "rx_info %p, buf_idx %d, paddr %jx, nm: %d\n",
 	    rx_info, ctx->slots[ctx->nm_i].buf_idx,
 	    (uintmax_t)rx_info->ena_buf.paddr, ctx->nm_i);
 

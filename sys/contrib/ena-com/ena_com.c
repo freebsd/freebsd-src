@@ -1,5 +1,5 @@
 /*-
- * BSD LICENSE
+ * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 2015-2020 Amazon.com, Inc. or its affiliates.
  * All rights reserved.
@@ -70,9 +70,9 @@
 
 #define ENA_REGS_ADMIN_INTR_MASK 1
 
-#define ENA_MIN_POLL_US 100
+#define ENA_MIN_ADMIN_POLL_US 100
 
-#define ENA_MAX_POLL_US 5000
+#define ENA_MAX_ADMIN_POLL_US 5000
 
 /*****************************************************************************/
 /*****************************************************************************/
@@ -106,7 +106,7 @@ static int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
 				       dma_addr_t addr)
 {
 	if ((addr & GENMASK_ULL(ena_dev->dma_addr_bits - 1, 0)) != addr) {
-		ena_trc_err("dma address has more bits that the device supports\n");
+		ena_trc_err(ena_dev, "DMA address has more bits that the device supports\n");
 		return ENA_COM_INVAL;
 	}
 
@@ -116,16 +116,17 @@ static int ena_com_mem_addr_set(struct ena_com_dev *ena_dev,
 	return 0;
 }
 
-static int ena_com_admin_init_sq(struct ena_com_admin_queue *queue)
+static int ena_com_admin_init_sq(struct ena_com_admin_queue *admin_queue)
 {
-	struct ena_com_admin_sq *sq = &queue->sq;
-	u16 size = ADMIN_SQ_SIZE(queue->q_depth);
+	struct ena_com_dev *ena_dev = admin_queue->ena_dev;
+	struct ena_com_admin_sq *sq = &admin_queue->sq;
+	u16 size = ADMIN_SQ_SIZE(admin_queue->q_depth);
 
-	ENA_MEM_ALLOC_COHERENT(queue->q_dmadev, size, sq->entries, sq->dma_addr,
+	ENA_MEM_ALLOC_COHERENT(admin_queue->q_dmadev, size, sq->entries, sq->dma_addr,
 			       sq->mem_handle);
 
 	if (!sq->entries) {
-		ena_trc_err("memory allocation failed\n");
+		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
 
@@ -138,16 +139,17 @@ static int ena_com_admin_init_sq(struct ena_com_admin_queue *queue)
 	return 0;
 }
 
-static int ena_com_admin_init_cq(struct ena_com_admin_queue *queue)
+static int ena_com_admin_init_cq(struct ena_com_admin_queue *admin_queue)
 {
-	struct ena_com_admin_cq *cq = &queue->cq;
-	u16 size = ADMIN_CQ_SIZE(queue->q_depth);
+	struct ena_com_dev *ena_dev = admin_queue->ena_dev;
+	struct ena_com_admin_cq *cq = &admin_queue->cq;
+	u16 size = ADMIN_CQ_SIZE(admin_queue->q_depth);
 
-	ENA_MEM_ALLOC_COHERENT(queue->q_dmadev, size, cq->entries, cq->dma_addr,
+	ENA_MEM_ALLOC_COHERENT(admin_queue->q_dmadev, size, cq->entries, cq->dma_addr,
 			       cq->mem_handle);
 
 	if (!cq->entries)  {
-		ena_trc_err("memory allocation failed\n");
+		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
 
@@ -157,22 +159,22 @@ static int ena_com_admin_init_cq(struct ena_com_admin_queue *queue)
 	return 0;
 }
 
-static int ena_com_admin_init_aenq(struct ena_com_dev *dev,
+static int ena_com_admin_init_aenq(struct ena_com_dev *ena_dev,
 				   struct ena_aenq_handlers *aenq_handlers)
 {
-	struct ena_com_aenq *aenq = &dev->aenq;
+	struct ena_com_aenq *aenq = &ena_dev->aenq;
 	u32 addr_low, addr_high, aenq_caps;
 	u16 size;
 
-	dev->aenq.q_depth = ENA_ASYNC_QUEUE_DEPTH;
+	ena_dev->aenq.q_depth = ENA_ASYNC_QUEUE_DEPTH;
 	size = ADMIN_AENQ_SIZE(ENA_ASYNC_QUEUE_DEPTH);
-	ENA_MEM_ALLOC_COHERENT(dev->dmadev, size,
+	ENA_MEM_ALLOC_COHERENT(ena_dev->dmadev, size,
 			aenq->entries,
 			aenq->dma_addr,
 			aenq->mem_handle);
 
 	if (!aenq->entries) {
-		ena_trc_err("memory allocation failed\n");
+		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
 
@@ -182,18 +184,18 @@ static int ena_com_admin_init_aenq(struct ena_com_dev *dev,
 	addr_low = ENA_DMA_ADDR_TO_UINT32_LOW(aenq->dma_addr);
 	addr_high = ENA_DMA_ADDR_TO_UINT32_HIGH(aenq->dma_addr);
 
-	ENA_REG_WRITE32(dev->bus, addr_low, dev->reg_bar + ENA_REGS_AENQ_BASE_LO_OFF);
-	ENA_REG_WRITE32(dev->bus, addr_high, dev->reg_bar + ENA_REGS_AENQ_BASE_HI_OFF);
+	ENA_REG_WRITE32(ena_dev->bus, addr_low, ena_dev->reg_bar + ENA_REGS_AENQ_BASE_LO_OFF);
+	ENA_REG_WRITE32(ena_dev->bus, addr_high, ena_dev->reg_bar + ENA_REGS_AENQ_BASE_HI_OFF);
 
 	aenq_caps = 0;
-	aenq_caps |= dev->aenq.q_depth & ENA_REGS_AENQ_CAPS_AENQ_DEPTH_MASK;
+	aenq_caps |= ena_dev->aenq.q_depth & ENA_REGS_AENQ_CAPS_AENQ_DEPTH_MASK;
 	aenq_caps |= (sizeof(struct ena_admin_aenq_entry) <<
 		ENA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_SHIFT) &
 		ENA_REGS_AENQ_CAPS_AENQ_ENTRY_SIZE_MASK;
-	ENA_REG_WRITE32(dev->bus, aenq_caps, dev->reg_bar + ENA_REGS_AENQ_CAPS_OFF);
+	ENA_REG_WRITE32(ena_dev->bus, aenq_caps, ena_dev->reg_bar + ENA_REGS_AENQ_CAPS_OFF);
 
 	if (unlikely(!aenq_handlers)) {
-		ena_trc_err("aenq handlers pointer is NULL\n");
+		ena_trc_err(ena_dev, "AENQ handlers pointer is NULL\n");
 		return ENA_COM_INVAL;
 	}
 
@@ -209,31 +211,34 @@ static void comp_ctxt_release(struct ena_com_admin_queue *queue,
 	ATOMIC32_DEC(&queue->outstanding_cmds);
 }
 
-static struct ena_comp_ctx *get_comp_ctxt(struct ena_com_admin_queue *queue,
+static struct ena_comp_ctx *get_comp_ctxt(struct ena_com_admin_queue *admin_queue,
 					  u16 command_id, bool capture)
 {
-	if (unlikely(command_id >= queue->q_depth)) {
-		ena_trc_err("command id is larger than the queue size. cmd_id: %u queue size %d\n",
-			    command_id, queue->q_depth);
+	if (unlikely(command_id >= admin_queue->q_depth)) {
+		ena_trc_err(admin_queue->ena_dev,
+			    "Command id is larger than the queue size. cmd_id: %u queue size %d\n",
+			    command_id, admin_queue->q_depth);
 		return NULL;
 	}
 
-	if (unlikely(!queue->comp_ctx)) {
-		ena_trc_err("Completion context is NULL\n");
+	if (unlikely(!admin_queue->comp_ctx)) {
+		ena_trc_err(admin_queue->ena_dev,
+			    "Completion context is NULL\n");
 		return NULL;
 	}
 
-	if (unlikely(queue->comp_ctx[command_id].occupied && capture)) {
-		ena_trc_err("Completion context is occupied\n");
+	if (unlikely(admin_queue->comp_ctx[command_id].occupied && capture)) {
+		ena_trc_err(admin_queue->ena_dev,
+			    "Completion context is occupied\n");
 		return NULL;
 	}
 
 	if (capture) {
-		ATOMIC32_INC(&queue->outstanding_cmds);
-		queue->comp_ctx[command_id].occupied = true;
+		ATOMIC32_INC(&admin_queue->outstanding_cmds);
+		admin_queue->comp_ctx[command_id].occupied = true;
 	}
 
-	return &queue->comp_ctx[command_id];
+	return &admin_queue->comp_ctx[command_id];
 }
 
 static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queue *admin_queue,
@@ -254,7 +259,7 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 	/* In case of queue FULL */
 	cnt = (u16)ATOMIC32_READ(&admin_queue->outstanding_cmds);
 	if (cnt >= admin_queue->q_depth) {
-		ena_trc_dbg("admin queue is full.\n");
+		ena_trc_dbg(admin_queue->ena_dev, "Admin queue is full.\n");
 		admin_queue->stats.out_of_space++;
 		return ERR_PTR(ENA_COM_NO_SPACE);
 	}
@@ -296,20 +301,21 @@ static struct ena_comp_ctx *__ena_com_submit_admin_cmd(struct ena_com_admin_queu
 	return comp_ctx;
 }
 
-static int ena_com_init_comp_ctxt(struct ena_com_admin_queue *queue)
+static int ena_com_init_comp_ctxt(struct ena_com_admin_queue *admin_queue)
 {
-	size_t size = queue->q_depth * sizeof(struct ena_comp_ctx);
+	struct ena_com_dev *ena_dev = admin_queue->ena_dev;
+	size_t size = admin_queue->q_depth * sizeof(struct ena_comp_ctx);
 	struct ena_comp_ctx *comp_ctx;
 	u16 i;
 
-	queue->comp_ctx = ENA_MEM_ALLOC(queue->q_dmadev, size);
-	if (unlikely(!queue->comp_ctx)) {
-		ena_trc_err("memory allocation failed\n");
+	admin_queue->comp_ctx = ENA_MEM_ALLOC(admin_queue->q_dmadev, size);
+	if (unlikely(!admin_queue->comp_ctx)) {
+		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
 
-	for (i = 0; i < queue->q_depth; i++) {
-		comp_ctx = get_comp_ctxt(queue, i, false);
+	for (i = 0; i < admin_queue->q_depth; i++) {
+		comp_ctx = get_comp_ctxt(admin_queue, i, false);
 		if (comp_ctx)
 			ENA_WAIT_EVENT_INIT(comp_ctx->wait_event);
 	}
@@ -377,7 +383,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 		}
 
 		if (!io_sq->desc_addr.virt_addr) {
-			ena_trc_err("memory allocation failed\n");
+			ena_trc_err(ena_dev, "Memory allocation failed\n");
 			return ENA_COM_NO_MEM;
 		}
 	}
@@ -402,7 +408,7 @@ static int ena_com_init_io_sq(struct ena_com_dev *ena_dev,
 			io_sq->bounce_buf_ctrl.base_buffer = ENA_MEM_ALLOC(ena_dev->dmadev, size);
 
 		if (!io_sq->bounce_buf_ctrl.base_buffer) {
-			ena_trc_err("bounce buffer memory allocation failed\n");
+			ena_trc_err(ena_dev, "Bounce buffer memory allocation failed\n");
 			return ENA_COM_NO_MEM;
 		}
 
@@ -449,23 +455,25 @@ static int ena_com_init_io_cq(struct ena_com_dev *ena_dev,
 	size = io_cq->cdesc_entry_size_in_bytes * io_cq->q_depth;
 	io_cq->bus = ena_dev->bus;
 
-	ENA_MEM_ALLOC_COHERENT_NODE(ena_dev->dmadev,
-			size,
-			io_cq->cdesc_addr.virt_addr,
-			io_cq->cdesc_addr.phys_addr,
-			io_cq->cdesc_addr.mem_handle,
-			ctx->numa_node,
-			prev_node);
+	ENA_MEM_ALLOC_COHERENT_NODE_ALIGNED(ena_dev->dmadev,
+					    size,
+					    io_cq->cdesc_addr.virt_addr,
+					    io_cq->cdesc_addr.phys_addr,
+					    io_cq->cdesc_addr.mem_handle,
+					    ctx->numa_node,
+					    prev_node,
+					    ENA_CDESC_RING_SIZE_ALIGNMENT);
 	if (!io_cq->cdesc_addr.virt_addr) {
-		ENA_MEM_ALLOC_COHERENT(ena_dev->dmadev,
-				       size,
-				       io_cq->cdesc_addr.virt_addr,
-				       io_cq->cdesc_addr.phys_addr,
-				       io_cq->cdesc_addr.mem_handle);
+		ENA_MEM_ALLOC_COHERENT_ALIGNED(ena_dev->dmadev,
+					       size,
+					       io_cq->cdesc_addr.virt_addr,
+					       io_cq->cdesc_addr.phys_addr,
+					       io_cq->cdesc_addr.mem_handle,
+					       ENA_CDESC_RING_SIZE_ALIGNMENT);
 	}
 
 	if (!io_cq->cdesc_addr.virt_addr) {
-		ena_trc_err("memory allocation failed\n");
+		ena_trc_err(ena_dev, "Memory allocation failed\n");
 		return ENA_COM_NO_MEM;
 	}
 
@@ -486,7 +494,8 @@ static void ena_com_handle_single_admin_completion(struct ena_com_admin_queue *a
 
 	comp_ctx = get_comp_ctxt(admin_queue, cmd_id, false);
 	if (unlikely(!comp_ctx)) {
-		ena_trc_err("comp_ctx is NULL. Changing the admin queue running state\n");
+		ena_trc_err(admin_queue->ena_dev,
+			    "comp_ctx is NULL. Changing the admin queue running state\n");
 		admin_queue->running_state = false;
 		return;
 	}
@@ -538,10 +547,12 @@ static void ena_com_handle_admin_completion(struct ena_com_admin_queue *admin_qu
 	admin_queue->stats.completed_cmd += comp_num;
 }
 
-static int ena_com_comp_status_to_errno(u8 comp_status)
+static int ena_com_comp_status_to_errno(struct ena_com_admin_queue *admin_queue,
+					u8 comp_status)
 {
 	if (unlikely(comp_status != 0))
-		ena_trc_err("admin command failed[%u]\n", comp_status);
+		ena_trc_err(admin_queue->ena_dev,
+			    "Admin command failed[%u]\n", comp_status);
 
 	switch (comp_status) {
 	case ENA_ADMIN_SUCCESS:
@@ -555,15 +566,17 @@ static int ena_com_comp_status_to_errno(u8 comp_status)
 	case ENA_ADMIN_ILLEGAL_PARAMETER:
 	case ENA_ADMIN_UNKNOWN_ERROR:
 		return ENA_COM_INVAL;
+	case ENA_ADMIN_RESOURCE_BUSY:
+		return ENA_COM_TRY_AGAIN;
 	}
 
 	return ENA_COM_INVAL;
 }
 
-static inline void ena_delay_exponential_backoff_us(u32 exp, u32 delay_us)
+static void ena_delay_exponential_backoff_us(u32 exp, u32 delay_us)
 {
-	delay_us = ENA_MAX32(ENA_MIN_POLL_US, delay_us);
-	delay_us = ENA_MIN32(delay_us * (1 << exp), ENA_MAX_POLL_US);
+	delay_us = ENA_MAX32(ENA_MIN_ADMIN_POLL_US, delay_us);
+	delay_us = ENA_MIN32(delay_us * (1U << exp), ENA_MAX_ADMIN_POLL_US);
 	ENA_USLEEP(delay_us);
 }
 
@@ -586,7 +599,8 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 			break;
 
 		if (ENA_TIME_EXPIRE(timeout)) {
-			ena_trc_err("Wait for completion (polling) timeout\n");
+			ena_trc_err(admin_queue->ena_dev,
+				    "Wait for completion (polling) timeout\n");
 			/* ENA didn't have any completion */
 			ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
 			admin_queue->stats.no_completion++;
@@ -597,11 +611,12 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 			goto err;
 		}
 
-		ena_delay_exponential_backoff_us(exp++, admin_queue->ena_dev->ena_min_poll_delay_us);
+		ena_delay_exponential_backoff_us(exp++,
+						 admin_queue->ena_dev->ena_min_poll_delay_us);
 	}
 
 	if (unlikely(comp_ctx->status == ENA_CMD_ABORTED)) {
-		ena_trc_err("Command was aborted\n");
+		ena_trc_err(admin_queue->ena_dev, "Command was aborted\n");
 		ENA_SPINLOCK_LOCK(admin_queue->q_lock, flags);
 		admin_queue->stats.aborted_cmd++;
 		ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
@@ -610,15 +625,16 @@ static int ena_com_wait_and_process_admin_cq_polling(struct ena_comp_ctx *comp_c
 	}
 
 	ENA_WARN(comp_ctx->status != ENA_CMD_COMPLETED,
-		 "Invalid comp status %d\n", comp_ctx->status);
+		 admin_queue->ena_dev, "Invalid comp status %d\n",
+		 comp_ctx->status);
 
-	ret = ena_com_comp_status_to_errno(comp_ctx->comp_status);
+	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
 err:
 	comp_ctxt_release(admin_queue, comp_ctx);
 	return ret;
 }
 
-/**
+/*
  * Set the LLQ configurations of the firmware
  *
  * The driver provides only the enabled feature values to the device,
@@ -643,13 +659,9 @@ static int ena_com_set_llq(struct ena_com_dev *ena_dev)
 	cmd.u.llq.desc_num_before_header_enabled = llq_info->descs_num_before_header;
 	cmd.u.llq.descriptors_stride_ctrl_enabled = llq_info->desc_stride_ctrl;
 
-	if (llq_info->disable_meta_caching)
-		cmd.u.llq.accel_mode.u.set.enabled_flags |=
-			BIT(ENA_ADMIN_DISABLE_META_CACHING);
-
-	if (llq_info->max_entries_in_tx_burst)
-		cmd.u.llq.accel_mode.u.set.enabled_flags |=
-			BIT(ENA_ADMIN_LIMIT_TX_BURST);
+	cmd.u.llq.accel_mode.u.set.enabled_flags =
+		BIT(ENA_ADMIN_DISABLE_META_CACHING) |
+		BIT(ENA_ADMIN_LIMIT_TX_BURST);
 
 	ret = ena_com_execute_admin_command(admin_queue,
 					    (struct ena_admin_aq_entry *)&cmd,
@@ -658,7 +670,7 @@ static int ena_com_set_llq(struct ena_com_dev *ena_dev)
 					    sizeof(resp));
 
 	if (unlikely(ret))
-		ena_trc_err("Failed to set LLQ configurations: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to set LLQ configurations: %d\n", ret);
 
 	return ret;
 }
@@ -668,6 +680,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 				   struct ena_llq_configurations *llq_default_cfg)
 {
 	struct ena_com_llq_info *llq_info = &ena_dev->llq_info;
+	struct ena_admin_accel_mode_get llq_accel_mode_get;
 	u16 supported_feat;
 	int rc;
 
@@ -679,7 +692,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 		llq_info->header_location_ctrl =
 			llq_default_cfg->llq_header_location;
 	} else {
-		ena_trc_err("Invalid header location control, supported: 0x%x\n",
+		ena_trc_err(ena_dev, "Invalid header location control, supported: 0x%x\n",
 			    supported_feat);
 		return -EINVAL;
 	}
@@ -694,12 +707,12 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 			} else if (supported_feat & ENA_ADMIN_SINGLE_DESC_PER_ENTRY) {
 				llq_info->desc_stride_ctrl = ENA_ADMIN_SINGLE_DESC_PER_ENTRY;
 			} else {
-				ena_trc_err("Invalid desc_stride_ctrl, supported: 0x%x\n",
+				ena_trc_err(ena_dev, "Invalid desc_stride_ctrl, supported: 0x%x\n",
 					    supported_feat);
 				return -EINVAL;
 			}
 
-			ena_trc_err("Default llq stride ctrl is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+			ena_trc_err(ena_dev, "Default llq stride ctrl is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
 				    llq_default_cfg->llq_stride_ctrl,
 				    supported_feat,
 				    llq_info->desc_stride_ctrl);
@@ -723,11 +736,12 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 			llq_info->desc_list_entry_size_ctrl = ENA_ADMIN_LIST_ENTRY_SIZE_256B;
 			llq_info->desc_list_entry_size = 256;
 		} else {
-			ena_trc_err("Invalid entry_size_ctrl, supported: 0x%x\n", supported_feat);
+			ena_trc_err(ena_dev, "Invalid entry_size_ctrl, supported: 0x%x\n",
+				    supported_feat);
 			return -EINVAL;
 		}
 
-		ena_trc_err("Default llq ring entry size is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+		ena_trc_err(ena_dev, "Default llq ring entry size is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
 			    llq_default_cfg->llq_ring_entry_size,
 			    supported_feat,
 			    llq_info->desc_list_entry_size);
@@ -736,7 +750,7 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 		/* The desc list entry size should be whole multiply of 8
 		 * This requirement comes from __iowrite64_copy()
 		 */
-		ena_trc_err("illegal entry size %d\n",
+		ena_trc_err(ena_dev, "Illegal entry size %d\n",
 			    llq_info->desc_list_entry_size);
 		return -EINVAL;
 	}
@@ -760,29 +774,31 @@ static int ena_com_config_llq_info(struct ena_com_dev *ena_dev,
 		} else if (supported_feat & ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_8) {
 			llq_info->descs_num_before_header = ENA_ADMIN_LLQ_NUM_DESCS_BEFORE_HEADER_8;
 		} else {
-			ena_trc_err("Invalid descs_num_before_header, supported: 0x%x\n",
+			ena_trc_err(ena_dev, "Invalid descs_num_before_header, supported: 0x%x\n",
 				    supported_feat);
 			return -EINVAL;
 		}
 
-		ena_trc_err("Default llq num descs before header is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
+		ena_trc_err(ena_dev, "Default llq num descs before header is not supported, performing fallback, default: 0x%x, supported: 0x%x, used: 0x%x\n",
 			    llq_default_cfg->llq_num_decs_before_header,
 			    supported_feat,
 			    llq_info->descs_num_before_header);
 	}
 	/* Check for accelerated queue supported */
-	llq_info->disable_meta_caching =
-		llq_features->accel_mode.u.get.supported_flags &
-		BIT(ENA_ADMIN_DISABLE_META_CACHING);
+	llq_accel_mode_get = llq_features->accel_mode.u.get;
 
-	if (llq_features->accel_mode.u.get.supported_flags & BIT(ENA_ADMIN_LIMIT_TX_BURST))
+	llq_info->disable_meta_caching =
+		!!(llq_accel_mode_get.supported_flags &
+		   BIT(ENA_ADMIN_DISABLE_META_CACHING));
+
+	if (llq_accel_mode_get.supported_flags & BIT(ENA_ADMIN_LIMIT_TX_BURST))
 		llq_info->max_entries_in_tx_burst =
-			llq_features->accel_mode.u.get.max_tx_burst_size /
+			llq_accel_mode_get.max_tx_burst_size /
 			llq_default_cfg->llq_ring_entry_size_value;
 
 	rc = ena_com_set_llq(ena_dev);
 	if (rc)
-		ena_trc_err("Cannot set LLQ configuration: %d\n", rc);
+		ena_trc_err(ena_dev, "Cannot set LLQ configuration: %d\n", rc);
 
 	return rc;
 }
@@ -808,13 +824,15 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		ENA_SPINLOCK_UNLOCK(admin_queue->q_lock, flags);
 
 		if (comp_ctx->status == ENA_CMD_COMPLETED) {
-			ena_trc_err("The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
+			ena_trc_err(admin_queue->ena_dev,
+				    "The ena device sent a completion but the driver didn't receive a MSI-X interrupt (cmd %d), autopolling mode is %s\n",
 				    comp_ctx->cmd_opcode, admin_queue->auto_polling ? "ON" : "OFF");
 			/* Check if fallback to polling is enabled */
 			if (admin_queue->auto_polling)
 				admin_queue->polling = true;
 		} else {
-			ena_trc_err("The ena device didn't send a completion for the admin cmd %d status %d\n",
+			ena_trc_err(admin_queue->ena_dev,
+				    "The ena device didn't send a completion for the admin cmd %d status %d\n",
 				    comp_ctx->cmd_opcode, comp_ctx->status);
 		}
 		/* Check if shifted to polling mode.
@@ -828,7 +846,7 @@ static int ena_com_wait_and_process_admin_cq_interrupts(struct ena_comp_ctx *com
 		}
 	}
 
-	ret = ena_com_comp_status_to_errno(comp_ctx->comp_status);
+	ret = ena_com_comp_status_to_errno(admin_queue, comp_ctx->comp_status);
 err:
 	comp_ctxt_release(admin_queue, comp_ctx);
 	return ret;
@@ -876,7 +894,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	}
 
 	if (unlikely(i == timeout)) {
-		ena_trc_err("reading reg failed for timeout. expected: req id[%hu] offset[%hu] actual: req id[%hu] offset[%hu]\n",
+		ena_trc_err(ena_dev, "Reading reg failed for timeout. expected: req id[%hu] offset[%hu] actual: req id[%hu] offset[%hu]\n",
 			    mmio_read->seq_num,
 			    offset,
 			    read_resp->req_id,
@@ -886,7 +904,7 @@ static u32 ena_com_reg_bar_read32(struct ena_com_dev *ena_dev, u16 offset)
 	}
 
 	if (read_resp->reg_off != offset) {
-		ena_trc_err("Read failure: wrong offset provided\n");
+		ena_trc_err(ena_dev, "Read failure: wrong offset provided\n");
 		ret = ENA_MMIO_READ_TIMEOUT;
 	} else {
 		ret = read_resp->reg_val;
@@ -945,7 +963,7 @@ static int ena_com_destroy_io_sq(struct ena_com_dev *ena_dev,
 					    sizeof(destroy_resp));
 
 	if (unlikely(ret && (ret != ENA_COM_NO_DEVICE)))
-		ena_trc_err("failed to destroy io sq error: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to destroy io sq error: %d\n", ret);
 
 	return ret;
 }
@@ -1001,7 +1019,7 @@ static int wait_for_reset_state(struct ena_com_dev *ena_dev, u32 timeout,
 		val = ena_com_reg_bar_read32(ena_dev, ENA_REGS_DEV_STS_OFF);
 
 		if (unlikely(val == ENA_MMIO_READ_TIMEOUT)) {
-			ena_trc_err("Reg read timeout occurred\n");
+			ena_trc_err(ena_dev, "Reg read timeout occurred\n");
 			return ENA_COM_TIMER_EXPIRED;
 		}
 
@@ -1041,7 +1059,7 @@ static int ena_com_get_feature_ex(struct ena_com_dev *ena_dev,
 	int ret;
 
 	if (!ena_com_check_supported_feature_id(ena_dev, feature_id)) {
-		ena_trc_dbg("Feature %d isn't supported\n", feature_id);
+		ena_trc_dbg(ena_dev, "Feature %d isn't supported\n", feature_id);
 		return ENA_COM_UNSUPPORTED;
 	}
 
@@ -1060,7 +1078,7 @@ static int ena_com_get_feature_ex(struct ena_com_dev *ena_dev,
 				   &get_cmd.control_buffer.address,
 				   control_buf_dma_addr);
 	if (unlikely(ret)) {
-		ena_trc_err("memory address set failed\n");
+		ena_trc_err(ena_dev, "Memory address set failed\n");
 		return ret;
 	}
 
@@ -1077,7 +1095,7 @@ static int ena_com_get_feature_ex(struct ena_com_dev *ena_dev,
 					    sizeof(*get_resp));
 
 	if (unlikely(ret))
-		ena_trc_err("Failed to submit get_feature command %d error: %d\n",
+		ena_trc_err(ena_dev, "Failed to submit get_feature command %d error: %d\n",
 			    feature_id, ret);
 
 	return ret;
@@ -1108,13 +1126,9 @@ static void ena_com_hash_key_fill_default_key(struct ena_com_dev *ena_dev)
 
 	ENA_RSS_FILL_KEY(&hash_key->key, sizeof(hash_key->key));
 	/* The key buffer is stored in the device in an array of
-	 * uint32 elements. Therefore the number of elements can be derived
-	 * by dividing the buffer length by the size of each array element.
-	 * In current implementation each element is sized at uint32_t
-	 * so it's actually a division by 4 but if the element size changes,
-	 * there is no need to rewrite this code.
+	 * uint32 elements.
 	 */
-	hash_key->keys_num = sizeof(hash_key->key) / sizeof(hash_key->key[0]);
+	hash_key->key_parts = ENA_ADMIN_RSS_KEY_PARTS;
 }
 
 static int ena_com_hash_key_allocate(struct ena_com_dev *ena_dev)
@@ -1187,13 +1201,13 @@ static int ena_com_indirect_table_allocate(struct ena_com_dev *ena_dev,
 	int ret;
 
 	ret = ena_com_get_feature(ena_dev, &get_resp,
-				  ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG, 0);
+				  ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG, 0);
 	if (unlikely(ret))
 		return ret;
 
 	if ((get_resp.u.ind_table.min_size > log_size) ||
 	    (get_resp.u.ind_table.max_size < log_size)) {
-		ena_trc_err("indirect table size doesn't fit. requested size: %d while min is:%d and max %d\n",
+		ena_trc_err(ena_dev, "Indirect table size doesn't fit. requested size: %d while min is:%d and max %d\n",
 			    1 << log_size,
 			    1 << get_resp.u.ind_table.min_size,
 			    1 << get_resp.u.ind_table.max_size);
@@ -1297,7 +1311,7 @@ static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
 					   &create_cmd.sq_ba,
 					   io_sq->desc_addr.phys_addr);
 		if (unlikely(ret)) {
-			ena_trc_err("memory address set failed\n");
+			ena_trc_err(ena_dev, "Memory address set failed\n");
 			return ret;
 		}
 	}
@@ -1308,7 +1322,7 @@ static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
 					    (struct ena_admin_acq_entry *)&cmd_completion,
 					    sizeof(cmd_completion));
 	if (unlikely(ret)) {
-		ena_trc_err("Failed to create IO SQ. error: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to create IO SQ. error: %d\n", ret);
 		return ret;
 	}
 
@@ -1326,7 +1340,7 @@ static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
 			cmd_completion.llq_descriptors_offset);
 	}
 
-	ena_trc_dbg("created sq[%u], depth[%u]\n", io_sq->idx, io_sq->q_depth);
+	ena_trc_dbg(ena_dev, "Created sq[%u], depth[%u]\n", io_sq->idx, io_sq->q_depth);
 
 	return ret;
 }
@@ -1360,7 +1374,7 @@ static void ena_com_update_intr_delay_resolution(struct ena_com_dev *ena_dev,
 	u16 prev_intr_delay_resolution = ena_dev->intr_delay_resolution;
 
 	if (unlikely(!intr_delay_resolution)) {
-		ena_trc_err("Illegal intr_delay_resolution provided. Going to use default 1 usec resolution\n");
+		ena_trc_err(ena_dev, "Illegal intr_delay_resolution provided. Going to use default 1 usec resolution\n");
 		intr_delay_resolution = ENA_DEFAULT_INTR_DELAY_RESOLUTION;
 	}
 
@@ -1396,23 +1410,25 @@ int ena_com_execute_admin_command(struct ena_com_admin_queue *admin_queue,
 					    comp, comp_size);
 	if (IS_ERR(comp_ctx)) {
 		if (comp_ctx == ERR_PTR(ENA_COM_NO_DEVICE))
-			ena_trc_dbg("Failed to submit command [%ld]\n",
+			ena_trc_dbg(admin_queue->ena_dev,
+				    "Failed to submit command [%ld]\n",
 				    PTR_ERR(comp_ctx));
 		else
-			ena_trc_err("Failed to submit command [%ld]\n",
+			ena_trc_err(admin_queue->ena_dev,
+				    "Failed to submit command [%ld]\n",
 				    PTR_ERR(comp_ctx));
 
-		return PTR_ERR(comp_ctx);
+		return (int)PTR_ERR(comp_ctx);
 	}
 
 	ret = ena_com_wait_and_process_admin_cq(comp_ctx, admin_queue);
 	if (unlikely(ret)) {
 		if (admin_queue->running_state)
-			ena_trc_err("Failed to process command. ret = %d\n",
-				    ret);
+			ena_trc_err(admin_queue->ena_dev,
+				    "Failed to process command. ret = %d\n", ret);
 		else
-			ena_trc_dbg("Failed to process command. ret = %d\n",
-				    ret);
+			ena_trc_dbg(admin_queue->ena_dev,
+				    "Failed to process command. ret = %d\n", ret);
 	}
 	return ret;
 }
@@ -1441,7 +1457,7 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 				   &create_cmd.cq_ba,
 				   io_cq->cdesc_addr.phys_addr);
 	if (unlikely(ret)) {
-		ena_trc_err("memory address set failed\n");
+		ena_trc_err(ena_dev, "Memory address set failed\n");
 		return ret;
 	}
 
@@ -1451,7 +1467,7 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 					    (struct ena_admin_acq_entry *)&cmd_completion,
 					    sizeof(cmd_completion));
 	if (unlikely(ret)) {
-		ena_trc_err("Failed to create IO CQ. error: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to create IO CQ. error: %d\n", ret);
 		return ret;
 	}
 
@@ -1470,7 +1486,7 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
 			cmd_completion.numa_node_register_offset);
 
-	ena_trc_dbg("created cq[%u], depth[%u]\n", io_cq->idx, io_cq->q_depth);
+	ena_trc_dbg(ena_dev, "Created cq[%u], depth[%u]\n", io_cq->idx, io_cq->q_depth);
 
 	return ret;
 }
@@ -1480,7 +1496,7 @@ int ena_com_get_io_handlers(struct ena_com_dev *ena_dev, u16 qid,
 			    struct ena_com_io_cq **io_cq)
 {
 	if (qid >= ENA_TOTAL_NUM_QUEUES) {
-		ena_trc_err("Invalid queue number %d but the max is %d\n",
+		ena_trc_err(ena_dev, "Invalid queue number %d but the max is %d\n",
 			    qid, ENA_TOTAL_NUM_QUEUES);
 		return ENA_COM_INVAL;
 	}
@@ -1546,7 +1562,7 @@ int ena_com_destroy_io_cq(struct ena_com_dev *ena_dev,
 					    sizeof(destroy_resp));
 
 	if (unlikely(ret && (ret != ENA_COM_NO_DEVICE)))
-		ena_trc_err("Failed to destroy IO CQ. error: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to destroy IO CQ. error: %d\n", ret);
 
 	return ret;
 }
@@ -1570,7 +1586,7 @@ void ena_com_admin_aenq_enable(struct ena_com_dev *ena_dev)
 {
 	u16 depth = ena_dev->aenq.q_depth;
 
-	ENA_WARN(ena_dev->aenq.head != depth, "Invalid AENQ state\n");
+	ENA_WARN(ena_dev->aenq.head != depth, ena_dev, "Invalid AENQ state\n");
 
 	/* Init head_db to mark that all entries in the queue
 	 * are initially available
@@ -1588,12 +1604,12 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 
 	ret = ena_com_get_feature(ena_dev, &get_resp, ENA_ADMIN_AENQ_CONFIG, 0);
 	if (ret) {
-		ena_trc_info("Can't get aenq configuration\n");
+		ena_trc_info(ena_dev, "Can't get aenq configuration\n");
 		return ret;
 	}
 
 	if ((get_resp.u.aenq.supported_groups & groups_flag) != groups_flag) {
-		ena_trc_warn("Trying to set unsupported aenq events. supported flag: 0x%x asked flag: 0x%x\n",
+		ena_trc_warn(ena_dev, "Trying to set unsupported aenq events. supported flag: 0x%x asked flag: 0x%x\n",
 			     get_resp.u.aenq.supported_groups,
 			     groups_flag);
 		return ENA_COM_UNSUPPORTED;
@@ -1614,7 +1630,7 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 					    sizeof(resp));
 
 	if (unlikely(ret))
-		ena_trc_err("Failed to config AENQ ret: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to config AENQ ret: %d\n", ret);
 
 	return ret;
 }
@@ -1622,20 +1638,20 @@ int ena_com_set_aenq_config(struct ena_com_dev *ena_dev, u32 groups_flag)
 int ena_com_get_dma_width(struct ena_com_dev *ena_dev)
 {
 	u32 caps = ena_com_reg_bar_read32(ena_dev, ENA_REGS_CAPS_OFF);
-	int width;
+	u32 width;
 
 	if (unlikely(caps == ENA_MMIO_READ_TIMEOUT)) {
-		ena_trc_err("Reg read timeout occurred\n");
+		ena_trc_err(ena_dev, "Reg read timeout occurred\n");
 		return ENA_COM_TIMER_EXPIRED;
 	}
 
 	width = (caps & ENA_REGS_CAPS_DMA_ADDR_WIDTH_MASK) >>
 		ENA_REGS_CAPS_DMA_ADDR_WIDTH_SHIFT;
 
-	ena_trc_dbg("ENA dma width: %d\n", width);
+	ena_trc_dbg(ena_dev, "ENA dma width: %d\n", width);
 
 	if ((width < 32) || width > ENA_MAX_PHYS_ADDR_SIZE_BITS) {
-		ena_trc_err("DMA width illegal value: %d\n", width);
+		ena_trc_err(ena_dev, "DMA width illegal value: %d\n", width);
 		return ENA_COM_INVAL;
 	}
 
@@ -1659,16 +1675,16 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev)
 
 	if (unlikely((ver == ENA_MMIO_READ_TIMEOUT) ||
 		     (ctrl_ver == ENA_MMIO_READ_TIMEOUT))) {
-		ena_trc_err("Reg read timeout occurred\n");
+		ena_trc_err(ena_dev, "Reg read timeout occurred\n");
 		return ENA_COM_TIMER_EXPIRED;
 	}
 
-	ena_trc_info("ena device version: %d.%d\n",
+	ena_trc_info(ena_dev, "ENA device version: %d.%d\n",
 		     (ver & ENA_REGS_VERSION_MAJOR_VERSION_MASK) >>
 		     ENA_REGS_VERSION_MAJOR_VERSION_SHIFT,
 		     ver & ENA_REGS_VERSION_MINOR_VERSION_MASK);
 
-	ena_trc_info("ena controller version: %d.%d.%d implementation version %d\n",
+	ena_trc_info(ena_dev, "ENA controller version: %d.%d.%d implementation version %d\n",
 		     (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_MASK)
 		     >> ENA_REGS_CONTROLLER_VERSION_MAJOR_VERSION_SHIFT,
 		     (ctrl_ver & ENA_REGS_CONTROLLER_VERSION_MINOR_VERSION_MASK)
@@ -1684,11 +1700,27 @@ int ena_com_validate_version(struct ena_com_dev *ena_dev)
 
 	/* Validate the ctrl version without the implementation ID */
 	if (ctrl_ver_masked < MIN_ENA_CTRL_VER) {
-		ena_trc_err("ENA ctrl version is lower than the minimal ctrl version the driver supports\n");
+		ena_trc_err(ena_dev, "ENA ctrl version is lower than the minimal ctrl version the driver supports\n");
 		return -1;
 	}
 
 	return 0;
+}
+
+static void
+ena_com_free_ena_admin_queue_comp_ctx(struct ena_com_dev *ena_dev,
+				      struct ena_com_admin_queue *admin_queue)
+
+{
+	if (!admin_queue->comp_ctx)
+		return;
+
+	ENA_WAIT_EVENTS_DESTROY(admin_queue);
+	ENA_MEM_FREE(ena_dev->dmadev,
+		     admin_queue->comp_ctx,
+		     (admin_queue->q_depth * sizeof(struct ena_comp_ctx)));
+
+	admin_queue->comp_ctx = NULL;
 }
 
 void ena_com_admin_destroy(struct ena_com_dev *ena_dev)
@@ -1699,12 +1731,8 @@ void ena_com_admin_destroy(struct ena_com_dev *ena_dev)
 	struct ena_com_aenq *aenq = &ena_dev->aenq;
 	u16 size;
 
-	ENA_WAIT_EVENT_DESTROY(admin_queue->comp_ctx->wait_event);
-	if (admin_queue->comp_ctx)
-		ENA_MEM_FREE(ena_dev->dmadev,
-			     admin_queue->comp_ctx,
-			     (admin_queue->q_depth * sizeof(struct ena_comp_ctx)));
-	admin_queue->comp_ctx = NULL;
+	ena_com_free_ena_admin_queue_comp_ctx(ena_dev, admin_queue);
+
 	size = ADMIN_SQ_SIZE(admin_queue->q_depth);
 	if (sq->entries)
 		ENA_MEM_FREE_COHERENT(ena_dev->dmadev, size, sq->entries,
@@ -1820,12 +1848,12 @@ int ena_com_admin_init(struct ena_com_dev *ena_dev,
 	dev_sts = ena_com_reg_bar_read32(ena_dev, ENA_REGS_DEV_STS_OFF);
 
 	if (unlikely(dev_sts == ENA_MMIO_READ_TIMEOUT)) {
-		ena_trc_err("Reg read timeout occurred\n");
+		ena_trc_err(ena_dev, "Reg read timeout occurred\n");
 		return ENA_COM_TIMER_EXPIRED;
 	}
 
 	if (!(dev_sts & ENA_REGS_DEV_STS_READY_MASK)) {
-		ena_trc_err("Device isn't ready, abort com init\n");
+		ena_trc_err(ena_dev, "Device isn't ready, abort com init\n");
 		return ENA_COM_NO_DEVICE;
 	}
 
@@ -1903,7 +1931,7 @@ int ena_com_create_io_queue(struct ena_com_dev *ena_dev,
 	int ret;
 
 	if (ctx->qid >= ENA_TOTAL_NUM_QUEUES) {
-		ena_trc_err("Qid (%d) is bigger than max num of queues (%d)\n",
+		ena_trc_err(ena_dev, "Qid (%d) is bigger than max num of queues (%d)\n",
 			    ctx->qid, ENA_TOTAL_NUM_QUEUES);
 		return ENA_COM_INVAL;
 	}
@@ -1962,7 +1990,7 @@ void ena_com_destroy_io_queue(struct ena_com_dev *ena_dev, u16 qid)
 	struct ena_com_io_cq *io_cq;
 
 	if (qid >= ENA_TOTAL_NUM_QUEUES) {
-		ena_trc_err("Qid (%d) is bigger than max num of queues (%d)\n",
+		ena_trc_err(ena_dev, "Qid (%d) is bigger than max num of queues (%d)\n",
 			    qid, ENA_TOTAL_NUM_QUEUES);
 		return;
 	}
@@ -1995,6 +2023,7 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 
 	memcpy(&get_feat_ctx->dev_attr, &get_resp.u.dev_attr,
 	       sizeof(get_resp.u.dev_attr));
+
 	ena_dev->supported_features = get_resp.u.dev_attr.supported_features;
 
 	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
@@ -2061,17 +2090,6 @@ int ena_com_get_dev_attr_feat(struct ena_com_dev *ena_dev,
 	else
 		return rc;
 
-	rc = ena_com_get_feature(ena_dev, &get_resp,
-				 ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG, 0);
-	if (!rc)
-		memcpy(&get_feat_ctx->ind_table, &get_resp.u.ind_table,
-		       sizeof(get_resp.u.ind_table));
-	else if (rc == ENA_COM_UNSUPPORTED)
-		memset(&get_feat_ctx->ind_table, 0x0,
-		       sizeof(get_feat_ctx->ind_table));
-	else
-		return rc;
-
 	return 0;
 }
 
@@ -2083,10 +2101,10 @@ void ena_com_admin_q_comp_intr_handler(struct ena_com_dev *ena_dev)
 /* ena_handle_specific_aenq_event:
  * return the handler that is relevant to the specific event group
  */
-static ena_aenq_handler ena_com_get_specific_aenq_cb(struct ena_com_dev *dev,
+static ena_aenq_handler ena_com_get_specific_aenq_cb(struct ena_com_dev *ena_dev,
 						     u16 group)
 {
-	struct ena_aenq_handlers *aenq_handlers = dev->aenq.aenq_handlers;
+	struct ena_aenq_handlers *aenq_handlers = ena_dev->aenq.aenq_handlers;
 
 	if ((group < ENA_MAX_HANDLERS) && aenq_handlers->handlers[group])
 		return aenq_handlers->handlers[group];
@@ -2098,11 +2116,11 @@ static ena_aenq_handler ena_com_get_specific_aenq_cb(struct ena_com_dev *dev,
  * handles the aenq incoming events.
  * pop events from the queue and apply the specific handler
  */
-void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
+void ena_com_aenq_intr_handler(struct ena_com_dev *ena_dev, void *data)
 {
 	struct ena_admin_aenq_entry *aenq_e;
 	struct ena_admin_aenq_common_desc *aenq_common;
-	struct ena_com_aenq *aenq  = &dev->aenq;
+	struct ena_com_aenq *aenq  = &ena_dev->aenq;
 	u64 timestamp;
 	ena_aenq_handler handler_cb;
 	u16 masked_head, processed = 0;
@@ -2123,13 +2141,14 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 
 		timestamp = (u64)aenq_common->timestamp_low |
 			((u64)aenq_common->timestamp_high << 32);
-		ena_trc_dbg("AENQ! Group[%x] Syndrom[%x] timestamp: [%" ENA_PRIu64 "s]\n",
+
+		ena_trc_dbg(ena_dev, "AENQ! Group[%x] Syndrome[%x] timestamp: [%" ENA_PRIu64 "s]\n",
 			    aenq_common->group,
-			    aenq_common->syndrom,
+			    aenq_common->syndrome,
 			    timestamp);
 
 		/* Handle specific event*/
-		handler_cb = ena_com_get_specific_aenq_cb(dev,
+		handler_cb = ena_com_get_specific_aenq_cb(ena_dev,
 							  aenq_common->group);
 		handler_cb(data, aenq_e); /* call the actual event handler*/
 
@@ -2154,8 +2173,8 @@ void ena_com_aenq_intr_handler(struct ena_com_dev *dev, void *data)
 
 	/* write the aenq doorbell after all AENQ descriptors were read */
 	mb();
-	ENA_REG_WRITE32_RELAXED(dev->bus, (u32)aenq->head,
-				dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
+	ENA_REG_WRITE32_RELAXED(ena_dev->bus, (u32)aenq->head,
+				ena_dev->reg_bar + ENA_REGS_AENQ_HEAD_DB_OFF);
 	mmiowb();
 }
 #ifdef ENA_EXTENDED_STATS
@@ -2191,19 +2210,19 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 
 	if (unlikely((stat == ENA_MMIO_READ_TIMEOUT) ||
 		     (cap == ENA_MMIO_READ_TIMEOUT))) {
-		ena_trc_err("Reg read32 timeout occurred\n");
+		ena_trc_err(ena_dev, "Reg read32 timeout occurred\n");
 		return ENA_COM_TIMER_EXPIRED;
 	}
 
 	if ((stat & ENA_REGS_DEV_STS_READY_MASK) == 0) {
-		ena_trc_err("Device isn't ready, can't reset device\n");
+		ena_trc_err(ena_dev, "Device isn't ready, can't reset device\n");
 		return ENA_COM_INVAL;
 	}
 
 	timeout = (cap & ENA_REGS_CAPS_RESET_TIMEOUT_MASK) >>
 			ENA_REGS_CAPS_RESET_TIMEOUT_SHIFT;
 	if (timeout == 0) {
-		ena_trc_err("Invalid timeout value\n");
+		ena_trc_err(ena_dev, "Invalid timeout value\n");
 		return ENA_COM_INVAL;
 	}
 
@@ -2219,7 +2238,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 	rc = wait_for_reset_state(ena_dev, timeout,
 				  ENA_REGS_DEV_STS_RESET_IN_PROGRESS_MASK);
 	if (rc != 0) {
-		ena_trc_err("Reset indication didn't turn on\n");
+		ena_trc_err(ena_dev, "Reset indication didn't turn on\n");
 		return rc;
 	}
 
@@ -2227,7 +2246,7 @@ int ena_com_dev_reset(struct ena_com_dev *ena_dev,
 	ENA_REG_WRITE32(ena_dev->bus, 0, ena_dev->reg_bar + ENA_REGS_DEV_CTL_OFF);
 	rc = wait_for_reset_state(ena_dev, timeout, 0);
 	if (rc != 0) {
-		ena_trc_err("Reset indication didn't turn off\n");
+		ena_trc_err(ena_dev, "Reset indication didn't turn off\n");
 		return rc;
 	}
 
@@ -2264,7 +2283,22 @@ static int ena_get_dev_stats(struct ena_com_dev *ena_dev,
 					     sizeof(*get_resp));
 
 	if (unlikely(ret))
-		ena_trc_err("Failed to get stats. error: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to get stats. error: %d\n", ret);
+
+	return ret;
+}
+
+int ena_com_get_eni_stats(struct ena_com_dev *ena_dev,
+			  struct ena_admin_eni_stats *stats)
+{
+	struct ena_com_stats_ctx ctx;
+	int ret;
+
+	memset(&ctx, 0x0, sizeof(ctx));
+	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_ENI);
+	if (likely(ret == 0))
+		memcpy(stats, &ctx.get_resp.u.eni_stats,
+		       sizeof(ctx.get_resp.u.eni_stats));
 
 	return ret;
 }
@@ -2278,8 +2312,8 @@ int ena_com_get_dev_basic_stats(struct ena_com_dev *ena_dev,
 	memset(&ctx, 0x0, sizeof(ctx));
 	ret = ena_get_dev_stats(ena_dev, &ctx, ENA_ADMIN_GET_STATS_TYPE_BASIC);
 	if (likely(ret == 0))
-		memcpy(stats, &ctx.get_resp.basic_stats,
-		       sizeof(ctx.get_resp.basic_stats));
+		memcpy(stats, &ctx.get_resp.u.basic_stats,
+		       sizeof(ctx.get_resp.u.basic_stats));
 
 	return ret;
 }
@@ -2306,7 +2340,7 @@ int ena_com_get_dev_extended_stats(struct ena_com_dev *ena_dev, char *buff,
 				   &get_cmd->u.control_buffer.address,
 				   phys_addr);
 	if (unlikely(ret)) {
-		ena_trc_err("memory address set failed\n");
+		ena_trc_err(ena_dev, "Memory address set failed\n");
 		goto free_ext_stats_mem;
 	}
 	get_cmd->u.control_buffer.length = len;
@@ -2337,7 +2371,7 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 	int ret;
 
 	if (!ena_com_check_supported_feature_id(ena_dev, ENA_ADMIN_MTU)) {
-		ena_trc_dbg("Feature %d isn't supported\n", ENA_ADMIN_MTU);
+		ena_trc_dbg(ena_dev, "Feature %d isn't supported\n", ENA_ADMIN_MTU);
 		return ENA_COM_UNSUPPORTED;
 	}
 
@@ -2347,7 +2381,7 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
 	cmd.aq_common_descriptor.flags = 0;
 	cmd.feat_common.feature_id = ENA_ADMIN_MTU;
-	cmd.u.mtu.mtu = mtu;
+	cmd.u.mtu.mtu = (u32)mtu;
 
 	ret = ena_com_execute_admin_command(admin_queue,
 					    (struct ena_admin_aq_entry *)&cmd,
@@ -2356,7 +2390,7 @@ int ena_com_set_dev_mtu(struct ena_com_dev *ena_dev, int mtu)
 					    sizeof(resp));
 
 	if (unlikely(ret))
-		ena_trc_err("Failed to set mtu %d. error: %d\n", mtu, ret);
+		ena_trc_err(ena_dev, "Failed to set mtu %d. error: %d\n", mtu, ret);
 
 	return ret;
 }
@@ -2370,7 +2404,7 @@ int ena_com_get_offload_settings(struct ena_com_dev *ena_dev,
 	ret = ena_com_get_feature(ena_dev, &resp,
 				  ENA_ADMIN_STATELESS_OFFLOAD_CONFIG, 0);
 	if (unlikely(ret)) {
-		ena_trc_err("Failed to get offload capabilities %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to get offload capabilities %d\n", ret);
 		return ret;
 	}
 
@@ -2390,7 +2424,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 
 	if (!ena_com_check_supported_feature_id(ena_dev,
 						ENA_ADMIN_RSS_HASH_FUNCTION)) {
-		ena_trc_dbg("Feature %d isn't supported\n",
+		ena_trc_dbg(ena_dev, "Feature %d isn't supported\n",
 			    ENA_ADMIN_RSS_HASH_FUNCTION);
 		return ENA_COM_UNSUPPORTED;
 	}
@@ -2402,7 +2436,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 		return ret;
 
 	if (!(get_resp.u.flow_hash_func.supported_func & BIT(rss->hash_func))) {
-		ena_trc_err("Func hash %d isn't supported by device, abort\n",
+		ena_trc_err(ena_dev, "Func hash %d isn't supported by device, abort\n",
 			    rss->hash_func);
 		return ENA_COM_UNSUPPORTED;
 	}
@@ -2420,7 +2454,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 				   &cmd.control_buffer.address,
 				   rss->hash_key_dma_addr);
 	if (unlikely(ret)) {
-		ena_trc_err("memory address set failed\n");
+		ena_trc_err(ena_dev, "Memory address set failed\n");
 		return ret;
 	}
 
@@ -2432,7 +2466,7 @@ int ena_com_set_hash_function(struct ena_com_dev *ena_dev)
 					    (struct ena_admin_acq_entry *)&resp,
 					    sizeof(resp));
 	if (unlikely(ret)) {
-		ena_trc_err("Failed to set hash function %d. error: %d\n",
+		ena_trc_err(ena_dev, "Failed to set hash function %d. error: %d\n",
 			    rss->hash_func, ret);
 		return ENA_COM_INVAL;
 	}
@@ -2464,7 +2498,7 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 		return rc;
 
 	if (!(BIT(func) & get_resp.u.flow_hash_func.supported_func)) {
-		ena_trc_err("Flow hash function %d isn't supported\n", func);
+		ena_trc_err(ena_dev, "Flow hash function %d isn't supported\n", func);
 		return ENA_COM_UNSUPPORTED;
 	}
 
@@ -2472,20 +2506,20 @@ int ena_com_fill_hash_function(struct ena_com_dev *ena_dev,
 	case ENA_ADMIN_TOEPLITZ:
 		if (key) {
 			if (key_len != sizeof(hash_key->key)) {
-				ena_trc_err("key len (%hu) doesn't equal the supported size (%zu)\n",
+				ena_trc_err(ena_dev, "key len (%hu) doesn't equal the supported size (%zu)\n",
 					     key_len, sizeof(hash_key->key));
 				return ENA_COM_INVAL;
 			}
 			memcpy(hash_key->key, key, key_len);
 			rss->hash_init_val = init_val;
-			hash_key->keys_num = key_len / sizeof(hash_key->key[0]);
+			hash_key->key_parts = key_len / sizeof(hash_key->key[0]);
 		}
 		break;
 	case ENA_ADMIN_CRC32:
 		rss->hash_init_val = init_val;
 		break;
 	default:
-		ena_trc_err("Invalid hash function (%d)\n", func);
+		ena_trc_err(ena_dev, "Invalid hash function (%d)\n", func);
 		return ENA_COM_INVAL;
 	}
 
@@ -2533,7 +2567,8 @@ int ena_com_get_hash_key(struct ena_com_dev *ena_dev, u8 *key)
 		ena_dev->rss.hash_key;
 
 	if (key)
-		memcpy(key, hash_key->key, (size_t)(hash_key->keys_num) << 2);
+		memcpy(key, hash_key->key,
+		       (size_t)(hash_key->key_parts) * sizeof(hash_key->key[0]));
 
 	return 0;
 }
@@ -2570,7 +2605,7 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev)
 
 	if (!ena_com_check_supported_feature_id(ena_dev,
 						ENA_ADMIN_RSS_HASH_INPUT)) {
-		ena_trc_dbg("Feature %d isn't supported\n",
+		ena_trc_dbg(ena_dev, "Feature %d isn't supported\n",
 			    ENA_ADMIN_RSS_HASH_INPUT);
 		return ENA_COM_UNSUPPORTED;
 	}
@@ -2589,7 +2624,7 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev)
 				   &cmd.control_buffer.address,
 				   rss->hash_ctrl_dma_addr);
 	if (unlikely(ret)) {
-		ena_trc_err("memory address set failed\n");
+		ena_trc_err(ena_dev, "Memory address set failed\n");
 		return ret;
 	}
 	cmd.control_buffer.length = sizeof(*hash_ctrl);
@@ -2600,7 +2635,7 @@ int ena_com_set_hash_ctrl(struct ena_com_dev *ena_dev)
 					    (struct ena_admin_acq_entry *)&resp,
 					    sizeof(resp));
 	if (unlikely(ret))
-		ena_trc_err("Failed to set hash input. error: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to set hash input. error: %d\n", ret);
 
 	return ret;
 }
@@ -2650,7 +2685,7 @@ int ena_com_set_default_hash_ctrl(struct ena_com_dev *ena_dev)
 		available_fields = hash_ctrl->selected_fields[i].fields &
 				hash_ctrl->supported_fields[i].fields;
 		if (available_fields != hash_ctrl->selected_fields[i].fields) {
-			ena_trc_err("hash control doesn't support all the desire configuration. proto %x supported %x selected %x\n",
+			ena_trc_err(ena_dev, "Hash control doesn't support all the desire configuration. proto %x supported %x selected %x\n",
 				    i, hash_ctrl->supported_fields[i].fields,
 				    hash_ctrl->selected_fields[i].fields);
 			return ENA_COM_UNSUPPORTED;
@@ -2676,7 +2711,7 @@ int ena_com_fill_hash_ctrl(struct ena_com_dev *ena_dev,
 	int rc;
 
 	if (proto >= ENA_ADMIN_RSS_PROTO_NUM) {
-		ena_trc_err("Invalid proto num (%u)\n", proto);
+		ena_trc_err(ena_dev, "Invalid proto num (%u)\n", proto);
 		return ENA_COM_INVAL;
 	}
 
@@ -2688,7 +2723,7 @@ int ena_com_fill_hash_ctrl(struct ena_com_dev *ena_dev,
 	/* Make sure all the fields are supported */
 	supported_fields = hash_ctrl->supported_fields[proto].fields;
 	if ((hash_fields & supported_fields) != hash_fields) {
-		ena_trc_err("proto %d doesn't support the required fields %x. supports only: %x\n",
+		ena_trc_err(ena_dev, "Proto %d doesn't support the required fields %x. supports only: %x\n",
 			    proto, hash_fields, supported_fields);
 	}
 
@@ -2728,15 +2763,15 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 	int ret;
 
 	if (!ena_com_check_supported_feature_id(ena_dev,
-						ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG)) {
-		ena_trc_dbg("Feature %d isn't supported\n",
-			    ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG);
+						ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG)) {
+		ena_trc_dbg(ena_dev, "Feature %d isn't supported\n",
+			    ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG);
 		return ENA_COM_UNSUPPORTED;
 	}
 
 	ret = ena_com_ind_tbl_convert_to_device(ena_dev);
 	if (ret) {
-		ena_trc_err("Failed to convert host indirection table to device table\n");
+		ena_trc_err(ena_dev, "Failed to convert host indirection table to device table\n");
 		return ret;
 	}
 
@@ -2745,7 +2780,7 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 	cmd.aq_common_descriptor.opcode = ENA_ADMIN_SET_FEATURE;
 	cmd.aq_common_descriptor.flags =
 		ENA_ADMIN_AQ_COMMON_DESC_CTRL_DATA_INDIRECT_MASK;
-	cmd.feat_common.feature_id = ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG;
+	cmd.feat_common.feature_id = ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG;
 	cmd.u.ind_table.size = rss->tbl_log_size;
 	cmd.u.ind_table.inline_index = 0xFFFFFFFF;
 
@@ -2753,11 +2788,11 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 				   &cmd.control_buffer.address,
 				   rss->rss_ind_tbl_dma_addr);
 	if (unlikely(ret)) {
-		ena_trc_err("memory address set failed\n");
+		ena_trc_err(ena_dev, "Memory address set failed\n");
 		return ret;
 	}
 
-	cmd.control_buffer.length = (1ULL << rss->tbl_log_size) *
+	cmd.control_buffer.length = (u32)(1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	ret = ena_com_execute_admin_command(admin_queue,
@@ -2767,7 +2802,7 @@ int ena_com_indirect_table_set(struct ena_com_dev *ena_dev)
 					    sizeof(resp));
 
 	if (unlikely(ret))
-		ena_trc_err("Failed to set indirect table. error: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to set indirect table. error: %d\n", ret);
 
 	return ret;
 }
@@ -2779,11 +2814,11 @@ int ena_com_indirect_table_get(struct ena_com_dev *ena_dev, u32 *ind_tbl)
 	u32 tbl_size;
 	int i, rc;
 
-	tbl_size = (1ULL << rss->tbl_log_size) *
+	tbl_size = (u32)(1ULL << rss->tbl_log_size) *
 		sizeof(struct ena_admin_rss_ind_table_entry);
 
 	rc = ena_com_get_feature_ex(ena_dev, &get_resp,
-				    ENA_ADMIN_RSS_REDIRECTION_TABLE_CONFIG,
+				    ENA_ADMIN_RSS_INDIRECTION_TABLE_CONFIG,
 				    rss->rss_ind_tbl_dma_addr,
 				    tbl_size, 0);
 	if (unlikely(rc))
@@ -2932,7 +2967,7 @@ int ena_com_set_host_attributes(struct ena_com_dev *ena_dev)
 				   &cmd.u.host_attr.debug_ba,
 				   host_attr->debug_area_dma_addr);
 	if (unlikely(ret)) {
-		ena_trc_err("memory address set failed\n");
+		ena_trc_err(ena_dev, "Memory address set failed\n");
 		return ret;
 	}
 
@@ -2940,7 +2975,7 @@ int ena_com_set_host_attributes(struct ena_com_dev *ena_dev)
 				   &cmd.u.host_attr.os_info_ba,
 				   host_attr->host_info_dma_addr);
 	if (unlikely(ret)) {
-		ena_trc_err("memory address set failed\n");
+		ena_trc_err(ena_dev, "Memory address set failed\n");
 		return ret;
 	}
 
@@ -2953,7 +2988,7 @@ int ena_com_set_host_attributes(struct ena_com_dev *ena_dev)
 					    sizeof(resp));
 
 	if (unlikely(ret))
-		ena_trc_err("Failed to set host attributes: %d\n", ret);
+		ena_trc_err(ena_dev, "Failed to set host attributes: %d\n", ret);
 
 	return ret;
 }
@@ -2965,12 +3000,13 @@ bool ena_com_interrupt_moderation_supported(struct ena_com_dev *ena_dev)
 						  ENA_ADMIN_INTERRUPT_MODERATION);
 }
 
-static int ena_com_update_nonadaptive_moderation_interval(u32 coalesce_usecs,
+static int ena_com_update_nonadaptive_moderation_interval(struct ena_com_dev *ena_dev,
+							  u32 coalesce_usecs,
 							  u32 intr_delay_resolution,
 							  u32 *intr_moder_interval)
 {
 	if (!intr_delay_resolution) {
-		ena_trc_err("Illegal interrupt delay granularity value\n");
+		ena_trc_err(ena_dev, "Illegal interrupt delay granularity value\n");
 		return ENA_COM_FAULT;
 	}
 
@@ -2979,11 +3015,11 @@ static int ena_com_update_nonadaptive_moderation_interval(u32 coalesce_usecs,
 	return 0;
 }
 
-
 int ena_com_update_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_dev,
 						      u32 tx_coalesce_usecs)
 {
-	return ena_com_update_nonadaptive_moderation_interval(tx_coalesce_usecs,
+	return ena_com_update_nonadaptive_moderation_interval(ena_dev,
+							      tx_coalesce_usecs,
 							      ena_dev->intr_delay_resolution,
 							      &ena_dev->intr_moder_tx_interval);
 }
@@ -2991,7 +3027,8 @@ int ena_com_update_nonadaptive_moderation_interval_tx(struct ena_com_dev *ena_de
 int ena_com_update_nonadaptive_moderation_interval_rx(struct ena_com_dev *ena_dev,
 						      u32 rx_coalesce_usecs)
 {
-	return ena_com_update_nonadaptive_moderation_interval(rx_coalesce_usecs,
+	return ena_com_update_nonadaptive_moderation_interval(ena_dev,
+							      rx_coalesce_usecs,
 							      ena_dev->intr_delay_resolution,
 							      &ena_dev->intr_moder_rx_interval);
 }
@@ -3007,12 +3044,12 @@ int ena_com_init_interrupt_moderation(struct ena_com_dev *ena_dev)
 
 	if (rc) {
 		if (rc == ENA_COM_UNSUPPORTED) {
-			ena_trc_dbg("Feature %d isn't supported\n",
+			ena_trc_dbg(ena_dev, "Feature %d isn't supported\n",
 				    ENA_ADMIN_INTERRUPT_MODERATION);
 			rc = 0;
 		} else {
-			ena_trc_err("Failed to get interrupt moderation admin cmd. rc: %d\n",
-				    rc);
+			ena_trc_err(ena_dev,
+				    "Failed to get interrupt moderation admin cmd. rc: %d\n", rc);
 		}
 
 		/* no moderation supported, disable adaptive support */
@@ -3060,7 +3097,7 @@ int ena_com_config_dev_mode(struct ena_com_dev *ena_dev,
 		(llq_info->descs_num_before_header * sizeof(struct ena_eth_io_tx_desc));
 
 	if (unlikely(ena_dev->tx_max_header_size == 0)) {
-		ena_trc_err("the size of the LLQ entry is smaller than needed\n");
+		ena_trc_err(ena_dev, "The size of the LLQ entry is smaller than needed\n");
 		return -EINVAL;
 	}
 
