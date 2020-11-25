@@ -171,11 +171,6 @@ and
 .\"
 .Bl -tag -width CIOCGSESSION
 .\"
-.It Dv CRIOGET Fa int *fd
-Clone the fd argument to
-.Xr ioctl 2 ,
-yielding a new file descriptor for the creation of sessions.
-.\"
 .It Dv CIOCFINDDEV Fa struct crypt_find_op *fop
 .Bd -literal
 struct crypt_find_op {
