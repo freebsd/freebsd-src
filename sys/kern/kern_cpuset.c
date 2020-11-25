@@ -287,12 +287,12 @@ cpuset_lookup(cpusetid_t setid, struct thread *td)
 }
 
 /*
- * Create a set in the space provided in 'set' with the provided parameters.
+ * Initialize a set in the space provided in 'set' with the provided parameters.
  * The set is returned with a single ref.  May return EDEADLK if the set
  * will have no valid cpu based on restrictions from the parent.
  */
 static int
-_cpuset_create(struct cpuset *set, struct cpuset *parent,
+cpuset_init(struct cpuset *set, struct cpuset *parent,
     const cpuset_t *mask, struct domainset *domain, cpusetid_t id)
 {
 
@@ -347,7 +347,7 @@ cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
 		set = *setp;
 	else
 		*setp = set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	error = _cpuset_create(set, parent, mask, NULL, id);
+	error = cpuset_init(set, parent, mask, NULL, id);
 	if (error == 0)
 		return (0);
 	free_unr(cpuset_unr, id);
@@ -983,7 +983,7 @@ cpuset_shadow(struct cpuset *set, struct cpuset **nsetp,
 	else
 		d = set->cs_domain;
 	nset = LIST_FIRST(cpusets);
-	error = _cpuset_create(nset, parent, mask, d, CPUSET_INVALID);
+	error = cpuset_init(nset, parent, mask, d, CPUSET_INVALID);
 	if (error == 0) {
 		LIST_REMOVE(nset, cs_link);
 		*nsetp = nset;
@@ -1463,9 +1463,7 @@ domainset_zero(void)
  * sets:
  * 
  * 0 - The root set which should represent all valid processors in the
- *     system.  It is initially created with a mask of all processors
- *     because we don't know what processors are valid until cpuset_init()
- *     runs.  This set is immutable.
+ *     system.  This set is immutable.
  * 1 - The default set which all processes are a member of until changed.
  *     This allows an administrator to move all threads off of given cpus to
  *     dedicate them to high priority tasks or save power etc.
@@ -1502,14 +1500,14 @@ cpuset_thread0(void)
 	 * Now derive a default (1), modifiable set from that to give out.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	error = _cpuset_create(set, cpuset_zero, NULL, NULL, 1);
+	error = cpuset_init(set, cpuset_zero, NULL, NULL, 1);
 	KASSERT(error == 0, ("Error creating default set: %d\n", error));
 	cpuset_default = set;
 	/*
 	 * Create the kernel set (2).
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	error = _cpuset_create(set, cpuset_zero, NULL, NULL, 2);
+	error = cpuset_init(set, cpuset_zero, NULL, NULL, 2);
 	KASSERT(error == 0, ("Error creating kernel set: %d\n", error));
 	set->cs_domain = &domainset2;
 	cpuset_kernel = set;
