@@ -196,10 +196,10 @@ NMM_CLK(pll_ddr0_clk,
     28, 1000,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
 
-static const char *pll_peri0_parents[] = {"osc24M"};
-NMM_CLK(pll_peri0_clk,
-    CLK_PLL_PERIPH0,				/* id */
-    "pll_periph0", pll_peri0_parents,		/* name, parents */
+static const char *pll_peri0_4x_parents[] = {"osc24M"};
+NMM_CLK(pll_peri0_4x_clk,
+    CLK_PLL_PERIPH0_4X,				/* id */
+    "pll_periph0_4x", pll_peri0_4x_parents,	/* name, parents */
     0x20,					/* offset */
     8, 7, 0, 0,					/* n factor */
     0, 1, 0, 0,					/* m0 factor */
@@ -207,7 +207,7 @@ NMM_CLK(pll_peri0_clk,
     31,						/* gate */
     28, 1000,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
-static const char *pll_peri0_2x_parents[] = {"pll_periph0"};
+static const char *pll_peri0_2x_parents[] = {"pll_periph0_4x"};
 FIXED_CLK(pll_peri0_2x_clk,
     CLK_PLL_PERIPH0_2X,			/* id */
     "pll_periph0_2x",			/* name */
@@ -216,20 +216,20 @@ FIXED_CLK(pll_peri0_2x_clk,
     1,					/* mult */
     2,					/* div */
     0);					/* flags */
-static const char *pll_peri0_4x_parents[] = {"pll_periph0"};
-FIXED_CLK(pll_peri0_4x_clk,
-    CLK_PLL_PERIPH0_4X,			/* id */
-    "pll_periph0_4x",			/* name */
-    pll_peri0_4x_parents,		/* parent */
+static const char *pll_peri0_parents[] = {"pll_periph0_4x"};
+FIXED_CLK(pll_peri0_clk,
+    CLK_PLL_PERIPH0,			/* id */
+    "pll_periph0",			/* name */
+    pll_peri0_parents,			/* parent */
     0,					/* freq */
     1,					/* mult */
     4,					/* div */
     0);					/* flags */
 
-static const char *pll_peri1_parents[] = {"osc24M"};
-NMM_CLK(pll_peri1_clk,
-    CLK_PLL_PERIPH1,				/* id */
-    "pll_periph1", pll_peri1_parents,		/* name, parents */
+static const char *pll_peri1_4x_parents[] = {"osc24M"};
+NMM_CLK(pll_peri1_4x_clk,
+    CLK_PLL_PERIPH1_4X,				/* id */
+    "pll_periph1_4x", pll_peri1_4x_parents,	/* name, parents */
     0x28,					/* offset */
     8, 7, 0, 0,					/* n factor */
     0, 1, 0, 0,					/* m0 factor */
@@ -237,7 +237,7 @@ NMM_CLK(pll_peri1_clk,
     31,						/* gate */
     28, 1000,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
-static const char *pll_peri1_2x_parents[] = {"pll_periph1"};
+static const char *pll_peri1_2x_parents[] = {"pll_periph1_4x"};
 FIXED_CLK(pll_peri1_2x_clk,
     CLK_PLL_PERIPH1_2X,			/* id */
     "pll_periph1_2x",			/* name */
@@ -246,11 +246,11 @@ FIXED_CLK(pll_peri1_2x_clk,
     1,					/* mult */
     2,					/* div */
     0);					/* flags */
-static const char *pll_peri1_4x_parents[] = {"pll_periph1"};
-FIXED_CLK(pll_peri1_4x_clk,
-    CLK_PLL_PERIPH1_4X,			/* id */
-    "pll_periph1_4x",			/* name */
-    pll_peri1_4x_parents,		/* parent */
+static const char *pll_peri1_parents[] = {"pll_periph1_4x"};
+FIXED_CLK(pll_peri1_clk,
+    CLK_PLL_PERIPH1,			/* id */
+    "pll_periph1",			/* name */
+    pll_peri1_parents,			/* parent */
     0,					/* freq */
     1,					/* mult */
     4,					/* div */
@@ -268,10 +268,10 @@ NMM_CLK(pll_gpu_clk,
     28, 1000,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
 
-static const char *pll_video0_parents[] = {"osc24M"};
-NMM_CLK(pll_video0_clk,
-    CLK_PLL_VIDEO0,				/* id */
-    "pll_video0", pll_video0_parents,		/* name, parents */
+static const char *pll_video0_4x_parents[] = {"osc24M"};
+NMM_CLK(pll_video0_4x_clk,
+    CLK_PLL_VIDEO0_4X,				/* id */
+    "pll_video0_4x", pll_video0_4x_parents,	/* name, parents */
     0x40,					/* offset */
     8, 7, 0, 0,					/* n factor */
     0, 1, 0, 0,					/* m0 factor */
@@ -279,20 +279,20 @@ NMM_CLK(pll_video0_clk,
     31,						/* gate */
     28, 1000,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
-static const char *pll_video0_4x_parents[] = {"pll_video0"};
-FIXED_CLK(pll_video0_4x_clk,
-    CLK_PLL_VIDEO0_4X,			/* id */
-    "pll_video0_4x",			/* name */
-    pll_video0_4x_parents,		/* parent */
+static const char *pll_video0_parents[] = {"pll_video0_4x"};
+FIXED_CLK(pll_video0_clk,
+    CLK_PLL_VIDEO0,			/* id */
+    "pll_video0",			/* name */
+    pll_video0_parents,			/* parent */
     0,					/* freq */
     1,					/* mult */
     4,					/* div */
     0);					/* flags */
 
-static const char *pll_video1_parents[] = {"osc24M"};
-NMM_CLK(pll_video1_clk,
-    CLK_PLL_VIDEO1,				/* id */
-    "pll_video1", pll_video1_parents,		/* name, parents */
+static const char *pll_video1_4x_parents[] = {"osc24M"};
+NMM_CLK(pll_video1_4x_clk,
+    CLK_PLL_VIDEO1_4X,				/* id */
+    "pll_video1_4x", pll_video1_4x_parents,	/* name, parents */
     0x48,					/* offset */
     8, 7, 0, 0,					/* n factor */
     0, 1, 0, 0,					/* m0 factor */
@@ -300,11 +300,11 @@ NMM_CLK(pll_video1_clk,
     31,						/* gate */
     28, 1000,					/* lock */
     AW_CLK_HAS_GATE | AW_CLK_HAS_LOCK);		/* flags */
-static const char *pll_video1_4x_parents[] = {"pll_video1"};
-FIXED_CLK(pll_video1_4x_clk,
-    CLK_PLL_VIDEO1_4X,			/* id */
-    "pll_video1_4x",			/* name */
-    pll_video1_4x_parents,		/* parent */
+static const char *pll_video1_parents[] = {"pll_video1_4x"};
+FIXED_CLK(pll_video1_clk,
+    CLK_PLL_VIDEO1,			/* id */
+    "pll_video1",			/* name */
+    pll_video1_parents,			/* parent */
     0,					/* freq */
     1,					/* mult */
     4,					/* div */
@@ -426,11 +426,11 @@ NM_CLK(mmc2_clk,
 static struct aw_ccung_clk h6_ccu_clks[] = {
 	{ .type = AW_CLK_NP, .clk.np = &pll_cpux_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ddr0_clk},
-	{ .type = AW_CLK_NMM, .clk.nmm = &pll_peri0_clk},
-	{ .type = AW_CLK_NMM, .clk.nmm = &pll_peri1_clk},
+	{ .type = AW_CLK_NMM, .clk.nmm = &pll_peri0_4x_clk},
+	{ .type = AW_CLK_NMM, .clk.nmm = &pll_peri1_4x_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_gpu_clk},
-	{ .type = AW_CLK_NMM, .clk.nmm = &pll_video0_clk},
-	{ .type = AW_CLK_NMM, .clk.nmm = &pll_video1_clk},
+	{ .type = AW_CLK_NMM, .clk.nmm = &pll_video0_4x_clk},
+	{ .type = AW_CLK_NMM, .clk.nmm = &pll_video1_4x_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_ve_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_de_clk},
 	{ .type = AW_CLK_NMM, .clk.nmm = &pll_hsic_clk},
@@ -446,11 +446,11 @@ static struct aw_ccung_clk h6_ccu_clks[] = {
 
 	{ .type = AW_CLK_FIXED, .clk.fixed = &osc12m_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_peri0_2x_clk},
-	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_peri0_4x_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_peri0_clk},
 	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_peri1_2x_clk},
-	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_peri1_4x_clk},
-	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_video0_4x_clk},
-	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_video1_4x_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_peri1_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_video0_clk},
+	{ .type = AW_CLK_FIXED, .clk.fixed = &pll_video1_clk},
 };
 
 static int
