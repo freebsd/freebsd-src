@@ -257,7 +257,7 @@ struct user {
 #define	KF_TYPE_PIPE	3
 #define	KF_TYPE_FIFO	4
 #define	KF_TYPE_KQUEUE	5
-#define	KF_TYPE_CRYPTO	6
+/* was	KF_TYPE_CRYPTO	6 */
 #define	KF_TYPE_MQUEUE	7
 #define	KF_TYPE_SHM	8
 #define	KF_TYPE_SEM	9

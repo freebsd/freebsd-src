@@ -708,7 +708,6 @@ kinfo_type2fst(int kftype)
 		int	fst_type;
 	} kftypes2fst[] = {
 		{ KF_TYPE_PROCDESC, PS_FST_TYPE_PROCDESC },
-		{ KF_TYPE_CRYPTO, PS_FST_TYPE_CRYPTO },
 		{ KF_TYPE_DEV, PS_FST_TYPE_DEV },
 		{ KF_TYPE_FIFO, PS_FST_TYPE_FIFO },
 		{ KF_TYPE_KQUEUE, PS_FST_TYPE_KQUEUE },
