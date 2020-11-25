@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include "clock_if.h"
+#include "syscon_if.h"
 
 #define	SNVS_LPCR		0x38		/* Control register */
 #define	  LPCR_LPCALB_VAL_SHIFT	  10		/* Calibration shift */
@@ -68,13 +69,12 @@ __FBSDID("$FreeBSD$");
 
 struct snvs_softc {
 	device_t 		dev;
-	struct resource *	memres;
+	struct syscon		*syscon;
 	uint32_t		lpcr;
 };
 
 static struct ofw_compat_data compat_data[] = {
 	{"fsl,sec-v4.0-mon-rtc-lp", true},
-	{"fsl,sec-v4.0-mon", true},
 	{NULL,               false}
 };
 
@@ -82,14 +82,14 @@ static inline uint32_t
 RD4(struct snvs_softc *sc, bus_size_t offset)
 {
 
-	return (bus_read_4(sc->memres, offset));
+	return (SYSCON_READ_4(sc->syscon, offset));
 }
 
 static inline void
 WR4(struct snvs_softc *sc, bus_size_t offset, uint32_t value)
 {
 
-	bus_write_4(sc->memres, offset, value);
+	SYSCON_WRITE_4(sc->syscon, offset, value);
 }
 
 static void
@@ -187,16 +187,12 @@ static int
 snvs_attach(device_t dev)
 {
 	struct snvs_softc *sc;
-	int rid;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	rid = 0;
-	sc->memres = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
-	if (sc->memres == NULL) {
-		device_printf(sc->dev, "could not allocate registers\n");
+	if (syscon_get_handle_default(sc->dev, &sc->syscon) != 0) {
+		device_printf(sc->dev, "Cannot get syscon handle\n");
 		return (ENXIO);
 	}
 
@@ -212,7 +208,6 @@ snvs_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 	clock_unregister(sc->dev);
-	bus_release_resource(sc->dev, SYS_RES_MEMORY, 0, sc->memres);
 	return (0);
 }
 
