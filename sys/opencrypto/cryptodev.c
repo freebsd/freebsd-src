@@ -47,9 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
 #include <sys/sysctl.h>
-#include <sys/file.h>
-#include <sys/filedesc.h>
 #include <sys/errno.h>
 #include <sys/random.h>
 #include <sys/conf.h>
@@ -57,8 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/fcntl.h>
 #include <sys/bus.h>
-#include <sys/user.h>
 #include <sys/sdt.h>
+#include <sys/syscallsubr.h>
 
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
@@ -66,6 +65,17 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DECLARE(opencrypto);
 
 SDT_PROBE_DEFINE1(opencrypto, dev, ioctl, error, "int"/*line number*/);
+
+#ifdef COMPAT_FREEBSD12
+/*
+ * Previously, most ioctls were performed against a cloned descriptor
+ * of /dev/crypto obtained via CRIOGET.  Now all ioctls are performed
+ * against /dev/crypto directly.
+ */
+#define	CRIOGET		_IOWR('c', 100, uint32_t)
+#endif
+
+/* the following are done against the cloned descriptor */
 
 #ifdef COMPAT_FREEBSD32
 #include <sys/mount.h>
@@ -350,29 +360,6 @@ static struct timeval warninterval = { .tv_sec = 60, .tv_usec = 0 };
 SYSCTL_TIMEVAL_SEC(_kern, OID_AUTO, cryptodev_warn_interval, CTLFLAG_RW,
     &warninterval,
     "Delay in seconds between warnings of deprecated /dev/crypto algorithms");
-
-static int cryptof_ioctl(struct file *, u_long, void *, struct ucred *,
-    struct thread *);
-static int cryptof_stat(struct file *, struct stat *, struct ucred *,
-    struct thread *);
-static int cryptof_close(struct file *, struct thread *);
-static int cryptof_fill_kinfo(struct file *, struct kinfo_file *,
-    struct filedesc *);
-
-static struct fileops cryptofops = {
-    .fo_read = invfo_rdwr,
-    .fo_write = invfo_rdwr,
-    .fo_truncate = invfo_truncate,
-    .fo_ioctl = cryptof_ioctl,
-    .fo_poll = invfo_poll,
-    .fo_kqfilter = invfo_kqfilter,
-    .fo_stat = cryptof_stat,
-    .fo_close = cryptof_close,
-    .fo_chmod = invfo_chmod,
-    .fo_chown = invfo_chown,
-    .fo_sendfile = invfo_sendfile,
-    .fo_fill_kinfo = cryptof_fill_kinfo,
-};
 
 /*
  * Check a crypto identifier to see if it requested
@@ -762,7 +749,7 @@ cse_delete(struct fcrypt *fcr, u_int ses)
 }
 
 static struct cryptop_data *
-cod_alloc(struct csession *cse, size_t aad_len, size_t len, struct thread *td)
+cod_alloc(struct csession *cse, size_t aad_len, size_t len)
 {
 	struct cryptop_data *cod;
 
@@ -808,8 +795,7 @@ cryptodev_cb(struct cryptop *crp)
 }
 
 static int
-cryptodev_op(struct csession *cse, const struct crypt_op *cop,
-    struct ucred *active_cred, struct thread *td)
+cryptodev_op(struct csession *cse, const struct crypt_op *cop)
 {
 	struct cryptop_data *cod = NULL;
 	struct cryptop *crp = NULL;
@@ -845,7 +831,7 @@ cryptodev_op(struct csession *cse, const struct crypt_op *cop,
 		}
 	}
 
-	cod = cod_alloc(cse, 0, cop->len + cse->hashsize, td);
+	cod = cod_alloc(cse, 0, cop->len + cse->hashsize);
 	dst = cop->dst;
 
 	crp = crypto_getreq(cse->cses, M_WAITOK);
@@ -1019,8 +1005,7 @@ bail:
 }
 
 static int
-cryptodev_aead(struct csession *cse, struct crypt_aead *caead,
-    struct ucred *active_cred, struct thread *td)
+cryptodev_aead(struct csession *cse, struct crypt_aead *caead)
 {
 	struct cryptop_data *cod = NULL;
 	struct cryptop *crp = NULL;
@@ -1050,7 +1035,7 @@ cryptodev_aead(struct csession *cse, struct crypt_aead *caead,
 		}
 	}
 
-	cod = cod_alloc(cse, caead->aadlen, caead->len + cse->hashsize, td);
+	cod = cod_alloc(cse, caead->aadlen, caead->len + cse->hashsize);
 	dst = caead->dst;
 
 	crp = crypto_getreq(cse->cses, M_WAITOK);
@@ -1358,12 +1343,44 @@ cryptodev_find(struct crypt_find_op *find)
 	return (0);
 }
 
+static void
+fcrypt_dtor(void *data)
+{
+	struct fcrypt *fcr = data;
+	struct csession *cse;
+
+	while ((cse = TAILQ_FIRST(&fcr->csessions))) {
+		TAILQ_REMOVE(&fcr->csessions, cse, next);
+		KASSERT(refcount_load(&cse->refs) == 1,
+		    ("%s: crypto session %p with %d refs", __func__, cse,
+		    refcount_load(&cse->refs)));
+		cse_free(cse);
+	}
+	mtx_destroy(&fcr->lock);
+	free(fcr, M_XDATA);
+}
+
 static int
-cryptof_ioctl(struct file *fp, u_long cmd, void *data,
-    struct ucred *active_cred, struct thread *td)
+crypto_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+{
+	struct fcrypt *fcr;
+	int error;
+
+	fcr = malloc(sizeof(struct fcrypt), M_XDATA, M_WAITOK | M_ZERO);
+	TAILQ_INIT(&fcr->csessions);
+	mtx_init(&fcr->lock, "fcrypt", NULL, MTX_DEF);
+	error = devfs_set_cdevpriv(fcr, fcrypt_dtor);
+	if (error)
+		fcrypt_dtor(fcr);
+	return (error);
+}
+
+static int
+crypto_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
+    struct thread *td)
 {
 	static struct timeval keywarn, featwarn;
-	struct fcrypt *fcr = fp->f_data;
+	struct fcrypt *fcr;
 	struct csession *cse;
 	struct session2_op *sop;
 	struct crypt_op *cop;
@@ -1390,14 +1407,14 @@ cryptof_ioctl(struct file *fp, u_long cmd, void *data,
 		cmd32 = cmd;
 		data32 = data;
 		cmd = CIOCGSESSION;
-		data = &thunk.sopc;
+		data = (void *)&thunk.sopc;
 		session_op_from_32((struct session_op32 *)data32, &thunk.sopc);
 		break;
 	case CIOCGSESSION232:
 		cmd32 = cmd;
 		data32 = data;
 		cmd = CIOCGSESSION2;
-		data = &thunk.sopc;
+		data = (void *)&thunk.sopc;
 		session2_op_from_32((struct session2_op32 *)data32,
 		    &thunk.sopc);
 		break;
@@ -1405,14 +1422,14 @@ cryptof_ioctl(struct file *fp, u_long cmd, void *data,
 		cmd32 = cmd;
 		data32 = data;
 		cmd = CIOCCRYPT;
-		data = &thunk.copc;
+		data = (void *)&thunk.copc;
 		crypt_op_from_32((struct crypt_op32 *)data32, &thunk.copc);
 		break;
 	case CIOCCRYPTAEAD32:
 		cmd32 = cmd;
 		data32 = data;
 		cmd = CIOCCRYPTAEAD;
-		data = &thunk.aeadc;
+		data = (void *)&thunk.aeadc;
 		crypt_aead_from_32((struct crypt_aead32 *)data32, &thunk.aeadc);
 		break;
 	case CIOCKEY32:
@@ -1423,24 +1440,41 @@ cryptof_ioctl(struct file *fp, u_long cmd, void *data,
 			cmd = CIOCKEY;
 		else
 			cmd = CIOCKEY2;
-		data = &thunk.kopc;
+		data = (void *)&thunk.kopc;
 		crypt_kop_from_32((struct crypt_kop32 *)data32, &thunk.kopc);
 		break;
 	}
 #endif
 
+	devfs_get_cdevpriv((void **)&fcr);
+
 	switch (cmd) {
+#ifdef COMPAT_FREEBSD12
+	case CRIOGET:
+		/*
+		 * NB: This may fail in cases that the old
+		 * implementation did not if the current process has
+		 * restricted filesystem access (e.g. running in a
+		 * jail that does not expose /dev/crypto or in
+		 * capability mode).
+		 */
+		error = kern_openat(td, AT_FDCWD, "/dev/crypto", UIO_SYSSPACE,
+		    O_RDWR, 0);
+		if (error == 0)
+			*(uint32_t *)data = td->td_retval[0];
+		break;
+#endif
 	case CIOCGSESSION:
 	case CIOCGSESSION2:
 		if (cmd == CIOCGSESSION) {
-			session2_op_from_op(data, &thunk.sopc);
+			session2_op_from_op((void *)data, &thunk.sopc);
 			sop = &thunk.sopc;
 		} else
 			sop = (struct session2_op *)data;
 
 		error = cse_create(fcr, sop);
 		if (cmd == CIOCGSESSION && error == 0)
-			session2_op_to_op(sop, data);
+			session2_op_to_op(sop, (void *)data);
 		break;
 	case CIOCFSESSION:
 		ses = *(uint32_t *)data;
@@ -1456,7 +1490,7 @@ cryptof_ioctl(struct file *fp, u_long cmd, void *data,
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);
 		}
-		error = cryptodev_op(cse, cop, active_cred, td);
+		error = cryptodev_op(cse, cop);
 		cse_free(cse);
 		break;
 	case CIOCKEY:
@@ -1509,7 +1543,7 @@ cryptof_ioctl(struct file *fp, u_long cmd, void *data,
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EINVAL);
 		}
-		error = cryptodev_aead(cse, caead, active_cred, td);
+		error = cryptodev_aead(cse, caead);
 		cse_free(cse);
 		break;
 	default:
@@ -1522,109 +1556,33 @@ cryptof_ioctl(struct file *fp, u_long cmd, void *data,
 	switch (cmd32) {
 	case CIOCGSESSION32:
 		if (error == 0)
-			session_op_to_32(data, data32);
+			session_op_to_32((void *)data, data32);
 		break;
 	case CIOCGSESSION232:
 		if (error == 0)
-			session2_op_to_32(data, data32);
+			session2_op_to_32((void *)data, data32);
 		break;
 	case CIOCCRYPT32:
 		if (error == 0)
-			crypt_op_to_32(data, data32);
+			crypt_op_to_32((void *)data, data32);
 		break;
 	case CIOCCRYPTAEAD32:
 		if (error == 0)
-			crypt_aead_to_32(data, data32);
+			crypt_aead_to_32((void *)data, data32);
 		break;
 	case CIOCKEY32:
 	case CIOCKEY232:
-		crypt_kop_to_32(data, data32);
+		crypt_kop_to_32((void *)data, data32);
 		break;
 	}
 #endif
 	return (error);
 }
 
-/* ARGSUSED */
-static int
-cryptof_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-/* ARGSUSED */
-static int
-cryptof_close(struct file *fp, struct thread *td)
-{
-	struct fcrypt *fcr = fp->f_data;
-	struct csession *cse;
-
-	while ((cse = TAILQ_FIRST(&fcr->csessions))) {
-		TAILQ_REMOVE(&fcr->csessions, cse, next);
-		KASSERT(cse->refs == 1,
-		    ("%s: crypto session %p with %d refs", __func__, cse,
-		    cse->refs));
-		cse_free(cse);
-	}
-	free(fcr, M_XDATA);
-	fp->f_data = NULL;
-	return 0;
-}
-
-static int
-cryptof_fill_kinfo(struct file *fp, struct kinfo_file *kif,
-    struct filedesc *fdp)
-{
-
-	kif->kf_type = KF_TYPE_CRYPTO;
-	return (0);
-}
-
-static int
-cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
-    struct thread *td)
-{
-	struct file *f;
-	struct fcrypt *fcr;
-	int fd, error;
-
-	switch (cmd) {
-	case CRIOGET:
-		error = falloc_noinstall(td, &f);
-		if (error)
-			break;
-
-		fcr = malloc(sizeof(struct fcrypt), M_XDATA, M_WAITOK | M_ZERO);
-		TAILQ_INIT(&fcr->csessions);
-		mtx_init(&fcr->lock, "fcrypt", NULL, MTX_DEF);
-
-		finit(f, FREAD | FWRITE, DTYPE_CRYPTO, fcr, &cryptofops);
-		error = finstall(td, f, &fd, 0, NULL);
-		if (error) {
-			mtx_destroy(&fcr->lock);
-			free(fcr, M_XDATA);
-		} else
-			*(uint32_t *)data = fd;
-		fdrop(f, td);
-		break;
-	case CRIOFINDDEV:
-		error = cryptodev_find((struct crypt_find_op *)data);
-		break;
-	case CRIOASYMFEAT:
-		error = crypto_getfeat((int *)data);
-		break;
-	default:
-		error = EINVAL;
-		break;
-	}
-	return (error);
-}
-
 static struct cdevsw crypto_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_ioctl =	cryptoioctl,
+	.d_open =	crypto_open,
+	.d_ioctl =	crypto_ioctl,
 	.d_name =	"crypto",
 };
 static struct cdev *crypto_dev;

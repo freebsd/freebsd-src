@@ -316,15 +316,6 @@ struct crypt_kop {
 #define CRF_DSA_VERIFY		(1 << CRK_DSA_VERIFY)
 #define CRF_DH_COMPUTE_KEY	(1 << CRK_DH_COMPUTE_KEY)
 
-/*
- * done against open of /dev/crypto, to get a cloned descriptor.
- * Please use F_SETFD against the cloned descriptor.
- */
-#define	CRIOGET		_IOWR('c', 100, uint32_t)
-#define	CRIOASYMFEAT	CIOCASYMFEAT
-#define	CRIOFINDDEV	CIOCFINDDEV
-
-/* the following are done against the cloned descriptor */
 #define	CIOCGSESSION	_IOWR('c', 101, struct session_op)
 #define	CIOCFSESSION	_IOW('c', 102, uint32_t)
 #define CIOCCRYPT	_IOWR('c', 103, struct crypt_op)

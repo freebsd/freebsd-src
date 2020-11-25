@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2020
+.Dd November 24, 2020
 .Dt CRYPTO 4
 .Os
 .Sh NAME
@@ -122,19 +122,11 @@ Open the
 .Pa /dev/crypto
 device.
 .It
-Create a new cryptography file descriptor via
-.Dv CRIOGET
-to use for all subsequent
-.Xr ioctl 2
-commands.
-.It
-Close the
-.Pa /dev/crypto
-device.
-.It
 If any symmetric-keyed cryptographic or digest operations will be performed,
 create a session with
-.Dv CIOCGSESSION .
+.Dv CIOCGSESSION
+or
+.Dv CIOCGSESSION2 .
 Most applications will require at least one symmetric session.
 Since cipher and MAC keys are tied to sessions, many
 applications will require more.
@@ -152,8 +144,9 @@ or
 Optionally destroy a session with
 .Dv CIOCFSESSION .
 .It
-Close the cryptography file descriptor with
-.Xr close 2 .
+Close the
+.Pa /dev/crypto
+device.
 This will automatically close any remaining sessions associated with the
 file desriptor.
 .El
@@ -458,11 +451,3 @@ session: if you request a
 algorithm, you must supply a suitably-sized buffer.
 .Pp
 The scheme for passing arguments for asymmetric requests is baroque.
-.Pp
-.Dv CRIOGET
-should not exist.
-It should be possible to use the
-.Dv CIOC Ns \&*
-commands directly on a
-.Pa /dev/crypto
-file descriptor.
