@@ -10,9 +10,12 @@
  */
 
 #include <stdio.h>
-#define NETMAP_WITH_LIBS
-#include <net/netmap_user.h>
 #include <sys/poll.h>
+#include <sys/ioctl.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <libnetmap.h>
 
 static int verbose = 0;
 
@@ -32,7 +35,7 @@ sigint_h(int sig)
  * how many packets on this set of queues ?
  */
 static int
-pkt_queued(struct nm_desc *d, int tx)
+pkt_queued(struct nmport_d *d, int tx)
 {
 	u_int i, tot = 0;
 
@@ -61,8 +64,8 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 	if (rxring->flags || txring->flags)
 		D("%s rxflags %x txflags %x",
 			msg, rxring->flags, txring->flags);
-	j = rxring->cur; /* RX */
-	k = txring->cur; /* TX */
+	j = rxring->head; /* RX */
+	k = txring->head; /* TX */
 	m = nm_ring_space(rxring);
 	if (m < limit)
 		limit = m;
@@ -115,11 +118,11 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 
 /* move packts from src to destination */
 static int
-move(struct nm_desc *src, struct nm_desc *dst, u_int limit)
+move(struct nmport_d *src, struct nmport_d *dst, u_int limit)
 {
 	struct netmap_ring *txring, *rxring;
 	u_int m = 0, si = src->first_rx_ring, di = dst->first_tx_ring;
-	const char *msg = (src->req.nr_flags == NR_REG_SW) ?
+	const char *msg = (src->reg.nr_flags == NR_REG_SW) ?
 		"host->net" : "net->host";
 
 	while (si <= src->last_rx_ring && di <= dst->last_tx_ring) {
@@ -175,7 +178,7 @@ main(int argc, char **argv)
 	struct pollfd pollfd[2];
 	int ch;
 	u_int burst = 1024, wait_link = 4;
-	struct nm_desc *pa = NULL, *pb = NULL;
+	struct nmport_d *pa = NULL, *pb = NULL;
 	char *ifa = NULL, *ifb = NULL;
 	char ifabuf[64] = { 0 };
 	int loopback = 0;
@@ -252,16 +255,16 @@ main(int argc, char **argv)
 	} else {
 		/* two different interfaces. Take all rings on if1 */
 	}
-	pa = nm_open(ifa, NULL, 0, NULL);
+	pa = nmport_open(ifa);
 	if (pa == NULL) {
 		D("cannot open %s", ifa);
 		return (1);
 	}
 	/* try to reuse the mmap() of the first interface, if possible */
-	pb = nm_open(ifb, NULL, NM_OPEN_NO_MMAP, pa);
+	pb = nmport_open(ifb);
 	if (pb == NULL) {
 		D("cannot open %s", ifb);
-		nm_close(pa);
+		nmport_close(pa);
 		return (1);
 	}
 	zerocopy = zerocopy && (pa->mem == pb->mem);
@@ -275,8 +278,8 @@ main(int argc, char **argv)
 	D("Wait %d secs for link to come up...", wait_link);
 	sleep(wait_link);
 	D("Ready to go, %s 0x%x/%d <-> %s 0x%x/%d.",
-		pa->req.nr_name, pa->first_rx_ring, pa->req.nr_rx_rings,
-		pb->req.nr_name, pb->first_rx_ring, pb->req.nr_rx_rings);
+		pa->hdr.nr_name, pa->first_rx_ring, pa->reg.nr_rx_rings,
+		pb->hdr.nr_name, pb->first_rx_ring, pb->reg.nr_rx_rings);
 
 	/* main loop */
 	signal(SIGINT, sigint_h);
@@ -320,12 +323,12 @@ main(int argc, char **argv)
 				pollfd[0].events,
 				pollfd[0].revents,
 				pkt_queued(pa, 0),
-				NETMAP_RXRING(pa->nifp, pa->cur_rx_ring)->cur,
+				NETMAP_RXRING(pa->nifp, pa->cur_rx_ring)->head,
 				pkt_queued(pa, 1),
 				pollfd[1].events,
 				pollfd[1].revents,
 				pkt_queued(pb, 0),
-				NETMAP_RXRING(pb->nifp, pb->cur_rx_ring)->cur,
+				NETMAP_RXRING(pb->nifp, pb->cur_rx_ring)->head,
 				pkt_queued(pb, 1)
 			);
 		if (ret < 0)
@@ -349,8 +352,8 @@ main(int argc, char **argv)
 		/* We don't need ioctl(NIOCTXSYNC) on the two file descriptors here,
 		 * kernel will txsync on next poll(). */
 	}
-	nm_close(pb);
-	nm_close(pa);
+	nmport_close(pb);
+	nmport_close(pa);
 
 	return (0);
 }
