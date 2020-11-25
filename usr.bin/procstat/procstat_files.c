@@ -384,11 +384,6 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 			xo_emit("{eq:fd_type/kqueue}");
 			break;
 
-		case PS_FST_TYPE_CRYPTO:
-			str = "c";
-			xo_emit("{eq:fd_type/crypto}");
-			break;
-
 		case PS_FST_TYPE_MQUEUE:
 			str = "m";
 			xo_emit("{eq:fd_type/mqueue}");

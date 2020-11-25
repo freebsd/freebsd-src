@@ -64,7 +64,7 @@
 #define	PS_FST_TYPE_PIPE	4
 #define	PS_FST_TYPE_PTS		5
 #define	PS_FST_TYPE_KQUEUE	6
-#define	PS_FST_TYPE_CRYPTO	7
+/* was PS_FST_TYPE_CRYPTO	7 */
 #define	PS_FST_TYPE_MQUEUE	8
 #define	PS_FST_TYPE_SHM		9
 #define	PS_FST_TYPE_SEM		10
