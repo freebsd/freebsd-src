@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
+#include <machine/vmparam.h>
 
 /*
  * The code is excerpted from sys/x86/x86/identcpu.c: identify_cpu(),
@@ -89,8 +90,6 @@ running_on_hyperv(void)
 	return (1);
 }
 
-#define KERNEL_PHYSICAL_BASE (2*1024*1024)
-
 static void
 efi_verify_staging_size(unsigned long *nr_pages)
 {
@@ -134,12 +133,11 @@ efi_verify_staging_size(unsigned long *nr_pages)
 		start = p->PhysicalStart;
 		end = start + p->NumberOfPages * EFI_PAGE_SIZE;
 
-		if (KERNEL_PHYSICAL_BASE < start ||
-		    KERNEL_PHYSICAL_BASE >= end)
+		if (KERNLOAD < start || KERNLOAD >= end)
 			continue;
 
 		available_pages = p->NumberOfPages -
-			((KERNEL_PHYSICAL_BASE - start) >> EFI_PAGE_SHIFT);
+			((KERNLOAD - start) >> EFI_PAGE_SHIFT);
 		break;
 	}
 
