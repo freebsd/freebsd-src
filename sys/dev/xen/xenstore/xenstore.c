@@ -655,12 +655,17 @@ xs_process_msg(enum xsd_sockmsg_type *type)
 		mtx_lock(&xs.registered_watches_lock);
 		msg->u.watch.handle = find_watch(
 		    msg->u.watch.vec[XS_WATCH_TOKEN]);
-		if (msg->u.watch.handle != NULL) {
-			mtx_lock(&xs.watch_events_lock);
+		mtx_lock(&xs.watch_events_lock);
+		if (msg->u.watch.handle != NULL &&
+		    (!msg->u.watch.handle->max_pending ||
+		    msg->u.watch.handle->pending <
+		    msg->u.watch.handle->max_pending)) {
+			msg->u.watch.handle->pending++;
 			TAILQ_INSERT_TAIL(&xs.watch_events, msg, list);
 			wakeup(&xs.watch_events);
 			mtx_unlock(&xs.watch_events_lock);
 		} else {
+			mtx_unlock(&xs.watch_events_lock);
 			free(msg->u.watch.vec, M_XENSTORE);
 			free(msg, M_XENSTORE);
 		}
@@ -981,8 +986,10 @@ xenwatch_thread(void *unused)
 
 		mtx_lock(&xs.watch_events_lock);
 		msg = TAILQ_FIRST(&xs.watch_events);
-		if (msg)
+		if (msg) {
 			TAILQ_REMOVE(&xs.watch_events, msg, list);
+			msg->u.watch.handle->pending--;
+		}
 		mtx_unlock(&xs.watch_events_lock);
 
 		if (msg != NULL) {
@@ -1577,6 +1584,7 @@ xs_register_watch(struct xs_watch *watch)
 	char token[sizeof(watch) * 2 + 1];
 	int error;
 
+	watch->pending = 0;
 	sprintf(token, "%lX", (long)watch);
 
 	mtx_lock(&xs.registered_watches_lock);

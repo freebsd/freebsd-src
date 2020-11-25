@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/module.h>
 #include <sys/selinfo.h>
+#include <sys/sysctl.h>
 #include <sys/poll.h>
 
 #include <xen/xen-os.h>
@@ -51,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <xen/hypervisor.h>
 #include <xen/xenstore/xenstorevar.h>
 #include <xen/xenstore/xenstore_internal.h>
+
+static unsigned int max_pending_watches = 1000;
 
 struct xs_dev_transaction {
 	LIST_ENTRY(xs_dev_transaction) list;
@@ -333,6 +336,7 @@ xs_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 		watch->watch.node = strdup(wpath, M_XENSTORE);
 		watch->watch.callback = xs_dev_watch_cb;
 		watch->watch.callback_data = (uintptr_t)watch;
+		watch->watch.max_pending = max_pending_watches;
 		watch->token = strdup(wtoken, M_XENSTORE);
 		watch->user = u;
 
@@ -509,6 +513,17 @@ static int
 xs_dev_attach(device_t dev)
 {
 	struct cdev *xs_cdev;
+	struct sysctl_ctx_list *sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
+
+	sysctl_ctx = device_get_sysctl_ctx(dev);
+	sysctl_tree = device_get_sysctl_tree(dev);
+	if (sysctl_ctx == NULL || sysctl_tree == NULL)
+	    return (EINVAL);
+
+	SYSCTL_ADD_UINT(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree), OID_AUTO,
+	    "max_pending_watch_events", CTLFLAG_RW, &max_pending_watches, 0,
+	    "maximum amount of pending watch events to be delivered");
 
 	xs_cdev = make_dev_credf(MAKEDEV_ETERNAL, &xs_dev_cdevsw, 0, NULL,
 	    UID_ROOT, GID_WHEEL, 0400, "xen/xenstore");

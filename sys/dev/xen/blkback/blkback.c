@@ -3746,6 +3746,12 @@ xbb_attach(device_t dev)
 	xbb->hotplug_watch.callback = xbb_attach_disk;
 	KASSERT(xbb->hotplug_watch.node == NULL, ("watch node already setup"));
 	xbb->hotplug_watch.node = strdup(sbuf_data(watch_path), M_XENBLOCKBACK);
+	/*
+	 * We don't care about the path updated, just about the value changes
+	 * on that single node, hence there's no need to queue more that one
+	 * event.
+	 */
+	xbb->hotplug_watch.max_pending = 1;
 	sbuf_delete(watch_path);
 	error = xs_register_watch(&xbb->hotplug_watch);
 	if (error != 0) {

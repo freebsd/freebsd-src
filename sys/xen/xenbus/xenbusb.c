@@ -701,10 +701,21 @@ xenbusb_add_device(device_t dev, const char *type, const char *id)
 		ivars->xd_otherend_watch.node = statepath;
 		ivars->xd_otherend_watch.callback = xenbusb_otherend_watch_cb;
 		ivars->xd_otherend_watch.callback_data = (uintptr_t)ivars;
+		/*
+		 * Other end state node watch, limit to one pending event
+		 * to prevent frontends from queuing too many events that
+		 * could cause resource starvation.
+		 */
+		ivars->xd_otherend_watch.max_pending = 1;
 
 		ivars->xd_local_watch.node = ivars->xd_node;
 		ivars->xd_local_watch.callback = xenbusb_local_watch_cb;
 		ivars->xd_local_watch.callback_data = (uintptr_t)ivars;
+		/*
+		 * Watch our local path, only writable by us or a privileged
+		 * domain, no need to limit.
+		 */
+		ivars->xd_local_watch.max_pending = 0;
 
 		mtx_lock(&xbs->xbs_lock);
 		xbs->xbs_connecting_children++;
@@ -763,6 +774,12 @@ xenbusb_attach(device_t dev, char *bus_node, u_int id_components)
 	xbs->xbs_device_watch.node = bus_node;
 	xbs->xbs_device_watch.callback = xenbusb_devices_changed;
 	xbs->xbs_device_watch.callback_data = (uintptr_t)xbs;
+	/*
+	 * Allow for unlimited pending watches, as those are local paths
+	 * either controlled by the guest or only writable by privileged
+	 * domains.
+	 */
+	xbs->xbs_device_watch.max_pending = 0;
 
 	TASK_INIT(&xbs->xbs_probe_children, 0, xenbusb_probe_children_cb, dev);
 
