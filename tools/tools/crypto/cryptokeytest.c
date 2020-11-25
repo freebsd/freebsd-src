@@ -113,10 +113,7 @@ UB_mod_exp(BIGNUM *res, const BIGNUM *a, const BIGNUM *b, const BIGNUM *c)
 {
 	struct crypt_kop kop;
 	void *ale, *ble, *cle;
-	static int crypto_fd = -1;
-
-	if (crypto_fd == -1 && ioctl(devcrypto(), CRIOGET, &crypto_fd) == -1)
-		err(1, "CRIOGET");
+	int crypto_fd = devcrypto();
 
 	if ((ale = bignum_to_le(a)) == NULL)
 		err(1, "bignum_to_le, a");
