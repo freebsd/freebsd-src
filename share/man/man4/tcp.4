@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2020
+.Dd November 25, 2020
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -300,86 +300,20 @@ Each dropped segment is taken into account in the TCP protocol statistics.
 .It Dv TCP_TXTLS_ENABLE
 Enable in-kernel Transport Layer Security (TLS) for data written to this
 socket.
-The
-.Vt struct tls_so_enable
-argument defines the encryption and authentication algorithms and keys
-used to encrypt the socket data as well as the maximum TLS record
-payload size.
-.Pp
-All data written to this socket will be encapsulated in TLS records
-and subsequently encrypted.
-By default all data written to this socket is treated as application data.
-Individual TLS records with a type other than application data
-(for example, handshake messages),
-may be transmitted by invoking
-.Xr sendmsg 2
-with a custom TLS record type set in a
-.Dv TLS_SET_RECORD_TYPE
-control message.
-The payload of this control message is a single byte holding the desired
-TLS record type.
-.Pp
-At present, only a single transmit key may be set on a socket.
-As such, users of this option must disable rekeying.
+See
+.Xr ktls 4
+for more details.
 .It Dv TCP_TXTLS_MODE
 The integer argument can be used to get or set the current TLS transmit mode
 of a socket.
-Setting the mode can only used to toggle between software and NIC TLS after
-TLS has been initially enabled via the
-.Dv TCP_TXTLS_ENABLE
-option.
-The available modes are:
-.Bl -tag -width "Dv TCP_TLS_MODE_IFNET"
-.It Dv TCP_TLS_MODE_NONE
-In-kernel TLS framing and encryption is not enabled for this socket.
-.It Dv TCP_TLS_MODE_SW
-TLS records are encrypted by the kernel prior to placing the data in the
-socket buffer.
-Typically this encryption is performed in software.
-.It Dv TCP_TLS_MODE_IFNET
-TLS records are encrypted by the network interface card (NIC).
-.It Dv TCP_TLS_MODE_TOE
-TLS records are encrypted by the NIC using a TCP offload engine (TOE).
-.El
+See
+.Xr ktls 4
+for more details.
 .It Dv TCP_RXTLS_ENABLE
 Enable in-kernel TLS for data read from this socket.
-The
-.Vt struct tls_so_enable
-argument defines the encryption and authentication algorithms and keys
-used to decrypt the socket data.
-.Pp
-Each received TLS record must be read from the socket using
-.Xr recvmsg 2 .
-Each received TLS record will contain a
-.Dv TLS_GET_RECORD
-control message along with the decrypted payload.
-The control message contains a
-.Vt struct tls_get_record
-which includes fields from the TLS record header.
-If an invalid or corrupted TLS record is received,
-recvmsg 2
-will fail with one of the following errors:
-.Bl -tag -width Er
-.It Bq Er EINVAL
-The version fields in a TLS record's header did not match the version required
-by the
-.Vt struct tls_so_enable
-structure used to enable in-kernel TLS.
-.It Bq Er EMSGSIZE
-A TLS record's length was either too small or too large.
-.It Bq Er EMSGSIZE
-The connection was closed after sending a truncated TLS record.
-.It Bq Er EBADMSG
-The TLS record failed to match the included authentication tag.
-.El
-.Pp
-At present, only a single receive key may be set on a socket.
-As such, users of this option must disable rekeying.
-.It Dv TCP_RXTLS_MODE
-The integer argument can be used to get the current TLS receive mode
-of a socket.
-The available modes are the same as for
-.Dv TCP_TXTLS_MODE .
+See
+.Xr ktls 4
+for more details.
 .El
 .Pp
 The option level for the
@@ -770,6 +704,7 @@ when trying to use a TCP function block that is not available;
 .Xr inet 4 ,
 .Xr intro 4 ,
 .Xr ip 4 ,
+.Xr ktls 4 ,
 .Xr mod_cc 4 ,
 .Xr siftr 4 ,
 .Xr syncache 4 ,

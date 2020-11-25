@@ -250,6 +250,7 @@ MAN=	aac.4 \
 	kld.4 \
 	ksyms.4 \
 	ksz8995ma.4 \
+	ktls.4 \
 	ktr.4 \
 	kue.4 \
 	lagg.4 \
