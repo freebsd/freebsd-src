@@ -3,19 +3,19 @@
  *
  * BSD license
  *
- * A netmap client to bridge two network interfaces
- * (or one interface and the host stack).
+ * A netmap application to bridge two network interfaces,
+ * or one interface and the host stack.
  *
  * $FreeBSD$
  */
 
+#include <libnetmap.h>
+#include <signal.h>
 #include <stdio.h>
 #include <sys/poll.h>
 #include <sys/ioctl.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <libnetmap.h>
 
 static int verbose = 0;
 
@@ -32,30 +32,39 @@ sigint_h(int sig)
 
 
 /*
- * how many packets on this set of queues ?
+ * How many slots do we (user application) have on this
+ * set of queues ?
  */
 static int
-pkt_queued(struct nmport_d *d, int tx)
+rx_slots_avail(struct nmport_d *d)
 {
 	u_int i, tot = 0;
 
-	if (tx) {
-		for (i = d->first_tx_ring; i <= d->last_tx_ring; i++) {
-			tot += nm_ring_space(NETMAP_TXRING(d->nifp, i));
-		}
-	} else {
-		for (i = d->first_rx_ring; i <= d->last_rx_ring; i++) {
-			tot += nm_ring_space(NETMAP_RXRING(d->nifp, i));
-		}
+	for (i = d->first_rx_ring; i <= d->last_rx_ring; i++) {
+		tot += nm_ring_space(NETMAP_RXRING(d->nifp, i));
 	}
+
+	return tot;
+}
+
+static int
+tx_slots_avail(struct nmport_d *d)
+{
+	u_int i, tot = 0;
+
+	for (i = d->first_tx_ring; i <= d->last_tx_ring; i++) {
+		tot += nm_ring_space(NETMAP_TXRING(d->nifp, i));
+	}
+
 	return tot;
 }
 
 /*
- * move up to 'limit' pkts from rxring to txring swapping buffers.
+ * Move up to 'limit' pkts from rxring to txring, swapping buffers
+ * if zerocopy is possible. Otherwise fall back on packet copying.
  */
 static int
-process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
+rings_move(struct netmap_ring *rxring, struct netmap_ring *txring,
 	      u_int limit, const char *msg)
 {
 	u_int j, k, m = 0;
@@ -63,7 +72,7 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 	/* print a warning if any of the ring flags is set (e.g. NM_REINIT) */
 	if (rxring->flags || txring->flags)
 		D("%s rxflags %x txflags %x",
-			msg, rxring->flags, txring->flags);
+		    msg, rxring->flags, txring->flags);
 	j = rxring->head; /* RX */
 	k = txring->head; /* TX */
 	m = nm_ring_space(rxring);
@@ -79,16 +88,18 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 
 		/* swap packets */
 		if (ts->buf_idx < 2 || rs->buf_idx < 2) {
-			RD(5, "wrong index rx[%d] = %d  -> tx[%d] = %d",
-				j, rs->buf_idx, k, ts->buf_idx);
+			RD(2, "wrong index rxr[%d] = %d  -> txr[%d] = %d",
+			    j, rs->buf_idx, k, ts->buf_idx);
 			sleep(2);
 		}
 		/* copy the packet length. */
 		if (rs->len > rxring->nr_buf_size) {
-			RD(5, "wrong len %d rx[%d] -> tx[%d]", rs->len, j, k);
+			RD(2,  "%s: invalid len %u, rxr[%d] -> txr[%d]",
+			    msg, rs->len, j, k);
 			rs->len = 0;
 		} else if (verbose > 1) {
-			D("%s send len %d rx[%d] -> tx[%d]", msg, rs->len, j, k);
+			D("%s: fwd len %u, rx[%d] -> tx[%d]",
+			    msg, rs->len, j, k);
 		}
 		ts->len = rs->len;
 		if (zerocopy) {
@@ -111,24 +122,23 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 	rxring->head = rxring->cur = j;
 	txring->head = txring->cur = k;
 	if (verbose && m > 0)
-		D("%s sent %d packets to %p", msg, m, txring);
+		D("%s fwd %d packets: rxring %u --> txring %u",
+		    msg, m, rxring->ringid, txring->ringid);
 
 	return (m);
 }
 
-/* move packts from src to destination */
+/* Move packets from source port to destination port. */
 static int
-move(struct nmport_d *src, struct nmport_d *dst, u_int limit)
+ports_move(struct nmport_d *src, struct nmport_d *dst, u_int limit,
+	const char *msg)
 {
 	struct netmap_ring *txring, *rxring;
 	u_int m = 0, si = src->first_rx_ring, di = dst->first_tx_ring;
-	const char *msg = (src->reg.nr_flags == NR_REG_SW) ?
-		"host->net" : "net->host";
 
 	while (si <= src->last_rx_ring && di <= dst->last_tx_ring) {
 		rxring = NETMAP_RXRING(src->nifp, si);
 		txring = NETMAP_TXRING(dst->nifp, di);
-		ND("txring %p rxring %p", txring, rxring);
 		if (nm_ring_empty(rxring)) {
 			si++;
 			continue;
@@ -137,7 +147,7 @@ move(struct nmport_d *src, struct nmport_d *dst, u_int limit)
 			di++;
 			continue;
 		}
-		m += process_rings(rxring, txring, limit, msg);
+		m += rings_move(rxring, txring, limit, msg);
 	}
 
 	return (m);
@@ -149,7 +159,7 @@ usage(void)
 {
 	fprintf(stderr,
 		"netmap bridge program: forward packets between two "
-			"network interfaces\n"
+			"netmap ports\n"
 		"    usage(1): bridge [-v] [-i ifa] [-i ifb] [-b burst] "
 			"[-w wait_time] [-L]\n"
 		"    usage(2): bridge [-v] [-w wait_time] [-L] "
@@ -161,6 +171,11 @@ usage(void)
 		"    is not specified, otherwise loopback traffic on ifa.\n"
 		"\n"
 		"    example: bridge -w 10 -i netmap:eth3 -i netmap:eth1\n"
+		"\n"
+		"    If ifa and ifb are two interfaces, they must be in\n"
+		"    promiscuous mode. Otherwise, if bridging with the \n"
+		"    host stack, the interface must have the offloads \n"
+		"    disabled.\n"
 		);
 	exit(1);
 }
@@ -175,13 +190,15 @@ usage(void)
 int
 main(int argc, char **argv)
 {
+	char msg_a2b[128], msg_b2a[128];
 	struct pollfd pollfd[2];
-	int ch;
 	u_int burst = 1024, wait_link = 4;
 	struct nmport_d *pa = NULL, *pb = NULL;
 	char *ifa = NULL, *ifb = NULL;
 	char ifabuf[64] = { 0 };
+	int pa_sw_rings, pb_sw_rings;
 	int loopback = 0;
+	int ch;
 
 	fprintf(stderr, "%s built %s %s\n\n", argv[0], __DATE__, __TIME__);
 
@@ -281,14 +298,27 @@ main(int argc, char **argv)
 		pa->hdr.nr_name, pa->first_rx_ring, pa->reg.nr_rx_rings,
 		pb->hdr.nr_name, pb->first_rx_ring, pb->reg.nr_rx_rings);
 
+	pa_sw_rings = (pa->reg.nr_mode == NR_REG_SW ||
+	    pa->reg.nr_mode == NR_REG_ONE_SW);
+	pb_sw_rings = (pb->reg.nr_mode == NR_REG_SW ||
+	    pb->reg.nr_mode == NR_REG_ONE_SW);
+
+	snprintf(msg_a2b, sizeof(msg_a2b), "%s:%s --> %s:%s",
+			pa->hdr.nr_name, pa_sw_rings ? "host" : "nic",
+			pb->hdr.nr_name, pb_sw_rings ? "host" : "nic");
+
+	snprintf(msg_b2a, sizeof(msg_b2a), "%s:%s --> %s:%s",
+			pb->hdr.nr_name, pb_sw_rings ? "host" : "nic",
+			pa->hdr.nr_name, pa_sw_rings ? "host" : "nic");
+
 	/* main loop */
 	signal(SIGINT, sigint_h);
 	while (!do_abort) {
 		int n0, n1, ret;
 		pollfd[0].events = pollfd[1].events = 0;
 		pollfd[0].revents = pollfd[1].revents = 0;
-		n0 = pkt_queued(pa, 0);
-		n1 = pkt_queued(pb, 0);
+		n0 = rx_slots_avail(pa);
+		n1 = rx_slots_avail(pb);
 #if defined(_WIN32) || defined(BUSYWAIT)
 		if (n0) {
 			ioctl(pollfd[1].fd, NIOCTXSYNC, NULL);
@@ -322,35 +352,37 @@ main(int argc, char **argv)
 				ret <= 0 ? "timeout" : "ok",
 				pollfd[0].events,
 				pollfd[0].revents,
-				pkt_queued(pa, 0),
+				rx_slots_avail(pa),
 				NETMAP_RXRING(pa->nifp, pa->cur_rx_ring)->head,
-				pkt_queued(pa, 1),
+				tx_slots_avail(pa),
 				pollfd[1].events,
 				pollfd[1].revents,
-				pkt_queued(pb, 0),
+				rx_slots_avail(pb),
 				NETMAP_RXRING(pb->nifp, pb->cur_rx_ring)->head,
-				pkt_queued(pb, 1)
+				tx_slots_avail(pb)
 			);
 		if (ret < 0)
 			continue;
 		if (pollfd[0].revents & POLLERR) {
 			struct netmap_ring *rx = NETMAP_RXRING(pa->nifp, pa->cur_rx_ring);
 			D("error on fd0, rx [%d,%d,%d)",
-				rx->head, rx->cur, rx->tail);
+			    rx->head, rx->cur, rx->tail);
 		}
 		if (pollfd[1].revents & POLLERR) {
 			struct netmap_ring *rx = NETMAP_RXRING(pb->nifp, pb->cur_rx_ring);
 			D("error on fd1, rx [%d,%d,%d)",
-				rx->head, rx->cur, rx->tail);
+			    rx->head, rx->cur, rx->tail);
 		}
 		if (pollfd[0].revents & POLLOUT)
-			move(pb, pa, burst);
+			ports_move(pb, pa, burst, msg_b2a);
 
 		if (pollfd[1].revents & POLLOUT)
-			move(pa, pb, burst);
+			ports_move(pa, pb, burst, msg_a2b);
 
-		/* We don't need ioctl(NIOCTXSYNC) on the two file descriptors here,
-		 * kernel will txsync on next poll(). */
+		/*
+		 * We don't need ioctl(NIOCTXSYNC) on the two file descriptors.
+		 * here. The kernel will txsync on next poll().
+		 */
 	}
 	nmport_close(pb);
 	nmport_close(pa);
