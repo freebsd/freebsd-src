@@ -1279,6 +1279,15 @@ closefp(struct filedesc *fdp, int fd, struct file *fp, struct thread *td,
 	FILEDESC_XUNLOCK(fdp);
 
 	error = closef(fp, td);
+
+	/*
+	 * All paths leading up to closefp() will have already removed or
+	 * replaced the fd in the filedesc table, so a restart would not
+	 * operate on the same file.
+	 */
+	if (error == ERESTART)
+		error = EINTR;
+
 	if (holdleaders) {
 		FILEDESC_XLOCK(fdp);
 		fdp->fd_holdleaderscount--;
