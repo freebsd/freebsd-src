@@ -593,29 +593,12 @@ struct ifmultiaddr {
 	struct	epoch_context	ifma_epoch_ctx;
 };
 
-extern	struct rwlock ifnet_rwlock;
 extern	struct sx ifnet_sxlock;
 
-#define	IFNET_WLOCK() do {						\
-	sx_xlock(&ifnet_sxlock);					\
-	rw_wlock(&ifnet_rwlock);					\
-} while (0)
-
-#define	IFNET_WUNLOCK() do {						\
-	rw_wunlock(&ifnet_rwlock);					\
-	sx_xunlock(&ifnet_sxlock);					\
-} while (0)
-
-/*
- * To assert the ifnet lock, you must know not only whether it's for read or
- * write, but also whether it was acquired with sleep support or not.
- */
-#define	IFNET_RLOCK_ASSERT()		sx_assert(&ifnet_sxlock, SA_SLOCKED)
-#define	IFNET_WLOCK_ASSERT() do {					\
-	sx_assert(&ifnet_sxlock, SA_XLOCKED);				\
-	rw_assert(&ifnet_rwlock, RA_WLOCKED);				\
-} while (0)
-
+#define	IFNET_WLOCK()		sx_xlock(&ifnet_sxlock)
+#define	IFNET_WUNLOCK()		sx_xunlock(&ifnet_sxlock)
+#define	IFNET_RLOCK_ASSERT()	sx_assert(&ifnet_sxlock, SA_SLOCKED)
+#define	IFNET_WLOCK_ASSERT()	sx_assert(&ifnet_sxlock, SA_XLOCKED)
 #define	IFNET_RLOCK()		sx_slock(&ifnet_sxlock)
 #define	IFNET_RUNLOCK()		sx_sunlock(&ifnet_sxlock)
 
