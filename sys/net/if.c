@@ -306,15 +306,9 @@ VNET_DEFINE(struct ifnet **, ifindex_table);
 
 /*
  * The global network interface list (V_ifnet) and related state (such as
- * if_index, if_indexlim, and ifindex_table) are protected by an sxlock and
- * an rwlock.  Either may be acquired shared to stablize the list, but both
- * must be acquired writable to modify the list.  This model allows us to
- * both stablize the interface list during interrupt thread processing, but
- * also to stablize it over long-running ioctls, without introducing priority
- * inversions and deadlocks.
+ * if_index, if_indexlim, and ifindex_table) are protected by an sxlock.
+ * This may be acquired to stabilise the list, or we may rely on NET_EPOCH.
  */
-struct rwlock ifnet_rwlock;
-RW_SYSINIT_FLAGS(ifnet_rw, &ifnet_rwlock, "ifnet_rw", RW_RECURSE);
 struct sx ifnet_sxlock;
 SX_SYSINIT_FLAGS(ifnet_sx, &ifnet_sxlock, "ifnet_sx", SX_RECURSE);
 
