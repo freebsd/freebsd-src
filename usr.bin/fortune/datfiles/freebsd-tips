@@ -584,7 +584,7 @@ zfs list -o space
 		-- Benedict Reuschling <bcr@FreeBSD.org>
 %
 To learn more about what your system is doing, take a look at systat(1). For
-example, to get various of statistics related to virtual memory usage, process
+example, to get various statistics related to virtual memory usage, process
 scheduling, device interrupts, system name translation caching, and disk I/O,
 enter the following:
 
