@@ -979,12 +979,8 @@ pipe_direct_write(struct pipe *wpipe, struct uio *uio)
 
 retry:
 	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
-	error = pipelock(wpipe, 1);
-	if (error != 0)
-		goto error1;
 	if ((wpipe->pipe_state & PIPE_EOF) != 0) {
 		error = EPIPE;
-		pipeunlock(wpipe);
 		goto error1;
 	}
 	if (wpipe->pipe_state & PIPE_DIRECTW) {
@@ -997,10 +993,9 @@ retry:
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdww", 0);
+		pipelock(wpipe, 0);
 		if (error)
 			goto error1;
-		else
-			goto retry;
 	}
 	if (wpipe->pipe_buffer.cnt > 0) {
 		if (wpipe->pipe_state & PIPE_WANTR) {
@@ -1012,6 +1007,7 @@ retry:
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdwc", 0);
+		pipelock(wpipe, 0);
 		if (error)
 			goto error1;
 		else
@@ -1020,7 +1016,6 @@ retry:
 
 	error = pipe_build_write_buffer(wpipe, uio);
 	if (error) {
-		pipeunlock(wpipe);
 		goto error1;
 	}
 
@@ -1050,7 +1045,6 @@ retry:
 	} else {
 		pipe_destroy_write_buffer(wpipe);
 	}
-	pipeunlock(wpipe);
 	KASSERT((wpipe->pipe_state & PIPE_DIRECTW) == 0,
 	    ("pipe %p leaked PIPE_DIRECTW", wpipe));
 	return (error);
@@ -1124,16 +1118,12 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	}
 	MPASS(wpipe->pipe_buffer.size != 0);
 
-	pipeunlock(wpipe);
-
 	orig_resid = uio->uio_resid;
 
 	while (uio->uio_resid) {
 		int space;
 
-		pipelock(wpipe, 0);
 		if (wpipe->pipe_state & PIPE_EOF) {
-			pipeunlock(wpipe);
 			error = EPIPE;
 			break;
 		}
@@ -1151,7 +1141,6 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		    uio->uio_iov->iov_len >= PIPE_MINDIRECT &&
 		    wpipe->pipe_buffer.size >= PIPE_MINDIRECT &&
 		    (fp->f_flag & FNONBLOCK) == 0) {
-			pipeunlock(wpipe);
 			error = pipe_direct_write(wpipe, uio);
 			if (error)
 				break;
@@ -1176,6 +1165,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			pipeunlock(wpipe);
 			error = msleep(wpipe, PIPE_MTX(rpipe), PRIBIO | PCATCH,
 			    "pipbww", 0);
+			pipelock(wpipe, 0);
 			if (error)
 				break;
 			else
@@ -1251,7 +1241,6 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 					wpipe->pipe_buffer.size,
 					("Pipe buffer overflow"));
 			}
-			pipeunlock(wpipe);
 			if (error != 0)
 				break;
 		} else {
@@ -1268,7 +1257,6 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			 */
 			if (fp->f_flag & FNONBLOCK) {
 				error = EAGAIN;
-				pipeunlock(wpipe);
 				break;
 			}
 
@@ -1282,12 +1270,13 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			pipeunlock(wpipe);
 			error = msleep(wpipe, PIPE_MTX(rpipe),
 			    PRIBIO | PCATCH, "pipewr", 0);
+			pipelock(wpipe, 0);
 			if (error != 0)
 				break;
+			continue;
 		}
 	}
 
-	pipelock(wpipe, 0);
 	--wpipe->pipe_busy;
 
 	if ((wpipe->pipe_busy == 0) && (wpipe->pipe_state & PIPE_WANT)) {
