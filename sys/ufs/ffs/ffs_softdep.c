@@ -1409,6 +1409,29 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, print_threads, CTLFLAG_RW,
 /* List of all filesystems mounted with soft updates */
 static TAILQ_HEAD(, mount_softdeps) softdepmounts;
 
+static void
+get_parent_vp_unlock_bp(struct mount *mp, struct buf *bp,
+    struct diraddhd *diraddhdp, struct diraddhd *unfinishedp)
+{
+	struct diradd *dap;
+
+	/*
+	 * Requeue unfinished dependencies before
+	 * unlocking buffer, which could make
+	 * diraddhdp invalid.
+	 */
+	ACQUIRE_LOCK(VFSTOUFS(mp));
+	while ((dap = LIST_FIRST(unfinishedp)) != NULL) {
+		LIST_REMOVE(dap, da_pdlist);
+		LIST_INSERT_HEAD(diraddhdp, dap, da_pdlist);
+	}
+	FREE_LOCK(VFSTOUFS(mp));
+
+	bp->b_vflags &= ~BV_SCANNED;
+	BUF_NOREC(bp);
+	BUF_UNLOCK(bp);
+}
+
 /*
  * This function fetches inode inum on mount point mp.  We already
  * hold a locked vnode vp, and might have a locked buffer bp belonging
@@ -1439,7 +1462,6 @@ get_parent_vp(struct vnode *vp, struct mount *mp, ino_t inum, struct buf *bp,
     struct vnode **rvp)
 {
 	struct vnode *pvp;
-	struct diradd *dap;
 	int error;
 	bool bplocked;
 
@@ -1455,31 +1477,18 @@ get_parent_vp(struct vnode *vp, struct mount *mp, ino_t inum, struct buf *bp,
 			 * restart the syscall.
 			 */
 			if (VTOI(pvp)->i_mode == 0 || !bplocked) {
+				if (bp != NULL && bplocked)
+					get_parent_vp_unlock_bp(mp, bp,
+					    diraddhdp, unfinishedp);
 				if (VTOI(pvp)->i_mode == 0)
 					vgone(pvp);
-				vput(pvp);
 				error = ERELOOKUP;
-				goto out;
+				goto out2;
 			}
-
-			error = 0;
 			goto out1;
 		}
 		if (bp != NULL && bplocked) {
-			/*
-			 * Requeue unfinished dependencies before
-			 * unlocking buffer, which could make
-			 * diraddhdp invalid.
-			 */
-			ACQUIRE_LOCK(VFSTOUFS(mp));
-			while ((dap = LIST_FIRST(unfinishedp)) != NULL) {
-				LIST_REMOVE(dap, da_pdlist);
-				LIST_INSERT_HEAD(diraddhdp, dap, da_pdlist);
-			}
-			FREE_LOCK(VFSTOUFS(mp));
-			bp->b_vflags &= ~BV_SCANNED;
-			BUF_NOREC(bp);
-			BUF_UNLOCK(bp);
+			get_parent_vp_unlock_bp(mp, bp, diraddhdp, unfinishedp);
 			bplocked = false;
 		}
 
@@ -1528,13 +1537,13 @@ get_parent_vp(struct vnode *vp, struct mount *mp, ino_t inum, struct buf *bp,
 		MPASS(!bplocked);
 		error = ERELOOKUP;
 	}
+out2:
 	if (error != 0 && pvp != NULL) {
 		vput(pvp);
 		pvp = NULL;
 	}
 out1:
 	*rvp = pvp;
-out:
 	ASSERT_VOP_ELOCKED(vp, "child vnode must be locked on return");
 	return (error);
 }
