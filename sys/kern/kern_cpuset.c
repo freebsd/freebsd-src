@@ -326,6 +326,10 @@ _cpuset_create(struct cpuset *set, struct cpuset *parent,
  * Create a new non-anonymous set with the requested parent and mask.  May
  * return failures if the mask is invalid or a new number can not be
  * allocated.
+ *
+ * If *setp is not NULL, then it will be used as-is.  The caller must take
+ * into account that *setp will be inserted at the head of cpuset_ids and
+ * plan any potentially conflicting cs_link usage accordingly.
  */
 static int
 cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
@@ -333,16 +337,22 @@ cpuset_create(struct cpuset **setp, struct cpuset *parent, const cpuset_t *mask)
 	struct cpuset *set;
 	cpusetid_t id;
 	int error;
+	bool dofree;
 
 	id = alloc_unr(cpuset_unr);
 	if (id == -1)
 		return (ENFILE);
-	*setp = set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
+	dofree = (*setp == NULL);
+	if (*setp != NULL)
+		set = *setp;
+	else
+		*setp = set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
 	error = _cpuset_create(set, parent, mask, NULL, id);
 	if (error == 0)
 		return (0);
 	free_unr(cpuset_unr, id);
-	uma_zfree(cpuset_zone, set);
+	if (dofree)
+		uma_zfree(cpuset_zone, set);
 
 	return (error);
 }
@@ -1552,16 +1562,17 @@ cpuset_create_root(struct prison *pr, struct cpuset **setp)
 	KASSERT(pr != NULL, ("[%s:%d] invalid pr", __func__, __LINE__));
 	KASSERT(setp != NULL, ("[%s:%d] invalid setp", __func__, __LINE__));
 
-	error = cpuset_create(setp, pr->pr_cpuset, &pr->pr_cpuset->cs_mask);
+	set = NULL;
+	error = cpuset_create(&set, pr->pr_cpuset, &pr->pr_cpuset->cs_mask);
 	if (error)
 		return (error);
 
-	KASSERT(*setp != NULL, ("[%s:%d] cpuset_create returned invalid data",
+	KASSERT(set != NULL, ("[%s:%d] cpuset_create returned invalid data",
 	    __func__, __LINE__));
 
 	/* Mark the set as root. */
-	set = *setp;
 	set->cs_flags |= CPU_SET_ROOT;
+	*setp = set;
 
 	return (0);
 }
@@ -1618,6 +1629,7 @@ sys_cpuset(struct thread *td, struct cpuset_args *uap)
 	thread_lock(td);
 	root = cpuset_refroot(td->td_cpuset);
 	thread_unlock(td);
+	set = NULL;
 	error = cpuset_create(&set, root, &root->cs_mask);
 	cpuset_rel(root);
 	if (error)
