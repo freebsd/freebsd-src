@@ -994,8 +994,9 @@ retry:
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdww", 0);
 		pipelock(wpipe, 0);
-		if (error)
+		if (error != 0)
 			goto error1;
+		goto retry;
 	}
 	if (wpipe->pipe_buffer.cnt > 0) {
 		if (wpipe->pipe_state & PIPE_WANTR) {
@@ -1008,10 +1009,9 @@ retry:
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdwc", 0);
 		pipelock(wpipe, 0);
-		if (error)
+		if (error != 0)
 			goto error1;
-		else
-			goto retry;
+		goto retry;
 	}
 
 	error = pipe_build_write_buffer(wpipe, uio);
@@ -1142,7 +1142,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		    wpipe->pipe_buffer.size >= PIPE_MINDIRECT &&
 		    (fp->f_flag & FNONBLOCK) == 0) {
 			error = pipe_direct_write(wpipe, uio);
-			if (error)
+			if (error != 0)
 				break;
 			continue;
 		}
@@ -1166,10 +1166,9 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			error = msleep(wpipe, PIPE_MTX(rpipe), PRIBIO | PCATCH,
 			    "pipbww", 0);
 			pipelock(wpipe, 0);
-			if (error)
+			if (error != 0)
 				break;
-			else
-				continue;
+			continue;
 		}
 
 		space = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
@@ -1243,6 +1242,7 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			}
 			if (error != 0)
 				break;
+			continue;
 		} else {
 			/*
 			 * If the "read-side" has been blocked, wake it up now.
