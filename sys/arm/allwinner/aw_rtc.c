@@ -138,6 +138,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "allwinner,sun6i-a31-rtc", (uintptr_t) &a31_conf },
 	{ "allwinner,sun8i-h3-rtc", (uintptr_t) &h3_conf },
 	{ "allwinner,sun50i-h5-rtc", (uintptr_t) &h3_conf },
+	{ "allwinner,sun50i-h6-rtc", (uintptr_t) &h3_conf },
 	{ NULL, 0 }
 };
 
