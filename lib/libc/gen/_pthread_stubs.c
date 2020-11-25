@@ -64,73 +64,73 @@ static void		stub_exit(void);
 	(pthread_func_t)entry, (pthread_func_t)entry
 
 pthread_func_entry_t __thr_jtable[PJT_MAX] = {
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATFORK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETDETACHSTATE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETGUARDSIZE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETINHERITSCHED */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSCHEDPARAM */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSCHEDPOLICY */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSCOPE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSTACKADDR */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_GETSTACKSIZE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETDETACHSTATE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETGUARDSIZE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETINHERITSCHED */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSCHEDPARAM */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSCHEDPOLICY */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSCOPE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSTACKADDR */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_ATTR_SETSTACKSIZE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CANCEL */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_POP */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_PUSH */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_BROADCAST */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_SIGNAL */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_TIMEDWAIT */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_COND_WAIT */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_DETACH */
-	{PJT_DUAL_ENTRY(stub_true)},    /* PJT_EQUAL */
-	{PJT_DUAL_ENTRY(stub_exit)},    /* PJT_EXIT */
-	{PJT_DUAL_ENTRY(stub_null)},    /* PJT_GETSPECIFIC */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_JOIN */
-	{PJT_DUAL_ENTRY(stub_fail)},    /* PJT_KEY_CREATE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_KEY_DELETE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_KILL */
-	{PJT_DUAL_ENTRY(stub_main)},    /* PJT_MAIN_NP */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEXATTR_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEXATTR_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEXATTR_SETTYPE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_LOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_TRYLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_MUTEX_UNLOCK */
-	{PJT_DUAL_ENTRY(stub_fail)},    /* PJT_ONCE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_DESTROY */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_INIT */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_RDLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_TRYRDLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_TRYWRLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_UNLOCK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_RWLOCK_WRLOCK */
-	{PJT_DUAL_ENTRY(stub_self)},    /* PJT_SELF */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SETCANCELSTATE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SETCANCELTYPE */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SETSPECIFIC */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_SIGMASK */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_TESTCANCEL */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_POP_IMP */
-	{PJT_DUAL_ENTRY(stub_zero)},    /* PJT_CLEANUP_PUSH_IMP */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_CANCEL_ENTER */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_CANCEL_LEAVE */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEX_CONSISTENT */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_GETROBUST */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_MUTEXATTR_SETROBUST */
-	{PJT_DUAL_ENTRY(stub_zero)},	/* PJT_GETTHREADID_NP */
+	[PJT_ATFORK] =			{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_DESTROY] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GETDETACHSTATE] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GETGUARDSIZE] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GETINHERITSCHED] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GETSCHEDPARAM] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GETSCHEDPOLICY] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GETSCOPE] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GETSTACKADDR] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GETSTACKSIZE] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_INIT] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_SETDETACHSTATE] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_SETGUARDSIZE] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_SETINHERITSCHED] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_SETSCHEDPARAM] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_SETSCHEDPOLICY] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_SETSCOPE] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_SETSTACKADDR] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_SETSTACKSIZE] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_CANCEL] =			{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_CLEANUP_POP] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_CLEANUP_PUSH] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_COND_BROADCAST] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_COND_DESTROY] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_COND_INIT] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_COND_SIGNAL] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_COND_TIMEDWAIT] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_COND_WAIT] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_DETACH] =			{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_EQUAL] =			{PJT_DUAL_ENTRY(stub_true)},
+	[PJT_EXIT] =			{PJT_DUAL_ENTRY(stub_exit)},
+	[PJT_GETSPECIFIC] =		{PJT_DUAL_ENTRY(stub_null)},
+	[PJT_JOIN] =			{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_KEY_CREATE] =		{PJT_DUAL_ENTRY(stub_fail)},
+	[PJT_KEY_DELETE] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_KILL] =			{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MAIN_NP] =			{PJT_DUAL_ENTRY(stub_main)},
+	[PJT_MUTEXATTR_DESTROY] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEXATTR_INIT] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEXATTR_SETTYPE] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEX_DESTROY] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEX_INIT] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEX_LOCK] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEX_TRYLOCK] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEX_UNLOCK] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ONCE] =			{PJT_DUAL_ENTRY(stub_fail)},
+	[PJT_RWLOCK_DESTROY] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_RWLOCK_INIT] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_RWLOCK_RDLOCK] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_RWLOCK_TRYRDLOCK] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_RWLOCK_TRYWRLOCK] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_RWLOCK_UNLOCK] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_RWLOCK_WRLOCK] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_SELF] =			{PJT_DUAL_ENTRY(stub_self)},
+	[PJT_SETCANCELSTATE] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_SETCANCELTYPE] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_SETSPECIFIC] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_SIGMASK] =			{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_TESTCANCEL] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_CLEANUP_POP_IMP] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_CLEANUP_PUSH_IMP] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_CANCEL_ENTER] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_CANCEL_LEAVE] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEX_CONSISTENT] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEXATTR_GETROBUST] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_MUTEXATTR_SETROBUST] =	{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_GETTHREADID_NP] =		{PJT_DUAL_ENTRY(stub_zero)},
 };
 
 /*
