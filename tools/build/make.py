@@ -115,6 +115,9 @@ def check_required_make_env_var(varname, binary_name, bindir):
                  " does not exist")
     new_env_vars[varname] = guess
     debug("Inferred", varname, "as", guess)
+    global parsed_args
+    if parsed_args.debug:
+        run([guess, "--version"])
 
 
 def default_cross_toolchain():
@@ -188,6 +191,9 @@ if __name__ == "__main__":
 
         if parsed_args.host_compiler_type == "gcc":
             default_cc, default_cxx, default_cpp = ("gcc", "g++", "cpp")
+        # FIXME: this should take values like `clang-9` and then look for
+        # clang-cpp-9, etc. Would alleviate the need to set the bindir on
+        # ubuntu/debian at least.
         elif parsed_args.host_compiler_type == "clang":
             default_cc, default_cxx, default_cpp = (
                 "clang", "clang++", "clang-cpp")
@@ -235,7 +241,5 @@ if __name__ == "__main__":
         shlex.quote(s) for s in [str(bmake_binary)] + bmake_args)
     debug("Running `env ", env_cmd_str, " ", make_cmd_str, "`", sep="")
     os.environ.update(new_env_vars)
-    if parsed_args.debug:
-        input("Press enter to continue...")
     os.chdir(str(source_root))
     os.execv(str(bmake_binary), [str(bmake_binary)] + bmake_args)
