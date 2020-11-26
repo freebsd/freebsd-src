@@ -77,7 +77,7 @@ void bc_func_insert(BcFunc *f, BcProgram *p, char *name,
 		BcLoc *id = bc_vec_item(&f->autos, i);
 		if (BC_ERR(idx == id->loc && type == (BcType) id->idx)) {
 			const char *array = type == BC_TYPE_ARRAY ? "[]" : "";
-			bc_vm_error(BC_ERROR_PARSE_DUP_LOCAL, line, name, array);
+			bc_vm_error(BC_ERR_PARSE_DUP_LOCAL, line, name, array);
 		}
 	}
 

@@ -30,7 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 # Name
 
-dc - arbitrary-precision reverse-Polish notation calculator
+dc - arbitrary-precision decimal reverse-Polish notation calculator
 
 # SYNOPSIS
 
@@ -286,7 +286,8 @@ These are the commands used for arithmetic.
 **\^**
 
 :   The top two values are popped off the stack, the second is raised to the
-    power of the first, and the result is pushed onto the stack.
+    power of the first, and the result is pushed onto the stack. The *scale* of
+    the result is equal to **scale**.
 
     The first value popped off of the stack must be an integer, and if that
     value is negative, the second value popped off of the stack must be
@@ -1007,6 +1008,6 @@ None are known. Report bugs at https://git.yzena.com/gavin/bc.
 
 # AUTHOR
 
-Gavin D. Howard <yzena.tech@gmail.com> and contributors.
+Gavin D. Howard <gavin@yzena.com> and contributors.
 
 [1]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html

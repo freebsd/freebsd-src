@@ -37,8 +37,6 @@
 
 #include <ctype.h>
 
-#include <status.h>
-#include <lex.h>
 #include <dc.h>
 #include <vm.h>
 
@@ -57,7 +55,7 @@ static void dc_lex_register(BcLex *l) {
 		c = l->buf[l->i];
 
 		if (!isalnum(c) && c != '_')
-			bc_lex_verr(l, BC_ERROR_PARSE_CHAR, c);
+			bc_lex_verr(l, BC_ERR_PARSE_CHAR, c);
 
 		l->i += 1;
 		bc_lex_name(l);
@@ -96,7 +94,7 @@ static void dc_lex_string(BcLex *l) {
 
 	if (BC_ERR(c == '\0' && depth)) {
 		l->i = i;
-		bc_lex_err(l, BC_ERROR_PARSE_STRING);
+		bc_lex_err(l, BC_ERR_PARSE_STRING);
 	}
 
 	bc_vec_pushByte(&l->str, '\0');

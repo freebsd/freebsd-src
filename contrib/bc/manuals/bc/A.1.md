@@ -30,7 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 # NAME
 
-bc - arbitrary-precision arithmetic language and calculator
+bc - arbitrary-precision decimal arithmetic language and calculator
 
 # SYNOPSIS
 
@@ -419,9 +419,9 @@ if they were valid digits, regardless of the value of **ibase**. This means that
 **35**.
 
 In addition, bc(1) accepts numbers in scientific notation. These have the form
-**\<number\>e\<integer\>**. The power (the portion after the **e**) must be an
-integer. An example is **1.89237e9**, which is equal to **1892370000**. Negative
-exponents are also allowed, so **4.2890e-3** is equal to **0.0042890**.
+**\<number\>e\<integer\>**. The exponent (the portion after the **e**) must be
+an integer. An example is **1.89237e9**, which is equal to **1892370000**.
+Negative exponents are also allowed, so **4.2890e-3** is equal to **0.0042890**.
 
 Using scientific notation is an error or warning if the **-s** or **-w**,
 respectively, command-line options (or equivalents) are given.
@@ -584,7 +584,7 @@ The operators will be described in more detail below.
 
 :   The **power** operator (not the **exclusive or** operator, as it would be in
     C) takes two expressions and raises the first to the power of the value of
-    the second.
+    the second. The *scale* of the result is equal to **scale**.
 
     The second expression must be an integer (no *scale*), and if it is
     negative, the first value must be non-zero.
@@ -932,6 +932,8 @@ The extended library is a **non-portable extension**.
 
 :   Calculates **x** to the power of **y**, even if **y** is not an integer, and
     returns the result to the current **scale**.
+
+    It is an error if **y** is negative and **x** is **0**.
 
     This is a transcendental function (see the *Transcendental Functions*
     subsection below).
@@ -1681,7 +1683,7 @@ None are known. Report bugs at https://git.yzena.com/gavin/bc.
 
 # AUTHORS
 
-Gavin D. Howard <yzena.tech@gmail.com> and contributors.
+Gavin D. Howard <gavin@yzena.com> and contributors.
 
 [1]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html
 [2]: https://www.gnu.org/software/bc/

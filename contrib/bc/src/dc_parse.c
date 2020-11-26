@@ -40,8 +40,6 @@
 #include <string.h>
 #include <setjmp.h>
 
-#include <status.h>
-#include <parse.h>
 #include <dc.h>
 #include <program.h>
 #include <vm.h>
@@ -49,7 +47,7 @@
 static void dc_parse_register(BcParse *p, bool var) {
 
 	bc_lex_next(&p->l);
-	if (p->l.t != BC_LEX_NAME) bc_parse_err(p, BC_ERROR_PARSE_TOKEN);
+	if (p->l.t != BC_LEX_NAME) bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 
 	bc_parse_pushName(p, p->l.str.v, var);
 }
@@ -132,6 +130,8 @@ static void dc_parse_token(BcParse *p, BcLexType t, uint8_t flags) {
 			bc_lex_next(&p->l);
 		}
 		// Fallthrough.
+		BC_FALLTHROUGH
+
 		case BC_LEX_NUMBER:
 		{
 			bc_parse_number(p);
@@ -145,7 +145,7 @@ static void dc_parse_token(BcParse *p, BcLexType t, uint8_t flags) {
 		case BC_LEX_KW_READ:
 		{
 			if (BC_ERR(flags & BC_PARSE_NOREAD))
-				bc_parse_err(p, BC_ERROR_EXEC_REC_READ);
+				bc_parse_err(p, BC_ERR_EXEC_REC_READ);
 			else bc_parse_push(p, BC_INST_READ);
 			get_token = true;
 			break;
@@ -182,7 +182,7 @@ static void dc_parse_token(BcParse *p, BcLexType t, uint8_t flags) {
 
 		default:
 		{
-			bc_parse_err(p, BC_ERROR_PARSE_TOKEN);
+			bc_parse_err(p, BC_ERR_PARSE_TOKEN);
 		}
 	}
 
@@ -214,7 +214,7 @@ void dc_parse_expr(BcParse *p, uint8_t flags) {
 	}
 
 	if (BC_ERR(need_expr && !have_expr))
-		bc_vm_err(BC_ERROR_EXEC_READ_EXPR);
+		bc_vm_err(BC_ERR_EXEC_READ_EXPR);
 	else if (p->l.t == BC_LEX_EOF && (flags & BC_PARSE_NOCALL))
 		bc_parse_push(p, BC_INST_POP_EXEC);
 }
@@ -225,7 +225,7 @@ void dc_parse_parse(BcParse *p) {
 
 	BC_SETJMP(exit);
 
-	if (BC_ERR(p->l.t == BC_LEX_EOF)) bc_parse_err(p, BC_ERROR_PARSE_EOF);
+	if (BC_ERR(p->l.t == BC_LEX_EOF)) bc_parse_err(p, BC_ERR_PARSE_EOF);
 	else dc_parse_expr(p, 0);
 
 exit:

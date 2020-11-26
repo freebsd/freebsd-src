@@ -282,6 +282,29 @@ following forms:
 --option=arg
 ```
 
+### Library
+
+To build the math library, use the following commands for the configure step:
+
+```
+./configure.sh -a
+./configure.sh --library
+```
+
+Both commands are equivalent.
+
+When the library is built, history, prompt, and locales are disabled, and the
+functionality for `bc` and `dc` are both enabled, though the executables are
+*not* built. This is because the library's options clash with the executables.
+
+To build an optimized version of the library, users can pass optimization
+options to `configure.sh` or include them in `CFLAGS`.
+
+The library API can be found in `manuals/bcl.3.md` or `man bcl` once the library
+is installed.
+
+The library is built as `bin/libbcl.a`.
+
 ### `bc` Only
 
 To build `bc` only (no `dc`), use any one of the following commands for the

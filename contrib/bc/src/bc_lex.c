@@ -39,7 +39,6 @@
 #include <ctype.h>
 #include <string.h>
 
-#include <lex.h>
 #include <bc.h>
 #include <vm.h>
 
@@ -58,7 +57,7 @@ static void bc_lex_identifier(BcLex *l) {
 			l->t = BC_LEX_KW_AUTO + (BcLexType) i;
 
 			if (!BC_LEX_KW_POSIX(kw))
-				bc_lex_verr(l, BC_ERROR_POSIX_KW, kw->name);
+				bc_lex_verr(l, BC_ERR_POSIX_KW, kw->name);
 
 			// We minus 1 because the index has already been incremented.
 			l->i += n - 1;
@@ -69,7 +68,7 @@ static void bc_lex_identifier(BcLex *l) {
 	bc_lex_name(l);
 
 	if (BC_ERR(l->str.len - 1 > 1))
-		bc_lex_verr(l, BC_ERROR_POSIX_NAME_LEN, l->str.v);
+		bc_lex_verr(l, BC_ERR_POSIX_NAME_LEN, l->str.v);
 }
 
 static void bc_lex_string(BcLex *l) {
@@ -84,7 +83,7 @@ static void bc_lex_string(BcLex *l) {
 
 	if (BC_ERR(c == '\0')) {
 		l->i = i;
-		bc_lex_err(l, BC_ERROR_PARSE_STRING);
+		bc_lex_err(l, BC_ERR_PARSE_STRING);
 	}
 
 	len = i - l->i;
@@ -126,7 +125,7 @@ void bc_lex_token(BcLex *l) {
 			bc_lex_assign(l, BC_LEX_OP_REL_NE, BC_LEX_OP_BOOL_NOT);
 
 			if (l->t == BC_LEX_OP_BOOL_NOT)
-				bc_lex_verr(l, BC_ERROR_POSIX_BOOL, "!");
+				bc_lex_verr(l, BC_ERR_POSIX_BOOL, "!");
 
 			break;
 		}
@@ -139,7 +138,7 @@ void bc_lex_token(BcLex *l) {
 
 		case '#':
 		{
-			bc_lex_err(l, BC_ERROR_POSIX_COMMENT);
+			bc_lex_err(l, BC_ERR_POSIX_COMMENT);
 			bc_lex_lineComment(l);
 			break;
 		}
@@ -155,7 +154,7 @@ void bc_lex_token(BcLex *l) {
 			c2 = l->buf[l->i];
 			if (BC_NO_ERR(c2 == '&')) {
 
-				bc_lex_verr(l, BC_ERROR_POSIX_BOOL, "&&");
+				bc_lex_verr(l, BC_ERR_POSIX_BOOL, "&&");
 
 				l->i += 1;
 				l->t = BC_LEX_OP_BOOL_AND;
@@ -224,7 +223,7 @@ void bc_lex_token(BcLex *l) {
 			if (BC_LEX_NUM_CHAR(c2, true, false)) bc_lex_number(l, c);
 			else {
 				l->t = BC_LEX_KW_LAST;
-				bc_lex_err(l, BC_ERROR_POSIX_DOT);
+				bc_lex_err(l, BC_ERR_POSIX_DOT);
 			}
 			break;
 		}
@@ -391,7 +390,7 @@ void bc_lex_token(BcLex *l) {
 
 			if (BC_NO_ERR(c2 == '|')) {
 
-				bc_lex_verr(l, BC_ERROR_POSIX_BOOL, "||");
+				bc_lex_verr(l, BC_ERR_POSIX_BOOL, "||");
 
 				l->i += 1;
 				l->t = BC_LEX_OP_BOOL_OR;
