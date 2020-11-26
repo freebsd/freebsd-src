@@ -112,7 +112,7 @@ int	closeprob = 0;			/* -c flag */
 int	invlprob = 0;			/* -i flag */
 int	debug = 0;			/* -d flag */
 unsigned long	debugstart = 0;		/* -D flag */
-unsigned long	maxfilelen = 256 * 1024;	/* -l flag */
+off_t	maxfilelen = 256 * 1024;	/* -l flag */
 int	sizechecks = 1;			/* -n flag disables them */
 int	maxoplen = 64 * 1024;		/* -o flag */
 int	quiet = 0;			/* -q flag */
@@ -138,32 +138,7 @@ int invl = 0;
 
 
 void
-vwarnc(code, fmt, ap)
-	int code;
-	const char *fmt;
-	va_list ap;
-{
-	fprintf(stderr, "fsx: ");
-	if (fmt != NULL) {
-		vfprintf(stderr, fmt, ap);
-		fprintf(stderr, ": ");
-	}
-	fprintf(stderr, "%s\n", strerror(code));
-}
-
-
-void
-warn(const char * fmt, ...)
-{
-	va_list ap;
-	va_start(ap, fmt);
-	vwarnc(errno, fmt, ap);
-	va_end(ap);
-}
-
-
-void
-prt(char *fmt, ...)
+prt(const char *fmt, ...)
 {
 	va_list args;
 
@@ -179,7 +154,7 @@ prt(char *fmt, ...)
 }
 
 void
-prterr(char *prefix)
+prterr(const char *prefix)
 {
 	prt("%s%s%s\n", prefix, prefix ? ": " : "", strerror(errno));
 }
@@ -317,12 +292,12 @@ logdump(void)
 
 
 void
-save_buffer(char *buffer, off_t bufferlength, int fd)
+save_buffer(char *buffer, off_t bufferlength, int savefd)
 {
 	off_t ret;
 	ssize_t byteswritten;
 
-	if (fd <= 0 || bufferlength == 0)
+	if (savefd <= 0 || bufferlength == 0)
 		return;
 
 	if (bufferlength > SSIZE_MAX) {
@@ -330,7 +305,7 @@ save_buffer(char *buffer, off_t bufferlength, int fd)
 		exit(67);
 	}
 	if (lite) {
-		off_t size_by_seek = lseek(fd, (off_t)0, SEEK_END);
+		off_t size_by_seek = lseek(savefd, (off_t)0, SEEK_END);
 		if (size_by_seek == (off_t)-1)
 			prterr("save_buffer: lseek eof");
 		else if (bufferlength > size_by_seek) {
@@ -340,11 +315,11 @@ save_buffer(char *buffer, off_t bufferlength, int fd)
 		}
 	}
 
-	ret = lseek(fd, (off_t)0, SEEK_SET);
+	ret = lseek(savefd, (off_t)0, SEEK_SET);
 	if (ret == (off_t)-1)
 		prterr("save_buffer: lseek 0");
 	
-	byteswritten = write(fd, buffer, (size_t)bufferlength);
+	byteswritten = write(savefd, buffer, (size_t)bufferlength);
 	if (byteswritten != bufferlength) {
 		if (byteswritten == -1)
 			prterr("save_buffer write");
@@ -458,10 +433,10 @@ check_trunc_hack(void)
 
 
 void
-doread(unsigned offset, unsigned size)
+doread(off_t offset, off_t size)
 {
 	off_t ret;
-	unsigned iret;
+	ssize_t iret;
 
 	offset -= offset % readbdy;
 	if (size == 0) {
@@ -509,7 +484,7 @@ doread(unsigned offset, unsigned size)
 
 
 void
-check_eofpage(char *s, unsigned offset, char *p, int size)
+check_eofpage(const char *s, unsigned offset, char *p, int size)
 {
 	uintptr_t last_page, should_be_zero;
 
@@ -592,7 +567,7 @@ domapread(unsigned offset, unsigned size)
 
 
 void
-gendata(char *original_buf, char *good_buf, unsigned offset, unsigned size)
+gendata(unsigned offset, unsigned size)
 {
 	while (size--) {
 		good_buf[offset] = testcalls % 256; 
@@ -607,7 +582,7 @@ void
 dowrite(unsigned offset, unsigned size)
 {
 	off_t ret;
-	unsigned iret;
+	ssize_t iret;
 
 	offset -= offset % writebdy;
 	if (size == 0) {
@@ -619,7 +594,7 @@ dowrite(unsigned offset, unsigned size)
 
 	log4(OP_WRITE, offset, size, file_size);
 
-	gendata(original_buf, good_buf, offset, size);
+	gendata(offset, size);
 	if (file_size < offset + size) {
 		if (file_size < offset)
 			memset(good_buf + file_size, '\0', offset - file_size);
@@ -677,7 +652,7 @@ domapwrite(unsigned offset, unsigned size)
 
 	log4(OP_MAPWRITE, offset, size, 0);
 
-	gendata(original_buf, good_buf, offset, size);
+	gendata(offset, size);
 	if (file_size < offset + size) {
 		if (file_size < offset)
 			memset(good_buf + file_size, '\0', offset - file_size);
@@ -842,8 +817,8 @@ doinvl(void)
 void
 test(void)
 {
-	unsigned long	offset;
-	unsigned long	size = maxoplen;
+	off_t		offset;
+	off_t		size = maxoplen;
 	unsigned long	rv = random();
 	unsigned long	op = rv % (3 + !lite + mapped_writes);
 
@@ -858,9 +833,9 @@ test(void)
 	testcalls++;
 
 	if (closeprob)
-		closeopen = (rv >> 3) < (1 << 28) / closeprob;
+		closeopen = (rv >> 3) < (1ul << 28) / closeprob;
 	if (invlprob)
-		invl = (rv >> 3) < (1 << 28) / invlprob;
+		invl = (rv >> 3) < (1ul << 28) / invlprob;
 
 	if (debugstart > 0 && testcalls >= debugstart)
 		debug = 1;
