@@ -3696,12 +3696,24 @@ isp_intr_async(ispsoftc_t *isp, uint16_t mbox)
 		isp_prt(isp, ISP_LOGERR, "Temperature alert (subcode 0x%x)",
 		    ISP_READ(isp, OUTMAILBOX1));
 		break;
+	case ASYNC_INTER_DRIVER_COMP:
+		isp_prt(isp, ISP_LOGDEBUG0, "Inter-driver communication complete");
+		break;
+	case ASYNC_INTER_DRIVER_NOTIFY:
+		isp_prt(isp, ISP_LOGDEBUG0, "Inter-driver communication notification");
+		break;
+	case ASYNC_INTER_DRIVER_TIME_EXT:
+		isp_prt(isp, ISP_LOGDEBUG0, "Inter-driver communication time extended");
+		break;
 	case ASYNC_TRANSCEIVER_INSERTION:
 		isp_prt(isp, ISP_LOGDEBUG0, "Transceiver insertion (0x%x)",
 		    ISP_READ(isp, OUTMAILBOX1));
 		break;
 	case ASYNC_TRANSCEIVER_REMOVAL:
 		isp_prt(isp, ISP_LOGDEBUG0, "Transceiver removal");
+		break;
+	case ASYNC_NIC_FW_STATE_CHANGE:
+		isp_prt(isp, ISP_LOGDEBUG0, "NIC Firmware State Change");
 		break;
 	case ASYNC_AUTOLOAD_FW_COMPLETE:
 		isp_prt(isp, ISP_LOGDEBUG0, "Autoload FW init complete");
