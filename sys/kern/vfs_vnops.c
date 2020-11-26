@@ -870,10 +870,10 @@ vn_read_from_obj(struct vnode *vp, struct uio *uio)
 	ssize_t resid;
 	int error, i, j;
 
-	obj = vp->v_object;
 	MPASS(uio->uio_resid <= ptoa(io_hold_cnt + 2));
-	MPASS(obj != NULL);
-	MPASS(obj->type == OBJT_VNODE);
+	obj = atomic_load_ptr(&vp->v_object);
+	if (obj == NULL)
+		return (EJUSTRETURN);
 
 	/*
 	 * Depends on type stability of vm_objects.
