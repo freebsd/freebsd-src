@@ -2683,6 +2683,11 @@ sdhci_cam_settran_settings(struct sdhci_slot *slot, union ccb *ccb)
 		if (sdhci_debug > 1)
 			slot_printf(slot, "Bus mode => %d\n", ios->bus_mode);
 	}
+	if (cts->ios_valid & MMC_VCCQ) {
+		ios->vccq = new_ios->vccq;
+		if (sdhci_debug > 1)
+			slot_printf(slot, "VCCQ => %d\n", ios->vccq);
+	}
 
 	/* XXX Provide a way to call a chip-specific IOS update, required for TI */
 	return (sdhci_cam_update_ios(slot));
