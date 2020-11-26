@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 					PMC_SCRATCH0_MODE_RCM)
 
 static platform_attach_t tegra124_attach;
-static platform_lastaddr_t tegra124_lastaddr;
 static platform_devmap_init_t tegra124_devmap_init;
 static platform_late_init_t tegra124_late_init;
 static platform_cpu_reset_t tegra124_cpu_reset;
