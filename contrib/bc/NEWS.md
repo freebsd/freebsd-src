@@ -1,5 +1,23 @@
 # News
 
+## 3.2.0
+
+This is a production release that has one bug fix and a major addition.
+
+The bug fix was a missing `auto` variable in the bessel `j()` function in the
+math library.
+
+The major addition is a way to build a version of `bc`'s math code as a library.
+This is done with the `-a` option to `configure.sh`. The API for the library can
+be read in `./manuals/bcl.3.md` or `man bcl` once the library is installed with
+`make install`.
+
+This library was requested by developers before I even finished version 1.0, but
+I could not figure out how to do it until now.
+
+If the library has API breaking changes, the major version of `bc` will be
+incremented.
+
 ## 3.1.6
 
 This is a production release that fixes a new warning from Clang 12 for FreeBSD

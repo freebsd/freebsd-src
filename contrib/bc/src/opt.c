@@ -62,8 +62,8 @@ static const char* bc_opt_longopt(const BcOptLong *longopts, int c) {
 	return "NULL";
 }
 
-static void bc_opt_error(BcError err, int c, const char *str) {
-	if (err == BC_ERROR_FATAL_OPTION) bc_vm_error(err, 0, str);
+static void bc_opt_error(BcErr err, int c, const char *str) {
+	if (err == BC_ERR_FATAL_OPTION) bc_vm_error(err, 0, str);
 	else bc_vm_error(err, 0, (int) c, str);
 }
 
@@ -110,10 +110,12 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 				str[0] = option[0];
 				o->optind += 1;
 
-				bc_opt_error(BC_ERROR_FATAL_OPTION, option[0], str);
+				bc_opt_error(BC_ERR_FATAL_OPTION, option[0], str);
 			}
 		}
 		// Fallthrough.
+		BC_FALLTHROUGH
+
 		case BC_OPT_NONE:
 		{
 			if (option[1]) o->subopt += 1;
@@ -136,7 +138,7 @@ static int bc_opt_parseShort(BcOpt *o, const BcOptLong *longopts) {
 				o->optarg = next;
 				o->optind += 1;
 			}
-			else bc_opt_error(BC_ERROR_FATAL_OPTION_NO_ARG, option[0],
+			else bc_opt_error(BC_ERR_FATAL_OPTION_NO_ARG, option[0],
 			                  bc_opt_longopt(longopts, option[0]));
 
 
@@ -215,12 +217,12 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 			if ((longopts[i].type == BC_OPT_BC_ONLY && BC_IS_DC) ||
 			    (longopts[i].type == BC_OPT_DC_ONLY && BC_IS_BC))
 			{
-				bc_opt_error(BC_ERROR_FATAL_OPTION, o->optopt, name);
+				bc_opt_error(BC_ERR_FATAL_OPTION, o->optopt, name);
 			}
 
 			if (longopts[i].type == BC_OPT_NONE && arg != NULL)
 			{
-				bc_opt_error(BC_ERROR_FATAL_OPTION_ARG, o->optopt, name);
+				bc_opt_error(BC_ERR_FATAL_OPTION_ARG, o->optopt, name);
 			}
 
 			if (arg != NULL) o->optarg = arg;
@@ -229,7 +231,7 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 				o->optarg = o->argv[o->optind];
 
 				if (o->optarg != NULL) o->optind += 1;
-				else bc_opt_error(BC_ERROR_FATAL_OPTION_NO_ARG,
+				else bc_opt_error(BC_ERR_FATAL_OPTION_NO_ARG,
 				                  o->optopt, name);
 			}
 
@@ -237,7 +239,7 @@ int bc_opt_parse(BcOpt *o, const BcOptLong *longopts) {
 		}
 	}
 
-	bc_opt_error(BC_ERROR_FATAL_OPTION, 0, option);
+	bc_opt_error(BC_ERR_FATAL_OPTION, 0, option);
 
 	return -1;
 }

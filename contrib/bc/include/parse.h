@@ -62,8 +62,9 @@
 #define bc_parse_push(p, i) (bc_vec_pushByte(&(p)->func->code, (uchar) (i)))
 #define bc_parse_pushIndex(p, idx) (bc_vec_pushIndex(&(p)->func->code, (idx)))
 
-#define bc_parse_err(p, e) (bc_vm_error((e), (p)->l.line))
-#define bc_parse_verr(p, e, ...) (bc_vm_error((e), (p)->l.line, __VA_ARGS__))
+#define bc_parse_err(p, e) (bc_vm_handleError((e), (p)->l.line))
+#define bc_parse_verr(p, e, ...) \
+	(bc_vm_handleError((e), (p)->l.line, __VA_ARGS__))
 
 typedef struct BcParseNext {
 	uchar len;
@@ -110,7 +111,7 @@ void bc_parse_updateFunc(BcParse *p, size_t fidx);
 void bc_parse_pushName(const BcParse* p, char *name, bool var);
 void bc_parse_text(BcParse *p, const char *text);
 
-extern const char bc_parse_zero[];
-extern const char bc_parse_one[];
+extern const char bc_parse_zero[2];
+extern const char bc_parse_one[2];
 
 #endif // BC_PARSE_H

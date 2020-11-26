@@ -74,7 +74,6 @@
 #include <unistd.h>
 
 #include <status.h>
-#include <num.h>
 #include <rand.h>
 #include <vm.h>
 
@@ -180,7 +179,7 @@ static ulong bc_rand_frand(void *ptr) {
 
 	nread = read(fd, buf, sizeof(ulong));
 
-	if (BC_ERR(nread != sizeof(ulong))) bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+	if (BC_ERR(nread != sizeof(ulong))) bc_vm_err(BC_ERR_FATAL_IO_ERR);
 
 	return *((ulong*) buf);
 }
@@ -278,7 +277,7 @@ static void bc_rand_seedZeroes(BcRNG *r, BcRNGData *rng, size_t idx) {
 	}
 }
 
-static void bc_rand_srand(BcRNGData *rng) {
+void bc_rand_srand(BcRNGData *rng) {
 
 	int fd;
 
