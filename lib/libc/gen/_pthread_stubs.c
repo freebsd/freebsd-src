@@ -285,7 +285,7 @@ STUB_FUNC2(pthread_setcanceltype, PJT_SETCANCELTYPE, int, int, void *)
 STUB_FUNC(pthread_testcancel, PJT_TESTCANCEL, void)
 STUB_FUNC1(__pthread_cleanup_pop_imp, PJT_CLEANUP_POP_IMP, void, int)
 STUB_FUNC3(__pthread_cleanup_push_imp, PJT_CLEANUP_PUSH_IMP, void, void *,
-    void *, void *);
+    void *, void *)
 STUB_FUNC1(_pthread_cancel_enter, PJT_CANCEL_ENTER, void, int)
 STUB_FUNC1(_pthread_cancel_leave, PJT_CANCEL_LEAVE, void, int)
 
