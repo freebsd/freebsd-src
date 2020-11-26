@@ -947,6 +947,28 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	return (error);
 }
 
+static int
+null_read_pgcache(struct vop_read_pgcache_args *ap)
+{
+	struct vnode *lvp, *vp;
+	struct null_node *xp;
+	int error;
+
+	vp = ap->a_vp;
+	VI_LOCK(vp);
+	xp = VTONULL(vp);
+	if (xp == NULL) {
+		VI_UNLOCK(vp);
+		return (EJUSTRETURN);
+	}
+	lvp = xp->null_lowervp;
+	vref(lvp);
+	VI_UNLOCK(vp);
+	error = VOP_READ_PGCACHE(lvp, ap->a_uio, ap->a_ioflag, ap->a_cred);
+	vrele(lvp);
+	return (error);
+}
+
 /*
  * Global vfs data structures
  */
@@ -966,6 +988,7 @@ struct vop_vector null_vnodeops = {
 	.vop_lookup =		null_lookup,
 	.vop_open =		null_open,
 	.vop_print =		null_print,
+	.vop_read_pgcache =	null_read_pgcache,
 	.vop_reclaim =		null_reclaim,
 	.vop_remove =		null_remove,
 	.vop_rename =		null_rename,
