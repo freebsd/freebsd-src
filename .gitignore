@@ -9,6 +9,7 @@ bin/*bc
 bin/*bc.exe
 bin/*dc
 bin/*dc.exe
+bin/bcl
 bc.old
 *.o
 *.a

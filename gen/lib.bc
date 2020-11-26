@@ -173,7 +173,7 @@ define a(x){
 	return((m*a+r)/n)
 }
 define j(n,x){
-	auto b,s,o,a,i,v,f
+	auto b,s,o,a,i,r,v,f
 	b=ibase
 	ibase=A
 	s=scale

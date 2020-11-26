@@ -45,13 +45,14 @@
 static const char* const bc_gen_header =
 	"// Copyright (c) 2018-2020 Gavin D. Howard and contributors.\n"
 	"// Licensed under the 2-clause BSD license.\n"
-	"// *** AUTOMATICALLY GENERATED FROM %s. DO NOT MODIFY. ***\n";
+	"// *** AUTOMATICALLY GENERATED FROM %s. DO NOT MODIFY. ***\n\n";
 
-static const char* const bc_gen_include = "#include <%s>\n\n";
 static const char* const bc_gen_label = "const char *%s = \"%s\";\n\n";
+static const char* const bc_gen_label_extern = "extern const char *%s;\n\n";
 static const char* const bc_gen_ifdef = "#if %s\n";
 static const char* const bc_gen_endif = "#endif // %s\n";
 static const char* const bc_gen_name = "const char %s[] = {\n";
+static const char* const bc_gen_name_extern = "extern const char %s[];\n\n";
 
 #define IO_ERR (1)
 #define INVALID_INPUT_FILE (2)
@@ -62,7 +63,7 @@ static const char* const bc_gen_name = "const char %s[] = {\n";
 int main(int argc, char *argv[]) {
 
 	FILE *in, *out;
-	char *label, *define, *name, *include;
+	char *label, *define, *name;
 	int c, count, slashes, err = IO_ERR;
 	bool has_label, has_define, remove_tabs;
 
@@ -72,15 +73,14 @@ int main(int argc, char *argv[]) {
 	}
 
 	name = argv[3];
-	include = argv[4];
 
-	has_label = (argc > 5 && strcmp("", argv[5]) != 0);
-	label = has_label ? argv[5] : "";
+	has_label = (argc > 4 && strcmp("", argv[4]) != 0);
+	label = has_label ? argv[4] : "";
 
-	has_define = (argc > 6 && strcmp("", argv[6]) != 0);
-	define = has_define ? argv[6] : "";
+	has_define = (argc > 5 && strcmp("", argv[5]) != 0);
+	define = has_define ? argv[5] : "";
 
-	remove_tabs = (argc > 7);
+	remove_tabs = (argc > 6);
 
 	in = fopen(argv[1], "r");
 	if (!in) return INVALID_INPUT_FILE;
@@ -89,8 +89,9 @@ int main(int argc, char *argv[]) {
 	if (!out) goto out_err;
 
 	if (fprintf(out, bc_gen_header, argv[1]) < 0) goto err;
+	if (has_label && fprintf(out, bc_gen_label_extern, label) < 0) goto err;
+	if (fprintf(out, bc_gen_name_extern, name) < 0) goto err;
 	if (has_define && fprintf(out, bc_gen_ifdef, define) < 0) goto err;
-	if (fprintf(out, bc_gen_include, include) < 0) goto err;
 	if (has_label && fprintf(out, bc_gen_label, label, argv[1]) < 0) goto err;
 	if (fprintf(out, bc_gen_name, name) < 0) goto err;
 

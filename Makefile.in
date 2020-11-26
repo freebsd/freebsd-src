@@ -29,32 +29,12 @@
 #
 .POSIX:
 
-VERSION = 3.1.6
+VERSION = 3.2.0
 
 SRC = %%SRC%%
 OBJ = %%OBJ%%
 GCDA = %%GCDA%%
 GCNO = %%GCNO%%
-
-BC_SRC = %%BC_SRC%%
-BC_OBJ = %%BC_OBJ%%
-BC_GCDA = %%BC_GCDA%%
-BC_GCNO = %%BC_GCNO%%
-
-DC_SRC = %%DC_SRC%%
-DC_OBJ = %%DC_OBJ%%
-DC_GCDA = %%DC_GCDA%%
-DC_GCNO = %%DC_GCNO%%
-
-HISTORY_SRC = %%HISTORY_SRC%%
-HISTORY_OBJ = %%HISTORY_OBJ%%
-HISTORY_GCDA = %%HISTORY_GCDA%%
-HISTORY_GCNO = %%HISTORY_GCNO%%
-
-RAND_SRC = %%RAND_SRC%%
-RAND_OBJ = %%RAND_OBJ%%
-RAND_GCDA = %%RAND_GCDA%%
-RAND_GCNO = %%RAND_GCNO%%
 
 BC_ENABLED_NAME = BC_ENABLED
 BC_ENABLED = %%BC_ENABLED%%
@@ -102,6 +82,13 @@ DC = dc
 BC_EXEC = $(BIN)/$(EXEC_PREFIX)$(BC)
 DC_EXEC = $(BIN)/$(EXEC_PREFIX)$(DC)
 
+LIB = libbcl
+LIB_NAME = $(LIB).a
+LIBBC = $(BIN)/$(LIB_NAME)
+BCL = bcl
+BCL_TEST = $(BIN)/$(BCL)
+BCL_TEST_C = tests/$(BCL).c
+
 MANUALS = manuals
 BC_MANPAGE_NAME = $(EXEC_PREFIX)$(BC)$(EXEC_SUFFIX).1
 BC_MANPAGE = $(MANUALS)/$(BC).1
@@ -109,15 +96,27 @@ BC_MD = $(BC_MANPAGE).md
 DC_MANPAGE_NAME = $(EXEC_PREFIX)$(DC)$(EXEC_SUFFIX).1
 DC_MANPAGE = $(MANUALS)/$(DC).1
 DC_MD = $(DC_MANPAGE).md
+BCL_MANPAGE_NAME = bcl.3
+BCL_MANPAGE = $(MANUALS)/$(BCL_MANPAGE_NAME)
+BCL_MD = $(BCL_MANPAGE).md
 
 MANPAGE_INSTALL_ARGS = -Dm644
+BINARY_INSTALL_ARGS = -Dm755
+
+BCL_HEADER_NAME = bcl.h
+BCL_HEADER = include/$(BCL_HEADER_NAME)
 
 %%DESTDIR%%
 BINDIR = %%BINDIR%%
+INCLUDEDIR = %%INCLUDEDIR%%
+LIBDIR = %%LIBDIR%%
 MAN1DIR = %%MAN1DIR%%
+MAN3DIR = %%MAN3DIR%%
 MAIN_EXEC = $(EXEC_PREFIX)$(%%MAIN_EXEC%%)$(EXEC_SUFFIX)
 EXEC = $(%%EXEC%%)
 NLSPATH = %%NLSPATH%%
+
+BC_ENABLE_LIBRARY = %%LIBRARY%%
 
 BC_ENABLE_HISTORY = %%HISTORY%%
 BC_ENABLE_EXTRA_MATH_NAME = BC_ENABLE_EXTRA_MATH
@@ -129,7 +128,7 @@ BC_LONG_BIT = %%LONG_BIT%%
 RM = rm
 MKDIR = mkdir
 
-INSTALL = ./install.sh
+INSTALL = ./exec-install.sh
 SAFE_INSTALL = ./safe-install.sh
 LINK = ./link.sh
 MANPAGE = ./manpage.sh
@@ -148,7 +147,7 @@ CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700
 CPPFLAGS5 = $(CPPFLAGS4) -DBC_NUM_KARATSUBA_LEN=$(BC_NUM_KARATSUBA_LEN)
 CPPFLAGS6 = $(CPPFLAGS5) -DBC_ENABLE_NLS=$(BC_ENABLE_NLS) -DBC_ENABLE_PROMPT=$(BC_ENABLE_PROMPT)
 CPPFLAGS7 = $(CPPFLAGS6) -D$(BC_ENABLE_EXTRA_MATH_NAME)=$(BC_ENABLE_EXTRA_MATH)
-CPPFLAGS = $(CPPFLAGS7) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY)
+CPPFLAGS = $(CPPFLAGS7) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY) -DBC_ENABLE_LIBRARY=$(BC_ENABLE_LIBRARY)
 CFLAGS = $(CPPFLAGS) %%CPPFLAGS%% %%CFLAGS%%
 LDFLAGS = %%LDFLAGS%%
 
@@ -157,20 +156,23 @@ HOSTCFLAGS = %%HOSTCFLAGS%%
 CC = %%CC%%
 HOSTCC = %%HOSTCC%%
 
-BC_LIB_C_ARGS = bc_lib bc.h bc_lib_name $(BC_ENABLED_NAME) 1
-BC_LIB2_C_ARGS = bc_lib2 bc.h bc_lib2_name "$(BC_ENABLED_NAME) && $(BC_ENABLE_EXTRA_MATH_NAME)" 1
+BC_LIB_C_ARGS = bc_lib bc_lib_name $(BC_ENABLED_NAME) 1
+BC_LIB2_C_ARGS = bc_lib2 bc_lib2_name "$(BC_ENABLED_NAME) && $(BC_ENABLE_EXTRA_MATH_NAME)" 1
 
-OBJS1 = $(OBJ) $(DC_OBJ) $(BC_OBJ) $(HISTORY_OBJ) $(RAND_OBJ) $(BC_HELP_O) $(DC_HELP_O)
-OBJS = $(OBJS1) $(BC_LIB_O) $(BC_LIB2_O) $(BC_LIB3_O)
-OBJ_TARGETS1 = $(DC_HELP_O) $(BC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(BC_LIB3_O)
-OBJ_TARGETS = $(OBJ_TARGETS1) $(BC_OBJ) $(DC_OBJ) $(HISTORY_OBJ) $(RAND_OBJ) $(OBJ)
+OBJS = $(BC_HELP_O) $(DC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(OBJ)
+OBJ_TARGETS = $(DC_HELP_O) $(BC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(OBJ)
 
 .c.o:
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-all: make_bin $(OBJ_TARGETS)
+all: %%ALL_PREREQ%%
+
+execs: make_bin $(OBJ_TARGETS)
 	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(EXEC)
 	%%LINK%%
+
+library: make_bin $(OBJ) $(BC_LIB_O) $(BC_LIB2_O)
+	ar -r -cu $(LIBBC) $(BC_LIB_O) $(BC_LIB2_O) $(OBJ)
 
 $(GEN_EXEC):
 	%%GEN_EXEC_TARGET%%
@@ -182,10 +184,10 @@ $(BC_LIB2_C): $(GEN_EXEC) $(BC_LIB2)
 	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) $(BC_LIB2_C_ARGS)
 
 $(BC_HELP_C): $(GEN_EXEC) $(BC_HELP)
-	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) bc_help bc.h "" $(BC_ENABLED_NAME)
+	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) bc_help "" $(BC_ENABLED_NAME)
 
 $(DC_HELP_C): $(GEN_EXEC) $(DC_HELP)
-	$(GEN_EMU) $(GEN_EXEC) $(DC_HELP) $(DC_HELP_C) dc_help dc.h "" $(DC_ENABLED_NAME)
+	$(GEN_EMU) $(GEN_EXEC) $(DC_HELP) $(DC_HELP_C) dc_help "" $(DC_ENABLED_NAME)
 
 make_bin:
 	$(MKDIR) -p $(BIN)
@@ -222,7 +224,7 @@ help:
 
 check: test
 
-test: test_bc timeconst test_dc
+test: %%TESTS%%
 
 test_bc:
 	%%BC_TEST%%
@@ -240,6 +242,12 @@ time_test_dc:
 
 timeconst:
 	%%TIMECONST%%
+
+library_test: library
+	$(CC) $(CFLAGS) $(BCL_TEST_C) $(LIBBC) -o $(BCL_TEST)
+
+test_library: library_test
+	$(BCL_TEST)
 
 valgrind: valgrind_bc valgrind_dc
 
@@ -272,6 +280,7 @@ extra_math:
 manpages:
 	$(MANPAGE) bc
 	$(MANPAGE) dc
+	$(MANPAGE) bcl
 
 clean_gen:
 	@$(RM) -f $(GEN_EXEC)
@@ -279,10 +288,6 @@ clean_gen:
 clean:%%CLEAN_PREREQS%%
 	@printf 'Cleaning files...\n'
 	@$(RM) -f $(OBJ)
-	@$(RM) -f $(BC_OBJ)
-	@$(RM) -f $(DC_OBJ)
-	@$(RM) -f $(HISTORY_OBJ)
-	@$(RM) -f $(RAND_OBJ)
 	@$(RM) -f $(BC_EXEC)
 	@$(RM) -f $(DC_EXEC)
 	@$(RM) -fr $(BIN)
@@ -343,8 +348,19 @@ install_bc_manpage:
 install_dc_manpage:
 	$(SAFE_INSTALL) $(MANPAGE_INSTALL_ARGS) $(DC_MANPAGE) $(DESTDIR)$(MAN1DIR)/$(DC_MANPAGE_NAME)
 
-install:%%INSTALL_LOCALES_PREREQS%%%%INSTALL_PREREQS%%
+install_bcl_manpage:
+	$(SAFE_INSTALL) $(MANPAGE_INSTALL_ARGS) $(BCL_MANPAGE) $(DESTDIR)$(MAN3DIR)/$(BCL_MANPAGE_NAME)
+
+install_bcl_header:
+	$(SAFE_INSTALL) $(MANPAGE_INSTALL_ARGS) $(BCL_HEADER) $(DESTDIR)$(INCLUDEDIR)/$(BCL_HEADER_NAME)
+
+install_execs:
 	$(INSTALL) $(DESTDIR)$(BINDIR) "$(EXEC_SUFFIX)"
+
+install_library:
+	$(SAFE_INSTALL) $(BINARY_INSTALL_ARGS) $(LIBBC) $(DESTDIR)$(LIBDIR)/$(LIB_NAME)
+
+install:%%INSTALL_LOCALES_PREREQS%%%%INSTALL_MAN_PREREQS%%%%INSTALL_PREREQS%%
 
 uninstall_locales:
 	$(LOCALE_UNINSTALL) $(NLSPATH) $(MAIN_EXEC) $(DESTDIR)
@@ -360,5 +376,14 @@ uninstall_dc_manpage:
 
 uninstall_dc:
 	$(RM) -f $(DESTDIR)$(BINDIR)/$(EXEC_PREFIX)$(DC)$(EXEC_SUFFIX)
+
+uninstall_library:
+	$(RM) -f $(DESTDIR)$(LIBDIR)/$(LIB_NAME)
+
+uninstall_bcl_header:
+	$(RM) -f $(DESTDIR)$(INCLUDEDIR)/$(BCL_HEADER_NAME)
+
+uninstall_bcl_manpage:
+	$(RM) -f $(DESTDIR)$(MAN3DIR)/$(BCL_MANPAGE_NAME)
 
 uninstall:%%UNINSTALL_LOCALES_PREREQS%%%%UNINSTALL_MAN_PREREQS%%%%UNINSTALL_PREREQS%%

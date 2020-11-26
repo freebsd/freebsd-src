@@ -223,6 +223,7 @@ void bc_rand_seed(BcRNG *r, ulong state1, ulong state2, ulong inc1, ulong inc2);
 void bc_rand_push(BcRNG *r);
 void bc_rand_pop(BcRNG *r, bool reset);
 void bc_rand_getRands(BcRNG *r, BcRand *s1, BcRand *s2, BcRand *i1, BcRand *i2);
+void bc_rand_srand(BcRNGData *rng);
 
 extern const BcRandState bc_rand_multiplier;
 
