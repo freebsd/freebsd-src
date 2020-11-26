@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -183,6 +184,10 @@ init_param1(void)
 	 * sign problems sooner.
 	 */
 	ticks = INT_MAX - (hz * 10 * 60);
+
+	vn_lock_pair_pause_max = hz / 100;
+	if (vn_lock_pair_pause_max == 0)
+		vn_lock_pair_pause_max = 1;
 
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;

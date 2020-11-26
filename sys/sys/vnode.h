@@ -448,6 +448,8 @@ extern	u_long desiredvnodes;		/* number of vnodes desired */
 extern	struct uma_zone *namei_zone;
 extern	struct vattr va_null;		/* predefined null vattr structure */
 
+extern	u_int vn_lock_pair_pause_max;
+
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
 #define	VI_LOCK_FLAGS(vp, flags) mtx_lock_flags(&(vp)->v_interlock, (flags))
 #define	VI_TRYLOCK(vp)	mtx_trylock(&(vp)->v_interlock)
