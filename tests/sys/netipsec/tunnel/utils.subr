@@ -124,7 +124,7 @@ ist_test()
 	if [ $1 -eq 4 ]; then
 		atf_check -s exit:0 -o ignore jexec hostA ping -c 1 203.0.113.1
 	else
-		atf_check -s exit:0 -o ignore jexec hostA ping6 -c 1 2001:db8:45::1
+		atf_check -s exit:0 -o ignore jexec hostA ping -6 -c 1 2001:db8:45::1
 	fi
 }
 ist_cleanup()

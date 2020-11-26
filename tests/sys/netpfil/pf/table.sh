@@ -93,7 +93,7 @@ v6_counters_body()
 	    "pass in from <foo6> to any" \
 	    "pass out from any to <foo6>"
 
-	atf_check -s exit:0 -o ignore ping6 -c 3 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 3 2001:db8:42::2
 
 	atf_check -s exit:0 -e ignore \
 	    -o match:'In/Block:.*'"$TABLE_STATS_ZERO_REGEXP" \

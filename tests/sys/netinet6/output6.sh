@@ -227,7 +227,7 @@ output6_raw_success_body()
 		sleep 0.1
 	done
 
-	atf_check -o match:'1 packets transmitted, 1 packets received' jexec ${jname}a ping6 -nc1 ${ip_dst}
+	atf_check -o match:'1 packets transmitted, 1 packets received' jexec ${jname}a ping -6 -nc1 ${ip_dst}
 }
 
 output6_raw_success_cleanup()
@@ -340,7 +340,7 @@ output6_tcp_flowid_mpath_success_body()
 	jexec ${jname}b route add -6 -net ${net_src}::/${plen} ${ll}%${epair1}b
 	
 	# Base setup verification
-	atf_check -o match:'1 packets transmitted, 1 packets received' jexec ${jname}a ping6 -c1 ${ip_dst}
+	atf_check -o match:'1 packets transmitted, 1 packets received' jexec ${jname}a ping -6 -c1 ${ip_dst}
 
 	# run listener
 	num_ports=`echo ${ports} | wc -w`
@@ -482,7 +482,7 @@ output6_udp_flowid_mpath_success_body()
 	jexec ${jname}b route add -6 -net ${net_src}::/${plen} ${ll}%${epair1}b
 	
 	# Base setup verification
-	atf_check -o match:'1 packets transmitted, 1 packets received' jexec ${jname}a ping6 -c1 ${ip_dst}
+	atf_check -o match:'1 packets transmitted, 1 packets received' jexec ${jname}a ping -6 -c1 ${ip_dst}
 
 	# run listener
 	num_ports=`echo ${ports} | wc -w`
@@ -621,13 +621,13 @@ output6_raw_flowid_mpath_success_body()
 	jexec ${jname}b route add -6 -net ${net_src}::/${plen} ${ll}%${epair1}b
 	
 	# Base setup verification
-	atf_check -o match:'1 packets transmitted, 1 packets received' jexec ${jname}a ping6 -nc1 ${ip_dst}
+	atf_check -o match:'1 packets transmitted, 1 packets received' jexec ${jname}a ping -6 -nc1 ${ip_dst}
 
 	# run sender
 	valid_message='1 packets transmitted, 1 packets received'
 	for _ip in ${ips}; do
 		ip="${net_dst}:${_ip}"
-		atf_check -o match:"${valid_message}" jexec ${jname}a ping6 -nc1 ${ip}
+		atf_check -o match:"${valid_message}" jexec ${jname}a ping -6 -nc1 ${ip}
 	done
 
 	pkt_0=`jexec ${jname}a netstat -Wf link -I ${epair0}a | head | awk '$1!~/^Name/{print$8}'`
