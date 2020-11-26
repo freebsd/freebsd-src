@@ -1,4 +1,4 @@
-name: Cross-build CI
+name: Cross-build Kernel
 
 on:
   push:
@@ -8,28 +8,51 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }}
+    name: ${{ matrix.os }} (${{ matrix.compiler }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04, macOS-latest]
+        include:
+          # TODO: both Ubuntu and macOS have bmake packages, we should try them instead of bootstrapping our own copy.
+          - os: ubuntu-20.04
+            compiler: clang-9
+            cross-bindir: /usr/lib/llvm-9/bin
+            pkgs: bmake libarchive-dev
+          - os: ubuntu-20.04
+            compiler: clang-10
+            cross-bindir: /usr/lib/llvm-10/bin
+            pkgs: bmake libarchive-dev
+          - os: macOS-latest
+            compiler: clang-11
+            #cross-bindir: /usr/local/Cellar/llvm/11.0.0/bin  # script figures this out automatically
+            pkgs: bmake libarchive llvm@11
 
     steps:
       - uses: actions/checkout@v2
-      - name: install LLVM+libarchive (Ubuntu)
+      - name: install packages (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
-          wget -O /tmp/llvm.sh https://apt.llvm.org/llvm.sh
-          chmod +x /tmp/llvm.sh
-          sudo /tmp/llvm.sh 11
-          sudo apt install -y libarchive-dev
-          echo "::set-env name=EXTRA_MAKE_ARGS::--cross-bindir=/usr/lib/llvm-11/bin"
-        if: ${{ startsWith(matrix.os, 'ubuntu') }}
-      - name: install LLVM+libarchive (macOS)
-        run: brew install llvm coreutils libarchive xz
-        if: ${{ startsWith(matrix.os, 'macOS') }}
-      - name: create build dir
-        run: rm -rf ../build && mkdir -p ../build
+          sudo apt-get update --quiet || true
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install ${{ matrix.pkgs }}
+      - name: install packages (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update --quiet || true
+          brew install ${{ matrix.pkgs }}
+      - name: create environment
+        run: |
+          echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
+          if [ -n "${{ matrix.cross-bindir }}" ]; then
+            echo "EXTRA_BUILD_ARGS=--cross-bindir=${{ matrix.cross-bindir }}" >> $GITHUB_ENV
+          fi
+          mkdir -p ../build
+          echo "MAKEOBJDIRPREFIX=${PWD%/*}/build" >> $GITHUB_ENV
+          # heh, works on Linux/BSD/macOS ...
+          echo "NPROC=`getconf _NPROCESSORS_ONLN 2>/dev/null || getconf NPROCESSORS_ONLN 2>/dev/null || echo 1`" >> $GITHUB_ENV
+      - name: bootstrap bmake
+        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=amd64 TARGET_ARCH=amd64 -n
       - name: make kernel-toolchain
-        run: env MAKEOBJDIRPREFIX=`realpath ../build` ./tools/build/make.py $EXTRA_MAKE_ARGS TARGET=amd64 TARGET_ARCH=amd64 kernel-toolchain -s -j$(nproc)
+        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=amd64 TARGET_ARCH=amd64 kernel-toolchain -s -j$NPROC
       - name: make buildkernel
-        run: env MAKEOBJDIRPREFIX=`realpath ../build` ./tools/build/make.py $EXTRA_MAKE_ARGS TARGET=amd64 TARGET_ARCH=amd64 KERNCONF=GENERIC NO_MODULES=yes buildkernel -s -j$(nproc)
+        run: ./tools/build/make.py --debug $EXTRA_BUILD_ARGS TARGET=amd64 TARGET_ARCH=amd64 KERNCONF=GENERIC NO_MODULES=yes buildkernel -s -j$NPROC $EXTRA_MAKE_ARGS
