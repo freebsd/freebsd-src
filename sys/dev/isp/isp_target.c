@@ -374,17 +374,6 @@ isp_target_async(ispsoftc_t *isp, int bus, int event)
 		notify.nt_ncode = NT_LIP_RESET;
 		isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
 		break;
-	case ASYNC_BUS_RESET:
-	case ASYNC_TIMEOUT_RESET:	/* XXX: where does this come from ? */
-		isp_prt(isp, ISP_LOGTDEBUG0, "%s: BUS RESET", __func__);
-		notify.nt_ncode = NT_BUS_RESET;
-		isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-		break;
-	case ASYNC_DEVICE_RESET:
-		isp_prt(isp, ISP_LOGTDEBUG0, "%s: DEVICE RESET", __func__);
-		notify.nt_ncode = NT_TARGET_RESET;
-		isp_async(isp, ISPASYNC_TARGET_NOTIFY, &notify);
-		break;
 	default:
 		isp_prt(isp, ISP_LOGERR, "%s: unknown event 0x%x", __func__, event);
 		break;
@@ -819,6 +808,9 @@ isp_handle_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 			wwpn = be64dec(&ptr[IN24XX_PRLI_WWPN_OFF]);
 			isp_add_wwn_entry(isp, chan, wwpn, wwnn,
 			    nphdl, portid, prli_options);
+			break;
+		case TPRLO:
+			msg = "TPRLO";
 			break;
 		case PDISC:
 			msg = "PDISC";

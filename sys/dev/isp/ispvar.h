@@ -738,7 +738,6 @@ int isp_control(ispsoftc_t *, ispctl_t, ...);
  */
 
 typedef enum {
-	ISPASYNC_BUS_RESET,		/* All Bus Was Reset */
 	ISPASYNC_LOOP_DOWN,		/* FC Loop Down */
 	ISPASYNC_LOOP_UP,		/* FC Loop Up */
 	ISPASYNC_LIP,			/* FC LIP Received */
