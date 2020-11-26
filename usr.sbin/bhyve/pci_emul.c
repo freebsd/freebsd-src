@@ -624,9 +624,9 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 		 * Some drivers do not work well if the 64-bit BAR is allocated
 		 * above 4GB. Allow for this by allocating small requests under
 		 * 4GB unless then allocation size is larger than some arbitrary
-		 * number (32MB currently).
+		 * number (128MB currently).
 		 */
-		if (size > 32 * 1024 * 1024) {
+		if (size > 128 * 1024 * 1024) {
 			/*
 			 * XXX special case for device requiring peer-peer DMA
 			 */
