@@ -29,29 +29,28 @@
  *
  * *****************************************************************************
  *
- * The main procedure of bc.
+ * The main procedure of dc.
  *
  */
 
-#if BC_ENABLED
+#if DC_ENABLED
 
 #include <string.h>
 
-#include <status.h>
-#include <bc.h>
+#include <dc.h>
 #include <vm.h>
 
-void bc_main(int argc, char **argv) {
+void dc_main(int argc, char **argv) {
 
-	vm.read_ret = BC_INST_RET;
-	vm.help = bc_help;
-	vm.sigmsg = bc_sig_msg;
-	vm.siglen = bc_sig_msg_len;
+	vm.read_ret = BC_INST_POP_EXEC;
+	vm.help = dc_help;
+	vm.sigmsg = dc_sig_msg;
+	vm.siglen = dc_sig_msg_len;
 
-	vm.next = bc_lex_token;
-	vm.parse = bc_parse_parse;
-	vm.expr = bc_parse_expr;
+	vm.next = dc_lex_token;
+	vm.parse = dc_parse_parse;
+	vm.expr = dc_parse_expr;
 
-	bc_vm_boot(argc, argv, "BC_LINE_LENGTH", "BC_ENV_ARGS");
+	bc_vm_boot(argc, argv, "DC_LINE_LENGTH", "DC_ENV_ARGS");
 }
-#endif // BC_ENABLED
+#endif // DC_ENABLED

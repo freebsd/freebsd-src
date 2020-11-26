@@ -43,6 +43,8 @@
 #include <program.h>
 #include <vm.h>
 
+#if !BC_ENABLE_LIBRARY
+
 #if BC_ENABLED
 const char bc_sig_msg[] = "\ninterrupt (type \"quit\" to exit)\n";
 const uchar bc_sig_msg_len = (uchar) (sizeof(bc_sig_msg) - 1);
@@ -664,11 +666,8 @@ const char* bc_inst_names[] = {
 };
 #endif // BC_DEBUG_CODE
 
-#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
-
-const BcRandState bc_rand_multiplier = BC_RAND_MULTIPLIER;
-
-#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
+const char bc_parse_zero[2] = "0";
+const char bc_parse_one[2] = "1";
 
 #if BC_ENABLED
 const BcLexKeyword bc_lex_kws[] = {
@@ -711,8 +710,6 @@ const BcLexKeyword bc_lex_kws[] = {
 };
 
 const size_t bc_lex_kws_len = sizeof(bc_lex_kws) / sizeof(BcLexKeyword);
-
-const char* const bc_parse_const1 = "1";
 
 // This is an array that corresponds to token types. An entry is
 // true if the token is valid in an expression, false otherwise.
@@ -937,11 +934,26 @@ const uchar dc_parse_insts[] = {
 };
 #endif // DC_ENABLED
 
+#endif // !BC_ENABLE_LIBRARY
+
+#if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
+
+const BcRandState bc_rand_multiplier = BC_RAND_MULTIPLIER;
+
+#endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
+
 #if BC_LONG_BIT >= 64
 const BcDig bc_num_bigdigMax[] = {
 	709551616U,
 	446744073U,
-	18U
+	18U,
+};
+const BcDig bc_num_bigdigMax2[] = {
+	768211456U,
+	374607431U,
+	938463463U,
+	282366920U,
+	340U,
 };
 #else // BC_LONG_BIT >= 64
 const BcDig bc_num_bigdigMax[] = {
@@ -949,12 +961,17 @@ const BcDig bc_num_bigdigMax[] = {
 	9496U,
 	42U,
 };
+const BcDig bc_num_bigdigMax2[] = {
+	1616U,
+	955U,
+	737U,
+	6744U,
+	1844U,
+};
 #endif // BC_LONG_BIT >= 64
 
 const size_t bc_num_bigdigMax_size = sizeof(bc_num_bigdigMax) / sizeof(BcDig);
-
-const char bc_parse_zero[] = "0";
-const char bc_parse_one[] = "1";
+const size_t bc_num_bigdigMax2_size = sizeof(bc_num_bigdigMax2) / sizeof(BcDig);
 
 const char bc_num_hex_digits[] = "0123456789ABCDEF";
 
@@ -973,6 +990,8 @@ const BcBigDig bc_num_pow10[BC_BASE_DIGS + 1] = {
 #endif // BC_BASE_DIGS > 4
 };
 
+#if !BC_ENABLE_LIBRARY
+
 const BcNumBinaryOp bc_program_ops[] = {
 	bc_num_pow, bc_num_mul, bc_num_div, bc_num_mod, bc_num_add, bc_num_sub,
 #if BC_ENABLE_EXTRA_MATH
@@ -981,7 +1000,7 @@ const BcNumBinaryOp bc_program_ops[] = {
 };
 
 const BcNumBinaryOpReq bc_program_opReqs[] = {
-	bc_num_powReq, bc_num_mulReq, bc_num_mulReq, bc_num_mulReq,
+	bc_num_powReq, bc_num_mulReq, bc_num_divReq, bc_num_divReq,
 	bc_num_addReq, bc_num_addReq,
 #if BC_ENABLE_EXTRA_MATH
 	bc_num_placesReq, bc_num_placesReq, bc_num_placesReq,
@@ -1002,3 +1021,5 @@ const char bc_program_ready_msg[] = "ready for more input\n";
 const size_t bc_program_ready_msg_len = sizeof(bc_program_ready_msg) - 1;
 const char bc_program_esc_chars[] = "ab\\efnqrt";
 const char bc_program_esc_seqs[] = "\a\b\\\\\f\n\"\r\t";
+
+#endif // !BC_ENABLE_LIBRARY

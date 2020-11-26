@@ -45,22 +45,27 @@ usage() {
 		_usage_val=0
 	fi
 
-	printf 'usage: %s -h\n' "$script"
-	printf '       %s --help\n' "$script"
-	printf '       %s [-bD|-dB|-c] [-EfgGHlMNPT] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
-	printf '       %s \\\n' "$script"
-	printf '           [--bc-only --disable-dc|--dc-only --disable-bc|--coverage]      \\\n'
-	printf '           [--debug --disable-extra-math --disable-generated-tests]        \\\n'
-	printf '           [--disable-history --disable-man-pages --disable-nls]           \\\n'
-	printf '           [--disable-prompt --disable-strip] [--install-all-locales]      \\\n'
-	printf '           [--opt=OPT_LEVEL] [--karatsuba-len=KARATSUBA_LEN]               \\\n'
-	printf '           [--prefix=PREFIX] [--bindir=BINDIR] [--datarootdir=DATAROOTDIR] \\\n'
-	printf '           [--datadir=DATADIR] [--mandir=MANDIR] [--man1dir=MAN1DIR]       \\\n'
-	printf '           [--force]                                                       \\\n'
+	printf 'usage:\n'
+	printf '    %s -h\n' "$script"
+	printf '    %s --help\n' "$script"
+	printf '    %s [-a|-bD|-dB|-c] [-EfgGHlMNPT] [-O OPT_LEVEL] [-k KARATSUBA_LEN]\n' "$script"
+	printf '    %s \\\n' "$script"
+	printf '       [--library|--bc-only --disable-dc|--dc-only --disable-bc|--coverage]\\\n'
+	printf '       [--force --debug --disable-extra-math --disable-generated-tests]    \\\n'
+	printf '       [--disable-history --disable-man-pages --disable-nls]               \\\n'
+	printf '       [--disable-prompt --disable-strip] [--install-all-locales]          \\\n'
+	printf '       [--opt=OPT_LEVEL] [--karatsuba-len=KARATSUBA_LEN]                   \\\n'
+	printf '       [--prefix=PREFIX] [--bindir=BINDIR] [--datarootdir=DATAROOTDIR]     \\\n'
+	printf '       [--datadir=DATADIR] [--mandir=MANDIR] [--man1dir=MAN1DIR]           \\\n'
 	printf '\n'
+	printf '    -a, --library\n'
+	printf '        Build the libbc instead of the programs. This is meant to be used with\n'
+	printf '        Other software like programming languages that want to make use of the\n'
+	printf '        parsing and math capabilities. This option will install headers using\n'
+	printf '        `make install`.\n'
 	printf '    -b, --bc-only\n'
-	printf '        Build bc only. It is an error if "-d", "--dc-only", "-B", or "--disable-bc"\n'
-	printf '        are specified too.\n'
+	printf '        Build bc only. It is an error if "-d", "--dc-only", "-B", or\n'
+	printf '        "--disable-bc" are specified too.\n'
 	printf '    -B, --disable-bc\n'
 	printf '        Disable bc. It is an error if "-b", "--bc-only", "-D", or "--disable-dc"\n'
 	printf '        are specified too.\n'
@@ -69,10 +74,10 @@ usage() {
 	printf '        It is an error if either "-b" ("-D") or "-d" ("-B") is specified.\n'
 	printf '        Requires a compiler that use gcc-compatible coverage options\n'
 	printf '    -d, --dc-only\n'
-	printf '        Build dc only. It is an error if "-b", "--bc-only", "-D", or "--disable-dc"\n'
-	printf '        are specified too.\n'
+	printf '        Build dc only. It is an error if "-b", "--bc-only", "-D", or\n'
+	printf '        "--disable-dc" are specified too.\n'
 	printf '    -D, --disable-dc\n'
-	printf '        Disable dc. It is an error if "-d", "--dc-only" "-B", or "--disable-bc"\n'
+	printf '        Disable dc. It is an error if "-d", "--dc-only", "-B", or "--disable-bc"\n'
 	printf '        are specified too.\n'
 	printf '    -E, --disable-extra-math\n'
 	printf '        Disable extra math. This includes: "$" operator (truncate to integer),\n'
@@ -122,8 +127,14 @@ usage() {
 	printf '        If PREFIX is "/usr", install path will be "/usr/bin".\n'
 	printf '        Default is "/usr/local".\n'
 	printf '    --bindir BINDIR\n'
-	printf '        The directory to install binaries. Overrides "$BINDIR" if it exists.\n'
+	printf '        The directory to install binaries in. Overrides "$BINDIR" if it exists.\n'
 	printf '        Default is "$PREFIX/bin".\n'
+	printf '    --includedir INCLUDEDIR\n'
+	printf '        The directory to install headers in. Overrides "$INCLUDEDIR" if it\n'
+	printf '        exists. Default is "$PREFIX/include".\n'
+	printf '    --libdir LIBDIR\n'
+	printf '        The directory to install libraries in. Overrides "$LIBDIR" if it exists.\n'
+	printf '        Default is "$PREFIX/lib".\n'
 	printf '    --datarootdir DATAROOTDIR\n'
 	printf '        The root location for data files. Overrides "$DATAROOTDIR" if it exists.\n'
 	printf '        Default is "$PREFIX/share".\n'
@@ -136,6 +147,9 @@ usage() {
 	printf '    --man1dir MAN1DIR\n'
 	printf '        The location to install Section 1 manpages to. Overrides "$MAN1DIR" if\n'
 	printf '        it exists. Default is "$MANDIR/man1".\n'
+	printf '    --man3dir MAN3DIR\n'
+	printf '        The location to install Section 3 manpages to. Overrides "$MAN3DIR" if\n'
+	printf '        it exists. Default is "$MANDIR/man3".\n'
 	printf '\n'
 	printf 'In addition, the following environment variables are used:\n'
 	printf '\n'
@@ -157,12 +171,18 @@ usage() {
 	printf '    LDFLAGS      Linker flags. Default is "".\n'
 	printf '    PREFIX       The prefix to install to. Default is "/usr/local".\n'
 	printf '                 If PREFIX is "/usr", install path will be "/usr/bin".\n'
-	printf '    BINDIR       The directory to install binaries. Default is "$PREFIX/bin".\n'
+	printf '    BINDIR       The directory to install binaries in. Default is "$PREFIX/bin".\n'
+	printf '    INCLUDEDIR   The directory to install header files in. Default is\n'
+	printf '                 "$PREFIX/include".\n'
+	printf '    LIBDIR       The directory to install libraries in. Default is\n'
+	printf '                 "$PREFIX/lib".\n'
 	printf '    DATAROOTDIR  The root location for data files. Default is "$PREFIX/share".\n'
 	printf '    DATADIR      The location for data files. Default is "$DATAROOTDIR".\n'
 	printf '    MANDIR       The location to install manpages to. Default is "$DATADIR/man".\n'
 	printf '    MAN1DIR      The location to install Section 1 manpages to. Default is\n'
 	printf '                 "$MANDIR/man1".\n'
+	printf '    MAN3DIR      The location to install Section 3 manpages to. Default is\n'
+	printf '                 "$MANDIR/man3".\n'
 	printf '    NLSPATH      The location to install locale catalogs to. Must be an absolute\n'
 	printf '                 path (or contain one). This is treated the same as the POSIX\n'
 	printf '                 definition of $NLSPATH (see POSIX environment variables for\n'
@@ -257,56 +277,55 @@ replace() {
 	substring_replace "$_replace_str" "%%$_replace_needle%%" "$_replace_replacement"
 }
 
-gen_file_lists() {
+gen_file_list() {
 
-	if [ "$#" -lt 3 ]; then
+	if [ "$#" -lt 1 ]; then
 		err_exit "Invalid number of args to $0"
 	fi
 
-	_gen_file_lists_contents="$1"
+	_gen_file_list_contents="$1"
 	shift
 
-	_gen_file_lists_filedir="$1"
-	shift
+	p=$(pwd)
 
-	_gen_file_lists_typ="$1"
-	shift
+	cd "$scriptdir"
 
-	# If there is an extra argument, and it
-	# is zero, we keep the file lists empty.
-	if [ "$#" -gt 0 ]; then
-		_gen_file_lists_use="$1"
-	else
-		_gen_file_lists_use="1"
-	fi
+	if [ "$#" -ge 1 ]; then
 
-	_gen_file_lists_needle_src="${_gen_file_lists_typ}SRC"
-	_gen_file_lists_needle_obj="${_gen_file_lists_typ}OBJ"
-	_gen_file_lists_needle_gcda="${_gen_file_lists_typ}GCDA"
-	_gen_file_lists_needle_gcno="${_gen_file_lists_typ}GCNO"
-
-	if [ "$_gen_file_lists_use" -ne 0 ]; then
-
-		_gen_file_lists_replacement=$(cd "$_gen_file_lists_filedir" && find . ! -name . -prune -name "*.c" | cut -d/ -f2 | sed "s@^@$_gen_file_lists_filedir/@g" | tr '\n' ' ')
-		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_src" "$_gen_file_lists_replacement")
-
-		_gen_file_lists_replacement=$(replace_exts "$_gen_file_lists_replacement" "c" "o")
-		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_obj" "$_gen_file_lists_replacement")
-
-		_gen_file_lists_replacement=$(replace_exts "$_gen_file_lists_replacement" "o" "gcda")
-		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_gcda" "$_gen_file_lists_replacement")
-
-		_gen_file_lists_replacement=$(replace_exts "$_gen_file_lists_replacement" "gcda" "gcno")
-		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_gcno" "$_gen_file_lists_replacement")
+		while [ "$#" -ge 1 ]; do
+			a="$1"
+			shift
+			args="$args ! -wholename src/${a}"
+		done
 
 	else
-		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_src" "")
-		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_obj" "")
-		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_gcda" "")
-		_gen_file_lists_contents=$(replace "$_gen_file_lists_contents" "$_gen_file_lists_needle_gcno" "")
+		args="-print"
 	fi
 
-	printf '%s\n' "$_gen_file_lists_contents"
+	_gen_file_list_needle_src="SRC"
+	_gen_file_list_needle_obj="OBJ"
+	_gen_file_list_needle_gcda="GCDA"
+	_gen_file_list_needle_gcno="GCNO"
+
+	_gen_file_list_replacement=$(find src/ -depth -name "*.c" $args | tr '\n' ' ')
+	_gen_file_list_contents=$(replace "$_gen_file_list_contents" \
+		"$_gen_file_list_needle_src" "$_gen_file_list_replacement")
+
+	_gen_file_list_replacement=$(replace_exts "$_gen_file_list_replacement" "c" "o")
+	_gen_file_list_contents=$(replace "$_gen_file_list_contents" \
+		"$_gen_file_list_needle_obj" "$_gen_file_list_replacement")
+
+	_gen_file_list_replacement=$(replace_exts "$_gen_file_list_replacement" "o" "gcda")
+	_gen_file_list_contents=$(replace "$_gen_file_list_contents" \
+		"$_gen_file_list_needle_gcda" "$_gen_file_list_replacement")
+
+	_gen_file_list_replacement=$(replace_exts "$_gen_file_list_replacement" "gcda" "gcno")
+	_gen_file_list_contents=$(replace "$_gen_file_list_contents" \
+		"$_gen_file_list_needle_gcno" "$_gen_file_list_replacement")
+
+	cd "$p"
+
+	printf '%s\n' "$_gen_file_list_contents"
 }
 
 bc_only=0
@@ -324,10 +343,12 @@ prompt=1
 force=0
 strip_bin=1
 all_locales=0
+library=0
 
-while getopts "bBcdDEfgGhHk:lMNO:PST-" opt; do
+while getopts "abBcdDEfgGhHk:lMNO:PST-" opt; do
 
 	case "$opt" in
+		a) library=1 ;;
 		b) bc_only=1 ;;
 		B) dc_only=1 ;;
 		c) coverage=1 ;;
@@ -352,6 +373,7 @@ while getopts "bBcdDEfgGhHk:lMNO:PST-" opt; do
 			LONG_OPTARG="${arg#*=}"
 			case $arg in
 				help) usage ;;
+				library) library=1 ;;
 				bc-only) bc_only=1 ;;
 				dc-only) dc_only=1 ;;
 				coverage) coverage=1 ;;
@@ -370,6 +392,20 @@ while getopts "bBcdDEfgGhHk:lMNO:PST-" opt; do
 						usage "No argument given for '--$arg' option"
 					fi
 					BINDIR="$2"
+					shift ;;
+				includedir=?*) INCLUDEDIR="$LONG_OPTARG" ;;
+				includedir)
+					if [ "$#" -lt 2 ]; then
+						usage "No argument given for '--$arg' option"
+					fi
+					INCLUDEDIR="$2"
+					shift ;;
+				libdir=?*) LIBDIR="$LONG_OPTARG" ;;
+				libdir)
+					if [ "$#" -lt 2 ]; then
+						usage "No argument given for '--$arg' option"
+					fi
+					LIBDIR="$2"
 					shift ;;
 				datarootdir=?*) DATAROOTDIR="$LONG_OPTARG" ;;
 				datarootdir)
@@ -398,6 +434,13 @@ while getopts "bBcdDEfgGhHk:lMNO:PST-" opt; do
 						usage "No argument given for '--$arg' option"
 					fi
 					MAN1DIR="$2"
+					shift ;;
+				man3dir=?*) MAN3DIR="$LONG_OPTARG" ;;
+				man3dir)
+					if [ "$#" -lt 2 ]; then
+						usage "No argument given for '--$arg' option"
+					fi
+					MAN3DIR="$2"
 					shift ;;
 				localedir=?*) LOCALEDIR="$LONG_OPTARG" ;;
 				localedir)
@@ -452,6 +495,12 @@ done
 
 if [ "$bc_only" -eq 1 ] && [ "$dc_only" -eq 1 ]; then
 	usage "Can only specify one of -b(-D) or -d(-B)"
+fi
+
+if [ "$library" -ne 0 ]; then
+	if [ "$bc_only" -eq 1 ] || [ "$dc_only" -eq 1 ]; then
+		usage "Must not specify -b(-D) or -d(-B) when building the library"
+	fi
 fi
 
 case $karatsuba_len in
@@ -529,6 +578,8 @@ link="@printf 'No link necessary\\\\n'"
 main_exec="BC"
 executable="BC_EXEC"
 
+tests="test_bc timeconst test_dc"
+
 bc_test="@tests/all.sh bc $extra_math 1 $generate_tests 0 \$(BC_EXEC)"
 bc_time_test="@tests/all.sh bc $extra_math 1 $generate_tests 1 \$(BC_EXEC)"
 
@@ -567,7 +618,8 @@ if [ "$bc_only" -eq 1 ]; then
 	dc_time_test="@printf 'No dc tests to run\\\\n'"
 	vg_dc_test="@printf 'No dc tests to run\\\\n'"
 
-	install_prereqs=" install_bc_manpage"
+	install_prereqs=" install_execs"
+	install_man_prereqs=" install_bc_manpage"
 	uninstall_prereqs=" uninstall_bc"
 	uninstall_man_prereqs=" uninstall_bc_manpage"
 
@@ -590,7 +642,8 @@ elif [ "$dc_only" -eq 1 ]; then
 
 	timeconst="@printf 'timeconst cannot be run because bc is not built\\\\n'"
 
-	install_prereqs=" install_dc_manpage"
+	install_prereqs=" install_execs"
+	install_man_prereqs=" install_dc_manpage"
 	uninstall_prereqs=" uninstall_dc"
 	uninstall_man_prereqs=" uninstall_dc_manpage"
 
@@ -606,9 +659,18 @@ else
 	karatsuba="@\$(KARATSUBA) 30 0 \$(BC_EXEC)"
 	karatsuba_test="@\$(KARATSUBA) 1 100 \$(BC_EXEC)"
 
-	install_prereqs=" install_bc_manpage install_dc_manpage"
-	uninstall_prereqs=" uninstall_bc uninstall_dc"
-	uninstall_man_prereqs=" uninstall_bc_manpage uninstall_dc_manpage"
+	if [ "$library" -eq 0 ]; then
+		install_prereqs=" install_execs"
+		install_man_prereqs=" install_bc_manpage install_dc_manpage"
+		uninstall_prereqs=" uninstall_bc uninstall_dc"
+		uninstall_man_prereqs=" uninstall_bc_manpage uninstall_dc_manpage"
+	else
+		install_prereqs=" install_library install_bcl_header"
+		install_man_prereqs=" install_bcl_manpage"
+		uninstall_prereqs=" uninstall_library uninstall_bcl_header"
+		uninstall_man_prereqs=" uninstall_bcl_manpage"
+		tests="test_library"
+	fi
 
 fi
 
@@ -664,6 +726,14 @@ if [ -z "${BINDIR+set}" ]; then
 	BINDIR="$PREFIX/bin"
 fi
 
+if [ -z "${INCLUDEDIR+set}" ]; then
+	INCLUDEDIR="$PREFIX/include"
+fi
+
+if [ -z "${LIBDIR+set}" ]; then
+	LIBDIR="$PREFIX/lib"
+fi
+
 if [ "$install_manpages" -ne 0 ] || [ "$nls" -ne 0 ]; then
 	if [ -z "${DATAROOTDIR+set}" ]; then
 		DATAROOTDIR="$PREFIX/share"
@@ -684,9 +754,23 @@ if [ "$install_manpages" -ne 0 ]; then
 		MAN1DIR="$MANDIR/man1"
 	fi
 
+	if [ -z "${MAN3DIR+set}" ]; then
+		MAN3DIR="$MANDIR/man3"
+	fi
+
 else
-	install_prereqs=""
+	install_man_prereqs=""
 	uninstall_man_prereqs=""
+fi
+
+if [ "$library" -ne 0 ]; then
+	extra_math=1
+	nls=0
+	hist=0
+	prompt=0
+	ALL_PREREQ="library"
+else
+	ALL_PREREQ="execs"
 fi
 
 if [ "$nls" -ne 0 ]; then
@@ -776,11 +860,11 @@ if [ "$hist" -eq 1 ]; then
 	printf 'Testing history...\n'
 
 	flags="-DBC_ENABLE_HISTORY=1 -DBC_ENABLED=$bc -DDC_ENABLED=$dc"
-	flags="$flags -DBC_ENABLE_NLS=$nls"
+	flags="$flags -DBC_ENABLE_NLS=$nls -DBC_ENABLE_LIBRARY=0"
 	flags="$flags -DBC_ENABLE_EXTRA_MATH=$extra_math -I./include/"
 	flags="$flags -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700"
 
-	"$CC" $CPPFLAGS $CFLAGS $flags -c "src/history/history.c" -o "$scriptdir/history.o" > /dev/null 2>&1
+	"$CC" $CPPFLAGS $CFLAGS $flags -c "src/history.c" -o "$scriptdir/history.o" > /dev/null 2>&1
 
 	err="$?"
 
@@ -804,7 +888,11 @@ if [ "$hist" -eq 1 ]; then
 
 fi
 
-if [ "$extra_math" -eq 1 ] && [ "$bc" -ne 0 ]; then
+if [ "$library" -eq 1 ]; then
+	bc_lib=""
+fi
+
+if [ "$extra_math" -eq 1 ] && [ "$bc" -ne 0 ] && [ "$library" -eq 0 ]; then
 	BC_LIB2_O="\$(GEN_DIR)/lib2.o"
 else
 	BC_LIB2_O=""
@@ -846,6 +934,33 @@ if [ "$manpage_args" = "" ]; then
 	manpage_args="A"
 fi
 
+unneeded=""
+
+if [ "$hist" -eq 0 ]; then
+	unneeded="$unneeded history.c"
+fi
+
+if [ "$bc" -eq 0 ]; then
+	unneeded="$unneeded bc.c bc_lex.c bc_parse.c"
+fi
+
+if [ "$dc" -eq 0 ]; then
+	unneeded="$unneeded dc.c dc_lex.c dc_parse.c"
+fi
+
+if [ "$extra_math" -eq 0 ]; then
+	unneeded="$unneeded rand.c"
+fi
+
+if [ "$library" -ne 0 ]; then
+	unneeded="$unneeded args.c opt.c read.c file.c main.c"
+	unneeded="$unneeded lang.c lex.c parse.c program.c"
+	unneeded="$unneeded bc.c bc_lex.c bc_parse.c"
+	unneeded="$unneeded dc.c dc_lex.c dc_parse.c"
+else
+	unneeded="$unneeded library.c"
+fi
+
 # Print out the values; this is for debugging.
 if [ "$bc" -ne 0 ]; then
 	printf 'Building bc\n'
@@ -858,6 +973,7 @@ else
 	printf 'Not building dc\n'
 fi
 printf '\n'
+printf 'BC_ENABLE_LIBRARY=%s\n\n' "$library"
 printf 'BC_ENABLE_HISTORY=%s\n' "$hist"
 printf 'BC_ENABLE_EXTRA_MATH=%s\n' "$extra_math"
 printf 'BC_ENABLE_NLS=%s\n' "$nls"
@@ -873,10 +989,13 @@ printf 'CPPFLAGS=%s\n' "$CPPFLAGS"
 printf 'LDFLAGS=%s\n' "$LDFLAGS"
 printf 'PREFIX=%s\n' "$PREFIX"
 printf 'BINDIR=%s\n' "$BINDIR"
+printf 'INCLUDEDIR=%s\n' "$INCLUDEDIR"
+printf 'LIBDIR=%s\n' "$LIBDIR"
 printf 'DATAROOTDIR=%s\n' "$DATAROOTDIR"
 printf 'DATADIR=%s\n' "$DATADIR"
 printf 'MANDIR=%s\n' "$MANDIR"
 printf 'MAN1DIR=%s\n' "$MAN1DIR"
+printf 'MAN3DIR=%s\n' "$MAN3DIR"
 printf 'NLSPATH=%s\n' "$NLSPATH"
 printf 'EXECSUFFIX=%s\n' "$EXECSUFFIX"
 printf 'EXECPREFIX=%s\n' "$EXECPREFIX"
@@ -892,16 +1011,17 @@ replacement='*** WARNING: Autogenerated from Makefile.in. DO NOT MODIFY ***'
 
 contents=$(replace "$contents" "$needle" "$replacement")
 
-contents=$(gen_file_lists "$contents" "$scriptdir/src" "")
-contents=$(gen_file_lists "$contents" "$scriptdir/src/bc" "BC_" "$bc")
-contents=$(gen_file_lists "$contents" "$scriptdir/src/dc" "DC_" "$dc")
-contents=$(gen_file_lists "$contents" "$scriptdir/src/history" "HISTORY_" "$hist")
-contents=$(gen_file_lists "$contents" "$scriptdir/src/rand" "RAND_" "$extra_math")
+if [ "$unneeded" = "" ]; then
+	contents=$(gen_file_list "$contents" "library.c")
+else
+	contents=$(gen_file_list "$contents" $unneeded)
+fi
 
 contents=$(replace "$contents" "BC_ENABLED" "$bc")
 contents=$(replace "$contents" "DC_ENABLED" "$dc")
 contents=$(replace "$contents" "LINK" "$link")
 
+contents=$(replace "$contents" "LIBRARY" "$library")
 contents=$(replace "$contents" "HISTORY" "$hist")
 contents=$(replace "$contents" "EXTRA_MATH" "$extra_math")
 contents=$(replace "$contents" "NLS" "$nls")
@@ -917,7 +1037,10 @@ contents=$(replace "$contents" "DESTDIR" "$destdir")
 contents=$(replace "$contents" "EXECSUFFIX" "$EXECSUFFIX")
 contents=$(replace "$contents" "EXECPREFIX" "$EXECPREFIX")
 contents=$(replace "$contents" "BINDIR" "$BINDIR")
+contents=$(replace "$contents" "INCLUDEDIR" "$INCLUDEDIR")
+contents=$(replace "$contents" "LIBDIR" "$LIBDIR")
 contents=$(replace "$contents" "MAN1DIR" "$MAN1DIR")
+contents=$(replace "$contents" "MAN3DIR" "$MAN3DIR")
 contents=$(replace "$contents" "CFLAGS" "$CFLAGS")
 contents=$(replace "$contents" "HOSTCFLAGS" "$HOSTCFLAGS")
 contents=$(replace "$contents" "CPPFLAGS" "$CPPFLAGS")
@@ -927,15 +1050,19 @@ contents=$(replace "$contents" "HOSTCC" "$HOSTCC")
 contents=$(replace "$contents" "COVERAGE_OUTPUT" "$COVERAGE_OUTPUT")
 contents=$(replace "$contents" "COVERAGE_PREREQS" "$COVERAGE_PREREQS")
 contents=$(replace "$contents" "INSTALL_PREREQS" "$install_prereqs")
+contents=$(replace "$contents" "INSTALL_MAN_PREREQS" "$install_man_prereqs")
 contents=$(replace "$contents" "INSTALL_LOCALES" "$install_locales")
 contents=$(replace "$contents" "INSTALL_LOCALES_PREREQS" "$install_locales_prereqs")
 contents=$(replace "$contents" "UNINSTALL_MAN_PREREQS" "$uninstall_man_prereqs")
 contents=$(replace "$contents" "UNINSTALL_PREREQS" "$uninstall_prereqs")
 contents=$(replace "$contents" "UNINSTALL_LOCALES_PREREQS" "$uninstall_locales_prereqs")
 
+contents=$(replace "$contents" "ALL_PREREQ" "$ALL_PREREQ")
+
 contents=$(replace "$contents" "EXECUTABLES" "$executables")
 contents=$(replace "$contents" "MAIN_EXEC" "$main_exec")
 contents=$(replace "$contents" "EXEC" "$executable")
+contents=$(replace "$contents" "TESTS" "$tests")
 
 contents=$(replace "$contents" "BC_TEST" "$bc_test")
 contents=$(replace "$contents" "BC_TIME_TEST" "$bc_time_test")
