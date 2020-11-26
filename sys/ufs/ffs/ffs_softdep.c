@@ -14321,7 +14321,10 @@ clear_inodedeps(mp)
 		if (VTOI(vp)->i_mode == 0) {
 			vgone(vp);
 		} else if (ino == lastino) {
-			if ((error = ffs_syncvnode(vp, MNT_WAIT, 0)))
+			do {
+				error = ffs_syncvnode(vp, MNT_WAIT, 0);
+			} while (error == ERELOOKUP);
+			if (error != 0)
 				softdep_error("clear_inodedeps: fsync1", error);
 		} else {
 			if ((error = ffs_syncvnode(vp, MNT_NOWAIT, 0)))
