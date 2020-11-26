@@ -47,8 +47,8 @@
 #define	_C_LABEL(x)	x
 
 #define	ENTRY(sym)						\
-	.text; .globl sym; .type sym,@function; .align 4; sym:
-#define	END(sym) .size sym, . - sym
+	.text; .globl sym; .type sym,@function; .align 4; sym: .cfi_startproc;
+#define	END(sym) .cfi_endproc; .size sym, . - sym
 
 #define	EENTRY(sym)						\
 	.globl	sym; sym:
