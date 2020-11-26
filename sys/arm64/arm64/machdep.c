@@ -1036,7 +1036,7 @@ bus_probe(void)
 	has_fdt = (OF_peer(0) != 0);
 #endif
 #ifdef DEV_ACPI
-	has_acpi = (acpi_find_table(ACPI_SIG_SPCR) != 0);
+	has_acpi = (AcpiOsGetRootPointer() != 0);
 #endif
 
 	env = kern_getenv("kern.cfg.order");
