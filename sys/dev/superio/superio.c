@@ -233,9 +233,29 @@ static const struct sio_conf_methods nvt_conf_methods = {
 	.vendor = SUPERIO_VENDOR_NUVOTON
 };
 
+static void
+fintek_conf_enter(struct resource* res, uint16_t port)
+{
+	bus_write_1(res, 0, 0x87);
+	bus_write_1(res, 0, 0x87);
+}
+
+static void
+fintek_conf_exit(struct resource* res, uint16_t port)
+{
+	bus_write_1(res, 0, 0xaa);
+}
+
+static const struct sio_conf_methods fintek_conf_methods = {
+	.enter = fintek_conf_enter,
+	.exit = fintek_conf_exit,
+	.vendor = SUPERIO_VENDOR_FINTEK
+};
+
 static const struct sio_conf_methods * const methods_table[] = {
 	&ite_conf_methods,
 	&nvt_conf_methods,
+	&fintek_conf_methods,
 	NULL
 };
 
@@ -258,6 +278,11 @@ const struct sio_device nct5104_devices[] = {
 	{ .ldn = 7, .type = SUPERIO_DEV_GPIO },
 	{ .ldn = 8, .type = SUPERIO_DEV_WDT },
 	{ .ldn = 15, .type = SUPERIO_DEV_GPIO },
+	{ .type = SUPERIO_DEV_NONE },
+};
+
+const struct sio_device fintek_devices[] = {
+	{ .ldn = 7, .type = SUPERIO_DEV_WDT },
 	{ .type = SUPERIO_DEV_NONE },
 };
 
@@ -410,6 +435,11 @@ static const struct {
 		.descr = "Nuvoton NCT6795",
 		.devices = nvt_devices,
 	},
+	{
+		.vendor = SUPERIO_VENDOR_FINTEK, .devid = 0x1210, .mask = 0xff,
+		.descr = "Fintek F81803",
+		.devices = fintek_devices,
+	},
 	{ 0, 0 }
 };
 
@@ -472,6 +502,10 @@ superio_detect(device_t dev, bool claim, struct siosc *sc)
 			devid = sio_readw(res, 0x20);
 			revid = sio_read(res, 0x22);
 		} else if (methods_table[m]->vendor == SUPERIO_VENDOR_NUVOTON) {
+			devid = sio_read(res, 0x20);
+			revid = sio_read(res, 0x21);
+			devid = (devid << 8) | revid;
+		} else if (methods_table[m]->vendor == SUPERIO_VENDOR_FINTEK) {
 			devid = sio_read(res, 0x20);
 			revid = sio_read(res, 0x21);
 			devid = (devid << 8) | revid;
