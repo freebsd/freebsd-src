@@ -3332,11 +3332,16 @@ SYSCTL_ULONG(_debug, OID_AUTO, vn_lock_pair_pause, CTLFLAG_RD,
     &vn_lock_pair_pause_cnt, 0,
     "Count of vn_lock_pair deadlocks");
 
+u_int vn_lock_pair_pause_max;
+SYSCTL_UINT(_debug, OID_AUTO, vn_lock_pair_pause_max, CTLFLAG_RW,
+    &vn_lock_pair_pause_max, 0,
+    "Max ticks for vn_lock_pair deadlock avoidance sleep");
+
 static void
 vn_lock_pair_pause(const char *wmesg)
 {
 	atomic_add_long(&vn_lock_pair_pause_cnt, 1);
-	pause(wmesg, prng32_bounded(hz / 10));
+	pause(wmesg, prng32_bounded(vn_lock_pair_pause_max));
 }
 
 /*
