@@ -134,22 +134,6 @@ static int ti_gpio_detach(device_t);
 static int ti_gpio_pic_attach(struct ti_gpio_softc *sc);
 static int ti_gpio_pic_detach(struct ti_gpio_softc *sc);
 
-static u_int
-ti_first_gpio_bank(void)
-{
-	switch(ti_chip()) {
-#ifdef SOC_OMAP4
-	case CHIP_OMAP_4:
-		return (OMAP4_FIRST_GPIO_BANK);
-#endif
-#ifdef SOC_TI_AM335X
-	case CHIP_AM335X:
-		return (AM335X_FIRST_GPIO_BANK);
-#endif
-	}
-	return (0);
-}
-
 static uint32_t
 ti_gpio_rev(void)
 {
