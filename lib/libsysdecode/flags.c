@@ -662,7 +662,7 @@ sysdecode_mmap_prot(FILE *fp, int prot, int *rem)
 
 	printed = false;
 	protm = PROT_MAX_EXTRACT(prot);
-	prot = PROT_EXTRACT(prot);
+	prot &= ~PROT_MAX(protm);
 	if (protm != 0) {
 		fputs("PROT_MAX(", fp);
 		printed = print_mask_int(fp, mmapprot, protm, rem);
