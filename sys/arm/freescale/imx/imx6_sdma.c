@@ -358,7 +358,7 @@ load_firmware(struct sdma_softc *sc)
 	const struct sdma_firmware_header *header;
 	const struct firmware *fp;
 
-	fp = firmware_get("sdma_fw");
+	fp = firmware_get("sdma-imx6q");
 	if (fp == NULL) {
 		device_printf(sc->dev, "Can't get firmware.\n");
 		return (-1);
