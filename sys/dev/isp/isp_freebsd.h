@@ -275,7 +275,6 @@ struct isposinfo {
 	 * misc- needs to be sorted better XXXXXX
 	 */
 	int			framesize;
-	int			cont_max;
 
 #ifdef	ISP_TARGET_MODE
 	bus_dma_tag_t		ecmd_dmat;

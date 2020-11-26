@@ -209,8 +209,6 @@
 
 #define	ISP2100_SET_PCI_PARAM		0x00ff
 
-#define	MBOX_BUSY			0x04
-
 /*
  * Mailbox Command Complete Status Codes
  */
@@ -557,99 +555,20 @@ typedef struct {
  */
 #define RQCS_COMPLETE			0x0000
 #define RQCS_DMA_ERROR			0x0002
+#define RQCS_TRANSPORT_ERROR		0x0003
 #define RQCS_RESET_OCCURRED		0x0004
 #define RQCS_ABORTED			0x0005
 #define RQCS_TIMEOUT			0x0006
 #define RQCS_DATA_OVERRUN		0x0007
+#define	RQCS_DRE			0x0011	/* data reassembly error */
+#define	RQCS_TABORT			0x0013	/* aborted by target */
 #define RQCS_DATA_UNDERRUN		0x0015
-#define	RQCS_QUEUE_FULL			0x001C
-
-/* 1X00 Only Completion Codes */
-#define RQCS_INCOMPLETE			0x0001
-#define RQCS_TRANSPORT_ERROR		0x0003
-#define RQCS_COMMAND_OVERRUN		0x0008
-#define RQCS_STATUS_OVERRUN		0x0009
-#define RQCS_BAD_MESSAGE		0x000a
-#define RQCS_NO_MESSAGE_OUT		0x000b
-#define RQCS_EXT_ID_FAILED		0x000c
-#define RQCS_IDE_MSG_FAILED		0x000d
-#define RQCS_ABORT_MSG_FAILED		0x000e
-#define RQCS_REJECT_MSG_FAILED		0x000f
-#define RQCS_NOP_MSG_FAILED		0x0010
-#define RQCS_PARITY_ERROR_MSG_FAILED	0x0011
-#define RQCS_DEVICE_RESET_MSG_FAILED	0x0012
-#define RQCS_ID_MSG_FAILED		0x0013
-#define RQCS_UNEXP_BUS_FREE		0x0014
-#define	RQCS_XACT_ERR1			0x0018
-#define	RQCS_XACT_ERR2			0x0019
-#define	RQCS_XACT_ERR3			0x001A
-#define	RQCS_BAD_ENTRY			0x001B
-#define	RQCS_PHASE_SKIPPED		0x001D
-#define	RQCS_ARQS_FAILED		0x001E
-#define	RQCS_WIDE_FAILED		0x001F
-#define	RQCS_SYNCXFER_FAILED		0x0020
-#define	RQCS_LVD_BUSERR			0x0021
-
-/* 2X00 Only Completion Codes */
 #define	RQCS_PORT_UNAVAILABLE		0x0028
 #define	RQCS_PORT_LOGGED_OUT		0x0029
 #define	RQCS_PORT_CHANGED		0x002A
 #define	RQCS_PORT_BUSY			0x002B
-
-/* 24XX Only Completion Codes */
-#define	RQCS_24XX_DRE			0x0011	/* data reassembly error */
-#define	RQCS_24XX_TABORT		0x0013	/* aborted by target */
-#define	RQCS_24XX_ENOMEM		0x002C	/* f/w resource unavailable */
-#define	RQCS_24XX_TMO			0x0030	/* task management overrun */
-
-
-/*
- * 1X00 specific State Flags 
- */
-#define RQSF_GOT_BUS			0x0100
-#define RQSF_GOT_TARGET			0x0200
-#define RQSF_SENT_CDB			0x0400
-#define RQSF_XFRD_DATA			0x0800
-#define RQSF_GOT_STATUS			0x1000
-#define RQSF_GOT_SENSE			0x2000
-#define	RQSF_XFER_COMPLETE		0x4000
-
-/*
- * 2X00 specific State Flags
- * (same as 1X00 except RQSF_GOT_BUS/RQSF_GOT_TARGET are not available)
- */
-#define	RQSF_DATA_IN			0x0020
-#define	RQSF_DATA_OUT			0x0040
-#define	RQSF_STAG			0x0008
-#define	RQSF_OTAG			0x0004
-#define	RQSF_HTAG			0x0002
-/*
- * 1X00 Status Flags
- */
-#define RQSTF_DISCONNECT		0x0001
-#define RQSTF_SYNCHRONOUS		0x0002
-#define RQSTF_PARITY_ERROR		0x0004
-#define RQSTF_BUS_RESET			0x0008
-#define RQSTF_DEVICE_RESET		0x0010
-#define RQSTF_ABORTED			0x0020
-#define RQSTF_TIMEOUT			0x0040
-#define RQSTF_NEGOTIATION		0x0080
-
-/*
- * 2X00 specific state flags
- */
-/* RQSF_SENT_CDB	*/
-/* RQSF_XFRD_DATA	*/
-/* RQSF_GOT_STATUS	*/
-/* RQSF_XFER_COMPLETE	*/
-
-/*
- * 2X00 specific status flags
- */
-/* RQSTF_ABORTED */
-/* RQSTF_TIMEOUT */
-#define	RQSTF_DMA_ERROR			0x0080
-#define	RQSTF_LOGOUT			0x2000
+#define	RQCS_ENOMEM			0x002C	/* f/w resource unavailable */
+#define	RQCS_TMO			0x0030	/* task management overrun */
 
 /*
  * About Firmware returns an 'attribute' word.
