@@ -143,7 +143,7 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt) {
 
 			BC_SIG_UNLOCK;
 
-			bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+			bc_vm_err(BC_ERR_FATAL_IO_ERR);
 		}
 
 		BC_SIG_UNLOCK;
@@ -177,14 +177,14 @@ BcStatus bc_read_line(BcVec *vec, const char *prompt) {
 #endif // BC_ENABLE_HISTORY
 
 	if (BC_ERR(bc_read_binary(vec->v, vec->len - 1)))
-		bc_vm_verr(BC_ERROR_FATAL_BIN_FILE, bc_program_stdin_name);
+		bc_vm_verr(BC_ERR_FATAL_BIN_FILE, bc_program_stdin_name);
 
 	return s;
 }
 
 void bc_read_file(const char *path, char **buf) {
 
-	BcError e = BC_ERROR_FATAL_IO_ERR;
+	BcErr e = BC_ERR_FATAL_IO_ERR;
 	size_t size, r;
 	struct stat pstat;
 	int fd;
@@ -194,11 +194,11 @@ void bc_read_file(const char *path, char **buf) {
 	assert(path != NULL);
 
 	fd = open(path, O_RDONLY);
-	if (BC_ERR(fd < 0)) bc_vm_verr(BC_ERROR_FATAL_FILE_ERR, path);
+	if (BC_ERR(fd < 0)) bc_vm_verr(BC_ERR_FATAL_FILE_ERR, path);
 	if (BC_ERR(fstat(fd, &pstat) == -1)) goto malloc_err;
 
 	if (BC_ERR(S_ISDIR(pstat.st_mode))) {
-		e = BC_ERROR_FATAL_PATH_DIR;
+		e = BC_ERR_FATAL_PATH_DIR;
 		goto malloc_err;
 	}
 
@@ -211,7 +211,7 @@ void bc_read_file(const char *path, char **buf) {
 	(*buf)[size] = '\0';
 
 	if (BC_ERR(bc_read_binary(*buf, size))) {
-		e = BC_ERROR_FATAL_BIN_FILE;
+		e = BC_ERR_FATAL_BIN_FILE;
 		goto read_err;
 	}
 

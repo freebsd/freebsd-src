@@ -45,6 +45,7 @@
 
 #include <status.h>
 #include <vector.h>
+#include <bcl.h>
 
 #ifndef BC_ENABLE_EXTRA_MATH
 #define BC_ENABLE_EXTRA_MATH (1)
@@ -54,24 +55,9 @@
 
 typedef unsigned long ulong;
 
-// For some reason, LONG_BIT is not defined in some versions of gcc.
-// I define it here to the minimum accepted value in the POSIX standard.
-#ifndef LONG_BIT
-#define LONG_BIT (32)
-#endif // LONG_BIT
-
-#ifndef BC_LONG_BIT
-#define BC_LONG_BIT LONG_BIT
-#endif // BC_LONG_BIT
-
-#if BC_LONG_BIT > LONG_BIT
-#error BC_LONG_BIT cannot be greater than LONG_BIT
-#endif // BC_LONG_BIT > LONG_BIT
+typedef BclBigDig BcBigDig;
 
 #if BC_LONG_BIT >= 64
-
-typedef int_least32_t BcDig;
-typedef uint64_t BcBigDig;
 
 #define BC_NUM_BIGDIG_MAX ((BcBigDig) UINT64_MAX)
 
@@ -80,10 +66,9 @@ typedef uint64_t BcBigDig;
 
 #define BC_NUM_BIGDIG_C UINT64_C
 
-#elif BC_LONG_BIT >= 32
+typedef int_least32_t BcDig;
 
-typedef int_least16_t BcDig;
-typedef uint32_t BcBigDig;
+#elif BC_LONG_BIT >= 32
 
 #define BC_NUM_BIGDIG_MAX ((BcBigDig) UINT32_MAX)
 
@@ -91,6 +76,8 @@ typedef uint32_t BcBigDig;
 #define BC_BASE_POW (10000)
 
 #define BC_NUM_BIGDIG_C UINT32_C
+
+typedef int_least16_t BcDig;
 
 #else
 
@@ -106,7 +93,6 @@ typedef struct BcNum {
 	size_t scale;
 	size_t len;
 	size_t cap;
-	bool neg;
 } BcNum;
 
 #if BC_ENABLE_EXTRA_MATH
@@ -150,6 +136,30 @@ struct BcRNG;
 #define BC_NUM_ROUND_POW(s) (bc_vm_growSize((s), BC_BASE_DIGS - 1))
 #define BC_NUM_RDX(s) (BC_NUM_ROUND_POW(s) / BC_BASE_DIGS)
 
+#define BC_NUM_RDX_VAL(n) ((n)->rdx >> 1)
+#define BC_NUM_RDX_VAL_NP(n) ((n).rdx >> 1)
+#define BC_NUM_RDX_SET(n, v) \
+	((n)->rdx = (((v) << 1) | ((n)->rdx & (BcBigDig) 1)))
+#define BC_NUM_RDX_SET_NP(n, v) \
+	((n).rdx = (((v) << 1) | ((n).rdx & (BcBigDig) 1)))
+#define BC_NUM_RDX_SET_NEG(n, v, neg) \
+	((n)->rdx = (((v) << 1) | (neg)))
+
+#define BC_NUM_RDX_VALID(n) \
+	(BC_NUM_ZERO(n) || BC_NUM_RDX_VAL(n) * BC_BASE_DIGS >= (n)->scale)
+#define BC_NUM_RDX_VALID_NP(n) \
+	((!(n).len) || BC_NUM_RDX_VAL_NP(n) * BC_BASE_DIGS >= (n).scale)
+
+#define BC_NUM_NEG(n) ((n)->rdx & ((BcBigDig) 1))
+#define BC_NUM_NEG_NP(n) ((n).rdx & ((BcBigDig) 1))
+#define BC_NUM_NEG_CLR(n) ((n)->rdx &= ~((BcBigDig) 1))
+#define BC_NUM_NEG_CLR_NP(n) ((n).rdx &= ~((BcBigDig) 1))
+#define BC_NUM_NEG_SET(n) ((n)->rdx |= ((BcBigDig) 1))
+#define BC_NUM_NEG_TGL(n) ((n)->rdx ^= ((BcBigDig) 1))
+#define BC_NUM_NEG_TGL_NP(n) ((n).rdx ^= ((BcBigDig) 1))
+#define BC_NUM_NEG_VAL(n, v) (((n)->rdx & ~((BcBigDig) 1)) | (v))
+#define BC_NUM_NEG_VAL_NP(n, v) (((n).rdx & ~((BcBigDig) 1)) | (v))
+
 #define BC_NUM_SIZE(n) ((n) * sizeof(BcDig))
 
 #if BC_DEBUG_CODE
@@ -183,7 +193,7 @@ void bc_num_bigdig2num(BcNum *restrict n, BcBigDig val);
 
 #if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 void bc_num_irand(const BcNum *restrict a, BcNum *restrict b,
-                      struct BcRNG *restrict rng);
+                  struct BcRNG *restrict rng);
 void bc_num_rng(const BcNum *restrict n, struct BcRNG *rng);
 void bc_num_createFromRNG(BcNum *restrict n, struct BcRNG *rng);
 #endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
@@ -200,28 +210,34 @@ void bc_num_lshift(BcNum *a, BcNum *b, BcNum *c, size_t scale);
 void bc_num_rshift(BcNum *a, BcNum *b, BcNum *c, size_t scale);
 #endif // BC_ENABLE_EXTRA_MATH
 void bc_num_sqrt(BcNum *restrict a, BcNum *restrict b, size_t scale);
+void bc_num_sr(BcNum *restrict a, BcNum *restrict b, size_t scale);
 void bc_num_divmod(BcNum *a, BcNum *b, BcNum *c, BcNum *d, size_t scale);
 
 size_t bc_num_addReq(const BcNum* a, const BcNum* b, size_t scale);
 
 size_t bc_num_mulReq(const BcNum *a, const BcNum *b, size_t scale);
+size_t bc_num_divReq(const BcNum *a, const BcNum *b, size_t scale);
 size_t bc_num_powReq(const BcNum *a, const BcNum *b, size_t scale);
 #if BC_ENABLE_EXTRA_MATH
 size_t bc_num_placesReq(const BcNum *a, const BcNum *b, size_t scale);
 #endif // BC_ENABLE_EXTRA_MATH
 
 void bc_num_truncate(BcNum *restrict n, size_t places);
+void bc_num_extend(BcNum *restrict n, size_t places);
+void bc_num_shiftRight(BcNum *restrict n, size_t places);
+
 ssize_t bc_num_cmp(const BcNum *a, const BcNum *b);
 
 #if DC_ENABLED
 void bc_num_modexp(BcNum *a, BcNum *b, BcNum *c, BcNum *restrict d);
 #endif // DC_ENABLED
 
+void bc_num_zero(BcNum *restrict n);
 void bc_num_one(BcNum *restrict n);
 ssize_t bc_num_cmpZero(const BcNum *n);
 
-void bc_num_parse(BcNum *restrict n, const char *restrict val,
-                      BcBigDig base, bool letter);
+bool bc_num_strValid(const char *restrict val);
+void bc_num_parse(BcNum *restrict n, const char *restrict val, BcBigDig base);
 void bc_num_print(BcNum *restrict n, BcBigDig base, bool newline);
 #if DC_ENABLED
 void bc_num_stream(BcNum *restrict n, BcBigDig base);
@@ -238,6 +254,8 @@ extern const char bc_num_hex_digits[];
 extern const BcBigDig bc_num_pow10[BC_BASE_DIGS + 1];
 
 extern const BcDig bc_num_bigdigMax[];
+extern const BcDig bc_num_bigdigMax2[];
 extern const size_t bc_num_bigdigMax_size;
+extern const size_t bc_num_bigdigMax2_size;
 
 #endif // BC_NUM_H

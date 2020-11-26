@@ -41,8 +41,8 @@
 #include <file.h>
 #include <vm.h>
 
-void bc_file_ultoa(unsigned long long val, char buf[BC_FILE_ULL_LENGTH]) {
-
+static void bc_file_ultoa(unsigned long long val, char buf[BC_FILE_ULL_LENGTH])
+{
 	char buf2[BC_FILE_ULL_LENGTH];
 	size_t i, len;
 
@@ -105,7 +105,7 @@ void bc_file_flush(BcFile *restrict f) {
 			vm.status = (sig_atomic_t) s;
 			BC_VM_JMP;
 		}
-		else bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+		else bc_vm_err(BC_ERR_FATAL_IO_ERR);
 	}
 }
 

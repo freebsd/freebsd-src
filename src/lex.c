@@ -38,14 +38,13 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include <status.h>
 #include <lex.h>
 #include <vm.h>
 #include <bc.h>
 
 void bc_lex_invalidChar(BcLex *l, char c) {
 	l->t = BC_LEX_INVALID;
-	bc_lex_verr(l, BC_ERROR_PARSE_CHAR, c);
+	bc_lex_verr(l, BC_ERR_PARSE_CHAR, c);
 }
 
 void bc_lex_lineComment(BcLex *l) {
@@ -69,7 +68,7 @@ void bc_lex_comment(BcLex *l) {
 
 		if (BC_ERR(!c || buf[i + 1] == '\0')) {
 			l->i = i;
-			bc_lex_err(l, BC_ERROR_PARSE_COMMENT);
+			bc_lex_err(l, BC_ERR_PARSE_COMMENT);
 		}
 
 		end = buf[i + 1] == '/';
@@ -143,7 +142,7 @@ void bc_lex_number(BcLex *l, char start) {
 		if (c == 'e') {
 
 #if BC_ENABLED
-			if (BC_IS_POSIX) bc_lex_err(l, BC_ERROR_POSIX_EXP_NUM);
+			if (BC_IS_POSIX) bc_lex_err(l, BC_ERR_POSIX_EXP_NUM);
 #endif // BC_ENABLED
 
 			bc_vec_push(&l->str, &c);
@@ -157,7 +156,7 @@ void bc_lex_number(BcLex *l, char start) {
 			}
 
 			if (BC_ERR(!BC_LEX_NUM_CHAR(c, false, true)))
-				bc_lex_verr(l, BC_ERROR_PARSE_CHAR, c);
+				bc_lex_verr(l, BC_ERR_PARSE_CHAR, c);
 
 			l->i += bc_lex_num(l, 0, true);
 		}
@@ -208,7 +207,7 @@ void bc_lex_next(BcLex *l) {
 	l->last = l->t;
 	l->line += (l->i != 0 && l->buf[l->i - 1] == '\n');
 
-	if (BC_ERR(l->last == BC_LEX_EOF)) bc_lex_err(l, BC_ERROR_PARSE_EOF);
+	if (BC_ERR(l->last == BC_LEX_EOF)) bc_lex_err(l, BC_ERR_PARSE_EOF);
 
 	l->t = BC_LEX_EOF;
 

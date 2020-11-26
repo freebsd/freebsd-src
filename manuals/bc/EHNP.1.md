@@ -30,7 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 # NAME
 
-bc - arbitrary-precision arithmetic language and calculator
+bc - arbitrary-precision decimal arithmetic language and calculator
 
 # SYNOPSIS
 
@@ -450,7 +450,7 @@ The operators will be described in more detail below.
 
 :   The **power** operator (not the **exclusive or** operator, as it would be in
     C) takes two expressions and raises the first to the power of the value of
-    the second.
+    the second. The *scale* of the result is equal to **scale**.
 
     The second expression must be an integer (no *scale*), and if it is
     negative, the first value must be non-zero.
@@ -1045,7 +1045,7 @@ None are known. Report bugs at https://git.yzena.com/gavin/bc.
 
 # AUTHORS
 
-Gavin D. Howard <yzena.tech@gmail.com> and contributors.
+Gavin D. Howard <gavin@yzena.com> and contributors.
 
 [1]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html
 [2]: https://www.gnu.org/software/bc/
