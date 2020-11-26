@@ -34,6 +34,7 @@ typedef enum superio_vendor {
 	SUPERIO_VENDOR_NONE,
 	SUPERIO_VENDOR_ITE,
 	SUPERIO_VENDOR_NUVOTON,
+	SUPERIO_VENDOR_FINTEK,
 	SUPERIO_VENDOR_MAX
 } superio_vendor_t;
 
@@ -58,7 +59,7 @@ device_t superio_find_dev(device_t superio, superio_dev_type_t type,
     int ldn);
 
 enum superio_ivars {
-	SUPERIO_IVAR_LDN = 	10600,
+	SUPERIO_IVAR_LDN =	10600,
 	SUPERIO_IVAR_TYPE,
 	SUPERIO_IVAR_IOBASE,
 	SUPERIO_IVAR_IOBASE2,
