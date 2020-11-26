@@ -191,8 +191,7 @@ vxlan_create(int s, struct ifreq *ifr)
 	vxlan_check_params();
 
 	ifr->ifr_data = (caddr_t) &params;
-	if (ioctl(s, SIOCIFCREATE2, ifr) < 0)
-		err(1, "SIOCIFCREATE2");
+	ioctl_ifcreate(s, ifr);
 }
 
 static
