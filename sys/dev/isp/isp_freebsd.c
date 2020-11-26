@@ -403,7 +403,6 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 		*(int *)addr = FCPARAM(isp, chan)->role;
 		retval = isp_control(isp, ISPCTL_CHANGE_ROLE, chan, nr);
 		ISP_UNLOCK(isp);
-		retval = 0;
 		break;
 
 	case ISP_RESETHBA:
@@ -1786,11 +1785,7 @@ isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp, uint32_
 			}
 			mp->nt_need_ack = 0;
 		}
-		if (isp_acknak_abts(isp, mp->nt_lreserved, 0) == ENOMEM) {
-			return (ENOMEM);
-		} else {
-			return (0);
-		}
+		return (isp_acknak_abts(isp, mp->nt_lreserved, 0));
 	}
 
 	/*
@@ -2558,7 +2553,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		if (isp_handle_platform_target_notify_ack(isp, &ntp->nt,
 		    (ccb->ccb_h.flags & CAM_SEND_STATUS) ? ccb->cna2.arg : 0)) {
 			cam_freeze_devq(ccb->ccb_h.path);
-			cam_release_devq(ccb->ccb_h.path, RELSIM_RELEASE_AFTER_TIMEOUT, 0, 1000, 0);
+			cam_release_devq(ccb->ccb_h.path, RELSIM_RELEASE_AFTER_TIMEOUT, 0, 10, 0);
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 			ccb->ccb_h.status |= CAM_REQUEUE_REQ;
 			break;

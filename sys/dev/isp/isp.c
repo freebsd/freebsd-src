@@ -64,11 +64,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /*
- * General defines
- */
-#define	MBOX_DELAY_COUNT	1000000 / 100
-
-/*
  * Local static data
  */
 static const char notresp[] = "Unknown IOCB in RESPONSE Queue (type 0x%x) @ idx %d (next %d)";
@@ -99,7 +94,7 @@ static const uint8_t alpa_map[] = {
  * Local function prototypes.
  */
 static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *, uint16_t);
-static void isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *, uint32_t *);
+static void isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *);
 static void isp_clear_portdb(ispsoftc_t *, int);
 static void isp_mark_portdb(ispsoftc_t *, int);
 static int isp_plogx(ispsoftc_t *, int, uint16_t, uint32_t, int);
@@ -155,7 +150,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	char *buf;
 	uint64_t fwt;
 	uint32_t code_org, val;
-	int loops, i, dodnld = 1;
+	int loaded_fw, loops, i, dodnld = 1;
 	const char *btype = "????";
 	static const char dcrc[] = "Downloaded RISC Code Checksum Failure";
 
@@ -188,25 +183,19 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	}
 
 	/*
-	 * Hit the chip over the head with hammer,
-	 * and give it a chance to recover.
-	 */
-
-	/*
 	 * Stop DMA and wait for it to stop.
 	 */
 	ISP_WRITE(isp, BIU2400_CSR, BIU2400_DMA_STOP|(3 << 4));
-	for (val = loops = 0; loops < 30000; loops++) {
+	for (loops = 0; loops < 100000; loops++) {
 		ISP_DELAY(10);
 		val = ISP_READ(isp, BIU2400_CSR);
 		if ((val & BIU2400_DMA_ACTIVE) == 0) {
 			break;
 		}
 	}
-	if (val & BIU2400_DMA_ACTIVE) {
+	if (val & BIU2400_DMA_ACTIVE)
 		isp_prt(isp, ISP_LOGERR, "DMA Failed to Stop on Reset");
-		return;
-	}
+
 	/*
 	 * Hold it in SOFT_RESET and STOP state for 100us.
 	 */
@@ -215,30 +204,21 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	for (loops = 0; loops < 10000; loops++) {
 		ISP_DELAY(5);
 		val = ISP_READ(isp, OUTMAILBOX0);
-	}
-	for (val = loops = 0; loops < 500000; loops ++) {
-		val = ISP_READ(isp, BIU2400_CSR);
-		if ((val & BIU2400_SOFT_RESET) == 0) {
+		if (val != 0x4)
 			break;
-		}
 	}
-	if (val & BIU2400_SOFT_RESET) {
-		isp_prt(isp, ISP_LOGERR, "Failed to come out of reset");
+	switch (val) {
+	case 0x0:
+		break;
+	case 0x4:
+		isp_prt(isp, ISP_LOGERR, "The ROM code is busy after 50ms.");
 		return;
-	}
-
-	/*
-	 * Wait for ISP to be ready to go...
-	 */
-	loops = MBOX_DELAY_COUNT;
-	for (;;) {
-		if (ISP_READ(isp, OUTMAILBOX0) == 0)
-			break;
-		ISP_DELAY(100);
-		if (--loops < 0) {
-			ISP_DUMPREGS(isp, "chip reset timed out");
-			return;
-		}
+	case 0xf:
+		isp_prt(isp, ISP_LOGERR, "Board configuration error.");
+		return;
+	default:
+		isp_prt(isp, ISP_LOGERR, "Unknown RISC Status Code 0x%x.", val);
+		return;
 	}
 
 	/*
@@ -251,15 +231,23 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	/*
 	 * Post-RISC Reset stuff.
 	 */
-	for (val = loops = 0; loops < 5000000; loops++) {
+	for (loops = 0; loops < 10000; loops++) {
 		ISP_DELAY(5);
 		val = ISP_READ(isp, OUTMAILBOX0);
-		if (val == 0) {
+		if (val != 0x4)
 			break;
-		}
 	}
-	if (val != 0) {
-		isp_prt(isp, ISP_LOGERR, "reset didn't clear");
+	switch (val) {
+	case 0x0:
+		break;
+	case 0x4:
+		isp_prt(isp, ISP_LOGERR, "The ROM code is busy after 50ms.");
+		return;
+	case 0xf:
+		isp_prt(isp, ISP_LOGERR, "Board configuration error.");
+		return;
+	default:
+		isp_prt(isp, ISP_LOGERR, "Unknown RISC Status Code 0x%x.", val);
 		return;
 	}
 
@@ -276,18 +264,6 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	}
 	ISP_WRITE(isp, BIU2400_ATIO_RSPINP, 0);
 	ISP_WRITE(isp, BIU2400_ATIO_RSPOUTP, 0);
-
-	/*
-	 * Wait for everything to finish firing up.
-	 */
-	loops = MBOX_DELAY_COUNT;
-	while (ISP_READ(isp, OUTMAILBOX0) == MBOX_BUSY) {
-		ISP_DELAY(100);
-		if (--loops < 0) {
-			isp_prt(isp, ISP_LOGERR, "MBOX_BUSY never cleared on reset");
-			return;
-		}
-	}
 
 	/*
 	 * Up until this point we've done everything by just reading or
@@ -362,7 +338,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	}
 
 	code_org = ISP_CODE_ORG_2400;
-	isp->isp_loaded_fw = 0;
+	loaded_fw = 0;
 	if (dodnld) {
 		const uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
 		uint32_t la, wi, wl;
@@ -411,7 +387,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 			}
 			ptr += ptr[3];
 		}
-		isp->isp_loaded_fw = 1;
+		loaded_fw = 1;
 	} else if (IS_26XX(isp)) {
 		isp_prt(isp, ISP_LOGDEBUG1, "loading firmware from flash");
 		MBSINIT(&mbs, MBOX_LOAD_FLASH_FIRMWARE, MBLOGALL, 5000000);
@@ -429,7 +405,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	/*
 	 * If we loaded firmware, verify its checksum
 	 */
-	if (isp->isp_loaded_fw) {
+	if (loaded_fw) {
 		MBSINIT(&mbs, MBOX_VERIFY_CHECKSUM, MBLOGNONE, 0);
 		mbs.param[1] = code_org >> 16;
 		mbs.param[2] = code_org;
@@ -447,17 +423,10 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * we still need to (re)start it.
 	 */
 	MBSINIT(&mbs, MBOX_EXEC_FIRMWARE, MBLOGALL, 5000000);
-	if (IS_26XX(isp)) {
-		mbs.param[1] = code_org >> 16;
-		mbs.param[2] = code_org;
-	} else {
-		mbs.param[1] = code_org >> 16;
-		mbs.param[2] = code_org;
-		if (isp->isp_loaded_fw)
-			mbs.param[3] = 0;
-		else
-			mbs.param[3] = 1;
-	}
+	mbs.param[1] = code_org >> 16;
+	mbs.param[2] = code_org;
+	if (!IS_26XX(isp))
+		mbs.param[3] = loaded_fw ? 0 : 1;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
 		return;
@@ -3227,10 +3196,9 @@ isp_intr_respq(ispsoftc_t *isp)
 	isp24xx_statusreq_t *sp = (isp24xx_statusreq_t *)qe;
 	ispstatus_cont_t *scp = (ispstatus_cont_t *)qe;
 	isphdr_t *hp;
-	uint8_t *resp, *snsp;
-	int buddaboom, completion_status, cont = 0, etype, i;
-	int req_status_flags, req_state_flags, scsi_status;
-	uint32_t iptr, cptr, optr, rlen, slen, sptr, totslen, resid;
+	uint8_t *resp, *snsp, etype;
+	uint16_t scsi_status;
+	uint32_t iptr, cont = 0, cptr, optr, rlen, slen, sptr, totslen;
 
 	/*
 	 * We can't be getting this now.
@@ -3254,6 +3222,28 @@ isp_intr_respq(ispsoftc_t *isp)
 		if (isp->isp_dblev & ISP_LOGDEBUG1)
 			isp_print_qentry(isp, "Response Queue Entry", cptr, hp);
 		isp_get_hdr(isp, hp, &sp->req_header);
+
+		/*
+		 * Log IOCBs rejected by the firmware.  We can't really do
+		 * much more about them, since it just should not happen.
+		 */
+		if (sp->req_header.rqs_flags & RQSFLAG_BADTYPE) {
+			isp_print_qentry(isp, "invalid entry type", cptr, hp);
+			continue;
+		}
+		if (sp->req_header.rqs_flags & RQSFLAG_BADPARAM) {
+			isp_print_qentry(isp, "invalid entry parameter", cptr, hp);
+			continue;
+		}
+		if (sp->req_header.rqs_flags & RQSFLAG_BADCOUNT) {
+			isp_print_qentry(isp, "invalid entry count", cptr, hp);
+			continue;
+		}
+		if (sp->req_header.rqs_flags & RQSFLAG_BADORDER) {
+			isp_print_qentry(isp, "invalid entry order", cptr, hp);
+			continue;
+		}
+
 		etype = sp->req_header.rqs_entry_type;
 
 		/* We expected Status Continuation, but got different IOCB. */
@@ -3264,20 +3254,13 @@ isp_intr_respq(ispsoftc_t *isp)
 
 		if (etype == RQSTYPE_RESPONSE) {
 			isp_get_24xx_response(isp, (isp24xx_statusreq_t *)hp, sp);
-			scsi_status = sp->req_scsi_status;
-			completion_status = sp->req_completion_status;
-			req_status_flags = 0;
-			if ((scsi_status & 0xff) != 0)
-				req_state_flags = RQSF_GOT_STATUS;
-			else
-				req_state_flags = 0;
-			resid = sp->req_resid;
+			/* FALLTHROUGH */
 		} else if (etype == RQSTYPE_STATUS_CONT) {
 			isp_get_cont_response(isp, (ispstatus_cont_t *)hp, scp);
 			if (cont > 0) {
-				i = min(cont, sizeof(scp->req_sense_data));
-				XS_SENSE_APPEND(cont_xs, scp->req_sense_data, i);
-				cont -= i;
+				slen = min(cont, sizeof(scp->req_sense_data));
+				XS_SENSE_APPEND(cont_xs, scp->req_sense_data, slen);
+				cont -= slen;
 				if (cont == 0) {
 					isp_done(cont_xs);
 				} else {
@@ -3308,78 +3291,36 @@ isp_intr_respq(ispsoftc_t *isp)
 			continue;
 		}
 
-		buddaboom = 0;
-		if (sp->req_header.rqs_flags & RQSFLAG_MASK) {
-			if (sp->req_header.rqs_flags & RQSFLAG_BADTYPE) {
-				isp_print_qentry(isp, "invalid entry type",
-				    cptr, hp);
-				buddaboom++;
-			}
-			if (sp->req_header.rqs_flags & RQSFLAG_BADPARAM) {
-				isp_print_qentry(isp, "invalid entry parameter",
-				    cptr, hp);
-				buddaboom++;
-			}
-			if (sp->req_header.rqs_flags & RQSFLAG_BADCOUNT) {
-				isp_print_qentry(isp, "invalid entry count",
-				    cptr, hp);
-				buddaboom++;
-			}
-			if (sp->req_header.rqs_flags & RQSFLAG_BADORDER) {
-				isp_print_qentry(isp, "invalid entry order",
-				    cptr, hp);
-				continue;
-			}
-		}
-
 		xs = isp_find_xs(isp, sp->req_handle);
 		if (xs == NULL) {
-			uint8_t ts = completion_status & 0xff;
 			/*
 			 * Only whine if this isn't the expected fallout of
 			 * aborting the command or resetting the target.
 			 */
-			if (etype != RQSTYPE_RESPONSE) {
-				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (type 0x%x)", sp->req_handle, etype);
-			} else if (ts != RQCS_ABORTED && ts != RQCS_RESET_OCCURRED) {
-				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (status 0x%x)", sp->req_handle, ts);
-			}
+			if (sp->req_completion_status != RQCS_ABORTED &&
+			    sp->req_completion_status != RQCS_RESET_OCCURRED)
+				isp_prt(isp, ISP_LOGERR, "cannot find handle 0x%x (status 0x%x)",
+				    sp->req_handle, sp->req_completion_status);
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			continue;
 		}
-		if (req_status_flags & RQSTF_BUS_RESET) {
-			isp_prt(isp, ISP_LOG_WARN1, "%d.%d.%jx bus was reset",
-			    XS_CHANNEL(xs), XS_TGT(xs), (uintmax_t)XS_LUN(xs));
-			XS_SETERR(xs, HBA_BUSRESET);
-			ISP_SET_SENDMARKER(isp, XS_CHANNEL(xs), 1);
-		}
-		if (buddaboom) {
-			isp_prt(isp, ISP_LOG_WARN1, "%d.%d.%jx buddaboom",
-			    XS_CHANNEL(xs), XS_TGT(xs), (uintmax_t)XS_LUN(xs));
-			XS_SETERR(xs, HBA_BOTCH);
-		}
 
-		resp = snsp = NULL;
+		resp = snsp = sp->req_rsp_sense;
 		rlen = slen = totslen = 0;
-		if ((scsi_status & (RQCS_RV|RQCS_SV)) != 0) {
-			resp = sp->req_rsp_sense;
+		scsi_status = sp->req_scsi_status;
+		if (scsi_status & RQCS_RV) {
 			rlen = sp->req_response_len;
+			snsp += rlen;
 		}
-		if ((scsi_status & RQCS_SV) != 0) {
-			/*
-			 * Fibre Channel F/W doesn't say we got status
-			 * if there's Sense Data instead. I guess they
-			 * think it goes w/o saying.
-			 */
-			req_state_flags |= RQSF_GOT_STATUS|RQSF_GOT_SENSE;
-			snsp = sp->req_rsp_sense + rlen;
+		if (scsi_status & RQCS_SV) {
 			totslen = sp->req_sense_len;
-			slen = sizeof(sp->req_rsp_sense) - rlen;
+			slen = MIN(totslen, sizeof(sp->req_rsp_sense) - rlen);
 		}
-		if (slen > totslen)
-			slen = totslen;
-		if (req_state_flags & RQSF_GOT_STATUS)
-			*XS_STSP(xs) = scsi_status & 0xff;
+		*XS_STSP(xs) = scsi_status & 0xff;
+		if (scsi_status & RQCS_RESID)
+			XS_SET_RESID(xs, sp->req_fcp_residual);
+		else
+			XS_SET_RESID(xs, 0);
 
 		if (rlen >= 4 && resp[FCP_RSPNS_CODE_OFFSET] != 0) {
 			const char *ptr;
@@ -3397,7 +3338,7 @@ isp_intr_respq(ispsoftc_t *isp)
 			    "Task Management function incorrect logical unit number",
 			};
 			uint8_t code = resp[FCP_RSPNS_CODE_OFFSET];
-			if (code >= 10 || rnames[code] == NULL) {
+			if (code >= nitems(rnames) || rnames[code] == NULL) {
 				ISP_SNPRINTF(lb, sizeof(lb),
 				    "Unknown FCP Response Code 0x%x", code);
 				ptr = lb;
@@ -3407,20 +3348,11 @@ isp_intr_respq(ispsoftc_t *isp)
 			isp_xs_prt(isp, xs, ISP_LOGWARN,
 			    "FCP RESPONSE, LENGTH %u: %s CDB0=0x%02x",
 			    rlen, ptr, XS_CDBP(xs)[0] & 0xff);
-			if (code != 0 && code != 8)
+			if (code != FCP_RSPNS_TMF_DONE &&
+			    code != FCP_RSPNS_TMF_SUCCEEDED)
 				XS_SETERR(xs, HBA_BOTCH);
 		}
-		isp_parse_status_24xx(isp, sp, xs, &resid);
-		if ((XS_NOERR(xs) || XS_ERR(xs) == HBA_NOERROR) &&
-		    (*XS_STSP(xs) == SCSI_BUSY))
-			XS_SETERR(xs, HBA_TGTBSY);
-		if (req_status_flags & RQSF_XFER_COMPLETE) {
-			XS_SET_RESID(xs, 0);
-		} else if (scsi_status & RQCS_RESID) {
-			XS_SET_RESID(xs, resid);
-		} else {
-			XS_SET_RESID(xs, 0);
-		}
+		isp_parse_status_24xx(isp, sp, xs);
 		if (slen > 0) {
 			XS_SAVE_SENSE(xs, snsp, slen);
 			if (totslen > slen) {
@@ -3431,12 +3363,9 @@ isp_intr_respq(ispsoftc_t *isp)
 				    cont);
 			}
 		}
-		isp_prt(isp, ISP_LOGDEBUG2, "asked for %lu got raw resid %lu settled for %lu",
-		    (u_long)XS_XFRLEN(xs), (u_long)resid, (u_long)XS_GET_RESID(xs));
 
 		ISP_DMAFREE(isp, xs);
 		isp_destroy_handle(isp, sp->req_handle);
-
 		ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 
 		/* Complete command if we expect no Status Continuations. */
@@ -3808,70 +3737,64 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 }
 
 static void
-isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, uint32_t *rp)
+isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs)
 {
 	int ru_marked, sv_marked;
 	int chan = XS_CHANNEL(xs);
 
 	switch (sp->req_completion_status) {
 	case RQCS_COMPLETE:
-		if (XS_NOERR(xs)) {
-			XS_SETERR(xs, HBA_NOERROR);
-		}
 		return;
 
 	case RQCS_DMA_ERROR:
 		isp_xs_prt(isp, xs, ISP_LOGERR, "DMA error");
+		if (XS_NOERR(xs))
+			XS_SETERR(xs, HBA_BOTCH);
 		break;
 
 	case RQCS_TRANSPORT_ERROR:
 		isp_xs_prt(isp, xs,  ISP_LOGERR, "Transport Error");
+		if (XS_NOERR(xs))
+			XS_SETERR(xs, HBA_BOTCH);
 		break;
 
 	case RQCS_RESET_OCCURRED:
 		isp_xs_prt(isp, xs, ISP_LOGWARN, "reset destroyed command");
 		FCPARAM(isp, chan)->sendmarker = 1;
-		if (XS_NOERR(xs)) {
+		if (XS_NOERR(xs))
 			XS_SETERR(xs, HBA_BUSRESET);
-		}
 		return;
 
 	case RQCS_ABORTED:
 		isp_xs_prt(isp, xs, ISP_LOGERR, "Command Aborted");
 		FCPARAM(isp, chan)->sendmarker = 1;
-		if (XS_NOERR(xs)) {
+		if (XS_NOERR(xs))
 			XS_SETERR(xs, HBA_ABORTED);
-		}
 		return;
 
 	case RQCS_TIMEOUT:
 		isp_xs_prt(isp, xs, ISP_LOGWARN, "Command Timed Out");
-		if (XS_NOERR(xs)) {
+		if (XS_NOERR(xs))
 			XS_SETERR(xs, HBA_CMDTIMEOUT);
-		}
 		return;
 
 	case RQCS_DATA_OVERRUN:
 		XS_SET_RESID(xs, sp->req_resid);
 		isp_xs_prt(isp, xs, ISP_LOGERR, "Data Overrun");
-		if (XS_NOERR(xs)) {
+		if (XS_NOERR(xs))
 			XS_SETERR(xs, HBA_DATAOVR);
-		}
 		return;
 
-	case RQCS_24XX_DRE:	/* data reassembly error */
+	case RQCS_DRE:		/* data reassembly error */
 		isp_prt(isp, ISP_LOGERR, "Chan %d data reassembly error for target %d", chan, XS_TGT(xs));
-		if (XS_NOERR(xs)) {
-			XS_SETERR(xs, HBA_ABORTED);
-		}
-		*rp = XS_XFRLEN(xs);
+		if (XS_NOERR(xs))
+			XS_SETERR(xs, HBA_BOTCH);
 		return;
 
-	case RQCS_24XX_TABORT:	/* aborted by target */
+	case RQCS_TABORT:	/* aborted by target */
 		isp_prt(isp, ISP_LOGERR, "Chan %d target %d sent ABTS", chan, XS_TGT(xs));
-		if (XS_NOERR(xs)) {
+		if (XS_NOERR(xs))
 			XS_SETERR(xs, HBA_ABORTED);
-		}
 		return;
 
 	case RQCS_DATA_UNDERRUN:
@@ -3884,16 +3807,12 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, uint32
 		if ((ru_marked == 0 && sv_marked == 0) ||
 		    (sp->req_resid > XS_XFRLEN(xs))) {
 			isp_xs_prt(isp, xs, ISP_LOGWARN, bun, XS_XFRLEN(xs), sp->req_resid, (ru_marked)? "marked" : "not marked");
-			if (XS_NOERR(xs)) {
+			if (XS_NOERR(xs))
 				XS_SETERR(xs, HBA_BOTCH);
-			}
 			return;
 		}
 		XS_SET_RESID(xs, sp->req_resid);
 		isp_xs_prt(isp, xs, ISP_LOG_WARN1, "Data Underrun (%d) for command 0x%x", sp->req_resid, XS_CDBP(xs)[0] & 0xff);
-		if (XS_NOERR(xs)) {
-			XS_SETERR(xs, HBA_NOERROR);
-		}
 		return;
 
 	case RQCS_PORT_UNAVAILABLE:
@@ -3939,7 +3858,7 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, uint32
 		}
 		return;
 
-	case RQCS_24XX_ENOMEM:	/* f/w resource unavailable */
+	case RQCS_ENOMEM:	/* f/w resource unavailable */
 		isp_prt(isp, ISP_LOGWARN, "f/w resource unavailable for target %d chan %d", XS_TGT(xs), chan);
 		if (XS_NOERR(xs)) {
 			*XS_STSP(xs) = SCSI_BUSY;
@@ -3947,7 +3866,7 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, uint32
 		}
 		return;
 
-	case RQCS_24XX_TMO:	/* task management overrun */
+	case RQCS_TMO:		/* task management overrun */
 		isp_prt(isp, ISP_LOGWARN, "command for target %d overlapped task management for chan %d", XS_TGT(xs), chan);
 		if (XS_NOERR(xs)) {
 			*XS_STSP(xs) = SCSI_BUSY;
@@ -3959,9 +3878,8 @@ isp_parse_status_24xx(ispsoftc_t *isp, isp24xx_statusreq_t *sp, XS_T *xs, uint32
 		isp_prt(isp, ISP_LOGERR, "Unknown Completion Status 0x%x on chan %d", sp->req_completion_status, chan);
 		break;
 	}
-	if (XS_NOERR(xs)) {
+	if (XS_NOERR(xs))
 		XS_SETERR(xs, HBA_BOTCH);
-	}
 }
 
 #define	ISP_FC_IBITS(op)	((mbpfc[((op)<<3) + 0] << 24) | (mbpfc[((op)<<3) + 1] << 16) | (mbpfc[((op)<<3) + 2] << 8) | (mbpfc[((op)<<3) + 3]))
@@ -4289,7 +4207,6 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 		isp->isp_mboxtmp[box] = mbp->param[box] = 0;
 	}
 
-	isp->isp_lastmbxcmd = opcode;
 	isp->isp_obits = obits;
 	isp->isp_mboxbsy = 1;
 
@@ -4317,7 +4234,7 @@ isp_mboxcmd(ispsoftc_t *isp, mbreg_t *mbp)
 	if (isp->isp_mboxbsy) {
 		isp->isp_mboxbsy = 0;
 		isp_prt(isp, ISP_LOGWARN, "Mailbox Command (0x%x) Timeout (%uus) (%s:%d)",
-		    isp->isp_lastmbxcmd, to, mbp->func, mbp->lineno);
+		    opcode, to, mbp->func, mbp->lineno);
 		mbp->param[0] = MBOX_TIMEOUT;
 		goto out;
 	}
