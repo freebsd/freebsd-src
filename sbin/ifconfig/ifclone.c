@@ -151,8 +151,7 @@ ifclonecreate(int s, void *arg)
 	}
 	if (clone_cb == NULL) {
 		/* NB: no parameters */
-		if (ioctl(s, SIOCIFCREATE2, &ifr) < 0)
-			err(1, "SIOCIFCREATE2");
+	  	ioctl_ifcreate(s, &ifr);
 	} else {
 		clone_cb(s, &ifr);
 	}

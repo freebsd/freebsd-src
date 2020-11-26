@@ -162,8 +162,7 @@ vlan_create(int s, struct ifreq *ifr)
 			errx(1, "must specify a parent device for vlan create");
 		ifr->ifr_data = (caddr_t) &params;
 	}
-	if (ioctl(s, SIOCIFCREATE2, ifr) < 0)
-		err(1, "SIOCIFCREATE2");
+	ioctl_ifcreate(s, ifr);
 }
 
 static void

@@ -5758,8 +5758,7 @@ wlan_create(int s, struct ifreq *ifr)
 	    memcmp(params.icp_bssid, zerobssid, sizeof(zerobssid)) == 0)
 		errx(1, "no bssid specified for WDS (use wlanbssid)");
 	ifr->ifr_data = (caddr_t) &params;
-	if (ioctl(s, SIOCIFCREATE2, ifr) < 0)
-		err(1, "SIOCIFCREATE2");
+	ioctl_ifcreate(s, ifr);
 
 	/* XXX preserve original name for ifclonecreate(). */
 	strlcpy(orig_name, name, sizeof(orig_name));

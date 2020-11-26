@@ -160,3 +160,4 @@ struct ifmediareq *ifmedia_getstate(int s);
 
 void print_vhid(const struct ifaddrs *, const char *);
 
+void ioctl_ifcreate(int s, struct ifreq *);

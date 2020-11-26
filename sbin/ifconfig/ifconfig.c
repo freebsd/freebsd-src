@@ -198,6 +198,19 @@ usage(void)
 	exit(1);
 }
 
+void
+ioctl_ifcreate(int s, struct ifreq *ifr)
+{
+	if (ioctl(s, SIOCIFCREATE2, ifr) < 0) {
+		switch (errno) {
+		case EEXIST:
+			errx(1, "interface %s already exists", ifr->ifr_name);
+		default:
+			err(1, "SIOCIFCREATE2");
+		}
+	}
+}
+
 #define ORDERS_SIZE(x) sizeof(x) / sizeof(x[0])
 
 static int
