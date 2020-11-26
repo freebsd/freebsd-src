@@ -324,8 +324,7 @@ static void
 lagg_create(int s, struct ifreq *ifr)
 {
 	ifr->ifr_data = (caddr_t) &params;
-	if (ioctl(s, SIOCIFCREATE2, ifr) < 0)
-		err(1, "SIOCIFCREATE2");
+	ioctl_ifcreate(s, ifr);
 }
 
 static struct cmd lagg_cmds[] = {
