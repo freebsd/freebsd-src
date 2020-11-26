@@ -805,7 +805,7 @@ typedef struct {
 	uint32_t	icb_fwoptions3;
 	uint16_t	icb_qos;
 	uint16_t	icb_reserved2[3];
-	uint16_t	icb_enodemac[3];
+	uint8_t		icb_enodemac[6];
 	uint16_t	icb_disctime;
 	uint16_t	icb_reserved3[4];
 } isp_icb_2400_t;
