@@ -15,6 +15,7 @@ LIBADD=	m
 CFLAGS+= -DINET6 -DKAME_SCOPEID
 SRCS+=	ping6.c
 LIBADD+= md
+LINKS=	${BINDIR}/ping ${BINDIR}/ping6
 .endif
 
 .if ${MK_DYNAMICROOT} == "no"
