@@ -40,9 +40,6 @@
 
 #include <limits.h>
 
-#include <status.h>
-#include <vector.h>
-#include <lex.h>
 #include <parse.h>
 #include <program.h>
 #include <vm.h>

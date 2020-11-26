@@ -62,6 +62,4 @@ void bc_file_printf(BcFile *restrict f, const char *fmt, ...);
 void bc_file_vprintf(BcFile *restrict f, const char *fmt, va_list args);
 void bc_file_puts(BcFile *restrict f, const char *str);
 
-void bc_file_ultoa(unsigned long long val, char buf[BC_FILE_ULL_LENGTH]);
-
 #endif // BC_FILE_H

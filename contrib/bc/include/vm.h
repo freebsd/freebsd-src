@@ -36,6 +36,7 @@
 #ifndef BC_VM_H
 #define BC_VM_H
 
+#include <assert.h>
 #include <stddef.h>
 #include <limits.h>
 
@@ -56,7 +57,10 @@
 #include <parse.h>
 #include <program.h>
 #include <history.h>
+
+#if !BC_ENABLE_LIBRARY
 #include <file.h>
+#endif // !BC_ENABLE_LIBRARY
 
 #if !BC_ENABLED && !DC_ENABLED
 #error Must define BC_ENABLED, DC_ENABLED, or both
@@ -90,6 +94,8 @@
 #ifdef _WIN32
 #define isatty _isatty
 #endif // _WIN32
+
+#if !BC_ENABLE_LIBRARY
 
 #if DC_ENABLED
 #define DC_FLAG_X (UINTMAX_C(1)<<0)
@@ -148,6 +154,8 @@
 #else // BC_ENABLED
 #define BC_USE_PROMPT (!BC_P && BC_TTY)
 #endif // BC_ENABLED
+
+#endif // !BC_ENABLE_LIBRARY
 
 #define BC_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define BC_MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -270,31 +278,75 @@
 
 #define BC_VM_SAFE_RESULT(r) ((r)->t >= BC_RESULT_TEMP)
 
-#define bc_vm_err(e) (bc_vm_error((e), 0))
-#define bc_vm_verr(e, ...) (bc_vm_error((e), 0, __VA_ARGS__))
+#if BC_ENABLE_LIBRARY
+#define bc_vm_error(e, l, ...) (bc_vm_handleError((e)))
+#define bc_vm_err(e) (bc_vm_handleError((e)))
+#define bc_vm_verr(e, ...) (bc_vm_handleError((e)))
+#else // BC_ENABLE_LIBRARY
+#define bc_vm_error(e, l, ...) (bc_vm_handleError((e), (l), __VA_ARGS__))
+#define bc_vm_err(e) (bc_vm_handleError((e), 0))
+#define bc_vm_verr(e, ...) (bc_vm_handleError((e), 0, __VA_ARGS__))
+#endif // BC_ENABLE_LIBRARY
 
 #define BC_STATUS_IS_ERROR(s) \
 	((s) >= BC_STATUS_ERROR_MATH && (s) <= BC_STATUS_ERROR_FATAL)
 
 #define BC_VM_INVALID_CATALOG ((nl_catd) -1)
 
+#if BC_DEBUG_CODE
+#define BC_VM_FUNC_ENTER                                     \
+	do {                                                     \
+		bc_file_printf(&vm.ferr, "Entering %s\n", __func__); \
+		bc_file_flush(&vm.ferr);                             \
+	} while (0);
+
+#define BC_VM_FUNC_EXIT                                     \
+	do {                                                    \
+		bc_file_printf(&vm.ferr, "Leaving %s\n", __func__); \
+		bc_file_flush(&vm.ferr);                            \
+	} while (0);
+#else // BC_DEBUG_CODE
+#define BC_VM_FUNC_ENTER
+#define BC_VM_FUNC_EXIT
+#endif // BC_DEBUG_CODE
+
 typedef struct BcVm {
 
 	volatile sig_atomic_t status;
 	volatile sig_atomic_t sig_pop;
 
+#if !BC_ENABLE_LIBRARY
 	BcParse prs;
 	BcProgram prog;
+#endif // BC_ENABLE_LIBRARY
 
 	BcVec jmp_bufs;
 
 	BcVec temps;
 
+#if BC_ENABLE_LIBRARY
+
+	BcVec ctxts;
+	BcVec out;
+
+	BcRNG rng;
+
+	BclError err;
+	bool abrt;
+
+	unsigned int refs;
+
+	volatile sig_atomic_t running;
+#endif // BC_ENABLE_LIBRARY
+
+#if !BC_ENABLE_LIBRARY
 	const char* file;
 
 	const char *sigmsg;
+#endif // BC_ENABLE_LIBRARY
 	volatile sig_atomic_t sig_lock;
 	volatile sig_atomic_t sig;
+#if !BC_ENABLE_LIBRARY
 	uchar siglen;
 
 	uchar read_ret;
@@ -305,9 +357,11 @@ typedef struct BcVm {
 
 	bool no_exit_exprs;
 	bool eof;
+#endif // BC_ENABLE_LIBRARY
 
 	BcBigDig maxes[BC_PROG_GLOBALS_LEN + BC_ENABLE_EXTRA_MATH];
 
+#if !BC_ENABLE_LIBRARY
 	BcVec files;
 	BcVec exprs;
 
@@ -325,21 +379,27 @@ typedef struct BcVm {
 	const char *func_header;
 
 	const char *err_ids[BC_ERR_IDX_NELEMS + BC_ENABLED];
-	const char *err_msgs[BC_ERROR_NELEMS];
+	const char *err_msgs[BC_ERR_NELEMS];
 
 	const char *locale;
+#endif // BC_ENABLE_LIBRARY
 
 	BcBigDig last_base;
 	BcBigDig last_pow;
 	BcBigDig last_exp;
 	BcBigDig last_rem;
 
+#if !BC_ENABLE_LIBRARY
 	char *env_args_buffer;
 	BcVec env_args;
+#endif // BC_ENABLE_LIBRARY
 
 	BcNum max;
+	BcNum max2;
 	BcDig max_num[BC_NUM_BIGDIG_LOG10];
+	BcDig max2_num[BC_NUM_BIGDIG_LOG10];
 
+#if !BC_ENABLE_LIBRARY
 	BcFile fout;
 	BcFile ferr;
 
@@ -349,13 +409,16 @@ typedef struct BcVm {
 
 	char *buf;
 	size_t buf_len;
+#endif // !BC_ENABLE_LIBRARY
 
 } BcVm;
 
 void bc_vm_info(const char* const help);
 void bc_vm_boot(int argc, char *argv[], const char *env_len,
                 const char* const env_args);
+void bc_vm_init(void);
 void bc_vm_shutdown(void);
+void bc_vm_freeTemps(void);
 
 void bc_vm_printf(const char *fmt, ...);
 void bc_vm_putchar(int c);
@@ -371,7 +434,11 @@ void bc_vm_jmp(const char *f);
 void bc_vm_jmp(void);
 #endif // BC_DEBUG_CODE
 
-void bc_vm_error(BcError e, size_t line, ...);
+#if BC_ENABLE_LIBRARY
+void bc_vm_handleError(BcErr e);
+#else // BC_ENABLE_LIBRARY
+void bc_vm_handleError(BcErr e, size_t line, ...);
+#endif // BC_ENABLE_LIBRARY
 
 extern const char bc_copyright[];
 extern const char* const bc_err_line;

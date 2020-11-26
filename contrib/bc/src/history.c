@@ -383,7 +383,7 @@ static BcStatus bc_history_readCode(char *buf, size_t buf_len,
 	return BC_STATUS_SUCCESS;
 
 err:
-	if (BC_ERR(n < 0)) bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+	if (BC_ERR(n < 0)) bc_vm_err(BC_ERR_FATAL_IO_ERR);
 	else *nread = (size_t) n;
 	return BC_STATUS_EOF;
 }
@@ -441,7 +441,7 @@ static void bc_history_enableRaw(BcHistory *h) {
 	BC_SIG_LOCK;
 
 	if (BC_ERR(tcgetattr(STDIN_FILENO, &h->orig_termios) == -1))
-		bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+		bc_vm_err(BC_ERR_FATAL_IO_ERR);
 
 	BC_SIG_UNLOCK;
 
@@ -473,7 +473,7 @@ static void bc_history_enableRaw(BcHistory *h) {
 
 	BC_SIG_UNLOCK;
 
-	if (BC_ERR(err < 0)) bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+	if (BC_ERR(err < 0)) bc_vm_err(BC_ERR_FATAL_IO_ERR);
 
 	h->rawMode = true;
 }
@@ -672,7 +672,7 @@ static void bc_history_refresh(BcHistory *h) {
  */
 static void bc_history_edit_insert(BcHistory *h, const char *cbuf, size_t clen)
 {
-	bc_vec_expand(&h->buf, bc_vm_growSize(h->buf.len, clen));
+	bc_vec_grow(&h->buf, clen);
 
 	if (h->pos == BC_HIST_BUF_LEN(h)) {
 
@@ -948,8 +948,7 @@ static void bc_history_escape(BcHistory *h) {
 	}
 	else {
 
-		if (BC_ERR(BC_HIST_READ(seq + 1, 1)))
-			bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+		if (BC_ERR(BC_HIST_READ(seq + 1, 1))) bc_vm_err(BC_ERR_FATAL_IO_ERR);
 
 		// ESC [ sequences.
 		if (c == '[') {
@@ -960,13 +959,13 @@ static void bc_history_escape(BcHistory *h) {
 
 				// Extended escape, read additional byte.
 				if (BC_ERR(BC_HIST_READ(seq + 2, 1)))
-					bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+					bc_vm_err(BC_ERR_FATAL_IO_ERR);
 
 				if (seq[2] == '~' && c == '3') bc_history_edit_delete(h);
 				else if(seq[2] == ';') {
 
 					if (BC_ERR(BC_HIST_READ(seq, 2)))
-						bc_vm_err(BC_ERROR_FATAL_IO_ERR);
+						bc_vm_err(BC_ERR_FATAL_IO_ERR);
 
 					if (seq[0] != '5') return;
 					else if (seq[1] == 'C') bc_history_edit_wordEnd(h);
