@@ -422,7 +422,17 @@ SHLINSTALLFLAGS+= -fschg
 # Install libraries with -S to avoid risk of modifying in-use libraries when
 # installing to a running system.  It is safe to avoid this for NO_ROOT builds
 # that are only creating an image.
-.if !defined(NO_SAFE_LIBINSTALL) && !defined(NO_ROOT)
+#
+# XXX: Since Makefile.inc1 ends up building lib/libc both as part of
+# _startup_libs and as part of _generic_libs it ends up getting installed a
+# second time during the parallel build, and although the .WAIT in lib/Makefile
+# stops that mattering for lib, other directories like secure/lib are built in
+# parallel at the top level and are unaffected by that, so can sometimes race
+# with the libc.so.7 reinstall and see a missing or corrupt file. Ideally the
+# build system would be fixed to not build/install libc to WORLDTMP the second
+# time round, but for now using -S ensures the install is atomic and thus we
+# never see a broken intermediate state, so use it even for NO_ROOT builds.
+.if !defined(NO_SAFE_LIBINSTALL) #&& !defined(NO_ROOT)
 SHLINSTALLFLAGS+= -S
 SHLINSTALLSYMLINKFLAGS+= -S
 .endif
