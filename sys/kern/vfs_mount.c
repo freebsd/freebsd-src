@@ -903,6 +903,7 @@ vfs_domount_first(
 	struct mount *mp;
 	struct vnode *newdp, *rootvp;
 	int error, error1;
+	bool unmounted;
 
 	ASSERT_VOP_ELOCKED(vp, __func__);
 	KASSERT((fsflags & MNT_UPDATE) == 0, ("MNT_UPDATE shouldn't be here"));
@@ -964,23 +965,39 @@ vfs_domount_first(
 	 * get.  No freeing of cn_pnbuf.
 	 */
 	error1 = 0;
+	unmounted = true;
 	if ((error = VFS_MOUNT(mp)) != 0 ||
 	    (error1 = VFS_STATFS(mp, &mp->mnt_stat)) != 0 ||
 	    (error1 = VFS_ROOT(mp, LK_EXCLUSIVE, &newdp)) != 0) {
 		rootvp = NULL;
 		if (error1 != 0) {
-			error = error1;
+			MPASS(error == 0);
 			rootvp = vfs_cache_root_clear(mp);
 			if (rootvp != NULL) {
 				vhold(rootvp);
 				vrele(rootvp);
 			}
-			if ((error1 = VFS_UNMOUNT(mp, 0)) != 0)
-				printf("VFS_UNMOUNT returned %d\n", error1);
+			(void)vn_start_write(NULL, &mp, V_WAIT);
+			MNT_ILOCK(mp);
+			mp->mnt_kern_flag |= MNTK_UNMOUNT | MNTK_UNMOUNTF;
+			MNT_IUNLOCK(mp);
+			VFS_PURGE(mp);
+			error = VFS_UNMOUNT(mp, 0);
+			vn_finished_write(mp);
+			if (error != 0) {
+				printf(
+		    "failed post-mount (%d): rollback unmount returned %d\n",
+				    error1, error);
+				unmounted = false;
+			}
+			error = error1;
 		}
 		vfs_unbusy(mp);
 		mp->mnt_vnodecovered = NULL;
-		vfs_mount_destroy(mp);
+		if (unmounted) {
+			/* XXXKIB wait for mnt_lockref drain? */
+			vfs_mount_destroy(mp);
+		}
 		VI_LOCK(vp);
 		vp->v_iflag &= ~VI_MOUNT;
 		VI_UNLOCK(vp);
