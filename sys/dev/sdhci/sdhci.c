@@ -2650,31 +2650,38 @@ sdhci_cam_settran_settings(struct sdhci_slot *slot, union ccb *ccb)
 	/* Update only requested fields */
 	if (cts->ios_valid & MMC_CLK) {
 		ios->clock = sdhci_cam_get_possible_host_clock(slot, new_ios->clock);
-		slot_printf(slot, "Clock => %d\n", ios->clock);
+		if (sdhci_debug > 1)
+			slot_printf(slot, "Clock => %d\n", ios->clock);
 	}
 	if (cts->ios_valid & MMC_VDD) {
 		ios->vdd = new_ios->vdd;
-		slot_printf(slot, "VDD => %d\n", ios->vdd);
+		if (sdhci_debug > 1)
+			slot_printf(slot, "VDD => %d\n", ios->vdd);
 	}
 	if (cts->ios_valid & MMC_CS) {
 		ios->chip_select = new_ios->chip_select;
-		slot_printf(slot, "CS => %d\n", ios->chip_select);
+		if (sdhci_debug > 1)
+			slot_printf(slot, "CS => %d\n", ios->chip_select);
 	}
 	if (cts->ios_valid & MMC_BW) {
 		ios->bus_width = new_ios->bus_width;
-		slot_printf(slot, "Bus width => %d\n", ios->bus_width);
+		if (sdhci_debug > 1)
+			slot_printf(slot, "Bus width => %d\n", ios->bus_width);
 	}
 	if (cts->ios_valid & MMC_PM) {
 		ios->power_mode = new_ios->power_mode;
-		slot_printf(slot, "Power mode => %d\n", ios->power_mode);
+		if (sdhci_debug > 1)
+			slot_printf(slot, "Power mode => %d\n", ios->power_mode);
 	}
 	if (cts->ios_valid & MMC_BT) {
 		ios->timing = new_ios->timing;
-		slot_printf(slot, "Timing => %d\n", ios->timing);
+		if (sdhci_debug > 1)
+			slot_printf(slot, "Timing => %d\n", ios->timing);
 	}
 	if (cts->ios_valid & MMC_BM) {
 		ios->bus_mode = new_ios->bus_mode;
-		slot_printf(slot, "Bus mode => %d\n", ios->bus_mode);
+		if (sdhci_debug > 1)
+			slot_printf(slot, "Bus mode => %d\n", ios->bus_mode);
 	}
 
 	/* XXX Provide a way to call a chip-specific IOS update, required for TI */
@@ -2686,7 +2693,8 @@ sdhci_cam_update_ios(struct sdhci_slot *slot)
 {
 	struct mmc_ios *ios = &slot->host.ios;
 
-	slot_printf(slot, "%s: power_mode=%d, clk=%d, bus_width=%d, timing=%d\n",
+	if (sdhci_debug > 1)
+		slot_printf(slot, "%s: power_mode=%d, clk=%d, bus_width=%d, timing=%d\n",
 		    __func__, ios->power_mode, ios->clock, ios->bus_width, ios->timing);
 	SDHCI_LOCK(slot);
 	/* Do full reset on bus power down to clear from any state. */
