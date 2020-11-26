@@ -457,7 +457,6 @@ struct ispsoftc {
 	uint8_t			isp_revision;	/* HBA Chip H/W Revision */
 	uint8_t			isp_nirq;	/* number of IRQs */
 	uint8_t			isp_port;	/* physical port on a card */
-	uint8_t			isp_loaded_fw;	/* loaded firmware */
 	uint32_t		isp_confopts;	/* config options */
 
 	/*
@@ -465,7 +464,6 @@ struct ispsoftc {
 	 */
 	volatile u_int		isp_mboxbsy;	/* mailbox command active */
 	volatile u_int		isp_state;
-	volatile mbreg_t	isp_curmbx;	/* currently active mailbox command */
 	volatile uint32_t	isp_reqodx;	/* index of last ISP pickup */
 	volatile uint32_t	isp_reqidx;	/* index of next request */
 	volatile uint32_t	isp_resodx;	/* index of next result */
@@ -473,7 +471,6 @@ struct ispsoftc {
 	volatile uint32_t	isp_obits;	/* mailbox command output */
 	volatile uint32_t	isp_serno;	/* rolling serial number */
 	volatile uint16_t	isp_mboxtmp[MAX_MAILBOX];
-	volatile uint16_t	isp_lastmbxcmd;	/* last mbox command sent */
 	volatile uint16_t	isp_seqno;	/* running sequence number */
 	u_int			isp_rqovf;	/* request queue overflow */
 
