@@ -85,23 +85,23 @@ v6_body()
 	jexec alcatraz ifconfig ${epair}b inet6 2001:db8:42::2/64 up no_dad
 
 	# Trivial ping to the jail, without pf
-	atf_check -s exit:0 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 
 	# pf without policy will let us ping
 	jexec alcatraz pfctl -e
-	atf_check -s exit:0 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 
 	# Block everything
 	pft_set_rules alcatraz "block in"
-	atf_check -s exit:2 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:2 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 
 	# Block everything but ICMP
 	pft_set_rules alcatraz "block in" "pass in proto icmp6"
-	atf_check -s exit:0 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 
 	# Allowing ICMPv4 does not allow ICMPv6
 	pft_set_rules alcatraz "block in" "pass in proto icmp"
-	atf_check -s exit:2 -o ignore ping6 -c 1 -W 1 2001:db8:42::2
+	atf_check -s exit:2 -o ignore ping -6 -c 1 -W 1 2001:db8:42::2
 }
 
 v6_cleanup()
@@ -132,21 +132,21 @@ noalias_body()
 		| cut -d % -f 1)
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping6 -c 3 -W 1 2001:db8:42::2
-	atf_check -s exit:0 -o ignore ping6 -c 3 -W 1 ${linklocaladdr}%${epair}a
+	atf_check -s exit:0 -o ignore ping -6 -c 3 -W 1 2001:db8:42::2
+	atf_check -s exit:0 -o ignore ping -6 -c 3 -W 1 ${linklocaladdr}%${epair}a
 
 	jexec alcatraz pfctl -e
 	pft_set_rules alcatraz "block out inet6 from (${epair}b:0) to any"
 
-	atf_check -s exit:2 -o ignore ping6 -c 3 -W 1 2001:db8:42::2
+	atf_check -s exit:2 -o ignore ping -6 -c 3 -W 1 2001:db8:42::2
 
 	# We should still be able to ping the link-local address
-	atf_check -s exit:0 -o ignore ping6 -c 3 -W 1 ${linklocaladdr}%${epair}a
+	atf_check -s exit:0 -o ignore ping -6 -c 3 -W 1 ${linklocaladdr}%${epair}a
 
 	pft_set_rules alcatraz "block out inet6 from (${epair}b) to any"
 
 	# We cannot ping to the link-local address
-	atf_check -s exit:2 -o ignore ping6 -c 3 -W 1 ${linklocaladdr}%${epair}a
+	atf_check -s exit:2 -o ignore ping -6 -c 3 -W 1 ${linklocaladdr}%${epair}a
 }
 
 noalias_cleanup()
