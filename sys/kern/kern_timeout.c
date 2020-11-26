@@ -1274,7 +1274,7 @@ again:
 			 * just wait for the current invocation to
 			 * finish.
 			 */
-			while (cc_exec_curr(cc, direct) == c) {
+			if (cc_exec_curr(cc, direct) == c) {
 				/*
 				 * Use direct calls to sleepqueue interface
 				 * instead of cv/msleep in order to avoid
@@ -1322,7 +1322,7 @@ again:
 
 				/* Reacquire locks previously released. */
 				PICKUP_GIANT();
-				CC_LOCK(cc);
+				goto again;
 			}
 			c->c_flags &= ~CALLOUT_ACTIVE;
 		} else if (use_lock &&
