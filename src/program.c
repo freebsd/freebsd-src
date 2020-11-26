@@ -61,7 +61,7 @@ static inline void bc_program_type_num(BcResult *r, BcNum *n) {
 	assert(r->t != BC_RESULT_VOID);
 #endif // BC_ENABLED
 
-	if (BC_ERR(!BC_PROG_NUM(r, n))) bc_vm_err(BC_ERROR_EXEC_TYPE);
+	if (BC_ERR(!BC_PROG_NUM(r, n))) bc_vm_err(BC_ERR_EXEC_TYPE);
 }
 
 #if BC_ENABLED
@@ -72,7 +72,7 @@ static void bc_program_type_match(BcResult *r, BcType t) {
 #endif // DC_ENABLED
 
 	if (BC_ERR((r->t != BC_RESULT_ARRAY) != (!t)))
-		bc_vm_err(BC_ERROR_EXEC_TYPE);
+		bc_vm_err(BC_ERR_EXEC_TYPE);
 }
 #endif // BC_ENABLED
 
@@ -270,7 +270,7 @@ static void bc_program_operand(BcProgram *p, BcResult **r,
 	*r = bc_vec_item_rev(&p->results, idx);
 
 #if BC_ENABLED
-	if (BC_ERR((*r)->t == BC_RESULT_VOID)) bc_vm_err(BC_ERROR_EXEC_VOID_VAL);
+	if (BC_ERR((*r)->t == BC_RESULT_VOID)) bc_vm_err(BC_ERR_EXEC_VOID_VAL);
 #endif // BC_ENABLED
 
 	*n = bc_program_num(p, *r);
@@ -286,7 +286,7 @@ static void bc_program_binPrep(BcProgram *p, BcResult **l, BcNum **ln,
 #ifndef BC_PROG_NO_STACK_CHECK
 	if (BC_IS_DC) {
 		if (BC_ERR(!BC_PROG_STACK(&p->results, idx + 2)))
-			bc_vm_err(BC_ERROR_EXEC_STACK);
+			bc_vm_err(BC_ERR_EXEC_STACK);
 	}
 #endif // BC_PROG_NO_STACK_CHECK
 
@@ -306,7 +306,7 @@ static void bc_program_binPrep(BcProgram *p, BcResult **l, BcNum **ln,
 	if (lt == (*r)->t && (lt == BC_RESULT_VAR || lt == BC_RESULT_ARRAY_ELEM))
 		*ln = bc_program_num(p, *l);
 
-	if (BC_ERR(lt == BC_RESULT_STR)) bc_vm_err(BC_ERROR_EXEC_TYPE);
+	if (BC_ERR(lt == BC_RESULT_STR)) bc_vm_err(BC_ERR_EXEC_TYPE);
 }
 
 static void bc_program_binOpPrep(BcProgram *p, BcResult **l, BcNum **ln,
@@ -329,7 +329,7 @@ static void bc_program_assignPrep(BcProgram *p, BcResult **l, BcNum **ln,
 	lt = (*l)->t;
 
 	if (BC_ERR(lt >= min && lt <= BC_RESULT_ONE))
-		bc_vm_err(BC_ERROR_EXEC_TYPE);
+		bc_vm_err(BC_ERR_EXEC_TYPE);
 
 #if DC_ENABLED
 	if(BC_IS_DC) {
@@ -351,7 +351,7 @@ static void bc_program_prep(BcProgram *p, BcResult **r, BcNum **n, size_t idx) {
 #ifndef BC_PROG_NO_STACK_CHECK
 	if (BC_IS_DC) {
 		if (BC_ERR(!BC_PROG_STACK(&p->results, idx + 1)))
-			bc_vm_err(BC_ERROR_EXEC_STACK);
+			bc_vm_err(BC_ERR_EXEC_STACK);
 	}
 #endif // BC_PROG_NO_STACK_CHECK
 
@@ -391,7 +391,7 @@ static void bc_program_const(BcProgram *p, const char *code, size_t *bgn) {
 		}
 
 		// bc_num_parse() should only do operations that cannot fail.
-		bc_num_parse(&c->num, c->val, base, !c->val[1]);
+		bc_num_parse(&c->num, c->val, base);
 
 		c->base = base;
 	}
@@ -419,6 +419,9 @@ static void bc_program_op(BcProgram *p, uchar inst) {
 
 	BC_SIG_UNLOCK;
 
+	assert(BC_NUM_RDX_VALID(n1));
+	assert(BC_NUM_RDX_VALID(n2));
+
 	bc_program_ops[idx](n1, n2, &res->d.n, BC_PROG_SCALE(p));
 
 	bc_program_retire(p, 1, 2);
@@ -437,7 +440,7 @@ static void bc_program_read(BcProgram *p) {
 	for (i = 0; i < p->stack.len; ++i) {
 		BcInstPtr *ip_ptr = bc_vec_item(&p->stack, i);
 		if (ip_ptr->func == BC_PROG_READ)
-			bc_vm_err(BC_ERROR_EXEC_REC_READ);
+			bc_vm_err(BC_ERR_EXEC_REC_READ);
 	}
 
 	BC_SIG_LOCK;
@@ -454,13 +457,13 @@ static void bc_program_read(BcProgram *p) {
 	bc_vec_npop(&f->code, f->code.len);
 
 	s = bc_read_line(&buf, BC_IS_BC ? "read> " : "?> ");
-	if (s == BC_STATUS_EOF) bc_vm_err(BC_ERROR_EXEC_READ_EXPR);
+	if (s == BC_STATUS_EOF) bc_vm_err(BC_ERR_EXEC_READ_EXPR);
 
 	bc_parse_text(&parse, buf.v);
 	vm.expr(&parse, BC_PARSE_NOREAD | BC_PARSE_NEEDVAL);
 
 	if (BC_ERR(parse.l.t != BC_LEX_NLINE && parse.l.t != BC_LEX_EOF))
-		bc_vm_err(BC_ERROR_EXEC_READ_EXPR);
+		bc_vm_err(BC_ERR_EXEC_READ_EXPR);
 
 #if BC_ENABLED
 	if (BC_G) bc_program_prepGlobals(p);
@@ -495,6 +498,12 @@ exec_err:
 static void bc_program_rand(BcProgram *p) {
 	BcRand rand = bc_rand_int(&p->rng);
 	bc_program_pushBigdig(p, (BcBigDig) rand, BC_RESULT_TEMP);
+#ifndef NDEBUG
+	{
+		BcResult *r = bc_vec_top(&p->results);
+		assert(BC_NUM_RDX_VALID_NP(r->d.n));
+	}
+#endif // NDEBUG
 }
 #endif // BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 
@@ -560,7 +569,7 @@ static void bc_program_print(BcProgram *p, uchar inst, size_t idx) {
 #ifndef BC_PROG_NO_STACK_CHECK
 	if (BC_IS_DC) {
 		if (BC_ERR(!BC_PROG_STACK(&p->results, idx + 1)))
-			bc_vm_err(BC_ERROR_EXEC_STACK);
+			bc_vm_err(BC_ERR_EXEC_STACK);
 	}
 #endif // BC_PROG_NO_STACK_CHECK
 
@@ -570,7 +579,7 @@ static void bc_program_print(BcProgram *p, uchar inst, size_t idx) {
 
 #if BC_ENABLED
 	if (r->t == BC_RESULT_VOID) {
-		if (BC_ERR(pop)) bc_vm_err(BC_ERROR_EXEC_VOID_VAL);
+		if (BC_ERR(pop)) bc_vm_err(BC_ERR_EXEC_VOID_VAL);
 		bc_vec_pop(&p->results);
 		return;
 	}
@@ -604,7 +613,7 @@ static void bc_program_print(BcProgram *p, uchar inst, size_t idx) {
 
 void bc_program_negate(BcResult *r, BcNum *n) {
 	bc_num_copy(&r->d.n, n);
-	if (BC_NUM_NONZERO(&r->d.n)) r->d.n.neg = !r->d.n.neg;
+	if (BC_NUM_NONZERO(&r->d.n)) BC_NUM_NEG_TGL_NP(r->d.n);
 }
 
 void bc_program_not(BcResult *r, BcNum *n) {
@@ -743,7 +752,7 @@ static void bc_program_copyToVar(BcProgram *p, size_t idx,
 	if (BC_IS_DC) {
 
 		if (BC_ERR(!BC_PROG_STACK(&p->results, 1)))
-			bc_vm_err(BC_ERROR_EXEC_STACK);
+			bc_vm_err(BC_ERR_EXEC_STACK);
 
 		assert(BC_PROG_STACK(&p->results, 1));
 
@@ -768,7 +777,7 @@ static void bc_program_copyToVar(BcProgram *p, size_t idx,
 
 #if DC_ENABLED
 	if (BC_IS_DC && (ptr->t == BC_RESULT_STR || BC_PROG_STR(n))) {
-		if (BC_ERR(!var)) bc_vm_err(BC_ERROR_EXEC_TYPE);
+		if (BC_ERR(!var)) bc_vm_err(BC_ERR_EXEC_TYPE);
 		bc_program_assignStr(p, ptr, vec, true);
 		return;
 	}
@@ -871,6 +880,9 @@ static void bc_program_assign(BcProgram *p, uchar inst) {
 		if (!use_val)
 			inst -= (BC_INST_ASSIGN_POWER_NO_VAL - BC_INST_ASSIGN_POWER);
 
+		assert(BC_NUM_RDX_VALID(l));
+		assert(BC_NUM_RDX_VALID(r));
+
 		bc_program_ops[inst - BC_INST_ASSIGN_POWER](l, r, l, scale);
 	}
 #endif // BC_ENABLED
@@ -882,10 +894,10 @@ static void bc_program_assign(BcProgram *p, uchar inst) {
 
 		BcVec *v;
 		BcBigDig *ptr, *ptr_t, val, max, min;
-		BcError e;
+		BcErr e;
 
 		bc_num_bigdig(l, &val);
-		e = left->t - BC_RESULT_IBASE + BC_ERROR_EXEC_IBASE;
+		e = left->t - BC_RESULT_IBASE + BC_ERR_EXEC_IBASE;
 
 		if (sc) {
 			min = 0;
@@ -940,7 +952,7 @@ static void bc_program_pushVar(BcProgram *p, const char *restrict code,
 		BcVec *v = bc_program_vec(p, idx, BC_TYPE_VAR);
 		BcNum *num = bc_vec_top(v);
 
-		if (BC_ERR(!BC_PROG_STACK(v, 2 - copy))) bc_vm_err(BC_ERROR_EXEC_STACK);
+		if (BC_ERR(!BC_PROG_STACK(v, 2 - copy))) bc_vm_err(BC_ERR_EXEC_STACK);
 
 		assert(BC_PROG_STACK(v, 2 - copy));
 
@@ -1058,9 +1070,9 @@ static void bc_program_call(BcProgram *p, const char *restrict code,
 	ip.func = bc_program_index(code, idx);
 	f = bc_vec_item(&p->fns, ip.func);
 
-	if (BC_ERR(!f->code.len)) bc_vm_verr(BC_ERROR_EXEC_UNDEF_FUNC, f->name);
+	if (BC_ERR(!f->code.len)) bc_vm_verr(BC_ERR_EXEC_UNDEF_FUNC, f->name);
 	if (BC_ERR(nparams != f->nparams))
-		bc_vm_verr(BC_ERROR_EXEC_PARAMS, f->nparams, nparams);
+		bc_vm_verr(BC_ERR_EXEC_PARAMS, f->nparams, nparams);
 	ip.len = p->results.len - nparams;
 
 	assert(BC_PROG_STACK(&p->results, nparams));
@@ -1073,8 +1085,7 @@ static void bc_program_call(BcProgram *p, const char *restrict code,
 		bool last = true;
 
 		arg = bc_vec_top(&p->results);
-		if (BC_ERR(arg->t == BC_RESULT_VOID))
-			bc_vm_err(BC_ERROR_EXEC_VOID_VAL);
+		if (BC_ERR(arg->t == BC_RESULT_VOID)) bc_vm_err(BC_ERR_EXEC_VOID_VAL);
 
 		a = bc_vec_item(&f->autos, nparams - 1 - i);
 
@@ -1178,7 +1189,7 @@ static void bc_program_builtin(BcProgram *p, uchar inst) {
 #ifndef BC_PROG_NO_STACK_CHECK
 	if (BC_IS_DC) {
 		if (BC_ERR(!BC_PROG_STACK(&p->results, 1)))
-			bc_vm_err(BC_ERROR_EXEC_STACK);
+			bc_vm_err(BC_ERR_EXEC_STACK);
 	}
 #endif // BC_PROG_NO_STACK_CHECK
 
@@ -1203,7 +1214,7 @@ static void bc_program_builtin(BcProgram *p, uchar inst) {
 
 		BC_SIG_UNLOCK;
 
-		res->d.n.neg = false;
+		BC_NUM_NEG_CLR_NP(res->d.n);
 	}
 #if BC_ENABLE_EXTRA_MATH && BC_ENABLE_RAND
 	else if (inst == BC_INST_IRAND) {
@@ -1271,7 +1282,7 @@ static void bc_program_divmod(BcProgram *p) {
 	BcNum *n1, *n2;
 	size_t req;
 
-	bc_vec_expand(&p->results, p->results.len + 2);
+	bc_vec_grow(&p->results, 2);
 
 	// We don't need to update the pointer because
 	// the capacity is enough due to the line above.
@@ -1299,7 +1310,7 @@ static void bc_program_modexp(BcProgram *p) {
 	BcResult *r1, *r2, *r3, *res;
 	BcNum *n1, *n2, *n3;
 
-	if (BC_ERR(!BC_PROG_STACK(&p->results, 3))) bc_vm_err(BC_ERROR_EXEC_STACK);
+	if (BC_ERR(!BC_PROG_STACK(&p->results, 3))) bc_vm_err(BC_ERR_EXEC_STACK);
 
 	assert(BC_PROG_STACK(&p->results, 3));
 
@@ -1346,7 +1357,7 @@ static uchar bc_program_asciifyNum(BcProgram *p, BcNum *n) {
 	BC_SIG_UNLOCK;
 
 	bc_num_truncate(&num, num.scale);
-	num.neg = false;
+	BC_NUM_NEG_CLR_NP(num);
 
 	// This is guaranteed to not have a divide by 0
 	// because strmb is equal to UCHAR_MAX + 1.
@@ -1372,7 +1383,7 @@ static void bc_program_asciify(BcProgram *p) {
 	uchar c;
 	size_t idx;
 
-	if (BC_ERR(!BC_PROG_STACK(&p->results, 1))) bc_vm_err(BC_ERROR_EXEC_STACK);
+	if (BC_ERR(!BC_PROG_STACK(&p->results, 1))) bc_vm_err(BC_ERR_EXEC_STACK);
 
 	assert(BC_PROG_STACK(&p->results, 1));
 
@@ -1409,7 +1420,7 @@ static void bc_program_printStream(BcProgram *p) {
 	BcResult *r;
 	BcNum *n;
 
-	if (BC_ERR(!BC_PROG_STACK(&p->results, 1))) bc_vm_err(BC_ERROR_EXEC_STACK);
+	if (BC_ERR(!BC_PROG_STACK(&p->results, 1))) bc_vm_err(BC_ERR_EXEC_STACK);
 
 	assert(BC_PROG_STACK(&p->results, 1));
 
@@ -1471,7 +1482,7 @@ static void bc_program_execStr(BcProgram *p, const char *restrict code,
 
 	assert(p->stack.len == p->tail_calls.len);
 
-	if (BC_ERR(!BC_PROG_STACK(&p->results, 1))) bc_vm_err(BC_ERROR_EXEC_STACK);
+	if (BC_ERR(!BC_PROG_STACK(&p->results, 1))) bc_vm_err(BC_ERR_EXEC_STACK);
 
 	assert(BC_PROG_STACK(&p->results, 1));
 
@@ -1496,7 +1507,7 @@ static void bc_program_execStr(BcProgram *p, const char *restrict code,
 			n = bc_vec_top(bc_program_vec(p, idx, BC_TYPE_VAR));
 		else goto exit;
 
-		if (BC_ERR(!BC_PROG_STR(n))) bc_vm_err(BC_ERROR_EXEC_TYPE);
+		if (BC_ERR(!BC_PROG_STR(n))) bc_vm_err(BC_ERR_EXEC_TYPE);
 
 		BC_UNSETJMP;
 		BC_SIG_UNLOCK;
@@ -1832,6 +1843,8 @@ void bc_program_exec(BcProgram *p) {
 				bc_vec_pop(&p->results);
 			}
 			// Fallthrough.
+			BC_FALLTHROUGH
+
 			case BC_INST_JUMP:
 			{
 				idx = bc_program_index(code, &ip->idx);
@@ -2077,7 +2090,7 @@ void bc_program_exec(BcProgram *p) {
 #ifndef BC_PROG_NO_STACK_CHECK
 				if (!BC_IS_BC) {
 					if (BC_ERR(!BC_PROG_STACK(&p->results, 1)))
-						bc_vm_err(BC_ERROR_EXEC_STACK);
+						bc_vm_err(BC_ERR_EXEC_STACK);
 				}
 #endif // BC_PROG_NO_STACK_CHECK
 
@@ -2145,7 +2158,7 @@ void bc_program_exec(BcProgram *p) {
 			case BC_INST_DUPLICATE:
 			{
 				if (BC_ERR(!BC_PROG_STACK(&p->results, 1)))
-					bc_vm_err(BC_ERROR_EXEC_STACK);
+					bc_vm_err(BC_ERR_EXEC_STACK);
 
 				assert(BC_PROG_STACK(&p->results, 1));
 
@@ -2166,7 +2179,7 @@ void bc_program_exec(BcProgram *p) {
 				BcResult *ptr2;
 
 				if (BC_ERR(!BC_PROG_STACK(&p->results, 2)))
-					bc_vm_err(BC_ERROR_EXEC_STACK);
+					bc_vm_err(BC_ERR_EXEC_STACK);
 
 				assert(BC_PROG_STACK(&p->results, 2));
 

@@ -25,87 +25,85 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "DC" "1" "July 2020" "Gavin D. Howard" "General Commands Manual"
+.TH "DC" "1" "October 2020" "Gavin D. Howard" "General Commands Manual"
 .SH Name
 .PP
-dc \- arbitrary\-precision reverse\-Polish notation calculator
+dc - arbitrary-precision decimal reverse-Polish notation calculator
 .SH SYNOPSIS
 .PP
-\f[B]dc\f[] [\f[B]\-hiPvVx\f[]] [\f[B]\-\-version\f[]]
-[\f[B]\-\-help\f[]] [\f[B]\-\-interactive\f[]] [\f[B]\-\-no\-prompt\f[]]
-[\f[B]\-\-extended\-register\f[]] [\f[B]\-e\f[] \f[I]expr\f[]]
-[\f[B]\-\-expression\f[]=\f[I]expr\f[]...] [\f[B]\-f\f[]
-\f[I]file\f[]...] [\f[B]\-file\f[]=\f[I]file\f[]...] [\f[I]file\f[]...]
+\f[B]dc\f[R] [\f[B]-hiPvVx\f[R]] [\f[B]\[en]version\f[R]]
+[\f[B]\[en]help\f[R]] [\f[B]\[en]interactive\f[R]]
+[\f[B]\[en]no-prompt\f[R]] [\f[B]\[en]extended-register\f[R]]
+[\f[B]-e\f[R] \f[I]expr\f[R]]
+[\f[B]\[en]expression\f[R]=\f[I]expr\f[R]\&...] [\f[B]-f\f[R]
+\f[I]file\f[R]\&...] [\f[B]-file\f[R]=\f[I]file\f[R]\&...]
+[\f[I]file\f[R]\&...]
 .SH DESCRIPTION
 .PP
-dc(1) is an arbitrary\-precision calculator.
+dc(1) is an arbitrary-precision calculator.
 It uses a stack (reverse Polish notation) to store numbers and results
 of computations.
 Arithmetic operations pop arguments off of the stack and push the
 results.
 .PP
-If no files are given on the command\-line as extra arguments (i.e., not
-as \f[B]\-f\f[] or \f[B]\-\-file\f[] arguments), then dc(1) reads from
-\f[B]stdin\f[].
+If no files are given on the command-line as extra arguments (i.e., not
+as \f[B]-f\f[R] or \f[B]\[en]file\f[R] arguments), then dc(1) reads from
+\f[B]stdin\f[R].
 Otherwise, those files are processed, and dc(1) will then exit.
 .PP
 This is different from the dc(1) on OpenBSD and possibly other dc(1)
-implementations, where \f[B]\-e\f[] (\f[B]\-\-expression\f[]) and
-\f[B]\-f\f[] (\f[B]\-\-file\f[]) arguments cause dc(1) to execute them
+implementations, where \f[B]-e\f[R] (\f[B]\[en]expression\f[R]) and
+\f[B]-f\f[R] (\f[B]\[en]file\f[R]) arguments cause dc(1) to execute them
 and exit.
 The reason for this is that this dc(1) allows users to set arguments in
-the environment variable \f[B]DC_ENV_ARGS\f[] (see the \f[B]ENVIRONMENT
-VARIABLES\f[] section).
-Any expressions given on the command\-line should be used to set up a
+the environment variable \f[B]DC_ENV_ARGS\f[R] (see the \f[B]ENVIRONMENT
+VARIABLES\f[R] section).
+Any expressions given on the command-line should be used to set up a
 standard environment.
-For example, if a user wants the \f[B]scale\f[] always set to
-\f[B]10\f[], they can set \f[B]DC_ENV_ARGS\f[] to \f[B]\-e 10k\f[], and
-this dc(1) will always start with a \f[B]scale\f[] of \f[B]10\f[].
+For example, if a user wants the \f[B]scale\f[R] always set to
+\f[B]10\f[R], they can set \f[B]DC_ENV_ARGS\f[R] to \f[B]-e 10k\f[R],
+and this dc(1) will always start with a \f[B]scale\f[R] of \f[B]10\f[R].
 .PP
 If users want to have dc(1) exit after processing all input from
-\f[B]\-e\f[] and \f[B]\-f\f[] arguments (and their equivalents), then
-they can just simply add \f[B]\-e q\f[] as the last command\-line
-argument or define the environment variable \f[B]DC_EXPR_EXIT\f[].
+\f[B]-e\f[R] and \f[B]-f\f[R] arguments (and their equivalents), then
+they can just simply add \f[B]-e q\f[R] as the last command-line
+argument or define the environment variable \f[B]DC_EXPR_EXIT\f[R].
 .SH OPTIONS
 .PP
 The following are the options that dc(1) accepts.
 .TP
-.B \f[B]\-h\f[], \f[B]\-\-help\f[]
+\f[B]-h\f[R], \f[B]\[en]help\f[R]
 Prints a usage message and quits.
-.RS
-.RE
 .TP
-.B \f[B]\-v\f[], \f[B]\-V\f[], \f[B]\-\-version\f[]
+\f[B]-v\f[R], \f[B]-V\f[R], \f[B]\[en]version\f[R]
 Print the version information (copyright header) and exit.
-.RS
-.RE
 .TP
-.B \f[B]\-i\f[], \f[B]\-\-interactive\f[]
+\f[B]-i\f[R], \f[B]\[en]interactive\f[R]
 Forces interactive mode.
-(See the \f[B]INTERACTIVE MODE\f[] section.)
+(See the \f[B]INTERACTIVE MODE\f[R] section.)
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]\-P\f[], \f[B]\-\-no\-prompt\f[]
-This option is a no\-op.
+\f[B]-P\f[R], \f[B]\[en]no-prompt\f[R]
+This option is a no-op.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]\-x\f[] \f[B]\-\-extended\-register\f[]
+\f[B]-x\f[R] \f[B]\[en]extended-register\f[R]
 Enables extended register mode.
-See the \f[I]Extended Register Mode\f[] subsection of the
-\f[B]REGISTERS\f[] section for more information.
+See the \f[I]Extended Register Mode\f[R] subsection of the
+\f[B]REGISTERS\f[R] section for more information.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]\-e\f[] \f[I]expr\f[], \f[B]\-\-expression\f[]=\f[I]expr\f[]
-Evaluates \f[I]expr\f[].
+\f[B]-e\f[R] \f[I]expr\f[R], \f[B]\[en]expression\f[R]=\f[I]expr\f[R]
+Evaluates \f[I]expr\f[R].
 If multiple expressions are given, they are evaluated in order.
 If files are given as well (see below), the expressions and files are
 evaluated in the order given.
@@ -114,165 +112,167 @@ read in and evaluated first.
 .RS
 .PP
 After processing all expressions and files, dc(1) will exit, unless
-\f[B]\-\f[] (\f[B]stdin\f[]) was given as an argument at least once to
-\f[B]\-f\f[] or \f[B]\-\-file\f[].
+\f[B]-\f[R] (\f[B]stdin\f[R]) was given as an argument at least once to
+\f[B]-f\f[R] or \f[B]\[en]file\f[R].
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]\-f\f[] \f[I]file\f[], \f[B]\-\-file\f[]=\f[I]file\f[]
-Reads in \f[I]file\f[] and evaluates it, line by line, as though it were
-read through \f[B]stdin\f[].
+\f[B]-f\f[R] \f[I]file\f[R], \f[B]\[en]file\f[R]=\f[I]file\f[R]
+Reads in \f[I]file\f[R] and evaluates it, line by line, as though it
+were read through \f[B]stdin\f[R].
 If expressions are also given (see above), the expressions are evaluated
 in the order given.
 .RS
 .PP
 After processing all expressions and files, dc(1) will exit, unless
-\f[B]\-\f[] (\f[B]stdin\f[]) was given as an argument at least once to
-\f[B]\-f\f[] or \f[B]\-\-file\f[].
-However, if any other \f[B]\-e\f[], \f[B]\-\-expression\f[],
-\f[B]\-f\f[], or \f[B]\-\-file\f[] arguments are given after that, bc(1)
-will give a fatal error and exit.
+\f[B]-\f[R] (\f[B]stdin\f[R]) was given as an argument at least once to
+\f[B]-f\f[R] or \f[B]\[en]file\f[R].
+However, if any other \f[B]-e\f[R], \f[B]\[en]expression\f[R],
+\f[B]-f\f[R], or \f[B]\[en]file\f[R] arguments are given after that,
+bc(1) will give a fatal error and exit.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .PP
-All long options are \f[B]non\-portable extensions\f[].
+All long options are \f[B]non-portable extensions\f[R].
 .SH STDOUT
 .PP
-Any non\-error output is written to \f[B]stdout\f[].
+Any non-error output is written to \f[B]stdout\f[R].
 .PP
-\f[B]Note\f[]: Unlike other dc(1) implementations, this dc(1) will issue
-a fatal error (see the \f[B]EXIT STATUS\f[] section) if it cannot write
-to \f[B]stdout\f[], so if \f[B]stdout\f[] is closed, as in \f[B]dc
->&\-\f[], it will quit with an error.
-This is done so that dc(1) can report problems when \f[B]stdout\f[] is
+\f[B]Note\f[R]: Unlike other dc(1) implementations, this dc(1) will
+issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
+write to \f[B]stdout\f[R], so if \f[B]stdout\f[R] is closed, as in
+\f[B]dc >&-\f[R], it will quit with an error.
+This is done so that dc(1) can report problems when \f[B]stdout\f[R] is
 redirected to a file.
 .PP
 If there are scripts that depend on the behavior of other dc(1)
 implementations, it is recommended that those scripts be changed to
-redirect \f[B]stdout\f[] to \f[B]/dev/null\f[].
+redirect \f[B]stdout\f[R] to \f[B]/dev/null\f[R].
 .SH STDERR
 .PP
-Any error output is written to \f[B]stderr\f[].
+Any error output is written to \f[B]stderr\f[R].
 .PP
-\f[B]Note\f[]: Unlike other dc(1) implementations, this dc(1) will issue
-a fatal error (see the \f[B]EXIT STATUS\f[] section) if it cannot write
-to \f[B]stderr\f[], so if \f[B]stderr\f[] is closed, as in \f[B]dc
-2>&\-\f[], it will quit with an error.
+\f[B]Note\f[R]: Unlike other dc(1) implementations, this dc(1) will
+issue a fatal error (see the \f[B]EXIT STATUS\f[R] section) if it cannot
+write to \f[B]stderr\f[R], so if \f[B]stderr\f[R] is closed, as in
+\f[B]dc 2>&-\f[R], it will quit with an error.
 This is done so that dc(1) can exit with an error code when
-\f[B]stderr\f[] is redirected to a file.
+\f[B]stderr\f[R] is redirected to a file.
 .PP
 If there are scripts that depend on the behavior of other dc(1)
 implementations, it is recommended that those scripts be changed to
-redirect \f[B]stderr\f[] to \f[B]/dev/null\f[].
+redirect \f[B]stderr\f[R] to \f[B]/dev/null\f[R].
 .SH SYNTAX
 .PP
 Each item in the input source code, either a number (see the
-\f[B]NUMBERS\f[] section) or a command (see the \f[B]COMMANDS\f[]
+\f[B]NUMBERS\f[R] section) or a command (see the \f[B]COMMANDS\f[R]
 section), is processed and executed, in order.
 Input is processed immediately when entered.
 .PP
-\f[B]ibase\f[] is a register (see the \f[B]REGISTERS\f[] section) that
+\f[B]ibase\f[R] is a register (see the \f[B]REGISTERS\f[R] section) that
 determines how to interpret constant numbers.
-It is the "input" base, or the number base used for interpreting input
-numbers.
-\f[B]ibase\f[] is initially \f[B]10\f[].
-The max allowable value for \f[B]ibase\f[] is \f[B]16\f[].
-The min allowable value for \f[B]ibase\f[] is \f[B]2\f[].
-The max allowable value for \f[B]ibase\f[] can be queried in dc(1)
-programs with the \f[B]T\f[] command.
+It is the \[lq]input\[rq] base, or the number base used for interpreting
+input numbers.
+\f[B]ibase\f[R] is initially \f[B]10\f[R].
+The max allowable value for \f[B]ibase\f[R] is \f[B]16\f[R].
+The min allowable value for \f[B]ibase\f[R] is \f[B]2\f[R].
+The max allowable value for \f[B]ibase\f[R] can be queried in dc(1)
+programs with the \f[B]T\f[R] command.
 .PP
-\f[B]obase\f[] is a register (see the \f[B]REGISTERS\f[] section) that
+\f[B]obase\f[R] is a register (see the \f[B]REGISTERS\f[R] section) that
 determines how to output results.
-It is the "output" base, or the number base used for outputting numbers.
-\f[B]obase\f[] is initially \f[B]10\f[].
-The max allowable value for \f[B]obase\f[] is \f[B]DC_BASE_MAX\f[] and
-can be queried with the \f[B]U\f[] command.
-The min allowable value for \f[B]obase\f[] is \f[B]0\f[].
-If \f[B]obase\f[] is \f[B]0\f[], values are output in scientific
-notation, and if \f[B]obase\f[] is \f[B]1\f[], values are output in
+It is the \[lq]output\[rq] base, or the number base used for outputting
+numbers.
+\f[B]obase\f[R] is initially \f[B]10\f[R].
+The max allowable value for \f[B]obase\f[R] is \f[B]DC_BASE_MAX\f[R] and
+can be queried with the \f[B]U\f[R] command.
+The min allowable value for \f[B]obase\f[R] is \f[B]0\f[R].
+If \f[B]obase\f[R] is \f[B]0\f[R], values are output in scientific
+notation, and if \f[B]obase\f[R] is \f[B]1\f[R], values are output in
 engineering notation.
 Otherwise, values are output in the specified base.
 .PP
-Outputting in scientific and engineering notations are
-\f[B]non\-portable extensions\f[].
+Outputting in scientific and engineering notations are \f[B]non-portable
+extensions\f[R].
 .PP
-The \f[I]scale\f[] of an expression is the number of digits in the
-result of the expression right of the decimal point, and \f[B]scale\f[]
-is a register (see the \f[B]REGISTERS\f[] section) that sets the
+The \f[I]scale\f[R] of an expression is the number of digits in the
+result of the expression right of the decimal point, and \f[B]scale\f[R]
+is a register (see the \f[B]REGISTERS\f[R] section) that sets the
 precision of any operations (with exceptions).
-\f[B]scale\f[] is initially \f[B]0\f[].
-\f[B]scale\f[] cannot be negative.
-The max allowable value for \f[B]scale\f[] can be queried in dc(1)
-programs with the \f[B]V\f[] command.
+\f[B]scale\f[R] is initially \f[B]0\f[R].
+\f[B]scale\f[R] cannot be negative.
+The max allowable value for \f[B]scale\f[R] can be queried in dc(1)
+programs with the \f[B]V\f[R] command.
 .PP
-\f[B]seed\f[] is a register containing the current seed for the
-pseudo\-random number generator.
-If the current value of \f[B]seed\f[] is queried and stored, then if it
-is assigned to \f[B]seed\f[] later, the pseudo\-random number generator
-is guaranteed to produce the same sequence of pseudo\-random numbers
-that were generated after the value of \f[B]seed\f[] was first queried.
+\f[B]seed\f[R] is a register containing the current seed for the
+pseudo-random number generator.
+If the current value of \f[B]seed\f[R] is queried and stored, then if it
+is assigned to \f[B]seed\f[R] later, the pseudo-random number generator
+is guaranteed to produce the same sequence of pseudo-random numbers that
+were generated after the value of \f[B]seed\f[R] was first queried.
 .PP
-Multiple values assigned to \f[B]seed\f[] can produce the same sequence
-of pseudo\-random numbers.
-Likewise, when a value is assigned to \f[B]seed\f[], it is not
-guaranteed that querying \f[B]seed\f[] immediately after will return the
-same value.
-In addition, the value of \f[B]seed\f[] will change after any call to
-the \f[B]\[aq]\f[] command or the \f[B]"\f[] command that does not get
-receive a value of \f[B]0\f[] or \f[B]1\f[].
-The maximum integer returned by the \f[B]\[aq]\f[] command can be
-queried with the \f[B]W\f[] command.
+Multiple values assigned to \f[B]seed\f[R] can produce the same sequence
+of pseudo-random numbers.
+Likewise, when a value is assigned to \f[B]seed\f[R], it is not
+guaranteed that querying \f[B]seed\f[R] immediately after will return
+the same value.
+In addition, the value of \f[B]seed\f[R] will change after any call to
+the \f[B]\[cq]\f[R] command or the \f[B]\[dq]\f[R] command that does not
+get receive a value of \f[B]0\f[R] or \f[B]1\f[R].
+The maximum integer returned by the \f[B]\[cq]\f[R] command can be
+queried with the \f[B]W\f[R] command.
 .PP
-\f[B]Note\f[]: The values returned by the pseudo\-random number
-generator with the \f[B]\[aq]\f[] and \f[B]"\f[] commands are guaranteed
-to \f[B]NOT\f[] be cryptographically secure.
-This is a consequence of using a seeded pseudo\-random number generator.
-However, they \f[B]are\f[] guaranteed to be reproducible with identical
-\f[B]seed\f[] values.
+\f[B]Note\f[R]: The values returned by the pseudo-random number
+generator with the \f[B]\[cq]\f[R] and \f[B]\[dq]\f[R] commands are
+guaranteed to \f[B]NOT\f[R] be cryptographically secure.
+This is a consequence of using a seeded pseudo-random number generator.
+However, they \f[B]are\f[R] guaranteed to be reproducible with identical
+\f[B]seed\f[R] values.
 .PP
-The pseudo\-random number generator, \f[B]seed\f[], and all associated
-operations are \f[B]non\-portable extensions\f[].
+The pseudo-random number generator, \f[B]seed\f[R], and all associated
+operations are \f[B]non-portable extensions\f[R].
 .SS Comments
 .PP
-Comments go from \f[B]#\f[] until, and not including, the next newline.
-This is a \f[B]non\-portable extension\f[].
+Comments go from \f[B]#\f[R] until, and not including, the next newline.
+This is a \f[B]non-portable extension\f[R].
 .SH NUMBERS
 .PP
 Numbers are strings made up of digits, uppercase letters up to
-\f[B]F\f[], and at most \f[B]1\f[] period for a radix.
-Numbers can have up to \f[B]DC_NUM_MAX\f[] digits.
-Uppercase letters are equal to \f[B]9\f[] + their position in the
-alphabet (i.e., \f[B]A\f[] equals \f[B]10\f[], or \f[B]9+1\f[]).
+\f[B]F\f[R], and at most \f[B]1\f[R] period for a radix.
+Numbers can have up to \f[B]DC_NUM_MAX\f[R] digits.
+Uppercase letters are equal to \f[B]9\f[R] + their position in the
+alphabet (i.e., \f[B]A\f[R] equals \f[B]10\f[R], or \f[B]9+1\f[R]).
 If a digit or letter makes no sense with the current value of
-\f[B]ibase\f[], they are set to the value of the highest valid digit in
-\f[B]ibase\f[].
+\f[B]ibase\f[R], they are set to the value of the highest valid digit in
+\f[B]ibase\f[R].
 .PP
-Single\-character numbers (i.e., \f[B]A\f[] alone) take the value that
+Single-character numbers (i.e., \f[B]A\f[R] alone) take the value that
 they would have if they were valid digits, regardless of the value of
-\f[B]ibase\f[].
-This means that \f[B]A\f[] alone always equals decimal \f[B]10\f[] and
-\f[B]F\f[] alone always equals decimal \f[B]15\f[].
+\f[B]ibase\f[R].
+This means that \f[B]A\f[R] alone always equals decimal \f[B]10\f[R] and
+\f[B]F\f[R] alone always equals decimal \f[B]15\f[R].
 .PP
 In addition, dc(1) accepts numbers in scientific notation.
-These have the form \f[B]<number>e<integer>\f[].
-The power (the portion after the \f[B]e\f[]) must be an integer.
-An example is \f[B]1.89237e9\f[], which is equal to \f[B]1892370000\f[].
-Negative exponents are also allowed, so \f[B]4.2890e_3\f[] is equal to
-\f[B]0.0042890\f[].
+These have the form \f[B]<number>e<integer>\f[R].
+The exponent (the portion after the \f[B]e\f[R]) must be an integer.
+An example is \f[B]1.89237e9\f[R], which is equal to
+\f[B]1892370000\f[R].
+Negative exponents are also allowed, so \f[B]4.2890e_3\f[R] is equal to
+\f[B]0.0042890\f[R].
 .PP
-\f[B]WARNING\f[]: Both the number and the exponent in scientific
-notation are interpreted according to the current \f[B]ibase\f[], but
-the number is still multiplied by \f[B]10^exponent\f[] regardless of the
-current \f[B]ibase\f[].
-For example, if \f[B]ibase\f[] is \f[B]16\f[] and dc(1) is given the
-number string \f[B]FFeA\f[], the resulting decimal number will be
-\f[B]2550000000000\f[], and if dc(1) is given the number string
-\f[B]10e_4\f[], the resulting decimal number will be \f[B]0.0016\f[].
+\f[B]WARNING\f[R]: Both the number and the exponent in scientific
+notation are interpreted according to the current \f[B]ibase\f[R], but
+the number is still multiplied by \f[B]10\[ha]exponent\f[R] regardless
+of the current \f[B]ibase\f[R].
+For example, if \f[B]ibase\f[R] is \f[B]16\f[R] and dc(1) is given the
+number string \f[B]FFeA\f[R], the resulting decimal number will be
+\f[B]2550000000000\f[R], and if dc(1) is given the number string
+\f[B]10e_4\f[R], the resulting decimal number will be \f[B]0.0016\f[R].
 .PP
-Accepting input as scientific notation is a \f[B]non\-portable
-extension\f[].
+Accepting input as scientific notation is a \f[B]non-portable
+extension\f[R].
 .SH COMMANDS
 .PP
 The valid commands are listed below.
@@ -282,15 +282,16 @@ These commands are used for printing.
 .PP
 Note that both scientific notation and engineering notation are
 available for printing numbers.
-Scientific notation is activated by assigning \f[B]0\f[] to
-\f[B]obase\f[] using \f[B]0o\f[], and engineering notation is activated
-by assigning \f[B]1\f[] to \f[B]obase\f[] using \f[B]1o\f[].
-To deactivate them, just assign a different value to \f[B]obase\f[].
+Scientific notation is activated by assigning \f[B]0\f[R] to
+\f[B]obase\f[R] using \f[B]0o\f[R], and engineering notation is
+activated by assigning \f[B]1\f[R] to \f[B]obase\f[R] using
+\f[B]1o\f[R].
+To deactivate them, just assign a different value to \f[B]obase\f[R].
 .PP
 Printing numbers in scientific notation and/or engineering notation is a
-\f[B]non\-portable extension\f[].
+\f[B]non-portable extension\f[R].
 .TP
-.B \f[B]p\f[]
+\f[B]p\f[R]
 Prints the value on top of the stack, whether number or string, and
 prints a newline after.
 .RS
@@ -298,27 +299,25 @@ prints a newline after.
 This does not alter the stack.
 .RE
 .TP
-.B \f[B]n\f[]
+\f[B]n\f[R]
 Prints the value on top of the stack, whether number or string, and pops
 it off of the stack.
-.RS
-.RE
 .TP
-.B \f[B]P\f[]
+\f[B]P\f[R]
 Pops a value off the stack.
 .RS
 .PP
 If the value is a number, it is truncated and the absolute value of the
-result is printed as though \f[B]obase\f[] is \f[B]UCHAR_MAX+1\f[] and
+result is printed as though \f[B]obase\f[R] is \f[B]UCHAR_MAX+1\f[R] and
 each digit is interpreted as an ASCII character, making it a byte
 stream.
 .PP
 If the value is a string, it is printed without a trailing newline.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]f\f[]
+\f[B]f\f[R]
 Prints the entire contents of the stack, in order from newest to oldest,
 without altering anything.
 .RS
@@ -329,461 +328,434 @@ Users should use this command when they get lost.
 .PP
 These are the commands used for arithmetic.
 .TP
-.B \f[B]+\f[]
+\f[B]+\f[R]
 The top two values are popped off the stack, added, and the result is
 pushed onto the stack.
-The \f[I]scale\f[] of the result is equal to the max \f[I]scale\f[] of
+The \f[I]scale\f[R] of the result is equal to the max \f[I]scale\f[R] of
 both operands.
-.RS
-.RE
 .TP
-.B \f[B]\-\f[]
+\f[B]-\f[R]
 The top two values are popped off the stack, subtracted, and the result
 is pushed onto the stack.
-The \f[I]scale\f[] of the result is equal to the max \f[I]scale\f[] of
+The \f[I]scale\f[R] of the result is equal to the max \f[I]scale\f[R] of
 both operands.
-.RS
-.RE
 .TP
-.B \f[B]*\f[]
+\f[B]*\f[R]
 The top two values are popped off the stack, multiplied, and the result
 is pushed onto the stack.
-If \f[B]a\f[] is the \f[I]scale\f[] of the first expression and
-\f[B]b\f[] is the \f[I]scale\f[] of the second expression, the
-\f[I]scale\f[] of the result is equal to
-\f[B]min(a+b,max(scale,a,b))\f[] where \f[B]min()\f[] and \f[B]max()\f[]
-return the obvious values.
-.RS
-.RE
+If \f[B]a\f[R] is the \f[I]scale\f[R] of the first expression and
+\f[B]b\f[R] is the \f[I]scale\f[R] of the second expression, the
+\f[I]scale\f[R] of the result is equal to
+\f[B]min(a+b,max(scale,a,b))\f[R] where \f[B]min()\f[R] and
+\f[B]max()\f[R] return the obvious values.
 .TP
-.B \f[B]/\f[]
+\f[B]/\f[R]
 The top two values are popped off the stack, divided, and the result is
 pushed onto the stack.
-The \f[I]scale\f[] of the result is equal to \f[B]scale\f[].
+The \f[I]scale\f[R] of the result is equal to \f[B]scale\f[R].
 .RS
 .PP
-The first value popped off of the stack must be non\-zero.
+The first value popped off of the stack must be non-zero.
 .RE
 .TP
-.B \f[B]%\f[]
+\f[B]%\f[R]
 The top two values are popped off the stack, remaindered, and the result
 is pushed onto the stack.
 .RS
 .PP
-Remaindering is equivalent to 1) Computing \f[B]a/b\f[] to current
-\f[B]scale\f[], and 2) Using the result of step 1 to calculate
-\f[B]a\-(a/b)*b\f[] to \f[I]scale\f[]
-\f[B]max(scale+scale(b),scale(a))\f[].
+Remaindering is equivalent to 1) Computing \f[B]a/b\f[R] to current
+\f[B]scale\f[R], and 2) Using the result of step 1 to calculate
+\f[B]a-(a/b)*b\f[R] to \f[I]scale\f[R]
+\f[B]max(scale+scale(b),scale(a))\f[R].
 .PP
-The first value popped off of the stack must be non\-zero.
+The first value popped off of the stack must be non-zero.
 .RE
 .TP
-.B \f[B]~\f[]
+\f[B]\[ti]\f[R]
 The top two values are popped off the stack, divided and remaindered,
 and the results (divided first, remainder second) are pushed onto the
 stack.
-This is equivalent to \f[B]x y / x y %\f[] except that \f[B]x\f[] and
-\f[B]y\f[] are only evaluated once.
+This is equivalent to \f[B]x y / x y %\f[R] except that \f[B]x\f[R] and
+\f[B]y\f[R] are only evaluated once.
 .RS
 .PP
-The first value popped off of the stack must be non\-zero.
+The first value popped off of the stack must be non-zero.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]^\f[]
+\f[B]\[ha]\f[R]
 The top two values are popped off the stack, the second is raised to the
 power of the first, and the result is pushed onto the stack.
+The \f[I]scale\f[R] of the result is equal to \f[B]scale\f[R].
 .RS
 .PP
 The first value popped off of the stack must be an integer, and if that
 value is negative, the second value popped off of the stack must be
-non\-zero.
+non-zero.
 .RE
 .TP
-.B \f[B]v\f[]
+\f[B]v\f[R]
 The top value is popped off the stack, its square root is computed, and
 the result is pushed onto the stack.
-The \f[I]scale\f[] of the result is equal to \f[B]scale\f[].
+The \f[I]scale\f[R] of the result is equal to \f[B]scale\f[R].
 .RS
 .PP
-The value popped off of the stack must be non\-negative.
+The value popped off of the stack must be non-negative.
 .RE
 .TP
-.B \f[B]_\f[]
-If this command \f[I]immediately\f[] precedes a number (i.e., no spaces
+\f[B]_\f[R]
+If this command \f[I]immediately\f[R] precedes a number (i.e., no spaces
 or other commands), then that number is input as a negative number.
 .RS
 .PP
 Otherwise, the top value on the stack is popped and copied, and the copy
 is negated and pushed onto the stack.
-This behavior without a number is a \f[B]non\-portable extension\f[].
+This behavior without a number is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]b\f[]
+\f[B]b\f[R]
 The top value is popped off the stack, and if it is zero, it is pushed
 back onto the stack.
 Otherwise, its absolute value is pushed onto the stack.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]|\f[]
+\f[B]|\f[R]
 The top three values are popped off the stack, a modular exponentiation
 is computed, and the result is pushed onto the stack.
 .RS
 .PP
 The first value popped is used as the reduction modulus and must be an
-integer and non\-zero.
+integer and non-zero.
 The second value popped is used as the exponent and must be an integer
-and non\-negative.
+and non-negative.
 The third value popped is the base and must be an integer.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]$\f[]
+\f[B]$\f[R]
 The top value is popped off the stack and copied, and the copy is
 truncated and pushed onto the stack.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]\@\f[]
+\f[B]\[at]\f[R]
 The top two values are popped off the stack, and the precision of the
 second is set to the value of the first, whether by truncation or
 extension.
 .RS
 .PP
 The first value popped off of the stack must be an integer and
-non\-negative.
+non-negative.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]H\f[]
+\f[B]H\f[R]
 The top two values are popped off the stack, and the second is shifted
 left (radix shifted right) to the value of the first.
 .RS
 .PP
 The first value popped off of the stack must be an integer and
-non\-negative.
+non-negative.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]h\f[]
+\f[B]h\f[R]
 The top two values are popped off the stack, and the second is shifted
 right (radix shifted left) to the value of the first.
 .RS
 .PP
 The first value popped off of the stack must be an integer and
-non\-negative.
+non-negative.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]G\f[]
+\f[B]G\f[R]
 The top two values are popped off of the stack, they are compared, and a
-\f[B]1\f[] is pushed if they are equal, or \f[B]0\f[] otherwise.
+\f[B]1\f[R] is pushed if they are equal, or \f[B]0\f[R] otherwise.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]N\f[]
-The top value is popped off of the stack, and if it a \f[B]0\f[], a
-\f[B]1\f[] is pushed; otherwise, a \f[B]0\f[] is pushed.
+\f[B]N\f[R]
+The top value is popped off of the stack, and if it a \f[B]0\f[R], a
+\f[B]1\f[R] is pushed; otherwise, a \f[B]0\f[R] is pushed.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B](\f[]
+\f[B](\f[R]
 The top two values are popped off of the stack, they are compared, and a
-\f[B]1\f[] is pushed if the first is less than the second, or \f[B]0\f[]
-otherwise.
+\f[B]1\f[R] is pushed if the first is less than the second, or
+\f[B]0\f[R] otherwise.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]{\f[]
+\f[B]{\f[R]
 The top two values are popped off of the stack, they are compared, and a
-\f[B]1\f[] is pushed if the first is less than or equal to the second,
-or \f[B]0\f[] otherwise.
+\f[B]1\f[R] is pushed if the first is less than or equal to the second,
+or \f[B]0\f[R] otherwise.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B])\f[]
+\f[B])\f[R]
 The top two values are popped off of the stack, they are compared, and a
-\f[B]1\f[] is pushed if the first is greater than the second, or
-\f[B]0\f[] otherwise.
+\f[B]1\f[R] is pushed if the first is greater than the second, or
+\f[B]0\f[R] otherwise.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]}\f[]
+\f[B]}\f[R]
 The top two values are popped off of the stack, they are compared, and a
-\f[B]1\f[] is pushed if the first is greater than or equal to the
-second, or \f[B]0\f[] otherwise.
+\f[B]1\f[R] is pushed if the first is greater than or equal to the
+second, or \f[B]0\f[R] otherwise.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]M\f[]
+\f[B]M\f[R]
 The top two values are popped off of the stack.
-If they are both non\-zero, a \f[B]1\f[] is pushed onto the stack.
-If either of them is zero, or both of them are, then a \f[B]0\f[] is
+If they are both non-zero, a \f[B]1\f[R] is pushed onto the stack.
+If either of them is zero, or both of them are, then a \f[B]0\f[R] is
 pushed onto the stack.
 .RS
 .PP
-This is like the \f[B]&&\f[] operator in bc(1), and it is \f[I]not\f[] a
-short\-circuit operator.
+This is like the \f[B]&&\f[R] operator in bc(1), and it is \f[I]not\f[R]
+a short-circuit operator.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]m\f[]
+\f[B]m\f[R]
 The top two values are popped off of the stack.
-If at least one of them is non\-zero, a \f[B]1\f[] is pushed onto the
+If at least one of them is non-zero, a \f[B]1\f[R] is pushed onto the
 stack.
-If both of them are zero, then a \f[B]0\f[] is pushed onto the stack.
+If both of them are zero, then a \f[B]0\f[R] is pushed onto the stack.
 .RS
 .PP
-This is like the \f[B]||\f[] operator in bc(1), and it is \f[I]not\f[] a
-short\-circuit operator.
+This is like the \f[B]||\f[R] operator in bc(1), and it is \f[I]not\f[R]
+a short-circuit operator.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
-.SS Pseudo\-Random Number Generator
+.SS Pseudo-Random Number Generator
 .PP
-dc(1) has a built\-in pseudo\-random number generator.
-These commands query the pseudo\-random number generator.
-(See Parameters for more information about the \f[B]seed\f[] value that
-controls the pseudo\-random number generator.)
+dc(1) has a built-in pseudo-random number generator.
+These commands query the pseudo-random number generator.
+(See Parameters for more information about the \f[B]seed\f[R] value that
+controls the pseudo-random number generator.)
 .PP
-The pseudo\-random number generator is guaranteed to \f[B]NOT\f[] be
+The pseudo-random number generator is guaranteed to \f[B]NOT\f[R] be
 cryptographically secure.
 .TP
-.B \f[B]\[aq]\f[]
-Generates an integer between 0 and \f[B]DC_RAND_MAX\f[], inclusive (see
-the \f[B]LIMITS\f[] section).
+\f[B]\[cq]\f[R]
+Generates an integer between 0 and \f[B]DC_RAND_MAX\f[R], inclusive (see
+the \f[B]LIMITS\f[R] section).
 .RS
 .PP
 The generated integer is made as unbiased as possible, subject to the
-limitations of the pseudo\-random number generator.
+limitations of the pseudo-random number generator.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]"\f[]
-Pops a value off of the stack, which is used as an \f[B]exclusive\f[]
+\f[B]\[dq]\f[R]
+Pops a value off of the stack, which is used as an \f[B]exclusive\f[R]
 upper bound on the integer that will be generated.
-If the bound is negative or is a non\-integer, an error is raised, and
-dc(1) resets (see the \f[B]RESET\f[] section) while \f[B]seed\f[]
+If the bound is negative or is a non-integer, an error is raised, and
+dc(1) resets (see the \f[B]RESET\f[R] section) while \f[B]seed\f[R]
 remains unchanged.
-If the bound is larger than \f[B]DC_RAND_MAX\f[], the higher bound is
-honored by generating several pseudo\-random integers, multiplying them
-by appropriate powers of \f[B]DC_RAND_MAX+1\f[], and adding them
+If the bound is larger than \f[B]DC_RAND_MAX\f[R], the higher bound is
+honored by generating several pseudo-random integers, multiplying them
+by appropriate powers of \f[B]DC_RAND_MAX+1\f[R], and adding them
 together.
 Thus, the size of integer that can be generated with this command is
 unbounded.
-Using this command will change the value of \f[B]seed\f[], unless the
-operand is \f[B]0\f[] or \f[B]1\f[].
-In that case, \f[B]0\f[] is pushed onto the stack, and \f[B]seed\f[] is
-\f[I]not\f[] changed.
+Using this command will change the value of \f[B]seed\f[R], unless the
+operand is \f[B]0\f[R] or \f[B]1\f[R].
+In that case, \f[B]0\f[R] is pushed onto the stack, and \f[B]seed\f[R]
+is \f[I]not\f[R] changed.
 .RS
 .PP
 The generated integer is made as unbiased as possible, subject to the
-limitations of the pseudo\-random number generator.
+limitations of the pseudo-random number generator.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .SS Stack Control
 .PP
 These commands control the stack.
 .TP
-.B \f[B]c\f[]
-Removes all items from ("clears") the stack.
-.RS
-.RE
+\f[B]c\f[R]
+Removes all items from (\[lq]clears\[rq]) the stack.
 .TP
-.B \f[B]d\f[]
-Copies the item on top of the stack ("duplicates") and pushes the copy
-onto the stack.
-.RS
-.RE
+\f[B]d\f[R]
+Copies the item on top of the stack (\[lq]duplicates\[rq]) and pushes
+the copy onto the stack.
 .TP
-.B \f[B]r\f[]
-Swaps ("reverses") the two top items on the stack.
-.RS
-.RE
+\f[B]r\f[R]
+Swaps (\[lq]reverses\[rq]) the two top items on the stack.
 .TP
-.B \f[B]R\f[]
-Pops ("removes") the top value from the stack.
-.RS
-.RE
+\f[B]R\f[R]
+Pops (\[lq]removes\[rq]) the top value from the stack.
 .SS Register Control
 .PP
-These commands control registers (see the \f[B]REGISTERS\f[] section).
+These commands control registers (see the \f[B]REGISTERS\f[R] section).
 .TP
-.B \f[B]s\f[]\f[I]r\f[]
+\f[B]s\f[R]\f[I]r\f[R]
 Pops the value off the top of the stack and stores it into register
-\f[I]r\f[].
-.RS
-.RE
+\f[I]r\f[R].
 .TP
-.B \f[B]l\f[]\f[I]r\f[]
-Copies the value in register \f[I]r\f[] and pushes it onto the stack.
-This does not alter the contents of \f[I]r\f[].
-.RS
-.RE
+\f[B]l\f[R]\f[I]r\f[R]
+Copies the value in register \f[I]r\f[R] and pushes it onto the stack.
+This does not alter the contents of \f[I]r\f[R].
 .TP
-.B \f[B]S\f[]\f[I]r\f[]
+\f[B]S\f[R]\f[I]r\f[R]
 Pops the value off the top of the (main) stack and pushes it onto the
-stack of register \f[I]r\f[].
+stack of register \f[I]r\f[R].
 The previous value of the register becomes inaccessible.
-.RS
-.RE
 .TP
-.B \f[B]L\f[]\f[I]r\f[]
-Pops the value off the top of the stack for register \f[I]r\f[] and push
-it onto the main stack.
-The previous value in the stack for register \f[I]r\f[], if any, is now
-accessible via the \f[B]l\f[]\f[I]r\f[] command.
-.RS
-.RE
+\f[B]L\f[R]\f[I]r\f[R]
+Pops the value off the top of the stack for register \f[I]r\f[R] and
+push it onto the main stack.
+The previous value in the stack for register \f[I]r\f[R], if any, is now
+accessible via the \f[B]l\f[R]\f[I]r\f[R] command.
 .SS Parameters
 .PP
-These commands control the values of \f[B]ibase\f[], \f[B]obase\f[],
-\f[B]scale\f[], and \f[B]seed\f[].
-Also see the \f[B]SYNTAX\f[] section.
+These commands control the values of \f[B]ibase\f[R], \f[B]obase\f[R],
+\f[B]scale\f[R], and \f[B]seed\f[R].
+Also see the \f[B]SYNTAX\f[R] section.
 .TP
-.B \f[B]i\f[]
+\f[B]i\f[R]
 Pops the value off of the top of the stack and uses it to set
-\f[B]ibase\f[], which must be between \f[B]2\f[] and \f[B]16\f[],
+\f[B]ibase\f[R], which must be between \f[B]2\f[R] and \f[B]16\f[R],
 inclusive.
 .RS
 .PP
-If the value on top of the stack has any \f[I]scale\f[], the
-\f[I]scale\f[] is ignored.
+If the value on top of the stack has any \f[I]scale\f[R], the
+\f[I]scale\f[R] is ignored.
 .RE
 .TP
-.B \f[B]o\f[]
+\f[B]o\f[R]
 Pops the value off of the top of the stack and uses it to set
-\f[B]obase\f[], which must be between \f[B]0\f[] and
-\f[B]DC_BASE_MAX\f[], inclusive (see the \f[B]LIMITS\f[] section and the
-\f[B]NUMBERS\f[] section).
+\f[B]obase\f[R], which must be between \f[B]0\f[R] and
+\f[B]DC_BASE_MAX\f[R], inclusive (see the \f[B]LIMITS\f[R] section and
+the \f[B]NUMBERS\f[R] section).
 .RS
 .PP
-If the value on top of the stack has any \f[I]scale\f[], the
-\f[I]scale\f[] is ignored.
+If the value on top of the stack has any \f[I]scale\f[R], the
+\f[I]scale\f[R] is ignored.
 .RE
 .TP
-.B \f[B]k\f[]
+\f[B]k\f[R]
 Pops the value off of the top of the stack and uses it to set
-\f[B]scale\f[], which must be non\-negative.
+\f[B]scale\f[R], which must be non-negative.
 .RS
 .PP
-If the value on top of the stack has any \f[I]scale\f[], the
-\f[I]scale\f[] is ignored.
+If the value on top of the stack has any \f[I]scale\f[R], the
+\f[I]scale\f[R] is ignored.
 .RE
 .TP
-.B \f[B]j\f[]
+\f[B]j\f[R]
 Pops the value off of the top of the stack and uses it to set
-\f[B]seed\f[].
-The meaning of \f[B]seed\f[] is dependent on the current pseudo\-random
+\f[B]seed\f[R].
+The meaning of \f[B]seed\f[R] is dependent on the current pseudo-random
 number generator but is guaranteed to not change except for new major
 versions.
 .RS
 .PP
-The \f[I]scale\f[] and sign of the value may be significant.
+The \f[I]scale\f[R] and sign of the value may be significant.
 .PP
-If a previously used \f[B]seed\f[] value is used again, the
-pseudo\-random number generator is guaranteed to produce the same
-sequence of pseudo\-random numbers as it did when the \f[B]seed\f[]
+If a previously used \f[B]seed\f[R] value is used again, the
+pseudo-random number generator is guaranteed to produce the same
+sequence of pseudo-random numbers as it did when the \f[B]seed\f[R]
 value was previously used.
 .PP
-The exact value assigned to \f[B]seed\f[] is not guaranteed to be
-returned if the \f[B]J\f[] command is used.
-However, if \f[B]seed\f[] \f[I]does\f[] return a different value, both
-values, when assigned to \f[B]seed\f[], are guaranteed to produce the
-same sequence of pseudo\-random numbers.
-This means that certain values assigned to \f[B]seed\f[] will not
-produce unique sequences of pseudo\-random numbers.
+The exact value assigned to \f[B]seed\f[R] is not guaranteed to be
+returned if the \f[B]J\f[R] command is used.
+However, if \f[B]seed\f[R] \f[I]does\f[R] return a different value, both
+values, when assigned to \f[B]seed\f[R], are guaranteed to produce the
+same sequence of pseudo-random numbers.
+This means that certain values assigned to \f[B]seed\f[R] will not
+produce unique sequences of pseudo-random numbers.
 .PP
 There is no limit to the length (number of significant decimal digits)
-or \f[I]scale\f[] of the value that can be assigned to \f[B]seed\f[].
+or \f[I]scale\f[R] of the value that can be assigned to \f[B]seed\f[R].
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]I\f[]
-Pushes the current value of \f[B]ibase\f[] onto the main stack.
-.RS
-.RE
+\f[B]I\f[R]
+Pushes the current value of \f[B]ibase\f[R] onto the main stack.
 .TP
-.B \f[B]O\f[]
-Pushes the current value of \f[B]obase\f[] onto the main stack.
-.RS
-.RE
+\f[B]O\f[R]
+Pushes the current value of \f[B]obase\f[R] onto the main stack.
 .TP
-.B \f[B]K\f[]
-Pushes the current value of \f[B]scale\f[] onto the main stack.
-.RS
-.RE
+\f[B]K\f[R]
+Pushes the current value of \f[B]scale\f[R] onto the main stack.
 .TP
-.B \f[B]J\f[]
-Pushes the current value of \f[B]seed\f[] onto the main stack.
+\f[B]J\f[R]
+Pushes the current value of \f[B]seed\f[R] onto the main stack.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]T\f[]
-Pushes the maximum allowable value of \f[B]ibase\f[] onto the main
+\f[B]T\f[R]
+Pushes the maximum allowable value of \f[B]ibase\f[R] onto the main
 stack.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]U\f[]
-Pushes the maximum allowable value of \f[B]obase\f[] onto the main
+\f[B]U\f[R]
+Pushes the maximum allowable value of \f[B]obase\f[R] onto the main
 stack.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]V\f[]
-Pushes the maximum allowable value of \f[B]scale\f[] onto the main
+\f[B]V\f[R]
+Pushes the maximum allowable value of \f[B]scale\f[R] onto the main
 stack.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]W\f[]
+\f[B]W\f[R]
 Pushes the maximum (inclusive) integer that can be generated with the
-\f[B]\[aq]\f[] pseudo\-random number generator command.
+\f[B]\[cq]\f[R] pseudo-random number generator command.
 .RS
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .SS Strings
 .PP
 The following commands control strings.
 .PP
 dc(1) can work with both numbers and strings, and registers (see the
-\f[B]REGISTERS\f[] section) can hold both strings and numbers.
+\f[B]REGISTERS\f[R] section) can hold both strings and numbers.
 dc(1) always knows whether the contents of a register are a string or a
 number.
 .PP
@@ -791,18 +763,18 @@ While arithmetic operations have to have numbers, and will print an
 error if given a string, other commands accept strings.
 .PP
 Strings can also be executed as macros.
-For example, if the string \f[B][1pR]\f[] is executed as a macro, then
-the code \f[B]1pR\f[] is executed, meaning that the \f[B]1\f[] will be
+For example, if the string \f[B][1pR]\f[R] is executed as a macro, then
+the code \f[B]1pR\f[R] is executed, meaning that the \f[B]1\f[R] will be
 printed with a newline after and then popped from the stack.
 .TP
-.B \f[B][\f[]\f[I]characters\f[]\f[B]]\f[]
-Makes a string containing \f[I]characters\f[] and pushes it onto the
+\f[B][\f[R]_characters_\f[B]]\f[R]
+Makes a string containing \f[I]characters\f[R] and pushes it onto the
 stack.
 .RS
 .PP
-If there are brackets (\f[B][\f[] and \f[B]]\f[]) in the string, then
+If there are brackets (\f[B][\f[R] and \f[B]]\f[R]) in the string, then
 they must be balanced.
-Unbalanced brackets can be escaped using a backslash (\f[B]\\\f[])
+Unbalanced brackets can be escaped using a backslash (\f[B]\[rs]\f[R])
 character.
 .PP
 If there is a backslash character in the string, the character after it
@@ -810,26 +782,26 @@ If there is a backslash character in the string, the character after it
 (first) backslash is not.
 .RE
 .TP
-.B \f[B]a\f[]
+\f[B]a\f[R]
 The value on top of the stack is popped.
 .RS
 .PP
 If it is a number, it is truncated and its absolute value is taken.
-The result mod \f[B]UCHAR_MAX+1\f[] is calculated.
-If that result is \f[B]0\f[], push an empty string; otherwise, push a
-one\-character string where the character is the result of the mod
+The result mod \f[B]UCHAR_MAX+1\f[R] is calculated.
+If that result is \f[B]0\f[R], push an empty string; otherwise, push a
+one-character string where the character is the result of the mod
 interpreted as an ASCII character.
 .PP
 If it is a string, then a new string is made.
 If the original string is empty, the new string is empty.
 If it is not, then the first character of the original string is used to
-create the new string as a one\-character string.
+create the new string as a one-character string.
 The new string is then pushed onto the stack.
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]x\f[]
+\f[B]x\f[R]
 Pops a value off of the top of the stack.
 .RS
 .PP
@@ -841,160 +813,154 @@ This behavior is the norm whenever a macro is executed, whether by this
 command or by the conditional execution commands below.
 .RE
 .TP
-.B \f[B]>\f[]\f[I]r\f[]
+\f[B]>\f[R]\f[I]r\f[R]
 Pops two values off of the stack that must be numbers and compares them.
 If the first value is greater than the second, then the contents of
-register \f[I]r\f[] are executed.
+register \f[I]r\f[R] are executed.
 .RS
 .PP
-For example, \f[B]0 1>a\f[] will execute the contents of register
-\f[B]a\f[], and \f[B]1 0>a\f[] will not.
+For example, \f[B]0 1>a\f[R] will execute the contents of register
+\f[B]a\f[R], and \f[B]1 0>a\f[R] will not.
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .RE
 .TP
-.B \f[B]>\f[]\f[I]r\f[]\f[B]e\f[]\f[I]s\f[]
-Like the above, but will execute register \f[I]s\f[] if the comparison
+\f[B]>\f[R]\f[I]r\f[R]\f[B]e\f[R]\f[I]s\f[R]
+Like the above, but will execute register \f[I]s\f[R] if the comparison
 fails.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]!>\f[]\f[I]r\f[]
+\f[B]!>\f[R]\f[I]r\f[R]
 Pops two values off of the stack that must be numbers and compares them.
 If the first value is not greater than the second (less than or equal
-to), then the contents of register \f[I]r\f[] are executed.
+to), then the contents of register \f[I]r\f[R] are executed.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .RE
 .TP
-.B \f[B]!>\f[]\f[I]r\f[]\f[B]e\f[]\f[I]s\f[]
-Like the above, but will execute register \f[I]s\f[] if the comparison
+\f[B]!>\f[R]\f[I]r\f[R]\f[B]e\f[R]\f[I]s\f[R]
+Like the above, but will execute register \f[I]s\f[R] if the comparison
 fails.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]<\f[]\f[I]r\f[]
+\f[B]<\f[R]\f[I]r\f[R]
 Pops two values off of the stack that must be numbers and compares them.
 If the first value is less than the second, then the contents of
-register \f[I]r\f[] are executed.
+register \f[I]r\f[R] are executed.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .RE
 .TP
-.B \f[B]<\f[]\f[I]r\f[]\f[B]e\f[]\f[I]s\f[]
-Like the above, but will execute register \f[I]s\f[] if the comparison
+\f[B]<\f[R]\f[I]r\f[R]\f[B]e\f[R]\f[I]s\f[R]
+Like the above, but will execute register \f[I]s\f[R] if the comparison
 fails.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]!<\f[]\f[I]r\f[]
+\f[B]!<\f[R]\f[I]r\f[R]
 Pops two values off of the stack that must be numbers and compares them.
 If the first value is not less than the second (greater than or equal
-to), then the contents of register \f[I]r\f[] are executed.
+to), then the contents of register \f[I]r\f[R] are executed.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .RE
 .TP
-.B \f[B]!<\f[]\f[I]r\f[]\f[B]e\f[]\f[I]s\f[]
-Like the above, but will execute register \f[I]s\f[] if the comparison
+\f[B]!<\f[R]\f[I]r\f[R]\f[B]e\f[R]\f[I]s\f[R]
+Like the above, but will execute register \f[I]s\f[R] if the comparison
 fails.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]=\f[]\f[I]r\f[]
+\f[B]=\f[R]\f[I]r\f[R]
 Pops two values off of the stack that must be numbers and compares them.
 If the first value is equal to the second, then the contents of register
-\f[I]r\f[] are executed.
+\f[I]r\f[R] are executed.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .RE
 .TP
-.B \f[B]=\f[]\f[I]r\f[]\f[B]e\f[]\f[I]s\f[]
-Like the above, but will execute register \f[I]s\f[] if the comparison
+\f[B]=\f[R]\f[I]r\f[R]\f[B]e\f[R]\f[I]s\f[R]
+Like the above, but will execute register \f[I]s\f[R] if the comparison
 fails.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]!=\f[]\f[I]r\f[]
+\f[B]!=\f[R]\f[I]r\f[R]
 Pops two values off of the stack that must be numbers and compares them.
 If the first value is not equal to the second, then the contents of
-register \f[I]r\f[] are executed.
+register \f[I]r\f[R] are executed.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .RE
 .TP
-.B \f[B]!=\f[]\f[I]r\f[]\f[B]e\f[]\f[I]s\f[]
-Like the above, but will execute register \f[I]s\f[] if the comparison
+\f[B]!=\f[R]\f[I]r\f[R]\f[B]e\f[R]\f[I]s\f[R]
+Like the above, but will execute register \f[I]s\f[R] if the comparison
 fails.
 .RS
 .PP
 If either or both of the values are not numbers, dc(1) will raise an
-error and reset (see the \f[B]RESET\f[] section).
+error and reset (see the \f[B]RESET\f[R] section).
 .PP
-This is a \f[B]non\-portable extension\f[].
+This is a \f[B]non-portable extension\f[R].
 .RE
 .TP
-.B \f[B]?\f[]
-Reads a line from the \f[B]stdin\f[] and executes it.
+\f[B]?\f[R]
+Reads a line from the \f[B]stdin\f[R] and executes it.
 This is to allow macros to request input from users.
-.RS
-.RE
 .TP
-.B \f[B]q\f[]
+\f[B]q\f[R]
 During execution of a macro, this exits the execution of that macro and
 the execution of the macro that executed it.
 If there are no macros, or only one macro executing, dc(1) exits.
-.RS
-.RE
 .TP
-.B \f[B]Q\f[]
-Pops a value from the stack which must be non\-negative and is used the
+\f[B]Q\f[R]
+Pops a value from the stack which must be non-negative and is used the
 number of macro executions to pop off of the execution stack.
 If the number of levels to pop is greater than the number of executing
 macros, dc(1) exits.
-.RS
-.RE
 .SS Status
 .PP
 These commands query status of the stack or its top value.
 .TP
-.B \f[B]Z\f[]
+\f[B]Z\f[R]
 Pops a value off of the stack.
 .RS
 .PP
@@ -1004,37 +970,31 @@ it has and pushes the result.
 If it is a string, pushes the number of characters the string has.
 .RE
 .TP
-.B \f[B]X\f[]
+\f[B]X\f[R]
 Pops a value off of the stack.
 .RS
 .PP
-If it is a number, pushes the \f[I]scale\f[] of the value onto the
+If it is a number, pushes the \f[I]scale\f[R] of the value onto the
 stack.
 .PP
-If it is a string, pushes \f[B]0\f[].
+If it is a string, pushes \f[B]0\f[R].
 .RE
 .TP
-.B \f[B]z\f[]
+\f[B]z\f[R]
 Pushes the current stack depth (before execution of this command).
-.RS
-.RE
 .SS Arrays
 .PP
 These commands manipulate arrays.
 .TP
-.B \f[B]:\f[]\f[I]r\f[]
+\f[B]:\f[R]\f[I]r\f[R]
 Pops the top two values off of the stack.
-The second value will be stored in the array \f[I]r\f[] (see the
-\f[B]REGISTERS\f[] section), indexed by the first value.
-.RS
-.RE
+The second value will be stored in the array \f[I]r\f[R] (see the
+\f[B]REGISTERS\f[R] section), indexed by the first value.
 .TP
-.B \f[B];\f[]\f[I]r\f[]
+\f[B];\f[R]\f[I]r\f[R]
 Pops the value on top of the stack and uses it as an index into the
-array \f[I]r\f[].
+array \f[I]r\f[R].
 The selected value is then pushed onto the stack.
-.RS
-.RE
 .SH REGISTERS
 .PP
 Registers are names that can store strings, numbers, and arrays.
@@ -1042,31 +1002,31 @@ Registers are names that can store strings, numbers, and arrays.
 .PP
 Each register is also its own stack, so the current register value is
 the top of the stack for the register.
-All registers, when first referenced, have one value (\f[B]0\f[]) in
+All registers, when first referenced, have one value (\f[B]0\f[R]) in
 their stack.
 .PP
-In non\-extended register mode, a register name is just the single
+In non-extended register mode, a register name is just the single
 character that follows any command that needs a register name.
-The only exception is a newline (\f[B]\[aq]\\n\[aq]\f[]); it is a parse
+The only exception is a newline (\f[B]`\[rs]n'\f[R]); it is a parse
 error for a newline to be used as a register name.
 .SS Extended Register Mode
 .PP
 Unlike most other dc(1) implentations, this dc(1) provides nearly
 unlimited amounts of registers, if extended register mode is enabled.
 .PP
-If extended register mode is enabled (\f[B]\-x\f[] or
-\f[B]\-\-extended\-register\f[] command\-line arguments are given), then
-normal single character registers are used \f[I]unless\f[] the character
-immediately following a command that needs a register name is a space
-(according to \f[B]isspace()\f[]) and not a newline
-(\f[B]\[aq]\\n\[aq]\f[]).
+If extended register mode is enabled (\f[B]-x\f[R] or
+\f[B]\[en]extended-register\f[R] command-line arguments are given), then
+normal single character registers are used \f[I]unless\f[R] the
+character immediately following a command that needs a register name is
+a space (according to \f[B]isspace()\f[R]) and not a newline
+(\f[B]`\[rs]n'\f[R]).
 .PP
 In that case, the register name is found according to the regex
-\f[B][a\-z][a\-z0\-9_]*\f[] (like bc(1) identifiers), and it is a parse
-error if the next non\-space characters do not match that regex.
+\f[B][a-z][a-z0-9_]*\f[R] (like bc(1) identifiers), and it is a parse
+error if the next non-space characters do not match that regex.
 .SH RESET
 .PP
-When dc(1) encounters an error or a signal that it has a non\-default
+When dc(1) encounters an error or a signal that it has a non-default
 handler for, it resets.
 This means that several things happen.
 .PP
@@ -1079,297 +1039,264 @@ Then the execution point is set so that any code waiting to execute
 Thus, when dc(1) resets, it skips any remaining code waiting to be
 executed.
 Then, if it is interactive mode, and the error was not a fatal error
-(see the \f[B]EXIT STATUS\f[] section), it asks for more input;
+(see the \f[B]EXIT STATUS\f[R] section), it asks for more input;
 otherwise, it exits with the appropriate return code.
 .SH PERFORMANCE
 .PP
-Most dc(1) implementations use \f[B]char\f[] types to calculate the
-value of \f[B]1\f[] decimal digit at a time, but that can be slow.
+Most dc(1) implementations use \f[B]char\f[R] types to calculate the
+value of \f[B]1\f[R] decimal digit at a time, but that can be slow.
 This dc(1) does something different.
 .PP
-It uses large integers to calculate more than \f[B]1\f[] decimal digit
+It uses large integers to calculate more than \f[B]1\f[R] decimal digit
 at a time.
-If built in a environment where \f[B]DC_LONG_BIT\f[] (see the
-\f[B]LIMITS\f[] section) is \f[B]64\f[], then each integer has
-\f[B]9\f[] decimal digits.
-If built in an environment where \f[B]DC_LONG_BIT\f[] is \f[B]32\f[]
-then each integer has \f[B]4\f[] decimal digits.
+If built in a environment where \f[B]DC_LONG_BIT\f[R] (see the
+\f[B]LIMITS\f[R] section) is \f[B]64\f[R], then each integer has
+\f[B]9\f[R] decimal digits.
+If built in an environment where \f[B]DC_LONG_BIT\f[R] is \f[B]32\f[R]
+then each integer has \f[B]4\f[R] decimal digits.
 This value (the number of decimal digits per large integer) is called
-\f[B]DC_BASE_DIGS\f[].
+\f[B]DC_BASE_DIGS\f[R].
 .PP
 In addition, this dc(1) uses an even larger integer for overflow
 checking.
-This integer type depends on the value of \f[B]DC_LONG_BIT\f[], but is
+This integer type depends on the value of \f[B]DC_LONG_BIT\f[R], but is
 always at least twice as large as the integer type used to store digits.
 .SH LIMITS
 .PP
 The following are the limits on dc(1):
 .TP
-.B \f[B]DC_LONG_BIT\f[]
-The number of bits in the \f[B]long\f[] type in the environment where
+\f[B]DC_LONG_BIT\f[R]
+The number of bits in the \f[B]long\f[R] type in the environment where
 dc(1) was built.
 This determines how many decimal digits can be stored in a single large
-integer (see the \f[B]PERFORMANCE\f[] section).
-.RS
-.RE
+integer (see the \f[B]PERFORMANCE\f[R] section).
 .TP
-.B \f[B]DC_BASE_DIGS\f[]
+\f[B]DC_BASE_DIGS\f[R]
 The number of decimal digits per large integer (see the
-\f[B]PERFORMANCE\f[] section).
-Depends on \f[B]DC_LONG_BIT\f[].
-.RS
-.RE
+\f[B]PERFORMANCE\f[R] section).
+Depends on \f[B]DC_LONG_BIT\f[R].
 .TP
-.B \f[B]DC_BASE_POW\f[]
+\f[B]DC_BASE_POW\f[R]
 The max decimal number that each large integer can store (see
-\f[B]DC_BASE_DIGS\f[]) plus \f[B]1\f[].
-Depends on \f[B]DC_BASE_DIGS\f[].
-.RS
-.RE
+\f[B]DC_BASE_DIGS\f[R]) plus \f[B]1\f[R].
+Depends on \f[B]DC_BASE_DIGS\f[R].
 .TP
-.B \f[B]DC_OVERFLOW_MAX\f[]
-The max number that the overflow type (see the \f[B]PERFORMANCE\f[]
+\f[B]DC_OVERFLOW_MAX\f[R]
+The max number that the overflow type (see the \f[B]PERFORMANCE\f[R]
 section) can hold.
-Depends on \f[B]DC_LONG_BIT\f[].
-.RS
-.RE
+Depends on \f[B]DC_LONG_BIT\f[R].
 .TP
-.B \f[B]DC_BASE_MAX\f[]
+\f[B]DC_BASE_MAX\f[R]
 The maximum output base.
-Set at \f[B]DC_BASE_POW\f[].
-.RS
-.RE
+Set at \f[B]DC_BASE_POW\f[R].
 .TP
-.B \f[B]DC_DIM_MAX\f[]
+\f[B]DC_DIM_MAX\f[R]
 The maximum size of arrays.
-Set at \f[B]SIZE_MAX\-1\f[].
-.RS
-.RE
+Set at \f[B]SIZE_MAX-1\f[R].
 .TP
-.B \f[B]DC_SCALE_MAX\f[]
-The maximum \f[B]scale\f[].
-Set at \f[B]DC_OVERFLOW_MAX\-1\f[].
-.RS
-.RE
+\f[B]DC_SCALE_MAX\f[R]
+The maximum \f[B]scale\f[R].
+Set at \f[B]DC_OVERFLOW_MAX-1\f[R].
 .TP
-.B \f[B]DC_STRING_MAX\f[]
+\f[B]DC_STRING_MAX\f[R]
 The maximum length of strings.
-Set at \f[B]DC_OVERFLOW_MAX\-1\f[].
-.RS
-.RE
+Set at \f[B]DC_OVERFLOW_MAX-1\f[R].
 .TP
-.B \f[B]DC_NAME_MAX\f[]
+\f[B]DC_NAME_MAX\f[R]
 The maximum length of identifiers.
-Set at \f[B]DC_OVERFLOW_MAX\-1\f[].
-.RS
-.RE
+Set at \f[B]DC_OVERFLOW_MAX-1\f[R].
 .TP
-.B \f[B]DC_NUM_MAX\f[]
+\f[B]DC_NUM_MAX\f[R]
 The maximum length of a number (in decimal digits), which includes
 digits after the decimal point.
-Set at \f[B]DC_OVERFLOW_MAX\-1\f[].
-.RS
-.RE
+Set at \f[B]DC_OVERFLOW_MAX-1\f[R].
 .TP
-.B \f[B]DC_RAND_MAX\f[]
-The maximum integer (inclusive) returned by the \f[B]\[aq]\f[] command,
+\f[B]DC_RAND_MAX\f[R]
+The maximum integer (inclusive) returned by the \f[B]\[cq]\f[R] command,
 if dc(1).
-Set at \f[B]2^DC_LONG_BIT\-1\f[].
-.RS
-.RE
+Set at \f[B]2\[ha]DC_LONG_BIT-1\f[R].
 .TP
-.B Exponent
+Exponent
 The maximum allowable exponent (positive or negative).
-Set at \f[B]DC_OVERFLOW_MAX\f[].
-.RS
-.RE
+Set at \f[B]DC_OVERFLOW_MAX\f[R].
 .TP
-.B Number of vars
+Number of vars
 The maximum number of vars/arrays.
-Set at \f[B]SIZE_MAX\-1\f[].
-.RS
-.RE
+Set at \f[B]SIZE_MAX-1\f[R].
 .PP
-These limits are meant to be effectively non\-existent; the limits are
-so large (at least on 64\-bit machines) that there should not be any
-point at which they become a problem.
+These limits are meant to be effectively non-existent; the limits are so
+large (at least on 64-bit machines) that there should not be any point
+at which they become a problem.
 In fact, memory should be exhausted before these limits should be hit.
 .SH ENVIRONMENT VARIABLES
 .PP
 dc(1) recognizes the following environment variables:
 .TP
-.B \f[B]DC_ENV_ARGS\f[]
-This is another way to give command\-line arguments to dc(1).
-They should be in the same format as all other command\-line arguments.
+\f[B]DC_ENV_ARGS\f[R]
+This is another way to give command-line arguments to dc(1).
+They should be in the same format as all other command-line arguments.
 These are always processed first, so any files given in
-\f[B]DC_ENV_ARGS\f[] will be processed before arguments and files given
-on the command\-line.
-This gives the user the ability to set up "standard" options and files
-to be used at every invocation.
+\f[B]DC_ENV_ARGS\f[R] will be processed before arguments and files given
+on the command-line.
+This gives the user the ability to set up \[lq]standard\[rq] options and
+files to be used at every invocation.
 The most useful thing for such files to contain would be useful
 functions that the user might want every time dc(1) runs.
-Another use would be to use the \f[B]\-e\f[] option to set
-\f[B]scale\f[] to a value other than \f[B]0\f[].
+Another use would be to use the \f[B]-e\f[R] option to set
+\f[B]scale\f[R] to a value other than \f[B]0\f[R].
 .RS
 .PP
-The code that parses \f[B]DC_ENV_ARGS\f[] will correctly handle quoted
+The code that parses \f[B]DC_ENV_ARGS\f[R] will correctly handle quoted
 arguments, but it does not understand escape sequences.
-For example, the string \f[B]"/home/gavin/some dc file.dc"\f[] will be
-correctly parsed, but the string \f[B]"/home/gavin/some "dc"
-file.dc"\f[] will include the backslashes.
+For example, the string \f[B]\[lq]/home/gavin/some dc file.dc\[rq]\f[R]
+will be correctly parsed, but the string \f[B]\[lq]/home/gavin/some
+\[dq]dc\[dq] file.dc\[rq]\f[R] will include the backslashes.
 .PP
-The quote parsing will handle either kind of quotes, \f[B]\[aq]\f[] or
-\f[B]"\f[].
-Thus, if you have a file with any number of single quotes in the name,
-you can use double quotes as the outside quotes, as in \f[B]"some
-\[aq]bc\[aq] file.bc"\f[], and vice versa if you have a file with double
-quotes.
+The quote parsing will handle either kind of quotes, \f[B]\[cq]\f[R] or
+\f[B]\[lq]\f[R]. Thus, if you have a file with any number of single
+quotes in the name, you can use double quotes as the outside quotes, as
+in \f[B]\[rq]some `bc' file.bc\[dq]\f[R], and vice versa if you have a
+file with double quotes.
 However, handling a file with both kinds of quotes in
-\f[B]DC_ENV_ARGS\f[] is not supported due to the complexity of the
-parsing, though such files are still supported on the command\-line
-where the parsing is done by the shell.
+\f[B]DC_ENV_ARGS\f[R] is not supported due to the complexity of the
+parsing, though such files are still supported on the command-line where
+the parsing is done by the shell.
 .RE
 .TP
-.B \f[B]DC_LINE_LENGTH\f[]
+\f[B]DC_LINE_LENGTH\f[R]
 If this environment variable exists and contains an integer that is
-greater than \f[B]1\f[] and is less than \f[B]UINT16_MAX\f[]
-(\f[B]2^16\-1\f[]), dc(1) will output lines to that length, including
-the backslash newline combo.
-The default line length is \f[B]70\f[].
-.RS
-.RE
+greater than \f[B]1\f[R] and is less than \f[B]UINT16_MAX\f[R]
+(\f[B]2\[ha]16-1\f[R]), dc(1) will output lines to that length,
+including the backslash newline combo.
+The default line length is \f[B]70\f[R].
 .TP
-.B \f[B]DC_EXPR_EXIT\f[]
+\f[B]DC_EXPR_EXIT\f[R]
 If this variable exists (no matter the contents), dc(1) will exit
 immediately after executing expressions and files given by the
-\f[B]\-e\f[] and/or \f[B]\-f\f[] command\-line options (and any
+\f[B]-e\f[R] and/or \f[B]-f\f[R] command-line options (and any
 equivalents).
-.RS
-.RE
 .SH EXIT STATUS
 .PP
 dc(1) returns the following exit statuses:
 .TP
-.B \f[B]0\f[]
+\f[B]0\f[R]
 No error.
-.RS
-.RE
 .TP
-.B \f[B]1\f[]
+\f[B]1\f[R]
 A math error occurred.
-This follows standard practice of using \f[B]1\f[] for expected errors,
+This follows standard practice of using \f[B]1\f[R] for expected errors,
 since math errors will happen in the process of normal execution.
 .RS
 .PP
-Math errors include divide by \f[B]0\f[], taking the square root of a
+Math errors include divide by \f[B]0\f[R], taking the square root of a
 negative number, using a negative number as a bound for the
-pseudo\-random number generator, attempting to convert a negative number
+pseudo-random number generator, attempting to convert a negative number
 to a hardware integer, overflow when converting a number to a hardware
-integer, and attempting to use a non\-integer where an integer is
+integer, and attempting to use a non-integer where an integer is
 required.
 .PP
 Converting to a hardware integer happens for the second operand of the
-power (\f[B]^\f[]), places (\f[B]\@\f[]), left shift (\f[B]H\f[]), and
-right shift (\f[B]h\f[]) operators.
+power (\f[B]\[ha]\f[R]), places (\f[B]\[at]\f[R]), left shift
+(\f[B]H\f[R]), and right shift (\f[B]h\f[R]) operators.
 .RE
 .TP
-.B \f[B]2\f[]
+\f[B]2\f[R]
 A parse error occurred.
 .RS
 .PP
-Parse errors include unexpected \f[B]EOF\f[], using an invalid
+Parse errors include unexpected \f[B]EOF\f[R], using an invalid
 character, failing to find the end of a string or comment, and using a
 token where it is invalid.
 .RE
 .TP
-.B \f[B]3\f[]
+\f[B]3\f[R]
 A runtime error occurred.
 .RS
 .PP
-Runtime errors include assigning an invalid number to \f[B]ibase\f[],
-\f[B]obase\f[], or \f[B]scale\f[]; give a bad expression to a
-\f[B]read()\f[] call, calling \f[B]read()\f[] inside of a
-\f[B]read()\f[] call, type errors, and attempting an operation when the
+Runtime errors include assigning an invalid number to \f[B]ibase\f[R],
+\f[B]obase\f[R], or \f[B]scale\f[R]; give a bad expression to a
+\f[B]read()\f[R] call, calling \f[B]read()\f[R] inside of a
+\f[B]read()\f[R] call, type errors, and attempting an operation when the
 stack has too few elements.
 .RE
 .TP
-.B \f[B]4\f[]
+\f[B]4\f[R]
 A fatal error occurred.
 .RS
 .PP
 Fatal errors include memory allocation errors, I/O errors, failing to
 open files, attempting to use files that do not have only ASCII
 characters (dc(1) only accepts ASCII characters), attempting to open a
-directory as a file, and giving invalid command\-line options.
+directory as a file, and giving invalid command-line options.
 .RE
 .PP
-The exit status \f[B]4\f[] is special; when a fatal error occurs, dc(1)
-always exits and returns \f[B]4\f[], no matter what mode dc(1) is in.
+The exit status \f[B]4\f[R] is special; when a fatal error occurs, dc(1)
+always exits and returns \f[B]4\f[R], no matter what mode dc(1) is in.
 .PP
 The other statuses will only be returned when dc(1) is not in
-interactive mode (see the \f[B]INTERACTIVE MODE\f[] section), since
-dc(1) resets its state (see the \f[B]RESET\f[] section) and accepts more
-input when one of those errors occurs in interactive mode.
+interactive mode (see the \f[B]INTERACTIVE MODE\f[R] section), since
+dc(1) resets its state (see the \f[B]RESET\f[R] section) and accepts
+more input when one of those errors occurs in interactive mode.
 This is also the case when interactive mode is forced by the
-\f[B]\-i\f[] flag or \f[B]\-\-interactive\f[] option.
+\f[B]-i\f[R] flag or \f[B]\[en]interactive\f[R] option.
 .PP
 These exit statuses allow dc(1) to be used in shell scripting with error
 checking, and its normal behavior can be forced by using the
-\f[B]\-i\f[] flag or \f[B]\-\-interactive\f[] option.
+\f[B]-i\f[R] flag or \f[B]\[en]interactive\f[R] option.
 .SH INTERACTIVE MODE
 .PP
-Like bc(1), dc(1) has an interactive mode and a non\-interactive mode.
-Interactive mode is turned on automatically when both \f[B]stdin\f[] and
-\f[B]stdout\f[] are hooked to a terminal, but the \f[B]\-i\f[] flag and
-\f[B]\-\-interactive\f[] option can turn it on in other cases.
+Like bc(1), dc(1) has an interactive mode and a non-interactive mode.
+Interactive mode is turned on automatically when both \f[B]stdin\f[R]
+and \f[B]stdout\f[R] are hooked to a terminal, but the \f[B]-i\f[R] flag
+and \f[B]\[en]interactive\f[R] option can turn it on in other cases.
 .PP
 In interactive mode, dc(1) attempts to recover from errors (see the
-\f[B]RESET\f[] section), and in normal execution, flushes
-\f[B]stdout\f[] as soon as execution is done for the current input.
+\f[B]RESET\f[R] section), and in normal execution, flushes
+\f[B]stdout\f[R] as soon as execution is done for the current input.
 .SH TTY MODE
 .PP
-If \f[B]stdin\f[], \f[B]stdout\f[], and \f[B]stderr\f[] are all
-connected to a TTY, dc(1) turns on "TTY mode."
+If \f[B]stdin\f[R], \f[B]stdout\f[R], and \f[B]stderr\f[R] are all
+connected to a TTY, dc(1) turns on \[lq]TTY mode.\[rq]
 .PP
 TTY mode is different from interactive mode because interactive mode is
 required in the bc(1)
 specification (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html),
-and interactive mode requires only \f[B]stdin\f[] and \f[B]stdout\f[] to
-be connected to a terminal.
+and interactive mode requires only \f[B]stdin\f[R] and \f[B]stdout\f[R]
+to be connected to a terminal.
 .SH SIGNAL HANDLING
 .PP
-Sending a \f[B]SIGINT\f[] will cause dc(1) to stop execution of the
+Sending a \f[B]SIGINT\f[R] will cause dc(1) to stop execution of the
 current input.
-If dc(1) is in TTY mode (see the \f[B]TTY MODE\f[] section), it will
-reset (see the \f[B]RESET\f[] section).
+If dc(1) is in TTY mode (see the \f[B]TTY MODE\f[R] section), it will
+reset (see the \f[B]RESET\f[R] section).
 Otherwise, it will clean up and exit.
 .PP
-Note that "current input" can mean one of two things.
-If dc(1) is processing input from \f[B]stdin\f[] in TTY mode, it will
+Note that \[lq]current input\[rq] can mean one of two things.
+If dc(1) is processing input from \f[B]stdin\f[R] in TTY mode, it will
 ask for more input.
 If dc(1) is processing input from a file in TTY mode, it will stop
 processing the file and start processing the next file, if one exists,
-or ask for input from \f[B]stdin\f[] if no other file exists.
+or ask for input from \f[B]stdin\f[R] if no other file exists.
 .PP
-This means that if a \f[B]SIGINT\f[] is sent to dc(1) as it is executing
-a file, it can seem as though dc(1) did not respond to the signal since
-it will immediately start executing the next file.
+This means that if a \f[B]SIGINT\f[R] is sent to dc(1) as it is
+executing a file, it can seem as though dc(1) did not respond to the
+signal since it will immediately start executing the next file.
 This is by design; most files that users execute when interacting with
 dc(1) have function definitions, which are quick to parse.
 If a file takes a long time to execute, there may be a bug in that file.
 The rest of the files could still be executed without problem, allowing
 the user to continue.
 .PP
-\f[B]SIGTERM\f[] and \f[B]SIGQUIT\f[] cause dc(1) to clean up and exit,
-and it uses the default handler for all other signals.
+\f[B]SIGTERM\f[R] and \f[B]SIGQUIT\f[R] cause dc(1) to clean up and
+exit, and it uses the default handler for all other signals.
 .SH SEE ALSO
 .PP
 bc(1)
 .SH STANDARDS
 .PP
 The dc(1) utility operators are compliant with the operators in the
-bc(1) IEEE Std 1003.1\-2017
-(“POSIX.1\-2017”) (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
+bc(1) IEEE Std 1003.1-2017
+(\[lq]POSIX.1-2017\[rq]) (https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html)
 specification.
 .SH BUGS
 .PP
@@ -1378,4 +1305,4 @@ Report bugs at https://git.yzena.com/gavin/bc.
 .SH AUTHOR
 .PP
 Gavin D.
-Howard <yzena.tech@gmail.com> and contributors.
+Howard <gavin@yzena.com> and contributors.

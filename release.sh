@@ -263,6 +263,35 @@ runtestseries() {
 	done
 }
 
+runlibtests() {
+
+	_runlibtests_CFLAGS="$1"
+	shift
+
+	_runlibtests_CC="$1"
+	shift
+
+	_runlibtests_configure_flags="$1"
+	shift
+
+	_runlibtests_run_tests="$1"
+	shift
+
+	_runlibtests_configure_flags="$_runlibtests_configure_flags -a"
+
+	build "$_runlibtests_CFLAGS" "$_runlibtests_CC" "$_runlibtests_configure_flags" 1 64
+
+	if [ "$_runlibtests_run_tests" -ne 0 ]; then
+		runtest
+	fi
+
+	build "$_runlibtests_CFLAGS" "$_runlibtests_CC" "$_runlibtests_configure_flags" 1 32
+
+	if [ "$_runlibtests_run_tests" -ne 0 ]; then
+		runtest
+	fi
+}
+
 runtests() {
 
 	_runtests_CFLAGS="$1"
@@ -326,6 +355,12 @@ debug() {
 	if [ "$_debug_CC" = "clang" -a "$run_sanitizers" -ne 0 ]; then
 		runtests "$debug -fsanitize=undefined" "$_debug_CC" "-g" "$_debug_run_tests"
 	fi
+
+	runlibtests "$debug" "$_debug_CC" "-g" "$_debug_run_tests"
+
+	if [ "$_debug_CC" = "clang" -a "$run_sanitizers" -ne 0 ]; then
+		runlibtests "$debug -fsanitize=undefined" "$_debug_CC" "-g" "$_debug_run_tests"
+	fi
 }
 
 release() {
@@ -337,6 +372,8 @@ release() {
 	shift
 
 	runtests "$release" "$_release_CC" "-O3" "$_release_run_tests"
+
+	runlibtests "$release" "$_release_CC" "-O3" "$_release_run_tests"
 }
 
 reldebug() {
@@ -353,6 +390,13 @@ reldebug() {
 		runtests "$debug -fsanitize=address" "$_reldebug_CC" "-gO3" "$_reldebug_run_tests"
 		runtests "$debug -fsanitize=memory" "$_reldebug_CC" "-gO3" "$_reldebug_run_tests"
 	fi
+
+	runlibtests "$debug" "$_reldebug_CC" "-gO3" "$_reldebug_run_tests"
+
+	if [ "$_reldebug_CC" = "clang" -a "$run_sanitizers" -ne 0 ]; then
+		runlibtests "$debug -fsanitize=address" "$_reldebug_CC" "-gO3" "$_reldebug_run_tests"
+		runlibtests "$debug -fsanitize=memory" "$_reldebug_CC" "-gO3" "$_reldebug_run_tests"
+	fi
 }
 
 minsize() {
@@ -364,6 +408,8 @@ minsize() {
 	shift
 
 	runtests "$release" "$_minsize_CC" "-Os" "$_minsize_run_tests"
+
+	runlibtests "$release" "$_minsize_CC" "-Os" "$_minsize_run_tests"
 }
 
 build_set() {

@@ -30,7 +30,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 # Name
 
-dc - arbitrary-precision reverse-Polish notation calculator
+dc - arbitrary-precision decimal reverse-Polish notation calculator
 
 # SYNOPSIS
 
@@ -219,9 +219,9 @@ if they were valid digits, regardless of the value of **ibase**. This means that
 **15**.
 
 In addition, dc(1) accepts numbers in scientific notation. These have the form
-**\<number\>e\<integer\>**. The power (the portion after the **e**) must be an
-integer. An example is **1.89237e9**, which is equal to **1892370000**. Negative
-exponents are also allowed, so **4.2890e_3** is equal to **0.0042890**.
+**\<number\>e\<integer\>**. The exponent (the portion after the **e**) must be
+an integer. An example is **1.89237e9**, which is equal to **1892370000**.
+Negative exponents are also allowed, so **4.2890e_3** is equal to **0.0042890**.
 
 **WARNING**: Both the number and the exponent in scientific notation are
 interpreted according to the current **ibase**, but the number is still
@@ -336,7 +336,8 @@ These are the commands used for arithmetic.
 **\^**
 
 :   The top two values are popped off the stack, the second is raised to the
-    power of the first, and the result is pushed onto the stack.
+    power of the first, and the result is pushed onto the stack. The *scale* of
+    the result is equal to **scale**.
 
     The first value popped off of the stack must be an integer, and if that
     value is negative, the second value popped off of the stack must be
@@ -1171,6 +1172,6 @@ None are known. Report bugs at https://git.yzena.com/gavin/bc.
 
 # AUTHOR
 
-Gavin D. Howard <yzena.tech@gmail.com> and contributors.
+Gavin D. Howard <gavin@yzena.com> and contributors.
 
 [1]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html
