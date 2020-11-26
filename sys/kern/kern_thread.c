@@ -143,6 +143,7 @@ static struct task	thread_reap_task;
 static struct callout  	thread_reap_callout;
 
 static void thread_zombie(struct thread *);
+static void thread_reap(void);
 static void thread_reap_all(void);
 static void thread_reap_task_cb(void *, int);
 static void thread_reap_callout_cb(void *);
@@ -347,7 +348,6 @@ thread_ctor(void *mem, int size, void *arg, int flags)
 	td = (struct thread *)mem;
 	td->td_state = TDS_INACTIVE;
 	td->td_lastcpu = td->td_oncpu = NOCPU;
-	td->td_allocdomain = vm_phys_domain(vtophys(td));
 
 	/*
 	 * Note that td_critnest begins life as 1 because the thread is not
@@ -420,6 +420,7 @@ thread_init(void *mem, int size, int flags)
 
 	td = (struct thread *)mem;
 
+	td->td_allocdomain = vm_phys_domain(vtophys(td));
 	td->td_sleepqueue = sleepq_alloc();
 	td->td_turnstile = turnstile_alloc();
 	td->td_rlqe = NULL;
@@ -663,7 +664,7 @@ thread_reap_all(void)
 /*
  * Reap zombies from local domain.
  */
-void
+static void
 thread_reap(void)
 {
 	struct thread_domain_data *tdd;
