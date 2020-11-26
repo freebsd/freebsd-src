@@ -1794,16 +1794,6 @@ isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp, uint32_
 	}
 
 	/*
-	 * Handle logout cases here
-	 */
-	if (mp->nt_ncode == NT_GLOBAL_LOGOUT) {
-		isp_del_all_wwn_entries(isp, mp->nt_channel);
-	}
-
-	if (mp->nt_ncode == NT_LOGOUT)
-		isp_del_wwn_entries(isp, mp);
-
-	/*
 	 * General purpose acknowledgement
 	 */
 	if (mp->nt_need_ack) {
@@ -2889,15 +2879,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 	va_list ap;
 
 	switch (cmd) {
-	case ISPASYNC_BUS_RESET:
-	{
-		va_start(ap, cmd);
-		bus = va_arg(ap, int);
-		va_end(ap);
-		isp_prt(isp, ISP_LOGINFO, "SCSI bus reset on bus %d detected", bus);
-		xpt_async(AC_BUS_RESET, ISP_FC_PC(isp, bus)->path, NULL);
-		break;
-	}
 	case ISPASYNC_LOOP_RESET:
 	{
 		uint16_t lipp;
@@ -3141,7 +3122,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			 */
 			isp_handle_platform_target_tmf(isp, notify);
 			break;
-		case NT_BUS_RESET:
 		case NT_LIP_RESET:
 		case NT_LINK_UP:
 		case NT_LINK_DOWN:
@@ -3149,13 +3129,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			/*
 			 * No action need be taken here.
 			 */
-			break;
-		case NT_GLOBAL_LOGOUT:
-		case NT_LOGOUT:
-			/*
-			 * This is device arrival/departure notification
-			 */
-			isp_handle_platform_target_notify_ack(isp, notify, 0);
 			break;
 		case NT_SRR:
 			isp_handle_platform_srr(isp, notify);
