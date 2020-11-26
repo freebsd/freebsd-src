@@ -50,7 +50,6 @@ exec > "$output"
 
 if [ -n "$label" ]; then
 	nameline="const char *${label} = \"${input}\";"
-	labelexternline="extern const char *${label};"
 fi
 
 if [ -n "$define" ]; then
@@ -65,14 +64,11 @@ if [ -n "$remove_tabs" ]; then
 fi
 
 cat<<EOF
-// Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 // Licensed under the 2-clause BSD license.
 // *** AUTOMATICALLY GENERATED FROM ${input}. DO NOT MODIFY. ***
 
 ${condstart}
-$labelexternline
-
-extern const char $name[];
+#include <${header}>
 
 $nameline
 
