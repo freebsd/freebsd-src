@@ -79,7 +79,6 @@ struct soc_node_spec;
 
 static enum soc_family soc_family;
 
-static int mv_win_cesa_attr(int wng_sel);
 static int mv_win_cesa_attr_armv5(int eng_sel);
 static int mv_win_cesa_attr_armada38x(int eng_sel);
 static int mv_win_cesa_attr_armadaxp(int eng_sel);
@@ -93,7 +92,6 @@ void write_cpu_ctrl_armv7(uint32_t reg, uint32_t val);
 static int win_eth_can_remap(int i);
 
 static int decode_win_cesa_valid(void);
-static int decode_win_cpu_valid(void);
 static int decode_win_usb_valid(void);
 static int decode_win_usb3_valid(void);
 static int decode_win_eth_valid(void);
@@ -401,15 +399,6 @@ pm_is_disabled(uint32_t mask)
  * This feature can be used only on Kirkwood and Discovery
  * machines.
  */
-
-static int mv_win_cesa_attr(int eng_sel)
-{
-
-	if (soc_decode_win_spec->win_cesa_attr != NULL)
-		return (soc_decode_win_spec->win_cesa_attr(eng_sel));
-
-	return (-1);
-}
 
 static int mv_win_cesa_attr_armv5(int eng_sel)
 {
@@ -987,15 +976,6 @@ WIN_REG_BASE_IDX_WR(win_eth, br, MV_WIN_ETH_BASE)
 WIN_REG_BASE_IDX_WR(win_eth, sz, MV_WIN_ETH_SIZE)
 WIN_REG_BASE_IDX_WR(win_eth, har, MV_WIN_ETH_REMAP)
 
-WIN_REG_BASE_IDX_RD2(win_xor, br, MV_WIN_XOR_BASE)
-WIN_REG_BASE_IDX_RD2(win_xor, sz, MV_WIN_XOR_SIZE)
-WIN_REG_BASE_IDX_RD2(win_xor, har, MV_WIN_XOR_REMAP)
-WIN_REG_BASE_IDX_RD2(win_xor, ctrl, MV_WIN_XOR_CTRL)
-WIN_REG_BASE_IDX_WR2(win_xor, br, MV_WIN_XOR_BASE)
-WIN_REG_BASE_IDX_WR2(win_xor, sz, MV_WIN_XOR_SIZE)
-WIN_REG_BASE_IDX_WR2(win_xor, har, MV_WIN_XOR_REMAP)
-WIN_REG_BASE_IDX_WR2(win_xor, ctrl, MV_WIN_XOR_CTRL)
-
 WIN_REG_BASE_RD(win_eth, bare, 0x290)
 WIN_REG_BASE_RD(win_eth, epap, 0x294)
 WIN_REG_BASE_WR(win_eth, bare, 0x290)
@@ -1014,17 +994,6 @@ WIN_REG_BASE_IDX_WR(pcie_bar, br, MV_PCIE_BAR_BASE);
 WIN_REG_BASE_IDX_WR(pcie_bar, brh, MV_PCIE_BAR_BASE_H);
 WIN_REG_BASE_IDX_WR(pcie_bar, cr, MV_PCIE_BAR_CTRL);
 
-WIN_REG_BASE_IDX_RD(win_idma, br, MV_WIN_IDMA_BASE)
-WIN_REG_BASE_IDX_RD(win_idma, sz, MV_WIN_IDMA_SIZE)
-WIN_REG_BASE_IDX_RD(win_idma, har, MV_WIN_IDMA_REMAP)
-WIN_REG_BASE_IDX_RD(win_idma, cap, MV_WIN_IDMA_CAP)
-WIN_REG_BASE_IDX_WR(win_idma, br, MV_WIN_IDMA_BASE)
-WIN_REG_BASE_IDX_WR(win_idma, sz, MV_WIN_IDMA_SIZE)
-WIN_REG_BASE_IDX_WR(win_idma, har, MV_WIN_IDMA_REMAP)
-WIN_REG_BASE_IDX_WR(win_idma, cap, MV_WIN_IDMA_CAP)
-WIN_REG_BASE_RD(win_idma, bare, 0xa80)
-WIN_REG_BASE_WR(win_idma, bare, 0xa80)
-
 WIN_REG_BASE_IDX_RD(win_sata, cr, MV_WIN_SATA_CTRL);
 WIN_REG_BASE_IDX_RD(win_sata, br, MV_WIN_SATA_BASE);
 WIN_REG_BASE_IDX_WR(win_sata, cr, MV_WIN_SATA_CTRL);
@@ -1033,7 +1002,6 @@ WIN_REG_BASE_IDX_WR(win_sata, br, MV_WIN_SATA_BASE);
 WIN_REG_BASE_IDX_RD(win_sata_armada38x, sz, MV_WIN_SATA_SIZE_ARMADA38X);
 WIN_REG_BASE_IDX_WR(win_sata_armada38x, sz, MV_WIN_SATA_SIZE_ARMADA38X);
 WIN_REG_BASE_IDX_RD(win_sata_armada38x, cr, MV_WIN_SATA_CTRL_ARMADA38X);
-WIN_REG_BASE_IDX_RD(win_sata_armada38x, br, MV_WIN_SATA_BASE_ARMADA38X);
 WIN_REG_BASE_IDX_WR(win_sata_armada38x, cr, MV_WIN_SATA_CTRL_ARMADA38X);
 WIN_REG_BASE_IDX_WR(win_sata_armada38x, br, MV_WIN_SATA_BASE_ARMADA38X);
 
@@ -1200,65 +1168,6 @@ decode_win_overlap(int win, int win_no, const struct decode_win *wintab)
 	}
 
 	return (-1);
-}
-
-static int
-decode_win_cpu_valid(void)
-{
-	int i, j, rv;
-	uint32_t b, e, s;
-
-	if (cpu_wins_no > soc_decode_win_spec->mv_win_cpu_max) {
-		printf("CPU windows: too many entries: %d\n", cpu_wins_no);
-		return (0);
-	}
-
-	rv = 1;
-	for (i = 0; i < cpu_wins_no; i++) {
-		if (cpu_wins[i].target == 0) {
-			printf("CPU window#%d: DDR target window is not "
-			    "supposed to be reprogrammed!\n", i);
-			rv = 0;
-		}
-
-		if (cpu_wins[i].remap != ~0 && win_cpu_can_remap(i) != 1) {
-			printf("CPU window#%d: not capable of remapping, but "
-			    "val 0x%08x defined\n", i, cpu_wins[i].remap);
-			rv = 0;
-		}
-
-		s = cpu_wins[i].size;
-		b = cpu_wins[i].base;
-		e = b + s - 1;
-		if (s > (0xFFFFFFFF - b + 1)) {
-			/*
-			 * XXX this boundary check should account for 64bit
-			 * and remapping..
-			 */
-			printf("CPU window#%d: no space for size 0x%08x at "
-			    "0x%08x\n", i, s, b);
-			rv = 0;
-			continue;
-		}
-
-		if (b != rounddown2(b, s)) {
-			printf("CPU window#%d: address 0x%08x is not aligned "
-			    "to 0x%08x\n", i, b, s);
-			rv = 0;
-			continue;
-		}
-
-		j = decode_win_overlap(i, cpu_wins_no, &cpu_wins[0]);
-		if (j >= 0) {
-			printf("CPU window#%d: (0x%08x - 0x%08x) overlaps "
-			    "with #%d (0x%08x - 0x%08x)\n", i, b, e, j,
-			    cpu_wins[j].base,
-			    cpu_wins[j].base + cpu_wins[j].size - 1);
-			rv = 0;
-		}
-	}
-
-	return (rv);
 }
 
 int
