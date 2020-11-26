@@ -134,7 +134,7 @@ _thr_attr_destroy(pthread_attr_t *attr)
 		*attr = NULL;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_get_np, pthread_attr_get_np);
@@ -196,7 +196,7 @@ _thr_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate)
 			*detachstate = PTHREAD_CREATE_JOINABLE;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_getguardsize, pthread_attr_getguardsize);
@@ -216,7 +216,7 @@ _thr_attr_getguardsize(const pthread_attr_t * __restrict attr,
 		*guardsize = (*attr)->guardsize_attr;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_getinheritsched, pthread_attr_getinheritsched);
@@ -233,7 +233,7 @@ _thr_attr_getinheritsched(const pthread_attr_t * __restrict attr,
 	else
 		*sched_inherit = (*attr)->sched_inherit;
 
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_getschedparam, pthread_attr_getschedparam);
@@ -250,7 +250,7 @@ _thr_attr_getschedparam(const pthread_attr_t * __restrict attr,
 	else
 		param->sched_priority = (*attr)->prio;
 
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_getschedpolicy, pthread_attr_getschedpolicy);
@@ -267,7 +267,7 @@ _thr_attr_getschedpolicy(const pthread_attr_t * __restrict attr,
 	else
 		*policy = (*attr)->sched_policy;
 
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_getscope, pthread_attr_getscope);
@@ -287,7 +287,7 @@ _thr_attr_getscope(const pthread_attr_t * __restrict attr,
 		*contentionscope = (*attr)->flags & PTHREAD_SCOPE_SYSTEM ?
 		    PTHREAD_SCOPE_SYSTEM : PTHREAD_SCOPE_PROCESS;
 
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_pthread_attr_getstack, pthread_attr_getstack);
@@ -308,7 +308,7 @@ _pthread_attr_getstack(const pthread_attr_t * __restrict attr,
 		*stacksize = (*attr)->stacksize_attr;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_getstackaddr, pthread_attr_getstackaddr);
@@ -327,7 +327,7 @@ _thr_attr_getstackaddr(const pthread_attr_t *attr, void **stackaddr)
 		*stackaddr = (*attr)->stackaddr_attr;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_getstacksize, pthread_attr_getstacksize);
@@ -347,7 +347,7 @@ _thr_attr_getstacksize(const pthread_attr_t * __restrict attr,
 		*stacksize = (*attr)->stacksize_attr;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_init, pthread_attr_init);
@@ -373,7 +373,7 @@ _thr_attr_init(pthread_attr_t *attr)
 		*attr = pattr;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_pthread_attr_setcreatesuspend_np, pthread_attr_setcreatesuspend_np);
@@ -389,7 +389,7 @@ _pthread_attr_setcreatesuspend_np(pthread_attr_t *attr)
 		(*attr)->suspend = THR_CREATE_SUSPENDED;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_setdetachstate, pthread_attr_setdetachstate);
@@ -415,7 +415,7 @@ _thr_attr_setdetachstate(pthread_attr_t *attr, int detachstate)
 			(*attr)->flags &= ~PTHREAD_DETACHED;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_setguardsize, pthread_attr_setguardsize);
@@ -434,7 +434,7 @@ _thr_attr_setguardsize(pthread_attr_t *attr, size_t guardsize)
 		(*attr)->guardsize_attr = guardsize;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_setinheritsched, pthread_attr_setinheritsched);
@@ -453,7 +453,7 @@ _thr_attr_setinheritsched(pthread_attr_t *attr, int sched_inherit)
 	else
 		(*attr)->sched_inherit = sched_inherit;
 
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_setschedparam, pthread_attr_setschedparam);
@@ -506,7 +506,7 @@ _thr_attr_setschedpolicy(pthread_attr_t *attr, int policy)
 		(*attr)->sched_policy = policy;
 		(*attr)->prio = _thr_priorities[policy-1].pri_default;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_setscope, pthread_attr_setscope);
@@ -549,7 +549,7 @@ _pthread_attr_setstack(pthread_attr_t *attr, void *stackaddr,
 		(*attr)->stacksize_attr = stacksize;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 __weak_reference(_thr_attr_setstackaddr, pthread_attr_setstackaddr);
@@ -587,7 +587,7 @@ _thr_attr_setstacksize(pthread_attr_t *attr, size_t stacksize)
 		(*attr)->stacksize_attr = stacksize;
 		ret = 0;
 	}
-	return(ret);
+	return (ret);
 }
 
 static size_t
