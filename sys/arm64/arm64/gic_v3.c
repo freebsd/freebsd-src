@@ -882,7 +882,7 @@ gic_v3_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 	if (CPU_EMPTY(&isrc->isrc_cpu)) {
 		gic_irq_cpu = intr_irq_next_cpu(gic_irq_cpu, &all_cpus);
 		CPU_SETOF(gic_irq_cpu, &isrc->isrc_cpu);
-		gic_d_write(sc, 4, GICD_IROUTER(gi->gi_irq),
+		gic_d_write(sc, 8, GICD_IROUTER(gi->gi_irq),
 		    CPU_AFFINITY(gic_irq_cpu));
 	} else {
 		/*
@@ -890,7 +890,7 @@ gic_v3_bind_intr(device_t dev, struct intr_irqsrc *isrc)
 		 * the first CPU found.
 		 */
 		cpu = CPU_FFS(&isrc->isrc_cpu) - 1;
-		gic_d_write(sc, 4, GICD_IROUTER(gi->gi_irq), CPU_AFFINITY(cpu));
+		gic_d_write(sc, 8, GICD_IROUTER(gi->gi_irq), CPU_AFFINITY(cpu));
 	}
 
 	return (0);
@@ -1152,7 +1152,7 @@ gic_v3_dist_init(struct gic_v3_softc *sc)
 	 */
 	aff = CPU_AFFINITY(0);
 	for (i = GIC_FIRST_SPI; i < sc->gic_nirqs; i++)
-		gic_d_write(sc, 4, GICD_IROUTER(i), aff);
+		gic_d_write(sc, 8, GICD_IROUTER(i), aff);
 
 	return (0);
 }
