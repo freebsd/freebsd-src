@@ -453,14 +453,6 @@ pci_emul_alloc_resource(uint64_t *baseptr, uint64_t limit, uint64_t size,
 		return (-1);
 }
 
-int
-pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
-		   uint64_t size)
-{
-
-	return (pci_emul_alloc_pbar(pdi, idx, 0, type, size));
-}
-
 /*
  * Register (or unregister) the MMIO or I/O region associated with the BAR
  * register 'idx' of an emulated pci device.
@@ -585,8 +577,8 @@ update_bar_address(struct pci_devinst *pi, uint64_t addr, int idx, int type)
 }
 
 int
-pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
-		    enum pcibar_type type, uint64_t size)
+pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
+    uint64_t size)
 {
 	int error;
 	uint64_t *baseptr, limit, addr, mask, lobits, bar;
@@ -627,13 +619,7 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 		 * number (128MB currently).
 		 */
 		if (size > 128 * 1024 * 1024) {
-			/*
-			 * XXX special case for device requiring peer-peer DMA
-			 */
-			if (size == 0x100000000UL)
-				baseptr = &hostbase;
-			else
-				baseptr = &pci_emul_membase64;
+			baseptr = &pci_emul_membase64;
 			limit = pci_emul_memlim64;
 			mask = PCIM_BAR_MEM_BASE;
 			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64 |
