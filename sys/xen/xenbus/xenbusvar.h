@@ -124,62 +124,6 @@ xenbus_get_otherend_state(device_t dev)
 }
 
 /**
- * Initialize and register a watch on the given path (client suplied storage).
- *
- * \param dev       The XenBus device requesting the watch service.
- * \param path      The XenStore path of the object to be watched.  The
- *                  storage for this string must be stable for the lifetime
- *                  of the watch.
- * \param watch     The watch object to use for this request.  This object
- *                  must be stable for the lifetime of the watch.
- * \param callback  The function to call when XenStore objects at or below
- *                  path are modified.
- * \param cb_data   Client data that can be retrieved from the watch object
- *                  during the callback.
- *
- * \return  On success, 0. Otherwise an errno value indicating the
- *          type of failure.
- *
- * \note  On error, the device 'dev' will be switched to the XenbusStateClosing
- *        state and the returned error is saved in the per-device error node
- *        for dev in the XenStore.
- */
-int xenbus_watch_path(device_t dev, char *path,
-		      struct xs_watch *watch, 
-		      xs_watch_cb_t *callback,
-		      uintptr_t cb_data);
-
-/**
- * Initialize and register a watch at path/path2 in the XenStore.
- *
- * \param dev       The XenBus device requesting the watch service.
- * \param path      The base XenStore path of the object to be watched.
- * \param path2     The tail XenStore path of the object to be watched.
- * \param watch     The watch object to use for this request.  This object
- *                  must be stable for the lifetime of the watch.
- * \param callback  The function to call when XenStore objects at or below
- *                  path are modified.
- * \param cb_data   Client data that can be retrieved from the watch object
- *                  during the callback.
- *
- * \return  On success, 0. Otherwise an errno value indicating the
- *          type of failure.
- *
- * \note  On error, \a dev will be switched to the XenbusStateClosing
- *        state and the returned error is saved in the per-device error node
- *        for \a dev in the XenStore.
- *
- * Similar to xenbus_watch_path, however the storage for the path to the
- * watched object is allocated from the heap and filled with "path '/' path2".
- * Should a call to this function succeed, it is the callers responsibility
- * to free watch->node using the M_XENBUS malloc type.
- */
-int xenbus_watch_path2(device_t dev, const char *path,
-		       const char *path2, struct xs_watch *watch, 
-		       xs_watch_cb_t *callback,
-		       uintptr_t cb_data);
-
-/**
  * Grant access to the given ring_mfn to the peer of the given device.
  *
  * \param dev        The device granting access to the ring page.

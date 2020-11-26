@@ -102,48 +102,6 @@ xenbus_strstate(XenbusState state)
 	return ((state < (XenbusStateClosed + 1)) ? name[state] : "INVALID");
 }
 
-int 
-xenbus_watch_path(device_t dev, char *path, struct xs_watch *watch, 
-    xs_watch_cb_t *callback, uintptr_t callback_data)
-{
-	int error;
-
-	watch->node = path;
-	watch->callback = callback;
-	watch->callback_data = callback_data;
-
-	error = xs_register_watch(watch);
-
-	if (error) {
-		watch->node = NULL;
-		watch->callback = NULL;
-		xenbus_dev_fatal(dev, error, "adding watch on %s", path);
-	}
-
-	return (error);
-}
-
-int
-xenbus_watch_path2(device_t dev, const char *path,
-    const char *path2, struct xs_watch *watch, 
-    xs_watch_cb_t *callback, uintptr_t callback_data)
-{
-	int error;
-	char *state = malloc(strlen(path) + 1 + strlen(path2) + 1,
-	   M_XENBUS, M_WAITOK);
-
-	strcpy(state, path);
-	strcat(state, "/");
-	strcat(state, path2);
-
-	error = xenbus_watch_path(dev, state, watch, callback, callback_data);
-	if (error) {
-		free(state,M_XENBUS);
-	}
-
-	return (error);
-}
-
 void
 xenbus_dev_verror(device_t dev, int err, const char *fmt, va_list ap)
 {
