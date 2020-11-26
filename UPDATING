@@ -26,6 +26,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20201124:
+	ping6 has been merged into ping.  It can now be called as "ping -6".
+	See ping(8) for details.
+
 20201108:
 	Default value of net.add_addr_allfibs has been changed to 0.
 	If you have multi-fib configuration and rely on existence of all
