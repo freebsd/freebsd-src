@@ -28,7 +28,7 @@
 .\"     @(#)ping.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2020
+.Dd November 26, 2020
 .Dt PING 8
 .Os
 .Sh NAME
@@ -141,6 +141,9 @@ the specific IP version can be requested by
 or
 .Fl 6
 options, respectively.
+For backwards-compatibility, ICMPv6 can also be selected by invoking the binary
+as
+.Nm ping6 .
 .Ss Options common to both IPv4 and IPv6 targets
 .Bl -tag -width indent
 .It Fl A
