@@ -137,7 +137,7 @@ basic_v6_body()
 	    carp_basic_v6_three ${epair_two}b
 
 	atf_check -s exit:0 -o ignore jexec carp_basic_v6_one \
-	    ping6 -c 3 2001:db8::0:1
+	    ping -6 -c 3 2001:db8::0:1
 }
 
 basic_v6_cleanup()

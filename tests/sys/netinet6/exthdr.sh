@@ -74,7 +74,7 @@ exthdr_body() {
 	pyname=$(atf_get ident)
 	pyname=${pyname%*_[0-9]}
 
-	atf_check -o ignore -s exit:0 ping6 -c 3 -q -o ${ip6b}
+	atf_check -o ignore -s exit:0 ping -6 -c 3 -q -o ${ip6b}
 
 	atf_check -s exit:0 $(atf_get_srcdir)/${pyname}.py \
 		--sendif ${epair}a --recvif ${epair}a \

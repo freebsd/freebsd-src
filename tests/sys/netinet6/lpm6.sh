@@ -100,7 +100,7 @@ lpm6_test1_success_body()
 	valid_message="${count} packets transmitted, ${count} packets received"
 	
 	# Check that ${net_dst}:2:0 goes via epair0
-	atf_check -o match:"${valid_message}" jexec ${jname}a ping6 -f -nc${count} ${net_dst}:2:0
+	atf_check -o match:"${valid_message}" jexec ${jname}a ping -6 -f -nc${count} ${net_dst}:2:0
 	pkt_0=`jexec ${jname}a netstat -Wf link -I ${epair0}a | head | awk '$1!~/^Name/{print$8}'`
 	pkt_1=`jexec ${jname}a netstat -Wf link -I ${epair1}a | head | awk '$1!~/^Name/{print$8}'`
 	if [ ${pkt_0} -le ${count} ]; then
@@ -109,7 +109,7 @@ lpm6_test1_success_body()
 	fi
 
 	# Check that ${net_dst}:2:1 goes via epair1
-	atf_check -o match:"${valid_message}" jexec ${jname}a ping6 -f -nc${count} ${net_dst}:2:1
+	atf_check -o match:"${valid_message}" jexec ${jname}a ping -6 -f -nc${count} ${net_dst}:2:1
 	pkt_0=`jexec ${jname}a netstat -Wf link -I ${epair0}a | head | awk '$1!~/^Name/{print$8}'`
 	pkt_1=`jexec ${jname}a netstat -Wf link -I ${epair1}a | head | awk '$1!~/^Name/{print$8}'`
 	if [ ${pkt_1} -le ${count} ]; then
@@ -163,7 +163,7 @@ lpm6_test2_success_body()
 	valid_message="${count} packets transmitted, ${count} packets received"
 	
 	# Check that ${net_dst}:2:0 goes via epair1
-	atf_check -o match:"${valid_message}" jexec ${jname}a ping6 -f -nc${count} ${net_dst}:2:0
+	atf_check -o match:"${valid_message}" jexec ${jname}a ping -6 -f -nc${count} ${net_dst}:2:0
 	pkt_0=`jexec ${jname}a netstat -Wf link -I ${epair0}a | head | awk '$1!~/^Name/{print$8}'`
 	pkt_1=`jexec ${jname}a netstat -Wf link -I ${epair1}a | head | awk '$1!~/^Name/{print$8}'`
 	if [ ${pkt_1} -le ${count} ]; then
@@ -172,7 +172,7 @@ lpm6_test2_success_body()
 	fi
 
 	# Check that ${net_dst}:2:2 goes via epair0
-	atf_check -o match:"${valid_message}" jexec ${jname}a ping6 -f -nc${count} ${net_dst}:2:2
+	atf_check -o match:"${valid_message}" jexec ${jname}a ping -6 -f -nc${count} ${net_dst}:2:2
 	pkt_0=`jexec ${jname}a netstat -Wf link -I ${epair0}a | head | awk '$1!~/^Name/{print$8}'`
 	pkt_1=`jexec ${jname}a netstat -Wf link -I ${epair1}a | head | awk '$1!~/^Name/{print$8}'`
 	if [ ${pkt_0} -le ${count} ]; then

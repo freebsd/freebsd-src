@@ -99,7 +99,7 @@ v6_body()
 		"ipf" \
 			"block in all"
 
-	atf_check -s exit:2 -o ignore ping6 -c 1 -W 1 fd7a:803f:cc4b::2
+	atf_check -s exit:2 -o ignore ping -6 -c 1 -W 1 fd7a:803f:cc4b::2
 	
 	# Pass All
 	firewall_config "iron" ${firewall} \
@@ -110,7 +110,7 @@ v6_body()
 		"ipf" \
 			"pass in all"
 
-	atf_check -s exit:0 -o ignore ping6 -c 1 -W 1 fd7a:803f:cc4b::2
+	atf_check -s exit:0 -o ignore ping -6 -c 1 -W 1 fd7a:803f:cc4b::2
 }
 
 v6_cleanup()
