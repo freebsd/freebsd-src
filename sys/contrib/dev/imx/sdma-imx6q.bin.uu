@@ -1,0 +1,100 @@
+Copyright 2017, NXP
+All rights reserved.
+
+Redistribution. Reproduction and redistribution in binary form, without
+modification, for use solely in conjunction with a NXP
+chipset, is permitted provided that the following conditions are met:
+
+  . Redistributions must reproduce the above copyright notice and the following
+    disclaimer in the documentation and/or other materials provided with the
+    distribution.
+
+  . Neither the name of NXP nor the names of its suppliers
+    may be used to endorse or promote products derived from this Software
+    without specific prior written permission.
+
+  . No reverse engineering, decompilation, or disassembly of this Software is
+    permitted.
+
+Limited patent license. NXP (.Licensor.) grants you
+(.Licensee.) a limited, worldwide, royalty-free, non-exclusive license under
+the Patents to make, have made, use, import, offer to sell and sell the
+Software. No hardware per se is licensed hereunder.
+The term .Patents. as used in this agreement means only those patents or patent
+applications owned solely and exclusively by Licensor as of the date of
+Licensor.s submission of the Software and any patents deriving priority (i.e.,
+having a first effective filing date) therefrom. The term .Software. as used in
+this agreement means the firmware image submitted by Licensor, under the terms
+of this license, to git://git.kernel.org/pub/scm/linux/kernel/git/firmware/
+linux-firmware.git.
+Notwithstanding anything to the contrary herein, Licensor does not grant and
+Licensee does not receive, by virtue of this agreement or the Licensor's
+submission of any Software, any license or other rights under any patent or
+patent application owned by any affiliate of Licensor or any other entity
+(other than Licensor), whether expressly, impliedly, by virtue of estoppel or
+exhaustion, or otherwise.
+
+DISCLAIMER. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
+BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
+THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+begin 644 sdma-imx6q.bin
+M4T1-00,````#````'````"D```#`````U`<``(("``#_________________
+M____________________________________0AH``/_____K`@``M!@``/__
+M__^>&@``_____\`#``#_______________^K`@``_____WL#``#_________
+M_TP$``!N!```__________________________\`&```6Q@``.X9``!-&P``
+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
+D\%W_#1$%_QV\!0!-!'W@FP@'VU\*!XL`PU++4UG!['T``M&;
+`
+end
