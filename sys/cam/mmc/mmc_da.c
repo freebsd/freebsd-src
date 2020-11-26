@@ -202,7 +202,7 @@ static inline bool sdda_get_read_only(struct cam_periph *periph, union ccb *star
 static uint32_t mmc_get_spec_vers(struct cam_periph *periph);
 static uint64_t mmc_get_media_size(struct cam_periph *periph);
 static uint32_t mmc_get_cmd6_timeout(struct cam_periph *periph);
-static void sdda_add_part(struct cam_periph *periph, u_int type,
+static bool sdda_add_part(struct cam_periph *periph, u_int type,
     const char *name, u_int cnt, off_t media_size, bool ro);
 
 static struct periph_driver sddadriver =
@@ -1502,10 +1502,11 @@ finish_hs_tests:
 		sdda_process_mmc_partitions(periph, start_ccb);
 	} else if (mmcp->card_features & CARD_FEATURE_SD20) {
 		/* For SD[HC] cards, just add one partition that is the whole card */
-		sdda_add_part(periph, 0, "sdda",
+		if (sdda_add_part(periph, 0, "sdda",
 		    periph->unit_number,
 		    mmc_get_media_size(periph),
-		    sdda_get_read_only(periph, start_ccb));
+		    sdda_get_read_only(periph, start_ccb)) == false)
+			return;
 		softc->part_curr = 0;
 	}
 	cam_periph_hold(periph, PRIBIO|PCATCH);
@@ -1521,7 +1522,7 @@ finish_hs_tests:
 	    AC_ADVINFO_CHANGED, sddaasync, periph, periph->path);
 }
 
-static void
+static bool
 sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
     u_int cnt, off_t media_size, bool ro)
 {
@@ -1536,7 +1537,11 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 	    ro ? "(read-only)" : ""));
 
 	part = sc->part[type] = malloc(sizeof(*part), M_DEVBUF,
-	    M_WAITOK | M_ZERO);
+	    M_NOWAIT | M_ZERO);
+	if (part == NULL) {
+		printf("Cannot add partition for sdda\n");
+		return (false);
+	}
 
 	part->cnt = cnt;
 	part->type = type;
@@ -1554,7 +1559,7 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 		/* TODO: Create device, assign IOCTL handler */
 		CAM_DEBUG(periph->path, CAM_DEBUG_PERIPH,
 		    ("Don't know what to do with RPMB partitions yet\n"));
-		return;
+		return (false);
 	}
 
 	bioq_init(&part->bio_queue);
@@ -1620,11 +1625,13 @@ sdda_add_part(struct cam_periph *periph, u_int type, const char *name,
 		xpt_print(periph->path, "%s: lost periph during "
 		    "registration!\n", __func__);
 		cam_periph_lock(periph);
-		return;
+		return (false);
 	}
 	disk_create(part->disk, DISK_VERSION);
 	cam_periph_lock(periph);
 	cam_periph_unhold(periph);
+
+	return (true);
 }
 
 /*
