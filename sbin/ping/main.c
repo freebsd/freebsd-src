@@ -66,7 +66,10 @@ main(int argc, char *argv[])
 	struct in6_addr a6;
 	bool ipv6;
 
-	ipv6 = false;
+	if (strcmp(getprogname(), "ping6") == 0)
+		ipv6 = true;
+	else
+		ipv6 = false;
 #endif
 	ipv4 = false;
 

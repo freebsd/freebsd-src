@@ -37,8 +37,6 @@
 # done
 
 # 20201124: ping6(8) was merged into ping(8)
-OLD_FILES+=sbin/ping6
-OLD_FILES+=rescue/ping6
 OLD_FILES+=usr/lib/debug/sbin/ping6.debug
 OLD_FILES+=usr/share/man/man8/ping6.8.gz
 OLD_FILES+=usr/tests/sbin/ping6/Kyuafile
