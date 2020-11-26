@@ -5,11 +5,17 @@
 
 PACKAGE=runtime
 PROG=	ping
-SRCS=	ping.c utils.c
+SRCS=	main.c ping.c utils.c
 MAN=	ping.8
 BINOWN=	root
 BINMODE=4555
 LIBADD=	m
+
+.if ${MK_INET6_SUPPORT} != "no"
+CFLAGS+= -DINET6 -DKAME_SCOPEID
+SRCS+=	ping6.c
+LIBADD+= md
+.endif
 
 .if ${MK_DYNAMICROOT} == "no"
 .warning ${PROG} built without libcasper support

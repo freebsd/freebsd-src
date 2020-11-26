@@ -142,6 +142,9 @@ __FBSDID("$FreeBSD$");
 
 #include <md5.h>
 
+#include "main.h"
+#include "ping6.h"
+
 struct tv32 {
 	u_int32_t tv32_sec;
 	u_int32_t tv32_nsec;
@@ -265,7 +268,6 @@ static volatile sig_atomic_t seenint;
 static volatile sig_atomic_t seeninfo;
 #endif
 
-int	 main(int, char *[]);
 static cap_channel_t *capdns_setup(void);
 static void	 fill(char *, char *);
 static int	 get_hoplim(struct msghdr *);
@@ -293,10 +295,9 @@ static void	 pr_retip(struct ip6_hdr *, u_char *);
 static void	 summary(void);
 static int	 setpolicy(int, char *);
 static char	*nigroup(char *, int);
-static void	 usage(void);
 
 int
-main(int argc, char *argv[])
+ping6(int argc, char *argv[])
 {
 	struct timespec last, intvl;
 	struct sockaddr_in6 from, *sin6;
@@ -354,9 +355,12 @@ main(int argc, char *argv[])
 #endif /*IPSEC_POLICY_IPSEC*/
 #endif
 	while ((ch = getopt(argc, argv,
-	    "k:b:C:c:DdfHe:m:I:i:l:unNop:qaAS:s:OvyYW:t:z:" ADDOPTS)) != -1) {
+	    "6k:b:C:c:DdfHe:m:I:i:l:unNop:qaAS:s:OvyYW:t:z:" ADDOPTS)) != -1) {
 #undef ADDOPTS
 		switch (ch) {
+		case '6':
+			/* This option is processed in main(). */
+			break;
 		case 'k':
 		{
 			char *cp;
@@ -2841,36 +2845,6 @@ nigroup(char *name, int nig_oldmcprefix)
 		return NULL;
 
 	return strdup(hbuf);
-}
-
-static void
-usage(void)
-{
-	(void)fprintf(stderr,
-#if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
-	    "Z"
-#endif
-	    "usage: ping6 [-"
-	    "aADd"
-#if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
-	    "E"
-#endif
-	    "fHnNoOq"
-#ifdef IPV6_USE_MIN_MTU
-	    "u"
-#endif
-	    "vyY] "
-	    "[-b bufsiz] [-c count] [-e gateway]\n"
-	    "             [-I interface] [-i wait] [-k addrtype] [-l preload] "
-	    "[-m hoplimit]\n"
-	    "             [-p pattern]"
-#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
-	    " [-P policy]"
-#endif
-	    " [-S sourceaddr] [-s packetsize]\n"
-	    "             [-t timeout] [-W waittime] [-z tclass] [hops ...] "
-	    "host\n");
-	exit(1);
 }
 
 static cap_channel_t *

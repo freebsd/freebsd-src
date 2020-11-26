@@ -100,6 +100,8 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+#include "main.h"
+#include "ping.h"
 #include "utils.h"
 
 #define	INADDR_LEN	((int)sizeof(in_addr_t))
@@ -225,10 +227,9 @@ static void pr_pack(char *, ssize_t, struct sockaddr_in *, struct timespec *);
 static void pr_retip(struct ip *, const u_char *);
 static void status(int);
 static void stopit(int);
-static void usage(void) __dead2;
 
 int
-main(int argc, char *const *argv)
+ping(int argc, char *const *argv)
 {
 	struct sockaddr_in from, sock_in;
 	struct in_addr ifaddr;
@@ -301,7 +302,7 @@ main(int argc, char *const *argv)
 
 	outpack = outpackhdr + sizeof(struct ip);
 	while ((ch = getopt(argc, argv,
-		"AaC:c:DdfG:g:Hh:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:"
+		"4AaC:c:DdfG:g:Hh:I:i:Ll:M:m:nop:QqRrS:s:T:t:vW:z:"
 #ifdef IPSEC
 #ifdef IPSEC_POLICY_IPSEC
 		"P:"
@@ -310,6 +311,9 @@ main(int argc, char *const *argv)
 		)) != -1)
 	{
 		switch(ch) {
+		case '4':
+			/* This option is processed in main(). */
+			break;
 		case 'A':
 			options |= F_MISSED;
 			break;
@@ -1768,25 +1772,4 @@ capdns_setup(void)
 		err(1, "unable to limit access to system.dns service");
 #endif
 	return (capdnsloc);
-}
-
-#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
-#define	SECOPT		" [-P policy]"
-#else
-#define	SECOPT		""
-#endif
-static void
-usage(void)
-{
-
-	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: ping [-AaDdfHnoQqRrv] [-C pcp] [-c count] [-G sweepmaxsize] [-g sweepminsize]",
-"            [-h sweepincrsize] [-i wait] [-l preload] [-M mask | time] [-m ttl]",
-"           " SECOPT " [-p pattern] [-S src_addr] [-s packetsize] [-t timeout]",
-"            [-W waittime] [-z tos] host",
-"       ping [-AaDdfHLnoQqRrv] [-C pcp] [-c count] [-I iface] [-i wait] [-l preload]",
-"            [-M mask | time] [-m ttl]" SECOPT " [-p pattern] [-S src_addr]",
-"            [-s packetsize] [-T ttl] [-t timeout] [-W waittime]",
-"            [-z tos] mcast-group");
-	exit(EX_USAGE);
 }

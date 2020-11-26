@@ -448,8 +448,6 @@
         ..
         ping
         ..
-        ping6
-        ..
         route
         ..
     ..
