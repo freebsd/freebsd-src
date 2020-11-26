@@ -782,8 +782,8 @@ isp_put_icb_2400(ispsoftc_t *isp, isp_icb_2400_t *src, isp_icb_2400_t *dst)
 	ISP_IOXPUT_16(isp, src->icb_qos, &dst->icb_qos);
 	for (i = 0; i < 3; i++)
 		ISP_IOXPUT_16(isp, src->icb_reserved2[i], &dst->icb_reserved2[i]);
-	for (i = 0; i < 3; i++)
-		ISP_IOXPUT_16(isp, src->icb_enodemac[i], &dst->icb_enodemac[i]);
+	for (i = 0; i < 6; i++)
+		ISP_IOXPUT_8(isp, src->icb_enodemac[i], &dst->icb_enodemac[i]);
 	ISP_IOXPUT_16(isp, src->icb_disctime, &dst->icb_disctime);
 	for (i = 0; i < 4; i++)
 		ISP_IOXPUT_16(isp, src->icb_reserved3[i], &dst->icb_reserved3[i]);
