@@ -2528,6 +2528,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 			     OR_PFIL_HOOKED_INET6)) {			\
 				if (bridge_pfil(&m, NULL, ifp,		\
 				    PFIL_IN) != 0 || m == NULL) {	\
+					NET_EPOCH_EXIT_ET(et);  \
 					return (NULL);			\
 				}					\
 				eh = mtod(m, struct ether_header *);	\
