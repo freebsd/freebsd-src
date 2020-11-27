@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include <atf-c.h>
 
-void
+static void
 test_trivialp(const char *src, const char *dst, int expected)
 {
 	iconv_t ic;
