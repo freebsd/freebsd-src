@@ -12,6 +12,7 @@ ATF_TESTS_SH+=	anchor \
 		names \
 		nat \
 		set_tos \
+		src_track \
 		rdr \
 		route_to \
 		synproxy \
