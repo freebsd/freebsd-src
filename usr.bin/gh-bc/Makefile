@@ -95,16 +95,16 @@ NLSLINKS_pt_PT.ISO8859-1+= pt_BR.ISO8859-1
 NLSLINKS_pt_PT.ISO8859-1+= pt_PT.ISO8859-15
 .endif
 
-lib.c:		lib.bc
+lib.c:		lib.bc Makefile
 		cd ${BCDIR} && sh gen/strgen.sh gen/lib.bc ${.OBJDIR}/lib.c bc_lib bc_lib_name 1 1
 
-lib2.c:		lib2.bc
+lib2.c:		lib2.bc Makefile
 		cd ${BCDIR} && sh gen/strgen.sh gen/lib2.bc ${.OBJDIR}/lib2.c bc_lib2 bc_lib2_name 1 1
 
-bc_help.c:	bc_help.txt
+bc_help.c:	bc_help.txt Makefile
 		cd ${BCDIR} && sh gen/strgen.sh gen/bc_help.txt ${.OBJDIR}/bc_help.c bc_help
 
-dc_help.c:	dc_help.txt
+dc_help.c:	dc_help.txt Makefile
 		cd ${BCDIR} && sh gen/strgen.sh gen/dc_help.txt ${.OBJDIR}/dc_help.c dc_help
 
 bc.1:
