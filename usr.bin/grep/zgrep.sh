@@ -90,6 +90,10 @@ do
 	    pattern_found=1
 	    shift
 	    ;;
+	-h|--no-filename)
+	    silent=1
+	    shift
+	    ;;
 	--*)
 	    grep_args="${grep_args} $1"
 	    shift
@@ -118,10 +122,6 @@ do
 	    ;;
 	-)
 	    hyphen=1
-	    shift
-	    ;;
-	-h)
-	    silent=1
 	    shift
 	    ;;
 	-r|-R)
