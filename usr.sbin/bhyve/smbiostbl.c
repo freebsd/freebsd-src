@@ -51,8 +51,9 @@ __FBSDID("$FreeBSD$");
 
 #define SMBIOS_BASE		0xF1000
 
-#define FIRMWARE_VERSION	"13.0"
-#define FIRMWARE_RELEASE_DATE	"11/10/2020"
+#define	FIRMWARE_VERSION	"13.0"
+/* The SMBIOS specification defines the date format to be mm/dd/yyyy */
+#define	FIRMWARE_RELEASE_DATE	"11/10/2020"
 
 /* BHYVE_ACPI_BASE - SMBIOS_BASE) */
 #define	SMBIOS_MAX_LENGTH	(0xF2400 - 0xF1000)
