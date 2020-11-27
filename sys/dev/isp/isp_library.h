@@ -141,6 +141,22 @@ void isp_put_rsnn_nn(ispsoftc_t *, rsnn_nn_t *, rsnn_nn_t *);
 void isp_get_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_ct_hdr(ispsoftc_t *isp, ct_hdr_t *, ct_hdr_t *);
 void isp_put_fcp_rsp_iu(ispsoftc_t *isp, fcp_rsp_iu_t *, fcp_rsp_iu_t *);
+void isp_get_atio7(ispsoftc_t *isp, at7_entry_t *, at7_entry_t *);
+void isp_put_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
+void isp_get_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
+void isp_put_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
+void isp_get_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
+void isp_put_notify_ack_24xx(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
+void isp_get_notify_ack_24xx(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
+void isp_get_abts(ispsoftc_t *, abts_t *, abts_t *);
+void isp_put_abts_rsp(ispsoftc_t *, abts_rsp_t *, abts_rsp_t *);
+void isp_get_abts_rsp(ispsoftc_t *, abts_rsp_t *, abts_rsp_t *);
+
+void isp_put_entry(ispsoftc_t *, void *, void *);
+void isp_get_entry(ispsoftc_t *, void *, void *);
+int isp_send_entry(ispsoftc_t *, void *);
+int isp_exec_entry_mbox(ispsoftc_t *, void *, void *, int);
+int isp_exec_entry_queue(ispsoftc_t *, void *, void *, int);
 
 #define ISP_HANDLE_MASK  0x7fff
 
@@ -162,16 +178,5 @@ int isp_find_pdb_by_portid(ispsoftc_t *, int, uint32_t, fcportdb_t **);
 void isp_find_chan_by_did(ispsoftc_t *, uint32_t, uint16_t *);
 void isp_add_wwn_entry(ispsoftc_t *, int, uint64_t, uint64_t, uint16_t, uint32_t, uint16_t);
 void isp_del_wwn_entry(ispsoftc_t *, int, uint64_t, uint16_t, uint32_t);
-
-void isp_get_atio7(ispsoftc_t *isp, at7_entry_t *, at7_entry_t *);
-void isp_put_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
-void isp_get_ctio7(ispsoftc_t *, ct7_entry_t *, ct7_entry_t *);
-void isp_put_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
-void isp_get_notify_24xx(ispsoftc_t *, in_fcentry_24xx_t *, in_fcentry_24xx_t *);
-void isp_put_notify_ack_24xx(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
-void isp_get_notify_ack_24xx(ispsoftc_t *, na_fcentry_24xx_t *, na_fcentry_24xx_t *);
-void isp_get_abts(ispsoftc_t *, abts_t *, abts_t *);
-void isp_put_abts_rsp(ispsoftc_t *, abts_rsp_t *, abts_rsp_t *);
-void isp_get_abts_rsp(ispsoftc_t *, abts_rsp_t *, abts_rsp_t *);
 #endif /* ISP_TARGET_MODE */
 #endif /* _ISP_LIBRARY_H */

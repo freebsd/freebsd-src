@@ -358,48 +358,29 @@ typedef struct {
 #define	RQSFLAG_MASK		0x3f
 
 /* RQS entry_type definitions */
-#define	RQSTYPE_REQUEST		0x01
-#define	RQSTYPE_DATASEG		0x02
 #define	RQSTYPE_RESPONSE	0x03
 #define	RQSTYPE_MARKER		0x04
-#define	RQSTYPE_CMDONLY		0x05
 #define	RQSTYPE_ATIO		0x06	/* Target Mode */
-#define	RQSTYPE_CTIO		0x07	/* Target Mode */
-#define	RQSTYPE_SCAM		0x08
-#define	RQSTYPE_A64		0x09
 #define	RQSTYPE_A64_CONT	0x0a
-#define	RQSTYPE_ENABLE_LUN	0x0b	/* Target Mode */
-#define	RQSTYPE_MODIFY_LUN	0x0c	/* Target Mode */
 #define	RQSTYPE_NOTIFY		0x0d	/* Target Mode */
 #define	RQSTYPE_NOTIFY_ACK	0x0e	/* Target Mode */
-#define	RQSTYPE_CTIO1		0x0f	/* Target Mode */
 #define	RQSTYPE_STATUS_CONT	0x10
-#define	RQSTYPE_T2RQS		0x11
 #define	RQSTYPE_CTIO7		0x12
-#define	RQSTYPE_IP_XMIT		0x13
 #define	RQSTYPE_TSK_MGMT	0x14
-#define	RQSTYPE_T4RQS		0x15
 #define	RQSTYPE_ATIO2		0x16	/* Target Mode */
-#define	RQSTYPE_CTIO2		0x17	/* Target Mode */
 #define	RQSTYPE_T7RQS		0x18
-#define	RQSTYPE_T3RQS		0x19
-#define	RQSTYPE_IP_XMIT_64	0x1b
-#define	RQSTYPE_CTIO4		0x1e	/* Target Mode */
-#define	RQSTYPE_CTIO3		0x1f	/* Target Mode */
-#define	RQSTYPE_RIO1		0x21
-#define	RQSTYPE_RIO2		0x22
-#define	RQSTYPE_IP_RECV		0x23
-#define	RQSTYPE_IP_RECV_CONT	0x24
 #define	RQSTYPE_CT_PASSTHRU	0x29
-#define	RQSTYPE_MS_PASSTHRU	0x29
-#define	RQSTYPE_VP_CTRL		0x30	/* 24XX only */
-#define	RQSTYPE_VP_MODIFY	0x31	/* 24XX only */
-#define	RQSTYPE_RPT_ID_ACQ	0x32	/* 24XX only */
+#define	RQSTYPE_VP_CTRL		0x30
+#define	RQSTYPE_VP_MODIFY	0x31
+#define	RQSTYPE_RPT_ID_ACQ	0x32
 #define	RQSTYPE_ABORT_IO	0x33
+#define	RQSTYPE_MBOX		0x39
 #define	RQSTYPE_T6RQS		0x48
+#define	RQSTYPE_PUREX		0x51
 #define	RQSTYPE_LOGIN		0x52
-#define	RQSTYPE_ABTS_RCVD	0x54	/* 24XX only */
-#define	RQSTYPE_ABTS_RSP	0x55	/* 24XX only */
+#define	RQSTYPE_ELS_PASSTHRU	0x53
+#define	RQSTYPE_ABTS_RCVD	0x54
+#define	RQSTYPE_ABTS_RSP	0x55
 
 typedef struct {
 	isphdr_t	mrk_header;

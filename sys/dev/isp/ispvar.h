@@ -699,6 +699,8 @@ void isp_done(XS_T *);
  *        Send a LIP on this channel
  * ... ISPCTL_GET_NAMES, int channel, int np, uint64_t *wwnn, uint64_t *wwpn)
  *        Get a WWNN/WWPN for this N-port handle on this channel
+ * ... ISPCTL_RUN_MBOXCMD, mbreg_t *mbp)
+ *        Run this mailbox command
  * ... ISPCTL_GET_PDB, int channel, int nphandle, isp_pdb_t *pdb)
  *        Get PDB on this channel for this N-port handle
  * ... ISPCTL_PLOGX, isp_plcmd_t *)
@@ -724,6 +726,7 @@ typedef enum {
 	ISPCTL_PDB_SYNC,
 	ISPCTL_SEND_LIP,
 	ISPCTL_GET_NAMES,
+	ISPCTL_RUN_MBOXCMD,
 	ISPCTL_GET_PDB,
 	ISPCTL_PLOGX,
 	ISPCTL_CHANGE_ROLE
@@ -936,11 +939,6 @@ int isp_notify_ack(ispsoftc_t *, void *);
  * This function externalized acknowledging (success/fail) an ABTS frame
  */
 int isp_acknak_abts(ispsoftc_t *, void *, int);
-
-/*
- * General request queue 'put' routine for target mode entries.
- */
-int isp_target_put_entry(ispsoftc_t *isp, void *);
 
 /*
  * General routine to send a final CTIO for a command- used mostly for
