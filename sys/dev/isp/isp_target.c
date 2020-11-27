@@ -174,6 +174,7 @@ isp_target_notify(ispsoftc_t *isp, void *vptr, uint32_t *optrp, uint16_t ql)
 	case RQSTYPE_NOTIFY:
 		isp_get_notify_24xx(isp, inot_24xx, (in_fcentry_24xx_t *)local);
 		isp_handle_notify_24xx(isp, (in_fcentry_24xx_t *)local);
+		break;
 
 	case RQSTYPE_NOTIFY_ACK:
 		/*
