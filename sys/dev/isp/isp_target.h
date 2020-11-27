@@ -71,13 +71,6 @@ typedef struct isp_notify {
 } isp_notify_t;
 
 /*
- * Debug macros
- */
-
-#define	ISP_TDQE(isp, msg, idx, arg)	\
-    if (isp->isp_dblev & ISP_LOGTDEBUG2) isp_print_qentry(isp, msg, idx, arg)
-
-/*
  * Special Constatns
  */
 #define INI_ANY			((uint64_t) -1)

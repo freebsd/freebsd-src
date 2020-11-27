@@ -492,8 +492,6 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 		int needmarker;
 		struct isp_fc_tsk_mgmt *fct = (struct isp_fc_tsk_mgmt *) addr;
 		uint16_t nphdl;
-		void *reqp;
-		uint8_t resp[QENTRY_LEN];
 		isp24xx_tmf_t tmf;
 		isp24xx_statusreq_t sp;
 		fcparam *fcp;
@@ -564,46 +562,13 @@ ispioctl(struct cdev *dev, u_long c, caddr_t addr, int flags, struct thread *td)
 			break;
 		}
 
-		/* Prepare space for response in memory */
-		memset(resp, 0xff, sizeof(resp));
-		tmf.tmf_handle = isp_allocate_handle(isp, resp,
-		    ISP_HANDLE_CTRL);
-		if (tmf.tmf_handle == 0) {
-			isp_prt(isp, ISP_LOGERR,
-			    "%s: TMF of Chan %d out of handles",
-			    __func__, chan);
+		retval = isp_exec_entry_queue(isp, &tmf, &sp, 5);
+		if (retval != 0) {
+			isp_prt(isp, ISP_LOGERR, "%s: TMF of chan %d error %d",
+			    __func__, chan, retval);
 			ISP_UNLOCK(isp);
-			retval = ENOMEM;
 			break;
 		}
-
-		/* Send request and wait for response. */
-		reqp = isp_getrqentry(isp);
-		if (reqp == NULL) {
-			isp_prt(isp, ISP_LOGERR,
-			    "%s: TMF of Chan %d out of rqent",
-			    __func__, chan);
-			isp_destroy_handle(isp, tmf.tmf_handle);
-			ISP_UNLOCK(isp);
-			retval = EIO;
-			break;
-		}
-		isp_put_24xx_tmf(isp, &tmf, (isp24xx_tmf_t *)reqp);
-		if (isp->isp_dblev & ISP_LOGDEBUG1)
-			isp_print_bytes(isp, "IOCB TMF", QENTRY_LEN, reqp);
-		ISP_SYNC_REQUEST(isp);
-		if (msleep(resp, &isp->isp_lock, 0, "TMF", 5*hz) == EWOULDBLOCK) {
-			isp_prt(isp, ISP_LOGERR,
-			    "%s: TMF of Chan %d timed out",
-			    __func__, chan);
-			isp_destroy_handle(isp, tmf.tmf_handle);
-			ISP_UNLOCK(isp);
-			retval = EIO;
-			break;
-		}
-		if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB TMF response", QENTRY_LEN, resp);
-		isp_get_24xx_response(isp, (isp24xx_statusreq_t *)resp, &sp);
 
 		if (sp.req_completion_status != 0)
 			retval = EIO;
@@ -1755,7 +1720,7 @@ isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp, uint32_
 			cto->rsp.m1.ct_resp[2] = (rsp >> 16) & 0xff;
 			cto->rsp.m1.ct_resp[3] = (rsp >> 24) & 0xff;
 		}
-		return (isp_target_put_entry(isp, &cto));
+		return (isp_send_entry(isp, cto));
 	}
 
 	/*
@@ -1780,7 +1745,7 @@ isp_handle_platform_target_notify_ack(ispsoftc_t *isp, isp_notify_t *mp, uint32_
 			cto->ct_oxid = abts->abts_ox_id;
 			cto->ct_vpidx = mp->nt_channel;
 			cto->ct_flags = CT7_NOACK|CT7_TERMINATE;
-			if (isp_target_put_entry(isp, cto)) {
+			if (isp_send_entry(isp, cto)) {
 				return (ENOMEM);
 			}
 			mp->nt_need_ack = 0;
@@ -2353,7 +2318,7 @@ isp_abort_atio(ispsoftc_t *isp, union ccb *ccb)
 			cto->ct_oxid = atp->oxid;
 			cto->ct_vpidx = XS_CHANNEL(accb);
 			cto->ct_flags = CT7_NOACK|CT7_TERMINATE;
-			isp_target_put_entry(isp, cto);
+			isp_send_entry(isp, cto);
 		}
 		isp_put_atpd(isp, XS_CHANNEL(accb), atp);
 		ccb->ccb_h.status = CAM_REQ_CMP;

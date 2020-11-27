@@ -93,7 +93,8 @@ static const uint8_t alpa_map[] = {
 /*
  * Local function prototypes.
  */
-static int isp_handle_other_response(ispsoftc_t *, int, isphdr_t *, uint32_t *, uint16_t);
+static int isp_handle_control(ispsoftc_t *, isphdr_t *);
+static void isp_handle_rpt_id_acq(ispsoftc_t *, isphdr_t *);
 static void isp_parse_status_24xx(ispsoftc_t *, isp24xx_statusreq_t *, XS_T *);
 static void isp_clear_portdb(ispsoftc_t *, int);
 static void isp_mark_portdb(ispsoftc_t *, int);
@@ -1020,8 +1021,7 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
 	vp_modify_t vp;
-	void *reqp;
-	uint8_t resp[QENTRY_LEN];
+	int retval;
 
 	/* Build a VP MODIFY command in memory */
 	ISP_MEMZERO(&vp, sizeof(vp));
@@ -1044,36 +1044,12 @@ isp_fc_enable_vp(ispsoftc_t *isp, int chan)
 	MAKE_NODE_NAME_FROM_WWN(vp.vp_mod_ports[0].wwpn, fcp->isp_wwpn);
 	MAKE_NODE_NAME_FROM_WWN(vp.vp_mod_ports[0].wwnn, fcp->isp_wwnn);
 
-	/* Prepare space for response in memory */
-	memset(resp, 0xff, sizeof(resp));
-	vp.vp_mod_hdl = isp_allocate_handle(isp, resp, ISP_HANDLE_CTRL);
-	if (vp.vp_mod_hdl == 0) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: VP_MODIFY of Chan %d out of handles", __func__, chan);
-		return (EIO);
+	retval = isp_exec_entry_queue(isp, &vp, &vp, 5);
+	if (retval != 0) {
+		isp_prt(isp, ISP_LOGERR, "%s: VP_MODIFY of chan %d error %d",
+		    __func__, chan, retval);
+		return (retval);
 	}
-
-	/* Send request and wait for response. */
-	reqp = isp_getrqentry(isp);
-	if (reqp == NULL) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: VP_MODIFY of Chan %d out of rqent", __func__, chan);
-		isp_destroy_handle(isp, vp.vp_mod_hdl);
-		return (EIO);
-	}
-	isp_put_vp_modify(isp, &vp, (vp_modify_t *)reqp);
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB VP_MODIFY", QENTRY_LEN, reqp);
-	ISP_SYNC_REQUEST(isp);
-	if (msleep(resp, &isp->isp_lock, 0, "VP_MODIFY", 5*hz) == EWOULDBLOCK) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: VP_MODIFY of Chan %d timed out", __func__, chan);
-		isp_destroy_handle(isp, vp.vp_mod_hdl);
-		return (EIO);
-	}
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB VP_MODIFY response", QENTRY_LEN, resp);
-	isp_get_vp_modify(isp, (vp_modify_t *)resp, &vp);
 
 	if (vp.vp_mod_hdr.rqs_flags != 0 || vp.vp_mod_status != VP_STS_OK) {
 		isp_prt(isp, ISP_LOGERR,
@@ -1088,8 +1064,7 @@ static int
 isp_fc_disable_vp(ispsoftc_t *isp, int chan)
 {
 	vp_ctrl_info_t vp;
-	void *reqp;
-	uint8_t resp[QENTRY_LEN];
+	int retval;
 
 	/* Build a VP CTRL command in memory */
 	ISP_MEMZERO(&vp, sizeof(vp));
@@ -1105,36 +1080,12 @@ isp_fc_disable_vp(ispsoftc_t *isp, int chan)
 	vp.vp_ctrl_vp_count = 1;
 	vp.vp_ctrl_idmap[chan / 16] |= (1 << chan % 16);
 
-	/* Prepare space for response in memory */
-	memset(resp, 0xff, sizeof(resp));
-	vp.vp_ctrl_handle = isp_allocate_handle(isp, resp, ISP_HANDLE_CTRL);
-	if (vp.vp_ctrl_handle == 0) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: VP_CTRL of Chan %d out of handles", __func__, chan);
-		return (EIO);
+	retval = isp_exec_entry_queue(isp, &vp, &vp, 5);
+	if (retval != 0) {
+		isp_prt(isp, ISP_LOGERR, "%s: VP_CTRL of chan %d error %d",
+		    __func__, chan, retval);
+		return (retval);
 	}
-
-	/* Send request and wait for response. */
-	reqp = isp_getrqentry(isp);
-	if (reqp == NULL) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: VP_CTRL of Chan %d out of rqent", __func__, chan);
-		isp_destroy_handle(isp, vp.vp_ctrl_handle);
-		return (EIO);
-	}
-	isp_put_vp_ctrl_info(isp, &vp, (vp_ctrl_info_t *)reqp);
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB VP_CTRL", QENTRY_LEN, reqp);
-	ISP_SYNC_REQUEST(isp);
-	if (msleep(resp, &isp->isp_lock, 0, "VP_CTRL", 5*hz) == EWOULDBLOCK) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: VP_CTRL of Chan %d timed out", __func__, chan);
-		isp_destroy_handle(isp, vp.vp_ctrl_handle);
-		return (EIO);
-	}
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB VP_CTRL response", QENTRY_LEN, resp);
-	isp_get_vp_ctrl_info(isp, (vp_ctrl_info_t *)resp, &vp);
 
 	if (vp.vp_ctrl_hdr.rqs_flags != 0 || vp.vp_ctrl_status != 0) {
 		isp_prt(isp, ISP_LOGERR,
@@ -1230,10 +1181,8 @@ static int
 isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags)
 {
 	isp_plogx_t pl;
-	void *reqp;
-	uint8_t resp[QENTRY_LEN];
 	uint32_t sst, parm1;
-	int rval, lev;
+	int retval, lev;
 	const char *msg;
 	char buf[64];
 
@@ -1250,39 +1199,12 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 	pl.plogx_rspsz_porthi = (portid >> 16) & 0xff;
 	pl.plogx_flags = flags;
 
-	/* Prepare space for response in memory */
-	memset(resp, 0xff, sizeof(resp));
-	pl.plogx_handle = isp_allocate_handle(isp, resp, ISP_HANDLE_CTRL);
-	if (pl.plogx_handle == 0) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: PLOGX of Chan %d out of handles", __func__, chan);
-		return (-1);
+	retval = isp_exec_entry_queue(isp, &pl, &pl, 3 * ICB_LOGIN_TOV);
+	if (retval != 0) {
+		isp_prt(isp, ISP_LOGERR, "%s: PLOGX of chan %d error %d",
+		    __func__, chan, retval);
+		return (retval);
 	}
-
-	/* Send request and wait for response. */
-	reqp = isp_getrqentry(isp);
-	if (reqp == NULL) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: PLOGX of Chan %d out of rqent", __func__, chan);
-		isp_destroy_handle(isp, pl.plogx_handle);
-		return (-1);
-	}
-	isp_put_plogx(isp, &pl, (isp_plogx_t *)reqp);
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB LOGX", QENTRY_LEN, reqp);
-	FCPARAM(isp, chan)->isp_login_hdl = handle;
-	ISP_SYNC_REQUEST(isp);
-	if (msleep(resp, &isp->isp_lock, 0, "PLOGX", 3 * ICB_LOGIN_TOV * hz)
-	    == EWOULDBLOCK) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: PLOGX of Chan %d timed out", __func__, chan);
-		isp_destroy_handle(isp, pl.plogx_handle);
-		return (-1);
-	}
-	FCPARAM(isp, chan)->isp_login_hdl = NIL_HANDLE;
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "IOCB LOGX response", QENTRY_LEN, resp);
-	isp_get_plogx(isp, (isp_plogx_t *)resp, &pl);
 
 	if (pl.plogx_status == PLOGX_STATUS_OK) {
 		return (0);
@@ -1296,7 +1218,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 	sst = pl.plogx_ioparm[0].lo16 | (pl.plogx_ioparm[0].hi16 << 16);
 	parm1 = pl.plogx_ioparm[1].lo16 | (pl.plogx_ioparm[1].hi16 << 16);
 
-	rval = -1;
+	retval = -1;
 	lev = ISP_LOGERR;
 	msg = NULL;
 
@@ -1323,7 +1245,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 	case PLOGX_IOCBERR_NOLOGIN:
 		ISP_SNPRINTF(buf, sizeof (buf), "not logged in (last state 0x%x)", parm1);
 		msg = buf;
-		rval = MBOX_NOT_LOGGED_IN;
+		retval = MBOX_NOT_LOGGED_IN;
 		break;
 	case PLOGX_IOCBERR_REJECT:
 		ISP_SNPRINTF(buf, sizeof (buf), "LS_RJT = 0x%x", parm1);
@@ -1340,13 +1262,13 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		lev = ISP_LOG_SANCFG|ISP_LOG_WARN1;
 		ISP_SNPRINTF(buf, sizeof (buf), "already logged in with N-Port handle 0x%x", parm1);
 		msg = buf;
-		rval = MBOX_PORT_ID_USED | (parm1 << 16);
+		retval = MBOX_PORT_ID_USED | (parm1 << 16);
 		break;
 	case PLOGX_IOCBERR_HNDLUSED:
 		lev = ISP_LOG_SANCFG|ISP_LOG_WARN1;
 		ISP_SNPRINTF(buf, sizeof (buf), "handle already used for PortID 0x%06x", parm1);
 		msg = buf;
-		rval = MBOX_LOOP_ID_USED;
+		retval = MBOX_LOOP_ID_USED;
 		break;
 	case PLOGX_IOCBERR_NOHANDLE:
 		msg = "no handle allocated";
@@ -1363,7 +1285,7 @@ isp_plogx(ispsoftc_t *isp, int chan, uint16_t handle, uint32_t portid, int flags
 		isp_prt(isp, lev, "Chan %d PLOGX PortID 0x%06x to N-Port handle 0x%x: %s",
 		    chan, portid, handle, msg);
 	}
-	return (rval);
+	return (retval);
 }
 
 static int
@@ -1883,8 +1805,7 @@ isp_ct_passthru(ispsoftc_t *isp, int chan, uint32_t cmd_bcnt, uint32_t rsp_bcnt)
 {
 	fcparam *fcp = FCPARAM(isp, chan);
 	isp_ct_pt_t pt;
-	void *reqp;
-	uint8_t resp[QENTRY_LEN];
+	int retval;
 
 	if (isp->isp_dblev & ISP_LOGDEBUG1)
 		isp_print_bytes(isp, "CT request", cmd_bcnt, fcp->isp_scratch);
@@ -1909,37 +1830,13 @@ isp_ct_passthru(ispsoftc_t *isp, int chan, uint32_t cmd_bcnt, uint32_t rsp_bcnt)
 	pt.ctp_dataseg[1].ds_basehi = DMA_HI32(fcp->isp_scdma);
 	pt.ctp_dataseg[1].ds_count = rsp_bcnt;
 
-	/* Prepare space for response in memory */
-	memset(resp, 0xff, sizeof(resp));
-	pt.ctp_handle = isp_allocate_handle(isp, resp, ISP_HANDLE_CTRL);
-	if (pt.ctp_handle == 0) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: CTP of Chan %d out of handles", __func__, chan);
-		return (-1);
+	retval = isp_exec_entry_queue(isp, &pt, &pt, 2 * pt.ctp_time);
+	if (retval != 0) {
+		isp_prt(isp, ISP_LOGERR, "%s: CTP of chan %d error %d",
+		    __func__, chan, retval);
+		return (retval);
 	}
 
-	/* Send request and wait for response. */
-	reqp = isp_getrqentry(isp);
-	if (reqp == NULL) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: CTP of Chan %d out of rqent", __func__, chan);
-		isp_destroy_handle(isp, pt.ctp_handle);
-		return (-1);
-	}
-	isp_put_ct_pt(isp, &pt, (isp_ct_pt_t *)reqp);
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "CT IOCB request", QENTRY_LEN, reqp);
-	ISP_SYNC_REQUEST(isp);
-	if (msleep(resp, &isp->isp_lock, 0, "CTP", pt.ctp_time*hz) == EWOULDBLOCK) {
-		isp_prt(isp, ISP_LOGERR,
-		    "%s: CTP of Chan %d timed out", __func__, chan);
-		isp_destroy_handle(isp, pt.ctp_handle);
-		return (-1);
-	}
-	if (isp->isp_dblev & ISP_LOGDEBUG1)
-		isp_print_bytes(isp, "CT IOCB response", QENTRY_LEN, resp);
-
-	isp_get_ct_pt(isp, (isp_ct_pt_t *)resp, &pt);
 	if (pt.ctp_status && pt.ctp_status != RQCS_DATA_UNDERRUN) {
 		isp_prt(isp, ISP_LOGWARN,
 		    "Chan %d CT pass-through returned 0x%x",
@@ -2873,7 +2770,7 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 	fcparam *fcp;
 	fcportdb_t *lp;
 	XS_T *xs;
-	mbreg_t mbs;
+	mbreg_t *mbr;
 	int chan, tgt;
 	uint32_t handle;
 	va_list ap;
@@ -2919,32 +2816,15 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 		tmf->tmf_tidlo = lp->portid;
 		tmf->tmf_tidhi = lp->portid >> 16;
 		tmf->tmf_vpidx = ISP_GET_VPIDX(isp, chan);
-		isp_put_24xx_tmf(isp, tmf, isp->isp_iocb);
-		if (isp->isp_dblev & ISP_LOGDEBUG1)
-			isp_print_bytes(isp, "TMF IOCB request", QENTRY_LEN, isp->isp_iocb);
-		MEMORYBARRIER(isp, SYNC_IFORDEV, 0, QENTRY_LEN, chan);
 		fcp->sendmarker = 1;
-
 		isp_prt(isp, ISP_LOGALL, "Chan %d Reset N-Port Handle 0x%04x @ Port 0x%06x", chan, lp->handle, lp->portid);
-		MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL,
-		    MBCMD_DEFAULT_TIMEOUT + tmf->tmf_timeout * 1000000);
-		mbs.param[1] = QENTRY_LEN;
-		mbs.param[2] = DMA_WD1(isp->isp_iocb_dma);
-		mbs.param[3] = DMA_WD0(isp->isp_iocb_dma);
-		mbs.param[6] = DMA_WD3(isp->isp_iocb_dma);
-		mbs.param[7] = DMA_WD2(isp->isp_iocb_dma);
-		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
+
+		sp = (isp24xx_statusreq_t *) local;
+		if (isp_exec_entry_mbox(isp, tmf, sp, 2 * tmf->tmf_timeout))
 			break;
 
-		MEMORYBARRIER(isp, SYNC_IFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-		if (isp->isp_dblev & ISP_LOGDEBUG1)
-			isp_print_bytes(isp, "TMF IOCB response", QENTRY_LEN, &((isp24xx_statusreq_t *)isp->isp_iocb)[1]);
-		sp = (isp24xx_statusreq_t *) local;
-		isp_get_24xx_response(isp, &((isp24xx_statusreq_t *)isp->isp_iocb)[1], sp);
-		if (sp->req_completion_status == 0) {
+		if (sp->req_completion_status == 0)
 			return (0);
-		}
 		isp_prt(isp, ISP_LOGWARN, "Chan %d reset of target %d returned 0x%x", chan, tgt, sp->req_completion_status);
 		break;
 	}
@@ -2984,30 +2864,12 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 		ab->abrt_tidlo = lp->portid;
 		ab->abrt_tidhi = lp->portid >> 16;
 		ab->abrt_vpidx = ISP_GET_VPIDX(isp, chan);
-		isp_put_24xx_abrt(isp, ab, isp->isp_iocb);
-		if (isp->isp_dblev & ISP_LOGDEBUG1)
-			isp_print_bytes(isp, "AB IOCB quest", QENTRY_LEN, isp->isp_iocb);
-		MEMORYBARRIER(isp, SYNC_IFORDEV, 0, 2 * QENTRY_LEN, chan);
 
-		ISP_MEMZERO(&mbs, sizeof (mbs));
-		MBSINIT(&mbs, MBOX_EXEC_COMMAND_IOCB_A64, MBLOGALL, 5000000);
-		mbs.param[1] = QENTRY_LEN;
-		mbs.param[2] = DMA_WD1(isp->isp_iocb_dma);
-		mbs.param[3] = DMA_WD0(isp->isp_iocb_dma);
-		mbs.param[6] = DMA_WD3(isp->isp_iocb_dma);
-		mbs.param[7] = DMA_WD2(isp->isp_iocb_dma);
-
-		isp_mboxcmd(isp, &mbs);
-		if (mbs.param[0] != MBOX_COMMAND_COMPLETE)
+		if (isp_exec_entry_mbox(isp, ab, ab, 5))
 			break;
 
-		MEMORYBARRIER(isp, SYNC_IFORCPU, QENTRY_LEN, QENTRY_LEN, chan);
-		if (isp->isp_dblev & ISP_LOGDEBUG1)
-			isp_print_bytes(isp, "AB IOCB response", QENTRY_LEN, &((isp24xx_abrt_t *)isp->isp_iocb)[1]);
-		isp_get_24xx_abrt(isp, &((isp24xx_abrt_t *)isp->isp_iocb)[1], ab);
-		if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY) {
+		if (ab->abrt_nphdl == ISP24XX_ABRT_OKAY)
 			return (0);
-		}
 		isp_prt(isp, ISP_LOGWARN, "Chan %d handle %d abort returned 0x%x", chan, tgt, ab->abrt_nphdl);
 	}
 	case ISPCTL_FCLINK_TEST:
@@ -3082,6 +2944,14 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 		}
 		return (0);
 	}
+	case ISPCTL_RUN_MBOXCMD:
+	{
+		va_start(ap, ctl);
+		mbr = va_arg(ap, mbreg_t *);
+		va_end(ap);
+		isp_mboxcmd(isp, mbr);
+		return (0);
+	}
 	case ISPCTL_PLOGX:
 	{
 		isp_plcmd_t *p;
@@ -3134,8 +3004,6 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, ...)
 void
 isp_intr_atioq(ispsoftc_t *isp)
 {
-	uint8_t qe[QENTRY_LEN];
-	isphdr_t *hp;
 	void *addr;
 	uint32_t iptr, optr, oop;
 
@@ -3145,9 +3013,7 @@ isp_intr_atioq(ispsoftc_t *isp)
 		oop = optr;
 		MEMORYBARRIER(isp, SYNC_ATIOQ, oop, QENTRY_LEN, -1);
 		addr = ISP_QUEUE_ENTRY(isp->isp_atioq, oop);
-		isp_get_hdr(isp, addr, (isphdr_t *)qe);
-		hp = (isphdr_t *)qe;
-		switch (hp->rqs_entry_type) {
+		switch (((isphdr_t *)addr)->rqs_entry_type) {
 		case RQSTYPE_NOTIFY:
 		case RQSTYPE_ATIO:
 		case RQSTYPE_NOTIFY_ACK:	/* Can be set to ATIO queue.*/
@@ -3252,10 +3118,20 @@ isp_intr_respq(ispsoftc_t *isp)
 			isp_done(cont_xs);
 		}
 
-		if (etype == RQSTYPE_RESPONSE) {
+		if (isp_handle_control(isp, hp)) {
+			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
+			continue;
+		}
+
+		switch (etype) {
+		case RQSTYPE_RESPONSE:
 			isp_get_24xx_response(isp, (isp24xx_statusreq_t *)hp, sp);
-			/* FALLTHROUGH */
-		} else if (etype == RQSTYPE_STATUS_CONT) {
+			break;
+		case RQSTYPE_MARKER:
+			isp_prt(isp, ISP_LOG_WARN1, "Marker Response");
+			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
+			continue;
+		case RQSTYPE_STATUS_CONT:
 			isp_get_cont_response(isp, (ispstatus_cont_t *)hp, scp);
 			if (cont > 0) {
 				slen = min(cont, sizeof(scp->req_sense_data));
@@ -3273,8 +3149,12 @@ isp_intr_respq(ispsoftc_t *isp)
 			}
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			continue;
-		} else if (isp_handle_other_response(isp, etype, hp,
-		    &cptr, RESULT_QUEUE_LEN(isp))) {
+#ifdef	ISP_TARGET_MODE
+		case RQSTYPE_NOTIFY_ACK:	/* Can be set to ATIO queue. */
+		case RQSTYPE_CTIO7:
+		case RQSTYPE_ABTS_RCVD:		/* Can be set to ATIO queue. */
+		case RQSTYPE_ABTS_RSP:
+			isp_target_notify(isp, hp, &cptr, RESULT_QUEUE_LEN(isp));
 			/* More then one IOCB could be consumed. */
 			while (sptr != cptr) {
 				ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
@@ -3284,7 +3164,12 @@ isp_intr_respq(ispsoftc_t *isp)
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
 			optr = ISP_NXT_QENTRY(cptr, RESULT_QUEUE_LEN(isp));
 			continue;
-		} else {
+#endif
+		case RQSTYPE_RPT_ID_ACQ:	/* Can be set to ATIO queue.*/
+			isp_handle_rpt_id_acq(isp, hp);
+			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
+			continue;
+		default:
 			/* We don't know what was this -- log and skip. */
 			isp_prt(isp, ISP_LOGERR, notresp, etype, cptr, optr);
 			ISP_MEMZERO(hp, QENTRY_LEN);	/* PERF */
@@ -3657,65 +3542,30 @@ isp_intr_async(ispsoftc_t *isp, uint16_t mbox)
 }
 
 /*
- * Handle other response entries. A pointer to the request queue output
- * index is here in case we want to eat several entries at once, although
- * this is not used currently.
+ * Handle completions with control handles by waking up waiting threads.
  */
-
 static int
-isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *optrp, uint16_t ql)
+isp_handle_control(ispsoftc_t *isp, isphdr_t *hp)
 {
-	isp_ridacq_t rid;
-	int chan, c;
-	uint32_t hdl, portid;
+	uint32_t hdl;
 	void *ptr;
 
-	switch (type) {
+	switch (hp->rqs_entry_type) {
+	case RQSTYPE_RESPONSE:
 	case RQSTYPE_MARKER:
-		isp_prt(isp, ISP_LOG_WARN1, "Marker Response");
-		return (1);
-	case RQSTYPE_RPT_ID_ACQ:	/* Can be set to ATIO queue.*/
-		isp_get_ridacq(isp, (isp_ridacq_t *)hp, &rid);
-		portid = (uint32_t)rid.ridacq_vp_port_hi << 16 |
-		    rid.ridacq_vp_port_lo;
-		if (rid.ridacq_format == 0) {
-			for (chan = 0; chan < isp->isp_nchan; chan++) {
-				fcparam *fcp = FCPARAM(isp, chan);
-				if (fcp->role == ISP_ROLE_NONE)
-					continue;
-				c = (chan == 0) ? 127 : (chan - 1);
-				if (rid.ridacq_map[c / 16] & (1 << (c % 16)) ||
-				    chan == 0) {
-					fcp->isp_loopstate = LOOP_HAVE_LINK;
-					isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
-					    chan, ISPASYNC_CHANGE_OTHER);
-				} else {
-					fcp->isp_loopstate = LOOP_NIL;
-					isp_async(isp, ISPASYNC_LOOP_DOWN,
-					    chan);
-				}
-			}
-		} else {
-			fcparam *fcp = FCPARAM(isp, rid.ridacq_vp_index);
-			if (rid.ridacq_vp_status == RIDACQ_STS_COMPLETE ||
-			    rid.ridacq_vp_status == RIDACQ_STS_CHANGED) {
-				fcp->isp_topo = (rid.ridacq_map[0] >> 9) & 0x7;
-				fcp->isp_portid = portid;
-				fcp->isp_loopstate = LOOP_HAVE_ADDR;
-				isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
-				    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
-			} else {
-				fcp->isp_loopstate = LOOP_NIL;
-				isp_async(isp, ISPASYNC_LOOP_DOWN,
-				    rid.ridacq_vp_index);
-			}
-		}
-		return (1);
+	case RQSTYPE_NOTIFY_ACK:
+	case RQSTYPE_CTIO7:
+	case RQSTYPE_TSK_MGMT:
 	case RQSTYPE_CT_PASSTHRU:
 	case RQSTYPE_VP_MODIFY:
 	case RQSTYPE_VP_CTRL:
+	case RQSTYPE_ABORT_IO:
+	case RQSTYPE_MBOX:
 	case RQSTYPE_LOGIN:
+	case RQSTYPE_ELS_PASSTHRU:
 		ISP_IOXGET_32(isp, (uint32_t *)(hp + 1), hdl);
+		if (ISP_H2HT(hdl) != ISP_HANDLE_CTRL)
+			break;
 		ptr = isp_find_xs(isp, hdl);
 		if (ptr != NULL) {
 			isp_destroy_handle(isp, hdl);
@@ -3723,16 +3573,52 @@ isp_handle_other_response(ispsoftc_t *isp, int type, isphdr_t *hp, uint32_t *opt
 			wakeup(ptr);
 		}
 		return (1);
-	case RQSTYPE_NOTIFY_ACK:	/* Can be set to ATIO queue. */
-	case RQSTYPE_CTIO7:
-	case RQSTYPE_ABTS_RCVD:		/* Can be set to ATIO queue. */
-	case RQSTYPE_ABTS_RSP:
-#ifdef	ISP_TARGET_MODE
-		return (isp_target_notify(isp, hp, optrp, ql));
-#endif
-		/* FALLTHROUGH */
-	default:
-		return (0);
+	}
+	return (0);
+}
+
+static void
+isp_handle_rpt_id_acq(ispsoftc_t *isp, isphdr_t *hp)
+{
+	fcparam *fcp;
+	isp_ridacq_t rid;
+	int chan, c;
+	uint32_t portid;
+
+	isp_get_ridacq(isp, (isp_ridacq_t *)hp, &rid);
+	portid = (uint32_t)rid.ridacq_vp_port_hi << 16 |
+	    rid.ridacq_vp_port_lo;
+	if (rid.ridacq_format == 0) {
+		for (chan = 0; chan < isp->isp_nchan; chan++) {
+			fcp = FCPARAM(isp, chan);
+			if (fcp->role == ISP_ROLE_NONE)
+				continue;
+			c = (chan == 0) ? 127 : (chan - 1);
+			if (rid.ridacq_map[c / 16] & (1 << (c % 16)) ||
+			    chan == 0) {
+				fcp->isp_loopstate = LOOP_HAVE_LINK;
+				isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
+				    chan, ISPASYNC_CHANGE_OTHER);
+			} else {
+				fcp->isp_loopstate = LOOP_NIL;
+				isp_async(isp, ISPASYNC_LOOP_DOWN,
+				    chan);
+			}
+		}
+	} else {
+		fcp = FCPARAM(isp, rid.ridacq_vp_index);
+		if (rid.ridacq_vp_status == RIDACQ_STS_COMPLETE ||
+		    rid.ridacq_vp_status == RIDACQ_STS_CHANGED) {
+			fcp->isp_topo = (rid.ridacq_map[0] >> 9) & 0x7;
+			fcp->isp_portid = portid;
+			fcp->isp_loopstate = LOOP_HAVE_ADDR;
+			isp_async(isp, ISPASYNC_CHANGE_NOTIFY,
+			    rid.ridacq_vp_index, ISPASYNC_CHANGE_OTHER);
+		} else {
+			fcp->isp_loopstate = LOOP_NIL;
+			isp_async(isp, ISPASYNC_LOOP_DOWN,
+			    rid.ridacq_vp_index);
+		}
 	}
 }
 
