@@ -941,6 +941,12 @@ loop:
 	error = msdosfs_fsiflush(pmp, waitfor);
 	if (error != 0)
 		allerror = error;
+
+	if (allerror == 0 && waitfor == MNT_SUSPEND) {
+		MNT_ILOCK(mp);
+		mp->mnt_kern_flag |= MNTK_SUSPEND2 | MNTK_SUSPENDED;
+		MNT_IUNLOCK(mp);
+	}
 	return (allerror);
 }
 
