@@ -590,7 +590,7 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 	
 	/*
 	 * Apply any correction from adjtime(2).  If more than one second
-	 * off we slew at a rate of 5ms/s (5000 PPM) else 500us/s (500PPM)
+	 * off we slew at a rate of 5ms/s (5000 PPM) else 500us/s (500 PPM)
 	 * until the last second is slewed the final < 500 usecs.
 	 */
 	if (time_adjtime != 0) {
