@@ -34,8 +34,4 @@
 
 #include <machine/acle-compat.h>
 
-#if __ARM_ARCH >= 6
 #include "locore-v6.S"
-#else
-#include "locore-v4.S"
-#endif

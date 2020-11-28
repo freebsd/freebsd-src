@@ -11,11 +11,7 @@ void	cpu_halt(void);
 void	swi_vm(void *);
 
 #ifdef _KERNEL
-#if __ARM_ARCH >= 6
 #include <machine/cpu-v6.h>
-#else
-#include <machine/cpu-v4.h>
-#endif /* __ARM_ARCH >= 6 */
 
 static __inline uint64_t
 get_cyclecount(void)

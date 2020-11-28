@@ -256,9 +256,6 @@ struct cpu_functions cortexa_cpufuncs = {
 
 struct cpu_functions cpufuncs;
 u_int cputype;
-#if __ARM_ARCH <= 5
-u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore-v4.s */
-#endif
 
 #if defined (CPU_ARM9E) ||	\
   defined(CPU_ARM1176) ||	\
