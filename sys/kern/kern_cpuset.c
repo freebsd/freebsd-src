@@ -794,14 +794,11 @@ cpuset_modify_domain(struct cpuset *set, struct domainset *domain)
 		return (EPERM);
 	domainset_freelist_init(&domains, 0);
 	domain = domainset_create(domain);
-	ndomains = needed = 0;
-	do {
-		if (ndomains < needed) {
-			domainset_freelist_add(&domains, needed - ndomains);
-			ndomains = needed;
-		}
+	ndomains = 0;
+
+	mtx_lock_spin(&cpuset_lock);
+	for (;;) {
 		root = cpuset_getroot(set);
-		mtx_lock_spin(&cpuset_lock);
 		dset = root->cs_domain;
 		/*
 		 * Verify that we have access to this set of domains.
@@ -826,7 +823,15 @@ cpuset_modify_domain(struct cpuset *set, struct domainset *domain)
 		    &needed, 0);
 		if (error)
 			goto out;
-	} while (ndomains < needed);
+		if (ndomains >= needed)
+			break;
+
+		/* Dropping the lock; we'll need to re-evaluate again. */
+		mtx_unlock_spin(&cpuset_lock);
+		domainset_freelist_add(&domains, needed - ndomains);
+		ndomains = needed;
+		mtx_lock_spin(&cpuset_lock);
+	}
 	dset = set->cs_domain;
 	cpuset_update_domain(set, domain, dset, &domains);
 out:
