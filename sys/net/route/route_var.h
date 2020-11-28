@@ -305,6 +305,7 @@ int nhgrp_get_addition_group(struct rib_head *rnh,
     struct route_nhop_data *rnd_orig, struct route_nhop_data *rnd_add,
     struct route_nhop_data *rnd_new);
 
+uint32_t nhgrp_get_idx(const struct nhgrp_object *nhg);
 void nhgrp_free(struct nhgrp_object *nhg);
 
 /* Entropy data used for outbound hashing */
