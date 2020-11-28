@@ -19,7 +19,7 @@ arm/arm/cpufunc_asm_armv7.S	optional	cpu_cortexa | cpu_krait | cpu_mv_pj4b
 arm/arm/cpufunc_asm_pj4b.S	optional	cpu_mv_pj4b
 arm/arm/cpufunc_asm_sheeva.S 	optional	cpu_arm9e
 arm/arm/cpuinfo.c		standard
-arm/arm/cpu_asm-v6.S		optional	armv7 | armv6
+arm/arm/cpu_asm-v6.S		standard
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
@@ -37,14 +37,12 @@ arm/arm/gdb_machdep.c		optional	gdb
 arm/arm/generic_timer.c		optional	generic_timer
 arm/arm/gic.c			optional	gic
 arm/arm/gic_fdt.c		optional	gic fdt
-arm/arm/identcpu-v4.c		optional	!armv7 !armv6
-arm/arm/identcpu-v6.c		optional	armv7 | armv6
+arm/arm/identcpu-v6.c		standard
 arm/arm/in_cksum.c		optional	inet | inet6
 arm/arm/in_cksum_arm.S		optional	inet | inet6
-arm/arm/intr.c			optional	!intrng
-kern/subr_intr.c		optional	intrng
+kern/subr_intr.c		standard
 arm/arm/locore.S		standard	no-obj
-arm/arm/hypervisor-stub.S	optional	armv7 | armv6
+arm/arm/hypervisor-stub.S	standard
 arm/arm/machdep.c		standard
 arm/arm/machdep_boot.c		standard
 arm/arm/machdep_kdb.c		standard
@@ -61,8 +59,7 @@ arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
 arm/arm/platform_pl310_if.m	optional	platform pl310
-arm/arm/pmap-v4.c		optional	!armv7 !armv6
-arm/arm/pmap-v6.c		optional	armv7 | armv6
+arm/arm/pmap-v6.c		standard
 arm/arm/pmu.c			optional	pmu | fdt hwpmc
 arm/arm/ptrace_machdep.c	standard
 arm/arm/sc_machdep.c		optional	sc
@@ -73,12 +70,10 @@ arm/arm/stdatomic.c		standard \
 	compile-with "${NORMAL_C:N-Wmissing-prototypes}"
 arm/arm/support.S		standard
 arm/arm/swtch.S			standard
-arm/arm/swtch-v4.S		optional	!armv7 !armv6
-arm/arm/swtch-v6.S		optional	armv7 | armv6
+arm/arm/swtch-v6.S		standard
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
-arm/arm/trap-v4.c		optional	!armv7 !armv6
-arm/arm/trap-v6.c		optional	armv7 | armv6
+arm/arm/trap-v6.c		standard
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
 arm/arm/unwind.c		optional	ddb | kdtrace_hooks | stack

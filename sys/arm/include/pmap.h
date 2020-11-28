@@ -32,11 +32,7 @@
 #ifndef _MACHINE_PMAP_H_
 #define _MACHINE_PMAP_H_
 
-#if __ARM_ARCH >= 6
 #include <machine/pmap-v6.h>
-#else
-#include <machine/pmap-v4.h>
-#endif
 
 #ifdef _KERNEL
 #include <sys/systm.h>
