@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <sys/timers.h>
 #include <sys/umtx.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>
@@ -320,6 +321,8 @@ exit1(struct thread *td, int rval, int signo)
 			msleep(p, &ppeers_lock, PWAIT, "exit1", 0);
 		mtx_unlock(&ppeers_lock);
 	}
+
+	itimers_exit(p);
 
 	/*
 	 * Check if any loadable modules need anything done at process exit.
