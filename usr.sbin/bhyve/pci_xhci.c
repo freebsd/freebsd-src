@@ -2251,7 +2251,6 @@ pci_xhci_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
 
 	assert(baridx == 0);
 
-
 	pthread_mutex_lock(&sc->mtx);
 	if (offset < XHCI_CAPLEN)	/* read only registers */
 		WPRINTF(("pci_xhci: write RO-CAPs offset %ld", offset));
@@ -2981,11 +2980,11 @@ pci_xhci_snapshot(struct vm_snapshot_meta *meta)
 
 	/* opregs.cr_p */
 	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(sc->opregs.cr_p,
-		XHCI_GADDR_SIZE(sc->opregs.cr_p), false, meta, ret, done);
+		XHCI_GADDR_SIZE(sc->opregs.cr_p), true, meta, ret, done);
 
 	/* opregs.dcbaa_p */
 	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(sc->opregs.dcbaa_p,
-		XHCI_GADDR_SIZE(sc->opregs.dcbaa_p), false, meta, ret, done);
+		XHCI_GADDR_SIZE(sc->opregs.dcbaa_p), true, meta, ret, done);
 
 	/* rtsregs */
 	SNAPSHOT_VAR_OR_LEAVE(sc->rtsregs.mfindex, meta, ret, done);
@@ -3000,11 +2999,11 @@ pci_xhci_snapshot(struct vm_snapshot_meta *meta)
 
 	/* rtsregs.erstba_p */
 	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(sc->rtsregs.erstba_p,
-		XHCI_GADDR_SIZE(sc->rtsregs.erstba_p), false, meta, ret, done);
+		XHCI_GADDR_SIZE(sc->rtsregs.erstba_p), true, meta, ret, done);
 
 	/* rtsregs.erst_p */
 	SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(sc->rtsregs.erst_p,
-		XHCI_GADDR_SIZE(sc->rtsregs.erst_p), false, meta, ret, done);
+		XHCI_GADDR_SIZE(sc->rtsregs.erst_p), true, meta, ret, done);
 
 	SNAPSHOT_VAR_OR_LEAVE(sc->rtsregs.er_deq_seg, meta, ret, done);
 	SNAPSHOT_VAR_OR_LEAVE(sc->rtsregs.er_enq_idx, meta, ret, done);
@@ -3090,12 +3089,14 @@ pci_xhci_snapshot(struct vm_snapshot_meta *meta)
 			continue;
 
 		SNAPSHOT_GUEST2HOST_ADDR_OR_LEAVE(dev->dev_ctx,
-			XHCI_GADDR_SIZE(dev->dev_ctx), false, meta, ret, done);
+			XHCI_GADDR_SIZE(dev->dev_ctx), true, meta, ret, done);
 
-		for (j = 1; j < XHCI_MAX_ENDPOINTS; j++) {
-			ret = pci_xhci_snapshot_ep(sc, dev, j, meta);
-			if (ret != 0)
-				goto done;
+		if (dev->dev_ctx != NULL) {
+			for (j = 1; j < XHCI_MAX_ENDPOINTS; j++) {
+				ret = pci_xhci_snapshot_ep(sc, dev, j, meta);
+				if (ret != 0)
+					goto done;
+			}
 		}
 
 		SNAPSHOT_VAR_OR_LEAVE(dev->dev_slotstate, meta, ret, done);
