@@ -59,6 +59,7 @@ static int		stub_zero(void);
 static int		stub_fail(void);
 static int		stub_true(void);
 static void		stub_exit(void);
+static int		stub_esrch(void);
 
 #define	PJT_DUAL_ENTRY(entry)	\
 	(pthread_func_t)entry, (pthread_func_t)entry
@@ -131,6 +132,7 @@ pthread_func_entry_t __thr_jtable[PJT_MAX] = {
 	[PJT_MUTEXATTR_GETROBUST] =	{PJT_DUAL_ENTRY(stub_zero)},
 	[PJT_MUTEXATTR_SETROBUST] =	{PJT_DUAL_ENTRY(stub_zero)},
 	[PJT_GETTHREADID_NP] =		{PJT_DUAL_ENTRY(stub_zero)},
+	[PJT_ATTR_GET_NP] =		{PJT_DUAL_ENTRY(stub_esrch)},
 };
 
 /*
@@ -288,6 +290,7 @@ STUB_FUNC3(__pthread_cleanup_push_imp, PJT_CLEANUP_PUSH_IMP, void, void *,
     void *, void *)
 STUB_FUNC1(_pthread_cancel_enter, PJT_CANCEL_ENTER, void, int)
 STUB_FUNC1(_pthread_cancel_leave, PJT_CANCEL_LEAVE, void, int)
+STUB_FUNC2(pthread_attr_get_np, PJT_ATTR_GET_NP, int, pthread_t, pthread_attr_t *)
 
 static int
 stub_zero(void)
@@ -329,4 +332,10 @@ static void
 stub_exit(void)
 {
 	exit(0);
+}
+
+static int
+stub_esrch(void)
+{
+	return (ESRCH);
 }
