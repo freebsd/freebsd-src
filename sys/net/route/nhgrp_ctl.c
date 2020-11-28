@@ -753,6 +753,15 @@ dump_nhgrp_entry(struct rib_head *rh, const struct nhgrp_priv *nhg_priv,
 	return (error);
 }
 
+uint32_t
+nhgrp_get_idx(const struct nhgrp_object *nhg)
+{
+	const struct nhgrp_priv *nhg_priv;
+
+	nhg_priv = NHGRP_PRIV_CONST(nhg);
+	return (nhg_priv->nhg_idx);
+}
+
 int
 nhgrp_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 {
