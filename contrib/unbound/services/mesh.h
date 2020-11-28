@@ -230,6 +230,8 @@ struct mesh_reply {
 	uint8_t* qname;
 	/** same as that in query_info. */
 	struct local_rrset* local_alias;
+	/** send query to this http2 stream, if set */
+	struct http2_stream* h2_stream;
 };
 
 /** 
