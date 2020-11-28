@@ -2334,7 +2334,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					case USB_SPEED_SUPER:
 						cpi->base_transfer_speed =
 						    UMASS_SUPER_TRANSFER_SPEED;
-						cpi->maxio = MAXPHYS;
+						cpi->maxio = maxphys;
 						break;
 					case USB_SPEED_HIGH:
 						cpi->base_transfer_speed =

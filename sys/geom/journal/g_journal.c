@@ -1053,7 +1053,7 @@ g_journal_optimize(struct bio *head)
 			continue;
 		}
 		/* Be sure we don't end up with too big bio. */
-		if (pbp->bio_length + cbp->bio_length > MAXPHYS) {
+		if (pbp->bio_length + cbp->bio_length > maxphys) {
 			pbp = cbp;
 			continue;
 		}

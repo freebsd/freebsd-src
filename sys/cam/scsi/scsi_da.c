@@ -2921,8 +2921,8 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_drv1 = periph;
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;	/* traditional default */
-	else if (cpi.maxio > MAXPHYS)
-		softc->maxio = MAXPHYS;		/* for safety */
+	else if (cpi.maxio > maxphys)
+		softc->maxio = maxphys;		/* for safety */
 	else
 		softc->maxio = cpi.maxio;
 	if (softc->quirks & DA_Q_128KB)
@@ -4819,7 +4819,7 @@ dadone_proberc(struct cam_periph *periph, union ccb *done_ccb)
 			if (maxsector == 0)
 				maxsector = -1;
 		}
-		if (block_size >= MAXPHYS) {
+		if (block_size >= maxphys) {
 			xpt_print(periph->path,
 			    "unsupportable block size %ju\n",
 			    (uintmax_t) block_size);

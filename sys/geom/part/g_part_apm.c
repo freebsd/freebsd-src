@@ -582,10 +582,10 @@ g_part_apm_write(struct g_part_table *basetable, struct g_consumer *cp)
 			baseentry = LIST_NEXT(baseentry, gpe_entry);
 	}
 
-	for (index = 0; index < tblsz; index += MAXPHYS / pp->sectorsize) {
+	for (index = 0; index < tblsz; index += maxphys / pp->sectorsize) {
 		error = g_write_data(cp, (1 + index) * pp->sectorsize,
 		    buf + index * pp->sectorsize,
-		    (tblsz - index > MAXPHYS / pp->sectorsize) ? MAXPHYS:
+		    (tblsz - index > maxphys / pp->sectorsize) ? maxphys:
 		    (tblsz - index) * pp->sectorsize);
 		if (error) {
 			g_free(buf);

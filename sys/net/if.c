@@ -3200,8 +3200,8 @@ ifconf(u_long cmd, caddr_t data)
 	struct sbuf *sb;
 	int error, full = 0, valid_len, max_len;
 
-	/* Limit initial buffer size to MAXPHYS to avoid DoS from userspace. */
-	max_len = MAXPHYS - 1;
+	/* Limit initial buffer size to maxphys to avoid DoS from userspace. */
+	max_len = maxphys - 1;
 
 	/* Prevent hostile input from being able to crash the system */
 	if (ifc->ifc_len <= 0)

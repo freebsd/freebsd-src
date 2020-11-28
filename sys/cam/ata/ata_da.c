@@ -3447,8 +3447,8 @@ adasetgeom(struct ada_softc *softc, struct ccb_getdev *cgd)
 	maxio = softc->cpi.maxio;		/* Honor max I/O size of SIM */
 	if (maxio == 0)
 		maxio = DFLTPHYS;	/* traditional default */
-	else if (maxio > MAXPHYS)
-		maxio = MAXPHYS;	/* for safety */
+	else if (maxio > maxphys)
+		maxio = maxphys;	/* for safety */
 	if (softc->flags & ADA_FLAG_CAN_48BIT)
 		maxio = min(maxio, 65536 * softc->params.secsize);
 	else					/* 28bit ATA command limit */

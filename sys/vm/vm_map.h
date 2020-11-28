@@ -396,7 +396,7 @@ long vmspace_resident_count(struct vmspace *vmspace);
  */
 #define	VM_FAULT_READ_AHEAD_MIN		7
 #define	VM_FAULT_READ_AHEAD_INIT	15
-#define	VM_FAULT_READ_AHEAD_MAX		min(atop(MAXPHYS) - 1, UINT8_MAX)
+#define	VM_FAULT_READ_AHEAD_MAX		min(atop(maxphys) - 1, UINT8_MAX)
 
 /*
  * The following "find_space" options are supported by vm_map_find().

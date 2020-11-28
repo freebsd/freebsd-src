@@ -1124,8 +1124,7 @@ ahci_dmainit(device_t dev)
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
-	    AHCI_SG_ENTRIES * PAGE_SIZE * ch->numslots,
-	    AHCI_SG_ENTRIES, AHCI_PRD_MAX,
+	    AHCI_SG_ENTRIES * PAGE_SIZE, AHCI_SG_ENTRIES, AHCI_PRD_MAX,
 	    0, busdma_lock_mutex, &ch->mtx, &ch->dma.data_tag);
 	if (error != 0)
 		goto error;
@@ -1187,6 +1186,7 @@ ahci_slotsalloc(device_t dev)
 		slot->ch = ch;
 		slot->slot = i;
 		slot->state = AHCI_SLOT_EMPTY;
+		slot->ct_offset = AHCI_CT_OFFSET + AHCI_CT_SIZE * i;
 		slot->ccb = NULL;
 		callout_init_mtx(&slot->timeout, &ch->mtx, 0);
 
@@ -1642,8 +1642,7 @@ ahci_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	}
 	KASSERT(nsegs <= AHCI_SG_ENTRIES, ("too many DMA segment entries\n"));
 	/* Get a piece of the workspace for this request */
-	ctp = (struct ahci_cmd_tab *)
-		(ch->dma.work + AHCI_CT_OFFSET + (AHCI_CT_SIZE * slot->slot));
+	ctp = (struct ahci_cmd_tab *)(ch->dma.work + slot->ct_offset);
 	/* Fill S/G table */
 	prd = &ctp->prd_tab[0];
 	for (i = 0; i < nsegs; i++) {
@@ -1672,8 +1671,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	uint16_t cmd_flags;
 
 	/* Get a piece of the workspace for this request */
-	ctp = (struct ahci_cmd_tab *)
-		(ch->dma.work + AHCI_CT_OFFSET + (AHCI_CT_SIZE * slot->slot));
+	ctp = (struct ahci_cmd_tab *)(ch->dma.work + slot->ct_offset);
 	/* Setup the FIS for this request */
 	if (!(fis_size = ahci_setup_fis(ch, ctp, ccb, slot->slot))) {
 		device_printf(ch->dev, "Setting up SATA FIS failed\n");
@@ -1710,8 +1708,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 		softreset = 0;
 	clp->bytecount = 0;
 	clp->cmd_flags = htole16(cmd_flags);
-	clp->cmd_table_phys = htole64(ch->dma.work_bus + AHCI_CT_OFFSET +
-				  (AHCI_CT_SIZE * slot->slot));
+	clp->cmd_table_phys = htole64(ch->dma.work_bus + slot->ct_offset);
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(ch->dma.rfis_tag, ch->dma.rfis_map,
@@ -2868,7 +2865,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
-		cpi->maxio = MAXPHYS;
+		cpi->maxio = ctob(AHCI_SG_ENTRIES - 1);
 		/* ATI SB600 can't handle 256 sectors with FPDMA (NCQ). */
 		if (ch->quirks & AHCI_Q_MAXIO_64K)
 			cpi->maxio = min(cpi->maxio, 128 * 512);

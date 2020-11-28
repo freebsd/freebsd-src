@@ -722,19 +722,19 @@ sdhci_dma_alloc(struct sdhci_slot *slot)
 	int err;
 
 	if (!(slot->quirks & SDHCI_QUIRK_BROKEN_SDMA_BOUNDARY)) {
-		if (MAXPHYS <= 1024 * 4)
+		if (maxphys <= 1024 * 4)
 			slot->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_4K;
-		else if (MAXPHYS <= 1024 * 8)
+		else if (maxphys <= 1024 * 8)
 			slot->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_8K;
-		else if (MAXPHYS <= 1024 * 16)
+		else if (maxphys <= 1024 * 16)
 			slot->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_16K;
-		else if (MAXPHYS <= 1024 * 32)
+		else if (maxphys <= 1024 * 32)
 			slot->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_32K;
-		else if (MAXPHYS <= 1024 * 64)
+		else if (maxphys <= 1024 * 64)
 			slot->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_64K;
-		else if (MAXPHYS <= 1024 * 128)
+		else if (maxphys <= 1024 * 128)
 			slot->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_128K;
-		else if (MAXPHYS <= 1024 * 256)
+		else if (maxphys <= 1024 * 256)
 			slot->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_256K;
 		else
 			slot->sdma_boundary = SDHCI_BLKSZ_SDMA_BNDRY_512K;
@@ -2534,7 +2534,7 @@ sdhci_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_PATH_INQ:
-		mmc_path_inq(&ccb->cpi, "Deglitch Networks", sim, MAXPHYS);
+		mmc_path_inq(&ccb->cpi, "Deglitch Networks", sim, maxphys);
 		break;
 
 	case XPT_GET_TRAN_SETTINGS:

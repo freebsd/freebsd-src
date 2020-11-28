@@ -2407,7 +2407,7 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_SPC3;
-		cpi->maxio = MAXPHYS;
+		cpi->maxio = maxphys;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}

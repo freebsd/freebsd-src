@@ -69,7 +69,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 	 * need to reject any requests that will not fit into one buffer.
 	 */
 	if (dev->si_flags & SI_NOSPLIT &&
-	    (uio->uio_resid > dev->si_iosize_max || uio->uio_resid > MAXPHYS ||
+	    (uio->uio_resid > dev->si_iosize_max || uio->uio_resid > maxphys ||
 	    uio->uio_iovcnt > 1)) {
 		/*
 		 * Tell the user why his I/O was rejected.
@@ -78,10 +78,10 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 			uprintf("%s: request size=%zd > si_iosize_max=%d; "
 			    "cannot split request\n", devtoname(dev),
 			    uio->uio_resid, dev->si_iosize_max);
-		if (uio->uio_resid > MAXPHYS)
-			uprintf("%s: request size=%zd > MAXPHYS=%d; "
+		if (uio->uio_resid > maxphys)
+			uprintf("%s: request size=%zd > maxphys=%lu; "
 			    "cannot split request\n", devtoname(dev),
-			    uio->uio_resid, MAXPHYS);
+			    uio->uio_resid, maxphys);
 		if (uio->uio_iovcnt > 1)
 			uprintf("%s: request vectors=%d > 1; "
 			    "cannot split request\n", devtoname(dev),
@@ -101,12 +101,13 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 		pages = NULL;
 	} else if ((dev->si_flags & SI_UNMAPPED) && unmapped_buf_allowed) {
 		pbuf = NULL;
-		maxpages = btoc(MIN(uio->uio_resid, MAXPHYS)) + 1;
+		maxpages = btoc(MIN(uio->uio_resid, maxphys)) + 1;
 		pages = malloc(sizeof(*pages) * maxpages, M_DEVBUF, M_WAITOK);
 	} else {
 		pbuf = uma_zalloc(pbuf_zone, M_WAITOK);
+		MPASS((pbuf->b_flags & B_MAXPHYS) != 0);
 		sa = pbuf->b_data;
-		maxpages = btoc(MAXPHYS);
+		maxpages = btoc(maxphys);
 		pages = pbuf->b_pages;
 	}
 	prot = VM_PROT_READ;
@@ -144,13 +145,13 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 			bp->bio_length = uio->uio_iov[i].iov_len;
 			if (bp->bio_length > dev->si_iosize_max)
 				bp->bio_length = dev->si_iosize_max;
-			if (bp->bio_length > MAXPHYS)
-				bp->bio_length = MAXPHYS;
+			if (bp->bio_length > maxphys)
+				bp->bio_length = maxphys;
 
 			/*
 			 * Make sure the pbuf can map the request.
-			 * The pbuf has kvasize = MAXPHYS, so a request
-			 * larger than MAXPHYS - PAGE_SIZE must be
+			 * The pbuf has kvasize = maxphys, so a request
+			 * larger than maxphys - PAGE_SIZE must be
 			 * page aligned or it will be fragmented.
 			 */
 			poff = (vm_offset_t)base & PAGE_MASK;

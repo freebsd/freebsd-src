@@ -696,8 +696,8 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_drv1 = periph;
 	if (cpi.maxio == 0)
 		softc->disk->d_maxsize = DFLTPHYS;	/* traditional default */
-	else if (cpi.maxio > MAXPHYS)
-		softc->disk->d_maxsize = MAXPHYS;	/* for safety */
+	else if (cpi.maxio > maxphys)
+		softc->disk->d_maxsize = maxphys;	/* for safety */
 	else
 		softc->disk->d_maxsize = cpi.maxio;
 	softc->disk->d_flags = 0;

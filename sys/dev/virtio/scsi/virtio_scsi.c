@@ -450,7 +450,7 @@ vtscsi_maximum_segments(struct vtscsi_softc *sc, int seg_max)
 	nsegs = VTSCSI_MIN_SEGMENTS;
 
 	if (seg_max > 0) {
-		nsegs += MIN(seg_max, MAXPHYS / PAGE_SIZE + 1);
+		nsegs += MIN(seg_max, maxphys / PAGE_SIZE + 1);
 		if (sc->vtscsi_flags & VTSCSI_FLAG_INDIRECT)
 			nsegs = MIN(nsegs, VIRTIO_MAX_INDIRECT);
 	} else

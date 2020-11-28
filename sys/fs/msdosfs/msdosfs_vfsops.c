@@ -437,8 +437,8 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 	VOP_UNLOCK(devvp);
 	if (dev->si_iosize_max != 0)
 		mp->mnt_iosize_max = dev->si_iosize_max;
-	if (mp->mnt_iosize_max > MAXPHYS)
-		mp->mnt_iosize_max = MAXPHYS;
+	if (mp->mnt_iosize_max > maxphys)
+		mp->mnt_iosize_max = maxphys;
 
 	/*
 	 * Read the boot sector of the filesystem, and then check the

@@ -2447,12 +2447,12 @@ saregister(struct cam_periph *periph, void *arg)
 
 	/*
 	 * If maxio isn't set, we fall back to DFLTPHYS.  Otherwise we take
-	 * the smaller of cpi.maxio or MAXPHYS.
+	 * the smaller of cpi.maxio or maxphys.
 	 */
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;
-	else if (cpi.maxio > MAXPHYS)
-		softc->maxio = MAXPHYS;
+	else if (cpi.maxio > maxphys)
+		softc->maxio = maxphys;
 	else
 		softc->maxio = cpi.maxio;
 

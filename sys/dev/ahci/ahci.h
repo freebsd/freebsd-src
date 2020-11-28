@@ -310,13 +310,8 @@
 #define 	AHCI_P_DEVSLP_DM    0x0e000000
 #define 	AHCI_P_DEVSLP_DM_SHIFT 25
 
-/* Just to be sure, if building as module. */
-#if MAXPHYS < 512 * 1024
-#undef MAXPHYS
-#define MAXPHYS				512 * 1024
-#endif
 /* Pessimistic prognosis on number of required S/G entries */
-#define AHCI_SG_ENTRIES	(roundup(btoc(MAXPHYS) + 1, 8))
+#define AHCI_SG_ENTRIES		MIN(roundup(btoc(maxphys) + 1, 8), 65528)
 /* Command list. 32 commands. First, 1Kbyte aligned. */
 #define AHCI_CL_OFFSET              0
 #define AHCI_CL_SIZE                32
@@ -344,7 +339,7 @@ struct ahci_cmd_tab {
     u_int8_t                    cfis[64];
     u_int8_t                    acmd[32];
     u_int8_t                    reserved[32];
-    struct ahci_dma_prd         prd_tab[AHCI_SG_ENTRIES];
+    struct ahci_dma_prd         prd_tab[];
 } __packed;
 
 struct ahci_cmd_list {
@@ -394,6 +389,7 @@ struct ahci_slot {
     struct ahci_channel		*ch;		/* Channel */
     u_int8_t			slot;           /* Number of this slot */
     enum ahci_slot_states	state;          /* Slot state */
+    u_int			ct_offset;	/* cmd_tab offset */
     union ccb			*ccb;		/* CCB occupying slot */
     struct ata_dmaslot          dma;            /* DMA data of this slot */
     struct callout              timeout;        /* Execution timeout */

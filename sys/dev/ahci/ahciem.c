@@ -641,7 +641,7 @@ ahciemaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
-		cpi->maxio = MAXPHYS;
+		cpi->maxio = maxphys;
 		cpi->hba_vendor = pci_get_vendor(parent);
 		cpi->hba_device = pci_get_device(parent);
 		cpi->hba_subvendor = pci_get_subvendor(parent);

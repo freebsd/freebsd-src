@@ -115,7 +115,7 @@ mambodisk_attach(device_t dev)
 	d->d_strategy = mambodisk_strategy;
 	d->d_name = "mambodisk";
 	d->d_drv1 = sc;
-	d->d_maxsize = MAXPHYS;		/* Maybe ask bridge? */
+	d->d_maxsize = maxphys;		/* Maybe ask bridge? */
 
 	d->d_sectorsize = 512;
 	sc->maxblocks = mambocall(MAMBO_DISK_INFO,MAMBO_INFO_BLKSZ,d->d_unit)

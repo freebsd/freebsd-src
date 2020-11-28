@@ -377,7 +377,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	}
 	dev = sc->sc_dev;
 	dev->si_flags |= SI_UNMAPPED;
-	dev->si_iosize_max = MAXPHYS;
+	dev->si_iosize_max = maxphys;
 	error = init_dumpdev(dev);
 	if (error != 0)
 		printf("%s: init_dumpdev() failed (gp->name=%s, error=%d)\n",
@@ -713,14 +713,14 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 
 		if (zone_args->zone_cmd == DISK_ZONE_REPORT_ZONES) {
 			rep = &zone_args->zone_params.report;
-#define	MAXENTRIES	(MAXPHYS / sizeof(struct disk_zone_rep_entry))
+#define	MAXENTRIES	(maxphys / sizeof(struct disk_zone_rep_entry))
 			if (rep->entries_allocated > MAXENTRIES)
 				rep->entries_allocated = MAXENTRIES;
 			alloc_size = rep->entries_allocated *
 			    sizeof(struct disk_zone_rep_entry);
 			if (alloc_size != 0)
 				new_entries = g_malloc(alloc_size,
-				    M_WAITOK| M_ZERO);
+				    M_WAITOK | M_ZERO);
 			old_entries = rep->entries;
 			rep->entries = new_entries;
 		}

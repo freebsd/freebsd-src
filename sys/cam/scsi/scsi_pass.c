@@ -583,15 +583,15 @@ passregister(struct cam_periph *periph, void *arg)
 		 periph->periph_name, periph->unit_number);
 	snprintf(softc->io_zone_name, sizeof(softc->io_zone_name), "%s%dIO",
 		 periph->periph_name, periph->unit_number);
-	softc->io_zone_size = MAXPHYS;
+	softc->io_zone_size = maxphys;
 	knlist_init_mtx(&softc->read_select.si_note, cam_periph_mtx(periph));
 
 	xpt_path_inq(&cpi, periph->path);
 
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;	/* traditional default */
-	else if (cpi.maxio > MAXPHYS)
-		softc->maxio = MAXPHYS;		/* for safety */
+	else if (cpi.maxio > maxphys)
+		softc->maxio = maxphys;		/* for safety */
 	else
 		softc->maxio = cpi.maxio;	/* real value */
 
@@ -1507,7 +1507,7 @@ passmemsetup(struct cam_periph *periph, struct pass_io_req *io_req)
 
 		/*
 		 * We allocate buffers in io_zone_size increments for an
-		 * S/G list.  This will generally be MAXPHYS.
+		 * S/G list.  This will generally be maxphys.
 		 */
 		if (lengths[0] <= softc->io_zone_size)
 			num_segs_needed = 1;

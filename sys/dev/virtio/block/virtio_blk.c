@@ -323,7 +323,7 @@ vtblk_attach(device_t dev)
 	 * than the maximum supported transfer size.
 	 */
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_SIZE_MAX)) {
-		if (blkcfg.size_max < MAXPHYS) {
+		if (blkcfg.size_max < maxphys) {
 			error = ENOTSUP;
 			device_printf(dev, "host requires unsupported "
 			    "maximum segment size feature\n");
@@ -623,7 +623,7 @@ vtblk_maximum_segments(struct vtblk_softc *sc,
 	nsegs = VTBLK_MIN_SEGMENTS;
 
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_SEG_MAX)) {
-		nsegs += MIN(blkcfg->seg_max, MAXPHYS / PAGE_SIZE + 1);
+		nsegs += MIN(blkcfg->seg_max, maxphys / PAGE_SIZE + 1);
 		if (sc->vtblk_flags & VTBLK_FLAG_INDIRECT)
 			nsegs = MIN(nsegs, VIRTIO_MAX_INDIRECT);
 	} else
@@ -713,8 +713,8 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	 * no pages are contiguous. This may impose an artificially low
 	 * maximum I/O size. But in practice, since QEMU advertises 128
 	 * segments, this gives us a maximum IO size of 125 * PAGE_SIZE,
-	 * which is typically greater than MAXPHYS. Eventually we should
-	 * just advertise MAXPHYS and split buffers that are too big.
+	 * which is typically greater than maxphys. Eventually we should
+	 * just advertise maxphys and split buffers that are too big.
 	 *
 	 * Note we must subtract one additional segment in case of non
 	 * page aligned buffers.
