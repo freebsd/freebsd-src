@@ -147,6 +147,7 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 	{ "atkbdc",	atkbdc_snapshot,	NULL,		NULL		},
 	{ "virtio-net",	pci_snapshot,		pci_pause,	pci_resume	},
 	{ "virtio-blk",	pci_snapshot,		pci_pause,	pci_resume	},
+	{ "virtio-rnd",	pci_snapshot,		NULL,		NULL		},
 	{ "lpc",	pci_snapshot,		NULL,		NULL		},
 	{ "fbuf",	pci_snapshot,		NULL,		NULL		},
 	{ "xhci",	pci_snapshot,		NULL,		NULL		},
