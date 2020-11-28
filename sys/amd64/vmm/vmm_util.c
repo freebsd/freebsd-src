@@ -39,6 +39,12 @@ __FBSDID("$FreeBSD$");
 #include "vmm_util.h"
 
 bool
+vmm_is_hw_supported(void)
+{
+	return (vmm_is_intel() || vmm_is_svm());
+}
+
+bool
 vmm_is_intel(void)
 {
 
