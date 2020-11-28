@@ -1,3 +1,133 @@
+1 October 2020: Wouter
+	- Current repo is version 1.12.0 for release.  Tag for 1.12.0rc1.
+
+30 September 2020: Wouter
+	- Fix doh tests when not compiled in.
+	- Add dohclient test executable to gitignore.
+	- Fix stream_ssl, ssl_req_order and ssl_req_timeout tests for
+	  alloc check debug output.
+	- Easier kill of unbound-dnstap-socket tool in test.
+	- Fix memory leak of edns tags at libunbound context delete.
+	- Fix double loopexit for unbound-dnstap-socket after sigterm.
+
+29 September 2020: Ralph
+	- DNS Flag Day 2020: change edns-buffer-size default to 1232.
+
+28 September 2020: Wouter
+	- Fix unit test for dnstap changes, so that it waits for the timer.
+
+23 September 2020: Wouter
+	- Fix #305: dnstap logging significantly affects unbound performance
+	  (regression in 1.11).
+	- Fix #305: only wake up thread when threshold reached.
+	- Fix to ifdef fptr wlist item for dnstap.
+
+23 September 2020: Ralph
+	- Fix edns-client-tags get_option typo
+	- Add edns-client-tag-opcode option
+	- Use inclusive language in configuration
+
+21 September 2020: Ralph
+	- Fix #304: dnstap logging not recovering after dnstap process restarts
+
+21 September 2020: Wouter
+	- Merge PR #311 by luismerino: Dynlibmod leak.
+	- Error message is logged for dynlibmod malloc failures.
+	- iana portlist updated.
+
+18 September 2020: Wouter
+	- Fix that prefer-ip4 and prefer-ip6 can be get and set with
+	  unbound-control, with libunbound and the unbound-checkconf option
+	  output function.
+	- iana portlist updated.
+
+15 September 2020: George
+	- Introduce test for statistics.
+
+15 September 2020: Wouter
+	- Spelling fix.
+
+11 September 2020: Wouter
+	- Remove x file mode on ipset/ipset.c and h files.
+
+9 September 2020: Wouter
+	- Fix num.expired statistics output.
+
+31 August 2020: Wouter
+	- Merge PR #293: Add missing prototype.  Also refactor to use the new
+	  shorthand function to clean up the code.
+	- Refactor to use sock_strerr shorthand function.
+	- Fix #296: systemd nss-lookup.target is reached before unbound can
+	  successfully answer queries. Changed contrib/unbound.service.in.
+
+27 August 2020: Wouter
+	- Similar to NSD PR#113, implement that interface names can be used,
+	  eg. something like interface: eth0 is resolved at server start and
+	  uses the IP addresses for that named interface.
+	- Review fix, doxygen and assign null in case of error free.
+
+26 August 2020: George
+	- Update documentation in python example code.
+
+24 August 2020: Wouter
+	- Fix that dnstap reconnects do not spam the log with the repeated
+	  attempts.  Attempts on the timer are only logged on high verbosity,
+	  if they produce a connection failure error.
+	- Fix to apply chroot to dnstap-socket-path, if chroot is enabled.
+	- Change configure to use EVP_sha256 instead of HMAC_Update for
+	  openssl-3.0.0.
+
+20 August 2020: Ralph
+	- Fix stats double count issue (#289).
+
+13 August 2020: Ralph
+	- Create and init edns tags data for libunbound.
+
+10 August 2020: Ralph
+	- Merge (modified) PR #277, use EVP_MAC_CTX_set_params if available,
+	  by Vítězslav Čížek.
+
+10 August 2020: Wouter
+	- Fix #287: doc typo: "Additionaly".
+	- Rerun autoconf
+
+6 August 2020: Wouter
+	- Merge PR #284 and Fix #246: Remove DLV entirely from Unbound.
+	  The DLV has been decommisioned and in unbound 1.5.4, in 2015, there
+	  was advise to stop using it.  The current code base does not contain
+	  DLV code any more.  The use of dlv options displays a warning.
+
+5 August 2020: Wouter
+	- contrib/aaaa-filter-iterator.patch file renewed diff content to
+	  apply cleanly to the current coderepo for the current code version.
+
+5 August 2020: Ralph
+	- Merge PR #272: Add EDNS client tag functionality.
+
+4 August 2020: George
+	- Improve error log message when inserting rpz RR.
+	- Merge PR #280, Make tvOS & watchOS checks verify truthiness as well as
+	  definedness, by Felipe Gasper.
+
+4 August 2020: Wouter
+	- Fix mini_event.h on OpenBSD cannot find fd_set.
+
+31 July 2020: Wouter
+	- Fix doxygen comment for no ssl for tls session ticket key callback
+	  routine.
+
+27 July 2020: George
+	- Merge PR #268, draft-ietf-dnsop-serve-stale-10 has become RFC 8767 on
+	  March 2020, by and0x000.
+
+27 July 2020: Ralph
+	- Merge PR #269, Fix python module len() implementations, by Torbjörn
+	  Lönnemark
+
+27 July 2020: Wouter
+	- branch now named 1.11.1.  1.11.0rc1 became the 1.11.0 release.
+	- Merge PR #270 from cgzones: munin plugin: always exit 0 in autoconf
+
 20 July 2020: Wouter
 	- Fix streamtcp to print packet data to stdout.  This makes the
 	  stdout and stderr not mix together lines, when parsing its output.

@@ -61,6 +61,9 @@
 #ifdef USE_WINSOCK
 #include <wincrypt.h>
 #endif
+#ifdef HAVE_NGHTTP2_NGHTTP2_H
+#include <nghttp2/nghttp2.h>
+#endif
 
 /** max length of an IP address (the address portion) that we allow */
 #define MAX_ADDR_STRLEN 128 /* characters */
@@ -82,6 +85,7 @@ static struct tls_session_ticket_key {
 	unsigned char *hmac_key;
 } *ticket_keys;
 
+#ifdef HAVE_SSL
 /**
  * callback TLS session ticket encrypt and decrypt
  * For use with SSL_CTX_set_tlsext_ticket_key_cb or
@@ -97,7 +101,6 @@ static struct tls_session_ticket_key {
  * @return 0 on no ticket, 1 for okay, and 2 for okay but renew the ticket
  * 	(the ticket is decrypt only). and <0 for failures.
  */
-#ifdef HAVE_SSL
 int tls_session_ticket_key_cb(SSL *s, unsigned char* key_name,
 	unsigned char* iv, EVP_CIPHER_CTX *evp_ctx,
 #ifdef HAVE_SSL_CTX_SET_TLSEXT_TICKET_KEY_EVP_CB
@@ -884,6 +887,21 @@ log_cert(unsigned level, const char* str, void* cert)
 }
 #endif /* HAVE_SSL */
 
+#if defined(HAVE_SSL) && defined(HAVE_NGHTTP2)
+static int alpn_select_cb(SSL* ATTR_UNUSED(ssl), const unsigned char** out,
+	unsigned char* outlen, const unsigned char* in, unsigned int inlen,
+	void* ATTR_UNUSED(arg))
+{
+	int rv = nghttp2_select_next_protocol((unsigned char **)out, outlen, in,
+		inlen);
+	if(rv == -1) {
+		return SSL_TLSEXT_ERR_NOACK;
+	}
+	/* either http/1.1 or h2 selected */
+	return SSL_TLSEXT_ERR_OK;
+}
+#endif
+
 int
 listen_sslctx_setup(void* ctxt)
 {
@@ -941,6 +959,9 @@ listen_sslctx_setup(void* ctxt)
 
 #ifdef HAVE_SSL_CTX_SET_SECURITY_LEVEL
 	SSL_CTX_set_security_level(ctx, 0);
+#endif
+#if defined(HAVE_SSL_CTX_SET_ALPN_SELECT_CB) && defined(HAVE_NGHTTP2)
+	SSL_CTX_set_alpn_select_cb(ctx, alpn_select_cb, NULL);
 #endif
 #else
 	(void)ctxt;
@@ -1478,7 +1499,11 @@ int tls_session_ticket_key_cb(SSL *ATTR_UNUSED(sslctx), unsigned char* key_name,
 		params[1] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
 			"sha256", 0);
 		params[2] = OSSL_PARAM_construct_end();
+#ifdef HAVE_EVP_MAC_CTX_SET_PARAMS
+		EVP_MAC_CTX_set_params(hmac_ctx, params);
+#else
 		EVP_MAC_set_ctx_params(hmac_ctx, params);
+#endif
 #elif !defined(HMAC_INIT_EX_RETURNS_VOID)
 		if (HMAC_Init_ex(hmac_ctx, ticket_keys->hmac_key, 32, digest, NULL) != 1) {
 			verbose(VERB_CLIENT, "HMAC_Init_ex failed");
@@ -1509,7 +1534,11 @@ int tls_session_ticket_key_cb(SSL *ATTR_UNUSED(sslctx), unsigned char* key_name,
 		params[1] = OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
 			"sha256", 0);
 		params[2] = OSSL_PARAM_construct_end();
+#ifdef HAVE_EVP_MAC_CTX_SET_PARAMS
+		EVP_MAC_CTX_set_params(hmac_ctx, params);
+#else
 		EVP_MAC_set_ctx_params(hmac_ctx, params);
+#endif
 #elif !defined(HMAC_INIT_EX_RETURNS_VOID)
 		if (HMAC_Init_ex(hmac_ctx, key->hmac_key, 32, digest, NULL) != 1) {
 			verbose(VERB_CLIENT, "HMAC_Init_ex failed");
@@ -1554,3 +1583,31 @@ listen_sslctx_delete_ticket_keys(void)
 	free(ticket_keys);
 	ticket_keys = NULL;
 }
+
+#  ifndef USE_WINSOCK
+char*
+sock_strerror(int errn)
+{
+	return strerror(errn);
+}
+
+void
+sock_close(int socket)
+{
+	close(socket);
+}
+
+#  else
+char*
+sock_strerror(int ATTR_UNUSED(errn))
+{
+	return wsa_strerror(WSAGetLastError());
+}
+
+void
+sock_close(int socket)
+{
+	closesocket(socket);
+}
+
+#  endif /* USE_WINSOCK */

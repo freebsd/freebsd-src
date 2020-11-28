@@ -271,6 +271,7 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 	s->svr.ans_secure += (long long)worker->env.mesh->ans_secure;
 	s->svr.ans_bogus += (long long)worker->env.mesh->ans_bogus;
 	s->svr.ans_rcode_nodata += (long long)worker->env.mesh->ans_nodata;
+	s->svr.ans_expired += (long long)worker->env.mesh->ans_expired;
 	for(i=0; i<UB_STATS_RCODE_NUM; i++)
 		s->svr.ans_rcode[i] += (long long)worker->env.mesh->ans_rcode[i];
 	for(i=0; i<UB_STATS_RPZ_ACTION_NUM; i++)
@@ -335,6 +336,10 @@ server_stats_compile(struct worker* worker, struct ub_stats_info* s, int reset)
 	}
 	s->svr.mem_stream_wait =
 		(long long)tcp_req_info_get_stream_buffer_size();
+	s->svr.mem_http2_query_buffer =
+		(long long)http2_get_query_buffer_size();
+	s->svr.mem_http2_response_buffer =
+		(long long)http2_get_response_buffer_size();
 
 	/* Set neg cache usage numbers */
 	set_neg_cache_stats(worker, &s->svr, reset);
@@ -421,6 +426,7 @@ void server_stats_add(struct ub_stats_info* total, struct ub_stats_info* a)
 		total->svr.qtcp_outgoing += a->svr.qtcp_outgoing;
 		total->svr.qtls += a->svr.qtls;
 		total->svr.qtls_resume += a->svr.qtls_resume;
+		total->svr.qhttps += a->svr.qhttps;
 		total->svr.qipv6 += a->svr.qipv6;
 		total->svr.qbit_QR += a->svr.qbit_QR;
 		total->svr.qbit_AA += a->svr.qbit_AA;
@@ -484,6 +490,8 @@ void server_stats_insquery(struct ub_server_stats* stats, struct comm_point* c,
 			if(SSL_session_reused(c->ssl)) 
 				stats->qtls_resume++;
 #endif
+			if(c->type == comm_http)
+				stats->qhttps++;
 		}
 	}
 	if(repinfo && addr_is_ip6(&repinfo->addr, repinfo->addrlen))

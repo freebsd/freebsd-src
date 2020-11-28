@@ -219,26 +219,6 @@ void val_neg_addreferral(struct val_neg_cache* neg, struct reply_info* rep,
 	uint8_t* zone);
 
 /**
- * Perform a DLV style lookup
- * During the lookup, we could find out that data has expired. In that
- * case the neg_cache entries are removed, and lookup fails.
- *
- * @param neg: negative cache.
- * @param qname: name to look for
- * @param len: length of qname.
- * @param qclass: class to look in.
- * @param rrset_cache: the rrset cache, for NSEC lookups.
- * @param now: current time for ttl checks.
- * @return 
- *	0 on error
- *	0 if no proof of negative
- *	1 if indeed negative was proven
- *	  thus, qname DLV qclass does not exist.
- */
-int val_neg_dlvlookup(struct val_neg_cache* neg, uint8_t* qname, size_t len,
-	uint16_t qclass, struct rrset_cache* rrset_cache, time_t now);
-
-/**
  * For the given query, try to get a reply out of the negative cache.
  * The reply still needs to be validated.
  * @param neg: negative cache.

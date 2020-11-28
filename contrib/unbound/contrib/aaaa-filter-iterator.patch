@@ -1,10 +1,10 @@
-Index: trunk/doc/unbound.conf.5.in
-===================================================================
---- trunk/doc/unbound.conf.5.in	(revision 4357)
-+++ trunk/doc/unbound.conf.5.in	(working copy)
-@@ -701,6 +701,13 @@
+diff --git a/doc/unbound.conf.5.in b/doc/unbound.conf.5.in
+index f426ac5f..147fbfa9 100644
+--- a/doc/unbound.conf.5.in
++++ b/doc/unbound.conf.5.in
+@@ -872,6 +872,13 @@ potentially broken nameservers. A lot of domains will not be resolvable when
  this option in enabled. Only use if you know what you are doing.
- This option only has effect when qname-minimisation is enabled. Default is off.
+ This option only has effect when qname-minimisation is enabled. Default is no.
  .TP
 +.B aaaa\-filter: \fI<yes or no>
 +Activate behavior similar to BIND's AAAA-filter.
@@ -16,14 +16,15 @@ Index: trunk/doc/unbound.conf.5.in
  .B aggressive\-nsec: \fI<yes or no>
  Aggressive NSEC uses the DNSSEC NSEC chain to synthesize NXDOMAIN
  and other denials, using information from previous NXDOMAINs answers.
-Index: trunk/iterator/iter_scrub.c
-===================================================================
---- trunk/iterator/iter_scrub.c	(revision 4357)
-+++ trunk/iterator/iter_scrub.c	(working copy)
-@@ -617,6 +617,32 @@
+diff --git a/iterator/iter_scrub.c b/iterator/iter_scrub.c
+index aae934dd..55c55de0 100644
+--- a/iterator/iter_scrub.c
++++ b/iterator/iter_scrub.c
+@@ -667,6 +667,32 @@ static int sanitize_nsec_is_overreach(struct rrset_parse* rrset,
+ 	return 0;
  }
  
- /**
++/**
 + * ASN: Lookup A records from rrset cache.
 + * @param qinfo: the question originally asked.
 + * @param env: module environment with config and cache.
@@ -49,11 +50,10 @@ Index: trunk/iterator/iter_scrub.c
 +	return 0;
 +}
 +
-+/**
+ /**
   * Given a response event, remove suspect RRsets from the response.
   * "Suspect" rrsets are potentially poison. Note that this routine expects
-  * the response to be in a "normalized" state -- that is, all "irrelevant"
-@@ -635,6 +661,7 @@
+@@ -686,6 +712,7 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
  	struct query_info* qinfo, uint8_t* zonename, struct module_env* env,
  	struct iter_env* ie)
  {
@@ -61,7 +61,7 @@ Index: trunk/iterator/iter_scrub.c
  	int del_addi = 0; /* if additional-holding rrsets are deleted, we
  		do not trust the normalized additional-A-AAAA any more */
  	struct rrset_parse* rrset, *prev;
-@@ -670,6 +697,13 @@
+@@ -721,6 +748,13 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
  		rrset = rrset->rrset_all_next;
  	}
  
@@ -75,11 +75,10 @@ Index: trunk/iterator/iter_scrub.c
  	/* At this point, we brutally remove ALL rrsets that aren't 
  	 * children of the originating zone. The idea here is that, 
  	 * as far as we know, the server that we contacted is ONLY 
-@@ -680,6 +714,24 @@
- 	prev = NULL;
+@@ -732,6 +766,24 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
  	rrset = msg->rrset_first;
  	while(rrset) {
-+
+ 
 +		/* ASN: For AAAA records only... */
 +		if((ie->aaaa_filter) && (rrset->type == LDNS_RR_TYPE_AAAA)) {
 +			/* ASN: If this is not a AAAA query, then remove AAAA
@@ -97,14 +96,15 @@ Index: trunk/iterator/iter_scrub.c
 +				LDNS_RR_TYPE_AAAA, qinfo->qclass);
 +		}
 +		/* ASN: End of added code */
- 
++
  		/* remove private addresses */
  		if( (rrset->type == LDNS_RR_TYPE_A || 
-Index: trunk/iterator/iter_utils.c
-===================================================================
---- trunk/iterator/iter_utils.c	(revision 4357)
-+++ trunk/iterator/iter_utils.c	(working copy)
-@@ -175,6 +175,7 @@
+ 			rrset->type == LDNS_RR_TYPE_AAAA)) {
+diff --git a/iterator/iter_utils.c b/iterator/iter_utils.c
+index 7bc67da6..e10f547a 100644
+--- a/iterator/iter_utils.c
++++ b/iterator/iter_utils.c
+@@ -175,6 +175,7 @@ iter_apply_cfg(struct iter_env* iter_env, struct config_file* cfg)
  	}
  	iter_env->supports_ipv6 = cfg->do_ip6;
  	iter_env->supports_ipv4 = cfg->do_ip4;
@@ -112,11 +112,11 @@ Index: trunk/iterator/iter_utils.c
  	return 1;
  }
  
-Index: trunk/iterator/iterator.c
-===================================================================
---- trunk/iterator/iterator.c	(revision 4357)
-+++ trunk/iterator/iterator.c	(working copy)
-@@ -1847,6 +1847,53 @@
+diff --git a/iterator/iterator.c b/iterator/iterator.c
+index 23b07ea9..ca29b48c 100644
+--- a/iterator/iterator.c
++++ b/iterator/iterator.c
+@@ -2127,6 +2127,53 @@ processDSNSFind(struct module_qstate* qstate, struct iter_qstate* iq, int id)
  
  	return 0;
  }
@@ -170,7 +170,7 @@ Index: trunk/iterator/iterator.c
  	
  /** 
   * This is the request event state where the request will be sent to one of
-@@ -1894,6 +1941,13 @@
+@@ -2186,6 +2233,13 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
  		return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
  	}
  	
@@ -184,7 +184,7 @@ Index: trunk/iterator/iterator.c
  	/* Make sure we have a delegation point, otherwise priming failed
  	 * or another failure occurred */
  	if(!iq->dp) {
-@@ -3095,6 +3149,61 @@
+@@ -3574,6 +3628,61 @@ processFinished(struct module_qstate* qstate, struct iter_qstate* iq,
  	return 0;
  }
  
@@ -246,7 +246,7 @@ Index: trunk/iterator/iterator.c
  /*
   * Return priming query results to interested super querystates.
   * 
-@@ -3114,6 +3223,9 @@
+@@ -3593,6 +3702,9 @@ iter_inform_super(struct module_qstate* qstate, int id,
  	else if(super->qinfo.qtype == LDNS_RR_TYPE_DS && ((struct iter_qstate*)
  		super->minfo[id])->state == DSNS_FIND_STATE)
  		processDSNSResponse(qstate, id, super);
@@ -256,7 +256,7 @@ Index: trunk/iterator/iterator.c
  	else if(qstate->return_rcode != LDNS_RCODE_NOERROR)
  		error_supers(qstate, id, super);
  	else if(qstate->is_priming)
-@@ -3151,6 +3263,9 @@
+@@ -3630,6 +3742,9 @@ iter_handle(struct module_qstate* qstate, struct iter_qstate* iq,
  			case INIT_REQUEST_3_STATE:
  				cont = processInitRequest3(qstate, iq, id);
  				break;
@@ -266,7 +266,7 @@ Index: trunk/iterator/iterator.c
  			case QUERYTARGETS_STATE:
  				cont = processQueryTargets(qstate, iq, ie, id);
  				break;
-@@ -3460,6 +3575,8 @@
+@@ -3961,6 +4076,8 @@ iter_state_to_string(enum iter_state state)
  		return "INIT REQUEST STATE (stage 2)";
  	case INIT_REQUEST_3_STATE:
  		return "INIT REQUEST STATE (stage 3)";
@@ -275,7 +275,7 @@ Index: trunk/iterator/iterator.c
  	case QUERYTARGETS_STATE :
  		return "QUERY TARGETS STATE";
  	case PRIME_RESP_STATE :
-@@ -3484,6 +3601,7 @@
+@@ -3985,6 +4102,7 @@ iter_state_is_responsestate(enum iter_state s)
  		case INIT_REQUEST_STATE :
  		case INIT_REQUEST_2_STATE :
  		case INIT_REQUEST_3_STATE :
@@ -283,11 +283,11 @@ Index: trunk/iterator/iterator.c
  		case QUERYTARGETS_STATE :
  		case COLLECT_CLASS_STATE :
  			return 0;
-Index: trunk/iterator/iterator.h
-===================================================================
---- trunk/iterator/iterator.h	(revision 4357)
-+++ trunk/iterator/iterator.h	(working copy)
-@@ -130,6 +130,9 @@
+diff --git a/iterator/iterator.h b/iterator/iterator.h
+index 342ac207..731948d1 100644
+--- a/iterator/iterator.h
++++ b/iterator/iterator.h
+@@ -135,6 +135,9 @@ struct iter_env {
  	 */
  	int* target_fetch_policy;
  
@@ -297,10 +297,11 @@ Index: trunk/iterator/iterator.h
  	/** lock on ratelimit counter */
  	lock_basic_type queries_ratelimit_lock;
  	/** number of queries that have been ratelimited */
-@@ -182,6 +185,14 @@
+@@ -186,6 +189,14 @@ enum iter_state {
+ 	 */
  	INIT_REQUEST_3_STATE,
  
- 	/**
++	/**
 +	 * This state is responsible for intercepting AAAA queries,
 +	 * and launch a A subquery on the same target, to populate the
 +	 * cache with A records, so the AAAA filter scrubbing logic can
@@ -308,29 +309,28 @@ Index: trunk/iterator/iterator.h
 +	 */
 +	ASN_FETCH_A_FOR_AAAA_STATE,
 +
-+	/**
+ 	/**
  	 * Each time a delegation point changes for a given query or a 
  	 * query times out and/or wakes up, this state is (re)visited. 
- 	 * This state is responsible for iterating through a list of 
-@@ -364,6 +375,13 @@
- 	 * be used when creating the state. A higher one will be attempted.
+@@ -375,6 +386,13 @@ struct iter_qstate {
  	 */
  	int refetch_glue;
-+
+ 
 +	/**
 +	 * ASN: This is a flag that, if true, means that this query is
 +	 * for fetching A records to populate cache and determine if we must
 +	 * return AAAA records or not.
 +	 */
 +	int fetch_a_for_aaaa;
- 
++
  	/** list of pending queries to authoritative servers. */
  	struct outbound_list outlist;
-Index: trunk/pythonmod/interface.i
-===================================================================
---- trunk/pythonmod/interface.i	(revision 4357)
-+++ trunk/pythonmod/interface.i	(working copy)
-@@ -851,6 +851,7 @@
+ 
+diff --git a/pythonmod/interface.i b/pythonmod/interface.i
+index f08b575d..47f1bb2e 100644
+--- a/pythonmod/interface.i
++++ b/pythonmod/interface.i
+@@ -975,6 +975,7 @@ struct config_file {
     int harden_dnssec_stripped;
     int harden_referral_path;
     int use_caps_bits_for_id;
@@ -338,11 +338,11 @@ Index: trunk/pythonmod/interface.i
     struct config_strlist* private_address;
     struct config_strlist* private_domain;
     size_t unwanted_threshold;
-Index: trunk/util/config_file.c
-===================================================================
---- trunk/util/config_file.c	(revision 4357)
-+++ trunk/util/config_file.c	(working copy)
-@@ -195,6 +195,7 @@
+diff --git a/util/config_file.c b/util/config_file.c
+index 0ab8614a..729fb147 100644
+--- a/util/config_file.c
++++ b/util/config_file.c
+@@ -218,6 +218,7 @@ config_create(void)
  	cfg->harden_referral_path = 0;
  	cfg->harden_algo_downgrade = 0;
  	cfg->use_caps_bits_for_id = 0;
@@ -350,11 +350,11 @@ Index: trunk/util/config_file.c
  	cfg->caps_whitelist = NULL;
  	cfg->private_address = NULL;
  	cfg->private_domain = NULL;
-Index: trunk/util/config_file.h
-===================================================================
---- trunk/util/config_file.h	(revision 4357)
-+++ trunk/util/config_file.h	(working copy)
-@@ -209,6 +209,8 @@
+diff --git a/util/config_file.h b/util/config_file.h
+index e61257a3..dabaa7bb 100644
+--- a/util/config_file.h
++++ b/util/config_file.h
+@@ -260,6 +260,8 @@ struct config_file {
  	int harden_algo_downgrade;
  	/** use 0x20 bits in query as random ID bits */
  	int use_caps_bits_for_id;
@@ -363,11 +363,11 @@ Index: trunk/util/config_file.h
  	/** 0x20 whitelist, domains that do not use capsforid */
  	struct config_strlist* caps_whitelist;
  	/** strip away these private addrs from answers, no DNS Rebinding */
-Index: trunk/util/configlexer.lex
-===================================================================
---- trunk/util/configlexer.lex	(revision 4357)
-+++ trunk/util/configlexer.lex	(working copy)
-@@ -279,6 +279,7 @@
+diff --git a/util/configlexer.lex b/util/configlexer.lex
+index 79a0edca..4eaec678 100644
+--- a/util/configlexer.lex
++++ b/util/configlexer.lex
+@@ -304,6 +304,7 @@ harden-algo-downgrade{COLON}	{ YDVAR(1, VAR_HARDEN_ALGO_DOWNGRADE) }
  use-caps-for-id{COLON}		{ YDVAR(1, VAR_USE_CAPS_FOR_ID) }
  caps-whitelist{COLON}		{ YDVAR(1, VAR_CAPS_WHITELIST) }
  unwanted-reply-threshold{COLON}	{ YDVAR(1, VAR_UNWANTED_REPLY_THRESHOLD) }
@@ -375,11 +375,11 @@ Index: trunk/util/configlexer.lex
  private-address{COLON}		{ YDVAR(1, VAR_PRIVATE_ADDRESS) }
  private-domain{COLON}		{ YDVAR(1, VAR_PRIVATE_DOMAIN) }
  prefetch-key{COLON}		{ YDVAR(1, VAR_PREFETCH_KEY) }
-Index: trunk/util/configparser.y
-===================================================================
---- trunk/util/configparser.y	(revision 4357)
-+++ trunk/util/configparser.y	(working copy)
-@@ -95,6 +95,7 @@
+diff --git a/util/configparser.y b/util/configparser.y
+index 1d0e8658..f284dd43 100644
+--- a/util/configparser.y
++++ b/util/configparser.y
+@@ -97,6 +97,7 @@ extern struct config_parser_state* cfg_parser;
  %token VAR_STATISTICS_CUMULATIVE VAR_OUTGOING_PORT_PERMIT 
  %token VAR_OUTGOING_PORT_AVOID VAR_DLV_ANCHOR_FILE VAR_DLV_ANCHOR
  %token VAR_NEG_CACHE_SIZE VAR_HARDEN_REFERRAL_PATH VAR_PRIVATE_ADDRESS
@@ -387,7 +387,7 @@ Index: trunk/util/configparser.y
  %token VAR_PRIVATE_DOMAIN VAR_REMOTE_CONTROL VAR_CONTROL_ENABLE
  %token VAR_CONTROL_INTERFACE VAR_CONTROL_PORT VAR_SERVER_KEY_FILE
  %token VAR_SERVER_CERT_FILE VAR_CONTROL_KEY_FILE VAR_CONTROL_CERT_FILE
-@@ -203,6 +204,7 @@
+@@ -233,6 +234,7 @@ content_server: server_num_threads | server_verbosity | server_port |
  	server_dlv_anchor_file | server_dlv_anchor | server_neg_cache_size |
  	server_harden_referral_path | server_private_address |
  	server_private_domain | server_extended_statistics | 
@@ -395,12 +395,10 @@ Index: trunk/util/configparser.y
  	server_local_data_ptr | server_jostle_timeout | 
  	server_unwanted_reply_threshold | server_log_time_ascii | 
  	server_domain_insecure | server_val_sig_skew_min | 
-@@ -1183,6 +1185,15 @@
- 		OUTYY(("P(server_caps_whitelist:%s)\n", $2));
- 		if(!cfg_strlist_insert(&cfg_parser->cfg->caps_whitelist, $2))
+@@ -1563,6 +1565,15 @@ server_caps_whitelist: VAR_CAPS_WHITELIST STRING_ARG
  			yyerror("out of memory");
-+	}
-+	;
+ 	}
+ 	;
 +server_aaaa_filter: VAR_AAAA_FILTER STRING_ARG
 +	{
 +		OUTYY(("P(server_aaaa_filter:%s)\n", $2));
@@ -408,6 +406,8 @@ Index: trunk/util/configparser.y
 +			yyerror("expected yes or no.");
 +		else cfg_parser->cfg->aaaa_filter = (strcmp($2, "yes")==0);
 +		free($2);
- 	}
- 	;
++	}
++	;
  server_private_address: VAR_PRIVATE_ADDRESS STRING_ARG
+ 	{
+ 		OUTYY(("P(server_private_address:%s)\n", $2));
