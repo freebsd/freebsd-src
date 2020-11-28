@@ -772,7 +772,7 @@ camperiphfree(struct cam_periph *periph)
  * Map user virtual pointers into kernel virtual address space, so we can
  * access the memory.  This is now a generic function that centralizes most
  * of the sanity checks on the data flags, if any.
- * This also only works for up to MAXPHYS memory.  Since we use
+ * This also only works for up to maxphys memory.  Since we use
  * buffers to map stuff in and out, we're limited to the buffer size.
  */
 int
@@ -788,8 +788,8 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 	bzero(mapinfo, sizeof(*mapinfo));
 	if (maxmap == 0)
 		maxmap = DFLTPHYS;	/* traditional default */
-	else if (maxmap > MAXPHYS)
-		maxmap = MAXPHYS;	/* for safety */
+	else if (maxmap > maxphys)
+		maxmap = maxphys;	/* for safety */
 	switch(ccb->ccb_h.func_code) {
 	case XPT_DEV_MATCH:
 		if (ccb->cdm.match_buf_len == 0) {
@@ -813,9 +813,9 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		}
 		/*
 		 * This request will not go to the hardware, no reason
-		 * to be so strict. vmapbuf() is able to map up to MAXPHYS.
+		 * to be so strict. vmapbuf() is able to map up to maxphys.
 		 */
-		maxmap = MAXPHYS;
+		maxmap = maxphys;
 		break;
 	case XPT_SCSI_IO:
 	case XPT_CONT_TARGET_IO:
@@ -881,9 +881,9 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 
 		/*
 		 * This request will not go to the hardware, no reason
-		 * to be so strict. vmapbuf() is able to map up to MAXPHYS.
+		 * to be so strict. vmapbuf() is able to map up to maxphys.
 		 */
-		maxmap = MAXPHYS;
+		maxmap = maxphys;
 		break;
 	default:
 		return(EINVAL);
@@ -911,7 +911,7 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo,
 		 * boundary.
 		 */
 		misaligned[i] = (lengths[i] +
-		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK) > MAXPHYS);
+		    (((vm_offset_t)(*data_ptrs[i])) & PAGE_MASK) > maxphys);
 	}
 
 	/*

@@ -1623,8 +1623,8 @@ int agtiapi_alloc_requests( struct agtiapi_softc *pmcsc )
 
   nsegs = AGTIAPI_NSEGS;
   rsize = AGTIAPI_MAX_DMA_SEGS;   // 128
-  AGTIAPI_PRINTK( "agtiapi_alloc_requests: MAXPHYS 0x%x PAGE_SIZE 0x%x \n",
-                  MAXPHYS, PAGE_SIZE );
+  AGTIAPI_PRINTK( "agtiapi_alloc_requests: maxphys 0x%lx PAGE_SIZE 0x%x \n",
+                  maxphys, PAGE_SIZE );
   AGTIAPI_PRINTK( "agtiapi_alloc_requests: nsegs %d rsize %d \n",
                   nsegs, rsize ); // 32, 128
   // This is for csio->data_ptr

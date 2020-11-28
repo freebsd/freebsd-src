@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_param.h"
 #include "opt_msgbuf.h"
+#include "opt_maxphys.h"
 #include "opt_maxusers.h"
 
 #include <sys/param.h>
@@ -95,14 +96,15 @@ int	maxprocperuid;			/* max # of procs per user */
 int	maxfiles;			/* sys. wide open files limit */
 int	maxfilesperproc;		/* per-proc open files limit */
 int	msgbufsize;			/* size of kernel message buffer */
-int	nbuf;
+int	nbuf;				/* number of bcache bufs */
 int	bio_transient_maxcnt;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
 pid_t	pid_max = PID_MAX;
-long	maxswzone;			/* max swmeta KVA storage */
-long	maxbcache;			/* max buffer cache KVA storage */
-long	maxpipekva;			/* Limit on pipe KVA */
+u_long	maxswzone;			/* max swmeta KVA storage */
+u_long	maxbcache;			/* max buffer cache KVA storage */
+u_long	maxpipekva;			/* Limit on pipe KVA */
+u_long	maxphys;			/* max raw I/O transfer size */
 int	vm_guest = VM_GUEST_NO;		/* Running as virtual machine guest? */
 u_long	maxtsiz;			/* max text size */
 u_long	dfldsiz;			/* initial data size limit */
@@ -294,6 +296,18 @@ init_param2(long physpages)
 	nbuf = NBUF;
 	TUNABLE_INT_FETCH("kern.nbuf", &nbuf);
 	TUNABLE_INT_FETCH("kern.bio_transient_maxcnt", &bio_transient_maxcnt);
+	maxphys = MAXPHYS;
+	TUNABLE_ULONG_FETCH("kern.maxphys", &maxphys);
+	if (maxphys == 0) {
+		maxphys = MAXPHYS;
+	} else if (__bitcountl(maxphys) != 1) {	/* power of two */
+		if (flsl(maxphys) == NBBY * sizeof(maxphys))
+			maxphys = MAXPHYS;
+		else
+			maxphys = 1UL << flsl(maxphys);
+	}
+	if (maxphys < PAGE_SIZE)
+		maxphys = MAXPHYS;
 
 	/*
 	 * Physical buffers are pre-allocated buffers (struct buf) that
@@ -305,7 +319,7 @@ init_param2(long physpages)
 	 * The default for maxpipekva is min(1/64 of the kernel address space,
 	 * max(1/64 of main memory, 512KB)).  See sys_pipe.c for more details.
 	 */
-	maxpipekva = (physpages / 64) * PAGE_SIZE;
+	maxpipekva = ptoa(physpages / 64);
 	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;

@@ -215,7 +215,7 @@ struct g_journal_entry {
 #define	GJ_RECORD_HEADER_MAGIC		"GJRHDR"
 #define	GJ_RECORD_HEADER_NENTRIES	(20)
 #define	GJ_RECORD_MAX_SIZE(sc)	\
-	((sc)->sc_jprovider->sectorsize + GJ_RECORD_HEADER_NENTRIES * MAXPHYS)
+	((sc)->sc_jprovider->sectorsize + GJ_RECORD_HEADER_NENTRIES * maxphys)
 #define	GJ_VALIDATE_OFFSET(offset, sc)	do {				\
 	if ((offset) + GJ_RECORD_MAX_SIZE(sc) >= (sc)->sc_jend) {	\
 		(offset) = (sc)->sc_jstart;				\

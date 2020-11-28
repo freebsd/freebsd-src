@@ -379,7 +379,7 @@ vdev_geom_io(struct g_consumer *cp, int *cmds, void **datas, off_t *offsets,
 	int i, n_bios, j;
 	size_t bios_size;
 
-	maxio = MAXPHYS - (MAXPHYS % cp->provider->sectorsize);
+	maxio = maxphys - (maxphys % cp->provider->sectorsize);
 	n_bios = 0;
 
 	/* How many bios are required for all commands ? */

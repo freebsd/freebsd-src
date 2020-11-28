@@ -95,9 +95,9 @@
  *  Max number of scatter/gather entries for an I/O.
  *  Each entry costs 8 bytes in the internal CCB data structure.
  *  We use at most 33 segments but also no more than required for handling
- *  MAXPHYS.
+ *  legacy MAXPHYS == 128 * 1024.
  */
-#define	SYM_CONF_MAX_SG		(MIN(33, (MAXPHYS / PAGE_SIZE) + 1))
+#define	SYM_CONF_MAX_SG		(MIN(33, (128 * 1024 / PAGE_SIZE) + 1))
 
 /*
  *  Max number of targets.

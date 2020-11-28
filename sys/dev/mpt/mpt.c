@@ -2691,7 +2691,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 	/*
 	 * Use this as the basis for reporting the maximum I/O size to CAM.
 	 */
-	mpt->max_cam_seg_cnt = min(mpt->max_seg_cnt, (MAXPHYS / PAGE_SIZE) + 1);
+	mpt->max_cam_seg_cnt = min(mpt->max_seg_cnt, btoc(maxphys) + 1);
 
 	/* XXX Lame Locking! */
 	MPT_UNLOCK(mpt);

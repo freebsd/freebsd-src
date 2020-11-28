@@ -1248,13 +1248,13 @@ nvme_ctrlr_passthrough_cmd(struct nvme_controller *ctrlr,
 	if (pt->len > 0) {
 		/*
 		 * vmapbuf calls vm_fault_quick_hold_pages which only maps full
-		 * pages. Ensure this request has fewer than MAXPHYS bytes when
+		 * pages. Ensure this request has fewer than maxphys bytes when
 		 * extended to full pages.
 		 */
 		addr = (vm_offset_t)pt->buf;
 		end = round_page(addr + pt->len);
 		addr = trunc_page(addr);
-		if (end - addr > MAXPHYS)
+		if (end - addr > maxphys)
 			return EIO;
 
 		if (pt->len > ctrlr->max_xfer_size) {

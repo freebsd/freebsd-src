@@ -143,9 +143,10 @@ static MALLOC_DEFINE(M_XENBLOCKBACK, "xbbd", "Xen Block Back Driver Data");
 /**
  * The maximum mapped region size per request we will allow in a negotiated
  * block-front/back communication channel.
+ * Use old default of MAXPHYS == 128K.
  */
 #define	XBB_MAX_REQUEST_SIZE					\
-	MIN(MAXPHYS, BLKIF_MAX_SEGMENTS_PER_REQUEST * PAGE_SIZE)
+	MIN(128 * 1024, BLKIF_MAX_SEGMENTS_PER_REQUEST * PAGE_SIZE)
 
 /**
  * The maximum number of segments (within a request header and accompanying

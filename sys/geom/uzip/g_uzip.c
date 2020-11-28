@@ -136,7 +136,7 @@ SYSCTL_UINT(_kern_geom_uzip, OID_AUTO, debug_block, CTLFLAG_RWTUN,
 /*
  * Maximum allowed valid block size (to prevent foot-shooting)
  */
-#define	MAX_BLKSZ	(MAXPHYS)
+#define	MAX_BLKSZ	(maxphys)
 
 static char CLOOP_MAGIC_START[] = "#!/bin/sh\n";
 
@@ -292,7 +292,7 @@ g_uzip_request(struct g_geom *gp, struct bio *bp)
 	bp2->bio_offset = TOFF_2_BOFF(sc, pp, start_blk);
 	while (1) {
 		bp2->bio_length = TLEN_2_BLEN(sc, pp, bp2, end_blk - 1);
-		if (bp2->bio_length <= MAXPHYS) {
+		if (bp2->bio_length <= maxphys) {
 			break;
 		}
 		if (end_blk == (start_blk + 1)) {
@@ -791,7 +791,7 @@ g_uzip_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		goto e4;
 	}
 	if (sc->blksz > MAX_BLKSZ) {
-		printf("%s: block size (%u) should not be larger than %d.\n",
+		printf("%s: block size (%u) should not be larger than %lu.\n",
 		    gp->name, sc->blksz, MAX_BLKSZ);
 	}
 	total_offsets = sc->nblocks + 1;

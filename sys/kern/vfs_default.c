@@ -974,8 +974,8 @@ vop_stdallocate(struct vop_allocate_args *ap)
 	iosize = vap->va_blocksize;
 	if (iosize == 0)
 		iosize = BLKDEV_IOSIZE;
-	if (iosize > MAXPHYS)
-		iosize = MAXPHYS;
+	if (iosize > maxphys)
+		iosize = maxphys;
 	buf = malloc(iosize, M_TEMP, M_WAITOK);
 
 #ifdef __notyet__

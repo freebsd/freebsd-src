@@ -494,7 +494,7 @@ g_cache_create(struct g_class *mp, struct g_provider *pp,
 
 	/* Block size restrictions. */
 	bshift = ffs(md->md_bsize) - 1;
-	if (md->md_bsize == 0 || md->md_bsize > MAXPHYS ||
+	if (md->md_bsize == 0 || md->md_bsize > maxphys ||
 	    md->md_bsize != 1 << bshift ||
 	    (md->md_bsize % pp->sectorsize) != 0) {
 		G_CACHE_DEBUG(0, "Invalid blocksize for provider %s.", pp->name);

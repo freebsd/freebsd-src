@@ -436,14 +436,14 @@ mpr_resize_queues(struct mpr_softc *sc)
 
 	/*
 	 * If I/O size limitation requested then use it and pass up to CAM.
-	 * If not, use MAXPHYS as an optimization hint, but report HW limit.
+	 * If not, use maxphys as an optimization hint, but report HW limit.
 	 */
 	if (sc->max_io_pages > 0) {
 		maxio = min(maxio, sc->max_io_pages * PAGE_SIZE);
 		sc->maxio = maxio;
 	} else {
 		sc->maxio = maxio;
-		maxio = min(maxio, MAXPHYS);
+		maxio = min(maxio, maxphys);
 	}
 
 	sc->num_chains = (maxio / PAGE_SIZE + sges_per_frame - 2) /

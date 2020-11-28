@@ -960,9 +960,10 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		piov = auio.uio_iov;
 	} else if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
 		pb = uma_zalloc(md_pbuf_zone, M_WAITOK);
+		MPASS((pb->b_flags & B_MAXPHYS) != 0);
 		bp->bio_resid = len;
 unmapped_step:
-		npages = atop(min(MAXPHYS, round_page(len + (ma_offs &
+		npages = atop(min(maxphys, round_page(len + (ma_offs &
 		    PAGE_MASK))));
 		iolen = min(ptoa(npages) - (ma_offs & PAGE_MASK), len);
 		KASSERT(iolen > 0, ("zero iolen"));
@@ -1684,7 +1685,7 @@ kern_mdattach_locked(struct thread *td, struct md_req *mdr)
 		sectsize = DEV_BSIZE;
 	else
 		sectsize = mdr->md_sectorsize;
-	if (sectsize > MAXPHYS || mdr->md_mediasize < sectsize)
+	if (sectsize > maxphys || mdr->md_mediasize < sectsize)
 		return (EINVAL);
 	if (mdr->md_options & MD_AUTOUNIT)
 		sc = mdnew(-1, &error, mdr->md_type);

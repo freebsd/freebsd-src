@@ -338,8 +338,8 @@ udf_mountfs(struct vnode *devvp, struct mount *mp)
 
 	if (devvp->v_rdev->si_iosize_max != 0)
 		mp->mnt_iosize_max = devvp->v_rdev->si_iosize_max;
-	if (mp->mnt_iosize_max > MAXPHYS)
-		mp->mnt_iosize_max = MAXPHYS;
+	if (mp->mnt_iosize_max > maxphys)
+		mp->mnt_iosize_max = maxphys;
 
 	/* XXX: should be M_WAITOK */
 	udfmp = malloc(sizeof(struct udf_mnt), M_UDFMOUNT,

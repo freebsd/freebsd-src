@@ -552,8 +552,8 @@ gpt_read_tbl(struct g_part_gpt_table *table, struct g_consumer *cp,
 	tblsz = hdr->hdr_entries * hdr->hdr_entsz;
 	sectors = howmany(tblsz, pp->sectorsize);
 	buf = g_malloc(sectors * pp->sectorsize, M_WAITOK | M_ZERO);
-	for (idx = 0; idx < sectors; idx += MAXPHYS / pp->sectorsize) {
-		size = (sectors - idx > MAXPHYS / pp->sectorsize) ?  MAXPHYS:
+	for (idx = 0; idx < sectors; idx += maxphys / pp->sectorsize) {
+		size = (sectors - idx > maxphys / pp->sectorsize) ?  maxphys:
 		    (sectors - idx) * pp->sectorsize;
 		p = g_read_data(cp, (table->lba[elt] + idx) * pp->sectorsize,
 		    size, &error);
@@ -1237,11 +1237,11 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	crc = crc32(buf, table->hdr->hdr_size);
 	le32enc(buf + 16, crc);
 
-	for (index = 0; index < tblsz; index += MAXPHYS / pp->sectorsize) {
+	for (index = 0; index < tblsz; index += maxphys / pp->sectorsize) {
 		error = g_write_data(cp,
 		    (table->lba[GPT_ELT_PRITBL] + index) * pp->sectorsize,
 		    buf + (index + 1) * pp->sectorsize,
-		    (tblsz - index > MAXPHYS / pp->sectorsize) ? MAXPHYS:
+		    (tblsz - index > maxphys / pp->sectorsize) ? maxphys :
 		    (tblsz - index) * pp->sectorsize);
 		if (error)
 			goto out;
@@ -1259,11 +1259,11 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	crc = crc32(buf, table->hdr->hdr_size);
 	le32enc(buf + 16, crc);
 
-	for (index = 0; index < tblsz; index += MAXPHYS / pp->sectorsize) {
+	for (index = 0; index < tblsz; index += maxphys / pp->sectorsize) {
 		error = g_write_data(cp,
 		    (table->lba[GPT_ELT_SECTBL] + index) * pp->sectorsize,
 		    buf + (index + 1) * pp->sectorsize,
-		    (tblsz - index > MAXPHYS / pp->sectorsize) ? MAXPHYS:
+		    (tblsz - index > maxphys / pp->sectorsize) ? maxphys :
 		    (tblsz - index) * pp->sectorsize);
 		if (error)
 			goto out;

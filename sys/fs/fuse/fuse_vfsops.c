@@ -441,7 +441,7 @@ fuse_vfsop_mount(struct mount *mp)
 	}
 	memset(mp->mnt_stat.f_mntfromname, 0, MNAMELEN);
 	strlcpy(mp->mnt_stat.f_mntfromname, fspec, MNAMELEN);
-	mp->mnt_iosize_max = MAXPHYS;
+	mp->mnt_iosize_max = maxphys;
 
 	/* Now handshaking with daemon */
 	fuse_internal_send_init(data, td);

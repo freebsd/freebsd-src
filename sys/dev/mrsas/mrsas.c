@@ -1922,9 +1922,9 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    MAXPHYS,			/* maxsize */
+	    maxphys,			/* maxsize */
 	    sc->max_num_sge,		/* nsegments */
-	    MAXPHYS,			/* maxsegsize */
+	    maxphys,			/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->mrsas_parent_tag	/* tag */
@@ -2154,9 +2154,9 @@ mrsas_alloc_mem(struct mrsas_softc *sc)
 	    BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXADDR,
 	    NULL, NULL,
-	    MAXPHYS,
+	    maxphys,
 	    sc->max_num_sge,		/* nsegments */
-	    MAXPHYS,
+	    maxphys,
 	    BUS_DMA_ALLOCNOW,
 	    busdma_lock_mutex,
 	    &sc->io_lock,

@@ -553,7 +553,7 @@ xptdoioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *
 			 * Map the pattern and match buffers into kernel
 			 * virtual address space.
 			 */
-			error = cam_periph_mapmem(inccb, &mapinfo, MAXPHYS);
+			error = cam_periph_mapmem(inccb, &mapinfo, maxphys);
 
 			if (error) {
 				inccb->ccb_h.path = old_path;
