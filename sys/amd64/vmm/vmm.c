@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <x86/psl.h>
 #include <x86/apicreg.h>
+#include <x86/ifunc.h>
 
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
@@ -184,42 +185,53 @@ struct vm {
 
 static int vmm_initialized;
 
-static struct vmm_ops *ops;
-#define	VMM_INIT(num)	(ops != NULL ? (*ops->init)(num) : 0)
-#define	VMM_CLEANUP()	(ops != NULL ? (*ops->cleanup)() : 0)
-#define	VMM_RESUME()	(ops != NULL ? (*ops->resume)() : 0)
+static void	vmmops_panic(void);
 
-#define	VMINIT(vm, pmap) (ops != NULL ? (*ops->vminit)(vm, pmap): NULL)
-#define	VMRUN(vmi, vcpu, rip, pmap, evinfo) \
-	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap, evinfo) : ENXIO)
-#define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
-#define	VMSPACE_ALLOC(min, max) \
-	(ops != NULL ? (*ops->vmspace_alloc)(min, max) : NULL)
-#define	VMSPACE_FREE(vmspace) \
-	(ops != NULL ? (*ops->vmspace_free)(vmspace) : ENXIO)
-#define	VMGETREG(vmi, vcpu, num, retval)		\
-	(ops != NULL ? (*ops->vmgetreg)(vmi, vcpu, num, retval) : ENXIO)
-#define	VMSETREG(vmi, vcpu, num, val)		\
-	(ops != NULL ? (*ops->vmsetreg)(vmi, vcpu, num, val) : ENXIO)
-#define	VMGETDESC(vmi, vcpu, num, desc)		\
-	(ops != NULL ? (*ops->vmgetdesc)(vmi, vcpu, num, desc) : ENXIO)
-#define	VMSETDESC(vmi, vcpu, num, desc)		\
-	(ops != NULL ? (*ops->vmsetdesc)(vmi, vcpu, num, desc) : ENXIO)
-#define	VMGETCAP(vmi, vcpu, num, retval)	\
-	(ops != NULL ? (*ops->vmgetcap)(vmi, vcpu, num, retval) : ENXIO)
-#define	VMSETCAP(vmi, vcpu, num, val)		\
-	(ops != NULL ? (*ops->vmsetcap)(vmi, vcpu, num, val) : ENXIO)
-#define	VLAPIC_INIT(vmi, vcpu)			\
-	(ops != NULL ? (*ops->vlapic_init)(vmi, vcpu) : NULL)
-#define	VLAPIC_CLEANUP(vmi, vlapic)		\
-	(ops != NULL ? (*ops->vlapic_cleanup)(vmi, vlapic) : NULL)
+static void
+vmmops_panic(void)
+{
+	panic("vmm_ops func called when !vmm_is_intel() && !vmm_is_svm()");
+}
+
+#define	DEFINE_VMMOPS_IFUNC(ret_type, opname, args)			\
+    DEFINE_IFUNC(static, ret_type, vmmops_##opname, args)		\
+    {									\
+    	if (vmm_is_intel())						\
+    		return (vmm_ops_intel.opname);				\
+    	else if (vmm_is_svm())						\
+    		return (vmm_ops_amd.opname);				\
+    	else								\
+    		return ((ret_type (*)args)vmmops_panic);		\
+    }
+
+DEFINE_VMMOPS_IFUNC(int, modinit, (int ipinum))
+DEFINE_VMMOPS_IFUNC(int, modcleanup, (void))
+DEFINE_VMMOPS_IFUNC(void, modresume, (void))
+DEFINE_VMMOPS_IFUNC(void *, init, (struct vm *vm, struct pmap *pmap))
+DEFINE_VMMOPS_IFUNC(int, run, (void *vmi, int vcpu, register_t rip,
+    struct pmap *pmap, struct vm_eventinfo *info))
+DEFINE_VMMOPS_IFUNC(void, cleanup, (void *vmi))
+DEFINE_VMMOPS_IFUNC(int, getreg, (void *vmi, int vcpu, int num,
+    uint64_t *retval))
+DEFINE_VMMOPS_IFUNC(int, setreg, (void *vmi, int vcpu, int num,
+    uint64_t val))
+DEFINE_VMMOPS_IFUNC(int, getdesc, (void *vmi, int vcpu, int num,
+    struct seg_desc *desc))
+DEFINE_VMMOPS_IFUNC(int, setdesc, (void *vmi, int vcpu, int num,
+    struct seg_desc *desc))
+DEFINE_VMMOPS_IFUNC(int, getcap, (void *vmi, int vcpu, int num, int *retval))
+DEFINE_VMMOPS_IFUNC(int, setcap, (void *vmi, int vcpu, int num, int val))
+DEFINE_VMMOPS_IFUNC(struct vmspace *, vmspace_alloc, (vm_offset_t min,
+    vm_offset_t max))
+DEFINE_VMMOPS_IFUNC(void, vmspace_free, (struct vmspace *vmspace))
+DEFINE_VMMOPS_IFUNC(struct vlapic *, vlapic_init, (void *vmi, int vcpu))
+DEFINE_VMMOPS_IFUNC(void, vlapic_cleanup, (void *vmi, struct vlapic *vlapic))
 #ifdef BHYVE_SNAPSHOT
-#define	VM_SNAPSHOT_VMI(vmi, meta) \
-	(ops != NULL ? (*ops->vmsnapshot)(vmi, meta) : ENXIO)
-#define	VM_SNAPSHOT_VMCX(vmi, meta, vcpuid) \
-	(ops != NULL ? (*ops->vmcx_snapshot)(vmi, meta, vcpuid) : ENXIO)
-#define	VM_RESTORE_TSC(vmi, vcpuid, offset) \
-	(ops != NULL ? (*ops->vm_restore_tsc)(vmi, vcpuid, offset) : ENXIO)
+DEFINE_VMMOPS_IFUNC(int, snapshot, (void *vmi, struct vm_snapshot_meta
+    *meta))
+DEFINE_VMMOPS_IFUNC(int, vmcx_snapshot, (void *vmi, struct vm_snapshot_meta
+    *meta, int vcpu))
+DEFINE_VMMOPS_IFUNC(int, restore_tsc, (void *vmi, int vcpuid, uint64_t now))
 #endif
 
 #define	fpu_start_emulating()	load_cr0(rcr0() | CR0_TS)
@@ -282,7 +294,7 @@ vcpu_cleanup(struct vm *vm, int i, bool destroy)
 {
 	struct vcpu *vcpu = &vm->vcpu[i];
 
-	VLAPIC_CLEANUP(vm->cookie, vcpu->vlapic);
+	vmmops_vlapic_cleanup(vm->cookie, vcpu->vlapic);
 	if (destroy) {
 		vmm_stat_free(vcpu->stats);	
 		fpu_save_area_free(vcpu->guestfpu);
@@ -310,7 +322,7 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 		vcpu->tsc_offset = 0;
 	}
 
-	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
+	vcpu->vlapic = vmmops_vlapic_init(vm->cookie, vcpu_id);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_DISABLED);
 	vcpu->reqidle = 0;
 	vcpu->exitintinfo = 0;
@@ -342,16 +354,13 @@ vm_exitinfo(struct vm *vm, int cpuid)
 	return (&vcpu->exitinfo);
 }
 
-static void
-vmm_resume(void)
-{
-	VMM_RESUME();
-}
-
 static int
 vmm_init(void)
 {
 	int error;
+
+	if (!vmm_is_hw_supported())
+		return (ENXIO);
 
 	vmm_host_state_init();
 
@@ -364,16 +373,9 @@ vmm_init(void)
 	if (error)
 		return (error);
 
-	if (vmm_is_intel())
-		ops = &vmm_ops_intel;
-	else if (vmm_is_svm())
-		ops = &vmm_ops_amd;
-	else
-		return (ENXIO);
+	vmm_resume_p = vmmops_modresume;
 
-	vmm_resume_p = vmm_resume;
-
-	return (VMM_INIT(vmm_ipinum));
+	return (vmmops_modinit(vmm_ipinum));
 }
 
 static int
@@ -383,25 +385,33 @@ vmm_handler(module_t mod, int what, void *arg)
 
 	switch (what) {
 	case MOD_LOAD:
-		vmmdev_init();
-		error = vmm_init();
-		if (error == 0)
-			vmm_initialized = 1;
+		if (vmm_is_hw_supported()) {
+			vmmdev_init();
+			error = vmm_init();
+			if (error == 0)
+				vmm_initialized = 1;
+		} else {
+			error = ENXIO;
+		}
 		break;
 	case MOD_UNLOAD:
-		error = vmmdev_cleanup();
-		if (error == 0) {
-			vmm_resume_p = NULL;
-			iommu_cleanup();
-			if (vmm_ipinum != IPI_AST)
-				lapic_ipi_free(vmm_ipinum);
-			error = VMM_CLEANUP();
-			/*
-			 * Something bad happened - prevent new
-			 * VMs from being created
-			 */
-			if (error)
-				vmm_initialized = 0;
+		if (vmm_is_hw_supported()) {
+			error = vmmdev_cleanup();
+			if (error == 0) {
+				vmm_resume_p = NULL;
+				iommu_cleanup();
+				if (vmm_ipinum != IPI_AST)
+					lapic_ipi_free(vmm_ipinum);
+				error = vmmops_modcleanup();
+				/*
+				 * Something bad happened - prevent new
+				 * VMs from being created
+				 */
+				if (error)
+					vmm_initialized = 0;
+			}
+		} else {
+			error = 0;
 		}
 		break;
 	default:
@@ -431,7 +441,7 @@ vm_init(struct vm *vm, bool create)
 {
 	int i;
 
-	vm->cookie = VMINIT(vm, vmspace_pmap(vm->vmspace));
+	vm->cookie = vmmops_init(vm, vmspace_pmap(vm->vmspace));
 	vm->iommu = NULL;
 	vm->vioapic = vioapic_init(vm);
 	vm->vhpet = vhpet_init(vm);
@@ -473,7 +483,7 @@ vm_create(const char *name, struct vm **retvm)
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
 		return (EINVAL);
 
-	vmspace = VMSPACE_ALLOC(0, VM_MAXUSER_ADDRESS);
+	vmspace = vmmops_vmspace_alloc(0, VM_MAXUSER_ADDRESS);
 	if (vmspace == NULL)
 		return (ENOMEM);
 
@@ -549,7 +559,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 	for (i = 0; i < vm->maxcpus; i++)
 		vcpu_cleanup(vm, i, destroy);
 
-	VMCLEANUP(vm->cookie);
+	vmmops_cleanup(vm->cookie);
 
 	/*
 	 * System memory is removed from the guest address space only when
@@ -569,7 +579,7 @@ vm_cleanup(struct vm *vm, bool destroy)
 		for (i = 0; i < VM_MAX_MEMSEGS; i++)
 			vm_free_memseg(vm, i);
 
-		VMSPACE_FREE(vm->vmspace);
+		vmmops_vmspace_free(vm->vmspace);
 		vm->vmspace = NULL;
 	}
 }
@@ -1033,7 +1043,7 @@ vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval)
 	if (reg >= VM_REG_LAST)
 		return (EINVAL);
 
-	return (VMGETREG(vm->cookie, vcpu, reg, retval));
+	return (vmmops_getreg(vm->cookie, vcpu, reg, retval));
 }
 
 int
@@ -1048,7 +1058,7 @@ vm_set_register(struct vm *vm, int vcpuid, int reg, uint64_t val)
 	if (reg >= VM_REG_LAST)
 		return (EINVAL);
 
-	error = VMSETREG(vm->cookie, vcpuid, reg, val);
+	error = vmmops_setreg(vm->cookie, vcpuid, reg, val);
 	if (error || reg != VM_REG_GUEST_RIP)
 		return (error);
 
@@ -1102,7 +1112,7 @@ vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
 	if (!is_segment_register(reg) && !is_descriptor_table(reg))
 		return (EINVAL);
 
-	return (VMGETDESC(vm->cookie, vcpu, reg, desc));
+	return (vmmops_getdesc(vm->cookie, vcpu, reg, desc));
 }
 
 int
@@ -1115,7 +1125,7 @@ vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 	if (!is_segment_register(reg) && !is_descriptor_table(reg))
 		return (EINVAL);
 
-	return (VMSETDESC(vm->cookie, vcpu, reg, desc));
+	return (vmmops_setdesc(vm->cookie, vcpu, reg, desc));
 }
 
 static void
@@ -1333,7 +1343,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 		 * software events that would cause this vcpu to wakeup.
 		 *
 		 * These interrupts/events could have happened after the
-		 * vcpu returned from VMRUN() and before it acquired the
+		 * vcpu returned from vmmops_run() and before it acquired the
 		 * vcpu lock above.
 		 */
 		if (vm->rendezvous_func != NULL || vm->suspend || vcpu->reqidle)
@@ -1730,7 +1740,7 @@ restart:
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
-	error = VMRUN(vm->cookie, vcpuid, vcpu->nextrip, pmap, &evinfo);
+	error = vmmops_run(vm->cookie, vcpuid, vcpu->nextrip, pmap, &evinfo);
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
@@ -1819,9 +1829,9 @@ vm_restart_instruction(void *arg, int vcpuid)
 	} else if (state == VCPU_FROZEN) {
 		/*
 		 * When a vcpu is "frozen" it is outside the critical section
-		 * around VMRUN() and 'nextrip' points to the next instruction.
-		 * Thus instruction restart is achieved by setting 'nextrip'
-		 * to the vcpu's %rip.
+		 * around vmmops_run() and 'nextrip' points to the next
+		 * instruction. Thus instruction restart is achieved by setting
+		 * 'nextrip' to the vcpu's %rip.
 		 */
 		error = vm_get_register(vm, vcpuid, VM_REG_GUEST_RIP, &rip);
 		KASSERT(!error, ("%s: error %d getting rip", __func__, error));
@@ -2226,7 +2236,7 @@ vm_get_capability(struct vm *vm, int vcpu, int type, int *retval)
 	if (type < 0 || type >= VM_CAP_MAX)
 		return (EINVAL);
 
-	return (VMGETCAP(vm->cookie, vcpu, type, retval));
+	return (vmmops_getcap(vm->cookie, vcpu, type, retval));
 }
 
 int
@@ -2238,7 +2248,7 @@ vm_set_capability(struct vm *vm, int vcpu, int type, int val)
 	if (type < 0 || type >= VM_CAP_MAX)
 		return (EINVAL);
 
-	return (VMSETCAP(vm->cookie, vcpu, type, val));
+	return (vmmops_setcap(vm->cookie, vcpu, type, val));
 }
 
 struct vlapic *
@@ -2824,7 +2834,7 @@ vm_snapshot_vmcx(struct vm *vm, struct vm_snapshot_meta *meta)
 	error = 0;
 
 	for (i = 0; i < VM_MAXCPU; i++) {
-		error = VM_SNAPSHOT_VMCX(vm->cookie, meta, i);
+		error = vmmops_vmcx_snapshot(vm->cookie, meta, i);
 		if (error != 0) {
 			printf("%s: failed to snapshot vmcs/vmcb data for "
 			       "vCPU: %d; error: %d\n", __func__, i, error);
@@ -2846,7 +2856,7 @@ vm_snapshot_req(struct vm *vm, struct vm_snapshot_meta *meta)
 
 	switch (meta->dev_req) {
 	case STRUCT_VMX:
-		ret = VM_SNAPSHOT_VMI(vm->cookie, meta);
+		ret = vmmops_snapshot(vm->cookie, meta);
 		break;
 	case STRUCT_VMCX:
 		ret = vm_snapshot_vmcx(vm, meta);
@@ -2913,7 +2923,8 @@ vm_restore_time(struct vm *vm)
 	for (i = 0; i < nitems(vm->vcpu); i++) {
 		vcpu = &vm->vcpu[i];
 
-		error = VM_RESTORE_TSC(vm->cookie, i, vcpu->tsc_offset - now);
+		error = vmmops_restore_tsc(vm->cookie, i, vcpu->tsc_offset -
+		    now);
 		if (error)
 			return (error);
 	}

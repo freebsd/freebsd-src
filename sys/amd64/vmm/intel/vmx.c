@@ -610,7 +610,7 @@ vmx_disable(void *arg __unused)
 }
 
 static int
-vmx_cleanup(void)
+vmx_modcleanup(void)
 {
 
 	if (pirvec >= 0)
@@ -652,7 +652,7 @@ vmx_enable(void *arg __unused)
 }
 
 static void
-vmx_restore(void)
+vmx_modresume(void)
 {
 
 	if (vmxon_enabled[curcpu])
@@ -660,7 +660,7 @@ vmx_restore(void)
 }
 
 static int
-vmx_init(int ipinum)
+vmx_modinit(int ipinum)
 {
 	int error;
 	uint64_t basic, fixed0, fixed1, feature_control;
@@ -668,7 +668,8 @@ vmx_init(int ipinum)
 
 	/* CPUID.1:ECX[bit 5] must be 1 for processor to support VMX */
 	if (!(cpu_feature2 & CPUID2_VMX)) {
-		printf("vmx_init: processor does not support VMX operation\n");
+		printf("vmx_modinit: processor does not support VMX "
+		    "operation\n");
 		return (ENXIO);
 	}
 
@@ -679,7 +680,7 @@ vmx_init(int ipinum)
 	feature_control = rdmsr(MSR_IA32_FEATURE_CONTROL);
 	if ((feature_control & IA32_FEATURE_CONTROL_LOCK) == 1 &&
 	    (feature_control & IA32_FEATURE_CONTROL_VMX_EN) == 0) {
-		printf("vmx_init: VMX operation disabled by BIOS\n");
+		printf("vmx_modinit: VMX operation disabled by BIOS\n");
 		return (ENXIO);
 	}
 
@@ -689,7 +690,7 @@ vmx_init(int ipinum)
 	 */
 	basic = rdmsr(MSR_VMX_BASIC);
 	if ((basic & (1UL << 54)) == 0) {
-		printf("vmx_init: processor does not support desired basic "
+		printf("vmx_modinit: processor does not support desired basic "
 		    "capabilities\n");
 		return (EINVAL);
 	}
@@ -700,8 +701,8 @@ vmx_init(int ipinum)
 			       PROCBASED_CTLS_ONE_SETTING,
 			       PROCBASED_CTLS_ZERO_SETTING, &procbased_ctls);
 	if (error) {
-		printf("vmx_init: processor does not support desired primary "
-		       "processor-based controls\n");
+		printf("vmx_modinit: processor does not support desired "
+		    "primary processor-based controls\n");
 		return (error);
 	}
 
@@ -714,8 +715,8 @@ vmx_init(int ipinum)
 			       PROCBASED_CTLS2_ONE_SETTING,
 			       PROCBASED_CTLS2_ZERO_SETTING, &procbased_ctls2);
 	if (error) {
-		printf("vmx_init: processor does not support desired secondary "
-		       "processor-based controls\n");
+		printf("vmx_modinit: processor does not support desired "
+		    "secondary processor-based controls\n");
 		return (error);
 	}
 
@@ -731,8 +732,8 @@ vmx_init(int ipinum)
 			       PINBASED_CTLS_ONE_SETTING,
 			       PINBASED_CTLS_ZERO_SETTING, &pinbased_ctls);
 	if (error) {
-		printf("vmx_init: processor does not support desired "
-		       "pin-based controls\n");
+		printf("vmx_modinit: processor does not support desired "
+		    "pin-based controls\n");
 		return (error);
 	}
 
@@ -742,7 +743,7 @@ vmx_init(int ipinum)
 			       VM_EXIT_CTLS_ZERO_SETTING,
 			       &exit_ctls);
 	if (error) {
-		printf("vmx_init: processor does not support desired "
+		printf("vmx_modinit: processor does not support desired "
 		    "exit controls\n");
 		return (error);
 	}
@@ -752,7 +753,7 @@ vmx_init(int ipinum)
 	    VM_ENTRY_CTLS_ONE_SETTING, VM_ENTRY_CTLS_ZERO_SETTING,
 	    &entry_ctls);
 	if (error) {
-		printf("vmx_init: processor does not support desired "
+		printf("vmx_modinit: processor does not support desired "
 		    "entry controls\n");
 		return (error);
 	}
@@ -873,8 +874,9 @@ vmx_init(int ipinum)
 			    &IDTVEC(justreturn));
 			if (pirvec < 0) {
 				if (bootverbose) {
-					printf("vmx_init: unable to allocate "
-					    "posted interrupt vector\n");
+					printf("vmx_modinit: unable to "
+					    "allocate posted interrupt "
+					    "vector\n");
 				}
 			} else {
 				posted_interrupts = 1;
@@ -890,7 +892,7 @@ vmx_init(int ipinum)
 	/* Initialize EPT */
 	error = ept_init(ipinum);
 	if (error) {
-		printf("vmx_init: ept initialization failed (%d)\n", error);
+		printf("vmx_modinit: ept initialization failed (%d)\n", error);
 		return (error);
 	}
 
@@ -1015,7 +1017,7 @@ vmx_setup_cr_shadow(int which, struct vmcs *vmcs, uint32_t initial)
 #define	vmx_setup_cr4_shadow(vmcs,init)	vmx_setup_cr_shadow(4, (vmcs), (init))
 
 static void *
-vmx_vminit(struct vm *vm, pmap_t pmap)
+vmx_init(struct vm *vm, pmap_t pmap)
 {
 	uint16_t vpid[VM_MAXCPU];
 	int i, error;
@@ -1083,7 +1085,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	    guest_msr_rw(vmx, MSR_EFER) ||
 	    guest_msr_ro(vmx, MSR_TSC) ||
 	    ((cap_rdpid || cap_rdtscp) && guest_msr_ro(vmx, MSR_TSC_AUX)))
-		panic("vmx_vminit: error setting guest msr access");
+		panic("vmx_init: error setting guest msr access");
 
 	vpid_alloc(vpid, VM_MAXCPU);
 
@@ -1100,7 +1102,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		vmcs->identifier = vmx_revision();
 		error = vmclear(vmcs);
 		if (error != 0) {
-			panic("vmx_vminit: vmclear error %d on vcpu %d\n",
+			panic("vmx_init: vmclear error %d on vcpu %d\n",
 			      error, i);
 		}
 
@@ -1158,7 +1160,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 			    vtophys(&vmx->pir_desc[i]));
 		}
 		VMCLEAR(vmcs);
-		KASSERT(error == 0, ("vmx_vminit: error customizing the vmcs"));
+		KASSERT(error == 0, ("vmx_init: error customizing the vmcs"));
 
 		vmx->cap[i].set = 0;
 		vmx->cap[i].set |= cap_rdpid != 0 ? 1 << VM_CAP_RDPID : 0;
@@ -3001,7 +3003,7 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	 * from a different process than the one that actually runs it.
 	 *
 	 * If the life of a virtual machine was spent entirely in the context
-	 * of a single process we could do this once in vmx_vminit().
+	 * of a single process we could do this once in vmx_init().
 	 */
 	vmcs_write(VMCS_HOST_CR3, rcr3());
 
@@ -3177,7 +3179,7 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 }
 
 static void
-vmx_vmcleanup(void *arg)
+vmx_cleanup(void *arg)
 {
 	int i;
 	struct vmx *vmx = arg;
@@ -3547,7 +3549,7 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 			/*
 			 * Choose not to support enabling/disabling
 			 * RDPID/RDTSCP via libvmmapi since, as per the
-			 * discussion in vmx_init(), RDPID/RDTSCP are
+			 * discussion in vmx_modinit(), RDPID/RDTSCP are
 			 * either always enabled or always disabled.
 			 */
 			error = EOPNOTSUPP;
@@ -3615,6 +3617,18 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 	}
 
 	return (0);
+}
+
+static struct vmspace *
+vmx_vmspace_alloc(vm_offset_t min, vm_offset_t max)
+{
+	return (ept_vmspace_alloc(min, max));
+}
+
+static void
+vmx_vmspace_free(struct vmspace *vmspace)
+{
+	ept_vmspace_free(vmspace);
 }
 
 struct vlapic_vtx {
@@ -4032,7 +4046,7 @@ vmx_vlapic_cleanup(void *arg, struct vlapic *vlapic)
 
 #ifdef BHYVE_SNAPSHOT
 static int
-vmx_snapshot_vmi(void *arg, struct vm_snapshot_meta *meta)
+vmx_snapshot(void *arg, struct vm_snapshot_meta *meta)
 {
 	struct vmx *vmx;
 	struct vmxctx *vmxctx;
@@ -4076,7 +4090,7 @@ done:
 }
 
 static int
-vmx_snapshot_vmcx(void *arg, struct vm_snapshot_meta *meta, int vcpu)
+vmx_vmcx_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpu)
 {
 	struct vmcs *vmcs;
 	struct vmx *vmx;
@@ -4177,26 +4191,26 @@ vmx_restore_tsc(void *arg, int vcpu, uint64_t offset)
 }
 #endif
 
-struct vmm_ops vmm_ops_intel = {
+const struct vmm_ops vmm_ops_intel = {
+	.modinit	= vmx_modinit,
+	.modcleanup	= vmx_modcleanup,
+	.modresume	= vmx_modresume,
 	.init		= vmx_init,
+	.run		= vmx_run,
 	.cleanup	= vmx_cleanup,
-	.resume		= vmx_restore,
-	.vminit		= vmx_vminit,
-	.vmrun		= vmx_run,
-	.vmcleanup	= vmx_vmcleanup,
-	.vmgetreg	= vmx_getreg,
-	.vmsetreg	= vmx_setreg,
-	.vmgetdesc	= vmx_getdesc,
-	.vmsetdesc	= vmx_setdesc,
-	.vmgetcap	= vmx_getcap,
-	.vmsetcap	= vmx_setcap,
-	.vmspace_alloc	= ept_vmspace_alloc,
-	.vmspace_free	= ept_vmspace_free,
+	.getreg		= vmx_getreg,
+	.setreg		= vmx_setreg,
+	.getdesc	= vmx_getdesc,
+	.setdesc	= vmx_setdesc,
+	.getcap		= vmx_getcap,
+	.setcap		= vmx_setcap,
+	.vmspace_alloc	= vmx_vmspace_alloc,
+	.vmspace_free	= vmx_vmspace_free,
 	.vlapic_init	= vmx_vlapic_init,
 	.vlapic_cleanup	= vmx_vlapic_cleanup,
 #ifdef BHYVE_SNAPSHOT
-	.vmsnapshot	= vmx_snapshot_vmi,
-	.vmcx_snapshot	= vmx_snapshot_vmcx,
-	.vm_restore_tsc	= vmx_restore_tsc,
+	.snapshot	= vmx_snapshot,
+	.vmcx_snapshot	= vmx_vmcx_snapshot,
+	.restore_tsc	= vmx_restore_tsc,
 #endif
 };
