@@ -281,8 +281,6 @@ static void umtx_pi_free(struct umtx_pi *pi);
 static int do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags,
     bool rb);
 static void umtx_thread_cleanup(struct thread *td);
-static void umtx_exec_hook(void *arg __unused, struct proc *p __unused,
-    struct image_params *imgp __unused);
 SYSINIT(umtx, SI_SUB_EVENTHANDLER+1, SI_ORDER_MIDDLE, umtxq_sysinit, NULL);
 
 #define umtxq_signal(key, nwake)	umtxq_signal_queue((key), (nwake), UMTX_SHARED_QUEUE)
@@ -450,8 +448,6 @@ umtxq_sysinit(void *arg __unused)
 	umtx_init_profiling();
 #endif
 	mtx_init(&umtx_lock, "umtx lock", NULL, MTX_DEF);
-	EVENTHANDLER_REGISTER(process_exec, umtx_exec_hook, NULL,
-	    EVENTHANDLER_PRI_ANY);
 	umtx_shm_init();
 }
 
@@ -4492,12 +4488,11 @@ umtx_thread_alloc(struct thread *td)
  * exec() hook.
  *
  * Clear robust lists for all process' threads, not delaying the
- * cleanup to thread_exit hook, since the relevant address space is
+ * cleanup to thread exit, since the relevant address space is
  * destroyed right now.
  */
-static void
-umtx_exec_hook(void *arg __unused, struct proc *p,
-    struct image_params *imgp __unused)
+void
+umtx_exec(struct proc *p)
 {
 	struct thread *td;
 
@@ -4519,7 +4514,7 @@ umtx_exec_hook(void *arg __unused, struct proc *p,
 }
 
 /*
- * thread_exit() hook.
+ * thread exit hook.
  */
 void
 umtx_thread_exit(struct thread *td)

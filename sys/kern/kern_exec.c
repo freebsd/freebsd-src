@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
+#include <sys/umtx.h>
 #include <sys/vnode.h>
 #include <sys/wait.h>
 #ifdef KTRACE
@@ -1106,7 +1107,8 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 	imgp->vmspace_destroyed = 1;
 	imgp->sysent = sv;
 
-	/* May be called with Giant held */
+	umtx_exec(p);
+
 	EVENTHANDLER_DIRECT_INVOKE(process_exec, p, imgp);
 
 	/*
