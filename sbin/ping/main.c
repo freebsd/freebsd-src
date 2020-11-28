@@ -44,40 +44,51 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "main.h"
+#ifdef INET
 #include "ping.h"
+#endif
 #ifdef INET6
 #include "ping6.h"
 #endif
 
-#ifdef INET6
+#if defined(INET) && defined(INET6)
 #define	OPTSTR ":46"
-#else
+#elif defined(INET)
 #define OPTSTR ":4"
+#elif defined(INET6)
+#define	OPTSTR ":6"
+#else
+#define OPTSTR ""
 #endif
 
 int
 main(int argc, char *argv[])
 {
+#if defined(INET) && defined(INET6)
 	struct in_addr a;
-	struct addrinfo hints;
-	int ch;
-	bool ipv4;
-#ifdef INET6
 	struct in6_addr a6;
-	bool ipv6;
+#endif
+#if defined(INET) || defined(INET6)
+	struct addrinfo hints;
+#endif
+	int ch;
+#ifdef INET
+	bool ipv4 = false;
+#endif
+#ifdef INET6
+	bool ipv6 = false;
 
 	if (strcmp(getprogname(), "ping6") == 0)
 		ipv6 = true;
-	else
-		ipv6 = false;
 #endif
-	ipv4 = false;
 
 	while ((ch = getopt(argc, argv, OPTSTR)) != -1) {
 		switch(ch) {
+#ifdef INET
 		case '4':
 			ipv4 = true;
 			break;
+#endif
 #ifdef INET6
 		case '6':
 			ipv6 = true;
@@ -93,20 +104,18 @@ main(int argc, char *argv[])
 
 	optreset = 1;
 	optind = 1;
-#ifdef INET6
+#if defined(INET) && defined(INET6)
 	if (ipv4 && ipv6)
 		errx(1, "-4 and -6 cannot be used simultaneously");
 #endif
 
+#if defined(INET) && defined(INET6)
 	if (inet_pton(AF_INET, argv[argc - 1], &a) == 1) {
-#ifdef INET6
 		if (ipv6)
 			errx(1, "IPv6 requested but IPv4 target address "
 			    "provided");
-#endif
 		hints.ai_family = AF_INET;
 	}
-#ifdef INET6
 	else if (inet_pton(AF_INET6, argv[argc - 1], &a6) == 1) {
 		if (ipv4)
 			errx(1, "IPv4 requested but IPv6 target address "
@@ -114,7 +123,6 @@ main(int argc, char *argv[])
 		hints.ai_family = AF_INET6;
 	} else if (ipv6)
 		hints.ai_family = AF_INET6;
-#endif
 	else if (ipv4)
 		hints.ai_family = AF_INET;
 	else {
@@ -129,22 +137,30 @@ main(int argc, char *argv[])
 			freeaddrinfo(res);
 		}
 	}
+#elif defined(INET)
+	hints.ai_family = AF_INET;
+#elif defined(INET6)
+	hints.ai_family = AF_INET6;
+#endif
 
+#ifdef INET
 	if (hints.ai_family == AF_INET)
 		return ping(argc, argv);
+#endif /* INET */
 #ifdef INET6
-	else if (hints.ai_family == AF_INET6)
+	if (hints.ai_family == AF_INET6)
 		return ping6(argc, argv);
-#endif
-	else
-		errx(1, "Unknown host");
+#endif /* INET6 */
+	errx(1, "Unknown host");
 }
 
 void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: ping [-4AaDdfHnoQqRrv] [-C pcp] [-c count] "
+	    "usage:\n"
+#ifdef INET
+	    "\tping [-4AaDdfHnoQqRrv] [-C pcp] [-c count] "
 	    "[-G sweepmaxsize]\n"
 	    "	    [-g sweepminsize] [-h sweepincrsize] [-i wait] "
 	    "[-l preload]\n"
@@ -155,7 +171,7 @@ usage(void)
 	    "[-p pattern] [-S src_addr] \n"
 	    "	    [-s packetsize] [-t timeout] [-W waittime] [-z tos] "
 	    "IPv4-host\n"
-	    "       ping [-4AaDdfHLnoQqRrv] [-C pcp] [-c count] [-I iface] "
+	    "\tping [-4AaDdfHLnoQqRrv] [-C pcp] [-c count] [-I iface] "
 	    "[-i wait]\n"
 	    "	    [-l preload] [-M mask | time] [-m ttl] "
 #ifdef IPSEC
@@ -164,8 +180,9 @@ usage(void)
 	    "[-p pattern]\n"
 	    "	    [-S src_addr] [-s packetsize] [-T ttl] [-t timeout] [-W waittime]\n"
 	    "            [-z tos] IPv4-mcast-group\n"
+#endif /* INET */
 #ifdef INET6
-            "       ping [-6aADd"
+            "\tping [-6aADd"
 #if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
             "E"
 #endif
