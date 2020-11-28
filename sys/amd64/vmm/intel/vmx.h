@@ -160,8 +160,8 @@ vmx_have_msr_tsc_aux(struct vmx *vmx)
 
 	/*
 	 * Since the values of these bits are uniform across all vCPUs
-	 * (see discussion in vmx_init() and initialization of these bits
-	 * in vmx_vminit()), just always use vCPU-zero's capability set and
+	 * (see discussion in vmx_modinit() and initialization of these bits
+	 * in vmx_init()), just always use vCPU-zero's capability set and
 	 * remove the need to require a vcpuid argument.
 	 */
 	return ((vmx->cap[0].set & rdpid_rdtscp_bits) != 0);

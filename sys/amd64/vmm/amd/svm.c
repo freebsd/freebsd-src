@@ -132,6 +132,7 @@ static VMM_STAT_AMD(VCPU_EXITINTINFO, "VM exits during event delivery");
 static VMM_STAT_AMD(VCPU_INTINFO_INJECTED, "Events pending at VM entry");
 static VMM_STAT_AMD(VMEXIT_VINTR, "VM exits due to interrupt window");
 
+static int svm_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc);
 static int svm_setreg(void *arg, int vcpu, int ident, uint64_t val);
 
 static __inline int
@@ -162,7 +163,7 @@ svm_disable(void *arg __unused)
  * Disable SVM on all CPUs.
  */
 static int
-svm_cleanup(void)
+svm_modcleanup(void)
 {
 
 	smp_rendezvous(NULL, svm_disable, NULL, NULL);
@@ -240,7 +241,7 @@ svm_available(void)
 }
 
 static int
-svm_init(int ipinum)
+svm_modinit(int ipinum)
 {
 	int error, cpu;
 
@@ -274,7 +275,7 @@ svm_init(int ipinum)
 }
 
 static void
-svm_restore(void)
+svm_modresume(void)
 {
 
 	svm_enable(NULL);
@@ -551,7 +552,7 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
  * Initialize a virtual machine.
  */
 static void *
-svm_vminit(struct vm *vm, pmap_t pmap)
+svm_init(struct vm *vm, pmap_t pmap)
 {
 	struct svm_softc *svm_sc;
 	struct svm_vcpu *vcpu;
@@ -728,7 +729,7 @@ svm_inout_str_seginfo(struct svm_softc *svm_sc, int vcpu, int64_t info1,
 		vis->seg_name = vm_segment_name(s);
 	}
 
-	error = vmcb_getdesc(svm_sc, vcpu, vis->seg_name, &vis->seg_desc);
+	error = svm_getdesc(svm_sc, vcpu, vis->seg_name, &vis->seg_desc);
 	KASSERT(error == 0, ("%s: svm_getdesc error %d", __func__, error));
 }
 
@@ -1984,7 +1985,7 @@ svm_dr_leave_guest(struct svm_regctx *gctx)
  * Start vcpu with specified RIP.
  */
 static int
-svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap, 
+svm_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
 	struct vm_eventinfo *evinfo)
 {
 	struct svm_regctx *gctx;
@@ -2137,7 +2138,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 }
 
 static void
-svm_vmcleanup(void *arg)
+svm_cleanup(void *arg)
 {
 	struct svm_softc *sc = arg;
 
@@ -2260,6 +2261,18 @@ svm_setreg(void *arg, int vcpu, int ident, uint64_t val)
 	return (EINVAL);
 }
 
+static int
+svm_getdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
+{
+	return (vmcb_getdesc(arg, vcpu, reg, desc));
+}
+
+static int
+svm_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
+{
+	return (vmcb_setdesc(arg, vcpu, reg, desc));
+}
+
 #ifdef BHYVE_SNAPSHOT
 static int
 svm_snapshot_reg(void *arg, int vcpu, int ident,
@@ -2347,6 +2360,18 @@ svm_getcap(void *arg, int vcpu, int type, int *retval)
 	return (error);
 }
 
+static struct vmspace *
+svm_vmspace_alloc(vm_offset_t min, vm_offset_t max)
+{
+	return (svm_npt_alloc(min, max));
+}
+
+static void
+svm_vmspace_free(struct vmspace *vmspace)
+{
+	svm_npt_free(vmspace);
+}
+
 static struct vlapic *
 svm_vlapic_init(void *arg, int vcpuid)
 {
@@ -2374,7 +2399,7 @@ svm_vlapic_cleanup(void *arg, struct vlapic *vlapic)
 
 #ifdef BHYVE_SNAPSHOT
 static int
-svm_snapshot_vmi(void *arg, struct vm_snapshot_meta *meta)
+svm_snapshot(void *arg, struct vm_snapshot_meta *meta)
 {
 	/* struct svm_softc is AMD's representation for SVM softc */
 	struct svm_softc *sc;
@@ -2527,7 +2552,7 @@ done:
 }
 
 static int
-svm_snapshot_vmcx(void *arg, struct vm_snapshot_meta *meta, int vcpu)
+svm_vmcx_snapshot(void *arg, struct vm_snapshot_meta *meta, int vcpu)
 {
 	struct vmcb *vmcb;
 	struct svm_softc *sc;
@@ -2672,26 +2697,26 @@ svm_restore_tsc(void *arg, int vcpu, uint64_t offset)
 }
 #endif
 
-struct vmm_ops vmm_ops_amd = {
+const struct vmm_ops vmm_ops_amd = {
+	.modinit	= svm_modinit,
+	.modcleanup	= svm_modcleanup,
+	.modresume	= svm_modresume,
 	.init		= svm_init,
+	.run		= svm_run,
 	.cleanup	= svm_cleanup,
-	.resume		= svm_restore,
-	.vminit		= svm_vminit,
-	.vmrun		= svm_vmrun,
-	.vmcleanup	= svm_vmcleanup,
-	.vmgetreg	= svm_getreg,
-	.vmsetreg	= svm_setreg,
-	.vmgetdesc	= vmcb_getdesc,
-	.vmsetdesc	= vmcb_setdesc,
-	.vmgetcap	= svm_getcap,
-	.vmsetcap	= svm_setcap,
-	.vmspace_alloc	= svm_npt_alloc,
-	.vmspace_free	= svm_npt_free,
+	.getreg		= svm_getreg,
+	.setreg		= svm_setreg,
+	.getdesc	= svm_getdesc,
+	.setdesc	= svm_setdesc,
+	.getcap		= svm_getcap,
+	.setcap		= svm_setcap,
+	.vmspace_alloc	= svm_vmspace_alloc,
+	.vmspace_free	= svm_vmspace_free,
 	.vlapic_init	= svm_vlapic_init,
 	.vlapic_cleanup	= svm_vlapic_cleanup,
 #ifdef BHYVE_SNAPSHOT
-	.vmsnapshot	= svm_snapshot_vmi,
-	.vmcx_snapshot	= svm_snapshot_vmcx,
-	.vm_restore_tsc	= svm_restore_tsc,
+	.snapshot	= svm_snapshot,
+	.vmcx_snapshot	= svm_vmcx_snapshot,
+	.restore_tsc	= svm_restore_tsc,
 #endif
 };
