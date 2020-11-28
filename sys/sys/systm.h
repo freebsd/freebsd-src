@@ -74,6 +74,8 @@ extern int maxusers;		/* system tune hint */
 extern int ngroups_max;		/* max # of supplemental groups */
 extern int vm_guest;		/* Running as virtual machine guest? */
 
+extern u_long maxphys;		/* max raw I/O transfer size */
+
 /*
  * Detected virtual machine guest types. The intention is to expand
  * and/or add to the VM_GUEST_VM type if specific VM functionality is

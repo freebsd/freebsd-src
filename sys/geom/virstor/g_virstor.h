@@ -41,8 +41,8 @@ struct virstor_map_entry {
 };
 
 #define	VIRSTOR_MAP_ENTRY_SIZE (sizeof(struct virstor_map_entry))
-#define	VIRSTOR_MAP_BLOCK_ENTRIES (MAXPHYS / VIRSTOR_MAP_ENTRY_SIZE)
-/* Struct size is guarded by CTASSERT in main source */
+#define	VIRSTOR_MAP_BLOCK_ENTRIES (maxphys / VIRSTOR_MAP_ENTRY_SIZE)
+/* Struct size is guarded by MPASS in main source */
 
 #ifdef _KERNEL
 

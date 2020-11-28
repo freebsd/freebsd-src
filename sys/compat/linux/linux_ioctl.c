@@ -2152,7 +2152,7 @@ linux_ifconf(struct thread *td, struct ifconf *uifc)
 	if (error != 0)
 		return (error);
 
-	max_len = MAXPHYS - 1;
+	max_len = maxphys - 1;
 
 	CURVNET_SET(TD_TO_VNET(td));
 	/* handle the 'request buffer size' case */

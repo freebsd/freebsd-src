@@ -1870,7 +1870,7 @@ fsl_sataaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
-		cpi->maxio = MAXPHYS;
+		cpi->maxio = maxphys;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}

@@ -327,8 +327,8 @@ sgregister(struct cam_periph *periph, void *arg)
 
 	if (cpi.maxio == 0)
 		softc->maxio = DFLTPHYS;	/* traditional default */
-	else if (cpi.maxio > MAXPHYS)
-		softc->maxio = MAXPHYS;		/* for safety */
+	else if (cpi.maxio > maxphys)
+		softc->maxio = maxphys;		/* for safety */
 	else
 		softc->maxio = cpi.maxio;	/* real value */
 

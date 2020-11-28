@@ -586,7 +586,7 @@ swap_pager_swap_init(void)
 	 * but it isn't very efficient).
 	 *
 	 * The nsw_cluster_max is constrained by the bp->b_pages[]
-	 * array, which has MAXPHYS / PAGE_SIZE entries, and our locally
+	 * array, which has maxphys / PAGE_SIZE entries, and our locally
 	 * defined MAX_PAGEOUT_CLUSTER.   Also be aware that swap ops are
 	 * constrained by the swap device interleave stripe size.
 	 *
@@ -601,7 +601,7 @@ swap_pager_swap_init(void)
 	 * have one NFS swap device due to the command/ack latency over NFS.
 	 * So it all works out pretty well.
 	 */
-	nsw_cluster_max = min(MAXPHYS / PAGE_SIZE, MAX_PAGEOUT_CLUSTER);
+	nsw_cluster_max = min(maxphys / PAGE_SIZE, MAX_PAGEOUT_CLUSTER);
 
 	nsw_wcount_async = 4;
 	nsw_wcount_async_max = nsw_wcount_async;
@@ -1314,6 +1314,7 @@ swap_pager_getpages_locked(vm_object_t object, vm_page_t *ma, int count,
 
 	VM_OBJECT_WUNLOCK(object);
 	bp = uma_zalloc(swrbuf_zone, M_WAITOK);
+	MPASS((bp->b_flags & B_MAXPHYS) != 0);
 	/* Pages cannot leave the object while busy. */
 	for (i = 0, p = bm; i < count; i++, p = TAILQ_NEXT(p, listq)) {
 		MPASS(p->pindex == bm->pindex + i);
@@ -1522,8 +1523,9 @@ swap_pager_putpages(vm_object_t object, vm_page_t *ma, int count,
 		VM_OBJECT_WUNLOCK(object);
 
 		bp = uma_zalloc(swwbuf_zone, M_WAITOK);
+		MPASS((bp->b_flags & B_MAXPHYS) != 0);
 		if (async)
-			bp->b_flags = B_ASYNC;
+			bp->b_flags |= B_ASYNC;
 		bp->b_flags |= B_PAGING;
 		bp->b_iocmd = BIO_WRITE;
 

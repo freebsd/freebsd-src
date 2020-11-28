@@ -882,7 +882,7 @@ g_read_data(struct g_consumer *cp, off_t offset, off_t length, int *error)
 	int errorc;
 
 	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
-	    length <= MAXPHYS, ("g_read_data(): invalid length %jd",
+	    length <= maxphys, ("g_read_data(): invalid length %jd",
 	    (intmax_t)length));
 
 	bp = g_alloc_bio();
@@ -937,7 +937,7 @@ g_write_data(struct g_consumer *cp, off_t offset, void *ptr, off_t length)
 	int error;
 
 	KASSERT(length > 0 && length >= cp->provider->sectorsize &&
-	    length <= MAXPHYS, ("g_write_data(): invalid length %jd",
+	    length <= maxphys, ("g_write_data(): invalid length %jd",
 	    (intmax_t)length));
 
 	bp = g_alloc_bio();

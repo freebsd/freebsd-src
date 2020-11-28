@@ -352,17 +352,17 @@ g_eli_auth_write_done(struct cryptop *crp)
 
 	/*
 	 * We write more than what is requested, so we have to be ready to write
-	 * more than MAXPHYS.
+	 * more than maxphys.
 	 */
 	cbp2 = NULL;
-	if (cbp->bio_length > MAXPHYS) {
+	if (cbp->bio_length > maxphys) {
 		cbp2 = g_duplicate_bio(bp);
-		cbp2->bio_length = cbp->bio_length - MAXPHYS;
-		cbp2->bio_data = cbp->bio_data + MAXPHYS;
-		cbp2->bio_offset = cbp->bio_offset + MAXPHYS;
+		cbp2->bio_length = cbp->bio_length - maxphys;
+		cbp2->bio_data = cbp->bio_data + maxphys;
+		cbp2->bio_offset = cbp->bio_offset + maxphys;
 		cbp2->bio_to = cp->provider;
 		cbp2->bio_done = g_eli_write_done;
-		cbp->bio_length = MAXPHYS;
+		cbp->bio_length = maxphys;
 	}
 	/*
 	 * Send encrypted data to the provider.
@@ -413,17 +413,17 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 
 	/*
 	 * We read more than what is requested, so we have to be ready to read
-	 * more than MAXPHYS.
+	 * more than maxphys.
 	 */
 	cbp2 = NULL;
-	if (cbp->bio_length > MAXPHYS) {
+	if (cbp->bio_length > maxphys) {
 		cbp2 = g_duplicate_bio(bp);
-		cbp2->bio_length = cbp->bio_length - MAXPHYS;
-		cbp2->bio_data = cbp->bio_data + MAXPHYS;
-		cbp2->bio_offset = cbp->bio_offset + MAXPHYS;
+		cbp2->bio_length = cbp->bio_length - maxphys;
+		cbp2->bio_data = cbp->bio_data + maxphys;
+		cbp2->bio_offset = cbp->bio_offset + maxphys;
 		cbp2->bio_to = cp->provider;
 		cbp2->bio_done = g_eli_read_done;
-		cbp->bio_length = MAXPHYS;
+		cbp->bio_length = maxphys;
 	}
 	/*
 	 * Read encrypted data from provider.

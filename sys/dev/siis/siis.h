@@ -263,18 +263,12 @@
 #define SIIS_OFFSET		0x100
 #define SIIS_STEP		0x80
 
-/* Just to be sure, if building as module. */
-#if MAXPHYS < 512 * 1024
-#undef MAXPHYS
-#define MAXPHYS			512 * 1024
-#endif
 /* Pessimistic prognosis on number of required S/G entries */
-#define SIIS_SG_ENTRIES		(roundup(btoc(MAXPHYS), 4) + 1)
-/* Command tables. Up to 32 commands, Each, 128byte aligned. */
-#define SIIS_CT_OFFSET	0
-#define SIIS_CT_SIZE		(32 + 16 + SIIS_SG_ENTRIES * 16)
+#define SIIS_SG_ENTRIES		(roundup(btoc(maxphys), 4) + 1)
+/* Port Request Block + S/G entries.  128byte aligned. */
+#define SIIS_PRB_SIZE		(32 + 16 + SIIS_SG_ENTRIES * 16)
 /* Total main work area. */
-#define SIIS_WORK_SIZE		(SIIS_CT_OFFSET + SIIS_CT_SIZE * SIIS_MAX_SLOTS)
+#define SIIS_WORK_SIZE		(SIIS_PRB_SIZE * SIIS_MAX_SLOTS)
 
 struct siis_dma_prd {
     u_int64_t			dba;
@@ -287,12 +281,12 @@ struct siis_dma_prd {
 } __packed;
 
 struct siis_cmd_ata {
-    struct siis_dma_prd	prd[1 + SIIS_SG_ENTRIES];
+    struct siis_dma_prd		prd[2];
 } __packed;
 
 struct siis_cmd_atapi {
     u_int8_t			ccb[16];
-    struct siis_dma_prd	prd[SIIS_SG_ENTRIES];
+    struct siis_dma_prd		prd[1];
 } __packed;
 
 struct siis_cmd {
@@ -349,6 +343,7 @@ struct siis_slot {
     device_t                    dev;            /* Device handle */
     u_int8_t			slot;           /* Number of this slot */
     enum siis_slot_states	state;          /* Slot state */
+    u_int			prb_offset;	/* PRB offset */
     union ccb			*ccb;		/* CCB occupying slot */
     struct ata_dmaslot          dma;            /* DMA data of this slot */
     struct callout              timeout;        /* Execution timeout */

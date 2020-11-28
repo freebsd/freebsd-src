@@ -885,7 +885,7 @@ retry_space:
 		 * do any heuristics and use exactly the value supplied by
 		 * application.  Otherwise, we allow readahead up to "rem".
 		 * If application wants more, let it be, but there is no
-		 * reason to go above MAXPHYS.  Also check against "obj_size",
+		 * reason to go above maxphys.  Also check against "obj_size",
 		 * since vm_pager_has_page() can hint beyond EOF.
 		 */
 		if (flags & SF_USER_READAHEAD) {
@@ -895,7 +895,7 @@ retry_space:
 			    npages;
 			rhpages += SF_READAHEAD(flags);
 		}
-		rhpages = min(howmany(MAXPHYS, PAGE_SIZE), rhpages);
+		rhpages = min(howmany(maxphys, PAGE_SIZE), rhpages);
 		rhpages = min(howmany(obj_size - trunc_page(off), PAGE_SIZE) -
 		    npages, rhpages);
 

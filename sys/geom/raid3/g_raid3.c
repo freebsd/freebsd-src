@@ -1723,7 +1723,7 @@ g_raid3_sync_request(struct bio *bp)
 		g_reset_bio(bp);
 		bp->bio_cmd = BIO_READ;
 		bp->bio_offset = sync->ds_offset * (sc->sc_ndisks - 1);
-		bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
+		bp->bio_length = MIN(maxphys, sc->sc_mediasize - bp->bio_offset);
 		sync->ds_offset += bp->bio_length / (sc->sc_ndisks - 1);
 		bp->bio_done = g_raid3_sync_done;
 		bp->bio_data = data;
@@ -1752,7 +1752,7 @@ g_raid3_sync_request(struct bio *bp)
 			if (boffset < moffset)
 				moffset = boffset;
 		}
-		if (sync->ds_offset_done + (MAXPHYS * 100) < moffset) {
+		if (sync->ds_offset_done + maxphys * 100 < moffset) {
 			/* Update offset_done on every 100 blocks. */
 			sync->ds_offset_done = moffset;
 			g_raid3_update_metadata(disk);
@@ -2241,10 +2241,10 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 		disk->d_sync.ds_bios[n] = bp;
 		bp->bio_parent = NULL;
 		bp->bio_cmd = BIO_READ;
-		bp->bio_data = malloc(MAXPHYS, M_RAID3, M_WAITOK);
+		bp->bio_data = malloc(maxphys, M_RAID3, M_WAITOK);
 		bp->bio_cflags = 0;
 		bp->bio_offset = disk->d_sync.ds_offset * (sc->sc_ndisks - 1);
-		bp->bio_length = MIN(MAXPHYS, sc->sc_mediasize - bp->bio_offset);
+		bp->bio_length = MIN(maxphys, sc->sc_mediasize - bp->bio_offset);
 		disk->d_sync.ds_offset += bp->bio_length / (sc->sc_ndisks - 1);
 		bp->bio_done = g_raid3_sync_done;
 		bp->bio_from = disk->d_sync.ds_consumer;
@@ -2909,7 +2909,7 @@ g_raid3_read_metadata(struct g_consumer *cp, struct g_raid3_metadata *md)
 		    cp->provider->name);
 		return (error);
 	}
-	if (md->md_sectorsize > MAXPHYS) {
+	if (md->md_sectorsize > maxphys) {
 		G_RAID3_DEBUG(0, "The blocksize is too big.");
 		return (EINVAL);
 	}

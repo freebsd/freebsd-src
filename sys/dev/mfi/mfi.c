@@ -457,7 +457,7 @@ mfi_attach(struct mfi_softc *sc)
 	/*
 	 * Get information needed for sizing the contiguous memory for the
 	 * frame pool.  Size down the sgl parameter since we know that
-	 * we will never need more than what's required for MAXPHYS.
+	 * we will never need more than what's required for MFI_MAXPHYS.
 	 * It would be nice if these constants were available at runtime
 	 * instead of compile time.
 	 */

@@ -1055,8 +1055,8 @@ ffs_mountfs(odevvp, mp, td)
 	BO_UNLOCK(&odevvp->v_bufobj);
 	if (dev->si_iosize_max != 0)
 		mp->mnt_iosize_max = dev->si_iosize_max;
-	if (mp->mnt_iosize_max > MAXPHYS)
-		mp->mnt_iosize_max = MAXPHYS;
+	if (mp->mnt_iosize_max > maxphys)
+		mp->mnt_iosize_max = maxphys;
 	if ((SBLOCKSIZE % cp->provider->sectorsize) != 0) {
 		error = EINVAL;
 		vfs_mount_error(mp,

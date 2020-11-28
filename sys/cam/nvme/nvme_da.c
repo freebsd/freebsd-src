@@ -906,8 +906,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 	maxio = cpi.maxio;		/* Honor max I/O size of SIM */
 	if (maxio == 0)
 		maxio = DFLTPHYS;	/* traditional default */
-	else if (maxio > MAXPHYS)
-		maxio = MAXPHYS;	/* for safety */
+	else if (maxio > maxphys)
+		maxio = maxphys;	/* for safety */
 	disk->d_maxsize = maxio;
 	flbas_fmt = (nsd->flbas >> NVME_NS_DATA_FLBAS_FORMAT_SHIFT) &
 		NVME_NS_DATA_FLBAS_FORMAT_MASK;

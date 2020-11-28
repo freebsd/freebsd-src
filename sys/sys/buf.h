@@ -141,7 +141,6 @@ struct buf {
 		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
 		TAILQ_ENTRY(buf) cluster_entry;
 	} b_cluster;
-	struct	vm_page *b_pages[btoc(MAXPHYS)];
 	int		b_npages;
 	struct	workhead b_dep;		/* (D) List of filesystem dependencies. */
 	void	*b_fsprivate1;
@@ -156,6 +155,7 @@ struct buf {
 #elif defined(BUF_TRACKING)
 	const char	*b_io_tracking;
 #endif
+	struct	vm_page *b_pages[];
 };
 
 #define b_object	b_bufobj->bo_object
@@ -234,7 +234,7 @@ struct buf {
 #define	B_INVALONERR	0x00040000	/* Invalidate on write error. */
 #define	B_00080000	0x00080000	/* Available flag. */
 #define	B_00100000	0x00100000	/* Available flag. */
-#define	B_00200000	0x00200000	/* Available flag. */
+#define	B_MAXPHYS	0x00200000	/* nitems(b_pages[]) = atop(MAXPHYS). */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_FS_FLAG1	0x00800000	/* Available flag for FS use. */
 #define	B_NOCOPY	0x01000000	/* Don't copy-on-write this buf. */
@@ -247,7 +247,7 @@ struct buf {
 #define B_REMFREE	0x80000000	/* Delayed bremfree */
 
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
-	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26b21\25b20" \
+	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26maxphys\25b20" \
 	"\24b19\23invalonerr\22clusterok\21malloc\20nocache\17b14\16inval" \
 	"\15reuse\14noreuse\13eintr\12done\11b8\10delwri" \
 	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
@@ -496,8 +496,8 @@ buf_track(struct buf *bp __unused, const char *location __unused)
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
-extern long	maxswzone;		/* Max KVA for swap structures */
-extern long	maxbcache;		/* Max KVA for buffer cache */
+extern u_long	maxswzone;		/* Max KVA for swap structures */
+extern u_long	maxbcache;		/* Max KVA for buffer cache */
 extern int	maxbcachebuf;		/* Max buffer cache block size */
 extern long	runningbufspace;
 extern long	hibufspace;

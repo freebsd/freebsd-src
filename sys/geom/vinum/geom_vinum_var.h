@@ -106,7 +106,7 @@
 
 /* Synchronization/initialization request sizes. */
 #define	GV_MIN_SYNCSIZE		512
-#define	GV_MAX_SYNCSIZE		MAXPHYS
+#define	GV_MAX_SYNCSIZE		maxphys
 #define	GV_DFLT_SYNCSIZE	65536
 
 /* Flags for BIOs, as they are processed within vinum. */

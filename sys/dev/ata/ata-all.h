@@ -152,7 +152,7 @@
 #define ATA_SACTIVE                     16
 
 /* DMA register defines */
-#define ATA_DMA_ENTRIES                 256
+#define ATA_DMA_ENTRIES                 MAX(17, btoc(maxphys) + 1)
 #define ATA_DMA_EOT                     0x80000000
 
 #define ATA_BMCMD_PORT                  17

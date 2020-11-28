@@ -381,7 +381,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		gctl_error(req, "Invalid secsize for provider %s.", pp->name);
 		return (EINVAL);
 	}
-	if (secsize > MAXPHYS) {
+	if (secsize > maxphys) {
 		gctl_error(req, "secsize is too big.");
 		return (EINVAL);
 	}

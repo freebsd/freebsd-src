@@ -140,8 +140,8 @@ struct kaiocb {
 		struct {		/* BIO backend */
 			struct bio *bp;	/* (*) BIO pointer */
 			struct buf *pbuf; /* (*) buffer pointer */
-			struct vm_page *pages[btoc(MAXPHYS)+1]; /* (*) */
 			int	npages;	/* (*) number of pages */
+			struct vm_page **pages; /* (*) */
 		};
 		struct {		/* fsync() requests */
 			int	pending; /* (a) number of pending I/O */

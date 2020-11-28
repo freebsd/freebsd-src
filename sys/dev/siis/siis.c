@@ -688,8 +688,7 @@ siis_dmainit(device_t dev)
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL,
-	    SIIS_SG_ENTRIES * PAGE_SIZE * SIIS_MAX_SLOTS,
-	    SIIS_SG_ENTRIES, 0xFFFFFFFF,
+	    SIIS_SG_ENTRIES * PAGE_SIZE, SIIS_SG_ENTRIES, 0xFFFFFFFF,
 	    0, busdma_lock_mutex, &ch->mtx, &ch->dma.data_tag)) {
 		goto error;
 	}
@@ -745,6 +744,7 @@ siis_slotsalloc(device_t dev)
 		slot->dev = dev;
 		slot->slot = i;
 		slot->state = SIIS_SLOT_EMPTY;
+		slot->prb_offset = SIIS_PRB_SIZE * i;
 		slot->ccb = NULL;
 		callout_init_mtx(&slot->timeout, &ch->mtx, 0);
 
@@ -1034,8 +1034,7 @@ siis_dmasetprd(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	slot->dma.nsegs = nsegs;
 	if (nsegs != 0) {
 		/* Get a piece of the workspace for this request */
-		ctp = (struct siis_cmd *)(ch->dma.work + SIIS_CT_OFFSET +
-		    (SIIS_CT_SIZE * slot->slot));
+		ctp = (struct siis_cmd *)(ch->dma.work + slot->prb_offset);
 		/* Fill S/G table */
 		if (slot->ccb->ccb_h.func_code == XPT_ATA_IO) 
 			prd = &ctp->u.ata.prd[0];
@@ -1066,8 +1065,7 @@ siis_execute_transaction(struct siis_slot *slot)
 
 	mtx_assert(&ch->mtx, MA_OWNED);
 	/* Get a piece of the workspace for this request */
-	ctp = (struct siis_cmd *)
-		(ch->dma.work + SIIS_CT_OFFSET + (SIIS_CT_SIZE * slot->slot));
+	ctp = (struct siis_cmd *)(ch->dma.work + slot->prb_offset);
 	ctp->control = 0;
 	ctp->protocol_override = 0;
 	ctp->transfer_count = 0;
@@ -1117,8 +1115,7 @@ siis_execute_transaction(struct siis_slot *slot)
 	/* Issue command to the controller. */
 	slot->state = SIIS_SLOT_RUNNING;
 	ch->rslots |= (1 << slot->slot);
-	prb_bus = ch->dma.work_bus +
-	      SIIS_CT_OFFSET + (SIIS_CT_SIZE * slot->slot);
+	prb_bus = ch->dma.work_bus + slot->prb_offset;
 	ATA_OUTL(ch->r_mem, SIIS_P_CACTL(slot->slot), prb_bus);
 	ATA_OUTL(ch->r_mem, SIIS_P_CACTH(slot->slot), prb_bus >> 32);
 	/* Start command execution timeout */
@@ -1967,7 +1964,7 @@ siisaction(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cpi->protocol = PROTO_ATA;
 		cpi->protocol_version = PROTO_VERSION_UNSPECIFIED;
-		cpi->maxio = MAXPHYS;
+		cpi->maxio = maxphys;
 		cpi->hba_vendor = pci_get_vendor(parent);
 		cpi->hba_device = pci_get_device(parent);
 		cpi->hba_subvendor = pci_get_subvendor(parent);
