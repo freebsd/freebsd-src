@@ -154,7 +154,7 @@ const struct vm_snapshot_dev_info snapshot_devs[] = {
 	{ "e1000",	pci_snapshot,		NULL,		NULL		},
 	{ "ahci",	pci_snapshot,		pci_pause,	pci_resume	},
 	{ "ahci-hd",	pci_snapshot,		pci_pause,	pci_resume	},
-	{ "ahci-cd",	pci_snapshot,		NULL,		NULL		},
+	{ "ahci-cd",	pci_snapshot,		pci_pause,	pci_resume	},
 };
 
 const struct vm_snapshot_kern_info snapshot_kern_structs[] = {
