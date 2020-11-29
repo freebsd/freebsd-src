@@ -104,6 +104,13 @@ Specifies the destination codeset name as
 .El
 .Sh EXIT STATUS
 .Ex -std iconv
+.Sh EXAMPLES
+Convert
+.Pa file.txt
+from IBM273 to UTF-8 and save the result to
+.Pa converted.txt :
+.Pp
+.Dl iconv -f IBM273 -t UTF-8 file.txt > converted.txt
 .Sh SEE ALSO
 .Xr mkcsmapper 1 ,
 .Xr mkesdb 1 ,
