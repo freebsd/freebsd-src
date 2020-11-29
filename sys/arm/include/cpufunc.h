@@ -93,23 +93,6 @@ void	cpufunc_nullop		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
 void	cpu_domains		(u_int domains);
 
-#if defined(CPU_ARM9E)
-void	arm9_tlb_flushID_SE	(u_int va);
-void	arm9_context_switch	(void);
-
-u_int	sheeva_control_ext 		(u_int, u_int);
-void	sheeva_cpu_sleep		(int);
-void	sheeva_setttb			(u_int);
-void	sheeva_dcache_wbinv_range	(vm_offset_t, vm_size_t);
-void	sheeva_dcache_inv_range		(vm_offset_t, vm_size_t);
-void	sheeva_dcache_wb_range		(vm_offset_t, vm_size_t);
-void	sheeva_idcache_wbinv_range	(vm_offset_t, vm_size_t);
-
-void	sheeva_l2cache_wbinv_range	(vm_offset_t, vm_size_t);
-void	sheeva_l2cache_inv_range	(vm_offset_t, vm_size_t);
-void	sheeva_l2cache_wb_range		(vm_offset_t, vm_size_t);
-void	sheeva_l2cache_wbinv_all	(void);
-#endif
 
 #if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 void	armv7_cpu_sleep			(int);
@@ -122,26 +105,6 @@ void	pj4b_config			(void);
 void    arm11x6_sleep                   (int);  /* no ref. for errata */
 #endif
 
-#if defined(CPU_ARM9E)
-void	armv5_ec_setttb(u_int);
-
-void	armv5_ec_icache_sync_range(vm_offset_t, vm_size_t);
-
-void	armv5_ec_dcache_wbinv_all(void);
-void	armv5_ec_dcache_wbinv_range(vm_offset_t, vm_size_t);
-void	armv5_ec_dcache_inv_range(vm_offset_t, vm_size_t);
-void	armv5_ec_dcache_wb_range(vm_offset_t, vm_size_t);
-
-void	armv5_ec_idcache_wbinv_all(void);
-void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
-
-void	armv4_tlb_flushID	(void);
-void	armv4_tlb_flushD	(void);
-void	armv4_tlb_flushD_SE	(u_int va);
-
-void	armv4_drain_writebuf	(void);
-void	armv4_idcache_inv_all	(void);
-#endif
 
 /*
  * Macros for manipulating CPU interrupts
