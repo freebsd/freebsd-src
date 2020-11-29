@@ -294,6 +294,17 @@ alloc_nhgrp(struct weightened_nhop *wn, int num_nhops)
 }
 
 void
+nhgrp_ref_object(struct nhgrp_object *nhg)
+{
+	struct nhgrp_priv *nhg_priv;
+	u_int old;
+
+	nhg_priv = NHGRP_PRIV(nhg);
+	old = refcount_acquire(&nhg_priv->nhg_refcount);
+	KASSERT(old > 0, ("%s: nhgrp object %p has 0 refs", __func__, nhg));
+}
+
+void
 nhgrp_free(struct nhgrp_object *nhg)
 {
 	struct nhgrp_priv *nhg_priv;

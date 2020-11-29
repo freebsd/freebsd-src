@@ -242,6 +242,7 @@ int nhops_init_rib(struct rib_head *rh);
 void nhops_destroy_rib(struct rib_head *rh);
 void nhop_ref_object(struct nhop_object *nh);
 int nhop_try_ref_object(struct nhop_object *nh);
+void nhop_ref_any(struct nhop_object *nh);
 void nhop_free_any(struct nhop_object *nh);
 
 void nhop_set_type(struct nhop_object *nh, enum nhop_type nh_type);
@@ -306,6 +307,7 @@ int nhgrp_get_addition_group(struct rib_head *rnh,
     struct route_nhop_data *rnd_orig, struct route_nhop_data *rnd_add,
     struct route_nhop_data *rnd_new);
 
+void nhgrp_ref_object(struct nhgrp_object *nhg);
 uint32_t nhgrp_get_idx(const struct nhgrp_object *nhg);
 void nhgrp_free(struct nhgrp_object *nhg);
 
