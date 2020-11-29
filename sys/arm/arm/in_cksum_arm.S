@@ -133,20 +133,14 @@ ASENTRY_NP(L_cksumdata)
 	movlt	r5, #0x00
 	ldrbgt	r6, [r0], #0x01		/* Fetch 3rd byte */
 	movle	r6, #0x00
+
 	/* Combine the three bytes depending on endianness and alignment */
-#ifdef __ARMEB__
-	orreq	r2, r5, r4, lsl #8
-	orreq	r2, r2, r6, lsl #24
-	orrne	r2, r4, r5, lsl #8
-	orrne	r2, r2, r6, lsl #16
-#else
 	orreq	r2, r4, r5, lsl #8
 	orreq	r2, r2, r6, lsl #16
 	orrne	r2, r5, r4, lsl #8
 	orrne	r2, r2, r6, lsl #24
-#endif
 	subs	r1, r1, r7		/* Update length */
-	RETeq			/* All done? */
+	RETeq				/* All done? */
 
 	/* Buffer is now word aligned */
 .Lcksumdata_wordaligned:
@@ -326,17 +320,10 @@ ASENTRY_NP(L_cksumdata)
 	movle	r5, #0x00
 	/* Combine the three bytes depending on endianness and alignment */
 	tst	r0, #0x01
-#ifdef __ARMEB__
-	orreq	r3, r4, r3, lsl #8
-	orreq	r3, r3, r5, lsl #24
-	orrne	r3, r3, r4, lsl #8
-	orrne	r3, r3, r5, lsl #16
-#else
 	orreq	r3, r3, r4, lsl #8
 	orreq	r3, r3, r5, lsl #16
 	orrne	r3, r4, r3, lsl #8
 	orrne	r3, r3, r5, lsl #24
-#endif
 	adds	r2, r2, r3
 	adc	r2, r2, #0x00
 	RET

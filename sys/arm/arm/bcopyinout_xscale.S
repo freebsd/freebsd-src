@@ -298,25 +298,12 @@ ENTRY(copyin)
 	b	.Lcopyin_bad1
 
 .Lcopyin_bad1_loop16:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #8
-#else
 	mov	r4, ip, lsr #8
-#endif
 	ldrt	r5, [r0], #0x04
 	pld	[r0, #0x018]
 	ldrt	r6, [r0], #0x04
 	ldrt	r7, [r0], #0x04
 	ldrt	ip, [r0], #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, r5, lsr #24
-	mov	r5, r5, lsl #8
-	orr	r5, r5, r6, lsr #24
-	mov	r6, r6, lsl #8
-	orr	r6, r6, r7, lsr #24
-	mov	r7, r7, lsl #8
-	orr	r7, r7, ip, lsr #24
-#else
 	orr	r4, r4, r5, lsl #24
 	mov	r5, r5, lsr #8
 	orr	r5, r5, r6, lsl #24
@@ -324,7 +311,6 @@ ENTRY(copyin)
 	orr	r6, r6, r7, lsl #24
 	mov	r7, r7, lsr #8
 	orr	r7, r7, ip, lsl #24
-#endif
 	str	r4, [r1], #0x04
 	str	r5, [r1], #0x04
 	str	r6, [r1], #0x04
@@ -341,43 +327,22 @@ ENTRY(copyin)
 	blt	.Lcopyin_l4
 
 .Lcopyin_bad1_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #8
-#else
 	mov	r4, ip, lsr #8
-#endif
 	ldrt	ip, [r0], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #24
-#else
 	orr	r4, r4, ip, lsl #24
-#endif
 	str	r4, [r1], #0x04
 	bge	.Lcopyin_bad1_loop4
 	sub	r0, r0, #0x03
 	b	.Lcopyin_l4
 
 .Lcopyin_bad2_loop16:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #16
-#else
 	mov	r4, ip, lsr #16
-#endif
 	ldrt	r5, [r0], #0x04
 	pld	[r0, #0x018]
 	ldrt	r6, [r0], #0x04
 	ldrt	r7, [r0], #0x04
 	ldrt	ip, [r0], #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, r5, lsr #16
-	mov	r5, r5, lsl #16
-	orr	r5, r5, r6, lsr #16
-	mov	r6, r6, lsl #16
-	orr	r6, r6, r7, lsr #16
-	mov	r7, r7, lsl #16
-	orr	r7, r7, ip, lsr #16
-#else
 	orr	r4, r4, r5, lsl #16
 	mov	r5, r5, lsr #16
 	orr	r5, r5, r6, lsl #16
@@ -385,7 +350,6 @@ ENTRY(copyin)
 	orr	r6, r6, r7, lsl #16
 	mov	r7, r7, lsr #16
 	orr	r7, r7, ip, lsl #16
-#endif
 	str	r4, [r1], #0x04
 	str	r5, [r1], #0x04
 	str	r6, [r1], #0x04
@@ -402,43 +366,22 @@ ENTRY(copyin)
 	blt	.Lcopyin_l4
 
 .Lcopyin_bad2_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #16
-#else
 	mov	r4, ip, lsr #16
-#endif
 	ldrt	ip, [r0], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #16
-#else
 	orr	r4, r4, ip, lsl #16
-#endif
 	str	r4, [r1], #0x04
 	bge	.Lcopyin_bad2_loop4
 	sub	r0, r0, #0x02
 	b	.Lcopyin_l4
 
 .Lcopyin_bad3_loop16:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #24
-#else
 	mov	r4, ip, lsr #24
-#endif
 	ldrt	r5, [r0], #0x04
 	pld	[r0, #0x018]
 	ldrt	r6, [r0], #0x04
 	ldrt	r7, [r0], #0x04
 	ldrt	ip, [r0], #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, r5, lsr #8
-	mov	r5, r5, lsl #24
-	orr	r5, r5, r6, lsr #8
-	mov	r6, r6, lsl #24
-	orr	r6, r6, r7, lsr #8
-	mov	r7, r7, lsl #24
-	orr	r7, r7, ip, lsr #8
-#else
 	orr	r4, r4, r5, lsl #8
 	mov	r5, r5, lsr #24
 	orr	r5, r5, r6, lsl #8
@@ -446,7 +389,6 @@ ENTRY(copyin)
 	orr	r6, r6, r7, lsl #8
 	mov	r7, r7, lsr #24
 	orr	r7, r7, ip, lsl #8
-#endif
 	str	r4, [r1], #0x04
 	str	r5, [r1], #0x04
 	str	r6, [r1], #0x04
@@ -463,18 +405,10 @@ ENTRY(copyin)
 	blt	.Lcopyin_l4
 
 .Lcopyin_bad3_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #24
-#else
 	mov	r4, ip, lsr #24
-#endif
 	ldrt	ip, [r0], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #8
-#else
 	orr	r4, r4, ip, lsl #8
-#endif
 	str	r4, [r1], #0x04
 	bge	.Lcopyin_bad3_loop4
 	sub	r0, r0, #0x01
@@ -750,25 +684,12 @@ ENTRY(copyout)
 	b	.Lcopyout_bad1
 
 .Lcopyout_bad1_loop16:
-#ifdef	__ARMEB__
-	mov	r4, ip, lsl #8
-#else
 	mov	r4, ip, lsr #8
-#endif
 	ldr	r5, [r0], #0x04
 	pld	[r0, #0x018]
 	ldr	r6, [r0], #0x04
 	ldr	r7, [r0], #0x04
 	ldr	ip, [r0], #0x04
-#ifdef	__ARMEB__
-	orr	r4, r4, r5, lsr #24
-	mov	r5, r5, lsl #8
-	orr	r5, r5, r6, lsr #24
-	mov	r6, r6, lsl #8
-	orr	r6, r6, r7, lsr #24
-	mov	r7, r7, lsl #8
-	orr	r7, r7, ip, lsr #24
-#else
 	orr	r4, r4, r5, lsl #24
 	mov	r5, r5, lsr #8
 	orr	r5, r5, r6, lsl #24
@@ -776,7 +697,6 @@ ENTRY(copyout)
 	orr	r6, r6, r7, lsl #24
 	mov	r7, r7, lsr #8
 	orr	r7, r7, ip, lsl #24
-#endif
 	strt	r4, [r1], #0x04
 	strt	r5, [r1], #0x04
 	strt	r6, [r1], #0x04
@@ -793,43 +713,22 @@ ENTRY(copyout)
 	blt	.Lcopyout_l4
 
 .Lcopyout_bad1_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #8
-#else
 	mov	r4, ip, lsr #8
-#endif
 	ldr	ip, [r0], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #24
-#else
 	orr	r4, r4, ip, lsl #24
-#endif
 	strt	r4, [r1], #0x04
 	bge	.Lcopyout_bad1_loop4
 	sub	r0, r0, #0x03
 	b	.Lcopyout_l4
 
 .Lcopyout_bad2_loop16:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #16
-#else
 	mov	r4, ip, lsr #16
-#endif
 	ldr	r5, [r0], #0x04
 	pld	[r0, #0x018]
 	ldr	r6, [r0], #0x04
 	ldr	r7, [r0], #0x04
 	ldr	ip, [r0], #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, r5, lsr #16
-	mov	r5, r5, lsl #16
-	orr	r5, r5, r6, lsr #16
-	mov	r6, r6, lsl #16
-	orr	r6, r6, r7, lsr #16
-	mov	r7, r7, lsl #16
-	orr	r7, r7, ip, lsr #16
-#else
 	orr	r4, r4, r5, lsl #16
 	mov	r5, r5, lsr #16
 	orr	r5, r5, r6, lsl #16
@@ -837,7 +736,6 @@ ENTRY(copyout)
 	orr	r6, r6, r7, lsl #16
 	mov	r7, r7, lsr #16
 	orr	r7, r7, ip, lsl #16
-#endif
 	strt	r4, [r1], #0x04
 	strt	r5, [r1], #0x04
 	strt	r6, [r1], #0x04
@@ -854,43 +752,22 @@ ENTRY(copyout)
 	blt	.Lcopyout_l4
 
 .Lcopyout_bad2_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #16
-#else
 	mov	r4, ip, lsr #16
-#endif
 	ldr	ip, [r0], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #16
-#else
 	orr	r4, r4, ip, lsl #16
-#endif
 	strt	r4, [r1], #0x04
 	bge	.Lcopyout_bad2_loop4
 	sub	r0, r0, #0x02
 	b	.Lcopyout_l4
 
 .Lcopyout_bad3_loop16:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #24
-#else
 	mov	r4, ip, lsr #24
-#endif
 	ldr	r5, [r0], #0x04
 	pld	[r0, #0x018]
 	ldr	r6, [r0], #0x04
 	ldr	r7, [r0], #0x04
 	ldr	ip, [r0], #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, r5, lsr #8
-	mov	r5, r5, lsl #24
-	orr	r5, r5, r6, lsr #8
-	mov	r6, r6, lsl #24
-	orr	r6, r6, r7, lsr #8
-	mov	r7, r7, lsl #24
-	orr	r7, r7, ip, lsr #8
-#else
 	orr	r4, r4, r5, lsl #8
 	mov	r5, r5, lsr #24
 	orr	r5, r5, r6, lsl #8
@@ -898,7 +775,6 @@ ENTRY(copyout)
 	orr	r6, r6, r7, lsl #8
 	mov	r7, r7, lsr #24
 	orr	r7, r7, ip, lsl #8
-#endif
 	strt	r4, [r1], #0x04
 	strt	r5, [r1], #0x04
 	strt	r6, [r1], #0x04
@@ -915,18 +791,10 @@ ENTRY(copyout)
 	blt	.Lcopyout_l4
 
 .Lcopyout_bad3_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #24
-#else
 	mov	r4, ip, lsr #24
-#endif
 	ldr	ip, [r0], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #8
-#else
 	orr	r4, r4, ip, lsl #8
-#endif
 	strt	r4, [r1], #0x04
 	bge	.Lcopyout_bad3_loop4
 	sub	r0, r0, #0x01
