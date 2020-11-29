@@ -981,11 +981,7 @@ ip_forward(struct mbuf *m, int srcrt)
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
 	sin->sin_addr = ip->ip_dst;
-#ifdef RADIX_MPATH
-	flowid = ntohl(ip->ip_src.s_addr ^ ip->ip_dst.s_addr);
-#else
 	flowid = m->m_pkthdr.flowid;
-#endif
 	ro.ro_nh = fib4_lookup(M_GETFIB(m), ip->ip_dst, 0, NHR_REF, flowid);
 	if (ro.ro_nh != NULL) {
 		ia = ifatoia(ro.ro_nh->nh_ifa);
