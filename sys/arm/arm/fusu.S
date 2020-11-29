@@ -151,11 +151,7 @@ ENTRY(fusword)
 
 	ldrbt	r3, [r0], #1
 	ldrbt	ip, [r0]
-#ifdef __ARMEB__
-	orr	r0, ip, r3, asl #8
-#else
 	orr	r0, r3, ip, asl #8
-#endif
 	mov	r1, #0x00000000
 	str	r1, [r2, #PCB_ONFAULT]
 	RET
@@ -269,13 +265,8 @@ ENTRY(susword)
 	adr	r3, .Lfusufault
 	str	r3, [r2, #PCB_ONFAULT]
 
-#ifdef __ARMEB__
-	mov	ip, r1, lsr #8
-	strbt	ip, [r0], #1
-#else
 	strbt	r1, [r0], #1
 	mov	r1, r1, lsr #8
-#endif
 	strbt	r1, [r0]
 
 	mov	r0, #0x00000000
