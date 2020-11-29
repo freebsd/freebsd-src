@@ -419,8 +419,10 @@ main(int argc, char **argv)
 	uint64_t curtime, nexttime;
 	struct timeval tv;
 	struct timespec tp;
-	sigset_t sighup_mask;
+	sigset_t sig_mask, sighup_mask;
+	int enable_rpcbind;
 
+	enable_rpcbind = 1;
 	/* Check that another mountd isn't already running. */
 	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &otherpid);
 	if (pfh == NULL) {
@@ -435,7 +437,7 @@ main(int argc, char **argv)
 	else
 		close(s);
 
-	while ((c = getopt(argc, argv, "2deh:lnp:rS")) != -1)
+	while ((c = getopt(argc, argv, "2deh:lnp:RrS")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
@@ -445,6 +447,10 @@ main(int argc, char **argv)
 			break;
 		case 'n':
 			resvport_only = 0;
+			break;
+		case 'R':
+			/* Do not support Mount protocol */
+			enable_rpcbind = 0;
 			break;
 		case 'r':
 			dir_only = 0;
@@ -490,6 +496,21 @@ main(int argc, char **argv)
 		default:
 			usage();
 		}
+	if (enable_rpcbind == 0) {
+		if (svcport_str != NULL) {
+			warnx("-p option not compatible with -R, ignored");
+			free(svcport_str);
+			svcport_str = NULL;
+		}
+		if (nhosts > 0) {
+			warnx("-h option not compatible with -R, ignored");
+			for (k = 0; k < nhosts; k++) 
+				free(hosts[k]);
+			free(hosts);
+			hosts = NULL;
+			nhosts = 0;
+		}
+	}
 
 	if (modfind("nfsd") < 0) {
 		/* Not present in kernel, try loading it */
@@ -523,58 +544,61 @@ main(int argc, char **argv)
 
 	pidfile_write(pfh);
 
-	rpcb_unset(MOUNTPROG, MOUNTVERS, NULL);
-	rpcb_unset(MOUNTPROG, MOUNTVERS3, NULL);
-	rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
+	if (enable_rpcbind != 0) {
+		rpcb_unset(MOUNTPROG, MOUNTVERS, NULL);
+		rpcb_unset(MOUNTPROG, MOUNTVERS3, NULL);
+		rpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);
 
-	if (!resvport_only) {
-		if (sysctlbyname("vfs.nfsd.nfs_privport", NULL, NULL,
-		    &resvport_only, sizeof(resvport_only)) != 0 &&
-		    errno != ENOENT) {
-			syslog(LOG_ERR, "sysctl: %m");
-			exit(1);
-		}
-	}
-
-	/*
-	 * If no hosts were specified, add a wildcard entry to bind to
-	 * INADDR_ANY. Otherwise make sure 127.0.0.1 and ::1 are added to the
-	 * list.
-	 */
-	if (nhosts == 0) {
-		hosts = malloc(sizeof(char *));
-		if (hosts == NULL)
-			out_of_mem();
-		hosts[0] = "*";
-		nhosts = 1;
-	} else {
-		hosts_bak = hosts;
-		if (have_v6) {
-			hosts_bak = realloc(hosts, (nhosts + 2) *
-			    sizeof(char *));
-			if (hosts_bak == NULL) {
-				for (k = 0; k < nhosts; k++)
-					free(hosts[k]);
-		    		free(hosts);
-		    		out_of_mem();
-			} else
-				hosts = hosts_bak;
-			nhosts += 2;
-			hosts[nhosts - 2] = "::1";
-		} else {
-			hosts_bak = realloc(hosts, (nhosts + 1) * sizeof(char *));
-			if (hosts_bak == NULL) {
-				for (k = 0; k < nhosts; k++)
-					free(hosts[k]);
-				free(hosts);
-				out_of_mem();
-			} else {
-				nhosts += 1;
-				hosts = hosts_bak;
+		if (!resvport_only) {
+			if (sysctlbyname("vfs.nfsd.nfs_privport", NULL, NULL,
+			    &resvport_only, sizeof(resvport_only)) != 0 &&
+			    errno != ENOENT) {
+				syslog(LOG_ERR, "sysctl: %m");
+				exit(1);
 			}
 		}
 
-		hosts[nhosts - 1] = "127.0.0.1";
+		/*
+		 * If no hosts were specified, add a wildcard entry to bind to
+		 * INADDR_ANY. Otherwise make sure 127.0.0.1 and ::1 are added
+		 * to the list.
+		 */
+		if (nhosts == 0) {
+			hosts = malloc(sizeof(char *));
+			if (hosts == NULL)
+				out_of_mem();
+			hosts[0] = "*";
+			nhosts = 1;
+		} else {
+			hosts_bak = hosts;
+			if (have_v6) {
+				hosts_bak = realloc(hosts, (nhosts + 2) *
+				    sizeof(char *));
+				if (hosts_bak == NULL) {
+					for (k = 0; k < nhosts; k++)
+						free(hosts[k]);
+			    		free(hosts);
+			    		out_of_mem();
+				} else
+					hosts = hosts_bak;
+				nhosts += 2;
+				hosts[nhosts - 2] = "::1";
+			} else {
+				hosts_bak = realloc(hosts, (nhosts + 1) *
+				    sizeof(char *));
+				if (hosts_bak == NULL) {
+					for (k = 0; k < nhosts; k++)
+						free(hosts[k]);
+					free(hosts);
+					out_of_mem();
+				} else {
+					nhosts += 1;
+					hosts = hosts_bak;
+				}
+			}
+
+			hosts[nhosts - 1] = "127.0.0.1";
+		}
 	}
 
 	attempt_cnt = 1;
@@ -582,96 +606,109 @@ main(int argc, char **argv)
 	sock_fd = NULL;
 	port_list = NULL;
 	port_len = 0;
-	nc_handle = setnetconfig();
-	while ((nconf = getnetconfig(nc_handle))) {
-		if (nconf->nc_flag & NC_VISIBLE) {
-			if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
-			    "inet6") == 0) {
-				/* DO NOTHING */
-			} else {
-				ret = create_service(nconf);
-				if (ret == 1)
-					/* Ignore this call */
-					continue;
-				if (ret < 0) {
-					/*
-					 * Failed to bind port, so close off
-					 * all sockets created and try again
-					 * if the port# was dynamically
-					 * assigned via bind(2).
-					 */
-					clearout_service();
-					if (mallocd_svcport != 0 &&
-					    attempt_cnt < GETPORT_MAXTRY) {
-						free(svcport_str);
+	if (enable_rpcbind != 0) {
+		nc_handle = setnetconfig();
+		while ((nconf = getnetconfig(nc_handle))) {
+			if (nconf->nc_flag & NC_VISIBLE) {
+				if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
+				    "inet6") == 0) {
+					/* DO NOTHING */
+				} else {
+					ret = create_service(nconf);
+					if (ret == 1)
+						/* Ignore this call */
+						continue;
+					if (ret < 0) {
+						/*
+						 * Failed to bind port, so close
+						 * off all sockets created and
+						 * try again if the port# was
+						 * dynamically assigned via
+						 * bind(2).
+						 */
+						clearout_service();
+						if (mallocd_svcport != 0 &&
+						    attempt_cnt <
+						    GETPORT_MAXTRY) {
+							free(svcport_str);
+							svcport_str = NULL;
+							mallocd_svcport = 0;
+						} else {
+							errno = EADDRINUSE;
+							syslog(LOG_ERR,
+							    "bindresvport_sa:"
+							    " %m");
+							exit(1);
+						}
+
+						/*
+						 * Start over at the first
+						 * service.
+						 */
+						free(sock_fd);
+						sock_fdcnt = 0;
+						sock_fd = NULL;
+						nc_handle = setnetconfig();
+						attempt_cnt++;
+					} else if (mallocd_svcport != 0 &&
+					    attempt_cnt == GETPORT_MAXTRY) {
+						/*
+						 * For the last attempt, allow
+						 * different port #s for each
+						 * nconf by saving the
+						 * svcport_str setting it back
+						 * to NULL.
+						 */
+						port_list = realloc(port_list,
+						    (port_len + 1) *
+						    sizeof(char *));
+						if (port_list == NULL)
+							out_of_mem();
+						port_list[port_len++] =
+						    svcport_str;
 						svcport_str = NULL;
 						mallocd_svcport = 0;
-					} else {
-						errno = EADDRINUSE;
-						syslog(LOG_ERR,
-						    "bindresvport_sa: %m");
-						exit(1);
 					}
-
-					/* Start over at the first service. */
-					free(sock_fd);
-					sock_fdcnt = 0;
-					sock_fd = NULL;
-					nc_handle = setnetconfig();
-					attempt_cnt++;
-				} else if (mallocd_svcport != 0 &&
-				    attempt_cnt == GETPORT_MAXTRY) {
-					/*
-					 * For the last attempt, allow
-					 * different port #s for each nconf
-					 * by saving the svcport_str and
-					 * setting it back to NULL.
-					 */
-					port_list = realloc(port_list,
-					    (port_len + 1) * sizeof(char *));
-					if (port_list == NULL)
-						out_of_mem();
-					port_list[port_len++] = svcport_str;
-					svcport_str = NULL;
-					mallocd_svcport = 0;
 				}
 			}
 		}
-	}
 
-	/*
-	 * Successfully bound the ports, so call complete_service() to
-	 * do the rest of the setup on the service(s).
-	 */
-	sock_fdpos = 0;
-	port_pos = 0;
-	nc_handle = setnetconfig();
-	while ((nconf = getnetconfig(nc_handle))) {
-		if (nconf->nc_flag & NC_VISIBLE) {
-			if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
-			    "inet6") == 0) {
-				/* DO NOTHING */
-			} else if (port_list != NULL) {
-				if (port_pos >= port_len) {
-					syslog(LOG_ERR, "too many port#s");
-					exit(1);
-				}
-				complete_service(nconf, port_list[port_pos++]);
-			} else
-				complete_service(nconf, svcport_str);
+		/*
+		 * Successfully bound the ports, so call complete_service() to
+		 * do the rest of the setup on the service(s).
+		 */
+		sock_fdpos = 0;
+		port_pos = 0;
+		nc_handle = setnetconfig();
+		while ((nconf = getnetconfig(nc_handle))) {
+			if (nconf->nc_flag & NC_VISIBLE) {
+				if (have_v6 == 0 && strcmp(nconf->nc_protofmly,
+				    "inet6") == 0) {
+					/* DO NOTHING */
+				} else if (port_list != NULL) {
+					if (port_pos >= port_len) {
+						syslog(LOG_ERR, "too many"
+						    " port#s");
+						exit(1);
+					}
+					complete_service(nconf,
+					    port_list[port_pos++]);
+				} else
+					complete_service(nconf, svcport_str);
+			}
 		}
-	}
-	endnetconfig(nc_handle);
-	free(sock_fd);
-	if (port_list != NULL) {
-		for (port_pos = 0; port_pos < port_len; port_pos++)
-			free(port_list[port_pos]);
-		free(port_list);
-	}
+		endnetconfig(nc_handle);
+		free(sock_fd);
+		if (port_list != NULL) {
+			for (port_pos = 0; port_pos < port_len; port_pos++)
+				free(port_list[port_pos]);
+			free(port_list);
+		}
 
-	if (xcreated == 0) {
-		syslog(LOG_ERR, "could not create any services");
-		exit(1);
+		if (xcreated == 0) {
+			syslog(LOG_ERR, "could not create any services");
+			exit(1);
+		}
 	}
 
 	/* Expand svc_run() here so that we can call get_exportlist(). */
@@ -682,7 +719,7 @@ main(int argc, char **argv)
 		clock_gettime(CLOCK_MONOTONIC, &tp);
 		curtime = tp.tv_sec;
 		curtime = curtime * 1000000 + tp.tv_nsec / 1000;
-		sigprocmask(SIG_BLOCK, &sighup_mask, NULL);
+		sigprocmask(SIG_BLOCK, &sighup_mask, &sig_mask);
 		if (got_sighup && curtime >= nexttime) {
 			got_sighup = 0;
 			sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
@@ -705,22 +742,28 @@ main(int argc, char **argv)
 			tv.tv_usec = 0;
 		else
 			tv.tv_usec = RELOADDELAY;
-		readfds = svc_fdset;
-		switch (select(svc_maxfd + 1, &readfds, NULL, NULL, &tv)) {
-		case -1:
-			if (errno == EINTR) {
+		if (enable_rpcbind != 0) {
+			readfds = svc_fdset;
+			switch (select(svc_maxfd + 1, &readfds, NULL, NULL,
+			    &tv)) {
+			case -1:
+				if (errno == EINTR) {
+					/* Allow a reload now. */
+					nexttime = 0;
+					continue;
+				}
+				syslog(LOG_ERR, "mountd died: select: %m");
+				exit(1);
+			case 0:
 				/* Allow a reload now. */
 				nexttime = 0;
 				continue;
+			default:
+				svc_getreqset(&readfds);
 			}
-			syslog(LOG_ERR, "mountd died: select: %m");
-			exit(1);
-		case 0:
-			/* Allow a reload now. */
-			nexttime = 0;
-			continue;
-		default:
-			svc_getreqset(&readfds);
+		} else {
+			/* Simply wait for a signal. */
+			sigsuspend(&sig_mask);
 		}
 	}
 } 
