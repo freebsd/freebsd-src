@@ -149,17 +149,11 @@ do_memset:
 	/* We are now word aligned */
 .Lmemset_wordaligned:
 	orr	r3, r3, r3, lsl #8	/* Extend value to 16-bits */
-#ifdef _ARM_ARCH_5E
 	tst	ip, #0x04		/* Quad-align for armv5e */
-#else
-	cmp	r1, #0x10
-#endif
 	orr	r3, r3, r3, lsl #16	/* Extend value to 32-bits */
-#ifdef _ARM_ARCH_5E
 	subne	r1, r1, #0x04		/* Quad-align if necessary */
 	strne	r3, [ip], #0x04
 	cmp	r1, #0x10
-#endif
 	blt	.Lmemset_loop4		/* If less than 16 then use words */
 	mov	r2, r3			/* Duplicate data */
 	cmp	r1, #0x80		/* If < 128 then skip the big loop */
@@ -168,7 +162,6 @@ do_memset:
 	/* Do 128 bytes at a time */
 .Lmemset_loop128:
 	subs	r1, r1, #0x80
-#ifdef _ARM_ARCH_5E
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
@@ -185,24 +178,6 @@ do_memset:
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
-#else
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-#endif
 	bgt	.Lmemset_loop128
 	RETeq			/* Zero length so just exit */
 
@@ -211,30 +186,18 @@ do_memset:
 	/* Do 32 bytes at a time */
 .Lmemset_loop32:
 	subs	r1, r1, #0x20
-#ifdef _ARM_ARCH_5E
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
-#else
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-#endif
 	bgt	.Lmemset_loop32
 	RETeq			/* Zero length so just exit */
 
 	adds	r1, r1, #0x10		/* Partially adjust for extra sub */
 
 	/* Deal with 16 bytes or more */
-#ifdef _ARM_ARCH_5E
 	strdge	r2, [ip], #0x08
 	strdge	r2, [ip], #0x08
-#else
-	stmiage	ip!, {r2-r3}
-	stmiage	ip!, {r2-r3}
-#endif
 	RETeq			/* Zero length so just exit */
 
 	addlt	r1, r1, #0x10		/* Possibly adjust for extra sub */
@@ -246,14 +209,10 @@ do_memset:
 	bgt	.Lmemset_loop4
 	RETeq			/* Zero length so just exit */
 
-#ifdef _ARM_ARCH_5E
 	/* Compensate for 64-bit alignment check */
 	adds	r1, r1, #0x04
 	RETeq
 	cmp	r1, #2
-#else
-	cmp	r1, #-2
-#endif
 
 	strb	r3, [ip], #0x01		/* Set 1 byte */
 	strbge	r3, [ip], #0x01		/* Set another byte */
@@ -804,243 +763,6 @@ EENTRY(memmove)
 EEND(memmove)
 END(bcopy)
 
-#if !defined(_ARM_ARCH_5E)
-ENTRY(memcpy)
-	/* save leaf functions having to store this away */
-	/* Do not check arm_memcpy if we're running from flash */
-#if defined(FLASHADDR) && defined(PHYSADDR)
-#if FLASHADDR > PHYSADDR
-	ldr	r3, =FLASHADDR
-	cmp	r3, pc
-	bls	.Lnormal
-#else
-	ldr	r3, =FLASHADDR
-	cmp	r3, pc
-	bhi	.Lnormal
-#endif
-#endif
-	ldr	r3, .L_arm_memcpy
-	ldr	r3, [r3]
-	cmp	r3, #0
-	beq	.Lnormal
-	ldr	r3, .L_min_memcpy_size
-	ldr	r3, [r3]
-	cmp	r2, r3
-	blt	.Lnormal
-	stmfd	sp!, {r0-r2, r4, lr}
-	mov	r3, #0
-	ldr	r4, .L_arm_memcpy
-	mov	lr, pc
-	ldr	pc, [r4]
-	cmp	r0, #0
-	ldmfd	sp!, {r0-r2, r4, lr}
-	RETeq
-
-.Lnormal:
-	stmdb	sp!, {r0, lr}		/* memcpy() returns dest addr */
-
-	subs	r2, r2, #4
-	blt	.Lmemcpy_l4		/* less than 4 bytes */
-	ands	r12, r0, #3
-	bne	.Lmemcpy_destul		/* oh unaligned destination addr */
-	ands	r12, r1, #3
-	bne	.Lmemcpy_srcul		/* oh unaligned source addr */
-
-.Lmemcpy_t8:
-	/* We have aligned source and destination */
-	subs	r2, r2, #8
-	blt	.Lmemcpy_l12		/* less than 12 bytes (4 from above) */
-	subs	r2, r2, #0x14
-	blt	.Lmemcpy_l32		/* less than 32 bytes (12 from above) */
-	stmdb	sp!, {r4}		/* borrow r4 */
-
-	/* blat 32 bytes at a time */
-	/* XXX for really big copies perhaps we should use more registers */
-.Lmemcpy_loop32:
-	ldmia	r1!, {r3, r4, r12, lr}
-	stmia	r0!, {r3, r4, r12, lr}
-	ldmia	r1!, {r3, r4, r12, lr}
-	stmia	r0!, {r3, r4, r12, lr}
-	subs	r2, r2, #0x20
-	bge	.Lmemcpy_loop32
-
-	cmn	r2, #0x10
-	ldmiage	r1!, {r3, r4, r12, lr}	/* blat a remaining 16 bytes */
-	stmiage	r0!, {r3, r4, r12, lr}
-	subge	r2, r2, #0x10
-	ldmia	sp!, {r4}		/* return r4 */
-
-.Lmemcpy_l32:
-	adds	r2, r2, #0x14
-
-	/* blat 12 bytes at a time */
-.Lmemcpy_loop12:
-	ldmiage	r1!, {r3, r12, lr}
-	stmiage	r0!, {r3, r12, lr}
-	subsge	r2, r2, #0x0c
-	bge	.Lmemcpy_loop12
-
-.Lmemcpy_l12:
-	adds	r2, r2, #8
-	blt	.Lmemcpy_l4
-
-	subs	r2, r2, #4
-	ldrlt	r3, [r1], #4
-	strlt	r3, [r0], #4
-	ldmiage	r1!, {r3, r12}
-	stmiage	r0!, {r3, r12}
-	subge	r2, r2, #4
-
-.Lmemcpy_l4:
-	/* less than 4 bytes to go */
-	adds	r2, r2, #4
-#ifdef __APCS_26_
-	ldmiaeq sp!, {r0, pc}^		/* done */
-#else
-	ldmiaeq	sp!, {r0, pc}		/* done */
-#endif
-	/* copy the crud byte at a time */
-	cmp	r2, #2
-	ldrb	r3, [r1], #1
-	strb	r3, [r0], #1
-	ldrbge	r3, [r1], #1
-	strbge	r3, [r0], #1
-	ldrbgt	r3, [r1], #1
-	strbgt	r3, [r0], #1
-	ldmia	sp!, {r0, pc}
-
-	/* erg - unaligned destination */
-.Lmemcpy_destul:
-	rsb	r12, r12, #4
-	cmp	r12, #2
-
-	/* align destination with byte copies */
-	ldrb	r3, [r1], #1
-	strb	r3, [r0], #1
-	ldrbge	r3, [r1], #1
-	strbge	r3, [r0], #1
-	ldrbgt	r3, [r1], #1
-	strbgt	r3, [r0], #1
-	subs	r2, r2, r12
-	blt	.Lmemcpy_l4		/* less the 4 bytes */
-
-	ands	r12, r1, #3
-	beq	.Lmemcpy_t8		/* we have an aligned source */
-
-	/* erg - unaligned source */
-	/* This is where it gets nasty ... */
-.Lmemcpy_srcul:
-	bic	r1, r1, #3
-	ldr	lr, [r1], #4
-	cmp	r12, #2
-	bgt	.Lmemcpy_srcul3
-	beq	.Lmemcpy_srcul2
-	cmp	r2, #0x0c
-	blt	.Lmemcpy_srcul1loop4
-	sub	r2, r2, #0x0c
-	stmdb	sp!, {r4, r5}
-
-.Lmemcpy_srcul1loop16:
-	mov	r3, lr, lsr #8
-	ldmia	r1!, {r4, r5, r12, lr}
-	orr	r3, r3, r4, lsl #24
-	mov	r4, r4, lsr #8
-	orr	r4, r4, r5, lsl #24
-	mov	r5, r5, lsr #8
-	orr	r5, r5, r12, lsl #24
-	mov	r12, r12, lsr #8
-	orr	r12, r12, lr, lsl #24
-	stmia	r0!, {r3-r5, r12}
-	subs	r2, r2, #0x10
-	bge	.Lmemcpy_srcul1loop16
-	ldmia	sp!, {r4, r5}
-	adds	r2, r2, #0x0c
-	blt	.Lmemcpy_srcul1l4
-
-.Lmemcpy_srcul1loop4:
-	mov	r12, lr, lsr #8
-	ldr	lr, [r1], #4
-	orr	r12, r12, lr, lsl #24
-	str	r12, [r0], #4
-	subs	r2, r2, #4
-	bge	.Lmemcpy_srcul1loop4
-
-.Lmemcpy_srcul1l4:
-	sub	r1, r1, #3
-	b	.Lmemcpy_l4
-
-.Lmemcpy_srcul2:
-	cmp	r2, #0x0c
-	blt	.Lmemcpy_srcul2loop4
-	sub	r2, r2, #0x0c
-	stmdb	sp!, {r4, r5}
-
-.Lmemcpy_srcul2loop16:
-	mov	r3, lr, lsr #16
-	ldmia	r1!, {r4, r5, r12, lr}
-	orr	r3, r3, r4, lsl #16
-	mov	r4, r4, lsr #16
-	orr	r4, r4, r5, lsl #16
-	mov	r5, r5, lsr #16
-	orr	r5, r5, r12, lsl #16
-	mov	r12, r12, lsr #16
-	orr	r12, r12, lr, lsl #16
-	stmia	r0!, {r3-r5, r12}
-	subs	r2, r2, #0x10
-	bge	.Lmemcpy_srcul2loop16
-	ldmia	sp!, {r4, r5}
-	adds	r2, r2, #0x0c
-	blt	.Lmemcpy_srcul2l4
-
-.Lmemcpy_srcul2loop4:
-	mov	r12, lr, lsr #16
-	ldr	lr, [r1], #4
-	orr	r12, r12, lr, lsl #16
-	str	r12, [r0], #4
-	subs	r2, r2, #4
-	bge	.Lmemcpy_srcul2loop4
-
-.Lmemcpy_srcul2l4:
-	sub	r1, r1, #2
-	b	.Lmemcpy_l4
-
-.Lmemcpy_srcul3:
-	cmp	r2, #0x0c
-	blt	.Lmemcpy_srcul3loop4
-	sub	r2, r2, #0x0c
-	stmdb	sp!, {r4, r5}
-
-.Lmemcpy_srcul3loop16:
-	mov	r3, lr, lsr #24
-	ldmia	r1!, {r4, r5, r12, lr}
-	orr	r3, r3, r4, lsl #8
-	mov	r4, r4, lsr #24
-	orr	r4, r4, r5, lsl #8
-	mov	r5, r5, lsr #24
-	orr	r5, r5, r12, lsl #8
-	mov	r12, r12, lsr #24
-	orr	r12, r12, lr, lsl #8
-	stmia	r0!, {r3-r5, r12}
-	subs	r2, r2, #0x10
-	bge	.Lmemcpy_srcul3loop16
-	ldmia	sp!, {r4, r5}
-	adds	r2, r2, #0x0c
-	blt	.Lmemcpy_srcul3l4
-
-.Lmemcpy_srcul3loop4:
-	mov	r12, lr, lsr #24
-	ldr	lr, [r1], #4
-	orr	r12, r12, lr, lsl #8
-	str	r12, [r0], #4
-	subs	r2, r2, #4
-	bge	.Lmemcpy_srcul3loop4
-
-.Lmemcpy_srcul3l4:
-	sub	r1, r1, #1
-	b	.Lmemcpy_l4
-END(memcpy)
-
-#else
 /* LINTSTUB: Func: void *memcpy(void *dst, const void *src, size_t len) */
 ENTRY(memcpy)
 	pld	[r1]
@@ -2398,23 +2120,3 @@ ENTRY(memcpy)
 	strb	r1, [r0, #0x0b]
 	RET
 END(memcpy)
-#endif /* _ARM_ARCH_5E */
-
-#ifdef GPROF
-
-ENTRY(user)
-	nop
-END(user)
-ENTRY(btrap)
-	nop
-END(btrap)
-ENTRY(etrap)
-	nop
-END(etrap)
-ENTRY(bintr)
-	nop
-END(bintr)
-ENTRY(eintr)
-	nop
-END(eintr)
-#endif
