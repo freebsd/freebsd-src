@@ -87,13 +87,18 @@ const struct rtentry *rib_lookup_prefix(uint32_t fibnum, int family,
 const struct rtentry *rib_lookup_lpm(uint32_t fibnum, int family,
     const struct sockaddr *dst, struct route_nhop_data *rnd);
 
+/* Nexthops */
+uint32_t nhops_get_count(struct rib_head *rh);
+
 /* Multipath */
 struct nhgrp_object;
 struct weightened_nhop;
 
 struct weightened_nhop *nhgrp_get_nhops(struct nhgrp_object *nhg,
     uint32_t *pnum_nhops);
+uint32_t nhgrp_get_count(struct rib_head *rh);
 
+/* Route subscriptions */
 enum rib_subscription_type {
 	RIB_NOTIFY_IMMEDIATE,
 	RIB_NOTIFY_DELAYED
@@ -109,6 +114,6 @@ struct rib_subscription *rib_subscribe(uint32_t fibnum, int family,
 struct rib_subscription *rib_subscribe_internal(struct rib_head *rnh,
     rib_subscription_cb_t *f, void *arg, enum rib_subscription_type type,
     bool waitok);
-int rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs);
+void rib_unsibscribe(struct rib_subscription *rs);
 
 #endif
