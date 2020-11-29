@@ -229,11 +229,7 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = KERNBASE;
 	mdhdr.arch = __ARM_ARCH;
-#if __ARM_ARCH >= 6
 	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V6;
-#else
-	mdhdr.mmuformat = MINIDUMP_MMU_FORMAT_V4;
-#endif
 	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_ARM_VERSION,
 	    dumpsize);

@@ -42,8 +42,6 @@
 /*
  * CP14 registers
  */
-#if __ARM_ARCH >= 6
-
 #define	CP14_DBGDIDR(rr)	p14, 0, rr, c0, c0, 0 /* Debug ID Register */
 #define	CP14_DBGDSCRext_V6(rr)	p14, 0, rr, c0, c1, 0 /* Debug Status and Ctrl Register v6 */
 #define	CP14_DBGDSCRext_V7(rr)	p14, 0, rr, c0, c2, 2 /* Debug Status and Ctrl Register v7 */
@@ -54,8 +52,6 @@
 #define	CP14_DBGPRSR(rr)	p14, 0, rr, c1, c5, 4 /* Device Powerdown and Reset Status */
 
 #define	CP14_DBGDSCRint(rr)	CP14_DBGDSCRext_V6(rr) /* Debug Status and Ctrl internal view */
-
-#endif
 
 /*
  * CP15 C0 registers
@@ -131,10 +127,8 @@
 #define	CP15_DFSR(rr)		p15, 0, rr, c5, c0,  0 /* Data Fault Status Register */
 #define	CP15_HSR(rr)		p15, 4, rr, c5, c2,  0 /* Hyp Syndrome Register */
 
-#if __ARM_ARCH >= 6
 /* From ARMv6: */
 #define	CP15_IFSR(rr)		p15, 0, rr, c5, c0,  1 /* Instruction Fault Status Register */
-#endif
 #if __ARM_ARCH >= 7
 /* From ARMv7: */
 #define	CP15_ADFSR(rr)		p15, 0, rr, c5, c1,  0 /* Auxiliary Data Fault Status Register */
@@ -149,10 +143,8 @@
 #define	CP15_HIFAR(rr)		p15, 4, rr, c6, c0,  2 /* Hyp Instruction Fault Address Register */
 #define	CP15_HPFAR(rr)		p15, 4, rr, c6, c0,  4 /* Hyp IPA Fault Address Register */
 
-#if __ARM_ARCH >= 6
 /* From ARMv6k: */
 #define	CP15_IFAR(rr)		p15, 0, rr, c6, c0,  2 /* Instruction Fault Address Register */
-#endif
 
 /*
  * CP15 C7 registers
@@ -236,10 +228,8 @@
 
 #define	CP15_TLBIALLH(rr)	p15, 4, rr, c8, c7, 0 /* Invalidate Entire Hyp Unified TLB */
 
-#if __ARM_ARCH >= 6
 /* From ARMv6: */
 #define	CP15_TLBIMVAA(rr)	p15, 0, rr, c8, c7, 3 /* Invalidate unified TLB by MVA, all ASID */
-#endif
 
 /*
  * CP15 C9 registers
@@ -248,7 +238,7 @@
 #define	CP15_PMUSERENR(rr)	p15, 0, rr, c15,  c9, 0 /* Access Validation Control Register */
 #define	CP15_PMCR(rr)		p15, 0, rr, c15, c12, 0 /* Performance Monitor Control Register */
 #define	CP15_PMCCNTR(rr)	p15, 0, rr, c15, c12, 1 /* PM Cycle Count Register */
-#elif __ARM_ARCH > 6
+#else
 #define	CP15_L2CTLR(rr)		p15, 1, rr,  c9, c0,  2 /* L2 Control Register */
 #define	CP15_PMCR(rr)		p15, 0, rr,  c9, c12, 0 /* Performance Monitor Control Register */
 #define	CP15_PMCNTENSET(rr)	p15, 0, rr,  c9, c12, 1 /* PM Count Enable Set Register */

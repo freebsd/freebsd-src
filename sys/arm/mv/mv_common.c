@@ -259,10 +259,8 @@ struct decode_win_spec {
 	win_read_t	ddr_sz_read;
 	win_write_t	ddr_br_write;
 	win_write_t	ddr_sz_write;
-#if __ARM_ARCH >= 6
 	get_t		get_tclk;
 	get_t		get_cpu_freq;
-#endif
 };
 
 struct decode_win_spec *soc_decode_win_spec;
@@ -287,10 +285,8 @@ static struct decode_win_spec decode_win_specs[] =
 		&ddr_armv7_sz_read,
 		&ddr_armv7_br_write,
 		&ddr_armv7_sz_write,
-#if __ARM_ARCH >= 6
 		&get_tclk_armada38x,
 		&get_cpu_freq_armada38x,
-#endif
 	},
 	{
 		&read_cpu_ctrl_armv7,
@@ -310,10 +306,8 @@ static struct decode_win_spec decode_win_specs[] =
 		&ddr_armv7_sz_read,
 		&ddr_armv7_br_write,
 		&ddr_armv7_sz_write,
-#if __ARM_ARCH >= 6
 		&get_tclk_armadaxp,
 		&get_cpu_freq_armadaxp,
-#endif
 	},
 	{
 		&read_cpu_ctrl_armv5,
@@ -333,10 +327,8 @@ static struct decode_win_spec decode_win_specs[] =
 		&ddr_armv5_sz_read,
 		&ddr_armv5_br_write,
 		&ddr_armv5_sz_write,
-#if __ARM_ARCH >= 6
 		NULL,
 		NULL,
-#endif
 	},
 };
 
@@ -2896,7 +2888,6 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
-#if __ARM_ARCH >= 6
 uint32_t
 get_tclk(void)
 {
@@ -2916,27 +2907,3 @@ get_cpu_freq(void)
 	else
 		return -1;
 }
-#endif
-
-#ifndef INTRNG
-static int
-fdt_pic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
-    int *pol)
-{
-
-	if (!ofw_bus_node_is_compatible(node, "mrvl,pic") &&
-	    !ofw_bus_node_is_compatible(node, "mrvl,mpic"))
-		return (ENXIO);
-
-	*interrupt = fdt32_to_cpu(intr[0]);
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-
-	return (0);
-}
-
-fdt_pic_decode_t fdt_pic_table[] = {
-	&fdt_pic_decode_ic,
-	NULL
-};
-#endif

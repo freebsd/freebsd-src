@@ -118,9 +118,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 				return (EINVAL);
 			sx_xlock(&tmppt_lock);
 			pmap_kenter((vm_offset_t)_tmppt, v);
-#if __ARM_ARCH >= 6
 			pmap_tlb_flush(kernel_pmap, (vm_offset_t)_tmppt);
-#endif
 			o = (int)uio->uio_offset & PAGE_MASK;
 			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
 			c = min(c, (u_int)(PAGE_SIZE - o));
