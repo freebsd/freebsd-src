@@ -77,14 +77,10 @@ __FBSDID("$FreeBSD$");
  * Table is traversed under read lock unless @wlock is set.
  */
 void
-rib_walk_ext(uint32_t fibnum, int family, bool wlock, rib_walktree_f_t *wa_f,
+rib_walk_ext_internal(struct rib_head *rnh, bool wlock, rib_walktree_f_t *wa_f,
     rib_walk_hook_f_t *hook_f, void *arg)
 {
 	RIB_RLOCK_TRACKER;
-	struct rib_head *rnh;
-
-	if ((rnh = rt_tables_get_rnh(fibnum, family)) == NULL)
-		return;
 
 	if (wlock)
 		RIB_WLOCK(rnh);
@@ -99,6 +95,16 @@ rib_walk_ext(uint32_t fibnum, int family, bool wlock, rib_walktree_f_t *wa_f,
 		RIB_WUNLOCK(rnh);
 	else
 		RIB_RUNLOCK(rnh);
+}
+
+void
+rib_walk_ext(uint32_t fibnum, int family, bool wlock, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg)
+{
+	struct rib_head *rnh;
+
+	if ((rnh = rt_tables_get_rnh(fibnum, family)) != NULL)
+		rib_walk_ext_internal(rnh, wlock, wa_f, hook_f, arg);
 }
 
 /*
