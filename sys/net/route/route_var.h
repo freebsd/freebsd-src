@@ -70,6 +70,7 @@ struct rib_head {
 	u_int			rib_fibnum;	/* fib number */
 	struct callout		expire_callout;	/* Callout for expiring dynamic routes */
 	time_t			next_expire;	/* Next expire run ts */
+	uint32_t		rnh_prefixes;	/* Number of prefixes */
 	struct nh_control	*nh_control;	/* nexthop subsystem data */
 	CK_STAILQ_HEAD(, rib_subscription)	rnh_subscribers;/* notification subscribers */
 };

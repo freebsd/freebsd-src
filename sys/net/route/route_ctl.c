@@ -70,6 +70,7 @@ struct rib_subscription {
 	CK_STAILQ_ENTRY(rib_subscription)	next;
 	rib_subscription_cb_t			*func;
 	void					*arg;
+	struct rib_head				*rnh;
 	enum rib_subscription_type		type;
 	struct epoch_context			epoch_ctx;
 };
@@ -669,6 +670,8 @@ rt_unlinkrte(struct rib_head *rnh, struct rt_addrinfo *info, struct rib_cmd_info
 
 	/* Finalize notification */
 	rnh->rnh_gen++;
+	rnh->rnh_prefixes--;
+
 	rc->rc_cmd = RTM_DELETE;
 	rc->rc_rt = rt;
 	rc->rc_nh_old = rt->rt_nhop;
@@ -929,6 +932,7 @@ add_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 
 		/* Finalize notification */
 		rnh->rnh_gen++;
+		rnh->rnh_prefixes++;
 
 		rc->rc_cmd = RTM_ADD;
 		rc->rc_rt = rt;
@@ -984,6 +988,8 @@ change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
 
 	/* Finalize notification */
 	rnh->rnh_gen++;
+	if (rnd->rnd_nhop == NULL)
+		rnh->rnh_prefixes--;
 
 	rc->rc_cmd = (rnd->rnd_nhop != NULL) ? RTM_CHANGE : RTM_DELETE;
 	rc->rc_rt = rt;
@@ -1222,7 +1228,7 @@ allocate_subscription(rib_subscription_cb_t *f, void *arg,
     enum rib_subscription_type type, bool waitok)
 {
 	struct rib_subscription *rs;
-	int flags = M_ZERO | (waitok ? M_WAITOK : 0);
+	int flags = M_ZERO | (waitok ? M_WAITOK : M_NOWAIT);
 
 	rs = malloc(sizeof(struct rib_subscription), M_RTABLE, flags);
 	if (rs == NULL)
@@ -1246,22 +1252,14 @@ rib_subscribe(uint32_t fibnum, int family, rib_subscription_cb_t *f, void *arg,
     enum rib_subscription_type type, bool waitok)
 {
 	struct rib_head *rnh;
-	struct rib_subscription *rs;
 	struct epoch_tracker et;
-
-	if ((rs = allocate_subscription(f, arg, type, waitok)) == NULL)
-		return (NULL);
 
 	NET_EPOCH_ENTER(et);
 	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
 	rnh = rt_tables_get_rnh(fibnum, family);
-
-	RIB_WLOCK(rnh);
-	CK_STAILQ_INSERT_TAIL(&rnh->rnh_subscribers, rs, next);
-	RIB_WUNLOCK(rnh);
 	NET_EPOCH_EXIT(et);
 
-	return (rs);
+	return (rib_subscribe_internal(rnh, f, arg, type, waitok));
 }
 
 struct rib_subscription *
@@ -1273,6 +1271,7 @@ rib_subscribe_internal(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg
 
 	if ((rs = allocate_subscription(f, arg, type, waitok)) == NULL)
 		return (NULL);
+	rs->rnh = rnh;
 
 	NET_EPOCH_ENTER(et);
 	RIB_WLOCK(rnh);
@@ -1284,23 +1283,15 @@ rib_subscribe_internal(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg
 }
 
 /*
- * Remove rtable subscription @rs from the table specified by @fibnum
- *  and @family.
+ * Remove rtable subscription @rs from the routing table.
  * Needs to be run in network epoch.
- *
- * Returns 0 on success.
  */
-int
-rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs)
+void
+rib_unsibscribe(struct rib_subscription *rs)
 {
-	struct rib_head *rnh;
+	struct rib_head *rnh = rs->rnh;
 
 	NET_EPOCH_ASSERT();
-	KASSERT((fibnum < rt_numfibs), ("%s: bad fibnum", __func__));
-	rnh = rt_tables_get_rnh(fibnum, family);
-
-	if (rnh == NULL)
-		return (ENOENT);
 
 	RIB_WLOCK(rnh);
 	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
@@ -1308,8 +1299,6 @@ rib_unsibscribe(uint32_t fibnum, int family, struct rib_subscription *rs)
 
 	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
 	    &rs->epoch_ctx);
-
-	return (0);
 }
 
 /*
