@@ -67,17 +67,19 @@ enum rib_walk_hook {
 };
 typedef int rib_walktree_f_t(struct rtentry *, void *);
 typedef void rib_walk_hook_f_t(struct rib_head *rnh, enum rib_walk_hook stage,
-  void *arg);
+    void *arg);
 void rib_walk(uint32_t fibnum, int af, bool wlock, rib_walktree_f_t *wa_f,
-  void *arg);
+    void *arg);
 void rib_walk_ext(uint32_t fibnum, int af, bool wlock, rib_walktree_f_t *wa_f,
-  rib_walk_hook_f_t *hook_f, void *arg);
+    rib_walk_hook_f_t *hook_f, void *arg);
+void rib_walk_ext_internal(struct rib_head *rnh, bool wlock,
+    rib_walktree_f_t *wa_f, rib_walk_hook_f_t *hook_f, void *arg);
 
 void rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f,
-  void *arg, bool report);
+    void *arg, bool report);
 
 void rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
-  rib_walk_hook_f_t *hook_f, void *arg);
+    rib_walk_hook_f_t *hook_f, void *arg);
 void rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg);
 
 struct route_nhop_data;
