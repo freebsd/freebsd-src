@@ -2339,24 +2339,23 @@ static void
 aio_biowakeup(struct bio *bp)
 {
 	struct kaiocb *job = (struct kaiocb *)bp->bio_caller1;
-	struct proc *userp;
 	struct kaioinfo *ki;
 	size_t nbytes;
 	int error, nblks;
 
 	/* Release mapping into kernel space. */
-	userp = job->userproc;
-	ki = userp->p_aioinfo;
-	vm_page_unhold_pages(job->pages, job->npages);
 	if (job->pbuf != NULL) {
 		pmap_qremove((vm_offset_t)job->pbuf->b_data, job->npages);
+		vm_page_unhold_pages(job->pages, job->npages);
 		uma_zfree(pbuf_zone, job->pbuf);
 		job->pbuf = NULL;
 		atomic_subtract_int(&num_buf_aio, 1);
+		ki = job->userproc->p_aioinfo;
 		AIO_LOCK(ki);
 		ki->kaio_buffer_count--;
 		AIO_UNLOCK(ki);
 	} else {
+		vm_page_unhold_pages(job->pages, job->npages);
 		free(job->pages, M_TEMP);
 		atomic_subtract_int(&num_unmapped_aio, 1);
 	}
