@@ -28,7 +28,7 @@
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd August 1, 2019
+.Dd October 11, 2020
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 mount requests
 .Sh SYNOPSIS
 .Nm
-.Op Fl 2delnrS
+.Op Fl 2delnRrS
 .Op Fl h Ar bindip
 .Op Fl p Ar port
 .Op Ar exportsfile ...
@@ -112,6 +112,17 @@ If
 .Nm
 cannot bind to this port, an appropriate error will be recorded in
 the system log, and the daemon will then exit.
+.It Fl R
+Do not support the Mount protocol and do not register with
+.Xr rpcbind 8 .
+This can be done for NFSv4 only servers, since the Mount protocol is not
+used by NFSv4.
+Useful for NFSv4 only servers that do not wish to run
+.Xr rpcbind 8 .
+.Xr showmount 8
+will not work, however since NFSv4 mounts are not shown by
+.Xr showmount 8 ,
+this should not be an issue for an NFSv4 only server.
 .It Fl r
 Allow mount RPCs requests for regular files to be served.
 Although this seems to violate the mount protocol specification,
