@@ -461,8 +461,10 @@ set_autonomous_hwp(struct hwp_softc *sc)
 		 * not exist." (Intel SDM §14.4.4)
 		 */
 		ret = wrmsr_safe(MSR_IA32_HWP_REQUEST_PKG, sc->req);
-		device_printf(dev,
-		    "Failed to set autonomous HWP for package\n");
+		if (ret) {
+			device_printf(dev,
+			    "Failed to set autonomous HWP for package\n");
+		}
 	}
 
 out:
