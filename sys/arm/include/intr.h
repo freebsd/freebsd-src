@@ -45,8 +45,6 @@
 #include <dev/ofw/openfirm.h>
 #endif
 
-#ifdef INTRNG
-
 #ifndef NIRQ
 #define	NIRQ		1024	/* XXX - It should be an option. */
 #endif
@@ -65,42 +63,6 @@ void intr_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *,
 
 int intr_pic_ipi_setup(u_int, const char *, intr_ipi_handler_t *, void *);
 #endif
-#else /* INTRNG */
-
-/* XXX move to std.* files? */
-#if defined(SOC_MV_DISCOVERY)
-#define NIRQ		96
-#elif defined(SOC_MV_KIRKWOOD)
-#define NIRQ		64
-#elif defined(CPU_CORTEXA)
-#define NIRQ		1020
-#elif defined(CPU_KRAIT)
-#define NIRQ		288
-#elif defined(CPU_ARM1176)
-#define NIRQ		128
-#else
-#define NIRQ		32
-#endif
-
-int arm_get_next_irq(int);
-void arm_mask_irq(uintptr_t);
-void arm_unmask_irq(uintptr_t);
-void arm_intrnames_init(void);
-void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*),
-    void *, int, int, void **);
-int arm_remove_irqhandler(int, void *);
-extern void (*arm_post_filter)(void *);
-extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
-    enum intr_polarity pol);
-
-void intr_pic_init_secondary(void);
-
-#ifdef FDT
-int gic_decode_fdt(phandle_t, pcell_t *, int *, int *, int *);
-int intr_fdt_map_irq(phandle_t, pcell_t *, int);
-#endif
-
-#endif /* INTRNG */
 
 void arm_irq_memory_barrier(uintptr_t);
 

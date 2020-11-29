@@ -43,7 +43,6 @@ struct vmspace;
 
 #endif	/* _KERNEL */
 
-#if __ARM_ARCH >= 6
 /* Branch predictor hardening method */
 #define PCPU_BP_HARDEN_KIND_NONE		0
 #define PCPU_BP_HARDEN_KIND_BPIALL		1
@@ -67,10 +66,6 @@ struct vmspace;
 	uint32_t pc_original_actlr;					\
 	uint64_t pc_clock;						\
 	char __pad[139]
-#else
-#define PCPU_MD_FIELDS							\
-	char __pad[93]
-#endif
 
 #ifdef _KERNEL
 
@@ -82,7 +77,6 @@ struct pcpu;
 
 extern struct pcpu *pcpup;
 
-#if __ARM_ARCH >= 6
 #define CPU_MASK (0xf)
 
 #ifndef SMP
@@ -138,9 +132,6 @@ set_tls(void *tls)
 
 #define curthread get_curthread()
 
-#else
-#define get_pcpu()	pcpup
-#endif
 
 #define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
 #define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))

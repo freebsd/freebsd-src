@@ -59,87 +59,6 @@ breakpoint(void)
 
 struct cpu_functions {
 	/* CPU functions */
-#if __ARM_ARCH < 6
-	void	(*cf_cpwait)		(void);
-
-	/* MMU functions */
-
-	u_int	(*cf_control)		(u_int bic, u_int eor);
-	void	(*cf_setttb)		(u_int ttb);
-
-	/* TLB functions */
-
-	void	(*cf_tlb_flushID)	(void);
-	void	(*cf_tlb_flushID_SE)	(u_int va);
-	void	(*cf_tlb_flushD)	(void);
-	void	(*cf_tlb_flushD_SE)	(u_int va);
-
-	/*
-	 * Cache operations:
-	 *
-	 * We define the following primitives:
-	 *
-	 *	icache_sync_range	Synchronize I-cache range
-	 *
-	 *	dcache_wbinv_all	Write-back and Invalidate D-cache
-	 *	dcache_wbinv_range	Write-back and Invalidate D-cache range
-	 *	dcache_inv_range	Invalidate D-cache range
-	 *	dcache_wb_range		Write-back D-cache range
-	 *
-	 *	idcache_wbinv_all	Write-back and Invalidate D-cache,
-	 *				Invalidate I-cache
-	 *	idcache_wbinv_range	Write-back and Invalidate D-cache,
-	 *				Invalidate I-cache range
-	 *
-	 * Note that the ARM term for "write-back" is "clean".  We use
-	 * the term "write-back" since it's a more common way to describe
-	 * the operation.
-	 *
-	 * There are some rules that must be followed:
-	 *
-	 *	ID-cache Invalidate All:
-	 *		Unlike other functions, this one must never write back.
-	 *		It is used to intialize the MMU when it is in an unknown
-	 *		state (such as when it may have lines tagged as valid
-	 *		that belong to a previous set of mappings).
-	 *
-	 *	I-cache Sync range:
-	 *		The goal is to synchronize the instruction stream,
-	 *		so you may beed to write-back dirty D-cache blocks
-	 *		first.  If a range is requested, and you can't
-	 *		synchronize just a range, you have to hit the whole
-	 *		thing.
-	 *
-	 *	D-cache Write-Back and Invalidate range:
-	 *		If you can't WB-Inv a range, you must WB-Inv the
-	 *		entire D-cache.
-	 *
-	 *	D-cache Invalidate:
-	 *		If you can't Inv the D-cache, you must Write-Back
-	 *		and Invalidate.  Code that uses this operation
-	 *		MUST NOT assume that the D-cache will not be written
-	 *		back to memory.
-	 *
-	 *	D-cache Write-Back:
-	 *		If you can't Write-back without doing an Inv,
-	 *		that's fine.  Then treat this as a WB-Inv.
-	 *		Skipping the invalidate is merely an optimization.
-	 *
-	 *	All operations:
-	 *		Valid virtual addresses must be passed to each
-	 *		cache operation.
-	 */
-	void	(*cf_icache_sync_range)	(vm_offset_t, vm_size_t);
-
-	void	(*cf_dcache_wbinv_all)	(void);
-	void	(*cf_dcache_wbinv_range) (vm_offset_t, vm_size_t);
-	void	(*cf_dcache_inv_range)	(vm_offset_t, vm_size_t);
-	void	(*cf_dcache_wb_range)	(vm_offset_t, vm_size_t);
-
-	void	(*cf_idcache_inv_all)	(void);
-	void	(*cf_idcache_wbinv_all)	(void);
-	void	(*cf_idcache_wbinv_range) (vm_offset_t, vm_size_t);
-#endif
 	void	(*cf_l2cache_wbinv_all) (void);
 	void	(*cf_l2cache_wbinv_range) (vm_offset_t, vm_size_t);
 	void	(*cf_l2cache_inv_range)	  (vm_offset_t, vm_size_t);
@@ -148,17 +67,7 @@ struct cpu_functions {
 
 	/* Other functions */
 
-#if __ARM_ARCH < 6
-	void	(*cf_drain_writebuf)	(void);
-#endif
-
 	void	(*cf_sleep)		(int mode);
-
-#if __ARM_ARCH < 6
-	/* Soft functions */
-
-	void	(*cf_context_switch)	(void);
-#endif
 
 	void	(*cf_setup)		(void);
 };
@@ -166,38 +75,12 @@ struct cpu_functions {
 extern struct cpu_functions cpufuncs;
 extern u_int cputype;
 
-#if __ARM_ARCH < 6
-#define	cpu_cpwait()		cpufuncs.cf_cpwait()
-
-#define cpu_control(c, e)	cpufuncs.cf_control(c, e)
-#define cpu_setttb(t)		cpufuncs.cf_setttb(t)
-
-#define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
-#define	cpu_tlb_flushID_SE(e)	cpufuncs.cf_tlb_flushID_SE(e)
-#define	cpu_tlb_flushD()	cpufuncs.cf_tlb_flushD()
-#define	cpu_tlb_flushD_SE(e)	cpufuncs.cf_tlb_flushD_SE(e)
-
-#define	cpu_icache_sync_range(a, s) cpufuncs.cf_icache_sync_range((a), (s))
-
-#define	cpu_dcache_wbinv_all()	cpufuncs.cf_dcache_wbinv_all()
-#define	cpu_dcache_wbinv_range(a, s) cpufuncs.cf_dcache_wbinv_range((a), (s))
-#define	cpu_dcache_inv_range(a, s) cpufuncs.cf_dcache_inv_range((a), (s))
-#define	cpu_dcache_wb_range(a, s) cpufuncs.cf_dcache_wb_range((a), (s))
-
-#define	cpu_idcache_inv_all()	cpufuncs.cf_idcache_inv_all()
-#define	cpu_idcache_wbinv_all()	cpufuncs.cf_idcache_wbinv_all()
-#define	cpu_idcache_wbinv_range(a, s) cpufuncs.cf_idcache_wbinv_range((a), (s))
-#endif
-
 #define cpu_l2cache_wbinv_all()	cpufuncs.cf_l2cache_wbinv_all()
 #define cpu_l2cache_wb_range(a, s) cpufuncs.cf_l2cache_wb_range((a), (s))
 #define cpu_l2cache_inv_range(a, s) cpufuncs.cf_l2cache_inv_range((a), (s))
 #define cpu_l2cache_wbinv_range(a, s) cpufuncs.cf_l2cache_wbinv_range((a), (s))
 #define cpu_l2cache_drain_writebuf() cpufuncs.cf_l2cache_drain_writebuf()
 
-#if __ARM_ARCH < 6
-#define	cpu_drain_writebuf()	cpufuncs.cf_drain_writebuf()
-#endif
 #define cpu_sleep(m)		cpufuncs.cf_sleep(m)
 
 #define cpu_setup()			cpufuncs.cf_setup()
@@ -263,11 +146,7 @@ void	armv4_idcache_inv_all	(void);
 /*
  * Macros for manipulating CPU interrupts
  */
-#if __ARM_ARCH < 6
-#define	__ARM_INTR_BITS		(PSR_I | PSR_F)
-#else
 #define	__ARM_INTR_BITS		(PSR_I | PSR_F | PSR_A)
-#endif
 
 static __inline uint32_t
 __set_cpsr(uint32_t bic, uint32_t eor)
@@ -358,7 +237,6 @@ extern u_int	arm_cache_level;
 extern u_int	arm_cache_loc;
 extern u_int	arm_cache_type[14];
 
-#if __ARM_ARCH >= 6
 #define	HAVE_INLINE_FFS
 
 static __inline __pure2 int
@@ -415,7 +293,6 @@ flsll(long long mask)
 	return (mask == 0 ? 0 :
 	    8 * sizeof(mask) - __builtin_clzll((unsigned long long)mask));
 }
-#endif
 #else	/* !_KERNEL */
 
 static __inline void

@@ -136,9 +136,7 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	pcb2->pcb_regs.sf_r5 = (register_t)td2;
 	pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
 	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
-#if __ARM_ARCH >= 6
 	pcb2->pcb_regs.sf_tpidrurw = (register_t)get_tls();
-#endif
 
 	pcb2->pcb_vfpcpu = -1;
 	pcb2->pcb_vfpstate.fpscr = initial_fpscr;
@@ -151,9 +149,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;
-#if __ARM_ARCH < 6
-	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
-#endif
 }
 
 void
@@ -272,18 +267,9 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-#if __ARM_ARCH >= 6
 	td->td_pcb->pcb_regs.sf_tpidrurw = (register_t)tls_base;
 	if (td == curthread)
 		set_tls(tls_base);
-#else
-	td->td_md.md_tp = (register_t)tls_base;
-	if (td == curthread) {
-		critical_enter();
-		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
-		critical_exit();
-	}
-#endif
 	return (0);
 }
 

@@ -257,7 +257,6 @@ kdb_cpu_pc_is_singlestep(db_addr_t pc)
 	/*
 	 * XXX: If the platform fails to enable its debug arch.
 	 *      there will be no stepping capabilities
-	 *      (SOFTWARE_SSTEP is not defined for __ARM_ARCH >= 6).
 	 */
 	if (!dbg_capable())
 		return (FALSE);

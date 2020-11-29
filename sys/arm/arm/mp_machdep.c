@@ -163,7 +163,7 @@ init_secondary(int cpu)
 
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 	dpcpu_init(dpcpu[cpu - 1], cpu);
-#if __ARM_ARCH >= 6 && defined(DDB)
+#if defined(DDB)
 	dbg_monitor_init_secondary();
 #endif
 	/* Signal our startup to BSP */

@@ -42,16 +42,9 @@ __FBSDID("$FreeBSD$");
 	.text
 	.align	2
 
-#if __ARM_ARCH >= 6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
 	add	tmp, tmp, #(TD_PCB)
-#else
-.Lcurpcb:
-	.word	_C_LABEL(__pcpu) + PC_CURPCB
-#define GET_PCB(tmp) \
-	ldr	tmp, .Lcurpcb
-#endif
 
 /*
  * r0 = user space address

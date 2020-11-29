@@ -40,16 +40,9 @@ __FBSDID("$FreeBSD$");
 
 	.syntax	unified
 
-#if __ARM_ARCH >= 6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
 	add	tmp, tmp, #(TD_PCB)
-#else
-.Lcurpcb:
-	.word	_C_LABEL(__pcpu) + PC_CURPCB
-#define GET_PCB(tmp) \
-	ldr	tmp, .Lcurpcb
-#endif
 
 /*
  * casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
@@ -77,22 +70,14 @@ EENTRY_NP(casueword32)
 	adr	r4, .Lcasuwordfault
 	str	r4, [r6, #PCB_ONFAULT]
 
-#if __ARM_ARCH >= 6
 	mov	r5, #1
 	ldrex	r4, [r0]
 	cmp	r4, r1
 	strexeq	r5, r3, [r0]
-#else
-	ldrt	r4, [r0]
-	cmp	r4, r1
-	strteq	r3, [r0]
-#endif
 	str	r4, [r2]
 	mov	r0, #0
 	str	r0, [r6, #PCB_ONFAULT]
-#if __ARM_ARCH >= 6
 	mov	r0, r5
-#endif
 1:
 	ldmfd	sp!, {r4, r5, r6}
 	RET
