@@ -49,12 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_extern.h>
-#include <vm/vm_param.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vnode_pager.h>
@@ -483,7 +483,7 @@ vm_create(const char *name, struct vm **retvm)
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
 		return (EINVAL);
 
-	vmspace = vmmops_vmspace_alloc(0, VM_MAXUSER_ADDRESS);
+	vmspace = vmmops_vmspace_alloc(0, VM_MAXUSER_ADDRESS_LA48);
 	if (vmspace == NULL)
 		return (ENOMEM);
 
