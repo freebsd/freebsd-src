@@ -230,6 +230,7 @@ VNET_DECLARE(u_int, fib_hash_outbound);
 
 /* Control plane route request flags */
 #define	NHR_COPY		0x100	/* Copy rte data */
+#define	NHR_UNLOCKED		0x200	/* Do not lock table */
 
 /*
  * Routing statistics.
