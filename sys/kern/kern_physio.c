@@ -30,11 +30,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/racct.h>
+#include <sys/rwlock.h>
 #include <sys/uio.h>
 #include <geom/geom.h>
 
 #include <vm/vm.h>
+#include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
@@ -107,7 +110,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 		pbuf = uma_zalloc(pbuf_zone, M_WAITOK);
 		MPASS((pbuf->b_flags & B_MAXPHYS) != 0);
 		sa = pbuf->b_data;
-		maxpages = btoc(maxphys);
+		maxpages = PBUF_PAGES;
 		pages = pbuf->b_pages;
 	}
 	prot = VM_PROT_READ;
@@ -147,28 +150,6 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 				bp->bio_length = dev->si_iosize_max;
 			if (bp->bio_length > maxphys)
 				bp->bio_length = maxphys;
-
-			/*
-			 * Make sure the pbuf can map the request.
-			 * The pbuf has kvasize = maxphys, so a request
-			 * larger than maxphys - PAGE_SIZE must be
-			 * page aligned or it will be fragmented.
-			 */
-			poff = (vm_offset_t)base & PAGE_MASK;
-			if (pbuf && bp->bio_length + poff > pbuf->b_kvasize) {
-				if (dev->si_flags & SI_NOSPLIT) {
-					uprintf("%s: request ptr %p is not "
-					    "on a page boundary; cannot split "
-					    "request\n", devtoname(dev),
-					    base);
-					error = EFBIG;
-					goto doerror;
-				}
-				bp->bio_length = pbuf->b_kvasize;
-				if (poff != 0)
-					bp->bio_length -= PAGE_SIZE;
-			}
-
 			bp->bio_bcount = bp->bio_length;
 			bp->bio_dev = dev;
 
@@ -180,6 +161,7 @@ physio(struct cdev *dev, struct uio *uio, int ioflag)
 					error = EFAULT;
 					goto doerror;
 				}
+				poff = (vm_offset_t)base & PAGE_MASK;
 				if (pbuf && sa) {
 					pmap_qenter((vm_offset_t)sa,
 					    pages, npages);
