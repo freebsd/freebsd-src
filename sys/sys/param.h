@@ -159,8 +159,12 @@
 #ifndef DFLTPHYS
 #define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
 #endif
-#ifndef MAXPHYS
-#define MAXPHYS		(1024 * 1024)	/* max raw I/O transfer size */
+#ifndef MAXPHYS				/* max raw I/O transfer size */
+#ifdef __ILP32__
+#define MAXPHYS		(128 * 1024)
+#else
+#define MAXPHYS		(1024 * 1024)
+#endif
 #endif
 #ifndef MAXDUMPPGS
 #define MAXDUMPPGS	(DFLTPHYS/PAGE_SIZE)
