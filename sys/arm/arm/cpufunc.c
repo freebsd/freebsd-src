@@ -486,9 +486,6 @@ arm10_setup(void)
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
 
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
 
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
