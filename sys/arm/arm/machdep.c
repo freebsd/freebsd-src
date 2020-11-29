@@ -107,8 +107,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-#ifndef _ARM_ARCH_5E
-#error FreeBSD requires ARMv5 or later
+#ifndef _ARM_ARCH_6
+#error FreeBSD requires ARMv6 or later
 #endif
 
 struct pcpu __pcpu[MAXCPU];

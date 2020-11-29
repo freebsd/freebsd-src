@@ -116,9 +116,7 @@ END(do_cksum)
  */
 /* LINTSTUB: Ignore */
 ASENTRY_NP(L_cksumdata)
-#ifdef _ARM_ARCH_5E
 	pld	[r0]			/* Pre-fetch the start of the buffer */
-#endif
 	mov	r2, #0
 
 	/* We first have to word-align the buffer.  */
@@ -144,7 +142,6 @@ ASENTRY_NP(L_cksumdata)
 
 	/* Buffer is now word aligned */
 .Lcksumdata_wordaligned:
-#ifdef _ARM_ARCH_5E
 	cmp	r1, #0x04		/* Less than 4 bytes left? */
 	blt	.Lcksumdata_endgame	/* Yup */
 
@@ -199,43 +196,10 @@ ASENTRY_NP(L_cksumdata)
 	adcs	r2, r2, r7
 	adc	r2, r2, #0x00
 
-#else	/* !_ARM_ARCH_5E */
-
-	subs	r1, r1, #0x40
-	blt	.Lcksumdata_bigloop_end
-
-.Lcksumdata_bigloop:
-	ldmia	r0!, {r3, r4, r5, r6}
-	adds	r2, r2, r3
-	adcs	r2, r2, r4
-	adcs	r2, r2, r5
-	ldmia	r0!, {r3, r4, r5, r7}
-	adcs	r2, r2, r6
-	adcs	r2, r2, r3
-	adcs	r2, r2, r4
-	adcs	r2, r2, r5
-	ldmia	r0!, {r3, r4, r5, r6}
-	adcs	r2, r2, r7
-	adcs	r2, r2, r3
-	adcs	r2, r2, r4
-	adcs	r2, r2, r5
-	ldmia	r0!, {r3, r4, r5, r7}
-	adcs	r2, r2, r6
-	adcs	r2, r2, r3
-	adcs	r2, r2, r4
-	adcs	r2, r2, r5
-	adcs	r2, r2, r7
-	adc	r2, r2, #0x00
-	subs	r1, r1, #0x40
-	bge	.Lcksumdata_bigloop
-.Lcksumdata_bigloop_end:
-#endif
-
 	adds	r1, r1, #0x40
 	RETeq
 	cmp	r1, #0x20
 
-#ifdef _ARM_ARCH_5E
 	ldrdge	r4, [r0], #0x08		/* Avoid stalling pld and result */
 	blt	.Lcksumdata_less_than_32
 	pld	[r0, #0x18]
@@ -250,19 +214,6 @@ ASENTRY_NP(L_cksumdata)
 	adcs	r2, r2, r5
 	adcs	r2, r2, r6		/* XXX: Unavoidable result stall */
 	adcs	r2, r2, r7
-#else
-	blt	.Lcksumdata_less_than_32
-	ldmia	r0!, {r3, r4, r5, r6}
-	adds	r2, r2, r3
-	adcs	r2, r2, r4
-	adcs	r2, r2, r5
-	ldmia	r0!, {r3, r4, r5, r7}
-	adcs	r2, r2, r6
-	adcs	r2, r2, r3
-	adcs	r2, r2, r4
-	adcs	r2, r2, r5
-	adcs	r2, r2, r7
-#endif
 	adc	r2, r2, #0x00
 	subs	r1, r1, #0x20
 	RETeq
