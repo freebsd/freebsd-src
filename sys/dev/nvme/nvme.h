@@ -59,8 +59,8 @@
  */
 #define NVME_GLOBAL_NAMESPACE_TAG	((uint32_t)0xFFFFFFFF)
 
-/* Cap nvme to 1MB transfers driver explodes with larger sizes */
-#define NVME_MAX_XFER_SIZE		(maxphys < (1<<20) ? maxphys : (1<<20))
+/* Cap transfers by the maximum addressable by page-sized PRP (4KB -> 2MB). */
+#define NVME_MAX_XFER_SIZE		MIN(maxphys, (PAGE_SIZE/8*PAGE_SIZE))
 
 /* Register field definitions */
 #define NVME_CAP_LO_REG_MQES_SHIFT			(0)
