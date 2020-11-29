@@ -852,6 +852,21 @@ dump_nhop_entry(struct rib_head *rh, struct nhop_object *nh, struct sysctl_req *
 	return (error);
 }
 
+uint32_t
+nhops_get_count(struct rib_head *rh)
+{
+	struct nh_control *ctl;
+	uint32_t count;
+
+	ctl = rh->nh_control;
+
+	NHOPS_RLOCK(ctl);
+	count = ctl->nh_head.items_count;
+	NHOPS_RUNLOCK(ctl);
+
+	return (count);
+}
+
 int
 nhops_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 {

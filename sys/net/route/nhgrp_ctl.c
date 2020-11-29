@@ -762,6 +762,21 @@ nhgrp_get_idx(const struct nhgrp_object *nhg)
 	return (nhg_priv->nhg_idx);
 }
 
+uint32_t
+nhgrp_get_count(struct rib_head *rh)
+{
+	struct nh_control *ctl;
+	uint32_t count;
+
+	ctl = rh->nh_control;
+
+	NHOPS_RLOCK(ctl);
+	count = ctl->gr_head.items_count;
+	NHOPS_RUNLOCK(ctl);
+
+	return (count);
+}
+
 int
 nhgrp_dump_sysctl(struct rib_head *rh, struct sysctl_req *w)
 {
