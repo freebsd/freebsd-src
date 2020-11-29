@@ -65,10 +65,6 @@
 #include <net/route/nhop.h>
 #include <net/vnet.h>
 
-#ifdef RADIX_MPATH
-#include <net/radix_mpath.h>
-#endif
-
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
 
@@ -674,87 +670,6 @@ rt_print(char *buf, int buflen, struct rtentry *rt)
 	}
 
 	return (i);
-}
-#endif
-
-#ifdef RADIX_MPATH
-/*
- * Deletes key for single-path routes, unlinks rtentry with
- * gateway specified in @info from multi-path routes.
- *
- * Returnes unlinked entry. In case of failure, returns NULL
- * and sets @perror to ESRCH.
- */
-struct radix_node *
-rt_mpath_unlink(struct rib_head *rnh, struct rt_addrinfo *info,
-    struct rtentry *rto, int *perror)
-{
-	/*
-	 * if we got multipath routes, we require users to specify
-	 * a matching RTAX_GATEWAY.
-	 */
-	struct rtentry *rt; // *rto = NULL;
-	struct radix_node *rn;
-	struct sockaddr *gw;
-
-	gw = info->rti_info[RTAX_GATEWAY];
-	rt = rt_mpath_matchgate(rto, gw);
-	if (rt == NULL) {
-		*perror = ESRCH;
-		return (NULL);
-	}
-
-	/*
-	 * this is the first entry in the chain
-	 */
-	if (rto == rt) {
-		rn = rn_mpath_next((struct radix_node *)rt);
-		/*
-		 * there is another entry, now it's active
-		 */
-		if (rn) {
-			rto = RNTORT(rn);
-			rto->rte_flags |= RTF_UP;
-		} else if (rt->rte_flags & RTF_GATEWAY) {
-			/*
-			 * For gateway routes, we need to 
-			 * make sure that we we are deleting
-			 * the correct gateway. 
-			 * rt_mpath_matchgate() does not 
-			 * check the case when there is only
-			 * one route in the chain.  
-			 */
-			if (gw &&
-			    (rt->rt_nhop->gw_sa.sa_len != gw->sa_len ||
-				memcmp(&rt->rt_nhop->gw_sa, gw, gw->sa_len))) {
-				*perror = ESRCH;
-				return (NULL);
-			}
-		}
-
-		/*
-		 * use the normal delete code to remove
-		 * the first entry
-		 */
-		rn = rnh->rnh_deladdr(info->rti_info[RTAX_DST],
-					info->rti_info[RTAX_NETMASK],
-					&rnh->head);
-		if (rn != NULL) {
-			*perror = 0;
-		} else {
-			*perror = ESRCH;
-		}
-		return (rn);
-	}
-		
-	/*
-	 * if the entry is 2nd and on up
-	 */
-	if (rt_mpath_deldup(rto, rt) == 0)
-		panic ("rtrequest1: rt_mpath_deldup");
-	*perror = 0;
-	rn = (struct radix_node *)rt;
-	return (rn);
 }
 #endif
 

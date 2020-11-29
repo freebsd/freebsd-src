@@ -54,10 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop_var.h>
 #include <netinet/in.h>
 
-#ifdef RADIX_MPATH
-#include <net/radix_mpath.h>
-#endif
-
 #include <vm/uma.h>
 
 /*
