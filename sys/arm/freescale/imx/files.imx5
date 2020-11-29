@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 # Init
-arm/freescale/imx/imx_common.c		standard
 arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx51_machdep.c	optional	soc_imx51
 arm/freescale/imx/imx53_machdep.c	optional	soc_imx53

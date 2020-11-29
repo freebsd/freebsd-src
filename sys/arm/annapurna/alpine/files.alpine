@@ -3,6 +3,5 @@
 arm/versatile/sp804.c				standard
 dev/uart/uart_dev_ns8250.c			optional	uart
 
-arm/annapurna/alpine/alpine_common.c		standard
 arm/annapurna/alpine/alpine_machdep.c		standard
 arm/annapurna/alpine/alpine_machdep_mp.c	optional	smp

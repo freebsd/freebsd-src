@@ -38,21 +38,9 @@
 
 #define	KDB_STOPPEDPCB(pc)	&stoppcbs[pc->pc_cpuid]
 
-#if __ARM_ARCH >= 6
 extern void kdb_cpu_clear_singlestep(void);
 extern void kdb_cpu_set_singlestep(void);
 boolean_t kdb_cpu_pc_is_singlestep(db_addr_t);
-#else
-static __inline void
-kdb_cpu_clear_singlestep(void)
-{
-}
-
-static __inline void
-kdb_cpu_set_singlestep(void)
-{
-}
-#endif
 
 static __inline void
 kdb_cpu_sync_icache(unsigned char *addr, size_t size)

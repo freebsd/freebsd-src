@@ -390,32 +390,6 @@
 /* Fault status register definitions */
 #define FAULT_USER      0x10
 
-#if __ARM_ARCH < 6
-#define FAULT_TYPE_MASK 0x0f
-#define FAULT_WRTBUF_0  0x00 /* Vector Exception */
-#define FAULT_WRTBUF_1  0x02 /* Terminal Exception */
-#define FAULT_BUSERR_0  0x04 /* External Abort on Linefetch -- Section */
-#define FAULT_BUSERR_1  0x06 /* External Abort on Linefetch -- Page */
-#define FAULT_BUSERR_2  0x08 /* External Abort on Non-linefetch -- Section */
-#define FAULT_BUSERR_3  0x0a /* External Abort on Non-linefetch -- Page */
-#define FAULT_BUSTRNL1  0x0c /* External abort on Translation -- Level 1 */
-#define FAULT_BUSTRNL2  0x0e /* External abort on Translation -- Level 2 */
-#define FAULT_ALIGN_0   0x01 /* Alignment */
-#define FAULT_ALIGN_1   0x03 /* Alignment */
-#define FAULT_TRANS_S   0x05 /* Translation -- Section */
-#define FAULT_TRANS_F   0x06 /* Translation -- Flag */
-#define FAULT_TRANS_P   0x07 /* Translation -- Page */
-#define FAULT_DOMAIN_S  0x09 /* Domain -- Section */
-#define FAULT_DOMAIN_P  0x0b /* Domain -- Page */
-#define FAULT_PERM_S    0x0d /* Permission -- Section */
-#define FAULT_PERM_P    0x0f /* Permission -- Page */
-
-#define	FAULT_IMPRECISE	0x400	/* Imprecise exception (XSCALE) */
-#define	FAULT_EXTERNAL	0x400	/* External abort (armv6+) */
-#define	FAULT_WNR	0x800	/* Write-not-Read access (armv6+) */
-
-#else /* __ARM_ARCH < 6 */
-
 #define FAULT_ALIGN		0x001	/* Alignment Fault */
 #define FAULT_DEBUG		0x002	/* Debug Event */
 #define FAULT_ACCESS_L1		0x003	/* Access Bit (L1) */
@@ -443,7 +417,6 @@
 #define FSR_WNR			(1 << 11) /* Write-not-Read access */
 #define FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
 #define FSR_CM			(1 << 13) /* Cache maintenance fault */
-#endif /* !__ARM_ARCH < 6 */
 
 /*
  * Address of the vector page, low and high versions.

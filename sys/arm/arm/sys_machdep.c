@@ -62,7 +62,6 @@ struct sysarch_args {
 static int arm32_sync_icache (struct thread *, void *);
 static int arm32_drain_writebuf(struct thread *, void *);
 
-#if __ARM_ARCH >= 6
 static int
 sync_icache(uintptr_t addr, size_t len)
 {
@@ -98,7 +97,6 @@ sync_icache(uintptr_t addr, size_t len)
 	bpb_inv_all();
 	return (1);
 }
-#endif
 
 static int
 arm32_sync_icache(struct thread *td, void *args)
@@ -106,9 +104,7 @@ arm32_sync_icache(struct thread *td, void *args)
 	struct arm_sync_icache_args ua;
 	int error;
 	ksiginfo_t ksi;
-#if __ARM_ARCH >= 6
 	vm_offset_t rv;
-#endif
 
 	if ((error = copyin(args, &ua, sizeof(ua))) != 0)
 		return (error);
@@ -132,7 +128,6 @@ arm32_sync_icache(struct thread *td, void *args)
 		return (EINVAL);
 	}
 
-#if __ARM_ARCH >= 6
 	rv = sync_icache(ua.addr, ua.len);
 	if (rv != 1) {
 		ksiginfo_init_trap(&ksi);
@@ -142,9 +137,6 @@ arm32_sync_icache(struct thread *td, void *args)
 		trapsignal(td, &ksi);
 		return (EINVAL);
 	}
-#else
-	cpu_icache_sync_range(ua.addr, ua.len);
-#endif
 
 	td->td_retval[0] = 0;
 	return (0);
@@ -155,12 +147,8 @@ arm32_drain_writebuf(struct thread *td, void *args)
 {
 	/* No args. */
 
-#if __ARM_ARCH < 6
-	cpu_drain_writebuf();
-#else
 	dsb();
 	cpu_l2cache_drain_writebuf();
-#endif
 	td->td_retval[0] = 0;
 	return (0);
 }
@@ -169,12 +157,7 @@ static int
 arm32_set_tp(struct thread *td, void *args)
 {
 
-#if __ARM_ARCH >= 6
 	set_tls(args);
-#else
-	td->td_md.md_tp = (register_t)args;
-	*(register_t *)ARM_TP_ADDRESS = (register_t)args;
-#endif
 	return (0);
 }
 
@@ -182,11 +165,7 @@ static int
 arm32_get_tp(struct thread *td, void *args)
 {
 
-#if __ARM_ARCH >= 6
 	td->td_retval[0] = (register_t)get_tls();
-#else
-	td->td_retval[0] = *(register_t *)ARM_TP_ADDRESS;
-#endif
 	return (0);
 }
 

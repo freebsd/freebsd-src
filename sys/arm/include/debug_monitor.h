@@ -43,42 +43,12 @@ enum dbg_access_t {
 	HW_WATCHPOINT_RW	= HW_WATCHPOINT_R | HW_WATCHPOINT_W,
 };
 
-#if __ARM_ARCH >= 6
 void dbg_monitor_init(void);
 void dbg_monitor_init_secondary(void);
 void dbg_show_watchpoint(void);
 int dbg_setup_watchpoint(db_expr_t, db_expr_t, enum dbg_access_t);
 int dbg_remove_watchpoint(db_expr_t, db_expr_t);
 void dbg_resume_dbreg(void);
-#else /* __ARM_ARCH >= 6 */
-static __inline void
-dbg_show_watchpoint(void)
-{
-}
-static __inline int
-dbg_setup_watchpoint(db_expr_t addr __unused, db_expr_t size __unused,
-    enum dbg_access_t access __unused)
-{
-	return (ENXIO);
-}
-static __inline int
-dbg_remove_watchpoint(db_expr_t addr __unused, db_expr_t size __unused)
-{
-	return (ENXIO);
-}
-static __inline void
-dbg_monitor_init(void)
-{
-}
-static __inline void
-dbg_monitor_init_secondary(void)
-{
-}
-static __inline void
-dbg_resume_dbreg(void)
-{
-}
-#endif /* __ARM_ARCH < 6 */
 
 #else /* DDB */
 static __inline void

@@ -48,11 +48,7 @@
  * is sufficient for any data type, pointer or numeric.  The resulting type
  * is equivelent to arm's uintptr_t (but is purposely spelled "unsigned" here).
  */
-#if __ARM_ARCH >= 6
 #define	_ALIGNBYTES	(sizeof(int) - 1)
-#else
-#define	_ALIGNBYTES	(sizeof(long long) - 1)
-#endif
 #define	_ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
 
 #endif /* !_ARM_INCLUDE__ALIGN_H_ */

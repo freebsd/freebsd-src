@@ -39,10 +39,6 @@
 #include <machine/cpuinfo.h>
 #include <machine/sysreg.h>
 
-#if __ARM_ARCH < 6
-#error Only include this file for ARMv6
-#endif
-
 /*
  * Some kernel modules (dtrace all for example) are compiled
  * unconditionally with -DSMP. Although it looks like a bug,

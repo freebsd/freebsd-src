@@ -77,27 +77,7 @@ _C_LABEL(dtrace_invop_jump_addr):
 /*
  * PUSHFRAME - macro to push a trap frame on the stack in the current mode
  * Since the current mode is used, the SVC lr field is not defined.
- *
- * NOTE: r13 and r14 are stored separately as a work around for the
- * SA110 rev 2 STM^ bug
  */
-#if __ARM_ARCH < 6
-#define PUSHFRAME							   \
-	sub	sp, sp, #4;		/* Align the stack */		   \
-	str	lr, [sp, #-4]!;		/* Push the return address */	   \
-	sub	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
-	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
-	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
-	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
-	mov	r0, r0;			/* NOP for previous instruction */ \
-	mrs	r0, spsr;		/* Put the SPSR on the stack */	   \
-	str	r0, [sp, #-4]!;						   \
-	ldr	r0, =ARM_RAS_START;					   \
-	mov	r1, #0;							   \
-	str	r1, [r0];						   \
-	mov	r1, #0xffffffff;					   \
-	str	r1, [r0, #4];
-#else
 #define PUSHFRAME							   \
 	sub	sp, sp, #4;		/* Align the stack */		   \
 	str	lr, [sp, #-4]!;		/* Push the return address */	   \
@@ -108,23 +88,12 @@ _C_LABEL(dtrace_invop_jump_addr):
 	mov	r0, r0;			/* NOP for previous instruction */ \
 	mrs	r0, spsr;		/* Put the SPSR on the stack */	   \
 	str	r0, [sp, #-4]!;
-#endif
 
 /*
  * PULLFRAME - macro to pull a trap frame from the stack in the current mode
  * Since the current mode is used, the SVC lr field is ignored.
  */
 
-#if __ARM_ARCH < 6
-#define PULLFRAME							   \
-	ldr	r0, [sp], #4;		/* Get the SPSR from stack */	   \
-	msr	spsr_fsxc, r0;						   \
-	ldmia	sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
-	mov	r0, r0;			/* NOP for previous instruction */ \
-	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
- 	ldr	lr, [sp], #4;		/* Pull the return address */	   \
-	add	sp, sp, #4		/* Align the stack */
-#else
 #define PULLFRAME							   \
 	ldr	r0, [sp], #4	;	/* Get the SPSR from stack */	   \
 	msr	spsr_fsxc, r0;						   \
@@ -134,7 +103,6 @@ _C_LABEL(dtrace_invop_jump_addr):
 	add	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
  	ldr	lr, [sp], #4;		/* Pull the return address */	   \
 	add	sp, sp, #4		/* Align the stack */
-#endif
 
 /*
  * PUSHFRAMEINSVC - macro to push a trap frame on the stack in SVC32 mode
@@ -142,49 +110,7 @@ _C_LABEL(dtrace_invop_jump_addr):
  * mode. The processor mode is switched to SVC mode and the trap frame is
  * stored. The SVC lr field is used to store the previous value of
  * lr in SVC mode.
- *
- * NOTE: r13 and r14 are stored separately as a work around for the
- * SA110 rev 2 STM^ bug
  */
-#if __ARM_ARCH < 6
-#define PUSHFRAMEINSVC							   \
-	stmdb	sp, {r0-r3};		/* Save 4 registers */		   \
-	mov	r0, lr;			/* Save xxx32 r14 */		   \
-	mov	r1, sp;			/* Save xxx32 sp */		   \
-	mrs	r3, spsr;		/* Save xxx32 spsr */		   \
-	mrs	r2, cpsr; 		/* Get the CPSR */		   \
-	bic	r2, r2, #(PSR_MODE);	/* Fix for SVC mode */		   \
-	orr	r2, r2, #(PSR_SVC32_MODE);				   \
-	msr	cpsr_c, r2;		/* Punch into SVC mode */	   \
-	mov	r2, sp;			/* Save	SVC sp */		   \
-	bic	sp, sp, #7;		/* Align sp to an 8-byte addrress */  \
-	sub	sp, sp, #(4 * 17);	/* Pad trapframe to keep alignment */ \
-				    /* and for dtrace to emulate push/pop */  \
-	str	r0, [sp, #-4]!;		/* Push return address */	   \
-	str	lr, [sp, #-4]!;		/* Push SVC lr */		   \
-	str	r2, [sp, #-4]!;		/* Push SVC sp */		   \
-	msr	spsr_fsxc, r3;		/* Restore correct spsr */	   \
-	ldmdb	r1, {r0-r3};		/* Restore 4 regs from xxx mode */ \
-	sub	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
-	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
-	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
-	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
-	mov	r0, r0;			/* NOP for previous instruction */ \
-	ldr	r5, =ARM_RAS_START;	/* Check if there's any RAS */	   \
-	ldr	r4, [r5, #4];		/* reset it to point at the     */ \
-	cmp	r4, #0xffffffff;	/* end of memory if necessary;  */ \
-	movne	r1, #0xffffffff;	/* leave value in r4 for later  */ \
-	strne	r1, [r5, #4];		/* comparison against PC.      */ \
-	ldr	r3, [r5];		/* Retrieve global RAS_START    */ \
-	cmp	r3, #0;			/* and reset it if non-zero.    */ \
-	movne	r1, #0;			/* If non-zero RAS_START and    */ \
-	strne	r1, [r5];		/* PC was lower than RAS_END,   */ \
-	ldrne	r1, [r0, #16];		/* adjust the saved PC so that  */ \
-	cmpne	r4, r1;			/* execution later resumes at   */ \
-	strhi	r3, [r0, #16];		/* the RAS_START location.      */ \
-	mrs	r0, spsr;						   \
-	str	r0, [sp, #-4]!
-#else
 #define PUSHFRAMEINSVC							   \
 	stmdb	sp, {r0-r3};		/* Save 4 registers */		   \
 	mov	r0, lr;			/* Save xxx32 r14 */		   \
@@ -210,7 +136,6 @@ _C_LABEL(dtrace_invop_jump_addr):
 	mov	r0, r0;			/* NOP for previous instruction */ \
 	mrs	r0, spsr;		/* Put the SPSR on the stack */	   \
 	str	r0, [sp, #-4]!
-#endif
 
 /*
  * PULLFRAMEFROMSVCANDEXIT - macro to pull a trap frame from the stack
@@ -219,15 +144,6 @@ _C_LABEL(dtrace_invop_jump_addr):
  * exit.
  */
 
-#if __ARM_ARCH < 6
-#define PULLFRAMEFROMSVCANDEXIT						   \
-	ldr	r0, [sp], #4;		/* Get the SPSR from stack */	   \
-	msr	spsr_fsxc, r0;		/* restore SPSR */		   \
-	ldmia	sp, {r0-r14}^;		/* Restore registers (usr mode) */ \
-	mov	r0, r0;	  		/* NOP for previous instruction */ \
-	add	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
-	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
-#else
 #define PULLFRAMEFROMSVCANDEXIT						   \
 	ldr	r0, [sp], #4;		/* Get the SPSR from stack */	   \
 	msr	spsr_fsxc, r0;		/* restore SPSR */		   \
@@ -236,7 +152,6 @@ _C_LABEL(dtrace_invop_jump_addr):
 	mov	r0, r0;	  		/* NOP for previous instruction */ \
 	add	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
 	ldmia	sp, {sp, lr, pc}^	/* Restore lr and exit */
-#endif
 
 /*
  * Unwind hints so we can unwind past functions that use

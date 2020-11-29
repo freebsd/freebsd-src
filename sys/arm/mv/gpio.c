@@ -527,7 +527,6 @@ mv_gpio_exec_intr_handlers(device_t dev, uint32_t status, int high)
 static void
 mv_gpio_intr_handler(device_t dev, int pin)
 {
-#ifdef INTRNG
 	struct intr_irqsrc isrc;
 	struct mv_gpio_softc *sc;
 	sc = (struct mv_gpio_softc *)device_get_softc(dev);
@@ -544,7 +543,6 @@ mv_gpio_intr_handler(device_t dev, int pin)
 		return;
 
 	intr_isrc_dispatch(&isrc, NULL);
-#endif
 }
 
 int
