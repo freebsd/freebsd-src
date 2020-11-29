@@ -32,11 +32,16 @@
 #ifndef _NETINET6_IN6_FIB_H_
 #define	_NETINET6_IN6_FIB_H_
 
+struct rtentry;
+struct route_nhop_data;
+
 struct nhop_object *fib6_lookup(uint32_t fibnum,
     const struct in6_addr *dst6, uint32_t scopeid, uint32_t flags,
     uint32_t flowid);
 int fib6_check_urpf(uint32_t fibnum, const struct in6_addr *dst6,
     uint32_t scopeid, uint32_t flags, const struct ifnet *src_if);
+struct rtentry *fib6_lookup_rt(uint32_t fibnum, const struct in6_addr *dst6,
+    uint32_t scopeid, uint32_t flags, struct route_nhop_data *rnd);
 struct nhop_object *fib6_lookup_debugnet(uint32_t fibnum,
     const struct in6_addr *dst6, uint32_t scopeid, uint32_t flags);
 uint32_t fib6_calc_software_hash(const struct in6_addr *src,

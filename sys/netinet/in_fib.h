@@ -45,10 +45,15 @@ struct route_in {
 	struct sockaddr_in ro_dst4;
 };
 
+struct rtentry;
+struct route_nhop_data;
+
 struct nhop_object *fib4_lookup(uint32_t fibnum, struct in_addr dst,
     uint32_t scopeid, uint32_t flags, uint32_t flowid);
 int fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
     uint32_t flags, const struct ifnet *src_if);
+struct rtentry *fib4_lookup_rt(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
+    uint32_t flags, struct route_nhop_data *nrd);
 struct nhop_object *fib4_lookup_debugnet(uint32_t fibnum, struct in_addr dst,
     uint32_t scopeid, uint32_t flags);
 uint32_t fib4_calc_software_hash(struct in_addr src, struct in_addr dst,
