@@ -3067,43 +3067,27 @@ flags_out:
 			break;
 		}
 	case SCTP_RECVRCVINFO:
-		{
-			int onoff;
-
-			if (*optsize < sizeof(int)) {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-				error = EINVAL;
-			} else {
-				SCTP_INP_RLOCK(inp);
-				onoff = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVRCVINFO);
-				SCTP_INP_RUNLOCK(inp);
-			}
-			if (error == 0) {
-				/* return the option value */
-				*(int *)optval = onoff;
-				*optsize = sizeof(int);
-			}
-			break;
+		if (*optsize < sizeof(int)) {
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+			error = EINVAL;
+		} else {
+			SCTP_INP_RLOCK(inp);
+			*(int *)optval = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVRCVINFO);
+			SCTP_INP_RUNLOCK(inp);
+			*optsize = sizeof(int);
 		}
+		break;
 	case SCTP_RECVNXTINFO:
-		{
-			int onoff;
-
-			if (*optsize < sizeof(int)) {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
-				error = EINVAL;
-			} else {
-				SCTP_INP_RLOCK(inp);
-				onoff = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVNXTINFO);
-				SCTP_INP_RUNLOCK(inp);
-			}
-			if (error == 0) {
-				/* return the option value */
-				*(int *)optval = onoff;
-				*optsize = sizeof(int);
-			}
-			break;
+		if (*optsize < sizeof(int)) {
+			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
+			error = EINVAL;
+		} else {
+			SCTP_INP_RLOCK(inp);
+			*(int *)optval = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVNXTINFO);
+			SCTP_INP_RUNLOCK(inp);
+			*optsize = sizeof(int);
 		}
+		break;
 	case SCTP_DEFAULT_SNDINFO:
 		{
 			struct sctp_sndinfo *info;
