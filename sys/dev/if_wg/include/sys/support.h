@@ -296,7 +296,7 @@ wrap_ ## fn(void *dummy __unused) \
 {								 \
 	fn();						 \
 }																		\
-SYSINIT(zfs_ ## fn, SI_SUB_LAST, SI_ORDER_FIRST, wrap_ ## fn, NULL)
+SYSINIT(if_wg_ ## fn, SI_SUB_LAST, SI_ORDER_FIRST, wrap_ ## fn, NULL)
 
 
 #define	module_exit(fn) 							\
@@ -305,7 +305,7 @@ wrap_ ## fn(void *dummy __unused) \
 {								 \
 	fn();						 \
 }																		\
-SYSUNINIT(zfs_ ## fn, SI_SUB_LAST, SI_ORDER_FIRST, wrap_ ## fn, NULL)
+SYSUNINIT(if_wg_ ## fn, SI_SUB_LAST, SI_ORDER_FIRST, wrap_ ## fn, NULL)
 
 #define module_param(a, b, c)
 #define MODULE_LICENSE(x)
