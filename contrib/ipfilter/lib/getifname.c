@@ -16,7 +16,6 @@
  * Given a pointer to an interface in the kernel, return a pointer to a
  * string which is the interface name.
  */
-#if 0
 char *getifname(ptr)
 	struct ifnet *ptr;
 {
@@ -80,13 +79,3 @@ char *getifname(ptr)
 # endif
 #endif
 }
-#else
-char *getifname(ptr)
-	struct ifnet *ptr;
-{
-#if 0
-	ptr = ptr;
-#endif
-	return "X";
-}
-#endif
