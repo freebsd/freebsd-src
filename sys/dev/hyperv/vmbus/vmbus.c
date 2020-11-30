@@ -1337,8 +1337,8 @@ vmbus_get_mmio_res(device_t dev)
 /*
  * On Gen2 VMs, Hyper-V provides mmio space for framebuffer.
  * This mmio address range is not useable for other PCI devices.
- * Currently only efifb driver is using this range without reserving
- * it from system.
+ * Currently only efifb and vbefb drivers are using this range without
+ * reserving it from system.
  * Therefore, vmbus driver reserves it before any other PCI device
  * drivers start to request mmio addresses.
  */
@@ -1348,6 +1348,9 @@ static void
 vmbus_fb_mmio_res(device_t dev)
 {
 	struct efi_fb *efifb;
+	struct vbe_fb *vbefb;
+	rman_res_t fb_start, fb_end, fb_count;
+	int fb_height, fb_width;
 	caddr_t kmdp;
 
 	struct vmbus_softc *sc = device_get_softc(dev);
@@ -1359,30 +1362,43 @@ vmbus_fb_mmio_res(device_t dev)
 	efifb = (struct efi_fb *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_FB);
 	if (efifb == NULL) {
+		vbefb = (struct vbe_fb *)preload_search_info(kmdp,
+		    MODINFO_METADATA | MODINFOMD_VBE_FB);
+		fb_start = vbefb->fb_addr;
+		fb_end = vbefb->fb_addr + vbefb->fb_size;
+		fb_count = vbefb->fb_size;
+		fb_height = efifb->fb_height;
+		fb_width = efifb->fb_width;
+	} else {
+		fb_start = efifb->fb_addr;
+		fb_end = efifb->fb_addr + efifb->fb_size;
+		fb_count = efifb->fb_size;
+		fb_height = efifb->fb_height;
+		fb_width = efifb->fb_width;
+	}
+	if (fb_start == 0) {
 		if (bootverbose)
 			device_printf(dev,
-			    "fb has no preloaded kernel efi information\n");
+			    "no preloaded kernel fb information\n");
 		/* We are on Gen1 VM, just return. */
 		return;
 	} else {
 		if (bootverbose)
 			device_printf(dev,
-			    "efifb: fb_addr: %#jx, size: %#jx, "
+			    "fb: fb_addr: %#jx, size: %#jx, "
 			    "actual size needed: 0x%x\n",
-			    efifb->fb_addr, efifb->fb_size,
-			    (int) efifb->fb_height * efifb->fb_width);
+			    fb_start, fb_count, fb_height * fb_width);
 	}
 
 	hv_fb_res = pcib_host_res_alloc(&sc->vmbus_mmio_res, dev,
-	    SYS_RES_MEMORY, &rid,
-	    efifb->fb_addr, efifb->fb_addr + efifb->fb_size, efifb->fb_size,
+	    SYS_RES_MEMORY, &rid, fb_start, fb_end, fb_count,
 	    RF_ACTIVE | rman_make_alignment_flags(PAGE_SIZE));
 
 	if (hv_fb_res && bootverbose)
 		device_printf(dev,
 		    "successfully reserved memory for framebuffer "
 		    "starting at %#jx, size %#jx\n",
-		    efifb->fb_addr, efifb->fb_size);
+		    fb_start, fb_count);
 }
 
 static void

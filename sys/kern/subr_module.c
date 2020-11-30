@@ -416,6 +416,11 @@ preload_modinfo_type(struct sbuf *sbp, int type)
 		sbuf_cat(sbp, "MODINFOMD_MODULEP");
 		break;
 #endif
+#ifdef MODINFOMD_VBE_FB
+	case MODINFOMD_VBE_FB:
+		sbuf_cat(sbp, "MODINFOMD_VBE_FB");
+		break;
+#endif
 	default:
 		sbuf_cat(sbp, "unrecognized metadata type");
 	}
@@ -461,6 +466,9 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 #endif
 #ifdef MODINFOMD_EFI_FB
 	case MODINFO_METADATA | MODINFOMD_EFI_FB:
+#endif
+#ifdef MODINFOMD_VBE_FB
+	case MODINFO_METADATA | MODINFOMD_VBE_FB:
 #endif
 		sbuf_print_vmoffset(sbp, *(vm_offset_t *)bptr);
 		break;
