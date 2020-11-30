@@ -684,6 +684,7 @@ static void
 evdev_modify_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
     int32_t *value)
 {
+	int32_t fuzz, old_value, abs_change;
 
 	EVDEV_LOCK_ASSERT(evdev);
 
@@ -710,7 +711,24 @@ evdev_modify_event(struct evdev_dev *evdev, uint16_t type, uint16_t code,
 		break;
 
 	case EV_ABS:
-		/* TBD: implement fuzz */
+		fuzz = evdev->ev_absinfo[code].fuzz;
+		if (fuzz == 0 || code == ABS_MT_SLOT)
+			break;
+		else if (!ABS_IS_MT(code))
+			old_value = evdev->ev_absinfo[code].value;
+		else if (bit_test(evdev->ev_abs_flags, ABS_MT_SLOT))
+			old_value = evdev_get_mt_value(evdev,
+			    evdev_get_last_mt_slot(evdev), code);
+		else	/* Pass MT protocol type A events as is */
+			break;
+
+		abs_change = abs(*value - old_value);
+		if (abs_change < fuzz / 2)
+			*value = old_value;
+		else if (abs_change < fuzz)
+			*value = (old_value * 3 + *value) / 4;
+		else if (abs_change < fuzz * 2)
+			*value = (old_value + *value) / 2;
 		break;
 	}
 }
