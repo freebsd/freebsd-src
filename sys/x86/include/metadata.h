@@ -35,6 +35,7 @@
 #define	MODINFOMD_EFI_MAP	0x1004
 #define	MODINFOMD_EFI_FB	0x1005
 #define	MODINFOMD_MODULEP	0x1006
+#define	MODINFOMD_VBE_FB	0x1007
 
 struct efi_map_header {
 	uint64_t	memory_size;
@@ -52,6 +53,19 @@ struct efi_fb {
 	uint32_t	fb_mask_green;
 	uint32_t	fb_mask_blue;
 	uint32_t	fb_mask_reserved;
+};
+
+struct vbe_fb {
+	uint64_t	fb_addr;
+	uint64_t	fb_size;
+	uint32_t	fb_height;
+	uint32_t	fb_width;
+	uint32_t	fb_stride;
+	uint32_t	fb_mask_red;
+	uint32_t	fb_mask_green;
+	uint32_t	fb_mask_blue;
+	uint32_t	fb_mask_reserved;
+	uint32_t	fb_bpp;
 };
 
 #endif /* !_MACHINE_METADATA_H_ */
