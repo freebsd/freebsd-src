@@ -65,6 +65,6 @@ init_MUTEX(struct semaphore *sem)
 	sema_init(&sem->sema, 1, "lnxsema");
 }
 
-#define	sema_init	linux_sema_init
+#define	sema_init(...)	linux_sema_init(__VA_ARGS__)
 
 #endif /* _LINUX_SEMAPHORE_H_ */
