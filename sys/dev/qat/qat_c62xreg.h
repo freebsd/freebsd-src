@@ -191,7 +191,7 @@
 
 /* AE firmware */
 #define AE_FW_PROD_TYPE_C62X		0x01000000
-#define AE_FW_MOF_NAME_C62X	"qat_c62x"
+#define AE_FW_MOF_NAME_C62X	"qat_c62xfw"
 #define AE_FW_MMP_NAME_C62X	"qat_c62x_mmp"
 #define AE_FW_UOF_NAME_C62X	"icp_qat_ae.suof"
 
