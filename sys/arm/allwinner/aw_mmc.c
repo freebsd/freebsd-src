@@ -191,6 +191,17 @@ static void aw_mmc_cam_handle_mmcio(struct cam_sim *, union ccb *);
 #define	AW_MMC_WRITE_4(_sc, _reg, _value)				\
 	bus_write_4((_sc)->aw_res[AW_MMC_MEMRES], _reg, _value)
 
+SYSCTL_NODE(_hw, OID_AUTO, aw_mmc, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "aw_mmc driver");
+
+static int aw_mmc_debug = 0;
+SYSCTL_INT(_hw_aw_mmc, OID_AUTO, debug, CTLFLAG_RWTUN, &aw_mmc_debug, 0,
+    "Debug level bit0=card changes bit1=ios changes, bit2=interrupts, bit3=commands");
+#define	AW_MMC_DEBUG_CARD	0x1
+#define	AW_MMC_DEBUG_IOS	0x2
+#define	AW_MMC_DEBUG_INT	0x4
+#define	AW_MMC_DEBUG_CMD	0x8
+
 #ifdef MMCCAM
 static void
 aw_mmc_cam_handle_mmcio(struct cam_sim *sim, union ccb *ccb)
@@ -227,7 +238,7 @@ aw_mmc_cam_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;
 
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "Got XPT_GET_TRAN_SETTINGS\n");
 
 		cts->protocol = PROTO_MMCSD;
@@ -247,14 +258,14 @@ aw_mmc_cam_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_SET_TRAN_SETTINGS:
 	{
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "Got XPT_SET_TRAN_SETTINGS\n");
 		aw_mmc_cam_settran_settings(sc, ccb);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
 	case XPT_RESET_BUS:
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "Got XPT_RESET_BUS, ACK it...\n");
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
@@ -300,37 +311,37 @@ aw_mmc_cam_settran_settings(struct aw_mmc_softc *sc, union ccb *ccb)
 	/* Update only requested fields */
 	if (cts->ios_valid & MMC_CLK) {
 		ios->clock = new_ios->clock;
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "Clock => %d\n", ios->clock);
 	}
 	if (cts->ios_valid & MMC_VDD) {
 		ios->vdd = new_ios->vdd;
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "VDD => %d\n", ios->vdd);
 	}
 	if (cts->ios_valid & MMC_CS) {
 		ios->chip_select = new_ios->chip_select;
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "CS => %d\n", ios->chip_select);
 	}
 	if (cts->ios_valid & MMC_BW) {
 		ios->bus_width = new_ios->bus_width;
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "Bus width => %d\n", ios->bus_width);
 	}
 	if (cts->ios_valid & MMC_PM) {
 		ios->power_mode = new_ios->power_mode;
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "Power mode => %d\n", ios->power_mode);
 	}
 	if (cts->ios_valid & MMC_BT) {
 		ios->timing = new_ios->timing;
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "Timing => %d\n", ios->timing);
 	}
 	if (cts->ios_valid & MMC_BM) {
 		ios->bus_mode = new_ios->bus_mode;
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_IOS))
 			device_printf(sc->aw_dev, "Bus mode => %d\n", ios->bus_mode);
 	}
 
@@ -346,14 +357,12 @@ aw_mmc_cam_request(struct aw_mmc_softc *sc, union ccb *ccb)
 
 	AW_MMC_LOCK(sc);
 
-#ifdef DEBUG
-	if (__predict_false(bootverbose)) {
+	if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CMD)) {
 		device_printf(sc->aw_dev, "CMD%u arg %#x flags %#x dlen %u dflags %#x\n",
 			    mmcio->cmd.opcode, mmcio->cmd.arg, mmcio->cmd.flags,
 			    mmcio->cmd.data != NULL ? (unsigned int) mmcio->cmd.data->len : 0,
 			    mmcio->cmd.data != NULL ? mmcio->cmd.data->flags: 0);
 	}
-#endif
 	if (mmcio->cmd.data != NULL) {
 		if (mmcio->cmd.data->len == 0 || mmcio->cmd.data->flags == 0)
 			panic("data->len = %d, data->flags = %d -- something is b0rked",
@@ -384,7 +393,7 @@ aw_mmc_helper_cd_handler(device_t dev, bool present)
 	AW_MMC_LOCK(sc);
 	if (present) {
 		if (sc->child == NULL) {
-			if (bootverbose)
+			if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CARD))
 				device_printf(sc->aw_dev, "Card inserted\n");
 
 			sc->child = device_add_child(sc->aw_dev, "mmc", -1);
@@ -398,7 +407,7 @@ aw_mmc_helper_cd_handler(device_t dev, bool present)
 	} else {
 		/* Card isn't present, detach if necessary */
 		if (sc->child != NULL) {
-			if (bootverbose)
+			if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CARD))
 				device_printf(sc->aw_dev, "Card removed\n");
 
 			AW_MMC_UNLOCK(sc);
@@ -871,11 +880,9 @@ aw_mmc_req_done(struct aw_mmc_softc *sc)
 #else
 	cmd = sc->aw_req->cmd;
 #endif
-#ifdef DEBUG
-	if (bootverbose) {
+	if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CMD)) {
 		device_printf(sc->aw_dev, "%s: cmd %d err %d\n", __func__, cmd->opcode, cmd->error);
 	}
-#endif
 	if (cmd->error != MMC_ERR_NONE) {
 		/* Reset the FIFO and DMA engines. */
 		mask = AW_MMC_GCTL_FIFO_RST | AW_MMC_GCTL_DMA_RST;
@@ -1019,10 +1026,10 @@ aw_mmc_intr(void *arg)
 		AW_MMC_UNLOCK(sc);
 		return;
 	}
-#ifdef DEBUG
-	device_printf(sc->aw_dev, "idst: %#x, imask: %#x, rint: %#x\n",
-	    idst, imask, rint);
-#endif
+	if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_INT)) {
+		device_printf(sc->aw_dev, "idst: %#x, imask: %#x, rint: %#x\n",
+		    idst, imask, rint);
+	}
 #ifdef MMCCAM
 	if (sc->ccb == NULL) {
 #else
@@ -1035,9 +1042,10 @@ aw_mmc_intr(void *arg)
 		goto end;
 	}
 	if (rint & AW_MMC_INT_ERR_BIT) {
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_INT)) {
 			device_printf(sc->aw_dev, "error rint: 0x%08X\n", rint);
-		aw_mmc_print_error(rint);
+			aw_mmc_print_error(rint);
+		}
 		if (rint & AW_MMC_INT_RESP_TIMEOUT)
 			set_mmc_error(sc, MMC_ERR_TIMEOUT);
 		else
@@ -1046,7 +1054,8 @@ aw_mmc_intr(void *arg)
 		goto end;
 	}
 	if (idst & AW_MMC_IDST_ERROR) {
-		device_printf(sc->aw_dev, "error idst: 0x%08x\n", idst);
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_INT))
+			device_printf(sc->aw_dev, "error idst: 0x%08x\n", idst);
 		set_mmc_error(sc, MMC_ERR_FAILED);
 		aw_mmc_req_done(sc);
 		goto end;
@@ -1106,13 +1115,12 @@ aw_mmc_request(device_t bus, device_t child, struct mmc_request *req)
 	sc->aw_req = req;
 	cmd = req->cmd;
 
-#ifdef DEBUG
-	if (bootverbose)
+	if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CMD)) {
 		device_printf(sc->aw_dev, "CMD%u arg %#x flags %#x dlen %u dflags %#x\n",
 			      cmd->opcode, cmd->arg, cmd->flags,
 			      cmd->data != NULL ? (unsigned int)cmd->data->len : 0,
 			      cmd->data != NULL ? cmd->data->flags: 0);
-#endif
+	}
 #endif
 	cmdreg = AW_MMC_CMDR_LOAD;
 	imask = AW_MMC_INT_ERR_BIT;
@@ -1413,7 +1421,7 @@ aw_mmc_update_ios(device_t bus, device_t child)
 	case power_on:
 		break;
 	case power_off:
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CARD))
 			device_printf(sc->aw_dev, "Powering down sd/mmc\n");
 
 		if (sc->mmc_helper.vmmc_supply)
@@ -1424,7 +1432,7 @@ aw_mmc_update_ios(device_t bus, device_t child)
 		aw_mmc_reset(sc);
 		break;
 	case power_up:
-		if (bootverbose)
+		if (__predict_false(aw_mmc_debug & AW_MMC_DEBUG_CARD))
 			device_printf(sc->aw_dev, "Powering up sd/mmc\n");
 
 		if (sc->mmc_helper.vmmc_supply)
