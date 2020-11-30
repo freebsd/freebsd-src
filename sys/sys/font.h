@@ -57,6 +57,14 @@ enum vfnt_map_type {
 	VFNT_MAPS		/* Number of maps. */
 };
 
+struct font_info {
+	int32_t fi_checksum;
+	uint32_t fi_width;
+	uint32_t fi_height;
+	uint32_t fi_bitmap_size;
+	uint32_t fi_map_count[VFNT_MAPS];
+};
+
 struct vfnt_map {
 	uint32_t	 vfm_src;
 	uint16_t	 vfm_dst;

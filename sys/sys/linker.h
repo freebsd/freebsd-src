@@ -226,6 +226,7 @@ void *linker_hwpmc_list_objects(void);
 #define MODINFOMD_CTORS_SIZE	0x000b		/* size of .ctors */
 #define MODINFOMD_FW_HANDLE	0x000c		/* Firmware dependent handle */
 #define MODINFOMD_KEYBUF	0x000d		/* Crypto key intake buffer */
+#define MODINFOMD_FONT		0x000e		/* Console font */
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */
