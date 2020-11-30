@@ -5570,7 +5570,9 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			stcb = NULL;
 			goto out;
 		}
-		data_processed = 1;
+		if (retval == 0) {
+			data_processed = 1;
+		}
 		/*
 		 * Anything important needs to have been m_copy'ed in
 		 * process_data

@@ -6113,6 +6113,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	peer_supports_prsctp = 0;
 	peer_supports_auth = 0;
 	peer_supports_asconf = 0;
+	peer_supports_asconf_ack = 0;
 	peer_supports_reconfig = 0;
 	peer_supports_nrsack = 0;
 	peer_supports_pktdrop = 0;
