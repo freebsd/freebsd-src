@@ -605,6 +605,7 @@ struct sctp_error_auth_invalid_hmac {
  */
 #define SCTP_MAX_SACK_DELAY 500	/* per RFC4960 */
 #define SCTP_MAX_HB_INTERVAL 14400000	/* 4 hours in ms */
+#define SCTP_MIN_COOKIE_LIFE     1000	/* 1 second in ms */
 #define SCTP_MAX_COOKIE_LIFE  3600000	/* 1 hour in ms */
 
 

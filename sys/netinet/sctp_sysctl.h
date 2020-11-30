@@ -318,10 +318,10 @@ struct sctp_sysctl {
 #define SCTPCTL_INIT_RTO_MAX_MAX	0xFFFFFFFF
 #define SCTPCTL_INIT_RTO_MAX_DEFAULT	SCTP_RTO_UPPER_BOUND
 
-/* valid_cookie_life: Default cookie lifetime in sec */
-#define SCTPCTL_VALID_COOKIE_LIFE_DESC	"Default cookie lifetime in seconds"
-#define SCTPCTL_VALID_COOKIE_LIFE_MIN	0
-#define SCTPCTL_VALID_COOKIE_LIFE_MAX	0xFFFFFFFF
+/* valid_cookie_life: Default cookie lifetime in ms */
+#define SCTPCTL_VALID_COOKIE_LIFE_DESC		"Default cookie lifetime in ms"
+#define SCTPCTL_VALID_COOKIE_LIFE_MIN		SCTP_MIN_COOKIE_LIFE
+#define SCTPCTL_VALID_COOKIE_LIFE_MAX		SCTP_MAX_COOKIE_LIFE
 #define SCTPCTL_VALID_COOKIE_LIFE_DEFAULT	SCTP_DEFAULT_COOKIE_LIFE
 
 /* init_rtx_max: Default maximum number of retransmission for INIT chunks */
