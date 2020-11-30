@@ -584,8 +584,11 @@ main(int argc, char *argv[])
 		return (usage(false));
 	}
 
-	if ((be = libbe_init(root)) == NULL)
+	if ((be = libbe_init(root)) == NULL) {
+		fprintf(stderr, "libbe_init(\"%s\") failed.\n",
+		    root != NULL ? root : "");
 		return (-1);
+	}
 
 	libbe_print_on_error(be, !cmd->silent);
 
