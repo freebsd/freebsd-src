@@ -1837,17 +1837,14 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			/* move to OPEN state, if not in SHUTDOWN_SENT */
 			SCTP_SET_STATE(stcb, SCTP_STATE_OPEN);
 		}
-		asoc->pre_open_streams =
-		    ntohs(initack_cp->init.num_outbound_streams);
+		asoc->pre_open_streams = ntohs(initack_cp->init.num_outbound_streams);
 		asoc->init_seq_number = ntohl(initack_cp->init.initial_tsn);
 		asoc->sending_seq = asoc->asconf_seq_out = asoc->str_reset_seq_out = asoc->init_seq_number;
 		asoc->asconf_seq_out_acked = asoc->asconf_seq_out - 1;
-
 		asoc->asconf_seq_in = asoc->last_acked_seq = asoc->init_seq_number - 1;
-
 		asoc->str_reset_seq_in = asoc->init_seq_number;
-
 		asoc->advanced_peer_ack_point = asoc->last_acked_seq;
+		asoc->send_sack = 1;
 		if (asoc->mapping_array) {
 			memset(asoc->mapping_array, 0,
 			    asoc->mapping_array_size);
