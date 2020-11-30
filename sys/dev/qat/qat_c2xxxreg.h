@@ -169,7 +169,7 @@
 
 /* AE firmware */
 #define AE_FW_PROD_TYPE_C2XXX			0x00800000
-#define AE_FW_MOF_NAME_C2XXX		"mof_firmware_c2xxx"
+#define AE_FW_MOF_NAME_C2XXX		"qat_c2xxxfw"
 #define AE_FW_MMP_NAME_C2XXX		"mmp_firmware_c2xxx"
 #define AE_FW_UOF_NAME_C2XXX_A0		"icp_qat_nae.uof"
 #define AE_FW_UOF_NAME_C2XXX_B0		"icp_qat_nae_b0.uof"
