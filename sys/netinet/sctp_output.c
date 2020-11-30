@@ -8822,7 +8822,7 @@ no_data_fill:
 				 * the top of the for, but just to make sure
 				 * I will reset these again here.
 				 */
-				ctl_cnt = bundle_at = 0;
+				ctl_cnt = 0;
 				continue;	/* This takes us back to the
 						 * for() for the nets. */
 			} else {
@@ -9423,7 +9423,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 	uint32_t dmtu = 0;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
-	tmr_started = ctl_cnt = bundle_at = error = 0;
+	tmr_started = ctl_cnt = 0;
 	no_fragmentflg = 1;
 	fwd_tsn = 0;
 	*cnt_out = 0;

@@ -4131,7 +4131,6 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 	struct sctp_idata_chunk *idata_chunk;
 	uint32_t bottle_bw, on_queue;
 	uint32_t offset, chk_len;
-	uint16_t trunc_len;
 	uint16_t pktdrp_len;
 	uint8_t pktdrp_flags;
 
@@ -4141,13 +4140,10 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 	pktdrp_len = ntohs(cp->ch.chunk_length);
 	KASSERT(limit <= pktdrp_len, ("Inconsistent limit"));
 	if (pktdrp_flags & SCTP_PACKET_TRUNCATED) {
-		trunc_len = ntohs(cp->trunc_len);
-		if (trunc_len <= pktdrp_len - sizeof(struct sctp_pktdrop_chunk)) {
+		if (ntohs(cp->trunc_len) <= pktdrp_len - sizeof(struct sctp_pktdrop_chunk)) {
 			/* The peer plays games with us. */
 			return;
 		}
-	} else {
-		trunc_len = 0;
 	}
 	limit -= sizeof(struct sctp_pktdrop_chunk);
 	offset = 0;
