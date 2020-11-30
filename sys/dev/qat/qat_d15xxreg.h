@@ -191,7 +191,7 @@
 
 /* AE firmware */
 #define AE_FW_PROD_TYPE_D15XX	0x01000000
-#define AE_FW_MOF_NAME_D15XX	"qat_d15xx"
+#define AE_FW_MOF_NAME_D15XX	"qat_d15xxfw"
 #define AE_FW_MMP_NAME_D15XX	"qat_d15xx_mmp"
 #define AE_FW_UOF_NAME_D15XX	"icp_qat_ae.suof"
 
