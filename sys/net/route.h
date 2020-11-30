@@ -223,10 +223,8 @@ VNET_DECLARE(u_int, fib_hash_outbound);
 
 /* Nexthop request flags */
 #define	NHR_NONE		0x00	/* empty flags field */
-#define	NHR_REF			0x02	/* reference nexhop */
-
-/* uRPF */
-#define	NHR_NODEFAULT		0x04	/* do not consider default route */
+#define	NHR_REF			0x01	/* reference nexhop */
+#define	NHR_NODEFAULT		0x02	/* uRPF: do not consider default route */
 
 /* Control plane route request flags */
 #define	NHR_COPY		0x100	/* Copy rte data */
