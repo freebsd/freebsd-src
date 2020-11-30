@@ -1100,109 +1100,148 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 static SYSCTL_NODE(_sysctl, CTL_SYSCTL_NAME, name, CTLFLAG_RD |
     CTLFLAG_MPSAFE | CTLFLAG_CAPRD, sysctl_sysctl_name, "");
 
+enum sysctl_iter_action {
+	ITER_SIBLINGS,	/* Not matched, continue iterating siblings */
+	ITER_CHILDREN,	/* Node has children we need to iterate over them */
+	ITER_FOUND,	/* Matching node was found */
+};
+
 /*
- * Walk the sysctl subtree at lsp until we find the given name,
- * and return the next name in order by oid_number.
+ * Tries to find the next node for @name and @namelen.
+ *
+ * Returns next action to take. 
  */
-static int
-sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
+static enum sysctl_iter_action
+sysctl_sysctl_next_node(struct sysctl_oid *oidp, int *name, unsigned int namelen,
+    bool honor_skip)
+{
+
+	if ((oidp->oid_kind & CTLFLAG_DORMANT) != 0)
+		return (ITER_SIBLINGS);
+
+	if (honor_skip && (oidp->oid_kind & CTLFLAG_SKIP) != 0)
+		return (ITER_SIBLINGS);
+
+	if (namelen == 0) {
+		/*
+		 * We have reached a node with a full name match and are
+		 * looking for the next oid in its children.
+		 *
+		 * For CTL_SYSCTL_NEXTNOSKIP we are done.
+		 *
+		 * For CTL_SYSCTL_NEXT we skip CTLTYPE_NODE (unless it
+		 * has a handler) and move on to the children.
+		 */
+		if (!honor_skip)
+			return (ITER_FOUND);
+		if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
+			return (ITER_FOUND);
+		/* If node does not have an iterator, treat it as leaf */
+		if (oidp->oid_handler) 
+			return (ITER_FOUND);
+
+		/* Report oid as a node to iterate */
+		return (ITER_CHILDREN);
+	}
+
+	/*
+	 * No match yet. Continue seeking the given name.
+	 *
+	 * We are iterating in order by oid_number, so skip oids lower
+	 * than the one we are looking for.
+	 *
+	 * When the current oid_number is higher than the one we seek,
+	 * that means we have reached the next oid in the sequence and
+	 * should return it.
+	 *
+	 * If the oid_number matches the name at this level then we
+	 * have to find a node to continue searching at the next level.
+	 */
+	if (oidp->oid_number < *name)
+		return (ITER_SIBLINGS);
+	if (oidp->oid_number > *name) {
+		/*
+		 * We have reached the next oid.
+		 *
+		 * For CTL_SYSCTL_NEXTNOSKIP we are done.
+		 *
+		 * For CTL_SYSCTL_NEXT we skip CTLTYPE_NODE (unless it
+		 * has a handler) and move on to the children.
+		 */
+		if (!honor_skip)
+			return (ITER_FOUND);
+		if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+			return (ITER_FOUND);
+		/* If node does not have an iterator, treat it as leaf */
+		if (oidp->oid_handler)
+			return (ITER_FOUND);
+		return (ITER_CHILDREN);
+	}
+
+	/* match at a current level */
+	if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
+		return (ITER_SIBLINGS);
+	if (oidp->oid_handler)
+		return (ITER_SIBLINGS);
+
+	return (ITER_CHILDREN);
+}
+
+/*
+ * Recursively walk the sysctl subtree at lsp until we find the given name.
+ * Returns true and fills in next oid data in @next and @len if oid is found.
+ */
+static bool
+sysctl_sysctl_next_action(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
     int *next, int *len, int level, bool honor_skip)
 {
 	struct sysctl_oid *oidp;
+	bool success = false;
+	enum sysctl_iter_action action;
 
 	SYSCTL_ASSERT_LOCKED();
-	*len = level;
 	SLIST_FOREACH(oidp, lsp, oid_link) {
-		*next = oidp->oid_number;
-
-		if ((oidp->oid_kind & CTLFLAG_DORMANT) != 0)
+		action = sysctl_sysctl_next_node(oidp, name, namelen, honor_skip);
+		if (action == ITER_SIBLINGS)
 			continue;
-
-		if (honor_skip && (oidp->oid_kind & CTLFLAG_SKIP) != 0)
-			continue;
-
-		if (namelen == 0) {
-			/*
-			 * We have reached a node with a full name match and are
-			 * looking for the next oid in its children.
-			 *
-			 * For CTL_SYSCTL_NEXTNOSKIP we are done.
-			 *
-			 * For CTL_SYSCTL_NEXT we skip CTLTYPE_NODE (unless it
-			 * has a handler) and move on to the children.
-			 */
-			if (!honor_skip)
-				return (0);
-			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE) 
-				return (0);
-			if (oidp->oid_handler) 
-				return (0);
-			lsp = SYSCTL_CHILDREN(oidp);
-			if (!sysctl_sysctl_next_ls(lsp, NULL, 0, next + 1, len,
-			    level + 1, honor_skip))
-				return (0);
-			/*
-			 * There were no useable children in this node.
-			 * Continue searching for the next oid at this level.
-			 */
-			goto emptynode;
+		if (action == ITER_FOUND) {
+			success = true;
+			break;
 		}
+		KASSERT((action== ITER_CHILDREN), ("ret(%d)!=ITER_CHILDREN", action));
 
-		/*
-		 * No match yet. Continue seeking the given name.
-		 *
-		 * We are iterating in order by oid_number, so skip oids lower
-		 * than the one we are looking for.
-		 *
-		 * When the current oid_number is higher than the one we seek,
-		 * that means we have reached the next oid in the sequence and
-		 * should return it.
-		 *
-		 * If the oid_number matches the name at this level then we
-		 * have to find a node to continue searching at the next level.
-		 */
-		if (oidp->oid_number < *name)
-			continue;
-		if (oidp->oid_number > *name) {
-			/*
-			 * We have reached the next oid.
-			 *
-			 * For CTL_SYSCTL_NEXTNOSKIP we are done.
-			 *
-			 * For CTL_SYSCTL_NEXT we skip CTLTYPE_NODE (unless it
-			 * has a handler) and move on to the children.
-			 */
-			if (!honor_skip)
-				return (0);
-			if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
-				return (0);
-			if (oidp->oid_handler)
-				return (0);
-			lsp = SYSCTL_CHILDREN(oidp);
-			if (!sysctl_sysctl_next_ls(lsp, name + 1, namelen - 1,
-			    next + 1, len, level + 1, honor_skip))
-				return (0);
-			goto next;
-		}
-		if ((oidp->oid_kind & CTLTYPE) != CTLTYPE_NODE)
-			continue;
-		if (oidp->oid_handler)
-			continue;
 		lsp = SYSCTL_CHILDREN(oidp);
-		if (!sysctl_sysctl_next_ls(lsp, name + 1, namelen - 1,
-		    next + 1, len, level + 1, honor_skip))
-			return (0);
-	next:
-		/*
-		 * There were no useable children in this node.
-		 * Continue searching for the next oid at the root level.
-		 */
-		namelen = 1;
-	emptynode:
-		/* Reset len in case a failed recursive call changed it. */
-		*len = level;
+		if (namelen == 0) {
+			success = sysctl_sysctl_next_action(lsp, NULL, 0,
+			    next + 1, len, level + 1, honor_skip);
+		} else {
+			success = sysctl_sysctl_next_action(lsp, name + 1, namelen - 1,
+			    next + 1, len, level + 1, honor_skip);
+			if (!success) {
+
+				/*
+				 * We maintain the invariant that current node oid
+				 * is >= the oid provided in @name.
+				 * As there are no usable children at this node,
+				 *  current node oid is strictly > than the requested
+				 *  oid.
+				 * Hence, reduce namelen to 0 to allow for picking first
+				 *  nodes/leafs in the next node in list.
+				 */
+				namelen = 0;
+			}
+		}
+		if (success)
+			break;
 	}
-	return (ENOENT);
+
+	if (success) {
+		*next = oidp->oid_number;
+		if (level > *len)
+			*len = level;
+	}
+
+	return (success);
 }
 
 static int
@@ -1211,16 +1250,18 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 	int *name = (int *) arg1;
 	u_int namelen = arg2;
 	int len, error;
+	bool success;
 	struct sysctl_oid_list *lsp = &sysctl__children;
 	struct rm_priotracker tracker;
 	int next[CTL_MAXNAME];
 
+	len = 0;
 	SYSCTL_RLOCK(&tracker);
-	error = sysctl_sysctl_next_ls(lsp, name, namelen, next, &len, 1,
+	success = sysctl_sysctl_next_action(lsp, name, namelen, next, &len, 1,
 	    oidp->oid_number == CTL_SYSCTL_NEXT);
 	SYSCTL_RUNLOCK(&tracker);
-	if (error)
-		return (error);
+	if (!success)
+		return (ENOENT);
 	error = SYSCTL_OUT(req, next, len * sizeof (int));
 	return (error);
 }
