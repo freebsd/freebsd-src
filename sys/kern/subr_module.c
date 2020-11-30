@@ -295,6 +295,7 @@ preload_bootstrap_relocate(vm_offset_t offset)
 	    /* Deal with the ones that we know we have to fix */
 	    switch (hdr[0]) {
 	    case MODINFO_ADDR:
+	    case MODINFO_METADATA|MODINFOMD_FONT:
 	    case MODINFO_METADATA|MODINFOMD_SSYM:
 	    case MODINFO_METADATA|MODINFOMD_ESYM:
 		ptr = (vm_offset_t *)(curp + (sizeof(uint32_t) * 2));
