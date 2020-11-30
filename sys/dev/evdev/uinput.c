@@ -525,10 +525,9 @@ uinput_ioctl_sub(struct uinput_cdev_state *state, u_long cmd, caddr_t data)
 		if (uabs->code > ABS_MAX)
 			return (EINVAL);
 
-		evdev_support_abs(state->ucs_evdev, uabs->code,
-		    uabs->absinfo.value, uabs->absinfo.minimum,
-		    uabs->absinfo.maximum, uabs->absinfo.fuzz,
-		    uabs->absinfo.flat, uabs->absinfo.resolution);
+		evdev_set_abs_bit(state->ucs_evdev, uabs->code);
+		evdev_set_absinfo(state->ucs_evdev, uabs->code,
+		    &uabs->absinfo);
 		return (0);
 
 	case UI_SET_EVBIT:

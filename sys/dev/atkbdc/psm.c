@@ -1698,7 +1698,7 @@ psm_support_abs_bulk(struct evdev_dev *evdev, const uint16_t info[][4])
 	size_t i;
 
 	for (i = 0; info[i][0] != ABS_CNT; i++)
-		evdev_support_abs(evdev, info[i][0], 0, info[i][1], info[i][2],
+		evdev_support_abs(evdev, info[i][0], info[i][1], info[i][2],
 		    0, 0, info[i][3]);
 }
 
@@ -1858,7 +1858,7 @@ psm_register_synaptics(device_t dev)
 	if (sc->synhw.capAdvancedGestures || sc->synhw.capReportsV)
 		psm_support_abs_bulk(evdev_a, synaptics_absinfo_mt);
 	if (sc->synhw.capPalmDetect)
-		evdev_support_abs(evdev_a, ABS_TOOL_WIDTH, 0, 0, 15, 0, 0, 0);
+		evdev_support_abs(evdev_a, ABS_TOOL_WIDTH, 0, 15, 0, 0, 0);
 	evdev_support_key(evdev_a, BTN_LEFT);
 	if (!sc->synhw.capClickPad) {
 		evdev_support_key(evdev_a, BTN_RIGHT);

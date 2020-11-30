@@ -890,9 +890,9 @@ ti_adc_attach(device_t dev)
 		evdev_support_event(sc->sc_evdev, EV_ABS);
 		evdev_support_event(sc->sc_evdev, EV_KEY);
 
-		evdev_support_abs(sc->sc_evdev, ABS_X, 0, 0,
+		evdev_support_abs(sc->sc_evdev, ABS_X, 0,
 		    ADC_MAX_VALUE, 0, 0, 0);
-		evdev_support_abs(sc->sc_evdev, ABS_Y, 0, 0,
+		evdev_support_abs(sc->sc_evdev, ABS_Y, 0,
 		    ADC_MAX_VALUE, 0, 0, 0);
 
 		evdev_support_key(sc->sc_evdev, BTN_TOUCH);
