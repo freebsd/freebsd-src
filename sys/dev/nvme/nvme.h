@@ -1728,9 +1728,15 @@ extern int nvme_use_nvd;
 
 #endif /* _KERNEL */
 
+#if _BYTE_ORDER != _LITTLE_ENDIAN
+#define MODIF
+#else
+#define MODIF __unused
+#endif
+
 /* Endianess conversion functions for NVMe structs */
 static inline
-void	nvme_completion_swapbytes(struct nvme_completion *s)
+void	nvme_completion_swapbytes(struct nvme_completion *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 
@@ -1744,7 +1750,7 @@ void	nvme_completion_swapbytes(struct nvme_completion *s)
 }
 
 static inline
-void	nvme_power_state_swapbytes(struct nvme_power_state *s)
+void	nvme_power_state_swapbytes(struct nvme_power_state *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 
@@ -1757,7 +1763,7 @@ void	nvme_power_state_swapbytes(struct nvme_power_state *s)
 }
 
 static inline
-void	nvme_controller_data_swapbytes(struct nvme_controller_data *s)
+void	nvme_controller_data_swapbytes(struct nvme_controller_data *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
@@ -1809,7 +1815,7 @@ void	nvme_controller_data_swapbytes(struct nvme_controller_data *s)
 }
 
 static inline
-void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s)
+void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
@@ -1838,7 +1844,8 @@ void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s)
 }
 
 static inline
-void	nvme_error_information_entry_swapbytes(struct nvme_error_information_entry *s)
+void	nvme_error_information_entry_swapbytes(
+    struct nvme_error_information_entry *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 
@@ -1855,7 +1862,7 @@ void	nvme_error_information_entry_swapbytes(struct nvme_error_information_entry 
 }
 
 static inline
-void	nvme_le128toh(void *p)
+void	nvme_le128toh(void *p MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	/* Swap 16 bytes in place */
@@ -1871,7 +1878,8 @@ void	nvme_le128toh(void *p)
 }
 
 static inline
-void	nvme_health_information_page_swapbytes(struct nvme_health_information_page *s)
+void	nvme_health_information_page_swapbytes(
+    struct nvme_health_information_page *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
@@ -1899,7 +1907,7 @@ void	nvme_health_information_page_swapbytes(struct nvme_health_information_page 
 }
 
 static inline
-void	nvme_firmware_page_swapbytes(struct nvme_firmware_page *s)
+void	nvme_firmware_page_swapbytes(struct nvme_firmware_page *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
@@ -1910,7 +1918,7 @@ void	nvme_firmware_page_swapbytes(struct nvme_firmware_page *s)
 }
 
 static inline
-void	nvme_ns_list_swapbytes(struct nvme_ns_list *s)
+void	nvme_ns_list_swapbytes(struct nvme_ns_list *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
@@ -1921,7 +1929,8 @@ void	nvme_ns_list_swapbytes(struct nvme_ns_list *s)
 }
 
 static inline
-void	nvme_command_effects_page_swapbytes(struct nvme_command_effects_page *s)
+void	nvme_command_effects_page_swapbytes(
+    struct nvme_command_effects_page *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
@@ -1934,7 +1943,8 @@ void	nvme_command_effects_page_swapbytes(struct nvme_command_effects_page *s)
 }
 
 static inline
-void	nvme_res_notification_page_swapbytes(struct nvme_res_notification_page *s)
+void	nvme_res_notification_page_swapbytes(
+    struct nvme_res_notification_page *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	s->log_page_count = le64toh(s->log_page_count);
@@ -1943,7 +1953,8 @@ void	nvme_res_notification_page_swapbytes(struct nvme_res_notification_page *s)
 }
 
 static inline
-void	nvme_sanitize_status_page_swapbytes(struct nvme_sanitize_status_page *s)
+void	nvme_sanitize_status_page_swapbytes(
+    struct nvme_sanitize_status_page *s MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	s->sprog = le16toh(s->sprog);
@@ -1959,7 +1970,7 @@ void	nvme_sanitize_status_page_swapbytes(struct nvme_sanitize_status_page *s)
 }
 
 static inline
-void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s)
+void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s  MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 
@@ -1976,7 +1987,8 @@ void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s)
 }
 
 static inline
-void	nvme_resv_status_swapbytes(struct nvme_resv_status *s, size_t size)
+void	nvme_resv_status_swapbytes(struct nvme_resv_status *s MODIF,
+    size_t size MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	u_int i, n;
@@ -1993,7 +2005,8 @@ void	nvme_resv_status_swapbytes(struct nvme_resv_status *s, size_t size)
 }
 
 static inline
-void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s, size_t size)
+void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s MODIF,
+    size_t size MODIF)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
 	u_int i, n;
@@ -2008,5 +2021,6 @@ void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s, size_t size)
 	}
 #endif
 }
+#undef MODIF
 
 #endif /* __NVME_H__ */
