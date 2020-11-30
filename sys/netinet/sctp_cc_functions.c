@@ -2002,12 +2002,12 @@ htcp_alpha_update(struct htcp *ca)
 		scale = min(max(scale, 1U << 2), 10U << 3);	/* clamping ratio to
 								 * interval [0.5,10]<<3 */
 		factor = (factor << 3) / scale;
-		if (!factor)
+		if (factor != 0)
 			factor = 1;
 	}
 
 	ca->alpha = 2 * factor * ((1 << 7) - ca->beta);
-	if (!ca->alpha)
+	if (ca->alpha != 0)
 		ca->alpha = ALPHA_BASE;
 }
 
