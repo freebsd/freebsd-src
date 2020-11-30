@@ -594,13 +594,13 @@ cyapa_attach(device_t dev)
 		evdev_support_prop(sc->evdev, INPUT_PROP_BUTTONPAD);
 
 	evdev_support_abs(sc->evdev, ABS_MT_SLOT,
-	    0, 0, CYAPA_MAX_MT - 1, 0, 0, 0);
-	evdev_support_abs(sc->evdev, ABS_MT_TRACKING_ID, 0, -1, 15, 0, 0, 0);
-	evdev_support_abs(sc->evdev, ABS_MT_POSITION_X, 0, 0, sc->cap_resx,
-	    0, 0, sc->cap_phyx != 0 ? sc->cap_resx / sc->cap_phyx : 0);
-	evdev_support_abs(sc->evdev, ABS_MT_POSITION_Y, 0, 0, sc->cap_resy,
-	    0, 0, sc->cap_phyy != 0 ? sc->cap_resy / sc->cap_phyy : 0);
-	evdev_support_abs(sc->evdev, ABS_MT_PRESSURE, 0, 0, 255, 0, 0, 0);
+	    0, CYAPA_MAX_MT - 1, 0, 0, 0);
+	evdev_support_abs(sc->evdev, ABS_MT_TRACKING_ID, -1, 15, 0, 0, 0);
+	evdev_support_abs(sc->evdev, ABS_MT_POSITION_X, 0, sc->cap_resx, 0, 0,
+	    sc->cap_phyx != 0 ? sc->cap_resx / sc->cap_phyx : 0);
+	evdev_support_abs(sc->evdev, ABS_MT_POSITION_Y, 0, sc->cap_resy, 0, 0,
+	    sc->cap_phyy != 0 ? sc->cap_resy / sc->cap_phyy : 0);
+	evdev_support_abs(sc->evdev, ABS_MT_PRESSURE, 0, 255, 0, 0, 0);
 
 	if (evdev_register(sc->evdev) != 0) {
 		mtx_destroy(&sc->mutex);

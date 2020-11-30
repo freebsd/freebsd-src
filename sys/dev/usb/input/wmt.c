@@ -456,7 +456,7 @@ wmt_attach(device_t dev)
 	}
 	WMT_FOREACH_USAGE(sc->caps, i) {
 		if (wmt_hid_map[i].code != WMT_NO_CODE)
-			evdev_support_abs(sc->evdev, wmt_hid_map[i].code, 0,
+			evdev_support_abs(sc->evdev, wmt_hid_map[i].code,
 			    sc->ai[i].min, sc->ai[i].max, 0, 0, sc->ai[i].res);
 	}
 

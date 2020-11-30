@@ -381,8 +381,8 @@ uep_attach(device_t dev)
 	evdev_support_event(sc->evdev, EV_ABS);
 	evdev_support_event(sc->evdev, EV_KEY);
 	evdev_support_key(sc->evdev, BTN_TOUCH);
-	evdev_support_abs(sc->evdev, ABS_X, 0, 0, UEP_MAX_X, 0, 0, 0);
-	evdev_support_abs(sc->evdev, ABS_Y, 0, 0, UEP_MAX_Y, 0, 0, 0);
+	evdev_support_abs(sc->evdev, ABS_X, 0, UEP_MAX_X, 0, 0, 0);
+	evdev_support_abs(sc->evdev, ABS_Y, 0, UEP_MAX_Y, 0, 0, 0);
 
 	error = evdev_register_mtx(sc->evdev, &sc->mtx);
 	if (error) {

@@ -117,7 +117,7 @@ void evdev_support_event(struct evdev_dev *, uint16_t);
 void evdev_support_key(struct evdev_dev *, uint16_t);
 void evdev_support_rel(struct evdev_dev *, uint16_t);
 void evdev_support_abs(struct evdev_dev *, uint16_t, int32_t, int32_t, int32_t,
-   int32_t, int32_t, int32_t);
+   int32_t, int32_t);
 void evdev_support_msc(struct evdev_dev *, uint16_t);
 void evdev_support_led(struct evdev_dev *, uint16_t);
 void evdev_support_snd(struct evdev_dev *, uint16_t);
