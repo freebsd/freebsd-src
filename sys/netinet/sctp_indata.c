@@ -305,7 +305,7 @@ sctp_mark_non_revokable(struct sctp_association *asoc, uint32_t tsn)
 	SCTP_CALC_TSN_TO_GAP(gap, tsn, asoc->mapping_array_base_tsn);
 	in_r = SCTP_IS_TSN_PRESENT(asoc->mapping_array, gap);
 	in_nr = SCTP_IS_TSN_PRESENT(asoc->nr_mapping_array, gap);
-	KASSERT(in_r || in_nr, ("%s: Things are really messed up now", __FUNCTION__));
+	KASSERT(in_r || in_nr, ("%s: Things are really messed up now", __func__));
 	if (!in_nr) {
 		SCTP_SET_TSN_PRESENT(asoc->nr_mapping_array, gap);
 		if (SCTP_TSN_GT(tsn, asoc->highest_tsn_inside_nr_map)) {

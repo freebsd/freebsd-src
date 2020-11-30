@@ -378,7 +378,7 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 			m_freem(m);
 			return (NULL);
 		}
-		KASSERT(SCTP_BUF_NEXT(m) == NULL, ("%s: no chain allowed", __FUNCTION__));
+		KASSERT(SCTP_BUF_NEXT(m) == NULL, ("%s: no chain allowed", __func__));
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
