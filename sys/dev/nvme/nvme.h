@@ -1732,6 +1732,7 @@ extern int nvme_use_nvd;
 static inline
 void	nvme_completion_swapbytes(struct nvme_completion *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 
 	s->cdw0 = le32toh(s->cdw0);
 	/* omit rsvd1 */
@@ -1739,22 +1740,26 @@ void	nvme_completion_swapbytes(struct nvme_completion *s)
 	s->sqid = le16toh(s->sqid);
 	/* omit cid */
 	s->status = le16toh(s->status);
+#endif
 }
 
 static inline
 void	nvme_power_state_swapbytes(struct nvme_power_state *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 
 	s->mp = le16toh(s->mp);
 	s->enlat = le32toh(s->enlat);
 	s->exlat = le32toh(s->exlat);
 	s->idlp = le16toh(s->idlp);
 	s->actp = le16toh(s->actp);
+#endif
 }
 
 static inline
 void	nvme_controller_data_swapbytes(struct nvme_controller_data *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	s->vid = le16toh(s->vid);
@@ -1800,11 +1805,13 @@ void	nvme_controller_data_swapbytes(struct nvme_controller_data *s)
 	s->mnan = le32toh(s->mnan);
 	for (i = 0; i < 32; i++)
 		nvme_power_state_swapbytes(&s->power_state[i]);
+#endif
 }
 
 static inline
 void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	s->nsze = le64toh(s->nsze);
@@ -1827,11 +1834,13 @@ void	nvme_namespace_data_swapbytes(struct nvme_namespace_data *s)
 	s->endgid = le16toh(s->endgid);
 	for (i = 0; i < 16; i++)
 		s->lbaf[i] = le32toh(s->lbaf[i]);
+#endif
 }
 
 static inline
 void	nvme_error_information_entry_swapbytes(struct nvme_error_information_entry *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 
 	s->error_count = le64toh(s->error_count);
 	s->sqid = le16toh(s->sqid);
@@ -1842,6 +1851,7 @@ void	nvme_error_information_entry_swapbytes(struct nvme_error_information_entry 
 	s->nsid = le32toh(s->nsid);
 	s->csi = le64toh(s->csi);
 	s->ttsi = le16toh(s->ttsi);
+#endif
 }
 
 static inline
@@ -1857,14 +1867,13 @@ void	nvme_le128toh(void *p)
 		tmp[i] = tmp[15-i];
 		tmp[15-i] = b;
 	}
-#else
-	(void)p;
 #endif
 }
 
 static inline
 void	nvme_health_information_page_swapbytes(struct nvme_health_information_page *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	s->temperature = le16toh(s->temperature);
@@ -1886,47 +1895,57 @@ void	nvme_health_information_page_swapbytes(struct nvme_health_information_page 
 	s->tmt2tc = le32toh(s->tmt2tc);
 	s->ttftmt1 = le32toh(s->ttftmt1);
 	s->ttftmt2 = le32toh(s->ttftmt2);
+#endif
 }
 
 static inline
 void	nvme_firmware_page_swapbytes(struct nvme_firmware_page *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	for (i = 0; i < 7; i++)
 		s->revision[i] = le64toh(s->revision[i]);
+#endif
 }
 
 static inline
 void	nvme_ns_list_swapbytes(struct nvme_ns_list *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	for (i = 0; i < 1024; i++)
 		s->ns[i] = le32toh(s->ns[i]);
+#endif
 }
 
 static inline
 void	nvme_command_effects_page_swapbytes(struct nvme_command_effects_page *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	int i;
 
 	for (i = 0; i < 256; i++)
 		s->acs[i] = le32toh(s->acs[i]);
 	for (i = 0; i < 256; i++)
 		s->iocs[i] = le32toh(s->iocs[i]);
+#endif
 }
 
 static inline
 void	nvme_res_notification_page_swapbytes(struct nvme_res_notification_page *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	s->log_page_count = le64toh(s->log_page_count);
 	s->nsid = le32toh(s->nsid);
+#endif
 }
 
 static inline
 void	nvme_sanitize_status_page_swapbytes(struct nvme_sanitize_status_page *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	s->sprog = le16toh(s->sprog);
 	s->sstat = le16toh(s->sstat);
 	s->scdw10 = le32toh(s->scdw10);
@@ -1936,11 +1955,13 @@ void	nvme_sanitize_status_page_swapbytes(struct nvme_sanitize_status_page *s)
 	s->etfownd = le32toh(s->etfownd);
 	s->etfbewnd = le32toh(s->etfbewnd);
 	s->etfcewnd = le32toh(s->etfcewnd);
+#endif
 }
 
 static inline
 void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 
 	s->current = le64toh(s->current);
 	s->overtemp_flag_last = le64toh(s->overtemp_flag_last);
@@ -1951,11 +1972,13 @@ void	intel_log_temp_stats_swapbytes(struct intel_log_temp_stats *s)
 	s->max_oper_temp = le64toh(s->max_oper_temp);
 	s->min_oper_temp = le64toh(s->min_oper_temp);
 	s->est_offset = le64toh(s->est_offset);
+#endif
 }
 
 static inline
 void	nvme_resv_status_swapbytes(struct nvme_resv_status *s, size_t size)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	u_int i, n;
 
 	s->gen = le32toh(s->gen);
@@ -1966,11 +1989,13 @@ void	nvme_resv_status_swapbytes(struct nvme_resv_status *s, size_t size)
 		s->ctrlr[i].hostid = le64toh(s->ctrlr[i].hostid);
 		s->ctrlr[i].rkey = le64toh(s->ctrlr[i].rkey);
 	}
+#endif
 }
 
 static inline
 void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s, size_t size)
 {
+#if _BYTE_ORDER != _LITTLE_ENDIAN
 	u_int i, n;
 
 	s->gen = le32toh(s->gen);
@@ -1981,6 +2006,7 @@ void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s, size_t size)
 		s->ctrlr[i].rkey = le64toh(s->ctrlr[i].rkey);
 		nvme_le128toh((void *)s->ctrlr[i].hostid);
 	}
+#endif
 }
 
 #endif /* __NVME_H__ */
