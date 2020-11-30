@@ -4250,7 +4250,7 @@ zfree_item:
 static void
 zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 {
-	struct uma_bucketlist fullbuckets;
+	struct uma_bucketlist emptybuckets, fullbuckets;
 	uma_zone_domain_t zdom;
 	uma_bucket_t b;
 	smr_seq_t seq;
@@ -4274,31 +4274,57 @@ zone_free_cross(uma_zone_t zone, uma_bucket_t bucket, void *udata)
 	 * lock on the current crossfree bucket.  A full matrix with
 	 * per-domain locking could be used if necessary.
 	 */
+	STAILQ_INIT(&emptybuckets);
 	STAILQ_INIT(&fullbuckets);
 	ZONE_CROSS_LOCK(zone);
-	while (bucket->ub_cnt > 0) {
+	for (; bucket->ub_cnt > 0; bucket->ub_cnt--) {
 		item = bucket->ub_bucket[bucket->ub_cnt - 1];
 		domain = item_domain(item);
 		zdom = ZDOM_GET(zone, domain);
 		if (zdom->uzd_cross == NULL) {
-			zdom->uzd_cross = bucket_alloc(zone, udata, M_NOWAIT);
-			if (zdom->uzd_cross == NULL)
-				break;
+			if ((b = STAILQ_FIRST(&emptybuckets)) != NULL) {
+				STAILQ_REMOVE_HEAD(&emptybuckets, ub_link);
+				zdom->uzd_cross = b;
+			} else {
+				/*
+				 * Avoid allocating a bucket with the cross lock
+				 * held, since allocation can trigger a
+				 * cross-domain free and bucket zones may
+				 * allocate from each other.
+				 */
+				ZONE_CROSS_UNLOCK(zone);
+				b = bucket_alloc(zone, udata, M_NOWAIT);
+				if (b == NULL)
+					goto out;
+				ZONE_CROSS_LOCK(zone);
+				if (zdom->uzd_cross != NULL) {
+					STAILQ_INSERT_HEAD(&emptybuckets, b,
+					    ub_link);
+				} else {
+					zdom->uzd_cross = b;
+				}
+			}
 		}
 		b = zdom->uzd_cross;
 		b->ub_bucket[b->ub_cnt++] = item;
 		b->ub_seq = seq;
 		if (b->ub_cnt == b->ub_entries) {
 			STAILQ_INSERT_HEAD(&fullbuckets, b, ub_link);
-			zdom->uzd_cross = NULL;
+			if ((b = STAILQ_FIRST(&emptybuckets)) != NULL)
+				STAILQ_REMOVE_HEAD(&emptybuckets, ub_link);
+			zdom->uzd_cross = b;
 		}
-		bucket->ub_cnt--;
 	}
 	ZONE_CROSS_UNLOCK(zone);
+out:
 	if (bucket->ub_cnt == 0)
 		bucket->ub_seq = SMR_SEQ_INVALID;
 	bucket_free(zone, bucket, udata);
 
+	while ((b = STAILQ_FIRST(&emptybuckets)) != NULL) {
+		STAILQ_REMOVE_HEAD(&emptybuckets, ub_link);
+		bucket_free(zone, b, udata);
+	}
 	while ((b = STAILQ_FIRST(&fullbuckets)) != NULL) {
 		STAILQ_REMOVE_HEAD(&fullbuckets, ub_link);
 		domain = item_domain(b->ub_bucket[0]);
