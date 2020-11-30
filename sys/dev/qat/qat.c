@@ -357,6 +357,7 @@ qat_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	sc->sc_rev = pci_get_revid(dev);
+	sc->sc_crypto.qcy_cid = -1;
 
 	qatp = qat_lookup(dev);
 	memcpy(&sc->sc_hw, qatp->qatp_hw, sizeof(struct qat_hw));
