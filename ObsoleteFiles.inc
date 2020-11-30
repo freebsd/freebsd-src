@@ -117,6 +117,10 @@ OLD_FILES+=boot/lua/logo-fbsdbw.lua
 OLD_FILES+=boot/lua/logo-orb.lua
 OLD_FILES+=boot/lua/logo-orbbw.lua
 
+# 20200825: merged OpenZFS support
+OLD_LIBS+=lib/libzfs.so.3
+OLD_LIBS+=usr/lib32/libzfs.so.3
+
 # 20200923: memfd_test moved to /usr/tests/sys/posixshm
 OLD_FILES+=usr/tests/sys/kern/memfd_test
 
@@ -2366,6 +2370,7 @@ OLD_FILES+=usr/include/sys/inflate.h
 # 20190722: cap_random(3) removed
 OLD_LIBS+=lib/casper/libcap_random.so.1
 OLD_FILES+=usr/include/casper/cap_random.h
+OLD_LIBS+=usr/lib/casper/libcap_random.so
 OLD_FILES+=usr/share/man/man3/cap_random.3.gz
 OLD_FILES+=usr/share/man/man3/cap_random_buf.3.gz
 # 20190708: vm_page_hold() and _unhold() removed
