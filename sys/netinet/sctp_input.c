@@ -1515,7 +1515,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 *   ----INIT-ACK(tag=t)-->
 			 *   ----INIT(tag=t)------> *1
 			 *   <---INIT-ACK(tag=a)---
-                         *   <----CE(tag=t)------------- *2
+			 *   <----CE(tag=t)------------- *2
 			 *
 			 * At point *1 we should be generating a different
 			 * tag t'. Which means we would throw away the CE and send
@@ -1748,8 +1748,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 			    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 			    (!SCTP_IS_LISTENING(inp))) {
-				stcb->sctp_ep->sctp_flags |=
-				    SCTP_PCB_FLAGS_CONNECTED;
+				stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
 				soisconnected(stcb->sctp_socket);
 			}
 			if (SCTP_GET_STATE(stcb) == SCTP_STATE_COOKIE_ECHOED)
