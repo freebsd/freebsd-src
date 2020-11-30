@@ -263,8 +263,8 @@ mmc_scan_lun(struct cam_periph *periph, struct cam_path *path,
 			xpt_done(request_ccb);
 		}
 	} else {
-		if (bootverbose)
-			xpt_print(path, " Set up the mmcprobe device...\n");
+		CAM_DEBUG(path, CAM_DEBUG_INFO,
+		    (" Set up the mmcprobe device...\n"));
 
                 status = cam_periph_alloc(mmcprobe_register, NULL,
 					  mmcprobe_cleanup,
@@ -382,7 +382,8 @@ mmc_announce_periph(struct cam_periph *periph)
 	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		return;
 	xpt_path_inq(&cpi, periph->path);
-	printf("XPT info: CLK %04X, ...\n", cts.proto_specific.mmc.ios.clock);
+	CAM_DEBUG(path, CAM_DEBUG_INFO,
+	    ("XPT info: CLK %04d, ...\n", cts.proto_specific.mmc.ios.clock));
 }
 
 void
