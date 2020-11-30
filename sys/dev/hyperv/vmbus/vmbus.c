@@ -1367,8 +1367,8 @@ vmbus_fb_mmio_res(device_t dev)
 		fb_start = vbefb->fb_addr;
 		fb_end = vbefb->fb_addr + vbefb->fb_size;
 		fb_count = vbefb->fb_size;
-		fb_height = efifb->fb_height;
-		fb_width = efifb->fb_width;
+		fb_height = vbefb->fb_height;
+		fb_width = vbefb->fb_width;
 	} else {
 		fb_start = efifb->fb_addr;
 		fb_end = efifb->fb_addr + efifb->fb_size;
@@ -1376,6 +1376,7 @@ vmbus_fb_mmio_res(device_t dev)
 		fb_height = efifb->fb_height;
 		fb_width = efifb->fb_width;
 	}
+
 	if (fb_start == 0) {
 		if (bootverbose)
 			device_printf(dev,
