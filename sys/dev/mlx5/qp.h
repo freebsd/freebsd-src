@@ -586,7 +586,8 @@ int mlx5_core_xrcd_alloc(struct mlx5_core_dev *dev, u32 *xrcdn);
 int mlx5_core_xrcd_dealloc(struct mlx5_core_dev *dev, u32 xrcdn);
 int mlx5_core_create_dct(struct mlx5_core_dev *dev,
 			 struct mlx5_core_dct *dct,
-			 u32 *in);
+			 u32 *in, int inlen,
+			 u32 *out, int outlen);
 int mlx5_core_destroy_dct(struct mlx5_core_dev *dev,
 			  struct mlx5_core_dct *dct);
 int mlx5_core_create_rq_tracked(struct mlx5_core_dev *dev, u32 *in, int inlen,
