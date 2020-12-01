@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#include <net/if_lagg.h>
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -58,10 +59,13 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
+/* if_lagg(4) support */
+struct mbuf *(*lagg_input_infiniband_p)(struct ifnet *, struct mbuf *);
+
 #ifdef INET
 static inline void
-infiniband_ipv4_multicast_map(
-    uint32_t addr, const uint8_t *broadcast, uint8_t *buf)
+infiniband_ipv4_multicast_map(uint32_t addr,
+    const uint8_t *broadcast, uint8_t *buf)
 {
 	uint8_t scope;
 
@@ -93,8 +97,8 @@ infiniband_ipv4_multicast_map(
 
 #ifdef INET6
 static inline void
-infiniband_ipv6_multicast_map(
-    const struct in6_addr *addr, const uint8_t *broadcast, uint8_t *buf)
+infiniband_ipv6_multicast_map(const struct in6_addr *addr,
+    const uint8_t *broadcast, uint8_t *buf)
 {
 	uint8_t scope;
 
@@ -344,6 +348,16 @@ infiniband_input(struct ifnet *ifp, struct mbuf *m)
 	/* Direct packet to correct FIB based on interface config. */
 	M_SETFIB(m, ifp->if_fib);
 
+	/* Handle input from a lagg<N> port */
+	if (ifp->if_type == IFT_INFINIBANDLAG) {
+		KASSERT(lagg_input_infiniband_p != NULL,
+		    ("%s: if_lagg not loaded!", __func__));
+		m = (*lagg_input_infiniband_p)(ifp, m);
+		if (__predict_false(m == NULL))
+			goto done;
+		ifp = m->m_pkthdr.rcvif;
+	}
+
 	/*
 	 * Dispatch frame to upper layer.
 	 */
@@ -392,8 +406,8 @@ done:
 }
 
 static int
-infiniband_resolvemulti(
-    struct ifnet *ifp, struct sockaddr **llsa, struct sockaddr *sa)
+infiniband_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
+    struct sockaddr *sa)
 {
 	struct sockaddr_dl *sdl;
 #ifdef INET

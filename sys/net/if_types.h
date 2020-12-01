@@ -242,6 +242,7 @@ typedef enum {
 	IFT_OPTICALCHANNEL = 0xc3,	/* Optical Channel */
 	IFT_OPTICALTRANSPORT = 0xc4,	/* Optical Transport */
 	IFT_INFINIBAND	= 0xc7,		/* Infiniband */
+	IFT_INFINIBANDLAG = 0xc8,	/* Infiniband Link Aggregate */
 	IFT_BRIDGE	= 0xd1,		/* Transparent bridge interface */
 	IFT_STF		= 0xd7,		/* 6to4 interface */
 

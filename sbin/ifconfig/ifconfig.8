@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2020
+.Dd December 1, 2020
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -2429,6 +2429,12 @@ Set to 0 to disable.
 .Pp
 The following parameters are specific to lagg interfaces:
 .Bl -tag -width indent
+.It Cm laggtype Ar type
+When creating a lagg interface the type can be specified as either
+.Cm ethernet
+or
+.Cm infiniband .
+If not specified ethernet is the default lagg type.
 .It Cm laggport Ar interface
 Add the interface named by
 .Ar interface
