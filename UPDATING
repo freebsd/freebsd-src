@@ -16,6 +16,25 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20201201:	p1	FreeBSD-EN-20:19.audit
+			FreeBSD-EN-20:20.tzdata
+			FreeBSD-EN-20:21.ipfw
+			FreeBSD-EN-20:22.callout
+			FreeBSD-SA-20:31.icmp6
+			FreeBSD-SA-20:32.rtsold
+
+        Fix execve/fexecve system call auditing. [EN-20:19.audit]
+
+        Update timezone database information. [EN-20:20.tzdata]
+
+        Fix uninitialized variable in ipfw. [EN-20:21.ipfw]
+
+        Fix race condition in callout CPU migration. [EN-20:22.callout]
+
+        Fix ICMPv6 use-after-free in error message handling. [SA-20:31.icmp6]
+
+        Fix multiple vulnerabilities in rtsold. [SA-20:32.rtsold]
+
 20201027:
 	12.2-RELEASE.
 
