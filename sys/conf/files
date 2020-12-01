@@ -4578,6 +4578,7 @@ compat/lindebugfs/lindebugfs.c			optional lindebugfs \
 	compile-with "${LINUXKPI_C}"
 
 # OpenFabrics Enterprise Distribution (Infiniband)
+net/if_infiniband.c					optional ofed
 ofed/drivers/infiniband/core/ib_addr.c			optional ofed	\
 	compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/ib_agent.c			optional ofed	\

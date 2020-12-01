@@ -153,7 +153,7 @@ static struct mbuf *
 ipoib_cm_alloc_rx_mb(struct ipoib_dev_priv *priv, struct ipoib_cm_rx_buf *rx_req)
 {
 	return ipoib_alloc_map_mb(priv, (struct ipoib_rx_buf *)rx_req,
-	    priv->cm.max_cm_mtu);
+	    sizeof(struct ipoib_pseudoheader), priv->cm.max_cm_mtu);
 }
 
 static void ipoib_cm_free_rx_ring(struct ipoib_dev_priv *priv,
@@ -484,9 +484,6 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 	struct mbuf *mb, *newmb;
 	struct ipoib_cm_rx *p;
 	int has_srq;
-	u_short proto;
-
-	CURVNET_SET_QUIET(dev->if_vnet);
 
 	ipoib_dbg_data(priv, "cm recv completion: id %d, status: %d\n",
 		       wr_id, wc->status);
@@ -561,16 +558,24 @@ void ipoib_cm_handle_rx_wc(struct ipoib_dev_priv *priv, struct ib_wc *wc)
 
 	ipoib_dma_mb(priv, mb, wc->byte_len);
 
-	if_inc_counter(dev, IFCOUNTER_IPACKETS, 1);
-	if_inc_counter(dev, IFCOUNTER_IBYTES, mb->m_pkthdr.len);
-
 	mb->m_pkthdr.rcvif = dev;
-	proto = *mtod(mb, uint16_t *);
-	m_adj(mb, IPOIB_ENCAP_LEN);
 
-	IPOIB_MTAP_PROTO(dev, mb, proto);
-	ipoib_demux(dev, mb, ntohs(proto));
+	M_PREPEND(mb, sizeof(struct ipoib_pseudoheader), M_NOWAIT);
+	if (likely(mb != NULL)) {
+		struct ipoib_header *ibh;
 
+		if_inc_counter(dev, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(dev, IFCOUNTER_IBYTES, mb->m_pkthdr.len);
+
+		/* fixup destination infiniband address */
+		ibh = mtod(mb, struct ipoib_header *);
+		memset(ibh->hwaddr, 0, 4);
+		memcpy(ibh->hwaddr + 4, priv->local_gid.raw, sizeof(union ib_gid));
+
+		dev->if_input(dev, mb);
+	} else {
+		if_inc_counter(dev, IFCOUNTER_IERRORS, 1);
+	}
 repost:
 	if (has_srq) {
 		if (unlikely(ipoib_cm_post_receive_srq(priv, wr_id)))
@@ -587,7 +592,6 @@ repost:
 		}
 	}
 done:
-	CURVNET_RESTORE();
 	return;
 }
 

@@ -438,16 +438,7 @@ struct ipoib_path {
 
 extern struct workqueue_struct *ipoib_workqueue;
 
-#define IPOIB_MTAP_PROTO(_ifp, _m, _proto)			\
-do {								\
-	if (bpf_peers_present((_ifp)->if_bpf)) {		\
-		M_ASSERTVALID(_m);				\
-		ipoib_mtap_proto((_ifp), (_m), (_proto));	\
-	}							\
-} while (0)
-
 /* functions */
-void ipoib_mtap_proto(struct ifnet *ifp, struct mbuf *mb, uint16_t proto);
 void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr);
 void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr);
 
@@ -462,8 +453,6 @@ static inline void ipoib_put_ah(struct ipoib_ah *ah)
 int ipoib_open(struct ipoib_dev_priv *priv);
 int ipoib_add_pkey_attr(struct ipoib_dev_priv *priv);
 int ipoib_add_umcast_attr(struct ipoib_dev_priv *priv);
-
-void ipoib_demux(struct ifnet *ifp, struct mbuf *m, u_short proto);
 
 void ipoib_send(struct ipoib_dev_priv *priv, struct mbuf *mb,
 		struct ipoib_ah *address, u32 qpn);
@@ -540,7 +529,7 @@ int ipoib_poll_tx(struct ipoib_dev_priv *priv, bool do_start);
 
 void ipoib_dma_unmap_rx(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req);
 void ipoib_dma_mb(struct ipoib_dev_priv *priv, struct mbuf *mb, unsigned int length);
-struct mbuf *ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req, int size);
+struct mbuf *ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req, int align, int size);
 
 
 void ipoib_set_ethtool_ops(struct ifnet *dev);
