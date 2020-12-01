@@ -99,6 +99,7 @@ nat64lsn_print_states(void *buf)
 	stg = (ipfw_nat64lsn_stg_v1 *)(od + 1);
 	sz = od->head.length - sizeof(*od);
 	next_idx = 0;
+	proto = NULL;
 	while (sz > 0 && next_idx != 0xFF) {
 		next_idx = stg->next.index;
 		sz -= sizeof(*stg);
