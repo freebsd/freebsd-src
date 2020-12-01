@@ -1015,7 +1015,7 @@ static void twoSwap(FICL_VM *pVM)
 
 static void emit(FICL_VM *pVM)
 {
-    char *cp = pVM->pad;
+    char cp[2];
     int i;
 
 #if FICL_ROBUST > 1
