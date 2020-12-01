@@ -597,6 +597,19 @@ assertion_chdir(const char *file, int line, const char *pathname)
 
 }
 
+/* change file/directory permissions and errors if it fails */
+int
+assertion_chmod(const char *file, int line, const char *pathname, int mode)
+{
+	assertion_count(file, line);
+	if (chmod(pathname, mode) == 0)
+		return (1);
+	failure_start(file, line, "chmod(\"%s\", %4.o)", pathname, mode);
+	failure_finish(NULL);
+	return (0);
+
+}
+
 /* Verify two integers are equal. */
 int
 assertion_equal_int(const char *file, int line,

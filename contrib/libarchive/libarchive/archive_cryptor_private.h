@@ -104,9 +104,18 @@ typedef struct {
 #include <nettle/pbkdf2.h>
 #endif
 #include <nettle/aes.h>
+#include <nettle/version.h>
 
 typedef struct {
+#if NETTLE_VERSION_MAJOR < 3
 	struct aes_ctx	ctx;
+#else
+	union {
+		struct aes128_ctx c128;
+		struct aes192_ctx c192;
+		struct aes256_ctx c256;
+	}		ctx;
+#endif
 	uint8_t		key[AES_MAX_KEY_SIZE];
 	unsigned	key_len;
 	uint8_t		nonce[AES_BLOCK_SIZE];

@@ -382,8 +382,8 @@ archive_compressor_xz_options(struct archive_write_filter *f,
 		    value[1] != '\0')
 			return (ARCHIVE_WARN);
 		data->compression_level = value[0] - '0';
-		if (data->compression_level > 6)
-			data->compression_level = 6;
+		if (data->compression_level > 9)
+			data->compression_level = 9;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "threads") == 0) {
 		char *endptr;
