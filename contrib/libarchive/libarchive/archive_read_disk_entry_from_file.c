@@ -103,6 +103,10 @@ __FBSDID("$FreeBSD");
 
 static int setup_mac_metadata(struct archive_read_disk *,
     struct archive_entry *, int *fd);
+#ifdef ARCHIVE_XATTR_FREEBSD
+static int setup_xattrs_namespace(struct archive_read_disk *,
+    struct archive_entry *, int *, int);
+#endif
 static int setup_xattrs(struct archive_read_disk *,
     struct archive_entry *, int *fd);
 static int setup_sparse(struct archive_read_disk *,
@@ -701,14 +705,13 @@ setup_xattr(struct archive_read_disk *a, struct archive_entry *entry,
 }
 
 static int
-setup_xattrs(struct archive_read_disk *a,
-    struct archive_entry *entry, int *fd)
+setup_xattrs_namespace(struct archive_read_disk *a,
+    struct archive_entry *entry, int *fd, int namespace)
 {
 	char buff[512];
 	char *list, *p;
 	ssize_t list_size;
 	const char *path;
-	int namespace = EXTATTR_NAMESPACE_USER;
 
 	path = NULL;
 
@@ -726,6 +729,8 @@ setup_xattrs(struct archive_read_disk *a,
 		list_size = extattr_list_file(path, namespace, NULL, 0);
 
 	if (list_size == -1 && errno == EOPNOTSUPP)
+		return (ARCHIVE_OK);
+	if (list_size == -1 && errno == EPERM)
 		return (ARCHIVE_OK);
 	if (list_size == -1) {
 		archive_set_error(&a->archive, errno,
@@ -760,7 +765,17 @@ setup_xattrs(struct archive_read_disk *a,
 		size_t len = 255 & (int)*p;
 		char *name;
 
-		strcpy(buff, "user.");
+		if (namespace == EXTATTR_NAMESPACE_SYSTEM) {
+			if (!strcmp(p + 1, "nfs4.acl") ||
+			    !strcmp(p + 1, "posix1e.acl_access") ||
+			    !strcmp(p + 1, "posix1e.acl_default")) {
+				p += 1 + len;
+				continue;
+			}
+			strcpy(buff, "system.");
+		} else {
+			strcpy(buff, "user.");
+		}
 		name = buff + strlen(buff);
 		memcpy(name, p + 1, len);
 		name[len] = '\0';
@@ -769,6 +784,31 @@ setup_xattrs(struct archive_read_disk *a,
 	}
 
 	free(list);
+	return (ARCHIVE_OK);
+}
+
+static int
+setup_xattrs(struct archive_read_disk *a,
+    struct archive_entry *entry, int *fd)
+{
+	int namespaces[2];
+	int i, res;
+
+	namespaces[0] = EXTATTR_NAMESPACE_USER;
+	namespaces[1] = EXTATTR_NAMESPACE_SYSTEM;
+
+	for (i = 0; i < 2; i++) {
+		res = setup_xattrs_namespace(a, entry, fd,
+		    namespaces[i]);
+		switch (res) {
+			case (ARCHIVE_OK):
+			case (ARCHIVE_WARN):
+				break;
+			default:
+				return (res);
+		}
+	}
+
 	return (ARCHIVE_OK);
 }
 

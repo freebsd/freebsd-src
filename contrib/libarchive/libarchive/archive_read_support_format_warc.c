@@ -337,6 +337,14 @@ start_over:
 			mtime = rtime;
 		}
 		break;
+	case WT_NONE:
+	case WT_INFO:
+	case WT_META:
+	case WT_REQ:
+	case WT_RVIS:
+	case WT_CONV:
+	case WT_CONT:
+	case LAST_WT:
 	default:
 		fnam.len = 0U;
 		fnam.str = NULL;
@@ -361,6 +369,14 @@ start_over:
 			break;
 		}
 		/* FALLTHROUGH */
+	case WT_NONE:
+	case WT_INFO:
+	case WT_META:
+	case WT_REQ:
+	case WT_RVIS:
+	case WT_CONV:
+	case WT_CONT:
+	case LAST_WT:
 	default:
 		/* consume the content and start over */
 		_warc_skip(a);

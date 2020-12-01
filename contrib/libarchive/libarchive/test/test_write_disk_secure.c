@@ -40,6 +40,10 @@ DEFINE_TEST(test_write_disk_secure)
 	struct archive *a;
 	struct archive_entry *ae;
 	struct stat st;
+#if defined(HAVE_LCHMOD) && defined(HAVE_SYMLINK) && \
+    defined(S_IRUSR) && defined(S_IWUSR) && defined(S_IXUSR)
+	int working_lchmod;
+#endif
 
 	/* Start with a known umask. */
 	assertUmask(UMASK);
@@ -251,10 +255,32 @@ DEFINE_TEST(test_write_disk_secure)
 	assert(0 == lstat("link_to_dir", &st));
 	failure("link_to_dir: st.st_mode=%o", st.st_mode);
 	assert(S_ISLNK(st.st_mode));
-#if HAVE_LCHMOD
-	/* Systems that lack lchmod() can't set symlink perms, so skip this. */
-	failure("link_to_dir: st.st_mode=%o", st.st_mode);
-	assert((st.st_mode & 07777) == 0755);
+#if defined(HAVE_SYMLINK) && defined(HAVE_LCHMOD) && \
+    defined(S_IRUSR) && defined(S_IWUSR) && defined(S_IXUSR)
+	/* Verify if we are able to lchmod() */
+	if (symlink("dir", "testlink_to_dir") == 0) {
+		if (lchmod("testlink_to_dir",
+		    S_IRUSR | S_IWUSR | S_IXUSR) != 0) {
+			switch (errno) {
+				case ENOTSUP:
+				case ENOSYS:
+#if ENOTSUP != EOPNOTSUPP
+				case EOPNOTSUPP:
+#endif
+					working_lchmod = 0;
+					break;
+				default:
+					working_lchmod = 1;
+			}
+		} else
+			working_lchmod = 1;
+	} else
+		working_lchmod = 0;
+
+	if (working_lchmod) {
+		failure("link_to_dir: st.st_mode=%o", st.st_mode);
+		assert((st.st_mode & 07777) == 0755);
+	}
 #endif
 
 	assert(0 == lstat("dir/filea", &st));

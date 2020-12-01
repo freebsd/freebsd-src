@@ -595,7 +595,7 @@ archive_acl_text_len(struct archive_acl *acl, int want_type, int flags,
 				else
 					length += sizeof(uid_t) * 3 + 1;
 			} else {
-				r = archive_mstring_get_mbs_l(&ap->name, &name,
+				r = archive_mstring_get_mbs_l(a, &ap->name, &name,
 				    &len, sc);
 				if (r != 0)
 					return (0);
@@ -968,7 +968,7 @@ archive_acl_to_text_l(struct archive_acl *acl, ssize_t *text_len, int flags,
 		else
 			prefix = NULL;
 		r = archive_mstring_get_mbs_l(
-		    &ap->name, &name, &len, sc);
+		    NULL, &ap->name, &name, &len, sc);
 		if (r != 0) {
 			free(s);
 			return (NULL);
@@ -1402,14 +1402,14 @@ isint_w(const wchar_t *start, const wchar_t *end, int *result)
 	if (start >= end)
 		return (0);
 	while (start < end) {
-		if (*start < '0' || *start > '9')
+		if (*start < L'0' || *start > L'9')
 			return (0);
 		if (n > (INT_MAX / 10) ||
-		    (n == INT_MAX / 10 && (*start - '0') > INT_MAX % 10)) {
+		    (n == INT_MAX / 10 && (*start - L'0') > INT_MAX % 10)) {
 			n = INT_MAX;
 		} else {
 			n *= 10;
-			n += *start - '0';
+			n += *start - L'0';
 		}
 		start++;
 	}
