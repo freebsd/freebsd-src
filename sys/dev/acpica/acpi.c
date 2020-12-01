@@ -1122,7 +1122,7 @@ static int
 acpi_parse_pxm(device_t dev)
 {
 #ifdef NUMA
-#if defined(__i386__) || defined(__amd64__)
+#if defined(__i386__) || defined(__amd64__) || defined(__aarch64__)
 	ACPI_HANDLE handle;
 	ACPI_STATUS status;
 	int pxm;
