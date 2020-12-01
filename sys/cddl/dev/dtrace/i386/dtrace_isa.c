@@ -74,7 +74,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	frame = (struct i386_frame *)ebp;
 	while (depth < pcstack_limit) {
 		if (!kstack_contains(curthread, (vm_offset_t)frame,
-		    sizeof(*frame))
+		    sizeof(*frame)))
 			break;
 
 		callpc = frame->f_retaddr;
@@ -483,7 +483,8 @@ dtrace_getstackdepth(int aframes)
 	frame = (struct i386_frame *)ebp;
 	depth++;
 	for(;;) {
-		if (!kstack_contains((vm_offset_t)frame, sizeof(*frame))
+		if (!kstack_contains(curthread, (vm_offset_t)frame,
+		    sizeof(*frame)))
 			break;
 		depth++;
 		if (frame->f_frame <= frame)
