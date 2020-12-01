@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 21, 2010
+.Dd December 1, 2020
 .Dt DEVFS.RULES 5
 .Os
 .Sh NAME
@@ -81,6 +81,12 @@ file:
 .Bd -literal -offset indent
 devfs_system_ruleset="localrules"
 .Ed
+.Pp
+The rules are loaded at boot via the devfs service.
+To load modified rules after the system has booted, run the command:
+.Bd -literal -offset indent
+service devfs restart
+.Ed
 .Sh FILES
 .Bl -tag -compact -width Pa
 .It Pa /etc/defaults/devfs.rules
@@ -122,7 +128,8 @@ group, a similar rule may be used:
 .Xr glob 3 ,
 .Xr devfs 5 ,
 .Xr devfs.conf 5 ,
-.Xr devfs 8
+.Xr devfs 8 ,
+.Xr service 8
 .Sh AUTHORS
 This manual page was written by
 .An Roland Smith Aq Mt rsmith@xs4all.nl .
