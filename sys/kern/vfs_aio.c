@@ -248,8 +248,8 @@ struct aioproc {
  */
 struct aioliojob {
 	int	lioj_flags;			/* (a) listio flags */
-	int	lioj_count;			/* (a) listio flags */
-	int	lioj_finished_count;		/* (a) listio flags */
+	int	lioj_count;			/* (a) count of jobs */
+	int	lioj_finished_count;		/* (a) count of finished jobs */
 	struct	sigevent lioj_signal;		/* (a) signal on all I/O done */
 	TAILQ_ENTRY(aioliojob) lioj_list;	/* (a) lio list */
 	struct	knlist klist;			/* (a) list of knotes */
