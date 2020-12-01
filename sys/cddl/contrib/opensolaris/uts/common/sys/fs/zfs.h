@@ -882,6 +882,13 @@ typedef enum {
 } vdev_initializing_state_t;
 
 /*
+ * nvlist name constants. Facilitate restricting snapshot iteration range for
+ * the "list next snapshot" ioctl
+ */
+#define	SNAP_ITER_MIN_TXG	"snap_iter_min_txg"
+#define	SNAP_ITER_MAX_TXG	"snap_iter_max_txg"
+
+/*
  * Vdev statistics.  Note: all fields should be 64-bit because this
  * is passed between kernel and userland as an nvlist uint64 array.
  */
@@ -1156,13 +1163,6 @@ typedef enum {
 #define	ZCP_MAX_INSTRLIMIT	(10 * ZCP_DEFAULT_INSTRLIMIT)
 #define	ZCP_DEFAULT_MEMLIMIT	(10 * 1024 * 1024)
 #define	ZCP_MAX_MEMLIMIT	(10 * ZCP_DEFAULT_MEMLIMIT)
-
-/*
- * nvlist name constants. Facilitate restricting snapshot iteration range for
- * the "list next snapshot" ioctl
- */
-#define	SNAP_ITER_MIN_TXG	"snap_iter_min_txg"
-#define	SNAP_ITER_MAX_TXG	"snap_iter_max_txg"
 
 /*
  * Sysevent payload members.  ZFS will generate the following sysevents with the
