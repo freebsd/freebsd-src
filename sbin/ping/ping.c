@@ -236,6 +236,7 @@ main(int argc, char *const *argv)
 	struct sigaction si_sa;
 	size_t sz;
 	u_char *datap, packet[IP_MAXPACKET] __aligned(4);
+	const char *errstr;
 	char *ep, *source, *target, *payload;
 	struct hostent *hp;
 #ifdef IPSEC_POLICY_IPSEC
@@ -244,7 +245,7 @@ main(int argc, char *const *argv)
 	struct sockaddr_in *to;
 	double t;
 	u_long alarmtimeout;
-	long ltmp;
+	long long ltmp;
 	int almost_done, ch, df, hold, i, icmp_len, mib[4], preload;
 	int ssend_errno, srecv_errno, tos, ttl;
 	char ctrl[CMSG_SPACE(sizeof(struct timespec))];
@@ -315,12 +316,12 @@ main(int argc, char *const *argv)
 			options |= F_AUDIBLE;
 			break;
 		case 'c':
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp <= 0)
+			ltmp = strtonum(optarg, 1, LONG_MAX, &errstr);
+			if (errstr != NULL)
 				errx(EX_USAGE,
 				    "invalid count of packets to transmit: `%s'",
 				    optarg);
-			npackets = ltmp;
+			npackets = (long)ltmp;
 			break;
 		case 'D':
 			options |= F_HDRINCL;
@@ -338,46 +339,46 @@ main(int argc, char *const *argv)
 			setbuf(stdout, (char *)NULL);
 			break;
 		case 'G': /* Maximum packet size for ping sweep */
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp <= 0)
+			ltmp = strtonum(optarg, 1, INT_MAX, &errstr);
+			if (errstr != NULL) {
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
-			if (uid != 0 && ltmp > DEFDATALEN) {
-				errno = EPERM;
-				err(EX_NOPERM,
-				    "packet size too large: %ld > %u",
-				    ltmp, DEFDATALEN);
+			}
+			sweepmax = (int)ltmp;
+			if (uid != 0 && sweepmax > DEFDATALEN) {
+				errc(EX_NOPERM, EPERM,
+				    "packet size too large: %d > %u",
+				    sweepmax, DEFDATALEN);
 			}
 			options |= F_SWEEP;
-			sweepmax = ltmp;
 			break;
 		case 'g': /* Minimum packet size for ping sweep */
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp <= 0)
+			ltmp = strtonum(optarg, 1, INT_MAX, &errstr);
+			if (errstr != NULL) {
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
-			if (uid != 0 && ltmp > DEFDATALEN) {
-				errno = EPERM;
-				err(EX_NOPERM,
-				    "packet size too large: %ld > %u",
-				    ltmp, DEFDATALEN);
+			}
+			sweepmin = (int)ltmp;
+			if (uid != 0 && sweepmin > DEFDATALEN) {
+				errc(EX_NOPERM, EPERM,
+				    "packet size too large: %d > %u",
+				    sweepmin, DEFDATALEN);
 			}
 			options |= F_SWEEP;
-			sweepmin = ltmp;
 			break;
 		case 'h': /* Packet size increment for ping sweep */
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp < 1)
-				errx(EX_USAGE, "invalid increment size: `%s'",
+			ltmp = strtonum(optarg, 1, INT_MAX, &errstr);
+			if (errstr != NULL) {
+				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
-			if (uid != 0 && ltmp > DEFDATALEN) {
-				errno = EPERM;
-				err(EX_NOPERM,
-				    "packet size too large: %ld > %u",
-				    ltmp, DEFDATALEN);
+			}
+			sweepincr = (int)ltmp;
+			if (uid != 0 && sweepincr > DEFDATALEN) {
+				errc(EX_NOPERM, EPERM,
+				    "packet size too large: %d > %u",
+				    sweepincr, DEFDATALEN);
 			}
 			options |= F_SWEEP;
-			sweepincr = ltmp;
 			break;
 		case 'I':		/* multicast interface */
 			if (inet_aton(optarg, &ifaddr) == 0)
@@ -403,15 +404,15 @@ main(int argc, char *const *argv)
 			loop = 0;
 			break;
 		case 'l':
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp > INT_MAX || ltmp < 0)
+			ltmp = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr != NULL)
 				errx(EX_USAGE,
 				    "invalid preload value: `%s'", optarg);
 			if (uid) {
 				errno = EPERM;
 				err(EX_NOPERM, "-l flag");
 			}
-			preload = ltmp;
+			preload = (int)ltmp;
 			break;
 		case 'M':
 			switch(optarg[0]) {
@@ -429,10 +430,10 @@ main(int argc, char *const *argv)
 			}
 			break;
 		case 'm':		/* TTL */
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp > MAXTTL || ltmp < 0)
+			ltmp = strtonum(optarg, 0, MAXTTL, &errstr);
+			if (errstr != NULL)
 				errx(EX_USAGE, "invalid TTL: `%s'", optarg);
-			ttl = ltmp;
+			ttl = (int)ltmp;
 			options |= F_TTL;
 			break;
 		case 'n':
@@ -474,24 +475,24 @@ main(int argc, char *const *argv)
 			source = optarg;
 			break;
 		case 's':		/* size of packet to send */
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp > INT_MAX || ltmp < 0)
+			ltmp = strtonum(optarg, 0, INT_MAX, &errstr);
+			if (errstr != NULL)
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
-			if (uid != 0 && ltmp > DEFDATALEN) {
+			datalen = (int)ltmp;
+			if (uid != 0 && datalen > DEFDATALEN) {
 				errno = EPERM;
 				err(EX_NOPERM,
-				    "packet size too large: %ld > %u",
-				    ltmp, DEFDATALEN);
+				    "packet size too large: %d > %u",
+				    datalen, DEFDATALEN);
 			}
-			datalen = ltmp;
 			break;
 		case 'T':		/* multicast TTL */
-			ltmp = strtol(optarg, &ep, 0);
-			if (*ep || ep == optarg || ltmp > MAXTTL || ltmp < 0)
+			ltmp = strtonum(optarg, 0, MAXTTL, &errstr);
+			if (errstr != NULL)
 				errx(EX_USAGE, "invalid multicast TTL: `%s'",
 				    optarg);
-			mttl = ltmp;
+			mttl = (unsigned char)ltmp;
 			options |= F_MTTL;
 			break;
 		case 't':
@@ -645,7 +646,7 @@ main(int argc, char *const *argv)
 	if (datalen >= TIMEVAL_LEN)	/* can we time transfer */
 		timing = 1;
 
-	if (!(options & F_PINGFILLED))
+	if ((options & (F_PINGFILLED | F_SWEEP)) == 0)
 		for (i = TIMEVAL_LEN; i < datalen; ++i)
 			*datap++ = i;
 
@@ -794,10 +795,15 @@ main(int argc, char *const *argv)
 #endif
 	if (sweepmax) {
 		if (sweepmin > sweepmax)
-			errx(EX_USAGE, "Maximum packet size must be no less than the minimum packet size");
+			errx(EX_USAGE,
+	    "Maximum packet size must be no less than the minimum packet size");
+
+		if (sweepmax > maxpayload - TIMEVAL_LEN)
+			errx(EX_USAGE, "Invalid sweep maximum");
 
 		if (datalen != DEFDATALEN)
-			errx(EX_USAGE, "Packet size and ping sweep are mutually exclusive");
+			errx(EX_USAGE,
+		    "Packet size and ping sweep are mutually exclusive");
 
 		if (npackets > 0) {
 			snpackets = npackets;
@@ -962,11 +968,11 @@ main(int argc, char *const *argv)
 		}
 		if (n == 0 || options & F_FLOOD) {
 			if (sweepmax && sntransmitted == snpackets) {
-				for (i = 0; i < sweepincr ; ++i)
+				if (datalen + sweepincr > sweepmax)
+					break;
+				for (i = 0; i < sweepincr; i++)
 					*datap++ = i;
 				datalen += sweepincr;
-				if (datalen > sweepmax)
-					break;
 				send_len = icmp_len + datalen;
 				sntransmitted = 0;
 			}
