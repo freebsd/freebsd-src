@@ -337,8 +337,8 @@ rtsol_input(int sock)
 		newent_rai = 1;
 	}
 
-#define	RA_OPT_NEXT_HDR(x)	(struct nd_opt_hdr *)((char *)x + \
-				(((struct nd_opt_hdr *)x)->nd_opt_len * 8))
+#define	RA_OPT_NEXT_HDR(x)	(struct nd_opt_hdr *)((char *)(x) + \
+				(((struct nd_opt_hdr *)(x))->nd_opt_len * 8))
 	/* Process RA options. */
 	warnmsg(LOG_DEBUG, __func__, "Processing RA");
 	raoptp = (char *)icp + sizeof(struct nd_router_advert);
@@ -349,6 +349,15 @@ rtsol_input(int sock)
 		    ndo->nd_opt_type);
 		warnmsg(LOG_DEBUG, __func__, "ndo->nd_opt_len = %d",
 		    ndo->nd_opt_len);
+
+		if (ndo->nd_opt_len == 0) {
+			warnmsg(LOG_INFO, __func__, "invalid option length 0.");
+			break;
+		}
+		if ((char *)RA_OPT_NEXT_HDR(raoptp) > (char *)icp + msglen) {
+			warnmsg(LOG_INFO, __func__, "option length overflow.");
+			break;
+		}
 
 		switch (ndo->nd_opt_type) {
 		case ND_OPT_RDNSS:
@@ -760,15 +769,18 @@ dname_labeldec(char *dst, size_t dlen, const char *src)
 	src_last = strchr(src, '\0');
 	dst_origin = dst;
 	memset(dst, '\0', dlen);
-	while (src && (len = (uint8_t)(*src++) & 0x3f) &&
-	    (src + len) <= src_last &&
-	    (dst - dst_origin < (ssize_t)dlen)) {
-		if (dst != dst_origin)
+	while ((len = (*src++) & 0x3f) &&
+	    src + len <= src_last &&
+	    len + (dst == dst_origin ? 0 : 1) < dlen) {
+		if (dst != dst_origin) {
 			*dst++ = '.';
+			dlen--;
+		}
 		warnmsg(LOG_DEBUG, __func__, "labellen = %zd", len);
 		memcpy(dst, src, len);
 		src += len;
 		dst += len;
+		dlen -= len;
 	}
 	*dst = '\0';
 
