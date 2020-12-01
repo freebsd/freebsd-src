@@ -2272,8 +2272,10 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     parse_rtld_phdr(&obj_rtld);
     obj_enforce_relro(&obj_rtld);
 
+    r_debug.r_version = R_DEBUG_VERSION;
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
+    r_debug.r_ldbase = obj_rtld.relocbase;
 }
 
 /*
