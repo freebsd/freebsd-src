@@ -41,30 +41,33 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/regnum.h>
 
-static u_register_t
-stack_register_fetch(u_register_t sp, u_register_t stack_pos)
-{
-	u_register_t * stack = 
-	    ((u_register_t *)(intptr_t)sp + (size_t)stack_pos/sizeof(u_register_t));
-
-	return *stack;
-}
+#define	VALID_PC(addr)		((addr) >= (uintptr_t)btext && (addr) % 4 == 0)
 
 static void
-stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
+stack_capture(struct stack *st, struct thread *td, uintptr_t pc, uintptr_t sp)
 {
-	u_register_t  ra = 0, i, stacksize;
-	short ra_stack_pos = 0;
+	u_register_t ra;
+	uintptr_t i, ra_addr;
+	int ra_stack_pos, stacksize;
 	InstFmt insn;
 
 	stack_zero(st);
 
 	for (;;) {
-		stacksize = 0;
-		if (pc <= (u_register_t)(intptr_t)btext)
+		if (!VALID_PC(pc))
 			break;
-		for (i = pc; i >= (u_register_t)(intptr_t)btext; i -= sizeof (insn)) {
-			bcopy((void *)(intptr_t)i, &insn, sizeof insn);
+
+		/*
+		 * Walk backward from the PC looking for the function
+		 * start.  Assume a subtraction from SP is the start
+		 * of a function.  Hope that we find the store of RA
+		 * into the stack frame along the way and save the
+		 * offset of the saved RA relative to SP.
+		 */
+		ra_stack_pos = -1;
+		stacksize = 0;
+		for (i = pc; VALID_PC(i); i -= sizeof(insn)) {
+			bcopy((void *)i, &insn, sizeof(insn));
 			switch (insn.IType.op) {
 			case OP_ADDI:
 			case OP_ADDIU:
@@ -72,6 +75,17 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 			case OP_DADDIU:
 				if (insn.IType.rs != SP || insn.IType.rt != SP)
 					break;
+
+				/*
+				 * Ignore stack fixups in "early"
+				 * returns in a function, or if the
+				 * call was from an unlikely branch
+				 * moved after the end of the normal
+				 * return.
+				 */
+				if ((short)insn.IType.imm > 0)
+					break;
+
 				stacksize = -(short)insn.IType.imm;
 				break;
 
@@ -85,26 +99,35 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 				break;
 			}
 
-			if (stacksize)
+			if (stacksize != 0)
 				break;
 		}
 
 		if (stack_put(st, pc) == -1)
 			break;
 
-		for (i = pc; !ra; i += sizeof (insn)) {
-			bcopy((void *)(intptr_t)i, &insn, sizeof insn);
+		if (ra_stack_pos == -1)
+			break;
+
+		/*
+		 * Walk forward from the PC to find the function end
+		 * (jr RA).  If eret is hit instead, stop unwinding.
+		 */
+		ra_addr = sp + ra_stack_pos;
+		ra = 0;
+		for (i = pc; VALID_PC(i); i += sizeof(insn)) {
+			bcopy((void *)i, &insn, sizeof(insn));
 
 			switch (insn.IType.op) {
 			case OP_SPECIAL:
 				if (insn.RType.func == OP_JR) {
-					if (ra >= (u_register_t)(intptr_t)btext)
-						break;
 					if (insn.RType.rs != RA)
 						break;
-					ra = stack_register_fetch(sp, 
-					    ra_stack_pos);
-					if (!ra)
+					if (!kstack_contains(td, ra_addr,
+					    sizeof(ra)))
+						goto done;
+					ra = *(u_register_t *)ra_addr;
+					if (ra == 0)
 						goto done;
 					ra -= 8;
 				}
@@ -112,9 +135,13 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 			default:
 				break;
 			}
+
 			/* eret */
 			if (insn.word == 0x42000018)
 				goto done;
+
+			if (ra != 0)
+				break;
 		}
 
 		if (pc == ra && stacksize == 0)
@@ -122,7 +149,6 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 
 		sp += stacksize;
 		pc = ra;
-		ra = 0;
 	}
 done:
 	return;
@@ -131,7 +157,7 @@ done:
 int
 stack_save_td(struct stack *st, struct thread *td)
 {
-	u_register_t pc, sp;
+	uintptr_t pc, sp;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(!TD_IS_SWAPPED(td),
@@ -140,21 +166,19 @@ stack_save_td(struct stack *st, struct thread *td)
 	if (TD_IS_RUNNING(td))
 		return (EOPNOTSUPP);
 
-	pc = td->td_pcb->pcb_regs.pc;
-	sp = td->td_pcb->pcb_regs.sp;
-	stack_capture(st, pc, sp);
+	pc = td->td_pcb->pcb_context[PCB_REG_RA];
+	sp = td->td_pcb->pcb_context[PCB_REG_SP];
+	stack_capture(st, td, pc, sp);
 	return (0);
 }
 
 void
 stack_save(struct stack *st)
 {
-	u_register_t pc, sp;
+	uintptr_t pc, sp;
 
-	if (curthread == NULL)
-		panic("stack_save: curthread == NULL");
-
-	pc = curthread->td_pcb->pcb_regs.pc;
-	sp = curthread->td_pcb->pcb_regs.sp;
-	stack_capture(st, pc, sp);
+	pc = (uintptr_t)&&here;
+	sp = (uintptr_t)__builtin_frame_address(0);
+here:
+	stack_capture(st, curthread, pc, sp);
 }
