@@ -67,6 +67,12 @@ variable span
 : tuck    ( y x -- x y x)  swap over ; 
 : within  ( test low high -- flag )   over - >r - r>  u<  ;
 
+: u.r ( n +n -- )
+  swap 0 <# #s #>
+  rot over - dup 0< if
+    drop else spaces
+  then
+  type space ;
 
 \ ** LOCAL EXT word set
 \ #if FICL_WANT_LOCALS
@@ -91,12 +97,32 @@ variable span
 
 \ ** TOOLS word set...
 : ?     ( addr -- )  @ . ;
-: dump  ( addr u -- )
-    0 ?do
-        dup c@ . 1+
-        i 7 and 7 = if cr endif
-    loop drop
-;
+
+Variable /dump
+
+: i' ( R:w R:w2 -- R:w R:w2 w )
+  r> r> r> dup >r swap >r swap >r ;
+
+: .4 ( addr -- addr' )
+    4 0 DO  -1 /dump +!  /dump @ 0<
+        IF 3 spaces  ELSE  dup c@ 0 <# # # #> type space  THEN
+    char+ LOOP ;
+
+: .chars ( addr -- )
+    /dump @ over + swap
+    ?DO I c@ dup 127 bl within
+        IF  drop [char] .  THEN  emit
+    LOOP ;
+
+: .line ( addr -- )
+  dup .4 space .4 ." - " .4 space .4 drop  16 /dump +!  space .chars ;
+
+: dump  ( addr u -- ) \ tools dump
+    cr base @ >r hex        \ save base on return stack
+    0 ?DO  I' I - 16 min /dump !
+        dup 8 u.r ." : " dup .line cr 16 +
+        16 +LOOP
+    drop r> base ! ;
 
 \ ** SEARCH+EXT words and ficl helpers
 \ BRAND-WORDLIST is a helper for ficl-named-wordlist. Usage idiom:
