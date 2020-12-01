@@ -74,7 +74,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	td = curthread;
 	while (depth < pcstack_limit) {
 		if (!kstack_contains(curthread, (vm_offset_t)frame,
-		    sizeof(*frame))
+		    sizeof(*frame)))
 			break;
 
 		callpc = frame->f_retaddr;
@@ -463,7 +463,7 @@ dtrace_getstackdepth(int aframes)
 	depth++;
 	for(;;) {
 		if (!kstack_contains(curthread, (vm_offset_t)frame,
-		    sizeof(*frame))
+		    sizeof(*frame)))
 			break;
 		depth++;
 		if (frame->f_frame <= frame)
