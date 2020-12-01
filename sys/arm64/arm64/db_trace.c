@@ -73,7 +73,7 @@ db_stack_trace_cmd(struct unwind_state *frame)
 	db_expr_t offset;
 
 	while (1) {
-		uint64_t pc = frame->pc;
+		uintptr_t pc = frame->pc;
 		int ret;
 
 		ret = unwind_frame(frame);
@@ -109,9 +109,9 @@ db_trace_thread(struct thread *thr, int count)
 	if (thr != curthread) {
 		ctx = kdb_thr_ctx(thr);
 
-		frame.sp = (uint64_t)ctx->pcb_sp;
-		frame.fp = (uint64_t)ctx->pcb_x[29];
-		frame.pc = (uint64_t)ctx->pcb_x[30];
+		frame.sp = (uintptr_t)ctx->pcb_sp;
+		frame.fp = (uintptr_t)ctx->pcb_x[29];
+		frame.pc = (uintptr_t)ctx->pcb_x[30];
 		db_stack_trace_cmd(&frame);
 	} else
 		db_trace_self();
@@ -122,12 +122,12 @@ void
 db_trace_self(void)
 {
 	struct unwind_state frame;
-	uint64_t sp;
+	uintptr_t sp;
 
 	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
 	frame.sp = sp;
-	frame.fp = (uint64_t)__builtin_frame_address(0);
-	frame.pc = (uint64_t)db_trace_self;
+	frame.fp = (uintptr_t)__builtin_frame_address(0);
+	frame.pc = (uintptr_t)db_trace_self;
 	db_stack_trace_cmd(&frame);
 }

@@ -83,9 +83,9 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 
 	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
-	state.fp = (uint64_t)__builtin_frame_address(0);
+	state.fp = (uintptr_t)__builtin_frame_address(0);
 	state.sp = sp;
-	state.pc = (uint64_t)dtrace_getpcstack;
+	state.pc = (uintptr_t)dtrace_getpcstack;
 
 	while (depth < pcstack_limit) {
 		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
@@ -281,9 +281,9 @@ dtrace_getstackdepth(int aframes)
 
 	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
-	state.fp = (uint64_t)__builtin_frame_address(0);
+	state.fp = (uintptr_t)__builtin_frame_address(0);
 	state.sp = sp;
-	state.pc = (uint64_t)dtrace_getstackdepth;
+	state.pc = (uintptr_t)dtrace_getstackdepth;
 
 	do {
 		done = unwind_frame(&state);

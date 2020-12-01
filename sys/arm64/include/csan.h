@@ -76,14 +76,14 @@ kcsan_md_unwind(void)
 	const char *symname;
 #endif
 	struct unwind_state frame;
-	uint64_t sp;
+	uintptr_t sp;
 	int nsym;
 
 	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
 	frame.sp = sp;
-	frame.fp = (uint64_t)__builtin_frame_address(0);
-	frame.pc = (uint64_t)kcsan_md_unwind;
+	frame.fp = (uintptr_t)__builtin_frame_address(0);
+	frame.pc = (uintptr_t)kcsan_md_unwind;
 	nsym = 0;
 
 	while (1) {
