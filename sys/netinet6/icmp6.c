@@ -912,6 +912,7 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 	}
 	icmp6 = (struct icmp6_hdr *)(mtod(m, caddr_t) + off);
 	eip6 = (struct ip6_hdr *)(icmp6 + 1);
+	bzero(&icmp6dst, sizeof(icmp6dst));
 
 	/* Detect the upper level protocol */
 	{
@@ -920,7 +921,6 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 		int eoff = off + sizeof(struct icmp6_hdr) +
 		    sizeof(struct ip6_hdr);
 		struct ip6ctlparam ip6cp;
-		struct in6_addr *finaldst = NULL;
 		int icmp6type = icmp6->icmp6_type;
 		struct ip6_frag *fh;
 		struct ip6_rthdr *rth;
@@ -994,10 +994,11 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 					}
 					rth0 = (struct ip6_rthdr0 *)
 					    (mtod(m, caddr_t) + eoff);
+
 					/* just ignore a bogus header */
 					if ((rth0->ip6r0_len % 2) == 0 &&
 					    (hops = rth0->ip6r0_len/2))
-						finaldst = (struct in6_addr *)(rth0 + 1) + (hops - 1);
+						icmp6dst.sin6_addr = *((struct in6_addr *)(rth0 + 1) + (hops - 1));
 				}
 				eoff += rthlen;
 				nxt = rth->ip6r_nxt;
@@ -1051,13 +1052,10 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 		 */
 		eip6 = (struct ip6_hdr *)(icmp6 + 1);
 
-		bzero(&icmp6dst, sizeof(icmp6dst));
 		icmp6dst.sin6_len = sizeof(struct sockaddr_in6);
 		icmp6dst.sin6_family = AF_INET6;
-		if (finaldst == NULL)
+		if (IN6_IS_ADDR_UNSPECIFIED(&icmp6dst.sin6_addr))
 			icmp6dst.sin6_addr = eip6->ip6_dst;
-		else
-			icmp6dst.sin6_addr = *finaldst;
 		if (in6_setscope(&icmp6dst.sin6_addr, m->m_pkthdr.rcvif, NULL))
 			goto freeit;
 		bzero(&icmp6src, sizeof(icmp6src));
@@ -1069,13 +1067,11 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 		icmp6src.sin6_flowinfo =
 		    (eip6->ip6_flow & IPV6_FLOWLABEL_MASK);
 
-		if (finaldst == NULL)
-			finaldst = &eip6->ip6_dst;
 		ip6cp.ip6c_m = m;
 		ip6cp.ip6c_icmp6 = icmp6;
 		ip6cp.ip6c_ip6 = (struct ip6_hdr *)(icmp6 + 1);
 		ip6cp.ip6c_off = eoff;
-		ip6cp.ip6c_finaldst = finaldst;
+		ip6cp.ip6c_finaldst = &icmp6dst.sin6_addr;
 		ip6cp.ip6c_src = &icmp6src;
 		ip6cp.ip6c_nxt = nxt;
 
