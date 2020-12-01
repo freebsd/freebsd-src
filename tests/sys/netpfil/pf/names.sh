@@ -36,7 +36,6 @@ names_head()
 
 names_body()
 {
-	atf_skip "Kernel panics when flushing epair queue (bug238870)"
 	pft_init
 
 	epair=$(vnet_mkepair)
