@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2020
+.Dd December 1, 2020
 .Dt KTLS 4
 .Os
 .Sh NAME
@@ -78,13 +78,13 @@ is not enabled.
 .It Dv TCP_TLS_MODE_SW
 TLS records are encrypted or decrypted in the kernel in the socket
 layer.
-Typically the encryption or decryption is performred in software,
+Typically the encryption or decryption is performed in software,
 but it may also be performed by co-processors via
 .Xr crypto 9 .
 .It Dv TCP_TLS_MODE_IFNET
 TLS records are encrypted or decrypted by the network interface card (NIC).
 In this mode, the network stack does not work with encrypted data.
-Instead, the NIC is encrypts TLS records as they are being transmitted,
+Instead, the NIC encrypts TLS records as they are being transmitted,
 or decrypts received TLS records before providing them to the host.
 .Pp
 Network interfaces which support this feature will advertise the
