@@ -104,9 +104,10 @@ static void update_odp_mr(struct mlx5_ib_mr *mr)
 }
 #endif
 
-static void reg_mr_callback(int status, void *context)
+static void reg_mr_callback(int status, struct mlx5_async_work *context)
 {
-	struct mlx5_ib_mr *mr = context;
+	struct mlx5_ib_mr *mr =
+		container_of(context, struct mlx5_ib_mr, cb_work);
 	struct mlx5_ib_dev *dev = mr->dev;
 	struct mlx5_mr_cache *cache = &dev->cache;
 	int c = order2idx(dev, mr->order);
@@ -192,9 +193,9 @@ static int add_keys(struct mlx5_ib_dev *dev, int c, int num)
 		ent->pending++;
 		spin_unlock_irq(&ent->lock);
 		err = mlx5_core_create_mkey_cb(dev->mdev, &mr->mmkey,
-					       in, inlen,
+					       &dev->async_ctx, in, inlen,
 					       mr->out, sizeof(mr->out),
-					       reg_mr_callback, mr);
+					       reg_mr_callback, &mr->cb_work);
 		if (err) {
 			spin_lock_irq(&ent->lock);
 			ent->pending--;
@@ -429,6 +430,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		return -ENOMEM;
 	}
 
+	mlx5_cmd_init_async_ctx(dev->mdev, &dev->async_ctx);
 	setup_timer(&dev->delay_timer, delay_time_func, (unsigned long)dev);
 	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
 		INIT_LIST_HEAD(&cache->ent[i].head);
@@ -460,6 +462,7 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 
 	dev->cache.stopped = 1;
 	flush_workqueue(dev->cache.wq);
+	mlx5_cmd_cleanup_async_ctx(&dev->async_ctx);
 
 	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++)
 		clean_keys(dev, i);
