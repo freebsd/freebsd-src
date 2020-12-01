@@ -4052,23 +4052,14 @@ Link	Europe/Istanbul	Asia/Istanbul	# Istanbul is in both continents.
 # * Ukrainian Government's Resolution of 20.03.1992, No. 139.
 # http://www.uazakon.com/documents/date_8u/pg_grcasa.htm
 
-# From Paul Eggert (2018-10-03):
-# As is usual in tzdb, Ukrainian zones use the most common English spellings.
-# For example, tzdb uses Europe/Kiev, as "Kiev" is the most common spelling in
-# English for Ukraine's capital, even though it is certainly wrong as a
-# transliteration of the Ukrainian "Київ".  This is similar to tzdb's use of
-# Europe/Prague, which is certainly wrong as a transliteration of the Czech
-# "Praha".  ("Kiev" came from old Slavic via Russian to English, and "Prague"
-# came from old Slavic via French to English, so the two cases have something
-# in common.)  Admittedly English-language spelling of Ukrainian names is
-# controversial, and some day "Kyiv" may become substantially more popular in
-# English; in the meantime, stick with the traditional English "Kiev" as that
-# means less disruption for our users.
+# From Vester Thacker (2020-12-01):
+# The current name "Kyiv" is the correct Romanized name, and it is an
+# appropriate naming for Ukrainians when making a time zone selection.
 
 # Zone	NAME		STDOFF	RULES	FORMAT	[UNTIL]
-# This represents most of Ukraine.  See above for the spelling of "Kiev".
-Zone Europe/Kiev	2:02:04 -	LMT	1880
-			2:02:04	-	KMT	1924 May  2 # Kiev Mean Time
+# This represents most of Ukraine.  See above for the spelling of "Kyiv".
+Zone Europe/Kyiv	2:02:04 -	LMT	1880
+			2:02:04	-	KMT	1924 May  2 # Kyiv Mean Time
 			2:00	-	EET	1930 Jun 21
 			3:00	-	MSK	1941 Sep 20
 			1:00	C-Eur	CE%sT	1943 Nov  6
