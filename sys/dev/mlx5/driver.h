@@ -515,21 +515,17 @@ struct mlx5_core_health {
 	struct workqueue_struct	       *wq_cmd;
 };
 
-#ifdef RATELIMIT
-#define	MLX5_CQ_LINEAR_ARRAY_SIZE	(128 * 1024)
-#else
 #define	MLX5_CQ_LINEAR_ARRAY_SIZE	1024
-#endif
 
 struct mlx5_cq_linear_array_entry {
-	spinlock_t	lock;
 	struct mlx5_core_cq * volatile cq;
 };
 
 struct mlx5_cq_table {
 	/* protect radix tree
 	 */
-	spinlock_t		lock;
+	spinlock_t		writerlock;
+	atomic_t		writercount;
 	struct radix_tree_root	tree;
 	struct mlx5_cq_linear_array_entry linear_array[MLX5_CQ_LINEAR_ARRAY_SIZE];
 };

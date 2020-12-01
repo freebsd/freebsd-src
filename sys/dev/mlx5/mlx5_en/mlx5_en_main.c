@@ -2171,6 +2171,7 @@ mlx5e_open_channel(struct mlx5e_priv *priv,
     struct mlx5e_channel_param *cparam,
     struct mlx5e_channel *c)
 {
+	struct epoch_tracker et;
 	int i, err;
 
 	/* zero non-persistant data */
@@ -2198,7 +2199,9 @@ mlx5e_open_channel(struct mlx5e_priv *priv,
 		goto err_close_sqs;
 
 	/* poll receive queue initially */
+	NET_EPOCH_ENTER_ET(et);
 	c->rq.cq.mcq.comp(&c->rq.cq.mcq);
+	NET_EPOCH_EXIT_ET(et);
 
 	return (0);
 
@@ -3740,6 +3743,7 @@ static void
 mlx5e_disable_rx_dma(struct mlx5e_channel *ch)
 {
 	struct mlx5e_rq *rq = &ch->rq;
+	struct epoch_tracker et;
 	int err;
 
 	mtx_lock(&rq->mtx);
@@ -3755,7 +3759,9 @@ mlx5e_disable_rx_dma(struct mlx5e_channel *ch)
 
 	while (!mlx5_wq_ll_is_empty(&rq->wq)) {
 		msleep(1);
+		NET_EPOCH_ENTER_ET(et);
 		rq->cq.mcq.comp(&rq->cq.mcq);
+		NET_EPOCH_EXIT_ET(et);
 	}
 
 	/*
@@ -3773,6 +3779,7 @@ static void
 mlx5e_enable_rx_dma(struct mlx5e_channel *ch)
 {
 	struct mlx5e_rq *rq = &ch->rq;
+	struct epoch_tracker et;
 	int err;
 
 	rq->wq.wqe_ctr = 0;
@@ -3785,7 +3792,9 @@ mlx5e_enable_rx_dma(struct mlx5e_channel *ch)
 
 	rq->enabled = 1;
 
+	NET_EPOCH_ENTER_ET(et);
 	rq->cq.mcq.comp(&rq->cq.mcq);
+	NET_EPOCH_EXIT_ET(et);
 }
 
 void
