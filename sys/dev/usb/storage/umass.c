@@ -784,6 +784,12 @@ umass_probe_proto(device_t dev, struct usb_attach_arg *uaa)
 	memset(&ret, 0, sizeof(ret));
 	ret.error = BUS_PROBE_GENERIC;
 
+	/* Check if we should deny probing. */
+	if (usb_test_quirk(uaa, UQ_MSC_IGNORE)) {
+		ret.error = ENXIO;
+		goto done;
+	}
+
 	/* Search for protocol enforcement */
 
 	if (usb_test_quirk(uaa, UQ_MSC_FORCE_WIRE_BBB)) {
