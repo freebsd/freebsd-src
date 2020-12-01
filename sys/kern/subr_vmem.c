@@ -706,14 +706,10 @@ vmem_startup(void)
 	vmem_zone = uma_zcreate("vmem",
 	    sizeof(struct vmem), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-#ifdef UMA_MD_SMALL_ALLOC
 	vmem_bt_zone = uma_zcreate("vmem btag",
 	    sizeof(struct vmem_btag), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_VM);
-#else
-	vmem_bt_zone = uma_zcreate("vmem btag",
-	    sizeof(struct vmem_btag), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+#ifndef UMA_MD_SMALL_ALLOC
 	mtx_init(&vmem_bt_lock, "btag lock", NULL, MTX_DEF);
 	uma_prealloc(vmem_bt_zone, BT_MAXALLOC);
 	/*
