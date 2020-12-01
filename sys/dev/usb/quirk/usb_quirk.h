@@ -93,6 +93,7 @@ enum {
 	UQ_MSC_FORCE_PROTO_ATAPI,	/* force ATAPI command protocol */
 	UQ_MSC_FORCE_PROTO_UFI,		/* force UFI command protocol */
 	UQ_MSC_FORCE_PROTO_RBC,		/* force RBC command protocol */
+	UQ_MSC_IGNORE,			/* device should be ignored by umass */
 
 	/* Ejection of mass storage (driver disk) */
 	UQ_MSC_EJECT_HUAWEI,		/* ejects after Huawei USB command */
