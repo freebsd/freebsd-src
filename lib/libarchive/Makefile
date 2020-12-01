@@ -71,6 +71,7 @@ SRCS=	archive_acl.c					\
 	archive_read_set_options.c			\
 	archive_read_support_filter_all.c		\
 	archive_read_support_filter_bzip2.c		\
+	archive_read_support_filter_by_code.c		\
 	archive_read_support_filter_compress.c		\
 	archive_read_support_filter_gzip.c		\
 	archive_read_support_filter_grzip.c		\

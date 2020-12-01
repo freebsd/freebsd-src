@@ -89,6 +89,7 @@ struct archive_write {
 	archive_open_callback	*client_opener;
 	archive_write_callback	*client_writer;
 	archive_close_callback	*client_closer;
+	archive_free_callback	*client_freer;
 	void			*client_data;
 
 	/*
