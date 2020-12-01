@@ -527,8 +527,7 @@ db_findstack_cmd(db_expr_t addr, bool have_addr, db_expr_t dummy3 __unused,
 
 	FOREACH_PROC_IN_SYSTEM(p) {
 		FOREACH_THREAD_IN_PROC(p, td) {
-			if (td->td_kstack <= saddr && saddr < td->td_kstack +
-			    PAGE_SIZE * td->td_kstack_pages) {
+			if (kstack_contains(td, saddr, 1)) {
 				db_printf("Thread %p\n", td);
 				return;
 			}
