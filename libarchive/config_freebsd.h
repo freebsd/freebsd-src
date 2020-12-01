@@ -24,6 +24,7 @@
  *
  * $FreeBSD$
  */
+#define __LIBARCHIVE_CONFIG_H_INCLUDED 1
 
 #include <osreldate.h>
 

@@ -1172,7 +1172,7 @@ cab_checksum_finish(struct archive_read *a)
 	    cfdata->memimage + CFDATA_cbData, l, cfdata->sum_calculated);
 	if (cfdata->sum_calculated != cfdata->sum) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Checksum error CFDATA[%d] %x:%x in %d bytes",
+		    "Checksum error CFDATA[%d] %" PRIx32 ":%" PRIx32 " in %d bytes",
 		    cab->entry_cffolder->cfdata_index -1,
 		    cfdata->sum, cfdata->sum_calculated,
 		    cfdata->compressed_size);

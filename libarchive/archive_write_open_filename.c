@@ -62,6 +62,7 @@ struct write_file_data {
 };
 
 static int	file_close(struct archive *, void *);
+static int	file_free(struct archive *, void *);
 static int	file_open(struct archive *, void *);
 static ssize_t	file_write(struct archive *, void *, const void *buff, size_t);
 static int	open_filename(struct archive *, int, const void *);
@@ -123,8 +124,8 @@ open_filename(struct archive *a, int mbs_fn, const void *filename)
 		return (ARCHIVE_FAILED);
 	}
 	mine->fd = -1;
-	return (archive_write_open(a, mine,
-		file_open, file_write, file_close));
+	return (archive_write_open2(a, mine,
+		    file_open, file_write, file_close, file_free));
 }
 
 static int
@@ -244,8 +245,24 @@ file_close(struct archive *a, void *client_data)
 
 	(void)a; /* UNUSED */
 
+	if (mine == NULL)
+		return (ARCHIVE_FATAL);
+
 	if (mine->fd >= 0)
 		close(mine->fd);
+
+	return (ARCHIVE_OK);
+}
+
+static int
+file_free(struct archive *a, void *client_data)
+{
+	struct write_file_data	*mine = (struct write_file_data *)client_data;
+
+	(void)a; /* UNUSED */
+
+	if (mine == NULL)
+		return (ARCHIVE_OK);
 
 	archive_mstring_clean(&mine->filename);
 	free(mine);
