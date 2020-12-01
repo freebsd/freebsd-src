@@ -100,16 +100,16 @@ void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type)
 
 
 int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
-			u32 *in, int inlen)
+			u32 *in, int inlen, u32 *out, int outlen)
 {
 	struct mlx5_cq_table *table = &dev->priv.cq_table;
-	u32 out[MLX5_ST_SZ_DW(create_cq_out)] = {0};
 	u32 din[MLX5_ST_SZ_DW(destroy_cq_in)] = {0};
 	u32 dout[MLX5_ST_SZ_DW(destroy_cq_out)] = {0};
 	int err;
 
+	memset(out, 0, outlen);
 	MLX5_SET(create_cq_in, in, opcode, MLX5_CMD_OP_CREATE_CQ);
-	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
+	err = mlx5_cmd_exec(dev, in, inlen, out, outlen);
 	if (err)
 		return err;
 
