@@ -246,8 +246,7 @@ static int mlx5_eq_int(struct mlx5_core_dev *dev, struct mlx5_eq *eq)
 			      eq->eqn, eqe_type_str(eqe->type));
 		switch (eqe->type) {
 		case MLX5_EVENT_TYPE_COMP:
-			cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
-			mlx5_cq_completion(dev, cqn);
+			mlx5_cq_completion(dev, eqe);
 			break;
 
 		case MLX5_EVENT_TYPE_PATH_MIG:

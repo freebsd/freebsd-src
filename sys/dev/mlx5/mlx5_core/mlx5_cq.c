@@ -56,12 +56,15 @@ mlx5_cq_table_write_unlock(struct mlx5_cq_table *table)
 	NET_EPOCH_WAIT();
 }
 
-void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn)
+void mlx5_cq_completion(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe)
 {
 	struct mlx5_cq_table *table = &dev->priv.cq_table;
 	struct mlx5_core_cq *cq;
 	struct epoch_tracker et;
+	u32 cqn;
 	bool do_lock;
+
+	cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
 
 	NET_EPOCH_ENTER_ET(et);
 
@@ -79,7 +82,7 @@ void mlx5_cq_completion(struct mlx5_core_dev *dev, u32 cqn)
 
 	if (likely(cq != NULL)) {
 		++cq->arm_sn;
-		cq->comp(cq);
+		cq->comp(cq, eqe);
 	} else {
 		mlx5_core_warn(dev,
 		    "Completion event for bogus CQ 0x%x\n", cqn);

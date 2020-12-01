@@ -232,7 +232,7 @@ mlx5e_rl_open_channel(struct mlx5e_rl_worker *rlw, int eq_ix,
 	*ppsq = sq;
 
 	/* poll TX queue initially */
-	sq->cq.mcq.comp(&sq->cq.mcq);
+	sq->cq.mcq.comp(&sq->cq.mcq, NULL);
 
 	return (0);
 

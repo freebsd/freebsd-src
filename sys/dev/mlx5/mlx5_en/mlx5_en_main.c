@@ -1887,7 +1887,7 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 	    mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
 		mtx_unlock(&sq->lock);
 		msleep(1);
-		sq->cq.mcq.comp(&sq->cq.mcq);
+		sq->cq.mcq.comp(&sq->cq.mcq, NULL);
 		mtx_lock(&sq->lock);
 	}
 	mtx_unlock(&sq->lock);
@@ -1905,7 +1905,7 @@ mlx5e_drain_sq(struct mlx5e_sq *sq)
 	       mdev->state != MLX5_DEVICE_STATE_INTERNAL_ERROR) {
 		mtx_unlock(&sq->lock);
 		msleep(1);
-		sq->cq.mcq.comp(&sq->cq.mcq);
+		sq->cq.mcq.comp(&sq->cq.mcq, NULL);
 		mtx_lock(&sq->lock);
 	}
 	mtx_unlock(&sq->lock);
@@ -2200,7 +2200,7 @@ mlx5e_open_channel(struct mlx5e_priv *priv,
 
 	/* poll receive queue initially */
 	NET_EPOCH_ENTER_ET(et);
-	c->rq.cq.mcq.comp(&c->rq.cq.mcq);
+	c->rq.cq.mcq.comp(&c->rq.cq.mcq, NULL);
 	NET_EPOCH_EXIT_ET(et);
 
 	return (0);
@@ -3760,7 +3760,7 @@ mlx5e_disable_rx_dma(struct mlx5e_channel *ch)
 	while (!mlx5_wq_ll_is_empty(&rq->wq)) {
 		msleep(1);
 		NET_EPOCH_ENTER_ET(et);
-		rq->cq.mcq.comp(&rq->cq.mcq);
+		rq->cq.mcq.comp(&rq->cq.mcq, NULL);
 		NET_EPOCH_EXIT_ET(et);
 	}
 
@@ -3793,7 +3793,7 @@ mlx5e_enable_rx_dma(struct mlx5e_channel *ch)
 	rq->enabled = 1;
 
 	NET_EPOCH_ENTER_ET(et);
-	rq->cq.mcq.comp(&rq->cq.mcq);
+	rq->cq.mcq.comp(&rq->cq.mcq, NULL);
 	NET_EPOCH_EXIT_ET(et);
 }
 
