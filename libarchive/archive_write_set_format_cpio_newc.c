@@ -190,7 +190,7 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 	const char *path;
 	size_t len;
 
-	if (archive_entry_filetype(entry) == 0) {
+	if (archive_entry_filetype(entry) == 0 && archive_entry_hardlink(entry) == NULL) {
 		archive_set_error(&a->archive, -1, "Filetype required");
 		return (ARCHIVE_FAILED);
 	}

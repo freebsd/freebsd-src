@@ -141,6 +141,17 @@ test_format(int	(*set_format)(struct archive *))
 	archive_entry_free(ae);
 	assertEqualIntA(a, 0, archive_write_data(a, "12345678", 9));
 
+	/*
+	 * Write a character device to it.
+	 */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "tty0");
+	archive_entry_set_mode(ae, S_IFCHR | 0600);
+	archive_entry_set_size(ae, 0);
+	archive_entry_set_rdev(ae, 1024);
+	assertA(0 == archive_write_header(a, ae));
+	archive_entry_free(ae);
+
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
@@ -211,6 +222,15 @@ test_format(int	(*set_format)(struct archive *))
 	assertEqualInt((S_IFDIR | 0755), archive_entry_mode(ae));
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, 0, archive_read_data(a, filedata, 10));
+
+	/*
+	 * Read the character device entry back.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("tty0", archive_entry_pathname(ae));
+	assertEqualInt((S_IFCHR | 0600), archive_entry_mode(ae));
+	assertEqualInt(0, archive_entry_size(ae));
+	assertEqualInt(1024, archive_entry_rdev(ae));
 
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, 1, archive_read_next_header(a, &ae));

@@ -1,5 +1,7 @@
-FROM ubuntu:18.04
-RUN apt-get update && apt-get install -y build-essential autoconf automake libtool pkg-config cmake libssl-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop groff ghostscript bsdmainutils zip
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive
+RUN ln -sf /usr/share/zoneinfo/Europe/Berlin /etc/localtime
+RUN apt-get update && apt-get install -y build-essential autoconf automake libtool pkg-config cmake zlib1g-dev libssl-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop groff ghostscript bsdmainutils zip
 ADD . $HOME/libarchive/
 ADD "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD" $HOME/libarchive/build/autoconf/config.guess
 ADD "http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD" $HOME/libarchive/build/autoconf/config.sub

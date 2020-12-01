@@ -4,7 +4,7 @@ This code is based on PPMd var.H (2001): Dmitry Shkarin : Public domain */
 
 #include "archive_platform.h"
 
-#include <memory.h>
+#include <stdlib.h>
 
 #include "archive_ppmd7_private.h"
 

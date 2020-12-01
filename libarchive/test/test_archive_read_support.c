@@ -35,6 +35,17 @@ typedef struct archive *constructor(void);
 typedef int enabler(struct archive *);
 typedef int destructor(struct archive *);
 
+static int format_code = 0;
+static int format_code_enabler(struct archive *a)
+{
+	return archive_read_support_format_by_code(a, format_code);
+}
+
+static int format_code_setter(struct archive *a)
+{
+	return archive_read_set_format(a, format_code);
+}
+
 static void
 test_success(constructor new_, enabler enable_, destructor free_)
 {
@@ -84,6 +95,42 @@ DEFINE_TEST(test_archive_read_support)
 	test_filter_or_format(archive_read_support_format_tar);
 	test_filter_or_format(archive_read_support_format_xar);
 	test_filter_or_format(archive_read_support_format_zip);
+
+	int format_codes[] = {
+	    ARCHIVE_FORMAT_CPIO,
+	    ARCHIVE_FORMAT_CPIO_POSIX,
+	    ARCHIVE_FORMAT_CPIO_BIN_LE,
+	    ARCHIVE_FORMAT_CPIO_BIN_BE,
+	    ARCHIVE_FORMAT_CPIO_SVR4_NOCRC,
+	    ARCHIVE_FORMAT_CPIO_SVR4_CRC,
+	    ARCHIVE_FORMAT_CPIO_AFIO_LARGE,
+	    ARCHIVE_FORMAT_TAR,
+	    ARCHIVE_FORMAT_TAR_USTAR,
+	    ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE,
+	    ARCHIVE_FORMAT_TAR_PAX_RESTRICTED,
+	    ARCHIVE_FORMAT_TAR_GNUTAR,
+	    ARCHIVE_FORMAT_ISO9660,
+	    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE,
+	    ARCHIVE_FORMAT_ZIP,
+	    ARCHIVE_FORMAT_EMPTY,
+	    ARCHIVE_FORMAT_AR,
+	    ARCHIVE_FORMAT_AR_GNU,
+	    ARCHIVE_FORMAT_AR_BSD,
+	    ARCHIVE_FORMAT_MTREE,
+	    ARCHIVE_FORMAT_RAW,
+	    ARCHIVE_FORMAT_XAR,
+	    ARCHIVE_FORMAT_LHA,
+	    ARCHIVE_FORMAT_CAB,
+	    ARCHIVE_FORMAT_RAR,
+	    ARCHIVE_FORMAT_7ZIP,
+	    ARCHIVE_FORMAT_WARC,
+	    ARCHIVE_FORMAT_RAR_V5,
+	};
+	for (unsigned i = 0; i < sizeof(format_codes) / sizeof(int); i++) {
+		format_code = format_codes[i];
+		test_filter_or_format(format_code_enabler);
+		test_filter_or_format(format_code_setter);
+	}
 
 	test_filter_or_format(archive_read_support_filter_all);
 	test_filter_or_format(archive_read_support_filter_bzip2);

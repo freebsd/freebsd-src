@@ -1,4 +1,5 @@
 /* config.h.  Generated from build/cmake/config.h.in by cmake configure */
+#define __LIBARCHIVE_CONFIG_H_INCLUDED 1
 
 /*
  * Ensure we have C99-style int64_t, etc, all defined.

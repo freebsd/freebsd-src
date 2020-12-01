@@ -158,6 +158,7 @@ libarchive_la_SOURCES= \
 	libarchive/archive_read_set_options.c \
 	libarchive/archive_read_support_filter_all.c \
 	libarchive/archive_read_support_filter_bzip2.c \
+	libarchive/archive_read_support_filter_by_code.c \
 	libarchive/archive_read_support_filter_compress.c \
 	libarchive/archive_read_support_filter_grzip.c \
 	libarchive/archive_read_support_filter_gzip.c \
@@ -897,6 +898,7 @@ libarchive_test_EXTRA_DIST=\
 	libarchive/test/test_read_format_warc.warc.uu \
 	libarchive/test/test_read_format_zip.zip.uu \
 	libarchive/test/test_read_format_zip_7075_utf8_paths.zip.uu \
+	libarchive/test/test_read_format_zip_7z_lzma.zip.uu \
 	libarchive/test/test_read_format_zip_bz2_hang.zip.uu \
 	libarchive/test/test_read_format_zip_bzip2.zipx.uu \
 	libarchive/test/test_read_format_zip_bzip2_multi.zipx.uu \

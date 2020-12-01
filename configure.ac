@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.4.3])
-m4_define([LIBARCHIVE_VERSION_N],[3004003])
+m4_define([LIBARCHIVE_VERSION_S],[3.5.0])
+m4_define([LIBARCHIVE_VERSION_N],[3005000])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -47,6 +47,8 @@ ARCHIVE_REVISION=$(( LIBARCHIVE_VERSION_N() % 1000 ))
 ARCHIVE_LIBTOOL_VERSION=$ARCHIVE_INTERFACE:$ARCHIVE_REVISION:$ARCHIVE_MINOR
 
 # Stick the version numbers into config.h
+AC_DEFINE([__LIBARCHIVE_CONFIG_H_INCLUDED], [1],
+	[Internal macro for sanity checks])
 AC_DEFINE([LIBARCHIVE_VERSION_STRING],"LIBARCHIVE_VERSION_S()",
 	[Version number of libarchive])
 AC_DEFINE_UNQUOTED([LIBARCHIVE_VERSION_NUMBER],"LIBARCHIVE_VERSION_N()",
@@ -103,6 +105,7 @@ AC_SUBST(PLATFORMCPPFLAGS)
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_CC_C99
 AM_PROG_CC_C_O
 AC_USE_SYSTEM_EXTENSIONS
 AC_LIBTOOL_WIN32_DLL
@@ -244,9 +247,23 @@ AM_CONDITIONAL([STATIC_BSDCPIO], [ test "$static_bsdcpio" = yes ])
 # Set up defines needed before including any headers
 case $host in
   *mingw* | *cygwin* | *msys*  )
-  AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
-  AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
-  AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
+    [[#ifdef _WIN32_WINNT
+     # error _WIN32_WINNT already defined
+     #endif
+    ]],[[;]])
+  ],[
+    AC_DEFINE([_WIN32_WINNT], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+    AC_DEFINE([NTDDI_VERSION], 0x05020000, [Define to '0x05020000' for Windows Server 2003 APIs.])
+  ])
+  AC_PREPROC_IFELSE([AC_LANG_PROGRAM(
+    [[#ifdef WINVER
+     # error WINVER already defined
+     #endif
+    ]],[[;]])
+  ],[
+    AC_DEFINE([WINVER], 0x0502, [Define to '0x0502' for Windows Server 2003 APIs.])
+  ])
   ;;
 esac
 

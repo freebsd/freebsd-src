@@ -196,8 +196,80 @@ test_read_format_mtree1(void)
 	assertEqualInt(archive_entry_is_encrypted(ae), 0);
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 
+	/* md5digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/md5file");
+	assertEqualMem(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_MD5),
+	    "\xd4\x1d\x8c\xd9\x8f\x00\xb2\x04\xe9\x80\x09\x98\xec\xf8\x42\x7e",
+	    16);
+
+	/* rmd160digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/rmd160file");
+	assertEqualMem(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_RMD160),
+	    "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d\x32\x55\xbf\xef\x95\x60\x18\x90"
+	    "\xaf\xd8\x07\x09", 20);
+
+	/* sha1digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/sha1file");
+	assertEqualMem(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_SHA1),
+	    "\xda\x39\xa3\xee\x5e\x6b\x4b\x0d\x32\x55\xbf\xef\x95\x60\x18\x90"
+	    "\xaf\xd8\x07\x09", 20);
+
+	/* sha256digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/sha256file");
+	assertEqualMem(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_SHA256),
+	    "\xe3\xb0\xc4\x42\x98\xfc\x1c\x14\x9a\xfb\xf4\xc8\x99\x6f\xb9\x24"
+	    "\x27\xae\x41\xe4\x64\x9b\x93\x4c\xa4\x95\x99\x1b\x78\x52\xb8\x55",
+	    32);
+
+	/* sha384digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/sha384file");
+	assertEqualMem(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_SHA384),
+	    "\x38\xb0\x60\xa7\x51\xac\x96\x38\x4c\xd9\x32\x7e\xb1\xb1\xe3\x6a"
+	    "\x21\xfd\xb7\x11\x14\xbe\x07\x43\x4c\x0c\xc7\xbf\x63\xf6\xe1\xda"
+	    "\x27\x4e\xde\xbf\xe7\x6f\x65\xfb\xd5\x1a\xd2\xf1\x48\x98\xb9\x5b",
+	    48);
+
+	/* sha512digest */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/sha512file");
+	assertEqualMem(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_SHA512),
+	    "\xcf\x83\xe1\x35\x7e\xef\xb8\xbd\xf1\x54\x28\x50\xd6\x6d\x80\x07"
+	    "\xd6\x20\xe4\x05\x0b\x57\x15\xdc\x83\xf4\xa9\x21\xd3\x6c\xe9\xce"
+	    "\x47\xd0\xd1\x3c\x5d\x85\xf2\xb0\xff\x83\x18\xd2\x87\x7e\xec\x2f"
+	    "\x63\xb9\x31\xbd\x47\x41\x7a\x81\xa5\x38\x32\x7a\xf9\x27\xda\x3e",
+	    64);
+
+	/* md5 digest is too short */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/md5tooshort");
+	assertMemoryFilledWith(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_MD5),
+	    16, 0x00);
+
+	/* md5 digest is too long */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/md5toolong");
+	assertMemoryFilledWith(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_MD5),
+	    16, 0x00);
+
+	/* md5 digest is uppercase hex */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/md5caphex");
+	assertMemoryFilledWith(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_MD5),
+	    16, 0x00);
+
+	/* md5 digest is not hex */
+	assertEqualIntA(a, ARCHIVE_WARN, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "dir2/md5nothex");
+	assertMemoryFilledWith(archive_entry_digest(ae, ARCHIVE_ENTRY_DIGEST_MD5),
+	    16, 0x00);
+
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(20, archive_file_count(a));
+	assertEqualInt(30, archive_file_count(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
