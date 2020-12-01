@@ -1,5 +1,114 @@
 News for the tz database
 
+Release 2020d - 2020-10-21 11:24:13 -0700
+
+  Briefly:
+    Palestine ends DST earlier than predicted, on 2020-10-24.
+
+  Changes to past and future timestamps
+
+    Palestine ends DST on 2020-10-24 at 01:00, instead of 2020-10-31
+    as previously predicted (thanks to Sharef Mustafa.)  Its
+    2019-10-26 fall-back was at 00:00, not 01:00 (thanks to Steffen
+    Thorsen.)  Its 2015-10-23 transition was at 01:00 not 00:00, and
+    its spring 2020 transition was on March 28 at 00:00, not March 27
+    (thanks to Pierre Cashon.)  This affects Asia/Gaza and
+    Asia/Hebron.  Assume future spring and fall transitions will be on
+    the Saturday preceding the last Sunday of March and October,
+    respectively.
+
+
+Release 2020c - 2020-10-16 11:15:53 -0700
+
+  Briefly:
+    Fiji starts DST later than usual, on 2020-12-20.
+
+  Changes to future timestamps
+
+    Fiji will start DST on 2020-12-20, instead of 2020-11-08 as
+    previously predicted.  DST will still end on 2021-01-17.
+    (Thanks to Raymond Kumar and Alan Mintz.)  Assume for now that
+    the later-than-usual start date is a one-time departure from the
+    recent pattern.
+
+  Changes to build procedure
+
+    Rearguard tarballs now contain an empty file pacificnew.
+    Some older downstream software expects this file to exist.
+    (Problem reported by Mike Cullinan.)
+
+
+Release 2020b - 2020-10-06 18:35:04 -0700
+
+  Briefly:
+    Revised predictions for Morocco's changes starting in 2023.
+    Canada's Yukon changes to -07 on 2020-11-01, not 2020-03-08.
+    Macquarie Island has stayed in sync with Tasmania since 2011.
+    Casey, Antarctica is at +08 in winter and +11 in summer.
+    zic no longer supports -y, nor the TYPE field of Rules.
+
+  Changes to future timestamps
+
+    Morocco's spring-forward after Ramadan is now predicted to occur
+    no sooner than two days after Ramadan, instead of one day.
+    (Thanks to Milamber.)  The first altered prediction is for 2023,
+    now predicted to spring-forward on April 30 instead of April 23.
+
+  Changes to past and future timestamps
+
+   Casey Station, Antarctica has been using +08 in winter and +11 in
+   summer since 2018.  The most recent transition from +08 to +11 was
+   2020-10-04 00:01.  Also, Macquarie Island has been staying in
+   sync with Tasmania since 2011.  (Thanks to Steffen Thorsen.)
+
+  Changes to past and future time zone abbreviations and DST flags
+
+    Canada's Yukon, represented by America/Whitehorse and
+    America/Dawson, changes its time zone rules from -08/-07 to
+    permanent -07 on 2020-11-01, not on 2020-03-08 as 2020a had it.
+    This change affects only the time zone abbreviation (MST vs PDT)
+    and daylight saving flag for the period between the two dates.
+    (Thanks to Andrew G. Smith.)
+
+  Changes to past timestamps
+
+    Correct several transitions for Hungary for 1918/1983.
+    For example, the 1983-09-25 fall-back was at 01:00, not 03:00.
+    (Thanks to Géza Nyáry.)  Also, the 1890 transition to standard
+    time was on 11-01, not 10-01 (thanks to Michael Deckers).
+
+    The 1891 French transition was on March 16, not March 15.  The
+    1911-03-11 French transition was at midnight, not a minute later.
+    Monaco's transitions were on 1892-06-01 and 1911-03-29, not
+    1891-03-15 and 1911-03-11.  (Thanks to Michael Deckers.)
+
+  Changes to code
+
+    Support for zic's long-obsolete '-y YEARISTYPE' option has been
+    removed and, with it, so has support for the TYPE field in Rule
+    lines, which is now reserved for compatibility with earlier zic.
+    These features were previously deprecated in release 2015f.
+    (Thanks to Tim Parenti.)
+
+    zic now defaults to '-b slim' instead of to '-b fat'.
+
+    zic's new '-l -' and '-p -' options uninstall any existing
+    localtime and posixrules files, respectively.
+
+    The undocumented and ineffective tzsetwall function has been
+    removed.
+
+  Changes to build procedure
+
+    The Makefile now defaults POSIXRULES to '-', so the posixrules
+    feature (obsolete as of 2019b) is no longer installed by default.
+
+  Changes to documentation and commentary
+
+    The long-obsolete files pacificnew, systemv, and yearistype.sh have
+    been removed from the distribution.  (Thanks to Tim Parenti.)
+
+
 Release 2020a - 2020-04-23 16:03:47 -0700
 
   Briefly:
