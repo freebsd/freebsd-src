@@ -143,8 +143,8 @@ ATF_TC_BODY(lio_listio_empty_nowait_kevent, tc)
 	int kq, result;
 	void *udata = (void*)0xdeadbeefdeadbeef;
 
-	atf_tc_expect_timeout("Bug 220398 - lio_listio(2) never sends"
-			" asynchronous notification if nent==0");
+	atf_tc_expect_timeout("Bug 251515 - lio_listio(2) never sends"
+			" kevent if nent==0");
 	kq = kqueue();
 	ATF_REQUIRE(kq > 0);
 	sev.sigev_notify = SIGEV_KEVENT;
@@ -168,8 +168,6 @@ ATF_TC_BODY(lio_listio_empty_nowait_signal, tc)
 	struct aiocb *list = NULL;
 	struct sigevent sev;
 
-	atf_tc_expect_timeout("Bug 220398 - lio_listio(2) never sends"
-	    " asynchronous notification if nent==0");
 	ATF_REQUIRE_EQ(0, sem_init(&completions, false, 0));
 	sev.sigev_notify = SIGEV_SIGNAL;
 	sev.sigev_signo = SIGUSR1;
@@ -189,9 +187,6 @@ ATF_TC_BODY(lio_listio_empty_nowait_thread, tc)
 	struct aiocb *list = NULL;
 	struct sigevent sev;
 
-	atf_tc_skip("Sometimes hangs and sometimes passes");
-	atf_tc_expect_timeout("Bug 220398 - lio_listio(2) never sends"
-	    " asynchronous notification if nent==0");
 	ATF_REQUIRE_EQ(0, sem_init(&completions, false, 0));
 	bzero(&sev, sizeof(sev));
 	sev.sigev_notify = SIGEV_THREAD;
