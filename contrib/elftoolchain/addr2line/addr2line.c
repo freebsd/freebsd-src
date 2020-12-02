@@ -580,8 +580,8 @@ check_range(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 	ranges_cnt = 0;
 	in_cu = false;
 
-	ret = dwarf_attrval_unsigned(die, DW_AT_ranges, &ranges_off, &de);
-	if (ret == DW_DLV_OK) {
+	if (dwarf_attrval_unsigned(die, DW_AT_ranges, &ranges_off, &de) ==
+	    DW_DLV_OK) {
 		ret = dwarf_get_ranges(dbg, ranges_off, &ranges,
 			&ranges_cnt, NULL, &de);
 		if (ret != DW_DLV_OK)
@@ -612,33 +612,30 @@ check_range(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 				break;
 			}
 		}
-	} else {
-		if (dwarf_attrval_unsigned(die, DW_AT_low_pc, &lopc, &de) ==
+	} else if (dwarf_attrval_unsigned(die, DW_AT_low_pc, &lopc, &de) ==
+	    DW_DLV_OK) {
+		if (lopc == curlopc)
+			return (DW_DLV_ERROR);
+		if (dwarf_attrval_unsigned(die, DW_AT_high_pc, &hipc, &de) ==
 		    DW_DLV_OK) {
-			if (lopc == curlopc)
+			/*
+			 * Check if the address falls into the PC
+			 * range of this CU.
+			 */
+			if (handle_high_pc(die, lopc, &hipc) != DW_DLV_OK)
 				return (DW_DLV_ERROR);
-			if (dwarf_attrval_unsigned(die, DW_AT_high_pc, &hipc,
-				&de) == DW_DLV_OK) {
-				/*
-				 * Check if the address falls into the PC
-				 * range of this CU.
-				 */
-				if (handle_high_pc(die, lopc, &hipc) !=
-					DW_DLV_OK)
-					return (DW_DLV_ERROR);
-			} else {
-				/* Assume ~0ULL if DW_AT_high_pc not present. */
-				hipc = ~0ULL;
-			}
-
-			if (addr >= lopc && addr < hipc) {
-				in_cu = true;
-			}
 		} else {
-			/* Addr not in range die, try labels. */
-			ret = check_labels(dbg, die, addr, range);
-			return ret;
+			/* Assume ~0ULL if DW_AT_high_pc not present. */
+			hipc = ~0ULL;
 		}
+
+		if (addr >= lopc && addr < hipc) {
+			in_cu = true;
+		}
+	} else {
+		/* Addr not found above, try labels. */
+		ret = check_labels(dbg, die, addr, range);
+		return ret;
 	}
 
 	if (in_cu) {
