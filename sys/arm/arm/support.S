@@ -1213,10 +1213,10 @@ ENTRY(memcpy)
  */
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
 	ldrh	r3, [r1, #0x02]		/* LE:r3 = ..23  LE:r3 = ..32 */
-	mov	r1, r2, lsr #8		/* r1 = ...0 */
-	strb	r1, [r0]
-	mov	r2, r2, lsl #8		/* r2 = .01. */
-	orr	r2, r2, r3, lsr #8	/* r2 = .012 */
+	strb	r2, [r0]
+	mov	r2, r2, lsr #8		/* r2 = ...1 */
+	orr	r2, r2, r3, lsl #8	/* r2 = .321 */
+	mov	r3, r3, lsr #8		/* r3 = ...3 */
 	strh	r2, [r0, #0x01]
 	strb	r3, [r0, #0x03]
 	RET
