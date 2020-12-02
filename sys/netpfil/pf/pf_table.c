@@ -1641,6 +1641,7 @@ pfr_ina_commit(struct pfr_table *trs, u_int32_t ticket, int *nadd,
 static void
 pfr_commit_ktable(struct pfr_ktable *kt, long tzero)
 {
+	counter_u64_t		*pkc, *qkc;
 	struct pfr_ktable	*shadow = kt->pfrkt_shadow;
 	int			 nflags;
 
@@ -1662,14 +1663,17 @@ pfr_commit_ktable(struct pfr_ktable *kt, long tzero)
 		SLIST_INIT(&delq);
 		SLIST_INIT(&garbageq);
 		pfr_clean_node_mask(shadow, &addrq);
-		for (p = SLIST_FIRST(&addrq); p != NULL; p = next) {
-			next = SLIST_NEXT(p, pfrke_workq);	/* XXX */
+		SLIST_FOREACH_SAFE(p, &addrq, pfrke_workq, next) {
 			pfr_copyout_addr(&ad, p);
 			q = pfr_lookup_addr(kt, &ad, 1);
 			if (q != NULL) {
 				if (q->pfrke_not != p->pfrke_not)
 					SLIST_INSERT_HEAD(&changeq, q,
 					    pfrke_workq);
+				pkc = &p->pfrke_counters.pfrkc_counters;
+				qkc = &q->pfrke_counters.pfrkc_counters;
+				if ((*pkc == NULL) != (*qkc == NULL))
+					SWAP(counter_u64_t, *pkc, *qkc);
 				q->pfrke_mark = 1;
 				SLIST_INSERT_HEAD(&garbageq, p, pfrke_workq);
 			} else {
