@@ -84,7 +84,7 @@ rtsock_open(void)
 	if (caph_rights_limit(s, &rights) != 0) {
 		error = errno;
 		(void)close(s);
-		errno = errno;
+		errno = error;
 		return (-1);
 	}
 	return (s);
