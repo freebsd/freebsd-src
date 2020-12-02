@@ -1820,14 +1820,17 @@ doselwakeup(struct selinfo *sip, int pri)
 		 */
 		TAILQ_REMOVE(&sip->si_tdlist, sfp, sf_threads);
 		stp = sfp->sf_td;
-		/*
-		 * Paired with selfdfree.
-		 */
-		atomic_store_rel_ptr((uintptr_t *)&sfp->sf_si, (uintptr_t)NULL);
 		mtx_lock(&stp->st_mtx);
 		stp->st_flags |= SELTD_PENDING;
 		cv_broadcastpri(&stp->st_wait, pri);
 		mtx_unlock(&stp->st_mtx);
+		/*
+		 * Paired with selfdfree.
+		 *
+		 * Storing this only after the wakeup provides an invariant that
+		 * stp is not used after selfdfree returns.
+		 */
+		atomic_store_rel_ptr((uintptr_t *)&sfp->sf_si, (uintptr_t)NULL);
 	}
 	mtx_unlock(sip->si_mtx);
 }
@@ -1837,14 +1840,18 @@ seltdinit(struct thread *td)
 {
 	struct seltd *stp;
 
-	if ((stp = td->td_sel) != NULL)
-		goto out;
-	td->td_sel = stp = malloc(sizeof(*stp), M_SELECT, M_WAITOK|M_ZERO);
+	stp = td->td_sel;
+	if (stp != NULL) {
+		MPASS(stp->st_flags == 0);
+		MPASS(STAILQ_EMPTY(&stp->st_selq));
+		return;
+	}
+	stp = malloc(sizeof(*stp), M_SELECT, M_WAITOK|M_ZERO);
 	mtx_init(&stp->st_mtx, "sellck", NULL, MTX_DEF);
 	cv_init(&stp->st_wait, "select");
-out:
 	stp->st_flags = 0;
 	STAILQ_INIT(&stp->st_selq);
+	td->td_sel = stp;
 }
 
 static int
@@ -1887,6 +1894,8 @@ seltdfini(struct thread *td)
 	stp = td->td_sel;
 	if (stp == NULL)
 		return;
+	MPASS(stp->st_flags == 0);
+	MPASS(STAILQ_EMPTY(&stp->st_selq));
 	if (stp->st_free1)
 		free(stp->st_free1, M_SELFD);
 	if (stp->st_free2)
