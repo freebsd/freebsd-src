@@ -327,7 +327,7 @@ if_nametosdl(char *name)
 			}
 		}
 	}
-	if (next == lim) {
+	if (next >= lim) {
 		/* search failed */
 		free(buf);
 		return (NULL);

@@ -148,6 +148,7 @@ rtsold_init_dumpfile(const char *dumpfile)
 	if (caph_rights_limit(fileno(fp), &rights) != 0) {
 		warnmsg(LOG_WARNING, __func__, "caph_rights_limit(%s): %s",
 		    dumpfile, strerror(errno));
+		(void)fclose(fp);
 		return (NULL);
 	}
 	return (fp);
