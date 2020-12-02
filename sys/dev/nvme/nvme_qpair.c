@@ -547,6 +547,8 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	if (!qpair->is_enabled)
 		return (false);
 
+	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	/*
 	 * A panic can stop the CPU this routine is running on at any point.  If
 	 * we're called during a panic, complete the sq_head wrap protocol for
@@ -580,8 +582,6 @@ nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		}
 	}
 
-	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	while (1) {
 		cpl = qpair->cpl[qpair->cq_head];
 
@@ -722,7 +722,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	bus_dma_tag_set_domain(qpair->dma_tag, qpair->domain);
 
 	if (bus_dmamem_alloc(qpair->dma_tag, (void **)&queuemem,
-	    BUS_DMA_NOWAIT, &qpair->queuemem_map)) {
+	     BUS_DMA_COHERENT | BUS_DMA_NOWAIT, &qpair->queuemem_map)) {
 		nvme_printf(ctrlr, "failed to alloc qpair memory\n");
 		goto out;
 	}
@@ -982,7 +982,7 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-#ifndef __powerpc__
+#if !defined( __powerpc__) && !defined( __aarch64__)  && !defined( __arm__)
 	/*
 	 * powerpc's bus_dmamap_sync() already includes a heavyweight sync, but
 	 * no other archs do.
