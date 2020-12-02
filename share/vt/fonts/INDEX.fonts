@@ -13,7 +13,7 @@
 # 	terminus-b32.fnt:de:Terminus Schriftart
 # 	terminus-b32.fnt:en:Terminus font
 #
-# If lang empty use 'en' (us-english) as default.
+# If lang is empty use 'en' (us-english) as default.
 #
 # See also setlocale(3),
 # /usr/share/locale, /usr/X11/lib/X11/locale/locale.alias
