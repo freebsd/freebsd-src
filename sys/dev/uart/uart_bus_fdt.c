@@ -175,26 +175,39 @@ uart_fdt_find_by_node(phandle_t node, int class_list)
 int
 uart_cpu_fdt_probe(struct uart_class **classp, bus_space_tag_t *bst,
     bus_space_handle_t *bsh, int *baud, u_int *rclk, u_int *shiftp,
-    u_int *iowidthp)
+    u_int *iowidthp, const int devtype)
 {
 	const char *propnames[] = {"stdout-path", "linux,stdout-path", "stdout",
 	    "stdin-path", "stdin", NULL};
+	const char *propnames_dbgport[] = {"freebsd,debug-path", NULL};
 	const char **name;
 	struct uart_class *class;
 	phandle_t node, chosen;
 	pcell_t br, clk, shift, iowidth;
-	char *cp;
+	char *cp = NULL;
 	int err;
 
 	/* Has the user forced a specific device node? */
-	cp = kern_getenv("hw.fdt.console");
+	switch (devtype) {
+	case UART_DEV_DBGPORT:
+		cp = kern_getenv("hw.fdt.dbgport");
+		name = propnames_dbgport;
+		break;
+	case UART_DEV_CONSOLE:
+		cp = kern_getenv("hw.fdt.console");
+		name = propnames;
+		break;
+	default:
+		return (ENXIO);
+	}
+
 	if (cp == NULL) {
 		/*
-		 * Retrieve /chosen/std{in,out}.
+		 * Retrieve a node from /chosen.
 		 */
 		node = -1;
 		if ((chosen = OF_finddevice("/chosen")) != -1) {
-			for (name = propnames; *name != NULL; name++) {
+			for (; *name != NULL; name++) {
 				if (phandle_chosen_propdev(chosen, *name,
 				    &node) == 0)
 					break;
