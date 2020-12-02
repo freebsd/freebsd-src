@@ -512,44 +512,57 @@ free_elf(struct elfcopy *ecp)
 
 /* Create a temporary file. */
 void
-create_tempfile(char **fn, int *fd)
+create_tempfile(const char *src, char **fn, int *fd)
 {
+	static const char _TEMPDIR[] = "/tmp/";
+	static const char _TEMPFILE[] = "ecp.XXXXXXXX";
 	const char	*tmpdir;
-	char		*cp, *tmpf;
-	size_t		 tlen, plen;
-
-#define	_TEMPFILE "ecp.XXXXXXXX"
-#define	_TEMPFILEPATH "/tmp/ecp.XXXXXXXX"
+	char		*tmpf;
+	size_t		 tlen, slen, plen;
 
 	if (fn == NULL || fd == NULL)
 		return;
-	/* Repect TMPDIR environment variable. */
-	tmpdir = getenv("TMPDIR");
-	if (tmpdir != NULL && *tmpdir != '\0') {
-		tlen = strlen(tmpdir);
-		plen = strlen(_TEMPFILE);
-		tmpf = malloc(tlen + plen + 2);
+	for (;;) {
+		if (src == NULL) {
+			/* Respect TMPDIR environment variable. */
+			tmpdir = getenv("TMPDIR");
+			if (tmpdir == NULL || *tmpdir == '\0')
+				tmpdir = _TEMPDIR;
+			tlen = strlen(tmpdir);
+			slen = tmpdir[tlen - 1] == '/' ? 0 : 1;
+		} else {
+			/* Create temporary file relative to source file. */
+			if ((tmpdir = strrchr(src, '/')) == NULL) {
+				/* No path, only use a template filename. */
+				tlen = 0;
+			} else {
+				/* Append the template after the slash. */
+				tlen = ++tmpdir - src;
+				tmpdir = src;
+			}
+			slen = 0;
+		}
+		plen = strlen(_TEMPFILE) + 1;
+		tmpf = malloc(tlen + slen + plen);
 		if (tmpf == NULL)
 			err(EXIT_FAILURE, "malloc failed");
-		strncpy(tmpf, tmpdir, tlen);
-		cp = &tmpf[tlen - 1];
-		if (*cp++ != '/')
-			*cp++ = '/';
-		strncpy(cp, _TEMPFILE, plen);
-		cp[plen] = '\0';
-	} else {
-		tmpf = strdup(_TEMPFILEPATH);
-		if (tmpf == NULL)
-			err(EXIT_FAILURE, "strdup failed");
+		if (tlen > 0)
+			memcpy(tmpf, tmpdir, tlen);
+		if (slen > 0)
+			tmpf[tlen] = '/';
+		/* Copy template filename including NUL terminator. */
+		memcpy(tmpf + tlen + slen, _TEMPFILE, plen);
+		if ((*fd = mkstemp(tmpf)) != -1)
+			break;
+		if (errno != EACCES || src == NULL)
+			err(EXIT_FAILURE, "mkstemp %s failed", tmpf);
+		/* Permission denied, try again using TMPDIR or /tmp. */
+		free(tmpf);
+		src = NULL;
 	}
-	if ((*fd = mkstemp(tmpf)) == -1)
-		err(EXIT_FAILURE, "mkstemp %s failed", tmpf);
 	if (fchmod(*fd, 0644) == -1)
 		err(EXIT_FAILURE, "fchmod %s failed", tmpf);
 	*fn = tmpf;
-
-#undef _TEMPFILE
-#undef _TEMPFILEPATH
 }
 
 /*
@@ -571,16 +584,16 @@ copy_from_tempfile(const char *src, const char *dst, int infd, int *outfd,
 		if (rename(src, dst) >= 0) {
 			*outfd = infd;
 			return (0);
-		} else if (errno != EXDEV)
+		} else if (errno != EXDEV && errno != EACCES)
 			return (-1);
-	
+
 		/*
 		 * If the rename() failed due to 'src' and 'dst' residing in
 		 * two different file systems, invoke a helper function in
 		 * libelftc to do the copy.
 		 */
 
-		if (unlink(dst) < 0)
+		if (errno != EACCES && unlink(dst) < 0)
 			return (-1);
 	}
 
@@ -630,7 +643,7 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 		err(EXIT_FAILURE, "fstat %s failed", src);
 
 	if (dst == NULL)
-		create_tempfile(&tempfile, &ofd);
+		create_tempfile(src, &tempfile, &ofd);
 	else
 		if ((ofd = open(dst, O_RDWR|O_CREAT, 0755)) == -1)
 			err(EXIT_FAILURE, "open %s failed", dst);
@@ -663,7 +676,7 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 			if (ecp->oed == ELFDATANONE)
 				ecp->oed = ELFDATA2LSB;
 		}
-		create_tempfile(&elftemp, &efd);
+		create_tempfile(src, &elftemp, &efd);
 		if ((ecp->eout = elf_begin(efd, ELF_C_WRITE, NULL)) == NULL)
 			errx(EXIT_FAILURE, "elf_begin() failed: %s",
 			    elf_errmsg(-1));
@@ -723,7 +736,7 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 					    tempfile);
 				free(tempfile);
 			}
-			create_tempfile(&tempfile, &ofd0);
+			create_tempfile(src, &tempfile, &ofd0);
 
 
 			/*
