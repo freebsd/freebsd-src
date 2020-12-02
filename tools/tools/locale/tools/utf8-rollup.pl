@@ -161,7 +161,8 @@ sub parse_unidata {
 			$cat = "alpha";
 		} elsif ($d[2] =~ /^P/) {
 			$cat = "punct";
-		} elsif ($d[2] =~ /^M/ || $d[2] =~ /^N/ || $d[2] =~ /^S/) {
+		} elsif ($d[2] =~ /^Co/ || $d[2] =~ /^M/ || $d[2] =~ /^N/ ||
+		    $d[2] =~ /^S/) {
 			$cat = "graph";
 		} elsif ($d[2] =~ /^C/) {
 			$cat = "cntrl";
