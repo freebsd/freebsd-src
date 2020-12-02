@@ -87,10 +87,8 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (!err)
 		return (0);
 
-	if (devtype != UART_DEV_CONSOLE)
-		return (ENXIO);
-
-	err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk, &shift, &iowidth);
+	err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk,
+	    &shift, &iowidth, devtype);
 	if (err != 0)
 		return (err);
 

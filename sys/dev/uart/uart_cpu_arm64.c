@@ -100,15 +100,11 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	if (uart_cpu_acpi_spcr(devtype, di) == 0)
 		return (0);
 #endif
-
-	if (devtype != UART_DEV_CONSOLE)
-		return (ENXIO);
-
 	err = ENXIO;
 #ifdef FDT
 	if (err != 0) {
 		err = uart_cpu_fdt_probe(&class, &bst, &bsh, &br, &rclk,
-		    &shift, &iowidth);
+		    &shift, &iowidth, devtype);
 	}
 #endif
 	if (err != 0)
