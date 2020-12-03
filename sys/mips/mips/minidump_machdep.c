@@ -60,7 +60,7 @@ static struct kerneldumpheader kdh;
 /* Handle chunked writes. */
 static uint64_t counter, progress, dumpsize;
 /* Just auxiliary bufffer */
-static char tmpbuffer[PAGE_SIZE];
+static char tmpbuffer[PAGE_SIZE] __aligned(sizeof(uint64_t));
 
 extern pd_entry_t *kernel_segmap;
 
@@ -165,6 +165,7 @@ int
 minidumpsys(struct dumperinfo *di)
 {
 	struct minidumphdr mdhdr;
+	uint64_t *dump_avail_buf;
 	uint32_t ptesize;
 	vm_paddr_t pa;
 	vm_offset_t prev_pte = 0;
@@ -206,7 +207,7 @@ minidumpsys(struct dumperinfo *di)
 	/* Calculate dump size. */
 	dumpsize = ptesize;
 	dumpsize += round_page(msgbufp->msg_size);
-	dumpsize += round_page(sizeof(dump_avail));
+	dumpsize += round_page(nitems(dump_avail) * sizeof(uint64_t));
 	dumpsize += round_page(BITSET_SIZE(vm_page_dump_pages));
 	VM_PAGE_DUMP_FOREACH(pa) {
 		/* Clear out undumpable pages now if needed */
@@ -227,7 +228,7 @@ minidumpsys(struct dumperinfo *di)
 	mdhdr.bitmapsize = round_page(BITSET_SIZE(vm_page_dump_pages));
 	mdhdr.ptesize = ptesize;
 	mdhdr.kernbase = VM_MIN_KERNEL_ADDRESS;
-	mdhdr.dumpavailsize = round_page(sizeof(dump_avail));
+	mdhdr.dumpavailsize = round_page(nitems(dump_avail) * sizeof(uint64_t));
 
 	dump_init_header(di, &kdh, KERNELDUMPMAGIC, KERNELDUMP_MIPS_VERSION,
 	    dumpsize);
@@ -252,11 +253,19 @@ minidumpsys(struct dumperinfo *di)
 	if (error)
 		goto fail;
 
-	/* Dump dump_avail */
-	_Static_assert(sizeof(dump_avail) <= sizeof(tmpbuffer),
-	    "Large dump_avail not handled");
+	/* Dump dump_avail.  Make a copy using 64-bit physical addresses. */
+	_Static_assert(nitems(dump_avail) * sizeof(uint64_t) <=
+	    sizeof(tmpbuffer), "Large dump_avail not handled");
 	bzero(tmpbuffer, sizeof(tmpbuffer));
-	memcpy(tmpbuffer, dump_avail, sizeof(dump_avail));
+	if (sizeof(dump_avail[0]) != sizeof(uint64_t)) {
+		dump_avail_buf = (uint64_t *)tmpbuffer;
+		for (i = 0; dump_avail[i] != 0 || dump_avail[i + 1] != 0; i++) {
+			dump_avail_buf[i] = dump_avail[i];
+			dump_avail_buf[i + 1] = dump_avail[i + 1];
+		}
+	} else {
+		memcpy(tmpbuffer, dump_avail, sizeof(dump_avail));
+	}
 	error = write_buffer(di, tmpbuffer, PAGE_SIZE);
 	if (error)
 		goto fail;
