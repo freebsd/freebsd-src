@@ -229,8 +229,8 @@
 #define	 BUS_MODE_PRIORXTX_21	1
 #define	 BUS_MODE_PRIORXTX_11	0
 #define	 BUS_MODE_PBL_SHIFT	8 /* Single block transfer size */
-#define	 BUS_MODE_PBL_BEATS_8	8
 #define	 BUS_MODE_SWR		(1 << 0) /* Reset */
+#define	 BUS_MODE_DEFAULT_PBL	8
 #define	TRANSMIT_POLL_DEMAND	0x1004
 #define	RECEIVE_POLL_DEMAND	0x1008
 #define	RX_DESCR_LIST_ADDR	0x100C
