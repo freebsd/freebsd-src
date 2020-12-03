@@ -403,6 +403,11 @@ SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 14, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[14], 0, "");
 SYSCTL_INT(_hw_cxgbe_toe_rexmt_backoff, OID_AUTO, 15, CTLFLAG_RDTUN,
     &t4_toe_rexmt_backoff[15], 0, "");
+
+static int t4_toe_tls_rx_timeout = 5;
+SYSCTL_INT(_hw_cxgbe_toe, OID_AUTO, tls_rx_timeout, CTLFLAG_RDTUN,
+    &t4_toe_tls_rx_timeout, 0,
+    "Timeout in seconds to downgrade TLS sockets to plain TOE");
 #endif
 
 #ifdef DEV_NETMAP
@@ -786,6 +791,7 @@ static int sysctl_cpus(SYSCTL_HANDLER_ARGS);
 #ifdef TCP_OFFLOAD
 static int sysctl_tls(SYSCTL_HANDLER_ARGS);
 static int sysctl_tls_rx_ports(SYSCTL_HANDLER_ARGS);
+static int sysctl_tls_rx_timeout(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_tick(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_dack_timer(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_timer(SYSCTL_HANDLER_ARGS);
@@ -6789,6 +6795,12 @@ t4_sysctls(struct adapter *sc)
 		    sysctl_tls_rx_ports, "I",
 		    "TCP ports that use inline TLS+TOE RX");
 
+		sc->tt.tls_rx_timeout = t4_toe_tls_rx_timeout;
+		SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tls_rx_timeout",
+		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
+		    sysctl_tls_rx_timeout, "I",
+		    "Timeout in seconds to downgrade TLS sockets to plain TOE");
+
 		sc->tt.tx_align = -1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
 		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
@@ -10046,6 +10058,29 @@ sysctl_tls_rx_ports(SYSCTL_HANDLER_ARGS)
 	return (rc);
 }
 
+static int
+sysctl_tls_rx_timeout(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	int v, rc;
+
+	v = sc->tt.tls_rx_timeout;
+	rc = sysctl_handle_int(oidp, &v, 0, req);
+	if (rc != 0 || req->newptr == NULL)
+		return (rc);
+
+	if (v < 0)
+		return (EINVAL);
+
+	if (v != 0 && !(sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS))
+		return (ENOTSUP);
+
+	sc->tt.tls_rx_timeout = v;
+
+	return (0);
+
+}
+
 static void
 unit_conv(char *buf, size_t len, u_int val, u_int factor)
 {
@@ -11287,6 +11322,9 @@ tweak_tunables(void)
 
 	if (t4_pktc_idx_ofld < -1 || t4_pktc_idx_ofld >= SGE_NCOUNTERS)
 		t4_pktc_idx_ofld = PKTC_IDX_OFLD;
+
+	if (t4_toe_tls_rx_timeout < 0)
+		t4_toe_tls_rx_timeout = 0;
 #else
 	if (t4_rdmacaps_allowed == -1)
 		t4_rdmacaps_allowed = 0;
