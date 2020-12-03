@@ -8269,13 +8269,13 @@ sysctl_cpl_stats(SYSCTL_HANDLER_ARGS)
 		    "  channel 2  channel 3");
 		sbuf_printf(sb, "\nCPL requests:   %10u %10u %10u %10u",
 		    stats.req[0], stats.req[1], stats.req[2], stats.req[3]);
-		sbuf_printf(sb, "\nCPL responses:   %10u %10u %10u %10u",
+		sbuf_printf(sb, "\nCPL responses:  %10u %10u %10u %10u",
 		    stats.rsp[0], stats.rsp[1], stats.rsp[2], stats.rsp[3]);
 	} else {
 		sbuf_printf(sb, "                 channel 0  channel 1");
 		sbuf_printf(sb, "\nCPL requests:   %10u %10u",
 		    stats.req[0], stats.req[1]);
-		sbuf_printf(sb, "\nCPL responses:   %10u %10u",
+		sbuf_printf(sb, "\nCPL responses:  %10u %10u",
 		    stats.rsp[0], stats.rsp[1]);
 	}
 
