@@ -8620,6 +8620,32 @@ int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 }
 
 /**
+ *	t4_eth_eq_stop - stop an Ethernet egress queue
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@pf: the PF owning the queues
+ *	@vf: the VF owning the queues
+ *	@eqid: egress queue id
+ *
+ *	Stops an Ethernet egress queue.  The queue can be reinitialized or
+ *	freed but is not otherwise functional after this call.
+ */
+int t4_eth_eq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
+                   unsigned int vf, unsigned int eqid)
+{
+	struct fw_eq_eth_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_vfn = cpu_to_be32(V_FW_CMD_OP(FW_EQ_ETH_CMD) |
+				  F_FW_CMD_REQUEST | F_FW_CMD_EXEC |
+				  V_FW_EQ_ETH_CMD_PFN(pf) |
+				  V_FW_EQ_ETH_CMD_VFN(vf));
+	c.alloc_to_len16 = cpu_to_be32(F_FW_EQ_ETH_CMD_EQSTOP | FW_LEN16(c));
+	c.eqid_pkd = cpu_to_be32(V_FW_EQ_ETH_CMD_EQID(eqid));
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
  *	t4_eth_eq_free - free an Ethernet egress queue
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
