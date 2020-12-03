@@ -189,6 +189,13 @@ struct tp_usm_stats {
 	u64 octets;
 };
 
+struct tp_tid_stats {
+	u32 del;
+	u32 inv;
+	u32 act;
+	u32 pas;
+};
+
 struct tp_fcoe_stats {
 	u32 frames_ddp;
 	u32 frames_drop;
@@ -206,6 +213,11 @@ struct tp_err_stats {
 	u32 tcp6_in_errs[MAX_NCHAN];
 	u32 ofld_no_neigh;
 	u32 ofld_cong_defer;
+};
+
+struct tp_tnl_stats {
+	u32 out_pkt[MAX_NCHAN];
+	u32 in_pkt[MAX_NCHAN];
 };
 
 struct tp_proxy_stats {
@@ -715,6 +727,8 @@ void t4_tp_wr_bits_indirect(struct adapter *adap, unsigned int addr,
 void t4_tp_read_la(struct adapter *adap, u64 *la_buf, unsigned int *wrptr);
 void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st,
 			 bool sleep_ok);
+void t4_tp_get_tnl_stats(struct adapter *adap, struct tp_tnl_stats *st,
+			 bool sleep_ok);
 void t4_tp_get_proxy_stats(struct adapter *adap, struct tp_proxy_stats *st,
     			   bool sleep_ok);
 void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st,
@@ -722,6 +736,8 @@ void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st,
 void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st,
 			  bool sleep_ok);
 void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st,
+		      bool sleep_ok);
+void t4_tp_get_tid_stats(struct adapter *adap, struct tp_tid_stats *st,
 		      bool sleep_ok);
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 			 struct tp_tcp_stats *v6, bool sleep_ok);
