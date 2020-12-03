@@ -222,10 +222,6 @@ static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int);
 static inline void init_fl(struct adapter *, struct sge_fl *, int, int, char *);
 static inline void init_eq(struct adapter *, struct sge_eq *, int, int, uint8_t,
     uint16_t, char *);
-static int alloc_ring(struct adapter *, size_t, bus_dma_tag_t *, bus_dmamap_t *,
-    bus_addr_t *, void **);
-static int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
-    void *);
 static int alloc_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *,
     int, int);
 static int free_iq_fl(struct vi_info *, struct sge_iq *, struct sge_fl *);
@@ -244,14 +240,6 @@ static int free_rxq(struct vi_info *, struct sge_rxq *);
 static int alloc_ofld_rxq(struct vi_info *, struct sge_ofld_rxq *, int, int,
     struct sysctl_oid *);
 static int free_ofld_rxq(struct vi_info *, struct sge_ofld_rxq *);
-#endif
-#ifdef DEV_NETMAP
-static int alloc_nm_rxq(struct vi_info *, struct sge_nm_rxq *, int, int,
-    struct sysctl_oid *);
-static int free_nm_rxq(struct vi_info *, struct sge_nm_rxq *);
-static int alloc_nm_txq(struct vi_info *, struct sge_nm_txq *, int, int,
-    struct sysctl_oid *);
-static int free_nm_txq(struct vi_info *, struct sge_nm_txq *);
 #endif
 static int ctrl_eq_alloc(struct adapter *, struct sge_eq *);
 static int eth_eq_alloc(struct adapter *, struct vi_info *, struct sge_eq *);
@@ -309,7 +297,6 @@ static int t4_handle_wrerr_rpl(struct adapter *, const __be64 *);
 static void wrq_tx_drain(void *, int);
 static void drain_wrq_wr_list(struct adapter *, struct sge_wrq *);
 
-static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 static int sysctl_bufsizes(SYSCTL_HANDLER_ARGS);
 #ifdef RATELIMIT
 static inline u_int txpkt_eo_len16(u_int, u_int, u_int);
@@ -3392,7 +3379,7 @@ init_eq(struct adapter *sc, struct sge_eq *eq, int eqtype, int qsize,
 	strlcpy(eq->lockname, name, sizeof(eq->lockname));
 }
 
-static int
+int
 alloc_ring(struct adapter *sc, size_t len, bus_dma_tag_t *tag,
     bus_dmamap_t *map, bus_addr_t *pa, void **va)
 {
@@ -3424,7 +3411,7 @@ done:
 	return (rc);
 }
 
-static int
+int
 free_ring(struct adapter *sc, bus_dma_tag_t tag, bus_dmamap_t map,
     bus_addr_t pa, void *va)
 {
@@ -3938,162 +3925,6 @@ free_ofld_rxq(struct vi_info *vi, struct sge_ofld_rxq *ofld_rxq)
 		bzero(ofld_rxq, sizeof(*ofld_rxq));
 
 	return (rc);
-}
-#endif
-
-#ifdef DEV_NETMAP
-static int
-alloc_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int intr_idx,
-    int idx, struct sysctl_oid *oid)
-{
-	int rc;
-	struct sysctl_oid_list *children;
-	struct sysctl_ctx_list *ctx;
-	char name[16];
-	size_t len;
-	struct adapter *sc = vi->adapter;
-	struct netmap_adapter *na = NA(vi->ifp);
-
-	MPASS(na != NULL);
-
-	len = vi->qsize_rxq * IQ_ESIZE;
-	rc = alloc_ring(sc, len, &nm_rxq->iq_desc_tag, &nm_rxq->iq_desc_map,
-	    &nm_rxq->iq_ba, (void **)&nm_rxq->iq_desc);
-	if (rc != 0)
-		return (rc);
-
-	len = na->num_rx_desc * EQ_ESIZE + sc->params.sge.spg_len;
-	rc = alloc_ring(sc, len, &nm_rxq->fl_desc_tag, &nm_rxq->fl_desc_map,
-	    &nm_rxq->fl_ba, (void **)&nm_rxq->fl_desc);
-	if (rc != 0)
-		return (rc);
-
-	nm_rxq->vi = vi;
-	nm_rxq->nid = idx;
-	nm_rxq->iq_cidx = 0;
-	nm_rxq->iq_sidx = vi->qsize_rxq - sc->params.sge.spg_len / IQ_ESIZE;
-	nm_rxq->iq_gen = F_RSPD_GEN;
-	nm_rxq->fl_pidx = nm_rxq->fl_cidx = 0;
-	nm_rxq->fl_sidx = na->num_rx_desc;
-	nm_rxq->fl_sidx2 = nm_rxq->fl_sidx;	/* copy for rxsync cacheline */
-	nm_rxq->intr_idx = intr_idx;
-	nm_rxq->iq_cntxt_id = INVALID_NM_RXQ_CNTXT_ID;
-
-	ctx = &vi->ctx;
-	children = SYSCTL_CHILDREN(oid);
-
-	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name,
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queue");
-	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_abs_id,
-	    0, sysctl_uint16, "I", "absolute id of the queue");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_cntxt_id,
-	    0, sysctl_uint16, "I", "SGE context id of the queue");
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_cidx, 0,
-	    sysctl_uint16, "I", "consumer index");
-
-	children = SYSCTL_CHILDREN(oid);
-	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl",
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "freelist");
-	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->fl_cntxt_id,
-	    0, sysctl_uint16, "I", "SGE context id of the freelist");
-	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
-	    &nm_rxq->fl_cidx, 0, "consumer index");
-	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
-	    &nm_rxq->fl_pidx, 0, "producer index");
-
-	return (rc);
-}
-
-
-static int
-free_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
-{
-	struct adapter *sc = vi->adapter;
-
-	if (vi->flags & VI_INIT_DONE)
-		MPASS(nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID);
-	else
-		MPASS(nm_rxq->iq_cntxt_id == 0);
-
-	free_ring(sc, nm_rxq->iq_desc_tag, nm_rxq->iq_desc_map, nm_rxq->iq_ba,
-	    nm_rxq->iq_desc);
-	free_ring(sc, nm_rxq->fl_desc_tag, nm_rxq->fl_desc_map, nm_rxq->fl_ba,
-	    nm_rxq->fl_desc);
-
-	return (0);
-}
-
-static int
-alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
-    struct sysctl_oid *oid)
-{
-	int rc;
-	size_t len;
-	struct port_info *pi = vi->pi;
-	struct adapter *sc = pi->adapter;
-	struct netmap_adapter *na = NA(vi->ifp);
-	char name[16];
-	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
-
-	len = na->num_tx_desc * EQ_ESIZE + sc->params.sge.spg_len;
-	rc = alloc_ring(sc, len, &nm_txq->desc_tag, &nm_txq->desc_map,
-	    &nm_txq->ba, (void **)&nm_txq->desc);
-	if (rc)
-		return (rc);
-
-	nm_txq->pidx = nm_txq->cidx = 0;
-	nm_txq->sidx = na->num_tx_desc;
-	nm_txq->nid = idx;
-	nm_txq->iqidx = iqidx;
-	nm_txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
-	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
-	    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
-	if (sc->params.fw_vers >= FW_VERSION32(1, 24, 11, 0))
-		nm_txq->op_pkd = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS2_WR));
-	else
-		nm_txq->op_pkd = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS_WR));
-	nm_txq->cntxt_id = INVALID_NM_TXQ_CNTXT_ID;
-
-	snprintf(name, sizeof(name), "%d", idx);
-	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
-	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "netmap tx queue");
-	children = SYSCTL_CHILDREN(oid);
-
-	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
-	    &nm_txq->cntxt_id, 0, "SGE context id of the queue");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_txq->cidx, 0,
-	    sysctl_uint16, "I", "consumer index");
-	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
-	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_txq->pidx, 0,
-	    sysctl_uint16, "I", "producer index");
-
-	return (rc);
-}
-
-static int
-free_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
-{
-	struct adapter *sc = vi->adapter;
-
-	if (vi->flags & VI_INIT_DONE)
-		MPASS(nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID);
-	else
-		MPASS(nm_txq->cntxt_id == 0);
-
-	free_ring(sc, nm_txq->desc_tag, nm_txq->desc_map, nm_txq->ba,
-	    nm_txq->desc);
-
-	return (0);
 }
 #endif
 
@@ -6146,7 +5977,7 @@ t4_handle_wrerr_rpl(struct adapter *adap, const __be64 *rpl)
 	return (0);
 }
 
-static int
+int
 sysctl_uint16(SYSCTL_HANDLER_ARGS)
 {
 	uint16_t *id = arg1;
