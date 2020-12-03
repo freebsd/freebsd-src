@@ -1221,6 +1221,12 @@ struct sge_nm_rxq;
 void cxgbe_nm_attach(struct vi_info *);
 void cxgbe_nm_detach(struct vi_info *);
 void service_nm_rxq(struct sge_nm_rxq *);
+int alloc_nm_rxq(struct vi_info *, struct sge_nm_rxq *, int, int,
+    struct sysctl_oid *);
+int free_nm_rxq(struct vi_info *, struct sge_nm_rxq *);
+int alloc_nm_txq(struct vi_info *, struct sge_nm_txq *, int, int,
+    struct sysctl_oid *);
+int free_nm_txq(struct vi_info *, struct sge_nm_txq *);
 #endif
 
 /* t4_sge.c */
@@ -1233,6 +1239,11 @@ int t4_create_dma_tag(struct adapter *);
 void t4_sge_sysctls(struct adapter *, struct sysctl_ctx_list *,
     struct sysctl_oid_list *);
 int t4_destroy_dma_tag(struct adapter *);
+int alloc_ring(struct adapter *, size_t, bus_dma_tag_t *, bus_dmamap_t *,
+    bus_addr_t *, void **);
+int free_ring(struct adapter *, bus_dma_tag_t, bus_dmamap_t, bus_addr_t,
+    void *);
+int sysctl_uint16(SYSCTL_HANDLER_ARGS);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
 int t4_setup_vi_queues(struct vi_info *);
