@@ -986,7 +986,8 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		case 256 / 8:
 			break;
 		default:
-			return (EINVAL);
+			error = EINVAL;
+			goto clr_ofld;
 		}
 		switch (tls->params.auth_algorithm) {
 		case CRYPTO_SHA1_HMAC:
@@ -994,30 +995,37 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 		case CRYPTO_SHA2_384_HMAC:
 			break;
 		default:
-			return (EPROTONOSUPPORT);
+			error = EPROTONOSUPPORT;
+			goto clr_ofld;
 		}
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
-		if (tls->params.iv_len != SALT_SIZE)
-			return (EINVAL);
+		if (tls->params.iv_len != SALT_SIZE) {
+			error = EINVAL;
+			goto clr_ofld;
+		}
 		switch (tls->params.cipher_key_len) {
 		case 128 / 8:
 		case 192 / 8:
 		case 256 / 8:
 			break;
 		default:
-			return (EINVAL);
+			error = EINVAL;
+			goto clr_ofld;
 		}
 		break;
 	default:
-		return (EPROTONOSUPPORT);
+		error = EPROTONOSUPPORT;
+		goto clr_ofld;
 	}
 
 	/* Only TLS 1.1 and TLS 1.2 are currently supported. */
 	if (tls->params.tls_vmajor != TLS_MAJOR_VER_ONE ||
 	    tls->params.tls_vminor < TLS_MINOR_VER_ONE ||
-	    tls->params.tls_vminor > TLS_MINOR_VER_TWO)
-		return (EPROTONOSUPPORT);
+	    tls->params.tls_vminor > TLS_MINOR_VER_TWO) {
+		error = EPROTONOSUPPORT;
+		goto clr_ofld;
+	}
 
 	/* Bail if we already have a key. */
 	if (direction == KTLS_TX) {
@@ -1037,8 +1045,11 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 	init_ktls_key_context(tls, k_ctx, direction);
 
 	error = tls_program_key_id(toep, k_ctx);
-	if (error)
+	if (error) {
+		if (direction == KTLS_RX)
+			goto clr_ofld;
 		return (error);
+	}
 
 	if (direction == KTLS_TX) {
 		toep->tls.scmd0.seqno_numivs =
@@ -1098,6 +1109,14 @@ tls_alloc_ktls(struct toepcb *toep, struct ktls_session *tls, int direction)
 	toep->tls.mode = TLS_MODE_KTLS;
 
 	return (0);
+
+clr_ofld:
+	if (ulp_mode(toep) == ULP_MODE_TLS) {
+		CTR2(KTR_CXGBE, "%s: tid %d clr_ofld_mode", __func__,
+		    toep->tid);
+		tls_clr_ofld_mode(toep);
+	}
+	return (error);
 }
 #endif
 
