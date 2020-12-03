@@ -26,10 +26,6 @@
 #include <pthread_np.h> // For pthread_getthreadid_np() / pthread_set_name_np()
 #endif
 
-#if defined(__FreeBSD__)
-#include <sys/cpuset.h>
-#endif
-
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 #include <errno.h>
 #include <sys/sysctl.h>
@@ -286,13 +282,6 @@ SetThreadPriorityResult llvm::set_thread_priority(ThreadPriority Priority) {
 #include <thread>
 
 int computeHostNumHardwareThreads() {
-#ifdef __FreeBSD__
-  cpuset_t mask;
-  CPU_ZERO(&mask);
-  if (cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(mask),
-                         &mask) == 0)
-    return CPU_COUNT(&mask);
-#endif
 #ifdef __linux__
   cpu_set_t Set;
   if (sched_getaffinity(0, sizeof(Set), &Set) == 0)
