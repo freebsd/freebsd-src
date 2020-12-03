@@ -491,6 +491,7 @@ check_labels(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Unsigned addr,
 		if (dwarf_tag(prev_die, &tag, &de) != DW_DLV_OK) {
 			warnx("dwarf_tag failed: %s",
 				dwarf_errmsg(de));
+			free(labels);
 			return DW_DLV_ERROR;
 		}
 		if (tag == DW_TAG_label) {
