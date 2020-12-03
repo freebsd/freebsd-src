@@ -761,6 +761,7 @@ static int sysctl_cim_pif_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_cim_qcfg(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpl_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_ddp_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_tid_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_devlog(SYSCTL_HANDLER_ARGS);
 static int sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_hw_sched(SYSCTL_HANDLER_ARGS);
@@ -775,6 +776,7 @@ static int sysctl_rdma_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
+static int sysctl_tnl_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_la_mask(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_la(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
@@ -6633,6 +6635,10 @@ t4_sysctls(struct adapter *sc)
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    sysctl_ddp_stats, "A", "non-TCP DDP statistics");
 
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tid_stats",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    sysctl_tid_stats, "A", "tid stats");
+
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "devlog",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    sysctl_devlog, "A", "firmware's device log");
@@ -6695,6 +6701,10 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_err_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
 	    sysctl_tp_err_stats, "A", "TP error statistics");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tnl_stats",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    sysctl_tnl_stats, "A", "TP tunnel statistics");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tp_la_mask",
 	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, sc, 0,
@@ -8291,11 +8301,44 @@ sysctl_ddp_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
+	mtx_lock(&sc->reg_lock);
 	t4_get_usm_stats(sc, &stats, 1);
+	mtx_unlock(&sc->reg_lock);
 
 	sbuf_printf(sb, "Frames: %u\n", stats.frames);
 	sbuf_printf(sb, "Octets: %ju\n", stats.octets);
 	sbuf_printf(sb, "Drops:  %u", stats.drops);
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_tid_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc;
+	struct tp_tid_stats stats;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return(rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	mtx_lock(&sc->reg_lock);
+	t4_tp_get_tid_stats(sc, &stats, 1);
+	mtx_unlock(&sc->reg_lock);
+
+	sbuf_printf(sb, "Delete:     %u\n", stats.del);
+	sbuf_printf(sb, "Invalidate: %u\n", stats.inv);
+	sbuf_printf(sb, "Active:     %u\n", stats.act);
+	sbuf_printf(sb, "Passive:    %u", stats.pas);
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
@@ -8465,8 +8508,10 @@ sysctl_fcoe_stats(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
+	mtx_lock(&sc->reg_lock);
 	for (i = 0; i < nchan; i++)
 		t4_get_fcoe_stats(sc, i, &stats[i], 1);
+	mtx_unlock(&sc->reg_lock);
 
 	if (nchan > 2) {
 		sbuf_printf(sb, "                   channel 0        channel 1"
@@ -9455,6 +9500,49 @@ sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS)
 
 	sbuf_printf(sb, "ofldNoNeigh:    %u\nofldCongDefer:  %u",
 	    stats.ofld_no_neigh, stats.ofld_cong_defer);
+
+	rc = sbuf_finish(sb);
+	sbuf_delete(sb);
+
+	return (rc);
+}
+
+static int
+sysctl_tnl_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter *sc = arg1;
+	struct sbuf *sb;
+	int rc;
+	struct tp_tnl_stats stats;
+
+	rc = sysctl_wire_old_buffer(req, 0);
+	if (rc != 0)
+		return(rc);
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	mtx_lock(&sc->reg_lock);
+	t4_tp_get_tnl_stats(sc, &stats, 1);
+	mtx_unlock(&sc->reg_lock);
+
+	if (sc->chip_params->nchan > 2) {
+		sbuf_printf(sb, "           channel 0  channel 1"
+		    "  channel 2  channel 3\n");
+		sbuf_printf(sb, "OutPkts:  %10u %10u %10u %10u\n",
+		    stats.out_pkt[0], stats.out_pkt[1],
+		    stats.out_pkt[2], stats.out_pkt[3]);
+		sbuf_printf(sb, "InPkts:   %10u %10u %10u %10u",
+		    stats.in_pkt[0], stats.in_pkt[1],
+		    stats.in_pkt[2], stats.in_pkt[3]);
+	} else {
+		sbuf_printf(sb, "           channel 0  channel 1\n");
+		sbuf_printf(sb, "OutPkts:  %10u %10u\n",
+		    stats.out_pkt[0], stats.out_pkt[1]);
+		sbuf_printf(sb, "InPkts:   %10u %10u",
+		    stats.in_pkt[0], stats.in_pkt[1]);
+	}
 
 	rc = sbuf_finish(sb);
 	sbuf_delete(sb);
