@@ -291,8 +291,7 @@ _kvm_map_get(kvm_t *kd, u_long pa, unsigned int page_size)
 
 int
 _kvm_pt_init(kvm_t *kd, size_t dump_avail_size, off_t dump_avail_off,
-    size_t map_len, off_t map_off, off_t sparse_off, int page_size,
-    int word_size)
+    size_t map_len, off_t map_off, off_t sparse_off, int page_size)
 {
 	uint64_t *addr;
 	uint32_t *popcount_bin;
@@ -311,14 +310,8 @@ _kvm_pt_init(kvm_t *kd, size_t dump_avail_size, off_t dump_avail_off,
 		 * last_pa. Create an implied dump_avail that
 		 * expresses this.
 		 */
-		kd->dump_avail = calloc(4, word_size);
-		if (word_size == sizeof(uint32_t)) {
-			((uint32_t *)kd->dump_avail)[1] = _kvm32toh(kd,
-			    map_len * 8 * page_size);
-		} else {
-			kd->dump_avail[1] = _kvm64toh(kd,
-			    map_len * 8 * page_size);
-		}
+		kd->dump_avail = calloc(4, sizeof(uint64_t));
+		kd->dump_avail[1] = _kvm64toh(kd, map_len * 8 * page_size);
 	}
 
 	/*
@@ -375,7 +368,6 @@ _kvm_pt_init(kvm_t *kd, size_t dump_avail_size, off_t dump_avail_off,
 	kd->pt_sparse_off = sparse_off;
 	kd->pt_sparse_size = (uint64_t)*popcount_bin * page_size;
 	kd->pt_page_size = page_size;
-	kd->pt_word_size = word_size;
 
 	/*
 	 * Map the sparse page array.  This is useful for performing point
@@ -419,13 +411,7 @@ _kvm_pmap_init(kvm_t *kd, uint32_t pmap_size, off_t pmap_off)
 static inline uint64_t
 dump_avail_n(kvm_t *kd, long i)
 {
-	uint32_t *d32;
-
-	if (kd->pt_word_size == sizeof(uint32_t)) {
-		d32 = (uint32_t *)kd->dump_avail;
-		return (_kvm32toh(kd, d32[i]));
-	} else
-		return (_kvm64toh(kd, kd->dump_avail[i]));
+	return (_kvm64toh(kd, kd->dump_avail[i]));
 }
 
 uint64_t
