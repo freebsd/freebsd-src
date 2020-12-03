@@ -79,7 +79,7 @@ save_fpu_int(struct thread *td)
 	#undef SFP
 	} else {
 	#define SFP(n)   __asm ("stfd " #n ", 0(%0)" \
-			:: "b"(&pcb->pcb_fpu.fpr[n]));
+			:: "b"(&pcb->pcb_fpu.fpr[n].fpr));
 		SFP(0);		SFP(1);		SFP(2);		SFP(3);
 		SFP(4);		SFP(5);		SFP(6);		SFP(7);
 		SFP(8);		SFP(9);		SFP(10);	SFP(11);
@@ -164,7 +164,7 @@ enable_fpu(struct thread *td)
 	#undef LFP
 	} else {
 	#define LFP(n)   __asm ("lfd " #n ", 0(%0)" \
-			:: "b"(&pcb->pcb_fpu.fpr[n]));
+			:: "b"(&pcb->pcb_fpu.fpr[n].fpr));
 		LFP(0);		LFP(1);		LFP(2);		LFP(3);
 		LFP(4);		LFP(5);		LFP(6);		LFP(7);
 		LFP(8);		LFP(9);		LFP(10);	LFP(11);
