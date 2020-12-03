@@ -138,11 +138,19 @@ tls_clr_ofld_mode(struct toepcb *toep)
 
 	tls_stop_handshake_timer(toep);
 
-	/* Operate in PDU extraction mode only. */
+	KASSERT(toep->tls.rx_key_addr == -1,
+	    ("%s: tid %d has RX key", __func__, toep->tid));
+
+	/* Switch to plain TOE mode. */
 	t4_set_tls_tcb_field(toep, W_TCB_ULP_RAW,
-	    V_TCB_ULP_RAW(M_TCB_ULP_RAW),
-	    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(1)));
+	    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(1)),
+	    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(0)));
+	t4_set_tls_tcb_field(toep, W_TCB_ULP_TYPE,
+	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE), V_TCB_ULP_TYPE(ULP_MODE_NONE));
 	t4_clear_rx_quiesce(toep);
+
+	toep->flags &= ~TPF_FORCE_CREDITS;
+	toep->params.ulp_mode = ULP_MODE_NONE;
 }
 
 static void
