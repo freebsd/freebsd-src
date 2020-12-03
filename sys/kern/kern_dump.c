@@ -290,7 +290,7 @@ dumpsys_generic(struct dumperinfo *di)
 	size_t hdrsz;
 	int error;
 
-#if !defined(__powerpc__) || defined(__powerpc64__)
+#if MINIDUMP_PAGE_TRACKING == 1
 	if (do_minidump)
 		return (minidumpsys(di));
 #endif

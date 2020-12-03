@@ -112,7 +112,6 @@ struct __kvm {
 	uint64_t	pt_sparse_size;
 	uint32_t	*pt_popcounts;
 	unsigned int	pt_page_size;
-	unsigned int	pt_word_size;
 
 	/* Page & sparse map structures. */
 	void		*page_map;
@@ -190,7 +189,7 @@ kvaddr_t _kvm_dpcpu_validaddr(kvm_t *, kvaddr_t);
 int	 _kvm_probe_elf_kernel(kvm_t *, int, int);
 int	 _kvm_is_minidump(kvm_t *);
 int	 _kvm_read_core_phdrs(kvm_t *, size_t *, GElf_Phdr **);
-int	 _kvm_pt_init(kvm_t *, size_t, off_t, size_t, off_t, off_t, int, int);
+int	 _kvm_pt_init(kvm_t *, size_t, off_t, size_t, off_t, off_t, int);
 off_t	 _kvm_pt_find(kvm_t *, uint64_t, unsigned int);
 int	 _kvm_visit_cb(kvm_t *, kvm_walk_pages_cb_t *, void *, u_long,
 	    u_long, u_long, vm_prot_t, size_t, unsigned int);

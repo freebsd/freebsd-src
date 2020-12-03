@@ -155,8 +155,7 @@ _powerpc64_minidump_initvtop(kvm_t *kd)
 
 	/* build physical address lookup table for sparse pages */
 	if (_kvm_pt_init(kd, hdr->dumpavailsize, dump_avail_off,
-	    hdr->bitmapsize, bitmap_off, sparse_off, PPC64_PAGE_SIZE,
-	    sizeof(uint64_t)) == -1)
+	    hdr->bitmapsize, bitmap_off, sparse_off, PPC64_PAGE_SIZE) == -1)
 		goto failed;
 
 	if (_kvm_pmap_init(kd, hdr->pmapsize, pmap_off) == -1)
