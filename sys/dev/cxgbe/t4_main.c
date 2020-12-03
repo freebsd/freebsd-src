@@ -4917,9 +4917,22 @@ set_params__post_init(struct adapter *sc)
 #endif
 
 #ifdef KERN_TLS
-	if (t4_kern_tls != 0 && sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
-	    sc->toecaps & FW_CAPS_CONFIG_TOE)
-		t4_enable_kern_tls(sc);
+	if (sc->cryptocaps & FW_CAPS_CONFIG_TLSKEYS &&
+	    sc->toecaps & FW_CAPS_CONFIG_TOE) {
+		if (t4_kern_tls != 0)
+			t4_enable_kern_tls(sc);
+		else {
+			/*
+			 * Limit TOE connections to 2 reassembly
+			 * "islands".  This is required for TOE TLS
+			 * connections to downgrade to plain TOE
+			 * connections if an unsupported TLS version
+			 * or ciphersuite is used.
+			 */
+			t4_tp_wr_bits_indirect(sc, A_TP_FRAG_CONFIG,
+			    V_PASSMODE(M_PASSMODE), V_PASSMODE(2));
+		}
+	}
 #endif
 	return (0);
 }
