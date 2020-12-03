@@ -1337,7 +1337,7 @@ xgbe_dev_read(struct xgbe_channel *channel)
 	struct xgbe_ring_data *rdata;
 	struct xgbe_ring_desc *rdesc;
 	struct xgbe_packet_data *packet = &ring->packet_data;
-	unsigned int err, etlt, l34t;
+	unsigned int err, etlt, l34t = 0;
 
 	axgbe_printf(1, "-->xgbe_dev_read: cur = %d\n", ring->cur);
 

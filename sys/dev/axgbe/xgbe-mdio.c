@@ -1186,7 +1186,7 @@ static int
 __xgbe_phy_config_aneg(struct xgbe_prv_data *pdata, bool set_mode)
 {
 	int ret;
-	unsigned int reg;
+	unsigned int reg = 0;
 
 	sx_xlock(&pdata->an_mutex);
 
