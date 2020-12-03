@@ -205,14 +205,7 @@ void tmproutes_init(struct rib_head *rh);
 void tmproutes_destroy(struct rib_head *rh);
 
 /* route_ctl.c */
-struct route_nhop_data {
-	union {
-		struct nhop_object *rnd_nhop;
-		struct nhgrp_object *rnd_nhgrp;
-	};
-	uint32_t rnd_weight;
-};
-
+struct route_nhop_data;
 int change_route_nhop(struct rib_head *rnh, struct rtentry *rt,
     struct rt_addrinfo *info, struct route_nhop_data *rnd,
     struct rib_cmd_info *rc);
