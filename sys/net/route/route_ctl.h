@@ -82,18 +82,44 @@ void rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
     rib_walk_hook_f_t *hook_f, void *arg);
 void rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg);
 
-struct route_nhop_data;
+struct nhop_object;
+struct nhgrp_object;
+struct route_nhop_data {
+	union {
+		struct nhop_object *rnd_nhop;
+		struct nhgrp_object *rnd_nhgrp;
+	};
+	uint32_t rnd_weight;
+};
+
 const struct rtentry *rib_lookup_prefix(uint32_t fibnum, int family,
     const struct sockaddr *dst, const struct sockaddr *netmask,
     struct route_nhop_data *rnd);
 const struct rtentry *rib_lookup_lpm(uint32_t fibnum, int family,
     const struct sockaddr *dst, struct route_nhop_data *rnd);
 
+/* rtentry accessors */
+bool rt_is_host(const struct rtentry *rt);
+struct nhop_object *rt_get_raw_nhop(const struct rtentry *rt);
+#ifdef INET
+struct in_addr;
+void rt_get_inet_prefix_plen(const struct rtentry *rt, struct in_addr *paddr,
+    int *plen, uint32_t *pscopeid);
+void rt_get_inet_prefix_pmask(const struct rtentry *rt, struct in_addr *paddr,
+    struct in_addr *pmask, uint32_t *pscopeid);
+#endif
+#ifdef INET6
+struct in6_addr;
+void rt_get_inet6_prefix_plen(const struct rtentry *rt, struct in6_addr *paddr,
+    int *plen, uint32_t *pscopeid);
+void rt_get_inet6_prefix_pmask(const struct rtentry *rt, struct in6_addr *paddr,
+    struct in6_addr *pmask, uint32_t *pscopeid);
+#endif
+
 /* Nexthops */
 uint32_t nhops_get_count(struct rib_head *rh);
 
 /* Multipath */
-struct nhgrp_object;
 struct weightened_nhop;
 
 struct weightened_nhop *nhgrp_get_nhops(struct nhgrp_object *nhg,
