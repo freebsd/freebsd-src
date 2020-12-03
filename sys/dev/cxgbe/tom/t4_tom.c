@@ -382,6 +382,9 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 	}
 #endif
 
+	if (ulp_mode(toep) == ULP_MODE_TLS)
+		tls_detach(toep);
+
 	tp->tod = NULL;
 	tp->t_toe = NULL;
 	tp->t_flags &= ~TF_TOE;
@@ -845,6 +848,8 @@ final_cpl_received(struct toepcb *toep)
 
 	if (ulp_mode(toep) == ULP_MODE_TCPDDP)
 		release_ddp_resources(toep);
+	else if (ulp_mode(toep) == ULP_MODE_TLS)
+		tls_detach(toep);
 	toep->inp = NULL;
 	toep->flags &= ~TPF_CPL_PENDING;
 	mbufq_drain(&toep->ulp_pdu_reclaimq);

@@ -225,6 +225,7 @@ struct tom_tunables {
 	int ddp;
 	int rx_coalesce;
 	int tls;
+	int tls_rx_timeout;
 	int *tls_rx_ports;
 	int num_tls_rx_ports;
 	int tx_align;

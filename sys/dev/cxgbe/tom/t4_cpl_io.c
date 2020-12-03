@@ -392,6 +392,9 @@ make_established(struct toepcb *toep, uint32_t iss, uint32_t irs, uint16_t opt)
 	send_flowc_wr(toep, tp);
 
 	soisconnected(so);
+
+	if (ulp_mode(toep) == ULP_MODE_TLS)
+		tls_establish(toep);
 }
 
 int

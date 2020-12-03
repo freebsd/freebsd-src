@@ -64,14 +64,6 @@ __FBSDID("$FreeBSD$");
  */
 #define	tls_tcp_seq	PH_loc.thirtytwo[0]
 
-/*
- * Handshake lock used for the handshake timer.  Having a global lock
- * is perhaps not ideal, but it avoids having to use callout_drain()
- * in tls_uninit_toep() which can't block.  Also, the timer shouldn't
- * actually fire for most connections.
- */
-static struct mtx tls_handshake_lock;
-
 static void
 t4_set_tls_tcb_field(struct toepcb *toep, uint16_t word, uint64_t mask,
     uint64_t val)
@@ -149,7 +141,7 @@ tls_clr_ofld_mode(struct toepcb *toep)
 	    V_TCB_ULP_TYPE(M_TCB_ULP_TYPE), V_TCB_ULP_TYPE(ULP_MODE_NONE));
 	t4_clear_rx_quiesce(toep);
 
-	toep->flags &= ~TPF_FORCE_CREDITS;
+	toep->flags &= ~(TPF_FORCE_CREDITS | TPF_TLS_ESTABLISHED);
 	toep->params.ulp_mode = ULP_MODE_NONE;
 }
 
@@ -748,6 +740,25 @@ tls_send_handshake_ack(void *arg)
 	struct adapter *sc = td_adapter(toep->td);
 
 	/*
+	 * If this connection has timed out without receiving more
+	 * data, downgrade to plain TOE mode and don't re-arm the
+	 * timer.
+	 */
+	if (sc->tt.tls_rx_timeout != 0) {
+		struct inpcb *inp;
+		struct tcpcb *tp;
+
+		inp = toep->inp;
+		tp = intotcpcb(inp);
+		if ((ticks - tp->t_rcvtime) >= sc->tt.tls_rx_timeout) {
+			CTR2(KTR_CXGBE, "%s: tid %d clr_ofld_mode", __func__,
+			    toep->tid);
+			tls_clr_ofld_mode(toep);
+			return;
+		}
+	}
+
+	/*
 	 * XXX: Does not have the t4_get_tcb() checks to refine the
 	 * workaround.
 	 */
@@ -762,10 +773,9 @@ tls_start_handshake_timer(struct toepcb *toep)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 
-	mtx_lock(&tls_handshake_lock);
+	INP_WLOCK_ASSERT(toep->inp);
 	callout_reset(&tls_ofld->handshake_timer, TLS_SRV_HELLO_BKOFF_TM * hz,
 	    tls_send_handshake_ack, toep);
-	mtx_unlock(&tls_handshake_lock);
 }
 
 void
@@ -773,9 +783,8 @@ tls_stop_handshake_timer(struct toepcb *toep)
 {
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 
-	mtx_lock(&tls_handshake_lock);
+	INP_WLOCK_ASSERT(toep->inp);
 	callout_stop(&tls_ofld->handshake_timer);
-	mtx_unlock(&tls_handshake_lock);
 }
 
 int
@@ -1129,9 +1138,6 @@ tls_init_toep(struct toepcb *toep)
 	tls_ofld->key_location = TLS_SFO_WR_CONTEXTLOC_DDR;
 	tls_ofld->rx_key_addr = -1;
 	tls_ofld->tx_key_addr = -1;
-	if (ulp_mode(toep) == ULP_MODE_TLS)
-		callout_init_mtx(&tls_ofld->handshake_timer,
-		    &tls_handshake_lock, 0);
 }
 
 void
@@ -1149,17 +1155,27 @@ tls_establish(struct toepcb *toep)
 	t4_set_tls_tcb_field(toep, W_TCB_ULP_RAW, V_TCB_ULP_RAW(M_TCB_ULP_RAW),
 	    V_TCB_ULP_RAW(V_TF_TLS_ENABLE(1)));
 
-	toep->flags |= TPF_FORCE_CREDITS;
+	toep->flags |= TPF_FORCE_CREDITS | TPF_TLS_ESTABLISHED;
 
+	callout_init_rw(&toep->tls.handshake_timer, &toep->inp->inp_lock, 0);
 	tls_start_handshake_timer(toep);
+}
+
+void
+tls_detach(struct toepcb *toep)
+{
+
+	if (toep->flags & TPF_TLS_ESTABLISHED) {
+		tls_stop_handshake_timer(toep);
+		toep->flags &= ~TPF_TLS_ESTABLISHED;
+	}
 }
 
 void
 tls_uninit_toep(struct toepcb *toep)
 {
 
-	if (ulp_mode(toep) == ULP_MODE_TLS)
-		tls_stop_handshake_timer(toep);
+	MPASS((toep->flags & TPF_TLS_ESTABLISHED) == 0);
 	clear_tls_keyid(toep);
 }
 
@@ -2383,7 +2399,6 @@ void
 t4_tls_mod_load(void)
 {
 
-	mtx_init(&tls_handshake_lock, "t4tls handshake", NULL, MTX_DEF);
 	t4_register_cpl_handler(CPL_TLS_DATA, do_tls_data);
 	t4_register_cpl_handler(CPL_RX_TLS_CMP, do_rx_tls_cmp);
 }
@@ -2394,6 +2409,5 @@ t4_tls_mod_unload(void)
 
 	t4_register_cpl_handler(CPL_TLS_DATA, NULL);
 	t4_register_cpl_handler(CPL_RX_TLS_CMP, NULL);
-	mtx_destroy(&tls_handshake_lock);
 }
 #endif	/* TCP_OFFLOAD */
