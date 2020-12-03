@@ -840,6 +840,8 @@ int t4_iq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
 int t4_iq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	       unsigned int vf, unsigned int iqtype, unsigned int iqid,
 	       unsigned int fl0id, unsigned int fl1id);
+int t4_eth_eq_stop(struct adapter *adap, unsigned int mbox, unsigned int pf,
+                   unsigned int vf, unsigned int eqid);
 int t4_eth_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		   unsigned int vf, unsigned int eqid);
 int t4_ctrl_eq_free(struct adapter *adap, unsigned int mbox, unsigned int pf,

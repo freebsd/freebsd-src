@@ -120,6 +120,166 @@ static int nm_txcsum = 0;
 SYSCTL_INT(_hw_cxgbe, OID_AUTO, nm_txcsum, CTLFLAG_RWTUN,
     &nm_txcsum, 0, "Enable transmit checksum offloading.");
 
+static int free_nm_rxq_hwq(struct vi_info *, struct sge_nm_rxq *);
+static int free_nm_txq_hwq(struct vi_info *, struct sge_nm_txq *);
+
+int
+alloc_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int intr_idx,
+    int idx, struct sysctl_oid *oid)
+{
+	int rc;
+	struct sysctl_oid_list *children;
+	struct sysctl_ctx_list *ctx;
+	char name[16];
+	size_t len;
+	struct adapter *sc = vi->adapter;
+	struct netmap_adapter *na = NA(vi->ifp);
+
+	MPASS(na != NULL);
+
+	len = vi->qsize_rxq * IQ_ESIZE;
+	rc = alloc_ring(sc, len, &nm_rxq->iq_desc_tag, &nm_rxq->iq_desc_map,
+	    &nm_rxq->iq_ba, (void **)&nm_rxq->iq_desc);
+	if (rc != 0)
+		return (rc);
+
+	len = na->num_rx_desc * EQ_ESIZE + sc->params.sge.spg_len;
+	rc = alloc_ring(sc, len, &nm_rxq->fl_desc_tag, &nm_rxq->fl_desc_map,
+	    &nm_rxq->fl_ba, (void **)&nm_rxq->fl_desc);
+	if (rc != 0)
+		return (rc);
+
+	nm_rxq->vi = vi;
+	nm_rxq->nid = idx;
+	nm_rxq->iq_cidx = 0;
+	nm_rxq->iq_sidx = vi->qsize_rxq - sc->params.sge.spg_len / IQ_ESIZE;
+	nm_rxq->iq_gen = F_RSPD_GEN;
+	nm_rxq->fl_pidx = nm_rxq->fl_cidx = 0;
+	nm_rxq->fl_sidx = na->num_rx_desc;
+	nm_rxq->fl_sidx2 = nm_rxq->fl_sidx;	/* copy for rxsync cacheline */
+	nm_rxq->intr_idx = intr_idx;
+	nm_rxq->iq_cntxt_id = INVALID_NM_RXQ_CNTXT_ID;
+
+	ctx = &vi->ctx;
+	children = SYSCTL_CHILDREN(oid);
+
+	snprintf(name, sizeof(name), "%d", idx);
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "rx queue");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "abs_id",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_abs_id,
+	    0, sysctl_uint16, "I", "absolute id of the queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_cntxt_id,
+	    0, sysctl_uint16, "I", "SGE context id of the queue");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->iq_cidx, 0,
+	    sysctl_uint16, "I", "consumer index");
+
+	children = SYSCTL_CHILDREN(oid);
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "fl",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "freelist");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_rxq->fl_cntxt_id,
+	    0, sysctl_uint16, "I", "SGE context id of the freelist");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD,
+	    &nm_rxq->fl_cidx, 0, "consumer index");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "pidx", CTLFLAG_RD,
+	    &nm_rxq->fl_pidx, 0, "producer index");
+
+	return (rc);
+}
+
+int
+free_nm_rxq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq)
+{
+	struct adapter *sc = vi->adapter;
+
+	if (!(vi->flags & VI_INIT_DONE))
+		return (0);
+
+	if (nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID)
+		free_nm_rxq_hwq(vi, nm_rxq);
+	MPASS(nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID);
+
+	free_ring(sc, nm_rxq->iq_desc_tag, nm_rxq->iq_desc_map, nm_rxq->iq_ba,
+	    nm_rxq->iq_desc);
+	free_ring(sc, nm_rxq->fl_desc_tag, nm_rxq->fl_desc_map, nm_rxq->fl_ba,
+	    nm_rxq->fl_desc);
+
+	return (0);
+}
+
+int
+alloc_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq, int iqidx, int idx,
+    struct sysctl_oid *oid)
+{
+	int rc;
+	size_t len;
+	struct port_info *pi = vi->pi;
+	struct adapter *sc = pi->adapter;
+	struct netmap_adapter *na = NA(vi->ifp);
+	char name[16];
+	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+
+	len = na->num_tx_desc * EQ_ESIZE + sc->params.sge.spg_len;
+	rc = alloc_ring(sc, len, &nm_txq->desc_tag, &nm_txq->desc_map,
+	    &nm_txq->ba, (void **)&nm_txq->desc);
+	if (rc)
+		return (rc);
+
+	nm_txq->pidx = nm_txq->cidx = 0;
+	nm_txq->sidx = na->num_tx_desc;
+	nm_txq->nid = idx;
+	nm_txq->iqidx = iqidx;
+	nm_txq->cpl_ctrl0 = htobe32(V_TXPKT_OPCODE(CPL_TX_PKT) |
+	    V_TXPKT_INTF(pi->tx_chan) | V_TXPKT_PF(sc->pf) |
+	    V_TXPKT_VF(vi->vin) | V_TXPKT_VF_VLD(vi->vfvld));
+	if (sc->params.fw_vers >= FW_VERSION32(1, 24, 11, 0))
+		nm_txq->op_pkd = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS2_WR));
+	else
+		nm_txq->op_pkd = htobe32(V_FW_WR_OP(FW_ETH_TX_PKTS_WR));
+	nm_txq->cntxt_id = INVALID_NM_TXQ_CNTXT_ID;
+
+	snprintf(name, sizeof(name), "%d", idx);
+	oid = SYSCTL_ADD_NODE(&vi->ctx, children, OID_AUTO, name,
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "netmap tx queue");
+	children = SYSCTL_CHILDREN(oid);
+
+	SYSCTL_ADD_UINT(&vi->ctx, children, OID_AUTO, "cntxt_id", CTLFLAG_RD,
+	    &nm_txq->cntxt_id, 0, "SGE context id of the queue");
+	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "cidx",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_txq->cidx, 0,
+	    sysctl_uint16, "I", "consumer index");
+	SYSCTL_ADD_PROC(&vi->ctx, children, OID_AUTO, "pidx",
+	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, &nm_txq->pidx, 0,
+	    sysctl_uint16, "I", "producer index");
+
+	return (rc);
+}
+
+int
+free_nm_txq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
+{
+	struct adapter *sc = vi->adapter;
+
+	if (!(vi->flags & VI_INIT_DONE))
+		return (0);
+
+	if (nm_txq->cntxt_id != INVALID_NM_TXQ_CNTXT_ID)
+		free_nm_txq_hwq(vi, nm_txq);
+	MPASS(nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID);
+
+	free_ring(sc, nm_txq->desc_tag, nm_txq->desc_map, nm_txq->ba,
+	    nm_txq->desc);
+
+	return (0);
+}
+
 static int
 alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 {
@@ -141,8 +301,15 @@ alloc_nm_rxq_hwq(struct vi_info *vi, struct sge_nm_rxq *nm_rxq, int cong)
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_IQ_CMD) | F_FW_CMD_REQUEST |
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_IQ_CMD_PFN(sc->pf) |
 	    V_FW_IQ_CMD_VFN(0));
-	c.alloc_to_len16 = htobe32(F_FW_IQ_CMD_ALLOC | F_FW_IQ_CMD_IQSTART |
-	    FW_LEN16(c));
+	c.alloc_to_len16 = htobe32(F_FW_IQ_CMD_IQSTART | FW_LEN16(c));
+	if (nm_rxq->iq_cntxt_id == INVALID_NM_RXQ_CNTXT_ID)
+		c.alloc_to_len16 |= htobe32(F_FW_IQ_CMD_ALLOC);
+	else {
+		c.iqid = htobe16(nm_rxq->iq_cntxt_id);
+		c.fl0id = htobe16(nm_rxq->fl_cntxt_id);
+		c.fl1id = htobe16(0xffff);
+		c.physiqid = htobe16(nm_rxq->iq_abs_id);
+	}
 	MPASS(!forwarding_intr_to_fwq(sc));
 	KASSERT(nm_rxq->intr_idx < sc->intr_count,
 	    ("%s: invalid direct intr_idx %d", __func__, nm_rxq->intr_idx));
@@ -276,8 +443,11 @@ alloc_nm_txq_hwq(struct vi_info *vi, struct sge_nm_txq *nm_txq)
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_EQ_ETH_CMD) | F_FW_CMD_REQUEST |
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_ETH_CMD_PFN(sc->pf) |
 	    V_FW_EQ_ETH_CMD_VFN(0));
-	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_ALLOC |
-	    F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
+	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
+	if (nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID)
+		c.alloc_to_len16 |= htobe32(F_FW_EQ_ETH_CMD_ALLOC);
+	else
+		c.eqid_pkd = htobe32(V_FW_EQ_ETH_CMD_EQID(nm_txq->cntxt_id));
 	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUIQE |
 	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(vi->viid));
 	c.fetchszm_to_iqid =
@@ -580,8 +750,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 
 	for_each_nm_rxq(vi, i, nm_rxq) {
 		kring = na->rx_rings[nm_rxq->nid];
-		if (!nm_kring_pending_on(kring) ||
-		    nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID)
+		if (!nm_kring_pending_on(kring))
 			continue;
 
 		alloc_nm_rxq_hwq(vi, nm_rxq, tnl_cong(vi->pi, nm_cong_drop));
@@ -611,8 +780,7 @@ cxgbe_netmap_on(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 
 	for_each_nm_txq(vi, i, nm_txq) {
 		kring = na->tx_rings[nm_txq->nid];
-		if (!nm_kring_pending_on(kring) ||
-		    nm_txq->cntxt_id != INVALID_NM_TXQ_CNTXT_ID)
+		if (!nm_kring_pending_on(kring))
 			continue;
 
 		alloc_nm_txq_hwq(vi, nm_txq);
@@ -653,22 +821,17 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		return (rc);	/* error message logged already. */
 
 	for_each_nm_txq(vi, i, nm_txq) {
-		struct sge_qstat *spg = (void *)&nm_txq->desc[nm_txq->sidx];
-
 		kring = na->tx_rings[nm_txq->nid];
-		if (!nm_kring_pending_off(kring) ||
-		    nm_txq->cntxt_id == INVALID_NM_TXQ_CNTXT_ID)
+		if (!nm_kring_pending_off(kring))
 			continue;
+		MPASS(nm_txq->cntxt_id != INVALID_NM_TXQ_CNTXT_ID);
 
-		/* Wait for hw pidx to catch up ... */
-		while (be16toh(nm_txq->pidx) != spg->pidx)
-			pause("nmpidx", 1);
-
-		/* ... and then for the cidx. */
-		while (spg->pidx != spg->cidx)
-			pause("nmcidx", 1);
-
-		free_nm_txq_hwq(vi, nm_txq);
+		rc = -t4_eth_eq_stop(sc, sc->mbox, sc->pf, 0, nm_txq->cntxt_id);
+		if (rc != 0) {
+			device_printf(vi->dev,
+			    "failed to stop nm_txq[%d]: %d.\n", i, rc);
+			return (rc);
+		}
 
 		/* XXX: netmap, not the driver, should do this. */
 		kring->rhead = kring->rcur = kring->nr_hwcur = 0;
@@ -680,14 +843,21 @@ cxgbe_netmap_off(struct adapter *sc, struct vi_info *vi, struct ifnet *ifp,
 		kring = na->rx_rings[nm_rxq->nid];
 		if (nm_state != NM_OFF && !nm_kring_pending_off(kring))
 			nactive++;
-		if (nm_state == NM_OFF || !nm_kring_pending_off(kring))
+		if (!nm_kring_pending_off(kring))
 			continue;
-
+		MPASS(nm_state != NM_OFF);
 		MPASS(nm_rxq->iq_cntxt_id != INVALID_NM_RXQ_CNTXT_ID);
+
+		rc = -t4_iq_stop(sc, sc->mbox, sc->pf, 0, FW_IQ_TYPE_FL_INT_CAP,
+		    nm_rxq->iq_cntxt_id, nm_rxq->fl_cntxt_id, 0xffff);
+		if (rc != 0) {
+			device_printf(vi->dev,
+			    "failed to stop nm_rxq[%d]: %d.\n", i, rc);
+			return (rc);
+		}
+
 		while (!atomic_cmpset_int(&nm_rxq->nm_state, NM_ON, NM_OFF))
 			pause("nmst", 1);
-
-		free_nm_rxq_hwq(vi, nm_rxq);
 
 		/* XXX: netmap, not the driver, should do this. */
 		kring->rhead = kring->rcur = kring->nr_hwcur = 0;
