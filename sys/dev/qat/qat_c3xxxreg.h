@@ -168,7 +168,7 @@
 
 /* AE firmware */
 #define AE_FW_PROD_TYPE_C3XXX		0x02000000
-#define AE_FW_MOF_NAME_C3XXX	"qat_c3xxx"
+#define AE_FW_MOF_NAME_C3XXX	"qat_c3xxxfw"
 #define AE_FW_MMP_NAME_C3XXX	"qat_c3xxx_mmp"
 #define AE_FW_UOF_NAME_C3XXX	"icp_qat_ae.suof"
 
