@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route/nhop.h>
 #include <net/route/nhop_var.h>
 #include <netinet/in.h>
+#include <netinet6/scope6_var.h>
 
 #include <vm/uma.h>
 
@@ -235,6 +236,132 @@ get_info_weight(const struct rt_addrinfo *info, uint32_t default_weight)
 
 	return (weight);
 }
+
+bool
+rt_is_host(const struct rtentry *rt)
+{
+
+	return (rt->rte_flags & RTF_HOST);
+}
+
+/*
+ * Returns pointer to nexthop or nexthop group
+ * associated with @rt
+ */
+struct nhop_object *
+rt_get_raw_nhop(const struct rtentry *rt)
+{
+
+	return (rt->rt_nhop);
+}
+
+#ifdef INET
+/*
+ * Stores IPv4 address and prefix length of @rt inside
+ *  @paddr and @plen.
+ * @pscopeid is currently always set to 0.
+ */
+void
+rt_get_inet_prefix_plen(const struct rtentry *rt, struct in_addr *paddr,
+    int *plen, uint32_t *pscopeid)
+{
+	const struct sockaddr_in *dst;
+
+	dst = (const struct sockaddr_in *)rt_key_const(rt);
+	KASSERT((dst->sin_family == AF_INET),
+	    ("rt family is %d, not inet", dst->sin_family));
+	*paddr = dst->sin_addr;
+	dst = (const struct sockaddr_in *)rt_mask_const(rt);
+	if (dst == NULL)
+		*plen = 32;
+	else
+		*plen = bitcount32(dst->sin_addr.s_addr);
+	*pscopeid = 0;
+}
+
+/*
+ * Stores IPv4 address and prefix mask of @rt inside
+ *  @paddr and @pmask. Sets mask to INADDR_ANY for host routes.
+ * @pscopeid is currently always set to 0.
+ */
+void
+rt_get_inet_prefix_pmask(const struct rtentry *rt, struct in_addr *paddr,
+    struct in_addr *pmask, uint32_t *pscopeid)
+{
+	const struct sockaddr_in *dst;
+
+	dst = (const struct sockaddr_in *)rt_key_const(rt);
+	KASSERT((dst->sin_family == AF_INET),
+	    ("rt family is %d, not inet", dst->sin_family));
+	*paddr = dst->sin_addr;
+	dst = (const struct sockaddr_in *)rt_mask_const(rt);
+	if (dst == NULL)
+		pmask->s_addr = INADDR_BROADCAST;
+	else
+		*pmask = dst->sin_addr;
+	*pscopeid = 0;
+}
+#endif
+
+#ifdef INET6
+static int
+inet6_get_plen(const struct in6_addr *addr)
+{
+
+	return (bitcount32(addr->s6_addr32[0]) + bitcount32(addr->s6_addr32[1]) +
+	    bitcount32(addr->s6_addr32[2]) + bitcount32(addr->s6_addr32[3]));
+}
+
+/*
+ * Stores IPv6 address and prefix length of @rt inside
+ *  @paddr and @plen. Addresses are returned in de-embedded form.
+ * Scopeid is set to 0 for non-LL addresses.
+ */
+void
+rt_get_inet6_prefix_plen(const struct rtentry *rt, struct in6_addr *paddr,
+    int *plen, uint32_t *pscopeid)
+{
+	const struct sockaddr_in6 *dst;
+
+	dst = (const struct sockaddr_in6 *)rt_key_const(rt);
+	KASSERT((dst->sin6_family == AF_INET6),
+	    ("rt family is %d, not inet6", dst->sin6_family));
+	if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr))
+		in6_splitscope(&dst->sin6_addr, paddr, pscopeid);
+	else
+		*paddr = dst->sin6_addr;
+	dst = (const struct sockaddr_in6 *)rt_mask_const(rt);
+	if (dst == NULL)
+		*plen = 128;
+	else
+		*plen = inet6_get_plen(&dst->sin6_addr);
+}
+
+/*
+ * Stores IPv6 address and prefix mask of @rt inside
+ *  @paddr and @pmask. Addresses are returned in de-embedded form.
+ * Scopeid is set to 0 for non-LL addresses.
+ */
+void
+rt_get_inet6_prefix_pmask(const struct rtentry *rt, struct in6_addr *paddr,
+    struct in6_addr *pmask, uint32_t *pscopeid)
+{
+	const struct sockaddr_in6 *dst;
+
+	dst = (const struct sockaddr_in6 *)rt_key_const(rt);
+	KASSERT((dst->sin6_family == AF_INET6),
+	    ("rt family is %d, not inet", dst->sin6_family));
+	if (IN6_IS_SCOPE_LINKLOCAL(&dst->sin6_addr))
+		in6_splitscope(&dst->sin6_addr, paddr, pscopeid);
+	else
+		*paddr = dst->sin6_addr;
+	dst = (const struct sockaddr_in6 *)rt_mask_const(rt);
+	if (dst == NULL)
+		memset(pmask, 0xFF, sizeof(struct in6_addr));
+	else
+		*pmask = dst->sin6_addr;
+}
+#endif
 
 static void
 rt_set_expire_info(struct rtentry *rt, const struct rt_addrinfo *info)
