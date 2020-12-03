@@ -1496,7 +1496,7 @@ dwc_attach(device_t dev)
 	uint32_t reg;
 	char *phy_mode;
 	phandle_t node;
-	uint32_t txpbl, rxpbl;
+	uint32_t txpbl, rxpbl, pbl;
 	bool nopblx8 = false;
 	bool fixed_burst = false;
 
@@ -1516,10 +1516,12 @@ dwc_attach(device_t dev)
 		OF_prop_free(phy_mode);
 	}
 
+	if (OF_getencprop(node, "snps,pbl", &pbl, sizeof(uint32_t)) <= 0)
+		pbl = BUS_MODE_DEFAULT_PBL;
 	if (OF_getencprop(node, "snps,txpbl", &txpbl, sizeof(uint32_t)) <= 0)
-		txpbl = 8;
+		txpbl = pbl;
 	if (OF_getencprop(node, "snps,rxpbl", &rxpbl, sizeof(uint32_t)) <= 0)
-		rxpbl = 8;
+		rxpbl = pbl;
 	if (OF_hasprop(node, "snps,no-pbl-x8") == 1)
 		nopblx8 = true;
 	if (OF_hasprop(node, "snps,fixed-burst") == 1)
@@ -1569,6 +1571,7 @@ dwc_attach(device_t dev)
 	reg |= (rxpbl << BUS_MODE_RPBL_SHIFT);
 	if (fixed_burst)
 		reg |= BUS_MODE_FIXEDBURST;
+
 	WRITE4(sc, BUS_MODE, reg);
 
 	/*
