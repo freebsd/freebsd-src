@@ -2706,7 +2706,7 @@ xgbe_upd_link(struct xgbe_prv_data *pdata)
 static int
 xgbe_phy_read_status(struct xgbe_prv_data *pdata)
 {
-	int common_adv_gb;
+	int common_adv_gb = 0;
 	int common_adv;
 	int lpagb = 0;
 	int adv, lpa;
@@ -2741,9 +2741,9 @@ xgbe_phy_read_status(struct xgbe_prv_data *pdata)
 			}
 
 			if (pdata->phy.supported == SUPPORTED_1000baseT_Half) 
-				XGBE_ADV(&pdata->phy, 1000baseT_Half); 
+				XGBE_SET_ADV(&pdata->phy, 1000baseT_Half); 
 			else if (pdata->phy.supported == SUPPORTED_1000baseT_Full) 
-				XGBE_ADV(&pdata->phy, 1000baseT_Full); 
+				XGBE_SET_ADV(&pdata->phy, 1000baseT_Full); 
 
 			common_adv_gb = lpagb & adv << 2;
 		}
@@ -2753,7 +2753,7 @@ xgbe_phy_read_status(struct xgbe_prv_data *pdata)
 			return (lpa);
 
 		if (pdata->phy.supported == SUPPORTED_Autoneg) 
-			XGBE_ADV(&pdata->phy, Autoneg);
+			XGBE_SET_ADV(&pdata->phy, Autoneg);
  
 		adv = xgbe_phy_mii_read(pdata, pdata->mdio_addr, MII_ANAR);
 		if (adv < 0)
