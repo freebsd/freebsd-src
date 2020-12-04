@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright 2018 Emmanuel Vadot <manu@FreeBSD.org>
+ * Copyright (c) 2019 Michal Meloun <mmel@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -23,46 +23,55 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _RK_CLK_PLL_H_
-#define _RK_CLK_PLL_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <dev/extres/clk/clk.h>
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
+#include <machine/bus.h>
 
-struct rk_clk_pll_rate {
-	uint32_t	freq;
-	uint32_t	refdiv;
-	uint32_t	fbdiv;
-	uint32_t	postdiv1;
-	uint32_t	postdiv2;
-	uint32_t	dsmpd;
-	uint32_t	frac;
-	uint32_t	bwadj;
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
+#include <dev/extres/syscon/syscon.h>
+#include <dev/fdt/simple_mfd.h>
+
+static struct ofw_compat_data compat_data[] = {
+	{"rockchip,rk3288-pmu",	1},
+	{NULL,			0}
 };
 
-struct rk_clk_pll_def {
-	struct clknode_init_def	clkdef;
-	uint32_t		base_offset;
+static int
+rk_pmu_probe(device_t dev)
+{
 
-	uint32_t		gate_offset;
-	uint32_t		gate_shift;
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data == 0)
+		return (ENXIO);
 
-	uint32_t		mode_reg;
-	uint32_t		mode_shift;
+	device_set_desc(dev, "RockChip Power Management Unit");
+	return (BUS_PROBE_DEFAULT);
+}
 
-	uint32_t		flags;
+static device_method_t rk_pmu_methods[] = {
+	DEVMETHOD(device_probe, rk_pmu_probe),
 
-	struct rk_clk_pll_rate	*rates;
-	struct rk_clk_pll_rate	*frac_rates;
+	DEVMETHOD_END
 };
 
-#define	RK_CLK_PLL_HAVE_GATE	0x1
 
-int rk3066_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
-int rk3328_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
-int rk3399_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
+DEFINE_CLASS_1(rk_pmu, rk_pmu_driver, rk_pmu_methods,
+    sizeof(struct simple_mfd_softc), simple_mfd_driver);
 
-#endif /* _RK_CLK_PLL_H_ */
+static devclass_t rk_pmu_devclass;
+EARLY_DRIVER_MODULE(rk_pmu, simplebus, rk_pmu_driver, rk_pmu_devclass,
+    0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+MODULE_VERSION(rk_pmu, 1);
