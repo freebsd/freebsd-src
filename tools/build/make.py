@@ -219,6 +219,9 @@ if __name__ == "__main__":
                                     parsed_args.cross_bindir)
         check_required_make_env_var("XLD", "ld" if use_cross_gcc else "ld.lld",
                                     parsed_args.cross_bindir)
+        check_required_make_env_var("STRIPBIN",
+                                    "strip" if use_cross_gcc else "llvm-strip",
+                                    parsed_args.cross_bindir)
 
     bmake_binary = bootstrap_bmake(source_root, objdir_prefix)
     # at -j1 cleandir+obj is unbearably slow. AUTO_OBJ helps a lot
