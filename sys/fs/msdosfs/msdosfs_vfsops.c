@@ -989,6 +989,11 @@ msdosfs_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 	return (0);
 }
 
+static void
+msdosfs_susp_clean(struct mount *mp __unused)
+{
+}
+
 static struct vfsops msdosfs_vfsops = {
 	.vfs_fhtovp =		msdosfs_fhtovp,
 	.vfs_mount =		msdosfs_mount,
@@ -997,6 +1002,7 @@ static struct vfsops msdosfs_vfsops = {
 	.vfs_statfs =		msdosfs_statfs,
 	.vfs_sync =		msdosfs_sync,
 	.vfs_unmount =		msdosfs_unmount,
+	.vfs_susp_clean =	msdosfs_susp_clean,
 };
 
 VFS_SET(msdosfs_vfsops, msdosfs, 0);
