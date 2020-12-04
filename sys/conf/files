@@ -734,6 +734,10 @@ crypto/chacha20/chacha.c	standard
 crypto/chacha20/chacha-sw.c	optional crypto | ipsec | ipsec_support
 crypto/des/des_ecb.c		optional netsmb
 crypto/des/des_setkey.c		optional netsmb
+crypto/openssl/ossl.c		optional ossl
+crypto/openssl/ossl_sha1.c	optional ossl
+crypto/openssl/ossl_sha256.c	optional ossl
+crypto/openssl/ossl_sha512.c	optional ossl
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption
 crypto/rijndael/rijndael-alg-fst.c optional crypto | ekcd | geom_bde | \
 	ipsec | ipsec_support | !random_loadable | wlan_ccmp

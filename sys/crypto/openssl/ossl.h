@@ -34,8 +34,7 @@
 /* Compatibility shims. */
 #define	OPENSSL_cleanse		explicit_bzero
 
-/* Used by assembly routines to select CPU-specific variants. */
-extern unsigned int OPENSSL_ia32cap_P[4];
+void ossl_cpuid(void);
 
 /* Needs to be big enough to hold any hash context. */
 struct ossl_hash_context {

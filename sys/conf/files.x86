@@ -53,10 +53,7 @@ intel_sha256.o			optional	aesni			\
 	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -msha ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"intel_sha256.o"
-crypto/openssl/ossl.c		optional ossl
-crypto/openssl/ossl_sha1.c	optional ossl
-crypto/openssl/ossl_sha256.c	optional ossl
-crypto/openssl/ossl_sha512.c	optional ossl
+crypto/openssl/ossl_x86.c	optional ossl
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock
