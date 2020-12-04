@@ -343,7 +343,8 @@
 				    const void *buf, size_t nbyte, int pad, \
 				    uint32_t offset1, uint32_t offset2); }
 175	AUE_NULL	UNIMPL	nosys
-176	AUE_NTP_ADJTIME	NOPROTO	{ int ntp_adjtime(struct timex *tp); }
+176	AUE_NTP_ADJTIME	STD	{ int freebsd32_ntp_adjtime( \
+				    struct timex32 *tp); }
 177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
 178	AUE_NULL	UNIMPL	getdescriptor (BSD/OS 2.x)
 179	AUE_NULL	UNIMPL	setdescriptor (BSD/OS 2.x)
