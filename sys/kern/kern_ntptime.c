@@ -338,23 +338,12 @@ SYSCTL_S64(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD | CTLFLAG_MPSAFE,
  * the timex.constant structure member has a dual purpose to set the time
  * constant and to set the TAI offset.
  */
-#ifndef _SYS_SYSPROTO_H_
-struct ntp_adjtime_args {
-	struct timex *tp;
-};
-#endif
-
 int
-sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
+kern_ntp_adjtime(struct thread *td, struct timex *ntv, int *retvalp)
 {
-	struct timex ntv;	/* temporary structure */
 	long freq;		/* frequency ns/s) */
 	int modes;		/* mode bits from structure */
 	int error, retval;
-
-	error = copyin((caddr_t)uap->tp, (caddr_t)&ntv, sizeof(ntv));
-	if (error)
-		return (error);
 
 	/*
 	 * Update selected clock variables - only the superuser can
@@ -365,18 +354,19 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	 * the STA_PLL bit in the status word is cleared, the state and
 	 * status words are reset to the initial values at boot.
 	 */
-	modes = ntv.modes;
+	modes = ntv->modes;
+	error = 0;
 	if (modes)
 		error = priv_check(td, PRIV_NTP_ADJTIME);
 	if (error != 0)
 		return (error);
 	NTP_LOCK();
 	if (modes & MOD_MAXERROR)
-		time_maxerror = ntv.maxerror;
+		time_maxerror = ntv->maxerror;
 	if (modes & MOD_ESTERROR)
-		time_esterror = ntv.esterror;
+		time_esterror = ntv->esterror;
 	if (modes & MOD_STATUS) {
-		if (time_status & STA_PLL && !(ntv.status & STA_PLL)) {
+		if (time_status & STA_PLL && !(ntv->status & STA_PLL)) {
 			time_state = TIME_OK;
 			time_status = STA_UNSYNC;
 #ifdef PPS_SYNC
@@ -384,28 +374,28 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 #endif /* PPS_SYNC */
 		}
 		time_status &= STA_RONLY;
-		time_status |= ntv.status & ~STA_RONLY;
+		time_status |= ntv->status & ~STA_RONLY;
 	}
 	if (modes & MOD_TIMECONST) {
-		if (ntv.constant < 0)
+		if (ntv->constant < 0)
 			time_constant = 0;
-		else if (ntv.constant > MAXTC)
+		else if (ntv->constant > MAXTC)
 			time_constant = MAXTC;
 		else
-			time_constant = ntv.constant;
+			time_constant = ntv->constant;
 	}
 	if (modes & MOD_TAI) {
-		if (ntv.constant > 0) /* XXX zero & negative numbers ? */
-			time_tai = ntv.constant;
+		if (ntv->constant > 0) /* XXX zero & negative numbers ? */
+			time_tai = ntv->constant;
 	}
 #ifdef PPS_SYNC
 	if (modes & MOD_PPSMAX) {
-		if (ntv.shift < PPS_FAVG)
+		if (ntv->shift < PPS_FAVG)
 			pps_shiftmax = PPS_FAVG;
-		else if (ntv.shift > PPS_FAVGMAX)
+		else if (ntv->shift > PPS_FAVGMAX)
 			pps_shiftmax = PPS_FAVGMAX;
 		else
-			pps_shiftmax = ntv.shift;
+			pps_shiftmax = ntv->shift;
 	}
 #endif /* PPS_SYNC */
 	if (modes & MOD_NANO)
@@ -417,17 +407,17 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	if (modes & MOD_CLKA)
 		time_status &= ~STA_CLK;
 	if (modes & MOD_FREQUENCY) {
-		freq = (ntv.freq * 1000LL) >> 16;
+		freq = (ntv->freq * 1000LL) >> 16;
 		if (freq > MAXFREQ)
 			L_LINT(time_freq, MAXFREQ);
 		else if (freq < -MAXFREQ)
 			L_LINT(time_freq, -MAXFREQ);
 		else {
 			/*
-			 * ntv.freq is [PPM * 2^16] = [us/s * 2^16]
+			 * ntv->freq is [PPM * 2^16] = [us/s * 2^16]
 			 * time_freq is [ns/s * 2^32]
 			 */
-			time_freq = ntv.freq * 1000LL * 65536LL;
+			time_freq = ntv->freq * 1000LL * 65536LL;
 		}
 #ifdef PPS_SYNC
 		pps_freq = time_freq;
@@ -435,9 +425,9 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	}
 	if (modes & MOD_OFFSET) {
 		if (time_status & STA_NANO)
-			hardupdate(ntv.offset);
+			hardupdate(ntv->offset);
 		else
-			hardupdate(ntv.offset * 1000);
+			hardupdate(ntv->offset * 1000);
 	}
 
 	/*
@@ -445,38 +435,60 @@ sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	 * returned only by ntp_gettime();
 	 */
 	if (time_status & STA_NANO)
-		ntv.offset = L_GINT(time_offset);
+		ntv->offset = L_GINT(time_offset);
 	else
-		ntv.offset = L_GINT(time_offset) / 1000; /* XXX rounding ? */
-	ntv.freq = L_GINT((time_freq / 1000LL) << 16);
-	ntv.maxerror = time_maxerror;
-	ntv.esterror = time_esterror;
-	ntv.status = time_status;
-	ntv.constant = time_constant;
+		ntv->offset = L_GINT(time_offset) / 1000; /* XXX rounding ? */
+	ntv->freq = L_GINT((time_freq / 1000LL) << 16);
+	ntv->maxerror = time_maxerror;
+	ntv->esterror = time_esterror;
+	ntv->status = time_status;
+	ntv->constant = time_constant;
 	if (time_status & STA_NANO)
-		ntv.precision = time_precision;
+		ntv->precision = time_precision;
 	else
-		ntv.precision = time_precision / 1000;
-	ntv.tolerance = MAXFREQ * SCALE_PPM;
+		ntv->precision = time_precision / 1000;
+	ntv->tolerance = MAXFREQ * SCALE_PPM;
 #ifdef PPS_SYNC
-	ntv.shift = pps_shift;
-	ntv.ppsfreq = L_GINT((pps_freq / 1000LL) << 16);
+	ntv->shift = pps_shift;
+	ntv->ppsfreq = L_GINT((pps_freq / 1000LL) << 16);
 	if (time_status & STA_NANO)
-		ntv.jitter = pps_jitter;
+		ntv->jitter = pps_jitter;
 	else
-		ntv.jitter = pps_jitter / 1000;
-	ntv.stabil = pps_stabil;
-	ntv.calcnt = pps_calcnt;
-	ntv.errcnt = pps_errcnt;
-	ntv.jitcnt = pps_jitcnt;
-	ntv.stbcnt = pps_stbcnt;
+		ntv->jitter = pps_jitter / 1000;
+	ntv->stabil = pps_stabil;
+	ntv->calcnt = pps_calcnt;
+	ntv->errcnt = pps_errcnt;
+	ntv->jitcnt = pps_jitcnt;
+	ntv->stbcnt = pps_stbcnt;
 #endif /* PPS_SYNC */
 	retval = ntp_is_time_error(time_status) ? TIME_ERROR : time_state;
 	NTP_UNLOCK();
 
-	error = copyout((caddr_t)&ntv, (caddr_t)uap->tp, sizeof(ntv));
-	if (error == 0)
-		td->td_retval[0] = retval;
+	*retvalp = retval;
+	return (0);
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct ntp_adjtime_args {
+	struct timex *tp;
+};
+#endif
+
+int
+sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
+{
+	struct timex ntv;
+	int error, retval;
+
+	error = copyin(uap->tp, &ntv, sizeof(ntv));
+	if (error == 0) {
+		error = kern_ntp_adjtime(td, &ntv, &retval);
+		if (error == 0) {
+			error = copyout(&ntv, uap->tp, sizeof(ntv));
+			if (error == 0)
+				td->td_retval[0] = retval;
+		}
+	}
 	return (error);
 }
 
