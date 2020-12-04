@@ -208,9 +208,17 @@ typedef unsigned int uint32_t;
 #define	_INT32_T_DECLARED
 typedef signed int int32_t;
 #define	_UINT64_T_DECLARED
+#ifndef __LP64__
 typedef unsigned long long uint64_t;
+#else
+typedef unsigned long uint64_t;
+#endif
 #define	_INT16_T_DECLARED
+#ifndef __LP64__
 typedef signed long long int64_t;
+#else
+typedef signed long int64_t;
+#endif
 
 typedef uint16_t uid_t;
 typedef uint16_t gid_t;
