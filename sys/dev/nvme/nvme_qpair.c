@@ -982,14 +982,6 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-#if !defined( __powerpc__) && !defined( __aarch64__)  && !defined( __arm__)
-	/*
-	 * powerpc's bus_dmamap_sync() already includes a heavyweight sync, but
-	 * no other archs do.
-	 */
-	wmb();
-#endif
-
 	bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
 	    qpair->sq_tdbl_off, qpair->sq_tail);
 	qpair->num_cmds++;
