@@ -692,7 +692,8 @@ tsadc_attach(device_t dev)
 	}
 
 	/* Set the assigned clocks parent and freq */
-	if (clk_set_assigned(sc->dev, node) != 0) {
+	rv = clk_set_assigned(sc->dev, node);
+	if (rv != 0 && rv != ENOENT) {
 		device_printf(dev, "clk_set_assigned failed\n");
 		goto fail;
 	}
