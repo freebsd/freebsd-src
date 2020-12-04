@@ -870,10 +870,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 4;
 		break;
 	}
-	/* ntp_adjtime */
+	/* freebsd32_ntp_adjtime */
 	case 176: {
-		struct ntp_adjtime_args *p = params;
-		uarg[0] = (intptr_t) p->tp; /* struct timex * */
+		struct freebsd32_ntp_adjtime_args *p = params;
+		uarg[0] = (intptr_t) p->tp; /* struct timex32 * */
 		*n_args = 1;
 		break;
 	}
@@ -4786,11 +4786,11 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* ntp_adjtime */
+	/* freebsd32_ntp_adjtime */
 	case 176:
 		switch(ndx) {
 		case 0:
-			p = "userland struct timex *";
+			p = "userland struct timex32 *";
 			break;
 		default:
 			break;
@@ -9629,7 +9629,7 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* ntp_adjtime */
+	/* freebsd32_ntp_adjtime */
 	case 176:
 		if (ndx == 0 || ndx == 1)
 			p = "int";

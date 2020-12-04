@@ -168,6 +168,9 @@ struct freebsd32_shmsys_args {
 	char a3_l_[PADL_(uint32_t)]; uint32_t a3; char a3_r_[PADR_(uint32_t)];
 	char a4_l_[PADL_(uint32_t)]; uint32_t a4; char a4_r_[PADR_(uint32_t)];
 };
+struct freebsd32_ntp_adjtime_args {
+	char tp_l_[PADL_(struct timex32 *)]; struct timex32 * tp; char tp_r_[PADR_(struct timex32 *)];
+};
 struct freebsd32___sysctl_args {
 	char name_l_[PADL_(int *)]; int * name; char name_r_[PADR_(int *)];
 	char namelen_l_[PADL_(u_int)]; u_int namelen; char namelen_r_[PADR_(u_int)];
@@ -769,6 +772,7 @@ int	freebsd32_sysarch(struct thread *, struct freebsd32_sysarch_args *);
 int	freebsd32_semsys(struct thread *, struct freebsd32_semsys_args *);
 int	freebsd32_msgsys(struct thread *, struct freebsd32_msgsys_args *);
 int	freebsd32_shmsys(struct thread *, struct freebsd32_shmsys_args *);
+int	freebsd32_ntp_adjtime(struct thread *, struct freebsd32_ntp_adjtime_args *);
 int	freebsd32___sysctl(struct thread *, struct freebsd32___sysctl_args *);
 int	freebsd32_futimes(struct thread *, struct freebsd32_futimes_args *);
 int	freebsd32_msgsnd(struct thread *, struct freebsd32_msgsnd_args *);
@@ -1342,6 +1346,7 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_shmsys	AUE_SHMSYS
 #define	FREEBSD32_SYS_AUE_freebsd6_freebsd32_pread	AUE_PREAD
 #define	FREEBSD32_SYS_AUE_freebsd6_freebsd32_pwrite	AUE_PWRITE
+#define	FREEBSD32_SYS_AUE_freebsd32_ntp_adjtime	AUE_NTP_ADJTIME
 #define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_stat	AUE_STAT
 #define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_fstat	AUE_FSTAT
 #define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_lstat	AUE_LSTAT

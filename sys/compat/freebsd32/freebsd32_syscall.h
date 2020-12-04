@@ -167,7 +167,7 @@
 #define	FREEBSD32_SYS_freebsd32_shmsys	171
 				/* 173 is freebsd6 freebsd32_pread */
 				/* 174 is freebsd6 freebsd32_pwrite */
-#define	FREEBSD32_SYS_ntp_adjtime	176
+#define	FREEBSD32_SYS_freebsd32_ntp_adjtime	176
 #define	FREEBSD32_SYS_setgid	181
 #define	FREEBSD32_SYS_setegid	182
 #define	FREEBSD32_SYS_seteuid	183
