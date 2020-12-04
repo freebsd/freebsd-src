@@ -2270,7 +2270,7 @@ _bootstrap_tools_links+=crunchide
 
 # 1300115: Higher WARNS fixes
 .if ${BOOTSTRAPPING} < 1202502 || \
-	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300115)
+	(${BOOTSTRAPPING} > 1300000 && ${BOOTSTRAPPING} < 1300131)
 _crunchgen=	usr.sbin/crunch/crunchgen
 .else
 _bootstrap_tools_links+=crunchgen

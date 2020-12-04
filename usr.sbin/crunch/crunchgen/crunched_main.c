@@ -97,9 +97,9 @@ find_entry_point(const char *basename)
 
 	for (ep = entry_points; ep->name != NULL; ep++)
 		if (!strcmp(basename, ep->name))
-			break;
+			return (ep);
 
-	return (ep);
+	return (NULL);
 }
 
 static const char *
