@@ -246,6 +246,13 @@ armv8_crypto_wrap.o		optional	armv8crypto		\
 	no-implicit-rule						\
 	clean		"armv8_crypto_wrap.o"
 crypto/des/des_enc.c		optional	netsmb
+crypto/openssl/ossl_aarch64.c	optional	ossl
+crypto/openssl/aarch64/sha1-armv8.S	optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
+crypto/openssl/aarch64/sha256-armv8.S	optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
+crypto/openssl/aarch64/sha512-armv8.S	optional ossl		\
+	compile-with	"${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}"
 dev/acpica/acpi_bus_if.m	optional	acpi
 dev/acpica/acpi_if.m		optional	acpi
 dev/acpica/acpi_pci_link.c	optional	acpi pci

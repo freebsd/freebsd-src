@@ -26,12 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 19, 2020
+.Dd December 4, 2020
 .Dt OSSL 4
 .Os
 .Sh NAME
 .Nm ossl
-.Nd "driver using OpenSSL assembly routines on x86 CPUs"
+.Nd "driver using OpenSSL assembly routines"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -60,6 +60,8 @@ driver includes architecture-specific implementations for the following
 architectures:
 .Pp
 .Bl -bullet -compact
+.It
+arm64
 .It
 amd64
 .It
