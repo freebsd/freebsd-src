@@ -16,11 +16,13 @@ SRCS=	bus_if.h \
 SRCS.amd64= \
 	sha1-x86_64.S \
 	sha256-x86_64.S \
-	sha512-x86_64.S
+	sha512-x86_64.S \
+	ossl_x86.c
 
 SRCS.i386= \
 	sha1-586.S \
 	sha256-586.S \
-	sha512-586.S
+	sha512-586.S \
+	ossl_x86.c
 
 .include <bsd.kmod.mk>
