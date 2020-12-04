@@ -1095,7 +1095,7 @@ cpuset_setproc_setthread(struct cpuset *tdset, struct cpuset *set,
 	if (error)
 		return (error);
 
-	return cpuset_shadow(tdset, nsetp, &mask, &domain, freelist,
+	return cpuset_shadow(set, nsetp, &mask, &domain, freelist,
 	    domainlist);
 }
 
