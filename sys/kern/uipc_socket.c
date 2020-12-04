@@ -1192,7 +1192,8 @@ soclose(struct socket *so)
 				goto drop;
 			}
 		}
-		if (so->so_options & SO_LINGER) {
+
+		if ((so->so_options & SO_LINGER) != 0 && so->so_linger != 0) {
 			if ((so->so_state & SS_ISDISCONNECTING) &&
 			    (so->so_state & SS_NBIO))
 				goto drop;
