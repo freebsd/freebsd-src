@@ -67,11 +67,10 @@ extern char edata[];
 	|| (((ins) & 0xffff8000) == 0x67bd8000))
 
 /*
- * MIPS ABI 3.0 requires that all functions return using the 'j ra' instruction
- *
- * XXX gcc doesn't do this for functions with __noreturn__ attribute.
+ * LLD will insert invalid instruction traps between functions.
+ * Currently this is 0xefefefef but it may change in the future.
  */
-#define	MIPS_END_OF_FUNCTION(ins)	((ins) == 0x03e00008)
+#define	MIPS_LLD_PADDING_BETWEEN_FUNCTIONS(ins)	((ins) == 0xefefefef)
 
 #if defined(__mips_n64)
 #	define	MIPS_IS_VALID_KERNELADDR(reg)	((((reg) & 3) == 0) && \
@@ -183,27 +182,32 @@ loop:
 	 * subroutine.
 	 */
 	if (!subr) {
-		va = pc - sizeof(int);
+		va = pc;
 		while (1) {
 			instr = kdbpeek((int *)va);
+
+			/* LLD fills padding between functions with 0xefefefef */
+			if (MIPS_LLD_PADDING_BETWEEN_FUNCTIONS(instr))
+				break;
 
 			if (MIPS_START_OF_FUNCTION(instr))
 				break;
 
-			if (MIPS_END_OF_FUNCTION(instr)) {
-				/* skip over branch-delay slot instruction */
-				va += 2 * sizeof(int);
-				break;
-			}
-
  			va -= sizeof(int);
 		}
 
-		/* skip over nulls which might separate .o files */
-		while ((instr = kdbpeek((int *)va)) == 0)
+		/*
+		 * Skip over nulls/trap padding which might separate
+		 * object files or functions.
+		 */
+		instr = kdbpeek((int *)va);
+		while (instr == 0 || MIPS_LLD_PADDING_BETWEEN_FUNCTIONS(instr)) {
 			va += sizeof(int);
+			instr = kdbpeek((int *)va);
+		}
 		subr = va;
 	}
+
 	/* scan forwards to find stack size and any saved registers */
 	stksize = 0;
 	more = 3;
@@ -374,10 +378,16 @@ done:
 		    (uintmax_t)cause, (uintmax_t)badvaddr);
 		goto loop;
 	} else if (ra) {
-		if (pc == ra && stksize == 0)
+		/*
+		 * We subtract two instructions from ra to convert it
+		 * from a return address to a calling address,
+		 * accounting for the delay slot.
+		 */
+		register_t next_pc = ra - 2 * sizeof(int);
+		if (pc == next_pc && stksize == 0)
 			db_printf("stacktrace: loop!\n");
 		else {
-			pc = ra;
+			pc = next_pc;
 			sp += stksize;
 			ra = next_ra;
 			goto loop;
