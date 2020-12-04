@@ -28,7 +28,7 @@
 # PROVIDE: netif
 # REQUIRE: FILESYSTEMS iovctl serial sppp sysctl
 # REQUIRE: hostid ipfs
-# KEYWORD: nojailvnet shutdown
+# KEYWORD: nojailvnet
 
 . /etc/rc.subr
 . /etc/network.subr
