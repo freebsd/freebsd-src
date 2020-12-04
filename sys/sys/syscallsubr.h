@@ -61,6 +61,7 @@ union semun;
 struct sockaddr;
 struct stat;
 struct thr_param;
+struct timex;
 struct uio;
 struct vm_map;
 struct vmspace;
@@ -215,6 +216,7 @@ int	kern_munlock(struct thread *td, uintptr_t addr, size_t size);
 int	kern_munmap(struct thread *td, uintptr_t addr, size_t size);
 int     kern_nanosleep(struct thread *td, struct timespec *rqt,
 	    struct timespec *rmt);
+int	kern_ntp_adjtime(struct thread *td, struct timex *ntv, int *retvalp);
 int	kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
 	    long *ploff);
 int	kern_openat(struct thread *td, int fd, const char *path,
