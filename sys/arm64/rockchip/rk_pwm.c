@@ -99,6 +99,7 @@ __FBSDID("$FreeBSD$");
 #define	NS_PER_SEC	1000000000
 
 static struct ofw_compat_data compat_data[] = {
+	{ "rockchip,rk3288-pwm",		1 },
 	{ "rockchip,rk3399-pwm",		1 },
 	{ NULL,					0 }
 };

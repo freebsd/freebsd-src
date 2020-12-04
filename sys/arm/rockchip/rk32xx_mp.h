@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright 2018 Emmanuel Vadot <manu@FreeBSD.org>
+ * Copyright (c) 2019 Michal Meloun <mmel@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,42 +27,10 @@
  * $FreeBSD$
  */
 
-#ifndef _RK_CLK_PLL_H_
-#define _RK_CLK_PLL_H_
+#ifndef _RK32XX_MP_H_
+#define	_RK32XX_MP_H_
 
-#include <dev/extres/clk/clk.h>
+void rk32xx_mp_setmaxid(platform_t plat);
+void rk32xx_mp_start_ap(platform_t plat);
 
-struct rk_clk_pll_rate {
-	uint32_t	freq;
-	uint32_t	refdiv;
-	uint32_t	fbdiv;
-	uint32_t	postdiv1;
-	uint32_t	postdiv2;
-	uint32_t	dsmpd;
-	uint32_t	frac;
-	uint32_t	bwadj;
-};
-
-struct rk_clk_pll_def {
-	struct clknode_init_def	clkdef;
-	uint32_t		base_offset;
-
-	uint32_t		gate_offset;
-	uint32_t		gate_shift;
-
-	uint32_t		mode_reg;
-	uint32_t		mode_shift;
-
-	uint32_t		flags;
-
-	struct rk_clk_pll_rate	*rates;
-	struct rk_clk_pll_rate	*frac_rates;
-};
-
-#define	RK_CLK_PLL_HAVE_GATE	0x1
-
-int rk3066_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
-int rk3328_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
-int rk3399_clk_pll_register(struct clkdom *clkdom, struct rk_clk_pll_def *clkdef);
-
-#endif /* _RK_CLK_PLL_H_ */
+#endif /* _RK32XX_MP_H_ */

@@ -205,6 +205,7 @@ struct rk_cru_gate {
 
 enum rk_clk_type {
 	RK_CLK_UNDEFINED = 0,
+	RK3066_CLK_PLL,
 	RK3328_CLK_PLL,
 	RK3399_CLK_PLL,
 	RK_CLK_COMPOSITE,
