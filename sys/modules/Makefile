@@ -518,6 +518,7 @@ _mthca=		mthca
 _mlx4ib=	mlx4ib
 _mlx5ib=	mlx5ib
 .endif
+_ossl=		ossl
 _vmware=	vmware
 .endif
 
@@ -634,7 +635,6 @@ _nctgpio=	nctgpio
 _ndis=		ndis
 _ntb=		ntb
 _ocs_fc=	ocs_fc
-_ossl=		ossl
 _pccard=	pccard
 _qat=		qat
 _qatfw=		qatfw
