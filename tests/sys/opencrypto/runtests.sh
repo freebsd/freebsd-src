@@ -65,7 +65,7 @@ cpu_module=
 
 case ${cpu_type} in
 aarch64)
-	cpu_module=nexus/armv8crypto
+	cpu_module="nexus/armv8crypto nexus/ossl"
 	;;
 amd64|i386)
 	cpu_module="nexus/aesni nexus/ossl"

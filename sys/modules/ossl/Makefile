@@ -13,6 +13,12 @@ SRCS=	bus_if.h \
 	ossl_sha512.c \
 	${SRCS.${MACHINE_CPUARCH}}
 
+SRCS.aarch64= \
+	sha1-armv8.S \
+	sha256-armv8.S \
+	sha512-armv8.S \
+	ossl_aarch64.c
+
 SRCS.amd64= \
 	sha1-x86_64.S \
 	sha256-x86_64.S \
@@ -24,5 +30,11 @@ SRCS.i386= \
 	sha256-586.S \
 	sha512-586.S \
 	ossl_x86.c
+
+# For arm64, we are forced to rewrite the compiler invocation for the assembly
+# files, to remove -mgeneral-regs-only.
+${SRCS.aarch64:M*.S:S/S/o/}: ${.TARGET:R}.S
+	${CC} -c ${CFLAGS:N-mgeneral-regs-only} ${WERROR} ${PROF} ${.IMPSRC}
+	${CTFCONVERT_CMD}
 
 .include <bsd.kmod.mk>
