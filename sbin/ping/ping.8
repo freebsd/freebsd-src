@@ -131,12 +131,11 @@ datagrams have an IPv6 header and
 .Tn ICMPv6
 header formatted as documented in RFC 2463.
 .Pp
-When invoked with a hostname, the version to which the target is
-resolved first is used. In that case, the options and arguments used
-must be valid for the specific IP version, otherwise
+When invoked with a hostname, the version to which the target is resolved first is used.
+In that case, the options and arguments used must be valid for the specific IP version, otherwise
 .Nm
-exits with an error. If the target is resolved to both IPv4 and IPv6,
-the specific IP version can be requested by
+exits with an error.
+If the target is resolved to both IPv4 and IPv6, the specific IP version can be requested by
 .Fl 4
 or
 .Fl 6
@@ -210,15 +209,14 @@ option.
 .It Fl I Ar iface
 For an IPv4 target,
 .Ar iface
-is an IP address indentifying an interface from which the packets will
-be sent. This flag applies only if the ping target is a multicast
-address.
+is an IP address indentifying an interface from which the packets will be sent.
+This flag applies only if the ping target is a multicast address.
 .Pp
 For an IPv6 target,
 .Ar iface
-is a name of an interface (e.g. `em0') from which the packets will be
-sent. This flag applies if the ping target is a multicast address, or
-link-local/site-local unicast address.
+is a name of an interface (e.g. `em0') from which the packets will be sent.
+This flag applies if the ping target is a multicast address, or link-local/site-local
+unicast address.
 .It Fl i Ar wait
 Wait
 .Ar wait
