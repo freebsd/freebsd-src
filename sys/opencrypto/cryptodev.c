@@ -374,6 +374,7 @@ cryptof_ioctl(
 	struct ucred *active_cred,
 	struct thread *td)
 {
+	static struct timeval keywarn, featwarn;
 #define	SES2(p)	((struct session2_op *)p)
 	struct cryptoini cria, crie;
 	struct fcrypt *fcr = fp->f_data;
@@ -701,6 +702,10 @@ bail:
 	case CIOCKEY32:
 	case CIOCKEY232:
 #endif
+		if (ratecheck(&keywarn, &warninterval))
+			gone_in(14,
+			    "Asymmetric crypto operations via /dev/crypto");
+
 		if (!crypto_userasymcrypto) {
 			SDT_PROBE1(opencrypto, dev, ioctl, error, __LINE__);
 			return (EPERM);		/* XXX compat? */
@@ -730,6 +735,10 @@ bail:
 #endif
 		break;
 	case CIOCASYMFEAT:
+		if (ratecheck(&featwarn, &warninterval))
+			gone_in(14,
+			    "Asymmetric crypto features via /dev/crypto");
+
 		if (!crypto_userasymcrypto) {
 			/*
 			 * NB: if user asym crypto operations are
