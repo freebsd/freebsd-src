@@ -38,6 +38,7 @@
 #include <sys/queue.h>
 #include <sys/errno.h>
 
+#define	offsetof(type, field) __builtin_offsetof(type, field)
 #define	howmany(x, y)	(((x)+((y)-1))/(y))
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define	isalpha(x) (((x) >= 'a' && (x) <= 'z') || ((x) >= 'A' && (x) <= 'Z'))
@@ -77,6 +78,7 @@ struct sysctl_req {
 #define	EVENTHANDLER_DECLARE(...)
 #define	EVENTHANDLER_INVOKE(...)
 #define	KASSERT(...)
+#define	CTASSERT(x) _Static_assert(x, "compile-time assertion failed")
 #define	SCHEDULER_STOPPED(x) (0)
 #define	PI_SWI(...) (0)
 #define	UNIQ_NAME(x) x
@@ -119,6 +121,8 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
 #define	hz 1000
 #undef PAGE_SIZE
 #define	PAGE_SIZE 4096
+#undef PAGE_SHIFT
+#define	PAGE_SHIFT 12
 #undef MIN
 #define	MIN(a,b) (((a) < (b)) ? (a) : (b))
 #undef MAX
@@ -227,10 +231,21 @@ typedef uint16_t mode_t;
 typedef uint8_t *caddr_t;
 #define	_UINTPTR_T_DECLARED
 typedef unsigned long uintptr_t;
+#define	_UINTMAX_T_DECLARED
+typedef unsigned long uintmax_t;
+typedef unsigned long vm_paddr_t;
 
 #define	_SIZE_T_DECLARED
 typedef unsigned long size_t;
-typedef unsigned long u_long;
+#define	_SSIZE_T_DECLARED
+typedef signed long ssize_t;
+#define	_OFF_T_DECLARED
+typedef unsigned long off_t;
+
+typedef unsigned char   u_char;
+typedef unsigned short  u_short;
+typedef unsigned int    u_int;
+typedef unsigned long   u_long;
 #endif
 
 typedef unsigned long bus_addr_t;
@@ -491,6 +506,7 @@ void	module_register(void *);
 
 void   *memset(void *, int, size_t len);
 void   *memcpy(void *, const void *, size_t len);
+int	memcmp(const void *, const void *, size_t len);
 int	printf(const char *,...) __printflike(1, 2);
 int	snprintf(char *restrict str, size_t size, const char *restrict format,...) __printflike(3, 4);
 size_t	strlen(const char *s);
