@@ -31,8 +31,9 @@
 #ifndef _LINUX_LIST_H_
 #define _LINUX_LIST_H_
 
+#ifndef _STANDALONE
 /*
- * Since LIST_HEAD conflicts with the linux definition we must include any
+ * Since LIST_HEAD conflicts with the Linux definition we must include any
  * FreeBSD header which requires it here so it is resolved with the correct
  * definition prior to the undef.
  */
@@ -69,10 +70,12 @@
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/pmap.h>
+#endif
 
 #ifndef prefetch
 #define	prefetch(x)
 #endif
+
 #define LINUX_LIST_HEAD_INIT(name) { &(name), &(name) }
 
 #define LINUX_LIST_HEAD(name) \
