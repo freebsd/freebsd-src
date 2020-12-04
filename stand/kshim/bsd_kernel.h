@@ -217,7 +217,7 @@ typedef unsigned long long uint64_t;
 #else
 typedef unsigned long uint64_t;
 #endif
-#define	_INT16_T_DECLARED
+#define	_INT64_T_DECLARED
 #ifndef __LP64__
 typedef signed long long int64_t;
 #else
