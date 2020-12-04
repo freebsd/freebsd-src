@@ -409,4 +409,24 @@ struct procctl_reaper_pids32 {
 	uint32_t rp_pids;
 };
 
+struct timex32 {
+	unsigned int modes;
+	int32_t	offset;
+	int32_t	freq;
+	int32_t	maxerror;
+	int32_t	esterror;
+	int	status;
+	int32_t	constant;
+	int32_t	precision;
+	int32_t	tolerance;
+	int32_t	ppsfreq;
+	int32_t	jitter;
+	int	shift;
+	int32_t	stabil;
+	int32_t	jitcnt;
+	int32_t	calcnt;
+	int32_t	errcnt;
+	int32_t	stbcnt;
+};
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */
