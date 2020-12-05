@@ -106,6 +106,8 @@ typedef unsigned long sopno;
 #define	OEOW	(20L<<OPSHIFT)	/* end word	-			*/
 #define	OBOS	(21L<<OPSHIFT)	/* begin subj.  -			*/
 #define	OEOS	(22L<<OPSHIFT)	/* end subj.	-			*/
+#define	OWBND	(23L<<OPSHIFT)	/* word bound	-			*/
+#define	ONWBND	(24L<<OPSHIFT)	/* not bound	-			*/
 
 /*
  * Structures for [] character-set representation.

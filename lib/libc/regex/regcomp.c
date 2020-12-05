@@ -486,6 +486,12 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 			case '\'':
 				EMIT(OEOS, 0);
 				break;
+			case 'B':
+				EMIT(ONWBND, 0);
+				break;
+			case 'b':
+				EMIT(OWBND, 0);
+				break;
 			case 'W':
 			case 'w':
 			case 'S':
@@ -844,6 +850,12 @@ p_simp_re(struct parse *p, struct branchc *bc)
 				break;
 			case BACKSL|'\'':
 				EMIT(OEOS, 0);
+				break;
+			case BACKSL|'B':
+				EMIT(ONWBND, 0);
+				break;
+			case BACKSL|'b':
+				EMIT(OWBND, 0);
 				break;
 			case BACKSL|'W':
 			case BACKSL|'w':
@@ -1892,6 +1904,8 @@ findmust(struct parse *p, struct re_guts *g)
 		case OEOL:
 		case OBOS:
 		case OEOS:
+		case OWBND:
+		case ONWBND:
 		case O_QUEST:
 		case O_CH:
 		case OEND:
@@ -2043,6 +2057,8 @@ altoffset(sop *scan, int offset)
 			try++;
 		case OBOW:
 		case OEOW:
+		case OWBND:
+		case ONWBND:
 		case OLPAREN:
 		case ORPAREN:
 		case OOR2:
