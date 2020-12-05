@@ -589,6 +589,17 @@ dissect(struct match *m,
 	return(sp);
 }
 
+#define	ISBOW(m, sp)					\
+    (sp < m->endp && ISWORD(*sp) &&			\
+    ((sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||	\
+    (sp > m->offp && !ISWORD(*(sp-1)))))
+#define	ISEOW(m, sp)					\
+    (((sp == m->endp && !(m->eflags&REG_NOTEOL)) ||	\
+    (sp < m->endp && *sp == '\n' &&			\
+    (m->g->cflags&REG_NEWLINE)) ||			\
+    (sp < m->endp && !ISWORD(*sp)) ) &&			\
+    (sp > m->beginp && ISWORD(*(sp-1))))		\
+
 /*
  - backref - figure out what matched what, figuring in back references
  == static const char *backref(struct match *m, const char *start, \
@@ -663,19 +674,13 @@ backref(struct match *m,
 				return(NULL);
 			break;
 		case OBOW:
-			if (sp < m->endp && ISWORD(*sp) &&
-			    ((sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||
-			    (sp > m->offp && !ISWORD(*(sp-1)))))
+			if (ISBOW(m, sp))
 				{ /* yes */ }
 			else
 				return(NULL);
 			break;
 		case OEOW:
-			if (( (sp == m->endp && !(m->eflags&REG_NOTEOL)) ||
-					(sp < m->endp && *sp == '\n' &&
-						(m->g->cflags&REG_NEWLINE)) ||
-					(sp < m->endp && !ISWORD(*sp)) ) &&
-					(sp > m->beginp && ISWORD(*(sp-1))) )
+			if (ISEOW(m, sp))
 				{ /* yes */ }
 			else
 				return(NULL);
