@@ -147,7 +147,8 @@ static struct i2c_div_type vf610_div_table[] = {
 	{ 0x2C, 576 }, { 0x2D, 640 }, { 0x2E, 768 }, { 0x32, 896 },
 	{ 0x2F, 960 }, { 0x33, 1024 }, { 0x34, 1152 }, { 0x35, 1280 },
 	{ 0x36, 1536 }, { 0x3A, 1792 }, { 0x37, 1920 }, { 0x3B, 2048 },
-	{ 0x3C, 2304 }, { 0x3D, 2560 }, { 0x3E, 3072 }, { 0x3F, 3840 }
+	{ 0x3C, 2304 }, { 0x3D, 2560 }, { 0x3E, 3072 }, { 0x3F, 3840 },
+	{ 0x3F, 3840 }, { 0x7B, 4096 }, { 0x7D, 5120 }, { 0x7E, 6144 },
 };
 #endif
 
@@ -307,6 +308,14 @@ wait_for_icf(struct i2c_softc *sc)
 
 	return (IIC_ETIMEOUT);
 }
+/* Get ACK bit from last write */
+static bool
+tx_acked(struct i2c_softc *sc)
+{
+
+	return (READ1(sc, I2C_IBSR) & IBSR_RXAK) ? false : true;
+
+}
 
 static int
 i2c_repeated_start(device_t dev, u_char slave, int timeout)
@@ -341,6 +350,12 @@ i2c_repeated_start(device_t dev, u_char slave, int timeout)
 	WRITE1(sc, I2C_IBDR, slave);
 
 	error = wait_for_iif(sc);
+
+	if (!tx_acked(sc)) {
+		vf_i2c_dbg(sc,
+		    "cant i2c start: missing ACK after slave addres\n");
+		return (IIC_ENOACK);
+	}
 
 	mtx_unlock(&sc->mutex);
 
@@ -384,11 +399,17 @@ i2c_start(device_t dev, u_char slave, int timeout)
 	WRITE1(sc, I2C_IBDR, slave);
 
 	error = wait_for_iif(sc);
-
-	mtx_unlock(&sc->mutex);
 	if (error != 0) {
+		mtx_unlock(&sc->mutex);
 		vf_i2c_dbg(sc, "cant i2c start: iif error\n");
 		return (error);
+	}
+	mtx_unlock(&sc->mutex);
+
+	if (!tx_acked(sc)) {
+		vf_i2c_dbg(sc,
+		    "cant i2c start: missing QACK after slave addres\n");
+		return (IIC_ENOACK);
 	}
 
 	return (IIC_NOERR);
@@ -568,10 +589,15 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 			return (error);
 		}
 
+		if (!tx_acked(sc) && (*sent  = (len - 2)) ){
+			mtx_unlock(&sc->mutex);
+			vf_i2c_dbg(sc, "no ACK on %d write\n", *sent);
+			return (IIC_ENOACK);
+		}
+
 		(*sent)++;
 	}
 	mtx_unlock(&sc->mutex);
-
 	return (IIC_NOERR);
 }
 
@@ -600,14 +626,8 @@ static device_method_t i2c_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t i2c_driver = {
-	"i2c",
-	i2c_methods,
-	sizeof(struct i2c_softc),
-};
-
 static devclass_t i2c_devclass;
-
-DRIVER_MODULE(i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
+static DEFINE_CLASS_0(i2c, i2c_driver, i2c_methods, sizeof(struct i2c_softc));
+DRIVER_MODULE(vybrid_i2c, simplebus, i2c_driver, i2c_devclass, 0, 0);
 DRIVER_MODULE(iicbus, i2c, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(ofw_iicbus, i2c, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
