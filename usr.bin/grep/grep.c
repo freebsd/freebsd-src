@@ -62,8 +62,7 @@ const char	*errstr[] = {
 /* 5*/	"\t[--context[=num]] [--directories=action] [--label] [--line-buffered]\n",
 /* 6*/	"\t[--null] [pattern] [file ...]\n",
 /* 7*/	"Binary file %s matches\n",
-/* 8*/	"%s (BSD grep) %s\n",
-/* 9*/	"%s (BSD grep, GNU compatible) %s\n",
+/* 8*/	"%s (BSD grep, GNU compatible) %s\n",
 };
 
 /* Flags passed to regcomp() and regexec() */
@@ -555,11 +554,7 @@ main(int argc, char *argv[])
 			filebehave = FILE_MMAP;
 			break;
 		case 'V':
-#ifdef WITH_GNU_COMPAT
-			printf(errstr[9], getprogname(), VERSION);
-#else
 			printf(errstr[8], getprogname(), VERSION);
-#endif
 			exit(0);
 		case 'v':
 			vflag = true;
