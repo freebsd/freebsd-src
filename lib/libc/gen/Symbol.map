@@ -6,6 +6,7 @@ FBSD_1.0 {
 	__xuname;
 	pthread_atfork;
 	pthread_attr_destroy;
+	pthread_attr_get_np;
 	pthread_attr_getdetachstate;
 	pthread_attr_getguardsize;
 	pthread_attr_getinheritsched;
