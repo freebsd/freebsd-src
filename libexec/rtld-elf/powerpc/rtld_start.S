@@ -101,6 +101,7 @@ _ENTRY(.rtld_start)
 
 	li      %r0,1		/* _exit() */
 	sc
+_END(.rtld_start)
 
 #ifdef __SPE__
 /* stack space for 30 GPRs + SPEFSCR/ACC/lr/cr */
@@ -142,6 +143,7 @@ _ENTRY(_rtld_bind_secureplt_start)
 	ori	%r11,%r11,0x15555556@l
 	mulhwu	%r11,%r11,%r0		# get high half of multiplication
 	b	1f
+_END(_rtld_bind_secureplt_start)
 
 /*
  * _rtld_bind_start()
@@ -264,6 +266,7 @@ _ENTRY(_rtld_bind_start)
 
         addi    %r1,%r1,STACK_SIZE	# restore stack
         bctr				# jump to target
+_END(_rtld_bind_start)
 
 
 /*
@@ -284,6 +287,7 @@ _ENTRY(_rtld_powerpc_pltlongresolve)
 	subf	%r11,%r12,%r11		# reloff
 	li	%r12,2
 	srw	%r11,%r11,%r12		# index = reloff/sizeof(Elf_Addr)
+_END(_rtld_powerpc_pltlongresolve)
 _ENTRY(_rtld_powerpc_pltresolve)
         lis     %r12,0			# lis   12,_rtld_bind_start@ha
         addi    %r12,%r12,0		# addi  12,12,_rtld_bind_start@l
@@ -291,6 +295,7 @@ _ENTRY(_rtld_powerpc_pltresolve)
         lis     %r12,0			# lis   12,obj@ha
         addi    %r12,%r12,0		# addi  12,12,obj@l
         bctr
+_END(_rtld_powerpc_pltresolve)
 
 /*
  * _rtld_powerpc_pltcall()
@@ -311,5 +316,6 @@ _ENTRY(_rtld_powerpc_pltcall)
         lwz     %r11,0(%r11)		# lwz   11,jmptab@l(11)
         mtctr   %r11
         bctr				# (*jmptab[index])()
+_END(_rtld_powerpc_pltcall)
 
 	.section .note.GNU-stack,"",%progbits

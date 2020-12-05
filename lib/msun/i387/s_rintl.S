@@ -40,5 +40,6 @@ ENTRY(rintl)
 	fldt	4(%esp)
 	frndint
 	ret
+END(rintl)
 
 	.section .note.GNU-stack,"",%progbits

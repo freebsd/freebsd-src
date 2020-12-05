@@ -36,4 +36,4 @@ ASENTRY(mambocall)
 	 */
 	.long 0x000EAEB0
 	blr
-
+ASEND(mambocall)

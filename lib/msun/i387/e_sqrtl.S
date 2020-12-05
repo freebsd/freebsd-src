@@ -40,5 +40,6 @@ ENTRY(sqrtl)
 	fldt	4(%esp)
 	fsqrt
 	ret
+END(sqrtl)
 
 	.section .note.GNU-stack,"",%progbits

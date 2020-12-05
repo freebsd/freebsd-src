@@ -74,6 +74,7 @@ ENTRY(cpu_throw)
 	li	%r14,0	/* Tell cpu_switchin not to release a thread */
 
 	b	cpu_switchin
+END(cpu_throw)
 
 /*
  * void cpu_switch(struct thread *old,
@@ -193,6 +194,7 @@ blocked_loop:
 	 */
 	stwcx.	%r1, 0, %r3
 	blr
+END(cpu_switch)
 
 /*
  * savectx(pcb)
@@ -206,6 +208,7 @@ ENTRY(savectx)
 	mflr	%r4			/* Save the link register */
 	stw	%r4,PCB_LR(%r3)
 	blr
+END(savectx)
 
 /*
  * fork_trampoline()
@@ -225,3 +228,4 @@ ENTRY(fork_trampoline)
 	mtspr	SPR_SPEFSCR, %r3
 #endif
 	b	trapexit
+END(fork_trampoline)

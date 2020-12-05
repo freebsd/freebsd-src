@@ -203,6 +203,7 @@ _NAKED_ENTRY(__start)
 
 	/* Unreachable */
 	b	.
+_END(__start)
 
 ASENTRY_NOPROF(__restartkernel_virtual)
 	/*
@@ -254,6 +255,7 @@ ASENTRY_NOPROF(__restartkernel_virtual)
 	addi	%r14, %r14, 1
 	cmpdi	%r14, 16
 	blt	1b
+ASEND(__restartkernel_virtual)
 
 ASENTRY_NOPROF(__restartkernel)
 	/*
@@ -270,5 +272,6 @@ ASENTRY_NOPROF(__restartkernel)
 	rfid
 2:	bl	__start
 	nop
+ASEND(__restartkernel)
 
 #include <powerpc/aim/trap_subr64.S>
