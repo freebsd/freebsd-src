@@ -315,9 +315,9 @@ struct pf_krule {
 	TAILQ_ENTRY(pf_krule)	 entries;
 	struct pf_pool		 rpool;
 
-	u_int64_t		 evaluations;
-	u_int64_t		 packets[2];
-	u_int64_t		 bytes[2];
+	counter_u64_t		 evaluations;
+	counter_u64_t		 packets[2];
+	counter_u64_t		 bytes[2];
 
 	struct pfi_kif		*kif;
 	struct pf_kanchor	*anchor;

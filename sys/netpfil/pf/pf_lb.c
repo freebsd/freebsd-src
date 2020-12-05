@@ -149,7 +149,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			dst = &r->dst;
 		}
 
-		r->evaluations++;
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != direction)
