@@ -76,6 +76,7 @@ ASENTRY_NOPROF(_setjmp)
 	/* f14-f31, fpscr */
 	li 3, 0
 	blr
+ASEND(_setjmp)
 
 
 .extern sigsetmask
@@ -113,3 +114,4 @@ ASENTRY_NOPROF(_longjmp)
 	/* f14-f31, fpscr */
 	mr 3, 4
 	blr
+ASEND(_longjmp)

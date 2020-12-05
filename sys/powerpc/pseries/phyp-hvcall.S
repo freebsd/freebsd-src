@@ -47,6 +47,7 @@ ASENTRY(phyp_hcall)
 	ld	%r0,16(%r1)
 	mtlr	%r0
 	blr				/* return r3 = status */
+ASEND(phyp_hcall)
 
 /*
  * PFT HV calls take a special ABI (see PAPR 14.5.4.1)
@@ -72,4 +73,4 @@ ASENTRY(phyp_pft_hcall)
 	ld	%r0,16(%r1)
 	mtlr	%r0
 	blr				/* return r3 = status */
-
+ASEND(phyp_pft_hcall)

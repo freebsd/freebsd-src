@@ -129,4 +129,4 @@ ASENTRY(opal_call)
 
 	/* And return */
 	blr
-
+ASEND(opal_call)

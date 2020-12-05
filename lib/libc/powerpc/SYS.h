@@ -58,7 +58,8 @@ ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
 	_SYSCALL(name);						\
 	bnslr;							\
-	b	CNAME(HIDENAME(cerror))
+	b	CNAME(HIDENAME(cerror));			\
+END(__sys_##name)
 
 #define	RSYSCALL(name)						\
 	.text;							\
@@ -68,4 +69,5 @@ ENTRY(__sys_##name);						\
 	WEAK_REFERENCE(__sys_##name, _##name);			\
 	_SYSCALL(name);						\
 	bnslr;							\
-	b	CNAME(HIDENAME(cerror))
+	b	CNAME(HIDENAME(cerror));			\
+END(__sys_##name)

@@ -120,6 +120,7 @@ ASENTRY(ofwcall)
 	lwz	%r0,4(%r1)
 	mtlr 	%r0
 	blr
+ASEND(ofwcall)
 
 /*
  * RTAS Entry Point. Similar to the OF one, but simpler (no separate stack)
@@ -174,4 +175,4 @@ ASENTRY(rtascall)
 	lwz	%r0,4(%r1)
 	mtlr 	%r0
 	blr
-
+ASEND(rtascall)

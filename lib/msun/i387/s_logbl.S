@@ -41,5 +41,6 @@ ENTRY(logbl)
 	fxtract
 	fstp	%st
 	ret
+END(logbl)
 
 	.section .note.GNU-stack,"",%progbits

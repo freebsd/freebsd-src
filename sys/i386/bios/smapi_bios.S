@@ -38,3 +38,4 @@ ENTRY(smapi32)
 
 	leave
 	ret
+END(smapi32)

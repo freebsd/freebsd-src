@@ -113,6 +113,7 @@ _ENTRY(_rtld_start)
 
 	li      %r0,1		/* _exit() */
 	sc
+_END(_rtld_start)
 
 /*
  * _rtld_bind_start()
@@ -175,5 +176,6 @@ _ENTRY(_rtld_bind_start)
 	mtlr    %r0
 
 	bctr				# jump to target
+_END(_rtld_bind_start)
 
 	.section .note.GNU-stack,"",%progbits

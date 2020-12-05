@@ -56,5 +56,6 @@ ENTRY_NOPROF(HIDENAME(cerror))
 	li	%r3,-1
 	li	%r4,-1
 	blr
+END(HIDENAME(cerror))
 
 	.section .note.GNU-stack,"",%progbits
