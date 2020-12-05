@@ -210,20 +210,6 @@ This function can sleep and is not optimized for performance.
 .Sh RETURN VALUES
 .Fn in_epoch curepoch
 will return 1 if curthread is in curepoch, 0 otherwise.
-.Sh CAVEATS
-One must be cautious when using
-.Fn epoch_wait_preempt .
-Threads are pinned during epoch sections, so if a thread in a section is then
-preempted by a higher priority compute bound thread on that CPU, it can be
-prevented from leaving the section indefinitely.
-.Pp
-Epochs are not a straight replacement for read locks.
-Callers must use safe list and tailq traversal routines in an epoch (see ck_queue).
-When modifying a list referenced from an epoch section safe removal
-routines must be used and the caller can no longer modify a list entry
-in place.
-An item to be modified must be handled with copy on write
-and frees must be deferred until after a grace period has elapsed.
 .Sh EXAMPLES
 Async free example:
 Thread 1:
@@ -280,12 +266,6 @@ free would have to follow a call to
 The
 .Nm
 kernel programming interface is under development and is subject to change.
-.El
-.Sh HISTORY
-The
-.Nm
-framework first appeared in
-.Fx 11.0 .
 .Sh SEE ALSO
 .Xr locking 9 ,
 .Xr mtx_pool 9 ,
@@ -295,3 +275,22 @@ framework first appeared in
 .Xr sleep 9 ,
 .Xr sx 9 ,
 .Xr timeout 9
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 11.0 .
+.Sh CAVEATS
+One must be cautious when using
+.Fn epoch_wait_preempt .
+Threads are pinned during epoch sections, so if a thread in a section is then
+preempted by a higher priority compute bound thread on that CPU, it can be
+prevented from leaving the section indefinitely.
+.Pp
+Epochs are not a straight replacement for read locks.
+Callers must use safe list and tailq traversal routines in an epoch (see ck_queue).
+When modifying a list referenced from an epoch section safe removal
+routines must be used and the caller can no longer modify a list entry
+in place.
+An item to be modified must be handled with copy on write
+and frees must be deferred until after a grace period has elapsed.
