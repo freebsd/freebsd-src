@@ -1816,10 +1816,6 @@ freevnode(struct vnode *vp)
 		destroy_vpollinfo(vp->v_pollinfo);
 		vp->v_pollinfo = NULL;
 	}
-#ifdef INVARIANTS
-	/* XXX Elsewhere we detect an already freed vnode via NULL v_op. */
-	vp->v_op = NULL;
-#endif
 	vp->v_mountedhere = NULL;
 	vp->v_unpcb = NULL;
 	vp->v_rdev = NULL;
@@ -3458,8 +3454,6 @@ vdrop_deactivate(struct vnode *vp)
 	 */
 	VNASSERT(!VN_IS_DOOMED(vp), vp,
 	    ("vdrop: returning doomed vnode"));
-	VNASSERT(vp->v_op != NULL, vp,
-	    ("vdrop: vnode already reclaimed."));
 	VNASSERT((vp->v_iflag & VI_OWEINACT) == 0, vp,
 	    ("vnode with VI_OWEINACT set"));
 	VNASSERT((vp->v_iflag & VI_DEFINACT) == 0, vp,
