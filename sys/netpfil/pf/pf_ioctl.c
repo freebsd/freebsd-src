@@ -283,6 +283,11 @@ pfattach_vnet(void)
 	V_pf_default_rule.nr = -1;
 	V_pf_default_rule.rtableid = -1;
 
+	V_pf_default_rule.evaluations = counter_u64_alloc(M_WAITOK);
+	for (int i = 0; i < 2; i++) {
+		V_pf_default_rule.packets[i] = counter_u64_alloc(M_WAITOK);
+		V_pf_default_rule.bytes[i] = counter_u64_alloc(M_WAITOK);
+	}
 	V_pf_default_rule.states_cur = counter_u64_alloc(M_WAITOK);
 	V_pf_default_rule.states_tot = counter_u64_alloc(M_WAITOK);
 	V_pf_default_rule.src_nodes = counter_u64_alloc(M_WAITOK);
@@ -462,6 +467,11 @@ pf_free_rule(struct pf_krule *rule)
 		pfi_kif_unref(rule->kif);
 	pf_kanchor_remove(rule);
 	pf_empty_pool(&rule->rpool.list);
+	counter_u64_free(rule->evaluations);
+	for (int i = 0; i < 2; i++) {
+		counter_u64_free(rule->packets[i]);
+		counter_u64_free(rule->bytes[i]);
+	}
 	counter_u64_free(rule->states_cur);
 	counter_u64_free(rule->states_tot);
 	counter_u64_free(rule->src_nodes);
@@ -1455,10 +1465,10 @@ pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
 
 	bcopy(&krule->rpool, &rule->rpool, sizeof(krule->rpool));
 
-	rule->evaluations = krule->evaluations;
+	rule->evaluations = counter_u64_fetch(krule->evaluations);
 	for (int i = 0; i < 2; i++) {
-		rule->packets[i] = krule->packets[i];
-		rule->bytes[i] = krule->bytes[i];
+		rule->packets[i] = counter_u64_fetch(krule->packets[i]);
+		rule->bytes[i] = counter_u64_fetch(krule->bytes[i]);
 	}
 
 	/* kif, anchor, overload_tbl are not copied over. */
@@ -1810,6 +1820,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 		if (rule->ifname[0])
 			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+		rule->evaluations = counter_u64_alloc(M_WAITOK);
+		for (int i = 0; i < 2; i++) {
+			rule->packets[i] = counter_u64_alloc(M_WAITOK);
+			rule->bytes[i] = counter_u64_alloc(M_WAITOK);
+		}
 		rule->states_cur = counter_u64_alloc(M_WAITOK);
 		rule->states_tot = counter_u64_alloc(M_WAITOK);
 		rule->src_nodes = counter_u64_alloc(M_WAITOK);
@@ -1923,8 +1938,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		}
 
 		rule->rpool.cur = TAILQ_FIRST(&rule->rpool.list);
-		rule->evaluations = rule->packets[0] = rule->packets[1] =
-		    rule->bytes[0] = rule->bytes[1] = 0;
+		counter_u64_zero(rule->evaluations);
+		for (int i = 0; i < 2; i++) {
+			counter_u64_zero(rule->packets[i]);
+			counter_u64_zero(rule->bytes[i]);
+		}
 		TAILQ_INSERT_TAIL(ruleset->rules[rs_num].inactive.ptr,
 		    rule, entries);
 		ruleset->rules[rs_num].inactive.rcount++;
@@ -1934,6 +1952,11 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 #undef ERROUT
 DIOCADDRULE_error:
 		PF_RULES_WUNLOCK();
+		counter_u64_free(rule->evaluations);
+		for (int i = 0; i < 2; i++) {
+			counter_u64_free(rule->packets[i]);
+			counter_u64_free(rule->bytes[i]);
+		}
 		counter_u64_free(rule->states_cur);
 		counter_u64_free(rule->states_tot);
 		counter_u64_free(rule->src_nodes);
@@ -2019,9 +2042,11 @@ DIOCADDRULE_error:
 		pf_addr_copyout(&pr->rule.dst.addr);
 
 		if (pr->action == PF_GET_CLR_CNTR) {
-			rule->evaluations = 0;
-			rule->packets[0] = rule->packets[1] = 0;
-			rule->bytes[0] = rule->bytes[1] = 0;
+			counter_u64_zero(rule->evaluations);
+			for (int i = 0; i < 2; i++) {
+				counter_u64_zero(rule->packets[i]);
+				counter_u64_zero(rule->bytes[i]);
+			}
 			counter_u64_zero(rule->states_tot);
 		}
 		PF_RULES_WUNLOCK();
@@ -2065,6 +2090,13 @@ DIOCADDRULE_error:
 
 			if (newrule->ifname[0])
 				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+			newrule->evaluations = counter_u64_alloc(M_WAITOK);
+			for (int i = 0; i < 2; i++) {
+				newrule->packets[i] =
+				    counter_u64_alloc(M_WAITOK);
+				newrule->bytes[i] =
+				    counter_u64_alloc(M_WAITOK);
+			}
 			newrule->states_cur = counter_u64_alloc(M_WAITOK);
 			newrule->states_tot = counter_u64_alloc(M_WAITOK);
 			newrule->src_nodes = counter_u64_alloc(M_WAITOK);
@@ -2178,9 +2210,6 @@ DIOCADDRULE_error:
 			}
 
 			newrule->rpool.cur = TAILQ_FIRST(&newrule->rpool.list);
-			newrule->evaluations = 0;
-			newrule->packets[0] = newrule->packets[1] = 0;
-			newrule->bytes[0] = newrule->bytes[1] = 0;
 		}
 		pf_empty_pool(&V_pf_pabuf);
 
@@ -2240,6 +2269,11 @@ DIOCADDRULE_error:
 DIOCCHANGERULE_error:
 		PF_RULES_WUNLOCK();
 		if (newrule != NULL) {
+			counter_u64_free(newrule->evaluations);
+			for (int i = 0; i < 2; i++) {
+				counter_u64_free(newrule->packets[i]);
+				counter_u64_free(newrule->bytes[i]);
+			}
 			counter_u64_free(newrule->states_cur);
 			counter_u64_free(newrule->states_tot);
 			counter_u64_free(newrule->src_nodes);
@@ -2626,9 +2660,11 @@ DIOCGETSTATES_full:
 		PF_RULES_WLOCK();
 		TAILQ_FOREACH(rule,
 		    ruleset->rules[PF_RULESET_FILTER].active.ptr, entries) {
-			rule->evaluations = 0;
-			rule->packets[0] = rule->packets[1] = 0;
-			rule->bytes[0] = rule->bytes[1] = 0;
+			counter_u64_zero(rule->evaluations);
+			for (int i = 0; i < 2; i++) {
+				counter_u64_zero(rule->packets[i]);
+				counter_u64_zero(rule->bytes[i]);
+			}
 		}
 		PF_RULES_WUNLOCK();
 		break;
@@ -4643,6 +4679,11 @@ pf_unload_vnet(void)
 	uma_zdestroy(V_pf_tag_z);
 
 	/* Free counters last as we updated them during shutdown. */
+	counter_u64_free(V_pf_default_rule.evaluations);
+	for (int i = 0; i < 2; i++) {
+		counter_u64_free(V_pf_default_rule.packets[i]);
+		counter_u64_free(V_pf_default_rule.bytes[i]);
+	}
 	counter_u64_free(V_pf_default_rule.states_cur);
 	counter_u64_free(V_pf_default_rule.states_tot);
 	counter_u64_free(V_pf_default_rule.src_nodes);

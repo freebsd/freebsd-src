@@ -839,7 +839,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
-		r->evaluations++;
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != dir)
@@ -866,8 +866,8 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 	if (r == NULL || r->action == PF_NOSCRUB)
 		return (PF_PASS);
 	else {
-		r->packets[dir == PF_OUT]++;
-		r->bytes[dir == PF_OUT] += pd->tot_len;
+		counter_u64_add(r->packets[dir == PF_OUT], 1);
+		counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
 	}
 
 	/* Check for illegal packets */
@@ -983,7 +983,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
-		r->evaluations++;
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != dir)
@@ -1009,8 +1009,8 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 	if (r == NULL || r->action == PF_NOSCRUB)
 		return (PF_PASS);
 	else {
-		r->packets[dir == PF_OUT]++;
-		r->bytes[dir == PF_OUT] += pd->tot_len;
+		counter_u64_add(r->packets[dir == PF_OUT], 1);
+		counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
 	}
 
 	/* Check for illegal packets */
@@ -1161,7 +1161,7 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
-		r->evaluations++;
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != dir)
@@ -1195,8 +1195,8 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 	if (rm == NULL || rm->action == PF_NOSCRUB)
 		return (PF_PASS);
 	else {
-		r->packets[dir == PF_OUT]++;
-		r->bytes[dir == PF_OUT] += pd->tot_len;
+		counter_u64_add(r->packets[dir == PF_OUT], 1);
+		counter_u64_add(r->bytes[dir == PF_OUT], pd->tot_len);
 	}
 
 	if (rm->rule_flag & PFRULE_REASSEMBLE_TCP)

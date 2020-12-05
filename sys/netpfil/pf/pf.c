@@ -3538,7 +3538,7 @@ pf_test_rule(struct pf_krule **rm, struct pf_state **sm, int direction,
 	}
 
 	while (r != NULL) {
-		r->evaluations++;
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != direction)
@@ -3977,7 +3977,7 @@ pf_test_fragment(struct pf_krule **rm, int direction, struct pfi_kif *kif,
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 	while (r != NULL) {
-		r->evaluations++;
+		counter_u64_add(r->evaluations, 1);
 		if (pfi_kif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != direction)
@@ -6334,16 +6334,18 @@ done:
 
 	if (action == PF_PASS || r->action == PF_DROP) {
 		dirndx = (dir == PF_OUT);
-		r->packets[dirndx]++;
-		r->bytes[dirndx] += pd.tot_len;
+		counter_u64_add(r->packets[dirndx], 1);
+		counter_u64_add(r->bytes[dirndx], pd.tot_len);
 		if (a != NULL) {
-			a->packets[dirndx]++;
-			a->bytes[dirndx] += pd.tot_len;
+			counter_u64_add(a->packets[dirndx], 1);
+			counter_u64_add(a->bytes[dirndx], pd.tot_len);
 		}
 		if (s != NULL) {
 			if (s->nat_rule.ptr != NULL) {
-				s->nat_rule.ptr->packets[dirndx]++;
-				s->nat_rule.ptr->bytes[dirndx] += pd.tot_len;
+				counter_u64_add(s->nat_rule.ptr->packets[dirndx],
+				    1);
+				counter_u64_add(s->nat_rule.ptr->bytes[dirndx],
+				    pd.tot_len);
 			}
 			if (s->src_node != NULL) {
 				counter_u64_add(s->src_node->packets[dirndx],
@@ -6737,16 +6739,18 @@ done:
 
 	if (action == PF_PASS || r->action == PF_DROP) {
 		dirndx = (dir == PF_OUT);
-		r->packets[dirndx]++;
-		r->bytes[dirndx] += pd.tot_len;
+		counter_u64_add(r->packets[dirndx], 1);
+		counter_u64_add(r->bytes[dirndx], pd.tot_len);
 		if (a != NULL) {
-			a->packets[dirndx]++;
-			a->bytes[dirndx] += pd.tot_len;
+			counter_u64_add(a->packets[dirndx], 1);
+			counter_u64_add(a->bytes[dirndx], pd.tot_len);
 		}
 		if (s != NULL) {
 			if (s->nat_rule.ptr != NULL) {
-				s->nat_rule.ptr->packets[dirndx]++;
-				s->nat_rule.ptr->bytes[dirndx] += pd.tot_len;
+				counter_u64_add(s->nat_rule.ptr->packets[dirndx],
+				    1);
+				counter_u64_add(s->nat_rule.ptr->bytes[dirndx],
+				    pd.tot_len);
 			}
 			if (s->src_node != NULL) {
 				counter_u64_add(s->src_node->packets[dirndx],
