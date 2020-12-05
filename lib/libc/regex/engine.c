@@ -118,6 +118,7 @@ static states step(struct re_guts *g, sopno start, sopno stop, states bef, wint_
 #define	BOW	(BOL-4)
 #define	EOW	(BOL-5)
 #define	BADCHAR	(BOL-6)
+#define	NWBND	(BOL-7)
 #define	NONCHAR(c)	((c) <= OUT)
 /* sflags */
 #define	SBOS	0x0001
@@ -463,6 +464,8 @@ dissect(struct match *m,
 		case OEOW:
 		case OBOS:
 		case OEOS:
+		case OWBND:
+		case ONWBND:
 			break;
 		case OANY:
 		case OANYOF:
@@ -691,6 +694,21 @@ backref(struct match *m,
 			else
 				return(NULL);
 			break;
+		case OWBND:
+			if (ISBOW(m, sp) || ISEOW(m, sp))
+				{ /* yes */ }
+			else
+				return(NULL);
+			break;
+		case ONWBND:
+			if (((sp == m->beginp) && !ISWORD(*sp)) ||
+			    (sp == m->endp && !ISWORD(*(sp - 1))))
+				{ /* yes, beginning/end of subject */ }
+			else if (ISWORD(*(sp - 1)) == ISWORD(*sp))
+				{ /* yes, beginning/end of subject */ }
+			else
+				return(NULL);
+			break;
 		case OBOW:
 			if (ISBOW(m, sp))
 				{ /* yes */ }
@@ -916,6 +934,17 @@ walk(struct match *m, const char *start, const char *stop, sopno startst,
 			st = step(m->g, startst, stopst, st, flagch, st, sflags);
 			SP("sboweow", st, c);
 		}
+		if (lastc != OUT && c != OUT &&
+		    ISWORD(lastc) == ISWORD(c)) {
+			flagch = NWBND;
+		} else if ((lastc == OUT && !ISWORD(c)) ||
+		    (c == OUT && !ISWORD(lastc))) {
+			flagch = NWBND;
+		}
+		if (flagch == NWBND) {
+			st = step(m->g, startst, stopst, st, flagch, st, sflags);
+			SP("snwbnd", st, c);
+		}
 
 		/* are we done? */
 		if (ISSET(st, stopst)) {
@@ -1016,6 +1045,14 @@ step(struct re_guts *g,
 		case OEOW:
 			if (ch == EOW)
 				FWD(aft, bef, 1);
+			break;
+		case OWBND:
+			if (ch == BOW || ch == EOW)
+				FWD(aft, bef, 1);
+			break;
+		case ONWBND:
+			if (ch == NWBND)
+				FWD(aft, aft, 1);
 			break;
 		case OANY:
 			if (!NONCHAR(ch))
