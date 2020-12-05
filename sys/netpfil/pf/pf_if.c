@@ -391,7 +391,7 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 {
 	struct pfi_dynaddr	*dyn;
 	char			 tblname[PF_TABLE_NAME_SIZE];
-	struct pf_ruleset	*ruleset = NULL;
+	struct pf_kruleset	*ruleset = NULL;
 	struct pfi_kif		*kif;
 	int			 rv = 0;
 
@@ -429,7 +429,7 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 	if (dyn->pfid_net != 128)
 		snprintf(tblname + strlen(tblname),
 		    sizeof(tblname) - strlen(tblname), "/%d", dyn->pfid_net);
-	if ((ruleset = pf_find_or_create_ruleset(PF_RESERVED_ANCHOR)) == NULL) {
+	if ((ruleset = pf_find_or_create_kruleset(PF_RESERVED_ANCHOR)) == NULL) {
 		rv = ENOMEM;
 		goto _bad;
 	}
@@ -453,7 +453,7 @@ _bad:
 	if (dyn->pfid_kt != NULL)
 		pfr_detach_table(dyn->pfid_kt);
 	if (ruleset != NULL)
-		pf_remove_if_empty_ruleset(ruleset);
+		pf_remove_if_empty_kruleset(ruleset);
 	if (dyn->pfid_kif != NULL)
 		pfi_kif_unref(dyn->pfid_kif);
 	free(dyn, PFI_MTYPE);

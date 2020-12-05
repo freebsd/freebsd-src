@@ -182,7 +182,7 @@ struct pf_overload_entry {
 	struct pf_addr  		addr;
 	sa_family_t			af;
 	uint8_t				dir;
-	struct pf_rule  		*rule;
+	struct pf_krule  		*rule;
 };
 
 SLIST_HEAD(pf_overload_head, pf_overload_entry);
@@ -197,7 +197,7 @@ MTX_SYSINIT(pf_overloadqueue_mtx, &pf_overloadqueue_mtx,
 #define	PF_OVERLOADQ_LOCK()	mtx_lock(&pf_overloadqueue_mtx)
 #define	PF_OVERLOADQ_UNLOCK()	mtx_unlock(&pf_overloadqueue_mtx)
 
-VNET_DEFINE(struct pf_rulequeue, pf_unlinked_rules);
+VNET_DEFINE(struct pf_krulequeue, pf_unlinked_rules);
 struct mtx pf_unlnkdrules_mtx;
 MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
     MTX_DEF);
@@ -231,34 +231,34 @@ static void		 pf_change_icmp(struct pf_addr *, u_int16_t *,
 			    u_int16_t *, u_int16_t *, u_int16_t *,
 			    u_int16_t *, u_int8_t, sa_family_t);
 static void		 pf_send_tcp(struct mbuf *,
-			    const struct pf_rule *, sa_family_t,
+			    const struct pf_krule *, sa_family_t,
 			    const struct pf_addr *, const struct pf_addr *,
 			    u_int16_t, u_int16_t, u_int32_t, u_int32_t,
 			    u_int8_t, u_int16_t, u_int16_t, u_int8_t, int,
 			    u_int16_t, struct ifnet *);
 static void		 pf_send_icmp(struct mbuf *, u_int8_t, u_int8_t,
-			    sa_family_t, struct pf_rule *);
+			    sa_family_t, struct pf_krule *);
 static void		 pf_detach_state(struct pf_state *);
 static int		 pf_state_key_attach(struct pf_state_key *,
 			    struct pf_state_key *, struct pf_state *);
 static void		 pf_state_key_detach(struct pf_state *, int);
 static int		 pf_state_key_ctor(void *, int, void *, int);
 static u_int32_t	 pf_tcp_iss(struct pf_pdesc *);
-static int		 pf_test_rule(struct pf_rule **, struct pf_state **,
+static int		 pf_test_rule(struct pf_krule **, struct pf_state **,
 			    int, struct pfi_kif *, struct mbuf *, int,
-			    struct pf_pdesc *, struct pf_rule **,
-			    struct pf_ruleset **, struct inpcb *);
-static int		 pf_create_state(struct pf_rule *, struct pf_rule *,
-			    struct pf_rule *, struct pf_pdesc *,
+			    struct pf_pdesc *, struct pf_krule **,
+			    struct pf_kruleset **, struct inpcb *);
+static int		 pf_create_state(struct pf_krule *, struct pf_krule *,
+			    struct pf_krule *, struct pf_pdesc *,
 			    struct pf_ksrc_node *, struct pf_state_key *,
 			    struct pf_state_key *, struct mbuf *, int,
 			    u_int16_t, u_int16_t, int *, struct pfi_kif *,
 			    struct pf_state **, int, u_int16_t, u_int16_t,
 			    int);
-static int		 pf_test_fragment(struct pf_rule **, int,
+static int		 pf_test_fragment(struct pf_krule **, int,
 			    struct pfi_kif *, struct mbuf *, void *,
-			    struct pf_pdesc *, struct pf_rule **,
-			    struct pf_ruleset **);
+			    struct pf_pdesc *, struct pf_krule **,
+			    struct pf_kruleset **);
 static int		 pf_tcp_track_full(struct pf_state_peer *,
 			    struct pf_state_peer *, struct pf_state **,
 			    struct pfi_kif *, struct mbuf *, int,
@@ -296,20 +296,20 @@ static struct pf_state	*pf_find_state(struct pfi_kif *,
 static int		 pf_src_connlimit(struct pf_state **);
 static void		 pf_overload_task(void *v, int pending);
 static int		 pf_insert_src_node(struct pf_ksrc_node **,
-			    struct pf_rule *, struct pf_addr *, sa_family_t);
+			    struct pf_krule *, struct pf_addr *, sa_family_t);
 static u_int		 pf_purge_expired_states(u_int, int);
 static void		 pf_purge_unlinked_rules(void);
 static int		 pf_mtag_uminit(void *, int, int);
 static void		 pf_mtag_free(struct m_tag *);
 #ifdef INET
-static void		 pf_route(struct mbuf **, struct pf_rule *, int,
+static void		 pf_route(struct mbuf **, struct pf_krule *, int,
 			    struct ifnet *, struct pf_state *,
 			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET */
 #ifdef INET6
 static void		 pf_change_a6(struct pf_addr *, u_int16_t *,
 			    struct pf_addr *, u_int8_t);
-static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
+static void		 pf_route6(struct mbuf **, struct pf_krule *, int,
 			    struct ifnet *, struct pf_state *,
 			    struct pf_pdesc *, struct inpcb *);
 #endif /* INET6 */
@@ -678,7 +678,7 @@ pf_overload_task(void *v, int pending)
  * allocate and insert a new one.
  */
 struct pf_ksrc_node *
-pf_find_src_node(struct pf_addr *src, struct pf_rule *rule, sa_family_t af,
+pf_find_src_node(struct pf_addr *src, struct pf_krule *rule, sa_family_t af,
 	int returnlocked)
 {
 	struct pf_srchash *sh;
@@ -716,7 +716,7 @@ pf_free_src_node(struct pf_ksrc_node *sn)
 }
 
 static int
-pf_insert_src_node(struct pf_ksrc_node **sn, struct pf_rule *rule,
+pf_insert_src_node(struct pf_ksrc_node **sn, struct pf_krule *rule,
     struct pf_addr *src, sa_family_t af)
 {
 
@@ -1805,8 +1805,8 @@ relock:
 static void
 pf_purge_unlinked_rules()
 {
-	struct pf_rulequeue tmpq;
-	struct pf_rule *r, *r1;
+	struct pf_krulequeue tmpq;
+	struct pf_krule *r, *r1;
 
 	/*
 	 * If we have overloading task pending, then we'd
@@ -2031,9 +2031,9 @@ pf_print_flags(u_int8_t f)
 	} while (0)
 
 void
-pf_calc_skip_steps(struct pf_rulequeue *rules)
+pf_calc_skip_steps(struct pf_krulequeue *rules)
 {
-	struct pf_rule *cur, *prev, *head[PF_SKIP_COUNT];
+	struct pf_krule *cur, *prev, *head[PF_SKIP_COUNT];
 	int i;
 
 	cur = TAILQ_FIRST(rules);
@@ -2441,7 +2441,7 @@ pf_modulate_sack(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 static void
-pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
+pf_send_tcp(struct mbuf *replyto, const struct pf_krule *r, sa_family_t af,
     const struct pf_addr *saddr, const struct pf_addr *daddr,
     u_int16_t sport, u_int16_t dport, u_int32_t seq, u_int32_t ack,
     u_int8_t flags, u_int16_t win, u_int16_t mss, u_int8_t ttl, int tag,
@@ -2601,7 +2601,7 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 }
 
 static void
-pf_return(struct pf_rule *r, struct pf_rule *nr, struct pf_pdesc *pd,
+pf_return(struct pf_krule *r, struct pf_krule *nr, struct pf_pdesc *pd,
     struct pf_state_key *sk, int off, struct mbuf *m, struct tcphdr *th,
     struct pfi_kif *kif, u_int16_t bproto_sum, u_int16_t bip_sum, int hdrlen,
     u_short *reason)
@@ -2716,7 +2716,7 @@ pf_match_ieee8021q_pcp(u_int8_t prio, struct mbuf *m)
 
 static void
 pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
-    struct pf_rule *r)
+    struct pf_krule *r)
 {
 	struct pf_send_entry *pfse;
 	struct mbuf *m0;
@@ -2904,7 +2904,7 @@ pf_match_gid(u_int8_t op, gid_t a1, gid_t a2, gid_t g)
 }
 
 int
-pf_match_tag(struct mbuf *m, struct pf_rule *r, int *tag, int mtag)
+pf_match_tag(struct mbuf *m, struct pf_krule *r, int *tag, int mtag)
 {
 	if (*tag == -1)
 		*tag = mtag;
@@ -2928,10 +2928,10 @@ pf_tag_packet(struct mbuf *m, struct pf_pdesc *pd, int tag)
 }
 
 #define	PF_ANCHOR_STACKSIZE	32
-struct pf_anchor_stackframe {
-	struct pf_ruleset	*rs;
-	struct pf_rule		*r;	/* XXX: + match bit */
-	struct pf_anchor	*child;
+struct pf_kanchor_stackframe {
+	struct pf_kruleset	*rs;
+	struct pf_krule		*r;	/* XXX: + match bit */
+	struct pf_kanchor	*child;
 };
 
 /*
@@ -2941,18 +2941,18 @@ struct pf_anchor_stackframe {
 #define	PF_ANCHORSTACK_MASK	(PF_ANCHORSTACK_MATCH)
 
 #define	PF_ANCHOR_MATCH(f)	((uintptr_t)(f)->r & PF_ANCHORSTACK_MATCH)
-#define	PF_ANCHOR_RULE(f)	(struct pf_rule *)			\
+#define	PF_ANCHOR_RULE(f)	(struct pf_krule *)			\
 				((uintptr_t)(f)->r & ~PF_ANCHORSTACK_MASK)
 #define	PF_ANCHOR_SET_MATCH(f)	do { (f)->r = (void *) 			\
 				((uintptr_t)(f)->r | PF_ANCHORSTACK_MATCH);  \
 } while (0)
 
 void
-pf_step_into_anchor(struct pf_anchor_stackframe *stack, int *depth,
-    struct pf_ruleset **rs, int n, struct pf_rule **r, struct pf_rule **a,
+pf_step_into_anchor(struct pf_kanchor_stackframe *stack, int *depth,
+    struct pf_kruleset **rs, int n, struct pf_krule **r, struct pf_krule **a,
     int *match)
 {
-	struct pf_anchor_stackframe	*f;
+	struct pf_kanchor_stackframe	*f;
 
 	PF_RULES_RASSERT();
 
@@ -2969,9 +2969,9 @@ pf_step_into_anchor(struct pf_anchor_stackframe *stack, int *depth,
 	f->rs = *rs;
 	f->r = *r;
 	if ((*r)->anchor_wildcard) {
-		struct pf_anchor_node *parent = &(*r)->anchor->children;
+		struct pf_kanchor_node *parent = &(*r)->anchor->children;
 
-		if ((f->child = RB_MIN(pf_anchor_node, parent)) == NULL) {
+		if ((f->child = RB_MIN(pf_kanchor_node, parent)) == NULL) {
 			*r = NULL;
 			return;
 		}
@@ -2984,12 +2984,12 @@ pf_step_into_anchor(struct pf_anchor_stackframe *stack, int *depth,
 }
 
 int
-pf_step_out_of_anchor(struct pf_anchor_stackframe *stack, int *depth,
-    struct pf_ruleset **rs, int n, struct pf_rule **r, struct pf_rule **a,
+pf_step_out_of_anchor(struct pf_kanchor_stackframe *stack, int *depth,
+    struct pf_kruleset **rs, int n, struct pf_krule **r, struct pf_krule **a,
     int *match)
 {
-	struct pf_anchor_stackframe	*f;
-	struct pf_rule *fr;
+	struct pf_kanchor_stackframe	*f;
+	struct pf_krule *fr;
 	int quick = 0;
 
 	PF_RULES_RASSERT();
@@ -3000,7 +3000,7 @@ pf_step_out_of_anchor(struct pf_anchor_stackframe *stack, int *depth,
 		f = stack + *depth - 1;
 		fr = PF_ANCHOR_RULE(f);
 		if (f->child != NULL) {
-			struct pf_anchor_node *parent;
+			struct pf_kanchor_node *parent;
 
 			/*
 			 * This block traverses through
@@ -3016,7 +3016,7 @@ pf_step_out_of_anchor(struct pf_anchor_stackframe *stack, int *depth,
 				PF_ANCHOR_SET_MATCH(f);
 				*match = 0;
 			}
-			f->child = RB_NEXT(pf_anchor_node, parent, f->child);
+			f->child = RB_NEXT(pf_kanchor_node, parent, f->child);
 			if (f->child != NULL) {
 				*rs = &f->child->ruleset;
 				*r = TAILQ_FIRST((*rs)->rules[n].active.ptr);
@@ -3325,16 +3325,16 @@ pf_tcp_iss(struct pf_pdesc *pd)
 }
 
 static int
-pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
+pf_test_rule(struct pf_krule **rm, struct pf_state **sm, int direction,
     struct pfi_kif *kif, struct mbuf *m, int off, struct pf_pdesc *pd,
-    struct pf_rule **am, struct pf_ruleset **rsm, struct inpcb *inp)
+    struct pf_krule **am, struct pf_kruleset **rsm, struct inpcb *inp)
 {
-	struct pf_rule		*nr = NULL;
+	struct pf_krule		*nr = NULL;
 	struct pf_addr		* const saddr = pd->src;
 	struct pf_addr		* const daddr = pd->dst;
 	sa_family_t		 af = pd->af;
-	struct pf_rule		*r, *a = NULL;
-	struct pf_ruleset	*ruleset = NULL;
+	struct pf_krule		*r, *a = NULL;
+	struct pf_kruleset	*ruleset = NULL;
 	struct pf_ksrc_node	*nsn = NULL;
 	struct tcphdr		*th = pd->hdr.tcp;
 	struct pf_state_key	*sk = NULL, *nk = NULL;
@@ -3347,7 +3347,7 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	u_int16_t		 sport = 0, dport = 0;
 	u_int16_t		 bproto_sum = 0, bip_sum = 0;
 	u_int8_t		 icmptype = 0, icmpcode = 0;
-	struct pf_anchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
+	struct pf_kanchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
 
 	PF_RULES_RASSERT();
 
@@ -3699,7 +3699,7 @@ cleanup:
 }
 
 static int
-pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
+pf_create_state(struct pf_krule *r, struct pf_krule *nr, struct pf_krule *a,
     struct pf_pdesc *pd, struct pf_ksrc_node *nsn, struct pf_state_key *nk,
     struct pf_state_key *sk, struct mbuf *m, int off, u_int16_t sport,
     u_int16_t dport, int *rewrite, struct pfi_kif *kif, struct pf_state **sm,
@@ -3960,18 +3960,18 @@ csfailed:
 }
 
 static int
-pf_test_fragment(struct pf_rule **rm, int direction, struct pfi_kif *kif,
-    struct mbuf *m, void *h, struct pf_pdesc *pd, struct pf_rule **am,
-    struct pf_ruleset **rsm)
+pf_test_fragment(struct pf_krule **rm, int direction, struct pfi_kif *kif,
+    struct mbuf *m, void *h, struct pf_pdesc *pd, struct pf_krule **am,
+    struct pf_kruleset **rsm)
 {
-	struct pf_rule		*r, *a = NULL;
-	struct pf_ruleset	*ruleset = NULL;
+	struct pf_krule		*r, *a = NULL;
+	struct pf_kruleset	*ruleset = NULL;
 	sa_family_t		 af = pd->af;
 	u_short			 reason;
 	int			 tag = -1;
 	int			 asd = 0;
 	int			 match = 0;
-	struct pf_anchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
+	struct pf_kanchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
 
 	PF_RULES_RASSERT();
 
@@ -5592,7 +5592,7 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 
 #ifdef INET
 static void
-pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
+pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
     struct pf_state *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0, *m1;
@@ -5755,7 +5755,7 @@ bad:
 
 #ifdef INET6
 static void
-pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
+pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
     struct pf_state *s, struct pf_pdesc *pd, struct inpcb *inp)
 {
 	struct mbuf		*m0;
@@ -6023,9 +6023,9 @@ pf_test(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb *
 	struct mbuf		*m = *m0;
 	struct ip		*h = NULL;
 	struct m_tag		*ipfwtag;
-	struct pf_rule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
+	struct pf_krule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
 	struct pf_state		*s = NULL;
-	struct pf_ruleset	*ruleset = NULL;
+	struct pf_kruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
 	int			 off, dirndx, pqid = 0;
 
@@ -6318,7 +6318,7 @@ done:
 	}
 
 	if (log) {
-		struct pf_rule *lr;
+		struct pf_krule *lr;
 
 		if (s != NULL && s->nat_rule.ptr != NULL &&
 		    s->nat_rule.ptr->log & PF_LOG_ALL)
@@ -6416,9 +6416,9 @@ pf_test6(int dir, int pflags, struct ifnet *ifp, struct mbuf **m0, struct inpcb 
 	struct mbuf		*m = *m0, *n = NULL;
 	struct m_tag		*mtag;
 	struct ip6_hdr		*h = NULL;
-	struct pf_rule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
+	struct pf_krule		*a = NULL, *r = &V_pf_default_rule, *tr, *nr;
 	struct pf_state		*s = NULL;
-	struct pf_ruleset	*ruleset = NULL;
+	struct pf_kruleset	*ruleset = NULL;
 	struct pf_pdesc		 pd;
 	int			 off, terminal = 0, dirndx, rh_cnt = 0, pqid = 0;
 
@@ -6721,7 +6721,7 @@ done:
 		printf("pf: divert(9) is not supported for IPv6\n");
 
 	if (log) {
-		struct pf_rule *lr;
+		struct pf_krule *lr;
 
 		if (s != NULL && s->nat_rule.ptr != NULL &&
 		    s->nat_rule.ptr->log & PF_LOG_ALL)

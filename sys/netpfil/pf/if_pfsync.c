@@ -464,7 +464,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	struct pfsync_state_key *kw, *ks;
 	struct pf_state	*st = NULL;
 	struct pf_state_key *skw = NULL, *sks = NULL;
-	struct pf_rule *r = NULL;
+	struct pf_krule *r = NULL;
 	struct pfi_kif	*kif;
 	int error;
 

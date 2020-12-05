@@ -131,7 +131,7 @@ static RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 static void	pf_flush_fragments(void);
 static void	pf_free_fragment(struct pf_fragment *);
 static void	pf_remove_fragment(struct pf_fragment *);
-static int	pf_normalize_tcpopt(struct pf_rule *, struct mbuf *,
+static int	pf_normalize_tcpopt(struct pf_krule *, struct mbuf *,
 		    struct tcphdr *, int, sa_family_t);
 static struct pf_frent *pf_create_fragment(u_short *);
 static struct pf_fragment *pf_find_fragment(struct pf_fragment_cmp *key,
@@ -824,7 +824,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
     struct pf_pdesc *pd)
 {
 	struct mbuf		*m = *m0;
-	struct pf_rule		*r;
+	struct pf_krule		*r;
 	struct ip		*h = mtod(m, struct ip *);
 	int			 mff = (ntohs(h->ip_off) & IP_MF);
 	int			 hlen = h->ip_hl << 2;
@@ -965,7 +965,7 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
     u_short *reason, struct pf_pdesc *pd)
 {
 	struct mbuf		*m = *m0;
-	struct pf_rule		*r;
+	struct pf_krule		*r;
 	struct ip6_hdr		*h = mtod(m, struct ip6_hdr *);
 	int			 extoff;
 	int			 off;
@@ -1150,7 +1150,7 @@ int
 pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
     int off, void *h, struct pf_pdesc *pd)
 {
-	struct pf_rule	*r, *rm = NULL;
+	struct pf_krule	*r, *rm = NULL;
 	struct tcphdr	*th = pd->hdr.tcp;
 	int		 rewrite = 0;
 	u_short		 reason;
@@ -1759,7 +1759,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 }
 
 static int
-pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
+pf_normalize_tcpopt(struct pf_krule *r, struct mbuf *m, struct tcphdr *th,
     int off, sa_family_t af)
 {
 	u_int16_t	*mss;

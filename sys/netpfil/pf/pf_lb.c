@@ -58,11 +58,11 @@ __FBSDID("$FreeBSD$");
 
 static void		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
-static struct pf_rule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
+static struct pf_krule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
 			    int, int, struct pfi_kif *,
 			    struct pf_addr *, u_int16_t, struct pf_addr *,
-			    uint16_t, int, struct pf_anchor_stackframe *);
-static int pf_get_sport(sa_family_t, uint8_t, struct pf_rule *,
+			    uint16_t, int, struct pf_kanchor_stackframe *);
+static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
     struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
     uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **);
 
@@ -123,14 +123,14 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 	}
 }
 
-static struct pf_rule *
+static struct pf_krule *
 pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
     int direction, struct pfi_kif *kif, struct pf_addr *saddr, u_int16_t sport,
     struct pf_addr *daddr, uint16_t dport, int rs_num,
-    struct pf_anchor_stackframe *anchor_stack)
+    struct pf_kanchor_stackframe *anchor_stack)
 {
-	struct pf_rule		*r, *rm = NULL;
-	struct pf_ruleset	*ruleset = NULL;
+	struct pf_krule		*r, *rm = NULL;
+	struct pf_kruleset	*ruleset = NULL;
 	int			 tag = -1;
 	int			 rtableid = -1;
 	int			 asd = 0;
@@ -212,7 +212,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 }
 
 static int
-pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
+pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_krule *r,
     struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
     uint16_t dport, struct pf_addr *naddr, uint16_t *nport, uint16_t low,
     uint16_t high, struct pf_ksrc_node **sn)
@@ -307,7 +307,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 }
 
 int
-pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
+pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
     struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_ksrc_node **sn)
 {
 	struct pf_pool		*rpool = &r->rpool;
@@ -516,14 +516,14 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	return (0);
 }
 
-struct pf_rule *
+struct pf_krule *
 pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
     struct pfi_kif *kif, struct pf_ksrc_node **sn,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_addr *saddr, struct pf_addr *daddr,
-    uint16_t sport, uint16_t dport, struct pf_anchor_stackframe *anchor_stack)
+    uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack)
 {
-	struct pf_rule	*r = NULL;
+	struct pf_krule	*r = NULL;
 	struct pf_addr	*naddr;
 	uint16_t	*nport;
 

@@ -35,6 +35,8 @@
 #ifndef	_NET_PF_H_
 #define	_NET_PF_H_
 
+#include <sys/tree.h>
+
 #define	PF_TCPS_PROXY_SRC	((TCP_NSTATES)+0)
 #define	PF_TCPS_PROXY_DST	((TCP_NSTATES)+1)
 
@@ -568,5 +570,51 @@ struct pf_src_node {
 };
 
 #define PFSNODE_HIWAT		10000	/* default source node table size */
+
+TAILQ_HEAD(pf_rulequeue, pf_rule);
+
+struct pf_anchor;
+
+struct pf_ruleset {
+	struct {
+		struct pf_rulequeue	 queues[2];
+		struct {
+			struct pf_rulequeue	*ptr;
+			struct pf_rule		**ptr_array;
+			u_int32_t		 rcount;
+			u_int32_t		 ticket;
+			int			 open;
+		}			 active, inactive;
+	}			 rules[PF_RULESET_MAX];
+	struct pf_anchor	*anchor;
+	u_int32_t		 tticket;
+	int			 tables;
+	int			 topen;
+};
+
+RB_HEAD(pf_anchor_global, pf_anchor);
+RB_HEAD(pf_anchor_node, pf_anchor);
+struct pf_anchor {
+	RB_ENTRY(pf_anchor)	 entry_global;
+	RB_ENTRY(pf_anchor)	 entry_node;
+	struct pf_anchor	*parent;
+	struct pf_anchor_node	 children;
+	char			 name[PF_ANCHOR_NAME_SIZE];
+	char			 path[MAXPATHLEN];
+	struct pf_ruleset	 ruleset;
+	int			 refcnt;	/* anchor rules */
+	int			 match;	/* XXX: used for pfctl black magic */
+};
+RB_PROTOTYPE(pf_anchor_global, pf_anchor, entry_global, pf_anchor_compare);
+RB_PROTOTYPE(pf_anchor_node, pf_anchor, entry_node, pf_anchor_compare);
+
+/* these ruleset functions can be linked into userland programs (pfctl) */
+int			 pf_get_ruleset_number(u_int8_t);
+void			 pf_init_ruleset(struct pf_ruleset *);
+int			 pf_anchor_setup(struct pf_rule *,
+			    const struct pf_ruleset *, const char *);
+void			 pf_remove_if_empty_ruleset(struct pf_ruleset *);
+struct pf_ruleset	*pf_find_ruleset(const char *);
+struct pf_ruleset	*pf_find_or_create_ruleset(const char *);
 
 #endif	/* _NET_PF_H_ */
