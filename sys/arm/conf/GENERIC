@@ -42,6 +42,7 @@ files		"../freescale/imx/files.imx6"
 files		"../mv/files.arm7"
 files		"../nvidia/tegra124/files.tegra124"
 files		"../qemu/files.qemu"
+files		"../rockchip/files.rk32xx"
 files		"../ti/files.ti"
 files		"../ti/am335x/files.am335x"
 files		"../ti/omap4/files.omap4"
@@ -91,6 +92,7 @@ device		generic_timer
 device		mpcore_timer
 
 # MMC/SD/SDIO Card slot support
+device		dwmmc
 device		sdhci			# SD controller
 device		mmc			# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
@@ -285,6 +287,7 @@ makeoptions	MODULES_EXTRA+="dtb/am335x"
 makeoptions	MODULES_EXTRA+="dtb/imx6"
 makeoptions	MODULES_EXTRA+="dtb/nvidia"
 makeoptions	MODULES_EXTRA+="dtb/omap4"
+makeoptions	MODULES_EXTRA+="dtb/rockchip"
 makeoptions	MODULES_EXTRA+="dtb/rpi"
 makeoptions	MODULES_EXTRA+="dtb/zynq"
 
