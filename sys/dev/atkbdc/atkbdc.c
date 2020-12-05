@@ -133,7 +133,8 @@ atkbdc_getquirks(void)
     char* maker = kern_getenv("smbios.system.maker");
     char* product = kern_getenv("smbios.system.product");
 
-    for (i=0; quirks[i].quirk != 0; ++i)
+    for (i=0; quirks[i].bios_vendor != NULL || quirks[i].maker != NULL ||
+	quirks[i].product != NULL; ++i)
 	if (QUIRK_STR_MATCH(quirks[i].bios_vendor, bios_vendor) &&
 	    QUIRK_STR_MATCH(quirks[i].maker, maker) &&
 	    QUIRK_STR_MATCH(quirks[i].product, product))
