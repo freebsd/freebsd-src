@@ -480,6 +480,12 @@ p_ere_exp(struct parse *p, struct branchc *bc)
 		if (p->gnuext) {
 			handled = 1;
 			switch (wc) {
+			case '`':
+				EMIT(OBOS, 0);
+				break;
+			case '\'':
+				EMIT(OEOS, 0);
+				break;
 			case 'W':
 			case 'w':
 			case 'S':
@@ -833,6 +839,12 @@ p_simp_re(struct parse *p, struct branchc *bc)
 		if (p->gnuext) {
 			handled = true;
 			switch (c) {
+			case BACKSL|'`':
+				EMIT(OBOS, 0);
+				break;
+			case BACKSL|'\'':
+				EMIT(OEOS, 0);
+				break;
 			case BACKSL|'W':
 			case BACKSL|'w':
 			case BACKSL|'S':
@@ -1878,6 +1890,8 @@ findmust(struct parse *p, struct re_guts *g)
 		case OEOW:
 		case OBOL:
 		case OEOL:
+		case OBOS:
+		case OEOS:
 		case O_QUEST:
 		case O_CH:
 		case OEND:

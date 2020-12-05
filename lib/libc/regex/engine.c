@@ -109,7 +109,7 @@ static int matcher(struct re_guts *g, const char *string, size_t nmatch, regmatc
 static const char *dissect(struct match *m, const char *start, const char *stop, sopno startst, sopno stopst);
 static const char *backref(struct match *m, const char *start, const char *stop, sopno startst, sopno stopst, sopno lev, int);
 static const char *walk(struct match *m, const char *start, const char *stop, sopno startst, sopno stopst, bool fast);
-static states step(struct re_guts *g, sopno start, sopno stop, states bef, wint_t ch, states aft);
+static states step(struct re_guts *g, sopno start, sopno stop, states bef, wint_t ch, states aft, int sflags);
 #define MAX_RECURSION	100
 #define	BOL	(OUT-1)
 #define	EOL	(BOL-1)
@@ -119,6 +119,10 @@ static states step(struct re_guts *g, sopno start, sopno stop, states bef, wint_
 #define	EOW	(BOL-5)
 #define	BADCHAR	(BOL-6)
 #define	NONCHAR(c)	((c) <= OUT)
+/* sflags */
+#define	SBOS	0x0001
+#define	SEOS	0x0002
+
 #ifdef REDEBUG
 static void print(struct match *m, const char *caption, states st, int ch, FILE *d);
 #endif
@@ -457,6 +461,8 @@ dissect(struct match *m,
 		case OEOL:
 		case OBOW:
 		case OEOW:
+		case OBOS:
+		case OEOS:
 			break;
 		case OANY:
 		case OANYOF:
@@ -657,6 +663,18 @@ backref(struct match *m,
 			if (wc == BADCHAR || !CHIN(cs, wc))
 				return(NULL);
 			break;
+		case OBOS:
+			if (sp == m->beginp && (m->eflags & REG_NOTBOL) == 0)
+				{ /* yes */ }
+			else
+				return(NULL);
+			break;
+		case OEOS:
+			if (sp == m->endp && (m->eflags & REG_NOTEOL) == 0)
+				{ /* yes */ }
+			else
+				return(NULL);
+			break;
 		case OBOL:
 			if ((sp == m->beginp && !(m->eflags&REG_NOTBOL)) ||
 			    (sp > m->offp && sp < m->endp &&
@@ -819,15 +837,16 @@ walk(struct match *m, const char *start, const char *stop, sopno startst,
 	wint_t c;
 	wint_t lastc;		/* previous c */
 	wint_t flagch;
-	int i;
+	int i, sflags;
 	const char *matchp;	/* last p at which a match ended */
 	size_t clen;
 
+	sflags = 0;
 	AT("slow", start, stop, startst, stopst);
 	CLEAR(st);
 	SET1(st, startst);
 	SP("sstart", st, *p);
-	st = step(m->g, startst, stopst, st, NOTHING, st);
+	st = step(m->g, startst, stopst, st, NOTHING, st, sflags);
 	if (fast)
 		ASSIGN(fresh, st);
 	matchp = NULL;
@@ -844,6 +863,7 @@ walk(struct match *m, const char *start, const char *stop, sopno startst,
 	for (;;) {
 		/* next character */
 		lastc = c;
+		sflags = 0;
 		if (p == m->endp) {
 			c = OUT;
 			clen = 0;
@@ -866,9 +886,20 @@ walk(struct match *m, const char *start, const char *stop, sopno startst,
 			flagch = (flagch == BOL) ? BOLEOL : EOL;
 			i += m->g->neol;
 		}
+		if (lastc == OUT && (m->eflags & REG_NOTBOL) == 0) {
+			sflags |= SBOS;
+			/* Step one more for BOS. */
+			i++;
+		}
+		if (c == OUT && (m->eflags & REG_NOTEOL) == 0) {
+			sflags |= SEOS;
+			/* Step one more for EOS. */
+			i++;
+		}
 		if (i != 0) {
 			for (; i > 0; i--)
-				st = step(m->g, startst, stopst, st, flagch, st);
+				st = step(m->g, startst, stopst, st, flagch, st,
+				    sflags);
 			SP("sboleol", st, c);
 		}
 
@@ -882,7 +913,7 @@ walk(struct match *m, const char *start, const char *stop, sopno startst,
 			flagch = EOW;
 		}
 		if (flagch == BOW || flagch == EOW) {
-			st = step(m->g, startst, stopst, st, flagch, st);
+			st = step(m->g, startst, stopst, st, flagch, st, sflags);
 			SP("sboweow", st, c);
 		}
 
@@ -903,9 +934,10 @@ walk(struct match *m, const char *start, const char *stop, sopno startst,
 		else
 			ASSIGN(st, empty);
 		assert(c != OUT);
-		st = step(m->g, startst, stopst, tmp, c, st);
+		st = step(m->g, startst, stopst, tmp, c, st, sflags);
 		SP("saft", st, c);
-		assert(EQ(step(m->g, startst, stopst, st, NOTHING, st), st));
+		assert(EQ(step(m->g, startst, stopst, st, NOTHING, st, sflags),
+		    st));
 		p += clen;
 	}
 
@@ -939,7 +971,8 @@ step(struct re_guts *g,
 	sopno stop,		/* state after stop state within strip */
 	states bef,		/* states reachable before */
 	wint_t ch,		/* character or NONCHAR code */
-	states aft)		/* states already known reachable after */
+	states aft,		/* states already known reachable after */
+	int sflags)		/* state flags */
 {
 	cset *cs;
 	sop s;
@@ -958,6 +991,14 @@ step(struct re_guts *g,
 			/* only characters can match */
 			assert(!NONCHAR(ch) || ch != OPND(s));
 			if (ch == OPND(s))
+				FWD(aft, bef, 1);
+			break;
+		case OBOS:
+			if ((ch == BOL || ch == BOLEOL) && (sflags & SBOS) != 0)
+				FWD(aft, bef, 1);
+			break;
+		case OEOS:
+			if ((ch == EOL || ch == BOLEOL) && (sflags & SEOS) != 0)
 				FWD(aft, bef, 1);
 			break;
 		case OBOL:
