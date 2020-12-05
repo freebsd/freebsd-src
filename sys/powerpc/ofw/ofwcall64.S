@@ -216,6 +216,7 @@ ASENTRY_NOPROF(ofwcall)
 	ld	%r0,16(%r1)
 	mtlr 	%r0
 	blr
+ASEND(ofwcall)
 
 /*
  * RTAS 32-bit Entry Point. Similar to the OF one, but simpler (no separate
@@ -380,4 +381,4 @@ ASENTRY_NOPROF(rtascall)
 	ld	%r0,16(%r1)
 	mtlr 	%r0
 	blr
-
+ASEND(rtascall)

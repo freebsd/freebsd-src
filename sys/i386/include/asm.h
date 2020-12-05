@@ -73,19 +73,30 @@
 #define _START_ENTRY	.text; .p2align 2,0x90
 
 #define _ENTRY(x)	_START_ENTRY; \
-			.globl CNAME(x); .type CNAME(x),@function; CNAME(x):
-#define	END(x)		.size x, . - x
+			.globl CNAME(x); .type CNAME(x),@function; CNAME(x): \
+			.cfi_startproc
+#define	END(x)		.cfi_endproc; .size x, . - x
 
 #ifdef PROF
 #define	ALTENTRY(x)	_ENTRY(x); \
-			pushl %ebp; movl %esp,%ebp; \
+			pushl %ebp; \
+			.cfi_def_cfa_offset 8; \
+			.cfi_offset %ebp, -8; \
+			movl %esp,%ebp; \
 			call PIC_PLT(HIDENAME(mcount)); \
 			popl %ebp; \
+			.cfi_restore %ebp; \
+			.cfi_def_cfa_offset 4; \
 			jmp 9f
 #define	ENTRY(x)	_ENTRY(x); \
-			pushl %ebp; movl %esp,%ebp; \
+			pushl %ebp; \
+			.cfi_def_cfa_offset 8; \
+			.cfi_offset %ebp, -8; \
+			movl %esp,%ebp; \
 			call PIC_PLT(HIDENAME(mcount)); \
 			popl %ebp; \
+			.cfi_restore %ebp; \
+			.cfi_def_cfa_offset 4; \
 			9:
 #else
 #define	ALTENTRY(x)	_ENTRY(x)

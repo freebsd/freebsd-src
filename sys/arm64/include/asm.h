@@ -39,10 +39,11 @@
 #define	_C_LABEL(x)	x
 
 #define	ENTRY(sym)						\
-	.text; .globl sym; .align 2; .type sym,#function; sym:
+	.text; .globl sym; .align 2; .type sym,#function; sym:	\
+	.cfi_startproc
 #define	EENTRY(sym)						\
 	.globl	sym; sym:
-#define	END(sym) .size sym, . - sym
+#define	END(sym) .cfi_endproc; .size sym, . - sym
 #define	EEND(sym)
 
 #define	WEAK_REFERENCE(sym, alias)				\

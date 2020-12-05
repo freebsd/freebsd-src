@@ -834,6 +834,7 @@ ENTRY(dcache_inval)
 	andi.	%r3, %r3, L1CSR0_DCFI
 	bne	1b
 	blr
+END(dcache_inval)
 
 ENTRY(dcache_disable)
 	/* Disable d-cache */
@@ -846,6 +847,7 @@ ENTRY(dcache_disable)
 	mtspr	SPR_L1CSR0, %r3
 	isync
 	blr
+END(dcache_disable)
 
 ENTRY(dcache_enable)
 	/* Enable d-cache */
@@ -857,6 +859,7 @@ ENTRY(dcache_enable)
 	mtspr	SPR_L1CSR0, %r3
 	isync
 	blr
+END(dcache_enable)
 
 ENTRY(icache_inval)
 	/* Invalidate i-cache */
@@ -869,6 +872,7 @@ ENTRY(icache_inval)
 	andi.	%r3, %r3, L1CSR1_ICFI
 	bne	1b
 	blr
+END(icache_inval)
 
 ENTRY(icache_disable)
 	/* Disable i-cache */
@@ -880,6 +884,7 @@ ENTRY(icache_disable)
 	mtspr	SPR_L1CSR1, %r3
 	isync
 	blr
+END(icache_disable)
 
 ENTRY(icache_enable)
 	/* Enable i-cache */
@@ -890,6 +895,7 @@ ENTRY(icache_enable)
 	mtspr	SPR_L1CSR1, %r3
 	isync
 	blr
+END(icache_enable)
 
 /*
  * L2 cache disable/enable/inval sequences for E500mc.
@@ -906,6 +912,7 @@ ENTRY(l2cache_inval)
 	andis.	%r3, %r3, L2CSR0_L2FI@h
 	bne	1b
 	blr
+END(l2cache_inval)
 
 ENTRY(l2cache_enable)
 	mfspr	%r3, SPR_L2CSR0
@@ -914,6 +921,7 @@ ENTRY(l2cache_enable)
 	mtspr	SPR_L2CSR0, %r3
 	isync
 	blr
+END(l2cache_enable)
 
 /*
  * Branch predictor setup.
@@ -929,6 +937,7 @@ ENTRY(bpred_enable)
 	mtspr	SPR_BUCSR, %r3
 	isync
 	blr
+END(bpred_enable)
 
 /*
  * XXX: This should be moved to a shared AIM/booke asm file, if one ever is
@@ -938,6 +947,7 @@ ENTRY(get_spr)
 	/* Note: The spr number is patched at runtime */
 	mfspr	%r3, 0
 	blr
+END(get_spr)
 
 /************************************************************************/
 /* Data section								*/

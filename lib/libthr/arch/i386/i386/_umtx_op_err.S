@@ -31,7 +31,10 @@
 
 #define SYSCALL_ERR(x)		 			\
 			ENTRY(__CONCAT(x, _err));	\
-			mov __CONCAT($SYS_,x),%eax; int $0x80; ret
+			mov __CONCAT($SYS_,x),%eax;	\
+			int $0x80;			\
+			ret;				\
+			END(__CONCAT(x, _err))
 
 SYSCALL_ERR(_umtx_op)
 

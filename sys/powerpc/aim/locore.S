@@ -13,3 +13,4 @@
 ENTRY(get_spr)
 	mfspr	%r3, 0
 	blr
+END(get_spr)

@@ -85,6 +85,7 @@ ENTRY(syscall)
 	lwz	%r30, 12(%r1)
 	mr	%r1, %r11
 	blr
+END(syscall)
 
 /*
  * Data section
