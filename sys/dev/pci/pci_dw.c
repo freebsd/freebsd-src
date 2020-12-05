@@ -640,7 +640,7 @@ pci_dw_init(device_t dev)
 
 	device_add_child(dev, "pci", -1);
 
-	return (bus_generic_attach(dev));
+	return (0);
 out:
 	/* XXX Cleanup */
 	return (rv);
