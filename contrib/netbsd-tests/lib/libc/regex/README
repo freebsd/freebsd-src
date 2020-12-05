@@ -28,6 +28,7 @@ The full list of flags:
   $	REG_NOTEOL
   #	REG_STARTEND (see below)
   p	REG_PEND
+  P	REG_POSIX
 
 For REG_STARTEND, the start/end offsets are those of the substring
 enclosed in ().
