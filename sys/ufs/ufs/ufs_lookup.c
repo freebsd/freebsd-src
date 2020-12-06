@@ -745,6 +745,11 @@ found:
 		*vpp = vdp;
 	} else {
 		error = VFS_VGET(pdp->v_mount, ino, cnp->cn_lkflags, &tdp);
+		if (error == 0 && VTOI(tdp)->i_mode == 0) {
+			vgone(tdp);
+			vput(tdp);
+			error = ENOENT;
+		}
 		if (error)
 			return (error);
 		*vpp = tdp;
