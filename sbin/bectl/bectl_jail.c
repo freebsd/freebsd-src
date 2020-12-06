@@ -356,10 +356,8 @@ bectl_cmd_jail(int argc, char *argv[])
 	}
 	free(jargv);
 
-	if (!interactive)
-		return (0);
-
-	if (unjail) {
+	/* Non-interactive (-b) mode means the jail sticks around. */
+	if (interactive && unjail) {
 		/*
 		 *  We're not checking the jail id result here because in the
 		 *  case of invalid param, or last command in jail was an error
