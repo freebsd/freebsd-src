@@ -248,7 +248,6 @@ struct uma_bucket_zone {
     (((sizeof(void *) * (n)) - sizeof(struct uma_bucket)) / sizeof(void *))
 
 #define	BUCKET_MAX	BUCKET_SIZE(256)
-#define	BUCKET_MIN	2
 
 struct uma_bucket_zone bucket_zones[] = {
 	/* Literal bucket sizes. */
@@ -507,7 +506,7 @@ bucket_alloc(uma_zone_t zone, void *udata, int flags)
 	}
 	if (((uintptr_t)udata & UMA_ZONE_VM) != 0)
 		flags |= M_NOVM;
-	ubz = bucket_zone_lookup(zone->uz_bucket_size);
+	ubz = bucket_zone_lookup(atomic_load_16(&zone->uz_bucket_size));
 	if (ubz->ubz_zone == zone && (ubz + 1)->ubz_entries != 0)
 		ubz++;
 	bucket = uma_zalloc_arg(ubz->ubz_zone, udata, flags);
@@ -516,7 +515,8 @@ bucket_alloc(uma_zone_t zone, void *udata, int flags)
 		bzero(bucket->ub_bucket, sizeof(void *) * ubz->ubz_entries);
 #endif
 		bucket->ub_cnt = 0;
-		bucket->ub_entries = ubz->ubz_entries;
+		bucket->ub_entries = min(ubz->ubz_entries,
+		    zone->uz_bucket_size_max);
 		bucket->ub_seq = SMR_SEQ_INVALID;
 		CTR3(KTR_UMA, "bucket_alloc: zone %s(%p) allocated bucket %p",
 		    zone->uz_name, zone, bucket);
@@ -2724,8 +2724,6 @@ out:
 		zone->uz_bucket_size_max = zone->uz_bucket_size = 0;
 	if ((arg->flags & UMA_ZONE_MAXBUCKET) != 0)
 		zone->uz_bucket_size = BUCKET_MAX;
-	else if ((arg->flags & UMA_ZONE_MINBUCKET) != 0)
-		zone->uz_bucket_size_max = zone->uz_bucket_size = BUCKET_MIN;
 	else if ((arg->flags & UMA_ZONE_NOBUCKET) != 0)
 		zone->uz_bucket_size = 0;
 	else
