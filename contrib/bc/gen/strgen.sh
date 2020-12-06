@@ -33,7 +33,7 @@ export LC_CTYPE=C
 progname=${0##*/}
 
 if [ $# -lt 3 ]; then
-	echo "usage: $progname input output name header [label [define [remove_tabs]]]"
+	echo "usage: $progname input output name [label [define [remove_tabs]]]"
 	exit 1
 fi
 
