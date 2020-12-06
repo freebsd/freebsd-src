@@ -492,7 +492,7 @@ void uma_zone_reserve(uma_zone_t zone, int nitems);
 int uma_zone_reserve_kva(uma_zone_t zone, int nitems);
 
 /*
- * Sets a high limit on the number of items allowed in a zone
+ * Sets an upper limit on the number of items allocated from a zone
  *
  * Arguments:
  *	zone  The zone to limit
@@ -504,7 +504,7 @@ int uma_zone_reserve_kva(uma_zone_t zone, int nitems);
 int uma_zone_set_max(uma_zone_t zone, int nitems);
 
 /*
- * Sets a high limit on the number of items allowed in zone's bucket cache
+ * Sets an upper limit on the number of items allowed in zone's caches
  *
  * Arguments:
  *      zone  The zone to limit
