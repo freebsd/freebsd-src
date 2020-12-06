@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2016
+.Dd March 5, 2019
 .Dt FSCK 8
 .Os
 .Sh NAME
@@ -142,8 +142,12 @@ only if
 .Nm
 is compiled to support it.
 .It Fl f
-Force checking of file systems, even when they are marked clean (for file systems
-that support this).
+Force checking of file systems.
+Running 
+.Dq Li fsck -f
+ignores the journal and does a full
+consistency check of the disk so will find and fix the errors about which the
+journal is unaware.
 .It Fl n
 Causes
 .Nm
