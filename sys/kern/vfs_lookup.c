@@ -464,6 +464,43 @@ namei_setup(struct nameidata *ndp, struct vnode **dpp, struct pwd **pwdp)
 	return (0);
 }
 
+static int
+namei_getpath(struct nameidata *ndp)
+{
+	struct componentname *cnp;
+	int error;
+
+	cnp = &ndp->ni_cnd;
+
+	/*
+	 * Get a buffer for the name to be translated, and copy the
+	 * name into the buffer.
+	 */
+	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
+	if (ndp->ni_segflg == UIO_SYSSPACE) {
+		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
+		    &ndp->ni_pathlen);
+	} else {
+		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
+		    &ndp->ni_pathlen);
+	}
+
+	if (__predict_false(error != 0)) {
+		return (error);
+	}
+
+	/*
+	 * Don't allow empty pathnames.
+	 */
+	if (__predict_false(*cnp->cn_pnbuf == '\0')) {
+		namei_cleanup_cnp(cnp);
+		return (ENOENT);
+	}
+
+	cnp->cn_nameptr = cnp->cn_pnbuf;
+	return (0);
+}
+
 /*
  * Convert a pathname into a pointer to a locked vnode.
  *
@@ -531,29 +568,9 @@ namei(struct nameidata *ndp)
 	ndp->ni_lcf = 0;
 	ndp->ni_vp = NULL;
 
-	/*
-	 * Get a buffer for the name to be translated, and copy the
-	 * name into the buffer.
-	 */
-	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
-	if (ndp->ni_segflg == UIO_SYSSPACE)
-		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
-		    &ndp->ni_pathlen);
-	else
-		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf, MAXPATHLEN,
-		    &ndp->ni_pathlen);
-
+	error = namei_getpath(ndp);
 	if (__predict_false(error != 0)) {
-		namei_cleanup_cnp(cnp);
 		return (error);
-	}
-
-	/*
-	 * Don't allow empty pathnames.
-	 */
-	if (__predict_false(*cnp->cn_pnbuf == '\0')) {
-		namei_cleanup_cnp(cnp);
-		return (ENOENT);
 	}
 
 #ifdef KTRACE
@@ -563,8 +580,6 @@ namei(struct nameidata *ndp)
 		ktrnamei(cnp->cn_pnbuf);
 	}
 #endif
-
-	cnp->cn_nameptr = cnp->cn_pnbuf;
 
 	/*
 	 * First try looking up the target without locking any vnodes.
