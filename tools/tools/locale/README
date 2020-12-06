@@ -55,4 +55,8 @@ Targets:
 
 	make install
 		Install the build results into $LOCALESRCDIR.
+
+	make widths
+		Generate widths.txt.  Requires pkgconf and utf8proc
+		packages to be installed.
 [EOF]
