@@ -190,7 +190,7 @@ send_wrq(int peer, char *filename, char *mode)
 			filename, mode
 		);
 
-	DROPPACKETn("send_wrq", 1);
+	DROPPACKETn("send_wrq", 0);
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)WRQ);
@@ -238,7 +238,7 @@ send_rrq(int peer, char *filename, char *mode)
 			filename, mode
 		);
 
-	DROPPACKETn("send_rrq", 1);
+	DROPPACKETn("send_rrq", 0);
 
 	tp = (struct tftphdr *)buf;
 	tp->th_opcode = htons((u_short)RRQ);
