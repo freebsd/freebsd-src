@@ -60,7 +60,9 @@ MLINKS+= grep.1 egrep.1 \
 	grep.1 rgrep.1
 .endif
 
+.if !defined(BOOTSTRAPPING)
 LIBADD+=	regex
+.endif
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
