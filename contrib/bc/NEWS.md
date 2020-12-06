@@ -1,5 +1,24 @@
 # News
 
+## 3.2.3
+
+This is a production release that fixes a bug in `gen/strgen.sh`. I recently
+changed `gen/strgen.c`, but I did not change `gen/strgen.sh`.
+
+Users that do not use `gen/strgen.sh` do not need to upgrade.
+
+## 3.2.2
+
+This is a production release that fixes a portability bug in `configure.sh`. The
+bug was using the GNU `find` extension `-wholename`.
+
+## 3.2.1
+
+This is a production release that has one fix for `bcl(3)`. It is technically
+not a bug fix since the behavior is undefined, but the `BclNumber`s that
+`bcl_divmod()` returns will be set to `BCL_ERROR_INVALID_NUM` if there is an
+error. Previously, they were not set.
+
 ## 3.2.0
 
 This is a production release that has one bug fix and a major addition.

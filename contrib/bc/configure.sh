@@ -295,7 +295,7 @@ gen_file_list() {
 		while [ "$#" -ge 1 ]; do
 			a="$1"
 			shift
-			args="$args ! -wholename src/${a}"
+			args="$args ! -path src/${a}"
 		done
 
 	else
