@@ -36,33 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
-#include <sys/sysctl.h>
 
 #include <compat/linux/linux.h>
-#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
-FEATURE(linuxulator_v4l, "V4L ioctl wrapper support in the linuxulator");
-FEATURE(linuxulator_v4l2, "V4L2 ioctl wrapper support in the linuxulator");
-
 MODULE_VERSION(linux_common, 1);
-
-/**
- * Special DTrace provider for the linuxulator.
- *
- * In this file we define the provider for the entire linuxulator. All
- * modules (= files of the linuxulator) use it.
- *
- * We define a different name depending on the emulated bitsize, see
- * ../../<ARCH>/linux{,32}/linux.h, e.g.:
- *      native bitsize          = linuxulator
- *      amd64, 32bit emulation  = linuxulator32
- */
-LIN_SDT_PROVIDER_DEFINE(linuxulator);
-LIN_SDT_PROVIDER_DEFINE(linuxulator32);
 
 SET_DECLARE(linux_device_handler_set, struct linux_device_handler);
 
