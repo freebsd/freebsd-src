@@ -486,6 +486,7 @@ namei_getpath(struct nameidata *ndp)
 	}
 
 	if (__predict_false(error != 0)) {
+		namei_cleanup_cnp(cnp);
 		return (error);
 	}
 
