@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/stdarg.h>
 
+#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_util.h>
 
@@ -61,6 +62,23 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 MALLOC_DEFINE(M_EPOLL, "lepoll", "Linux events structures");
 MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
 MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futex waiting proc");
+
+FEATURE(linuxulator_v4l, "V4L ioctl wrapper support in the linuxulator");
+FEATURE(linuxulator_v4l2, "V4L2 ioctl wrapper support in the linuxulator");
+
+/**
+ * Special DTrace provider for the linuxulator.
+ *
+ * In this file we define the provider for the entire linuxulator. All
+ * modules (= files of the linuxulator) use it.
+ *
+ * We define a different name depending on the emulated bitsize, see
+ * ../../<ARCH>/linux{,32}/linux.h, e.g.:
+ *      native bitsize          = linuxulator
+ *      amd64, 32bit emulation  = linuxulator32
+ */
+LIN_SDT_PROVIDER_DEFINE(linuxulator);
+LIN_SDT_PROVIDER_DEFINE(linuxulator32);
 
 char linux_emul_path[MAXPATHLEN] = "/compat/linux";
 
