@@ -53,11 +53,12 @@ owner and owner_group strings.
 It also provides support for manage-gids and must be running on the server if
 this is being used for any version of NFS.
 .Pp
-Upon startup, it loads the machines DNS domain name, plus timeout and
-cache size limit into the kernel. It then preloads the cache with group
-and user information, up to the cache size limit and forks off N children
-(default 4), that service requests from the kernel for cache misses. The
-master server is there for the sole purpose of killing off the slaves.
+Upon startup, it loads the machines DNS domain name, plus timeout and cache size
+limit into the kernel.
+It then preloads the cache with group and user information, up to the cache size
+limit and forks off N children (default 4), that service requests from the kernel
+for cache misses.
+The master server is there for the sole purpose of killing off the slaves.
 To stop the nfsuserd, send a SIGUSR1 to the master server.
 .Pp
 The following options are available:
@@ -72,13 +73,14 @@ reported by
 Overrides the default timeout for cache entries, in minutes.
 The longer the
 time out, the better the performance, but the longer it takes for replaced
-entries to be seen. If your user/group database management system almost
-never re-uses the same names or id numbers, a large timeout is recommended.
+entries to be seen.
+If your user/group database management system almost never re-uses the same names
+or id numbers, a large timeout is recommended.
 The default is 1 minute.
 .It Fl usermax Ar max_cache_size
-Overrides the default upper bound on the cache size. The larger the cache,
-the more kernel memory is used, but the better the performance. If your
-system can afford the memory use, make this the sum of the number of
+Overrides the default upper bound on the cache size.
+The larger the cache, the more kernel memory is used, but the better the performance.
+If your system can afford the memory use, make this the sum of the number of
 entries in your group and password databases.
 The default is 200 entries.
 .It Fl verbose
@@ -98,12 +100,13 @@ on the server instead of the list of groups provided in the RPC authenticator.
 This can be used to avoid the 16 group limit for AUTH_SYS.
 .It Ar num_servers
 Specifies how many servers to create (max 20).
-The default of 4 may be sufficient. You should run enough servers, so that
+The default of 4 may be sufficient.
+You should run enough servers, so that
 .Xr ps 1
 shows almost no running time for one or two of the slaves after the system
-has been running for a long period. Running too few will have a major
-performance impact, whereas running too many will only tie up some resources,
-such as a process table entry and swap space.
+has been running for a long period.
+Running too few will have a major performance impact, whereas running too many
+will only tie up some resources, such as a process table entry and swap space.
 .El
 .Sh SEE ALSO
 .Xr getgrent 3 ,
@@ -126,7 +129,8 @@ use
 and
 .Xr getpwent 3
 library calls to resolve requests and will hang if the servers handling
-those requests fail and the library functions don't return. See
+those requests fail and the library functions don't return.
+See
 .Xr group 5
 and
 .Xr passwd 5

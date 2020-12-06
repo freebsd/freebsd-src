@@ -55,8 +55,8 @@
 The
 .Nm
 utility can be used to perform raw data transfers (read or write) with devices
-on the I2C bus. It can also scan the bus for available devices and reset the
-I2C controller.
+on the I2C bus.
+It can also scan the bus for available devices and reset the I2C controller.
 .Pp
 The options are as follows:
 .Bl -tag -width ".Fl d Ar direction"
@@ -124,10 +124,10 @@ Zero means that the offset is ignored and not passed to the slave at all.
 .Sh WARNINGS
 Great care must be taken when manipulating slave I2C devices with the
 .Nm
-utility. Often times important configuration data for the system is kept in
-non-volatile but write enabled memories located on the I2C bus, for example
-Ethernet hardware addresses, RAM module parameters (SPD), processor reset
-configuration word etc.
+utility.
+Often times important configuration data for the system is kept in non-volatile
+but write enabled memories located on the I2C bus, for example Ethernet hardware
+addresses, RAM module parameters (SPD), processor reset configuration word etc.
 .Pp
 It is very easy to render the whole system unusable when such configuration
 data is deleted or altered, so use the
@@ -135,13 +135,14 @@ data is deleted or altered, so use the
 (write) command only if you know exactly what you are doing.
 .Pp
 Also avoid ungraceful interrupting of an ongoing transaction on the I2C bus,
-as it can lead to potentially dangerous effects. Consider the following
-scenario: when the host CPU is reset (for whatever reason) in the middle of a
-started I2C transaction, the I2C slave device could be left in write mode
-waiting for data or offset to arrive. When the CPU reinitializes itself and
-talks to this I2C slave device again, the commands and other control info it
-sends are treated by the slave device as data or offset it was waiting for,
-and there's great potential for corruption if such a write is performed.
+as it can lead to potentially dangerous effects.
+Consider the following scenario: when the host CPU is reset (for whatever reason)
+in the middle of a started I2C transaction, the I2C slave device could be left
+in write mode waiting for data or offset to arrive.
+When the CPU reinitializes itself and talks to this I2C slave device again,
+the commands and other control info it sends are treated by the slave device
+as data or offset it was waiting for, and there's great potential for
+corruption if such a write is performed.
 .Sh EXAMPLES
 .Bl -bullet
 .It

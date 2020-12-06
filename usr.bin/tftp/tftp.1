@@ -74,7 +74,8 @@ Shorthand for "mode binary"
 Sets the TFTP blksize option in TFTP Read Request or Write Request packets
 to
 .Ar [size]
-as specified in RFC 2348.  Valid values are between 8 and 65464.
+as specified in RFC 2348.
+Valid values are between 8 and 65464.
 If no blocksize is specified, then by default a blocksize of 512 bytes
 will be used.
 .Pp
@@ -82,8 +83,8 @@ will be used.
 Sets the TFTP blksize2 option in TFTP Read Request or Write Request packets
 to
 .Ar [size] .
-Values are restricted to powers of 2 between 8 and 32768.  This is a
-non-standard TFTP option.
+Values are restricted to powers of 2 between 8 and 32768.
+This is a non-standard TFTP option.
 .Pp
 .It Cm connect Ar host Op Ar port
 Set the
@@ -109,7 +110,8 @@ or
 commands.
 .Pp
 .It Cm debug Ar level
-Enable or disable debugging levels during verbose output.  The value of
+Enable or disable debugging levels during verbose output.
+The value of
 .Ar level
 can be one of
 .Cm packet , simple , options ,
@@ -156,7 +158,8 @@ The default is
 .It Cm packetdrop [arg]
 Randomly drop
 .Ar arg
-out of 100 packets during a transfer.  This is a debugging feature.
+out of 100 packets during a transfer.
+This is a debugging feature.
 .Pp
 .It Cm put Ar file Op Oo Ar host : Oc Ns Ar remotename
 .It Cm put Ar file1 file2 ... fileN Op Oo Ar host : Oc Ns Ar remote-directory
@@ -178,7 +181,8 @@ see the example under the
 command.
 .Pp
 .It Cm options Ar [arg]
-Enable or disable support for TFTP options.  The valid values of
+Enable or disable support for TFTP options.
+The valid values of
 .Ar arg
 are
 .Cm on
@@ -198,8 +202,8 @@ Set the per-packet retransmission timeout, in seconds.
 .Pp
 .It Cm rollover [arg]
 Specify the rollover option in TFTP Read Request or Write
-Request packets.  After 65535 packets have been transmitted, set the block
-counter to
+Request packets.
+After 65535 packets have been transmitted, set the block counter to
 .Ar arg .
 Valid values of
 .Ar arg
