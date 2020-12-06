@@ -438,27 +438,6 @@ bucket_zone_lookup(int entries)
 	return (ubz);
 }
 
-static struct uma_bucket_zone *
-bucket_zone_max(uma_zone_t zone, int nitems)
-{
-	struct uma_bucket_zone *ubz;
-	int bpcpu;
-
-	bpcpu = 2;
-	if ((zone->uz_flags & UMA_ZONE_FIRSTTOUCH) != 0)
-		/* Count the cross-domain bucket. */
-		bpcpu++;
-
-	for (ubz = &bucket_zones[0]; ubz->ubz_entries != 0; ubz++)
-		if (ubz->ubz_entries * bpcpu * mp_ncpus > nitems)
-			break;
-	if (ubz == &bucket_zones[0])
-		ubz = NULL;
-	else
-		ubz--;
-	return (ubz);
-}
-
 static int
 bucket_select(int size)
 {
@@ -2478,10 +2457,10 @@ zone_alloc_sysctl(uma_zone_t zone, void *unused)
 	SYSCTL_ADD_PROC(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "items", CTLFLAG_RD | CTLTYPE_U64 | CTLFLAG_MPSAFE,
 	    zone, 0, sysctl_handle_uma_zone_items, "QU",
-	    "current number of allocated items if limit is set");
+	    "Current number of allocated items if limit is set");
 	SYSCTL_ADD_U64(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "max_items", CTLFLAG_RD, &zone->uz_max_items, 0,
-	    "Maximum number of cached items");
+	    "Maximum number of allocated and cached items");
 	SYSCTL_ADD_U32(NULL, SYSCTL_CHILDREN(oid), OID_AUTO,
 	    "sleepers", CTLFLAG_RD, &zone->uz_sleepers, 0,
 	    "Number of threads sleeping at limit");
@@ -4570,8 +4549,12 @@ zone_free_item(uma_zone_t zone, void *item, void *udata, enum zfreeskip skip)
 int
 uma_zone_set_max(uma_zone_t zone, int nitems)
 {
-	struct uma_bucket_zone *ubz;
-	int count;
+
+	/*
+	 * If the limit is small, we may need to constrain the maximum per-CPU
+	 * cache size, or disable caching entirely.
+	 */
+	uma_zone_set_maxcache(zone, nitems);
 
 	/*
 	 * XXX This can misbehave if the zone has any allocations with
@@ -4579,11 +4562,6 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	 * way to clear a limit.
 	 */
 	ZONE_LOCK(zone);
-	ubz = bucket_zone_max(zone, nitems);
-	count = ubz != NULL ? ubz->ubz_entries : 0;
-	zone->uz_bucket_size_max = zone->uz_bucket_size = count;
-	if (zone->uz_bucket_size_min > zone->uz_bucket_size_max)
-		zone->uz_bucket_size_min = zone->uz_bucket_size_max;
 	zone->uz_max_items = nitems;
 	zone->uz_flags |= UMA_ZFLAG_LIMIT;
 	zone_update_caches(zone);
@@ -4598,24 +4576,35 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 void
 uma_zone_set_maxcache(uma_zone_t zone, int nitems)
 {
-	struct uma_bucket_zone *ubz;
-	int bpcpu;
+	int bpcpu, bpdom, bsize, nb;
 
 	ZONE_LOCK(zone);
-	ubz = bucket_zone_max(zone, nitems);
-	if (ubz != NULL) {
-		bpcpu = 2;
-		if ((zone->uz_flags & UMA_ZONE_FIRSTTOUCH) != 0)
-			/* Count the cross-domain bucket. */
-			bpcpu++;
-		nitems -= ubz->ubz_entries * bpcpu * mp_ncpus;
-		zone->uz_bucket_size_max = ubz->ubz_entries;
-	} else {
-		zone->uz_bucket_size_max = zone->uz_bucket_size = 0;
+
+	/*
+	 * Compute a lower bound on the number of items that may be cached in
+	 * the zone.  Each CPU gets at least two buckets, and for cross-domain
+	 * frees we use an additional bucket per CPU and per domain.  Select the
+	 * largest bucket size that does not exceed half of the requested limit,
+	 * with the left over space given to the full bucket cache.
+	 */
+	bpdom = 0;
+	bpcpu = 2;
+#ifdef NUMA
+	if ((zone->uz_flags & UMA_ZONE_FIRSTTOUCH) != 0 && vm_ndomains > 1) {
+		bpcpu++;
+		bpdom++;
 	}
+#endif
+	nb = bpcpu * mp_ncpus + bpdom * vm_ndomains;
+	bsize = nitems / nb / 2;
+	if (bsize > BUCKET_MAX)
+		bsize = BUCKET_MAX;
+	else if (bsize == 0 && nitems / nb > 0)
+		bsize = 1;
+	zone->uz_bucket_size_max = zone->uz_bucket_size = bsize;
 	if (zone->uz_bucket_size_min > zone->uz_bucket_size_max)
 		zone->uz_bucket_size_min = zone->uz_bucket_size_max;
-	zone->uz_bucket_max = nitems / vm_ndomains;
+	zone->uz_bucket_max = nitems - nb * bsize;
 	ZONE_UNLOCK(zone);
 }
 
