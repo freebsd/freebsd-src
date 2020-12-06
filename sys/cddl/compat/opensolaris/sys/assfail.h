@@ -48,9 +48,7 @@ void assfail3(const char *, uintmax_t, const char *, uintmax_t, const char *,
 #ifndef HAVE_ASSFAIL
 extern int aok;
 
-__inline int __assfail(const char *expr, const char *file, int line);
-
-__inline int
+static __inline int
 __assfail(const char *expr, const char *file, int line)
 {
 

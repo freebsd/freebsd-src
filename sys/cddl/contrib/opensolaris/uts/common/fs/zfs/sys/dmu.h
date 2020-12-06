@@ -610,7 +610,7 @@ typedef struct dmu_buf_user {
  *       To allow enforcement of this, dbu must already be zeroed on entry.
  */
 /*ARGSUSED*/
-inline void
+static inline void
 dmu_buf_init_user(dmu_buf_user_t *dbu, dmu_buf_evict_func_t *evict_func_sync,
     dmu_buf_evict_func_t *evict_func_async, dmu_buf_t **clear_on_evict_dbufp)
 {
