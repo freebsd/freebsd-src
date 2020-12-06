@@ -4186,7 +4186,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	 * a little longer for the limits to be reset.
 	 */
 	if (__predict_false(uz_flags & UMA_ZFLAG_LIMIT)) {
-		if (zone->uz_sleepers > 0)
+		if (atomic_load_32(&zone->uz_sleepers) > 0)
 			goto zfree_item;
 	}
 
