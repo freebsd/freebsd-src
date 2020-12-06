@@ -29,7 +29,7 @@
 #
 .POSIX:
 
-VERSION = 3.2.0
+VERSION = 3.2.3
 
 SRC = %%SRC%%
 OBJ = %%OBJ%%
