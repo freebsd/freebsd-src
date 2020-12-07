@@ -97,11 +97,25 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 void
 gdb_cpu_setreg(int regnum, void *val)
 {
+	if (kdb_thread != curthread)
+		return;
 
 	switch (regnum) {
 	case GDB_REG_PC:
-		if (kdb_thread  == curthread)
-			kdb_frame->tf_pc = *(register_t *)val;
+		kdb_frame->tf_pc = *(register_t *)val;
+		break;
+	case GDB_REG_SP:
+		kdb_frame->tf_svc_sp = *(register_t *)val;
+		break;
+	case GDB_REG_LR:
+		kdb_frame->tf_svc_lr = *(register_t *)val;
+		break;
+	default:
+		/* Write to the general purpose registers r0-r12. */
+		if (regnum >= 0 && regnum <= 12) {
+			*(&kdb_frame->tf_r0 + regnum) = *(register_t *)val;
+		}
+		break;
 	}
 }
 
