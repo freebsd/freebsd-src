@@ -343,7 +343,7 @@ __sg_alloc_table_from_pages(struct sg_table *sgt,
 		}
 
 		seg_size = ((j - cur) << PAGE_SHIFT) - off;
-		sg_set_page(s, pages[cur], min(size, seg_size), off);
+		sg_set_page(s, pages[cur], MIN(size, seg_size), off);
 		size -= seg_size;
 		off = 0;
 		cur = j;
