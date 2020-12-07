@@ -148,6 +148,13 @@ static volatile int aps_ready;
 /* Temporary variables for init_secondary()  */
 void *dpcpu[MAXCPU - 1];
 
+static bool
+is_boot_cpu(uint64_t target_cpu)
+{
+
+	return (__pcpu[0].pc_mpidr == (target_cpu & CPU_AFF_MASK));
+}
+
 static void
 release_aps(void *dummy __unused)
 {
@@ -428,6 +435,10 @@ cpu_mp_probe(void)
 	return (1);
 }
 
+/*
+ * Starts a given CPU. If the CPU is already running, i.e. it is the boot CPU,
+ * do nothing. Returns true if the CPU is present and running.
+ */
 static bool
 start_cpu(u_int cpuid, uint64_t target_cpu)
 {
@@ -439,9 +450,11 @@ start_cpu(u_int cpuid, uint64_t target_cpu)
 	if (cpuid > mp_maxid)
 		return (false);
 
+	/* Skip boot CPU */
+	if (is_boot_cpu(target_cpu))
+		return (true);
+
 	KASSERT(cpuid < MAXCPU, ("Too many CPUs"));
-	KASSERT(__pcpu[0].pc_mpidr != (target_cpu & CPU_AFF_MASK),
-	    ("Start_cpu() was called on the boot CPU"));
 
 	pcpup = &__pcpu[cpuid];
 	pcpu_init(pcpup, cpuid, sizeof(struct pcpu));
@@ -475,13 +488,13 @@ start_cpu(u_int cpuid, uint64_t target_cpu)
 		kmem_free((vm_offset_t)bootstacks[cpuid], PAGE_SIZE);
 		bootstacks[cpuid] = NULL;
 		mp_ncpus--;
-
-	} else {
-		/* Wait for the AP to switch to its boot stack. */
-		while (atomic_load_int(&aps_started) < naps + 1)
-			cpu_spinwait();
-		CPU_SET(cpuid, &all_cpus);
+		return (false);
 	}
+
+	/* Wait for the AP to switch to its boot stack. */
+	while (atomic_load_int(&aps_started) < naps + 1)
+		cpu_spinwait();
+	CPU_SET(cpuid, &all_cpus);
 
 	return (true);
 }
@@ -498,17 +511,22 @@ madt_handler(ACPI_SUBTABLE_HEADER *entry, void *arg)
 	case ACPI_MADT_TYPE_GENERIC_INTERRUPT:
 		intr = (ACPI_MADT_GENERIC_INTERRUPT *)entry;
 		cpuid = arg;
-		id = *cpuid;
 
-		/* Skip the boot CPU, but save its ACPI id. */
-		if (__pcpu[0].pc_mpidr == (intr->ArmMpidr & CPU_AFF_MASK)) {
-			__pcpu[0].pc_acpi_id = intr->Uid;
-			break;
+		if (is_boot_cpu(intr->ArmMpidr))
+			id = 0;
+		else
+			id = *cpuid;
+
+		if (start_cpu(id, intr->ArmMpidr)) {
+			__pcpu[id].pc_acpi_id = intr->Uid;
+			/*
+			 * Don't increment for the boot CPU, its CPU ID is
+			 * reserved.
+			 */
+			if (!is_boot_cpu(intr->ArmMpidr))
+				(*cpuid)++;
 		}
 
-		start_cpu(id, intr->ArmMpidr);
-		__pcpu[id].pc_acpi_id = intr->Uid;
-		(*cpuid)++;
 		break;
 	default:
 		break;
@@ -546,10 +564,11 @@ cpu_init_acpi(void)
 
 #ifdef FDT
 static boolean_t
-cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
+start_cpu_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 {
 	uint64_t target_cpu;
 	int domain;
+	int cpuid;
 
 	target_cpu = reg[0];
 	if (addr_size == 2) {
@@ -557,23 +576,44 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 		target_cpu |= reg[1];
 	}
 
-	/* Skip boot CPU */
-	if (__pcpu[0].pc_mpidr == (target_cpu & CPU_AFF_MASK))
-		return (TRUE);
+	if (is_boot_cpu(target_cpu))
+		cpuid = 0;
+	else
+		cpuid = fdt_cpuid;
 
-	if (!start_cpu(fdt_cpuid, target_cpu))
+	if (!start_cpu(cpuid, target_cpu))
 		return (FALSE);
-	fdt_cpuid++;
+
+	/*
+	 * Don't increment for the boot CPU, its CPU ID is reserved.
+	 */
+	if (!is_boot_cpu(target_cpu))
+		fdt_cpuid++;
 
 	/* Try to read the numa node of this cpu */
 	if (vm_ndomains == 1 ||
 	    OF_getencprop(node, "numa-node-id", &domain, sizeof(domain)) <= 0)
 		domain = 0;
-	__pcpu[fdt_cpuid].pc_domain = domain;
+	__pcpu[cpuid].pc_domain = domain;
 	if (domain < MAXMEMDOM)
-		CPU_SET(fdt_cpuid, &cpuset_domain[domain]);
-
+		CPU_SET(cpuid, &cpuset_domain[domain]);
 	return (TRUE);
+}
+static void
+cpu_init_fdt(void)
+{
+	phandle_t node;
+	int i;
+
+	node = OF_peer(0);
+	for (i = 0; fdt_quirks[i].compat != NULL; i++) {
+		if (ofw_bus_node_is_compatible(node,
+		    fdt_quirks[i].compat) != 0) {
+			mp_quirks = fdt_quirks[i].quirks;
+		}
+	}
+	fdt_cpuid = 1;
+	ofw_cpu_early_foreach(start_cpu_fdt, true);
 }
 #endif
 
@@ -581,11 +621,6 @@ cpu_init_fdt(u_int id, phandle_t node, u_int addr_size, pcell_t *reg)
 void
 cpu_mp_start(void)
 {
-#ifdef FDT
-	phandle_t node;
-#endif
-	int i;
-
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* CPU 0 is always boot CPU. */
@@ -601,15 +636,7 @@ cpu_mp_start(void)
 #endif
 #ifdef FDT
 	case ARM64_BUS_FDT:
-		node = OF_peer(0);
-		for (i = 0; fdt_quirks[i].compat != NULL; i++) {
-			if (ofw_bus_node_is_compatible(node,
-			    fdt_quirks[i].compat) != 0) {
-				mp_quirks = fdt_quirks[i].quirks;
-			}
-		}
-		fdt_cpuid = 1;
-		ofw_cpu_early_foreach(cpu_init_fdt, true);
+		cpu_init_fdt();
 		break;
 #endif
 	default:
