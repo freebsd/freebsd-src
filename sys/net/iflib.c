@@ -2339,10 +2339,12 @@ iflib_rx_sds_free(iflib_rxq_t rxq)
 			free(fl->ifl_sds.ifsd_cl, M_IFLIB);
 			free(fl->ifl_sds.ifsd_ba, M_IFLIB);
 			free(fl->ifl_sds.ifsd_map, M_IFLIB);
+			free(fl->ifl_rx_bitmap, M_IFLIB);
 			fl->ifl_sds.ifsd_m = NULL;
 			fl->ifl_sds.ifsd_cl = NULL;
 			fl->ifl_sds.ifsd_ba = NULL;
 			fl->ifl_sds.ifsd_map = NULL;
+			fl->ifl_rx_bitmap = NULL;
 		}
 		free(rxq->ifr_fl, M_IFLIB);
 		rxq->ifr_fl = NULL;
