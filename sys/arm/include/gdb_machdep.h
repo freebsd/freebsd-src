@@ -33,6 +33,8 @@
 
 #define	GDB_BUFSZ	400
 #define	GDB_NREGS	26
+#define	GDB_REG_SP	13
+#define	GDB_REG_LR	14
 #define	GDB_REG_PC	15
 
 static __inline size_t
