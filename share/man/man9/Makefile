@@ -1778,8 +1778,13 @@ MLINKS+=random_harvest.9 random_harvest_direct.9 \
 	random_harvest.9 random_harvest_queue.9
 MLINKS+=ratecheck.9 ppsratecheck.9
 MLINKS+=refcount.9 refcount_acquire.9 \
+	refcount.9 refcount_acquire_checked.9 \
+	refcount.9 refcount_acquire_if_not_zero.9 \
 	refcount.9 refcount_init.9 \
-	refcount.9 refcount_release.9
+	refcount.9 refcount_load.9 \
+	refcount.9 refcount_release.9 \
+	refcount.9 refcount_release_if_last.9 \
+	refcount.9 refcount_release_if_not_last.9
 MLINKS+=resource_int_value.9 resource_long_value.9 \
 	resource_int_value.9 resource_string_value.9
 MLINKS+=rman.9 rman_activate_resource.9 \
