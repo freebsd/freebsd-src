@@ -380,6 +380,8 @@ __pthread_mutex_init(pthread_mutex_t * __restrict mutex,
 	struct pthread_mutex *pmtx;
 	int ret;
 
+	_thr_check_init();
+
 	if (mutex_attr != NULL) {
 		ret = mutex_check_attr(*mutex_attr);
 		if (ret != 0)
