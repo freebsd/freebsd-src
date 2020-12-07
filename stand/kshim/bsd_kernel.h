@@ -274,7 +274,12 @@ typedef uint8_t *bus_space_handle_t;
 typedef int bus_dma_filter_t(void *, bus_addr_t);
 typedef void bus_dma_lock_t(void *, bus_dma_lock_op_t);
 
-typedef uint32_t bool;
+#ifndef __bool_true_false_are_defined
+#define	__bool_true_false_are_defined
+typedef _Bool bool;
+#define	true 1
+#define	false 0
+#endif
 
 /* SYSINIT API */
 
