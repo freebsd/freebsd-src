@@ -32,7 +32,7 @@
 
 #include <machine/atomic.h>
 
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_STANDALONE)
 #include <sys/systm.h>
 #else
 #include <stdbool.h>
