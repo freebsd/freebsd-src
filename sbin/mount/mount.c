@@ -361,6 +361,7 @@ main(int argc, char *argv[])
 				else
 					failok = 0;
 				if (!(init_flags & MNT_UPDATE) &&
+				    !hasopt(fs->fs_mntops, "update") &&
 				    ismounted(fs, mntbuf, mntsize))
 					continue;
 				options = update_options(options, fs->fs_mntops,
