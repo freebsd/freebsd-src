@@ -360,7 +360,7 @@ linux_reg_op(unsigned long *bitmap, int pos, int order, int reg_op)
         index = pos / BITS_PER_LONG;
         offset = pos - (index * BITS_PER_LONG);
         nlongs_reg = BITS_TO_LONGS(nbits_reg);
-        nbitsinlong = min(nbits_reg,  BITS_PER_LONG);
+        nbitsinlong = MIN(nbits_reg,  BITS_PER_LONG);
 
         mask = (1UL << (nbitsinlong - 1));
         mask += mask - 1;
