@@ -669,6 +669,11 @@ extern int delay(unsigned int);
 #define	BUS_DMA_BUS3		0x40
 #define	BUS_DMA_BUS4		0x80
 
+#define	BUS_DMASYNC_PREREAD	0x01
+#define	BUS_DMASYNC_POSTREAD	0x02
+#define	BUS_DMASYNC_PREWRITE	0x04
+#define	BUS_DMASYNC_POSTWRITE	0x08
+
 typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 
 int
@@ -679,9 +684,14 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
 		   void *lockfuncarg, bus_dma_tag_t *dmat);
 
-int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-    bus_dmamap_t *mapp);
-void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
-int bus_dma_tag_destroy(bus_dma_tag_t dmat);
+int bus_dmamem_alloc(bus_dma_tag_t, void** vaddr, int flags, bus_dmamap_t *);
+void bus_dmamem_free(bus_dma_tag_t, void *vaddr, bus_dmamap_t);
+int bus_dma_tag_destroy(bus_dma_tag_t);
+
+int bus_dmamap_load(bus_dma_tag_t, bus_dmamap_t, void *buf,
+    bus_size_t buflen, bus_dmamap_callback_t *,
+    void *callback_arg, int flags);
+void bus_dmamap_unload(bus_dma_tag_t, bus_dmamap_t);
+void bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, int flags);
 
 #endif					/* _BSD_KERNEL_H_ */

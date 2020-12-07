@@ -92,6 +92,13 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 }
 
 void
+bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
+{
+	/* Assuming coherent memory */
+	__asm__ __volatile__("": : :"memory");
+}
+
+void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
 
