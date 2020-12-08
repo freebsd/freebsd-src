@@ -163,9 +163,9 @@ typedef void	(*l_handler_t)(l_int);
 
 typedef struct {
 	l_handler_t	lsa_handler;
-	l_sigset_t	lsa_mask;
 	l_ulong		lsa_flags;
 	l_uintptr_t	lsa_restorer;
+	l_sigset_t	lsa_mask;
 } l_sigaction_t;				/* XXX */
 
 typedef struct {
