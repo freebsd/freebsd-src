@@ -61,6 +61,7 @@
 /* log_2(8 * WORD) */
 #define	LOOP_LOG	6
 #define	LOG_WORD	3
+#define	CURTHREAD	%r13
 #else
 #define	LOAD	lwz
 #define	STORE	stw
@@ -70,6 +71,7 @@
 /* log_2(8 * WORD) */
 #define	LOOP_LOG	5
 #define	LOG_WORD	2
+#define	CURTHREAD	%r2
 #endif
 
 #ifdef AIM
@@ -149,32 +151,26 @@
 
 #endif
 
-#define PCPU(reg) mfsprg  reg, 0
-
 #define	SET_COPYFAULT(raddr, rpcb, len)	\
 	VALIDATE_ADDR_COPY(raddr, len)	;\
-	PCPU(%r9)			;\
 	li	%r0, COPYFAULT		;\
-	LOAD	rpcb, PC_CURPCB(%r9)	;\
+	LOAD	rpcb, TD_PCB(CURTHREAD)	;\
 	STORE	%r0, PCB_ONFAULT(rpcb)	;\
 
 #define	SET_COPYFAULT_TRUNCATE(raddr, rpcb, len)\
 	VALIDATE_TRUNCATE_ADDR_COPY(raddr, len)	;\
-	PCPU(%r9)				;\
 	li	%r0, COPYFAULT			;\
-	LOAD	rpcb, PC_CURPCB(%r9)		;\
+	LOAD	rpcb, TD_PCB(CURTHREAD)		;\
 	STORE	%r0, PCB_ONFAULT(rpcb)
 
 #define	SET_FUSUFAULT(raddr, rpcb)	\
 	VALIDATE_ADDR_FUSU(raddr)	;\
-	PCPU(%r9)			;\
 	li	%r0, FUSUFAULT		;\
-	LOAD	rpcb, PC_CURPCB(%r9)	;\
+	LOAD	rpcb, TD_PCB(CURTHREAD)	;\
 	STORE	%r0, PCB_ONFAULT(rpcb)
 
 #define	CLEAR_FAULT_NO_CLOBBER(rpcb)	\
-	PCPU(%r9)			;\
-	LOAD	rpcb, PC_CURPCB(%r9)	;\
+	LOAD	rpcb, TD_PCB(CURTHREAD)	;\
 	li	%r0, 0			;\
 	STORE	%r0, PCB_ONFAULT(rpcb)
 
