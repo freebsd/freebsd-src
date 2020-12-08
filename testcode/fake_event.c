@@ -872,6 +872,7 @@ listen_create(struct comm_base* base, struct listen_port* ATTR_UNUSED(ports),
 	int ATTR_UNUSED(harden_large_queries),
 	uint32_t ATTR_UNUSED(http_max_streams),
 	char* ATTR_UNUSED(http_endpoint),
+	int ATTR_UNUSED(http_notls),
 	struct tcl_list* ATTR_UNUSED(tcp_conn_limit),
 	void* ATTR_UNUSED(sslctx), struct dt_env* ATTR_UNUSED(dtenv),
 	comm_point_callback_type* cb, void *cb_arg)
@@ -1044,7 +1045,7 @@ outside_network_create(struct comm_base* base, size_t bufsize,
 	void (*unwanted_action)(void*), void* ATTR_UNUSED(unwanted_param),
 	int ATTR_UNUSED(do_udp), void* ATTR_UNUSED(sslctx),
 	int ATTR_UNUSED(delayclose), int ATTR_UNUSED(tls_use_sni),
-	struct dt_env* ATTR_UNUSED(dtenv))
+	struct dt_env* ATTR_UNUSED(dtenv), int ATTR_UNUSED(udp_connect))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)base;
 	struct outside_network* outnet =  calloc(1, 
@@ -1213,7 +1214,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	sldns_buffer_flip(pend->buffer);
 	if(1) {
 		struct edns_data edns;
-		struct edns_tag_addr* client_tag_addr;
+		struct edns_string_addr* client_string_addr;
 		if(!inplace_cb_query_call(env, qinfo, flags, addr, addrlen,
 			zone, zonelen, qstate, qstate->region)) {
 			free(pend);
@@ -1227,13 +1228,13 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 		edns.bits = 0;
 		if(dnssec)
 			edns.bits = EDNS_DO;
-		if((client_tag_addr = edns_tag_addr_lookup(
-			&env->edns_tags->client_tags,
+		if((client_string_addr = edns_string_addr_lookup(
+			&env->edns_strings->client_strings,
 			addr, addrlen))) {
-			uint16_t client_tag = htons(client_tag_addr->tag_data);
 			edns_opt_list_append(&qstate->edns_opts_back_out,
-				env->edns_tags->client_tag_opcode, 2,
-				(uint8_t*)&client_tag, qstate->region);
+				env->edns_strings->client_string_opcode,
+				client_string_addr->string_len,
+				client_string_addr->string, qstate->region);
 		}
 		edns.opt_list = qstate->edns_opts_back_out;
 		attach_edns_record(pend->buffer, &edns);
@@ -1505,6 +1506,18 @@ int pending_cmp(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
 }
 
 int serviced_cmp(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
+{
+	log_assert(0);
+	return 0;
+}
+
+int reuse_cmp(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
+{
+	log_assert(0);
+	return 0;
+}
+
+int reuse_id_cmp(const void* ATTR_UNUSED(a), const void* ATTR_UNUSED(b))
 {
 	log_assert(0);
 	return 0;

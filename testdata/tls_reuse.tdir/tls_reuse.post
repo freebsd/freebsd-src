@@ -1,0 +1,19 @@
+# #-- tls_reuse.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+. ../common.sh
+kill_pid `cat unbound2.pid`
+if test -f unbound2.log; then
+	echo ">>> upstream log"
+	cat unbound2.log
+fi
+#kill_pid $UNBOUND_PID
+kill_pid `cat unbound.pid`
+if test -f unbound.log; then
+	echo ">>> unbound log"
+	cat unbound.log
+fi

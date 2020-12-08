@@ -29,6 +29,9 @@ else
 	HAVE_MINGW=no
 fi
 
+# stop tests from notifying systemd, if that is compiled in.
+export -n NOTIFY_SOCKET
+
 cd testdata;
 sh ../testcode/mini_tdir.sh clean
 rm -f .perfstats.txt

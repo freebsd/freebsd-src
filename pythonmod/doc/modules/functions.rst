@@ -89,7 +89,7 @@ EDNS options
 Inplace callbacks
 -----------------
 
-.. function:: inplace_cb_reply(qinfo, qstate, rep, rcode, edns, opt_list_out, region)
+.. function:: inplace_cb_reply(qinfo, qstate, rep, rcode, edns, opt_list_out, region, \*\*kwargs)
 
     Function prototype for callback functions used in
     `register_inplace_cb_reply`_, `register_inplace_cb_reply_cache`_,
@@ -102,6 +102,9 @@ Inplace callbacks
     :param edns: :class:`edns_data`
     :param opt_list_out: :class:`edns_option`. EDNS option list to append options to.
     :param region: :class:`regional`
+    :param \*\*kwargs: Dictionary that may contain parameters added in a future
+        release. Current parameters:
+        ``repinfo``: :class:`comm_reply`. Reply information for a communication point.
 
 .. function:: inplace_cb_query(qinfo, flags, qstate, addr, zone, region)
 

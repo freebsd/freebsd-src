@@ -59,6 +59,8 @@ dig @127.0.0.1 -p $UNBOUND_PORT q7.example.net.
 dig @127.0.0.1 -p $UNBOUND_PORT q8.example.net.
 dig @127.0.0.1 -p $UNBOUND_PORT q9.example.net.
 dig @127.0.0.1 -p $UNBOUND_PORT q10.example.net.
+echo "> wait for log to happen on timer"
+sleep 3
 for x in q1 q2 q3 q4 5 q6 q7 q8 q9 q10; do
 	if grep "$x.example.net" tap.log >/dev/null; then :; else sleep 1; fi
 	if grep "$x.example.net" tap.log >/dev/null; then :; else sleep 1; fi

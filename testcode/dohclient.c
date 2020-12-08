@@ -90,6 +90,7 @@ static void usage(char* argv[])
 	printf("-e		HTTP endpoint, default: /dns-query\n");
 	printf("-c		Content-type in request, default: "
 		"application/dns-message\n");
+	printf("-n		no-tls, TLS is disabled\n");
 	printf("-h 		This help text\n");
 	exit(1);
 }
@@ -185,7 +186,10 @@ submit_query(struct http2_session* h2_session, struct sldns_buffer* buf)
 	headers[1].name = (uint8_t*)":path";
 	headers[1].value = (uint8_t*)h2_stream->path;
 	headers[2].name = (uint8_t*)":scheme";
-	headers[2].value = (uint8_t*)"https";
+	if(h2_session->ssl)
+		headers[2].value = (uint8_t*)"https";
+	else
+		headers[2].value = (uint8_t*)"http";
 	headers[3].name = (uint8_t*)":authority";
 	headers[3].value = (uint8_t*)h2_session->authority;
 	headers[4].name = (uint8_t*)"content-type";
@@ -246,6 +250,7 @@ static ssize_t http2_recv_cb(nghttp2_session* ATTR_UNUSED(session),
 {
 	struct http2_session* h2_session = (struct http2_session*)cb_arg;
 	int r;
+	ssize_t ret;
 	struct timeval tv, *waittv;
 	fd_set rfd;
 	ERR_clear_error();
@@ -267,35 +272,58 @@ static ssize_t http2_recv_cb(nghttp2_session* ATTR_UNUSED(session),
 		return NGHTTP2_ERR_WOULDBLOCK;
 	}
 
-	r = SSL_read(h2_session->ssl, buf, len);
-	if(r <= 0) {
-		int want = SSL_get_error(h2_session->ssl, r);
-		if(want == SSL_ERROR_ZERO_RETURN) {
+	if(h2_session->ssl) {
+		r = SSL_read(h2_session->ssl, buf, len);
+		if(r <= 0) {
+			int want = SSL_get_error(h2_session->ssl, r);
+			if(want == SSL_ERROR_ZERO_RETURN) {
+				return NGHTTP2_ERR_EOF;
+			}
+			log_crypto_err("could not SSL_read");
 			return NGHTTP2_ERR_EOF;
 		}
-		log_crypto_err("could not SSL_read");
+		return r;
+	}
+
+	ret = read(h2_session->fd, buf, len);
+	if(ret == 0) {
+		return NGHTTP2_ERR_EOF;
+	} else if(ret < 0) {
+		log_err("could not http2 read: %s", strerror(errno));
 		return NGHTTP2_ERR_EOF;
 	}
-	return r;
+	return ret;
 }
 
 static ssize_t http2_send_cb(nghttp2_session* ATTR_UNUSED(session),
 	const uint8_t* buf, size_t len, int ATTR_UNUSED(flags), void* cb_arg)
 {
 	struct http2_session* h2_session = (struct http2_session*)cb_arg;
+	ssize_t ret;
 
-	int r;
-	ERR_clear_error();
-	r = SSL_write(h2_session->ssl, buf, len);
-	if(r <= 0) {
-		int want = SSL_get_error(h2_session->ssl, r);
-		if(want == SSL_ERROR_ZERO_RETURN) {
+	if(h2_session->ssl) {
+		int r;
+		ERR_clear_error();
+		r = SSL_write(h2_session->ssl, buf, len);
+		if(r <= 0) {
+			int want = SSL_get_error(h2_session->ssl, r);
+			if(want == SSL_ERROR_ZERO_RETURN) {
+				return NGHTTP2_ERR_CALLBACK_FAILURE;
+			}
+			log_crypto_err("could not SSL_write");
 			return NGHTTP2_ERR_CALLBACK_FAILURE;
 		}
-		log_crypto_err("could not SSL_write");
+		return r;
+	}
+
+	ret = write(h2_session->fd, buf, len);
+	if(ret == 0) {
+		return NGHTTP2_ERR_CALLBACK_FAILURE;
+	} else if(ret < 0) {
+		log_err("could not http2 write: %s", strerror(errno));
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	}
-	return r;
+	return ret;
 }
 
 static int http2_stream_close_cb(nghttp2_session* ATTR_UNUSED(session),
@@ -459,7 +487,7 @@ http2_read(struct http2_session* h2_session)
 }
 
 static void
-run(struct http2_session* h2_session, int port, int count, char** q)
+run(struct http2_session* h2_session, int port, int no_tls, int count, char** q)
 {
 	int i;
 	SSL_CTX* ctx = NULL;
@@ -470,25 +498,27 @@ run(struct http2_session* h2_session, int port, int count, char** q)
 	fd = open_svr(h2_session->authority, port);
 	h2_session->fd = fd;
 
-	ctx = connect_sslctx_create(NULL, NULL, NULL, 0);
-	if(!ctx) fatal_exit("cannot create ssl ctx");
-	SSL_CTX_set_alpn_protos(ctx, (const unsigned char *)"\x02h2", 3);
-	ssl = outgoing_ssl_fd(ctx, fd);
-	if(!ssl) {
-		printf("cannot create ssl\n");
-		exit(1);
-	}
-	h2_session->ssl = ssl;
-	while(1) {
-		int r;
-		ERR_clear_error();
-		if( (r=SSL_do_handshake(ssl)) == 1)
-			break;
-		r = SSL_get_error(ssl, r);
-		if(r != SSL_ERROR_WANT_READ &&
-			r != SSL_ERROR_WANT_WRITE) {
-			log_crypto_err("could not ssl_handshake");
+	if(!no_tls) {
+		ctx = connect_sslctx_create(NULL, NULL, NULL, 0);
+		if(!ctx) fatal_exit("cannot create ssl ctx");
+		SSL_CTX_set_alpn_protos(ctx, (const unsigned char *)"\x02h2", 3);
+		ssl = outgoing_ssl_fd(ctx, fd);
+		if(!ssl) {
+			printf("cannot create ssl\n");
 			exit(1);
+		}
+		h2_session->ssl = ssl;
+		while(1) {
+			int r;
+			ERR_clear_error();
+			if( (r=SSL_do_handshake(ssl)) == 1)
+				break;
+			r = SSL_get_error(ssl, r);
+			if(r != SSL_ERROR_WANT_READ &&
+				r != SSL_ERROR_WANT_WRITE) {
+				log_crypto_err("could not ssl_handshake");
+				exit(1);
+			}
 		}
 	}
 
@@ -511,9 +541,13 @@ run(struct http2_session* h2_session, int port, int count, char** q)
 
 	/* shutdown */
 	http2_session_delete(h2_session);
-	SSL_shutdown(ssl);
-	SSL_free(ssl);
-	SSL_CTX_free(ctx);
+	if(ssl) {
+		SSL_shutdown(ssl);
+		SSL_free(ssl);
+	}
+	if(ctx) {
+		SSL_CTX_free(ctx);
+	}
 	close(fd);
 }
 
@@ -524,10 +558,21 @@ extern char* optarg;
 int main(int argc, char** argv)
 {
 	int c;
-	int port = UNBOUND_DNS_OVER_HTTPS_PORT;
-	struct http2_session* h2_session = http2_session_create();
-	if(!h2_session) fatal_exit("out of memory");
+	int port = UNBOUND_DNS_OVER_HTTPS_PORT, no_tls = 0;
+	struct http2_session* h2_session;
 
+#ifdef USE_WINSOCK
+	WSADATA wsa_data;
+	if(WSAStartup(MAKEWORD(2,2), &wsa_data) != 0) {
+		printf("WSAStartup failed\n");
+		return 1;
+	}
+#endif
+	log_init(0, 0, 0);
+	checklock_start();
+
+	h2_session = http2_session_create();
+	if(!h2_session) fatal_exit("out of memory");
 	if(argc == 1) {
 		usage(argv);
 	}
@@ -537,13 +582,16 @@ int main(int argc, char** argv)
 	h2_session->endpoint = "/dns-query";
 	h2_session->content_type = "application/dns-message";
 
-	while((c=getopt(argc, argv, "c:e:hs:p:P")) != -1) {
+	while((c=getopt(argc, argv, "c:e:hns:p:P")) != -1) {
 		switch(c) {
 			case 'c':
 				h2_session->content_type = optarg;
 				break;
 			case 'e':
 				h2_session->endpoint = optarg;
+				break;
+			case 'n':
+				no_tls = 1;
 				break;
 			case 'p':
 				if(atoi(optarg)==0 && strcmp(optarg,"0")!=0) {
@@ -573,8 +621,12 @@ int main(int argc, char** argv)
 	}
 
 
-	run(h2_session, port, argc, argv);
+	run(h2_session, port, no_tls, argc, argv);
 
+	checklock_stop();
+#ifdef USE_WINSOCK
+	WSACleanup();
+#endif
 	return 0;
 }
 #else

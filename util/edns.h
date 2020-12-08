@@ -50,58 +50,60 @@ struct comm_point;
 struct regional;
 
 /**
- * Structure containing all EDNS tags.
+ * Structure containing all EDNS strings.
  */
-struct edns_tags {
-	/** Tree of EDNS client tags to use in upstream queries, per address
-	 * prefix. Contains nodes of type edns_tag_addr. */
-	rbtree_type client_tags;
-	/** EDNS opcode to use for client tags */
-	uint16_t client_tag_opcode;
+struct edns_strings {
+	/** Tree of EDNS client strings to use in upstream queries, per address
+	 * prefix. Contains nodes of type edns_string_addr. */
+	rbtree_type client_strings;
+	/** EDNS opcode to use for client strings */
+	uint16_t client_string_opcode;
 	/** region to allocate tree nodes in */
 	struct regional* region;
 };
 
 /**
- * EDNS tag. Node of rbtree, containing tag and prefix.
+ * EDNS string. Node of rbtree, containing string and prefix.
  */
-struct edns_tag_addr {
+struct edns_string_addr {
 	/** node in address tree, used for tree lookups. Need to be the first
 	 * member of this struct. */
 	struct addr_tree_node node;
-	/** tag data, in host byte ordering */
-	uint16_t tag_data;
+	/** string, ascii format */
+	uint8_t* string;
+	/** length of string */
+	size_t string_len;
 };
 
 /**
- * Create structure to hold EDNS tags
- * @return: newly created edns_tags, NULL on alloc failure.
+ * Create structure to hold EDNS strings
+ * @return: newly created edns_strings, NULL on alloc failure.
  */
-struct edns_tags* edns_tags_create(void);
+struct edns_strings* edns_strings_create(void);
 
-/** Delete EDNS tags structure
- * @param edns_tags: struct to delete
+/** Delete EDNS strings structure
+ * @param edns_strings: struct to delete
  */
-void edns_tags_delete(struct edns_tags* edns_tags);
+void edns_strings_delete(struct edns_strings* edns_strings);
 
 /**
- * Add configured EDNS tags
- * @param edns_tags: edns tags to apply config to
- * @param config: struct containing EDNS tags configuration
+ * Add configured EDNS strings
+ * @param edns_strings: edns strings to apply config to
+ * @param config: struct containing EDNS strings configuration
  * @return 0 on error
  */
-int edns_tags_apply_cfg(struct edns_tags* edns_tags,
+int edns_strings_apply_cfg(struct edns_strings* edns_strings,
 	struct config_file* config);
 
 /**
- * Find tag for address.
- * @param tree: tree containing EDNS tags per address prefix.
+ * Find string for address.
+ * @param tree: tree containing EDNS strings per address prefix.
  * @param addr: address to use for tree lookup
  * @param addrlen: length of address
  * @return: matching tree node, NULL otherwise
  */
-struct edns_tag_addr*
-edns_tag_addr_lookup(rbtree_type* tree, struct sockaddr_storage* addr,
+struct edns_string_addr*
+edns_string_addr_lookup(rbtree_type* tree, struct sockaddr_storage* addr,
 	socklen_t addrlen);
 
 /**

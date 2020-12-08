@@ -60,7 +60,6 @@ The callback function's prototype is the following:
         :param **kwargs: Dictionary that may contain parameters added in a future
                          release. Current parameters:
             ``repinfo``: Reply information for a communication point (comm_reply).
-                         It is None when the callback happens in the mesh states.
 
         :return: True on success, False on failure.
 
@@ -105,8 +104,6 @@ The callback function's prototype is the following:
         :param **kwargs: Dictionary that may contain parameters added in a future
                          release. Current parameters:
             ``repinfo``: Reply information for a communication point (comm_reply).
-                         It is None when the callback happens in the mesh
-                         states(modules).
 
         :return: True on success, False on failure.
 
@@ -154,8 +151,6 @@ The callback function's prototype is the following:
         :param **kwargs: Dictionary that may contain parameters added in a future
                          release. Current parameters:
             ``repinfo``: Reply information for a communication point (comm_reply).
-                         It is None when the callback happens in the mesh
-                         states(modules).
 
         :return: True on success, False on failure.
 
@@ -201,8 +196,6 @@ The callback function's prototype is the following:
         :param **kwargs: Dictionary that may contain parameters added in a future
                          release. Current parameters:
             ``repinfo``: Reply information for a communication point (comm_reply).
-                         It is None when the callback happens in the mesh
-                         states(modules).
 
         :return: True on success, False on failure.
 

@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Oct  8, 2020" "NLnet Labs" "unbound 1.12.0"
+.TH "unbound.conf" "5" "Dec  3, 2020" "NLnet Labs" "unbound 1.13.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -274,6 +274,10 @@ eg. 1500 msec.  When timeouts happen you need extra sockets, it checks
 the ID and remote IP of packets, and unwanted packets are added to the
 unwanted packet counter.
 .TP
+.B udp\-connect: \fI<yes or no>
+Perform connect for UDP sockets that mitigates ICMP side channel leakage.
+Default is yes.
+.TP
 .B unknown\-server\-time\-limit: \fI<msec>
 The wait time in msec for waiting for an unknown server to reply.
 Increase this if you are behind a slow satellite link, to eg. 1128.
@@ -381,6 +385,12 @@ Number of hosts for which information is cached. Default is 10000.
 Lower limit for dynamic retransmit timeout calculation in infrastructure
 cache. Default is 50 milliseconds. Increase this value if using forwarders
 needing more time to do recursive name resolution.
+.TP
+.B infra\-keep\-probing: \fI<yes or no>
+If enabled the server keeps probing hosts that are down, in the one probe
+at a time regime.  Default is no.  Hosts that are down, eg. they did
+not respond during the one probe at a time period, are marked as down and
+it may take \fBinfra\-host\-ttl\fR time to get probed again.
 .TP
 .B define\-tag: \fI<"list of tags">
 Define the tags that can be used with local\-zone and access\-control.
@@ -516,7 +526,8 @@ Alternate syntax for \fBtls\-port\fR.
 If null or "", no file is used.  Set it to the certificate bundle file,
 for example "/etc/pki/tls/certs/ca\-bundle.crt".  These certificates are used
 for authenticating connections made to outside peers.  For example auth\-zone
-urls, and also DNS over TLS connections.
+urls, and also DNS over TLS connections.  It is read at start up before
+permission drop and chroot.
 .TP
 .B ssl\-cert\-bundle: \fI<file>
 Alternate syntax for \fBtls\-cert\-bundle\fR.
@@ -586,6 +597,10 @@ megabytes or gigabytes (1024*1024 bytes in a megabyte).
 .B http\-nodelay: \fI<yes or no>
 Set TCP_NODELAY socket option on sockets used to provide DNS-over-HTTPS service.
 Ignored if the option is not available. Default is yes.
+.TP
+.B http\-notls\-downstream: \fI<yes or no>
+Disable use of TLS for the downstream DNS-over-HTTP connections.  Useful for
+local back end servers.  Default is no.
 .TP
 .B use\-systemd: \fI<yes or no>
 Enable or disable systemd socket activation.
@@ -1535,15 +1550,15 @@ Set the number of servers that should be used for fast server selection. Only
 use the fastest specified number of servers with the fast\-server\-permil
 option, that turns this on or off. The default is to use the fastest 3 servers.
 .TP 5
-.B edns\-client\-tag: \fI<IP netblock> <tag data>
-Include an edns-client-tag option in queries with destination address matching
-the configured IP netblock. This configuration option can be used multiple
-times. The most specific match will be used. The tag data is configured in
-decimal format, from 0 to 65535.
+.B edns\-client\-string: \fI<IP netblock> <string>
+Include an EDNS0 option containing configured ascii string in queries with
+destination address matching the configured IP netblock.  This configuration
+option can be used multiple times. The most specific match will be used.
 .TP 5
-.B edns\-client\-tag\-opcode: \fI<opcode>
-EDNS0 option code for the edns-client-tag option, from 0 to 65535. Default is
-16, as assigned by IANA.
+.B edns\-client\-string\-opcode: \fI<opcode>
+EDNS0 option code for the \fIedns\-client\-string\fR option, from 0 to 65535.
+A value from the `Reserved for Local/Experimental` range (65001-65534) should
+be used.  Default is 65001.
 .SS "Remote Control Options"
 In the
 .B remote\-control:

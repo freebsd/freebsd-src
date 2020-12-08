@@ -120,12 +120,19 @@ if [ ! -f "$SVR_BASE.key" ]; then
 fi
 
 cat >server.cnf <<EOF
+[req]
 default_bits=$BITS
 default_md=$HASH
 prompt=no
 distinguished_name=req_distinguished_name
+x509_extensions=v3_ca
 [req_distinguished_name]
 commonName=$SERVERNAME
+[v3_ca]
+subjectKeyIdentifier=hash
+authorityKeyIdentifier=keyid:always,issuer:always
+basicConstraints=critical,CA:TRUE,pathlen:0
+subjectAltName=DNS:$SERVERNAME
 EOF
 
 [ -f server.cnf ] || fatal "cannot create openssl configuration"
@@ -156,8 +163,12 @@ default_bits=$BITS
 default_md=$HASH
 prompt=no
 distinguished_name=req_distinguished_name
+req_extensions=v3_req
 [req_distinguished_name]
 commonName=$CLIENTNAME
+[v3_req]
+basicConstraints=critical,CA:FALSE
+subjectAltName=DNS:$CLIENTNAME
 EOF
 
 [ -f client.cnf ] || fatal "cannot create openssl configuration"
@@ -179,6 +190,8 @@ if [ ! -f "$CTL_BASE.pem" -o $RECREATE -eq 1 ]; then
                   -CAkey "$SVR_BASE.key" \
                   -CAcreateserial \
                   -$HASH \
+                  -extfile client.cnf \
+                  -extensions v3_req \
                   -out "$CTL_BASE.pem"
 
     [ ! -f "CTL_BASE.pem" ] || fatal "cannot create signed client certificate"
