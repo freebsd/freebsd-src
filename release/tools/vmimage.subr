@@ -30,7 +30,7 @@ write_partition_layout() {
 				   -p freebsd-boot/bootfs:=${BOOTFILES}/i386/gptboot/gptboot"
 			ROOTFSPART="-p freebsd-ufs/rootfs:=${VMBASE}"
 			;;
-		arm64:aarch64)
+		arm64:aarch64 | riscv:riscv64*)
 			ESP=yes
 			SCHEME=gpt
 			BOOTPARTS=
