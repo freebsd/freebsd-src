@@ -46,6 +46,6 @@ struct unwind_state {
 	uintptr_t pc;
 };
 
-int unwind_frame(struct unwind_state *);
+bool unwind_frame(struct thread *, struct unwind_state *);
 
 #endif /* !_MACHINE_STACK_H_ */

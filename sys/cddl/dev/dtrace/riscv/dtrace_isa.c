@@ -90,7 +90,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	state.pc = (uintptr_t)dtrace_getpcstack;
 
 	while (depth < pcstack_limit) {
-		if (unwind_frame(&state))
+		if (!unwind_frame(curthread, &state))
 			break;
 
 		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
@@ -259,10 +259,10 @@ dtrace_getstackdepth(int aframes)
 	int scp_offset;
 	register_t sp;
 	int depth;
-	int done;
+	bool done;
 
 	depth = 1;
-	done = 0;
+	done = false;
 
 	__asm __volatile("mv %0, sp" : "=&r" (sp));
 
@@ -271,7 +271,7 @@ dtrace_getstackdepth(int aframes)
 	state.pc = (uintptr_t)dtrace_getstackdepth;
 
 	do {
-		done = unwind_frame(&state);
+		done = !unwind_frame(curthread, &state);
 		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
 			break;
 		depth++;

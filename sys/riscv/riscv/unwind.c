@@ -35,23 +35,24 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <sys/param.h>
+#include <sys/proc.h>
 
 #include <machine/stack.h>
 #include <machine/vmparam.h>
 
-int
-unwind_frame(struct unwind_state *frame)
+bool
+unwind_frame(struct thread *td, struct unwind_state *frame)
 {
 	uintptr_t fp;
 
 	fp = frame->fp;
 
-	if (!INKERNEL(fp))
-		return (-1);
+	if (!kstack_contains(td, fp - sizeof(fp) * 2, sizeof(fp) * 2))
+		return (false);
 
 	frame->sp = fp;
 	frame->fp = ((uintptr_t *)fp)[-2];
 	frame->pc = ((uintptr_t *)fp)[-1] - 4;
 
-	return (0);
+	return (true);
 }
