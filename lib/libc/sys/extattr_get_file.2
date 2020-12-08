@@ -167,10 +167,6 @@ is attribute-specific.
 .Pp
 For more information on named extended attributes, please see
 .Xr extattr 9 .
-.Sh CAVEAT
-This interface is under active development, and as such is subject to
-change as applications are adapted to use it.
-Developers are discouraged from relying on its stability.
 .Sh RETURN VALUES
 If successful, the
 .Fn extattr_get_file ,
@@ -264,6 +260,10 @@ Project, and introduced in
 .Fx 5.0 .
 It was developed to support security extensions requiring additional labels
 to be associated with each file or directory.
+.Sh CAVEATS
+This interface is under active development, and as such is subject to
+change as applications are adapted to use it.
+Developers are discouraged from relying on its stability.
 .Sh BUGS
 In earlier versions of this API, passing an empty string for the
 attribute name to
