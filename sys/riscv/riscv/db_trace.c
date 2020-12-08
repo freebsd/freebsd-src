@@ -73,7 +73,7 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 }
 
 static void
-db_stack_trace_cmd(struct unwind_state *frame)
+db_stack_trace_cmd(struct thread *td, struct unwind_state *frame)
 {
 	const char *name;
 	db_expr_t offset;
@@ -100,6 +100,11 @@ db_stack_trace_cmd(struct unwind_state *frame)
 			struct trapframe *tf;
 
 			tf = (struct trapframe *)(uintptr_t)frame->sp;
+			if (!kstack_contains(td, (vm_offset_t)tf,
+			    sizeof(*tf))) {
+				db_printf("--- invalid trapframe %p\n", tf);
+				break;
+			}
 
 			if ((tf->tf_scause & SCAUSE_INTR) != 0)
 				db_printf("--- interrupt %ld\n",
@@ -119,7 +124,7 @@ db_stack_trace_cmd(struct unwind_state *frame)
 		if (strcmp(name, "fork_trampoline") == 0)
 			break;
 
-		if (unwind_frame(frame) < 0)
+		if (!unwind_frame(td, frame))
 			break;
 	}
 }
@@ -135,7 +140,7 @@ db_trace_thread(struct thread *thr, int count)
 	frame.sp = ctx->pcb_sp;
 	frame.fp = ctx->pcb_s[0];
 	frame.pc = ctx->pcb_ra;
-	db_stack_trace_cmd(&frame);
+	db_stack_trace_cmd(thr, &frame);
 	return (0);
 }
 
@@ -150,5 +155,5 @@ db_trace_self(void)
 	frame.sp = sp;
 	frame.fp = (uintptr_t)__builtin_frame_address(0);
 	frame.pc = (uintptr_t)db_trace_self;
-	db_stack_trace_cmd(&frame);
+	db_stack_trace_cmd(curthread, &frame);
 }
