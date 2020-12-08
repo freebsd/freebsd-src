@@ -121,17 +121,12 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 	if (sim == NULL)
 		return (ENOMEM);
 
-	ISP_LOCK(isp);
 	if (xpt_bus_register(sim, isp->isp_dev, chan) != CAM_SUCCESS) {
-		ISP_UNLOCK(isp);
 		cam_sim_free(sim, FALSE);
 		return (EIO);
 	}
-	ISP_UNLOCK(isp);
 	if (xpt_create_path(&path, NULL, cam_sim_path(sim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		ISP_LOCK(isp);
 		xpt_bus_deregister(cam_sim_path(sim));
-		ISP_UNLOCK(isp);
 		cam_sim_free(sim, FALSE);
 		return (ENXIO);
 	}
@@ -167,7 +162,6 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
 		char name[16];
 
-		ISP_LOCK(isp);
 		fc->sim = sim;
 		fc->path = path;
 		fc->isp = isp;
@@ -189,7 +183,6 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			LIST_INIT(&fc->atused[i]);
 #endif
 		isp_loop_changed(isp, chan);
-		ISP_UNLOCK(isp);
 		if (kproc_create(isp_kthread, fc, &fc->kproc, 0, 0,
 		    "%s_%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
 			xpt_free_path(fc->path);
@@ -317,9 +310,7 @@ unwind:
 		ISP_GET_PC(isp, chan, sim, sim);
 		ISP_GET_PC(isp, chan, path, path);
 		xpt_free_path(path);
-		ISP_LOCK(isp);
 		xpt_bus_deregister(cam_sim_path(sim));
-		ISP_UNLOCK(isp);
 		cam_sim_free(sim, FALSE);
 	}
 	cam_simq_free(isp->isp_osinfo.devq);
