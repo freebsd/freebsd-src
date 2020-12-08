@@ -144,7 +144,7 @@ env_check() {
 		WITH_COMPRESSED_IMAGES=
 		NODOC=yes
 		case ${EMBEDDED_TARGET}:${EMBEDDED_TARGET_ARCH} in
-			arm:arm*|arm64:aarch64)
+			arm:arm*|arm64:aarch64|riscv:riscv64*)
 				chroot_build_release_cmd="chroot_arm_build_release"
 				;;
 			*)
@@ -400,6 +400,9 @@ efi_boot_name()
 		amd64)
 			echo "bootx64.efi"
 			;;
+		riscv)
+			echo "bootriscv64.efi"
+			;;
 	esac
 }
 
@@ -407,7 +410,7 @@ efi_boot_name()
 chroot_arm_build_release() {
 	load_target_env
 	case ${EMBEDDED_TARGET} in
-		arm|arm64)
+		arm|arm64|riscv)
 			if [ -e "${RELENGDIR}/tools/arm.subr" ]; then
 				. "${RELENGDIR}/tools/arm.subr"
 			fi
