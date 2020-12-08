@@ -38,6 +38,7 @@ get_uefi_bootname() {
         arm64) echo bootaa64 ;;
         i386) echo bootia32 ;;
         arm) echo bootarm ;;
+        riscv) echo bootriscv64 ;;
         *) die "machine type $(uname -m) doesn't support UEFI" ;;
     esac
 }
