@@ -154,7 +154,7 @@ grep_tree(char **argv)
 	    __DECONST(char * const *, wd) : argv, fts_flags, NULL);
 	if (fts == NULL)
 		err(2, "fts_open");
-	while ((p = fts_read(fts)) != NULL) {
+	while (errno = 0, (p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_DNR:
 			/* FALLTHROUGH */
@@ -187,6 +187,8 @@ grep_tree(char **argv)
 			break;
 		}
 	}
+	if (errno != 0)
+		err(2, "fts_read");
 
 	fts_close(fts);
 	return (matched);

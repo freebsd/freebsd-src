@@ -2075,7 +2075,7 @@ handle_dir(char *dir)
 		return;
 	}
 
-	while ((entry = fts_read(fts))) {
+	while (errno = 0, (entry = fts_read(fts))) {
 		switch(entry->fts_info) {
 		case FTS_D:
 		case FTS_DP:
@@ -2090,6 +2090,8 @@ handle_dir(char *dir)
 			handle_file(entry->fts_path, entry->fts_statp);
 		}
 	}
+	if (errno != 0)
+		warn("error with fts_read %s", dir);
 	(void)fts_close(fts);
 }
 #endif

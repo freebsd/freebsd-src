@@ -129,7 +129,7 @@ cwalk(FILE *fp)
 
 	if ((t = fts_open(argv, ftsoptions, dcmp)) == NULL)
 		mtree_err("fts_open: %s", strerror(errno));
-	while ((p = fts_read(t)) != NULL) {
+	while (errno = 0, (p = fts_read(t)) != NULL) {
 		if (jflag)
 			indent = p->fts_level * 4;
 		if (check_excludes(p->fts_name, p->fts_path)) {
@@ -173,6 +173,8 @@ cwalk(FILE *fp)
 
 		}
 	}
+	if (errno != 0)
+		mtree_err("fts_read: %s", strerror(errno));
 	fts_close(t);
 	if (sflag && keys & F_CKSUM)
 		mtree_err("%s checksum: %u", fullpath, crc_total);

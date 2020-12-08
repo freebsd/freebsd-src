@@ -498,8 +498,10 @@ main(int argc, char *argv[])
 	/* Open all files. */
 	if ((ftsp = fts_open(files_list, fts_options | FTS_NOSTAT, 0)) == NULL)
 		err(1, "fts_open");
-	while ((file = fts_read(ftsp)) != NULL)
+	while (errno = 0, (file = fts_read(ftsp)) != NULL)
 		carried_error += handle_file(ftsp, file);
+	if (errno != 0)
+		err(1, "fts_read");
 
 	return (carried_error);
 }

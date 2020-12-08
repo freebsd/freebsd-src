@@ -102,7 +102,7 @@ cwalk(void)
 	argv[1] = NULL;
 	if ((t = fts_open(argv, ftsoptions, dsort)) == NULL)
 		err(1, "fts_open()");
-	while ((p = fts_read(t))) {
+	while (errno = 0, (p = fts_read(t))) {
 		if (iflag)
 			indent = p->fts_level * 4;
 		if (check_excludes(p->fts_name, p->fts_path)) {
@@ -137,6 +137,8 @@ cwalk(void)
 
 		}
 	}
+	if (errno != 0)
+		err(1, "fts_read()");
 	(void)fts_close(t);
 	if (sflag && keys & F_CKSUM)
 		warnx("%s checksum: %lu", fullpath, (unsigned long)crc_total);
