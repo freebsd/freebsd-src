@@ -140,7 +140,7 @@ fbt_excluded(const char *name)
 	 * Stack unwinders may be called from probe context on some
 	 * platforms.
 	 */
-#if defined(__riscv)
+#if defined(__aarch64__) || defined(__riscv)
 	if (strcmp(name, "unwind_frame") == 0)
 		return (1);
 #endif

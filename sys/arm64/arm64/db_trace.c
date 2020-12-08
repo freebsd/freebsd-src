@@ -65,7 +65,7 @@ db_md_set_watchpoint(db_expr_t addr, db_expr_t size)
 }
 
 static void
-db_stack_trace_cmd(struct unwind_state *frame)
+db_stack_trace_cmd(struct thread *td, struct unwind_state *frame)
 {
 	c_db_sym_t sym;
 	const char *name;
@@ -74,10 +74,8 @@ db_stack_trace_cmd(struct unwind_state *frame)
 
 	while (1) {
 		uintptr_t pc = frame->pc;
-		int ret;
 
-		ret = unwind_frame(frame);
-		if (ret < 0)
+		if (!unwind_frame(td, frame))
 			break;
 
 		sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
@@ -112,7 +110,7 @@ db_trace_thread(struct thread *thr, int count)
 		frame.sp = (uintptr_t)ctx->pcb_sp;
 		frame.fp = (uintptr_t)ctx->pcb_x[29];
 		frame.pc = (uintptr_t)ctx->pcb_x[30];
-		db_stack_trace_cmd(&frame);
+		db_stack_trace_cmd(thr, &frame);
 	} else
 		db_trace_self();
 	return (0);
@@ -129,5 +127,5 @@ db_trace_self(void)
 	frame.sp = sp;
 	frame.fp = (uintptr_t)__builtin_frame_address(0);
 	frame.pc = (uintptr_t)db_trace_self;
-	db_stack_trace_cmd(&frame);
+	db_stack_trace_cmd(curthread, &frame);
 }
