@@ -101,7 +101,7 @@ Each list entry consists of a single byte containing the length
 of the attribute name, followed by the attribute name.
 The attribute name is not terminated by ASCII 0 (nul).
 The
-.Fn extattr_get_file ,
+.Fn extattr_get_file
 and
 .Fn extattr_list_file
 calls consume the
@@ -135,10 +135,10 @@ they do not follow symlinks.
 .Pp
 The
 .Fn extattr_get_fd ,
-.Fn extattr_set_fd ,
 .Fn extattr_delete_fd ,
-and
 .Fn extattr_list_fd ,
+and
+.Fn extattr_set_fd
 calls are identical to their
 .Qq Li _file
 counterparts except for the first argument.
