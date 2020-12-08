@@ -317,6 +317,7 @@ release-install:
 	mkdir -p ${DESTDIR}
 .endif
 	cp -a ftp ${DESTDIR}/
+.if !empty(IMAGES)
 .for I in ${IMAGES}
 	cp -p ${I} ${DESTDIR}/${OSRELEASE}-${I}
 . if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
@@ -325,6 +326,7 @@ release-install:
 .endfor
 	cd ${DESTDIR} && sha512 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA512
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
+.endif
 
 .include "${.CURDIR}/Makefile.inc1"
 .include "${.CURDIR}/Makefile.vm"
