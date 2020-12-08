@@ -246,9 +246,14 @@ cpuset_rel_defer(struct setlist *head, struct cpuset *set)
 static void
 cpuset_rel_complete(struct cpuset *set)
 {
+	cpusetid_t id;
+
+	id = set->cs_id;
 	LIST_REMOVE(set, cs_link);
 	cpuset_rel(set->cs_parent);
 	uma_zfree(cpuset_zone, set);
+	if (id != CPUSET_INVALID)
+		free_unr(cpuset_unr, id);
 }
 
 /*
