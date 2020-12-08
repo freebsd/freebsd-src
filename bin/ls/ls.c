@@ -645,7 +645,7 @@ traverse(int argc, char *argv[], int options)
 	ch_options = !f_recursive && !f_label &&
 	    options & FTS_NOSTAT ? FTS_NAMEONLY : 0;
 
-	while ((p = fts_read(ftsp)) != NULL)
+	while (errno = 0, (p = fts_read(ftsp)) != NULL)
 		switch (p->fts_info) {
 		case FTS_DC:
 			warnx("%s: directory causes a cycle", p->fts_name);

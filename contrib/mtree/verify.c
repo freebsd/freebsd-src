@@ -90,7 +90,7 @@ vwalk(void)
 		mtree_err("fts_open: %s", strerror(errno));
 	level = root;
 	specdepth = rval = 0;
-	while ((p = fts_read(t)) != NULL) {
+	while (errno = 0, (p = fts_read(t)) != NULL) {
 		if (check_excludes(p->fts_name, p->fts_path)) {
 			fts_set(t, p, FTS_SKIP);
 			continue;
@@ -160,6 +160,8 @@ vwalk(void)
 		}
 		fts_set(t, p, FTS_SKIP);
 	}
+	if (errno != 0)
+		mtree_err("fts_read: %s", strerror(errno));
 	fts_close(t);
 	if (sflag)
 		warnx("%s checksum: %u", fullpath, crc_total);

@@ -142,7 +142,7 @@ main(int argc, char **argv)
 	fts = fts_open(argv, hflag | xflag, NULL);
 	if (fts == NULL)
 		err(1, "cannot traverse filesystem%s", argc ? "s" : "");
-	while ((ftsent = fts_read(fts)) != NULL) {
+	while (errno = 0, (ftsent = fts_read(fts)) != NULL) {
 		switch (ftsent->fts_info) {
 		case FTS_DP:		/* skip post-order */
 			break;
@@ -176,6 +176,8 @@ main(int argc, char **argv)
 			    ftsent->fts_info, ftsent->fts_path);
 		}
 	}
+	if (errno != 0)
+		err(1, "fts_read");
 	fts_close(fts);
 	exit(0);
 }
