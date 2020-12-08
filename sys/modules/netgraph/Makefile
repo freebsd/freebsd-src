@@ -31,6 +31,7 @@ SUBDIR=	async \
 	ksocket \
 	l2tp \
 	lmi \
+	macfilter \
 	${_mppc} \
 	nat \
 	netflow \

@@ -4299,6 +4299,7 @@ netgraph/ng_ipfw.c		optional netgraph_ipfw inet ipfirewall
 netgraph/ng_ksocket.c		optional netgraph_ksocket
 netgraph/ng_l2tp.c		optional netgraph_l2tp
 netgraph/ng_lmi.c		optional netgraph_lmi
+netgraph/ng_macfilter.c		optional netgraph_macfilter
 netgraph/ng_mppc.c		optional netgraph_mppc_compression | \
 					 netgraph_mppc_encryption
 netgraph/ng_nat.c		optional netgraph_nat inet libalias
