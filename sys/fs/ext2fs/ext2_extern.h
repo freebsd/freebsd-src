@@ -141,7 +141,7 @@ void	ext2_gd_csum_set(struct m_ext2fs *);
  * blocks must be cleared and buffers for existing blocks must be read.
  * When BA_CLRBUF is not set the buffer will be completely overwritten
  * and there is no reason to clear them or to spend I/O fetching existing
- * data. The BA_CLRBUF flag is handled in the UFS_BALLOC() functions.
+ * data. The BA_CLRBUF flag is handled in the ext2_balloc() functions.
  */
 #define	BA_CLRBUF	0x00010000	/* Clear invalid areas of buffer. */
 #define	BA_SEQMASK	0x7F000000	/* Bits holding seq heuristic. */
