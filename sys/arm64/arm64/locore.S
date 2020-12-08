@@ -173,6 +173,8 @@ virtdone:
 	mov	fp, #0
 	/* Branch to C code */
 	bl	initarm
+	/* We are done with the boot params */
+	add	sp, sp, #BOOTPARAMS_SIZE
 	bl	mi_startup
 
 	/* We should not get here */
