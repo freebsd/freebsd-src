@@ -137,6 +137,15 @@ fbt_excluded(const char *name)
 		return (1);
 
 	/*
+	 * Stack unwinders may be called from probe context on some
+	 * platforms.
+	 */
+#if defined(__riscv)
+	if (strcmp(name, "unwind_frame") == 0)
+		return (1);
+#endif
+
+	/*
 	 * When DTrace is built into the kernel we need to exclude
 	 * the FBT functions from instrumentation.
 	 */

@@ -53,10 +53,8 @@ stack_capture(struct thread *td, struct stack *st, struct unwind_state *frame)
 	stack_zero(st);
 
 	while (1) {
-		if (!kstack_contains(td, (vm_offset_t)frame->fp -
-		    (sizeof(uintptr_t) * 2), sizeof(uintptr_t) * 2))
+		if (!unwind_frame(td, frame))
 			break;
-		unwind_frame(frame);
 		if (!INKERNEL((vm_offset_t)frame->pc))
 			break;
 		if (stack_put(st, frame->pc) == -1)
