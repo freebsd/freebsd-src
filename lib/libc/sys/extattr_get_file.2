@@ -30,48 +30,48 @@
 .Dt EXTATTR 2
 .Os
 .Sh NAME
-.Nm extattr_get_fd ,
-.Nm extattr_set_fd ,
 .Nm extattr_delete_fd ,
-.Nm extattr_list_fd ,
-.Nm extattr_get_file ,
-.Nm extattr_set_file ,
 .Nm extattr_delete_file ,
-.Nm extattr_list_file ,
-.Nm extattr_get_link ,
-.Nm extattr_set_link ,
 .Nm extattr_delete_link ,
-.Nm extattr_list_link
+.Nm extattr_get_fd ,
+.Nm extattr_get_file ,
+.Nm extattr_get_link ,
+.Nm extattr_list_fd ,
+.Nm extattr_list_file ,
+.Nm extattr_list_link ,
+.Nm extattr_set_fd ,
+.Nm extattr_set_file ,
+.Nm extattr_set_link
 .Nd system calls to manipulate VFS extended attributes
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/extattr.h
-.Ft ssize_t
-.Fn extattr_get_fd "int fd" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_set_fd "int fd" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_fd "int fd" "int attrnamespace" "const char *attrname"
-.Ft ssize_t
-.Fn extattr_list_fd "int fd" "int attrnamespace" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_file "const char *path" "int attrnamespace" "const char *attrname"
-.Ft ssize_t
-.Fn extattr_list_file "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_get_link "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
-.Ft ssize_t
-.Fn extattr_set_link "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Ft int
 .Fn extattr_delete_link "const char *path" "int attrnamespace" "const char *attrname"
 .Ft ssize_t
+.Fn extattr_get_fd "int fd" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_get_file "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_get_link "const char *path" "int attrnamespace" "const char *attrname" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_list_fd "int fd" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_list_file "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
 .Fn extattr_list_link "const char *path" "int attrnamespace" "void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_fd "int fd" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_file "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
+.Ft ssize_t
+.Fn extattr_set_link "const char *path" "int attrnamespace" "const char *attrname" "const void *data" "size_t nbytes"
 .Sh DESCRIPTION
 Named extended attributes are meta-data associated with vnodes
 representing files and directories.
