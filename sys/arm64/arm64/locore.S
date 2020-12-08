@@ -166,8 +166,8 @@ virtdone:
 	adr	x25, initstack
 	str	x25, [x0, #BP_KERN_STACK]
 	str	x24, [x0, #BP_KERN_L0PT]
+	str	x27, [x0, #BP_KERN_TTBR0]
 	str	x23, [x0, #BP_BOOT_EL]
-	str	x27, [x0, 40]	/* kern_ttbr0 */
 
 	/* trace back starts here */
 	mov	fp, #0
