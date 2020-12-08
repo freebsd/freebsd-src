@@ -905,10 +905,10 @@ aio_bio_done_notify(struct proc *userp, struct kaiocb *job)
 			lj->lioj_flags |= LIOJ_KEVENT_POSTED;
 			KNOTE_LOCKED(&lj->klist, 1);
 		}
-		if ((lj->lioj_flags & (LIOJ_SIGNAL|LIOJ_SIGNAL_POSTED))
-		    == LIOJ_SIGNAL
-		    && (lj->lioj_signal.sigev_notify == SIGEV_SIGNAL ||
-		        lj->lioj_signal.sigev_notify == SIGEV_THREAD_ID)) {
+		if ((lj->lioj_flags & (LIOJ_SIGNAL | LIOJ_SIGNAL_POSTED))
+		    == LIOJ_SIGNAL &&
+		    (lj->lioj_signal.sigev_notify == SIGEV_SIGNAL ||
+		    lj->lioj_signal.sigev_notify == SIGEV_THREAD_ID)) {
 			aio_sendsig(userp, &lj->lioj_signal, &lj->lioj_ksi);
 			lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
 		}
@@ -2228,12 +2228,11 @@ kern_lio_listio(struct thread *td, int mode, struct aiocb * const *uacb_list,
 				lj->lioj_flags |= LIOJ_KEVENT_POSTED;
 				KNOTE_LOCKED(&lj->klist, 1);
 			}
-			if ((lj->lioj_flags & (LIOJ_SIGNAL|LIOJ_SIGNAL_POSTED))
-			    == LIOJ_SIGNAL
-			    && (lj->lioj_signal.sigev_notify == SIGEV_SIGNAL ||
+			if ((lj->lioj_flags & (LIOJ_SIGNAL |
+			    LIOJ_SIGNAL_POSTED)) == LIOJ_SIGNAL &&
+			    (lj->lioj_signal.sigev_notify == SIGEV_SIGNAL ||
 			    lj->lioj_signal.sigev_notify == SIGEV_THREAD_ID)) {
-				aio_sendsig(p, &lj->lioj_signal,
-					    &lj->lioj_ksi);
+				aio_sendsig(p, &lj->lioj_signal, &lj->lioj_ksi);
 				lj->lioj_flags |= LIOJ_SIGNAL_POSTED;
 			}
 		}
