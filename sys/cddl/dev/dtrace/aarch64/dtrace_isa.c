@@ -70,7 +70,7 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 {
 	struct unwind_state state;
 	int scp_offset;
-	register_t sp, fp;
+	register_t sp;
 	int depth;
 
 	depth = 0;
@@ -88,15 +88,10 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	state.pc = (uintptr_t)dtrace_getpcstack;
 
 	while (depth < pcstack_limit) {
-		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
+		if (!unwind_frame(curthread, &state))
 			break;
-
-		fp = state.fp;
-		state.sp = fp + 0x10;
-		/* FP to previous frame (X29) */
-		state.fp = *(register_t *)(fp);
-		/* LR (X30) */
-		state.pc = *(register_t *)(fp + 8) - 4;
+		if (!INKERNEL(state.pc))
+			break;
 
 		/*
 		 * NB: Unlike some other architectures, we don't need to
@@ -274,10 +269,10 @@ dtrace_getstackdepth(int aframes)
 	int scp_offset;
 	register_t sp;
 	int depth;
-	int done;
+	bool done;
 
 	depth = 1;
-	done = 0;
+	done = false;
 
 	__asm __volatile("mov %0, sp" : "=&r" (sp));
 
@@ -286,7 +281,7 @@ dtrace_getstackdepth(int aframes)
 	state.pc = (uintptr_t)dtrace_getstackdepth;
 
 	do {
-		done = unwind_frame(&state);
+		done = !unwind_frame(curthread, &state);
 		if (!INKERNEL(state.pc) || !INKERNEL(state.fp))
 			break;
 		depth++;
