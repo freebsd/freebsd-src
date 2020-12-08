@@ -207,9 +207,13 @@ cpuset_rel(struct cpuset *set)
 {
 	cpusetid_t id;
 
-	if (refcount_release(&set->cs_ref) == 0)
+	if (refcount_release_if_not_last(&set->cs_ref))
 		return;
 	mtx_lock_spin(&cpuset_lock);
+	if (!refcount_release(&set->cs_ref)) {
+		mtx_unlock_spin(&cpuset_lock);
+		return;
+	}
 	LIST_REMOVE(set, cs_siblings);
 	id = set->cs_id;
 	if (id != CPUSET_INVALID)
@@ -229,9 +233,13 @@ static void
 cpuset_rel_defer(struct setlist *head, struct cpuset *set)
 {
 
-	if (refcount_release(&set->cs_ref) == 0)
+	if (refcount_release_if_not_last(&set->cs_ref))
 		return;
 	mtx_lock_spin(&cpuset_lock);
+	if (!refcount_release(&set->cs_ref)) {
+		mtx_unlock_spin(&cpuset_lock);
+		return;
+	}
 	LIST_REMOVE(set, cs_siblings);
 	if (set->cs_id != CPUSET_INVALID)
 		LIST_REMOVE(set, cs_link);
