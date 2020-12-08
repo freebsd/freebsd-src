@@ -633,7 +633,7 @@ domainset_shadow(const struct domainset *pdomain,
  * empty as well as RDONLY flags.
  */
 static int
-cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int check_mask)
+cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int augment_mask)
 {
 	struct cpuset *nset;
 	cpuset_t newmask;
@@ -642,13 +642,14 @@ cpuset_testupdate(struct cpuset *set, cpuset_t *mask, int check_mask)
 	mtx_assert(&cpuset_lock, MA_OWNED);
 	if (set->cs_flags & CPU_SET_RDONLY)
 		return (EPERM);
-	if (check_mask) {
-		if (!CPU_OVERLAP(&set->cs_mask, mask))
-			return (EDEADLK);
+	if (augment_mask) {
 		CPU_COPY(&set->cs_mask, &newmask);
 		CPU_AND(&newmask, mask);
 	} else
 		CPU_COPY(mask, &newmask);
+
+	if (CPU_EMPTY(&newmask))
+		return (EDEADLK);
 	error = 0;
 	LIST_FOREACH(nset, &set->cs_children, cs_siblings) 
 		if ((error = cpuset_testupdate(nset, &newmask, 1)) != 0)
@@ -723,7 +724,7 @@ out:
  */
 static int
 cpuset_testupdate_domain(struct cpuset *set, struct domainset *dset,
-    struct domainset *orig, int *count, int check_mask)
+    struct domainset *orig, int *count, int augment_mask __unused)
 {
 	struct cpuset *nset;
 	struct domainset *domain;
@@ -2001,6 +2002,10 @@ kern_cpuset_setaffinity(struct thread *td, cpulevel_t level, cpuwhich_t which,
 				goto out;
 			}
 	}
+	if (CPU_EMPTY(mask)) {
+		error = EDEADLK;
+		goto out;
+	}
 	switch (level) {
 	case CPU_LEVEL_ROOT:
 	case CPU_LEVEL_CPUSET:
@@ -2254,6 +2259,10 @@ kern_cpuset_setdomain(struct thread *td, cpulevel_t level, cpuwhich_t which,
 				error = EINVAL;
 				goto out;
 			}
+	}
+	if (DOMAINSET_EMPTY(mask)) {
+		error = EDEADLK;
+		goto out;
 	}
 	DOMAINSET_COPY(mask, &domain.ds_mask);
 	domain.ds_policy = policy;
