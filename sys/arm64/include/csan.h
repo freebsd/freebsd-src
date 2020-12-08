@@ -87,9 +87,9 @@ kcsan_md_unwind(void)
 	nsym = 0;
 
 	while (1) {
-		unwind_frame(&frame);
-		if (!INKERNEL((vm_offset_t)frame.fp) ||
-		     !INKERNEL((vm_offset_t)frame.pc))
+		if (!unwind_frame(curthread, &frame))
+			break;
+		if (!INKERNEL((vm_offset_t)frame.pc))
 			break;
 
 #ifdef DDB
