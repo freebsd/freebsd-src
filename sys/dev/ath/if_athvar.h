@@ -780,7 +780,8 @@ struct ath_softc {
 	ath_bufhead		sc_bbuf;	/* beacon buffers */
 	u_int			sc_bhalq;	/* HAL q for outgoing beacons */
 	u_int			sc_bmisscount;	/* missed beacon transmits */
-	u_int32_t		sc_ant_tx[8];	/* recent tx frames/antenna */
+	u_int32_t		sc_ant_tx[ATH_IOCTL_STATS_NUM_TX_ANTENNA];
+						/* recent tx frames/antenna */
 	struct ath_txq		*sc_cabq;	/* tx q for cab frames */
 	struct task		sc_bmisstask;	/* bmiss int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
