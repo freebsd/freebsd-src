@@ -106,7 +106,6 @@ __DEFAULT_YES_OPTIONS = \
     FREEBSD_UPDATE \
     FTP \
     GAMES \
-    GDB \
     GH_BC \
     GNU_DIFF \
     GNU_GREP \
@@ -208,6 +207,7 @@ __DEFAULT_NO_OPTIONS = \
     CLANG_FORMAT \
     DTRACE_TESTS \
     EXPERIMENTAL \
+    GDB \
     HESIOD \
     LIBSOFT \
     LOADER_FIREWIRE \
