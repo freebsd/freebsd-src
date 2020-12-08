@@ -169,21 +169,32 @@ For more information on named extended attributes, please see
 .Xr extattr 9 .
 .Sh RETURN VALUES
 If successful, the
+.Fn extattr_get_fd ,
 .Fn extattr_get_file ,
+.Fn extattr_get_link ,
+.Fn extattr_list_fd ,
+.Fn extattr_list_file ,
+.Fn extattr_list_link ,
+.Fn extattr_set_fd ,
 .Fn extattr_set_file ,
 and
-.Fn extattr_list_file
+.Fn extattr_set_link
 calls return the number of bytes
 that were read or written from the
 .Fa data ,
-respectively, or if
+respectively.
+If
 .Fa data
 was
 .Dv NULL ,
 then
-.Fn extattr_get_file
+.Fn extattr_get_fd ,
+.Fn extattr_get_file ,
+.Fn extattr_get_link ,
+.Fn extattr_list_fd ,
+.Fn extattr_list_file ,
 and
-.Fn extattr_list_file
+.Fn extattr_list_link
 return the number of bytes available to read.
 If any of the calls are unsuccessful, the value \-1 is returned
 and the global variable
