@@ -1,0 +1,34 @@
+# #-- tcp_reuse.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+get_random_port 2
+UNBOUND_PORT=$RND_PORT
+UPSTREAM_PORT=$(($RND_PORT + 1))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "UPSTREAM_PORT=$UPSTREAM_PORT" >> .tpkg.var.test
+
+# make config file
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$UPSTREAM_PORT'/' < tcp_reuse.conf > ub.conf
+# start unbound in the background
+#$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+$PRE/unbound -d -c ub.conf 2>&1 | tee unbound.log &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+wait_unbound_up unbound.log
+
+# make upstream config file
+sed -e 's/@PORT\@/'$UPSTREAM_PORT'/' -e 's/@TOPORT\@/'$UPSTREAM_PORT'/' < tcp_reuse.conf2 > ub2.conf
+# start upstream unbound in the background
+#$PRE/unbound -d -c ub2.conf >unbound2.log 2>&1 &
+$PRE/unbound -d -c ub2.conf 2>&1 | tee unbound2.log &
+UPSTREAM_PID=$!
+echo "UPSTREAM_PID=$UPSTREAM_PID" >> .tpkg.var.test
+wait_unbound_up unbound2.log
+
+cat .tpkg.var.test
+

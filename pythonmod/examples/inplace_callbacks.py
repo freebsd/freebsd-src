@@ -43,7 +43,7 @@
 #       This query returns SERVFAIL as the txt record of bogus.nlnetlabs.nl is
 #       intentionally bogus. The reply will contain an empty EDNS option
 #       with option code 65003.
-#       Unbound will also log the source address(es) of the client(s) that made
+#       Unbound will also log the source address of the client that made
 #       the request.
 #       (unbound needs to be validating for this example to work)
 
@@ -91,8 +91,6 @@ def inplace_reply_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
     :param **kwargs: Dictionary that may contain parameters added in a future
                      release. Current parameters:
         ``repinfo``: Reply information for a communication point (comm_reply).
-                     It is None when the callback happens in the mesh
-                     states(modules).
 
     :return: True on success, False on failure.
 
@@ -121,8 +119,6 @@ def inplace_cache_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
     :param **kwargs: Dictionary that may contain parameters added in a future
                      release. Current parameters:
         ``repinfo``: Reply information for a communication point (comm_reply).
-                     It is None when the callback happens in the mesh
-                     states(modules).
 
     :return: True on success, False on failure.
 
@@ -173,8 +169,6 @@ def inplace_local_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
     :param **kwargs: Dictionary that may contain parameters added in a future
                      release. Current parameters:
         ``repinfo``: Reply information for a communication point (comm_reply).
-                     It is None when the callback happens in the mesh
-                     states(modules).
 
     :return: True on success, False on failure.
 
@@ -205,13 +199,11 @@ def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
     :param **kwargs: Dictionary that may contain parameters added in a future
                      release. Current parameters:
         ``repinfo``: Reply information for a communication point (comm_reply).
-                     It is None when the callback happens in the mesh
-                     states(modules).
 
     :return: True on success, False on failure.
 
     For demonstration purposes we want to reply with an empty EDNS code '65003'
-    and log the IP address(es) of the client(s).
+    and log the IP address of the client.
 
     """
     log_info("python: called back while servfail.")
@@ -219,30 +211,14 @@ def inplace_servfail_callback(qinfo, qstate, rep, rcode, edns, opt_list_out,
     b = bytearray.fromhex("")
     edns_opt_list_append(opt_list_out, 65003, b, region)
 
-    # Log the client(s) IP address(es)
+    # Log the client's IP address
     comm_reply = kwargs['repinfo']
     if comm_reply:
-        # If it is not None this callback was called before the query reached
-        # the mesh states(modules). There is only one client associated with
-        # this query.
         addr = comm_reply.addr
         port = comm_reply.port
         addr_family = comm_reply.family
         log_info("python: Client IP: {}({}), port: {}"
                  "".format(addr, addr_family, port))
-    else:
-        # If it is not None this callback was called while the query is in the
-        # mesh states(modules). In this case they may be multiple clients
-        # waiting for this query.
-        # The following code is the same as with the resip.py example.
-        rl = qstate.mesh_info.reply_list
-        while (rl):
-            if rl.query_reply:
-                q = rl.query_reply
-                log_info("python: Client IP: {}({}), port: {}"
-                         "".format(q.addr, q.family, q.port))
-            rl = rl.next
-
 
     return True
 

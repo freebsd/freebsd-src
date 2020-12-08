@@ -1413,6 +1413,19 @@ struct delegpt* find_delegation(struct module_qstate* qstate, char *nm, size_t n
 /******************************
  * Various debugging functions *
  ******************************/
+
+/* rename the variadic functions because python does the formatting already*/
+%rename (unbound_log_info) log_info;
+%rename (unbound_log_err) log_err;
+%rename (unbound_log_warn) log_warn;
+%rename (unbound_verbose) verbose;
+/* provide functions that take one string as argument, so python can cook
+the string */
+%rename (log_info) pymod_log_info;
+%rename (log_warn) pymod_log_warn;
+%rename (log_err) pymod_log_err;
+%rename (verbose) pymod_verbose;
+
 void verbose(enum verbosity_value level, const char* format, ...);
 void log_info(const char* format, ...);
 void log_err(const char* format, ...);
@@ -1421,6 +1434,19 @@ void log_hex(const char* msg, void* data, size_t length);
 void log_dns_msg(const char* str, struct query_info* qinfo, struct reply_info* rep);
 void log_query_info(enum verbosity_value v, const char* str, struct query_info* qinf);
 void regional_log_stats(struct regional *r);
+
+/* the one argument string log functions */
+void pymod_log_info(const char* str);
+void pymod_log_err(const char* str);
+void pymod_log_warn(const char* str);
+void pymod_verbose(enum verbosity_value level, const char* str);
+%{
+void pymod_log_info(const char* str) { log_info("%s", str); }
+void pymod_log_err(const char* str) { log_err("%s", str); }
+void pymod_log_warn(const char* str) { log_warn("%s", str); }
+void pymod_verbose(enum verbosity_value level, const char* str) {
+        verbose(level, "%s", str); }
+%}
 
 /***************************************************************************
  * Free allocated memory from marked sources returning corresponding types *

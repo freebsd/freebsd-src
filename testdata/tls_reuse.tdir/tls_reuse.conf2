@@ -1,0 +1,43 @@
+# this is the upstream server that has pipelining and responds to queries.
+server:
+	verbosity: 1
+	# num-threads: 1
+	interface: 127.0.0.1@@PORT@
+	port: @PORT@
+	use-syslog: no
+	directory: .
+	pidfile: "unbound2.pid"
+	chroot: ""
+	username: ""
+	do-not-query-localhost: no
+	tls-port: @PORT@
+	tls-service-key: "unbound_server.key"
+	tls-service-pem: "unbound_server.pem"
+	tcp-idle-timeout: 10000
+
+	log-queries: yes
+	log-replies: yes
+	log-identity: "upstream"
+
+	local-zone: "." refuse
+	local-zone: "example.com" static
+	local-data: "www.example.com  A 10.20.30.40"
+	local-data: "www1.example.com  A 10.20.30.41"
+	local-data: "www2.example.com  A 10.20.30.42"
+	local-data: "www3.example.com  A 10.20.30.43"
+	local-data: "www4.example.com  A 10.20.30.44"
+	local-data: "www5.example.com  A 10.20.30.45"
+	local-data: "www6.example.com  A 10.20.30.46"
+	local-data: "www7.example.com  A 10.20.30.47"
+
+	local-zone: "drop.net" deny
+	local-zone: "refuse.net" refuse
+
+	local-zone: "more.net" redirect
+	local-data: "more.net A 10.20.30.40"
+
+# if queries escape, send them to localhost
+forward-zone:
+	name: "."
+	forward-tls-upstream: yes
+	forward-addr: "127.0.0.1@@TOPORT@"

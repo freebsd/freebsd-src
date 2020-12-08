@@ -40,6 +40,8 @@ cleanup() {
 	exit 0
 }
 trap cleanup INT
+# stop tests from notifying systemd, if that is compiled in.
+export -n NOTIFY_SOCKET
 
 for t in $RUNLIST
 do

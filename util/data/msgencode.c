@@ -624,6 +624,9 @@ positive_answer(struct reply_info* rep, uint16_t qtype) {
 
 	for(i=0;i<rep->an_numrrsets; i++) {
 		if(ntohs(rep->rrsets[i]->rk.type) == qtype) {
+			/* for priming queries, type NS, include addresses */
+			if(qtype == LDNS_RR_TYPE_NS)
+				return 0;
 			/* in case it is a wildcard with DNSSEC, there will
 			 * be NSEC/NSEC3 records in the authority section
 			 * that we cannot remove */

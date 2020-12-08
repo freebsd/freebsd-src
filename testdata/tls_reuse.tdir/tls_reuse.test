@@ -1,0 +1,308 @@
+# #-- tls_reuse.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+
+get_make
+(cd $PRE; $MAKE streamtcp)
+
+echo "> query www1.example.com."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www1.example.com. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www1.example.com" outfile | grep "10.20.30.41"; then
+	echo "content OK"
+else
+	echo "result contents not OK, for www1.example.com"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "result contents not OK, for www1.example.com"
+	exit 1
+fi
+echo "OK"
+echo ""
+
+# this should be reused on the same tcp stream:
+echo "> query www2.example.com."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www2.example.com. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www2.example.com" outfile | grep "10.20.30.42"; then
+	echo "content OK"
+else
+	echo "result contents not OK, for www2.example.com"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log 
+	cat unbound.log
+	echo "result contents not OK, for www2.example.com"
+	exit 1
+fi
+
+echo "> query refuse.net."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT refuse.net. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "rcode: SERVFAIL" outfile; then
+	echo "content OK"
+else
+	echo "result contents not OK, for refuse.net"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log
+	cat unbound.log
+	echo "result contents not OK, for refuse.net"
+	exit 1
+fi
+
+echo "> query www3.example.com."
+echo "> query www4.example.com."
+echo "> query www5.example.com."
+echo "> query www6.example.com."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www3.example.com. A IN >outfile3 2>&1 &
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www4.example.com. A IN >outfile4 2>&1 &
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www5.example.com. A IN >outfile5 2>&1 &
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT www6.example.com. A IN >outfile6 2>&1 &
+wait
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile3
+	cat outfile4
+	cat outfile5
+	cat outfile6
+	cat unbound2.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "www3.example.com" outfile3 | grep "10.20.30.43"; then
+	echo "content OK"
+else
+	echo "result contents not OK, for www3.example.com"
+	echo "> cat logfiles"
+	cat outfile3
+	cat outfile4
+	cat outfile5
+	cat outfile6
+	cat unbound2.log
+	cat unbound.log
+	echo "result contents not OK, for www3.example.com"
+	exit 1
+fi
+if grep "www4.example.com" outfile4 | grep "10.20.30.44"; then
+	echo "content OK"
+else
+	echo "result contents not OK, for www4.example.com"
+	echo "> cat logfiles"
+	cat outfile3
+	cat outfile4
+	cat outfile5
+	cat outfile6
+	cat unbound2.log
+	cat unbound.log
+	echo "result contents not OK, for www4.example.com"
+	exit 1
+fi
+if grep "www5.example.com" outfile5 | grep "10.20.30.45"; then
+	echo "content OK"
+else
+	echo "result contents not OK, for www5.example.com"
+	echo "> cat logfiles"
+	cat outfile3
+	cat outfile4
+	cat outfile5
+	cat outfile6
+	cat unbound2.log
+	cat unbound.log
+	echo "result contents not OK, for www5.example.com"
+	exit 1
+fi
+if grep "www6.example.com" outfile6 | grep "10.20.30.46"; then
+	echo "content OK"
+else
+	echo "result contents not OK, for www6.example.com"
+	echo "> cat logfiles"
+	cat outfile3
+	cat outfile4
+	cat outfile5
+	cat outfile6
+	cat unbound2.log
+	cat unbound.log
+	echo "result contents not OK, for www6.example.com"
+	exit 1
+fi
+
+echo "> query a1.more.net a2.more.net a3.more.net a4.more.net a5.more.net"
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT a1.more.net A IN a2.more.net A IN a3.more.net A IN a4.more.net A IN a5.more.net A IN >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+cat outfile
+for x in a1.more.net a2.more.net a3.more.net a4.more.net a5.more.net; do
+	if grep "$x" outfile | grep "10.20.30.40"; then
+		echo "content OK for $x"
+	else
+		echo "result contents not OK, for $x"
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound2.log
+		cat unbound.log
+		echo "result contents not OK, for $x"
+		exit 1
+	fi
+done
+
+# make the server timeout to drop the upstream connection
+echo "> sleep 15"
+sleep 15
+# see if we are still up.
+echo "> query a7.more.net"
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT a7.more.net A IN >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+cat outfile
+for x in a7.more.net; do
+	if grep "$x" outfile | grep "10.20.30.40"; then
+		echo "content OK for $x"
+	else
+		echo "result contents not OK, for $x"
+		echo "> cat logfiles"
+		cat outfile
+		cat unbound2.log
+		cat unbound.log
+		echo "result contents not OK, for $x"
+		exit 1
+	fi
+done
+
+# dropconn.drop.net make the server drop the connection.
+echo "> query a11.more.net a12.more.net dropconn.drop.net a14.more.net a15.more.net"
+$PRE/streamtcp -a -f 127.0.0.1@$UNBOUND_PORT a11.more.net A IN a12.more.net A IN dropconn.drop.net A IN a14.more.net A IN a15.more.net A IN >outfile 2>&1
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+cat outfile
+# cannot really check outfile, because it may or may not have answers depending
+# on how fast the other server responds or the drop happens, but there are
+# a bunch of connection drops, whilst resolving the other queries.
+
+echo "> query drop.net."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT drop.net. A IN >outfile 2>&1
+cat outfile
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+if grep "rcode: SERVFAIL" outfile; then
+	echo "content OK"
+else
+	echo "result contents not OK, for drop.net"
+	echo "> cat logfiles"
+	cat outfile
+	cat unbound2.log
+	cat unbound.log
+	echo "result contents not OK, for drop.net"
+	exit 1
+fi
+
+# timeouts at the end. (so that the server is not marked as failed for
+# the other tests).
+echo "> query q1.drop.net."
+echo "> query q2.drop.net."
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT q1.drop.net. A IN >outfile1 2>&1 &
+$PRE/streamtcp -f 127.0.0.1@$UNBOUND_PORT q2.drop.net. A IN >outfile2 2>&1 &
+wait
+if test "$?" -ne 0; then
+	echo "exit status not OK"
+	echo "> cat logfiles"
+	cat outfile1
+	cat outfile2
+	cat unbound2.log
+	cat unbound.log
+	echo "Not OK"
+	exit 1
+fi
+cat outfile1
+cat outfile2
+if grep "rcode: SERVFAIL" outfile1; then
+	echo "content OK"
+else
+	echo "result contents not OK, for q1.drop.net"
+	echo "> cat logfiles"
+	cat outfile1
+	cat outfile2
+	cat unbound2.log
+	cat unbound.log
+	echo "result contents not OK, for q1.drop.net"
+	exit 1
+fi
+if grep "rcode: SERVFAIL" outfile2; then
+	echo "content OK"
+else
+	echo "result contents not OK, for q2.drop.net"
+	echo "> cat logfiles"
+	cat outfile1
+	cat outfile2
+	cat unbound2.log
+	cat unbound.log
+	echo "result contents not OK, for q2.drop.net"
+	exit 1
+fi
+
+echo "OK"
+exit 0

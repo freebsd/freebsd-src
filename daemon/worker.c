@@ -576,7 +576,7 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 	struct comm_reply* repinfo, struct ub_packed_rrset_key** alias_rrset,
 	struct reply_info** encode_repp, struct auth_zones* az)
 {
-	struct respip_action_info actinfo = {0};
+	struct respip_action_info actinfo = {0, 0, 0, 0, NULL, 0, NULL};
 	actinfo.action = respip_none;
 
 	if(qinfo->qtype != LDNS_RR_TYPE_A &&
@@ -1789,8 +1789,8 @@ worker_init(struct worker* worker, struct config_file *cfg,
 			? cfg->tcp_keepalive_timeout
 			: cfg->tcp_idle_timeout,
 		cfg->harden_large_queries, cfg->http_max_streams,
-		cfg->http_endpoint, worker->daemon->tcl,
-		worker->daemon->listen_sslctx,
+		cfg->http_endpoint, cfg->http_notls_downstream,
+		worker->daemon->tcl, worker->daemon->listen_sslctx,
 		dtenv, worker_handle_request, worker);
 	if(!worker->front) {
 		log_err("could not create listening sockets");
@@ -1807,7 +1807,7 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		&worker_alloc_cleanup, worker,
 		cfg->do_udp || cfg->udp_upstream_without_downstream,
 		worker->daemon->connect_sslctx, cfg->delay_close,
-		cfg->tls_use_sni, dtenv);
+		cfg->tls_use_sni, dtenv, cfg->udp_connect);
 	if(!worker->back) {
 		log_err("could not create outgoing sockets");
 		worker_delete(worker);

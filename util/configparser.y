@@ -114,11 +114,11 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_STUB_SSL_UPSTREAM VAR_FORWARD_SSL_UPSTREAM VAR_TLS_CERT_BUNDLE
 %token VAR_HTTPS_PORT VAR_HTTP_ENDPOINT VAR_HTTP_MAX_STREAMS
 %token VAR_HTTP_QUERY_BUFFER_SIZE VAR_HTTP_RESPONSE_BUFFER_SIZE
-%token VAR_HTTP_NODELAY
+%token VAR_HTTP_NODELAY VAR_HTTP_NOTLS_DOWNSTREAM
 %token VAR_STUB_FIRST VAR_MINIMAL_RESPONSES VAR_RRSET_ROUNDROBIN
-%token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE
+%token VAR_MAX_UDP_SIZE VAR_DELAY_CLOSE VAR_UDP_CONNECT
 %token VAR_UNBLOCK_LAN_ZONES VAR_INSECURE_LAN_ZONES
-%token VAR_INFRA_CACHE_MIN_RTT
+%token VAR_INFRA_CACHE_MIN_RTT VAR_INFRA_KEEP_PROBING
 %token VAR_DNS64_PREFIX VAR_DNS64_SYNTHALL VAR_DNS64_IGNORE_AAAA
 %token VAR_DNSTAP VAR_DNSTAP_ENABLE VAR_DNSTAP_SOCKET_PATH VAR_DNSTAP_IP
 %token VAR_DNSTAP_TLS VAR_DNSTAP_TLS_SERVER_NAME VAR_DNSTAP_TLS_CERT_BUNDLE
@@ -178,7 +178,8 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_IPSET VAR_IPSET_NAME_V4 VAR_IPSET_NAME_V6
 %token VAR_TLS_SESSION_TICKET_KEYS VAR_RPZ VAR_TAGS VAR_RPZ_ACTION_OVERRIDE
 %token VAR_RPZ_CNAME_OVERRIDE VAR_RPZ_LOG VAR_RPZ_LOG_NAME
-%token VAR_DYNLIB VAR_DYNLIB_FILE VAR_EDNS_CLIENT_TAG VAR_EDNS_CLIENT_TAG_OPCODE
+%token VAR_DYNLIB VAR_DYNLIB_FILE VAR_EDNS_CLIENT_STRING
+%token VAR_EDNS_CLIENT_STRING_OPCODE
 
 %%
 toplevelvars: /* empty */ | toplevelvars toplevelvar ;
@@ -249,14 +250,14 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_ssl_service_key | server_ssl_service_pem | server_ssl_port |
 	server_https_port | server_http_endpoint | server_http_max_streams |
 	server_http_query_buffer_size | server_http_response_buffer_size |
-	server_http_nodelay |
+	server_http_nodelay | server_http_notls_downstream |
 	server_minimal_responses | server_rrset_roundrobin | server_max_udp_size |
-	server_so_reuseport | server_delay_close |
+	server_so_reuseport | server_delay_close | server_udp_connect |
 	server_unblock_lan_zones | server_insecure_lan_zones |
 	server_dns64_prefix | server_dns64_synthall | server_dns64_ignore_aaaa |
 	server_infra_cache_min_rtt | server_harden_algo_downgrade |
 	server_ip_transparent | server_ip_ratelimit | server_ratelimit |
-	server_ip_dscp |
+	server_ip_dscp | server_infra_keep_probing |
 	server_ip_ratelimit_slabs | server_ratelimit_slabs |
 	server_ip_ratelimit_size | server_ratelimit_size |
 	server_ratelimit_for_domain |
@@ -291,8 +292,8 @@ content_server: server_num_threads | server_verbosity | server_port |
 	server_unknown_server_time_limit | server_log_tag_queryreply |
 	server_stream_wait_size | server_tls_ciphers |
 	server_tls_ciphersuites | server_tls_session_ticket_keys |
-	server_tls_use_sni | server_edns_client_tag |
-	server_edns_client_tag_opcode
+	server_tls_use_sni | server_edns_client_string |
+	server_edns_client_string_opcode
 	;
 stubstart: VAR_STUB_ZONE
 	{
@@ -982,6 +983,7 @@ server_https_port: VAR_HTTPS_PORT STRING_ARG
 		if(atoi($2) == 0)
 			yyerror("port number expected");
 		else cfg_parser->cfg->https_port = atoi($2);
+		free($2);
 	};
 server_http_endpoint: VAR_HTTP_ENDPOINT STRING_ARG
 	{
@@ -1029,6 +1031,14 @@ server_http_nodelay: VAR_HTTP_NODELAY STRING_ARG
 		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
 			yyerror("expected yes or no.");
 		else cfg_parser->cfg->http_nodelay = (strcmp($2, "yes")==0);
+		free($2);
+	}
+server_http_notls_downstream: VAR_HTTP_NOTLS_DOWNSTREAM STRING_ARG
+	{
+		OUTYY(("P(server_http_notls_downstream:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->http_notls_downstream = (strcmp($2, "yes")==0);
 		free($2);
 	};
 server_use_systemd: VAR_USE_SYSTEMD STRING_ARG
@@ -1434,6 +1444,15 @@ server_delay_close: VAR_DELAY_CLOSE STRING_ARG
 		free($2);
 	}
 	;
+server_udp_connect: VAR_UDP_CONNECT STRING_ARG
+	{
+		OUTYY(("P(server_udp_connect:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->udp_connect = (strcmp($2, "yes")==0);
+		free($2);
+	}
+	;
 server_unblock_lan_zones: VAR_UNBLOCK_LAN_ZONES STRING_ARG
 	{
 		OUTYY(("P(server_unblock_lan_zones:%s)\n", $2));
@@ -1528,6 +1547,16 @@ server_infra_cache_min_rtt: VAR_INFRA_CACHE_MIN_RTT STRING_ARG
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("number expected");
 		else cfg_parser->cfg->infra_cache_min_rtt = atoi($2);
+		free($2);
+	}
+	;
+server_infra_keep_probing: VAR_INFRA_KEEP_PROBING STRING_ARG
+	{
+		OUTYY(("P(server_infra_keep_probing:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->infra_keep_probing =
+			(strcmp($2, "yes")==0);
 		free($2);
 	}
 	;
@@ -2465,29 +2494,24 @@ server_ipsecmod_strict: VAR_IPSECMOD_STRICT STRING_ARG
 	#endif
 	}
 	;
-server_edns_client_tag: VAR_EDNS_CLIENT_TAG STRING_ARG STRING_ARG
+server_edns_client_string: VAR_EDNS_CLIENT_STRING STRING_ARG STRING_ARG
 	{
-		int tag_data;
-		OUTYY(("P(server_edns_client_tag:%s %s)\n", $2, $3));
-		tag_data = atoi($3);
-		if(tag_data > 65535 || tag_data < 0 ||
-			(tag_data == 0 && (strlen($3) != 1 || $3[0] != '0')))
-			yyerror("edns-client-tag data invalid, needs to be a "
-				"number from 0 to 65535");
+		OUTYY(("P(server_edns_client_string:%s %s)\n", $2, $3));
 		if(!cfg_str2list_insert(
-			&cfg_parser->cfg->edns_client_tags, $2, $3))
+			&cfg_parser->cfg->edns_client_strings, $2, $3))
 			fatal_exit("out of memory adding "
-				"edns-client-tag");
+				"edns-client-string");
 	}
 	;
-server_edns_client_tag_opcode: VAR_EDNS_CLIENT_TAG_OPCODE STRING_ARG
+server_edns_client_string_opcode: VAR_EDNS_CLIENT_STRING_OPCODE STRING_ARG
 	{
-		OUTYY(("P(edns_client_tag_opcode:%s)\n", $2));
+		OUTYY(("P(edns_client_string_opcode:%s)\n", $2));
 		if(atoi($2) == 0 && strcmp($2, "0") != 0)
 			yyerror("option code expected");
 		else if(atoi($2) > 65535 || atoi($2) < 0)
 			yyerror("option code must be in interval [0, 65535]");
-		else cfg_parser->cfg->edns_client_tag_opcode = atoi($2);
+		else cfg_parser->cfg->edns_client_string_opcode = atoi($2);
+		free($2);
 
 	}
 	;
