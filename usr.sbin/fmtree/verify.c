@@ -86,7 +86,7 @@ vwalk(void)
 		err(1, "line %d: fts_open", lineno);
 	level = root;
 	specdepth = rval = 0;
-	while ((p = fts_read(t))) {
+	while (errno = 0, (p = fts_read(t))) {
 		if (check_excludes(p->fts_name, p->fts_path)) {
 			fts_set(t, p, FTS_SKIP);
 			continue;
@@ -149,6 +149,8 @@ extra:
 		}
 		(void)fts_set(t, p, FTS_SKIP);
 	}
+	if (errno != 0)
+		err(1, "fts_read()");
 	(void)fts_close(t);
 	if (sflag)
 		warnx("%s checksum: %lu", fullpath, (unsigned long)crc_total);

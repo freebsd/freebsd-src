@@ -268,7 +268,7 @@ main(int argc, char *argv[])
 	if ((fts = fts_open(argv, ftsoptions, NULL)) == NULL)
 		err(1, "fts_open");
 
-	while ((p = fts_read(fts)) != NULL) {
+	while (errno = 0, (p = fts_read(fts)) != NULL) {
 		switch (p->fts_info) {
 		case FTS_D:			/* Ignore. */
 			if (ignorep(p))
