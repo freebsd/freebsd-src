@@ -1806,11 +1806,11 @@ lagg_snd_tag_alloc(struct ifnet *ifp,
 	lp = lookup_snd_tag_port(ifp, params->hdr.flowid,
 	    params->hdr.flowtype, params->hdr.numa_domain);
 	if (lp == NULL) {
-		LAGG_RUNLOCK();
+		NET_EPOCH_EXIT(et);
 		return (EOPNOTSUPP);
 	}
 	if (lp->lp_ifp == NULL) {
-		LAGG_RUNLOCK();
+		NET_EPOCH_EXIT(et);
 		return (EOPNOTSUPP);
 	}
 	lp_ifp = lp->lp_ifp;
