@@ -677,6 +677,22 @@ iommu_gas_map_region(struct iommu_domain *domain, struct iommu_map_entry *entry,
 	return (0);
 }
 
+static int
+iommu_gas_reserve_region_locked(struct iommu_domain *domain,
+    iommu_gaddr_t start, iommu_gaddr_t end, struct iommu_map_entry *entry)
+{
+	int error;
+
+	IOMMU_DOMAIN_ASSERT_LOCKED(domain);
+
+	entry->start = start;
+	entry->end = end;
+	error = iommu_gas_alloc_region(domain, entry, IOMMU_MF_CANWAIT);
+	if (error == 0)
+		entry->flags |= IOMMU_MAP_ENTRY_UNMAPPED;
+	return (error);
+}
+
 int
 iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
     iommu_gaddr_t end, struct iommu_map_entry **entry0)
@@ -685,17 +701,63 @@ iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
 	int error;
 
 	entry = iommu_gas_alloc_entry(domain, IOMMU_PGF_WAITOK);
-	entry->start = start;
-	entry->end = end;
 	IOMMU_DOMAIN_LOCK(domain);
-	error = iommu_gas_alloc_region(domain, entry, IOMMU_MF_CANWAIT);
-	if (error == 0)
-		entry->flags |= IOMMU_MAP_ENTRY_UNMAPPED;
+	error = iommu_gas_reserve_region_locked(domain, start, end, entry);
 	IOMMU_DOMAIN_UNLOCK(domain);
 	if (error != 0)
 		iommu_gas_free_entry(domain, entry);
 	else if (entry0 != NULL)
 		*entry0 = entry;
+	return (error);
+}
+
+/*
+ * As in iommu_gas_reserve_region, reserve [start, end), but allow for existing
+ * entries.
+ */
+int
+iommu_gas_reserve_region_extend(struct iommu_domain *domain,
+    iommu_gaddr_t start, iommu_gaddr_t end)
+{
+	struct iommu_map_entry *entry, *next, *prev, key = {};
+	iommu_gaddr_t entry_start, entry_end;
+	int error;
+
+	error = 0;
+	entry = NULL;
+	end = ummin(end, domain->end);
+	while (start < end) {
+		/* Preallocate an entry. */
+		if (entry == NULL)
+			entry = iommu_gas_alloc_entry(domain,
+			    IOMMU_PGF_WAITOK);
+		/* Calculate the free region from here to the next entry. */
+		key.start = key.end = start;
+		IOMMU_DOMAIN_LOCK(domain);
+		next = RB_NFIND(iommu_gas_entries_tree, &domain->rb_root, &key);
+		KASSERT(next != NULL, ("domain %p with end %#jx has no entry "
+		    "after %#jx", domain, (uintmax_t)domain->end,
+		    (uintmax_t)start));
+		entry_end = ummin(end, next->start);
+		prev = RB_PREV(iommu_gas_entries_tree, &domain->rb_root, next);
+		if (prev != NULL)
+			entry_start = ummax(start, prev->end);
+		else
+			entry_start = start;
+		start = next->end;
+		/* Reserve the region if non-empty. */
+		if (entry_start != entry_end) {
+			error = iommu_gas_reserve_region_locked(domain,
+			    entry_start, entry_end, entry);
+			if (error != 0)
+				break;
+			entry = NULL;
+		}
+		IOMMU_DOMAIN_UNLOCK(domain);
+	}
+	/* Release a preallocated entry if it was not used. */
+	if (entry != NULL)
+		iommu_gas_free_entry(domain, entry);
 	return (error);
 }
 

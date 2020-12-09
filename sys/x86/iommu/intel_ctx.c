@@ -317,6 +317,66 @@ domain_init_rmrr(struct dmar_domain *domain, device_t dev, int bus,
 	return (error);
 }
 
+/*
+ * PCI memory address space is shared between memory-mapped devices (MMIO) and
+ * host memory (which may be remapped by an IOMMU).  Device accesses to an
+ * address within a memory aperture in a PCIe root port will be treated as
+ * peer-to-peer and not forwarded to an IOMMU.  To avoid this, reserve the
+ * address space of the root port's memory apertures in the address space used
+ * by the IOMMU for remapping.
+ */
+static int
+dmar_reserve_pci_regions(struct dmar_domain *domain, device_t dev)
+{
+	struct iommu_domain *iodom;
+	device_t root;
+	uint32_t val;
+	uint64_t base, limit;
+	int error;
+
+	iodom = DOM2IODOM(domain);
+
+	root = pci_find_pcie_root_port(dev);
+	if (root == NULL)
+		return (0);
+
+	/* Disable downstream memory */
+	base = PCI_PPBMEMBASE(0, pci_read_config(root, PCIR_MEMBASE_1, 2));
+	limit = PCI_PPBMEMLIMIT(0, pci_read_config(root, PCIR_MEMLIMIT_1, 2));
+	error = iommu_gas_reserve_region_extend(iodom, base, limit + 1);
+	if (bootverbose || error != 0)
+		device_printf(dev, "DMAR reserve [%#jx-%#jx] (error %d)\n",
+		    base, limit + 1, error);
+	if (error != 0)
+		return (error);
+
+	/* Disable downstream prefetchable memory */
+	val = pci_read_config(root, PCIR_PMBASEL_1, 2);
+	if (val != 0 || pci_read_config(root, PCIR_PMLIMITL_1, 2) != 0) {
+		if ((val & PCIM_BRPM_MASK) == PCIM_BRPM_64) {
+			base = PCI_PPBMEMBASE(
+			    pci_read_config(root, PCIR_PMBASEH_1, 4),
+			    val);
+			limit = PCI_PPBMEMLIMIT(
+			    pci_read_config(root, PCIR_PMLIMITH_1, 4),
+			    pci_read_config(root, PCIR_PMLIMITL_1, 2));
+		} else {
+			base = PCI_PPBMEMBASE(0, val);
+			limit = PCI_PPBMEMLIMIT(0,
+			    pci_read_config(root, PCIR_PMLIMITL_1, 2));
+		}
+		error = iommu_gas_reserve_region_extend(iodom, base,
+		    limit + 1);
+		if (bootverbose || error != 0)
+			device_printf(dev, "DMAR reserve [%#jx-%#jx] "
+			    "(error %d)\n", base, limit + 1, error);
+		if (error != 0)
+			return (error);
+	}
+
+	return (error);
+}
+
 static struct dmar_domain *
 dmar_domain_alloc(struct dmar_unit *dmar, bool id_mapped)
 {
@@ -502,6 +562,8 @@ dmar_get_ctx_for_dev1(struct dmar_unit *dmar, device_t dev, uint16_t rid,
 			error = domain_init_rmrr(domain1, dev, bus,
 			    slot, func, dev_domain, dev_busno, dev_path,
 			    dev_path_len);
+			if (error == 0)
+				error = dmar_reserve_pci_regions(domain1, dev);
 			if (error != 0) {
 				dmar_domain_destroy(domain1);
 				TD_PINNED_ASSERT;

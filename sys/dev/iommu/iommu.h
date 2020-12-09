@@ -199,6 +199,8 @@ int iommu_gas_map_region(struct iommu_domain *domain,
     struct iommu_map_entry *entry, u_int eflags, u_int flags, vm_page_t *ma);
 int iommu_gas_reserve_region(struct iommu_domain *domain, iommu_gaddr_t start,
     iommu_gaddr_t end, struct iommu_map_entry **entry0);
+int iommu_gas_reserve_region_extend(struct iommu_domain *domain,
+    iommu_gaddr_t start, iommu_gaddr_t end);
 
 void iommu_set_buswide_ctx(struct iommu_unit *unit, u_int busno);
 bool iommu_is_buswide_ctx(struct iommu_unit *unit, u_int busno);
