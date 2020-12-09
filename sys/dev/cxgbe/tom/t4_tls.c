@@ -739,6 +739,10 @@ tls_send_handshake_ack(void *arg)
 	struct tls_ofld_info *tls_ofld = &toep->tls;
 	struct adapter *sc = td_adapter(toep->td);
 
+	/* Bail without rescheduling if the connection has closed. */
+	if ((toep->flags & (TPF_FIN_SENT | TPF_ABORT_SHUTDOWN)) != 0)
+		return;
+
 	/*
 	 * If this connection has timed out without receiving more
 	 * data, downgrade to plain TOE mode and don't re-arm the
