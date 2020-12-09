@@ -2463,6 +2463,13 @@ fdescfree_fds(struct thread *td, struct filedesc *fdp, bool needclose)
 	struct file *fp;
 	int i, lastfile;
 
+	KASSERT(refcount_load(&fdp->fd_refcnt) == 0,
+	    ("%s: fd table %p carries references", __func__, fdp));
+
+	/* Serialize with threads iterating over the table. */
+	FILEDESC_XLOCK(fdp);
+	FILEDESC_XUNLOCK(fdp);
+
 	lastfile = fdlastfile_single(fdp);
 	for (i = 0; i <= lastfile; i++) {
 		fde = &fdp->fd_ofiles[i];
@@ -2536,6 +2543,11 @@ pdescfree(struct thread *td)
 void
 fdescfree_remapped(struct filedesc *fdp)
 {
+#ifdef INVARIANTS
+	/* fdescfree_fds() asserts that fd_refcnt == 0. */
+	if (!refcount_release(&fdp->fd_refcnt))
+		panic("%s: fd table %p has extra references", __func__, fdp);
+#endif
 	fdescfree_fds(curthread, fdp, 0);
 }
 
