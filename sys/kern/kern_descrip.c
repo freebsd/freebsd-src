@@ -1830,7 +1830,8 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	 * which must not be freed.
 	 */
 	if (onfiles > NDFILE) {
-		if (curproc->p_numthreads == 1 && fdp->fd_refcnt == 1)
+		if (curproc->p_numthreads == 1 &&
+		    refcount_load(&fdp->fd_refcnt) == 1)
 			free(otable, M_FILEDESC);
 		else {
 			ft = (struct freetable *)&otable->fdt_ofiles[onfiles];
@@ -2160,7 +2161,7 @@ static void
 fddrop(struct filedesc *fdp)
 {
 
-	if (fdp->fd_holdcnt > 1) {
+	if (refcount_load(&fdp->fd_holdcnt) > 1) {
 		if (refcount_release(&fdp->fd_holdcnt) == 0)
 			return;
 	}
@@ -2221,7 +2222,7 @@ fdunshare(struct thread *td)
 	struct filedesc *tmp;
 	struct proc *p = td->td_proc;
 
-	if (p->p_fd->fd_refcnt == 1)
+	if (refcount_load(&p->p_fd->fd_refcnt) == 1)
 		return;
 
 	tmp = fdcopy(p->p_fd);
@@ -2570,7 +2571,8 @@ fdsetugidsafety(struct thread *td)
 	int i;
 
 	fdp = td->td_proc->p_fd;
-	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
+	KASSERT(refcount_load(&fdp->fd_refcnt) == 1,
+	    ("the fdtable should not be shared"));
 	MPASS(fdp->fd_nfiles >= 3);
 	for (i = 0; i <= 2; i++) {
 		fp = fdp->fd_ofiles[i].fde_file;
@@ -2621,7 +2623,8 @@ fdcloseexec(struct thread *td)
 	int i, lastfile;
 
 	fdp = td->td_proc->p_fd;
-	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
+	KASSERT(refcount_load(&fdp->fd_refcnt) == 1,
+	    ("the fdtable should not be shared"));
 	lastfile = fdlastfile_single(fdp);
 	for (i = 0; i <= lastfile; i++) {
 		fde = &fdp->fd_ofiles[i];
@@ -2651,7 +2654,8 @@ fdcheckstd(struct thread *td)
 	int i, error, devnull;
 
 	fdp = td->td_proc->p_fd;
-	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
+	KASSERT(refcount_load(&fdp->fd_refcnt) == 1,
+	    ("the fdtable should not be shared"));
 	MPASS(fdp->fd_nfiles >= 3);
 	devnull = -1;
 	for (i = 0; i <= 2; i++) {
@@ -3974,7 +3978,8 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 			continue;
 		FILEDESC_SLOCK(fdp);
 		lastfile = fdlastfile(fdp);
-		for (n = 0; fdp->fd_refcnt > 0 && n <= lastfile; ++n) {
+		for (n = 0; refcount_load(&fdp->fd_refcnt) > 0 && n <= lastfile;
+		    n++) {
 			if ((fp = fdp->fd_ofiles[n].fde_file) == NULL)
 				continue;
 			xf.xf_fd = n;
@@ -4245,7 +4250,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen,
 		pwd_drop(pwd);
 	FILEDESC_SLOCK(fdp);
 	lastfile = fdlastfile(fdp);
-	for (i = 0; fdp->fd_refcnt > 0 && i <= lastfile; i++) {
+	for (i = 0; refcount_load(&fdp->fd_refcnt) > 0 && i <= lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 #ifdef CAPABILITIES
@@ -4400,7 +4405,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 		pwd_drop(pwd);
 	FILEDESC_SLOCK(fdp);
 	lastfile = fdlastfile(fdp);
-	for (i = 0; fdp->fd_refcnt > 0 && i <= lastfile; i++) {
+	for (i = 0; refcount_load(&fdp->fd_refcnt) > 0 && i <= lastfile; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		export_file_to_kinfo(fp, i, NULL, kif, fdp,
