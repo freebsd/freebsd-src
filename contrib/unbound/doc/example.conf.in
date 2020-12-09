@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.12.0.
+# See unbound.conf(5) man page, version 1.13.0.
 #
 # this is a comment.
 
@@ -161,6 +161,9 @@ server:
 	# msec to wait before close of port on timeout UDP. 0 disables.
 	# delay-close: 0
 
+	# perform connect for UDP sockets to mitigate ICMP side channel.
+	# udp-connect: yes
+
 	# msec for waiting for an unknown server to reply.  Increase if you
 	# are behind a slow satellite link, to eg. 1128.
 	# unknown-server-time-limit: 376
@@ -191,6 +194,9 @@ server:
 
 	# minimum wait time for responses, increase if uplink is long. In msec.
 	# infra-cache-min-rtt: 50
+
+	# enable to make server probe down hosts more frequently.
+	# infra-keep-probing: no
 
 	# the number of slabs to use for the Infrastructure cache.
 	# the number of slabs must be a power of 2.
@@ -787,6 +793,9 @@ server:
 	# Set TCP_NODELAY socket option on sockets used for DNS-over-HTTPS
 	# service.
 	# http-nodelay: yes
+
+	# Disable TLS for DNS-over-HTTP downstream service.
+	# http-notls-downstream: no
 
 	# DNS64 prefix. Must be specified when DNS64 is use.
 	# Enable dns64 in module-config.  Used to synthesize IPv6 from IPv4.

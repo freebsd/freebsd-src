@@ -337,22 +337,44 @@ readpid (const char* file)
 /** write pid to file. 
  * @param pidfile: file name of pid file.
  * @param pid: pid to write to file.
+ * @return false on failure
  */
-static void
+static int
 writepid (const char* pidfile, pid_t pid)
 {
-	FILE* f;
+	int fd;
+	char pidbuf[32];
+	size_t count = 0;
+	snprintf(pidbuf, sizeof(pidbuf), "%lu\n", (unsigned long)pid);
 
-	if ((f = fopen(pidfile, "w")) ==  NULL ) {
+	if((fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC
+#ifdef O_NOFOLLOW
+		| O_NOFOLLOW
+#endif
+		, 0644)) == -1) {
 		log_err("cannot open pidfile %s: %s", 
 			pidfile, strerror(errno));
-		return;
+		return 0;
 	}
-	if(fprintf(f, "%lu\n", (unsigned long)pid) < 0) {
-		log_err("cannot write to pidfile %s: %s", 
-			pidfile, strerror(errno));
+	while(count < strlen(pidbuf)) {
+		ssize_t r = write(fd, pidbuf+count, strlen(pidbuf)-count);
+		if(r == -1) {
+			if(errno == EAGAIN || errno == EINTR)
+				continue;
+			log_err("cannot write to pidfile %s: %s",
+				pidfile, strerror(errno));
+			close(fd);
+			return 0;
+		} else if(r == 0) {
+			log_err("cannot write any bytes to pidfile %s: "
+				"write returns 0 bytes written", pidfile);
+			close(fd);
+			return 0;
+		}
+		count += r;
 	}
-	fclose(f);
+	close(fd);
+	return 1;
 }
 
 /**
@@ -506,16 +528,17 @@ perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	/* write new pidfile (while still root, so can be outside chroot) */
 #ifdef HAVE_KILL
 	if(cfg->pidfile && cfg->pidfile[0] && need_pidfile) {
-		writepid(daemon->pidfile, getpid());
-		if(cfg->username && cfg->username[0] && cfg_uid != (uid_t)-1 &&
-			pidinchroot) {
+		if(writepid(daemon->pidfile, getpid())) {
+			if(cfg->username && cfg->username[0] && cfg_uid != (uid_t)-1 &&
+				pidinchroot) {
 #  ifdef HAVE_CHOWN
-			if(chown(daemon->pidfile, cfg_uid, cfg_gid) == -1) {
-				verbose(VERB_QUERY, "cannot chown %u.%u %s: %s",
-					(unsigned)cfg_uid, (unsigned)cfg_gid,
-					daemon->pidfile, strerror(errno));
-			}
+				if(chown(daemon->pidfile, cfg_uid, cfg_gid) == -1) {
+					verbose(VERB_QUERY, "cannot chown %u.%u %s: %s",
+						(unsigned)cfg_uid, (unsigned)cfg_gid,
+						daemon->pidfile, strerror(errno));
+				}
 #  endif /* HAVE_CHOWN */
+			}
 		}
 	}
 #else

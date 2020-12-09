@@ -914,7 +914,7 @@ respip_rewrite_reply(const struct query_info* qinfo,
 	int ret = 1;
 	struct ub_packed_rrset_key* redirect_rrset = NULL;
 	struct rpz* r;
-	struct auth_zone* a;
+	struct auth_zone* a = NULL;
 	struct ub_packed_rrset_key* data = NULL;
 	int rpz_used = 0;
 	int rpz_log = 0;
@@ -1109,7 +1109,7 @@ respip_operate(struct module_qstate* qstate, enum module_ev event, int id,
 			qstate->return_msg && qstate->return_msg->rep) {
 			struct reply_info* new_rep = qstate->return_msg->rep;
 			struct ub_packed_rrset_key* alias_rrset = NULL;
-			struct respip_action_info actinfo = {0};
+			struct respip_action_info actinfo = {0, 0, 0, 0, NULL, 0, NULL};
 			actinfo.action = respip_none;
 
 			if(!respip_rewrite_reply(&qstate->qinfo,
@@ -1170,7 +1170,7 @@ respip_merge_cname(struct reply_info* base_rep,
 	struct ub_packed_rrset_key* alias_rrset = NULL; /* ditto */
 	uint16_t tgt_rcode;
 	size_t i, j;
-	struct respip_action_info actinfo = {0};
+	struct respip_action_info actinfo = {0, 0, 0, 0, NULL, 0, NULL};
 	actinfo.action = respip_none;
 
 	/* If the query for the CNAME target would result in an unusual rcode,

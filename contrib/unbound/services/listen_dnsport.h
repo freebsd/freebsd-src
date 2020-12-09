@@ -159,6 +159,7 @@ int resolve_interface_names(struct config_file* cfg, char*** resif,
  * @param harden_large_queries: whether query size should be limited.
  * @param http_max_streams: maximum number of HTTP/2 streams per connection.
  * @param http_endpoint: HTTP endpoint to service queries on
+ * @param http_notls: no TLS for http downstream
  * @param tcp_conn_limit: TCP connection limit info.
  * @param sslctx: nonNULL if ssl context.
  * @param dtenv: nonNULL if dnstap enabled.
@@ -171,8 +172,9 @@ struct listen_dnsport*
 listen_create(struct comm_base* base, struct listen_port* ports,
 	size_t bufsize, int tcp_accept_count, int tcp_idle_timeout,
 	int harden_large_queries, uint32_t http_max_streams,
-	char* http_endpoint, struct tcl_list* tcp_conn_limit, void* sslctx,
-	struct dt_env* dtenv, comm_point_callback_type* cb, void *cb_arg);
+	char* http_endpoint, int http_notls, struct tcl_list* tcp_conn_limit,
+	void* sslctx, struct dt_env* dtenv, comm_point_callback_type* cb,
+	void *cb_arg);
 
 /**
  * delete the listening structure
