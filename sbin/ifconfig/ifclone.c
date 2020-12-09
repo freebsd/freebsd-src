@@ -128,32 +128,32 @@ ifclonecreate(int s, void *arg)
 {
 	struct ifreq ifr;
 	struct clone_defcb *dcp;
-	clone_callback_func *clone_cb = NULL;
 
 	memset(&ifr, 0, sizeof(ifr));
 	(void) strlcpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
 
-	if (clone_cb == NULL) {
-		/* Try to find a default callback */
+	/* Try to find a default callback by filter */
+	SLIST_FOREACH(dcp, &clone_defcbh, next) {
+		if (dcp->clone_mt == MT_FILTER &&
+		    dcp->ifmatch(ifr.ifr_name) != 0)
+			break;
+	}
+
+	if (dcp == NULL) {
+		/* Try to find a default callback by prefix */
 		SLIST_FOREACH(dcp, &clone_defcbh, next) {
-			if ((dcp->clone_mt == MT_PREFIX) &&
-			    (strncmp(dcp->ifprefix, ifr.ifr_name,
-			             strlen(dcp->ifprefix)) == 0)) {
-				clone_cb = dcp->clone_cb;
+			if (dcp->clone_mt == MT_PREFIX &&
+			    strncmp(dcp->ifprefix, ifr.ifr_name,
+			    strlen(dcp->ifprefix)) == 0)
 				break;
-			}
-			if ((dcp->clone_mt == MT_FILTER) &&
-			          dcp->ifmatch(ifr.ifr_name)) {
-				clone_cb = dcp->clone_cb;
-				break;
-			}
 		}
 	}
-	if (clone_cb == NULL) {
+
+	if (dcp == NULL || dcp->clone_cb == NULL) {
 		/* NB: no parameters */
 	  	ioctl_ifcreate(s, &ifr);
 	} else {
-		clone_cb(s, &ifr);
+		dcp->clone_cb(s, &ifr);
 	}
 
 	/*
