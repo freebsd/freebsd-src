@@ -55,6 +55,7 @@ svn merge ^/vendor-crypto/openssl/dist crypto/openssl
 svn co $FSVN/head/secure/lib/libcrypto secure/lib/libcrypto
 svn co $FSVN/head/secure/lib/libssl secure/lib/libssl
 svn co $FSVN/head/secure/usr.bin/openssl secure/usr.bin/openssl
+svn co $FSVN/head/sys/crypto/openssl sys/crypto/openssl
 
 cd secure/lib/libcrypto
 
@@ -71,7 +72,8 @@ cd ../../..
 # Regen manual pages and update makefiles accordingly
 
 # Commit!
-svn ci crypto/openssl secure/lib/libcrypto secure/lib/libssl secure/usr.bin/openssl
+svn ci crypto/openssl secure/lib/libcrypto secure/lib/libssl \
+    secure/usr.bin/openssl sys/crypto/openssl
 
 					-- simon@, jkim@
 
