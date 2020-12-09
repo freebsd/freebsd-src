@@ -6,6 +6,7 @@
  *
  * Copyright (c) 1999 James Howard and Dag-Erling Coïdan Smørgrav
  * All rights reserved.
+ * Copyright (c) 2020 Kyle Evans <kevans@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -45,15 +46,33 @@ __FBSDID("$FreeBSD$");
 
 #include "grep.h"
 
-struct qentry {
-	STAILQ_ENTRY(qentry)	list;
-	struct str	 	data;
-};
+typedef struct str		qentry_t;
 
-static STAILQ_HEAD(, qentry)	queue = STAILQ_HEAD_INITIALIZER(queue);
-static long long		count;
+static long long		filled;
+static qentry_t			*qend, *qpool;
 
-static struct qentry	*dequeue(void);
+/*
+ * qnext is the next entry to populate.  qlist is where the list actually
+ * starts, for the purposes of printing.
+ */
+static qentry_t		*qlist, *qnext;
+
+void
+initqueue(void)
+{
+
+	qlist = qnext = qpool = grep_calloc(Bflag, sizeof(*qpool));
+	qend = qpool + (Bflag - 1);
+}
+
+static qentry_t *
+advqueue(qentry_t *itemp)
+{
+
+	if (itemp == qend)
+		return (qpool);
+	return (itemp + 1);
+}
 
 /*
  * Enqueue another line; return true if we've dequeued a line as a result
@@ -61,61 +80,65 @@ static struct qentry	*dequeue(void);
 bool
 enqueue(struct str *x)
 {
-	struct qentry *item;
+	qentry_t *item;
+	bool rotated;
 
-	item = grep_malloc(sizeof(struct qentry));
-	item->data.dat = grep_malloc(sizeof(char) * x->len);
-	item->data.len = x->len;
-	item->data.line_no = x->line_no;
-	item->data.boff = x->boff;
-	item->data.off = x->off;
-	memcpy(item->data.dat, x->dat, x->len);
-	item->data.file = x->file;
+	item = qnext;
+	qnext = advqueue(qnext);
+	rotated = false;
 
-	STAILQ_INSERT_TAIL(&queue, item, list);
-
-	if (++count > Bflag) {
-		item = dequeue();
-		free(item->data.dat);
-		free(item);
-		return (true);
+	if (filled < Bflag) {
+		filled++;
+	} else if (filled == Bflag) {
+		/* We had already filled up coming in; just rotate. */
+		qlist = advqueue(qlist);
+		rotated = true;
+		free(item->dat);
 	}
-	return (false);
-}
+	item->dat = grep_malloc(sizeof(char) * x->len);
+	item->len = x->len;
+	item->line_no = x->line_no;
+	item->boff = x->boff;
+	item->off = x->off;
+	memcpy(item->dat, x->dat, x->len);
+	item->file = x->file;
 
-static struct qentry *
-dequeue(void)
-{
-	struct qentry *item;
-
-	item = STAILQ_FIRST(&queue);
-	if (item == NULL)
-		return (NULL);
-
-	STAILQ_REMOVE_HEAD(&queue, list);
-	--count;
-	return (item);
+	return (rotated);
 }
 
 void
 printqueue(void)
 {
-	struct qentry *item;
+	qentry_t *item;
 
-	while ((item = dequeue()) != NULL) {
-		grep_printline(&item->data, '-');
-		free(item->data.dat);
-		free(item);
-	}
+	item = qlist;
+	do {
+		/* Buffer must have ended early. */
+		if (item->dat == NULL)
+			break;
+
+		grep_printline(item, '-');
+		free(item->dat);
+		item->dat = NULL;
+		item = advqueue(item);
+	} while (item != qlist);
+
+	qlist = qnext = qpool;
+	filled = 0;
 }
 
 void
 clearqueue(void)
 {
-	struct qentry *item;
+	qentry_t *item;
 
-	while ((item = dequeue()) != NULL) {
-		free(item->data.dat);
-		free(item);
-	}
+	item = qlist;
+	do {
+		free(item->dat);
+		item->dat = NULL;
+		item = advqueue(item);
+	} while (item != qlist);
+
+	qlist = qnext = qpool;
+	filled = 0;
 }
