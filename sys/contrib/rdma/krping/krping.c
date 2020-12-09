@@ -362,10 +362,6 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 	int ret;
 
 	BUG_ON(cb->cq != cq);
-	if (cb->state == ERROR) {
-		printk(KERN_ERR PFX "cq completion in ERROR state\n");
-		return;
-	}
 	if (cb->frtest) {
 		printk(KERN_ERR PFX "cq completion event in frtest!\n");
 		return;
@@ -384,7 +380,10 @@ static void krping_cq_event_handler(struct ib_cq *cq, void *ctx)
 				goto error;
 			}
 		}
-
+		if (cb->state == ERROR) {
+			printk(KERN_ERR PFX "cq completion in ERROR state\n");
+			return;
+		}
 		switch (wc.opcode) {
 		case IB_WC_SEND:
 			DEBUG_LOG("send completion\n");
