@@ -108,8 +108,47 @@ v6_counters_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "pr251414" "cleanup"
+pr251414_head()
+{
+	atf_set descr 'Test PR 251414'
+	atf_set require.user root
+}
+
+pr251414_body()
+{
+	pft_init
+
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair_send}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz \
+		"pass all" \
+		"table <tab> { self }" \
+		"pass in log to <tab>"
+
+	pft_set_rules noflush alcatraz \
+		"pass all" \
+		"table <tab> counters { self }" \
+		"pass in log to <tab>"
+
+	atf_check -s exit:0 -o ignore ping -c 3 192.0.2.2
+
+	jexec alcatraz pfctl -t tab -T show -vv
+}
+
+pr251414_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "v4_counters"
 	atf_add_test_case "v6_counters"
+	atf_add_test_case "pr251414"
 }
