@@ -17,7 +17,6 @@
 
 #include "arm_arch.h"
 
-__attribute__ ((visibility("hidden")))
 unsigned int OPENSSL_armcap_P = 0;
 
 #if __ARM_MAX_ARCH__<7
