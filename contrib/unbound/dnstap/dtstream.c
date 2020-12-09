@@ -341,15 +341,19 @@ int dt_io_thread_apply_cfg(struct dt_io_thread* dtio, struct config_file *cfg)
 	dtio->is_bidirectional = cfg->dnstap_bidirectional;
 
 	if(dtio->upstream_is_unix) {
+		char* nm;
 		if(!cfg->dnstap_socket_path ||
 			cfg->dnstap_socket_path[0]==0) {
 			log_err("dnstap setup: no dnstap-socket-path for "
 				"socket connect");
 			return 0;
 		}
+		nm = cfg->dnstap_socket_path;
+		if(cfg->chrootdir && cfg->chrootdir[0] && strncmp(nm,
+			cfg->chrootdir, strlen(cfg->chrootdir)) == 0)
+			nm += strlen(cfg->chrootdir);
 		free(dtio->socket_path);
-		dtio->socket_path = fname_after_chroot(cfg->dnstap_socket_path,
-			cfg, 1);
+		dtio->socket_path = strdup(nm);
 		if(!dtio->socket_path) {
 			log_err("dnstap setup: malloc failure");
 			return 0;

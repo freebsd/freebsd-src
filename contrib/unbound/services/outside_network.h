@@ -52,6 +52,7 @@ struct ub_randstate;
 struct pending_tcp;
 struct waiting_tcp;
 struct waiting_udp;
+struct reuse_tcp;
 struct infra_cache;
 struct port_comm;
 struct port_if;
@@ -106,6 +107,9 @@ struct outside_network {
 	int delayclose;
 	/** timeout for delayclose */
 	struct timeval delay_tv;
+	/** if we perform udp-connect, connect() for UDP socket to mitigate
+	 * ICMP side channel leakage */
+	int udp_connect;
 
 	/** array of outgoing IP4 interfaces */
 	struct port_if* ip4_ifs;
@@ -154,6 +158,21 @@ struct outside_network {
 	size_t num_tcp;
 	/** number of tcp communication points in use. */
 	size_t num_tcp_outgoing;
+	/**
+	 * tree of still-open and waiting tcp connections for reuse.
+	 * can be closed and reopened to get a new tcp connection.
+	 * or reused to the same destination again.  with timeout to close.
+	 * Entries are of type struct reuse_tcp.
+	 * The entries are both active and empty connections.
+	 */
+	rbtree_type tcp_reuse;
+	/** max number of tcp_reuse entries we want to keep open */
+	size_t tcp_reuse_max;
+	/** first and last(oldest) in lru list of reuse connections.
+	 * the oldest can be closed to get a new free pending_tcp if needed
+	 * The list contains empty connections, that wait for timeout or
+	 * a new query that can use the existing connection. */
+	struct reuse_tcp* tcp_reuse_first, *tcp_reuse_last;
 	/** list of tcp comm points that are free for use */
 	struct pending_tcp* tcp_free;
 	/** list of tcp queries waiting for a buffer */
@@ -212,6 +231,76 @@ struct port_comm {
 };
 
 /**
+ * Reuse TCP connection, still open can be used again.
+ */
+struct reuse_tcp {
+	/** rbtree node with links in tcp_reuse tree. key is NULL when not
+	 * in tree. Both active and empty connections are in the tree.
+	 * key is a pointer to this structure, the members used to compare
+	 * are the sockaddr and and then is-ssl bool, and then ptr value is
+	 * used in case the same address exists several times in the tree
+	 * when there are multiple connections to the same destination to
+	 * make the rbtree items unique. */
+	rbnode_type node;
+	/** the key for the tcp_reuse tree. address of peer, ip4 or ip6,
+	 * and port number of peer */
+	struct sockaddr_storage addr;
+	/** length of addr */
+	socklen_t addrlen;
+	/** also key for tcp_reuse tree, if ssl is used */
+	int is_ssl;
+	/** lru chain, so that the oldest can be removed to get a new
+	 * connection when all are in (re)use. oldest is last in list.
+	 * The lru only contains empty connections waiting for reuse,
+	 * the ones with active queries are not on the list because they
+	 * do not need to be closed to make space for others.  They already
+	 * service a query so the close for another query does not help
+	 * service a larger number of queries. */
+	struct reuse_tcp* lru_next, *lru_prev;
+	/** true if the reuse_tcp item is on the lru list with empty items */
+	int item_on_lru_list;
+	/** the connection to reuse, the fd is non-1 and is open.
+	 * the addr and port determine where the connection is going,
+	 * and is key to the rbtree.  The SSL ptr determines if it is
+	 * a TLS connection or a plain TCP connection there.  And TLS
+	 * or not is also part of the key to the rbtree.
+	 * There is a timeout and read event on the fd, to close it. */
+	struct pending_tcp* pending;
+	/**
+	 * The more read again value pointed to by the commpoint
+	 * tcp_more_read_again pointer, so that it exists after commpoint
+	 * delete
+	 */
+	int cp_more_read_again;
+	/**
+	 * The more write again value pointed to by the commpoint
+	 * tcp_more_write_again pointer, so that it exists after commpoint
+	 * delete
+	 */
+	int cp_more_write_again;
+	/** rbtree with other queries waiting on the connection, by ID number,
+	 * of type struct waiting_tcp. It is for looking up received
+	 * answers to the structure for callback.  And also to see if ID
+	 * numbers are unused and can be used for a new query.
+	 * The write_wait elements are also in the tree, so that ID numbers
+	 * can be looked up also for them.  They are bool write_wait_queued. */
+	rbtree_type tree_by_id;
+	/** list of queries waiting to be written on the channel,
+	 * if NULL no queries are waiting to be written and the pending->query
+	 * is the query currently serviced.  The first is the next in line.
+	 * They are also in the tree_by_id. Once written, the are removed
+	 * from this list, but stay in the tree. */
+	struct waiting_tcp* write_wait_first, *write_wait_last;
+	/** the outside network it is part of */
+	struct outside_network* outnet;
+};
+
+/** max number of queries on a reuse connection */
+#define MAX_REUSE_TCP_QUERIES 200
+/** timeout for REUSE entries in milliseconds. */
+#define REUSE_TIMEOUT 60000
+
+/**
  * A query that has an answer pending for it.
  */
 struct pending {
@@ -255,12 +344,15 @@ struct pending {
 struct pending_tcp {
 	/** next in list of free tcp comm points, or NULL. */
 	struct pending_tcp* next_free;
-	/** the ID for the query; checked in reply */
-	uint16_t id;
 	/** tcp comm point it was sent on (and reply must come back on). */
 	struct comm_point* c;
 	/** the query being serviced, NULL if the pending_tcp is unused. */
 	struct waiting_tcp* query;
+	/** the pre-allocated reuse tcp structure.  if ->pending is nonNULL
+	 * it is in use and the connection is waiting for reuse.
+	 * It is here for memory pre-allocation, and used to make this
+	 * pending_tcp wait for reuse. */
+	struct reuse_tcp reuse;
 };
 
 /**
@@ -269,12 +361,27 @@ struct pending_tcp {
 struct waiting_tcp {
 	/** 
 	 * next in waiting list.
-	 * if pkt==0, this points to the pending_tcp structure.
+	 * if on_tcp_waiting_list==0, this points to the pending_tcp structure.
 	 */
 	struct waiting_tcp* next_waiting;
+	/** if true the item is on the tcp waiting list and next_waiting
+	 * is used for that.  If false, the next_waiting points to the
+	 * pending_tcp */
+	int on_tcp_waiting_list;
+	/** next and prev in query waiting list for stream connection */
+	struct waiting_tcp* write_wait_prev, *write_wait_next;
+	/** true if the waiting_tcp structure is on the write_wait queue */
+	int write_wait_queued;
+	/** entry in reuse.tree_by_id, if key is NULL, not in tree, otherwise,
+	 * this struct is key and sorted by ID (from waiting_tcp.id). */
+	rbnode_type id_node;
+	/** the ID for the query; checked in reply */
+	uint16_t id;
 	/** timeout event; timer keeps running whether the query is
 	 * waiting for a buffer or the tcp reply is pending */
 	struct comm_timer* timer;
+	/** timeout in msec */
+	int timeout;
 	/** the outside network it is part of */
 	struct outside_network* outnet;
 	/** remote address. */
@@ -284,13 +391,14 @@ struct waiting_tcp {
 	/** 
 	 * The query itself, the query packet to send.
 	 * allocated after the waiting_tcp structure.
-	 * set to NULL when the query is serviced and it part of pending_tcp.
-	 * if this is NULL, the next_waiting points to the pending_tcp.
 	 */
 	uint8_t* pkt;
 	/** length of query packet. */
 	size_t pkt_len;
-	/** callback for the timeout, error or reply to the message */
+	/** callback for the timeout, error or reply to the message,
+	 * or NULL if no user is waiting. the entry uses an ID number.
+	 * a query that was written is no longer needed, but the ID number
+	 * and a reply will come back and can be ignored if NULL */
 	comm_point_callback_type* cb;
 	/** callback user argument */
 	void* cb_arg;
@@ -298,6 +406,8 @@ struct waiting_tcp {
 	int ssl_upstream;
 	/** ref to the tls_auth_name from the serviced_query */
 	char* tls_auth_name;
+	/** the packet was involved in an error, to stop looping errors */
+	int error_count;
 };
 
 /**
@@ -421,6 +531,7 @@ struct serviced_query {
  * 	msec to wait on timeouted udp sockets.
  * @param tls_use_sni: if SNI is used for TLS connections.
  * @param dtenv: environment to send dnstap events with (if enabled).
+ * @param udp_connect: if the udp_connect option is enabled.
  * @return: the new structure (with no pending answers) or NULL on error.
  */
 struct outside_network* outside_network_create(struct comm_base* base,
@@ -429,7 +540,8 @@ struct outside_network* outside_network_create(struct comm_base* base,
 	struct ub_randstate* rnd, int use_caps_for_id, int* availports, 
 	int numavailports, size_t unwanted_threshold, int tcp_mss,
 	void (*unwanted_action)(void*), void* unwanted_param, int do_udp,
-	void* sslctx, int delayclose, int tls_use_sni, struct dt_env *dtenv);
+	void* sslctx, int delayclose, int tls_use_sni, struct dt_env *dtenv,
+	int udp_connect);
 
 /**
  * Delete outside_network structure.
@@ -546,6 +658,19 @@ size_t outnet_get_mem(struct outside_network* outnet);
  */
 size_t serviced_get_mem(struct serviced_query* sq);
 
+/** Pick random ID value for a tcp stream, avoids existing IDs. */
+uint16_t reuse_tcp_select_id(struct reuse_tcp* reuse,
+	struct outside_network* outnet);
+
+/** find element in tree by id */
+struct waiting_tcp* reuse_tcp_by_id_find(struct reuse_tcp* reuse, uint16_t id);
+
+/** insert element in tree by id */
+void reuse_tree_by_id_insert(struct reuse_tcp* reuse, struct waiting_tcp* w);
+
+/** delete readwait waiting_tcp elements, deletes the elements in the list */
+void reuse_del_readwait(rbtree_type* tree_by_id);
+
 /** get TCP file descriptor for address, returns -1 on failure,
  * tcp_mss is 0 or maxseg size to set for TCP packets. */
 int outnet_get_tcp_fd(struct sockaddr_storage* addr, socklen_t addrlen, int tcp_mss, int dscp);
@@ -642,5 +767,11 @@ int pending_cmp(const void* key1, const void* key2);
 
 /** compare function of serviced query rbtree */
 int serviced_cmp(const void* key1, const void* key2);
+
+/** compare function of reuse_tcp rbtree in outside_network struct */
+int reuse_cmp(const void* key1, const void* key2);
+
+/** compare function of reuse_tcp tree_by_id rbtree */
+int reuse_id_cmp(const void* key1, const void* key2);
 
 #endif /* OUTSIDE_NETWORK_H */

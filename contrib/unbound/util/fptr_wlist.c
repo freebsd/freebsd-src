@@ -229,6 +229,8 @@ fptr_whitelist_rbtree_cmp(int (*fptr) (const void *, const void *))
 	else if(fptr == &fwd_cmp) return 1;
 	else if(fptr == &pending_cmp) return 1;
 	else if(fptr == &serviced_cmp) return 1;
+	else if(fptr == &reuse_cmp) return 1;
+	else if(fptr == &reuse_id_cmp) return 1;
 	else if(fptr == &name_tree_compare) return 1;
 	else if(fptr == &order_lock_cmp) return 1;
 	else if(fptr == &codeline_cmp) return 1;
