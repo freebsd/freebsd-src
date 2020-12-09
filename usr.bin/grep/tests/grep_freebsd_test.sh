@@ -87,9 +87,7 @@ gnuext_body()
 {
 	grep_type
 	_type=$?
-	if [ $_type -eq $GREP_TYPE_BSD ]; then
-		atf_expect_fail "this test requires GNU extensions in regex(3)"
-	elif [ $_type -eq $GREP_TYPE_GNU_FREEBSD ]; then
+	if [ $_type -eq $GREP_TYPE_GNU_FREEBSD ]; then
 		atf_expect_fail "\\s and \\S are known to be buggy in base gnugrep"
 	fi
 
