@@ -707,6 +707,8 @@ main(int argc, char *argv[])
 	if ((aargc == 0 || aargc == 1) && !Hflag)
 		hflag = true;
 
+	initqueue();
+
 	if (aargc == 0 && dirbehave != DIR_RECURSE)
 		exit(!procfile("-"));
 
