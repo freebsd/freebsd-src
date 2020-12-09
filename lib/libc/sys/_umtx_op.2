@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2020
+.Dd November 23, 2020
 .Dt _UMTX_OP 2
 .Os
 .Sh NAME
@@ -1272,6 +1272,79 @@ See
 .Sx ROBUST UMUTEXES
 subsection for details.
 .El
+.Pp
+The
+.Fa op
+argument may be a bitwise OR of a single command from above with one or more of
+the following flags:
+.Bl -tag -width indent
+.It Dv UMTX_OP__I386
+Request i386 ABI compatibility from the native
+.Nm
+system call.
+Specifically, this implies that:
+.Bl -hang -offset indent
+.It
+.Fa obj
+arguments that point to a word, point to a 32-bit integer.
+.It
+The
+.Dv UMTX_OP_NWAKE_PRIVATE
+.Fa obj
+argument is a pointer to an array of 32-bit pointers.
+.It
+The
+.Dv m_rb_lnk
+member of
+.Vt struct umutex
+is a 32-bit pointer.
+.It
+.Vt struct timespec
+uses a 32-bit time_t.
+.El
+.Pp
+.Dv UMTX_OP__32BIT
+has no effect if this flag is set.
+This flag is valid for all architectures, but it is ignored on i386.
+.It Dv UMTX_OP__32BIT
+Request non-i386, 32-bit ABI compatibility from the native
+.Nm
+system call.
+Specifically, this implies that:
+.Bl -hang -offset indent
+.It
+.Fa obj
+arguments that point to a word, point to a 32-bit integer.
+.It
+The
+.Dv UMTX_OP_NWAKE_PRIVATE
+.Fa obj
+argument is a pointer to an array of 32-bit pointers.
+.It
+The
+.Dv m_rb_lnk
+member of
+.Vt struct umutex
+is a 32-bit pointer.
+.It
+.Vt struct timespec
+uses a 64-bit time_t.
+.El
+.Pp
+This flag has no effect if
+.Dv UMTX_OP__I386
+is set.
+This flag is valid for all architectures.
+.El
+.Pp
+Note that if any 32-bit ABI compatibility is being requested, then care must be
+taken with robust lists.
+A single thread may not mix 32-bit compatible robust lists with native
+robust lists.
+The first
+.Dv UMTX_OP_ROBUST_LISTS
+call in a given thread determines which ABI that thread will use for robust
+lists going forward.
 .Sh RETURN VALUES
 If successful,
 all requests, except
