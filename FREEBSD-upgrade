@@ -11,7 +11,7 @@ First, read http://wiki.freebsd.org/SubversionPrimer/VendorImports
 # Xlist
 setenv XLIST /FreeBSD/work/openssl/svn-FREEBSD-files/FREEBSD-Xlist
 setenv FSVN "svn+ssh://repo.freebsd.org/base"
-setenv OSSLVER 1.1.1h
+setenv OSSLVER 1.1.1i
 
 ###setenv OSSLTAG v`echo ${OSSLVER} | tr . _`
 
@@ -64,16 +64,11 @@ cd secure/lib/libcrypto
 
 # Regen assembly files if necessary
 make -f Makefile.asm all
-mv *.[Ss] ${MACHINE_CPUARCH}
+mv *.S sys/crypto/openssl/${MACHINE_CPUARCH}
 make -f Makefile.asm clean
-
-# Regen manual pages
-make man-makefile-update && make man-update
-cd ../libssl
-make man-makefile-update && make man-update
-cd ../../usr.bin/openssl
-make man-makefile-update && make man-update
 cd ../../..
+
+# Regen manual pages and update makefiles accordingly
 
 # Commit!
 svn ci crypto/openssl secure/lib/libcrypto secure/lib/libssl secure/usr.bin/openssl
