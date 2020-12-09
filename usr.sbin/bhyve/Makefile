@@ -50,6 +50,7 @@ SRCS=	\
 	pci_virtio_scsi.c	\
 	pci_uart.c		\
 	pci_xhci.c		\
+	pctestdev.c		\
 	pm.c			\
 	post.c			\
 	ps2kbd.c		\
