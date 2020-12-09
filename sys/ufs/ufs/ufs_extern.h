@@ -119,6 +119,13 @@ void	softdep_revert_rmdir(struct inode *, struct inode *);
  *
  * Note: The general vfs code typically limits the sequential heuristic
  * count to 127.  See sequential_heuristic() in kern/vfs_vnops.c
+ *
+ * The BA_CLRBUF flag specifies that the existing content of the block
+ * will not be completely overwritten by the caller, so buffers for new
+ * blocks must be cleared and buffers for existing blocks must be read.
+ * When BA_CLRBUF is not set the buffer will be completely overwritten
+ * and there is no reason to clear them or to spend I/O fetching existing
+ * data. The BA_CLRBUF flag is handled in the UFS_BALLOC() functions.
  */
 #define	BA_CLRBUF	0x00010000	/* Clear invalid areas of buffer. */
 #define	BA_METAONLY	0x00020000	/* Return indirect block buffer. */
