@@ -888,12 +888,20 @@ print_integer_arg(const char *(*decoder)(int), FILE *fp, int value)
 		fprintf(fp, "%d", value);
 }
 
+static bool
+print_mask_arg_part(bool (*decoder)(FILE *, int, int *), FILE *fp, int value,
+    int *rem)
+{
+
+	return (decoder(fp, value, rem));
+}
+
 static void
 print_mask_arg(bool (*decoder)(FILE *, int, int *), FILE *fp, int value)
 {
 	int rem;
 
-	if (!decoder(fp, value, &rem))
+	if (!print_mask_arg_part(decoder, fp, value, &rem))
 		fprintf(fp, "0x%x", rem);
 	else if (rem != 0)
 		fprintf(fp, "|0x%x", rem);
@@ -2303,9 +2311,15 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 	case Procctl:
 		print_integer_arg(sysdecode_procctl_cmd, fp, args[sc->offset]);
 		break;
-	case Umtxop:
-		print_integer_arg(sysdecode_umtx_op, fp, args[sc->offset]);
+	case Umtxop: {
+		int rem;
+
+		if (print_mask_arg_part(sysdecode_umtx_op_flags, fp,
+		    args[sc->offset], &rem))
+			fprintf(fp, "|");
+		print_integer_arg(sysdecode_umtx_op, fp, rem);
 		break;
+	}
 	case Atfd:
 		print_integer_arg(sysdecode_atfd, fp, args[sc->offset]);
 		break;
