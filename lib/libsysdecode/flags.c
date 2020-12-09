@@ -941,6 +941,20 @@ sysdecode_umtx_op(int op)
 	return (lookup_value(umtxop, op));
 }
 
+bool
+sysdecode_umtx_op_flags(FILE *fp, int op, int *rem)
+{
+	uintmax_t val;
+	bool printed;
+
+	printed = false;
+	val = (unsigned)op;
+	print_mask_part(fp, umtxopflags, &val, &printed);
+	if (rem != NULL)
+		*rem = val;
+	return (printed);
+}
+
 const char *
 sysdecode_vmresult(int result)
 {
