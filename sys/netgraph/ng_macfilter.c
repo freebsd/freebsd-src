@@ -76,9 +76,9 @@ MALLOC_DEFINE(M_NETGRAPH_MACFILTER, "netgraph_macfilter", "netgraph macfilter no
 #define MACTABLE_BLOCKSIZE      128      /* block size for incrementing table */
 
 #ifdef NG_MACFILTER_DEBUG
-#define DEBUG(fmt, ...)         printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
+#define MACFILTER_DEBUG(fmt, ...)         printf("%s:%d: " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
 #else
-#define DEBUG(fmt, ...)
+#define MACFILTER_DEBUG(fmt, ...)
 #endif
 #define MAC_FMT                 "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_S_ARGS(v)           (v)[0], (v)[1], (v)[2], (v)[3], (v)[4], (v)[5]
@@ -148,7 +148,7 @@ macfilter_get_upper_hook_count(const struct ng_parse_type *type,
 	const struct ngm_macfilter_hooks *const ngm_hooks =
 	    (const struct ngm_macfilter_hooks *)(buf - OFFSETOF(struct ngm_macfilter_hooks, hooks));
 
-        DEBUG("buf %p, ngm_hooks %p, n %d", buf, ngm_hooks, ngm_hooks->n);
+        MACFILTER_DEBUG("buf %p, ngm_hooks %p, n %d", buf, ngm_hooks, ngm_hooks->n);
 
 	return ngm_hooks->n;
 }
@@ -294,7 +294,7 @@ macfilter_mactable_resize(macfilter_p mfp)
         n = mfp->mf_mac_allocated + MACTABLE_BLOCKSIZE;
 
     if (n != mfp->mf_mac_allocated) {
-        DEBUG("used=%d allocated=%d->%d",
+        MACFILTER_DEBUG("used=%d allocated=%d->%d",
               mfp->mf_mac_used, mfp->mf_mac_allocated, n);
         
         mf_mac_p mfp_new = realloc(mfp->mf_macs,
@@ -410,7 +410,7 @@ macfilter_mactable_change(macfilter_p mfp, u_char *ether, int hookid)
 
     mf_mac_p mf_macs = mfp->mf_macs;
 
-    DEBUG("ether=" MAC_FMT " found=%d i=%d ether=" MAC_FMT " hookid=%d->%d used=%d allocated=%d",
+    MACFILTER_DEBUG("ether=" MAC_FMT " found=%d i=%d ether=" MAC_FMT " hookid=%d->%d used=%d allocated=%d",
           MAC_S_ARGS(ether), found, i, MAC_S_ARGS(mf_macs[i].ether),
           (found? mf_macs[i].hookid:NG_MACFILTER_HOOK_DEFAULT_ID), hookid,
           mfp->mf_mac_used, mfp->mf_mac_allocated);
@@ -493,7 +493,7 @@ macfilter_find_hook(macfilter_p mfp, const char *hookname)
 static int
 macfilter_direct(macfilter_p mfp, struct ngm_macfilter_direct *md)
 {
-    DEBUG("ether=" MAC_FMT " hook=%s",
+    MACFILTER_DEBUG("ether=" MAC_FMT " hook=%s",
         MAC_S_ARGS(md->ether), md->hookname);
 
     int hookid = macfilter_find_hook(mfp, md->hookname);
@@ -506,7 +506,7 @@ macfilter_direct(macfilter_p mfp, struct ngm_macfilter_direct *md)
 static int
 macfilter_direct_hookid(macfilter_p mfp, struct ngm_macfilter_direct_hookid *mdi)
 {
-    DEBUG("ether=" MAC_FMT " hookid=%d",
+    MACFILTER_DEBUG("ether=" MAC_FMT " hookid=%d",
         MAC_S_ARGS(mdi->ether), mdi->hookid);
 
     if (mdi->hookid >= mfp->mf_upper_cnt)
@@ -545,13 +545,13 @@ macfilter_ether_output(hook_p hook, macfilter_p mfp, struct mbuf *m, hook_p *nex
             mf_macs[i].bytes_out += m->m_len - ETHER_HDR_LEN;
     
 #ifdef NG_MACFILTER_DEBUG_RECVDATA
-        DEBUG("ether=" MAC_FMT " len=%db->%lldb: bytes: %s -> %s",
+        MACFILTER_DEBUG("ether=" MAC_FMT " len=%db->%lldb: bytes: %s -> %s",
             MAC_S_ARGS(ether), m->m_len - ETHER_HDR_LEN, mf_macs[i].bytes_out,
             NG_HOOK_NAME(hook), NG_HOOK_NAME(*next_hook));
 #endif
     } else {
 #ifdef NG_MACFILTER_DEBUG_RECVDATA
-        DEBUG("ether=" MAC_FMT " len=%db->?b: bytes: %s->%s",
+        MACFILTER_DEBUG("ether=" MAC_FMT " len=%db->?b: bytes: %s->%s",
             MAC_S_ARGS(ether), m->m_len - ETHER_HDR_LEN,
             NG_HOOK_NAME(hook), NG_HOOK_NAME(*next_hook));
 #endif
@@ -587,13 +587,13 @@ macfilter_ether_input(hook_p hook, macfilter_p mfp, struct mbuf *m, hook_p *next
         hookid = mf_macs[i].hookid;
     
 #ifdef NG_MACFILTER_DEBUG_RECVDATA
-        DEBUG("ether=" MAC_FMT " len=%db->%lldb: bytes: %s->%s",
+        MACFILTER_DEBUG("ether=" MAC_FMT " len=%db->%lldb: bytes: %s->%s",
             MAC_S_ARGS(ether), m->m_len - ETHER_HDR_LEN, mf_macs[i].bytes_in,
             NG_HOOK_NAME(hook), NG_HOOK_NAME(*next_hook));
 #endif
     } else {
 #ifdef NG_MACFILTER_DEBUG_RECVDATA
-        DEBUG("ether=" MAC_FMT " len=%db->?b: bytes: %s->%s",
+        MACFILTER_DEBUG("ether=" MAC_FMT " len=%db->?b: bytes: %s->%s",
             MAC_S_ARGS(ether), m->m_len - ETHER_HDR_LEN,
             NG_HOOK_NAME(hook), NG_HOOK_NAME(*next_hook));
 #endif
@@ -642,7 +642,7 @@ ng_macfilter_newhook(node_p node, hook_p hook, const char *hookname)
 {
     const macfilter_p mfp = NG_NODE_PRIVATE(node);
 
-    DEBUG("%s", hookname);
+    MACFILTER_DEBUG("%s", hookname);
 
     if (strcmp(hookname, NG_MACFILTER_HOOK_ETHER) == 0) {
 	mfp->mf_ether_hook = hook;
@@ -657,7 +657,7 @@ ng_macfilter_newhook(node_p node, hook_p hook, const char *hookname)
         }
 
         if (hookid >= mfp->mf_upper_cnt) {
-            DEBUG("upper cnt %d -> %d", mfp->mf_upper_cnt, hookid + 1);
+            MACFILTER_DEBUG("upper cnt %d -> %d", mfp->mf_upper_cnt, hookid + 1);
 
             mfp->mf_upper_cnt = hookid + 1;
             mfp->mf_upper = realloc(mfp->mf_upper,
@@ -700,7 +700,7 @@ ng_macfilter_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 	case NGM_MACFILTER_DIRECT:
 	    if (msg->header.arglen != sizeof(struct ngm_macfilter_direct)) {
-		DEBUG("direct: wrong type length (%d, expected %d)",
+		MACFILTER_DEBUG("direct: wrong type length (%d, expected %zu)",
                       msg->header.arglen, sizeof(struct ngm_macfilter_direct));
 		error = EINVAL;
 		break;
@@ -710,7 +710,7 @@ ng_macfilter_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	    break;
 	case NGM_MACFILTER_DIRECT_HOOKID:
 	    if (msg->header.arglen != sizeof(struct ngm_macfilter_direct_hookid)) {
-		DEBUG("direct hookid: wrong type length (%d, expected %d)",
+		MACFILTER_DEBUG("direct hookid: wrong type length (%d, expected %zu)",
                       msg->header.arglen, sizeof(struct ngm_macfilter_direct));
 		error = EINVAL;
 		break;
@@ -793,7 +793,7 @@ ng_macfilter_rcvdata(hook_p hook, item_p item)
     struct mbuf *m;
 
     m = NGI_M(item);	/* 'item' still owns it. We are peeking */
-    DEBUG("%s", NG_HOOK_NAME(hook));
+    MACFILTER_DEBUG("%s", NG_HOOK_NAME(hook));
 
     if (hook == mfp->mf_ether_hook)
 	error = macfilter_ether_input(hook, mfp, m, &next_hook);
@@ -820,7 +820,7 @@ ng_macfilter_disconnect(hook_p hook)
     if (mfp->mf_ether_hook == hook) {
         mfp->mf_ether_hook = NULL;
 
-        DEBUG("%s", NG_HOOK_NAME(hook));
+        MACFILTER_DEBUG("%s", NG_HOOK_NAME(hook));
     } else {
         int hookid;
 
@@ -833,7 +833,7 @@ ng_macfilter_disconnect(hook_p hook)
 #else
                 int cnt = macfilter_mactable_remove_by_hookid(mfp, hookid);
 
-                DEBUG("%s: removed %d MACs", NG_HOOK_NAME(hook), cnt);
+                MACFILTER_DEBUG("%s: removed %d MACs", NG_HOOK_NAME(hook), cnt);
 #endif
                 break;
             }
@@ -844,7 +844,7 @@ ng_macfilter_disconnect(hook_p hook)
             for (--hookid; hookid >= 0 && mfp->mf_upper[hookid] == NULL; hookid--)
                 ;
 
-            DEBUG("upper cnt %d -> %d", mfp->mf_upper_cnt, hookid + 1);
+            MACFILTER_DEBUG("upper cnt %d -> %d", mfp->mf_upper_cnt, hookid + 1);
             mfp->mf_upper_cnt = hookid + 1;
             mfp->mf_upper = realloc(mfp->mf_upper,
                     sizeof(mfp->mf_upper[0])*mfp->mf_upper_cnt,
