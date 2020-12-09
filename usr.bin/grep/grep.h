@@ -149,6 +149,7 @@ char	*grep_strdup(const char *str);
 void	 grep_printline(struct str *line, int sep);
 
 /* queue.c */
+void	 initqueue(void);
 bool	 enqueue(struct str *x);
 void	 printqueue(void);
 void	 clearqueue(void);
