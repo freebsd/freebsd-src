@@ -143,6 +143,8 @@ struct config_file {
 	size_t http_response_buffer_size;
 	/** set TCP_NODELAY option for http sockets */
 	int http_nodelay;
+	/** Disable TLS for http sockets downstream */
+	int http_notls_downstream;
 
 	/** outgoing port range number of ports (per thread) */
 	int outgoing_num_ports;
@@ -179,8 +181,12 @@ struct config_file {
 	size_t infra_cache_numhosts;
 	/** min value for infra cache rtt */
 	int infra_cache_min_rtt;
+	/** keep probing hosts that are down */
+	int infra_keep_probing;
 	/** delay close of udp-timeouted ports, if 0 no delayclose. in msec */
 	int delay_close;
+	/** udp_connect enable uses UDP connect to mitigate ICMP side channel */
+	int udp_connect;
 
 	/** the target fetch policy for the iterator */
 	char* target_fetch_policy;
@@ -562,10 +568,10 @@ struct config_file {
 	/** SHM data - key for the shm */
 	int shm_key;
 
-	/** list of EDNS client tag entries, linked list */
-	struct config_str2list* edns_client_tags;
-	/** EDNS opcode to use for EDNS client tags */
-	uint16_t edns_client_tag_opcode;
+	/** list of EDNS client string entries, linked list */
+	struct config_str2list* edns_client_strings;
+	/** EDNS opcode to use for EDNS client strings */
+	uint16_t edns_client_string_opcode;
 
 	/** DNSCrypt */
 	/** true to enable dnscrypt */

@@ -134,15 +134,13 @@ dt_create(struct config_file* cfg)
 
 	if(cfg->dnstap && cfg->dnstap_socket_path && cfg->dnstap_socket_path[0] &&
 		(cfg->dnstap_ip==NULL || cfg->dnstap_ip[0]==0)) {
-		char* p = fname_after_chroot(cfg->dnstap_socket_path, cfg, 1);
-		if(!p) {
-			log_err("malloc failure");
-			return NULL;
-		}
+		char* p = cfg->dnstap_socket_path;
+		if(cfg->chrootdir && cfg->chrootdir[0] && strncmp(p,
+			cfg->chrootdir, strlen(cfg->chrootdir)) == 0)
+			p += strlen(cfg->chrootdir);
 		verbose(VERB_OPS, "attempting to connect to dnstap socket %s",
 			p);
 		check_socket_file(p);
-		free(p);
 	}
 
 	env = (struct dt_env *) calloc(1, sizeof(struct dt_env));

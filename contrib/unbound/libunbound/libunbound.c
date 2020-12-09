@@ -154,8 +154,8 @@ static struct ub_ctx* ub_ctx_create_nopipe(void)
 		errno = ENOMEM;
 		return NULL;
 	}
-	ctx->env->edns_tags = edns_tags_create();
-	if(!ctx->env->edns_tags) {
+	ctx->env->edns_strings = edns_strings_create();
+	if(!ctx->env->edns_strings) {
 		auth_zones_delete(ctx->env->auth_zones);
 		edns_known_options_delete(ctx->env);
 		config_delete(ctx->env->cfg);
@@ -186,7 +186,7 @@ ub_ctx_create(void)
 		config_delete(ctx->env->cfg);
 		modstack_desetup(&ctx->mods, ctx->env);
 		edns_known_options_delete(ctx->env);
-		edns_tags_delete(ctx->env->edns_tags);
+		edns_strings_delete(ctx->env->edns_strings);
 		free(ctx->env);
 		free(ctx);
 		errno = e;
@@ -199,7 +199,7 @@ ub_ctx_create(void)
 		config_delete(ctx->env->cfg);
 		modstack_desetup(&ctx->mods, ctx->env);
 		edns_known_options_delete(ctx->env);
-		edns_tags_delete(ctx->env->edns_tags);
+		edns_strings_delete(ctx->env->edns_strings);
 		free(ctx->env);
 		free(ctx);
 		errno = e;
@@ -338,7 +338,7 @@ ub_ctx_delete(struct ub_ctx* ctx)
 		infra_delete(ctx->env->infra_cache);
 		config_delete(ctx->env->cfg);
 		edns_known_options_delete(ctx->env);
-		edns_tags_delete(ctx->env->edns_tags);
+		edns_strings_delete(ctx->env->edns_strings);
 		auth_zones_delete(ctx->env->auth_zones);
 		free(ctx->env);
 	}
