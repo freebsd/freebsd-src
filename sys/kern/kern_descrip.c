@@ -2466,9 +2466,13 @@ fdescfree_fds(struct thread *td, struct filedesc *fdp, bool needclose)
 	KASSERT(refcount_load(&fdp->fd_refcnt) == 0,
 	    ("%s: fd table %p carries references", __func__, fdp));
 
-	/* Serialize with threads iterating over the table. */
-	FILEDESC_XLOCK(fdp);
-	FILEDESC_XUNLOCK(fdp);
+	/*
+	 * Serialize with threads iterating over the table, if any.
+	 */
+	if (refcount_load(&fdp->fd_holdcnt) > 1) {
+		FILEDESC_XLOCK(fdp);
+		FILEDESC_XUNLOCK(fdp);
+	}
 
 	lastfile = fdlastfile_single(fdp);
 	for (i = 0; i <= lastfile; i++) {
