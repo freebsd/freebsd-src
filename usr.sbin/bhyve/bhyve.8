@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Jun 25, 2020
+.Dd December 8, 2020
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -104,7 +104,8 @@ Enable a low-level console device supported by
 .Fx
 kernels compiled with
 .Cd "device bvmconsole" .
-This option will be deprecated in a future version.
+This option is deprecated and will be removed in
+.Fx 13.0 .
 .It Fl c Op Ar setting ...
 Number of guest virtual CPUs
 and/or the CPU topology.
@@ -145,7 +146,8 @@ kernels compiled with
 .Cd "device bvmdebug" ,
 allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
 via a local IPv4 address and this port.
-This option will be deprecated in a future version.
+This option is deprecated and will be removed in
+.Fx 13.0 .
 .It Fl G Ar port
 Start a debug server that uses the GDB protocol to export guest state to a
 debugger.
