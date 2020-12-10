@@ -223,6 +223,15 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
         break;
 
     case ASN1_ITYPE_MSTRING:
+        /*
+         * It never makes sense for multi-strings to have implicit tagging, so
+         * if tag != -1, then this looks like an error in the template.
+         */
+        if (tag != -1) {
+            ASN1err(ASN1_F_ASN1_ITEM_EX_D2I, ASN1_R_BAD_TEMPLATE);
+            goto err;
+        }
+
         p = *in;
         /* Just read in tag and class */
         ret = asn1_check_tlen(NULL, &otag, &oclass, NULL, NULL,
@@ -240,6 +249,7 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
             ASN1err(ASN1_F_ASN1_ITEM_EX_D2I, ASN1_R_MSTRING_NOT_UNIVERSAL);
             goto err;
         }
+
         /* Check tag matches bit map */
         if (!(ASN1_tag2bit(otag) & it->utype)) {
             /* If OPTIONAL, assume this is OK */
@@ -316,6 +326,15 @@ static int asn1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in,
         goto err;
 
     case ASN1_ITYPE_CHOICE:
+        /*
+         * It never makes sense for CHOICE types to have implicit tagging, so
+         * if tag != -1, then this looks like an error in the template.
+         */
+        if (tag != -1) {
+            ASN1err(ASN1_F_ASN1_ITEM_EX_D2I, ASN1_R_BAD_TEMPLATE);
+            goto err;
+        }
+
         if (asn1_cb && !asn1_cb(ASN1_OP_D2I_PRE, pval, it, NULL))
             goto auxerr;
         if (*pval) {
