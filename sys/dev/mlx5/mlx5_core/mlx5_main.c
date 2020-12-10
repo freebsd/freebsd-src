@@ -1634,7 +1634,7 @@ static int init_one(struct pci_dev *pdev,
 	}
 #endif
 
-	pci_save_state(bsddev);
+	pci_save_state(pdev);
 	return 0;
 
 clean_health:
@@ -1709,8 +1709,8 @@ static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
 	}
 	pci_set_master(pdev);
 	pci_set_powerstate(pdev->dev.bsddev, PCI_POWERSTATE_D0);
-	pci_restore_state(pdev->dev.bsddev);
-	pci_save_state(pdev->dev.bsddev);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
 
 	return err ? PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_RECOVERED;
 }
