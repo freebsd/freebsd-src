@@ -108,6 +108,21 @@
 	<entry>15&nbsp;September&nbsp;2020</entry>
 	<entry><para>Privilege escalation</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:31.icmp6.asc">FreeBSD-SA-20:31.icmp6</link></entry>
+	<entry>1&nbsp;December&nbsp;2019</entry>
+	<entry><para>Use-after-free in error message
+	  handling</para></entry>
+      </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-SA-20:32.rtsold.asc">FreeBSD-SA-20:32.rtsold</link></entry>
+	<entry>1&nbsp;December&nbsp;2019</entry>
+	<entry><para>Multiple vulnerabilities</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>

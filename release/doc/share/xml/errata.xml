@@ -38,6 +38,14 @@
 	<entry>2&nbsp;September&nbsp;2020</entry>
 	<entry><para>Kernel panic</para></entry>
       </row>
+
+      <row>
+	<entry><link
+	    xlink:href="&security.url;/FreeBSD-EN-20:20.tzdata.asc">FreeBSD-EN-20:20.tzdata</link></entry>
+	<entry>1&nbsp;December&nbsp;2020</entry>
+	<entry><para>Timezone database information
+	  update</para></entry>
+      </row>
     </tbody>
   </tgroup>
 </informaltable>
