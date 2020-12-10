@@ -9,8 +9,8 @@ BCDIR=		${SRCTOP}/contrib/${PROGNAME}
 BCVERSION!=	sed -n -e '/.*VERSION *= *[0-9]/s/.*VERSION *= *//p' ${BCDIR}/Makefile.in
 
 SRCS=		args.c data.c file.c lang.c lex.c main.c num.c parse.c program.c read.c vector.c vm.c
-SRCS+=		bc/bc.c bc/lex.c bc/parse.c dc/dc.c dc/lex.c dc/parse.c history/history.c
-SRCS+=		bc_help.c dc_help.c lib.c lib2.c opt.c rand/rand.c
+SRCS+=		bc.c bc_lex.c bc_parse.c dc.c dc_lex.c dc_parse.c history.c library.c
+SRCS+=		bc_help.c dc_help.c lib.c lib2.c opt.c rand.c
 MAN=		bc.1 dc.1
 
 LINKS=		${BINDIR}/bc ${BINDIR}/dc
@@ -95,17 +95,17 @@ NLSLINKS_pt_PT.ISO8859-1+= pt_BR.ISO8859-1
 NLSLINKS_pt_PT.ISO8859-1+= pt_PT.ISO8859-15
 .endif
 
-lib.c:		lib.bc
-		cd ${BCDIR} && sh gen/strgen.sh gen/lib.bc ${.OBJDIR}/lib.c bc_lib bc.h bc_lib_name 1 1
+lib.c:		lib.bc Makefile
+		cd ${BCDIR} && sh gen/strgen.sh gen/lib.bc ${.OBJDIR}/lib.c bc_lib bc_lib_name 1 1
 
-lib2.c:		lib2.bc
-		cd ${BCDIR} && sh gen/strgen.sh gen/lib2.bc ${.OBJDIR}/lib2.c bc_lib2 bc.h bc_lib2_name 1 1
+lib2.c:		lib2.bc Makefile
+		cd ${BCDIR} && sh gen/strgen.sh gen/lib2.bc ${.OBJDIR}/lib2.c bc_lib2 bc_lib2_name 1 1
 
-bc_help.c:	bc_help.txt
-		cd ${BCDIR} && sh gen/strgen.sh gen/bc_help.txt ${.OBJDIR}/bc_help.c bc_help bc.h
+bc_help.c:	bc_help.txt Makefile
+		cd ${BCDIR} && sh gen/strgen.sh gen/bc_help.txt ${.OBJDIR}/bc_help.c bc_help
 
-dc_help.c:	dc_help.txt
-		cd ${BCDIR} && sh gen/strgen.sh gen/dc_help.txt ${.OBJDIR}/dc_help.c dc_help dc.h
+dc_help.c:	dc_help.txt Makefile
+		cd ${BCDIR} && sh gen/strgen.sh gen/dc_help.txt ${.OBJDIR}/dc_help.c dc_help
 
 bc.1:
 		${CP} ${BCDIR}/manuals/${MAN_SRC_BC} ${.OBJDIR}/bc.1

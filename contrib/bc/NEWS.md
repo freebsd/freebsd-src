@@ -1,5 +1,50 @@
 # News
 
+## 3.2.3
+
+This is a production release that fixes a bug in `gen/strgen.sh`. I recently
+changed `gen/strgen.c`, but I did not change `gen/strgen.sh`.
+
+Users that do not use `gen/strgen.sh` do not need to upgrade.
+
+## 3.2.2
+
+This is a production release that fixes a portability bug in `configure.sh`. The
+bug was using the GNU `find` extension `-wholename`.
+
+## 3.2.1
+
+This is a production release that has one fix for `bcl(3)`. It is technically
+not a bug fix since the behavior is undefined, but the `BclNumber`s that
+`bcl_divmod()` returns will be set to `BCL_ERROR_INVALID_NUM` if there is an
+error. Previously, they were not set.
+
+## 3.2.0
+
+This is a production release that has one bug fix and a major addition.
+
+The bug fix was a missing `auto` variable in the bessel `j()` function in the
+math library.
+
+The major addition is a way to build a version of `bc`'s math code as a library.
+This is done with the `-a` option to `configure.sh`. The API for the library can
+be read in `./manuals/bcl.3.md` or `man bcl` once the library is installed with
+`make install`.
+
+This library was requested by developers before I even finished version 1.0, but
+I could not figure out how to do it until now.
+
+If the library has API breaking changes, the major version of `bc` will be
+incremented.
+
+## 3.1.6
+
+This is a production release that fixes a new warning from Clang 12 for FreeBSD
+and also removes some possible undefined behavior found by UBSan that compilers
+did not seem to take advantage of.
+
+Users do ***NOT*** need to upgrade, if they do not want to.
+
 ## 3.1.5
 
 This is a production release that fixes the Chinese locales (which caused `bc`

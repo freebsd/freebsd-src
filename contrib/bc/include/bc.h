@@ -173,6 +173,10 @@ extern const BcParseNext bc_parse_next_elem;
 extern const BcParseNext bc_parse_next_for;
 extern const BcParseNext bc_parse_next_read;
 
+#else // BC_ENABLED
+
+#define BC_PARSE_NO_EXEC(p) (0)
+
 #endif // BC_ENABLED
 
 #endif // BC_BC_H
