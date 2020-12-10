@@ -2761,7 +2761,7 @@ prop_filter_compile(struct prop_filter *pfilter, char *filter)
 	/*
 	 * Here's some filter examples mentioned in syslog.conf(5)
 	 * 'msg, contains, ".*Deny.*"'
-	 * 'processname, regex, "^bird6?$"'
+	 * 'programname, regex, "^bird6?$"'
 	 * 'hostname, icase_ereregex, "^server-(dcA|podB)-rack1[0-9]{2}\\..*"'
 	 */
 
