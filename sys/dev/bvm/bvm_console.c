@@ -107,6 +107,8 @@ static void
 cn_drvinit(void *unused)
 {
 	struct tty *tp;
+    
+	gone_in(13, "bvmconsole");
 
 	if (bvm_consdev.cn_pri != CN_DEAD) {
 		tp = tty_alloc(&bvm_ttydevsw, NULL);
