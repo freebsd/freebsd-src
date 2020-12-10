@@ -625,8 +625,8 @@ linux_dma_alloc_coherent(struct device *dev, size_t size,
 	else
 		high = BUS_SPACE_MAXADDR;
 	align = PAGE_SIZE << get_order(size);
-	mem = (void *)kmem_alloc_contig(size, flag, 0, high, align, 0,
-	    VM_MEMATTR_DEFAULT);
+	mem = (void *)kmem_alloc_contig(size, flag & GFP_NATIVE_MASK, 0, high,
+	    align, 0, VM_MEMATTR_DEFAULT);
 	if (mem != NULL) {
 		*dma_handle = linux_dma_map_phys(dev, vtophys(mem), size);
 		if (*dma_handle == 0) {
@@ -932,7 +932,7 @@ linux_dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 {
 	struct linux_dma_obj *obj;
 
-	obj = uma_zalloc_arg(pool->pool_zone, pool, mem_flags);
+	obj = uma_zalloc_arg(pool->pool_zone, pool, mem_flags & GFP_NATIVE_MASK);
 	if (obj == NULL)
 		return (NULL);
 
