@@ -179,6 +179,9 @@ page_fault_handler(struct trapframe *frame, int usermode)
 	vm_offset_t va;
 	struct proc *p;
 	int error, sig, ucode;
+#ifdef KDB
+	bool handled;
+#endif
 
 #ifdef KDB
 	if (kdb_active) {
@@ -250,6 +253,15 @@ done:
 
 fatal:
 	dump_regs(frame);
+#ifdef KDB
+	if (debugger_on_trap) {
+		kdb_why = KDB_WHY_TRAP;
+		handled = kdb_trap(frame->tf_scause & SCAUSE_CODE, 0, frame);
+		kdb_why = KDB_WHY_UNSET;
+		if (handled)
+			return;
+	}
+#endif
 	panic("Fatal page fault at %#lx: %#016lx", frame->tf_sepc, stval);
 }
 
