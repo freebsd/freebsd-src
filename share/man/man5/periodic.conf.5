@@ -252,6 +252,22 @@ Files will be deleted using the same criteria as
 would normally use when determining whether to believe the cached information,
 as configured in
 .Pa /etc/mail/sendmail.cf .
+.It Va daily_backup_efi_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+To create backup of EFI System Partion (ESP).
+.It Va daily_backup_gpart_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+To create backups of partition tables, and bootcode partition contents.
+.It Va daily_backup_gpart_verbose
+.Pq Vt bool
+Set to
+.Dq Li YES
+To be verbose if existing backups for kern.geom.conftxt or the partition tables differ
+from the new backups.
 .It Va daily_backup_passwd_enable
 .Pq Vt bool
 Set to
