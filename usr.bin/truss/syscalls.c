@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
  * arguments.
  */
 
+#include <sys/aio.h>
 #include <sys/capsicum.h>
 #include <sys/types.h>
 #define	_WANT_FREEBSD11_KEVENT
@@ -125,6 +126,24 @@ static struct syscall decoded_syscalls[] = {
 	  .args = { { Int, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
 	{ .name = "access", .ret_type = 1, .nargs = 2,
 	  .args = { { Name | IN, 0 }, { Accessmode, 1 } } },
+	{ .name = "aio_cancel", .ret_type = 1, .nargs = 2,
+	  .args = { { Int, 0 }, { Aiocb, 1 } } },
+	{ .name = "aio_error", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
+	{ .name = "aio_fsync", .ret_type = 1, .nargs = 2,
+	  .args = { { AiofsyncOp, 0 }, { Aiocb, 1 } } },
+	{ .name = "aio_mlock", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
+	{ .name = "aio_read", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
+	{ .name = "aio_return", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
+	{ .name = "aio_suspend", .ret_type = 1, .nargs = 3,
+	  .args = { { AiocbArray, 0 }, { Int, 1 }, { Timespec, 2 } } },
+	{ .name = "aio_waitcomplete", .ret_type = 1, .nargs = 2,
+	  .args = { { AiocbPointer | OUT, 0 }, { Timespec, 1 } } },
+	{ .name = "aio_write", .ret_type = 1, .nargs = 1,
+	  .args = { { Aiocb, 0 } } },
 	{ .name = "bind", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 }, { Sockaddr | IN, 1 }, { Socklent, 2 } } },
 	{ .name = "bindat", .ret_type = 1, .nargs = 4,
@@ -324,6 +343,9 @@ static struct syscall decoded_syscalls[] = {
 	{ .name = "linkat", .ret_type = 1, .nargs = 5,
 	  .args = { { Atfd, 0 }, { Name, 1 }, { Atfd, 2 }, { Name, 3 },
 		    { Atflags, 4 } } },
+	{ .name = "lio_listio", .ret_type = 1, .nargs = 4,
+	  .args = { { LioMode, 0 }, { AiocbArray, 1 }, { Int, 2 },
+		    { Sigevent, 3 } } },
 	{ .name = "listen", .ret_type = 1, .nargs = 2,
 	  .args = { { Int, 0 }, { Int, 1 } } },
  	{ .name = "lseek", .ret_type = 2, .nargs = 3,
@@ -711,6 +733,21 @@ static struct xlat linux_socketcall_ops[] = {
 	X(LINUX_SOCKETPAIR) X(LINUX_SEND) X(LINUX_RECV) X(LINUX_SENDTO)
 	X(LINUX_RECVFROM) X(LINUX_SHUTDOWN) X(LINUX_SETSOCKOPT)
 	X(LINUX_GETSOCKOPT) X(LINUX_SENDMSG) X(LINUX_RECVMSG)
+	XEND
+};
+
+static struct xlat lio_modes[] = {
+	X(LIO_WAIT) X(LIO_NOWAIT)
+	XEND
+};
+
+static struct xlat lio_opcodes[] = {
+	X(LIO_WRITE) X(LIO_READ) X(LIO_NOP)
+	XEND
+};
+
+static struct xlat aio_fsync_ops[] = {
+	X(O_SYNC)
 	XEND
 };
 
@@ -1330,6 +1367,59 @@ print_iovec(FILE *fp, struct trussinfo *trussinfo, uintptr_t arg, int iovcnt)
 		fprintf(fp, ",%zu}", iov[i].iov_len);
 	}
 	fprintf(fp, "%s%s", iov_truncated ? ",..." : "", "]");
+}
+
+static void
+print_sigval(FILE *fp, union sigval *sv)
+{
+	fprintf(fp, "{ %d, %p }", sv->sival_int, sv->sival_ptr);
+}
+
+static void
+print_sigevent(FILE *fp, struct sigevent *se)
+{
+	fputs("{ sigev_notify=", fp);
+	switch (se->sigev_notify) {
+	case SIGEV_NONE:
+		fputs("SIGEV_NONE", fp);
+		break;
+	case SIGEV_SIGNAL:
+		fprintf(fp, "SIGEV_SIGNAL, sigev_signo=%s, sigev_value=",
+				strsig2(se->sigev_signo));
+		print_sigval(fp, &se->sigev_value);
+		break;
+	case SIGEV_THREAD:
+		fputs("SIGEV_THREAD, sigev_value=", fp);
+		print_sigval(fp, &se->sigev_value);
+		break;
+	case SIGEV_KEVENT:
+		fprintf(fp, "SIGEV_KEVENT, sigev_notify_kqueue=%d, sigev_notify_kevent_flags=",
+				se->sigev_notify_kqueue);
+		print_mask_arg(sysdecode_kevent_flags, fp, se->sigev_notify_kevent_flags);
+		break;
+	case SIGEV_THREAD_ID:
+		fprintf(fp, "SIGEV_THREAD_ID, sigev_notify_thread_id=%d, sigev_signo=%s, sigev_value=",
+				se->sigev_notify_thread_id, strsig2(se->sigev_signo));
+		print_sigval(fp, &se->sigev_value);
+		break;
+	default:
+		fprintf(fp, "%d", se->sigev_notify);
+		break;
+	}
+	fputs(" }", fp);
+}
+
+static void
+print_aiocb(FILE *fp, struct aiocb *cb)
+{
+	fprintf(fp, "{ %d,%jd,%p,%zu,%s,",
+			cb->aio_fildes,
+			cb->aio_offset,
+			cb->aio_buf,
+			cb->aio_nbytes,
+			xlookup(lio_opcodes, cb->aio_lio_opcode));
+	print_sigevent(fp, &cb->aio_sigevent);
+	fputs(" }", fp);
 }
 
 static void
@@ -2115,6 +2205,15 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 			print_pointer(fp, args[sc->offset]);
 		break;
 	}
+	case Sigevent: {
+		struct sigevent se;
+
+		if (get_struct(pid, args[sc->offset], &se, sizeof(se)) != -1)
+			print_sigevent(fp, &se);
+		else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
 	case Kevent: {
 		/*
 		 * XXX XXX: The size of the array is determined by either the
@@ -2481,6 +2580,12 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 		print_integer_arg(sysdecode_kldunload_flags, fp,
 		    args[sc->offset]);
 		break;
+	case AiofsyncOp:
+		fputs(xlookup(aio_fsync_ops, args[sc->offset]), fp);
+		break;
+	case LioMode:
+		fputs(xlookup(lio_modes, args[sc->offset]), fp);
+		break;
 	case Madvice:
 		print_integer_arg(sysdecode_madvice, fp, args[sc->offset]);
 		break;
@@ -2618,6 +2723,67 @@ print_arg(struct syscall_args *sc, unsigned long *args, register_t *retval,
 		print_iovec(fp, trussinfo, args[sc->offset],
 		    (int)args[sc->offset + 1]);
 		break;
+	case Aiocb: {
+		struct aiocb cb;
+
+		if (get_struct(pid, args[sc->offset], &cb, sizeof(cb)) != -1)
+			print_aiocb(fp, &cb);
+		else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
+	case AiocbArray: {
+		/*
+		 * Print argment as an array of pointers to struct aiocb, where
+		 * the next syscall argument is the number of elements.
+		 */
+		uintptr_t cbs[16];
+		unsigned int nent;
+		bool truncated;
+
+		nent = args[sc->offset + 1];
+		truncated = false;
+		if (nent > nitems(cbs)) {
+			nent = nitems(cbs);
+			truncated = true;
+		}
+
+		if (get_struct(pid, args[sc->offset], cbs, sizeof(uintptr_t) * nent) != -1) {
+			unsigned int i;
+			fputs("[", fp);
+			for (i = 0; i < nent; ++i) {
+				struct aiocb cb;
+				if (i > 0)
+					fputc(',', fp);
+				if (get_struct(pid, cbs[i], &cb, sizeof(cb)) != -1)
+					print_aiocb(fp, &cb);
+				else
+					print_pointer(fp, cbs[i]);
+			}
+			if (truncated)
+				fputs(",...", fp);
+			fputs("]", fp);
+		} else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
+	case AiocbPointer: {
+		/*
+		 * aio_waitcomplete(2) assigns a pointer to a pointer to struct
+		 * aiocb, so we need to handle the extra layer of indirection.
+		 */
+		uintptr_t cbp;
+		struct aiocb cb;
+
+		if (get_struct(pid, args[sc->offset], &cbp, sizeof(cbp)) != -1) {
+			if (get_struct(pid, cbp, &cb, sizeof(cb)) != -1)
+				print_aiocb(fp, &cb);
+			else
+				print_pointer(fp, cbp);
+		} else
+			print_pointer(fp, args[sc->offset]);
+		break;
+	}
 	case Sctpsndrcvinfo: {
 		struct sctp_sndrcvinfo info;
 
