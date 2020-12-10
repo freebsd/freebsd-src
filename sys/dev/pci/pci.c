@@ -493,6 +493,28 @@ pci_find_class(uint8_t class, uint8_t subclass)
 	return (NULL);
 }
 
+device_t
+pci_find_class_from(uint8_t class, uint8_t subclass, device_t from)
+{
+	struct pci_devinfo *dinfo;
+	bool found = false;
+
+	STAILQ_FOREACH(dinfo, &pci_devq, pci_links) {
+		if (from != NULL && found == false) {
+			if (from != dinfo->cfg.dev)
+				continue;
+			found = true;
+			continue;
+		}
+		if (dinfo->cfg.baseclass == class &&
+		    dinfo->cfg.subclass == subclass) {
+			return (dinfo->cfg.dev);
+		}
+	}
+
+	return (NULL);
+}
+
 static int
 pci_printf(pcicfgregs *cfg, const char *fmt, ...)
 {
