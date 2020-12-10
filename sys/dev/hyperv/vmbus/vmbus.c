@@ -1361,35 +1361,33 @@ vmbus_fb_mmio_res(device_t dev)
 		kmdp = preload_search_by_type("elf64 kernel");
 	efifb = (struct efi_fb *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_EFI_FB);
-	if (efifb == NULL) {
-		vbefb = (struct vbe_fb *)preload_search_info(kmdp,
-		    MODINFO_METADATA | MODINFOMD_VBE_FB);
+	vbefb = (struct vbe_fb *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_VBE_FB);
+	if (efifb != NULL) {
+		fb_start = efifb->fb_addr;
+		fb_end = efifb->fb_addr + efifb->fb_size;
+		fb_count = efifb->fb_size;
+		fb_height = efifb->fb_height;
+		fb_width = efifb->fb_width;
+	} else if (vbefb != NULL) {
 		fb_start = vbefb->fb_addr;
 		fb_end = vbefb->fb_addr + vbefb->fb_size;
 		fb_count = vbefb->fb_size;
 		fb_height = vbefb->fb_height;
 		fb_width = vbefb->fb_width;
 	} else {
-		fb_start = efifb->fb_addr;
-		fb_end = efifb->fb_addr + efifb->fb_size;
-		fb_count = efifb->fb_size;
-		fb_height = efifb->fb_height;
-		fb_width = efifb->fb_width;
-	}
-
-	if (fb_start == 0) {
 		if (bootverbose)
 			device_printf(dev,
 			    "no preloaded kernel fb information\n");
 		/* We are on Gen1 VM, just return. */
 		return;
-	} else {
-		if (bootverbose)
-			device_printf(dev,
-			    "fb: fb_addr: %#jx, size: %#jx, "
-			    "actual size needed: 0x%x\n",
-			    fb_start, fb_count, fb_height * fb_width);
 	}
+	
+	if (bootverbose)
+		device_printf(dev,
+		    "fb: fb_addr: %#jx, size: %#jx, "
+		    "actual size needed: 0x%x\n",
+		    fb_start, fb_count, fb_height * fb_width);
 
 	hv_fb_res = pcib_host_res_alloc(&sc->vmbus_mmio_res, dev,
 	    SYS_RES_MEMORY, &rid, fb_start, fb_end, fb_count,
