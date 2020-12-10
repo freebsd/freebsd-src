@@ -280,6 +280,8 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 		}
 
 		if (fb_size != segsize) {
+			ts->blocks++;
+			write_close();
 			gettimeofday(&(ts->tstop), NULL);
 			return;
 		}
