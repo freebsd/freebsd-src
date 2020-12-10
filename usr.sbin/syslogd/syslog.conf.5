@@ -28,7 +28,7 @@
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd March 26, 2020
+.Dd December 10, 2020
 .Dt SYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -73,7 +73,7 @@ Note that if you use spaces as separators, your
 .Nm
 might be incompatible with other Unices or Unix-like systems.
 This functionality was added for ease of configuration
-(e.g.\& it is possible to cut-and-paste into
+(e.g.,\& it is possible to cut-and-paste into
 .Nm ) ,
 and to avoid possible mistakes.
 This change however preserves
@@ -547,11 +547,11 @@ A configuration file might appear as follows:
 # Log all kernel messages, authentication messages of
 # level notice or higher, and anything of level err or
 # higher to the console.
-# Don't log private authentication messages!
+# Do not log private authentication messages!
 *.err;kern.*;auth.notice;authpriv.none;mail.crit	/dev/console
 
 # Log anything (except mail) of level info or higher.
-# Don't log private authentication messages!
+# Do not log private authentication messages!
 *.info;mail.none;authpriv.none		/var/log/messages
 
 # Log daemon messages at debug level only
@@ -600,7 +600,7 @@ console.*						/var/log/console.log
 !*
 
 # Log messages from bird or bird6 into one file
-:processname, regex, "^bird6?$"
+:programname, regex, "^bird6?$"
 *.*							/var/log/bird-all.log
 
 # Log messages from servers in racks 10-19 in multiple locations, case insensitive
