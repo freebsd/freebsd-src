@@ -264,9 +264,15 @@ kmem_alloc_attr_domainset(struct domainset *ds, vm_size_t size, int flags,
 {
 	struct vm_domainset_iter di;
 	vm_offset_t addr;
-	int domain;
+	int domain, iflags;
 
-	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
+	/*
+	 * Do not allow the domainset iterator to override wait flags.  The
+	 * contiguous memory allocator defines special semantics for M_WAITOK
+	 * that do not match the iterator's implementation.
+	 */
+	iflags = (flags & ~M_WAITOK) | M_NOWAIT;
+	vm_domainset_iter_policy_init(&di, ds, &domain, &iflags);
 	do {
 		addr = kmem_alloc_attr_domain(domain, size, flags, low, high,
 		    memattr);
@@ -346,9 +352,15 @@ kmem_alloc_contig_domainset(struct domainset *ds, vm_size_t size, int flags,
 {
 	struct vm_domainset_iter di;
 	vm_offset_t addr;
-	int domain;
+	int domain, iflags;
 
-	vm_domainset_iter_policy_init(&di, ds, &domain, &flags);
+	/*
+	 * Do not allow the domainset iterator to override wait flags.  The
+	 * contiguous memory allocator defines special semantics for M_WAITOK
+	 * that do not match the iterator's implementation.
+	 */
+	iflags = (flags & ~M_WAITOK) | M_NOWAIT;
+	vm_domainset_iter_policy_init(&di, ds, &domain, &iflags);
 	do {
 		addr = kmem_alloc_contig_domain(domain, size, flags, low, high,
 		    alignment, boundary, memattr);
