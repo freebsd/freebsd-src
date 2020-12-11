@@ -108,7 +108,6 @@ __DEFAULT_YES_OPTIONS = \
     GAMES \
     GH_BC \
     GNU_DIFF \
-    GNU_GREP \
     GOOGLETEST \
     GPIO \
     HAST \
@@ -208,6 +207,7 @@ __DEFAULT_NO_OPTIONS = \
     DTRACE_TESTS \
     EXPERIMENTAL \
     GDB \
+    GNU_GREP \
     HESIOD \
     LIBSOFT \
     LOADER_FIREWIRE \
