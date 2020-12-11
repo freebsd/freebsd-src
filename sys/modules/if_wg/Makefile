@@ -14,7 +14,6 @@ ZINCDIR= ${SRCTOP}/sys/dev/if_wg/module/crypto/zinc
 CFLAGS+= -I${INCDIR}
 
 CFLAGS+= -D__KERNEL__
-CFLAGS+= -ferror-limit=7
 
 DEBUG_FLAGS=-g
 
