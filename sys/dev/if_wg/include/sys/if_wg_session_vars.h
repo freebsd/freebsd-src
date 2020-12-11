@@ -274,9 +274,6 @@ struct wg_tag {
 	int		t_mtu;
 };
 
-int wg_route_add(struct wg_route_table *tbl, struct wg_peer *peer,
-    const struct wg_allowedip *cidr_);
-
 struct wg_peer *wg_route_lookup(struct wg_route_table *, struct mbuf *,
     enum route_direction);
 

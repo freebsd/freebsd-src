@@ -113,7 +113,6 @@ SYSCTL_INT(_net_wg, OID_AUTO, debug, CTLFLAG_RWTUN, &wireguard_debug, 0,
 #define DPRINTF(sc,  ...) if (wireguard_debug) if_printf(sc->sc_ifp, ##__VA_ARGS__)
 
 /* Socket */
-int	wg_socket_close(struct wg_socket *);
 static int	wg_socket_bind(struct wg_softc *sc, struct wg_socket *);
 static int	wg_send(struct wg_softc *, struct wg_endpoint *, struct mbuf *);
 
@@ -145,9 +144,6 @@ static void	wg_timers_disable(struct wg_timers *);
 /* Queue */
 static int	wg_queue_in(struct wg_peer *, struct mbuf *);
 static struct mbuf *wg_queue_dequeue(struct wg_queue *, struct wg_tag **);
-
-/* Route */
-void	wg_route_destroy(struct wg_route_table *);
 
 /* Cookie */
 
