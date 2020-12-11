@@ -151,7 +151,7 @@ ATF_TC_BODY(free_oldtables, tc)
 	ATF_CHECK(old_tables(kd,kp) == 0);
 }
 
-static void *
+static _Noreturn void *
 exec_thread(void *args)
 {
 	for (;;)
