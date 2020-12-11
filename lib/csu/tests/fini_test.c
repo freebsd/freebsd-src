@@ -141,9 +141,9 @@ dso_handle_check(void)
 {
 	void *dso = __dso_handle;
 
-#ifdef DSO_LIB
+#if defined(DSO_LIB) || defined(__PIE__)
 	ATF_REQUIRE_MSG(dso != NULL,
-	    "Null __dso_handle in DSO");
+	    "Null __dso_handle in DSO/PIE");
 #else
 	ATF_REQUIRE_MSG(dso == NULL,
 	    "Invalid __dso_handle in non-DSO");
