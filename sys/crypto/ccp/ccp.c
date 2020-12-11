@@ -78,7 +78,6 @@ static struct pciid {
 } ccp_ids[] = {
 	{ 0x14561022, "AMD CCP-5a" },
 	{ 0x14681022, "AMD CCP-5b" },
-	{ 0x14861022, "AMD CCP-5a" },
 	{ 0x15df1022, "AMD CCP-5a" },
 };
 
