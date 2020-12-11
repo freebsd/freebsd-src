@@ -29,7 +29,7 @@
 .\"	@(#)locate.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2006
+.Dd December 11, 2020
 .Dt LOCATE 1
 .Os
 .Sh NAME
@@ -75,7 +75,7 @@ is matched as though it were
 .Pp
 Historically, locate only stored characters between 32 and 127.
 The
-current implementation store any character except newline
+current implementation stores any character except newline
 .Pq Sq \en
 and
 .Dv NUL
@@ -88,8 +88,7 @@ are stored in 2 bytes.
 The following options are available:
 .Bl -tag -width 10n
 .It Fl 0
-Print pathnames separated by an
-.Tn ASCII
+Print pathnames separated by an ASCII
 .Dv NUL
 character (character code 0) instead of default NL
 (newline, character code 10).
