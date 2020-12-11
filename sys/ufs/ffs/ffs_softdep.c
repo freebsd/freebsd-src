@@ -758,6 +758,7 @@ static struct malloc_type *memtype[] = {
  */
 static	void check_clear_deps(struct mount *);
 static	void softdep_error(char *, int);
+static	int softdep_prerename_vnode(struct ufsmount *, struct vnode *);
 static	int softdep_process_worklist(struct mount *, int);
 static	int softdep_waitidle(struct mount *, int);
 static	void drain_output(struct vnode *);
