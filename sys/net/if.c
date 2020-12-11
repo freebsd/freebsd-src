@@ -274,6 +274,8 @@ static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, int, struct if_clone *);
 static int	if_detach_internal(struct ifnet *, int, struct if_clone **);
+static void	if_link_ifnet(struct ifnet *);
+static bool	if_unlink_ifnet(struct ifnet *, bool);
 #ifdef VIMAGE
 static void	if_vmove(struct ifnet *, struct vnet *);
 #endif
@@ -472,17 +474,85 @@ vnet_if_uninit(const void *unused __unused)
 }
 VNET_SYSUNINIT(vnet_if_uninit, SI_SUB_INIT_IF, SI_ORDER_FIRST,
     vnet_if_uninit, NULL);
+#endif
 
+static void
+if_link_ifnet(struct ifnet *ifp)
+{
+
+	IFNET_WLOCK();
+	CK_STAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
+#ifdef VIMAGE
+	curvnet->vnet_ifcnt++;
+#endif
+	IFNET_WUNLOCK();
+}
+
+static bool
+if_unlink_ifnet(struct ifnet *ifp, bool vmove)
+{
+	struct ifnet *iter;
+	int found = 0;
+
+	IFNET_WLOCK();
+	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
+		if (iter == ifp) {
+			CK_STAILQ_REMOVE(&V_ifnet, ifp, ifnet, if_link);
+			if (!vmove)
+				ifp->if_flags |= IFF_DYING;
+			found = 1;
+			break;
+		}
+#ifdef VIMAGE
+	curvnet->vnet_ifcnt--;
+#endif
+	IFNET_WUNLOCK();
+
+	return (found);
+}
+
+#ifdef VIMAGE
 static void
 vnet_if_return(const void *unused __unused)
 {
 	struct ifnet *ifp, *nifp;
+	struct ifnet **pending;
+	int found, i;
+
+	i = 0;
+
+	/*
+	 * We need to protect our access to the V_ifnet tailq. Ordinarily we'd
+	 * enter NET_EPOCH, but that's not possible, because if_vmove() calls
+	 * if_detach_internal(), which waits for NET_EPOCH callbacks to
+	 * complete. We can't do that from within NET_EPOCH.
+	 *
+	 * However, we can also use the IFNET_xLOCK, which is the V_ifnet
+	 * read/write lock. We cannot hold the lock as we call if_vmove()
+	 * though, as that presents LOR w.r.t ifnet_sx, in_multi_sx and iflib
+	 * ctx lock.
+	 */
+	IFNET_WLOCK();
+
+	pending = malloc(sizeof(struct ifnet *) * curvnet->vnet_ifcnt,
+	    M_IFNET, M_WAITOK | M_ZERO);
 
 	/* Return all inherited interfaces to their parent vnets. */
 	CK_STAILQ_FOREACH_SAFE(ifp, &V_ifnet, if_link, nifp) {
-		if (ifp->if_home_vnet != ifp->if_vnet)
-			if_vmove(ifp, ifp->if_home_vnet);
+		if (ifp->if_home_vnet != ifp->if_vnet) {
+			found = if_unlink_ifnet(ifp, true);
+			MPASS(found);
+
+			pending[i++] = ifp;
+		}
 	}
+	IFNET_WUNLOCK();
+
+	for (int j = 0; j < i; j++) {
+		if_vmove(pending[j], pending[j]->if_home_vnet);
+	}
+
+	free(pending, M_IFNET);
 }
 VNET_SYSUNINIT(vnet_if_return, SI_SUB_VNET_DONE, SI_ORDER_ANY,
     vnet_if_return, NULL);
@@ -890,12 +960,7 @@ if_attach_internal(struct ifnet *ifp, int vmove, struct if_clone *ifc)
 	}
 #endif
 
-	IFNET_WLOCK();
-	CK_STAILQ_INSERT_TAIL(&V_ifnet, ifp, if_link);
-#ifdef VIMAGE
-	curvnet->vnet_ifcnt++;
-#endif
-	IFNET_WUNLOCK();
+	if_link_ifnet(ifp);
 
 	if (domain_init_status >= 2)
 		if_attachdomain1(ifp);
@@ -1033,9 +1098,12 @@ if_purgemaddrs(struct ifnet *ifp)
 void
 if_detach(struct ifnet *ifp)
 {
+	bool found;
 
 	CURVNET_SET_QUIET(ifp->if_vnet);
-	if_detach_internal(ifp, 0, NULL);
+	found = if_unlink_ifnet(ifp, false);
+	if (found)
+		if_detach_internal(ifp, 0, NULL);
 	CURVNET_RESTORE();
 }
 
@@ -1055,47 +1123,17 @@ if_detach_internal(struct ifnet *ifp, int vmove, struct if_clone **ifcp)
 	struct ifaddr *ifa;
 	int i;
 	struct domain *dp;
- 	struct ifnet *iter;
- 	int found = 0;
 #ifdef VIMAGE
 	int shutdown;
 
 	shutdown = (ifp->if_vnet->vnet_state > SI_SUB_VNET &&
 		 ifp->if_vnet->vnet_state < SI_SUB_VNET_DONE) ? 1 : 0;
 #endif
-	IFNET_WLOCK();
-	CK_STAILQ_FOREACH(iter, &V_ifnet, if_link)
-		if (iter == ifp) {
-			CK_STAILQ_REMOVE(&V_ifnet, ifp, ifnet, if_link);
-			if (!vmove)
-				ifp->if_flags |= IFF_DYING;
-			found = 1;
-			break;
-		}
-	IFNET_WUNLOCK();
-	if (!found) {
-		/*
-		 * While we would want to panic here, we cannot
-		 * guarantee that the interface is indeed still on
-		 * the list given we don't hold locks all the way.
-		 */
-		return (ENOENT);
-#if 0
-		if (vmove)
-			panic("%s: ifp=%p not on the ifnet tailq %p",
-			    __func__, ifp, &V_ifnet);
-		else
-			return; /* XXX this should panic as well? */
-#endif
-	}
 
 	/*
 	 * At this point we know the interface still was on the ifnet list
 	 * and we removed it so we are in a stable state.
 	 */
-#ifdef VIMAGE
-	curvnet->vnet_ifcnt--;
-#endif
 	epoch_wait_preempt(net_epoch_preempt);
 
 	/*
@@ -1322,6 +1360,7 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	struct prison *pr;
 	struct ifnet *difp;
 	int shutdown;
+	bool found;
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -1358,6 +1397,9 @@ if_vmove_loan(struct thread *td, struct ifnet *ifp, char *ifname, int jid)
 	}
 	CURVNET_RESTORE();
 
+	found = if_unlink_ifnet(ifp, true);
+	MPASS(found);
+
 	/* Move the interface into the child jail/vnet. */
 	if_vmove(ifp, pr->pr_vnet);
 
@@ -1374,7 +1416,8 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	struct prison *pr;
 	struct vnet *vnet_dst;
 	struct ifnet *ifp;
- 	int shutdown;
+	int shutdown;
+	bool found;
 
 	/* Try to find the prison within our visibility. */
 	sx_slock(&allprison_lock);
@@ -1412,6 +1455,8 @@ if_vmove_reclaim(struct thread *td, char *ifname, int jid)
 	}
 
 	/* Get interface back from child jail/vnet. */
+	found = if_unlink_ifnet(ifp, true);
+	MPASS(found);
 	if_vmove(ifp, vnet_dst);
 	CURVNET_RESTORE();
 
