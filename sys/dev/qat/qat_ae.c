@@ -82,8 +82,6 @@ static int	qat_ae_write_4(struct qat_softc *, u_char, bus_size_t,
 		    uint32_t);
 static int	qat_ae_read_4(struct qat_softc *, u_char, bus_size_t,
 		    uint32_t *);
-static int	qat_ae_write_4(struct qat_softc *, u_char, bus_size_t,
-		    uint32_t);
 static void	qat_ae_ctx_indr_write(struct qat_softc *, u_char, uint32_t,
 		    bus_size_t, uint32_t);
 static int	qat_ae_ctx_indr_read(struct qat_softc *, u_char, uint32_t,
