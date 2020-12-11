@@ -199,6 +199,8 @@ ndisusb_attach(device_t self)
 	if (ndis_attach(self) != 0)
 		return (ENXIO);
 
+	gone_in_dev(self, 13, "ndis removed");
+
 	return (0);
 }
 
