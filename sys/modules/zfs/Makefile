@@ -18,7 +18,6 @@ KMOD=	zfs
 
 
 CFLAGS+= -I${INCDIR}
-CFLAGS+= -I${INCDIR}/spl
 CFLAGS+= -I${INCDIR}/os/freebsd
 CFLAGS+= -I${INCDIR}/os/freebsd/spl
 CFLAGS+= -I${INCDIR}/os/freebsd/zfs
