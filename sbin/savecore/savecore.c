@@ -491,12 +491,12 @@ sparsefwrite(const char *buf, size_t nr, FILE *fp)
 static char *zbuf;
 static size_t zbufsize;
 
-static size_t
+static ssize_t
 GunzipWrite(z_stream *z, char *in, size_t insize, FILE *fp)
 {
 	static bool firstblock = true;		/* XXX not re-entrable/usable */
 	const size_t hdrlen = 10;
-	size_t nw = 0;
+	size_t nw = 0, w;
 	int rv;
 
 	z->next_in = in;
@@ -520,18 +520,21 @@ GunzipWrite(z_stream *z, char *in, size_t insize, FILE *fp)
 			logmsg(LOG_ERR, "decompression failed: %s", z->msg);
 			return (-1);
 		}
-		nw += sparsefwrite(zbuf, zbufsize - z->avail_out, fp);
+		w = sparsefwrite(zbuf, zbufsize - z->avail_out, fp);
+		if (w < zbufsize - z->avail_out)
+			return (-1);
+		nw += w;
 	} while (z->avail_in > 0 && rv != Z_STREAM_END);
 
 	return (nw);
 }
 
-static size_t
+static ssize_t
 ZstdWrite(ZSTD_DCtx *Zctx, char *in, size_t insize, FILE *fp)
 {
 	ZSTD_inBuffer Zin;
 	ZSTD_outBuffer Zout;
-	size_t nw = 0;
+	size_t nw = 0, w;
 	int rv;
 
 	Zin.src = in;
@@ -547,7 +550,10 @@ ZstdWrite(ZSTD_DCtx *Zctx, char *in, size_t insize, FILE *fp)
 			    ZSTD_getErrorName(rv));
 			return (-1);
 		}
-		nw += sparsefwrite(zbuf, Zout.pos, fp);
+		w = sparsefwrite(zbuf, Zout.pos, fp);
+		if (w < Zout.pos)
+			return (-1);
+		nw += w;
 	} while (Zin.pos < Zin.size && rv != 0);
 
 	return (nw);
@@ -558,7 +564,8 @@ DoRegularFile(int fd, off_t dumpsize, u_int sectorsize, bool sparse,
     uint8_t compression, char *buf, const char *device,
     const char *filename, FILE *fp)
 {
-	size_t nr, nw, wl;
+	size_t nr, wl;
+	ssize_t nw;
 	off_t dmpcnt, origsize;
 	z_stream z;		/* gzip */
 	ZSTD_DCtx *Zctx;	/* zstd */
@@ -609,8 +616,8 @@ DoRegularFile(int fd, off_t dumpsize, u_int sectorsize, bool sparse,
 			nw = fwrite(buf, 1, wl, fp);
 		else
 			nw = sparsefwrite(buf, wl, fp);
-		if ((compression == KERNELDUMP_COMP_NONE && nw != wl) ||
-		    (compression != KERNELDUMP_COMP_NONE && nw < 0)) {
+		if (nw < 0 || (compression == KERNELDUMP_COMP_NONE &&
+		     (size_t)nw != wl)) {
 			logmsg(LOG_ERR,
 			    "write error on %s file: %m", filename);
 			logmsg(LOG_WARNING,
