@@ -393,7 +393,7 @@ struct ifreq_buffer {
  * definitions which begin with ifr_name.  The
  * remainder may be interface specific.
  */
-struct	ifreq {
+struct ifreq {
 	char	ifr_name[IFNAMSIZ];		/* if name, e.g. "en0" */
 	union {
 		struct	sockaddr ifru_addr;
@@ -467,11 +467,11 @@ struct ifmediareq {
 	int	*ifm_ulist;		/* media words */
 };
 
-struct  ifdrv {
-	char            ifd_name[IFNAMSIZ];     /* if name, e.g. "en0" */
-	unsigned long   ifd_cmd;
-	size_t          ifd_len;
-	void            *ifd_data;
+struct ifdrv {
+	char		ifd_name[IFNAMSIZ];	/* if name, e.g. "en0" */
+	unsigned long	ifd_cmd;
+	size_t		ifd_len;
+	void		*ifd_data;
 };
 
 /* 
@@ -493,7 +493,7 @@ struct ifstat {
  * for machine (useful for programs which
  * must know all networks accessible).
  */
-struct	ifconf {
+struct ifconf {
 	int	ifc_len;		/* size of associated buffer */
 	union {
 		caddr_t	ifcu_buf;
