@@ -300,7 +300,9 @@ had been called to create a child process and then
 .Fn execve
 had been called by the child process to execute the new process image.
 .Pp
-The implementation uses vfork(), thus the fork handlers are not run when
+The implementation uses
+.Fn vfork ,
+thus the fork handlers are not run when
 .Fn posix_spawn
 or
 .Fn posix_spawnp
