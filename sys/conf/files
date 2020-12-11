@@ -1816,8 +1816,6 @@ dev/gpio/gpiobus_if.m		optional gpio
 dev/gpio/gpiopps.c		optional gpiopps fdt
 dev/gpio/ofw_gpiobus.c		optional fdt gpio
 dev/hifn/hifn7751.c		optional hifn
-dev/hme/if_hme.c		optional hme
-dev/hme/if_hme_pci.c		optional hme pci
 dev/hptiop/hptiop.c		optional hptiop scbus
 dev/hwpmc/hwpmc_logging.c	optional hwpmc
 dev/hwpmc/hwpmc_mod.c		optional hwpmc

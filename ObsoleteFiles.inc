@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20201211: hme(4) removed
+OLD_FILES+=usr/share/man/man4/hme.4.gz
+OLD_FILES+=usr/share/man/man4/if_hme.4.gz
 # 20201124: ping6(8) was merged into ping(8)
 OLD_FILES+=usr/lib/debug/sbin/ping6.debug
 OLD_FILES+=usr/share/man/man8/ping6.8.gz
