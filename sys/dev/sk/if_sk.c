@@ -272,9 +272,7 @@ TUNABLE_INT("hw.skc.jumbo_disable", &jumbo_disable);
  * UDP packets in Tx as the hardware can't differenciate UDP packets from
  * TCP packets. 0 chcecksum value for UDP packet is an invalid one as it
  * means sender didn't perforam checksum computation. For the safety I
- * disabled UDP checksum offload capability at the moment. Alternatively
- * we can intrduce a LINK0/LINK1 flag as hme(4) did in its Tx checksum
- * offload routine.
+ * disabled UDP checksum offload capability at the moment.
  */
 #define SK_CSUM_FEATURES	(CSUM_TCP)
 

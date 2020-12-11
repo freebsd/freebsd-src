@@ -130,7 +130,6 @@ SUBDIR=	\
 	${_glxsb} \
 	gpio \
 	hifn \
-	hme \
 	${_hpt27xx} \
 	${_hptiop} \
 	${_hptmv} \

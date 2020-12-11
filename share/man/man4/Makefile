@@ -180,7 +180,6 @@ MAN=	aac.4 \
 	gre.4 \
 	h_ertt.4 \
 	hifn.4 \
-	hme.4 \
 	hpet.4 \
 	${_hpt27xx.4} \
 	${_hptiop.4} \
@@ -665,7 +664,6 @@ MLINKS+=gpio.4 gpiobus.4
 MLINKS+=gpioths.4 dht11.4
 MLINKS+=gpioths.4 dht22.4
 MLINKS+=gre.4 if_gre.4
-MLINKS+=hme.4 if_hme.4
 MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=${_attimer.4} ${_i8254.4}
