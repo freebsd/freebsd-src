@@ -5666,7 +5666,7 @@ bad:
  * CSUM_DATA_VALID :
  *  network driver performed cksum, needs to additional pseudo header
  *  cksum computation with partial csum_data(i.e. lack of H/W support for
- *  pseudo header, for instance hme(4), sk(4) and possibly gem(4))
+ *  pseudo header, for instance sk(4) and possibly gem(4))
  *
  * After validating the cksum of packet, set both flag CSUM_DATA_VALID and
  * CSUM_PSEUDO_HDR in order to avoid recomputation of the cksum in upper
