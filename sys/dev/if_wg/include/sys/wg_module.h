@@ -47,8 +47,6 @@
 #include <zinc/chacha20poly1305.h>
 #include <crypto/blake2s.h>
 
-MALLOC_DECLARE(M_WG);
-
 
 enum noise_lengths {
 	NOISE_PUBLIC_KEY_LEN = CURVE25519_KEY_SIZE,
