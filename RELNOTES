@@ -10,6 +10,9 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r368559:
+	The hme(4) driver was removed.
+
 r367660:
 	Fixes the case where gssd will not startup because /usr is a separate
 	local file system that is not yet mounted.  It does not fix the case
