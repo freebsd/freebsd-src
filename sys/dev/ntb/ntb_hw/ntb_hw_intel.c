@@ -1309,6 +1309,7 @@ db_ioread(struct ntb_softc *ntb, uint64_t regoff)
 	case NTB_XEON_GEN1:
 		return (intel_ntb_reg_read(2, regoff));
 	}
+	__assert_unreachable();
 }
 
 static inline void
