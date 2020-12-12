@@ -718,7 +718,7 @@ function config.isModuleEnabled(modname)
 	end
 
 	local blacklist = getBlacklist()
-	return blacklist[modname]
+	return not blacklist[modname]
 end
 
 hook.registerType("config.loaded")
