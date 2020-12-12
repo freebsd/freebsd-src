@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/limits.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <paths.h>
 #include <libutil.h>
@@ -40,35 +41,50 @@ __FBSDID("$FreeBSD$");
 #define _PATH_LOCALBASE "/usr/local"
 #endif
 
+#ifndef LOCALBASE_CTL_LEN
+#define LOCALBASE_CTL_LEN MAXPATHLEN
+#endif
+
+/* Any prefix guaranteed to not be the start of a valid path name */
+#define ILLEGAL_PREFIX "/dev/null/"
+
 const char *
 getlocalbase(void)
 {
-	static const int localbase_oid[2] = {CTL_USER, USER_LOCALBASE};
+#if LOCALBASE_CTL_LEN > 0 
+	int localbase_oid[2] = {CTL_USER, USER_LOCALBASE};
+	static char localpath[LOCALBASE_CTL_LEN];
+	size_t localpathlen = LOCALBASE_CTL_LEN;
+#endif
 	char *tmppath;
-	size_t tmplen;
 	static const char *localbase = NULL;
+
+	if (localbase != NULL)
+		return (localbase);
 
 	if (issetugid() == 0) {
 		tmppath = getenv("LOCALBASE");
-		if (tmppath != NULL && tmppath[0] != '\0')
-			return (tmppath);
-	}
-	if (sysctl(localbase_oid, 2, NULL, &tmplen, NULL, 0) == 0 &&
-	    (tmppath = malloc(tmplen)) != NULL && 
-	    sysctl(localbase_oid, 2, tmppath, &tmplen, NULL, 0) == 0) {
-		/*
-		 * Check for some other thread already having 
-		 * set localbase - this should use atomic ops.
-		 * The amount of memory allocated above may leak,
-		 * if a parallel update in another thread is not
-		 * detected and the non-NULL pointer is overwritten.
-		 */
-		if (tmppath[0] != '\0' &&
-		    (volatile const char*)localbase == NULL)
+		if (tmppath != NULL && tmppath[0] != '\0') {
 			localbase = tmppath;
-		else
-			free((void*)tmppath);
-		return (localbase);
+			return (localbase);
+		}
 	}
-	return (_PATH_LOCALBASE);
+
+#if LOCALBASE_CTL_LEN > 0
+	if (sysctl(localbase_oid, 2, localpath, &localpathlen, NULL, 0) != 0) {
+		if (errno != ENOMEM)
+			localbase = _PATH_LOCALBASE;
+		else
+			localbase = ILLEGAL_PREFIX;
+	} else {
+		if (localpath[0] != '\0')
+			localbase = localpath;
+		else
+			localbase = _PATH_LOCALBASE;
+	}
+#else
+	localbase = _PATH_LOCALBASE;
+#endif
+
+	return (localbase);
 }
