@@ -3920,7 +3920,7 @@ ta_dump_kfib_tentry_int(int family, const struct rtentry *rt,
 		tent->v.kidx = 0;
 	}
 #endif
-#ifdef INET
+#ifdef INET6
 	if (family == AF_INET6) {
 		rt_get_inet6_prefix_plen(rt, &tent->k.addr6, &plen, &scopeid);
 		tent->masklen = plen;
