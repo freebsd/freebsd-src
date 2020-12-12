@@ -95,6 +95,7 @@ static const luaL_Reg loadedlibs[] = {
   {"io", luaopen_io},
   {"lfs", luaopen_lfs},
   {"loader", luaopen_loader},
+  {"pager", luaopen_pager},
   {NULL, NULL}
 };
 
