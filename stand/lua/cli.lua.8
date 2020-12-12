@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2019
+.Dd December 17, 2020
 .Dt CLI.LUA 8
 .Os
 .Sh NAME
@@ -77,14 +77,28 @@ This function may be invoked by a user at the loader prompt by simply typing
 .Ic foo .
 Arguments may be passed to it as usual, space-delimited.
 .Ss Default Commands
-As of present, the
+The
 .Nm
-module by default provides commands for
-.Ic autoboot ,
-.Ic boot ,
-.Ic boot-conf ,
-and
-.Ic reload-conf .
+module provides the following default commands:
+.Bl -bullet
+.\"-width toggle-module -offset indent
+.It
+.Ic autoboot
+.It
+.Ic boot
+.It
+.Ic boot-conf
+.It
+.Ic reload-conf
+.It
+.Ic enable-module
+.It
+.Ic disable-module
+.It
+.Ic toggle-module
+.It
+.Ic show-module-options
+.El
 .Pp
 For
 .Ic autoboot ,
@@ -103,6 +117,20 @@ The
 command will reload the configuration from disk.
 This is useful if you have manually changed currdev and would like to easily
 reload the configuration from the new device.
+.Pp
+The
+.Ic enable-module ,
+.Ic disable-module ,
+and
+.Ic toggle-module
+commands manipulate the list of modules to be loaded along with the kernel.
+Modules blacklisted are considered disabled by
+.Ic toggle-module .
+These commands will override any such restriction as needed.
+The
+.Ic show-module-options
+command will dump the list of modules that loader has been made aware of and
+any applicable options using paged output.
 .Ss Exported Functions
 The following functions are exported from
 .Nm :
