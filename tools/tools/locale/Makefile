@@ -96,7 +96,7 @@ install-${t}:
 	cd ${LOCALESRCDIR}/${t} && \
 	    rm -f Makefile *.src && \
 	    cd ${.OBJDIR} && \
-	    install -c ${t}/* ${LOCALESRCDIR}/${t}
+	    install -m 644 ${t}/* ${LOCALESRCDIR}/${t}
 .  endif
 .endfor
 
