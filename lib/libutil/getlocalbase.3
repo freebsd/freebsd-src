@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2020
+.Dd November 25, 2020
 .Dt GETLOCALBASE 3
 .Os
 .Sh NAME
@@ -59,7 +59,7 @@ If that is undefined then the default of
 .Pa /usr/local
 is used.
 .Pp
-The value returned by the
+The contents of the string returned by the
 .Fn getlocalbase
 function shall not be modified.
 .Sh IMPLEMENTATION NOTES
@@ -67,13 +67,34 @@ Calls to
 .Fn getlocalbase
 will perform a setugid check on the running binary before checking the
 environment.
+.Pp
+The address returned by
+.Fn getlocalbase
+will point into the executing processes environment if it is the result of
+.Fn getenv "LOCALBASE" ,
+to a static buffer if it is the result of
+.Fn sysctl "user.localbase" ,
+and to a constant string if the compiled in default value is returned.
+.Pp
+The same value will be returned on successive calls during the run-time
+of the program, ignoring any changes to the environment variable or the
+sysctl value that might have been made.
+.Pp
+The
+.Fn getlocalbase
+function can be compiled with a non-default value of LOCALBASE_CTL_LEN.
+A value of 0 will disable fetching of the sysctl value, a value less than
+MAXPATHLEN will put a limit on the maximum string length supported for
+this sysctl value.
+If built with a non-default value of LOCALBASE_CTL_LEN, a value of the
+user.localbase sysctl variable longer than this value will make
+.Fn getlocalbase
+return a valid string that is not a valid path prefix in any filesystem.
 .Sh RETURN VALUES
 The
 .Fn getlocalbase
-function always succeeds and returns a pointer to a string, whose length
-may exceed MAXPATHLEN if it has been derived from the environment variable
-LOCALBASE.
-No length checks are performed on the result.
+function returns a pointer to a string, whose length may exceed MAXPATHLEN,
+if it has been obtained from the environment.
 .Sh ENVIRONMENT
 The
 .Fn getlocalbase
@@ -83,7 +104,7 @@ environment variable.
 .Sh ERRORS
 The
 .Fn getlocalbase
-function always succeeds.
+function always succeeds and returns a valid pointer to a string.
 .Sh SEE ALSO
 .Xr env 1 ,
 .Xr src.conf 5 ,
