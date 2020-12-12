@@ -102,10 +102,10 @@ TEST_F(Flush, open_twice)
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
-	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_LE(0, fd) << strerror(errno);
 
 	fd2 = open(FULLPATH, O_WRONLY);
-	EXPECT_LE(0, fd2) << strerror(errno);
+	ASSERT_LE(0, fd2) << strerror(errno);
 
 	EXPECT_EQ(0, close(fd2)) << strerror(errno);
 	EXPECT_EQ(0, close(fd)) << strerror(errno);
@@ -132,7 +132,7 @@ TEST_F(Flush, eio)
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
-	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_LE(0, fd) << strerror(errno);
 
 	ASSERT_TRUE(0 == close(fd) || errno == EIO) << strerror(errno);
 }
@@ -186,7 +186,7 @@ TEST_F(Flush, flush)
 	expect_release();
 
 	fd = open(FULLPATH, O_WRONLY);
-	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_LE(0, fd) << strerror(errno);
 
 	ASSERT_TRUE(0 == close(fd)) << strerror(errno);
 }

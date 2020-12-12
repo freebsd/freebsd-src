@@ -132,7 +132,7 @@ TEST_F(Opendir, open)
 	}));
 
 	fd = open(FULLPATH, O_DIRECTORY);
-	EXPECT_LE(0, fd) << strerror(errno);
+	ASSERT_LE(0, fd) << strerror(errno);
 
 	leak(fd);
 }

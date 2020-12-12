@@ -168,7 +168,7 @@ TEST_F(AllowOther, privilege_escalation)
 		.WillRepeatedly(Invoke(ReturnErrno(EPERM)));
 
 		fd1 = open(FULLPATH, O_RDONLY);
-		EXPECT_LE(0, fd1) << strerror(errno);
+		ASSERT_LE(0, fd1) << strerror(errno);
 	}, [] {
 		int fd0;
 
