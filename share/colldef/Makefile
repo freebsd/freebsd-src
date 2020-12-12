@@ -184,6 +184,7 @@ SAME+=		en_US.UTF-8 nl_NL.UTF-8
 SAME+=		en_US.UTF-8 nl_BE.UTF-8
 SAME+=		en_US.UTF-8 it_IT.UTF-8
 SAME+=		en_US.UTF-8 it_CH.UTF-8
+SAME+=		en_US.UTF-8 ga_IE.UTF-8
 SAME+=		en_US.UTF-8 fr_FR.UTF-8
 SAME+=		en_US.UTF-8 fr_CH.UTF-8
 SAME+=		en_US.UTF-8 fr_BE.UTF-8
