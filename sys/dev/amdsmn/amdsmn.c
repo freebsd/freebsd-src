@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #define	PCI_DEVICE_ID_AMD_15H_M60H_ROOT		0x1576
 #define	PCI_DEVICE_ID_AMD_17H_ROOT		0x1450
 #define	PCI_DEVICE_ID_AMD_17H_M10H_ROOT		0x15d0
-#define	PCI_DEVICE_ID_AMD_17H_M30H_ROOT		0x1480	/* Also M70H. */
+#define	PCI_DEVICE_ID_AMD_17H_M30H_ROOT		0x1480	/* Also M70H, F19H M00H/M20H */
 #define	PCI_DEVICE_ID_AMD_17H_M60H_ROOT		0x1630
 
 struct pciid;
@@ -187,6 +187,7 @@ amdsmn_probe(device_t dev)
 	switch (family) {
 	case 0x15:
 	case 0x17:
+	case 0x19:
 		break;
 	default:
 		return (ENXIO);
