@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <paths.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -861,6 +862,9 @@ static struct ggeom *
 find_geom(struct gclass *classp, const char *name)
 {
 	struct ggeom *gp;
+
+	if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+		name += sizeof(_PATH_DEV) - 1;
 
 	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) {
 		if (strcmp(gp->lg_name, name) == 0)
