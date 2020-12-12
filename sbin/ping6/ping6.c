@@ -2838,7 +2838,7 @@ usage(void)
 	    "\n"
 	    "             [-p pattern] [-S sourceaddr] [-s packetsize] "
 	    "[-x waittime]\n"
-	    "             [-X timeout] [hops ...] host\n");
+	    "             [-X timeout] [-z tclass] [hops ...] host\n");
 	exit(1);
 }
 
