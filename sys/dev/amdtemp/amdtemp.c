@@ -805,11 +805,12 @@ amdtemp_probe_ccd_sensors17h(device_t dev, uint32_t model)
 	uint32_t maxreg;
 
 	switch (model) {
-	case 0x00 ... 0x1f: /* Zen1, Zen+ */
+	case 0x00 ... 0x2f: /* Zen1, Zen+ */
 		maxreg = 4;
 		break;
-	case 0x30 ... 0x3f: /* Zen2 TR/EPYC */
-	case 0x70 ... 0x7f: /* Zen2 Ryzen */
+	case 0x30 ... 0x3f: /* Zen2 TR (Castle Peak)/EPYC (Rome) */
+	case 0x60 ... 0x7f: /* Zen2 Ryzen (Renoir APU, Matisse) */
+	case 0x90 ... 0x9f: /* Zen2 Ryzen (Van Gogh APU) */
 		maxreg = 8;
 		_Static_assert((int)NUM_CCDS >= 8, "");
 		break;
