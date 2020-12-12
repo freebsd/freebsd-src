@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <libutil.h>
 #include <locale.h>
 #include <pwd.h>
 #include <stdbool.h>
@@ -121,6 +122,7 @@ cal_fopen(const char *file)
 	unsigned int i;
 	struct stat sb;
 	static bool warned = false;
+	char calendarhome[MAXPATHLEN];
 
 	if (home == NULL || *home == '\0') {
 		warnx("Cannot get home directory");
@@ -133,12 +135,16 @@ cal_fopen(const char *file)
 	}
 
 	for (i = 0; i < nitems(calendarHomes); i++) {
-		if (chdir(calendarHomes[i]) != 0)
+		if (snprintf(calendarhome, sizeof (calendarhome), calendarHomes[i],
+			getlocalbase()) >= (int)sizeof (calendarhome))
+			continue;
+
+		if (chdir(calendarhome) != 0)
 			continue;
 
 		if ((fp = fopen(file, "r")) != NULL) {
 			cal_home = home;
-			cal_dir = calendarHomes[i];
+			cal_dir = calendarhome;
 			cal_file = file;
 			return (fp);
 		}
