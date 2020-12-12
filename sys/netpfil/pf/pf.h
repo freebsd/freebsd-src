@@ -189,6 +189,29 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 
 struct pf_rule;
 
+/* keep synced with pfi_kif, used in RB_FIND */
+struct pfi_kif_cmp {
+	char				 pfik_name[IFNAMSIZ];
+};
+
+struct pfi_kif {
+	char				 pfik_name[IFNAMSIZ];
+	union {
+		RB_ENTRY(pfi_kif)	 _pfik_tree;
+		LIST_ENTRY(pfi_kif)	 _pfik_list;
+	} _pfik_glue;
+#define	pfik_tree	_pfik_glue._pfik_tree
+#define	pfik_list	_pfik_glue._pfik_list
+	u_int64_t			 pfik_packets[2][2][2];
+	u_int64_t			 pfik_bytes[2][2][2];
+	u_int32_t			 pfik_tzero;
+	u_int				 pfik_flags;
+	struct ifnet			*pfik_ifp;
+	struct ifg_group		*pfik_group;
+	u_int				 pfik_rulerefs;
+	TAILQ_HEAD(, pfi_dynaddr)	 pfik_dynaddrs;
+};
+
 struct pf_status {
 	uint64_t	counters[PFRES_MAX];
 	uint64_t	lcounters[LCNT_MAX];
