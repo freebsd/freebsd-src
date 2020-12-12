@@ -332,6 +332,8 @@ main(int argc, char **argv)
 			flag = 	str2cap(argv[i]);
 			if (flag < 0)
 				fail("Invalid flag: %s\n", argv[i]);
+			else if ((flag & GPIO_INTR_MASK) != 0)
+				fail("Interrupt capability %s cannot be set as configuration flag\n", argv[i]);
 			flags |= flag;
 		}
 		pin.g_pin = pinn;

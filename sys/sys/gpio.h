@@ -53,6 +53,9 @@
 #define __GPIO_H__
 
 #include <sys/ioccom.h>
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
 
 /* GPIO pin states */
 #define GPIO_PIN_LOW		0x00	/* low level (logical 0) */
@@ -81,9 +84,11 @@
 #define GPIO_INTR_EDGE_RISING	0x00040000	/* edge trigger, rising */
 #define GPIO_INTR_EDGE_FALLING	0x00080000	/* edge trigger, falling */
 #define GPIO_INTR_EDGE_BOTH	0x00100000	/* edge trigger, both */
-#define GPIO_INTR_MASK		(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH | \
-				GPIO_INTR_EDGE_RISING |			      \
-				GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH)
+#define GPIO_INTR_ATTACHED	0x00200000	/* interrupt attached to file */
+#define GPIO_INTR_MASK		(GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH |  \
+				GPIO_INTR_EDGE_RISING |			       \
+				GPIO_INTR_EDGE_FALLING | GPIO_INTR_EDGE_BOTH | \
+				GPIO_INTR_ATTACHED)
 
 struct gpio_pin {
 	uint32_t gp_pin;			/* pin number */
@@ -96,6 +101,53 @@ struct gpio_pin {
 struct gpio_req {
 	uint32_t gp_pin;			/* pin number */
 	uint32_t gp_value;			/* value */
+};
+
+/*
+ * Reporting gpio pin-change per-event details to userland.
+ *
+ * When configured for detail reporting, each call to read(2) will return one or
+ * more of these structures (or will return EWOULDBLOCK in non-blocking IO mode
+ * when there are no new events to report).
+ */
+struct gpio_event_detail {
+	sbintime_t	gp_time;	/* Time of event */
+	uint16_t	gp_pin;		/* Pin number */
+	bool		gp_pinstate;	/* Pin state at time of event */
+};
+
+/*
+ * Reporting gpio pin-change summary data to userland.
+ *
+ * When configured for summary reporting, each call to read(2) will return one
+ * or more of these structures (or will return EWOULDBLOCK in non-blocking IO
+ * mode when there are no new events to report).
+ */
+struct gpio_event_summary {
+	sbintime_t	gp_first_time;	/* Time of first event */
+	sbintime_t	gp_last_time;	/* Time of last event */
+	uint16_t	gp_pin;		/* Pin number */
+	uint16_t	gp_count;	/* Event count */
+	bool		gp_first_state;	/* Pin state at first event */
+	bool		gp_last_state;	/* Pin state at last event */
+};
+
+/*
+ * Configuring event reporting to userland.
+ *
+ * The default is to deliver gpio_event_detail reporting, with a default fifo
+ * size of 2 * number of pins belonging to the gpioc device instance.  To change
+ * it, you must use the GPIOCONFIGEVENTS ioctl before using GPIOSETCONFIG to
+ * configure reporting interrupt events on any pins.  This config is tracked on
+ * a per-open-descriptor basis.
+ */
+enum {
+	GPIO_EVENT_REPORT_DETAIL,	/* Report detail on each event */
+	GPIO_EVENT_REPORT_SUMMARY,	/* Report summary of events */
+};
+struct gpio_event_config {
+	uint32_t	gp_report_type; /* Detail or summary reporting */
+	uint32_t	gp_fifo_size;	/* FIFO size (used for detail only) */
 };
 
 /*
@@ -147,7 +199,7 @@ struct gpio_access_32 {
  * contains any GPIO_PIN_OUTPUT flags, the driver will manipulate the hardware
  * such that all output pins become driven with the proper initial values
  * simultaneously if it can.  The elements in the array map to pins in the same
- * way that bits are mapped by pin_acces_32(), and the same restrictions may
+ * way that bits are mapped by pin_access_32(), and the same restrictions may
  * apply.  For example, to configure pins 2 and 3 it may be necessary to set
  * first_pin to zero and only populate pin_flags[2] and pin_flags[3].  If a
  * given array entry doesn't contain GPIO_PIN_INPUT or GPIO_PIN_OUTPUT then no
@@ -156,6 +208,9 @@ struct gpio_access_32 {
  * Some devices may limit the value of first_pin to 0, or to multiples of 16 or
  * 32 or some other hardware-specific number.  Invalid values in first_pin or
  * num_pins result in an error return with errno set to EINVAL.
+ *
+ * You cannot configure interrupts (userland pin-change notifications) with
+ * this function; each interrupt pin must be individually configured.
  */
 struct gpio_config_32 {
 	uint32_t first_pin;
@@ -175,5 +230,6 @@ struct gpio_config_32 {
 #define	GPIOSETNAME		_IOW('G', 6, struct gpio_pin)
 #define	GPIOACCESS32		_IOWR('G', 7, struct gpio_access_32)
 #define	GPIOCONFIG32		_IOW('G', 8, struct gpio_config_32)
+#define	GPIOCONFIGEVENTS	_IOW('G', 9, struct gpio_event_config)
 
 #endif /* __GPIO_H__ */

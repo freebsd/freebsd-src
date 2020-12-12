@@ -10,6 +10,7 @@ Please make a subdir per program, and add a brief description to this file.
 
 auxinfo		Return information on page sizes, CPUs, and OS release date.
 devrandom	Programs to test /dev/*random.
+gpioevents	Test delivery of gpio pin-change events to userland.
 hwpmc		Automatically trigger every event in hwpmc(4).
 iconv		Character set conversion tests.
 malloc		A program to test and benchmark malloc().
