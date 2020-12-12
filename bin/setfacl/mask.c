@@ -32,9 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <err.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "setfacl.h"
 
