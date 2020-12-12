@@ -66,7 +66,7 @@ struct pfi_dynaddr {
 	struct pf_addr			 pfid_addr6;
 	struct pf_addr			 pfid_mask6;
 	struct pfr_ktable		*pfid_kt;
-	struct pfi_kif			*pfid_kif;
+	struct pfi_kkif			*pfid_kif;
 	int				 pfid_net;	/* mask or 128 */
 	int				 pfid_acnt4;	/* address count IPv4 */
 	int				 pfid_acnt6;	/* address count IPv6 */
@@ -294,6 +294,25 @@ extern struct sx pf_end_lock;
 
 #ifdef _KERNEL
 
+struct pf_kpooladdr {
+	struct pf_addr_wrap		 addr;
+	TAILQ_ENTRY(pf_kpooladdr)	 entries;
+	char				 ifname[IFNAMSIZ];
+	struct pfi_kkif			*kif;
+};
+
+TAILQ_HEAD(pf_kpalist, pf_kpooladdr);
+
+struct pf_kpool {
+	struct pf_kpalist	 list;
+	struct pf_kpooladdr	*cur;
+	struct pf_poolhashkey	 key;
+	struct pf_addr		 counter;
+	int			 tblidx;
+	u_int16_t		 proxy_port[2];
+	u_int8_t		 opts;
+};
+
 union pf_krule_ptr {
 	struct pf_krule		*ptr;
 	u_int32_t		 nr;
@@ -313,13 +332,13 @@ struct pf_krule {
 	char			 overload_tblname[PF_TABLE_NAME_SIZE];
 
 	TAILQ_ENTRY(pf_krule)	 entries;
-	struct pf_pool		 rpool;
+	struct pf_kpool		 rpool;
 
 	counter_u64_t		 evaluations;
 	counter_u64_t		 packets[2];
 	counter_u64_t		 bytes[2];
 
-	struct pfi_kif		*kif;
+	struct pfi_kkif		*kif;
 	struct pf_kanchor	*anchor;
 	struct pfr_ktable	*overload_tbl;
 
@@ -398,7 +417,7 @@ struct pf_ksrc_node {
 	struct pf_addr	 addr;
 	struct pf_addr	 raddr;
 	union pf_krule_ptr rule;
-	struct pfi_kif	*kif;
+	struct pfi_kkif	*kif;
 	counter_u64_t	 bytes[2];
 	counter_u64_t	 packets[2];
 	u_int32_t	 states;
@@ -500,8 +519,8 @@ struct pf_state {
 	union pf_krule_ptr	 nat_rule;
 	struct pf_addr		 rt_addr;
 	struct pf_state_key	*key[2];	/* addresses stack and wire  */
-	struct pfi_kif		*kif;
-	struct pfi_kif		*rt_kif;
+	struct pfi_kkif		*kif;
+	struct pfi_kkif		*rt_kif;
 	struct pf_ksrc_node	*src_node;
 	struct pf_ksrc_node	*nat_src_node;
 	counter_u64_t		 packets[2];
@@ -606,7 +625,7 @@ void			pfsync_state_export(struct pfsync_state *,
 /* pflog */
 struct pf_kruleset;
 struct pf_pdesc;
-typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
+typedef int pflog_packet_t(struct pfi_kkif *, struct mbuf *, sa_family_t,
     u_int8_t, u_int8_t, struct pf_krule *, struct pf_krule *,
     struct pf_kruleset *, struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
@@ -851,16 +870,12 @@ struct pfr_ktable {
 #define pfrkt_tzero	pfrkt_kts.pfrkts_tzero
 #endif
 
-/* keep synced with pfi_kif, used in RB_FIND */
-struct pfi_kif_cmp {
-	char				 pfik_name[IFNAMSIZ];
-};
-
-struct pfi_kif {
+#ifdef _KERNEL
+struct pfi_kkif {
 	char				 pfik_name[IFNAMSIZ];
 	union {
-		RB_ENTRY(pfi_kif)	 _pfik_tree;
-		LIST_ENTRY(pfi_kif)	 _pfik_list;
+		RB_ENTRY(pfi_kkif)	 _pfik_tree;
+		LIST_ENTRY(pfi_kkif)	 _pfik_list;
 	} _pfik_glue;
 #define	pfik_tree	_pfik_glue._pfik_tree
 #define	pfik_list	_pfik_glue._pfik_list
@@ -873,6 +888,7 @@ struct pfi_kif {
 	u_int				 pfik_rulerefs;
 	TAILQ_HEAD(, pfi_dynaddr)	 pfik_dynaddrs;
 };
+#endif
 
 #define	PFI_IFLAG_REFS		0x0001	/* has state references */
 #define PFI_IFLAG_SKIP		0x0100	/* skip filtering on interface */
@@ -1367,7 +1383,7 @@ VNET_DECLARE(uint64_t, pf_stateid[MAXCPU]);
 TAILQ_HEAD(pf_altqqueue, pf_altq);
 VNET_DECLARE(struct pf_altqqueue,	 pf_altqs[4]);
 #define	V_pf_altqs			 VNET(pf_altqs)
-VNET_DECLARE(struct pf_palist,		 pf_pabuf);
+VNET_DECLARE(struct pf_kpalist,		 pf_pabuf);
 #define	V_pf_pabuf			 VNET(pf_pabuf)
 
 VNET_DECLARE(u_int32_t,			 ticket_altqs_active);
@@ -1416,7 +1432,7 @@ extern void			 pf_purge_expired_src_nodes(void);
 extern int			 pf_unlink_state(struct pf_state *, u_int);
 #define	PF_ENTER_LOCKED		0x00000001
 #define	PF_RETURN_LOCKED	0x00000002
-extern int			 pf_state_insert(struct pfi_kif *,
+extern int			 pf_state_insert(struct pfi_kkif *,
 				    struct pf_state_key *,
 				    struct pf_state_key *,
 				    struct pf_state *);
@@ -1464,13 +1480,13 @@ void				pf_free_rule(struct pf_krule *);
 
 #ifdef INET
 int	pf_test(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
-int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
+int	pf_normalize_ip(struct mbuf **, int, struct pfi_kkif *, u_short *,
 	    struct pf_pdesc *);
 #endif /* INET */
 
 #ifdef INET6
 int	pf_test6(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
-int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
+int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kkif *, u_short *,
 	    struct pf_pdesc *);
 void	pf_poolmask(struct pf_addr *, struct pf_addr*,
 	    struct pf_addr *, struct pf_addr *, u_int8_t);
@@ -1498,7 +1514,7 @@ int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
 void	pf_normalize_init(void);
 void	pf_normalize_cleanup(void);
-int	pf_normalize_tcp(int, struct pfi_kif *, struct mbuf *, int, int, void *,
+int	pf_normalize_tcp(int, struct pfi_kkif *, struct mbuf *, int, int, void *,
 	    struct pf_pdesc *);
 void	pf_normalize_tcp_cleanup(struct pf_state *);
 int	pf_normalize_tcp_init(struct mbuf *, int, struct pf_pdesc *,
@@ -1510,7 +1526,7 @@ u_int32_t
 	pf_state_expires(const struct pf_state *);
 void	pf_purge_expired_fragments(void);
 void	pf_purge_fragments(uint32_t);
-int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *,
+int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kkif *,
 	    int);
 int	pf_socket_lookup(int, struct pf_pdesc *, struct mbuf *);
 struct pf_state_key *pf_alloc_state_key(int);
@@ -1553,19 +1569,19 @@ int	pfr_ina_define(struct pfr_table *, struct pfr_addr *, int, int *,
 	    int *, u_int32_t, int);
 
 MALLOC_DECLARE(PFI_MTYPE);
-VNET_DECLARE(struct pfi_kif *,		 pfi_all);
+VNET_DECLARE(struct pfi_kkif *,		 pfi_all);
 #define	V_pfi_all	 		 VNET(pfi_all)
 
 void		 pfi_initialize(void);
 void		 pfi_initialize_vnet(void);
 void		 pfi_cleanup(void);
 void		 pfi_cleanup_vnet(void);
-void		 pfi_kif_ref(struct pfi_kif *);
-void		 pfi_kif_unref(struct pfi_kif *);
-struct pfi_kif	*pfi_kif_find(const char *);
-struct pfi_kif	*pfi_kif_attach(struct pfi_kif *, const char *);
-int		 pfi_kif_match(struct pfi_kif *, struct pfi_kif *);
-void		 pfi_kif_purge(void);
+void		 pfi_kkif_ref(struct pfi_kkif *);
+void		 pfi_kkif_unref(struct pfi_kkif *);
+struct pfi_kkif	*pfi_kkif_find(const char *);
+struct pfi_kkif	*pfi_kkif_attach(struct pfi_kkif *, const char *);
+int		 pfi_kkif_match(struct pfi_kkif *, struct pfi_kkif *);
+void		 pfi_kkif_purge(void);
 int		 pfi_match_addr(struct pfi_dynaddr *, struct pf_addr *,
 		    sa_family_t);
 int		 pfi_dynaddr_setup(struct pf_addr_wrap *, sa_family_t);
@@ -1639,7 +1655,7 @@ int			 pf_map_addr(u_int8_t, struct pf_krule *,
 			    struct pf_addr *, struct pf_addr *,
 			    struct pf_addr *, struct pf_ksrc_node **);
 struct pf_krule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
-			    int, int, struct pfi_kif *, struct pf_ksrc_node **,
+			    int, int, struct pfi_kkif *, struct pf_ksrc_node **,
 			    struct pf_state_key **, struct pf_state_key **,
 			    struct pf_addr *, struct pf_addr *,
 			    uint16_t, uint16_t, struct pf_kanchor_stackframe *);

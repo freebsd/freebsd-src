@@ -91,11 +91,11 @@ __FBSDID("$FreeBSD$");
 #include <net/altq/altq.h>
 #endif
 
-static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
+static struct pf_kpool	*pf_get_kpool(char *, u_int32_t, u_int8_t, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t);
 
-static void		 pf_mv_pool(struct pf_palist *, struct pf_palist *);
-static void		 pf_empty_pool(struct pf_palist *);
+static void		 pf_mv_kpool(struct pf_kpalist *, struct pf_kpalist *);
+static void		 pf_empty_kpool(struct pf_kpalist *);
 static int		 pfioctl(struct cdev *, u_long, caddr_t, int,
 			    struct thread *);
 #ifdef ALTQ
@@ -337,9 +337,8 @@ pfattach_vnet(void)
 		return;
 }
 
-
-static struct pf_pool *
-pf_get_pool(char *anchor, u_int32_t ticket, u_int8_t rule_action,
+static struct pf_kpool *
+pf_get_kpool(char *anchor, u_int32_t ticket, u_int8_t rule_action,
     u_int32_t rule_number, u_int8_t r_last, u_int8_t active,
     u_int8_t check_ticket)
 {
@@ -383,9 +382,9 @@ pf_get_pool(char *anchor, u_int32_t ticket, u_int8_t rule_action,
 }
 
 static void
-pf_mv_pool(struct pf_palist *poola, struct pf_palist *poolb)
+pf_mv_kpool(struct pf_kpalist *poola, struct pf_kpalist *poolb)
 {
-	struct pf_pooladdr	*mv_pool_pa;
+	struct pf_kpooladdr	*mv_pool_pa;
 
 	while ((mv_pool_pa = TAILQ_FIRST(poola)) != NULL) {
 		TAILQ_REMOVE(poola, mv_pool_pa, entries);
@@ -394,9 +393,9 @@ pf_mv_pool(struct pf_palist *poola, struct pf_palist *poolb)
 }
 
 static void
-pf_empty_pool(struct pf_palist *poola)
+pf_empty_kpool(struct pf_kpalist *poola)
 {
-	struct pf_pooladdr *pa;
+	struct pf_kpooladdr *pa;
 
 	while ((pa = TAILQ_FIRST(poola)) != NULL) {
 		switch (pa->addr.type) {
@@ -410,7 +409,7 @@ pf_empty_pool(struct pf_palist *poola)
 			break;
 		}
 		if (pa->kif)
-			pfi_kif_unref(pa->kif);
+			pfi_kkif_unref(pa->kif);
 		TAILQ_REMOVE(poola, pa, entries);
 		free(pa, M_PFRULE);
 	}
@@ -464,9 +463,9 @@ pf_free_rule(struct pf_krule *rule)
 	if (rule->overload_tbl)
 		pfr_detach_table(rule->overload_tbl);
 	if (rule->kif)
-		pfi_kif_unref(rule->kif);
+		pfi_kkif_unref(rule->kif);
 	pf_kanchor_remove(rule);
-	pf_empty_pool(&rule->rpool.list);
+	pf_empty_kpool(&rule->rpool.list);
 	counter_u64_free(rule->evaluations);
 	for (int i = 0; i < 2; i++) {
 		counter_u64_free(rule->packets[i]);
@@ -1438,6 +1437,26 @@ pf_altq_get_nth_active(u_int32_t n)
 #endif /* ALTQ */
 
 static void
+pf_kpooladdr_to_pooladdr(const struct pf_kpooladdr *kpool,
+    struct pf_pooladdr *pool)
+{
+
+	bzero(pool, sizeof(*pool));
+	bcopy(&kpool->addr, &pool->addr, sizeof(pool->addr));
+	strlcpy(pool->ifname, kpool->ifname, sizeof(pool->ifname));
+}
+
+static void
+pf_pooladdr_to_kpooladdr(const struct pf_pooladdr *pool,
+    struct pf_kpooladdr *kpool)
+{
+
+	bzero(kpool, sizeof(*kpool));
+	bcopy(&pool->addr, &kpool->addr, sizeof(kpool->addr));
+	strlcpy(kpool->ifname, pool->ifname, sizeof(kpool->ifname));
+}
+
+static void
 pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
 {
 
@@ -1789,8 +1808,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pfioc_rule	*pr = (struct pfioc_rule *)addr;
 		struct pf_kruleset	*ruleset;
 		struct pf_krule		*rule, *tail;
-		struct pf_pooladdr	*pa;
-		struct pfi_kif		*kif = NULL;
+		struct pf_kpooladdr	*pa;
+		struct pfi_kkif		*kif = NULL;
 		int			 rs_num;
 
 		if (pr->rule.return_icmp >> 8 > ICMP_MAXTYPE) {
@@ -1862,8 +1881,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		else
 			rule->nr = 0;
 		if (rule->ifname[0]) {
-			rule->kif = pfi_kif_attach(kif, rule->ifname);
-			pfi_kif_ref(rule->kif);
+			rule->kif = pfi_kkif_attach(kif, rule->ifname);
+			pfi_kkif_ref(rule->kif);
 		} else
 			rule->kif = NULL;
 
@@ -1924,7 +1943,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				    PFR_TFLAG_ACTIVE;
 		}
 
-		pf_mv_pool(&V_pf_pabuf, &rule->rpool.list);
+		pf_mv_kpool(&V_pf_pabuf, &rule->rpool.list);
 		if (((((rule->action == PF_NAT) || (rule->action == PF_RDR) ||
 		    (rule->action == PF_BINAT)) && rule->anchor == NULL) ||
 		    (rule->rt > PF_NOPFROUTE)) &&
@@ -2057,8 +2076,8 @@ DIOCADDRULE_error:
 		struct pfioc_rule	*pcr = (struct pfioc_rule *)addr;
 		struct pf_kruleset	*ruleset;
 		struct pf_krule		*oldrule = NULL, *newrule = NULL;
-		struct pfi_kif		*kif = NULL;
-		struct pf_pooladdr	*pa;
+		struct pfi_kkif		*kif = NULL;
+		struct pf_kpooladdr	*pa;
 		u_int32_t		 nr = 0;
 		int			 rs_num;
 
@@ -2130,9 +2149,9 @@ DIOCADDRULE_error:
 
 		if (pcr->action != PF_CHANGE_REMOVE) {
 			if (newrule->ifname[0]) {
-				newrule->kif = pfi_kif_attach(kif,
+				newrule->kif = pfi_kkif_attach(kif,
 				    newrule->ifname);
-				pfi_kif_ref(newrule->kif);
+				pfi_kkif_ref(newrule->kif);
 			} else
 				newrule->kif = NULL;
 
@@ -2194,7 +2213,7 @@ DIOCADDRULE_error:
 					    PFR_TFLAG_ACTIVE;
 			}
 
-			pf_mv_pool(&V_pf_pabuf, &newrule->rpool.list);
+			pf_mv_kpool(&V_pf_pabuf, &newrule->rpool.list);
 			if (((((newrule->action == PF_NAT) ||
 			    (newrule->action == PF_RDR) ||
 			    (newrule->action == PF_BINAT) ||
@@ -2211,7 +2230,7 @@ DIOCADDRULE_error:
 
 			newrule->rpool.cur = TAILQ_FIRST(&newrule->rpool.list);
 		}
-		pf_empty_pool(&V_pf_pabuf);
+		pf_empty_kpool(&V_pf_pabuf);
 
 		if (pcr->action == PF_CHANGE_ADD_HEAD)
 			oldrule = TAILQ_FIRST(
@@ -2881,7 +2900,7 @@ DIOCGETSTATES_full:
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
 
 		PF_RULES_WLOCK();
-		pf_empty_pool(&V_pf_pabuf);
+		pf_empty_kpool(&V_pf_pabuf);
 		pp->ticket = ++V_ticket_pabuf;
 		PF_RULES_WUNLOCK();
 		break;
@@ -2889,8 +2908,8 @@ DIOCGETSTATES_full:
 
 	case DIOCADDADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
-		struct pf_pooladdr	*pa;
-		struct pfi_kif		*kif = NULL;
+		struct pf_kpooladdr	*pa;
+		struct pfi_kkif		*kif = NULL;
 
 #ifndef INET
 		if (pp->af == AF_INET) {
@@ -2915,7 +2934,7 @@ DIOCGETSTATES_full:
 			break;
 		}
 		pa = malloc(sizeof(*pa), M_PFRULE, M_WAITOK);
-		bcopy(&pp->addr, pa, sizeof(struct pf_pooladdr));
+		pf_pooladdr_to_kpooladdr(&pp->addr, pa);
 		if (pa->ifname[0])
 			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
 		PF_RULES_WLOCK();
@@ -2928,14 +2947,14 @@ DIOCGETSTATES_full:
 			break;
 		}
 		if (pa->ifname[0]) {
-			pa->kif = pfi_kif_attach(kif, pa->ifname);
-			pfi_kif_ref(pa->kif);
+			pa->kif = pfi_kkif_attach(kif, pa->ifname);
+			pfi_kkif_ref(pa->kif);
 		} else
 			pa->kif = NULL;
 		if (pa->addr.type == PF_ADDR_DYNIFTL && ((error =
 		    pfi_dynaddr_setup(&pa->addr, pp->af)) != 0)) {
 			if (pa->ifname[0])
-				pfi_kif_unref(pa->kif);
+				pfi_kkif_unref(pa->kif);
 			PF_RULES_WUNLOCK();
 			free(pa, M_PFRULE);
 			break;
@@ -2947,12 +2966,12 @@ DIOCGETSTATES_full:
 
 	case DIOCGETADDRS: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
-		struct pf_pool		*pool;
-		struct pf_pooladdr	*pa;
+		struct pf_kpool		*pool;
+		struct pf_kpooladdr	*pa;
 
 		PF_RULES_RLOCK();
 		pp->nr = 0;
-		pool = pf_get_pool(pp->anchor, pp->ticket, pp->r_action,
+		pool = pf_get_kpool(pp->anchor, pp->ticket, pp->r_action,
 		    pp->r_num, 0, 1, 0);
 		if (pool == NULL) {
 			PF_RULES_RUNLOCK();
@@ -2967,12 +2986,12 @@ DIOCGETSTATES_full:
 
 	case DIOCGETADDR: {
 		struct pfioc_pooladdr	*pp = (struct pfioc_pooladdr *)addr;
-		struct pf_pool		*pool;
-		struct pf_pooladdr	*pa;
+		struct pf_kpool		*pool;
+		struct pf_kpooladdr	*pa;
 		u_int32_t		 nr = 0;
 
 		PF_RULES_RLOCK();
-		pool = pf_get_pool(pp->anchor, pp->ticket, pp->r_action,
+		pool = pf_get_kpool(pp->anchor, pp->ticket, pp->r_action,
 		    pp->r_num, 0, 1, 1);
 		if (pool == NULL) {
 			PF_RULES_RUNLOCK();
@@ -2989,7 +3008,7 @@ DIOCGETSTATES_full:
 			error = EBUSY;
 			break;
 		}
-		bcopy(pa, &pp->addr, sizeof(struct pf_pooladdr));
+		pf_kpooladdr_to_pooladdr(pa, &pp->addr);
 		pf_addr_copyout(&pp->addr.addr);
 		PF_RULES_RUNLOCK();
 		break;
@@ -2997,10 +3016,10 @@ DIOCGETSTATES_full:
 
 	case DIOCCHANGEADDR: {
 		struct pfioc_pooladdr	*pca = (struct pfioc_pooladdr *)addr;
-		struct pf_pool		*pool;
-		struct pf_pooladdr	*oldpa = NULL, *newpa = NULL;
+		struct pf_kpool		*pool;
+		struct pf_kpooladdr	*oldpa = NULL, *newpa = NULL;
 		struct pf_kruleset	*ruleset;
-		struct pfi_kif		*kif = NULL;
+		struct pfi_kkif		*kif = NULL;
 
 		if (pca->action < PF_CHANGE_ADD_HEAD ||
 		    pca->action > PF_CHANGE_REMOVE) {
@@ -3044,15 +3063,15 @@ DIOCGETSTATES_full:
 		if (ruleset == NULL)
 			ERROUT(EBUSY);
 
-		pool = pf_get_pool(pca->anchor, pca->ticket, pca->r_action,
+		pool = pf_get_kpool(pca->anchor, pca->ticket, pca->r_action,
 		    pca->r_num, pca->r_last, 1, 1);
 		if (pool == NULL)
 			ERROUT(EBUSY);
 
 		if (pca->action != PF_CHANGE_REMOVE) {
 			if (newpa->ifname[0]) {
-				newpa->kif = pfi_kif_attach(kif, newpa->ifname);
-				pfi_kif_ref(newpa->kif);
+				newpa->kif = pfi_kkif_attach(kif, newpa->ifname);
+				pfi_kkif_ref(newpa->kif);
 				kif = NULL;
 			}
 
@@ -3077,7 +3096,7 @@ DIOCGETSTATES_full:
 			oldpa = TAILQ_FIRST(&pool->list);
 			break;
 		case PF_CHANGE_ADD_TAIL:
-			oldpa = TAILQ_LAST(&pool->list, pf_palist);
+			oldpa = TAILQ_LAST(&pool->list, pf_kpalist);
 			break;
 		default:
 			oldpa = TAILQ_FIRST(&pool->list);
@@ -3099,7 +3118,7 @@ DIOCGETSTATES_full:
 				break;
 			}
 			if (oldpa->kif)
-				pfi_kif_unref(oldpa->kif);
+				pfi_kkif_unref(oldpa->kif);
 			free(oldpa, M_PFRULE);
 		} else {
 			if (oldpa == NULL)
@@ -3121,7 +3140,7 @@ DIOCGETSTATES_full:
 DIOCCHANGEADDR_error:
 		if (newpa != NULL) {
 			if (newpa->kif)
-				pfi_kif_unref(newpa->kif);
+				pfi_kkif_unref(newpa->kif);
 			free(newpa, M_PFRULE);
 		}
 		PF_RULES_WUNLOCK();

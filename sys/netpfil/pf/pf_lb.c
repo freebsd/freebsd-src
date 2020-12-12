@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 static void		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
 static struct pf_krule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
-			    int, int, struct pfi_kif *,
+			    int, int, struct pfi_kkif *,
 			    struct pf_addr *, u_int16_t, struct pf_addr *,
 			    uint16_t, int, struct pf_kanchor_stackframe *);
 static int pf_get_sport(sa_family_t, uint8_t, struct pf_krule *,
@@ -125,7 +125,7 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 
 static struct pf_krule *
 pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
-    int direction, struct pfi_kif *kif, struct pf_addr *saddr, u_int16_t sport,
+    int direction, struct pfi_kkif *kif, struct pf_addr *saddr, u_int16_t sport,
     struct pf_addr *daddr, uint16_t dport, int rs_num,
     struct pf_kanchor_stackframe *anchor_stack)
 {
@@ -150,7 +150,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		}
 
 		counter_u64_add(r->evaluations, 1);
-		if (pfi_kif_match(r->kif, kif) == r->ifnot)
+		if (pfi_kkif_match(r->kif, kif) == r->ifnot)
 			r = r->skip[PF_SKIP_IFP].ptr;
 		else if (r->direction && r->direction != direction)
 			r = r->skip[PF_SKIP_DIR].ptr;
@@ -310,7 +310,7 @@ int
 pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
     struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_ksrc_node **sn)
 {
-	struct pf_pool		*rpool = &r->rpool;
+	struct pf_kpool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
 
 	/* Try to find a src_node if none was given and this
@@ -432,7 +432,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 	    }
 	case PF_POOL_ROUNDROBIN:
 	    {
-		struct pf_pooladdr *acur = rpool->cur;
+		struct pf_kpooladdr *acur = rpool->cur;
 
 		/*
 		 * XXXGL: in the round-robin case we need to store
@@ -518,7 +518,7 @@ pf_map_addr(sa_family_t af, struct pf_krule *r, struct pf_addr *saddr,
 
 struct pf_krule *
 pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
-    struct pfi_kif *kif, struct pf_ksrc_node **sn,
+    struct pfi_kkif *kif, struct pf_ksrc_node **sn,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_addr *saddr, struct pf_addr *daddr,
     uint16_t sport, uint16_t dport, struct pf_kanchor_stackframe *anchor_stack)

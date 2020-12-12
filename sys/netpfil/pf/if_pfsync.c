@@ -465,7 +465,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	struct pf_state	*st = NULL;
 	struct pf_state_key *skw = NULL, *sks = NULL;
 	struct pf_krule *r = NULL;
-	struct pfi_kif	*kif;
+	struct pfi_kkif	*kif;
 	int error;
 
 	PF_RULES_RASSERT();
@@ -477,7 +477,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 		return (EINVAL);
 	}
 
-	if ((kif = pfi_kif_find(sp->ifname)) == NULL) {
+	if ((kif = pfi_kkif_find(sp->ifname)) == NULL) {
 		if (V_pf_status.debug >= PF_DEBUG_MISC)
 			printf("%s: unknown interface: %s\n", __func__,
 			    sp->ifname);
@@ -765,7 +765,7 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		creatorid = clr[i].creatorid;
 
 		if (clr[i].ifname[0] != '\0' &&
-		    pfi_kif_find(clr[i].ifname) == NULL)
+		    pfi_kkif_find(clr[i].ifname) == NULL)
 			continue;
 
 		for (int i = 0; i <= pf_hashmask; i++) {
