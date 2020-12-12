@@ -268,7 +268,6 @@ struct tls_ofld_info {
 	struct tls_scmd scmd0;
 	u_int sb_off;
 	struct callout handshake_timer;
-	u_int rcv_over;
 };
 
 struct tls_key_req {

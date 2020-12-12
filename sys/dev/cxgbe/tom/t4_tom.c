@@ -1021,8 +1021,6 @@ calc_options2(struct vi_info *vi, struct conn_params *cp)
 	if (cp->ulp_mode == ULP_MODE_TCPDDP)
 		opt2 |= F_RX_FC_DDP;
 #endif
-	if (cp->ulp_mode == ULP_MODE_TLS)
-		opt2 |= F_RX_FC_DISABLE;
 
 	return (htobe32(opt2));
 }
