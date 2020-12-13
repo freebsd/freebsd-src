@@ -1663,6 +1663,9 @@ struct pf_krule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
 struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *, struct pf_addr *,
 			    struct pf_addr *, u_int16_t, u_int16_t);
 struct pf_state_key	*pf_state_key_clone(struct pf_state_key *);
+
+struct pfi_kkif		*pf_kkif_create(int);
+void			 pf_kkif_free(struct pfi_kkif *);
 #endif /* _KERNEL */
 
 #endif /* _NET_PFVAR_H_ */

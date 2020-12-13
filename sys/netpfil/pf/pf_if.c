@@ -122,7 +122,7 @@ pfi_initialize_vnet(void)
 	V_pfi_buffer = malloc(V_pfi_buffer_max * sizeof(*V_pfi_buffer),
 	    PFI_MTYPE, M_WAITOK);
 
-	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+	kif = pf_kkif_create(M_WAITOK);
 	PF_RULES_WLOCK();
 	V_pfi_all = pfi_kkif_attach(kif, IFG_ALL);
 	PF_RULES_WUNLOCK();
@@ -169,13 +169,13 @@ pfi_cleanup_vnet(void)
 			if_rele(kif->pfik_ifp);
 			kif->pfik_ifp->if_pf_kif = NULL;
 		}
-		free(kif, PFI_MTYPE);
+		pf_kkif_free(kif);
 	}
 
 	mtx_lock(&pfi_unlnkdkifs_mtx);
 	while ((kif = LIST_FIRST(&V_pfi_unlinked_kifs))) {
 		LIST_REMOVE(kif, pfik_list);
-		free(kif, PFI_MTYPE);
+		pf_kkif_free(kif);
 	}
 	mtx_unlock(&pfi_unlnkdkifs_mtx);
 
@@ -192,6 +192,25 @@ pfi_cleanup(void)
 	EVENTHANDLER_DEREGISTER(group_change_event, pfi_change_group_cookie);
 	EVENTHANDLER_DEREGISTER(group_detach_event, pfi_detach_group_cookie);
 	EVENTHANDLER_DEREGISTER(ifaddr_event, pfi_ifaddr_event_cookie);
+}
+
+struct pfi_kkif*
+pf_kkif_create(int flags)
+{
+	struct pfi_kkif *kif;
+
+	kif = malloc(sizeof(*kif), PFI_MTYPE, flags);
+
+	return (kif);
+}
+
+void
+pf_kkif_free(struct pfi_kkif *kif)
+{
+	if (! kif)
+		return;
+
+	free(kif, PFI_MTYPE);
 }
 
 struct pfi_kkif *
@@ -217,7 +236,7 @@ pfi_kkif_attach(struct pfi_kkif *kif, const char *kif_name)
 
 	kif1 = pfi_kkif_find(kif_name);
 	if (kif1 != NULL) {
-		free(kif, PFI_MTYPE);
+		pf_kkif_free(kif);
 		return (kif1);
 	}
 
@@ -286,7 +305,7 @@ pfi_kkif_purge(void)
 	LIST_FOREACH_SAFE(kif, &V_pfi_unlinked_kifs, pfik_list, kif1) {
 		if (!(kif->pfik_flags & PFI_IFLAG_REFS)) {
 			LIST_REMOVE(kif, pfik_list);
-			free(kif, PFI_MTYPE);
+			pf_kkif_free(kif);
 		} else
 			kif->pfik_flags &= ~PFI_IFLAG_REFS;
 	}
@@ -403,7 +422,7 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 	if ((dyn = malloc(sizeof(*dyn), PFI_MTYPE, M_NOWAIT | M_ZERO)) == NULL)
 		return (ENOMEM);
 
-	if ((kif = malloc(sizeof(*kif), PFI_MTYPE, M_NOWAIT)) == NULL) {
+	if ((kif = pf_kkif_create(M_NOWAIT)) == NULL) {
 		free(dyn, PFI_MTYPE);
 		return (ENOMEM);
 	}
@@ -811,7 +830,7 @@ pfi_set_flags(const char *name, int flags)
 {
 	struct pfi_kkif	*p, *kif;
 
-	kif = malloc(sizeof(*kif), PFI_MTYPE, M_NOWAIT);
+	kif = pf_kkif_create(M_NOWAIT);
 	if (kif == NULL)
 		return (ENOMEM);
 
@@ -839,7 +858,7 @@ pfi_clear_flags(const char *name, int flags)
 		    p->pfik_flags == 0 && p->pfik_rulerefs == 0) {
 			/* Delete this kif. */
 			RB_REMOVE(pfi_ifhead, &V_pfi_ifs, p);
-			free(p, PFI_MTYPE);
+			pf_kkif_free(p);
 		}
 	}
 	return (0);
@@ -933,7 +952,7 @@ pfi_change_group_event(void *arg __unused, char *gname)
 		return;
 	}
 
-	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+	kif = pf_kkif_create(M_WAITOK);
 	PF_RULES_WLOCK();
 	V_pfi_update++;
 	kif = pfi_kkif_attach(kif, gname);

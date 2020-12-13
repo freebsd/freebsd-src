@@ -1838,7 +1838,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		pf_rule_to_krule(&pr->rule, rule);
 
 		if (rule->ifname[0])
-			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+			kif = pf_kkif_create(M_WAITOK);
 		rule->evaluations = counter_u64_alloc(M_WAITOK);
 		for (int i = 0; i < 2; i++) {
 			rule->packets[i] = counter_u64_alloc(M_WAITOK);
@@ -1981,7 +1981,7 @@ DIOCADDRULE_error:
 		counter_u64_free(rule->src_nodes);
 		free(rule, M_PFRULE);
 		if (kif)
-			free(kif, PFI_MTYPE);
+			pf_kkif_free(kif);
 		break;
 	}
 
@@ -2108,7 +2108,7 @@ DIOCADDRULE_error:
 			pf_rule_to_krule(&pcr->rule, newrule);
 
 			if (newrule->ifname[0])
-				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+				kif = pf_kkif_create(M_WAITOK);
 			newrule->evaluations = counter_u64_alloc(M_WAITOK);
 			for (int i = 0; i < 2; i++) {
 				newrule->packets[i] =
@@ -2299,7 +2299,7 @@ DIOCCHANGERULE_error:
 			free(newrule, M_PFRULE);
 		}
 		if (kif != NULL)
-			free(kif, PFI_MTYPE);
+			pf_kkif_free(kif);
 		break;
 	}
 
@@ -2936,12 +2936,12 @@ DIOCGETSTATES_full:
 		pa = malloc(sizeof(*pa), M_PFRULE, M_WAITOK);
 		pf_pooladdr_to_kpooladdr(&pp->addr, pa);
 		if (pa->ifname[0])
-			kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+			kif = pf_kkif_create(M_WAITOK);
 		PF_RULES_WLOCK();
 		if (pp->ticket != V_ticket_pabuf) {
 			PF_RULES_WUNLOCK();
 			if (pa->ifname[0])
-				free(kif, PFI_MTYPE);
+				pf_kkif_free(kif);
 			free(pa, M_PFRULE);
 			error = EBUSY;
 			break;
@@ -3053,7 +3053,7 @@ DIOCGETSTATES_full:
 			newpa = malloc(sizeof(*newpa), M_PFRULE, M_WAITOK);
 			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
 			if (newpa->ifname[0])
-				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+				kif = pf_kkif_create(M_WAITOK);
 			newpa->kif = NULL;
 		}
 
@@ -3145,7 +3145,7 @@ DIOCCHANGEADDR_error:
 		}
 		PF_RULES_WUNLOCK();
 		if (kif != NULL)
-			free(kif, PFI_MTYPE);
+			pf_kkif_free(kif);
 		break;
 	}
 
