@@ -202,9 +202,13 @@ event_print_all(FILE *fp)
 	struct event *e;
 	struct tm tm;
 	char dbuf[80];
+#ifdef WITH_ICONV
 	static int d_first;
 
 	d_first = (*nl_langinfo(D_MD_ORDER) == 'd');
+#else
+#define	d_first	0
+#endif
 
 	while (walkthrough_dates(&e) != 0) {
 		if (e) {
