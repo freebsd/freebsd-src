@@ -1229,7 +1229,7 @@ success:
 	return (0);
 bad:
 	KASSERT(indx == -1, ("indx=%d, should be -1", indx));
-	fdrop(fp, td);
+	fdrop_close(fp, td);
 	return (error);
 }
 
