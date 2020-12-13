@@ -382,7 +382,7 @@ unp_pcb_lock_peer(struct unpcb *unp)
 
 	UNP_PCB_LOCK_ASSERT(unp);
 	unp2 = unp->unp_conn;
-	if (__predict_false(unp2 == NULL))
+	if (unp2 == NULL)
 		return (NULL);
 	if (__predict_false(unp == unp2))
 		return (unp);
