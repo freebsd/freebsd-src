@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  * HID spec: http://www.usb.org/developers/devclass_docs/HID1_11.pdf
  */
 
+#include "opt_hid.h"
+
 #include <sys/stdint.h>
 #include <sys/stddef.h>
 #include <sys/param.h>
@@ -891,7 +893,9 @@ uhid_detach(device_t dev)
 	return (0);
 }
 
+#ifndef HIDRAW_MAKE_UHID_ALIAS
 static devclass_t uhid_devclass;
+#endif
 
 static device_method_t uhid_methods[] = {
 	DEVMETHOD(device_probe, uhid_probe),
@@ -902,12 +906,20 @@ static device_method_t uhid_methods[] = {
 };
 
 static driver_t uhid_driver = {
+#ifdef HIDRAW_MAKE_UHID_ALIAS
+	.name = "hidraw",
+#else
 	.name = "uhid",
+#endif
 	.methods = uhid_methods,
 	.size = sizeof(struct uhid_softc),
 };
 
+#ifdef HIDRAW_MAKE_UHID_ALIAS
+DRIVER_MODULE(uhid, uhub, uhid_driver, hidraw_devclass, NULL, 0);
+#else
 DRIVER_MODULE(uhid, uhub, uhid_driver, uhid_devclass, NULL, 0);
+#endif
 MODULE_DEPEND(uhid, usb, 1, 1, 1);
 MODULE_DEPEND(uhid, hid, 1, 1, 1);
 MODULE_VERSION(uhid, 1);
