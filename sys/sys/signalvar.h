@@ -367,7 +367,7 @@ static inline int
 sigdeferstop(int mode)
 {
 
-	if (__predict_true(mode == SIGDEFERSTOP_NOP))
+	if (__predict_false(mode == SIGDEFERSTOP_NOP))
 		return (SIGDEFERSTOP_VAL_NCHG);
 	return (sigdeferstop_impl(mode));
 }
