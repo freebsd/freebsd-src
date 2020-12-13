@@ -1824,7 +1824,10 @@ retry:
 	}
 	return (-1);
 negative_success:
-	if (__predict_false(cnp->cn_nameiop == CREATE)) {
+	/*
+	 * We don't get here with regular lookup apart from corner cases.
+	 */
+	if (__predict_true(cnp->cn_nameiop == CREATE)) {
 		if (cnp->cn_flags & ISLASTCN) {
 			counter_u64_add(numnegzaps, 1);
 			error = cache_zap_locked_bucket(ncp, cnp, hash, blp);
@@ -1927,7 +1930,7 @@ cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 	}
 	return (-1);
 negative_success:
-	if (__predict_false(cnp->cn_nameiop == CREATE)) {
+	if (cnp->cn_nameiop == CREATE) {
 		if (cnp->cn_flags & ISLASTCN) {
 			vfs_smr_exit();
 			goto out_fallback;
@@ -4589,7 +4592,10 @@ out:
 	case CACHE_FPL_STATUS_HANDLED:
 		MPASS(error != CACHE_FPL_FAILED);
 		cache_fpl_smr_assert_not_entered(fpl);
-		if (__predict_false(error != 0)) {
+		/*
+		 * A common error is ENOENT.
+		 */
+		if (error != 0) {
 			ndp->ni_dvp = NULL;
 			ndp->ni_vp = NULL;
 			cache_fpl_cleanup_cnp(cnp);
