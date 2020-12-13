@@ -879,8 +879,8 @@ struct pfi_kkif {
 	} _pfik_glue;
 #define	pfik_tree	_pfik_glue._pfik_tree
 #define	pfik_list	_pfik_glue._pfik_list
-	u_int64_t			 pfik_packets[2][2][2];
-	u_int64_t			 pfik_bytes[2][2][2];
+	counter_u64_t			 pfik_packets[2][2][2];
+	counter_u64_t			 pfik_bytes[2][2][2];
 	u_int32_t			 pfik_tzero;
 	u_int				 pfik_flags;
 	struct ifnet			*pfik_ifp;
@@ -1666,6 +1666,7 @@ struct pf_state_key	*pf_state_key_clone(struct pf_state_key *);
 
 struct pfi_kkif		*pf_kkif_create(int);
 void			 pf_kkif_free(struct pfi_kkif *);
+void			 pf_kkif_zero(struct pfi_kkif *);
 #endif /* _KERNEL */
 
 #endif /* _NET_PFVAR_H_ */

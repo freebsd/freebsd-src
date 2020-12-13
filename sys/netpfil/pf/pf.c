@@ -6329,8 +6329,10 @@ done:
 		    (s == NULL));
 	}
 
-	kif->pfik_bytes[0][dir == PF_OUT][action != PF_PASS] += pd.tot_len;
-	kif->pfik_packets[0][dir == PF_OUT][action != PF_PASS]++;
+	counter_u64_add(kif->pfik_bytes[0][dir == PF_OUT][action != PF_PASS],
+	    pd.tot_len);
+	counter_u64_add(kif->pfik_packets[0][dir == PF_OUT][action != PF_PASS],
+	    1);
 
 	if (action == PF_PASS || r->action == PF_DROP) {
 		dirndx = (dir == PF_OUT);
@@ -6734,8 +6736,10 @@ done:
 		    &pd, (s == NULL));
 	}
 
-	kif->pfik_bytes[1][dir == PF_OUT][action != PF_PASS] += pd.tot_len;
-	kif->pfik_packets[1][dir == PF_OUT][action != PF_PASS]++;
+	counter_u64_add(kif->pfik_bytes[1][dir == PF_OUT][action != PF_PASS],
+	    pd.tot_len);
+	counter_u64_add(kif->pfik_packets[1][dir == PF_OUT][action != PF_PASS],
+	    1);
 
 	if (action == PF_PASS || r->action == PF_DROP) {
 		dirndx = (dir == PF_OUT);
