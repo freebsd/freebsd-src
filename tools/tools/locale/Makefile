@@ -224,7 +224,7 @@ posix/${enc}.cm:
 .for area in ${BASE_LOCALES_OF_INTEREST}
 posixsrc: build-tools posix/${area}.UTF-8.src
 .ORDER: build-tools posix/${area}.UTF-8.src
-posix/${area}.UTF-8.src: 
+posix/${area}.UTF-8.src:
 	mkdir -p posix && \
 	    ${JAVA_CLDR} org.unicode.cldr.posix.GeneratePOSIX \
 		-d posix -m ${area} -c UTF-8
@@ -237,5 +237,21 @@ posix/${area}.${encoding}.src:
 	    ${JAVA_CLDR} org.unicode.cldr.posix.GeneratePOSIX \
 		-d posix -m ${area} -c ${encoding}
 .endfor
+
+# generate widths.txt using the data from libut8proc
+GETWIDTHS=${TOOLSDIR}/getwidths
+MKWIDTHS=${TOOLSDIR}/mkwidths.pl
+WIDTHS=	${ETCDIR}/final-maps/widths.txt
+
+U8CFLAGS!=pkgconf --cflags libutf8proc
+U8LIBS!=pkgconf --libs libutf8proc
+CFLAGS+=${U8CFLAGS}
+LDFLAGS+=${U8LIBS}
+
+CLEANFILES+=${TOOLSDIR}/getwidths
+
+widths:	${WIDTHS}
+${WIDTHS}: posixcm ${GETWIDTHS}
+	${GETWIDTHS} | ${MKWIDTHS} ${.OBJDIR}/posix/UTF-8.cm ${.TARGET}
 
 .include <bsd.obj.mk>
