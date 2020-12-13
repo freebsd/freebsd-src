@@ -441,12 +441,10 @@ sleepq_check_ast_sc_locked(struct thread *td, struct sleepqueue_chain *sc)
 
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 
-	ret = 0;
 	if ((td->td_pflags & TDP_WAKEUP) != 0) {
 		td->td_pflags &= ~TDP_WAKEUP;
-		ret = EINTR;
 		thread_lock(td);
-		return (0);
+		return (EINTR);
 	}
 
 	/*
