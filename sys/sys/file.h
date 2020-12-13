@@ -299,6 +299,17 @@ fhold(struct file *fp)
 	_error;							\
 })
 
+#define	fdrop_close(fp, td)		({			\
+	struct file *_fp;					\
+	int _error;						\
+								\
+	_error = 0;						\
+	_fp = (fp);						\
+	if (__predict_true(refcount_release(&_fp->f_count)))	\
+		_error = _fdrop(_fp, td);			\
+	_error;							\
+})
+
 static __inline fo_rdwr_t	fo_read;
 static __inline fo_rdwr_t	fo_write;
 static __inline fo_truncate_t	fo_truncate;

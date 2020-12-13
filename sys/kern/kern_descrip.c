@@ -2766,7 +2766,7 @@ closef(struct file *fp, struct thread *td)
 			FILEDESC_XUNLOCK(fdp);
 		}
 	}
-	return (fdrop(fp, td));
+	return (fdrop_close(fp, td));
 }
 
 /*
