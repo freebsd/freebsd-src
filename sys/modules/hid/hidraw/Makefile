@@ -4,6 +4,6 @@
 
 KMOD=	hidraw
 SRCS=	hidraw.c
-SRCS+=	bus_if.h device_if.h
+SRCS+=	opt_hid.h bus_if.h device_if.h
 
 .include <bsd.kmod.mk>

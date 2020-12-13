@@ -38,6 +38,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hid.h"
+
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -207,6 +209,9 @@ hidraw_attach(device_t self)
 		hidraw_detach(self);
 		return (error);
 	}
+#ifdef HIDRAW_MAKE_UHID_ALIAS
+	(void)make_dev_alias(sc->dev, "uhid%d", device_get_unit(self));
+#endif
 
 	hidbus_set_lock(self, &sc->sc_mtx);
 	hidbus_set_intr(self, hidraw_intr, sc);
@@ -893,7 +898,9 @@ static driver_t hidraw_driver = {
 	sizeof(struct hidraw_softc)
 };
 
-static devclass_t hidraw_devclass;
+#ifndef HIDRAW_MAKE_UHID_ALIAS
+devclass_t hidraw_devclass;
+#endif
 
 DRIVER_MODULE(hidraw, hidbus, hidraw_driver, hidraw_devclass, NULL, 0);
 MODULE_DEPEND(hidraw, hidbus, 1, 1, 1);
