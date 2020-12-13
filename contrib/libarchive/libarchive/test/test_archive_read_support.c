@@ -126,7 +126,9 @@ DEFINE_TEST(test_archive_read_support)
 	    ARCHIVE_FORMAT_WARC,
 	    ARCHIVE_FORMAT_RAR_V5,
 	};
-	for (unsigned i = 0; i < sizeof(format_codes) / sizeof(int); i++) {
+	unsigned int i;
+
+	for (i = 0; i < sizeof(format_codes) / sizeof(int); i++) {
 		format_code = format_codes[i];
 		test_filter_or_format(format_code_enabler);
 		test_filter_or_format(format_code_setter);
