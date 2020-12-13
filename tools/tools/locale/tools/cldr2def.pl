@@ -460,6 +460,11 @@ sub transform_ctypes {
 		foreach my $enc (sort keys(%{$languages{$l}{$f}{data}{$c}})) {
 			next if ($enc eq $DEFENCODING);
 			$filename = "$UNIDIR/posix/$file.$DEFENCODING.src";
+			if ($file eq 'ja_JP') {
+				# Override $filename for ja_JP because
+				# its CTYPE is not compatible with UTF-8.
+				$filename = "$UNIDIR/posix/$file.eucJP.src";
+			}
 			if (! -f $filename) {
 				print STDERR "Cannot open $filename\n";
 				next;
