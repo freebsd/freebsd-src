@@ -136,6 +136,9 @@ static int	skip(struct archive_read *a);
 static int	read_header(struct archive_read *,
 		    struct archive_entry *);
 static int64_t	mtree_atol(char **, int base);
+#ifndef HAVE_STRNLEN
+static size_t	mtree_strnlen(const char *, size_t);
+#endif
 
 /*
  * There's no standard for TIME_T_MAX/TIME_T_MIN.  So we compute them
@@ -186,6 +189,24 @@ get_time_t_min(void)
 	}
 #endif
 }
+
+#ifdef HAVE_STRNLEN
+#define mtree_strnlen(a,b) strnlen(a,b)
+#else
+static size_t
+mtree_strnlen(const char *p, size_t maxlen)
+{
+	size_t i;
+
+	for (i = 0; i <= maxlen; i++) {
+		if (p[i] == 0)
+			break;
+	}
+	if (i > maxlen)
+		return (-1);/* invalid */
+	return (i);
+}
+#endif
 
 static int
 archive_read_format_mtree_options(struct archive_read *a,
@@ -1540,7 +1561,7 @@ parse_digest(struct archive_read *a, struct archive_entry *entry,
 
 	len *= 2;
 
-	if (strnlen(digest, len+1) != len) {
+	if (mtree_strnlen(digest, len+1) != len) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 				  "incorrect digest length, ignoring");
 		return ARCHIVE_WARN;
