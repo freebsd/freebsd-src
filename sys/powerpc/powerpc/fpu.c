@@ -209,7 +209,6 @@ save_fpu_nodrop(struct thread *td)
 		save_fpu_int(td);
 }
 
-
 /*
  * Clear Floating-Point Status and Control Register
  */
@@ -217,19 +216,18 @@ void
 cleanup_fpscr()
 {
 	register_t msr;
-	msr = mfmsr();
-	mtmsr(msr | PSL_FP | PSL_VSX);
 
+	msr = mfmsr();
+	mtmsr(msr | PSL_FP);
 	mtfsf(0);
 
 	isync();
 	mtmsr(msr);
 }
 
-
 /*
- *  * Returns the current fp exception
- *   */
+ * Get the current fp exception
+ */
 u_int
 get_fpu_exception(struct thread *td)
 {

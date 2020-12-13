@@ -163,21 +163,21 @@ mttb(u_quad_t time)
 	mtspr(TBR_TBWL, (uint32_t)(time & 0xffffffff));
 }
 
-
 static __inline register_t
 mffs(void)
 {
-	register_t value;
+	uint64_t value;
 
 	__asm __volatile ("mffs 0; stfd 0,0(%0)"
 			:: "b"(&value));
 
-	return (value);
+	return ((register_t)value);
 }
 
 static __inline void
-mtfsf(register_t value)
+mtfsf(uint64_t value)
 {
+
 	__asm __volatile ("lfd 0,0(%0); mtfsf 0xff,0"
 			:: "b"(&value));
 }

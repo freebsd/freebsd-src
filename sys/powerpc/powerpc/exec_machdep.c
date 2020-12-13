@@ -239,13 +239,12 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 		usfp = (void *)((sp - rndfsize) & ~0xFul);
 	}
 
-	/* 
+	/*
 	 * Set Floating Point facility to "Ignore Exceptions Mode" so signal
-	 * handler can run. 
+	 * handler can run.
 	 */
 	if (td->td_pcb->pcb_flags & PCB_FPU)
 		tf->srr1 = tf->srr1 & ~(PSL_FE0 | PSL_FE1);
-
 
 	/*
 	 * Set up the registers to return to sigcode.
@@ -334,10 +333,10 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	if (error != 0)
 		return (error);
 
-	/* 
+	/*
 	 * Save FPU state if needed. User may have changed it on
-	 * signal handler 
-	 */ 
+	 * signal handler
+	 */
 	if (uc.uc_mcontext.mc_srr1 & PSL_FP)
 		save_fpu(td);
 
