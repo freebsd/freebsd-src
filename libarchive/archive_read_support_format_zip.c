@@ -899,6 +899,7 @@ process_extra(struct archive_read *a, struct archive_entry *entry,
 	return ARCHIVE_OK;
 }
 
+#if HAVE_LZMA_H && HAVE_LIBLZMA
 /*
  * Auxiliary function to uncompress data chunk from zipx archive
  * (zip with lzma compression).
@@ -971,6 +972,7 @@ zipx_lzma_uncompress_buffer(const char *compressed_buffer,
 	free(lzma_alone_compressed_buffer);
 	return status;
 }
+#endif
 
 /*
  * Assumes file pointer is at beginning of local file header.
