@@ -223,7 +223,26 @@ pf_kkif_create(int flags)
 {
 	struct pfi_kkif *kif;
 
-	kif = malloc(sizeof(*kif), PFI_MTYPE, flags);
+	kif = malloc(sizeof(*kif), PFI_MTYPE, flags | M_ZERO);
+	if (! kif)
+		return (kif);
+
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			for (int k = 0; k < 2; k++) {
+				kif->pfik_packets[i][j][k] =
+				    counter_u64_alloc(flags);
+				kif->pfik_bytes[i][j][k] =
+				    counter_u64_alloc(flags);
+
+				if (! kif->pfik_packets[i][j][k] ||
+				    ! kif->pfik_bytes[i][j][k]) {
+					pf_kkif_free(kif);
+					return (NULL);
+				}
+			}
+		}
+	}
 
 	return (kif);
 }
@@ -234,7 +253,33 @@ pf_kkif_free(struct pfi_kkif *kif)
 	if (! kif)
 		return;
 
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			for (int k = 0; k < 2; k++) {
+				if (kif->pfik_packets[i][j][k])
+					counter_u64_free(kif->pfik_packets[i][j][k]);
+				if (kif->pfik_bytes[i][j][k])
+					counter_u64_free(kif->pfik_bytes[i][j][k]);
+			}
+		}
+	}
+
 	free(kif, PFI_MTYPE);
+}
+
+void
+pf_kkif_zero(struct pfi_kkif *kif)
+{
+
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 2; j++) {
+			for (int k = 0; k < 2; k++) {
+				counter_u64_zero(kif->pfik_packets[i][j][k]);
+				counter_u64_zero(kif->pfik_bytes[i][j][k]);
+			}
+		}
+	}
+	kif->pfik_tzero = time_second;
 }
 
 struct pfi_kkif *
@@ -264,7 +309,7 @@ pfi_kkif_attach(struct pfi_kkif *kif, const char *kif_name)
 		return (kif1);
 	}
 
-	bzero(kif, sizeof(*kif));
+	pf_kkif_zero(kif);
 	strlcpy(kif->pfik_name, kif_name, sizeof(kif->pfik_name));
 	/*
 	 * It seems that the value of time_second is in unintialzied state
@@ -754,18 +799,16 @@ pfi_update_status(const char *name, struct pf_status *pfs)
 
 		/* just clear statistics */
 		if (pfs == NULL) {
-			bzero(p->pfik_packets, sizeof(p->pfik_packets));
-			bzero(p->pfik_bytes, sizeof(p->pfik_bytes));
-			p->pfik_tzero = time_second;
+			pf_kkif_zero(p);
 			continue;
 		}
 		for (i = 0; i < 2; i++)
 			for (j = 0; j < 2; j++)
 				for (k = 0; k < 2; k++) {
 					pfs->pcounters[i][j][k] +=
-						p->pfik_packets[i][j][k];
+					    counter_u64_fetch(p->pfik_packets[i][j][k]);
 					pfs->bcounters[i][j] +=
-						p->pfik_bytes[i][j][k];
+					    counter_u64_fetch(p->pfik_bytes[i][j][k]);
 				}
 	}
 }
@@ -780,9 +823,9 @@ pf_kkif_to_kif(const struct pfi_kkif *kkif, struct pfi_kif *kif)
 		for (int j = 0; j < 2; j++) {
 			for (int k = 0; k < 2; k++) {
 				kif->pfik_packets[i][j][k] =
-				    kkif->pfik_packets[i][j][k];
+				    counter_u64_fetch(kkif->pfik_packets[i][j][k]);
 				kif->pfik_bytes[i][j][k] =
-				    kkif->pfik_bytes[i][j][k];
+				    counter_u64_fetch(kkif->pfik_bytes[i][j][k]);
 			}
 		}
 	}
