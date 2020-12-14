@@ -62,26 +62,8 @@ issetugid(void)
 }
 #endif
 
-static inline char *
-fflagstostr(u_long flags)
-{
-	return strdup("");
-}
-
-static inline int
-strtofflags(char **stringp, u_long *setp, u_long *clrp)
-{
-	/* On linux just ignore the file flags for now */
-	/*
-	 * XXXAR: this will prevent makefs from setting noschg on libc, etc
-	 * so we should really build the version from libc
-	 */
-	if (setp)
-		*setp = 0;
-	if (clrp)
-		*clrp = 0;
-	return (0); /* success */
-}
+char	*fflagstostr(unsigned long flags);
+int	strtofflags(char **stringp, u_long *setp, u_long *clrp);
 
 /*
  * getentropy() was added in glibc 2.25. Declare it for !glibc and older

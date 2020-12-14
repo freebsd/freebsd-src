@@ -12,6 +12,9 @@
  * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
  * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
+ * This work was supported by Innovate UK project 105694, "Digital Security by
+ * Design (DSbD) Technology Platform Prototype".
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -32,11 +35,28 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-#pragma once
-/* The Linux sysctl struct has a member called __unused */
-#undef __unused
-#include_next <sys/sysctl.h>
-#define __unused __attribute__((unused))
+
+#include <string.h>
+#include <unistd.h>
+
+char *
+fflagstostr(u_long flags __unused)
+{
+	return strdup("");
+}
+
+int
+strtofflags(char **stringp __unused, u_long *setp, u_long *clrp)
+{
+	/* On linux just ignore the file flags for now */
+	/*
+	 * XXX: this will prevent makefs from setting noschg on libc, etc.
+	 * so we should really find a way to support flags in disk images.
+	 */
+	if (setp)
+		*setp = 0;
+	if (clrp)
+		*clrp = 0;
+	return (0); /* success */
+}

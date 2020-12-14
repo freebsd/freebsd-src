@@ -37,13 +37,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/sysctl.h>
+
 #include <err.h>
 #include <string.h>
 #include <sysexits.h>
 
 int
-__freebsd_sysctlbyname(
-    const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen)
+__freebsd_sysctlbyname(const char *name, void *oldp, size_t *oldlenp,
+    const void *newp, size_t newlen)
 {
 	if (strcmp(name, "kern.vm_guest") == 0) {
 		if (!oldp || !oldlenp)

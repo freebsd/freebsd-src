@@ -59,15 +59,6 @@
 #define __IDSTRING(name, string)
 #endif
 
-#ifndef rounddown
-#define rounddown(x, y) (((x) / (y)) * (y))
-#define rounddown2(x, y) ((x) & (~((y)-1))) /* if y is power of two */
-#define roundup(x, y) ((((x) + ((y)-1)) / (y)) * (y)) /* to any y */
-#define roundup2(x, y) \
-	(((x) + ((y)-1)) & (~((y)-1))) /* if y is powers of two */
-#define powerof2(x) ((((x)-1) & (x)) == 0)
-#endif
-
 #ifndef __pure
 #define __pure __attribute__((__pure__))
 #endif
@@ -145,12 +136,6 @@
 #define __malloc_like __attribute__((__malloc__))
 #endif
 
-#ifndef nitems
-// https://stackoverflow.com/questions/1598773/is-there-a-standard-function-in-c-that-would-return-the-length-of-an-array/1598827#1598827
-#define nitems(x) \
-	((sizeof(x) / sizeof(0 [x])) / ((size_t)(!(sizeof(x) % sizeof(0 [x])))))
-#endif
-
 #ifndef __min_size
 #if !defined(__cplusplus)
 #define __min_size(x) static(x)
@@ -180,15 +165,6 @@
  * printf so add the compatibility macro here. */
 #define __printf0__ __printf__
 #endif
-
-/*
- * These should probably be in sys/types.h but mtree expects them to exist
- * without including <sys/types.h>
- */
-typedef unsigned char u_char;
-typedef unsigned short u_short;
-typedef unsigned int u_int;
-typedef unsigned long u_long;
 
 /* On MacOS __CONCAT is defined as x ## y, which won't expand macros */
 #undef __CONCAT

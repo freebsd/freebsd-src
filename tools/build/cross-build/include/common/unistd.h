@@ -40,7 +40,7 @@
 #include <getopt.h>
 
 static inline int
-check_utility_compat(const char *utility)
+check_utility_compat(const char *utility __unused)
 {
 	/*
 	 * The check_utility_compat() function returns zero if utility should

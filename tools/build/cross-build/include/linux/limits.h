@@ -39,10 +39,6 @@
 #include_next <limits.h>
 #endif
 
-#ifdef __STRICT_ANSI__
-#warning __STRICT_ANSI__ defined
-#endif
-
 #if __has_include(<linux/limits.h>)
 #include <linux/limits.h>
 #endif

@@ -42,19 +42,20 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 
 int
-cap_ioctls_limit(int fd, const cap_ioctl_t *cmds, size_t ncmds)
+cap_ioctls_limit(int fd __unused, const cap_ioctl_t *cmds __unused,
+    size_t ncmds __unused)
 {
 	return 0; /* Just pretend that it succeeded */
 }
 
 int
-cap_fcntls_limit(int fd, uint32_t fcntlrights)
+cap_fcntls_limit(int fd __unused, uint32_t fcntlrights __unused)
 {
 	return 0; /* Just pretend that it succeeded */
 }
 
 int
-cap_rights_limit(int fd, const cap_rights_t *rights)
+cap_rights_limit(int fd __unused, const cap_rights_t *rights __unused)
 {
 	return 0; /* Just pretend that it succeeded */
 }

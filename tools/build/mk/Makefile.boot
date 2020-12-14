@@ -45,6 +45,11 @@ CFLAGS+=	-Werror=implicit-function-declaration -Werror=implicit-int \
 		-Werror=return-type -Wundef
 CFLAGS+=	-DHAVE_NBTOOL_CONFIG_H=1
 CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/common
+# This is needed for code that compiles for pre-C11 C standards
+CWARNFLAGS+=	-Wno-typedef-redefinition
+# bsd.sys.mk explicitly turns on -Wsystem-headers, but that's extremely
+# noisy when building on Linux.
+CWARNFLAGS+=	-Wno-system-headers
 
 # b64_pton and b64_ntop is in libresolv on MacOS and Linux:
 # TODO: only needed for uuencode and uudecode
@@ -52,7 +57,7 @@ LDADD+=-lresolv
 
 .if ${.MAKE.OS} == "Linux"
 CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/linux
-CFLAGS+=	-std=gnu99 -D_GNU_SOURCE=1
+CFLAGS+=	-D_GNU_SOURCE=1
 # Needed for sem_init, etc. on Linux (used by usr.bin/sort)
 LDADD+=	-pthread
 
