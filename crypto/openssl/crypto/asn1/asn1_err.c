@@ -1,6 +1,6 @@
 /* crypto/asn1/asn1_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2018 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2020 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -103,6 +103,7 @@ static ERR_STRING_DATA ASN1_str_functs[] = {
     {ERR_FUNC(ASN1_F_ASN1_ITEM_DUP), "ASN1_item_dup"},
     {ERR_FUNC(ASN1_F_ASN1_ITEM_EX_COMBINE_NEW), "ASN1_ITEM_EX_COMBINE_NEW"},
     {ERR_FUNC(ASN1_F_ASN1_ITEM_EX_D2I), "ASN1_ITEM_EX_D2I"},
+    {ERR_FUNC(ASN1_F_ASN1_ITEM_EX_I2D), "ASN1_item_ex_i2d"},
     {ERR_FUNC(ASN1_F_ASN1_ITEM_I2D_BIO), "ASN1_item_i2d_bio"},
     {ERR_FUNC(ASN1_F_ASN1_ITEM_I2D_FP), "ASN1_item_i2d_fp"},
     {ERR_FUNC(ASN1_F_ASN1_ITEM_PACK), "ASN1_item_pack"},
@@ -207,6 +208,7 @@ static ERR_STRING_DATA ASN1_str_reasons[] = {
     {ERR_REASON(ASN1_R_BAD_OBJECT_HEADER), "bad object header"},
     {ERR_REASON(ASN1_R_BAD_PASSWORD_READ), "bad password read"},
     {ERR_REASON(ASN1_R_BAD_TAG), "bad tag"},
+    {ERR_REASON(ASN1_R_BAD_TEMPLATE), "bad template"},
     {ERR_REASON(ASN1_R_BMPSTRING_IS_WRONG_LENGTH),
      "bmpstring is wrong length"},
     {ERR_REASON(ASN1_R_BN_LIB), "bn lib"},
