@@ -81,9 +81,10 @@ libusb20_parse_config_desc(const void *config_desc)
 	if (ptr[1] != LIBUSB20_DT_CONFIG) {
 		return (NULL);		/* not config descriptor */
 	}
+
 	/*
-	 * The first "bInterfaceNumber" should never have the value 0xff.
-	 * Then it is corrupt.
+	 * The first "bInterfaceNumber" cannot start at 0xFFFF
+	 * because the field is 8-bit.
 	 */
 	niface_no_alt = 0;
 	nendpoint = 0;
@@ -206,12 +207,15 @@ libusb20_parse_config_desc(const void *config_desc)
 			if (libusb20_me_decode(ptr, ptr[0], &last_if->desc)) {
 				/* ignore */
 			}
-			/*
-			 * Sometimes USB devices have corrupt interface
-			 * descriptors and we need to overwrite the provided
-			 * interface number!
-			 */
-			last_if->desc.bInterfaceNumber = niface - 1;
+
+			/* detect broken USB descriptors when USB debugging is enabled */
+			if (last_if->desc.bInterfaceNumber != (uint8_t)(niface - 1)) {
+				const char *str = getenv("LIBUSB_DEBUG");
+				if (str != NULL && str[0] != '\0' && str[0] != '0') {
+					printf("LIBUSB_DEBUG: bInterfaceNumber(%u) is not sequential(%u)\n",
+					    last_if->desc.bInterfaceNumber, niface - 1);
+				}
+			}
 			last_if->extra.ptr = LIBUSB20_ADD_BYTES(ptr, ptr[0]);
 			last_if->extra.len = 0;
 			last_if->extra.type = LIBUSB20_ME_IS_RAW;
