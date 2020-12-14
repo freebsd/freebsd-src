@@ -377,6 +377,8 @@ DELAY(int usec)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
+
+	pcpu->pc_mpidr = 0xffffffff;
 }
 
 void
@@ -761,6 +763,7 @@ pcpu0_init(void)
 	set_curthread(&thread0);
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+	pcpup->pc_mpidr = cp15_mpidr_get() & 0xFFFFFF;
 	PCPU_SET(curthread, &thread0);
 }
 
