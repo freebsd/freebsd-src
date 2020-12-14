@@ -206,6 +206,21 @@ init_secondary(uint64_t cpu)
 {
 	struct pcpu *pcpup;
 	pmap_t pmap0;
+	u_int mpidr;
+
+	/*
+	 * Verify that the value passed in 'cpu' argument (aka context_id) is
+	 * valid. Some older U-Boot based PSCI implementations are buggy,
+	 * they can pass random value in it.
+	 */
+	mpidr = READ_SPECIALREG(mpidr_el1) & CPU_AFF_MASK;
+	if  (cpu >= MAXCPU || __pcpu[cpu].pc_mpidr != mpidr) {
+		for (cpu = 0; cpu < mp_maxid; cpu++)
+			if (__pcpu[cpu].pc_mpidr == mpidr)
+				break;
+		if ( cpu >= MAXCPU)
+			panic("MPIDR for this CPU is not in pcpu table");
+	}
 
 	pcpup = &__pcpu[cpu];
 	/*
