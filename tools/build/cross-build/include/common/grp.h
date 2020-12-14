@@ -53,7 +53,7 @@ const char *group_from_gid(gid_t gid, int noname);
 
 #ifdef __linux__
 static inline int
-setgroupent(int stayopen)
+setgroupent(int stayopen __unused)
 {
 	setgrent();
 	return (1);

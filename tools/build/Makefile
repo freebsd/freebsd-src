@@ -174,6 +174,8 @@ CFLAGS.closefrom.c+=	-DSTDC_HEADERS -DHAVE_SYS_DIR_H -DHAVE_DIRENT_H \
 	-DHAVE_DIRFD -DHAVE_SYSCONF
 # Provide warnc/errc/getprogname/setprograme
 SRCS+=	err.c progname.c
+# Stub implementations of fflagstostr/strtofflags
+SRCS+=	fflags.c
 .endif
 # Provide the same arc4random implementation on Linux/macOS
 CFLAGS.arc4random.c+=	-I${SRCTOP}/sys/crypto/chacha20 -D__isthreaded=1
