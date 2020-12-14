@@ -3935,16 +3935,24 @@ static int
 ta_find_kfib_tentry(void *ta_state, struct table_info *ti,
     ipfw_obj_tentry *tent)
 {
-	struct rtentry *rt;
+	struct rtentry *rt = NULL;
 	struct route_nhop_data rnd;
 	struct epoch_tracker et;
 	int error;
 
 	NET_EPOCH_ENTER(et);
-	if (tent->subtype == AF_INET) {
+
+	switch (tent->subtype) {
+#ifdef INET
+	case AF_INET:
 		rt = fib4_lookup_rt(ti->data, tent->k.addr, 0, 0, &rnd);
-	} else {
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
 		rt = fib6_lookup_rt(ti->data, &tent->k.addr6, 0, 0, &rnd);
+		break;
+#endif
 	}
 	if (rt != NULL)
 		error = ta_dump_kfib_tentry_int(tent->subtype, rt, tent);
