@@ -62,23 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 
 /* PRIMARY CACHE VARIABLES */
-int	arm_picache_size;
-int	arm_picache_line_size;
-int	arm_picache_ways;
-
-int	arm_pdcache_size;	/* and unified */
-int	arm_pdcache_line_size;
-int	arm_pdcache_ways;
-
-int	arm_pcache_type;
-int	arm_pcache_unified;
 
 int	arm_dcache_align;
 int	arm_dcache_align_mask;
-
-u_int	arm_cache_level;
-u_int	arm_cache_type[14];
-u_int	arm_cache_loc;
 
 #ifdef CPU_MV_PJ4B
 static void pj4bv7_setup(void);
@@ -155,16 +141,10 @@ u_int cputype;
 
 static void get_cachetype_cp15(void);
 
-/* Additional cache information local to this file.  Log2 of some of the
-   above numbers.  */
-static int	arm_dcache_l2_nsets;
-static int	arm_dcache_l2_assoc;
-static int	arm_dcache_l2_linesize;
-
 static void
 get_cachetype_cp15(void)
 {
-	u_int ctype, isize, dsize, cpuid;
+	u_int ctype, dsize, cpuid;
 	u_int clevel, csize, i, sel;
 	u_int multiplier;
 	u_char type;
@@ -184,8 +164,6 @@ get_cachetype_cp15(void)
 	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
 		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
 		    : "=r" (clevel));
-		arm_cache_level = clevel;
-		arm_cache_loc = CPU_CLIDR_LOC(arm_cache_level);
 		i = 0;
 		while ((type = (clevel & 0x7)) && i < 7) {
 			if (type == CACHE_DCACHE || type == CACHE_UNI_CACHE ||
@@ -195,7 +173,6 @@ get_cachetype_cp15(void)
 				    : : "r" (sel));
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
 				    : "=r" (csize));
-				arm_cache_type[sel] = csize;
 				arm_dcache_align = 1 <<
 				    (CPUV7_CT_xSIZE_LEN(csize) + 4);
 				arm_dcache_align_mask = arm_dcache_align - 1;
@@ -206,57 +183,22 @@ get_cachetype_cp15(void)
 				    : : "r" (sel));
 				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
 				    : "=r" (csize));
-				arm_cache_type[sel] = csize;
 			}
 			i++;
 			clevel >>= 3;
 		}
 	} else {
-		if ((ctype & CPU_CT_S) == 0)
-			arm_pcache_unified = 1;
-
 		/*
 		 * If you want to know how this code works, go read the ARM ARM.
 		 */
 
-		arm_pcache_type = CPU_CT_CTYPE(ctype);
-
-		if (arm_pcache_unified == 0) {
-			isize = CPU_CT_ISIZE(ctype);
-			multiplier = (isize & CPU_CT_xSIZE_M) ? 3 : 2;
-			arm_picache_line_size = 1U << (CPU_CT_xSIZE_LEN(isize) + 3);
-			if (CPU_CT_xSIZE_ASSOC(isize) == 0) {
-				if (isize & CPU_CT_xSIZE_M)
-					arm_picache_line_size = 0; /* not present */
-				else
-					arm_picache_ways = 1;
-			} else {
-				arm_picache_ways = multiplier <<
-				    (CPU_CT_xSIZE_ASSOC(isize) - 1);
-			}
-			arm_picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
-		}
-
 		dsize = CPU_CT_DSIZE(ctype);
 		multiplier = (dsize & CPU_CT_xSIZE_M) ? 3 : 2;
-		arm_pdcache_line_size = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
+		arm_dcache_align = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
 		if (CPU_CT_xSIZE_ASSOC(dsize) == 0) {
 			if (dsize & CPU_CT_xSIZE_M)
-				arm_pdcache_line_size = 0; /* not present */
-			else
-				arm_pdcache_ways = 1;
-		} else {
-			arm_pdcache_ways = multiplier <<
-			    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
+				arm_dcache_align = 0; /* not present */
 		}
-		arm_pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
-
-		arm_dcache_align = arm_pdcache_line_size;
-
-		arm_dcache_l2_assoc = CPU_CT_xSIZE_ASSOC(dsize) + multiplier - 2;
-		arm_dcache_l2_linesize = CPU_CT_xSIZE_LEN(dsize) + 3;
-		arm_dcache_l2_nsets = 6 + CPU_CT_xSIZE_SIZE(dsize) -
-		    CPU_CT_xSIZE_ASSOC(dsize) - CPU_CT_xSIZE_LEN(dsize);
 
 	out:
 		arm_dcache_align_mask = arm_dcache_align - 1;

@@ -87,11 +87,9 @@ extern u_int cputype;
 
 int	set_cpufuncs		(void);
 #define ARCHITECTURE_NOT_PRESENT	1	/* known but not configured */
-#define ARCHITECTURE_NOT_SUPPORTED	2	/* not known */
 
 void	cpufunc_nullop		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
-void	cpu_domains		(u_int domains);
 
 
 #if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
@@ -182,23 +180,9 @@ void cpu_reset		(void) __attribute__((__noreturn__));
  */
 
 /* PRIMARY CACHE VARIABLES */
-extern int	arm_picache_size;
-extern int	arm_picache_line_size;
-extern int	arm_picache_ways;
-
-extern int	arm_pdcache_size;	/* and unified */
-extern int	arm_pdcache_line_size;
-extern int	arm_pdcache_ways;
-
-extern int	arm_pcache_type;
-extern int	arm_pcache_unified;
-
 extern int	arm_dcache_align;
 extern int	arm_dcache_align_mask;
 
-extern u_int	arm_cache_level;
-extern u_int	arm_cache_loc;
-extern u_int	arm_cache_type[14];
 
 #define	HAVE_INLINE_FFS
 
