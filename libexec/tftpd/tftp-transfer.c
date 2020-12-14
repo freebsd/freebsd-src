@@ -258,6 +258,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 	if (firstblock != NULL) {
 		writesize = write_file(firstblock->th_data, fb_size);
 		ts->amount += writesize;
+		ts->blocks++;
 		windowblock++;
 		if (windowsize == 1 || fb_size != segsize) {
 			for (i = 0; ; i++) {
@@ -280,7 +281,6 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 		}
 
 		if (fb_size != segsize) {
-			ts->blocks++;
 			write_close();
 			gettimeofday(&(ts->tstop), NULL);
 			return;
