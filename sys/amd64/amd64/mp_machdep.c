@@ -635,11 +635,11 @@ invl_scoreboard_slot(u_int cpu)
 }
 
 /*
- * Used by pmap to request cache or TLB invalidation on local and
- * remote processors.  Mask provides the set of remote CPUs which are
+ * Used by the pmap to request cache or TLB invalidation on local and
+ * remote processors.  Mask provides the set of remote CPUs that are
  * to be signalled with the invalidation IPI.  As an optimization, the
- * curcpu_cb callback is invoked on the calling CPU while waiting for
- * remote CPUs to complete the operation.
+ * curcpu_cb callback is invoked on the calling CPU in a critical
+ * section while waiting for the remote CPUs to complete the operation.
  *
  * The callback function is called unconditionally on the caller's
  * underlying processor, even when this processor is not set in the
@@ -649,6 +649,9 @@ invl_scoreboard_slot(u_int cpu)
  * Interrupts must be enabled when calling the function with smp
  * started, to avoid deadlock with other IPIs that are protected with
  * smp_ipi_mtx spinlock at the initiator side.
+ *
+ * Function must be called with the thread pinned, and it unpins on
+ * completion.
  */
 static void
 smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
@@ -662,23 +665,21 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	 * It is not necessary to signal other CPUs while booting or
 	 * when in the debugger.
 	 */
-	if (kdb_active || KERNEL_PANICKED() || !smp_started) {
-		curcpu_cb(pmap, addr1, addr2);
-		return;
-	}
+	if (kdb_active || KERNEL_PANICKED() || !smp_started)
+		goto local_cb;
 
-	sched_pin();
+	KASSERT(curthread->td_pinned > 0, ("curthread not pinned"));
 
 	/*
 	 * Check for other cpus.  Return if none.
 	 */
 	if (CPU_ISFULLSET(&mask)) {
 		if (mp_ncpus <= 1)
-			goto nospinexit;
+			goto local_cb;
 	} else {
 		CPU_CLR(PCPU_GET(cpuid), &mask);
 		if (CPU_EMPTY(&mask))
-			goto nospinexit;
+			goto local_cb;
 	}
 
 	/*
@@ -734,13 +735,22 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 		while (atomic_load_int(p_cpudone) != generation)
 			ia32_pause();
 	}
-	critical_exit();
+
+	/*
+	 * Unpin before leaving critical section.  If the thread owes
+	 * preemption, this allows scheduler to select thread on any
+	 * CPU from its cpuset.
+	 */
 	sched_unpin();
+	critical_exit();
+
 	return;
 
-nospinexit:
+local_cb:
+	critical_enter();
 	curcpu_cb(pmap, addr1, addr2);
 	sched_unpin();
+	critical_exit();
 }
 
 void
