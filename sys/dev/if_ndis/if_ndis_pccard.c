@@ -301,6 +301,8 @@ ndis_attach_pccard(dev)
 	}
 
 	error = ndis_attach(dev);
+	if (error == 0)
+		gone_in_dev(dev, 13, "ndis removed");
 
 fail:
 	return(error);
