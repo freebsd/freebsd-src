@@ -202,8 +202,9 @@ autoboot(int timeout, char *prompt)
 	}
 
 	if (timeout >= 0) {
-		otime = time(NULL);
-		when = otime + timeout;	/* when to boot */
+		otime = -1;
+		ntime = time(NULL);
+		when = ntime + timeout;	/* when to boot */
 
 		yes = 0;
 
