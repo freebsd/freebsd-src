@@ -51,7 +51,7 @@ strchrnul(const char *p, int ch)
 	c = ch;
 	for (;; ++p) {
 		if (*p == c || *p == '\0')
-			return ((char *)p);
+			return (__DECONST(char *, p));
 	}
 	/* NOTREACHED */
 }
