@@ -604,6 +604,11 @@ pci_nvme_init_logpages(struct pci_nvme_softc *sc)
 	/* Set read/write remainder to round up according to spec */
 	sc->read_dunits_remainder = 999;
 	sc->write_dunits_remainder = 999;
+
+	/* Set nominal Health values checked by implementations */
+	sc->health_log.temperature = 310;
+	sc->health_log.available_spare = 100;
+	sc->health_log.available_spare_threshold = 10;
 }
 
 static void
