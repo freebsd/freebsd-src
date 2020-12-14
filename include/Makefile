@@ -67,6 +67,134 @@ LSUBDIRS=	cam/ata cam/mmc cam/nvme cam/scsi \
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 
+.PATH: ${SRCTOP}/sys/dev/acpica
+ACPICA=		acpi_hpet.h \
+		acpiio.h
+ACPICADIR=	${INCLUDEDIR}/dev/acpica
+
+.PATH: ${SRCTOP}/sys/dev/agp
+AGP=		agpreg.h
+AGPDIR=		${INCLUDEDIR}/dev/agp
+
+.PATH: ${SRCTOP}/sys/fs/cd9660
+FS9660=		cd9660_mount.h \
+		cd9660_node.h \
+		cd9660_rrip.h \
+		iso.h \
+		iso_rrip.h
+FS9660DIR=	${INCLUDEDIR}/isofs/cd9660
+
+.PATH: ${SRCTOP}/sys/crypto
+CRYPTO=		rijndael/rijndael.h
+CRYPTODIR=	${INCLUDEDIR}/crypto
+
+.PATH: ${SRCTOP}/sys/dev/evdev
+EVDEV=		input.h \
+		input-event-codes.h \
+		uinput.h
+EVDEVDIR=	${INCLUDEDIR}/dev/evdev
+
+.PATH: ${SRCTOP}/sys/dev/hyperv/include ${SRCTOP}/sys/dev/hyperv/utilities
+HYPERV=		hv_snapshot.h \
+		hyperv.h
+HYPERVDIR=	${INCLUDEDIR}/dev/hyperv
+
+.PATH: ${SRCTOP}/sys/opencrypto
+OPENCRYPTO=	_cryptodev.h \
+		cbc_mac.h \
+		cryptodev.h \
+		deflate.h \
+		gfmult.h \
+		gmac.h \
+		rmd160.h \
+		xform.h \
+		xform_auth.h \
+		xform_comp.h \
+		xform_enc.h \
+		xform_poly1305.h
+OPENCRYPTODIR=	${INCLUDEDIR}/crypto
+
+.PATH: ${SRCTOP}/sys/dev/pci
+PCI=		pcireg.h
+PCIDIR=		${INCLUDEDIR}/dev/pci
+
+.PATH: ${SRCTOP}/sys/dev/veriexec
+VERIEXEC=	veriexec_ioctl.h
+VERIEXECDIR=	${INCLUDEDIR}/dev/veriexec
+
+.PATH: ${SRCTOP}/sys/contrib/ipfilter/netinet
+IPFILTER=	ip_auth.h \
+		ip_compat.h \
+		ip_dstlist.h \
+		ip_fil.h \
+		ip_frag.h \
+		ip_htable.h \
+		ip_lookup.h \
+		ip_nat.h \
+		ip_pool.h \
+		ip_proxy.h \
+		ip_rules.h \
+		ip_scan.h \
+		ip_state.h \
+		ip_sync.h \
+		ipf_rb.h \
+		ipl.h \
+		radix_ipf.h
+IPFILTERDIR=	${INCLUDEDIR}/netinet
+
+.PATH: ${SRCTOP}/sys/netpfil/pf
+PF=		pf.h \
+		pf_altq.h \
+		pf_mtag.h
+PFPACKAGE=	pf
+PFDIR=	${INCLUDEDIR}/netpfil/pf
+
+.PATH: ${SRCTOP}/sys/rpc
+RPC=		rpcsec_tls.h \
+		types.h
+RPCDIR=		${INCLUDEDIR}/rpc
+
+.PATH: ${SRCTOP}/sys/teken
+TEKEN=		teken.h
+TEKENDIR=	${INCLUDEDIR}/teken
+
+.PATH: ${SRCTOP}/sys/contrib/openzfs/include/sys
+NVPAIR=		nvpair.h
+NVPAIRDIR=	${INCLUDEDIR}/sys
+
+.PATH: ${SRCTOP}/sys/dev/mlx5
+MLX5=		mlx5io.h
+MLX5DIR=	${INCLUDEDIR}/dev/mlx5
+
+INCSGROUPS=	INCS \
+		ACPICA \
+		AGP \
+		CRYPTO \
+		EVDEV \
+		FS9660 \
+		HYPERV \
+		OPENCRYPTO \
+		PCI \
+		RPC \
+		TEKEN \
+		VERIEXEC
+
+.if ${MK_IPFILTER} != "no"
+INCSGROUPS+=	IPFILTER
+.endif
+
+.if ${MK_PF} != "no"
+INCSGROUPS+=	PF
+.endif
+
+.if ${MK_CDDL} != "no"
+INCSGROUPS+=	NVPAIR
+.endif
+
+.if ${MK_MLX5TOOL} != "no"
+INCSGROUPS+=	MLX5
+.endif
+
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
@@ -164,52 +292,6 @@ copies: .PHONY .META
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
-	cd ${SRCTOP}/sys/dev/acpica; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 acpiio.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/acpica; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 acpi_hpet.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/acpica
-	cd ${SRCTOP}/sys/dev/agp; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 agpreg.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/agp
-	cd ${SRCTOP}/sys/dev/evdev; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 input.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 input-event-codes.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 uinput.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev
-	cd ${SRCTOP}/sys/dev/hyperv/include; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hyperv.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv
-	cd ${SRCTOP}/sys/dev/hyperv/utilities; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 hv_snapshot.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv
-	cd ${SRCTOP}/sys/dev/pci; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 pcireg.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/pci
-	cd ${SRCTOP}/sys/dev/veriexec; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 veriexec_ioctl.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec
-	cd ${SRCTOP}/sys/fs/cd9660/; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${SDESTDIR}${INCLUDEDIR}/isofs/cd9660
-.if ${MK_IPFILTER} != "no"
-	cd ${SRCTOP}/sys/contrib/ipfilter/netinet; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${SDESTDIR}${INCLUDEDIR}/netinet
-.endif
-.if ${MK_PF} != "no"
-	cd ${SRCTOP}/sys/netpfil/pf; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${SDESTDIR}${INCLUDEDIR}/netpfil/pf
-.endif
-	cd ${SRCTOP}/sys/crypto; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
-	    ${SDESTDIR}${INCLUDEDIR}/crypto
-	cd ${SRCTOP}/sys/opencrypto; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${SDESTDIR}${INCLUDEDIR}/crypto
 	cd ${SRCTOP}/sys/${MACHINE}/include; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${SDESTDIR}${INCLUDEDIR}/machine
@@ -234,25 +316,6 @@ copies: .PHONY .META
 .endif
 .endif
 .endfor
-	cd ${SRCTOP}/sys/rpc; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 rpcsec_tls.h \
-	    ${SDESTDIR}${INCLUDEDIR}/rpc
-	cd ${SRCTOP}/sys/rpc; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
-	    ${SDESTDIR}${INCLUDEDIR}/rpc
-	cd ${SRCTOP}/sys/teken; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
-	    ${SDESTDIR}${INCLUDEDIR}/teken
-.if ${MK_CDDL} != "no"
-	cd ${SRCTOP}/sys/contrib/openzfs/include/sys; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 nvpair.h \
-	    ${SDESTDIR}${INCLUDEDIR}/sys
-.endif
-.if ${MK_MLX5TOOL} != "no"
-	cd ${SRCTOP}/sys/dev/mlx5; \
-	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 mlx5io.h \
-	    ${SDESTDIR}${INCLUDEDIR}/dev/mlx5
-.endif
 
 symlinks: .PHONY .META
 	@${ECHO} "Setting up symlinks to kernel source tree..."
