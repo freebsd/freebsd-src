@@ -42,6 +42,7 @@ options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options		ROUTE_MPATH		# Multipath routing support
 options 	TCP_OFFLOAD		# TCP offload
 options 	TCP_BLACKBOX		# Enhanced TCP event logging
 options 	TCP_HHOOK		# hhook(9) framework for TCP
