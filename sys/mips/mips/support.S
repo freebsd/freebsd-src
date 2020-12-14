@@ -90,6 +90,7 @@
 #include <sys/errno.h>
 #include <machine/asm.h>
 #include <machine/cpu.h>
+#include <machine/endian.h>
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 #include <machine/pcb.h>
@@ -578,9 +579,14 @@ END(ffs)
  */
 LEAF(atomic_set_16)
 	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
-	andi	a1, a1, 0xffff
+	/* NB: Only bit 1 is masked so the ll catches unaligned inputs */
+	andi	t0, a0, 2	# get unaligned offset
+	xor	a0, a0, t0	# align pointer
+#if _BYTE_ORDER == BIG_ENDIAN
+	xori	t0, t0, 2
+#endif
+	sll	t0, t0, 3	# convert byte offset to bit offset
+	sll	a1, a1, t0	# put bits in the right half
 1:
 	ll	t0, 0(a0)
 	or	t0, t0, a1
@@ -600,17 +606,18 @@ END(atomic_set_16)
  */
 LEAF(atomic_clear_16)
 	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
-	nor	a1, zero, a1
+	/* NB: Only bit 1 is masked so the ll catches unaligned inputs */
+	andi	t0, a0, 2	# get unaligned offset
+	xor	a0, a0, t0	# align pointer
+#if _BYTE_ORDER == BIG_ENDIAN
+	xori	t0, t0, 2
+#endif
+	sll	t0, t0, 3	# convert byte offset to bit offset
+	sll	a1, a1, t0	# put bits in the right half
+	not	a1, a1
 1:
 	ll	t0, 0(a0)
-	move	t1, t0
-	andi	t1, t1, 0xffff	# t1 has the original lower 16 bits
-	and	t1, t1, a1	# t1 has the new lower 16 bits
-	srl	t0, t0, 16	# preserve original top 16 bits
-	sll	t0, t0, 16
-	or	t0, t0, t1
+	and	t0, t0, a1
 	sc	t0, 0(a0)
 	beq	t0, zero, 1b
 	nop
@@ -628,17 +635,23 @@ END(atomic_clear_16)
  */
 LEAF(atomic_subtract_16)
 	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
+	/* NB: Only bit 1 is masked so the ll catches unaligned inputs */
+	andi	t0, a0, 2	# get unaligned offset
+	xor	a0, a0, t0	# align pointer
+#if _BYTE_ORDER == BIG_ENDIAN
+	xori	t0, t0, 2	# flip order for big-endian
+#endif
+	sll	t0, t0, 3	# convert byte offset to bit offset
+	sll	a1, a1, t0	# put bits in the right half
+	li	t2, 0xffff
+	sll	t2, t2, t0	# compute mask
 1:
 	ll	t0, 0(a0)
-	move	t1, t0
-	andi	t1, t1, 0xffff	# t1 has the original lower 16 bits
-	subu	t1, t1, a1
-	andi	t1, t1, 0xffff	# t1 has the new lower 16 bits
-	srl	t0, t0, 16	# preserve original top 16 bits
-	sll	t0, t0, 16
-	or	t0, t0, t1
+	subu	t1, t0, a1
+	/* Exploit ((t0 & ~t2) | (t1 & t2)) = t0 ^ ((t0 ^ t1) & t2) */
+	xor	t1, t0, t1
+	and	t1, t1, t2
+	xor	t0, t0, t1
 	sc	t0, 0(a0)
 	beq	t0, zero, 1b
 	nop
@@ -655,17 +668,23 @@ END(atomic_subtract_16)
  */
 LEAF(atomic_add_16)
 	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
+	/* NB: Only bit 1 is masked so the ll catches unaligned inputs */
+	andi	t0, a0, 2	# get unaligned offset
+	xor	a0, a0, t0	# align pointer
+#if _BYTE_ORDER == BIG_ENDIAN
+	xori	t0, t0, 2	# flip order for big-endian
+#endif
+	sll	t0, t0, 3	# convert byte offset to bit offset
+	sll	a1, a1, t0	# put bits in the right half
+	li	t2, 0xffff
+	sll	t2, t2, t0	# compute mask
 1:
 	ll	t0, 0(a0)
-	move	t1, t0
-	andi	t1, t1, 0xffff	# t1 has the original lower 16 bits
-	addu	t1, t1, a1
-	andi	t1, t1, 0xffff	# t1 has the new lower 16 bits
-	srl	t0, t0, 16	# preserve original top 16 bits
-	sll	t0, t0, 16
-	or	t0, t0, t1
+	addu	t1, t0, a1
+	/* Exploit ((t0 & ~t2) | (t1 & t2)) = t0 ^ ((t0 ^ t1) & t2) */
+	xor	t1, t0, t1
+	and	t1, t1, t2
+	xor	t0, t0, t1
 	sc	t0, 0(a0)
 	beq	t0, zero, 1b
 	nop
@@ -682,17 +701,22 @@ END(atomic_add_16)
  */
 LEAF(atomic_add_8)
 	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
+	andi	t0, a0, 3	# get unaligned offset
+	xor	a0, a0, t0	# align pointer
+#if _BYTE_ORDER == BIG_ENDIAN
+	xori	t0, t0, 3	# flip order for big-endian
+#endif
+	sll	t0, t0, 3	# convert byte offset to bit offset
+	sll	a1, a1, t0	# put bits in the right quarter
+	li	t2, 0xff
+	sll	t2, t2, t0	# compute mask
 1:
 	ll	t0, 0(a0)
-	move	t1, t0
-	andi	t1, t1, 0xff	# t1 has the original lower 8 bits
-	addu	t1, t1, a1
-	andi	t1, t1, 0xff	# t1 has the new lower 8 bits
-	srl	t0, t0, 8	# preserve original top 24 bits
-	sll	t0, t0, 8
-	or	t0, t0, t1
+	addu	t1, t0, a1
+	/* Exploit ((t0 & ~t2) | (t1 & t2)) = t0 ^ ((t0 ^ t1) & t2) */
+	xor	t1, t0, t1
+	and	t1, t1, t2
+	xor	t0, t0, t1
 	sc	t0, 0(a0)
 	beq	t0, zero, 1b
 	nop
@@ -710,17 +734,22 @@ END(atomic_add_8)
  */
 LEAF(atomic_subtract_8)
 	.set	noreorder
-	srl	a0, a0, 2	# round down address to be 32-bit aligned
-	sll	a0, a0, 2
+	andi	t0, a0, 3	# get unaligned offset
+	xor	a0, a0, t0	# align pointer
+#if _BYTE_ORDER == BIG_ENDIAN
+	xori	t0, t0, 3	# flip order for big-endian
+#endif
+	sll	t0, t0, 3	# convert byte offset to bit offset
+	sll	a1, a1, t0	# put bits in the right quarter
+	li	t2, 0xff
+	sll	t2, t2, t0	# compute mask
 1:
 	ll	t0, 0(a0)
-	move	t1, t0
-	andi	t1, t1, 0xff	# t1 has the original lower 8 bits
-	subu	t1, t1, a1
-	andi	t1, t1, 0xff	# t1 has the new lower 8 bits
-	srl	t0, t0, 8	# preserve original top 24 bits
-	sll	t0, t0, 8
-	or	t0, t0, t1
+	subu	t1, t0, a1
+	/* Exploit ((t0 & ~t2) | (t1 & t2)) = t0 ^ ((t0 ^ t1) & t2) */
+	xor	t1, t0, t1
+	and	t1, t1, t2
+	xor	t0, t0, t1
 	sc	t0, 0(a0)
 	beq	t0, zero, 1b
 	nop
