@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+r368667:
+	GDB 6.1.1 was removed.  Users of crashinfo(8) should install the
+	gdb package or devel/gdb port.
+
 r368559:
 	The hme(4) driver was removed.
 
