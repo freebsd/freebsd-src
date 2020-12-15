@@ -259,23 +259,23 @@ symlinks: .PHONY .META
 .for i in ${LDIRS}
 	cd ${SRCTOP}/sys/$i; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 .for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
 	cd ${SRCTOP}/sys/$i; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 	cd ${SRCTOP}/sys/dev/acpica; \
 	for h in acpiio.h acpi_hpet.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/acpica/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/acpica/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/acpica; \
 	done
 	cd ${SRCTOP}/sys/dev/agp; \
 	for h in agpreg.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/agp/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/agp/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/agp; \
 	done
 	cd ${SRCTOP}/sys/dev/evdev; \
@@ -285,17 +285,17 @@ symlinks: .PHONY .META
 	done
 	cd ${SRCTOP}/sys/dev/hyperv/include; \
 	for h in hyperv.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/hyperv/include/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/include/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
 	done
 	cd ${SRCTOP}/sys/dev/hyperv/utilities; \
 	for h in hv_snapshot.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/hyperv/utilities/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/utilities/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
 	done
 	cd ${SRCTOP}/sys/dev/pci; \
 	for h in pcireg.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/pci/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/pci/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/dev/pci; \
 	done
 	cd ${SRCTOP}/sys/dev/veriexec; \
@@ -306,60 +306,60 @@ symlinks: .PHONY .META
 .for i in ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys/$i; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
 .if ${MK_IPFILTER} != "no"
 	cd ${SRCTOP}/sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/contrib/ipfilter/netinet/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/contrib/ipfilter/netinet/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/netinet; \
 	done
 .endif
 .if ${MK_PF} != "no"
 	cd ${SRCTOP}/sys/netpfil/pf; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/netpfil/pf/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/netpfil/pf/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/netpfil/pf; \
 	done
 .endif
 	cd ${SRCTOP}/sys/crypto; \
 	for h in rijndael/rijndael.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/crypto/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/crypto/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/crypto; \
 	done
 	cd ${SRCTOP}/sys/opencrypto; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/opencrypto/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/opencrypto/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/crypto; \
 	done
 	cd ${SRCTOP}/sys/${MACHINE}/include; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/${MACHINE}/include/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/${MACHINE}/include/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/machine; \
 	done
 .if exists(${SRCTOP}/sys/${MACHINE}/include/pc)
 	cd ${SRCTOP}/sys/${MACHINE}/include/pc; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/${MACHINE}/include/pc/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/${MACHINE}/include/pc/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/machine/pc; \
 	done
 .endif
 .for _MARCH in ${_MARCHS}
 .if exists(${SRCTOP}/sys/${_MARCH}/include)
-	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -d ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${SRCTOP}/sys/${_MARCH}/include; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/${_MARCH}/include/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/${_MARCH}/include/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	done
 .if exists(${SRCTOP}/sys/${_MARCH}/include/pc)
-	${INSTALL} -d ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 755 \
+	${INSTALL} -d ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	cd ${SRCTOP}/sys/${_MARCH}/include/pc; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/${_MARCH}/include/pc/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/${_MARCH}/include/pc/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	done
 .endif
@@ -367,21 +367,21 @@ symlinks: .PHONY .META
 .endfor
 	cd ${SRCTOP}/sys/fs/cd9660; \
 	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/fs/cd9660/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/fs/cd9660/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/isofs/cd9660; \
 	done
 	cd ${SRCTOP}/sys/rpc; \
 	for h in rpcsec_tls.h types.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS} ../../../sys/rpc/$$h \
+		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/rpc/$$h \
 		    ${SDESTDIR}${INCLUDEDIR}/rpc; \
 	done
 .if ${MK_CDDL} != "no"
-	${INSTALL_SYMLINK} ${TAG_ARGS} \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    ../../../sys/contrib/openenzfs/include/sys/nvpair.h \
 	    ${SDESTDIR}${INCLUDEDIR}/sys
 .endif
 .if ${MK_MLX5TOOL} != "no"
-	${INSTALL_SYMLINK} ${TAG_ARGS} ../../../../sys/dev/mlx5/mlx5io.h \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/mlx5/mlx5io.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/mlx5
 .endif
 
