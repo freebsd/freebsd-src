@@ -761,7 +761,7 @@ TMAKE=		\
 XMAKE=		${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		MK_CLANG_IS_CC=${MK_CLANG_BOOTSTRAP} \
-		MK_GDB=no MK_TESTS=no
+		MK_TESTS=no
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -2729,7 +2729,6 @@ NXBMAKEARGS+= \
 	MK_CLANG_FULL=no \
 	MK_CTF=no \
 	MK_DEBUG_FILES=no \
-	MK_GDB=no \
 	MK_HTML=no \
 	MK_LLDB=no \
 	MK_MAN=no \
