@@ -11,10 +11,6 @@ exhaust_head()
 
 exhaust_body()
 {
-	if [ "$(atf_config_get ci false)" = "true" ]; then
-		atf_skip "https://bugs.freebsd.org/244703"
-	fi
-
 	pft_init
 
 	epair_nat=$(vnet_mkepair)
