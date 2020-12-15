@@ -323,7 +323,7 @@ add_param(const char *name, void *value, size_t valuelen,
 		}
 		xo_errx(1, "%s", jail_errmsg);
 	}
-	param->jp_flags = flags;
+	param->jp_flags |= flags;
 	return param - params;
 }
 
