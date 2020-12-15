@@ -134,6 +134,7 @@ static const char *features_for_read[] = {
 	"com.delphix:obsolete_counts",
 	"com.intel:allocation_classes",
 	"org.freebsd:zstd_compress",
+	"com.delphix:bookmark_written",
 	NULL
 };
 
