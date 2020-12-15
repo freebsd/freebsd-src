@@ -127,6 +127,7 @@ static const char *features_for_read[] = {
 	"com.delphix:zpool_checkpoint",
 	"com.delphix:spacemap_v2",
 	"com.datto:encryption",
+	"com.datto:bookmark_v2",
 	"org.zfsonlinux:allocation_classes",
 	"com.datto:resilver_defer",
 	"com.delphix:device_removal",
