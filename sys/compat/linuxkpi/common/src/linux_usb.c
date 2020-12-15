@@ -931,17 +931,12 @@ usb_linux_create_usb_device(struct usb_device *udev, device_t dev)
 					if (p_ui) {
 						p_ui->altsetting = p_uhi - 1;
 						p_ui->cur_altsetting = p_uhi - 1;
-						p_ui->num_altsetting = 1;
 						p_ui->bsd_iface_index = iface_index;
 						p_ui->linux_udev = udev;
 						p_ui++;
 					}
 					iface_no_curr = iface_no;
 					iface_index++;
-				} else {
-					if (p_ui) {
-						(p_ui - 1)->num_altsetting++;
-					}
 				}
 				break;
 

@@ -174,6 +174,9 @@ struct usb_endpoint {
 struct usb_interface {
 	struct usb_interface_descriptor *idesc;
 	device_t subdev;
+	/* Total number of alternate settings, from 1 to 256 */
+	uint16_t num_altsetting;
+	/* Current alternate interface index, from 0 to 255 */
 	uint8_t	alt_index;
 	uint8_t	parent_iface_index;
 
@@ -183,7 +186,6 @@ struct usb_interface {
 	struct usb_device *linux_udev;
 	void   *bsd_priv_sc;		/* device specific information */
 	char   *pnpinfo;		/* additional PnP-info for this interface */
-	uint8_t	num_altsetting;		/* number of alternate settings */
 	uint8_t	bsd_iface_index;
 };
 
