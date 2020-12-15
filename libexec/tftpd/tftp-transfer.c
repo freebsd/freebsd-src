@@ -397,9 +397,9 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 					send_error(peer, ENOSPACE);
 				goto abort;
 			}
-			if (n_data != segsize)
-				write_close();
 		}
+		if (n_data != segsize)
+			write_close();
 		windowblock++;
 
 		/* Only send ACKs for the last block in the window. */
