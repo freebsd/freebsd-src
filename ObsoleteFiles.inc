@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20201215: in-tree gdb removed
+OLD_FILES+=usr/libexec/gdb
+OLD_FILES+=usr/libexec/kgdb
+
 # 20201211: hme(4) removed
 OLD_FILES+=usr/share/man/man4/hme.4.gz
 OLD_FILES+=usr/share/man/man4/if_hme.4.gz
