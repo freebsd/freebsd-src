@@ -14,15 +14,6 @@ AR:=	/usr/bin/ar
 RANLIB:=	/usr/bin/ranlib
 NM:=	/usr/bin/nm
 
-# Don't use lorder and tsort since lorder is not installed by default on most
-# Linux systems and the FreeBSD lorder does not work on Linux. For the bootstrap
-# tools the order of the .o files should not matter since we only care about
-# a few individual files (and might soon require linking with lld anyway)
-LORDER:=echo
-TSORT:=cat
-# When using cat as tsort we can't pass -q:
-TSORTFLAGS:=
-
 # Avoid stale dependecy warnings:
 LIBC:=
 LIBZ:=
