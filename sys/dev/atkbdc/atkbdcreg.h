@@ -211,6 +211,7 @@ typedef struct atkbdc_softc {
 #define KBDC_QUIRK_IGNORE_PROBE_RESULT	(1 << 1)
 #define KBDC_QUIRK_RESET_AFTER_PROBE	(1 << 2)
 #define KBDC_QUIRK_SETLEDS_ON_INIT	(1 << 3)
+#define KBDC_QUIRK_DISABLE_MUX_PROBE	(1 << 4)
     int aux_mux_enabled;	/* active PS/2 multiplexing is enabled */
     int aux_mux_port;		/* current aux mux port */
 } atkbdc_softc_t; 
