@@ -68,7 +68,7 @@ print_hex_dump(const char *level, const char *prefix_str,
 			printf("[%p] ", buf);
 			break;
 		case DUMP_PREFIX_OFFSET:
-			printf("[%p] ", (const char *)((const char *)buf -
+			printf("[%#tx] ", ((const char *)buf -
 			    (const char *)buf_old));
 			break;
 		default:
