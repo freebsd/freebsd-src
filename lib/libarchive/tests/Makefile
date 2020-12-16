@@ -580,6 +580,7 @@ FILES+=	test_read_format_ustar_filename_koi8r.tar.Z.uu
 FILES+=	test_read_format_warc.warc.uu
 FILES+=	test_read_format_zip.zip.uu
 FILES+=	test_read_format_zip_7075_utf8_paths.zip.uu
+FILES+=	test_read_format_zip_7z_lzma.zip.uu
 FILES+=	test_read_format_zip_bz2_hang.zip.uu
 FILES+=	test_read_format_zip_bzip2.zipx.uu
 FILES+=	test_read_format_zip_bzip2_multi.zipx.uu

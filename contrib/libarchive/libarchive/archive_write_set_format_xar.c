@@ -2931,8 +2931,8 @@ compression_init_encoder_xz(struct archive *a,
 		return (ARCHIVE_FATAL);
 	}
 	lzmafilters = (lzma_filter *)(strm+1);
-	if (level > 6)
-		level = 6;
+	if (level > 9)
+		level = 9;
 	if (lzma_lzma_preset(&lzma_opt, level)) {
 		free(strm);
 		lastrm->real_stream = NULL;

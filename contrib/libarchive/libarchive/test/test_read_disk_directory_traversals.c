@@ -1833,6 +1833,8 @@ test_parent(void)
 	}
 
 	assertChdir("..");
+	assertChmod("lock", 0755);
+	assertChmod("lock/lock2", 0755);
 
 	/* Destroy the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));

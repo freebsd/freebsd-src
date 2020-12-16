@@ -250,7 +250,7 @@ archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 	const char *path;
 	size_t len;
 
-	if (archive_entry_filetype(entry) == 0) {
+	if (archive_entry_filetype(entry) == 0 && archive_entry_hardlink(entry) == NULL) {
 		archive_set_error(&a->archive, -1, "Filetype required");
 		return (ARCHIVE_FAILED);
 	}
@@ -348,7 +348,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	format_octal(archive_entry_nlink(entry), h + c_nlink_offset, c_nlink_size);
 	if (archive_entry_filetype(entry) == AE_IFBLK
 	    || archive_entry_filetype(entry) == AE_IFCHR)
-	    format_octal(archive_entry_dev(entry), h + c_rdev_offset, c_rdev_size);
+	    format_octal(archive_entry_rdev(entry), h + c_rdev_offset, c_rdev_size);
 	else
 	    format_octal(0, h + c_rdev_offset, c_rdev_size);
 	format_octal(archive_entry_mtime(entry), h + c_mtime_offset, c_mtime_size);

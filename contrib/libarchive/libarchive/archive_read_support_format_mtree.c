@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_private.h"
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_read_private.h"
@@ -1482,6 +1483,84 @@ parse_device(dev_t *pdev, struct archive *a, char *val)
 #undef MAX_PACK_ARGS
 }
 
+static int
+parse_hex_nibble(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	if (c >= 'a' && c <= 'f')
+		return 10 + c - 'a';
+#if 0
+	/* XXX: Is uppercase something we should support? */
+	if (c >= 'A' && c <= 'F')
+		return 10 + c - 'A';
+#endif
+
+	return -1;
+}
+
+static int
+parse_digest(struct archive_read *a, struct archive_entry *entry,
+    const char *digest, int type)
+{
+	unsigned char digest_buf[64];
+	int high, low;
+	size_t i, j, len;
+
+	switch (type) {
+	case ARCHIVE_ENTRY_DIGEST_MD5:
+		len = sizeof(entry->digest.md5);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_RMD160:
+		len = sizeof(entry->digest.rmd160);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA1:
+		len = sizeof(entry->digest.sha1);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA256:
+		len = sizeof(entry->digest.sha256);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA384:
+		len = sizeof(entry->digest.sha384);
+		break;
+	case ARCHIVE_ENTRY_DIGEST_SHA512:
+		len = sizeof(entry->digest.sha512);
+		break;
+	default:
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+			"Internal error: Unknown digest type");
+		return ARCHIVE_FATAL;
+	}
+
+	if (len > sizeof(digest_buf)) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
+			"Internal error: Digest storage too large");
+		return ARCHIVE_FATAL;
+	}
+
+	len *= 2;
+
+	if (strnlen(digest, len+1) != len) {
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+				  "incorrect digest length, ignoring");
+		return ARCHIVE_WARN;
+	}
+
+	for (i = 0, j = 0; i < len; i += 2, j++) {
+		high = parse_hex_nibble(digest[i]);
+		low = parse_hex_nibble(digest[i+1]);
+		if (high == -1 || low == -1) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+					  "invalid digest data, ignoring");
+			return ARCHIVE_WARN;
+		}
+
+		digest_buf[j] = high << 4 | low;
+	}
+
+	return archive_entry_set_digest(entry, type, digest_buf);
+}
+
 /*
  * Parse a single keyword and its value.
  */
@@ -1580,8 +1659,10 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 		}
 		__LA_FALLTHROUGH;
 	case 'm':
-		if (strcmp(key, "md5") == 0 || strcmp(key, "md5digest") == 0)
-			break;
+		if (strcmp(key, "md5") == 0 || strcmp(key, "md5digest") == 0) {
+			return parse_digest(a, entry, val,
+			    ARCHIVE_ENTRY_DIGEST_MD5);
+		}
 		if (strcmp(key, "mode") == 0) {
 			if (val[0] >= '0' && val[0] <= '7') {
 				*parsed_kws |= MTREE_HAS_PERM;
@@ -1617,21 +1698,32 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			return r;
 		}
 		if (strcmp(key, "rmd160") == 0 ||
-		    strcmp(key, "rmd160digest") == 0)
-			break;
+		    strcmp(key, "rmd160digest") == 0) {
+			return parse_digest(a, entry, val,
+			    ARCHIVE_ENTRY_DIGEST_RMD160);
+		}
 		__LA_FALLTHROUGH;
 	case 's':
-		if (strcmp(key, "sha1") == 0 || strcmp(key, "sha1digest") == 0)
-			break;
+		if (strcmp(key, "sha1") == 0 ||
+		    strcmp(key, "sha1digest") == 0) {
+			return parse_digest(a, entry, val,
+			    ARCHIVE_ENTRY_DIGEST_SHA1);
+		}
 		if (strcmp(key, "sha256") == 0 ||
-		    strcmp(key, "sha256digest") == 0)
-			break;
+		    strcmp(key, "sha256digest") == 0) {
+			return parse_digest(a, entry, val,
+			    ARCHIVE_ENTRY_DIGEST_SHA256);
+		}
 		if (strcmp(key, "sha384") == 0 ||
-		    strcmp(key, "sha384digest") == 0)
-			break;
+		    strcmp(key, "sha384digest") == 0) {
+			return parse_digest(a, entry, val,
+			    ARCHIVE_ENTRY_DIGEST_SHA384);
+		}
 		if (strcmp(key, "sha512") == 0 ||
-		    strcmp(key, "sha512digest") == 0)
-			break;
+		    strcmp(key, "sha512digest") == 0) {
+			return parse_digest(a, entry, val,
+			    ARCHIVE_ENTRY_DIGEST_SHA512);
+		}
 		if (strcmp(key, "size") == 0) {
 			archive_entry_set_size(entry, mtree_atol(&val, 10));
 			break;

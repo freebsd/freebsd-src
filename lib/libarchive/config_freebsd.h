@@ -24,6 +24,7 @@
  *
  * $FreeBSD$
  */
+#define __LIBARCHIVE_CONFIG_H_INCLUDED 1
 
 /* FreeBSD 5.0 and later has ACL and extattr support. */
 #if __FreeBSD__ > 4

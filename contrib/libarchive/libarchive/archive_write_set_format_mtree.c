@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_digest_private.h"
 #include "archive_entry.h"
+#include "archive_entry_private.h"
 #include "archive_private.h"
 #include "archive_rb.h"
 #include "archive_string.h"
@@ -82,24 +83,7 @@ struct dir_info {
 struct reg_info {
 	int compute_sum;
 	uint32_t crc;
-#ifdef ARCHIVE_HAS_MD5
-	unsigned char buf_md5[16];
-#endif
-#ifdef ARCHIVE_HAS_RMD160
-	unsigned char buf_rmd160[20];
-#endif
-#ifdef ARCHIVE_HAS_SHA1
-	unsigned char buf_sha1[20];
-#endif
-#ifdef ARCHIVE_HAS_SHA256
-	unsigned char buf_sha256[32];
-#endif
-#ifdef ARCHIVE_HAS_SHA384
-	unsigned char buf_sha384[48];
-#endif
-#ifdef ARCHIVE_HAS_SHA512
-	unsigned char buf_sha512[64];
-#endif
+	struct ae_digest digest;
 };
 
 struct mtree_entry {
@@ -1571,27 +1555,27 @@ sum_final(struct mtree_writer *mtree, struct reg_info *reg)
 	}
 #ifdef ARCHIVE_HAS_MD5
 	if (mtree->compute_sum & F_MD5)
-		archive_md5_final(&mtree->md5ctx, reg->buf_md5);
+		archive_md5_final(&mtree->md5ctx, reg->digest.md5);
 #endif
 #ifdef ARCHIVE_HAS_RMD160
 	if (mtree->compute_sum & F_RMD160)
-		archive_rmd160_final(&mtree->rmd160ctx, reg->buf_rmd160);
+		archive_rmd160_final(&mtree->rmd160ctx, reg->digest.rmd160);
 #endif
 #ifdef ARCHIVE_HAS_SHA1
 	if (mtree->compute_sum & F_SHA1)
-		archive_sha1_final(&mtree->sha1ctx, reg->buf_sha1);
+		archive_sha1_final(&mtree->sha1ctx, reg->digest.sha1);
 #endif
 #ifdef ARCHIVE_HAS_SHA256
 	if (mtree->compute_sum & F_SHA256)
-		archive_sha256_final(&mtree->sha256ctx, reg->buf_sha256);
+		archive_sha256_final(&mtree->sha256ctx, reg->digest.sha256);
 #endif
 #ifdef ARCHIVE_HAS_SHA384
 	if (mtree->compute_sum & F_SHA384)
-		archive_sha384_final(&mtree->sha384ctx, reg->buf_sha384);
+		archive_sha384_final(&mtree->sha384ctx, reg->digest.sha384);
 #endif
 #ifdef ARCHIVE_HAS_SHA512
 	if (mtree->compute_sum & F_SHA512)
-		archive_sha512_final(&mtree->sha512ctx, reg->buf_sha512);
+		archive_sha512_final(&mtree->sha512ctx, reg->digest.sha512);
 #endif
 	/* Save what types of sum are computed. */
 	reg->compute_sum = mtree->compute_sum;
@@ -1621,42 +1605,47 @@ sum_write(struct archive_string *str, struct reg_info *reg)
 		archive_string_sprintf(str, " cksum=%ju",
 		    (uintmax_t)reg->crc);
 	}
+
+#define append_digest(_s, _r, _t) \
+	strappend_bin(_s, _r->digest._t, sizeof(_r->digest._t))
+
 #ifdef ARCHIVE_HAS_MD5
 	if (reg->compute_sum & F_MD5) {
 		archive_strcat(str, " md5digest=");
-		strappend_bin(str, reg->buf_md5, sizeof(reg->buf_md5));
+		append_digest(str, reg, md5);
 	}
 #endif
 #ifdef ARCHIVE_HAS_RMD160
 	if (reg->compute_sum & F_RMD160) {
 		archive_strcat(str, " rmd160digest=");
-		strappend_bin(str, reg->buf_rmd160, sizeof(reg->buf_rmd160));
+		append_digest(str, reg, rmd160);
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA1
 	if (reg->compute_sum & F_SHA1) {
 		archive_strcat(str, " sha1digest=");
-		strappend_bin(str, reg->buf_sha1, sizeof(reg->buf_sha1));
+		append_digest(str, reg, sha1);
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA256
 	if (reg->compute_sum & F_SHA256) {
 		archive_strcat(str, " sha256digest=");
-		strappend_bin(str, reg->buf_sha256, sizeof(reg->buf_sha256));
+		append_digest(str, reg, sha256);
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA384
 	if (reg->compute_sum & F_SHA384) {
 		archive_strcat(str, " sha384digest=");
-		strappend_bin(str, reg->buf_sha384, sizeof(reg->buf_sha384));
+		append_digest(str, reg, sha384);
 	}
 #endif
 #ifdef ARCHIVE_HAS_SHA512
 	if (reg->compute_sum & F_SHA512) {
 		archive_strcat(str, " sha512digest=");
-		strappend_bin(str, reg->buf_sha512, sizeof(reg->buf_sha512));
+		append_digest(str, reg, sha512);
 	}
 #endif
+#undef append_digest
 }
 
 static int
