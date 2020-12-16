@@ -8,7 +8,7 @@
 .error bsd.libnames.mk cannot be included directly.
 .endif
 
-LIBDESTDIR=	${SYSROOT:U${DESTDIR}}
+LIBDESTDIR?=	${SYSROOT:U${DESTDIR}}
 
 .sinclude <src.libnames.mk>
 
