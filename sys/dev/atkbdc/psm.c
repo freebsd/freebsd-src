@@ -6257,7 +6257,7 @@ enable_synaptics_mux(struct psm_softc *sc, enum probearg arg)
 	int active_ports_mask = 0;
 
 	if (mux_disabled == 1 || (mux_disabled == -1 &&
-	    (kbdc->quirks & KBDC_QUIRK_DISABLE_MUX_PROBE) != 0))
+	    (kbdcp(kbdc)->quirks & KBDC_QUIRK_DISABLE_MUX_PROBE) != 0))
 		return (FALSE);
 
 	version = enable_aux_mux(kbdc);
