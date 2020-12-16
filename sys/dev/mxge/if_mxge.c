@@ -772,7 +772,7 @@ mxge_dummy_rdma(mxge_softc_t *sc, int enable)
 	uint32_t *buf, dma_low, dma_high;
 	int i;
 
-	buf = (uint32_t *)((unsigned long)(buf_bytes + 7) & ~7UL);
+	buf = (uint32_t *)((uintptr_t)(buf_bytes + 7) & ~7UL);
 
 	/* clear confirmation addr */
 	confirm = (volatile uint32_t *)sc->cmd;
@@ -825,7 +825,7 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 	int err, sleep_total = 0;
 
 	/* ensure buf is aligned to 8 bytes */
-	buf = (mcp_cmd_t *)((unsigned long)(buf_bytes + 7) & ~7UL);
+	buf = (mcp_cmd_t *)((uintptr_t)(buf_bytes + 7) & ~7UL);
 
 	buf->data0 = htobe32(data->data0);
 	buf->data1 = htobe32(data->data1);
@@ -944,7 +944,7 @@ mxge_load_firmware(mxge_softc_t *sc, int adopt)
 	uint32_t *buf, size, dma_low, dma_high;
 	int status, i;
 
-	buf = (uint32_t *)((unsigned long)(buf_bytes + 7) & ~7UL);
+	buf = (uint32_t *)((uintptr_t)(buf_bytes + 7) & ~7UL);
 
 	size = sc->sram_size;
 	status = mxge_load_firmware_helper(sc, &size);
@@ -3373,7 +3373,7 @@ mxge_alloc_slice_rings(struct mxge_slice_state *ss, int rx_ring_entries,
 	ss->tx.req_bytes = malloc(bytes, M_DEVBUF, M_WAITOK);
 	/* ensure req_list entries are aligned to 8 bytes */
 	ss->tx.req_list = (mcp_kreq_ether_send_t *)
-		((unsigned long)(ss->tx.req_bytes + 7) & ~7UL);
+		((uintptr_t)(ss->tx.req_bytes + 7) & ~7UL);
 
 	/* allocate the tx busdma segment list */
 	bytes = sizeof (*ss->tx.seg_list) * ss->tx.max_desc;
