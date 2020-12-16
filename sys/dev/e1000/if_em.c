@@ -847,7 +847,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		** use a different BAR, so we need to keep
 		** track of which is used.
 		*/
-		scctx->isc_msix_bar =  pci_msix_table_bar(dev);
+		scctx->isc_msix_bar = pci_msix_table_bar(dev);
 	} else if (adapter->hw.mac.type >= em_mac_min) {
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0]* sizeof(struct e1000_tx_desc), EM_DBA_ALIGN);
 		scctx->isc_rxqsizes[0] = roundup2(scctx->isc_nrxd[0] * sizeof(union e1000_rx_desc_extended), EM_DBA_ALIGN);
