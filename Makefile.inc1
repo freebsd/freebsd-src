@@ -540,14 +540,12 @@ OSRELDATE=	0
 .endif
 
 # Set VERSION for CTFMERGE to use via the default CTFFLAGS=-L VERSION.
-.if !defined(_REVISION)
-_REVISION!=	${MAKE} -C ${SRCDIR}/release MK_AUTO_OBJ=no -V REVISION
-.export _REVISION
+.for _V in BRANCH REVISION
+.if !defined(_${_V})
+_${_V}!=	eval $$(awk '/^${_V}=/{print}' ${SRCTOP}/sys/conf/newvers.sh); echo $$${_V}
+.export _${_V}
 .endif
-.if !defined(_BRANCH)
-_BRANCH!=	${MAKE} -C ${SRCDIR}/release MK_AUTO_OBJ=no -V BRANCH
-.export _BRANCH
-.endif
+.endfor
 .if !defined(SRCRELDATE)
 SRCRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 		${SRCDIR}/sys/sys/param.h
