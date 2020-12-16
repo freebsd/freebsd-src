@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 #include "errlst.h"
+#include "../locale/xlocale_private.h"
+#include "libc_private.h"
 
 /*
  * Define buffer big enough to contain delimiter (": ", 2 bytes),
@@ -78,34 +80,35 @@ errstr(int num, const char *uprefix, char *buf, size_t len)
 	strlcat(buf, t, len);
 }
 
-int
-strerror_r(int errnum, char *strerrbuf, size_t buflen)
+static int
+strerror_rl(int errnum, char *strerrbuf, size_t buflen, locale_t locale)
 {
 	int retval = 0;
 #if defined(NLS)
 	int saved_errno = errno;
 	nl_catd catd;
-	catd = catopen("libc", NL_CAT_LOCALE);
+
+	catd = __catopen_l("libc", NL_CAT_LOCALE, locale);
 #endif
 
 	if (errnum < 0 || errnum >= __hidden_sys_nerr) {
 		errstr(errnum,
 #if defined(NLS)
-			catgets(catd, 1, 0xffff, __uprefix),
+		    catgets(catd, 1, 0xffff, __uprefix),
 #else
-		        __uprefix,
+		    __uprefix,
 #endif
-			strerrbuf, buflen);
+		   strerrbuf, buflen);
 		retval = EINVAL;
 	} else {
 		if (strlcpy(strerrbuf,
 #if defined(NLS)
-			catgets(catd, 1, errnum, __hidden_sys_errlist[errnum]),
+		    catgets(catd, 1, errnum, __hidden_sys_errlist[errnum]),
 #else
-			__hidden_sys_errlist[errnum],
+		    __hidden_sys_errlist[errnum],
 #endif
-			buflen) >= buflen)
-		retval = ERANGE;
+		    buflen) >= buflen)
+			retval = ERANGE;
 	}
 
 #if defined(NLS)
@@ -116,12 +119,33 @@ strerror_r(int errnum, char *strerrbuf, size_t buflen)
 	return (retval);
 }
 
+int
+strerror_r(int errnum, char *strerrbuf, size_t buflen)
+{
+	return (strerror_rl(errnum, strerrbuf, buflen, __get_locale()));
+}
+
+char *
+strerror_l(int num, locale_t locale)
+{
+#ifndef __NO_TLS
+	static _Thread_local char ebuf[NL_TEXTMAX];
+
+	if (strerror_rl(num, ebuf, sizeof(ebuf), locale) != 0)
+		errno = EINVAL;
+	return (ebuf);
+#else
+	errno = ENOTSUP;
+	return (NULL);
+#endif
+}
+
 char *
 strerror(int num)
 {
 	static char ebuf[NL_TEXTMAX];
 
-	if (strerror_r(num, ebuf, sizeof(ebuf)) != 0)
+	if (strerror_rl(num, ebuf, sizeof(ebuf), __get_locale()) != 0)
 		errno = EINVAL;
 	return (ebuf);
 }
