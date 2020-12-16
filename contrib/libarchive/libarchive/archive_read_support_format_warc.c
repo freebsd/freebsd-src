@@ -127,7 +127,7 @@ static int _warc_skip(struct archive_read *a);
 static int _warc_rdhdr(struct archive_read *a, struct archive_entry *e);
 
 /* private routines */
-static unsigned int _warc_rdver(const char buf[10], size_t bsz);
+static unsigned int _warc_rdver(const char *buf, size_t bsz);
 static unsigned int _warc_rdtyp(const char *buf, size_t bsz);
 static warc_string_t _warc_rduri(const char *buf, size_t bsz);
 static ssize_t _warc_rdlen(const char *buf, size_t bsz);
@@ -337,6 +337,14 @@ start_over:
 			mtime = rtime;
 		}
 		break;
+	case WT_NONE:
+	case WT_INFO:
+	case WT_META:
+	case WT_REQ:
+	case WT_RVIS:
+	case WT_CONV:
+	case WT_CONT:
+	case LAST_WT:
 	default:
 		fnam.len = 0U;
 		fnam.str = NULL;
@@ -361,6 +369,14 @@ start_over:
 			break;
 		}
 		/* FALLTHROUGH */
+	case WT_NONE:
+	case WT_INFO:
+	case WT_META:
+	case WT_REQ:
+	case WT_RVIS:
+	case WT_CONV:
+	case WT_CONT:
+	case LAST_WT:
 	default:
 		/* consume the content and start over */
 		_warc_skip(a);
@@ -427,7 +443,7 @@ _warc_skip(struct archive_read *a)
 static void*
 deconst(const void *c)
 {
-	return (char *)0x1 + (((const char *)c) - (const char *)0x1);
+	return (void *)(uintptr_t)c;
 }
 
 static char*

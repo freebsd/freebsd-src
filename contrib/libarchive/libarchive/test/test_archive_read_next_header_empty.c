@@ -44,14 +44,9 @@ test_empty_file1(void)
 }
 
 static void
-test_empty_file2(void)
+test_empty_file2_check(struct archive* a)
 {
-	struct archive* a = archive_read_new();
 	struct archive_entry* e;
-
-	/* Try opening an empty file with raw and empty handlers. */
-	assertEqualInt(ARCHIVE_OK, archive_read_support_format_raw(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_support_format_empty(a));
 	assertEqualInt(0, archive_errno(a));
 	assertEqualString(NULL, archive_error_string(a));
 
@@ -64,6 +59,25 @@ test_empty_file2(void)
 	assertEqualString(NULL, archive_error_string(a));
 
 	archive_read_free(a);
+}
+
+static void
+test_empty_file2(void)
+{
+	struct archive* a = archive_read_new();
+
+	/* Try opening an empty file with raw and empty handlers. */
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_raw(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_empty(a));
+	test_empty_file2_check(a);
+
+	a = archive_read_new();
+	assertEqualInt(ARCHIVE_OK, archive_read_support_format_by_code(a, ARCHIVE_FORMAT_EMPTY));
+	test_empty_file2_check(a);
+
+	a = archive_read_new();
+	assertEqualInt(ARCHIVE_OK, archive_read_set_format(a, ARCHIVE_FORMAT_EMPTY));
+	test_empty_file2_check(a);
 }
 
 static void

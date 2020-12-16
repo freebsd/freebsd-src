@@ -445,7 +445,7 @@ test_archive_string_normalization_nfc(const char *testdata)
 			assertEqualInt(0,
 			    archive_mstring_copy_wcs(&mstr, wc_nfc));
 			assertEqualInt(0, archive_mstring_get_mbs_l(
-			    &mstr, &mp, &mplen, t_sconv8));
+			    a, &mstr, &mp, &mplen, t_sconv8));
 			failure("WCS NFC(%s) should be UTF-8 NFC:%d"
 			    ,nfc, line);
 			assertEqualUTF8String(utf8_nfc, mp);
@@ -695,7 +695,7 @@ test_archive_string_normalization_mac_nfd(const char *testdata)
 			assertEqualInt(0, archive_mstring_copy_wcs(
 			    &mstr, wc_nfd));
 			assertEqualInt(0, archive_mstring_get_mbs_l(
-			    &mstr, &mp, &mplen, t_sconv8));
+			    a, &mstr, &mp, &mplen, t_sconv8));
 			failure("WCS NFD(%s) should be UTF-8 NFD:%d"
 			    ,nfd, line);
 			assertEqualUTF8String(utf8_nfd, mp);
@@ -777,6 +777,80 @@ test_archive_string_canonicalization(void)
 
 }
 
+static void
+check_string(struct archive *a, struct archive_mstring *mstr, struct archive_string_conv *sc,
+  const char *exp, const wchar_t *wexp)
+{
+	/* Do all the tests on a copy so that we can have a clear initial state every time */
+	struct archive_mstring mstr2;
+	const char *p = NULL;
+	const wchar_t *wp = NULL;
+	size_t len = 0;
+
+	memset(&mstr2, 0, sizeof(mstr2));
+
+	archive_mstring_copy(&mstr2, mstr);
+	assertEqualInt(0, archive_mstring_get_mbs(a, &mstr2, &p));
+	assertEqualString(exp, p);
+	p = NULL;
+
+	archive_mstring_copy(&mstr2, mstr);
+	assertEqualInt(0, archive_mstring_get_utf8(a, &mstr2, &p));
+	assertEqualString(exp, p);
+	p = NULL;
+
+	archive_mstring_copy(&mstr2, mstr);
+	assertEqualInt(0, archive_mstring_get_wcs(a, &mstr2, &wp));
+	assertEqualWString(wexp, wp);
+	wp = NULL;
+
+	archive_mstring_copy(&mstr2, mstr);
+	assertEqualInt(0, archive_mstring_get_mbs_l(a, &mstr2, &p, &len, sc));
+	assertEqualString(exp, p);
+	assertEqualInt(len, strlen(exp));
+	p = NULL;
+	len = 0;
+
+	archive_mstring_clean(&mstr2);
+}
+
+/*
+ * Make sure no matter what the input encoding is, the string can be
+ * converted too all the output encodings.
+ */
+static void
+test_archive_string_set_get(void)
+{
+	struct archive *a;
+	struct archive_mstring mstr;
+	struct archive_string_conv *sc;
+
+	setlocale(LC_ALL, "en_US.UTF-8");
+
+	assert((a = archive_read_new()) != NULL);
+	memset(&mstr, 0, sizeof(mstr));
+
+	assertA(NULL != (sc =
+	    archive_string_conversion_to_charset(a, "UTF-8", 1)));
+	failure("Charset name should be UTF-8");
+	assertEqualString("UTF-8",
+	    archive_string_conversion_charset_name(sc));
+
+	assertEqualInt(0, archive_mstring_copy_mbs(&mstr, "AAA"));
+	check_string(a, &mstr, sc, "AAA", L"AAA");
+	assertEqualInt(4, archive_mstring_copy_utf8(&mstr, "BBBB"));
+	check_string(a, &mstr, sc, "BBBB", L"BBBB");
+	assertEqualInt(0, archive_mstring_copy_wcs(&mstr, L"CCC12"));
+	check_string(a, &mstr, sc, "CCC12", L"CCC12");
+	assertEqualInt(0, archive_mstring_copy_mbs_len_l(&mstr, "DDDD-l", 6, sc));
+	check_string(a, &mstr, sc, "DDDD-l", L"DDDD-l");
+	assertEqualInt(0, archive_mstring_update_utf8(a, &mstr, "EEEEE---H"));
+	check_string(a, &mstr, sc, "EEEEE---H", L"EEEEE---H");
+
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
+}
+
 DEFINE_TEST(test_archive_string_conversion)
 {
 	static const char reffile[] = "test_archive_string_conversion.txt.Z";
@@ -807,4 +881,5 @@ DEFINE_TEST(test_archive_string_conversion)
 	test_archive_string_normalization_nfc(testdata);
 	test_archive_string_normalization_mac_nfd(testdata);
 	test_archive_string_canonicalization();
+	test_archive_string_set_get();
 }
