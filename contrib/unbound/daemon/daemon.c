@@ -291,7 +291,7 @@ daemon_init(void)
 		free(daemon);
 		return NULL;
 	}
-	if(!(daemon->env->edns_tags = edns_tags_create())) {
+	if(!(daemon->env->edns_strings = edns_strings_create())) {
 		auth_zones_delete(daemon->env->auth_zones);
 		acl_list_delete(daemon->acl);
 		tcl_list_delete(daemon->tcl);
@@ -638,9 +638,9 @@ daemon_fork(struct daemon* daemon)
 		&daemon->use_rpz))
 		fatal_exit("auth_zones could not be setup");
 
-	/* Set-up EDNS tags */
-	if(!edns_tags_apply_cfg(daemon->env->edns_tags, daemon->cfg))
-		fatal_exit("Could not set up EDNS tags");
+	/* Set-up EDNS strings */
+	if(!edns_strings_apply_cfg(daemon->env->edns_strings, daemon->cfg))
+		fatal_exit("Could not set up EDNS strings");
 
 	/* setup modules */
 	daemon_setup_modules(daemon);
@@ -773,7 +773,7 @@ daemon_delete(struct daemon* daemon)
 		rrset_cache_delete(daemon->env->rrset_cache);
 		infra_delete(daemon->env->infra_cache);
 		edns_known_options_delete(daemon->env);
-		edns_tags_delete(daemon->env->edns_tags);
+		edns_strings_delete(daemon->env->edns_strings);
 		auth_zones_delete(daemon->env->auth_zones);
 	}
 	ub_randfree(daemon->rand);

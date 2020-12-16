@@ -552,7 +552,7 @@ struct edns_option* edns_opt_list_find(struct edns_option* list, uint16_t code);
  * @param rep: Reply info. Could be NULL.
  * @param rcode: return code.
  * @param edns: edns data of the reply.
- * @param repinfo: comm_reply. NULL.
+ * @param repinfo: comm_reply. Reply information for a communication point.
  * @param region: region to store data.
  * @return false on failure (a callback function returned an error).
  */

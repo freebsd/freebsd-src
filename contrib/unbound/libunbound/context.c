@@ -80,7 +80,7 @@ context_finalize(struct ub_ctx* ctx)
 		return UB_INITFAIL;
 	if(!auth_zones_apply_cfg(ctx->env->auth_zones, cfg, 1, &is_rpz))
 		return UB_INITFAIL;
-	if(!edns_tags_apply_cfg(ctx->env->edns_tags, cfg))
+	if(!edns_strings_apply_cfg(ctx->env->edns_strings, cfg))
 		return UB_INITFAIL;
 	if(!slabhash_is_size(ctx->env->msg_cache, cfg->msg_cache_size,
 		cfg->msg_cache_slabs)) {

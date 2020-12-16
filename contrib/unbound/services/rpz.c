@@ -440,6 +440,8 @@ err:
 			respip_set_delete(r->respip_set);
 		if(r->taglist)
 			free(r->taglist);
+		if(r->region)
+			regional_destroy(r->region);
 		free(r);
 	}
 	return NULL;

@@ -114,6 +114,8 @@ struct infra_cache {
 	struct slabhash* hosts;
 	/** TTL value for host information, in seconds */
 	int host_ttl;
+	/** the hosts that are down are kept probed for recovery */
+	int infra_keep_probing;
 	/** hash table with query rates per name: rate_key, rate_data */
 	struct slabhash* domain_rates;
 	/** ratelimit settings for domains, struct domain_limit_data */
