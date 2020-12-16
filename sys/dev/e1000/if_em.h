@@ -316,7 +316,6 @@
 #define EM_BAR_MEM_TYPE_MASK	0x00000006
 #define EM_BAR_MEM_TYPE_32BIT	0x00000000
 #define EM_BAR_MEM_TYPE_64BIT	0x00000004
-#define EM_MSIX_BAR		3	/* On 82575 */
 
 /* More backward compatibility */
 #if __FreeBSD_version < 900000

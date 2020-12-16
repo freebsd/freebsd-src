@@ -847,9 +847,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		** use a different BAR, so we need to keep
 		** track of which is used.
 		*/
-		scctx->isc_msix_bar = PCIR_BAR(EM_MSIX_BAR);
-		if (pci_read_config(dev, scctx->isc_msix_bar, 4) == 0)
-			scctx->isc_msix_bar += 4;
+		scctx->isc_msix_bar =  pci_msix_table_bar(dev);
 	} else if (adapter->hw.mac.type >= em_mac_min) {
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0]* sizeof(struct e1000_tx_desc), EM_DBA_ALIGN);
 		scctx->isc_rxqsizes[0] = roundup2(scctx->isc_nrxd[0] * sizeof(union e1000_rx_desc_extended), EM_DBA_ALIGN);
@@ -883,7 +881,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		 * that it shall give MSI at least a try with other devices.
 		 */
 		if (adapter->hw.mac.type == e1000_82574) {
-			scctx->isc_msix_bar = PCIR_BAR(EM_MSIX_BAR);
+			scctx->isc_msix_bar = pci_msix_table_bar(dev);;
 		} else {
 			scctx->isc_msix_bar = -1;
 			scctx->isc_disable_msix = 1;
