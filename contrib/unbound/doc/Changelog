@@ -1,3 +1,166 @@
+30 November 2020: Wouter
+	- Fix assertion failure on double callback when iterator loses
+	  interest in query at head of line that then has the tcp stream
+	  not kept for reuse.
+	- tag for the 1.13.0rc4 release.
+
+27 November 2020: Wouter
+	- Fix compile warning for type cast in http2_submit_dns_response.
+	- Fix when use free buffer to initialize rbtree for stream reuse.
+	- Fix compile warnings for windows.
+	- Fix compile warnings in rpz initialization.
+	- Fix contrib/metrics.awk for FreeBSD awk compatibility.
+	- tag for the 1.13.0rc3 release.
+
+26 November 2020: Wouter
+	- Fix to omit UDP receive errors from log, if verbosity low.
+	  These happen because of udp-connect.
+	- For #352: contrib/metrics.awk for Prometheus style metrics output.
+	- Fix that after failed read, the readagain cannot activate.
+	- Clear readagain upon decommission of pending tcp structure.
+
+25 November 2020: Wouter
+	- with udp-connect ignore connection refused with UDP timeouts.
+	- Fix udp-connect on FreeBSD, do send calls on connected UDP socket.
+	- Better fix for reuse tree comparison for is-tls sockets.  Where
+	  the tree key identity is preserved after cleanup of the TLS state.
+	- Remove debug commands from reuse tests.
+	- Fix memory leak for edns client tag opcode config element.
+	- Attempt fix for libevent state in tcp reuse cases after a packet
+	  is written.
+	- Fix readagain and writeagain callback functions for comm point
+	  cleanup.
+	- tag for the 1.13.0rc2 release.
+
+24 November 2020: Wouter
+	- Merge PR #283 : Stream reuse.  This implements upstream stream
+	  reuse for performing several queries over the same TCP or TLS
+	  channel.
+	- set version of main branch to 1.13.0 for upcoming release.
+	- iana portlist updated.
+	- Fix one port unit test for udp-connect.
+	- tag for the 1.13.0rc1 release.
+	- Fix crash when TLS connection is closed prematurely, when
+	  reuse tree comparison is not properly identical to insertion.
+	- Fix padding of struct regional for 32bit systems.
+
+23 November 2020: George
+	- Merge PR #313 from Ralph Dolmans: Replace edns-client-tag with
+	  edns-client-string option.
+
+23 November 2020: Wouter
+	- Merge #351 from dvzrv: Add AF_NETLINK to set of allowed socket
+	  address families.
+	- Fix #350: with the AF_NETLINK permission, to fix 1.12.0 error:
+	  failed to list interfaces: getifaddrs: Address family not
+	  supported by protocol.
+	- Fix #347: IP_DONTFRAG broken on Apple xcode 12.2.
+	- Option to toggle udp-connect, default is enabled.
+	- Fix for #303 CVE-2020-28935 : Fix that symlink does not interfere
+	  with chown of pidfile.
+	- Further fix for it and retvalue 0 fix for it.
+
+12 November 2020: Wouter
+	- Fix to connect() to UDP destinations, default turned on,
+	  this lowers vulnerability to ICMP side channels.
+	- Retry for interfaces with unused ports if possible.
+
+10 November 2020: Wouter
+	- Fix #341: fixing a possible memory leak.
+	- Fix memory leak after fix for possible memory leak failure.
+	- Fix #343: Fail to build --with-libnghttp2 with error: 'SSIZE_MAX'
+	  undeclared.
+
+27 October 2020: Wouter
+	- In man page note that tls-cert-bundle is read before permission
+	  drop and chroot.
+
+22 October 2020: Wouter
+	- Fix #333: Unbound Segmentation Fault w/ log_info Functions From
+	  Python Mod.
+	- Fix that minimal-responses does not remove addresses from a priming
+	  query response.
+
+21 October 2020: George
+	- Fix #327: net/if.h check fails on some darwin versions; contribution by
+	  Joshua Root.
+	- Fix #320: potential memory corruption due to size miscomputation upton
+	  custom region alloc init.
+
+21 October 2020: Wouter
+	- Merge PR #228 : infra-keep-probing option to probe hosts that are
+	  down.  Add infra-keep-probing: yes option. Hosts that are down are
+	  probed more frequently.
+	  With the option turned on, it probes about every 120 seconds,
+	  eventually after exponential backoff, and that keeps that way. If
+	  traffic keeps up for the domain. It probes with one at a time, eg.
+	  one query is allowed to probe, other queries within that 120 second
+	  interval are turned away.
+
+19 October 2020: George
+	- Merge PR #324 from James Renken: Add modern X.509v3 extensions to
+	  unbound-control TLS certificates.
+	- Fix for PR #324 to attach the x509v3 extensions to the client
+	  certificate.
+
+19 October 2020: Ralph
+	- local-zone regional allocations outside of chunk
+
+19 October 2020: Wouter
+	- Fix that http settings have colon in set_option, for
+	  http-endpoint, http-max-streams, http-query-buffer-size,
+	  http-response-buffer-size, and http-nodelay.
+	- Fix memory leak of https port string when reading config.
+	- Fix #330: [Feature request] Add unencrypted DNS over HTTPS support.
+	  This adds the option http-notls-downstream: yesno to change that,
+	  and the dohclient test code has the -n option.
+	- Fix python documentation warning on functions.rst inplace_cb_reply.
+	- Fix dnstap test to wait for log timer to see if queries are logged.
+	- Log ip address when http session recv fails, eg. due to tls fail.
+	- Fix to set the tcp handler event toggle flag back to default when
+	  the handler structure is reused.
+	- Clean the fix for out of order TCP processing limits on number
+	  of queries.  It was tested to work.
+
+16 October 2020: Wouter
+	- Fix that the out of order TCP processing does not limit the
+	  number of outstanding queries over a connection.
+
+15 October 2020: George
+	- Fix that if there are reply callbacks for the given rcode, those
+	  are called per reply and a new message created if that was modified
+	  by the call.
+	- Pass the comm_reply information to the inplace_cb_reply* functions
+	  during the mesh state and update the documentation on that.
+
+15 October 2020: Wouter
+	- Merge PR #326 from netblue30: DoH: implement content-length
+	  header field
+	- DoH content length, simplify code, remove declaration after
+	  statement and fix cast warning.
+
+14 October 2020: Wouter
+	- Fix for python reply callback to see mesh state reply_list member,
+	  it only removes it briefly for the commpoint call so that it does
+	  not drop it and attempt to modify the reply list during reply.
+	- Fix that if there are on reply callbacks, those are called per
+	  reply and a new message created if that was modified by the call.
+	- Free up auth zone parse region after use for lookup of host
+
+13 October 2020: Wouter
+	- Fix #323: unbound testsuite fails on mock build in systemd-nspawn
+	  if systemd support is build.
+
+9 October 2020: Wouter
+	- Fix dnstap socket and the chroot not applied properly to the dnstap
+	  socket path.
+	- Fix warning in libnss compile, nss_buf2dsa is not used without DSA.
+
+8 October 2020: Wouter
+	- Tag for 1.12.0 release.
+	- Current repo is version 1.12.1 in development.
+	- Fix #319: potential memory leak on config failure, in rpz config.
+
 1 October 2020: Wouter
 	- Current repo is version 1.12.0 for release.  Tag for 1.12.0rc1.
 

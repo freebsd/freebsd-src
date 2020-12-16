@@ -95,6 +95,9 @@ typedef int comm_point_callback_type(struct comm_point*, void*, int,
 #define NETEVENT_CAPSFAIL -3
 /** to pass done transfer to callback function; http file is complete */
 #define NETEVENT_DONE -4
+/** to pass write of the write packet is done to callback function
+ * used when tcp_write_and_read is enabled */
+#define NETEVENT_PKT_WRITTEN -5
 
 /** timeout to slow accept calls when not possible, in msec. */
 #define NETEVENT_SLOW_ACCEPT_TIME 2000
@@ -275,6 +278,44 @@ struct comm_point {
 	/** if set, the connection is closed on error, on timeout, 
 	    and after read/write completes. No callback is done. */
 	int tcp_do_close;
+
+	/** flag that indicates the stream is both written and read from. */
+	int tcp_write_and_read;
+
+	/** byte count for written length over write channel, for when
+	 * tcp_write_and_read is enabled.  When tcp_write_and_read is enabled,
+	 * this is the counter for writing, the one for reading is in the
+	 * commpoint.buffer sldns buffer.  The counter counts from 0 to
+	 * 2+tcp_write_pkt_len, and includes the tcp length bytes. */
+	size_t tcp_write_byte_count;
+
+	/** packet to write currently over the write channel. for when
+	 * tcp_write_and_read is enabled.  When tcp_write_and_read is enabled,
+	 * this is the buffer for the written packet, the commpoint.buffer
+	 * sldns buffer is the buffer for the received packet. */
+	uint8_t* tcp_write_pkt;
+	/** length of tcp_write_pkt in bytes */
+	size_t tcp_write_pkt_len;
+
+	/** if set try to read another packet again (over connection with
+	 * multiple packets), once set, tries once, then zero again,
+	 * so set it in the packet complete section.
+	 * The pointer itself has to be set before the callback is invoked,
+	 * when you set things up, and continue to exist also after the
+	 * commpoint is closed and deleted in your callback.  So that after
+	 * the callback cleans up netevent can see what it has to do.
+	 * Or leave NULL if it is not used at all. */
+	int* tcp_more_read_again;
+
+	/** if set try to write another packet (over connection with
+	 * multiple packets), once set, tries once, then zero again,
+	 * so set it in the packet complete section.
+	 * The pointer itself has to be set before the callback is invoked,
+	 * when you set things up, and continue to exist also after the
+	 * commpoint is closed and deleted in your callback.  So that after
+	 * the callback cleans up netevent can see what it has to do.
+	 * Or leave NULL if it is not used at all. */
+	int* tcp_more_write_again;
 
 	/** if set, read/write completes:
 		read/write state of tcp is toggled.
@@ -589,7 +630,8 @@ void comm_point_drop_reply(struct comm_reply* repinfo);
  * Send an udp message over a commpoint.
  * @param c: commpoint to send it from.
  * @param packet: what to send.
- * @param addr: where to send it to.
+ * @param addr: where to send it to.   If NULL, send is performed,
+ * 	for connected sockets, to the connected address.
  * @param addrlen: length of addr.
  * @return: false on a failure.
  */
