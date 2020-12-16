@@ -33,7 +33,7 @@ TLD?=			${FTPDIR}/snapshots
 .if !defined(BUILDDATE) || empty(BUILDDATE)
 BUILDDATE!=		date +%Y%m%d
 .endif
-_SNAP_SUFFIX:=		${BUILDDATE}-${GITREV}
+_SNAP_SUFFIX:=		${BUILDDATE}-${GITREV}-${GITCOUNT}
 .else
 # release
 SNAPSHOT=
