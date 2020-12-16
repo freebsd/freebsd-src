@@ -21,11 +21,17 @@ GITBRANCH!=	${GIT_CMD} -C ${.CURDIR} rev-parse --abbrev-ref HEAD 2>/dev/null | s
 GITREV!=	${GIT_CMD} -C ${.CURDIR} rev-parse --verify --short HEAD 2>/dev/null || true
 . export GITREV
 . endif
+. if !defined(GITCOUNT) || empty(GITCOUNT)
+GITCOUNT!=	${GIT_CMD} -C ${.CURDIR} rev-list --count HEAD 2>/dev/null || true
+. export GITCOUNT
+. endif
 .else
 GITBRANCH=	nullbranch
 GITREV=		nullhash
+GITCOUNT=	nullcount
 . export GITBRANCH
 . export GITREV
+. export GITCOUNT
 .endif
 
 # Set the build date, primarily for snapshot builds.
