@@ -136,7 +136,7 @@ mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd)
 	 * iocpacket itself.
 	 */
 	kern_sge32 = (struct mrsas_sge32 *)
-	    ((unsigned long)cmd->frame + user_ioc->sgl_off);
+	    ((uintptr_t)cmd->frame + user_ioc->sgl_off);
 
 	memset(ioctl_data_tag, 0, (sizeof(bus_dma_tag_t) * MAX_IOCTL_SGE));
 	memset(ioctl_data_dmamap, 0, (sizeof(bus_dmamap_t) * MAX_IOCTL_SGE));
@@ -243,7 +243,7 @@ mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd)
 			goto out;
 		}
 		sense_ptr =
-		    (unsigned long *)((unsigned long)cmd->frame + user_ioc->sense_off);
+		    (unsigned long *)((uintptr_t)cmd->frame + user_ioc->sense_off);
 		*sense_ptr = ioctl_sense_phys_addr;
 	}
 	/*
@@ -290,9 +290,9 @@ mrsas_passthru(struct mrsas_softc *sc, void *arg, u_long ioctlCmd)
 		 * sense_buff points to the location that has the user sense
 		 * buffer address
 		 */
-		sense_ptr = (unsigned long *)((unsigned long)user_ioc->frame.raw +
+		sense_ptr = (unsigned long *)((uintptr_t)user_ioc->frame.raw +
 		    user_ioc->sense_off);
-		ret = copyout(ioctl_sense_mem, (unsigned long *)*sense_ptr,
+		ret = copyout(ioctl_sense_mem, (unsigned long *)(uintptr_t)*sense_ptr,
 		    user_ioc->sense_len);
 		if (ret) {
 			device_printf(sc->mrsas_dev, "IOCTL sense copyout failed!\n");
