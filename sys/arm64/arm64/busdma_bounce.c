@@ -297,6 +297,12 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 
 	if ((flags & BUS_DMA_ALLOCNOW) != 0) {
 		struct bounce_zone *bz;
+		/*
+		 * Round size up to a full page, and add one more page because
+		 * there can always be one more boundary crossing than the
+		 * number of pages in a transfer.
+		 */
+		maxsize = roundup2(maxsize, PAGE_SIZE) + PAGE_SIZE;
 
 		/* Must bounce */
 		if ((error = alloc_bounce_zone(newtag)) != 0) {
@@ -308,7 +314,7 @@ bounce_bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		if (ptoa(bz->total_bpages) < maxsize) {
 			int pages;
 
-			pages = atop(round_page(maxsize)) - bz->total_bpages;
+			pages = atop(maxsize) + 1 - bz->total_bpages;
 
 			/* Add pages to our bounce pool */
 			if (alloc_bounce_pages(newtag, pages) < pages)
@@ -436,8 +442,10 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	bz = dmat->bounce_zone;
 
 	/*
-	 * Attempt to add pages to our pool on a per-instance
-	 * basis up to a sane limit.
+	 * Attempt to add pages to our pool on a per-instancebasis up to a sane
+	 * limit. Even if the tag isn't subject of bouncing due to alignment
+	 * and boundary constraints, it could still auto-bounce due to
+	 * cacheline alignment, which requires at most two bounce pages.
 	 */
 	if (dmat->common.alignment > 1)
 		maxpages = MAX_BPAGES;
@@ -446,9 +454,9 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 		    atop(dmat->common.lowaddr));
 	if ((dmat->bounce_flags & BF_MIN_ALLOC_COMP) == 0 ||
 	    (bz->map_count > 0 && bz->total_bpages < maxpages)) {
-		pages = MAX(atop(dmat->common.maxsize), 1);
+		pages = atop(roundup2(dmat->common.maxsize, PAGE_SIZE)) + 1;
 		pages = MIN(maxpages - bz->total_bpages, pages);
-		pages = MAX(pages, 1);
+		pages = MAX(pages, 2);
 		if (alloc_bounce_pages(dmat, pages) < pages)
 			error = ENOMEM;
 		if ((dmat->bounce_flags & BF_MIN_ALLOC_COMP) == 0) {
