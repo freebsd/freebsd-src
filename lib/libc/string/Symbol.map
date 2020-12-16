@@ -110,6 +110,10 @@ FBSD_1.5 {
 	timingsafe_memcmp;
 };
 
+FBSD_1.6 {
+	strerror_l;
+};
+
 FBSDprivate_1.0 {
 	__strtok_r;
 };
