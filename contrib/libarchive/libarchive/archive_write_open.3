@@ -24,11 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 2, 2012
+.Dd November 12, 2020
 .Dt ARCHIVE_WRITE_OPEN 3
 .Os
 .Sh NAME
 .Nm archive_write_open ,
+.Nm archive_write_open2 ,
 .Nm archive_write_open_fd ,
 .Nm archive_write_open_FILE ,
 .Nm archive_write_open_filename ,
@@ -45,6 +46,15 @@ Streaming Archive Library (libarchive, -larchive)
 .Fa "archive_open_callback *"
 .Fa "archive_write_callback *"
 .Fa "archive_close_callback *"
+.Fc
+.Ft int
+.Fo archive_write_open2
+.Fa "struct archive *"
+.Fa "void *client_data"
+.Fa "archive_open_callback *"
+.Fa "archive_write_callback *"
+.Fa "archive_close_callback *"
+.Fa "archive_free_callback *"
 .Fc
 .Ft int
 .Fn archive_write_open_fd "struct archive *" "int fd"
@@ -67,6 +77,11 @@ This is the most generic form of this function, which accepts
 pointers to three callback functions which will be invoked by
 the compression layer to write the constructed archive.
 This does not alter the default archive padding.
+.It Fn archive_write_open2
+Same as
+.Fn archive_write_open
+with an additional fourth free callback. This function should be preferred to
+.Fn archive_write_open .
 .It Fn archive_write_open_fd
 A convenience form of
 .Fn archive_write_open
@@ -106,14 +121,14 @@ to a character or block device node, it will disable padding otherwise.
 You can override this by manually invoking
 .Fn archive_write_set_bytes_in_last_block
 before calling
-.Fn archive_write_open .
+.Fn archive_write_open2 .
 The
 .Fn archive_write_open_filename
 function is safe for use with tape drives or other
 block-oriented devices.
 .It Fn archive_write_open_memory
 A convenience form of
-.Fn archive_write_open
+.Fn archive_write_open2
 that accepts a pointer to a block of memory that will receive
 the archive.
 The final
@@ -145,7 +160,7 @@ To use this library, you will need to define and register
 callback functions that will be invoked to write data to the
 resulting archive.
 These functions are registered by calling
-.Fn archive_write_open :
+.Fn archive_write_open2 :
 .Bl -item -offset indent
 .It
 .Ft typedef int
@@ -162,6 +177,8 @@ If the open fails, it should call
 .Fn archive_set_error
 to register an error code and message and return
 .Cm ARCHIVE_FATAL .
+Please note that if open fails, close is not called and resources must be
+freed inside the open callback or with the free callback.
 .Bl -item -offset indent
 .It
 .Ft typedef la_ssize_t
@@ -192,7 +209,8 @@ to register an error code and message and return -1.
 .El
 .Pp
 The close callback is invoked by archive_close when
-the archive processing is complete.
+the archive processing is complete. If the open callback fails, the close
+callback is not invoked.
 The callback should return
 .Cm ARCHIVE_OK
 on success.
@@ -200,7 +218,14 @@ On failure, the callback should invoke
 .Fn archive_set_error
 to register an error code and message and
 return
-.Cm ARCHIVE_FATAL .
+.Bl -item -offset indent
+.It
+.Ft typedef int
+.Fn archive_free_callback "struct archive *" "void *client_data"
+.El
+.Pp
+The free callback is always invoked on archive_free.
+The return code of this callback is not processed.
 .Pp
 Note that if the client-provided write callback function
 returns a non-zero value, that error will be propagated back to the caller
