@@ -214,6 +214,7 @@ obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 olivier [label="Olivier Cochard-Labbe\nolivier@FreeBSD.org\n2016/02/02"]
 olivierd [label="Olivier Duchateau\nolivierd@FreeBSD.org\n2012/05/29"]
 osa [label="Sergey A. Osokin\nosa@FreeBSD.org\n2003/06/04"]
+otis [label="Juraj Lutter\notis@FreeBSD.org\n2020/12/12"]
 pat [label="Patrick Li\npat@FreeBSD.org\n2001/11/14"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2003/11/12"]
 pawel [label="Pawel Pekala\npawel@FreeBSD.org\n2011/03/11"]
@@ -636,6 +637,7 @@ obrien -> gerald
 
 olivier -> pizzamig
 
+osa -> otis
 osa -> vg
 
 pat -> adamw
@@ -718,6 +720,7 @@ swills -> jsm
 swills -> lbartoletti
 swills -> mfechner
 swills -> milki
+swills -> otis
 swills -> pclin
 swills -> rezny
 swills -> robak
