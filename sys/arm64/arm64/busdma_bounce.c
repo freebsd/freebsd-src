@@ -442,7 +442,7 @@ bounce_bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	bz = dmat->bounce_zone;
 
 	/*
-	 * Attempt to add pages to our pool on a per-instancebasis up to a sane
+	 * Attempt to add pages to our pool on a per-instance basis up to a sane
 	 * limit. Even if the tag isn't subject of bouncing due to alignment
 	 * and boundary constraints, it could still auto-bounce due to
 	 * cacheline alignment, which requires at most two bounce pages.
