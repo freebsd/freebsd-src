@@ -431,4 +431,9 @@ void	___pthread_cleanup_pop_imp(int);
 
 void __throw_constraint_handler_s(const char * restrict msg, int error);
 
+struct __nl_cat_d;
+struct _xlocale;
+struct __nl_cat_d *__catopen_l(const char *name, int type,
+	    struct _xlocale *locale);
+
 #endif /* _LIBC_PRIVATE_H_ */

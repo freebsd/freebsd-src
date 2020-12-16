@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 
 #include "../locale/xlocale_private.h"
+#include "libc_private.h"
 
 #define _DEFAULT_NLS_PATH "/usr/share/nls/%L/%N.cat:/usr/share/nls/%N/%L:"	\
 				_PATH_LOCALBASE "/share/nls/%L/%N.cat:"		\
@@ -122,6 +123,12 @@ SLIST_HEAD(listhead, catentry) cache =
 nl_catd
 catopen(const char *name, int type)
 {
+	return (__catopen_l(name, type, __get_locale()));
+}
+
+nl_catd
+__catopen_l(const char *name, int type, locale_t locale)
+{
 	struct stat sbuf;
 	struct catentry *np;
 	char *base, *cptr, *cptr1, *nlspath, *pathP, *pcode;
@@ -139,7 +146,7 @@ catopen(const char *name, int type)
 		lang = NULL;
 	else {
 		if (type == NL_CAT_LOCALE)
-			lang = querylocale(LC_MESSAGES_MASK, __get_locale());
+			lang = querylocale(LC_MESSAGES_MASK, locale);
 		else
 			lang = getenv("LANG");
 
