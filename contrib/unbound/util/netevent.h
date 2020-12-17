@@ -633,10 +633,11 @@ void comm_point_drop_reply(struct comm_reply* repinfo);
  * @param addr: where to send it to.   If NULL, send is performed,
  * 	for connected sockets, to the connected address.
  * @param addrlen: length of addr.
+ * @param is_connected: if the UDP socket is connect()ed.
  * @return: false on a failure.
  */
 int comm_point_send_udp_msg(struct comm_point* c, struct sldns_buffer* packet,
-	struct sockaddr* addr, socklen_t addrlen);
+	struct sockaddr* addr, socklen_t addrlen,int is_connected);
 
 /**
  * Stop listening for input on the commpoint. No callbacks will happen.
