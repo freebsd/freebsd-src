@@ -32,7 +32,7 @@
 .\"     @(#)strerror.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd December 7, 2020
+.Dd December 17, 2020
 .Dt STRERROR 3
 .Os
 .Sh NAME
@@ -170,6 +170,31 @@ The use of these variables is deprecated;
 or
 .Fn strerror_r
 should be used instead.
+.Sh EXAMPLES
+The following example shows how to use
+.Fn perror
+to report an error.
+.Bd -literal -offset 2n
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int
+main(void)
+{
+	int fd;
+
+	if ((fd = open("/nonexistent", O_RDONLY)) == -1) {
+		perror("open()");
+		exit(1);
+	}
+        printf("File descriptor: %d\en", fd);
+	return (0);
+}
+.Ed
+.Pp
+When executed, the program will print an error message along the lines of
+.Ql "open(): No such file or directory" .
 .Sh SEE ALSO
 .Xr intro 2 ,
 .Xr err 3 ,
