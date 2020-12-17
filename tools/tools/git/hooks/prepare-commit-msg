@@ -16,8 +16,17 @@ merge)
 esac
 
 outfile=$(mktemp /tmp/freebsd-git-commit.XXXXXXXX)
-cat >$outfile <<EOF
 
+# Create a commit message template from three parts:
+#
+# 1. The beginning of the git-provided template (up to the first comment-only
+#    line) which explains commented lines and such.
+# 2. Our template.
+# 3. The remainder of the git-provided template (from the first comment-only
+#    line to the end of the file) which lists files staged for commit, files
+#    not staged, and untracked files.
+
+cat >$outfile <<EOF
 $(awk '1;/^#$/{exit}' $1)
 # Uncomment and complete these metadata fields, as appropriate:
 # 
