@@ -1474,6 +1474,7 @@ void
 tty_signal_sessleader(struct tty *tp, int sig)
 {
 	struct proc *p;
+	struct session *s;
 
 	tty_assert_locked(tp);
 	MPASS(sig >= 1 && sig < NSIG);
@@ -1482,8 +1483,14 @@ tty_signal_sessleader(struct tty *tp, int sig)
 	tp->t_flags &= ~TF_STOPPED;
 	tp->t_termios.c_lflag &= ~FLUSHO;
 
-	if (tp->t_session != NULL && tp->t_session->s_leader != NULL) {
-		p = tp->t_session->s_leader;
+	/*
+	 * Load s_leader exactly once to avoid race where s_leader is
+	 * set to NULL by a concurrent invocation of killjobc() by the
+	 * session leader.  Note that we are not holding t_session's
+	 * lock for the read.
+	 */
+	if ((s = tp->t_session) != NULL &&
+	    (p = atomic_load_ptr(&s->s_leader)) != NULL) {
 		PROC_LOCK(p);
 		kern_psignal(p, sig);
 		PROC_UNLOCK(p);
