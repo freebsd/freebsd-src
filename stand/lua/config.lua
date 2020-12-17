@@ -721,6 +721,13 @@ function config.isModuleEnabled(modname)
 	return not blacklist[modname]
 end
 
+function config.getModuleInfo()
+	return {
+		modules = modules,
+		blacklist = getBlacklist()
+	}
+end
+
 hook.registerType("config.loaded")
 hook.registerType("config.reloaded")
 hook.registerType("kernel.loaded")
