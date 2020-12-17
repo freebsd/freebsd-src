@@ -184,8 +184,9 @@ NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
 NORMAL_FW= uudecode -o ${.TARGET} ${.ALLSRC}
-NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
-	-m ${LD_EMULATION} -o ${.TARGET} ${.ALLSRC:M*.fw}
+NORMAL_FWO= ${CC:N${CCACHE_BIN}} -c ${ASM_CFLAGS} ${WERROR} -o ${.TARGET} \
+	$S/kern/firmw.S -DFIRMW_FILE="${.ALLSRC:M*.fw}" \
+	-DFIRMW_SYMBOL="${.ALLSRC:M*.fw:C/[-.\/]/_/g}"
 
 # for ZSTD in the kernel (include zstd/lib/freebsd before other CFLAGS)
 ZSTD_C= ${CC} -c -DZSTD_HEAPMODE=1 -I$S/contrib/zstd/lib/freebsd ${CFLAGS} -I$S/contrib/zstd/lib -I$S/contrib/zstd/lib/common ${WERROR} -Wno-inline -Wno-missing-prototypes ${PROF} -U__BMI__ ${.IMPSRC}
