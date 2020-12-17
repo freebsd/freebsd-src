@@ -2949,17 +2949,9 @@ Kernel updates have been installed.  Please reboot and run
 			env DESTDIR=${BASEDIR} certctl rehash
 		fi
 
-		# Rebuild generated pwd files.
-		if [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/spwd.db ] ||
-		    [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/pwd.db ] ||
-		    [ ${BASEDIR}/etc/master.passwd -nt ${BASEDIR}/etc/passwd ]; then
-			pwd_mkdb -d ${BASEDIR}/etc -p ${BASEDIR}/etc/master.passwd
-		fi
-
-		# Rebuild /etc/login.conf.db if necessary.
-		if [ ${BASEDIR}/etc/login.conf -nt ${BASEDIR}/etc/login.conf.db ]; then
-			cap_mkdb ${BASEDIR}/etc/login.conf
-		fi
+		# Rebuild generated pwd files and /etc/login.conf.db.
+		pwd_mkdb -d ${BASEDIR}/etc -p ${BASEDIR}/etc/master.passwd
+		cap_mkdb ${BASEDIR}/etc/login.conf
 
 		# Rebuild man page databases, if necessary.
 		for D in /usr/share/man /usr/share/openssl/man; do
