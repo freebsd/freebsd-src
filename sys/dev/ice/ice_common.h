@@ -46,15 +46,6 @@ enum ice_fw_modes {
 	ICE_FW_MODE_ROLLBACK
 };
 
-/* prototype for functions used for SW locks */
-void ice_free_list(struct LIST_HEAD_TYPE *list);
-void ice_init_lock(struct ice_lock *lock);
-void ice_acquire_lock(struct ice_lock *lock);
-void ice_release_lock(struct ice_lock *lock);
-void ice_destroy_lock(struct ice_lock *lock);
-void *ice_alloc_dma_mem(struct ice_hw *hw, struct ice_dma_mem *m, u64 size);
-void ice_free_dma_mem(struct ice_hw *hw, struct ice_dma_mem *m);
-
 void ice_idle_aq(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 bool ice_sq_done(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 
