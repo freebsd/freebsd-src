@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2009
+.Dd December 17, 2020
 .Dt VFS_QUOTACTL 9
 .Os
 .Sh NAME
@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_QUOTACTL "struct mount *mp" "int cmds" "uid_t uid" "caddr_t arg"
+.Fn VFS_QUOTACTL "struct mount *mp" "int cmds" "uid_t uid" "void *arg"
 .Sh DESCRIPTION
 Implement file system quotas.
 See
