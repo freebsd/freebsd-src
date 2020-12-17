@@ -111,6 +111,8 @@ struct pci_vtnet_softc {
 
 	net_backend_t	*vsc_be;
 
+	bool    features_negotiated;	/* protected by rx_mtx */
+
 	int		resetting;	/* protected by tx_mtx */
 
 	uint64_t	vsc_features;	/* negotiated features */
@@ -176,6 +178,7 @@ pci_vtnet_reset(void *vsc)
 	 * Receive operation will be enabled again once the guest adds
 	 * the first receive buffers and kicks us.
 	 */
+	sc->features_negotiated = false;
 	netbe_rx_disable(sc->vsc_be);
 
 	/* Set sc->resetting and give a chance to the TX thread to stop. */
@@ -246,6 +249,12 @@ pci_vtnet_rx(struct pci_vtnet_softc *sc)
 	struct vqueue_info *vq;
 
 	vq = &sc->vsc_queues[VTNET_RXQ];
+
+	/* Features must be negotiated */
+	if (!sc->features_negotiated) {
+		return;
+	}
+
 	for (;;) {
 		struct virtio_net_rxhdr *hdr;
 		uint32_t riov_bytes;
@@ -406,8 +415,14 @@ pci_vtnet_ping_rxq(void *vsc, struct vqueue_info *vq)
 
 	/*
 	 * A qnotify means that the rx process can now begin.
+	 * Enable RX only if features are negotiated.
 	 */
 	pthread_mutex_lock(&sc->rx_mtx);
+	if (!sc->features_negotiated) {
+		pthread_mutex_unlock(&sc->rx_mtx);
+		return;
+	}
+
 	vq_kick_disable(vq);
 	netbe_rx_enable(sc->vsc_be);
 	pthread_mutex_unlock(&sc->rx_mtx);
@@ -750,6 +765,10 @@ pci_vtnet_neg_features(void *vsc, uint64_t negotiated_features)
 	netbe_set_cap(sc->vsc_be, negotiated_features, sc->vhdrlen);
 	sc->be_vhdrlen = netbe_get_vnet_hdr_len(sc->vsc_be);
 	assert(sc->be_vhdrlen == 0 || sc->be_vhdrlen == sc->vhdrlen);
+
+	pthread_mutex_lock(&sc->rx_mtx);
+	sc->features_negotiated = true;
+	pthread_mutex_unlock(&sc->rx_mtx);
 }
 
 #ifdef BHYVE_SNAPSHOT
