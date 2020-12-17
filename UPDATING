@@ -26,6 +26,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20201216:
+	The services database has been updated to cover more of the basic
+	services expected in a modern system. The database is big enough
+	that it will cause issues in mergemaster in Releases previous to
+	12.2 and 11.3, or in very old current systems from before r358154.
+
 20201215:
 	Obsolete in-tree GDB 6.1.1 has been removed.  GDB (including kgdb)
 	may be installed from ports or packages.
