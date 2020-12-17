@@ -995,12 +995,10 @@ audit_arg_fcntl_rights(uint32_t fcntlrights)
  * call itself.
  */
 void
-audit_sysclose(struct thread *td, int fd)
+audit_sysclose(struct thread *td, int fd, struct file *fp)
 {
-	cap_rights_t rights;
 	struct kaudit_record *ar;
 	struct vnode *vp;
-	struct file *fp;
 
 	KASSERT(td != NULL, ("audit_sysclose: td == NULL"));
 
@@ -1010,12 +1008,10 @@ audit_sysclose(struct thread *td, int fd)
 
 	audit_arg_fd(fd);
 
-	if (getvnode(td, fd, cap_rights_init(&rights), &fp) != 0)
-		return;
-
 	vp = fp->f_vnode;
+	if (vp == NULL)
+		return;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	audit_arg_vnode1(vp);
 	VOP_UNLOCK(vp);
-	fdrop(fp, td);
 }
