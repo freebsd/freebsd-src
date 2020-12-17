@@ -6093,7 +6093,7 @@ xfr_probe_send_probe(struct auth_xfer* xfr, struct module_env* env,
 
 	/* send udp packet */
 	if(!comm_point_send_udp_msg(xfr->task_probe->cp, env->scratch_buffer,
-		(struct sockaddr*)&addr, addrlen)) {
+		(struct sockaddr*)&addr, addrlen, 0)) {
 		char zname[255+1], as[256];
 		dname_str(xfr->name, zname);
 		addr_to_str(&addr, addrlen, as, sizeof(as));

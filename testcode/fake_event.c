@@ -1765,7 +1765,7 @@ struct comm_point* outnet_comm_point_for_http(struct outside_network* outnet,
 }
 
 int comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
-	struct sockaddr* addr, socklen_t addrlen) 
+	struct sockaddr* addr, socklen_t addrlen, int ATTR_UNUSED(is_connected))
 {
 	struct fake_commpoint* fc = (struct fake_commpoint*)c;
 	struct replay_runtime* runtime = fc->runtime;
