@@ -61,6 +61,8 @@ bvm_dbg_probe(void)
 	disabled = 0;
 	resource_int_value("bvmdbg", 0, "disabled", &disabled);
 
+	gone_in(13, "bvmdebug");
+
 	if (!disabled) {
 		if (resource_int_value("bvmdbg", 0, "port", &port) == 0)
 			bvm_dbg_port = port;
