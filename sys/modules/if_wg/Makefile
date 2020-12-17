@@ -15,8 +15,6 @@ CFLAGS+= -I${INCDIR}
 
 CFLAGS+= -D__KERNEL__
 
-DEBUG_FLAGS=-g
-
 SRCS= opt_inet.h opt_inet6.h device_if.h bus_if.h ifdi_if.h
 
 SRCS+= if_wg_session.c module.c
