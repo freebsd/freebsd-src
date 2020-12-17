@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .include "${SRCTOP}/lib/kyua/Makefile.kyua"
 
 .PATH: ${KYUA_SRCDIR}
@@ -28,7 +30,11 @@ CFLAGS+=	-I${KYUA_SRCDIR}
 # kyua uses auto_ptr
 CFLAGS+=	-Wno-deprecated-declarations
 
-FILESGROUPS=	DOCS EXAMPLES MISC STORE
+FILESGROUPS=	DOCS MISC STORE
+
+.if ${MK_EXAMPLES} != "no"
+FILESGROUPS+=	EXAMPLES
+.endif
 
 # Install a minimal default config that uses the 'tests' user.
 # The examples config is not appropriate for general use.
