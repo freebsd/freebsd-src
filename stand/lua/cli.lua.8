@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2020
+.Dd December 17, 2020
 .Dt CLI.LUA 8
 .Os
 .Sh NAME
@@ -96,6 +96,8 @@ module provides the following default commands:
 .Ic disable-module
 .It
 .Ic toggle-module
+.It
+.Ic show-module-options
 .El
 .Pp
 For
@@ -125,6 +127,10 @@ commands manipulate the list of modules to be loaded along with the kernel.
 Modules blacklisted are considered disabled by
 .Ic toggle-module .
 These commands will override any such restriction as needed.
+The
+.Ic show-module-options
+command will dump the list of modules that loader has been made aware of and
+any applicable options using paged output.
 .Ss Exported Functions
 The following functions are exported from
 .Nm :
