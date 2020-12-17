@@ -307,6 +307,7 @@ fdfree(struct filedesc *fdp, int fd)
 {
 	struct filedescent *fde;
 
+	FILEDESC_XLOCK_ASSERT(fdp);
 	fde = &fdp->fd_ofiles[fd];
 #ifdef CAPABILITIES
 	seqc_write_begin(&fde->fde_seqc);
@@ -1367,11 +1368,9 @@ int
 kern_close_range(struct thread *td, u_int lowfd, u_int highfd)
 {
 	struct filedesc *fdp;
-	int fd, ret, lastfile;
-
-	ret = 0;
-	fdp = td->td_proc->p_fd;
-	FILEDESC_SLOCK(fdp);
+	const struct fdescenttbl *fdt;
+	struct file *fp;
+	int fd;
 
 	/*
 	 * Check this prior to clamping; closefrom(3) with only fd 0, 1, and 2
@@ -1380,30 +1379,36 @@ kern_close_range(struct thread *td, u_int lowfd, u_int highfd)
 	 * be a usage error as all fd above 3 are in-fact already closed.
 	 */
 	if (highfd < lowfd) {
-		ret = EINVAL;
-		goto out;
+		return (EINVAL);
 	}
 
-	/*
-	 * If lastfile == -1, we're dealing with either a fresh file
-	 * table or one in which every fd has been closed.  Just return
-	 * successful; there's nothing left to do.
-	 */
-	lastfile = fdlastfile(fdp);
-	if (lastfile == -1)
-		goto out;
-	/* Clamped to [lowfd, lastfile] */
-	highfd = MIN(highfd, lastfile);
-	for (fd = lowfd; fd <= highfd; fd++) {
-		if (fdp->fd_ofiles[fd].fde_file != NULL) {
-			FILEDESC_SUNLOCK(fdp);
-			(void)kern_close(td, fd);
-			FILEDESC_SLOCK(fdp);
-		}
+	fdp = td->td_proc->p_fd;
+	FILEDESC_XLOCK(fdp);
+	fdt = atomic_load_ptr(&fdp->fd_files);
+	highfd = MIN(highfd, fdt->fdt_nfiles - 1);
+	fd = lowfd;
+	if (__predict_false(fd > highfd)) {
+		goto out_locked;
 	}
-out:
-	FILEDESC_SUNLOCK(fdp);
-	return (ret);
+	for (;;) {
+		fp = fdt->fdt_ofiles[fd].fde_file;
+		if (fp == NULL) {
+			if (fd == highfd)
+				goto out_locked;
+		} else {
+			fdfree(fdp, fd);
+			(void) closefp(fdp, fd, fp, td, true, true);
+			if (fd == highfd)
+				goto out_unlocked;
+			FILEDESC_XLOCK(fdp);
+			fdt = atomic_load_ptr(&fdp->fd_files);
+		}
+		fd++;
+	}
+out_locked:
+	FILEDESC_XUNLOCK(fdp);
+out_unlocked:
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
