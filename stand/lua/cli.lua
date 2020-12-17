@@ -234,7 +234,7 @@ cli["show-module-options"] = function()
 	end
 
 	pager.open()
-	for i, v in ipairs(lines) do
+	for _, v in ipairs(lines) do
 		pager.output(v .. "\n")
 	end
 	pager.close()
