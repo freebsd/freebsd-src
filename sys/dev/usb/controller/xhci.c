@@ -86,8 +86,7 @@
 #include <dev/usb/controller/xhcireg.h>
 
 #define	XHCI_BUS2SC(bus) \
-   ((struct xhci_softc *)(((uint8_t *)(bus)) - \
-    ((uint8_t *)&(((struct xhci_softc *)0)->sc_bus))))
+	__containerof(bus, struct xhci_softc, sc_bus)
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB XHCI");

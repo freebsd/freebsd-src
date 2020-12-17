@@ -90,8 +90,7 @@
 #include <dev/usb/controller/ehcireg.h>
 
 #define	EHCI_BUS2SC(bus) \
-   ((ehci_softc_t *)(((uint8_t *)(bus)) - \
-    ((uint8_t *)&(((ehci_softc_t *)0)->sc_bus))))
+	__containerof(bus, ehci_softc_t, sc_bus)
 
 #ifdef USB_DEBUG
 static int ehcidebug = 0;
