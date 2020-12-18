@@ -6374,6 +6374,14 @@ dtrace_dif_emulate(dtrace_difo_t *difo, dtrace_mstate_t *mstate,
 			uintptr_t s2 = regs[r2];
 			size_t lim1, lim2;
 
+			/*
+			 * If one of the strings is NULL then the limit becomes
+			 * 0 which compares 0 characters in dtrace_strncmp()
+			 * resulting in a false positive.  dtrace_strncmp()
+			 * treats a NULL as an empty 1-char string.
+			 */
+			lim1 = lim2 = 1;
+
 			if (s1 != 0 &&
 			    !dtrace_strcanload(s1, sz, &lim1, mstate, vstate))
 				break;
