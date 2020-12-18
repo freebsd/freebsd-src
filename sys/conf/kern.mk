@@ -86,6 +86,9 @@ NO_WCAST_QUAL= -Wno-cast-qual
 .endif
 .endif
 
+# This warning is utter nonsense
+CWARNFLAGS+=	-Wno-format-zero-length
+
 # External compilers may not support our format extensions.  Allow them
 # to be disabled.  WARNING: format checking is disabled in this case.
 .if ${MK_FORMAT_EXTENSIONS} == "no"
