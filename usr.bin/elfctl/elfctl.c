@@ -68,6 +68,7 @@ static struct ControlFeatures featurelist[] = {
 	{ "stackgap",	NT_FREEBSD_FCTL_STKGAP_DISABLE, "Disable stack gap" },
 	{ "wxneeded",	NT_FREEBSD_FCTL_WXNEEDED, "Requires W+X mappings" },
 	{ "la48",	NT_FREEBSD_FCTL_LA48, "amd64: Limit user VA to 48bit" },
+	{ "aslrstkgap", NT_FREEBSD_FCTL_ASG_DISABLE, "Disable ASLR stack gap" },
 };
 
 static struct option long_opts[] = {
