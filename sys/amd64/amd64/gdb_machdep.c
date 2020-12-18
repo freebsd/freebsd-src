@@ -60,31 +60,31 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 
 	if (kdb_thread  == curthread) {
 		switch (regnum) {
-		case 0:	return (&kdb_frame->tf_rax);
-		case 2:	return (&kdb_frame->tf_rcx);
-		case 3:	return (&kdb_frame->tf_rdx);
-		case 4:	return (&kdb_frame->tf_rsi);
-		case 5:	return (&kdb_frame->tf_rdi);
-		case 8: return (&kdb_frame->tf_r8);
-		case 9: return (&kdb_frame->tf_r9);
-		case 10: return (&kdb_frame->tf_r10);
-		case 11: return (&kdb_frame->tf_r11);
-		case 17: return (&kdb_frame->tf_rflags);
-		case 18: return (&kdb_frame->tf_cs);
-		case 19: return (&kdb_frame->tf_ss);
+		case GDB_REG_RAX: return (&kdb_frame->tf_rax);
+		case GDB_REG_RCX: return (&kdb_frame->tf_rcx);
+		case GDB_REG_RDX: return (&kdb_frame->tf_rdx);
+		case GDB_REG_RSI: return (&kdb_frame->tf_rsi);
+		case GDB_REG_RDI: return (&kdb_frame->tf_rdi);
+		case GDB_REG_R8:  return (&kdb_frame->tf_r8);
+		case GDB_REG_R9:  return (&kdb_frame->tf_r9);
+		case GDB_REG_R10: return (&kdb_frame->tf_r10);
+		case GDB_REG_R11: return (&kdb_frame->tf_r11);
+		case GDB_REG_RFLAGS: return (&kdb_frame->tf_rflags);
+		case GDB_REG_CS:  return (&kdb_frame->tf_cs);
+		case GDB_REG_SS:  return (&kdb_frame->tf_ss);
 		}
 	}
 	switch (regnum) {
-	case 1:  return (&kdb_thrctx->pcb_rbx);
-	case 6:  return (&kdb_thrctx->pcb_rbp);
-	case 7:  return (&kdb_thrctx->pcb_rsp);
-	case 12: return (&kdb_thrctx->pcb_r12);
-	case 13: return (&kdb_thrctx->pcb_r13);
-	case 14: return (&kdb_thrctx->pcb_r14);
-	case 15: return (&kdb_thrctx->pcb_r15);
-	case 16: return (&kdb_thrctx->pcb_rip);
-	case 18: return (&_kcodesel);
-	case 19: return (&_kdatasel);
+	case GDB_REG_RBX: return (&kdb_thrctx->pcb_rbx);
+	case GDB_REG_RBP: return (&kdb_thrctx->pcb_rbp);
+	case GDB_REG_RSP: return (&kdb_thrctx->pcb_rsp);
+	case GDB_REG_R12: return (&kdb_thrctx->pcb_r12);
+	case GDB_REG_R13: return (&kdb_thrctx->pcb_r13);
+	case GDB_REG_R14: return (&kdb_thrctx->pcb_r14);
+	case GDB_REG_R15: return (&kdb_thrctx->pcb_r15);
+	case GDB_REG_PC:  return (&kdb_thrctx->pcb_rip);
+	case GDB_REG_CS:  return (&_kcodesel);
+	case GDB_REG_SS:  return (&_kdatasel);
 	}
 	return (NULL);
 }
