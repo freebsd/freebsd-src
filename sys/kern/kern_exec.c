@@ -1497,6 +1497,17 @@ exec_free_args(struct image_args *args)
 		fdescfree_remapped(args->fdp);
 }
 
+void
+exec_stackgap(struct image_params *imgp, uintptr_t *dp)
+{
+	if (imgp->sysent->sv_stackgap == NULL ||
+	    (imgp->proc->p_fctl0 & (NT_FREEBSD_FCTL_ASLR_DISABLE |
+	    NT_FREEBSD_FCTL_ASG_DISABLE)) != 0 ||
+	    (imgp->map_flags & MAP_ASLR) == 0)
+		return;
+	imgp->sysent->sv_stackgap(imgp, dp);
+}
+
 /*
  * Copy strings out to the new process address space, constructing new arg
  * and env vector tables. Return a pointer to the base so that it can be used
@@ -1574,9 +1585,8 @@ exec_copyout_strings(struct image_params *imgp)
 	destp -= ARG_MAX - imgp->args->stringspace;
 	destp = rounddown2(destp, sizeof(void *));
 
+	exec_stackgap(imgp, &destp);
 	vectp = (char **)destp;
-	if (imgp->sysent->sv_stackgap != NULL)
-		imgp->sysent->sv_stackgap(imgp, (u_long *)&vectp);
 
 	if (imgp->auxargs) {
 		/*

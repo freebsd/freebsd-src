@@ -3224,9 +3224,8 @@ freebsd32_copyout_strings(struct image_params *imgp)
 	destp -= ARG_MAX - imgp->args->stringspace;
 	destp = rounddown2(destp, sizeof(uint32_t));
 
+	exec_stackgap(imgp, &destp);
 	vectp = (uint32_t *)destp;
-	if (imgp->sysent->sv_stackgap != NULL)
-		imgp->sysent->sv_stackgap(imgp, (u_long *)&vectp);
 
 	if (imgp->auxargs) {
 		/*

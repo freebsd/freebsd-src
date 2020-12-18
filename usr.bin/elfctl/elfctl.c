@@ -70,6 +70,7 @@ static struct ControlFeatures featurelist[] = {
 #ifdef NT_FREEBSD_FCTL_LA48
 	{ "la48",	NT_FREEBSD_FCTL_LA48, "amd64: Limit user VA to 48bit" },
 #endif
+	{ "aslrstkgap", NT_FREEBSD_FCTL_ASG_DISABLE, "Disable ASLR stack gap" },
 };
 
 static struct option long_opts[] = {
