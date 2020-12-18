@@ -47,6 +47,10 @@
 /* SBI Implementation IDs */
 #define	SBI_IMPL_ID_BBL			0
 #define	SBI_IMPL_ID_OPENSBI		1
+#define	SBI_IMPL_ID_XVISOR		2
+#define	SBI_IMPL_ID_KVM			3
+#define	SBI_IMPL_ID_RUSTSBI		4
+#define	SBI_IMPL_ID_DIOSIX		5
 
 /* SBI Error Codes */
 #define	SBI_SUCCESS			0
