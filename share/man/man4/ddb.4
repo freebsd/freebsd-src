@@ -955,14 +955,10 @@ at address
 Display the register set.
 If the
 .Cm u
-modifier is specified, it displays user registers instead of
-kernel registers or the currently saved one.
+modifier is specified, the register contents of the thread's previous
+trapframe are displayed instead.
+Usually, this corresponds to the saved state from userspace.
 .Pp
-.Sy Warning :
-The support of the
-.Cm u
-modifier depends on the machine.
-If not supported, incorrect information will be displayed.
 .\"
 .Pp
 .It Ic show Cm rman Ar addr

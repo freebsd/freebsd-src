@@ -49,11 +49,31 @@ __FBSDID("$FreeBSD$");
 #include <ddb/db_sym.h>
 
 void
-db_show_regs(db_expr_t _1, bool _2, db_expr_t _3, char *_4)
+db_show_regs(db_expr_t _1, bool _2, db_expr_t _3, char *modif)
 {
+	struct trapframe *oldtf;
 	struct db_variable *regp;
 	db_expr_t value, offset;
 	const char *name;
+
+	/*
+	 * The 'u' modifier instructs us to print the previous trapframe, most
+	 * often containing state from userspace. This is done by temporarily
+	 * switching out kdb_frame.
+	 *
+	 * NB: curthread is used instead of kdb_thread, so that behaviour is
+	 * consistent with regular `show registers`, which always prints
+	 * curthread's trapframe.
+	 */
+	oldtf = kdb_frame;
+	if (modif[0] == 'u') {
+		if (curthread->td_frame == NULL ||
+		    curthread->td_frame == oldtf) {
+			db_printf("previous trapframe unavailable");
+			return;
+		}
+		kdb_frame = curthread->td_frame;
+	}
 
 	for (regp = db_regs; regp < db_eregs; regp++) {
 		if (!db_read_variable(regp, &value))
@@ -70,4 +90,6 @@ db_show_regs(db_expr_t _1, bool _2, db_expr_t _3, char *_4)
 		db_printf("\n");
 	}
 	db_print_loc_and_inst(PC_REGS());
+
+	kdb_frame = oldtf;
 }
