@@ -92,12 +92,42 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 void
 gdb_cpu_setreg(int regnum, void *val)
 {
+	register_t regval = *(register_t *)val;
 
+	/*
+	 * Write registers to the trapframe and pcb, if applicable.
+	 * Some scratch registers are not tracked by the pcb.
+	 */
+	if (kdb_thread == curthread) {
+		switch (regnum) {
+		case GDB_REG_RAX: kdb_frame->tf_rax = regval; break;
+		case GDB_REG_RBX: kdb_frame->tf_rbx = regval; break;
+		case GDB_REG_RCX: kdb_frame->tf_rcx = regval; break;
+		case GDB_REG_RDX: kdb_frame->tf_rdx = regval; break;
+		case GDB_REG_RSI: kdb_frame->tf_rsi = regval; break;
+		case GDB_REG_RDI: kdb_frame->tf_rdi = regval; break;
+		case GDB_REG_RBP: kdb_frame->tf_rbp = regval; break;
+		case GDB_REG_RSP: kdb_frame->tf_rsp = regval; break;
+		case GDB_REG_R8:  kdb_frame->tf_r8  = regval; break;
+		case GDB_REG_R9:  kdb_frame->tf_r9  = regval; break;
+		case GDB_REG_R10: kdb_frame->tf_r10 = regval; break;
+		case GDB_REG_R11: kdb_frame->tf_r11 = regval; break;
+		case GDB_REG_R12: kdb_frame->tf_r12 = regval; break;
+		case GDB_REG_R13: kdb_frame->tf_r13 = regval; break;
+		case GDB_REG_R14: kdb_frame->tf_r14 = regval; break;
+		case GDB_REG_R15: kdb_frame->tf_r15 = regval; break;
+		case GDB_REG_PC:  kdb_frame->tf_rip = regval; break;
+		}
+	}
 	switch (regnum) {
-	case GDB_REG_PC:
-		kdb_thrctx->pcb_rip = *(register_t *)val;
-		if (kdb_thread  == curthread)
-			kdb_frame->tf_rip = *(register_t *)val;
+	case GDB_REG_RBX: kdb_thrctx->pcb_rbx = regval; break;
+	case GDB_REG_RBP: kdb_thrctx->pcb_rbp = regval; break;
+	case GDB_REG_RSP: kdb_thrctx->pcb_rsp = regval; break;
+	case GDB_REG_R12: kdb_thrctx->pcb_r12 = regval; break;
+	case GDB_REG_R13: kdb_thrctx->pcb_r13 = regval; break;
+	case GDB_REG_R14: kdb_thrctx->pcb_r14 = regval; break;
+	case GDB_REG_R15: kdb_thrctx->pcb_r15 = regval; break;
+	case GDB_REG_PC:  kdb_thrctx->pcb_rip = regval; break;
 	}
 }
 
