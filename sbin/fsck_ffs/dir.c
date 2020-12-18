@@ -532,7 +532,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		}
 		inodirty(dp);
 		idesc.id_type = ADDR;
-		idesc.id_func = pass4check;
+		idesc.id_func = freeblock;
 		idesc.id_number = oldlfdir;
 		adjust(&idesc, inoinfo(oldlfdir)->ino_linkcnt + 1);
 		inoinfo(oldlfdir)->ino_linkcnt = 0;
@@ -635,6 +635,7 @@ expanddir(union dinode *dp, char *name)
 {
 	ufs2_daddr_t lastbn, newblk;
 	struct bufarea *bp;
+	struct inodesc idesc;
 	char *cp, firstblk[DIRBLKSIZ];
 
 	lastbn = lblkno(&sblock, DIP(dp, di_size));
@@ -679,7 +680,10 @@ bad:
 	DIP_SET(dp, di_db[lastbn + 1], 0);
 	DIP_SET(dp, di_size, DIP(dp, di_size) - sblock.fs_bsize);
 	DIP_SET(dp, di_blocks, DIP(dp, di_blocks) - btodb(sblock.fs_bsize));
-	freeblk(newblk, sblock.fs_frag);
+	/* Free the block we allocated above */
+	idesc.id_blkno = newblk;
+	idesc.id_numfrags = sblock.fs_frag;
+	(void)freeblock(&idesc);
 	return (0);
 }
 
