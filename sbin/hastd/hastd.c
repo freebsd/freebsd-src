@@ -1222,6 +1222,7 @@ main(int argc, char *argv[])
 	pjdlog_init(PJDLOG_MODE_STD);
 	pjdlog_debug_set(debuglevel);
 
+	closefrom(MAX(MAX(STDIN_FILENO, STDOUT_FILENO), STDERR_FILENO) + 1);
 	g_gate_load();
 
 	/*
