@@ -2818,8 +2818,6 @@ __elfN(stackgap)(struct image_params *imgp, uintptr_t *stack_base)
 	uintptr_t range, rbase, gap;
 	int pct;
 
-	if ((imgp->map_flags & MAP_ASLR) == 0)
-		return;
 	pct = __elfN(aslr_stack_gap);
 	if (pct == 0)
 		return;
