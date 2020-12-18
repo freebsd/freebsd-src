@@ -1212,6 +1212,11 @@ static struct rk_clk rk3399_clks[] = {
 	FRACT(DCLK_VOP1_FRAC, "dclk_vop1_frac", "dclk_vop1_div", 0,
 	    107),
 
+	/* 
+	 * This clock is controlled in the secure world
+	 */
+	FFACT(PCLK_WDT, "pclk_wdt", "pclk_alive", 1, 1),
+
 /* Not yet implemented yet
  *	MMC(SCLK_SDMMC_DRV,     "sdmmc_drv",    "clk_sdmmc", RK3399_SDMMC_CON0, 1),
  *	MMC(SCLK_SDMMC_SAMPLE,  "sdmmc_sample", "clk_sdmmc", RK3399_SDMMC_CON1, 1),
