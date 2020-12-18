@@ -50,6 +50,9 @@
 #define	GDB_REG_R14	14
 #define	GDB_REG_R15	15
 #define	GDB_REG_PC	16
+#define	GDB_REG_RFLAGS	17
+#define	GDB_REG_CS	18
+#define	GDB_REG_SS	19
 _Static_assert(GDB_BUFSZ >= (GDB_NREGS * 16), "buffer fits 'g' regs");
 
 static __inline size_t
