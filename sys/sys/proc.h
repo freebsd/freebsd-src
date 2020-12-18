@@ -739,57 +739,78 @@ struct proc {
 #define	PROC_PROFLOCK_ASSERT(p, type)	mtx_assert(&(p)->p_profmtx, (type))
 
 /* These flags are kept in p_flag. */
-#define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
-#define	P_CONTROLT	0x00002	/* Has a controlling terminal. */
-#define	P_KPROC		0x00004	/* Kernel process. */
-#define	P_UNUSED3	0x00008	/* --available-- */
-#define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
-#define	P_PROFIL	0x00020	/* Has started profiling. */
-#define	P_STOPPROF	0x00040	/* Has thread requesting to stop profiling. */
-#define	P_HADTHREADS	0x00080	/* Has had threads (no cleanup shortcuts) */
-#define	P_SUGID		0x00100	/* Had set id privileges since last exec. */
-#define	P_SYSTEM	0x00200	/* System proc: no sigs, stats or swapping. */
-#define	P_SINGLE_EXIT	0x00400	/* Threads suspending should exit, not wait. */
-#define	P_TRACED	0x00800	/* Debugged process being traced. */
-#define	P_WAITED	0x01000	/* Someone is waiting for us. */
-#define	P_WEXIT		0x02000	/* Working on exiting. */
-#define	P_EXEC		0x04000	/* Process called exec. */
-#define	P_WKILLED	0x08000	/* Killed, go to kernel/user boundary ASAP. */
-#define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
-#define	P_STOPPED_SIG	0x20000	/* Stopped due to SIGSTOP/SIGTSTP. */
-#define	P_STOPPED_TRACE	0x40000	/* Stopped because of tracing. */
-#define	P_STOPPED_SINGLE 0x80000 /* Only 1 thread can continue (not to user). */
-#define	P_PROTECTED	0x100000 /* Do not kill on memory overcommit. */
-#define	P_SIGEVENT	0x200000 /* Process pending signals changed. */
-#define	P_SINGLE_BOUNDARY 0x400000 /* Threads should suspend at user boundary. */
-#define	P_HWPMC		0x800000 /* Process is using HWPMCs */
-#define	P_JAILED	0x1000000 /* Process is in jail. */
-#define	P_TOTAL_STOP	0x2000000 /* Stopped in stop_all_proc. */
-#define	P_INEXEC	0x4000000 /* Process is in execve(). */
-#define	P_STATCHILD	0x8000000 /* Child process stopped or exited. */
-#define	P_INMEM		0x10000000 /* Loaded into memory. */
-#define	P_SWAPPINGOUT	0x20000000 /* Process is being swapped out. */
-#define	P_SWAPPINGIN	0x40000000 /* Process is being swapped in. */
-#define	P_PPTRACE	0x80000000 /* PT_TRACEME by vforked child. */
+#define	P_ADVLOCK	0x00000001	/* Process may hold a POSIX advisory
+					   lock. */
+#define	P_CONTROLT	0x00000002	/* Has a controlling terminal. */
+#define	P_KPROC		0x00000004	/* Kernel process. */
+#define	P_UNUSED3	0x00000008	/* --available-- */
+#define	P_PPWAIT	0x00000010	/* Parent is waiting for child to
+					   exec/exit. */
+#define	P_PROFIL	0x00000020	/* Has started profiling. */
+#define	P_STOPPROF	0x00000040	/* Has thread requesting to stop
+					   profiling. */
+#define	P_HADTHREADS	0x00000080	/* Has had threads (no cleanup
+					   shortcuts) */
+#define	P_SUGID		0x00000100	/* Had set id privileges since last
+					   exec. */
+#define	P_SYSTEM	0x00000200	/* System proc: no sigs, stats or
+					   swapping. */
+#define	P_SINGLE_EXIT	0x00000400	/* Threads suspending should exit,
+					   not wait. */
+#define	P_TRACED	0x00000800	/* Debugged process being traced. */
+#define	P_WAITED	0x00001000	/* Someone is waiting for us. */
+#define	P_WEXIT		0x00002000	/* Working on exiting. */
+#define	P_EXEC		0x00004000	/* Process called exec. */
+#define	P_WKILLED	0x00008000	/* Killed, go to kernel/user boundary
+					   ASAP. */
+#define	P_CONTINUED	0x00010000	/* Proc has continued from a stopped
+					   state. */
+#define	P_STOPPED_SIG	0x00020000	/* Stopped due to SIGSTOP/SIGTSTP. */
+#define	P_STOPPED_TRACE	0x00040000	/* Stopped because of tracing. */
+#define	P_STOPPED_SINGLE 0x00080000	/* Only 1 thread can continue (not to
+					   user). */
+#define	P_PROTECTED	0x00100000	/* Do not kill on memory overcommit. */
+#define	P_SIGEVENT	0x00200000	/* Process pending signals changed. */
+#define	P_SINGLE_BOUNDARY 0x00400000	/* Threads should suspend at user
+					   boundary. */
+#define	P_HWPMC		0x00800000	/* Process is using HWPMCs */
+#define	P_JAILED	0x01000000	/* Process is in jail. */
+#define	P_TOTAL_STOP	0x02000000	/* Stopped in stop_all_proc. */
+#define	P_INEXEC	0x04000000	/* Process is in execve(). */
+#define	P_STATCHILD	0x08000000	/* Child process stopped or exited. */
+#define	P_INMEM		0x10000000	/* Loaded into memory. */
+#define	P_SWAPPINGOUT	0x20000000	/* Process is being swapped out. */
+#define	P_SWAPPINGIN	0x40000000	/* Process is being swapped in. */
+#define	P_PPTRACE	0x80000000	/* PT_TRACEME by vforked child. */
 
 #define	P_STOPPED	(P_STOPPED_SIG|P_STOPPED_SINGLE|P_STOPPED_TRACE)
 #define	P_SHOULDSTOP(p)	((p)->p_flag & P_STOPPED)
 #define	P_KILLED(p)	((p)->p_flag & P_WKILLED)
 
 /* These flags are kept in p_flag2. */
-#define	P2_INHERIT_PROTECTED 0x00000001 /* New children get P_PROTECTED. */
-#define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
-#define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
-#define	P2_AST_SU	0x00000008	/* Handles SU ast for kthreads. */
-#define	P2_PTRACE_FSTP	0x00000010 /* SIGSTOP from PT_ATTACH not yet handled. */
-#define	P2_TRAPCAP	0x00000020	/* SIGTRAP on ENOTCAPABLE */
-#define	P2_ASLR_ENABLE	0x00000040	/* Force enable ASLR. */
-#define	P2_ASLR_DISABLE	0x00000080	/* Force disable ASLR. */
-#define	P2_ASLR_IGNSTART 0x00000100	/* Enable ASLR to consume sbrk area. */
-#define	P2_PROTMAX_ENABLE 0x00000200	/* Force enable implied PROT_MAX. */
-#define	P2_PROTMAX_DISABLE 0x00000400	/* Force disable implied PROT_MAX. */
-#define	P2_STKGAP_DISABLE 0x00000800	/* Disable stack gap for MAP_STACK */
-#define	P2_STKGAP_DISABLE_EXEC 0x00001000 /* Stack gap disabled after exec */
+#define	P2_INHERIT_PROTECTED	0x00000001	/* New children get
+						   P_PROTECTED. */
+#define	P2_NOTRACE		0x00000002	/* No ptrace(2) attach or
+						   coredumps. */
+#define	P2_NOTRACE_EXEC		0x00000004	/* Keep P2_NOPTRACE on
+						   exec(2). */
+#define	P2_AST_SU		0x00000008	/* Handles SU ast for
+						   kthreads. */
+#define	P2_PTRACE_FSTP		0x00000010	/* SIGSTOP from PT_ATTACH not
+						   yet handled. */
+#define	P2_TRAPCAP		0x00000020	/* SIGTRAP on ENOTCAPABLE */
+#define	P2_ASLR_ENABLE		0x00000040	/* Force enable ASLR. */
+#define	P2_ASLR_DISABLE		0x00000080	/* Force disable ASLR. */
+#define	P2_ASLR_IGNSTART	0x00000100	/* Enable ASLR to consume sbrk
+						   area. */
+#define	P2_PROTMAX_ENABLE	0x00000200	/* Force enable implied
+						   PROT_MAX. */
+#define	P2_PROTMAX_DISABLE	0x00000400	/* Force disable implied
+						   PROT_MAX. */
+#define	P2_STKGAP_DISABLE	0x00000800	/* Disable stack gap for
+						   MAP_STACK */
+#define	P2_STKGAP_DISABLE_EXEC	0x00001000	/* Stack gap disabled
+						   after exec */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
