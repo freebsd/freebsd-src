@@ -33,6 +33,22 @@
 
 #define	GDB_BUFSZ	4096
 #define	GDB_NREGS	56
+#define	GDB_REG_RAX	0
+#define	GDB_REG_RBX	1
+#define	GDB_REG_RCX	2
+#define	GDB_REG_RDX	3
+#define	GDB_REG_RSI	4
+#define	GDB_REG_RDI	5
+#define	GDB_REG_RBP	6
+#define	GDB_REG_RSP	7
+#define	GDB_REG_R8	8
+#define	GDB_REG_R9	9
+#define	GDB_REG_R10	10
+#define	GDB_REG_R11	11
+#define	GDB_REG_R12	12
+#define	GDB_REG_R13	13
+#define	GDB_REG_R14	14
+#define	GDB_REG_R15	15
 #define	GDB_REG_PC	16
 _Static_assert(GDB_BUFSZ >= (GDB_NREGS * 16), "buffer fits 'g' regs");
 
