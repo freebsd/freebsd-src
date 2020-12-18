@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/select.h>
 #include <sys/time.h>
 #include <arpa/inet.h>
+#include <stdatomic.h>
 #include <machine/cpufunc.h>
 #include <machine/specialreg.h>
 #include <netinet/in.h>
@@ -72,6 +73,11 @@ __FBSDID("$FreeBSD$");
 #include <openssl/des.h>
 #endif
 
+/* Delays in microseconds */
+#define	CFD_SEL_DELAY	10000
+#define	SCREEN_REFRESH_DELAY	33300	/* 30Hz */
+#define	SCREEN_POLL_DELAY	(SCREEN_REFRESH_DELAY / 2)
+
 static int rfb_debug = 0;
 #define	DPRINTF(params) if (rfb_debug) PRINTLN params
 #define	WPRINTF(params) PRINTLN params
@@ -79,6 +85,19 @@ static int rfb_debug = 0;
 #define VERSION_LENGTH	12
 #define AUTH_LENGTH	16
 #define PASSWD_LENGTH	8
+
+/* Protocol versions */
+#define CVERS_3_3	'3'
+#define CVERS_3_7	'7'
+#define CVERS_3_8	'8'
+
+/* Client-to-server msg types */
+#define CS_SET_PIXEL_FORMAT	0
+#define CS_SET_ENCODINGS	2
+#define CS_UPDATE_MSG		3
+#define CS_KEY_EVENT		4
+#define CS_POINTER_EVENT	5
+#define CS_CUT_TEXT		6
 
 #define SECURITY_TYPE_NONE	1
 #define SECURITY_TYPE_VNC_AUTH	2
@@ -96,16 +115,22 @@ struct rfb_softc {
 
 	char		*password;
 
-	bool	enc_raw_ok;
-	bool	enc_zlib_ok;
-	bool	enc_resize_ok;
+	bool		enc_raw_ok;
+	bool		enc_zlib_ok;
+	bool		enc_resize_ok;
 
 	z_stream	zstream;
 	uint8_t		*zbuf;
 	int		zbuflen;
 
 	int		conn_wait;
-	int		sending;
+	int		wrcount;
+
+	atomic_bool	sending;
+	atomic_bool	pending;
+	atomic_bool	update_all;
+	atomic_bool	input_detected;
+
 	pthread_mutex_t mtx;
 	pthread_cond_t  cond;
 
@@ -202,7 +227,6 @@ struct rfb_cuttext_msg {
 	uint32_t	length;
 };
 
-
 static void
 rfb_send_server_init_msg(int cfd)
 {
@@ -223,6 +247,9 @@ rfb_send_server_init_msg(int cfd)
 	sinfo.pixfmt.red_shift = 16;
 	sinfo.pixfmt.green_shift = 8;
 	sinfo.pixfmt.blue_shift = 0;
+	sinfo.pixfmt.pad[0] = 0;
+	sinfo.pixfmt.pad[1] = 0;
+	sinfo.pixfmt.pad[2] = 0;
 	sinfo.namelen = htonl(strlen("bhyve"));
 	(void)stream_write(cfd, &sinfo, sizeof(sinfo));
 	(void)stream_write(cfd, "bhyve", strlen("bhyve"));
@@ -265,7 +292,6 @@ rfb_recv_set_encodings_msg(struct rfb_softc *rc, int cfd)
 	int i;
 	uint32_t encoding;
 
-	assert((sizeof(enc_msg) - 1) == 3);
 	(void)stream_read(cfd, ((void *)&enc_msg)+1, sizeof(enc_msg)-1);
 
 	for (i = 0; i < htons(enc_msg.numencs); i++) {
@@ -308,12 +334,23 @@ fast_crc32(void *buf, int len, uint32_t crcval)
 	return (crcval);
 }
 
+static int
+rfb_send_update_header(struct rfb_softc *rc, int cfd, int numrects)
+{
+	struct rfb_srvr_updt_msg supdt_msg;
+
+	supdt_msg.type = 0;
+	supdt_msg.pad = 0;
+	supdt_msg.numrects = htons(numrects);
+
+	return stream_write(cfd, &supdt_msg,
+	    sizeof(struct rfb_srvr_updt_msg));
+}
 
 static int
 rfb_send_rect(struct rfb_softc *rc, int cfd, struct bhyvegc_image *gc,
               int x, int y, int w, int h)
 {
-	struct rfb_srvr_updt_msg supdt_msg;
 	struct rfb_srvr_rect_hdr srect_hdr;
 	unsigned long zlen;
 	ssize_t nwrite, total;
@@ -324,16 +361,6 @@ rfb_send_rect(struct rfb_softc *rc, int cfd, struct bhyvegc_image *gc,
 	/*
 	 * Send a single rectangle of the given x, y, w h dimensions.
 	 */
-
-	/* Number of rectangles: 1 */
-	supdt_msg.type = 0;
-	supdt_msg.pad = 0;
-	supdt_msg.numrects = htons(1);
-	nwrite = stream_write(cfd, &supdt_msg,
-	                      sizeof(struct rfb_srvr_updt_msg));
-	if (nwrite <= 0)
-		return (nwrite);
-
 
 	/* Rectangle header */
 	srect_hdr.x = htons(x);
@@ -479,7 +506,7 @@ doraw:
 #define	PIXCELL_MASK	0x1F
 
 static int
-rfb_send_screen(struct rfb_softc *rc, int cfd, int all)
+rfb_send_screen(struct rfb_softc *rc, int cfd)
 {
 	struct bhyvegc_image *gc_image;
 	ssize_t nwrite;
@@ -492,34 +519,53 @@ rfb_send_screen(struct rfb_softc *rc, int cfd, int all)
 	int retval;
 	uint32_t *crc_p, *orig_crc;
 	int changes;
+	bool expected;
+
+	/* Return if another thread sending */
+	expected = false;
+	if (atomic_compare_exchange_strong(&rc->sending, &expected, true) == false)
+		return (1);
+
+	retval = 1;
+
+	/* Updates require a preceding update request */
+	if (atomic_exchange(&rc->pending, false) == false)
+		goto done;
 
 	console_refresh();
 	gc_image = console_get_image();
 
-	pthread_mutex_lock(&rc->mtx);
-	if (rc->sending) {
-		pthread_mutex_unlock(&rc->mtx);
-		return (1);
+	/* Clear old CRC values when the size changes */
+	if (rc->crc_width != gc_image->width ||
+	    rc->crc_height != gc_image->height) {
+		memset(rc->crc, 0, sizeof(uint32_t) *
+		    howmany(RFB_MAX_WIDTH, PIX_PER_CELL) *
+		    howmany(RFB_MAX_HEIGHT, PIX_PER_CELL));
+		rc->crc_width = gc_image->width;
+		rc->crc_height = gc_image->height;
 	}
-	rc->sending = 1;
-	pthread_mutex_unlock(&rc->mtx);
 
-	retval = 0;
+       /* A size update counts as an update in itself */
+       if (rc->width != gc_image->width ||
+           rc->height != gc_image->height) {
+               rc->width = gc_image->width;
+               rc->height = gc_image->height;
+               if (rc->enc_resize_ok) {
+                       rfb_send_resize_update_msg(rc, cfd);
+		       rc->update_all = true;
+                       goto done;
+               }
+       }
 
-	if (all) {
-		retval = rfb_send_all(rc, cfd, gc_image);
-		goto done;
-	}
+       if (atomic_exchange(&rc->update_all, false) == true) {
+	       retval = rfb_send_all(rc, cfd, gc_image);
+	       goto done;
+       }
 
 	/*
 	 * Calculate the checksum for each 32x32 cell. Send each that
 	 * has changed since the last scan.
 	 */
-
-	/* Resolution changed */
-
-	rc->crc_width = gc_image->width;
-	rc->crc_height = gc_image->height;
 
 	w = rc->crc_width;
 	h = rc->crc_height;
@@ -580,12 +626,24 @@ rfb_send_screen(struct rfb_softc *rc, int cfd, int all)
 		}
 	}
 
+       /*
+	* We only send the update if there are changes.
+	* Restore the pending flag since it was unconditionally cleared
+	* above.
+	*/
+	if (!changes) {
+		rc->pending = true;
+		goto done;
+	}
+
 	/* If number of changes is > THRESH percent, send the whole screen */
 	if (((changes * 100) / (xcells * ycells)) >= RFB_SEND_ALL_THRESH) {
 		retval = rfb_send_all(rc, cfd, gc_image);
 		goto done;
 	}
-	
+
+	rfb_send_update_header(rc, cfd, changes);
+
 	/* Go through all cells, and send only changed ones */
 	crc_p = rc->crc_tmp;
 	for (y = 0; y < h; y += PIX_PER_CELL) {
@@ -613,45 +671,24 @@ rfb_send_screen(struct rfb_softc *rc, int cfd, int all)
 			}
 		}
 	}
-	retval = 1;
 
 done:
-	pthread_mutex_lock(&rc->mtx);
-	rc->sending = 0;
-	pthread_mutex_unlock(&rc->mtx);
-	
+	rc->sending = false;
+
 	return (retval);
 }
 
 
 static void
-rfb_recv_update_msg(struct rfb_softc *rc, int cfd, int discardonly)
+rfb_recv_update_msg(struct rfb_softc *rc, int cfd)
 {
 	struct rfb_updt_msg updt_msg;
-	struct bhyvegc_image *gc_image;
 
 	(void)stream_read(cfd, ((void *)&updt_msg) + 1 , sizeof(updt_msg) - 1);
 
-	console_refresh();
-	gc_image = console_get_image();
-
-	updt_msg.x = htons(updt_msg.x);
-	updt_msg.y = htons(updt_msg.y);
-	updt_msg.width = htons(updt_msg.width);
-	updt_msg.height = htons(updt_msg.height);
-
-	if (updt_msg.width != gc_image->width ||
-	    updt_msg.height != gc_image->height) {
-		rc->width = gc_image->width;
-		rc->height = gc_image->height;
-		if (rc->enc_resize_ok)
-			rfb_send_resize_update_msg(rc, cfd);
-	}
-
-	if (discardonly)
-		return;
-
-	rfb_send_screen(rc, cfd, 1);
+	rc->pending = true;
+	if (!updt_msg.incremental)
+		rc->update_all = true;
 }
 
 static void
@@ -662,6 +699,7 @@ rfb_recv_key_msg(struct rfb_softc *rc, int cfd)
 	(void)stream_read(cfd, ((void *)&key_msg) + 1, sizeof(key_msg) - 1);
 
 	console_key_event(key_msg.down, htonl(key_msg.code));
+	rc->input_detected = true;
 }
 
 static void
@@ -672,6 +710,7 @@ rfb_recv_ptr_msg(struct rfb_softc *rc, int cfd)
 	(void)stream_read(cfd, ((void *)&ptr_msg) + 1, sizeof(ptr_msg) - 1);
 
 	console_ptr_event(ptr_msg.button, htons(ptr_msg.x), htons(ptr_msg.y));
+	rc->input_detected = true;
 }
 
 static void
@@ -719,7 +758,7 @@ rfb_wr_thr(void *arg)
 		FD_ZERO(&rfds);
 		FD_SET(cfd, &rfds);
 		tv.tv_sec = 0;
-		tv.tv_usec = 10000;
+		tv.tv_usec = CFD_SEL_DELAY;
 
 		err = select(cfd+1, &rfds, NULL, NULL, &tv);
 		if (err < 0)
@@ -728,15 +767,23 @@ rfb_wr_thr(void *arg)
 		/* Determine if its time to push screen; ~24hz */
 		gettimeofday(&tv, NULL);
 		tdiff = timeval_delta(&prev_tv, &tv);
-		if (tdiff > 40000) {
+		if (tdiff >= SCREEN_POLL_DELAY) {
+			bool input;
 			prev_tv.tv_sec = tv.tv_sec;
 			prev_tv.tv_usec = tv.tv_usec;
-			if (rfb_send_screen(rc, cfd, 0) <= 0) {
-				return (NULL);
+			input = atomic_exchange(&rc->input_detected, false);
+			/*
+			 * Refresh the screen on every second trip through the loop,
+			 * or if keyboard/mouse input has been detected.
+			 */
+			if ((++rc->wrcount & 1) || input) {
+				if (rfb_send_screen(rc, cfd) <= 0) {
+					return (NULL);
+				}
 			}
 		} else {
 			/* sleep */
-			usleep(40000 - tdiff);
+			usleep(SCREEN_POLL_DELAY - tdiff);
 		}
 	}
 
@@ -758,7 +805,8 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 	DES_key_schedule ks;
 	int i;
 #endif
-
+	uint8_t client_ver;
+	uint8_t auth_type;
 	pthread_t tid;
 	uint32_t sres = 0;
 	int len;
@@ -771,27 +819,55 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 
 	/* 1b. Read client version */
 	len = stream_read(cfd, buf, VERSION_LENGTH);
+	if (len == VERSION_LENGTH && !strncmp(vbuf, buf, VERSION_LENGTH - 2)) {
+		client_ver = buf[VERSION_LENGTH - 2];
+	}
+	if (client_ver != CVERS_3_8 && client_ver != CVERS_3_7) {
+		/* only recognize 3.3, 3.7 & 3.8. Others dflt to 3.3 */
+		client_ver = CVERS_3_3;
+	}
 
 	/* 2a. Send security type */
 	buf[0] = 1;
+
+	/* In versions 3.7 & 3.8, it's 2-way handshake */
+	/* For version 3.3, server says what the authentication type must be */
 #ifndef NO_OPENSSL
-	if (rc->password) 
-		buf[1] = SECURITY_TYPE_VNC_AUTH;
-	else
-		buf[1] = SECURITY_TYPE_NONE;
+	if (rc->password) {
+		auth_type = SECURITY_TYPE_VNC_AUTH;
+	} else {
+		auth_type = SECURITY_TYPE_NONE;
+	}
 #else
-	buf[1] = SECURITY_TYPE_NONE;
+	auth_type = SECURITY_TYPE_NONE;
 #endif
 
-	stream_write(cfd, buf, 2);
+	switch (client_ver) {
+	case CVERS_3_7:
+	case CVERS_3_8:
+		buf[0] = 1;
+		buf[1] = auth_type;
+		stream_write(cfd, buf, 2);
 
-	/* 2b. Read agreed security type */
-	len = stream_read(cfd, buf, 1);
+		/* 2b. Read agreed security type */
+		len = stream_read(cfd, buf, 1);
+		if (buf[0] != auth_type) {
+			/* deny */
+			sres = htonl(1);
+			message = "Auth failed: authentication type mismatch";
+			goto report_and_done;
+		}
+		break;
+	case CVERS_3_3:
+	default:
+		be32enc(buf, auth_type);
+		stream_write(cfd, buf, 4);
+		break;
+	}
 
 	/* 2c. Do VNC authentication */
-	switch (buf[0]) {
+	switch (auth_type) {
 	case SECURITY_TYPE_NONE:
-		sres = 0;
 		break;
 	case SECURITY_TYPE_VNC_AUTH:
 		/*
@@ -839,26 +915,46 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 		if (memcmp(crypt_expected, buf, AUTH_LENGTH) != 0) {
 			message = "Auth Failed: Invalid Password.";
 			sres = htonl(1);
-		} else
+		} else {
 			sres = 0;
+		}
 #else
-		sres = 0;
+		sres = htonl(1);
 		WPRINTF(("Auth not supported, no OpenSSL in your system"));
 #endif
 
 		break;
 	}
 
-	/* 2d. Write back a status */
-	stream_write(cfd, &sres, 4);
+	switch (client_ver) {
+	case CVERS_3_7:
+	case CVERS_3_8:
+report_and_done:
+		/* 2d. Write back a status */
+		stream_write(cfd, &sres, 4);
 
-	if (sres) {
-		be32enc(buf, strlen(message));
-		stream_write(cfd, buf, 4);
-		stream_write(cfd, message, strlen(message));
-		goto done;
+		if (sres) {
+			/* 3.7 does not want string explaining cause */
+			if (client_ver == CVERS_3_8) {
+				be32enc(buf, strlen(message));
+				stream_write(cfd, buf, 4);
+				stream_write(cfd, message, strlen(message));
+			}
+			goto done;
+		}
+		break;
+	case CVERS_3_3:
+	default:
+		/* for VNC auth case send status */
+		if (auth_type == SECURITY_TYPE_VNC_AUTH) {
+			/* 2d. Write back a status */
+			stream_write(cfd, &sres, 4);
+		}
+		if (sres) {
+			goto done;
+		}
+		break;
 	}
-
 	/* 3a. Read client shared-flag byte */
 	len = stream_read(cfd, buf, 1);
 
@@ -869,8 +965,6 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 		rc->zbuf = malloc(RFB_ZLIB_BUFSZ + 16);
 		assert(rc->zbuf != NULL);
 	}
-
-	rfb_send_screen(rc, cfd, 1);
 
 	perror = pthread_create(&tid, NULL, rfb_wr_thr, rc);
 	if (perror == 0)
@@ -885,22 +979,22 @@ rfb_handle(struct rfb_softc *rc, int cfd)
 		}
 
 		switch (buf[0]) {
-		case 0:
+		case CS_SET_PIXEL_FORMAT:
 			rfb_recv_set_pixfmt_msg(rc, cfd);
 			break;
-		case 2:
+		case CS_SET_ENCODINGS:
 			rfb_recv_set_encodings_msg(rc, cfd);
 			break;
-		case 3:
-			rfb_recv_update_msg(rc, cfd, 1);
+		case CS_UPDATE_MSG:
+			rfb_recv_update_msg(rc, cfd);
 			break;
-		case 4:
+		case CS_KEY_EVENT:
 			rfb_recv_key_msg(rc, cfd);
 			break;
-		case 5:
+		case CS_POINTER_EVENT:
 			rfb_recv_ptr_msg(rc, cfd);
 			break;
-		case 6:
+		case CS_CUT_TEXT:
 			rfb_recv_cuttext_msg(rc, cfd);
 			break;
 		default:
@@ -974,16 +1068,17 @@ rfb_init(char *hostname, int port, int wait, char *password)
 	struct addrinfo *ai = NULL;
 	struct addrinfo hints;
 	int on = 1;
+	int cnt;
 #ifndef WITHOUT_CAPSICUM
 	cap_rights_t rights;
 #endif
 
 	rc = calloc(1, sizeof(struct rfb_softc));
 
-	rc->crc = calloc(howmany(RFB_MAX_WIDTH * RFB_MAX_HEIGHT, 32),
-	                 sizeof(uint32_t));
-	rc->crc_tmp = calloc(howmany(RFB_MAX_WIDTH * RFB_MAX_HEIGHT, 32),
-	                     sizeof(uint32_t));
+	cnt = howmany(RFB_MAX_WIDTH, PIX_PER_CELL) *
+	    howmany(RFB_MAX_HEIGHT, PIX_PER_CELL);
+	rc->crc = calloc(cnt, sizeof(uint32_t));
+	rc->crc_tmp = calloc(cnt, sizeof(uint32_t));
 	rc->crc_width = RFB_MAX_WIDTH;
 	rc->crc_height = RFB_MAX_HEIGHT;
 	rc->sfd = -1;
