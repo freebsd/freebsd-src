@@ -11,7 +11,7 @@
 .error Do make obj first.
 .endif
 
-LOCALESRCDIR?=	${DESTDIR}/usr/src/share
+LOCALESRCDIR?=	${SRCTOP}/share
 TMPDIR?=	/tmp
 
 BASEDIR=	${.CURDIR}
