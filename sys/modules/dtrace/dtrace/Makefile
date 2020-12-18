@@ -61,6 +61,5 @@ CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h
 CFLAGS.dtrace_asm.S+= -D_SYS_ERRNO_H_ -D_SYS_PARAM_H_ -DLOCORE
 CWARNFLAGS+=	${OPENZFS_CWARNFLAGS}
 CWARNFLAGS+=	-Wno-parentheses
-CWARNFLAGS+=	-Wno-uninitialized
 CWARNFLAGS+=	-Wno-cast-qual
 CWARNFLAGS+=	-Wno-unused
