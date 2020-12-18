@@ -641,6 +641,37 @@ clearentry(struct inodesc *idesc)
 	return (STOP|FOUND|ALTERED);
 }
 
+int
+freeblock(struct inodesc *idesc)
+{
+	struct dups *dlp;
+	ufs2_daddr_t blkno;
+	long nfrags, res;
+
+	res = KEEPON;
+	blkno = idesc->id_blkno;
+	for (nfrags = idesc->id_numfrags; nfrags > 0; blkno++, nfrags--) {
+		if (chkrange(blkno, 1)) {
+			res = SKIP;
+		} else if (testbmap(blkno)) {
+			for (dlp = duplist; dlp; dlp = dlp->next) {
+				if (dlp->dup != blkno)
+					continue;
+				dlp->dup = duplist->dup;
+				dlp = duplist;
+				duplist = duplist->next;
+				free((char *)dlp);
+				break;
+			}
+			if (dlp == NULL) {
+				clrbmap(blkno);
+				n_blks--;
+			}
+		}
+	}
+	return (res);
+}
+
 void
 prtinode(ino_t ino, union dinode *dp)
 {
@@ -767,7 +798,7 @@ freeino(ino_t ino)
 
 	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = ADDR;
-	idesc.id_func = pass4check;
+	idesc.id_func = freeblock;
 	idesc.id_number = ino;
 	dp = ginode(ino);
 	(void)ckinode(dp, &idesc);

@@ -800,19 +800,8 @@ allocblk(long frags)
 }
 
 /*
- * Free a previously allocated block
+ * Slow down IO so as to leave some disk bandwidth for other processes
  */
-void
-freeblk(ufs2_daddr_t blkno, long frags)
-{
-	struct inodesc idesc;
-
-	idesc.id_blkno = blkno;
-	idesc.id_numfrags = frags;
-	(void)pass4check(&idesc);
-}
-
-/* Slow down IO so as to leave some disk bandwidth for other processes */
 void
 slowio_start()
 {
