@@ -258,6 +258,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 	if (firstblock != NULL) {
 		writesize = write_file(firstblock->th_data, fb_size);
 		ts->amount += writesize;
+		ts->blocks++;
 		windowblock++;
 		if (windowsize == 1 || fb_size != segsize) {
 			for (i = 0; ; i++) {
@@ -280,6 +281,7 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 		}
 
 		if (fb_size != segsize) {
+			write_close();
 			gettimeofday(&(ts->tstop), NULL);
 			return;
 		}
@@ -395,9 +397,9 @@ tftp_receive(int peer, uint16_t *block, struct tftp_stats *ts,
 					send_error(peer, ENOSPACE);
 				goto abort;
 			}
-			if (n_data != segsize)
-				write_close();
 		}
+		if (n_data != segsize)
+			write_close();
 		windowblock++;
 
 		/* Only send ACKs for the last block in the window. */
