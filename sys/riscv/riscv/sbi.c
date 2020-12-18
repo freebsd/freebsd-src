@@ -110,6 +110,18 @@ sbi_print_version(void)
 	case (SBI_IMPL_ID_BBL):
 		printf("SBI: Berkely Boot Loader %lu\n", sbi_impl_version);
 		break;
+	case (SBI_IMPL_ID_XVISOR):
+		printf("SBI: eXtensible Versatile hypervISOR %lu\n", sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_KVM):
+		printf("SBI: Kernel-based Virtual Machine %lu\n", sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_RUSTSBI):
+		printf("SBI: RustSBI %lu\n", sbi_impl_version);
+		break;
+	case (SBI_IMPL_ID_DIOSIX):
+		printf("SBI: Diosix %lu\n", sbi_impl_version);
+		break;
 	case (SBI_IMPL_ID_OPENSBI):
 		major = sbi_impl_version >> OPENSBI_VERSION_MAJOR_OFFSET;
 		minor = sbi_impl_version & OPENSBI_VERSION_MINOR_MASK;
