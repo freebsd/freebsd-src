@@ -333,7 +333,7 @@ int tcp_connect_errno_needs_log(struct sockaddr* addr, socklen_t addrlen)
 /* send a UDP reply */
 int
 comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
-	struct sockaddr* addr, socklen_t addrlen) 
+	struct sockaddr* addr, socklen_t addrlen, int is_connected)
 {
 	ssize_t sent;
 	log_assert(c->fd != -1);
@@ -341,8 +341,8 @@ comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 	if(sldns_buffer_remaining(packet) == 0)
 		log_err("error: send empty UDP packet");
 #endif
-	if(addr) {
-		log_assert(addr && addrlen > 0);
+	log_assert(addr && addrlen > 0);
+	if(!is_connected) {
 		sent = sendto(c->fd, (void*)sldns_buffer_begin(packet),
 			sldns_buffer_remaining(packet), 0,
 			addr, addrlen);
@@ -367,9 +367,14 @@ comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 #endif
 			int e;
 			fd_set_block(c->fd);
-			sent = sendto(c->fd, (void*)sldns_buffer_begin(packet), 
-				sldns_buffer_remaining(packet), 0,
-				addr, addrlen);
+			if (!is_connected) {
+				sent = sendto(c->fd, (void*)sldns_buffer_begin(packet),
+					sldns_buffer_remaining(packet), 0,
+					addr, addrlen);
+			} else {
+				sent = send(c->fd, (void*)sldns_buffer_begin(packet),
+					sldns_buffer_remaining(packet), 0);
+			}
 			e = errno;
 			fd_set_nonblock(c->fd);
 			errno = e;
@@ -378,8 +383,12 @@ comm_point_send_udp_msg(struct comm_point *c, sldns_buffer* packet,
 	if(sent == -1) {
 		if(!udp_send_errno_needs_log(addr, addrlen))
 			return 0;
-		verbose(VERB_OPS, "sendto failed: %s", sock_strerror(errno));
-		log_addr(VERB_OPS, "remote address is", 
+		if (!is_connected) {
+			verbose(VERB_OPS, "sendto failed: %s", sock_strerror(errno));
+		} else {
+			verbose(VERB_OPS, "send failed: %s", sock_strerror(errno));
+		}
+		log_addr(VERB_OPS, "remote address is",
 			(struct sockaddr_storage*)addr, addrlen);
 		return 0;
 	} else if((size_t)sent != sldns_buffer_remaining(packet)) {
@@ -754,7 +763,7 @@ comm_point_udp_callback(int fd, short event, void* arg)
 			buffer = rep.c->buffer;
 #endif
 			(void)comm_point_send_udp_msg(rep.c, buffer,
-				(struct sockaddr*)&rep.addr, rep.addrlen);
+				(struct sockaddr*)&rep.addr, rep.addrlen, 0);
 		}
 		if(!rep.c || rep.c->fd != fd) /* commpoint closed to -1 or reused for
 		another UDP port. Note rep.c cannot be reused with TCP fd. */
@@ -3901,7 +3910,7 @@ comm_point_send_reply(struct comm_reply *repinfo)
 			repinfo->addrlen, repinfo);
 		else
 			comm_point_send_udp_msg(repinfo->c, buffer,
-			(struct sockaddr*)&repinfo->addr, repinfo->addrlen);
+			(struct sockaddr*)&repinfo->addr, repinfo->addrlen, 0);
 #ifdef USE_DNSTAP
 		if(repinfo->c->dtenv != NULL &&
 		   repinfo->c->dtenv->log_client_response_messages)
