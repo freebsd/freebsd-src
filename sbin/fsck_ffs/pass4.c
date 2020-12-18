@@ -58,7 +58,7 @@ pass4(void)
 
 	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = ADDR;
-	idesc.id_func = pass4check;
+	idesc.id_func = freeblock;
 	for (cg = 0; cg < sblock.fs_ncg; cg++) {
 		if (got_siginfo) {
 			printf("%s: phase 4: cyl group %d of %d (%d%%)\n",
@@ -123,33 +123,4 @@ pass4(void)
 			}
 		}
 	}
-}
-
-int
-pass4check(struct inodesc *idesc)
-{
-	struct dups *dlp;
-	int nfrags, res = KEEPON;
-	ufs2_daddr_t blkno = idesc->id_blkno;
-
-	for (nfrags = idesc->id_numfrags; nfrags > 0; blkno++, nfrags--) {
-		if (chkrange(blkno, 1)) {
-			res = SKIP;
-		} else if (testbmap(blkno)) {
-			for (dlp = duplist; dlp; dlp = dlp->next) {
-				if (dlp->dup != blkno)
-					continue;
-				dlp->dup = duplist->dup;
-				dlp = duplist;
-				duplist = duplist->next;
-				free((char *)dlp);
-				break;
-			}
-			if (dlp == NULL) {
-				clrbmap(blkno);
-				n_blks--;
-			}
-		}
-	}
-	return (res);
 }
