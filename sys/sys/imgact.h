@@ -122,6 +122,7 @@ int	exec_copyin_args(struct image_args *, const char *, enum uio_seg,
 	char **, char **);
 int	exec_copyin_data_fds(struct thread *, struct image_args *, const void *,
 	size_t, const int *, size_t);
+void	exec_stackgap(struct image_params *imgp, uintptr_t *dp);
 int	pre_execve(struct thread *td, struct vmspace **oldvmspace);
 void	post_execve(struct thread *td, int error, struct vmspace *oldvmspace);
 #endif
