@@ -126,9 +126,8 @@ build-colldef:	static-colldef
 
 static-colldef:
 .for area enc in ${COLLATION_SPECIAL}
-colldef.draft/${area}.${enc}.src: posix/${area}.${enc}.src
 	awk -f ${TOOLSDIR}/extract-colldef.awk \
-	    ${.ALLSRC} > ${.TARGET} || (rm -f ${.TARGET} && false)
+	    posix/${area}.${enc}.src > colldef.draft/${area}.${enc}.src
 .endfor
 
 BASE_LOCALES_OF_INTEREST?= \
