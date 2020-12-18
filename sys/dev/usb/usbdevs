@@ -184,7 +184,7 @@ vendor ITTCANON		0x04d1	ITT Canon
 vendor ALTEC		0x04d2	Altec Lansing
 vendor LSI		0x04d4	LSI
 vendor MENTORGRAPHICS	0x04d6	Mentor Graphics
-vendor ITUNERNET	0x04d8	I-Tuner Networks
+vendor MICROCHIP	0x04d8	Microchip Technology, Inc.
 vendor HOLTEK		0x04d9	Holtek Semiconductor, Inc.
 vendor PANASONIC	0x04da	Panasonic (Matsushita)
 vendor HUANHSIN		0x04dc	Huan Hsin
@@ -2647,9 +2647,9 @@ product ISSC ISSCBTA		0x1001	Bluetooth USB Adapter
 product ITEGNO WM1080A		0x1080	WM1080A GSM/GPRS modem
 product ITEGNO WM2080A		0x2080	WM2080A CDMA modem
 
-/* Ituner networks products */
-product ITUNERNET USBLCD2X20	0x0002	USB-LCD 2x20
-product ITUNERNET USBLCD4X20	0xc001	USB-LCD 4x20
+/* Microchip Technology, Inc. products */
+product MICROCHIP PICOLCD20X2	0x0002	Mini-Box picoLCD 20x2
+product MICROCHIP PICOLCD4X20	0xc001	Mini-Box picoLCD 4x20
 
 /* Jablotron products */
 product JABLOTRON PC60B		0x0001	PC-60B
