@@ -409,10 +409,10 @@ vtmmio_negotiate_features(device_t dev, uint64_t child_features)
 
 	vtmmio_describe_features(sc, "negotiated", features);
 
-	vtmmio_write_config_4(sc, VIRTIO_MMIO_HOST_FEATURES_SEL, 1);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_FEATURES_SEL, 1);
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_FEATURES, features >> 32);
 
-	vtmmio_write_config_4(sc, VIRTIO_MMIO_HOST_FEATURES_SEL, 0);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_FEATURES_SEL, 0);
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_FEATURES, features);
 
 	return (features);
