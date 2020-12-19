@@ -6,6 +6,7 @@ TESTSDIR=       ${TESTSBASE}/sys/netpfil/pf
 TESTS_SUBDIRS+=	ioctl
 
 ATF_TESTS_SH+=	anchor \
+		checksum \
 		forward \
 		fragmentation \
 		icmp \
