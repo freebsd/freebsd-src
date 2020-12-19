@@ -7,6 +7,7 @@ TESTS_SUBDIRS+=	ioctl
 
 ATF_TESTS_SH+=	anchor \
 		pass_block \
+		checksum \
 		forward \
 		fragmentation \
 		names \
