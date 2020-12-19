@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/domainset.h>
 #include <sys/ktls.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
@@ -83,6 +84,12 @@ struct ktls_wq {
 	bool		running;
 } __aligned(CACHE_LINE_SIZE);
 
+struct ktls_domain_info {
+	int count;
+	int cpu[MAXCPU];
+};
+
+struct ktls_domain_info ktls_domains[MAXMEMDOM];
 static struct ktls_wq *ktls_wq;
 static struct proc *ktls_proc;
 LIST_HEAD(, ktls_crypto_backend) ktls_backends;
@@ -316,6 +323,9 @@ static u_int
 ktls_get_cpu(struct socket *so)
 {
 	struct inpcb *inp;
+#ifdef NUMA
+	struct ktls_domain_info *di;
+#endif
 	u_int cpuid;
 
 	inp = sotoinpcb(so);
@@ -330,7 +340,13 @@ ktls_get_cpu(struct socket *so)
 	 * serialization provided by having the same connection use
 	 * the same queue.
 	 */
-	cpuid = ktls_cpuid_lookup[inp->inp_flowid % ktls_number_threads];
+#ifdef NUMA
+	if (ktls_bind_threads > 1 && inp->inp_numa_domain != M_NODOM) {
+		di = &ktls_domains[inp->inp_numa_domain];
+		cpuid = di->cpu[inp->inp_flowid % di->count];
+	} else
+#endif
+		cpuid = ktls_cpuid_lookup[inp->inp_flowid % ktls_number_threads];
 	return (cpuid);
 }
 #endif
@@ -341,7 +357,7 @@ ktls_init(void *dummy __unused)
 	struct thread *td;
 	struct pcpu *pc;
 	cpuset_t mask;
-	int error, i;
+	int count, domain, error, i;
 
 	ktls_tasks_active = counter_u64_alloc(M_WAITOK);
 	ktls_cnt_tx_queued = counter_u64_alloc(M_WAITOK);
@@ -397,7 +413,11 @@ ktls_init(void *dummy __unused)
 		if (ktls_bind_threads) {
 			if (ktls_bind_threads > 1) {
 				pc = pcpu_find(i);
-				CPU_COPY(&cpuset_domain[pc->pc_domain], &mask);
+				domain = pc->pc_domain;
+				CPU_COPY(&cpuset_domain[domain], &mask);
+				count = ktls_domains[domain].count;
+				ktls_domains[domain].cpu[count] = i;
+				ktls_domains[domain].count++;
 			} else {
 				CPU_SETOF(i, &mask);
 			}
@@ -410,6 +430,18 @@ ktls_init(void *dummy __unused)
 		ktls_cpuid_lookup[ktls_number_threads] = i;
 		ktls_number_threads++;
 	}
+
+	/*
+	 * If we somehow have an empty domain, fall back to choosing
+	 * among all KTLS threads.
+	 */
+	for (i = 0; i < vm_ndomains; i++) {
+		if (ktls_domains[i].count == 0) {
+			ktls_bind_threads = 0;
+			break;
+		}
+	}
+
 	printf("KTLS: Initialized %d threads\n", ktls_number_threads);
 }
 SYSINIT(ktls, SI_SUB_SMP + 1, SI_ORDER_ANY, ktls_init, NULL);
@@ -2093,6 +2125,10 @@ ktls_work_thread(void *ctx)
 	STAILQ_HEAD(, mbuf) local_m_head;
 	STAILQ_HEAD(, socket) local_so_head;
 
+	if (ktls_bind_threads > 1) {
+		curthread->td_domain.dr_policy =
+			DOMAINSET_PREF(PCPU_GET(domain));
+	}
 #if defined(__aarch64__) || defined(__amd64__) || defined(__i386__)
 	fpu_kern_thread(0);
 #endif
