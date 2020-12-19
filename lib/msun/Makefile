@@ -108,6 +108,15 @@ COMMON_SRCS+=	catrigl.c \
 	s_nextafterl.c s_nexttoward.c s_remquol.c s_rintl.c s_roundl.c \
 	s_scalbnl.c s_sinl.c s_sincosl.c \
 	s_tanhl.c s_tanl.c s_truncl.c w_cabsl.c
+# Work around this warning from gcc 6:
+#     lib/msun/ld80/e_powl.c:275:1: error: floating constant exceeds range of
+#     'long double' [-Werror=overflow]
+#     if( y >= LDBL_MAX )
+# See also: https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=130067
+.include <bsd.compiler.mk>
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 60000
+CFLAGS.e_powl.c+= -Wno-error=overflow
+.endif
 .endif
 
 # C99 complex functions
