@@ -711,7 +711,7 @@ ure_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				goto tr_setup;
 			}
 
-			if (len != 0)
+			if (len >= (ETHER_HDR_LEN + ETHER_CRC_LEN))
 				m = ure_makembuf(pc, off, len - ETHER_CRC_LEN);
 			else
 				m = NULL;
