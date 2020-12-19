@@ -688,19 +688,34 @@ cpuset_modify(struct cpuset *set, cpuset_t *mask)
 	if (error)
 		return (error);
 	/*
-	 * In case we are called from within the jail
+	 * In case we are called from within the jail,
 	 * we do not allow modifying the dedicated root
 	 * cpuset of the jail but may still allow to
-	 * change child sets.
+	 * change child sets, including subordinate jails'
+	 * roots.
 	 */
-	if (jailed(curthread->td_ucred) &&
-	    set->cs_flags & CPU_SET_ROOT)
+	if ((set->cs_flags & CPU_SET_ROOT) != 0 &&
+	    jailed(curthread->td_ucred) &&
+	    set == curthread->td_ucred->cr_prison->pr_cpuset)
 		return (EPERM);
 	/*
 	 * Verify that we have access to this set of
 	 * cpus.
 	 */
-	root = cpuset_getroot(set);
+	if ((set->cs_flags & (CPU_SET_ROOT | CPU_SET_RDONLY)) == CPU_SET_ROOT) {
+		KASSERT(set->cs_parent != NULL,
+		    ("jail.cpuset=%d is not a proper child of parent jail's root.",
+		    set->cs_id));
+
+		/*
+		 * cpuset_getroot() cannot work here due to how top-level jail
+		 * roots are constructed.  Top-level jails are parented to
+		 * thread0's cpuset (i.e. cpuset 1) rather than the system root.
+		 */
+		root = set->cs_parent;
+	} else {
+		root = cpuset_getroot(set);
+	}
 	mtx_lock_spin(&cpuset_lock);
 	if (root && !CPU_SUBSET(&root->cs_mask, mask)) {
 		error = EINVAL;
