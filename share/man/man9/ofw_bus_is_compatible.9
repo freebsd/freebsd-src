@@ -32,9 +32,9 @@
 .Dt ofw_bus_is_compatible 9
 .Os
 .Sh NAME
-.Nm ofw_bus_is_compatible
-.Nm ofw_bus_is_compatible_strict
-.Nm ofw_bus_node_is_compatible
+.Nm ofw_bus_is_compatible ,
+.Nm ofw_bus_is_compatible_strict ,
+.Nm ofw_bus_node_is_compatible ,
 .Nm ofw_bus_search_compatible
 .Nd check device tree nodes for compatibility with drivers
 .Sh SYNOPSIS
@@ -50,7 +50,6 @@
 .Ft const struct ofw_compat_data *
 .Fn ofw_bus_search_compatible "device_t dev" "const struct ofw_compat_data *compat"
 .Sh DESCRIPTION
-.Pp
 The "compatible" property of the device tree node is used to
 identify the type of the device the node represents.
 The property is a list of one or more strings that represent
