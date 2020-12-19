@@ -96,7 +96,7 @@ There can be more than one
 directive in a configuration file.
 The allowed list of CPU names is architecture specific and is
 defined in the file
-.Pa sys/conf/options. Ns Aq Ar arch .
+.Pa sys/conf/options . Ns Aq Ar arch .
 .\" -------- DEVICE --------
 .Pp
 .It Ic device Ar name Op , Ar name Op ...
@@ -109,7 +109,7 @@ defined in the file
 Devices that are specific to architecture
 .Ar arch
 are defined in the file
-.Pa sys/conf/files. Ns Aq Ar arch .
+.Pa sys/conf/files . Ns Aq Ar arch .
 .\" -------- ENV --------
 .Pp
 .It Ic env Ar filename
@@ -182,7 +182,7 @@ specified variables.
 .It Ic files Ar filename
 Specifies a file containing a list of files specific to that kernel
 configuration file (a la
-.Pa files. Ns Aq Ar arch ) .
+.Pa files . Ns Aq Ar arch ) .
 .\" -------- HINTS --------
 .Pp
 .It Ic hints Ar filename
@@ -400,7 +400,7 @@ the file
 Options specific to architecture
 .Ar arch
 are specified in the file
-.Pa sys/conf/options. Ns Aq Ar arch .
+.Pa sys/conf/options . Ns Aq Ar arch .
 .\" -------- PROFILE --------
 .Pp
 .It Ic profile Ar number
@@ -432,18 +432,18 @@ onwards, this information is passed to a booting kernel by
 .Bl -tag -width ".Pa sys/conf/Makefile. Ns Ar arch" -compact
 .It Pa sys/compile/ Ns Ar NAME
 Compile directory created from a kernel configuration.
-.It Pa sys/conf/Makefile. Ns Ar arch
+.It Pa sys/conf/Makefile . Ns Ar arch
 .Pa Makefile
 fragments for architecture
 .Ar arch .
 .It Pa sys/conf/files
 Devices common to all architectures.
-.It Pa sys/conf/files. Ns Ar arch
+.It Pa sys/conf/files . Ns Ar arch
 Devices for architecture
 .Ar arch .
 .It Pa sys/conf/options
 Options common to all architectures.
-.It Pa sys/conf/options. Ns Ar arch
+.It Pa sys/conf/options . Ns Ar arch
 Options for architecture
 .Ar arch .
 .El
