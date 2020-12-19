@@ -959,8 +959,6 @@ static void
 ure_attach_post(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
-	struct sysctl_ctx_list *sctx;
-	struct sysctl_oid *soid;
 
 	sc->sc_rxstarted = 0;
 	sc->sc_phyno = 0;
@@ -988,18 +986,13 @@ ure_attach_post(struct usb_ether *ue)
 		sc->sc_ue.ue_eaddr[0] &= ~0x01; /* unicast */
 		sc->sc_ue.ue_eaddr[0] |= 0x02;  /* locally administered */
 	}
-
-	sctx = device_get_sysctl_ctx(sc->sc_ue.ue_dev);
-	soid = device_get_sysctl_tree(sc->sc_ue.ue_dev);
-	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "chipver",
-	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
-	    ure_sysctl_chipver, "A",
-	    "Return string with chip version.");
 }
 
 static int
 ure_attach_post_sub(struct usb_ether *ue)
 {
+	struct sysctl_ctx_list *sctx;
+	struct sysctl_oid *soid;	
 	struct ure_softc *sc;
 	struct ifnet *ifp;
 	int error;
@@ -1032,6 +1025,13 @@ ure_attach_post_sub(struct usb_ether *ue)
 	    uether_ifmedia_upd, ue->ue_methods->ue_mii_sts,
 	    BMSR_DEFCAPMASK, sc->sc_phyno, MII_OFFSET_ANY, 0);
 	mtx_unlock(&Giant);
+
+	sctx = device_get_sysctl_ctx(sc->sc_ue.ue_dev);
+	soid = device_get_sysctl_tree(sc->sc_ue.ue_dev);
+	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "chipver",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
+	    ure_sysctl_chipver, "A",
+	    "Return string with chip version.");
 
 	return (error);
 }
