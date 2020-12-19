@@ -305,7 +305,6 @@ Finally, counters can be reset with the
 and
 .Cm resetlog
 commands.
-.Pp
 .Ss COMMAND OPTIONS
 The following general options are available when invoking
 .Nm :
@@ -389,7 +388,8 @@ listed.
 When listing pipes, sort according to one of the four
 counters (total or current packets or bytes).
 .It Fl t
-When listing, show last match timestamp converted with ctime().
+When listing, show last match timestamp converted with
+.Fn ctime .
 .It Fl T
 When listing, show last match timestamp as seconds from the epoch.
 This form can be more convenient for postprocessing by scripts.
@@ -1441,7 +1441,7 @@ list.
 Matches all IPv6 addresses with base
 .Ar addr
 (specified as allowed by
-.Xr inet_pton
+.Xr inet_pton 3
 or a hostname)
 and mask width of
 .Cm masklen
@@ -1450,12 +1450,12 @@ bits.
 Matches all IPv6 addresses with base
 .Ar addr
 (specified as allowed by
-.Xr inet_pton
+.Xr inet_pton 3
 or a hostname)
 and the mask of
 .Ar mask ,
 specified as allowed by
-.Xr inet_pton .
+.Xr inet_pton 3 .
 As an example, fe::640:0:0/ffff::ffff:ffff:0:0 will match
 fe:*:*:*:0:640:*:*.
 This form is advised only for non-contiguous
@@ -1518,7 +1518,7 @@ operand, and possibly grouped into
 .Pp
 The following match patterns can be used (listed in alphabetical order):
 .Bl -tag -width indent
-.It Cm // this is a comment.
+.It Cm // this is a comment .
 Inserts the specified text as a comment in the rule.
 Everything following // is considered as a comment and stored in the rule.
 You can have comment-only rules, which are listed as having a
@@ -1806,7 +1806,10 @@ keyword is special name used for compatibility with old rulesets.
 .It Cm layer2
 Matches only layer2 packets, i.e., those passed to
 .Nm
-from ether_demux() and ether_output_frame().
+from
+.Fn ether_demux
+and
+.Fn ether_output_frame .
 .It Cm limit Bro Cm src-addr | src-port | dst-addr | dst-port Brc Ar N Op Ar :flowname
 The firewall will only allow
 .Ar N
@@ -2258,8 +2261,8 @@ Shows generic table information and algo-specific data.
 The following lookup algorithms are supported:
 .Bl -tag -width indent
 .It Ar algo-desc : algo-name | "algo-name algo-data"
-.It Ar algo-name: Ar addr:radix | addr:hash | iface:array | number:array | flow:hash
-.It Cm addr:radix
+.It Ar algo-name : Ar addr: radix | addr: hash | iface: array | number: array | flow: hash
+.It Cm addr: radix
 Separate Radix trees for IPv4 and IPv6, the same way as the routing table (see
 .Xr route 4 ) .
 Default choice for
@@ -2330,11 +2333,11 @@ IPv6 nexthop to fwd packets to.
 The
 .Cm tablearg
 argument can be used with the following actions:
-.Cm nat, pipe , queue, divert, tee, netgraph, ngtee, fwd, skipto, setfib,
+.Cm nat, pipe, queue, divert, tee, netgraph, ngtee, fwd, skipto, setfib ,
 action parameters:
-.Cm tag, untag,
+.Cm tag, untag ,
 rule options:
-.Cm limit, tagged.
+.Cm limit, tagged .
 .Pp
 When used with the
 .Cm skipto
@@ -2614,7 +2617,6 @@ mode can be enabled by setting the
 .Va net.inet.ip.dummynet.io_fast
 .Xr sysctl 8
 variable to a non-zero value.
-.Pp
 .Ss PIPE, QUEUE AND SCHEDULER CONFIGURATION
 The
 .Em pipe ,
@@ -3550,7 +3552,6 @@ Note that the behavior of stateless translator with respect to not matched
 packets differs from stateful translator.
 If corresponding addresses was not found in the lookup tables, the packet
 will not be dropped and the search continues.
-.Pp
 .Ss XLAT464 CLAT translation
 XLAT464 CLAT NAT64 translator implements client-side stateless translation as
 defined in RFC6877 and is very similar to statless NAT64 translator
@@ -3662,12 +3663,12 @@ or
 .Xr kenv 1
 before ipfw module gets loaded.
 .Bl -tag -width indent
-.It Va net.inet.ip.fw.default_to_accept: No 0
+.It Va net.inet.ip.fw.default_to_accept : No 0
 Defines ipfw last rule behavior.
 This value overrides
 .Cd "options IPFW_DEFAULT_TO_(ACCEPT|DENY)"
 from kernel configuration file.
-.It Va net.inet.ip.fw.tables_max: No 128
+.It Va net.inet.ip.fw.tables_max : No 128
 Defines number of tables available in ipfw.
 Number cannot exceed 65534.
 .El
@@ -3682,7 +3683,7 @@ These are shown below together with their default value
 .Xr sysctl 8
 command what value is actually in use) and meaning:
 .Bl -tag -width indent
-.It Va net.inet.ip.alias.sctp.accept_global_ootb_addip: No 0
+.It Va net.inet.ip.alias.sctp.accept_global_ootb_addip : No 0
 Defines how the
 .Nm nat
 responds to receipt of global OOTB ASCONF-AddIP:
@@ -3698,7 +3699,7 @@ will accept and process all OOTB global AddIP messages.
 Option 1 should never be selected as this forms a security risk.
 An attacker can
 establish multiple fake associations by sending AddIP messages.
-.It Va net.inet.ip.alias.sctp.chunk_proc_limit: No 5
+.It Va net.inet.ip.alias.sctp.chunk_proc_limit : No 5
 Defines the maximum number of chunks in an SCTP packet that will be
 parsed for a
 packet that matches an existing association.
@@ -3708,7 +3709,7 @@ A high value is
 a DoS risk yet setting too low a value may result in
 important control chunks in
 the packet not being located and parsed.
-.It Va net.inet.ip.alias.sctp.error_on_ootb: No 1
+.It Va net.inet.ip.alias.sctp.error_on_ootb : No 1
 Defines when the
 .Nm nat
 responds to any Out-of-the-Blue (OOTB) packets with ErrorM packets.
@@ -3745,7 +3746,7 @@ ASCONF-AddIP.
 Value 3 should never be chosen (except for debugging) as the
 .Nm nat
 will respond to all OOTB global packets (a DoS risk).
-.It Va net.inet.ip.alias.sctp.hashtable_size: No 2003
+.It Va net.inet.ip.alias.sctp.hashtable_size : No 2003
 Size of hash tables used for
 .Nm nat
 lookups (100 < prime_number > 1000001).
@@ -3764,35 +3765,35 @@ should make these larger.
 A prime number is best for the table size.
 The sysctl
 update function will adjust your input value to the next highest prime number.
-.It Va net.inet.ip.alias.sctp.holddown_time:  No 0
+.It Va net.inet.ip.alias.sctp.holddown_time : No 0
 Hold association in table for this many seconds after receiving a
 SHUTDOWN-COMPLETE.
 This allows endpoints to correct shutdown gracefully if a
 shutdown_complete is lost and retransmissions are required.
-.It Va net.inet.ip.alias.sctp.init_timer: No 15
+.It Va net.inet.ip.alias.sctp.init_timer : No 15
 Timeout value while waiting for (INIT-ACK|AddIP-ACK).
 This value cannot be 0.
-.It Va net.inet.ip.alias.sctp.initialising_chunk_proc_limit: No 2
+.It Va net.inet.ip.alias.sctp.initialising_chunk_proc_limit : No 2
 Defines the maximum number of chunks in an SCTP packet that will be parsed when
 no existing association exists that matches that packet.
 Ideally this packet
 will only be an INIT or ASCONF-AddIP packet.
 A higher value may become a DoS
 risk as malformed packets can consume processing resources.
-.It Va net.inet.ip.alias.sctp.param_proc_limit: No 25
+.It Va net.inet.ip.alias.sctp.param_proc_limit : No 25
 Defines the maximum number of parameters within a chunk that will be
 parsed in a
 packet.
 As for other similar sysctl variables, larger values pose a DoS risk.
-.It Va net.inet.ip.alias.sctp.log_level: No 0
+.It Va net.inet.ip.alias.sctp.log_level : No 0
 Level of detail in the system log messages (0 \- minimal, 1 \- event,
 2 \- info, 3 \- detail, 4 \- debug, 5 \- max debug).
 May be a good
 option in high loss environments.
-.It Va net.inet.ip.alias.sctp.shutdown_time: No 15
+.It Va net.inet.ip.alias.sctp.shutdown_time : No 15
 Timeout value while waiting for SHUTDOWN-COMPLETE.
 This value cannot be 0.
-.It Va net.inet.ip.alias.sctp.track_global_addresses: No 0
+.It Va net.inet.ip.alias.sctp.track_global_addresses : No 0
 Enables/disables global IP address tracking within the
 .Nm nat
 and places an
@@ -3819,7 +3820,7 @@ problems in complex networks with multiple
 We recommend not tracking
 global IP addresses, this will still result in a fully functional
 .Nm nat .
-.It Va net.inet.ip.alias.sctp.up_timer: No 300
+.It Va net.inet.ip.alias.sctp.up_timer : No 300
 Timeout value to keep an association up with no traffic.
 This value cannot be 0.
 .It Va net.inet.ip.dummynet.codel.interval : No 100000
@@ -4050,7 +4051,7 @@ and
 must be strictly lower than 5 seconds, the period of
 repetition of keepalives.
 The firewall enforces that.
-.It Va net.inet.ip.fw.dyn_keep_states: No 0
+.It Va net.inet.ip.fw.dyn_keep_states : No 0
 Keep dynamic states on rule/set deletion.
 States are relinked to default rule (65535).
 This can be handly for ruleset reload.
@@ -4131,7 +4132,6 @@ List all table lookup algorithms currently available.
 There are far too many possible uses of
 .Nm
 so this Section will only give a small set of examples.
-.Pp
 .Ss BASIC PACKET FILTERING
 This command adds an entry which denies all tcp packets from
 .Em cracker.evil.org
@@ -4542,24 +4542,26 @@ To see configurations of all instances:
 .Dl "ipfw nat show config"
 .Pp
 Or a redirect rule with mixed modes could looks like:
-.Pp
-.Dl "ipfw nat 123 config redirect_addr 10.0.0.1 10.0.0.66"
-.Dl "			 redirect_port tcp 192.168.0.1:80 500"
-.Dl "			 redirect_proto udp 192.168.1.43 192.168.1.1"
-.Dl "			 redirect_addr 192.168.0.10,192.168.0.11"
-.Dl "			 	    10.0.0.100	# LSNAT"
-.Dl "			 redirect_port tcp 192.168.0.1:80,192.168.0.10:22"
-.Dl "			 	    500		# LSNAT"
+.Bd -literal -offset 2n
+ipfw nat 123 config redirect_addr 10.0.0.1 10.0.0.66
+			 redirect_port tcp 192.168.0.1:80 500
+			 redirect_proto udp 192.168.1.43 192.168.1.1
+			 redirect_addr 192.168.0.10,192.168.0.11
+			 	    10.0.0.100	# LSNAT
+			 redirect_port tcp 192.168.0.1:80,192.168.0.10:22
+			 	    500		# LSNAT
+.Ed
 .Pp
 or it could be split in:
-.Pp
-.Dl "ipfw nat 1 config redirect_addr 10.0.0.1 10.0.0.66"
-.Dl "ipfw nat 2 config redirect_port tcp 192.168.0.1:80 500"
-.Dl "ipfw nat 3 config redirect_proto udp 192.168.1.43 192.168.1.1"
-.Dl "ipfw nat 4 config redirect_addr 192.168.0.10,192.168.0.11,192.168.0.12"
-.Dl "				         10.0.0.100"
-.Dl "ipfw nat 5 config redirect_port tcp"
-.Dl "			192.168.0.1:80,192.168.0.10:22,192.168.0.20:25 500"
+.Bd -literal -offset 2n
+ipfw nat 1 config redirect_addr 10.0.0.1 10.0.0.66
+ipfw nat 2 config redirect_port tcp 192.168.0.1:80 500
+ipfw nat 3 config redirect_proto udp 192.168.1.43 192.168.1.1
+ipfw nat 4 config redirect_addr 192.168.0.10,192.168.0.11,192.168.0.12
+				         10.0.0.100
+ipfw nat 5 config redirect_port tcp
+			192.168.0.1:80,192.168.0.10:22,192.168.0.20:25 500
+.Ed
 .Pp
 Sometimes you may want to mix NAT and dynamic rules.
 It could be achieved with
@@ -4711,8 +4713,8 @@ can be changed in a similar way as for
 .Xr kldload 8 ,
 .Xr reboot 8 ,
 .Xr sysctl 8 ,
-.Xr sysrc 8 ,
-.Xr syslogd 8
+.Xr syslogd 8 ,
+.Xr sysrc 8
 .Sh HISTORY
 The
 .Nm
