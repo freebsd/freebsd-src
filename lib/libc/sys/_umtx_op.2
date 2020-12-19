@@ -1180,7 +1180,7 @@ request:
 .It Dv UMTX_SHM_CREAT
 Creates the anonymous shared memory object, which can be looked up
 with the specified key
-.Fa uaddr.
+.Fa uaddr .
 If the object associated with the
 .Fa uaddr
 key already exists, it is returned instead of creating a new object.
@@ -1198,7 +1198,7 @@ the specified key
 an error is returned, and no new object is created.
 .It Dv UMTX_SHM_DESTROY
 De-associate the shared object with the specified key
-.Fa uaddr.
+.Fa uaddr .
 The object is destroyed after the last open file descriptor is closed
 and the last mapping for it is destroyed.
 .It Dv UMTX_SHM_ALIVE
