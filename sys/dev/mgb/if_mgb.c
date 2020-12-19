@@ -855,7 +855,7 @@ mgb_msix_intr_assign(if_ctx_t ctx, int msix)
 		vectorid++;
 		snprintf(irq_name, sizeof(irq_name), "rxq%d", i);
 		error = iflib_irq_alloc_generic(ctx, &sc->rx_irq, vectorid + 1,
-		    IFLIB_INTR_RX, mgb_rxq_intr, sc, i, irq_name);
+		    IFLIB_INTR_RXTX, mgb_rxq_intr, sc, i, irq_name);
 		if (error) {
 			device_printf(sc->dev,
 			    "Failed to register rxq %d interrupt handler\n", i);

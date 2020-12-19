@@ -1922,7 +1922,7 @@ axgbe_if_msix_intr_assign(if_ctx_t ctx, int msix)
 		channel = pdata->channel[i];
 
 		snprintf(buf, sizeof(buf), "rxq%d", i);
-		error = iflib_irq_alloc_generic(ctx, &irq, rid, IFLIB_INTR_RX,
+		error = iflib_irq_alloc_generic(ctx, &irq, rid, IFLIB_INTR_RXTX,
 		    axgbe_msix_que, channel, channel->queue_index, buf);
 
 		if (error) {

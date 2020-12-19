@@ -480,7 +480,7 @@ vmxnet3_msix_intr_assign(if_ctx_t ctx, int msix)
 
 		rxq = &sc->vmx_rxq[i];
 		error = iflib_irq_alloc_generic(ctx, &rxq->vxrxq_irq, i + 1,
-		    IFLIB_INTR_RX, vmxnet3_rxq_intr, rxq, i, irq_name);
+		    IFLIB_INTR_RXTX, vmxnet3_rxq_intr, rxq, i, irq_name);
 		if (error) {
 			device_printf(iflib_get_dev(ctx),
 			    "Failed to register rxq %d interrupt handler\n", i);

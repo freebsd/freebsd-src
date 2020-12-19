@@ -1051,7 +1051,7 @@ ixl_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 		snprintf(buf, sizeof(buf), "rxq%d", i);
 		err = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid,
-		    IFLIB_INTR_RX, ixl_msix_que, rx_que, rx_que->rxr.me, buf);
+		    IFLIB_INTR_RXTX, ixl_msix_que, rx_que, rx_que->rxr.me, buf);
 		/* XXX: Does the driver work as expected if there are fewer num_rx_queues than
 		 * what's expected in the iflib context? */
 		if (err) {

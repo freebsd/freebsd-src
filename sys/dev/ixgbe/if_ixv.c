@@ -1030,7 +1030,7 @@ ixv_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 		snprintf(buf, sizeof(buf), "rxq%d", i);
 		error = iflib_irq_alloc_generic(ctx, &rx_que->que_irq, rid,
-		    IFLIB_INTR_RX, ixv_msix_que, rx_que, rx_que->rxr.me, buf);
+		    IFLIB_INTR_RXTX, ixv_msix_que, rx_que, rx_que->rxr.me, buf);
 
 		if (error) {
 			device_printf(iflib_get_dev(ctx),
