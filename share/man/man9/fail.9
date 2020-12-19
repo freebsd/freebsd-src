@@ -218,9 +218,15 @@ The operator -> can be used to express cascading terms.
 If you specify <term1>-><term2>, it means that if <term1> does not
 .Ql execute ,
 <term2> is evaluated.
-For the purpose of this operator, the return() and print() operators
-are the only types that cascade.
-A return() term only cascades if the code executes, and a print()
+For the purpose of this operator, the
+.Fn return
+and
+.Fn print
+operators are the only types that cascade.
+A
+.Fn return
+term only cascades if the code executes, and a
+.Fn print
 term only cascades when passed a non-zero argument.
 A pid can optionally be specified.
 The fail point term is only executed when invoked by a process with a
