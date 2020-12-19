@@ -60,10 +60,12 @@ The following options are available:
 Do not actually erase anything but show what it would do (dry run).
 Implies
 .Fl v .
-This is the default. Overrides
+This is the default.
+Overrides
 .Fl f .
 .It Fl f
-Perform the operation. Overrides
+Perform the operation.
+Overrides
 .Fl N .
 .It Fl l Xo
 .Sm off
@@ -150,11 +152,11 @@ is special device file not supporting DIOCGMEDIASIZE
 (probably not a disk), so its size cannot be examined.
 .El
 .Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr sysexits 3 ,
 .Xr ada 4 ,
 .Xr da 4 ,
-.Xr ioctl 2 ,
-.Xr nda 4 ,
-.Xr sysexits 3
+.Xr nda 4
 .Sh HISTORY
 The
 .Nm
