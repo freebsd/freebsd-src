@@ -196,6 +196,7 @@ struct tcphdr {
 #define	TCP_PCAP_IN	4096	/* number of input packets to keep */
 #define TCP_FUNCTION_BLK 8192	/* Set the tcp function pointers to the specified stack */
 /* Options for Rack and BBR */
+#define	TCP_REUSPORT_LB_NUMA   1026	/* set listen socket numa domain */
 #define TCP_RACK_MBUF_QUEUE   1050 /* Do we allow mbuf queuing if supported */
 #define TCP_RACK_PROP	      1051 /* RACK proportional rate reduction (bool) */
 #define TCP_RACK_TLP_REDUCE   1052 /* RACK TLP cwnd reduction (bool) */
@@ -405,5 +406,8 @@ struct tcp_function_set {
 #define	VOI_TCP_CALCFRWINDIFF	7 /* Congestion avoidance LCWIN - FRWIN */
 #define	VOI_TCP_GPUT_ND		8 /* Goodput normalised delta */
 #define	VOI_TCP_ACKLEN		9 /* Average ACKed bytes per ACK */
+
+#define TCP_REUSPORT_LB_NUMA_NODOM	(-2) /* remove numa binding */
+#define TCP_REUSPORT_LB_NUMA_CURDOM	(-1) /* bind to current domain */
 
 #endif /* !_NETINET_TCP_H_ */
