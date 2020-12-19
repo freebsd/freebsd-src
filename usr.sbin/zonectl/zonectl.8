@@ -30,7 +30,7 @@
 .\" Authors: Ken Merry           (Spectra Logic Corporation)
 .\"
 .\" $FreeBSD$
-.\
+.\"
 .Dd May 18, 2016
 .Dt ZONECTL 8
 .Os
@@ -104,7 +104,6 @@ These zones must be written sequentially.
 If they are not written sequentially, starting at the write pointer, the
 command will fail.
 .El
-.Pp
 .Bl -tag -width 12n
 .It Fl c Ar cmd
 Specify the zone subcommand:
@@ -208,14 +207,12 @@ zonectl -d /dev/da5 -c params
 .Ed
 .Pp
 Display basic zoning information for disk da5.
-.Pp
 .Bd -literal -offset indent
 zonectl -d /dev/da5 -c rz
 .Ed
 .Pp
 Issue the Report Zones command to disk da5, and print out all
 zones on the drive in the default format.
-.Pp
 .Bd -literal -offset indent
 zonectl -d /dev/da5 -c rz -o reset -P script
 .Ed
@@ -223,14 +220,11 @@ zonectl -d /dev/da5 -c rz -o reset -P script
 Issue the Report Zones command to disk da5, and print out all
 of the zones that have the Reset Write Pointer Recommended bit set to true.
 Print the zones in a script friendly form.
-.Pp
 .Bd -literal -offset indent
 zonectl -d /dev/da5 -c rwp -l 0x2c80000
 .Ed
 .Pp
 Issue the Reset Write Pointer command to disk da5 for the zone
 that starts at LBA 0x2c80000.
-.Pp
-.Bd -literal -offset indent
 .Sh AUTHORS
 .An Kenneth Merry Aq ken@FreeBSD.org
