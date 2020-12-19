@@ -146,6 +146,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	} else
 		cache = NULL;
 
+	/* Appease some compilers. */
+	symval = 0;
+	def = NULL;
+
 	rellim = (const Elf_Rel *)((const char *)obj->rel + obj->relsize);
 	for (rel = obj->rel;  rel < rellim;  rel++) {
 		switch (ELF_R_TYPE(rel->r_info)) {
