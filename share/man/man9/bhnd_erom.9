@@ -336,7 +336,6 @@ If the core information is not desired, set
 to
 .Dv NULL .
 .Ss Bus Space I/O
-.Pp
 The
 .Vt bhnd_erom_io
 structure provides a set of I/O callbacks used by
@@ -353,7 +352,6 @@ callbacks directly.
 The
 .Vt bhnd_erom_io
 structure contains these required fields:
-.Pp
 .Bl -tag -width "read" -offset indent
 .It Fa map
 A function implementing
@@ -424,7 +422,6 @@ relative to the bus address previously mapped using
 The
 .Fa width
 must be one of 1, 2, or 4 bytes.
-.Pp
 .Sh RETURN VALUES
 The
 .Fn bhnd_erom_probe
@@ -477,8 +474,8 @@ functions return 0 on success, otherwise an appropriate error code is returned.
 .Sh SEE ALSO
 .Xr bhnd 4 ,
 .Xr bhnd 9 ,
-.Xr bhnd_alloc_resource 9
-.Xr bhnd_driver_get_erom_class 9
+.Xr bhnd_alloc_resource 9 ,
+.Xr bhnd_driver_get_erom_class 9 ,
 .Xr bus_space 9
 .Sh AUTHORS
 .An -nosplit
