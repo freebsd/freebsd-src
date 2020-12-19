@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2020
+.Dd December 19, 2020
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -314,6 +314,21 @@ Enable in-kernel TLS for data read from this socket.
 See
 .Xr ktls 4
 for more details.
+.It Dv TCP_REUSPORT_LB_NUMA
+Changes NUMA affinity filtering for an established TCP listen
+socket.
+This option takes a single integer argument which specifies
+the NUMA domain to filter on for this listen socket.
+The argument can also have the follwing special values:
+.Bl -tag -width "Dv TCP_REUSPORT_LB_NUMA"
+.It Dv TCP_REUSPORT_LB_NUMA_NODOM
+Remove NUMA filtering for this listen socket.
+.It Dv TCP_REUSPORT_LB_NUMA_CURDOM
+Filter traffic associated with the domain where the calling thread is
+currently executing.
+This is typically used after a process or thread inherits a listen
+socket from its parent, and sets its CPU affinity to a particular core.
+.El
 .El
 .Pp
 The option level for the

@@ -2143,6 +2143,16 @@ unlock_and_done:
 			INP_WUNLOCK(inp);
 			break;
 
+		case TCP_REUSPORT_LB_NUMA:
+			INP_WUNLOCK(inp);
+			error = sooptcopyin(sopt, &optval, sizeof(optval),
+			    sizeof(optval));
+			INP_WLOCK_RECHECK(inp);
+			if (!error)
+				error = in_pcblbgroup_numa(inp, optval);
+			INP_WUNLOCK(inp);
+			break;
+
 #ifdef KERN_TLS
 		case TCP_TXTLS_ENABLE:
 			INP_WUNLOCK(inp);
