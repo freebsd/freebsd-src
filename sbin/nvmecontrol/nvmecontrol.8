@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 30, 2020
+.Dd December 19, 2020
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -205,7 +205,6 @@
 .Sh DESCRIPTION
 NVM Express (NVMe) is a storage protocol standard, for SSDs and other
 high-speed storage devices over PCI Express.
-.Pp
 .Ss identify
 The identify commands reports information from the drive's
 .Dv IDENTIFY_CONTROLLER
@@ -238,6 +237,7 @@ of
 is used to retrieve the
 .Dv IDENTIFY_CONTROLLER
 data associated with that drive.
+.El
 .Ss logpage
 The logpage command knows how to print log pages of various types.
 It also knows about vendor specific log pages from hgst/wdc and intel.
@@ -482,9 +482,7 @@ and
 commands send NVMe commands to
 either the administrative or the data part of the device.
 These commands are expected to be compatible with nvme-cli.
-Please see
-.St The NVMe Standard
-for details.
+Please see the NVMe Standard for details.
 .Bl -tag -width 16n
 .It Fl o -opcode Ar opcode
 Opcode to send.
@@ -674,6 +672,12 @@ linker set are added to the top-level commands.
 The members of the
 .Va logpage
 linker set are added to the logpage parsers.
+.Sh SEE ALSO
+.Rs
+.%T The NVM Express Base Specification
+.%D June 10, 2019
+.%U https://nvmexpress.org/wp-content/uploads/NVM-Express-1_4-2019.06.10-Ratified.pdf
+.Re
 .Sh HISTORY
 The
 .Nm
