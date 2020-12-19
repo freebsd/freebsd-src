@@ -793,6 +793,7 @@ export(const char *s)
 	char *p;
 	const char **pp;
 	size_t n;
+	int rv;
 
 	if (strlen(s) > 1024 || (p = strchr(s, '=')) == NULL)
 		return (0);
@@ -804,8 +805,10 @@ export(const char *s)
 			return (0);
 	}
 	*p = '\0';
-	(void)setenv(s, p + 1, 1);
+	rv = setenv(s, p + 1, 1);
 	*p = '=';
+	if (rv == -1)
+		return (0);
 	return (1);
 }
 
