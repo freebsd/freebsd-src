@@ -60,8 +60,8 @@ To provide for correct recovery semantics, a small file described by
 is used by the server during the recovery phase.
 If this file is missing or empty, there is a backup copy maintained by
 .Xr nfsd 8
-that will be used. If either file is missing, they will be
-created by the
+that will be used.
+If either file is missing, they will be created by the
 .Xr nfsd 8 .
 If both the file and the backup copy are empty,
 it will result in the server starting without providing a grace period
@@ -299,7 +299,8 @@ Without a functioning callback path, a server will never issue Delegations
 to a client.
 .sp
 For NFSv4.0, by default, the callback address will be set to the IP address acquired via
-rtalloc() in the kernel and port# 7745.
+.Fn rtalloc
+in the kernel and port# 7745.
 To override the default port#, a command line option for
 .Xr nfscbd 8
 can be used.
@@ -341,8 +342,9 @@ variables.
 .Pp
 NFSv4 mount(s) against exported volume(s) on the same host are not recommended,
 since this can result in a hung NFS server.
-It occurs when an nfsd thread tries to do an NFSv4 VOP_RECLAIM()/Close RPC
-as part of acquiring a new vnode.
+It occurs when an nfsd thread tries to do an NFSv4
+.Fn VOP_RECLAIM
+/ Close RPC as part of acquiring a new vnode.
 If all other nfsd threads are blocked waiting for lock(s) held by this nfsd
 thread, then there isn't an nfsd thread to service the Close RPC.
 .Sh FILES
