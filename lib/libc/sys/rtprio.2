@@ -135,7 +135,10 @@ field ranges between 0 and
 .Pq usually 31 .
 0 is the highest possible priority.
 .Pp
-Realtime and idle priority is inherited through fork() and exec().
+Realtime and idle priority is inherited through
+.Fn fork
+and
+.Fn exec .
 .Pp
 A realtime thread can only be preempted by a thread of equal or
 higher priority, or by an interrupt; idle priority threads will run only

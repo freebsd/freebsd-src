@@ -577,7 +577,7 @@ Only valid when
 or
 .Dv PL_FLAG_SCX
 is set in
-.Va pl_flags.
+.Va pl_flags .
 .It Va pl_syscall_narg
 The number of arguments passed to the current system call not counting
 the system call identifier.
@@ -588,7 +588,7 @@ Only valid when
 or
 .Dv PL_FLAG_SCX
 is set in
-.Va pl_flags.
+.Va pl_flags .
 .El
 .It Dv PT_GETNUMLWPS
 This request returns the number of kernel threads associated with the
@@ -622,7 +622,7 @@ The
 and
 .Fa data
 arguments are used the same as for
-.Dv PT_CONTINUE.
+.Dv PT_CONTINUE .
 .It Dv PT_TO_SCX
 This request will set the
 .Dv PTRACE_SCX
@@ -632,7 +632,7 @@ The
 and
 .Fa data
 arguments are used the same as for
-.Dv PT_CONTINUE.
+.Dv PT_CONTINUE .
 .It Dv PT_SYSCALL
 This request will set the
 .Dv PTRACE_SYSCALL
@@ -643,7 +643,7 @@ The
 and
 .Fa data
 arguments are used the same as for
-.Dv PT_CONTINUE.
+.Dv PT_CONTINUE .
 .It Dv PT_GET_SC_ARGS
 For the thread which is stopped in either
 .Dv PL_FLAG_SCE
@@ -698,7 +698,6 @@ value.
 If the system call completed in an unusual fashion,
 .Va sr_error
 is set to a negative value:
-.Pp
 .Bl -tag -width Dv EJUSTRETURN -compact
 .It Dv ERESTART
 System call will be restarted.
@@ -830,7 +829,6 @@ The
 .Fa data
 argument is ignored.
 .El
-.Pp
 .Sh x86 MACHINE-SPECIFIC REQUESTS
 .Bl -tag -width "Dv PT_GETXSTATE_INFO"
 .It Dv PT_GETXMMREGS
@@ -860,7 +858,7 @@ machine instruction
 .Dv FXRSTOR .
 .Pp
 As with
-.Dv PT_GETXMMREGS,
+.Dv PT_GETXMMREGS ,
 this request is only valid for i386 programs.
 .Pp
 The

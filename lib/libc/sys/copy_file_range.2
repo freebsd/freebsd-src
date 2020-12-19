@@ -117,7 +117,6 @@ with
 .Dv SEEK_DATA
 arguments and this system call for the
 data ranges found.
-.Pp
 .Sh RETURN VALUES
 If it succeeds, the call returns the number of bytes copied, which can be fewer
 than
@@ -144,11 +143,9 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 If
-.Fa
-infd
+.Fa infd
 is not open for reading or
-.Fa
-outfd
+.Fa outfd
 is not open for writing, or opened for writing with
 .Dv O_APPEND ,
 or if
@@ -175,8 +172,7 @@ are reset to the initial values for the system call.
 and
 .Fa outfd
 refer to the same file and the byte ranges overlap or
-.Fa
-flags
+.Fa flags
 is not zero.
 .It Bq Er EIO
 An I/O error occurred while reading/writing the files.
