@@ -1,0 +1,2 @@
+svn path=/vendor/awk/dist/; revision=30411
+svn path=/vendor/awk/3.0.3/; revision=30413; tag=vendor/misc-GNU/awk/3.0.3

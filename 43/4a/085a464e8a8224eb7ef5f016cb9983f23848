@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/dist/; revision=54816
+svn path=/vendor/NetBSD/mailwrapper_19990529/; revision=54818; tag=vendor/NetBSD/mailwrapper_19990529

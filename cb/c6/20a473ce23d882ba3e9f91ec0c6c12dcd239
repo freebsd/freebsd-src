@@ -1,0 +1,2 @@
+svn path=/vendor/libevent/dist/; revision=338907
+svn path=/vendor/libevent/2.1.18/; revision=338910; tag=vendor/libevent/2.1.18

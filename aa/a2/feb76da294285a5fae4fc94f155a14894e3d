@@ -1,0 +1,2 @@
+svn path=/vendor/sqlite3/dist/; revision=342175
+svn path=/vendor/sqlite3/sqlite-3260000/; revision=342176; tag=vendor/sqlite3/sqlite-3260000

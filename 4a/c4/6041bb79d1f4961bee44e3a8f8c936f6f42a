@@ -1,0 +1,2 @@
+svn path=/vendor/lukemftpd/dist/; revision=92282
+svn path=/vendor/lukemftpd/1.2-beta1/; revision=92284; tag=vendor/NetBSD/lukemftpd/1.2-beta1

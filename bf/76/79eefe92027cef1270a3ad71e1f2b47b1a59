@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/libc-pwcache/dist/; revision=241233
+svn path=/vendor/NetBSD/libc-pwcache/20121005/; revision=241234; tag=vendor/NetBSD/libc-pwcache/20121005

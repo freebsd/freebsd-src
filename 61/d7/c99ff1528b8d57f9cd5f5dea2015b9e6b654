@@ -1,0 +1,2 @@
+svn path=/vendor/netcat/dist/; revision=347450
+svn path=/vendor/netcat/6.2/; revision=347451; tag=vendor/netcat/6.2

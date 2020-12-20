@@ -1,0 +1,2 @@
+svn path=/vendor/libbegemot/dist/; revision=135768
+svn path=/vendor/libbegemot/1.1.1/; revision=135770; tag=vendor/libbegemot/1.1.1

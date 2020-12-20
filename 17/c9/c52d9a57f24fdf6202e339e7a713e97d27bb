@@ -1,0 +1,2 @@
+svn path=/vendor/expat/dist/; revision=302260
+svn path=/vendor/expat/2.2.0/; revision=302261; tag=vendor/expat/2.2.0

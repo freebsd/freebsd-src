@@ -1,0 +1,2 @@
+svn path=/vendor/libucl/dist/; revision=298162
+svn path=/vendor/libucl/libucl-0.8.0/; revision=298163; tag=vendor/libucl/libucl-0.8.0

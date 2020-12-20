@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/mknod/dist/; revision=244543
+svn path=/vendor/NetBSD/mknod/20122112/; revision=244544; tag=vendor/NetBSD/mknod/20122112

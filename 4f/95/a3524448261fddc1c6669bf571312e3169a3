@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/dist/; revision=54820
+svn path=/vendor/NetBSD/fparseln_19990920/; revision=54822; tag=vendor/NetBSD/fparseln_19990920

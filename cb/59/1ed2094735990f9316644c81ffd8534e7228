@@ -1,0 +1,2 @@
+svn path=/vendor/dtc/dist/; revision=204431
+svn path=/vendor/dtc/1.2.0/; revision=204432; tag=vendor/dtc/1.2.0

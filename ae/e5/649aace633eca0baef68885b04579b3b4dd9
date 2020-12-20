@@ -1,0 +1,2 @@
+svn path=/vendor/libreadline/dist/; revision=168664
+svn path=/vendor/libreadline/5.2p2/; revision=168665; tag=vendor/libreadline/5.2p2

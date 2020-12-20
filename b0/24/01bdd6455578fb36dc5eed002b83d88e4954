@@ -1,0 +1,2 @@
+svn path=/vendor/isc-dhcp/dist/; revision=43892
+svn path=/vendor/isc-dhcp/2.0b1-pl.11/; revision=43894; tag=vendor/isc-dhcp/2.0b1-pl.11

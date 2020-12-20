@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/blacklist/dist/; revision=301169
+svn path=/vendor/NetBSD/blacklist/20160409/; revision=301170; tag=vendor/NetBSD/blacklist/20160409

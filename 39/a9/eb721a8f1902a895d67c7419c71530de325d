@@ -1,0 +1,2 @@
+svn path=/vendor/ncftp/dist/; revision=12461
+svn path=/vendor/ncftp/1.9.5/; revision=12463; tag=vendor/ncftp/1.9.5

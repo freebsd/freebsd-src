@@ -1,0 +1,2 @@
+svn path=/vendor-sys/alsa/dist/; revision=113651
+svn path=/vendor-sys/alsa/1.39/; revision=113652; tag=vendor/alsa/1.39

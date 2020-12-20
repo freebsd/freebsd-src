@@ -1,0 +1,2 @@
+svn path=/vendor/wpa/dist/; revision=289284
+svn path=/vendor/wpa/2.5/; revision=289285; tag=vendor/wpa/2.5

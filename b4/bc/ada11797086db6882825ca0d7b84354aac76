@@ -1,0 +1,2 @@
+svn path=/vendor/texinfo/dist/; revision=93139
+svn path=/vendor/texinfo/4.1/; revision=93141; tag=vendor/misc-GNU/texinfo/4.1

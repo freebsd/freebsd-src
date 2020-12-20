@@ -1,0 +1,2 @@
+svn path=/vendor/libregex/dist/; revision=146040
+svn path=/vendor/libregex/fedora-glibc-2.3.4-21/; revision=146042; tag=vendor/libregex/fedora-glibc-2.3.4-21

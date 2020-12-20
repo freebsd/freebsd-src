@@ -1,0 +1,2 @@
+svn path=/vendor/openpam/dist/; revision=115619
+svn path=/vendor/openpam/DIGITALIS/; revision=115621; tag=vendor/openpam/DIGITALIS

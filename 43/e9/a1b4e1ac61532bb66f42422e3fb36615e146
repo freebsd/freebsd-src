@@ -1,0 +1,2 @@
+svn path=/vendor/amd/dist/; revision=82819
+svn path=/vendor/amd/6.0.7/; revision=82821; tag=vendor/amd/6.0.7

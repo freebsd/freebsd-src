@@ -1,0 +1,2 @@
+svn path=/vendor/gperf/dist/; revision=58551
+svn path=/vendor/gperf/2.7/; revision=58553; tag=vendor/gperf/2.7

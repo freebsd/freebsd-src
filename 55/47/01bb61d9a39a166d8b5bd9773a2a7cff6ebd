@@ -1,0 +1,2 @@
+svn path=/vendor-crypto/kerberosIV/dist/; revision=55643
+svn path=/vendor-crypto/kerberosIV/1.0/; revision=55645; tag=vendor/kerberosIV/1.0

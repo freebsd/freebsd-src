@@ -1,0 +1,2 @@
+svn path=/vendor/libz/dist/; revision=205990
+svn path=/vendor/libz/1.2.4.1/; revision=205991; tag=vendor/zlib/1.2.4.1

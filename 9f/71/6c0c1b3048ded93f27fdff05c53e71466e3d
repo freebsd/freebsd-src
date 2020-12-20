@@ -1,0 +1,2 @@
+svn path=/vendor/bsnmp/dist/; revision=145557
+svn path=/vendor/bsnmp/1.9/; revision=145559; tag=vendor/bsnmp/1.9

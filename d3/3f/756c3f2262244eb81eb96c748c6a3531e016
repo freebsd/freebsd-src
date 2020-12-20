@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/dist/; revision=92948
+svn path=/vendor/NetBSD/v_2002_03_22/; revision=92950; tag=vendor/NetBSD/v_2002_03_22

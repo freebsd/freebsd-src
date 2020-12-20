@@ -1,0 +1,2 @@
+svn path=/vendor/dialog/dist/; revision=241816
+svn path=/vendor/dialog/dialog-1.1-20120706/; revision=241817; tag=vendor/dialog/1.1-20120706

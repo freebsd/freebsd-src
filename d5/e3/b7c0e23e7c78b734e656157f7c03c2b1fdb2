@@ -1,0 +1,2 @@
+svn path=/vendor-crypto/heimdal/dist/; revision=178825
+svn path=/vendor-crypto/heimdal/1.1.0/; revision=178827; tag=vendor/heimdal/1.1.0

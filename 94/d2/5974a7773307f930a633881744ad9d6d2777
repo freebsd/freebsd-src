@@ -1,0 +1,2 @@
+svn path=/vendor/atf/dist/; revision=273869
+svn path=/vendor/atf/atf-0.21/; revision=273870; tag=vendor/atf/atf-0.21

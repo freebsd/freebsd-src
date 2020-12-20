@@ -1,0 +1,2 @@
+svn path=/vendor-sys/ngatm/dist/; revision=131826
+svn path=/vendor-sys/ngatm/1.0/; revision=131828; tag=vendor/ngatm/1.0

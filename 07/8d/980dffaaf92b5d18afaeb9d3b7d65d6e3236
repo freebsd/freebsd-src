@@ -1,0 +1,2 @@
+svn path=/vendor-crypto/ssleay/dist/; revision=17497
+svn path=/vendor-crypto/ssleay/ssleay_0_6_3/; revision=17499; tag=vendor/ssleay/ssleay_0_6_3

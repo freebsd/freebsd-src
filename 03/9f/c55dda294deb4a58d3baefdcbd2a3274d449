@@ -1,0 +1,2 @@
+svn path=/vendor/binutils/dist/; revision=60484
+svn path=/vendor/binutils/sourceware_binutils-2_10-branch_anoncvs_20000512/; revision=60486; tag=vendor/binutils/sourceware_binutils-2_10-branch_anoncvs_20000512

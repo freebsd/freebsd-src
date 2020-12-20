@@ -1,0 +1,2 @@
+svn path=/vendor/edk2/dist/; revision=361765
+svn path=/vendor/edk2/ca407c7246bf405da6d9b1b9d93e5e7f17b4b1f9/; revision=361766; tag=vendor/edk2/ca407c7246bf405da6d9b1b9d93e5e7f17b4b1f9

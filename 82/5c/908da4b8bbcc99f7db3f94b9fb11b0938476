@@ -1,0 +1,2 @@
+svn path=/vendor/libregex/dist/; revision=250724
+svn path=/vendor/libregex/glibc-2.17/; revision=250725; tag=vendor/libregex/glibc-2.17

@@ -1,0 +1,2 @@
+svn path=/vendor-crypto/openssl/dist-0.9.8/; revision=291711
+svn path=/vendor-crypto/openssl/0.9.8zh/; revision=291712; tag=vendor/openssl/0.9.8zh

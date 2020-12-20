@@ -1,0 +1,2 @@
+svn path=/vendor/clang/dist/; revision=314161
+svn path=/vendor/clang/clang-release_40-r295910/; revision=314162; tag=vendor/clang/clang-release_40-r295910

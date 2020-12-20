@@ -1,0 +1,2 @@
+svn path=/vendor/lukemftpd/dist/; revision=133936
+svn path=/vendor/lukemftpd/20040809/; revision=133938; tag=vendor/NetBSD/lukemftpd/20040809

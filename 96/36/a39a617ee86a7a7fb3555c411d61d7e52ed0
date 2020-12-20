@@ -1,0 +1,2 @@
+svn path=/cvs2svn/branches/LBL/; revision=6823
+svn path=/cvs2svn/tags/rarpd-orig/; revision=6825; tag=vendor/rarpd/1.0

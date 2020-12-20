@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/libc-vis/dist/; revision=247106
+svn path=/vendor/NetBSD/libc-vis/20132102/; revision=247107; tag=vendor/NetBSD/libc-vis/20130221

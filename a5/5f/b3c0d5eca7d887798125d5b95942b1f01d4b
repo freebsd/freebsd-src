@@ -1,0 +1,2 @@
+svn path=/vendor/subversion/dist/; revision=322377
+svn path=/vendor/subversion/subversion-1.9.7/; revision=322381; tag=vendor/subversion/subversion-1.9.7

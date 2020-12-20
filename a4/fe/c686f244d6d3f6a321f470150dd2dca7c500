@@ -1,0 +1,2 @@
+svn path=/vendor-cddl/opensolaris/dist/cddl/contrib/opensolaris/; revision=179191
+svn path=/vendor-cddl/opensolaris/20080410/sys/cddl/contrib/opensolaris/; revision=179195; tag=vendor/opensolaris/20080410

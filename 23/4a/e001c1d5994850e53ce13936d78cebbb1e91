@@ -1,0 +1,2 @@
+svn path=/vendor/libgmp/dist/; revision=59325
+svn path=/vendor/libgmp/2.0.2/; revision=59327; tag=vendor/libgmp/2.0.2

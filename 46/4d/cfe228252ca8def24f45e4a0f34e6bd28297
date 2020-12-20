@@ -1,0 +1,2 @@
+svn path=/vendor/sendmail/dist/; revision=120169
+svn path=/vendor/sendmail/200309_parseaddr_patch/; revision=120171; tag=vendor/sendmail/200309_parseaddr_patch

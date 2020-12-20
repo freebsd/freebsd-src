@@ -1,0 +1,2 @@
+svn path=/vendor-sys/libuwx/dist/; revision=120925
+svn path=/vendor-sys/libuwx/BETA5/; revision=120927; tag=vendor/libuwx/BETA5

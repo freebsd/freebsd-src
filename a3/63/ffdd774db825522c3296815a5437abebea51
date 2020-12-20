@@ -1,0 +1,2 @@
+svn path=/vendor/one-true-awk/dist/; revision=90902
+svn path=/vendor/one-true-awk/20020101/; revision=90904; tag=vendor/one-true-awk/20020101

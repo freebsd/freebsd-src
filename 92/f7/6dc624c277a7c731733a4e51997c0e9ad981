@@ -1,0 +1,2 @@
+svn path=/vendor-sys/skein/dist/; revision=300819
+svn path=/vendor-sys/skein/1.3/; revision=300820; tag=vendor/skein/1.3

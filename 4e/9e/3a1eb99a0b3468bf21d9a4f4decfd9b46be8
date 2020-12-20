@@ -1,0 +1,2 @@
+svn path=/vendor/hostapd/dist/; revision=156373
+svn path=/vendor/hostapd/0.4.8/; revision=156375; tag=vendor/hostapd/0.4.8

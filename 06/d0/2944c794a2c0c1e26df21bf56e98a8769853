@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/libexecinfo/dist/; revision=255025
+svn path=/vendor/NetBSD/libexecinfo/20130829/; revision=255026; tag=vendor/NetBSD/libexecinfo/20130829

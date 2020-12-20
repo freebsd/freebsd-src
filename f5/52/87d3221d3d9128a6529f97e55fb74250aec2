@@ -1,0 +1,2 @@
+svn path=/vendor/bearssl/dist/; revision=343281
+svn path=/vendor/bearssl/6433cc2/; revision=343282; tag=vendor/bearssl/6433cc2

@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/libedit/dist/; revision=220216
+svn path=/vendor/NetBSD/libedit/2006-03-23/; revision=220217; tag=vendor/NetBSD/libedit/2006-03-23

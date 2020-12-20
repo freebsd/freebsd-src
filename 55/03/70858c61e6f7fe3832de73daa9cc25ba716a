@@ -1,0 +1,2 @@
+svn path=/vendor/device-tree/dist/; revision=325773
+svn path=/vendor/device-tree/4.14/; revision=325774; tag=vendor/device-tree/4.14

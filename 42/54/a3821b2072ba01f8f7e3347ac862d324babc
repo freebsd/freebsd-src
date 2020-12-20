@@ -1,0 +1,2 @@
+svn path=/vendor/llvm-openmp/dist/; revision=345153
+svn path=/vendor/llvm-openmp/openmp-trunk-r351319/; revision=345154; tag=vendor/llvm-openmp/openmp-trunk-r351319

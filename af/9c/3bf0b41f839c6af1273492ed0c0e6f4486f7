@@ -1,0 +1,2 @@
+svn path=/vendor/ntp/dist/; revision=82498
+svn path=/vendor/ntp/4.1.0/; revision=82500; tag=vendor/ntp/4.1.0

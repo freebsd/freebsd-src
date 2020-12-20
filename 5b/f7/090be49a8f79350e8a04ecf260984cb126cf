@@ -1,0 +1,2 @@
+svn path=/vendor/apr-util/dist/; revision=258600
+svn path=/vendor/apr-util/apr-util-1.5.3/; revision=258601; tag=vendor/apr-util/apr-util-1.5.3

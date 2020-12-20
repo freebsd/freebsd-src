@@ -1,0 +1,2 @@
+svn path=/vendor/gcc/dist/; revision=178388
+svn path=/vendor/gcc/trunk_20080418-SVN134423/; revision=178390; tag=vendor/gcc/trunk_20080418-SVN134423

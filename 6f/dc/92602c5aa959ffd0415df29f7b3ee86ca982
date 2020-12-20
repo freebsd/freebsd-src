@@ -1,0 +1,2 @@
+svn path=/vendor/wpa_supplicant/dist/; revision=151208
+svn path=/vendor/wpa_supplicant/0.3.9/; revision=151210; tag=vendor/wpa_supplicant/0.3.9

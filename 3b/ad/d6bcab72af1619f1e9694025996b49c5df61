@@ -1,0 +1,2 @@
+svn path=/vendor/ncurses/dist/; revision=97055
+svn path=/vendor/ncurses/5.2-20020518/; revision=97051; tag=vendor/ncurses/5.2-20020518

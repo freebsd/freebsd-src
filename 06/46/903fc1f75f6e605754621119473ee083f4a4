@@ -1,0 +1,2 @@
+svn path=/vendor/compiler-rt/dist/; revision=343175
+svn path=/vendor/compiler-rt/compiler-rt-release_80-r351543/; revision=343195; tag=vendor/compiler-rt/compiler-rt-release_80-r351543

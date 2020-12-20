@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/softfloat/dist/; revision=230364
+svn path=/vendor/NetBSD/softfloat/20120117/; revision=230365; tag=vendor/NetBSD/softfloat/20120117

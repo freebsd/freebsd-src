@@ -1,0 +1,2 @@
+svn path=/vendor/zstd/dist/; revision=339614
+svn path=/vendor/zstd/1.3.7/; revision=339615; tag=vendor/zstd/1.3.7

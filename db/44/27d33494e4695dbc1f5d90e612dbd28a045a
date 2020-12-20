@@ -1,0 +1,2 @@
+svn path=/vendor/cvs/dist/; revision=12
+svn path=/vendor/cvs/1.3/; revision=14; tag=vendor/misc-GNU/cvs/1.3

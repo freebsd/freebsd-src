@@ -1,0 +1,2 @@
+svn path=/vendor/OpenBSD/dist/; revision=43855
+svn path=/vendor/OpenBSD/dhclient_1_0/; revision=43857; tag=vendor/OpenBSD/dhclient_1_0

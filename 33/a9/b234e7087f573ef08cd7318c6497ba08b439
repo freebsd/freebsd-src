@@ -1,0 +1,2 @@
+svn path=/vendor-crypto/krb5/dist/; revision=320790
+svn path=/vendor-crypto/krb5/1.15.1/; revision=320791; tag=vendor/krb5/1.15.1

@@ -1,0 +1,2 @@
+svn path=/vendor-sys/ena-com/dist/; revision=321861
+svn path=/vendor-sys/ena-com/1.1.4.2/; revision=321862; tag=vendor/ena-com/1.1.4.2

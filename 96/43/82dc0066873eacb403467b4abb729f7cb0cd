@@ -1,0 +1,2 @@
+svn path=/vendor/diff/dist/; revision=30858
+svn path=/vendor/diff/2.7/; revision=30860; tag=vendor/misc-GNU/diff/2.7

@@ -1,0 +1,2 @@
+svn path=/vendor/OpenBSD/dist/; revision=159952
+svn path=/vendor/OpenBSD/cvs_20060501/; revision=159954; tag=vendor/OpenBSD/cvs_20060501

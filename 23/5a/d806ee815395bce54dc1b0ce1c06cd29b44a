@@ -1,0 +1,2 @@
+svn path=/vendor/device-tree/dist/; revision=295011
+svn path=/vendor/device-tree/ianc-afaecb70/; revision=295013; tag=vendor/device-tree/ianc-afaecb70

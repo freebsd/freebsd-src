@@ -1,0 +1,2 @@
+svn path=/vendor/gcc/dist/; revision=74722
+svn path=/vendor/gcc/2.95.3-with_sjlj_fix/; revision=74724; tag=vendor/gcc/2.95.3-with_sjlj_fix

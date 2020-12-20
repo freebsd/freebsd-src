@@ -1,0 +1,2 @@
+svn path=/vendor/ldns-host/dist/; revision=301826
+svn path=/vendor/ldns-host/hg-20160501-114105/; revision=301828; tag=vendor/ldns-host/hg-20160501-114105

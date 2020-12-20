@@ -1,0 +1,2 @@
+svn path=/releng/6.4/; revision=185323
+svn path=/release/6.4.0/; revision=185324; tag=release/6.4.0

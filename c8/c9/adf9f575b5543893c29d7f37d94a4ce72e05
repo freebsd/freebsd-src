@@ -1,0 +1,2 @@
+svn path=/vendor/libcxxrt/dist/; revision=276375
+svn path=/vendor/libcxxrt/2014-12-06-00bc29eb6513624824a6d7db2ebc768a4216a604/; revision=276376; tag=vendor/libcxxrt/2014-12-06-00bc29eb6513624824a6d7db2ebc768a4216a604

@@ -1,0 +1,2 @@
+svn path=/vendor/tcsh/dist/; revision=73393
+svn path=/vendor/tcsh/6.10-2001-01-28/; revision=73395; tag=vendor/tcsh/6.10-2001-01-28

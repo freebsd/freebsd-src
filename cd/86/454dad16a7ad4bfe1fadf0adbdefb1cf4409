@@ -1,0 +1,2 @@
+svn path=/vendor/sendmail/dist-old/; revision=14615
+svn path=/vendor/sendmail/8.7.5/; revision=14617; tag=vendor/sendmail/8.7.5

@@ -1,0 +1,2 @@
+svn path=/vendor/binutils/dist/; revision=92828
+svn path=/vendor/binutils/2.12.20020320/; revision=92830; tag=vendor/binutils/2.12.20020320

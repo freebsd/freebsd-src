@@ -1,0 +1,2 @@
+svn path=/vendor/openpam/dist/; revision=94213
+svn path=/vendor/openpam/CINCHONA/; revision=94215; tag=vendor/openpam/CINCHONA

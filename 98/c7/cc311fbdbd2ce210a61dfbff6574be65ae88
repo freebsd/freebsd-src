@@ -1,0 +1,2 @@
+svn path=/vendor/patch/dist/; revision=32243
+svn path=/vendor/patch/2.5/; revision=32245; tag=vendor/misc-GNU/patch/2.5

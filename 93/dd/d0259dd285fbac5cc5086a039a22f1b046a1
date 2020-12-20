@@ -1,0 +1,2 @@
+svn path=/vendor-sys/openzfs/dist/; revision=364928
+svn path=/vendor-sys/openzfs/2.0-rc1-ga00c61/; revision=364929; tag=vendor/openzfs/2.0-rc1-ga00c61

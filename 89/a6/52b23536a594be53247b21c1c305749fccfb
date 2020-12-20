@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/mtree/dist/; revision=244541
+svn path=/vendor/NetBSD/mtree/20122112/; revision=244542; tag=vendor/NetBSD/mtree/20122112

@@ -1,0 +1,2 @@
+svn path=/vendor/tcpdump/dist/; revision=56893
+svn path=/vendor/tcpdump/3.5/; revision=56895; tag=vendor/tcpdump/3.5

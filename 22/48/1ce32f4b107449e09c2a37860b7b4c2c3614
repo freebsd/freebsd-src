@@ -1,0 +1,2 @@
+svn path=/vendor/groff/dist/; revision=151500
+svn path=/vendor/groff/1.19.2/; revision=151499; tag=vendor/groff/1.19.2

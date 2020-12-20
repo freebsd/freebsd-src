@@ -1,0 +1,2 @@
+svn path=/vendor/apr/dist/; revision=339228
+svn path=/vendor/apr/apr-1.6.5/; revision=339229; tag=vendor/apr/apr-1.6.5

@@ -1,0 +1,2 @@
+svn path=/vendor/bzip2/dist/; revision=177420
+svn path=/vendor/bzip2/1.0.5/; revision=177422; tag=vendor/bzip2/1.0.5

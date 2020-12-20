@@ -1,0 +1,2 @@
+svn path=/vendor/lldb/dist/; revision=287503
+svn path=/vendor/lldb/lldb-trunk-r242221/; revision=287504; tag=vendor/lldb/lldb-trunk-r242221

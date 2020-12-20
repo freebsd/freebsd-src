@@ -1,0 +1,2 @@
+svn path=/vendor/gnu-sort/dist/; revision=98038
+svn path=/vendor/gnu-sort/2.0.21/; revision=98040; tag=vendor/misc-GNU/sort/2.0.21

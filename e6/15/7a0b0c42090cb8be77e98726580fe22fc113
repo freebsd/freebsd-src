@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/bmake/dist/; revision=238152
+svn path=/vendor/NetBSD/bmake/20120704/; revision=238153; tag=vendor/NetBSD/bmake/20120704

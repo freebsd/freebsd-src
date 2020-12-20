@@ -1,0 +1,2 @@
+svn path=/vendor/openpam/dist/; revision=91097
+svn path=/vendor/openpam/CALIOPSIS/; revision=91099; tag=vendor/openpam/CALIOPSIS

@@ -1,0 +1,2 @@
+svn path=/vendor-crypto/openssh/dist/; revision=214979
+svn path=/vendor-crypto/openssh/5.6p1/; revision=214980; tag=vendor/openssh/5.6p1

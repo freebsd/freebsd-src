@@ -1,0 +1,2 @@
+svn path=/vendor/NetBSD/tests/dist/; revision=312370
+svn path=/vendor/NetBSD/tests/01.17.2017_21.34/; revision=312371; tag=vendor/NetBSD/tests/01.17.2017_21.34

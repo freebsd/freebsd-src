@@ -1,0 +1,2 @@
+svn path=/vendor/elftoolchain/dist/; revision=278898
+svn path=/vendor/elftoolchain/elftoolchain-r3163/; revision=278900; tag=vendor/elftoolchain/elftoolchain-r3163

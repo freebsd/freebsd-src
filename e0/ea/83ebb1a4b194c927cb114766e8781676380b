@@ -1,0 +1,2 @@
+svn path=/vendor/opensolaris/dist/; revision=210753
+svn path=/vendor/opensolaris/20100802/; revision=210757; tag=vendor/opensolaris/20100802

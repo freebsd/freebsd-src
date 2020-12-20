@@ -1,0 +1,2 @@
+svn path=/vendor/pppd/dist/; revision=28595
+svn path=/vendor/pppd/2.3.1/; revision=28596; tag=vendor/pppd/2.3.1

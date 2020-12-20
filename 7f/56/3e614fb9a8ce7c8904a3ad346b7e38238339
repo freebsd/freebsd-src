@@ -1,0 +1,2 @@
+svn path=/vendor/unbound/dist/; revision=276542
+svn path=/vendor/unbound/1.5.0/; revision=276543; tag=vendor/unbound/1.5.0

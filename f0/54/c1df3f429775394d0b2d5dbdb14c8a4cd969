@@ -1,0 +1,2 @@
+svn path=/vendor/com_err/dist/; revision=127804
+svn path=/vendor/com_err/0.6.1/; revision=127806; tag=vendor/com_err/0.6.1

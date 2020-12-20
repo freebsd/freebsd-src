@@ -1,0 +1,2 @@
+svn path=/vendor/libyaml/dist/; revision=247738
+svn path=/vendor/libyaml/0.1.4/; revision=247739; tag=vendor/libyaml/0.1.4

@@ -1,0 +1,3 @@
+svn path=/vendor/SGI/dist2/; revision=46286
+svn path=/vendor/SGI/tags/v_2_17/; revision=46287; tag=vendor/SGI/v_2_17
+svn path=/vendor/SGI/vjs_990324/; revision=46288; tag=vendor/SGI/vjs_990324

@@ -1,0 +1,2 @@
+svn path=/vendor-sys/acpica/dist/; revision=219704
+svn path=/vendor-sys/acpica/20110316/; revision=219705; tag=vendor/acpica/20110316

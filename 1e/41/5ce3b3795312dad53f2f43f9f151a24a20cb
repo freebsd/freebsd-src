@@ -1,0 +1,2 @@
+svn path=/vendor/bind/dist/; revision=81340
+svn path=/vendor/bind/8.2.4.hmac-md5-patch/; revision=81342; tag=vendor/bind/8.2.4.hmac-md5-patch

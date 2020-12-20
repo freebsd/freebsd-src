@@ -1,0 +1,2 @@
+svn path=/vendor/libc++/dist/; revision=312962
+svn path=/vendor/libc++/libc++-release_40-r293443/; revision=312963; tag=vendor/libc++/libc++-release_40-r293443

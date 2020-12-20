@@ -1,0 +1,2 @@
+svn path=/vendor-sys/altq/dist/; revision=130365
+svn path=/vendor-sys/altq/20040607/; revision=130367; tag=vendor/altq/20040607

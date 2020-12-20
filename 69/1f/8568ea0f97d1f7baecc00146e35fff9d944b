@@ -1,0 +1,2 @@
+svn path=/vendor/bsnmp/dist/; revision=176892
+svn path=/vendor/bsnmp/syrinx_20080307_bugfix/; revision=176894; tag=vendor/bsnmp/syrinx_20080307_bugfix

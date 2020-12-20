@@ -1,0 +1,2 @@
+svn path=/vendor/ipfilter/dist/; revision=24583
+svn path=/vendor/ipfilter/3.2a4/; revision=24585; tag=vendor/ipfilter/3.2a4

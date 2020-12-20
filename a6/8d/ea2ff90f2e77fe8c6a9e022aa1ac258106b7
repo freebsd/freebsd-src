@@ -1,0 +1,2 @@
+svn path=/vendor/bc/dist/; revision=363807
+svn path=/vendor/bc/3.1.4/; revision=363808; tag=vendor/bc/3.1.4

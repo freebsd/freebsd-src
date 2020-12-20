@@ -1,0 +1,2 @@
+svn path=/vendor/smbfs/dist/; revision=100490
+svn path=/vendor/smbfs/1.4.5/; revision=100492; tag=vendor/smbfs/1.4.5

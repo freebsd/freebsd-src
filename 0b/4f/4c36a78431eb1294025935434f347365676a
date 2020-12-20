@@ -1,0 +1,2 @@
+svn path=/vendor/cpio/dist/; revision=24434
+svn path=/vendor/cpio/2.4.2/; revision=24436; tag=vendor/misc-GNU/cpio/2.4.2

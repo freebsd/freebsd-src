@@ -1,0 +1,2 @@
+svn path=/vendor/lld/dist/; revision=313640
+svn path=/vendor/lld/lld-release_40-r296002/; revision=314174; tag=vendor/lld/lld-release_40-r296002

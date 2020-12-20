@@ -1,0 +1,2 @@
+svn path=/cvs2svn/branches/JPO/; revision=12099
+svn path=/cvs2svn/tags/v1_3/; revision=12101; tag=vendor/NetBSD/xlint/1.3

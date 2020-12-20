@@ -1,0 +1,2 @@
+svn path=/vendor/gdb/dist/; revision=99005
+svn path=/vendor/gdb/anoncvs_gdb_5_2_branch_20020627/; revision=99007; tag=vendor/gdb/anoncvs_gdb_5_2_branch_20020627

@@ -1,0 +1,2 @@
+svn path=/vendor-sys/octeon-sdk/dist/; revision=215976
+svn path=/vendor-sys/octeon-sdk/2.0.0/; revision=215977; tag=vendor/octeon-sdk/2.0.0

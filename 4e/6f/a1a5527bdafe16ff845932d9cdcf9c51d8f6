@@ -1,0 +1,2 @@
+svn path=/vendor/serf/dist/; revision=251877
+svn path=/vendor/serf/serf-1.2.1/; revision=251880; tag=vendor/serf/serf-1.2.1

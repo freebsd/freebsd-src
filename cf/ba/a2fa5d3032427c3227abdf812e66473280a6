@@ -1,0 +1,2 @@
+svn path=/vendor/gcc/dist/; revision=117401
+svn path=/vendor/gcc/3.3.1-20030711/; revision=117403; tag=vendor/gcc/3.3.1-20030711

@@ -1,0 +1,2 @@
+svn path=/vendor/tzdata/dist/; revision=205473
+svn path=/vendor/tzdata/tzdata2010f/; revision=205474; tag=vendor/tzdata/tzdata2010f

@@ -1,0 +1,2 @@
+svn path=/vendor/openresolv/dist/; revision=354919
+svn path=/vendor/openresolv/3.9.2/; revision=354920; tag=vendor/openresolv/3.9.2

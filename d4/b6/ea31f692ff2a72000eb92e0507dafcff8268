@@ -1,0 +1,2 @@
+svn path=/vendor/openbsm/dist/; revision=196027
+svn path=/vendor/openbsm/1.1-P-2/; revision=196028; tag=vendor/openbsm/1.1-P-2

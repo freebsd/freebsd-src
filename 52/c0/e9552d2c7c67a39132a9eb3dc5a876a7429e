@@ -1,0 +1,2 @@
+svn path=/vendor/mdocml/dist/; revision=274876
+svn path=/vendor/mdocml/1.13.1/; revision=274877; tag=vendor/mandoc/1.13.1

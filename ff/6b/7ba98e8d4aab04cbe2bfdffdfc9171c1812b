@@ -1,0 +1,2 @@
+svn path=/vendor/perl5/dist/; revision=38980
+svn path=/vendor/perl5/5.005.02/; revision=38982; tag=vendor/perl5/5.005.02

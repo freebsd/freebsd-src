@@ -1,0 +1,2 @@
+svn path=/vendor/bind9/dist/; revision=253592
+svn path=/vendor/bind9/9.8.5-P1/; revision=253593; tag=vendor/bind9/9.8.5-P1

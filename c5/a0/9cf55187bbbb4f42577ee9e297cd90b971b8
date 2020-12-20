@@ -1,0 +1,2 @@
+svn path=/vendor-crypto/libdes/dist/; revision=50894
+svn path=/vendor-crypto/libdes/0.9.4/; revision=50896; tag=vendor/libdes/0.9.4

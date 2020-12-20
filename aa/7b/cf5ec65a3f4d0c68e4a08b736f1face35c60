@@ -1,0 +1,2 @@
+svn path=/vendor-sys/libfdt/dist/; revision=336636
+svn path=/vendor-sys/libfdt/1.4.7/; revision=336637; tag=vendor/libfdt/1.4.7

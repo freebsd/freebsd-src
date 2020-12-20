@@ -1,0 +1,2 @@
+svn path=/vendor/openpam/dist/; revision=92289
+svn path=/vendor/openpam/CENTAURY/; revision=92291; tag=vendor/openpam/CENTAURY

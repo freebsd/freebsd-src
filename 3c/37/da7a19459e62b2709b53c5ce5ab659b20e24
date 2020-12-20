@@ -1,0 +1,2 @@
+svn path=/vendor-crypto/openssh/dist/; revision=120113
+svn path=/vendor-crypto/openssh/200309-buffer-patch/; revision=120115; tag=vendor/openssh/200309-buffer-patch

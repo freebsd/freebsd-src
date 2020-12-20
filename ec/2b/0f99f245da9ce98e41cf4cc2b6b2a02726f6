@@ -1,0 +1,2 @@
+svn path=/vendor/llvm-project/release-10.x/; revision=361387
+svn path=/vendor/llvm-project/llvmorg-10.0.1-rc1-0-gf79cd71e145/; revision=361388; tag=vendor/llvm-project/llvmorg-10.0.1-rc1-0-gf79cd71e145

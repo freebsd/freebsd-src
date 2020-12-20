@@ -1,0 +1,2 @@
+svn path=/vendor-sys/alpine-hal/dist/; revision=294835
+svn path=/vendor-sys/alpine-hal/2.7/; revision=294828; tag=vendor/alpine-hal/2.7
