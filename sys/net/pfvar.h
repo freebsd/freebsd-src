@@ -330,6 +330,8 @@ extern struct sx pf_end_lock;
 		(neg)							\
 	)
 
+#define PF_ALGNMNT(off) (((off) % 2) == 0)
+
 struct pf_rule_uid {
 	uid_t		 uid[2];
 	u_int8_t	 op;
@@ -1735,6 +1737,10 @@ void	pf_change_a(void *, u_int16_t *, u_int32_t, u_int8_t);
 void	pf_change_proto_a(struct mbuf *, void *, u_int16_t *, u_int32_t,
 	    u_int8_t);
 void	pf_change_tcp_a(struct mbuf *, void *, u_int16_t *, u_int32_t);
+void	pf_patch_16_unaligned(struct mbuf *, u_int16_t *, void *, u_int16_t,
+	    bool, u_int8_t);
+void	pf_patch_32_unaligned(struct mbuf *, u_int16_t *, void *, u_int32_t,
+    bool, u_int8_t);
 void	pf_send_deferred_syn(struct pf_state *);
 int	pf_match_addr(u_int8_t, struct pf_addr *, struct pf_addr *,
 	    struct pf_addr *, sa_family_t);

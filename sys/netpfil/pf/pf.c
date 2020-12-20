@@ -288,6 +288,8 @@ static void		 pf_print_state_parts(struct pf_state *,
 			    struct pf_state_key *, struct pf_state_key *);
 static int		 pf_addr_wrap_neq(struct pf_addr_wrap *,
 			    struct pf_addr_wrap *);
+static void		 pf_patch_8(struct mbuf *, u_int16_t *, u_int8_t *, u_int8_t,
+			    bool, u_int8_t);
 static struct pf_state	*pf_find_state(struct pfi_kif *,
 			    struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_state **);
@@ -2084,16 +2086,60 @@ pf_addr_wrap_neq(struct pf_addr_wrap *aw1, struct pf_addr_wrap *aw2)
 u_int16_t
 pf_cksum_fixup(u_int16_t cksum, u_int16_t old, u_int16_t new, u_int8_t udp)
 {
-	u_int32_t	l;
+	u_int32_t x;
 
-	if (udp && !cksum)
-		return (0x0000);
-	l = cksum + old - new;
-	l = (l >> 16) + (l & 65535);
-	l = l & 65535;
-	if (udp && !l)
-		return (0xFFFF);
-	return (l);
+	x = cksum + old - new;
+	x = (x + (x >> 16)) & 0xffff;
+
+	/* optimise: eliminate a branch when not udp */
+	if (udp && cksum == 0x0000)
+		return cksum;
+	if (udp && x == 0x0000)
+		x = 0xffff;
+
+	return (u_int16_t)(x);
+}
+
+static void
+pf_patch_8(struct mbuf *m, u_int16_t *cksum, u_int8_t *f, u_int8_t v, bool hi,
+    u_int8_t udp)
+{
+	u_int16_t old = htons(hi ? (*f << 8) : *f);
+	u_int16_t new = htons(hi ? ( v << 8) :  v);
+
+	if (*f == v)
+		return;
+
+	*f = v;
+
+	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6))
+		return;
+
+	*cksum = pf_cksum_fixup(*cksum, old, new, udp);
+}
+
+void
+pf_patch_16_unaligned(struct mbuf *m, u_int16_t *cksum, void *f, u_int16_t v,
+    bool hi, u_int8_t udp)
+{
+	u_int8_t *fb = (u_int8_t *)f;
+	u_int8_t *vb = (u_int8_t *)&v;
+
+	pf_patch_8(m, cksum, fb++, *vb++, hi, udp);
+	pf_patch_8(m, cksum, fb++, *vb++, !hi, udp);
+}
+
+void
+pf_patch_32_unaligned(struct mbuf *m, u_int16_t *cksum, void *f, u_int32_t v,
+    bool hi, u_int8_t udp)
+{
+	u_int8_t *fb = (u_int8_t *)f;
+	u_int8_t *vb = (u_int8_t *)&v;
+
+	pf_patch_8(m, cksum, fb++, *vb++, hi, udp);
+	pf_patch_8(m, cksum, fb++, *vb++, !hi, udp);
+	pf_patch_8(m, cksum, fb++, *vb++, hi, udp);
+	pf_patch_8(m, cksum, fb++, *vb++, !hi, udp);
 }
 
 u_int16_t
@@ -2319,6 +2365,7 @@ pf_modulate_sack(struct mbuf *m, int off, struct pf_pdesc *pd,
 		return 0;
 
 	while (hlen >= TCPOLEN_SACKLEN) {
+		size_t startoff = opt - opts;
 		olen = opt[1];
 		switch (*opt) {
 		case TCPOPT_EOL:	/* FALLTHROUGH */
@@ -2333,10 +2380,16 @@ pf_modulate_sack(struct mbuf *m, int off, struct pf_pdesc *pd,
 				for (i = 2; i + TCPOLEN_SACK <= olen;
 				    i += TCPOLEN_SACK) {
 					memcpy(&sack, &opt[i], sizeof(sack));
-					pf_change_proto_a(m, &sack.start, &th->th_sum,
-					    htonl(ntohl(sack.start) - dst->seqdiff), 0);
-					pf_change_proto_a(m, &sack.end, &th->th_sum,
-					    htonl(ntohl(sack.end) - dst->seqdiff), 0);
+					pf_patch_32_unaligned(m,
+					    &th->th_sum, &sack.start,
+					    htonl(ntohl(sack.start) - dst->seqdiff),
+					    PF_ALGNMNT(startoff),
+					    0);
+					pf_patch_32_unaligned(m, &th->th_sum,
+					    &sack.end,
+					    htonl(ntohl(sack.end) - dst->seqdiff),
+					    PF_ALGNMNT(startoff),
+					    0);
 					memcpy(&opt[i], &sack, sizeof(sack));
 				}
 				copyback = 1;

@@ -1517,6 +1517,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	u_int8_t *opt;
 	int copyback = 0;
 	int got_ts = 0;
+	size_t startoff;
 
 	KASSERT((src->scrub || dst->scrub),
 	    ("%s: src->scrub && dst->scrub!", __func__));
@@ -1560,6 +1561,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		opt = hdr + sizeof(struct tcphdr);
 		hlen = (th->th_off << 2) - sizeof(struct tcphdr);
 		while (hlen >= TCPOLEN_TIMESTAMP) {
+			startoff = opt - (hdr + sizeof(struct tcphdr));
 			switch (*opt) {
 			case TCPOPT_EOL:	/* FALLTHROUGH */
 			case TCPOPT_NOP:
@@ -1589,10 +1591,12 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 					    (src->scrub->pfss_flags &
 					    PFSS_TIMESTAMP)) {
 						tsval = ntohl(tsval);
-						pf_change_proto_a(m, &opt[2],
+						pf_patch_32_unaligned(m,
 						    &th->th_sum,
+						    &opt[2],
 						    htonl(tsval +
 						    src->scrub->pfss_ts_mod),
+						    PF_ALGNMNT(startoff),
 						    0);
 						copyback = 1;
 					}
@@ -1605,8 +1609,11 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 					    PFSS_TIMESTAMP)) {
 						tsecr = ntohl(tsecr)
 						    - dst->scrub->pfss_ts_mod;
-						pf_change_proto_a(m, &opt[6],
-						    &th->th_sum, htonl(tsecr),
+						pf_patch_32_unaligned(m,
+						    &th->th_sum,
+						    &opt[6],
+						    htonl(tsecr),
+						    PF_ALGNMNT(startoff),
 						    0);
 						copyback = 1;
 					}
@@ -1903,6 +1910,7 @@ pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
 	int		 rewrite = 0;
 	u_char		 opts[TCP_MAXOLEN];
 	u_char		*optp = opts;
+	size_t		 startoff;
 
 	thoff = th->th_off << 2;
 	cnt = thoff - sizeof(struct tcphdr);
@@ -1912,6 +1920,7 @@ pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
 		return (rewrite);
 
 	for (; cnt > 0; cnt -= optlen, optp += optlen) {
+		startoff = optp - opts;
 		opt = optp[0];
 		if (opt == TCPOPT_EOL)
 			break;
@@ -1928,9 +1937,11 @@ pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
 		case TCPOPT_MAXSEG:
 			mss = (u_int16_t *)(optp + 2);
 			if ((ntohs(*mss)) > r->max_mss) {
-				th->th_sum = pf_proto_cksum_fixup(m,
-				    th->th_sum, *mss, htons(r->max_mss), 0);
-				*mss = htons(r->max_mss);
+				pf_patch_16_unaligned(m,
+				    &th->th_sum,
+				    mss, htons(r->max_mss),
+				    PF_ALGNMNT(startoff),
+				    0);
 				rewrite = 1;
 			}
 			break;
