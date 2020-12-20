@@ -1,3 +1,5 @@
+This repository is being converted from Subversion to Git.
+
 FreeBSD Source:
 ---------------
 This is the top level of the FreeBSD source directory.  This file
