@@ -67,7 +67,7 @@ stack_save_td(struct stack *st, struct thread *td)
 
 	frame.sp = td->td_pcb->pcb_sp;
 	frame.fp = td->td_pcb->pcb_x[29];
-	frame.pc = td->td_pcb->pcb_x[30];
+	frame.pc = td->td_pcb->pcb_lr;
 
 	stack_capture(st, &frame);
 }
