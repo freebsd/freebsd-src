@@ -4,6 +4,7 @@ SHLIBDIR?=	/lib
 
 .include <src.opts.mk>
 
+PACKAGE=	runtime
 LIB=		be
 SHLIB_MAJOR=	1
 SHLIB_MINOR=	0
