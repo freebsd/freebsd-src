@@ -499,7 +499,7 @@ test_tsc(int adj_max_count)
 	uint64_t *data, *tsc;
 	u_int i, size, adj;
 
-	if ((!smp_tsc && !tsc_is_invariant) || vm_guest)
+	if ((!smp_tsc && !tsc_is_invariant))
 		return (-100);
 	size = (mp_maxid + 1) * 3;
 	data = malloc(sizeof(*data) * size * N, M_TEMP, M_WAITOK);
