@@ -2824,8 +2824,7 @@ vxlan_input(struct vxlan_socket *vso, uint32_t vni, struct mbuf **m0,
 	m_clrprotoflags(m);
 	m->m_pkthdr.rcvif = ifp;
 	M_SETFIB(m, ifp->if_fib);
-	if (m->m_pkthdr.csum_flags & CSUM_ENCAP_VXLAN &&
-	    ((ifp->if_capenable & IFCAP_RXCSUM &&
+	if (((ifp->if_capenable & IFCAP_RXCSUM &&
 	    m->m_pkthdr.csum_flags & CSUM_INNER_L3_CALC) ||
 	    (ifp->if_capenable & IFCAP_RXCSUM_IPV6 &&
 	    !(m->m_pkthdr.csum_flags & CSUM_INNER_L3_CALC)))) {
