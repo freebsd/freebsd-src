@@ -50,7 +50,9 @@ extern "C" {
 #include <sys/cmn_err.h>
 #include <sys/kmem.h>
 #include <sys/kmem_cache.h>
+#ifndef __FreeBSD__
 #include <sys/vmem.h>
+#endif
 #include <sys/misc.h>
 #include <sys/taskq.h>
 #include <sys/param.h>
