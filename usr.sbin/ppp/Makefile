@@ -2,6 +2,7 @@
 
 .include <src.opts.mk>
 
+PACKAGE=	ppp
 PROG=	ppp
 MAN=	ppp.8
 SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
