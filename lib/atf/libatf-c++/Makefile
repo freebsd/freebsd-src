@@ -28,6 +28,7 @@
 .include <src.opts.mk>
 .include <bsd.init.mk>
 
+PACKAGE=	tests
 LIB_CXX=	atf-c++
 PRIVATELIB=	true
 SHLIB_MAJOR=	2

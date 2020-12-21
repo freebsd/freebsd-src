@@ -56,7 +56,7 @@
         ..
         gss
         ..
-        kyua
+        kyua             tags=package=tests
         ..
         mail
         ..

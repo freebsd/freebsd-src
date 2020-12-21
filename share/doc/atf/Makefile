@@ -32,5 +32,6 @@ FILESGROUPS=	TOP
 
 TOPDIR=		${SHAREDIR}/doc/atf
 TOP=		AUTHORS COPYING NEWS README
+TOPTAGS=	package=tests
 
 .include <bsd.prog.mk>
