@@ -2,6 +2,7 @@
 
 .PATH: ${SRCTOP}/sys/netinet/libalias
 
+PACKAGE=	natd
 CONFS=	libalias.conf
 LIB=	alias
 SHLIBDIR?= /lib
