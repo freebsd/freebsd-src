@@ -732,11 +732,11 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 {
 	int i;
 
-	for (i = 0; i < PCB_LR; i++)
+	for (i = 0; i < nitems(pcb->pcb_x); i++)
 		pcb->pcb_x[i] = tf->tf_x[i];
 
-	pcb->pcb_x[PCB_LR] = tf->tf_lr;
-	pcb->pcb_pc = tf->tf_elr;
+	/* NB: pcb_lr is the PC, see PC_REGS() in db_machdep.h */
+	pcb->pcb_lr = tf->tf_elr;
 	pcb->pcb_sp = tf->tf_sp;
 }
 
