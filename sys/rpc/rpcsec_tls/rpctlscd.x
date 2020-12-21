@@ -29,6 +29,10 @@
 
 /* $FreeBSD$ */
 
+struct rpctlscd_connect_arg {
+	char certname<>;
+};
+
 struct rpctlscd_connect_res {
 	uint32_t reterr;
 	uint64_t sec;
@@ -61,7 +65,7 @@ program RPCTLSCD {
 		void RPCTLSCD_NULL(void) = 0;
 
 		rpctlscd_connect_res
-		RPCTLSCD_CONNECT(void) = 1;
+		RPCTLSCD_CONNECT(rpctlscd_connect_arg) = 1;
 
 		rpctlscd_handlerecord_res
 		RPCTLSCD_HANDLERECORD(rpctlscd_handlerecord_arg) = 2;

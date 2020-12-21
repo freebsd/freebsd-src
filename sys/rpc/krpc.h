@@ -80,6 +80,7 @@ struct rc_data {
 	struct rpc_err		rc_err;
 	void			*rc_backchannel;
 	bool			rc_tls; /* Enable TLS on connection */
+	char			*rc_tlscertname;
 };
 
 /* Bits for ct_rcvstate. */
