@@ -246,7 +246,7 @@ acpi_wmi_attach(device_t dev)
 	if ((sc->ec_dev = devclass_get_device(devclass_find("acpi_ec"), 0))
 	    == NULL)
 		device_printf(dev, "cannot find EC device\n");
-	else if (ACPI_FAILURE((status = AcpiInstallNotifyHandler(sc->wmi_handle,
+	if (ACPI_FAILURE((status = AcpiInstallNotifyHandler(sc->wmi_handle,
 		    ACPI_DEVICE_NOTIFY, acpi_wmi_notify_handler, sc))))
 		device_printf(sc->wmi_dev, "couldn't install notify handler - %s\n",
 		    AcpiFormatException(status));
@@ -701,6 +701,8 @@ acpi_wmi_ec_handler(UINT32 function, ACPI_PHYSICAL_ADDRESS address,
 		return (AE_BAD_PARAMETER);
 	if (address + (width / 8) - 1 > 0xFF)
 		return (AE_BAD_ADDRESS);
+	if (sc->ec_dev == NULL)
+		return (AE_NOT_FOUND);
 	if (function == ACPI_READ)
 		*value = 0;
 	ec_addr = address;
