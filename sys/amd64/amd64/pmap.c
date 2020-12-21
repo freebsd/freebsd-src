@@ -2693,28 +2693,155 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 		invltlb_glob();
 	}
 }
-#ifdef SMP
 
 /*
- * For SMP, these functions have to use the IPI mechanism for coherence.
+ * The amd64 pmap uses different approaches to TLB invalidation
+ * depending on the kernel configuration, available hardware features,
+ * and known hardware errata.  The kernel configuration option that
+ * has the greatest operational impact on TLB invalidation is PTI,
+ * which is enabled automatically on affected Intel CPUs.  The most
+ * impactful hardware features are first PCID, and then INVPCID
+ * instruction presence.  PCID usage is quite different for PTI
+ * vs. non-PTI.
  *
- * N.B.: Before calling any of the following TLB invalidation functions,
- * the calling processor must ensure that all stores updating a non-
- * kernel page table are globally performed.  Otherwise, another
- * processor could cache an old, pre-update entry without being
- * invalidated.  This can happen one of two ways: (1) The pmap becomes
- * active on another processor after its pm_active field is checked by
- * one of the following functions but before a store updating the page
- * table is globally performed. (2) The pmap becomes active on another
- * processor before its pm_active field is checked but due to
- * speculative loads one of the following functions stills reads the
- * pmap as inactive on the other processor.
- * 
- * The kernel page table is exempt because its pm_active field is
- * immutable.  The kernel page table is always active on every
- * processor.
+ * * Kernel Page Table Isolation (PTI or KPTI) is used to mitigate
+ *   the Meltdown bug in some Intel CPUs.  Under PTI, each user address
+ *   space is served by two page tables, user and kernel.  The user
+ *   page table only maps user space and a kernel trampoline.  The
+ *   kernel trampoline includes the entirety of the kernel text but
+ *   only the kernel data that is needed to switch from user to kernel
+ *   mode.  The kernel page table maps the user and kernel address
+ *   spaces in their entirety.  It is identical to the per-process
+ *   page table used in non-PTI mode.
+ *
+ *   User page tables are only used when the CPU is in user mode.
+ *   Consequently, some TLB invalidations can be postponed until the
+ *   switch from kernel to user mode.  In contrast, the user
+ *   space part of the kernel page table is used for copyout(9), so
+ *   TLB invalidations on this page table cannot be similarly postponed.
+ *
+ *   The existence of a user mode page table for the given pmap is
+ *   indicated by a pm_ucr3 value that differs from PMAP_NO_CR3, in
+ *   which case pm_ucr3 contains the %cr3 register value for the user
+ *   mode page table's root.
+ *
+ * * The pm_active bitmask indicates which CPUs currently have the
+ *   pmap active.  A CPU's bit is set on context switch to the pmap, and
+ *   cleared on switching off this CPU.  For the kernel page table,
+ *   the pm_active field is immutable and contains all CPUs.  The
+ *   kernel page table is always logically active on every processor,
+ *   but not necessarily in use by the hardware, e.g., in PTI mode.
+ *
+ *   When requesting invalidation of virtual addresses with
+ *   pmap_invalidate_XXX() functions, the pmap sends shootdown IPIs to
+ *   all CPUs recorded as active in pm_active.  Updates to and reads
+ *   from pm_active are not synchronized, and so they may race with
+ *   each other.  Shootdown handlers are prepared to handle the race.
+ *
+ * * PCID is an optional feature of the long mode x86 MMU where TLB
+ *   entries are tagged with the 'Process ID' of the address space
+ *   they belong to.  This feature provides a limited namespace for
+ *   process identifiers, 12 bits, supporting 4095 simultaneous IDs
+ *   total.
+ *
+ *   Allocation of a PCID to a pmap is done by an algorithm described
+ *   in section 15.12, "Other TLB Consistency Algorithms", of
+ *   Vahalia's book "Unix Internals".  A PCID cannot be allocated for
+ *   the whole lifetime of a pmap in pmap_pinit() due to the limited
+ *   namespace.  Instead, a per-CPU, per-pmap PCID is assigned when
+ *   the CPU is about to start caching TLB entries from a pmap,
+ *   i.e., on the context switch that activates the pmap on the CPU.
+ *
+ *   The PCID allocator maintains a per-CPU, per-pmap generation
+ *   count, pm_gen, which is incremented each time a new PCID is
+ *   allocated.  On TLB invalidation, the generation counters for the
+ *   pmap are zeroed, which signals the context switch code that the
+ *   previously allocated PCID is no longer valid.  Effectively,
+ *   zeroing any of these counters triggers a TLB shootdown for the
+ *   given CPU/address space, due to the allocation of a new PCID.
+ *
+ *   Zeroing can be performed remotely.  Consequently, if a pmap is
+ *   inactive on a CPU, then a TLB shootdown for that pmap and CPU can
+ *   be initiated by an ordinary memory access to reset the target
+ *   CPU's generation count within the pmap.  The CPU initiating the
+ *   TLB shootdown does not need to send an IPI to the target CPU.
+ *
+ * * PTI + PCID.  The available PCIDs are divided into two sets: PCIDs
+ *   for complete (kernel) page tables, and PCIDs for user mode page
+ *   tables.  A user PCID value is obtained from the kernel PCID value
+ *   by setting the highest bit, 11, to 1 (0x800 == PMAP_PCID_USER_PT).
+ *
+ *   User space page tables are activated on return to user mode, by
+ *   loading pm_ucr3 into %cr3.  If the PCPU(ucr3_load_mask) requests
+ *   clearing bit 63 of the loaded ucr3, this effectively causes
+ *   complete invalidation of the user mode TLB entries for the
+ *   current pmap.  In which case, local invalidations of individual
+ *   pages in the user page table are skipped.
+ *
+ * * Local invalidation, all modes.  If the requested invalidation is
+ *   for a specific address or the total invalidation of a currently
+ *   active pmap, then the TLB is flushed using INVLPG for a kernel
+ *   page table, and INVPCID(INVPCID_CTXGLOB)/invltlb_glob() for a
+ *   user space page table(s).
+ *
+ *   If the INVPCID instruction is available, it is used to flush entries
+ *   from the kernel page table.
+ *
+ * * mode: PTI disabled, PCID present.  The kernel reserves PCID 0 for its
+ *   address space, all other 4095 PCIDs are used for user mode spaces
+ *   as described above.  A context switch allocates a new PCID if
+ *   the recorded PCID is zero or the recorded generation does not match
+ *   the CPU's generation, effectively flushing the TLB for this address space.
+ *   Total remote invalidation is performed by zeroing pm_gen for all CPUs.
+ *	local user page: INVLPG
+ *	local kernel page: INVLPG
+ *	local user total: INVPCID(CTX)
+ *	local kernel total: INVPCID(CTXGLOB) or invltlb_glob()
+ *	remote user page, inactive pmap: zero pm_gen
+ *	remote user page, active pmap: zero pm_gen + IPI:INVLPG
+ *	(Both actions are required to handle the aforementioned pm_active races.)
+ *	remote kernel page: IPI:INVLPG
+ *	remote user total, inactive pmap: zero pm_gen
+ *	remote user total, active pmap: zero pm_gen + IPI:(INVPCID(CTX) or
+ *          reload %cr3)
+ *	(See note above about pm_active races.)
+ *	remote kernel total: IPI:(INVPCID(CTXGLOB) or invltlb_glob())
+ *
+ * PTI enabled, PCID present.
+ *	local user page: INVLPG for kpt, INVPCID(ADDR) or (INVLPG for ucr3)
+ *          for upt
+ *	local kernel page: INVLPG
+ *	local user total: INVPCID(CTX) or reload %cr3 for kpt, clear PCID_SAVE
+ *          on loading UCR3 into %cr3 for upt
+ *	local kernel total: INVPCID(CTXGLOB) or invltlb_glob()
+ *	remote user page, inactive pmap: zero pm_gen
+ *	remote user page, active pmap: zero pm_gen + IPI:(INVLPG for kpt,
+ *          INVPCID(ADDR) for upt)
+ *	remote kernel page: IPI:INVLPG
+ *	remote user total, inactive pmap: zero pm_gen
+ *	remote user total, active pmap: zero pm_gen + IPI:(INVPCID(CTX) for kpt,
+ *          clear PCID_SAVE on loading UCR3 into $cr3 for upt)
+ *	remote kernel total: IPI:(INVPCID(CTXGLOB) or invltlb_glob())
+ *
+ *  No PCID.
+ *	local user page: INVLPG
+ *	local kernel page: INVLPG
+ *	local user total: reload %cr3
+ *	local kernel total: invltlb_glob()
+ *	remote user page, inactive pmap: -
+ *	remote user page, active pmap: IPI:INVLPG
+ *	remote kernel page: IPI:INVLPG
+ *	remote user total, inactive pmap: -
+ *	remote user total, active pmap: IPI:(reload %cr3)
+ *	remote kernel total: IPI:invltlb_glob()
+ *  Since on return to user mode, the reload of %cr3 with ucr3 causes
+ *  TLB invalidation, no specific action is required for user page table.
+ *
+ * EPT.  EPT pmaps do not map KVA, all mappings are userspace.
+ * XXX TODO
  */
 
+#ifdef SMP
 /*
  * Interrupt the cpus that are executing in the guest context.
  * This will force the vcpu to exit and the cached EPT mappings
