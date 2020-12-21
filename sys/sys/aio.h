@@ -137,18 +137,11 @@ struct kaiocb {
 	aio_cancel_fn_t *cancel_fn;	/* (a) backend cancel function */
 	aio_handle_fn_t *handle_fn;	/* (c) backend handle function */
 	union {				/* Backend-specific data fields */
-		struct {		/* BIO backend */
-			struct bio *bp;	/* (*) BIO pointer */
-			struct buf *pbuf; /* (*) buffer pointer */
-			int	npages;	/* (*) number of pages */
-			struct vm_page **pages; /* (*) */
-		};
 		struct {		/* fsync() requests */
 			int	pending; /* (a) number of pending I/O */
 		};
-		struct {
+		struct {		/* socket backend */
 			void	*backend1;
-			void	*backend2;
 			long	backend3;
 			int	backend4;
 		};
