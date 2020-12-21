@@ -109,7 +109,7 @@ db_trace_thread(struct thread *thr, int count)
 
 		frame.sp = (uintptr_t)ctx->pcb_sp;
 		frame.fp = (uintptr_t)ctx->pcb_x[29];
-		frame.pc = (uintptr_t)ctx->pcb_x[30];
+		frame.pc = (uintptr_t)ctx->pcb_lr;
 		db_stack_trace_cmd(thr, &frame);
 	} else
 		db_trace_self();
