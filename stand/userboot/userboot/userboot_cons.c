@@ -28,8 +28,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+#include <sys/font.h>
+#include "gfx_fb.h"
 #include "bootstrap.h"
 #include "libuserboot.h"
+
+font_list_t fonts = STAILQ_HEAD_INITIALIZER(fonts);
+teken_gfx_t gfx_state = { 0 };
 
 int console;
 

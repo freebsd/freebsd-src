@@ -131,6 +131,12 @@ main(void)
 	setheap(heap_bottom, heap_top);
 
 	/*
+	 * detect ACPI for future reference. This may set console to comconsole
+	 * if we do have ACPI SPCR table.
+	 */
+	biosacpi_detect();
+
+	/*
 	 * XXX Chicken-and-egg problem; we want to have console output early,
 	 * but some console attributes may depend on reading from eg. the boot
 	 * device, which we can't do yet.
@@ -242,9 +248,6 @@ main(void)
 		initial_bootinfo->bi_extmem = bios_extmem / 1024;
 	}
 
-	/* detect ACPI for future reference */
-	biosacpi_detect();
-
 	/* detect SMBIOS for future reference */
 	smbios_detect(NULL);
 
@@ -254,6 +257,7 @@ main(void)
 	printf("\n%s", bootprog_info);
 
 	extract_currdev();		/* set $currdev and $loaddev */
+	autoload_font(true);
     
 	bios_getsmap();
 

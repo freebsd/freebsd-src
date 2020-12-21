@@ -35,6 +35,18 @@
 
 : logo ( x y -- ) \ color Orb mascot (15 rows x 30 columns)
 
+	framebuffer? if
+		s" term-putimage" sfind if
+			>r 2dup			( x y x y )
+			>r 0 swap r>		( x y 0 x y )
+			dup 0 swap 15 +		( x y 0 x y 0 y+15 )
+			s" /boot/images/freebsd-logo-rev.png"
+			r> execute if 2drop exit then
+		else
+			drop
+		then
+	then
+
 	s"  @[31m```                        @[31;1m`@[31m" logo+
 	s" s` `.....---...@[31;1m....--.```   -/@[31m"     logo+
 	s" +o   .--`         @[31;1m/y:`      +.@[31m"     logo+
