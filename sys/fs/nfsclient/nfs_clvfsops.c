@@ -119,7 +119,7 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, u_char *, int, u_char *, int,
 		    u_char *, int, struct vnode **, struct ucred *,
-		    struct thread *, int, int, int, uint32_t);
+		    struct thread *, int, int, int, uint32_t, char *);
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *,
 		    struct timeval *);
@@ -545,7 +545,7 @@ nfs_mountdiskless(char *path,
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, NULL, 0, dirpath, dirlen,
 	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NAMETIMEO, 
-	    NFS_DEFAULT_NEGNAMETIMEO, 0, 0)) != 0) {
+	    NFS_DEFAULT_NEGNAMETIMEO, 0, 0, NULL)) != 0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
@@ -747,7 +747,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "resvport", "readahead", "hostname", "timeo", "timeout", "addr", "fh",
     "nfsv3", "sec", "principal", "nfsv4", "gssname", "allgssname", "dirpath",
     "minorversion", "nametimeo", "negnametimeo", "nocto", "noncontigwr",
-    "pnfs", "wcommitsize", "oneopenown", "tls",
+    "pnfs", "wcommitsize", "oneopenown", "tls", "tlscertname",
     NULL };
 
 /*
@@ -891,7 +891,7 @@ nfs_mount(struct mount *mp)
 	struct thread *td;
 	char *hst;
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
-	char *cp, *opt, *name, *secname;
+	char *cp, *opt, *name, *secname, *tlscertname;
 	int nametimeo = NFS_DEFAULT_NAMETIMEO;
 	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
 	int minvers = 0;
@@ -903,6 +903,7 @@ nfs_mount(struct mount *mp)
 	has_nfs_args_opt = 0;
 	has_nfs_from_opt = 0;
 	newflag = 0;
+	tlscertname = NULL;
 	hst = malloc(MNAMELEN, M_TEMP, M_WAITOK);
 	if (vfs_filteropt(mp->mnt_optnew, nfs_opts)) {
 		error = EINVAL;
@@ -988,6 +989,22 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_ONEOPENOWN;
 	if (vfs_getopt(mp->mnt_optnew, "tls", NULL, NULL) == 0)
 		newflag |= NFSMNT_TLS;
+	if (vfs_getopt(mp->mnt_optnew, "tlscertname", (void **)&opt, &len) ==
+	    0) {
+		/*
+		 * tlscertname with "key.pem" appended to it forms a file
+		 * name.  As such, the maximum allowable strlen(tlscertname) is
+		 * NAME_MAX - 7. However, "len" includes the nul termination
+		 * byte so it can be up to NAME_MAX - 6.
+		 */
+		if (opt == NULL || len <= 1 || len > NAME_MAX - 6) {
+			vfs_mount_error(mp, "invalid tlscertname");
+			error = EINVAL;
+			goto out;
+		}
+		tlscertname = malloc(len, M_NEWNFSMNT, M_WAITOK);
+		strlcpy(tlscertname, opt, len);
+	}
 	if (vfs_getopt(mp->mnt_optnew, "readdirsize", (void **)&opt, NULL) == 0) {
 		if (opt == NULL) { 
 			vfs_mount_error(mp, "illegal readdirsize");
@@ -1342,7 +1359,7 @@ nfs_mount(struct mount *mp)
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, krbname, krbnamelen, dirpath,
 	    dirlen, srvkrbname, srvkrbnamelen, &vp, td->td_ucred, td,
-	    nametimeo, negnametimeo, minvers, newflag);
+	    nametimeo, negnametimeo, minvers, newflag, tlscertname);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1390,7 +1407,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
     char *hst, u_char *krbname, int krbnamelen, u_char *dirpath, int dirlen,
     u_char *srvkrbname, int srvkrbnamelen, struct vnode **vpp,
     struct ucred *cred, struct thread *td, int nametimeo, int negnametimeo,
-    int minvers, uint32_t newflag)
+    int minvers, uint32_t newflag, char *tlscertname)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
@@ -1410,6 +1427,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp = VFSTONFS(mp);
 		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
 		free(nam, M_SONAME);
+		free(tlscertname, M_NEWNFSMNT);
 		return (0);
 	} else {
 		/* NFS-over-TLS requires that rpctls be functioning. */
@@ -1423,12 +1441,14 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 #endif
 			if (error != 0) {
 				free(nam, M_SONAME);
+				free(tlscertname, M_NEWNFSMNT);
 				return (error);
 			}
 		}
 		nmp = malloc(sizeof (struct nfsmount) +
 		    krbnamelen + dirlen + srvkrbnamelen + 2,
 		    M_NEWNFSMNT, M_WAITOK | M_ZERO);
+		nmp->nm_tlscertname = tlscertname;
 		nmp->nm_newflag = newflag;
 		TAILQ_INIT(&nmp->nm_bufq);
 		TAILQ_INIT(&nmp->nm_sess);
@@ -1681,6 +1701,7 @@ bad:
 			newnfs_disconnect(dsp->nfsclds_sockp);
 		nfscl_freenfsclds(dsp);
 	}
+	free(nmp->nm_tlscertname, M_NEWNFSMNT);
 	free(nmp, M_NEWNFSMNT);
 	free(nam, M_SONAME);
 	return (error);
@@ -1776,6 +1797,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 			newnfs_disconnect(dsp->nfsclds_sockp);
 		nfscl_freenfsclds(dsp);
 	}
+	free(nmp->nm_tlscertname, M_NEWNFSMNT);
 	free(nmp, M_NEWNFSMNT);
 out:
 	return (error);

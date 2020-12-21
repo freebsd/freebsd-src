@@ -359,6 +359,7 @@ enum clnt_stat clnt_call_private(CLIENT *, struct rpc_callextra *, rpcproc_t,
 #define CLSET_BACKCHANNEL	29	/* set backchannel for socket */
 #define	CLSET_TLS		30	/* set TLS for socket */
 #define	CLSET_BLOCKRCV		31	/* Temporarily block reception */
+#define	CLSET_TLSCERTNAME	32	/* TLS certificate file name */
 #endif
 
 

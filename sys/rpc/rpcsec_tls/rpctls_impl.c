@@ -356,9 +356,10 @@ rpctls_server_client(void)
 
 /* Do an upcall for a new socket connect using TLS. */
 enum clnt_stat
-rpctls_connect(CLIENT *newclient, struct socket *so, uint64_t *sslp,
-    uint32_t *reterr)
+rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
+    uint64_t *sslp, uint32_t *reterr)
 {
+	struct rpctlscd_connect_arg arg;
 	struct rpctlscd_connect_res res;
 	struct rpc_callextra ext;
 	struct timeval utimeout;
@@ -399,7 +400,12 @@ rpctls_connect(CLIENT *newclient, struct socket *so, uint64_t *sslp,
 	CLNT_CONTROL(newclient, CLSET_BLOCKRCV, &val);
 
 	/* Do the connect handshake upcall. */
-	stat = rpctlscd_connect_1(NULL, &res, cl);
+	if (certname != NULL) {
+		arg.certname.certname_len = strlen(certname);
+		arg.certname.certname_val = certname;
+	} else
+		arg.certname.certname_len = 0;
+	stat = rpctlscd_connect_1(&arg, &res, cl);
 	if (stat == RPC_SUCCESS) {
 		*reterr = res.reterr;
 		if (res.reterr == 0) {
