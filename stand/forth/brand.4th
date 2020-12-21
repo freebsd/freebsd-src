@@ -72,3 +72,7 @@ variable brandY
 		else drop then
 	then
 ;
+
+: draw-brand
+	['] draw-brand console-iterate
+;

@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/linker_set.h>
+#include <stdbool.h>
 
 #include "readin.h"
 
@@ -119,6 +120,8 @@ struct console
 };
 extern struct console *consoles[];
 void cons_probe(void);
+bool		cons_update_mode(bool);
+void		autoload_font(bool);
 
 /*
  * Plug-and-play enumerator/configurator interface.
@@ -257,6 +260,8 @@ void file_addmetadata(struct preloaded_file *, int, size_t, void *);
 int file_addmodule(struct preloaded_file *, char *, int,
     struct kernel_module **);
 void file_removemetadata(struct preloaded_file *fp);
+
+vm_offset_t build_font_module(vm_offset_t);
 
 /* MI module loaders */
 #ifdef __elfN

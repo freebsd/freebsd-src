@@ -145,6 +145,7 @@ void	biosacpi_detect(void);
 
 int	i386_autoload(void);
 
+void	bi_load_vbe_data(struct preloaded_file *kfp);
 int	bi_getboothowto(char *kargs);
 void	bi_setboothowto(int howto);
 vm_offset_t	bi_copyenv(vm_offset_t addr);

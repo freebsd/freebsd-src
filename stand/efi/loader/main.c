@@ -1155,6 +1155,7 @@ main(int argc, CHAR16 *argv[])
 		    !interactive_interrupt("Failed to find bootable partition"))
 			return (EFI_NOT_FOUND);
 
+	autoload_font(false);	/* Set up the font list for console. */
 	efi_init_environment();
 
 #if !defined(__arm__)
@@ -1354,7 +1355,7 @@ command_mode(int argc, char *argv[])
 			printf("couldn't set mode %d\n", mode);
 			return (CMD_ERROR);
 		}
-		(void) efi_cons_update_mode();
+		(void) cons_update_mode(true);
 		return (CMD_OK);
 	}
 

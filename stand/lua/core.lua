@@ -383,6 +383,19 @@ function core.isZFSBoot()
 	return false
 end
 
+function core.isFramebufferConsole()
+	local c = loader.getenv("console")
+	if c ~= nil then
+		if c:find("efi") == nil and c:find("vidconsole") == nil then
+			return false
+		end
+		if loader.getenv("screen.depth") ~= nil then
+			return true
+		end
+	end
+	return false
+end
+
 function core.isSerialConsole()
 	local c = loader.getenv("console")
 	if c ~= nil then

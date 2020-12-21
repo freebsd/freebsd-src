@@ -8,9 +8,15 @@ SRCS+=	boot.c commands.c console.c devopen.c interp.c
 SRCS+=	interp_backslash.c interp_parse.c ls.c misc.c 
 SRCS+=	module.c nvstore.c
 
+CFLAGS.module.c += -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
+
 .if ${MACHINE} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	load_elf32.c load_elf32_obj.c reloc_elf32.c
 SRCS+=	load_elf64.c load_elf64_obj.c reloc_elf64.c
+SRCS+=  pnglite.c
+.PATH: ${SRCTOP}/contrib/pnglite
+CFLAGS.pnglite.c+= -I${SRCTOP}/contrib/pnglite
+CFLAGS.pnglite.c+= -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
 .elif ${MACHINE_CPUARCH} == "aarch64"
 SRCS+=	load_elf64.c reloc_elf64.c
 .elif ${MACHINE_CPUARCH} == "arm"

@@ -32,9 +32,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <sys/boot.h>
 #include <sys/linker.h>
+#include <gfx_fb.h>
 #include "bootstrap.h"
 #include "libi386.h"
+#include "vbe.h"
 #include "btxv86.h"
+
+void
+bi_load_vbe_data(struct preloaded_file *kfp)
+{
+	if (vbe_available()) {
+		file_addmetadata(kfp, MODINFOMD_VBE_FB,
+		    sizeof(gfx_state.tg_fb), &gfx_state.tg_fb);
+	}
+}
 
 int
 bi_getboothowto(char *kargs)

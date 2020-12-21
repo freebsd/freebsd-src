@@ -35,6 +35,7 @@ CFLAGS+=	-I${BOOTSRC}/userboot
 CFLAGS.main.c+=	-I${BOOTSRC}/libsa/zfs
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include
 CFLAGS.main.c+=	-I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
+CFLAGS.userboot_cons.c+= -I$(SRCTOP)/sys/teken -I${SRCTOP}/contrib/pnglite
 CWARNFLAGS.main.c += -Wno-implicit-function-declaration
 
 LDFLAGS+=	-nostdlib -Wl,-Bsymbolic

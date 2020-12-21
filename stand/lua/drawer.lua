@@ -202,7 +202,7 @@ local function defaultframe()
 	return "double"
 end
 
-local function drawbox()
+local function drawframe()
 	local x = menu_position.x - 3
 	local y = menu_position.y - 1
 	local w = frame_size.w
@@ -213,7 +213,7 @@ local function drawbox()
 	-- If we don't have a framespec for the current frame style, just don't
 	-- draw a box.
 	if framespec == nil then
-		return
+		return false
 	end
 
 	local hl = framespec.horizontal
@@ -226,6 +226,11 @@ local function drawbox()
 
 	x = x + shift.x
 	y = y + shift.y
+
+	if core.isFramebufferConsole() and loader.term_drawrect ~= nil then
+		loader.term_drawrect(x, y, x + w, y + h)
+		return true
+	end
 
 	screen.setcursor(x, y); printc(tl)
 	screen.setcursor(x, y + h); printc(bl)
@@ -248,11 +253,24 @@ local function drawbox()
 		screen.setcursor(x + w, y + i)
 		printc(vl)
 	end
+	return true
+end
 
+local function drawbox()
+	local x = menu_position.x - 3
+	local y = menu_position.y - 1
+	local w = frame_size.w
 	local menu_header = loader.getenv("loader_menu_title") or
 	    "Welcome to FreeBSD"
 	local menu_header_align = loader.getenv("loader_menu_title_align")
 	local menu_header_x
+
+	x = x + shift.x
+	y = y + shift.y
+
+	if drawframe(x, y, w) == false then
+		return
+	end
 
 	if menu_header_align ~= nil then
 		menu_header_align = menu_header_align:lower()
@@ -287,6 +305,14 @@ local function drawbrand()
 
 	x = x + shift.x
 	y = y + shift.y
+	if core.isFramebufferConsole() and
+	    loader.term_putimage ~= nil and
+	    branddef.image ~= nil then
+		if loader.term_putimage(branddef.image, 0, 0, 0, 7, 0)
+		then
+			return true
+		end
+	end
 	draw(x, y, graphic)
 end
 
@@ -330,7 +356,31 @@ local function drawlogo()
 		y = y + logodef.shift.y
 	end
 
+	if core.isFramebufferConsole() and
+	    loader.term_putimage ~= nil and
+	    logodef.image ~= nil then
+		local y1 = 15
+
+		if logodef.image_rl ~= nil then
+			y1 = logodef.image_rl
+		end
+		if loader.term_putimage(logodef.image, x, y, 0, y + y1, 0)
+		then
+			return true
+		end
+	end
 	draw(x, y, logodef.graphic)
+end
+
+local function drawitem(func)
+	local console = loader.getenv("console")
+	local c
+
+	for c in string.gmatch(console, "%w+") do
+		loader.setenv("console", c)
+		func()
+	end
+	loader.setenv("console", console)
 end
 
 fbsd_brand = {
@@ -378,6 +428,7 @@ branddefs = {
 	-- keys are: graphic (table depicting graphic)
 	["fbsd"] = {
 		graphic = fbsd_brand,
+		image = "/boot/images/freebsd-brand-rev.png",
 	},
 	["none"] = {
 		graphic = none,
@@ -458,9 +509,9 @@ drawer.frame_styles = {
 function drawer.drawscreen(menudef)
 	-- drawlogo() must go first.
 	-- it determines the positions of other elements
-	drawlogo()
-	drawbrand()
-	drawbox()
+	drawitem(drawlogo)
+	drawitem(drawbrand)
+	drawitem(drawbox)
 	return drawmenu(menudef)
 end
 

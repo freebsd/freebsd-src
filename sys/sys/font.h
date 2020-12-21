@@ -93,9 +93,10 @@ typedef struct vt_font_bitmap_data {
 } vt_font_bitmap_data_t;
 
 typedef enum {
-        FONT_AUTO,
-        FONT_MANUAL,
-        FONT_BOOT
+	FONT_AUTO,	/* This font is loaded by software */
+	FONT_MANUAL,	/* This font is loaded manually by user */
+	FONT_BUILTIN,	/* This font was built in at compile time */
+	FONT_RELOAD	/* This font is marked to be re-read from file */
 } FONT_FLAGS;
 
 struct fontlist {

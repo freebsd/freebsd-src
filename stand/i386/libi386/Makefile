@@ -9,7 +9,7 @@ SRCS=	bio.c biosacpi.c biosdisk.c biosmem.c biospnp.c \
 	comconsole.c devicename.c elf32_freebsd.c \
 	elf64_freebsd.c multiboot.c multiboot_tramp.S relocater_tramp.S \
 	i386_copy.c i386_module.c nullconsole.c pxe.c pxetramp.S \
-	time.c vidconsole.c amd64_tramp.S spinconsole.c
+	time.c vidconsole.c vbe.c amd64_tramp.S spinconsole.c
 .PATH:	${ZFSSRC}
 SRCS+=  devicename_stubs.c
 CFLAGS+= -I${ZFSSRC}
@@ -29,8 +29,13 @@ CFLAGS+= -DDISK_DEBUG
 .endif
 
 # terminal emulation
-CFLAGS.vidconsole.c+= -I${SRCTOP}/sys/teken
+.if ${BOOT_FRAMEBUFFER_MODE:Uno} == "yes"
+CFLAGS.vidconsole.c+= -DFRAMEBUFFER_MODE
+.endif
+CFLAGS.vidconsole.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
+CFLAGS.bootinfo.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
+CFLAGS.vbe.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
 
 # XXX: make alloca() useable
 CFLAGS+= -Dalloca=__builtin_alloca

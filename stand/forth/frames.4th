@@ -121,6 +121,20 @@ only forth definitions also frame-drawing
 ;
 
 : box	( w h x y -- )	\ Draw a box
+	framebuffer? if
+		s" term-drawrect" sfind if
+			>R
+			rot		( w x y h )
+			over + >R	( w x y -- R: y+h )
+			swap rot	( y x w -- R: y+h )
+			over + >R	( y x -- R: y+h x+w )
+			swap R> R> R> execute
+			exit
+		else
+			drop
+		then
+	then
+	\ Non-framebuffer version
 	2dup 1+ 4 pick 1- -rot
 	vline		\ Draw left vert line
 	2dup 1+ swap 5 pick + swap 4 pick 1- -rot

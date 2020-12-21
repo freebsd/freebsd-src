@@ -34,6 +34,18 @@
 
 : brand ( x y -- ) \ "FreeBSD" [wide] logo in B/W (7 rows x 42 columns)
 
+	framebuffer? if
+		s" term-putimage" sfind if
+			\ note, we use 0, 0 for image upper left as origin,
+			\ and 0, 7 for lower right to preserve aspect ratio
+			>r 0 0 0 0 7
+			s" /boot/images/freebsd-brand-rev.png"
+			r> execute if 2drop exit then
+		else
+			drop
+		then
+	then
+
 	s"  ______               ____   _____ _____  " brand+
 	s" |  ____|             |  _ \ / ____|  __ \ " brand+
 	s" | |___ _ __ ___  ___ | |_) | (___ | |  | |" brand+

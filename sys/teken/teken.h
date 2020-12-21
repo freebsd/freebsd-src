@@ -48,6 +48,7 @@ typedef unsigned char teken_format_t;
 #define	TF_BLINK	0x04	/* Blinking character. */
 #define	TF_REVERSE	0x08	/* Reverse rendered character. */
 #define	TF_CJK_RIGHT	0x10	/* Right-hand side of CJK character. */
+#define	TF_IMAGE	0x20	/* This character space has image. */
 typedef unsigned char teken_color_t;
 #define	TC_BLACK	0
 #define	TC_RED		1

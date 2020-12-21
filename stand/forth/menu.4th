@@ -991,6 +991,24 @@ only forth definitions also menu-infrastructure
 	menu-create
 ;
 
+: menu-box
+	f_double	( default frame type )
+	\ Interpret a custom frame type for the menu
+	TRUE ( draw a box? default yes, but might be altered below )
+	s" loader_menu_frame" getenv dup -1 = if ( 1 )
+		drop \ no custom frame type
+	else ( 1 )  2dup s" single" compare-insensitive 0= if ( 2 )
+		f_single ( see frames.4th )
+	else ( 2 )  2dup s" double" compare-insensitive 0= if ( 3 )
+		f_double ( see frames.4th )
+	else ( 3 ) s" none" compare-insensitive 0= if ( 4 )
+		drop FALSE \ don't draw a box
+	( 4 ) then ( 3 ) then ( 2 )  then ( 1 ) then
+	if
+		42 13 menuX @ 3 - menuY @ 1- box \ Draw frame (w,h,x,y)
+	then
+;
+
 \ This function initializes the menu. Call this from your `loader.rc' file
 \ before calling any other menu-related functions.
 \ 
@@ -1021,21 +1039,7 @@ only forth definitions also menu-infrastructure
 	then
 	menuX !
 
-	\ Interpret a custom frame type for the menu
-	TRUE ( draw a box? default yes, but might be altered below )
-	s" loader_menu_frame" getenv dup -1 = if ( 1 )
-		drop \ no custom frame type
-	else ( 1 )  2dup s" single" compare-insensitive 0= if ( 2 )
-		f_single ( see frames.4th )
-	else ( 2 )  2dup s" double" compare-insensitive 0= if ( 3 )
-		f_double ( see frames.4th )
-	else ( 3 ) s" none" compare-insensitive 0= if ( 4 )
-		drop FALSE \ don't draw a box
-	( 4 ) then ( 3 ) then ( 2 )  then ( 1 ) then
-	if
-		42 13 menuX @ 3 - menuY @ 1- box \ Draw frame (w,h,x,y)
-	then
-
+	['] menu-box console-iterate
 	0 25 at-xy \ Move cursor to the bottom for output
 ;
 

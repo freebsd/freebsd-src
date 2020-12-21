@@ -447,7 +447,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	 */
 	uint32_t		mdt[] = {
 	    MODINFOMD_SSYM, MODINFOMD_ESYM, MODINFOMD_KERNEND,
-	    MODINFOMD_ENVP,
+	    MODINFOMD_ENVP, MODINFOMD_FONT,
 #if defined(LOADER_FDT_SUPPORT)
 	    MODINFOMD_DTBP
 #endif
@@ -480,6 +480,11 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	/* Pad to a page boundary. */
 	addr = roundup(addr, PAGE_SIZE);
 
+	addr = build_font_module(addr);
+
+	/* Pad to a page boundary. */
+	addr = roundup(addr, PAGE_SIZE);
+
 	/* Copy our environment. */
 	envp = addr;
 	addr = bi_copyenv(addr);
@@ -503,17 +508,17 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	kernend = 0;	/* fill it in later */
-	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
-	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
+	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof(howto), &howto);
+	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof(envp), &envp);
 #if defined(LOADER_FDT_SUPPORT)
 	if (dtb_size)
-		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
+		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof(dtbp), &dtbp);
 	else
 		printf("WARNING! Trying to fire up the kernel, but no "
 		    "device tree blob found!\n");
 #endif
-	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
-	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof ST, &ST);
+	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof(kernend), &kernend);
+	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(ST), &ST);
 #ifdef LOADER_GELI_SUPPORT
 	geli_export_key_metadata(kfp);
 #endif

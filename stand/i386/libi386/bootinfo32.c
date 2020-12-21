@@ -205,6 +205,8 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
 
+    addr = build_font_module(addr);
+
     /* copy our environment */
     envp = addr;
     addr = bi_copyenv(addr);
@@ -225,6 +227,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
 #ifdef LOADER_GELI_SUPPORT
     geli_export_key_metadata(kfp);
 #endif
+    bi_load_vbe_data(kfp);
 
     /* Figure out the size and location of the metadata */
     *modulep = addr;

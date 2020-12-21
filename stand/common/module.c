@@ -38,6 +38,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/queue.h>
 #include <sys/stdint.h>
+#include <sys/font.h>
+#include <gfx_fb.h>
 
 #if defined(LOADER_FDT_SUPPORT)
 #include <fdt_platform.h>
@@ -90,7 +92,6 @@ static char *kld_ext_list[] = {
     ".debug",
     NULL
 };
-
 
 /*
  * load an object, either a disk file or code module.
@@ -616,6 +617,92 @@ file_load_dependencies(struct preloaded_file *base_file)
 	return (error);
 }
 
+vm_offset_t
+build_font_module(vm_offset_t addr)
+{
+	vt_font_bitmap_data_t *bd;
+	struct vt_font *fd;
+	struct preloaded_file *fp;
+	size_t size;
+	uint32_t checksum;
+	int i;
+	struct font_info fi;
+	struct fontlist *fl;
+	uint64_t fontp;
+
+	if (STAILQ_EMPTY(&fonts))
+		return (addr);
+
+	/* We can't load first */
+	if ((file_findfile(NULL, NULL)) == NULL) {
+		printf("Can not load font module: %s\n",
+		    "the kernel is not loaded");
+		return (addr);
+	}
+
+	/* helper pointers */
+	bd = NULL;
+	STAILQ_FOREACH(fl, &fonts, font_next) {
+		if (gfx_state.tg_font.vf_width == fl->font_data->vfbd_width &&
+		    gfx_state.tg_font.vf_height == fl->font_data->vfbd_height) {
+			/*
+			 * Kernel does have better built in font.
+			 */
+			if (fl->font_flags == FONT_BUILTIN)
+				return (addr);
+
+			bd = fl->font_data;
+			break;
+		}
+	}
+	if (bd == NULL)
+		return (addr);
+	fd = bd->vfbd_font;
+
+	fi.fi_width = fd->vf_width;
+	checksum = fi.fi_width;
+	fi.fi_height = fd->vf_height;
+	checksum += fi.fi_height;
+	fi.fi_bitmap_size = bd->vfbd_uncompressed_size;
+	checksum += fi.fi_bitmap_size;
+
+	size = roundup2(sizeof (struct font_info), 8);
+	for (i = 0; i < VFNT_MAPS; i++) {
+		fi.fi_map_count[i] = fd->vf_map_count[i];
+		checksum += fi.fi_map_count[i];
+		size += fd->vf_map_count[i] * sizeof (struct vfnt_map);
+		size += roundup2(size, 8);
+	}
+	size += bd->vfbd_uncompressed_size;
+
+	fi.fi_checksum = -checksum;
+
+	fp = file_findfile(NULL, "elf kernel");
+	if (fp == NULL)
+		fp = file_findfile(NULL, "elf64 kernel");
+	if (fp == NULL)
+		panic("can't find kernel file");
+
+	fontp = addr;
+	addr += archsw.arch_copyin(&fi, addr, sizeof (struct font_info));
+	addr = roundup2(addr, 8);
+
+	/* Copy maps. */
+	for (i = 0; i < VFNT_MAPS; i++) {
+		if (fd->vf_map_count[i] != 0) {
+			addr += archsw.arch_copyin(fd->vf_map[i], addr,
+			    fd->vf_map_count[i] * sizeof (struct vfnt_map));
+			addr = roundup2(addr, 8);
+		}
+	}
+
+	/* Copy the bitmap. */
+	addr += archsw.arch_copyin(fd->vf_bytes, addr, fi.fi_bitmap_size);
+
+	/* Looks OK so far; populate control structure */
+	file_addmetadata(fp, MODINFOMD_FONT, sizeof(fontp), &fontp);
+	return (addr);
+}
 
 #ifdef LOADER_VERIEXEC_VECTX
 #define VECTX_HANDLE(fd) vctx

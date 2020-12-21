@@ -56,7 +56,7 @@ function color.isEnabled()
 	if c ~= nil then
 		return c:lower() ~= "no" and c ~= "0"
 	end
-	return not core.isSerialBoot()
+	return true
 end
 
 function color.escapefg(color_value)

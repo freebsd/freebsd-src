@@ -227,6 +227,8 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
 
+    addr = build_font_module(addr);
+
     /* place the metadata before anything */
     module = *modulep = addr;
 
@@ -245,6 +247,7 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
 #ifdef LOADER_GELI_SUPPORT
     geli_export_key_metadata(kfp);
 #endif
+    bi_load_vbe_data(kfp);
 
     size = bi_copymodules64(0);
 
