@@ -1216,7 +1216,8 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 	struct cdevsw *csw;
 	struct cdev *dev;
 	struct kaioinfo *ki;
-	int error, ref, poff;
+	struct vm_page **pages;
+	int error, npages, poff, ref;
 	vm_prot_t prot;
 
 	cb = &job->uaiocb;
@@ -1259,7 +1260,7 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 		}
 
 		pbuf = NULL;
-		job->pages = malloc(sizeof(vm_page_t) * (atop(round_page(
+		pages = malloc(sizeof(vm_page_t) * (atop(round_page(
 		    cb->aio_nbytes)) + 1), M_TEMP, M_WAITOK | M_ZERO);
 	} else {
 		if (cb->aio_nbytes > maxphys) {
@@ -1271,14 +1272,14 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 			goto unref;
 		}
 
-		job->pbuf = pbuf = uma_zalloc(pbuf_zone, M_WAITOK);
+		pbuf = uma_zalloc(pbuf_zone, M_WAITOK);
 		BUF_KERNPROC(pbuf);
 		AIO_LOCK(ki);
 		ki->kaio_buffer_count++;
 		AIO_UNLOCK(ki);
-		job->pages = pbuf->b_pages;
+		pages = pbuf->b_pages;
 	}
-	job->bp = bp = g_alloc_bio();
+	bp = g_alloc_bio();
 
 	bp->bio_length = cb->aio_nbytes;
 	bp->bio_bcount = cb->aio_nbytes;
@@ -1286,26 +1287,27 @@ aio_qbio(struct proc *p, struct kaiocb *job)
 	bp->bio_offset = cb->aio_offset;
 	bp->bio_cmd = cb->aio_lio_opcode == LIO_WRITE ? BIO_WRITE : BIO_READ;
 	bp->bio_dev = dev;
-	bp->bio_caller1 = (void *)job;
+	bp->bio_caller1 = job;
+	bp->bio_caller2 = pbuf;
 
 	prot = VM_PROT_READ;
 	if (cb->aio_lio_opcode == LIO_READ)
 		prot |= VM_PROT_WRITE;	/* Less backwards than it looks */
-	job->npages = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
-	    (vm_offset_t)cb->aio_buf, bp->bio_length, prot, job->pages,
+	npages = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
+	    (vm_offset_t)cb->aio_buf, bp->bio_length, prot, pages,
 	    atop(maxphys) + 1);
-	if (job->npages < 0) {
+	if (npages < 0) {
 		error = EFAULT;
 		goto doerror;
 	}
 	if (pbuf != NULL) {
-		pmap_qenter((vm_offset_t)pbuf->b_data,
-		    job->pages, job->npages);
+		pmap_qenter((vm_offset_t)pbuf->b_data, pages, npages);
 		bp->bio_data = pbuf->b_data + poff;
 		atomic_add_int(&num_buf_aio, 1);
+		pbuf->b_npages = npages;
 	} else {
-		bp->bio_ma = job->pages;
-		bp->bio_ma_n = job->npages;
+		bp->bio_ma = pages;
+		bp->bio_ma_n = npages;
 		bp->bio_ma_offset = poff;
 		bp->bio_data = unmapped_buf;
 		bp->bio_flags |= BIO_UNMAPPED;
@@ -1323,12 +1325,10 @@ doerror:
 		ki->kaio_buffer_count--;
 		AIO_UNLOCK(ki);
 		uma_zfree(pbuf_zone, pbuf);
-		job->pbuf = NULL;
 	} else {
-		free(job->pages, M_TEMP);
+		free(pages, M_TEMP);
 	}
 	g_destroy_bio(bp);
-	job->bp = NULL;
 unref:
 	dev_relthread(dev, ref);
 	return (error);
@@ -2341,28 +2341,28 @@ aio_biowakeup(struct bio *bp)
 {
 	struct kaiocb *job = (struct kaiocb *)bp->bio_caller1;
 	struct kaioinfo *ki;
+	struct buf *pbuf = (struct buf*)bp->bio_caller2;
 	size_t nbytes;
 	int error, nblks;
 
 	/* Release mapping into kernel space. */
-	if (job->pbuf != NULL) {
-		pmap_qremove((vm_offset_t)job->pbuf->b_data, job->npages);
-		vm_page_unhold_pages(job->pages, job->npages);
-		uma_zfree(pbuf_zone, job->pbuf);
-		job->pbuf = NULL;
+	if (pbuf != NULL) {
+		MPASS(pbuf->b_npages <= atop(maxphys) + 1);
+		pmap_qremove((vm_offset_t)pbuf->b_data, pbuf->b_npages);
+		vm_page_unhold_pages(pbuf->b_pages, pbuf->b_npages);
+		uma_zfree(pbuf_zone, pbuf);
 		atomic_subtract_int(&num_buf_aio, 1);
 		ki = job->userproc->p_aioinfo;
 		AIO_LOCK(ki);
 		ki->kaio_buffer_count--;
 		AIO_UNLOCK(ki);
 	} else {
-		vm_page_unhold_pages(job->pages, job->npages);
-		free(job->pages, M_TEMP);
+		MPASS(bp->bio_ma_n <= atop(maxphys) + 1);
+		vm_page_unhold_pages(bp->bio_ma, bp->bio_ma_n);
+		free(bp->bio_ma, M_TEMP);
 		atomic_subtract_int(&num_unmapped_aio, 1);
 	}
 
-	bp = job->bp;
-	job->bp = NULL;
 	nbytes = job->uaiocb.aio_nbytes - bp->bio_resid;
 	error = 0;
 	if (bp->bio_flags & BIO_ERROR)
