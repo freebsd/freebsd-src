@@ -536,13 +536,14 @@ cyapa_attach(device_t dev)
 	    cap.phy_siz_x_low;
 	sc->cap_phyy = ((cap.phy_siz_xy_high << 8) & 0x0F00) |
 	    cap.phy_siz_y_low;
-	sc->cap_buttons = cap.buttons;
+	sc->cap_buttons = cap.buttons >> 3 &
+	    (CYAPA_FNGR_LEFT | CYAPA_FNGR_RIGHT | CYAPA_FNGR_MIDDLE);
 
 	device_printf(dev, "%5.5s-%6.6s-%2.2s buttons=%c%c%c res=%dx%d\n",
 	    cap.prod_ida, cap.prod_idb, cap.prod_idc,
-	    ((cap.buttons & CYAPA_FNGR_LEFT) ? 'L' : '-'),
-	    ((cap.buttons & CYAPA_FNGR_MIDDLE) ? 'M' : '-'),
-	    ((cap.buttons & CYAPA_FNGR_RIGHT) ? 'R' : '-'),
+	    ((sc->cap_buttons & CYAPA_FNGR_LEFT) ? 'L' : '-'),
+	    ((sc->cap_buttons & CYAPA_FNGR_MIDDLE) ? 'M' : '-'),
+	    ((sc->cap_buttons & CYAPA_FNGR_RIGHT) ? 'R' : '-'),
 	    sc->cap_resx, sc->cap_resy);
 
 	sc->hw.buttons = 5;
