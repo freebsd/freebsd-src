@@ -237,6 +237,7 @@ _LIBRARIES=	\
 		usb \
 		usbhid \
 		util \
+		uvmem \
 		uutil \
 		verto \
 		vmmapi \
@@ -491,6 +492,7 @@ _DP_fifolog=	z
 _DP_ipf=	kvm
 _DP_tpool=	spl
 _DP_uutil=	avl spl
+_DP_uvmem=	pthread
 _DP_zfs=	md pthread rt umem util uutil m avl bsdxml crypto geom nvpair \
 	z zfs_core zutil
 _DP_zfsbootenv= zfs nvpair
@@ -766,6 +768,9 @@ LIBSYS_PIC?=	${LIBSYS_PICDIR}/libsys_pic.a
 
 LIBSAMPLERATEDIR?=	${_LIB_OBJTOP}/lib/libsamplerate
 LIBSAMPLERATE?=	${LIBSAMPLERATEDIR}/libsamplerate${PIE_SUFFIX}.a
+
+LIBUVMEMDIR=	${OBJTOP}/lib/libuvmem
+LIBUVMEM?=	${LIBUVMEMDIR}/libuvmem${PIE_SUFFIX}.a
 
 # Define a directory for each library.  This is useful for adding -L in when
 # not using a --sysroot or for meta mode bootstrapping when there is no

@@ -1,0 +1,15 @@
+FBSD_1.9 {
+	 vmem_add;
+	 vmem_alloc;
+	 vmem_create;
+	 vmem_destroy;
+	 vmem_free;
+	 vmem_init;
+	 vmem_roundup_size;
+	 vmem_set_import;
+	 vmem_set_limit;
+	 vmem_set_reclaim;
+	 vmem_size;
+	 vmem_xalloc;
+	 vmem_xfree;
+};

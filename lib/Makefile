@@ -107,6 +107,7 @@ SUBDIR=	${SUBDIR_BOOTSTRAP} \
 	libulog \
 	libutil \
 	libutil++ \
+	libuvmem \
 	${_libvgl} \
 	libwrap \
 	libxo \
