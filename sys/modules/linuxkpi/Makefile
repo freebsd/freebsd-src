@@ -17,6 +17,7 @@ SRCS=	linux_compat.c \
 	linux_seq_file.c \
 	linux_schedule.c \
 	linux_shmemfs.c \
+	linux_shrinker.c \
 	linux_slab.c \
 	linux_tasklet.c \
 	linux_usb.c \
