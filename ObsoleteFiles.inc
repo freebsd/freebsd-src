@@ -36,6 +36,20 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20201225: libregex removed
+OLD_FILES+=usr/lib/libgnuregex.so
+OLD_LIBS+=usr/lib/libgnuregex.so.5
+OLD_FILES+=usr/lib/libgnuregex_p.a
+OLD_FILES+=usr/include/gnu/posix/regex.h
+OLD_DIRS+=usr/include/gnu/posix
+OLD_FILES+=usr/include/gnu/regex.h
+OLD_DIRS+=usr/include/gnu
+OLD_FILES+=usr/include/gnuregex.h
+
+# 20201225: gnugrep removed
+OLD_FILES+=usr/bin/gnugrep
+OLD_FILES+=usr/share/man/man1/gnugrep.1.gz
+
 # 20201224: mk48txx(4) removed
 OLD_FILES+=usr/share/man/man4/mk48txx.4.gz
 
