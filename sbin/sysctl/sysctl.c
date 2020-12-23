@@ -71,7 +71,7 @@ static int	oidfmt(int *, int, char *, u_int *);
 static int	parsefile(const char *);
 static int	parse(const char *, int);
 static int	show_var(int *, int, bool);
-static int	sysctl_all(int *oid, int len);
+static int	sysctl_all(int *, int);
 static int	name2oid(const char *, int *);
 
 static int	strIKtoi(const char *, char **, const char *);
