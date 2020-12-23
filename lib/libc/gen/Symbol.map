@@ -422,6 +422,9 @@ FBSD_1.5 {
 };
 
 FBSD_1.6 {
+	eventfd;
+	eventfd_read;
+	eventfd_write;
 	getlogin_r;
 	memalign;
 	scandir_b;
