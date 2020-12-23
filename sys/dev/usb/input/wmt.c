@@ -255,7 +255,6 @@ struct wmt_softc {
 		if (USAGE_SUPPORTED((caps), (usage)))
 
 static enum wmt_type wmt_hid_parse(struct wmt_softc *, const void *, uint16_t);
-static void wmt_cont_max_parse(struct wmt_softc *, const void *, uint16_t);
 static int wmt_set_input_mode(struct wmt_softc *, enum wmt_input_mode);
 
 static usb_callback_t	wmt_intr_callback;
@@ -340,6 +339,7 @@ wmt_attach(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct wmt_softc *sc = device_get_softc(dev);
+	uint32_t cont_count_max;
 	int nbuttons, btn;
 	size_t i;
 	int err;
@@ -352,9 +352,16 @@ wmt_attach(device_t dev)
 		err = usbd_req_get_report(uaa->device, NULL, sc->buf,
 		    sc->cont_max_rlen, uaa->info.bIfaceIndex,
 		    UHID_FEATURE_REPORT, sc->cont_max_rid);
-		if (err == USB_ERR_NORMAL_COMPLETION)
-			wmt_cont_max_parse(sc, sc->buf, sc->cont_max_rlen);
-		else
+		if (err == USB_ERR_NORMAL_COMPLETION) {
+			cont_count_max = hid_get_data_unsigned(sc->buf + 1,
+			    sc->cont_max_rlen - 1, &sc->cont_max_loc);
+			/*
+			 * Feature report is a primary source of
+			 * 'Contact Count Maximum'
+			 */
+			if (cont_count_max > 0)
+				sc->ai[WMT_SLOT].max = cont_count_max - 1;
+		} else
 			DPRINTF("usbd_req_get_report error=(%s)\n",
 			    usbd_errstr(err));
 	} else
@@ -389,6 +396,13 @@ wmt_attach(device_t dev)
 		err = wmt_set_input_mode(sc, WMT_INPUT_MODE_MT_TOUCHPAD);
 		if (err != 0)
 			DPRINTF("Failed to set input mode: %d\n", err);
+	}
+
+	/* Cap contact count maximum to MAX_MT_SLOTS */
+	if (sc->ai[WMT_SLOT].max >= MAX_MT_SLOTS) {
+		DPRINTF("Hardware reported %d contacts while only %d is "
+		    "supported\n", (int)sc->ai[WMT_SLOT].max+1, MAX_MT_SLOTS);
+		sc->ai[WMT_SLOT].max = MAX_MT_SLOTS - 1;
 	}
 
 	if (/*usb_test_quirk(hw, UQ_MT_TIMESTAMP) ||*/ wmt_timestamps)
@@ -972,10 +986,6 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	if (cont_count_max < 1)
 		cont_count_max = cont;
 
-	/* Cap contact count maximum to MAX_MT_SLOTS */
-	if (cont_count_max > MAX_MT_SLOTS)
-		cont_count_max = MAX_MT_SLOTS;
-
 	/* Set number of MT protocol type B slots */
 	sc->ai[WMT_SLOT] = (struct wmt_absinfo) {
 		.min = 0,
@@ -1007,27 +1017,6 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	sc->has_int_button = has_int_button;
 
 	return (type);
-}
-
-static void
-wmt_cont_max_parse(struct wmt_softc *sc, const void *r_ptr, uint16_t r_len)
-{
-	uint32_t cont_count_max;
-
-	cont_count_max = hid_get_data_unsigned((const uint8_t *)r_ptr + 1,
-	    r_len - 1, &sc->cont_max_loc);
-	if (cont_count_max > MAX_MT_SLOTS) {
-		DPRINTF("Hardware reported %d contacts while only %d is "
-		    "supported\n", (int)cont_count_max, MAX_MT_SLOTS);
-		cont_count_max = MAX_MT_SLOTS;
-	}
-	/* Feature report is a primary source of 'Contact Count Maximum' */
-	if (cont_count_max > 0 &&
-	    cont_count_max != sc->ai[WMT_SLOT].max + 1) {
-		sc->ai[WMT_SLOT].max = cont_count_max - 1;
-		device_printf(sc->dev, "%d feature report contacts",
-		    cont_count_max);
-	}
 }
 
 static int
