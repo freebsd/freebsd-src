@@ -3166,12 +3166,10 @@ vnet_netgraph_uninit(const void *unused __unused)
 		/* Attempt to kill it only if it is a regular node */
 		if (node != NULL) {
 			if (node == last_killed) {
-				/* This should never happen */
-				printf("ng node %s needs NGF_REALLY_DIE\n",
-				    node->nd_name);
 				if (node->nd_flags & NGF_REALLY_DIE)
 					panic("ng node %s won't die",
 					    node->nd_name);
+				/* The node persisted itself.  Try again. */
 				node->nd_flags |= NGF_REALLY_DIE;
 			}
 			ng_rmnode(node, NULL, NULL, 0);
