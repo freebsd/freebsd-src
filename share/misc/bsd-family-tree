@@ -810,6 +810,11 @@ NetBSD 9.0 		2020-02-14 [NBD]
 DragonFly 5.8 		2020-03-03 [DFB]
 DragonFly 5.6.3 	2020-03-11 [DFB]
 NetBSD 8.2 		2020-03-31 [NBD]
+OpenBSD 6.7		2020-05-19 [OBD]
+FreeBSD 11.4		2020-06-11 [FBD]
+DragonFly 5.8.3 	2020-09-24 [DFB]
+NetBSD 9.1 		2020-10-18 [NBD]
+OpenBSD 6.8		2020-10-18 [OBD]
 FreeBSD 12.2		2020-10-27 [FBD]
 
 Bibliography
