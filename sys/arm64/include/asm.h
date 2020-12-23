@@ -38,12 +38,15 @@
 
 #define	_C_LABEL(x)	x
 
-#define	ENTRY(sym)						\
-	.text; .globl sym; .align 2; .type sym,#function; sym:	\
+#define	LENTRY(sym)						\
+	.text; .align 2; .type sym,#function; sym:		\
 	.cfi_startproc
+#define	ENTRY(sym)						\
+	.globl sym; LENTRY(sym)
 #define	EENTRY(sym)						\
 	.globl	sym; sym:
-#define	END(sym) .cfi_endproc; .size sym, . - sym
+#define	LEND(sym) .cfi_endproc; .size sym, . - sym
+#define	END(sym) LEND(sym)
 #define	EEND(sym)
 
 #define	WEAK_REFERENCE(sym, alias)				\
