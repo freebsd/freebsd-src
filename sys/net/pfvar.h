@@ -740,8 +740,8 @@ struct pf_state {
 	struct pfi_kif		*rt_kif;
 	struct pf_src_node	*src_node;
 	struct pf_src_node	*nat_src_node;
-	u_int64_t		 packets[2];
-	u_int64_t		 bytes[2];
+	counter_u64_t		 packets[2];
+	counter_u64_t		 bytes[2];
 	u_int32_t		 creation;
 	u_int32_t	 	 expire;
 	u_int32_t		 pfsync_time;

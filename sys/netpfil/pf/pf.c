@@ -1714,6 +1714,13 @@ pf_free_state(struct pf_state *cur)
 	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
 	    cur->timeout));
 
+	for (int i = 0; i < 2; i++) {
+		if (cur->bytes[i] != NULL)
+			counter_u64_free(cur->bytes[i]);
+		if (cur->packets[i] != NULL)
+			counter_u64_free(cur->packets[i]);
+	}
+
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
 	counter_u64_add(V_pf_status.fcounters[FCNT_STATE_REMOVALS], 1);
@@ -3704,6 +3711,16 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		REASON_SET(&reason, PFRES_MEMORY);
 		goto csfailed;
 	}
+	for (int i = 0; i < 2; i++) {
+		s->bytes[i] = counter_u64_alloc(M_NOWAIT);
+		s->packets[i] = counter_u64_alloc(M_NOWAIT);
+
+		if (s->bytes[i] == NULL || s->packets[i] == NULL) {
+			pf_free_state(s);
+			REASON_SET(&reason, PFRES_MEMORY);
+			goto csfailed;
+		}
+	}
 	s->rule.ptr = r;
 	s->nat_rule.ptr = nr;
 	s->anchor.ptr = a;
@@ -4263,8 +4280,9 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 			pf_print_flags(th->th_flags);
 			printf(" seq=%u (%u) ack=%u len=%u ackskew=%d "
 			    "pkts=%llu:%llu dir=%s,%s\n", seq, orig_seq, ack,
-			    pd->p_len, ackskew, (unsigned long long)(*state)->packets[0],
-			    (unsigned long long)(*state)->packets[1],
+			    pd->p_len, ackskew,
+			    (unsigned long long)counter_u64_fetch((*state)->packets[0]),
+			    (unsigned long long)counter_u64_fetch((*state)->packets[1]),
 			    pd->dir == PF_IN ? "in" : "out",
 			    pd->dir == (*state)->direction ? "fwd" : "rev");
 		}
@@ -4319,8 +4337,8 @@ pf_tcp_track_full(struct pf_state_peer *src, struct pf_state_peer *dst,
 			printf(" seq=%u (%u) ack=%u len=%u ackskew=%d "
 			    "pkts=%llu:%llu dir=%s,%s\n",
 			    seq, orig_seq, ack, pd->p_len, ackskew,
-			    (unsigned long long)(*state)->packets[0],
-			    (unsigned long long)(*state)->packets[1],
+			    (unsigned long long)counter_u64_fetch((*state)->packets[0]),
+			    (unsigned long long)counter_u64_fetch((*state)->packets[1]),
 			    pd->dir == PF_IN ? "in" : "out",
 			    pd->dir == (*state)->direction ? "fwd" : "rev");
 			printf("pf: State failure on: %c %c %c %c | %c %c\n",
@@ -6179,8 +6197,8 @@ done:
 				s->nat_src_node->bytes[dirndx] += pd.tot_len;
 			}
 			dirndx = (dir == s->direction) ? 0 : 1;
-			s->packets[dirndx]++;
-			s->bytes[dirndx] += pd.tot_len;
+			counter_u64_add(s->packets[dirndx], 1);
+			counter_u64_add(s->bytes[dirndx], pd.tot_len);
 		}
 		tr = r;
 		nr = (s != NULL) ? s->nat_rule.ptr : pd.nat_rule;
@@ -6575,8 +6593,8 @@ done:
 				s->nat_src_node->bytes[dirndx] += pd.tot_len;
 			}
 			dirndx = (dir == s->direction) ? 0 : 1;
-			s->packets[dirndx]++;
-			s->bytes[dirndx] += pd.tot_len;
+			counter_u64_add(s->packets[dirndx], 1);
+			counter_u64_add(s->bytes[dirndx], pd.tot_len);
 		}
 		tr = r;
 		nr = (s != NULL) ? s->nat_rule.ptr : pd.nat_rule;
