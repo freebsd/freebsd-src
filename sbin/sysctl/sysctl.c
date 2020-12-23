@@ -1227,7 +1227,6 @@ sysctl_all(int *oid, int len)
 	int name1[22], name2[22];
 	int i, j;
 	size_t l1, l2;
-	bool honor_skip = false;
 
 	name1[0] = CTL_SYSCTL;
 	name1[1] = (oid != NULL || Nflag || dflag || tflag) ?
@@ -1258,12 +1257,11 @@ sysctl_all(int *oid, int len)
 		if (memcmp(name2, oid, len * sizeof(int)) != 0)
 			return (0);
 
-		i = show_var(name2, l2, honor_skip);
+		i = show_var(name2, l2, true);
 		if (!i && !bflag)
 			putchar('\n');
 
 		memcpy(name1 + 2, name2, l2 * sizeof(int));
 		l1 = 2 + l2;
-		honor_skip = true;
 	}
 }
