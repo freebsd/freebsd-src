@@ -72,6 +72,7 @@
 #define	PS_FST_TYPE_NONE	12
 #define	PS_FST_TYPE_PROCDESC	13
 #define	PS_FST_TYPE_DEV		14
+#define	PS_FST_TYPE_EVENTFD	15
 
 /*
  * Special descriptor numbers.
