@@ -304,6 +304,7 @@ int	kern_socket(struct thread *td, int domain, int type, int protocol);
 int	kern_statat(struct thread *td, int flag, int fd, const char *path,
 	    enum uio_seg pathseg, struct stat *sbp,
 	    void (*hook)(struct vnode *vp, struct stat *sbp));
+int	kern_specialfd(struct thread *td, int type, void *arg);
 int	kern_statfs(struct thread *td, const char *path, enum uio_seg pathseg,
 	    struct statfs *buf);
 int	kern_symlinkat(struct thread *td, const char *path1, int fd,

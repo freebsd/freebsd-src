@@ -3241,6 +3241,13 @@
 		    _In_z_ const char *path
 		);
 	}
+577	AUE_SPECIALFD	STD {
+		int __specialfd(
+		    int type,
+		    _In_reads_bytes_(len) const void *req,
+		    size_t len
+		);
+	}
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
