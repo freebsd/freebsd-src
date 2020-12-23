@@ -60,8 +60,6 @@ __FBSDID("$FreeBSD$");
 #include "virtio_bus_if.h"
 #include "virtio_if.h"
 
-#define	PAGE_SHIFT	12
-
 struct vtmmio_virtqueue {
 	struct virtqueue	*vtv_vq;
 	int			 vtv_no_intr;
