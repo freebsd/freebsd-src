@@ -3926,6 +3926,7 @@ kern/subr_unit.c		standard
 kern/subr_vmem.c		standard
 kern/subr_witness.c		optional witness
 kern/sys_capability.c		standard
+kern/sys_eventfd.c		standard
 kern/sys_generic.c		standard
 kern/sys_getrandom.c		standard
 kern/sys_pipe.c			standard

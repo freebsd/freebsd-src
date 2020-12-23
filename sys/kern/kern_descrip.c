@@ -4609,8 +4609,8 @@ file_type_to_name(short type)
 		return ("dev");
 	case DTYPE_PROCDESC:
 		return ("proc");
-	case DTYPE_LINUXEFD:
-		return ("levent");
+	case DTYPE_EVENTFD:
+		return ("eventfd");
 	case DTYPE_LINUXTFD:
 		return ("ltimer");
 	default:

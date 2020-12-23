@@ -264,6 +264,7 @@ struct user {
 #define	KF_TYPE_PTS	10
 #define	KF_TYPE_PROCDESC	11
 #define	KF_TYPE_DEV	12
+#define	KF_TYPE_EVENTFD	13
 #define	KF_TYPE_UNKNOWN	255
 
 #define	KF_VTYPE_VNON	0
@@ -436,6 +437,10 @@ struct kinfo_file {
 				uint64_t	kf_spareint64[32];
 				pid_t		kf_pid;
 			} kf_proc;
+			struct {
+				uint64_t	kf_eventfd_value;
+				uint32_t	kf_eventfd_flags;
+			} kf_eventfd;
 		} kf_un;
 	};
 	uint16_t	kf_status;		/* Status flags. */

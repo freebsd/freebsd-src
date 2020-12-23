@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 #include <sys/socketvar.h>
 #include <sys/uio.h>
+#include <sys/eventfd.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/selinfo.h>
 #include <sys/sleepqueue.h>
+#include <sys/specialfd.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -856,6 +858,67 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 	error = fo_fallocate(fp, offset, len, td);
  out:
 	fdrop(fp, td);
+	return (error);
+}
+
+int
+kern_specialfd(struct thread *td, int type, void *arg)
+{
+	struct file *fp;
+	struct specialfd_eventfd *ae;
+	int error, fd, fflags;
+
+	fflags = 0;
+	error = falloc_noinstall(td, &fp);
+	if (error != 0)
+		return (error);
+
+	switch (type) {
+	case SPECIALFD_EVENTFD:
+		ae = arg;
+		if ((ae->flags & EFD_CLOEXEC) != 0)
+			fflags |= O_CLOEXEC;
+		error = eventfd_create_file(td, fp, ae->initval, ae->flags);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+
+	if (error == 0)
+		error = finstall(td, fp, &fd, fflags, NULL);
+	fdrop(fp, td);
+	if (error == 0)
+		td->td_retval[0] = fd;
+	return (error);
+}
+
+int
+sys___specialfd(struct thread *td, struct __specialfd_args *args)
+{
+	struct specialfd_eventfd ae;
+	int error;
+
+	switch (args->type) {
+	case SPECIALFD_EVENTFD:
+		if (args->len != sizeof(struct specialfd_eventfd)) {
+			error = EINVAL;
+			break;
+		}
+		error = copyin(args->req, &ae, sizeof(ae));
+		if (error != 0)
+			break;
+		if ((ae.flags & ~(EFD_CLOEXEC | EFD_NONBLOCK |
+		    EFD_SEMAPHORE)) != 0) {
+			error = EINVAL;
+			break;
+		}
+		error = kern_specialfd(td, args->type, &ae);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
 	return (error);
 }
 
