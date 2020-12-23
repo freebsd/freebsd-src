@@ -513,7 +513,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			    (nitspages - 1);
 
 			switch (page_size) {
-			case PAGE_SIZE:		/* 4KB */
+			case PAGE_SIZE_4K:	/* 4KB */
 				reg |=
 				    GITS_BASER_PSZ_4K << GITS_BASER_PSZ_SHIFT;
 				break;
@@ -544,7 +544,7 @@ gicv3_its_table_init(device_t dev, struct gicv3_its_softc *sc)
 			    (reg & GITS_BASER_PSZ_MASK)) {
 				switch (page_size) {
 				case PAGE_SIZE_16K:
-					page_size = PAGE_SIZE;
+					page_size = PAGE_SIZE_4K;
 					continue;
 				case PAGE_SIZE_64K:
 					page_size = PAGE_SIZE_16K;
