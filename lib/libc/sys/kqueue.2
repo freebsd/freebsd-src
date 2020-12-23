@@ -38,7 +38,14 @@
 .Ft int
 .Fn kqueue "void"
 .Ft int
-.Fn kevent "int kq" "const struct kevent *changelist" "int nchanges" "struct kevent *eventlist" "int nevents" "const struct timespec *timeout"
+.Fo kevent
+.Fa "int kq"
+.Fa "const struct kevent *changelist"
+.Fa "int nchanges"
+.Fa "struct kevent *eventlist"
+.Fa "int nevents"
+.Fa "const struct timespec *timeout"
+.Fc
 .Fn EV_SET "kev" ident filter flags fflags data udata
 .Sh DESCRIPTION
 The
