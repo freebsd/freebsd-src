@@ -127,7 +127,8 @@ _start:
 	bl	start_mmu
 
 	/* Load the new ttbr0 pagetable */
-	adr	x27, pagetable_l0_ttbr0
+	adrp	x27, pagetable_l0_ttbr0
+	add	x27, x27, :lo12:pagetable_l0_ttbr0
 
 	/* Jump to the virtual address space */
 	ldr	x15, .Lvirtdone
@@ -135,7 +136,8 @@ _start:
 
 virtdone:
 	/* Set up the stack */
-	adr	x25, initstack_end
+	adrp	x25, initstack_end
+	add	x25, x25, :lo12:initstack_end
 	mov	sp, x25
 	sub	sp, sp, #PCB_SIZE
 
@@ -163,7 +165,8 @@ virtdone:
 	str	x1,  [x0, #BP_MODULEP]
 	str	x26, [x0, #BP_KERN_L1PT]
 	str	x29, [x0, #BP_KERN_DELTA]
-	adr	x25, initstack
+	adrp	x25, initstack
+	add	x25, x25, :lo12:initstack
 	str	x25, [x0, #BP_KERN_STACK]
 	str	x24, [x0, #BP_KERN_L0PT]
 	str	x27, [x0, #BP_KERN_TTBR0]
@@ -206,15 +209,18 @@ ENTRY(mpentry)
 	msr	contextidr_el1, xzr
 
 	/* Load the kernel page table */
-	adr	x24, pagetable_l0_ttbr1
+	adrp	x24, pagetable_l0_ttbr1
+	add	x24, x24, :lo12:pagetable_l0_ttbr1
 	/* Load the identity page table */
-	adr	x27, pagetable_l0_ttbr0_boostrap
+	adrp	x27, pagetable_l0_ttbr0_boostrap
+	add	x27, x27, :lo12:pagetable_l0_ttbr0_boostrap
 
 	/* Enable the mmu */
 	bl	start_mmu
 
 	/* Load the new ttbr0 pagetable */
-	adr	x27, pagetable_l0_ttbr0
+	adrp	x27, pagetable_l0_ttbr0
+	add	x27, x27, :lo12:pagetable_l0_ttbr0
 
 	/* Jump to the virtual address space */
 	ldr	x15, =mp_virtdone
@@ -282,7 +288,8 @@ drop_to_el1:
 	msr	cntvoff_el2, xzr
 
 	/* Hypervisor trap functions */
-	adr	x2, hyp_vectors
+	adrp	x2, hyp_vectors
+	add	x2, x2, :lo12:hyp_vectors
 	msr	vbar_el2, x2
 
 	mov	x2, #(PSR_F | PSR_I | PSR_A | PSR_D | PSR_M_EL1h)
@@ -345,7 +352,8 @@ hyp_vectors:
  */
 get_virt_delta:
 	/* Load the physical address of virt_map */
-	adr	x29, virt_map
+	adrp	x29, virt_map
+	add	x29, x29, :lo12:virt_map
 	/* Load the virtual address of virt_map stored in virt_map */
 	ldr	x28, [x29]
 	/* Find PA - VA as PA' = VA' - VA + PA = VA' + (PA - VA) = VA' + x29 */
@@ -383,9 +391,11 @@ create_pagetables:
 	mov	x5, x30
 
 	/* Clean the page table */
-	adr	x6, pagetable
+	adrp	x6, pagetable
+	add	x6, x6, :lo12:pagetable
 	mov	x26, x6
-	adr	x27, pagetable_end
+	adrp	x27, pagetable_end
+	add	x27, x27, :lo12:pagetable_end
 1:
 	stp	xzr, xzr, [x6], #16
 	stp	xzr, xzr, [x6], #16
@@ -474,7 +484,8 @@ common:
 
 	/* Link the DMAP tables */
 	ldr	x8, =DMAP_MIN_ADDRESS
-	adr	x9, pagetable_dmap;
+	adrp	x9, pagetable_dmap
+	add	x9, x9, :lo12:pagetable_dmap
 	mov	x10, #DMAP_TABLES
 	bl	link_l0_pagetable
 
