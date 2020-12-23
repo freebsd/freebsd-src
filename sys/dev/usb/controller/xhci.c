@@ -3870,6 +3870,8 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	 * endpoint context state diagram in the XHCI specification:
 	 */
 	switch (xhci_get_endpoint_state(udev, epno)) {
+	case XHCI_EPCTX_0_EPSTATE_DISABLED:
+                break;
 	case XHCI_EPCTX_0_EPSTATE_STOPPED:
 		break;
 	case XHCI_EPCTX_0_EPSTATE_HALTED:
