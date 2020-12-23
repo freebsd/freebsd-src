@@ -414,6 +414,11 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 			xo_emit("{eq:fd_type/dev}");
 			break;
 
+		case PS_FST_TYPE_EVENTFD:
+			str = "E";
+			xo_emit("{eq:fd_type/eventfd}");
+			break;
+
 		case PS_FST_TYPE_NONE:
 			str = "?";
 			xo_emit("{eq:fd_type/none}");
