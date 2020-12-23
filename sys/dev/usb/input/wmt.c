@@ -59,14 +59,16 @@ __FBSDID("$FreeBSD$");
 #define	USB_DEBUG_VAR wmt_debug
 #include <dev/usb/usb_debug.h>
 
-#ifdef USB_DEBUG
-static int wmt_debug = 0;
-
 static SYSCTL_NODE(_hw_usb, OID_AUTO, wmt, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "USB MSWindows 7/8/10 compatible Multi-touch Device");
+#ifdef USB_DEBUG
+static int wmt_debug = 0;
 SYSCTL_INT(_hw_usb_wmt, OID_AUTO, debug, CTLFLAG_RWTUN,
     &wmt_debug, 1, "Debug level");
 #endif
+static bool wmt_timestamps = 0;
+SYSCTL_BOOL(_hw_usb_wmt, OID_AUTO, timestamps, CTLFLAG_RDTUN,
+    &wmt_timestamps, 1, "Enable hardware timestamp reporting");
 
 #define	WMT_BSIZE	1024	/* bytes, buffer size */
 #define	WMT_BTN_MAX	8	/* Number of buttons supported */
@@ -209,6 +211,12 @@ struct wmt_softc {
 	struct hid_location	cont_count_loc;
 	struct hid_location	btn_loc[WMT_BTN_MAX];
 	struct hid_location	int_btn_loc;
+	struct hid_location	scan_time_loc;
+	int32_t			scan_time_max;
+	int32_t			scan_time;
+	int32_t			timestamp;
+	bool			touch;
+	bool			prev_touch;
 
 	struct usb_xfer		*xfer[WMT_N_TRANSFER];
 	struct evdev_dev	*evdev;
@@ -224,6 +232,7 @@ struct wmt_softc {
 	uint32_t		max_button;
 	bool			has_int_button;
 	bool			is_clickpad;
+	bool			do_timestamps;
 
 	struct hid_location	cont_max_loc;
 	uint32_t		cont_max_rlen;
@@ -382,6 +391,9 @@ wmt_attach(device_t dev)
 			DPRINTF("Failed to set input mode: %d\n", err);
 	}
 
+	if (/*usb_test_quirk(hw, UQ_MT_TIMESTAMP) ||*/ wmt_timestamps)
+		sc->do_timestamps = true;
+
 	mtx_init(&sc->mtx, "wmt lock", NULL, MTX_DEF);
 
 	err = usbd_transfer_setup(uaa->device, &uaa->info.bIfaceIndex,
@@ -413,6 +425,10 @@ wmt_attach(device_t dev)
 	}
 	evdev_support_event(sc->evdev, EV_SYN);
 	evdev_support_event(sc->evdev, EV_ABS);
+	if (sc->do_timestamps) {
+		evdev_support_event(sc->evdev, EV_MSC);
+		evdev_support_msc(sc->evdev, MSC_TIMESTAMP);
+	}
 	if (sc->max_button != 0 || sc->has_int_button) {
 		evdev_support_event(sc->evdev, EV_KEY);
 		if (sc->has_int_button)
@@ -478,6 +494,8 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	uint32_t int_btn = 0;
 	uint32_t left_btn = 0;
 	int32_t slot;
+	uint32_t scan_time;
+	int32_t delta;
 
 	/*
 	 * "In Parallel mode, devices report all contact information in a
@@ -553,6 +571,7 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 		    !(USAGE_SUPPORTED(sc->caps, WMT_CONFIDENCE) &&
 		      slot_data[WMT_CONFIDENCE] == 0)) {
 			/* This finger is in proximity of the sensor */
+			sc->touch = true;
 			slot_data[WMT_SLOT] = slot;
 			slot_data[WMT_IN_RANGE] = !slot_data[WMT_IN_RANGE];
 			/* Divided by two to match visual scale of touch */
@@ -574,6 +593,24 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	}
 
 	sc->nconts_todo -= cont_count;
+	if (sc->do_timestamps && sc->nconts_todo == 0) {
+		/* HUD_SCAN_TIME is measured in 100us, convert to us. */
+		scan_time =
+		    hid_get_data_unsigned(buf, len, &sc->scan_time_loc);
+		if (sc->prev_touch) {
+			delta = scan_time - sc->scan_time;
+			if (delta < 0)
+				delta += sc->scan_time_max;
+		} else
+			delta = 0;
+		sc->scan_time = scan_time;
+		sc->timestamp += delta * 100;
+		evdev_push_msc(sc->evdev, MSC_TIMESTAMP, sc->timestamp);
+		sc->prev_touch = sc->touch;
+		sc->touch = false;
+		if (!sc->prev_touch)
+			sc->timestamp = 0;
+	}
 	if (sc->nconts_todo == 0) {
 		/* Report both the click and external left btns as BTN_LEFT */
 		if (sc->has_int_button)
@@ -869,6 +906,8 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 			if (hi.collevel == 1 && hi.usage ==
 			    HID_USAGE2(HUP_DIGITIZERS, HUD_SCAN_TIME)) {
 				scan_time_found = true;
+				sc->scan_time_loc = hi.loc;
+				sc->scan_time_max = hi.logical_maximum;
 				break;
 			}
 
