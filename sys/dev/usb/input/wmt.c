@@ -185,9 +185,10 @@ struct wmt_absinfo {
 	int32_t			res;
 };
 
-struct wmt_softc
-{
+struct wmt_softc {
 	device_t		dev;
+	bool			supported;
+
 	struct mtx		mtx;
 	struct wmt_absinfo	ai[WMT_N_USAGES];
 	struct hid_location	locs[MAX_MT_SLOTS][WMT_N_USAGES];
@@ -260,6 +261,7 @@ static int
 wmt_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	struct wmt_softc *sc = device_get_softc(dev);
 	void *d_ptr;
 	uint16_t d_len;
 	int err;
@@ -278,10 +280,19 @@ wmt_probe(device_t dev)
 	if (err)
 		return (ENXIO);
 
-	if (wmt_hid_parse(NULL, d_ptr, d_len))
+	/* Check if report descriptor belongs to a HID multitouch device */
+	if (!sc->supported)
+		sc->supported = wmt_hid_parse(sc, d_ptr, d_len);
+	if (sc->supported)
 		err = BUS_PROBE_DEFAULT;
 	else
 		err = ENXIO;
+
+	/* Check HID report length */
+	if (sc->supported && (sc->isize <= 0 || sc->isize > WMT_BSIZE)) {
+		DPRINTF("Input size invalid or too large: %d\n", sc->isize);
+		err = ENXIO;
+	}
 
 	free(d_ptr, M_TEMP);
 	return (err);
@@ -292,35 +303,11 @@ wmt_attach(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct wmt_softc *sc = device_get_softc(dev);
-	void *d_ptr;
-	uint16_t d_len;
 	size_t i;
 	int err;
-	bool hid_ok;
 
 	device_set_usb_desc(dev);
 	sc->dev = dev;
-
-	/* Get HID descriptor */
-	err = usbd_req_get_hid_desc(uaa->device, NULL,
-	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
-	if (err) {
-		DPRINTF("usbd_req_get_hid_desc error=%s\n", usbd_errstr(err));
-		return (ENXIO);
-	}
-
-	hid_ok = wmt_hid_parse(sc, d_ptr, d_len);
-	free(d_ptr, M_TEMP);
-	if (!hid_ok) {
-		DPRINTF("multi-touch HID descriptor not found\n");
-		return (ENXIO);
-	}
-
-	/* Check HID report length */
-	if (sc->isize <= 0 || sc->isize > WMT_BSIZE) {
-		DPRINTF("Input size invalid or too large: %d\n", sc->isize);
-		return (ENXIO);
-	}
 
 	/* Fetch and parse "Contact count maximum" feature report */
 	if (sc->cont_max_rlen > 0 && sc->cont_max_rlen <= WMT_BSIZE) {
@@ -372,6 +359,18 @@ wmt_attach(device_t dev)
 	err = evdev_register_mtx(sc->evdev, &sc->mtx);
 	if (err)
 		goto detach;
+
+	/* Announce information about the touch device */
+	device_printf(sc->dev,
+	    "%d contacts and [%s%s%s%s%s]. Report range [%d:%d] - [%d:%d]\n",
+	    (int)sc->ai[WMT_SLOT].max + 1,
+	    USAGE_SUPPORTED(sc->caps, WMT_IN_RANGE) ? "R" : "",
+	    USAGE_SUPPORTED(sc->caps, WMT_CONFIDENCE) ? "C" : "",
+	    USAGE_SUPPORTED(sc->caps, WMT_WIDTH) ? "W" : "",
+	    USAGE_SUPPORTED(sc->caps, WMT_HEIGHT) ? "H" : "",
+	    USAGE_SUPPORTED(sc->caps, WMT_PRESSURE) ? "P" : "",
+	    (int)sc->ai[WMT_X].min, (int)sc->ai[WMT_Y].min,
+	    (int)sc->ai[WMT_X].max, (int)sc->ai[WMT_Y].max);
 
 	return (0);
 
@@ -648,11 +647,8 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	struct hid_data *hd;
 	size_t i;
 	size_t cont = 0;
-	uint32_t caps = 0;
 	int32_t cont_count_max = 0;
 	uint8_t report_id = 0;
-	uint8_t cont_max_rid = 0;
-	uint8_t thqa_cert_rid = 0;
 	bool touch_coll = false;
 	bool finger_coll = false;
 	bool cont_count_found = false;
@@ -678,15 +674,14 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 		case hid_feature:
 			if (hi.collevel == 1 && touch_coll && hi.usage ==
 			      HID_USAGE2(HUP_MICROSOFT, HUMS_THQA_CERT)) {
-				thqa_cert_rid = hi.report_ID;
+				sc->thqa_cert_rid = hi.report_ID;
 				break;
 			}
 			if (hi.collevel == 1 && touch_coll && hi.usage ==
 			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACT_MAX)) {
 				cont_count_max = hi.logical_maximum;
-				cont_max_rid = hi.report_ID;
-				if (sc != NULL)
-					sc->cont_max_loc = hi.loc;
+				sc->cont_max_rid = hi.report_ID;
+				sc->cont_max_loc = hi.loc;
 			}
 			break;
 		default:
@@ -696,7 +691,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	hid_end_parse(hd);
 
 	/* Maximum contact count is required usage */
-	if (cont_max_rid == 0)
+	if (sc->cont_max_rid == 0)
 		return (false);
 
 	touch_coll = false;
@@ -735,8 +730,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 			if (hi.collevel == 1 && hi.usage ==
 			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTCOUNT)) {
 				cont_count_found = true;
-				if (sc != NULL)
-					sc->cont_count_loc = hi.loc;
+				sc->cont_count_loc = hi.loc;
 				break;
 			}
 			/* Scan time is required but clobbered by evdev */
@@ -748,8 +742,6 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 
 			if (!finger_coll || hi.collevel != 2)
 				break;
-			if (sc == NULL && cont > 0)
-				break;
 			if (cont >= MAX_MT_SLOTS) {
 				DPRINTF("Finger %zu ignored\n", cont);
 				break;
@@ -757,12 +749,6 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 
 			for (i = 0; i < WMT_N_USAGES; i++) {
 				if (hi.usage == wmt_hid_map[i].usage) {
-					if (sc == NULL) {
-						if (USAGE_SUPPORTED(caps, i))
-							continue;
-						caps |= 1 << i;
-						break;
-					}
 					/*
 					 * HUG_X usage is an array mapped to
 					 * both ABS_MT_POSITION and ABS_MT_TOOL
@@ -779,7 +765,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 					 */
 					if (cont > 0)
 						break;
-					caps |= 1 << i;
+					sc->caps |= 1 << i;
 					sc->ai[i] = (struct wmt_absinfo) {
 					    .max = hi.logical_maximum,
 					    .min = hi.logical_minimum,
@@ -799,13 +785,9 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	if (!cont_count_found || !scan_time_found || cont == 0)
 		return (false);
 	for (i = 0; i < WMT_N_USAGES; i++) {
-		if (wmt_hid_map[i].required && !USAGE_SUPPORTED(caps, i))
+		if (wmt_hid_map[i].required && !USAGE_SUPPORTED(sc->caps, i))
 			return (false);
 	}
-
-	/* Stop probing here */
-	if (sc == NULL)
-		return (true);
 
 	/*
 	 * According to specifications 'Contact Count Maximum' should be read
@@ -827,9 +809,9 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	};
 
 	/* Report touch orientation if both width and height are supported */
-	if (USAGE_SUPPORTED(caps, WMT_WIDTH) &&
-	    USAGE_SUPPORTED(caps, WMT_HEIGHT)) {
-		caps |= (1 << WMT_ORIENTATION);
+	if (USAGE_SUPPORTED(sc->caps, WMT_WIDTH) &&
+	    USAGE_SUPPORTED(sc->caps, WMT_HEIGHT)) {
+		sc->caps |= 1 << WMT_ORIENTATION;
 		sc->ai[WMT_ORIENTATION].max = 1;
 	}
 
@@ -837,28 +819,14 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	sc->report_len = wmt_hid_report_size(d_ptr, d_len, hid_input,
 	    report_id);
 	sc->cont_max_rlen = wmt_hid_report_size(d_ptr, d_len, hid_feature,
-	    cont_max_rid);
-	if (thqa_cert_rid > 0)
+	    sc->cont_max_rid);
+	if (sc->thqa_cert_rid > 0)
 		sc->thqa_cert_rlen = wmt_hid_report_size(d_ptr, d_len,
-		    hid_feature, thqa_cert_rid);
+		    hid_feature, sc->thqa_cert_rid);
 
 	sc->report_id = report_id;
-	sc->caps = caps;
 	sc->nconts_per_report = cont;
-	sc->cont_max_rid = cont_max_rid;
-	sc->thqa_cert_rid = thqa_cert_rid;
 
-	/* Announce information about the touch device */
-	device_printf(sc->dev,
-	    "%d contacts and [%s%s%s%s%s]. Report range [%d:%d] - [%d:%d]\n",
-	    (int)cont_count_max,
-	    USAGE_SUPPORTED(sc->caps, WMT_IN_RANGE) ? "R" : "",
-	    USAGE_SUPPORTED(sc->caps, WMT_CONFIDENCE) ? "C" : "",
-	    USAGE_SUPPORTED(sc->caps, WMT_WIDTH) ? "W" : "",
-	    USAGE_SUPPORTED(sc->caps, WMT_HEIGHT) ? "H" : "",
-	    USAGE_SUPPORTED(sc->caps, WMT_PRESSURE) ? "P" : "",
-	    (int)sc->ai[WMT_X].min, (int)sc->ai[WMT_Y].min,
-	    (int)sc->ai[WMT_X].max, (int)sc->ai[WMT_Y].max);
 	return (true);
 }
 
