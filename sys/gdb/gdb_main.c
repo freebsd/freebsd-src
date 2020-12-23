@@ -755,6 +755,17 @@ gdb_trap(int type, int code)
 				gdb_tx_ok();
 			break;
 		}
+		case 'p': {     /* Read register. */
+			uintmax_t reg;
+			if (gdb_rx_varhex(&reg)) {
+				gdb_tx_err(EINVAL);
+				break;
+			}
+			gdb_tx_begin(0);
+			gdb_tx_reg(reg);
+			gdb_tx_end();
+			break;
+		}
 		case 'P': {	/* Write register. */
 			char *val;
 			uintmax_t reg;
