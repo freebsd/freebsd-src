@@ -3974,10 +3974,12 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
 	else
 		sp->nat_rule = htonl(st->nat_rule.ptr->nr);
 
-	pf_state_counter_hton(st->packets[0], sp->packets[0]);
-	pf_state_counter_hton(st->packets[1], sp->packets[1]);
-	pf_state_counter_hton(st->bytes[0], sp->bytes[0]);
-	pf_state_counter_hton(st->bytes[1], sp->bytes[1]);
+	pf_state_counter_hton(counter_u64_fetch(st->packets[0]),
+	    sp->packets[0]);
+	pf_state_counter_hton(counter_u64_fetch(st->packets[1]),
+	    sp->packets[1]);
+	pf_state_counter_hton(counter_u64_fetch(st->bytes[0]), sp->bytes[0]);
+	pf_state_counter_hton(counter_u64_fetch(st->bytes[1]), sp->bytes[1]);
 
 }
 
