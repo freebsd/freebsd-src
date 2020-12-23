@@ -191,7 +191,7 @@ struct wmt_softc
 	struct mtx		mtx;
 	struct wmt_absinfo	ai[WMT_N_USAGES];
 	struct hid_location	locs[MAX_MT_SLOTS][WMT_N_USAGES];
-	struct hid_location	nconts_loc;
+	struct hid_location	cont_count_loc;
 
 	struct usb_xfer		*xfer[WMT_N_TRANSFER];
 	struct evdev_dev	*evdev;
@@ -199,7 +199,8 @@ struct wmt_softc
 	uint32_t		slot_data[WMT_N_USAGES];
 	uint32_t		caps;
 	uint32_t		isize;
-	uint32_t		nconts_max;
+	uint32_t		nconts_per_report;
+	uint32_t		nconts_todo;
 	uint32_t		report_len;
 	uint8_t			report_id;
 
@@ -396,15 +397,40 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	size_t usage;
 	uint32_t *slot_data = sc->slot_data;
 	uint32_t cont;
-	uint32_t nconts;
+	uint32_t cont_count;
 	uint32_t width;
 	uint32_t height;
 	int32_t slot;
 
-	nconts = hid_get_data_unsigned(buf, len, &sc->nconts_loc);
+	/*
+	 * "In Parallel mode, devices report all contact information in a
+	 * single packet. Each physical contact is represented by a logical
+	 * collection that is embedded in the top-level collection."
+	 *
+	 * Since additional contacts that were not present will still be in the
+	 * report with contactid=0 but contactids are zero-based, find
+	 * contactcount first.
+	 */
+	cont_count = hid_get_data_unsigned(buf, len, &sc->cont_count_loc);
+	/*
+	 * "In Hybrid mode, the number of contacts that can be reported in one
+	 * report is less than the maximum number of contacts that the device
+	 * supports. For example, a device that supports a maximum of
+	 * 4 concurrent physical contacts, can set up its top-level collection
+	 * to deliver a maximum of two contacts in one report. If four contact
+	 * points are present, the device can break these up into two serial
+	 * reports that deliver two contacts each.
+	 *
+	 * "When a device delivers data in this manner, the Contact Count usage
+	 * value in the first report should reflect the total number of
+	 * contacts that are being delivered in the hybrid reports. The other
+	 * serial reports should have a contact count of zero (0)."
+	 */
+	if (cont_count != 0)
+		sc->nconts_todo = cont_count;
 
 #ifdef USB_DEBUG
-	DPRINTFN(6, "nconts = %u   ", (unsigned)nconts);
+	DPRINTFN(6, "cont_count:%2u", (unsigned)cont_count);
 	if (wmt_debug >= 6) {
 		WMT_FOREACH_USAGE(sc->caps, usage) {
 			if (wmt_hid_map[usage].usage != WMT_NO_USAGE)
@@ -414,13 +440,11 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	}
 #endif
 
-	if (nconts > sc->nconts_max) {
-		DPRINTF("Contact count overflow %u\n", (unsigned)nconts);
-		nconts = sc->nconts_max;
-	}
+	/* Find the number of contacts reported in current report */
+	cont_count = MIN(sc->nconts_todo, sc->nconts_per_report);
 
 	/* Use protocol Type B for reporting events */
-	for (cont = 0; cont < nconts; cont++) {
+	for (cont = 0; cont < cont_count; cont++) {
 		bzero(slot_data, sizeof(sc->slot_data));
 		WMT_FOREACH_USAGE(sc->caps, usage) {
 			if (sc->locs[cont][usage].size > 0)
@@ -471,7 +495,10 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 			evdev_push_abs(sc->evdev, ABS_MT_TRACKING_ID, -1);
 		}
 	}
-	evdev_sync(sc->evdev);
+
+	sc->nconts_todo -= cont_count;
+	if (sc->nconts_todo == 0)
+		evdev_sync(sc->evdev);
 }
 
 static void
@@ -709,7 +736,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 			    HID_USAGE2(HUP_DIGITIZERS, HUD_CONTACTCOUNT)) {
 				cont_count_found = true;
 				if (sc != NULL)
-					sc->nconts_loc = hi.loc;
+					sc->cont_count_loc = hi.loc;
 				break;
 			}
 			/* Scan time is required but clobbered by evdev */
@@ -817,7 +844,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 
 	sc->report_id = report_id;
 	sc->caps = caps;
-	sc->nconts_max = cont;
+	sc->nconts_per_report = cont;
 	sc->cont_max_rid = cont_max_rid;
 	sc->thqa_cert_rid = thqa_cert_rid;
 
