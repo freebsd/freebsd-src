@@ -514,9 +514,8 @@ cache_assert_vnode_locked(struct vnode *vp)
  * 1. make them less of a target for reclamation in vnlru
  * 2. suffer smaller performance penalty in locked lookup as requeieing is avoided
  *
- * Note this preferably would not be done and it's a hold over from. It will be
- * feasible to eliminate altogether if all filesystems start supporting
- * lockless lookup.
+ * It will be feasible to stop doing it altogether if all filesystems start
+ * supporting lockless lookup.
  */
 static void
 cache_hold_vnode(struct vnode *vp)
