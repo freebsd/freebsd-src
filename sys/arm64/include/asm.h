@@ -45,7 +45,7 @@
 	.globl sym; LENTRY(sym)
 #define	EENTRY(sym)						\
 	.globl	sym; sym:
-#define	LEND(sym) .cfi_endproc; .size sym, . - sym
+#define	LEND(sym) .ltorg; .cfi_endproc; .size sym, . - sym
 #define	END(sym) LEND(sym)
 #define	EEND(sym)
 
