@@ -35,12 +35,16 @@ main(void)
 {
 	int32_t wc;
 	int i, wcw;
+	utf8proc_category_t wcc;
 
 	setlocale(LC_CTYPE, "C.UTF-8");
 
 	printf("%s\n", utf8proc_version());
 
 	for (wc = 0; wc < 0x110000; wc++) {
+		wcc = utf8proc_category(wc);
+		if (wcc == UTF8PROC_CATEGORY_CC)
+			continue;
 		wcw = utf8proc_charwidth(wc);
 		if (wcw == 1)
 			continue;
