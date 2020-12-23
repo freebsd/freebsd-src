@@ -385,8 +385,8 @@ restart:
 	 * touch up the few cylinder groups that changed during
 	 * the suspension period.
 	 */
-	len = howmany(fs->fs_ncg, NBBY);
-	space = malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
+	len = roundup2(howmany(fs->fs_ncg, NBBY), sizeof(int));
+	space = malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	UFS_LOCK(ump);
 	fs->fs_active = space;
 	UFS_UNLOCK(ump);
