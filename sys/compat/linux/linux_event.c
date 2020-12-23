@@ -879,7 +879,6 @@ eventfd_poll(struct file *fp, int events, struct ucred *active_cred,
 	return (revents);
 }
 
-/*ARGSUSED*/
 static int
 eventfd_kqfilter(struct file *fp, struct knote *kn)
 {
@@ -919,7 +918,6 @@ filt_eventfddetach(struct knote *kn)
 	mtx_unlock(&efd->efd_lock);
 }
 
-/*ARGSUSED*/
 static int
 filt_eventfdread(struct knote *kn, long hint)
 {
@@ -932,7 +930,6 @@ filt_eventfdread(struct knote *kn, long hint)
 	return (ret);
 }
 
-/*ARGSUSED*/
 static int
 filt_eventfdwrite(struct knote *kn, long hint)
 {
@@ -945,7 +942,6 @@ filt_eventfdwrite(struct knote *kn, long hint)
 	return (ret);
 }
 
-/*ARGSUSED*/
 static int
 eventfd_ioctl(struct file *fp, u_long cmd, void *data,
     struct ucred *active_cred, struct thread *td)
@@ -969,7 +965,6 @@ eventfd_ioctl(struct file *fp, u_long cmd, void *data,
 	}
 }
 
-/*ARGSUSED*/
 static int
 eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
     struct thread *td)
@@ -978,7 +973,6 @@ eventfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	return (ENXIO);
 }
 
-/*ARGSUSED*/
 static int
 eventfd_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
@@ -1122,7 +1116,6 @@ timerfd_poll(struct file *fp, int events, struct ucred *active_cred,
 	return (revents);
 }
 
-/*ARGSUSED*/
 static int
 timerfd_kqfilter(struct file *fp, struct knote *kn)
 {
@@ -1153,7 +1146,6 @@ filt_timerfddetach(struct knote *kn)
 	mtx_unlock(&tfd->tfd_lock);
 }
 
-/*ARGSUSED*/
 static int
 filt_timerfdread(struct knote *kn, long hint)
 {
@@ -1162,7 +1154,6 @@ filt_timerfdread(struct knote *kn, long hint)
 	return (tfd->tfd_count > 0);
 }
 
-/*ARGSUSED*/
 static int
 timerfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
     struct thread *td)
@@ -1171,7 +1162,6 @@ timerfd_stat(struct file *fp, struct stat *st, struct ucred *active_cred,
 	return (ENXIO);
 }
 
-/*ARGSUSED*/
 static int
 timerfd_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 {
