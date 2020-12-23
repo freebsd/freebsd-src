@@ -1012,11 +1012,11 @@ unmapped_step:
 				goto unmapped_step;
 		}
 		uma_zfree(md_pbuf_zone, pb);
+	} else {
+		bp->bio_resid = auio.uio_resid;
 	}
 
 	free(piov, M_MD);
-	if (pb == NULL)
-		bp->bio_resid = auio.uio_resid;
 	return (error);
 }
 
@@ -1185,6 +1185,23 @@ mdstart_null(struct md_s *sc, struct bio *bp)
 }
 
 static void
+md_handleattr(struct md_s *sc, struct bio *bp)
+{
+	if (sc->fwsectors && sc->fwheads &&
+	    (g_handleattr_int(bp, "GEOM::fwsectors", sc->fwsectors) != 0 ||
+	    g_handleattr_int(bp, "GEOM::fwheads", sc->fwheads) != 0))
+		return;
+	if (g_handleattr_int(bp, "GEOM::candelete", 1) != 0)
+		return;
+	if (sc->ident[0] != '\0' &&
+	    g_handleattr_str(bp, "GEOM::ident", sc->ident) != 0)
+		return;
+	if (g_handleattr_int(bp, "MNT::verified", (sc->flags & MD_VERIFY) != 0))
+		return;
+	g_io_deliver(bp, EOPNOTSUPP);
+}
+
+static void
 md_kthread(void *arg)
 {
 	struct md_s *sc;
@@ -1212,39 +1229,21 @@ md_kthread(void *arg)
 		}
 		mtx_unlock(&sc->queue_mtx);
 		if (bp->bio_cmd == BIO_GETATTR) {
-			int isv = ((sc->flags & MD_VERIFY) != 0);
-
-			if ((sc->fwsectors && sc->fwheads &&
-			    (g_handleattr_int(bp, "GEOM::fwsectors",
-			    sc->fwsectors) ||
-			    g_handleattr_int(bp, "GEOM::fwheads",
-			    sc->fwheads))) ||
-			    g_handleattr_int(bp, "GEOM::candelete", 1))
-				error = -1;
-			else if (sc->ident[0] != '\0' &&
-			    g_handleattr_str(bp, "GEOM::ident", sc->ident))
-				error = -1;
-			else if (g_handleattr_int(bp, "MNT::verified", isv))
-				error = -1;
-			else
-				error = EOPNOTSUPP;
+			md_handleattr(sc, bp);
 		} else {
 			error = sc->start(sc, bp);
-		}
-
-		if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
-			/*
-			 * Devstat uses (bio_bcount, bio_resid) for
-			 * determining the length of the completed part of
-			 * the i/o.  g_io_deliver() will translate from
-			 * bio_completed to that, but it also destroys the
-			 * bio so we must do our own translation.
-			 */
-			bp->bio_bcount = bp->bio_length;
-			bp->bio_resid = (error == -1 ? bp->bio_bcount : 0);
-			devstat_end_transaction_bio(sc->devstat, bp);
-		}
-		if (error != -1) {
+			if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
+				/*
+				 * Devstat uses (bio_bcount, bio_resid) for
+				 * determining the length of the completed part
+				 * of the i/o.  g_io_deliver() will translate
+				 * from bio_completed to that, but it also
+				 * destroys the bio so we must do our own
+				 * translation.
+				 */
+				bp->bio_bcount = bp->bio_length;
+				devstat_end_transaction_bio(sc->devstat, bp);
+			}
 			bp->bio_completed = bp->bio_length;
 			g_io_deliver(bp, error);
 		}
