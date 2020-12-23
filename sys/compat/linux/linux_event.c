@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
+ *
  * Copyright (c) 2007 Roman Divacky
  * Copyright (c) 2014 Dmitry Chagin
  * All rights reserved.
