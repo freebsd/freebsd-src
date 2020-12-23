@@ -178,6 +178,7 @@ MAN+=	abort2.2 \
 	cpuset_getaffinity.2 \
 	cpuset_getdomain.2 \
 	dup.2 \
+	eventfd.2 \
 	execve.2 \
 	_exit.2 \
 	extattr_get_file.2 \
@@ -379,6 +380,8 @@ MLINKS+=cpuset.2 cpuset_getid.2 \
 MLINKS+=cpuset_getaffinity.2 cpuset_setaffinity.2
 MLINKS+=cpuset_getdomain.2 cpuset_setdomain.2
 MLINKS+=dup.2 dup2.2
+MLINKS+=eventfd.2 eventfd_read.3 \
+	eventfd.2 eventfd_write.3
 MLINKS+=execve.2 fexecve.2
 MLINKS+=extattr_get_file.2 extattr.2 \
 	extattr_get_file.2 extattr_delete_fd.2 \
