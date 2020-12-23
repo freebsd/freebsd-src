@@ -700,9 +700,23 @@ gdb_trap(int type, int code)
 			gdb_tx_end();
 			break;
 		}
-		case 'G':	/* Write registers. */
-			gdb_tx_err(0);
+		case 'G': {	/* Write registers. */
+			char *val;
+			bool success;
+			size_t r;
+			for (success = true, r = 0; r < GDB_NREGS; r++) {
+				val = gdb_rxp;
+				if (!gdb_rx_mem(val, gdb_cpu_regsz(r))) {
+					gdb_tx_err(EINVAL);
+					success = false;
+					break;
+				}
+				gdb_cpu_setreg(r, val);
+			}
+			if (success)
+				gdb_tx_ok();
 			break;
+		}
 		case 'H': {	/* Set thread. */
 			intmax_t tid;
 			struct thread *thr;
