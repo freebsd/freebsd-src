@@ -1976,6 +1976,9 @@ falloc_caps(struct thread *td, struct file **resultfp, int *resultfd, int flags,
 	struct file *fp;
 	int error, fd;
 
+	MPASS(resultfp != NULL);
+	MPASS(resultfd != NULL);
+
 	error = falloc_noinstall(td, &fp);
 	if (error)
 		return (error);		/* no reference held on error */
@@ -1986,13 +1989,8 @@ falloc_caps(struct thread *td, struct file **resultfp, int *resultfd, int flags,
 		return (error);
 	}
 
-	if (resultfp != NULL)
-		*resultfp = fp;		/* copy out result */
-	else
-		fdrop(fp, td);		/* release local reference */
-
-	if (resultfd != NULL)
-		*resultfd = fd;
+	*resultfp = fp;
+	*resultfd = fd;
 
 	return (0);
 }
