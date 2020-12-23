@@ -222,8 +222,8 @@ struct wmt_softc {
 	struct evdev_dev	*evdev;
 
 	uint32_t		slot_data[WMT_N_USAGES];
-	uint32_t		caps;
-	uint32_t		buttons;
+	uint8_t			caps[howmany(WMT_N_USAGES, 8)];
+	uint8_t			buttons[howmany(WMT_BTN_MAX, 8)];
 	uint32_t		isize;
 	uint32_t		nconts_per_report;
 	uint32_t		nconts_todo;
@@ -249,10 +249,9 @@ struct wmt_softc {
 	uint8_t			buf[WMT_BSIZE] __aligned(4);
 };
 
-#define	USAGE_SUPPORTED(caps, usage)	((caps) & (1 << (usage)))
 #define	WMT_FOREACH_USAGE(caps, usage)			\
 	for ((usage) = 0; (usage) < WMT_N_USAGES; ++(usage))	\
-		if (USAGE_SUPPORTED((caps), (usage)))
+		if (isset((caps), (usage)))
 
 static enum wmt_type wmt_hid_parse(struct wmt_softc *, const void *, uint16_t);
 static int wmt_set_input_mode(struct wmt_softc *, enum wmt_input_mode);
@@ -443,13 +442,17 @@ wmt_attach(device_t dev)
 		evdev_support_event(sc->evdev, EV_MSC);
 		evdev_support_msc(sc->evdev, MSC_TIMESTAMP);
 	}
+	nbuttons = 0;
 	if (sc->max_button != 0 || sc->has_int_button) {
 		evdev_support_event(sc->evdev, EV_KEY);
 		if (sc->has_int_button)
 			evdev_support_key(sc->evdev, BTN_LEFT);
-		for (btn = 0; btn < sc->max_button; ++btn)
-			if (USAGE_SUPPORTED(sc->buttons, btn))
+		for (btn = 0; btn < sc->max_button; ++btn) {
+			if (isset(sc->buttons, btn)) {
 				evdev_support_key(sc->evdev, BTN_MOUSE + btn);
+				nbuttons++;
+			}
+		}
 	}
 	WMT_FOREACH_USAGE(sc->caps, i) {
 		if (wmt_hid_map[i].code != WMT_NO_CODE)
@@ -462,7 +465,6 @@ wmt_attach(device_t dev)
 		goto detach;
 
 	/* Announce information about the touch device */
-	nbuttons = bitcount32(sc->buttons);
 	device_printf(sc->dev, "Multitouch %s with %d external button%s%s\n",
 	    sc->type == WMT_TYPE_TOUCHSCREEN ? "touchscreen" : "touchpad",
 	    nbuttons, nbuttons != 1 ? "s" : "",
@@ -470,11 +472,11 @@ wmt_attach(device_t dev)
 	device_printf(sc->dev,
 	    "%d contacts and [%s%s%s%s%s]. Report range [%d:%d] - [%d:%d]\n",
 	    (int)sc->ai[WMT_SLOT].max + 1,
-	    USAGE_SUPPORTED(sc->caps, WMT_IN_RANGE) ? "R" : "",
-	    USAGE_SUPPORTED(sc->caps, WMT_CONFIDENCE) ? "C" : "",
-	    USAGE_SUPPORTED(sc->caps, WMT_WIDTH) ? "W" : "",
-	    USAGE_SUPPORTED(sc->caps, WMT_HEIGHT) ? "H" : "",
-	    USAGE_SUPPORTED(sc->caps, WMT_PRESSURE) ? "P" : "",
+	    isset(sc->caps, WMT_IN_RANGE) ? "R" : "",
+	    isset(sc->caps, WMT_CONFIDENCE) ? "C" : "",
+	    isset(sc->caps, WMT_WIDTH) ? "W" : "",
+	    isset(sc->caps, WMT_HEIGHT) ? "H" : "",
+	    isset(sc->caps, WMT_PRESSURE) ? "P" : "",
 	    (int)sc->ai[WMT_X].min, (int)sc->ai[WMT_Y].min,
 	    (int)sc->ai[WMT_X].max, (int)sc->ai[WMT_Y].max);
 
@@ -582,7 +584,7 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 		}
 
 		if (slot_data[WMT_TIP_SWITCH] != 0 &&
-		    !(USAGE_SUPPORTED(sc->caps, WMT_CONFIDENCE) &&
+		    !(isset(sc->caps, WMT_CONFIDENCE) &&
 		      slot_data[WMT_CONFIDENCE] == 0)) {
 			/* This finger is in proximity of the sensor */
 			sc->touch = true;
@@ -629,14 +631,13 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 		/* Report both the click and external left btns as BTN_LEFT */
 		if (sc->has_int_button)
 			int_btn = hid_get_data(buf, len, &sc->int_btn_loc);
-		if (sc->max_button != 0 && (sc->buttons & 1 << 0) != 0)
+		if (isset(sc->buttons, 0))
 			left_btn = hid_get_data(buf, len, &sc->btn_loc[0]);
-		if (sc->has_int_button ||
-		    (sc->max_button != 0 && (sc->buttons & 1 << 0) != 0))
+		if (sc->has_int_button || isset(sc->buttons, 0))
 			evdev_push_key(sc->evdev, BTN_LEFT,
 			    int_btn != 0 | left_btn != 0);
 		for (btn = 1; btn < sc->max_button; ++btn) {
-			if ((sc->buttons & 1 << btn) != 0)
+			if (isset(sc->buttons, btn))
 				evdev_push_key(sc->evdev, BTN_MOUSE + btn,
 				    hid_get_data(buf,
 						 len,
@@ -904,7 +905,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 			    hi.usage >= HID_USAGE2(HUP_BUTTON, left_btn) &&
 			    hi.usage <= HID_USAGE2(HUP_BUTTON, WMT_BTN_MAX)) {
 				btn = (hi.usage & 0xFFFF) - left_btn;
-				sc->buttons |= 1 << btn;
+				setbit(sc->buttons, btn);
 				sc->btn_loc[btn] = hi.loc;
 				if (btn >= sc->max_button)
 					sc->max_button = btn + 1;
@@ -950,7 +951,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 					 */
 					if (cont > 0)
 						break;
-					sc->caps |= 1 << i;
+					setbit(sc->caps, i);
 					sc->ai[i] = (struct wmt_absinfo) {
 					    .max = hi.logical_maximum,
 					    .min = hi.logical_minimum,
@@ -970,7 +971,7 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	if (!cont_count_found || !scan_time_found || cont == 0)
 		return (WMT_TYPE_UNSUPPORTED);
 	for (i = 0; i < WMT_N_USAGES; i++) {
-		if (wmt_hid_map[i].required && !USAGE_SUPPORTED(sc->caps, i))
+		if (wmt_hid_map[i].required && isclr(sc->caps, i))
 			return (WMT_TYPE_UNSUPPORTED);
 	}
 
@@ -994,9 +995,8 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 	};
 
 	/* Report touch orientation if both width and height are supported */
-	if (USAGE_SUPPORTED(sc->caps, WMT_WIDTH) &&
-	    USAGE_SUPPORTED(sc->caps, WMT_HEIGHT)) {
-		sc->caps |= 1 << WMT_ORIENTATION;
+	if (isset(sc->caps, WMT_WIDTH) && isset(sc->caps, WMT_HEIGHT)) {
+		setbit(sc->caps, WMT_ORIENTATION);
 		sc->ai[WMT_ORIENTATION].max = 1;
 	}
 
