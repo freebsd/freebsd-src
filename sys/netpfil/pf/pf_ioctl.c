@@ -116,6 +116,8 @@ static int		 pf_commit_rules(u_int32_t, int, char *);
 static int		 pf_addr_setup(struct pf_ruleset *,
 			    struct pf_addr_wrap *, sa_family_t);
 static void		 pf_addr_copyout(struct pf_addr_wrap *);
+static void		 pf_src_node_copy(const struct pf_ksrc_node *,
+			    struct pf_src_node *);
 #ifdef ALTQ
 static int		 pf_export_kaltq(struct pf_altq *,
 			    struct pfioc_altq_v1 *, size_t);
@@ -191,7 +193,7 @@ struct cdev *pf_dev;
  */
 static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
-static void		 pf_clear_srcnodes(struct pf_src_node *);
+static void		 pf_clear_srcnodes(struct pf_ksrc_node *);
 static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
 
@@ -1146,6 +1148,42 @@ pf_addr_copyout(struct pf_addr_wrap *addr)
 		pf_tbladdr_copyout(addr);
 		break;
 	}
+}
+
+static void
+pf_src_node_copy(const struct pf_ksrc_node *in, struct pf_src_node *out)
+{
+	int	secs = time_uptime, diff;
+
+	bzero(out, sizeof(struct pf_src_node));
+
+	bcopy(&in->addr, &out->addr, sizeof(struct pf_addr));
+	bcopy(&in->raddr, &out->raddr, sizeof(struct pf_addr));
+
+	if (in->rule.ptr != NULL)
+		out->rule.nr = in->rule.ptr->nr;
+
+	bcopy(&in->bytes, &out->bytes, sizeof(u_int64_t) * 2);
+	bcopy(&in->packets, &out->packets, sizeof(u_int64_t) * 2);
+	out->states = in->states;
+	out->conn = in->conn;
+	out->af = in->af;
+	out->ruletype = in->ruletype;
+
+	out->creation = secs - in->creation;
+	if (out->expire > secs)
+		out->expire -= secs;
+	else
+		out->expire = 0;
+
+	/* Adjust the connection rate estimate. */
+	diff = secs - in->conn_rate.last;
+	if (diff >= in->conn_rate.seconds)
+		out->conn_rate.count = 0;
+	else
+		out->conn_rate.count -=
+		    in->conn_rate.count * diff /
+		    in->conn_rate.seconds;
 }
 
 #ifdef ALTQ
@@ -3771,7 +3809,8 @@ DIOCCHANGEADDR_error:
 	case DIOCGETSRCNODES: {
 		struct pfioc_src_nodes	*psn = (struct pfioc_src_nodes *)addr;
 		struct pf_srchash	*sh;
-		struct pf_src_node	*n, *p, *pstore;
+		struct pf_ksrc_node	*n;
+		struct pf_src_node	*p, *pstore;
 		uint32_t		 i, nr = 0;
 
 		for (i = 0, sh = V_pf_srchash; i <= pf_srchashmask;
@@ -3797,28 +3836,12 @@ DIOCCHANGEADDR_error:
 		    i++, sh++) {
 		    PF_HASHROW_LOCK(sh);
 		    LIST_FOREACH(n, &sh->nodes, entry) {
-			int	secs = time_uptime, diff;
 
 			if ((nr + 1) * sizeof(*p) > (unsigned)psn->psn_len)
 				break;
 
-			bcopy(n, p, sizeof(struct pf_src_node));
-			if (n->rule.ptr != NULL)
-				p->rule.nr = n->rule.ptr->nr;
-			p->creation = secs - p->creation;
-			if (p->expire > secs)
-				p->expire -= secs;
-			else
-				p->expire = 0;
+			pf_src_node_copy(n, p);
 
-			/* Adjust the connection rate estimate. */
-			diff = secs - n->conn_rate.last;
-			if (diff >= n->conn_rate.seconds)
-				p->conn_rate.count = 0;
-			else
-				p->conn_rate.count -=
-				    n->conn_rate.count * diff /
-				    n->conn_rate.seconds;
 			p++;
 			nr++;
 		    }
@@ -4044,7 +4067,7 @@ pf_clear_tables(void)
 }
 
 static void
-pf_clear_srcnodes(struct pf_src_node *n)
+pf_clear_srcnodes(struct pf_ksrc_node *n)
 {
 	struct pf_state *s;
 	int i;
@@ -4084,12 +4107,12 @@ pf_clear_srcnodes(struct pf_src_node *n)
 static void
 pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
 {
-	struct pf_src_node_list	 kill;
+	struct pf_ksrc_node_list	 kill;
 
 	LIST_INIT(&kill);
 	for (int i = 0; i <= pf_srchashmask; i++) {
 		struct pf_srchash *sh = &V_pf_srchash[i];
-		struct pf_src_node *sn, *tmp;
+		struct pf_ksrc_node *sn, *tmp;
 
 		PF_HASHROW_LOCK(sh);
 		LIST_FOREACH_SAFE(sn, &sh->nodes, entry, tmp)

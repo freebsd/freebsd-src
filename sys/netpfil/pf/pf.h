@@ -185,6 +185,8 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define	PF_TABLE_NAME_SIZE	32
 #define	PF_QNAME_SIZE		64
 
+struct pf_rule;
+
 struct pf_status {
 	uint64_t	counters[PFRES_MAX];
 	uint64_t	lcounters[LCNT_MAX];
@@ -201,5 +203,53 @@ struct pf_status {
 	char		ifname[IFNAMSIZ];
 	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
 };
+
+struct pf_addr {
+	union {
+		struct in_addr		v4;
+		struct in6_addr		v6;
+		u_int8_t		addr8[16];
+		u_int16_t		addr16[8];
+		u_int32_t		addr32[4];
+	} pfa;		    /* 128-bit address */
+#define v4	pfa.v4
+#define v6	pfa.v6
+#define addr8	pfa.addr8
+#define addr16	pfa.addr16
+#define addr32	pfa.addr32
+};
+
+union pf_rule_ptr {
+	struct pf_rule		*ptr;
+	u_int32_t		 nr;
+};
+
+struct pf_threshold {
+	u_int32_t	limit;
+#define	PF_THRESHOLD_MULT	1000
+#define PF_THRESHOLD_MAX	0xffffffff / PF_THRESHOLD_MULT
+	u_int32_t	seconds;
+	u_int32_t	count;
+	u_int32_t	last;
+};
+
+struct pf_src_node {
+	LIST_ENTRY(pf_src_node) entry;
+	struct pf_addr	 addr;
+	struct pf_addr	 raddr;
+	union pf_rule_ptr rule;
+	struct pfi_kif	*kif;
+	u_int64_t	 bytes[2];
+	u_int64_t	 packets[2];
+	u_int32_t	 states;
+	u_int32_t	 conn;
+	struct pf_threshold	conn_rate;
+	u_int32_t	 creation;
+	u_int32_t	 expire;
+	sa_family_t	 af;
+	u_int8_t	 ruletype;
+};
+
+#define PFSNODE_HIWAT		10000	/* default source node table size */
 
 #endif	/* _NET_PF_H_ */

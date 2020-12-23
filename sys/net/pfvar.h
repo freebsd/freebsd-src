@@ -54,21 +54,6 @@
 #include <netpfil/pf/pf_altq.h>
 #include <netpfil/pf/pf_mtag.h>
 
-struct pf_addr {
-	union {
-		struct in_addr		v4;
-		struct in6_addr		v6;
-		u_int8_t		addr8[16];
-		u_int16_t		addr16[8];
-		u_int32_t		addr32[4];
-	} pfa;		    /* 128-bit address */
-#define v4	pfa.v4
-#define v6	pfa.v6
-#define addr8	pfa.addr8
-#define addr16	pfa.addr16
-#define addr32	pfa.addr32
-};
-
 #define PFI_AFLAG_NETWORK	0x01
 #define PFI_AFLAG_BROADCAST	0x02
 #define PFI_AFLAG_PEER		0x04
@@ -481,12 +466,6 @@ struct pf_osfp_ioctl {
 	int			fp_getnum;	/* DIOCOSFPGET number */
 };
 
-
-union pf_rule_ptr {
-	struct pf_rule		*ptr;
-	u_int32_t		 nr;
-};
-
 #define	PF_ANCHOR_NAME_SIZE	 64
 
 struct pf_rule {
@@ -630,18 +609,9 @@ struct pf_rule {
 #define PFSTATE_ADAPT_START	60000	/* default adaptive timeout start */
 #define PFSTATE_ADAPT_END	120000	/* default adaptive timeout end */
 
-
-struct pf_threshold {
-	u_int32_t	limit;
-#define	PF_THRESHOLD_MULT	1000
-#define PF_THRESHOLD_MAX	0xffffffff / PF_THRESHOLD_MULT
-	u_int32_t	seconds;
-	u_int32_t	count;
-	u_int32_t	last;
-};
-
-struct pf_src_node {
-	LIST_ENTRY(pf_src_node) entry;
+#ifdef _KERNEL
+struct pf_ksrc_node {
+	LIST_ENTRY(pf_ksrc_node) entry;
 	struct pf_addr	 addr;
 	struct pf_addr	 raddr;
 	union pf_rule_ptr rule;
@@ -656,8 +626,7 @@ struct pf_src_node {
 	sa_family_t	 af;
 	u_int8_t	 ruletype;
 };
-
-#define PFSNODE_HIWAT		10000	/* default source node table size */
+#endif
 
 struct pf_state_scrub {
 	struct timeval	pfss_last;	/* time received last packet	*/
@@ -741,8 +710,8 @@ struct pf_state {
 	struct pf_state_key	*key[2];	/* addresses stack and wire  */
 	struct pfi_kif		*kif;
 	struct pfi_kif		*rt_kif;
-	struct pf_src_node	*src_node;
-	struct pf_src_node	*nat_src_node;
+	struct pf_ksrc_node	*src_node;
+	struct pf_ksrc_node	*nat_src_node;
 	counter_u64_t		 packets[2];
 	counter_u64_t		 bytes[2];
 	u_int32_t		 creation;
@@ -1572,9 +1541,9 @@ struct pf_ifspeed_v1 {
 #endif /* _KERNEL */
 
 #ifdef _KERNEL
-LIST_HEAD(pf_src_node_list, pf_src_node);
+LIST_HEAD(pf_ksrc_node_list, pf_ksrc_node);
 struct pf_srchash {
-	struct pf_src_node_list		nodes;
+	struct pf_ksrc_node_list		nodes;
 	struct mtx			lock;
 };
 
@@ -1686,10 +1655,10 @@ pf_release_state(struct pf_state *s)
 extern struct pf_state		*pf_find_state_byid(uint64_t, uint32_t);
 extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
-extern struct pf_src_node	*pf_find_src_node(struct pf_addr *,
+extern struct pf_ksrc_node	*pf_find_src_node(struct pf_addr *,
 				    struct pf_rule *, sa_family_t, int);
-extern void			 pf_unlink_src_node(struct pf_src_node *);
-extern u_int			 pf_free_src_nodes(struct pf_src_node_list *);
+extern void			 pf_unlink_src_node(struct pf_ksrc_node *);
+extern u_int			 pf_free_src_nodes(struct pf_ksrc_node_list *);
 extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
@@ -1881,9 +1850,9 @@ int			 pf_step_out_of_anchor(struct pf_anchor_stackframe *, int *,
 
 int			 pf_map_addr(u_int8_t, struct pf_rule *,
 			    struct pf_addr *, struct pf_addr *,
-			    struct pf_addr *, struct pf_src_node **);
+			    struct pf_addr *, struct pf_ksrc_node **);
 struct pf_rule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
-			    int, int, struct pfi_kif *, struct pf_src_node **,
+			    int, int, struct pfi_kif *, struct pf_ksrc_node **,
 			    struct pf_state_key **, struct pf_state_key **,
 			    struct pf_addr *, struct pf_addr *,
 			    uint16_t, uint16_t, struct pf_anchor_stackframe *);

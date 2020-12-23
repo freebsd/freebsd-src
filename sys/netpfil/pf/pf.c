@@ -250,7 +250,7 @@ static int		 pf_test_rule(struct pf_rule **, struct pf_state **,
 			    struct pf_ruleset **, struct inpcb *);
 static int		 pf_create_state(struct pf_rule *, struct pf_rule *,
 			    struct pf_rule *, struct pf_pdesc *,
-			    struct pf_src_node *, struct pf_state_key *,
+			    struct pf_ksrc_node *, struct pf_state_key *,
 			    struct pf_state_key *, struct mbuf *, int,
 			    u_int16_t, u_int16_t, int *, struct pfi_kif *,
 			    struct pf_state **, int, u_int16_t, u_int16_t,
@@ -295,7 +295,7 @@ static struct pf_state	*pf_find_state(struct pfi_kif *,
 			    struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_state **);
 static void		 pf_overload_task(void *v, int pending);
-static int		 pf_insert_src_node(struct pf_src_node **,
+static int		 pf_insert_src_node(struct pf_ksrc_node **,
 			    struct pf_rule *, struct pf_addr *, sa_family_t);
 static u_int		 pf_purge_expired_states(u_int, int);
 static void		 pf_purge_unlinked_rules(void);
@@ -677,12 +677,12 @@ pf_overload_task(void *v, int pending)
  * Can return locked on failure, so that we can consistently
  * allocate and insert a new one.
  */
-struct pf_src_node *
+struct pf_ksrc_node *
 pf_find_src_node(struct pf_addr *src, struct pf_rule *rule, sa_family_t af,
 	int returnlocked)
 {
 	struct pf_srchash *sh;
-	struct pf_src_node *n;
+	struct pf_ksrc_node *n;
 
 	counter_u64_add(V_pf_status.scounters[SCNT_SRC_NODE_SEARCH], 1);
 
@@ -703,7 +703,7 @@ pf_find_src_node(struct pf_addr *src, struct pf_rule *rule, sa_family_t af,
 }
 
 static int
-pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
+pf_insert_src_node(struct pf_ksrc_node **sn, struct pf_rule *rule,
     struct pf_addr *src, sa_family_t af)
 {
 
@@ -757,7 +757,7 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 }
 
 void
-pf_unlink_src_node(struct pf_src_node *src)
+pf_unlink_src_node(struct pf_ksrc_node *src)
 {
 
 	PF_HASHROW_ASSERT(&V_pf_srchash[pf_hashsrc(&src->addr, src->af)]);
@@ -767,9 +767,9 @@ pf_unlink_src_node(struct pf_src_node *src)
 }
 
 u_int
-pf_free_src_nodes(struct pf_src_node_list *head)
+pf_free_src_nodes(struct pf_ksrc_node_list *head)
 {
-	struct pf_src_node *sn, *tmp;
+	struct pf_ksrc_node *sn, *tmp;
 	u_int count = 0;
 
 	LIST_FOREACH_SAFE(sn, head, entry, tmp) {
@@ -845,7 +845,7 @@ pf_initialize()
 
 	/* Source nodes. */
 	V_pf_sources_z = uma_zcreate("pf source nodes",
-	    sizeof(struct pf_src_node), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    sizeof(struct pf_ksrc_node), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
 	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
@@ -1594,9 +1594,9 @@ pf_state_expires(const struct pf_state *state)
 void
 pf_purge_expired_src_nodes()
 {
-	struct pf_src_node_list	 freelist;
+	struct pf_ksrc_node_list	 freelist;
 	struct pf_srchash	*sh;
-	struct pf_src_node	*cur, *next;
+	struct pf_ksrc_node	*cur, *next;
 	int i;
 
 	LIST_INIT(&freelist);
@@ -1619,7 +1619,7 @@ pf_purge_expired_src_nodes()
 static void
 pf_src_tree_remove_state(struct pf_state *s)
 {
-	struct pf_src_node *sn;
+	struct pf_ksrc_node *sn;
 	struct pf_srchash *sh;
 	uint32_t timeout;
 
@@ -3311,7 +3311,7 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	sa_family_t		 af = pd->af;
 	struct pf_rule		*r, *a = NULL;
 	struct pf_ruleset	*ruleset = NULL;
-	struct pf_src_node	*nsn = NULL;
+	struct pf_ksrc_node	*nsn = NULL;
 	struct tcphdr		*th = pd->hdr.tcp;
 	struct pf_state_key	*sk = NULL, *nk = NULL;
 	u_short			 reason;
@@ -3676,13 +3676,13 @@ cleanup:
 
 static int
 pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
-    struct pf_pdesc *pd, struct pf_src_node *nsn, struct pf_state_key *nk,
+    struct pf_pdesc *pd, struct pf_ksrc_node *nsn, struct pf_state_key *nk,
     struct pf_state_key *sk, struct mbuf *m, int off, u_int16_t sport,
     u_int16_t dport, int *rewrite, struct pfi_kif *kif, struct pf_state **sm,
     int tag, u_int16_t bproto_sum, u_int16_t bip_sum, int hdrlen)
 {
 	struct pf_state		*s = NULL;
-	struct pf_src_node	*sn = NULL;
+	struct pf_ksrc_node	*sn = NULL;
 	struct tcphdr		*th = pd->hdr.tcp;
 	u_int16_t		 mss = V_tcp_mssdflt;
 	u_short			 reason;
@@ -5576,7 +5576,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	struct ip		*ip;
 	struct ifnet		*ifp = NULL;
 	struct pf_addr		 naddr;
-	struct pf_src_node	*sn = NULL;
+	struct pf_ksrc_node	*sn = NULL;
 	int			 error = 0;
 	uint16_t		 ip_len, ip_off;
 
@@ -5739,7 +5739,7 @@ pf_route6(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	struct ip6_hdr		*ip6;
 	struct ifnet		*ifp = NULL;
 	struct pf_addr		 naddr;
-	struct pf_src_node	*sn = NULL;
+	struct pf_ksrc_node	*sn = NULL;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: invalid direction",

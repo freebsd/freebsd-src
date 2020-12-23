@@ -64,7 +64,7 @@ static struct pf_rule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
 			    uint16_t, int, struct pf_anchor_stackframe *);
 static int pf_get_sport(sa_family_t, uint8_t, struct pf_rule *,
     struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
-    uint16_t *, uint16_t, uint16_t, struct pf_src_node **);
+    uint16_t *, uint16_t, uint16_t, struct pf_ksrc_node **);
 
 #define mix(a,b,c) \
 	do {					\
@@ -215,7 +215,7 @@ static int
 pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
     struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
     uint16_t dport, struct pf_addr *naddr, uint16_t *nport, uint16_t low,
-    uint16_t high, struct pf_src_node **sn)
+    uint16_t high, struct pf_ksrc_node **sn)
 {
 	struct pf_state_key_cmp	key;
 	struct pf_addr		init_addr;
@@ -308,7 +308,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 
 int
 pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
-    struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_src_node **sn)
+    struct pf_addr *naddr, struct pf_addr *init_addr, struct pf_ksrc_node **sn)
 {
 	struct pf_pool		*rpool = &r->rpool;
 	struct pf_addr		*raddr = NULL, *rmask = NULL;
@@ -518,7 +518,7 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 
 struct pf_rule *
 pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
-    struct pfi_kif *kif, struct pf_src_node **sn,
+    struct pfi_kif *kif, struct pf_ksrc_node **sn,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_addr *saddr, struct pf_addr *daddr,
     uint16_t sport, uint16_t dport, struct pf_anchor_stackframe *anchor_stack)
