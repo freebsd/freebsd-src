@@ -42,12 +42,10 @@ static char sccsid[] = "@(#)sleep.c	8.3 (Berkeley) 4/2/94";
 __FBSDID("$FreeBSD$");
 
 #include <capsicum_helpers.h>
-#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <signal.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
