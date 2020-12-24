@@ -209,29 +209,27 @@ CDDL_CFLAGS=	\
 	-nostdinc \
 	-include $S/modules/zfs/static_ccompile.h \
 	-I${ZINCDIR} \
-	-I${ZINCDIR}/spl \
 	-I${ZINCDIR}/os/freebsd \
 	-I${ZINCDIR}/os/freebsd/spl \
 	-I${ZINCDIR}/os/freebsd/zfs  \
 	-I$S/modules/zfs \
 	-I$S/contrib/openzfs/module/zstd/include \
-	-I$S/contrib/openzfs/module/zstd/lib/freebsd/ \
 	${CFLAGS} \
-	-Wno-unknown-pragmas \
-	-Wno-missing-prototypes \
-	-Wno-undef \
-	-Wno-strict-prototypes \
 	-Wno-cast-qual \
-	-Wno-parentheses \
-	-Wno-redundant-decls \
-	-Wno-missing-braces \
-	-Wno-uninitialized \
-	-Wno-unused \
-	-Wno-inline \
-	-Wno-switch \
-	-Wno-pointer-arith \
-	-Wno-unknown-pragmas \
 	-Wno-duplicate-decl-specifier \
+	-Wno-inline \
+	-Wno-missing-braces \
+	-Wno-missing-prototypes \
+	-Wno-nested-externs \
+	-Wno-parentheses \
+	-Wno-pointer-arith \
+	-Wno-redundant-decls \
+	-Wno-strict-prototypes \
+	-Wno-switch \
+	-Wno-undef \
+	-Wno-uninitialized \
+	-Wno-unknown-pragmas \
+	-Wno-unused \
 	-include ${ZINCDIR}/os/freebsd/spl/sys/ccompile.h \
 	-I$S/cddl/contrib/opensolaris/uts/common \
 	-I$S -I$S/cddl/compat/opensolaris
