@@ -2,9 +2,6 @@
 
 .include <src.opts.mk>
 
-# pf_ruleset.c is shared between kernel and pfctl
-.PATH: ${SRCTOP}/sys/netpfil/pf
-
 PACKAGE=pf
 CONFS=	pf.os
 PROG=	pfctl
