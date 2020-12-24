@@ -622,7 +622,7 @@ hid_locate(const void *desc, usb_size_t size, int32_t u, enum hid_kind k,
 	struct hid_item h;
 
 	for (d = hid_start_parse(desc, size, 1 << k); hid_get_item(d, &h);) {
-		if (h.kind == k && !(h.flags & HIO_CONST) && h.usage == u) {
+		if (h.kind == k && h.usage == u) {
 			if (index--)
 				continue;
 			if (loc != NULL)
