@@ -635,7 +635,7 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 			left_btn = hid_get_data(buf, len, &sc->btn_loc[0]);
 		if (sc->has_int_button || isset(sc->buttons, 0))
 			evdev_push_key(sc->evdev, BTN_LEFT,
-			    int_btn != 0 | left_btn != 0);
+			    (int_btn != 0) | (left_btn != 0));
 		for (btn = 1; btn < sc->max_button; ++btn) {
 			if (isset(sc->buttons, btn))
 				evdev_push_key(sc->evdev, BTN_MOUSE + btn,
