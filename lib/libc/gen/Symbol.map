@@ -429,6 +429,8 @@ FBSD_1.6 {
 	sigandset;
 	sigisemptyset;
 	sigorset;
+	tcgetwinsize;
+	tcsetwinsize;
 };
 
 FBSDprivate_1.0 {

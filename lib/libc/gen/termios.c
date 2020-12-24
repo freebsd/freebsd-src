@@ -275,3 +275,17 @@ tcflow(int fd, int action)
 	}
 	/* NOTREACHED */
 }
+
+int
+tcgetwinsize(int fd, struct winsize *w)
+{
+
+	return (_ioctl(fd, TIOCGWINSZ, w));
+}
+
+int
+tcsetwinsize(int fd, const struct winsize *w)
+{
+
+	return (_ioctl(fd, TIOCSWINSZ, w));
+}
