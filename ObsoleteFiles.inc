@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20201224: mk48txx(4) removed
+OLD_FILES+=usr/share/man/man4/mk48txx.4.gz
+
 # 20201215: in-tree gdb removed
 OLD_FILES+=usr/libexec/gdb
 OLD_FILES+=usr/libexec/kgdb

@@ -286,7 +286,6 @@ MAN=	aac.4 \
 	meteor.4 \
 	mfi.4 \
 	miibus.4 \
-	mk48txx.4 \
 	mld.4 \
 	mlx.4 \
 	mlx4en.4 \
