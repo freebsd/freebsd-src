@@ -72,6 +72,14 @@ extern "C" {
 
 extern int verbosity;
 
+/*
+ * The maximum that a test case can set max_write, limited by the buffer
+ * supplied when reading from /dev/fuse.  This limitation is imposed by
+ * fusefs-libs, but not by the FUSE protocol.
+ */
+const uint32_t max_max_write = 0x20000;
+
+
 /* This struct isn't defined by fuse_kernel.h or libfuse, but it should be */
 struct fuse_create_out {
 	struct fuse_entry_out	entry;
@@ -138,8 +146,17 @@ struct fuse_init_out_7_22 {
 union fuse_payloads_in {
 	fuse_access_in	access;
 	fuse_bmap_in	bmap;
-	/* value is from fuse_kern_chan.c in fusefs-libs */
-	uint8_t		bytes[0x21000 - sizeof(struct fuse_in_header)];
+	/*
+	 * In fusefs-libs 3.4.2 and below the buffer size is fixed at 0x21000
+	 * minus the header sizes.  fusefs-libs 3.4.3 (and FUSE Protocol 7.29)
+	 * add a FUSE_MAX_PAGES option that allows it to be greater.
+	 *
+	 * See fuse_kern_chan.c in fusefs-libs 2.9.9 and below, or
+	 * FUSE_DEFAULT_MAX_PAGES_PER_REQ in fusefs-libs 3.4.3 and above.
+	 */
+	uint8_t		bytes[
+	    max_max_write + 0x1000 - sizeof(struct fuse_in_header)
+	];
 	fuse_create_in	create;
 	fuse_flush_in	flush;
 	fuse_fsync_in	fsync;

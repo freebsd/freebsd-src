@@ -83,10 +83,14 @@ void expect_lookup(const char *relpath, uint64_t ino, off_t size)
 TEST_F(Bmap, bmap)
 {
 	struct fiobmap2_arg arg;
-	const off_t filesize = 1 << 20;
-	const ino_t ino = 42;
-	int64_t lbn = 10;
+	/*
+	 * Pick fsize and lbn large enough that max length runs won't reach
+	 * either beginning or end of file
+	 */
+	const off_t filesize = 1 << 30;
+	int64_t lbn = 100;
 	int64_t pbn = 12345;
+	const ino_t ino = 42;
 	int fd;
 
 	expect_lookup(RELPATH, 42, filesize);
@@ -112,7 +116,7 @@ TEST_F(Bmap, bmap)
 TEST_F(Bmap, default_)
 {
 	struct fiobmap2_arg arg;
-	const off_t filesize = 1 << 20;
+	const off_t filesize = 1 << 30;
 	const ino_t ino = 42;
 	int64_t lbn;
 	int fd;

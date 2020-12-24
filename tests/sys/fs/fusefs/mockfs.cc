@@ -365,7 +365,7 @@ MockFS::MockFS(int max_readahead, bool allow_other, bool default_permissions,
 	m_daemon_id = NULL;
 	m_kernel_minor_version = kernel_minor_version;
 	m_maxreadahead = max_readahead;
-	m_maxwrite = max_write;
+	m_maxwrite = MIN(max_write, max_max_write);
 	m_nready = -1;
 	m_pm = pm;
 	m_time_gran = time_gran;
