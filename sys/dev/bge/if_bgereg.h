@@ -2552,17 +2552,11 @@ struct bge_status_block {
 #define	APPLE_DEVICE_BCM5701		0x1645
 
 /*
- * Sun PCI vendor ID
- */
-#define	SUN_VENDORID			0x108e
-
-/*
  * Fujitsu vendor/device IDs
  */
 #define	FJTSU_VENDORID			0x10cf
 #define	FJTSU_DEVICEID_PW008GE5		0x11a1
 #define	FJTSU_DEVICEID_PW008GE4		0x11a2
-#define	FJTSU_DEVICEID_PP250450		0x11cc		/* PRIMEPOWER250/450 LAN */
 
 /*
  * Offset of MAC address inside EEPROM.
