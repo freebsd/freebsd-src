@@ -111,7 +111,8 @@ hid_clear_local(struct hid_item *c)
 
 	c->loc.count = 0;
 	c->loc.size = 0;
-	c->usage = 0;
+	c->nusages = 0;
+	memset(c->usages, 0, sizeof(c->usages));
 	c->usage_minimum = 0;
 	c->usage_maximum = 0;
 	c->designator_index = 0;
@@ -273,6 +274,16 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 			DPRINTFN(1, "Using last usage\n");
 			dval = s->usage_last;
 		}
+		c->nusages = 1;
+		/* array type HID item may have multiple usages */
+		while ((c->flags & HIO_VARIABLE) == 0 && s->ousage == 0 &&
+		    s->iusage < s->nusage && c->nusages < HID_ITEM_MAXUSAGE)
+			c->usages[c->nusages++] = s->usages_min[s->iusage++];
+		if ((c->flags & HIO_VARIABLE) == 0 && s->ousage == 0 &&
+		    s->iusage < s->nusage)
+			DPRINTFN(0, "HID_ITEM_MAXUSAGE should be increased "
+			    "up to %hhu to parse the HID report descriptor\n",
+			    s->nusage);
 		s->icount ++;
 		/* 
 		 * Only copy HID item, increment position and return
@@ -381,6 +392,7 @@ hid_get_item(struct hid_data *s, struct hid_item *h)
 				c->collection = dval;
 				c->collevel++;
 				c->usage = s->usage_last;
+				c->nusages = 1;
 				*h = *c;
 				return (1);
 			case 11:	/* Feature */
@@ -620,19 +632,22 @@ hid_locate(const void *desc, usb_size_t size, int32_t u, enum hid_kind k,
 {
 	struct hid_data *d;
 	struct hid_item h;
+	int i;
 
 	for (d = hid_start_parse(desc, size, 1 << k); hid_get_item(d, &h);) {
-		if (h.kind == k && h.usage == u) {
-			if (index--)
-				continue;
-			if (loc != NULL)
-				*loc = h.loc;
-			if (flags != NULL)
-				*flags = h.flags;
-			if (id != NULL)
-				*id = h.report_ID;
-			hid_end_parse(d);
-			return (1);
+		for (i = 0; i < h.nusages; i++) {
+			if (h.kind == k && h.usages[i] == u) {
+				if (index--)
+					break;
+				if (loc != NULL)
+					*loc = h.loc;
+				if (flags != NULL)
+					*flags = h.flags;
+				if (id != NULL)
+					*id = h.report_ID;
+				hid_end_parse(d);
+				return (1);
+			}
 		}
 	}
 	if (loc != NULL)

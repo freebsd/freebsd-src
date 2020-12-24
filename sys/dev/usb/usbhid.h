@@ -208,6 +208,8 @@ struct usb_hid_descriptor {
 #if defined(_KERNEL) || defined(_STANDALONE)
 struct usb_config_descriptor;
 
+#define	HID_ITEM_MAXUSAGE	4
+
 enum hid_kind {
 	hid_input, hid_output, hid_feature, hid_collection, hid_endcollection
 };
@@ -229,7 +231,11 @@ struct hid_item {
 	int32_t	unit;
 	int32_t	report_ID;
 	/* Local */
-	int32_t	usage;
+	int	nusages;
+	union {
+		int32_t	usage;
+		int32_t usages[HID_ITEM_MAXUSAGE];
+	};
 	int32_t	usage_minimum;
 	int32_t	usage_maximum;
 	int32_t	designator_index;
