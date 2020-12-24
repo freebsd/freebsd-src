@@ -489,12 +489,6 @@ ifunc_init(Elf_Auxinfo aux_info[__min_size(AT_COUNT)] __unused)
 }
 
 void
-pre_init(void)
-{
-
-}
-
-void
 allocate_initial_tls(Obj_Entry *objs)
 {
 #ifdef ARM_TP_ADDRESS
