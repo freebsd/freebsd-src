@@ -799,11 +799,11 @@ static void
 export_rtaddrs(const struct rtentry *rt, struct sockaddr *dst,
     struct sockaddr *mask)
 {
-	uint32_t scopeid = 0;
 #ifdef INET
 	if (dst->sa_family == AF_INET) {
 		struct sockaddr_in *dst4 = (struct sockaddr_in *)dst;
 		struct sockaddr_in *mask4 = (struct sockaddr_in *)mask;
+		uint32_t scopeid = 0;
 		rt_get_inet_prefix_pmask(rt, &dst4->sin_addr, &mask4->sin_addr,
 		    &scopeid);
 		return;
@@ -813,8 +813,9 @@ export_rtaddrs(const struct rtentry *rt, struct sockaddr *dst,
 	if (dst->sa_family == AF_INET6) {
 		struct sockaddr_in6 *dst6 = (struct sockaddr_in6 *)dst;
 		struct sockaddr_in6 *mask6 = (struct sockaddr_in6 *)mask;
-		rt_get_inet6_prefix_pmask(rt, &dst6->sin6_addr, &mask6->sin6_addr,
-		    &scopeid);
+		uint32_t scopeid = 0;
+		rt_get_inet6_prefix_pmask(rt, &dst6->sin6_addr,
+		    &mask6->sin6_addr, &scopeid);
 		dst6->sin6_scope_id = scopeid;
 		return;
 	}
