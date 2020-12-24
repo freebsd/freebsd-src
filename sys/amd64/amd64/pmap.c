@@ -746,7 +746,7 @@ again:
 	PV_STAT(i = 0);
 	for (p = &pmap_invl_gen_head;; p = prev.next) {
 		PV_STAT(i++);
-		prevl = atomic_load_ptr(&p->next);
+		prevl = (uintptr_t)atomic_load_ptr(&p->next);
 		if ((prevl & PMAP_INVL_GEN_NEXT_INVALID) != 0) {
 			PV_STAT(atomic_add_long(&invl_start_restart, 1));
 			lock_delay(&lda);
@@ -853,7 +853,7 @@ pmap_delayed_invl_finish_u(void)
 
 again:
 	for (p = &pmap_invl_gen_head; p != NULL; p = (void *)prevl) {
-		prevl = atomic_load_ptr(&p->next);
+		prevl = (uintptr_t)atomic_load_ptr(&p->next);
 		if ((prevl & PMAP_INVL_GEN_NEXT_INVALID) != 0) {
 			PV_STAT(atomic_add_long(&invl_finish_restart, 1));
 			lock_delay(&lda);
@@ -904,7 +904,7 @@ DB_SHOW_COMMAND(di_queue, pmap_di_queue)
 
 	for (p = &pmap_invl_gen_head, first = true; p != NULL; p = pn,
 	    first = false) {
-		nextl = atomic_load_ptr(&p->next);
+		nextl = (uintptr_t)atomic_load_ptr(&p->next);
 		pn = (void *)(nextl & ~PMAP_INVL_GEN_NEXT_INVALID);
 		td = first ? NULL : __containerof(p, struct thread,
 		    td_md.md_invl_gen);
