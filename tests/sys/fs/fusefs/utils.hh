@@ -55,7 +55,6 @@ const char *cache_mode_to_s(enum cache_mode cm);
 bool is_unsafe_aio_enabled(void);
 
 extern const uint32_t libfuse_max_write;
-extern const uint32_t default_max_write;
 class FuseTest : public ::testing::Test {
 	protected:
 	uint32_t m_maxreadahead;
@@ -80,7 +79,7 @@ class FuseTest : public ::testing::Test {
 
 	FuseTest():
 		m_maxreadahead(0),
-		m_maxwrite(default_max_write),
+		m_maxwrite(0),
 		m_init_flags(0),
 		m_allow_other(false),
 		m_default_permissions(false),
