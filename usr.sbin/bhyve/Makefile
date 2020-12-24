@@ -23,10 +23,8 @@ SRCS=	\
 	block_if.c		\
 	bootrom.c		\
 	console.c		\
-	consport.c		\
 	ctl_util.c		\
 	ctl_scsi_all.c		\
-	dbgport.c		\
 	fwctl.c			\
 	gdb.c			\
 	hda_codec.c		\
