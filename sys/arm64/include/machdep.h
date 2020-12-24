@@ -60,6 +60,14 @@ void parse_fdt_bootargs(void);
 int memory_mapping_mode(vm_paddr_t pa);
 extern void (*pagezero)(void *);
 
+#ifdef SOCDEV_PA
+/*
+ * The virtual address SOCDEV_PA is mapped at.
+ * Only valid while the early pagetables are valid.
+ */
+extern uintptr_t socdev_va;
+#endif
+
 #endif /* _KERNEL */
 
 #endif /* _MACHINE_MACHDEP_H_ */
