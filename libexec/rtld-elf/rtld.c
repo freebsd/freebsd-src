@@ -803,12 +803,6 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	    obj_main->fini_array = (Elf_Addr)NULL;
     }
 
-    /*
-     * Execute MD initializers required before we call the objects'
-     * init functions.
-     */
-    pre_init();
-
     if (direct_exec) {
 	/* Set osrel for direct-execed binary */
 	mib[0] = CTL_KERN;
