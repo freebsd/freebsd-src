@@ -356,11 +356,9 @@ fticket_init(void *mem, int size, int flags)
 	bzero(ftick, sizeof(struct fuse_ticket));
 
 	fiov_init(&ftick->tk_ms_fiov, sizeof(struct fuse_in_header));
-	ftick->tk_ms_type = FT_M_FIOV;
 
 	mtx_init(&ftick->tk_aw_mtx, "fuse answer delivery mutex", NULL, MTX_DEF);
 	fiov_init(&ftick->tk_aw_fiov, 0);
-	ftick->tk_aw_type = FT_A_FIOV;
 
 	return 0;
 }
@@ -395,18 +393,11 @@ fticket_refresh(struct fuse_ticket *ftick)
 	FUSE_ASSERT_AW_DONE(ftick);
 
 	fiov_refresh(&ftick->tk_ms_fiov);
-	ftick->tk_ms_bufdata = NULL;
-	ftick->tk_ms_bufsize = 0;
-	ftick->tk_ms_type = FT_M_FIOV;
 
 	bzero(&ftick->tk_aw_ohead, sizeof(struct fuse_out_header));
 
 	fiov_refresh(&ftick->tk_aw_fiov);
 	ftick->tk_aw_errno = 0;
-	ftick->tk_aw_bufdata = NULL;
-	ftick->tk_aw_bufsize = 0;
-	ftick->tk_aw_type = FT_A_FIOV;
-
 	ftick->tk_flag = 0;
 }
 
@@ -417,17 +408,9 @@ fticket_reset(struct fuse_ticket *ftick)
 	FUSE_ASSERT_MS_DONE(ftick);
 	FUSE_ASSERT_AW_DONE(ftick);
 
-	ftick->tk_ms_bufdata = NULL;
-	ftick->tk_ms_bufsize = 0;
-	ftick->tk_ms_type = FT_M_FIOV;
-
 	bzero(&ftick->tk_aw_ohead, sizeof(struct fuse_out_header));
 
 	ftick->tk_aw_errno = 0;
-	ftick->tk_aw_bufdata = NULL;
-	ftick->tk_aw_bufsize = 0;
-	ftick->tk_aw_type = FT_A_FIOV;
-
 	ftick->tk_flag = 0;
 }
 
@@ -546,20 +529,8 @@ fticket_aw_pull_uio(struct fuse_ticket *ftick, struct uio *uio)
 	size_t len = uio_resid(uio);
 
 	if (len) {
-		switch (ftick->tk_aw_type) {
-		case FT_A_FIOV:
-			fiov_adjust(fticket_resp(ftick), len);
-			err = uiomove(fticket_resp(ftick)->base, len, uio);
-			break;
-
-		case FT_A_BUF:
-			ftick->tk_aw_bufsize = len;
-			err = uiomove(ftick->tk_aw_bufdata, len, uio);
-			break;
-
-		default:
-			panic("FUSE: unknown answer type for ticket %p", ftick);
-		}
+		fiov_adjust(fticket_resp(ftick), len);
+		err = uiomove(fticket_resp(ftick)->base, len, uio);
 	}
 	return err;
 }

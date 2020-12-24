@@ -287,9 +287,8 @@ fuse_device_read(struct cdev *dev, struct uio *uio, int ioflag)
 	int err;
 	struct fuse_data *data;
 	struct fuse_ticket *tick;
-	void *buf[] = {NULL, NULL, NULL};
-	int buflen[3];
-	int i;
+	void *buf;
+	int buflen;
 
 	SDT_PROBE2(fusefs, , device, trace, 1, "fuse device read");
 
@@ -352,46 +351,27 @@ again:
 	SDT_PROBE2(fusefs, , device, trace, 1,
 		"fuse device read message successfully");
 
-	KASSERT(tick->tk_ms_bufdata || tick->tk_ms_bufsize == 0,
-	    ("non-null buf pointer with positive size"));
+	buf = tick->tk_ms_fiov.base;
+	buflen = tick->tk_ms_fiov.len;
 
-	switch (tick->tk_ms_type) {
-	case FT_M_FIOV:
-		buf[0] = tick->tk_ms_fiov.base;
-		buflen[0] = tick->tk_ms_fiov.len;
-		break;
-	case FT_M_BUF:
-		buf[0] = tick->tk_ms_fiov.base;
-		buflen[0] = tick->tk_ms_fiov.len;
-		buf[1] = tick->tk_ms_bufdata;
-		buflen[1] = tick->tk_ms_bufsize;
-		break;
-	default:
-		panic("unknown message type for fuse_ticket %p", tick);
-	}
-
-	for (i = 0; buf[i]; i++) {
-		/*
-		 * Why not ban mercilessly stupid daemons who can't keep up
-		 * with us? (There is no much use of a partial read here...)
-		 */
-		/*
-		 * XXX note that in such cases Linux FUSE throws EIO at the
-		 * syscall invoker and stands back to the message queue. The
-		 * rationale should be made clear (and possibly adopt that
-		 * behaviour). Keeping the current scheme at least makes
-		 * fallacy as loud as possible...
-		 */
-		if (uio->uio_resid < buflen[i]) {
-			fdata_set_dead(data);
-			SDT_PROBE2(fusefs, , device, trace, 2,
-			    "daemon is stupid, kick it off...");
-			err = ENODEV;
-			break;
-		}
-		err = uiomove(buf[i], buflen[i], uio);
-		if (err)
-			break;
+	/*
+	 * Why not ban mercilessly stupid daemons who can't keep up
+	 * with us? (There is no much use of a partial read here...)
+	 */
+	/*
+	 * XXX note that in such cases Linux FUSE throws EIO at the
+	 * syscall invoker and stands back to the message queue. The
+	 * rationale should be made clear (and possibly adopt that
+	 * behaviour). Keeping the current scheme at least makes
+	 * fallacy as loud as possible...
+	 */
+	if (uio->uio_resid < buflen) {
+		fdata_set_dead(data);
+		SDT_PROBE2(fusefs, , device, trace, 2,
+		    "daemon is stupid, kick it off...");
+		err = ENODEV;
+	} else {
+		err = uiomove(buf, buflen, uio);
 	}
 
 	FUSE_ASSERT_MS_DONE(tick);

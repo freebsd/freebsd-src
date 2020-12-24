@@ -123,17 +123,10 @@ struct fuse_ticket {
 
 	/* fields for initiating an upgoing message */
 	struct fuse_iov			tk_ms_fiov;
-	void				*tk_ms_bufdata;
-	size_t				tk_ms_bufsize;
-	enum { FT_M_FIOV, FT_M_BUF }	tk_ms_type;
 	STAILQ_ENTRY(fuse_ticket)	tk_ms_link;
 
 	/* fields for handling answers coming from userspace */
 	struct fuse_iov			tk_aw_fiov;
-	void				*tk_aw_bufdata;
-	size_t				tk_aw_bufsize;
-	enum { FT_A_FIOV, FT_A_BUF }	tk_aw_type;
-
 	struct fuse_out_header		tk_aw_ohead;
 	int				tk_aw_errno;
 	struct mtx			tk_aw_mtx;
