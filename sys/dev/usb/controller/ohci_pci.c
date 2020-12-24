@@ -89,7 +89,6 @@ __FBSDID("$FreeBSD$");
 #define	PCI_OHCI_VENDORID_NVIDIA2	0x10DE
 #define	PCI_OHCI_VENDORID_OPTI		0x1045
 #define	PCI_OHCI_VENDORID_SIS		0x1039
-#define	PCI_OHCI_VENDORID_SUN		0x108e
 
 #define	PCI_OHCI_BASE_REG	0x10
 
@@ -174,9 +173,6 @@ ohci_pci_match(device_t self)
 	case 0x70011039:
 		return ("SiS 5571 USB controller");
 
-	case 0x1103108e:
-		return "Sun PCIO-2 USB controller";
-
 	case 0x0019106b:
 		return ("Apple KeyLargo USB controller");
 	case 0x003f106b:
@@ -227,13 +223,6 @@ ohci_pci_attach(device_t self)
 	sc->sc_dev = self;
 
 	pci_enable_busmaster(self);
-
-	/*
-	 * Some Sun PCIO-2 USB controllers have their intpin register
-	 * bogusly set to 0, although it should be 4.  Correct that.
-	 */
-	if (pci_get_devid(self) == 0x1103108e && pci_get_intpin(self) == 0)
-		pci_set_intpin(self, 4);
 
 	rid = PCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
@@ -296,9 +285,6 @@ ohci_pci_attach(device_t self)
 		break;
 	case PCI_OHCI_VENDORID_SIS:
 		sprintf(sc->sc_vendor, "SiS");
-		break;
-	case PCI_OHCI_VENDORID_SUN:
-		sprintf(sc->sc_vendor, "SUN");
 		break;
 	default:
 		if (bootverbose) {
