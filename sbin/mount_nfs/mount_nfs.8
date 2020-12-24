@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd November 30, 2020
+.Dd December 21, 2020
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -418,6 +418,36 @@ per RFC NNNN.
 TLS is only supported for TCP connections and the
 .Xr rpc.tlsclntd 8
 daemon must be running for an NFS over TCP connection to use TLS.
+.It Cm tlscertname Ns = Ns Aq Ar name
+This option specifies the name of an alternate certificate to be
+presented to the NFS server during TLS handshake.
+The default certificate file names are
+.Dq cert.pem
+and
+.Dq certkey.pem .
+When this option is specified,
+.Ar name
+replaces
+.Dq cert
+in the above file names.
+For example, if the value of
+.Ar name
+is specified as
+.Dq other
+the certificate file names to be used will be
+.Dq other.pem
+and
+.Dq otherkey.pem .
+These files are stored in
+.Pa /etc/rpc.tlsclntd
+by default.
+This option is only meaningful when used with the
+.Cm tls
+option and the
+.Xr rpc.tlsclntd 8
+is running with the
+.Fl m
+command line flag set.
 .It Cm udp
 Use UDP transport.
 .It Cm vers Ns = Ns Aq Ar vers_number
