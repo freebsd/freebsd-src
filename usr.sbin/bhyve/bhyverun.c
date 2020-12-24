@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 #include "atkbdc.h"
 #include "bootrom.h"
 #include "inout.h"
-#include "dbgport.h"
 #include "debug.h"
 #include "fwctl.h"
 #include "gdb.h"
@@ -237,9 +236,9 @@ usage(int code)
 {
 
         fprintf(stderr,
-		"Usage: %s [-abehuwxACDHPSWY]\n"
+		"Usage: %s [-aehuwxACDHPSWY]\n"
 		"       %*s [-c [[cpus=]numcpus][,sockets=n][,cores=n][,threads=n]]\n"
-		"       %*s [-g <gdb port>] [-l <lpc>]\n"
+		"       %*s [-l <lpc>]\n"
 		"       %*s [-m mem] [-p vcpu:hostcpu] [-s <pci>] [-U uuid] <vm>\n"
 		"       -a: local apic is in xAPIC mode (deprecated)\n"
 		"       -A: create ACPI tables\n"
@@ -247,7 +246,6 @@ usage(int code)
 		"       -C: include guest memory in core file\n"
 		"       -D: destroy on power-off\n"
 		"       -e: exit on unhandled I/O access\n"
-		"       -g: gdb port\n"
 		"       -h: help\n"
 		"       -H: vmexit from the guest on hlt\n"
 		"       -l: LPC device configuration\n"
@@ -1082,7 +1080,7 @@ spinup_vcpu(struct vmctx *ctx, int vcpu)
 int
 main(int argc, char *argv[])
 {
-	int c, error, dbg_port, err, bvmcons;
+	int c, error, err;
 	int max_vcpus, mptgen, memflags;
 	int rtc_localtime;
 	bool gdb_stop;
@@ -1098,9 +1096,7 @@ main(int argc, char *argv[])
 	restore_file = NULL;
 #endif
 
-	bvmcons = 0;
 	progname = basename(argv[0]);
-	dbg_port = 0;
 	gdb_stop = false;
 	guest_ncpus = 1;
 	sockets = cores = threads = 1;
@@ -1111,9 +1107,9 @@ main(int argc, char *argv[])
 	memflags = 0;
 
 #ifdef BHYVE_SNAPSHOT
-	optstr = "abehuwxACDHIPSWYp:g:G:c:s:m:l:U:r:";
+	optstr = "aehuwxACDHIPSWYp:G:c:s:m:l:U:r:";
 #else
-	optstr = "abehuwxACDHIPSWYp:g:G:c:s:m:l:U:";
+	optstr = "aehuwxACDHIPSWYp:G:c:s:m:l:U:";
 #endif
 	while ((c = getopt(argc, argv, optstr)) != -1) {
 		switch (c) {
@@ -1122,10 +1118,6 @@ main(int argc, char *argv[])
 			break;
 		case 'A':
 			acpi = 1;
-			break;
-		case 'b':
-			warnx("-b flag is deprecated and will be removed in FreeBSD 13.0");
-			bvmcons = 1;
 			break;
 		case 'D':
 			destroy_on_poweroff = 1;
@@ -1144,10 +1136,6 @@ main(int argc, char *argv[])
 			break;
 		case 'C':
 			memflags |= VM_MEM_F_INCORE;
-			break;
-		case 'g':
-			warnx("-g flag is deprecated and will be removed in FreeBSD 13.0");
-			dbg_port = atoi(optarg);
 			break;
 		case 'G':
 			if (optarg[0] == 'w') {
@@ -1323,14 +1311,8 @@ main(int argc, char *argv[])
 	if (acpi)
 		vmgenc_init(ctx);
 
-	if (dbg_port != 0)
-		init_dbgport(dbg_port);
-
 	if (gdb_port != 0)
 		init_gdb(ctx, gdb_port, gdb_stop);
-
-	if (bvmcons)
-		init_bvmcons();
 
 	if (lpc_bootrom()) {
 		if (vm_set_capability(ctx, BSP, VM_CAP_UNRESTRICTED_GUEST, 1)) {

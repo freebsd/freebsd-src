@@ -80,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "atkbdc.h"
 #include "inout.h"
-#include "dbgport.h"
 #include "fwctl.h"
 #include "ioapic.h"
 #include "mem.h"

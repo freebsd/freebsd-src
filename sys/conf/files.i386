@@ -226,11 +226,6 @@ libkern/umoddi3.c		standard
 # x86 real mode BIOS support, required by dpms/pci/vesa
 #
 compat/x86bios/x86bios.c	optional x86bios | dpms | pci | vesa
-#
-# bvm console
-#
-dev/bvm/bvm_console.c		optional	bvmconsole
-dev/bvm/bvm_dbg.c		optional	bvmdebug
 # Common files where we currently configure the system differently, but perhaps shouldn't
 # config(8) doesn't have a way to force standard options, so we've been inconsistent
 # about marking non-optional things 'standard'.
