@@ -176,10 +176,10 @@ closekre(WINDOW *w)
 #define PAGECOL		47
 #define INTSROW		 5	/* uses all rows to bottom and 16 cols */
 #define INTSCOL		64
-#define PROCSROW	 6	/* uses 3 rows and 19 cols */
+#define PROCSROW	 6	/* uses 3 rows and 20 cols */
 #define PROCSCOL	 0
 #define GENSTATROW	 7	/* uses 2 rows and 29 cols */
-#define GENSTATCOL	21
+#define GENSTATCOL	22
 #define VMSTATROW	 5	/* uses 17 rows and 12-14 cols */
 #define VMSTATCOL	49	/* actually 50-51 for some fields */
 #define GRAPHROW	10	/* uses 3 rows and 49-51 cols */
@@ -343,7 +343,7 @@ labelkre(void)
 	mvprintw(GRAPHROW, GRAPHCOL,
 		"  . %%Sys    . %%Intr   . %%User   . %%Nice   . %%Idle");
 	mvprintw(PROCSROW, PROCSCOL, "Proc:");
-	mvprintw(PROCSROW + 1, PROCSCOL, "  r   p   d   s   w");
+	mvprintw(PROCSROW + 1, PROCSCOL, "  r   p   d    s   w");
 	mvprintw(GRAPHROW + 1, GRAPHCOL,
 		"|    |    |    |    |    |    |    |    |    |    |");
 
@@ -470,8 +470,8 @@ showkre(void)
 	putint(total.t_rq - 1, PROCSROW + 2, PROCSCOL, 3);
 	putint(total.t_pw, PROCSROW + 2, PROCSCOL + 4, 3);
 	putint(total.t_dw, PROCSROW + 2, PROCSCOL + 8, 3);
-	putint(total.t_sl, PROCSROW + 2, PROCSCOL + 12, 3);
-	putint(total.t_sw, PROCSROW + 2, PROCSCOL + 16, 3);
+	putint(total.t_sl, PROCSROW + 2, PROCSCOL + 12, 4);
+	putint(total.t_sw, PROCSROW + 2, PROCSCOL + 17, 3);
 	PUTRATE(v_io_faults, VMSTATROW, VMSTATCOL + 2, 8 - 2);
 	PUTRATE(v_cow_faults, VMSTATROW + 1, VMSTATCOL + 2, 8 - 2);
 	PUTRATE(v_zfod, VMSTATROW + 2, VMSTATCOL + 2, 8 - 2);
