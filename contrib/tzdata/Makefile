@@ -583,11 +583,19 @@ INSTALL:	ALL install date.1
 		cp date '$(DESTDIR)$(BINDIR)/.'
 		cp -f date.1 '$(DESTDIR)$(MANDIR)/man1/.'
 
+# Calculate version number from git, if available.
+# Otherwise, use $(VERSION) unless it is "unknown" and there is already
+# a 'version' file, in which case reuse the existing 'version' contents
+# and append "-dirty" if the contents do not already end in "-dirty".
 version:	$(VERSION_DEPS)
 		{ (type git) >/dev/null 2>&1 && \
 		  V=`git describe --match '[0-9][0-9][0-9][0-9][a-z]*' \
 				--abbrev=7 --dirty` || \
-		  V='$(VERSION)'; } && \
+		  if test '$(VERSION)' = unknown && V=`cat $@`; then \
+		    case $$V in *-dirty);; *) V=$$V-dirty;; esac; \
+		  else \
+		    V='$(VERSION)'; \
+		  fi; } && \
 		printf '%s\n' "$$V" >$@.out
 		mv $@.out $@
 
@@ -872,11 +880,34 @@ $(MANTXTS):	workman.sh
 		LC_ALL=C sh workman.sh `expr $@ : '\(.*\)\.txt$$'` >$@.out
 		mv $@.out $@
 
+# Set file timestamps deterministically if possible,
+# so that tarballs containing the timestamps are reproducible.
+#
+# '$(SET_TIMESTAMP_N) N DEST A B C ...' sets the timestamp of the
+# file DEST to the maximum of the timestamps of the files A B C ...,
+# plus N if GNU ls and touch are available.
+SET_TIMESTAMP_N = sh -c '\
+  n=$$0 dest=$$1; shift; \
+  touch -cmr `ls -t "$$@" | sed 1q` "$$dest" && \
+  if test $$n != 0 && \
+     lsout=`ls -n --time-style="+%s" "$$dest" 2>/dev/null`; then \
+    set x $$lsout && \
+    touch -cmd @`expr $$7 + $$n` "$$dest"; \
+  else :; fi'
+# If DEST depends on A B C ... in this Makefile, callers should use
+# $(SET_TIMESTAMP_DEP) DEST A B C ..., for the benefit of any
+# downstream 'make' that considers equal timestamps to be out of date.
+# POSIX allows this 'make' behavior, and HP-UX 'make' does it.
+# If all that matters is that the timestamp be reproducible
+# and plausible, use $(SET_TIMESTAMP).
+SET_TIMESTAMP = $(SET_TIMESTAMP_N) 0
+SET_TIMESTAMP_DEP = $(SET_TIMESTAMP_N) 1
+
 # Set the timestamps to those of the git repository, if available,
 # and if the files have not changed since then.
-# This uses GNU 'touch' syntax 'touch -d@N FILE',
-# where N is the number of seconds since 1970.
-# If git or GNU 'touch' is absent, don't bother to sync with git timestamps.
+# This uses GNU 'ls --time-style=+%s', which outputs the seconds count,
+# and GNU 'touch -d@N FILE', where N is the number of seconds since 1970.
+# If git or GNU is absent, don't bother to sync with git timestamps.
 # Also, set the timestamp of each prebuilt file like 'leapseconds'
 # to be the maximum of the files it depends on.
 set-timestamps.out: $(EIGHT_YARDS)
@@ -894,16 +925,16 @@ set-timestamps.out: $(EIGHT_YARDS)
 		    fi || exit; \
 		  done; \
 		fi
-		touch -cmr `ls -t $(LEAP_DEPS) | sed 1q` leapseconds
+		$(SET_TIMESTAMP_DEP) leapseconds $(LEAP_DEPS)
 		for file in `ls $(MANTXTS) | sed 's/\.txt$$//'`; do \
-		  touch -cmr `ls -t $$file workman.sh | sed 1q` $$file.txt || \
+		  $(SET_TIMESTAMP_DEP) $$file.txt $$file workman.sh || \
 		    exit; \
 		done
-		touch -cmr `ls -t $(TZDATA_ZI_DEPS) | sed 1q` tzdata.zi
-		touch -cmr `ls -t $(VERSION_DEPS) | sed 1q` version
+		$(SET_TIMESTAMP_DEP) version $(VERSION_DEPS)
+		$(SET_TIMESTAMP_DEP) tzdata.zi $(TZDATA_ZI_DEPS)
 		touch $@
 set-tzs-timestamp.out: $(TZS)
-		touch -cmr `ls -t $(TZS_DEPS) | sed 1q` $(TZS)
+		$(SET_TIMESTAMP_DEP) $(TZS) $(TZS_DEPS)
 		touch $@
 
 # The zics below ensure that each data file can stand on its own.
@@ -981,7 +1012,7 @@ tarballs rearguard_tarballs traditional_tarballs \
 signatures rearguard_signatures traditional_signatures: \
   version set-timestamps.out rearguard.zi
 		VERSION=`cat version` && \
-		$(MAKE) VERSION="$$VERSION" $@_version
+		$(MAKE) AWK='$(AWK)' VERSION="$$VERSION" $@_version
 
 # These *_version rules are intended for use if VERSION is set by some
 # other means.  Ordinarily these rules are used only by the above
@@ -1018,7 +1049,7 @@ tzdata$(VERSION)-rearguard.tar.gz: rearguard.zi set-timestamps.out
 		for f in $(TDATA) $(PACKRATDATA); do \
 		  rearf=tzdata$(VERSION)-rearguard.dir/$$f; \
 		  $(AWK) -v DATAFORM=rearguard -f ziguard.awk $$f >$$rearf && \
-		  touch -cmr `ls -t ziguard.awk $$f` $$rearf || exit; \
+		  $(SET_TIMESTAMP_DEP) $$rearf ziguard.awk $$f || exit; \
 		done
 		sed '1s/$$/-rearguard/' \
 		  <version >tzdata$(VERSION)-rearguard.dir/version
@@ -1037,7 +1068,7 @@ tzdb-$(VERSION).tar.lz: set-timestamps.out set-tzs-timestamp.out
 		rm -fr tzdb-$(VERSION)
 		mkdir tzdb-$(VERSION)
 		ln $(ENCHILADA) tzdb-$(VERSION)
-		touch -cmr `ls -t tzdb-$(VERSION)/* | sed 1q` tzdb-$(VERSION)
+		$(SET_TIMESTAMP) tzdb-$(VERSION) tzdb-$(VERSION)/*
 		LC_ALL=C && export LC_ALL && \
 		tar $(TARFLAGS) -cf - tzdb-$(VERSION) | lzip -9 >$@.out
 		mv $@.out $@
@@ -1078,8 +1109,6 @@ localtime.o:	private.h tzfile.h
 strftime.o:	private.h tzfile.h
 zdump.o:	version.h
 zic.o:		private.h tzfile.h version.h
-
-.KEEP_STATE:
 
 .PHONY: ALL INSTALL all
 .PHONY: check check_time_t_alternatives
