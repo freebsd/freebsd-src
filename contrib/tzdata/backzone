@@ -623,6 +623,12 @@ Zone Atlantic/St_Helena	-0:22:48 -	LMT	1890 # Jamestown
 			-0:22:48 -	JMT	1951 # Jamestown Mean Time
 			 0:00	-	GMT
 
+# King Island
+Zone Australia/Currie	9:35:28	-	LMT	1895 Sep
+			10:00	AT	AE%sT	1919 Oct 24
+			10:00	Aus	AE%sT	1968 Oct 15
+			10:00	AT	AE%sT
+
 # Northern Ireland
 Zone	Europe/Belfast	-0:23:40 -	LMT	1880 Aug  2
 			-0:25:21 -	DMT	1916 May 21  2:00
