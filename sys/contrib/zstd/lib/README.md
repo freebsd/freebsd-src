@@ -143,6 +143,14 @@ The file structure is designed to make this selection manually achievable for an
   Setting this macro will either force to generate the BMI2 dispatcher (1)
   or prevent it (0). It overrides automatic detection.
 
+- The build macro `ZSTD_NO_UNUSED_FUNCTIONS` can be defined to hide the definitions of functions
+  that zstd does not use. Not all unused functions are hidden, but they can be if needed.
+  Currently, this macro will hide function definitions in FSE and HUF that use an excessive
+  amount of stack space.
+
+- The build macro `ZSTD_NO_INTRINSICS` can be defined to disable all explicit intrinsics.
+  Compiler builtins are still used.
+
 
 #### Windows : using MinGW+MSYS to create DLL
 
@@ -158,6 +166,26 @@ file it should be linked with `dll\libzstd.dll`. For example:
     gcc $(CFLAGS) -Iinclude/ test-dll.c -o test-dll dll\libzstd.dll
 ```
 The compiled executable will require ZSTD DLL which is available at `dll\libzstd.dll`.
+
+
+#### Advanced Build options
+
+The build system requires a hash function in order to
+separate object files created with different compilation flags.
+By default, it tries to use `md5sum` or equivalent.
+The hash function can be manually switched by setting the `HASH` variable.
+For example : `make HASH=xxhsum`
+The hash function needs to generate at least 64-bit using hexadecimal format.
+When no hash function is found,
+the Makefile just generates all object files into the same default directory,
+irrespective of compilation flags.
+This functionality only matters if `libzstd` is compiled multiple times
+with different build flags.
+
+The build directory, where object files are stored
+can also be manually controlled using variable `BUILD_DIR`,
+for example `make BUILD_DIR=objectDir/v1`.
+In which case, the hash function doesn't matter.
 
 
 #### Deprecated API

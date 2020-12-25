@@ -62,14 +62,15 @@
 
 #define NOISELENGTH 32
 
-static const int g_compressionLevel_default = 3;
 static const U32 g_selectivity_default = 9;
 
 
 /*-*************************************
 *  Console display
 ***************************************/
+#undef  DISPLAY
 #define DISPLAY(...)         { fprintf(stderr, __VA_ARGS__); fflush( stderr ); }
+#undef  DISPLAYLEVEL
 #define DISPLAYLEVEL(l, ...) if (notificationLevel>=l) { DISPLAY(__VA_ARGS__); }    /* 0 : no display;   1: errors;   2: default;  3: details;  4: debug */
 
 static clock_t ZDICT_clockSpan(clock_t nPrevious) { return clock() - nPrevious; }
@@ -105,20 +106,17 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
     size_t headerSize;
     if (dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return ERROR(dictionary_corrupted);
 
-    {   unsigned offcodeMaxValue = MaxOff;
-        ZSTD_compressedBlockState_t* bs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
+    {   ZSTD_compressedBlockState_t* bs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
         U32* wksp = (U32*)malloc(HUF_WORKSPACE_SIZE);
-        short* offcodeNCount = (short*)malloc((MaxOff+1)*sizeof(short));
-        if (!bs || !wksp || !offcodeNCount) {
+        if (!bs || !wksp) {
             headerSize = ERROR(memory_allocation);
         } else {
             ZSTD_reset_compressedBlockState(bs);
-            headerSize = ZSTD_loadCEntropy(bs, wksp, offcodeNCount, &offcodeMaxValue, dictBuffer, dictSize);
+            headerSize = ZSTD_loadCEntropy(bs, wksp, dictBuffer, dictSize);
         }
 
         free(bs);
         free(wksp);
-        free(offcodeNCount);
     }
 
     return headerSize;
@@ -532,6 +530,7 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
     clock_t displayClock = 0;
     clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
 
+#   undef  DISPLAYUPDATE
 #   define DISPLAYUPDATE(l, ...) if (notificationLevel>=l) { \
             if (ZDICT_clockSpan(displayClock) > refreshRate)  \
             { displayClock = clock(); DISPLAY(__VA_ARGS__); \
@@ -706,7 +705,7 @@ static void ZDICT_flatLit(unsigned* countLit)
 
 #define OFFCODE_MAX 30  /* only applicable to first block */
 static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
-                                   unsigned compressionLevel,
+                                   int compressionLevel,
                              const void*  srcBuffer, const size_t* fileSizes, unsigned nbFiles,
                              const void* dictBuffer, size_t  dictBufferSize,
                                    unsigned notificationLevel)
@@ -741,7 +740,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     memset(repOffset, 0, sizeof(repOffset));
     repOffset[1] = repOffset[4] = repOffset[8] = 1;
     memset(bestRepOffset, 0, sizeof(bestRepOffset));
-    if (compressionLevel==0) compressionLevel = g_compressionLevel_default;
+    if (compressionLevel==0) compressionLevel = ZSTD_CLEVEL_DEFAULT;
     params = ZSTD_getParams(compressionLevel, averageSampleSize, dictBufferSize);
 
     esr.dict = ZSTD_createCDict_advanced(dictBuffer, dictBufferSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent, params.cParams, ZSTD_defaultCMem);
@@ -786,7 +785,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     /* note : the result of this phase should be used to better appreciate the impact on statistics */
 
     total=0; for (u=0; u<=offcodeMax; u++) total+=offcodeCount[u];
-    errorCode = FSE_normalizeCount(offcodeNCount, Offlog, offcodeCount, total, offcodeMax);
+    errorCode = FSE_normalizeCount(offcodeNCount, Offlog, offcodeCount, total, offcodeMax, /* useLowProbCount */ 1);
     if (FSE_isError(errorCode)) {
         eSize = errorCode;
         DISPLAYLEVEL(1, "FSE_normalizeCount error with offcodeCount \n");
@@ -795,7 +794,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     Offlog = (U32)errorCode;
 
     total=0; for (u=0; u<=MaxML; u++) total+=matchLengthCount[u];
-    errorCode = FSE_normalizeCount(matchLengthNCount, mlLog, matchLengthCount, total, MaxML);
+    errorCode = FSE_normalizeCount(matchLengthNCount, mlLog, matchLengthCount, total, MaxML, /* useLowProbCount */ 1);
     if (FSE_isError(errorCode)) {
         eSize = errorCode;
         DISPLAYLEVEL(1, "FSE_normalizeCount error with matchLengthCount \n");
@@ -804,7 +803,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     mlLog = (U32)errorCode;
 
     total=0; for (u=0; u<=MaxLL; u++) total+=litLengthCount[u];
-    errorCode = FSE_normalizeCount(litLengthNCount, llLog, litLengthCount, total, MaxLL);
+    errorCode = FSE_normalizeCount(litLengthNCount, llLog, litLengthCount, total, MaxLL, /* useLowProbCount */ 1);
     if (FSE_isError(errorCode)) {
         eSize = errorCode;
         DISPLAYLEVEL(1, "FSE_normalizeCount error with litLengthCount \n");
@@ -893,7 +892,7 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
     size_t hSize;
 #define HBUFFSIZE 256   /* should prove large enough for all entropy headers */
     BYTE header[HBUFFSIZE];
-    int const compressionLevel = (params.compressionLevel == 0) ? g_compressionLevel_default : params.compressionLevel;
+    int const compressionLevel = (params.compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : params.compressionLevel;
     U32 const notificationLevel = params.notificationLevel;
 
     /* check conditions */
@@ -939,7 +938,7 @@ static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
         const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
         ZDICT_params_t params)
 {
-    int const compressionLevel = (params.compressionLevel == 0) ? g_compressionLevel_default : params.compressionLevel;
+    int const compressionLevel = (params.compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : params.compressionLevel;
     U32 const notificationLevel = params.notificationLevel;
     size_t hSize = 8;
 
@@ -1114,8 +1113,8 @@ size_t ZDICT_trainFromBuffer(void* dictBuffer, size_t dictBufferCapacity,
     memset(&params, 0, sizeof(params));
     params.d = 8;
     params.steps = 4;
-    /* Default to level 6 since no compression level information is available */
-    params.zParams.compressionLevel = 3;
+    /* Use default level since no compression level information is available */
+    params.zParams.compressionLevel = ZSTD_CLEVEL_DEFAULT;
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL>=1)
     params.zParams.notificationLevel = DEBUGLEVEL;
 #endif
