@@ -667,9 +667,10 @@ IDTVEC(dbg)
 	jnz	dbg_fromuserspace
 	lfence
 	/*
-	 * We've interrupted the kernel.  Preserve GS.base in %r12,
-	 * %cr3 in %r13, and possibly lower half of MSR_IA32_SPEC_CTL in %r14d.
+	 * We've interrupted the kernel.  See comment in NMI handler about
+	 * registers use.
 	 */
+	movq	%cr2,%r15
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	movq	%rax,%r12
@@ -710,6 +711,7 @@ IDTVEC(dbg)
 	shrq	$32,%rdx
 	wrmsr
 	movq	%r13,%cr3
+	movq	%r15,%cr2
 	RESTORE_REGS
 	addq	$TF_RIP,%rsp
 	jmp	doreti_iret
@@ -804,10 +806,14 @@ IDTVEC(nmi)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jnz	nmi_fromuserspace
 	/*
-	 * We've interrupted the kernel.  Preserve GS.base in %r12,
-	 * %cr3 in %r13, and possibly lower half of MSR_IA32_SPEC_CTL in %r14d.
+	 * We've interrupted the kernel.  Preserve in callee-saved regs:
+	 * GS.base in %r12,
+	 * %cr3 in %r13,
+	 * possibly lower half of MSR_IA32_SPEC_CTL in %r14d,
+	 * %cr2 in %r15.
 	 */
 	lfence
+	movq	%cr2,%r15
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	movq	%rax,%r12
@@ -957,6 +963,7 @@ nocallchain:
 	je	2f
 	call	flush_l1d_sw		/* bhyve L1TF assist */
 2:	movq	%r13,%cr3
+	movq	%r15,%cr2
 	RESTORE_REGS
 	addq	$TF_RIP,%rsp
 	jmp	doreti_iret
@@ -1011,9 +1018,10 @@ IDTVEC(mchk)
 	testb	$SEL_RPL_MASK,TF_CS(%rsp)
 	jnz	mchk_fromuserspace
 	/*
-	 * We've interrupted the kernel.  Preserve GS.base in %r12,
-	 * %cr3 in %r13, and possibly lower half of MSR_IA32_SPEC_CTL in %r14d.
+	 * We've interrupted the kernel.  See comment in NMI handler about
+	 * registers use.
 	 */
+	movq	%cr2,%r15
 	movl	$MSR_GSBASE,%ecx
 	rdmsr
 	movq	%rax,%r12
@@ -1071,6 +1079,7 @@ mchk_calltrap:
 	shrq	$32,%rdx
 	wrmsr
 	movq	%r13,%cr3
+	movq	%r15,%cr2
 	RESTORE_REGS
 	addq	$TF_RIP,%rsp
 	jmp	doreti_iret
