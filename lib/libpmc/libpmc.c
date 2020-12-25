@@ -59,10 +59,6 @@ static int tsc_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
 #if defined(__arm__)
-#if defined(__XSCALE__)
-static int xscale_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
-    struct pmc_op_pmcallocate *_pmc_config);
-#endif
 static int armv7_allocate_pmc(enum pmc_event _pe, char *_ctrspec,
     struct pmc_op_pmcallocate *_pmc_config);
 #endif
@@ -140,7 +136,6 @@ struct pmc_class_descr {
 
 PMC_CLASSDEP_TABLE(iaf, IAF);
 PMC_CLASSDEP_TABLE(k8, K8);
-PMC_CLASSDEP_TABLE(xscale, XSCALE);
 PMC_CLASSDEP_TABLE(armv7, ARMV7);
 PMC_CLASSDEP_TABLE(armv8, ARMV8);
 PMC_CLASSDEP_TABLE(beri, BERI);
@@ -193,7 +188,6 @@ static const struct pmc_event_descr cortex_a76_event_table[] =
 	}
 
 PMC_MDEP_TABLE(k8, K8, PMC_CLASS_SOFT, PMC_CLASS_TSC);
-PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_SOFT, PMC_CLASS_XSCALE);
 PMC_MDEP_TABLE(beri, BERI, PMC_CLASS_SOFT, PMC_CLASS_BERI);
 PMC_MDEP_TABLE(cortex_a8, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
 PMC_MDEP_TABLE(cortex_a9, ARMV7, PMC_CLASS_SOFT, PMC_CLASS_ARMV7);
@@ -234,9 +228,6 @@ PMC_CLASS_TABLE_DESC(k8, K8, k8, k8);
 PMC_CLASS_TABLE_DESC(tsc, TSC, tsc, tsc);
 #endif
 #if	defined(__arm__)
-#if	defined(__XSCALE__)
-PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
-#endif
 PMC_CLASS_TABLE_DESC(cortex_a8, ARMV7, cortex_a8, armv7);
 PMC_CLASS_TABLE_DESC(cortex_a9, ARMV7, cortex_a9, armv7);
 #endif
@@ -770,29 +761,6 @@ soft_allocate_pmc(enum pmc_event pe, char *ctrspec,
 }
 
 #if	defined(__arm__)
-#if	defined(__XSCALE__)
-
-static struct pmc_event_alias xscale_aliases[] = {
-	EV_ALIAS("branches",		"BRANCH_RETIRED"),
-	EV_ALIAS("branch-mispredicts",	"BRANCH_MISPRED"),
-	EV_ALIAS("dc-misses",		"DC_MISS"),
-	EV_ALIAS("ic-misses",		"IC_MISS"),
-	EV_ALIAS("instructions",	"INSTR_RETIRED"),
-	EV_ALIAS(NULL, NULL)
-};
-static int
-xscale_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
-    struct pmc_op_pmcallocate *pmc_config __unused)
-{
-	switch (pe) {
-	default:
-		break;
-	}
-
-	return (0);
-}
-#endif
-
 static struct pmc_event_alias cortex_a8_aliases[] = {
 	EV_ALIAS("dc-misses",		"L1_DCACHE_REFILL"),
 	EV_ALIAS("ic-misses",		"L1_ICACHE_REFILL"),
@@ -1264,10 +1232,6 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = k8_event_table;
 		count = PMC_EVENT_TABLE_SIZE(k8);
 		break;
-	case PMC_CLASS_XSCALE:
-		ev = xscale_event_table;
-		count = PMC_EVENT_TABLE_SIZE(xscale);
-		break;
 	case PMC_CLASS_ARMV7:
 		switch (cpu_info.pm_cputype) {
 		default:
@@ -1521,12 +1485,6 @@ pmc_init(void)
 		PMC_MDEP_INIT(generic);
 		break;
 #if defined(__arm__)
-#if defined(__XSCALE__)
-	case PMC_CPU_INTEL_XSCALE:
-		PMC_MDEP_INIT(xscale);
-		pmc_class_table[n] = &xscale_class_table_descr;
-		break;
-#endif
 	case PMC_CPU_ARMV7_CORTEX_A8:
 		PMC_MDEP_INIT(cortex_a8);
 		pmc_class_table[n] = &cortex_a8_class_table_descr;
@@ -1667,9 +1625,7 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	if (pe >= PMC_EV_K8_FIRST && pe <= PMC_EV_K8_LAST) {
 		ev = k8_event_table;
 		evfence = k8_event_table + PMC_EVENT_TABLE_SIZE(k8);
-	} else if (pe >= PMC_EV_XSCALE_FIRST && pe <= PMC_EV_XSCALE_LAST) {
-		ev = xscale_event_table;
-		evfence = xscale_event_table + PMC_EVENT_TABLE_SIZE(xscale);
+
 	} else if (pe >= PMC_EV_ARMV7_FIRST && pe <= PMC_EV_ARMV7_LAST) {
 		switch (cpu) {
 		case PMC_CPU_ARMV7_CORTEX_A8:

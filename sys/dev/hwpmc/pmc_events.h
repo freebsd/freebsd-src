@@ -228,52 +228,6 @@ __PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
 	__PMC_EV(UCP, EVENT_0CH_08H_S)					   \
 
 /*
- * Intel XScale events from:
- *
- * Intel XScale Core Developer's Manual
- * January, 2004, #27347302
- *
- * 3rd Generation Intel XScale Microarchitecture
- * Developer's Manual
- * May 2007, #31628302
- *
- * First 14 events are for 1st and 2nd Generation Intel XScale cores. The
- * remaining are available only on 3rd Generation Intel XScale cores.
- */
-#define	__PMC_EV_XSCALE()				\
-	__PMC_EV(XSCALE, IC_FETCH)			\
-	__PMC_EV(XSCALE, IC_MISS)			\
-	__PMC_EV(XSCALE, DATA_DEPENDENCY_STALLED)	\
-	__PMC_EV(XSCALE, ITLB_MISS)			\
-	__PMC_EV(XSCALE, DTLB_MISS)			\
-	__PMC_EV(XSCALE, BRANCH_RETIRED)		\
-	__PMC_EV(XSCALE, BRANCH_MISPRED)		\
-	__PMC_EV(XSCALE, INSTR_RETIRED)			\
-	__PMC_EV(XSCALE, DC_FULL_CYCLE)			\
-	__PMC_EV(XSCALE, DC_FULL_CONTIG)		\
-	__PMC_EV(XSCALE, DC_ACCESS)			\
-	__PMC_EV(XSCALE, DC_MISS)			\
-	__PMC_EV(XSCALE, DC_WRITEBACK)			\
-	__PMC_EV(XSCALE, PC_CHANGE)			\
-	__PMC_EV(XSCALE, BRANCH_RETIRED_ALL)		\
-	__PMC_EV(XSCALE, INSTR_CYCLE)			\
-	__PMC_EV(XSCALE, CP_STALL)			\
-	__PMC_EV(XSCALE, PC_CHANGE_ALL)			\
-	__PMC_EV(XSCALE, PIPELINE_FLUSH)		\
-	__PMC_EV(XSCALE, BACKEND_STALL)			\
-	__PMC_EV(XSCALE, MULTIPLIER_USE)		\
-	__PMC_EV(XSCALE, MULTIPLIER_STALLED)		\
-	__PMC_EV(XSCALE, DATA_CACHE_STALLED)		\
-	__PMC_EV(XSCALE, L2_CACHE_REQ)			\
-	__PMC_EV(XSCALE, L2_CACHE_MISS)			\
-	__PMC_EV(XSCALE, ADDRESS_BUS_TRANS)		\
-	__PMC_EV(XSCALE, SELF_ADDRESS_BUS_TRANS)	\
-	__PMC_EV(XSCALE, DATA_BUS_TRANS)
-
-#define	PMC_EV_XSCALE_FIRST	PMC_EV_XSCALE_IC_FETCH
-#define	PMC_EV_XSCALE_LAST	PMC_EV_XSCALE_DATA_BUS_TRANS
-
-/*
  * ARMv7 Events
  */
 
@@ -1899,7 +1853,7 @@ __PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
  * 0x11000	0x0080		INTEL Pentium 4 events
  * 0x11080	0x0080		INTEL Pentium MMX events
  * 0x11100	0x0100		INTEL Pentium Pro/P-II/P-III/Pentium-M events
- * 0x11200	0x00FF		INTEL XScale events
+ * 0x11200	0x00FF		free (was INTEL XScale events)
  * 0x11300	0x00FF		MIPS 24K events
  * 0x11400	0x00FF		Octeon events
  * 0x11500	0x00FF		MIPS 74K events
@@ -1921,8 +1875,6 @@ __PMC_EV_ALIAS("unhalted-core-cycles",		IAP_ARCH_UNH_COR_CYC)
 	__PMC_EV_K7()				\
 	__PMC_EV_BLOCK(K8,	0x2080)	        \
 	__PMC_EV_K8()				\
-	__PMC_EV_BLOCK(XSCALE,	0x11200)	\
-	__PMC_EV_XSCALE()                       \
 	__PMC_EV_BLOCK(MIPS24K,	0x11300)	\
 	__PMC_EV_MIPS24K()			\
 	__PMC_EV_BLOCK(OCTEON,	0x11400)	\
