@@ -71,6 +71,8 @@ struct rib_head {
 	struct callout		expire_callout;	/* Callout for expiring dynamic routes */
 	time_t			next_expire;	/* Next expire run ts */
 	uint32_t		rnh_prefixes;	/* Number of prefixes */
+	uint32_t		rib_dying:1;	/* rib is detaching */
+	uint32_t		rib_algo_fixed:1;/* fixed algorithm */
 	struct nh_control	*nh_control;	/* nexthop subsystem data */
 	CK_STAILQ_HEAD(, rib_subscription)	rnh_subscribers;/* notification subscribers */
 };
@@ -303,6 +305,14 @@ int nhgrp_get_addition_group(struct rib_head *rnh,
 void nhgrp_ref_object(struct nhgrp_object *nhg);
 uint32_t nhgrp_get_idx(const struct nhgrp_object *nhg);
 void nhgrp_free(struct nhgrp_object *nhg);
+uint32_t nhgrp_get_idx(const struct nhgrp_object *nhg);
+
+/* lookup_framework.c */
+void fib_grow_rtables(uint32_t new_num_tables);
+int fib_select_algo_initial(struct rib_head *rh);
+void fib_destroy_rib(struct rib_head *rh);
+void vnet_fib_init(void);
+void vnet_fib_destroy(void);
 
 /* Entropy data used for outbound hashing */
 #define MPATH_ENTROPY_KEY_LEN	40

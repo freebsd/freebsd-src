@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
+#include <net/route/fib_algo.h>
 #include <net/route/nhop.h>
 #include <net/toeplitz.h>
 #include <net/vnet.h>
@@ -68,6 +69,10 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 
 CHK_STRUCT_ROUTE_COMPAT(struct route_in6, ro_dst);
+
+#ifdef FIB_ALGO
+VNET_DEFINE(struct fib_dp *, inet6_dp);
+#endif
 
 #ifdef ROUTE_MPATH
 struct _hash_5tuple_ipv6 {
@@ -111,6 +116,29 @@ fib6_calc_software_hash(const struct in6_addr *src, const struct in6_addr *dst,
  *  one needs to pass NHR_REF as a flag. This will return referenced
  *  nexthop.
  */
+#ifdef FIB_ALGO
+struct nhop_object *
+fib6_lookup(uint32_t fibnum, const struct in6_addr *dst6,
+    uint32_t scopeid, uint32_t flags, uint32_t flowid)
+{
+	struct nhop_object *nh;
+	struct fib_dp *dp = &V_inet6_dp[fibnum];
+	struct flm_lookup_key key = {.addr6 = dst6 };
+
+	nh = dp->f(dp->arg, key, scopeid);
+	if (nh != NULL) {
+		nh = nhop_select(nh, flowid);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(nh->nh_ifp)) {
+			if (flags & NHR_REF)
+				nhop_ref_object(nh);
+			return (nh);
+		}
+	}
+	RTSTAT_INC(rts_unreach);
+	return (NULL);
+}
+#else
 struct nhop_object *
 fib6_lookup(uint32_t fibnum, const struct in6_addr *dst6,
     uint32_t scopeid, uint32_t flags, uint32_t flowid)
@@ -151,6 +179,7 @@ fib6_lookup(uint32_t fibnum, const struct in6_addr *dst6,
 	RTSTAT_INC(rts_unreach);
 	return (NULL);
 }
+#endif
 
 inline static int
 check_urpf_nhop(const struct nhop_object *nh, uint32_t flags,
@@ -237,8 +266,14 @@ fib6_check_urpf(uint32_t fibnum, const struct in6_addr *dst6,
     uint32_t scopeid, uint32_t flags, const struct ifnet *src_if)
 {
 	struct nhop_object *nh;
+#ifdef FIB_ALGO
+	struct fib_dp *dp = &V_inet6_dp[fibnum];
+	struct flm_lookup_key key = {.addr6 = dst6 };
 
+	nh = dp->f(dp->arg, key, scopeid);
+#else
 	nh = lookup_nhop(fibnum, dst6, scopeid);
+#endif
 	if (nh != NULL)
 		return (check_urpf(nh, flags, src_if));
 	return (0);

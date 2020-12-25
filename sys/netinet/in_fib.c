@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/route/route_ctl.h>
 #include <net/route/route_var.h>
+#include <net/route/fib_algo.h>
 #include <net/route/nhop.h>
 #include <net/toeplitz.h>
 #include <net/vnet.h>
@@ -62,6 +63,10 @@ __FBSDID("$FreeBSD$");
 /* Verify struct route compatiblity */
 /* Assert 'struct route_in' is compatible with 'struct route' */
 CHK_STRUCT_ROUTE_COMPAT(struct route_in, ro_dst4);
+
+#ifdef FIB_ALGO
+VNET_DEFINE(struct fib_dp *, inet_dp);
+#endif
 
 #ifdef ROUTE_MPATH
 struct _hash_5tuple_ipv4 {
@@ -103,6 +108,29 @@ fib4_calc_software_hash(struct in_addr src, struct in_addr dst,
  *  one needs to pass NHR_REF as a flag. This will return referenced
  *  nexthop.
  */
+#ifdef FIB_ALGO
+struct nhop_object *
+fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
+    uint32_t flags, uint32_t flowid)
+{
+	struct nhop_object *nh;
+	struct fib_dp *dp = &V_inet_dp[fibnum];
+	struct flm_lookup_key key = {.addr4 = dst };
+
+	nh = dp->f(dp->arg, key, scopeid);
+	if (nh != NULL) {
+		nh = nhop_select(nh, flowid);
+		/* Ensure route & ifp is UP */
+		if (RT_LINK_IS_UP(nh->nh_ifp)) {
+			if (flags & NHR_REF)
+				nhop_ref_object(nh);
+			return (nh);
+		}
+	}
+	RTSTAT_INC(rts_unreach);
+	return (NULL);
+}
+#else
 struct nhop_object *
 fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
     uint32_t flags, uint32_t flowid)
@@ -142,6 +170,7 @@ fib4_lookup(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
 	RTSTAT_INC(rts_unreach);
 	return (NULL);
 }
+#endif
 
 inline static int
 check_urpf_nhop(const struct nhop_object *nh, uint32_t flags,
@@ -180,6 +209,7 @@ check_urpf(struct nhop_object *nh, uint32_t flags,
 		return (check_urpf_nhop(nh, flags, src_if));
 }
 
+#ifndef FIB_ALGO
 static struct nhop_object *
 lookup_nhop(uint32_t fibnum, struct in_addr dst, uint32_t scopeid)
 {
@@ -208,6 +238,7 @@ lookup_nhop(uint32_t fibnum, struct in_addr dst, uint32_t scopeid)
 
 	return (nh);
 }
+#endif
 
 /*
  * Performs reverse path forwarding lookup.
@@ -223,8 +254,14 @@ fib4_check_urpf(uint32_t fibnum, struct in_addr dst, uint32_t scopeid,
   uint32_t flags, const struct ifnet *src_if)
 {
 	struct nhop_object *nh;
+#ifdef FIB_ALGO
+	struct fib_dp *dp = &V_inet_dp[fibnum];
+	struct flm_lookup_key key = {.addr4 = dst };
 
+	nh = dp->f(dp->arg, key, scopeid);
+#else
 	nh = lookup_nhop(fibnum, dst, scopeid);
+#endif
 	if (nh != NULL)
 		return (check_urpf(nh, flags, src_if));
 
