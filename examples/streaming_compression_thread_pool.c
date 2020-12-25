@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2020, Martin Liska, SUSE, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -14,13 +14,25 @@
 #include <string.h>    // memset, strcat, strlen
 #include <zstd.h>      // presumes zstd library is installed
 #include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
+#include <pthread.h>
 
-
-static void compressFile_orDie(const char* fname, const char* outName, int cLevel)
+typedef struct compress_args
 {
+  const char *fname;
+  char *outName;
+  int cLevel;
+#if defined(ZSTD_STATIC_LINKING_ONLY)
+  ZSTD_threadPool *pool;
+#endif
+} compress_args_t;
+
+static void *compressFile_orDie(void *data)
+{
+    compress_args_t *args = (compress_args_t *)data;
+    fprintf (stderr, "Starting compression of %s with level %d\n", args->fname, args->cLevel);
     /* Open the input and output files. */
-    FILE* const fin  = fopen_orDie(fname, "rb");
-    FILE* const fout = fopen_orDie(outName, "wb");
+    FILE* const fin  = fopen_orDie(args->fname, "rb");
+    FILE* const fout = fopen_orDie(args->outName, "wb");
     /* Create the input and output buffers.
      * They may be any size, but we recommend using these functions to size them.
      * Performance will only suffer significantly for very tiny buffers.
@@ -34,12 +46,17 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
     ZSTD_CCtx* const cctx = ZSTD_createCCtx();
     CHECK(cctx != NULL, "ZSTD_createCCtx() failed!");
 
+#if defined(ZSTD_STATIC_LINKING_ONLY)
+    size_t r = ZSTD_CCtx_refThreadPool(cctx, args->pool);
+    CHECK(r == 0, "ZSTD_CCtx_refThreadPool failed!");
+#endif
+
     /* Set any parameters you want.
      * Here we set the compression level, and enable the checksum.
      */
-    CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel) );
+    CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, args->cLevel) );
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 4);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 16);
 
     /* This loop read from the input file, compresses that entire chunk,
      * and writes all output produced to the output file.
@@ -83,11 +100,16 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
         }
     }
 
+    fprintf (stderr, "Finishing compression of %s\n", args->outName);
+
     ZSTD_freeCCtx(cctx);
     fclose_orDie(fout);
     fclose_orDie(fin);
     free(buffIn);
     free(buffOut);
+    free(args->outName);
+
+    return NULL;
 }
 
 
@@ -106,19 +128,51 @@ int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
 
-    if (argc!=2) {
+    if (argc<=3) {
         printf("wrong arguments\n");
         printf("usage:\n");
-        printf("%s FILE\n", exeName);
+        printf("%s POOL_SIZE LEVEL FILES\n", exeName);
         return 1;
     }
 
-    const char* const inFilename = argv[1];
+    int pool_size = atoi (argv[1]);
+    CHECK(pool_size != 0, "can't parse POOL_SIZE!");
 
-    char* const outFilename = createOutFilename_orDie(inFilename);
-    compressFile_orDie(inFilename, outFilename, 1);
+    int level = atoi (argv[2]);
+    CHECK(level != 0, "can't parse LEVEL!");
 
-    free(outFilename);   /* not strictly required, since program execution stops there,
-                          * but some static analyzer main complain otherwise */
+    argc -= 3;
+    argv += 3;
+
+#if defined(ZSTD_STATIC_LINKING_ONLY)
+    ZSTD_threadPool *pool = ZSTD_createThreadPool (pool_size);
+    CHECK(pool != NULL, "ZSTD_createThreadPool() failed!");
+    fprintf (stderr, "Using shared thread pool of size %d\n", pool_size);
+#else
+    fprintf (stderr, "All threads use its own thread pool\n");
+#endif
+
+    pthread_t *threads = malloc_orDie(argc * sizeof(pthread_t));
+    compress_args_t *args = malloc_orDie(argc * sizeof(compress_args_t));
+
+    for (unsigned i = 0; i < argc; i++)
+    {
+      args[i].fname = argv[i];
+      args[i].outName = createOutFilename_orDie(args[i].fname);
+      args[i].cLevel = level;
+#if defined(ZSTD_STATIC_LINKING_ONLY)
+      args[i].pool = pool;
+#endif
+
+      pthread_create (&threads[i], NULL, compressFile_orDie, &args[i]);
+    }
+
+    for (unsigned i = 0; i < argc; i++)
+      pthread_join (threads[i], NULL);
+
+#if defined(ZSTD_STATIC_LINKING_ONLY)
+    ZSTD_freeThreadPool (pool);
+#endif
+
     return 0;
 }

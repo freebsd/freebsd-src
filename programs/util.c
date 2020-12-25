@@ -28,7 +28,7 @@ extern "C" {
 #  include <io.h>         /* _chmod */
 #else
 #  include <unistd.h>     /* chown, stat */
-#  if PLATFORM_POSIX_VERSION < 200809L
+#  if PLATFORM_POSIX_VERSION < 200809L || !defined(st_mtime)
 #    include <utime.h>    /* utime */
 #  else
 #    include <fcntl.h>    /* AT_FDCWD */
@@ -44,7 +44,6 @@ extern "C" {
 #  include <dirent.h>       /* opendir, readdir */
 #  include <string.h>       /* strerror, memcpy */
 #endif /* #ifdef _WIN32 */
-
 
 /*-****************************************
 *  Internal Macros
@@ -88,6 +87,28 @@ UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
 ******************************************/
 int g_utilDisplayLevel;
 
+int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
+                                 const char* acceptableLetters, int hasStdinInput) {
+    int ch, result;
+
+    if (hasStdinInput) {
+        UTIL_DISPLAY("stdin is an input - not proceeding.\n");
+        return 1;
+    }
+
+    UTIL_DISPLAY("%s", prompt);
+    ch = getchar();
+    result = 0;
+    if (strchr(acceptableLetters, ch) == NULL) {
+        UTIL_DISPLAY("%s", abortMsg);
+        result = 1;
+    }
+    /* flush the rest */
+    while ((ch!=EOF) && (ch!='\n'))
+        ch = getchar();
+    return result;
+}
+
 
 /*-*************************************
 *  Constants
@@ -100,48 +121,50 @@ int g_utilDisplayLevel;
 *  Functions
 ***************************************/
 
-int UTIL_fileExist(const char* filename)
+int UTIL_stat(const char* filename, stat_t* statbuf)
 {
-    stat_t statbuf;
 #if defined(_MSC_VER)
-    int const stat_error = _stat64(filename, &statbuf);
+    return !_stat64(filename, statbuf);
+#elif defined(__MINGW32__) && defined (__MSVCRT__)
+    return !_stati64(filename, statbuf);
 #else
-    int const stat_error = stat(filename, &statbuf);
+    return !stat(filename, statbuf);
 #endif
-    return !stat_error;
 }
 
 int UTIL_isRegularFile(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_getFileStat(infilename, &statbuf); /* Only need to know whether it is a regular file */
+    return UTIL_stat(infilename, &statbuf) && UTIL_isRegularFileStat(&statbuf);
 }
 
-int UTIL_getFileStat(const char* infilename, stat_t *statbuf)
+int UTIL_isRegularFileStat(const stat_t* statbuf)
 {
-    int r;
 #if defined(_MSC_VER)
-    r = _stat64(infilename, statbuf);
-    if (r || !(statbuf->st_mode & S_IFREG)) return 0;   /* No good... */
+    return (statbuf->st_mode & S_IFREG) != 0;
 #else
-    r = stat(infilename, statbuf);
-    if (r || !S_ISREG(statbuf->st_mode)) return 0;   /* No good... */
+    return S_ISREG(statbuf->st_mode) != 0;
 #endif
-    return 1;
 }
 
 /* like chmod, but avoid changing permission of /dev/null */
-int UTIL_chmod(char const* filename, mode_t permissions)
+int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
 {
-    if (!strcmp(filename, "/dev/null")) return 0;   /* pretend success, but don't change anything */
+    stat_t localStatBuf;
+    if (statbuf == NULL) {
+        if (!UTIL_stat(filename, &localStatBuf)) return 0;
+        statbuf = &localStatBuf;
+    }
+    if (!UTIL_isRegularFileStat(statbuf)) return 0; /* pretend success, but don't change anything */
     return chmod(filename, permissions);
 }
 
-int UTIL_setFileStat(const char *filename, stat_t *statbuf)
+int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
     int res = 0;
 
-    if (!UTIL_isRegularFile(filename))
+    stat_t curStatBuf;
+    if (!UTIL_stat(filename, &curStatBuf) || !UTIL_isRegularFileStat(&curStatBuf))
         return -1;
 
     /* set access and modification times */
@@ -169,7 +192,7 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
 #endif
 
-    res += UTIL_chmod(filename, statbuf->st_mode & 07777);  /* Copy file permissions */
+    res += UTIL_chmod(filename, &curStatBuf, statbuf->st_mode & 07777);  /* Copy file permissions */
 
     errno = 0;
     return -res; /* number of errors is returned */
@@ -178,14 +201,16 @@ int UTIL_setFileStat(const char *filename, stat_t *statbuf)
 int UTIL_isDirectory(const char* infilename)
 {
     stat_t statbuf;
+    return UTIL_stat(infilename, &statbuf) && UTIL_isDirectoryStat(&statbuf);
+}
+
+int UTIL_isDirectoryStat(const stat_t* statbuf)
+{
 #if defined(_MSC_VER)
-    int const r = _stat64(infilename, &statbuf);
-    if (!r && (statbuf.st_mode & _S_IFDIR)) return 1;
+    return (statbuf->st_mode & _S_IFDIR) != 0;
 #else
-    int const r = stat(infilename, &statbuf);
-    if (!r && S_ISDIR(statbuf.st_mode)) return 1;
+    return S_ISDIR(statbuf->st_mode) != 0;
 #endif
-    return 0;
 }
 
 int UTIL_compareStr(const void *p1, const void *p2) {
@@ -204,8 +229,8 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
 #else
     {   stat_t file1Stat;
         stat_t file2Stat;
-        return UTIL_getFileStat(fName1, &file1Stat)
-            && UTIL_getFileStat(fName2, &file2Stat)
+        return UTIL_stat(fName1, &file1Stat)
+            && UTIL_stat(fName2, &file2Stat)
             && (file1Stat.st_dev == file2Stat.st_dev)
             && (file1Stat.st_ino == file2Stat.st_ino);
     }
@@ -218,10 +243,20 @@ int UTIL_isFIFO(const char* infilename)
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
     stat_t statbuf;
-    int const r = UTIL_getFileStat(infilename, &statbuf);
-    if (!r && S_ISFIFO(statbuf.st_mode)) return 1;
+    if (UTIL_stat(infilename, &statbuf) && UTIL_isFIFOStat(&statbuf)) return 1;
 #endif
     (void)infilename;
+    return 0;
+}
+
+/* UTIL_isFIFO : distinguish named pipes */
+int UTIL_isFIFOStat(const stat_t* statbuf)
+{
+/* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#if PLATFORM_POSIX_VERSION >= 200112L
+    if (S_ISFIFO(statbuf->st_mode)) return 1;
+#endif
+    (void)statbuf;
     return 0;
 }
 
@@ -239,23 +274,22 @@ int UTIL_isLink(const char* infilename)
 
 U64 UTIL_getFileSize(const char* infilename)
 {
-    if (!UTIL_isRegularFile(infilename)) return UTIL_FILESIZE_UNKNOWN;
-    {   int r;
+    stat_t statbuf;
+    if (!UTIL_stat(infilename, &statbuf)) return UTIL_FILESIZE_UNKNOWN;
+    return UTIL_getFileSizeStat(&statbuf);
+}
+
+U64 UTIL_getFileSizeStat(const stat_t* statbuf)
+{
+    if (!UTIL_isRegularFileStat(statbuf)) return UTIL_FILESIZE_UNKNOWN;
 #if defined(_MSC_VER)
-        struct __stat64 statbuf;
-        r = _stat64(infilename, &statbuf);
-        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
+    if (!(statbuf->st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
-        struct _stati64 statbuf;
-        r = _stati64(infilename, &statbuf);
-        if (r || !(statbuf.st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
+    if (!(statbuf->st_mode & S_IFREG)) return UTIL_FILESIZE_UNKNOWN;
 #else
-        struct stat statbuf;
-        r = stat(infilename, &statbuf);
-        if (r || !S_ISREG(statbuf.st_mode)) return UTIL_FILESIZE_UNKNOWN;
+    if (!S_ISREG(statbuf->st_mode)) return UTIL_FILESIZE_UNKNOWN;
 #endif
-        return (U64)statbuf.st_size;
-    }
+    return (U64)statbuf->st_size;
 }
 
 
@@ -332,11 +366,12 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     char* buf;
     size_t bufSize;
     size_t pos = 0;
+    stat_t statbuf;
 
-    if (!UTIL_fileExist(inputFileName) || !UTIL_isRegularFile(inputFileName))
+    if (!UTIL_stat(inputFileName, &statbuf) || !UTIL_isRegularFileStat(&statbuf))
         return NULL;
 
-    {   U64 const inputFileSize = UTIL_getFileSize(inputFileName);
+    {   U64 const inputFileSize = UTIL_getFileSizeStat(&statbuf);
         if(inputFileSize > MAX_FILE_OF_FILE_NAMES_SIZE)
             return NULL;
         bufSize = (size_t)(inputFileSize + 1); /* (+1) to add '\0' at the end of last filename */
@@ -633,6 +668,290 @@ const char* UTIL_getFileExtension(const char* infilename)
    return extension;
 }
 
+static int pathnameHas2Dots(const char *pathname)
+{
+    return NULL != strstr(pathname, "..");
+}
+
+static int isFileNameValidForMirroredOutput(const char *filename)
+{
+    return !pathnameHas2Dots(filename);
+}
+
+
+#define DIR_DEFAULT_MODE 0755
+static mode_t getDirMode(const char *dirName)
+{
+    stat_t st;
+    if (!UTIL_stat(dirName, &st)) {
+        UTIL_DISPLAY("zstd: failed to get DIR stats %s: %s\n", dirName, strerror(errno));
+        return DIR_DEFAULT_MODE;
+    }
+    if (!UTIL_isDirectoryStat(&st)) {
+        UTIL_DISPLAY("zstd: expected directory: %s\n", dirName);
+        return DIR_DEFAULT_MODE;
+    }
+    return st.st_mode;
+}
+
+static int makeDir(const char *dir, mode_t mode)
+{
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+    int ret = _mkdir(dir);
+    (void) mode;
+#else
+    int ret = mkdir(dir, mode);
+#endif
+    if (ret != 0) {
+        if (errno == EEXIST)
+            return 0;
+        UTIL_DISPLAY("zstd: failed to create DIR %s: %s\n", dir, strerror(errno));
+    }
+    return ret;
+}
+
+/* this function requires a mutable input string */
+static void convertPathnameToDirName(char *pathname)
+{
+    size_t len = 0;
+    char* pos = NULL;
+    /* get dir name from pathname similar to 'dirname()' */
+    assert(pathname != NULL);
+
+    /* remove trailing '/' chars */
+    len = strlen(pathname);
+    assert(len > 0);
+    while (pathname[len] == PATH_SEP) {
+        pathname[len] = '\0';
+        len--;
+    }
+    if (len == 0) return;
+
+    /* if input is a single file, return '.' instead. i.e.
+     * "xyz/abc/file.txt" => "xyz/abc"
+       "./file.txt"       => "."
+       "file.txt"         => "."
+     */
+    pos = strrchr(pathname, PATH_SEP);
+    if (pos == NULL) {
+        pathname[0] = '.';
+        pathname[1] = '\0';
+    } else {
+        *pos = '\0';
+    }
+}
+
+/* pathname must be valid */
+static const char* trimLeadingRootChar(const char *pathname)
+{
+    assert(pathname != NULL);
+    if (pathname[0] == PATH_SEP)
+        return pathname + 1;
+    return pathname;
+}
+
+/* pathname must be valid */
+static const char* trimLeadingCurrentDirConst(const char *pathname)
+{
+    assert(pathname != NULL);
+    if ((pathname[0] == '.') && (pathname[1] == PATH_SEP))
+        return pathname + 2;
+    return pathname;
+}
+
+static char*
+trimLeadingCurrentDir(char *pathname)
+{
+    /* 'union charunion' can do const-cast without compiler warning */
+    union charunion {
+        char *chr;
+        const char* cchr;
+    } ptr;
+    ptr.cchr = trimLeadingCurrentDirConst(pathname);
+    return ptr.chr;
+}
+
+/* remove leading './' or '/' chars here */
+static const char * trimPath(const char *pathname)
+{
+    return trimLeadingRootChar(
+            trimLeadingCurrentDirConst(pathname));
+}
+
+static char* mallocAndJoin2Dir(const char *dir1, const char *dir2)
+{
+    const size_t dir1Size = strlen(dir1);
+    const size_t dir2Size = strlen(dir2);
+    char *outDirBuffer, *buffer, trailingChar;
+
+    assert(dir1 != NULL && dir2 != NULL);
+    outDirBuffer = (char *) malloc(dir1Size + dir2Size + 2);
+    CONTROL(outDirBuffer != NULL);
+
+    memcpy(outDirBuffer, dir1, dir1Size);
+    outDirBuffer[dir1Size] = '\0';
+
+    if (dir2[0] == '.')
+        return outDirBuffer;
+
+    buffer = outDirBuffer + dir1Size;
+    trailingChar = *(buffer - 1);
+    if (trailingChar != PATH_SEP) {
+        *buffer = PATH_SEP;
+        buffer++;
+    }
+    memcpy(buffer, dir2, dir2Size);
+    buffer[dir2Size] = '\0';
+
+    return outDirBuffer;
+}
+
+/* this function will return NULL if input srcFileName is not valid name for mirrored output path */
+char* UTIL_createMirroredDestDirName(const char* srcFileName, const char* outDirRootName)
+{
+    char* pathname = NULL;
+    if (!isFileNameValidForMirroredOutput(srcFileName))
+        return NULL;
+
+    pathname = mallocAndJoin2Dir(outDirRootName, trimPath(srcFileName));
+
+    convertPathnameToDirName(pathname);
+    return pathname;
+}
+
+static int
+mirrorSrcDir(char* srcDirName, const char* outDirName)
+{
+    mode_t srcMode;
+    int status = 0;
+    char* newDir = mallocAndJoin2Dir(outDirName, trimPath(srcDirName));
+    if (!newDir)
+        return -ENOMEM;
+
+    srcMode = getDirMode(srcDirName);
+    status = makeDir(newDir, srcMode);
+    free(newDir);
+    return status;
+}
+
+static int
+mirrorSrcDirRecursive(char* srcDirName, const char* outDirName)
+{
+    int status = 0;
+    char* pp = trimLeadingCurrentDir(srcDirName);
+    char* sp = NULL;
+
+    while ((sp = strchr(pp, PATH_SEP)) != NULL) {
+        if (sp != pp) {
+            *sp = '\0';
+            status = mirrorSrcDir(srcDirName, outDirName);
+            if (status != 0)
+                return status;
+            *sp = PATH_SEP;
+        }
+        pp = sp + 1;
+    }
+    status = mirrorSrcDir(srcDirName, outDirName);
+    return status;
+}
+
+static void
+makeMirroredDestDirsWithSameSrcDirMode(char** srcDirNames, unsigned nbFile, const char* outDirName)
+{
+    unsigned int i = 0;
+    for (i = 0; i < nbFile; i++)
+        mirrorSrcDirRecursive(srcDirNames[i], outDirName);
+}
+
+static int
+firstIsParentOrSameDirOfSecond(const char* firstDir, const char* secondDir)
+{
+    size_t firstDirLen  = strlen(firstDir),
+           secondDirLen = strlen(secondDir);
+    return firstDirLen <= secondDirLen &&
+           (secondDir[firstDirLen] == PATH_SEP || secondDir[firstDirLen] == '\0') &&
+           0 == strncmp(firstDir, secondDir, firstDirLen);
+}
+
+static int compareDir(const void* pathname1, const void* pathname2) {
+    /* sort it after remove the leading '/'  or './'*/
+    const char* s1 = trimPath(*(char * const *) pathname1);
+    const char* s2 = trimPath(*(char * const *) pathname2);
+    return strcmp(s1, s2);
+}
+
+static void
+makeUniqueMirroredDestDirs(char** srcDirNames, unsigned nbFile, const char* outDirName)
+{
+    unsigned int i = 0, uniqueDirNr = 0;
+    char** uniqueDirNames = NULL;
+
+    if (nbFile == 0)
+        return;
+
+    uniqueDirNames = (char** ) malloc(nbFile * sizeof (char *));
+    CONTROL(uniqueDirNames != NULL);
+
+    /* if dirs is "a/b/c" and "a/b/c/d", we only need call:
+     * we just need "a/b/c/d" */
+    qsort((void *)srcDirNames, nbFile, sizeof(char*), compareDir);
+
+    uniqueDirNr = 1;
+    uniqueDirNames[uniqueDirNr - 1] = srcDirNames[0];
+    for (i = 1; i < nbFile; i++) {
+        char* prevDirName = srcDirNames[i - 1];
+        char* currDirName = srcDirNames[i];
+
+        /* note: we alwasy compare trimmed path, i.e.:
+         * src dir of "./foo" and "/foo" will be both saved into:
+         * "outDirName/foo/" */
+        if (!firstIsParentOrSameDirOfSecond(trimPath(prevDirName),
+                                            trimPath(currDirName)))
+            uniqueDirNr++;
+
+        /* we need maintain original src dir name instead of trimmed
+         * dir, so we can retrive the original src dir's mode_t */
+        uniqueDirNames[uniqueDirNr - 1] = currDirName;
+    }
+
+    makeMirroredDestDirsWithSameSrcDirMode(uniqueDirNames, uniqueDirNr, outDirName);
+
+    free(uniqueDirNames);
+}
+
+static void
+makeMirroredDestDirs(char** srcFileNames, unsigned nbFile, const char* outDirName)
+{
+    unsigned int i = 0;
+    for (i = 0; i < nbFile; ++i)
+        convertPathnameToDirName(srcFileNames[i]);
+    makeUniqueMirroredDestDirs(srcFileNames, nbFile, outDirName);
+}
+
+void UTIL_mirrorSourceFilesDirectories(const char** inFileNames, unsigned int nbFile, const char* outDirName)
+{
+    unsigned int i = 0, validFilenamesNr = 0;
+    char** srcFileNames = (char **) malloc(nbFile * sizeof (char *));
+    CONTROL(srcFileNames != NULL);
+
+    /* check input filenames is valid */
+    for (i = 0; i < nbFile; ++i) {
+        if (isFileNameValidForMirroredOutput(inFileNames[i])) {
+            char* fname = STRDUP(inFileNames[i]);
+            CONTROL(fname != NULL);
+            srcFileNames[validFilenamesNr++] = fname;
+        }
+    }
+
+    if (validFilenamesNr > 0) {
+        makeDir(outDirName, DIR_DEFAULT_MODE);
+        makeMirroredDestDirs(srcFileNames, validFilenamesNr, outDirName);
+    }
+
+    for (i = 0; i < validFilenamesNr; i++)
+        free(srcFileNames[i]);
+    free(srcFileNames);
+}
 
 FileNamesTable*
 UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
