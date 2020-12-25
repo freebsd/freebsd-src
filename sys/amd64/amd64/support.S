@@ -1651,7 +1651,8 @@ END(handle_ibrs_exit_rs)
  *
  * N.B. The function does not follow ABI calling conventions, it corrupts %rbx.
  * The vmm.ko caller expects that only %rax, %rdx, %rbx, %rcx, %r9, and %rflags
- * registers are clobbered.  The NMI handler caller only needs %r13 preserved.
+ * registers are clobbered.  The NMI handler caller only needs %r13 and %r15
+ * preserved.
  */
 ENTRY(flush_l1d_sw)
 #define	L1D_FLUSH_SIZE	(64 * 1024)
