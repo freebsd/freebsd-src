@@ -93,7 +93,6 @@ MAN+=	pmc.tsc.3
 MAN+=	pmc.ucf.3
 MAN+=	pmc.westmere.3
 MAN+=	pmc.westmereuc.3
-MAN+=	pmc.xscale.3
 
 MLINKS+= \
 	pmc_allocate.3 pmc_release.3 \
