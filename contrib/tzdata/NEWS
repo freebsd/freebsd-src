@@ -1,5 +1,51 @@
 News for the tz database
 
+Release 2020e - 2020-12-22 15:14:34 -0800
+
+  Briefly:
+    Volgograd switches to Moscow time on 2020-12-27 at 02:00.
+
+  Changes to future timestamps
+
+    Volgograd changes time zone from +04 to +03 on 2020-12-27 at 02:00.
+    (Thanks to Alexander Krivenyshev and Stepan Golosunov.)
+
+  Changes to past timestamps
+
+    Correct many pre-1986 transitions, fixing entries originally
+    derived from Shanks.  The fixes include:
+      - Australia: several 1917 through 1971 transitions
+      - Bahamas: several 1941 through 1945 transitions
+      - Bermuda: several 1917 through 1956 transitions
+      - Belize: several 1942 through 1968 transitions
+      - Ghana: several 1915 through 1956 transitions
+      - Israel and Palestine: several 1940 through 1985 transitions
+      - Kenya and adjacent: several 1908 through 1960 transitions
+      - Nigeria and adjacent: correcting LMT in Lagos, and several 1905
+        through 1919 transitions
+      - Seychelles: the introduction of standard time in 1907, not 1906
+      - Vanuatu: DST in 1973-1974, and a corrected 1984 transition
+    (Thanks to P Chan.)
+
+    Because of the Australia change, Australia/Currie (King Island) is
+    no longer needed, as it is identical to Australia/Hobart for all
+    timestamps since 1970 and was therefore created by mistake.
+    Australia/Currie has been moved to the 'backward' file and its
+    corrected data moved to the 'backzone' file.
+
+  Changes to past time zone abbreviations and DST flags
+
+    To better match legislation in Turks and Caicos, the 2015 shift to
+    year-round observance of -04 is now modeled as AST throughout before
+    returning to Eastern Time with US DST in 2018, rather than as
+    maintaining EDT until 2015-11-01.  (Thanks to P Chan.)
+
+  Changes to documentation
+
+    The zic man page now documents zic's coalescing of transitions
+    when a zone falls back just before DST springs forward.
+
+
 Release 2020d - 2020-10-21 11:24:13 -0700
 
   Briefly:
