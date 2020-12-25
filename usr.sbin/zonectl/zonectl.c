@@ -226,7 +226,6 @@ zonectl_print_rz(struct disk_zone_report *report, zone_output_flags out_flags,
 	uint64_t next_lba = 0;
 	char tmpstr[80];
 	char word_sep;
-	int more_data = 0;
 	uint32_t i;
 
 	field_widths[ZONE_FW_START] = 11;
@@ -237,10 +236,8 @@ zonectl_print_rz(struct disk_zone_report *report, zone_output_flags out_flags,
 	field_widths[ZONE_FW_SEQ] = 14;
 	field_widths[ZONE_FW_RESET] = 16;
 
-	if ((report->entries_available - report->entries_filled) > 0) {
-		more_data = 1;
+	if ((report->entries_available - report->entries_filled) > 0)
 		status = ZONE_PRINT_MORE_DATA;
-	}
 
 	if (out_flags == ZONE_OF_SCRIPT)
 		word_sep = '_';
