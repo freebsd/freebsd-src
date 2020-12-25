@@ -151,6 +151,14 @@ void
 rt_table_destroy(struct rib_head *rh)
 {
 
+	RIB_WLOCK(rh);
+	rh->rib_dying = true;
+	RIB_WUNLOCK(rh);
+
+#ifdef FIB_ALGO
+	fib_destroy_rib(rh);
+#endif
+
 	tmproutes_destroy(rh);
 
 	rn_walktree(&rh->rmhead.head, rt_freeentry, &rh->rmhead.head);

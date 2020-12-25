@@ -44,6 +44,8 @@ struct rtentry *fib6_lookup_rt(uint32_t fibnum, const struct in6_addr *dst6,
     uint32_t scopeid, uint32_t flags, struct route_nhop_data *rnd);
 struct nhop_object *fib6_lookup_debugnet(uint32_t fibnum,
     const struct in6_addr *dst6, uint32_t scopeid, uint32_t flags);
+struct nhop_object *fib6_radix_lookup_nh(uint32_t fibnum,
+    const struct in6_addr *dst6, uint32_t scopeid);
 uint32_t fib6_calc_software_hash(const struct in6_addr *src,
     const struct in6_addr *dst, unsigned short src_port, unsigned short dst_port,
     char proto, uint32_t *phashtype);
