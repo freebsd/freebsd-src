@@ -40,24 +40,10 @@ SYSTEM_LD= \
 	    --strip-symbol='$$[adtx]*' \
 	    ${.TARGET}
 
-# Generate the .bin (no elf headers) kernel as an extra build output.
-# We must relink to generate the .bin kernel, because without headers the
-# location of everything changes.  We also strip the ARM marker symbols.
+# Generate the .bin (booti images) kernel as an extra build output.
+# The targets and rules to generate these appear near the end of the file.
 KERNEL_EXTRA+= ${KERNEL_KO}.bin
 KERNEL_EXTRA_INSTALL+= ${KERNEL_KO}.bin
-
-${KERNEL_KO}.bin: ${SYSTEM_DEP} vers.o
-	@echo "linking ${.TARGET}"
-	@${SYSTEM_LD_BASECMD} \
-	    --defsym='text_start=kernbase' \
-	    -o ${.TARGET} ${SYSTEM_OBJS} vers.o
-	${SIZE} ${.TARGET}
-	@${OBJCOPY} \
-	    --wildcard \
-	    --strip-symbol='$$[adtx]*' \
-	    --output-target=binary \
-	    ${.TARGET}
-	@chmod 755 ${.TARGET}
 
 .if !empty(DDB_ENABLED)
 CFLAGS += -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
@@ -79,3 +65,21 @@ CLEAN+=	${KERNEL_KO}.bin
 %RULES
 
 .include "$S/conf/kern.post.mk"
+
+# Create a kernel.bin file...
+# Copy the kernel to u-boot's booti image format (the elf headers are
+# stripped and a custom binary head blob is prepended), saving the
+# output in a temp file.  We also strip arm "marker" symbols which are
+# used only by elf toolchains.  Read the symbols from kernel.full and pass
+# them to arm_kernel_boothdr.awk, which generates a binary header blob
+# that goes on the front of the stripped kernel.  Cat the header blob
+# and the temp file together to make the kernel.bin file.
+${KERNEL_KO}.bin: ${FULLKERNEL}
+	@${OBJCOPY} --wildcard --strip-symbol='$$[adtx]*' \
+	    --output-target=binary ${.ALLSRC} ${.TARGET}.temp
+	@{ readelf -s ${.ALLSRC} | \
+	    ${AWK} -f $S/tools/arm_kernel_boothdr.awk -v hdrtype=v8booti && \
+	    cat ${.TARGET}.temp; \
+	 } > ${.TARGET}
+	@rm ${.TARGET}.temp
+	@echo "created ${.TARGET} from ${.ALLSRC}"

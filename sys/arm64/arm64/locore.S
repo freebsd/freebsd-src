@@ -43,22 +43,6 @@
 	.globl	kernbase
 	.set	kernbase, KERNBASE
 
-
-/* U-Boot booti related constants. */
-#if defined(LINUX_BOOT_ABI)
-#ifndef UBOOT_IMAGE_OFFSET
-#define	UBOOT_IMAGE_OFFSET	0		/* Image offset from start of */
-#endif						/*  2 MiB page */
-
-#ifndef UBOOT_IMAGE_SIZE			/* Total size of image */
-#define	UBOOT_IMAGE_SIZE	 _end - _start
-#endif
-
-#ifndef UBOOT_IMAGE_FLAGS
-#define	UBOOT_IMAGE_FLAGS	0		/* LE kernel, unspecified */
-#endif						/*  page size */
-#endif /* defined(LINUX_BOOT_ABI) */
-
 /*
  * We assume:
  *  MMU      on with an identity map, or off
@@ -68,21 +52,6 @@
  */
 
 ENTRY(_start)
-#if defined(LINUX_BOOT_ABI)
-	/* U-boot image header */
-	b	1f			/* code 0 */
-	.long	0			/* code 1 */
-	.quad	UBOOT_IMAGE_OFFSET	/* Image offset in 2 MiB page, LE */
-	.quad	UBOOT_IMAGE_SIZE	/* Image size, LE */
-	.quad	UBOOT_IMAGE_FLAGS	/* Flags for kernel. LE */
-	.quad 	0			/* Reserved */
-	.quad 	0			/* Reserved */
-	.quad 	0			/* Reserved */
-	.long 	0x644d5241		/* Magic  "ARM\x64", LE */
-	.long 	0			/* Reserved for PE COFF offset*/
-1:
-#endif /* defined(LINUX_BOOT_ABI) */
-
 	/* Drop to EL1 */
 	bl	drop_to_el1
 
