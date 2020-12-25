@@ -44,6 +44,7 @@ extern "C" {
 
 #define ZSTD_EXTENSION  ".zst"
 #define TZSTD_EXTENSION ".tzst"
+#define ZSTD_ALT_EXTENSION  ".zstd" /* allow decompression of .zstd files */
 
 #define LZ4_EXTENSION   ".lz4"
 #define TLZ4_EXTENSION  ".tlz4"
@@ -59,11 +60,18 @@ typedef struct FIO_prefs_s FIO_prefs_t;
 FIO_prefs_t* FIO_createPreferences(void);
 void FIO_freePreferences(FIO_prefs_t* const prefs);
 
+/* Mutable struct containing relevant context and state regarding (de)compression with respect to file I/O */
+typedef struct FIO_ctx_s FIO_ctx_t;
+
+FIO_ctx_t* FIO_createContext(void);
+void FIO_freeContext(FIO_ctx_t* const fCtx);
+
 typedef struct FIO_display_prefs_s FIO_display_prefs_t;
 
 /*-*************************************
 *  Parameters
 ***************************************/
+/* FIO_prefs_t functions */
 void FIO_setCompressionType(FIO_prefs_t* const prefs, FIO_compressionType_t compressionType);
 void FIO_overwriteMode(FIO_prefs_t* const prefs);
 void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt);
@@ -97,19 +105,24 @@ void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompresse
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
 void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 
+/* FIO_ctx_t functions */
+void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value);
+void FIO_setHasStdoutOutput(FIO_ctx_t* const fCtx, int value);
+void FIO_determineHasStdinInput(FIO_ctx_t* const fCtx, const FileNamesTable* const filenames);
+
 /*-*************************************
 *  Single File functions
 ***************************************/
 /** FIO_compressFilename() :
  * @return : 0 == ok;  1 == pb with src file. */
-int FIO_compressFilename (FIO_prefs_t* const prefs,
+int FIO_compressFilename (FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs,
                           const char* outfilename, const char* infilename,
                           const char* dictFileName, int compressionLevel,
                           ZSTD_compressionParameters comprParams);
 
 /** FIO_decompressFilename() :
  * @return : 0 == ok;  1 == pb with src file. */
-int FIO_decompressFilename (FIO_prefs_t* const prefs,
+int FIO_decompressFilename (FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs,
                             const char* outfilename, const char* infilename, const char* dictFileName);
 
 int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int displayLevel);
@@ -120,8 +133,10 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
 ***************************************/
 /** FIO_compressMultipleFilenames() :
  * @return : nb of missing files */
-int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
-                                  const char** inFileNamesTable, unsigned nbFiles,
+int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
+                                  FIO_prefs_t* const prefs,
+                                  const char** inFileNamesTable,
+                                  const char* outMirroredDirName,
                                   const char* outDirName,
                                   const char* outFileName, const char* suffix,
                                   const char* dictFileName, int compressionLevel,
@@ -129,8 +144,10 @@ int FIO_compressMultipleFilenames(FIO_prefs_t* const prefs,
 
 /** FIO_decompressMultipleFilenames() :
  * @return : nb of missing or skipped files */
-int FIO_decompressMultipleFilenames(FIO_prefs_t* const prefs,
-                                    const char** srcNamesTable, unsigned nbFiles,
+int FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
+                                    FIO_prefs_t* const prefs,
+                                    const char** srcNamesTable,
+                                    const char* outMirroredDirName,
                                     const char* outDirName,
                                     const char* outFileName,
                                     const char* dictFileName);
