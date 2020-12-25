@@ -894,14 +894,6 @@ static void		adaresume(void *arg);
 #define	ADA_WC	(softc->write_cache >= 0 ? \
 		 softc->write_cache : ada_write_cache)
 
-/*
- * Most platforms map firmware geometry to actual, but some don't.  If
- * not overridden, default to nothing.
- */
-#ifndef ata_disk_firmware_geom_adjust
-#define	ata_disk_firmware_geom_adjust(disk)
-#endif
-
 static int ada_retry_count = ADA_DEFAULT_RETRY;
 static int ada_default_timeout = ADA_DEFAULT_TIMEOUT;
 static int ada_send_ordered = ADA_DEFAULT_SEND_ORDERED;
@@ -3495,7 +3487,6 @@ adasetgeom(struct ada_softc *softc, struct ccb_getdev *cgd)
 	}
 	softc->disk->d_fwsectors = softc->params.secs_per_track;
 	softc->disk->d_fwheads = softc->params.heads;
-	ata_disk_firmware_geom_adjust(softc->disk);
 	softc->disk->d_rotation_rate = cgd->ident_data.media_rotation_rate;
 	snprintf(softc->disk->d_attachment, sizeof(softc->disk->d_attachment),
 	    "%s%d", softc->cpi.dev_name, softc->cpi.unit_number);
