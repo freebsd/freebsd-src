@@ -323,6 +323,21 @@ fib_error_clear()
 }
 
 static const char *
+print_op_result(enum flm_op_result result)
+{
+	switch (result) {
+	case FLM_SUCCESS:
+		return "success";
+	case FLM_REBUILD:
+		return "rebuild";
+	case FLM_ERROR:
+		return "error";
+	}
+
+	return "unknown";
+}
+
+static const char *
 print_family(int family)
 {
 
@@ -585,18 +600,18 @@ sync_algo_end_cb(struct rib_head *rnh, enum rib_walk_hook stage, void *_data)
 		return;
 	}
 
+	if (fd->hit_nhops) {
+		FD_PRINTF(LOG_INFO, fd, "ran out of nexthops at %u nhops",
+		    fd->nh_ref_table->count);
+		if (w->result == FLM_SUCCESS)
+			w->result = FLM_REBUILD;
+		return;
+	}
+
 	if (stage != RIB_WALK_HOOK_POST || w->result != FLM_SUCCESS)
 		return;
 
 	/* Post-dump hook, dump successful */
-
-	if (fd->hit_nhops) {
-		FD_PRINTF(LOG_INFO, fd, "ran out of nexthops at %u nhops",
-		    fd->nh_ref_table->count);
-		w->result = FLM_REBUILD;
-		return;
-	}
-
 	w->result = fd->fd_flm->flm_dump_end_cb(fd->fd_algo_data, &fd->fd_dp);
 
 	if (w->result == FLM_SUCCESS) {
@@ -648,7 +663,8 @@ sync_algo(struct fib_data *fd)
 
 	rib_walk_ext_internal(fd->fd_rh, true, sync_algo_cb, sync_algo_end_cb, &w);
 
-	FD_PRINTF(LOG_INFO, fd, "initial dump completed.");
+	FD_PRINTF(LOG_INFO, fd, "initial dump completed, result: %s",
+	    print_op_result(w.result));
 
 	return (w.result);
 }
@@ -706,7 +722,6 @@ schedule_destroy_fd_instance(struct fib_data *fd, bool in_callout)
 	else
 		callout_drain(&fd->fd_callout);
 
-	FD_PRINTF(LOG_INFO, fd, "destroying old instance");
 	epoch_call(net_epoch_preempt, destroy_fd_instance_epoch,
 	    &fd->fd_epoch_ctx);
 
@@ -859,6 +874,7 @@ try_setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 		FD_PRINTF(LOG_INFO, fd, "Unable to allocate nhop refcount table (sz:%zu)", size);
 		return (FLM_REBUILD);
 	}
+	FD_PRINTF(LOG_DEBUG, fd, "Allocated %u nhop indexes", fd->number_nhops);
 
 	/* Okay, we're ready for algo init */
 	void *old_algo_data = (old_fd != NULL) ? old_fd->fd_algo_data : NULL;
@@ -920,7 +936,8 @@ setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 		}
 		NET_EPOCH_EXIT(et);
 
-		RH_PRINTF(LOG_INFO, rh, "try %d: fib algo result: %d", i, result);
+		RH_PRINTF(LOG_INFO, rh, "try %d: fib algo result: %s", i,
+		    print_op_result(result));
 
 		if (result == FLM_REBUILD) {
 			prev_fd = new_fd;
