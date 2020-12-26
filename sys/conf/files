@@ -2420,7 +2420,6 @@ dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
 dev/mii/mii_fdt.c		optional miibus fdt | mii fdt
 dev/mii/miibus_if.m		optional miibus | mii
-dev/mii/mlphy.c			optional miibus | mlphy
 dev/mii/nsgphy.c		optional miibus | nsgphy
 dev/mii/nsphy.c			optional miibus | nsphy
 dev/mii/nsphyter.c		optional miibus | nsphyter
@@ -2433,7 +2432,6 @@ dev/mii/rlswitch.c		optional rlswitch
 dev/mii/smcphy.c		optional miibus | smcphy
 dev/mii/smscphy.c		optional miibus | smscphy
 dev/mii/tdkphy.c		optional miibus | tdkphy
-dev/mii/tlphy.c			optional miibus | tlphy
 dev/mii/truephy.c		optional miibus | truephy
 dev/mii/ukphy.c			optional miibus | mii
 dev/mii/ukphy_subr.c		optional miibus | mii
