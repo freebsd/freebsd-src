@@ -33,14 +33,7 @@
 
 #include "defs.h"
 
-#ifdef __NetBSD__
-__RCSID("$NetBSD$");
-#elif defined(__FreeBSD__)
 __RCSID("$FreeBSD$");
-#else
-__RCSID("$Revision: 2.27 $");
-#ident "$Revision: 2.27 $"
-#endif
 
 
 u_int update_seqno;

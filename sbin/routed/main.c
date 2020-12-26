@@ -33,9 +33,6 @@
 
 #include "defs.h"
 #include "pathnames.h"
-#ifdef sgi
-#include "math.h"
-#endif
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/file.h>
@@ -43,15 +40,7 @@
 __COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993 "
 	    "The Regents of the University of California."
 	    "  All rights reserved.");
-#ifdef __NetBSD__
-__RCSID("$NetBSD$");
-#include <util.h>
-#elif defined(__FreeBSD__)
 __RCSID("$FreeBSD$");
-#else
-__RCSID("$Revision: 2.31 $");
-#ident "$Revision: 2.31 $"
-#endif
 
 pid_t	mypid;
 
@@ -292,18 +281,9 @@ usage:
 	signal(SIGUSR2, sigtrace_off);
 
 	/* get into the background */
-#ifdef sgi
-	if (0 > _daemonize(background ? 0 : (_DF_NOCHDIR|_DF_NOFORK),
-			   STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO))
-		BADERR(0, "_daemonize()");
-#else
 	if (background && daemon(0, 1) < 0)
 		BADERR(0,"daemon()");
-#endif
 
-#if defined(__NetBSD__)
-	pidfile(0);
-#endif
 	mypid = getpid();
 
 	/* prepare socket connected to the kernel.
