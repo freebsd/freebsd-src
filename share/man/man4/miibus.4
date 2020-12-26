@@ -8,7 +8,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2015
+.Dd December 26, 2020
 .Dt MIIBUS 4
 .Os
 .Sh NAME
@@ -87,16 +87,12 @@ Marvell/SysKonnect Yukon II Gigabit Ethernet
 NVIDIA nForce MCP Networking Adapter
 .It Xr nge 4
 National Semiconductor DP83820/DP83821 Gigabit Ethernet
-.It Xr pcn 4
-AMD Am79C97x PCI 10/100
 .It Xr re 4
 RealTek 8139C+/8169/8169S/8110S
 .It Xr rl 4
 RealTek 8129/8139
 .It Xr rue 4
 RealTek RTL8150 USB To Fast Ethernet
-.It Xr sf 4
-Adaptec AIC-6915
 .It Xr sge 4
 Silicon Integrated Systems SiS190/191 Ethernet
 .It Xr sis 4
@@ -109,10 +105,6 @@ SMSC LAN9xxx USB Fast Ethernet
 Sundance ST201 (D-Link DFE-550TX)
 .It Xr stge 4
 Sundance/Tamarack TC9021 Gigabit Ethernet
-.It Xr tl 4
-Texas Instruments ThunderLAN
-.It Xr tx 4
-SMC EtherPower II (83c170)
 .It Xr udav 4
 Davicom DM9601 USB Ethernet
 .It Xr ure 4
@@ -123,8 +115,6 @@ VIA VT612x PCI Gigabit Ethernet
 VIA Rhine, Rhine II
 .It Xr vte 4
 DM&P Vortex86 RDC R6040 Fast Ethernet
-.It Xr wb 4
-Winbond W89C840F
 .It Xr xl 4
 3Com 3c90x
 .El
@@ -161,26 +151,21 @@ but as a result are not well behaved newbus device drivers.
 .Xr netintro 4 ,
 .Xr nfe 4 ,
 .Xr nge 4 ,
-.Xr pcn 4 ,
 .Xr re 4 ,
 .Xr rgephy 4 ,
 .Xr rl 4 ,
 .Xr rue 4 ,
-.Xr sf 4 ,
 .Xr sge 4 ,
 .Xr sis 4 ,
 .Xr sk 4 ,
 .Xr smsc 4 ,
 .Xr ste 4 ,
 .Xr stge 4 ,
-.Xr tl 4 ,
-.Xr tx 4 ,
 .Xr udav 4 ,
 .Xr ure 4 ,
 .Xr vge 4 ,
 .Xr vr 4 ,
 .Xr vte 4 ,
-.Xr wb 4 ,
 .Xr xl 4
 .Sh STANDARDS
 More information on MII can be found in the IEEE 802.3 Standard.
