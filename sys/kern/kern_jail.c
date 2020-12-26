@@ -136,6 +136,7 @@ struct	prisonlist allprison = TAILQ_HEAD_INITIALIZER(allprison);
 LIST_HEAD(, prison_racct) allprison_racct;
 int	lastprid = 0;
 
+static int get_next_prid(struct prison **insprp);
 static int do_jail_attach(struct thread *td, struct prison *pr);
 static void prison_complete(void *context, int pending);
 static void prison_deref(struct prison *pr, int flags);
@@ -506,7 +507,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 	struct vfsopt *opt;
 	struct vfsoptlist *opts;
-	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
+	struct prison *pr, *deadpr, *inspr, *mypr, *ppr, *tpr;
 	struct vnode *root;
 	char *domain, *errmsg, *host, *name, *namelc, *p, *path, *uuid;
 	char *g_path, *osrelstr;
@@ -977,6 +978,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 */
 	pr = NULL;
 	ppr = mypr;
+	inspr = NULL;
 	if (cuflags == JAIL_CREATE && jid == 0 && name != NULL) {
 		namelc = strrchr(name, '.');
 		jid = strtoul(namelc != NULL ? namelc + 1 : name, &p, 10);
@@ -985,23 +987,36 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 	sx_xlock(&allprison_lock);
 	if (jid != 0) {
-		/*
-		 * See if a requested jid already exists.  There is an
-		 * information leak here if the jid exists but is not within
-		 * the caller's jail hierarchy.  Jail creators will get EEXIST
-		 * even though they cannot see the jail, and CREATE | UPDATE
-		 * will return ENOENT which is not normally a valid error.
-		 */
 		if (jid < 0) {
 			error = EINVAL;
 			vfs_opterror(opts, "negative jid");
 			goto done_unlock_list;
 		}
-		pr = prison_find(jid);
+		/*
+		 * See if a requested jid already exists.  Keep track of
+		 * where it can be inserted later.
+		 */
+		TAILQ_FOREACH(inspr, &allprison, pr_list) {
+			if (inspr->pr_id == jid) {
+				mtx_lock(&inspr->pr_mtx);
+				if (inspr->pr_ref > 0) {
+					pr = inspr;
+					inspr = NULL;
+				} else
+					mtx_unlock(&inspr->pr_mtx);
+				break;
+			}
+			if (inspr->pr_id > jid)
+				break;
+		}
 		if (pr != NULL) {
 			ppr = pr->pr_parent;
 			/* Create: jid must not exist. */
 			if (cuflags == JAIL_CREATE) {
+				/*
+				 * Even creators that cannot see the jail will
+				 * get EEXIST.
+				 */
 				mtx_unlock(&pr->pr_mtx);
 				error = EEXIST;
 				vfs_opterror(opts, "jail %d already exists",
@@ -1009,6 +1024,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				goto done_unlock_list;
 			}
 			if (!prison_ischild(mypr, pr)) {
+				/*
+				 * Updaters get ENOENT if they cannot see the
+				 * jail.  This is true even for CREATE | UPDATE,
+				 * which normally cannot give this error.
+				 */
 				mtx_unlock(&pr->pr_mtx);
 				pr = NULL;
 			} else if (pr->pr_uref == 0) {
@@ -1175,51 +1195,25 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		ppr->pr_uref++;
 		mtx_unlock(&ppr->pr_mtx);
 		pr = malloc(sizeof(*pr), M_PRISON, M_WAITOK | M_ZERO);
-		if (jid == 0) {
-			/* Find the next free jid. */
-			jid = lastprid + 1;
- findnext:
-			if (jid == JAIL_MAX)
-				jid = 1;
-			TAILQ_FOREACH(tpr, &allprison, pr_list) {
-				if (tpr->pr_id < jid)
-					continue;
-				if (tpr->pr_id > jid || tpr->pr_ref == 0) {
-					TAILQ_INSERT_BEFORE(tpr, pr, pr_list);
-					break;
-				}
-				if (jid == lastprid) {
-					error = EAGAIN;
-					vfs_opterror(opts,
-					    "no available jail IDs");
-					free(pr, M_PRISON);
-					prison_deref(ppr, PD_DEREF |
-					    PD_DEUREF | PD_LIST_XLOCKED);
-					goto done_releroot;
-				}
-				jid++;
-				goto findnext;
-			}
-			lastprid = jid;
-		} else {
-			/*
-			 * The jail already has a jid (that did not yet exist),
-			 * so just find where to insert it.
-			 */
-			TAILQ_FOREACH(tpr, &allprison, pr_list)
-				if (tpr->pr_id >= jid) {
-					TAILQ_INSERT_BEFORE(tpr, pr, pr_list);
-					break;
-				}
+
+		if (jid == 0 && (jid = get_next_prid(&inspr)) == 0) {
+			error = EAGAIN;
+			vfs_opterror(opts, "no available jail IDs");
+			free(pr, M_PRISON);
+			prison_deref(ppr,
+			    PD_DEREF | PD_DEUREF | PD_LIST_XLOCKED);
+			goto done_releroot;
 		}
-		if (tpr == NULL)
+		pr->pr_id = jid;
+		if (inspr != NULL)
+			TAILQ_INSERT_BEFORE(inspr, pr, pr_list);
+		else
 			TAILQ_INSERT_TAIL(&allprison, pr, pr_list);
+
+		pr->pr_parent = ppr;
 		LIST_INSERT_HEAD(&ppr->pr_children, pr, pr_sibling);
 		for (tpr = ppr; tpr != NULL; tpr = tpr->pr_parent)
 			tpr->pr_childcount++;
-
-		pr->pr_parent = ppr;
-		pr->pr_id = jid;
 
 		/* Set some default values, and inherit some from the parent. */
 		if (namelc == NULL)
@@ -1914,6 +1908,70 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 }
 
 /*
+ * Find the next available prison ID.  Return the ID on success, or zero
+ * on failure.  Also set a pointer to the allprison list entry the prison
+ * should be inserted before.
+ */
+static int
+get_next_prid(struct prison **insprp)
+{
+	struct prison *inspr;
+	int jid, maxid;
+
+	jid = lastprid % JAIL_MAX + 1;
+	if (TAILQ_EMPTY(&allprison) ||
+	    TAILQ_LAST(&allprison, prisonlist)->pr_id < jid) {
+		/*
+		 * A common case is for all jails to be implicitly numbered,
+		 * which means they'll go on the end of the list, at least
+		 * for the first JAIL_MAX times.
+		 */
+		inspr = NULL;
+	} else {
+		/*
+		 * Take two passes through the allprison list: first starting
+		 * with the proposed jid, then ending with it.
+		 */
+		for (maxid = JAIL_MAX; maxid != 0; ) {
+			TAILQ_FOREACH(inspr, &allprison, pr_list) {
+				if (inspr->pr_id < jid)
+					continue;
+				if (inspr->pr_id > jid || inspr->pr_ref == 0) {
+					/*
+					 * Found an opening.  This may be a gap
+					 * in the list, or a dead jail with the
+					 * same ID.
+					 */
+					maxid = 0;
+					break;
+				}
+				if (++jid > maxid) {
+					if (lastprid == maxid || lastprid == 0)
+					{
+						/*
+						 * The entire legal range
+						 * has been traversed
+						 */
+						return 0;
+					}
+					/* Try again from the start. */
+					jid = 1;
+					maxid = lastprid;
+					break;
+				}
+			}
+			if (inspr == NULL) {
+				/* Found room at the end of the list. */
+				break;
+			}
+		}
+	}
+	*insprp = inspr;
+	lastprid = jid;
+	return (jid);
+}
+
+/*
  * struct jail_get_args {
  *	struct iovec *iovp;
  *	unsigned int iovcnt;
@@ -2453,8 +2511,15 @@ prison_find(int prid)
 			mtx_lock(&pr->pr_mtx);
 			if (pr->pr_ref > 0)
 				return (pr);
+			/*
+			 * Any active prison with the same ID would have
+			 * been inserted before a dead one.
+			 */
 			mtx_unlock(&pr->pr_mtx);
+			break;
 		}
+		if (pr->pr_id > prid)
+			break;
 	}
 	return (NULL);
 }
