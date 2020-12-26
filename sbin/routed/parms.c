@@ -35,14 +35,7 @@
 #include "pathnames.h"
 #include <sys/stat.h>
 
-#ifdef __NetBSD__
-__RCSID("$NetBSD$");
-#elif defined(__FreeBSD__)
 __RCSID("$FreeBSD$");
-#else
-__RCSID("$Revision: 2.26 $");
-#ident "$Revision: 2.26 $"
-#endif
 
 
 static struct parm *parms;

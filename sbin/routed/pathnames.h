@@ -47,8 +47,4 @@
  * Leave this undefined, and only the trace file originally specified
  * when routed was started, if any, will be appended to.
  */
-#ifndef __NetBSD__
 #define _PATH_TRACE	"/etc/routed.trace"
-#else
-#undef _PATH_TRACE
-#endif

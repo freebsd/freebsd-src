@@ -36,14 +36,7 @@
 #include "defs.h"
 #include "pathnames.h"
 
-#ifdef __NetBSD__
-__RCSID("$NetBSD$");
-#elif defined(__FreeBSD__)
 __RCSID("$FreeBSD$");
-#else
-__RCSID("$Revision: 2.27 $");
-#ident "$Revision: 2.27 $"
-#endif
 
 struct ifhead ifnet = LIST_HEAD_INITIALIZER(ifnet);	/* all interfaces */
 struct ifhead remote_if = LIST_HEAD_INITIALIZER(remote_if);	/* remote interfaces */
@@ -735,9 +728,6 @@ ifinit(void)
 			ifs0.int_data.ierrors = ifm->ifm_data.ifi_ierrors;
 			ifs0.int_data.opackets = ifm->ifm_data.ifi_opackets;
 			ifs0.int_data.oerrors = ifm->ifm_data.ifi_oerrors;
-#ifdef sgi
-			ifs0.int_data.odrops = ifm->ifm_data.ifi_odrops;
-#endif
 			sdl = (struct sockaddr_dl *)(ifm + 1);
 			sdl->sdl_data[sdl->sdl_nlen] = 0;
 			strncpy(ifs0.int_name, sdl->sdl_data,
@@ -977,16 +967,6 @@ ifinit(void)
 			ierr = ifs.int_data.ierrors - ifp->int_data.ierrors;
 			out = ifs.int_data.opackets - ifp->int_data.opackets;
 			oerr = ifs.int_data.oerrors - ifp->int_data.oerrors;
-#ifdef sgi
-			/* Through at least IRIX 6.2, PPP and SLIP
-			 * count packets dropped by the filters.
-			 * But FDDI rings stuck non-operational count
-			 * dropped packets as they wait for improvement.
-			 */
-			if (!(ifp->int_if_flags & IFF_POINTOPOINT))
-				oerr += (ifs.int_data.odrops
-					 - ifp->int_data.odrops);
-#endif
 			/* If the interface just awoke, restart the counters.
 			 */
 			if (ifp->int_data.ts == 0) {
