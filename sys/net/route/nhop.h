@@ -181,6 +181,7 @@ uint32_t nhop_get_idx(const struct nhop_object *nh);
 enum nhop_type nhop_get_type(const struct nhop_object *nh);
 int nhop_get_rtflags(const struct nhop_object *nh);
 struct vnet *nhop_get_vnet(const struct nhop_object *nh);
+struct nhop_object *nhop_select_func(struct nhop_object *nh, uint32_t flowid);
 
 #endif /* _KERNEL */
 

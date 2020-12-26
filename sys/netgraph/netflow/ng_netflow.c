@@ -33,6 +33,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_route.h"
 
@@ -700,12 +701,14 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 		/* Make sure this is IP frame. */
 		etype = ntohs(eh->ether_type);
 		switch (etype) {
+#ifdef INET
 		case ETHERTYPE_IP:
 			M_CHECK(sizeof(struct ip));
 			eh = mtod(m, struct ether_header *);
 			ip = (struct ip *)(eh + 1);
 			l3_off = sizeof(struct ether_header);
 			break;
+#endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			/*
@@ -730,9 +733,11 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			l3_off = sizeof(struct ether_vlan_header);
 
 			if (etype == ETHERTYPE_IP) {
+#ifdef INET
 				M_CHECK(sizeof(struct ip));
 				ip = (struct ip *)(evh + 1);
 				break;
+#endif
 #ifdef INET6
 			} else if (etype == ETHERTYPE_IPV6) {
 				M_CHECK(sizeof(struct ip6_hdr));
@@ -760,6 +765,9 @@ ng_netflow_rcvdata (hook_p hook, item_p item)
 			M_CHECK(sizeof(struct ip6_hdr) - sizeof(struct ip));
 			ip6 = mtod(m, struct ip6_hdr *);
 		}
+#endif
+#ifndef INET
+		ip = NULL;
 #endif
 		break;
 	default:
@@ -935,11 +943,16 @@ loopend:
 		fe = priv_to_fib(priv, fib);
 	}
 
+#ifdef INET
 	if (ip != NULL)
 		error = ng_netflow_flow_add(priv, fe, ip, upper_ptr,
 		    upper_proto, flags, src_if_index);
-#ifdef INET6		
-	else if (ip6 != NULL)
+#endif
+#if defined(INET6) && defined(INET)
+	else
+#endif
+#ifdef INET6
+	if (ip6 != NULL)
 		error = ng_netflow_flow6_add(priv, fe, ip6, upper_ptr,
 		    upper_proto, flags, src_if_index);
 #endif
