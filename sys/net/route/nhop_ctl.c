@@ -761,6 +761,13 @@ nhop_get_vnet(const struct nhop_object *nh)
 	return (nh->nh_priv->nh_vnet);
 }
 
+struct nhop_object *
+nhop_select_func(struct nhop_object *nh, uint32_t flowid)
+{
+
+	return (nhop_select(nh, flowid));
+}
+
 void
 nhops_update_ifmtu(struct rib_head *rh, struct ifnet *ifp, uint32_t mtu)
 {
