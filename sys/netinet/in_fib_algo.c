@@ -590,7 +590,7 @@ lradix4_add_route_cb(struct rtentry *rt, void *_data)
 	struct lradix4_data *lr = (struct lradix4_data *)_data;
 	struct radix4_addr_entry *ae;
 	struct sockaddr_in mask;
-	struct sockaddr *rt_mask = NULL;
+	struct sockaddr *rt_mask;
 	struct radix_node *rn;
 	struct in_addr addr4, mask4;
 	uint32_t scopeid;
@@ -607,12 +607,13 @@ lradix4_add_route_cb(struct rtentry *rt, void *_data)
 	ae->addr.sin_len = KEY_LEN_INET;
 	ae->addr.sin_addr = addr4;
 
-	if (mask4.s_addr != INADDR_ANY) {
+	if (mask4.s_addr != INADDR_BROADCAST) {
 		bzero(&mask, sizeof(mask));
 		mask.sin_len = KEY_LEN_INET;
 		mask.sin_addr = mask4;
 		rt_mask = (struct sockaddr *)&mask;
-	}
+	} else
+		rt_mask = NULL;
 
 	rn = lr->rnh->rnh_addaddr((struct sockaddr *)&ae->addr, rt_mask,
 	    &lr->rnh->rh, ae->rn);
