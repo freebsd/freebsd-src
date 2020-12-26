@@ -928,7 +928,12 @@ forkshell(struct job *jp, union node *n, int mode)
 				pgrp = jp->ps[0].pid;
 			if (setpgid(0, pgrp) == 0 && mode == FORK_FG &&
 			    ttyfd >= 0) {
-				/*** this causes superfluous TIOCSPGRPS ***/
+				/*
+				 * Each process in a pipeline must have the tty
+				 * pgrp set before running its code.
+				 * Only for pipelines of three or more processes
+				 * could this be reduced to two calls.
+				 */
 				if (tcsetpgrp(ttyfd, pgrp) < 0)
 					error("tcsetpgrp failed, errno=%d", errno);
 			}
