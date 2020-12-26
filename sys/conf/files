@@ -3066,7 +3066,6 @@ dev/scc/scc_if.m		optional scc
 dev/scc/scc_bfe_quicc.c		optional scc quicc
 dev/scc/scc_core.c		optional scc
 dev/scc/scc_dev_quicc.c		optional scc quicc
-dev/scc/scc_dev_sab82532.c	optional scc
 dev/scc/scc_dev_z8530.c		optional scc
 dev/sdhci/sdhci.c		optional sdhci
 dev/sdhci/sdhci_fdt.c		optional sdhci fdt
@@ -3240,7 +3239,6 @@ dev/uart/uart_dev_mvebu.c	optional uart uart_mvebu
 dev/uart/uart_dev_ns8250.c	optional uart uart_ns8250 | uart uart_snps
 dev/uart/uart_dev_pl011.c	optional uart pl011
 dev/uart/uart_dev_quicc.c	optional uart quicc
-dev/uart/uart_dev_sab82532.c	optional uart uart_sab82532 | uart scc
 dev/uart/uart_dev_snps.c	optional uart uart_snps fdt
 dev/uart/uart_dev_z8530.c	optional uart uart_z8530 | uart scc
 dev/uart/uart_if.m		optional uart
