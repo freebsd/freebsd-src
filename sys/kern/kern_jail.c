@@ -121,7 +121,7 @@ MTX_SYSINIT(prison0, &prison0.pr_mtx, "jail mutex", MTX_DEF);
 struct bool_flags {
 	const char	*name;
 	const char	*noname;
-	unsigned	 flag;
+	volatile u_int	 flag;
 };
 struct jailsys_flags {
 	const char	*name;
@@ -185,7 +185,11 @@ static struct jailsys_flags pr_flag_jailsys[] = {
 };
 const size_t pr_flag_jailsys_size = sizeof(pr_flag_jailsys);
 
-/* Make this array full-size so dynamic parameters can be added. */
+/*
+ * Make this array full-size so dynamic parameters can be added.
+ * It is protected by prison0.mtx, but lockless reading is allowed
+ * with an atomic check of the flag values.
+ */
 static struct bool_flags pr_flag_allow[NBBY * NBPW] = {
 	{"allow.set_hostname", "allow.noset_hostname", PR_ALLOW_SET_HOSTNAME},
 	{"allow.sysvipc", "allow.nosysvipc", PR_ALLOW_SYSVIPC},
@@ -202,6 +206,7 @@ static struct bool_flags pr_flag_allow[NBBY * NBPW] = {
 	 PR_ALLOW_UNPRIV_DEBUG},
 	{"allow.suser", "allow.nosuser", PR_ALLOW_SUSER},
 };
+static unsigned pr_allow_all = PR_ALLOW_ALL_STATIC;
 const size_t pr_flag_allow_size = sizeof(pr_flag_allow);
 
 #define	JAIL_DEFAULT_ALLOW		(PR_ALLOW_SET_HOSTNAME | \
@@ -349,7 +354,7 @@ kern_jail(struct thread *td, struct jail *j)
 	if (!jailed(td->td_ucred)) {
 		for (bf = pr_flag_allow;
 		     bf < pr_flag_allow + nitems(pr_flag_allow) &&
-			bf->flag != 0;
+			atomic_load_int(&bf->flag) != 0;
 		     bf++) {
 			optiov[opt.uio_iovcnt].iov_base = __DECONST(char *,
 			    (jail_default_allow & bf->flag)
@@ -684,7 +689,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 
 	pr_allow = ch_allow = 0;
 	for (bf = pr_flag_allow;
-	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
+	     bf < pr_flag_allow + nitems(pr_flag_allow) &&
+		atomic_load_int(&bf->flag) != 0;
 	     bf++) {
 		vfs_flagopt(opts, bf->name, &pr_allow, bf->flag);
 		vfs_flagopt(opts, bf->noname, &ch_allow, bf->flag);
@@ -2190,7 +2196,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 			goto done_deref;
 	}
 	for (bf = pr_flag_allow;
-	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
+	     bf < pr_flag_allow + nitems(pr_flag_allow) &&
+		atomic_load_int(&bf->flag) != 0;
 	     bf++) {
 		i = (pr->pr_allow & bf->flag) ? 1 : 0;
 		error = vfs_setopt(opts, bf->name, &i, sizeof(i));
@@ -3904,7 +3911,7 @@ prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
 #ifndef NO_SYSCTL_DESCR
 	char *descr_deprecated;
 #endif
-	unsigned allow_flag;
+	u_int allow_flag;
 
 	if (prefix
 	    ? asprintf(&allow_name, M_PRISON, "allow.%s.%s", prefix, name)
@@ -3923,7 +3930,8 @@ prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
 	 */
 	mtx_lock(&prison0.pr_mtx);
 	for (bf = pr_flag_allow;
-	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
+	     bf < pr_flag_allow + nitems(pr_flag_allow) &&
+		atomic_load_int(&bf->flag) != 0;
 	     bf++) {
 		if (strcmp(bf->name, allow_name) == 0) {
 			allow_flag = bf->flag;
@@ -3932,38 +3940,37 @@ prison_add_allow(const char *prefix, const char *name, const char *prefix_descr,
 	}
 
 	/*
-	 * Find a free bit in prison0's pr_allow, failing if there are none
+	 * Find a free bit in pr_allow_all, failing if there are none
 	 * (which shouldn't happen as long as we keep track of how many
 	 * potential dynamic flags exist).
-	 *
-	 * Due to per-jail unprivileged process debugging support
-	 * using pr_allow, also verify against PR_ALLOW_ALL_STATIC.
-	 * prison0 may have unprivileged process debugging unset.
 	 */
 	for (allow_flag = 1;; allow_flag <<= 1) {
 		if (allow_flag == 0)
 			goto no_add;
-		if (allow_flag & PR_ALLOW_ALL_STATIC)
-			continue;
-		if ((prison0.pr_allow & allow_flag) == 0)
+		if ((pr_allow_all & allow_flag) == 0)
 			break;
 	}
 
-	/*
-	 * Note the parameter in the next open slot in pr_flag_allow.
-	 * Set the flag last so code that checks pr_flag_allow can do so
-	 * without locking.
-	 */
-	for (bf = pr_flag_allow; bf->flag != 0; bf++)
+	/* Note the parameter in the next open slot in pr_flag_allow. */
+	for (bf = pr_flag_allow; ; bf++) {
 		if (bf == pr_flag_allow + nitems(pr_flag_allow)) {
 			/* This should never happen, but is not fatal. */
 			allow_flag = 0;
 			goto no_add;
 		}
-	prison0.pr_allow |= allow_flag;
+		if (atomic_load_int(&bf->flag) == 0)
+			break;
+	}
 	bf->name = allow_name;
 	bf->noname = allow_noname;
-	bf->flag = allow_flag;
+	pr_allow_all |= allow_flag;
+	/*
+	 * prison0 always has permission for the new parameter.
+	 * Other jails must have it granted to them.
+	 */
+	prison0.pr_allow |= allow_flag;
+	/* The flag indicates a valid entry, so make sure it is set last. */
+	atomic_store_rel_int(&bf->flag, allow_flag);
 	mtx_unlock(&prison0.pr_mtx);
 
 	/*
@@ -4260,7 +4267,8 @@ db_show_prison(struct prison *pr)
 	}
 	db_printf(" allow           = 0x%x", pr->pr_allow);
 	for (bf = pr_flag_allow;
-	     bf < pr_flag_allow + nitems(pr_flag_allow) && bf->flag != 0;
+	     bf < pr_flag_allow + nitems(pr_flag_allow) &&
+		atomic_load_int(&bf->flag) != 0;
 	     bf++)
 		if (pr->pr_allow & bf->flag)
 			db_printf(" %s", bf->name);
