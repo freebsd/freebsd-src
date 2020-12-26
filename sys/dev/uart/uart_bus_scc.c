@@ -100,9 +100,6 @@ uart_scc_probe(device_t dev)
 	case SCC_CLASS_QUICC:
 		sc->sc_class = &uart_quicc_class;
 		break;
-	case SCC_CLASS_SAB82532:
-		sc->sc_class = &uart_sab82532_class;
-		break;
 	case SCC_CLASS_Z8530:
 		sc->sc_class = &uart_z8530_class;
 		break;
