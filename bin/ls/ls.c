@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/mac.h>
 
+#include <ctype.h>
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -88,12 +89,12 @@ __FBSDID("$FreeBSD$");
  */
 #define MAKENINES(n)							\
 	do {								\
-		intmax_t i;						\
+		intmax_t __i;						\
 									\
 		/* Use a loop as all values of n are small. */		\
-		for (i = 1; n > 0; i *= 10)				\
+		for (__i = 1; n > 0; __i *= 10)				\
 			n--;						\
-		n = i - 1;						\
+		n = __i - 1;						\
 	} while(0)
 
 static void	 display(const FTSENT *, FTSENT *, int);
@@ -715,88 +716,58 @@ display(const FTSENT *p, FTSENT *list, int options)
 	char *flags, *labelstr = NULL;
 	char ngroup[STRBUF_SIZEOF(uid_t) + 1];
 	char nuser[STRBUF_SIZEOF(gid_t) + 1];
+	u_long width[9];
+	int i;
 
 	needstats = f_inode || f_longform || f_size;
 	flen = 0;
 	btotal = 0;
-	initmax = getenv("LS_COLWIDTHS");
-	/* Fields match -lios order.  New ones should be added at the end. */
-	maxlabelstr = maxblock = maxlen = maxnlink = 0;
-	maxuser = maxgroup = maxflags = maxsize = 0;
-	maxinode = 0;
-	if (initmax != NULL && *initmax != '\0') {
-		char *initmax2, *jinitmax;
-		int ninitmax;
 
-		/* Fill-in "::" as "0:0:0" for the sake of scanf. */
-		jinitmax = malloc(strlen(initmax) * 2 + 2);
-		if (jinitmax == NULL)
-			err(1, "malloc");
-		initmax2 = jinitmax;
-		if (*initmax == ':')
-			strcpy(initmax2, "0:"), initmax2 += 2;
-		else
-			*initmax2++ = *initmax, *initmax2 = '\0';
-		for (initmax++; *initmax != '\0'; initmax++) {
-			if (initmax[-1] == ':' && initmax[0] == ':') {
-				*initmax2++ = '0';
-				*initmax2++ = initmax[0];
-				initmax2[1] = '\0';
+#define LS_COLWIDTHS_FIELDS	9
+	initmax = getenv("LS_COLWIDTHS");
+
+	for (i = 0 ; i < LS_COLWIDTHS_FIELDS; i++)
+		width[i] = 0;
+
+	if (initmax != NULL) {
+		char *endp;
+
+		for (i = 0; i < LS_COLWIDTHS_FIELDS && *initmax != '\0'; i++) {
+			if (*initmax == ':') {
+				width[i] = 0;
 			} else {
-				*initmax2++ = initmax[0];
-				initmax2[1] = '\0';
+				width[i] = strtoul(initmax, &endp, 10);
+				initmax = endp;
+				while (isspace(*initmax))
+					initmax++;
+				if (*initmax != ':')
+					break;
+				initmax++;
 			}
 		}
-		if (initmax2[-1] == ':')
-			strcpy(initmax2, "0");
-
-		ninitmax = sscanf(jinitmax,
-		    " %ju : %ld : %lu : %u : %u : %i : %jd : %lu : %lu ",
-		    &maxinode, &maxblock, &maxnlink, &maxuser,
-		    &maxgroup, &maxflags, &maxsize, &maxlen, &maxlabelstr);
-		f_notabs = 1;
-		switch (ninitmax) {
-		case 0:
-			maxinode = 0;
-			/* FALLTHROUGH */
-		case 1:
-			maxblock = 0;
-			/* FALLTHROUGH */
-		case 2:
-			maxnlink = 0;
-			/* FALLTHROUGH */
-		case 3:
-			maxuser = 0;
-			/* FALLTHROUGH */
-		case 4:
-			maxgroup = 0;
-			/* FALLTHROUGH */
-		case 5:
-			maxflags = 0;
-			/* FALLTHROUGH */
-		case 6:
-			maxsize = 0;
-			/* FALLTHROUGH */
-		case 7:
-			maxlen = 0;
-			/* FALLTHROUGH */
-		case 8:
-			maxlabelstr = 0;
-			/* FALLTHROUGH */
+		if (i < LS_COLWIDTHS_FIELDS)
 #ifdef COLORLS
 			if (!f_color)
 #endif
 				f_notabs = 0;
-			/* FALLTHROUGH */
-		default:
-			break;
-		}
-		MAKENINES(maxinode);
-		MAKENINES(maxblock);
-		MAKENINES(maxnlink);
-		MAKENINES(maxsize);
-		free(jinitmax);
 	}
+
+	/* Fields match -lios order.  New ones should be added at the end. */
+	maxinode = width[0];
+	maxblock = width[1];
+	maxnlink = width[2];
+	maxuser = width[3];
+	maxgroup = width[4];
+	maxflags = width[5];
+	maxsize = width[6];
+	maxlen = width[7];
+	maxlabelstr = width[8];
+
+	MAKENINES(maxinode);
+	MAKENINES(maxblock);
+	MAKENINES(maxnlink);
+	MAKENINES(maxsize);
+
 	d.s_size = 0;
 	sizelen = 0;
 	flags = NULL;
