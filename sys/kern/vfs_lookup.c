@@ -545,6 +545,16 @@ namei(struct nameidata *ndp)
 	ndp->ni_debugflags |= NAMEI_DBG_CALLED;
 	if (ndp->ni_startdir != NULL)
 		ndp->ni_debugflags |= NAMEI_DBG_HADSTARTDIR;
+	if (cnp->cn_flags & FAILIFEXISTS) {
+		KASSERT(cnp->cn_nameiop == CREATE,
+		    ("%s: FAILIFEXISTS passed for op %d", __func__, cnp->cn_nameiop));
+		/*
+		 * The limitation below is to restrict hairy corner cases.
+		 */
+		KASSERT((cnp->cn_flags & (LOCKPARENT | LOCKLEAF)) == LOCKPARENT,
+		    ("%s: FAILIFEXISTS must be passed with LOCKPARENT and without LOCKLEAF",
+		    __func__));
+	}
 	/*
 	 * For NDVALIDATE.
 	 *
@@ -1295,8 +1305,11 @@ success:
 			goto bad2;
 		}
 	}
-	if (ndp->ni_vp != NULL && ndp->ni_vp->v_type == VDIR)
+	if (ndp->ni_vp != NULL) {
 		nameicap_tracker_add(ndp, ndp->ni_vp);
+		if ((cnp->cn_flags & (FAILIFEXISTS | ISSYMLINK)) == FAILIFEXISTS)
+			goto bad_eexist;
+	}
 	return (0);
 
 bad2:
@@ -1311,6 +1324,24 @@ bad:
 		vput(dp);
 	ndp->ni_vp = NULL;
 	return (error);
+bad_eexist:
+	/*
+	 * FAILIFEXISTS handling.
+	 *
+	 * XXX namei called with LOCKPARENT but not LOCKLEAF has the strange
+	 * behaviour of leaving the vnode unlocked if the target is the same
+	 * vnode as the parent.
+	 */
+	MPASS((cnp->cn_flags & ISSYMLINK) == 0);
+	if (ndp->ni_vp == ndp->ni_dvp)
+		vrele(ndp->ni_dvp);
+	else
+		vput(ndp->ni_dvp);
+	vrele(ndp->ni_vp);
+	ndp->ni_dvp = NULL;
+	ndp->ni_vp = NULL;
+	NDFREE(ndp, NDF_ONLY_PNBUF);
+	return (EEXIST);
 }
 
 /*

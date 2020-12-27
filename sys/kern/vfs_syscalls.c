@@ -3768,7 +3768,6 @@ kern_mkdirat(struct thread *td, int fd, const char *path, enum uio_seg segflg,
     int mode)
 {
 	struct mount *mp;
-	struct vnode *vp;
 	struct vattr vattr;
 	struct nameidata nd;
 	int error;
@@ -3777,26 +3776,11 @@ kern_mkdirat(struct thread *td, int fd, const char *path, enum uio_seg segflg,
 restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
-	    NC_NOMAKEENTRY | NC_KEEPPOSENTRY, segflg, path, fd,
+	    NC_NOMAKEENTRY | NC_KEEPPOSENTRY | FAILIFEXISTS, segflg, path, fd,
 	    &cap_mkdirat_rights, td);
 	nd.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&nd)) != 0)
 		return (error);
-	vp = nd.ni_vp;
-	if (vp != NULL) {
-		NDFREE(&nd, NDF_ONLY_PNBUF);
-		/*
-		 * XXX namei called with LOCKPARENT but not LOCKLEAF has
-		 * the strange behaviour of leaving the vnode unlocked
-		 * if the target is the same vnode as the parent.
-		 */
-		if (vp == nd.ni_dvp)
-			vrele(nd.ni_dvp);
-		else
-			vput(nd.ni_dvp);
-		vrele(vp);
-		return (EEXIST);
-	}
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vput(nd.ni_dvp);
