@@ -1,5 +1,12 @@
 # News
 
+## 3.2.4
+
+This is a production release that fixes a warning on `gcc` 6 or older, which
+does not have an attribute that is used.
+
+Users do ***NOT*** need to upgrade if they don't use `gcc` 6 or older.
+
 ## 3.2.3
 
 This is a production release that fixes a bug in `gen/strgen.sh`. I recently

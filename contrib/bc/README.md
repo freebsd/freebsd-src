@@ -1,7 +1,5 @@
 # `bc`
 
-[![Build Status][13]][14]
-[![codecov][15]][16]
 [![Coverity Scan Build Status][17]][18]
 
 ***WARNING: This project has moved to [https://git.yzena.com/][20] for [these
@@ -302,8 +300,6 @@ tarballs.
 Files:
 
 	.gitignore           The git ignore file (maintainer use only).
-	.travis.yml          The Travis CI file (maintainer use only).
-	codecov.yml          The Codecov file (maintainer use only).
 	configure            A symlink to configure.sh to make packaging easier.
 	configure.sh         The configure script.
 	functions.sh         A script with functions used by other scripts.
@@ -339,10 +335,6 @@ Folders:
 [10]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [11]: http://semver.org/
 [12]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html
-[13]: https://travis-ci.com/gavinhoward/bc.svg?branch=master
-[14]: https://travis-ci.com/gavinhoward/bc
-[15]: https://codecov.io/gh/gavinhoward/bc/branch/master/graph/badge.svg
-[16]: https://codecov.io/gh/gavinhoward/bc
 [17]: https://img.shields.io/coverity/scan/16609.svg
 [18]: https://scan.coverity.com/projects/gavinhoward-bc
 [19]: ./manuals/benchmarks.md
