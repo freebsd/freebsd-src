@@ -296,7 +296,7 @@ efi_get_table(struct uuid *uuid, void **ptr)
 	ct = efi_cfgtbl;
 	while (count--) {
 		if (!bcmp(&ct->ct_uuid, uuid, sizeof(*uuid))) {
-			*ptr = (void *)efi_phys_to_kva(ct->ct_data);
+			*ptr = ct->ct_data;
 			efi_leave();
 			return (0);
 		}
