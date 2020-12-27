@@ -3736,8 +3736,8 @@ cache_fpl_terminated(struct cache_fpl *fpl)
 
 #define CACHE_FPL_SUPPORTED_CN_FLAGS \
 	(NC_NOMAKEENTRY | NC_KEEPPOSENTRY | LOCKLEAF | LOCKPARENT | WANTPARENT | \
-	 FOLLOW | LOCKSHARED | SAVENAME | SAVESTART | WILLBEDIR | ISOPEN | \
-	 NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK)
+	 FAILIFEXISTS | FOLLOW | LOCKSHARED | SAVENAME | SAVESTART | WILLBEDIR | \
+	 ISOPEN | NOMACCHECK | AUDITVNODE1 | AUDITVNODE2 | NOCAPCHECK)
 
 #define CACHE_FPL_INTERNAL_CN_FLAGS \
 	(ISDOTDOT | MAKEENTRY | ISLASTCN)
@@ -3990,6 +3990,11 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 		return (cache_fpl_handled(fpl, EROFS));
 	}
 
+	if (fpl->tvp != NULL && (cnp->cn_flags & FAILIFEXISTS) != 0) {
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled(fpl, EEXIST));
+	}
+
 	/*
 	 * Secure access to dvp; check cache_fplookup_partial_setup for
 	 * reasoning.
@@ -4068,6 +4073,12 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
+	}
+
+	if ((cnp->cn_flags & FAILIFEXISTS) != 0) {
+		vput(dvp);
+		vput(tvp);
+		return (cache_fpl_handled(fpl, EEXIST));
 	}
 
 	if ((cnp->cn_flags & LOCKLEAF) == 0) {
@@ -4221,6 +4232,7 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	MPASS(!cache_fpl_isdotdot(cnp));
 
 	if (cnp->cn_nameiop != LOOKUP) {
+		fpl->tvp = NULL;
 		return (cache_fplookup_modifying(fpl));
 	}
 
