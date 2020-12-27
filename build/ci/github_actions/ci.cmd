@@ -1,7 +1,7 @@
 @ECHO OFF
 SET ZLIB_VERSION=1.2.11
 SET BZIP2_VERSION=b7a672291188a6469f71dd13ad14f2f9a7344fc8
-SET XZ_VERSION=2327a461e1afce862c22269b80d3517801103c1b
+SET XZ_VERSION=5.2.5
 IF NOT "%BE%"=="mingw-gcc" (
   IF NOT "%BE%"=="msvc" (
     ECHO Environment variable BE must be mingw-gcc or msvc
@@ -37,7 +37,7 @@ IF "%1"=="deplibs" (
   )
   IF NOT EXIST xz-%XZ_VERSION%.zip (
     echo Downloading https://github.com/libarchive/xz/archive/%XZ_VERSION%.zip
-    curl -L -o xz-%XZ_VERSION%.zip https://github.com/libarchive/xz/archive/%XZ_VERSION%.zip || EXIT /b 1
+    curl -L -o xz-%XZ_VERSION%.zip https://github.com/libarchive/xz/archive/v%XZ_VERSION%.zip || EXIT /b 1
   )
   IF NOT EXIST xz-%XZ_VERSION% (
     echo Unpacking xz-%XZ_VERSION%.zip
