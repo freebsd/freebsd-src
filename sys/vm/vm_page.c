@@ -882,7 +882,7 @@ vm_page_busy_acquire(vm_page_t m, int allocflags)
 	 * It is assumed that a reference to the object is already
 	 * held by the callers.
 	 */
-	obj = m->object;
+	obj = atomic_load_ptr(&m->object);
 	for (;;) {
 		if (vm_page_tryacquire(m, allocflags))
 			return (true);
@@ -4386,8 +4386,8 @@ vm_page_grab_sleep(vm_object_t object, vm_page_t m, vm_pindex_t pindex,
 	if (locked && (allocflags & VM_ALLOC_NOCREAT) == 0)
 		vm_page_reference(m);
 
-	if (_vm_page_busy_sleep(object, m, m->pindex, wmesg, allocflags,
-	    locked) && locked)
+	if (_vm_page_busy_sleep(object, m, pindex, wmesg, allocflags, locked) &&
+	    locked)
 		VM_OBJECT_WLOCK(object);
 	if ((allocflags & VM_ALLOC_WAITFAIL) != 0)
 		return (false);
@@ -4780,7 +4780,7 @@ retrylookup:
 	for (; i < count; i++) {
 		if (m != NULL) {
 			if (!vm_page_tryacquire(m, allocflags)) {
-				if (vm_page_grab_sleep(object, m, pindex,
+				if (vm_page_grab_sleep(object, m, pindex + i,
 				    "grbmaw", allocflags, true))
 					goto retrylookup;
 				break;
