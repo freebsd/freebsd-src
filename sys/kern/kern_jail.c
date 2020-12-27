@@ -140,6 +140,8 @@ static int get_next_prid(struct prison **insprp);
 static int do_jail_attach(struct thread *td, struct prison *pr);
 static void prison_complete(void *context, int pending);
 static void prison_deref(struct prison *pr, int flags);
+static void prison_set_allow_locked(struct prison *pr, unsigned flag,
+    int enable);
 static char *prison_path(struct prison *pr1, struct prison *pr2);
 static void prison_remove_one(struct prison *pr);
 #ifdef RACCT
@@ -1726,12 +1728,9 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			}
 		}
 	}
-	if ((tallow = ch_allow & ~pr_allow)) {
-		/* Clear allow bits in all children. */
-		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend)
-			tpr->pr_allow &= ~tallow;
-	}
 	pr->pr_allow = (pr->pr_allow & ~ch_allow) | pr_allow;
+	if ((tallow = ch_allow & ~pr_allow))
+		prison_set_allow_locked(pr, tallow, 0);
 	/*
 	 * Persistent prisons get an extra reference, and prisons losing their
 	 * persist flag lose that reference.  Only do this for existing prisons
@@ -2589,13 +2588,15 @@ prison_find_name(struct prison *mypr, const char *name)
 }
 
 /*
- * See if a prison has the specific flag set.
+ * See if a prison has the specific flag set.  The prison should be locked,
+ * unless checking for flags that are only set at jail creation (such as
+ * PR_IP4 and PR_IP6), or only the single bit is examined, without regard
+ * to any other prison data.
  */
 int
 prison_flag(struct ucred *cred, unsigned flag)
 {
 
-	/* This is an atomic read, so no locking is necessary. */
 	return (cred->cr_prison->pr_flags & flag);
 }
 
@@ -2603,8 +2604,7 @@ int
 prison_allow(struct ucred *cred, unsigned flag)
 {
 
-	/* This is an atomic read, so no locking is necessary. */
-	return (cred->cr_prison->pr_allow & flag);
+	return ((cred->cr_prison->pr_allow & flag) != 0);
 }
 
 /*
@@ -2800,6 +2800,38 @@ prison_proc_free(struct prison *pr)
 		return;
 	}
 	mtx_unlock(&pr->pr_mtx);
+}
+
+/*
+ * Set or clear a permission bit in the pr_allow field, passing restrictions
+ * (cleared permission) down to child jails.
+ */
+void
+prison_set_allow(struct ucred *cred, unsigned flag, int enable)
+{
+	struct prison *pr;
+
+	pr = cred->cr_prison;
+	sx_slock(&allprison_lock);
+	mtx_lock(&pr->pr_mtx);
+	prison_set_allow_locked(pr, flag, enable);
+	mtx_unlock(&pr->pr_mtx);
+	sx_sunlock(&allprison_lock);
+}
+
+static void
+prison_set_allow_locked(struct prison *pr, unsigned flag, int enable)
+{
+	struct prison *cpr;
+	int descend;
+
+	if (enable != 0)
+		pr->pr_allow |= flag;
+	else {
+		pr->pr_allow &= ~flag;
+		FOREACH_PRISON_DESCENDANT_LOCKED(pr, cpr, descend)
+			cpr->pr_allow &= ~flag;
+	}
 }
 
 /*
@@ -3117,6 +3149,8 @@ prison_enforce_statfs(struct ucred *cred, struct mount *mp, struct statfs *sp)
 int
 prison_priv_check(struct ucred *cred, int priv)
 {
+	struct prison *pr;
+	int error;
 
 	/*
 	 * Some policies have custom handlers. This routine should not be
@@ -3388,11 +3422,14 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_UNMOUNT:
 	case PRIV_VFS_MOUNT_NONUSER:
 	case PRIV_VFS_MOUNT_OWNER:
-		if (cred->cr_prison->pr_allow & PR_ALLOW_MOUNT &&
-		    cred->cr_prison->pr_enforce_statfs < 2)
-			return (0);
+		pr = cred->cr_prison;
+		prison_lock(pr);
+		if (pr->pr_allow & PR_ALLOW_MOUNT && pr->pr_enforce_statfs < 2)
+			error = 0;
 		else
-			return (EPERM);
+			error = EPERM;
+		prison_unlock(pr);
+		return (error);
 
 		/*
 		 * Jails should hold no disposition on the PRIV_VFS_READ_DIR
@@ -3685,14 +3722,16 @@ SYSCTL_UINT(_security_jail, OID_AUTO, jail_max_af_ips, CTLFLAG_RW,
 static int
 sysctl_jail_default_allow(SYSCTL_HANDLER_ARGS)
 {
-	struct prison *pr;
-	int allow, error, i;
-
-	pr = req->td->td_ucred->cr_prison;
-	allow = (pr == &prison0) ? jail_default_allow : pr->pr_allow;
+	int error, i;
 
 	/* Get the current flag value, and convert it to a boolean. */
-	i = (allow & arg2) ? 1 : 0;
+	if (req->td->td_ucred->cr_prison == &prison0) {
+		mtx_lock(&prison0.pr_mtx);
+		i = (jail_default_allow & arg2) != 0;
+		mtx_unlock(&prison0.pr_mtx);
+	} else
+		i = prison_allow(req->td->td_ucred, arg2);
+
 	if (arg1 != NULL)
 		i = !i;
 	error = sysctl_handle_int(oidp, &i, 0, req);

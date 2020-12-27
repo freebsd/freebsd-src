@@ -63,46 +63,21 @@ static bool
 suser_enabled(struct ucred *cred)
 {
 
-	return (prison_allow(cred, PR_ALLOW_SUSER) ? true : false);
-}
-
-static void inline
-prison_suser_set(struct prison *pr, int enabled)
-{
-
-	if (enabled) {
-		pr->pr_allow |= PR_ALLOW_SUSER;
-	} else {
-		pr->pr_allow &= ~PR_ALLOW_SUSER;
-	}
+	return (prison_allow(cred, PR_ALLOW_SUSER));
 }
 
 static int
 sysctl_kern_suser_enabled(SYSCTL_HANDLER_ARGS)
 {
-	struct prison *pr, *cpr;
 	struct ucred *cred;
-	int descend, error, enabled;
+	int error, enabled;
 
 	cred = req->td->td_ucred;
 	enabled = suser_enabled(cred);
-
 	error = sysctl_handle_int(oidp, &enabled, 0, req);
 	if (error || !req->newptr)
 		return (error);
-
-	pr = cred->cr_prison;
-	sx_slock(&allprison_lock);
-	mtx_lock(&pr->pr_mtx);
-
-	prison_suser_set(pr, enabled);
-	if (!enabled) {
-		FOREACH_PRISON_DESCENDANT_LOCKED(pr, cpr, descend) {
-			prison_suser_set(cpr, 0);
-		}
-	}
-	mtx_unlock(&pr->pr_mtx);
-	sx_sunlock(&allprison_lock);
+	prison_set_allow(cred, PR_ALLOW_SUSER, enabled);
 	return (0);
 }
 
