@@ -1,7 +1,5 @@
 # `bc`
 
-[![Build Status][13]][14]
-[![codecov][15]][16]
 [![Coverity Scan Build Status][17]][18]
 
 ***WARNING: This project has moved to [https://git.yzena.com/][20] for [these
@@ -41,10 +39,10 @@ Systems that are known to work:
 * Mac OSX
 * Solaris* (as long as the Solaris version supports POSIX 2008)
 * AIX
+* HP-UX* (except for history)
 
 Please submit bug reports if this `bc` does not build out of the box on any
-system besides Windows. If Windows binaries are needed, they can be found at
-[xstatic][6].
+system besides Windows.
 
 ## Build
 
@@ -52,12 +50,6 @@ This `bc` should build unmodified on any POSIX-compliant system.
 
 For more complex build requirements than the ones below, see the
 [build manual][5].
-
-### Pre-built Binaries
-
-It is possible to download pre-compiled binaries for a wide list of platforms,
-including Linux- and Windows-based systems, from [xstatic][6]. This link always
-points to the latest release of `bc`.
 
 ### Default
 
@@ -302,8 +294,6 @@ tarballs.
 Files:
 
 	.gitignore           The git ignore file (maintainer use only).
-	.travis.yml          The Travis CI file (maintainer use only).
-	codecov.yml          The Codecov file (maintainer use only).
 	configure            A symlink to configure.sh to make packaging easier.
 	configure.sh         The configure script.
 	functions.sh         A script with functions used by other scripts.
@@ -332,24 +322,19 @@ Folders:
 [1]: https://www.gnu.org/software/bc/
 [4]: ./LICENSE.md
 [5]: ./manuals/build.md
-[6]: https://pkg.musl.cc/bc/
 [7]: ./manuals/algorithms.md
 [8]: https://git.busybox.net/busybox/tree/miscutils/bc.c
 [9]: https://github.com/landley/toybox/blob/master/toys/pending/bc.c
 [10]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [11]: http://semver.org/
 [12]: https://pubs.opengroup.org/onlinepubs/9699919799/utilities/bc.html
-[13]: https://travis-ci.com/gavinhoward/bc.svg?branch=master
-[14]: https://travis-ci.com/gavinhoward/bc
-[15]: https://codecov.io/gh/gavinhoward/bc/branch/master/graph/badge.svg
-[16]: https://codecov.io/gh/gavinhoward/bc
 [17]: https://img.shields.io/coverity/scan/16609.svg
 [18]: https://scan.coverity.com/projects/gavinhoward-bc
 [19]: ./manuals/benchmarks.md
 [20]: https://git.yzena.com/gavin/bc
 [21]: https://gavinhoward.com/2020/04/i-am-moving-away-from-github/
 [22]: https://www.deepl.com/translator
-[23]: https://svnweb.freebsd.org/base/head/contrib/bc/
+[23]: https://cgit.freebsd.org/src/tree/contrib/bc
 [24]: https://bugs.freebsd.org/
 [25]: https://reviews.freebsd.org/
 [26]: ./manuals/bcl.3.md

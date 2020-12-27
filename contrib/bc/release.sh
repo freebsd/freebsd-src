@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -47,7 +47,7 @@ header() {
 }
 
 do_make() {
-	make -j4 "$@"
+	make -j16 "$@"
 }
 
 configure() {
@@ -326,18 +326,18 @@ vg() {
 		_vg_bits=32
 	fi
 
-	build "$debug" "gcc" "-O0 -g" "1" "$_vg_bits"
-	runtest valgrind
+	build "$debug" "gcc" "-O0 -gv" "1" "$_vg_bits"
+	runtest test
 
 	do_make clean_config
 
-	build "$debug" "gcc" "-O0 -gb" "1" "$_vg_bits"
-	runtest valgrind
+	build "$debug" "gcc" "-O0 -gvb" "1" "$_vg_bits"
+	runtest test
 
 	do_make clean_config
 
-	build "$debug" "gcc" "-O0 -gd" "1" "$_vg_bits"
-	runtest valgrind
+	build "$debug" "gcc" "-O0 -gvd" "1" "$_vg_bits"
+	runtest test
 
 	do_make clean_config
 }
@@ -514,7 +514,7 @@ else
 	defcc="c99"
 fi
 
-export ASAN_OPTIONS="abort_on_error=1"
+export ASAN_OPTIONS="abort_on_error=1,allocator_may_return_null=1"
 export UBSAN_OPTIONS="print_stack_trace=1,silence_unsigned_overflow=1"
 
 build "$debug" "$defcc" "-g" "1" "$bits"
@@ -573,9 +573,9 @@ if [ "$run_tests" -ne 0 ]; then
 		printf '\n'
 		printf 'Then run the GitHub release script as follows:\n'
 		printf '\n'
-		printf '    <github_release> %s .travis.yml codecov.yml release.sh \\\n' "$version"
-		printf '    RELEASE.md tests/afl.py tests/radamsa.sh tests/radamsa.txt tests/randmath.py \\\n'
-		printf '    tests/bc/scripts/timeconst.bc\n'
+		printf '    <github_release> %s release.sh RELEASE.md\\\n' "$version"
+		printf '    tests/afl.py tests/radamsa.sh tests/radamsa.txt tests/randmath.py \\\n'
+		printf '    tests/fuzzing/ tests/bc/scripts/timeconst.bc\n'
 
 	fi
 

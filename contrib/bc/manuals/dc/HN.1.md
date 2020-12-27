@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: BSD-2-Clause
 
-Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -34,7 +34,7 @@ dc - arbitrary-precision decimal reverse-Polish notation calculator
 
 # SYNOPSIS
 
-**dc** [**-hiPvVx**] [**--version**] [**--help**] [**--interactive**] [**--no-prompt**] [**--extended-register**] [**-e** *expr*] [**--expression**=*expr*...] [**-f** *file*...] [**-file**=*file*...] [*file*...]
+**dc** [**-hiPvVx**] [**-\-version**] [**-\-help**] [**-\-interactive**] [**-\-no-prompt**] [**-\-extended-register**] [**-e** *expr*] [**-\-expression**=*expr*...] [**-f** *file*...] [**-\-file**=*file*...] [*file*...]
 
 # DESCRIPTION
 
@@ -43,11 +43,11 @@ notation) to store numbers and results of computations. Arithmetic operations
 pop arguments off of the stack and push the results.
 
 If no files are given on the command-line as extra arguments (i.e., not as
-**-f** or **--file** arguments), then dc(1) reads from **stdin**. Otherwise,
+**-f** or **-\-file** arguments), then dc(1) reads from **stdin**. Otherwise,
 those files are processed, and dc(1) will then exit.
 
 This is different from the dc(1) on OpenBSD and possibly other dc(1)
-implementations, where **-e** (**--expression**) and **-f** (**--file**)
+implementations, where **-e** (**-\-expression**) and **-f** (**-\-file**)
 arguments cause dc(1) to execute them and exit. The reason for this is that this
 dc(1) allows users to set arguments in the environment variable **DC_ENV_ARGS**
 (see the **ENVIRONMENT VARIABLES** section). Any expressions given on the
@@ -64,21 +64,21 @@ as the last command-line argument or define the environment variable
 
 The following are the options that dc(1) accepts.
 
-**-h**, **--help**
+**-h**, **-\-help**
 
 :   Prints a usage message and quits.
 
-**-v**, **-V**, **--version**
+**-v**, **-V**, **-\-version**
 
 :   Print the version information (copyright header) and exit.
 
-**-i**, **--interactive**
+**-i**, **-\-interactive**
 
 :   Forces interactive mode. (See the **INTERACTIVE MODE** section.)
 
     This is a **non-portable extension**.
 
-**-P**, **--no-prompt**
+**-P**, **-\-no-prompt**
 
 :   Disables the prompt in TTY mode. (The prompt is only enabled in TTY mode.
     See the **TTY MODE** section) This is mostly for those users that do not
@@ -87,35 +87,42 @@ The following are the options that dc(1) accepts.
 
     This is a **non-portable extension**.
 
-**-x** **--extended-register**
+**-x** **-\-extended-register**
 
 :   Enables extended register mode. See the *Extended Register Mode* subsection
     of the **REGISTERS** section for more information.
 
     This is a **non-portable extension**.
 
-**-e** *expr*, **--expression**=*expr*
+**-e** *expr*, **-\-expression**=*expr*
 
 :   Evaluates *expr*. If multiple expressions are given, they are evaluated in
     order. If files are given as well (see below), the expressions and files are
     evaluated in the order given. This means that if a file is given before an
     expression, the file is read in and evaluated first.
 
-    After processing all expressions and files, dc(1) will exit, unless **-**
-    (**stdin**) was given as an argument at least once to **-f** or **--file**.
+    If this option is given on the command-line (i.e., not in **DC_ENV_ARGS**,
+    see the **ENVIRONMENT VARIABLES** section), then after processing all
+    expressions and files, dc(1) will exit, unless **-** (**stdin**) was given
+    as an argument at least once to **-f** or **-\-file**, whether on the
+    command-line or in **DC_ENV_ARGS**. However, if any other **-e**,
+    **-\-expression**, **-f**, or **-\-file** arguments are given after **-f-**
+    or equivalent is given, dc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
-**-f** *file*, **--file**=*file*
+**-f** *file*, **-\-file**=*file*
 
 :   Reads in *file* and evaluates it, line by line, as though it were read
     through **stdin**. If expressions are also given (see above), the
     expressions are evaluated in the order given.
 
-    After processing all expressions and files, dc(1) will exit, unless **-**
-    (**stdin**) was given as an argument at least once to **-f** or **--file**.
-    However, if any other **-e**, **--expression**, **-f**, or **--file**
-    arguments are given after that, bc(1) will give a fatal error and exit.
+    If this option is given on the command-line (i.e., not in **DC_ENV_ARGS**,
+    see the **ENVIRONMENT VARIABLES** section), then after processing all
+    expressions and files, dc(1) will exit, unless **-** (**stdin**) was given
+    as an argument at least once to **-f** or **-\-file**. However, if any other
+    **-e**, **-\-expression**, **-f**, or **-\-file** arguments are given after
+    **-f-** or equivalent is given, dc(1) will give a fatal error and exit.
 
     This is a **non-portable extension**.
 
@@ -123,7 +130,9 @@ All long options are **non-portable extensions**.
 
 # STDOUT
 
-Any non-error output is written to **stdout**.
+Any non-error output is written to **stdout**. In addition, if history (see the
+**HISTORY** section) and the prompt (see the **TTY MODE** section) are enabled,
+both are output to **stdout**.
 
 **Note**: Unlike other dc(1) implementations, this dc(1) will issue a fatal
 error (see the **EXIT STATUS** section) if it cannot write to **stdout**, so if
@@ -197,7 +206,10 @@ command or the **"** command that does not get receive a value of **0** or
 **Note**: The values returned by the pseudo-random number generator with the
 **'** and **"** commands are guaranteed to **NOT** be cryptographically secure.
 This is a consequence of using a seeded pseudo-random number generator. However,
-they **are** guaranteed to be reproducible with identical **seed** values.
+they *are* guaranteed to be reproducible with identical **seed** values. This
+means that the pseudo-random values from dc(1) should only be used where a
+reproducible stream of pseudo-random numbers is *ESSENTIAL*. In any other case,
+use a non-seeded pseudo-random number generator.
 
 The pseudo-random number generator, **seed**, and all associated operations are
 **non-portable extensions**.
@@ -897,7 +909,7 @@ follows any command that needs a register name. The only exception is a newline
 Unlike most other dc(1) implentations, this dc(1) provides nearly unlimited
 amounts of registers, if extended register mode is enabled.
 
-If extended register mode is enabled (**-x** or **--extended-register**
+If extended register mode is enabled (**-x** or **-\-extended-register**
 command-line arguments are given), then normal single character registers are
 used *unless* the character immediately following a command that needs a
 register name is a space (according to **isspace()**) and not a newline
@@ -1030,7 +1042,7 @@ dc(1) recognizes the following environment variables:
 
     The quote parsing will handle either kind of quotes, **'** or **"**. Thus,
     if you have a file with any number of single quotes in the name, you can use
-    double quotes as the outside quotes, as in **"some 'bc' file.bc"**, and vice
+    double quotes as the outside quotes, as in **"some 'dc' file.dc"**, and vice
     versa if you have a file with double quotes. However, handling a file with
     both kinds of quotes in **DC_ENV_ARGS** is not supported due to the
     complexity of the parsing, though such files are still supported on the
@@ -1106,17 +1118,17 @@ The other statuses will only be returned when dc(1) is not in interactive mode
 (see the **INTERACTIVE MODE** section), since dc(1) resets its state (see the
 **RESET** section) and accepts more input when one of those errors occurs in
 interactive mode. This is also the case when interactive mode is forced by the
-**-i** flag or **--interactive** option.
+**-i** flag or **-\-interactive** option.
 
 These exit statuses allow dc(1) to be used in shell scripting with error
 checking, and its normal behavior can be forced by using the **-i** flag or
-**--interactive** option.
+**-\-interactive** option.
 
 # INTERACTIVE MODE
 
 Like bc(1), dc(1) has an interactive mode and a non-interactive mode.
 Interactive mode is turned on automatically when both **stdin** and **stdout**
-are hooked to a terminal, but the **-i** flag and **--interactive** option can
+are hooked to a terminal, but the **-i** flag and **-\-interactive** option can
 turn it on in other cases.
 
 In interactive mode, dc(1) attempts to recover from errors (see the **RESET**

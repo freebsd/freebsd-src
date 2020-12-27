@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -318,7 +318,7 @@ typedef struct BcVm {
 #if !BC_ENABLE_LIBRARY
 	BcParse prs;
 	BcProgram prog;
-#endif // BC_ENABLE_LIBRARY
+#endif // !BC_ENABLE_LIBRARY
 
 	BcVec jmp_bufs;
 
@@ -343,7 +343,7 @@ typedef struct BcVm {
 	const char* file;
 
 	const char *sigmsg;
-#endif // BC_ENABLE_LIBRARY
+#endif // !BC_ENABLE_LIBRARY
 	volatile sig_atomic_t sig_lock;
 	volatile sig_atomic_t sig;
 #if !BC_ENABLE_LIBRARY
@@ -356,8 +356,9 @@ typedef struct BcVm {
 	uint16_t line_len;
 
 	bool no_exit_exprs;
+	bool exit_exprs;
 	bool eof;
-#endif // BC_ENABLE_LIBRARY
+#endif // !BC_ENABLE_LIBRARY
 
 	BcBigDig maxes[BC_PROG_GLOBALS_LEN + BC_ENABLE_EXTRA_MATH];
 
@@ -382,7 +383,7 @@ typedef struct BcVm {
 	const char *err_msgs[BC_ERR_NELEMS];
 
 	const char *locale;
-#endif // BC_ENABLE_LIBRARY
+#endif // !BC_ENABLE_LIBRARY
 
 	BcBigDig last_base;
 	BcBigDig last_pow;
@@ -392,7 +393,7 @@ typedef struct BcVm {
 #if !BC_ENABLE_LIBRARY
 	char *env_args_buffer;
 	BcVec env_args;
-#endif // BC_ENABLE_LIBRARY
+#endif // !BC_ENABLE_LIBRARY
 
 	BcNum max;
 	BcNum max2;
@@ -436,8 +437,15 @@ void bc_vm_jmp(void);
 
 #if BC_ENABLE_LIBRARY
 void bc_vm_handleError(BcErr e);
+void bc_vm_fatalError(BcErr e);
+void bc_vm_atexit(void);
 #else // BC_ENABLE_LIBRARY
 void bc_vm_handleError(BcErr e, size_t line, ...);
+#if !BC_ENABLE_LIBRARY && !BC_ENABLE_MEMCHECK
+BC_NORETURN
+#endif // !BC_ENABLE_LIBRARY && !BC_ENABLE_MEMCHECK
+void bc_vm_fatalError(BcErr e);
+int bc_vm_atexit(int status);
 #endif // BC_ENABLE_LIBRARY
 
 extern const char bc_copyright[];

@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -121,20 +121,20 @@ else:
 
 p = run([ "make", "clean" ])
 
-print("Testing \"make -j4\"")
+print("Testing \"make -j12\"")
 
 if p.returncode != 0:
 	print("make returned an error ({}); exiting...".format(p.returncode))
 	sys.exit(p.returncode)
 
-p = run([ "make", "-j4" ])
+p = run([ "make", "-j12" ])
 
 if p.returncode == 0:
-	makecmd = [ "make", "-j4" ]
-	print("Using \"make -j4\"")
+	makecmd = [ "make", "-j12" ]
+	print("Using \"make -j12\"")
 else:
 	makecmd = [ "make" ]
-	print("Not using \"make -j4\"")
+	print("Not using \"make -j12\"")
 
 if test_num != 0:
 	mx2 = test_num

@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: BSD-2-Clause
 
-Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -426,7 +426,7 @@ All procedures in this section require a valid current context.
     bcl(3) will encode an error in the return value, if there was one. The error
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **void bcl_num_free(BclNumber** *n***)**
@@ -487,7 +487,7 @@ subsection below.
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_PARSE_INVALID_STR**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
@@ -524,7 +524,7 @@ subsection below.
     bcl(3) will encode an error in the return value, if there was one. The error
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 ## Math
@@ -551,7 +551,7 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_sub(BclNumber** *a***, BclNumber** *b***)**
@@ -568,7 +568,7 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_mul(BclNumber** *a***, BclNumber** *b***)**
@@ -587,7 +587,7 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_div(BclNumber** *a***, BclNumber** *b***)**
@@ -606,8 +606,8 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_mod(BclNumber** *a***, BclNumber** *b***)**
@@ -626,8 +626,8 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_pow(BclNumber** *a***, BclNumber** *b***)**
@@ -649,10 +649,10 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_NON_INTEGER**
-	* **BCL_ERROR_MATH_OVERFLOW**
-	* **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_NON_INTEGER**
+    * **BCL_ERROR_MATH_OVERFLOW**
+    * **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_lshift(BclNumber** *a***, BclNumber** *b***)**
@@ -671,8 +671,8 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_NON_INTEGER**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_NON_INTEGER**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_rshift(BclNumber** *a***, BclNumber** *b***)**
@@ -691,8 +691,8 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_NON_INTEGER**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_NON_INTEGER**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_sqrt(BclNumber** *a***)**
@@ -709,8 +709,8 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_NEGATIVE**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_NEGATIVE**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclError bcl_divmod(BclNumber** *a***, BclNumber** *b***, BclNumber \****c***, BclNumber \****d***)**
@@ -719,7 +719,7 @@ All procedures in this section can return the following errors:
     into the space pointed to by *c*, and puts the modulus in a new number which
     is put into the space pointed to by *d*.
 
-	*b* cannot be **0**.
+    *b* cannot be **0**.
 
     *a* and *b* are consumed; they cannot be used after the call. See the
     **Consumption and Propagation** subsection below.
@@ -731,8 +731,8 @@ All procedures in this section can return the following errors:
     function can return:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_modexp(BclNumber** *a***, BclNumber** *b***, BclNumber** *c***)**
@@ -751,10 +751,10 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_NEGATIVE**
-	* **BCL_ERROR_MATH_NON_INTEGER**
-	* **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_NEGATIVE**
+    * **BCL_ERROR_MATH_NON_INTEGER**
+    * **BCL_ERROR_MATH_DIVIDE_BY_ZERO**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 ## Miscellaneous
@@ -791,7 +791,7 @@ All procedures in this section can return the following errors:
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 ## Pseudo-Random Number Generator
@@ -852,9 +852,9 @@ procedures require a valid current context.
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_NEGATIVE**
-	* **BCL_ERROR_MATH_NON_INTEGER**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_NEGATIVE**
+    * **BCL_ERROR_MATH_NON_INTEGER**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_frand(size_t** *places***)**
@@ -868,7 +868,7 @@ procedures require a valid current context.
     bcl(3) will encode an error in the return value, if there was one. The error
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclNumber bcl_ifrand(BclNumber** *a***, size_t** *places***)**
@@ -887,9 +887,9 @@ procedures require a valid current context.
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
-	* **BCL_ERROR_MATH_NEGATIVE**
-	* **BCL_ERROR_MATH_NON_INTEGER**
+    * **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_MATH_NEGATIVE**
+    * **BCL_ERROR_MATH_NON_INTEGER**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclError bcl_rand_seedWithNum(BclNumber** *n***)**
@@ -904,7 +904,7 @@ procedures require a valid current context.
     function can return:
 
     * **BCL_ERROR_INVALID_NUM**
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
 
     Note that if **bcl_rand_seed2num(***void***)** or
     **bcl_rand_seed2num_err(BclNumber)** are called right after this function,
@@ -917,7 +917,7 @@ procedures require a valid current context.
     If there was no error, **BCL_ERROR_NONE** is returned. Otherwise, this
     function can return:
 
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
 
 **void bcl_rand_reseed(***void***)**
 
@@ -935,7 +935,7 @@ procedures require a valid current context.
     bcl(3) will encode an error in the return value, if there was one. The error
     can be queried with **bcl_err(BclNumber)**. Possible errors include:
 
-	* **BCL_ERROR_INVALID_CONTEXT**
+    * **BCL_ERROR_INVALID_CONTEXT**
     * **BCL_ERROR_FATAL_ALLOC_ERR**
 
 **BclRandInt bcl_rand_int(***void***)**
