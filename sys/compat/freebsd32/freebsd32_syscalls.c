@@ -613,4 +613,5 @@ const char *freebsd32_syscallnames[] = {
 	"__realpathat",			/* 574 = __realpathat */
 	"close_range",			/* 575 = close_range */
 	"rpctls_syscall",			/* 576 = rpctls_syscall */
+	"__specialfd",			/* 577 = __specialfd */
 };
