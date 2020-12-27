@@ -131,7 +131,8 @@ LDFLAGS+=	--build-id=sha1
 
 .if (${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "amd64" || \
     ${MACHINE_CPUARCH} == "i386") && \
-    defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == ""
+    defined(LINKER_FEATURES) && ${LINKER_FEATURES:Mifunc} == "" && \
+    !make(install)
 .error amd64/arm64/i386 kernel requires linker ifunc support
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
