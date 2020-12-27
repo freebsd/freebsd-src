@@ -52,7 +52,7 @@ typedef unsigned long efi_status;
 
 struct efi_cfgtbl {
 	struct uuid	ct_uuid;
-	uint64_t	ct_data;
+	void		*ct_data;
 };
 
 struct efi_md {
