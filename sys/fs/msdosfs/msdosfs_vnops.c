@@ -1701,6 +1701,7 @@ msdosfs_readdir(struct vop_readdir_args *ap)
 				mbnambuf_flush(&nb, &dirbuf);
 			chksum = -1;
 			dirbuf.d_reclen = GENERIC_DIRSIZ(&dirbuf);
+			dirent_terminate(&dirbuf);
 			if (uio->uio_resid < dirbuf.d_reclen) {
 				brelse(bp);
 				goto out;
