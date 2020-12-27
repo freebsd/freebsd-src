@@ -1244,7 +1244,7 @@ md_kthread(void *arg)
 				bp->bio_bcount = bp->bio_length;
 				devstat_end_transaction_bio(sc->devstat, bp);
 			}
-			bp->bio_completed = bp->bio_length;
+			bp->bio_completed = bp->bio_length - bp->bio_resid;
 			g_io_deliver(bp, error);
 		}
 	}
