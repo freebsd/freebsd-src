@@ -346,25 +346,27 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 	KASSERT(len <= sizeof(tmpname),
 	    ("length %d too long for %s", len, __func__));
 
-	pr = req->td->td_ucred->cr_prison;
-	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME) && req->newptr)
-		return (EPERM);
 	/*
 	 * Make a local copy of hostname to get/set so we don't have to hold
 	 * the jail mutex during the sysctl copyin/copyout activities.
 	 */
+	pr = req->td->td_ucred->cr_prison;
 	mtx_lock(&pr->pr_mtx);
 	bcopy((char *)pr + pr_offset, tmpname, len);
 	mtx_unlock(&pr->pr_mtx);
 
 	error = sysctl_handle_string(oidp, tmpname, len, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
 
-	if (req->newptr != NULL && error == 0) {
-		/*
-		 * Copy the locally set hostname to all jails that share
-		 * this host info.
-		 */
-		sx_slock(&allprison_lock);
+	/*
+	 * Copy the locally set hostname to all jails that share
+	 * this host info.
+	 */
+	sx_slock(&allprison_lock);
+	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME))
+		error = EPERM;
+	else {
 		while (!(pr->pr_flags & PR_HOST))
 			pr = pr->pr_parent;
 		mtx_lock(&pr->pr_mtx);
@@ -375,8 +377,8 @@ sysctl_hostname(SYSCTL_HANDLER_ARGS)
 			else
 				bcopy(tmpname, (char *)cpr + pr_offset, len);
 		mtx_unlock(&pr->pr_mtx);
-		sx_sunlock(&allprison_lock);
 	}
+	sx_sunlock(&allprison_lock);
 	return (error);
 }
 
@@ -465,13 +467,18 @@ sysctl_hostid(SYSCTL_HANDLER_ARGS)
 	 * instead of a string, and is used only for hostid.
 	 */
 	pr = req->td->td_ucred->cr_prison;
-	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME) && req->newptr)
-		return (EPERM);
+	mtx_lock(&pr->pr_mtx);
 	tmpid = pr->pr_hostid;
-	error = sysctl_handle_long(oidp, &tmpid, 0, req);
+	mtx_unlock(&pr->pr_mtx);
 
-	if (req->newptr != NULL && error == 0) {
-		sx_slock(&allprison_lock);
+	error = sysctl_handle_long(oidp, &tmpid, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	sx_slock(&allprison_lock);
+	if (!(pr->pr_allow & PR_ALLOW_SET_HOSTNAME))
+		error = EPERM;
+	else {
 		while (!(pr->pr_flags & PR_HOST))
 			pr = pr->pr_parent;
 		mtx_lock(&pr->pr_mtx);
@@ -482,8 +489,8 @@ sysctl_hostid(SYSCTL_HANDLER_ARGS)
 			else
 				cpr->pr_hostid = tmpid;
 		mtx_unlock(&pr->pr_mtx);
-		sx_sunlock(&allprison_lock);
 	}
+	sx_sunlock(&allprison_lock);
 	return (error);
 }
 

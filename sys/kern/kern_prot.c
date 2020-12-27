@@ -1646,28 +1646,16 @@ p_cansched(struct thread *td, struct proc *p)
 static int
 sysctl_unprivileged_proc_debug(SYSCTL_HANDLER_ARGS)
 {
-	struct prison *pr;
 	int error, val;
 
-	val = prison_allow(req->td->td_ucred, PR_ALLOW_UNPRIV_DEBUG) != 0;
+	val = prison_allow(req->td->td_ucred, PR_ALLOW_UNPRIV_DEBUG);
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	pr = req->td->td_ucred->cr_prison;
-	mtx_lock(&pr->pr_mtx);
-	switch (val) {
-	case 0:
-		pr->pr_allow &= ~(PR_ALLOW_UNPRIV_DEBUG);
-		break;
-	case 1:
-		pr->pr_allow |= PR_ALLOW_UNPRIV_DEBUG;
-		break;
-	default:
-		error = EINVAL;
-	}
-	mtx_unlock(&pr->pr_mtx);
-
-	return (error);
+	if (val != 0 && val != 1)
+		return (EINVAL);
+	prison_set_allow(req->td->td_ucred, PR_ALLOW_UNPRIV_DEBUG, val);
+	return (0);
 }
 
 /*
