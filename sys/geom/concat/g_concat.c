@@ -595,6 +595,10 @@ g_concat_add_disk(struct g_concat_softc *sc, struct g_provider *pp, u_int no)
 			G_CONCAT_DEBUG(0, "Metadata on %s changed.", pp->name);
 			goto fail;
 		}
+
+		disk->d_hardcoded = md.md_provider[0] != '\0';
+	} else {
+		disk->d_hardcoded = false;
 	}
 
 	cp->private = disk;
@@ -981,6 +985,49 @@ g_concat_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 			    sc->sc_name, error);
 			return;
 		}
+	}
+}
+
+static void
+g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
+{
+	u_int no = 0;
+	struct g_concat_disk *disk;
+	struct g_concat_metadata md;
+	struct g_provider *pp;
+	u_char *sector;
+	int error;
+
+	strlcpy(md.md_magic, G_CONCAT_MAGIC, sizeof(md.md_magic));
+	md.md_version = G_CONCAT_VERSION;
+	strlcpy(md.md_name, sc->sc_name, sizeof(md.md_name));
+	md.md_id = sc->sc_id;
+	md.md_all = sc->sc_ndisks;
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		pp = disk->d_consumer->provider;
+
+		md.md_no = no;
+		bzero(md.md_provider, sizeof(md.md_provider));
+		if (disk->d_hardcoded) {
+			strlcpy(md.md_provider, pp->name, sizeof(md.md_provider));
+		}
+		md.md_provsize = disk->d_consumer->provider->mediasize;
+
+		sector = g_malloc(pp->sectorsize, M_WAITOK);
+
+		concat_metadata_encode(&md, sector);
+		error = g_access(disk->d_consumer, 0, 1, 0);
+		if (error == 0) {
+			error = g_write_data(disk->d_consumer, pp->mediasize - pp->sectorsize,
+			    sector, pp->sectorsize);
+			(void)g_access(disk->d_consumer, 0, -1, 0);
+		}
+		g_free(sector);
+		if (error != 0) {
+			gctl_error(req, "Cannot store metadata on %s: %d", pp->name, error);
+		}
+
+		no++;
 	}
 }
 
