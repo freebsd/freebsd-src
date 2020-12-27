@@ -71,8 +71,10 @@ struct g_concat_softc {
 	uint32_t	 sc_id;		/* concat unique ID */
 
 	uint16_t	 sc_ndisks;
-	struct mtx	 sc_lock;
 	TAILQ_HEAD(g_concat_disks, g_concat_disk) sc_disks;
+
+	struct mtx	 sc_completion_lock; /* synchronizes cross-boundary IOs */
+	struct sx	 sc_disks_lock; /* synchronizes modification of sc_disks */
 };
 #define	sc_name	sc_geom->name
 #endif	/* _KERNEL */
