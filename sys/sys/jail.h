@@ -150,15 +150,17 @@ struct prison_racct;
  *
  * Lock key:
  *   (a) allprison_lock
- *   (p) locked by pr_mtx
+ *   (m) locked by pr_mtx
+ *   (p) locked by pr_mtx, and also at least shared allprison_lock required
+ *       to update
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
  */
 struct prison {
 	TAILQ_ENTRY(prison) pr_list;			/* (a) all prisons */
 	int		 pr_id;				/* (c) prison id */
-	int		 pr_ref;			/* (p) refcount */
-	int		 pr_uref;			/* (p) user (alive) refcount */
+	int		 pr_ref;			/* (m) refcount */
+	int		 pr_uref;			/* (m) user (alive) refcount */
 	unsigned	 pr_flags;			/* (p) PR_* flags */
 	LIST_HEAD(, prison) pr_children;		/* (a) list of child jails */
 	LIST_ENTRY(prison) pr_sibling;			/* (a) next in parent's list */
