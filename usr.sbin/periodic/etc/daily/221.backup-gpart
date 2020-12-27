@@ -54,7 +54,7 @@ case "$daily_backup_gpart_enable" in
 
 	gpart_devs=$(gpart show | awk '$1 == "=>" { print $4 }')
 	if [ -n "$daily_backup_gpart_exclude" ]; then
-		gpart_devs=$(echo ${gpart_devs} | grep -E -v "${daily_backup_gpart_exclude}")
+		gpart_devs=$(echo "${gpart_devs}" | grep -E -v "${daily_backup_gpart_exclude}")
 	fi
 
 	if [ -z "$gpart_devs"  ]; then
