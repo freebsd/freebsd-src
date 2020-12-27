@@ -188,7 +188,6 @@
     "\20PCPU"				\
     "\17NODUMP"				\
     "\16CACHESPREAD"			\
-    "\15MINBUCKET"			\
     "\14MAXBUCKET"			\
     "\13NOBUCKET"			\
     "\12SECONDARY"			\
