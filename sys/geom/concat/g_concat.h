@@ -55,6 +55,7 @@
     _GEOM_DEBUG("GEOM_CONCAT", g_concat_debug, 2, (bp), __VA_ARGS__)
 
 struct g_concat_disk {
+	TAILQ_ENTRY(g_concat_disk) d_next;
 	struct g_consumer	*d_consumer;
 	struct g_concat_softc	*d_softc;
 	off_t			 d_start;
@@ -69,9 +70,9 @@ struct g_concat_softc {
 	struct g_provider *sc_provider;
 	uint32_t	 sc_id;		/* concat unique ID */
 
-	struct g_concat_disk *sc_disks;
 	uint16_t	 sc_ndisks;
 	struct mtx	 sc_lock;
+	TAILQ_HEAD(g_concat_disks, g_concat_disk) sc_disks;
 };
 #define	sc_name	sc_geom->name
 #endif	/* _KERNEL */
