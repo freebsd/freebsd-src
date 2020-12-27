@@ -285,18 +285,25 @@ efi_get_table(struct uuid *uuid, void **ptr)
 {
 	struct efi_cfgtbl *ct;
 	u_long count;
+	int error;
 
 	if (efi_cfgtbl == NULL || efi_systbl == NULL)
 		return (ENXIO);
+	error = efi_enter();
+	if (error != 0)
+		return (error);
 	count = efi_systbl->st_entries;
 	ct = efi_cfgtbl;
 	while (count--) {
 		if (!bcmp(&ct->ct_uuid, uuid, sizeof(*uuid))) {
 			*ptr = (void *)efi_phys_to_kva(ct->ct_data);
+			efi_leave();
 			return (0);
 		}
 		ct++;
 	}
+
+	efi_leave();
 	return (ENOENT);
 }
 
