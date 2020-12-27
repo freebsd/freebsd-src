@@ -67,6 +67,9 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+#ifdef INVARIANTS
+#include <machine/_inttypes.h>
+#endif
 
 #include <sys/capsicum.h>
 
@@ -4704,6 +4707,9 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	fpl.ndp = ndp;
 	fpl.cnp = &ndp->ni_cnd;
 	MPASS(curthread == fpl.cnp->cn_thread);
+	KASSERT ((fpl.cnp->cn_flags & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
+	    ("%s: internal flags found in cn_flags %" PRIx64, __func__,
+	    fpl.cnp->cn_flags));
 
 	if ((fpl.cnp->cn_flags & SAVESTART) != 0)
 		MPASS(fpl.cnp->cn_nameiop != LOOKUP);
