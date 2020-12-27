@@ -23,3 +23,4 @@ CFLAGS+=  -I${SYSDIR}/cddl/dev/fbt
 .include <bsd.kmod.mk>
 
 CFLAGS+=	-include ${SYSDIR}/cddl/compat/opensolaris/sys/debug_compat.h
+CWARNFLAGS+=	${OPENZFS_CWARNFLAGS}

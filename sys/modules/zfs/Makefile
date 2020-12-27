@@ -279,6 +279,7 @@ SRCS+=	zfs_zstd.c \
 
 .include <bsd.kmod.mk>
 
+CWARNFLAGS+=	${OPENZFS_CWARNFLAGS}
 
 CFLAGS.gcc+= -Wno-pointer-to-int-cast
 
