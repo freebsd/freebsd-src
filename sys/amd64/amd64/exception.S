@@ -940,7 +940,7 @@ outofnmi:
 	cli
 nocallchain:
 #endif
-	testl	%ebx,%ebx	/* %ebx == 0 => return to userland */
+	testl	%ebx,%ebx	/* %ebx != 0 => return to userland */
 	jnz	doreti_exit
 	/*
 	 * Restore speculation control MSR, if preserved.
@@ -1059,7 +1059,7 @@ mchk_calltrap:
 	movq	%rsp,%rdi
 	call	mca_intr
 	MEXITCOUNT
-	testl	%ebx,%ebx	/* %ebx == 0 => return to userland */
+	testl	%ebx,%ebx	/* %ebx != 0 => return to userland */
 	jnz	doreti_exit
 	/*
 	 * Restore speculation control MSR, if preserved.
