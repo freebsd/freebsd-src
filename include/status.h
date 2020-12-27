@@ -166,7 +166,11 @@ typedef enum BcErr {
 #endif // __STDC_VERSION__
 
 #if defined(__clang__) || defined(__GNUC__)
+#if defined(__has_attribute) && __has_attribute(fallthrough)
 #define BC_FALLTHROUGH __attribute__((fallthrough));
+#else // defined(__has_attribute) && __has_attribute(fallthrough)
+#define BC_FALLTHROUGH
+#endif // defined(__has_attribute) && __has_attribute(fallthrough)
 #else // defined(__clang__) || defined(__GNUC__)
 #define BC_FALLTHROUGH
 #endif //defined(__clang__) || defined(__GNUC__)
