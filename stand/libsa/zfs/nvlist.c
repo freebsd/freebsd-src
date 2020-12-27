@@ -56,7 +56,7 @@ static bool nvlist_size_native(xdr_t *, size_t *);
 static bool xdr_int(xdr_t *, int *);
 static bool xdr_u_int(xdr_t *, unsigned *);
 
-typedef int (*xdrproc_t)(xdr_t *, void *);
+typedef bool (*xdrproc_t)(xdr_t *, void *);
 
 /* Basic primitives for XDR translation operations, getint and putint. */
 static int
