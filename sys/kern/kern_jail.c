@@ -2498,8 +2498,9 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	VOP_UNLOCK(pr->pr_root);
  e_revert_osd:
 	/* Tell modules this thread is still in its old jail after all. */
+	sx_slock(&allprison_lock);
 	(void)osd_jail_call(td->td_ucred->cr_prison, PR_METHOD_ATTACH, td);
-	prison_deref(pr, PD_DEREF | PD_DEUREF);
+	prison_deref(pr, PD_DEREF | PD_DEUREF | PD_LIST_SLOCKED);
 	return (error);
 }
 
@@ -2687,8 +2688,13 @@ prison_deref(struct prison *pr, int flags)
 		 */
 		if (lasturef) {
 			if (!(flags & (PD_LIST_SLOCKED | PD_LIST_XLOCKED))) {
-				sx_xlock(&allprison_lock);
-				flags |= PD_LIST_XLOCKED;
+				if (ref > 1) {
+					sx_slock(&allprison_lock);
+					flags |= PD_LIST_SLOCKED;
+				} else {
+					sx_xlock(&allprison_lock);
+					flags |= PD_LIST_XLOCKED;
+				}
 			}
 			(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
 			mtx_lock(&pr->pr_mtx);
