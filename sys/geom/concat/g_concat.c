@@ -988,6 +988,25 @@ g_concat_ctl_destroy(struct gctl_req *req, struct g_class *mp)
 	}
 }
 
+static struct g_concat_disk *
+g_concat_find_disk(struct g_concat_softc *sc, const char *name)
+{
+	struct g_concat_disk *disk;
+
+	sx_assert(&sc->sc_disks_lock, SX_LOCKED);
+	if (strncmp(name, "/dev/", 5) == 0)
+		name += 5;
+	TAILQ_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (disk->d_consumer == NULL)
+			continue;
+		if (disk->d_consumer->provider == NULL)
+			continue;
+		if (strcmp(disk->d_consumer->provider->name, name) == 0)
+			return (disk);
+	}
+	return (NULL);
+}
+
 static void
 g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 {
@@ -1032,6 +1051,141 @@ g_concat_write_metadata(struct gctl_req *req, struct g_concat_softc *sc)
 }
 
 static void
+g_concat_ctl_append(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_concat_softc *sc;
+	struct g_consumer *cp, *fcp;
+	struct g_provider *pp;
+	struct g_geom *gp;
+	const char *name, *cname;
+	struct g_concat_disk *disk;
+	int *nargs, *hardcode;
+	int error;
+	int disk_candelete;
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs != 2) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
+	if (hardcode == NULL) {
+		gctl_error(req, "No '%s' argument.", "hardcode");
+		return;
+	}
+
+	cname = gctl_get_asciiparam(req, "arg0");
+	if (cname == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 0);
+		return;
+	}
+	sc = g_concat_find_device(mp, cname);
+	if (sc == NULL) {
+		gctl_error(req, "No such device: %s.", cname);
+		return;
+	}
+	if (sc->sc_provider == NULL) {
+		/*
+		 * this won't race with g_concat_remove_disk as both
+		 * are holding the topology lock
+		 */
+		gctl_error(req, "Device not active, can't append: %s.", cname);
+		return;
+	}
+	G_CONCAT_DEBUG(1, "Appending to %s:", cname);
+	sx_xlock(&sc->sc_disks_lock);
+	gp = sc->sc_geom;
+	fcp = LIST_FIRST(&gp->consumer);
+
+	name = gctl_get_asciiparam(req, "arg1");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 1);
+		goto fail;
+	}
+	if (strncmp(name, "/dev/", strlen("/dev/")) == 0)
+		name += strlen("/dev/");
+	pp = g_provider_by_name(name);
+	if (pp == NULL) {
+		G_CONCAT_DEBUG(1, "Disk %s is invalid.", name);
+		gctl_error(req, "Disk %s is invalid.", name);
+		goto fail;
+	}
+	G_CONCAT_DEBUG(1, "Appending %s to this", name);
+
+	if (g_concat_find_disk(sc, name) != NULL) {
+		gctl_error(req, "Disk %s already appended.", name);
+		goto fail;
+	}
+
+	if ((sc->sc_provider->sectorsize % pp->sectorsize) != 0) {
+		gctl_error(req, "Providers sectorsize mismatch: %u vs %u",
+			   sc->sc_provider->sectorsize, pp->sectorsize);
+		goto fail;
+	}
+
+	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
+	error = g_attach(cp, pp);
+	if (error != 0) {
+		g_destroy_consumer(cp);
+		gctl_error(req, "Cannot open device %s (error=%d).",
+		    name, error);
+		goto fail;
+	}
+
+	error = g_access(cp, 1, 0, 0);
+	if (error == 0) {
+		error = g_getattr("GEOM::candelete", cp, &disk_candelete);
+		if (error != 0)
+			disk_candelete = 0;
+		(void)g_access(cp, -1, 0, 0);
+	} else
+		G_CONCAT_DEBUG(1, "Failed to access disk %s, error %d.", name, error);
+
+	/* invoke g_access exactly as deep as all the other members currently are */
+	if (fcp != NULL && (fcp->acr > 0 || fcp->acw > 0 || fcp->ace > 0)) {
+		error = g_access(cp, fcp->acr, fcp->acw, fcp->ace);
+		if (error != 0) {
+			g_detach(cp);
+			g_destroy_consumer(cp);
+			gctl_error(req, "Failed to access disk %s (error=%d).", name, error);
+			goto fail;
+		}
+	}
+
+	disk = malloc(sizeof(*disk), M_CONCAT, M_WAITOK | M_ZERO);
+	disk->d_consumer = cp;
+	disk->d_softc = sc;
+	disk->d_start = TAILQ_LAST(&sc->sc_disks, g_concat_disks)->d_end;
+	disk->d_end = disk->d_start + cp->provider->mediasize;
+	disk->d_candelete = disk_candelete;
+	disk->d_removed = 0;
+	disk->d_hardcoded = *hardcode;
+	cp->private = disk;
+	TAILQ_INSERT_TAIL(&sc->sc_disks, disk, d_next);
+	sc->sc_ndisks++;
+
+	if (sc->sc_type == G_CONCAT_TYPE_AUTOMATIC) {
+		/* last sector is for metadata */
+		disk->d_end -= cp->provider->sectorsize;
+
+		/* update metadata on all parts */
+		g_concat_write_metadata(req, sc);
+	}
+
+	g_resize_provider(sc->sc_provider, disk->d_end);
+
+fail:
+	sx_xunlock(&sc->sc_disks_lock);
+}
+
+static void
 g_concat_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 {
 	uint32_t *version;
@@ -1054,6 +1208,9 @@ g_concat_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	} else if (strcmp(verb, "destroy") == 0 ||
 	    strcmp(verb, "stop") == 0) {
 		g_concat_ctl_destroy(req, mp);
+		return;
+	} else if (strcmp(verb, "append") == 0) {
+		g_concat_ctl_append(req, mp);
 		return;
 	}
 	gctl_error(req, "Unknown verb.");

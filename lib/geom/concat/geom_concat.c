@@ -53,6 +53,13 @@ static void concat_dump(struct gctl_req *req);
 static void concat_label(struct gctl_req *req);
 
 struct g_command class_commands[] = {
+	{ "append", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-hv] name prov"
+	},
 	{ "clear", G_FLAG_VERBOSE, concat_main, G_NULL_OPTS,
 	    "[-v] prov ..."
 	},
