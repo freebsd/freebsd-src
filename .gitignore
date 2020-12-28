@@ -17,3 +17,6 @@ GTAGS
 ID
 cscope.out
 ?cscope.out
+
+# macOS finder
+.DS_Store
