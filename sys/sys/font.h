@@ -42,11 +42,13 @@
 /*
  * Fonts.
  *
- * Remapping tables are used to map Unicode points to glyphs.  They need
- * to be sorted, because vtfont_lookup() performs a binary search.  Each
- * font has two remapping tables, for normal and bold.  When a character
- * is not present in bold, it uses a normal glyph.  When no glyph is
- * available, it uses glyph 0, which is normally equal to U+FFFD.
+ * Fonts support normal and bold weights, and single and double width glyphs.
+ * Mapping tables are used to map Unicode points to glyphs.  They are sorted by
+ * code point, and vtfont_lookup() uses this to perform a binary search.  Each
+ * font has four mapping tables: two weights times two halves (left/single,
+ * right).  When a character is not present in a bold map the glyph from the
+ * normal map is used.  When no glyph is available, it uses glyph 0, which is
+ * normally equal to U+FFFD.
  */
 
 enum vfnt_map_type {
