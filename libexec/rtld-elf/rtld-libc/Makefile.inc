@@ -51,12 +51,8 @@ _libc_other_objects= sigsetjmp lstat stat fstat fstatat fstatfs syscall \
     getdirentries _getdirentries _close _fcntl _open _openat _read \
     _sigprocmask _write readlink __realpathat _setjmp setjmp setjmperr
 
-# Allow building files from libcompiler_rt.  Beware, there are some name
-# collisions between libcompiler_rt files and libc files.
-CRTSRC=		${SRCTOP}/contrib/llvm-project/compiler-rt/lib/builtins
-.PATH:		${CRTSRC}
 
-# Finally add additional architecture-dependent dependencies
+# Finally add additional architecture-dependent libc dependencies
 .if ${LIBC_ARCH} == "arm"
 # ARM needs aeabi_unwind_cpp for _setjmp
 _libc_other_objects+=aeabi_unwind_cpp
@@ -64,7 +60,6 @@ _libc_other_objects+=aeabi_unwind_cpp
 # __udivdi3 is needed by kvprintf() in rtld_printf.c
 # i386 also needs i386_set_gsbase for allocate_initial_tls()
 _libc_other_objects+=umoddi3 udivdi3 qdivrem i386_set_gsbase
-SRCS+= udivmoddi4.c
 .elif ${LIBC_ARCH} == "powerpc" || ${LIBC_ARCH} == "powerpcspe"
 # ppc needs __syncicache for reloc.c and __umoddi3+__udivdi3 for rtld_printf.c
 _libc_other_objects+=syncicache umoddi3 udivdi3 qdivrem
