@@ -68,14 +68,6 @@ LIBADD=		c_nossp_pic
 LDFLAGS+=	-L${LIBCDIR}
 .endif
 
-.if ${MACHINE_CPUARCH} == "arm"
-# Some of the required math functions (div & mod) are implemented in
-# libcompiler_rt on ARM. The library also needs to be placed first to be
-# correctly linked. As some of the functions are used before we have
-# shared libraries.
-LIBADD+=	compiler_rt
-.endif
-
 
 
 .if ${MK_SYMVER} == "yes"
@@ -102,6 +94,10 @@ beforeinstall:
 
 HAS_TESTS=
 SUBDIR.${MK_TESTS}+= tests
+
+# Some of the required math functions (div & mod) are implemented in
+# libcompiler_rt on some architectures.
+LIBADD+=	compiler_rt
 
 .include <bsd.prog.mk>
 ${PROG_FULL}:	${VERSION_MAP}
