@@ -333,18 +333,18 @@ The
 .Xr rc 8
 script runs early during boot, typically before networking is configured.
 This makes it unsuitable for configuring
-.Xr netdump
+.Xr netdump 4
 when the client address is dynamic.
 To configure
-.Xr netdump
+.Xr netdump 4
 when
-.Xr dhclient
+.Xr dhclient 8
 binds to a server,
-.Xr dhclient-script
+.Xr dhclient-script 8
 can be used to run
-.Xr dumpon .
+.Xr dumpon 8 .
 For example, to automatically configure
-.Xr netdump
+.Xr netdump 4
 on the vtnet0 interface, add the following to
 .Pa /etc/dhclient-exit-hooks .
 .Bd -literal
