@@ -4317,19 +4317,18 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 static int __noinline
 cache_fplookup_dot(struct cache_fpl *fpl)
 {
-	struct vnode *dvp;
 
-	dvp = fpl->dvp;
-
-	fpl->tvp = dvp;
-	fpl->tvp_seqc = vn_seqc_read_any(dvp);
-	if (seqc_in_modify(fpl->tvp_seqc)) {
-		return (cache_fpl_aborted(fpl));
-	}
+	MPASS(!seqc_in_modify(fpl->dvp_seqc));
+	/*
+	 * Just re-assign the value. seqc will be checked later for the first
+	 * non-dot path component in line and/or before deciding to return the
+	 * vnode.
+	 */
+	fpl->tvp = fpl->dvp;
+	fpl->tvp_seqc = fpl->dvp_seqc;
 
 	counter_u64_add(dothits, 1);
-	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ".", dvp);
-
+	SDT_PROBE3(vfs, namecache, lookup, hit, fpl->dvp, ".", fpl->dvp);
 	return (0);
 }
 
