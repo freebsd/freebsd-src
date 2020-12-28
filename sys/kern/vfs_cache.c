@@ -3745,7 +3745,7 @@ cache_fpl_terminated(struct cache_fpl *fpl)
 _Static_assert((CACHE_FPL_SUPPORTED_CN_FLAGS & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
     "supported and internal flags overlap");
 
-static bool cache_fplookup_need_climb_mount(struct cache_fpl *fpl);
+static bool cache_fplookup_is_mp(struct cache_fpl *fpl);
 
 static bool
 cache_fpl_islastcn(struct nameidata *ndp)
@@ -4069,7 +4069,7 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	 * almost never be true.
 	 */
 	if (__predict_false(!cache_fplookup_vnode_supported(tvp) ||
-	    cache_fplookup_need_climb_mount(fpl))) {
+	    cache_fplookup_is_mp(fpl))) {
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
@@ -4308,7 +4308,7 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	}
 
 	if (__predict_false(!cache_fplookup_vnode_supported(tvp) ||
-	    cache_fplookup_need_climb_mount(fpl))) {
+	    cache_fplookup_is_mp(fpl))) {
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
@@ -4544,8 +4544,9 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 
 	VNPASS(vp->v_type == VDIR || vp->v_type == VBAD, vp);
 	mp = atomic_load_ptr(&vp->v_mountedhere);
-	if (mp == NULL)
+	if (__predict_false(mp == NULL)) {
 		return (0);
+	}
 
 	prev_mp = NULL;
 	for (;;) {
@@ -4587,8 +4588,64 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 	return (0);
 }
 
+static int __noinline
+cache_fplookup_cross_mount(struct cache_fpl *fpl)
+{
+	struct mount *mp;
+	struct mount_pcpu *mpcpu;
+	struct vnode *vp;
+	seqc_t vp_seqc;
+
+	vp = fpl->tvp;
+	vp_seqc = fpl->tvp_seqc;
+
+	VNPASS(vp->v_type == VDIR || vp->v_type == VBAD, vp);
+	mp = atomic_load_ptr(&vp->v_mountedhere);
+	if (__predict_false(mp == NULL)) {
+		return (0);
+	}
+
+	if (!vfs_op_thread_enter_crit(mp, mpcpu)) {
+		return (cache_fpl_partial(fpl));
+	}
+	if (!vn_seqc_consistent(vp, vp_seqc)) {
+		vfs_op_thread_exit_crit(mp, mpcpu);
+		return (cache_fpl_partial(fpl));
+	}
+	if (!cache_fplookup_mp_supported(mp)) {
+		vfs_op_thread_exit_crit(mp, mpcpu);
+		return (cache_fpl_partial(fpl));
+	}
+	vp = atomic_load_ptr(&mp->mnt_rootvnode);
+	if (__predict_false(vp == NULL || VN_IS_DOOMED(vp))) {
+		vfs_op_thread_exit_crit(mp, mpcpu);
+		return (cache_fpl_partial(fpl));
+	}
+	vp_seqc = vn_seqc_read_any(vp);
+	vfs_op_thread_exit_crit(mp, mpcpu);
+	if (seqc_in_modify(vp_seqc)) {
+		return (cache_fpl_partial(fpl));
+	}
+	mp = atomic_load_ptr(&vp->v_mountedhere);
+	if (__predict_false(mp != NULL)) {
+		/*
+		 * There are possibly more mount points stack on top.
+		 * Normally this does not happen so for simplicity just start
+		 * over.
+		 */
+		return (cache_fplookup_climb_mount(fpl));
+	}
+
+	fpl->tvp = vp;
+	fpl->tvp_seqc = vp_seqc;
+	return (0);
+}
+
+/*
+ * Check if a vnode mounted on.
+ */
 static bool
-cache_fplookup_need_climb_mount(struct cache_fpl *fpl)
+cache_fplookup_is_mp(struct cache_fpl *fpl)
 {
 	struct mount *mp;
 	struct vnode *vp;
@@ -4834,8 +4891,8 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 
 			VNPASS(!seqc_in_modify(fpl->tvp_seqc), fpl->tvp);
 
-			if (cache_fplookup_need_climb_mount(fpl)) {
-				error = cache_fplookup_climb_mount(fpl);
+			if (cache_fplookup_is_mp(fpl)) {
+				error = cache_fplookup_cross_mount(fpl);
 				if (__predict_false(error != 0)) {
 					break;
 				}
