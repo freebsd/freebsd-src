@@ -3746,6 +3746,7 @@ _Static_assert((CACHE_FPL_SUPPORTED_CN_FLAGS & CACHE_FPL_INTERNAL_CN_FLAGS) == 0
     "supported and internal flags overlap");
 
 static bool cache_fplookup_is_mp(struct cache_fpl *fpl);
+static int cache_fplookup_cross_mount(struct cache_fpl *fpl);
 
 static bool
 cache_fpl_islastcn(struct nameidata *ndp)
@@ -4392,6 +4393,7 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 static int __noinline
 cache_fplookup_dot(struct cache_fpl *fpl)
 {
+	int error;
 
 	MPASS(!seqc_in_modify(fpl->dvp_seqc));
 	/*
@@ -4401,6 +4403,12 @@ cache_fplookup_dot(struct cache_fpl *fpl)
 	 */
 	fpl->tvp = fpl->dvp;
 	fpl->tvp_seqc = fpl->dvp_seqc;
+	if (cache_fplookup_is_mp(fpl)) {
+		error = cache_fplookup_cross_mount(fpl);
+		if (__predict_false(error != 0)) {
+			return (error);
+		}
+	}
 
 	counter_u64_add(dothits, 1);
 	SDT_PROBE3(vfs, namecache, lookup, hit, fpl->dvp, ".", fpl->dvp);
@@ -4420,6 +4428,8 @@ cache_fplookup_dotdot(struct cache_fpl *fpl)
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
+
+	MPASS(cache_fpl_isdotdot(cnp));
 
 	/*
 	 * XXX this is racy the same way regular lookup is
@@ -4520,13 +4530,21 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	struct vnode *dvp, *tvp;
 	u_char nc_flag;
 	uint32_t hash;
+	int error;
 
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
 
-	if (__predict_false(cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.')) {
-		return (cache_fplookup_dot(fpl));
+	if (__predict_false(cnp->cn_nameptr[0] == '.')) {
+		if (cnp->cn_namelen == 1) {
+			return (cache_fplookup_dot(fpl));
+		}
+		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
+			return (cache_fplookup_dotdot(fpl));
+		}
 	}
+
+	MPASS(!cache_fpl_isdotdot(cnp));
 
 	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 
@@ -4558,6 +4576,13 @@ cache_fplookup_next(struct cache_fpl *fpl)
 
 	if (!cache_fplookup_vnode_supported(tvp)) {
 		return (cache_fpl_partial(fpl));
+	}
+
+	if (cache_fplookup_is_mp(fpl)) {
+		error = cache_fplookup_cross_mount(fpl);
+		if (__predict_false(error != 0)) {
+			return (error);
+		}
 	}
 
 	counter_u64_add(numposhits, 1);
@@ -4973,25 +4998,9 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 			break;
 		}
 
-		if (__predict_false(cache_fpl_isdotdot(cnp))) {
-			error = cache_fplookup_dotdot(fpl);
-			if (__predict_false(cache_fpl_terminated(fpl))) {
-				break;
-			}
-		} else {
-			error = cache_fplookup_next(fpl);
-			if (__predict_false(cache_fpl_terminated(fpl))) {
-				break;
-			}
-
-			VNPASS(!seqc_in_modify(fpl->tvp_seqc), fpl->tvp);
-
-			if (cache_fplookup_is_mp(fpl)) {
-				error = cache_fplookup_cross_mount(fpl);
-				if (__predict_false(error != 0)) {
-					break;
-				}
-			}
+		error = cache_fplookup_next(fpl);
+		if (__predict_false(cache_fpl_terminated(fpl))) {
+			break;
 		}
 
 		VNPASS(!seqc_in_modify(fpl->tvp_seqc), fpl->tvp);
