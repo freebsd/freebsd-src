@@ -4,6 +4,7 @@
 
 PACKAGE=	lib${LIB}
 LIB=		compiler_rt
+MK_SSP=		no
 NO_PIC=
 WARNS?=		2
 
