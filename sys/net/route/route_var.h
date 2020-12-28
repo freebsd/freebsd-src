@@ -305,7 +305,6 @@ int nhgrp_get_addition_group(struct rib_head *rnh,
 void nhgrp_ref_object(struct nhgrp_object *nhg);
 uint32_t nhgrp_get_idx(const struct nhgrp_object *nhg);
 void nhgrp_free(struct nhgrp_object *nhg);
-uint32_t nhgrp_get_idx(const struct nhgrp_object *nhg);
 
 /* lookup_framework.c */
 void fib_grow_rtables(uint32_t new_num_tables);
