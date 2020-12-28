@@ -4224,6 +4224,56 @@ cache_fplookup_final(struct cache_fpl *fpl)
 	return (cache_fplookup_final_child(fpl, tvs));
 }
 
+/*
+ * Comment from locked lookup:
+ * Check for degenerate name (e.g. / or "") which is a way of talking about a
+ * directory, e.g. like "/." or ".".
+ */
+static int __noinline
+cache_fplookup_degenerate(struct cache_fpl *fpl)
+{
+	struct componentname *cnp;
+	struct vnode *dvp;
+	enum vgetstate dvs;
+	int error, lkflags;
+
+	fpl->tvp = fpl->dvp;
+	fpl->tvp_seqc = fpl->dvp_seqc;
+
+	cnp = fpl->cnp;
+	dvp = fpl->dvp;
+
+	if (__predict_false(cnp->cn_nameiop != LOOKUP)) {
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled(fpl, EISDIR));
+	}
+
+	MPASS((cnp->cn_flags & SAVESTART) == 0);
+
+	if ((cnp->cn_flags & (LOCKPARENT|WANTPARENT)) != 0) {
+		return (cache_fplookup_final_withparent(fpl));
+	}
+
+	dvs = vget_prep_smr(dvp);
+	cache_fpl_smr_exit(fpl);
+	if (__predict_false(dvs == VGET_NONE)) {
+		return (cache_fpl_aborted(fpl));
+	}
+
+	if ((cnp->cn_flags & LOCKLEAF) != 0) {
+		lkflags = LK_SHARED;
+		if ((cnp->cn_flags & LOCKSHARED) == 0)
+			lkflags = LK_EXCLUSIVE;
+		error = vget_finish(dvp, lkflags, dvs);
+		if (__predict_false(error != 0)) {
+			return (cache_fpl_aborted(fpl));
+		}
+	} else {
+		vget_finish_ref(dvp, dvs);
+	}
+	return (cache_fpl_handled(fpl, 0));
+}
+
 static int __noinline
 cache_fplookup_noentry(struct cache_fpl *fpl)
 {
@@ -4694,15 +4744,8 @@ cache_fplookup_preparse(struct cache_fpl *fpl)
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 
-	/*
-	 * TODO
-	 * Original comment:
-	 * Check for degenerate name (e.g. / or "")
-	 * which is a way of talking about a directory,
-	 * e.g. like "/." or ".".
-	 */
 	if (__predict_false(cnp->cn_nameptr[0] == '\0')) {
-		return (cache_fpl_aborted(fpl));
+		return (cache_fplookup_degenerate(fpl));
 	}
 
 	/*
@@ -4913,7 +4956,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 	VNPASS(cache_fplookup_vnode_supported(fpl->dvp), fpl->dvp);
 
 	error = cache_fplookup_preparse(fpl);
-	if (__predict_false(error != 0)) {
+	if (__predict_false(cache_fpl_terminated(fpl))) {
 		goto out;
 	}
 
