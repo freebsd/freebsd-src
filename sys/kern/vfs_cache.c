@@ -264,6 +264,18 @@ cache_ncp_invalidate(struct namecache *ncp)
 })
 
 /*
+ * Like the above but also checks NCF_WHITE.
+ */
+#define cache_fpl_neg_ncp_canuse(ncp)	({				\
+	struct namecache *_ncp = (ncp);					\
+	u_char _nc_flag;						\
+									\
+	atomic_thread_fence_acq();					\
+	_nc_flag = atomic_load_char(&_ncp->nc_flag);			\
+	__predict_true((_nc_flag & (NCF_INVALID | NCF_WIP | NCF_WHITE)) == 0);	\
+})
+
+/*
  * Name caching works as follows:
  *
  * Names found by directory scans are retained in a cache
@@ -4505,11 +4517,7 @@ cache_fplookup_neg(struct cache_fpl *fpl, struct namecache *ncp, uint32_t hash)
 		return (cache_fplookup_modifying(fpl));
 	}
 	neg_promote = cache_neg_hit_prep(ncp);
-	if (!cache_ncp_canuse(ncp)) {
-		cache_neg_hit_abort(ncp);
-		return (cache_fpl_partial(fpl));
-	}
-	if (__predict_false((nc_flag & NCF_WHITE) != 0)) {
+	if (!cache_fpl_neg_ncp_canuse(ncp)) {
 		cache_neg_hit_abort(ncp);
 		return (cache_fpl_partial(fpl));
 	}
