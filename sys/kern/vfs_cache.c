@@ -4501,12 +4501,8 @@ cache_fplookup_neg(struct cache_fpl *fpl, struct namecache *ncp, uint32_t hash)
 	 * If they want to create an entry we need to replace this one.
 	 */
 	if (__predict_false(fpl->cnp->cn_nameiop != LOOKUP)) {
-		/*
-		 * TODO
-		 * This should call something similar to
-		 * cache_fplookup_final_modifying.
-		 */
-		return (cache_fpl_partial(fpl));
+		fpl->tvp = NULL;
+		return (cache_fplookup_modifying(fpl));
 	}
 	neg_promote = cache_neg_hit_prep(ncp);
 	if (!cache_ncp_canuse(ncp)) {
