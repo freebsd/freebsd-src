@@ -4629,7 +4629,7 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 	mp = atomic_load_ptr(&vp->v_mountedhere);
 	if (__predict_false(mp != NULL)) {
 		/*
-		 * There are possibly more mount points stack on top.
+		 * There are possibly more mount points on top.
 		 * Normally this does not happen so for simplicity just start
 		 * over.
 		 */
@@ -4642,7 +4642,7 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 }
 
 /*
- * Check if a vnode mounted on.
+ * Check if a vnode is mounted on.
  */
 static bool
 cache_fplookup_is_mp(struct cache_fpl *fpl)
