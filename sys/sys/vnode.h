@@ -797,6 +797,14 @@ void	vn_seqc_write_end(struct vnode *vp);
 #define	vn_rangelock_trywlock(vp, start, end)				\
 	rangelock_trywlock(&(vp)->v_rl, (start), (end), VI_MTX(vp))
 
+#define	vn_irflag_read(vp)	atomic_load_short(&(vp)->v_irflag)
+void	vn_irflag_set_locked(struct vnode *vp, short toset);
+void	vn_irflag_set(struct vnode *vp, short toset);
+void	vn_irflag_set_cond_locked(struct vnode *vp, short toset);
+void	vn_irflag_set_cond(struct vnode *vp, short toset);
+void	vn_irflag_unset_locked(struct vnode *vp, short tounset);
+void	vn_irflag_unset(struct vnode *vp, short tounset);
+
 int	vfs_cache_lookup(struct vop_lookup_args *ap);
 int	vfs_cache_root(struct mount *mp, int flags, struct vnode **vpp);
 void	vfs_timestamp(struct timespec *);
@@ -979,7 +987,7 @@ do {									\
 #define	VOP_UNSET_TEXT_CHECKED(vp)		VOP_UNSET_TEXT((vp))
 #endif
 
-#define	VN_IS_DOOMED(vp)	__predict_false((vp)->v_irflag & VIRF_DOOMED)
+#define	VN_IS_DOOMED(vp)	__predict_false((vn_irflag_read(vp) & VIRF_DOOMED) != 0)
 
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);

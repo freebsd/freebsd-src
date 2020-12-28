@@ -991,7 +991,7 @@ vn_read(struct file *fp, struct uio *uio, struct ucred *active_cred, int flags,
 	 * allows us to avoid unneeded work outright.
 	 */
 	if (vn_io_pgcache_read_enable && !mac_vnode_check_read_enabled() &&
-	    (vp->v_irflag & (VIRF_DOOMED | VIRF_PGREAD)) == VIRF_PGREAD) {
+	    (vn_irflag_read(vp) & (VIRF_DOOMED | VIRF_PGREAD)) == VIRF_PGREAD) {
 		error = VOP_READ_PGCACHE(vp, uio, ioflag, fp->f_cred);
 		if (error == 0) {
 			fp->f_nextoff[UIO_READ] = uio->uio_offset;

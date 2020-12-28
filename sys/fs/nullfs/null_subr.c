@@ -263,16 +263,14 @@ null_nodeget(mp, lowervp, vpp)
 	 * some time after construction, which is typical case.
 	 * null_open rechecks.
 	 */
-	if ((lowervp->v_irflag & VIRF_PGREAD) != 0) {
+	if ((vn_irflag_read(lowervp) & VIRF_PGREAD) != 0) {
 		MPASS(lowervp->v_object != NULL);
-		if ((vp->v_irflag & VIRF_PGREAD) == 0) {
+		if ((vn_irflag_read(vp) & VIRF_PGREAD) == 0) {
 			if (vp->v_object == NULL)
 				vp->v_object = lowervp->v_object;
 			else
 				MPASS(vp->v_object == lowervp->v_object);
-			VI_LOCK(vp);
-			vp->v_irflag |= VIRF_PGREAD;
-			VI_UNLOCK(vp);
+			vn_irflag_set_cond(vp, VIRF_PGREAD);
 		} else {
 			MPASS(vp->v_object != NULL);
 		}

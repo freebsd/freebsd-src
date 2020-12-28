@@ -458,12 +458,10 @@ null_open(struct vop_open_args *ap)
 	retval = null_bypass(&ap->a_gen);
 	if (retval == 0) {
 		vp->v_object = ldvp->v_object;
-		if ((ldvp->v_irflag & VIRF_PGREAD) != 0) {
+		if ((vn_irflag_read(ldvp) & VIRF_PGREAD) != 0) {
 			MPASS(vp->v_object != NULL);
-			if ((vp->v_irflag & VIRF_PGREAD) == 0) {
-				VI_LOCK(vp);
-				vp->v_irflag |= VIRF_PGREAD;
-				VI_UNLOCK(vp);
+			if ((vn_irflag_read(vp) & VIRF_PGREAD) == 0) {
+				vn_irflag_set_cond(vp, VIRF_PGREAD);
 			}
 		}
 	}
