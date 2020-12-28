@@ -104,7 +104,7 @@ FORMAT_EXTENSIONS=	-fformat-extensions
 # Setting -mno-sse implies -mno-sse2, -mno-sse3, -mno-ssse3, -mno-sse41 and -mno-sse42
 #
 .if ${MACHINE_CPUARCH} == "i386"
-CFLAGS.gcc+=	-mno-align-long-strings -mpreferred-stack-boundary=2
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 CFLAGS.clang+=	-mno-aes -mno-avx
 CFLAGS+=	-mno-mmx -mno-sse -msoft-float
 INLINE_LIMIT?=	8000
