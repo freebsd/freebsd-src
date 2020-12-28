@@ -4064,6 +4064,19 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	}
 
 	/*
+	 * There are very hairy corner cases concerning various flag combinations
+	 * and locking state. In particular here we only hold one lock instead of
+	 * two.
+	 *
+	 * Skip the complexity as it is of no significance for normal workloads.
+	 */
+	if (__predict_false(tvp == dvp)) {
+		vput(dvp);
+		vrele(tvp);
+		return (cache_fpl_aborted(fpl));
+	}
+
+	/*
 	 * Check if the target is either a symlink or a mount point.
 	 * Since we expect this to be the terminal vnode it should
 	 * almost never be true.
