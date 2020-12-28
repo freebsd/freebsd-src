@@ -3562,31 +3562,6 @@ SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_lookup, CTLFLAG_RW,
 
 #define CACHE_FPL_FAILED	-2020
 
-static void
-cache_fpl_cleanup_cnp(struct componentname *cnp)
-{
-
-	uma_zfree(namei_zone, cnp->cn_pnbuf);
-#ifdef DIAGNOSTIC
-	cnp->cn_pnbuf = NULL;
-	cnp->cn_nameptr = NULL;
-#endif
-}
-
-static void
-cache_fpl_handle_root(struct nameidata *ndp, struct vnode **dpp)
-{
-	struct componentname *cnp;
-
-	cnp = &ndp->ni_cnd;
-	while (*(cnp->cn_nameptr) == '/') {
-		cnp->cn_nameptr++;
-		ndp->ni_pathlen--;
-	}
-
-	*dpp = ndp->ni_rootdir;
-}
-
 /*
  * Components of nameidata (or objects it can point to) which may
  * need restoring in case fast path lookup fails.
@@ -3612,6 +3587,34 @@ struct cache_fpl {
 	bool in_smr;
 	bool fsearch;
 };
+
+static void
+cache_fpl_cleanup_cnp(struct componentname *cnp)
+{
+
+	uma_zfree(namei_zone, cnp->cn_pnbuf);
+#ifdef DIAGNOSTIC
+	cnp->cn_pnbuf = NULL;
+	cnp->cn_nameptr = NULL;
+#endif
+}
+
+static struct vnode *
+cache_fpl_handle_root(struct cache_fpl *fpl)
+{
+	struct nameidata *ndp;
+	struct componentname *cnp;
+
+	ndp = fpl->ndp;
+	cnp = fpl->cnp;
+
+	while (*(cnp->cn_nameptr) == '/') {
+		cnp->cn_nameptr++;
+		ndp->ni_pathlen--;
+	}
+
+	return (ndp->ni_rootdir);
+}
 
 static void
 cache_fpl_checkpoint(struct cache_fpl *fpl, struct nameidata_saved *snd)
@@ -5174,7 +5177,7 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	cnp = fpl.cnp;
 	cnp->cn_nameptr = cnp->cn_pnbuf;
 	if (cnp->cn_pnbuf[0] == '/') {
-		cache_fpl_handle_root(ndp, &dvp);
+		dvp = cache_fpl_handle_root(&fpl);
 		ndp->ni_resflags |= NIRES_ABS;
 	} else {
 		if (ndp->ni_dirfd == AT_FDCWD) {
