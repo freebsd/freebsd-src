@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 9, 2020
+.Dd December 28, 2020
 .Dt UEFI 8
 .Os
 .Sh NAME
@@ -118,6 +118,15 @@ system console is automatically selected when booting via
 .Bl -tag -width /boot/loader -compact
 .Nm
 bootstrap
+.It Pa /boot/boot1.efi
+.Xr msdosfs 5
+FAT file system image
+used by
+.Xr bsdinstall 8
+and the
+.Ar bootcode
+argument of
+.Xr gpart 8 .
 .It Pa /boot/loader.efi
 Final stage bootstrap
 .It Pa /boot/kernel/kernel
