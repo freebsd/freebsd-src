@@ -4741,15 +4741,24 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	cnp = fpl->cnp;
 
 	/*
-	 * Search a new directory.
+	 * Find the end of this path component, it is either / or nul.
 	 *
-	 * The last component of the filename is left accessible via
-	 * cnp->cn_nameptr for callers that need the name. Callers needing
-	 * the name set the SAVENAME flag. When done, they assume
-	 * responsibility for freeing the pathname buffer.
+	 * Store / as a temporary sentinel so that we only have one character
+	 * to test for. Pathnames tend to be short so this should not be
+	 * resulting in cache misses.
 	 */
-	for (cp = cnp->cn_nameptr; *cp != 0 && *cp != '/'; cp++)
+	KASSERT(cnp->cn_nameptr[ndp->ni_pathlen - 1] == '\0',
+	    ("%s: expected nul at %p + %zu; string [%s]\n", __func__,
+	    cnp->cn_nameptr, ndp->ni_pathlen - 1, cnp->cn_nameptr));
+	cnp->cn_nameptr[ndp->ni_pathlen - 1] = '/';
+	for (cp = cnp->cn_nameptr; *cp != '/'; cp++) {
+		KASSERT(*cp != '\0',
+		    ("%s: encountered unexpected nul; string [%s]\n", __func__,
+		    cnp->cn_nameptr));
 		continue;
+	}
+	cnp->cn_nameptr[ndp->ni_pathlen - 1] = '\0';
+
 	cnp->cn_namelen = cp - cnp->cn_nameptr;
 	if (__predict_false(cnp->cn_namelen > NAME_MAX)) {
 		cache_fpl_smr_exit(fpl);
