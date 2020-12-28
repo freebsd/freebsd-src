@@ -4686,6 +4686,51 @@ cache_fplookup_is_mp(struct cache_fpl *fpl)
  * nameidata state has to be compatible with the original.
  */
 static int
+cache_fplookup_preparse(struct cache_fpl *fpl)
+{
+	struct nameidata *ndp;
+	struct componentname *cnp;
+
+	ndp = fpl->ndp;
+	cnp = fpl->cnp;
+
+	/*
+	 * TODO
+	 * Original comment:
+	 * Check for degenerate name (e.g. / or "")
+	 * which is a way of talking about a directory,
+	 * e.g. like "/." or ".".
+	 */
+	if (__predict_false(cnp->cn_nameptr[0] == '\0')) {
+		return (cache_fpl_aborted(fpl));
+	}
+
+	/*
+	 * By this point the shortest possible pathname is one character + nul
+	 * terminator, hence 2.
+	 */
+	KASSERT(ndp->ni_pathlen >= 2, ("%s: ni_pathlen %zu\n", __func__,
+	    ndp->ni_pathlen));
+
+	if (__predict_false(cnp->cn_nameptr[ndp->ni_pathlen - 2] == '/')) {
+		/*
+		 * TODO
+		 * Regular lookup performs the following:
+		 * *ndp->ni_next = '\0';
+		 * cnp->cn_flags |= TRAILINGSLASH;
+		 *
+		 * Which is problematic since it modifies data read
+		 * from userspace. Then if fast path lookup was to
+		 * abort we would have to either restore it or convey
+		 * the flag. Since this is a corner case just ignore
+		 * it for simplicity.
+		 */
+		return (cache_fpl_aborted(fpl));
+	}
+	return (0);
+}
+
+static int
 cache_fplookup_parse(struct cache_fpl *fpl)
 {
 	struct nameidata *ndp;
@@ -4715,45 +4760,26 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	    ("%s: ni_pathlen underflow to %zd\n", __func__, ndp->ni_pathlen));
 	ndp->ni_next = cp;
 
+#ifdef INVARIANTS
 	/*
-	 * Replace multiple slashes by a single slash and trailing slashes
-	 * by a null.  This must be done before VOP_LOOKUP() because some
-	 * fs's don't know about trailing slashes.  Remember if there were
-	 * trailing slashes to handle symlinks, existing non-directories
-	 * and non-existing files that won't be directories specially later.
+	 * Code below is only here to assure compatibility with regular lookup.
+	 * It covers handling of trailing slashles and names like "/", both of
+	 * which of can be taken care of upfront which lockless lookup does
+	 * in cache_fplookup_preparse. Regular lookup performs these for each
+	 * path component.
 	 */
 	while (*cp == '/' && (cp[1] == '/' || cp[1] == '\0')) {
 		cp++;
-		ndp->ni_pathlen--;
 		if (*cp == '\0') {
-			/*
-			 * TODO
-			 * Regular lookup performs the following:
-			 * *ndp->ni_next = '\0';
-			 * cnp->cn_flags |= TRAILINGSLASH;
-			 *
-			 * Which is problematic since it modifies data read
-			 * from userspace. Then if fast path lookup was to
-			 * abort we would have to either restore it or convey
-			 * the flag. Since this is a corner case just ignore
-			 * it for simplicity.
-			 */
-			return (cache_fpl_partial(fpl));
+			panic("%s: ran into TRAILINGSLASH handling from [%s]\n",
+			    __func__, cnp->cn_pnbuf);
 		}
 	}
-	ndp->ni_next = cp;
 
-	/*
-	 * Check for degenerate name (e.g. / or "")
-	 * which is a way of talking about a directory,
-	 * e.g. like "/." or ".".
-	 *
-	 * TODO
-	 * Another corner case handled by the regular lookup
-	 */
-	if (__predict_false(cnp->cn_nameptr[0] == '\0')) {
-		return (cache_fpl_partial(fpl));
+	if (cnp->cn_nameptr[0] == '\0') {
+		panic("%s: ran into degenerate name from [%s]\n", __func__, cnp->cn_pnbuf);
 	}
+#endif
 	return (0);
 }
 
@@ -4876,6 +4902,11 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 	}
 
 	VNPASS(cache_fplookup_vnode_supported(fpl->dvp), fpl->dvp);
+
+	error = cache_fplookup_preparse(fpl);
+	if (__predict_false(error != 0)) {
+		goto out;
+	}
 
 	for (;;) {
 		error = cache_fplookup_parse(fpl);
