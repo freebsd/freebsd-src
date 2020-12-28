@@ -29,7 +29,7 @@
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2019
+.Dd December 28, 2020
 .Dt DUMP 8
 .Os
 .Sh NAME
@@ -134,9 +134,11 @@ Specify the cache size in megabytes.
 This will greatly improve performance
 at the cost of
 .Nm
-possibly not noticing changes in the file system between passes.
-It is
-recommended that you always use this option when dumping a snapshot.
+possibly not noticing changes in the file system between passes
+unless a snapshot is being used.
+The potential for performance improvement indicates that
+use of this option together with snapshots is the recommended
+course of action.
 Beware that
 .Nm
 forks, and the actual memory use may be larger than the specified cache
