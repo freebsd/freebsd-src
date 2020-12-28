@@ -329,7 +329,7 @@ pwd_set(struct pwddesc *pdp, struct pwd *newpwd)
 	smr_serialized_store(&pdp->pd_pwd, newpwd,
 	    (PWDDESC_ASSERT_XLOCKED(pdp), true));
 }
-struct pwd *pwd_get_smr(void);
+#define	pwd_get_smr()	vfs_smr_entered_load(&curproc->p_pd->pd_pwd)
 
 #endif /* _KERNEL */
 
