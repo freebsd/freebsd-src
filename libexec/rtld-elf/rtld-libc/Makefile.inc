@@ -57,22 +57,14 @@ _libc_other_objects= sigsetjmp lstat stat fstat fstatat fstatfs syscall \
 # ARM needs aeabi_unwind_cpp for _setjmp
 _libc_other_objects+=aeabi_unwind_cpp
 .elif ${LIBC_ARCH} == "i386"
-# __udivdi3 is needed by kvprintf() in rtld_printf.c
-# i386 also needs i386_set_gsbase for allocate_initial_tls()
-_libc_other_objects+=umoddi3 udivdi3 qdivrem i386_set_gsbase
+# i386 needs i386_set_gsbase for allocate_initial_tls()
+_libc_other_objects+=i386_set_gsbase
 .elif ${LIBC_ARCH} == "powerpc" || ${LIBC_ARCH} == "powerpcspe"
-# ppc needs __syncicache for reloc.c and __umoddi3+__udivdi3 for rtld_printf.c
-_libc_other_objects+=syncicache umoddi3 udivdi3 qdivrem
-# for some reason there is also a reference to abs()
-_libc_other_objects+=abs
+# ppc needs __syncicache and abs for reloc.c
+_libc_other_objects+=syncicache abs
 .elif ${LIBC_ARCH} == "powerpc64"
 # ppc64 needs __syncicache for reloc.c
 _libc_other_objects+=syncicache
-.elif ${LIBC_ARCH} == "mips"
-# 32-bit MIPS needs __umoddi3+__udivdi3 for rtld_printf.c
-.if ${MACHINE_ARCH:Mmipsn32*} == "" && ${MACHINE_ARCH:Mmips64*} == ""
-_libc_other_objects+=umoddi3 udivdi3 qdivrem
-.endif
 .endif
 
 # Extract all the .o files from libc_nossp_pic.a. This ensures that
