@@ -258,13 +258,14 @@ struct lagg_softc {
 	int				flowid_shift;	/* shift the flowid */
 	struct lagg_counters		detached_counters; /* detached ports sum */
 	struct callout			sc_watchdog;	/* watchdog timer */
+#define	LAGG_ADDR_LEN \
+	MAX(INFINIBAND_ADDR_LEN, ETHER_ADDR_LEN)
+	uint8_t				sc_bcast_addr[LAGG_ADDR_LEN];
 };
 
 struct lagg_port {
 	struct ifnet			*lp_ifp;	/* physical interface */
 	struct lagg_softc		*lp_softc;	/* parent lagg */
-#define	LAGG_ADDR_LEN \
-	MAX(INFINIBAND_ADDR_LEN, ETHER_ADDR_LEN)
 	uint8_t				lp_lladdr[LAGG_ADDR_LEN];
 
 	u_char				lp_iftype;	/* interface type */
