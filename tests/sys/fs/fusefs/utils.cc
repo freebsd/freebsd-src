@@ -376,10 +376,10 @@ void FuseTest::expect_read(uint64_t ino, uint64_t offset, uint64_t isize,
 				in.body.read.fh == FH &&
 				in.body.read.offset == offset &&
 				in.body.read.size == isize &&
-				flags == -1 ?
+				(flags == -1 ?
 					(in.body.read.flags == O_RDONLY ||
 					 in.body.read.flags == O_RDWR)
-				: in.body.read.flags == (uint32_t)flags);
+				: in.body.read.flags == (uint32_t)flags));
 		}, Eq(true)),
 		_)
 	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
