@@ -461,7 +461,8 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 			return (sig == SIGTTOU ? 0 : EIO);
 		}
 
-		if ((p->p_flag & P_PPWAIT) != 0 || pg->pg_jobc == 0) {
+		if ((p->p_flag & P_PPWAIT) != 0 ||
+		    (pg->pg_flags & PGRP_ORPHANED) != 0) {
 			/* Don't allow the action to happen. */
 			PROC_UNLOCK(p);
 			PGRP_UNLOCK(pg);
@@ -2380,9 +2381,8 @@ DB_SHOW_COMMAND(tty, db_show_tty)
 	_db_show_hooks("\t", tp->t_hook);
 
 	/* Process info. */
-	db_printf("\tpgrp: %p gid %d jobc %d\n", tp->t_pgrp,
-	    tp->t_pgrp ? tp->t_pgrp->pg_id : 0,
-	    tp->t_pgrp ? tp->t_pgrp->pg_jobc : 0);
+	db_printf("\tpgrp: %p gid %d\n", tp->t_pgrp,
+	    tp->t_pgrp ? tp->t_pgrp->pg_id : 0);
 	db_printf("\tsession: %p", tp->t_session);
 	if (tp->t_session != NULL)
 	    db_printf(" count %u leader %p tty %p sid %d login %s",
