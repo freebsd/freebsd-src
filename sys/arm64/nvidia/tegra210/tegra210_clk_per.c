@@ -412,7 +412,7 @@ static struct pgate_def pgate_def[] = {
 	GATE(EMC_IOBIST, "emc_iobist", "clk_m", W(10)),
 	GATE(SATA_IOBIST, "sata_iobist", "clk_m", W(12)),
 	GATE(MIPI_IOBIST, "mipi_iobist", "clk_m", W(13)),
-	GATE(XUSB_GATE, "xusb", "clk_m", W(15)),
+	GATE(XUSB_GATE, "xusb_gate", "clk_m", W(15)),
 	GATE(CILAB, "cilab", "pc_cilab", W(16)),
 	GATE(CILCD, "cilcd", "pc_cilcd", W(17)),
 	GATE(CILE, "cilef", "pc_cilef", W(18)),

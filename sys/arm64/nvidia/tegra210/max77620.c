@@ -396,10 +396,10 @@ max77620_attach(device_t dev)
 	rv = 0;
 	LOCK_INIT(sc);
 
-#ifdef notyet /* Interrupt parent is not implemented */
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
+#ifdef notyet /* Interrupt parent is not implemented */
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "Cannot allocate interrupt.\n");
 		rv = ENXIO;
