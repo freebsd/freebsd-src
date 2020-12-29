@@ -121,6 +121,8 @@ main(int argc, char *argv[])
 	extern int forward_flags;
 #endif	/* FORWARD */
 
+	setbuf(stdout, NULL);
+	setbuf(stderr, NULL);
 	tninit();		/* Clear out things */
 
 	TerminalSaveState();
