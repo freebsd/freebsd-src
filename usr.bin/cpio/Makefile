@@ -6,7 +6,8 @@ LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=	3.5.0
+BSDCPIO_VERSION_STRING!=	sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.],,gp;q;}' \
+			${_LIBARCHIVEDIR}/libarchive/archive.h
 
 .PATH:	${LIBARCHIVEDIR}/cpio
 SRCS=	cpio.c cmdline.c
