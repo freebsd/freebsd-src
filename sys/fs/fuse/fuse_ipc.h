@@ -212,7 +212,15 @@ struct fuse_data {
 	int				daemon_timeout;
 	int				linux_errnos;
 	unsigned			time_gran;
+	/* A bitmask of FUSE RPCs that are not implemented by the server */
 	uint64_t			notimpl;
+	/*
+	 * A bitmask of FUSE RPCs that are implemented by the server.
+	 * If an operation is not present in either notimpl or isimpl, then it
+	 * may be implemented by the server, but the kernel doesn't know for
+	 * sure.
+	 */
+	uint64_t			isimpl;
 	uint64_t			mnt_flag;
 	enum fuse_data_cache_mode	cache_mode;
 };
@@ -240,13 +248,40 @@ fuse_get_mpdata(struct mount *mp)
 }
 
 static inline bool
-fsess_isimpl(struct mount *mp, int opcode)
+fsess_is_impl(struct mount *mp, int opcode)
+{
+	struct fuse_data *data = fuse_get_mpdata(mp);
+
+	return ((data->isimpl & (1ULL << opcode)) != 0);
+
+}
+
+static inline bool
+fsess_maybe_impl(struct mount *mp, int opcode)
 {
 	struct fuse_data *data = fuse_get_mpdata(mp);
 
 	return ((data->notimpl & (1ULL << opcode)) == 0);
 
 }
+
+static inline bool
+fsess_not_impl(struct mount *mp, int opcode)
+{
+	struct fuse_data *data = fuse_get_mpdata(mp);
+
+	return ((data->notimpl & (1ULL << opcode)) != 0);
+
+}
+
+static inline void
+fsess_set_impl(struct mount *mp, int opcode)
+{
+	struct fuse_data *data = fuse_get_mpdata(mp);
+
+	data->isimpl |= (1ULL << opcode);
+}
+
 static inline void
 fsess_set_notimpl(struct mount *mp, int opcode)
 {

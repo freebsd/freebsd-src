@@ -29,6 +29,7 @@ GTESTS+=	io
 GTESTS+=	link
 GTESTS+=	locks
 GTESTS+=	lookup
+GTESTS+=	lseek
 GTESTS+=	mkdir
 GTESTS+=	mknod
 GTESTS+=	mount
