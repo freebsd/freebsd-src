@@ -63,7 +63,7 @@ struct auth {
 struct auth_name {
 	TAILQ_ENTRY(auth_name)		an_next;
 	struct auth_group		*an_auth_group;
-	char				*an_initator_name;
+	char				*an_initiator_name;
 };
 
 struct auth_portal {

@@ -304,7 +304,7 @@ auth_name_new(struct auth_group *ag, const char *name)
 	if (an == NULL)
 		log_err(1, "calloc");
 	an->an_auth_group = ag;
-	an->an_initator_name = checked_strdup(name);
+	an->an_initiator_name = checked_strdup(name);
 	TAILQ_INSERT_TAIL(&ag->ag_names, an, an_next);
 	return (an);
 }
@@ -314,7 +314,7 @@ auth_name_delete(struct auth_name *an)
 {
 	TAILQ_REMOVE(&an->an_auth_group->ag_names, an, an_next);
 
-	free(an->an_initator_name);
+	free(an->an_initiator_name);
 	free(an);
 }
 
@@ -332,7 +332,7 @@ auth_name_find(const struct auth_group *ag, const char *name)
 	const struct auth_name *auth_name;
 
 	TAILQ_FOREACH(auth_name, &ag->ag_names, an_next) {
-		if (strcmp(auth_name->an_initator_name, name) == 0)
+		if (strcmp(auth_name->an_initiator_name, name) == 0)
 			return (auth_name);
 	}
 
@@ -1680,7 +1680,7 @@ conf_print(struct conf *conf)
 			    auth->a_mutual_user, auth->a_mutual_secret);
 		TAILQ_FOREACH(auth_name, &ag->ag_names, an_next)
 			fprintf(stderr, "\t initiator-name %s\n",
-			    auth_name->an_initator_name);
+			    auth_name->an_initiator_name);
 		TAILQ_FOREACH(auth_portal, &ag->ag_portals, ap_next)
 			fprintf(stderr, "\t initiator-portal %s\n",
 			    auth_portal->ap_initiator_portal);
