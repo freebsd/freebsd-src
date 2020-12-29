@@ -2228,7 +2228,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		 * and don't clear any pending SIGCONT.
 		 */
 		if ((prop & SIGPROP_TTYSTOP) != 0 &&
-		    p->p_pgrp->pg_jobc == 0 &&
+		    (p->p_pgrp->pg_flags & PGRP_ORPHANED) != 0 &&
 		    action == SIG_DFL) {
 			if (ksi && (ksi->ksi_flags & KSI_INS))
 				ksiginfo_tryfree(ksi);
@@ -2986,8 +2986,8 @@ issignal(struct thread *td)
 			if (prop & SIGPROP_STOP) {
 				mtx_unlock(&ps->ps_mtx);
 				if ((p->p_flag & (P_TRACED | P_WEXIT |
-				    P_SINGLE_EXIT)) != 0 ||
-				    (p->p_pgrp->pg_jobc == 0 &&
+				    P_SINGLE_EXIT)) != 0 || ((p->p_pgrp->
+				    pg_flags & PGRP_ORPHANED) != 0 &&
 				    (prop & SIGPROP_TTYSTOP) != 0)) {
 					mtx_lock(&ps->ps_mtx);
 					break;	/* == ignore */
