@@ -511,7 +511,6 @@ TEST_F(Write, eof_during_rmw)
 	ssize_t bufsize = strlen(CONTENTS) + 1;
 	off_t orig_fsize = 10;
 	off_t truncated_fsize = 5;
-	off_t final_fsize = bufsize;
 	int fd;
 
 	FuseTest::expect_lookup(RELPATH, ino, S_IFREG | 0644, orig_fsize, 1);

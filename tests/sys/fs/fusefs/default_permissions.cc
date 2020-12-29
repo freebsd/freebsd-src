@@ -109,6 +109,25 @@ void expect_create(const char *relpath, uint64_t ino)
 	})));
 }
 
+void expect_copy_file_range(uint64_t ino_in, uint64_t off_in, uint64_t ino_out,
+    uint64_t off_out, uint64_t len)
+{
+	EXPECT_CALL(*m_mock, process(
+		ResultOf([=](auto in) {
+			return (in.header.opcode == FUSE_COPY_FILE_RANGE &&
+				in.header.nodeid == ino_in &&
+				in.body.copy_file_range.off_in == off_in &&
+				in.body.copy_file_range.nodeid_out == ino_out &&
+				in.body.copy_file_range.off_out == off_out &&
+				in.body.copy_file_range.len == len);
+		}, Eq(true)),
+		_)
+	).WillOnce(Invoke(ReturnImmediate([=](auto in __unused, auto& out) {
+		SET_OUT_HEADER_LEN(out, write);
+		out.body.write.size = len;
+	})));
+}
+
 void expect_getattr(uint64_t ino, mode_t mode, uint64_t attr_valid, int times,
 	uid_t uid = 0, gid_t gid = 0)
 {
@@ -141,6 +160,7 @@ void expect_lookup(const char *relpath, uint64_t ino, mode_t mode,
 class Access: public DefaultPermissions {};
 class Chown: public DefaultPermissions {};
 class Chgrp: public DefaultPermissions {};
+class CopyFileRange: public DefaultPermissions {};
 class Lookup: public DefaultPermissions {};
 class Open: public DefaultPermissions {};
 class Setattr: public DefaultPermissions {};
@@ -475,6 +495,94 @@ TEST_F(Chgrp, ok)
 	})));
 
 	EXPECT_EQ(0, chown(FULLPATH, -1, newgid)) << strerror(errno);
+}
+
+/* A write by a non-owner should clear a file's SGID bit */
+TEST_F(CopyFileRange, clear_guid)
+{
+	const char FULLPATH_IN[] = "mountpoint/in.txt";
+	const char RELPATH_IN[] = "in.txt";
+	const char FULLPATH_OUT[] = "mountpoint/out.txt";
+	const char RELPATH_OUT[] = "out.txt";
+	struct stat sb;
+	uint64_t ino_in = 42;
+	uint64_t ino_out = 43;
+	mode_t oldmode = 02777;
+	mode_t newmode = 0777;
+	off_t fsize = 16;
+	off_t off_in = 0;
+	off_t off_out = 8;
+	off_t len = 8;
+	int fd_in, fd_out;
+
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
+	FuseTest::expect_lookup(RELPATH_IN, ino_in, S_IFREG | oldmode, fsize, 1,
+	    UINT64_MAX, 0, 0);
+	expect_open(ino_in, 0, 1);
+	FuseTest::expect_lookup(RELPATH_OUT, ino_out, S_IFREG | oldmode, fsize,
+	    1, UINT64_MAX, 0, 0);
+	expect_open(ino_out, 0, 1);
+	expect_copy_file_range(ino_in, off_in, ino_out, off_out, len);
+	expect_chmod(ino_out, newmode, fsize);
+
+	fd_in = open(FULLPATH_IN, O_RDONLY);
+	ASSERT_LE(0, fd_in) << strerror(errno);
+	fd_out = open(FULLPATH_OUT, O_WRONLY);
+	ASSERT_LE(0, fd_out) << strerror(errno);
+	ASSERT_EQ(len,
+	    copy_file_range(fd_in, &off_in, fd_out, &off_out, len, 0))
+	    << strerror(errno);
+	ASSERT_EQ(0, fstat(fd_out, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+	ASSERT_EQ(0, fstat(fd_in, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | oldmode, sb.st_mode);
+
+	leak(fd_in);
+	leak(fd_out);
+}
+
+/* A write by a non-owner should clear a file's SUID bit */
+TEST_F(CopyFileRange, clear_suid)
+{
+	const char FULLPATH_IN[] = "mountpoint/in.txt";
+	const char RELPATH_IN[] = "in.txt";
+	const char FULLPATH_OUT[] = "mountpoint/out.txt";
+	const char RELPATH_OUT[] = "out.txt";
+	struct stat sb;
+	uint64_t ino_in = 42;
+	uint64_t ino_out = 43;
+	mode_t oldmode = 04777;
+	mode_t newmode = 0777;
+	off_t fsize = 16;
+	off_t off_in = 0;
+	off_t off_out = 8;
+	off_t len = 8;
+	int fd_in, fd_out;
+
+	expect_getattr(FUSE_ROOT_ID, S_IFDIR | 0755, UINT64_MAX, 1);
+	FuseTest::expect_lookup(RELPATH_IN, ino_in, S_IFREG | oldmode, fsize, 1,
+	    UINT64_MAX, 0, 0);
+	expect_open(ino_in, 0, 1);
+	FuseTest::expect_lookup(RELPATH_OUT, ino_out, S_IFREG | oldmode, fsize,
+	    1, UINT64_MAX, 0, 0);
+	expect_open(ino_out, 0, 1);
+	expect_copy_file_range(ino_in, off_in, ino_out, off_out, len);
+	expect_chmod(ino_out, newmode, fsize);
+
+	fd_in = open(FULLPATH_IN, O_RDONLY);
+	ASSERT_LE(0, fd_in) << strerror(errno);
+	fd_out = open(FULLPATH_OUT, O_WRONLY);
+	ASSERT_LE(0, fd_out) << strerror(errno);
+	ASSERT_EQ(len,
+	    copy_file_range(fd_in, &off_in, fd_out, &off_out, len, 0))
+	    << strerror(errno);
+	ASSERT_EQ(0, fstat(fd_out, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | newmode, sb.st_mode);
+	ASSERT_EQ(0, fstat(fd_in, &sb)) << strerror(errno);
+	EXPECT_EQ(S_IFREG | oldmode, sb.st_mode);
+
+	leak(fd_in);
+	leak(fd_out);
 }
 
 TEST_F(Create, ok)
@@ -1311,5 +1419,3 @@ TEST_F(Write, recursion_panic_while_clearing_suid)
 	ASSERT_EQ(1, write(fd, wbuf, sizeof(wbuf))) << strerror(errno);
 	leak(fd);
 }
-
-

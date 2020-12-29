@@ -855,6 +855,10 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 		err = (blen == sizeof(struct fuse_lseek_out)) ? 0 : EINVAL;
 		break;
 
+	case FUSE_COPY_FILE_RANGE:
+		err = (blen == sizeof(struct fuse_write_out)) ? 0 : EINVAL;
+		break;
+
 	default:
 		panic("FUSE: opcodes out of sync (%d)\n", opcode);
 	}
