@@ -1,7 +1,5 @@
 #!/bin/sh
 #
-# $FreeBSD$
-#
 
 ## Redefine environment variables here to override prototypes
 ## defined in release.sh.
@@ -15,7 +13,7 @@ CHROOTDIR="/scratch"
 ## Do not explicitly require the devel/git port to be installed.
 #NOGIT=1
 ## Set the version control system host.
-GITROOT="https://cgit-beta.freebsd.org/"
+GITROOT="https://git.freebsd.org/"
 GITSRC="src.git"
 GITPORTS="ports.git"
 GITDOC="doc.git"
