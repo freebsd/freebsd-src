@@ -253,6 +253,10 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 			    "using ICL kernel proxy: ISCSIDCONNECT", to_addr);
 		}
 
+		if (from_ai != NULL)
+			freeaddrinfo(from_ai);
+		freeaddrinfo(to_ai);
+
 		return (conn);
 	}
 #endif /* ICL_KERNEL_PROXY */
@@ -329,6 +333,10 @@ connection_new(int iscsi_fd, const struct iscsi_daemon_request *request)
 		fail(conn, strerror(errno));
 		log_err(1, "failed to connect to %s", to_addr);
 	}
+
+	if (from_ai != NULL)
+		freeaddrinfo(from_ai);
+	freeaddrinfo(to_ai);
 
 	return (conn);
 }
