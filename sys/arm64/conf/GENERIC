@@ -123,6 +123,7 @@ options 	SOC_INTEL_STRATIX10
 options 	SOC_BRCM_BCM2837
 options 	SOC_BRCM_BCM2838
 options 	SOC_MARVELL_8K
+options 	SOC_NVIDIA_TEGRA210
 options		SOC_NXP_LS
 options 	SOC_ROCKCHIP_RK3328
 options 	SOC_ROCKCHIP_RK3399
@@ -171,7 +172,8 @@ device		awg		# Allwinner EMAC Gigabit Ethernet
 device		axa		# AMD Opteron A1100 integrated NIC
 device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
 device		neta		# Marvell Armada 370/38x/XP/3700 NIC
-device  	smc		# SMSC LAN91C111
+device		re		# RealTek 8139C+/8169/8169S/8110S
+device		smc		# SMSC LAN91C111
 device		vnic		# Cavium ThunderX NIC
 device		al_eth		# Annapurna Alpine Ethernet NIC
 device		dwc_rk		# Rockchip Designware
@@ -238,11 +240,13 @@ device		rk_dwc3			# Rockchip DWC3 controller
 device		usb			# USB Bus (required)
 device		ukbd			# Keyboard
 device		umass			# Disks/Mass storage - Requires scbus and da
+device		tegra210_xusb_fw	# Tegra XUSB firmware
 
 # USB ethernet support
 device		muge
 device		smcphy
 device		smsc
+device		ure
 
 # Sound support
 device sound
@@ -271,8 +275,12 @@ device		a37x0_iic	# Armada 37x0 I2C controller
 device		aw_rsb		# Allwinner Reduced Serial Bus
 device		bcm2835_bsc	# Broadcom BCM283x I2C bus
 device		iicbus
+device		iicmux
 device		iic
+device		icee		# Generic IIC eeprom
 device		twsi		# Allwinner I2C controller
+device		pca9547		# NPX I2C bus multiplexer
+device		pcf8563		# NXP Real-time clock/calendar
 device		rk_i2c		# RockChip I2C controller
 device		syr827		# Silergy SYR827 PMIC
 device		sy8106a		# SY8106A Buck Regulator
@@ -368,4 +376,4 @@ options 	FDT
 device		acpi
 
 # DTBs
-makeoptions	MODULES_EXTRA="dtb/allwinner dtb/freescale dtb/imx8 dtb/mv dtb/rockchip dtb/rpi"
+makeoptions	MODULES_EXTRA="dtb/allwinner dtb/freescale dtb/imx8 dtb/nvidia dtb/mv dtb/rockchip dtb/rpi"
