@@ -757,7 +757,7 @@ _3dfx_linux=	3dfx_linux
 .if ${MK_SOURCELESS_HOST} != "no"
 _ce=		ce
 .endif
-.if ${MK_SOURCELESS_UCODE} != "no"
+.if ${MK_SOURCELESS_HOST} != "no"
 _cp=		cp
 .endif
 _glxiic=	glxiic
