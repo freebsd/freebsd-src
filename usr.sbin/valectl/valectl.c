@@ -181,7 +181,7 @@ list_all(int fd, struct nmreq_header *hdr)
 {
 	int error;
 	struct nmreq_vale_list *vale_list =
-		(struct nmreq_vale_list *)hdr->nr_body;
+		(struct nmreq_vale_list *)(uintptr_t)hdr->nr_body;
 
 	for (;;) {
 		hdr->nr_name[0] = '\0';
