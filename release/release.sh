@@ -34,8 +34,6 @@
 #  totally clean, fresh trees.
 # Based on release/generate-release.sh written by Nathan Whitehorn
 #
-# $FreeBSD$
-#
 
 export PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
 
@@ -75,7 +73,7 @@ env_setup() {
 
 	# The default git checkout server, and branches for src/, doc/,
 	# and ports/.
-	GITROOT="https://cgit-beta.FreeBSD.org/"
+	GITROOT="https://git.FreeBSD.org/"
 	SRCBRANCH="main"
 	DOCBRANCH="main"
 	PORTBRANCH="main"
@@ -137,7 +135,8 @@ env_check() {
 	# Prefix the branches with the GITROOT for the full checkout URL.
 	SRC="${GITROOT}${GITSRC}"
 	DOC="${GITROOT}${GITDOC}"
-	PORT="${GITROOT}${GITPORTS}"
+	#PORT="${GITROOT}${GITPORTS}"
+	PORT="https://cgit-beta.freebsd.org/ports.git"
 
 	if [ -n "${EMBEDDEDBUILD}" ]; then
 		WITH_DVD=
