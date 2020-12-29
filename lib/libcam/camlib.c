@@ -79,9 +79,8 @@ cam_getccb(struct cam_device *dev)
 {
 	union ccb *ccb;
 
-	ccb = (union ccb *)malloc(sizeof(union ccb));
+	ccb = calloc(1, sizeof(*ccb));
 	if (ccb != NULL) {
-		bzero(&ccb->ccb_h, sizeof(struct ccb_hdr));
 		ccb->ccb_h.path_id = dev->path_id;
 		ccb->ccb_h.target_id = dev->target_id;
 		ccb->ccb_h.target_lun = dev->target_lun;
