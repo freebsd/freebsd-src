@@ -511,11 +511,6 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	int if_type;
 	int error;
 	static const uint8_t eaddr[LAGG_ADDR_LEN];
-	static const uint8_t ib_bcast_addr[INFINIBAND_ADDR_LEN] = {
-		0x00, 0xff, 0xff, 0xff,
-		0xff, 0x12, 0x40, 0x1b,	0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00,	0xff, 0xff, 0xff, 0xff
-	};
 
 	if (params != NULL) {
 		error = copyin(params, &iflp, sizeof(iflp));
@@ -603,7 +598,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		ether_ifattach(ifp, eaddr);
 		break;
 	case IFT_INFINIBAND:
-		infiniband_ifattach(ifp, eaddr, ib_bcast_addr);
+		infiniband_ifattach(ifp, eaddr, sc->sc_bcast_addr);
 		break;
 	default:
 		break;
@@ -1239,8 +1234,11 @@ lagg_watchdog_infiniband(void *arg)
 		lp_ifp = lp->lp_ifp;
 
 		if (ifp != NULL && lp_ifp != NULL &&
-		    memcmp(IF_LLADDR(ifp), IF_LLADDR(lp_ifp), ifp->if_addrlen) != 0) {
+		    (memcmp(IF_LLADDR(ifp), IF_LLADDR(lp_ifp), ifp->if_addrlen) != 0 ||
+		     memcmp(sc->sc_bcast_addr, lp_ifp->if_broadcastaddr, ifp->if_addrlen) != 0)) {
 			memcpy(IF_LLADDR(ifp), IF_LLADDR(lp_ifp), ifp->if_addrlen);
+			memcpy(sc->sc_bcast_addr, lp_ifp->if_broadcastaddr, ifp->if_addrlen);
+
 			CURVNET_SET(ifp->if_vnet);
 			EVENTHANDLER_INVOKE(iflladdr_event, ifp);
 			CURVNET_RESTORE();
