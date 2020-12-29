@@ -114,7 +114,7 @@ struct snmp_client {
 };
 
 /* the global context */
-extern __thread struct snmp_client snmp_client;
+extern struct snmp_client snmp_client;
 
 /* initizialies a snmp_client structure */
 void snmp_client_init(struct snmp_client *);
