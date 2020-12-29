@@ -1019,7 +1019,7 @@ asn_oid2str_r(const struct asn_oid *oid, char *buf)
 char *
 asn_oid2str(const struct asn_oid *oid)
 {
-	__thread static char str[ASN_OIDSTRLEN];
+	static char str[ASN_OIDSTRLEN];
 
 	return (asn_oid2str_r(oid, str));
 }
