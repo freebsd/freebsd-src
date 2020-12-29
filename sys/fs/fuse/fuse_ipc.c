@@ -230,7 +230,7 @@ fuse_interrupt_send(struct fuse_ticket *otick, int err)
 		 * If the fuse daemon doesn't support interrupts, then there's
 		 * nothing more that we can do
 		 */
-		if (!fsess_isimpl(data->mp, FUSE_INTERRUPT))
+		if (fsess_not_impl(data->mp, FUSE_INTERRUPT))
 			return;
 
 		/* 
@@ -423,7 +423,7 @@ fticket_wait_answer(struct fuse_ticket *ftick)
 	struct fuse_data *data = ftick->tk_data;
 	bool interrupted = false;
 
-	if (fsess_isimpl(ftick->tk_data->mp, FUSE_INTERRUPT) &&
+	if (fsess_maybe_impl(ftick->tk_data->mp, FUSE_INTERRUPT) &&
 	    data->dataflags & FSESS_INTR) {
 		SIGEMPTYSET(blockedset);
 	} else {
@@ -849,6 +849,10 @@ fuse_body_audit(struct fuse_ticket *ftick, size_t blen)
 
 	case FUSE_DESTROY:
 		err = (blen == 0) ? 0 : EINVAL;
+		break;
+
+	case FUSE_LSEEK:
+		err = (blen == sizeof(struct fuse_lseek_out)) ? 0 : EINVAL;
 		break;
 
 	default:

@@ -219,7 +219,7 @@ fuse_internal_access(struct vnode *vp,
 		SDT_PROBE0(fusefs, , internal, access_vadmin);
 	}
 
-	if (!fsess_isimpl(mp, FUSE_ACCESS))
+	if (fsess_not_impl(mp, FUSE_ACCESS))
 		return 0;
 
 	if ((mode & (VWRITE | VAPPEND)) != 0)
@@ -337,14 +337,14 @@ fuse_internal_fsync(struct vnode *vp,
 	int op = FUSE_FSYNC;
 	int err = 0;
 
-	if (!fsess_isimpl(vnode_mount(vp),
+	if (fsess_not_impl(vnode_mount(vp),
 	    (vnode_vtype(vp) == VDIR ? FUSE_FSYNCDIR : FUSE_FSYNC))) {
 		return 0;
 	}
 	if (vnode_isdir(vp))
 		op = FUSE_FSYNCDIR;
 
-	if (!fsess_isimpl(mp, op))
+	if (fsess_not_impl(mp, op))
 		return 0;
 
 	fdisp_init(&fdi, sizeof(*ffsi));
@@ -1050,6 +1050,9 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 		data->cache_mode = FUSE_CACHE_WB;
 	else
 		data->cache_mode = FUSE_CACHE_WT;
+
+	if (!fuse_libabi_geq(data, 7, 24))
+		fsess_set_notimpl(data->mp, FUSE_LSEEK);
 
 out:
 	if (err) {

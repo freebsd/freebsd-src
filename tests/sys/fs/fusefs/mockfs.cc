@@ -62,8 +62,7 @@ int verbosity = 0;
 
 const char* opcode2opname(uint32_t opcode)
 {
-	const int NUM_OPS = 39;
-	const char* table[NUM_OPS] = {
+	const char* table[] = {
 		"Unknown (opcode 0)",
 		"LOOKUP",
 		"FORGET",
@@ -102,9 +101,17 @@ const char* opcode2opname(uint32_t opcode)
 		"CREATE",
 		"INTERRUPT",
 		"BMAP",
-		"DESTROY"
+		"DESTROY",
+		"IOCTL",
+		"POLL",
+		"NOTIFY_REPLY",
+		"BATCH_FORGET",
+		"FALLOCATE",
+		"READDIRPLUS",
+		"RENAME2",
+		"LSEEK",
 	};
-	if (opcode >= NUM_OPS)
+	if (opcode >= nitems(table))
 		return ("Unknown (opcode > max)");
 	else
 		return (table[opcode]);
@@ -210,6 +217,22 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 			break;
 		case FUSE_LOOKUP:
 			printf(" %s", in.body.lookup);
+			break;
+		case FUSE_LSEEK:
+			switch (in.body.lseek.whence) {
+			case SEEK_HOLE:
+				printf(" SEEK_HOLE offset=%ld",
+				    in.body.lseek.offset);
+				break;
+			case SEEK_DATA:
+				printf(" SEEK_DATA offset=%ld",
+				    in.body.lseek.offset);
+				break;
+			default:
+				printf(" whence=%u offset=%ld",
+				    in.body.lseek.whence, in.body.lseek.offset);
+				break;
+			}
 			break;
 		case FUSE_MKDIR:
 			name = (const char*)in.body.bytes +
@@ -634,6 +657,10 @@ void MockFS::audit_request(const mockfs_buf_in &in, ssize_t buflen) {
 		break;
 	case FUSE_BMAP:
 		EXPECT_EQ(inlen, fih + sizeof(in.body.bmap));
+		EXPECT_EQ((size_t)buflen, inlen);
+		break;
+	case FUSE_LSEEK:
+		EXPECT_EQ(inlen, fih + sizeof(in.body.lseek));
 		EXPECT_EQ((size_t)buflen, inlen);
 		break;
 	case FUSE_NOTIFY_REPLY:

@@ -501,7 +501,7 @@ fuse_vfsop_unmount(struct mount *mp, int mntflags)
 	if (fdata_get_dead(data)) {
 		goto alreadydead;
 	}
-	if (fsess_isimpl(mp, FUSE_DESTROY)) {
+	if (fsess_maybe_impl(mp, FUSE_DESTROY)) {
 		fdisp_init(&fdi, 0);
 		fdisp_make(&fdi, FUSE_DESTROY, mp, 0, td, NULL);
 

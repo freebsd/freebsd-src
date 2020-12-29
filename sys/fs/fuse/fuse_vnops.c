@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/filio.h>
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/queue.h>
@@ -136,6 +137,7 @@ static vop_fsync_t fuse_vnop_fsync;
 static vop_getattr_t fuse_vnop_getattr;
 static vop_getextattr_t fuse_vnop_getextattr;
 static vop_inactive_t fuse_vnop_inactive;
+static vop_ioctl_t fuse_vnop_ioctl;
 static vop_link_t fuse_vnop_link;
 static vop_listextattr_t fuse_vnop_listextattr;
 static vop_lookup_t fuse_vnop_lookup;
@@ -190,11 +192,7 @@ struct vop_vector fuse_vnops = {
 	.vop_getattr = fuse_vnop_getattr,
 	.vop_getextattr = fuse_vnop_getextattr,
 	.vop_inactive = fuse_vnop_inactive,
-	/*
-	 * TODO: implement vop_ioctl after upgrading to protocol 7.16.
-	 * FUSE_IOCTL was added in 7.11, but 32-bit compat is broken until
-	 * 7.16.
-	 */
+	.vop_ioctl = fuse_vnop_ioctl,
 	.vop_link = fuse_vnop_link,
 	.vop_listextattr = fuse_vnop_listextattr,
 	.vop_lookup = fuse_vnop_lookup,
@@ -284,7 +282,7 @@ fuse_flush(struct vnode *vp, struct ucred *cred, pid_t pid, int fflag)
 	struct mount *mp = vnode_mount(vp);
 	int err;
 
-	if (!fsess_isimpl(vnode_mount(vp), FUSE_FLUSH))
+	if (fsess_not_impl(vnode_mount(vp), FUSE_FLUSH))
 		return 0;
 
 	err = fuse_filehandle_getrw(vp, fflag, &fufh, cred, pid);
@@ -316,6 +314,42 @@ static int
 fuse_fifo_close(struct vop_close_args *ap)
 {
 	return (fifo_specops.vop_close(ap));
+}
+
+/* Send FUSE_LSEEK for this node */
+static int
+fuse_vnop_do_lseek(struct vnode *vp, struct thread *td, struct ucred *cred,
+	pid_t pid, off_t *offp, int whence)
+{
+	struct fuse_dispatcher fdi;
+	struct fuse_filehandle *fufh;
+	struct fuse_lseek_in *flsi;
+	struct fuse_lseek_out *flso;
+	struct mount *mp = vnode_mount(vp);
+	int err;
+
+	MPASS(VOP_ISLOCKED(vp));
+
+	err = fuse_filehandle_getrw(vp, FREAD, &fufh, cred, pid);
+	if (err)
+		return (err);
+	fdisp_init(&fdi, sizeof(*flsi));
+	fdisp_make_vp(&fdi, FUSE_LSEEK, vp, td, cred);
+	flsi = fdi.indata;
+	flsi->fh = fufh->fh_id;
+	flsi->offset = *offp;
+	flsi->whence = whence;
+	err = fdisp_wait_answ(&fdi);
+	if (err == ENOSYS) {
+		fsess_set_notimpl(mp, FUSE_LSEEK);
+	} else if (err == 0) {
+		fsess_set_impl(mp, FUSE_LSEEK);
+		flso = fdi.answ;
+		*offp = flso->offset;
+	}
+	fdisp_destroy(&fdi);
+
+	return (err);
 }
 
 /*
@@ -516,7 +550,7 @@ fuse_vnop_bmap(struct vop_bmap_args *ap)
 			*runp = 0;
 	}
 
-	if (fsess_isimpl(mp, FUSE_BMAP)) {
+	if (fsess_maybe_impl(mp, FUSE_BMAP)) {
 		fdisp_init(&fdi, sizeof(*fbi));
 		fdisp_make_vp(&fdi, FUSE_BMAP, vp, td, td->td_ucred);
 		fbi = fdi.indata;
@@ -652,7 +686,7 @@ fuse_vnop_create(struct vop_create_args *ap)
 	if (vap->va_type != VREG)
 		return (EINVAL);
 
-	if (!fsess_isimpl(mp, FUSE_CREATE) || vap->va_type == VSOCK) {
+	if (fsess_not_impl(mp, FUSE_CREATE) || vap->va_type == VSOCK) {
 		/* Fallback to FUSE_MKNOD/FUSE_OPEN */
 		fdisp_make_mknod_for_fallback(fdip, cnp, dvp, parentnid, td,
 			cred, mode, &op);
@@ -882,6 +916,56 @@ fuse_vnop_inactive(struct vop_inactive_args *ap)
 
 	return 0;
 }
+
+/*
+    struct vnop_ioctl_args {
+	struct vnode *a_vp;
+	u_long a_command;
+	caddr_t a_data;
+	int a_fflag;
+	struct ucred *a_cred;
+	struct thread *a_td;
+    };
+*/
+static int
+fuse_vnop_ioctl(struct vop_ioctl_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct mount *mp = vnode_mount(vp);
+	struct ucred *cred = ap->a_cred;
+	off_t *offp;
+	pid_t pid = ap->a_td->td_proc->p_pid;
+	int err;
+
+	switch (ap->a_command) {
+	case FIOSEEKDATA:
+	case FIOSEEKHOLE:
+		/* Call FUSE_LSEEK, if we can, or fall back to vop_stdioctl */
+		if (fsess_maybe_impl(mp, FUSE_LSEEK)) {
+			int whence;
+
+			offp = ap->a_data;
+			if (ap->a_command == FIOSEEKDATA)
+				whence = SEEK_DATA;
+			else
+				whence = SEEK_HOLE;
+
+			vn_lock(vp, LK_SHARED | LK_RETRY);
+			err = fuse_vnop_do_lseek(vp, ap->a_td, cred, pid, offp,
+			    whence);
+			VOP_UNLOCK(vp);
+		}
+		if (fsess_not_impl(mp, FUSE_LSEEK))
+			err = vop_stdioctl(ap);
+		break;
+	default:
+		/* TODO: implement FUSE_IOCTL */
+		err = ENOTTY;
+		break;
+	}
+	return (err);
+}
+
 
 /*
     struct vnop_link_args {
@@ -1337,6 +1421,8 @@ fuse_vnop_open(struct vop_open_args *ap)
 static int
 fuse_vnop_pathconf(struct vop_pathconf_args *ap)
 {
+	struct vnode *vp = ap->a_vp;
+	struct mount *mp;
 
 	switch (ap->a_name) {
 	case _PC_FILESIZEBITS:
@@ -1354,6 +1440,35 @@ fuse_vnop_pathconf(struct vop_pathconf_args *ap)
 	case _PC_NO_TRUNC:
 		*ap->a_retval = 1;
 		return (0);
+	case _PC_MIN_HOLE_SIZE:
+		/*
+		 * The FUSE protocol provides no mechanism for a server to
+		 * report _PC_MIN_HOLE_SIZE.  It's a protocol bug.  Instead,
+		 * return EINVAL if the server does not support FUSE_LSEEK, or
+		 * 1 if it does.
+		 */
+		mp = vnode_mount(vp);
+		if (!fsess_is_impl(mp, FUSE_LSEEK) &&
+		    !fsess_not_impl(mp, FUSE_LSEEK)) {
+			off_t offset = 0;
+
+			/* Issue a FUSE_LSEEK to find out if it's implemented */
+			fuse_vnop_do_lseek(vp, curthread, curthread->td_ucred,
+			    curthread->td_proc->p_pid, &offset, SEEK_DATA);
+		}
+
+		if (fsess_is_impl(mp, FUSE_LSEEK)) {
+			*ap->a_retval = 1;
+			return (0);
+		} else {
+			/*
+			 * Probably FUSE_LSEEK is not implemented.  It might
+			 * be, if the FUSE_LSEEK above returned an error like
+			 * EACCES, but in that case we can't tell, so it's
+			 * safest to report EINVAL anyway.
+			 */
+			return (EINVAL);
+		}
 	default:
 		return (vop_stdpathconf(ap));
 	}
@@ -2035,7 +2150,7 @@ fuse_vnop_getextattr(struct vop_getextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
-	if (!fsess_isimpl(mp, FUSE_GETXATTR))
+	if (fsess_not_impl(mp, FUSE_GETXATTR))
 		return EOPNOTSUPP;
 
 	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
@@ -2121,7 +2236,7 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
-	if (!fsess_isimpl(mp, FUSE_SETXATTR))
+	if (fsess_not_impl(mp, FUSE_SETXATTR))
 		return EOPNOTSUPP;
 
 	if (vfs_isrdonly(mp))
@@ -2133,7 +2248,7 @@ fuse_vnop_setextattr(struct vop_setextattr_args *ap)
 		 * If we got here as fallback from VOP_DELETEEXTATTR, then
 		 * return EOPNOTSUPP.
 		 */
-		if (!fsess_isimpl(mp, FUSE_REMOVEXATTR))
+		if (fsess_not_impl(mp, FUSE_REMOVEXATTR))
 			return (EOPNOTSUPP);
 		else
 			return (EINVAL);
@@ -2286,7 +2401,7 @@ fuse_vnop_listextattr(struct vop_listextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
-	if (!fsess_isimpl(mp, FUSE_LISTXATTR))
+	if (fsess_not_impl(mp, FUSE_LISTXATTR))
 		return EOPNOTSUPP;
 
 	err = fuse_extattr_check_cred(vp, ap->a_attrnamespace, cred, td, VREAD);
@@ -2409,7 +2524,7 @@ fuse_vnop_deleteextattr(struct vop_deleteextattr_args *ap)
 	if (fuse_isdeadfs(vp))
 		return (ENXIO);
 
-	if (!fsess_isimpl(mp, FUSE_REMOVEXATTR))
+	if (fsess_not_impl(mp, FUSE_REMOVEXATTR))
 		return EOPNOTSUPP;
 
 	if (vfs_isrdonly(mp))
