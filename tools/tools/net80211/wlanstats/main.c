@@ -70,7 +70,7 @@ static struct {
 static const char *
 getfmt(const char *tag)
 {
-	int i;
+	unsigned int i;
 	for (i = 0; i < nitems(tags); i++)
 		if (strcasecmp(tags[i].tag, tag) == 0)
 			return tags[i].fmt;
@@ -156,8 +156,10 @@ print_sta_stats(FILE *fd, const u_int8_t macaddr[IEEE80211_ADDR_LEN])
 }
 #endif
 
-void
-usage(void) {
+static void
+usage(void)
+{
+
 	printf("wlanstats: [-ah] [-i ifname] [-l] [-m station MAC address] [-o fmt] [interval]\n");
 }
 
