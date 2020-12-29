@@ -71,7 +71,7 @@
 #define	DEBUG_PARSE	0
 
 /* global context */
-struct snmp_client snmp_client;
+__thread struct snmp_client snmp_client;
 
 /* List of all outstanding requests */
 struct sent_pdu {
@@ -86,7 +86,7 @@ struct sent_pdu {
 };
 LIST_HEAD(sent_pdu_list, sent_pdu);
 
-static struct sent_pdu_list sent_pdus;
+__thread static struct sent_pdu_list sent_pdus;
 
 /*
  * Prototype table entry. All C-structure produced by the table function must
