@@ -102,14 +102,12 @@ MALLOC_DEFINE(M_SESSION, "session", "session header");
 static MALLOC_DEFINE(M_PROC, "proc", "Proc structures");
 MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
-static void fixjobc_enterpgrp(struct proc *p, struct pgrp *pgrp);
 static void doenterpgrp(struct proc *, struct pgrp *);
 static void orphanpg(struct pgrp *pg);
 static void fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp);
 static void fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp);
 static void fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp,
     int preferthread);
-static void pgadjustjobc(struct pgrp *pgrp, bool entering);
 static void pgdelete(struct pgrp *);
 static int pgrp_init(void *mem, int size, int flags);
 static int proc_ctor(void *mem, int size, void *arg, int flags);
@@ -612,13 +610,13 @@ enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp, struct session *sess)
 	pgrp->pg_id = pgid;
 	proc_id_set(PROC_ID_GROUP, p->p_pid);
 	LIST_INIT(&pgrp->pg_members);
+	pgrp->pg_flags = 0;
 
 	/*
 	 * As we have an exclusive lock of proctree_lock,
 	 * this should not deadlock.
 	 */
 	LIST_INSERT_HEAD(PGRPHASH(pgid), pgrp, pg_hash);
-	pgrp->pg_jobc = 0;
 	SLIST_INIT(&pgrp->pg_sigiolst);
 	PGRP_UNLOCK(pgrp);
 
@@ -658,6 +656,7 @@ static bool
 isjobproc(struct proc *q, struct pgrp *pgrp)
 {
 	sx_assert(&proctree_lock, SX_LOCKED);
+
 	return (q->p_pgrp != pgrp &&
 	    q->p_pgrp->pg_session == pgrp->pg_session);
 }
@@ -667,7 +666,7 @@ jobc_reaper(struct proc *p)
 {
 	struct proc *pp;
 
-	sx_assert(&proctree_lock, SX_LOCKED);
+	sx_assert(&proctree_lock, SA_LOCKED);
 
 	for (pp = p;;) {
 		pp = pp->p_reaper;
@@ -678,43 +677,40 @@ jobc_reaper(struct proc *p)
 }
 
 static struct proc *
-jobc_parent(struct proc *p)
+jobc_parent(struct proc *p, struct proc *p_exiting)
 {
 	struct proc *pp;
 
-	sx_assert(&proctree_lock, SX_LOCKED);
+	sx_assert(&proctree_lock, SA_LOCKED);
 
 	pp = proc_realparent(p);
-	if (pp->p_pptr == NULL ||
+	if (pp->p_pptr == NULL || pp == p_exiting ||
 	    (pp->p_treeflag & P_TREE_GRPEXITED) == 0)
 		return (pp);
 	return (jobc_reaper(pp));
 }
 
-#ifdef INVARIANTS
-static void
-check_pgrp_jobc(struct pgrp *pgrp)
+static int
+pgrp_calc_jobc(struct pgrp *pgrp)
 {
 	struct proc *q;
 	int cnt;
 
-	sx_assert(&proctree_lock, SX_LOCKED);
-	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
+#ifdef INVARIANTS
+	if (!mtx_owned(&pgrp->pg_mtx))
+		sx_assert(&proctree_lock, SA_LOCKED);
+#endif
 
 	cnt = 0;
-	PGRP_LOCK(pgrp);
 	LIST_FOREACH(q, &pgrp->pg_members, p_pglist) {
 		if ((q->p_treeflag & P_TREE_GRPEXITED) != 0 ||
 		    q->p_pptr == NULL)
 			continue;
-		if (isjobproc(jobc_parent(q), pgrp))
+		if (isjobproc(jobc_parent(q, NULL), pgrp))
 			cnt++;
 	}
-	KASSERT(pgrp->pg_jobc == cnt, ("pgrp %d %p pg_jobc %d cnt %d",
-	    pgrp->pg_id, pgrp, pgrp->pg_jobc, cnt));
-	PGRP_UNLOCK(pgrp);
+	return (cnt);
 }
-#endif
 
 /*
  * Move p to a process group
@@ -723,6 +719,7 @@ static void
 doenterpgrp(struct proc *p, struct pgrp *pgrp)
 {
 	struct pgrp *savepgrp;
+	struct proc *pp;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
@@ -731,24 +728,19 @@ doenterpgrp(struct proc *p, struct pgrp *pgrp)
 	SESS_LOCK_ASSERT(p->p_session, MA_NOTOWNED);
 
 	savepgrp = p->p_pgrp;
-
-#ifdef INVARIANTS
-	check_pgrp_jobc(pgrp);
-	check_pgrp_jobc(savepgrp);
-#endif
-
-	/*
-	 * Adjust eligibility of affected pgrps to participate in job control.
-	 */
-	fixjobc_enterpgrp(p, pgrp);
+	pp = jobc_parent(p, NULL);
 
 	PGRP_LOCK(pgrp);
 	PGRP_LOCK(savepgrp);
+	if (isjobproc(pp, savepgrp) && pgrp_calc_jobc(savepgrp) == 1)
+		orphanpg(savepgrp);
 	PROC_LOCK(p);
 	LIST_REMOVE(p, p_pglist);
 	p->p_pgrp = pgrp;
 	PROC_UNLOCK(p);
 	LIST_INSERT_HEAD(&pgrp->pg_members, p, p_pglist);
+	if (isjobproc(pp, pgrp))
+		pgrp->pg_flags &= ~PGRP_ORPHANED;
 	PGRP_UNLOCK(savepgrp);
 	PGRP_UNLOCK(pgrp);
 	if (LIST_EMPTY(&savepgrp->pg_members))
@@ -813,102 +805,6 @@ pgdelete(struct pgrp *pgrp)
 	sess_release(savesess);
 }
 
-static void
-pgadjustjobc(struct pgrp *pgrp, bool entering)
-{
-
-	PGRP_LOCK(pgrp);
-	if (entering) {
-		MPASS(pgrp->pg_jobc >= 0);
-		pgrp->pg_jobc++;
-	} else {
-		MPASS(pgrp->pg_jobc > 0);
-		--pgrp->pg_jobc;
-		if (pgrp->pg_jobc == 0)
-			orphanpg(pgrp);
-	}
-	PGRP_UNLOCK(pgrp);
-}
-
-static void
-fixjobc_enterpgrp_q(struct pgrp *pgrp, struct proc *p, struct proc *q, bool adj)
-{
-	struct pgrp *childpgrp;
-	bool future_jobc;
-
-	sx_assert(&proctree_lock, SX_LOCKED);
-
-	if ((q->p_treeflag & P_TREE_GRPEXITED) != 0)
-		return;
-	childpgrp = q->p_pgrp;
-	future_jobc = childpgrp != pgrp &&
-	    childpgrp->pg_session == pgrp->pg_session;
-
-	if ((adj && !isjobproc(p, childpgrp) && future_jobc) ||
-	    (!adj && isjobproc(p, childpgrp) && !future_jobc))
-		pgadjustjobc(childpgrp, adj);
-}
-
-/*
- * Adjust pgrp jobc counters when specified process changes process group.
- * We count the number of processes in each process group that "qualify"
- * the group for terminal job control (those with a parent in a different
- * process group of the same session).  If that count reaches zero, the
- * process group becomes orphaned.  Check both the specified process'
- * process group and that of its children.
- * We increment eligibility counts before decrementing, otherwise we
- * could reach 0 spuriously during the decrement.
- */
-static void
-fixjobc_enterpgrp(struct proc *p, struct pgrp *pgrp)
-{
-	struct proc *q;
-
-	sx_assert(&proctree_lock, SX_LOCKED);
-	PROC_LOCK_ASSERT(p, MA_NOTOWNED);
-	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
-	SESS_LOCK_ASSERT(pgrp->pg_session, MA_NOTOWNED);
-
-	if (p->p_pgrp == pgrp)
-		return;
-
-	if (isjobproc(jobc_parent(p), pgrp))
-		pgadjustjobc(pgrp, true);
-	LIST_FOREACH(q, &p->p_children, p_sibling) {
-		if ((q->p_treeflag & P_TREE_ORPHANED) != 0)
-			continue;
-		fixjobc_enterpgrp_q(pgrp, p, q, true);
-	}
-	LIST_FOREACH(q, &p->p_orphans, p_orphan)
-		fixjobc_enterpgrp_q(pgrp, p, q, true);
-
-	if (isjobproc(jobc_parent(p), p->p_pgrp))
-		pgadjustjobc(p->p_pgrp, false);
-	LIST_FOREACH(q, &p->p_children, p_sibling) {
-		if ((q->p_treeflag & P_TREE_ORPHANED) != 0)
-			continue;
-		fixjobc_enterpgrp_q(pgrp, p, q, false);
-	}
-	LIST_FOREACH(q, &p->p_orphans, p_orphan)
-		fixjobc_enterpgrp_q(pgrp, p, q, false);
-}
-
-static void
-fixjobc_kill_q(struct proc *p, struct proc *q, bool adj)
-{
-	struct pgrp *childpgrp;
-
-	sx_assert(&proctree_lock, SX_LOCKED);
-
-	if ((q->p_treeflag & P_TREE_GRPEXITED) != 0)
-		return;
-	childpgrp = q->p_pgrp;
-
-	if ((adj && isjobproc(jobc_reaper(q), childpgrp) &&
-	    !isjobproc(p, childpgrp)) || (!adj && !isjobproc(jobc_reaper(q),
-	    childpgrp) && isjobproc(p, childpgrp)))
-		pgadjustjobc(childpgrp, adj);
-}
 
 static void
 fixjobc_kill(struct proc *p)
@@ -921,9 +817,6 @@ fixjobc_kill(struct proc *p)
 	pgrp = p->p_pgrp;
 	PGRP_LOCK_ASSERT(pgrp, MA_NOTOWNED);
 	SESS_LOCK_ASSERT(pgrp->pg_session, MA_NOTOWNED);
-#ifdef INVARIANTS
-	check_pgrp_jobc(pgrp);
-#endif
 
 	/*
 	 * p no longer affects process group orphanage for children.
@@ -934,35 +827,46 @@ fixjobc_kill(struct proc *p)
 	p->p_treeflag |= P_TREE_GRPEXITED;
 
 	/*
-	 * Check p's parent to see whether p qualifies its own process
-	 * group; if so, adjust count for p's process group.
+	 * Check if exiting p orphans its own group.
 	 */
-	if (isjobproc(jobc_parent(p), pgrp))
-		pgadjustjobc(pgrp, false);
+	pgrp = p->p_pgrp;
+	if (isjobproc(jobc_parent(p, NULL), pgrp)) {
+		PGRP_LOCK(pgrp);
+		if (pgrp_calc_jobc(pgrp) == 0)
+			orphanpg(pgrp);
+		PGRP_UNLOCK(pgrp);
+	}
 
 	/*
 	 * Check this process' children to see whether they qualify
-	 * their process groups after reparenting to reaper.  If so,
-	 * adjust counts for children's process groups.
+	 * their process groups after reparenting to reaper.
 	 */
 	LIST_FOREACH(q, &p->p_children, p_sibling) {
-		if ((q->p_treeflag & P_TREE_ORPHANED) != 0)
-			continue;
-		fixjobc_kill_q(p, q, true);
+		pgrp = q->p_pgrp;
+		PGRP_LOCK(pgrp);
+		if (pgrp_calc_jobc(pgrp) == 0) {
+			/*
+			 * We want to handle exactly the children that
+			 * has p as realparent.  Then, when calculating
+			 * jobc_parent for children, we should ignore
+			 * P_TREE_GRPEXITED flag already set on p.
+			 */
+			if (jobc_parent(q, p) == p && isjobproc(p, pgrp))
+				orphanpg(pgrp);
+		} else
+			pgrp->pg_flags &= ~PGRP_ORPHANED;
+		PGRP_UNLOCK(pgrp);
 	}
-	LIST_FOREACH(q, &p->p_orphans, p_orphan)
-		fixjobc_kill_q(p, q, true);
-	LIST_FOREACH(q, &p->p_children, p_sibling) {
-		if ((q->p_treeflag & P_TREE_ORPHANED) != 0)
-			continue;
-		fixjobc_kill_q(p, q, false);
+	LIST_FOREACH(q, &p->p_orphans, p_orphan) {
+		pgrp = q->p_pgrp;
+		PGRP_LOCK(pgrp);
+		if (pgrp_calc_jobc(pgrp) == 0) {
+			if (isjobproc(p, pgrp))
+				orphanpg(pgrp);
+		} else
+			pgrp->pg_flags &= ~PGRP_ORPHANED;
+		PGRP_UNLOCK(pgrp);
 	}
-	LIST_FOREACH(q, &p->p_orphans, p_orphan)
-		fixjobc_kill_q(p, q, false);
-
-#ifdef INVARIANTS
-	check_pgrp_jobc(pgrp);
-#endif
 }
 
 void
@@ -1026,8 +930,8 @@ killjobc(void)
 }
 
 /*
- * A process group has become orphaned;
- * if there are any stopped processes in the group,
+ * A process group has become orphaned, mark it as such for signal
+ * delivery code.  If there are any stopped processes in the group,
  * hang-up all process in that group.
  */
 static void
@@ -1036,6 +940,8 @@ orphanpg(struct pgrp *pg)
 	struct proc *p;
 
 	PGRP_LOCK_ASSERT(pg, MA_OWNED);
+
+	pg->pg_flags |= PGRP_ORPHANED;
 
 	LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 		PROC_LOCK(p);
@@ -1271,7 +1177,7 @@ fill_kinfo_proc_pgrp(struct proc *p, struct kinfo_proc *kp)
 		return;
 
 	kp->ki_pgid = pgrp->pg_id;
-	kp->ki_jobc = pgrp->pg_jobc;
+	kp->ki_jobc = pgrp_calc_jobc(pgrp);
 
 	sp = pgrp->pg_session;
 	tp = NULL;
@@ -1419,7 +1325,6 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 void
 fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 {
-
 	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
 
 	bzero(kp, sizeof(*kp));
