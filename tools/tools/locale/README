@@ -19,7 +19,7 @@ More details are as follows:
 Variables:
 	LOCALESRCDIR
 		Destination path for the generated locale files.
-		Default: $DESTDIR/usr/src/share.
+		Default: ${SRCTOP}/share.
 	TMPDIR
 		Temporary directory.
 		Default: /tmp
@@ -29,7 +29,12 @@ Targets:
 		Create a temporary directory for building.
 
 	make clean
-		Clean up the obj directories.
+		Clean up the obj directories.  Note that this does not
+		clean up tools or posix locale source files generated
+		from the CLDR files because it takes a long time to generate
+		them and they are not changed as long as using the same
+		CLDR files.  "make clean && make build" will
+		regenerate the locale source files for src/share/*def.
 
 	make cleandir
 		Remove the obj directories completely.

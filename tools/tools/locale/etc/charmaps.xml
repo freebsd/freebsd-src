@@ -195,395 +195,404 @@
 </languages>
 
 <translations>
+	<!--
+		encoding: Space-separated list of encodings
+		cldr: Symbol to be replaced with hex, string, unicode, or ucc.
+		  The symbol name should be defined in posix/*.cm files.
+		string: raw code in string.
+		hex: raw code in hex.
+		unicode: Symbol name in Unicode.
+		ucc: Unicode code point in hex.
+	-->
 	<!-- These don't have a special Euro sign so just use Eu for it -->
-	<translation encoding="ISO8859-1" cldr="EURO SIGN" string="Eu" />
-	<translation encoding="ISO8859-2" cldr="EURO SIGN" string="Eu" />
-	<translation encoding="ISO8859-4" cldr="EURO SIGN" string="Eu" />
-	<translation encoding="ISO8859-13" cldr="EURO SIGN" string="Eu" />
+	<translation encoding="ISO8859-1" cldr="EURO_SIGN" string="Eu" />
+	<translation encoding="ISO8859-2" cldr="EURO_SIGN" string="Eu" />
+	<translation encoding="ISO8859-4" cldr="EURO_SIGN" string="Eu" />
+	<translation encoding="ISO8859-13" cldr="EURO_SIGN" string="Eu" />
 
 	<!-- Minus and dashes -->
 	<translation encoding="ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-13 ISO8859-15"
-	    cldr="MINUS SIGN" unicode="HYPHEN-MINUS" />
+	    cldr="MINUS_SIGN" unicode="HYPHEN-MINUS" />
 	<translation encoding="ISO8859-2"
-	    cldr="EN DASH" unicode="HYPHEN-MINUS" />
+	    cldr="EN_DASH" unicode="HYPHEN-MINUS" />
 
 	<!-- Got these from http://www.decodeunicode.org/en/u+0400.
 	     Where possible use the international or ISO translation!
 	-->
 	<translation encoding="ISO8859-2" ucc="0408"
-	    cldr="CYRILLIC CAPITAL LETTER JE"
-	    unicode="LATIN CAPITAL LETTER J" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_JE"
+	    unicode="LATIN_CAPITAL_LETTER_J" />
 	<translation encoding="ISO8859-2" ucc="0458"
-	    cldr="CYRILLIC SMALL LETTER JE" unicode="LATIN SMALL LETTER J" />
+	    cldr="CYRILLIC_SMALL_LETTER_JE" unicode="LATIN_SMALL_LETTER_J" />
 	<translation encoding="ISO8859-2" ucc="0409"
-	    cldr="CYRILLIC CAPITAL LETTER LJE" string="lj" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_LJE" string="lj" />
 	<translation encoding="ISO8859-2" ucc="0459"
-	    cldr="CYRILLIC SMALL LETTER LJE" string="lj" />
+	    cldr="CYRILLIC_SMALL_LETTER_LJE" string="lj" />
 	<translation encoding="ISO8859-2" ucc="0410"
-	    cldr="CYRILLIC CAPITAL LETTER A" unicode="LATIN CAPITAL LETTER A" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_A" unicode="LATIN_CAPITAL_LETTER_A" />
 	<translation encoding="ISO8859-2" ucc="0430"
-	    cldr="CYRILLIC SMALL LETTER A" unicode="LATIN SMALL LETTER A" />
+	    cldr="CYRILLIC_SMALL_LETTER_A" unicode="LATIN_SMALL_LETTER_A" />
 	<translation encoding="ISO8859-2" ucc="0411"
-	    cldr="CYRILLIC CAPITAL LETTER BE"
-	    unicode="LATIN CAPITAL LETTER B" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_BE"
+	    unicode="LATIN_CAPITAL_LETTER_B" />
 	<translation encoding="ISO8859-2" ucc="0431"
-	    cldr="CYRILLIC SMALL LETTER BE" unicode="LATIN SMALL LETTER B" />
+	    cldr="CYRILLIC_SMALL_LETTER_BE" unicode="LATIN_SMALL_LETTER_B" />
 	<translation encoding="ISO8859-2" ucc="0412"
-	    cldr="CYRILLIC CAPITAL LETTER VE"
-	    unicode="LATIN CAPITAL LETTER B" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_VE"
+	    unicode="LATIN_CAPITAL_LETTER_B" />
 	<translation encoding="ISO8859-2" ucc="0432"
-	    cldr="CYRILLIC SMALL LETTER VE" unicode="LATIN SMALL LETTER B" />
+	    cldr="CYRILLIC_SMALL_LETTER_VE" unicode="LATIN_SMALL_LETTER_B" />
 	<translation encoding="ISO8859-2" ucc="0413"
-	    cldr="CYRILLIC CAPITAL LETTER GHE"
-	    unicode="LATIN CAPITAL LETTER G" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_GHE"
+	    unicode="LATIN_CAPITAL_LETTER_G" />
 	<translation encoding="ISO8859-2" ucc="0433"
-	    cldr="CYRILLIC SMALL LETTER GHE" unicode="LATIN SMALL LETTER G" />
+	    cldr="CYRILLIC_SMALL_LETTER_GHE" unicode="LATIN_SMALL_LETTER_G" />
 	<translation encoding="ISO8859-2" ucc="0414"
-	    cldr="CYRILLIC CAPITAL LETTER DE" string="D" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_DE" string="D" />
 	<translation encoding="ISO8859-2" ucc="0434"
-	    cldr="CYRILLIC SMALL LETTER DE" string="d" />
+	    cldr="CYRILLIC_SMALL_LETTER_DE" string="d" />
 	<translation encoding="ISO8859-2" ucc="0415"
-	    cldr="CYRILLIC CAPITAL LETTER IE"
-	    unicode="LATIN CAPITAL LETTER E" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_IE"
+	    unicode="LATIN_CAPITAL_LETTER_E" />
 	<translation encoding="ISO8859-2" ucc="0435"
-	    cldr="CYRILLIC SMALL LETTER IE" unicode="LATIN SMALL LETTER E" />
+	    cldr="CYRILLIC_SMALL_LETTER_IE" unicode="LATIN_SMALL_LETTER_E" />
 	<translation encoding="ISO8859-2" ucc="0416"
-	    cldr="CYRILLIC CAPITAL LETTER ZHE" string="ZH" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_ZHE" string="ZH" />
 	<translation encoding="ISO8859-2" ucc="0436"
-	    cldr="CYRILLIC SMALL LETTER ZHE" string="zh" />
+	    cldr="CYRILLIC_SMALL_LETTER_ZHE" string="zh" />
 	<translation encoding="ISO8859-2" ucc="0417"
-	    cldr="CYRILLIC CAPITAL LETTER ZE" string="z" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_ZE" string="z" />
 	<translation encoding="ISO8859-2" ucc="0437"
-	    cldr="CYRILLIC SMALL LETTER ZE" string="z" />
+	    cldr="CYRILLIC_SMALL_LETTER_ZE" string="z" />
 	<translation encoding="ISO8859-2" ucc="0418"
-	    cldr="CYRILLIC CAPITAL LETTER I" unicode="LATIN CAPITAL LETTER J" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_I" unicode="LATIN_CAPITAL_LETTER_J" />
 	<translation encoding="ISO8859-2" ucc="0438"
-	    cldr="CYRILLIC SMALL LETTER I" unicode="LATIN CAPITAL LETTER J" />
+	    cldr="CYRILLIC_SMALL_LETTER_I" unicode="LATIN_CAPITAL_LETTER_J" />
 	<translation encoding="ISO8859-2" ucc="0419"
-	    cldr="CYRILLIC CAPITAL LETTER I" unicode="LATIN SMALL LETTER J" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_I" unicode="LATIN_SMALL_LETTER_J" />
 	<translation encoding="ISO8859-2" ucc="0439"
-	    cldr="CYRILLIC SMALL LETTER I" unicode="LATIN SMALL LETTER J" />
+	    cldr="CYRILLIC_SMALL_LETTER_I" unicode="LATIN_SMALL_LETTER_J" />
 	<translation encoding="ISO8859-2" ucc="041A"
-	    cldr="CYRILLIC CAPITAL LETTER KA"
-	    unicode="LATIN CAPITAL LETTER K" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_KA"
+	    unicode="LATIN_CAPITAL_LETTER_K" />
 	<translation encoding="ISO8859-2" ucc="043A"
-	    cldr="CYRILLIC SMALL LETTER KA" unicode="LATIN SMALL LETTER K" />
+	    cldr="CYRILLIC_SMALL_LETTER_KA" unicode="LATIN_SMALL_LETTER_K" />
 	<translation encoding="ISO8859-2" ucc="041B"
-	    cldr="CYRILLIC CAPITAL LETTER EL"
-	    unicode="LATIN CAPITAL LETTER L" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_EL"
+	    unicode="LATIN_CAPITAL_LETTER_L" />
 	<translation encoding="ISO8859-2" ucc="043B"
-	    cldr="CYRILLIC SMALL LETTER EL" unicode="LATIN SMALL LETTER L" />
+	    cldr="CYRILLIC_SMALL_LETTER_EL" unicode="LATIN_SMALL_LETTER_L" />
 	<translation encoding="ISO8859-2" ucc="041C"
-	    cldr="CYRILLIC CAPITAL LETTER EM"
-	    unicode="LATIN CAPITAL LETTER M" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_EM"
+	    unicode="LATIN_CAPITAL_LETTER_M" />
 	<translation encoding="ISO8859-2" ucc="043C"
-	    cldr="CYRILLIC SMALL LETTER EM" unicode="LATIN SMALL LETTER M" />
+	    cldr="CYRILLIC_SMALL_LETTER_EM" unicode="LATIN_SMALL_LETTER_M" />
 	<translation encoding="ISO8859-2" ucc="041D"
-	    cldr="CYRILLIC CAPITAL LETTER EN"
-	    unicode="LATIN CAPITAL LETTER H" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_EN"
+	    unicode="LATIN_CAPITAL_LETTER_H" />
 	<translation encoding="ISO8859-2" ucc="043D"
-	    cldr="CYRILLIC SMALL LETTER EN" unicode="LATIN SMALL LETTER H" />
+	    cldr="CYRILLIC_SMALL_LETTER_EN" unicode="LATIN_SMALL_LETTER_H" />
 	<translation encoding="ISO8859-2" ucc="041E"
-	    cldr="CYRILLIC CAPITAL LETTER O" unicode="LATIN CAPITAL LETTER O" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_O" unicode="LATIN_CAPITAL_LETTER_O" />
 	<translation encoding="ISO8859-2" ucc="043E"
-	    cldr="CYRILLIC SMALL LETTER O" unicode="LATIN SMALL LETTER O" />
+	    cldr="CYRILLIC_SMALL_LETTER_O" unicode="LATIN_SMALL_LETTER_O" />
 	<translation encoding="ISO8859-2" ucc="041F"
-	    cldr="CYRILLIC CAPITAL LETTER PE"
-	    unicode="LATIN CAPITAL LETTER P" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_PE"
+	    unicode="LATIN_CAPITAL_LETTER_P" />
 	<translation encoding="ISO8859-2" ucc="043F"
-	    cldr="CYRILLIC SMALL LETTER PE" unicode="LATIN SMALL LETTER P" />
+	    cldr="CYRILLIC_SMALL_LETTER_PE" unicode="LATIN_SMALL_LETTER_P" />
 	<translation encoding="ISO8859-2" ucc="0420"
-	    cldr="CYRILLIC CAPITAL LETTER ER"
-	    unicode="LATIN CAPITAL LETTER R" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_ER"
+	    unicode="LATIN_CAPITAL_LETTER_R" />
 	<translation encoding="ISO8859-2" ucc="0440"
-	    cldr="CYRILLIC SMALL LETTER ER" unicode="LATIN SMALL LETTER R" />
+	    cldr="CYRILLIC_SMALL_LETTER_ER" unicode="LATIN_SMALL_LETTER_R" />
 	<translation encoding="ISO8859-2" ucc="0421"
-	    cldr="CYRILLIC CAPITAL LETTER ES"
-	    unicode="LATIN CAPITAL LETTER C" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_ES"
+	    unicode="LATIN_CAPITAL_LETTER_C" />
 	<translation encoding="ISO8859-2" ucc="0441"
-	    cldr="CYRILLIC SMALL LETTER ES" unicode="LATIN SMALL LETTER C" />
+	    cldr="CYRILLIC_SMALL_LETTER_ES" unicode="LATIN_SMALL_LETTER_C" />
 	<translation encoding="ISO8859-2" ucc="0422"
-	    cldr="CYRILLIC CAPITAL LETTER TE"
-	    unicode="LATIN CAPITAL LETTER T" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_TE"
+	    unicode="LATIN_CAPITAL_LETTER_T" />
 	<translation encoding="ISO8859-2" ucc="0442"
-	    cldr="CYRILLIC SMALL LETTER TE" unicode="LATIN SMALL LETTER T" />
+	    cldr="CYRILLIC_SMALL_LETTER_TE" unicode="LATIN_SMALL_LETTER_T" />
 	<translation encoding="ISO8859-2" ucc="0423"
-	    cldr="CYRILLIC CAPITAL LETTER U" unicode="LATIN CAPITAL LETTER U" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_U" unicode="LATIN_CAPITAL_LETTER_U" />
 	<translation encoding="ISO8859-2" ucc="0443"
-	    cldr="CYRILLIC SMALL LETTER U" unicode="LATIN SMALL LETTER U" />
+	    cldr="CYRILLIC_SMALL_LETTER_U" unicode="LATIN_SMALL_LETTER_U" />
 	<translation encoding="ISO8859-2" ucc="0424"
-	    cldr="CYRILLIC CAPITAL LETTER EF"
-	    unicode="LATIN CAPITAL LETTER F" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_EF"
+	    unicode="LATIN_CAPITAL_LETTER_F" />
 	<translation encoding="ISO8859-2" ucc="0444"
-	    cldr="CYRILLIC SMALL LETTER EF" unicode="LATIN SMALL LETTER F" />
+	    cldr="CYRILLIC_SMALL_LETTER_EF" unicode="LATIN_SMALL_LETTER_F" />
 	<translation encoding="ISO8859-2" ucc="0425"
-	    cldr="CYRILLIC CAPITAL LETTER HA"
-	    unicode="LATIN CAPITAL LETTER H" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_HA"
+	    unicode="LATIN_CAPITAL_LETTER_H" />
 	<translation encoding="ISO8859-2" ucc="0445"
-	    cldr="CYRILLIC SMALL LETTER HA" unicode="LATIN SMALL LETTER H" />
+	    cldr="CYRILLIC_SMALL_LETTER_HA" unicode="LATIN_SMALL_LETTER_H" />
 	<translation encoding="ISO8859-2" ucc="0426"
-	    cldr="CYRILLIC CAPITAL LETTER TSE"
-	    unicode="LATIN CAPITAL LETTER C" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_TSE"
+	    unicode="LATIN_CAPITAL_LETTER_C" />
 	<translation encoding="ISO8859-2" ucc="0446"
-	    cldr="CYRILLIC SMALL LETTER TSE" unicode="LATIN SMALL LETTER C" />
+	    cldr="CYRILLIC_SMALL_LETTER_TSE" unicode="LATIN_SMALL_LETTER_C" />
 	<translation encoding="ISO8859-2" ucc="0427"
-	    cldr="CYRILLIC CAPITAL LETTER CHE"
-	    unicode="LATIN CAPITAL LETTER C WITH CARON" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_CHE"
+	    unicode="LATIN_CAPITAL_LETTER_C_WITH_CARON" />
 	<translation encoding="ISO8859-2" ucc="0447"
-	    cldr="CYRILLIC SMALL LETTER CHE"
-	    unicode="LATIN SMALL LETTER C WITH CARON" />
+	    cldr="CYRILLIC_SMALL_LETTER_CHE"
+	    unicode="LATIN_SMALL_LETTER_C_WITH_CARON" />
 	<translation encoding="ISO8859-2" ucc="0428"
-	    cldr="CYRILLIC CAPITAL LETTER SHA"
-	    unicode="LATIN CAPITAL LETTER S WITH CARON" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_SHA"
+	    unicode="LATIN_CAPITAL_LETTER_S_WITH_CARON" />
 	<translation encoding="ISO8859-2" ucc="0448"
-	    cldr="CYRILLIC SMALL LETTER SHA"
-	    unicode="LATIN SMALL LETTER S WITH CARON" />
+	    cldr="CYRILLIC_SMALL_LETTER_SHA"
+	    unicode="LATIN_SMALL_LETTER_S_WITH_CARON" />
 	<translation encoding="ISO8859-2" ucc="0429"
-	    cldr="CYRILLIC CAPITAL LETTER SHCHA"
-	    unicode="LATIN CAPITAL LETTER S WITH CIRCUMFLEX" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_SHCHA"
+	    unicode="LATIN_CAPITAL_LETTER_S_WITH_CIRCUMFLEX" />
 	<translation encoding="ISO8859-2" ucc="0449"
-	    cldr="CYRILLIC SMALL LETTER SHCHA"
-	    unicode="LATIN SMALL LETTER S WITH CIRCUMFLEX" />
+	    cldr="CYRILLIC_SMALL_LETTER_SHCHA"
+	    unicode="LATIN_SMALL_LETTER_S_WITH_CIRCUMFLEX" />
 	<translation encoding="ISO8859-2" ucc="042A"
-	    cldr="?CYRILLIC CAPITAL LETTER HARD SIGN" unicode="?" />
+	    cldr="?CYRILLIC_CAPITAL_LETTER_HARD_SIGN" unicode="?" />
 	<translation encoding="ISO8859-2" ucc="044A"
-	    cldr="?CYRILLIC SMALL LETTER HARD SIGN" unicode="?" />
+	    cldr="?CYRILLIC_SMALL_LETTER_HARD_SIGN" unicode="?" />
 	<translation encoding="ISO8859-2" ucc="042B"
-	    cldr="?CYRILLIC CAPITAL LETTER YERU" unicode="?" />
+	    cldr="?CYRILLIC_CAPITAL_LETTER_YERU" unicode="?" />
 	<translation encoding="ISO8859-2" ucc="044B"
-	    cldr="?CYRILLIC SMALL LETTER YERU" unicode="?" />
+	    cldr="?CYRILLIC_SMALL_LETTER_YERU" unicode="?" />
 	<translation encoding="ISO8859-2" ucc="042C"
-	    cldr="?CYRILLIC CAPITAL LETTER SOFT SIGN" unicode="?" />
+	    cldr="?CYRILLIC_CAPITAL_LETTER_SOFT_SIGN" unicode="?" />
 	<translation encoding="ISO8859-2" ucc="044C"
-	    cldr="?CYRILLIC SMALL LETTER SOFT SIGN" unicode="?" />
+	    cldr="?CYRILLIC_SMALL_LETTER_SOFT_SIGN" unicode="?" />
 	<translation encoding="ISO8859-2" ucc="042D"
-	    cldr="CYRILLIC CAPITAL LETTER E"
-	    unicode="LATIN CAPITAL LETTER E WITH GRAVE" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_E"
+	    unicode="LATIN_CAPITAL_LETTER_E_WITH_GRAVE" />
 	<translation encoding="ISO8859-2" ucc="044D"
-	    cldr="CYRILLIC SMALL LETTER E"
-	    unicode="LATIN SMALL LETTER E WITH GRAVE" />
+	    cldr="CYRILLIC_SMALL_LETTER_E"
+	    unicode="LATIN_SMALL_LETTER_E_WITH_GRAVE" />
 	<translation encoding="ISO8859-2" ucc="042E"
-	    cldr="?CYRILLIC CAPITAL LETTER YU" unicode="?" />
+	    cldr="?CYRILLIC_CAPITAL_LETTER_YU" unicode="?" />
 	<translation encoding="ISO8859-2" ucc="044E"
-	    cldr="?CYRILLIC SMALL LETTER YU" unicode="?" />
+	    cldr="?CYRILLIC_SMALL_LETTER_YU" unicode="?" />
 	<translation encoding="ISO8859-2" ucc="042F"
-	    cldr="CYRILLIC CAPITAL LETTER YA"
-	    unicode="LATIN CAPITAL LETTER A WITH CIRCUMFLEX" />
+	    cldr="CYRILLIC_CAPITAL_LETTER_YA"
+	    unicode="LATIN_CAPITAL_LETTER_A_WITH_CIRCUMFLEX" />
 	<translation encoding="ISO8859-2" ucc="044F"
-	    cldr="CYRILLIC SMALL LETTER YA"
-	    unicode="LATIN SMALL LETTER A WITH CIRCUMFLEX" />
+	    cldr="CYRILLIC_SMALL_LETTER_YA"
+	    unicode="LATIN_SMALL_LETTER_A_WITH_CIRCUMFLEX" />
 
 	<translation encoding="ISO8859-2"
-	    cldr="LATIN SMALL LETTER T WITH COMMA BELOW"
-	    unicode="LATIN SMALL LETTER T" />
+	    cldr="LATIN_SMALL_LETTER_T_WITH_COMMA_BELOW"
+	    unicode="LATIN_SMALL_LETTER_T" />
 
 	<translation encoding="ISO8859-5"
-	    cldr="MODIFIER LETTER APOSTROPHE" unicode="APOSTROPHE" />
+	    cldr="MODIFIER_LETTER_APOSTROPHE" unicode="APOSTROPHE" />
 	<translation encoding="ISO8859-5"
-	    cldr="LATIN SMALL LETTER C WITH CARON"
-	    unicode="LATIN SMALL LETTER C" />
+	    cldr="LATIN_SMALL_LETTER_C_WITH_CARON"
+	    unicode="LATIN_SMALL_LETTER_C" />
 
 	<translation encoding="KOI8-U"
-	    cldr="MODIFIER LETTER APOSTROPHE" unicode="APOSTROPHE" />
+	    cldr="MODIFIER_LETTER_APOSTROPHE" unicode="APOSTROPHE" />
 
 	<translation encoding="CP1251"
-	    cldr="MODIFIER LETTER APOSTROPHE" unicode="APOSTROPHE" />
+	    cldr="MODIFIER_LETTER_APOSTROPHE" unicode="APOSTROPHE" />
 
 	<!-- Copied from the original FreeBSD src/share/monetdef -->
-	<translation encoding="CP1251" cldr="HRYVNIA SIGN" hex="E3F0ED" />
-	<translation encoding="ISO8859-5" cldr="HRYVNIA SIGN" hex="D3E0DD" />
-	<translation encoding="KOI8-U" cldr="HRYVNIA SIGN" hex="C7D2CE" />
-	<translation encoding="CP866" cldr="RUBLE SIGN" hex="E0E3A1" />
-	<translation encoding="ISO8859-5" cldr="RUBLE SIGN" hex="E0E3D1" />
-	<translation encoding="CP1251" cldr="RUBLE SIGN" hex="E0E3D1" />
-	<translation encoding="KOI8-R" cldr="RUBLE SIGN" hex="D2D5C2" />
+	<translation encoding="CP1251" cldr="HRYVNIA_SIGN" hex="E3F0ED" />
+	<translation encoding="ISO8859-5" cldr="HRYVNIA_SIGN" hex="D3E0DD" />
+	<translation encoding="KOI8-U" cldr="HRYVNIA_SIGN" hex="C7D2CE" />
+	<translation encoding="CP866" cldr="RUBLE_SIGN" hex="E0E3A1" />
+	<translation encoding="ISO8859-5" cldr="RUBLE_SIGN" hex="E0E3D1" />
+	<translation encoding="CP1251" cldr="RUBLE_SIGN" hex="E0E3D1" />
+	<translation encoding="KOI8-R" cldr="RUBLE_SIGN" hex="D2D5C2" />
 
 	<!-- These don't have a special Kow sign so just use KRW for it -->
-	<translation encoding="CP949" cldr="WON SIGN" hex="5C" />
-	<translation encoding="eucKR" cldr="WON SIGN" hex="5C" />
+	<translation encoding="CP949" cldr="WON_SIGN" hex="5C" />
+	<translation encoding="eucKR" cldr="WON_SIGN" hex="5C" />
 
 	<!-- Asian characters -->
 	<translation encoding="GB2312 eucCN" cldr="C"
-	    unicode="FULLWIDTH LATIN CAPITAL LETTER C" />
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_C" />
 	<translation encoding="Big5" cldr="D"
-	    unicode="FULLWIDTH LATIN CAPITAL LETTER D" />
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_D" />
 	<translation encoding="GB2312 eucCN Big5" cldr="N"
-	    unicode="FULLWIDTH LATIN CAPITAL LETTER N" />
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_N" />
 	<translation encoding="Big5" cldr="T"
-	    unicode="FULLWIDTH LATIN CAPITAL LETTER T" />
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_T" />
 	<translation encoding="Big5" cldr="W"
-	    unicode="FULLWIDTH LATIN CAPITAL LETTER W" />
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_W" />
 	<translation encoding="GB2312 eucCN" cldr="Y"
-	    unicode="FULLWIDTH LATIN CAPITAL LETTER Y" />
+	    unicode="FULLWIDTH_LATIN_CAPITAL_LETTER_Y" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="one"
-	    unicode="FULLWIDTH DIGIT ONE" />
+	    unicode="FULLWIDTH_DIGIT_ONE" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="two"
-	    unicode="FULLWIDTH DIGIT TWO" />
+	    unicode="FULLWIDTH_DIGIT_TWO" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="three"
-	    unicode="FULLWIDTH DIGIT THREE" />
+	    unicode="FULLWIDTH_DIGIT_THREE" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="four"
-	    unicode="FULLWIDTH DIGIT FOUR" />
+	    unicode="FULLWIDTH_DIGIT_FOUR" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="five"
-	    unicode="FULLWIDTH DIGIT FIVE" />
+	    unicode="FULLWIDTH_DIGIT_FIVE" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="six"
-	    unicode="FULLWIDTH DIGIT SIX" />
+	    unicode="FULLWIDTH_DIGIT_SIX" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="seven"
-	    unicode="FULLWIDTH DIGIT SEVEN" />
+	    unicode="FULLWIDTH_DIGIT_SEVEN" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="eight"
-	    unicode="FULLWIDTH DIGIT EIGHT" />
+	    unicode="FULLWIDTH_DIGIT_EIGHT" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="nine"
-	    unicode="FULLWIDTH DIGIT NINE" />
+	    unicode="FULLWIDTH_DIGIT_NINE" />
 	<translation encoding="GB2312 Big5 eucCN" cldr="zero"
-	    unicode="FULLWIDTH DIGIT ZERO" />
+	    unicode="FULLWIDTH_DIGIT_ZERO" />
 	<translation encoding="GB2312 eucCN Big5" cldr="space"
-	    unicode="IDEOGRAPHIC SPACE" />
-	<translation encoding="GB2312 eucCN Big5" cldr="FULL STOP"
-	    unicode="FULLWIDTH FULL STOP" />
+	    unicode="IDEOGRAPHIC_SPACE" />
+	<translation encoding="GB2312 eucCN Big5" cldr="FULL_STOP"
+	    unicode="FULLWIDTH_FULL_STOP" />
 	<translation encoding="GB2312 eucCN Big5" cldr="SOLIDUS"
-	    unicode="FULLWIDTH SOLIDUS" />
+	    unicode="FULLWIDTH_SOLIDUS" />
 	<translation encoding="GB2312 eucCN Big5" cldr="COMMA"
-	    unicode="FULLWIDTH COMMA" />
+	    unicode="FULLWIDTH_COMMA" />
 	<translation encoding="GB2312 eucCN Big5" cldr="HYPHEN-MINUS"
-	    unicode="FULLWIDTH HYPHEN-MINUS" />
-	<translation encoding="Big5" cldr="DOLLAR SIGN"
-	    unicode="FULLWIDTH DOLLAR SIGN" />
+	    unicode="FULLWIDTH_HYPHEN-MINUS" />
+	<translation encoding="Big5" cldr="DOLLAR_SIGN"
+	    unicode="FULLWIDTH_DOLLAR_SIGN" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E00" ucc="4E00" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E00" ucc="4E00" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E03" ucc="4E03" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E03" ucc="4E03" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E09" ucc="4E09" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E09" ucc="4E09" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E0A" ucc="4E0A" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E0A" ucc="4E0A" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E0B" ucc="4E0B" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E0B" ucc="4E0B" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E0D" ucc="4E0D" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E0D" ucc="4E0D" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E5D" ucc="4E5D" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E5D" ucc="4E5D" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E8C" ucc="4E8C" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E8C" ucc="4E8C" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-4E94" ucc="4E94" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-4E94" ucc="4E94" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-516B" ucc="516B" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-516B" ucc="516B" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-516D" ucc="516D" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-516D" ucc="516D" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-5206" ucc="5206" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5206" ucc="5206" />
 	<translation encoding="eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-524D" ucc="524D" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-524D" ucc="524D" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-5341" ucc="5341" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5341" ucc="5341" />
 	<translation
 	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-5348" ucc="5348" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5348" ucc="5348" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-5426" ucc="5426" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5426" ucc="5426" />
 	<translation encoding="GB2312 GB18030 GBK eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-5468" ucc="5468" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5468" ucc="5468" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-56DB" ucc="56DB" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-56DB" ucc="56DB" />
 	<translation encoding="eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-571F" ucc="571F" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-571F" ucc="571F" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-5B9A" ucc="5B9A" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5B9A" ucc="5B9A" />
 	<translation
 	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-5E74" ucc="5E74" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5E74" ucc="5E74" />
 	<translation encoding="eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-5F8C" ucc="5F8C" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-5F8C" ucc="5F8C" />
 	<translation
 	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-65E5" ucc="65E5" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-65E5" ucc="65E5" />
 	<translation encoding="GB2312 GB18030 GBK eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-65F6" ucc="65F6" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-65F6" ucc="65F6" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-661F" ucc="661F" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-661F" ucc="661F" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-662F" ucc="662F" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-662F" ucc="662F" />
 	<translation encoding="Big5 "
-	    cldr="CJK UNIFIED IDEOGRAPH-6642" ucc="6642" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-6642" ucc="6642" />
 	<translation encoding="eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-66DC" ucc="66DC" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-66DC" ucc="66DC" />
 	<translation
 	    encoding="GB2312 GB18030 GBK Big5 eucCN eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-6708" ucc="6708" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-6708" ucc="6708" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-671F" ucc="671F" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-671F" ucc="671F" />
 	<translation encoding="eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-6728" ucc="6728" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-6728" ucc="6728" />
 	<translation encoding="eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-6C34" ucc="6C34" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-6C34" ucc="6C34" />
 	<translation encoding="eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-706B" ucc="706B" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-706B" ucc="706B" />
 	<translation encoding="GB2312 GB18030 GBK eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-786E" ucc="786E" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-786E" ucc="786E" />
 	<translation encoding="Big5 "
-	    cldr="CJK UNIFIED IDEOGRAPH-78BA" ucc="78BA" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-78BA" ucc="78BA" />
 	<translation encoding="GB2312 GB18030 GBK Big5 eucCN"
-	    cldr="CJK UNIFIED IDEOGRAPH-79D2" ucc="79D2" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-79D2" ucc="79D2" />
 	<translation encoding="Big5 "
-	    cldr="CJK UNIFIED IDEOGRAPH-9031" ucc="9031" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-9031" ucc="9031" />
 	<translation encoding="eucJP SJIS"
-	    cldr="CJK UNIFIED IDEOGRAPH-91D1" ucc="91D1" />
+	    cldr="CJK_UNIFIED_IDEOGRAPH-91D1" ucc="91D1" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE GEUM" ucc="AE08" />
+	    cldr="HANGUL_SYLLABLE_GEUM" ucc="AE08" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE NYEON" ucc="B144" />
+	    cldr="HANGUL_SYLLABLE_NYEON" ucc="B144" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE NI" ucc="B2C8" />
+	    cldr="HANGUL_SYLLABLE_NI" ucc="B2C8" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE MOG" ucc="BAA9" />
+	    cldr="HANGUL_SYLLABLE_MOG" ucc="BAA9" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE BUN" ucc="BD84" />
+	    cldr="HANGUL_SYLLABLE_BUN" ucc="BD84" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE SU" ucc="C218" />
+	    cldr="HANGUL_SYLLABLE_SU" ucc="C218" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE SI" ucc="C2DC" />
+	    cldr="HANGUL_SYLLABLE_SI" ucc="C2DC" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE A" ucc="C544" />
+	    cldr="HANGUL_SYLLABLE_A" ucc="C544" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE YE" ucc="C608" />
+	    cldr="HANGUL_SYLLABLE_YE" ucc="C608" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE O" ucc="C624" />
+	    cldr="HANGUL_SYLLABLE_O" ucc="C624" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE YO" ucc="C694" />
+	    cldr="HANGUL_SYLLABLE_YO" ucc="C694" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE WEOL" ucc="C6D4" />
+	    cldr="HANGUL_SYLLABLE_WEOL" ucc="C6D4" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE IL" ucc="C77C" />
+	    cldr="HANGUL_SYLLABLE_IL" ucc="C77C" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE JEON" ucc="C804" />
+	    cldr="HANGUL_SYLLABLE_JEON" ucc="C804" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE CO" ucc="CD08" />
+	    cldr="HANGUL_SYLLABLE_CO" ucc="CD08" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE TO" ucc="D1A0" />
+	    cldr="HANGUL_SYLLABLE_TO" ucc="D1A0" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE HWA" ucc="D654" />
+	    cldr="HANGUL_SYLLABLE_HWA" ucc="D654" />
 	<translation encoding="eucKR"
-	    cldr="HANGUL SYLLABLE HU" ucc="D6C4" />
+	    cldr="HANGUL_SYLLABLE_HU" ucc="D6C4" />
 
 	<translation encoding="ARMSCII-8"
-	    cldr="ONE DOT LEADER" unicode="FULL STOP" />
+	    cldr="ONE_DOT_LEADER" unicode="FULL_STOP" />
 
-	<translation encoding="US-ASCII" cldr="POUND SIGN" string="GBP" />
+	<translation encoding="US-ASCII" cldr="POUND_SIGN" string="GBP" />
 	<translation encoding="US-ASCII"
-	    cldr="NO-BREAK SPACE" unicode="SPACE" />
+	    cldr="NO-BREAK_SPACE" unicode="SPACE" />
 
 	<translation encoding="ISO8859-1 ISO8859-15"
-	    cldr="NARROW NO-BREAK SPACE" unicode="NO-BREAK SPACE" />
+	    cldr="NARROW_NO-BREAK_SPACE" unicode="NO-BREAK_SPACE" />
 
 	<!-- punctuation and currency -->
 	<translation encoding="ISO8859-1 ISO8859-15"
-	    cldr="RIGHT SINGLE QUOTATION MARK" unicode="APOSTROPHE" />
+	    cldr="RIGHT_SINGLE_QUOTATION_MARK" unicode="APOSTROPHE" />
 
-	<translation encoding="ISCII-DEV" cldr="INDIAN RUPEE SIGN" hex="FC" />
-	<translation encoding="ISO8859-1" cldr="PESO SIGN" hex="A4" />
-	<translation encoding="ISO8859-1" cldr="COLON SIGN" hex="A4" />
-	<translation encoding="ARMSCII-8" cldr="ARMENIAN DRAM SIGN"
+	<translation encoding="ISCII-DEV" cldr="INDIAN_RUPEE_SIGN" hex="FC" />
+	<translation encoding="ISO8859-1" cldr="PESO_SIGN" hex="A4" />
+	<translation encoding="ISO8859-1" cldr="COLON_SIGN" hex="A4" />
+	<translation encoding="ARMSCII-8" cldr="ARMENIAN_DRAM_SIGN"
 	    hex="B9F12E" />
-	<translation encoding="ISO8859-9" cldr="TURKISH LIRA SIGN"
+	<translation encoding="ISO8859-9" cldr="TURKISH_LIRA_SIGN"
 	    string="TL" />
 
 </translations>

@@ -168,7 +168,8 @@ ENCODINGS=	Big5 \
 		KOI8-U \
 		SJIS \
 		US-ASCII \
-		UTF-8
+		UTF-8 \
+		UTF-32
 
 # CLDR files
 CLDRFILES_CORE= https://unicode.org/Public/cldr/35/core.zip
@@ -211,9 +212,10 @@ ${UNIDIR}/posix:
 	ln -s -f ../posix ${.TARGET}
 clean-posix:
 	rm -rf posix ${UNIDIR}/posix
-post-posixcm: ${UNIDIR}/posix
+${UNIDIR}/posix/xx_Comm_C.UTF-8.src: ${UNIDIR}/posix
 	perl -I ${TOOLSDIR} ${TOOLSDIR}/utf8-rollup.pl \
 	    --unidir=${UNIDIR}
+post-posixcm: ${UNIDIR}/posix/xx_Comm_C.UTF-8.src
 .for enc in ${ENCODINGS}
 posixcm: build-tools posix/${enc}.cm
 .ORDER: build-tools posix/${enc}.cm

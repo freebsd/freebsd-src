@@ -4,6 +4,7 @@
 #
 # Copyright 2009 Edwin Groothuis <edwin@FreeBSD.org>
 # Copyright 2015 John Marino <draco@marino.st>
+# Copyright 2020 Hiroki Sato <hrs@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -38,7 +39,6 @@ use Getopt::Long;
 use Digest::SHA qw(sha1_hex);
 require "charmaps.pm";
 
-
 if ($#ARGV < 2) {
 	print "Usage: $0 --unidir=<unidir> --etc=<etcdir> --type=<type>\n";
 	exit(1);
@@ -69,10 +69,11 @@ my %encodings = ();
 my %alternativemonths = ();
 get_languages();
 
-my %utf8map = ();
-my %utf8aliases = ();
-get_unidata($UNIDIR);
-get_utf8map("$UNIDIR/posix/$DEFENCODING.cm");
+my %utfmap = ();
+$utfmap{'UTF-8'} = {};
+$utfmap{'UTF-32'} = {};
+get_utfmap("$UNIDIR/posix/$DEFENCODING.cm", $utfmap{'UTF-8'});
+get_utfmap("$UNIDIR/posix/UTF-32.cm", $utfmap{'UTF-32'});
 get_encodings("$ETCDIR/charmaps");
 
 my %keys = ();
@@ -334,25 +335,8 @@ sub callback_abmon {
 
 ############################
 
-sub get_unidata {
-	my $directory = shift;
-
-	open(FIN, "$directory/UnicodeData.txt")
-	    or die("Cannot open $directory/UnicodeData.txt");;
-	my @lines = <FIN>;
-	chomp(@lines);
-	close(FIN);
-
-	foreach my $l (@lines) {
-		my @a = split(/;/, $l);
-
-		$ucd{code2name}{"$a[0]"} = $a[1];	# Unicode name
-		$ucd{name2code}{"$a[1]"} = $a[0];	# Unicode code
-	}
-}
-
-sub get_utf8map {
-	my $file = shift;
+sub get_utfmap {
+	my ($file, $db) = @_;
 
 	open(FIN, $file);
 	my @lines = <FIN>;
@@ -363,7 +347,7 @@ sub get_utf8map {
 	my $prev_v = "";
 	my $incharmap = 0;
 	foreach my $l (@lines) {
-		$l =~ s/\r//;
+		chomp($l);
 		next if ($l =~ /^\#/);
 		next if ($l eq "");
 
@@ -378,15 +362,26 @@ sub get_utf8map {
 		$l =~ /^<([^\s]+)>\s+(.*)/;
 		my $k = $1;
 		my $v = $2;
-		$k =~ s/_/ /g;		# unicode char string
 		$v =~ s/\\x//g;		# UTF-8 char code
-		$utf8map{$k} = $v;
+		$db->{$k} = $v;
+#		print STDERR "UTF $k = $v\n";
 
-		$utf8aliases{$k} = $prev_k if ($prev_v eq $v);
+		# XXX: no longer needed
+		# $db_alias->{$k} = $prev_k if ($prev_v eq $v);
 
 		$prev_v = $v;
 		$prev_k = $k;
 	}
+}
+
+sub resolve_enc_addition {
+	my $ret = '';
+
+	foreach my $t (split(/\+/, $_[0])) {
+		$t =~ s/^0[xX]//;
+		$ret .= $t;
+	}
+	return $ret;
 }
 
 sub get_encodings {
@@ -403,14 +398,20 @@ sub get_encodings {
 		chomp(@lines);
 		foreach my $l (@lines) {
 			$l =~ s/\r//;
-			next if ($l =~ /^\#/);
 			next if ($l eq "");
 
 			my @a = split(" ", $l);
 			next if ($#a < 1);
-			$a[0] =~ s/^0[xX]//;	# local char code
-			$a[1] =~ s/^0[xX]//;	# unicode char code
-			$convertors{$e}{uc($a[1])} = uc($a[0]);
+			next if ($a[0] =~ /^\#/ or $a[1] =~ /^\#/);
+			next if ($a[0] eq '' or $a[1] eq '');
+
+			$a[0] = resolve_enc_addition($a[0]);	# local
+			$a[1] = resolve_enc_addition($a[1]);	# UTF-32
+			my $u32 = sprintf("%08X", hex($a[1]));
+#			print STDERR "$a[1] => $u32\n";
+
+			# Use UTF-32 as the indices.
+			$convertors{$e}{$u32} = uc($a[0]);
 		}
 	}
 }
@@ -565,8 +566,75 @@ EOF
 
 		foreach my $enc (sort keys(%{$languages{$l}{$f}{data}{$c}})) {
 			next if ($enc eq $DEFENCODING);
-			copy ("$TYPE.draft/$actfile.$DEFENCODING.src",
-			      "$TYPE.draft/$actfile.$enc.src");
+
+			open FIN, "<$TYPE.draft/$actfile.$DEFENCODING.src";
+			open FOUT, ">$TYPE.draft/$actfile.$enc.src";
+			my $order_start = 0;
+			my $print_p = 0;
+			#
+			# %c_elem: collation elements
+			#
+			#   undef: not defined
+			#   1: defined
+			#   2: invalid in this encoding
+			#
+			my %c_elem = ();
+			while (<FIN>) {	# XXX: this loop should be refactored.
+				chomp;
+				$print_p = 1;
+				if ($order_start) {
+					$order_start = 0 if (m/^order_end/);
+					if (m/^<([^>]+)>/) {
+						if (not defined $c_elem{$1}) {
+#							print STDERR "$1:\n";
+
+							my $u32 = $utfmap{'UTF-32'}->{$1};
+							die "order, $1\n" if (not defined $u32);
+#							print STDERR "u32 for $1 = $u32\n";
+							if (not defined $convertors{$enc}{$u32}) {
+#								print STDERR "$1 - $u32 not defined in $enc\n";
+								$print_p = 0;
+							}
+						} elsif ($c_elem{$1} == 2) {
+#							print STDERR "$1 is marked as invalid in $enc\n";
+							$print_p = 0;
+						}
+					}
+				} elsif (m/^collating-element/) {
+					my ($elem, $l);
+					if (m/<([^>]+)> from (.+)/) {
+						($elem, $l) = ($1, $2);
+					}
+#					print STDERR "$elem: enter ($print_p, $l,)\n";
+					while ($print_p and
+					    defined $l and
+					    $l =~ m/<([^>]+)>/g) {
+#						print STDERR "$elem: $1\n";
+						my $u32 = $utfmap{'UTF-32'}->{$1};
+						die "collating-element, $1\n" if (not defined $u32);
+#						print STDERR "u32 for $1 = $u32\n";
+						if (not $convertors{$enc}{$u32}) {
+#							print STDERR "$1 - $u32 not defined in $enc\n";
+							$print_p = 0;
+#							print STDERR "Mark $elem as invalid\n";
+							$c_elem{$elem} = 2;
+						}
+					}
+					if ($print_p) {
+#						print STDERR "Add $elem\n";
+						$c_elem{$elem} = 1;
+					}
+				} elsif (m/^collating-symbol <([^>]+)>/) {
+#					print STDERR "Add $1\n";
+					$c_elem{$1} = 1;
+				} elsif (m/^order_start/) {
+					$order_start = 1;
+					# do nothing
+				}
+				print FOUT $_, "\n" if ($print_p);
+			}
+			close FOUT;
+			close FIN;
 			$languages{$l}{$f}{data}{$c}{$enc} = $shex;
 			$hashtable{$shex}{"${l}_${f}_${c}.$enc"} = 1;
 		}
@@ -626,11 +694,11 @@ sub get_fields {
 				$continue = ($line =~ /\/$/);
 				$line =~ s/\/$// if ($continue);
 
-				while ($line =~ /_/) {
-					$line =~
-					    s/\<([^>_]+)_([^>]+)\>/<$1 $2>/;
-				}
-				die "_ in data - $line" if ($line =~ /_/);
+#				while ($line =~ /_/) {
+#					$line =~
+#					    s/\<([^>_]+)_([^>]+)\>/<$1 $2>/;
+#				}
+#				die "_ in data - $line" if ($line =~ /_/);
 				$values{$l}{$f}{$c}{$k} .= $line;
 
 				last if (!$continue);
@@ -652,56 +720,52 @@ sub decodecldr {
 		# Conversion to UTF-8 can be done from the Unicode name to
 		# the UTF-8 character code.
 		#
-		$v = $utf8map{$s};
+		$v = $utfmap{'UTF-8'}->{$s};
 		die "Cannot convert $s in $e (charmap)" if (!defined $v);
 	} else {
 		#
 		# Conversion to these encodings can be done from the Unicode
 		# name to Unicode code to the encodings code.
 		#
-		my $ucc = undef;
-		$ucc = $ucd{name2code}{$s} if (defined $ucd{name2code}{$s});
-		$ucc = $ucd{name2code}{$utf8aliases{$s}}
-			if (!defined $ucc
-			 && $utf8aliases{$s}
-			 && defined $ucd{name2code}{$utf8aliases{$s}});
+		# hex - hex or string attr
+		# unicode - unicode attr
+		# ucc - ucc attr
+		my $hex = $translations{$e}{$s}{hex};
+		my $ucc = $utfmap{'UTF-32'}->{$s};
+		my $ucc_attr = $translations{$e}{$s}{ucc};
+		my $unicode = $translations{$e}{$s}{unicode};
 
-		if (!defined $ucc) {
-			if (defined $translations{$e}{$s}{hex}) {
-				$v = $translations{$e}{$s}{hex};
-				$ucc = 0;
-			} elsif (defined $translations{$e}{$s}{ucc}) {
-				$ucc = $translations{$e}{$s}{ucc};
+		if (defined $hex) {		# hex is in local encoding
+			$v = $hex;
+		} elsif (defined $unicode) {	# unicode is in name
+			$v = $convertors{$e}{$utfmap{'UTF-32'}->{$unicode}};
+		} elsif (defined $ucc_attr) {	# ucc is in code point
+			if (defined $ucc) {
+#				print STDERR "INFO: ucc=$ucc_attr ",
+#				    "overrides $ucc in UTF-32\n";
 			}
-		}
-
-		die "Cannot convert $s in $e (ucd string)" if (!defined $ucc);
-		$v = $convertors{$e}{$ucc} if (!defined $v);
-
-		$v = $translations{$e}{$s}{hex}
-			if (!defined $v && defined $translations{$e}{$s}{hex});
-
-		if (!defined $v && defined $translations{$e}{$s}{unicode}) {
-			my $ucn = $translations{$e}{$s}{unicode};
-			$ucc = $ucd{name2code}{$ucn}
-				if (defined $ucd{name2code}{$ucn});
-			$ucc = $ucd{name2code}{$utf8aliases{$ucn}}
-				if (!defined $ucc
-				 && defined $ucd{name2code}{$utf8aliases{$ucn}});
+			# normalize
+			$ucc_attr = sprintf("%08X", hex($ucc_attr));
+#			print STDERR "convert $ucc_attr into $e\n";
+			$v = $convertors{$e}{$ucc_attr};
+		} elsif (defined $ucc) {
+			# normalize
+			$ucc = sprintf("%08X", hex($ucc));
+#			print STDERR "convert $ucc into $e\n";
 			$v = $convertors{$e}{$ucc};
 		}
-
-		die "Cannot convert $s in $e (charmap)" if (!defined $v);
+		die "Cannot convert $s in $e" if (!defined $v);
 	}
 
+	# XXX: length = 8 is not supported yet.
+	$v =~ s/^[0]+//g;
+	$v = "0" . $v if (length($v) % 2);
 	return pack("C", hex($v)) if (length($v) == 2);
 	return pack("CC", hex(substr($v, 0, 2)), hex(substr($v, 2, 2)))
 		if (length($v) == 4);
 	return pack("CCC", hex(substr($v, 0, 2)), hex(substr($v, 2, 2)),
 	    hex(substr($v, 4, 2))) if (length($v) == 6);
-	print STDERR "Cannot convert $e $s\n";
-	return "length = " . length($v);
-
+	die "Cannot convert $s in $e (length = " . length($v) . "\n";
 }
 
 sub translate {
