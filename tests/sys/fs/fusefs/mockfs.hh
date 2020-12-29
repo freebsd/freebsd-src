@@ -157,6 +157,7 @@ union fuse_payloads_in {
 	uint8_t		bytes[
 	    max_max_write + 0x1000 - sizeof(struct fuse_in_header)
 	];
+	fuse_copy_file_range_in	copy_file_range;
 	fuse_create_in	create;
 	fuse_flush_in	flush;
 	fuse_fsync_in	fsync;

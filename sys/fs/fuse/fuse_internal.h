@@ -274,6 +274,10 @@ void fuse_internal_vnode_disappear(struct vnode *vp);
 int fuse_internal_setattr(struct vnode *vp, struct vattr *va,
 	struct thread *td, struct ucred *cred);
 
+/* write */
+void fuse_internal_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
+    struct thread *td);
+
 /* strategy */
 
 /* entity creation */

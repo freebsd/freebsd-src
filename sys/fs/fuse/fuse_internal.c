@@ -1054,6 +1054,9 @@ fuse_internal_init_callback(struct fuse_ticket *tick, struct uio *uio)
 	if (!fuse_libabi_geq(data, 7, 24))
 		fsess_set_notimpl(data->mp, FUSE_LSEEK);
 
+	if (!fuse_libabi_geq(data, 7, 28))
+		fsess_set_notimpl(data->mp, FUSE_COPY_FILE_RANGE);
+
 out:
 	if (err) {
 		fdata_set_dead(data);
@@ -1098,6 +1101,12 @@ fuse_internal_send_init(struct fuse_data *data, struct thread *td)
 	 * FUSE_READDIRPLUS_AUTO: not yet implemented
 	 * FUSE_ASYNC_DIO: not yet implemented
 	 * FUSE_NO_OPEN_SUPPORT: not yet implemented
+	 * FUSE_PARALLEL_DIROPS: not yet implemented
+	 * FUSE_HANDLE_KILLPRIV: not yet implemented
+	 * FUSE_POSIX_ACL: not yet implemented
+	 * FUSE_ABORT_ERROR: not yet implemented
+	 * FUSE_CACHE_SYMLINKS: not yet implemented
+	 * FUSE_MAX_PAGES: not yet implemented
 	 */
 	fiii->flags = FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_EXPORT_SUPPORT
 		| FUSE_BIG_WRITES | FUSE_WRITEBACK_CACHE;
@@ -1226,6 +1235,45 @@ int fuse_internal_setattr(struct vnode *vp, struct vattr *vap,
 out:
 	fdisp_destroy(&fdi);
 	return err;
+}
+
+/*
+ * FreeBSD clears the SUID and SGID bits on any write by a non-root user.
+ */
+void
+fuse_internal_clear_suid_on_write(struct vnode *vp, struct ucred *cred,
+	struct thread *td)
+{
+	struct fuse_data *data;
+	struct mount *mp;
+	struct vattr va;
+	int dataflags;
+
+	mp = vnode_mount(vp);
+	data = fuse_get_mpdata(mp);
+	dataflags = data->dataflags;
+
+	ASSERT_VOP_LOCKED(vp, __func__);
+
+	if (dataflags & FSESS_DEFAULT_PERMISSIONS) {
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID)) {
+			fuse_internal_getattr(vp, &va, cred, td);
+			if (va.va_mode & (S_ISUID | S_ISGID)) {
+				mode_t mode = va.va_mode & ~(S_ISUID | S_ISGID);
+				/* Clear all vattr fields except mode */
+				vattr_null(&va);
+				va.va_mode = mode;
+
+				/*
+				 * Ignore fuse_internal_setattr's return value,
+				 * because at this point the write operation has
+				 * already succeeded and we don't want to return
+				 * failing status for that.
+				 */
+				(void)fuse_internal_setattr(vp, &va, td, NULL);
+			}
+		}
+	}
 }
 
 #ifdef ZERO_PAD_INCOMPLETE_BUFS

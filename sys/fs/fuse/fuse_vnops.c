@@ -130,6 +130,7 @@ static vop_advlock_t fuse_vnop_advlock;
 static vop_bmap_t fuse_vnop_bmap;
 static vop_close_t fuse_fifo_close;
 static vop_close_t fuse_vnop_close;
+static vop_copy_file_range_t fuse_vnop_copy_file_range;
 static vop_create_t fuse_vnop_create;
 static vop_deleteextattr_t fuse_vnop_deleteextattr;
 static vop_fdatasync_t fuse_vnop_fdatasync;
@@ -185,6 +186,7 @@ struct vop_vector fuse_vnops = {
 	.vop_advlock = fuse_vnop_advlock,
 	.vop_bmap = fuse_vnop_bmap,
 	.vop_close = fuse_vnop_close,
+	.vop_copy_file_range = fuse_vnop_copy_file_range,
 	.vop_create = fuse_vnop_create,
 	.vop_deleteextattr = fuse_vnop_deleteextattr,
 	.vop_fsync = fuse_vnop_fsync,
@@ -607,6 +609,126 @@ fuse_vnop_close(struct vop_close_args *ap)
 		fuse_vnode_savesize(vp, cred, td->td_proc->p_pid);
 	}
 	return err;
+}
+
+/*
+   struct vop_copy_file_range_args {
+	struct vop_generic_args a_gen;
+	struct vnode *a_invp;
+	off_t *a_inoffp;
+	struct vnode *a_outvp;
+	off_t *a_outoffp;
+	size_t *a_lenp;
+	unsigned int a_flags;
+	struct ucred *a_incred;
+	struct ucred *a_outcred;
+	struct thread *a_fsizetd;
+}
+ */
+static int
+fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
+{
+	struct vnode *invp = ap->a_invp;
+	struct vnode *outvp = ap->a_outvp;
+	struct mount *mp = vnode_mount(invp);
+	struct fuse_dispatcher fdi;
+	struct fuse_filehandle *infufh, *outfufh;
+	struct fuse_copy_file_range_in *fcfri;
+	struct ucred *incred = ap->a_incred;
+	struct ucred *outcred = ap->a_outcred;
+	struct fuse_write_out *fwo;
+	struct thread *td;
+	struct uio io;
+	pid_t pid;
+	int err;
+
+	if (mp != vnode_mount(outvp))
+		goto fallback;
+
+	if (incred->cr_uid != outcred->cr_uid)
+		goto fallback;
+
+	if (incred->cr_groups[0] != outcred->cr_groups[0])
+		goto fallback;
+
+	if (fsess_not_impl(mp, FUSE_COPY_FILE_RANGE))
+		goto fallback;
+
+	if (ap->a_fsizetd == NULL)
+		td = curthread;
+	else
+		td = ap->a_fsizetd;
+	pid = td->td_proc->p_pid;
+
+	err = fuse_filehandle_getrw(invp, FREAD, &infufh, incred, pid);
+	if (err)
+		return (err);
+
+	err = fuse_filehandle_getrw(outvp, FWRITE, &outfufh, outcred, pid);
+	if (err)
+		return (err);
+
+	/* Lock both vnodes, avoiding risk of deadlock. */
+	do {
+		err = vn_lock(outvp, LK_EXCLUSIVE);
+		if (invp == outvp)
+			break;
+		if (err == 0) {
+			err = vn_lock(invp, LK_SHARED | LK_NOWAIT);
+			if (err == 0)
+				break;
+			VOP_UNLOCK(outvp);
+			err = vn_lock(invp, LK_SHARED);
+			if (err == 0)
+				VOP_UNLOCK(invp);
+		}
+	} while (err == 0);
+	if (err != 0)
+		return (err);
+
+	if (ap->a_fsizetd) {
+		io.uio_offset = *ap->a_outoffp;
+		io.uio_resid = *ap->a_lenp;
+		err = vn_rlimit_fsize(outvp, &io, ap->a_fsizetd);
+		if (err)
+			goto unlock;
+	}
+
+	fdisp_init(&fdi, sizeof(*fcfri));
+	fdisp_make_vp(&fdi, FUSE_COPY_FILE_RANGE, invp, td, incred);
+	fcfri = fdi.indata;
+	fcfri->fh_in = infufh->fh_id;
+	fcfri->off_in = *ap->a_inoffp;
+	fcfri->nodeid_out = VTOI(outvp);
+	fcfri->fh_out = outfufh->fh_id;
+	fcfri->off_out = *ap->a_outoffp;
+	fcfri->len = *ap->a_lenp;
+	fcfri->flags = 0;
+
+	err = fdisp_wait_answ(&fdi);
+	if (err == 0) {
+		fwo = fdi.answ;
+		*ap->a_lenp = fwo->size;
+		*ap->a_inoffp += fwo->size;
+		*ap->a_outoffp += fwo->size;
+		fuse_internal_clear_suid_on_write(outvp, outcred, td);
+	}
+	fdisp_destroy(&fdi);
+
+unlock:
+	if (invp != outvp)
+		VOP_UNLOCK(invp);
+	VOP_UNLOCK(outvp);
+
+	if (err == ENOSYS) {
+		fsess_set_notimpl(mp, FUSE_COPY_FILE_RANGE);
+fallback:
+		err = vn_generic_copy_file_range(ap->a_invp, ap->a_inoffp,
+		    ap->a_outvp, ap->a_outoffp, ap->a_lenp, ap->a_flags,
+		    ap->a_incred, ap->a_outcred, ap->a_fsizetd);
+	}
+
+	return (err);
 }
 
 static void
