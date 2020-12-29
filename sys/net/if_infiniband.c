@@ -143,25 +143,203 @@ infiniband_bpf_mtap(struct ifnet *ifp, struct mbuf *mb)
 	mb->m_pkthdr.len += sizeof(*ibh);
 }
 
+static void
+update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
+{
+	int csum_flags = 0;
+
+	if (src->m_pkthdr.csum_flags & CSUM_IP)
+		csum_flags |= (CSUM_IP_CHECKED|CSUM_IP_VALID);
+	if (src->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
+		csum_flags |= (CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
+	if (src->m_pkthdr.csum_flags & CSUM_SCTP)
+		csum_flags |= CSUM_SCTP_VALID;
+	dst->m_pkthdr.csum_flags |= csum_flags;
+	if (csum_flags & CSUM_DATA_VALID)
+		dst->m_pkthdr.csum_data = 0xffff;
+}
+
+/*
+ * Handle link-layer encapsulation requests.
+ */
+static int
+infiniband_requestencap(struct ifnet *ifp, struct if_encap_req *req)
+{
+	struct infiniband_header *ih;
+	struct arphdr *ah;
+	uint16_t etype;
+	const uint8_t *lladdr;
+
+	if (req->rtype != IFENCAP_LL)
+		return (EOPNOTSUPP);
+
+	if (req->bufsize < INFINIBAND_HDR_LEN)
+		return (ENOMEM);
+
+	ih = (struct infiniband_header *)req->buf;
+	lladdr = req->lladdr;
+	req->lladdr_off = 0;
+
+	switch (req->family) {
+	case AF_INET:
+		etype = htons(ETHERTYPE_IP);
+		break;
+	case AF_INET6:
+		etype = htons(ETHERTYPE_IPV6);
+		break;
+	case AF_ARP:
+		ah = (struct arphdr *)req->hdata;
+		ah->ar_hrd = htons(ARPHRD_INFINIBAND);
+
+		switch (ntohs(ah->ar_op)) {
+		case ARPOP_REVREQUEST:
+		case ARPOP_REVREPLY:
+			etype = htons(ETHERTYPE_REVARP);
+			break;
+		case ARPOP_REQUEST:
+		case ARPOP_REPLY:
+		default:
+			etype = htons(ETHERTYPE_ARP);
+			break;
+		}
+
+		if (req->flags & IFENCAP_FLAG_BROADCAST)
+			lladdr = ifp->if_broadcastaddr;
+		break;
+	default:
+		return (EAFNOSUPPORT);
+	}
+
+	ih->ib_protocol = etype;
+	ih->ib_reserved = 0;
+	memcpy(ih->ib_hwaddr, lladdr, INFINIBAND_ADDR_LEN);
+	req->bufsize = sizeof(struct infiniband_header);
+
+	return (0);
+}
+
+static int
+infiniband_resolve_addr(struct ifnet *ifp, struct mbuf *m,
+    const struct sockaddr *dst, struct route *ro, uint8_t *phdr,
+    uint32_t *pflags, struct llentry **plle)
+{
+	struct infiniband_header *ih;
+	uint32_t lleflags = 0;
+	int error = 0;
+
+	if (plle)
+		*plle = NULL;
+	ih = (struct infiniband_header *)phdr;
+
+	switch (dst->sa_family) {
+#ifdef INET
+	case AF_INET:
+		if ((m->m_flags & (M_BCAST | M_MCAST)) == 0) {
+			error = arpresolve(ifp, 0, m, dst, phdr, &lleflags, plle);
+		} else {
+			if (m->m_flags & M_BCAST) {
+				memcpy(ih->ib_hwaddr, ifp->if_broadcastaddr,
+				    INFINIBAND_ADDR_LEN);
+			} else {
+				infiniband_ipv4_multicast_map(
+				    ((const struct sockaddr_in *)dst)->sin_addr.s_addr,
+				    ifp->if_broadcastaddr, ih->ib_hwaddr);
+			}
+			ih->ib_protocol = htons(ETHERTYPE_IP);
+			ih->ib_reserved = 0;
+		}
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if ((m->m_flags & M_MCAST) == 0) {
+			error = nd6_resolve(ifp, 0, m, dst, phdr, &lleflags, plle);
+		} else {
+			infiniband_ipv6_multicast_map(
+			    &((const struct sockaddr_in6 *)dst)->sin6_addr,
+			    ifp->if_broadcastaddr, ih->ib_hwaddr);
+			ih->ib_protocol = htons(ETHERTYPE_IPV6);
+			ih->ib_reserved = 0;
+		}
+		break;
+#endif
+	default:
+		if_printf(ifp, "can't handle af%d\n", dst->sa_family);
+		if (m != NULL)
+			m_freem(m);
+		return (EAFNOSUPPORT);
+	}
+
+	if (error == EHOSTDOWN) {
+		if (ro != NULL && (ro->ro_flags & RT_HAS_GW) != 0)
+			error = EHOSTUNREACH;
+	}
+
+	if (error != 0)
+		return (error);
+
+	*pflags = RT_MAY_LOOP;
+	if (lleflags & LLE_IFADDR)
+		*pflags |= RT_L2_ME;
+
+	return (0);
+}
+
 /*
  * Infiniband output routine.
  */
 static int
-infiniband_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-    struct route *ro)
+infiniband_output(struct ifnet *ifp, struct mbuf *m,
+    const struct sockaddr *dst, struct route *ro)
 {
-	uint8_t edst[INFINIBAND_ADDR_LEN];
+	uint8_t linkhdr[INFINIBAND_HDR_LEN];
+	uint8_t *phdr;
 #if defined(INET) || defined(INET6)
 	struct llentry *lle = NULL;
 #endif
-	struct infiniband_header *ibh;
+	struct infiniband_header *ih;
 	int error = 0;
-	uint16_t type;
-	bool is_gw;
+	int hlen;	/* link layer header length */
+	uint32_t pflags;
+	bool addref;
 
 	NET_EPOCH_ASSERT();
 
-	is_gw = ((ro != NULL) && (ro->ro_flags & RT_HAS_GW) != 0);
+	addref = false;
+	phdr = NULL;
+	pflags = 0;
+	if (ro != NULL) {
+		/* XXX BPF uses ro_prepend */
+		if (ro->ro_prepend != NULL) {
+			phdr = ro->ro_prepend;
+			hlen = ro->ro_plen;
+		} else if (!(m->m_flags & (M_BCAST | M_MCAST))) {
+			if ((ro->ro_flags & RT_LLE_CACHE) != 0) {
+				lle = ro->ro_lle;
+				if (lle != NULL &&
+				    (lle->la_flags & LLE_VALID) == 0) {
+					LLE_FREE(lle);
+					lle = NULL;	/* redundant */
+					ro->ro_lle = NULL;
+				}
+				if (lle == NULL) {
+					/* if we lookup, keep cache */
+					addref = 1;
+				} else
+					/*
+					 * Notify LLE code that
+					 * the entry was used
+					 * by datapath.
+					 */
+					llentry_mark_used(lle);
+			}
+			if (lle != NULL) {
+				phdr = lle->r_linkdata;
+				hlen = lle->r_hdrlen;
+				pflags = lle->r_flags;
+			}
+		}
+	}
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -180,104 +358,25 @@ infiniband_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		goto bad;
 	}
 
-	switch (dst->sa_family) {
-	case AF_LINK:
-		goto output;
-#ifdef INET
-	case AF_INET:
-		if (lle != NULL && (lle->la_flags & LLE_VALID)) {
-			memcpy(edst, lle->ll_addr, sizeof(edst));
-		} else if (m->m_flags & M_MCAST) {
-			infiniband_ipv4_multicast_map(
-			    ((const struct sockaddr_in *)dst)->sin_addr.s_addr,
-			    ifp->if_broadcastaddr, edst);
-		} else {
-			error = arpresolve(ifp, is_gw, m, dst, edst, NULL, NULL);
-			if (error) {
-				if (error == EWOULDBLOCK)
-					error = 0;
-				m = NULL; /* mbuf is consumed by resolver */
-				goto bad;
-			}
-		}
-		type = htons(ETHERTYPE_IP);
-		break;
-	case AF_ARP: {
-		struct arphdr *ah;
-
-		if (m->m_len < sizeof(*ah)) {
-			error = EINVAL;
-			goto bad;
-		}
-
-		ah = mtod(m, struct arphdr *);
-
-		if (m->m_len < arphdr_len(ah)) {
-			error = EINVAL;
-			goto bad;
-		}
-		ah->ar_hrd = htons(ARPHRD_INFINIBAND);
-
-		switch (ntohs(ah->ar_op)) {
-		case ARPOP_REVREQUEST:
-		case ARPOP_REVREPLY:
-			type = htons(ETHERTYPE_REVARP);
-			break;
-		case ARPOP_REQUEST:
-		case ARPOP_REPLY:
-		default:
-			type = htons(ETHERTYPE_ARP);
-			break;
-		}
-
-		if (m->m_flags & M_BCAST) {
-			memcpy(edst, ifp->if_broadcastaddr, INFINIBAND_ADDR_LEN);
-		} else {
-			if (ah->ar_hln != INFINIBAND_ADDR_LEN) {
-				error = EINVAL;
-				goto bad;
-			}
-			memcpy(edst, ar_tha(ah), INFINIBAND_ADDR_LEN);
-		}
-		break;
+	if (phdr == NULL) {
+		/* No prepend data supplied. Try to calculate ourselves. */
+		phdr = linkhdr;
+		hlen = INFINIBAND_HDR_LEN;
+		error = infiniband_resolve_addr(ifp, m, dst, ro, phdr, &pflags,
+		    addref ? &lle : NULL);
+		if (addref && lle != NULL)
+			ro->ro_lle = lle;
+		if (error != 0)
+			return (error == EWOULDBLOCK ? 0 : error);
 	}
-#endif
-#ifdef INET6
-	case AF_INET6: {
-		const struct ip6_hdr *ip6;
 
-		ip6 = mtod(m, const struct ip6_hdr *);
-		if (m->m_len < sizeof(*ip6)) {
-			error = EINVAL;
-			goto bad;
-		} else if (lle != NULL && (lle->la_flags & LLE_VALID)) {
-			memcpy(edst, lle->ll_addr, sizeof(edst));
-		} else if (m->m_flags & M_MCAST) {
-			infiniband_ipv6_multicast_map(
-			    &((const struct sockaddr_in6 *)dst)->sin6_addr,
-			    ifp->if_broadcastaddr, edst);
-		} else if (ip6->ip6_nxt == IPPROTO_ICMPV6) {
-			memcpy(edst, ifp->if_broadcastaddr, INFINIBAND_ADDR_LEN);
-		} else {
-			error = nd6_resolve(ifp, is_gw, m, dst, edst, NULL, NULL);
-			if (error) {
-				if (error == EWOULDBLOCK)
-					error = 0;
-				m = NULL; /* mbuf is consumed by resolver */
-				goto bad;
-			}
-		}
-		type = htons(ETHERTYPE_IPV6);
-		break;
-	}
-#endif
-	default:
-		error = EAFNOSUPPORT;
-		goto bad;
+	if ((pflags & RT_L2_ME) != 0) {
+		update_mbuf_csumflags(m, m);
+		return (if_simloop(ifp, m, dst->sa_family, 0));
 	}
 
 	/*
-	 * Add local net header.  If no space in first mbuf,
+	 * Add local infiniband header. If no space in first mbuf,
 	 * allocate another.
 	 */
 	M_PREPEND(m, INFINIBAND_HDR_LEN, M_NOWAIT);
@@ -285,16 +384,15 @@ infiniband_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		error = ENOBUFS;
 		goto bad;
 	}
-	ibh = mtod(m, struct infiniband_header *);
-
-	ibh->ib_protocol = type;
-	memcpy(ibh->ib_hwaddr, edst, sizeof(edst));
+	if ((pflags & RT_HAS_HEADER) == 0) {
+		ih = mtod(m, struct infiniband_header *);
+		memcpy(ih, phdr, hlen);
+	}
 
 	/*
 	 * Queue message on interface, update output statistics if
 	 * successful, and start output if interface not yet active.
 	 */
-output:
 	return (ifp->if_transmit(ifp, m));
 bad:
 	if (m != NULL)
@@ -484,6 +582,7 @@ infiniband_ifattach(struct ifnet *ifp, const uint8_t *lla, const uint8_t *llb)
 	ifp->if_output = infiniband_output;
 	ifp->if_input = infiniband_input;
 	ifp->if_resolvemulti = infiniband_resolvemulti;
+	ifp->if_requestencap = infiniband_requestencap;
 
 	if (ifp->if_baudrate == 0)
 		ifp->if_baudrate = IF_Gbps(10); /* default value */
