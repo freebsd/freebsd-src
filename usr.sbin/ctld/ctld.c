@@ -362,7 +362,7 @@ auth_portal_new(struct auth_group *ag, const char *portal)
 	if (ap == NULL)
 		log_err(1, "calloc");
 	ap->ap_auth_group = ag;
-	ap->ap_initator_portal = checked_strdup(portal);
+	ap->ap_initiator_portal = checked_strdup(portal);
 	mask = str = checked_strdup(portal);
 	net = strsep(&mask, "/");
 	if (net[0] == '[')
@@ -414,7 +414,7 @@ auth_portal_delete(struct auth_portal *ap)
 {
 	TAILQ_REMOVE(&ap->ap_auth_group->ag_portals, ap, ap_next);
 
-	free(ap->ap_initator_portal);
+	free(ap->ap_initiator_portal);
 	free(ap);
 }
 
@@ -1683,7 +1683,7 @@ conf_print(struct conf *conf)
 			    auth_name->an_initator_name);
 		TAILQ_FOREACH(auth_portal, &ag->ag_portals, ap_next)
 			fprintf(stderr, "\t initiator-portal %s\n",
-			    auth_portal->ap_initator_portal);
+			    auth_portal->ap_initiator_portal);
 		fprintf(stderr, "}\n");
 	}
 	TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {

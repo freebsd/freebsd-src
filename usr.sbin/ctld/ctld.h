@@ -69,7 +69,7 @@ struct auth_name {
 struct auth_portal {
 	TAILQ_ENTRY(auth_portal)	ap_next;
 	struct auth_group		*ap_auth_group;
-	char				*ap_initator_portal;
+	char				*ap_initiator_portal;
 	struct sockaddr_storage		ap_sa;
 	int				ap_mask;
 };
