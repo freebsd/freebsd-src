@@ -150,6 +150,8 @@ resolve_addr(const struct connection *conn, const char *address,
 		log_errx(1, "getaddrinfo for %s failed: %s",
 		    address, gai_strerror(error));
 	}
+
+	free(addr);
 }
 
 static struct connection *
