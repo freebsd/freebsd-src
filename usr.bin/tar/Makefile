@@ -5,7 +5,8 @@ _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
 
 PACKAGE=	runtime
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=	3.5.1
+BSDTAR_VERSION_STRING!=	sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.],,gp;q;}' \
+			${_LIBARCHIVEDIR}/libarchive/archive.h
 
 .PATH: ${_LIBARCHIVEDIR}/tar
 SRCS=	bsdtar.c	\
