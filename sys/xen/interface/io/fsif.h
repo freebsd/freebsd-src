@@ -1,8 +1,8 @@
 /******************************************************************************
  * fsif.h
- * 
+ *
  * Interface to FS level split device drivers.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -120,7 +120,7 @@ struct fsif_list_request {
 #define ERROR_SIZE      32   /* 32 bits for the error mask */
 #define ERROR_SHIFT     (NR_FILES_SIZE + NR_FILES_SHIFT)
 #define ERROR_MASK      (((1ULL << ERROR_SIZE) - 1) << ERROR_SHIFT)
-#define HAS_MORE_SHIFT  (ERROR_SHIFT + ERROR_SIZE)    
+#define HAS_MORE_SHIFT  (ERROR_SHIFT + ERROR_SIZE)
 #define HAS_MORE_FLAG   (1ULL << HAS_MORE_SHIFT)
 
 struct fsif_chmod_request {
@@ -135,6 +135,7 @@ struct fsif_space_request {
 struct fsif_sync_request {
     uint32_t fd;
 };
+
 
 /* FS operation request */
 struct fsif_request {
@@ -186,5 +187,6 @@ DEFINE_RING_TYPES(fsif, struct fsif_request, struct fsif_response);
 #define STATE_READY           "ready"
 #define STATE_CLOSING         "closing"
 #define STATE_CLOSED          "closed"
+
 
 #endif

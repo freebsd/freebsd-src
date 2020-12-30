@@ -1,8 +1,8 @@
 /******************************************************************************
  * xen-x86_32.h
- * 
+ *
  * Guest OS interface to x86 32-bit Xen.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -58,34 +58,31 @@
 #define __HYPERVISOR_VIRT_START_PAE    0xF5800000
 #define __MACH2PHYS_VIRT_START_PAE     0xF5800000
 #define __MACH2PHYS_VIRT_END_PAE       0xF6800000
-#define HYPERVISOR_VIRT_START_PAE      \
-    mk_unsigned_long(__HYPERVISOR_VIRT_START_PAE)
-#define MACH2PHYS_VIRT_START_PAE       \
-    mk_unsigned_long(__MACH2PHYS_VIRT_START_PAE)
-#define MACH2PHYS_VIRT_END_PAE         \
-    mk_unsigned_long(__MACH2PHYS_VIRT_END_PAE)
+#define HYPERVISOR_VIRT_START_PAE      xen_mk_ulong(__HYPERVISOR_VIRT_START_PAE)
+#define MACH2PHYS_VIRT_START_PAE       xen_mk_ulong(__MACH2PHYS_VIRT_START_PAE)
+#define MACH2PHYS_VIRT_END_PAE         xen_mk_ulong(__MACH2PHYS_VIRT_END_PAE)
 
 /* Non-PAE bounds are obsolete. */
 #define __HYPERVISOR_VIRT_START_NONPAE 0xFC000000
 #define __MACH2PHYS_VIRT_START_NONPAE  0xFC000000
 #define __MACH2PHYS_VIRT_END_NONPAE    0xFC400000
 #define HYPERVISOR_VIRT_START_NONPAE   \
-    mk_unsigned_long(__HYPERVISOR_VIRT_START_NONPAE)
+    xen_mk_ulong(__HYPERVISOR_VIRT_START_NONPAE)
 #define MACH2PHYS_VIRT_START_NONPAE    \
-    mk_unsigned_long(__MACH2PHYS_VIRT_START_NONPAE)
+    xen_mk_ulong(__MACH2PHYS_VIRT_START_NONPAE)
 #define MACH2PHYS_VIRT_END_NONPAE      \
-    mk_unsigned_long(__MACH2PHYS_VIRT_END_NONPAE)
+    xen_mk_ulong(__MACH2PHYS_VIRT_END_NONPAE)
 
 #define __HYPERVISOR_VIRT_START __HYPERVISOR_VIRT_START_PAE
 #define __MACH2PHYS_VIRT_START  __MACH2PHYS_VIRT_START_PAE
 #define __MACH2PHYS_VIRT_END    __MACH2PHYS_VIRT_END_PAE
 
 #ifndef HYPERVISOR_VIRT_START
-#define HYPERVISOR_VIRT_START mk_unsigned_long(__HYPERVISOR_VIRT_START)
+#define HYPERVISOR_VIRT_START xen_mk_ulong(__HYPERVISOR_VIRT_START)
 #endif
 
-#define MACH2PHYS_VIRT_START  mk_unsigned_long(__MACH2PHYS_VIRT_START)
-#define MACH2PHYS_VIRT_END    mk_unsigned_long(__MACH2PHYS_VIRT_END)
+#define MACH2PHYS_VIRT_START  xen_mk_ulong(__MACH2PHYS_VIRT_START)
+#define MACH2PHYS_VIRT_END    xen_mk_ulong(__MACH2PHYS_VIRT_END)
 #define MACH2PHYS_NR_ENTRIES  ((MACH2PHYS_VIRT_END-MACH2PHYS_VIRT_START)>>2)
 #ifndef machine_to_phys_mapping
 #define machine_to_phys_mapping ((unsigned long *)MACH2PHYS_VIRT_START)
@@ -112,22 +109,44 @@
 
 #ifndef __ASSEMBLY__
 
+#if defined(XEN_GENERATING_COMPAT_HEADERS)
+/* nothing */
+#elif defined(__XEN__) || defined(__XEN_TOOLS__)
+/* Anonymous unions include all permissible names (e.g., al/ah/ax/eax). */
+#define __DECL_REG_LO8(which) union { \
+    uint32_t e ## which ## x; \
+    uint16_t which ## x; \
+    struct { \
+        uint8_t which ## l; \
+        uint8_t which ## h; \
+    }; \
+}
+#define __DECL_REG_LO16(name) union { \
+    uint32_t e ## name, _e ## name; \
+    uint16_t name; \
+}
+#else
+/* Other sources must always use the proper 32-bit name (e.g., eax). */
+#define __DECL_REG_LO8(which) uint32_t e ## which ## x
+#define __DECL_REG_LO16(name) uint32_t e ## name
+#endif
+
 struct cpu_user_regs {
-    uint32_t ebx;
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t ebp;
-    uint32_t eax;
+    __DECL_REG_LO8(b);
+    __DECL_REG_LO8(c);
+    __DECL_REG_LO8(d);
+    __DECL_REG_LO16(si);
+    __DECL_REG_LO16(di);
+    __DECL_REG_LO16(bp);
+    __DECL_REG_LO8(a);
     uint16_t error_code;    /* private */
     uint16_t entry_vector;  /* private */
-    uint32_t eip;
+    __DECL_REG_LO16(ip);
     uint16_t cs;
     uint8_t  saved_upcall_mask;
     uint8_t  _pad0;
-    uint32_t eflags;        /* eflags.IF == !saved_upcall_mask */
-    uint32_t esp;
+    __DECL_REG_LO16(flags); /* eflags.IF == !saved_upcall_mask */
+    __DECL_REG_LO16(sp);
     uint16_t ss, _pad1;
     uint16_t es, _pad2;
     uint16_t ds, _pad3;
@@ -136,6 +155,9 @@ struct cpu_user_regs {
 };
 typedef struct cpu_user_regs cpu_user_regs_t;
 DEFINE_XEN_GUEST_HANDLE(cpu_user_regs_t);
+
+#undef __DECL_REG_LO8
+#undef __DECL_REG_LO16
 
 /*
  * Page-directory addresses above 4GB do not fit into architectural %cr3.

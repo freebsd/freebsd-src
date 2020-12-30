@@ -1,9 +1,9 @@
 /******************************************************************************
  * xenoprof.h
- * 
+ *
  * Interface for enabling system wide profiling based on hardware performance
  * counters
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -68,7 +68,7 @@ struct event_log {
 };
 
 /* PC value that indicates a special code */
-#define XENOPROF_ESCAPE_CODE (~0ULL)
+#define XENOPROF_ESCAPE_CODE (~xen_mk_ullong(0))
 /* Transient events for the xenoprof->oprofile cpu buf */
 #define XENOPROF_TRACE_BEGIN 1
 

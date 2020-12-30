@@ -98,3 +98,4 @@ struct vchan_interface {
 	 */
 	uint32_t grants[0];
 };
+

@@ -84,9 +84,19 @@ DEFINE_XEN_GUEST_HANDLE(xen_pmu_params_t);
 
 /*
  * PMU features:
- * - XENPMU_FEATURE_INTEL_BTS: Intel BTS support (ignored on AMD)
+ * - XENPMU_FEATURE_INTEL_BTS:  Intel BTS support (ignored on AMD)
+ * - XENPMU_FEATURE_IPC_ONLY:   Restrict PMCs to the most minimum set possible.
+ *                              Instructions, cycles, and ref cycles. Can be
+ *                              used to calculate instructions-per-cycle (IPC)
+ *                              (ignored on AMD).
+ * - XENPMU_FEATURE_ARCH_ONLY:  Restrict PMCs to the Intel Pre-Defined
+ *                              Architectural Performance Events exposed by
+ *                              cpuid and listed in the Intel developer's manual
+ *                              (ignored on AMD).
  */
-#define XENPMU_FEATURE_INTEL_BTS  1
+#define XENPMU_FEATURE_INTEL_BTS  (1<<0)
+#define XENPMU_FEATURE_IPC_ONLY   (1<<1)
+#define XENPMU_FEATURE_ARCH_ONLY  (1<<2)
 
 /*
  * Shared PMU data between hypervisor and PV(H) domains.

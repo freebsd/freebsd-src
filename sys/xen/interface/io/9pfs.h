@@ -1,7 +1,7 @@
-/******************************************************************************
- * console.h
+/*
+ * 9pfs.h -- Xen 9PFS transport
  *
- * Console I/O interface for Xen guest OSes.
+ * Refer to docs/misc/9pfs.markdown for the specification
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -21,29 +21,22 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  *
- * Copyright (c) 2005, Keir Fraser
+ * Copyright (C) 2017 Stefano Stabellini <stefano@aporeto.com>
  */
 
-#ifndef __XEN_PUBLIC_IO_CONSOLE_H__
-#define __XEN_PUBLIC_IO_CONSOLE_H__
+#ifndef __XEN_PUBLIC_IO_9PFS_H__
+#define __XEN_PUBLIC_IO_9PFS_H__
 
-typedef uint32_t XENCONS_RING_IDX;
-
-#define MASK_XENCONS_IDX(idx, ring) ((idx) & (sizeof(ring)-1))
-
-struct xencons_interface {
-    char in[1024];
-    char out[2048];
-    XENCONS_RING_IDX in_cons, in_prod;
-    XENCONS_RING_IDX out_cons, out_prod;
-};
-
-#ifdef XEN_WANT_FLEX_CONSOLE_RING
+#include "../grant_table.h"
 #include "ring.h"
-DEFINE_XEN_FLEX_RING(xencons);
-#endif
 
-#endif /* __XEN_PUBLIC_IO_CONSOLE_H__ */
+/*
+ * See docs/misc/9pfs.markdown in xen.git for the full specification:
+ * https://xenbits.xen.org/docs/unstable/misc/9pfs.html
+ */
+DEFINE_XEN_FLEX_RING_AND_INTF(xen_9pfs);
+
+#endif
 
 /*
  * Local variables:
