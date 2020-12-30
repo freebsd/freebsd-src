@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -131,7 +132,7 @@ static struct intr_pic *pic_lookup(device_t dev, intptr_t xref, int flags);
 
 /* Interrupt source definition. */
 static struct mtx isrc_table_lock;
-static struct intr_irqsrc *irq_sources[NIRQ];
+static struct intr_irqsrc **irq_sources;
 u_int irq_next_free;
 
 #ifdef SMP
@@ -142,21 +143,15 @@ static bool irq_assign_cpu = false;
 #endif
 #endif
 
-/*
- * - 2 counters for each I/O interrupt.
- * - MAXCPU counters for each IPI counters for SMP.
- */
-#ifdef SMP
-#define INTRCNT_COUNT   (NIRQ * 2 + INTR_IPI_COUNT * MAXCPU)
-#else
-#define INTRCNT_COUNT   (NIRQ * 2)
-#endif
+int intr_nirq = NIRQ;
+SYSCTL_UINT(_machdep, OID_AUTO, nirq, CTLFLAG_RDTUN, &intr_nirq, 0,
+    "Number of IRQs");
 
 /* Data for MI statistics reporting. */
-u_long intrcnt[INTRCNT_COUNT];
-char intrnames[INTRCNT_COUNT * INTRNAME_LEN];
-size_t sintrcnt = sizeof(intrcnt);
-size_t sintrnames = sizeof(intrnames);
+u_long *intrcnt;
+char *intrnames;
+size_t sintrcnt;
+size_t sintrnames;
 static u_int intrcnt_index;
 
 static struct intr_irqsrc *intr_map_get_isrc(u_int res_id);
@@ -171,11 +166,30 @@ static void intr_map_copy_map_data(u_int res_id, device_t *dev, intptr_t *xref,
 static void
 intr_irq_init(void *dummy __unused)
 {
+	int intrcnt_count;
 
 	SLIST_INIT(&pic_list);
 	mtx_init(&pic_list_lock, "intr pic list", NULL, MTX_DEF);
 
 	mtx_init(&isrc_table_lock, "intr isrc table", NULL, MTX_DEF);
+
+	/*
+	 * - 2 counters for each I/O interrupt.
+	 * - MAXCPU counters for each IPI counters for SMP.
+	 */
+	intrcnt_count = intr_nirq * 2;
+#ifdef SMP
+	intrcnt_count += INTR_IPI_COUNT * MAXCPU;
+#endif
+
+	intrcnt = mallocarray(intrcnt_count, sizeof(u_long), M_INTRNG,
+	    M_WAITOK | M_ZERO);
+	intrnames = mallocarray(intrcnt_count, INTRNAME_LEN, M_INTRNG,
+	    M_WAITOK | M_ZERO);
+	sintrcnt = intrcnt_count * sizeof(u_long);
+	sintrnames = intrcnt_count * INTRNAME_LEN;
+	irq_sources = mallocarray(intr_nirq, sizeof(struct intr_irqsrc*),
+	    M_INTRNG, M_WAITOK | M_ZERO);
 }
 SYSINIT(intr_irq_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_irq_init, NULL);
 
@@ -391,7 +405,7 @@ isrc_alloc_irq(struct intr_irqsrc *isrc)
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	maxirqs = nitems(irq_sources);
+	maxirqs = intr_nirq;
 	if (irq_next_free >= maxirqs)
 		return (ENOSPC);
 
@@ -426,7 +440,7 @@ isrc_free_irq(struct intr_irqsrc *isrc)
 
 	mtx_assert(&isrc_table_lock, MA_OWNED);
 
-	if (isrc->isrc_irq >= nitems(irq_sources))
+	if (isrc->isrc_irq >= intr_nirq)
 		return (EINVAL);
 	if (irq_sources[isrc->isrc_irq] != isrc)
 		return (EINVAL);
@@ -1229,7 +1243,7 @@ intr_irq_shuffle(void *arg __unused)
 
 	mtx_lock(&isrc_table_lock);
 	irq_assign_cpu = true;
-	for (i = 0; i < NIRQ; i++) {
+	for (i = 0; i < intr_nirq; i++) {
 		isrc = irq_sources[i];
 		if (isrc == NULL || isrc->isrc_handlers == 0 ||
 		    isrc->isrc_flags & (INTR_ISRCF_PPI | INTR_ISRCF_IPI))
@@ -1529,7 +1543,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
 	u_long num;
 	struct intr_irqsrc *isrc;
 
-	for (irqsum = 0, i = 0; i < NIRQ; i++) {
+	for (irqsum = 0, i = 0; i < intr_nirq; i++) {
 		isrc = irq_sources[i];
 		if (isrc == NULL)
 			continue;
@@ -1561,8 +1575,8 @@ struct intr_map_entry
 };
 
 /* XXX Convert irq_map[] to dynamicaly expandable one. */
-static struct intr_map_entry *irq_map[2 * NIRQ];
-static int irq_map_count = nitems(irq_map);
+static struct intr_map_entry **irq_map;
+static int irq_map_count;
 static int irq_map_first_free_idx;
 static struct mtx irq_map_lock;
 
@@ -1712,5 +1726,9 @@ intr_map_init(void *dummy __unused)
 {
 
 	mtx_init(&irq_map_lock, "intr map table", NULL, MTX_DEF);
+
+	irq_map_count = 2 * intr_nirq;
+	irq_map = mallocarray(irq_map_count, sizeof(struct intr_map_entry*),
+	    M_INTRNG, M_WAITOK | M_ZERO);
 }
 SYSINIT(intr_map_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_map_init, NULL);

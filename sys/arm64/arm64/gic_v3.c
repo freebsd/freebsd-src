@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
+#include <sys/interrupt.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -388,7 +389,7 @@ gic_v3_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 	switch (which) {
 	case GICV3_IVAR_NIRQS:
-		*result = (NIRQ - sc->gic_nirqs) / sc->gic_nchildren;
+		*result = (intr_nirq - sc->gic_nirqs) / sc->gic_nchildren;
 		return (0);
 	case GICV3_IVAR_REDIST:
 		*result = (uintptr_t)sc->gic_redists.pcpu[PCPU_GET(cpuid)];
