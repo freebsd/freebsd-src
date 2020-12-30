@@ -600,6 +600,11 @@ rctl_enforce(struct proc *p, int resource, uint64_t amount)
 			if (p->p_state != PRS_NORMAL)
 				continue;
 
+			if (rule->rr_amount == 0) {
+				racct_proc_throttle(p, rctl_throttle_max);
+				continue;
+			}
+
 			/*
 			 * Make the process sleep for a fraction of second
 			 * proportional to the ratio of process' resource
