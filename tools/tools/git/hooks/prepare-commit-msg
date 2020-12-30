@@ -1,5 +1,13 @@
 #!/bin/sh
 
+# prepare-commit-msg: Prepare a commit message upon `git commit` for the
+# user to edit.  A script (rather than a static template) is used, so
+# that we can insert our template text other than at the top of the
+# message.
+#
+# Install by copying into the git hooks directory - for example,
+# cp tools/tools/git/hooks/prepare-commit-msg .git/hooks/
+
 case "$2" in
 commit|message)
 	# It appears git invokes this script for interactive rebase but does
@@ -21,7 +29,9 @@ outfile=$(mktemp /tmp/freebsd-git-commit.XXXXXXXX)
 #
 # 1. The beginning of the git-provided template (up to the first comment-only
 #    line) which explains commented lines and such.
+#
 # 2. Our template.
+#
 # 3. The remainder of the git-provided template (from the first comment-only
 #    line to the end of the file) which lists files staged for commit, files
 #    not staged, and untracked files.
