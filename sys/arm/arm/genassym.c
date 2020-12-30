@@ -122,7 +122,6 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MAXCPU, MAXCPU);
 ASSYM(_NCPUWORDS, _NCPUWORDS);
-ASSYM(NIRQ, NIRQ);
 ASSYM(PCPU_SIZE, sizeof(struct pcpu));
 ASSYM(P_VMSPACE, offsetof(struct proc, p_vmspace));
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
