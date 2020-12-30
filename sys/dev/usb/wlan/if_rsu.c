@@ -3343,7 +3343,7 @@ static int
 rsu_load_firmware(struct rsu_softc *sc)
 {
 	const struct r92s_fw_hdr *hdr;
-	struct r92s_fw_priv *dmem;
+	struct r92s_fw_priv dmem;
 	struct ieee80211com *ic = &sc->sc_ic;
 	const uint8_t *imem, *emem;
 	uint32_t imemsz, ememsz;
@@ -3389,7 +3389,7 @@ rsu_load_firmware(struct rsu_softc *sc)
 	    hdr->minute);
 
 	/* Make sure that driver and firmware are in sync. */
-	if (hdr->privsz != htole32(sizeof(*dmem))) {
+	if (hdr->privsz != htole32(sizeof(dmem))) {
 		device_printf(sc->sc_dev, "unsupported firmware image\n");
 		error = EINVAL;
 		goto fail;
@@ -3475,24 +3475,23 @@ rsu_load_firmware(struct rsu_softc *sc)
 	}
 
 	/* Update DMEM section before loading. */
-	dmem = __DECONST(struct r92s_fw_priv *, &hdr->priv);
-	memset(dmem, 0, sizeof(*dmem));
-	dmem->hci_sel = R92S_HCI_SEL_USB | R92S_HCI_SEL_8172;
-	dmem->nendpoints = sc->sc_nendpoints;
-	dmem->chip_version = sc->cut;
-	dmem->rf_config = sc->sc_rftype;
-	dmem->vcs_type = R92S_VCS_TYPE_AUTO;
-	dmem->vcs_mode = R92S_VCS_MODE_RTS_CTS;
-	dmem->turbo_mode = 0;
-	dmem->bw40_en = !! (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40);
-	dmem->amsdu2ampdu_en = !! (sc->sc_ht);
-	dmem->ampdu_en = !! (sc->sc_ht);
-	dmem->agg_offload = !! (sc->sc_ht);
-	dmem->qos_en = 1;
-	dmem->ps_offload = 1;
-	dmem->lowpower_mode = 1;	/* XXX TODO: configurable? */
+	memset(&dmem, 0, sizeof(dmem));
+	dmem.hci_sel = R92S_HCI_SEL_USB | R92S_HCI_SEL_8172;
+	dmem.nendpoints = sc->sc_nendpoints;
+	dmem.chip_version = sc->cut;
+	dmem.rf_config = sc->sc_rftype;
+	dmem.vcs_type = R92S_VCS_TYPE_AUTO;
+	dmem.vcs_mode = R92S_VCS_MODE_RTS_CTS;
+	dmem.turbo_mode = 0;
+	dmem.bw40_en = !! (ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40);
+	dmem.amsdu2ampdu_en = !! (sc->sc_ht);
+	dmem.ampdu_en = !! (sc->sc_ht);
+	dmem.agg_offload = !! (sc->sc_ht);
+	dmem.qos_en = 1;
+	dmem.ps_offload = 1;
+	dmem.lowpower_mode = 1;	/* XXX TODO: configurable? */
 	/* Load DMEM section. */
-	error = rsu_fw_loadsection(sc, (uint8_t *)dmem, sizeof(*dmem));
+	error = rsu_fw_loadsection(sc, (uint8_t *)&dmem, sizeof(dmem));
 	if (error != 0) {
 		device_printf(sc->sc_dev,
 		    "could not load firmware section %s\n", "DMEM");
