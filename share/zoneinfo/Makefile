@@ -12,7 +12,7 @@
 #   (check with "git status" and "git diff" if it all makes sense)
 # $ git add -A
 # $ git commit -m "Import tzdata 20XXX"
-# $ git tag -a -m "Tag import of tzdata 20XXX"
+# $ git tag -a -m "Tag import of tzdata 20XXX" vendor/tzdata/tzdata20XXX
 # $ git push --follow-tags freebsd vendor/tzdata
 # $ popd
 #
