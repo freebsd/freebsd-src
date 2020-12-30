@@ -37,7 +37,7 @@ DATAFORM != "main" {
 
   # If this line should differ due to Czechoslovakia using negative SAVE values,
   # uncomment the desired version and comment out the undesired one.
-  if (zone == "Europe/Prague" && /1947 Feb 23/) {
+  if (zone == "Europe/Prague" && /^#?[\t ]+[01]:00[\t ]/ && /1947 Feb 23/) {
     if (($(in_comment + 2) != "-") == vanguard) {
       uncomment = in_comment
     } else {
@@ -65,10 +65,11 @@ DATAFORM != "main" {
   # uncomment the desired version and comment out the undesired one.
   Rule_Namibia = /^#?Rule[\t ]+Namibia[\t ]/
   Zone_using_Namibia_rule \
-    = (zone == "Africa/Windhoek" \
+    = (zone == "Africa/Windhoek" && /^#?[\t ]+[12]:00[\t ]/ \
        && ($(in_comment + 2) == "Namibia" \
-	   || (1994 <= $(in_comment + 4) && $(in_comment + 4) <= 2017) \
-	   || in_comment + 3 == NF))
+	   || ($(in_comment + 2) == "-" && $(in_comment + 3) == "CAT" \
+	       && ((1994 <= $(in_comment + 4) && $(in_comment + 4) <= 2017) \
+		   || in_comment + 3 == NF))))
   if (Rule_Namibia || Zone_using_Namibia_rule) {
       if ((Rule_Namibia \
 	   ? ($(in_comment + 9) ~ /^-/ \
