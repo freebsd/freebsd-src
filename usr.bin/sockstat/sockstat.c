@@ -79,6 +79,7 @@ static int	 opt_c;		/* Show connected sockets */
 static int	 opt_j;		/* Show specified jail */
 static int	 opt_L;		/* Don't show IPv4 or IPv6 loopback sockets */
 static int	 opt_l;		/* Show listening sockets */
+static int	 opt_n;		/* Don't resolve UIDs to user names */
 static int	 opt_q;		/* Don't show header */
 static int	 opt_S;		/* Show protocol stack if applicable */
 static int	 opt_s;		/* Show protocol state if applicable */
@@ -1205,7 +1206,7 @@ display(void)
 				continue;
 			s->shown = 1;
 			pos = 0;
-			if ((pwd = getpwuid(xf->xf_uid)) == NULL)
+			if (opt_n || (pwd = getpwuid(xf->xf_uid)) == NULL)
 				pos += xprintf("%lu ", (u_long)xf->xf_uid);
 			else
 				pos += xprintf("%s ", pwd->pw_name);
@@ -1304,7 +1305,7 @@ main(int argc, char *argv[])
 	int o, i;
 
 	opt_j = -1;
-	while ((o = getopt(argc, argv, "46Ccj:Llp:P:qSsUuvw")) != -1)
+	while ((o = getopt(argc, argv, "46Ccj:Llnp:P:qSsUuvw")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -1328,6 +1329,9 @@ main(int argc, char *argv[])
 			break;
 		case 'l':
 			opt_l = 1;
+			break;
+		case 'n':
+			opt_n = 1;
 			break;
 		case 'p':
 			parse_ports(optarg);
