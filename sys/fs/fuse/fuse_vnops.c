@@ -432,18 +432,6 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 		return ENXIO;
 	}
 
-	if (!(dataflags & FSESS_POSIX_LOCKS))
-		return vop_stdadvlock(ap);
-	/* FUSE doesn't properly support flock until protocol 7.17 */
-	if (flags & F_FLOCK)
-		return vop_stdadvlock(ap);
-
-	err = fuse_filehandle_get_anyflags(vp, &fufh, cred, pid);
-	if (err)
-		return err;
-
-	fdisp_init(&fdi, sizeof(*fli));
-
 	switch(ap->a_op) {
 	case F_GETLK:
 		op = FUSE_GETLK;
@@ -457,6 +445,20 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 	default:
 		return EINVAL;
 	}
+
+	if (!(dataflags & FSESS_POSIX_LOCKS))
+		return vop_stdadvlock(ap);
+	/* FUSE doesn't properly support flock until protocol 7.17 */
+	if (flags & F_FLOCK)
+		return vop_stdadvlock(ap);
+
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+
+	err = fuse_filehandle_get_anyflags(vp, &fufh, cred, pid);
+	if (err)
+		goto out;
+
+	fdisp_init(&fdi, sizeof(*fli));
 
 	fdisp_make_vp(&fdi, op, vp, td, cred);
 	fli = fdi.indata;
@@ -487,6 +489,8 @@ fuse_vnop_advlock(struct vop_advlock_args *ap)
 		}
 	}
 
+out:
+	VOP_UNLOCK(vp);
 	return err;
 }
 
