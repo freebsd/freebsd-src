@@ -945,7 +945,10 @@ check_public: $(VERSION_DEPS)
 		mkdir public.dir
 		ln $(VERSION_DEPS) public.dir
 		cd public.dir && $(MAKE) CFLAGS='$(GCC_DEBUG_FLAGS)' ALL
-		for i in $(TDATA_TO_CHECK) public.dir/tzdata.zi; do \
+		for i in $(TDATA_TO_CHECK) public.dir/tzdata.zi \
+		    public.dir/vanguard.zi public.dir/main.zi \
+		    public.dir/rearguard.zi; \
+		do \
 		  public.dir/zic -v -d public.dir/zoneinfo $$i 2>&1 || exit; \
 		done
 		public.dir/zic -v -d public.dir/zoneinfo-all $(TDATA_TO_CHECK)

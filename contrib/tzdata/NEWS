@@ -1,5 +1,13 @@
 News for the tz database
 
+Release 2020f - 2020-12-29 00:17:46 -0800
+
+  Change to build procedure
+
+    'make rearguard_tarballs' no longer generates a bad rearguard.zi,
+    fixing a 2020e bug.  (Problem reported by Deborah Goldsmith.)
+
+
 Release 2020e - 2020-12-22 15:14:34 -0800
 
   Briefly:
