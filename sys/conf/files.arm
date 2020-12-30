@@ -56,7 +56,8 @@ arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
 arm/arm/platform_pl310_if.m	optional	platform pl310
 arm/arm/pmap-v6.c		standard
-arm/arm/pmu.c			optional	pmu | fdt hwpmc
+arm/arm/pmu.c			optional	pmu | hwpmc
+arm/arm/pmu_fdt.c		optional	fdt pmu | fdt hwpmc
 arm/arm/ptrace_machdep.c	standard
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
