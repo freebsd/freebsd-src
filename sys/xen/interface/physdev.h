@@ -192,7 +192,7 @@ struct physdev_manage_pci {
     /* IN */
     uint8_t bus;
     uint8_t devfn;
-}; 
+};
 
 typedef struct physdev_manage_pci physdev_manage_pci_t;
 DEFINE_XEN_GUEST_HANDLE(physdev_manage_pci_t);
@@ -258,7 +258,7 @@ DEFINE_XEN_GUEST_HANDLE(physdev_setup_gsi_t);
  * the hypercall returns a free pirq */
 #define PHYSDEVOP_get_free_pirq    23
 struct physdev_get_free_pirq {
-    /* IN */ 
+    /* IN */
     int type;
     /* OUT */
     uint32_t pirq;
@@ -300,11 +300,7 @@ struct physdev_pci_device_add {
      * First element ([0]) is PXM domain associated with the device (if
      * XEN_PCI_DEV_PXM is set)
      */
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    uint32_t optarr[];
-#elif defined(__GNUC__)
-    uint32_t optarr[0];
-#endif
+    uint32_t optarr[XEN_FLEX_ARRAY_DIM];
 };
 typedef struct physdev_pci_device_add physdev_pci_device_add_t;
 DEFINE_XEN_GUEST_HANDLE(physdev_pci_device_add_t);

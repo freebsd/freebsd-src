@@ -1,7 +1,7 @@
 /*
  * pvdrivers.h: Register of PV drivers product numbers.
  * Copyright (c) 2012, Citrix Systems Inc.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -26,9 +26,9 @@
 
 /*
  * This is the master registry of product numbers for
- * PV drivers. 
+ * PV drivers.
  * If you need a new product number allocating, please
- * post to xen-devel@lists.xensource.com.  You should NOT use
+ * post to xen-devel@lists.xenproject.org.  You should NOT use
  * a product number without allocating one.
  * If you maintain a separate versioning and distribution path
  * for PV drivers you should have a separate product number so

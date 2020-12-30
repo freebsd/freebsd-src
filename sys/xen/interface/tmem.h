@@ -1,8 +1,8 @@
 /******************************************************************************
  * tmem.h
- * 
+ *
  * Guest OS interface to Xen Transcendent Memory.
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -29,15 +29,11 @@
 
 #include "xen.h"
 
+#if __XEN_INTERFACE_VERSION__ < 0x00041300
+
 /* version of ABI */
 #define TMEM_SPEC_VERSION          1
 
-/* Commands to HYPERVISOR_tmem_op() */
-#ifdef __XEN__
-#define TMEM_CONTROL               0 /* Now called XEN_SYSCTL_tmem_op */
-#else
-#undef TMEM_CONTROL
-#endif
 #define TMEM_NEW_POOL              1
 #define TMEM_DESTROY_POOL          2
 #define TMEM_PUT_PAGE              4
@@ -51,9 +47,9 @@
 #define TMEM_XCHG                 10
 #endif
 
-/* Privileged commands to HYPERVISOR_tmem_op() */
-#define TMEM_AUTH                 101
-#define TMEM_RESTORE_NEW          102
+/* Privileged commands now called via XEN_SYSCTL_tmem_op. */
+#define TMEM_AUTH                 101 /* as XEN_SYSCTL_TMEM_OP_SET_AUTH. */
+#define TMEM_RESTORE_NEW          102 /* as XEN_SYSCTL_TMEM_OP_SET_POOL. */
 
 /* Bits for HYPERVISOR_tmem_op(TMEM_NEW_POOL) */
 #define TMEM_POOL_PERSIST          1
@@ -92,7 +88,7 @@ struct tmem_op {
             uint64_t uuid[2];
             uint32_t flags;
             uint32_t arg1;
-        } creat; /* for cmd == TMEM_NEW_POOL, TMEM_AUTH, TMEM_RESTORE_NEW */
+        } creat; /* for cmd == TMEM_NEW_POOL. */
         struct {
 #if __XEN_INTERFACE_VERSION__ < 0x00040600
             uint64_t oid[3];
@@ -110,6 +106,8 @@ struct tmem_op {
 typedef struct tmem_op tmem_op_t;
 DEFINE_XEN_GUEST_HANDLE(tmem_op_t);
 #endif
+
+#endif  /* __XEN_INTERFACE_VERSION__ < 0x00041300 */
 
 #endif /* __XEN_PUBLIC_TMEM_H__ */
 

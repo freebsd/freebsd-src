@@ -1,6 +1,6 @@
 /******************************************************************************
  * kexec.h - Public portion
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -18,7 +18,7 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
- * 
+ *
  * Xen port written by:
  * - Simon 'Horms' Horman <horms@verge.net.au>
  * - Magnus Damm <magnus@valinux.co.jp>
@@ -27,9 +27,10 @@
 #ifndef _XEN_PUBLIC_KEXEC_H
 #define _XEN_PUBLIC_KEXEC_H
 
+
 /* This file describes the Kexec / Kdump hypercall interface for Xen.
  *
- * Kexec under vanilla Linux allows a user to reboot the physical machine 
+ * Kexec under vanilla Linux allows a user to reboot the physical machine
  * into a new user-specified kernel. The Xen port extends this idea
  * to allow rebooting of the machine from dom0. When kexec for dom0
  * is used to reboot,  both the hypervisor and the domains get replaced
@@ -40,8 +41,8 @@
  * types of hypercall operations:
  *
  * 1) Range information:
- *    This is used by the dom0 kernel to ask the hypervisor about various 
- *    address information. This information is needed to allow kexec-tools 
+ *    This is used by the dom0 kernel to ask the hypervisor about various
+ *    address information. This information is needed to allow kexec-tools
  *    to fill in the ELF headers for /proc/vmcore properly.
  *
  * 2) Load and unload of images:
@@ -64,7 +65,7 @@
 /*
  * Prototype for this hypercall is:
  *  int kexec_op(int cmd, void *args)
- * @cmd  == KEXEC_CMD_... 
+ * @cmd  == KEXEC_CMD_...
  *          KEXEC operation to perform
  * @args == Operation-specific extra arguments (NULL if none).
  */
@@ -81,6 +82,7 @@
 
 #define KEXEC_TYPE_DEFAULT 0
 #define KEXEC_TYPE_CRASH   1
+
 
 /* The kexec implementation for Xen allows the user to load two
  * types of kernels, KEXEC_TYPE_DEFAULT and KEXEC_TYPE_CRASH.
@@ -224,6 +226,20 @@ typedef struct xen_kexec_unload {
     uint8_t type;
 } xen_kexec_unload_t;
 DEFINE_XEN_GUEST_HANDLE(xen_kexec_unload_t);
+
+/*
+ * Figure out whether we have an image loaded. A return value of
+ * zero indicates no image loaded. A return value of one
+ * indicates an image is loaded. A negative return value
+ * indicates an error.
+ *
+ * Type must be one of KEXEC_TYPE_DEFAULT or KEXEC_TYPE_CRASH.
+ */
+#define KEXEC_CMD_kexec_status 6
+typedef struct xen_kexec_status {
+    uint8_t type;
+} xen_kexec_status_t;
+DEFINE_XEN_GUEST_HANDLE(xen_kexec_status_t);
 
 #else /* __XEN_INTERFACE_VERSION__ < 0x00040400 */
 

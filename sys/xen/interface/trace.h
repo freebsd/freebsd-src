@@ -1,6 +1,6 @@
 /******************************************************************************
  * include/public/trace.h
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -78,12 +78,16 @@
 /* #define XEN_SCHEDULER_SEDF 2 (Removed) */
 #define TRC_SCHED_ARINC653 3
 #define TRC_SCHED_RTDS     4
+#define TRC_SCHED_SNULL    5
 
 /* Per-scheduler tracing */
 #define TRC_SCHED_CLASS_EVT(_c, _e) \
   ( ( TRC_SCHED_CLASS | \
       ((TRC_SCHED_##_c << TRC_SCHED_ID_SHIFT) & TRC_SCHED_ID_MASK) ) + \
     (_e & TRC_SCHED_EVT_MASK) )
+
+/* Trace classes for DOM0 operations */
+#define TRC_DOM0_DOMOPS     0x00041000   /* Domains manipulations */
 
 /* Trace classes for Hardware */
 #define TRC_HW_PM           0x00801000   /* Power management traces */
@@ -112,6 +116,10 @@
 #define TRC_SCHED_SWITCH_INFPREV (TRC_SCHED_VERBOSE + 14)
 #define TRC_SCHED_SWITCH_INFNEXT (TRC_SCHED_VERBOSE + 15)
 #define TRC_SCHED_SHUTDOWN_CODE  (TRC_SCHED_VERBOSE + 16)
+#define TRC_SCHED_SWITCH_INFCONT (TRC_SCHED_VERBOSE + 17)
+
+#define TRC_DOM0_DOM_ADD         (TRC_DOM0_DOMOPS + 1)
+#define TRC_DOM0_DOM_REM         (TRC_DOM0_DOMOPS + 2)
 
 #define TRC_MEM_PAGE_GRANT_MAP      (TRC_MEM + 1)
 #define TRC_MEM_PAGE_GRANT_UNMAP    (TRC_MEM + 2)
@@ -227,6 +235,8 @@
 #define TRC_HVM_TRAP             (TRC_HVM_HANDLER + 0x23)
 #define TRC_HVM_TRAP_DEBUG       (TRC_HVM_HANDLER + 0x24)
 #define TRC_HVM_VLAPIC           (TRC_HVM_HANDLER + 0x25)
+#define TRC_HVM_XCR_READ64      (TRC_HVM_HANDLER + TRC_64_FLAG + 0x26)
+#define TRC_HVM_XCR_WRITE64     (TRC_HVM_HANDLER + TRC_64_FLAG + 0x27)
 
 #define TRC_HVM_IOPORT_WRITE    (TRC_HVM_HANDLER + 0x216)
 #define TRC_HVM_IOMEM_WRITE     (TRC_HVM_HANDLER + 0x217)
