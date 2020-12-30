@@ -122,7 +122,7 @@ cal_fopen(const char *file)
 	unsigned int i;
 	struct stat sb;
 	static bool warned = false;
-	char calendarhome[MAXPATHLEN];
+	static char calendarhome[MAXPATHLEN];
 
 	if (home == NULL || *home == '\0') {
 		warnx("Cannot get home directory");
