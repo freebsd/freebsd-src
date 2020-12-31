@@ -1133,22 +1133,18 @@ fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp)
 }
 
 /*
- * Clear kinfo_proc and fill in any information that is common
- * to all threads in the process.
+ * Fill in any information that is common to all threads in the process.
  * Must be called with the target process locked.
  */
 static void
 fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 {
 	struct thread *td0;
-	struct tty *tp;
-	struct session *sp;
 	struct ucred *cred;
 	struct sigacts *ps;
 	struct timeval boottime;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	bzero(kp, sizeof(*kp));
 
 	kp->ki_structsize = sizeof(*kp);
 	kp->ki_paddr = p;
@@ -1241,36 +1237,6 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	FOREACH_THREAD_IN_PROC(p, td0)
 		kp->ki_cow += td0->td_cow;
 
-	tp = NULL;
-	if (p->p_pgrp) {
-		kp->ki_pgid = p->p_pgrp->pg_id;
-		kp->ki_jobc = p->p_pgrp->pg_jobc;
-		sp = p->p_pgrp->pg_session;
-
-		if (sp != NULL) {
-			kp->ki_sid = sp->s_sid;
-			SESS_LOCK(sp);
-			strlcpy(kp->ki_login, sp->s_login,
-			    sizeof(kp->ki_login));
-			if (sp->s_ttyvp)
-				kp->ki_kiflag |= KI_CTTY;
-			if (SESS_LEADER(p))
-				kp->ki_kiflag |= KI_SLEADER;
-			/* XXX proctree_lock */
-			tp = sp->s_ttyp;
-			SESS_UNLOCK(sp);
-		}
-	}
-	if ((p->p_flag & P_CONTROLT) && tp != NULL) {
-		kp->ki_tdev = tty_udev(tp);
-		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
-		kp->ki_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
-		if (tp->t_session)
-			kp->ki_tsid = tp->t_session->s_sid;
-	} else {
-		kp->ki_tdev = NODEV;
-		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
-	}
 	if (p->p_comm[0] != '\0')
 		strlcpy(kp->ki_comm, p->p_comm, sizeof(kp->ki_comm));
 	if (p->p_sysent && p->p_sysent->sv_name != NULL &&
@@ -1284,6 +1250,53 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 		kp->ki_ppid = p->p_oppid;
 		if (p->p_flag & P_TRACED)
 			kp->ki_tracer = p->p_pptr->p_pid;
+	}
+}
+
+/*
+ * Fill job-related process information.
+ */
+static void
+fill_kinfo_proc_pgrp(struct proc *p, struct kinfo_proc *kp)
+{
+	struct tty *tp;
+	struct session *sp;
+	struct pgrp *pgrp;
+
+	sx_assert(&proctree_lock, SA_LOCKED);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	pgrp = p->p_pgrp;
+	if (pgrp == NULL)
+		return;
+
+	kp->ki_pgid = pgrp->pg_id;
+	kp->ki_jobc = pgrp->pg_jobc;
+
+	sp = pgrp->pg_session;
+	tp = NULL;
+
+	if (sp != NULL) {
+		kp->ki_sid = sp->s_sid;
+		SESS_LOCK(sp);
+		strlcpy(kp->ki_login, sp->s_login, sizeof(kp->ki_login));
+		if (sp->s_ttyvp)
+			kp->ki_kiflag |= KI_CTTY;
+		if (SESS_LEADER(p))
+			kp->ki_kiflag |= KI_SLEADER;
+		tp = sp->s_ttyp;
+		SESS_UNLOCK(sp);
+	}
+
+	if ((p->p_flag & P_CONTROLT) && tp != NULL) {
+		kp->ki_tdev = tty_udev(tp);
+		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
+		kp->ki_tpgid = tp->t_pgrp ? tp->t_pgrp->pg_id : NO_PID;
+		if (tp->t_session)
+			kp->ki_tsid = tp->t_session->s_sid;
+	} else {
+		kp->ki_tdev = NODEV;
+		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
 	}
 }
 
@@ -1409,6 +1422,9 @@ fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 
 	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
 
+	bzero(kp, sizeof(*kp));
+
+	fill_kinfo_proc_pgrp(p,kp);
 	fill_kinfo_proc_only(p, kp);
 	fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp, 0);
 	fill_kinfo_aggregate(p, kp);
