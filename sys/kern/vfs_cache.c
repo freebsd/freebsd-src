@@ -5207,8 +5207,9 @@ out:
 		__assert_unreachable();
 		break;
 	case CACHE_FPL_STATUS_HANDLED:
-		SDT_PROBE3(vfs, namei, lookup, return, error,
-		    (error == 0 ? ndp->ni_vp : NULL), true);
+		if (error != 0)
+			MPASS(ndp->ni_vp == NULL);
+		SDT_PROBE3(vfs, namei, lookup, return, error, ndp->ni_vp, true);
 		break;
 	case CACHE_FPL_STATUS_PARTIAL:
 		*pwdp = fpl.pwd;
