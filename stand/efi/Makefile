@@ -8,8 +8,12 @@ NO_OBJ=t
 # than 4.5 supports it.
 .if ${COMPILER_TYPE} != "gcc" || ${COMPILER_VERSION} >= 40500
 
+SUBDIR.yes+=	libefi
 SUBDIR.${MK_FDT}+=	fdt
-SUBDIR.yes+=	libefi boot1 gptboot
+SUBDIR.yes+=	.WAIT
+
+SUBDIR.yes+=	boot1 gptboot
+
 SUBDIR.${MK_FORTH}+= loader_4th
 SUBDIR.${MK_LOADER_LUA}+= loader_lua
 SUBDIR.yes+=	loader_simp
