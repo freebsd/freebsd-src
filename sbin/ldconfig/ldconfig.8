@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 17, 2020
+.Dd December 31, 2020
 .Dt LDCONFIG 8
 .Os
 .Sh NAME
@@ -38,7 +38,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl 32
-.Op Fl aout | Fl elf
+.Op Fl elf
 .Op Fl Rimrsv
 .Op Fl f Ar hints_file
 .Op Ar directory | Ar
@@ -109,12 +109,8 @@ The following options are recognized by
 .It Fl 32
 Generate the hints for 32-bit ABI shared libraries
 on 64-bit systems that support running 32-bit binaries.
-.It Fl aout
-Generate the hints for a.out format shared libraries.
-This option is deprecated and is not present in
-.Fx 13 .
 .It Fl elf
-Generate the hints for ELF format shared libraries.
+Ignored for backwards compatibility.
 .It Fl R
 Rescan the previously configured directories.
 This opens the previous hints
