@@ -1603,9 +1603,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		error = sysctl_wire_old_buffer(req, 0);
 		if (error)
 			return (error);
+		sx_slock(&proctree_lock);
 		error = pget((pid_t)name[0], PGET_CANSEE, &p);
 		if (error == 0)
 			error = sysctl_out_proc(p, req, flags);
+		sx_sunlock(&proctree_lock);
 		return (error);
 	}
 
@@ -1634,6 +1636,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		if (error != 0)
 			return (error);
 	}
+	sx_slock(&proctree_lock);
 	sx_slock(&allproc_lock);
 	for (doingzomb=0 ; doingzomb < 2 ; doingzomb++) {
 		if (!doingzomb)
@@ -1740,6 +1743,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 	}
 out:
 	sx_sunlock(&allproc_lock);
+	sx_sunlock(&proctree_lock);
 	return (error);
 }
 
