@@ -3590,17 +3590,22 @@ struct nameidata_saved {
 struct cache_fpl {
 	struct nameidata *ndp;
 	struct componentname *cnp;
-	struct pwd *pwd;
+	struct pwd **pwd;
 	struct vnode *dvp;
 	struct vnode *tvp;
 	seqc_t dvp_seqc;
 	seqc_t tvp_seqc;
 	struct nameidata_saved snd;
+	struct nameidata_saved snd_orig;
 	int line;
 	enum cache_fpl_status status:8;
 	bool in_smr;
 	bool fsearch;
 };
+
+static bool cache_fplookup_is_mp(struct cache_fpl *fpl);
+static int cache_fplookup_cross_mount(struct cache_fpl *fpl);
+static int cache_fplookup_partial_setup(struct cache_fpl *fpl);
 
 static void
 cache_fpl_cleanup_cnp(struct componentname *cnp)
@@ -3676,9 +3681,24 @@ cache_fpl_restore_abort(struct cache_fpl *fpl, struct nameidata_saved *snd)
 	MPASS(_fpl->in_smr == false);				\
 	VFS_SMR_ASSERT_NOT_ENTERED();				\
 })
+static void
+cache_fpl_assert_status(struct cache_fpl *fpl)
+{
+
+	switch (fpl->status) {
+	case CACHE_FPL_STATUS_UNSET:
+		__assert_unreachable();
+		break;
+	case CACHE_FPL_STATUS_ABORTED:
+	case CACHE_FPL_STATUS_PARTIAL:
+	case CACHE_FPL_STATUS_HANDLED:
+		break;
+	}
+}
 #else
 #define cache_fpl_smr_assert_entered(fpl) do { } while (0)
 #define cache_fpl_smr_assert_not_entered(fpl) do { } while (0)
+#define cache_fpl_assert_status(fpl) do { } while (0)
 #endif
 
 #define cache_fpl_smr_enter_initial(fpl) ({			\
@@ -3702,6 +3722,23 @@ cache_fpl_restore_abort(struct cache_fpl *fpl, struct nameidata_saved *snd)
 })
 
 static int
+cache_fpl_aborted_early_impl(struct cache_fpl *fpl, int line)
+{
+
+	if (fpl->status != CACHE_FPL_STATUS_UNSET) {
+		KASSERT(fpl->status == CACHE_FPL_STATUS_PARTIAL,
+		    ("%s: converting to abort from %d at %d, set at %d\n",
+		    __func__, fpl->status, line, fpl->line));
+	}
+	cache_fpl_smr_assert_not_entered(fpl);
+	fpl->status = CACHE_FPL_STATUS_ABORTED;
+	fpl->line = line;
+	return (CACHE_FPL_FAILED);
+}
+
+#define cache_fpl_aborted_early(x)	cache_fpl_aborted_early_impl((x), __LINE__)
+
+static int __noinline
 cache_fpl_aborted_impl(struct cache_fpl *fpl, int line)
 {
 
@@ -3712,12 +3749,15 @@ cache_fpl_aborted_impl(struct cache_fpl *fpl, int line)
 	}
 	fpl->status = CACHE_FPL_STATUS_ABORTED;
 	fpl->line = line;
+	if (fpl->in_smr)
+		cache_fpl_smr_exit(fpl);
+	cache_fpl_restore_abort(fpl, &fpl->snd_orig);
 	return (CACHE_FPL_FAILED);
 }
 
 #define cache_fpl_aborted(x)	cache_fpl_aborted_impl((x), __LINE__)
 
-static int
+static int __noinline
 cache_fpl_partial_impl(struct cache_fpl *fpl, int line)
 {
 
@@ -3727,7 +3767,7 @@ cache_fpl_partial_impl(struct cache_fpl *fpl, int line)
 	cache_fpl_smr_assert_entered(fpl);
 	fpl->status = CACHE_FPL_STATUS_PARTIAL;
 	fpl->line = line;
-	return (CACHE_FPL_FAILED);
+	return (cache_fplookup_partial_setup(fpl));
 }
 
 #define cache_fpl_partial(x)	cache_fpl_partial_impl((x), __LINE__)
@@ -3766,9 +3806,6 @@ cache_fpl_terminated(struct cache_fpl *fpl)
 _Static_assert((CACHE_FPL_SUPPORTED_CN_FLAGS & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
     "supported and internal flags overlap");
 
-static bool cache_fplookup_is_mp(struct cache_fpl *fpl);
-static int cache_fplookup_cross_mount(struct cache_fpl *fpl);
-
 static bool
 cache_fpl_islastcn(struct nameidata *ndp)
 {
@@ -3798,29 +3835,29 @@ cache_can_fplookup(struct cache_fpl *fpl)
 	td = cnp->cn_thread;
 
 	if (!cache_fast_lookup) {
-		cache_fpl_aborted(fpl);
+		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
 #ifdef MAC
 	if (mac_vnode_check_lookup_enabled()) {
-		cache_fpl_aborted(fpl);
+		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
 #endif
 	if ((cnp->cn_flags & ~CACHE_FPL_SUPPORTED_CN_FLAGS) != 0) {
-		cache_fpl_aborted(fpl);
+		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
 	if (IN_CAPABILITY_MODE(td)) {
-		cache_fpl_aborted(fpl);
+		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
 	if (AUDITING_TD(td)) {
-		cache_fpl_aborted(fpl);
+		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
 	if (ndp->ni_startdir != NULL) {
-		cache_fpl_aborted(fpl);
+		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
 	return (true);
@@ -3836,7 +3873,6 @@ cache_fplookup_dirfd(struct cache_fpl *fpl, struct vnode **vpp)
 	ndp = fpl->ndp;
 	error = fgetvp_lookup_smr(ndp->ni_dirfd, ndp, vpp, &fsearch);
 	if (__predict_false(error != 0)) {
-		cache_fpl_smr_exit(fpl);
 		return (cache_fpl_aborted(fpl));
 	}
 	fpl->fsearch = fsearch;
@@ -3882,12 +3918,11 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
-	pwd = fpl->pwd;
+	pwd = *(fpl->pwd);
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 
 	if (!pwd_hold_smr(pwd)) {
-		cache_fpl_smr_exit(fpl);
 		return (cache_fpl_aborted(fpl));
 	}
 
@@ -4981,7 +5016,6 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 	struct mount *mp;
 	int error;
 
-	error = CACHE_FPL_FAILED;
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 
@@ -4990,20 +5024,18 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 	fpl->dvp = dvp;
 	fpl->dvp_seqc = vn_seqc_read_any(fpl->dvp);
 	if (seqc_in_modify(fpl->dvp_seqc)) {
-		cache_fpl_aborted(fpl);
-		goto out;
+		return (cache_fpl_aborted(fpl));
 	}
 	mp = atomic_load_ptr(&dvp->v_mount);
 	if (__predict_false(mp == NULL || !cache_fplookup_mp_supported(mp))) {
-		cache_fpl_aborted(fpl);
-		goto out;
+		return (cache_fpl_aborted(fpl));
 	}
 
 	VNPASS(cache_fplookup_vnode_supported(fpl->dvp), fpl->dvp);
 
 	error = cache_fplookup_preparse(fpl);
 	if (__predict_false(cache_fpl_terminated(fpl))) {
-		goto out;
+		return (error);
 	}
 
 	for (;;) {
@@ -5043,39 +5075,8 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 		cache_fplookup_parse_advance(fpl);
 		cache_fpl_checkpoint(fpl, &fpl->snd);
 	}
-out:
-	switch (fpl->status) {
-	case CACHE_FPL_STATUS_UNSET:
-		__assert_unreachable();
-		break;
-	case CACHE_FPL_STATUS_PARTIAL:
-		cache_fpl_smr_assert_entered(fpl);
-		return (cache_fplookup_partial_setup(fpl));
-	case CACHE_FPL_STATUS_ABORTED:
-		if (fpl->in_smr)
-			cache_fpl_smr_exit(fpl);
-		return (CACHE_FPL_FAILED);
-	case CACHE_FPL_STATUS_HANDLED:
-		MPASS(error != CACHE_FPL_FAILED);
-		cache_fpl_smr_assert_not_entered(fpl);
-		/*
-		 * A common error is ENOENT.
-		 */
-		if (error != 0) {
-			ndp->ni_dvp = NULL;
-			ndp->ni_vp = NULL;
-			cache_fpl_cleanup_cnp(cnp);
-			return (error);
-		}
-		ndp->ni_dvp = fpl->dvp;
-		ndp->ni_vp = fpl->tvp;
-		if (cnp->cn_flags & SAVENAME)
-			cnp->cn_flags |= HASBUF;
-		else
-			cache_fpl_cleanup_cnp(cnp);
-		return (error);
-	}
-	__assert_unreachable();
+
+	return (error);
 }
 
 /*
@@ -5162,10 +5163,10 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	struct pwd *pwd;
 	struct vnode *dvp;
 	struct componentname *cnp;
-	struct nameidata_saved orig;
 	int error;
 
 	fpl.status = CACHE_FPL_STATUS_UNSET;
+	fpl.in_smr = false;
 	fpl.ndp = ndp;
 	fpl.cnp = cnp = &ndp->ni_cnd;
 
@@ -5185,12 +5186,13 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 		return (EOPNOTSUPP);
 	}
 
-	cache_fpl_checkpoint(&fpl, &orig);
+	cache_fpl_checkpoint(&fpl, &fpl.snd_orig);
 
 	cache_fpl_smr_enter_initial(&fpl);
 	fpl.fsearch = false;
+	fpl.pwd = pwdp;
 	pwd = pwd_get_smr();
-	fpl.pwd = pwd;
+	*(fpl.pwd) = pwd;
 	ndp->ni_rootdir = pwd->pwd_rdir;
 	ndp->ni_topdir = pwd->pwd_jdir;
 
@@ -5209,31 +5211,34 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	}
 
 	SDT_PROBE4(vfs, namei, lookup, entry, dvp, cnp->cn_pnbuf, cnp->cn_flags, true);
-
 	error = cache_fplookup_impl(dvp, &fpl);
 out:
 	cache_fpl_smr_assert_not_entered(&fpl);
-	SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
-
+	cache_fpl_assert_status(&fpl);
 	*status = fpl.status;
-	switch (fpl.status) {
-	case CACHE_FPL_STATUS_UNSET:
-		__assert_unreachable();
-		break;
-	case CACHE_FPL_STATUS_HANDLED:
-		if (error != 0)
-			MPASS(ndp->ni_vp == NULL);
-		SDT_PROBE3(vfs, namei, lookup, return, error, ndp->ni_vp, true);
-		break;
-	case CACHE_FPL_STATUS_PARTIAL:
-		*pwdp = fpl.pwd;
+	if (SDT_PROBES_ENABLED()) {
+		SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
+		if (fpl.status == CACHE_FPL_STATUS_HANDLED)
+			SDT_PROBE3(vfs, namei, lookup, return, error, ndp->ni_vp, true);
+	}
+
+	if (__predict_true(fpl.status == CACHE_FPL_STATUS_HANDLED)) {
+		MPASS(error != CACHE_FPL_FAILED);
 		/*
-		 * Status restored by cache_fplookup_partial_setup.
+		 * A common error is ENOENT.
 		 */
-		break;
-	case CACHE_FPL_STATUS_ABORTED:
-		cache_fpl_restore_abort(&fpl, &orig);
-		break;
+		if (error != 0) {
+			ndp->ni_dvp = NULL;
+			ndp->ni_vp = NULL;
+			cache_fpl_cleanup_cnp(cnp);
+			return (error);
+		}
+		ndp->ni_dvp = fpl.dvp;
+		ndp->ni_vp = fpl.tvp;
+		if (cnp->cn_flags & SAVENAME)
+			cnp->cn_flags |= HASBUF;
+		else
+			cache_fpl_cleanup_cnp(cnp);
 	}
 	return (error);
 }
