@@ -137,11 +137,11 @@ extern struct inostatlist {
  */
 struct bufarea {
 	TAILQ_ENTRY(bufarea) b_list;		/* buffer list */
-	ufs2_daddr_t b_bno;
-	int b_size;
-	int b_errs;
-	int b_flags;
-	int b_type;
+	ufs2_daddr_t b_bno;			/* disk block number */
+	int b_size;				/* size of I/O */
+	int b_errs;				/* I/O error */
+	int b_flags;				/* B_ flags below */
+	int b_type;				/* BT_ type below */
 	union {
 		char *b_buf;			/* buffer space */
 		ufs1_daddr_t *b_indir1;		/* UFS1 indirect block */
@@ -172,14 +172,14 @@ struct bufarea {
 /*
  * Type of data in buffer
  */
-#define	BT_UNKNOWN 	 0	/* Buffer holds a superblock */
+#define	BT_UNKNOWN 	 0	/* Buffer type is unknown */
 #define	BT_SUPERBLK 	 1	/* Buffer holds a superblock */
 #define	BT_CYLGRP 	 2	/* Buffer holds a cylinder group map */
 #define	BT_LEVEL1 	 3	/* Buffer holds single level indirect */
 #define	BT_LEVEL2 	 4	/* Buffer holds double level indirect */
 #define	BT_LEVEL3 	 5	/* Buffer holds triple level indirect */
 #define	BT_EXTATTR 	 6	/* Buffer holds external attribute data */
-#define	BT_INODES 	 7	/* Buffer holds external attribute data */
+#define	BT_INODES 	 7	/* Buffer holds inodes */
 #define	BT_DIRDATA 	 8	/* Buffer holds directory data */
 #define	BT_DATA	 	 9	/* Buffer holds user data */
 #define BT_NUMBUFTYPES	10
