@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #include "calendar.h"
 
+#define	SLEN	100	/* maximum length of date spec. part strings */
+
 static char *showflags(int flags);
 static int isonlydigits(char *s, int nostar);
 static const char *getmonthname(int i);
@@ -116,12 +118,12 @@ determinestyle(char *date, int *flags,
 		*flags |= type;						\
 		*flags |= F_VARIABLE;					\
 		if (strlen(s1) == lens2) {				\
-			strcpy(specialday, s1);				\
+			strlcpy(specialday, s1, SLEN);			\
 			return (1);					\
 		}							\
 		strncpy(specialday, s1, lens2);				\
 		specialday[lens2] = '\0';				\
-		strcpy(modifieroffset, s1 + lens2);			\
+		strlcpy(modifieroffset, s1 + lens2, SLEN);		\
 		*flags |= F_MODIFIEROFFSET;				\
 		return (1);						\
 	}
@@ -166,12 +168,12 @@ determinestyle(char *date, int *flags,
 				*flags |= F_VARIABLE;
 				*idayofweek = offset;
 				if (strlen(date) == len) {
-					strcpy(dayofweek, date);
+					strlcpy(dayofweek, date, SLEN);
 					return (1);
 				}
 				strncpy(dayofweek, date, len);
 				dayofweek[len] = '\0';
-				strcpy(modifierindex, date + len);
+				strlcpy(modifierindex, date + len, SLEN);
 				*flags |= F_MODIFIERINDEX;
 				return (1);
 			}
@@ -179,7 +181,7 @@ determinestyle(char *date, int *flags,
 				/* Assume month number only */
 				*flags |= F_MONTH;
 				*imonth = (int)strtol(date, (char **)NULL, 10);
-				strcpy(month, getmonthname(*imonth));
+				strlcpy(month, getmonthname(*imonth), SLEN);
 				return(1);
 			}
 			return (0);
@@ -198,7 +200,7 @@ determinestyle(char *date, int *flags,
 
 	if ((py = strchr(p2, '/')) != NULL) {
 		/* We have a year in the string. Now this is getting tricky */
-		strcpy(year, p1);
+		strlcpy(year, p1, SLEN);
 		*iyear = (int)strtol(year, NULL, 10);
 		p1 = p2;
 		p2 = py + 1;
@@ -213,9 +215,9 @@ determinestyle(char *date, int *flags,
 		*flags |= F_MONTH;
 		*imonth = offset;
 
-		strcpy(month, getmonthname(offset));
+		strlcpy(month, getmonthname(offset), SLEN);
 		if (isonlydigits(p2, 1)) {
-			strcpy(dayofmonth, p2);
+			strlcpy(dayofmonth, p2, SLEN);
 			*idayofmonth = (int)strtol(p2, (char **)NULL, 10);
 			*flags |= F_DAYOFMONTH;
 			goto allfine;
@@ -229,10 +231,10 @@ determinestyle(char *date, int *flags,
 			*flags |= F_DAYOFWEEK;
 			*flags |= F_VARIABLE;
 			*idayofweek = offset;
-			strcpy(dayofweek, getdayofweekname(offset));
+			strlcpy(dayofweek, getdayofweekname(offset), SLEN);
 			if (strlen(p2) == len)
 				goto allfine;
-			strcpy(modifierindex, p2 + len);
+			strlcpy(modifierindex, p2 + len, SLEN);
 			*flags |= F_MODIFIERINDEX;
 			goto allfine;
 		}
@@ -248,7 +250,7 @@ determinestyle(char *date, int *flags,
 		*flags |= F_DAYOFMONTH;
 		d = (int)strtol(p2, (char **)NULL, 10);
 		*idayofmonth = d;
-		sprintf(dayofmonth, "%d", d);
+		snprintf(dayofmonth, SLEN, "%d", d);
 		goto allfine;
 	}
 
@@ -264,12 +266,12 @@ determinestyle(char *date, int *flags,
 		*idayofweek = offset;
 		d = (int)strtol(p1, (char **)NULL, 10);
 		*imonth = d;
-		strcpy(month, getmonthname(d));
+		strlcpy(month, getmonthname(d), SLEN);
 
-		strcpy(dayofweek, getdayofweekname(offset));
+		strlcpy(dayofweek, getdayofweekname(offset), SLEN);
 		if (strlen(p2) == len)
 			goto allfine;
-		strcpy(modifierindex, p2 + len);
+		strlcpy(modifierindex, p2 + len, SLEN);
 		*flags |= F_MODIFIERINDEX;
 		goto allfine;
 	}
@@ -291,13 +293,13 @@ determinestyle(char *date, int *flags,
 		if (m > 12) {
 			*imonth = d;
 			*idayofmonth = m;
-			strcpy(month, getmonthname(d));
-			sprintf(dayofmonth, "%d", m);
+			strlcpy(month, getmonthname(d), SLEN);
+			snprintf(dayofmonth, SLEN, "%d", m);
 		} else {
 			*imonth = m;
 			*idayofmonth = d;
-			strcpy(month, getmonthname(m));
-			sprintf(dayofmonth, "%d", d);
+			strlcpy(month, getmonthname(m), SLEN);
+			snprintf(dayofmonth, SLEN, "%d", d);
 		}
 		goto allfine;
 	}
@@ -328,7 +330,7 @@ remember(int *rememberindex, int *y, int *m, int *d, char **ed, int yy, int mm,
 	m[*rememberindex] = mm;
 	d[*rememberindex] = dd;
 	if (extra != NULL)
-		strcpy(ed[*rememberindex], extra);
+		strlcpy(ed[*rememberindex], extra, SLEN);
 	else
 		ed[*rememberindex][0] = '\0';
 	*rememberindex += 1;
@@ -431,9 +433,9 @@ int
 parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
     char **edp)
 {
-	char month[100], dayofmonth[100], dayofweek[100], modifieroffset[100];
-	char syear[100];
-	char modifierindex[100], specialday[100];
+	char month[SLEN], dayofmonth[SLEN], dayofweek[SLEN], modifieroffset[SLEN];
+	char syear[SLEN];
+	char modifierindex[SLEN], specialday[SLEN];
 	int idayofweek = -1, imonth = -1, idayofmonth = -1, iyear = -1;
 	int year, remindex;
 	int d, m, dow, rm, rd, offset;
@@ -821,47 +823,47 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 static char *
 showflags(int flags)
 {
-	static char s[1000];
+	static char s[SLEN];
 	s[0] = '\0';
 
 	if ((flags & F_YEAR) != 0)
-		strcat(s, "year ");
+		strlcat(s, "year ", SLEN);
 	if ((flags & F_MONTH) != 0)
-		strcat(s, "month ");
+		strlcat(s, "month ", SLEN);
 	if ((flags & F_DAYOFWEEK) != 0)
-		strcat(s, "dayofweek ");
+		strlcat(s, "dayofweek ", SLEN);
 	if ((flags & F_DAYOFMONTH) != 0)
-		strcat(s, "dayofmonth ");
+		strlcat(s, "dayofmonth ", SLEN);
 	if ((flags & F_MODIFIERINDEX) != 0)
-		strcat(s, "modifierindex ");
+		strlcat(s, "modifierindex ", SLEN);
 	if ((flags & F_MODIFIEROFFSET) != 0)
-		strcat(s, "modifieroffset ");
+		strlcat(s, "modifieroffset ", SLEN);
 	if ((flags & F_SPECIALDAY) != 0)
-		strcat(s, "specialday ");
+		strlcat(s, "specialday ", SLEN);
 	if ((flags & F_ALLMONTH) != 0)
-		strcat(s, "allmonth ");
+		strlcat(s, "allmonth ", SLEN);
 	if ((flags & F_ALLDAY) != 0)
-		strcat(s, "allday ");
+		strlcat(s, "allday ", SLEN);
 	if ((flags & F_VARIABLE) != 0)
-		strcat(s, "variable ");
+		strlcat(s, "variable ", SLEN);
 	if ((flags & F_CNY) != 0)
-		strcat(s, "chinesenewyear ");
+		strlcat(s, "chinesenewyear ", SLEN);
 	if ((flags & F_PASKHA) != 0)
-		strcat(s, "paskha ");
+		strlcat(s, "paskha ", SLEN);
 	if ((flags & F_EASTER) != 0)
-		strcat(s, "easter ");
+		strlcat(s, "easter ", SLEN);
 	if ((flags & F_FULLMOON) != 0)
-		strcat(s, "fullmoon ");
+		strlcat(s, "fullmoon ", SLEN);
 	if ((flags & F_NEWMOON) != 0)
-		strcat(s, "newmoon ");
+		strlcat(s, "newmoon ", SLEN);
 	if ((flags & F_MAREQUINOX) != 0)
-		strcat(s, "marequinox ");
+		strlcat(s, "marequinox ", SLEN);
 	if ((flags & F_SEPEQUINOX) != 0)
-		strcat(s, "sepequinox ");
+		strlcat(s, "sepequinox ", SLEN);
 	if ((flags & F_JUNSOLSTICE) != 0)
-		strcat(s, "junsolstice ");
+		strlcat(s, "junsolstice ", SLEN);
 	if ((flags & F_DECSOLSTICE) != 0)
-		strcat(s, "decsolstice ");
+		strlcat(s, "decsolstice ", SLEN);
 
 	return s;
 }
@@ -1026,7 +1028,7 @@ parseoffset(char *s)
 static char *
 floattotime(double f)
 {
-	static char buf[100];
+	static char buf[SLEN];
 	int hh, mm, ss, i;
 
 	f -= floor(f);
@@ -1038,14 +1040,14 @@ floattotime(double f)
 	i %= SECSPERMINUTE;
 	ss = i;
 
-	sprintf(buf, "%02d:%02d:%02d", hh, mm, ss);
+	snprintf(buf, SLEN, "%02d:%02d:%02d", hh, mm, ss);
 	return (buf);
 }
 
 static char *
 floattoday(int year, double f)
 {
-	static char buf[100];
+	static char buf[SLEN];
 	int i, m, d, hh, mm, ss;
 	int *cumdays = cumdaytab[isleap(year)];
 
@@ -1062,7 +1064,7 @@ floattoday(int year, double f)
 	i %= SECSPERMINUTE;
 	ss = i;
 
-	sprintf(buf, "%02d-%02d %02d:%02d:%02d", m, d, hh, mm, ss);
+	snprintf(buf, SLEN, "%02d-%02d %02d:%02d:%02d", m, d, hh, mm, ss);
 	return (buf);
 }
 
