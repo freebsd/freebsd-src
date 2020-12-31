@@ -325,7 +325,7 @@ sys_setsid(struct thread *td, struct setsid_args *uap)
 	error = 0;
 	pgrp = NULL;
 
-	newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	newpgrp = uma_zalloc(pgrp_zone, M_WAITOK);
 	newsess = malloc(sizeof(struct session), M_SESSION, M_WAITOK | M_ZERO);
 
 	sx_xlock(&proctree_lock);
@@ -343,10 +343,8 @@ sys_setsid(struct thread *td, struct setsid_args *uap)
 
 	sx_xunlock(&proctree_lock);
 
-	if (newpgrp != NULL)
-		free(newpgrp, M_PGRP);
-	if (newsess != NULL)
-		free(newsess, M_SESSION);
+	uma_zfree(pgrp_zone, newpgrp);
+	free(newsess, M_SESSION);
 
 	return (error);
 }
@@ -385,7 +383,7 @@ sys_setpgid(struct thread *td, struct setpgid_args *uap)
 
 	error = 0;
 
-	newpgrp = malloc(sizeof(struct pgrp), M_PGRP, M_WAITOK | M_ZERO);
+	newpgrp = uma_zalloc(pgrp_zone, M_WAITOK);
 
 	sx_xlock(&proctree_lock);
 	if (uap->pid != 0 && uap->pid != curp->p_pid) {
@@ -448,8 +446,7 @@ done:
 	sx_xunlock(&proctree_lock);
 	KASSERT((error == 0) || (newpgrp != NULL),
 	    ("setpgid failed and newpgrp is NULL"));
-	if (newpgrp != NULL)
-		free(newpgrp, M_PGRP);
+	uma_zfree(pgrp_zone, newpgrp);
 	return (error);
 }
 

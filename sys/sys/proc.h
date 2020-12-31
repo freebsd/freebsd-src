@@ -841,7 +841,6 @@ struct proc {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PARGS);
-MALLOC_DECLARE(M_PGRP);
 MALLOC_DECLARE(M_SESSION);
 MALLOC_DECLARE(M_SUBPROC);
 #endif
@@ -1011,6 +1010,7 @@ extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 
 extern struct uma_zone *proc_zone;
+extern struct uma_zone *pgrp_zone;
 
 struct	proc *pfind(pid_t);		/* Find process by id. */
 struct	proc *pfind_any(pid_t);		/* Find (zombie) process by id. */
