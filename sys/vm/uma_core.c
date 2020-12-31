@@ -5392,10 +5392,10 @@ uma_dbg_alloc(uma_zone_t zone, uma_slab_t slab, void *item)
 	keg = zone->uz_keg;
 	freei = slab_item_index(slab, keg, item);
 
-	if (BIT_ISSET(keg->uk_ipers, freei, slab_dbg_bits(slab, keg)))
+	if (BIT_TEST_SET_ATOMIC(keg->uk_ipers, freei,
+	    slab_dbg_bits(slab, keg)))
 		panic("Duplicate alloc of %p from zone %p(%s) slab %p(%d)",
 		    item, zone, zone->uz_name, slab, freei);
-	BIT_SET_ATOMIC(keg->uk_ipers, freei, slab_dbg_bits(slab, keg));
 }
 
 /*
@@ -5426,11 +5426,10 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 		panic("Unaligned free of %p from zone %p(%s) slab %p(%d)",
 		    item, zone, zone->uz_name, slab, freei);
 
-	if (!BIT_ISSET(keg->uk_ipers, freei, slab_dbg_bits(slab, keg)))
+	if (!BIT_TEST_CLR_ATOMIC(keg->uk_ipers, freei,
+	    slab_dbg_bits(slab, keg)))
 		panic("Duplicate free of %p from zone %p(%s) slab %p(%d)",
 		    item, zone, zone->uz_name, slab, freei);
-
-	BIT_CLR_ATOMIC(keg->uk_ipers, freei, slab_dbg_bits(slab, keg));
 }
 #endif /* INVARIANTS */
 
