@@ -2984,17 +2984,20 @@ issignal(struct thread *td)
 			 * should ignore tty stops.
 			 */
 			if (prop & SIGPROP_STOP) {
+				mtx_unlock(&ps->ps_mtx);
 				if ((p->p_flag & (P_TRACED | P_WEXIT |
 				    P_SINGLE_EXIT)) != 0 ||
 				    (p->p_pgrp->pg_jobc == 0 &&
-				    (prop & SIGPROP_TTYSTOP) != 0))
+				    (prop & SIGPROP_TTYSTOP) != 0)) {
+					mtx_lock(&ps->ps_mtx);
 					break;	/* == ignore */
+				}
 				if (TD_SBDRY_INTR(td)) {
 					KASSERT((td->td_flags & TDF_SBDRY) != 0,
 					    ("lost TDF_SBDRY"));
+					mtx_lock(&ps->ps_mtx);
 					return (-1);
 				}
-				mtx_unlock(&ps->ps_mtx);
 				WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 				    &p->p_mtx.lock_object, "Catching SIGSTOP");
 				sigqueue_delete(&td->td_sigqueue, sig);
