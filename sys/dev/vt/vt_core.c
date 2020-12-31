@@ -1805,6 +1805,9 @@ vtterm_cngrab(struct terminal *tm)
 	vw = tm->tm_softc;
 	vd = vw->vw_device;
 
+	/* To be restored after we ungrab. */
+	if (vd->vd_grabwindow == NULL)
+		vd->vd_grabwindow = vd->vd_curwindow;
 
 	if (!cold)
 		vt_window_switch(vw);
@@ -1821,10 +1824,14 @@ vtterm_cnungrab(struct terminal *tm)
 	vw = tm->tm_softc;
 	vd = vw->vw_device;
 
+	MPASS(vd->vd_grabwindow != NULL);
 	if (vtterm_cnungrab_noswitch(vd, vw) != 0)
 		return;
 
+	if (!cold && vd->vd_grabwindow != vw)
+		vt_window_switch(vd->vd_grabwindow);
 
+	vd->vd_grabwindow = NULL;
 }
 
 static void
