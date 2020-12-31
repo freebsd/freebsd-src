@@ -526,7 +526,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 	unsigned long hid;
 	size_t namelen, onamelen, pnamelen;
-	int born, created, cuflags, descend, enforce;
+	int born, created, cuflags, descend, enforce, slocked;
 	int error, errmsg_len, errmsg_pos;
 	int gotchildmax, gotenforce, gothid, gotrsnum, gotslevel;
 	int jid, jsys, len, level;
@@ -1828,24 +1828,32 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 
 	/* Attach this process to the prison if requested. */
+	slocked = PD_LIST_SLOCKED;
 	if (flags & JAIL_ATTACH) {
 		mtx_lock(&pr->pr_mtx);
 		error = do_jail_attach(td, pr);
+		slocked = 0;
 		if (error) {
 			vfs_opterror(opts, "attach failed");
-			if (!created)
-				prison_deref(pr, PD_DEREF);
+			if (born) {
+				sx_slock(&allprison_lock);
+				slocked = PD_LIST_SLOCKED;
+				(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
+			}
+			prison_deref(pr, created
+			    ? slocked
+			    : PD_DEREF | slocked);
 			goto done_errmsg;
 		}
 	}
 
 #ifdef RACCT
 	if (racct_enable && !created) {
-		if (!(flags & JAIL_ATTACH))
+		if (slocked) {
 			sx_sunlock(&allprison_lock);
+			slocked = 0;
+		}
 		prison_racct_modify(pr);
-		if (!(flags & JAIL_ATTACH))
-			sx_slock(&allprison_lock);
 	}
 #endif
 
@@ -1857,18 +1865,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 * (which was not done earlier so that the prison would not be publicly
 	 * visible).
 	 */
-	if (!created) {
-		prison_deref(pr, (flags & JAIL_ATTACH)
-		    ? PD_DEREF
-		    : PD_DEREF | PD_LIST_SLOCKED);
-	} else {
+	if (!created)
+		prison_deref(pr, PD_DEREF | slocked);
+	else {
 		if (pr_flags & PR_PERSIST) {
 			mtx_lock(&pr->pr_mtx);
 			pr->pr_ref++;
 			pr->pr_uref++;
 			mtx_unlock(&pr->pr_mtx);
 		}
-		if (!(flags & JAIL_ATTACH))
+		if (slocked)
 			sx_sunlock(&allprison_lock);
 	}
 
