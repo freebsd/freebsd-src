@@ -173,6 +173,12 @@
 		(d)->__bits[__i] = (s1)->__bits[__i] ^ (s2)->__bits[__i];\
 } while (0)
 
+/*
+ * Note, the atomic(9) API is not consistent between clear/set and
+ * testandclear/testandset in whether the value argument is a mask
+ * or a bit index.
+ */
+
 #define	BIT_CLR_ATOMIC(_s, n, p)					\
 	atomic_clear_long(&(p)->__bits[__bitset_word(_s, n)],		\
 	    __bitset_mask((_s), n))
@@ -184,6 +190,14 @@
 #define	BIT_SET_ATOMIC_ACQ(_s, n, p)					\
 	atomic_set_acq_long(&(p)->__bits[__bitset_word(_s, n)],		\
 	    __bitset_mask((_s), n))
+
+#define	BIT_TEST_CLR_ATOMIC(_s, n, p)					\
+	(atomic_testandclear_long(					\
+	    &(p)->__bits[__bitset_word((_s), (n))], (n)) != 0)
+
+#define	BIT_TEST_SET_ATOMIC(_s, n, p)					\
+	(atomic_testandset_long(					\
+	    &(p)->__bits[__bitset_word((_s), (n))], (n)) != 0)
 
 /* Convenience functions catering special cases. */
 #define	BIT_AND_ATOMIC(_s, d, s) do {					\
