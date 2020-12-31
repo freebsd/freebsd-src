@@ -294,9 +294,7 @@ infiniband_output(struct ifnet *ifp, struct mbuf *m,
 {
 	uint8_t linkhdr[INFINIBAND_HDR_LEN];
 	uint8_t *phdr;
-#if defined(INET) || defined(INET6)
 	struct llentry *lle = NULL;
-#endif
 	struct infiniband_header *ih;
 	int error = 0;
 	int hlen;	/* link layer header length */
