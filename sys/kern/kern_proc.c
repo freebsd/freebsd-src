@@ -1653,6 +1653,7 @@ proc_iterate(int (*cb)(struct proc *, void *), void *cbarg)
 	int error, i, j;
 
 	for (i = 0; i < pidhashlock + 1; i++) {
+		sx_slock(&proctree_lock);
 		sx_slock(&pidhashtbl_lock[i]);
 		for (j = i; j <= pidhash; j += pidhashlock + 1) {
 			LIST_FOREACH(p, &pidhashtbl[j], p_hash) {
@@ -1662,11 +1663,13 @@ proc_iterate(int (*cb)(struct proc *, void *), void *cbarg)
 				PROC_LOCK_ASSERT(p, MA_NOTOWNED);
 				if (error != 0) {
 					sx_sunlock(&pidhashtbl_lock[i]);
+					sx_sunlock(&proctree_lock);
 					return (error);
 				}
 			}
 		}
 		sx_sunlock(&pidhashtbl_lock[i]);
+		sx_sunlock(&proctree_lock);
 	}
 	return (0);
 }
@@ -1792,9 +1795,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		error = sysctl_wire_old_buffer(req, 0);
 		if (error)
 			return (error);
+		sx_slock(&proctree_lock);
 		error = pget((pid_t)name[0], PGET_CANSEE, &p);
 		if (error == 0)
 			error = sysctl_out_proc(p, req, flags);
+		sx_sunlock(&proctree_lock);
 		return (error);
 	}
 
