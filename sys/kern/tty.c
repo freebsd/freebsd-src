@@ -456,7 +456,7 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		}
 
 		pg = p->p_pgrp;
-		if (p->p_flag & P_PPWAIT || pg->pg_jobc == 0) {
+		if ((p->p_flag & P_PPWAIT) != 0 || pg->pg_jobc == 0) {
 			/* Don't allow the action to happen. */
 			PROC_UNLOCK(p);
 			return (EIO);

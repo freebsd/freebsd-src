@@ -629,12 +629,10 @@ enterthispgrp(struct proc *p, struct pgrp *pgrp)
 	PGRP_LOCK_ASSERT(p->p_pgrp, MA_NOTOWNED);
 	SESS_LOCK_ASSERT(p->p_session, MA_NOTOWNED);
 	KASSERT(pgrp->pg_session == p->p_session,
-		("%s: pgrp's session %p, p->p_session %p.\n",
-		__func__,
-		pgrp->pg_session,
-		p->p_session));
+	    ("%s: pgrp's session %p, p->p_session %p proc %p\n",
+	    __func__, pgrp->pg_session, p->p_session, p));
 	KASSERT(pgrp != p->p_pgrp,
-		("%s: p belongs to pgrp.", __func__));
+	    ("%s: p %p belongs to pgrp %p", __func__, p, pgrp));
 
 	doenterpgrp(p, pgrp);
 
