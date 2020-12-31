@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 25, 2020
+.Dd December 31, 2020
 .Dt BITSET 9
 .Os
 .Sh NAME
@@ -60,6 +60,8 @@
 .Nm BIT_CLR_ATOMIC ,
 .Nm BIT_SET_ATOMIC ,
 .Nm BIT_SET_ATOMIC_ACQ ,
+.Nm BIT_TEST_SET_ATOMIC ,
+.Nm BIT_TEST_CLR_ATOMIC ,
 .Nm BIT_AND_ATOMIC ,
 .Nm BIT_OR_ATOMIC ,
 .Nm BIT_COPY_STORE_REL
@@ -137,6 +139,10 @@
 .Fn BIT_CLR_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
 .Fn BIT_SET_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
 .Fn BIT_SET_ATOMIC_ACQ "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Ft bool
+.Fn BIT_TEST_SET_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
+.Ft bool
+.Fn BIT_TEST_CLR_ATOMIC "const SETSIZE" "size_t bit" "struct STRUCTNAME *bitset"
 .\"
 .Fo BIT_AND_ATOMIC
 .Fa "const SETSIZE" "struct STRUCTNAME *dst" "struct STRUCTNAME *src"
@@ -205,6 +211,9 @@ in the bitset pointed to by
 The
 .Fn BIT_CLR_ATOMIC
 macro is identical, but the bit is cleared atomically.
+The
+.Fn BIT_TEST_CLR_ATOMIC
+macro atomically clears the bit and returns whether it was set.
 .Pp
 The
 .Fn BIT_COPY
@@ -236,6 +245,9 @@ macro is identical, but the bit is set atomically.
 The
 .Fn BIT_SET_ATOMIC_ACQ
 macro sets the bit with acquire semantics.
+The
+.Fn BIT_TEST_SET_ATOMIC
+macro atomically sets the bit and returns whether it was set.
 .Pp
 The
 .Fn BIT_ZERO
