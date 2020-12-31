@@ -382,8 +382,22 @@ opal_handle_messages(void)
 
 	rv = opal_call(OPAL_GET_MSG, vtophys(&msg), sizeof(msg));
 
-	if (rv != OPAL_SUCCESS)
+	switch (rv) {
+	case OPAL_SUCCESS:
+		break;
+	case OPAL_RESOURCE:
+		/* no available messages - return */
 		return;
+	case OPAL_PARAMETER:
+		printf("%s error: invalid buffer. Please file a bug report.\n", __func__);
+		return;
+	case OPAL_PARTIAL:
+		printf("%s error: buffer is too small and messages was discarded. Please file a bug report.\n", __func__);
+		return;
+	default:
+		printf("%s opal_call returned unknown result <%lu>\n", __func__, rv);
+		return;
+	}
 
 	type = be32toh(msg.msg_type);
 	switch (type) {
@@ -406,7 +420,7 @@ opal_handle_messages(void)
 		EVENTHANDLER_DIRECT_INVOKE(OPAL_OCC, &msg);
 		break;
 	default:
-		printf("Unknown OPAL message type %d\n", type);
+		printf("%s Unknown OPAL message type %d\n", __func__, type);
 	}
 }
 
@@ -418,7 +432,7 @@ opal_intr(void *xintr)
 	opal_call(OPAL_HANDLE_INTERRUPT, (uint32_t)(uint64_t)xintr,
 	    vtophys(&events));
 	/* Wake up the heartbeat, if it's been setup. */
-	if (events != 0 && opal_hb_proc != NULL)
+	if (be64toh(events) != 0 && opal_hb_proc != NULL)
 		wakeup(opal_hb_proc);
 
 }

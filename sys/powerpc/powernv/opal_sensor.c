@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -114,7 +115,7 @@ opal_sensor_get_val(struct opal_sensor_softc *sc, uint32_t key, uint64_t *val)
 	SENSOR_UNLOCK(sc);
 
 	if (rv == OPAL_SUCCESS)
-		*val = val32;
+		*val = be32toh(val32);
 	else
 		rv = EIO;
 
@@ -218,7 +219,7 @@ opal_sensor_attach(device_t dev)
 	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "label",
 	    CTLFLAG_RD, sc->sc_label, 0, "");
 
-	if (OF_getprop(node, "sensor-data-min",
+	if (OF_getencprop(node, "sensor-data-min",
 	    &sensor_id, sizeof(sensor_id)) > 0) {
 		sc->sc_min_handle = sensor_id;
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
@@ -228,7 +229,7 @@ opal_sensor_attach(device_t dev)
 		    "minimum value");
 	}
 
-	if (OF_getprop(node, "sensor-data-max",
+	if (OF_getencprop(node, "sensor-data-max",
 	    &sensor_id, sizeof(sensor_id)) > 0) {
 		sc->sc_max_handle = sensor_id;
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
