@@ -63,6 +63,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #endif
 
+static int vtterm_cngrab_noswitch(struct vt_device *, struct vt_window *);
+static int vtterm_cnungrab_noswitch(struct vt_device *, struct vt_window *);
+
 static tc_bell_t	vtterm_bell;
 static tc_cursor_t	vtterm_cursor;
 static tc_putchar_t	vtterm_putchar;
@@ -1030,7 +1033,7 @@ vt_allocate_keyboard(struct vt_device *vd)
 	if (vd->vd_curwindow == &vt_conswindow) {
 		grabbed = vd->vd_curwindow->vw_grabbed;
 		for (i = 0; i < grabbed; ++i)
-			vtterm_cnungrab(vd->vd_curwindow->vw_terminal);
+			vtterm_cnungrab_noswitch(vd, vd->vd_curwindow);
 	}
 
 	idx0 = kbd_allocate("kbdmux", -1, vd, vt_kbdevent, vd);
@@ -1068,7 +1071,7 @@ vt_allocate_keyboard(struct vt_device *vd)
 
 	if (vd->vd_curwindow == &vt_conswindow) {
 		for (i = 0; i < grabbed; ++i)
-			vtterm_cngrab(vd->vd_curwindow->vw_terminal);
+			vtterm_cngrab_noswitch(vd, vd->vd_curwindow);
 	}
 
 	return (idx0);
@@ -1740,24 +1743,24 @@ vtterm_cngetc(struct terminal *tm)
 	return (-1);
 }
 
-static void
-vtterm_cngrab(struct terminal *tm)
+/*
+ * These two do most of what we want to do in vtterm_cnungrab, but without
+ * actually switching windows.  This is necessary for, e.g.,
+ * vt_allocate_keyboard() to get the current keyboard into the state it needs to
+ * be in without damaging the device's window state.
+ *
+ * Both return the current grab count, though it's only used in vtterm_cnungrab.
+ */
+static int
+vtterm_cngrab_noswitch(struct vt_device *vd, struct vt_window *vw)
 {
-	struct vt_device *vd;
-	struct vt_window *vw;
 	keyboard_t *kbd;
 
-	vw = tm->tm_softc;
-	vd = vw->vw_device;
-
-	if (!cold)
-		vt_window_switch(vw);
+	if (vw->vw_grabbed++ > 0)
+		return (vw->vw_grabbed);
 
 	if ((kbd = vd->vd_keyboard) == NULL)
-		return;
-
-	if (vw->vw_grabbed++ > 0)
-		return;
+		return (1);
 
 	/*
 	 * Make sure the keyboard is accessible even when the kbd device
@@ -1771,6 +1774,42 @@ vtterm_cngrab(struct terminal *tm)
 	vt_update_kbd_mode(vw, kbd);
 
 	kbdd_poll(kbd, TRUE);
+	return (1);
+}
+
+static int
+vtterm_cnungrab_noswitch(struct vt_device *vd, struct vt_window *vw)
+{
+	keyboard_t *kbd;
+
+	if (--vw->vw_grabbed > 0)
+		return (vw->vw_grabbed);
+
+	if ((kbd = vd->vd_keyboard) == NULL)
+		return (0);
+
+	kbdd_poll(kbd, FALSE);
+
+	vw->vw_kbdmode = vw->vw_prev_kbdmode;
+	vt_update_kbd_mode(vw, kbd);
+	kbdd_disable(kbd);
+	return (0);
+}
+
+static void
+vtterm_cngrab(struct terminal *tm)
+{
+	struct vt_device *vd;
+	struct vt_window *vw;
+
+	vw = tm->tm_softc;
+	vd = vw->vw_device;
+
+
+	if (!cold)
+		vt_window_switch(vw);
+
+	vtterm_cngrab_noswitch(vd, vw);
 }
 
 static void
@@ -1778,22 +1817,14 @@ vtterm_cnungrab(struct terminal *tm)
 {
 	struct vt_device *vd;
 	struct vt_window *vw;
-	keyboard_t *kbd;
 
 	vw = tm->tm_softc;
 	vd = vw->vw_device;
 
-	if ((kbd = vd->vd_keyboard) == NULL)
+	if (vtterm_cnungrab_noswitch(vd, vw) != 0)
 		return;
 
-	if (--vw->vw_grabbed > 0)
-		return;
 
-	kbdd_poll(kbd, FALSE);
-
-	vw->vw_kbdmode = vw->vw_prev_kbdmode;
-	vt_update_kbd_mode(vw, kbd);
-	kbdd_disable(kbd);
 }
 
 static void
