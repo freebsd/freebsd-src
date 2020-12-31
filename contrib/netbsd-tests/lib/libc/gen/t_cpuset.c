@@ -36,6 +36,46 @@ __RCSID("$NetBSD: t_cpuset.c,v 1.1 2011/11/08 05:47:00 jruoho Exp $");
 #include <stdio.h>
 #include <sched.h>
 
+#ifdef __FreeBSD__
+#include <sys/cpuset.h>
+
+#include <stdlib.h>
+
+#define	cpuset_create()		calloc(1, sizeof(cpuset_t))
+#define	cpuset_destroy(cs)	free(cs)
+
+static inline int
+cpuset_set(size_t i, cpuset_t *cs)
+{
+
+	if (i > CPU_SETSIZE)
+		return (-1);
+	CPU_SET(i, cs);
+	return (0);
+}
+
+static inline int
+cpuset_clr(size_t i, cpuset_t *cs)
+{
+
+	if (i > CPU_SETSIZE)
+		return (-1);
+	CPU_CLR(i, cs);
+	return (0);
+}
+
+static inline int
+cpuset_isset(size_t i, cpuset_t *cs)
+{
+
+	if (i > CPU_SETSIZE)
+		return (-1);
+	return (CPU_ISSET(i, cs));
+}
+
+#define	cpuset_size(cs)		sizeof(*cs)
+#endif
+
 ATF_TC(cpuset_err);
 ATF_TC_HEAD(cpuset_err, tc)
 {

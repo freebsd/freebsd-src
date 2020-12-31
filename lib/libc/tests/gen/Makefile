@@ -20,7 +20,7 @@ ATF_TESTS_C+=		realpath2_test
 ATF_TESTS_C+=		sigsetops_test
 ATF_TESTS_C+=		wordexp_test
 
-# TODO: t_closefrom, t_cpuset, t_fmtcheck, t_randomid,
+# TODO: t_closefrom, t_fmtcheck, t_randomid,
 # TODO: t_siginfo (fixes require further inspection)
 # TODO: t_sethostname_test (consistently screws up the hostname)
 
@@ -47,6 +47,7 @@ CFLAGS+=	-D__HAVE_LONG_DOUBLE
 NETBSD_ATF_TESTS_C=	alarm_test
 NETBSD_ATF_TESTS_C+=	assert_test
 NETBSD_ATF_TESTS_C+=	basedirname_test
+NETBSD_ATF_TESTS_C+=	cpuset_test
 NETBSD_ATF_TESTS_C+=	dir_test
 NETBSD_ATF_TESTS_C+=	floatunditf_test
 NETBSD_ATF_TESTS_C+=	fnmatch_test
