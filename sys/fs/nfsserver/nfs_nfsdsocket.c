@@ -612,8 +612,7 @@ tryagain:
 		nfsrvd_statstart(nfsv3to4op[nd->nd_procnum], /*now*/ NULL);
 		nfsrvd_statend(nfsv3to4op[nd->nd_procnum], /*bytes*/ 0,
 		   /*now*/ NULL, /*then*/ NULL);
-		if (mp != NULL && nfsrv_writerpc[nd->nd_procnum] != 0)
-			vn_finished_write(mp);
+		vn_finished_write(mp);
 		goto out;
 	}
 
@@ -643,8 +642,7 @@ tryagain:
 			error = (*(nfsrv3_procs0[nd->nd_procnum]))(nd, isdgram,
 			    vp, &nes);
 		}
-		if (mp != NULL && nfsrv_writerpc[nd->nd_procnum] != 0)
-			vn_finished_write(mp);
+		vn_finished_write(mp);
 
 		if (error == 0 && nd->nd_repstat == ERELOOKUP) {
 			/*
