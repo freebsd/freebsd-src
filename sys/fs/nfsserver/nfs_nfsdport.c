@@ -3086,28 +3086,35 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
     struct vnode **vpp, struct nfsexstuff *exp,
     struct mount **mpp, int startwrite, struct thread *p)
 {
-	struct mount *mp;
+	struct mount *mp, *mpw;
 	struct ucred *credanon;
 	fhandle_t *fhp;
+	int error;
 
-	fhp = (fhandle_t *)nfp->nfsrvfh_data;
-	/*
-	 * Check for the special case of the nfsv4root_fh.
-	 */
-	mp = vfs_busyfs(&fhp->fh_fsid);
 	if (mpp != NULL)
-		*mpp = mp;
+		*mpp = NULL;
+	*vpp = NULL;
+	fhp = (fhandle_t *)nfp->nfsrvfh_data;
+	mp = vfs_busyfs(&fhp->fh_fsid);
 	if (mp == NULL) {
-		*vpp = NULL;
 		nd->nd_repstat = ESTALE;
 		goto out;
 	}
 
 	if (startwrite) {
-		vn_start_write(NULL, mpp, V_WAIT);
+		mpw = mp;
+		error = vn_start_write(NULL, &mpw, V_WAIT);
+		if (error != 0) {
+			mpw = NULL;
+			vfs_unbusy(mp);
+			nd->nd_repstat = ESTALE;
+			goto out;
+		}
 		if (lktype == LK_SHARED && !(MNT_SHARED_WRITES(mp)))
 			lktype = LK_EXCLUSIVE;
-	}
+	} else
+		mpw = NULL;
+
 	nd->nd_repstat = nfsvno_fhtovp(mp, fhp, nd->nd_nam, lktype, vpp, exp,
 	    &credanon);
 	vfs_unbusy(mp);
@@ -3119,6 +3126,7 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	if (!nd->nd_repstat && exp->nes_exflag == 0 &&
 	    !(nd->nd_flag & ND_NFSV4)) {
 		vput(*vpp);
+		*vpp = NULL;
 		nd->nd_repstat = EACCES;
 	}
 
@@ -3166,11 +3174,10 @@ nfsd_fhtovp(struct nfsrv_descript *nd, struct nfsrvfh *nfp, int lktype,
 	if (credanon != NULL)
 		crfree(credanon);
 	if (nd->nd_repstat) {
-		if (startwrite)
-			vn_finished_write(mp);
+		vn_finished_write(mpw);
 		*vpp = NULL;
-		if (mpp != NULL)
-			*mpp = NULL;
+	} else if (mpp != NULL) {
+		*mpp = mpw;
 	}
 
 out:

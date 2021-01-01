@@ -543,8 +543,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 		nfsrvd_statstart(nfsv3to4op[nd->nd_procnum], /*now*/ NULL);
 		nfsrvd_statend(nfsv3to4op[nd->nd_procnum], /*bytes*/ 0,
 		   /*now*/ NULL, /*then*/ NULL);
-		if (mp != NULL && nfsrv_writerpc[nd->nd_procnum] != 0)
-			vn_finished_write(mp);
+		vn_finished_write(mp);
 		goto out;
 	}
 
@@ -574,8 +573,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 			error = (*(nfsrv3_procs0[nd->nd_procnum]))(nd, isdgram,
 			    vp, p, &nes);
 		}
-		if (mp != NULL && nfsrv_writerpc[nd->nd_procnum] != 0)
-			vn_finished_write(mp);
+		vn_finished_write(mp);
 
 		nfsrvd_statend(nfsv3to4op[nd->nd_procnum], /*bytes*/ 0,
 		    /*now*/ NULL, /*then*/ &start_time);
