@@ -107,7 +107,7 @@ void
 db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 {
 	struct proc *p;
-	int i, j;
+	int i;
 
 	ps_mode = modif[0] == 'a' ? PRINT_ARGS : PRINT_NONE;
 
@@ -125,14 +125,12 @@ db_ps(db_expr_t addr, bool hasaddr, db_expr_t count, char *modif)
 		db_ps_proc(p);
 
 	/*
-	 * Do zombies.
+	 * Processes such as zombies not in allproc.
 	 */
-	for (i = 0; i < pidhashlock + 1 && !db_pager_quit; i++) {
-		for (j = i; j <= pidhash && !db_pager_quit; j += pidhashlock + 1) {
-			LIST_FOREACH(p, &pidhashtbl[j], p_hash) {
-				if (p->p_state == PRS_ZOMBIE)
-					db_ps_proc(p);
-			}
+	for (i = 0; i <= pidhash && !db_pager_quit; i++) {
+		LIST_FOREACH(p, &pidhashtbl[i], p_hash) {
+			if (p->p_list.le_prev == NULL)
+				db_ps_proc(p);
 		}
 	}
 }
