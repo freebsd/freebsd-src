@@ -3623,9 +3623,15 @@ cache_fpl_handle_root(struct cache_fpl *fpl)
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 
-	while (*(cnp->cn_nameptr) == '/') {
-		cnp->cn_nameptr++;
-		ndp->ni_pathlen--;
+	MPASS(*(cnp->cn_nameptr) == '/');
+	cnp->cn_nameptr++;
+	ndp->ni_pathlen--;
+
+	if (__predict_false(*(cnp->cn_nameptr) == '/')) {
+		do {
+			cnp->cn_nameptr++;
+			ndp->ni_pathlen--;
+		} while (*(cnp->cn_nameptr) == '/');
 	}
 
 	return (ndp->ni_rootdir);
