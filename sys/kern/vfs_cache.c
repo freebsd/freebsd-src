@@ -3582,7 +3582,6 @@ SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_lookup, CTLFLAG_RW,
  * need restoring in case fast path lookup fails.
  */
 struct nameidata_saved {
-	long cn_namelen;
 	char *cn_nameptr;
 	size_t ni_pathlen;
 	int cn_flags;
@@ -3642,7 +3641,6 @@ cache_fpl_checkpoint(struct cache_fpl *fpl, struct nameidata_saved *snd)
 {
 
 	snd->cn_flags = fpl->ndp->ni_cnd.cn_flags;
-	snd->cn_namelen = fpl->ndp->ni_cnd.cn_namelen;
 	snd->cn_nameptr = fpl->ndp->ni_cnd.cn_nameptr;
 	snd->ni_pathlen = fpl->ndp->ni_pathlen;
 }
@@ -3652,7 +3650,6 @@ cache_fpl_restore_partial(struct cache_fpl *fpl, struct nameidata_saved *snd)
 {
 
 	fpl->ndp->ni_cnd.cn_flags = snd->cn_flags;
-	fpl->ndp->ni_cnd.cn_namelen = snd->cn_namelen;
 	fpl->ndp->ni_cnd.cn_nameptr = snd->cn_nameptr;
 	fpl->ndp->ni_pathlen = snd->ni_pathlen;
 }
