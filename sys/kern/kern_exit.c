@@ -39,6 +39,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ddb.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -436,6 +437,14 @@ exit1(struct thread *td, int rval, int signo)
 	 */
 	sx_xlock(&allproc_lock);
 	LIST_REMOVE(p, p_list);
+
+#ifdef DDB
+	/*
+	 * Used by ddb's 'ps' command to find this process via the
+	 * pidhash.
+	 */
+	p->p_list.le_prev = NULL;
+#endif
 	sx_xunlock(&allproc_lock);
 
 	sx_xlock(&proctree_lock);
