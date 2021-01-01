@@ -1212,8 +1212,10 @@ tryagain:
 			 */
 			nfsm_trimtrailing(nd, mb, bpos, bextpg, bextpgsiz);
 			nd->nd_repstat = 0;
+			nd->nd_flag |= ND_ERELOOKUP;
 			goto tryagain;
 		}
+		nd->nd_flag &= ~ND_ERELOOKUP;
 
 		if (statsinprog != 0) {
 			nfsrvd_statend(op, /*bytes*/ 0, /*now*/ NULL,
