@@ -3640,6 +3640,7 @@ struct cache_fpl {
 static bool cache_fplookup_is_mp(struct cache_fpl *fpl);
 static int cache_fplookup_cross_mount(struct cache_fpl *fpl);
 static int cache_fplookup_partial_setup(struct cache_fpl *fpl);
+static int cache_fplookup_skip_slashes(struct cache_fpl *fpl);
 
 static void
 cache_fpl_cleanup_cnp(struct componentname *cnp)
@@ -4006,6 +4007,17 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 	if (cache_fpl_isdotdot(cnp))
 		cnp->cn_flags |= ISDOTDOT;
 
+	/*
+	 * Skip potential extra slashes parsing did not take care of.
+	 * cache_fplookup_skip_slashes explains the mechanism.
+	 */
+	if (__predict_false(*(cnp->cn_nameptr) == '/')) {
+		do {
+			cnp->cn_nameptr++;
+			ndp->ni_pathlen--;
+		} while (*(cnp->cn_nameptr) == '/');
+	}
+
 	return (0);
 }
 
@@ -4064,6 +4076,7 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 
+	MPASS(*(cnp->cn_nameptr) != '/');
 	MPASS(cache_fpl_islastcn(ndp));
 	if ((cnp->cn_flags & LOCKPARENT) == 0)
 		MPASS((cnp->cn_flags & WANTPARENT) != 0);
@@ -4309,6 +4322,8 @@ cache_fplookup_final(struct cache_fpl *fpl)
 	dvp_seqc = fpl->dvp_seqc;
 	tvp = fpl->tvp;
 
+	MPASS(*(cnp->cn_nameptr) != '/');
+
 	if (cnp->cn_nameiop != LOOKUP) {
 		return (cache_fplookup_final_modifying(fpl));
 	}
@@ -4397,6 +4412,7 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 	dvp = fpl->dvp;
 	dvp_seqc = fpl->dvp_seqc;
 
+	MPASS(*(cnp->cn_nameptr) != '/');
 	MPASS((cnp->cn_flags & MAKEENTRY) == 0);
 	MPASS((cnp->cn_flags & ISDOTDOT) == 0);
 	MPASS(!cache_fpl_isdotdot(cnp));
@@ -4664,6 +4680,9 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	}
 
 	if (__predict_false(ncp == NULL)) {
+		if (cnp->cn_nameptr[0] == '/') {
+			return (cache_fplookup_skip_slashes(fpl));
+		}
 		return (cache_fplookup_noentry(fpl));
 	}
 
@@ -4969,10 +4988,56 @@ cache_fplookup_parse_advance(struct cache_fpl *fpl)
 	cnp = fpl->cnp;
 
 	cnp->cn_nameptr = ndp->ni_next;
-	while (*cnp->cn_nameptr == '/') {
+	KASSERT(*(cnp->cn_nameptr) == '/',
+	    ("%s: should have seen slash at %p ; buf %p [%s]\n", __func__,
+	    cnp->cn_nameptr, cnp->cn_pnbuf, cnp->cn_pnbuf));
+	cnp->cn_nameptr++;
+	ndp->ni_pathlen--;
+}
+
+/*
+ * Skip spurious slashes in a pathname (e.g., "foo///bar") and retry.
+ *
+ * Lockless lookup tries to elide checking for spurious slashes and should they
+ * be present is guaranteed to fail to find an entry. In this case the caller
+ * must check if the name starts with a slash and this call routine.  It is
+ * going to fast forward across the spurious slashes and set the state up for
+ * retry.
+ */
+static int __noinline
+cache_fplookup_skip_slashes(struct cache_fpl *fpl)
+{
+	struct nameidata *ndp;
+	struct componentname *cnp;
+
+	ndp = fpl->ndp;
+	cnp = fpl->cnp;
+
+	MPASS(*(cnp->cn_nameptr) == '/');
+	do {
 		cnp->cn_nameptr++;
 		ndp->ni_pathlen--;
-	}
+	} while (*(cnp->cn_nameptr) == '/');
+
+	/*
+	 * Go back to one slash so that cache_fplookup_parse_advance has
+	 * something to skip.
+	 */
+	cnp->cn_nameptr--;
+	ndp->ni_pathlen++;
+
+	/*
+	 * cache_fplookup_parse_advance starts from ndp->ni_next
+	 */
+	ndp->ni_next = cnp->cn_nameptr;
+
+	/*
+	 * Retry the lookup, similar to dot lookups.
+	 */
+	fpl->tvp = fpl->dvp;
+	fpl->tvp_seqc = fpl->dvp_seqc;
+
+	return (0);
 }
 
 /*
