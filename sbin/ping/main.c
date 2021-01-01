@@ -126,15 +126,21 @@ main(int argc, char *argv[])
 	else if (ipv4)
 		hints.ai_family = AF_INET;
 	else {
-		struct addrinfo *res;
+		if (!feature_present("inet6"))
+			hints.ai_family = AF_INET;
+		else if (!feature_present("inet"))
+			hints.ai_family = AF_INET6;
+		else {
+			struct addrinfo *res;
 
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_socktype = SOCK_RAW;
-		hints.ai_family = AF_UNSPEC;
-		getaddrinfo(argv[argc - 1], NULL, &hints, &res);
-		if (res != NULL) {
-			hints.ai_family = res[0].ai_family;
-			freeaddrinfo(res);
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_socktype = SOCK_RAW;
+			hints.ai_family = AF_UNSPEC;
+			getaddrinfo(argv[argc - 1], NULL, &hints, &res);
+			if (res != NULL) {
+				hints.ai_family = res[0].ai_family;
+				freeaddrinfo(res);
+			}
 		}
 	}
 #elif defined(INET)
