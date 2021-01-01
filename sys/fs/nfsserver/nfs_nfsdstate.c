@@ -4016,6 +4016,11 @@ nfsrv_checkseqid(struct nfsrv_descript *nd, u_int32_t seqid,
 		printf("refcnt=%d\n", stp->ls_op->rc_refcnt);
 		panic("nfsrvstate op refcnt");
 	}
+
+	/* If ND_ERELOOKUP is set, the seqid has already been handled. */
+	if ((nd->nd_flag & ND_ERELOOKUP) != 0)
+		goto out;
+
 	if ((stp->ls_seq + 1) == seqid) {
 		if (stp->ls_op)
 			nfsrvd_derefcache(stp->ls_op);
