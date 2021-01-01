@@ -142,6 +142,7 @@ uma_zone_t proc_zone;
 const int proc_off_p_pid = offsetof(struct proc, p_pid);
 const int proc_off_p_comm = offsetof(struct proc, p_comm);
 const int proc_off_p_list = offsetof(struct proc, p_list);
+const int proc_off_p_hash = offsetof(struct proc, p_hash);
 const int proc_off_p_threads = offsetof(struct proc, p_threads);
 const int thread_off_td_tid = offsetof(struct thread, td_tid);
 const int thread_off_td_name = offsetof(struct thread, td_name);
