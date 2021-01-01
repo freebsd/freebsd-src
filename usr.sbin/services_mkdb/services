@@ -1788,7 +1788,7 @@ iscsi-target	3260/tcp   # iSCSI port
 iscsi-target	3260/udp   # iSCSI port
 mysql		3306/tcp   #MySQL
 mysql		3306/udp   #MySQL
-ms-wbt-server	3389/tdp   rdp #MS WBT Server
+ms-wbt-server	3389/tcp   rdp #MS WBT Server
 ms-wbt-server	3389/udp   #MS WBT Server
 efi-lm		3392/tcp   #EFI License Management
 efi-lm		3392/udp   #EFI License Management
