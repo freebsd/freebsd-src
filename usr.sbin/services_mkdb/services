@@ -1898,6 +1898,8 @@ vami		5480/udp   #VMware Appliance Management Interface, HTTPS-like
 personal-agent	5555/tcp   #Personal Agent
 rplay		5555/udp
 # PROBLEM ========================================================
+amqps		5671/tcp   #AMQP protocol over TLS/SSL
+amqps		5671/udp   #AMQP protocol over TLS/SSL
 amqp		5672/tcp   #AMQP
 amqp		5672/udp   #AMQP
 amqp		5672/sctp  #AMQP
@@ -1910,6 +1912,8 @@ auriga-router	5680/udp   #Auriga Router Service
 # PROBLEM ========================================================
 vnc-server	5900/tcp   #VNC Server
 vnc-server	5900/udp   #VNC Server
+couchdb		5984/tcp   #CouchDB
+couchdb		5984/udp   #CouchDB
 cvsup		5999/tcp   #CVSup file transfer/John Polstra/FreeBSD
 x11		6000/tcp   #6000-6063 are assigned to X Window System
 x11		6000/udp   #X Window System
