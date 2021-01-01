@@ -600,7 +600,7 @@ tmpfs_read_pgcache(struct vop_read_pgcache_args *v)
 	int error;
 
 	vp = v->a_vp;
-	MPASS((vp->v_irflag & VIRF_PGREAD) != 0);
+	VNPASS((vp->v_irflag & VIRF_PGREAD) != 0, vp);
 
 	if (v->a_uio->uio_offset < 0)
 		return (EINVAL);
