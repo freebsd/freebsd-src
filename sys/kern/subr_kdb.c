@@ -586,12 +586,15 @@ kdb_thr_first(void)
 {
 	struct proc *p;
 	struct thread *thr;
+	u_int i;
 
-	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_flag & P_INMEM) {
-			thr = FIRST_THREAD_IN_PROC(p);
-			if (thr != NULL)
-				return (thr);
+	for (i = 0; i <= pidhash; i++) {
+		LIST_FOREACH(p, &pidhashtbl[i], p_hash) {
+			if (p->p_flag & P_INMEM) {
+				thr = FIRST_THREAD_IN_PROC(p);
+				if (thr != NULL)
+					return (thr);
+			}
 		}
 	}
 	return (NULL);
@@ -602,7 +605,7 @@ kdb_thr_from_pid(pid_t pid)
 {
 	struct proc *p;
 
-	FOREACH_PROC_IN_SYSTEM(p) {
+	LIST_FOREACH(p, PIDHASH(pid), p_hash) {
 		if (p->p_flag & P_INMEM && p->p_pid == pid)
 			return (FIRST_THREAD_IN_PROC(p));
 	}
@@ -624,17 +627,23 @@ struct thread *
 kdb_thr_next(struct thread *thr)
 {
 	struct proc *p;
+	u_int hash;
 
 	p = thr->td_proc;
 	thr = TAILQ_NEXT(thr, td_plist);
-	do {
-		if (thr != NULL)
-			return (thr);
-		p = LIST_NEXT(p, p_list);
-		if (p != NULL && (p->p_flag & P_INMEM))
-			thr = FIRST_THREAD_IN_PROC(p);
-	} while (p != NULL);
-	return (NULL);
+	if (thr != NULL)
+		return (thr);
+	hash = p->p_pid & pidhash;
+	for (;;) {
+		p = LIST_NEXT(p, p_hash);
+		while (p == NULL) {
+			if (++hash > pidhash)
+				return (NULL);
+			p = LIST_FIRST(&pidhashtbl[hash]);
+		}
+		if (p->p_flag & P_INMEM)
+			return (FIRST_THREAD_IN_PROC(p));
+	}
 }
 
 int
