@@ -114,7 +114,6 @@ db_lookup_thread(db_expr_t addr, bool check_pid)
 {
 	struct thread *td;
 	db_expr_t decaddr;
-	struct proc *p;
 
 	/*
 	 * If the parsed address was not a valid decimal expression,
@@ -128,10 +127,9 @@ db_lookup_thread(db_expr_t addr, bool check_pid)
 	if (td != NULL)
 		return (td);
 	if (check_pid) {
-		LIST_FOREACH(p, PIDHASH(decaddr), p_hash) {
-			if (p->p_pid == decaddr)
-				return (FIRST_THREAD_IN_PROC(p));
-		}
+		td = kdb_thr_from_pid(decaddr);
+		if (td != NULL)
+			return (td);
 	}
 	return ((struct thread *)addr);
 }
