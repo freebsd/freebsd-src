@@ -330,7 +330,7 @@ fuse_vnop_do_lseek(struct vnode *vp, struct thread *td, struct ucred *cred,
 	struct mount *mp = vnode_mount(vp);
 	int err;
 
-	MPASS(VOP_ISLOCKED(vp));
+	ASSERT_VOP_LOCKED(vp, __func__);
 
 	err = fuse_filehandle_getrw(vp, FREAD, &fufh, cred, pid);
 	if (err)
