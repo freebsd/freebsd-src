@@ -657,6 +657,7 @@ cache_validate(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 {
 }
 #endif
+void	cache_fast_lookup_enabled_recalc(void);
 int	change_dir(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	freebsd11_cvtnstat(struct stat *sb, struct nstat *nsb);
