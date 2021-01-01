@@ -838,7 +838,10 @@ db_stack_trace(db_expr_t tid, bool hastid, db_expr_t count, char *modif)
 	else
 		pid = -1;
 	db_printf("Tracing pid %d tid %ld td %p\n", pid, (long)td->td_tid, td);
-	db_trace_thread(td, count);
+	if (td->td_proc != NULL && (td->td_proc->p_flag & P_INMEM) == 0)
+		db_printf("--- swapped out\n");
+	else
+		db_trace_thread(td, count);
 }
 
 static void
