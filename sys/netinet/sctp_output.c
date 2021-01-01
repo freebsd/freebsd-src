@@ -13160,7 +13160,9 @@ skip_preblock:
 						sctp_m_freem(mm);
 					}
 					SCTP_TCB_SEND_LOCK(stcb);
-					if (sp != NULL) {
+					if (((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0) &&
+					    ((stcb->asoc.state & SCTP_STATE_WAS_ABORTED) == 0) &&
+					    (sp != NULL)) {
 						sp->processing = 0;
 					}
 					SCTP_TCB_SEND_UNLOCK(stcb);
@@ -13178,9 +13180,6 @@ skip_preblock:
 					if (stcb->asoc.state & SCTP_STATE_WAS_ABORTED) {
 						SCTP_LTRACE_ERR_RET(NULL, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ECONNRESET);
 						error = ECONNRESET;
-					}
-					if (sp != NULL) {
-						sp->processing = 0;
 					}
 					SCTP_TCB_SEND_UNLOCK(stcb);
 					goto out;
@@ -13372,7 +13371,9 @@ skip_preblock:
 					}
 					SOCKBUF_UNLOCK(&so->so_snd);
 					SCTP_TCB_SEND_LOCK(stcb);
-					if (sp != NULL) {
+					if (((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0) &&
+					    ((stcb->asoc.state & SCTP_STATE_WAS_ABORTED) == 0) &&
+					    (sp != NULL)) {
 						sp->processing = 0;
 					}
 					SCTP_TCB_SEND_UNLOCK(stcb);
@@ -13386,10 +13387,8 @@ skip_preblock:
 			}
 			SOCKBUF_UNLOCK(&so->so_snd);
 			SCTP_TCB_SEND_LOCK(stcb);
-			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-				if (sp != NULL) {
-					sp->processing = 0;
-				}
+			if ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) ||
+			    (stcb->asoc.state & SCTP_STATE_WAS_ABORTED)) {
 				SCTP_TCB_SEND_UNLOCK(stcb);
 				goto out_unlocked;
 			}
