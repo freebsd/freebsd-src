@@ -2947,7 +2947,7 @@ ufs_read_pgcache(struct vop_read_pgcache_args *ap)
 
 	uio = ap->a_uio;
 	vp = ap->a_vp;
-	MPASS((vp->v_irflag & VIRF_PGREAD) != 0);
+	VNPASS((vp->v_irflag & VIRF_PGREAD) != 0, vp);
 
 	if (uio->uio_resid > ptoa(io_hold_cnt) || uio->uio_offset < 0 ||
 	    (ap->a_ioflag & IO_DIRECT) != 0)
