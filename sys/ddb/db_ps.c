@@ -485,6 +485,8 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		    p->p_leader);
 	if (p->p_sysent != NULL)
 		db_printf(" ABI: %s\n", p->p_sysent->sv_name);
+	db_printf(" flag: %#x ", p->p_flag);
+	db_printf(" flag2: %#x\n", p->p_flag2);
 	if (p->p_args != NULL) {
 		db_printf(" arguments: ");
 		dump_args(p);
