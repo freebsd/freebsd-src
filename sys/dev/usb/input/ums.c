@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/sbuf.h>
 
+#include <dev/hid/hid.h>
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -614,7 +616,7 @@ ums_attach(device_t dev)
 		goto detach;
 	}
 
-	isize = hid_report_size(d_ptr, d_len, hid_input, &sc->sc_iid);
+	isize = hid_report_size_max(d_ptr, d_len, hid_input, &sc->sc_iid);
 
 	/*
 	 * The Microsoft Wireless Notebook Optical Mouse seems to be in worse
