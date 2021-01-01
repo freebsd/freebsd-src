@@ -4755,21 +4755,10 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 static bool
 cache_fplookup_is_mp(struct cache_fpl *fpl)
 {
-	struct mount *mp;
 	struct vnode *vp;
 
 	vp = fpl->tvp;
-
-	/*
-	 * Hack: while this is a union, the pointer tends to be NULL so save on
-	 * a branch.
-	 */
-	mp = atomic_load_ptr(&vp->v_mountedhere);
-	if (mp == NULL)
-		return (false);
-	if (vp->v_type == VDIR)
-		return (true);
-	return (false);
+	return ((vn_irflag_read(vp) & VIRF_MOUNTPOINT) != 0);
 }
 
 /*

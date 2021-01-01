@@ -335,8 +335,9 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 
 	VI_LOCK(vporoot);
 	vporoot->v_iflag &= ~VI_MOUNT;
-	VI_UNLOCK(vporoot);
+	vn_irflag_unset_locked(vporoot, VIRF_MOUNTPOINT);
 	vporoot->v_mountedhere = NULL;
+	VI_UNLOCK(vporoot);
 	mporoot->mnt_flag &= ~MNT_ROOTFS;
 	mporoot->mnt_vnodecovered = NULL;
 	vput(vporoot);
@@ -393,11 +394,17 @@ vfs_mountroot_shuffle(struct thread *td, struct mount *mpdevfs)
 			vpdevfs = mpdevfs->mnt_vnodecovered;
 			if (vpdevfs != NULL) {
 				cache_purge(vpdevfs);
+				VI_LOCK(vpdevfs);
+				vn_irflag_unset_locked(vpdevfs, VIRF_MOUNTPOINT);
 				vpdevfs->v_mountedhere = NULL;
+				VI_UNLOCK(vpdevfs);
 				vrele(vpdevfs);
 			}
+			VI_LOCK(vp);
 			mpdevfs->mnt_vnodecovered = vp;
+			vn_irflag_set_locked(vp, VIRF_MOUNTPOINT);
 			vp->v_mountedhere = mpdevfs;
+			VI_UNLOCK(vp);
 			VOP_UNLOCK(vp);
 		} else
 			vput(vp);

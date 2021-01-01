@@ -4042,7 +4042,9 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VIRF_DOOMED", sizeof(buf));
 	if (irflag & VIRF_PGREAD)
 		strlcat(buf, "|VIRF_PGREAD", sizeof(buf));
-	flags = irflag & ~(VIRF_DOOMED | VIRF_PGREAD);
+	if (irflag & VIRF_MOUNTPOINT)
+		strlcat(buf, "|VIRF_MOUNTPOINT", sizeof(buf));
+	flags = irflag & ~(VIRF_DOOMED | VIRF_PGREAD | VIRF_MOUNTPOINT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VIRF(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
