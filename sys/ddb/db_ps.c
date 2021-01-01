@@ -512,7 +512,6 @@ void
 db_findstack_cmd(db_expr_t addr, bool have_addr, db_expr_t dummy3 __unused,
     char *dummy4 __unused)
 {
-	struct proc *p;
 	struct thread *td;
 	vm_offset_t saddr;
 
@@ -523,12 +522,10 @@ db_findstack_cmd(db_expr_t addr, bool have_addr, db_expr_t dummy3 __unused,
 		return;
 	}
 
-	FOREACH_PROC_IN_SYSTEM(p) {
-		FOREACH_THREAD_IN_PROC(p, td) {
-			if (kstack_contains(td, saddr, 1)) {
-				db_printf("Thread %p\n", td);
-				return;
-			}
+	for (td = kdb_thr_first(); td != NULL; td = kdb_thr_next(td)) {
+		if (kstack_contains(td, saddr, 1)) {
+			db_printf("Thread %p\n", td);
+			return;
 		}
 	}
 }
