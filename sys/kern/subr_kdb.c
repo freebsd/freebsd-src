@@ -590,11 +590,9 @@ kdb_thr_first(void)
 
 	for (i = 0; i <= pidhash; i++) {
 		LIST_FOREACH(p, &pidhashtbl[i], p_hash) {
-			if (p->p_flag & P_INMEM) {
-				thr = FIRST_THREAD_IN_PROC(p);
-				if (thr != NULL)
-					return (thr);
-			}
+			thr = FIRST_THREAD_IN_PROC(p);
+			if (thr != NULL)
+				return (thr);
 		}
 	}
 	return (NULL);
@@ -606,7 +604,7 @@ kdb_thr_from_pid(pid_t pid)
 	struct proc *p;
 
 	LIST_FOREACH(p, PIDHASH(pid), p_hash) {
-		if (p->p_flag & P_INMEM && p->p_pid == pid)
+		if (p->p_pid == pid)
 			return (FIRST_THREAD_IN_PROC(p));
 	}
 	return (NULL);
@@ -641,8 +639,9 @@ kdb_thr_next(struct thread *thr)
 				return (NULL);
 			p = LIST_FIRST(&pidhashtbl[hash]);
 		}
-		if (p->p_flag & P_INMEM)
-			return (FIRST_THREAD_IN_PROC(p));
+		thr = FIRST_THREAD_IN_PROC(p);
+		if (thr != NULL)
+			return (thr);
 	}
 }
 
