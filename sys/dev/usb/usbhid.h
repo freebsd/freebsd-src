@@ -70,6 +70,7 @@ struct usb_hid_descriptor {
 #if defined(_KERNEL) || defined(_STANDALONE)
 struct usb_config_descriptor;
 
+#ifdef COMPAT_USBHID12
 /* FreeBSD <= 12 compat shims */
 #define	hid_report_size(buf, len, kind, id)	\
 	hid_report_size_max(buf, len, kind, id)
@@ -85,6 +86,7 @@ hid_put_data_unsigned(uint8_t *buf, hid_size_t len, struct hid_location *loc,
 {
 	return (hid_put_udata(buf, len, loc, value));
 }
+#endif
 
 struct usb_hid_descriptor *hid_get_descriptor_from_usb(
 	    struct usb_config_descriptor *cd,

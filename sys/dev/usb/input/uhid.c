@@ -64,6 +64,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 
+#include <dev/hid/hid.h>
+
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -828,13 +830,13 @@ uhid_attach(device_t dev)
 		DPRINTF("set idle failed, error=%s (ignored)\n",
 		    usbd_errstr(error));
 	}
-	sc->sc_isize = hid_report_size
+	sc->sc_isize = hid_report_size_max
 	    (sc->sc_repdesc_ptr, sc->sc_repdesc_size, hid_input, &sc->sc_iid);
 
-	sc->sc_osize = hid_report_size
+	sc->sc_osize = hid_report_size_max
 	    (sc->sc_repdesc_ptr, sc->sc_repdesc_size, hid_output, &sc->sc_oid);
 
-	sc->sc_fsize = hid_report_size
+	sc->sc_fsize = hid_report_size_max
 	    (sc->sc_repdesc_ptr, sc->sc_repdesc_size, hid_feature, &sc->sc_fid);
 
 	if (sc->sc_isize > UHID_BSIZE) {

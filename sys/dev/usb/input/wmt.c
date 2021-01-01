@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#include <dev/hid/hid.h>
+
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -352,7 +354,7 @@ wmt_attach(device_t dev)
 		    sc->cont_max_rlen, uaa->info.bIfaceIndex,
 		    UHID_FEATURE_REPORT, sc->cont_max_rid);
 		if (err == USB_ERR_NORMAL_COMPLETION) {
-			cont_count_max = hid_get_data_unsigned(sc->buf + 1,
+			cont_count_max = hid_get_udata(sc->buf + 1,
 			    sc->cont_max_rlen - 1, &sc->cont_max_loc);
 			/*
 			 * Feature report is a primary source of
@@ -377,7 +379,7 @@ wmt_attach(device_t dev)
 	}
 	if (sc->btn_type_rlen > 1) {
 		if (err == 0)
-			sc->is_clickpad = hid_get_data_unsigned(sc->buf + 1,
+			sc->is_clickpad = hid_get_udata(sc->buf + 1,
 			    sc->btn_type_rlen - 1, &sc->btn_type_loc) == 0;
 		else
 			DPRINTF("usbd_req_get_report error=%d\n", err);
@@ -522,7 +524,7 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	 * report with contactid=0 but contactids are zero-based, find
 	 * contactcount first.
 	 */
-	cont_count = hid_get_data_unsigned(buf, len, &sc->cont_count_loc);
+	cont_count = hid_get_udata(buf, len, &sc->cont_count_loc);
 	/*
 	 * "In Hybrid mode, the number of contacts that can be reported in one
 	 * report is less than the maximum number of contacts that the device
@@ -559,7 +561,7 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 		bzero(slot_data, sizeof(sc->slot_data));
 		WMT_FOREACH_USAGE(sc->caps, usage) {
 			if (sc->locs[cont][usage].size > 0)
-				slot_data[usage] = hid_get_data_unsigned(
+				slot_data[usage] = hid_get_udata(
 				    buf, len, &sc->locs[cont][usage]);
 		}
 
@@ -611,8 +613,7 @@ wmt_process_report(struct wmt_softc *sc, uint8_t *buf, int len)
 	sc->nconts_todo -= cont_count;
 	if (sc->do_timestamps && sc->nconts_todo == 0) {
 		/* HUD_SCAN_TIME is measured in 100us, convert to us. */
-		scan_time =
-		    hid_get_data_unsigned(buf, len, &sc->scan_time_loc);
+		scan_time = hid_get_udata(buf, len, &sc->scan_time_loc);
 		if (sc->prev_touch) {
 			delta = scan_time - sc->scan_time;
 			if (delta < 0)
@@ -746,46 +747,6 @@ wmt_ev_open(struct evdev_dev *evdev)
 
 }
 #endif
-
-/* port of userland hid_report_size() from usbhid(3) to kernel */
-static int
-wmt_hid_report_size(const void *buf, uint16_t len, enum hid_kind k, uint8_t id)
-{
-	struct hid_data *d;
-	struct hid_item h;
-	uint32_t temp;
-	uint32_t hpos;
-	uint32_t lpos;
-	int report_id = 0;
-
-	hpos = 0;
-	lpos = 0xFFFFFFFF;
-
-	for (d = hid_start_parse(buf, len, 1 << k); hid_get_item(d, &h);) {
-		if (h.kind == k && h.report_ID == id) {
-			/* compute minimum */
-			if (lpos > h.loc.pos)
-				lpos = h.loc.pos;
-			/* compute end position */
-			temp = h.loc.pos + (h.loc.size * h.loc.count);
-			/* compute maximum */
-			if (hpos < temp)
-				hpos = temp;
-			if (h.report_ID != 0)
-				report_id = 1;
-		}
-	}
-	hid_end_parse(d);
-
-	/* safety check - can happen in case of currupt descriptors */
-	if (lpos > hpos)
-		temp = 0;
-	else
-		temp = hpos - lpos;
-
-	/* return length in bytes rounded up */
-	return ((temp + 7) / 8 + report_id);
-}
 
 static enum wmt_type
 wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
@@ -1000,16 +961,16 @@ wmt_hid_parse(struct wmt_softc *sc, const void *d_ptr, uint16_t d_len)
 		sc->ai[WMT_ORIENTATION].max = 1;
 	}
 
-	sc->isize = hid_report_size(d_ptr, d_len, hid_input, NULL);
-	sc->report_len = wmt_hid_report_size(d_ptr, d_len, hid_input,
+	sc->isize = hid_report_size_max(d_ptr, d_len, hid_input, NULL);
+	sc->report_len = hid_report_size(d_ptr, d_len, hid_input,
 	    report_id);
-	sc->cont_max_rlen = wmt_hid_report_size(d_ptr, d_len, hid_feature,
+	sc->cont_max_rlen = hid_report_size(d_ptr, d_len, hid_feature,
 	    sc->cont_max_rid);
 	if (sc->btn_type_rid > 0)
-		sc->btn_type_rlen = wmt_hid_report_size(d_ptr, d_len,
+		sc->btn_type_rlen = hid_report_size(d_ptr, d_len,
 		    hid_feature, sc->btn_type_rid);
 	if (sc->thqa_cert_rid > 0)
-		sc->thqa_cert_rlen = wmt_hid_report_size(d_ptr, d_len,
+		sc->thqa_cert_rlen = hid_report_size(d_ptr, d_len,
 		    hid_feature, sc->thqa_cert_rid);
 
 	sc->report_id = report_id;
@@ -1039,7 +1000,7 @@ wmt_set_input_mode(struct wmt_softc *sc, enum wmt_input_mode mode)
 		bzero(sc->buf + 1, sc->input_mode_rlen - 1);
 
 	sc->buf[0] = sc->input_mode_rid;
-	hid_put_data_unsigned(sc->buf + 1, sc->input_mode_rlen - 1,
+	hid_put_udata(sc->buf + 1, sc->input_mode_rlen - 1,
 	    &sc->input_mode_loc, mode);
 	err = usbd_req_set_report(uaa->device, NULL, sc->buf,
 	    sc->input_mode_rlen, uaa->info.bIfaceIndex,
