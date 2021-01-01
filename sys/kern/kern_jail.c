@@ -1835,14 +1835,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		slocked = 0;
 		if (error) {
 			vfs_opterror(opts, "attach failed");
-			if (born) {
-				sx_slock(&allprison_lock);
-				slocked = PD_LIST_SLOCKED;
-				(void)osd_jail_call(pr, PR_METHOD_REMOVE, NULL);
-			}
-			prison_deref(pr, created
-			    ? slocked
-			    : PD_DEREF | slocked);
+			if (!created)
+				prison_deref(pr, PD_DEREF);
 			goto done_errmsg;
 		}
 	}
