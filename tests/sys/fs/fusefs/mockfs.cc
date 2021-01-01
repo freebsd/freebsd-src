@@ -221,15 +221,15 @@ void MockFS::debug_request(const mockfs_buf_in &in, ssize_t buflen)
 		case FUSE_LSEEK:
 			switch (in.body.lseek.whence) {
 			case SEEK_HOLE:
-				printf(" SEEK_HOLE offset=%ld",
+				printf(" SEEK_HOLE offset=%jd",
 				    in.body.lseek.offset);
 				break;
 			case SEEK_DATA:
-				printf(" SEEK_DATA offset=%ld",
+				printf(" SEEK_DATA offset=%jd",
 				    in.body.lseek.offset);
 				break;
 			default:
-				printf(" whence=%u offset=%ld",
+				printf(" whence=%u offset=%jd",
 				    in.body.lseek.whence, in.body.lseek.offset);
 				break;
 			}
