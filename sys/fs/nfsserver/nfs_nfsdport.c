@@ -146,8 +146,6 @@ static int nfsrv_dsremove(struct vnode *, char *, struct ucred *, NFSPROC_T *);
 static int nfsrv_dssetacl(struct vnode *, struct acl *, struct ucred *,
     NFSPROC_T *);
 static int nfsrv_pnfsstatfs(struct statfs *, struct mount *);
-static void nfsm_trimtrailing(struct nfsrv_descript *, struct mbuf *,
-    char *, int, int);
 
 int nfs_pnfsio(task_fn_t *, void *);
 
@@ -6564,7 +6562,7 @@ out:
 /*
  * Trim trailing data off the mbuf list being built.
  */
-static void
+void
 nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
     int bextpg, int bextpgsiz)
 {

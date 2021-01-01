@@ -753,6 +753,8 @@ int nfsvno_rmxattr(struct nfsrv_descript *, struct vnode *, char *,
     struct ucred *, struct thread *);
 int nfsvno_listxattr(struct vnode *, uint64_t, struct ucred *, struct thread *,
     u_char **, uint32_t *, bool *);
+void nfsm_trimtrailing(struct nfsrv_descript *, struct mbuf *, char *, int,
+    int);
 
 /* nfs_commonkrpc.c */
 int newnfs_nmcancelreqs(struct nfsmount *);
