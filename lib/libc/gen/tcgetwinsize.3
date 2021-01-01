@@ -1,0 +1,164 @@
+.\"-
+.\" Copyright (c) 2020 Soumendra Ganguly <soumendraganguly@gmail.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER(S) ``AS IS'' AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+.\" PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) BE
+.\" LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+.\" BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+.\" WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+.\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Portions of this text are reprinted and reproduced in electronic form
+.\" from P1003.1-202x, Draft 1.1, Draft Standard for Information Technology --
+.\" Portable Operating System Interface (POSIX), The Open Group Base
+.\" Specifications Issue 8, Copyright (C) 2020 by the Institute of
+.\" Electrical and Electronics Engineers, Inc and The Open Group. In the
+.\" event of any discrepancy between this version and the original IEEE and
+.\" The Open Group Standard, the original IEEE and The Open Group Standard is
+.\" the referee document. The original Standard can be obtained online at
+.\"	http://www.opengroup.org/unix/online.html.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 28, 2020
+.Dt TCGETWINSIZE 3
+.Os
+.Sh NAME
+.Nm tcgetwinsize ,
+.Nm tcsetwinsize
+.Nd get, set the size of a terminal window
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In termios.h
+.Bd -literal
+struct winsize {
+	unsigned short	ws_row;		/* number of rows, in characters */
+	unsigned short	ws_col;		/* number of columns, in characters */
+	unsigned short	ws_xpixel;	/* horizontal size, in pixels */
+	unsigned short	ws_ypixel;	/* vertical size, in pixels */
+};
+.Ed
+.Pp
+.Ft int
+.Fn tcgetwinsize "int fd" "struct winsize *w"
+.Ft int
+.Fn tcsetwinsize "int fd" "const struct winsize *w"
+.Sh DESCRIPTION
+The
+.Fn tcgetwinsize
+function gets the terminal window size of the terminal of which
+.Fa fd
+is an open file descriptor and stores it in the
+.Vt winsize
+structure of which
+.Fa w
+is a pointer.
+.Pp
+The
+.Fn tcsetwinsize
+function sets the terminal window size of the terminal of which
+.Fa fd
+is an open file descriptor from the
+.Vt winsize
+structure referenced by
+.Fa w .
+The change occurs immediately.
+If the terminal window size of the terminal
+is changed successfully to have a value that is different from the value that
+it had before the
+.Fn tcsetwinsize
+call, then the
+.Dv SIGWINCH
+signal is sent to all those members of the foreground process group of the
+terminal that have the terminal as their controlling terminal.
+.Pp
+The above declaration of
+.Vt "struct winsize"
+may not be literal.
+It is provided only to list the accessible members.
+Therefore, before calling
+.Fn tcsetwinsize ,
+the members of the
+.Vt winsize
+structure must be initialized by calling
+.Fn tcgetwinsize .
+The information in a
+.Vt winsize
+structure is stored by the kernel in order to provide a consistent interface,
+but it is not used by the kernel.
+.Sh RETURN VALUE
+.Rv -std tcgetwinsize tcsetwinsize
+The terminal window size remains unchanged if
+.Fn tcsetwinsize
+fails.
+.Pp
+.Sh ERRORS
+The following are the possible failure conditions:
+.Bl -tag -width Er
+.It Bq Er EBADF
+The
+.Fa fd
+argument to
+.Fn tcgetwinsize
+or to
+.Fn tcsetwinsize
+is not a valid file descriptor.
+.It Bq Er ENOTTY
+The
+.Fa fd
+argument to
+.Fn tcgetwinsize
+or to
+.Fn tcsetwinsize
+is not associated with a character special device.
+.It Bq Er EINVAL
+The
+.Fa w
+argument to
+.Fn tcsetwinsize
+is not valid.
+.It Bq Er EFAULT
+The
+.Fa w
+argument to
+.Fn tcgetwinsize
+or to
+.Fn tcsetwinsize
+points outside the process's allocated address space.
+.El
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr ioctl 2 ,
+.Xr sigaction 2 ,
+.Xr termios 4 ,
+.Xr tty 4
+.Sh STANDARDS
+The
+.Fn tcgetwinsize
+and
+.Fn tcsetwinsize
+functions are expected to conform to
+.St -p1003.1
+Base Specifications, Issue 8.
+The
+.Fa ws_xpixel
+and
+.Fa ws_ypixel
+members of
+.Vt "struct winsize"
+are FreeBSD extensions.
