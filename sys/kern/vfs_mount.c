@@ -1034,8 +1034,9 @@ vfs_domount_first(
 	cache_purge(vp);
 	VI_LOCK(vp);
 	vp->v_iflag &= ~VI_MOUNT;
-	VI_UNLOCK(vp);
+	vn_irflag_set_locked(vp, VIRF_MOUNTPOINT);
 	vp->v_mountedhere = mp;
+	VI_UNLOCK(vp);
 	/* Place the new filesystem at the end of the mount list. */
 	mtx_lock(&mountlist_mtx);
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
@@ -1881,8 +1882,11 @@ dounmount(struct mount *mp, int flags, struct thread *td)
 	mtx_unlock(&mountlist_mtx);
 	EVENTHANDLER_DIRECT_INVOKE(vfs_unmounted, mp, td);
 	if (coveredvp != NULL) {
+		VI_LOCK(coveredvp);
+		vn_irflag_unset_locked(coveredvp, VIRF_MOUNTPOINT);
 		coveredvp->v_mountedhere = NULL;
-		vn_seqc_write_end(coveredvp);
+		vn_seqc_write_end_locked(coveredvp);
+		VI_UNLOCK(coveredvp);
 		VOP_UNLOCK(coveredvp);
 		vdrop(coveredvp);
 	}
