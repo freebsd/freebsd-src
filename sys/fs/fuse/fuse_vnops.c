@@ -664,14 +664,6 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 		td = ap->a_fsizetd;
 	pid = td->td_proc->p_pid;
 
-	err = fuse_filehandle_getrw(invp, FREAD, &infufh, incred, pid);
-	if (err)
-		return (err);
-
-	err = fuse_filehandle_getrw(outvp, FWRITE, &outfufh, outcred, pid);
-	if (err)
-		return (err);
-
 	/* Lock both vnodes, avoiding risk of deadlock. */
 	do {
 		err = vn_lock(outvp, LK_EXCLUSIVE);
@@ -689,6 +681,14 @@ fuse_vnop_copy_file_range(struct vop_copy_file_range_args *ap)
 	} while (err == 0);
 	if (err != 0)
 		return (err);
+
+	err = fuse_filehandle_getrw(invp, FREAD, &infufh, incred, pid);
+	if (err)
+		goto unlock;
+
+	err = fuse_filehandle_getrw(outvp, FWRITE, &outfufh, outcred, pid);
+	if (err)
+		goto unlock;
 
 	if (ap->a_fsizetd) {
 		io.uio_offset = *ap->a_outoffp;
