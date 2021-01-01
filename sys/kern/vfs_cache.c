@@ -3571,11 +3571,44 @@ DB_SHOW_COMMAND(vpath, db_show_vpath)
 
 #endif
 
-static bool __read_frequently cache_fast_lookup = true;
-SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_lookup, CTLFLAG_RW,
-    &cache_fast_lookup, 0, "");
+static int cache_fast_lookup = 1;
+static char __read_frequently cache_fast_lookup_enabled = true;
 
 #define CACHE_FPL_FAILED	-2020
+
+void
+cache_fast_lookup_enabled_recalc(void)
+{
+	int lookup_flag;
+	int mac_on;
+
+#ifdef MAC
+	mac_on = mac_vnode_check_lookup_enabled();
+#else
+	mac_on = 0;
+#endif
+
+	lookup_flag = atomic_load_int(&cache_fast_lookup);
+	if (lookup_flag && !mac_on) {
+		atomic_store_char(&cache_fast_lookup_enabled, true);
+	} else {
+		atomic_store_char(&cache_fast_lookup_enabled, false);
+	}
+}
+
+static int
+syscal_vfs_cache_fast_lookup(SYSCTL_HANDLER_ARGS)
+{
+	int error, old;
+
+	old = atomic_load_int(&cache_fast_lookup);
+	error = sysctl_handle_int(oidp, arg1, arg2, req);
+	if (error == 0 && req->newptr && old != atomic_load_int(&cache_fast_lookup))
+		cache_fast_lookup_enabled_recalc();
+	return (error);
+}
+SYSCTL_PROC(_vfs, OID_AUTO, cache_fast_lookup, CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MPSAFE,
+    &cache_fast_lookup, 0, syscal_vfs_cache_fast_lookup, "IU", "");
 
 /*
  * Components of nameidata (or objects it can point to) which may
@@ -3854,16 +3887,10 @@ cache_can_fplookup(struct cache_fpl *fpl)
 	cnp = fpl->cnp;
 	td = cnp->cn_thread;
 
-	if (!cache_fast_lookup) {
+	if (!atomic_load_char(&cache_fast_lookup_enabled)) {
 		cache_fpl_aborted_early(fpl);
 		return (false);
 	}
-#ifdef MAC
-	if (mac_vnode_check_lookup_enabled()) {
-		cache_fpl_aborted_early(fpl);
-		return (false);
-	}
-#endif
 	if ((cnp->cn_flags & ~CACHE_FPL_SUPPORTED_CN_FLAGS) != 0) {
 		cache_fpl_aborted_early(fpl);
 		return (false);
@@ -5205,9 +5232,9 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	}
 	MPASS(cnp->cn_nameptr == cnp->cn_pnbuf);
 
-	if (!cache_can_fplookup(&fpl)) {
-		SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
+	if (__predict_false(!cache_can_fplookup(&fpl))) {
 		*status = fpl.status;
+		SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
 		return (EOPNOTSUPP);
 	}
 

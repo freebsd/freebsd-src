@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sdt.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
+#include <sys/vnode.h>
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
@@ -399,6 +400,8 @@ mac_policy_update(void)
 		mac_labeled |= mac_policy_getlabeled(mpc);
 		mac_policy_count++;
 	}
+
+	cache_fast_lookup_enabled_recalc();
 }
 
 /*
