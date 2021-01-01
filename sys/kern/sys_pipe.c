@@ -857,6 +857,8 @@ unlocked_error:
 		pipeselwakeup(rpipe);
 
 	PIPE_UNLOCK(rpipe);
+	if (nread > 0)
+		td->td_ru.ru_msgrcv++;
 	return (error);
 }
 
@@ -1314,6 +1316,8 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 
 	pipeunlock(wpipe);
 	PIPE_UNLOCK(rpipe);
+	if (uio->uio_resid != orig_resid)
+		td->td_ru.ru_msgsnd++;
 	return (error);
 }
 
