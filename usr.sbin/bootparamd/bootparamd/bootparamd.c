@@ -179,7 +179,7 @@ bootparamproc_getfile_1_svc(bp_getfile_arg *getfile, struct svc_req *req __unuse
       empty answer for the file "dump")   */
 
 static int
-getthefile(char *l_askname, char *fileid, char *buf, int blen)
+getthefile(char *l_askname, char *fileid, char *buf, int blen __unused)
 {
   FILE *bpf;
   char  *where;
@@ -285,7 +285,7 @@ getthefile(char *l_askname, char *fileid, char *buf, int blen)
    name for a host in the database */
 
 static int
-checkhost(char *l_askname, char *l_hostname, int len)
+checkhost(char *l_askname, char *l_hostname, int len __unused)
 {
   int ch, pch;
   FILE *bpf;
