@@ -409,7 +409,7 @@ _ATOMIC_TEST_OP_PROTO(t, op, _llsc)					\
 	uint##t##_t mask, old, tmp;					\
 	int res;							\
 									\
-	mask = 1u << (val & 0x1f);					\
+	mask = ((uint##t##_t)1) << (val & (t - 1));			\
 	__asm __volatile(						\
 	    "1: ldxr		%"#w"2, [%3]\n"				\
 	    "  "#llsc_asm_op"	%"#w"0, %"#w"2, %"#w"4\n"		\
@@ -427,7 +427,7 @@ _ATOMIC_TEST_OP_PROTO(t, op, _lse)					\
 {									\
 	uint##t##_t mask, old;						\
 									\
-	mask = 1u << (val & 0x1f);					\
+	mask = ((uint##t##_t)1) << (val & (t - 1));			\
 	__asm __volatile(						\
 	    ".arch_extension lse\n"					\
 	    "ld"#lse_asm_op"	%"#w"2, %"#w"0, [%1]\n"			\
