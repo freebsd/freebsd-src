@@ -209,6 +209,7 @@ static int pipefragretry;
 static int pipeallocfail;
 static int piperesizefail;
 static int piperesizeallowed = 1;
+static long pipe_mindirect = PIPE_MINDIRECT;
 
 SYSCTL_LONG(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
 	   &maxpipekva, 0, "Pipe KVA limit");
@@ -262,6 +263,29 @@ pipeinit(void *dummy __unused)
 	pipedev_ino = devfs_alloc_cdp_inode();
 	KASSERT(pipedev_ino > 0, ("pipe dev inode not initialized"));
 }
+
+static int
+sysctl_handle_pipe_mindirect(SYSCTL_HANDLER_ARGS)
+{
+	int error = 0;
+	long tmp_pipe_mindirect = pipe_mindirect;
+
+	error = sysctl_handle_long(oidp, &tmp_pipe_mindirect, arg2, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+
+	/*
+	 * Don't allow pipe_mindirect to be set so low that we violate
+	 * atomicity requirements.
+	 */
+	if (tmp_pipe_mindirect <= PIPE_BUF)
+		return (EINVAL);
+	pipe_mindirect = tmp_pipe_mindirect;
+	return (0);
+}
+SYSCTL_OID(_kern_ipc, OID_AUTO, pipe_mindirect, CTLTYPE_LONG | CTLFLAG_RW,
+    &pipe_mindirect, 0, sysctl_handle_pipe_mindirect, "L",
+    "Minimum write size triggering VM optimization");
 
 static int
 pipe_zone_ctor(void *mem, int size, void *arg, int flags)
@@ -1140,8 +1164,8 @@ pipe_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 		 * away on us.
 		 */
 		if (uio->uio_segflg == UIO_USERSPACE &&
-		    uio->uio_iov->iov_len >= PIPE_MINDIRECT &&
-		    wpipe->pipe_buffer.size >= PIPE_MINDIRECT &&
+		    uio->uio_iov->iov_len >= pipe_mindirect &&
+		    wpipe->pipe_buffer.size >= pipe_mindirect &&
 		    (fp->f_flag & FNONBLOCK) == 0) {
 			error = pipe_direct_write(wpipe, uio);
 			if (error != 0)
