@@ -403,6 +403,8 @@ FBSD_1.5 {
 
 FBSD_1.6 {
 	__sysctlbyname;
+	aio_readv;
+	aio_writev;
 	close_range;
 	copy_file_range;
 	fhlink;

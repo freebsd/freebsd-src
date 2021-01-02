@@ -1477,7 +1477,17 @@
 		    _In_opt_ struct sigevent *sig
 		);
 	}
-258-271	AUE_NULL	UNIMPL	nosys
+258	AUE_AIO_WRITEV	STD {
+		int aio_writev(
+		    _Inout_ struct aiocb *aiocbp
+		);
+	}
+259	AUE_AIO_READV	STD {
+		int aio_readv(
+		    _Inout_ struct aiocb *aiocbp
+		);
+	}
+260-271	AUE_NULL	UNIMPL	nosys
 272	AUE_O_GETDENTS	COMPAT11 {
 		int getdents(
 		    int fd,
