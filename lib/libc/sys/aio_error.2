@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 1999
+.Dd January 2, 2021
 .Dt AIO_ERROR 2
 .Os
 .Sh NAME
@@ -52,7 +52,9 @@ is returned.
 If the request has completed unsuccessfully the error
 status is returned as described in
 .Xr read 2 ,
+.Xr readv 2 ,
 .Xr write 2 ,
+.Xr writev 2 ,
 or
 .Xr fsync 2 .
 On failure,
@@ -76,9 +78,11 @@ does not reference an outstanding asynchronous I/O request.
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,
 .Xr aio_read 2 ,
+.Xr aio_readv 2 ,
 .Xr aio_return 2 ,
 .Xr aio_suspend 2 ,
 .Xr aio_write 2 ,
+.Xr aio_writev 2 ,
 .Xr fsync 2 ,
 .Xr read 2 ,
 .Xr write 2 ,

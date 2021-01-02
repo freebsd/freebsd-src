@@ -27,6 +27,7 @@
 #include <sys/queue.h>
 #include <sys/event.h>
 #include <sys/signalvar.h>
+#include <sys/uio.h>
 #endif
 
 /*
@@ -45,6 +46,8 @@
 #ifdef _KERNEL
 #define	LIO_SYNC		0x3
 #define	LIO_MLOCK		0x4
+#define	LIO_WRITEV		0x5
+#define	LIO_READV		0x6
 #endif
 
 /*
@@ -92,7 +95,7 @@ struct __aiocb_private {
 typedef struct aiocb {
 	int	aio_fildes;		/* File descriptor */
 	off_t	aio_offset;		/* File offset for I/O */
-	volatile void *aio_buf;         /* I/O buffer in process space */
+	volatile void *aio_buf;		/* I/O buffer in process space */
 	size_t	aio_nbytes;		/* Number of bytes for I/O */
 	int	__spare__[2];
 	void	*__spare2__;
@@ -101,6 +104,9 @@ typedef struct aiocb {
 	struct	__aiocb_private	_aiocb_private;
 	struct	sigevent aio_sigevent;	/* Signal to deliver */
 } aiocb_t;
+
+#define	aio_iov	aio_buf			/* I/O scatter/gather list */
+#define	aio_iovcnt	aio_nbytes	/* Length of aio_iov */
 
 #ifdef _KERNEL
 
@@ -132,11 +138,19 @@ struct kaiocb {
 	struct	aiocb *ujob;		/* (*) pointer in userspace of aiocb */
 	struct	knlist klist;		/* (a) list of knotes */
 	struct	aiocb uaiocb;		/* (*) copy of user I/O control block */
+	struct	uio uio;		/* (*) storage for non-vectored uio */
+	struct	iovec iov[1];		/* (*) storage for non-vectored uio */
+	struct	uio *uiop;		/* (*) Possibly malloced uio */
 	ksiginfo_t ksi;			/* (a) realtime signal info */
 	uint64_t seqno;			/* (*) job number */
 	aio_cancel_fn_t *cancel_fn;	/* (a) backend cancel function */
 	aio_handle_fn_t *handle_fn;	/* (c) backend handle function */
 	union {				/* Backend-specific data fields */
+		struct {		/* BIO backend */
+			int	nbio;	/* Number of remaining bios */
+			int	error;	/* Worst error of all bios */
+			long	nbytes;	/* Bytes completed so far */
+		};
 		struct {		/* fsync() requests */
 			int	pending; /* (a) number of pending I/O */
 		};
@@ -202,11 +216,17 @@ __BEGIN_DECLS
  * Asynchronously read from a file
  */
 int	aio_read(struct aiocb *);
+#if __BSD_VISIBLE
+int	aio_readv(struct aiocb *);
+#endif
 
 /*
  * Asynchronously write to file
  */
 int	aio_write(struct aiocb *);
+#if __BSD_VISIBLE
+int	aio_writev(struct aiocb *);
+#endif
 
 /*
  * List I/O Asynchronously/synchronously read/write to/from file

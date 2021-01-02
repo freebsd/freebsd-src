@@ -600,9 +600,7 @@ soaio_process_job(struct socket *so, struct sockbuf *sb, struct kaiocb *job)
 	struct ucred *td_savedcred;
 	struct thread *td;
 	struct file *fp;
-	struct uio uio;
-	struct iovec iov;
-	size_t cnt, done;
+	size_t cnt, done, job_total_nbytes;
 	long ru_before;
 	int error, flags;
 
@@ -614,16 +612,11 @@ retry:
 	td_savedcred = td->td_ucred;
 	td->td_ucred = job->cred;
 
+	job_total_nbytes = job->uiop->uio_resid + job->aio_done;
 	done = job->aio_done;
-	cnt = job->uaiocb.aio_nbytes - done;
-	iov.iov_base = (void *)((uintptr_t)job->uaiocb.aio_buf + done);
-	iov.iov_len = cnt;
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = 0;
-	uio.uio_resid = cnt;
-	uio.uio_segflg = UIO_USERSPACE;
-	uio.uio_td = td;
+	cnt = job->uiop->uio_resid;
+	job->uiop->uio_offset = 0;
+	job->uiop->uio_td = td;
 	flags = MSG_NBIO;
 
 	/*
@@ -633,26 +626,26 @@ retry:
 	 */
 
 	if (sb == &so->so_rcv) {
-		uio.uio_rw = UIO_READ;
 		ru_before = td->td_ru.ru_msgrcv;
 #ifdef MAC
 		error = mac_socket_check_receive(fp->f_cred, so);
 		if (error == 0)
 
 #endif
-			error = soreceive(so, NULL, &uio, NULL, NULL, &flags);
+			error = soreceive(so, NULL, job->uiop, NULL, NULL,
+			    &flags);
 		if (td->td_ru.ru_msgrcv != ru_before)
 			job->msgrcv = 1;
 	} else {
 		if (!TAILQ_EMPTY(&sb->sb_aiojobq))
 			flags |= MSG_MORETOCOME;
-		uio.uio_rw = UIO_WRITE;
 		ru_before = td->td_ru.ru_msgsnd;
 #ifdef MAC
 		error = mac_socket_check_send(fp->f_cred, so);
 		if (error == 0)
 #endif
-			error = sosend(so, NULL, &uio, NULL, NULL, flags, td);
+			error = sosend(so, NULL, job->uiop, NULL, NULL, flags,
+			    td);
 		if (td->td_ru.ru_msgsnd != ru_before)
 			job->msgsnd = 1;
 		if (error == EPIPE && (so->so_options & SO_NOSIGPIPE) == 0) {
@@ -662,7 +655,7 @@ retry:
 		}
 	}
 
-	done += cnt - uio.uio_resid;
+	done += cnt - job->uiop->uio_resid;
 	job->aio_done = done;
 	td->td_ucred = td_savedcred;
 
@@ -676,7 +669,7 @@ retry:
 		 * been made, requeue this request at the head of the
 		 * queue to try again when the socket is ready.
 		 */
-		MPASS(done != job->uaiocb.aio_nbytes);
+		MPASS(done != job_total_nbytes);
 		SOCKBUF_LOCK(sb);
 		if (done == 0 || !(so->so_state & SS_NBIO)) {
 			empty_results++;
@@ -782,10 +775,10 @@ soo_aio_cancel(struct kaiocb *job)
 
 	so = job->fd_file->f_data;
 	opcode = job->uaiocb.aio_lio_opcode;
-	if (opcode == LIO_READ)
+	if (opcode == LIO_READ || opcode == LIO_READV)
 		sb = &so->so_rcv;
 	else {
-		MPASS(opcode == LIO_WRITE);
+		MPASS(opcode == LIO_WRITE || opcode == LIO_WRITEV);
 		sb = &so->so_snd;
 	}
 
@@ -817,9 +810,11 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 
 	switch (job->uaiocb.aio_lio_opcode) {
 	case LIO_READ:
+	case LIO_READV:
 		sb = &so->so_rcv;
 		break;
 	case LIO_WRITE:
+	case LIO_WRITEV:
 		sb = &so->so_snd;
 		break;
 	default:
