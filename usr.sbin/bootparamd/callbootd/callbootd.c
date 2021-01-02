@@ -7,10 +7,8 @@ use and modify. Please send modifications and/or suggestions + bug fixes to
 
 */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "bootparam_prot.h"
 #include <rpc/rpc.h>
@@ -27,11 +25,11 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 
-int broadcast;
+static int broadcast;
+static char cln[MAX_MACHINE_NAME+1];
+static char dmn[MAX_MACHINE_NAME+1];
+static char path[MAX_PATH_LEN+1];
 
-char cln[MAX_MACHINE_NAME+1];
-char dmn[MAX_MACHINE_NAME+1];
-char path[MAX_PATH_LEN+1];
 static void usage(void);
 int printgetfile(bp_getfile_res *);
 int printwhoami(bp_whoami_res *);
@@ -72,8 +70,8 @@ main(int argc, char **argv)
   bp_getfile_res *getfile_res, stat_getfile_res;
 
 
-  long the_inet_addr;
-  CLIENT *clnt;
+  in_addr_t the_inet_addr;
+  CLIENT *clnt = NULL;		/* Silence warnings */
 
   stat_whoami_res.client_name = cln;
   stat_whoami_res.domain_name = dmn;
@@ -151,7 +149,7 @@ main(int argc, char **argv)
 
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr,
 		"usage: callbootd server procnum (IP-addr | host fileid)\n");
@@ -159,8 +157,7 @@ usage()
 }
 
 int
-printwhoami(res)
-bp_whoami_res *res;
+printwhoami(bp_whoami_res *res)
 {
       if ( res) {
 	printf("client_name:\t%s\ndomain_name:\t%s\n",
@@ -181,8 +178,7 @@ bp_whoami_res *res;
 
 
 int
-printgetfile(res)
-bp_getfile_res *res;
+printgetfile(bp_getfile_res *res)
 {
       if (res) {
 	printf("server_name:\t%s\nserver_address:\t%s\npath:\t%s\n",
