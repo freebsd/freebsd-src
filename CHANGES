@@ -1,0 +1,104 @@
+Version 4.48:
+
+   * Added the basic 27 hebrew letters and sheqel, with uppercase height.
+   * Some improvements in the font build scripts.
+
+Version 4.47:
+
+   * Added 35 new characters (33 glyphs).
+   * Replaced ao2-variant "ae" with ao1 "ae", it was too similar to "oe".
+   * Some fixes and improvements (17 characters in various sizes/styles).
+   * Significantly improved the font conversion tools. Python 3.5.0 or
+     Node 6.9.0 are now required to build the font.
+
+Version 4.46:
+
+   * The X11 8-bit code pages are not installed by default.
+   * Added IBM-437 8-bit code page for X11.
+   * The CRT VGA weight for Linux console is not installed by default.
+   * Removed the Linux console mapping files.
+     They should be provided by the console packages.
+   * Removed the BSD console installation.
+     The recent BSD-s have a new console subsystem.
+   * Added 50 new characters. Mostly math, but also Buglarian yat and yus.
+   * Rewritten the font conversion tools in python and javascript.
+     The full unicode range (17x64K) is now supported.
+   * The Windows installer can be built from sources.
+   * Small fixes and improvements (7 characters in various sizes).
+   * Renamed (un)install-ref to (un)install-psf-ref.
+
+Version 4.40:
+
+   * Added 6 combining accents as separate characters.
+   * Added 14 letters with dot above / dot below.
+   * Added partial subscript and superscript: all digits and 11 letters.
+   * Added 30+ math characters, notably large braces, brackets and parens.
+   * Added unicode range 2800-28FF in two variants (br1 and br2).
+   * A few small character fixes.
+   * Altered configure to be a bit more POSIX compliant.
+   * Replaced some obscure (un)install Makefile targets with variables.
+
+Version 4.39:
+
+   * Added ballot, checkmark, heavy ballot and heavy checkmark.
+   * Changed HT, LF etc. in sizes 14 and 18-hi2 to be proportional to the
+     letter height, not the matrix height.
+   * Added the powerline characters E0A0..E0A2 and E0B0..E0B3.
+   * Added diameter (2300) - same gluph as empty set (2205).
+   * Small improvements in size 32.
+
+Version 4.38:
+
+   * Added 23 pseudographic characters, most notably rounded frames.
+   * Added new td1 variant with centered ascii tidle.
+   * Fixed Y acute in sizes 22 and 28, internal optimizations (invisible).
+
+Version 4.36:
+
+    * Removed the rarely used cm2 variant.
+    * Added new ll2 variant with more distinctive l.
+    * Added quotereversed (201B), quotedblreversed (201F), I/i/U/u dotbelow
+      (1ECA, 1ECB, 1EE4, 1EE5).
+    * Moved all quotes and alike in size 32 one line down.
+    * Small fixes and improvements (t commaaccent, quotes alignment etc. in
+      some sizes).
+    * Windows installation: creates the relevant registry key.
+
+Version 4.35:
+
+    * Added hi2 variant for size 18.
+    * Fixes in size 18: normal V, normal W, bold X, H stroke, some
+      pseudographic characters and the *NIX installation.
+
+Version 4.34:
+
+    * Added size 10x18.
+    * Small fixes and improvements in section, multiply, Eng/eng, Dje,
+      dje, house, male, zeta and various characters in the different sizes.
+    * The default cyrillic ghe is now ge1, with ge2 available as an option.
+
+Version 4.32:
+
+    * Slightly more distintive normal M and W.
+    * Rounded 28-bold, 32-normal, 32-bold.
+      Also removed the 32-normal kx2 style.
+    * Small changes: Che/che stroke, phi, Zhe/zhe etc.
+    * Linux console: the default bold is now framebuffer.
+    * Smaller Makefile, GNU make required.
+    * Changed the font license to SIL OFL 1.1.
+      It's FSF approved, no need to worry.
+    * And, as you can see, Terminus Font is now on sourceforge.
+
+Version 4.30:
+
+    * Added size 22 (not very good).
+    * Added another 25 characters.
+    * Various small fixes and improvements.
+    * Changed the default prefix and x11dir.
+
+Version 4.28:
+
+    * Heavy frames (written mostly by Tim Allen) and a few more letters.
+    * Altered trianges and arrows, small bugfixes.
+    * Reorganized the 512-character console font to include more letters
+      instead of the IBM-437 specific pseudographics.

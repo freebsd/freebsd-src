@@ -1,0 +1,66 @@
+#!/bin/sh
+
+if test "$1" = "--help" ; then
+	echo usage: $0 [--var=VALUE] [VAR=VALUE] ...
+echo
+	cat configure.help 2> /dev/null && echo
+	echo "Any variables not explicitly set are reset to their defaults"
+elif test "$1" = "--version" ; then
+cat << EOT
+micro configure 0.21, Copyright (C) 2015 Dimitar Toshkov Zhekov
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 2 of
+the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+Report bugs to dimitar.zhekov@gmail.com
+EOT
+elif test -z `printf "\r"` ; then
+	echo "$0: printf failure"
+	false
+elif test -f Makefile ; then
+	if test -f Makefile.in ; then
+		cp -fp Makefile.in Makefile
+	else
+		cp -p Makefile Makefile.in
+	fi
+	w=`printf "[\t ]*"`
+	r=`printf "\r"`
+	l="[a-z][a-z0-9-]*[^-]"
+	for i do
+		if test "$i" != "`echo "$i" | sed -e 1q`" ; then
+			echo "$0: `echo "$i" | sed -e "s/$r/^M/" -e 1q`^J...: contains line feed" 1>&2
+		elif echo "$i" | grep "$r" > /dev/null ; then
+			echo "$0: `echo "$i" | sed -e "s/$r.*//"`^M...: contains carriage return" 1>&2
+		elif test -n "$i" ; then
+			if echo "$i" | grep -E "^--$l=|^[A-Z][A-Z0-9_]*[^_]=" > /dev/null ; then
+				n=`echo "$i" | sed -e "s$r^-*$r$r" -e "s$r=.*$r$r" | sed -e "s/-/_/g"`
+				if grep -E "^$n$w:?=" Makefile > /dev/null ; then
+					cp -f Makefile Makefile.$$
+					sed -e "s$r^\($n$w:*=$w\).*$r\1`echo "$i" | sed -e "s$r^[^=]*=$r$r"`$r" Makefile.$$ > Makefile
+					grep -E "^$n$w:?=" Makefile /dev/null
+				else
+					echo "$0: $n: not found in Makefile" 1>&2
+				fi
+				unset n
+			else
+				echo "$0: $i: not recognized" 1>&2
+			fi
+		fi
+	done
+	unset i l r w
+	if test -f Makefile.$$ ; then
+		rm -f Makefile.$$
+	else
+		rm -f Makefile.in
+	fi
+else
+	echo "$0: Makefile: not found" 1>&2
+	false
+fi
