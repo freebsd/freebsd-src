@@ -1,0 +1,356 @@
+Contents:
+
+1. About.
+1.1. Build requitements.
+1.2. Quick installation.
+1.3. Legend.
+1.4. Variants.
+1.5. Notes.
+1.6. Alternative tools.
+
+2. Linux console.
+2.1. Installation.
+2.2. Usage.
+2.3. Quick reference.
+2.4. Legend.
+2.5. Notes.
+
+3. X11 Window System.
+3.1. Installation.
+3.2. Notes.
+
+4. Microsoft Windows.
+4.1. Installation package.
+4.2. Font file only.
+4.3. Notes.
+
+5. Frequently Asked Questions.
+
+6. Legal information.
+6.1. Licenses.
+6.2. Copyright.
+
+--
+
+1. About.
+
+This archive contains source code for generating and installing Terminus
+Font for Linux console, X11 Window System and Microsoft Windows.
+
+- version	4.48
+- sizes		6x12, 8x14, 8x16, 10x18, 10x20, 11x22, 12x24, 14x28, 16x32
+- weights	normal, bold, CRT VGA bold
+- characters	1354
+- format	Bitmap Distribution Format (BDF) version 2.1
+
+The character set covers about 120 language sets and supports ISO8859-1/2/5/
+7/9/13/15/16, Paratype-PT154/PT254, KOI8-R/U/E/F, Esperanto and many IBM,
+Windows and Macintosh code pages, as well as the IBM VGA, vt100 and xterm
+pseudographic characters.
+
+
+1.1. Build requirements.
+
+- GNU make
+- Python 3.5.0+ (or node.js 6.9.0+ as an alternative)
+- for X11 only: bdftopcf
+- for the Windows installer only: GCC for Win32/i686, NSIS and patch.
+
+
+1.2. Quick installation.
+
+The commands:
+
+$ ./configure [--prefix=PREFIX]
+$ make -j8
+# make install fontdir
+
+compile and install the Linux console and X11 Window System fonts.
+The default PREFIX is /usr/local.
+
+
+1.3. Legend.
+
+The file names are structured as follows:
+
+ter-u<SIZE><STYLE>.bdf
+
+<SIZE> is the font height. <STYLE> is n for normal (all sizes), b for bold
+(all sizes except 6x12), and v for CRT VGA bold (8x14 and 8x16 only, uses
+the eight character matrix column).
+
+
+1.4. Variants.
+
+Some characters are implemented in two variants. To use the alternate
+variant, execute:
+
+$ patch -p1 -i alt/<NAME>.diff
+
+before making the font. See the font WEB page for examples. If you want to
+combine hi2 with dv1 and/or ka2, apply hi2 and then hi2-dv1 and/or hi2-ka2.
+The default variant for unicode range 2800-28FF is oriented towards
+pseudographics.
+
+
+1.5. Notes.
+
+The commands marked with $ can be executed by a regular user.
+The configure commands are optional.
+"make -j8" runs 8 jobs in parallel.
+
+Sizes 6x12, 11x22, 14x28-bold and 16x32-normal are worse than the others.
+Avoid them.
+
+210E and 210F are not italic.
+
+226A, 226B and the double struck letters are not very good.
+
+2135 may be wrong.
+
+The hebrew letters and sheqel are uppercase height, which is an attempt to
+compensate for the missing width.
+
+
+1.6. Alternative tools.
+
+If your Python 3 executable is named python instead if python3:
+
+$ ./configure INT=python
+
+To use node.js instead of python (slower):
+
+$ ./configure INT=node EXT=js
+
+--
+
+2. Linux console.
+
+- weights	normal, bold, CRT VGA-bold
+- code pages	ISO8859-1/ISO8859-15/Windows-1252, ISO8859-2/Windows-1250,
+		Windows-1251/ISO8859-5, ISO8859-9/Windows-1254, ISO8859-16,
+		ISO8859-7/Windows-1253, ISO8859-13/Windows-1257, IBM-437,
+		Bulgarian-MIK, KOI8-R, KOI8-U, Paratype-PT154, combined
+- format	PC Screen Font (PSF) with unicode data
+
+
+2.1. Installation.
+
+$ ./configure [--prefix=PREFIX | --psfdir=DIRECTORY]
+$ make -j8 psf
+# make install-psf
+
+The files are compressed with gzip and installed in DIRECTORY. The default
+DIRECTORY is PREFIX/share/consolefonts. For kbd, you may need to change it
+to PREFIX/lib/kbd/consolefonts or PREFIX/share/kbd/consolefonts, depending
+on the kbd version.
+
+The CRT VGA bold weight fonts, suitable for real CRT text modes only, are
+not installed by default. To install them, execute:
+
+$ make -j8 psf-vgaw
+# make install-psf-vgaw
+
+
+2.2. Usage.
+
+To load a cont in consoletools:
+
+$ consolechars [-m MAPPING] -f ter-<X><SIZE><STYLE>
+
+To load a font in kbd:
+
+$ setfont [-m MAPPING] ter-<X><SIZE><STYLE>
+
+where <X> is a character identifying the code page as listed in p.2.4.
+
+
+2.3. Quick reference.
+
+The commands:
+
+$ ./configure [--prefix=PREFIX | --psfdir=DIRECTORY | --psfref=FILENAME]
+# make install-psf-ref
+
+install the text from p.2.4 as FILENAME (the default is README.terminus)
+in DIRECTORY.
+
+
+2.4. Legend.
+
+names	mappings		covered codepage(s)
+
+ter-1*	iso01, iso15, cp1252	ISO8859-1, ISO8859-15, Windows-1252
+ter-2*	iso02, cp1250		ISO8859-2, Windows-1250
+ter-7*	iso07, cp1253		ISO8859-7, Windows-1253
+ter-9*	iso09, cp1254		ISO8859-9, Windows-1254
+ter-c*	cp1251, iso05		Windows-1251, ISO8859-5
+ter-d*	iso13, cp1257		ISO8859-13, Windows-1257
+ter-g*	iso16			ISO8859-16
+ter-h*	cp1255, iso08		Windows-1258, ISO8859-8
+ter-i*	cp437			IBM-437
+ter-k*	koi8r			KOI8-R
+ter-m*	mik			Bulgarian-MIK
+ter-p*	pt154			Paratype-PT154
+ter-u*	koi8u			KOI8-U
+
+ter-v*	all mappings / code pages listed above and many others, about 110
+	language sets, 8 or 16 foreground colors depending on the kernel and
+	console driver versions
+
+names	weight
+
+ter-*n	normal
+ter-*b	bold
+ter-*v	CRT VGA bold
+
+
+2.5. Notes.
+
+The combined code page is based on IBM-437 (character 0xFF is ogonek).
+The ISO8859-16 font also includes all letters and accents from Windows-1250.
+
+--
+
+3. X11 Window System.
+
+- weights	normal, bold
+- code pages	ISO8859-1/Windows-1252, ISO8859-2, ISO8859-5, ISO8859-7,
+		ISO8859-9/Windows-1254, ISO8859-13, ISO8859-15, ISO8859-16,
+		Windows-1251, IBM-437, KOI8-R, KOI8-U, Paratype-PT154 and
+		ISO10646-1 (unicode)
+- format	Portable Compiled Font (PCF)
+
+
+3.1. Installation.
+
+$ ./configure [--prefix=PREFIX | --x11dir=DIRECTORY]
+$ make -j8 pcf
+# make install-pcf
+
+The files are compressed with gzip and installed in DIRECTORY. The default
+DIRECTORY is PREFIX/share/fonts/terminus. Requires bdftopcf.
+
+A copy of the normal 6x12 font is installed as "bold", because some X11
+libraries and applications substitute the missing bold fonts by shifting the
+normal fonts, and others do not recognize the bold weight at all if the
+lowest font size lacks it.
+
+To update the font cache in DIRECTORY after (un)installation, run:
+
+# make fontdir
+
+The configuration file which lists the font directories must contain
+DIRECTORY. The X11 server may need to be restarted so the font list can be
+updated.
+
+By default, only the unicode (ISO10646-1) font is installed. To install the
+other code pages:
+
+$ make -j8 pcf-8bit
+# make install-pcf-8bit
+
+
+3.2. Notes.
+
+The ISO8859-1 and ISO8859-9 fonts contain the Windows Western characters and
+can be used as Windows-1252 and Windows-1254 respectively.
+
+--
+
+4. Microsoft Windows.
+
+- weights	normal, bold
+- code pages	Windows-1252, 1250, 1253, 1254, 1251 and 1257
+- format	Font File Format version 2.0, compiled into FON
+
+
+4.1. Installation package.
+
+Make sure that no variant patches are applied to the font (p.1.4).
+
+> cd win32
+> build
+
+Be patient, the process may take several minutes.
+After that, open terminus.nsi and compile it.
+
+
+4.2. Font file only.
+
+> copy *.bdf win32
+> cd win32
+> make -j8
+
+You can install terminus.fon via the regular means.
+
+
+4.3. Notes.
+
+The Windows code pages contain a total of 384 characters. All other
+characters (math, pseudographics etc.) are not currently available.
+
+--
+
+5. Frequently Asked Questions.
+
+Q. Italic version?
+
+A. No. The quality is significantly lower, and preserving the font width
+requires overlapping characters, which are not handled very well by X11/Xft.
+You can try mkitalic from FreeBSD or bdfslant from Debian.
+
+Q. Scalable version?
+
+A. Probably not. The font uses a lot of straight horizontal and vertical
+lines, which is good for a bitmap, but not so much for a vector font. A
+bitmap font packaged as TTF seems possible.
+
+Q. How about some new characters?
+
+A. Contact me and be ready to help.
+
+Q. The bold 6x12 font...
+
+A. ...does not exist, there is no space for a bold font in a 6x12 matrix.
+However, the "normal" font is somewhere between.
+
+Q. The font works in X11/Motif, but not in GNOME/KDE/Xfce.
+
+A. Try adding 75-yes-terminus.conf to the Fontconfig configuration files.
+For some Fontconfig versions, you may need to replace the text "Terminus"
+in 75-yes-terminus.conf with "xos4 Terminus", though that is unlikely.
+See also mkfontscale(1), mkfontdir(1), fc-cache(1), xorg.conf(5), xfs(1),
+xlsfonts(1), fonts-conf(5) etc.
+
+Q. My terminal emulator does not display cyrillic/pseudographics/...
+A. If you have the 8-bit X11 code pages installed, and your emulator uses
+"XLFD" font names, make sure hat name ends with "-10616-1" instead of
+"-*-*".
+
+--
+
+6. Legal information.
+
+
+6.1. Licenses.
+
+Terminus Font is licensed under the SIL Open Font License, Version 1.1.
+The license is included as OFL.TXT, and is also available with a FAQ at:
+http://scripts.sil.org/OFL
+
+The font includes two variants of unicode range 2800-28FF, but does not
+support Braille in any way.
+
+The configure files, python and javascript sources are distributed under
+the GNU General Public License version 2.0 or (at your choice) any later
+version.
+
+
+6.2. Copyright.
+
+Terminus Font 4.48, Copyright (C) 2019 Dimitar Toshkov Zhekov.
+Report bugs to <dimitar.zhekov@gmail.com>
+
+Thanks to Anton Zinoviev, Tim Allen, Kir Koliushkin, Antonios Galanopoulos
+and everyone else who helped.
