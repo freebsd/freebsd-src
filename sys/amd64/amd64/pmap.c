@@ -1275,10 +1275,12 @@ static void pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
     pd_entry_t newpde);
 static void pmap_update_pde_invalidate(pmap_t, vm_offset_t va, pd_entry_t pde);
 
-static vm_page_t pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex,
-		struct rwlock **lockp, vm_offset_t va);
 static pd_entry_t *pmap_alloc_pde(pmap_t pmap, vm_offset_t va, vm_page_t *pdpgp,
 		struct rwlock **lockp);
+static vm_page_t pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex,
+		struct rwlock **lockp, vm_offset_t va);
+static vm_page_t pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex,
+		struct rwlock **lockp, vm_offset_t va);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va,
 		struct rwlock **lockp);
 
@@ -4294,7 +4296,7 @@ pmap_allocpte_getpml4(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 	pml5index = pmap_pml5e_index(va);
 	pml5 = &pmap->pm_pmltop[pml5index];
 	if ((*pml5 & PG_V) == 0) {
-		if (pmap_allocpte_alloc(pmap, pmap_pml5e_pindex(va), lockp,
+		if (pmap_allocpte_nosleep(pmap, pmap_pml5e_pindex(va), lockp,
 		    va) == NULL)
 			return (NULL);
 		allocated = true;
@@ -4331,7 +4333,7 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 
 	if ((*pml4 & PG_V) == 0) {
 		/* Have to allocate a new pdp, recurse */
-		if (pmap_allocpte_alloc(pmap, pmap_pml4e_pindex(va), lockp,
+		if (pmap_allocpte_nosleep(pmap, pmap_pml4e_pindex(va), lockp,
 		    va) == NULL) {
 			if (pmap_is_la57(pmap))
 				pmap_allocpte_free_unref(pmap, va,
@@ -4355,16 +4357,6 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
 }
 
 /*
- * This routine is called if the desired page table page does not exist.
- *
- * If page table page allocation fails, this routine may sleep before
- * returning NULL.  It sleeps only if a lock pointer was given.
- *
- * Note: If a page allocation fails at page table level two, three, or four,
- * up to three pages may be held during the wait, only to be released
- * afterwards.  This conservative approach is easily argued to avoid
- * race conditions.
- *
  * The ptepindexes, i.e. page indices, of the page table pages encountered
  * while translating virtual address va are defined as follows:
  * - for the page table page (last level),
@@ -4398,7 +4390,7 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
  * since it is statically allocated by pmap_pinit() and not by pmap_allocpte().
  */
 static vm_page_t
-pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
+pmap_allocpte_nosleep(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
     vm_offset_t va)
 {
 	vm_pindex_t pml5index, pml4index;
@@ -4420,21 +4412,8 @@ pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 	 * Allocate a page table page.
 	 */
 	if ((m = vm_page_alloc(NULL, ptepindex, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
-		if (lockp != NULL) {
-			RELEASE_PV_LIST_LOCK(lockp);
-			PMAP_UNLOCK(pmap);
-			PMAP_ASSERT_NOT_IN_DI();
-			vm_wait(NULL);
-			PMAP_LOCK(pmap);
-		}
-
-		/*
-		 * Indicate the need to retry.  While waiting, the page table
-		 * page may have been allocated.
-		 */
+	    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		return (NULL);
-	}
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
 
@@ -4509,8 +4488,8 @@ pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 		}
 		if ((*pdp & PG_V) == 0) {
 			/* Have to allocate a new pd, recurse */
-			if (pmap_allocpte_alloc(pmap, pmap_pdpe_pindex(va),
-			    lockp, va) == NULL) {
+		  if (pmap_allocpte_nosleep(pmap, pmap_pdpe_pindex(va),
+		      lockp, va) == NULL) {
 				pmap_allocpte_free_unref(pmap, va,
 				    pmap_pml4e(pmap, va));
 				vm_page_unwire_noq(m);
@@ -4532,7 +4511,32 @@ pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
 	}
 
 	pmap_resident_count_inc(pmap, 1);
+	return (m);
+}
 
+/*
+ * This routine is called if the desired page table page does not exist.
+ *
+ * If page table page allocation fails, this routine may sleep before
+ * returning NULL.  It sleeps only if a lock pointer was given.  Sleep
+ * occurs right before returning to the caller. This way, we never
+ * drop pmap lock to sleep while a page table page has ref_count == 0,
+ * which prevents the page from being freed under us.
+ */
+static vm_page_t
+pmap_allocpte_alloc(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
+    vm_offset_t va)
+{
+	vm_page_t m;
+
+	m = pmap_allocpte_nosleep(pmap, ptepindex, lockp, va);
+	if (m == NULL && lockp != NULL) {
+		RELEASE_PV_LIST_LOCK(lockp);
+		PMAP_UNLOCK(pmap);
+		PMAP_ASSERT_NOT_IN_DI();
+		vm_wait(NULL);
+		PMAP_LOCK(pmap);
+	}
 	return (m);
 }
 
