@@ -3,4 +3,6 @@
 
 BINDIR?=	/usr/sbin
 
-WARNS?=		2
+NO_WCAST_ALIGN=
+CWARNFLAGS.clang+=	-Wno-incompatible-pointer-types-discards-qualifiers
+CWARNFLAGS.gcc+=	-Wno-error=discarded-qualifiers
