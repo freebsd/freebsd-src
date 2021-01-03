@@ -611,6 +611,7 @@ MLINKS+=bitset.9 BITSET_DEFINE.9 \
 	bitset.9 BIT_EMPTY.9 \
 	bitset.9 BIT_ISFULLSET.9 \
 	bitset.9 BIT_FFS.9 \
+	bitset.9 BIT_FFS_AT.9 \
 	bitset.9 BIT_FLS.9 \
 	bitset.9 BIT_COUNT.9 \
 	bitset.9 BIT_SUBSET.9 \
@@ -627,6 +628,8 @@ MLINKS+=bitset.9 BITSET_DEFINE.9 \
 	bitset.9 BIT_CLR_ATOMIC.9 \
 	bitset.9 BIT_SET_ATOMIC.9 \
 	bitset.9 BIT_SET_ATOMIC_ACQ.9 \
+	bitset.9 BIT_TEST_SET_ATOMIC.9 \
+	bitset.9 BIT_TEST_CLR_ATOMIC.9 \
 	bitset.9 BIT_AND_ATOMIC.9 \
 	bitset.9 BIT_OR_ATOMIC.9 \
 	bitset.9 BIT_COPY_STORE_REL.9
