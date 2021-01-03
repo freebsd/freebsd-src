@@ -1068,6 +1068,38 @@ ATF_TC_BODY(capnet__limits_connect_mode, tc)
 	cap_close(capnet);
 }
 
+ATF_TC_WITHOUT_HEAD(capnet__limits_connect_dns_mode);
+ATF_TC_BODY(capnet__limits_connect_dns_mode, tc)
+{
+	cap_channel_t *capnet;
+	cap_net_limit_t *limit;
+
+	capnet = create_network_service();
+
+	/* LIMIT */
+	limit = cap_net_limit_init(capnet, CAPNET_CONNECT | CAPNET_CONNECTDNS);
+	ATF_REQUIRE(limit != NULL);
+	ATF_REQUIRE(cap_net_limit(limit) == 0);
+
+	/* ALLOWED */
+	ATF_REQUIRE(test_connect(capnet, TEST_IPV4, 80) == 0);
+
+	/* DISALLOWED */
+	ATF_REQUIRE(
+	    test_gethostbyname(capnet, AF_INET, TEST_DOMAIN_0) == ENOTCAPABLE);
+	ATF_REQUIRE(test_getnameinfo(capnet, AF_INET, TEST_IPV4) ==
+	    ENOTCAPABLE);
+	ATF_REQUIRE(test_gethostbyaddr(capnet, AF_INET, TEST_IPV4) ==
+	    ENOTCAPABLE);
+	ATF_REQUIRE(test_getaddrinfo(capnet, AF_INET, TEST_DOMAIN_0, NULL) ==
+	    ENOTCAPABLE);
+	ATF_REQUIRE(test_bind(capnet, TEST_BIND_IPV4) == ENOTCAPABLE);
+
+	test_extend_mode(capnet, CAPNET_ADDR2NAME);
+
+	cap_close(capnet);
+}
+
 ATF_TC_WITHOUT_HEAD(capnet__limits_connect);
 ATF_TC_BODY(capnet__limits_connect, tc)
 {
@@ -1238,6 +1270,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, capnet__limits_bind);
 
 	ATF_TP_ADD_TC(tp, capnet__limits_connect_mode);
+	ATF_TP_ADD_TC(tp, capnet__limits_connect_dns_mode);
 	ATF_TP_ADD_TC(tp, capnet__limits_connect);
 
 	ATF_TP_ADD_TC(tp, capnet__limits_connecttodns);
