@@ -540,6 +540,7 @@ sendfile_swapin(vm_object_t obj, struct sf_io *sfio, int *nios, off_t off,
 				    ("%s: page %p[%d] I/O recovery failure",
 				    __func__, pa, j));
 				vm_page_unwire(pa[j], PQ_INACTIVE);
+				pa[j] = NULL;
 			}
 			return (EIO);
 		}
