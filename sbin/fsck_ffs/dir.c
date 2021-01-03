@@ -633,57 +633,114 @@ makeentry(ino_t parent, ino_t ino, const char *name)
 static int
 expanddir(union dinode *dp, char *name)
 {
-	ufs2_daddr_t lastbn, newblk;
-	struct bufarea *bp;
+	ufs2_daddr_t lastlbn, oldblk, newblk, indirblk;
+	size_t filesize, lastlbnsize;
+	struct bufarea *bp, *nbp;
 	struct inodesc idesc;
-	char *cp, firstblk[DIRBLKSIZ];
+	int indiralloced;
+	char *cp;
 
-	lastbn = lblkno(&sblock, DIP(dp, di_size));
-	if (lastbn >= UFS_NDADDR - 1 || DIP(dp, di_db[lastbn]) == 0 ||
-	    DIP(dp, di_size) == 0)
+	nbp = NULL;
+	indiralloced = newblk = indirblk = 0;
+	pwarn("NO SPACE LEFT IN %s", name);
+	if (!preen && reply("EXPAND") == 0)
 		return (0);
-	if ((newblk = allocblk(sblock.fs_frag)) == 0)
-		return (0);
-	DIP_SET(dp, di_db[lastbn + 1], DIP(dp, di_db[lastbn]));
-	DIP_SET(dp, di_db[lastbn], newblk);
-	DIP_SET(dp, di_size, DIP(dp, di_size) + sblock.fs_bsize);
-	DIP_SET(dp, di_blocks, DIP(dp, di_blocks) + btodb(sblock.fs_bsize));
-	bp = getdirblk(DIP(dp, di_db[lastbn + 1]),
-		sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
-	if (bp->b_errs)
+	filesize = DIP(dp, di_size);
+	lastlbn = lblkno(&sblock, filesize);
+	/*
+	 * We only expand lost+found to a single indirect block.
+	 */
+	if ((DIP(dp, di_mode) & IFMT) != IFDIR || filesize == 0 ||
+	    lastlbn >= UFS_NDADDR + NINDIR(&sblock))
 		goto bad;
-	memmove(firstblk, bp->b_un.b_buf, DIRBLKSIZ);
+	/*
+	 * If last block is a fragment, expand it to a full size block.
+	 */
+	lastlbnsize = sblksize(&sblock, filesize, lastlbn);
+	if (lastlbnsize < sblock.fs_bsize) {
+		oldblk = DIP(dp, di_db[lastlbn]);
+		bp = getdirblk(oldblk, lastlbnsize);
+		if (bp->b_errs)
+			goto bad;
+		if ((newblk = allocblk(sblock.fs_frag)) == 0)
+			goto bad;
+		nbp = getdatablk(newblk, sblock.fs_bsize, BT_DIRDATA);
+		if (nbp->b_errs)
+			goto bad;
+		DIP_SET(dp, di_db[lastlbn], newblk);
+		DIP_SET(dp, di_size, filesize + sblock.fs_bsize - lastlbnsize);
+		DIP_SET(dp, di_blocks, DIP(dp, di_blocks) +
+		    btodb(sblock.fs_bsize - lastlbnsize));
+		inodirty(dp);
+		memmove(nbp->b_un.b_buf, bp->b_un.b_buf, lastlbnsize);
+		memset(&nbp->b_un.b_buf[lastlbnsize], 0,
+		    sblock.fs_bsize - lastlbnsize);
+		for (cp = &nbp->b_un.b_buf[lastlbnsize];
+		     cp < &nbp->b_un.b_buf[sblock.fs_bsize];
+		     cp += DIRBLKSIZ)
+			memmove(cp, &emptydir, sizeof emptydir);
+		dirty(nbp);
+		nbp->b_flags &= ~B_INUSE;
+		idesc.id_blkno = oldblk;
+		idesc.id_numfrags = numfrags(&sblock, lastlbnsize);
+		(void)freeblock(&idesc);
+		return (1);
+	}
+	if ((newblk = allocblk(sblock.fs_frag)) == 0)
+		goto bad;
 	bp = getdirblk(newblk, sblock.fs_bsize);
 	if (bp->b_errs)
 		goto bad;
-	memmove(bp->b_un.b_buf, firstblk, DIRBLKSIZ);
-	for (cp = &bp->b_un.b_buf[DIRBLKSIZ];
+	memset(bp->b_un.b_buf, 0, sblock.fs_bsize);
+	for (cp = bp->b_un.b_buf;
 	     cp < &bp->b_un.b_buf[sblock.fs_bsize];
 	     cp += DIRBLKSIZ)
 		memmove(cp, &emptydir, sizeof emptydir);
 	dirty(bp);
-	bp = getdirblk(DIP(dp, di_db[lastbn + 1]),
-		sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
-	if (bp->b_errs)
-		goto bad;
-	memmove(bp->b_un.b_buf, &emptydir, sizeof emptydir);
-	pwarn("NO SPACE LEFT IN %s", name);
+	if (lastlbn < UFS_NDADDR) {
+		DIP_SET(dp, di_db[lastlbn], newblk);
+	} else {
+		/*
+		 * Allocate indirect block if needed.
+		 */
+		if ((indirblk = DIP(dp, di_ib[0])) == 0) {
+			if ((indirblk = allocblk(sblock.fs_frag)) == 0)
+				goto bad;
+			indiralloced = 1;
+		}
+		nbp = getdatablk(indirblk, sblock.fs_bsize, BT_LEVEL1);
+		if (nbp->b_errs)
+			goto bad;
+		if (indiralloced) {
+			memset(nbp->b_un.b_buf, 0, sblock.fs_bsize);
+			DIP_SET(dp, di_ib[0], indirblk);
+			DIP_SET(dp, di_blocks,
+			    DIP(dp, di_blocks) + btodb(sblock.fs_bsize));
+		}
+		IBLK_SET(nbp, lastlbn - UFS_NDADDR, newblk);
+		dirty(nbp);
+		nbp->b_flags &= ~B_INUSE;
+	}
+	DIP_SET(dp, di_size, filesize + sblock.fs_bsize);
+	DIP_SET(dp, di_blocks, DIP(dp, di_blocks) + btodb(sblock.fs_bsize));
+	inodirty(dp);
 	if (preen)
 		printf(" (EXPANDED)\n");
-	else if (reply("EXPAND") == 0)
-		goto bad;
-	dirty(bp);
-	inodirty(dp);
 	return (1);
 bad:
-	DIP_SET(dp, di_db[lastbn], DIP(dp, di_db[lastbn + 1]));
-	DIP_SET(dp, di_db[lastbn + 1], 0);
-	DIP_SET(dp, di_size, DIP(dp, di_size) - sblock.fs_bsize);
-	DIP_SET(dp, di_blocks, DIP(dp, di_blocks) - btodb(sblock.fs_bsize));
-	/* Free the block we allocated above */
-	idesc.id_blkno = newblk;
-	idesc.id_numfrags = sblock.fs_frag;
-	(void)freeblock(&idesc);
+	pfatal(" (EXPANSION FAILED)\n");
+	if (nbp != NULL)
+		nbp->b_flags &= ~B_INUSE;
+	if (newblk != 0) {
+		idesc.id_blkno = newblk;
+		idesc.id_numfrags = sblock.fs_frag;
+		(void)freeblock(&idesc);
+	}
+	if (indiralloced) {
+		idesc.id_blkno = indirblk;
+		idesc.id_numfrags = sblock.fs_frag;
+		(void)freeblock(&idesc);
+	}
 	return (0);
 }
 
