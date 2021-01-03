@@ -103,7 +103,6 @@ struct cam_sim {
 	int			max_dev_openings;
 	u_int32_t		flags;
 #define	CAM_SIM_REL_TIMEOUT_PENDING	0x01
-#define	CAM_SIM_MPSAFE			0x02
 	struct callout		callout;
 	struct cam_devq 	*devq;	/* Device Queue to use for this SIM */
 	int			refcount; /* References to the SIM. */
