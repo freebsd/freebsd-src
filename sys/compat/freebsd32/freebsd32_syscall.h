@@ -229,6 +229,8 @@
 #define	FREEBSD32_SYS_freebsd32_aio_read	255
 #define	FREEBSD32_SYS_freebsd32_aio_write	256
 #define	FREEBSD32_SYS_freebsd32_lio_listio	257
+#define	FREEBSD32_SYS_freebsd32_aio_writev	258
+#define	FREEBSD32_SYS_freebsd32_aio_readv	259
 #define	FREEBSD32_SYS_freebsd11_freebsd32_getdents	272
 #define	FREEBSD32_SYS_lchmod	274
 				/* 275 is obsolete netbsd_lchown */

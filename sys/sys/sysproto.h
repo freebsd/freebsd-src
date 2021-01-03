@@ -714,6 +714,12 @@ struct lio_listio_args {
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
 	char sig_l_[PADL_(struct sigevent *)]; struct sigevent * sig; char sig_r_[PADR_(struct sigevent *)];
 };
+struct aio_writev_args {
+	char aiocbp_l_[PADL_(struct aiocb *)]; struct aiocb * aiocbp; char aiocbp_r_[PADR_(struct aiocb *)];
+};
+struct aio_readv_args {
+	char aiocbp_l_[PADL_(struct aiocb *)]; struct aiocb * aiocbp; char aiocbp_r_[PADR_(struct aiocb *)];
+};
 struct lchmod_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char mode_l_[PADL_(mode_t)]; mode_t mode; char mode_r_[PADR_(mode_t)];
@@ -1996,6 +2002,8 @@ int	sys_lchown(struct thread *, struct lchown_args *);
 int	sys_aio_read(struct thread *, struct aio_read_args *);
 int	sys_aio_write(struct thread *, struct aio_write_args *);
 int	sys_lio_listio(struct thread *, struct lio_listio_args *);
+int	sys_aio_writev(struct thread *, struct aio_writev_args *);
+int	sys_aio_readv(struct thread *, struct aio_readv_args *);
 int	sys_lchmod(struct thread *, struct lchmod_args *);
 int	sys_lutimes(struct thread *, struct lutimes_args *);
 int	sys_preadv(struct thread *, struct preadv_args *);
@@ -2907,6 +2915,8 @@ int	freebsd12_closefrom(struct thread *, struct freebsd12_closefrom_args *);
 #define	SYS_AUE_aio_read	AUE_AIO_READ
 #define	SYS_AUE_aio_write	AUE_AIO_WRITE
 #define	SYS_AUE_lio_listio	AUE_LIO_LISTIO
+#define	SYS_AUE_aio_writev	AUE_AIO_WRITEV
+#define	SYS_AUE_aio_readv	AUE_AIO_READV
 #define	SYS_AUE_freebsd11_getdents	AUE_O_GETDENTS
 #define	SYS_AUE_lchmod	AUE_LCHMOD
 #define	SYS_AUE_lutimes	AUE_LUTIMES
