@@ -1,3 +1,3 @@
 // $FreeBSD$
 
-#define LLD_VERSION_STRING "11.0.0"
+#define LLD_VERSION_STRING "11.0.1"

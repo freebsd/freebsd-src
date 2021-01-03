@@ -37,7 +37,7 @@
         aout
         ..
         clang
-            11.0.0
+            11.0.1
                 include
                     cuda_wrappers
                     ..
