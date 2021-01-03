@@ -31,7 +31,7 @@
 .\"	@(#)fortune.6	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2007
+.Dd January 3, 2021
 .Dt FORTUNE 6
 .Os
 .Sh NAME
@@ -183,8 +183,22 @@ contain the
 .Sy offensive
 fortunes)
 .El
+.Sh EXIT STATUS
+.Ex -std
+In particular, if
+.Fl l ,
+.Fl m ,
+or
+.Fl s
+is specified, failure to find a matching citation in the selected
+files counts as an error.
 .Sh SEE ALSO
 .Xr arc4random_uniform 3 ,
 .Xr regcomp 3 ,
 .Xr regex 3 ,
 .Xr strfile 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared
+.At v7 .
