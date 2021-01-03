@@ -251,6 +251,12 @@ struct freebsd32_lio_listio_args {
 	char nent_l_[PADL_(int)]; int nent; char nent_r_[PADR_(int)];
 	char sig_l_[PADL_(struct sigevent32 *)]; struct sigevent32 * sig; char sig_r_[PADR_(struct sigevent32 *)];
 };
+struct freebsd32_aio_writev_args {
+	char aiocbp_l_[PADL_(struct aiocb32 *)]; struct aiocb32 * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 *)];
+};
+struct freebsd32_aio_readv_args {
+	char aiocbp_l_[PADL_(struct aiocb32 *)]; struct aiocb32 * aiocbp; char aiocbp_r_[PADR_(struct aiocb32 *)];
+};
 struct freebsd32_lutimes_args {
 	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char tptr_l_[PADL_(struct timeval32 *)]; struct timeval32 * tptr; char tptr_r_[PADR_(struct timeval32 *)];
@@ -789,6 +795,8 @@ int	freebsd32_clock_getcpuclockid2(struct thread *, struct freebsd32_clock_getcp
 int	freebsd32_aio_read(struct thread *, struct freebsd32_aio_read_args *);
 int	freebsd32_aio_write(struct thread *, struct freebsd32_aio_write_args *);
 int	freebsd32_lio_listio(struct thread *, struct freebsd32_lio_listio_args *);
+int	freebsd32_aio_writev(struct thread *, struct freebsd32_aio_writev_args *);
+int	freebsd32_aio_readv(struct thread *, struct freebsd32_aio_readv_args *);
 int	freebsd32_lutimes(struct thread *, struct freebsd32_lutimes_args *);
 int	freebsd32_preadv(struct thread *, struct freebsd32_preadv_args *);
 int	freebsd32_pwritev(struct thread *, struct freebsd32_pwritev_args *);
@@ -1374,6 +1382,8 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_read	AUE_AIO_READ
 #define	FREEBSD32_SYS_AUE_freebsd32_aio_write	AUE_AIO_WRITE
 #define	FREEBSD32_SYS_AUE_freebsd32_lio_listio	AUE_LIO_LISTIO
+#define	FREEBSD32_SYS_AUE_freebsd32_aio_writev	AUE_AIO_WRITEV
+#define	FREEBSD32_SYS_AUE_freebsd32_aio_readv	AUE_AIO_READV
 #define	FREEBSD32_SYS_AUE_freebsd11_freebsd32_getdents	AUE_O_GETDENTS
 #define	FREEBSD32_SYS_AUE_freebsd32_lutimes	AUE_LUTIMES
 #define	FREEBSD32_SYS_AUE_freebsd32_preadv	AUE_PREADV
