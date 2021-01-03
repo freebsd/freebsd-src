@@ -85,7 +85,7 @@ SRCS+=	vmm_instruction_emul.c
 
 LIBADD=	vmmapi md pthread z util sbuf cam 9p
 
-if ${MK_CASPER} != "no"
+.if ${MK_CASPER} != "no"
 LIBADD+=	casper
 LIBADD+=	cap_pwd
 LIBADD+=	cap_grp
