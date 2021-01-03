@@ -1058,7 +1058,7 @@ net_connect(const nvlist_t *limits, nvlist_t *nvlin, nvlist_t *nvlout)
 	const void *saddr;
 	const nvlist_t *funclimit;
 	size_t len;
-	bool conn, conndns;
+	bool conn, conndns, allowed;
 
 	conn = net_allowed_mode(limits, CAPNET_CONNECT);
 	conndns = net_allowed_mode(limits, CAPNET_CONNECTDNS);
@@ -1071,12 +1071,20 @@ net_connect(const nvlist_t *limits, nvlist_t *nvlin, nvlist_t *nvlout)
 		funclimit = dnvlist_get_nvlist(limits, LIMIT_NV_CONNECT, NULL);
 
 	saddr = nvlist_get_binary(nvlin, "saddr", &len);
-	if (conn && !net_allowed_bsaddr(funclimit, saddr, len)) {
-		return (ENOTCAPABLE);
-	} else if (conndns && (capdnscache == NULL ||
-	   !net_allowed_bsaddr_impl(capdnscache, saddr, len))) {
+	allowed = false;
+
+	if (conn && net_allowed_bsaddr(funclimit, saddr, len)) {
+		allowed = true;
+	}
+	if (conndns && capdnscache != NULL &&
+	   net_allowed_bsaddr_impl(capdnscache, saddr, len)) {
+		allowed = true;
+	}
+
+	if (allowed == false) {
 		return (ENOTCAPABLE);
 	}
+
 	socket = dup(nvlist_get_descriptor(nvlin, "s"));
 	if (connect(socket, saddr, len) < 0) {
 		serrno = errno;
