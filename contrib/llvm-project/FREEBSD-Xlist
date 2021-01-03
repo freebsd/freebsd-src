@@ -4,6 +4,7 @@
 .clang-format
 .clang-tidy
 .git-blame-ignore-revs
+.github
 .gitignore
 CONTRIBUTING.md
 README.md
