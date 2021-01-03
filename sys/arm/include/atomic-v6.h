@@ -913,9 +913,8 @@ atomic_testandclear_64(volatile uint64_t *p, u_int v)
 	 * Assume little-endian,
 	 * atomic_testandclear_32() uses only last 5 bits of v
 	 */
-	if (v >= 32) {
+	if ((v & 0x20) != 0)
 		p32++;
-	}
 	return (atomic_testandclear_32(p32, v));
 }
 
@@ -973,9 +972,8 @@ atomic_testandset_64(volatile uint64_t *p, u_int v)
 	 * Assume little-endian,
 	 * atomic_testandset_32() uses only last 5 bits of v
 	 */
-	if (v >= 32) {
+	if ((v & 0x20) != 0)
 		p32++;
-	}
 	return (atomic_testandset_32(p32, v));
 }
 
