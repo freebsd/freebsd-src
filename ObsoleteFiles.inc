@@ -312,7 +312,9 @@ OLD_DIRS+=usr/include/gnu
 OLD_FILES+=usr/include/gnuregex.h
 
 # 20201225: gnugrep removed
+OLD_FILES+=usr/bin/bsdgrep
 OLD_FILES+=usr/bin/gnugrep
+OLD_FILES+=usr/share/man/man1/bsdgrep.1.gz
 OLD_FILES+=usr/share/man/man1/gnugrep.1.gz
 
 # 20201224: mk48txx(4) removed
