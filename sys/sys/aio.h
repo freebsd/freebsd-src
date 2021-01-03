@@ -44,11 +44,12 @@
 #define LIO_WRITE		0x1
 #define	LIO_READ		0x2
 #if defined(_KERNEL) || defined(_WANT_ALL_LIO_OPCODES)
-#define	LIO_SYNC		0x3
-#define	LIO_MLOCK		0x4
-#define	LIO_WRITEV		0x5
-#define	LIO_READV		0x6
-#define	LIO_DSYNC		0x7
+#define	LIO_VECTORED		0x4
+#define	LIO_WRITEV		(LIO_WRITE | LIO_VECTORED)
+#define	LIO_READV		(LIO_READ | LIO_VECTORED)
+#define	LIO_SYNC		0x8
+#define	LIO_DSYNC		(0x10 | LIO_SYNC)
+#define	LIO_MLOCK		0x20
 #endif
 
 /*

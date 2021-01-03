@@ -775,10 +775,10 @@ soo_aio_cancel(struct kaiocb *job)
 
 	so = job->fd_file->f_data;
 	opcode = job->uaiocb.aio_lio_opcode;
-	if (opcode == LIO_READ || opcode == LIO_READV)
+	if (opcode & LIO_READ)
 		sb = &so->so_rcv;
 	else {
-		MPASS(opcode == LIO_WRITE || opcode == LIO_WRITEV);
+		MPASS(opcode & LIO_WRITE);
 		sb = &so->so_snd;
 	}
 
@@ -808,13 +808,11 @@ soo_aio_queue(struct file *fp, struct kaiocb *job)
 	if (error == 0)
 		return (0);
 
-	switch (job->uaiocb.aio_lio_opcode) {
+	switch (job->uaiocb.aio_lio_opcode & (LIO_WRITE | LIO_READ)) {
 	case LIO_READ:
-	case LIO_READV:
 		sb = &so->so_rcv;
 		break;
 	case LIO_WRITE:
-	case LIO_WRITEV:
 		sb = &so->so_snd;
 		break;
 	default:
