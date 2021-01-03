@@ -74,11 +74,10 @@ __FBSDID("$FreeBSD$");
  */
 #define BUFSIZE_SMALL (MAXPHYS)
 
-static int
+static ssize_t
 copy_fallback(int from_fd, int to_fd, char *buf, size_t bufsize)
 {
-	int rcount;
-	ssize_t wresid, wcount = 0;
+	ssize_t rcount, wresid, wcount = 0;
 	char *bufp;
 
 	rcount = read(from_fd, buf, bufsize);
@@ -100,10 +99,10 @@ copy_file(const FTSENT *entp, int dne)
 	static char *buf = NULL;
 	static size_t bufsize;
 	struct stat *fs;
-	ssize_t wcount;
+	ssize_t rcount, wcount;
 	size_t wresid;
 	off_t wtotal;
-	int ch, checkch, from_fd, rcount, rval, to_fd;
+	int ch, checkch, from_fd, rval, to_fd;
 	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
@@ -236,7 +235,7 @@ copy_file(const FTSENT *entp, int dne)
 			do {
 				if (use_copy_file_range) {
 					rcount = copy_file_range(from_fd, NULL,
-			    		    to_fd, NULL, bufsize, 0);
+			    		    to_fd, NULL, SSIZE_MAX, 0);
 					if (rcount < 0 && errno == EINVAL) {
 						/* Prob a non-seekable FD */
 						use_copy_file_range = 0;
