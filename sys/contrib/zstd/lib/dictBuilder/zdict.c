@@ -968,6 +968,9 @@ static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
 }
 
 /* Hidden declaration for dbio.c */
+/* Begin FreeBSD - This symbol is needed by dll-linked CLI zstd(1). */
+ZSTDLIB_API
+/* End FreeBSD */
 size_t ZDICT_trainFromBuffer_unsafe_legacy(
                             void* dictBuffer, size_t maxDictSize,
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
