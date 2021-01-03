@@ -108,6 +108,8 @@ static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	v_init_counters(struct vnode *);
+static void	vn_seqc_init(struct vnode *);
+static void	vn_seqc_write_end_free(struct vnode *vp);
 static void	vgonel(struct vnode *);
 static bool	vhold_recycle_free(struct vnode *);
 static void	vfs_knllock(void *arg);
@@ -1719,6 +1721,7 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	vp->v_op = vops;
 	vp->v_irflag = 0;
 	v_init_counters(vp);
+	vn_seqc_init(vp);
 	vp->v_bufobj.bo_ops = &buf_ops_bio;
 #ifdef DIAGNOSTIC
 	if (mp == NULL && vops != &dead_vnodeops)
@@ -1787,8 +1790,7 @@ freevnode(struct vnode *vp)
 	/*
 	 * Paired with vgone.
 	 */
-	vn_seqc_write_end_locked(vp);
-	VNPASS(vp->v_seqc_users == 0, vp);
+	vn_seqc_write_end_free(vp);
 
 	bo = &vp->v_bufobj;
 	VNASSERT(vp->v_data == NULL, vp, ("cleaned vnode isn't"));
@@ -6797,6 +6799,28 @@ vn_seqc_write_end(struct vnode *vp)
 	VI_LOCK(vp);
 	vn_seqc_write_end_locked(vp);
 	VI_UNLOCK(vp);
+}
+
+/*
+ * Special case handling for allocating and freeing vnodes.
+ *
+ * The counter remains unchanged on free so that a doomed vnode will
+ * keep testing as in modify as long as it is accessible with SMR.
+ */
+static void
+vn_seqc_init(struct vnode *vp)
+{
+
+	vp->v_seqc = 0;
+	vp->v_seqc_users = 0;
+}
+
+static void
+vn_seqc_write_end_free(struct vnode *vp)
+{
+
+	VNPASS(seqc_in_modify(vp->v_seqc), vp);
+	VNPASS(vp->v_seqc_users == 1, vp);
 }
 
 void
