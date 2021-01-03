@@ -232,7 +232,7 @@ parse_section_table(struct executable *x, off_t off, int number_of_sections)
 	range_check(x, off, sizeof(*psh) * number_of_sections,
 	    "section table");
 
-	if (x->x_headers_len <= off + sizeof(*psh) * number_of_sections)
+	if (x->x_headers_len < off + sizeof(*psh) * number_of_sections)
 		errx(1, "section table outside of headers");
 
 	psh = (const struct pe_section_header *)(x->x_buf + off);
