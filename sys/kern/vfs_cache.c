@@ -4674,7 +4674,7 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 			return (cache_fpl_partial(fpl));
 		}
 		vp = atomic_load_ptr(&mp->mnt_rootvnode);
-		if (vp == NULL || VN_IS_DOOMED(vp)) {
+		if (vp == NULL) {
 			vfs_op_thread_exit_crit(mp, mpcpu);
 			return (cache_fpl_partial(fpl));
 		}
@@ -4725,7 +4725,7 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 		return (cache_fpl_partial(fpl));
 	}
 	vp = atomic_load_ptr(&mp->mnt_rootvnode);
-	if (__predict_false(vp == NULL || VN_IS_DOOMED(vp))) {
+	if (__predict_false(vp == NULL)) {
 		vfs_op_thread_exit_crit(mp, mpcpu);
 		return (cache_fpl_partial(fpl));
 	}
