@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2020
+.Dd January 2, 2021
 .Dt COPY_FILE_RANGE 2
 .Os
 .Sh NAME
@@ -117,6 +117,15 @@ with
 .Dv SEEK_DATA
 arguments and this system call for the
 data ranges found.
+.Pp
+For best performance, call
+.Fn copy_file_range
+with the largest
+.Fa len
+value possible.
+It is interruptible on most file systems,
+so there is no penalty for using very large len values, even SSIZE_MAX.
+.Pp
 .Sh RETURN VALUES
 If it succeeds, the call returns the number of bytes copied, which can be fewer
 than
