@@ -63,6 +63,7 @@ ${PACKAGE}FILES+=		shellproc3.0
 ${PACKAGE}FILES+=		shellproc4.0
 ${PACKAGE}FILES+=		shellproc5.0
 ${PACKAGE}FILES+=		shellproc6.0
+${PACKAGE}FILES+=		shellproc7.0
 ${PACKAGE}FILES+=		subshell1.0 subshell1.0.stdout
 ${PACKAGE}FILES+=		subshell2.0
 ${PACKAGE}FILES+=		subshell3.0
