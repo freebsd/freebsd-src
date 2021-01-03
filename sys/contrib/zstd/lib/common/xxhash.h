@@ -141,6 +141,9 @@ typedef unsigned int       XXH32_hash_t;
 typedef unsigned long long XXH64_hash_t;
 
 XXH_PUBLIC_API XXH32_hash_t XXH32 (const void* input, size_t length, unsigned int seed);
+/* Begin FreeBSD - This symbol is needed by dll-linked CLI zstd(1). */
+__attribute__((visibility ("default")))
+/* End FreeBSD */
 XXH_PUBLIC_API XXH64_hash_t XXH64 (const void* input, size_t length, unsigned long long seed);
 
 /*!
