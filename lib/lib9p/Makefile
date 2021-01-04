@@ -1,9 +1,14 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 .PATH:		${.CURDIR}/../../contrib/lib9p
-CFLAGS+=	-DWITH_CASPER
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../contrib/lib9p
+
+.if ${MK_CASPER} != "no"
+CFLAGS+=	-DWITH_CASPER
+.endif
 
 LIB=		9p
 PACKAGE=	lib${LIB}
