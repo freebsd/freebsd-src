@@ -152,6 +152,7 @@ int vga_get_grc(int, int);
 void vga_set_grc(int, int, int);
 
 /* high-level VBE helpers, from vbe.c */
+bool vbe_is_vga(void);
 void bios_set_text_mode(int);
 int biosvbe_palette_format(int *);
 void vbe_init(void);
