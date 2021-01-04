@@ -186,6 +186,7 @@ STATIC void sysctl_mvneta_init(struct mvneta_softc *);
 
 /* MIB */
 STATIC void mvneta_clear_mib(struct mvneta_softc *);
+STATIC uint64_t mvneta_read_mib(struct mvneta_softc *, int);
 STATIC void mvneta_update_mib(struct mvneta_softc *);
 
 /* Switch */
@@ -1102,7 +1103,7 @@ STATIC int
 mvneta_initreg(struct ifnet *ifp)
 {
 	struct mvneta_softc *sc;
-	int q, i;
+	int q;
 	uint32_t reg;
 
 	sc = ifp->if_softc;
@@ -1189,14 +1190,7 @@ mvneta_initreg(struct ifnet *ifp)
 	MVNETA_WRITE(sc, MVNETA_PXCX, reg);
 
 	/* clear MIB counter registers(clear by read) */
-	for (i = 0; i < nitems(mvneta_mib_list); i++) {
-		if (mvneta_mib_list[i].reg64)
-			MVNETA_READ_MIB_8(sc, mvneta_mib_list[i].regnum);
-		else
-			MVNETA_READ_MIB_4(sc, mvneta_mib_list[i].regnum);
-	}
-	MVNETA_READ(sc, MVNETA_PDFC);
-	MVNETA_READ(sc, MVNETA_POFC);
+	mvneta_clear_mib(sc);
 
 	/* Set SDC register except IPGINT bits */
 	reg  = MVNETA_SDC_RXBSZ_16_64BITWORDS;
@@ -3538,6 +3532,19 @@ sysctl_mvneta_init(struct mvneta_softc *sc)
 /*
  * MIB
  */
+STATIC uint64_t
+mvneta_read_mib(struct mvneta_softc *sc, int index)
+{
+	struct mvneta_mib_def *mib;
+	uint64_t val;
+
+	mib = &mvneta_mib_list[index];
+	val = MVNETA_READ_MIB(sc, mib->regnum);
+	if (mib->reg64)
+		val |= (uint64_t)MVNETA_READ_MIB(sc, mib->regnum + 4) << 32;
+	return (val);
+}
+
 STATIC void
 mvneta_clear_mib(struct mvneta_softc *sc)
 {
@@ -3546,10 +3553,7 @@ mvneta_clear_mib(struct mvneta_softc *sc)
 	KASSERT_SC_MTX(sc);
 
 	for (i = 0; i < nitems(mvneta_mib_list); i++) {
-		if (mvneta_mib_list[i].reg64)
-			MVNETA_READ_MIB_8(sc, mvneta_mib_list[i].regnum);
-		else
-			MVNETA_READ_MIB_4(sc, mvneta_mib_list[i].regnum);
+		(void)mvneta_read_mib(sc, i);
 		sc->sysctl_mib[i].counter = 0;
 	}
 	MVNETA_READ(sc, MVNETA_PDFC);
@@ -3569,11 +3573,7 @@ mvneta_update_mib(struct mvneta_softc *sc)
 
 	for (i = 0; i < nitems(mvneta_mib_list); i++) {
 
-		if (mvneta_mib_list[i].reg64)
-			val = MVNETA_READ_MIB_8(sc, mvneta_mib_list[i].regnum);
-		else
-			val = MVNETA_READ_MIB_4(sc, mvneta_mib_list[i].regnum);
-
+		val = mvneta_read_mib(sc, i);
 		if (val == 0)
 			continue;
 

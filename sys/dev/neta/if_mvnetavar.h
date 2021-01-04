@@ -69,10 +69,8 @@
 #define	MVNETA_WRITE_REGION(sc, reg, val, c) \
 	bus_write_region_4((sc)->res[0], (reg), (val), (c))
 
-#define	MVNETA_READ_MIB_4(sc, reg) \
+#define	MVNETA_READ_MIB(sc, reg) \
 	bus_read_4((sc)->res[0], MVNETA_PORTMIB_BASE + (reg))
-#define	MVNETA_READ_MIB_8(sc, reg) \
-	bus_read_8((sc)->res[0], MVNETA_PORTMIB_BASE + (reg))
 
 #define	MVNETA_IS_LINKUP(sc) \
 	(MVNETA_READ((sc), MVNETA_PSR) & MVNETA_PSR_LINKUP)
