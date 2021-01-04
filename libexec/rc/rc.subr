@@ -2083,7 +2083,7 @@ find_local_scripts_new() {
 		if [ -d "${dir}" ]; then
 			for file in `grep -l '^# PROVIDE:' ${dir}/* 2>/dev/null`; do
 				case "$file" in
-				*.sample) ;;
+				*.sample|*.pkgsave) ;;
 				*)	if [ -x "$file" ]; then
 						local_rc="${local_rc} ${file}"
 					fi
@@ -2091,6 +2091,19 @@ find_local_scripts_new() {
 				esac
 			done
 		fi
+	done
+}
+
+find_system_scripts() {
+	system_rc=''
+	for file in /etc/rc.d/*; do
+		case "${file##*/}" in
+		*.pkgsave) ;;
+		*)	if [ -x "$file" ]; then
+				system_rc="${system_rc} ${file}"
+			fi
+			;;
+		esac
 	done
 }
 
