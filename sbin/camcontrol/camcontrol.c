@@ -2458,11 +2458,10 @@ atasecurity_notify(u_int8_t command, struct ata_security_password *pwd)
 	printf("Issuing %s", ata_op_string(&cmd));
 
 	if (pwd != NULL) {
+		/* pwd->password may not be null terminated */
 		char pass[sizeof(pwd->password)+1];
 
-		/* pwd->password may not be null terminated */
-		pass[sizeof(pwd->password)] = '\0';
-		strncpy(pass, pwd->password, sizeof(pwd->password));
+		strlcpy(pass, pwd->password, sizeof(pass));
 		printf(" password='%s', user='%s'",
 			pass,
 			(pwd->ctrl & ATA_SECURITY_PASSWORD_MASTER) ?

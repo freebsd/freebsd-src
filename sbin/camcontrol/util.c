@@ -126,14 +126,13 @@ arg_put(void *hook __unused, int letter, void *arg, int count, char *name)
 		{
 			char *p;
 
-			p = malloc(count + 1);
+			p = calloc(1, count + 1);
 			if (p == NULL) {
 				fprintf(stderr, "can't malloc memory for p\n");
 				exit(1);
 			}
 
-			bzero(p, count +1);
-			strncpy(p, (char *)arg, count);
+			strlcpy(p, (char *)arg, count + 1);
 			if (letter == 'z')
 			{
 				int i;
