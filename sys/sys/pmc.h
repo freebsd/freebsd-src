@@ -729,6 +729,7 @@ struct pmc_target {
  *
  */
 struct pmc_pcpu_state {
+	uint32_t pps_overflowcnt;	/* count overflow interrupts */
 	uint8_t pps_stalled;
 	uint8_t pps_cpustate;
 } __aligned(CACHE_LINE_SIZE);
@@ -773,7 +774,6 @@ struct pmc {
 	struct pmc_owner *pm_owner;	/* owner thread state */
 	counter_u64_t		pm_runcount;	/* #cpus currently on */
 	enum pmc_state	pm_state;	/* current PMC state */
-	uint32_t	pm_overflowcnt;	/* count overflow interrupts */
 
 	/*
 	 * The PMC ID field encodes the row-index for the PMC, its
