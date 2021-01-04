@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/backlight.h>
 
 #include "backlight_if.h"
+#include "pcib_if.h"
 
 static device_probe_t linux_pci_probe;
 static device_attach_t linux_pci_attach;
@@ -247,12 +248,16 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	struct pci_bus *pbus;
 	struct pci_devinfo *dinfo;
 	device_t parent;
+	uintptr_t rid;
 	int error;
+	bool isdrm;
 
 	linux_set_current(curthread);
 
-	if (pdrv != NULL && pdrv->isdrm) {
-		parent = device_get_parent(dev);
+	parent = device_get_parent(dev);
+	isdrm = pdrv != NULL && pdrv->isdrm;
+
+	if (isdrm) {
 		dinfo = device_get_ivars(parent);
 		device_set_ivars(dev, dinfo);
 	} else {
@@ -262,7 +267,11 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	pdev->dev.parent = &linux_root_device;
 	pdev->dev.bsddev = dev;
 	INIT_LIST_HEAD(&pdev->dev.irqents);
-	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
+	if (isdrm)
+		PCI_GET_ID(device_get_parent(parent), parent, PCI_ID_RID, &rid);
+	else
+		PCI_GET_ID(parent, dev, PCI_ID_RID, &rid);
+	pdev->devfn = rid;
 	pdev->device = dinfo->cfg.device;
 	pdev->vendor = dinfo->cfg.vendor;
 	pdev->subsystem_vendor = dinfo->cfg.subvendor;
@@ -487,9 +496,8 @@ pci_resource_start(struct pci_dev *pdev, int bar)
 
 	if ((rle = linux_pci_get_bar(pdev, bar)) == NULL)
 		return (0);
-	dev = pci_find_dbsf(pdev->bus->domain, pdev->bus->number,
-	    PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
-	MPASS(dev != NULL);
+	dev = pdev->pdrv != NULL && pdev->pdrv->isdrm ?
+	    device_get_parent(pdev->dev.bsddev) : pdev->dev.bsddev;
 	if (BUS_TRANSLATE_RESOURCE(dev, rle->type, rle->start, &newstart)) {
 		device_printf(pdev->dev.bsddev, "translate of %#jx failed\n",
 		    (uintmax_t)rle->start);

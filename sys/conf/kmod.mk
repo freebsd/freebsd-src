@@ -96,6 +96,7 @@ LINUXKPI_GENSRCS+= \
 	device_if.h \
 	pci_if.h \
 	pci_iov_if.h \
+	pcib_if.h \
 	vnode_if.h \
 	usb_if.h \
 	opt_usb.h \
