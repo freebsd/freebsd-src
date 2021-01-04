@@ -267,10 +267,13 @@ union pmclog_entry {		/* only used to size scratch areas */
 	struct pmclog_pmcattach		pl_t;
 	struct pmclog_pmcdetach		pl_d;
 	struct pmclog_proccsw		pl_c;
+	struct pmclog_proccreate	pl_pc;
 	struct pmclog_procexec		pl_x;
 	struct pmclog_procexit		pl_e;
 	struct pmclog_procfork		pl_f;
 	struct pmclog_sysexit		pl_se;
+	struct pmclog_threadcreate	pl_tc;
+	struct pmclog_threadexit	pl_te;
 	struct pmclog_userdata		pl_u;
 };
 
