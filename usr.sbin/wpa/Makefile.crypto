@@ -16,9 +16,13 @@ CONFIG_INTERNAL_RC4=y
 CONFIG_INTERNAL_SHA1=y
 NEED_SHA256=y
 CONFIG_INTERNAL_SHA256=y
+NEED_SHA384=y
+CONFIG_INTERNAL_SHA384=y
+NEED_SHA512=y
+CONFIG_INTERNAL_SHA512=y
 CONFIG_INTERNAL_TLS=y
+NEED_DH_GROUPS=y
 CONFIG_INTERNAL_DH5=y
-CONFIG_INTERNAL_DH=y
 NEED_AES_ENC=true
 NEED_AES_CBC=true
 .endif
@@ -45,6 +49,7 @@ SRCS+=	asn1.c \
 	tlsv1_client.c \
 	tlsv1_client_write.c \
 	tlsv1_client_read.c \
+	tlsv1_client_ocsp.c \
 	x509v3.c
 NEED_DES=y
 NEED_MD4=y
@@ -123,14 +128,36 @@ SRCS+=	sha256-internal.c sha256-prf.c
 .endif
 .endif
 
+.if defined(NEED_SHA384)
+CFLAGS+=-DCONFIG_SHA384
+SRCS+=	sha384.c
+.if defined(CONFIG_INTERNAL_SHA384)
+SRCS+=	sha384-internal.c sha384-prf.c
+.endif
+.endif
+
+.if defined(NEED_SHA512)
+CFLAGS+=-DCONFIG_SHA512
+SRCS+=	sha512.c
+.if defined(CONFIG_INTERNAL_SHA512)
+SRCS+=	sha512-internal.c sha512-prf.c
+.endif
+.endif
+
 .if defined(NEED_TLS_PRF)
 SRCS+=	sha1-tlsprf.c
 .endif
 
 .if defined(CONFIG_INTERNAL_DH5)
+.if defined(NEED_DH_GROUPS)
 SRCS+=	dh_group5.c
 .endif
+.endif
 
-.if defined(CONFIG_INTERNAL_DH)
+.if defined(NEED_DH_GROUPS)
 SRCS+=	dh_groups.c
+.endif
+
+.if defined(NEED_DH_GROUPS_ALL)
+CFLAGS+=-DALL_DH_GROUPS
 .endif
