@@ -195,7 +195,7 @@ nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
 	tp = ns->ns_part1.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part1,
 	    &ns->ns_mtx);
 	*end = 'A';
-	error = tty_makedevf(tp, NULL, endc == 'A' ? TTYMK_CLONING : 0,
+	error = tty_makedevf(tp, cred, endc == 'A' ? TTYMK_CLONING : 0,
 	    "%s", name);
 	if (error) {
 		*end = endc;
@@ -207,7 +207,7 @@ nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
 	tp = ns->ns_part2.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part2,
 	    &ns->ns_mtx);
 	*end = 'B';
-	error = tty_makedevf(tp, NULL, endc == 'B' ? TTYMK_CLONING : 0,
+	error = tty_makedevf(tp, cred, endc == 'B' ? TTYMK_CLONING : 0,
 	    "%s", name);
 	if (error) {
 		*end = endc;
