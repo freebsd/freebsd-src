@@ -58,7 +58,7 @@ usage() {
 	    "[-d <disk file>]"
 	echo "                [-e <name=value>] [-f <path of firmware>]" \
 	    "[-F <size>]"
-	echo "                 [-H <directory>]"
+	echo "                [-H <directory>]"
 	echo "                [-I <location of installation iso>] [-l <loader>]"
 	echo "                [-L <VNC IP for UEFI framebuffer>]"
 	echo "                [-m <memsize>]" \
