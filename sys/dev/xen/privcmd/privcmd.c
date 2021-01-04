@@ -217,6 +217,40 @@ privcmd_mmap_single(struct cdev *cdev, vm_ooffset_t *offset, vm_size_t size,
 	return (0);
 }
 
+static struct privcmd_map *
+setup_virtual_area(struct thread *td, unsigned long addr, unsigned long num)
+{
+	vm_map_t map;
+	vm_map_entry_t entry;
+	vm_object_t mem;
+	vm_pindex_t pindex;
+	vm_prot_t prot;
+	boolean_t wired;
+	struct privcmd_map *umap;
+	int error;
+
+	if ((num == 0) || ((addr & PAGE_MASK) != 0))
+		return NULL;
+
+	map = &td->td_proc->p_vmspace->vm_map;
+	error = vm_map_lookup(&map, addr, VM_PROT_NONE, &entry, &mem, &pindex,
+	    &prot, &wired);
+	if (error != KERN_SUCCESS || (entry->start != addr) ||
+	    (entry->end != addr + (num * PAGE_SIZE)))
+		return NULL;
+
+	vm_map_lookup_done(map, entry);
+	if ((mem->type != OBJT_MGTDEVICE) ||
+	    (mem->un_pager.devp.ops != &privcmd_pg_ops))
+		return NULL;
+
+	umap = mem->handle;
+	/* Allocate a bitset to store broken page mappings. */
+	umap->err = BITSET_ALLOC(num, M_PRIVCMD, M_WAITOK | M_ZERO);
+
+	return umap;
+}
+
 static int
 privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 	      int mode, struct thread *td)
@@ -255,12 +289,6 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 	}
 	case IOCTL_PRIVCMD_MMAPBATCH: {
 		struct ioctl_privcmd_mmapbatch *mmap;
-		vm_map_t map;
-		vm_map_entry_t entry;
-		vm_object_t mem;
-		vm_pindex_t pindex;
-		vm_prot_t prot;
-		boolean_t wired;
 		struct xen_add_to_physmap_range add;
 		xen_ulong_t *idxs;
 		xen_pfn_t *gpfns;
@@ -271,32 +299,11 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 
 		mmap = (struct ioctl_privcmd_mmapbatch *)arg;
 
-		if ((mmap->num == 0) ||
-		    ((mmap->addr & PAGE_MASK) != 0)) {
+		umap = setup_virtual_area(td, mmap->addr, mmap->num);
+		if (umap == NULL) {
 			error = EINVAL;
 			break;
 		}
-
-		map = &td->td_proc->p_vmspace->vm_map;
-		error = vm_map_lookup(&map, mmap->addr, VM_PROT_NONE, &entry,
-		    &mem, &pindex, &prot, &wired);
-		if (error != KERN_SUCCESS) {
-			error = EINVAL;
-			break;
-		}
-		if ((entry->start != mmap->addr) ||
-		    (entry->end != mmap->addr + (mmap->num * PAGE_SIZE))) {
-			vm_map_lookup_done(map, entry);
-			error = EINVAL;
-			break;
-		}
-		vm_map_lookup_done(map, entry);
-		if ((mem->type != OBJT_MGTDEVICE) ||
-		    (mem->un_pager.devp.ops != &privcmd_pg_ops)) {
-			error = EINVAL;
-			break;
-		}
-		umap = mem->handle;
 
 		add.domid = DOMID_SELF;
 		add.space = XENMAPSPACE_gmfn_foreign;
@@ -315,10 +322,6 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 		set_xen_guest_handle(add.idxs, idxs);
 		set_xen_guest_handle(add.gpfns, gpfns);
 		set_xen_guest_handle(add.errs, errs);
-
-		/* Allocate a bitset to store broken page mappings. */
-		umap->err = BITSET_ALLOC(mmap->num, M_PRIVCMD,
-		    M_WAITOK | M_ZERO);
 
 		for (index = 0; index < mmap->num; index += num) {
 			num = MIN(mmap->num - index, UINT16_MAX);
