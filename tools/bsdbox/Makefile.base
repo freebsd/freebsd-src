@@ -14,7 +14,7 @@ CRUNCH_ALIAS_tset=	reset
 
 CRUNCH_PROGS_usr.bin+=	vmstat
 #CRUNCH_PROGS_user.bin+=	systat
-CRUNCH_LIBS+=		-ldevstat -lncursesw -lncurses -lmemstat -lkvm -lelf
+CRUNCH_LIBS+=		-ldevstat -lncursesw -lmemstat -lkvm -lelf
 
 # CRUNCH_PROGS_usr.bin+=	tar
 CRUNCH_PROGS_usr.bin+=	cpio

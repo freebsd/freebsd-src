@@ -36,6 +36,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210105: remove non widechar version of clang
+OLD_LIBS+=lib/libncurses.so.9
 # 20210103: new clang import which bumps version from 11.0.0 to 11.0.1.
 OLD_FILES+=usr/lib/clang/11.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/11.0.0/include/cuda_wrappers/complex

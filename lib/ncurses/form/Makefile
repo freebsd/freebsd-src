@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include "${.CURDIR:H}/config.mk"
 
 SRCDIR=	${NCURSES_DIR}/form
 
-LIB=	form${LIB_SUFFIX}
+LIB=	formw
 
 .PATH: ${SRCDIR}
 SRCS=	\
@@ -54,9 +55,8 @@ CLEANFILES=	ncurses_def.h
 CFLAGS+=	-I${SRCDIR}
 CFLAGS+=	-I${NCURSES_DIR}/menu
 
-LIBADD+=	ncurses${LIB_SUFFIX}
+LIBADD+=	ncursesw
 
-.if defined(ENABLE_WIDEC)
 INCS=	form.h
 
 .PATH: ${NCURSES_DIR}/man
@@ -156,8 +156,16 @@ MLINKS=	form_cursor.3 pos_form_cursor.3 \
 	form_win.3 scale_form.3 \
 	form_win.3 set_form_sub.3 \
 	form_win.3 set_form_win.3
-.else
-MAN=
+
+# backward compat
+.if ${MK_INSTALLLIB} != "no"
+SYMLINKS+=	libformw.a ${LIBDIR}/libform.a
+.endif
+.if !defined(NO_PIC)
+SYMLINKS+=	libformw.so ${LIBDIR}/libform.so
+.endif
+.if ${MK_PROFILE} != "no"
+SYMLINKS+=	libformw_p.a ${LIBDIR}/libform_p.a
 .endif
 
 .include <bsd.lib.mk>
