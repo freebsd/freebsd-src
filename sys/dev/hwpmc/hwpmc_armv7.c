@@ -192,12 +192,12 @@ armv7_read_pmc(int cpu, int ri, pmc_value_t *v)
 		/* Clear Overflow Flag */
 		cp15_pmovsr_set(reg);
 		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm)))
-			pm->pm_overflowcnt += 1;
+			pm->pm_pcpu_state[cpu].pps_overflowcnt++;
 
 		/* Reread counter in case we raced. */
 		tmp = armv7_pmcn_read(ri, pm->pm_md.pm_armv7.pm_armv7_evsel);
 	}
-	tmp += 0x100000000llu * pm->pm_overflowcnt;
+	tmp += 0x100000000llu * pm->pm_pcpu_state[cpu].pps_overflowcnt;
 	intr_restore(s);
 
 	PMCDBG2(MDP, REA, 2, "armv7-read id=%d -> %jd", ri, tmp);
@@ -226,7 +226,7 @@ armv7_write_pmc(int cpu, int ri, pmc_value_t v)
 	
 	PMCDBG3(MDP, WRI, 1, "armv7-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
-	pm->pm_overflowcnt = v >> 32;
+	pm->pm_pcpu_state[cpu].pps_overflowcnt = v >> 32;
 	if (pm->pm_md.pm_armv7.pm_armv7_evsel == PMC_EV_CPU_CYCLES)
 		cp15_pmccntr_set(v);
 	else
@@ -363,7 +363,7 @@ armv7_intr(struct trapframe *tf)
 		retval = 1; /* Found an interrupting PMC. */
 
 		if (!PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
-			pm->pm_overflowcnt += 1;
+			pm->pm_pcpu_state[cpu].pps_overflowcnt += 1;
 			continue;
 		}
 		if (pm->pm_state != PMC_STATE_RUNNING)
