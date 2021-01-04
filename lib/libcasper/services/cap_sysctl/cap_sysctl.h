@@ -38,11 +38,15 @@
 
 #include <sys/cdefs.h>
 
-#ifdef WITH_CASPER
 #define	CAP_SYSCTL_READ		0x01
 #define	CAP_SYSCTL_WRITE	0x02
 #define	CAP_SYSCTL_RDWR		(CAP_SYSCTL_READ | CAP_SYSCTL_WRITE)
 #define	CAP_SYSCTL_RECURSIVE	0x04
+
+struct cap_sysctl_limit;
+typedef struct cap_sysctl_limit cap_sysctl_limit_t;
+
+#ifdef WITH_CASPER
 
 __BEGIN_DECLS
 
@@ -52,9 +56,6 @@ int cap_sysctlbyname(cap_channel_t *chan, const char *name, void *oldp,
     size_t *oldlenp, const void *newp, size_t newlen);
 int cap_sysctlnametomib(cap_channel_t *chan, const char *name, int *mibp,
     size_t *sizep);
-
-struct cap_sysctl_limit;
-typedef struct cap_sysctl_limit cap_sysctl_limit_t;
 
 cap_sysctl_limit_t *cap_sysctl_limit_init(cap_channel_t *);
 cap_sysctl_limit_t *cap_sysctl_limit_name(cap_sysctl_limit_t *limit,
