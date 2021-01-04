@@ -226,6 +226,18 @@ vga_set_grc(int reg, int i, int v)
 	vga_set_indexed(reg, VGA_GC_ADDRESS, VGA_GC_DATA, i, v);
 }
 
+/*
+ * Return true when this controller is VGA compatible.
+ */
+bool
+vbe_is_vga(void)
+{
+	if (vbe == NULL)
+		return (false);
+
+	return ((vbe->Capabilities & VBE_CAP_NONVGA) == 0);
+}
+
 /* Actually assuming mode 3. */
 void
 bios_set_text_mode(int mode)

@@ -780,6 +780,10 @@ vidc_install_font(void)
 	int bpc, f_offset;
 	teken_attr_t a = { 0 };
 
+	/* We can only program VGA registers. */
+	if (!vbe_is_vga())
+		return;
+
 	if (gfx_state.tg_fb_type != FB_TEXT)
 		return;
 
