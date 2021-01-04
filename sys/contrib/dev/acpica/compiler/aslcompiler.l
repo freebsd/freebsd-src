@@ -812,9 +812,9 @@ NamePathTail                [.]{NameSeg}
 "__PATH__"                  { count (0); return (PARSEOP___PATH__); }
 "__METHOD__"                { count (0); return (PARSEOP___METHOD__); }
 "__EXPECT__"{ErrorCode}     { char *s;
-                                int index = 0;
+                                unsigned int index = 0;
                                 count (0);
-                                while (!isdigit (AslCompilertext[index]))
+                                while (!isdigit ((int) AslCompilertext[index]))
                                 {
                                     index++;
                                 }

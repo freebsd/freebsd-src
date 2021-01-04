@@ -1,5 +1,40 @@
 ----------------------------------------
+17 December 2020. Summary of changes for version 20201217:
 
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Note: The implementation of ACPI 6.4 is underway, and is expected to be 
+mostly finished next month, when ACPI 6.4 is released.
+
+From qzed:- fixed-ae-class-macros. Fix exception code class checks. Added 
+several new macros, such as ACPI_CNTL_EXCEPTION(Status) in order to 
+enable this.
+
+AcpiExec/iASL/AcpiHelp: Added a few changes for support of GCC 10.2.0. 
+These included a few casts, as well as a null pointer check.
+
+Fix -Wfallthrough: GCC 7.1 gained -Wimplicit-fallthrough to warn on 
+implicit fallthrough, as well as __attribute__((__fallthrough__)) and 
+comments to explicitly denote that cases of fallthrough were intentional. 
+Clang also supports this warning and statement attribute, but not the 
+comment form. Added a new macro, ACPI_FALLTHROUGH to support this feature 
+of GCC. With assistance from @nickdesaulniers. 
+
+2) iASL Compiler/Disassembler and ACPICA tools: 
+
+Added improvement to method call analysis by saving the return type and 
+relaxing certain cases of type checking.
+
+iASL Table Compiler: Improved info messages. Added a message to the -T 
+option for when the default template (DSDT) is used.
+Also added a note for when multiple SSDTs are created with a DSDT that 
+the SSDTs are created in the same file as the DSDT.
+
+
+----------------------------------------
 
 13 November 2020. Summary of changes for version 20201113:
 
