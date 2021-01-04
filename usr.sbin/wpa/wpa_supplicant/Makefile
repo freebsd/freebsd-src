@@ -14,7 +14,7 @@ PROG=	wpa_supplicant
 SRCS=	base64.c bitfield.c blacklist.c bss.c cli.c common.c \
 	config.c config_file.c \
 	ctrl_iface.c ctrl_iface_common.c ctrl_iface_unix.c \
-	dh_groups.c driver_bsd.c driver_common.c \
+	driver_bsd.c driver_common.c \
 	driver_ndis.c driver_wired.c driver_wired_common.c drivers.c \
 	eap_register.c eloop.c \
 	events.c gas.c gas_query.c \
