@@ -4,20 +4,11 @@
 
 NCURSES_DIR=	${SRCTOP}/contrib/ncurses
 
-.if defined(ENABLE_WIDEC)
-LIB_SUFFIX=	w
 CFLAGS+=	-D_XOPEN_SOURCE_EXTENDED -DENABLE_WIDEC
-NCURSES_CFG_H=	${.CURDIR:H}/ncurses/ncurses_cfg.h
-.else
-LIB_SUFFIX=
 NCURSES_CFG_H=	${.CURDIR}/ncurses_cfg.h
-.endif
 
 CFLAGS+=	-I.
-.if exists(${.OBJDIR:H}/ncurses${LIB_SUFFIX})
-CFLAGS+=	-I${.OBJDIR:H}/ncurses${LIB_SUFFIX}
-.endif
-CFLAGS+=	-I${.CURDIR:H}/ncurses${LIB_SUFFIX}
+CFLAGS+=	-I${.CURDIR:H}/ncurses
 
 # for ${NCURSES_CFG_H}
 CFLAGS+=	-I${.CURDIR:H}/ncurses

@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
 .include "${.CURDIR:H}/config.mk"
 
 SRCDIR=	${NCURSES_DIR}/menu
 
-LIB=	menu${LIB_SUFFIX}
+LIB=	menuw
 
 .PATH: ${SRCDIR}
 SRCS=	\
@@ -40,9 +41,8 @@ CLEANFILES=	ncurses_def.h
 
 CFLAGS+=	-I${SRCDIR}
 
-LIBADD+=	ncurses${LIB_SUFFIX}
+LIBADD+=	ncursesw
 
-.if defined(ENABLE_WIDEC)
 INCS=	menu.h eti.h
 
 .PATH: ${NCURSES_DIR}/man
@@ -128,8 +128,16 @@ MLINKS=	menu_attributes.3 menu_back.3 \
 	mitem_value.3 item_value.3 \
 	mitem_value.3 set_item_value.3 \
 	mitem_visible.3 item_visible.3
-.else
-MAN=
+
+# backward compat
+.if ${MK_INSTALLLIB} != "no"
+SYMLINKS+=	libmenuw.a ${LIBDIR}/libmenu.a
+.endif
+.if !defined(NO_PIC)
+SYMLINKS+=	libmenuw.so ${LIBDIR}/libmenu.so
+.endif
+.if ${MK_PROFILE} != "no"
+SYMLINKS+=	libmenuw_p.a ${LIBDIR}/libmenu_p.a
 .endif
 
 .include <bsd.lib.mk>
