@@ -138,8 +138,10 @@ rk_clk_mux_set_freq(struct clknode *clk, uint64_t fparent, uint64_t *fout,
 
 	sc = clknode_get_softc(clk);
 
-	if ((sc->mux_flags & RK_CLK_MUX_REPARENT) == 0)
+	if ((sc->mux_flags & RK_CLK_MUX_REPARENT) == 0) {
+		*stop = 0;
 		return (0);
+	}
 
 	dprintf("Finding best parent for target freq of %ju\n", *fout);
 	p_names = clknode_get_parent_names(clk);
