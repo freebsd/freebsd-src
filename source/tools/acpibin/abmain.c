@@ -234,7 +234,7 @@ main (
 
         AbGbl_DisplayAllMiscompares = TRUE;
 
-        /* Fallthrough */
+        ACPI_FALLTHROUGH;
 
     case 'c':   /* Compare Files */
 

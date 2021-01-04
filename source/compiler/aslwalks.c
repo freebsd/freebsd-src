@@ -516,7 +516,7 @@ AnOperandTypecheckWalkEnd (
                     break;
                 }
 
-            /* Fallthrough */
+                ACPI_FALLTHROUGH;
 
             case ARGI_STORE_TARGET:
 

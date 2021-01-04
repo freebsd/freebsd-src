@@ -1456,7 +1456,7 @@ AslIsExceptionDisabled (
         {
             return (TRUE);
         }
-        /* Fall through */
+        ACPI_FALLTHROUGH;
 
     case ASL_WARNING:
     case ASL_REMARK:

@@ -366,7 +366,7 @@ AcpiDsLoad2BeginOp (
                 break;
             }
 
-            /*lint -fallthrough */
+            ACPI_FALLTHROUGH;
 
         default:
 

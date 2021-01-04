@@ -227,7 +227,7 @@ DtCompileOneField (
             break;
         }
 
-        /* Fall through. */
+        ACPI_FALLTHROUGH;
 
     case DT_FIELD_TYPE_BUFFER:
 

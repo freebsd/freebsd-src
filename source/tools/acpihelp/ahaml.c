@@ -215,9 +215,9 @@ AhFindAmlOpcode (
         }
     }
 
-    if (!Found)
+    if (!Found && Name)
     {
-        printf ("%s, no matching AML operators\n", Name);
+        printf ("%s, no matching AML opcodes\n", Name);
     }
 }
 

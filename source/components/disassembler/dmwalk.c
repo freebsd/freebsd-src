@@ -400,7 +400,7 @@ AcpiDmBlockType (
             return (BLOCK_NONE);
         }
 
-        /*lint -fallthrough */
+        ACPI_FALLTHROUGH;
 
     case AML_PACKAGE_OP:
     case AML_VARIABLE_PACKAGE_OP:
@@ -422,7 +422,7 @@ AcpiDmBlockType (
             return (BLOCK_NONE);
         }
 
-        /*lint -fallthrough */
+        ACPI_FALLTHROUGH;
 
     default:
 
@@ -688,7 +688,7 @@ AcpiDmDescendingOp (
                 return (AE_OK);
             }
 
-            /* Fallthrough */
+            ACPI_FALLTHROUGH;
 
         default:
 
@@ -772,7 +772,7 @@ AcpiDmDescendingOp (
                 AcpiDmNamestring (NextOp->Common.Value.Name);
                 AcpiOsPrintf (", ");
 
-                /*lint -fallthrough */
+                ACPI_FALLTHROUGH;
 
             default:
 

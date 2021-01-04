@@ -255,6 +255,7 @@ DtCreateTemplates (
 
     if (AcpiGbl_Optind < 3)
     {
+        fprintf (stderr, "Creating default template: [DSDT]\n");
         Status = DtCreateOneTemplateFile (ACPI_SIG_DSDT, 0);
         goto Exit;
     }
@@ -640,7 +641,7 @@ DtCreateOneTemplate (
     {
         fprintf (stderr,
             "Created ACPI table templates for [%4.4s] "
-            "and %u [SSDT], written to \"%s\"\n",
+            "and %u [SSDT] in same file, written to \"%s\"\n",
             Signature, TableCount, DisasmFilename);
     }
 
