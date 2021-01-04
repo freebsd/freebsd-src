@@ -221,7 +221,8 @@ static int
 privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 	      int mode, struct thread *td)
 {
-	int error, i;
+	int error;
+	unsigned int i;
 
 	switch (cmd) {
 	case IOCTL_PRIVCMD_HYPERCALL: {
@@ -263,7 +264,8 @@ privcmd_ioctl(struct cdev *dev, unsigned long cmd, caddr_t arg,
 		struct xen_add_to_physmap_range add;
 		xen_ulong_t *idxs;
 		xen_pfn_t *gpfns;
-		int *errs, index;
+		int *errs;
+		unsigned int index;
 		struct privcmd_map *umap;
 		uint16_t num;
 
