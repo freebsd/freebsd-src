@@ -201,7 +201,7 @@ AcpiDbDumpMethodInfo (
 
     /* Ignore control codes, they are not errors */
 
-    if ((Status & AE_CODE_MASK) == AE_CODE_CONTROL)
+    if (ACPI_CNTL_EXCEPTION (Status))
     {
         return;
     }

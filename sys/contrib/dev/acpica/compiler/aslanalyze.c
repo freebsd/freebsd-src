@@ -470,7 +470,7 @@ AnCheckMethodReturnValue (
                 "Method returns [%s], %s operator requires [%s]",
                 AslGbl_StringBuffer, OpInfo->Name, AslGbl_StringBuffer2);
 
-            AslError (ASL_ERROR, ASL_MSG_INVALID_TYPE, ArgOp, AslGbl_MsgBuffer);
+            AslError (ASL_WARNING, ASL_MSG_INVALID_TYPE, ArgOp, AslGbl_MsgBuffer);
         }
     }
 

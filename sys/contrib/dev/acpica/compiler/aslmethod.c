@@ -288,6 +288,7 @@ MtMethodAnalysisWalkBegin (
         NextType = Next->Asl.Child;
 
         MethodInfo->ValidReturnTypes = MtProcessTypeOp (NextType);
+        Op->Asl.AcpiBtype |= MethodInfo->ValidReturnTypes;
 
         /* Get the ParameterType node */
 

@@ -772,8 +772,7 @@ AcpiDsExecEndOp (
                     break;
                 }
 
-                /* Fall through */
-                /*lint -fallthrough */
+                ACPI_FALLTHROUGH;
 
             case AML_INT_EVAL_SUBTREE_OP:
 

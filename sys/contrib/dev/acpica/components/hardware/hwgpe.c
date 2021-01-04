@@ -254,7 +254,7 @@ AcpiHwLowSetGpe (
             return (AE_BAD_PARAMETER);
         }
 
-        /*lint -fallthrough */
+        ACPI_FALLTHROUGH;
 
     case ACPI_GPE_ENABLE:
 
