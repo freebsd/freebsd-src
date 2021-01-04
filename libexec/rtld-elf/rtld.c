@@ -2982,7 +2982,8 @@ reloc_textrel_prot(Obj_Entry *obj, bool before)
 		base = obj->relocbase + trunc_page(ph->p_vaddr);
 		sz = round_page(ph->p_vaddr + ph->p_filesz) -
 		    trunc_page(ph->p_vaddr);
-		prot = convert_prot(ph->p_flags) | (before ? PROT_WRITE : 0);
+		prot = before ? (PROT_READ | PROT_WRITE) :
+		    convert_prot(ph->p_flags);
 		if (mprotect(base, sz, prot) == -1) {
 			_rtld_error("%s: Cannot write-%sable text segment: %s",
 			    obj->path, before ? "en" : "dis",
