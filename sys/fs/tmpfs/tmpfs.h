@@ -42,7 +42,6 @@
 #include <sys/tree.h>
 
 #ifdef	_SYS_MALLOC_H_
-MALLOC_DECLARE(M_TMPFSMNT);
 MALLOC_DECLARE(M_TMPFSNAME);
 #endif
 
