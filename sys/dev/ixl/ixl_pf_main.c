@@ -47,8 +47,6 @@
 static u8	ixl_convert_sysctl_aq_link_speed(u8, bool);
 static void	ixl_sbuf_print_bytes(struct sbuf *, u8 *, int, int, bool);
 static const char * ixl_link_speed_string(enum i40e_aq_link_speed);
-static u_int	ixl_add_maddr(void *, struct sockaddr_dl *, u_int);
-static u_int	ixl_match_maddr(void *, struct sockaddr_dl *, u_int);
 static char *	ixl_switch_element_string(struct sbuf *, u8, u16);
 static enum ixl_fw_mode ixl_get_fw_mode(struct ixl_pf *);
 
