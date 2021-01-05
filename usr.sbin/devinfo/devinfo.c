@@ -235,7 +235,7 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: devinfo [-rv]",
 	    "       devinfo -u",
-	    "       devifno -p dev [-v]");
+	    "       devinfo -p dev [-v]");
 	exit(1);
 }
 
