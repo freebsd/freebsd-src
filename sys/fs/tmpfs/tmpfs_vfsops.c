@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
  */
 #define TMPFS_DEFAULT_ROOT_MODE	(S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH)
 
-MALLOC_DEFINE(M_TMPFSMNT, "tmpfs mount", "tmpfs mount structures");
+static MALLOC_DEFINE(M_TMPFSMNT, "tmpfs mount", "tmpfs mount structures");
 MALLOC_DEFINE(M_TMPFSNAME, "tmpfs name", "tmpfs file names");
 
 static int	tmpfs_mount(struct mount *);
