@@ -111,6 +111,7 @@ static struct ofw_compat_data compat_data[] = {
 	{ "brcm,genet-v3",		3 },
 	{ "brcm,genet-v4",		4 },
 	{ "brcm,genet-v5",		5 },
+	{ "brcm,bcm2711-genet-v5",	5 },
 	{ NULL,				0 }
 };
 
