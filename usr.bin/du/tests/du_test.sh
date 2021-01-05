@@ -46,15 +46,16 @@ H_flag_body()
 {
 	local paths1='testdir/A/B testdir/A testdir/C testdir'
 	local paths2='testdir/A/B testdir/A testdir/C testdir'
-	local sep='\n[0-9]+\t'
+	local lineprefix="^[0-9]+$(printf "\t")"
+	local sep="\n${lineprefix}"
 
 	atf_check mkdir testdir
 	atf_check -x "cd testdir && mkdir A && touch A/B && ln -s A C"
 
 	atf_check -o save:du.out du -aAH testdir
-	atf_check egrep -q "[0-9]+\t$(echo $paths1 | tr ' ' "$sep")\n" du.out
+	atf_check egrep -q "${lineprefix}$(echo $paths1 | sed -e "s/ /$sep/g")" du.out
 	atf_check -o save:du_C.out du -aAH testdir/C
-	atf_check egrep -q "[0-9]+\t$(echo $paths2 | tr ' ' "$sep")\n" du_C.out
+	atf_check egrep -q "${lineprefix}$(echo $paths2 | sed -e "s/ /$sep/g")" du_C.out
 }
 
 atf_test_case I_flag
