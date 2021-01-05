@@ -190,6 +190,10 @@ if findvcs .git; then
 	done
 fi
 
+if findvcs .gituprevision; then
+	gituprevision="${VCSTOP}/.gituprevision"
+fi
+
 if findvcs .hg; then
 	for dir in /usr/bin /usr/local/bin; do
 		if [ -x "${dir}/hg" ] ; then
@@ -217,9 +221,11 @@ fi
 
 if [ -n "$git_cmd" ] ; then
 	git=$($git_cmd rev-parse --verify --short HEAD 2>/dev/null)
-	git_cnt=$($git_cmd rev-list --first-parent --count HEAD 2>/dev/null)
-	if [ -n "$git_cnt" ] ; then
-		git="n${git_cnt}-${git}"
+	if [ "$(git rev-parse --is-shallow-repository)" = false ] ; then
+		git_cnt=$($git_cmd rev-list --first-parent --count HEAD 2>/dev/null)
+		if [ -n "$git_cnt" ] ; then
+			git="n${git_cnt}-${git}"
+		fi
 	fi
 	git_b=$($git_cmd rev-parse --abbrev-ref HEAD)
 	if [ -n "$git_b" -a "$git_b" != "HEAD" ] ; then
@@ -230,6 +236,10 @@ if [ -n "$git_cmd" ] ; then
 		modified=true
 	fi
 	git=" ${git}"
+fi
+
+if [ -n "$gituprevision" ] ; then
+	gitup=" $(awk -F: '{print $2}' $gituprevision)"
 fi
 
 if [ -n "$p4_cmd" ] ; then
@@ -278,10 +288,10 @@ done
 shift $((OPTIND - 1))
 
 if [ -z "${include_metadata}" ]; then
-	VERINFO="${VERSION}${svn}${git}${hg}${p4version} ${i}"
+	VERINFO="${VERSION}${svn}${git}${gitup}${hg}${p4version} ${i}"
 	VERSTR="${VERINFO}\\n"
 else
-	VERINFO="${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}"
+	VERINFO="${VERSION} #${v}${svn}${git}${gitup}${hg}${p4version}: ${t}"
 	VERSTR="${VERINFO}\\n    ${u}@${h}:${d}\\n"
 fi
 
