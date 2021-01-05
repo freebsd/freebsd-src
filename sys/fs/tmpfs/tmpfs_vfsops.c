@@ -544,8 +544,9 @@ tmpfs_unmount(struct mount *mp, int mntflags)
 void
 tmpfs_free_tmp(struct tmpfs_mount *tmp)
 {
-
+	TMPFS_MP_ASSERT_LOCKED(tmp);
 	MPASS(tmp->tm_refcount > 0);
+
 	tmp->tm_refcount--;
 	if (tmp->tm_refcount > 0) {
 		TMPFS_UNLOCK(tmp);
