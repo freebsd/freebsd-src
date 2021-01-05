@@ -264,8 +264,8 @@ const char *syscallnames[] = {
 	"aio_read",			/* 255 = aio_read */
 	"aio_write",			/* 256 = aio_write */
 	"lio_listio",			/* 257 = lio_listio */
-	"aio_writev",			/* 258 = aio_writev */
-	"aio_readv",			/* 259 = aio_readv */
+	"#258",			/* 258 = nosys */
+	"#259",			/* 259 = nosys */
 	"#260",			/* 260 = nosys */
 	"#261",			/* 261 = nosys */
 	"#262",			/* 262 = nosys */
@@ -584,4 +584,6 @@ const char *syscallnames[] = {
 	"close_range",			/* 575 = close_range */
 	"rpctls_syscall",			/* 576 = rpctls_syscall */
 	"__specialfd",			/* 577 = __specialfd */
+	"aio_writev",			/* 578 = aio_writev */
+	"aio_readv",			/* 579 = aio_readv */
 };

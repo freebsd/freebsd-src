@@ -267,8 +267,8 @@ const char *freebsd32_syscallnames[] = {
 	"freebsd32_aio_read",			/* 255 = freebsd32_aio_read */
 	"freebsd32_aio_write",			/* 256 = freebsd32_aio_write */
 	"freebsd32_lio_listio",			/* 257 = freebsd32_lio_listio */
-	"freebsd32_aio_writev",			/* 258 = freebsd32_aio_writev */
-	"freebsd32_aio_readv",			/* 259 = freebsd32_aio_readv */
+	"#258",			/* 258 = nosys */
+	"#259",			/* 259 = nosys */
 	"#260",			/* 260 = nosys */
 	"#261",			/* 261 = nosys */
 	"#262",			/* 262 = nosys */
@@ -614,4 +614,6 @@ const char *freebsd32_syscallnames[] = {
 	"close_range",			/* 575 = close_range */
 	"rpctls_syscall",			/* 576 = rpctls_syscall */
 	"__specialfd",			/* 577 = __specialfd */
+	"freebsd32_aio_writev",			/* 578 = freebsd32_aio_writev */
+	"freebsd32_aio_readv",			/* 579 = freebsd32_aio_readv */
 };

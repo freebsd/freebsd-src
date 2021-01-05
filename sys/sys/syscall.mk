@@ -168,8 +168,6 @@ MIASM =  \
 	aio_read.o \
 	aio_write.o \
 	lio_listio.o \
-	aio_writev.o \
-	aio_readv.o \
 	freebsd11_getdents.o \
 	lchmod.o \
 	lutimes.o \
@@ -420,4 +418,6 @@ MIASM =  \
 	__realpathat.o \
 	close_range.o \
 	rpctls_syscall.o \
-	__specialfd.o
+	__specialfd.o \
+	aio_writev.o \
+	aio_readv.o

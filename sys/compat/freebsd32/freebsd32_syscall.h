@@ -229,8 +229,6 @@
 #define	FREEBSD32_SYS_freebsd32_aio_read	255
 #define	FREEBSD32_SYS_freebsd32_aio_write	256
 #define	FREEBSD32_SYS_freebsd32_lio_listio	257
-#define	FREEBSD32_SYS_freebsd32_aio_writev	258
-#define	FREEBSD32_SYS_freebsd32_aio_readv	259
 #define	FREEBSD32_SYS_freebsd11_freebsd32_getdents	272
 #define	FREEBSD32_SYS_lchmod	274
 				/* 275 is obsolete netbsd_lchown */
@@ -506,4 +504,6 @@
 #define	FREEBSD32_SYS_close_range	575
 #define	FREEBSD32_SYS_rpctls_syscall	576
 #define	FREEBSD32_SYS___specialfd	577
-#define	FREEBSD32_SYS_MAXSYSCALL	578
+#define	FREEBSD32_SYS_freebsd32_aio_writev	578
+#define	FREEBSD32_SYS_freebsd32_aio_readv	579
+#define	FREEBSD32_SYS_MAXSYSCALL	580
