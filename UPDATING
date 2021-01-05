@@ -26,7 +26,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20200105:
+20210105:
 	ncurses installation has been modified to only keep the widechar
 	enabled version.  Incremental build is broken for that change, so it
 	requires a clean build.
