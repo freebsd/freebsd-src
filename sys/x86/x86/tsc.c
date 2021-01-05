@@ -90,12 +90,12 @@ static void tsc_freq_changed(void *arg, const struct cf_level *level,
     int status);
 static void tsc_freq_changing(void *arg, const struct cf_level *level,
     int *status);
-static unsigned tsc_get_timecount(struct timecounter *tc);
-static inline unsigned tsc_get_timecount_low(struct timecounter *tc);
-static unsigned tsc_get_timecount_lfence(struct timecounter *tc);
-static unsigned tsc_get_timecount_low_lfence(struct timecounter *tc);
-static unsigned tsc_get_timecount_mfence(struct timecounter *tc);
-static unsigned tsc_get_timecount_low_mfence(struct timecounter *tc);
+static u_int tsc_get_timecount(struct timecounter *tc);
+static inline u_int tsc_get_timecount_low(struct timecounter *tc);
+static u_int tsc_get_timecount_lfence(struct timecounter *tc);
+static u_int tsc_get_timecount_low_lfence(struct timecounter *tc);
+static u_int tsc_get_timecount_mfence(struct timecounter *tc);
+static u_int tsc_get_timecount_low_mfence(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
 static uint32_t x86_tsc_vdso_timehands(struct vdso_timehands *vdso_th,
     struct timecounter *tc);
