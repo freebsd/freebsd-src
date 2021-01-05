@@ -493,10 +493,8 @@
 257	AUE_LIO_LISTIO	STD	{ int freebsd32_lio_listio(int mode, \
 				    struct aiocb32 * const *acb_list, \
 				    int nent, struct sigevent32 *sig); }
-258	AUE_AIO_WRITEV	STD	{ int freebsd32_aio_writev( \
-				    struct aiocb32 *aiocbp); }
-259	AUE_AIO_READV	STD	{ int freebsd32_aio_readv( \
-				    struct aiocb32 *aiocbp); }
+258	AUE_NULL	UNIMPL	nosys
+259	AUE_NULL	UNIMPL	nosys
 260	AUE_NULL	UNIMPL	nosys
 261	AUE_NULL	UNIMPL	nosys
 262	AUE_NULL	UNIMPL	nosys
@@ -1172,5 +1170,9 @@
 				    const char *path); }
 577	AUE_SPECIALFD	NOPROTO	{ int __specialfd(int type, const void *req, \
 				    size_t len); }
+578	AUE_AIO_WRITEV	STD	{ int freebsd32_aio_writev( \
+				    struct aiocb32 *aiocbp); }
+579	AUE_AIO_READV	STD	{ int freebsd32_aio_readv( \
+				    struct aiocb32 *aiocbp); }
 
 ; vim: syntax=off
