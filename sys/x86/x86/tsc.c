@@ -96,6 +96,8 @@ static u_int tsc_get_timecount_lfence(struct timecounter *tc);
 static u_int tsc_get_timecount_low_lfence(struct timecounter *tc);
 static u_int tsc_get_timecount_mfence(struct timecounter *tc);
 static u_int tsc_get_timecount_low_mfence(struct timecounter *tc);
+static u_int tscp_get_timecount(struct timecounter *tc);
+static u_int tscp_get_timecount_low(struct timecounter *tc);
 static void tsc_levels_changed(void *arg, int unit);
 static uint32_t x86_tsc_vdso_timehands(struct vdso_timehands *vdso_th,
     struct timecounter *tc);
@@ -632,7 +634,18 @@ init_TSC_tc(void)
 init:
 	for (shift = 0; shift <= 31 && (tsc_freq >> shift) > max_freq; shift++)
 		;
-	if ((cpu_feature & CPUID_SSE2) != 0 && mp_ncpus > 1) {
+
+	/*
+	 * Timecounter implementation selection, top to bottom:
+	 * - If RDTSCP is available, use RDTSCP.
+	 * - If fence instructions are provided (SSE2), use LFENCE;RDTSC
+	 *   on Intel, and MFENCE;RDTSC on AMD.
+	 * - For really old CPUs, just use RDTSC.
+	 */
+	if ((amd_feature & AMDID_RDTSCP) != 0) {
+		tsc_timecounter.tc_get_timecount = shift > 0 ?
+		    tscp_get_timecount_low : tscp_get_timecount;
+	} else if ((cpu_feature & CPUID_SSE2) != 0 && mp_ncpus > 1) {
 		if (cpu_vendor_id == CPU_VENDOR_AMD ||
 		    cpu_vendor_id == CPU_VENDOR_HYGON) {
 			tsc_timecounter.tc_get_timecount = shift > 0 ?
@@ -785,6 +798,13 @@ tsc_get_timecount(struct timecounter *tc __unused)
 	return (rdtsc32());
 }
 
+static u_int
+tscp_get_timecount(struct timecounter *tc __unused)
+{
+
+	return (rdtscp32());
+}
+
 static inline u_int
 tsc_get_timecount_low(struct timecounter *tc)
 {
@@ -792,6 +812,16 @@ tsc_get_timecount_low(struct timecounter *tc)
 
 	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
 	    : "=a" (rv) : "c" ((int)(intptr_t)tc->tc_priv) : "edx");
+	return (rv);
+}
+
+static u_int
+tscp_get_timecount_low(struct timecounter *tc)
+{
+	uint32_t rv;
+
+	__asm __volatile("rdtscp; movl %1, %%ecx; shrd %%cl, %%edx, %0"
+	    : "=&a" (rv) : "m" (tc->tc_priv) : "ecx", "edx");
 	return (rv);
 }
 
