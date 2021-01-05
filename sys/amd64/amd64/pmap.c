@@ -9490,6 +9490,8 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	pa = 0;
 	val = 0;
 	pdpe = pmap_pdpe(pmap, addr);
+	if (pdpe == NULL)
+		goto out;
 	if ((*pdpe & PG_V) != 0) {
 		if ((*pdpe & PG_PS) != 0) {
 			pte = *pdpe;
@@ -9525,6 +9527,7 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *pap)
 	    (pte & (PG_MANAGED | PG_V)) == (PG_MANAGED | PG_V)) {
 		*pap = pa;
 	}
+out:
 	PMAP_UNLOCK(pmap);
 	return (val);
 }
