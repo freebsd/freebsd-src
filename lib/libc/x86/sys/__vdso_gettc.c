@@ -53,55 +53,81 @@ __FBSDID("$FreeBSD$");
 #include <x86/ifunc.h>
 #include "libc_private.h"
 
-static void
-rdtsc_mb_lfence(void)
-{
-
-	lfence();
-}
-
-static void
-rdtsc_mb_mfence(void)
-{
-
-	mfence();
-}
-
-static void
-rdtsc_mb_none(void)
-{
-}
-
-DEFINE_UIFUNC(static, void, rdtsc_mb, (void), static)
-{
-	u_int p[4];
-	/* Not a typo, string matches our do_cpuid() registers use. */
-	static const char intel_id[] = "GenuntelineI";
-
-	if ((cpu_feature & CPUID_SSE2) == 0)
-		return (rdtsc_mb_none);
-	do_cpuid(0, p);
-	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
-	    rdtsc_mb_lfence : rdtsc_mb_mfence);
-}
-
-static u_int
-__vdso_gettc_rdtsc_low(const struct vdso_timehands *th)
+static inline u_int
+rdtsc_low(const struct vdso_timehands *th)
 {
 	u_int rv;
 
-	rdtsc_mb();
 	__asm __volatile("rdtsc; shrd %%cl, %%edx, %0"
 	    : "=a" (rv) : "c" (th->th_x86_shift) : "edx");
 	return (rv);
 }
 
 static u_int
-__vdso_rdtsc32(void)
+rdtsc_low_mb_lfence(const struct vdso_timehands *th)
 {
+	lfence();
+	return (rdtsc_low(th));
+}
 
-	rdtsc_mb();
+static u_int
+rdtsc_low_mb_mfence(const struct vdso_timehands *th)
+{
+	mfence();
+	return (rdtsc_low(th));
+}
+
+static u_int
+rdtsc_low_mb_none(const struct vdso_timehands *th)
+{
+	return (rdtsc_low(th));
+}
+
+DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc_low,
+    (const struct vdso_timehands *th), static)
+{
+	u_int p[4];
+	/* Not a typo, string matches our do_cpuid() registers use. */
+	static const char intel_id[] = "GenuntelineI";
+
+	if ((cpu_feature & CPUID_SSE2) == 0)
+		return (rdtsc_low_mb_none);
+	do_cpuid(0, p);
+	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
+	    rdtsc_low_mb_lfence : rdtsc_low_mb_mfence);
+}
+
+static u_int
+rdtsc32_mb_lfence(void)
+{
+	lfence();
 	return (rdtsc32());
+}
+
+static u_int
+rdtsc32_mb_mfence(void)
+{
+	mfence();
+	return (rdtsc32());
+}
+
+static u_int
+rdtsc32_mb_none(void)
+{
+	return (rdtsc32());
+}
+
+DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc32, (void), static)
+{
+	u_int p[4];
+	/* Not a typo, string matches our do_cpuid() registers use. */
+	static const char intel_id[] = "GenuntelineI";
+
+	if ((cpu_feature & CPUID_SSE2) == 0)
+		return (rdtsc32_mb_none);
+	do_cpuid(0, p);
+	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
+	    rdtsc32_mb_lfence : rdtsc32_mb_mfence);
 }
 
 #define	HPET_DEV_MAP_MAX	10
@@ -199,7 +225,7 @@ __vdso_hyperv_tsc(struct hyperv_reftsc *tsc_ref, u_int *tc)
 		scale = tsc_ref->tsc_scale;
 		ofs = tsc_ref->tsc_ofs;
 
-		rdtsc_mb();
+		mfence();	/* XXXKIB */
 		tsc = rdtsc();
 
 		/* ret = ((tsc * scale) >> 64) + ofs */
@@ -231,7 +257,7 @@ __vdso_gettc(const struct vdso_timehands *th, u_int *tc)
 	switch (th->th_algo) {
 	case VDSO_TH_ALGO_X86_TSC:
 		*tc = th->th_x86_shift > 0 ? __vdso_gettc_rdtsc_low(th) :
-		    __vdso_rdtsc32();
+		    __vdso_gettc_rdtsc32();
 		return (0);
 	case VDSO_TH_ALGO_X86_HPET:
 		idx = th->th_x86_hpet_idx;
