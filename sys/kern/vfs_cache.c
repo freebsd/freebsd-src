@@ -5165,18 +5165,19 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	struct nameidata_saved orig;
 	int error;
 
-	MPASS(ndp->ni_lcf == 0);
-
 	fpl.status = CACHE_FPL_STATUS_UNSET;
 	fpl.ndp = ndp;
-	fpl.cnp = &ndp->ni_cnd;
-	MPASS(curthread == fpl.cnp->cn_thread);
-	KASSERT ((fpl.cnp->cn_flags & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
-	    ("%s: internal flags found in cn_flags %" PRIx64, __func__,
-	    fpl.cnp->cn_flags));
+	fpl.cnp = cnp = &ndp->ni_cnd;
 
-	if ((fpl.cnp->cn_flags & SAVESTART) != 0)
-		MPASS(fpl.cnp->cn_nameiop != LOOKUP);
+	MPASS(ndp->ni_lcf == 0);
+	MPASS(curthread == cnp->cn_thread);
+	KASSERT ((cnp->cn_flags & CACHE_FPL_INTERNAL_CN_FLAGS) == 0,
+	    ("%s: internal flags found in cn_flags %" PRIx64, __func__,
+	    cnp->cn_flags));
+	if ((cnp->cn_flags & SAVESTART) != 0) {
+		MPASS(cnp->cn_nameiop != LOOKUP);
+	}
+	MPASS(cnp->cn_nameptr == cnp->cn_pnbuf);
 
 	if (!cache_can_fplookup(&fpl)) {
 		SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
@@ -5193,8 +5194,6 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 	ndp->ni_rootdir = pwd->pwd_rdir;
 	ndp->ni_topdir = pwd->pwd_jdir;
 
-	cnp = fpl.cnp;
-	cnp->cn_nameptr = cnp->cn_pnbuf;
 	if (cnp->cn_pnbuf[0] == '/') {
 		dvp = cache_fpl_handle_root(&fpl);
 		ndp->ni_resflags |= NIRES_ABS;
