@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -597,59 +597,6 @@ AcpiDmDumpTpm2 (
 
     default:
         break;
-    }
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiDmDumpVrtc
- *
- * PARAMETERS:  Table               - A VRTC table
- *
- * RETURN:      None
- *
- * DESCRIPTION: Format the contents of a VRTC
- *
- ******************************************************************************/
-
-void
-AcpiDmDumpVrtc (
-    ACPI_TABLE_HEADER       *Table)
-{
-    ACPI_STATUS             Status;
-    UINT32                  Offset = sizeof (ACPI_TABLE_VRTC);
-    ACPI_VRTC_ENTRY         *Subtable;
-
-
-    /* Main table */
-
-    Status = AcpiDmDumpTable (Table->Length, 0, Table, 0, AcpiDmTableInfoVrtc);
-    if (ACPI_FAILURE (Status))
-    {
-        return;
-    }
-
-    /* Subtables */
-
-    Subtable = ACPI_ADD_PTR (ACPI_VRTC_ENTRY, Table, Offset);
-    while (Offset < Table->Length)
-    {
-        /* Common subtable header */
-
-        AcpiOsPrintf ("\n");
-        Status = AcpiDmDumpTable (Table->Length, Offset, Subtable,
-            sizeof (ACPI_VRTC_ENTRY), AcpiDmTableInfoVrtc0);
-        if (ACPI_FAILURE (Status))
-        {
-            return;
-        }
-
-        /* Point to next subtable */
-
-        Offset += sizeof (ACPI_VRTC_ENTRY);
-        Subtable = ACPI_ADD_PTR (ACPI_VRTC_ENTRY, Subtable,
-            sizeof (ACPI_VRTC_ENTRY));
     }
 }
 

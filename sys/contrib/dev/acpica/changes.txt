@@ -1,4 +1,25 @@
 ----------------------------------------
+05 January 2021. Summary of changes for version 20210105:
+
+This release is available at https://acpica.org/downloads
+
+
+1) ACPICA kernel-resident subsystem:
+
+Updated all copyrights to 2021. This affects all ACPICA source code 
+modules.
+
+2) iASL Compiler/Disassembler and ACPICA tools:
+
+ASL test suite (ASLTS): Updated all copyrights to 2021.
+
+Tools and utilities: Updated all signon copyrights to 2021.
+
+iASL Table Compiler: Removed support for obsolete ACPI tables: VRTC, 
+MTMR. Al Stone.
+
+
+----------------------------------------
 17 December 2020. Summary of changes for version 20201217:
 
 This release is available at https://acpica.org/downloads
