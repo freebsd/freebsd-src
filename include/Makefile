@@ -320,124 +320,79 @@ copies: .PHONY .META
 symlinks: .PHONY .META
 	@${ECHO} "Setting up symlinks to kernel source tree..."
 .for i in ${LDIRS}
-	cd ${SRCTOP}/sys/$i; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
 .for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hyperv:Ndev/pci:Ndev/veriexec}
-	cd ${SRCTOP}/sys/$i; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
-	cd ${SRCTOP}/sys/dev/acpica; \
-	for h in acpiio.h acpi_hpet.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/acpica/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/acpica; \
-	done
-	cd ${SRCTOP}/sys/dev/agp; \
-	for h in agpreg.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/agp/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/agp; \
-	done
-	cd ${SRCTOP}/sys/dev/evdev; \
-	for h in input.h input-event-codes.h uinput.h; do \
-		ln -fs ../../../../sys/dev/evdev/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/evdev; \
-	done
-	cd ${SRCTOP}/sys/dev/hyperv/include; \
-	for h in hyperv.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/include/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
-	done
-	cd ${SRCTOP}/sys/dev/hyperv/utilities; \
-	for h in hv_snapshot.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/utilities/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
-	done
-	cd ${SRCTOP}/sys/dev/pci; \
-	for h in pcireg.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/pci/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/pci; \
-	done
-	cd ${SRCTOP}/sys/dev/veriexec; \
-	for h in veriexec_ioctl.h; do \
-		ln -fs ../../../../sys/dev/veriexec/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec; \
-	done
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../sys/dev/acpica/%s ' acpiio.h acpi_hpet.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/acpica; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/agp/agpreg.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/agp; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../sys/dev/evdev/%s ' input.h input-event-codes.h uinput.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/evdev;
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/include/hyperv.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/hyperv/utilities/hv_snapshot.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/pci/pcireg.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/pci; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/veriexec/veriexec_ioctl.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec;
 .for i in ${LSUBSUBDIRS}
-	cd ${SRCTOP}/sys/$i; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../../sys/$i/$$h ${SDESTDIR}${INCLUDEDIR}/$i; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
 .if ${MK_IPFILTER} != "no"
-	cd ${SRCTOP}/sys/contrib/ipfilter/netinet; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/contrib/ipfilter/netinet/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/netinet; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../%s ' sys/contrib/ipfilter/netinet/*.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/netinet;
 .endif
 .if ${MK_PF} != "no"
-	cd ${SRCTOP}/sys/netpfil/pf; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/netpfil/pf/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/netpfil/pf; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../%s ' sys/netpfil/pf/*.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/netpfil/pf;
 .endif
-	cd ${SRCTOP}/sys/crypto; \
-	for h in rijndael/rijndael.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/crypto/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/crypto; \
-	done
-	cd ${SRCTOP}/sys/opencrypto; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/opencrypto/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/crypto; \
-	done
-	cd ${SRCTOP}/sys/${MACHINE}/include; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/${MACHINE}/include/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/machine; \
-	done
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/crypto/rijndael/rijndael.h \
+	    ${SDESTDIR}${INCLUDEDIR}/crypto; \
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../%s ' sys/opencrypto/*.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/crypto; \
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../%s ' sys/${MACHINE}/include/*.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/machine;
 .if exists(${SRCTOP}/sys/${MACHINE}/include/pc)
-	cd ${SRCTOP}/sys/${MACHINE}/include/pc; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/${MACHINE}/include/pc/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/machine/pc; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../%s ' sys/${MACHINE}/include/pc/*.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/machine/pc;
 .endif
 .for _MARCH in ${_MARCHS}
 .if exists(${SRCTOP}/sys/${_MARCH}/include)
 	${INSTALL} -d ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}; \
-	cd ${SRCTOP}/sys/${_MARCH}/include; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/${_MARCH}/include/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../%s ' sys/${_MARCH}/include/*.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH};
 .if exists(${SRCTOP}/sys/${_MARCH}/include/pc)
 	${INSTALL} -d ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m 755 \
 	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
-	cd ${SRCTOP}/sys/${_MARCH}/include/pc; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/${_MARCH}/include/pc/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../%s ' sys/${_MARCH}/include/pc/*.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/${_MARCH}/pc;
 .endif
 .endif
 .endfor
-	cd ${SRCTOP}/sys/fs/cd9660; \
-	for h in *.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/fs/cd9660/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/isofs/cd9660; \
-	done
-	cd ${SRCTOP}/sys/rpc; \
-	for h in rpcsec_tls.h types.h; do \
-		${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../sys/rpc/$$h \
-		    ${SDESTDIR}${INCLUDEDIR}/rpc; \
-	done
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../../%s ' sys/fs/cd9660/*.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/isofs/cd9660; \
+	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
+	    $$(printf '../../../sys/rpc/%s ' rpcsec_tls.h types.h) \
+	    ${SDESTDIR}${INCLUDEDIR}/rpc;
+	cd ${SRCTOP}/sys/rpc;
 .if ${MK_CDDL} != "no"
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    ../../../sys/contrib/openenzfs/include/sys/nvpair.h \
