@@ -49,10 +49,20 @@ extern "C" {
 
 #ifndef _ASM
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stdint.h>
 #ifdef _KERNEL
 #include <sys/endian.h>
 #endif
+#if !defined(IN_BASE) && !defined(_KERNEL)
+/* Compatibility types to allow including the CTF API */
+typedef unsigned int zoneid_t;
+typedef unsigned char uchar_t;
+typedef unsigned short ushort_t;
+typedef unsigned int uint_t;
+typedef unsigned long ulong_t;
+typedef int processorid_t;
+#else
 #include <sys/modctl.h>
 #include <sys/processor.h>
 #include <sys/cpuvar.h>
@@ -63,9 +73,9 @@ extern "C" {
 #include <sys/proc.h>
 #include <sys/types.h>
 #include <sys/ucred.h>
+#endif
 typedef int model_t;
 #include <sys/ctf_api.h>
-#include <sys/stdint.h>
 
 /*
  * DTrace Universal Constants and Typedefs
