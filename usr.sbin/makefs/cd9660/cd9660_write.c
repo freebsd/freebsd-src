@@ -64,7 +64,7 @@ cd9660_write_image(iso9660_disk *diskStructure, const char* image)
 {
 	FILE *fd;
 	int status;
-	char buf[CD9660_SECTOR_SIZE];
+	unsigned char buf[CD9660_SECTOR_SIZE];
 
 	if ((fd = fopen(image, "w+")) == NULL) {
 		err(EXIT_FAILURE, "%s: Can't open `%s' for writing", __func__,

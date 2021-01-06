@@ -299,7 +299,7 @@ extern	struct stat stampst;
     ((int32_t *)((uintptr_t)(cgp) + ufs_rw32((cgp)->cg_clustersumoff, ns)))
 
 struct fs;
-void   ffs_fragacct_swap(struct fs *, int, int32_t [], int, int);
+void   ffs_fragacct_swap(struct fs *, int, uint32_t [], int, int);
 
 fsinode *link_check(fsinode *);
 
