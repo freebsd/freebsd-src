@@ -438,7 +438,7 @@ mkimg(void)
 	FILE *fp;
 	struct part *part;
 	lba_t block, blkoffset;
-	off_t bytesize, byteoffset;
+	uint64_t bytesize, byteoffset;
 	char *size, *offset;
 	bool abs_offset;
 	int error, fd;

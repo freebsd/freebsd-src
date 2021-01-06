@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "iso9660_rrip.h"
 
 static void debug_print_susp_attrs(cd9660node *, int);
-static void debug_dump_to_xml_padded_hex_output(const char *, unsigned char *,
+static void debug_dump_to_xml_padded_hex_output(const char *, const char *,
 						int);
 
 static inline void
@@ -265,8 +265,8 @@ debug_dump_to_xml(FILE *fd)
 }
 
 static void
-debug_dump_to_xml_padded_hex_output(const char *element, unsigned char *buf,
-				    int len)
+debug_dump_to_xml_padded_hex_output(const char *element, const char *buf,
+    int len)
 {
 	int i;
 	int t;
@@ -288,7 +288,7 @@ debug_dump_to_xml_padded_hex_output(const char *element, unsigned char *buf,
 }
 
 int
-debug_get_encoded_number(unsigned char* buf, int mode)
+debug_get_encoded_number(const unsigned char* buf, int mode)
 {
 #if !HAVE_NBTOOL_CONFIG_H
 	switch (mode) {
@@ -298,7 +298,7 @@ debug_get_encoded_number(unsigned char* buf, int mode)
 
 	/* 712: Single signed byte */
 	case 712:
-		return isonum_712((signed char *)buf);
+		return isonum_712(buf);
 
 	/* 721: 16 bit LE */
 	case 721:
@@ -329,14 +329,14 @@ debug_get_encoded_number(unsigned char* buf, int mode)
 }
 
 void
-debug_dump_integer(const char *element, char* buf, int mode)
+debug_dump_integer(const char *element, const unsigned char* buf, int mode)
 {
-	printf("<%s>%i</%s>\n", element,
-	    debug_get_encoded_number((unsigned char *)buf, mode), element);
+	printf("<%s>%i</%s>\n", element, debug_get_encoded_number(buf, mode),
+	    element);
 }
 
 void
-debug_dump_string(const char *element __unused, unsigned char *buf __unused, int len __unused)
+debug_dump_string(const char *element __unused, const unsigned char *buf __unused, int len __unused)
 {
 
 }
@@ -344,30 +344,20 @@ debug_dump_string(const char *element __unused, unsigned char *buf __unused, int
 void
 debug_dump_directory_record_9_1(unsigned char* buf)
 {
+	struct iso_directory_record *rec = (struct iso_directory_record *)buf;
 	printf("<directoryrecord>\n");
-	debug_dump_integer("length",
-	    ((struct iso_directory_record*) buf)->length, 711);
-	debug_dump_integer("ext_attr_length",
-	    ((struct iso_directory_record*) buf)->ext_attr_length,711);
-	debug_dump_integer("extent",
-	    (char *)((struct iso_directory_record*) buf)->extent, 733);
-	debug_dump_integer("size",
-	    (char *)((struct iso_directory_record*) buf)->size, 733);
-	debug_dump_integer("flags",
-	    ((struct iso_directory_record*) buf)->flags, 711);
-	debug_dump_integer("file_unit_size",
-	    ((struct iso_directory_record*) buf)->file_unit_size,711);
-	debug_dump_integer("interleave",
-	    ((struct iso_directory_record*) buf)->interleave, 711);
+	debug_dump_integer("length", rec->length, 711);
+	debug_dump_integer("ext_attr_length", rec->ext_attr_length, 711);
+	debug_dump_integer("extent", rec->extent, 733);
+	debug_dump_integer("size", rec->size, 733);
+	debug_dump_integer("flags", rec->flags, 711);
+	debug_dump_integer("file_unit_size", rec->file_unit_size, 711);
+	debug_dump_integer("interleave", rec->interleave, 711);
 	debug_dump_integer("volume_sequence_number",
-	    ((struct iso_directory_record*) buf)->volume_sequence_number,
-	    723);
-	debug_dump_integer("name_len",
-	    ((struct iso_directory_record*) buf)->name_len, 711);
-	debug_dump_to_xml_padded_hex_output("name",
-	    (u_char *)((struct iso_directory_record*) buf)->name,
-		debug_get_encoded_number((u_char *)
-		    ((struct iso_directory_record*) buf)->length, 711));
+	    rec->volume_sequence_number, 723);
+	debug_dump_integer("name_len", rec->name_len, 711);
+	debug_dump_to_xml_padded_hex_output("name", rec->name,
+	    debug_get_encoded_number(rec->length, 711));
 	printf("</directoryrecord>\n");
 }
 
@@ -375,6 +365,9 @@ debug_dump_directory_record_9_1(unsigned char* buf)
 void
 debug_dump_to_xml_volume_descriptor(unsigned char* buf, int sector)
 {
+	struct iso_primary_descriptor *desc =
+	    (struct iso_primary_descriptor *)buf;
+
 	printf("<volumedescriptor sector=\"%i\">\n", sector);
 	printf("<vdtype>");
 	switch(buf[0]) {
@@ -402,86 +395,60 @@ debug_dump_to_xml_volume_descriptor(unsigned char* buf, int sector)
 	printf("</vdtype>\n");
 	switch(buf[0]) {
 	case 1:
-		debug_dump_integer("type",
-		    ((struct iso_primary_descriptor*)buf)->type, 711);
-		debug_dump_to_xml_padded_hex_output("id",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->id,
-		    ISODCL (  2,   6));
-		debug_dump_integer("version",
-		    ((struct iso_primary_descriptor*)buf)->version,
-		     711);
+		debug_dump_integer("type", desc->type, 711);
+		debug_dump_to_xml_padded_hex_output("id", desc->id,
+		    ISODCL(2, 6));
+		debug_dump_integer("version", (u_char *)desc->version, 711);
 		debug_dump_to_xml_padded_hex_output("system_id",
-		    (u_char *)((struct iso_primary_descriptor*)buf)->system_id,
-		    ISODCL(9,40));
+		    desc->system_id, ISODCL(9, 40));
 		debug_dump_to_xml_padded_hex_output("volume_id",
-		    (u_char *)((struct iso_primary_descriptor*)buf)->volume_id,
-		    ISODCL(41,72));
+		    desc->volume_id, ISODCL(41, 72));
 		debug_dump_integer("volume_space_size",
-		    ((struct iso_primary_descriptor*)buf)->volume_space_size,
-		    733);
+		    (u_char *)desc->volume_space_size, 733);
 		debug_dump_integer("volume_set_size",
-		    ((struct iso_primary_descriptor*)buf)->volume_set_size,
-			    733);
+		    (u_char *)desc->volume_set_size, 733);
 		debug_dump_integer("volume_sequence_number",
-		    ((struct iso_primary_descriptor*)buf)->volume_sequence_number,
-		    723);
+		    (u_char *)desc->volume_sequence_number, 723);
 		debug_dump_integer("logical_block_size",
-		    ((struct iso_primary_descriptor*)buf)->logical_block_size,
-			    723);
+		    (u_char *)desc->logical_block_size, 723);
 		debug_dump_integer("path_table_size",
-		    ((struct iso_primary_descriptor*)buf)->path_table_size,
-			    733);
+		    (u_char *)desc->path_table_size, 733);
 		debug_dump_integer("type_l_path_table",
-		    ((struct iso_primary_descriptor*)buf)->type_l_path_table,
-		    731);
+		    (u_char *)desc->type_l_path_table, 731);
 		debug_dump_integer("opt_type_l_path_table",
-		    ((struct iso_primary_descriptor*)buf)->opt_type_l_path_table,
-		    731);
+		    (u_char *)desc->opt_type_l_path_table, 731);
 		debug_dump_integer("type_m_path_table",
-		    ((struct iso_primary_descriptor*)buf)->type_m_path_table,
-		    732);
+		    (u_char *)desc->type_m_path_table, 732);
 		debug_dump_integer("opt_type_m_path_table",
-			((struct iso_primary_descriptor*)buf)->opt_type_m_path_table,732);
+		    (u_char *)desc->opt_type_m_path_table, 732);
 		debug_dump_directory_record_9_1(
-		    (u_char *)((struct iso_primary_descriptor*)buf)->root_directory_record);
+		    (u_char *)desc->root_directory_record);
 		debug_dump_to_xml_padded_hex_output("volume_set_id",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->volume_set_id,
-		    ISODCL (191, 318));
+		    desc->volume_set_id, ISODCL(191, 318));
 		debug_dump_to_xml_padded_hex_output("publisher_id",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->publisher_id,
-		    ISODCL (319, 446));
+		    desc->publisher_id, ISODCL(319, 446));
 		debug_dump_to_xml_padded_hex_output("preparer_id",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->preparer_id,
-		    ISODCL (447, 574));
+		    desc->preparer_id, ISODCL(447, 574));
 		debug_dump_to_xml_padded_hex_output("application_id",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->application_id,
-		    ISODCL (575, 702));
+		    desc->application_id, ISODCL(575, 702));
 		debug_dump_to_xml_padded_hex_output("copyright_file_id",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->copyright_file_id,
-		    ISODCL (703, 739));
+		    desc->copyright_file_id, ISODCL(703, 739));
 		debug_dump_to_xml_padded_hex_output("abstract_file_id",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->abstract_file_id,
-		    ISODCL (740, 776));
+		    desc->abstract_file_id, ISODCL(740, 776));
 		debug_dump_to_xml_padded_hex_output("bibliographic_file_id",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->bibliographic_file_id,
-		    ISODCL (777, 813));
+		    desc->bibliographic_file_id, ISODCL(777, 813));
 
 		debug_dump_to_xml_padded_hex_output("creation_date",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->creation_date,
-		    ISODCL (814, 830));
+		    desc->creation_date, ISODCL(814, 830));
 		debug_dump_to_xml_padded_hex_output("modification_date",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->modification_date,
-		    ISODCL (831, 847));
+		    desc->modification_date, ISODCL(831, 847));
 		debug_dump_to_xml_padded_hex_output("expiration_date",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->expiration_date,
-		    ISODCL (848, 864));
+		    desc->expiration_date, ISODCL(848, 864));
 		debug_dump_to_xml_padded_hex_output("effective_date",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->effective_date,
-		    ISODCL (865, 881));
+		    desc->effective_date, ISODCL(865, 881));
 
 		debug_dump_to_xml_padded_hex_output("file_structure_version",
-		    (u_char *)((struct iso_primary_descriptor*) buf)->file_structure_version,
-		    ISODCL(882,882));
+		    desc->file_structure_version, ISODCL(882, 882));
 		break;
 	}
 	printf("</volumedescriptor>\n");
