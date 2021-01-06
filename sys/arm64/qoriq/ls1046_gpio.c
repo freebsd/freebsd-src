@@ -83,12 +83,7 @@ struct gpio_softc {
 static bool qoriq_make_gpio_res(device_t, struct gpio_res*);
 static uint32_t qoriq_gpio_reg_read(device_t, uint32_t);
 static void qoriq_gpio_reg_write(device_t, uint32_t, uint32_t);
-static void qoriq_gpio_reg_set(device_t, uint32_t, uint32_t);
-static void qoriq_gpio_reg_clear(device_t, uint32_t, uint32_t);
-static void qoriq_gpio_out_en(device_t, uint32_t, uint8_t);
-static void qoriq_gpio_value_set(device_t, uint32_t, uint8_t);
-static uint32_t qoriq_gpio_value_get(device_t, uint32_t);
-static void qoriq_gpio_open_drain_set(device_t, uint32_t, uint8_t);
+static void qoriq_gpio_set(device_t, uint32_t, uint32_t, uint32_t);
 static int qoriq_gpio_configure(device_t, uint32_t, uint32_t);
 
 /* GPIO API */
@@ -180,75 +175,13 @@ qoriq_gpio_reg_write(device_t dev, uint32_t reg, uint32_t val)
 }
 
 static void
-qoriq_gpio_reg_set(device_t dev, uint32_t reg, uint32_t pin)
+qoriq_gpio_set(device_t dev, uint32_t reg, uint32_t pin, uint32_t set)
 {
-	uint32_t reg_val;
+	uint32_t val;
 
-	reg_val = qoriq_gpio_reg_read(dev, reg);
-	reg_val |= GPIO(pin);
-	qoriq_gpio_reg_write(dev, reg, reg_val);
-}
-
-static void
-qoriq_gpio_reg_clear(device_t dev, uint32_t reg, uint32_t pin)
-{
-	uint32_t reg_val;
-
-	reg_val = qoriq_gpio_reg_read(dev, reg);
-	reg_val &= ~(GPIO(pin));
-	qoriq_gpio_reg_write(dev, reg, reg_val);
-}
-
-static void
-qoriq_gpio_out_en(device_t dev, uint32_t pin, uint8_t enable)
-{
-
-	if (pin >= PIN_COUNT)
-		return;
-
-	if (enable != 0)
-		qoriq_gpio_reg_set(dev, DIRECTION, pin);
-	else
-		qoriq_gpio_reg_clear(dev, DIRECTION, pin);
-}
-
-static void
-qoriq_gpio_value_set(device_t dev, uint32_t pin, uint8_t val)
-{
-
-	if (pin >= PIN_COUNT)
-		return;
-
-	if (val != 0)
-		qoriq_gpio_reg_set(dev, DATA, pin);
-	else
-		qoriq_gpio_reg_clear(dev, DATA, pin);
-}
-
-static uint32_t
-qoriq_gpio_value_get(device_t dev, uint32_t pin)
-{
-	uint32_t reg_val;
-
-	if (pin >= PIN_COUNT)
-		return (0);
-
-	reg_val = qoriq_gpio_reg_read(dev, DATA);
-
-	return ((reg_val & GPIO(pin)) != 0);
-}
-
-static void
-qoriq_gpio_open_drain_set(device_t dev, uint32_t pin, uint8_t val)
-{
-
-	if (pin >= PIN_COUNT)
-		return;
-
-	if (val != 0)
-		qoriq_gpio_reg_set(dev, OPEN_DRAIN, pin);
-	else
-		qoriq_gpio_reg_clear(dev, OPEN_DRAIN, pin);
+	set = set != 0;
+	val = (qoriq_gpio_reg_read(dev, reg) & ~(1U << pin)) | (set << pin);
+	qoriq_gpio_reg_write(dev, reg, val);
 }
 
 static int
@@ -272,19 +205,19 @@ qoriq_gpio_configure(device_t dev, uint32_t pin, uint32_t flags)
 
 	if (flags & GPIO_PIN_INPUT) {
 		newflags = GPIO_PIN_INPUT;
-		qoriq_gpio_out_en(dev, pin, 0);
+		qoriq_gpio_set(dev, DIRECTION, pin, 0);
 	}
 
 	if (flags & GPIO_PIN_OUTPUT) {
 		newflags = GPIO_PIN_OUTPUT;
-		qoriq_gpio_out_en(dev, pin, 1);
+		qoriq_gpio_set(dev, DIRECTION, pin, 1);
 
 		if (flags & GPIO_PIN_OPENDRAIN) {
 			newflags |= GPIO_PIN_OPENDRAIN;
-			qoriq_gpio_open_drain_set(dev, pin, 1);
+			qoriq_gpio_set(dev, OPEN_DRAIN, pin, 1);
 		} else {
 			newflags |= GPIO_PIN_PUSHPULL;
-			qoriq_gpio_open_drain_set(dev, pin, 0);
+			qoriq_gpio_set(dev, OPEN_DRAIN, pin, 0);
 		}
 	}
 
@@ -425,7 +358,7 @@ qoriq_gpio_pin_get(device_t dev, uint32_t pin, uint32_t *value)
 		return (EINVAL);
 
 	QORIQ_GPIO_LOCK(sc);
-	*value = qoriq_gpio_value_get(dev, pin);
+	*value = (qoriq_gpio_reg_read(dev, DATA) & GPIO(pin)) != 0;
 	QORIQ_GPIO_UNLOCK(sc);
 
 	return (0);
@@ -440,7 +373,7 @@ qoriq_gpio_pin_set(device_t dev, uint32_t pin, uint32_t value)
 		return (EINVAL);
 
 	QORIQ_GPIO_LOCK(sc);
-	qoriq_gpio_value_set(dev, pin, value);
+	qoriq_gpio_set(dev, DATA, pin, value);
 	QORIQ_GPIO_UNLOCK(sc);
 
 	return (0);
