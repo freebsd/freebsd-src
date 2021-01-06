@@ -5140,7 +5140,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 	cache_fpl_checkpoint(fpl, &fpl->snd);
 
 	/*
-	 * The vnode is hand is almost always stable, skip checking for it.
+	 * The vnode at hand is almost always stable, skip checking for it.
 	 * Worst case this postpones the check towards the end of the iteration
 	 * of the main loop.
 	 */
