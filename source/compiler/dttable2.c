@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -570,31 +570,6 @@ DtCompileMsct (
 
     Status = DtCompileTwoSubtables (List,
         AcpiDmTableInfoMsct, AcpiDmTableInfoMsct0);
-    return (Status);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    DtCompileMtmr
- *
- * PARAMETERS:  List                - Current field list pointer
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Compile MTMR.
- *
- *****************************************************************************/
-
-ACPI_STATUS
-DtCompileMtmr (
-    void                    **List)
-{
-    ACPI_STATUS             Status;
-
-
-    Status = DtCompileTwoSubtables (List,
-        AcpiDmTableInfoMtmr, AcpiDmTableInfoMtmr0);
     return (Status);
 }
 
@@ -2159,31 +2134,6 @@ DtCompileUefi (
      */
     DtCompileGeneric ((void **) PFieldList, NULL, NULL);
     return (AE_OK);
-}
-
-
-/******************************************************************************
- *
- * FUNCTION:    DtCompileVrtc
- *
- * PARAMETERS:  List                - Current field list pointer
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Compile VRTC.
- *
- *****************************************************************************/
-
-ACPI_STATUS
-DtCompileVrtc (
-    void                    **List)
-{
-    ACPI_STATUS             Status;
-
-
-    Status = DtCompileTwoSubtables (List,
-        AcpiDmTableInfoVrtc, AcpiDmTableInfoVrtc0);
-    return (Status);
 }
 
 

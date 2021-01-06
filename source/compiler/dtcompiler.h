@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -646,10 +646,6 @@ DtCompileMsct (
     void                    **PFieldList);
 
 ACPI_STATUS
-DtCompileMtmr (
-    void                    **PFieldList);
-
-ACPI_STATUS
 DtCompileNfit (
     void                    **PFieldList);
 
@@ -710,10 +706,6 @@ DtCompileUefi (
     void                    **PFieldList);
 
 ACPI_STATUS
-DtCompileVrtc (
-    void                    **PFieldList);
-
-ACPI_STATUS
 DtCompileWdat (
     void                    **PFieldList);
 
@@ -765,7 +757,6 @@ extern const unsigned char  TemplateMchi[];
 extern const unsigned char  TemplateMpst[];
 extern const unsigned char  TemplateMsct[];
 extern const unsigned char  TemplateMsdm[];
-extern const unsigned char  TemplateMtmr[];
 extern const unsigned char  TemplateNfit[];
 extern const unsigned char  TemplatePcct[];
 extern const unsigned char  TemplatePdtt[];
@@ -786,7 +777,6 @@ extern const unsigned char  TemplateStao[];
 extern const unsigned char  TemplateTcpa[];
 extern const unsigned char  TemplateTpm2[];
 extern const unsigned char  TemplateUefi[];
-extern const unsigned char  TemplateVrtc[];
 extern const unsigned char  TemplateWaet[];
 extern const unsigned char  TemplateWdat[];
 extern const unsigned char  TemplateWddt[];
