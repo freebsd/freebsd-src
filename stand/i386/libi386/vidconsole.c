@@ -912,7 +912,6 @@ cons_update_mode(bool use_gfx_mode)
 		unsetenv("screen.height");
 		unsetenv("screen.width");
 		unsetenv("screen.depth");
-		unsetenv("kern.vt.fb.default_mode");
 		vidc_install_font();
 	}
 
