@@ -9,6 +9,6 @@ GTESTS+=	gmock_stress_test
 LIBADD+=	pthread gtest gmock
 
 # The next release will resolve a number of build warnings issues.
-NO_WERROR=
+MK_WERROR=	no
 
 .include <bsd.test.mk>

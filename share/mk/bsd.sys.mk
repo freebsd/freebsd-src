@@ -41,9 +41,9 @@ WARNS=	${DEFAULTWARNS}
 .if defined(WARNS)
 .if ${WARNS} >= 1
 CWARNFLAGS+=	-Wsystem-headers
-.if !defined(NO_WERROR) && !defined(NO_WERROR.${COMPILER_TYPE})
+.if ${MK_WERROR} != "no" && ${MK_WERROR.${COMPILER_TYPE}:Uyes} != "no"
 CWARNFLAGS+=	-Werror
-.endif # !NO_WERROR && !NO_WERROR.${COMPILER_TYPE}
+.endif # ${MK_WERROR} != "no" && ${MK_WERROR.${COMPILER_TYPE}:Uyes} != "no"
 .endif # WARNS >= 1
 .if ${WARNS} >= 2
 CWARNFLAGS+=	-Wall -Wno-format-y2k
@@ -120,9 +120,9 @@ CWARNFLAGS+=	-Wformat=2 -Wno-format-extra-args
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-format-nonliteral
 .endif # WARNS <= 3
-.if !defined(NO_WERROR) && !defined(NO_WERROR.${COMPILER_TYPE})
+.if ${MK_WERROR} != "no" && ${MK_WERROR.${COMPILER_TYPE}:Uyes} != "no"
 CWARNFLAGS+=	-Werror
-.endif # !NO_WERROR && !NO_WERROR.${COMPILER_TYPE}
+.endif # ${MK_WERROR} != "no" && ${MK_WERROR.${COMPILER_TYPE}:Uyes} != "no"
 .endif # WFORMAT > 0
 .endif # WFORMAT
 .if defined(NO_WFORMAT) || defined(NO_WFORMAT.${COMPILER_TYPE})

@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set this to not treat compiler warnings as errors.
+Useful as a temporary workaround when working on fixing compiler warnings.
+When set, warnings are still printed in the build log but do not fail the build.

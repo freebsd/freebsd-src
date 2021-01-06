@@ -417,7 +417,7 @@ PROGS_CXX	PROG and PROG_CXX in one Makefile.  To define
 		- LINKS
 		- MAN
 		- MLINKS
-		- NO_WERROR
+		- MK_WERROR=no
 		- PROGNAME
 		- SRCS
 		- STRIP

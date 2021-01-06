@@ -32,6 +32,6 @@ SRCS.gmock_link_test=		\
 LIBADD=		gmock_main gmock gtest
 
 # The next release will resolve a number of build warnings issues.
-NO_WERROR=
+MK_WERROR=	no
 
 .include <bsd.test.mk>
