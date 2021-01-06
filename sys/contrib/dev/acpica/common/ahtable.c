@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -229,7 +229,6 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_MPST, "Memory Power State Table"},
     {ACPI_SIG_MSCT, "Maximum System Characteristics Table"},
     {ACPI_SIG_MSDM, "Microsoft Data Management table"},
-    {ACPI_SIG_MTMR, "MID Timer Table"},
     {ACPI_SIG_NFIT, "NVDIMM Firmware Interface Table"},
     {ACPI_SIG_PCCT, "Platform Communications Channel Table"},
     {ACPI_SIG_PDTT, "Platform Debug Trigger Table"},
@@ -252,7 +251,6 @@ const AH_TABLE      AcpiGbl_SupportedTables[] =
     {ACPI_SIG_TCPA, "Trusted Computing Platform Alliance table"},
     {ACPI_SIG_TPM2, "Trusted Platform Module hardware interface table"},
     {ACPI_SIG_UEFI, "UEFI Boot Optimization Table"},
-    {ACPI_SIG_VRTC, "Virtual Real-Time Clock Table"},
     {ACPI_SIG_WAET, "Windows ACPI Emulated Devices Table"},
     {ACPI_SIG_WDAT, "Watchdog Action Table"},
     {ACPI_SIG_WDDT, "Watchdog Description Table"},

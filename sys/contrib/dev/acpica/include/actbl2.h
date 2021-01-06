@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2020, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2021, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -177,7 +177,6 @@
 #define ACPI_SIG_MPST           "MPST"      /* Memory Power State Table */
 #define ACPI_SIG_MSCT           "MSCT"      /* Maximum System Characteristics Table */
 #define ACPI_SIG_MSDM           "MSDM"      /* Microsoft Data Management Table */
-#define ACPI_SIG_MTMR           "MTMR"      /* MID Timer table */
 #define ACPI_SIG_NFIT           "NFIT"      /* NVDIMM Firmware Interface Table */
 #define ACPI_SIG_PCCT           "PCCT"      /* Platform Communications Channel Table */
 #define ACPI_SIG_PDTT           "PDTT"      /* Platform Debug Trigger Table */
@@ -1242,34 +1241,6 @@ typedef struct acpi_table_msdm
     ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
 
 } ACPI_TABLE_MSDM;
-
-
-/*******************************************************************************
- *
- * MTMR - MID Timer Table
- *        Version 1
- *
- * Conforms to "Simple Firmware Interface Specification",
- * Draft 0.8.2, Oct 19, 2010
- * NOTE: The ACPI MTMR is equivalent to the SFI MTMR table.
- *
- ******************************************************************************/
-
-typedef struct acpi_table_mtmr
-{
-    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
-
-} ACPI_TABLE_MTMR;
-
-/* MTMR entry */
-
-typedef struct acpi_mtmr_entry
-{
-    ACPI_GENERIC_ADDRESS    PhysicalAddress;
-    UINT32                  Frequency;
-    UINT32                  Irq;
-
-} ACPI_MTMR_ENTRY;
 
 
 /*******************************************************************************
