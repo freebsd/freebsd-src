@@ -83,20 +83,6 @@ rdtsc_low_mb_none(const struct vdso_timehands *th)
 	return (rdtsc_low(th));
 }
 
-DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc_low,
-    (const struct vdso_timehands *th))
-{
-	u_int p[4];
-	/* Not a typo, string matches our do_cpuid() registers use. */
-	static const char intel_id[] = "GenuntelineI";
-
-	if ((cpu_feature & CPUID_SSE2) == 0)
-		return (rdtsc_low_mb_none);
-	do_cpuid(0, p);
-	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
-	    rdtsc_low_mb_lfence : rdtsc_low_mb_mfence);
-}
-
 static u_int
 rdtsc32_mb_lfence(void)
 {
@@ -117,17 +103,74 @@ rdtsc32_mb_none(void)
 	return (rdtsc32());
 }
 
-DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc32, (void))
+struct tsc_selector_tag {
+	u_int (*ts_rdtsc32)(void);
+	u_int (*ts_rdtsc_low)(const struct vdso_timehands *);
+};
+
+static const struct tsc_selector_tag tsc_selector[] = {
+	[0] = {				/* Intel or AMD Zen+, LFENCE */
+		.ts_rdtsc32 =	rdtsc32_mb_lfence,
+		.ts_rdtsc_low =	rdtsc_low_mb_lfence,
+	},
+	[1] = {				/* AMD, MFENCE */
+		.ts_rdtsc32 =	rdtsc32_mb_mfence,
+		.ts_rdtsc_low =	rdtsc_low_mb_mfence,
+	},
+	[2] = {				/* No SSE2 */
+		.ts_rdtsc32 = rdtsc32_mb_none,
+		.ts_rdtsc_low = rdtsc_low_mb_none,
+	},
+};
+
+static int
+tsc_selector_idx(u_int cpu_feature)
 {
-	u_int p[4];
-	/* Not a typo, string matches our do_cpuid() registers use. */
-	static const char intel_id[] = "GenuntelineI";
+	u_int amd_feature, cpu_exthigh, cpu_id, p[4], v[3];
+	static const char amd_id[] = "AuthenticAMD";
+	static const char hygon_id[] = "HygonGenuine";
+	bool amd_cpu;
+
+	if (cpu_feature == 0)
+		return (2);	/* should not happen due to RDTSC */
+
+	do_cpuid(0, p);
+	v[0] = p[1];
+	v[1] = p[3];
+	v[2] = p[2];
+	amd_cpu = memcmp(v, amd_id, sizeof(amd_id) - 1) == 0 ||
+	    memcmp(v, hygon_id, sizeof(hygon_id) - 1) == 0;
+
+	do_cpuid(1, p);
+	cpu_id = p[0];
+
+	if (cpu_feature != 0) {
+		do_cpuid(0x80000000, p);
+		cpu_exthigh = p[0];
+	} else {
+		cpu_exthigh = 0;
+	}
+	if (cpu_exthigh >= 0x80000001) {
+		do_cpuid(0x80000001, p);
+		amd_feature = p[3];
+	} else {
+		amd_feature = 0;
+	}
 
 	if ((cpu_feature & CPUID_SSE2) == 0)
-		return (rdtsc32_mb_none);
-	do_cpuid(0, p);
-	return (memcmp(p + 1, intel_id, sizeof(intel_id) - 1) == 0 ?
-	    rdtsc32_mb_lfence : rdtsc32_mb_mfence);
+		return (2);
+	return (amd_cpu ? 1 : 0);
+}
+
+DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc_low,
+    (const struct vdso_timehands *th))
+{
+	return (tsc_selector[tsc_selector_idx(cpu_feature)].ts_rdtsc_low);
+}
+
+DEFINE_UIFUNC(static, u_int, __vdso_gettc_rdtsc32, (void))
+{
+	return (tsc_selector[tsc_selector_idx(cpu_feature)].ts_rdtsc32);
 }
 
 #define	HPET_DEV_MAP_MAX	10
