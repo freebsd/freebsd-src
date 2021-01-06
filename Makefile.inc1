@@ -2190,9 +2190,9 @@ ${_bt}-usr.sbin/config: ${_bt}-lib/libnv ${_bt}-lib/libsbuf
 _strfile=	usr.bin/fortune/strfile
 .endif
 
-.if ${MK_VT} != "no"
+# vtfontcvt is used to build font files for loader and to generate
+# C source for loader built in font (8x16.c).
 _vtfontcvt=	usr.bin/vtfontcvt
-.endif
 
 # If we are not building the bootstrap because BOOTSTRAPPING is sufficient
 # we symlink the host version to $WORLDTMP instead. By doing this we can also
