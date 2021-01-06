@@ -74,7 +74,9 @@ static const char *filename;
 
 static void usage(void) __dead2;
 static void scanfiles(char *argv[], int cooked);
+#ifndef BOOTSTRAP_CAT
 static void cook_cat(FILE *);
+#endif
 static void raw_cat(int);
 
 #ifndef NO_UDOM_SUPPORT
@@ -178,11 +180,13 @@ usage(void)
 }
 
 static void
-scanfiles(char *argv[], int cooked)
+scanfiles(char *argv[], int cooked __unused)
 {
 	int fd, i;
 	char *path;
+#ifndef BOOTSTRAP_CAT
 	FILE *fp;
+#endif
 
 	i = 0;
 	fd = -1;
