@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd December 31, 2020
+.Dd Januar 6, 2020
 .Dt LOADER.CONF 5
 .Os
 .Sh NAME
@@ -237,10 +237,33 @@ selects the video console which prevents any input and hides all output
 replacing it with
 .Dq spinning
 character (useful for embedded products and such).
+.It Va screen.font
+Set font size for framebuffer mode.
+Default font size is selected based on screen resolution, to achieve
+terminal dimensions 80x24.
+.It Va screen.textmode
+Value "0" will trigger BIOS loader to switch to use VESA BIOS Extension (VBE)
+frame buffer mode for console.
+The same effect can be achieved by setting
+.Va vbe_max_resolution .
+.Pp
+Value "1" will force BIOS loader to use VGA text mode.
+.Pp
+If
+.Va vbe_max_resolution
+is not set, the loader will try to set screen resolution based on EDID
+information.
+If EDID is not available, the default resolution is 800x600 (if available).
+.It Va screen.height
+.It Va screen.width
+.It Va screen.depth
+.Va screen.height ,
+.Va screen.width ,
+.Va screen.depth
+are set by loader when loader is using framebuffer mode to draw the screen.
 .It Va efi_max_resolution
 .It Va vbe_max_resolution
-Specify the maximum desired resolution for the EFI or VESA BIOS Extension (VBE)
-framebuffer console.
+Specify the maximum desired resolution for the EFI or VBE framebuffer console.
 The following values are accepted:
 .Bl -column "WidthxHeight"
 .It Sy Value Ta Sy Resolution

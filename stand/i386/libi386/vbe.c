@@ -274,7 +274,7 @@ bios_set_text_mode(int mode)
 	gfx_state.tg_fb.fb_mask_green = (1 << palette_format) - 1 << 8;
 	gfx_state.tg_fb.fb_mask_blue = (1 << palette_format) - 1 << 0;
 	gfx_state.tg_ctype = CT_INDEXED;
-	env_setenv("hw.vga.textmode", EV_VOLATILE | EV_NOHOOK, "1", NULL, NULL);
+	env_setenv("screen.textmode", EV_VOLATILE | EV_NOHOOK, "1", NULL, NULL);
 }
 
 /* Function 00h - Return VBE Controller Information */
@@ -378,7 +378,7 @@ biosvbe_set_mode(int mode, struct crtciinfoblock *ci)
 		if (biosvbe_palette_format(&m) == VBE_SUCCESS)
 			palette_format = m;
 	}
-	env_setenv("hw.vga.textmode", EV_VOLATILE | EV_NOHOOK, "0", NULL, NULL);
+	env_setenv("screen.textmode", EV_VOLATILE | EV_NOHOOK, "0", NULL, NULL);
 	return (rv);
 }
 
@@ -508,19 +508,18 @@ mode_set(struct env_var *ev, int flags __unused, const void *value)
 {
 	int mode;
 
-	if (strcmp(ev->ev_name, "hw.vga.textmode") == 0) {
+	if (strcmp(ev->ev_name, "screen.textmode") == 0) {
 		unsigned long v;
 		char *end;
 
 		if (value == NULL)
 			return (0);
-		/* VT(4) describes hw.vga.textmode values 0 or 1. */
 		errno = 0;
 		v = strtoul(value, &end, 0);
 		if (errno != 0 || *(char *)value == '\0' || *end != '\0' ||
 		    (v != 0 && v != 1))
 			return (EINVAL);
-		env_setenv("hw.vga.textmode", EV_VOLATILE | EV_NOHOOK,
+		env_setenv("screen.textmode", EV_VOLATILE | EV_NOHOOK,
 		    value, NULL, NULL);
 		if (v == 1) {
 			reset_font_flags();
@@ -574,7 +573,7 @@ vbe_init(void)
 		vbe_mode = NULL;
 	}
 
-	env_setenv("hw.vga.textmode", EV_VOLATILE, "1", mode_set,
+	env_setenv("screen.textmode", EV_VOLATILE, "1", mode_set,
 	    env_nounset);
 	env_setenv("vbe_max_resolution", EV_VOLATILE, NULL, mode_set,
 	    env_nounset);
