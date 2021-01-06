@@ -56,3 +56,11 @@ if [ -e "$OBJTOP"/rescue/rescue/rescue.c ] && \
 	echo "Removing old rescue(8) tree"
 	rm -rf "$OBJTOP"/rescue/rescue
 fi
+
+# 20210105  fda7daf06301   pfctl gained its own version of pf_ruleset.c
+if [ -e "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o ] && \
+    egrep -qw "sys/netpfil/pf/pf_ruleset.c" \
+    "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o; then
+	echo "Removing old pf_ruleset dependecy file"
+	rm -rf "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o
+fi
