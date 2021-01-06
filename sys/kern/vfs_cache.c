@@ -5032,7 +5032,7 @@ cache_fplookup_skip_slashes(struct cache_fpl *fpl)
 	ndp->ni_next = cnp->cn_nameptr;
 
 	/*
-	 * Retry the lookup, similar to dot lookups.
+	 * See cache_fplookup_dot.
 	 */
 	fpl->tvp = fpl->dvp;
 	fpl->tvp_seqc = fpl->dvp_seqc;
@@ -5139,11 +5139,14 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 
 	cache_fpl_checkpoint(fpl, &fpl->snd);
 
+	/*
+	 * The vnode is hand is almost always stable, skip checking for it.
+	 * Worst case this postpones the check towards the end of the iteration
+	 * of the main loop.
+	 */
 	fpl->dvp = dvp;
-	fpl->dvp_seqc = vn_seqc_read_any(fpl->dvp);
-	if (seqc_in_modify(fpl->dvp_seqc)) {
-		return (cache_fpl_aborted(fpl));
-	}
+	fpl->dvp_seqc = vn_seqc_read_notmodify(fpl->dvp);
+
 	mp = atomic_load_ptr(&dvp->v_mount);
 	if (__predict_false(mp == NULL || !cache_fplookup_mp_supported(mp))) {
 		return (cache_fpl_aborted(fpl));
