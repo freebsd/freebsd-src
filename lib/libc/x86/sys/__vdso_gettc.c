@@ -63,6 +63,16 @@ rdtsc_low(const struct vdso_timehands *th)
 	return (rv);
 }
 
+static inline u_int
+rdtscp_low(const struct vdso_timehands *th)
+{
+	u_int rv;
+
+	__asm __volatile("rdtscp; movl %%edi,%%ecx; shrd %%cl, %%edx, %0"
+	    : "=a" (rv) : "D" (th->th_x86_shift) : "ecx", "edx");
+	return (rv);
+}
+
 static u_int
 rdtsc_low_mb_lfence(const struct vdso_timehands *th)
 {
@@ -103,6 +113,12 @@ rdtsc32_mb_none(void)
 	return (rdtsc32());
 }
 
+static u_int
+rdtscp32_(void)
+{
+	return (rdtscp32());
+}
+
 struct tsc_selector_tag {
 	u_int (*ts_rdtsc32)(void);
 	u_int (*ts_rdtsc_low)(const struct vdso_timehands *);
@@ -120,6 +136,10 @@ static const struct tsc_selector_tag tsc_selector[] = {
 	[2] = {				/* No SSE2 */
 		.ts_rdtsc32 = rdtsc32_mb_none,
 		.ts_rdtsc_low = rdtsc_low_mb_none,
+	},
+	[3] = {				/* RDTSCP */
+		.ts_rdtsc32 =	rdtscp32_,
+		.ts_rdtsc_low =	rdtscp_low,
 	},
 };
 
@@ -144,6 +164,9 @@ tsc_selector_idx(u_int cpu_feature)
 	do_cpuid(1, p);
 	cpu_id = p[0];
 
+	if (amd_cpu && CPUID_TO_FAMILY(cpu_id) >= 0x17)
+		return (0);
+
 	if (cpu_feature != 0) {
 		do_cpuid(0x80000000, p);
 		cpu_exthigh = p[0];
@@ -157,6 +180,8 @@ tsc_selector_idx(u_int cpu_feature)
 		amd_feature = 0;
 	}
 
+	if ((amd_feature & AMDID_RDTSCP) != 0)
+		return (3);
 	if ((cpu_feature & CPUID_SSE2) == 0)
 		return (2);
 	return (amd_cpu ? 1 : 0);
