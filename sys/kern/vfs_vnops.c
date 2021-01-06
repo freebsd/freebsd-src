@@ -584,6 +584,8 @@ vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base, int len, off_t offset,
 			if (rw == UIO_READ) {
 				rl_cookie = vn_rangelock_rlock(vp, offset,
 				    offset + len);
+			} else if ((ioflg & IO_APPEND) != 0) {
+				rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
 			} else {
 				rl_cookie = vn_rangelock_wlock(vp, offset,
 				    offset + len);
