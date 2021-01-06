@@ -30,10 +30,10 @@ options 	PREEMPTION		# Enable kernel thread preemption
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
-options		ROUTE_MPATH		# Multipath routing support
 options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
-options 	TCP_HHOOK		# hhook(9) framework for TCP
+options		ROUTE_MPATH		# Multipath routing support
 options 	TCP_OFFLOAD		# TCP offload
+options 	TCP_HHOOK		# hhook(9) framework for TCP
 options		TCP_RFC7413		# TCP Fast Open
 options 	SCTP_SUPPORT		# Allow kldload of SCTP
 options 	FFS			# Berkeley Fast Filesystem
@@ -54,6 +54,7 @@ options 	PSEUDOFS		# Pseudo-filesystem framework
 options 	TMPFS			# Efficient memory filesystem
 options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_LABEL		# Provides labelization
+options 	EFIRT			# EFI Runtime Services support
 options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
 options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
@@ -78,7 +79,6 @@ options 	VFP			# Floating-point support
 options 	RACCT			# Resource accounting framework
 options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
 options 	RCTL			# Resource limits
-options 	SMP
 options 	INTRNG
 options 	LINUX_BOOT_ABI		# Boot using booti command from U-Boot
 
@@ -95,7 +95,6 @@ options 	WITNESS			# Enable checks to detect deadlocks and cycles
 options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
 options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
-options 	USB_DEBUG		# enable debug msgs
 options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
 
 # Kernel Sanitizers
@@ -111,6 +110,9 @@ options 	GZIO			# gzip-compressed kernel and user dumps
 options 	ZSTDIO			# zstd-compressed kernel and user dumps
 options 	DEBUGNET		# debugnet networking
 options 	NETDUMP			# netdump(4) client support
+
+# Make an SMP-capable kernel by default
+options 	SMP			# Symmetric MultiProcessor Kernel
 
 # SoC support
 options 	SOC_ALLWINNER_A64
@@ -142,13 +144,6 @@ device		al_udma			# Universal DMA
 # Qualcomm Snapdragon drivers
 device		qcom_gcc		# Global Clock Controller
 
-# VirtIO support
-device		virtio
-device		virtio_pci
-device		virtio_mmio
-device		virtio_blk
-device		vtnet
-
 # CPU frequency control
 device		cpufreq
 
@@ -158,33 +153,6 @@ device		pci_n1sdp	# ARM Neoverse N1 SDP PCI
 device		al_pci		# Annapurna Alpine PCI-E
 options 	PCI_HP			# PCI-Express native HotPlug
 options 	PCI_IOV		# PCI SR-IOV support
-
-# PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
-device		iflib
-device		em		# Intel PRO/1000 Gigabit Ethernet Family
-device		ix		# Intel 10Gb Ethernet Family
-
-# Ethernet NICs
-device		mdio
-device		mii
-device		miibus		# MII bus support
-device		awg		# Allwinner EMAC Gigabit Ethernet
-device		axa		# AMD Opteron A1100 integrated NIC
-device		msk		# Marvell/SysKonnect Yukon II Gigabit Ethernet
-device		neta		# Marvell Armada 370/38x/XP/3700 NIC
-device		re		# RealTek 8139C+/8169/8169S/8110S
-device		smc		# SMSC LAN91C111
-device		vnic		# Cavium ThunderX NIC
-device		al_eth		# Annapurna Alpine Ethernet NIC
-device		dwc_rk		# Rockchip Designware
-device		dwc_socfpga	# Altera SOCFPGA Ethernet MAC
-device		genet		# Broadcom on RPi4
-device		ffec		# iMX FFEC
-
-# Etherswitch devices
-device		etherswitch	# Enable etherswitch support
-device		miiproxy	# Required for etherswitch
-device		e6000sw		# Marvell mv88e6085 based switches
 
 # Block devices
 device		ahci
@@ -199,58 +167,6 @@ device		pass		# Passthrough device (direct ATA/SCSI access)
 device		nvme		# base NVMe driver
 options 	NVME_USE_NVD=0	# prefer the cam(4) based nda(4) driver
 device		nvd		# expose NVMe namespaces as disks, depends on nvme
-
-# MMC/SD/SDIO Card slot support
-device		sdhci
-device		sdhci_xenon		# Marvell Xenon SD/MMC controller
-device		aw_mmc			# Allwinner SD/MMC controller
-device		mmc			# mmc/sd bus
-device		mmcsd			# mmc/sd flash cards
-device		dwmmc
-device		dwmmc_altera
-device		dwmmc_hisi
-device		rk_dwmmc
-device		rk_emmcphy
-
-# Serial (COM) ports
-device		uart		# Generic UART driver
-device		uart_imx	# iMX8 UART
-device		uart_msm	# Qualcomm MSM UART driver
-device		uart_mu		# RPI3 aux port
-device		uart_mvebu	# Armada 3700 UART driver
-device		uart_ns8250	# ns8250-type UART driver
-device		uart_snps
-device		pl011
-
-# USB support
-options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
-device		aw_usbphy		# Allwinner USB PHY
-device		rk_usb2phy		# Rockchip USB2PHY
-device		rk_typec_phy		# Rockchip TypeC PHY
-device		dwcotg			# DWC OTG controller
-device		musb			# Mentor Graphics USB OTG controller
-device		ohci			# OHCI USB interface
-device		uhci			# UHCI USB interface
-device		ehci			# EHCI USB interface (USB 2.0)
-device		ehci_mv			# Marvell EHCI USB interface
-device		xhci			# XHCI USB interface (USB 3.0)
-device		dwc3			# Synopsys DWC controller
-device		aw_dwc3			# Allwinner DWC3 controller
-device		rk_dwc3			# Rockchip DWC3 controller
-device		usb			# USB Bus (required)
-device		ukbd			# Keyboard
-device		umass			# Disks/Mass storage - Requires scbus and da
-device		tegra210_xusb_fw	# Tegra XUSB firmware
-
-# USB ethernet support
-device		muge
-device		smcphy
-device		smsc
-device		ure
-
-# Sound support
-device sound
-device a10_codec
 
 # DMA controller
 device		a31_dmac
@@ -340,16 +256,53 @@ options		EVDEV_SUPPORT		# evdev support in legacy drivers
 device		uinput			# install /dev/uinput cdev
 device		aw_cir
 
+# Serial (COM) ports
+device		uart			# Generic UART driver
+device		uart_imx		# iMX8 UART
+device		uart_msm		# Qualcomm MSM UART driver
+device		uart_mu			# RPI3 aux port
+device		uart_mvebu		# Armada 3700 UART driver
+device		uart_ns8250		# ns8250-type UART driver
+device		uart_snps
+device		pl011
+
+# PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
+device		iflib
+device		em			# Intel PRO/1000 Gigabit Ethernet Family
+device		ix			# Intel 10Gb Ethernet Family
+
+# Ethernet NICs
+device		mdio
+device		mii
+device		miibus			# MII bus support
+device		al_eth			# Annapurna Alpine Ethernet NIC
+device		awg			# Allwinner EMAC Gigabit Ethernet
+device		axa			# AMD Opteron A1100 integrated NIC
+device		dwc_rk			# Rockchip Designware
+device		dwc_socfpga		# Altera SOCFPGA Ethernet MAC
+device		ffec			# iMX FFEC
+device		genet			# Broadcom on RPi4
+device		msk			# Marvell/SysKonnect Yukon II Gigabit Ethernet
+device		neta			# Marvell Armada 370/38x/XP/3700 NIC
+device		re			# RealTek 8139C+/8169/8169S/8110S
+device		smc			# SMSC LAN91C111
+device		vnic			# Cavium ThunderX NIC
+
+# Etherswitch devices
+device		etherswitch		# Enable etherswitch support
+device		miiproxy		# Required for etherswitch
+device		e6000sw			# Marvell mv88e6085 based switches
+
+
 # Pseudo devices.
-device		crypto		# core crypto support
-device		loop		# Network loopback
-device		ether		# Ethernet support
-device		vlan		# 802.1Q VLAN support
-device		tuntap		# Packet tunnel.
-device		md		# Memory "disks"
-device		gif		# IPv6 and IPv4 tunneling
-device		firmware	# firmware assist module
-options 	EFIRT		# EFI Runtime Services
+device		crypto			# core crypto support
+device		loop			# Network loopback
+device		ether			# Ethernet support
+device		vlan			# 802.1Q VLAN support
+device		tuntap			# Packet tunnel.
+device		md			# Memory "disks"
+device		gif			# IPv6 and IPv4 tunneling
+device		firmware		# firmware assist module
 
 # EXT_RESOURCES pseudo devices
 options 	EXT_RESOURCES
@@ -368,6 +321,56 @@ device		rk_iodomain
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
+
+# USB support
+options 	USB_DEBUG		# enable debug msgs
+options 	USB_HOST_ALIGN=64	# Align usb buffers to cache line size.
+device		aw_usbphy		# Allwinner USB PHY
+device		rk_usb2phy		# Rockchip USB2PHY
+device		rk_typec_phy		# Rockchip TypeC PHY
+device		dwcotg			# DWC OTG controller
+device		musb			# Mentor Graphics USB OTG controller
+device		ohci			# OHCI USB interface
+device		uhci			# UHCI USB interface
+device		ehci			# EHCI USB interface (USB 2.0)
+device		ehci_mv			# Marvell EHCI USB interface
+device		xhci			# XHCI USB interface (USB 3.0)
+device		dwc3			# Synopsys DWC controller
+device		aw_dwc3			# Allwinner DWC3 controller
+device		rk_dwc3			# Rockchip DWC3 controller
+device		usb			# USB Bus (required)
+device		ukbd			# Keyboard
+device		umass			# Disks/Mass storage - Requires scbus and da
+device		tegra210_xusb_fw	# Tegra XUSB firmware
+
+# USB ethernet support
+device		muge
+device		smcphy
+device		smsc
+device		ure
+
+# Sound support
+device sound
+device a10_codec
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+device		sdhci_xenon		# Marvell Xenon SD/MMC controller
+device		aw_mmc			# Allwinner SD/MMC controller
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		dwmmc
+device		dwmmc_altera
+device		dwmmc_hisi
+device		rk_dwmmc
+device		rk_emmcphy
+
+# VirtIO support
+device		virtio
+device		virtio_pci
+device		virtio_mmio
+device		virtio_blk
+device		vtnet
 
 # Chip-specific errata
 options 	THUNDERX_PASS_1_1_ERRATA
