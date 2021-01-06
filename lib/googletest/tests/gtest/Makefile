@@ -41,6 +41,6 @@ LIBADD+=	gtest
 LIBADD.gtest_stress_test+=	pthread
 
 # The next release will resolve a number of build warnings issues.
-NO_WERROR=
+MK_WERROR=	no
 
 .include <bsd.test.mk>

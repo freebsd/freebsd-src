@@ -26,7 +26,7 @@ SYMBOL_MAPS+=	${.CURDIR}/SymbolDefault.map
 
 # gcc has incompatible internal declarations for __divtc3 and __multc3, but has
 # no option to silence its warning, so make warnings non-fatal.
-NO_WERROR.gcc=
+MK_WERROR.gcc=	no
 
 LIBCSRCDIR=	${SRCTOP}/lib/libc
 LIBMSRCDIR=	${SRCTOP}/lib/msun/src

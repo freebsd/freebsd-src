@@ -15,7 +15,9 @@ CFLAGS+=${COPTS}
 
 .if ${MK_ASSERT_DEBUG} == "no"
 CFLAGS+= -DNDEBUG
-NO_WERROR=
+# XXX: shouldn't we ensure that !asserts marks potentially unused variables as
+# __unused instead of disabling -Werror globally?
+MK_WERROR=	no
 .endif
 
 .if defined(DEBUG_FLAGS)

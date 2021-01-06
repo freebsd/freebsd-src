@@ -17,6 +17,4 @@ LIBADD+=	cap_pwd
 CFLAGS+=-DWITH_CASPER
 .endif
 
-#NO_WERROR?=	YES
-
 .include <bsd.prog.mk>

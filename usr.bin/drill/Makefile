@@ -9,7 +9,7 @@ PROG=	drill
 SRCS=	drill.c drill_util.c error.c root.c work.c \
 	chasetrace.c dnssec.c securetrace.c
 CFLAGS+= -I${LDNSDIR}
-NO_WERROR= true
+MK_WERROR=	no
 MAN=	drill.1
 
 LIBADD=	ldns crypto

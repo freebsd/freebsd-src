@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-NO_WERROR=
+MK_WERROR=	no
 WARNS?=	2
 
 CFLAGS.h_raw+=	-fstack-protector-all -Wstack-protector
