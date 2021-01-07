@@ -3615,8 +3615,8 @@ SYSCTL_PROC(_vfs, OID_AUTO, cache_fast_lookup, CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MP
  * need restoring in case fast path lookup fails.
  */
 struct nameidata_saved {
-	char *cn_nameptr;
 #ifdef INVARIANTS
+	char *cn_nameptr;
 	size_t ni_pathlen;
 #endif
 	int cn_flags;
@@ -3696,8 +3696,8 @@ cache_fpl_checkpoint(struct cache_fpl *fpl, struct nameidata_saved *snd)
 {
 
 	snd->cn_flags = fpl->ndp->ni_cnd.cn_flags;
-	snd->cn_nameptr = fpl->ndp->ni_cnd.cn_nameptr;
 #ifdef INVARIANTS
+	snd->cn_nameptr = fpl->ndp->ni_cnd.cn_nameptr;
 	snd->ni_pathlen = fpl->debug.ni_pathlen;
 #endif
 }
@@ -3707,7 +3707,6 @@ cache_fpl_restore_partial(struct cache_fpl *fpl, struct nameidata_saved *snd)
 {
 
 	fpl->ndp->ni_cnd.cn_flags = snd->cn_flags;
-	fpl->ndp->ni_cnd.cn_nameptr = snd->cn_nameptr;
 #ifdef INVARIANTS
 	fpl->debug.ni_pathlen = snd->ni_pathlen;
 #endif
@@ -3722,6 +3721,7 @@ cache_fpl_restore_abort(struct cache_fpl *fpl, struct nameidata_saved *snd)
 	 * It is 0 on entry by API contract.
 	 */
 	fpl->ndp->ni_resflags = 0;
+	fpl->ndp->ni_cnd.cn_nameptr = fpl->ndp->ni_cnd.cn_pnbuf;
 }
 
 #ifdef INVARIANTS
@@ -4018,6 +4018,12 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 	}
 
 	cache_fpl_restore_partial(fpl, &fpl->snd);
+#ifdef INVARIANTS
+	if (cnp->cn_nameptr != fpl->snd.cn_nameptr) {
+		panic("%s: cn_nameptr mismatch (%p != %p) full [%s]\n", __func__,
+		    cnp->cn_nameptr, fpl->snd.cn_nameptr, cnp->cn_pnbuf);
+	}
+#endif
 
 	ndp->ni_startdir = dvp;
 	cnp->cn_flags |= MAKEENTRY;
