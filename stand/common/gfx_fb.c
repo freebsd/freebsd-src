@@ -49,7 +49,7 @@
 
 /* VGA text mode does use bold font. */
 #if !defined(VGA_8X16_FONT)
-#define	VGA_8X16_FONT		"/boot/fonts/8x16v.fnt"
+#define	VGA_8X16_FONT		"/boot/fonts/8x16b.fnt"
 #endif
 #if !defined(DEFAULT_8X16_FONT)
 #define	DEFAULT_8X16_FONT	"/boot/fonts/8x16.fnt"

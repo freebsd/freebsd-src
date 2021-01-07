@@ -9,6 +9,7 @@ FONTS=	\
 	8x14.fnt.gz \
 	8x14v.fnt.gz \
 	8x16.fnt.gz \
+	8x16b.fnt.gz \
 	8x16v.fnt.gz \
 	10x18.fnt.gz \
 	10x20.fnt.gz \
@@ -29,6 +30,8 @@ CLEANFILES+=	${FONTS} ${FONTS:T:S/${COMPRESS_EXT}//g}
 8x14v.fnt.gz: 8x14v.fnt
 	${COMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 8x16.fnt.gz: 8x16.fnt
+	${COMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
+8x16b.fnt.gz: 8x16b.fnt
 	${COMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 8x16v.fnt.gz: 8x16v.fnt
 	${COMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
@@ -55,6 +58,9 @@ CLEANFILES+=	${FONTS} ${FONTS:T:S/${COMPRESS_EXT}//g}
 	vtfontcvt -o ${.TARGET} ${.ALLSRC}
 
 8x16.fnt: ter-u16n.bdf ter-u16b.bdf
+	vtfontcvt -o ${.TARGET} ${.ALLSRC}
+
+8x16b.fnt: ter-u16b.bdf
 	vtfontcvt -o ${.TARGET} ${.ALLSRC}
 
 8x16v.fnt: ter-u16v.bdf
