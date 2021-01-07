@@ -298,7 +298,7 @@ znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 # Group together all the mentees for a particular mentor.
 # Keep the list sorted by mentor login.
 
-0mp -> nc
+"0mp" -> nc
 
 adamw -> ahze
 adamw -> jylefort
