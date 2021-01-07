@@ -48,7 +48,7 @@
 
 verify_runnable "global"
 
-log_assert "Verify raidz2 pool can withstand two devices are failing."
+log_assert "Verify raidz2 pool can withstand two devices failing."
 log_onexit cleanup
 
 typeset -i cnt=$(random_int_between 3 5)
@@ -81,4 +81,4 @@ for i in 1 2; do
 	log_must recover_bad_missing_devs $TESTPOOL $i
 done
 
-log_pass "Raidz2 pool can withstand two devices are failing passed."
+log_pass "raidz2 pool can withstand two devices failing passed."

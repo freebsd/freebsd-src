@@ -1,7 +1,10 @@
-pkgdatadir = $(datadir)/@PACKAGE@/zfs-tests/tests/functional/persist_l2arc
+pkgdatadir = $(datadir)/@PACKAGE@/zfs-tests/tests/functional/l2arc
 dist_pkgdata_SCRIPTS = \
 	cleanup.ksh \
 	setup.ksh \
+	l2arc_arcstats_pos.ksh \
+	l2arc_l2miss_pos.ksh \
+	l2arc_mfuonly_pos.ksh \
 	persist_l2arc_001_pos.ksh \
 	persist_l2arc_002_pos.ksh \
 	persist_l2arc_003_neg.ksh \
@@ -12,4 +15,4 @@ dist_pkgdata_SCRIPTS = \
 	persist_l2arc_008_pos.ksh
 
 dist_pkgdata_DATA = \
-	persist_l2arc.cfg
+	l2arc.cfg

@@ -309,6 +309,30 @@ on a top-level vdev, and will never return to being \fBenabled\fR.
 .sp
 .ne 2
 .na
+\fBdraid\fR
+.ad
+.RS 4n
+.TS
+l l .
+GUID	org.openzfs:draid
+READ\-ONLY COMPATIBLE	no
+DEPENDENCIES	none
+.TE
+
+This feature enables use of the \fBdraid\fR vdev type.  dRAID is a variant
+of raidz which provides integrated distributed hot spares that allow faster
+resilvering while retaining the benefits of raidz.  Data, parity, and spare
+space are organized in redundancy groups and distributed evenly over all of
+the devices.
+
+This feature becomes \fBactive\fR when creating a pool which uses the
+\fBdraid\fR vdev type, or when adding a new \fBdraid\fR vdev to an
+existing pool.
+.RE
+
+.sp
+.ne 2
+.na
 \fBedonr\fR
 .ad
 .RS 4n
@@ -676,11 +700,11 @@ When the \fBmulti_vdev_crash_dump\fR feature is set to \fBenabled\fR,
 the administrator can use the \fBdumpadm\fR(1M) command to configure a
 dump device on a pool comprised of multiple vdevs.
 
-Under Linux this feature is registered for compatibility but not used.
-New pools created under Linux will have the feature \fBenabled\fR but
-will never transition to \fB\fBactive\fR.  This functionality is not
-required in order to support crash dumps under Linux.  Existing pools
-where this feature is \fB\fBactive\fR can be imported.
+Under FreeBSD and Linux this feature is registered for compatibility but not
+used.  New pools created under FreeBSD and Linux will have the feature
+\fBenabled\fR but will never transition to \fB\fBactive\fR.  This functionality
+is not required in order to support crash dumps under FreeBSD and Linux.
+Existing pools where this feature is \fB\fBactive\fR can be imported.
 .RE
 
 .sp

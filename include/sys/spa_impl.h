@@ -240,8 +240,9 @@ struct spa {
 	kcondvar_t	spa_evicting_os_cv;	/* Objset Eviction Completion */
 	txg_list_t	spa_vdev_txg_list;	/* per-txg dirty vdev list */
 	vdev_t		*spa_root_vdev;		/* top-level vdev container */
-	int		spa_min_ashift;		/* of vdevs in normal class */
-	int		spa_max_ashift;		/* of vdevs in normal class */
+	uint64_t	spa_min_ashift;		/* of vdevs in normal class */
+	uint64_t	spa_max_ashift;		/* of vdevs in normal class */
+	uint64_t	spa_min_alloc;		/* of vdevs in normal class */
 	uint64_t	spa_config_guid;	/* config pool guid */
 	uint64_t	spa_load_guid;		/* spa_load initialized guid */
 	uint64_t	spa_last_synced_guid;	/* last synced guid */
@@ -377,7 +378,7 @@ struct spa {
 	kcondvar_t	spa_proc_cv;		/* spa_proc_state transitions */
 	spa_proc_state_t spa_proc_state;	/* see definition */
 	proc_t		*spa_proc;		/* "zpool-poolname" process */
-	uint64_t	spa_did;		/* if procp != p0, did of t1 */
+	uintptr_t	spa_did;		/* if procp != p0, did of t1 */
 	boolean_t	spa_autoreplace;	/* autoreplace set in open */
 	int		spa_vdev_locks;		/* locks grabbed */
 	uint64_t	spa_creation_version;	/* version at pool creation */

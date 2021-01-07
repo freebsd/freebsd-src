@@ -1,6 +1,9 @@
 include $(top_srcdir)/config/Rules.am
+PHONY =
 
 lib_LTLIBRARIES = libuutil.la
+
+include $(top_srcdir)/config/Abigail.am
 
 USER_C = \
 	uu_alloc.c \
@@ -27,8 +30,7 @@ if !ASAN_ENABLED
 libuutil_la_LDFLAGS += -Wl,-z,defs
 endif
 
-if BUILD_FREEBSD
 libuutil_la_LDFLAGS += -version-info 3:0:0
-else
-libuutil_la_LDFLAGS += -version-info 1:1:0
-endif
+
+# Library ABI
+EXTRA_DIST = libuutil.abi libuutil.suppr

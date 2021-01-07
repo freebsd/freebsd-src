@@ -1,4 +1,5 @@
 include $(top_srcdir)/config/Rules.am
+PHONY =
 
 VPATH = \
 	$(top_srcdir)/module/nvpair \
@@ -9,6 +10,8 @@ VPATH = \
 AM_CFLAGS += $(FRAME_LARGER_THAN) $(LIBTIRPC_CFLAGS)
 
 lib_LTLIBRARIES = libnvpair.la
+
+include $(top_srcdir)/config/Abigail.am
 
 USER_C = \
 	libnvpair.c \
@@ -37,8 +40,7 @@ if !ASAN_ENABLED
 libnvpair_la_LDFLAGS += -Wl,-z,defs
 endif
 
-if BUILD_FREEBSD
 libnvpair_la_LDFLAGS += -version-info 3:0:0
-else
-libnvpair_la_LDFLAGS += -version-info 1:1:0
-endif
+
+# Library ABI
+EXTRA_DIST = libnvpair.abi libnvpair.suppr

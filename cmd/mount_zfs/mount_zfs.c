@@ -43,67 +43,30 @@
 libzfs_handle_t *g_zfs;
 
 /*
- * Return the pool/dataset to mount given the name passed to mount.  This
- * is expected to be of the form pool/dataset, however may also refer to
- * a block device if that device contains a valid zfs label.
+ * Opportunistically convert a target string into a pool name. If the
+ * string does not represent a block device with a valid zfs label
+ * then it is passed through without modification.
  */
-static char *
-parse_dataset(char *dataset)
+static void
+parse_dataset(const char *target, char **dataset)
 {
-	char cwd[PATH_MAX];
-	struct stat64 statbuf;
-	int error;
-	int len;
+	/* Assume pool/dataset is more likely */
+	strlcpy(*dataset, target, PATH_MAX);
 
-	/*
-	 * We expect a pool/dataset to be provided, however if we're
-	 * given a device which is a member of a zpool we attempt to
-	 * extract the pool name stored in the label.  Given the pool
-	 * name we can mount the root dataset.
-	 */
-	error = stat64(dataset, &statbuf);
-	if (error == 0) {
-		nvlist_t *config;
-		char *name;
-		int fd;
+	int fd = open(target, O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return;
 
-		fd = open(dataset, O_RDONLY);
-		if (fd < 0)
-			goto out;
-
-		error = zpool_read_label(fd, &config, NULL);
-		(void) close(fd);
-		if (error)
-			goto out;
-
-		error = nvlist_lookup_string(config,
-		    ZPOOL_CONFIG_POOL_NAME, &name);
-		if (error) {
-			nvlist_free(config);
-		} else {
-			dataset = strdup(name);
-			nvlist_free(config);
-			return (dataset);
-		}
+	nvlist_t *cfg = NULL;
+	if (zpool_read_label(fd, &cfg, NULL) == 0) {
+		char *nm = NULL;
+		if (!nvlist_lookup_string(cfg, ZPOOL_CONFIG_POOL_NAME, &nm))
+			strlcpy(*dataset, nm, PATH_MAX);
+		nvlist_free(cfg);
 	}
-out:
-	/*
-	 * If a file or directory in your current working directory is
-	 * named 'dataset' then mount(8) will prepend your current working
-	 * directory to the dataset.  There is no way to prevent this
-	 * behavior so we simply check for it and strip the prepended
-	 * patch when it is added.
-	 */
-	if (getcwd(cwd, PATH_MAX) == NULL)
-		return (dataset);
 
-	len = strlen(cwd);
-
-	/* Do not add one when cwd already ends in a trailing '/' */
-	if (strncmp(cwd, dataset, len) == 0)
-		return (dataset + len + (cwd[len-1] != '/'));
-
-	return (dataset);
+	if (close(fd))
+		perror("close");
 }
 
 /*
@@ -147,8 +110,8 @@ mtab_update(char *dataset, char *mntpoint, char *type, char *mntopts)
 	if (!fp) {
 		(void) fprintf(stderr, gettext(
 		    "filesystem '%s' was mounted, but /etc/mtab "
-		    "could not be opened due to error %d\n"),
-		    dataset, errno);
+		    "could not be opened due to error: %s\n"),
+		    dataset, strerror(errno));
 		return (MOUNT_FILEIO);
 	}
 
@@ -156,8 +119,8 @@ mtab_update(char *dataset, char *mntpoint, char *type, char *mntopts)
 	if (error) {
 		(void) fprintf(stderr, gettext(
 		    "filesystem '%s' was mounted, but /etc/mtab "
-		    "could not be updated due to error %d\n"),
-		    dataset, errno);
+		    "could not be updated due to error: %s\n"),
+		    dataset, strerror(errno));
 		return (MOUNT_FILEIO);
 	}
 
@@ -176,7 +139,7 @@ main(int argc, char **argv)
 	char badopt[MNT_LINE_MAX] = { '\0' };
 	char mtabopt[MNT_LINE_MAX] = { '\0' };
 	char mntpoint[PATH_MAX];
-	char *dataset;
+	char dataset[PATH_MAX], *pdataset = dataset;
 	unsigned long mntflags = 0, zfsflags = 0, remount = 0;
 	int sloppy = 0, fake = 0, verbose = 0, nomtab = 0, zfsutil = 0;
 	int error, c;
@@ -232,13 +195,13 @@ main(int argc, char **argv)
 		return (MOUNT_USAGE);
 	}
 
-	dataset = parse_dataset(argv[0]);
+	parse_dataset(argv[0], &pdataset);
 
 	/* canonicalize the mount point */
 	if (realpath(argv[1], mntpoint) == NULL) {
 		(void) fprintf(stderr, gettext("filesystem '%s' cannot be "
-		    "mounted at '%s' due to canonicalization error %d.\n"),
-		    dataset, argv[1], errno);
+		    "mounted at '%s' due to canonicalization error: %s\n"),
+		    dataset, argv[1], strerror(errno));
 		return (MOUNT_SYSERR);
 	}
 

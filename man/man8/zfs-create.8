@@ -30,19 +30,19 @@
 .\" Copyright 2018 Nexenta Systems, Inc.
 .\" Copyright 2019 Joyent, Inc.
 .\"
-.Dd June 30, 2019
+.Dd December 1, 2020
 .Dt ZFS-CREATE 8
 .Os
 .Sh NAME
-.Nm zfs Ns Pf - Cm create
+.Nm zfs-create
 .Nd Creates a new ZFS file system.
 .Sh SYNOPSIS
 .Nm zfs
 .Cm create
-.Op Fl Pnpv
+.Op Fl Pnpuv
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem
-.Nm
+.Nm zfs
 .Cm create
 .Op Fl ps
 .Op Fl b Ar blocksize
@@ -51,16 +51,18 @@
 .Sh DESCRIPTION
 .Bl -tag -width ""
 .It Xo
-.Nm
+.Nm zfs
 .Cm create
-.Op Fl Pnpv
+.Op Fl Pnpuv
 .Oo Fl o Ar property Ns = Ns Ar value Oc Ns ...
 .Ar filesystem
 .Xc
 Creates a new ZFS file system.
 The file system is automatically mounted according to the
 .Sy mountpoint
-property inherited from the parent.
+property inherited from the parent, unless the
+.Fl u
+option is used.
 .Bl -tag -width "-o"
 .It Fl o Ar property Ns = Ns Ar value
 Sets the specified property as if the command
@@ -122,11 +124,13 @@ to
 due to the use of the
 .Fl o
 option.
+.It Fl u
+Do not mount the newly created file system.
 .It Fl v
 Print verbose information about the created dataset.
 .El
 .It Xo
-.Nm
+.Nm zfs
 .Cm create
 .Op Fl ps
 .Op Fl b Ar blocksize
