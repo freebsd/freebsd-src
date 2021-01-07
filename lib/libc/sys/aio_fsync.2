@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 19, 2016
+.Dd January 6, 2021
 .Dt AIO_FSYNC 2
 .Os
 .Sh NAME
@@ -49,11 +49,15 @@ completed at the time the call returns.
 .Pp
 The
 .Fa op
-argument can only be set to
+argument can be set to
 .Dv O_SYNC
 to cause all currently queued I/O operations to be completed
 as if by a call to
-.Xr fsync 2 .
+.Xr fsync 2 ,
+or
+.Dv O_DSYNC
+for the behavior of
+.Xr fdatasync 2 .
 .Pp
 If _POSIX_PRIORITIZED_IO is defined, and the descriptor supports it,
 then the enqueued operation is submitted at a priority equal to that
@@ -112,7 +116,9 @@ are unsafe and unsafe asynchronous I/O operations are disabled.
 A value of the
 .Fa op
 argument is not set to
-.Dv O_SYNC .
+.Dv O_SYNC
+or
+.Dv O_DSYNC .
 .El
 .Pp
 The following conditions may be synchronously detected when the
@@ -176,3 +182,7 @@ The
 .Fn aio_fsync
 system call first appeared in
 .Fx 7.0 .
+The
+.Dv O_DSYNC
+option appeared in
+.Fx 13.0 .
