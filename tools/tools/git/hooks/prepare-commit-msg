@@ -13,13 +13,13 @@ commit|message)
 	# It appears git invokes this script for interactive rebase but does
 	# not remove commented lines, so just exit if we're not called with the
 	# default (comment-containing) template.
-	egrep -q '^#' "$1" || return 0
+	grep -E -q '^#' "$1" || exit 0
 	;;
 template)
-	return 0
+	exit 0
 	;;
 merge)
-	return 0
+	exit 0
 	;;
 esac
 
@@ -58,7 +58,7 @@ $(awk '1;/^#$/{exit}' $1)
 #
 # "Pull Request" and "Differential Revision" require the *full* GitHub or
 # Phabricator URL.
-$(awk '/^#$/,EOF' $1)
+$(awk '/^#$/,EOF' "$1")
 EOF
 
-mv $outfile $1
+mv "$outfile" "$1"
