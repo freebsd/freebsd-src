@@ -311,6 +311,7 @@ tmpfs_open(struct vop_open_args *v)
 	}
 
 	fp = v->a_fp;
+	MPASS(fp == NULL || fp->f_data == NULL);
 	if (error == 0 && fp != NULL && vp->v_type == VREG) {
 		tmpfs_ref_node(node);
 		finit_vnode(fp, mode, node, &tmpfs_fnops);
