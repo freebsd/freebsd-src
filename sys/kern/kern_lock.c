@@ -984,17 +984,19 @@ lockmgr_upgrade(struct lock *lk, u_int flags, struct lock_object *ilk,
 	op = flags & LK_TYPE_MASK;
 	v = lockmgr_read_value(lk);
 	for (;;) {
-		if (LK_SHARERS_LOCK(v) > 1) {
+		if (LK_SHARERS(v) > 1) {
 			if (op == LK_TRYUPGRADE) {
 				LOCK_LOG2(lk, "%s: %p failed the nowait upgrade",
 				    __func__, lk);
 				error = EBUSY;
 				goto out;
 			}
-			if (lockmgr_sunlock_try(lk, &v)) {
+			if (atomic_fcmpset_rel_ptr(&lk->lk_lock, &v,
+			    v - LK_ONE_SHARER)) {
 				lockmgr_note_shared_release(lk, file, line);
 				goto out_xlock;
 			}
+			continue;
 		}
 		MPASS((v & ~LK_ALL_WAITERS) == LK_SHARERS_LOCK(1));
 
