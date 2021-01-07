@@ -3614,12 +3614,15 @@ SYSCTL_PROC(_vfs, OID_AUTO, cache_fast_lookup, CTLTYPE_INT|CTLFLAG_RW|CTLFLAG_MP
  * Components of nameidata (or objects it can point to) which may
  * need restoring in case fast path lookup fails.
  */
+struct nameidata_outer {
+	int cn_flags;
+};
+
 struct nameidata_saved {
 #ifdef INVARIANTS
 	char *cn_nameptr;
 	size_t ni_pathlen;
 #endif
-	int cn_flags;
 };
 
 #ifdef INVARIANTS
@@ -3638,7 +3641,7 @@ struct cache_fpl {
 	seqc_t dvp_seqc;
 	seqc_t tvp_seqc;
 	struct nameidata_saved snd;
-	struct nameidata_saved snd_orig;
+	struct nameidata_outer snd_outer;
 	int line;
 	enum cache_fpl_status status:8;
 	bool in_smr;
@@ -3692,31 +3695,37 @@ cache_fpl_handle_root(struct cache_fpl *fpl)
 }
 
 static void
-cache_fpl_checkpoint(struct cache_fpl *fpl, struct nameidata_saved *snd)
+cache_fpl_checkpoint_outer(struct cache_fpl *fpl)
 {
 
-	snd->cn_flags = fpl->ndp->ni_cnd.cn_flags;
+	fpl->snd_outer.cn_flags = fpl->ndp->ni_cnd.cn_flags;
+}
+
+static void
+cache_fpl_checkpoint(struct cache_fpl *fpl)
+{
+
 #ifdef INVARIANTS
-	snd->cn_nameptr = fpl->ndp->ni_cnd.cn_nameptr;
-	snd->ni_pathlen = fpl->debug.ni_pathlen;
+	fpl->snd.cn_nameptr = fpl->ndp->ni_cnd.cn_nameptr;
+	fpl->snd.ni_pathlen = fpl->debug.ni_pathlen;
 #endif
 }
 
 static void
-cache_fpl_restore_partial(struct cache_fpl *fpl, struct nameidata_saved *snd)
+cache_fpl_restore_partial(struct cache_fpl *fpl)
 {
 
-	fpl->ndp->ni_cnd.cn_flags = snd->cn_flags;
+	fpl->ndp->ni_cnd.cn_flags = fpl->snd_outer.cn_flags;
 #ifdef INVARIANTS
-	fpl->debug.ni_pathlen = snd->ni_pathlen;
+	fpl->debug.ni_pathlen = fpl->snd.ni_pathlen;
 #endif
 }
 
 static void
-cache_fpl_restore_abort(struct cache_fpl *fpl, struct nameidata_saved *snd)
+cache_fpl_restore_abort(struct cache_fpl *fpl)
 {
 
-	cache_fpl_restore_partial(fpl, snd);
+	cache_fpl_restore_partial(fpl);
 	/*
 	 * It is 0 on entry by API contract.
 	 */
@@ -3805,7 +3814,7 @@ cache_fpl_aborted_impl(struct cache_fpl *fpl, int line)
 	fpl->line = line;
 	if (fpl->in_smr)
 		cache_fpl_smr_exit(fpl);
-	cache_fpl_restore_abort(fpl, &fpl->snd_orig);
+	cache_fpl_restore_abort(fpl);
 	return (CACHE_FPL_FAILED);
 }
 
@@ -4017,7 +4026,7 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 		return (cache_fpl_aborted(fpl));
 	}
 
-	cache_fpl_restore_partial(fpl, &fpl->snd);
+	cache_fpl_restore_partial(fpl);
 #ifdef INVARIANTS
 	if (cnp->cn_nameptr != fpl->snd.cn_nameptr) {
 		panic("%s: cn_nameptr mismatch (%p != %p) full [%s]\n", __func__,
@@ -5219,7 +5228,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 
-	cache_fpl_checkpoint(fpl, &fpl->snd);
+	cache_fpl_checkpoint(fpl);
 
 	/*
 	 * The vnode at hand is almost always stable, skip checking for it.
@@ -5276,7 +5285,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 		fpl->dvp_seqc = fpl->tvp_seqc;
 
 		cache_fplookup_parse_advance(fpl);
-		cache_fpl_checkpoint(fpl, &fpl->snd);
+		cache_fpl_checkpoint(fpl);
 	}
 
 	return (error);
@@ -5388,7 +5397,7 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 		return (EOPNOTSUPP);
 	}
 
-	cache_fpl_checkpoint(&fpl, &fpl.snd_orig);
+	cache_fpl_checkpoint_outer(&fpl);
 
 	cache_fpl_smr_enter_initial(&fpl);
 #ifdef INVARIANTS
