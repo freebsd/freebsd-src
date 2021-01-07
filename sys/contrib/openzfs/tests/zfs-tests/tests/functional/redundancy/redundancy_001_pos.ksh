@@ -48,7 +48,7 @@
 
 verify_runnable "global"
 
-log_assert "Verify raidz pool can withstand one device is failing."
+log_assert "Verify raidz pool can withstand one device failing."
 log_onexit cleanup
 
 typeset -i cnt=$(random_int_between 2 5)
@@ -74,4 +74,4 @@ log_must recover_bad_missing_devs $TESTPOOL 1
 remove_devs $TESTPOOL 1
 log_must is_data_valid $TESTPOOL
 
-log_pass "Raidz pool can withstand one devices is failing passed."
+log_pass "raidz pool can withstand one device failing passed."

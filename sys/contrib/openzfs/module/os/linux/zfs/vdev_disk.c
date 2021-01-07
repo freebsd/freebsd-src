@@ -94,6 +94,14 @@ bdev_capacity(struct block_device *bdev)
 	return (i_size_read(bdev->bd_inode));
 }
 
+#if !defined(HAVE_BDEV_WHOLE)
+static inline struct block_device *
+bdev_whole(struct block_device *bdev)
+{
+	return (bdev->bd_contains);
+}
+#endif
+
 /*
  * Returns the maximum expansion capacity of the block device (in bytes).
  *
@@ -118,7 +126,7 @@ bdev_max_capacity(struct block_device *bdev, uint64_t wholedisk)
 	uint64_t psize;
 	int64_t available;
 
-	if (wholedisk && bdev->bd_part != NULL && bdev != bdev->bd_contains) {
+	if (wholedisk && bdev != bdev_whole(bdev)) {
 		/*
 		 * When reporting maximum expansion capacity for a wholedisk
 		 * deduct any capacity which is expected to be lost due to
@@ -132,7 +140,7 @@ bdev_max_capacity(struct block_device *bdev, uint64_t wholedisk)
 		 * "reserved" EFI partition: in such cases return the device
 		 * usable capacity.
 		 */
-		available = i_size_read(bdev->bd_contains->bd_inode) -
+		available = i_size_read(bdev_whole(bdev)->bd_inode) -
 		    ((EFI_MIN_RESV_SIZE + NEW_START_BLOCK +
 		    PARTITION_END_ALIGNMENT) << SECTOR_BITS);
 		psize = MAX(available, bdev_capacity(bdev));
@@ -192,8 +200,8 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 		vd->vd_bdev = NULL;
 
 		if (bdev) {
-			if (v->vdev_expanding && bdev != bdev->bd_contains) {
-				bdevname(bdev->bd_contains, disk_name + 5);
+			if (v->vdev_expanding && bdev != bdev_whole(bdev)) {
+				bdevname(bdev_whole(bdev), disk_name + 5);
 				/*
 				 * If userland has BLKPG_RESIZE_PARTITION,
 				 * then it should have updated the partition
@@ -468,7 +476,11 @@ vdev_blkg_tryget(struct blkcg_gq *blkg)
 		this_cpu_inc(*count);
 		rc = true;
 	} else {
+#ifdef ZFS_PERCPU_REF_COUNT_IN_DATA
+		rc = atomic_long_inc_not_zero(&ref->data->count);
+#else
 		rc = atomic_long_inc_not_zero(&ref->count);
+#endif
 	}
 
 	rcu_read_unlock_sched();
@@ -787,7 +799,7 @@ vdev_disk_io_done(zio_t *zio)
 		vdev_t *v = zio->io_vd;
 		vdev_disk_t *vd = v->vdev_tsd;
 
-		if (check_disk_change(vd->vd_bdev)) {
+		if (zfs_check_media_change(vd->vd_bdev)) {
 			invalidate_bdev(vd->vd_bdev);
 			v->vdev_remove_wanted = B_TRUE;
 			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
@@ -822,9 +834,13 @@ vdev_disk_rele(vdev_t *vd)
 }
 
 vdev_ops_t vdev_disk_ops = {
+	.vdev_op_init = NULL,
+	.vdev_op_fini = NULL,
 	.vdev_op_open = vdev_disk_open,
 	.vdev_op_close = vdev_disk_close,
 	.vdev_op_asize = vdev_default_asize,
+	.vdev_op_min_asize = vdev_default_min_asize,
+	.vdev_op_min_alloc = NULL,
 	.vdev_op_io_start = vdev_disk_io_start,
 	.vdev_op_io_done = vdev_disk_io_done,
 	.vdev_op_state_change = NULL,
@@ -833,6 +849,11 @@ vdev_ops_t vdev_disk_ops = {
 	.vdev_op_rele = vdev_disk_rele,
 	.vdev_op_remap = NULL,
 	.vdev_op_xlate = vdev_default_xlate,
+	.vdev_op_rebuild_asize = NULL,
+	.vdev_op_metaslab_init = NULL,
+	.vdev_op_config_generate = NULL,
+	.vdev_op_nparity = NULL,
+	.vdev_op_ndisks = NULL,
 	.vdev_op_type = VDEV_TYPE_DISK,		/* name of this vdev type */
 	.vdev_op_leaf = B_TRUE			/* leaf vdev */
 };

@@ -88,8 +88,8 @@ typedef enum zfs_error {
 	EZFS_ZONED,		/* used improperly in local zone */
 	EZFS_MOUNTFAILED,	/* failed to mount dataset */
 	EZFS_UMOUNTFAILED,	/* failed to unmount dataset */
-	EZFS_UNSHARENFSFAILED,	/* unshare(1M) failed */
-	EZFS_SHARENFSFAILED,	/* share(1M) failed */
+	EZFS_UNSHARENFSFAILED,	/* failed to unshare over nfs */
+	EZFS_SHARENFSFAILED,	/* failed to share over nfs */
 	EZFS_PERM,		/* permission denied */
 	EZFS_NOSPC,		/* out of space */
 	EZFS_FAULT,		/* bad address */
@@ -455,6 +455,7 @@ extern void zpool_explain_recover(libzfs_handle_t *, const char *, int,
     nvlist_t *);
 extern int zpool_checkpoint(zpool_handle_t *);
 extern int zpool_discard_checkpoint(zpool_handle_t *);
+extern boolean_t zpool_is_draid_spare(const char *);
 
 /*
  * Basic handle manipulations.  These functions do not create or destroy the
@@ -556,7 +557,7 @@ extern void zfs_prune_proplist(zfs_handle_t *, uint8_t *);
 /*
  * zpool property management
  */
-extern int zpool_expand_proplist(zpool_handle_t *, zprop_list_t **);
+extern int zpool_expand_proplist(zpool_handle_t *, zprop_list_t **, boolean_t);
 extern int zpool_prop_get_feature(zpool_handle_t *, const char *, char *,
     size_t);
 extern const char *zpool_prop_default_string(zpool_prop_t);

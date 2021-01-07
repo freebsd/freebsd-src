@@ -22,8 +22,8 @@
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
  */
 
-#ifndef	_SYS_FS_ZFS_VNOPS_H
-#define	_SYS_FS_ZFS_VNOPS_H
+#ifndef	_SYS_FS_ZFS_VNOPS_OS_H
+#define	_SYS_FS_ZFS_VNOPS_OS_H
 
 #include <sys/vnode.h>
 #include <sys/xvattr.h>
@@ -40,12 +40,8 @@ extern "C" {
 
 extern int zfs_open(struct inode *ip, int mode, int flag, cred_t *cr);
 extern int zfs_close(struct inode *ip, int flag, cred_t *cr);
-extern int zfs_holey(struct inode *ip, int cmd, loff_t *off);
-extern int zfs_read(struct inode *ip, uio_t *uio, int ioflag, cred_t *cr);
-extern int zfs_write(struct inode *ip, uio_t *uio, int ioflag, cred_t *cr);
 extern int zfs_write_simple(znode_t *zp, const void *data, size_t len,
     loff_t pos, size_t *resid);
-extern int zfs_access(struct inode *ip, int mode, int flag, cred_t *cr);
 extern int zfs_lookup(znode_t *dzp, char *nm, znode_t **zpp, int flags,
     cred_t *cr, int *direntflags, pathname_t *realpnp);
 extern int zfs_create(znode_t *dzp, char *name, vattr_t *vap, int excl,
@@ -58,7 +54,6 @@ extern int zfs_mkdir(znode_t *dzp, char *dirname, vattr_t *vap,
 extern int zfs_rmdir(znode_t *dzp, char *name, znode_t *cwd,
     cred_t *cr, int flags);
 extern int zfs_readdir(struct inode *ip, zpl_dir_context_t *ctx, cred_t *cr);
-extern int zfs_fsync(znode_t *zp, int syncflag, cred_t *cr);
 extern int zfs_getattr_fast(struct inode *ip, struct kstat *sp);
 extern int zfs_setattr(znode_t *zp, vattr_t *vap, int flag, cred_t *cr);
 extern int zfs_rename(znode_t *sdzp, char *snm, znode_t *tdzp,
@@ -72,10 +67,6 @@ extern void zfs_inactive(struct inode *ip);
 extern int zfs_space(znode_t *zp, int cmd, flock64_t *bfp, int flag,
     offset_t offset, cred_t *cr);
 extern int zfs_fid(struct inode *ip, fid_t *fidp);
-extern int zfs_getsecattr(struct inode *ip, vsecattr_t *vsecp, int flag,
-    cred_t *cr);
-extern int zfs_setsecattr(znode_t *zp, vsecattr_t *vsecp, int flag,
-    cred_t *cr);
 extern int zfs_getpage(struct inode *ip, struct page *pl[], int nr_pages);
 extern int zfs_putpage(struct inode *ip, struct page *pp,
     struct writeback_control *wbc);

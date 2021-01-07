@@ -305,9 +305,7 @@ txg_hold_open(dsl_pool_t *dp, txg_handle_t *th)
 	 * significance to the chosen tx_cpu. Because.. Why not use
 	 * the current cpu to index into the array?
 	 */
-	kpreempt_disable();
-	tc = &tx->tx_cpu[CPU_SEQID];
-	kpreempt_enable();
+	tc = &tx->tx_cpu[CPU_SEQID_UNSTABLE];
 
 	mutex_enter(&tc->tc_open_lock);
 	txg = tx->tx_open_txg;
@@ -448,8 +446,9 @@ txg_dispatch_callbacks(dsl_pool_t *dp, uint64_t txg)
 			 * Commit callback taskq hasn't been created yet.
 			 */
 			tx->tx_commit_cb_taskq = taskq_create("tx_commit_cb",
-			    boot_ncpus, defclsyspri, boot_ncpus, boot_ncpus * 2,
-			    TASKQ_PREPOPULATE | TASKQ_DYNAMIC);
+			    100, defclsyspri, boot_ncpus, boot_ncpus * 2,
+			    TASKQ_PREPOPULATE | TASKQ_DYNAMIC |
+			    TASKQ_THREADS_CPU_PCT);
 		}
 
 		cb_list = kmem_alloc(sizeof (list_t), KM_SLEEP);
