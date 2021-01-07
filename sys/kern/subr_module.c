@@ -422,6 +422,11 @@ preload_modinfo_type(struct sbuf *sbp, int type)
 		sbuf_cat(sbp, "MODINFOMD_VBE_FB");
 		break;
 #endif
+#ifdef MODINFOMD_FONT
+	case MODINFOMD_FONT:
+		sbuf_cat(sbp, "MODINFOMD_FONT");
+		break;
+#endif
 	default:
 		sbuf_cat(sbp, "unrecognized metadata type");
 	}
@@ -470,6 +475,9 @@ preload_modinfo_value(struct sbuf *sbp, uint32_t *bptr, int type, int len)
 #endif
 #ifdef MODINFOMD_VBE_FB
 	case MODINFO_METADATA | MODINFOMD_VBE_FB:
+#endif
+#ifdef MODINFOMD_FONT
+	case MODINFO_METADATA | MODINFOMD_FONT:
 #endif
 		sbuf_print_vmoffset(sbp, *(vm_offset_t *)bptr);
 		break;
