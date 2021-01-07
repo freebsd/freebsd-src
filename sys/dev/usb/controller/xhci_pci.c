@@ -130,6 +130,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Panther Point USB 3.0 controller");
 	case 0x22b58086:
 		return ("Intel Braswell USB 3.0 controller");
+	case 0x31a88086:
+		return ("Intel Gemini Lake USB 3.0 controller");
 	case 0x5aa88086:
 		return ("Intel Apollo Lake USB 3.0 controller");
 	case 0x8c318086:
