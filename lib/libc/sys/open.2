@@ -181,8 +181,9 @@ O_EXCL		error if create and file exists
 O_SHLOCK	atomically obtain a shared lock
 O_EXLOCK	atomically obtain an exclusive lock
 O_DIRECT	eliminate or reduce cache effects
-O_FSYNC		synchronous writes
+O_FSYNC		synchronous writes (historical synonym for O_SYNC)
 O_SYNC		synchronous writes
+O_DSYNC		synchronous data writes
 O_NOFOLLOW	do not follow symlinks
 O_NOCTTY	ignored
 O_TTY_INIT	ignored
@@ -230,15 +231,18 @@ returns immediately.
 The descriptor remains in non-blocking mode for subsequent operations.
 .Pp
 If
-.Dv O_FSYNC
+.Dv O_SYNC
 is used in the mask, all writes will
 immediately and synchronously be written to disk.
-.Pp
-.Dv O_SYNC
-is a synonym for
 .Dv O_FSYNC
-required by
-.Tn POSIX .
+is an historical synonym for
+.Dv O_SYNC .
+.Pp
+If
+.Dv O_DSYNC
+is used in the mask, all data and metadata required to read the data will be
+synchronously written to disk, but changes to metadata such as file access and
+modification timestamps may be written later.
 .Pp
 If
 .Dv O_NOFOLLOW
@@ -651,6 +655,8 @@ The
 .Fn openat
 function was introduced in
 .Fx 8.0 .
+.Dv O_DSYNC
+appeared in 13.0.
 .Sh BUGS
 The Open Group Extended API Set 2 specification requires that the test
 for whether
