@@ -58,9 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-struct inoinfo **inphead, **inpsort;
+struct inoinfo **inphead, **inpsort;	/* info about all inodes */
 
-struct uufsd disk;
 struct bufarea asblk;
 #define altsblock (*asblk.b_un.b_fs)
 #define POWEROF2(num)	(((num) & ((num) - 1)) == 0)
@@ -128,8 +127,7 @@ setup(char *dev)
 			}
 		}
 	}
-	if ((fsreadfd = open(dev, O_RDONLY)) < 0 ||
-	    ufs_disk_fillout_blank(&disk, dev) < 0) {
+	if ((fsreadfd = open(dev, O_RDONLY)) < 0) {
 		if (bkgrdflag) {
 			unlink(snapname);
 			bkgrdflag = 0;
@@ -174,8 +172,7 @@ setup(char *dev)
 	if (preen == 0)
 		printf("** %s", dev);
 	if (bkgrdflag == 0 &&
-	    (nflag || ufs_disk_write(&disk) < 0 ||
-	     (fswritefd = dup(disk.d_fd)) < 0)) {
+	    (nflag || (fswritefd = open(dev, O_WRONLY)) < 0)) {
 		fswritefd = -1;
 		if (preen)
 			pfatal("NO WRITE ACCESS");
@@ -211,13 +208,6 @@ setup(char *dev)
 		pwarn("USING ALTERNATE SUPERBLOCK AT %jd\n", bflag);
 		bflag = 0;
 	}
-	/* Save copy of things needed by libufs */
-	memcpy(&disk.d_fs, &sblock, sblock.fs_sbsize);
-	disk.d_ufs = (sblock.fs_magic == FS_UFS1_MAGIC) ? 1 : 2;
-	disk.d_bsize = sblock.fs_fsize / fsbtodb(&sblock, 1);
-	disk.d_sblock = sblock.fs_sblockloc / disk.d_bsize;
-	disk.d_si = sblock.fs_si;
-
 	if (skipclean && ckclean && sblock.fs_clean) {
 		pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
 		return (-1);
@@ -249,7 +239,7 @@ setup(char *dev)
 		pfatal("from before 2002 with the command ``fsck -c 2''\n");
 		exit(EEXIT);
 	}
-	if (asblk.b_dirty && !bflag) {
+	if ((asblk.b_flags & B_DIRTY) != 0 && !bflag) {
 		memmove(&altsblock, &sblock, (size_t)sblock.fs_sbsize);
 		flush(fswritefd, &asblk);
 	}

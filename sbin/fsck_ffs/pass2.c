@@ -61,6 +61,7 @@ static int pass2check(struct inodesc *);
 void
 pass2(void)
 {
+	struct inode ip;
 	union dinode *dp;
 	struct inoinfo **inpp, *inp;
 	struct inoinfo **inpend;
@@ -111,10 +112,12 @@ pass2(void)
 			ckfini(0);
 			exit(EEXIT);
 		}
-		dp = ginode(UFS_ROOTINO);
+		ginode(UFS_ROOTINO, &ip);
+		dp = ip.i_dp;
 		DIP_SET(dp, di_mode, DIP(dp, di_mode) & ~IFMT);
 		DIP_SET(dp, di_mode, DIP(dp, di_mode) | IFDIR);
-		inodirty(dp);
+		inodirty(&ip);
+		irelse(&ip);
 		break;
 
 	case DSTATE:
@@ -158,9 +161,10 @@ pass2(void)
 			direrror(inp->i_number, "DIRECTORY TOO SHORT");
 			inp->i_isize = roundup(MINDIRSIZE, DIRBLKSIZ);
 			if (reply("FIX") == 1) {
-				dp = ginode(inp->i_number);
-				DIP_SET(dp, di_size, inp->i_isize);
-				inodirty(dp);
+				ginode(inp->i_number, &ip);
+				DIP_SET(ip.i_dp, di_size, inp->i_isize);
+				inodirty(&ip);
+				irelse(&ip);
 			}
 		} else if ((inp->i_isize & (DIRBLKSIZ - 1)) != 0) {
 			getpathname(pathbuf, inp->i_number, inp->i_number);
@@ -176,10 +180,11 @@ pass2(void)
 				printf(" (ADJUSTED)\n");
 			inp->i_isize = roundup(inp->i_isize, DIRBLKSIZ);
 			if (preen || reply("ADJUST") == 1) {
-				dp = ginode(inp->i_number);
-				DIP_SET(dp, di_size,
+				ginode(inp->i_number, &ip);
+				DIP_SET(ip.i_dp, di_size,
 				    roundup(inp->i_isize, DIRBLKSIZ));
-				inodirty(dp);
+				inodirty(&ip);
+				irelse(&ip);
 			}
 		}
 		dp = &dino;
@@ -281,6 +286,7 @@ pass2check(struct inodesc *idesc)
 	char dirname[MAXPATHLEN + 1];
 	struct inoinfo *inp;
 	int n, entrysize, ret = 0;
+	struct inode ip;
 	union dinode *dp;
 	const char *errmsg;
 	struct direct proto;
@@ -476,10 +482,12 @@ again:
 			fileerror(idesc->id_number, dirp->d_ino, errmsg);
 			if ((n = reply("REMOVE")) == 1)
 				break;
-			dp = ginode(dirp->d_ino);
+			ginode(dirp->d_ino, &ip);
+			dp = ip.i_dp;
 			inoinfo(dirp->d_ino)->ino_state =
 			   (DIP(dp, di_mode) & IFMT) == IFDIR ? DSTATE : FSTATE;
 			inoinfo(dirp->d_ino)->ino_linkcnt = DIP(dp, di_nlink);
+			irelse(&ip);
 			goto again;
 
 		case DSTATE:
@@ -526,6 +534,7 @@ static int
 fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
 {
 	char *cp;
+	struct inode ip;
 	struct inodesc dotdesc;
 	char oldname[MAXPATHLEN + 1];
 	char newname[MAXPATHLEN + 1];
@@ -540,8 +549,10 @@ fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
 		dotdesc.id_number = idesc->id_dirp->d_ino;
 		dotdesc.id_func = findino;
 		dotdesc.id_name = strdup("..");
-		if ((ckinode(ginode(dotdesc.id_number), &dotdesc) & FOUND))
+		ginode(dotdesc.id_number, &ip);
+		if ((ckinode(ip.i_dp, &dotdesc) & FOUND))
 			inp->i_dotdot = dotdesc.id_parent;
+		irelse(&ip);
 	}
 	/*
 	 * We have the previously found old name (inp->i_parent) and the
@@ -641,8 +652,10 @@ fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
 	dotdesc.id_number = inp->i_parent; /* directory in which name appears */
 	dotdesc.id_parent = inp->i_number; /* inode number in entry to delete */
 	dotdesc.id_func = deleteentry;
-	if ((ckinode(ginode(dotdesc.id_number), &dotdesc) & FOUND) && preen)
+	ginode(dotdesc.id_number, &ip);
+	if ((ckinode(ip.i_dp, &dotdesc) & FOUND) && preen)
 		printf(" (REMOVED)\n");
+	irelse(&ip);
 	inp->i_parent = idesc->id_number;  /* reparent to correct directory */
 	inoinfo(inp->i_number)->ino_linkcnt++; /* name gone, return reference */
 	return (0);

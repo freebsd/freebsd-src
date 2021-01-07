@@ -52,6 +52,7 @@ struct cmdtable {
 #define	FL_ST	0x0002		/* resplit final string if argc > maxargc */
 	int (*handler)(int argc, char *argv[]);
 };
+extern struct inode curip;
 extern union dinode *curinode;
 extern ino_t curinum;
 

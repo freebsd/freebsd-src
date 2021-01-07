@@ -82,6 +82,7 @@ eascan(struct inodesc *idesc, struct ufs2_dinode *dp)
 		if ((n & 31) == 31)
 			printf("\n");
 	}
+	brelse(bp);
 	return (STOP);
 #endif
 }

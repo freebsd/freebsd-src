@@ -38,6 +38,7 @@ static const char sccsid[] = "@(#)pass4.c	8.4 (Berkeley) 4/28/95";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -52,12 +53,11 @@ void
 pass4(void)
 {
 	ino_t inumber;
-	union dinode *dp;
+	struct inode ip;
 	struct inodesc idesc;
 	int i, n, cg;
 
 	memset(&idesc, 0, sizeof(struct inodesc));
-	idesc.id_type = ADDR;
 	idesc.id_func = freeblock;
 	for (cg = 0; cg < sblock.fs_ncg; cg++) {
 		if (got_siginfo) {
@@ -76,6 +76,7 @@ pass4(void)
 			if (inumber < UFS_ROOTINO)
 				continue;
 			idesc.id_number = inumber;
+			idesc.id_type = inoinfo(inumber)->ino_idtype;
 			switch (inoinfo(inumber)->ino_state) {
 
 			case FZLINK:
@@ -103,11 +104,13 @@ pass4(void)
 				/* if on snapshot, already cleared */
 				if (cursnapshot != 0)
 					break;
-				dp = ginode(inumber);
-				if (DIP(dp, di_size) == 0) {
+				ginode(inumber, &ip);
+				if (DIP(ip.i_dp, di_size) == 0) {
 					clri(&idesc, "ZERO LENGTH", 1);
+					irelse(&ip);
 					break;
 				}
+				irelse(&ip);
 				/* fall through */
 			case FCLEAR:
 				clri(&idesc, "BAD/DUP", 1);
