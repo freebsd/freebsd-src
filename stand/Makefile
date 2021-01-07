@@ -78,7 +78,9 @@ SUBDIR_DEPEND_libsa32+=	libsa
 SUBDIR_DEPEND_forth+=	ficl
 SUBDIR_DEPEND_lua+=	liblua
 
+.if ${MK_FDT} != "no"
 SUBDIR_DEPEND_efi+=	fdt
+.endif
 
 SUBDIR_PARALLEL=	yes
 
