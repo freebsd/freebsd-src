@@ -815,6 +815,7 @@ pf_kkif_to_kif(const struct pfi_kkif *kkif, struct pfi_kif *kif)
 			}
 		}
 	}
+	kif->pfik_flags = kkif->pfik_flags;
 	kif->pfik_tzero = kkif->pfik_tzero;
 	kif->pfik_rulerefs = kkif->pfik_rulerefs;
 }
