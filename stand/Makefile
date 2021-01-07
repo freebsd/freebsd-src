@@ -71,8 +71,6 @@ SUBDIR_DEPEND_${_x}32+=	libsa32
 .endfor
 
 # Remaining dependencies
-SUBDIR_DEPEND_libsa32+=	libsa
-
 SUBDIR_DEPEND_forth+=	ficl
 SUBDIR_DEPEND_lua+=	liblua
 
