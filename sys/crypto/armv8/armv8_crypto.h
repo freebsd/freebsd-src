@@ -40,6 +40,7 @@
 struct armv8_crypto_session {
 	uint32_t enc_schedule[AES_SCHED_LEN/4];
 	uint32_t dec_schedule[AES_SCHED_LEN/4];
+	uint32_t xts_schedule[AES_SCHED_LEN/4];
 	int algo;
 	int rounds;
 };
@@ -48,5 +49,10 @@ void armv8_aes_encrypt_cbc(int, const void *, size_t, const uint8_t *,
     uint8_t *, const uint8_t[static AES_BLOCK_LEN]);
 void armv8_aes_decrypt_cbc(int, const void *, size_t, uint8_t *,
     const uint8_t[static AES_BLOCK_LEN]);
+
+void armv8_aes_encrypt_xts(int, const void *, const void *, size_t,
+    const uint8_t *, uint8_t *, const uint8_t[AES_BLOCK_LEN]);
+void armv8_aes_decrypt_xts(int, const void *, const void *, size_t,
+    const uint8_t *, uint8_t *, const uint8_t[AES_BLOCK_LEN]);
 
 #endif /* _ARMV8_CRYPTO_H_ */

@@ -126,3 +126,95 @@ armv8_aes_decrypt_cbc(int rounds, const void *key_schedule, size_t len,
 		buf += AES_BLOCK_LEN;
 	}
 }
+
+#define	AES_XTS_BLOCKSIZE	16
+#define	AES_XTS_IVSIZE		8
+#define	AES_XTS_ALPHA		0x87	/* GF(2^128) generator polynomial */
+
+static inline int32x4_t
+xts_crank_lfsr(int32x4_t inp)
+{
+	const int32x4_t alphamask = {AES_XTS_ALPHA, 1, 1, 1};
+	int32x4_t xtweak, ret;
+
+	/* set up xor mask */
+	xtweak = vextq_s32(inp, inp, 3);
+	xtweak = vshrq_n_s32(xtweak, 31);
+	xtweak &= alphamask;
+
+	/* next term */
+	ret = vshlq_n_s32(inp, 1);
+	ret ^= xtweak;
+
+	return ret;
+}
+
+static void
+armv8_aes_crypt_xts_block(int rounds, const uint8x16_t *key_schedule,
+    uint8x16_t *tweak, const uint8_t *from, uint8_t *to, int do_encrypt)
+{
+	uint8x16_t block;
+
+	block = vld1q_u8(from) ^ *tweak;
+
+	if (do_encrypt)
+		block = armv8_aes_enc(rounds - 1, key_schedule, block);
+	else
+		block = armv8_aes_dec(rounds - 1, key_schedule, block);
+
+	vst1q_u8(to, block ^ *tweak);
+
+	*tweak = vreinterpretq_u8_s32(xts_crank_lfsr(vreinterpretq_s32_u8(*tweak)));
+}
+
+static void
+armv8_aes_crypt_xts(int rounds, const uint8x16_t *data_schedule,
+    const uint8x16_t *tweak_schedule, size_t len, const uint8_t *from,
+    uint8_t *to, const uint8_t iv[static AES_BLOCK_LEN], int do_encrypt)
+{
+	uint8x16_t tweakreg;
+	uint8_t tweak[AES_XTS_BLOCKSIZE] __aligned(16);
+	size_t i, cnt;
+
+	/*
+	 * Prepare tweak as E_k2(IV). IV is specified as LE representation
+	 * of a 64-bit block number which we allow to be passed in directly.
+	 */
+#if BYTE_ORDER == LITTLE_ENDIAN
+	bcopy(iv, tweak, AES_XTS_IVSIZE);
+	/* Last 64 bits of IV are always zero. */
+	bzero(tweak + AES_XTS_IVSIZE, AES_XTS_IVSIZE);
+#else
+#error Only LITTLE_ENDIAN architectures are supported.
+#endif
+	tweakreg = vld1q_u8(tweak);
+	tweakreg = armv8_aes_enc(rounds - 1, tweak_schedule, tweakreg);
+
+	cnt = len / AES_XTS_BLOCKSIZE;
+	for (i = 0; i < cnt; i++) {
+		armv8_aes_crypt_xts_block(rounds, data_schedule, &tweakreg,
+		    from, to, do_encrypt);
+		from += AES_XTS_BLOCKSIZE;
+		to += AES_XTS_BLOCKSIZE;
+	}
+}
+
+void
+armv8_aes_encrypt_xts(int rounds, const void *data_schedule,
+    const void *tweak_schedule, size_t len, const uint8_t *from, uint8_t *to,
+    const uint8_t iv[static AES_BLOCK_LEN])
+{
+
+	armv8_aes_crypt_xts(rounds, data_schedule, tweak_schedule, len, from, to,
+	    iv, 1);
+}
+
+void
+armv8_aes_decrypt_xts(int rounds, const void *data_schedule,
+    const void *tweak_schedule, size_t len, const uint8_t *from, uint8_t *to,
+    const uint8_t iv[static AES_BLOCK_LEN])
+{
+
+	armv8_aes_crypt_xts(rounds, data_schedule, tweak_schedule, len, from, to,
+	    iv, 0);
+}
