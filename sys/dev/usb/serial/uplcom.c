@@ -132,8 +132,13 @@ SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	UPLCOM_BULK_BUF_SIZE 1024	/* bytes */
 
 #define	UPLCOM_SET_REQUEST		0x01
+#define	UPLCOM_SET_REQUEST_PL2303HXN	0x80
 #define	UPLCOM_SET_CRTSCTS		0x41
 #define	UPLCOM_SET_CRTSCTS_PL2303X	0x61
+#define	UPLCOM_SET_CRTSCTS_PL2303HXN	0xFA
+#define	UPLCOM_CLEAR_CRTSCTS_PL2303HXN	0xFF
+#define	UPLCOM_CRTSCTS_REG_PL2303HXN	0x0A
+#define	UPLCOM_STATUS_REG_PL2303HX	0x8080
 #define	RSAQ_STATUS_CTS			0x80
 #define	RSAQ_STATUS_OVERRUN_ERROR	0x40
 #define	RSAQ_STATUS_PARITY_ERROR	0x20 
@@ -146,6 +151,7 @@ SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RWTUN,
 #define	TYPE_PL2303			0
 #define	TYPE_PL2303HX			1
 #define	TYPE_PL2303HXD			2
+#define	TYPE_PL2303HXN			3
 
 #define	UPLCOM_STATE_INDEX		8
 
@@ -289,6 +295,12 @@ static const STRUCT_USB_HOST_ID uplcom_devs[] = {
 	UPLCOM_DEV(PROLIFIC, MOTOROLA),		/* Motorola cable */
 	UPLCOM_DEV(PROLIFIC, PHAROS),		/* Prolific Pharos */
 	UPLCOM_DEV(PROLIFIC, PL2303),		/* Generic adapter */
+	UPLCOM_DEV(PROLIFIC, PL2303GC),		/* Generic adapter (PL2303HXN, type GC) */
+	UPLCOM_DEV(PROLIFIC, PL2303GB),		/* Generic adapter (PL2303HXN, type GB) */
+	UPLCOM_DEV(PROLIFIC, PL2303GT),		/* Generic adapter (PL2303HXN, type GT) */
+	UPLCOM_DEV(PROLIFIC, PL2303GL),		/* Generic adapter (PL2303HXN, type GL) */
+	UPLCOM_DEV(PROLIFIC, PL2303GE),		/* Generic adapter (PL2303HXN, type GE) */
+	UPLCOM_DEV(PROLIFIC, PL2303GS),		/* Generic adapter (PL2303HXN, type GS) */
 	UPLCOM_DEV(PROLIFIC, RSAQ2),		/* I/O DATA USB-RSAQ2 */
 	UPLCOM_DEV(PROLIFIC, RSAQ3),		/* I/O DATA USB-RSAQ3 */
 	UPLCOM_DEV(PROLIFIC, UIC_MSR206),	/* UIC MSR206 Card Reader */
@@ -368,6 +380,10 @@ uplcom_attach(device_t dev)
 	struct usb_device_descriptor *dd;
 	int error;
 
+	struct usb_device_request req;
+	usb_error_t err;
+	uint8_t buf[4];
+
 	DPRINTFN(11, "\n");
 
 	device_set_usb_desc(dev);
@@ -407,12 +423,34 @@ uplcom_attach(device_t dev)
 		break;
 	}
 
+	/*
+	 * The new chip revision PL2303HXN is only compatible with the new
+	 * UPLCOM_SET_REQUEST_PL2303HXN command. Issuing the old command
+	 * UPLCOM_SET_REQUEST to the new chip raises an error. Thus, PL2303HX
+	 * and PL2303HXN can be distinguished by issuing an old-style request
+	 * (on a status register) to the new chip and checking the error.
+	 */
+	if (sc->sc_chiptype == TYPE_PL2303HX) {
+		req.bmRequestType = UT_READ_VENDOR_DEVICE;
+		req.bRequest = UPLCOM_SET_REQUEST;
+		USETW(req.wValue, UPLCOM_STATUS_REG_PL2303HX);
+		req.wIndex[0] = sc->sc_data_iface_no;
+		req.wIndex[1] = 0;
+		USETW(req.wLength, 1);
+		err = usbd_do_request(sc->sc_udev, NULL, &req, buf);
+		if (err)
+			sc->sc_chiptype = TYPE_PL2303HXN;
+	}
+
 	switch (sc->sc_chiptype) {
 	case TYPE_PL2303:
 		DPRINTF("chiptype: 2303\n");
 		break;
 	case TYPE_PL2303HX:
 		DPRINTF("chiptype: 2303HX/TA\n");
+		break;
+	case TYPE_PL2303HXN:
+		DPRINTF("chiptype: 2303HXN\n");
 		break;
 	case TYPE_PL2303HXD:
 		DPRINTF("chiptype: 2303HXD/TB/RA/EA\n");
@@ -475,12 +513,19 @@ uplcom_attach(device_t dev)
 		usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_WR]);
 		usbd_xfer_set_stall(sc->sc_xfer[UPLCOM_BULK_DT_RD]);
 		mtx_unlock(&sc->sc_mtx);
-	} else {
+	} else if (sc->sc_chiptype == TYPE_PL2303HX ||
+		   sc->sc_chiptype == TYPE_PL2303HXD) {
 		/* reset upstream data pipes */
 		if (uplcom_pl2303_do(sc->sc_udev, UT_WRITE_VENDOR_DEVICE,
 		    UPLCOM_SET_REQUEST, 8, 0, 0) ||
 		    uplcom_pl2303_do(sc->sc_udev, UT_WRITE_VENDOR_DEVICE,
 		    UPLCOM_SET_REQUEST, 9, 0, 0)) {
+			goto detach;
+		}
+	} else if (sc->sc_chiptype == TYPE_PL2303HXN) {
+		/* reset upstream data pipes */
+		if (uplcom_pl2303_do(sc->sc_udev, UT_WRITE_VENDOR_DEVICE,
+		    UPLCOM_SET_REQUEST_PL2303HXN, 0x07, 0x03, 0)) {
 			goto detach;
 		}
 	}
@@ -546,6 +591,11 @@ uplcom_reset(struct uplcom_softc *sc, struct usb_device *udev)
 {
 	struct usb_device_request req;
 
+	if (sc->sc_chiptype == TYPE_PL2303HXN) {
+		/* PL2303HXN doesn't need this reset sequence */
+		return (0);
+	}
+
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = UPLCOM_SET_REQUEST;
 	USETW(req.wValue, 0);
@@ -582,6 +632,11 @@ static int
 uplcom_pl2303_init(struct usb_device *udev, uint8_t chiptype)
 {
 	int err;
+
+	if (chiptype == TYPE_PL2303HXN) {
+		/* PL2303HXN doesn't need this initialization sequence */
+		return (0);
+	}
 
 	if (uplcom_pl2303_do(udev, UT_READ_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x8484, 0, 1)
 	    || uplcom_pl2303_do(udev, UT_WRITE_VENDOR_DEVICE, UPLCOM_SET_REQUEST, 0x0404, 0, 0)
@@ -729,7 +784,7 @@ uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 	 *
 	 * The PL2303 can only set specific baud rates, up to 1228800 baud.
 	 * The PL2303HX can set any baud rate up to 6Mb.
-	 * The PL2303HX rev. D can set any baud rate up to 12Mb.
+	 * The PL2303HX rev. D and PL2303HXN can set any baud rate up to 12Mb.
 	 *
 	 */
 
@@ -737,6 +792,10 @@ uplcom_pre_param(struct ucom_softc *ucom, struct termios *t)
 	if (t->c_ospeed & 0x80000000)
 		return 0;
 	switch (sc->sc_chiptype) {
+		case TYPE_PL2303HXN:
+			if (t->c_ospeed <= 12000000)
+				return (0);
+			break;
 		case TYPE_PL2303HXD:
 			if (t->c_ospeed <= 12000000)
 				return (0);
@@ -873,21 +932,34 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 		DPRINTF("crtscts = on\n");
 
 		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
-		req.bRequest = UPLCOM_SET_REQUEST;
-		USETW(req.wValue, 0);
-		if (sc->sc_chiptype != TYPE_PL2303)
-			USETW(req.wIndex, UPLCOM_SET_CRTSCTS_PL2303X);
-		else
-			USETW(req.wIndex, UPLCOM_SET_CRTSCTS);
+		if (sc->sc_chiptype == TYPE_PL2303HXN) {
+			req.bRequest = UPLCOM_SET_REQUEST_PL2303HXN;
+			USETW(req.wValue, UPLCOM_CRTSCTS_REG_PL2303HXN);
+			USETW(req.wIndex, UPLCOM_SET_CRTSCTS_PL2303HXN);
+		} else {
+			req.bRequest = UPLCOM_SET_REQUEST;
+			USETW(req.wValue, 0);
+			if (sc->sc_chiptype != TYPE_PL2303)
+				USETW(req.wIndex, UPLCOM_SET_CRTSCTS_PL2303X);
+			else
+				USETW(req.wIndex, UPLCOM_SET_CRTSCTS);
+		}
 		USETW(req.wLength, 0);
 
 		ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 		    &req, NULL, 0, 1000);
 	} else {
 		req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
-		req.bRequest = UPLCOM_SET_REQUEST;
-		USETW(req.wValue, 0);
-		USETW(req.wIndex, 0);
+		if (sc->sc_chiptype == TYPE_PL2303HXN) {
+			req.bRequest = UPLCOM_SET_REQUEST_PL2303HXN;
+			USETW(req.wValue, UPLCOM_CRTSCTS_REG_PL2303HXN);
+			USETW(req.wIndex, UPLCOM_CLEAR_CRTSCTS_PL2303HXN);
+		}
+		else {
+			req.bRequest = UPLCOM_SET_REQUEST;
+			USETW(req.wValue, 0);
+			USETW(req.wIndex, 0);
+		}
 		USETW(req.wLength, 0);
 		ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 		    &req, NULL, 0, 1000);
