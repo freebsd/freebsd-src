@@ -2186,13 +2186,6 @@ options		SND_PCM_64
 options		SND_OLDSTEREO
 
 #
-# Miscellaneous hardware:
-#
-# cmx: OmniKey CardMan 4040 pccard smartcard reader
-
-device		cmx
-
-#
 # PC Card/PCMCIA and Cardbus
 #
 # cbb: pci/cardbus bridge implementing YENTA interface
