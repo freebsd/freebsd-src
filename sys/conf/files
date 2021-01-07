@@ -2766,7 +2766,6 @@ dev/pst/pst-raid.c		optional pst
 dev/pty/pty.c			optional pty
 dev/puc/puc.c			optional puc
 dev/puc/puc_cfg.c		optional puc
-dev/puc/puc_pccard.c		optional puc pccard
 dev/puc/puc_pci.c		optional puc pci
 dev/pwm/pwmc.c			optional pwm | pwmc
 dev/pwm/pwmbus.c		optional pwm | pwmbus
