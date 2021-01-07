@@ -56,7 +56,6 @@ struct timespec totalreadtime[BT_NUMBUFTYPES];
 struct timespec startprog;
 struct bufarea sblk;		/* file system superblock */
 struct bufarea *pdirbp;		/* current directory contents */
-struct bufarea *pbp;		/* current inode block */
 ino_t cursnapshot;
 long  dirhash, inplast;
 unsigned long  numdirs, listmax;
@@ -114,8 +113,7 @@ ufs2_daddr_t n_blks;		/* number of blocks in use */
 ino_t n_files;			/* number of files in use */
 volatile sig_atomic_t	got_siginfo;	/* received a SIGINFO */
 volatile sig_atomic_t	got_sigalarm;	/* received a SIGALRM */
-struct	ufs1_dinode ufs1_zino;
-struct	ufs2_dinode ufs2_zino;
+union dinode zino;
 
 struct dups *duplist;
 struct dups *muldup;
@@ -131,7 +129,6 @@ fsckinit(void)
 	bzero(&startprog, sizeof(struct timespec));
 	bzero(&sblk, sizeof(struct bufarea));
 	pdirbp = NULL;
-	pbp = NULL;
 	cursnapshot = 0;
 	listmax = numdirs = dirhash = inplast = 0;
 	countdirs = 0;
@@ -171,6 +168,6 @@ fsckinit(void)
 	n_files = 0;
 	got_siginfo = 0;
 	got_sigalarm = 0;
-	bzero(&ufs1_zino, sizeof(struct ufs1_dinode));
-	bzero(&ufs2_zino, sizeof(struct ufs2_dinode));
+	bzero(&zino.dp1, sizeof(struct ufs1_dinode));
+	bzero(&zino.dp2, sizeof(struct ufs2_dinode));
 }

@@ -97,19 +97,18 @@ pass1(void)
 	n_files = n_blks = 0;
 	for (c = 0; c < sblock.fs_ncg; c++) {
 		inumber = c * sblock.fs_ipg;
-		setinodebuf(inumber);
 		cgbp = cglookup(c);
 		cgp = cgbp->b_un.b_cg;
 		rebuildcg = 0;
-		if (!check_cgmagic(c, cgbp))
+		if (!check_cgmagic(c, cgbp, 1))
 			rebuildcg = 1;
 		if (!rebuildcg && sblock.fs_magic == FS_UFS2_MAGIC) {
 			inosused = cgp->cg_initediblk;
 			if (inosused > sblock.fs_ipg) {
-				pfatal(
-"Too many initialized inodes (%ju > %d) in cylinder group %d\nReset to %d\n",
-				    (uintmax_t)inosused,
-				    sblock.fs_ipg, c, sblock.fs_ipg);
+				pfatal("Too many initialized inodes (%ju > %d) "
+				    "in cylinder group %d\nReset to %d\n",
+				    (uintmax_t)inosused, sblock.fs_ipg, c,
+				    sblock.fs_ipg);
 				inosused = sblock.fs_ipg;
 			}
 		} else {
@@ -167,6 +166,7 @@ pass1(void)
 		/*
 		 * Scan the allocated inodes.
 		 */
+		setinodebuf(c, inosused);
 		for (i = 0; i < inosused; i++, inumber++) {
 			if (inumber < UFS_ROOTINO) {
 				(void)getnextinode(inumber, rebuildcg);
@@ -243,6 +243,7 @@ pass1(void)
 static int
 checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 {
+	struct inode ip;
 	union dinode *dp;
 	off_t kernmaxfilesize;
 	ufs2_daddr_t ndb;
@@ -255,23 +256,24 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	mode = DIP(dp, di_mode) & IFMT;
 	if (mode == 0) {
 		if ((sblock.fs_magic == FS_UFS1_MAGIC &&
-		     (memcmp(dp->dp1.di_db, ufs1_zino.di_db,
+		     (memcmp(dp->dp1.di_db, zino.dp1.di_db,
 			UFS_NDADDR * sizeof(ufs1_daddr_t)) ||
-		      memcmp(dp->dp1.di_ib, ufs1_zino.di_ib,
+		      memcmp(dp->dp1.di_ib, zino.dp1.di_ib,
 			UFS_NIADDR * sizeof(ufs1_daddr_t)) ||
 		      dp->dp1.di_mode || dp->dp1.di_size)) ||
 		    (sblock.fs_magic == FS_UFS2_MAGIC &&
-		     (memcmp(dp->dp2.di_db, ufs2_zino.di_db,
+		     (memcmp(dp->dp2.di_db, zino.dp2.di_db,
 			UFS_NDADDR * sizeof(ufs2_daddr_t)) ||
-		      memcmp(dp->dp2.di_ib, ufs2_zino.di_ib,
+		      memcmp(dp->dp2.di_ib, zino.dp2.di_ib,
 			UFS_NIADDR * sizeof(ufs2_daddr_t)) ||
 		      dp->dp2.di_mode || dp->dp2.di_size))) {
 			pfatal("PARTIALLY ALLOCATED INODE I=%lu",
 			    (u_long)inumber);
 			if (reply("CLEAR") == 1) {
-				dp = ginode(inumber);
-				clearinode(dp);
-				inodirty(dp);
+				ginode(inumber, &ip);
+				clearinode(ip.i_dp);
+				inodirty(&ip);
+				irelse(&ip);
 			}
 		}
 		inoinfo(inumber)->ino_state = USTATE;
@@ -291,10 +293,12 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		goto unknown;
 	}
 	if (!preen && mode == IFMT && reply("HOLD BAD BLOCK") == 1) {
-		dp = ginode(inumber);
+		ginode(inumber, &ip);
+		dp = ip.i_dp;
 		DIP_SET(dp, di_size, sblock.fs_fsize);
 		DIP_SET(dp, di_mode, IFREG|0600);
-		inodirty(dp);
+		inodirty(&ip);
+		irelse(&ip);
 	}
 	if ((mode == IFBLK || mode == IFCHR || mode == IFIFO ||
 	     mode == IFSOCK) && DIP(dp, di_size) != 0) {
@@ -375,12 +379,12 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 	badblk = dupblk = 0;
 	idesc->id_number = inumber;
 	if (DIP(dp, di_flags) & SF_SNAPSHOT)
-		idesc->id_type = SNAP;
+		inoinfo(inumber)->ino_idtype = SNAP;
 	else
-		idesc->id_type = ADDR;
+		inoinfo(inumber)->ino_idtype = ADDR;
+	idesc->id_type = inoinfo(inumber)->ino_idtype;
 	(void)ckinode(dp, idesc);
 	if (sblock.fs_magic == FS_UFS2_MAGIC && dp->dp2.di_extsize > 0) {
-		idesc->id_type = ADDR;
 		ndb = howmany(dp->dp2.di_extsize, sblock.fs_bsize);
 		for (j = 0; j < UFS_NXADDR; j++) {
 			if (--ndb == 0 &&
@@ -409,9 +413,10 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		else if (reply("CORRECT") == 0)
 			return (1);
 		if (bkgrdflag == 0) {
-			dp = ginode(inumber);
-			DIP_SET(dp, di_blocks, idesc->id_entryno);
-			inodirty(dp);
+			ginode(inumber, &ip);
+			DIP_SET(ip.i_dp, di_blocks, idesc->id_entryno);
+			inodirty(&ip);
+			irelse(&ip);
 		} else {
 			cmd.value = idesc->id_number;
 			cmd.size = idesc->id_entryno - DIP(dp, di_blocks);
@@ -448,9 +453,10 @@ checkinode(ino_t inumber, struct inodesc *idesc, int rebuildcg)
 		else if (reply("ADJUST") == 0)
 			return (1);
 		if (bkgrdflag == 0) {
-			dp = ginode(inumber);
-			DIP_SET(dp, di_size, fixsize);
-			inodirty(dp);
+			ginode(inumber, &ip);
+			DIP_SET(ip.i_dp, di_size, fixsize);
+			inodirty(&ip);
+			irelse(&ip);
 		} else {
 			cmd.value = idesc->id_number;
 			cmd.size = fixsize;
@@ -469,9 +475,10 @@ unknown:
 	inoinfo(inumber)->ino_state = FCLEAR;
 	if (reply("CLEAR") == 1) {
 		inoinfo(inumber)->ino_state = USTATE;
-		dp = ginode(inumber);
-		clearinode(dp);
-		inodirty(dp);
+		ginode(inumber, &ip);
+		clearinode(ip.i_dp);
+		inodirty(&ip);
+		irelse(&ip);
 	}
 	return (1);
 }

@@ -55,10 +55,9 @@ pass1b(void)
 	int c, i;
 	union dinode *dp;
 	struct inodesc idesc;
-	ino_t inumber;
+	ino_t inumber, inosused;
 
 	memset(&idesc, 0, sizeof(struct inodesc));
-	idesc.id_type = ADDR;
 	idesc.id_func = pass1bcheck;
 	duphead = duplist;
 	inumber = 0;
@@ -74,13 +73,16 @@ pass1b(void)
 			    c * 100 / sblock.fs_ncg);
 			got_sigalarm = 0;
 		}
-		for (i = 0; i < sblock.fs_ipg; i++, inumber++) {
+		inosused = inostathead[c].il_numalloced;
+		if (inosused == 0)
+			continue;
+		setinodebuf(c, inosused);
+		for (i = 0; i < inosused; i++, inumber++) {
 			if (inumber < UFS_ROOTINO)
 				continue;
-			dp = ginode(inumber);
-			if (dp == NULL)
-				continue;
+			dp = getnextinode(inumber, 0);
 			idesc.id_number = inumber;
+			idesc.id_type = inoinfo(inumber)->ino_idtype;
 			if (inoinfo(inumber)->ino_state != USTATE &&
 			    (ckinode(dp, &idesc) & STOP)) {
 				rerun = 1;
