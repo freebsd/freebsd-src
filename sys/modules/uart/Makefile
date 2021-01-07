@@ -28,16 +28,15 @@ uart_dev_mu=uart_dev_mu.c
 .endif
 
 KMOD=	uart
-SRCS=	${uart_bus_acpi} uart_bus_isa.c uart_bus_pccard.c \
+SRCS=	${uart_bus_acpi} uart_bus_isa.c \
 	uart_bus_pci.c uart_bus_puc.c uart_bus_scc.c \
 	uart_core.c ${uart_cpu_acpi} ${uart_cpu_machine} uart_dbg.c \
 	${uart_dev_mvebu} uart_dev_ns8250.c ${uart_dev_mu} \
 	uart_dev_quicc.c uart_dev_z8530.c \
 	uart_if.c uart_if.h uart_subr.c uart_tty.c
 
-SRCS+=	acpi_if.h bus_if.h card_if.h device_if.h isa_if.h ${ofw_bus_if} \
-	pci_if.h \
-	power_if.h pccarddevs.h serdev_if.h
+SRCS+=	acpi_if.h bus_if.h device_if.h isa_if.h ${ofw_bus_if} pci_if.h \
+	serdev_if.h
 SRCS+=	opt_acpi.h opt_platform.h opt_uart.h
 
 .include <bsd.kmod.mk>
