@@ -203,6 +203,7 @@ mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
 mmokhi [label="Mahdi Mokhtari\nmmokhi@FreeBSD.org\n2017/02/09"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
 mva [label="Marcus von Appen\nmva@FreeBSD.org\n2009/02/16"]
+nc [label="Neel Chauhan\nnc@FreeBSD.org\n2021/01/02"]
 nemysis [label="Rusmir Dusko\nnemysis@FreeBSD.org\n2013/07/31"]
 nemoliu [label="Tong Liu\nnemoliu@FreeBSD.org\n2007/04/25"]
 netchild [label="Alexander Leidinger\nnetchild@FreeBSD.org\n2002/03/19"]
@@ -296,6 +297,8 @@ znerd [label="Ernst de Haan\nznerd@FreeBSD.org\n2001/11/15"]
 # Here are the mentor/mentee relationships.
 # Group together all the mentees for a particular mentor.
 # Keep the list sorted by mentor login.
+
+0mp -> nc
 
 adamw -> ahze
 adamw -> jylefort
