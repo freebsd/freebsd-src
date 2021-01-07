@@ -741,6 +741,7 @@ spa_add(const char *name, nvlist_t *config, const char *altroot)
 
 	spa->spa_min_ashift = INT_MAX;
 	spa->spa_max_ashift = 0;
+	spa->spa_min_alloc = INT_MAX;
 
 	/* Reset cached value */
 	spa->spa_dedup_dspace = ~0ULL;
@@ -1366,7 +1367,7 @@ spa_vdev_state_exit(spa_t *spa, vdev_t *vd, int error)
 
 	/*
 	 * If anything changed, wait for it to sync.  This ensures that,
-	 * from the system administrator's perspective, zpool(1M) commands
+	 * from the system administrator's perspective, zpool(8) commands
 	 * are synchronous.  This is important for things like zpool offline:
 	 * when the command completes, you expect no further I/O from ZFS.
 	 */
@@ -1807,10 +1808,11 @@ spa_update_dspace(spa_t *spa)
 	    ddt_get_dedup_dspace(spa);
 	if (spa->spa_vdev_removal != NULL) {
 		/*
-		 * We can't allocate from the removing device, so
-		 * subtract its size.  This prevents the DMU/DSL from
-		 * filling up the (now smaller) pool while we are in the
-		 * middle of removing the device.
+		 * We can't allocate from the removing device, so subtract
+		 * its size if it was included in dspace (i.e. if this is a
+		 * normal-class vdev, not special/dedup).  This prevents the
+		 * DMU/DSL from filling up the (now smaller) pool while we
+		 * are in the middle of removing the device.
 		 *
 		 * Note that the DMU/DSL doesn't actually know or care
 		 * how much space is allocated (it does its own tracking
@@ -1822,8 +1824,10 @@ spa_update_dspace(spa_t *spa)
 		spa_config_enter(spa, SCL_VDEV, FTAG, RW_READER);
 		vdev_t *vd =
 		    vdev_lookup_top(spa, spa->spa_vdev_removal->svr_vdev_id);
-		spa->spa_dspace -= spa_deflate(spa) ?
-		    vd->vdev_stat.vs_dspace : vd->vdev_stat.vs_space;
+		if (vd->vdev_mg->mg_class == spa_normal_class(spa)) {
+			spa->spa_dspace -= spa_deflate(spa) ?
+			    vd->vdev_stat.vs_dspace : vd->vdev_stat.vs_space;
+		}
 		spa_config_exit(spa, SCL_VDEV, FTAG);
 	}
 }
@@ -2435,7 +2439,7 @@ spa_fini(void)
 boolean_t
 spa_has_slogs(spa_t *spa)
 {
-	return (spa->spa_log_class->mc_rotor != NULL);
+	return (spa->spa_log_class->mc_groups != 0);
 }
 
 spa_log_state_t

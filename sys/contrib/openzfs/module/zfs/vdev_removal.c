@@ -250,7 +250,7 @@ vdev_remove_initiate_sync(void *arg, dmu_tx_t *tx)
 	spa_vdev_removal_t *svr = NULL;
 	uint64_t txg __maybe_unused = dmu_tx_get_txg(tx);
 
-	ASSERT3P(vd->vdev_ops, !=, &vdev_raidz_ops);
+	ASSERT0(vdev_get_nparity(vd));
 	svr = spa_vdev_removal_create(vd);
 
 	ASSERT(vd->vdev_removing);
@@ -993,7 +993,7 @@ spa_vdev_copy_segment(vdev_t *vd, range_tree_t *segs,
 	 * An allocation class might not have any remaining vdevs or space
 	 */
 	metaslab_class_t *mc = mg->mg_class;
-	if (mc != spa_normal_class(spa) && mc->mc_groups <= 1)
+	if (mc->mc_groups == 0)
 		mc = spa_normal_class(spa);
 	int error = metaslab_alloc_dva(spa, mc, size, &dst, 0, NULL, txg, 0,
 	    zal, 0);
@@ -1120,7 +1120,7 @@ static void
 vdev_remove_enlist_zaps(vdev_t *vd, nvlist_t *zlist)
 {
 	ASSERT3P(zlist, !=, NULL);
-	ASSERT3P(vd->vdev_ops, !=, &vdev_raidz_ops);
+	ASSERT0(vdev_get_nparity(vd));
 
 	if (vd->vdev_leaf_zap != 0) {
 		char zkey[32];
@@ -1976,32 +1976,38 @@ spa_vdev_remove_top_check(vdev_t *vd)
 	if (!spa_feature_is_enabled(spa, SPA_FEATURE_DEVICE_REMOVAL))
 		return (SET_ERROR(ENOTSUP));
 
-	/* available space in the pool's normal class */
-	uint64_t available = dsl_dir_space_available(
-	    spa->spa_dsl_pool->dp_root_dir, NULL, 0, B_TRUE);
 
 	metaslab_class_t *mc = vd->vdev_mg->mg_class;
-
-	/*
-	 * When removing a vdev from an allocation class that has
-	 * remaining vdevs, include available space from the class.
-	 */
-	if (mc != spa_normal_class(spa) && mc->mc_groups > 1) {
-		uint64_t class_avail = metaslab_class_get_space(mc) -
-		    metaslab_class_get_alloc(mc);
-
-		/* add class space, adjusted for overhead */
-		available += (class_avail * 94) / 100;
-	}
-
-	/*
-	 * There has to be enough free space to remove the
-	 * device and leave double the "slop" space (i.e. we
-	 * must leave at least 3% of the pool free, in addition to
-	 * the normal slop space).
-	 */
-	if (available < vd->vdev_stat.vs_dspace + spa_get_slop_space(spa)) {
-		return (SET_ERROR(ENOSPC));
+	metaslab_class_t *normal = spa_normal_class(spa);
+	if (mc != normal) {
+		/*
+		 * Space allocated from the special (or dedup) class is
+		 * included in the DMU's space usage, but it's not included
+		 * in spa_dspace (or dsl_pool_adjustedsize()).  Therefore
+		 * there is always at least as much free space in the normal
+		 * class, as is allocated from the special (and dedup) class.
+		 * As a backup check, we will return ENOSPC if this is
+		 * violated. See also spa_update_dspace().
+		 */
+		uint64_t available = metaslab_class_get_space(normal) -
+		    metaslab_class_get_alloc(normal);
+		ASSERT3U(available, >=, vd->vdev_stat.vs_alloc);
+		if (available < vd->vdev_stat.vs_alloc)
+			return (SET_ERROR(ENOSPC));
+	} else {
+		/* available space in the pool's normal class */
+		uint64_t available = dsl_dir_space_available(
+		    spa->spa_dsl_pool->dp_root_dir, NULL, 0, B_TRUE);
+		if (available <
+		    vd->vdev_stat.vs_dspace + spa_get_slop_space(spa)) {
+			/*
+			 * This is a normal device. There has to be enough free
+			 * space to remove the device and leave double the
+			 * "slop" space (i.e. we must leave at least 3% of the
+			 * pool free, in addition to the normal slop space).
+			 */
+			return (SET_ERROR(ENOSPC));
+		}
 	}
 
 	/*
@@ -2041,7 +2047,7 @@ spa_vdev_remove_top_check(vdev_t *vd)
 
 	/*
 	 * All vdevs in normal class must have the same ashift
-	 * and not be raidz.
+	 * and not be raidz or draid.
 	 */
 	vdev_t *rvd = spa->spa_root_vdev;
 	int num_indirect = 0;
@@ -2064,7 +2070,7 @@ spa_vdev_remove_top_check(vdev_t *vd)
 			num_indirect++;
 		if (!vdev_is_concrete(cvd))
 			continue;
-		if (cvd->vdev_ops == &vdev_raidz_ops)
+		if (vdev_get_nparity(cvd) != 0)
 			return (SET_ERROR(EINVAL));
 		/*
 		 * Need the mirror to be mirror of leaf vdevs only
@@ -2217,18 +2223,30 @@ spa_vdev_remove(spa_t *spa, uint64_t guid, boolean_t unspare)
 		 * in this pool.
 		 */
 		if (vd == NULL || unspare) {
-			if (vd == NULL)
-				vd = spa_lookup_by_guid(spa, guid, B_TRUE);
-			ev = spa_event_create(spa, vd, NULL,
-			    ESC_ZFS_VDEV_REMOVE_AUX);
+			char *type;
+			boolean_t draid_spare = B_FALSE;
 
-			vd_type = VDEV_TYPE_SPARE;
-			vd_path = spa_strdup(fnvlist_lookup_string(
-			    nv, ZPOOL_CONFIG_PATH));
-			spa_vdev_remove_aux(spa->spa_spares.sav_config,
-			    ZPOOL_CONFIG_SPARES, spares, nspares, nv);
-			spa_load_spares(spa);
-			spa->spa_spares.sav_sync = B_TRUE;
+			if (nvlist_lookup_string(nv, ZPOOL_CONFIG_TYPE, &type)
+			    == 0 && strcmp(type, VDEV_TYPE_DRAID_SPARE) == 0)
+				draid_spare = B_TRUE;
+
+			if (vd == NULL && draid_spare) {
+				error = SET_ERROR(ENOTSUP);
+			} else {
+				if (vd == NULL)
+					vd = spa_lookup_by_guid(spa,
+					    guid, B_TRUE);
+				ev = spa_event_create(spa, vd, NULL,
+				    ESC_ZFS_VDEV_REMOVE_AUX);
+
+				vd_type = VDEV_TYPE_SPARE;
+				vd_path = spa_strdup(fnvlist_lookup_string(
+				    nv, ZPOOL_CONFIG_PATH));
+				spa_vdev_remove_aux(spa->spa_spares.sav_config,
+				    ZPOOL_CONFIG_SPARES, spares, nspares, nv);
+				spa_load_spares(spa);
+				spa->spa_spares.sav_sync = B_TRUE;
+			}
 		} else {
 			error = SET_ERROR(EBUSY);
 		}

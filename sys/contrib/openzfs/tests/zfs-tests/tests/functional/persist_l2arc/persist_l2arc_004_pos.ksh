@@ -19,7 +19,7 @@
 #
 
 . $STF_SUITE/include/libtest.shlib
-. $STF_SUITE/tests/functional/persist_l2arc/persist_l2arc.cfg
+. $STF_SUITE/tests/functional/l2arc/l2arc.cfg
 
 #
 # DESCRIPTION:
@@ -28,12 +28,12 @@
 # STRATEGY:
 #	1. Create pool with a cache device.
 #	2. Create a random file in that pool, smaller than the cache device
-#		and random read for 30 sec.
+#		and random read for 10 sec.
 #	3. Export pool.
 #	4. Read amount of log blocks written.
 #	5. Import pool.
 #	6. Read amount of log blocks built.
-#	7. Compare the two amounts
+#	7. Compare the two amounts.
 #	8. Read the file written in (2) and check if l2_hits in
 #		/proc/spl/kstat/zfs/arcstats increased.
 #	9. Check if the labels of the L2ARC device are intact.
@@ -70,29 +70,30 @@ log_must zpool create -f $TESTPOOL $VDEV cache $VDEV_CACHE
 log_must fio $FIO_SCRIPTS/mkfiles.fio
 log_must fio $FIO_SCRIPTS/random_reads.fio
 
+arcstat_quiescence_noecho l2_size
 log_must zpool export $TESTPOOL
-
-sleep 2
+arcstat_quiescence_noecho l2_feeds
 
 typeset log_blk_end=$(get_arcstat l2_log_blk_writes)
-
 typeset log_blk_rebuild_start=$(get_arcstat l2_rebuild_log_blks)
 
 log_must zpool import -d $VDIR $TESTPOOL
 
 typeset l2_hits_start=$(get_arcstat l2_hits)
 
-export RUNTIME=10
 log_must fio $FIO_SCRIPTS/random_reads.fio
+arcstat_quiescence_noecho l2_size
 
+typeset log_blk_rebuild_end=$(arcstat_quiescence_echo l2_rebuild_log_blks)
 typeset l2_hits_end=$(get_arcstat l2_hits)
-
-typeset log_blk_rebuild_end=$(get_arcstat l2_rebuild_log_blks)
 
 log_must test $(( $log_blk_rebuild_end - $log_blk_rebuild_start )) -eq \
 	$(( $log_blk_end - $log_blk_start ))
 
 log_must test $l2_hits_end -gt $l2_hits_start
+
+log_must zpool offline $TESTPOOL $VDEV_CACHE
+arcstat_quiescence_noecho l2_size
 
 log_must zdb -lq $VDEV_CACHE
 

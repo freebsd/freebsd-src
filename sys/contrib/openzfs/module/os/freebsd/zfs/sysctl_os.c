@@ -114,6 +114,7 @@ SYSCTL_NODE(_vfs_zfs, OID_AUTO, spa, CTLFLAG_RW, 0, "ZFS space allocation");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, trim, CTLFLAG_RW, 0, "ZFS TRIM");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, txg, CTLFLAG_RW, 0, "ZFS transaction group");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW, 0, "ZFS VDEV");
+SYSCTL_NODE(_vfs_zfs, OID_AUTO, vnops, CTLFLAG_RW, 0, "ZFS VNOPS");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zevent, CTLFLAG_RW, 0, "ZFS event");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zil, CTLFLAG_RW, 0, "ZFS ZIL");
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, zio, CTLFLAG_RW, 0, "ZFS ZIO");
@@ -228,15 +229,14 @@ SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, l2c_only_size, CTLFLAG_RD,
 static int
 sysctl_vfs_zfs_arc_no_grow_shift(SYSCTL_HANDLER_ARGS)
 {
-	uint32_t val;
-	int err;
+	int err, val;
 
 	val = arc_no_grow_shift;
-	err = sysctl_handle_32(oidp, &val, 0, req);
+	err = sysctl_handle_int(oidp, &val, 0, req);
 	if (err != 0 || req->newptr == NULL)
 		return (err);
 
-        if (val >= arc_shrink_shift)
+        if (val < 0 || val >= arc_shrink_shift)
 		return (EINVAL);
 
 	arc_no_grow_shift = val;
@@ -244,8 +244,8 @@ sysctl_vfs_zfs_arc_no_grow_shift(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_no_grow_shift,
-    CTLTYPE_U32 | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, 0, sizeof (uint32_t),
-    sysctl_vfs_zfs_arc_no_grow_shift, "U",
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, NULL, sizeof (int),
+    sysctl_vfs_zfs_arc_no_grow_shift, "I",
     "log2(fraction of ARC which must be free to allow growing)");
 
 int

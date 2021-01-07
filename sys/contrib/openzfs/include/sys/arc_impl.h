@@ -99,6 +99,7 @@ struct arc_callback {
 	boolean_t		acb_encrypted;
 	boolean_t		acb_compressed;
 	boolean_t		acb_noauth;
+	boolean_t		acb_nobuf;
 	zbookmark_phys_t	acb_zb;
 	zio_t			*acb_zio_dummy;
 	zio_t			*acb_zio_head;
@@ -350,6 +351,8 @@ typedef struct l2arc_lb_ptr_buf {
 #define	L2BLK_SET_TYPE(field, x)	BF64_SET((field), 48, 8, x)
 #define	L2BLK_GET_PROTECTED(field)	BF64_GET((field), 56, 1)
 #define	L2BLK_SET_PROTECTED(field, x)	BF64_SET((field), 56, 1, x)
+#define	L2BLK_GET_STATE(field)		BF64_GET((field), 57, 4)
+#define	L2BLK_SET_STATE(field, x)	BF64_SET((field), 57, 4, x)
 
 #define	PTR_SWAP(x, y)		\
 	do {			\
@@ -445,6 +448,7 @@ typedef struct l2arc_buf_hdr {
 	l2arc_dev_t		*b_dev;		/* L2ARC device */
 	uint64_t		b_daddr;	/* disk address, offset byte */
 	uint32_t		b_hits;
+	arc_state_type_t	b_arcs_state;
 	list_node_t		b_l2node;
 } l2arc_buf_hdr_t;
 
@@ -546,6 +550,8 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_evict_not_enough;
 	kstat_named_t arcstat_evict_l2_cached;
 	kstat_named_t arcstat_evict_l2_eligible;
+	kstat_named_t arcstat_evict_l2_eligible_mfu;
+	kstat_named_t arcstat_evict_l2_eligible_mru;
 	kstat_named_t arcstat_evict_l2_ineligible;
 	kstat_named_t arcstat_evict_l2_skip;
 	kstat_named_t arcstat_hash_elements;
@@ -744,6 +750,18 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_mfu_ghost_evictable_metadata;
 	kstat_named_t arcstat_l2_hits;
 	kstat_named_t arcstat_l2_misses;
+	/*
+	 * Allocated size (in bytes) of L2ARC cached buffers by ARC state.
+	 */
+	kstat_named_t arcstat_l2_prefetch_asize;
+	kstat_named_t arcstat_l2_mru_asize;
+	kstat_named_t arcstat_l2_mfu_asize;
+	/*
+	 * Allocated size (in bytes) of L2ARC cached buffers by buffer content
+	 * type.
+	 */
+	kstat_named_t arcstat_l2_bufc_data_asize;
+	kstat_named_t arcstat_l2_bufc_metadata_asize;
 	kstat_named_t arcstat_l2_feeds;
 	kstat_named_t arcstat_l2_rw_clash;
 	kstat_named_t arcstat_l2_read_bytes;
@@ -909,6 +927,8 @@ extern int arc_memory_throttle(spa_t *spa, uint64_t reserve, uint64_t txg);
 extern uint64_t arc_free_memory(void);
 extern int64_t arc_available_memory(void);
 extern void arc_tuning_update(boolean_t);
+extern void arc_register_hotplug(void);
+extern void arc_unregister_hotplug(void);
 
 extern int param_set_arc_long(ZFS_MODULE_PARAM_ARGS);
 extern int param_set_arc_int(ZFS_MODULE_PARAM_ARGS);

@@ -99,14 +99,6 @@ blk_queue_set_read_ahead(struct request_queue *q, unsigned long ra_pages)
 #endif
 }
 
-#if !defined(HAVE_GET_DISK_AND_MODULE)
-static inline struct kobject *
-get_disk_and_module(struct gendisk *disk)
-{
-	return (get_disk(disk));
-}
-#endif
-
 #ifdef HAVE_BIO_BVEC_ITER
 #define	BIO_BI_SECTOR(bio)	(bio)->bi_iter.bi_sector
 #define	BIO_BI_SIZE(bio)	(bio)->bi_iter.bi_size
@@ -268,12 +260,48 @@ bio_set_bi_error(struct bio *bio, int error)
  *
  * For older kernels trigger a re-reading of the partition table by calling
  * check_disk_change() which calls flush_disk() to invalidate the device.
+ *
+ * For newer kernels (as of 5.10), bdev_check_media_chage is used, in favor of
+ * check_disk_change(), with the modification that invalidation is no longer
+ * forced.
  */
+#ifdef HAVE_CHECK_DISK_CHANGE
+#define	zfs_check_media_change(bdev)	check_disk_change(bdev)
 #ifdef HAVE_BLKDEV_REREAD_PART
 #define	vdev_bdev_reread_part(bdev)	blkdev_reread_part(bdev)
 #else
 #define	vdev_bdev_reread_part(bdev)	check_disk_change(bdev)
 #endif /* HAVE_BLKDEV_REREAD_PART */
+#else
+#ifdef HAVE_BDEV_CHECK_MEDIA_CHANGE
+static inline int
+zfs_check_media_change(struct block_device *bdev)
+{
+	struct gendisk *gd = bdev->bd_disk;
+	const struct block_device_operations *bdo = gd->fops;
+
+	if (!bdev_check_media_change(bdev))
+		return (0);
+
+	/*
+	 * Force revalidation, to mimic the old behavior of
+	 * check_disk_change()
+	 */
+	if (bdo->revalidate_disk)
+		bdo->revalidate_disk(gd);
+
+	return (0);
+}
+#define	vdev_bdev_reread_part(bdev)	zfs_check_media_change(bdev)
+#else
+/*
+ * This is encountered if check_disk_change() and bdev_check_media_change()
+ * are not available in the kernel - likely due to an API change that needs
+ * to be chased down.
+ */
+#error "Unsupported kernel: no usable disk change check"
+#endif /* HAVE_BDEV_CHECK_MEDIA_CHANGE */
+#endif /* HAVE_CHECK_DISK_CHANGE */
 
 /*
  * 2.6.27 API change
@@ -282,16 +310,38 @@ bio_set_bi_error(struct bio *bio, int error)
  *
  * 4.4.0-6.21 API change for Ubuntu
  * lookup_bdev() gained a second argument, FMODE_*, to check inode permissions.
+ *
+ * 5.11 API change
+ * Changed to take a dev_t argument which is set on success and return a
+ * non-zero error code on failure.
  */
-#ifdef HAVE_1ARG_LOOKUP_BDEV
-#define	vdev_lookup_bdev(path)	lookup_bdev(path)
-#else
-#ifdef HAVE_2ARGS_LOOKUP_BDEV
-#define	vdev_lookup_bdev(path)	lookup_bdev(path, 0)
+static inline int
+vdev_lookup_bdev(const char *path, dev_t *dev)
+{
+#if defined(HAVE_DEVT_LOOKUP_BDEV)
+	return (lookup_bdev(path, dev));
+#elif defined(HAVE_1ARG_LOOKUP_BDEV)
+	struct block_device *bdev = lookup_bdev(path);
+	if (IS_ERR(bdev))
+		return (PTR_ERR(bdev));
+
+	*dev = bdev->bd_dev;
+	bdput(bdev);
+
+	return (0);
+#elif defined(HAVE_MODE_LOOKUP_BDEV)
+	struct block_device *bdev = lookup_bdev(path, FMODE_READ);
+	if (IS_ERR(bdev))
+		return (PTR_ERR(bdev));
+
+	*dev = bdev->bd_dev;
+	bdput(bdev);
+
+	return (0);
 #else
 #error "Unsupported kernel"
-#endif /* HAVE_2ARGS_LOOKUP_BDEV */
-#endif /* HAVE_1ARG_LOOKUP_BDEV */
+#endif
+}
 
 /*
  * Kernels without bio_set_op_attrs use bi_rw for the bio flags.
@@ -465,25 +515,38 @@ blk_queue_discard_secure(struct request_queue *q)
  */
 #define	VDEV_HOLDER			((void *)0x2401de7)
 
-static inline void
-blk_generic_start_io_acct(struct request_queue *q, int rw,
-    unsigned long sectors, struct hd_struct *part)
+static inline unsigned long
+blk_generic_start_io_acct(struct request_queue *q __attribute__((unused)),
+    struct gendisk *disk __attribute__((unused)),
+    int rw __attribute__((unused)), struct bio *bio)
 {
-#if defined(HAVE_GENERIC_IO_ACCT_3ARG)
-	generic_start_io_acct(rw, sectors, part);
+#if defined(HAVE_BIO_IO_ACCT)
+	return (bio_start_io_acct(bio));
+#elif defined(HAVE_GENERIC_IO_ACCT_3ARG)
+	unsigned long start_time = jiffies;
+	generic_start_io_acct(rw, bio_sectors(bio), &disk->part0);
+	return (start_time);
 #elif defined(HAVE_GENERIC_IO_ACCT_4ARG)
-	generic_start_io_acct(q, rw, sectors, part);
+	unsigned long start_time = jiffies;
+	generic_start_io_acct(q, rw, bio_sectors(bio), &disk->part0);
+	return (start_time);
+#else
+	/* Unsupported */
+	return (0);
 #endif
 }
 
 static inline void
-blk_generic_end_io_acct(struct request_queue *q, int rw,
-    struct hd_struct *part, unsigned long start_time)
+blk_generic_end_io_acct(struct request_queue *q __attribute__((unused)),
+    struct gendisk *disk __attribute__((unused)),
+    int rw __attribute__((unused)), struct bio *bio, unsigned long start_time)
 {
-#if defined(HAVE_GENERIC_IO_ACCT_3ARG)
-	generic_end_io_acct(rw, part, start_time);
+#if defined(HAVE_BIO_IO_ACCT)
+	bio_end_io_acct(bio, start_time);
+#elif defined(HAVE_GENERIC_IO_ACCT_3ARG)
+	generic_end_io_acct(rw, &disk->part0, start_time);
 #elif defined(HAVE_GENERIC_IO_ACCT_4ARG)
-	generic_end_io_acct(q, rw, part, start_time);
+	generic_end_io_acct(q, rw, &disk->part0, start_time);
 #endif
 }
 
@@ -493,6 +556,8 @@ blk_generic_alloc_queue(make_request_fn make_request, int node_id)
 {
 #if defined(HAVE_BLK_ALLOC_QUEUE_REQUEST_FN)
 	return (blk_alloc_queue(make_request, node_id));
+#elif defined(HAVE_BLK_ALLOC_QUEUE_REQUEST_FN_RH)
+	return (blk_alloc_queue_rh(make_request, node_id));
 #else
 	struct request_queue *q = blk_alloc_queue(GFP_KERNEL);
 	if (q != NULL)

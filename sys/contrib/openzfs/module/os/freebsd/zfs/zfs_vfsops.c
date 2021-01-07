@@ -42,6 +42,7 @@
 #include <sys/mount.h>
 #include <sys/cmn_err.h>
 #include <sys/zfs_znode.h>
+#include <sys/zfs_vnops.h>
 #include <sys/zfs_dir.h>
 #include <sys/zil.h>
 #include <sys/fs/zfs.h>
@@ -433,7 +434,7 @@ zfs_sync(vfs_t *vfsp, int waitfor)
 	} else {
 		/*
 		 * Sync all ZFS filesystems.  This is what happens when you
-		 * run sync(1M).  Unlike other filesystems, ZFS honors the
+		 * run sync(8).  Unlike other filesystems, ZFS honors the
 		 * request by waiting for all pools to commit all dirty data.
 		 */
 		spa_sync_allpools();

@@ -19,7 +19,7 @@
 #
 
 . $STF_SUITE/include/libtest.shlib
-. $STF_SUITE/tests/functional/persist_l2arc/persist_l2arc.cfg
+. $STF_SUITE/tests/functional/l2arc/l2arc.cfg
 
 #
 # DESCRIPTION:
@@ -28,11 +28,11 @@
 # STRATEGY:
 #	1. Set L2ARC_REBUILD_ENABLED = 0
 #	2. Create pool with a cache device.
-#	3. Create a random file in that pool and random read for 30 sec.
+#	3. Create a random file in that pool and random read for 10 sec.
 #	4. Export pool.
 #	5. Import pool.
 #	6. Check in zpool iostat if the cache device has space allocated.
-#	7. Read the file written in (2) and check if l2_hits in
+#	7. Read the file written in (3) and check if l2_hits in
 #		/proc/spl/kstat/zfs/arcstats increased.
 #
 

@@ -36,6 +36,7 @@ export ZPOOL_SCRIPT_DIR=$$CMD_DIR/zpool/zpool.d
 export ZPOOL_SCRIPTS_PATH=$$CMD_DIR/zpool/zpool.d
 export CONTRIB_DIR=@abs_top_builddir@/contrib
 export LIB_DIR=@abs_top_builddir@/lib
+export SYSCONF_DIR=@abs_top_builddir@/etc
 
 export INSTALL_UDEV_DIR=@udevdir@
 export INSTALL_UDEV_RULE_DIR=@udevruledir@
@@ -60,6 +61,7 @@ export EXTRA_ENVIRONMENT
 all-local:
 	-$(SED) -e '\|^export BIN_DIR=|s|$$|@abs_top_builddir@/bin|' \
 		-e '\|^export SBIN_DIR=|s|$$|@abs_top_builddir@/bin|' \
+		-e '\|^export LIBEXEC_DIR=|s|$$|@abs_top_builddir@/bin|' \
 		-e '\|^export ZTS_DIR=|s|$$|@abs_top_srcdir@/tests|' \
 		-e '\|^export SCRIPT_DIR=|s|$$|@abs_top_srcdir@/scripts|' \
 		$(abs_top_srcdir)/scripts/common.sh.in >common.sh
@@ -71,6 +73,7 @@ clean-local:
 install-data-hook:
 	-$(SED) -e '\|^export BIN_DIR=|s|$$|@bindir@|' \
 		-e '\|^export SBIN_DIR=|s|$$|@sbindir@|' \
+		-e '\|^export LIBEXEC_DIR=|s|$$|@zfsexecdir@|' \
 		-e '\|^export ZTS_DIR=|s|$$|@datadir@/@PACKAGE@|' \
 		-e '\|^export SCRIPT_DIR=|s|$$|@datadir@/@PACKAGE@|' \
 		$(abs_top_srcdir)/scripts/common.sh.in \
