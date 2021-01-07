@@ -657,7 +657,7 @@ expanddir(union dinode *dp, char *name)
 	 * If last block is a fragment, expand it to a full size block.
 	 */
 	lastlbnsize = sblksize(&sblock, filesize, lastlbn);
-	if (lastlbnsize < sblock.fs_bsize) {
+	if (lastlbnsize > 0 && lastlbnsize < sblock.fs_bsize) {
 		oldblk = DIP(dp, di_db[lastlbn]);
 		bp = getdirblk(oldblk, lastlbnsize);
 		if (bp->b_errs)
