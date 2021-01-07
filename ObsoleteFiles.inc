@@ -36,10 +36,14 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20210108: retire cmx, ng_bt3c drivers
+# 20210108: retire cmx, ng_bt3c, wi drivers
+OLD_FILES+=usr/include/dev/wi/if_wireg.h
+OLD_FILES+=usr/include/dev/wi/if_wavelan_ieee.h
+OLD_FILES+=usr/include/dev/wi/if_wivar.h
 OLD_FILES+=usr/sbin/bt3cfw
 OLD_FILES+=usr/share/man/man4/cmw.4.gz
 OLD_FILES+=usr/share/man/man4/ng_bt3c.4.gz
+OLD_FILES+=usr/share/man/man4/wi.4.gz
 OLD_FILES+=usr/share/man/man8/bt3cfw.8.gz
 
 # 20210107: retire a.out support
