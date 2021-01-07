@@ -114,7 +114,7 @@ armv8_crypto_probe(device_t dev)
 		break;
 	}
 
-	device_set_desc_copy(dev, "AES-CBC");
+	device_set_desc_copy(dev, "AES-CBC,AES-XTS");
 
 	/* TODO: Check more fields as we support more features */
 
@@ -204,6 +204,17 @@ armv8_crypto_probesession(device_t dev,
 				return (EINVAL);
 			}
 			break;
+		case CRYPTO_AES_XTS:
+			if (csp->csp_ivlen != AES_XTS_IV_LEN)
+				return (EINVAL);
+			switch (csp->csp_cipher_klen * 8) {
+			case 256:
+			case 512:
+				break;
+			default:
+				return (EINVAL);
+			}
+			break;
 		default:
 			return (EINVAL);
 		}
@@ -211,16 +222,19 @@ armv8_crypto_probesession(device_t dev,
 	default:
 		return (EINVAL);
 	}
-	return (CRYPTODEV_PROBE_ACCEL_SOFTWARE);		
+	return (CRYPTODEV_PROBE_ACCEL_SOFTWARE);
 }
 
 static void
 armv8_crypto_cipher_setup(struct armv8_crypto_session *ses,
-    const struct crypto_session_params *csp)
+    const struct crypto_session_params *csp, const uint8_t *key, int keylen)
 {
 	int i;
 
-	switch (csp->csp_cipher_klen * 8) {
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
+		keylen /= 2;
+
+	switch (keylen * 8) {
 	case 128:
 		ses->rounds = AES128_ROUNDS;
 		break;
@@ -231,16 +245,19 @@ armv8_crypto_cipher_setup(struct armv8_crypto_session *ses,
 		ses->rounds = AES256_ROUNDS;
 		break;
 	default:
-		panic("invalid CBC key length");
+		panic("invalid AES key length");
 	}
 
-	rijndaelKeySetupEnc(ses->enc_schedule, csp->csp_cipher_key,
-	    csp->csp_cipher_klen * 8);
-	rijndaelKeySetupDec(ses->dec_schedule, csp->csp_cipher_key,
-	    csp->csp_cipher_klen * 8);
+	rijndaelKeySetupEnc(ses->enc_schedule, key, keylen * 8);
+	rijndaelKeySetupDec(ses->dec_schedule, key, keylen * 8);
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
+		rijndaelKeySetupEnc(ses->xts_schedule, key + keylen, keylen * 8);
+
 	for (i = 0; i < nitems(ses->enc_schedule); i++) {
 		ses->enc_schedule[i] = bswap32(ses->enc_schedule[i]);
 		ses->dec_schedule[i] = bswap32(ses->dec_schedule[i]);
+		if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
+			ses->xts_schedule[i] = bswap32(ses->xts_schedule[i]);
 	}
 }
 
@@ -259,7 +276,8 @@ armv8_crypto_newsession(device_t dev, crypto_session_t cses,
 	}
 
 	ses = crypto_get_driver_session(cses);
-	armv8_crypto_cipher_setup(ses, csp);
+	armv8_crypto_cipher_setup(ses, csp, csp->csp_cipher_key,
+	    csp->csp_cipher_klen);
 	rw_wunlock(&sc->lock);
 	return (0);
 }
@@ -333,7 +351,8 @@ armv8_crypto_cipher_process(struct armv8_crypto_session *ses,
 	}
 
 	if (crp->crp_cipher_key != NULL) {
-		panic("armv8: new cipher key");
+		armv8_crypto_cipher_setup(ses, csp, crp->crp_cipher_key,
+		    csp->csp_cipher_klen);
 	}
 
 	crypto_read_iv(crp, iv);
@@ -347,6 +366,16 @@ armv8_crypto_cipher_process(struct armv8_crypto_session *ses,
 		else
 			armv8_aes_decrypt_cbc(ses->rounds, ses->dec_schedule,
 			    crp->crp_payload_length, buf, iv);
+		break;
+	case CRYPTO_AES_XTS:
+		if (encflag)
+			armv8_aes_encrypt_xts(ses->rounds, ses->enc_schedule,
+			    ses->xts_schedule, crp->crp_payload_length, buf,
+			    buf, iv);
+		else
+			armv8_aes_decrypt_xts(ses->rounds, ses->dec_schedule,
+			    ses->xts_schedule, crp->crp_payload_length, buf,
+			    buf, iv);
 		break;
 	}
 
