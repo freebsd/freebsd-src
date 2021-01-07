@@ -157,7 +157,7 @@ extern "C" {
  * posted to hardware always contain pairs of elements (with second
  * element set to zeroes if not needed).
  */
-#define __MAXPHYS_ELEMENTS ((128 * 1024 / PAGE_SIZE) + 1)
+#define __MAXPHYS_ELEMENTS ((maxphys / PAGE_SIZE) + 1)
 #define SCI_MAX_SCATTER_GATHER_ELEMENTS  ((__MAXPHYS_ELEMENTS + 1) & ~0x1)
 #endif
 
