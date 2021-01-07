@@ -36,6 +36,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210108: retire cmx driver
+OLD_FILES+=usr/share/man/man4/cmw.4.gz
+
 # 20210107: retire a.out support
 OLD_DIRS+=usr/lib/aout
 OLD_DIRS+=usr/lib/compat/aout

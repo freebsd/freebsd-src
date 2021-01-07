@@ -111,7 +111,6 @@ MAN=	aac.4 \
 	${_chvgpio.4} \
 	ciss.4 \
 	cloudabi.4 \
-	cmx.4 \
 	${_coretemp.4} \
 	cp2112.4 \
 	${_cpuctl.4} \
