@@ -36,8 +36,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20210108: retire cmx driver
+# 20210108: retire cmx, ng_bt3c drivers
+OLD_FILES+=usr/sbin/bt3cfw
 OLD_FILES+=usr/share/man/man4/cmw.4.gz
+OLD_FILES+=usr/share/man/man4/ng_bt3c.4.gz
+OLD_FILES+=usr/share/man/man8/bt3cfw.8.gz
 
 # 20210107: retire a.out support
 OLD_DIRS+=usr/lib/aout

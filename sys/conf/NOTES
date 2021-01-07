@@ -769,7 +769,6 @@ options 	NETGRAPH_ASYNC
 options 	NETGRAPH_ATMLLC
 options 	NETGRAPH_ATM_ATMPIF
 options 	NETGRAPH_BLUETOOTH		# ng_bluetooth(4)
-options 	NETGRAPH_BLUETOOTH_BT3C		# ng_bt3c(4)
 options 	NETGRAPH_BLUETOOTH_HCI		# ng_hci(4)
 options 	NETGRAPH_BLUETOOTH_L2CAP	# ng_l2cap(4)
 options 	NETGRAPH_BLUETOOTH_SOCKET	# ng_btsocket(4)
