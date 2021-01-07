@@ -48,6 +48,7 @@
 #define	LIO_MLOCK		0x4
 #define	LIO_WRITEV		0x5
 #define	LIO_READV		0x6
+#define	LIO_DSYNC		0x7
 #endif
 
 /*

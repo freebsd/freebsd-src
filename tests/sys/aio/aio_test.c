@@ -1259,7 +1259,7 @@ ATF_TC_BODY(aio_fsync_errors, tc)
 	ATF_REQUIRE_MSG(fd != -1, "open failed: %s", strerror(errno));
 	unlink(FILE_PATHNAME);
 
-	/* aio_fsync should return EINVAL unless op is O_SYNC */
+	/* aio_fsync should return EINVAL unless op is O_SYNC or O_DSYNC */
 	memset(&iocb, 0, sizeof(iocb));
 	iocb.aio_fildes = fd;
 	ATF_CHECK_EQ(-1, aio_fsync(666, &iocb));
@@ -1282,8 +1282,8 @@ ATF_TC_BODY(aio_fsync_errors, tc)
 /*
  * This test just performs a basic test of aio_fsync().
  */
-ATF_TC_WITHOUT_HEAD(aio_fsync_test);
-ATF_TC_BODY(aio_fsync_test, tc)
+static void
+aio_fsync_test(int op)
 {
 	struct aiocb synccb, *iocbp;
 	struct {
@@ -1328,7 +1328,7 @@ ATF_TC_BODY(aio_fsync_test, tc)
 	/* Queue the aio_fsync request. */
 	memset(&synccb, 0, sizeof(synccb));
 	synccb.aio_fildes = fd;
-	ATF_REQUIRE(aio_fsync(O_SYNC, &synccb) == 0);
+	ATF_REQUIRE(aio_fsync(op, &synccb) == 0);
 
 	/* Wait for requests to complete. */
 	for (;;) {
@@ -1357,6 +1357,18 @@ ATF_TC_BODY(aio_fsync_test, tc)
 		    "AIO request %u did not complete", i);
 
 	close(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(aio_fsync_sync_test);
+ATF_TC_BODY(aio_fsync_sync_test, tc)
+{
+	aio_fsync_test(O_SYNC);
+}
+
+ATF_TC_WITHOUT_HEAD(aio_fsync_dsync_test);
+ATF_TC_BODY(aio_fsync_dsync_test, tc)
+{
+	aio_fsync_test(O_DSYNC);
 }
 
 /*
@@ -1782,7 +1794,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, md_thread);
 	ATF_TP_ADD_TC(tp, md_waitcomplete);
 	ATF_TP_ADD_TC(tp, aio_fsync_errors);
-	ATF_TP_ADD_TC(tp, aio_fsync_test);
+	ATF_TP_ADD_TC(tp, aio_fsync_sync_test);
+	ATF_TP_ADD_TC(tp, aio_fsync_dsync_test);
 	ATF_TP_ADD_TC(tp, aio_large_read_test);
 	ATF_TP_ADD_TC(tp, aio_socket_two_reads);
 	ATF_TP_ADD_TC(tp, aio_socket_blocking_short_write);
