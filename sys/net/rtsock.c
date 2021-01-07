@@ -1591,23 +1591,25 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
  * Returns 0 on success.
  */
 int
-rtsock_routemsg(int cmd, struct rtentry *rt, struct ifnet *ifp, int rti_addrs,
+rtsock_routemsg(int cmd, struct rtentry *rt, struct nhop_object *nh,
     int fibnum)
 {
-	struct sockaddr_storage ss;
+	union sockaddr_union dst, mask;
 	struct rt_addrinfo info;
-	struct nhop_object *nh;
 
 	if (V_route_cb.any_count == 0)
 		return (0);
 
-	nh = rt->rt_nhop;
+	int family = rt_get_family(rt);
+	init_sockaddrs_family(family, &dst.sa, &mask.sa);
+	export_rtaddrs(rt, &dst.sa, &mask.sa);
+
 	bzero((caddr_t)&info, sizeof(info));
-	info.rti_info[RTAX_DST] = rt_key(rt);
-	info.rti_info[RTAX_NETMASK] = rtsock_fix_netmask(rt_key(rt), rt_mask(rt), &ss);
+	info.rti_info[RTAX_DST] = &dst.sa;
+	info.rti_info[RTAX_NETMASK] = &mask.sa;
 	info.rti_info[RTAX_GATEWAY] = &nh->gw_sa;
 	info.rti_flags = rt->rte_flags | nhop_get_rtflags(nh);
-	info.rti_ifp = ifp;
+	info.rti_ifp = nh->nh_ifp;
 
 	return (rtsock_routemsg_info(cmd, &info, fibnum));
 }

@@ -244,6 +244,16 @@ rt_is_host(const struct rtentry *rt)
 	return (rt->rte_flags & RTF_HOST);
 }
 
+sa_family_t
+rt_get_family(const struct rtentry *rt)
+{
+	const struct sockaddr *dst;
+
+	dst = (const struct sockaddr *)rt_key_const(rt);
+
+	return (dst->sa_family);
+}
+
 /*
  * Returns pointer to nexthop or nexthop group
  * associated with @rt
@@ -1322,11 +1332,10 @@ rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f, void *arg, bool
 				nhg = (struct nhgrp_object *)nh;
 				wn = nhgrp_get_nhops(nhg, &num_nhops);
 				for (int i = 0; i < num_nhops; i++)
-					rt_routemsg(RTM_DELETE, rt,
-					    wn[i].nh->nh_ifp, 0, fibnum);
+					rt_routemsg(RTM_DELETE, rt, wn[i].nh, fibnum);
 			} else
 #endif
-			rt_routemsg(RTM_DELETE, rt, nh->nh_ifp, 0, fibnum);
+			rt_routemsg(RTM_DELETE, rt, nh, fibnum);
 		}
 		rtfree(rt);
 	}

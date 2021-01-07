@@ -698,8 +698,10 @@ defrouter_addreq(struct nd_defrouter *new)
 
 	NET_EPOCH_ASSERT();
 	error = rib_action(fibnum, RTM_ADD, &info, &rc);
-	if (rc.rc_rt != NULL)
-		rt_routemsg(RTM_ADD, rc.rc_rt, new->ifp, 0, fibnum);
+	if (rc.rc_rt != NULL) {
+		struct nhop_object *nh = nhop_select(rc.rc_nh_new, 0);
+		rt_routemsg(RTM_ADD, rc.rc_rt, nh, fibnum);
+	}
 	if (error == 0)
 		new->installed = 1;
 }
@@ -736,8 +738,10 @@ defrouter_delreq(struct nd_defrouter *dr)
 
 	NET_EPOCH_ENTER(et);
 	rib_action(fibnum, RTM_DELETE, &info, &rc);
-	if (rc.rc_rt != NULL)
-		rt_routemsg(RTM_DELETE, rc.rc_rt, dr->ifp, 0, fibnum);
+	if (rc.rc_rt != NULL) {
+		struct nhop_object *nh = nhop_select(rc.rc_nh_old, 0);
+		rt_routemsg(RTM_DELETE, rc.rc_rt, nh, fibnum);
+	}
 	NET_EPOCH_EXIT(et);
 
 	dr->installed = 0;
@@ -2077,7 +2081,8 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 		}
 
 		pr->ndpr_stateflags |= NDPRF_ONLINK;
-		rt_routemsg(RTM_ADD, rc.rc_rt, pr->ndpr_ifp, 0, fibnum);
+		struct nhop_object *nh = nhop_select(rc.rc_nh_new, 0);
+		rt_routemsg(RTM_ADD, rc.rc_rt, nh, fibnum);
 	}
 
 	/* Return the last error we got. */
@@ -2224,7 +2229,8 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		}
 
 		/* report route deletion to the routing socket. */
-		rt_routemsg(RTM_DELETE, rc.rc_rt, ifp, 0, fibnum);
+		struct nhop_object *nh = nhop_select(rc.rc_nh_old, 0);
+		rt_routemsg(RTM_DELETE, rc.rc_rt, nh, fibnum);
 	}
 	NET_EPOCH_EXIT(et);
 	error = a_failure;

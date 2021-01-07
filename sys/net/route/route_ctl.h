@@ -100,6 +100,7 @@ const struct rtentry *rib_lookup_lpm(uint32_t fibnum, int family,
 
 /* rtentry accessors */
 bool rt_is_host(const struct rtentry *rt);
+sa_family_t rt_get_family(const struct rtentry *);
 struct nhop_object *rt_get_raw_nhop(const struct rtentry *rt);
 #ifdef INET
 struct in_addr;

@@ -714,15 +714,15 @@ in_gifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	    ? RTF_HOST : 0)
 
 /*
- * Check if we have a route for the given prefix already or add one accordingly.
+ * Check if we have a route for the given prefix already.
  */
-int
-in_addprefix(struct in_ifaddr *target, int flags)
+static bool
+in_hasrtprefix(struct in_ifaddr *target, int flags)
 {
 	struct rm_priotracker in_ifa_tracker;
 	struct in_ifaddr *ia;
 	struct in_addr prefix, mask, p, m;
-	int error;
+	bool result = false;
 
 	if ((flags & RTF_HOST) != 0) {
 		prefix = target->ia_dstaddr.sin_addr;
@@ -758,21 +758,29 @@ in_addprefix(struct in_ifaddr *target, int flags)
 		 * interface address, we are done here.
 		 */
 		if (ia->ia_flags & IFA_ROUTE) {
-			if (V_nosameprefix) {
-				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-				return (EEXIST);
-			} else {
-				int fibnum;
-
-				fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
-					target->ia_ifp->if_fib;
-				rt_addrmsg(RTM_ADD, &target->ia_ifa, fibnum);
-				IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-				return (0);
-			}
+			result = true;
+			break;
 		}
 	}
 	IN_IFADDR_RUNLOCK(&in_ifa_tracker);
+
+	return (result);
+}
+
+int
+in_addprefix(struct in_ifaddr *target, int flags)
+{
+	int error;
+
+	if (in_hasrtprefix(target, flags)) {
+		if (V_nosameprefix)
+			return (EEXIST);
+		else {
+			rt_addrmsg(RTM_ADD, &target->ia_ifa,
+			    target->ia_ifp->if_fib);
+			return (0);
+		}
+	}
 
 	/*
 	 * No-one seem to have this prefix route, so we try to insert it.
@@ -869,11 +877,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	}
 
 	if ((target->ia_flags & IFA_ROUTE) == 0) {
-		int fibnum;
-
-		fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS :
-			target->ia_ifp->if_fib;
-		rt_addrmsg(RTM_DELETE, &target->ia_ifa, fibnum);
+		rt_addrmsg(RTM_DELETE, &target->ia_ifa, target->ia_ifp->if_fib);
 
 		/*
 		 * Removing address from !IFF_UP interface or

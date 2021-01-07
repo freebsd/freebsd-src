@@ -710,10 +710,13 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 	    ("unexpected cmd %d", cmd));
-	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
+	KASSERT((fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
 	EVENTHANDLER_DIRECT_INVOKE(rt_addrmsg, ifa, cmd);
+
+	if (V_rt_add_addr_allfibs)
+		fibnum = RT_ALL_FIBS;
 	return (rtsock_addrmsg(cmd, ifa, fibnum));
 }
 
@@ -721,13 +724,13 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
  * Announce kernel-originated route addition/removal to rtsock based on @rt data.
  * cmd: RTM_ cmd
  * @rt: valid rtentry
- * @ifp: target route interface
+ * @nh: nhop object to announce
  * @fibnum: fib id or RT_ALL_FIBS
  *
  * Returns 0 on success.
  */
 int
-rt_routemsg(int cmd, struct rtentry *rt, struct ifnet *ifp, int rti_addrs,
+rt_routemsg(int cmd, struct rtentry *rt, struct nhop_object *nh,
     int fibnum)
 {
 
@@ -739,7 +742,7 @@ rt_routemsg(int cmd, struct rtentry *rt, struct ifnet *ifp, int rti_addrs,
 
 	KASSERT(rt_key(rt) != NULL, (":%s: rt_key must be supplied", __func__));
 
-	return (rtsock_routemsg(cmd, rt, ifp, 0, fibnum));
+	return (rtsock_routemsg(cmd, rt, nh, fibnum));
 }
 
 /*
@@ -775,16 +778,16 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, struct rtentry *rt, int fibnum)
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 		("unexpected cmd %u", cmd));
-	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
+	KASSERT((fibnum >= 0 && fibnum < rt_numfibs),
 	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
 	if (cmd == RTM_ADD) {
 		rt_addrmsg(cmd, ifa, fibnum);
 		if (rt != NULL)
-			rt_routemsg(cmd, rt, ifa->ifa_ifp, 0, fibnum);
+			rt_routemsg(cmd, rt, nhop_select(rt->rt_nhop, 0), fibnum);
 	} else {
 		if (rt != NULL)
-			rt_routemsg(cmd, rt, ifa->ifa_ifp, 0, fibnum);
+			rt_routemsg(cmd, rt, nhop_select(rt->rt_nhop, 0), fibnum);
 		rt_addrmsg(cmd, ifa, fibnum);
 	}
 }

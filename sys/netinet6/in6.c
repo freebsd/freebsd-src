@@ -186,7 +186,7 @@ in6_newaddrmsg(struct in6_ifaddr *ia, int cmd)
 	if (cmd != RTM_DELETE)
 		info.rti_ifp = V_loif;
 
-	fibnum = V_rt_add_addr_allfibs ? RT_ALL_FIBS : ia62ifa(ia)->ifa_ifp->if_fib;
+	fibnum = ia62ifa(ia)->ifa_ifp->if_fib;
 
 	if (cmd == RTM_ADD) {
 		rt_addrmsg(cmd, &ia->ia_ifa, fibnum);

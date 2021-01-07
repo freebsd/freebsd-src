@@ -306,6 +306,13 @@ void nhgrp_ref_object(struct nhgrp_object *nhg);
 uint32_t nhgrp_get_idx(const struct nhgrp_object *nhg);
 void nhgrp_free(struct nhgrp_object *nhg);
 
+/* rtsock */
+int rtsock_routemsg(int cmd, struct rtentry *rt, struct nhop_object *nh,
+    int fibnum);
+int rtsock_routemsg_info(int cmd, struct rt_addrinfo *info, int fibnum);
+int rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum);
+
+
 /* lookup_framework.c */
 void fib_grow_rtables(uint32_t new_num_tables);
 int fib_select_algo_initial(struct rib_head *rh);
