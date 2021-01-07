@@ -435,13 +435,17 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 		[WORK_ST_CANCEL] = WORK_ST_CANCEL,	/* NOP */
 	};
 	struct taskqueue *tq;
+	bool cancelled;
 
+	mtx_lock(&dwork->timer.mtx);
 	switch (linux_update_state(&dwork->work.state, states)) {
 	case WORK_ST_TIMER:
 	case WORK_ST_CANCEL:
-		if (linux_cancel_timer(dwork, 0)) {
+		cancelled = (callout_stop(&dwork->timer.callout) == 1);
+		if (cancelled) {
 			atomic_cmpxchg(&dwork->work.state,
 			    WORK_ST_CANCEL, WORK_ST_IDLE);
+			mtx_unlock(&dwork->timer.mtx);
 			return (true);
 		}
 		/* FALLTHROUGH */
@@ -450,10 +454,12 @@ linux_cancel_delayed_work(struct delayed_work *dwork)
 		if (taskqueue_cancel(tq, &dwork->work.work_task, NULL) == 0) {
 			atomic_cmpxchg(&dwork->work.state,
 			    WORK_ST_CANCEL, WORK_ST_IDLE);
+			mtx_unlock(&dwork->timer.mtx);
 			return (true);
 		}
 		/* FALLTHROUGH */
 	default:
+		mtx_unlock(&dwork->timer.mtx);
 		return (false);
 	}
 }
@@ -475,37 +481,36 @@ linux_cancel_delayed_work_sync(struct delayed_work *dwork)
 	};
 	struct taskqueue *tq;
 	bool retval = false;
+	int ret, state;
+	bool cancelled;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 	    "linux_cancel_delayed_work_sync() might sleep");
-retry:
-	switch (linux_update_state(&dwork->work.state, states)) {
+	mtx_lock(&dwork->timer.mtx);
+
+	state = linux_update_state(&dwork->work.state, states);
+	switch (state) {
 	case WORK_ST_IDLE:
+		mtx_unlock(&dwork->timer.mtx);
 		return (retval);
-	case WORK_ST_EXEC:
-		tq = dwork->work.work_queue->taskqueue;
-		if (taskqueue_cancel(tq, &dwork->work.work_task, NULL) != 0)
-			taskqueue_drain(tq, &dwork->work.work_task);
-		goto retry;	/* work may have restarted itself */
 	case WORK_ST_TIMER:
 	case WORK_ST_CANCEL:
-		if (linux_cancel_timer(dwork, 1)) {
-			/*
-			 * Make sure taskqueue is also drained before
-			 * returning:
-			 */
-			tq = dwork->work.work_queue->taskqueue;
-			taskqueue_drain(tq, &dwork->work.work_task);
-			retval = true;
-			goto retry;
-		}
-		/* FALLTHROUGH */
+		cancelled = (callout_stop(&dwork->timer.callout) == 1);
+
+		tq = dwork->work.work_queue->taskqueue;
+		ret = taskqueue_cancel(tq, &dwork->work.work_task, NULL);
+		mtx_unlock(&dwork->timer.mtx);
+
+		callout_drain(&dwork->timer.callout);
+		taskqueue_drain(tq, &dwork->work.work_task);
+		return (cancelled || (ret != 0));
 	default:
 		tq = dwork->work.work_queue->taskqueue;
-		if (taskqueue_cancel(tq, &dwork->work.work_task, NULL) != 0)
+		ret = taskqueue_cancel(tq, &dwork->work.work_task, NULL);
+		mtx_unlock(&dwork->timer.mtx);
+		if (ret != 0)
 			taskqueue_drain(tq, &dwork->work.work_task);
-		retval = true;
-		goto retry;
+		return (ret != 0);
 	}
 }
 
