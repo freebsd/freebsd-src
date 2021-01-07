@@ -141,8 +141,10 @@ typedef	__pid_t		pid_t;
 					   return back */
 #endif
 
+#define	O_DSYNC		0x00800000	/* POSIX data sync */
+
 /*
- * XXX missing O_DSYNC, O_RSYNC.
+ * XXX missing O_RSYNC.
  */
 
 #ifdef _KERNEL
@@ -158,9 +160,9 @@ typedef	__pid_t		pid_t;
 #define	OFLAGS(fflags)	((fflags) & O_EXEC ? (fflags) : (fflags) - 1)
 
 /* bits to save after open */
-#define	FMASK	(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FNONBLOCK|O_DIRECT|FEXEC)
+#define	FMASK	(FREAD|FWRITE|FAPPEND|FASYNC|FFSYNC|FDSYNC|FNONBLOCK|O_DIRECT|FEXEC)
 /* bits settable by fcntl(F_SETFL, ...) */
-#define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FNONBLOCK|FRDAHEAD|O_DIRECT)
+#define	FCNTLFLAGS	(FAPPEND|FASYNC|FFSYNC|FDSYNC|FNONBLOCK|FRDAHEAD|O_DIRECT)
 
 #if defined(COMPAT_FREEBSD7) || defined(COMPAT_FREEBSD6) || \
     defined(COMPAT_FREEBSD5) || defined(COMPAT_FREEBSD4)
@@ -185,15 +187,16 @@ typedef	__pid_t		pid_t;
 #define	FAPPEND		O_APPEND	/* kernel/compat */
 #define	FASYNC		O_ASYNC		/* kernel/compat */
 #define	FFSYNC		O_FSYNC		/* kernel */
+#define	FDSYNC		O_DSYNC		/* kernel */
 #define	FNONBLOCK	O_NONBLOCK	/* kernel */
 #define	FNDELAY		O_NONBLOCK	/* compat */
 #define	O_NDELAY	O_NONBLOCK	/* compat */
 #endif
 
 /*
- * We are out of bits in f_flag (which is a short).  However,
- * the flag bits not set in FMASK are only meaningful in the
- * initial open syscall.  Those bits can thus be given a
+ * Historically, we ran out of bits in f_flag (which was once a short).
+ * However, the flag bits not set in FMASK are only meaningful in the
+ * initial open syscall.  Those bits were thus given a
  * different meaning for fcntl(2).
  */
 #if __BSD_VISIBLE
