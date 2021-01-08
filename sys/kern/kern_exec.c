@@ -1074,12 +1074,12 @@ exec_new_vmspace(struct image_params *imgp, struct sysentvec *sv)
 		pmap_remove_pages(vmspace_pmap(vmspace));
 		vm_map_remove(map, vm_map_min(map), vm_map_max(map));
 		/*
-		 * An exec terminates mlockall(MCL_FUTURE), ASLR state
-		 * must be re-evaluated.
+		 * An exec terminates mlockall(MCL_FUTURE).
+		 * ASLR and W^X states must be re-evaluated.
 		 */
 		vm_map_lock(map);
 		vm_map_modflags(map, 0, MAP_WIREFUTURE | MAP_ASLR |
-		    MAP_ASLR_IGNSTART);
+		    MAP_ASLR_IGNSTART | MAP_WXORX);
 		vm_map_unlock(map);
 	} else {
 		error = vmspace_exec(p, sv_minuser, sv->sv_maxuser);
