@@ -992,9 +992,11 @@ static void wlat_test(struct krping_cb *cb)
 	volatile char *poll_buf = (char *) cb->start_buf;
 	char *buf = (char *)cb->rdma_buf;
 	struct timeval start_tv, stop_tv;
-	cycles_t *post_cycles_start, *post_cycles_stop;
-	cycles_t *poll_cycles_start, *poll_cycles_stop;
-	cycles_t *last_poll_cycles_start;
+	cycles_t *post_cycles_start = NULL;
+	cycles_t *post_cycles_stop = NULL;
+	cycles_t *poll_cycles_start = NULL;
+	cycles_t *poll_cycles_stop = NULL;
+	cycles_t *last_poll_cycles_start = NULL;
 	cycles_t sum_poll = 0, sum_post = 0, sum_last_poll = 0;
 	int i;
 	int cycle_iters = 1000;
@@ -1006,28 +1008,28 @@ static void wlat_test(struct krping_cb *cb)
 	post_cycles_start = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!post_cycles_start) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	post_cycles_stop = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!post_cycles_stop) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	poll_cycles_start = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!poll_cycles_start) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	poll_cycles_stop = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!poll_cycles_stop) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	last_poll_cycles_start = kmalloc(cycle_iters * sizeof(cycles_t), 
 		GFP_KERNEL);
 	if (!last_poll_cycles_start) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_WRITE;
 	cb->rdma_sq_wr.rkey = cb->remote_rkey;
@@ -1046,7 +1048,7 @@ static void wlat_test(struct krping_cb *cb)
 				if (cb->state == ERROR) {
 					printk(KERN_ERR PFX 
 						"state = ERROR, bailing\n");
-					return;
+					goto done;
 				}
 			}
 		}
@@ -1061,7 +1063,7 @@ static void wlat_test(struct krping_cb *cb)
 				printk(KERN_ERR PFX  
 					"Couldn't post send: scnt=%d\n",
 					scnt);
-				return;
+				goto done;
 			}
 			if (scnt < cycle_iters)
 				post_cycles_stop[scnt] = get_cycles();
@@ -1086,7 +1088,7 @@ static void wlat_test(struct krping_cb *cb)
 
 			if (ne < 0) {
 				printk(KERN_ERR PFX "poll CQ failed %d\n", ne);
-				return;
+				goto done;
 			}
 			if (wc.status != IB_WC_SUCCESS) {
 				printk(KERN_ERR PFX 
@@ -1098,7 +1100,7 @@ static void wlat_test(struct krping_cb *cb)
 				printk(KERN_ERR PFX 
 					"scnt=%d, rcnt=%d, ccnt=%d\n",
 					scnt, rcnt, ccnt);
-				return;
+				goto done;
 			}
 		}
 	}
@@ -1122,6 +1124,7 @@ static void wlat_test(struct krping_cb *cb)
 		scnt, cb->size, cycle_iters,
 		(unsigned long long)sum_post, (unsigned long long)sum_poll, 
 		(unsigned long long)sum_last_poll);
+done:
 	kfree(post_cycles_start);
 	kfree(post_cycles_stop);
 	kfree(poll_cycles_start);
@@ -1134,9 +1137,11 @@ static void bw_test(struct krping_cb *cb)
 	int ccnt, scnt, rcnt;
 	int iters=cb->count;
 	struct timeval start_tv, stop_tv;
-	cycles_t *post_cycles_start, *post_cycles_stop;
-	cycles_t *poll_cycles_start, *poll_cycles_stop;
-	cycles_t *last_poll_cycles_start;
+	cycles_t *post_cycles_start = NULL;
+	cycles_t *post_cycles_stop = NULL;
+	cycles_t *poll_cycles_start = NULL;
+	cycles_t *poll_cycles_stop = NULL;
+	cycles_t *last_poll_cycles_start = NULL;
 	cycles_t sum_poll = 0, sum_post = 0, sum_last_poll = 0;
 	int i;
 	int cycle_iters = 1000;
@@ -1148,28 +1153,28 @@ static void bw_test(struct krping_cb *cb)
 	post_cycles_start = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!post_cycles_start) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	post_cycles_stop = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!post_cycles_stop) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	poll_cycles_start = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!poll_cycles_start) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	poll_cycles_stop = kmalloc(cycle_iters * sizeof(cycles_t), GFP_KERNEL);
 	if (!poll_cycles_stop) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	last_poll_cycles_start = kmalloc(cycle_iters * sizeof(cycles_t), 
 		GFP_KERNEL);
 	if (!last_poll_cycles_start) {
 		printk(KERN_ERR PFX "%s kmalloc failed\n", __FUNCTION__);
-		return;
+		goto done;
 	}
 	cb->rdma_sq_wr.wr.opcode = IB_WR_RDMA_WRITE;
 	cb->rdma_sq_wr.rkey = cb->remote_rkey;
@@ -1190,7 +1195,7 @@ static void bw_test(struct krping_cb *cb)
 				printk(KERN_ERR PFX  
 					"Couldn't post send: scnt=%d\n",
 					scnt);
-				return;
+				goto done;
 			}
 			if (scnt < cycle_iters)
 				post_cycles_stop[scnt] = get_cycles();
@@ -1215,7 +1220,7 @@ static void bw_test(struct krping_cb *cb)
 
 			if (ne < 0) {
 				printk(KERN_ERR PFX "poll CQ failed %d\n", ne);
-				return;
+				goto done;
 			}
 			if (wc.status != IB_WC_SUCCESS) {
 				printk(KERN_ERR PFX 
@@ -1224,7 +1229,7 @@ static void bw_test(struct krping_cb *cb)
 				printk(KERN_ERR PFX 
 					"Failed status %d: wr_id %d\n",
 					wc.status, (int) wc.wr_id);
-				return;
+				goto done;
 			}
 		}
 	}
@@ -1248,6 +1253,7 @@ static void bw_test(struct krping_cb *cb)
 		scnt, cb->size, cycle_iters, 
 		(unsigned long long)sum_post, (unsigned long long)sum_poll, 
 		(unsigned long long)sum_last_poll);
+done:
 	kfree(post_cycles_start);
 	kfree(post_cycles_stop);
 	kfree(poll_cycles_start);
