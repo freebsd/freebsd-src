@@ -279,7 +279,7 @@ sfuart_bus_flush(struct uart_softc *sc, int what)
 		if (c)							\
 			i |= ((i) & (s)) ? (s) : (s) | (d);		\
 		else		 					\
-			i = ((i) & (s)) ? (i) & ~(s) | (d) : (i);	\
+			i = ((i) & (s)) ? ((i) & ~(s)) | (d) : (i);	\
 	} while (0)
 
 static int
