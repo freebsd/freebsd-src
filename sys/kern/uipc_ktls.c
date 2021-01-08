@@ -1014,6 +1014,8 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 
 	if (!ktls_offload_enable)
 		return (ENOTSUP);
+	if (SOLISTENING(so))
+		return (EINVAL);
 
 	counter_u64_add(ktls_offload_enable_calls, 1);
 
@@ -1079,6 +1081,8 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 
 	if (!ktls_offload_enable)
 		return (ENOTSUP);
+	if (SOLISTENING(so))
+		return (EINVAL);
 
 	counter_u64_add(ktls_offload_enable_calls, 1);
 
@@ -1155,6 +1159,8 @@ ktls_get_rx_mode(struct socket *so)
 	struct inpcb *inp;
 	int mode;
 
+	if (SOLISTENING(so))
+		return (EINVAL);
 	inp = so->so_pcb;
 	INP_WLOCK_ASSERT(inp);
 	SOCKBUF_LOCK(&so->so_rcv);
@@ -1174,6 +1180,8 @@ ktls_get_tx_mode(struct socket *so)
 	struct inpcb *inp;
 	int mode;
 
+	if (SOLISTENING(so))
+		return (EINVAL);
 	inp = so->so_pcb;
 	INP_WLOCK_ASSERT(inp);
 	SOCKBUF_LOCK(&so->so_snd);
@@ -1196,6 +1204,8 @@ ktls_set_tx_mode(struct socket *so, int mode)
 	struct inpcb *inp;
 	int error;
 
+	if (SOLISTENING(so))
+		return (EINVAL);
 	switch (mode) {
 	case TCP_TLS_MODE_SW:
 	case TCP_TLS_MODE_IFNET:
