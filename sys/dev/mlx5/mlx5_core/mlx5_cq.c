@@ -149,6 +149,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 		goto err_cmd;
 
 	cq->pid = curthread->td_proc->p_pid;
+	cq->uar = dev->priv.uar;
 
 	return 0;
 
