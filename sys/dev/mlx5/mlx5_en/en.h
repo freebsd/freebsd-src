@@ -796,7 +796,7 @@ struct mlx5e_sq {
 	struct	mtx lock;
 	struct	mtx comp_lock;
 	struct	mlx5e_sq_stats stats;
-  	struct	callout cev_callout;
+	struct	callout cev_callout;
 
 	/* data path */
 #define	mlx5e_sq_zero_start dma_tag
