@@ -124,11 +124,6 @@ mlx5e_rl_create_sq(struct mlx5e_priv *priv, struct mlx5e_sq *sq,
 		goto err_free_dma_tag;
 
 	sq->wq.db = &sq->wq.db[MLX5_SND_DBR];
-	/*
-	 * The sq->bf_buf_size variable is intentionally left zero so
-	 * that the doorbell writes will occur at the same memory
-	 * location.
-	 */
 
 	err = mlx5e_alloc_sq_db(sq);
 	if (err)
