@@ -265,10 +265,6 @@ cpu_fork_kthread_handler(struct thread *td, void (*func)(void *), void *arg)
 
 	td->td_pcb->pcb_x[8] = (uintptr_t)func;
 	td->td_pcb->pcb_x[9] = (uintptr_t)arg;
-	td->td_pcb->pcb_lr = (uintptr_t)fork_trampoline;
-	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
-	td->td_pcb->pcb_fpusaved = &td->td_pcb->pcb_fpustate;
-	td->td_pcb->pcb_vfpcpu = UINT_MAX;
 }
 
 void
