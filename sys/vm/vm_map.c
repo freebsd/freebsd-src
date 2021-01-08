@@ -1671,6 +1671,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if (start == end || !vm_map_range_valid(map, start, end))
 		return (KERN_INVALID_ADDRESS);
 
+	if ((map->flags & MAP_WXORX) != 0 && (prot & (VM_PROT_WRITE |
+	    VM_PROT_EXECUTE)) == (VM_PROT_WRITE | VM_PROT_EXECUTE))
+		return (KERN_PROTECTION_FAILURE);
+
 	/*
 	 * Find the entry prior to the proposed starting address; if it's part
 	 * of an existing entry, this range is bogus.
@@ -2750,6 +2754,13 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 again:
 	in_tran = NULL;
 	vm_map_lock(map);
+
+	if ((map->flags & MAP_WXORX) != 0 && (new_prot &
+	    (VM_PROT_WRITE | VM_PROT_EXECUTE)) == (VM_PROT_WRITE |
+	    VM_PROT_EXECUTE)) {
+		vm_map_unlock(map);
+		return (KERN_PROTECTION_FAILURE);
+	}
 
 	/*
 	 * Ensure that we are not concurrently wiring pages.  vm_map_wire() may
