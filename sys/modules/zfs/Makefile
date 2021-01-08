@@ -128,7 +128,7 @@ SRCS+=	abd_os.c \
 	zfs_log.c \
 	zfs_replay.c \
 	zfs_vfsops.c \
-	zfs_vnops.c \
+	zfs_vnops_os.c \
 	zfs_znode.c \
 	zio_crypt.c \
 	zvol_os.c
@@ -223,6 +223,8 @@ SRCS+=	abd.c \
 	unique.c \
 	vdev.c \
 	vdev_cache.c \
+	vdev_draid.c \
+	vdev_draid_rand.c \
 	vdev_indirect.c \
 	vdev_indirect_births.c \
 	vdev_indirect_mapping.c \
@@ -264,6 +266,7 @@ SRCS+=	abd.c \
 	zfs_ratelimit.c \
 	zfs_rlock.c \
 	zfs_sa.c \
+	zfs_vnops.c \
 	zil.c \
 	zio.c \
 	zio_checksum.c \
@@ -294,7 +297,7 @@ CFLAGS.spl_vm.c= -Wno-cast-qual
 CFLAGS.spl_zlib.c= -Wno-cast-qual
 CFLAGS.abd.c= -Wno-cast-qual
 CFLAGS.zfs_log.c= -Wno-cast-qual
-CFLAGS.zfs_vnops.c= -Wno-pointer-arith
+CFLAGS.zfs_vnops_os.c= -Wno-pointer-arith
 CFLAGS.u8_textprep.c= -Wno-cast-qual
 CFLAGS.zfs_fletcher.c= -Wno-cast-qual -Wno-pointer-arith
 CFLAGS.zfs_fletcher_intel.c= -Wno-cast-qual -Wno-pointer-arith
@@ -312,6 +315,7 @@ CFLAGS.lz4.c= -Wno-cast-qual
 CFLAGS.spa.c= -Wno-cast-qual
 CFLAGS.spa_misc.c= -Wno-cast-qual
 CFLAGS.sysctl_os.c= -include ${SRCTOP}/sys/modules/zfs/zfs_config.h
+CFLAGS.vdev_draid.c= -Wno-cast-qual
 CFLAGS.vdev_raidz.c= -Wno-cast-qual
 CFLAGS.vdev_raidz_math.c= -Wno-cast-qual
 CFLAGS.vdev_raidz_math_scalar.c= -Wno-cast-qual
