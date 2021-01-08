@@ -423,6 +423,7 @@ options 	VGA_DEBUG
 
 # vt(4) drivers.
 device		vt_vga
+device		vt_vbefb
 
 # Linear framebuffer driver for S3 VESA 1.2 cards. Works on top of VESA.
 device		s3pci
