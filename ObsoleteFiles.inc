@@ -42,6 +42,7 @@ OLD_DIRS+=usr/lib/compat/aout
 
 # 20210105: remove non widechar version of clang
 OLD_LIBS+=lib/libncurses.so.9
+
 # 20210103: new clang import which bumps version from 11.0.0 to 11.0.1.
 OLD_FILES+=usr/lib/clang/11.0.0/include/cuda_wrappers/algorithm
 OLD_FILES+=usr/lib/clang/11.0.0/include/cuda_wrappers/complex
@@ -333,6 +334,7 @@ OLD_FILES+=usr/libexec/kgdb
 # 20201211: hme(4) removed
 OLD_FILES+=usr/share/man/man4/hme.4.gz
 OLD_FILES+=usr/share/man/man4/if_hme.4.gz
+
 # 20201124: ping6(8) was merged into ping(8)
 OLD_FILES+=usr/lib/debug/sbin/ping6.debug
 OLD_FILES+=usr/share/man/man8/ping6.8.gz
