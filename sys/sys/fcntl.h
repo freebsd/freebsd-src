@@ -141,7 +141,7 @@ typedef	__pid_t		pid_t;
 					   return back */
 #endif
 
-#define	O_DSYNC		0x00800000	/* POSIX data sync */
+#define	O_DSYNC		0x01000000	/* POSIX data sync */
 
 /*
  * XXX missing O_RSYNC.
