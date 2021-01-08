@@ -101,6 +101,9 @@ vmd_free(struct vmd_softc *sc)
 	int i;
 	struct vmd_irq_handler *elm, *tmp;
 
+	if (sc->vmd_bus.rman.rm_end != 0)
+		rman_fini(&sc->vmd_bus.rman);
+
 #ifdef TASK_QUEUE_INTR
 	if (sc->vmd_irq_tq != NULL) {
 		taskqueue_drain(sc->vmd_irq_tq, &sc->vmd_irq_task);
@@ -334,10 +337,10 @@ vmd_attach(device_t dev)
 	snprintf(buf, sizeof(buf), "%s bus numbers", device_get_nameunit(dev));
 	bus->rman.rm_descr = strdup(buf, M_DEVBUF);
 	error = rman_init(&bus->rman);
-
 	if (error) {
 		device_printf(dev, "Failed to initialize %s bus number rman\n",
 		    device_get_nameunit(dev));
+		bus->rman.rm_end = 0;
 		goto fail;
 	}
 
@@ -410,7 +413,6 @@ vmd_attach(device_t dev)
 	}
 
 	sc->vmd_child = device_add_child(dev, NULL, -1);
-
 	if (sc->vmd_child == NULL) {
 		device_printf(dev, "Failed to attach child\n");
 		goto fail;
@@ -418,7 +420,8 @@ vmd_attach(device_t dev)
 
 	error = device_probe_and_attach(sc->vmd_child);
 	if (error) {
-		device_printf(dev, "Failed to add probe child\n");
+		device_printf(dev, "Failed to add probe child: %d\n", error);
+		(void)device_delete_child(dev, sc->vmd_child);
 		goto fail;
 	}
 
@@ -444,9 +447,6 @@ vmd_detach(device_t dev)
 		if (err)
 			return (err);
 	}
-	if (sc->vmd_bus.rman.rm_end != 0)
-		rman_fini(&sc->vmd_bus.rman);
-
 	vmd_free(sc);
 	return (0);
 }
