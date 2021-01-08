@@ -936,7 +936,7 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 
 	err = mlx5_vsc_find_cap(dev);
 	if (err)
-		mlx5_core_err(dev, "Unable to find vendor specific capabilities\n");
+		mlx5_core_warn(dev, "Unable to find vendor specific capabilities\n");
 
 	err = mlx5_query_hca_caps(dev);
 	if (err) {
