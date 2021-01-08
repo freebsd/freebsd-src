@@ -1645,6 +1645,11 @@ static void remove_one(struct pci_dev *pdev)
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct mlx5_priv *priv = &dev->priv;
 
+#ifdef PCI_IOV
+	pci_iov_detach(pdev->dev.bsddev);
+	mlx5_eswitch_disable_sriov(priv->eswitch);
+#endif
+
 	if (mlx5_unload_one(dev, priv, true)) {
 		mlx5_core_err(dev, "mlx5_unload_one() failed, leaked %lld bytes\n",
 		    (long long)(dev->priv.fw_pages * MLX5_ADAPTER_PAGE_SIZE));
