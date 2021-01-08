@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2020
+.Dd January 8, 2020
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -539,7 +539,8 @@ The kernel debugger may not be entered using the
 .Va debug.kdb.enter
 sysctl.
 A panic or trap cannot be forced using the
-.Va debug.kdb.panic
+.Va debug.kdb.panic ,
+.Va debug.kdb.panic_str
 and other sysctl's.
 .It Ic 2
 Highly secure mode \- same as secure mode, plus disks may not be

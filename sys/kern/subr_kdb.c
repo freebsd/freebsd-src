@@ -82,6 +82,7 @@ static int kdb_sysctl_available(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_current(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_enter(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_panic(SYSCTL_HANDLER_ARGS);
+static int kdb_sysctl_panic_str(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_stack_overflow(SYSCTL_HANDLER_ARGS);
@@ -108,6 +109,11 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, panic,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
     kdb_sysctl_panic, "I",
     "set to panic the kernel");
+
+SYSCTL_PROC(_debug_kdb, OID_AUTO, panic_str,
+    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
+    kdb_sysctl_panic_str, "A",
+    "set to panic the kernel with using the string as the panic message");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, trap,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
@@ -203,6 +209,20 @@ kdb_sysctl_panic(SYSCTL_HANDLER_ARGS)
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 	panic("kdb_sysctl_panic");
+	return (0);
+}
+
+static int
+kdb_sysctl_panic_str(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	static char buf[256]; /* static buffer to limit mallocs when panicing */
+
+	*buf = '\0';
+	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	panic("kdb_sysctl_panic: %s", buf);
 	return (0);
 }
 
