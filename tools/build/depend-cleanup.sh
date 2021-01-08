@@ -64,3 +64,9 @@ if [ -e "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o ] && \
 	echo "Removing old pf_ruleset dependecy file"
 	rm -rf "$OBJTOP"/sbin/pfctl/.depend.pf_ruleset.o
 fi
+
+# 20210108  821aa63a0940   non-widechar version of ncurses removed
+if [ -e "$OBJTOP"/lib/ncurses/ncursesw ]; then
+	echo "Removing stale ncurses objects"
+	rm -rf "$OBJTOP"/lib/ncurses "$OBJTOP"/obj-lib32/lib/ncurses
+fi
