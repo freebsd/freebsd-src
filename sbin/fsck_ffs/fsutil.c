@@ -1211,10 +1211,10 @@ static void
 prtbuf(const char *msg, struct bufarea *bp)
 {
 	
-	printf("%s: bp %p, type %s, bno %ld, size %d, refcnt %d, flags %s, "
-	    "index %d\n", msg, bp, BT_BUFTYPE(bp->b_type), bp->b_bno,
+	printf("%s: bp %p, type %s, bno %jd, size %d, refcnt %d, flags %s, "
+	    "index %jd\n", msg, bp, BT_BUFTYPE(bp->b_type), (intmax_t) bp->b_bno,
 	    bp->b_size, bp->b_refcnt, bp->b_flags & B_DIRTY ? "dirty" : "clean",
-	    bp->b_index);
+	    (intmax_t) bp->b_index);
 }
 
 /*
