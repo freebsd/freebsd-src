@@ -1408,6 +1408,7 @@ dev/cadence/if_cgem.c		optional cgem fdt
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
+dev/cardbus/power_if.m		standard
 dev/cas/if_cas.c		optional cas
 dev/cfi/cfi_bus_fdt.c		optional cfi fdt
 dev/cfi/cfi_bus_nexus.c		optional cfi
@@ -2623,7 +2624,6 @@ dev/pccard/pccard.c		optional pccard
 dev/pccard/pccard_cis.c		optional pccard
 dev/pccard/pccard_cis_quirks.c	optional pccard
 dev/pccard/pccard_device.c	optional pccard
-dev/pccard/power_if.m		standard
 dev/pccbb/pccbb.c		optional cbb
 dev/pccbb/pccbb_pci.c		optional cbb pci
 dev/pcf/pcf.c			optional pcf
