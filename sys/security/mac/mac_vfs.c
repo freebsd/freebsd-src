@@ -701,7 +701,7 @@ MAC_CHECK_PROBE_DEFINE2(vnode_check_readlink, "struct ucred *",
     "struct vnode *");
 
 int
-mac_vnode_check_readlink(struct ucred *cred, struct vnode *vp)
+mac_vnode_check_readlink_impl(struct ucred *cred, struct vnode *vp)
 {
 	int error;
 
