@@ -2042,16 +2042,20 @@ static inline void
 nvme_device_self_test_swapbytes(struct nvme_device_self_test_page *s __unused)
 {
 #if _BYTE_ORDER != _LITTLE_ENDIAN
-	uint64_t failing_lba;
-	uint32_t r;
+	uint8_t *tmp;
+	uint32_t r, i;
+	uint8_t b;
 
 	for (r = 0; r < 20; r++) {
 		s->result[r].poh = le64toh(s->result[r].poh);
 		s->result[r].nsid = le32toh(s->result[r].nsid);
 		/* Unaligned 64-bit loads fail on some architectures */
-		memcpy(&failing_lba, s->result[r].failing_lba, sizeof(failing_lba));
-		failing_lba = le64toh(failing_lba);
-		memcpy(s->result[r].failing_lba, &failing_lba, sizeof(failing_lba));
+		tmp = s->result[r].failing_lba;
+		for (i = 0; i < 4; i++) {
+			b = tmp[i];
+			tmp[i] = tmp[7-i];
+			tmp[7-i] = b;
+		}
 	}
 #endif
 }
