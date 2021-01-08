@@ -707,7 +707,7 @@ static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili,
 		if (warn_time_mili && time_after(jiffies, warn)) {
 			mlx5_core_warn(dev,
 			    "Waiting for FW initialization, timeout abort in %u s\n",
-			    (unsigned int)(jiffies_to_msecs(end - warn) / 1000));
+			    (unsigned)(jiffies_to_msecs(end - warn) / 1000));
 			warn = jiffies + msecs_to_jiffies(warn_time_mili);
 		}
 		msleep(FW_INIT_WAIT_MS);
