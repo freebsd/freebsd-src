@@ -783,15 +783,15 @@ safexcel_init_rings(struct safexcel_softc *sc)
 {
 	struct safexcel_cmd_descr *cdesc;
 	struct safexcel_ring *ring;
-	char buf[32];
 	uint64_t atok;
 	int i, j;
 
 	for (i = 0; i < sc->sc_config.rings; i++) {
 		ring = &sc->sc_ring[i];
 
-		snprintf(buf, sizeof(buf), "safexcel_ring%d", i);
-		mtx_init(&ring->mtx, buf, NULL, MTX_DEF);
+		snprintf(ring->lockname, sizeof(ring->lockname),
+		    "safexcel_ring%d", i);
+		mtx_init(&ring->mtx, ring->lockname, NULL, MTX_DEF);
 		STAILQ_INIT(&ring->free_requests);
 		STAILQ_INIT(&ring->ready_requests);
 		STAILQ_INIT(&ring->queued_requests);
