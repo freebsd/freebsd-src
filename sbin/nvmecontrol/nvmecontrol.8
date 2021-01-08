@@ -177,6 +177,10 @@
 .Op Fl p power_state
 .Op Fl w workload_hint
 .Nm
+.Ic selftest
+.Aq Fl c Ar code
+.Aq Ar device-id | Ar namespace-id
+.Nm
 .Ic wdc cap-diag
 .Op Fl o path_template
 .Aq Ar device-id
@@ -254,6 +258,8 @@ Firmware Information
 Changed Namespace List
 .It Dv Page 0x05
 Commands Supported and Effects
+.It Dv Page 0x06
+Device Self-test
 .It Dv Page 0x80
 Reservation Notification
 .It Dv Page 0x81
@@ -463,6 +469,23 @@ Run in
 .Dq report only
 mode.
 This will report status on a sanitize that is already running on the drive.
+.El
+.Ss selftest
+Start the specified device self-test:
+.Bl -tag -width 6n
+.It Fl c Ar code
+Specify the device self-test command code.
+Common codes are:
+.Bl -tag -compact -width 6n
+.It Dv 0x1
+Start a short device self-test operation
+.It Dv 0x2
+Start an extended device self-test operation
+.It Dv 0xe
+Start a vendor specific device self-test operation
+.It Dv 0xf
+Abort the device self-test operation
+.El
 .El
 .Ss wdc
 The various wdc command retrieve log data from the wdc/hgst drives.
