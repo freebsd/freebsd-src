@@ -4896,7 +4896,6 @@ arc_evict_cb_check(void *arg, zthr_t *zthr)
 	 * suffice.  The arc_state_t structures can be queried
 	 * directly if more accurate information is needed.
 	 */
-#ifndef __FreeBSD__
 	if (arc_ksp != NULL)
 		arc_ksp->ks_update(arc_ksp, KSTAT_READ);
 #endif
