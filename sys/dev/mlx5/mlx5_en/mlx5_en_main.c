@@ -2582,6 +2582,31 @@ mlx5e_close_rqt(struct mlx5e_priv *priv)
 	mlx5_cmd_exec(priv->mdev, in, sizeof(in), out, sizeof(out));
 }
 
+#define	MLX5E_RSS_KEY_SIZE (10 * 4)	/* bytes */
+
+static void
+mlx5e_get_rss_key(void *key_ptr)
+{
+#ifdef RSS
+	rss_getkey(key_ptr);
+#else
+	static const u32 rsskey[] = {
+	    cpu_to_be32(0xD181C62C),
+	    cpu_to_be32(0xF7F4DB5B),
+	    cpu_to_be32(0x1983A2FC),
+	    cpu_to_be32(0x943E1ADB),
+	    cpu_to_be32(0xD9389E6B),
+	    cpu_to_be32(0xD1039C2C),
+	    cpu_to_be32(0xA74499AD),
+	    cpu_to_be32(0x593D56D9),
+	    cpu_to_be32(0xF3253C06),
+	    cpu_to_be32(0x2ADC1FFC),
+	};
+	CTASSERT(sizeof(rsskey) == MLX5E_RSS_KEY_SIZE);
+	memcpy(key_ptr, rsskey, MLX5E_RSS_KEY_SIZE);
+#endif
+}
+
 static void
 mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 {
@@ -2633,26 +2658,19 @@ mlx5e_build_tir_ctx(struct mlx5e_priv *priv, u32 * tirc, int tt)
 		MLX5_SET(tirc, tirc, rx_hash_fn,
 		    MLX5_TIRC_RX_HASH_FN_HASH_TOEPLITZ);
 		hkey = (__be32 *) MLX5_ADDR_OF(tirc, tirc, rx_hash_toeplitz_key);
+
+		CTASSERT(MLX5_FLD_SZ_BYTES(tirc, rx_hash_toeplitz_key) >=
+		    MLX5E_RSS_KEY_SIZE);
 #ifdef RSS
 		/*
 		 * The FreeBSD RSS implementation does currently not
 		 * support symmetric Toeplitz hashes:
 		 */
 		MLX5_SET(tirc, tirc, rx_hash_symmetric, 0);
-		rss_getkey((uint8_t *)hkey);
 #else
 		MLX5_SET(tirc, tirc, rx_hash_symmetric, 1);
-		hkey[0] = cpu_to_be32(0xD181C62C);
-		hkey[1] = cpu_to_be32(0xF7F4DB5B);
-		hkey[2] = cpu_to_be32(0x1983A2FC);
-		hkey[3] = cpu_to_be32(0x943E1ADB);
-		hkey[4] = cpu_to_be32(0xD9389E6B);
-		hkey[5] = cpu_to_be32(0xD1039C2C);
-		hkey[6] = cpu_to_be32(0xA74499AD);
-		hkey[7] = cpu_to_be32(0x593D56D9);
-		hkey[8] = cpu_to_be32(0xF3253C06);
-		hkey[9] = cpu_to_be32(0x2ADC1FFC);
 #endif
+		mlx5e_get_rss_key(hkey);
 		break;
 	}
 
@@ -3080,6 +3098,8 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq *ifr;
 	struct ifdownreason *ifdr;
 	struct ifi2creq i2c;
+	struct ifrsskey *ifrk;
+	struct ifrsshash *ifrh;
 	int error = 0;
 	int mask = 0;
 	int size_read = 0;
@@ -3340,6 +3360,26 @@ err_i2c:
 		PRIV_UNLOCK(priv);
 		if (error == 0)
 			ifdr->ifdr_reason = IFDR_REASON_MSG;
+		break;
+
+	case SIOCGIFRSSKEY:
+		ifrk = (struct ifrsskey *)data;
+		ifrk->ifrk_func = RSS_FUNC_TOEPLITZ;
+		ifrk->ifrk_keylen = MLX5E_RSS_KEY_SIZE;
+		CTASSERT(sizeof(ifrk->ifrk_key) >= MLX5E_RSS_KEY_SIZE);
+		mlx5e_get_rss_key(ifrk->ifrk_key);
+		break;
+
+	case SIOCGIFRSSHASH:
+		ifrh = (struct ifrsshash *)data;
+		ifrh->ifrh_func = RSS_FUNC_TOEPLITZ;
+		ifrh->ifrh_types =
+		    RSS_TYPE_IPV4 |
+		    RSS_TYPE_TCP_IPV4 |
+		    RSS_TYPE_UDP_IPV4 |
+		    RSS_TYPE_IPV6 |
+		    RSS_TYPE_TCP_IPV6 |
+		    RSS_TYPE_UDP_IPV6;
 		break;
 
 	default:
