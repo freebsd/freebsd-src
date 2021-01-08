@@ -1589,6 +1589,7 @@ igmp_input(struct mbuf **mp, int *offp, int proto)
 				if (nsrc * sizeof(in_addr_t) >
 				    UINT16_MAX - iphlen - IGMP_V3_QUERY_MINLEN) {
 					IGMPSTAT_INC(igps_rcv_tooshort);
+					m_freem(m);
 					return (IPPROTO_DONE);
 				}
 				/*
