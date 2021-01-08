@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2020, Mellanox Technologies. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -467,60 +467,54 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 	return 1;
 }
 
-static int first_med_uuar(void)
+enum {
+	/* this is the first blue flame register in the array of bfregs assigned
+	 * to a processes. Since we do not use it for blue flame but rather
+	 * regular 64 bit doorbells, we do not need a lock for maintaiing
+	 * "odd/even" order
+	 */
+	NUM_NON_BLUE_FLAME_BFREGS = 1,
+};
+
+static int max_bfregs(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi)
 {
-	return 1;
+	return get_num_static_uars(dev, bfregi) * MLX5_NON_FP_BFREGS_PER_UAR;
 }
 
-static int next_uuar(int n)
-{
-	n++;
-
-	while (((n % 4) & 2))
-		n++;
-
-	return n;
-}
-
-static int num_med_uuar(struct mlx5_uuar_info *uuari)
+static int num_med_bfreg(struct mlx5_ib_dev *dev,
+			 struct mlx5_bfreg_info *bfregi)
 {
 	int n;
 
-	n = uuari->num_uars * MLX5_NON_FP_BF_REGS_PER_PAGE -
-		uuari->num_low_latency_uuars - 1;
+	n = max_bfregs(dev, bfregi) - bfregi->num_low_latency_bfregs -
+	    NUM_NON_BLUE_FLAME_BFREGS;
 
 	return n >= 0 ? n : 0;
 }
 
-static int max_uuari(struct mlx5_uuar_info *uuari)
+static int first_med_bfreg(struct mlx5_ib_dev *dev,
+			   struct mlx5_bfreg_info *bfregi)
 {
-	return uuari->num_uars * 4;
+	return num_med_bfreg(dev, bfregi) ? 1 : -ENOMEM;
 }
 
-static int first_hi_uuar(struct mlx5_uuar_info *uuari)
+static int first_hi_bfreg(struct mlx5_ib_dev *dev,
+			  struct mlx5_bfreg_info *bfregi)
 {
 	int med;
-	int i;
-	int t;
 
-	med = num_med_uuar(uuari);
-	for (t = 0, i = first_med_uuar();; i = next_uuar(i)) {
-		t++;
-		if (t == med)
-			return next_uuar(i);
-	}
-
-	return 0;
+	med = num_med_bfreg(dev, bfregi);
+	return ++med;
 }
 
-static int alloc_high_class_uuar(struct mlx5_uuar_info *uuari)
+static int alloc_high_class_bfreg(struct mlx5_ib_dev *dev,
+				  struct mlx5_bfreg_info *bfregi)
 {
 	int i;
 
-	for (i = first_hi_uuar(uuari); i < max_uuari(uuari); i = next_uuar(i)) {
-		if (!test_bit(i, uuari->bitmap)) {
-			set_bit(i, uuari->bitmap);
-			uuari->count[i]++;
+	for (i = first_hi_bfreg(dev, bfregi); i < max_bfregs(dev, bfregi); i++) {
+		if (!bfregi->count[i]) {
+			bfregi->count[i]++;
 			return i;
 		}
 	}
@@ -528,87 +522,56 @@ static int alloc_high_class_uuar(struct mlx5_uuar_info *uuari)
 	return -ENOMEM;
 }
 
-static int alloc_med_class_uuar(struct mlx5_uuar_info *uuari)
+static int alloc_med_class_bfreg(struct mlx5_ib_dev *dev,
+				 struct mlx5_bfreg_info *bfregi)
 {
-	int minidx = first_med_uuar();
+	int minidx = first_med_bfreg(dev, bfregi);
 	int i;
 
-	for (i = first_med_uuar(); i < first_hi_uuar(uuari); i = next_uuar(i)) {
-		if (uuari->count[i] < uuari->count[minidx])
+	if (minidx < 0)
+		return minidx;
+
+	for (i = minidx; i < first_hi_bfreg(dev, bfregi); i++) {
+		if (bfregi->count[i] < bfregi->count[minidx])
 			minidx = i;
+		if (!bfregi->count[minidx])
+			break;
 	}
 
-	uuari->count[minidx]++;
+	bfregi->count[minidx]++;
 	return minidx;
 }
 
-static int alloc_uuar(struct mlx5_uuar_info *uuari,
-		      enum mlx5_ib_latency_class lat)
+static int alloc_bfreg(struct mlx5_ib_dev *dev,
+		       struct mlx5_bfreg_info *bfregi)
 {
-	int uuarn = -EINVAL;
+	int bfregn = -ENOMEM;
 
-	mutex_lock(&uuari->lock);
-	switch (lat) {
-	case MLX5_IB_LATENCY_CLASS_LOW:
-		uuarn = 0;
-		uuari->count[uuarn]++;
-		break;
+	if (bfregi->lib_uar_dyn)
+		return -EINVAL;
 
-	case MLX5_IB_LATENCY_CLASS_MEDIUM:
-		if (uuari->ver < 2)
-			uuarn = -ENOMEM;
-		else
-			uuarn = alloc_med_class_uuar(uuari);
-		break;
-
-	case MLX5_IB_LATENCY_CLASS_HIGH:
-		if (uuari->ver < 2)
-			uuarn = -ENOMEM;
-		else
-			uuarn = alloc_high_class_uuar(uuari);
-		break;
-
-	case MLX5_IB_LATENCY_CLASS_FAST_PATH:
-		uuarn = 2;
-		break;
-	}
-	mutex_unlock(&uuari->lock);
-
-	return uuarn;
-}
-
-static void free_med_class_uuar(struct mlx5_uuar_info *uuari, int uuarn)
-{
-	clear_bit(uuarn, uuari->bitmap);
-	--uuari->count[uuarn];
-}
-
-static void free_high_class_uuar(struct mlx5_uuar_info *uuari, int uuarn)
-{
-	clear_bit(uuarn, uuari->bitmap);
-	--uuari->count[uuarn];
-}
-
-static void free_uuar(struct mlx5_uuar_info *uuari, int uuarn)
-{
-	int nuuars = uuari->num_uars * MLX5_BF_REGS_PER_PAGE;
-	int high_uuar = nuuars - uuari->num_low_latency_uuars;
-
-	mutex_lock(&uuari->lock);
-	if (uuarn == 0) {
-		--uuari->count[uuarn];
-		goto out;
+	mutex_lock(&bfregi->lock);
+	if (bfregi->ver >= 2) {
+		bfregn = alloc_high_class_bfreg(dev, bfregi);
+		if (bfregn < 0)
+			bfregn = alloc_med_class_bfreg(dev, bfregi);
 	}
 
-	if (uuarn < high_uuar) {
-		free_med_class_uuar(uuari, uuarn);
-		goto out;
+	if (bfregn < 0) {
+		BUILD_BUG_ON(NUM_NON_BLUE_FLAME_BFREGS != 1);
+		bfregn = 0;
+		bfregi->count[bfregn]++;
 	}
+	mutex_unlock(&bfregi->lock);
 
-	free_high_class_uuar(uuari, uuarn);
+	return bfregn;
+}
 
-out:
-	mutex_unlock(&uuari->lock);
+void mlx5_ib_free_bfreg(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi, int bfregn)
+{
+	mutex_lock(&bfregi->lock);
+	bfregi->count[bfregn]--;
+	mutex_unlock(&bfregi->lock);
 }
 
 static enum mlx5_qp_state to_mlx5_state(enum ib_qp_state state)
@@ -649,9 +612,36 @@ static void mlx5_ib_lock_cqs(struct mlx5_ib_cq *send_cq,
 static void mlx5_ib_unlock_cqs(struct mlx5_ib_cq *send_cq,
 			       struct mlx5_ib_cq *recv_cq);
 
-static int uuarn_to_uar_index(struct mlx5_uuar_info *uuari, int uuarn)
+int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
+			struct mlx5_bfreg_info *bfregi, u32 bfregn,
+			bool dyn_bfreg)
 {
-	return uuari->uars[uuarn / MLX5_BF_REGS_PER_PAGE].index;
+	unsigned int bfregs_per_sys_page;
+	u32 index_of_sys_page;
+	u32 offset;
+
+	if (bfregi->lib_uar_dyn)
+		return -EINVAL;
+
+	bfregs_per_sys_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k) *
+				MLX5_NON_FP_BFREGS_PER_UAR;
+	index_of_sys_page = bfregn / bfregs_per_sys_page;
+
+	if (dyn_bfreg) {
+		index_of_sys_page += bfregi->num_static_sys_pages;
+
+		if (index_of_sys_page >= bfregi->num_sys_pages)
+			return -EINVAL;
+
+		if (bfregn > bfregi->num_dyn_bfregs ||
+		    bfregi->sys_pages[index_of_sys_page] == MLX5_IB_INVALID_UAR_INDEX) {
+			mlx5_ib_dbg(dev, "Invalid dynamic uar index\n");
+			return -EINVAL;
+		}
+	}
+
+	offset = bfregn % bfregs_per_sys_page / MLX5_NON_FP_BFREGS_PER_UAR;
+	return bfregi->sys_pages[index_of_sys_page] + offset;
 }
 
 static int mlx5_ib_umem_get(struct mlx5_ib_dev *dev,
@@ -754,6 +744,13 @@ err_umem:
 	return err;
 }
 
+static int adjust_bfregn(struct mlx5_ib_dev *dev,
+			 struct mlx5_bfreg_info *bfregi, int bfregn)
+{
+	return bfregn / MLX5_NON_FP_BFREGS_PER_UAR * MLX5_BFREGS_PER_UAR +
+				bfregn % MLX5_NON_FP_BFREGS_PER_UAR;
+}
+
 static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			  struct mlx5_ib_qp *qp, struct ib_udata *udata,
 			  struct ib_qp_init_attr *attr,
@@ -765,14 +762,15 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	struct mlx5_ib_create_qp ucmd;
 	struct mlx5_ib_ubuffer *ubuffer = &base->ubuffer;
 	int page_shift = 0;
-	int uar_index;
+	int uar_index = 0;
 	int npages;
 	u32 offset = 0;
-	int uuarn;
+	int bfregn;
 	int ncont = 0;
 	__be64 *pas;
 	void *qpc;
 	int err;
+	u32 uar_flags;
 
 	err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
 	if (err) {
@@ -781,32 +779,35 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	}
 
 	context = to_mucontext(pd->uobject->context);
-	/*
-	 * TBD: should come from the verbs when we have the API
-	 */
-	if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL)
-		/* In CROSS_CHANNEL CQ and QP must use the same UAR */
-		uuarn = MLX5_CROSS_CHANNEL_UUAR;
-	else {
-		uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_HIGH);
-		if (uuarn < 0) {
-			mlx5_ib_dbg(dev, "failed to allocate low latency UUAR\n");
-			mlx5_ib_dbg(dev, "reverting to medium latency\n");
-			uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_MEDIUM);
-			if (uuarn < 0) {
-				mlx5_ib_dbg(dev, "failed to allocate medium latency UUAR\n");
-				mlx5_ib_dbg(dev, "reverting to high latency\n");
-				uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_LOW);
-				if (uuarn < 0) {
-					mlx5_ib_warn(dev, "uuar allocation failed\n");
-					return uuarn;
-				}
-			}
-		}
+	uar_flags = ucmd.flags & (MLX5_QP_FLAG_UAR_PAGE_INDEX |
+				  MLX5_QP_FLAG_BFREG_INDEX);
+	switch (uar_flags) {
+	case MLX5_QP_FLAG_UAR_PAGE_INDEX:
+		uar_index = ucmd.bfreg_index;
+		bfregn = MLX5_IB_INVALID_BFREG;
+		break;
+	case MLX5_QP_FLAG_BFREG_INDEX:
+		uar_index = bfregn_to_uar_index(dev, &context->bfregi,
+						ucmd.bfreg_index, true);
+		if (uar_index < 0)
+			return uar_index;
+		bfregn = MLX5_IB_INVALID_BFREG;
+		break;
+	case 0:
+		if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL)
+			return -EINVAL;
+		bfregn = alloc_bfreg(dev, &context->bfregi);
+		if (bfregn < 0)
+			return bfregn;
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	uar_index = uuarn_to_uar_index(&context->uuari, uuarn);
-	mlx5_ib_dbg(dev, "uuarn 0x%x, uar_index 0x%x\n", uuarn, uar_index);
+	mlx5_ib_dbg(dev, "bfregn 0x%x, uar_index 0x%x\n", bfregn, uar_index);
+	if (bfregn != MLX5_IB_INVALID_BFREG)
+		uar_index = bfregn_to_uar_index(dev, &context->bfregi, bfregn,
+						false);
 
 	qp->rq.offset = 0;
 	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
@@ -814,7 +815,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	err = set_user_buf_size(dev, qp, &ucmd, base, attr);
 	if (err)
-		goto err_uuar;
+		goto err_bfreg;
 
 	if (ucmd.buf_addr && ubuffer->buf_size) {
 		ubuffer->buf_addr = ucmd.buf_addr;
@@ -823,7 +824,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				       &ubuffer->umem, &npages, &page_shift,
 				       &ncont, &offset);
 		if (err)
-			goto err_uuar;
+			goto err_bfreg;
 	} else {
 		ubuffer->umem = NULL;
 	}
@@ -846,8 +847,11 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	MLX5_SET(qpc, qpc, page_offset, offset);
 
 	MLX5_SET(qpc, qpc, uar_page, uar_index);
-	resp->uuar_index = uuarn;
-	qp->uuarn = uuarn;
+	if (bfregn != MLX5_IB_INVALID_BFREG)
+		resp->bfreg_index = adjust_bfregn(dev, &context->bfregi, bfregn);
+	else
+		resp->bfreg_index = MLX5_IB_INVALID_BFREG;
+	qp->bfregn = bfregn;
 
 	err = mlx5_ib_db_map_user(context, ucmd.db_addr, &qp->db);
 	if (err) {
@@ -874,12 +878,13 @@ err_umem:
 	if (ubuffer->umem)
 		ib_umem_release(ubuffer->umem);
 
-err_uuar:
-	free_uuar(&context->uuari, uuarn);
+err_bfreg:
+	if (bfregn != MLX5_IB_INVALID_BFREG)
+		mlx5_ib_free_bfreg(dev, &context->bfregi, bfregn);
 	return err;
 }
 
-static void destroy_qp_user(struct ib_pd *pd, struct mlx5_ib_qp *qp,
+static void destroy_qp_user(struct mlx5_ib_dev *dev, struct ib_pd *pd, struct mlx5_ib_qp *qp,
 			    struct mlx5_ib_qp_base *base)
 {
 	struct mlx5_ib_ucontext *context;
@@ -888,7 +893,13 @@ static void destroy_qp_user(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 	mlx5_ib_db_unmap_user(context, &qp->db);
 	if (base->ubuffer.umem)
 		ib_umem_release(base->ubuffer.umem);
-	free_uuar(&context->uuari, qp->uuarn);
+
+	/*
+	 * Free only the BFREGs which are handled by the kernel.
+	 * BFREGs of UARs allocated dynamically are handled by user.
+	 */
+	if (qp->bfregn != MLX5_IB_INVALID_BFREG)
+		mlx5_ib_free_bfreg(dev, &context->bfregi, qp->bfregn);
 }
 
 static int create_kernel_qp(struct mlx5_ib_dev *dev,
@@ -897,36 +908,36 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 			    u32 **in, int *inlen,
 			    struct mlx5_ib_qp_base *base)
 {
-	enum mlx5_ib_latency_class lc = MLX5_IB_LATENCY_CLASS_LOW;
-	struct mlx5_uuar_info *uuari;
 	int uar_index;
 	void *qpc;
-	int uuarn;
 	int err;
 
-	uuari = &dev->mdev->priv.uuari;
 	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN |
 					IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
 					IB_QP_CREATE_IPOIB_UD_LSO |
-					mlx5_ib_create_qp_sqpn_qp1()))
+					MLX5_IB_QP_CREATE_SQPN_QP1 |
+					MLX5_IB_QP_CREATE_WC_TEST))
 		return -EINVAL;
 
+	spin_lock_init(&qp->bf.lock32);
+
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
-		lc = MLX5_IB_LATENCY_CLASS_FAST_PATH;
+		qp->bf.bfreg = &dev->fp_bfreg;
+	else if (init_attr->create_flags & MLX5_IB_QP_CREATE_WC_TEST)
+		qp->bf.bfreg = &dev->wc_bfreg;
+	else
+		qp->bf.bfreg = &dev->bfreg;
 
-	uuarn = alloc_uuar(uuari, lc);
-	if (uuarn < 0) {
-		mlx5_ib_dbg(dev, "\n");
-		return -ENOMEM;
-	}
-
-	qp->bf = &uuari->bfs[uuarn];
-	uar_index = qp->bf->uar->index;
+	/* We need to divide by two since each register is comprised of
+	 * two buffers of identical size, namely odd and even
+	 */
+	qp->bf.buf_size = (1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size)) / 2;
+	uar_index = qp->bf.bfreg->index;
 
 	err = calc_sq_size(dev, init_attr, qp);
 	if (err < 0) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
-		goto err_uuar;
+		return err;
 	}
 
 	qp->rq.offset = 0;
@@ -937,7 +948,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	    2 * PAGE_SIZE, &qp->buf);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
-		goto err_uuar;
+		return err;
 	}
 
 	qp->sq.qend = mlx5_get_send_wqe(qp, qp->sq.wqe_cnt);
@@ -957,7 +968,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	MLX5_SET(qpc, qpc, fre, 1);
 	MLX5_SET(qpc, qpc, rlky, 1);
 
-	if (init_attr->create_flags & mlx5_ib_create_qp_sqpn_qp1()) {
+	if (init_attr->create_flags & MLX5_IB_QP_CREATE_SQPN_QP1) {
 		MLX5_SET(qpc, qpc, deth_sqpn, 1);
 		qp->flags |= MLX5_IB_QP_SQPN_QP1;
 	}
@@ -999,9 +1010,6 @@ err_free:
 
 err_buf:
 	mlx5_buf_free(dev->mdev, &qp->buf);
-
-err_uuar:
-	free_uuar(&dev->mdev->priv.uuari, uuarn);
 	return err;
 }
 
@@ -1014,7 +1022,6 @@ static void destroy_qp_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 	kfree(qp->rq.wrid);
 	mlx5_db_free(dev->mdev, &qp->db);
 	mlx5_buf_free(dev->mdev, &qp->buf);
-	free_uuar(&dev->mdev->priv.uuari, qp->bf->uuarn);
 }
 
 static u32 get_rx_type(struct mlx5_ib_qp *qp, struct ib_qp_init_attr *attr)
@@ -1346,7 +1353,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (init_attr->create_flags || init_attr->send_cq)
 		return -EINVAL;
 
-	min_resp_len = offsetof(typeof(resp), uuar_index) + sizeof(resp.uuar_index);
+	min_resp_len = offsetof(typeof(resp), bfreg_index) + sizeof(resp.bfreg_index);
 	if (udata->outlen < min_resp_len)
 		return -EINVAL;
 
@@ -1623,7 +1630,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				return -EINVAL;
 			}
 			if (init_attr->create_flags &
-			    mlx5_ib_create_qp_sqpn_qp1()) {
+			    MLX5_IB_QP_CREATE_SQPN_QP1) {
 				mlx5_ib_dbg(dev, "user-space is not allowed to create UD QPs spoofing as QP1\n");
 				return -EINVAL;
 			}
@@ -1788,7 +1795,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 err_create:
 	if (qp->create_type == MLX5_QP_USER)
-		destroy_qp_user(pd, qp, base);
+		destroy_qp_user(dev, pd, qp, base);
 	else if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 
@@ -1967,7 +1974,7 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 	if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 	else if (qp->create_type == MLX5_QP_USER)
-		destroy_qp_user(&get_pd(qp)->ibpd, qp, base);
+		destroy_qp_user(dev, &get_pd(qp)->ibpd, qp, base);
 }
 
 static const char *ib_qp_type_str(enum ib_qp_type type)
@@ -3717,24 +3724,6 @@ static void dump_wqe(struct mlx5_ib_qp *qp, int idx, int size_16)
 	}
 }
 
-static void mlx5_bf_copy(u64 __iomem *dst, u64 *src,
-			 unsigned bytecnt, struct mlx5_ib_qp *qp)
-{
-	while (bytecnt > 0) {
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		bytecnt -= 64;
-		if (unlikely(src == qp->sq.qend))
-			src = mlx5_get_send_wqe(qp, 0);
-	}
-}
-
 static u8 get_fence(u8 fence, struct ib_send_wr *wr)
 {
 	if (unlikely(wr->opcode == IB_WR_LOCAL_INV &&
@@ -3830,7 +3819,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		return mlx5_ib_gsi_post_send(ibqp, wr, bad_wr);
 
 	qp = to_mqp(ibqp);
-	bf = qp->bf;
+	bf = &qp->bf;
 	qend = qp->sq.qend;
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
@@ -4103,28 +4092,12 @@ out:
 		 * we hit doorbell */
 		wmb();
 
-		if (bf->need_lock)
-			spin_lock(&bf->lock);
-		else
-			__acquire(&bf->lock);
-
-		/* TBD enable WC */
-		if (0 && nreq == 1 && bf->uuarn && inl && size > 1 && size <= bf->buf_size / 16) {
-			mlx5_bf_copy(bf->reg + bf->offset, (u64 *)ctrl, ALIGN(size * 16, 64), qp);
-			/* wc_wmb(); */
-		} else {
-			mlx5_write64((__be32 *)ctrl, bf->regreg + bf->offset,
-				     MLX5_GET_DOORBELL_LOCK(&bf->lock32));
-			/* Make sure doorbells don't leak out of SQ spinlock
-			 * and reach the HCA out of order.
-			 */
-			mmiowb();
-		}
+		mlx5_write64((__be32 *)ctrl, bf->bfreg->map + bf->offset,
+			     MLX5_GET_DOORBELL_LOCK(&bf->lock32));
+		/* Make sure doorbells don't leak out of SQ spinlock
+		 * and reach the HCA out of order.
+		 */
 		bf->offset ^= bf->buf_size;
-		if (bf->need_lock)
-			spin_unlock(&bf->lock);
-		else
-			__release(&bf->lock);
 	}
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);
@@ -4547,7 +4520,7 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	if (qp->flags & MLX5_IB_QP_MANAGED_RECV)
 		qp_init_attr->create_flags |= IB_QP_CREATE_MANAGED_RECV;
 	if (qp->flags & MLX5_IB_QP_SQPN_QP1)
-		qp_init_attr->create_flags |= mlx5_ib_create_qp_sqpn_qp1();
+		qp_init_attr->create_flags |= MLX5_IB_QP_CREATE_SQPN_QP1;
 
 	qp_init_attr->sq_sig_type = qp->sq_signal_bits & MLX5_WQE_CTRL_CQ_UPDATE ?
 		IB_SIGNAL_ALL_WR : IB_SIGNAL_REQ_WR;

@@ -820,7 +820,7 @@ mlx5e_xmit_locked(struct ifnet *ifp, struct mlx5e_sq *sq, struct mbuf *mb)
 
 	/* Check if we need to write the doorbell */
 	if (likely(sq->doorbell.d64 != 0)) {
-		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
 		sq->doorbell.d64 = 0;
 	}
 

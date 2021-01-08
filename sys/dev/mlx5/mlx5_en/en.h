@@ -827,7 +827,7 @@ struct mlx5e_sq {
 
 	/* read only */
 	struct	mlx5_wq_cyc wq;
-	struct	mlx5_uar uar;
+	void __iomem *uar_map;
 	struct	ifnet *ifp;
 	u32	sqn;
 	u32	bf_buf_size;
@@ -1001,7 +1001,6 @@ struct mlx5e_priv {
 #define	PRIV_LOCKED(priv) sx_xlocked(&(priv)->state_lock)
 #define	PRIV_ASSERT_LOCKED(priv) sx_assert(&(priv)->state_lock, SA_XLOCKED)
 	struct sx state_lock;		/* Protects Interface state */
-	struct mlx5_uar cq_uar;
 	u32	pdn;
 	u32	tdn;
 	struct mlx5_core_mr mr;
@@ -1054,6 +1053,8 @@ struct mlx5e_priv {
 
 	struct mlx5e_dcbx dcbx;
 	bool	sw_is_port_buf_owner;
+
+	struct mlx5_sq_bfreg bfreg;
 
 	struct pfil_head *pfil;
 	struct mlx5e_channel channel[];
@@ -1127,7 +1128,7 @@ int	mlx5e_add_all_vlan_rules(struct mlx5e_priv *priv);
 void	mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 
 static inline void
-mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
+mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe)
 {
 	u16 ofst = MLX5_BF_OFFSET + sq->bf_offset;
 
@@ -1142,16 +1143,8 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe, int bf_sz)
 	 */
 	wmb();
 
-	if (bf_sz) {
-		__iowrite64_copy(sq->uar.bf_map + ofst, wqe, bf_sz);
-
-		/* flush the write-combining mapped buffer */
-		wmb();
-
-	} else {
-		mlx5_write64(wqe, sq->uar.map + ofst,
-		    MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
-	}
+	mlx5_write64(wqe, sq->uar_map + ofst,
+	    MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
 
 	sq->bf_offset ^= sq->bf_buf_size;
 }

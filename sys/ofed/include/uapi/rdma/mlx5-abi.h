@@ -46,6 +46,8 @@
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 	MLX5_QP_FLAG_SCATTER_CQE	= 1 << 1,
+	MLX5_QP_FLAG_BFREG_INDEX	= 1 << 3,
+	MLX5_QP_FLAG_UAR_PAGE_INDEX     = 1 << 10,
 };
 
 enum {
@@ -69,19 +71,28 @@ enum {
  */
 
 struct mlx5_ib_alloc_ucontext_req {
-	__u32	total_num_uuars;
-	__u32	num_low_latency_uuars;
+	__u32	total_num_bfregs;
+	__u32	num_low_latency_bfregs;
 };
 
+enum mlx5_lib_caps {
+	MLX5_LIB_CAP_4K_UAR	= (__u64)1 << 0,
+	MLX5_LIB_CAP_DYN_UAR	= (__u64)1 << 1,
+};
+
+enum mlx5_ib_alloc_uctx_v2_flags {
+	MLX5_IB_ALLOC_UCTX_DEVX	= 1 << 0,
+};
 struct mlx5_ib_alloc_ucontext_req_v2 {
-	__u32	total_num_uuars;
-	__u32	num_low_latency_uuars;
+	__u32	total_num_bfregs;
+	__u32	num_low_latency_bfregs;
 	__u32	flags;
 	__u32	comp_mask;
 	__u8	max_cqe_version;
 	__u8	reserved0;
 	__u16	reserved1;
 	__u32	reserved2;
+	__aligned_u64 lib_caps;
 };
 
 enum mlx5_ib_alloc_ucontext_resp_mask {
@@ -96,7 +107,7 @@ enum mlx5_user_cmds_supp_uhw {
 struct mlx5_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	bf_reg_size;
-	__u32	tot_uuars;
+	__u32	tot_bfregs;
 	__u32	cache_line_size;
 	__u16	max_sq_desc_sz;
 	__u16	max_rq_desc_sz;
@@ -111,6 +122,9 @@ struct mlx5_ib_alloc_ucontext_resp {
 	__u8	cmds_supp_uhw;
 	__u16	reserved2;
 	__u64	hca_core_clock_offset;
+	__u32	log_uar_size;
+	__u32	num_uars_per_page;
+	__u32	num_dyn_bfregs;
 };
 
 struct mlx5_ib_alloc_pd_resp {
@@ -140,11 +154,17 @@ struct mlx5_ib_query_device_resp {
 	struct	mlx5_ib_rss_caps rss_caps;
 };
 
+enum mlx5_ib_create_cq_flags {
+	MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD	= 1 << 0,
+	MLX5_IB_CREATE_CQ_FLAGS_UAR_PAGE_INDEX  = 1 << 1,
+};
+
 struct mlx5_ib_create_cq {
 	__u64	buf_addr;
 	__u64	db_addr;
 	__u32	cqe_size;
-	__u32	reserved; /* explicit padding (optional on i386) */
+	__u16	flags;
+	__u16	uar_page_index;
 };
 
 struct mlx5_ib_create_cq_resp {
@@ -181,7 +201,7 @@ struct mlx5_ib_create_qp {
 	__u32	rq_wqe_shift;
 	__u32	flags;
 	__u32	uidx;
-	__u32	reserved0;
+	__u32	bfreg_index;
 	__u64	sq_buf_addr;
 };
 
@@ -220,7 +240,7 @@ struct mlx5_ib_create_qp_rss {
 };
 
 struct mlx5_ib_create_qp_resp {
-	__u32	uuar_index;
+	__u32	bfreg_index;
 };
 
 struct mlx5_ib_alloc_mw {

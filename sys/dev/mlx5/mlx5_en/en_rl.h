@@ -156,7 +156,6 @@ struct mlx5e_rl_priv_data {
 	struct mlx5e_rl_channel_param chan_param;
 	struct mlx5e_rl_params param;
 	struct mlx5e_rl_stats stats;
-	struct mlx5_uar sq_uar;
 	struct mlx5e_rl_worker *workers;
 	struct mlx5e_priv *priv;
 	uint64_t *rate_limit_table;

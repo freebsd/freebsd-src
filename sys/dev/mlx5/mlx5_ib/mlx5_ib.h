@@ -93,7 +93,7 @@ enum mlx5_ib_mad_ifc_flags {
 };
 
 enum {
-	MLX5_CROSS_CHANNEL_UUAR         = 0,
+	MLX5_CROSS_CHANNEL_BFREG         = 0,
 };
 
 enum {
@@ -101,9 +101,32 @@ enum {
 	MLX5_CQE_VERSION_V1,
 };
 
+enum {
+	MLX5_IB_INVALID_UAR_INDEX	= BIT(31),
+	MLX5_IB_INVALID_BFREG		= BIT(31),
+};
+
 struct mlx5_ib_vma_private_data {
 	struct list_head list;
 	struct vm_area_struct *vma;
+};
+
+struct mlx5_bfreg_info {
+	u32 *sys_pages;
+	int num_low_latency_bfregs;
+	unsigned int *count;
+
+	/*
+	 * protect bfreg allocation data structs
+	 */
+	struct mutex lock;
+	u32 ver;
+	u8 lib_uar_4k : 1;
+	u8 lib_uar_dyn : 1;
+	u32 num_sys_pages;
+	u32 num_static_sys_pages;
+	u32 total_num_bfregs;
+	u32 num_dyn_bfregs;
 };
 
 struct mlx5_ib_ucontext {
@@ -113,7 +136,7 @@ struct mlx5_ib_ucontext {
 	/* protect doorbell record alloc/free
 	 */
 	struct mutex		db_page_mutex;
-	struct mlx5_uuar_info	uuari;
+	struct mlx5_bfreg_info	bfregi;
 	u8			cqe_version;
 	/* Transport Domain number */
 	u32			tdn;
@@ -188,12 +211,8 @@ struct mlx5_ib_flow_db {
  * These flags are intended for internal use by the mlx5_ib driver, and they
  * rely on the range reserved for that use in the ib_qp_create_flags enum.
  */
-
-/* Create a UD QP whose source QP number is 1 */
-static inline enum ib_qp_create_flags mlx5_ib_create_qp_sqpn_qp1(void)
-{
-	return IB_QP_CREATE_RESERVED_START;
-}
+#define MLX5_IB_QP_CREATE_SQPN_QP1	IB_QP_CREATE_RESERVED_START
+#define MLX5_IB_QP_CREATE_WC_TEST	(IB_QP_CREATE_RESERVED_START << 1)
 
 struct wr_list {
 	u16	opcode;
@@ -327,6 +346,13 @@ struct mlx5_ib_raw_packet_qp {
 	struct mlx5_ib_rq rq;
 };
 
+struct mlx5_bf {
+	int			buf_size;
+	unsigned long		offset;
+	struct mlx5_sq_bfreg   *bfreg;
+	spinlock_t		lock32;
+};
+
 struct mlx5_ib_qp {
 	struct ib_qp		ibqp;
 	union {
@@ -352,13 +378,13 @@ struct mlx5_ib_qp {
 	int			wq_sig;
 	int			scat_cqe;
 	int			max_inline_data;
-	struct mlx5_bf	       *bf;
+	struct mlx5_bf	        bf;
 	int			has_rq;
 
 	/* only for user space QPs. For kernel
 	 * we have it from the bf object
 	 */
-	int			uuarn;
+	int			bfregn;
 
 	int			create_type;
 
@@ -693,6 +719,9 @@ struct mlx5_ib_dev {
 	struct list_head	qp_list;
 	/* Array with num_ports elements */
 	struct mlx5_ib_port	*port;
+	struct mlx5_sq_bfreg	bfreg;
+	struct mlx5_sq_bfreg	wc_bfreg;
+	struct mlx5_sq_bfreg	fp_bfreg;
 	struct mlx5_ib_congestion congestion;
 
 	struct mlx5_async_ctx	async_ctx;
@@ -966,6 +995,8 @@ void mlx5_ib_gsi_pkey_change(struct mlx5_ib_gsi_qp *gsi);
 
 int mlx5_ib_generate_wc(struct ib_cq *ibcq, struct ib_wc *wc);
 
+void mlx5_ib_free_bfreg(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi,
+			int bfregn);
 static inline void init_query_mad(struct ib_smp *mad)
 {
 	mad->base_version  = 1;
@@ -1054,5 +1085,21 @@ static inline int get_srq_user_index(struct mlx5_ib_ucontext *ucontext,
 
 void mlx5_ib_cleanup_congestion(struct mlx5_ib_dev *);
 int mlx5_ib_init_congestion(struct mlx5_ib_dev *);
+
+static inline int get_uars_per_sys_page(struct mlx5_ib_dev *dev, bool lib_support)
+{
+	return lib_support && MLX5_CAP_GEN(dev->mdev, uar_4k) ?
+				MLX5_UARS_IN_PAGE : 1;
+}
+
+static inline int get_num_static_uars(struct mlx5_ib_dev *dev,
+				      struct mlx5_bfreg_info *bfregi)
+{
+	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) * bfregi->num_static_sys_pages;
+}
+
+int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
+			struct mlx5_bfreg_info *bfregi, u32 bfregn,
+			bool dyn_bfreg);
 
 #endif /* MLX5_IB_H */

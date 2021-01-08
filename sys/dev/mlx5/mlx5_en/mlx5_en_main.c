@@ -1660,14 +1660,12 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 	    &sq->dma_tag)))
 		goto done;
 
-	err = mlx5_alloc_map_uar(mdev, &sq->uar);
-	if (err)
-		goto err_free_dma_tag;
+	sq->uar_map = priv->bfreg.map;
 
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, &sq->wq,
 	    &sq->wq_ctrl);
 	if (err)
-		goto err_unmap_free_uar;
+		goto err_free_dma_tag;
 
 	sq->wq.db = &sq->wq.db[MLX5_SND_DBR];
 	sq->bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
@@ -1693,9 +1691,6 @@ mlx5e_create_sq(struct mlx5e_channel *c,
 err_sq_wq_destroy:
 	mlx5_wq_destroy(&sq->wq_ctrl);
 
-err_unmap_free_uar:
-	mlx5_unmap_free_uar(mdev, &sq->uar);
-
 err_free_dma_tag:
 	bus_dma_tag_destroy(sq->dma_tag);
 done:
@@ -1710,7 +1705,6 @@ mlx5e_destroy_sq(struct mlx5e_sq *sq)
 
 	mlx5e_free_sq_db(sq);
 	mlx5_wq_destroy(&sq->wq_ctrl);
-	mlx5_unmap_free_uar(sq->priv->mdev, &sq->uar);
 	bus_dma_tag_destroy(sq->dma_tag);
 }
 
@@ -1742,7 +1736,7 @@ mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param,
 	MLX5_SET(sqc, sqc, flush_in_error_en, 1);
 
 	MLX5_SET(wq, wq, wq_type, MLX5_WQ_TYPE_CYCLIC);
-	MLX5_SET(wq, wq, uar_page, sq->uar.index);
+	MLX5_SET(wq, wq, uar_page, sq->priv->bfreg.index);
 	MLX5_SET(wq, wq, log_wq_pg_sz, sq->wq_ctrl.buf.page_shift -
 	    PAGE_SHIFT);
 	MLX5_SET64(wq, wq, dbr_addr, sq->wq_ctrl.db.dma);
@@ -1849,7 +1843,7 @@ mlx5e_sq_send_nops_locked(struct mlx5e_sq *sq, int can_sleep)
 done:
 	/* Check if we need to write the doorbell */
 	if (likely(sq->doorbell.d64 != 0)) {
-		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
 		sq->doorbell.d64 = 0;
 	}
 }
@@ -1990,7 +1984,6 @@ mlx5e_create_cq(struct mlx5e_priv *priv,
 	mcq->comp = comp;
 	mcq->event = mlx5e_cq_error_event;
 	mcq->irqn = irqn;
-	mcq->uar = &priv->cq_uar;
 
 	for (i = 0; i < mlx5_cqwq_get_size(&cq->wq); i++) {
 		struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(&cq->wq, i);
@@ -2037,7 +2030,6 @@ mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param, int eq_ix)
 	mlx5_vector2eqn(cq->priv->mdev, eq_ix, &eqn, &irqn_not_used);
 
 	MLX5_SET(cqc, cqc, c_eqn, eqn);
-	MLX5_SET(cqc, cqc, uar_page, mcq->uar->index);
 	MLX5_SET(cqc, cqc, log_page_size, cq->wq_ctrl.buf.page_shift -
 	    PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr, cq->wq_ctrl.db.dma);
@@ -2363,7 +2355,7 @@ mlx5e_build_common_cq_param(struct mlx5e_priv *priv,
 {
 	void *cqc = param->cqc;
 
-	MLX5_SET(cqc, cqc, uar_page, priv->cq_uar.index);
+	MLX5_SET(cqc, cqc, uar_page, priv->mdev->priv.uar->index);
 }
 
 static void
@@ -3802,7 +3794,7 @@ mlx5e_reset_sq_doorbell_record(struct mlx5e_sq *sq)
 
 	sq->doorbell.d32[0] = cpu_to_be32(MLX5_OPCODE_NOP);
 	sq->doorbell.d32[1] = cpu_to_be32(sq->sqn << 8);
-	mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+	mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
 	sq->doorbell.d64 = 0;
 }
 
@@ -4467,15 +4459,10 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	/* reuse mlx5core's watchdog workqueue */
 	priv->wq = mdev->priv.health.wq_watchdog;
 
-	err = mlx5_alloc_map_uar(mdev, &priv->cq_uar);
-	if (err) {
-		mlx5_en_err(ifp, "mlx5_alloc_map_uar failed, %d\n", err);
-		goto err_free_wq;
-	}
 	err = mlx5_core_alloc_pd(mdev, &priv->pdn);
 	if (err) {
 		mlx5_en_err(ifp, "mlx5_core_alloc_pd failed, %d\n", err);
-		goto err_unmap_free_uar;
+		goto err_free_wq;
 	}
 	err = mlx5_alloc_transport_domain(mdev, &priv->tdn);
 	if (err) {
@@ -4487,6 +4474,11 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	if (err) {
 		mlx5_en_err(ifp, "mlx5e_create_mkey failed, %d\n", err);
 		goto err_dealloc_transport_domain;
+	}
+	err = mlx5_alloc_bfreg(mdev, &priv->bfreg, false, false);
+	if (err) {
+		mlx5_en_err(ifp, "alloc bfreg failed, %d\n", err);
+		goto err_create_mkey;
 	}
 	mlx5_query_nic_vport_mac_address(priv->mdev, 0, dev_addr);
 
@@ -4500,7 +4492,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	err = mlx5e_rl_init(priv);
 	if (err) {
 		mlx5_en_err(ifp, "mlx5e_rl_init failed, %d\n", err);
-		goto err_create_mkey;
+		goto err_alloc_bfreg;
 	}
 
 	err = mlx5e_tls_init(priv);
@@ -4604,6 +4596,9 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 err_rl_init:
 	mlx5e_rl_cleanup(priv);
 
+err_alloc_bfreg:
+	mlx5_free_bfreg(mdev, &priv->bfreg);
+
 err_create_mkey:
 	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
 
@@ -4612,9 +4607,6 @@ err_dealloc_transport_domain:
 
 err_dealloc_pd:
 	mlx5_core_dealloc_pd(mdev, priv->pdn);
-
-err_unmap_free_uar:
-	mlx5_unmap_free_uar(mdev, &priv->cq_uar);
 
 err_free_wq:
 	flush_workqueue(priv->wq);
@@ -4693,10 +4685,10 @@ mlx5e_destroy_ifp(struct mlx5_core_dev *mdev, void *vpriv)
 		sysctl_ctx_free(&priv->stats.port_stats_debug.ctx);
 	sysctl_ctx_free(&priv->sysctl_ctx);
 
+	mlx5_free_bfreg(priv->mdev, &priv->bfreg);
 	mlx5_core_destroy_mkey(priv->mdev, &priv->mr);
 	mlx5_dealloc_transport_domain(priv->mdev, priv->tdn);
 	mlx5_core_dealloc_pd(priv->mdev, priv->pdn);
-	mlx5_unmap_free_uar(priv->mdev, &priv->cq_uar);
 	mlx5e_disable_async_events(priv);
 	flush_workqueue(priv->wq);
 	mlx5e_priv_static_destroy(priv, mdev->priv.eq_table.num_comp_vectors);
@@ -4748,7 +4740,7 @@ mlx5_en_debugnet_transmit(struct ifnet *dev, struct mbuf *m)
 	}
 
 	if (likely(sq->doorbell.d64 != 0)) {
-		mlx5e_tx_notify_hw(sq, sq->doorbell.d32, 0);
+		mlx5e_tx_notify_hw(sq, sq->doorbell.d32);
 		sq->doorbell.d64 = 0;
 	}
 	return (err);

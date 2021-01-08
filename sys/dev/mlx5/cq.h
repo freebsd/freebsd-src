@@ -42,7 +42,7 @@ struct mlx5_core_cq {
 	int			irqn;
 	void (*comp)		(struct mlx5_core_cq *, struct mlx5_eqe *);
 	void (*event)		(struct mlx5_core_cq *, int);
-	struct mlx5_uar	       *uar;
+	struct mlx5_uars_page  *uar;
 	u32			cons_index;
 	unsigned		arm_sn;
 	struct mlx5_rsc_debug	*dbg;
