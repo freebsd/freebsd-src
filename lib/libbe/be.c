@@ -1263,7 +1263,8 @@ be_activate(libbe_handle_t *lbh, const char *bootenv, bool temporary)
 		return (lzbe_set_boot_device(
 		    zpool_get_name(lbh->active_phandle), lzbe_add, be_path));
 	} else {
-		if (be_deactivate(lbh, lbh->bootfs, false) != 0)
+		if (strncmp(lbh->bootfs, "-", 1) != 0 &&
+		    be_deactivate(lbh, lbh->bootfs, false) != 0)
 			return (-1);
 
 		/* Obtain bootenv zpool */
