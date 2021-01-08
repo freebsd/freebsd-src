@@ -116,7 +116,7 @@ int nmbjumbop;			/* limits number of page size jumbo clusters */
 int nmbjumbo9;			/* limits number of 9k jumbo clusters */
 int nmbjumbo16;			/* limits number of 16k jumbo clusters */
 
-bool mb_use_ext_pgs;		/* use M_EXTPG mbufs for sendfile & TLS */
+bool mb_use_ext_pgs = true;	/* use M_EXTPG mbufs for sendfile & TLS */
 SYSCTL_BOOL(_kern_ipc, OID_AUTO, mb_use_ext_pgs, CTLFLAG_RWTUN,
     &mb_use_ext_pgs, 0,
     "Use unmapped mbufs for sendfile(2) and TLS offload");
