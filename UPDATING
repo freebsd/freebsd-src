@@ -26,6 +26,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210108:
+	PC Card attachments for all devices have been removed. In the case of
+	wi and cmx, the entire drivers were removed because they were only
+	PC Card devices. FreeBSD_version 1300134 should be used for this
+	since it was bumped so recently.
+
 20210107:
 	Transport-independent parts of HID support have been split off the USB
 	code in to separate subsystem.  Kernel configs which include one of
