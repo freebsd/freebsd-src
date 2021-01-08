@@ -25,8 +25,7 @@ jobs:
             pkgs: bmake libarchive-dev
           - os: macOS-latest
             compiler: clang-11
-            #cross-bindir: /usr/local/Cellar/llvm/11.0.0/bin  # script figures this out automatically
-            pkgs: bmake libarchive llvm@11
+            pkgs: bmake libarchive
 
     steps:
       - uses: actions/checkout@v2
@@ -39,7 +38,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           brew update --quiet || true
-          brew install ${{ matrix.pkgs }}
+          brew install ${{ matrix.pkgs }} || true
       - name: create environment
         run: |
           echo "GITHUB_WORKSPACE = $GITHUB_WORKSPACE"
