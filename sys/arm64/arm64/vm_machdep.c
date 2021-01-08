@@ -175,6 +175,7 @@ cpu_copy_thread(struct thread *td, struct thread *td0)
 	td->td_pcb->pcb_x[9] = (uintptr_t)td;
 	td->td_pcb->pcb_lr = (uintptr_t)fork_trampoline;
 	td->td_pcb->pcb_sp = (uintptr_t)td->td_frame;
+	td->td_pcb->pcb_fpflags &= ~(PCB_FP_STARTED | PCB_FP_KERN | PCB_FP_NOSAVE);
 	td->td_pcb->pcb_fpusaved = &td->td_pcb->pcb_fpustate;
 	td->td_pcb->pcb_vfpcpu = UINT_MAX;
 
