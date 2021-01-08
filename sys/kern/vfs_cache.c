@@ -5414,7 +5414,8 @@ cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
 
 	if (cnp->cn_pnbuf[0] == '/') {
 		dvp = cache_fpl_handle_root(&fpl);
-		ndp->ni_resflags |= NIRES_ABS;
+		MPASS(ndp->ni_resflags == 0);
+		ndp->ni_resflags = NIRES_ABS;
 	} else {
 		if (ndp->ni_dirfd == AT_FDCWD) {
 			dvp = pwd->pwd_cdir;
