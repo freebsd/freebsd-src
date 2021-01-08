@@ -26,7 +26,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 13.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-2021XXXX:
+20210107:
 	Transport-independent parts of HID support have been split off the USB
 	code in to separate subsystem.  Kernel configs which include one of
 	ums, ukbd, uhid, atp, wsp, wmt, uaudio, ugold or ucycom drivers should
