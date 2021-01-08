@@ -678,7 +678,7 @@ print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
 		if (dst->result[r].valid_diag_info & BIT(1)) {
 			memcpy(&failing_lba, dst->result[r].failing_lba,
 			    sizeof(failing_lba));
-			printf(" FLBA=0x%lx", failing_lba);
+			printf(" FLBA=0x%jx", failing_lba);
 		}
 		if (dst->result[r].valid_diag_info & BIT(2))
 			printf(" SCT=0x%x", dst->result[r].status_code_type);
