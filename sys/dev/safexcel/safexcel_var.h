@@ -392,6 +392,8 @@ struct safexcel_ring {
 
 	struct safexcel_dma_mem		dma_atok;
 	bus_dma_tag_t   		data_dtag;
+
+	char				lockname[32];
 };
 
 struct safexcel_intr_handle {
