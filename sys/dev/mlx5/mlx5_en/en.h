@@ -807,7 +807,6 @@ struct mlx5e_sq {
 
 	/* dirtied @xmit */
 	u16	pc __aligned(MLX5E_CACHELINE_SIZE);
-	u16	bf_offset;
 	u16	cev_counter;		/* completion event counter */
 	u16	cev_factor;		/* completion event factor */
 	u16	cev_next_state;		/* next completion event state */
@@ -830,7 +829,6 @@ struct mlx5e_sq {
 	void __iomem *uar_map;
 	struct	ifnet *ifp;
 	u32	sqn;
-	u32	bf_buf_size;
 	u32	mkey_be;
 	u16	max_inline;
 	u8	min_inline_mode;
@@ -1130,8 +1128,6 @@ void	mlx5e_del_all_vlan_rules(struct mlx5e_priv *priv);
 static inline void
 mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe)
 {
-	u16 ofst = MLX5_BF_OFFSET + sq->bf_offset;
-
 	/* ensure wqe is visible to device before updating doorbell record */
 	wmb();
 
@@ -1143,10 +1139,8 @@ mlx5e_tx_notify_hw(struct mlx5e_sq *sq, u32 *wqe)
 	 */
 	wmb();
 
-	mlx5_write64(wqe, sq->uar_map + ofst,
+	mlx5_write64(wqe, sq->uar_map,
 	    MLX5_GET_DOORBELL_LOCK(&sq->priv->doorbell_lock));
-
-	sq->bf_offset ^= sq->bf_buf_size;
 }
 
 static inline void
