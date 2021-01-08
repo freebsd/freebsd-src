@@ -160,8 +160,9 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 	struct safexcel_res_descr *rdesc;
 	struct safexcel_request *req;
 	struct safexcel_ring *ring;
-	uint32_t error, i, ncdescs, nrdescs, nreqs;
+	uint32_t blocked, error, i, ncdescs, nrdescs, nreqs;
 
+	blocked = 0;
 	ring = &sc->sc_ring[ringidx];
 
 	mtx_lock(&ring->mtx);
@@ -231,6 +232,8 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 		    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PROC_COUNT,
 		    SAFEXCEL_xDR_PROC_xD_PKT(nreqs) |
 		    (sc->sc_config.rd_offset * nrdescs * sizeof(uint32_t)));
+		blocked = ring->blocked;
+		ring->blocked = 0;
 	}
 out:
 	if (!STAILQ_EMPTY(&ring->queued_requests)) {
@@ -239,6 +242,9 @@ out:
 		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | 1);
 	}
 	mtx_unlock(&ring->mtx);
+
+	if (blocked)
+		crypto_unblock(sc->sc_cid, blocked);
 }
 
 static void
@@ -248,7 +254,7 @@ safexcel_ring_intr(void *arg)
 	struct safexcel_intr_handle *ih;
 	uint32_t status, stat;
 	int ring;
-	bool blocked, rdrpending;
+	bool rdrpending;
 
 	ih = arg;
 	sc = ih->sc;
@@ -281,14 +287,6 @@ safexcel_ring_intr(void *arg)
 
 	if (rdrpending)
 		safexcel_rdr_intr(sc, ring);
-
-	mtx_lock(&sc->sc_mtx);
-	blocked = sc->sc_blocked;
-	sc->sc_blocked = 0;
-	mtx_unlock(&sc->sc_mtx);
-
-	if (blocked)
-		crypto_unblock(sc->sc_cid, blocked);
 }
 
 static int
@@ -1100,8 +1098,6 @@ safexcel_alloc_dev_resources(struct safexcel_softc *sc)
 		goto out;
 	}
 
-	mtx_init(&sc->sc_mtx, "safexcel softc", NULL, MTX_DEF);
-
 	return (0);
 
 out:
@@ -1117,8 +1113,6 @@ static void
 safexcel_free_dev_resources(struct safexcel_softc *sc)
 {
 	int i;
-
-	mtx_destroy(&sc->sc_mtx);
 
 	for (i = 0; i < SAFEXCEL_MAX_RINGS && sc->sc_intr[i] != NULL; i++)
 		bus_release_resource(sc->sc_dev, SYS_RES_IRQ,
@@ -1163,7 +1157,6 @@ safexcel_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-	sc->sc_blocked = 0;
 	sc->sc_cid = -1;
 
 	if (safexcel_alloc_dev_resources(sc))
@@ -2666,10 +2659,8 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
 	mtx_lock(&ring->mtx);
 	req = safexcel_alloc_request(sc, ring);
         if (__predict_false(req == NULL)) {
-		mtx_lock(&sc->sc_mtx);
+		ring->blocked = CRYPTO_SYMQ;
 		mtx_unlock(&ring->mtx);
-		sc->sc_blocked = CRYPTO_SYMQ;
-		mtx_unlock(&sc->sc_mtx);
 		return (ERESTART);
 	}
 

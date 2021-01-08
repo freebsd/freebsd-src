@@ -385,6 +385,8 @@ struct safexcel_ring {
 	struct sglist			*res_data;
 	struct safexcel_res_descr_ring	rdr;
 
+	int				blocked;
+
 	struct safexcel_request		*requests;
 	STAILQ_HEAD(, safexcel_request)	ready_requests;
 	STAILQ_HEAD(, safexcel_request)	queued_requests;
@@ -413,9 +415,7 @@ struct safexcel_softc {
 
 	struct safexcel_ring 		sc_ring[SAFEXCEL_MAX_RINGS];
 	int				sc_ringidx;
-	struct mtx			sc_mtx;
 
-	int				sc_blocked;
 	int32_t				sc_cid;
 	struct safexcel_reg_offsets 	sc_offsets;
 	struct safexcel_config		sc_config;
