@@ -1396,6 +1396,28 @@ struct nvme_command_effects_page {
 _Static_assert(sizeof(struct nvme_command_effects_page) == 4096,
     "bad size for nvme_command_effects_page");
 
+struct nvme_device_self_test_page {
+	uint8_t			curr_operation;
+	uint8_t			curr_compl;
+	uint8_t			rsvd2[2];
+	struct {
+		uint8_t		status;
+		uint8_t		segment_num;
+		uint8_t		valid_diag_info;
+		uint8_t		rsvd3;
+		uint64_t	poh;
+		uint32_t	nsid;
+		/* Define as an array to simplify alignment issues */
+		uint8_t		failing_lba[8];
+		uint8_t		status_code_type;
+		uint8_t		status_code;
+		uint8_t		vendor_specific[2];
+	} __packed result[20];
+} __packed __aligned(4);
+
+_Static_assert(sizeof(struct nvme_device_self_test_page) == 564,
+    "bad size for nvme_device_self_test_page");
+
 struct nvme_res_notification_page {
 	uint64_t		log_page_count;
 	uint8_t			log_page_type;
@@ -2016,4 +2038,21 @@ void	nvme_resv_status_ext_swapbytes(struct nvme_resv_status_ext *s __unused,
 #endif
 }
 
+static inline void
+nvme_device_self_test_swapbytes(struct nvme_device_self_test_page *s __unused)
+{
+#if _BYTE_ORDER != _LITTLE_ENDIAN
+	uint64_t failing_lba;
+	uint32_t r;
+
+	for (r = 0; r < 20; r++) {
+		s->result[r].poh = le64toh(s->result[r].poh);
+		s->result[r].nsid = le32toh(s->result[r].nsid);
+		/* Unaligned 64-bit loads fail on some architectures */
+		memcpy(&failing_lba, s->result[r].failing_lba, sizeof(failing_lba));
+		failing_lba = le64toh(failing_lba);
+		memcpy(s->result[r].failing_lba, &failing_lba, sizeof(failing_lba));
+	}
+#endif
+}
 #endif /* __NVME_H__ */

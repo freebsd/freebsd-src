@@ -239,6 +239,10 @@ read_logpage(int fd, uint8_t log_page, uint32_t nsid, uint8_t lsp,
 	case NVME_LOG_CHANGED_NAMESPACE:
 		nvme_ns_list_swapbytes((struct nvme_ns_list *)payload);
 		break;
+	case NVME_LOG_DEVICE_SELF_TEST:
+		nvme_device_self_test_swapbytes(
+		    (struct nvme_device_self_test_page *)payload);
+		break;
 	case NVME_LOG_COMMAND_EFFECT:
 		nvme_command_effects_page_swapbytes(
 		    (struct nvme_command_effects_page *)payload);
@@ -588,6 +592,103 @@ print_log_sanitize_status(const struct nvme_controller_data *cdata __unused,
 	printf("Time For Crypto Erase No-Deallocate: %u sec\n", ss->etfcewnd);
 }
 
+static const char *
+self_test_res[] = {
+	[0] = "completed without error",
+	[1] = "aborted by a Device Self-test command",
+	[2] = "aborted by a Controller Level Reset",
+	[3] = "aborted due to namespace removal",
+	[4] = "aborted due to Format NVM command",
+	[5] = "failed due to fatal or unknown test error",
+	[6] = "completed with an unknown segment that failed",
+	[7] = "completed with one or more failed segments",
+	[8] = "aborted for unknown reason",
+	[9] = "aborted due to a sanitize operation",
+};
+static uint32_t self_test_res_max = nitems(self_test_res);
+
+static void
+print_log_self_test_status(const struct nvme_controller_data *cdata __unused,
+    void *buf, uint32_t size __unused)
+{
+	struct nvme_device_self_test_page *dst;
+	uint32_t r;
+
+	dst = buf;
+	printf("Device Self-test Status\n");
+	printf("=======================\n");
+
+	printf("Current Operation: ");
+	switch (dst->curr_operation) {
+	case 0x0:
+		printf("No device self-test operation in progress\n");
+		break;
+	case 0x1:
+		printf("Short device self-test operation in progress\n");
+		break;
+	case 0x2:
+		printf("Extended device self-test operation in progress\n");
+		break;
+	case 0xe:
+		printf("Vendor specific\n");
+		break;
+	default:
+		printf("Reserved (0x%x)\n", dst->curr_operation);
+	}
+
+	if (dst->curr_operation != 0)
+		printf("Current Completion: %u%%\n", dst->curr_compl & 0x7f);
+
+	printf("Results\n");
+	for (r = 0; r < 20; r++) {
+		uint64_t failing_lba;
+		uint8_t code, res;
+
+		code = (dst->result[r].status >> 4) & 0xf;
+		res  = dst->result[r].status & 0xf;
+
+		if (res == 0xf)
+			continue;
+
+		printf("[%2u] ", r);
+		switch (code) {
+		case 0x1:
+			printf("Short device self-test");
+			break;
+		case 0x2:
+			printf("Extended device self-test");
+			break;
+		case 0xe:
+			printf("Vendor specific");
+			break;
+		default:
+			printf("Reserved (0x%x)", code);
+		}
+		if (res < self_test_res_max)
+			printf(" %s", self_test_res[res]);
+		else
+			printf(" Reserved status 0x%x", res);
+
+		if (res == 7)
+			printf(" starting in segment %u", dst->result[r].segment_num);
+
+#define BIT(b) (1 << (b))
+		if (dst->result[r].valid_diag_info & BIT(0))
+			printf(" NSID=0x%x", dst->result[r].nsid);
+		if (dst->result[r].valid_diag_info & BIT(1)) {
+			memcpy(&failing_lba, dst->result[r].failing_lba,
+			    sizeof(failing_lba));
+			printf(" FLBA=0x%lx", failing_lba);
+		}
+		if (dst->result[r].valid_diag_info & BIT(2))
+			printf(" SCT=0x%x", dst->result[r].status_code_type);
+		if (dst->result[r].valid_diag_info & BIT(3))
+			printf(" SC=0x%x", dst->result[r].status_code);
+#undef BIT
+		printf("\n");
+	}
+}
+
 /*
  * Table of log page printer / sizing.
  *
@@ -611,7 +712,7 @@ NVME_LOGPAGE(ce,
     print_log_command_effects,		sizeof(struct nvme_command_effects_page));
 NVME_LOGPAGE(dst,
     NVME_LOG_DEVICE_SELF_TEST,		NULL,	"Device Self-test",
-    NULL,				564);
+    print_log_self_test_status,		sizeof(struct nvme_device_self_test_page));
 NVME_LOGPAGE(thi,
     NVME_LOG_TELEMETRY_HOST_INITIATED,	NULL,	"Telemetry Host-Initiated",
     NULL,				DEFAULT_SIZE);
