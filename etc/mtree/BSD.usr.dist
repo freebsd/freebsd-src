@@ -34,8 +34,6 @@
         ..
     ..
     lib
-        aout
-        ..
         clang
             11.0.1
                 include
@@ -61,8 +59,6 @@
             ..
         ..
         compat
-            aout
-            ..
         ..
         dtrace
         ..

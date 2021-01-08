@@ -36,6 +36,10 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210107: retire a.out support
+OLD_DIRS+=usr/lib/aout
+OLD_DIRS+=usr/lib/compat/aout
+
 # 20210105: remove non widechar version of clang
 OLD_LIBS+=lib/libncurses.so.9
 # 20210103: new clang import which bumps version from 11.0.0 to 11.0.1.
