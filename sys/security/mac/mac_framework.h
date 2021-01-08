@@ -538,7 +538,22 @@ mac_vnode_check_poll(struct ucred *active_cred, struct ucred *file_cred,
 }
 #endif
 int	mac_vnode_check_readdir(struct ucred *cred, struct vnode *vp);
-int	mac_vnode_check_readlink(struct ucred *cred, struct vnode *vp);
+int	mac_vnode_check_readlink_impl(struct ucred *cred, struct vnode *dvp);
+#ifdef MAC
+extern bool mac_vnode_check_readlink_fp_flag;
+#else
+#define mac_vnode_check_readlink_fp_flag 0
+#endif
+#define mac_vnode_check_readlink_enabled() __predict_false(mac_vnode_check_readlink_fp_flag)
+static inline int
+mac_vnode_check_readlink(struct ucred *cred, struct vnode *vp)
+{
+
+	mac_vnode_assert_locked(vp, "mac_vnode_check_readlink");
+	if (mac_vnode_check_readlink_enabled())
+		return (mac_vnode_check_readlink_impl(cred, vp));
+	return (0);
+}
 #define mac_vnode_check_rename_from_enabled() __predict_false(mac_vnode_check_rename_from_fp_flag)
 #ifdef MAC
 extern bool mac_vnode_check_rename_from_fp_flag;
