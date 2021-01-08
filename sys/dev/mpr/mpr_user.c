@@ -2232,7 +2232,7 @@ mpr_user_btdh(struct mpr_softc *sc, mpr_btdh_mapping_t *data)
 		if (bus != 0)
 			return (EINVAL);
 
-		if (target > sc->max_devices) {
+		if (target >= sc->max_devices) {
 			mpr_dprint(sc, MPR_XINFO, "Target ID is out of range "
 			   "for Bus/Target to DevHandle mapping.");
 			return (EINVAL);

@@ -2135,7 +2135,7 @@ mps_user_btdh(struct mps_softc *sc, mps_btdh_mapping_t *data)
 		if (bus != 0)
 			return (EINVAL);
 
-		if (target > sc->max_devices) {
+		if (target >= sc->max_devices) {
 			mps_dprint(sc, MPS_FAULT, "Target ID is out of range "
 			   "for Bus/Target to DevHandle mapping.");
 			return (EINVAL);
