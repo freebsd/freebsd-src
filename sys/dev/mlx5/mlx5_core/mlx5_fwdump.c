@@ -72,7 +72,7 @@ mlx5_fwdump_prep(struct mlx5_core_dev *mdev)
 	if (error != 0) {
 		/* Inability to create a firmware dump is not fatal. */
 		mlx5_core_warn(mdev,
-		    "Failed to find vendor-specific capability, error %d\n",
+		    "Unable to find vendor-specific capability, error %d\n",
 		    error);
 		return;
 	}
