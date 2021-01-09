@@ -92,7 +92,8 @@ create_trusted_link()
 		install ${INSTALLFLAGS} -lrs $(realpath "$1") "$CERTDESTDIR/$hash.$suffix"
 }
 
-create_blacklisted()
+# Accepts either dot-hash form from `certctl list` or a path to a valid cert.
+resolve_certname()
 {
 	local hash srcfile filename
 	local suffix
@@ -103,14 +104,28 @@ create_blacklisted()
 		srcfile=$(realpath "$1")
 		suffix=$(get_decimal "$BLACKLISTDESTDIR" "$hash")
 		filename="$hash.$suffix"
+		echo "$srcfile" "$hash.$suffix"
 	elif [ -e "${CERTDESTDIR}/$1" ];  then
 		srcfile=$(realpath "${CERTDESTDIR}/$1")
 		hash=$(echo "$1" | sed -Ee 's/\.([0-9])+$//')
 		suffix=$(get_decimal "$BLACKLISTDESTDIR" "$hash")
 		filename="$hash.$suffix"
-	else
+		echo "$srcfile" "$hash.$suffix"
+	fi
+}
+
+create_blacklisted()
+{
+	local srcfile filename
+
+	set -- $(resolve_certname "$1")
+	srcfile=$1
+	filename=$2
+
+	if [ -z "$srcfile" -o -z "$filename" ]; then
 		return
 	fi
+
 	[ $VERBOSE -gt 0 ] && echo "Adding $filename to blacklist"
 	[ $NOOP -eq 0 ] && install ${INSTALLFLAGS} -lrs "$srcfile" "$BLACKLISTDESTDIR/$filename"
 }
