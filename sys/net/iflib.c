@@ -883,6 +883,7 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 	iru_init(&iru, rxq, 0 /* flid */);
 	map = fl->ifl_sds.ifsd_map;
 	nic_i = fl->ifl_pidx;
+	MPASS(!init || nic_i == 0); /* on init/reset, nic_i must be 0 */
 	MPASS(nic_i == netmap_idx_k2n(kring, nm_i));
 	DBG_COUNTER_INC(fl_refills);
 	while (n > 0) {
@@ -923,7 +924,7 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 		ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
 	}
 	fl->ifl_pidx = nic_i;
-	MPASS(!init || nm_i == 0);
+	MPASS(!init || nic_i == 0); /* on init/reset nic_i wraps around to 0 */
 	MPASS(nm_i == kring->rhead);
 	kring->nr_hwcur = nm_i;
 
