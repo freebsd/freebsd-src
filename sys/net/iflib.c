@@ -809,6 +809,13 @@ iflib_netmap_register(struct netmap_adapter *na, int onoff)
 	if (!CTX_IS_VF(ctx))
 		IFDI_CRCSTRIP_SET(ctx, onoff, iflib_crcstrip);
 
+	/*
+	 * Stop any pending txsync/rxsync and prevent new ones
+	 * form starting. Processes blocked in poll() will get
+	 * POLLERR.
+	 */
+	netmap_disable_all_rings(ifp);
+
 	iflib_stop(ctx);
 
 	/*
@@ -828,6 +835,8 @@ iflib_netmap_register(struct netmap_adapter *na, int onoff)
 	if (status)
 		nm_clear_native_flags(na);
 	CTX_UNLOCK(ctx);
+        /* Re-enable txsync/rxsync. */
+	netmap_enable_all_rings(ifp);
 	return (status);
 }
 

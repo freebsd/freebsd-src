@@ -4236,7 +4236,7 @@ nm_set_native_flags(struct netmap_adapter *na)
 	struct ifnet *ifp = na->ifp;
 
 	/* We do the setup for intercepting packets only if we are the
-	 * first user of this adapapter. */
+	 * first user of this adapter. */
 	if (na->active_fds > 0) {
 		return;
 	}
