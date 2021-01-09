@@ -104,6 +104,8 @@ SUBDIR=	\
 	dc \
 	dcons \
 	dcons_crom \
+	${_dpdk_lpm4} \
+	${_dpdk_lpm6} \
 	${_dpms} \
 	dummynet \
 	${_efirt} \
@@ -470,6 +472,14 @@ _ipfw_nptv6=	ipfw_nptv6
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" && ${KERN_OPTS:MFIB_ALGO}
+_dpdk_lpm4=	dpdk_lpm4
+.endif
+
+.if ${MK_INET6_SUPPORT} != "no" && ${KERN_OPTS:MFIB_ALGO}
+_dpdk_lpm6=	dpdk_lpm6
 .endif
 
 .if ${MK_ISCSI} != "no" || defined(ALL_MODULES)
