@@ -4399,7 +4399,7 @@ pmap_allocpte_getpdp(pmap_t pmap, struct rwlock **lockp, vm_offset_t va,
  */
 static vm_page_t
 _pmap_allocpte(pmap_t pmap, vm_pindex_t ptepindex, struct rwlock **lockp,
-    vm_offset_t va __unused)
+    vm_offset_t va)
 {
 	vm_pindex_t pml5index, pml4index;
 	pml5_entry_t *pml5, *pml5u;
