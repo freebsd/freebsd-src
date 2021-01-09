@@ -28,7 +28,7 @@
 .\"     @(#)last.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 28, 2018
+.Dd January 9, 2021
 .Dt LAST 1
 .Os
 .Sh NAME
@@ -204,13 +204,31 @@ far the search has progressed and then continues.
 .It Pa /var/log/utx.log
 login data base
 .El
+.Sh EXAMPLES
+Show logins in pts/14 with the duration in seconds and limit the report to
+two lines:
+.Bd -literal -offset indent
+$ last -n2 -s -t pts/14
+bob    pts/1   Wed Dec  9 11:08   still logged in
+bob    pts/2   Mon Dec  7 20:10 - 20:23  (     776)
+.Ed
+.Pp
+Show active logins at
+.Ql December 7th 20:23
+of the current year:
+.Bd -literal -offset indent
+$ last -d 12072023
+bob    pts/1    Mon Dec  7 20:10 - 20:23  (00:12)
+bob    pts/6    Mon Dec  7 19:24 - 22:27  (03:03)
+alice  ttyv0    Mon Dec  7 19:18 - 22:27  (03:09)
+.Ed
 .Sh SEE ALSO
 .Xr lastcomm 1 ,
 .Xr getutxent 3 ,
-.Xr ac 8 ,
-.Xr lastlogin 8 ,
 .Xr libxo 3 ,
-.Xr xo_parse_args 3
+.Xr xo_parse_args 3 ,
+.Xr ac 8 ,
+.Xr lastlogin 8
 .Sh HISTORY
 .Nm
 utility first appeared in
