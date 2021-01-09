@@ -665,7 +665,7 @@ timer2sbintime(int64_t data, int flags)
 			if (secs > (SBT_MAX / SBT_1S))
 				return (SBT_MAX);
 #endif
-			return (secs << 32 | US_TO_SBT(data % 1000000000));
+			return (secs << 32 | NS_TO_SBT(data % 1000000000));
 		}
 		return (NS_TO_SBT(data));
 	default:
