@@ -239,3 +239,10 @@ options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
 # ZFS support
 
 options		ZFS
+
+#
+# HID-over-I2C support
+#
+device		iichid		# HID-over-I2C support
+options 	IICHID_DEBUG	# Enable HID-over-I2C debug messages
+options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support

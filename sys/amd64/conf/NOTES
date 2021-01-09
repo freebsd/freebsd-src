@@ -607,7 +607,13 @@ options 	NKPT=31
 # EFI Runtime Services support
 options 	EFIRT
 
-
+#
+# HID-over-I2C support
+#
+device		iichid		# HID-over-I2C support
+options 	IICHID_DEBUG	# Enable HID-over-I2C debug messages
+options 	IICHID_SAMPLING	# Workaround missing GPIO INTR support
+
 #####################################################################
 # ABI Emulation
 
