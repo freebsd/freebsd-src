@@ -96,6 +96,14 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	if (fbt_excluded(name))
 		return (0);
 
+	/*
+	 * Instrumenting certain exception handling functions can lead to FBT
+	 * recursion, so exclude from instrumentation.
+	 */
+	 if (strcmp(name, "handle_el1h_sync") == 0 ||
+	    strcmp(name, "do_el1h_sync") == 0)
+		return (1);
+
 	instr = (uint32_t *)(symval->value);
 	limit = (uint32_t *)(symval->value + symval->size);
 
