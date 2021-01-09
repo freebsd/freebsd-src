@@ -4066,75 +4066,50 @@ done:
 
 
 /*
- * netmap_reset() is called by the driver routines when reinitializing
- * a ring. The driver is in charge of locking to protect the kring.
- * If native netmap mode is not set just return NULL.
- * If native netmap mode is set, in particular, we have to set nr_mode to
- * NKR_NETMAP_ON.
+ * Reset function to be called by the driver routines when reinitializing
+ * a hardware ring. The driver is in charge of locking to protect the kring
+ * while this operation is being performed.
+ * This is normally done by calling netmap_disable_all_rings() before
+ * triggering a reset.
+ * If the kring is not in netmap mode, return NULL to inform the caller
+ * that this is the case.
+ * If the kring is in netmap mode, reset the kring indices to 0.
+ * In any case, adjust kring->nr_mode.
  */
 struct netmap_slot *
 netmap_reset(struct netmap_adapter *na, enum txrx tx, u_int n,
 	u_int new_cur)
 {
 	struct netmap_kring *kring;
-	int new_hwofs, lim;
 
 	if (!nm_native_on(na)) {
 		nm_prdis("interface not in native netmap mode");
 		return NULL;	/* nothing to reinitialize */
 	}
 
-	/* XXX note- in the new scheme, we are not guaranteed to be
-	 * under lock (e.g. when called on a device reset).
-	 * In this case, we should set a flag and do not trust too
-	 * much the values. In practice: TODO
-	 * - set a RESET flag somewhere in the kring
-	 * - do the processing in a conservative way
-	 * - let the *sync() fixup at the end.
-	 */
 	if (tx == NR_TX) {
 		if (n >= na->num_tx_rings)
 			return NULL;
 
 		kring = na->tx_rings[n];
 
-		if (kring->nr_pending_mode == NKR_NETMAP_OFF) {
-			kring->nr_mode = NKR_NETMAP_OFF;
-			return NULL;
-		}
-
-		// XXX check whether we should use hwcur or rcur
-		new_hwofs = kring->nr_hwcur - new_cur;
 	} else {
 		if (n >= na->num_rx_rings)
 			return NULL;
 		kring = na->rx_rings[n];
-
-		if (kring->nr_pending_mode == NKR_NETMAP_OFF) {
-			kring->nr_mode = NKR_NETMAP_OFF;
-			return NULL;
-		}
-
-		new_hwofs = kring->nr_hwtail - new_cur;
 	}
-	lim = kring->nkr_num_slots - 1;
-	if (new_hwofs > lim)
-		new_hwofs -= lim + 1;
-
-	/* Always set the new offset value and realign the ring. */
-	if (netmap_debug & NM_DEBUG_ON)
-	    nm_prinf("%s %s%d hwofs %d -> %d, hwtail %d -> %d",
-		na->name,
-		tx == NR_TX ? "TX" : "RX", n,
-		kring->nkr_hwofs, new_hwofs,
-		kring->nr_hwtail,
-		tx == NR_TX ? lim : kring->nr_hwtail);
-	kring->nkr_hwofs = new_hwofs;
-	if (tx == NR_TX) {
-		kring->nr_hwtail = kring->nr_hwcur + lim;
-		if (kring->nr_hwtail > lim)
-			kring->nr_hwtail -= lim + 1;
+	if (kring->nr_pending_mode == NKR_NETMAP_OFF) {
+		kring->nr_mode = NKR_NETMAP_OFF;
+		return NULL;
 	}
+	if (netmap_verbose) {
+	    nm_prinf("%s, was: hc %u h %u c %u ht %u", kring->name,
+	        kring->nr_hwcur, kring->ring->head,
+	        kring->ring->cur, kring->nr_hwtail);
+	}
+	/* For the moment being, nkr_hwofs is not used. */
+	kring->rhead = kring->rcur = kring->nr_hwcur = kring->nkr_hwofs = 0;
+	kring->nr_hwtail = (tx == NR_TX) ? (kring->nkr_num_slots - 1) : 0;
 
 	/*
 	 * Wakeup on the individual and global selwait
