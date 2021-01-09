@@ -264,8 +264,9 @@ shift $(( $OPTIND - 1 ))
 : ${METALOG:=${DESTDIR}/METALOG}
 INSTALLFLAGS=
 [ $UNPRIV -eq 1 ] && INSTALLFLAGS="-U -M ${METALOG} -D ${DESTDIR}"
-: ${TRUSTPATH:=${DESTDIR}/usr/share/certs/trusted:${DESTDIR}/usr/local/share/certs:${DESTDIR}/usr/local/etc/ssl/certs}
-: ${BLACKLISTPATH:=${DESTDIR}/usr/share/certs/blacklisted:${DESTDIR}/usr/local/etc/ssl/blacklisted}
+: ${LOCALBASE:=/usr/local}
+: ${TRUSTPATH:=${DESTDIR}/usr/share/certs/trusted:${DESTDIR}${LOCALBASE}/share/certs:${DESTDIR}${LOCALBASE}/etc/ssl/certs}
+: ${BLACKLISTPATH:=${DESTDIR}/usr/share/certs/blacklisted:${DESTDIR}${LOCALBASE}/etc/ssl/blacklisted}
 : ${CERTDESTDIR:=${DESTDIR}/etc/ssl/certs}
 : ${BLACKLISTDESTDIR:=${DESTDIR}/etc/ssl/blacklisted}
 
