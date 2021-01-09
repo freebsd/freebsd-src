@@ -21,6 +21,9 @@ LIBADD=	nv
 
 CFLAGS+=-I${.CURDIR}
 
+HAS_TESTS=
+SUBDIR.${MK_TESTS}+= tests
+
 MAN+=	cap_fileargs.3
 
 MLINKS+=cap_fileargs.3 libcap_fileargs.3
