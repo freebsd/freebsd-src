@@ -2412,7 +2412,10 @@ options 	NSFBUFS=1024
 #
 options 	DEBUG_LOCKS
 
-
+#####################################################################
+# Generic HID support
+device hid
+
 #####################################################################
 # USB support
 # UHCI controller
