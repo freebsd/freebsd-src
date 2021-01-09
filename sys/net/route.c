@@ -767,27 +767,3 @@ rt_routemsg_info(int cmd, struct rt_addrinfo *info, int fibnum)
 
 	return (rtsock_routemsg_info(cmd, info, fibnum));
 }
-
-/*
- * This is called to generate messages from the routing socket
- * indicating a network interface has had addresses associated with it.
- */
-void
-rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, struct rtentry *rt, int fibnum)
-{
-
-	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
-		("unexpected cmd %u", cmd));
-	KASSERT((fibnum >= 0 && fibnum < rt_numfibs),
-	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
-
-	if (cmd == RTM_ADD) {
-		rt_addrmsg(cmd, ifa, fibnum);
-		if (rt != NULL)
-			rt_routemsg(cmd, rt, nhop_select(rt->rt_nhop, 0), fibnum);
-	} else {
-		if (rt != NULL)
-			rt_routemsg(cmd, rt, nhop_select(rt->rt_nhop, 0), fibnum);
-		rt_addrmsg(cmd, ifa, fibnum);
-	}
-}

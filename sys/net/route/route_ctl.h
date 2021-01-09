@@ -52,6 +52,7 @@ int rib_change_route(uint32_t fibnum, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
 int rib_action(uint32_t fibnum, int action, struct rt_addrinfo *info,
   struct rib_cmd_info *rc);
+int rib_handle_ifaddr_info(uint32_t fibnum, int cmd, struct rt_addrinfo *info);
 
 typedef void route_notification_t(struct rib_cmd_info *rc, void *);
 void rib_decompose_notification(struct rib_cmd_info *rc,

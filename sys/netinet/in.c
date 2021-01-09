@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <net/route/nhop.h>
+#include <net/route/route_ctl.h>
 #include <net/vnet.h>
 
 #include <netinet/if_ether.h>
@@ -709,6 +711,125 @@ in_gifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	return (0);
 }
 
+static int
+in_match_ifaddr(const struct rtentry *rt, const struct nhop_object *nh, void *arg)
+{
+
+	if (nh->nh_ifa == (struct ifaddr *)arg)
+		return (1);
+
+	return (0);
+}
+
+static int
+in_handle_prefix_route(uint32_t fibnum, int cmd,
+    struct sockaddr_in *dst, struct sockaddr_in *netmask, struct ifaddr *ifa)
+{
+
+	NET_EPOCH_ASSERT();
+
+	/* Prepare gateway */
+	struct sockaddr_dl_short sdl = {
+		.sdl_family = AF_LINK,
+		.sdl_len = sizeof(struct sockaddr_dl_short),
+		.sdl_type = ifa->ifa_ifp->if_type,
+		.sdl_index = ifa->ifa_ifp->if_index,
+	};
+
+	struct rt_addrinfo info = {
+		.rti_ifa = ifa,
+		.rti_flags = RTF_PINNED | ((netmask != NULL) ? 0 : RTF_HOST),
+		.rti_info = {
+			[RTAX_DST] = (struct sockaddr *)dst,
+			[RTAX_NETMASK] = (struct sockaddr *)netmask,
+			[RTAX_GATEWAY] = (struct sockaddr *)&sdl,
+		},
+		/* Ensure we delete the prefix IFF prefix ifa matches */
+		.rti_filter = in_match_ifaddr,
+		.rti_filterdata = ifa,
+	};
+
+	return (rib_handle_ifaddr_info(fibnum, cmd, &info));
+}
+
+/*
+ * Adds or delete interface route corresponding to @ifa.
+ * There can be multiple options:
+ * 1) Adding addr with prefix on non-p2p/non-lo interface.
+ *  Example: 192.0.2.1/24. Action: add route towards
+ *  192.0.2.0/24 via this interface, using ifa as an address source.
+ *  Note: route to 192.0.2.1 will be installed separately via
+ *  ifa_maintain_loopback_route().
+ * 2) Adding addr with "host" mask.
+ *  Example: 192.0.2.2/32. In this case no action is performed,
+ *  as the route should be installed by ifa_maintain_loopback_route().
+ *  Returns 0 to indicate success.
+ * 3) Adding address with or without prefix to p2p interface.
+ *  Example: 10.0.0.1/24->10.0.0.2. In this case, all other addresses
+ *  covered by prefix, does not make sense in the context of p2p link.
+ *  Action: add route towards 10.0.0.2 via this interface, using ifa as an
+ *  address source.
+ *  Similar to (1), route to 10.0.0.1 will be installed by
+ *  ifa_maintain_loopback_route().
+ * 4) Adding address with or without prefix to loopback interface.
+ *  Example: 192.0.2.1/24. In this case, trafic to non-host addresses cannot
+ *  be forwarded, as it would introduce an infinite cycle.
+ *  Similar to (2), perform no action and return 0. Loopback route
+ *  will be installed by ifa_maintain_loopback_route().
+ */
+int
+in_handle_ifaddr_route(int cmd, struct in_ifaddr *ia)
+{
+	struct ifaddr *ifa = &ia->ia_ifa;
+	struct in_addr daddr, maddr;
+	struct sockaddr_in *pmask;
+	struct epoch_tracker et;
+	int error;
+
+	/* Case 4: ignore loopbacks */
+	if (ifa->ifa_ifp->if_flags & IFF_LOOPBACK)
+		return (0);
+
+	if (ifa->ifa_ifp->if_flags & IFF_POINTOPOINT) {
+		/* Case 3: install route towards dst addr */
+		daddr = ia->ia_dstaddr.sin_addr;
+		pmask = NULL;
+		maddr.s_addr = INADDR_BROADCAST;
+	} else {
+		daddr = ia->ia_addr.sin_addr;
+		pmask = &ia->ia_sockmask;
+		maddr = pmask->sin_addr;
+
+		if (maddr.s_addr == INADDR_BROADCAST) {
+			/* Case 2: ignore /32 routes */
+			return (0);
+		}
+	}
+
+	struct sockaddr_in mask = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr = maddr,
+	};
+
+	if (pmask != NULL)
+		pmask = &mask;
+
+	struct sockaddr_in dst = {
+		.sin_family = AF_INET,
+		.sin_len = sizeof(struct sockaddr_in),
+		.sin_addr.s_addr = daddr.s_addr & maddr.s_addr,
+	};
+
+	uint32_t fibnum = ifa->ifa_ifp->if_fib;
+	NET_EPOCH_ENTER(et);
+	error = in_handle_prefix_route(fibnum, cmd, &dst, pmask, ifa);
+	NET_EPOCH_EXIT(et);
+
+	return (error);
+}
+
+
 #define rtinitflags(x) \
 	((((x)->ia_ifp->if_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)) != 0) \
 	    ? RTF_HOST : 0)
@@ -785,7 +906,8 @@ in_addprefix(struct in_ifaddr *target, int flags)
 	/*
 	 * No-one seem to have this prefix route, so we try to insert it.
 	 */
-	error = rtinit(&target->ia_ifa, (int)RTM_ADD, flags);
+	rt_addrmsg(RTM_ADD, &target->ia_ifa, target->ia_ifp->if_fib);
+	error = in_handle_ifaddr_route(RTM_ADD, target);
 	if (!error)
 		target->ia_flags |= IFA_ROUTE;
 	return (error);
@@ -917,8 +1039,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		if ((ia->ia_flags & IFA_ROUTE) == 0) {
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK(&in_ifa_tracker);
-			error = rtinit(&(target->ia_ifa), (int)RTM_DELETE,
-			    rtinitflags(target));
+			error = in_handle_ifaddr_route(RTM_DELETE, target);
 			if (error == 0)
 				target->ia_flags &= ~IFA_ROUTE;
 			else
@@ -927,8 +1048,7 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			/* Scrub all entries IFF interface is different */
 			in_scrubprefixlle(target, target->ia_ifp != ia->ia_ifp,
 			    flags);
-			error = rtinit(&ia->ia_ifa, (int)RTM_ADD,
-			    rtinitflags(ia) | RTF_UP);
+			error = in_handle_ifaddr_route(RTM_ADD, ia);
 			if (error == 0)
 				ia->ia_flags |= IFA_ROUTE;
 			else
@@ -948,7 +1068,8 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 	/*
 	 * As no-one seem to have this prefix, we can remove the route.
 	 */
-	error = rtinit(&(target->ia_ifa), (int)RTM_DELETE, rtinitflags(target));
+	rt_addrmsg(RTM_DELETE, &target->ia_ifa, target->ia_ifp->if_fib);
+	error = in_handle_ifaddr_route(RTM_DELETE, target);
 	if (error == 0)
 		target->ia_flags &= ~IFA_ROUTE;
 	else
