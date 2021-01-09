@@ -50,7 +50,7 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 	    : VTNET_INIT_NETMAP_EXIT);
 	VTNET_CORE_UNLOCK(sc);
 
-	return 0;
+	return (0);
 }
 
 
@@ -213,20 +213,25 @@ vtnet_netmap_rxq_populate(struct vtnet_rxq *rxq)
 	struct netmap_kring *kring;
 	struct netmap_slot *slot;
 	int error;
+	int num;
 
 	slot = netmap_reset(na, NR_RX, rxq->vtnrx_id, 0);
 	if (slot == NULL)
 		return -1;
 	kring = na->rx_rings[rxq->vtnrx_id];
 
-	/* Expose all the RX netmap buffers we can. In case of no indirect
+	/*
+	 * Expose all the RX netmap buffers we can. In case of no indirect
 	 * buffers, the number of netmap slots in the RX ring matches the
 	 * maximum number of 2-elements sglist that the RX virtqueue can
-	 * accommodate. We need to start from kring->nr_hwcur, which is 0
-	 * on netmap register and may be different from 0 if a virtio
-	 * re-init happens while the device is in use by netmap. */
-	rxq->vtnrx_nm_refill = kring->nr_hwcur;
-	error = vtnet_netmap_kring_refill(kring, na->num_rx_desc - 1);
+	 * accommodate. We need to start from kring->nr_hwtail, which is 0
+	 * on the first netmap register and may be different from 0 if a
+	 * virtio re-init (caused by a netma register or i.e., ifconfig)
+	 * happens while the device is in use by netmap.
+	 */
+	rxq->vtnrx_nm_refill = kring->nr_hwtail;
+	num = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
+	error = vtnet_netmap_kring_refill(kring, num);
 	virtqueue_notify(rxq->vtnrx_vq);
 
 	return error;
@@ -256,7 +261,7 @@ vtnet_netmap_rxsync(struct netmap_kring *kring, int flags)
 	 * First part: import newly received packets.
 	 * Only accept our own buffers (matching the token). We should only get
 	 * matching buffers. The hwtail should never overrun hwcur, because
-	 * we publish only N-1 receive buffers (and non N).
+	 * we publish only N-1 receive buffers (and not N).
 	 * In any case we must not leave this routine with the interrupts
 	 * disabled, pending packets in the VQ and hwtail == (hwcur - 1),
 	 * otherwise the pending packets could stall.

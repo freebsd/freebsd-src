@@ -616,6 +616,10 @@ netmap_set_all_rings(struct netmap_adapter *na, int stopped)
 	if (!nm_netmap_on(na))
 		return;
 
+	if (netmap_verbose) {
+		nm_prinf("%s: %sable all rings", na->name,
+		    (stopped ? "dis" : "en"));
+	}
 	for_rx_tx(t) {
 		for (i = 0; i < netmap_real_rings(na, t); i++) {
 			netmap_set_ring(na, i, t, stopped);
