@@ -369,7 +369,9 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 		goto closem;
 	}
 
-	if (diff_format == D_BRIEF && ignore_pats == NULL) {
+	if (diff_format == D_BRIEF && ignore_pats == NULL &&
+	    (flags & (D_FOLDBLANKS|D_IGNOREBLANKS|D_IGNORECASE|D_STRIPCR)) == 0)
+	{
 		rval = D_DIFFER;
 		status |= 1;
 		goto closem;
