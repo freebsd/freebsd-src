@@ -72,9 +72,9 @@ static int	is_executable(const char *fname, int fd, int *is_shlib,
 static void	usage(void);
 
 #define	TYPE_UNKNOWN	0
-#define	TYPE_ELF	2	/* Architecture default */
+#define	TYPE_ELF	1	/* Architecture default */
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
-#define	TYPE_ELF32	3	/* Explicit 32 bits on architectures >32 bits */
+#define	TYPE_ELF32	2	/* Explicit 32 bits on architectures >32 bits */
 
 #define	_PATH_LDD32	"/usr/bin/ldd32"
 
