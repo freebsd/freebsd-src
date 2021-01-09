@@ -1190,7 +1190,9 @@ mvneta_initreg(struct ifnet *ifp)
 	MVNETA_WRITE(sc, MVNETA_PXCX, reg);
 
 	/* clear MIB counter registers(clear by read) */
+	mvneta_sc_lock(sc);
 	mvneta_clear_mib(sc);
+	mvneta_sc_unlock(sc);
 
 	/* Set SDC register except IPGINT bits */
 	reg  = MVNETA_SDC_RXBSZ_16_64BITWORDS;
