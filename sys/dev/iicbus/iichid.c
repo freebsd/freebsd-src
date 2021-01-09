@@ -1116,12 +1116,12 @@ iichid_attach(device_t dev)
 		"idle sampling rate in num/second");
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-		OID_AUTO, "sampling_rate_fast", CTLTYPE_INT | CTLFLAG_RWTUN,
+		OID_AUTO, "sampling_rate_fast", CTLFLAG_RWTUN,
 		&sc->sampling_rate_fast, 0,
 		"active sampling rate in num/second");
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
-		OID_AUTO, "sampling_hysteresis", CTLTYPE_INT | CTLFLAG_RWTUN,
+		OID_AUTO, "sampling_hysteresis", CTLFLAG_RWTUN,
 		&sc->sampling_hysteresis, 0,
 		"number of missing samples before enabling of slow mode");
 	hid_add_dynamic_quirk(&sc->hw, HQ_IICHID_SAMPLING);

@@ -752,7 +752,7 @@ hidmap_attach(struct hidmap* hm)
 		TUNABLE_INT_FETCH(tunable, &hm->debug_level);
 		SYSCTL_ADD_INT(device_get_sysctl_ctx(hm->dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(hm->dev)),
-			OID_AUTO, "debug", CTLTYPE_INT | CTLFLAG_RWTUN,
+			OID_AUTO, "debug", CTLFLAG_RWTUN,
 			&hm->debug_level, 0, "Verbosity level");
 	}
 #endif
