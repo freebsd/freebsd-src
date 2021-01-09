@@ -65,174 +65,72 @@ SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RWTUN | CTLFLAG_VNET,
     &VNET_NAME(rt_add_addr_allfibs), 0, "");
 
 /*
- * Set up a routing table entry, normally
- * for an interface.
+ * Executes routing tables change specified by @cmd and @info for the fib
+ * @fibnum. Generates routing message on success.
+ * Note: it assumes there is only single route (interface route) for the
+ * provided prefix.
+ * Returns 0 on success or errno.
  */
-static inline  int
-rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
+static int
+rib_handle_ifaddr_one(uint32_t fibnum, int cmd, struct rt_addrinfo *info)
 {
-	RIB_RLOCK_TRACKER;
-	struct epoch_tracker et;
-	struct sockaddr *dst;
-	struct sockaddr *netmask;
 	struct rib_cmd_info rc;
-	struct rt_addrinfo info;
-	int error = 0;
-	int startfib, endfib;
-	struct sockaddr_storage ss;
-	int didwork = 0;
-	int a_failure = 0;
-	struct sockaddr_dl_short sdl;
-	struct rib_head *rnh;
+	struct nhop_object *nh;
+	int error;
 
-	if (flags & RTF_HOST) {
-		dst = ifa->ifa_dstaddr;
-		netmask = NULL;
+	error = rib_action(fibnum, cmd, info, &rc);
+	if (error == 0) {
+		if (cmd == RTM_ADD)
+			nh = nhop_select(rc.rc_nh_new, 0);
+		else
+			nh = nhop_select(rc.rc_nh_old, 0);
+		rt_routemsg(cmd, rc.rc_rt, nh, fibnum);
+	}
+
+	return (error);
+}
+
+/*
+ * Adds/deletes interface prefix specified by @info to the routing table.
+ * If V_rt_add_addr_allfibs is set, iterates over all existing routing
+ * tables, otherwise uses fib in @fibnum. Generates routing message for
+ *  each table.
+ * Returns 0 on success or errno.
+ */
+int
+rib_handle_ifaddr_info(uint32_t fibnum, int cmd, struct rt_addrinfo *info)
+{
+	int error, last_error = 0;
+	bool didwork = false;
+
+	if (V_rt_add_addr_allfibs == 0) {
+		error = rib_handle_ifaddr_one(fibnum, cmd, info);
+		didwork = (error == 0);
 	} else {
-		dst = ifa->ifa_addr;
-		netmask = ifa->ifa_netmask;
-	}
-	if (dst->sa_len == 0)
-		return(EINVAL);
-	switch (dst->sa_family) {
-	case AF_INET6:
-	case AF_INET:
-		/* We support multiple FIBs. */
-		break;
-	default:
-		fibnum = RT_DEFAULT_FIB;
-		break;
-	}
-	if (fibnum == RT_ALL_FIBS) {
-		if (V_rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD)
-			startfib = endfib = ifa->ifa_ifp->if_fib;
-		else {
-			startfib = 0;
-			endfib = rt_numfibs - 1;
+		for (fibnum = 0; fibnum < V_rt_numfibs; fibnum++) {
+			error = rib_handle_ifaddr_one(fibnum, cmd, info);
+			if (error == 0)
+				didwork = true;
+			else
+				last_error = error;
 		}
-	} else {
-		KASSERT((fibnum < rt_numfibs), ("rtinit1: bad fibnum"));
-		startfib = fibnum;
-		endfib = fibnum;
 	}
 
-	/*
-	 * If it's a delete, check that if it exists,
-	 * it's on the correct interface or we might scrub
-	 * a route to another ifa which would
-	 * be confusing at best and possibly worse.
-	 */
-	if (cmd == RTM_DELETE) {
-		/*
-		 * It's a delete, so it should already exist..
-		 * If it's a net, mask off the host bits
-		 * (Assuming we have a mask)
-		 * XXX this is kinda inet specific..
-		 */
-		if (netmask != NULL) {
-			rt_maskedcopy(dst, (struct sockaddr *)&ss, netmask);
-			dst = (struct sockaddr *)&ss;
-		}
-	}
-	bzero(&sdl, sizeof(struct sockaddr_dl_short));
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_len = sizeof(struct sockaddr_dl_short);
-	sdl.sdl_type = ifa->ifa_ifp->if_type;
-	sdl.sdl_index = ifa->ifa_ifp->if_index;
-	/*
-	 * Now go through all the requested tables (fibs) and do the
-	 * requested action. Realistically, this will either be fib 0
-	 * for protocols that don't do multiple tables or all the
-	 * tables for those that do.
-	 */
-	for ( fibnum = startfib; fibnum <= endfib; fibnum++) {
-		if (cmd == RTM_DELETE) {
-			struct radix_node *rn;
-			/*
-			 * Look up an rtentry that is in the routing tree and
-			 * contains the correct info.
-			 */
-			rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
-			if (rnh == NULL)
-				/* this table doesn't exist but others might */
-				continue;
-			RIB_RLOCK(rnh);
-			rn = rnh->rnh_lookup(dst, netmask, &rnh->head);
-			error = (rn == NULL ||
-			    (rn->rn_flags & RNF_ROOT) ||
-			    RNTORT(rn)->rt_nhop->nh_ifa != ifa);
-			RIB_RUNLOCK(rnh);
-			if (error) {
-				/* this is only an error if bad on ALL tables */
-				continue;
-			}
-		}
-		/*
-		 * Do the actual request
-		 */
-		bzero((caddr_t)&info, sizeof(info));
-		info.rti_ifa = ifa;
-		info.rti_flags = flags |
-		    (ifa->ifa_flags & ~IFA_RTSELF) | RTF_PINNED;
-		info.rti_info[RTAX_DST] = dst;
-		info.rti_info[RTAX_GATEWAY] = (struct sockaddr *)&sdl;
-		info.rti_info[RTAX_NETMASK] = netmask;
-		NET_EPOCH_ENTER(et);
-		error = rib_action(fibnum, cmd, &info, &rc);
-		if (error == 0 && rc.rc_rt != NULL) {
-			/*
-			 * notify any listening routing agents of the change
-			 */
-
-			/* TODO: interface routes/aliases */
-			rt_newaddrmsg_fib(cmd, ifa, rc.rc_rt, fibnum);
-			didwork = 1;
-		}
-		NET_EPOCH_EXIT(et);
-		if (error)
-			a_failure = error;
-	}
 	if (cmd == RTM_DELETE) {
 		if (didwork) {
 			error = 0;
 		} else {
 			/* we only give an error if it wasn't in any table */
-			error = ((flags & RTF_HOST) ?
+			error = ((info->rti_flags & RTF_HOST) ?
 			    EHOSTUNREACH : ENETUNREACH);
 		}
 	} else {
-		if (a_failure) {
+		if (last_error != 0) {
 			/* return an error if any of them failed */
-			error = a_failure;
+			error = last_error;
 		}
 	}
 	return (error);
-}
-
-/*
- * Set up a routing table entry, normally
- * for an interface.
- */
-int
-rtinit(struct ifaddr *ifa, int cmd, int flags)
-{
-	struct sockaddr *dst;
-	int fib = RT_DEFAULT_FIB;
-
-	if (flags & RTF_HOST) {
-		dst = ifa->ifa_dstaddr;
-	} else {
-		dst = ifa->ifa_addr;
-	}
-
-	switch (dst->sa_family) {
-	case AF_INET6:
-	case AF_INET:
-		/* We do support multiple FIBs. */
-		fib = RT_ALL_FIBS;
-		break;
-	}
-	return (rtinit1(ifa, cmd, flags, fib));
 }
 
 static int

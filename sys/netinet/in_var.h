@@ -464,6 +464,7 @@ int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 int	in_addprefix(struct in_ifaddr *, int);
 int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	in_ifscrub_all(void);
+int	in_handle_ifaddr_route(int, struct in_ifaddr *);
 void	ip_input(struct mbuf *);
 void	ip_direct_input(struct mbuf *);
 void	in_ifadown(struct ifaddr *ifa, int);
