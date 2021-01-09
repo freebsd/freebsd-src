@@ -146,6 +146,7 @@ static void tc_windup(struct bintime *new_boottimebin);
 static void cpu_tick_calibrate(int);
 
 void dtrace_getnanotime(struct timespec *tsp);
+void dtrace_getnanouptime(struct timespec *tsp);
 
 static int
 sysctl_kern_boottime(SYSCTL_HANDLER_ARGS)
@@ -995,6 +996,20 @@ dtrace_getnanotime(struct timespec *tsp)
 {
 
 	GETTHMEMBER(tsp, th_nanotime);
+}
+
+/*
+ * This is a clone of getnanouptime used for time since boot.
+ * The dtrace_ prefix prevents fbt from creating probes for
+ * it so an uptime that can be safely used in all fbt probes.
+ */
+void
+dtrace_getnanouptime(struct timespec *tsp)
+{
+	struct bintime bt;
+
+	GETTHMEMBER(&bt, th_offset);
+	bintime2timespec(&bt, tsp);
 }
 
 /*
