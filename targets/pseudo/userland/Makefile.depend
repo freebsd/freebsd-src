@@ -437,7 +437,6 @@ DIRDEPS+= \
 	usr.sbin/binmiscctl \
 	usr.sbin/bluetooth/ath3kfw \
 	usr.sbin/bluetooth/bcmfw \
-	usr.sbin/bluetooth/bt3cfw \
 	usr.sbin/bluetooth/bthidcontrol \
 	usr.sbin/bluetooth/bthidd \
 	usr.sbin/bluetooth/btpand \
