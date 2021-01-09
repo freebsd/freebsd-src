@@ -113,7 +113,7 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, panic,
 SYSCTL_PROC(_debug_kdb, OID_AUTO, panic_str,
     CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
     kdb_sysctl_panic_str, "A",
-    "set to panic the kernel with using the string as the panic message");
+    "trigger a kernel panic, using the provided string as the panic message");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, trap,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_MPSAFE, NULL, 0,
