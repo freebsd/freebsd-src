@@ -357,6 +357,41 @@ Local configuration files.
 .El
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+Show the manual page for
+.Xr stat 2 :
+.Bd -literal -offset indent
+$ man 2 stat
+.Ed
+.Pp
+Show all manual pages for
+.Ql stat .
+.Bd -literal -offset indent
+$ man -a stat
+.Ed
+.Pp
+List manual pages which match the regular expression either in the title or in
+the body:
+.Bd -literal -offset indent
+$ man -k '\e<copy\e>.*archive'
+.Ed
+.Pp
+Show the manual page for
+.Xr ls 1
+and use
+.Xr cat 1
+as pager:
+.Bd -literal -offset indent
+$ man -P cat ls
+.Ed
+.Pp
+Show the location of the
+.Xr ls 1
+manual page:
+.Bd -literal -offset indent
+$ man -w ls
+.Ed
+.Pp
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr intro 1 ,
