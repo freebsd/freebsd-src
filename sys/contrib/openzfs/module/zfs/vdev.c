@@ -3263,6 +3263,7 @@ vdev_load(vdev_t *vd)
 
 	/*
 	 * Recursively load all children.
+	 * TODO: parallelize.
 	 */
 	for (int c = 0; c < vd->vdev_children; c++) {
 		error = vdev_load(vd->vdev_child[c]);

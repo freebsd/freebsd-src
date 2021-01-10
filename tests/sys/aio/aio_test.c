@@ -943,6 +943,10 @@ aio_zvol_cleanup(void)
 	char cmd[160];
 
 	pidfile = fopen("pidfile", "r");
+	if (pidfile == NULL && errno == ENOENT) {
+		/* Setup probably failed */
+		return;
+	}
 	ATF_REQUIRE_MSG(NULL != pidfile, "fopen: %s", strerror(errno));
 	ATF_REQUIRE_EQ(1, fscanf(pidfile, "%d", &testpid));
 	fclose(pidfile);
