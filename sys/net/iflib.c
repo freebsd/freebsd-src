@@ -801,27 +801,18 @@ iflib_netmap_register(struct netmap_adapter *na, int onoff)
 	int status;
 
 	CTX_LOCK(ctx);
-	IFDI_INTR_DISABLE(ctx);
-
-	/* Tell the stack that the interface is no longer active */
-	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
 	if (!CTX_IS_VF(ctx))
 		IFDI_CRCSTRIP_SET(ctx, onoff, iflib_crcstrip);
-
-	/*
-	 * Stop any pending txsync/rxsync and prevent new ones
-	 * form starting. Processes blocked in poll() will get
-	 * POLLERR.
-	 */
-	netmap_disable_all_rings(ifp);
 
 	iflib_stop(ctx);
 
 	/*
 	 * Enable (or disable) netmap flags, and intercept (or restore)
 	 * ifp->if_transmit. This is done once the device has been stopped
-	 * to prevent race conditions.
+	 * to prevent race conditions. Also, this must be done after
+	 * calling netmap_disable_all_rings() and before calling
+	 * netmap_enable_all_rings(), so that these two functions see the
+	 * updated state of the NAF_NETMAP_ON bit.
 	 */
 	if (onoff) {
 		nm_set_native_flags(na);
@@ -835,8 +826,6 @@ iflib_netmap_register(struct netmap_adapter *na, int onoff)
 	if (status)
 		nm_clear_native_flags(na);
 	CTX_UNLOCK(ctx);
-        /* Re-enable txsync/rxsync. */
-	netmap_enable_all_rings(ifp);
 	return (status);
 }
 
@@ -2388,6 +2377,12 @@ iflib_init_locked(if_ctx_t ctx)
 	if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 	IFDI_INTR_DISABLE(ctx);
 
+	/*
+	 * See iflib_stop(). Useful in case iflib_init_locked() is
+	 * called without first calling iflib_stop().
+	 */
+	netmap_disable_all_rings(ifp);
+
 	tx_ip_csum_flags = scctx->isc_tx_csum_flags & (CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP);
 	tx_ip6_csum_flags = scctx->isc_tx_csum_flags & (CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_SCTP);
 	/* Set hardware offload abilities */
@@ -2444,6 +2439,9 @@ done:
 	for (i = 0; i < sctx->isc_ntxqsets; i++, txq++)
 		callout_reset_on(&txq->ift_timer, iflib_timer_default, iflib_timer, txq,
 			txq->ift_timer.c_cpu);
+
+        /* Re-enable txsync/rxsync. */
+	netmap_enable_all_rings(ifp);
 }
 
 static int
@@ -2488,6 +2486,13 @@ iflib_stop(if_ctx_t ctx)
 	DELAY(1000);
 	IFDI_STOP(ctx);
 	DELAY(1000);
+
+	/*
+	 * Stop any pending txsync/rxsync and prevent new ones
+	 * form starting. Processes blocked in poll() will get
+	 * POLLERR.
+	 */
+	netmap_disable_all_rings(ctx->ifc_ifp);
 
 	iflib_debug_reset();
 	/* Wait for current tx queue users to exit to disarm watchdog timer. */
