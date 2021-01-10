@@ -687,6 +687,7 @@ __thr_interpose_libc(void)
 	SLOT(map_stacks_exec);
 	SLOT(fdatasync);
 	SLOT(clock_nanosleep);
+	SLOT(pdfork);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =
