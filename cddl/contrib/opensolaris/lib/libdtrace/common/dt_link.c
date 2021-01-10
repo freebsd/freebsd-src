@@ -1344,18 +1344,24 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			/*
 			 * Aliases of weak symbols don't get a uniquifier.
 			 */
-			if (GELF_ST_BIND(fsym.st_info) == STB_WEAK)
+			if (GELF_ST_BIND(fsym.st_info) == STB_WEAK) {
 				len = snprintf(NULL, 0, dt_weaksymfmt,
 				    dt_symprefix, s) + 1;
-			else
+			} else {
 				len = snprintf(NULL, 0, dt_symfmt, dt_symprefix,
 				    objkey, s) + 1;
+			}
 			if ((p = dt_alloc(dtp, len)) == NULL) {
 				dt_strtab_destroy(strtab);
 				goto err;
 			}
-			(void) snprintf(p, len, dt_symfmt, dt_symprefix,
-			    objkey, s);
+			if (GELF_ST_BIND(fsym.st_info) == STB_WEAK) {
+				(void) snprintf(p, len, dt_weaksymfmt,
+				    dt_symprefix, s);
+			} else {
+				(void) snprintf(p, len, dt_symfmt, dt_symprefix,
+				    objkey, s);
+			}
 
 			if (dt_strtab_index(strtab, p) == -1) {
 				/*
