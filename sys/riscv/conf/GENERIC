@@ -114,8 +114,8 @@ device		uart_ns8250	# ns8250-type UART driver
 device		goldfish_rtc	# QEMU RTC
 
 # Ethernet drivers
+device		cgem		# Cadence GEM Gigabit Ethernet device
 device		miibus		# MII bus support
-device		cgem		# Cadence Gigabit Ethernet MAC
 device		xae		# Xilinx AXI Ethernet MAC
 
 # DMA support

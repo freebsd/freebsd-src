@@ -49,7 +49,7 @@ device		mpcore_timer
 
 device		loop
 device		ether
-device		cgem			# Zynq-7000 gig ethernet device
+device		cgem			# Cadence GEM Gigabit Ethernet device
 device		mii
 device		e1000phy
 device		rgephy			# Zybo uses Realtek RTL8211E

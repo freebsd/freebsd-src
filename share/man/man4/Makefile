@@ -106,6 +106,7 @@ MAN=	aac.4 \
 	cdceem.4 \
 	cfi.4 \
 	cfumass.4 \
+	${_cgem.4} \
 	ch.4 \
 	chromebook_platform.4 \
 	${_chvgpio.4} \
@@ -901,6 +902,12 @@ _virtio_console.4=virtio_console.4
 _virtio_random.4= virtio_random.4
 _virtio_scsi.4=	virtio_scsi.4
 _vtnet.4=	vtnet.4
+.endif
+
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64" || \
+	 ${MACHINE_CPUARCH} == "riscv"
+_cgem.4=	cgem.4
+MLINKS+=cgem.4 if_cgem.4
 .endif
 
 .if empty(MAN_ARCH)

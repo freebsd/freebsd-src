@@ -228,8 +228,8 @@ device		e6000sw
 device		miibus
 
 device		awg			# 10/100/1000 integrated EMAC controller
+device		cgem			# Cadence GEM Gigabit Ethernet device
 device		cpsw			# TI Common Platform Ethernet Switch (CPSW)
-device		cgem			# Zynq-7000 gig ethernet device
 device		dwc			# 10/100/1000 integrated GMAC controller
 device		emac			# 10/100 integrated EMAC controller
 device		ffec			# Freescale Fast Ethernet Controller
