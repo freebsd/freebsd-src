@@ -109,6 +109,9 @@ term_image_display(teken_gfx_t *state, const teken_rect_t *r)
 	teken_pos_t p;
 	int idx;
 
+	if (screen_buffer == NULL)
+		return;
+
 	for (p.tp_row = r->tr_begin.tp_row;
 	    p.tp_row < r->tr_end.tp_row; p.tp_row++) {
                 for (p.tp_col = r->tr_begin.tp_col;
