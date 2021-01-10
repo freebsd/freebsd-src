@@ -984,6 +984,7 @@ void __pthread_distribute_static_tls(size_t offset, void *src, size_t len,
 int *__error_threaded(void) __hidden;
 void __thr_interpose_libc(void) __hidden;
 pid_t __thr_fork(void);
+pid_t __thr_pdfork(int *, int);
 int __thr_setcontext(const ucontext_t *ucp);
 int __thr_sigaction(int sig, const struct sigaction *act,
     struct sigaction *oact) __hidden;

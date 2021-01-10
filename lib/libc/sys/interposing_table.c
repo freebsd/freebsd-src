@@ -82,6 +82,7 @@ interpos_func_t __libc_interposing[INTERPOS_MAX] = {
 	SLOT(fdatasync, __sys_fdatasync),
 	SLOT(clock_nanosleep, __sys_clock_nanosleep),
 	SLOT(distribute_static_tls, __libc_distribute_static_tls),
+	SLOT(pdfork, __sys_pdfork),
 };
 #undef SLOT
 
