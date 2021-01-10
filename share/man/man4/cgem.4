@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 26, 2014
+.Dd January 10, 2021
 .Dt CGEM 4
 .Os
 .Sh NAME
@@ -44,7 +44,8 @@ The
 .Nm
 driver provides support for the Cadence GEM (Gigabit Ethernet MAC).
 The Cadence GEM is used in some SoC (System on a Chip) devices such as
-the Xilinx Zynq-7000 and the Atmel SAMA5D3.
+the Xilinx Zynq-7000, the Xilinx Zynq UltraScale+, and the SiFive
+HiFive Unleashed.
 .Pp
 The
 .Nm
@@ -284,7 +285,7 @@ There are
 variables that count
 packets discarded by the hardware (see below).
 .Pp
-The GEM used in the Zynq-7000 has a bug such that  the receiver can
+The GEM used in the Zynq-7000 has a bug such that the receiver can
 potentially freeze up under a high load.
 The issue is described in sec. 16.7
 "Known Issues" of the Zynq-7000 SoC Technical Reference Manual (Xilinx
@@ -292,7 +293,10 @@ UG585 v1.7).
 The
 .Nm
 driver implements the work-around suggested in the manual.
-If the bug does not exist in other versions of this device, the
-work-around can be disabled by setting the dev.cgem.%d.rxhangwar
+It is believed that the bug does not exist in the Zynq UltraScale+ and
+SiFive SoCs so the work-around is disabled in those instances and enabled
+in all others.
+The work-around can be disabled by setting the
+.Va dev.cgem.%d.rxhangwar
 .Xr sysctl 8
 variable to 0.

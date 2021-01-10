@@ -176,20 +176,20 @@
 
 		// Gigabit Ethernet controllers
 		eth0: eth@b000 {
-		        device_type = "network";
-		 	compatible = "cadence,gem";
+			device_type = "network";
+			compatible = "cdns,zynq-gem", "cadence,gem";
 			status = "disabled";
-		 	reg = <0xb000 0x1000>;
+			reg = <0xb000 0x1000>;
 			interrupts = <0 22 4>;
 			interrupt-parent = <&GIC>;
 			ref-clock-num = <0>;
 		};
 
 		eth1: eth@c000 {
-		        device_type = "network";
-		 	compatible = "cadence,gem";
+			device_type = "network";
+			compatible = "cdns,zynq-gem", "cadence,gem";
 			status = "disabled";
-		 	reg = <0xc000 0x1000>;
+			reg = <0xc000 0x1000>;
 			interrupts = <0 45 4>;
 			interrupt-parent = <&GIC>;
 			ref-clock-num = <1>;

@@ -278,6 +278,7 @@ device		miibus			# MII bus support
 device		al_eth			# Annapurna Alpine Ethernet NIC
 device		awg			# Allwinner EMAC Gigabit Ethernet
 device		axa			# AMD Opteron A1100 integrated NIC
+device		cgem			# Cadence GEM Gigabit Ethernet device
 device		dwc_rk			# Rockchip Designware
 device		dwc_socfpga		# Altera SOCFPGA Ethernet MAC
 device		ffec			# iMX FFEC
