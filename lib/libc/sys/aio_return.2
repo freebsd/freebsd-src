@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 2, 2021
+.Dd January 11, 2021
 .Dt AIO_RETURN 2
 .Os
 .Sh NAME
@@ -75,6 +75,12 @@ The
 .Fa iocb
 argument
 does not reference a completed asynchronous I/O request.
+.It Bq Er EINVAL
+The I/O operation was submitted with
+.Fn lio_listio ,
+and the value of the
+.Fa aio_lio_opcode
+is invalid.
 .El
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,
