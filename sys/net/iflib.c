@@ -834,13 +834,13 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 {
 	struct netmap_adapter *na = kring->na;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int nm_i = kring->nr_hwcur;
 	struct netmap_ring *ring = kring->ring;
 	bus_dmamap_t *map;
 	struct if_rxd_update iru;
 	if_ctx_t ctx = rxq->ifr_ctx;
 	iflib_fl_t fl = &rxq->ifr_fl[0];
 	u_int nic_i_first, nic_i;
+	u_int nm_i;
 	int i, n;
 #if IFLIB_DEBUG_COUNTERS
 	int rf_count = 0;
@@ -849,31 +849,42 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 	/*
 	 * This function is used both at initialization and in rxsync.
 	 * At initialization we need to prepare (with isc_rxd_refill())
-	 * all the (N) netmap buffers in the ring, in such a way to keep
-	 * fl->ifl_pidx and kring->nr_hwcur in sync (except for
-	 * kring->nkr_hwofs); at rxsync time, both indexes point to the
-	 * next buffer to be refilled.
+	 * all the netmap buffers currently owned by the kernel, in
+	 * such a way to keep fl->ifl_pidx and kring->nr_hwcur in sync
+	 * (except for kring->nkr_hwofs). These may be less than
+	 * kring->nkr_num_slots if netmap_reset() was called while
+	 * an application using the kring that still owned some
+	 * buffers.
+	 * At rxsync time, both indexes point to the next buffer to be
+	 * refilled.
 	 * In any case we publish (with isc_rxd_flush()) up to
 	 * (fl->ifl_pidx - 1) % N (included), to avoid the NIC tail/prod
 	 * pointer to overrun the head/cons pointer, although this is
 	 * not necessary for some NICs (e.g. vmx).
 	 */
-	if (__predict_false(init))
-		n = kring->nkr_num_slots;
-	else {
-		n = kring->rhead - nm_i;
+	if (__predict_false(init)) {
+		n = kring->nkr_num_slots - nm_kr_rxspace(kring);
+	} else {
+		n = kring->rhead - kring->nr_hwcur;
 		if (n == 0)
 			return (0); /* Nothing to do. */
 		if (n < 0)
 			n += kring->nkr_num_slots;
 	}
 
-	/* Start to refill from nr_hwcur, publishing n buffers. */
 	iru_init(&iru, rxq, 0 /* flid */);
 	map = fl->ifl_sds.ifsd_map;
 	nic_i = fl->ifl_pidx;
-	MPASS(!init || nic_i == 0); /* on init/reset, nic_i must be 0 */
-	MPASS(nic_i == netmap_idx_k2n(kring, nm_i));
+	nm_i = netmap_idx_n2k(kring, nic_i);
+	if (__predict_false(init)) {
+		/*
+		 * On init/reset, nic_i must be 0, and we must
+		 * start to refill from hwtail (see netmap_reset()).
+		 */
+		MPASS(nic_i == 0);
+		MPASS(nm_i == kring->nr_hwtail);
+	} else
+		MPASS(nm_i == kring->nr_hwcur);
 	DBG_COUNTER_INC(fl_refills);
 	while (n > 0) {
 #if IFLIB_DEBUG_COUNTERS
@@ -913,7 +924,10 @@ netmap_fl_refill(iflib_rxq_t rxq, struct netmap_kring *kring, bool init)
 		ctx->isc_rxd_refill(ctx->ifc_softc, &iru);
 	}
 	fl->ifl_pidx = nic_i;
-	MPASS(!init || nic_i == 0); /* on init/reset nic_i wraps around to 0 */
+	/*
+	 * At the end of the loop we must have refilled everything
+	 * we could possibly refill.
+	 */
 	MPASS(nm_i == kring->rhead);
 	kring->nr_hwcur = nm_i;
 

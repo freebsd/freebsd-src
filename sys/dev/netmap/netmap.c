@@ -640,7 +640,7 @@ void
 netmap_disable_all_rings(struct ifnet *ifp)
 {
 	if (NM_NA_VALID(ifp)) {
-		netmap_set_all_rings(NA(ifp), NM_KR_STOPPED);
+		netmap_set_all_rings(NA(ifp), NM_KR_LOCKED);
 	}
 }
 
@@ -4072,12 +4072,13 @@ done:
 /*
  * Reset function to be called by the driver routines when reinitializing
  * a hardware ring. The driver is in charge of locking to protect the kring
- * while this operation is being performed.
- * This is normally done by calling netmap_disable_all_rings() before
- * triggering a reset.
+ * while this operation is being performed. This is normally achieved by
+ * calling netmap_disable_all_rings() before triggering a reset.
  * If the kring is not in netmap mode, return NULL to inform the caller
  * that this is the case.
- * If the kring is in netmap mode, reset the kring indices to 0.
+ * If the kring is in netmap mode, set hwofs so that the netmap indices
+ * seen by userspace (head/cut/tail) do not change, although the internal
+ * NIC indices have been reset to 0.
  * In any case, adjust kring->nr_mode.
  */
 struct netmap_slot *
@@ -4085,6 +4086,7 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, u_int n,
 	u_int new_cur)
 {
 	struct netmap_kring *kring;
+	u_int new_hwtail, new_hwofs;
 
 	if (!nm_native_on(na)) {
 		nm_prdis("interface not in native netmap mode");
@@ -4094,26 +4096,45 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, u_int n,
 	if (tx == NR_TX) {
 		if (n >= na->num_tx_rings)
 			return NULL;
-
 		kring = na->tx_rings[n];
-
+		/*
+		 * Set hwofs to rhead, so that slots[rhead] is mapped to
+		 * the NIC internal slot 0, and thus the netmap buffer
+		 * at rhead is the next to be transmitted. Transmissions
+		 * that were pending before the reset are considered as
+		 * sent, so that we can have hwcur = rhead. All the slots
+		 * are now owned by the user, so we can also reinit hwtail.
+		 */
+		new_hwofs = kring->rhead;
+		new_hwtail = nm_prev(kring->rhead, kring->nkr_num_slots - 1);
 	} else {
 		if (n >= na->num_rx_rings)
 			return NULL;
 		kring = na->rx_rings[n];
+		/*
+		 * Set hwofs to hwtail, so that slots[hwtail] is mapped to
+		 * the NIC internal slot 0, and thus the netmap buffer
+		 * at hwtail is the next to be given to the NIC.
+		 * Unread slots (the ones in [rhead,hwtail[) are owned by
+		 * the user, and thus the caller cannot give them
+		 * to the NIC right now.
+		 */
+		new_hwofs = kring->nr_hwtail;
+		new_hwtail = kring->nr_hwtail;
 	}
 	if (kring->nr_pending_mode == NKR_NETMAP_OFF) {
 		kring->nr_mode = NKR_NETMAP_OFF;
 		return NULL;
 	}
 	if (netmap_verbose) {
-	    nm_prinf("%s, was: hc %u h %u c %u ht %u", kring->name,
-	        kring->nr_hwcur, kring->ring->head,
-	        kring->ring->cur, kring->nr_hwtail);
+	    nm_prinf("%s, hc %u->%u, ht %u->%u, ho %u->%u", kring->name,
+	        kring->nr_hwcur, kring->rhead,
+	        kring->nr_hwtail, new_hwtail,
+		kring->nkr_hwofs, new_hwofs);
 	}
-	/* For the moment being, nkr_hwofs is not used. */
-	kring->rhead = kring->rcur = kring->nr_hwcur = kring->nkr_hwofs = 0;
-	kring->nr_hwtail = (tx == NR_TX) ? (kring->nkr_num_slots - 1) : 0;
+	kring->nr_hwcur = kring->rhead;
+	kring->nr_hwtail = new_hwtail;
+	kring->nkr_hwofs = new_hwofs;
 
 	/*
 	 * Wakeup on the individual and global selwait
