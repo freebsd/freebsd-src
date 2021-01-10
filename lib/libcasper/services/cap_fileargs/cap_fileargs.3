@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2020
+.Dd January 10, 2021
 .Dt CAP_FILEARGS 3
 .Os
 .Sh NAME
@@ -59,6 +59,8 @@
 .Fn fileargs_open "fileargs_t *fa" "const char *name"
 .Ft "FILE *"
 .Fn fileargs_fopen "fileargs_t *fa" "const char *name" "const char *mode"
+.Ft "char *"
+.Fn fileargs_realpath "fileargs_t *fa" "const char *pathname" "char *reserved_path"
 .Sh DESCRIPTION
 The library is used to simplify Capsicumizing a tools that are using file system.
 Idea behind the library is that we are passing a remaining
@@ -115,6 +117,9 @@ and
 .It FA_LSTAT
 Allow
 .Fn fileargs_lstat .
+.It FA_REALPATH
+Allow
+.Fn fileargs_realpath .
 .El
 .Pp
 The function
@@ -161,6 +166,11 @@ and
 expect that all arguments are fetched from the
 .Va fileargs_t
 structure.
+.Pp
+The function
+.Fn fileargs_realpath
+is equivalent to
+.Xr realpath 3 .
 .Sh LIMITS
 This section describe which values and types should be used to pass arguments to the
 .Fa system.fileargs
@@ -261,6 +271,7 @@ fileargs_free(fa);
 .Xr err 3 ,
 .Xr fopen 3 ,
 .Xr getopt 3 ,
+.Xr realpath 3 ,
 .Xr capsicum 4 ,
 .Xr nv 9
 .Sh HISTORY
