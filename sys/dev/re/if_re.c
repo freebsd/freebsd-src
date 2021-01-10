@@ -3360,6 +3360,10 @@ re_init_locked(struct rl_softc *sc)
 
 	sc->rl_watchdog_timer = 0;
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
+
+#ifdef DEV_NETMAP
+	netmap_enable_all_rings(ifp);
+#endif /* DEV_NETMAP */
 }
 
 /*
@@ -3607,6 +3611,10 @@ re_stop(struct rl_softc *sc)
 	sc->rl_watchdog_timer = 0;
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+
+#ifdef DEV_NETMAP
+	netmap_disable_all_rings(ifp);
+#endif /* DEV_NETMAP */
 
 	/*
 	 * Disable accepting frames to put RX MAC into idle state.
