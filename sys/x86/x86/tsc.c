@@ -826,7 +826,7 @@ tscp_get_timecount_low(struct timecounter *tc)
 	uint32_t rv;
 
 	__asm __volatile("rdtscp; movl %1, %%ecx; shrd %%cl, %%edx, %0"
-	    : "=a" (rv) : "m" (tc->tc_priv) : "ecx", "edx");
+	    : "=&a" (rv) : "m" (tc->tc_priv) : "ecx", "edx");
 	return (rv);
 }
 
