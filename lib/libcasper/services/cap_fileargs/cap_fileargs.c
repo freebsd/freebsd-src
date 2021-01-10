@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2018 Mariusz Zaborski <oshogbo@FreeBSD.org>
+ * Copyright (c) 2018-2021 Mariusz Zaborski <oshogbo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -412,6 +412,41 @@ fileargs_lstat(fileargs_t *fa, const char *name, struct stat *sb)
 	return (0);
 }
 
+char *
+fileargs_realpath(fileargs_t *fa, const char *pathname, char *reserved_path)
+{
+	nvlist_t *nvl;
+	char *ret;
+
+	assert(fa != NULL);
+	assert(fa->fa_magic == FILEARGS_MAGIC);
+
+	if (pathname == NULL) {
+		errno = EINVAL;
+		return (NULL);
+	}
+
+	if (fa->fa_chann == NULL) {
+		errno = ENOTCAPABLE;
+		return (NULL);
+	}
+
+	nvl = fileargs_fetch(fa, pathname, "realpath");
+	if (nvl == NULL)
+		return (NULL);
+
+	if (reserved_path != NULL) {
+		ret = reserved_path;
+		strcpy(reserved_path,
+		    nvlist_get_string(nvl, "realpath"));
+	} else {
+		ret = nvlist_take_string(nvl, "realpath");
+	}
+	nvlist_destroy(nvl);
+
+	return (ret);
+}
+
 void
 fileargs_free(fileargs_t *fa)
 {
@@ -632,6 +667,28 @@ fileargs_command_lstat(const nvlist_t *limits, nvlist_t *nvlin,
 }
 
 static int
+fileargs_command_realpath(const nvlist_t *limits, nvlist_t *nvlin,
+    nvlist_t *nvlout)
+{
+	const char *pathname;
+	char *resolvedpath;
+
+	if (limits == NULL)
+		return (ENOTCAPABLE);
+
+	if (!fileargs_allowed(limits, nvlin, FA_REALPATH))
+		return (ENOTCAPABLE);
+
+	pathname = nvlist_get_string(nvlin, "name");
+	resolvedpath = realpath(pathname, NULL);
+	if (resolvedpath == NULL)
+		return (errno);
+
+	nvlist_move_string(nvlout, "realpath", resolvedpath);
+	return (0);
+}
+
+static int
 fileargs_command_open(const nvlist_t *limits, nvlist_t *nvlin,
     nvlist_t *nvlout)
 {
@@ -668,9 +725,10 @@ fileargs_command(const char *cmd, const nvlist_t *limits,
 
 	if (strcmp(cmd, "open") == 0)
 		return (fileargs_command_open(limits, nvlin, nvlout));
-
 	if (strcmp(cmd, "lstat") == 0)
 		return (fileargs_command_lstat(limits, nvlin, nvlout));
+	if (strcmp(cmd, "realpath") == 0)
+		return (fileargs_command_realpath(limits, nvlin, nvlout));
 
 	return (EINVAL);
 }

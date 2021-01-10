@@ -142,6 +142,57 @@ test_file_lstat(fileargs_t *fa, const char *file)
 }
 
 static int
+test_file_realpath_static(fileargs_t *fa, const char *file)
+{
+	char fapath[PATH_MAX], origpath[PATH_MAX];
+
+	if (fileargs_realpath(fa, file, fapath) == NULL)
+		return (errno);
+
+	ATF_REQUIRE(realpath(file, origpath) != NULL);
+
+	if (strcmp(fapath, origpath) != 0)
+		return (EINVAL);
+
+	return (0);
+}
+
+static int
+test_file_realpath_alloc(fileargs_t *fa, const char *file)
+{
+	char *fapath, *origpath;
+	int serrno;
+
+	fapath = fileargs_realpath(fa, file, NULL);
+	if (fapath == NULL)
+		return (errno);
+
+	origpath = realpath(file, NULL);
+	ATF_REQUIRE(origpath != NULL);
+
+	serrno = 0;
+	if (strcmp(fapath, origpath) != 0)
+		serrno = EINVAL;
+
+	free(fapath);
+	free(origpath);
+
+	return (serrno);
+}
+
+static int
+test_file_realpath(fileargs_t *fa, const char *file)
+{
+	int serrno;
+
+	serrno = test_file_realpath_static(fa, file);
+	if (serrno != 0)
+		return serrno;
+
+	return (test_file_realpath_alloc(fa, file));
+}
+
+static int
 test_file_mode(int fd, int mode)
 {
 	int flags;
@@ -254,6 +305,8 @@ ATF_TC_BODY(fileargs__open_read, tc)
 		ATF_REQUIRE(test_file_open(fa, TEST_FILE, NULL) == ENOTCAPABLE);
 		ATF_REQUIRE(test_file_cap(fd, &norights) == false);
 		ATF_REQUIRE(test_file_write(fd) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
 
 		/* CLOSE */
 		ATF_REQUIRE(close(fd) == 0);
@@ -297,6 +350,8 @@ ATF_TC_BODY(fileargs__open_write, tc)
 		ATF_REQUIRE(test_file_open(fa, TEST_FILE, NULL) == ENOTCAPABLE);
 		ATF_REQUIRE(test_file_cap(fd, &norights) == false);
 		ATF_REQUIRE(test_file_read(fd) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
 
 		/* CLOSE */
 		ATF_REQUIRE(close(fd) == 0);
@@ -337,6 +392,8 @@ ATF_TC_BODY(fileargs__open_create, tc)
 		ATF_REQUIRE(test_file_lstat(fa, files[i]) == ENOTCAPABLE);
 		ATF_REQUIRE(test_file_open(fa, TEST_FILE, NULL) == ENOTCAPABLE);
 		ATF_REQUIRE(test_file_cap(fd, &norights) == false);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
 
 		/* CLOSE */
 		ATF_REQUIRE(close(fd) == 0);
@@ -417,6 +474,8 @@ ATF_TC_BODY(fileargs__fopen_read, tc)
 		    ENOTCAPABLE);
 		ATF_REQUIRE(test_file_cap(fd, &norights) == false);
 		ATF_REQUIRE(test_file_fwrite(pfile) == EBADF);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
 
 		/* CLOSE */
 		ATF_REQUIRE(fclose(pfile) == 0);
@@ -463,6 +522,8 @@ ATF_TC_BODY(fileargs__fopen_write, tc)
 		    ENOTCAPABLE);
 		ATF_REQUIRE(test_file_cap(fd, &norights) == false);
 		ATF_REQUIRE(test_file_fread(pfile) == EBADF);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
 
 		/* CLOSE */
 		ATF_REQUIRE(fclose(pfile) == 0);
@@ -504,6 +565,8 @@ ATF_TC_BODY(fileargs__fopen_create, tc)
 		ATF_REQUIRE(test_file_lstat(fa, files[i]) == ENOTCAPABLE);
 		ATF_REQUIRE(test_file_fopen(fa, TEST_FILE, "w+", NULL) ==
 		    ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
 
 		/* CLOSE */
 		ATF_REQUIRE(fclose(pfile) == 0);
@@ -535,9 +598,41 @@ ATF_TC_BODY(fileargs__lstat, tc)
 		ATF_REQUIRE(test_file_open(fa, files[i], &fd) == ENOTCAPABLE);
 		ATF_REQUIRE(test_file_lstat(fa, TEST_FILE) == ENOTCAPABLE);
 		ATF_REQUIRE(test_file_open(fa, TEST_FILE, &fd) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
 	}
 }
 ATF_TC_CLEANUP(fileargs__lstat, tc)
+{
+	clear_files();
+}
+
+ATF_TC_WITH_CLEANUP(fileargs__realpath);
+ATF_TC_HEAD(fileargs__realpath, tc) {}
+ATF_TC_BODY(fileargs__realpath, tc)
+{
+	fileargs_t *fa;
+	size_t i;
+	int fd;
+
+	prepare_files(MAX_FILES, true);
+
+	fa = fileargs_init(MAX_FILES, files, 0, 0, NULL, FA_REALPATH);
+	ATF_REQUIRE(fa != NULL);
+
+	for (i = 0; i < MAX_FILES; i++) {
+		/* ALLOWED */
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == 0);
+
+		/* DISALLOWED */
+		ATF_REQUIRE(test_file_open(fa, files[i], &fd) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_lstat(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_lstat(fa, TEST_FILE) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_open(fa, TEST_FILE, &fd) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
+	}
+}
+ATF_TC_CLEANUP(fileargs__realpath, tc)
 {
 	clear_files();
 }
@@ -576,12 +671,59 @@ ATF_TC_BODY(fileargs__open_lstat, tc)
 		ATF_REQUIRE(test_file_open(fa, TEST_FILE, NULL) == ENOTCAPABLE);
 		ATF_REQUIRE(test_file_cap(fd, &norights) == false);
 		ATF_REQUIRE(test_file_write(fd) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_realpath(fa, TEST_FILE) == ENOTCAPABLE);
 
 		/* CLOSE */
 		ATF_REQUIRE(close(fd) == 0);
 	}
 }
 ATF_TC_CLEANUP(fileargs__open_lstat, tc)
+{
+	clear_files();
+}
+
+ATF_TC_WITH_CLEANUP(fileargs__open_realpath);
+ATF_TC_HEAD(fileargs__open_realpath, tc) {}
+ATF_TC_BODY(fileargs__open_realpath, tc)
+{
+	cap_rights_t rights, norights;
+	fileargs_t *fa;
+	size_t i;
+	int fd;
+
+	prepare_files(MAX_FILES, true);
+
+	cap_rights_init(&rights, CAP_READ | CAP_FCNTL);
+	cap_rights_init(&norights, CAP_WRITE);
+	fa = fileargs_init(MAX_FILES, files, O_RDONLY, 0, &rights,
+	    FA_OPEN | FA_REALPATH);
+	ATF_REQUIRE(fa != NULL);
+
+	for (i = 0; i < MAX_FILES; i++) {
+		/* ALLOWED */
+		/* We open file twice to check if we can. */
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == 0);
+		ATF_REQUIRE(test_file_open(fa, files[i], &fd) == 0);
+		ATF_REQUIRE(close(fd) == 0);
+
+		ATF_REQUIRE(test_file_open(fa, files[i], &fd) == 0);
+		ATF_REQUIRE(test_file_realpath(fa, files[i]) == 0);
+		ATF_REQUIRE(test_file_mode(fd, O_RDONLY) == 0);
+		ATF_REQUIRE(test_file_cap(fd, &rights) == true);
+		ATF_REQUIRE(test_file_read(fd) == 0);
+
+		/* DISALLOWED */
+		ATF_REQUIRE(test_file_open(fa, TEST_FILE, NULL) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_cap(fd, &norights) == false);
+		ATF_REQUIRE(test_file_write(fd) == ENOTCAPABLE);
+		ATF_REQUIRE(test_file_lstat(fa, files[i]) == ENOTCAPABLE);
+
+		/* CLOSE */
+		ATF_REQUIRE(close(fd) == 0);
+	}
+}
+ATF_TC_CLEANUP(fileargs__open_realpath, tc)
 {
 	clear_files();
 }
@@ -600,7 +742,10 @@ ATF_TP_ADD_TCS(tp)
 
 	ATF_TP_ADD_TC(tp, fileargs__lstat);
 
+	ATF_TP_ADD_TC(tp, fileargs__realpath);
+
 	ATF_TP_ADD_TC(tp, fileargs__open_lstat);
+	ATF_TP_ADD_TC(tp, fileargs__open_realpath);
 
 	return (atf_no_error());
 }
