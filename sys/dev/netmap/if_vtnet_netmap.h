@@ -40,9 +40,6 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 	struct ifnet *ifp = na->ifp;
 	struct vtnet_softc *sc = ifp->if_softc;
 
-	/* Stop all txsync/rxsync and disable them. */
-	netmap_disable_all_rings(ifp);
-
 	/*
 	 * Trigger a device reinit, asking vtnet_init_locked() to
 	 * also enter or exit netmap mode.
@@ -52,9 +49,6 @@ vtnet_netmap_reg(struct netmap_adapter *na, int state)
 	vtnet_init_locked(sc, state ? VTNET_INIT_NETMAP_ENTER
 	    : VTNET_INIT_NETMAP_EXIT);
 	VTNET_CORE_UNLOCK(sc);
-
-	/* Enable txsync/rxsync again. */
-	netmap_enable_all_rings(ifp);
 
 	return (0);
 }
