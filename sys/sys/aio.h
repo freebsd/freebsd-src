@@ -43,7 +43,7 @@
 #define	LIO_NOP			0x0
 #define LIO_WRITE		0x1
 #define	LIO_READ		0x2
-#ifdef _KERNEL
+#if defined(_KERNEL) || defined(_WANT_ALL_LIO_OPCODES)
 #define	LIO_SYNC		0x3
 #define	LIO_MLOCK		0x4
 #define	LIO_WRITEV		0x5
