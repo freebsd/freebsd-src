@@ -5530,11 +5530,14 @@ iflib_queues_alloc(if_ctx_t ctx)
 	uint8_t nrxqs = sctx->isc_nrxqs;
 	uint8_t ntxqs = sctx->isc_ntxqs;
 	int nfree_lists = sctx->isc_nfl ? sctx->isc_nfl : 1;
+	int fl_offset = (sctx->isc_flags & IFLIB_HAS_RXCQ ? 1 : 0);
 	caddr_t *vaddrs;
 	uint64_t *paddrs;
 
 	KASSERT(ntxqs > 0, ("number of queues per qset must be at least 1"));
 	KASSERT(nrxqs > 0, ("number of queues per qset must be at least 1"));
+	KASSERT(nrxqs >= fl_offset + nfree_lists,
+           ("there must be at least a rxq for each free list"));
 
 	/* Allocate the TX ring struct memory */
 	if (!(ctx->ifc_txqs =
@@ -5642,11 +5645,7 @@ iflib_queues_alloc(if_ctx_t ctx)
 		}
 		rxq->ifr_ctx = ctx;
 		rxq->ifr_id = i;
-		if (sctx->isc_flags & IFLIB_HAS_RXCQ) {
-			rxq->ifr_fl_offset = 1;
-		} else {
-			rxq->ifr_fl_offset = 0;
-		}
+		rxq->ifr_fl_offset = fl_offset;
 		rxq->ifr_nfl = nfree_lists;
 		if (!(fl =
 			  (iflib_fl_t) malloc(sizeof(struct iflib_fl) * nfree_lists, M_IFLIB, M_NOWAIT | M_ZERO))) {
