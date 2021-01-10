@@ -6581,6 +6581,12 @@ nfsm_trimtrailing(struct nfsrv_descript *nd, struct mbuf *mb, char *bpos,
 		mb->m_next = NULL;
 	}
 	if ((mb->m_flags & M_EXTPG) != 0) {
+		KASSERT(bextpg >= 0 && bextpg < mb->m_epg_npgs,
+		    ("nfsm_trimtrailing: bextpg out of range"));
+		KASSERT(bpos == (char *)(void *)
+		    PHYS_TO_DMAP(mb->m_epg_pa[bextpg]) + PAGE_SIZE - bextpgsiz,
+		    ("nfsm_trimtrailing: bextpgsiz bad!"));
+
 		/* First, get rid of any pages after this position. */
 		for (i = mb->m_epg_npgs - 1; i > bextpg; i--) {
 			pg = PHYS_TO_VM_PAGE(mb->m_epg_pa[i]);
