@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk.h>
 #endif
 
-#if INTPTR_MAX == INT64_MAX
+#if BUS_SPACE_MAXADDR > BUS_SPACE_MAXADDR_32BIT
 #define CGEM64
 #endif
 
