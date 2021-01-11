@@ -169,6 +169,7 @@ struct mtx fib_mtx;
 #define	FIB_MOD_UNLOCK()	mtx_unlock(&fib_mtx)
 #define	FIB_MOD_LOCK_ASSERT()	mtx_assert(&fib_mtx, MA_OWNED)
 
+MTX_SYSINIT(fib_mtx, &fib_mtx, "algo list mutex", MTX_DEF);
 
 /* Algorithm has to be this percent better than the current to switch */
 #define	BEST_DIFF_PERCENT	(5 * 256 / 100)
@@ -219,7 +220,7 @@ SYSCTL_INT(_net_route_algo, OID_AUTO, debug_level, CTLFLAG_RW | CTLFLAG_RWTUN,
 
 
 /* List of all registered lookup algorithms */
-static TAILQ_HEAD(, fib_lookup_module)	all_algo_list;
+static TAILQ_HEAD(, fib_lookup_module) all_algo_list = TAILQ_HEAD_INITIALIZER(all_algo_list);
 
 /* List of all fib lookup instances in the vnet */
 VNET_DEFINE_STATIC(TAILQ_HEAD(fib_data_head, fib_data), fib_data_list);
@@ -1613,13 +1614,3 @@ vnet_fib_destroy(void)
 	fib_error_clear();
 	FIB_MOD_UNLOCK();
 }
-
-static void
-fib_init(void)
-{
-
-	mtx_init(&fib_mtx, "algo list mutex", NULL, MTX_DEF);
-	TAILQ_INIT(&all_algo_list);
-}
-SYSINIT(fib_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_SECOND, fib_init, NULL);
-
