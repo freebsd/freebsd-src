@@ -1392,6 +1392,26 @@ ifa_exists(char *ifa_name)
 	return (NULL);
 }
 
+static struct node_host *
+if_lookup(char *if_name)
+{
+	struct node_host *p, *n;
+
+	for (p = iftab; p; p = p->next) {
+		if (! strcmp(if_name, p->ifname)) {
+			n = calloc(1, sizeof(struct node_host));
+			bcopy(p, n, sizeof(struct node_host));
+
+			n->next = NULL;
+			n->tail = n;
+
+			return (n);
+		}
+	}
+
+	return (NULL);
+}
+
 struct node_host *
 ifa_grouplookup(char *ifa_name, int flags)
 {
@@ -1415,7 +1435,7 @@ ifa_grouplookup(char *ifa_name, int flags)
 	for (ifg = ifgr.ifgr_groups; ifg && len >= sizeof(struct ifg_req);
 	    ifg++) {
 		len -= sizeof(struct ifg_req);
-		if ((n = ifa_lookup(ifg->ifgrq_member, flags)) == NULL)
+		if ((n = if_lookup(ifg->ifgrq_member)) == NULL)
 			continue;
 		if (h == NULL)
 			h = n;
