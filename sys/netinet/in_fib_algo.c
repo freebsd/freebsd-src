@@ -521,7 +521,7 @@ lradix4_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopei
 		.sin_len = KEY_LEN_INET,
 		.sin_addr = key.addr4,
 	};
-	ent = (struct radix4_addr_entry *)(rnh->rnh_matchaddr(&addr4, &rnh->rh));
+	ent = (struct radix4_addr_entry *)(rn_match(&addr4, &rnh->rh));
 	if (ent != NULL)
 		return (ent->nhop);
 	return (NULL);
@@ -680,7 +680,7 @@ radix4_lookup(void *algo_data, const struct flm_lookup_key key, uint32_t scopeid
 
 	nh = NULL;
 	RIB_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin4, &rh->head);
+	rn = rn_match((void *)&sin4, &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0))
 		nh = (RNTORT(rn))->rt_nhop;
 	RIB_RUNLOCK(rh);
