@@ -105,6 +105,7 @@ efifb_mask_from_pixfmt(struct efi_fb *efifb, EFI_GRAPHICS_PIXEL_FORMAT pixfmt,
 	result = 0;
 	switch (pixfmt) {
 	case PixelRedGreenBlueReserved8BitPerColor:
+	case PixelBltOnly:
 		efifb->fb_mask_red = 0x000000ff;
 		efifb->fb_mask_green = 0x0000ff00;
 		efifb->fb_mask_blue = 0x00ff0000;
