@@ -252,6 +252,9 @@ hcons_rel_volume_cb(HIDMAP_CB_ARGS)
 			evdev_push_key(evdev, code, 1);
 			evdev_push_key(evdev, code, 0);
 		}
+		break;
+	default:
+		break;
 	}
 
 	return (0);

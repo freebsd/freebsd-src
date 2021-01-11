@@ -808,6 +808,10 @@ ps4dshock_hat_switch_cb(HIDMAP_CB_ARGS)
 		idx = MIN(nitems(hat_switch_map) - 1, (u_int)ctx.data);
 		evdev_push_abs(evdev, ABS_HAT0X, hat_switch_map[idx].x);
 		evdev_push_abs(evdev, ABS_HAT0Y, hat_switch_map[idx].y);
+		break;
+
+	default:
+		break;
 	}
 
 	return (0);
@@ -854,6 +858,9 @@ ps4dsacc_data_cb(HIDMAP_CB_ARGS)
 		    ((int64_t)ctx.data - calib->bias) * calib->sens_numer /
 		    calib->sens_denom);
 		break;
+
+	default:
+		break;
 	}
 
 	return (0);
@@ -878,6 +885,9 @@ ps4dsacc_tstamp_cb(HIDMAP_CB_ARGS)
 		sc->ev_tstamp += (uint16_t)(tstamp - sc->hw_tstamp) * 16 / 3;
 		sc->hw_tstamp = tstamp;
 		evdev_push_msc(evdev, MSC_TIMESTAMP, sc->ev_tstamp);
+		break;
+
+	default:
 		break;
 	}
 
@@ -1019,6 +1029,9 @@ ps4dsmtp_final_cb(HIDMAP_CB_ARGS)
 			ps4dsmtp_push_packet(sc, evdev, data);
 			evdev_sync(evdev);
 		}
+		break;
+
+	default:
 		break;
 	}
 

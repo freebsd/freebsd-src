@@ -126,6 +126,10 @@ hgame_dpad_cb(HIDMAP_CB_ARGS)
 			sc->dpad_left = (data != 0);
 			break;
 		}
+		break;
+
+	default:
+		break;
 	}
 
 	return (0);
