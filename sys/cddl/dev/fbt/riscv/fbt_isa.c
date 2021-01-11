@@ -156,6 +156,19 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	if (fbt_excluded(name))
 		return (0);
 
+	/*
+	 * Some assembly-language exception handlers are not suitable for
+	 * instrumentation.
+	 */
+	if (strcmp(name, "cpu_exception_handler") == 0)
+		return (0);
+	if (strcmp(name, "cpu_exception_handler_user") == 0)
+		return (0);
+	if (strcmp(name, "cpu_exception_handler_supervisor") == 0)
+		return (0);
+	if (strcmp(name, "do_trap_supervisor") == 0)
+		return (0);
+
 	instr = (uint32_t *)(symval->value);
 	limit = (uint32_t *)(symval->value + symval->size);
 
