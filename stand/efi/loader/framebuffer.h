@@ -28,9 +28,11 @@
  * $FreeBSD$
  */
 
+#include <gfx_fb.h>
+
 #ifndef	_EFIFB_H_
 #define	_EFIFB_H_
 
-int	efi_find_framebuffer(struct efi_fb *efifb);
+int	efi_find_framebuffer(teken_gfx_t *gfx_state);
 
 #endif /* _EFIFB_H_ */

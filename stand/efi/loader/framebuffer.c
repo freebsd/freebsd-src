@@ -464,21 +464,57 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 }
 
 int
-efi_find_framebuffer(struct efi_fb *efifb)
+efi_find_framebuffer(teken_gfx_t *gfx_state)
 {
+	struct efi_fb efifb;
 	EFI_GRAPHICS_OUTPUT *gop;
 	EFI_UGA_DRAW_PROTOCOL *uga;
 	EFI_STATUS status;
+	int rv;
+
+	gfx_state->tg_fb_type = FB_TEXT;
 
 	status = BS->LocateProtocol(&gop_guid, NULL, (VOID **)&gop);
-	if (status == EFI_SUCCESS)
-		return (efifb_from_gop(efifb, gop->Mode, gop->Mode->Info));
+	if (status == EFI_SUCCESS) {
+		gfx_state->tg_fb_type = FB_GOP;
+		gfx_state->tg_private = gop;
+	} else {
+		status = BS->LocateProtocol(&uga_guid, NULL, (VOID **)&uga);
+		if (status == EFI_SUCCESS) {
+			gfx_state->tg_fb_type = FB_UGA;
+			gfx_state->tg_private = uga;
+		} else {
+			return (1);
+		}
+	}
 
-	status = BS->LocateProtocol(&uga_guid, NULL, (VOID **)&uga);
-	if (status == EFI_SUCCESS)
-		return (efifb_from_uga(efifb, uga));
+	switch (gfx_state->tg_fb_type) {
+	case FB_GOP:
+		rv = efifb_from_gop(&efifb, gop->Mode, gop->Mode->Info);
+		break;
 
-	return (1);
+	case FB_UGA:
+		rv = efifb_from_uga(&efifb, uga);
+		break;
+
+	default:
+		return (1);
+	}
+
+	gfx_state->tg_fb.fb_addr = efifb.fb_addr;
+	gfx_state->tg_fb.fb_size = efifb.fb_size;
+	gfx_state->tg_fb.fb_height = efifb.fb_height;
+	gfx_state->tg_fb.fb_width = efifb.fb_width;
+	gfx_state->tg_fb.fb_stride = efifb.fb_stride;
+	gfx_state->tg_fb.fb_mask_red = efifb.fb_mask_red;
+	gfx_state->tg_fb.fb_mask_green = efifb.fb_mask_green;
+	gfx_state->tg_fb.fb_mask_blue = efifb.fb_mask_blue;
+	gfx_state->tg_fb.fb_mask_reserved = efifb.fb_mask_reserved;
+
+	gfx_state->tg_fb.fb_bpp = fls(efifb.fb_mask_red | efifb.fb_mask_green |
+	    efifb.fb_mask_blue | efifb.fb_mask_reserved);
+
+	return (0);
 }
 
 static void
