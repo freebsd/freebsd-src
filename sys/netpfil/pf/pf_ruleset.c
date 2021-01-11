@@ -306,7 +306,7 @@ pf_kanchor_setup(struct pf_krule *r, const struct pf_kruleset *s,
 			strlcpy(path, s->anchor->path, MAXPATHLEN);
 		while (name[0] == '.' && name[1] == '.' && name[2] == '/') {
 			if (!path[0]) {
-				printf("pf_anchor_setup: .. beyond root\n");
+				DPFPRINTF("pf_anchor_setup: .. beyond root\n");
 				rs_free(path);
 				return (1);
 			}
@@ -328,7 +328,7 @@ pf_kanchor_setup(struct pf_krule *r, const struct pf_kruleset *s,
 	ruleset = pf_find_or_create_kruleset(path);
 	rs_free(path);
 	if (ruleset == NULL || ruleset->anchor == NULL) {
-		printf("pf_anchor_setup: ruleset\n");
+		DPFPRINTF("pf_anchor_setup: ruleset\n");
 		return (1);
 	}
 	r->anchor = ruleset->anchor;
