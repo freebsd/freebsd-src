@@ -66,6 +66,10 @@ device		vtnet
 # CPU frequency control
 device		cpufreq
 
+# Accelerated software crypto
+device		armv8crypto		# ARMv8 OpenCrypto module
+device		ossl			# OpenSSL OpenCrypto module
+
 # Bus drivers
 device		al_pci		# Annapurna Alpine PCI-E
 options 	PCI_HP			# PCI-Express native HotPlug
