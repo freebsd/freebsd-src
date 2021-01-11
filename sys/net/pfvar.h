@@ -1629,7 +1629,6 @@ VNET_DECLARE(struct pf_kanchor,			 pf_main_anchor);
 #define	V_pf_main_anchor			 VNET(pf_main_anchor)
 #define pf_main_ruleset	V_pf_main_anchor.ruleset
 
-int			 pf_get_ruleset_number(u_int8_t);
 void			 pf_init_kruleset(struct pf_kruleset *);
 int			 pf_kanchor_setup(struct pf_krule *,
 			    const struct pf_kruleset *, const char *);
