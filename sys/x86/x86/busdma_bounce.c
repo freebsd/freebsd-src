@@ -400,7 +400,7 @@ bounce_bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
  * A dmamap to for use with dmamap_load is also allocated.
  */
 static int
-bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
     bus_dmamap_t *mapp)
 {
 	vm_memattr_t attr;
