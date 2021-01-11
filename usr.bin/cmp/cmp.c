@@ -92,7 +92,6 @@ main(int argc, char *argv[])
 			break;
 		case 's':		/* silent run */
 			sflag = true;
-			zflag = true;
 			break;
 		case 'x':		/* hex output */
 			lflag = true;
@@ -148,6 +147,9 @@ main(int argc, char *argv[])
 
 	skip1 = argc > 2 ? strtol(argv[2], NULL, 0) : 0;
 	skip2 = argc == 4 ? strtol(argv[3], NULL, 0) : 0;
+
+	if (sflag && skip1 == 0 && skip2 == 0)
+		zflag = true;
 
 	if (fd1 == -1) {
 		if (fd2 == -1) {

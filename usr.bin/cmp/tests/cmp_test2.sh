@@ -62,8 +62,22 @@ symlink_body() {
 	atf_check -s not-exit:0 -o ignore -e ignore cmp -h a.lnk adup.lnk
 }
 
+atf_test_case pr252542
+pr252542_head()
+{
+	atf_set "descr" "Test cmp(1) -s with file offset skips"
+}
+pr252542_body()
+{
+	echo -n '1234567890' > a
+	echo -n 'abc567890' > b
+	atf_check -s exit:0 cmp -s a b 4 3
+	atf_check -s exit:1 -o ignore cmp -z a b 4 3
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case special
 	atf_add_test_case symlink
+	atf_add_test_case pr252542
 }
