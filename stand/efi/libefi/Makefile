@@ -50,6 +50,7 @@ CFLAGS+= -fPIC -mno-red-zone
 CFLAGS+= -I${EFIINC}
 CFLAGS+= -I${EFIINCMD}
 CFLAGS.efi_console.c+= -I${SRCTOP}/sys/teken -I${SRCTOP}/contrib/pnglite
+CFLAGS.efi_console.c+= -I${.CURDIR}/../loader
 CFLAGS.teken.c+= -I${SRCTOP}/sys/teken
 .if ${MK_LOADER_ZFS} != "no"
 CFLAGS+=	-I${ZFSSRC}

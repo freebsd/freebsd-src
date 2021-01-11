@@ -35,6 +35,10 @@ CFLAGS+=	-DEFI_ZFS_BOOT
 HAVE_ZFS=	yes
 .endif
 
+CFLAGS.bootinfo.c += -I$(SRCTOP)/sys/teken
+CFLAGS.bootinfo.c += -I${SRCTOP}/contrib/pnglite
+CFLAGS.framebuffer.c += -I$(SRCTOP)/sys/teken
+CFLAGS.framebuffer.c += -I${SRCTOP}/contrib/pnglite
 CFLAGS.gfx_fb.c += -I$(SRCTOP)/sys/teken
 CFLAGS.gfx_fb.c += -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 CFLAGS.gfx_fb.c += -I${SRCTOP}/contrib/pnglite

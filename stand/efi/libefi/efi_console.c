@@ -34,10 +34,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/reboot.h>
 #include <machine/metadata.h>
 #include <gfx_fb.h>
+#include <framebuffer.h>
 #include "bootstrap.h"
 
 extern EFI_GUID gop_guid;
-extern int efi_find_framebuffer(struct efi_fb *efifb);
 static EFI_GUID simple_input_ex_guid = EFI_SIMPLE_TEXT_INPUT_EX_PROTOCOL_GUID;
 static SIMPLE_TEXT_OUTPUT_INTERFACE	*conout;
 static SIMPLE_INPUT_INTERFACE		*conin;
@@ -884,52 +884,29 @@ cons_update_mode(bool use_gfx_mode)
 	const teken_attr_t *a;
 	teken_attr_t attr;
 	EFI_STATUS status;
-	EFI_GRAPHICS_OUTPUT *gop = NULL;
-	struct efi_fb efifb;
 	char env[10], *ptr;
 
-	if (use_gfx_mode == true) {
-		gfx_state.tg_fb_type = FB_GOP;
-		if (gfx_state.tg_private == NULL) {
-			(void) BS->LocateProtocol(&gop_guid, NULL,
-			    (void **)&gop);
-			gfx_state.tg_private = gop;
-		} else {
-			gop = gfx_state.tg_private;
-		}
+	/*
+	 * Despite the use_gfx_mode, we want to make sure we call
+	 * efi_find_framebuffer(). This will populate the fb data,
+	 * which will be passed to kernel.
+	 */
+	if (efi_find_framebuffer(&gfx_state) == 0 && use_gfx_mode) {
+		int roff, goff, boff;
 
-		/*
-		 * We have FB but no GOP - it must be UGA.
-		 */
-		if (gop == NULL)
-			gfx_state.tg_fb_type = FB_UGA;
+		roff = ffs(gfx_state.tg_fb.fb_mask_red) - 1;
+		goff = ffs(gfx_state.tg_fb.fb_mask_green) - 1;
+		boff = ffs(gfx_state.tg_fb.fb_mask_blue) - 1;
 
-		if (efi_find_framebuffer(&efifb) == 0) {
-			int roff, goff, boff;
-
-			gfx_state.tg_fb.fb_addr = efifb.fb_addr;
-			gfx_state.tg_fb.fb_size = efifb.fb_size;
-			gfx_state.tg_fb.fb_height = efifb.fb_height;
-			gfx_state.tg_fb.fb_width = efifb.fb_width;
-			gfx_state.tg_fb.fb_stride = efifb.fb_stride;
-			gfx_state.tg_fb.fb_mask_red = efifb.fb_mask_red;
-			gfx_state.tg_fb.fb_mask_green = efifb.fb_mask_green;
-			gfx_state.tg_fb.fb_mask_blue = efifb.fb_mask_blue;
-			gfx_state.tg_fb.fb_mask_reserved =
-			    efifb.fb_mask_reserved;
-			roff = ffs(efifb.fb_mask_red) - 1;
-			goff = ffs(efifb.fb_mask_green) - 1;
-			boff = ffs(efifb.fb_mask_blue) - 1;
-
-			(void) generate_cons_palette(cmap, COLOR_FORMAT_RGB,
-			    efifb.fb_mask_red >> roff, roff,
-			    efifb.fb_mask_green >> goff, goff,
-			    efifb.fb_mask_blue >> boff, boff);
-			gfx_state.tg_fb.fb_bpp = fls(
-			    efifb.fb_mask_red | efifb.fb_mask_green |
-			    efifb.fb_mask_blue | efifb.fb_mask_reserved);
-		}
+		(void) generate_cons_palette(cmap, COLOR_FORMAT_RGB,
+		    gfx_state.tg_fb.fb_mask_red >> roff, roff,
+		    gfx_state.tg_fb.fb_mask_green >> goff, goff,
+		    gfx_state.tg_fb.fb_mask_blue >> boff, boff);
 	} else {
+		/*
+		 * Either text mode was asked by user or we failed to
+		 * find frame buffer.
+		 */
 		gfx_state.tg_fb_type = FB_TEXT;
 	}
 
