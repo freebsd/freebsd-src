@@ -106,7 +106,7 @@ VNET_DEFINE_STATIC(int, nd6_maxndopt) = 10; /* max # of ND options allowed */
 
 VNET_DEFINE(int, nd6_maxnudhint) = 0;	/* max # of subsequent upper
 					 * layer hints */
-VNET_DEFINE_STATIC(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
+VNET_DEFINE_STATIC(int, nd6_maxqueuelen) = 16; /* max pkts cached in unresolved
 					 * ND entries */
 #define	V_nd6_maxndopt			VNET(nd6_maxndopt)
 #define	V_nd6_maxqueuelen		VNET(nd6_maxqueuelen)

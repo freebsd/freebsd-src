@@ -114,7 +114,7 @@ VNET_PCPUSTAT_SYSINIT(arpstat);
 VNET_PCPUSTAT_SYSUNINIT(arpstat);
 #endif /* VIMAGE */
 
-VNET_DEFINE_STATIC(int, arp_maxhold) = 1;
+VNET_DEFINE_STATIC(int, arp_maxhold) = 16;
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arpt_down		VNET(arpt_down)

@@ -40,9 +40,7 @@
 The Address Resolution Protocol (ARP) is used to dynamically
 map between Protocol Addresses (such as IP addresses) and
 Local Network Addresses (such as Ethernet addresses).
-This implementation maps IP addresses to Ethernet,
-ARCnet,
-or Token Ring addresses.
+This implementation maps IP addresses to Ethernet addresses.
 It is used by all the Ethernet interface drivers.
 .Pp
 ARP caches Internet-Ethernet address mappings.
@@ -51,9 +49,10 @@ ARP queues the message which requires the mapping and broadcasts
 a message on the associated network requesting the address mapping.
 If a response is provided, the new mapping is cached and any pending
 message is transmitted.
-ARP will queue at most one packet while waiting for a response to a
-mapping request;
-only the most recently ``transmitted'' packet is kept.
+ARP will queue at most
+.Va net.link.ether.inet.maxhold
+packets while waiting for a response to a mapping request;
+only the most recently ``transmitted'' packets are kept.
 If the target host does not respond after several requests,
 the host is considered to be down allowing an error to be returned to
 transmission attempts.
@@ -65,17 +64,7 @@ for a non-responding destination host, and
 .Er EHOSTUNREACH
 for a non-responding router.
 .Pp
-The ARP cache is stored in the system routing table as
-dynamically-created host routes.
-The route to a directly-attached Ethernet network is installed as a
-.Dq cloning
-route (one with the
-.Li RTF_CLONING
-flag set),
-causing routes to individual hosts on that network to be created on
-demand.
-These routes time out periodically (normally 20 minutes after validated;
-entries are not validated when not in use).
+The ARP cache is stored in per-interface link-level table.
 .Pp
 ARP entries may be added, deleted or changed with the
 .Xr arp 8
@@ -173,7 +162,7 @@ Default is 1200 seconds.
 .It Va maxhold
 How many packets to hold in the per-entry output queue while the entry
 is being resolved.
-Default is one packet.
+Default is 16 packets.
 .It Va maxtries
 Number of retransmits before a host is considered down and an error is
 returned.
