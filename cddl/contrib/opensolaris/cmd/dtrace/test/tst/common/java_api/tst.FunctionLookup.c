@@ -41,7 +41,7 @@ f2(f func, int i)
 }
 
 int
-main()
+main(void)
 {
 	f2(f1, 3);
 

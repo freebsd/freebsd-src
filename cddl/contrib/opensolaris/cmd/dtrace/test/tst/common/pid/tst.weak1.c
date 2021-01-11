@@ -33,8 +33,7 @@
  * leading underscores.
  */
 
-#pragma weak _go = go
-
+extern int _go(int);
 int go(int);
 
 int
@@ -57,3 +56,5 @@ main(void)
 	for (;;)
 		getpid();
 }
+
+#pragma weak _go = go
