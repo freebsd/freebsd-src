@@ -52,12 +52,12 @@ file_read(png_t *png, void *out, size_t size, size_t numel)
 static int
 file_read_ul(png_t *png, unsigned *out)
 {
-	uint8_t buf[4];
+	uint32_t buf;
 
-	if (file_read(png, buf, 1, 4) != 4)
+	if (file_read(png, &buf, 1, 4) != 4)
 		return (PNG_FILE_ERROR);
 
-	*out = (buf[0]<<24) | (buf[1]<<16) | (buf[2]<<8) | buf[3];
+	*out = ntohl(buf);
 
 	return (PNG_NO_ERROR);
 }
@@ -65,14 +65,7 @@ file_read_ul(png_t *png, unsigned *out)
 static unsigned
 get_ul(uint8_t *buf)
 {
-	unsigned result;
-	uint8_t foo[4];
-
-	memcpy(foo, buf, 4);
-
-	result = (foo[0]<<24) | (foo[1]<<16) | (foo[2]<<8) | foo[3];
-
-	return (result);
+	return (ntohl(*(uint32_t *)buf));
 }
 
 static int
