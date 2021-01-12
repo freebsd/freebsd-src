@@ -351,15 +351,6 @@ ng_bridge_constructor(node_p node)
 	priv->conf.minStableAge = DEFAULT_MIN_STABLE_AGE;
 	priv->sendUnknown = 1;	       /* classic bridge */
 
-	/*
-	 * This node has all kinds of stuff that could be screwed by SMP.
-	 * Until it gets it's own internal protection, we go through in 
-	 * single file. This could hurt a machine bridging between two 
-	 * GB ethernets so it should be fixed. 
-	 * When it's fixed the process SHOULD NOT SLEEP, spinlocks please!
-	 * (and atomic ops )
-	 */
-	NG_NODE_FORCE_WRITER(node);
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
 
