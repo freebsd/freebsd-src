@@ -2479,11 +2479,13 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	ARG1_MASK	0x1f
 #define	ARG2_SHIFT	10
 #define	ARG2_MASK	0x1f
+#define	ADDR_SHIFT	5
+#define	ADDR_MASK	0x1f
 #define	OFFSET_SHIFT	15
 #define	OFFSET_SIZE	7
 #define	OFFSET_MASK	((1 << OFFSET_SIZE) - 1)
 
-#define	DTRACE_INVOP_PUSHM	1
+#define	DTRACE_INVOP_STP	1
 #define	DTRACE_INVOP_RET	2
 #define	DTRACE_INVOP_B		3
 
