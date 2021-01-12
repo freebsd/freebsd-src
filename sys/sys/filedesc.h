@@ -234,6 +234,8 @@ void	_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 	    struct filecaps *fcaps);
 int	finstall(struct thread *td, struct file *fp, int *resultfd, int flags,
 	    struct filecaps *fcaps);
+int	finstall_refed(struct thread *td, struct file *fp, int *resultfd, int flags,
+	    struct filecaps *fcaps);
 int	fdalloc(struct thread *td, int minfd, int *result);
 int	fdallocn(struct thread *td, int minfd, int *fds, int n);
 int	fdcheckstd(struct thread *td);
