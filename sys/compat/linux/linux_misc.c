@@ -2041,6 +2041,16 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		 */
 		error = EINVAL;
 		break;
+	case LINUX_PR_CAPBSET_READ:
+#if 0
+		/*
+		 * This makes too much noise with Ubuntu Focal.
+		 */
+		linux_msg(td, "unsupported prctl PR_CAPBSET_READ %d",
+		    (int)args->arg2);
+#endif
+		error = EINVAL;
+		break;
 	case LINUX_PR_SET_NO_NEW_PRIVS:
 		linux_msg(td, "unsupported prctl PR_SET_NO_NEW_PRIVS");
 		error = EINVAL;
