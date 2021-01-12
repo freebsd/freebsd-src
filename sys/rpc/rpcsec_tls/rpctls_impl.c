@@ -573,6 +573,7 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 	mtx_unlock(&rpctls_server_lock);
 
 	/* Do the server upcall. */
+	res.gid.gid_val = NULL;
 	stat = rpctlssd_connect_1(NULL, &res, cl);
 	if (stat == RPC_SUCCESS) {
 		*flags = res.flags;
@@ -598,6 +599,7 @@ rpctls_server(SVCXPRT *xprt, struct socket *so, uint32_t *flags, uint64_t *sslp,
 		soshutdown(so, SHUT_RD);
 	}
 	CLNT_RELEASE(cl);
+	mem_free(res.gid.gid_val, 0);
 
 	/* Once the upcall is done, the daemon is done with the fp and so. */
 	mtx_lock(&rpctls_server_lock);
