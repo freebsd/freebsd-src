@@ -1009,13 +1009,11 @@ wmt_set_input_mode(struct wmt_softc *sc, enum wmt_input_mode mode)
 	return (err);
 }
 
-#ifndef USBHID_ENABLED
 static const STRUCT_USB_HOST_ID wmt_devs[] = {
 	/* generic HID class w/o boot interface */
 	{USB_IFACE_CLASS(UICLASS_HID),
 	 USB_IFACE_SUBCLASS(0),},
 };
-#endif
 
 static devclass_t wmt_devclass;
 
@@ -1038,6 +1036,4 @@ MODULE_DEPEND(wmt, usb, 1, 1, 1);
 MODULE_DEPEND(wmt, hid, 1, 1, 1);
 MODULE_DEPEND(wmt, evdev, 1, 1, 1);
 MODULE_VERSION(wmt, 1);
-#ifndef USBHID_ENABLED
 USB_PNP_HOST_INFO(wmt_devs);
-#endif
