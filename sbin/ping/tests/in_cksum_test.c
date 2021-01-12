@@ -39,92 +39,52 @@ __FBSDID("$FreeBSD$");
  * Test cases.
  */
 
-ATF_TC_WITHOUT_HEAD(aligned_even_length_big_endian);
-ATF_TC_BODY(aligned_even_length_big_endian, tc)
+ATF_TC_WITHOUT_HEAD(aligned_even_length);
+ATF_TC_BODY(aligned_even_length, tc)
 {
 	u_char data[] __aligned(sizeof(u_short)) =
 		{0x12, 0x34, 0x56, 0x78};
 	u_short sum;
 
 	sum = in_cksum(data, nitems(data));
-	ATF_REQUIRE(sum == 0x5397);
+	u_char *c_sum = (u_char *)&sum;
+	ATF_REQUIRE(c_sum[0] == 0x97 && c_sum[1] == 0x53);
 }
 
-ATF_TC_WITHOUT_HEAD(aligned_odd_length_big_endian);
-ATF_TC_BODY(aligned_odd_length_big_endian, tc)
+ATF_TC_WITHOUT_HEAD(aligned_odd_length);
+ATF_TC_BODY(aligned_odd_length, tc)
 {
 	u_char data[] __aligned(sizeof(u_short)) =
 		{0x12, 0x34, 0x56, 0x78, 0x9a};
 	u_short sum;
 
 	sum = in_cksum(data, nitems(data));
-	ATF_REQUIRE(sum == 0x52fd);
+	u_char *c_sum = (u_char *)&sum;
+	ATF_REQUIRE(c_sum[0] == 0xfd && c_sum[1] == 0x52);
 }
 
-ATF_TC_WITHOUT_HEAD(aligned_even_length_little_endian);
-ATF_TC_BODY(aligned_even_length_little_endian, tc)
-{
-	u_char data[] __aligned(sizeof(u_short)) =
-		{0x34, 0x12, 0x78, 0x56};
-	u_short sum;
-
-	sum = in_cksum(data, nitems(data));
-	ATF_REQUIRE_MSG(sum == 0x9753, "%d", sum);
-}
-
-ATF_TC_WITHOUT_HEAD(aligned_odd_length_little_endian);
-ATF_TC_BODY(aligned_odd_length_little_endian, tc)
-{
-	u_char data[] __aligned(sizeof(u_short)) =
-		{0x34, 0x12, 0x78, 0x56, 0x00, 0x9a};
-	u_short sum;
-
-	sum = in_cksum(data, nitems(data));
-	ATF_REQUIRE(sum == 0xfd52);
-}
-
-ATF_TC_WITHOUT_HEAD(unaligned_even_length_big_endian);
-ATF_TC_BODY(unaligned_even_length_big_endian, tc)
+ATF_TC_WITHOUT_HEAD(unaligned_even_length);
+ATF_TC_BODY(unaligned_even_length, tc)
 {
 	u_char data[] __aligned(sizeof(u_short)) =
 		{0x00, 0x12, 0x34, 0x56, 0x78};
 	u_short sum;
 
 	sum = in_cksum(data + 1, nitems(data) - 1);
-	ATF_REQUIRE(sum == 0x5397);
+	u_char *c_sum = (u_char *)&sum;
+	ATF_REQUIRE(c_sum[0] == 0x97 && c_sum[1] == 0x53);
 }
 
-ATF_TC_WITHOUT_HEAD(unaligned_odd_length_big_endian);
-ATF_TC_BODY(unaligned_odd_length_big_endian, tc)
+ATF_TC_WITHOUT_HEAD(unaligned_odd_length);
+ATF_TC_BODY(unaligned_odd_length, tc)
 {
 	u_char data[] __aligned(sizeof(u_short)) =
 		{0x00, 0x12, 0x34, 0x56, 0x78, 0x9a};
 	u_short sum;
 
 	sum = in_cksum(data + 1, nitems(data) - 1);
-	ATF_REQUIRE(sum == 0x52fd);
-}
-
-ATF_TC_WITHOUT_HEAD(unaligned_even_length_little_endian);
-ATF_TC_BODY(unaligned_even_length_little_endian, tc)
-{
-	u_char data[] __aligned(sizeof(u_short)) =
-		{0x00, 0x34, 0x12, 0x78, 0x56};
-	u_short sum;
-
-	sum = in_cksum(data + 1, nitems(data) - 1);
-	ATF_REQUIRE_MSG(sum == 0x9753, "%d", sum);
-}
-
-ATF_TC_WITHOUT_HEAD(unaligned_odd_length_little_endian);
-ATF_TC_BODY(unaligned_odd_length_little_endian, tc)
-{
-	u_char data[] __aligned(sizeof(u_short)) =
-		{0x00, 0x34, 0x12, 0x78, 0x56, 0x00, 0x9a};
-	u_short sum;
-
-	sum = in_cksum(data + 1, nitems(data) - 1);
-	ATF_REQUIRE(sum == 0xfd52);
+	u_char *c_sum = (u_char *)&sum;
+	ATF_REQUIRE(c_sum[0] == 0xfd && c_sum[1] == 0x52);
 }
 
 /*
@@ -133,14 +93,10 @@ ATF_TC_BODY(unaligned_odd_length_little_endian, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-	ATF_TP_ADD_TC(tp, aligned_even_length_big_endian);
-	ATF_TP_ADD_TC(tp, aligned_odd_length_big_endian);
-	ATF_TP_ADD_TC(tp, aligned_even_length_little_endian);
-	ATF_TP_ADD_TC(tp, aligned_odd_length_little_endian);
-	ATF_TP_ADD_TC(tp, unaligned_even_length_big_endian);
-	ATF_TP_ADD_TC(tp, unaligned_odd_length_big_endian);
-	ATF_TP_ADD_TC(tp, unaligned_even_length_little_endian);
-	ATF_TP_ADD_TC(tp, unaligned_odd_length_little_endian);
+	ATF_TP_ADD_TC(tp, aligned_even_length);
+	ATF_TP_ADD_TC(tp, aligned_odd_length);
+	ATF_TP_ADD_TC(tp, unaligned_even_length);
+	ATF_TP_ADD_TC(tp, unaligned_odd_length);
 
 	return (atf_no_error());
 }
