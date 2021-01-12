@@ -216,6 +216,7 @@ SRCS+=	\
 	obsolete.c \
 	parse_entry.c \
 	read_entry.c \
+	read_termcap.c \
 	strings.c \
 	trim_sgr0.c \
 	write_entry.c
@@ -270,14 +271,10 @@ DBGSRCS= \
 	trace_xnames.c \
 	varargs.c
 
-# From our old libtermcap.
-# Used instead of the hideous read_termcap.c abomination.
-SRCS+=	termcap.c
-
 CLEANFILES=	${GENSRCS} ${GENHDRS} keys.list make_hash term.h.new \
 		make_keys MKterm.h.awk comp_captab.c curses.head
 
-CFLAGS+=	-DFREEBSD_NATIVE -DTERMIOS
+CFLAGS+=	-DTERMIOS
 
 # Installed
 HEADERS=	curses.h term.h termcap.h unctrl.h
@@ -416,7 +413,7 @@ make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS} ${BUILD_TOOLS_META}
 MKterm.h.awk: MKterm.h.awk.in
 	sed <${NCURSES_DIR}/include/MKterm.h.awk.in >$@ \
 	    -e "/@BROKEN_LINKER@/s%%${BROKEN_LINKER}%" \
-	    -e "s%@NCURSES_USE_DATABASE@%0%g" \
+	    -e "s%@NCURSES_USE_DATABASE@%1%g" \
 	    -e "s%@NCURSES_USE_TERMCAP@%1%g" \
 	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \

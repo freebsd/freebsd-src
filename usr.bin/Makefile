@@ -97,6 +97,7 @@ SUBDIR=	alias \
 	mkuzip \
 	mt \
 	ncal \
+	ncurses \
 	netstat \
 	newgrp \
 	nfsstat \
@@ -146,7 +147,6 @@ SUBDIR=	alias \
 	strings \
 	su \
 	systat \
-	tabs \
 	tail \
 	tar \
 	tcopy \
@@ -156,11 +156,9 @@ SUBDIR=	alias \
 	tip \
 	top \
 	touch \
-	tput \
 	tr \
 	true \
 	truncate \
-	tset \
 	tsort \
 	tty \
 	uname \

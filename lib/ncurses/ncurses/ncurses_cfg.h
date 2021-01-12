@@ -59,6 +59,8 @@
 #define HAVE_LONG_FILE_NAMES 1
 #define MIXEDCASE_FILENAMES 1
 #define USE_SYSMOUSE 1
+#define TERMINFO_DIRS "/usr/share/terminfo:/usr/local/share/site-terminfo"
+#define TERMINFO "/usr/share/terminfo"
 #define HAVE_BIG_CORE 1
 #define TERMPATH "/etc/termcap:/usr/share/misc/termcap"
 #define USE_GETCAP 1
@@ -70,6 +72,23 @@
 #define USE_LINKS 1
 #define BSD_TPUTS 1
 #define HAVE_LANGINFO_CODESET 1
+#define USE_WIDEC_SUPPORT 1
+#define NCURSES_WIDECHAR 1
+#define HAVE_WCHAR_H 1
+#define HAVE_WCTYPE_H 1
+#define HAVE_PUTWC 1
+#define HAVE_BTOWC 1
+#define HAVE_WCTOB 1
+#define HAVE_MBTOWC 1
+#define HAVE_WCTOMB 1
+#define HAVE_MBLEN 1
+#define HAVE_MBRLEN 1
+#define HAVE_MBRTOWC 1
+#define HAVE_WCSRTOMBS 1
+#define HAVE_MBSRTOWCS 1
+#define HAVE_WCSTOMBS 1
+#define HAVE_MBSTOWCS 1
+#define NEED_WCHAR_H 1
 #define HAVE_FSEEKO 1
 #define STDC_HEADERS 1
 #define HAVE_SYS_TYPES_H 1
@@ -96,6 +115,10 @@
 #define HAVE_WRESIZE 1
 #define NCURSES_SP_FUNCS 1
 #define HAVE_TPUTS_SP 1
+#define NCURSES_EXT_COLORS 1
+#define HAVE_ALLOC_PAIR 1
+#define HAVE_INIT_EXTENDED_COLOR 1
+#define HAVE_RESET_COLOR_PAIRS 1
 #define NCURSES_EXT_PUTWIN 1
 #define NCURSES_NO_PADDING 1
 #define USE_SIGWINCH 1
@@ -133,6 +156,11 @@
 #define HAVE_UNISTD_H 1
 #define HAVE_GETOPT_H 1
 #define HAVE_GETOPT_HEADER 1
+#define DECL_ENVIRON 1
+#define HAVE_ENVIRON 1
+#define HAVE_PUTENV 1
+#define HAVE_SETENV 1
+#define HAVE_STRDUP 1
 #define HAVE_SYS_TIME_SELECT 1
 #define SIG_ATOMIC_T volatile sig_atomic_t
 #define HAVE_ERRNO 1
@@ -153,6 +181,7 @@
 #define HAVE_SETVBUF 1
 #define HAVE_SIGACTION 1
 #define HAVE_SIGVEC 1
+#define HAVE_SNPRINTF 1
 #define HAVE_STRDUP 1
 #define HAVE_STRSTR 1
 #define HAVE_SYSCONF 1
@@ -181,11 +210,12 @@
 #define USE_FOPEN_BIN_R 1
 #define USE_OPENPTY_HEADER <libutil.h>
 #define USE_XTERM_PTY 1
-#define USE_HASHED_DB 1
 #define HAVE_TYPEINFO 1
 #define HAVE_IOSTREAM 1
 #define IOSTREAM_NAMESPACE 1
+#define SIZEOF_BOOL 1
 #define CPP_HAS_STATIC_CAST 1
+#define SIZEOF_WCHAR_T 4
 #define HAVE_SLK_COLOR 1
 #define HAVE_PANEL_H 1
 #define HAVE_LIBPANEL 1
@@ -197,37 +227,6 @@
 #define NCURSES_VERSION_STRING "6.2.20200215"
 #define NCURSES_OSPEED_COMPAT 1
 #define HAVE_CURSES_DATA_BOOLNAMES 1
-
-/*
- * Begin FreeBSD-specific changes
- */
-/* Support ENABLE_WIDEC */
-#ifdef ENABLE_WIDEC
-#define USE_WIDEC_SUPPORT 1
-#define NCURSES_WIDECHAR 1
-#define NCURSES_EXT_FUNCS 1
-#define NCURSES_EXT_COLORS 1
-#define HAVE_ALLOC_PAIR 1
-#define HAVE_INIT_EXTENDED_COLOR 1
-#define HAVE_RESET_COLOR_PAIRS 1
-#define HAVE_PUTWC 1
-#define HAVE_BTOWC 1
-#define HAVE_WCTOB 1
-#define HAVE_MBTOWC 1
-#define HAVE_WCTOMB 1
-#define HAVE_MBLEN 1
-#define HAVE_MBRLEN 1
-#define HAVE_MBRTOWC 1
-#define HAVE_WCSRTOMBS 1
-#define HAVE_MBSRTOWCS 1
-#define HAVE_WCSTOMBS 1
-#define HAVE_MBSTOWCS 1
-#define NEED_WCHAR_H 1
-#define SIZEOF_WCHAR_T 4
-#endif
-/*
- * End FreeBSD-specific changes
- */
 
 #include <ncurses_def.h>
 
