@@ -166,7 +166,14 @@ CC		?=	c89
 CFLAGS		?=	-O
 .else
 CC		?=	cc
+.if ${MACHINE_CPUARCH} == "mips" && ${COMPILER_TYPE} == "gcc"
+# Note: there are currently issues generating code gcc-6.x targeting
+# code for at least mips32.  The system hits infinite page faults
+# when starting /sbin/init if -O2 is used.
+CFLAGS		?=	-O -pipe
+.else
 CFLAGS		?=	-O2 -pipe
+.endif
 .if defined(NO_STRICT_ALIASING)
 CFLAGS		+=	-fno-strict-aliasing
 .endif
