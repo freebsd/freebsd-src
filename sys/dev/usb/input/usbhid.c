@@ -75,10 +75,12 @@ __FBSDID("$FreeBSD$");
 
 #include "hid_if.h"
 
+static SYSCTL_NODE(_hw_usb, OID_AUTO, usbhid, CTLFLAG_RW, 0, "USB usbhid");
+static int usbhid_enable = 0;
+SYSCTL_INT(_hw_usb_usbhid, OID_AUTO, enable, CTLFLAG_RWTUN,
+    &usbhid_enable, 0, "Enable usbhid and prefer it to other USB HID drivers");
 #ifdef USB_DEBUG
 static int usbhid_debug = 0;
-
-static SYSCTL_NODE(_hw_usb, OID_AUTO, usbhid, CTLFLAG_RW, 0, "USB usbhid");
 SYSCTL_INT(_hw_usb_usbhid, OID_AUTO, debug, CTLFLAG_RWTUN,
     &usbhid_debug, 0, "Debug level");
 #endif
@@ -664,6 +666,9 @@ usbhid_probe(device_t dev)
 
 	DPRINTFN(11, "\n");
 
+	if (usbhid_enable == 0)
+		return (ENXIO);
+
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
@@ -683,11 +688,7 @@ usbhid_probe(device_t dev)
 	if (hid_test_quirk(&sc->sc_hw, HQ_HID_IGNORE))
 		return (ENXIO);
 
-#ifdef USBHID_ENABLED
 	return (BUS_PROBE_GENERIC + 1);
-#else
-	return (BUS_PROBE_GENERIC - 1);
-#endif
 }
 
 static int
@@ -781,6 +782,4 @@ MODULE_DEPEND(usbhid, usb, 1, 1, 1);
 MODULE_DEPEND(usbhid, hid, 1, 1, 1);
 MODULE_DEPEND(usbhid, hidbus, 1, 1, 1);
 MODULE_VERSION(usbhid, 1);
-#ifdef USBHID_ENABLED
 USB_PNP_HOST_INFO(usbhid_devs);
-#endif

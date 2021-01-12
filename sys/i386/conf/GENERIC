@@ -354,6 +354,3 @@ device		uinput			# install /dev/uinput cdev
 options 	HID_DEBUG		# enable debug msgs
 device		hid			# Generic HID support
 options 	IICHID_SAMPLING		# Workaround missing GPIO INTR support
-#device		usbhid			# USB transport support.
-#device		hidbus			# HID bus (required by usbhid/iichid)
-#options 	USBHID_ENABLED		# Prefer usbhid to other USB drivers

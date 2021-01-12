@@ -2594,9 +2594,6 @@ options 	UVSCOM_DEFAULT_OPKTSIZE=8	# default output packet size
 options 	UVSCOM_INTR_INTERVAL=100	# interrupt pipe interval
 						# in milliseconds
 
-# options for usbhid:
-options 	USBHID_ENABLED		# Prefer usbhid to other USBHID drivers
-
 #####################################################################
 # FireWire support
 

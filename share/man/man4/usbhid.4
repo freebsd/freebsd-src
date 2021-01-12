@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2020
+.Dd January 12, 2021
 .Dt USBHID 4
 .Os
 .Sh NAME
@@ -53,6 +53,13 @@ The following variables are available as both
 variables and
 .Xr loader 8
 tunables:
+.Bl -tag -width indent
+.It Va hw.usb.usbhid.enable
+Enable
+.Nm
+and make its priority greater than other USB HID drivers have.
+Default is 0.
+.El
 .Bl -tag -width indent
 .It Va hw.usb.usbhid.debug
 Debug output level, where 0 is debugging disabled and larger values increase
