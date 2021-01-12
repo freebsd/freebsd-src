@@ -3176,17 +3176,17 @@ main(int arc, char **argv)
 		struct netmap_if *nifp = g.nmd->nifp;
 		struct nmreq_register *req = &g.nmd->reg;
 
-		D("nifp at offset %"PRIu64", %d tx %d rx region %d",
+		D("nifp at offset %"PRIu64" ntxqs %d nrxqs %d memid %d",
 		    req->nr_offset, req->nr_tx_rings, req->nr_rx_rings,
 		    req->nr_mem_id);
 		for (i = 0; i < req->nr_tx_rings + req->nr_host_tx_rings; i++) {
 			struct netmap_ring *ring = NETMAP_TXRING(nifp, i);
-			D("   TX%d at 0x%p slots %d", i,
+			D("   TX%d at offset %p slots %d", i,
 			    (void *)((char *)ring - (char *)nifp), ring->num_slots);
 		}
 		for (i = 0; i < req->nr_rx_rings + req->nr_host_rx_rings; i++) {
 			struct netmap_ring *ring = NETMAP_RXRING(nifp, i);
-			D("   RX%d at 0x%p slots %d", i,
+			D("   RX%d at offset %p slots %d", i,
 			    (void *)((char *)ring - (char *)nifp), ring->num_slots);
 		}
 	}
