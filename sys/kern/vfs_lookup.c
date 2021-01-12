@@ -76,7 +76,8 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE4(vfs, namei, lookup, entry, "struct vnode *", "char *",
     "unsigned long", "bool");
-SDT_PROBE_DEFINE3(vfs, namei, lookup, return, "int", "struct vnode *", "bool");
+SDT_PROBE_DEFINE4(vfs, namei, lookup, return, "int", "struct vnode *", "bool",
+    "struct nameidata");
 
 /* Allocation zone for namei. */
 uma_zone_t namei_zone;
@@ -643,6 +644,8 @@ namei(struct nameidata *ndp)
 		 * If not a symbolic link, we're done.
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
+			SDT_PROBE4(vfs, namei, lookup, return, error,
+			    (error == 0 ? ndp->ni_vp : NULL), false, ndp);
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0) {
 				namei_cleanup_cnp(cnp);
 			} else
@@ -653,8 +656,6 @@ namei(struct nameidata *ndp)
 				error = ENOTCAPABLE;
 			}
 			nameicap_cleanup(ndp, true);
-			SDT_PROBE3(vfs, namei, lookup, return, error,
-			    (error == 0 ? ndp->ni_vp : NULL), false);
 			pwd_drop(pwd);
 			if (error == 0)
 				NDVALIDATE(ndp);
@@ -729,9 +730,9 @@ namei(struct nameidata *ndp)
 	vrele(ndp->ni_dvp);
 out:
 	MPASS(error != 0);
+	SDT_PROBE4(vfs, namei, lookup, return, error, NULL, false, ndp);
 	namei_cleanup_cnp(cnp);
 	nameicap_cleanup(ndp, true);
-	SDT_PROBE3(vfs, namei, lookup, return, error, NULL, false);
 	pwd_drop(pwd);
 	return (error);
 }

@@ -5436,7 +5436,8 @@ out:
 	if (SDT_PROBES_ENABLED()) {
 		SDT_PROBE3(vfs, fplookup, lookup, done, ndp, fpl.line, fpl.status);
 		if (fpl.status == CACHE_FPL_STATUS_HANDLED)
-			SDT_PROBE3(vfs, namei, lookup, return, error, ndp->ni_vp, true);
+			SDT_PROBE4(vfs, namei, lookup, return, error, ndp->ni_vp, true,
+			    ndp);
 	}
 
 	if (__predict_true(fpl.status == CACHE_FPL_STATUS_HANDLED)) {
