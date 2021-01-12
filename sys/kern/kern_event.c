@@ -2714,7 +2714,8 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int mflag)
 	cap_rights_t rights;
 	int error;
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_KQUEUE_CHANGE), &fp);
+	error = fget(td, fd, cap_rights_init_one(&rights, CAP_KQUEUE_CHANGE),
+	    &fp);
 	if (error != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)

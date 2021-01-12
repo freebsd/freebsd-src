@@ -636,7 +636,8 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 
 restart:
 	NDINIT_ATRIGHTS(&nd, CREATE, NOFOLLOW | LOCKPARENT | SAVENAME | NOCACHE,
-	    UIO_SYSSPACE, buf, fd, cap_rights_init(&rights, CAP_BINDAT), td);
+	    UIO_SYSSPACE, buf, fd, cap_rights_init_one(&rights, CAP_BINDAT),
+	    td);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
 	if (error)
@@ -1559,7 +1560,8 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	else
 		sa = NULL;
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF,
-	    UIO_SYSSPACE, buf, fd, cap_rights_init(&rights, CAP_CONNECTAT), td);
+	    UIO_SYSSPACE, buf, fd, cap_rights_init_one(&rights, CAP_CONNECTAT),
+	    td);
 	error = namei(&nd);
 	if (error)
 		vp = NULL;

@@ -656,8 +656,8 @@ mac_veriexec_syscall(struct thread *td, int call, void *arg)
 	switch (call) {
 	case MAC_VERIEXEC_CHECK_FD_SYSCALL:
 		/* Get the vnode associated with the file descriptor passed */
-		error = getvnode(td, (uintptr_t) arg, cap_rights_init(&rights,
-		    CAP_READ), &fp);
+		error = getvnode(td, (uintptr_t) arg,
+		    cap_rights_init_one(&rights, CAP_READ), &fp);
 		if (error)
 			return (error);
 		if (fp->f_type != DTYPE_VNODE) {

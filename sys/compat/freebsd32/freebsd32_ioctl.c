@@ -212,7 +212,7 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	cap_rights_t rights;
 	int error;
 
-	error = fget(td, uap->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	error = fget(td, uap->fd, cap_rights_init_one(&rights, CAP_IOCTL), &fp);
 	if (error != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {

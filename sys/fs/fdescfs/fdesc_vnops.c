@@ -496,7 +496,7 @@ fdesc_setattr(struct vop_setattr_args *ap)
 	 * Allow setattr where there is an underlying vnode.
 	 */
 	error = getvnode(td, fd,
-	    cap_rights_init(&rights, CAP_EXTATTR_SET), &fp);
+	    cap_rights_init_one(&rights, CAP_EXTATTR_SET), &fp);
 	if (error) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not
