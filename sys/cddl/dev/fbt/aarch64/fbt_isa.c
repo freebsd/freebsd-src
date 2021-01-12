@@ -121,6 +121,18 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 				found = true;
 			break;
 		}
+
+		/*
+		 * Some functions start with a "sub sp, sp, <const>"
+		 * Sometimes the compiler will have a sub instruction that
+		 * is not of the above type so don't stop if we see one.
+		 */
+		if ((*instr & SUB_MASK) == SUB_INSTR &&
+		    ((*instr >> SUB_RD_SHIFT) & SUB_R_MASK) == 31 &&
+		    ((*instr >> SUB_RN_SHIFT) & SUB_R_MASK) == 31) {
+			found = true;
+			break;
+		}
 	}
 
 	if (!found)
@@ -135,7 +147,10 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	fbt->fbtp_loadcnt = lf->loadcnt;
 	fbt->fbtp_savedval = *instr;
 	fbt->fbtp_patchval = FBT_PATCHVAL;
-	fbt->fbtp_rval = DTRACE_INVOP_STP;
+	if ((*instr & SUB_MASK) == SUB_INSTR)
+		fbt->fbtp_rval = DTRACE_INVOP_SUB;
+	else
+		fbt->fbtp_rval = DTRACE_INVOP_STP;
 	fbt->fbtp_symindx = symindx;
 
 	fbt->fbtp_hashnext = fbt_probetab[FBT_ADDR2NDX(instr)];
