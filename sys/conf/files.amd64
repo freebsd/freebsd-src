@@ -462,6 +462,9 @@ x86/xen/pv.c			optional	xenhvm
 x86/xen/pvcpu_enum.c		optional	xenhvm
 x86/xen/xen_pci_bus.c		optional	xenhvm
 
+compat/linuxkpi/common/src/linux_fpu.c		optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
+
 contrib/openzfs/module/zcommon/zfs_fletcher_avx512.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zfs_fletcher_intel.c		optional zfs compile-with "${ZFS_C}"
 contrib/openzfs/module/zcommon/zfs_fletcher_sse.c		optional zfs compile-with "${ZFS_C}"

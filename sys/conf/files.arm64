@@ -494,3 +494,6 @@ tegra210_xusb.fw	optional	tegra210_xusb_fw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"tegra210_xusb.fw"
+
+compat/linuxkpi/common/src/linux_fpu.c		optional compat_linuxkpi \
+	compile-with "${LINUXKPI_C}"
