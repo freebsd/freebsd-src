@@ -445,15 +445,6 @@ struct ure_softc {
 
 	int			sc_rxstarted;
 
-	struct usb_xfer		*sc_txavail[URE_N_TRANSFER];
-	/*
-	 * Position of next available xfer for TX.  If
-	 * sc_txpos == URE_N_TRANSFER, no tx xfer's are available.
-	 * Pop xfer:  sc->sc_txavail[sc->sc_txpos++]
-	 * Push xfer: sc->sc_txavail[(--(sc->sc_txpos))] = xfer
-	 */
-	int			sc_txpos;
-
 	int			sc_phyno;
 
 	u_int			sc_flags;
