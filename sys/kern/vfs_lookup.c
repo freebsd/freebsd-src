@@ -1487,6 +1487,33 @@ NDFREE_PNBUF(struct nameidata *ndp)
 	}
 }
 
+/*
+ * NDFREE_PNBUF replacement for callers that know there is no buffer.
+ *
+ * This is a hack. Preferably the VFS layer would not produce anything more
+ * than it was asked to do. Unfortunately several non-LOOKUP cases can add the
+ * HASBUF flag to the result. Even then an interface could be implemented where
+ * the caller specifies what they expected to see in the result and what they
+ * are going to take care of.
+ *
+ * In the meantime provide this kludge as a trivial replacement for NDFREE_PNBUF
+ * calls scattered throughout the kernel where we know for a fact the flag must not
+ * be seen.
+ */
+#ifdef INVARIANTS
+void
+NDFREE_NOTHING(struct nameidata *ndp)
+{
+	struct componentname *cnp;
+
+	cnp = &ndp->ni_cnd;
+	KASSERT(cnp->cn_nameiop == LOOKUP, ("%s: got non-LOOKUP op %d\n",
+	    __func__, cnp->cn_nameiop));
+	KASSERT((cnp->cn_flags & (SAVENAME | HASBUF)) == 0,
+	    ("%s: bad flags \%" PRIx64 "\n", __func__, cnp->cn_flags));
+}
+#endif
+
 void
 (NDFREE)(struct nameidata *ndp, const u_int flags)
 {
