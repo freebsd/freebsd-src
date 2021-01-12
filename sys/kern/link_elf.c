@@ -1224,7 +1224,7 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 		error = vm_map_protect(kernel_map,
 		    (vm_offset_t)segbase,
 		    (vm_offset_t)segbase + round_page(segs[i]->p_memsz),
-		    prot, FALSE);
+		    prot, 0, VM_MAP_PROTECT_SET_PROT);
 		if (error != KERN_SUCCESS) {
 			error = ENOMEM;
 			goto out;
