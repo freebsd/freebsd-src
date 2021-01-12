@@ -653,6 +653,7 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	vm_offset_t addr;
 	vm_size_t pageoff;
 	int vm_error, max_prot;
+	int flags;
 
 	addr = addr0;
 	if ((prot & ~(_PROT_ALL | PROT_MAX(_PROT_ALL))) != 0)
@@ -672,16 +673,11 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 	if (addr + size < addr)
 		return (EINVAL);
 
-	vm_error = KERN_SUCCESS;
-	if (max_prot != 0) {
-		if ((max_prot & prot) != prot)
-			return (ENOTSUP);
-		vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map,
-		    addr, addr + size, max_prot, TRUE);
-	}
-	if (vm_error == KERN_SUCCESS)
-		vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map,
-		    addr, addr + size, prot, FALSE);
+	flags = VM_MAP_PROTECT_SET_PROT;
+	if (max_prot != 0)
+		flags |= VM_MAP_PROTECT_SET_MAXPROT;
+	vm_error = vm_map_protect(&td->td_proc->p_vmspace->vm_map,
+	    addr, addr + size, prot, max_prot, flags);
 
 	switch (vm_error) {
 	case KERN_SUCCESS:
@@ -690,6 +686,8 @@ kern_mprotect(struct thread *td, uintptr_t addr0, size_t size, int prot)
 		return (EACCES);
 	case KERN_RESOURCE_SHORTAGE:
 		return (ENOMEM);
+	case KERN_OUT_OF_BOUNDS:
+		return (ENOTSUP);
 	}
 	return (EINVAL);
 }
