@@ -2059,7 +2059,7 @@ _finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 }
 
 int
-finstall(struct thread *td, struct file *fp, int *fd, int flags,
+finstall_refed(struct thread *td, struct file *fp, int *fd, int flags,
     struct filecaps *fcaps)
 {
 	struct filedesc *fdp = td->td_proc->p_fd;
@@ -2067,18 +2067,30 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
 
 	MPASS(fd != NULL);
 
-	if (!fhold(fp))
-		return (EBADF);
 	FILEDESC_XLOCK(fdp);
 	error = fdalloc(td, 0, fd);
-	if (__predict_false(error != 0)) {
-		FILEDESC_XUNLOCK(fdp);
-		fdrop(fp, td);
-		return (error);
+	if (__predict_true(error == 0)) {
+		_finstall(fdp, fp, *fd, flags, fcaps);
 	}
-	_finstall(fdp, fp, *fd, flags, fcaps);
 	FILEDESC_XUNLOCK(fdp);
-	return (0);
+	return (error);
+}
+
+int
+finstall(struct thread *td, struct file *fp, int *fd, int flags,
+    struct filecaps *fcaps)
+{
+	int error;
+
+	MPASS(fd != NULL);
+
+	if (!fhold(fp))
+		return (EBADF);
+	error = finstall_refed(td, fp, fd, flags, fcaps);
+	if (__predict_false(error != 0)) {
+		fdrop(fp, td);
+	}
+	return (error);
 }
 
 /*
