@@ -45,6 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>
 #include <machine/metadata.h>
@@ -139,6 +143,7 @@ SYSCTL_INT(_hw_vmbus, OID_AUTO, pin_evttask, CTLFLAG_RDTUN,
     &vmbus_pin_evttask, 0, "Pin event tasks to their respective CPU");
 
 extern inthand_t IDTVEC(vmbus_isr), IDTVEC(vmbus_isr_pti);
+#define VMBUS_ISR_ADDR	trunc_page((uintptr_t)IDTVEC(vmbus_isr_pti))
 
 uint32_t			vmbus_current_version;
 
@@ -980,6 +985,10 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 		    vmbus_msg_task, sc);
 	}
 
+#if defined(__amd64__) && defined(KLD_MODULE)
+	pmap_pti_add_kva(VMBUS_ISR_ADDR, VMBUS_ISR_ADDR + PAGE_SIZE, true);
+#endif
+
 	/*
 	 * All Hyper-V ISR required resources are setup, now let's find a
 	 * free IDT vector for Hyper-V ISR and set it up.
@@ -987,6 +996,9 @@ vmbus_intr_setup(struct vmbus_softc *sc)
 	sc->vmbus_idtvec = lapic_ipi_alloc(pti ? IDTVEC(vmbus_isr_pti) :
 	    IDTVEC(vmbus_isr));
 	if (sc->vmbus_idtvec < 0) {
+#if defined(__amd64__) && defined(KLD_MODULE)
+		pmap_pti_remove_kva(VMBUS_ISR_ADDR, VMBUS_ISR_ADDR + PAGE_SIZE);
+#endif
 		device_printf(sc->vmbus_dev, "cannot find free IDT vector\n");
 		return ENXIO;
 	}
@@ -1006,6 +1018,10 @@ vmbus_intr_teardown(struct vmbus_softc *sc)
 		lapic_ipi_free(sc->vmbus_idtvec);
 		sc->vmbus_idtvec = -1;
 	}
+
+#if defined(__amd64__) && defined(KLD_MODULE)
+	pmap_pti_remove_kva(VMBUS_ISR_ADDR, VMBUS_ISR_ADDR + PAGE_SIZE);
+#endif
 
 	CPU_FOREACH(cpu) {
 		if (VMBUS_PCPU_GET(sc, event_tq, cpu) != NULL) {
