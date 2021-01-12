@@ -581,13 +581,6 @@ ure_attach(device_t dev)
 		goto detach;
 	}
 
-	/* Mark all TX transfers as available */
-	for (int i = 0; i < URE_N_TRANSFER; i++) {
-		sc->sc_txavail[i] = sc->sc_tx_xfer[i];
-		DEVPRINTF(dev, "sc_txavail[%d] = %p\n", i, sc->sc_txavail[i]);
-	}
-	sc->sc_txpos = 0;
-
 	ue->ue_sc = sc;
 	ue->ue_dev = dev;
 	ue->ue_udev = uaa->device;
@@ -870,16 +863,6 @@ pkterror:
 
 		usbd_transfer_submit(xfer);
 
-		KASSERT(sc->sc_txpos >= 0 && sc->sc_txpos <= URE_N_TRANSFER,
-		    ("sc_txpos invalid: %d", sc->sc_txpos));
-		if (sc->sc_txpos < URE_N_TRANSFER &&
-		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-			xfer = sc->sc_txavail[sc->sc_txpos++];
-			usbd_transfer_start(xfer);
-		}
-
-		if (sc->sc_txpos == URE_N_TRANSFER)
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		return;
 
 	default:			/* Error */
@@ -900,11 +883,6 @@ pkterror:
 			goto tr_setup;
 		}
 	}
-
-	KASSERT(sc->sc_txpos > 0 && sc->sc_txpos <= URE_N_TRANSFER, ("sc_txpos invalid: %d", sc->sc_txpos));
-	sc->sc_txavail[(--(sc->sc_txpos))] = xfer;
-	if (sc->sc_txpos < URE_N_TRANSFER)
-		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 static void
@@ -1110,10 +1088,7 @@ ure_tick(struct usb_ether *ue)
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
 
-	KASSERT(sc->sc_txpos >= 0 && sc->sc_txpos <= URE_N_TRANSFER, ("sc_txpos invalid: %d", sc->sc_txpos));
 	(void)ifp;
-	DEVPRINTFN(13, sc->sc_ue.ue_dev,
-	    "sc_txpos: %d, oactive: %d\n", sc->sc_txpos, !!(ifp->if_drv_flags & IFF_DRV_OACTIVE));
 	for (int i = 0; i < URE_N_TRANSFER; i++)
 		DEVPRINTFN(13, sc->sc_ue.ue_dev,
 		    "rx[%d] = %d\n", i, USB_GET_STATE(sc->sc_rx_xfer[i]));
@@ -1190,34 +1165,18 @@ static void
 ure_start(struct usb_ether *ue)
 {
 	struct ure_softc *sc = uether_getsc(ue);
-	struct usb_xfer *xfer;
-	struct ifnet *ifp;
+	unsigned i;
 
 	URE_LOCK_ASSERT(sc, MA_OWNED);
 
 	if (!sc->sc_rxstarted) {
 		sc->sc_rxstarted = 1;
-		for (int i = 0; i < URE_N_TRANSFER; i++)
+		for (i = 0; i != URE_N_TRANSFER; i++)
 			usbd_transfer_start(sc->sc_rx_xfer[i]);
 	}
 
-	/*
-	 * start the USB transfers, if not already started:
-	 */
-	if (sc->sc_txpos == URE_N_TRANSFER) {
-		ifp = uether_getifp(&sc->sc_ue);
-
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		return;
-	}
-
-	KASSERT(sc->sc_txpos >= 0 && sc->sc_txpos < URE_N_TRANSFER, ("sc_txpos invalid: %d", sc->sc_txpos));
-	xfer = sc->sc_txavail[sc->sc_txpos++];
-	if (sc->sc_txpos == URE_N_TRANSFER) {
-		ifp = uether_getifp(&sc->sc_ue);
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-	}
-	usbd_transfer_start(xfer);
+	for (i = 0; i != URE_N_TRANSFER; i++)
+		usbd_transfer_start(sc->sc_tx_xfer[i]);
 }
 
 static void
