@@ -691,10 +691,10 @@ uhso_detach(device_t self)
 		free_unr(uhso_ifnet_unit, sc->sc_ifp->if_dunit);
 		mtx_lock(&sc->sc_mtx);
 		uhso_if_stop(sc);
+		mtx_unlock(&sc->sc_mtx);
 		bpfdetach(sc->sc_ifp);
 		if_detach(sc->sc_ifp);
 		if_free(sc->sc_ifp);
-		mtx_unlock(&sc->sc_mtx);
 		usbd_transfer_unsetup(sc->sc_if_xfer, UHSO_IFNET_MAX);
 	}
 

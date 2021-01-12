@@ -319,15 +319,18 @@ uether_ifdetach(struct usb_ether *ue)
 		/* drain any callouts */
 		usb_callout_drain(&ue->ue_watchdog);
 
+		/*
+		 * Detach ethernet first to stop miibus calls from
+		 * user-space:
+		 */
+		ether_ifdetach(ifp);
+
 		/* detach miibus */
 		if (ue->ue_miibus != NULL) {
 			mtx_lock(&Giant);	/* device_xxx() depends on this */
 			device_delete_child(ue->ue_dev, ue->ue_miibus);
 			mtx_unlock(&Giant);
 		}
-
-		/* detach ethernet */
-		ether_ifdetach(ifp);
 
 		/* free interface instance */
 		if_free(ifp);
