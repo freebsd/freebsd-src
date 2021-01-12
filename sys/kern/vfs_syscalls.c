@@ -1129,15 +1129,11 @@ kern_openat(struct thread *td, int fd, const char *path, enum uio_seg pathseg,
 
 	/*
 	 * Allocate a file structure. The descriptor to reference it
-	 * is allocated and set by finstall() below.
+	 * is allocated and used by finstall_refed() below.
 	 */
 	error = falloc_noinstall(td, &fp);
 	if (error != 0)
 		return (error);
-	/*
-	 * An extra reference on `fp' has been held for us by
-	 * falloc_noinstall().
-	 */
 	/* Set the flags early so the finit in devfs can pick them up. */
 	fp->f_flag = flags & FMASK;
 	cmode = ((mode & ~pdp->pd_cmask) & ALLPERMS) & ~S_ISTXT;
@@ -1210,21 +1206,17 @@ success:
 		else
 #endif
 			fcaps = NULL;
-		error = finstall(td, fp, &indx, flags, fcaps);
-		/* On success finstall() consumes fcaps. */
+		error = finstall_refed(td, fp, &indx, flags, fcaps);
+		/* On success finstall_refed() consumes fcaps. */
 		if (error != 0) {
 			filecaps_free(&nd.ni_filecaps);
 			goto bad;
 		}
 	} else {
 		filecaps_free(&nd.ni_filecaps);
+		fdrop_close(fp, td);
 	}
 
-	/*
-	 * Release our private reference, leaving the one associated with
-	 * the descriptor table intact.
-	 */
-	fdrop(fp, td);
 	td->td_retval[0] = indx;
 	return (0);
 bad:
