@@ -1568,7 +1568,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	else
 		vp = nd.ni_vp;
 	ASSERT_VOP_LOCKED(vp, "unp_connect");
-	NDFREE(&nd, NDF_ONLY_PNBUF);
+	NDFREE_NOTHING(&nd);
 	if (error)
 		goto bad;
 
