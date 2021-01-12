@@ -2468,6 +2468,14 @@ extern void dtrace_helpers_destroy(proc_t *);
 
 #define	RET_INSTR	0xd65f03c0
 
+#define	SUB_MASK	0xffc00000
+#define	SUB_INSTR	0xd1000000
+#define	SUB_RD_SHIFT	0
+#define	SUB_RN_SHIFT	5
+#define	SUB_R_MASK	0x1f
+#define	SUB_IMM_SHIFT	10
+#define	SUB_IMM_MASK	0xfff
+
 #define	LDP_STP_MASK	0xffc00000
 #define	STP_32		0x29800000
 #define	STP_64		0xa9800000
@@ -2488,6 +2496,7 @@ extern void dtrace_helpers_destroy(proc_t *);
 #define	DTRACE_INVOP_STP	1
 #define	DTRACE_INVOP_RET	2
 #define	DTRACE_INVOP_B		3
+#define	DTRACE_INVOP_SUB	4
 
 #elif defined(__mips__)
 
