@@ -846,7 +846,10 @@ linux_socket(struct thread *td, struct linux_socket_args *args)
 	if (domain == -1) {
 		/* Mask off SOCK_NONBLOCK / CLOEXEC for error messages. */
 		type = args->type & LINUX_SOCK_TYPE_MASK;
-		if (args->domain == LINUX_AF_NETLINK) {
+		if (args->domain == LINUX_AF_NETLINK &&
+		    args->protocol == LINUX_NETLINK_AUDIT) {
+			; /* Do nothing, quietly. */
+		} else if (args->domain == LINUX_AF_NETLINK) {
 			const char *nl_name;
 
 			if (args->protocol >= 0 &&
