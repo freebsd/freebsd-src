@@ -1493,16 +1493,26 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	struct vnode *vp;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
+	bool unlock, tm_locked;
 
 	vp = v->a_vp;
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
+	tm_locked = false;
 
 	if (vp->v_type == VREG)
 		tmpfs_destroy_vobject(vp, node->tn_reg.tn_aobj);
 	vp->v_object = NULL;
 
+relock:
 	TMPFS_NODE_LOCK(node);
+	if (!tm_locked && node->tn_links == 0 &&
+	    (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0) {
+		TMPFS_NODE_UNLOCK(node);
+		TMPFS_LOCK(tmp);
+		tm_locked = true;
+		goto relock;
+	}
 	tmpfs_free_vp(vp);
 
 	/*
@@ -1512,11 +1522,18 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	 */
 	if (node->tn_links == 0 &&
 	    (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0) {
+		MPASS(tm_locked);
 		node->tn_vpstate = TMPFS_VNODE_DOOMED;
+		unlock = !tmpfs_free_node_locked(tmp, node, true);
+	} else {
+		unlock = true;
+	}
+
+	if (unlock) {
 		TMPFS_NODE_UNLOCK(node);
-		tmpfs_free_node(tmp, node);
-	} else
-		TMPFS_NODE_UNLOCK(node);
+		if (tm_locked)
+			TMPFS_UNLOCK(tmp);
+	}
 
 	MPASS(vp->v_data == NULL);
 	return (0);
@@ -1727,6 +1744,7 @@ tmpfs_vptocnp(struct vop_vptocnp_args *ap)
 	}
 restart:
 	TMPFS_LOCK(tm);
+restart_locked:
 	LIST_FOREACH_SAFE(tnp, &tm->tm_nodes_used, tn_entries, tnp1) {
 		if (tnp->tn_type != VDIR)
 			continue;
@@ -1764,8 +1782,13 @@ restart:
 		} else {
 			KASSERT(tnp->tn_refcount > 0,
 			    ("node %p refcount zero", tnp));
-			tnp1 = LIST_NEXT(tnp, tn_entries);
-			TMPFS_NODE_UNLOCK(tnp);
+			if (tnp->tn_attached) {
+				tnp1 = LIST_NEXT(tnp, tn_entries);
+				TMPFS_NODE_UNLOCK(tnp);
+			} else {
+				TMPFS_NODE_UNLOCK(tnp);
+				goto restart_locked;
+			}
 		}
 	}
 	TMPFS_UNLOCK(tm);
