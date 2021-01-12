@@ -121,7 +121,7 @@ mrsas_linux_ioctl(struct thread *p, struct linux_ioctl_args *args)
 		goto END;
 	}
 #if (__FreeBSD_version >= 1000000)
-	error = fget(p, args->fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
+	error = fget(p, args->fd, cap_rights_init_one(&rights, CAP_IOCTL), &fp);
 #elif (__FreeBSD_version <= 900000)
 	error = fget(p, args->fd, &fp);
 #else					/* For FreeBSD version greater than

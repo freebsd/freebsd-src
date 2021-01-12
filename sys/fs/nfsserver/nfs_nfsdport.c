@@ -3609,7 +3609,7 @@ nfssvc_nfsd(struct thread *td, struct nfssvc_args *uap)
 		 * careful than too reckless.
 		 */
 		error = fget(td, sockarg.sock,
-		    cap_rights_init(&rights, CAP_SOCK_SERVER), &fp);
+		    cap_rights_init_one(&rights, CAP_SOCK_SERVER), &fp);
 		if (error != 0)
 			goto out;
 		if (fp->f_type != DTYPE_SOCKET) {

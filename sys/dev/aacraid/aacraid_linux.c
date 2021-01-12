@@ -85,7 +85,7 @@ aacraid_linux_ioctl(struct thread *td, struct linux_ioctl_args *args)
 	int error;
 
 	if ((error = fget(td, args->fd,
-	    cap_rights_init(&rights, CAP_IOCTL),
+	    cap_rights_init_one(&rights, CAP_IOCTL),
 	    &fp)) != 0) {
 		return (error);
 	}

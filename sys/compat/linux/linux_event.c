@@ -421,7 +421,7 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 	}
 
 	error = fget(td, args->epfd,
-	    cap_rights_init(&rights, CAP_KQUEUE_CHANGE), &epfp);
+	    cap_rights_init_one(&rights, CAP_KQUEUE_CHANGE), &epfp);
 	if (error != 0)
 		return (error);
 	if (epfp->f_type != DTYPE_KQUEUE) {
@@ -430,7 +430,8 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 	}
 
 	 /* Protect user data vector from incorrectly supplied fd. */
-	error = fget(td, args->fd, cap_rights_init(&rights, CAP_POLL_EVENT), &fp);
+	error = fget(td, args->fd,
+		     cap_rights_init_one(&rights, CAP_POLL_EVENT), &fp);
 	if (error != 0)
 		goto leave1;
 
@@ -505,7 +506,7 @@ linux_epoll_wait_common(struct thread *td, int epfd, struct epoll_event *events,
 		return (EINVAL);
 
 	error = fget(td, epfd,
-	    cap_rights_init(&rights, CAP_KQUEUE_EVENT), &epfp);
+	    cap_rights_init_one(&rights, CAP_KQUEUE_EVENT), &epfp);
 	if (error != 0)
 		return (error);
 	if (epfp->f_type != DTYPE_KQUEUE) {

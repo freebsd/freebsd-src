@@ -2087,7 +2087,7 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd, struct ttyhook *th,
 
 	/* Validate the file descriptor. */
 	fdp = p->p_fd;
-	error = fget_unlocked(fdp, fd, cap_rights_init(&rights, CAP_TTYHOOK),
+	error = fget_unlocked(fdp, fd, cap_rights_init_one(&rights, CAP_TTYHOOK),
 	    &fp);
 	if (error != 0)
 		return (error);
