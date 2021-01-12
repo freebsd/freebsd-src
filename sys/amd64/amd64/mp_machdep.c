@@ -660,6 +660,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	cpuset_t other_cpus, mask1;
 	uint32_t generation, *p_cpudone;
 	int cpu;
+	bool is_all;
 
 	/*
 	 * It is not necessary to signal other CPUs while booting or
@@ -673,14 +674,10 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	/*
 	 * Check for other cpus.  Return if none.
 	 */
-	if (!CPU_CMP(&mask, &all_cpus)) {
-		if (mp_ncpus <= 1)
-			goto local_cb;
-	} else {
-		CPU_CLR(PCPU_GET(cpuid), &mask);
-		if (CPU_EMPTY(&mask))
-			goto local_cb;
-	}
+	is_all = !CPU_CMP(&mask, &all_cpus);
+	CPU_CLR(PCPU_GET(cpuid), &mask);
+	if (CPU_EMPTY(&mask))
+		goto local_cb;
 
 	/*
 	 * Initiator must have interrupts enabled, which prevents
@@ -719,7 +716,7 @@ smp_targeted_tlb_shootdown(cpuset_t mask, pmap_t pmap, vm_offset_t addr1,
 	 * (zeroing slot) and reading from it below (wait for
 	 * acknowledgment).
 	 */
-	if (!CPU_CMP(&mask, &all_cpus)) {
+	if (is_all) {
 		ipi_all_but_self(IPI_INVLOP);
 		other_cpus = all_cpus;
 		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
