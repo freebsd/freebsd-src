@@ -87,6 +87,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	uint32_t *instr, *limit;
 	const char *name;
 	char *modname;
+	bool found;
 	int offs;
 
 	modname = opaque;
@@ -108,12 +109,21 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	limit = (uint32_t *)(symval->value + symval->size);
 
 	/* Look for stp (pre-indexed) operation */
+	found = false;
 	for (; instr < limit; instr++) {
-		if ((*instr & LDP_STP_MASK) == STP_64)
+		/* Some functions start with "stp xt1, xt2, [xn, <const>]!" */
+		if ((*instr & LDP_STP_MASK) == STP_64) {
+			/*
+			 * Assume any other store of this type means we
+			 * are past the function prolog.
+			 */
+			if (((*instr >> ADDR_SHIFT) & ADDR_MASK) == 31)
+				found = true;
 			break;
+		}
 	}
 
-	if (instr >= limit)
+	if (!found)
 		return (0);
 
 	fbt = malloc(sizeof (fbt_probe_t), M_FBT, M_WAITOK | M_ZERO);
@@ -125,7 +135,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	fbt->fbtp_loadcnt = lf->loadcnt;
 	fbt->fbtp_savedval = *instr;
 	fbt->fbtp_patchval = FBT_PATCHVAL;
-	fbt->fbtp_rval = DTRACE_INVOP_PUSHM;
+	fbt->fbtp_rval = DTRACE_INVOP_STP;
 	fbt->fbtp_symindx = symindx;
 
 	fbt->fbtp_hashnext = fbt_probetab[FBT_ADDR2NDX(instr)];
