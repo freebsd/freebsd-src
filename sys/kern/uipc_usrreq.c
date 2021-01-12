@@ -2486,7 +2486,7 @@ unp_discard(struct file *fp)
 		atomic_add_int(&unp_defers_count, 1);
 		taskqueue_enqueue(taskqueue_thread, &unp_defer_task);
 	} else
-		(void) closef(fp, (struct thread *)NULL);
+		closef_nothread(fp);
 }
 
 static void
@@ -2508,7 +2508,7 @@ unp_process_defers(void *arg __unused, int pending)
 		count = 0;
 		while ((dr = SLIST_FIRST(&drl)) != NULL) {
 			SLIST_REMOVE_HEAD(&drl, ud_link);
-			closef(dr->ud_fp, NULL);
+			closef_nothread(dr->ud_fp);
 			free(dr, M_TEMP);
 			count++;
 		}

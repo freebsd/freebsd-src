@@ -2737,6 +2737,8 @@ closef(struct file *fp, struct thread *td)
 	struct filedesc_to_leader *fdtol;
 	struct filedesc *fdp;
 
+	MPASS(td != NULL);
+
 	/*
 	 * POSIX record locking dictates that any close releases ALL
 	 * locks owned by this process.  This is handled by setting
@@ -2749,7 +2751,7 @@ closef(struct file *fp, struct thread *td)
 	 * context that might have locks, or the locks will be
 	 * leaked.
 	 */
-	if (fp->f_type == DTYPE_VNODE && td != NULL) {
+	if (fp->f_type == DTYPE_VNODE) {
 		vp = fp->f_vnode;
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
@@ -2795,6 +2797,16 @@ closef(struct file *fp, struct thread *td)
 		}
 	}
 	return (fdrop_close(fp, td));
+}
+
+/*
+ * Hack for file descriptor passing code.
+ */
+void
+closef_nothread(struct file *fp)
+{
+
+	fdrop(fp, NULL);
 }
 
 /*
