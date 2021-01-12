@@ -146,7 +146,7 @@ LDFLAGS+=	--build-id=sha1
 .endif
 
 CFLAGS+=	${DEBUG_FLAGS}
-.if ${MACHINE_CPUARCH} == amd64
+.if ${MACHINE_CPUARCH} == aarch64 || ${MACHINE_CPUARCH} == amd64
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
