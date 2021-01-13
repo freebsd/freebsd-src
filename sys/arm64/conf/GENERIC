@@ -217,6 +217,7 @@ device		aw_rtc		# Allwinner Real-time Clock
 device		mv_rtc		# Marvell Real-time Clock
 
 # Crypto accelerators
+device		armv8crypto	# ARMv8 OpenCrypto module
 device		safexcel	# Inside Secure EIP-97
 
 # Watchdog controllers
