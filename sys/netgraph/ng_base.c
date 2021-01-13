@@ -836,7 +836,7 @@ ng_ID2noderef(ng_ID_t ID)
 }
 
 ng_ID_t
-ng_node2ID(node_p node)
+ng_node2ID(node_cp node)
 {
 	return (node ? NG_NODE_ID(node) : 0);
 }
