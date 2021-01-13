@@ -1490,11 +1490,11 @@ need:
 int
 tmpfs_reclaim(struct vop_reclaim_args *v)
 {
-	struct vnode *vp = v->a_vp;
-
+	struct vnode *vp;
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
 
+	vp = v->a_vp;
 	node = VP_TO_TMPFS_NODE(vp);
 	tmp = VFS_TO_TMPFS(vp->v_mount);
 
@@ -1505,9 +1505,11 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 	TMPFS_NODE_LOCK(node);
 	tmpfs_free_vp(vp);
 
-	/* If the node referenced by this vnode was deleted by the user,
+	/*
+	 * If the node referenced by this vnode was deleted by the user,
 	 * we must free its associated data structures (now that the vnode
-	 * is being reclaimed). */
+	 * is being reclaimed).
+	 */
 	if (node->tn_links == 0 &&
 	    (node->tn_vpstate & TMPFS_VNODE_ALLOCATING) == 0) {
 		node->tn_vpstate = TMPFS_VNODE_DOOMED;
@@ -1517,7 +1519,7 @@ tmpfs_reclaim(struct vop_reclaim_args *v)
 		TMPFS_NODE_UNLOCK(node);
 
 	MPASS(vp->v_data == NULL);
-	return 0;
+	return (0);
 }
 
 int
