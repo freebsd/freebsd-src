@@ -303,7 +303,13 @@ gfx_fb_color_map(uint8_t index)
 	return (rgb_color_map(index, rmask, 16, gmask, 8, bmask, 0));
 }
 
-/* Get indexed color */
+/*
+ * Get indexed color from RGB. This function is used to write data to video
+ * memory when the adapter is set to use indexed colors.
+ * Since UEFI does only support 32-bit colors, we do not implement it for
+ * UEFI because there is no need for it and we do not have palette array
+ * for UEFI.
+ */
 static uint8_t
 rgb_to_color_index(uint8_t r, uint8_t g, uint8_t b)
 {
@@ -321,8 +327,10 @@ rgb_to_color_index(uint8_t r, uint8_t g, uint8_t b)
 		diff = b - pe8[k].Blue;
 		dist += diff * diff;
 
+		/* Exact match, exit the loop */
 		if (dist == 0)
 			break;
+
 		if (dist < best) {
 			color = k;
 			best = dist;
