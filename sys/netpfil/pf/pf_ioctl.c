@@ -3363,36 +3363,35 @@ DIOCCHANGEADDR_error:
 		struct pfioc_table *io = (struct pfioc_table *)addr;
 		struct pfr_table *pfrts;
 		size_t totlen;
-		int n;
 
 		if (io->pfrio_esize != sizeof(struct pfr_table)) {
 			error = ENODEV;
 			break;
 		}
 
-		PF_RULES_WLOCK();
-		n = pfr_table_count(&io->pfrio_table, io->pfrio_flags);
-		if (n < 0) {
-			PF_RULES_WUNLOCK();
-			error = EINVAL;
+		if (io->pfrio_size < 0 || io->pfrio_size > pf_ioctl_maxcount ||
+		    WOULD_OVERFLOW(io->pfrio_size, sizeof(struct pfr_table))) {
+			/* We used to count tables and use the minimum required
+			 * size, so we didn't fail on overly large requests.
+			 * Keep doing so. */
+			io->pfrio_size = pf_ioctl_maxcount;
 			break;
 		}
-		io->pfrio_size = min(io->pfrio_size, n);
 
 		totlen = io->pfrio_size * sizeof(struct pfr_table);
 		pfrts = mallocarray(io->pfrio_size, sizeof(struct pfr_table),
 		    M_TEMP, M_NOWAIT);
 		if (pfrts == NULL) {
 			error = ENOMEM;
-			PF_RULES_WUNLOCK();
 			break;
 		}
 		error = copyin(io->pfrio_buffer, pfrts, totlen);
 		if (error) {
 			free(pfrts, M_TEMP);
-			PF_RULES_WUNLOCK();
 			break;
 		}
+
+		PF_RULES_WLOCK();
 		error = pfr_clr_tstats(pfrts, io->pfrio_size,
 		    &io->pfrio_nzero, io->pfrio_flags | PFR_FLAG_USERIOCTL);
 		PF_RULES_WUNLOCK();
