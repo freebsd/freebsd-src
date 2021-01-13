@@ -87,6 +87,13 @@ struct ng_item ;
 typedef	struct ng_item *item_p;
 typedef struct ng_node *node_p;
 typedef struct ng_hook *hook_p;
+typedef	struct ng_item const *item_cp;
+typedef struct ng_hook const *hook_cp;
+#ifdef	NETGRAPH_DEBUG
+typedef struct ng_node       *node_cp; /* annotated during debug */
+#else	/* NETGRAPH_DEBUG */
+typedef struct ng_node const *node_cp;
+#endif	/* NETGRAPH_DEBUG */
 
 /* node method definitions */
 typedef	int	ng_constructor_t(node_p node);
@@ -1139,7 +1146,7 @@ int	ng_make_node_common(struct ng_type *typep, node_p *nodep);
 int	ng_name_node(node_p node, const char *name);
 node_p	ng_name2noderef(node_p node, const char *name);
 int	ng_newtype(struct ng_type *tp);
-ng_ID_t ng_node2ID(node_p node);
+ng_ID_t ng_node2ID(node_cp node);
 item_p	ng_package_data(struct mbuf *m, int flags);
 item_p	ng_package_msg(struct ng_mesg *msg, int flags);
 item_p	ng_package_msg_self(node_p here, hook_p hook, struct ng_mesg *msg);
