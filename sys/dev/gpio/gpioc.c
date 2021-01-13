@@ -567,7 +567,6 @@ gpioc_probe(device_t dev)
 static int
 gpioc_attach(device_t dev)
 {
-	int i;
 	int err;
 	struct gpioc_softc *sc;
 	struct make_dev_args devargs;
@@ -583,7 +582,7 @@ gpioc_attach(device_t dev)
 		return (err);
 	sc->sc_pin_intr = malloc(sizeof(struct gpioc_pin_intr) * sc->sc_npins,
 	    M_GPIOC, M_WAITOK | M_ZERO);
-	for (i = 0; i < sc->sc_npins; i++) {
+	for (int i = 0; i < sc->sc_npins; i++) {
 		sc->sc_pin_intr[i].pin = malloc(sizeof(struct gpiobus_pin),
 		    M_GPIOC, M_WAITOK | M_ZERO);
 		sc->sc_pin_intr[i].sc = sc;
@@ -613,12 +612,11 @@ gpioc_detach(device_t dev)
 {
 	struct gpioc_softc *sc = device_get_softc(dev);
 	int err;
-	int i;
 
 	if (sc->sc_ctl_dev)
 		destroy_dev(sc->sc_ctl_dev);
 
-	for (i = 0; i < sc->sc_npins; i++) {
+	for (int i = 0; i < sc->sc_npins; i++) {
 		mtx_destroy(&sc->sc_pin_intr[i].mtx);
 		free(&sc->sc_pin_intr[i].pin, M_GPIOC);
 	}
