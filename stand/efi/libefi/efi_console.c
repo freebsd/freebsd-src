@@ -929,11 +929,7 @@ cons_update_mode(bool use_gfx_mode)
 	 * also just use the old emulator. RB_MULTIPLE also implies
 	 * we're using a serial console.
 	 */
-#if defined(__i386__) || defined(__amd64__)
 	mode = parse_uefi_con_out();
-#else
-	mode = 0;
-#endif
 	if ((mode & (RB_SERIAL | RB_MULTIPLE)) == 0) {
 		conout->EnableCursor(conout, FALSE);
 		gfx_state.tg_cursor_visible = false;
