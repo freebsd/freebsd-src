@@ -2836,11 +2836,6 @@ again:
 			return (rv);
 		}
 
-		if ((flags & VM_MAP_PROTECT_SET_PROT) == 0)
-			new_prot = entry->protection;
-		if ((flags & VM_MAP_PROTECT_SET_MAXPROT) == 0)
-			new_maxprot = entry->max_protection;
-
 		if ((flags & VM_MAP_PROTECT_SET_PROT) == 0 ||
 		    ((new_prot & ~entry->protection) & VM_PROT_WRITE) == 0 ||
 		    ENTRY_CHARGED(entry) ||
