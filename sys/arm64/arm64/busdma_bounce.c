@@ -845,9 +845,7 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 			KASSERT(dmat->common.alignment <= PAGE_SIZE,
 			    ("bounced buffer cannot have alignment bigger "
 			    "than PAGE_SIZE: %lu", dmat->common.alignment));
-			sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
-			sgsize = roundup2(sgsize, dmat->common.alignment);
-			sgsize = MIN(sgsize, dmat->common.maxsegsz);
+			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 			    sgsize);
 		} else if ((map->flags & DMAMAP_COHERENT) == 0) {
@@ -879,7 +877,11 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 	/*
 	 * Did we fit?
 	 */
-	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
+	if (buflen != 0) {
+		bus_dmamap_unload(dmat, map);
+		return (EFBIG); /* XXX better return value here? */
+	}
+	return (0);
 }
 
 /*
@@ -892,7 +894,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     int *segp)
 {
 	struct sync_list *sl;
-	bus_size_t sgsize, max_sgsize;
+	bus_size_t sgsize;
 	bus_addr_t curaddr, sl_pend;
 	vm_offset_t kvaddr, vaddr, sl_vend;
 	int error;
@@ -931,7 +933,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		/*
 		 * Get the physical address for this segment.
 		 */
-		if (pmap == kernel_pmap) {
+		if (__predict_true(pmap == kernel_pmap)) {
 			curaddr = pmap_kextract(vaddr);
 			kvaddr = vaddr;
 		} else {
@@ -942,13 +944,9 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		/*
 		 * Compute the segment size, and adjust counts.
 		 */
-		max_sgsize = MIN(buflen, dmat->common.maxsegsz);
-		if ((map->flags & DMAMAP_FROM_DMAMEM) != 0) {
-			sgsize = max_sgsize;
-		} else {
-			sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
-			sgsize = MIN(sgsize, max_sgsize);
-		}
+		sgsize = MIN(buflen, dmat->common.maxsegsz);
+		if ((map->flags & DMAMAP_FROM_DMAMEM) == 0)
+			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 
 		if (map->pagesneeded != 0 &&
 		    must_bounce(dmat, map, curaddr, sgsize)) {
@@ -956,9 +954,6 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			KASSERT(dmat->common.alignment <= PAGE_SIZE,
 			    ("bounced buffer cannot have alignment bigger "
 			    "than PAGE_SIZE: %lu", dmat->common.alignment));
-			sgsize = PAGE_SIZE - (curaddr & PAGE_MASK);
-			sgsize = roundup2(sgsize, dmat->common.alignment);
-			sgsize = MIN(sgsize, max_sgsize);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
 			    sgsize);
 		} else if ((map->flags & DMAMAP_COHERENT) == 0) {
@@ -999,7 +994,11 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	/*
 	 * Did we fit?
 	 */
-	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
+	if (buflen != 0) {
+		bus_dmamap_unload(dmat, map);
+		return (EFBIG); /* XXX better return value here? */
+	}
+	return (0);
 }
 
 static void
