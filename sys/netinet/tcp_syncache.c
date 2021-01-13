@@ -1231,18 +1231,30 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		/*
 		 * If timestamps were negotiated during SYN/ACK and a
 		 * segment without a timestamp is received, silently drop
-		 * the segment.
+		 * the segment, unless the missing timestamps are tolerated.
 		 * See section 3.2 of RFC 7323.
 		 */
 		if ((sc->sc_flags & SCF_TIMESTAMP) &&
 		    !(to->to_flags & TOF_TS)) {
-			SCH_UNLOCK(sch);
-			if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
-				log(LOG_DEBUG, "%s; %s: Timestamp missing, "
-				    "segment silently dropped\n", s, __func__);
-				free(s, M_TCPLOG);
+			if (V_tcp_tolerate_missing_ts) {
+				if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+					log(LOG_DEBUG,
+					    "%s; %s: Timestamp missing, "
+					    "segment processed normally\n",
+					    s, __func__);
+					free(s, M_TCPLOG);
+				}
+			} else {
+				SCH_UNLOCK(sch);
+				if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
+					log(LOG_DEBUG,
+					    "%s; %s: Timestamp missing, "
+					    "segment silently dropped\n",
+					    s, __func__);
+					free(s, M_TCPLOG);
+				}
+				return (-1);  /* Do not send RST */
 			}
-			return (-1);  /* Do not send RST */
 		}
 
 		/*
