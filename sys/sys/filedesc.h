@@ -229,7 +229,9 @@ int	dupfdopen(struct thread *td, struct filedesc *fdp, int dfd, int mode,
 	    int openerror, int *indxp);
 int	falloc_caps(struct thread *td, struct file **resultfp, int *resultfd,
 	    int flags, struct filecaps *fcaps);
-int	falloc_noinstall(struct thread *td, struct file **resultfp);
+void	falloc_abort(struct thread *td, struct file *fp);
+int	_falloc_noinstall(struct thread *td, struct file **resultfp, u_int n);
+#define	falloc_noinstall(td, resultfp) _falloc_noinstall(td, resultfp, 1)
 void	_finstall(struct filedesc *fdp, struct file *fp, int fd, int flags,
 	    struct filecaps *fcaps);
 int	finstall(struct thread *td, struct file *fp, int *resultfd, int flags,

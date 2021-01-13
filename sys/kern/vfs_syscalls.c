@@ -1214,14 +1214,14 @@ success:
 		}
 	} else {
 		filecaps_free(&nd.ni_filecaps);
-		fdrop_close(fp, td);
+		falloc_abort(td, fp);
 	}
 
 	td->td_retval[0] = indx;
 	return (0);
 bad:
 	KASSERT(indx == -1, ("indx=%d, should be -1", indx));
-	fdrop_close(fp, td);
+	falloc_abort(td, fp);
 	return (error);
 }
 
