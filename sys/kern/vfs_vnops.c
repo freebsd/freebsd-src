@@ -240,8 +240,11 @@ restart:
 		/*
 		 * Set NOCACHE to avoid flushing the cache when
 		 * rolling in many files at once.
-		*/
-		ndp->ni_cnd.cn_flags |= LOCKPARENT | NOCACHE;
+		 *
+		 * Set NC_KEEPPOSENTRY to keep positive entries if they already
+		 * exist despite NOCACHE.
+		 */
+		ndp->ni_cnd.cn_flags |= LOCKPARENT | NOCACHE | NC_KEEPPOSENTRY;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		if ((vn_open_flags & VN_OPEN_INVFS) == 0)
