@@ -1979,13 +1979,14 @@ falloc_caps(struct thread *td, struct file **resultfp, int *resultfd, int flags,
 	MPASS(resultfp != NULL);
 	MPASS(resultfd != NULL);
 
-	error = falloc_noinstall(td, &fp);
-	if (error)
-		return (error);		/* no reference held on error */
+	error = _falloc_noinstall(td, &fp, 2);
+	if (__predict_false(error != 0)) {
+		return (error);
+	}
 
-	error = finstall(td, fp, &fd, flags, fcaps);
-	if (error) {
-		fdrop(fp, td);		/* one reference (fp only) */
+	error = finstall_refed(td, fp, &fd, flags, fcaps);
+	if (__predict_false(error != 0)) {
+		falloc_abort(td, fp);
 		return (error);
 	}
 
@@ -1999,7 +2000,7 @@ falloc_caps(struct thread *td, struct file **resultfp, int *resultfd, int flags,
  * Create a new open file structure without allocating a file descriptor.
  */
 int
-falloc_noinstall(struct thread *td, struct file **resultfp)
+_falloc_noinstall(struct thread *td, struct file **resultfp, u_int n)
 {
 	struct file *fp;
 	int maxuserfiles = maxfiles - (maxfiles / 20);
@@ -2008,6 +2009,7 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 	static int curfail;
 
 	KASSERT(resultfp != NULL, ("%s: resultfp == NULL", __func__));
+	MPASS(n > 0);
 
 	openfiles_new = atomic_fetchadd_int(&openfiles, 1) + 1;
 	if ((openfiles_new >= maxuserfiles &&
@@ -2022,11 +2024,22 @@ falloc_noinstall(struct thread *td, struct file **resultfp)
 	}
 	fp = uma_zalloc(file_zone, M_WAITOK);
 	bzero(fp, sizeof(*fp));
-	refcount_init(&fp->f_count, 1);
+	refcount_init(&fp->f_count, n);
 	fp->f_cred = crhold(td->td_ucred);
 	fp->f_ops = &badfileops;
 	*resultfp = fp;
 	return (0);
+}
+
+void
+falloc_abort(struct thread *td, struct file *fp)
+{
+
+	/*
+	 * For assertion purposes.
+	 */
+	refcount_init(&fp->f_count, 0);
+	_fdrop(fp, td);
 }
 
 /*
