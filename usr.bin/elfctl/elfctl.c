@@ -83,7 +83,9 @@ static struct option long_opts[] = {
 #else
 #define SUPPORTED_ENDIAN ELFDATA2MSB
 #endif
-		
+
+static bool iflag;
+
 int
 main(int argc, char **argv)
 {
@@ -102,8 +104,11 @@ main(int argc, char **argv)
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		errx(EXIT_FAILURE, "elf_version error");
 
-	while ((ch = getopt_long(argc, argv, "hle:", long_opts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "hile:", long_opts, NULL)) != -1) {
 		switch (ch) {
+		case 'i':
+			iflag = true;
+			break;
 		case 'l':
 			print_features();
 			lflag = true;
@@ -199,6 +204,7 @@ Usage: %s [options] file...\n\
   Set or display the control features for an ELF object.\n\n\
   Supported options are:\n\
   -l                        List known control features.\n\
+  -i                        Ignore unknown features.\n\
   -e [+-=]feature,list      Edit features from a comma separated list.\n\
   -h | --help               Print a usage message and exit.\n"
 
@@ -231,7 +237,8 @@ convert_to_feature_val(char *feature_str, uint32_t *feature_val)
 		}
 		if (i == len) {
 			warnx("%s is not a valid feature", feature);
-			return (false);
+			if (!iflag)
+				return (false);
 		}
 	}
 
