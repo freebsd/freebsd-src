@@ -451,10 +451,11 @@ tcp_twcheck(struct inpcb *inp, struct tcpopt *to, struct tcphdr *th,
 	/*
 	 * If timestamps were negotiated during SYN/ACK and a
 	 * segment without a timestamp is received, silently drop
-	 * the segment.
+	 * the segment, unless the missing timestamps are tolerated.
 	 * See section 3.2 of RFC 7323.
 	 */
-	if (((to->to_flags & TOF_TS) == 0) && (tw->t_recent != 0)) {
+	if (((to->to_flags & TOF_TS) == 0) && (tw->t_recent != 0) &&
+	    (V_tcp_tolerate_missing_ts == 0)) {
 		goto drop;
 	}
 

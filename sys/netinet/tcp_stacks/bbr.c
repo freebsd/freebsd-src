@@ -11463,11 +11463,12 @@ bbr_do_segment_nounlock(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * If timestamps were negotiated during SYN/ACK and a
 	 * segment without a timestamp is received, silently drop
-	 * the segment, unless it is a RST segment.
+	 * the segment, unless it is a RST segment or missing timestamps are
+	 * tolerated.
 	 * See section 3.2 of RFC 7323.
 	 */
 	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS) &&
-	    ((thflags & TH_RST) == 0)) {
+	    ((thflags & TH_RST) == 0) && (V_tcp_tolerate_missing_ts == 0)) {
 		retval = 0;
 		goto done_with_input;
 	}

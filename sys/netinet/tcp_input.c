@@ -1692,11 +1692,12 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * If timestamps were negotiated during SYN/ACK and a
 	 * segment without a timestamp is received, silently drop
-	 * the segment, unless it is a RST segment.
+	 * the segment, unless it is a RST segment or missing timestamps are
+	 * tolerated.
 	 * See section 3.2 of RFC 7323.
 	 */
 	if ((tp->t_flags & TF_RCVD_TSTMP) && !(to.to_flags & TOF_TS)) {
-		if ((thflags & TH_RST) != 0) {
+		if (((thflags & TH_RST) != 0) || V_tcp_tolerate_missing_ts) {
 			if ((s = tcp_log_addrs(inc, th, NULL, NULL))) {
 				log(LOG_DEBUG, "%s; %s: Timestamp missing, "
 				    "segment processed normally\n",
