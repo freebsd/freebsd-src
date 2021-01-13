@@ -403,8 +403,6 @@ static int
 bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
     bus_dmamap_t *mapp)
 {
-	uintptr_t ma;
-	size_t malloc_sz;
 	vm_memattr_t attr;
 	int mflags;
 
@@ -447,20 +445,19 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	 * else allocate a block of contiguous pages because one or more of the
 	 * constraints is something that only the contig allocator can fulfill.
 	 *
-	 * Warn the user if we get it wrong.
+	 * NOTE: The (dmat->common.alignment <= dmat->maxsize) check
+	 * below is just a quick hack. The exact alignment guarantees
+	 * of malloc(9) need to be nailed down, and the code below
+	 * should be rewritten to take that into account.
+	 *
+	 * In the meantime warn the user if malloc gets it wrong.
 	 */
 	if (dmat->common.maxsize <= PAGE_SIZE &&
+	    dmat->common.alignment <= dmat->common.maxsize &&
 	    dmat->common.lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
-		malloc_sz = roundup2(dmat->common.maxsize,
-		    dmat->common.alignment);
-		ma = (uintptr_t)malloc_domainset(malloc_sz, M_DEVBUF,
+		*vaddr = malloc_domainset(dmat->common.maxsize, M_DEVBUF,
 		    DOMAINSET_PREF(dmat->common.domain), mflags);
-		if (ma != 0) {
-			*vaddr = (void *)roundup2(ma, dmat->common.alignment);
-		} else {
-			*vaddr = NULL;
-		}
 	} else if (dmat->common.nsegments >=
 	    howmany(dmat->common.maxsize, MIN(dmat->common.maxsegsz,
 	    PAGE_SIZE)) &&
