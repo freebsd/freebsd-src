@@ -953,13 +953,13 @@ cons_update_mode(bool use_gfx_mode)
 
 			/*
 			 * setup_font() can adjust terminal size.
-			 * Note, we assume 80x24 terminal first, this is
-			 * because the font selection will attempt to achieve
-			 * at least this terminal dimension and we do not
-			 * end up with too small font.
+			 * Note, we do use UEFI terminal dimensions first,
+			 * this is because the font selection will attempt
+			 * to achieve at least this terminal dimension and
+			 * we do not end up with too small font.
 			 */
-			gfx_state.tg_tp.tp_row = TEXT_ROWS;
-			gfx_state.tg_tp.tp_col = TEXT_COLS;
+			gfx_state.tg_tp.tp_row = rows;
+			gfx_state.tg_tp.tp_col = cols;
 			setup_font(&gfx_state, fb_height, fb_width);
 			rows = gfx_state.tg_tp.tp_row;
 			cols = gfx_state.tg_tp.tp_col;
