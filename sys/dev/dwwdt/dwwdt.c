@@ -86,6 +86,11 @@ struct dwwdt_softc {
 
 static devclass_t dwwdt_devclass;
 
+static struct ofw_compat_data compat_data[] = {
+	{ "snps,dw-wdt",		1 },
+	{ NULL,				0 }
+};
+
 SYSCTL_NODE(_dev, OID_AUTO, dwwdt, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Synopsys Designware watchdog timer");
 /* Setting this to 0 enables full restart mode. */
@@ -219,7 +224,7 @@ dwwdt_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_is_compatible(dev, "snps,dw-wdt"))
+	if (!ofw_bus_search_compatible(dev, compat_data)->ocd_data)
 		return (ENXIO);
 
 	device_set_desc(dev, "Synopsys Designware watchdog timer");
@@ -358,3 +363,4 @@ static driver_t dwwdt_driver = {
 
 DRIVER_MODULE(dwwdt, simplebus, dwwdt_driver, dwwdt_devclass, NULL, NULL);
 MODULE_VERSION(dwwdt, 1);
+OFWBUS_PNP_INFO(compat_data);
