@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2020
+.Dd January 12, 2021
 .Dt ELFCTL 1
 .Os
 .Sh NAME
@@ -35,6 +35,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl h | Fl -help
+.Op Fl i
 .Op Fl l
 .Op Fl e Ar featurelist
 .Ar
@@ -47,6 +48,9 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl h | Fl -help
 Print a usage message and exit.
+.It Fl i
+Ignore unknown feature flags in
+.Ar featurelist .
 .It Fl l
 List known ELF feature flags.
 .It Fl e Ar featurelist
