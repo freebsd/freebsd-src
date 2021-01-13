@@ -115,6 +115,7 @@ struct ng_bridge_link {
 					sendUnknown : 1;/* send unknown macs out */
 	struct ng_bridge_link_kernel_stats stats;	/* link stats */
 };
+typedef struct ng_bridge_link const *link_cp;	/* read only access */
 
 /* Per-node private data */
 struct ng_bridge_private {
@@ -130,6 +131,7 @@ struct ng_bridge_private {
 	struct callout		timer;		/* one second periodic timer */
 };
 typedef struct ng_bridge_private *priv_p;
+typedef struct ng_bridge_private const *priv_cp;	/* read only access */
 
 /* Information about a host, stored in a hash table entry */
 struct ng_bridge_hent {
@@ -149,12 +151,12 @@ static ng_rcvdata_t	ng_bridge_rcvdata;
 static ng_disconnect_t	ng_bridge_disconnect;
 
 /* Other internal functions */
-static struct	ng_bridge_host *ng_bridge_get(priv_p priv, const u_char *addr);
+static struct	ng_bridge_host *ng_bridge_get(priv_cp priv, const u_char *addr);
 static int	ng_bridge_put(priv_p priv, const u_char *addr, link_p link);
 static void	ng_bridge_rehash(priv_p priv);
 static void	ng_bridge_remove_hosts(priv_p priv, link_p link);
 static void	ng_bridge_timeout(node_p node, hook_p hook, void *arg1, int arg2);
-static const	char *ng_bridge_nodename(node_p node);
+static const	char *ng_bridge_nodename(node_cp node);
 
 /* Ethernet broadcast */
 static const u_char ng_bridge_bcast_addr[ETHER_ADDR_LEN] =
@@ -920,7 +922,7 @@ ng_bridge_disconnect(hook_p hook)
  * Find a host entry in the table.
  */
 static struct ng_bridge_host *
-ng_bridge_get(priv_p priv, const u_char *addr)
+ng_bridge_get(priv_cp priv, const u_char *addr)
 {
 	const int bucket = HASH(addr, priv->hashMask);
 	struct ng_bridge_hent *hent;
@@ -1131,7 +1133,7 @@ ng_bridge_timeout(node_p node, hook_p hook, void *arg1, int arg2)
  * Return node's "name", even if it doesn't have one.
  */
 static const char *
-ng_bridge_nodename(node_p node)
+ng_bridge_nodename(node_cp node)
 {
 	static char name[NG_NODESIZ];
 
