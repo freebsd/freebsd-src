@@ -887,6 +887,7 @@ int	in6_update_ifa(struct ifnet *, struct in6_aliasreq *,
 void	in6_prepare_ifra(struct in6_aliasreq *, const struct in6_addr *,
 	const struct in6_addr *);
 void	in6_purgeaddr(struct ifaddr *);
+void	in6_purgeifaddr(struct in6_ifaddr *);
 int	in6if_do_dad(struct ifnet *);
 void	in6_savemkludge(struct in6_ifaddr *);
 void	*in6_domifattach(struct ifnet *);

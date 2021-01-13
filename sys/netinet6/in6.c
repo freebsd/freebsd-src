@@ -696,31 +696,10 @@ aifaddr_out:
 	}
 
 	case SIOCDIFADDR_IN6:
-	{
-		struct nd_prefix *pr;
-
-		/*
-		 * If the address being deleted is the only one that owns
-		 * the corresponding prefix, expire the prefix as well.
-		 * XXX: theoretically, we don't have to worry about such
-		 * relationship, since we separate the address management
-		 * and the prefix management.  We do this, however, to provide
-		 * as much backward compatibility as possible in terms of
-		 * the ioctl operation.
-		 * Note that in6_purgeaddr() will decrement ndpr_addrcnt.
-		 */
-		pr = ia->ia6_ndpr;
-		in6_purgeaddr(&ia->ia_ifa);
-		if (pr != NULL && pr->ndpr_addrcnt == 0) {
-			ND6_WLOCK();
-			nd6_prefix_unlink(pr, NULL);
-			ND6_WUNLOCK();
-			nd6_prefix_del(pr);
-		}
+		in6_purgeifaddr(ia);
 		EVENTHANDLER_INVOKE(ifaddr_event_ext, ifp, &ia->ia_ifa,
 		    IFADDR_EVENT_DEL);
 		break;
-	}
 
 	default:
 		if (ifp->if_ioctl == NULL) {
@@ -1363,6 +1342,36 @@ in6_purgeaddr(struct ifaddr *ifa)
 	in6_newaddrmsg(ia, RTM_DELETE);
 	in6_unlink_ifa(ia, ifp);
 }
+
+/*
+ * Removes @ia from the corresponding interfaces and unlinks corresponding
+ *  prefix if no addresses are using it anymore.
+ */
+void
+in6_purgeifaddr(struct in6_ifaddr *ia)
+{
+	struct nd_prefix *pr;
+
+	/*
+	 * If the address being deleted is the only one that owns
+	 * the corresponding prefix, expire the prefix as well.
+	 * XXX: theoretically, we don't have to worry about such
+	 * relationship, since we separate the address management
+	 * and the prefix management.  We do this, however, to provide
+	 * as much backward compatibility as possible in terms of
+	 * the ioctl operation.
+	 * Note that in6_purgeaddr() will decrement ndpr_addrcnt.
+	 */
+	pr = ia->ia6_ndpr;
+	in6_purgeaddr(&ia->ia_ifa);
+	if (pr != NULL && pr->ndpr_addrcnt == 0) {
+		ND6_WLOCK();
+		nd6_prefix_unlink(pr, NULL);
+		ND6_WUNLOCK();
+		nd6_prefix_del(pr);
+	}
+}
+
 
 static void
 in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
