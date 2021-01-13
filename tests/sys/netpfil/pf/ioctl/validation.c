@@ -265,6 +265,11 @@ ATF_TC_BODY(clrtstats, tc)
 	io.pfrio_size = 1 << 24;
 	if (ioctl(dev, DIOCRCLRTSTATS, &io) != 0)
 		atf_tc_fail("Request with size 1 << 24 failed");
+
+	io.pfrio_size = sizeof(tbl);
+	io.pfrio_buffer = NULL;
+	if (ioctl(dev, DIOCRCLRTSTATS, &io) == 0)
+		atf_tc_fail("Request with NULL buffer succeeded");
 }
 
 ATF_TC_CLEANUP(clrtstats, tc)
