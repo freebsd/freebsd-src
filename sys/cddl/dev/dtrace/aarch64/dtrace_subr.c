@@ -314,6 +314,11 @@ dtrace_invop_start(struct trapframe *frame)
 		return (0);
 	}
 
+	if (invop == NOP_INSTR) {
+		frame->tf_elr += INSN_SIZE;
+		return (0);
+	}
+
 	if ((invop & B_MASK) == B_INSTR) {
 		data = (invop & B_DATA_MASK);
 		/* The data is the number of 4-byte words to change the pc */

@@ -38,9 +38,15 @@
 
 #define	_C_LABEL(x)	x
 
+#ifdef KDTRACE_HOOKS
+#define	DTRACE_NOP	nop
+#else
+#define	DTRACE_NOP
+#endif
+
 #define	LENTRY(sym)						\
 	.text; .align 2; .type sym,#function; sym:		\
-	.cfi_startproc
+	.cfi_startproc; DTRACE_NOP
 #define	ENTRY(sym)						\
 	.globl sym; LENTRY(sym)
 #define	EENTRY(sym)						\
