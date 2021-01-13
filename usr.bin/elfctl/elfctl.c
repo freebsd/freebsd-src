@@ -234,6 +234,16 @@ convert_to_feature_val(char *feature_str, uint32_t *feature_val)
 				input |= featurelist[i].value;
 				break;
 			}
+			/* XXX Backwards compatibility for "no"-prefix flags. */
+			if (strncmp(featurelist[i].alias, "no", 2) == 0 &&
+			    strcmp(featurelist[i].alias + 2, feature) == 0) {
+				input |= featurelist[i].value;
+				warnx(
+				    "interpreting %s as %s; please specify %s",
+				    feature, featurelist[i].alias,
+				    featurelist[i].alias);
+				break;
+			}
 		}
 		if (i == len) {
 			warnx("%s is not a valid feature", feature);
