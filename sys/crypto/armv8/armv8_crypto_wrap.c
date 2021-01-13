@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2016 The FreeBSD Foundation
+ * Copyright (c) 2020 Ampere Computing
  * All rights reserved.
  *
  * This software was developed by Andrew Turner under
@@ -41,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <opencrypto/cryptodev.h>
+#include <opencrypto/gmac.h>
+#include <crypto/rijndael/rijndael.h>
 #include <crypto/armv8/armv8_crypto.h>
 
 #include <arm_neon.h>
@@ -90,7 +93,7 @@ armv8_aes_dec(int rounds, const uint8x16_t *keysched, const uint8x16_t from)
 }
 
 void
-armv8_aes_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
+armv8_aes_encrypt_cbc(const AES_key_t *key, size_t len,
     const uint8_t *from, uint8_t *to, const uint8_t iv[static AES_BLOCK_LEN])
 {
 	uint8x16_t tot, ivreg, tmp;
@@ -100,8 +103,8 @@ armv8_aes_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
 	ivreg = vld1q_u8(iv);
 	for (i = 0; i < len; i++) {
 		tmp = vld1q_u8(from);
-		tot = armv8_aes_enc(rounds - 1, key_schedule,
-		    veorq_u8(tmp, ivreg));
+		tot = armv8_aes_enc(key->aes_rounds - 1,
+		    (const void*)key->aes_key, veorq_u8(tmp, ivreg));
 		ivreg = tot;
 		vst1q_u8(to, tot);
 		from += AES_BLOCK_LEN;
@@ -110,7 +113,7 @@ armv8_aes_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
 }
 
 void
-armv8_aes_decrypt_cbc(int rounds, const void *key_schedule, size_t len,
+armv8_aes_decrypt_cbc(const AES_key_t *key, size_t len,
     uint8_t *buf, const uint8_t iv[static AES_BLOCK_LEN])
 {
 	uint8x16_t ivreg, nextiv, tmp;
@@ -120,7 +123,8 @@ armv8_aes_decrypt_cbc(int rounds, const void *key_schedule, size_t len,
 	ivreg = vld1q_u8(iv);
 	for (i = 0; i < len; i++) {
 		nextiv = vld1q_u8(buf);
-		tmp = armv8_aes_dec(rounds - 1, key_schedule, nextiv);
+		tmp = armv8_aes_dec(key->aes_rounds - 1,
+		    (const void*)key->aes_key, nextiv);
 		vst1q_u8(buf, veorq_u8(tmp, ivreg));
 		ivreg = nextiv;
 		buf += AES_BLOCK_LEN;
@@ -200,21 +204,203 @@ armv8_aes_crypt_xts(int rounds, const uint8x16_t *data_schedule,
 }
 
 void
-armv8_aes_encrypt_xts(int rounds, const void *data_schedule,
+armv8_aes_encrypt_xts(AES_key_t *data_schedule,
     const void *tweak_schedule, size_t len, const uint8_t *from, uint8_t *to,
     const uint8_t iv[static AES_BLOCK_LEN])
 {
 
-	armv8_aes_crypt_xts(rounds, data_schedule, tweak_schedule, len, from, to,
-	    iv, 1);
+	armv8_aes_crypt_xts(data_schedule->aes_rounds,
+	    (const void *)&data_schedule->aes_key, tweak_schedule, len, from,
+	    to, iv, 1);
 }
 
 void
-armv8_aes_decrypt_xts(int rounds, const void *data_schedule,
+armv8_aes_decrypt_xts(AES_key_t *data_schedule,
     const void *tweak_schedule, size_t len, const uint8_t *from, uint8_t *to,
     const uint8_t iv[static AES_BLOCK_LEN])
 {
 
-	armv8_aes_crypt_xts(rounds, data_schedule, tweak_schedule, len, from, to,
-	    iv, 0);
+	armv8_aes_crypt_xts(data_schedule->aes_rounds,
+	    (const void *)&data_schedule->aes_key, tweak_schedule, len, from,
+	    to,iv, 0);
+
+}
+
+#define	AES_INC_COUNTER(counter)				\
+	do {							\
+		for (int pos = AES_BLOCK_LEN - 1;		\
+		     pos >= 0; pos--)				\
+			if (++(counter)[pos])			\
+				break;				\
+	} while (0)
+
+void
+armv8_aes_encrypt_gcm(AES_key_t *aes_key, size_t len,
+    const uint8_t *from, uint8_t *to,
+    size_t authdatalen, const uint8_t *authdata,
+    uint8_t tag[static GMAC_DIGEST_LEN],
+    const uint8_t iv[static AES_GCM_IV_LEN],
+    const __uint128_val_t *Htable)
+{
+	size_t i;
+	const uint64_t *from64;
+	uint64_t *to64;
+	uint8_t aes_counter[AES_BLOCK_LEN];
+	uint8_t block[AES_BLOCK_LEN];
+	size_t trailer;
+	__uint128_val_t EK0, EKi, Xi, lenblock;
+
+	bzero(&aes_counter, AES_BLOCK_LEN);
+	memcpy(aes_counter, iv, AES_GCM_IV_LEN);
+
+	/* Setup the counter */
+	aes_counter[AES_BLOCK_LEN - 1] = 1;
+
+	/* EK0 for a final GMAC round */
+	aes_v8_encrypt(aes_counter, EK0.c, aes_key);
+
+	/* GCM starts with 2 as counter, 1 is used for final xor of tag. */
+	aes_counter[AES_BLOCK_LEN - 1] = 2;
+
+	memset(Xi.c, 0, sizeof(Xi.c));
+	memset(block, 0, sizeof(block));
+	memcpy(block, authdata, min(authdatalen, sizeof(block)));
+	gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
+
+	from64 = (const uint64_t*)from;
+	to64 = (uint64_t*)to;
+	trailer = len % AES_BLOCK_LEN;
+
+	for (i = 0; i < (len - trailer); i += AES_BLOCK_LEN) {
+		aes_v8_encrypt(aes_counter, EKi.c, aes_key);
+		AES_INC_COUNTER(aes_counter);
+		to64[0] = from64[0] ^ EKi.u[0];
+		to64[1] = from64[1] ^ EKi.u[1];
+		gcm_ghash_v8(Xi.u, Htable, (uint8_t*)to64, AES_BLOCK_LEN);
+
+		to64 += 2;
+		from64 += 2;
+	}
+
+	to += (len - trailer);
+	from += (len - trailer);
+
+	if (trailer) {
+		aes_v8_encrypt(aes_counter, EKi.c, aes_key);
+		AES_INC_COUNTER(aes_counter);
+		for (i = 0; i < trailer; i++) {
+			block[i] = to[i] = from[i] ^ EKi.c[i % AES_BLOCK_LEN];
+		}
+
+		for (; i < AES_BLOCK_LEN; i++)
+			block[i] = 0;
+
+		gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
+	}
+
+	/* Lengths block */
+	lenblock.u[0] = lenblock.u[1] = 0;
+	lenblock.d[1] = htobe32(authdatalen * 8);
+	lenblock.d[3] = htobe32(len * 8);
+	gcm_ghash_v8(Xi.u, Htable, lenblock.c, AES_BLOCK_LEN);
+
+	Xi.u[0] ^= EK0.u[0];
+	Xi.u[1] ^= EK0.u[1];
+	memcpy(tag, Xi.c, GMAC_DIGEST_LEN);
+
+	explicit_bzero(aes_counter, sizeof(aes_counter));
+	explicit_bzero(Xi.c, sizeof(Xi.c));
+	explicit_bzero(EK0.c, sizeof(EK0.c));
+	explicit_bzero(EKi.c, sizeof(EKi.c));
+	explicit_bzero(lenblock.c, sizeof(lenblock.c));
+}
+
+int
+armv8_aes_decrypt_gcm(AES_key_t *aes_key, size_t len,
+    const uint8_t *from, uint8_t *to,
+    size_t authdatalen, const uint8_t *authdata,
+    const uint8_t tag[static GMAC_DIGEST_LEN],
+    const uint8_t iv[static AES_GCM_IV_LEN],
+    const __uint128_val_t *Htable)
+{
+	size_t i;
+	const uint64_t *from64;
+	uint64_t *to64;
+	uint8_t aes_counter[AES_BLOCK_LEN];
+	uint8_t block[AES_BLOCK_LEN];
+	size_t trailer;
+	__uint128_val_t EK0, EKi, Xi, lenblock;
+	int error;
+
+	error = 0;
+	bzero(&aes_counter, AES_BLOCK_LEN);
+	memcpy(aes_counter, iv, AES_GCM_IV_LEN);
+
+	/* Setup the counter */
+	aes_counter[AES_BLOCK_LEN - 1] = 1;
+
+	/* EK0 for a final GMAC round */
+	aes_v8_encrypt(aes_counter, EK0.c, aes_key);
+
+	memset(Xi.c, 0, sizeof(Xi.c));
+	memset(block, 0, sizeof(block));
+	memcpy(block, authdata, min(authdatalen, sizeof(block)));
+	gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
+	trailer = len % AES_BLOCK_LEN;
+	gcm_ghash_v8(Xi.u, Htable, from, len - trailer);
+
+	if (trailer) {
+		for (i = 0; i < trailer; i++)
+			block[i] = from[len - trailer + i];
+		for (; i < AES_BLOCK_LEN; i++)
+			block[i] = 0;
+		gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
+	}
+
+	/* Lengths block */
+	lenblock.u[0] = lenblock.u[1] = 0;
+	lenblock.d[1] = htobe32(authdatalen * 8);
+	lenblock.d[3] = htobe32(len * 8);
+	gcm_ghash_v8(Xi.u, Htable, lenblock.c, AES_BLOCK_LEN);
+
+	Xi.u[0] ^= EK0.u[0];
+	Xi.u[1] ^= EK0.u[1];
+	if (timingsafe_bcmp(tag, Xi.c, GMAC_DIGEST_LEN) != 0) {
+		error = EBADMSG;
+		goto out;
+	}
+
+	/* GCM starts with 2 as counter, 1 is used for final xor of tag. */
+	aes_counter[AES_BLOCK_LEN - 1] = 2;
+
+	from64 = (const uint64_t*)from;
+	to64 = (uint64_t*)to;
+
+	for (i = 0; i < (len - trailer); i += AES_BLOCK_LEN) {
+		aes_v8_encrypt(aes_counter, EKi.c, aes_key);
+		AES_INC_COUNTER(aes_counter);
+		to64[0] = from64[0] ^ EKi.u[0];
+		to64[1] = from64[1] ^ EKi.u[1];
+		to64 += 2;
+		from64 += 2;
+	}
+
+	to += (len - trailer);
+	from += (len - trailer);
+
+	if (trailer) {
+		aes_v8_encrypt(aes_counter, EKi.c, aes_key);
+		AES_INC_COUNTER(aes_counter);
+		for (i = 0; i < trailer; i++)
+			to[i] = from[i] ^ EKi.c[i % AES_BLOCK_LEN];
+	}
+
+out:
+	explicit_bzero(aes_counter, sizeof(aes_counter));
+	explicit_bzero(Xi.c, sizeof(Xi.c));
+	explicit_bzero(EK0.c, sizeof(EK0.c));
+	explicit_bzero(EKi.c, sizeof(EKi.c));
+	explicit_bzero(lenblock.c, sizeof(lenblock.c));
+
+	return (error);
 }
