@@ -764,6 +764,28 @@ malloc_domainset_exec(size_t size, struct malloc_type *mtp, struct domainset *ds
 }
 
 void *
+malloc_domainset_aligned(size_t size, size_t align,
+    struct malloc_type *mtp, struct domainset *ds, int flags)
+{
+	void *res;
+
+	KASSERT(align != 0 && powerof2(align),
+	    ("malloc_domainset_aligned: wrong align %#zx size %#zx",
+	    align, size));
+	KASSERT(align <= kmemzones[nitems(kmemzones) - 2].kz_size,
+	    ("malloc_domainset_aligned: align %#zx (size %#zx) too large",
+	    align, size));
+
+	if (size < align)
+		size = align;
+	res = malloc_domainset(size, mtp, ds, flags);
+	KASSERT(res == NULL || ((uintptr_t)res & (align - 1)) == 0,
+	    ("malloc_domainset_aligned: result not aligned %p size %#zx "
+	    "align %#zx", res, size, align));
+	return (res);
+}
+
+void *
 mallocarray(size_t nmemb, size_t size, struct malloc_type *type, int flags)
 {
 
@@ -1146,8 +1168,12 @@ mallocinit(void *dummy)
 	for (i = 0, indx = 0; kmemzones[indx].kz_size != 0; indx++) {
 		int size = kmemzones[indx].kz_size;
 		const char *name = kmemzones[indx].kz_name;
+		size_t align;
 		int subzone;
 
+		align = UMA_ALIGN_PTR;
+		if (powerof2(size) && size > sizeof(void *))
+			align = size - 1;
 		for (subzone = 0; subzone < numzones; subzone++) {
 			kmemzones[indx].kz_zone[subzone] =
 			    uma_zcreate(name, size,
@@ -1156,7 +1182,7 @@ mallocinit(void *dummy)
 #else
 			    NULL, NULL, NULL, NULL,
 #endif
-			    UMA_ALIGN_PTR, UMA_ZONE_MALLOC);
+			    align, UMA_ZONE_MALLOC);
 		}
 		for (;i <= size; i+= KMEM_ZBASE)
 			kmemsize[i >> KMEM_ZSHIFT] = indx;
