@@ -1652,7 +1652,7 @@ fcntl_common(struct thread *td, struct linux_fcntl_args *args)
 		return (kern_fcntl(td, args->fd, F_ADD_SEALS,
 		    linux_to_bsd_bits(args->arg, seal_bitmap, 0)));
 	default:
-		linux_msg(td, "unsupported fcntl cmd %d\n", args->cmd);
+		linux_msg(td, "unsupported fcntl cmd %d", args->cmd);
 		return (EINVAL);
 	}
 }
