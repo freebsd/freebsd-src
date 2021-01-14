@@ -27,7 +27,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 
-#ifdef __FreeBSD__
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/uio.h>
@@ -41,24 +40,8 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
-#else
-#include <sys/device.h>
-
-#include <machine/cpu.h>
-#include <machine/bus.h>
-#include <machine/intr.h>
-#include <machine/conf.h>
-
-#include <dev/isa/isareg.h>
-#include <dev/isa/isavar.h>
-#endif
 #include <dev/tpm/tpmvar.h>
 
-#ifndef __FreeBSD__
-/* XXX horrible hack for tcsd (-lpthread) workaround on OpenBSD */
-#undef PCATCH
-#define PCATCH	0
-#endif
 
 #define	TPM_BUFSIZ	1024
 
@@ -66,9 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #define TPM_PARAM_SIZE	0x0001
 
-#ifdef __FreeBSD__
 #define IRQUNK	-1
-#endif
 
 #define	TPM_ACCESS			0x0000	/* access register */
 #define	TPM_ACCESS_ESTABLISHMENT	0x01	/* establishment */
@@ -146,7 +127,6 @@ __FBSDID("$FreeBSD$");
 /* Set when enabling legacy interface in host bridge. */
 int tpm_enabled;
 
-#ifdef __FreeBSD__
 #define	TPMSOFTC(dev) \
 	((struct tpm_softc *)dev->si_drv1)
 
@@ -166,21 +146,6 @@ static struct cdevsw tpm_cdevsw = {
 	.d_ioctl =	tpmioctl,
 	.d_name =	"tpm",
 };
-#else
-#define	TPMSOFTC(dev) \
-    (struct tpm_softc *)device_lookup(&tpm_cd, minor(dev))
-
-struct cfdriver tpm_cd = {
-	NULL, "tpm", DV_DULL
-};
-
-int	tpm_match(device_t , void *, void *);
-void	tpm_attach(device_t , device_t , void *);
-
-struct cfattach tpm_ca = {
-	sizeof(struct tpm_softc), tpm_match, tpm_attach
-};
-#endif
 
 const struct {
 	u_int32_t devid;
@@ -206,14 +171,7 @@ int tpm_tis12_read(struct tpm_softc *, void *, int, size_t *, int);
 int tpm_tis12_write(struct tpm_softc *, void *, int);
 int tpm_tis12_end(struct tpm_softc *, int, int);
 
-#ifdef __FreeBSD__
 void tpm_intr(void *);
-#else
-int tpm_intr(void *);
-void tpm_powerhook(int, void *);
-int tpm_suspend(struct tpm_softc *, int);
-int tpm_resume(struct tpm_softc *, int);
-#endif
 
 int tpm_waitfor_poll(struct tpm_softc *, u_int8_t, int, void *);
 int tpm_waitfor_int(struct tpm_softc *, u_int8_t, int, void *, int);
@@ -230,7 +188,6 @@ int tpm_legacy_read(struct tpm_softc *, void *, int, size_t *, int);
 int tpm_legacy_write(struct tpm_softc *, void *, int);
 int tpm_legacy_end(struct tpm_softc *, int, int);
 
-#ifdef __FreeBSD__
 
 /*
  * FreeBSD specific code for probing and attaching TPM to device tree.
@@ -329,100 +286,6 @@ tpm_detach(device_t dev)
 	return 0;
 }
 
-#else
-/*
- * OpenBSD specific code for probing and attaching TPM to device tree.
- */
-int
-tpm_match(device_t parent, void *match, void *aux)
-{
-	struct isa_attach_args *ia = aux;
-	struct cfdata *cf = match;
-	bus_space_tag_t bt = ia->ia_memt;
-	bus_space_handle_t bh;
-	int rv;
-
-	/* There can be only one. */
-	if (cf->cf_unit)
-		return 0;
-
-	if (tpm_legacy_probe(ia->ia_iot, ia->ia_iobase)) {
-		ia->ia_iosize = 2;
-		return 1;
-	}
-
-	if (ia->ia_maddr == -1)
-		return 0;
-
-	if (bus_space_map(bt, ia->ia_maddr, TPM_SIZE, 0, &bh))
-		return 0;
-
-	if ((rv = tpm_tis12_probe(bt, bh))) {
-		ia->ia_iosize = 0;
-		ia->ia_msize = TPM_SIZE;
-	}
-
-	bus_space_unmap(bt, bh, TPM_SIZE);
-	return rv;
-}
-
-void
-tpm_attach(device_t parent, device_t self, void *aux)
-{
-	struct tpm_softc *sc = (struct tpm_softc *)self;
-	struct isa_attach_args *ia = aux;
-	bus_addr_t iobase;
-	bus_size_t size;
-	int rv;
-
-	if (tpm_legacy_probe(ia->ia_iot, ia->ia_iobase)) {
-		sc->sc_bt = ia->ia_iot;
-		iobase = ia->ia_iobase;
-		size = ia->ia_iosize;
-		sc->sc_batm = ia->ia_iot;
-		sc->sc_init = tpm_legacy_init;
-		sc->sc_start = tpm_legacy_start;
-		sc->sc_read = tpm_legacy_read;
-		sc->sc_write = tpm_legacy_write;
-		sc->sc_end = tpm_legacy_end;
-	} else {
-		sc->sc_bt = ia->ia_memt;
-		iobase = ia->ia_maddr;
-		size = TPM_SIZE;
-		sc->sc_init = tpm_tis12_init;
-		sc->sc_start = tpm_tis12_start;
-		sc->sc_read = tpm_tis12_read;
-		sc->sc_write = tpm_tis12_write;
-		sc->sc_end = tpm_tis12_end;
-	}
-
-	if (bus_space_map(sc->sc_bt, iobase, size, 0, &sc->sc_bh)) {
-		printf(": cannot map registers\n");
-		return;
-	}
-
-	if ((rv = (sc->sc_init)(sc, ia->ia_irq, sc->sc_dev.dv_xname))) {
-		bus_space_unmap(sc->sc_bt, sc->sc_bh, size);
-		return;
-	}
-
-	/*
-	 * Only setup interrupt handler when we have a vector and the
-	 * chip is TIS 1.2 compliant.
-	 */
-	if (sc->sc_init == tpm_tis12_init && ia->ia_irq != IRQUNK &&
-	    (sc->sc_ih = isa_intr_establish(ia->ia_ic, ia->ia_irq, IST_EDGE,
-	    IPL_TTY, tpm_intr, sc, sc->sc_dev.dv_xname)) == NULL) {
-		bus_space_unmap(sc->sc_bt, sc->sc_bh, TPM_SIZE);
-		printf("%s: cannot establish interrupt\n",
-		    sc->sc_dev.dv_xname);
-		return;
-	}
-
-	sc->sc_suspend = PWR_RESUME;
-	sc->sc_powerhook = powerhook_establish(tpm_powerhook, sc);
-}
-#endif
 
 /* Probe TPM using TIS 1.2 interface. */
 int
@@ -634,16 +497,10 @@ tpm_tmotohz(int tmo)
 
 /* Save TPM state on suspend. */
 int
-#ifdef __FreeBSD__
 tpm_suspend(device_t dev)
-#else
-tpm_suspend(struct tpm_softc *sc, int why)
-#endif
 {
-#ifdef __FreeBSD__
 	struct tpm_softc *sc = device_get_softc(dev);
 	int why = 1;
-#endif
 	u_int8_t command[] = {
 	    0, 193,		/* TPM_TAG_RQU_COMMAND */
 	    0, 0, 0, 10,	/* Length in bytes */
@@ -668,16 +525,10 @@ tpm_suspend(struct tpm_softc *sc, int why)
  * to restore the previously saved state.
  */
 int
-#ifdef __FreeBSD__
 tpm_resume(device_t dev)
-#else
-tpm_resume(struct tpm_softc *sc, int why)
-#endif
 {
-#ifdef __FreeBSD__
 	struct tpm_softc *sc = device_get_softc(dev);
 	int why = 0;
-#endif
 #ifdef TPM_DEBUG
 	printf("tpm_resume: resume: %d -> %d\n", sc->sc_suspend, why);
 #endif
@@ -687,18 +538,6 @@ tpm_resume(struct tpm_softc *sc, int why)
 }
 
 /* Dispatch suspend and resume events. */
-#ifndef __FreeBSD__
-void
-tpm_powerhook(int why, void *self)
-{
-	struct tpm_softc *sc = (struct tpm_softc *)self;
-
-	if (why != PWR_RESUME)
-		tpm_suspend(sc, why);
-	else
-		tpm_resume(sc, why);
-}
-#endif	/* !__FreeBSD__ */
 
 /* Wait for given status bits using polling. */
 int
@@ -1074,11 +913,7 @@ tpm_tis12_end(struct tpm_softc *sc, int flag, int err)
 	return rv;
 }
 
-#ifdef __FreeBSD__
 void
-#else
-int
-#endif
 tpm_intr(void *v)
 {
 	struct tpm_softc *sc = v;
@@ -1097,11 +932,7 @@ tpm_intr(void *v)
 #endif
 	if (!(r & (TPM_CMD_READY_INT | TPM_LOCALITY_CHANGE_INT |
 	    TPM_STS_VALID_INT | TPM_DATA_AVAIL_INT)))
-#ifdef __FreeBSD__
 		return;
-#else
-		return 0;
-#endif
 	if (r & TPM_STS_VALID_INT)
 		wakeup(sc);
 
@@ -1116,11 +947,7 @@ tpm_intr(void *v)
 
 	bus_space_write_4(sc->sc_bt, sc->sc_bh, TPM_INT_STATUS, r);
 
-#ifdef __FreeBSD__
 	return;
-#else
-	return 1;
-#endif
 }
 
 /* Read single byte using legacy interface. */
@@ -1231,9 +1058,6 @@ tpm_legacy_start(struct tpm_softc *sc, int flag)
 			return rv;
 	}
 
-#if defined(TPM_DEBUG) && !defined(__FreeBSD__)
-	printf("%s: bits %b\n", sc->sc_dev.dv_xname, r, TPM_LEGACY_BITS);
-#endif
 	if ((r & (TPM_LEGACY_BUSY|bits)) != bits)
 		return EIO;
 
@@ -1305,9 +1129,6 @@ tpm_legacy_end(struct tpm_softc *sc, int flag, int rv)
 				return rv;
 		}
 
-#if defined(TPM_DEBUG) && !defined(__FreeBSD__)
-		printf("%s: bits %b\n", sc->sc_dev.dv_xname, r, TPM_LEGACY_BITS);
-#endif
 		if (r & TPM_LEGACY_BUSY)
 			return EIO;
 
@@ -1319,11 +1140,7 @@ tpm_legacy_end(struct tpm_softc *sc, int flag, int rv)
 }
 
 int
-#ifdef __FreeBSD__
 tpmopen(struct cdev *dev, int flag, int mode, struct thread *td)
-#else
-tpmopen(dev_t dev, int flag, int mode, struct proc *p)
-#endif
 {
 	struct tpm_softc *sc = TPMSOFTC(dev);
 
@@ -1339,11 +1156,7 @@ tpmopen(dev_t dev, int flag, int mode, struct proc *p)
 }
 
 int
-#ifdef __FreeBSD__
 tpmclose(struct cdev *dev, int flag, int mode, struct thread *td)
-#else
-tpmclose(dev_t dev, int flag, int mode, struct proc *p)
-#endif
 {
 	struct tpm_softc *sc = TPMSOFTC(dev);
 
@@ -1359,11 +1172,7 @@ tpmclose(dev_t dev, int flag, int mode, struct proc *p)
 }
 
 int
-#ifdef __FreeBSD__
 tpmread(struct cdev *dev, struct uio *uio, int flags)
-#else
-tpmread(dev_t dev, struct uio *uio, int flags)
-#endif
 {
 	struct tpm_softc *sc = TPMSOFTC(dev);
 	u_int8_t buf[TPM_BUFSIZ], *p;
@@ -1435,11 +1244,7 @@ tpmread(dev_t dev, struct uio *uio, int flags)
 }
 
 int
-#ifdef __FreeBSD__
 tpmwrite(struct cdev *dev, struct uio *uio, int flags)
-#else
-tpmwrite(dev_t dev, struct uio *uio, int flags)
-#endif
 {
 	struct tpm_softc *sc = TPMSOFTC(dev);
 	u_int8_t buf[TPM_BUFSIZ];
@@ -1476,12 +1281,8 @@ tpmwrite(dev_t dev, struct uio *uio, int flags)
 }
 
 int
-#ifdef __FreeBSD__
 tpmioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
     struct thread *td)
-#else
-tpmioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
-#endif
 {
 	return ENOTTY;
 }
