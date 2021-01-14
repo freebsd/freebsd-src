@@ -774,6 +774,10 @@ interpret:
 		signotify(td);
 	}
 
+	if (imgp->sysent->sv_setid_allowed != NULL &&
+	    !(*imgp->sysent->sv_setid_allowed)(td, imgp))
+		execve_nosetid(imgp);
+
 	/*
 	 * Implement image setuid/setgid installation.
 	 */
