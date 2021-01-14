@@ -19,7 +19,7 @@ Changes to this file should not be MFCed.
 	processes.  The policy is not enforced by default but can be
 	enabled by setting the kern.elf32.allow_wx and
 	kern.elf64_allow_wx sysctls to 1.  Individual binaries can be
-	exempted from the policy by elfctl(9) via the wxneeded
+	exempted from the policy by elfctl(1) via the wxneeded
 	feature.
 
 4979620ece98:
