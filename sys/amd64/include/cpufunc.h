@@ -160,24 +160,13 @@ enable_intr(void)
 #ifdef _KERNEL
 
 #define	HAVE_INLINE_FFS
-#define        ffs(x)  __builtin_ffs(x)
+#define	ffs(x)		__builtin_ffs(x)
 
 #define	HAVE_INLINE_FFSL
-
-static __inline __pure2 int
-ffsl(long mask)
-{
-
-	return (__builtin_ffsl(mask));
-}
+#define	ffsl(x)		__builtin_ffsl(x)
 
 #define	HAVE_INLINE_FFSLL
-
-static __inline __pure2 int
-ffsll(long long mask)
-{
-	return (ffsl((long)mask));
-}
+#define	ffsll(x)	__builtin_ffsll(x)
 
 #define	HAVE_INLINE_FLS
 
