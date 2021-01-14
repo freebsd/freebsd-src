@@ -8,6 +8,7 @@ ParseDoDependency(: empty-source)
 ParseReadLine (37): '	: command for empty targets list'
 ParseReadLine (38): '.MAKEFLAGS: -d0'
 ParseDoDependency(.MAKEFLAGS: -d0)
+make: "deptgt.mk" line 46: Unknown modifier 'Z'
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

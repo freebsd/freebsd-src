@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.292 2020/11/14 22:19:13 rillig Exp $
+.\"	$NetBSD: make.1,v 1.295 2020/12/23 13:49:12 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd November 14, 2020
+.Dd December 22, 2020
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1030,6 +1030,12 @@ If set to false,
 becomes
 .Ql $
 per normal evaluation rules.
+.It Va .MAKE.UID
+The user-id running
+.Nm .
+.It Va .MAKE.GID
+The group-id running
+.Nm .
 .It Va MAKE_PRINT_VAR_ON_ERROR
 When
 .Nm
@@ -1108,7 +1114,7 @@ to that directory before executing any targets.
 .Pp
 Except in the case of an explicit
 .Ql Ic .OBJDIR
-target, 
+target,
 .Nm
 will check that the specified directory is writable and ignore it if not.
 This check can be skipped by setting the environment variable
@@ -1754,9 +1760,9 @@ The same as
 except that variables in the value are not expanded.
 .It Ic .info Ar message
 The message is printed along with the name of the makefile and line number.
-.It Ic .undef Ar variable
-Un-define the specified global variable.
-Only global variables may be un-defined.
+.It Ic .undef Ar variable ...
+Un-define the specified global variables.
+Only global variables can be un-defined.
 .It Ic .unexport Ar variable ...
 The opposite of
 .Ql .export .

@@ -7,4 +7,5 @@ head (dirname) of 'a.a' is '.'
 head (dirname) of '.gitignore' is '.'
 head (dirname) of 'a' is '.'
 head (dirname) of 'a.a' is '.'
+head (dirname) of 'trailing/' is 'trailing'
 exit status 0

@@ -22,4 +22,4 @@ UT_VAR=		${UNEXPANDED}
 .MAKE.EXPORTED=		-literal UT_VAR
 
 all:
-	@env | sort | grep -E '^UT_|make-exported-value' || true
+	@env | sort | egrep '^UT_|make-exported-value' || true

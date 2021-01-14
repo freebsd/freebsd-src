@@ -1,27 +1,13 @@
-mod-gmtime:
-%Y
-2020
-%Y
-localtime == localtime
-mod-gmtime-indirect:
-make: Invalid time value: ${:U1593536400}}
-
-mtime=1593536400}
-parse-errors:
-make: Invalid time value: -1}.
-
-: -1 becomes mtime=-1}.
-make: Invalid time value:  1}.
-
-: space 1 becomes mtime= 1}.
-: 0 becomes ok.
-: 1 becomes Thu Jan  1 00:00:01 1970.
-: INT32_MAX becomes Tue Jan 19 03:14:07 2038.
-: INT32_MAX + 1 becomes Tue Jan 19 03:14:08 2038.
-make: Invalid time value: 10000000000000000000000000000000}.
-
-: overflow becomes mtime=10000000000000000000000000000000}.
-make: Invalid time value: error}.
-
-: letter becomes mtime=error}.
-exit status 0
+make: "varmod-gmtime.mk" line 60: Invalid time value: ${:U1593536400}} != "mtime=11593536400}"
+make: "varmod-gmtime.mk" line 60: Malformed conditional (${%Y:L:gmtime=${:U1593536400}} != "mtime=11593536400}")
+make: "varmod-gmtime.mk" line 70: Invalid time value: -1} != ""
+make: "varmod-gmtime.mk" line 70: Malformed conditional (${:L:gmtime=-1} != "")
+make: "varmod-gmtime.mk" line 79: Invalid time value:  1} != ""
+make: "varmod-gmtime.mk" line 79: Malformed conditional (${:L:gmtime= 1} != "")
+make: "varmod-gmtime.mk" line 118: Invalid time value: 10000000000000000000000000000000} != ""
+make: "varmod-gmtime.mk" line 118: Malformed conditional (${:L:gmtime=10000000000000000000000000000000} != "")
+make: "varmod-gmtime.mk" line 129: Invalid time value: error} != ""
+make: "varmod-gmtime.mk" line 129: Malformed conditional (${:L:gmtime=error} != "")
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

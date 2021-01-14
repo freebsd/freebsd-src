@@ -2,7 +2,7 @@
 #
 # Tests for command line parsing and related special variables.
 
-TMPBASE?=	/tmp
+TMPBASE?=	/tmp/uid${.MAKE.UID}
 SUB1=		a7b41170-53f8-4cc2-bc5c-e4c3dd93ec45	# just a random UUID
 SUB2=		6a8899d2-d227-4b55-9b6b-f3c8eeb83fd5	# just a random UUID
 MAKE_CMD=	env TMPBASE=${TMPBASE}/${SUB1} ${.MAKE} -f ${MAKEFILE} -r

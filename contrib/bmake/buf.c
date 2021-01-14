@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.c,v 1.44 2020/11/07 14:11:58 rillig Exp $	*/
+/*	$NetBSD: buf.c,v 1.47 2020/12/30 10:03:16 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -69,146 +69,153 @@
  * SUCH DAMAGE.
  */
 
-/* Automatically-expanding null-terminated buffers. */
+/* Automatically-expanding null-terminated character buffers. */
 
 #include <limits.h>
 #include "make.h"
 
 /*	"@(#)buf.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: buf.c,v 1.44 2020/11/07 14:11:58 rillig Exp $");
+MAKE_RCSID("$NetBSD: buf.c,v 1.47 2020/12/30 10:03:16 rillig Exp $");
 
-/* Make space in the buffer for adding a single byte. */
+/* Make space in the buffer for adding at least 16 more bytes. */
 void
-Buf_Expand_1(Buffer *buf)
+Buf_Expand(Buffer *buf)
 {
-    buf->cap += buf->cap > 16 ? buf->cap : 16;
-    buf->data = bmake_realloc(buf->data, buf->cap);
+	buf->cap += buf->cap > 16 ? buf->cap : 16;
+	buf->data = bmake_realloc(buf->data, buf->cap);
 }
 
 /* Add the bytes to the buffer. */
 void
 Buf_AddBytes(Buffer *buf, const char *bytes, size_t bytes_len)
 {
-    size_t old_len = buf->len;
-    char *end;
+	size_t old_len = buf->len;
+	char *end;
 
-    if (__predict_false(old_len + bytes_len >= buf->cap)) {
-	buf->cap += buf->cap > bytes_len + 16 ? buf->cap : bytes_len + 16;
-	buf->data = bmake_realloc(buf->data, buf->cap);
-    }
+	if (__predict_false(old_len + bytes_len >= buf->cap)) {
+		size_t minIncr = bytes_len + 16;
+		buf->cap += buf->cap > minIncr ? buf->cap : minIncr;
+		buf->data = bmake_realloc(buf->data, buf->cap);
+	}
 
-    end = buf->data + old_len;
-    buf->len = old_len + bytes_len;
-    memcpy(end, bytes, bytes_len);
-    end[bytes_len] = '\0';
+	end = buf->data + old_len;
+	buf->len = old_len + bytes_len;
+	memcpy(end, bytes, bytes_len);
+	end[bytes_len] = '\0';
 }
 
 /* Add the bytes between start and end to the buffer. */
 void
 Buf_AddBytesBetween(Buffer *buf, const char *start, const char *end)
 {
-    Buf_AddBytes(buf, start, (size_t)(end - start));
+	Buf_AddBytes(buf, start, (size_t)(end - start));
 }
 
 /* Add the string to the buffer. */
 void
 Buf_AddStr(Buffer *buf, const char *str)
 {
-    Buf_AddBytes(buf, str, strlen(str));
+	Buf_AddBytes(buf, str, strlen(str));
 }
 
 /* Add the number to the buffer. */
 void
 Buf_AddInt(Buffer *buf, int n)
 {
-    enum {
-	bits = sizeof(int) * CHAR_BIT,
-	max_octal_digits = (bits + 2) / 3,
-	max_decimal_digits = /* at most */ max_octal_digits,
-	max_sign_chars = 1,
-	str_size = max_sign_chars + max_decimal_digits + 1
-    };
-    char str[str_size];
+	enum {
+		bits = sizeof(int) * CHAR_BIT,
+		max_octal_digits = (bits + 2) / 3,
+		max_decimal_digits = /* at most */ max_octal_digits,
+		max_sign_chars = 1,
+		str_size = max_sign_chars + max_decimal_digits + 1
+	};
+	char str[str_size];
 
-    size_t len = (size_t)snprintf(str, sizeof str, "%d", n);
-    Buf_AddBytes(buf, str, len);
+	size_t len = (size_t)snprintf(str, sizeof str, "%d", n);
+	Buf_AddBytes(buf, str, len);
 }
 
-/* Get the data (usually a string) from the buffer.
+/*
+ * Get the data (usually a string) from the buffer.
  * The returned data is valid until the next modifying operation
  * on the buffer.
  *
- * Returns the data and optionally the length of the data. */
+ * Returns the data and optionally the length of the data.
+ */
 char *
 Buf_GetAll(Buffer *buf, size_t *out_len)
 {
-    if (out_len != NULL)
-	*out_len = buf->len;
-    return buf->data;
+	if (out_len != NULL)
+		*out_len = buf->len;
+	return buf->data;
 }
 
 /* Mark the buffer as empty, so it can be filled with data again. */
 void
 Buf_Empty(Buffer *buf)
 {
-    buf->len = 0;
-    buf->data[0] = '\0';
+	buf->len = 0;
+	buf->data[0] = '\0';
 }
 
 /* Initialize a buffer. */
 void
 Buf_InitSize(Buffer *buf, size_t cap)
 {
-    buf->cap = cap;
-    buf->len = 0;
-    buf->data = bmake_malloc(cap);
-    buf->data[0] = '\0';
+	buf->cap = cap;
+	buf->len = 0;
+	buf->data = bmake_malloc(cap);
+	buf->data[0] = '\0';
 }
 
 void
 Buf_Init(Buffer *buf)
 {
-    Buf_InitSize(buf, 256);
+	Buf_InitSize(buf, 256);
 }
 
-/* Reset the buffer.
+/*
+ * Reset the buffer.
  * If freeData is TRUE, the data from the buffer is freed as well.
- * Otherwise it is kept and returned. */
+ * Otherwise it is kept and returned.
+ */
 char *
 Buf_Destroy(Buffer *buf, Boolean freeData)
 {
-    char *data = buf->data;
-    if (freeData) {
-	free(data);
-	data = NULL;
-    }
+	char *data = buf->data;
+	if (freeData) {
+		free(data);
+		data = NULL;
+	}
 
-    buf->cap = 0;
-    buf->len = 0;
-    buf->data = NULL;
+	buf->cap = 0;
+	buf->len = 0;
+	buf->data = NULL;
 
-    return data;
+	return data;
 }
 
 #ifndef BUF_COMPACT_LIMIT
-# define BUF_COMPACT_LIMIT 128		/* worthwhile saving */
+# define BUF_COMPACT_LIMIT 128	/* worthwhile saving */
 #endif
 
-/* Reset the buffer and return its data.
+/*
+ * Reset the buffer and return its data.
  *
  * If the buffer size is much greater than its content,
- * a new buffer will be allocated and the old one freed. */
+ * a new buffer will be allocated and the old one freed.
+ */
 char *
 Buf_DestroyCompact(Buffer *buf)
 {
 #if BUF_COMPACT_LIMIT > 0
-    if (buf->cap - buf->len >= BUF_COMPACT_LIMIT) {
-	/* We trust realloc to be smart */
-	char *data = bmake_realloc(buf->data, buf->len + 1);
-	data[buf->len] = '\0';	/* XXX: unnecessary */
-	Buf_Destroy(buf, FALSE);
-	return data;
-    }
+	if (buf->cap - buf->len >= BUF_COMPACT_LIMIT) {
+		/* We trust realloc to be smart */
+		char *data = bmake_realloc(buf->data, buf->len + 1);
+		data[buf->len] = '\0';	/* XXX: unnecessary */
+		Buf_Destroy(buf, FALSE);
+		return data;
+	}
 #endif
-    return Buf_Destroy(buf, FALSE);
+	return Buf_Destroy(buf, FALSE);
 }

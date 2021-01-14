@@ -1,4 +1,4 @@
-# $Id: dirdeps-options.mk,v 1.17 2020/08/07 01:57:38 sjg Exp $
+# $Id: dirdeps-options.mk,v 1.18 2020/12/22 18:10:34 sjg Exp $
 #
 #	@(#) Copyright (c) 2018-2020, Simon J. Gerraty
 #
@@ -59,7 +59,8 @@ DIRDEPS_OPTIONS_QUALIFIER_LIST ?= \
 # note that we need to include $o in the variable _o$o
 # to ensure correct evaluation.
 .for o in ${DIRDEPS_OPTIONS}
-.undef _o$o _v$o
+.undef _o$o
+.undef _v$o
 .for x in ${DIRDEPS_OPTIONS_QUALIFIER_LIST}
 .if defined(MK_$o.$x)
 _o$o ?= MK_$o.$x

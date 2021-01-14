@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-empty.mk,v 1.10 2020/11/15 14:07:53 rillig Exp $
+# $NetBSD: cond-func-empty.mk,v 1.11 2020/11/28 14:08:37 rillig Exp $
 #
 # Tests for the empty() function in .if conditions, which tests a variable
 # expression for emptiness.
@@ -153,6 +153,31 @@ ${:U WORD }=	variable name with spaces
 .  error
 .else
 .  error
+.endif
+
+# Between 2020-06-28 and var.c 1.226 from 2020-07-02, this paragraph generated
+# a wrong error message "Variable VARNAME is recursive".
+#
+# The bug was that the !empty() condition was evaluated, even though this was
+# not necessary since the defined() condition already evaluated to false.
+#
+# When evaluating the !empty condition, the variable name was parsed as
+# "VARNAME${:U2}", but without expanding any nested variable expression, in
+# this case the ${:U2}.  Therefore, the variable name came out as simply
+# "VARNAME".  Since this variable name should have been discarded quickly after
+# parsing it, this unrealistic variable name should have done no harm.
+#
+# The variable expression was expanded though, and this was wrong.  The
+# expansion was done without the VARE_WANTRES flag (called VARF_WANTRES back
+# then) though.  This had the effect that the ${:U1} from the value of VARNAME
+# expanded to an empty string.  This in turn created the seemingly recursive
+# definition VARNAME=${VARNAME}, and that definition was never meant to be
+# expanded.
+#
+# This was fixed by expanding nested variable expressions in the variable name
+# only if the flag VARE_WANTRES is given.
+VARNAME=	${VARNAME${:U1}}
+.if defined(VARNAME${:U2}) && !empty(VARNAME${:U2})
 .endif
 
 all:

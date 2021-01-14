@@ -1,4 +1,4 @@
-/*	$NetBSD: trace.h,v 1.4 2020/10/18 17:19:54 rillig Exp $	*/
+/*	$NetBSD: trace.h,v 1.5 2020/11/28 08:41:53 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
@@ -34,6 +34,9 @@
  *	Definitions pertaining to the tracing of jobs in parallel mode.
  */
 
+#ifndef MAKE_TRACE_H
+#define MAKE_TRACE_H
+
 typedef enum TrEvent {
 	MAKESTART,
 	MAKEEND,
@@ -47,3 +50,4 @@ void Trace_Init(const char *);
 void Trace_Log(TrEvent, Job *);
 void Trace_End(void);
 
+#endif

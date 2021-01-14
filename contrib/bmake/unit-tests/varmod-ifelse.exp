@@ -11,6 +11,10 @@ lhs = 1.000000, rhs = 0.000000, op = ==
 make: Bad conditional expression `1 == == 2' in 1 == == 2?yes:no
 lhs = "", rhs = "", op = !=
 make: "varmod-ifelse.mk" line 92: warning: Oops, the parse error should have been propagated.
+CondParser_Eval: ${ ${:U\$}{VAR} == value :?ok:bad} != "ok"
+CondParser_Eval: ${VAR} == value 
+lhs = "value", rhs = "value", op = ==
+lhs = "ok", rhs = "ok", op = !=
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

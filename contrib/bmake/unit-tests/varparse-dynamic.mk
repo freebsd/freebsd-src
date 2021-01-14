@@ -1,4 +1,4 @@
-# $NetBSD: varparse-dynamic.mk,v 1.2 2020/09/13 21:00:34 rillig Exp $
+# $NetBSD: varparse-dynamic.mk,v 1.3 2020/11/21 15:48:05 rillig Exp $
 
 # Before 2020-07-27, there was an off-by-one error in Var_Parse that skipped
 # the last character in the variable name.
@@ -18,6 +18,16 @@
 # This test covers the code in Var_Parse that deals with VAR_JUNK but not
 # VAR_KEEP for dynamic variables.
 .if ${.TARGET:S,^,,} != "\${.TARGET:S,^,,}"
+.  error
+.endif
+
+# If a dynamic variable is expanded in a non-local context, the expression
+# based on this variable is not expanded.  But there may be nested variable
+# expressions in the modifiers, and these are kept unexpanded as well.
+.if ${.TARGET:M${:Ufallback}} != "\${.TARGET:M\${:Ufallback}}"
+.  error
+.endif
+.if ${.TARGET:M${UNDEF}} != "\${.TARGET:M\${UNDEF}}"
 .  error
 .endif
 

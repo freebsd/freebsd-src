@@ -1,8 +1,5 @@
-make: "directive-unexport.mk" line 14: UT_A=a UT_B=b UT_C=c
-make: "directive-unexport.mk" line 15: UT_A UT_B UT_C
-make: "directive-unexport.mk" line 23: UT_A=a UT_B=b UT_C=c
-make: "directive-unexport.mk" line 24: 
-make: "directive-unexport.mk" line 26: Unknown directive "unexpor"
-make: Fatal errors encountered -- cannot continue
-make: stopped in unit-tests
-exit status 1
+make: "directive-unexport.mk" line 18: UT_A=a UT_B=b UT_C=c
+make: "directive-unexport.mk" line 19: UT_A UT_B UT_C
+make: "directive-unexport.mk" line 27: UT_A=a UT_B=b UT_C=c
+make: "directive-unexport.mk" line 28: 
+exit status 0

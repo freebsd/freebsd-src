@@ -1,0 +1,56 @@
+ParseReadLine (21): 'UT_VAR=		<${REF}>'
+Global:UT_VAR = <${REF}>
+ParseReadLine (28): '.export UT_VAR'
+Global:.MAKE.EXPORTED = UT_VAR
+ParseReadLine (32): ': ${UT_VAR:N*}'
+Var_Parse: ${UT_VAR:N*} with VARE_UNDEFERR|VARE_WANTRES
+Var_Parse: ${REF}> with VARE_UNDEFERR|VARE_WANTRES
+Applying ${UT_VAR:N...} to "<>" (VARE_UNDEFERR|VARE_WANTRES, VAR_EXPORTED|VAR_REEXPORT, none)
+Pattern[UT_VAR] for [<>] is [*]
+ModifyWords: split "<>" into 1 words
+Result of ${UT_VAR:N*} is "" (VARE_UNDEFERR|VARE_WANTRES, VAR_EXPORTED|VAR_REEXPORT, none)
+ParseDoDependency(: )
+CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<>"
+Var_Parse: ${:!echo "\$UT_VAR"!} != "<>" with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:!...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
+Modifier part: "echo "$UT_VAR""
+Var_Parse: ${.MAKE.EXPORTED:O:u} with VARE_WANTRES
+Applying ${.MAKE.EXPORTED:O} to "UT_VAR" (VARE_WANTRES, none, none)
+Result of ${.MAKE.EXPORTED:O} is "UT_VAR" (VARE_WANTRES, none, none)
+Applying ${.MAKE.EXPORTED:u} to "UT_VAR" (VARE_WANTRES, none, none)
+Result of ${.MAKE.EXPORTED:u} is "UT_VAR" (VARE_WANTRES, none, none)
+Var_Parse: ${UT_VAR} with VARE_WANTRES
+Var_Parse: ${REF}> with VARE_WANTRES
+Result of ${:!echo "\$UT_VAR"!} is "<>" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+lhs = "<>", rhs = "<>", op = !=
+ParseReadLine (49): ': ${UT_VAR:N*}'
+Var_Parse: ${UT_VAR:N*} with VARE_UNDEFERR|VARE_WANTRES
+Var_Parse: ${REF}> with VARE_UNDEFERR|VARE_WANTRES
+Applying ${UT_VAR:N...} to "<>" (VARE_UNDEFERR|VARE_WANTRES, VAR_EXPORTED|VAR_REEXPORT, none)
+Pattern[UT_VAR] for [<>] is [*]
+ModifyWords: split "<>" into 1 words
+Result of ${UT_VAR:N*} is "" (VARE_UNDEFERR|VARE_WANTRES, VAR_EXPORTED|VAR_REEXPORT, none)
+ParseDoDependency(: )
+ParseReadLine (53): 'REF=		defined'
+Global:REF = defined
+CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<defined>"
+Var_Parse: ${:!echo "\$UT_VAR"!} != "<defined>" with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:!...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
+Modifier part: "echo "$UT_VAR""
+Var_Parse: ${.MAKE.EXPORTED:O:u} with VARE_WANTRES
+Applying ${.MAKE.EXPORTED:O} to "UT_VAR" (VARE_WANTRES, none, none)
+Result of ${.MAKE.EXPORTED:O} is "UT_VAR" (VARE_WANTRES, none, none)
+Applying ${.MAKE.EXPORTED:u} to "UT_VAR" (VARE_WANTRES, none, none)
+Result of ${.MAKE.EXPORTED:u} is "UT_VAR" (VARE_WANTRES, none, none)
+Var_Parse: ${UT_VAR} with VARE_WANTRES
+Var_Parse: ${REF}> with VARE_WANTRES
+Result of ${:!echo "\$UT_VAR"!} is "<defined>" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+lhs = "<defined>", rhs = "<defined>", op = !=
+ParseReadLine (61): 'all:'
+ParseDoDependency(all:)
+Global:.ALLTARGETS =  all
+ParseReadLine (62): '.MAKEFLAGS: -d0'
+ParseDoDependency(.MAKEFLAGS: -d0)
+Global:.MAKEFLAGS =  -r -k -d cpv -d
+Global:.MAKEFLAGS =  -r -k -d cpv -d 0
+exit status 0

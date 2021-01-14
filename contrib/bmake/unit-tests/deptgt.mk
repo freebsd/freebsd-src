@@ -1,4 +1,4 @@
-# $NetBSD: deptgt.mk,v 1.9 2020/11/15 11:57:00 rillig Exp $
+# $NetBSD: deptgt.mk,v 1.10 2020/12/27 18:20:26 rillig Exp $
 #
 # Tests for special targets like .BEGIN or .SUFFIXES in dependency
 # declarations.
@@ -36,6 +36,14 @@ ${:U}: empty-source
 : empty-source
 	: command for empty targets list
 .MAKEFLAGS: -d0
+
+# Just to show that a malformed expression is only expanded once in
+# ParseDependencyTargetWord.  The only way to produce an expression that
+# is well-formed on the first expansion and ill-formed on the second
+# expansion would be to use the variable modifier '::=' to modify the
+# targets.  This in turn would be such an extreme and unreliable edge case
+# that nobody uses it.
+$$$$$$$${:U:Z}:
 
 all:
 	@:;

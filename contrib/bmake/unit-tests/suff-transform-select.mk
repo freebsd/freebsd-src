@@ -1,4 +1,4 @@
-# $NetBSD: suff-transform-select.mk,v 1.1 2020/10/20 20:36:53 rillig Exp $
+# $NetBSD: suff-transform-select.mk,v 1.3 2020/11/23 14:47:12 rillig Exp $
 #
 # https://gnats.netbsd.org/49086, issue 10:
 # Explicit dependencies affect transformation rule selection.
@@ -7,6 +7,8 @@
 # make should choose the .d.e rule, because .d is before .f in .SUFFIXES.
 # The bug was that if issue10.d had an explicit dependency on issue10.f,
 # it would choose .f.e instead.
+
+.MAKEFLAGS: -ds
 
 _!=	rm -f issue10.*
 
@@ -25,4 +27,5 @@ issue10.d issue10.f:
 
 # XXX: see suff-bug-endless, which must be fixed first.
 #.MAKEFLAGS: -dg1
-.error prevent endless loop
+
+# Before 24-11-2020, resolving all.e ran into an endless loop.
