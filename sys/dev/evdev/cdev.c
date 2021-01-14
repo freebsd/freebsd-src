@@ -396,6 +396,7 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	struct evdev_dev *evdev = dev->si_drv1;
 	struct evdev_client *client;
 	struct input_keymap_entry *ke;
+	struct epoch_tracker et;
 	int ret, len, limit, type_num;
 	uint32_t code;
 	size_t nvalues;
@@ -415,7 +416,11 @@ evdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		EVDEV_LOCK(evdev);
 		if (evdev->ev_kdb_active) {
 			evdev->ev_kdb_active = false;
+			if (evdev->ev_lock_type == EV_LOCK_EXT_EPOCH)
+				epoch_enter_preempt(INPUT_EPOCH, &et);
 			evdev_restore_after_kdb(evdev);
+			if (evdev->ev_lock_type == EV_LOCK_EXT_EPOCH)
+				epoch_exit_preempt(INPUT_EPOCH, &et);
 		}
 		EVDEV_UNLOCK(evdev);
 	}
