@@ -433,9 +433,9 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 
 	/*
 	 * Allocate the buffer from the malloc(9) allocator if...
-	 *  - It's small enough to fit into a single power of two sized bucket.
-	 *  - The alignment is less than or equal to the maximum size
+	 *  - It's small enough to fit into a single page.
 	 *  - The low address requirement is fulfilled.
+	 *  - Default cache attributes are requested (WB).
 	 * else allocate non-contiguous pages if...
 	 *  - The page count that could get allocated doesn't exceed
 	 *    nsegments also when the maximum segment size is less
@@ -445,19 +445,19 @@ bounce_bus_dmamem_alloc(bus_dma_tag_t dmat, void **vaddr, int flags,
 	 * else allocate a block of contiguous pages because one or more of the
 	 * constraints is something that only the contig allocator can fulfill.
 	 *
-	 * NOTE: The (dmat->common.alignment <= dmat->maxsize) check
-	 * below is just a quick hack. The exact alignment guarantees
-	 * of malloc(9) need to be nailed down, and the code below
-	 * should be rewritten to take that into account.
-	 *
-	 * In the meantime warn the user if malloc gets it wrong.
+	 * Warn the user if malloc gets it wrong.
 	 */
 	if (dmat->common.maxsize <= PAGE_SIZE &&
-	    dmat->common.alignment <= dmat->common.maxsize &&
 	    dmat->common.lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
-		*vaddr = malloc_domainset(dmat->common.maxsize, M_DEVBUF,
+		*vaddr = malloc_domainset_aligned(dmat->common.maxsize,
+		    dmat->common.alignment, M_DEVBUF,
 		    DOMAINSET_PREF(dmat->common.domain), mflags);
+		KASSERT(*vaddr == NULL || ((uintptr_t)*vaddr & PAGE_MASK) +
+		    dmat->common.maxsize <= PAGE_SIZE,
+		    ("bounce_bus_dmamem_alloc: multi-page alloc %p maxsize "
+		    "%#jx align %#jx", *vaddr, (uintmax_t)dmat->common.maxsize,
+		    (uintmax_t)dmat->common.alignment));
 	} else if (dmat->common.nsegments >=
 	    howmany(dmat->common.maxsize, MIN(dmat->common.maxsegsz,
 	    PAGE_SIZE)) &&
