@@ -20,7 +20,7 @@ SRCS=	lapi.c lcode.c lctype.c ldebug.c ldo.c ldump.c lfunc.c lgc.c linit.c \
 # Library functions; any change to these likely needs an accompanying change
 # in our custom linit_flua.c.  We use our custom linit.c to make it easier to
 # support bootstrap flua that may not have supporting local libraries.
-SRCS+=	lauxlib.c lbaselib.c lbitlib.c lcorolib.c ldblib.c liolib.c \
+SRCS+=	lauxlib.c lbaselib.c lcorolib.c ldblib.c liolib.c \
 	lmathlib.c loslib.c lstrlib.c ltablib.c lutf8lib.c loadlib.c
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/modules -I${LUASRC}
