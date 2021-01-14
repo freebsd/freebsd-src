@@ -172,7 +172,7 @@ uart_parse_tag(const char **p)
 
 out:
 	*p += 2;
-	if ((*p)[0] != ':')
+	if ((*p)[0] != ':' && (*p)[0] != '=')
 		return (-1);
 	(*p)++;
 	return (tag);
@@ -283,25 +283,22 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 			di->bas.rclk = uart_parse_long(&spec);
 			break;
 		default:
-			freeenv(cp);
-			return (EINVAL);
+			goto inval;
 		}
 		if (*spec == '\0')
 			break;
-		if (*spec != ',') {
-			freeenv(cp);
-			return (EINVAL);
-		}
+		if (*spec != ',')
+			goto inval;
 		spec++;
 	}
-	freeenv(cp);
 
 	/*
 	 * If we still have an invalid address, the specification must be
 	 * missing an I/O port or memory address. We don't like that.
 	 */
 	if (addr == ~0U)
-		return (EINVAL);
+		goto inval;
+	freeenv(cp);
 
 	/*
 	 * Accept only the well-known baudrates. Any invalid baudrate
@@ -327,4 +324,8 @@ uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 	error = bus_space_map(di->bas.bst, addr, uart_getrange(class), 0,
 	    &di->bas.bsh);
 	return (error);
+inval:
+	printf("warning: bad uart specification: %s\n", cp);
+	freeenv(cp);
+	return (EINVAL);
 }
