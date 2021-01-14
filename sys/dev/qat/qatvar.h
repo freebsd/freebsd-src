@@ -818,6 +818,7 @@ struct qat_softc {
 	counter_u64_t sc_gcm_aad_restarts;
 	counter_u64_t sc_gcm_aad_updates;
 	counter_u64_t sc_ring_full_restarts;
+	counter_u64_t sc_sym_alloc_failures;
 
 	/* Firmware */
 	void *sc_fw_mof;			/* mof data */

@@ -1596,6 +1596,10 @@ qat_crypto_init(struct qat_softc *sc)
 	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "ring_full",
 	    CTLFLAG_RD, &sc->sc_ring_full_restarts,
 	    "Requests deferred due to in-flight max reached");
+	sc->sc_sym_alloc_failures = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "sym_alloc_failures",
+	    CTLFLAG_RD, &sc->sc_sym_alloc_failures,
+	    "Request allocation failures");
 
 	return 0;
 }
@@ -2069,6 +2073,7 @@ qat_process(device_t dev, struct cryptop *crp, int hint)
 
 	qsc = qat_crypto_alloc_sym_cookie(qcb);
 	if (qsc == NULL) {
+		counter_u64_add(sc->sc_sym_alloc_failures, 1);
 		error = ENOBUFS;
 		goto fail2;
 	}
