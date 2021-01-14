@@ -10,6 +10,22 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+074a91f746bd:
+	The aesni(4) and armv8crypto(4) devices are now included in
+	GENERIC on amd64, i386, and arm64.
+
+2e1c94aa1fd5:
+	Add support for enforcing W^X mapping policy for user
+	processes.  The policy is not enforced by default but can be
+	enabled by setting the kern.elf32.allow_wx and
+	kern.elf64_allow_wx sysctls to 1.  Individual binaries can be
+	exempted from the policy by elfctl(9) via the wxneeded
+	feature.
+
+4979620ece98:
+	Add AES-XTS support to armv8crypto(4) providing accelerated
+	software support for the default GELI cipher on arm64 systems.
+
 r368667:
 	GDB 6.1.1 was removed.  Users of crashinfo(8) should install the
 	gdb package or devel/gdb port.
