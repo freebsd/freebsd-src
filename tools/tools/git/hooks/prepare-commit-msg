@@ -43,7 +43,6 @@ $(awk '1;/^#$/{exit}' $1)
 # Uncomment and complete these metadata fields, as appropriate:
 # 
 # PR:		<If and which Problem Report is related.>
-# Submitted by:	<If someone else sent in the change.>
 # Reported by:	<If someone else reported the issue.>
 # Reviewed by:	<If someone else reviewed your modification.>
 # Approved by:	<If you needed approval for this commit.>
@@ -57,7 +56,8 @@ $(awk '1;/^#$/{exit}' $1)
 # Differential Revision:	<https://reviews.freebsd.org/D###>
 #
 # "Pull Request" and "Differential Revision" require the *full* GitHub or
-# Phabricator URL.
+# Phabricator URL.  The commit author should be set appropriately, using
+# \`git commit --author\` if someone besides the committer sent in the change.
 $(awk '/^#$/,EOF' "$1")
 EOF
 
