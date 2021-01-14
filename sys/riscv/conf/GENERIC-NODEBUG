@@ -27,16 +27,6 @@
 # $FreeBSD$
 
 include GENERIC
+include "../../conf/std.nodebug"
 
 ident   GENERIC-NODEBUG
-
-nooptions       INVARIANTS
-nooptions       INVARIANT_SUPPORT
-nooptions       WITNESS
-nooptions       WITNESS_SKIPSPIN
-nooptions       BUF_TRACKING
-nooptions       DEADLKRES
-nooptions       FULL_BUF_TRACKING
-nooptions	COVERAGE
-nooptions	KCOV
-nooptions	MALLOC_DEBUG_MAXZONES
