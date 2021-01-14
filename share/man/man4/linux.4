@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2020
+.Dd May 6, 2021
 .Dt LINUX 4
 .Os
 .Sh NAME
@@ -130,6 +130,18 @@ From a user perspective, this makes
 .Va SIGINFO
 work for Linux executables.
 Defaults to 0.
+.It Va compat.linux.setid_allowed
+Disable handling of set-user-ID and set-group-ID mode bits for the new
+process image file when image is to be executed under Linux ABI.
+When set, new Linux images always use credentials of the program
+that issued
+.Xr execve 2
+call, regardless of the image file mode.
+.Pp
+This might be reasonable or even required, because
+.Fx
+does not emulate Linux environment completely, and missed features
+could become holes.
 .El
 .Sh FILES
 .Bl -tag -width /compat/linux/dev/shm -compact
