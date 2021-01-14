@@ -1492,7 +1492,7 @@ dev/cxgbe/cudbg/fastlz_api.c	optional cxgbe \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 t4fw_cfg.c		optional cxgbe					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk t4fw_cfg.fw:t4fw_cfg t4fw_cfg_uwire.fw:t4fw_cfg_uwire t4fw.fw:t4fw -mt4fw_cfg -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"t4fw_cfg.c"
 t4fw_cfg.fwo		optional cxgbe					\
 	dependency	"t4fw_cfg.fw"					\
@@ -1526,7 +1526,7 @@ t4fw.fw			optional cxgbe					\
 	clean		"t4fw.fw"
 t5fw_cfg.c		optional cxgbe					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk t5fw_cfg.fw:t5fw_cfg t5fw_cfg_uwire.fw:t5fw_cfg_uwire t5fw.fw:t5fw -mt5fw_cfg -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"t5fw_cfg.c"
 t5fw_cfg.fwo		optional cxgbe					\
 	dependency	"t5fw_cfg.fw"					\
@@ -1560,7 +1560,7 @@ t5fw.fw			optional cxgbe					\
 	clean		"t5fw.fw"
 t6fw_cfg.c		optional cxgbe					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk t6fw_cfg.fw:t6fw_cfg t6fw_cfg_uwire.fw:t6fw_cfg_uwire t6fw.fw:t6fw -mt6fw_cfg -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"t6fw_cfg.c"
 t6fw_cfg.fwo		optional cxgbe					\
 	dependency	"t6fw_cfg.fw"					\
@@ -1895,7 +1895,7 @@ dev/ips/ips_pci.c		optional ips pci
 dev/ipw/if_ipw.c		optional ipw
 ipwbssfw.c			optional ipwbssfw | ipwfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_bss.fw:ipw_bss:130 -lintel_ipw -mipw_bss -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"ipwbssfw.c"
 ipw_bss.fwo			optional ipwbssfw | ipwfw		\
 	dependency	"ipw_bss.fw"					\
@@ -1909,7 +1909,7 @@ ipw_bss.fw			optional ipwbssfw | ipwfw		\
 	clean		"ipw_bss.fw"
 ipwibssfw.c			optional ipwibssfw | ipwfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_ibss.fw:ipw_ibss:130 -lintel_ipw -mipw_ibss -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"ipwibssfw.c"
 ipw_ibss.fwo			optional ipwibssfw | ipwfw		\
 	dependency	"ipw_ibss.fw"					\
@@ -1923,7 +1923,7 @@ ipw_ibss.fw			optional ipwibssfw | ipwfw		\
 	clean		"ipw_ibss.fw"
 ipwmonitorfw.c			optional ipwmonitorfw | ipwfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ipw_monitor.fw:ipw_monitor:130 -lintel_ipw -mipw_monitor -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"ipwmonitorfw.c"
 ipw_monitor.fwo			optional ipwmonitorfw | ipwfw		\
 	dependency	"ipw_monitor.fw"				\
@@ -1957,7 +1957,7 @@ dev/ispfw/ispfw.c		optional ispfw
 dev/iwi/if_iwi.c		optional iwi
 iwibssfw.c			optional iwibssfw | iwifw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_bss.fw:iwi_bss:300 -lintel_iwi -miwi_bss -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwibssfw.c"
 iwi_bss.fwo			optional iwibssfw | iwifw		\
 	dependency	"iwi_bss.fw"					\
@@ -1971,7 +1971,7 @@ iwi_bss.fw			optional iwibssfw | iwifw		\
 	clean		"iwi_bss.fw"
 iwiibssfw.c			optional iwiibssfw | iwifw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_ibss.fw:iwi_ibss:300 -lintel_iwi -miwi_ibss -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwiibssfw.c"
 iwi_ibss.fwo			optional iwiibssfw | iwifw		\
 	dependency	"iwi_ibss.fw"					\
@@ -1985,7 +1985,7 @@ iwi_ibss.fw			optional iwiibssfw | iwifw		\
 	clean		"iwi_ibss.fw"
 iwimonitorfw.c			optional iwimonitorfw | iwifw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwi_monitor.fw:iwi_monitor:300 -lintel_iwi -miwi_monitor -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwimonitorfw.c"
 iwi_monitor.fwo			optional iwimonitorfw | iwifw		\
 	dependency	"iwi_monitor.fw"				\
@@ -2018,7 +2018,7 @@ dev/iwm/if_iwm_time_event.c	optional iwm
 dev/iwm/if_iwm_util.c		optional iwm
 iwm3160fw.c			optional iwm3160fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm3160.fw:iwm3160fw -miwm3160fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm3160fw.c"
 iwm3160fw.fwo			optional iwm3160fw | iwmfw		\
 	dependency	"iwm3160.fw"					\
@@ -2032,7 +2032,7 @@ iwm3160.fw			optional iwm3160fw | iwmfw		\
 	clean		"iwm3160.fw"
 iwm3168fw.c			optional iwm3168fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm3168.fw:iwm3168fw -miwm3168fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm3168fw.c"
 iwm3168fw.fwo			optional iwm3168fw | iwmfw		\
 	dependency	"iwm3168.fw"					\
@@ -2046,7 +2046,7 @@ iwm3168.fw			optional iwm3168fw | iwmfw		\
 	clean		"iwm3168.fw"
 iwm7260fw.c			optional iwm7260fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm7260.fw:iwm7260fw -miwm7260fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm7260fw.c"
 iwm7260fw.fwo			optional iwm7260fw | iwmfw		\
 	dependency	"iwm7260.fw"					\
@@ -2060,7 +2060,7 @@ iwm7260.fw			optional iwm7260fw | iwmfw		\
 	clean		"iwm7260.fw"
 iwm7265fw.c			optional iwm7265fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm7265.fw:iwm7265fw -miwm7265fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm7265fw.c"
 iwm7265fw.fwo			optional iwm7265fw | iwmfw		\
 	dependency	"iwm7265.fw"					\
@@ -2074,7 +2074,7 @@ iwm7265.fw			optional iwm7265fw | iwmfw		\
 	clean		"iwm7265.fw"
 iwm7265Dfw.c			optional iwm7265Dfw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm7265D.fw:iwm7265Dfw -miwm7265Dfw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm7265Dfw.c"
 iwm7265Dfw.fwo			optional iwm7265Dfw | iwmfw		\
 	dependency	"iwm7265D.fw"					\
@@ -2088,7 +2088,7 @@ iwm7265D.fw			optional iwm7265Dfw | iwmfw		\
 	clean		"iwm7265D.fw"
 iwm8000Cfw.c			optional iwm8000Cfw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm8000C.fw:iwm8000Cfw -miwm8000Cfw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm8000Cfw.c"
 iwm8000Cfw.fwo			optional iwm8000Cfw | iwmfw		\
 	dependency	"iwm8000C.fw"					\
@@ -2107,7 +2107,7 @@ iwm8265.fw			optional iwm8265fw | iwmfw		\
 	clean		"iwm8265.fw"
 iwm8265fw.c			optional iwm8265fw | iwmfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwm8265.fw:iwm8265fw -miwm8265fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwm8265fw.c"
 iwm8265fw.fwo			optional iwm8265fw | iwmfw		\
 	dependency	"iwm8265.fw"					\
@@ -2117,7 +2117,7 @@ iwm8265fw.fwo			optional iwm8265fw | iwmfw		\
 dev/iwn/if_iwn.c		optional iwn
 iwn1000fw.c			optional iwn1000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn1000.fw:iwn1000fw -miwn1000fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn1000fw.c"
 iwn1000fw.fwo			optional iwn1000fw | iwnfw		\
 	dependency	"iwn1000.fw"					\
@@ -2131,7 +2131,7 @@ iwn1000.fw			optional iwn1000fw | iwnfw		\
 	clean		"iwn1000.fw"
 iwn100fw.c			optional iwn100fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn100.fw:iwn100fw -miwn100fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn100fw.c"
 iwn100fw.fwo			optional iwn100fw | iwnfw		\
 	dependency	"iwn100.fw"					\
@@ -2145,7 +2145,7 @@ iwn100.fw			optional iwn100fw | iwnfw		\
 	clean		"iwn100.fw"
 iwn105fw.c			optional iwn105fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn105.fw:iwn105fw -miwn105fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn105fw.c"
 iwn105fw.fwo			optional iwn105fw | iwnfw		\
 	dependency	"iwn105.fw"					\
@@ -2159,7 +2159,7 @@ iwn105.fw			optional iwn105fw | iwnfw		\
 	clean		"iwn105.fw"
 iwn135fw.c			optional iwn135fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn135.fw:iwn135fw -miwn135fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn135fw.c"
 iwn135fw.fwo			optional iwn135fw | iwnfw		\
 	dependency	"iwn135.fw"					\
@@ -2173,7 +2173,7 @@ iwn135.fw			optional iwn135fw | iwnfw		\
 	clean		"iwn135.fw"
 iwn2000fw.c			optional iwn2000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2000.fw:iwn2000fw -miwn2000fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn2000fw.c"
 iwn2000fw.fwo			optional iwn2000fw | iwnfw		\
 	dependency	"iwn2000.fw"					\
@@ -2187,7 +2187,7 @@ iwn2000.fw			optional iwn2000fw | iwnfw		\
 	clean		"iwn2000.fw"
 iwn2030fw.c			optional iwn2030fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2030.fw:iwn2030fw -miwn2030fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn2030fw.c"
 iwn2030fw.fwo			optional iwn2030fw | iwnfw		\
 	dependency	"iwn2030.fw"					\
@@ -2201,7 +2201,7 @@ iwn2030.fw			optional iwn2030fw | iwnfw		\
 	clean		"iwn2030.fw"
 iwn4965fw.c			optional iwn4965fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn4965.fw:iwn4965fw -miwn4965fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn4965fw.c"
 iwn4965fw.fwo			optional iwn4965fw | iwnfw		\
 	dependency	"iwn4965.fw"					\
@@ -2215,7 +2215,7 @@ iwn4965.fw			optional iwn4965fw | iwnfw		\
 	clean		"iwn4965.fw"
 iwn5000fw.c			optional iwn5000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn5000.fw:iwn5000fw -miwn5000fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn5000fw.c"
 iwn5000fw.fwo		optional iwn5000fw | iwnfw			\
 	dependency	"iwn5000.fw"					\
@@ -2229,7 +2229,7 @@ iwn5000.fw			optional iwn5000fw | iwnfw		\
 	clean		"iwn5000.fw"
 iwn5150fw.c			optional iwn5150fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn5150.fw:iwn5150fw -miwn5150fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn5150fw.c"
 iwn5150fw.fwo			optional iwn5150fw | iwnfw		\
 	dependency	"iwn5150.fw"					\
@@ -2243,7 +2243,7 @@ iwn5150.fw			optional iwn5150fw | iwnfw		\
 	clean		"iwn5150.fw"
 iwn6000fw.c			optional iwn6000fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000.fw:iwn6000fw -miwn6000fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn6000fw.c"
 iwn6000fw.fwo			optional iwn6000fw | iwnfw		\
 	dependency	"iwn6000.fw"					\
@@ -2257,7 +2257,7 @@ iwn6000.fw			optional iwn6000fw | iwnfw		\
 	clean		"iwn6000.fw"
 iwn6000g2afw.c			optional iwn6000g2afw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000g2a.fw:iwn6000g2afw -miwn6000g2afw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn6000g2afw.c"
 iwn6000g2afw.fwo		optional iwn6000g2afw | iwnfw		\
 	dependency	"iwn6000g2a.fw"					\
@@ -2271,7 +2271,7 @@ iwn6000g2a.fw			optional iwn6000g2afw | iwnfw		\
 	clean		"iwn6000g2a.fw"
 iwn6000g2bfw.c			optional iwn6000g2bfw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6000g2b.fw:iwn6000g2bfw -miwn6000g2bfw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn6000g2bfw.c"
 iwn6000g2bfw.fwo		optional iwn6000g2bfw | iwnfw		\
 	dependency	"iwn6000g2b.fw"					\
@@ -2285,7 +2285,7 @@ iwn6000g2b.fw			optional iwn6000g2bfw | iwnfw		\
 	clean		"iwn6000g2b.fw"
 iwn6050fw.c			optional iwn6050fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn6050.fw:iwn6050fw -miwn6050fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"iwn6050fw.c"
 iwn6050fw.fwo			optional iwn6050fw | iwnfw		\
 	dependency	"iwn6050.fw"					\
@@ -2390,7 +2390,7 @@ dev/liquidio/lio_sysctl.c			optional lio	\
 	-I$S/dev/liquidio -I$S/dev/liquidio/base -DSMP"
 lio.c	optional lio						\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk lio_23xx_nic.bin.fw:lio_23xx_nic.bin -mlio_23xx_nic.bin -c${.TARGET}" \
-	no-implicit-rule before-depend local			\
+	no-ctfconvert no-implicit-rule before-depend local	\
 	clean		"lio.c"
 lio_23xx_nic.bin.fw.fwo optional lio				\
 	dependency	"lio_23xx_nic.bin.fw"			\
@@ -2513,7 +2513,7 @@ dev/mwl/if_mwl_pci.c		optional mwl pci
 dev/mwl/mwlhal.c		optional mwl
 mwlfw.c				optional mwlfw				\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk mw88W8363.fw:mw88W8363fw mwlboot.fw:mwlboot -mmwl -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"mwlfw.c"
 mw88W8363.fwo		optional mwlfw					\
 	dependency	"mw88W8363.fw"					\
@@ -2777,7 +2777,7 @@ dev/ral/rt2860.c		optional ral
 dev/ral/if_ral_pci.c		optional ral pci
 rt2561fw.c			optional rt2561fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561.fw:rt2561fw -mrt2561 -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rt2561fw.c"
 rt2561fw.fwo			optional rt2561fw | ralfw		\
 	dependency	"rt2561.fw"					\
@@ -2791,7 +2791,7 @@ rt2561.fw			optional rt2561fw | ralfw		\
 	clean		"rt2561.fw"
 rt2561sfw.c			optional rt2561sfw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2561s.fw:rt2561sfw -mrt2561s -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rt2561sfw.c"
 rt2561sfw.fwo			optional rt2561sfw | ralfw		\
 	dependency	"rt2561s.fw"					\
@@ -2805,7 +2805,7 @@ rt2561s.fw			optional rt2561sfw | ralfw		\
 	clean		"rt2561s.fw"
 rt2661fw.c			optional rt2661fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2661.fw:rt2661fw -mrt2661 -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rt2661fw.c"
 rt2661fw.fwo			optional rt2661fw | ralfw		\
 	dependency	"rt2661.fw"					\
@@ -2819,7 +2819,7 @@ rt2661.fw			optional rt2661fw | ralfw		\
 	clean		"rt2661.fw"
 rt2860fw.c			optional rt2860fw | ralfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rt2860.fw:rt2860fw -mrt2860 -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rt2860fw.c"
 rt2860fw.fwo			optional rt2860fw | ralfw		\
 	dependency	"rt2860.fw"					\
@@ -2950,7 +2950,7 @@ dev/rtwn/rtl8821a/usb/r21au_dfs.c	optional rtwn_usb
 dev/rtwn/rtl8821a/usb/r21au_init.c	optional rtwn_usb
 rtwn-rtl8188eefw.c		optional rtwn-rtl8188eefw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8188eefw.fw:rtwn-rtl8188eefw:111 -mrtwn-rtl8188eefw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8188eefw.c"
 rtwn-rtl8188eefw.fwo		optional rtwn-rtl8188eefw | rtwnfw	\
 	dependency	"rtwn-rtl8188eefw.fw"				\
@@ -2964,7 +2964,7 @@ rtwn-rtl8188eefw.fw		optional rtwn-rtl8188eefw | rtwnfw	\
 	clean		"rtwn-rtl8188eefw.fw"
 rtwn-rtl8188eufw.c		optional rtwn-rtl8188eufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8188eufw.fw:rtwn-rtl8188eufw:111 -mrtwn-rtl8188eufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8188eufw.c"
 rtwn-rtl8188eufw.fwo		optional rtwn-rtl8188eufw | rtwnfw	\
 	dependency	"rtwn-rtl8188eufw.fw"				\
@@ -2978,7 +2978,7 @@ rtwn-rtl8188eufw.fw		optional rtwn-rtl8188eufw | rtwnfw	\
 	clean		"rtwn-rtl8188eufw.fw"
 rtwn-rtl8192cfwE.c		optional rtwn-rtl8192cfwE | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwE.fw:rtwn-rtl8192cfwE:111 -mrtwn-rtl8192cfwE -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192cfwE.c"
 rtwn-rtl8192cfwE.fwo		optional rtwn-rtl8192cfwE | rtwnfw	\
 	dependency	"rtwn-rtl8192cfwE.fw"				\
@@ -2992,7 +2992,7 @@ rtwn-rtl8192cfwE.fw		optional rtwn-rtl8192cfwE | rtwnfw	\
 	clean		"rtwn-rtl8192cfwE.fw"
 rtwn-rtl8192cfwE_B.c		optional rtwn-rtl8192cfwE_B | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwE_B.fw:rtwn-rtl8192cfwE_B:111 -mrtwn-rtl8192cfwE_B -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192cfwE_B.c"
 rtwn-rtl8192cfwE_B.fwo		optional rtwn-rtl8192cfwE_B | rtwnfw	\
 	dependency	"rtwn-rtl8192cfwE_B.fw"				\
@@ -3006,7 +3006,7 @@ rtwn-rtl8192cfwE_B.fw		optional rtwn-rtl8192cfwE_B | rtwnfw	\
 	clean		"rtwn-rtl8192cfwE_B.fw"
 rtwn-rtl8192cfwT.c		optional rtwn-rtl8192cfwT | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwT.fw:rtwn-rtl8192cfwT:111 -mrtwn-rtl8192cfwT -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192cfwT.c"
 rtwn-rtl8192cfwT.fwo		optional rtwn-rtl8192cfwT | rtwnfw	\
 	dependency	"rtwn-rtl8192cfwT.fw"				\
@@ -3020,7 +3020,7 @@ rtwn-rtl8192cfwT.fw		optional rtwn-rtl8192cfwT | rtwnfw	\
 	clean		"rtwn-rtl8192cfwT.fw"
 rtwn-rtl8192cfwU.c		optional rtwn-rtl8192cfwU | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192cfwU.fw:rtwn-rtl8192cfwU:111 -mrtwn-rtl8192cfwU -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192cfwU.c"
 rtwn-rtl8192cfwU.fwo		optional rtwn-rtl8192cfwU | rtwnfw	\
 	dependency	"rtwn-rtl8192cfwU.fw"				\
@@ -3034,7 +3034,7 @@ rtwn-rtl8192cfwU.fw		optional rtwn-rtl8192cfwU | rtwnfw	\
 	clean		"rtwn-rtl8192cfwU.fw"
 rtwn-rtl8192eufw.c		optional rtwn-rtl8192eufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8192eufw.fw:rtwn-rtl8192eufw:111 -mrtwn-rtl8192eufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8192eufw.c"
 rtwn-rtl8192eufw.fwo		optional rtwn-rtl8192eufw | rtwnfw	\
 	dependency	"rtwn-rtl8192eufw.fw"				\
@@ -3048,7 +3048,7 @@ rtwn-rtl8192eufw.fw		optional rtwn-rtl8192eufw | rtwnfw	\
 	clean		"rtwn-rtl8192eufw.fw"
 rtwn-rtl8812aufw.c		optional rtwn-rtl8812aufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8812aufw.fw:rtwn-rtl8812aufw:111 -mrtwn-rtl8812aufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8812aufw.c"
 rtwn-rtl8812aufw.fwo		optional rtwn-rtl8812aufw | rtwnfw	\
 	dependency	"rtwn-rtl8812aufw.fw"				\
@@ -3062,7 +3062,7 @@ rtwn-rtl8812aufw.fw		optional rtwn-rtl8812aufw | rtwnfw	\
 	clean		"rtwn-rtl8812aufw.fw"
 rtwn-rtl8821aufw.c		optional rtwn-rtl8821aufw | rtwnfw	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rtwn-rtl8821aufw.fw:rtwn-rtl8821aufw:111 -mrtwn-rtl8821aufw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rtwn-rtl8821aufw.c"
 rtwn-rtl8821aufw.fwo		optional rtwn-rtl8821aufw | rtwnfw	\
 	dependency	"rtwn-rtl8821aufw.fw"				\
@@ -3339,7 +3339,7 @@ dev/usb/net/uhso.c		optional uhso
 dev/usb/wlan/if_rsu.c		optional rsu
 rsu-rtl8712fw.c			optional rsu-rtl8712fw | rsufw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk rsu-rtl8712fw.fw:rsu-rtl8712fw:120 -mrsu-rtl8712fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"rsu-rtl8712fw.c"
 rsu-rtl8712fw.fwo		optional rsu-rtl8712fw | rsufw		\
 	dependency	"rsu-rtl8712fw.fw"				\
@@ -3355,7 +3355,7 @@ dev/usb/wlan/if_rum.c		optional rum
 dev/usb/wlan/if_run.c		optional run
 runfw.c				optional runfw							\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk run.fw:runfw -mrunfw -c${.TARGET}"	\
-	no-implicit-rule before-depend local							\
+	no-ctfconvert no-implicit-rule before-depend local					\
 	clean		"runfw.c"
 runfw.fwo			optional runfw							\
 	dependency	"run.fw"								\
@@ -3502,7 +3502,7 @@ dev/watchdog/watchdog.c		standard
 dev/wpi/if_wpi.c		optional wpi pci
 wpifw.c			optional wpifw					\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk wpi.fw:wpifw:153229 -mwpi -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"wpifw.c"
 wpifw.fwo			optional wpifw				\
 	dependency	"wpi.fw"					\
@@ -3999,12 +3999,12 @@ gssd.h				optional kgssapi			\
 gssd_xdr.c			optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x gssd.h"		\
 	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -c $S/kgssapi/gssd.x -o gssd_xdr.c" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean			"gssd_xdr.c"
 gssd_clnt.c			optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x gssd.h"		\
 	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -lM $S/kgssapi/gssd.x | grep -v string.h > gssd_clnt.c" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean			"gssd_clnt.c"
 kgssapi/gss_accept_sec_context.c optional kgssapi
 kgssapi/gss_add_oid_set_member.c optional kgssapi

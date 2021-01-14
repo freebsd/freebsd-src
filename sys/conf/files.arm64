@@ -344,7 +344,7 @@ dev/ice/ice_switch.c		optional	ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 ice_ddp.c			optional ice_ddp	\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk ice_ddp.fw:ice_ddp:0x01031000 -mice_ddp -c${.TARGET}"	\
-	no-implicit-rule before-depend local		\
+	no-ctfconvert no-implicit-rule before-depend local	\
 	clean		"ice_ddp.c"
 ice_ddp.fwo			optional ice_ddp	\
 	dependency	"ice_ddp.fw"			\
@@ -480,7 +480,7 @@ dev/ffec/if_ffec.c			optional ffec
 tegra210_xusb_fw.c	optional	tegra210_xusb_fw		\
 	dependency	"$S/conf/files.arm64"				\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk tegra210_xusb.fw:tegra210_xusb_fw -mtegra210_xusb_fw -c${.TARGET}" \
-	no-implicit-rule before-depend local				\
+	no-ctfconvert no-implicit-rule before-depend local		\
 	clean		"tegra210_xusb_fw.c"
 
 tegra210_xusb.fwo	optional	tegra210_xusb_fw		\
