@@ -1,4 +1,4 @@
-# $NetBSD: varmod-sysv.mk,v 1.11 2020/11/01 22:28:52 rillig Exp $
+# $NetBSD: varmod-sysv.mk,v 1.12 2020/12/05 13:01:33 rillig Exp $
 #
 # Tests for the ${VAR:from=to} variable modifier, which replaces the suffix
 # "from" with "to".  It can also use '%' as a wildcard.
@@ -77,13 +77,16 @@
 # If the variable value is empty, it is debatable whether it consists of a
 # single empty word, or no word at all.  The :from=to modifier treats it as
 # no word at all.
+#
+# See SysVMatch, which doesn't handle w_len == p_len specially.
 .if ${:L:=suffix} != ""
 .  error
 .endif
 
 # If the variable value is empty, it is debatable whether it consists of a
-# single empty word, or no word at all.  The :from=to modifier treats it as
-# no word at all.
+# single empty word (before 2020-05-06), or no word at all (since 2020-05-06).
+#
+# See SysVMatch, percent != NULL && w[0] == '\0'.
 .if ${:L:%=suffix} != ""
 .  error
 .endif
@@ -205,9 +208,10 @@
 
 # This is not a SysV modifier since the nested variable expression expands
 # to an empty string.  The '=' in it should be irrelevant during parsing.
-# As of 2020-11-01, this seemingly correct modifier leads to a parse error.
-# XXX
-.if ${word203:L:from${:D=}to}
+# XXX: As of 2020-12-05, this expression generates an "Unfinished modifier"
+# error, while the correct error message would be "Unknown modifier" since
+# there is no modifier named "fromto".
+.if ${word214:L:from${:D=}to}
 .  error
 .endif
 

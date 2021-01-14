@@ -1,4 +1,4 @@
-# $NetBSD: directive-include.mk,v 1.4 2020/11/03 17:17:31 rillig Exp $
+# $NetBSD: directive-include.mk,v 1.5 2020/11/21 14:59:11 rillig Exp $
 #
 # Tests for the .include directive, which includes another file.
 
@@ -26,6 +26,9 @@
 .include "/dev/null"		# size 0
 # including a directory technically succeeds, but shouldn't.
 #.include "."			# directory
+
+# As of 2020-11-21, anything after the delimiter '"' is ignored.
+.include "/dev/null" and ignore anything in the rest of the line.
 
 all:
 	@:;

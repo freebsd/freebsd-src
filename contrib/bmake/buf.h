@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.h,v 1.36 2020/11/10 00:32:12 rillig Exp $	*/
+/*	$NetBSD: buf.h,v 1.38 2020/12/28 15:42:53 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -81,9 +81,9 @@
 
 /* An automatically growing null-terminated buffer of characters. */
 typedef struct Buffer {
-    size_t cap;		/* Allocated size of the buffer, including the null */
-    size_t len;		/* Number of bytes in buffer, excluding the null */
-    char *data;		/* The buffer itself (always null-terminated) */
+	size_t cap;	/* Allocated size of the buffer, including the null */
+	size_t len;	/* Number of bytes in buffer, excluding the null */
+	char *data;	/* The buffer itself (always null-terminated) */
 } Buffer;
 
 /* If we aren't on NetBSD, __predict_false() might not be defined. */
@@ -91,31 +91,31 @@ typedef struct Buffer {
 #define __predict_false(x) (x)
 #endif
 
-void Buf_Expand_1(Buffer *);
+void Buf_Expand(Buffer *);
 
 /* Buf_AddByte adds a single byte to a buffer. */
 MAKE_INLINE void
 Buf_AddByte(Buffer *buf, char byte)
 {
-    size_t old_len = buf->len++;
-    char *end;
-    if (__predict_false(old_len + 1 >= buf->cap))
-	Buf_Expand_1(buf);
-    end = buf->data + old_len;
-    end[0] = byte;
-    end[1] = '\0';
+	size_t old_len = buf->len++;
+	char *end;
+	if (__predict_false(old_len + 1 >= buf->cap))
+		Buf_Expand(buf);
+	end = buf->data + old_len;
+	end[0] = byte;
+	end[1] = '\0';
 }
 
 MAKE_INLINE size_t
 Buf_Len(const Buffer *buf)
 {
-    return buf->len;
+	return buf->len;
 }
 
 MAKE_INLINE Boolean
 Buf_EndsWith(const Buffer *buf, char ch)
 {
-    return buf->len > 0 && buf->data[buf->len - 1] == ch;
+	return buf->len > 0 && buf->data[buf->len - 1] == ch;
 }
 
 void Buf_AddBytes(Buffer *, const char *, size_t);

@@ -1,4 +1,5 @@
-fail
+echo fail all; false 'all' '${.TARGET}' '$${.TARGET}'
+fail all
 *** Error code 1 (continuing)
 
 Stop.

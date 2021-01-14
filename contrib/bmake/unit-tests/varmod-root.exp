@@ -7,4 +7,5 @@ root of 'a.a' is 'a'
 root of '.gitignore' is ''
 root of 'a' is 'a'
 root of 'a.a' is 'a'
+root of 'trailing/' is 'trailing/'
 exit status 0

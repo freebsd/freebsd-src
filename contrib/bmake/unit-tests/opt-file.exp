@@ -1,1 +1,12 @@
-exit status 0
+value
+value
+line-with-trailing-whitespace
+make: "(stdin)" line 1: Zero byte read from file
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+*** Error code 1 (continuing)
+`all' not remade because of errors.
+
+Stop.
+make: stopped in unit-tests
+exit status 1

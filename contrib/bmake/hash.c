@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.57 2020/11/14 21:29:44 rillig Exp $	*/
+/*	$NetBSD: hash.c,v 1.60 2020/12/30 10:03:16 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -74,7 +74,7 @@
 #include "make.h"
 
 /*	"@(#)hash.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: hash.c,v 1.57 2020/11/14 21:29:44 rillig Exp $");
+MAKE_RCSID("$NetBSD: hash.c,v 1.60 2020/12/30 10:03:16 rillig Exp $");
 
 /*
  * The ratio of # entries to # buckets at which we rebuild the table to
@@ -86,10 +86,13 @@ MAKE_RCSID("$NetBSD: hash.c,v 1.57 2020/11/14 21:29:44 rillig Exp $");
 static unsigned int
 hash(const char *key, size_t *out_keylen)
 {
-	unsigned int h = 0;
-	const char *p = key;
-	while (*p != '\0')
-		h = (h << 5) - h + (unsigned char)*p++;
+	unsigned int h;
+	const char *p;
+
+	h = 0;
+	for (p = key; *p != '\0'; p++)
+		h = 31 * h + (unsigned char)*p;
+
 	if (out_keylen != NULL)
 		*out_keylen = (size_t)(p - key);
 	return h;
@@ -98,7 +101,7 @@ hash(const char *key, size_t *out_keylen)
 unsigned int
 Hash_Hash(const char *key)
 {
-    return hash(key, NULL);
+	return hash(key, NULL);
 }
 
 static HashEntry *
@@ -177,8 +180,10 @@ HashTable_FindValue(HashTable *t, const char *key)
 	return he != NULL ? he->value : NULL;
 }
 
-/* Find the value corresponding to the key and the precomputed hash,
- * or return NULL. */
+/*
+ * Find the value corresponding to the key and the precomputed hash,
+ * or return NULL.
+ */
 void *
 HashTable_FindValueHash(HashTable *t, const char *key, unsigned int h)
 {
@@ -186,8 +191,10 @@ HashTable_FindValueHash(HashTable *t, const char *key, unsigned int h)
 	return he != NULL ? he->value : NULL;
 }
 
-/* Make the hash table larger. Any bucket numbers from the old table become
- * invalid; the hash codes stay valid though. */
+/*
+ * Make the hash table larger. Any bucket numbers from the old table become
+ * invalid; the hash codes stay valid though.
+ */
 static void
 HashTable_Enlarge(HashTable *t)
 {
@@ -221,8 +228,10 @@ HashTable_Enlarge(HashTable *t)
 	t->maxchain = 0;
 }
 
-/* Find or create an entry corresponding to the key.
- * Return in out_isNew whether a new entry has been created. */
+/*
+ * Find or create an entry corresponding to the key.
+ * Return in out_isNew whether a new entry has been created.
+ */
 HashEntry *
 HashTable_CreateEntry(HashTable *t, const char *key, Boolean *out_isNew)
 {
@@ -288,8 +297,10 @@ HashIter_Init(HashIter *hi, HashTable *t)
 	hi->entry = NULL;
 }
 
-/* Return the next entry in the hash table, or NULL if the end of the table
- * is reached. */
+/*
+ * Return the next entry in the hash table, or NULL if the end of the table
+ * is reached.
+ */
 HashEntry *
 HashIter_Next(HashIter *hi)
 {

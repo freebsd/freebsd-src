@@ -1,8 +1,12 @@
-# $NetBSD: directive-unexport.mk,v 1.5 2020/11/03 17:17:31 rillig Exp $
+# $NetBSD: directive-unexport.mk,v 1.7 2020/12/13 01:07:54 rillig Exp $
 #
 # Tests for the .unexport directive.
-
-# TODO: Implementation
+#
+# Before 2020-12-13, misspelled directives like ".unexporting" or
+# ".unexport-en" had not been detected properly.
+#
+# See also:
+#	directive-misspellings.mk
 
 # First, export 3 variables.
 UT_A=	a
@@ -23,9 +27,7 @@ UT_C=	c
 .info ${:!env|sort|grep '^UT_'!}
 .info ${.MAKE.EXPORTED}
 
-.unexpor			# misspelled
 .unexport			# oops: missing argument
-.unexporting works		# oops: misspelled
 
 all:
 	@:;

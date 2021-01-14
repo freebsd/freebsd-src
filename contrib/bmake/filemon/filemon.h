@@ -1,4 +1,4 @@
-/*	$NetBSD: filemon.h,v 1.3 2020/10/18 11:49:47 rillig Exp $	*/
+/*	$NetBSD: filemon.h,v 1.4 2020/11/29 09:27:40 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
  */
 
 #ifndef MAKE_FILEMON_H
-#define	MAKE_FILEMON_H
+#define MAKE_FILEMON_H
 
 #include <sys/types.h>
 
@@ -50,4 +50,4 @@ int	filemon_setpid_child(const struct filemon *, pid_t);
 int	filemon_readfd(const struct filemon *);
 int	filemon_process(struct filemon *);
 
-#endif	/* MAKE_FILEMON_H */
+#endif /* MAKE_FILEMON_H */

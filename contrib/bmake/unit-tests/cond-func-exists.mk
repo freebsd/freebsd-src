@@ -1,4 +1,4 @@
-# $NetBSD: cond-func-exists.mk,v 1.5 2020/10/24 08:46:08 rillig Exp $
+# $NetBSD: cond-func-exists.mk,v 1.6 2020/11/30 20:12:29 rillig Exp $
 #
 # Tests for the exists() function in .if conditions.
 
@@ -37,6 +37,15 @@
 .if !exists(	.	)
 .  error
 .endif
+
+# The exists function does not really look up the file in the file system,
+# instead it uses a cache that is preloaded very early, before parsing the
+# first makefile.  At that time, the file did not exist yet.
+_!=	> cond-func-exists.just-created
+.if exists(cond-func-exists.just-created)
+.  error
+.endif
+_!=	rm cond-func-exists.just-created
 
 all:
 	@:;

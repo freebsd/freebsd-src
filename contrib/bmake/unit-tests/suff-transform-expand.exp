@@ -2,4 +2,7 @@
 make: don't know how to make .first (continuing)
 : 'Making issue11.second out of nothing.'
 `all' not remade because of errors.
-exit status 0
+
+Stop.
+make: stopped in unit-tests
+exit status 1

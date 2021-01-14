@@ -1,4 +1,4 @@
-# $NetBSD: suff-clear-regular.mk,v 1.1 2020/10/20 20:36:53 rillig Exp $
+# $NetBSD: suff-clear-regular.mk,v 1.2 2020/12/07 00:53:30 rillig Exp $
 #
 # https://gnats.netbsd.org/49086, issue 4:
 # Suffix rules do not become regular rules when .SUFFIXES is cleared.
@@ -27,5 +27,4 @@ all: .a .a.b .b.a
 # XXX: don't know how to make .a
 # XXX: don't know how to make .a.b
 # XXX: don't know how to make .b.a
-# XXX: exit status 0
 #.MAKEFLAGS: -dg1

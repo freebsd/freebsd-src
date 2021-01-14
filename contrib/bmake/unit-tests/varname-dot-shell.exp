@@ -1,6 +1,6 @@
 ParseReadLine (10): 'ORIG_SHELL:=	${.SHELL}'
 Global:ORIG_SHELL = 
-Var_Parse: ${.SHELL} with VARE_WANTRES|VARE_KEEP_DOLLAR
+Var_Parse: ${.SHELL} with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
 Global:delete .SHELL (not found)
 Command:.SHELL = (details omitted)
 Global:ORIG_SHELL = (details omitted)

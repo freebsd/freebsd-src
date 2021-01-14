@@ -1,4 +1,4 @@
-/*	$NetBSD: trace.c,v 1.21 2020/10/31 22:05:56 rillig Exp $	*/
+/*	$NetBSD: trace.c,v 1.25 2020/12/20 14:32:13 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
@@ -48,7 +48,7 @@
 #include "job.h"
 #include "trace.h"
 
-MAKE_RCSID("$NetBSD: trace.c,v 1.21 2020/10/31 22:05:56 rillig Exp $");
+MAKE_RCSID("$NetBSD: trace.c,v 1.25 2020/12/20 14:32:13 rillig Exp $");
 
 static FILE *trfile;
 static pid_t trpid;
@@ -67,11 +67,12 @@ void
 Trace_Init(const char *pathname)
 {
 	if (pathname != NULL) {
-		void *dontFreeIt;
+		FStr curDir;
 		trpid = getpid();
 		/* XXX: This variable may get overwritten later, which
 		 * would make trwd point to undefined behavior. */
-		trwd = Var_Value(".CURDIR", VAR_GLOBAL, &dontFreeIt);
+		curDir = Var_Value(".CURDIR", VAR_GLOBAL);
+		trwd = curDir.str;
 
 		trfile = fopen(pathname, "a");
 	}
@@ -92,8 +93,11 @@ Trace_Log(TrEvent event, Job *job)
 	    jobTokensRunning,
 	    evname[event], trpid, trwd);
 	if (job != NULL) {
-		fprintf(trfile, " %s %d %x %x", job->node->name,
-		    job->pid, job->flags, job->node->type);
+		char flags[4];
+
+		Job_FlagsToString(job, flags, sizeof flags);
+		fprintf(trfile, " %s %d %s %x", job->node->name,
+		    job->pid, flags, job->node->type);
 	}
 	fputc('\n', trfile);
 	fflush(trfile);

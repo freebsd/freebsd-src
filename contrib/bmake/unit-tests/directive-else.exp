@@ -1,11 +1,11 @@
-make: "directive-else.mk" line 11: The .else directive does not take arguments.
-make: "directive-else.mk" line 12: ok
-make: "directive-else.mk" line 16: ok
-make: "directive-else.mk" line 17: The .else directive does not take arguments.
-make: "directive-else.mk" line 22: if-less else
-make: "directive-else.mk" line 28: ok
-make: "directive-else.mk" line 29: warning: extra else
-make: "directive-else.mk" line 42: The .else directive does not take arguments.
+make: "directive-else.mk" line 14: The .else directive does not take arguments.
+make: "directive-else.mk" line 15: ok
+make: "directive-else.mk" line 19: ok
+make: "directive-else.mk" line 21: The .else directive does not take arguments.
+make: "directive-else.mk" line 26: if-less else
+make: "directive-else.mk" line 32: ok
+make: "directive-else.mk" line 33: warning: extra else
+make: "directive-else.mk" line 45: The .else directive does not take arguments.
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests
 exit status 1

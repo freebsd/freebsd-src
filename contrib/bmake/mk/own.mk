@@ -1,4 +1,4 @@
-# $Id: own.mk,v 1.41 2020/08/19 17:51:53 sjg Exp $
+# $Id: own.mk,v 1.42 2020/11/27 18:00:08 sjg Exp $
 
 .if !target(__${.PARSEFILE}__)
 __${.PARSEFILE}__:
@@ -125,10 +125,10 @@ OPTIONS_DEFAULT_DEPENDENT+= \
 
 .if ${MK_INSTALL_AS_USER} == "yes"
 # We ignore this if user is root.
-_uid!=  id -u
+_uid:= ${.MAKE.UID:U${id -u:L:sh}}
 .if ${_uid} != 0
 .if !defined(USERGRP)
-USERGRP!=  id -g
+USERGRP:=  ${.MAKE.GID:U${id -g:L:sh}}
 .export USERGRP
 .endif
 .for x in BIN CONF DOC INC INFO FILES KMOD LIB MAN NLS PROG SHARE

@@ -1,0 +1,62 @@
+#*** Input graph:
+# all, made UNMADE, type OP_DEPENDS, flags none
+
+
+#
+#   Files that are only sources:
+#*** Global Variables:
+.ALLTARGETS      =  all
+.CURDIR          = <curdir>
+.INCLUDES        = 
+.LIBS            = 
+.MAKE            = <details omitted>
+.MAKE.DEPENDFILE = <details omitted>
+.MAKE.GID        = <details omitted>
+.MAKE.LEVEL      = <details omitted>
+.MAKE.MAKEFILES  = <details omitted>
+.MAKE.MAKEFILE_PREFERENCE = <details omitted>
+.MAKE.OS         = <details omitted>
+.MAKE.PID        = <details omitted>
+.MAKE.PPID       = <details omitted>
+.MAKE.UID        = <details omitted>
+.MAKEFLAGS       =  -r -k -d g1
+.MAKEOVERRIDES   = 
+.OBJDIR          = <curdir>
+.PATH            = . <curdir>
+.TARGETS         = 
+.newline         = 
+
+MACHINE          = <details omitted>
+MACHINE_ARCH     = <details omitted>
+MAKE             = <details omitted>
+MFLAGS           =   -r -k -d g1
+#*** Command-line Variables:
+.MAKE.LEVEL.ENV  = MAKELEVEL
+
+#*** Directory Cache:
+# Stats: 0 hits 2 misses 0 near misses 0 losers (0%)
+#  refs  hits  directory
+#     1     0  <curdir>
+#     1     0  .
+
+#*** Suffixes:
+# ".a" (num 1, ref 2)
+#	To: 
+#	From: .cpp 
+#	Search Path: 
+# ".c" (num 2, ref 2)
+#	To: .cpp 
+#	From: 
+#	Search Path: 
+# ".cpp" (num 3, ref 3)
+#	To: .a 
+#	From: .c 
+#	Search Path: 
+#*** Transformations:
+.c.cpp          :
+	: Making ${.TARGET} from impsrc ${.IMPSRC} allsrc ${.ALLSRC}.
+
+.cpp.a          :
+	: Making ${.TARGET} from impsrc ${.IMPSRC} allsrc ${.ALLSRC}.
+
+exit status 0

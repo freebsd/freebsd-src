@@ -1,0 +1,3 @@
+echo "$MAKEFLAGS"
+ -r -k -d 00000 -D VARNAME WITH SPACES 
+exit status 0

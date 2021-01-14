@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.74 2020/11/16 18:28:27 rillig Exp $	*/
+/*	$NetBSD: str.c,v 1.78 2021/01/10 23:59:53 rillig Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -71,7 +71,7 @@
 #include "make.h"
 
 /*	"@(#)str.c	5.8 (Berkeley) 6/1/90"	*/
-MAKE_RCSID("$NetBSD: str.c,v 1.74 2020/11/16 18:28:27 rillig Exp $");
+MAKE_RCSID("$NetBSD: str.c,v 1.78 2021/01/10 23:59:53 rillig Exp $");
 
 /* Return the concatenation of s1 and s2, freshly allocated. */
 char *
@@ -115,7 +115,8 @@ str_concat4(const char *s1, const char *s2, const char *s3, const char *s4)
 	return result;
 }
 
-/* Fracture a string into an array of words (as delineated by tabs or spaces)
+/*
+ * Fracture a string into an array of words (as delineated by tabs or spaces)
  * taking quotation marks into account.
  *
  * If expand is TRUE, quotes are removed and escape sequences such as \r, \t,
@@ -142,7 +143,7 @@ Str_Words(const char *str, Boolean expand)
 
 	/* words_buf holds the words, separated by '\0'. */
 	str_len = strlen(str);
-	words_buf = bmake_malloc(strlen(str) + 1);
+	words_buf = bmake_malloc(str_len + 1);
 
 	words_cap = str_len / 5 > 50 ? str_len / 5 : 50;
 	words = bmake_malloc((words_cap + 1) * sizeof(char *));
@@ -160,7 +161,7 @@ Str_Words(const char *str, Boolean expand)
 		switch (ch) {
 		case '"':
 		case '\'':
-			if (inquote) {
+			if (inquote != '\0') {
 				if (inquote == ch)
 					inquote = '\0';
 				else
@@ -188,7 +189,7 @@ Str_Words(const char *str, Boolean expand)
 		case ' ':
 		case '\t':
 		case '\n':
-			if (inquote)
+			if (inquote != '\0')
 				break;
 			if (word_start == NULL)
 				continue;
@@ -211,7 +212,7 @@ Str_Words(const char *str, Boolean expand)
 			words[words_len++] = word_start;
 			word_start = NULL;
 			if (ch == '\n' || ch == '\0') {
-				if (expand && inquote) {
+				if (expand && inquote != '\0') {
 					free(words);
 					free(words_buf);
 					return (Words){ NULL, 0, NULL };

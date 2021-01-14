@@ -5,16 +5,16 @@ ExamineLater: need to examine "optional"
 ExamineLater: need to examine "optional-cohort"
 Make_ExpandUse: examine optional
 Make_ExpandUse: examine optional-cohort
-Examining optional...non-existent...up-to-date.
-Examining optional-cohort...non-existent...:: operator and no sources...out-of-date.
+Examining optional...nonexistent...up-to-date.
+Examining optional-cohort...nonexistent...:: operator and no sources...out-of-date.
 : A leaf node using '::' is considered out-of-date.
- recheck(optional-cohort): update time from  0:00:00 Jan 01, 1970 to now
-Examining important...non-existent...modified before source "optional-cohort"...out-of-date.
+ recheck(optional-cohort): update time from nonexistent to now
+Examining important...nonexistent...modified before source "optional-cohort"...out-of-date.
 : important is made.
- recheck(important): update time from  0:00:00 Jan 01, 1970 to now
-Examining all...non-existent...modified before source "important"...out-of-date.
+ recheck(important): update time from nonexistent to now
+Examining all...nonexistent...modified before source "important"...out-of-date.
 : all is made.
- recheck(all): update time from  0:00:00 Jan 01, 1970 to now
-Examining .END...non-existent...non-existent and no sources...out-of-date.
- recheck(.END): update time from  0:00:00 Jan 01, 1970 to now
+ recheck(all): update time from nonexistent to now
+Examining .END...nonexistent...nonexistent and no sources...out-of-date.
+ recheck(.END): update time from nonexistent to now
 exit status 0

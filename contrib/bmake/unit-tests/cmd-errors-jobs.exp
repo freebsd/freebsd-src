@@ -1,0 +1,9 @@
+: undefined  eol
+make: Unclosed variable "UNCLOSED"
+: unclosed-variable 
+make: Unclosed variable expression (expecting '}') for "UNCLOSED"
+: unclosed-modifier 
+make: Unknown modifier 'Z'
+: unknown-modifier  eol
+: end eol
+exit status 0

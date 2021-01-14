@@ -1,4 +1,4 @@
-# $NetBSD: modmisc.mk,v 1.51 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: modmisc.mk,v 1.52 2020/12/20 19:29:06 rillig Exp $
 #
 # miscellaneous modifier tests
 
@@ -63,30 +63,3 @@ mod-quote:
 # Cover the bmake_realloc in Str_Words.
 mod-break-many-words:
 	@echo $@: ${UNDEF:U:range=500:[#]}
-
-# To apply a modifier indirectly via another variable, the whole
-# modifier must be put into a single variable expression.
-.if ${value:L:${:US}${:U,value,replacement,}} != "S,value,replacement,}"
-.  warning unexpected
-.endif
-
-# Adding another level of indirection (the 2 nested :U expressions) helps.
-.if ${value:L:${:U${:US}${:U,value,replacement,}}} != "replacement"
-.  warning unexpected
-.endif
-
-# Multiple indirect modifiers can be applied one after another as long as
-# they are separated with colons.
-.if ${value:L:${:US,a,A,}:${:US,e,E,}} != "vAluE"
-.  warning unexpected
-.endif
-
-# An indirect variable that evaluates to the empty string is allowed though.
-# This makes it possible to define conditional modifiers, like this:
-#
-# M.little-endian=	S,1234,4321,
-# M.big-endian=		# none
-.if ${value:L:${:Dempty}S,a,A,} != "vAlue"
-.  warning unexpected
-.endif
-

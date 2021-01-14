@@ -16,4 +16,9 @@ make: "directive-for.mk" line 140: ][ ][ ][
 make: "directive-for.mk" line 140: }{ }{ }{
 make: "directive-for.mk" line 148: outer value value
 make: "directive-for.mk" line 148: outer "quoted" \"quoted\"
-exit status 0
+make: "directive-for.mk" line 154: Unknown modifier 'Z'
+make: "directive-for.mk" line 155: XXX: Not reached word1
+make: "directive-for.mk" line 155: XXX: Not reached word3
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1
