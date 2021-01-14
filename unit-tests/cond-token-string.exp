@@ -1,4 +1,4 @@
-make: Unknown modifier 'Z'
+make: "cond-token-string.mk" line 9: Unknown modifier 'Z'
 make: "cond-token-string.mk" line 9: Malformed conditional ("" != "${:Uvalue:Z}")
 make: "cond-token-string.mk" line 18: xvalue is not defined.
 make: "cond-token-string.mk" line 24: Malformed conditional (x${:Uvalue} == "")

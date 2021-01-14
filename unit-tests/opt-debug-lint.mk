@@ -1,4 +1,4 @@
-# $NetBSD: opt-debug-lint.mk,v 1.11 2020/10/24 08:50:17 rillig Exp $
+# $NetBSD: opt-debug-lint.mk,v 1.12 2020/12/20 19:10:53 rillig Exp $
 #
 # Tests for the -dL command line option, which runs additional checks
 # to catch common mistakes, such as unclosed variable expressions.
@@ -62,10 +62,19 @@ ${UNDEF}: ${UNDEF}
 .  error
 .endif
 
-# Since 2020-10-03, in lint mode the variable modifier must be separated
-# by colons.  See varparse-mod.mk.
+# Between 2020-10-03 and var.c 1.752 from 2020-12-20, in lint mode the
+# variable modifier had to be separated by colons.  This was wrong though
+# since make always fell back trying to parse the indirect modifier as a
+# SysV modifier.
 .if ${value:${:UL}PL} != "LPL}"		# FIXME: "LPL}" is unexpected here.
 .  error ${value:${:UL}PL}
+.endif
+
+# Typically, an indirect modifier is followed by a colon or the closing
+# brace.  This one isn't, therefore make falls back to parsing it as the SysV
+# modifier ":lue=lid".
+.if ${value:L:${:Ulue}=${:Ulid}} != "valid"
+.  error
 .endif
 
 all:

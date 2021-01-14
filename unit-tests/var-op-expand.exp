@@ -1,10 +1,1 @@
-Var_Parse: ${UNDEF} with VARE_WANTRES
-Global:VAR_ASSIGN_ = undef value
-Var_Parse: ${UNDEF} with VARE_WANTRES
-Var_Parse: ${UNDEF} with VARE_WANTRES
-Global:VAR_SUBST_${UNDEF} = 
-Var_Parse: ${UNDEF} with VARE_WANTRES
-Global:VAR_SUBST_ = undef value
-Global:.MAKEFLAGS =  -r -k -d v -d
-Global:.MAKEFLAGS =  -r -k -d v -d 0
 exit status 0

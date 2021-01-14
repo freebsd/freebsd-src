@@ -1,22 +1,22 @@
 Global:8_DOLLARS = $$$$$$$$
 Global:VAR = 
-Var_Parse: ${8_DOLLARS} with VARE_WANTRES|VARE_KEEP_DOLLAR
+Var_Parse: ${8_DOLLARS} with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
 Global:VAR = $$$$$$$$
-Var_Parse: ${VAR:D${8_DOLLARS}} with VARE_WANTRES|VARE_KEEP_DOLLAR
-Applying ${VAR:D...} to "$$$$$$$$" (VARE_WANTRES|VARE_KEEP_DOLLAR, none, none)
-Var_Parse: ${8_DOLLARS}} with VARE_WANTRES|VARE_KEEP_DOLLAR
-Result of ${VAR:D${8_DOLLARS}} is "$$$$$$$$" (VARE_WANTRES|VARE_KEEP_DOLLAR, none, none)
+Var_Parse: ${VAR:D${8_DOLLARS}} with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
+Applying ${VAR:D...} to "$$$$$$$$" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, none)
+Var_Parse: ${8_DOLLARS}} with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
+Result of ${VAR:D${8_DOLLARS}} is "$$$$$$$$" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, none)
 Global:VAR = $$$$$$$$
-Var_Parse: ${VAR:@var@${8_DOLLARS}@} with VARE_WANTRES|VARE_KEEP_DOLLAR
-Applying ${VAR:@...} to "$$$$$$$$" (VARE_WANTRES|VARE_KEEP_DOLLAR, none, none)
+Var_Parse: ${VAR:@var@${8_DOLLARS}@} with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
+Applying ${VAR:@...} to "$$$$$$$$" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, none)
 Modifier part: "var"
 Modifier part: "${8_DOLLARS}"
 ModifyWords: split "$$$$$$$$" into 1 words
 Global:var = $$$$$$$$
-Var_Parse: ${8_DOLLARS} with VARE_WANTRES
+Var_Parse: ${8_DOLLARS} with VARE_WANTRES|VARE_KEEP_UNDEF
 ModifyWord_Loop: in "$$$$$$$$", replace "var" with "${8_DOLLARS}" to "$$$$"
 Global:delete var
-Result of ${VAR:@var@${8_DOLLARS}@} is "$$$$" (VARE_WANTRES|VARE_KEEP_DOLLAR, none, none)
+Result of ${VAR:@var@${8_DOLLARS}@} is "$$$$" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, none)
 Global:VAR = $$$$
 Global:.MAKEFLAGS =  -r -k -d v -d
 Global:.MAKEFLAGS =  -r -k -d v -d 0

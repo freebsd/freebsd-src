@@ -13,10 +13,10 @@ echo ": 'single' and \"double\" quotes"
 { sleep 1 
 } || exit $?
 Running all
-	Command: sh 
+	Command: <shell> 
 JobExec(all): pid <pid> added to jobs table
 job table @ job started
-job 0, status 3, flags 0, pid <pid>
+job 0, status 3, flags ---, pid <pid>
 : expanded expression
 :  variable
 : 'single' and "double" quotes

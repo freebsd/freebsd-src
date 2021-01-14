@@ -1,4 +1,4 @@
-/*	$NetBSD: enum.c,v 1.12 2020/10/05 19:27:47 rillig Exp $	*/
+/*	$NetBSD: enum.c,v 1.14 2021/01/09 16:06:09 rillig Exp $	*/
 
 /*
  Copyright (c) 2020 Roland Illig <rillig@NetBSD.org>
@@ -29,13 +29,15 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: enum.c,v 1.12 2020/10/05 19:27:47 rillig Exp $");
+MAKE_RCSID("$NetBSD: enum.c,v 1.14 2021/01/09 16:06:09 rillig Exp $");
 
-/* Convert a bitset into a string representation, showing the names of the
+/*
+ * Convert a bitset into a string representation, showing the names of the
  * individual bits.
  *
  * Optionally, shortcuts for groups of bits can be added.  To have an effect,
- * they need to be listed before their individual bits. */
+ * they need to be listed before their individual bits.
+ */
 const char *
 Enum_FlagsToString(char *buf, size_t buf_size,
 		   int value, const EnumToStringSpec *spec)
@@ -86,4 +88,5 @@ Enum_ValueToString(int value, const EnumToStringSpec *spec)
 			return spec->es_name;
 	}
 	abort(/* unknown enum value */);
+	/*NOTREACHED*/
 }

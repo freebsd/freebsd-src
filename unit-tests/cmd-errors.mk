@@ -1,7 +1,7 @@
-# $NetBSD: cmd-errors.mk,v 1.3 2020/11/09 23:36:34 rillig Exp $
+# $NetBSD: cmd-errors.mk,v 1.4 2020/12/27 05:11:40 rillig Exp $
 #
 # Demonstrate how errors in variable expansions affect whether the commands
-# are actually executed.
+# are actually executed in compat mode.
 
 all: undefined unclosed-variable unclosed-modifier unknown-modifier end
 

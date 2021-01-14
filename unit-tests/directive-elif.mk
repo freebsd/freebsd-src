@@ -1,55 +1,125 @@
-# $NetBSD: directive-elif.mk,v 1.6 2020/11/12 19:46:36 rillig Exp $
+# $NetBSD: directive-elif.mk,v 1.7 2020/12/19 19:49:01 rillig Exp $
 #
 # Tests for the .elif directive.
+#
+# Misspellings of the .elif directive are not always detected.  They are only
+# detected if the conditional branch directly above it is taken.  In all other
+# cases, make skips over the skipped branch as fast as possible, looking only
+# at the initial '.' of the line and whether the directive is one of the known
+# conditional directives.  All other directives are silently ignored, as they
+# could be variable assignments or dependency declarations as well, and
+# deciding this would cost time.
+
 
 # TODO: Implementation
 
-.info begin .elif misspellings tests, part 1
+
+# Misspelling '.elsif' below an .if branch that is not taken.
+.if 0
+.  info This branch is not taken.
+# As of 2020-12-19, the misspelling is not recognized as a conditional
+# directive and is thus silently skipped.
+#
+# Since the .if condition evaluated to false, this whole branch is not taken.
+.elsif 0
+.  info XXX: This misspelling is not detected.
+.  info This branch is not taken.
+# Even if the misspelling were detected, the branch would not be taken
+# since the condition of the '.elsif' evaluates to false as well.
+.endif
+
+
+# Misspelling '.elsif' below an .if branch that is not taken.
+.if 0
+.  info This branch is not taken.
+# As of 2020-12-19, the misspelling is not recognized as a conditional
+# directive and is thus silently skipped.  Since the .if condition evaluated
+# to false, this whole branch is not taken.
+.elsif 1
+.  info XXX: This misspelling is not detected.
+# If the misspelling were detected, this branch would be taken.
+.endif
+
+
+# Misspelling '.elsif' below an .if branch that is taken.
 .if 1
-.  info 1-then
-.elif 1				# ok
-.  info 1-elif
-.elsif 1			# oops: misspelled
-.  info 1-elsif
-.elseif 1			# oops: misspelled
-.  info 1-elseif
+# This misspelling is in an active branch and is therefore detected.
+.elsif 0
+# The only thing that make detects here is a misspelled directive, make
+# doesn't recognize that it was meant to be a conditional directive.
+# Therefore the branch continues here, even though the '.elsif' condition
+# evaluates to false.
+.  info This branch is taken.
 .endif
 
-.info begin .elif misspellings tests, part 2
+
+# Misspelling '.elsif' below an .if branch that is taken.
+.if 1
+# As of 2020-12-19, the misspelling is in an active branch and is therefore
+# detected.
+.elsif 1
+# Since both conditions evaluate to true, this branch is taken no matter
+# whether make detects a misspelling or not.
+.  info This branch is taken.
+.endif
+
+
+# Misspelling '.elsif' in a skipped branch below a branch that was taken.
+.if 1
+.  info This branch is taken.
+.elif 0
+.  info This branch is not taken.
+.elsif 1
+.  info XXX: This misspelling is not detected.
+.endif
+
+
+# Misspelling '.elsif' in an .else branch that is not taken.
+.if 1
+.else
+.  info This branch is not taken.
+.elsif 1
+.  info XXX: This misspelling is not detected.
+.endif
+
+
+# Misspelling '.elsif' in an .else branch that is taken.
 .if 0
-.  info 0-then
+.else
+.elsif 1
+.  info This misspelling is detected.
+.  info This branch is taken because of the .else.
+.endif
+
+
+# Misspellings for .elif in a .elif branch that is not taken.
+.if 0
+.  info This branch is not taken.
 .elif 0				# ok
-.  info 0-elif
-.elsif 0			# oops: misspelled
-.  info 0-elsif
-.elseif 0			# oops: misspelled
-.  info 0-elseif
+.  info This branch is not taken.
+.elsif 0
+.  info XXX: This misspelling is not detected.
+.  info This branch is not taken.
+.elseif 0
+.  info XXX: This misspelling is not detected.
+.  info This branch is not taken.
 .endif
 
-.info begin .elif misspellings tests, part 3
-.if 0
-.  info 0-then
-.elsif 0			# oops: misspelled
-.  info 0-elsif
-.endif
-.if 0
-.  info 0-then
-.elseif 0			# oops: misspelled
-.  info 0-elseif
-.endif
 
-.info which branch is taken on misspelling after false?
+.info What happens on misspelling in a skipped branch?
 .if 0
 .  info 0-then
 .elsif 1
+.  info XXX: This misspelling is not detected.
 .  info 1-elsif
 .elsif 2
+.  info XXX: This misspelling is not detected.
 .  info 2-elsif
 .else
 .  info else
 .endif
 
-.info which branch is taken on misspelling after true?
+.info What happens on misspelling in a taken branch?
 .if 1
 .  info 1-then
 .elsif 1
@@ -65,7 +135,7 @@
 
 .if 1
 .else
-# Expect: "warning: if-less elif"
+# Expect: "warning: extra elif"
 .elif
 .endif
 

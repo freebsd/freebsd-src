@@ -1,4 +1,4 @@
-/*	$NetBSD: config.h,v 1.25 2020/10/19 23:43:55 rillig Exp $	*/
+/*	$NetBSD: config.h,v 1.28 2020/12/11 22:53:08 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -73,19 +73,6 @@
  */
 
 /*
- * DEFMAXJOBS
- * DEFMAXLOCAL
- *	These control the default concurrency. On no occasion will more
- *	than DEFMAXJOBS targets be created at once (locally or remotely).
- *
- *	DEFMAXLOCAL is the highest number of targets which will be
- *	created on the local machine at once. Note that if you set this
- *	to 0, nothing will ever happen.
- */
-#define DEFMAXJOBS	4
-#define DEFMAXLOCAL	1
-
-/*
  * INCLUDES
  * LIBRARIES
  *	These control the handling of the .INCLUDES and .LIBS variables.
@@ -104,7 +91,7 @@
  *	Is the suffix used to denote libraries and is used by the Suff module
  *	to find the search path on which to seek any -l<xx> targets.
  */
-#define	LIBSUFF	".a"
+#define LIBSUFF	".a"
 
 /*
  * RECHECK
@@ -119,14 +106,13 @@
  *	On systems that don't have this problem, you should define this.
  *	Under NFS you probably should not, unless you aren't exporting jobs.
  */
-#define	RECHECK
+#define RECHECK
 
 /*
  * POSIX
  *	Adhere to the POSIX 1003.2 draft for the make(1) program.
  *	- Use MAKEFLAGS instead of MAKE to pick arguments from the
  *	  environment.
- *	- Allow empty command lines if starting with tab.
  */
 #define POSIX
 

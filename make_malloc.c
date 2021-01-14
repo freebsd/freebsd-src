@@ -1,4 +1,4 @@
-/*	$NetBSD: make_malloc.c,v 1.23 2020/10/05 19:27:47 rillig Exp $	*/
+/*	$NetBSD: make_malloc.c,v 1.24 2020/12/07 22:37:18 rillig Exp $	*/
 
 /*-
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
@@ -30,7 +30,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: make_malloc.c,v 1.23 2020/10/05 19:27:47 rillig Exp $");
+MAKE_RCSID("$NetBSD: make_malloc.c,v 1.24 2020/12/07 22:37:18 rillig Exp $");
 
 #ifndef USE_EMALLOC
 
@@ -61,8 +61,7 @@ bmake_strdup(const char *str)
 	char *p;
 
 	len = strlen(str) + 1;
-	if ((p = malloc(len)) == NULL)
-		enomem();
+	p = bmake_malloc(len);
 	return memcpy(p, str, len);
 }
 

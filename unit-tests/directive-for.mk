@@ -1,4 +1,4 @@
-# $NetBSD: directive-for.mk,v 1.9 2020/11/15 20:20:58 rillig Exp $
+# $NetBSD: directive-for.mk,v 1.10 2020/12/27 09:58:35 rillig Exp $
 #
 # Tests for the .for directive.
 #
@@ -146,6 +146,13 @@ EXPANSION${plus}=	value
 var=	outer
 .for var:Q in value "quoted"
 .  info ${var} ${var:Q} ${var:Q:Q}
+.endfor
+
+
+# XXX: A parse error or evaluation error in the items of the .for loop
+# should skip the whole loop.  As of 2020-12-27, the loop is expanded twice.
+.for var in word1 ${:Uword2:Z} word3
+.  info XXX: Not reached ${var}
 .endfor
 
 all:

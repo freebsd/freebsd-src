@@ -1,4 +1,4 @@
-# $NetBSD: varname-make_print_var_on_error-jobs.mk,v 1.1 2020/10/23 06:18:23 rillig Exp $
+# $NetBSD: varname-make_print_var_on_error-jobs.mk,v 1.2 2020/12/13 19:08:20 rillig Exp $
 #
 # Tests for the special MAKE_PRINT_VAR_ON_ERROR variable, which prints the
 # values of selected variables on error.
@@ -9,6 +9,13 @@
 # The commands in .ERROR_CMD are space-separated.  Since each command usually
 # contains spaces as well, this value is only intended as a first hint to what
 # happened.  For more details, use the debug options -de, -dj, -dl, -dn, -dx.
+#
+# See also:
+#	compat-error.mk
+
+# XXX: As of 2020-12-13, PrintOnError calls Var_Subst with VAR_GLOBAL, which
+# does not expand the node-local variables like .TARGET.  This results in the
+# double '${.TARGET}' in the output.
 
 # As of 2020-10-23, .ERROR_CMD only works in parallel mode.
 .MAKEFLAGS: -j1
@@ -16,6 +23,6 @@
 MAKE_PRINT_VAR_ON_ERROR=	.ERROR_TARGET .ERROR_CMD
 
 all:
-	@: command before
-	@echo fail; false
-	@: command after${:U, with variable expressions expanded}
+	@: before '${.TARGET}' '$${.TARGET}' '$$$${.TARGET}'
+	echo fail ${.TARGET}; false '${.TARGET}' '$${.TARGET}' '$$$${.TARGET}'
+	@: after '${.TARGET}' '$${.TARGET}' '$$$${.TARGET}'

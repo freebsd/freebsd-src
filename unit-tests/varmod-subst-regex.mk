@@ -1,4 +1,4 @@
-# $NetBSD: varmod-subst-regex.mk,v 1.5 2020/10/31 12:20:36 rillig Exp $
+# $NetBSD: varmod-subst-regex.mk,v 1.6 2020/12/05 18:13:44 rillig Exp $
 #
 # Tests for the :C,from,to, variable modifier.
 
@@ -102,3 +102,8 @@ mod-regex-limits:
 
 mod-regex-errors:
 	@echo $@: ${UNDEF:Uvalue:C,[,,}
+
+	# If the replacement pattern produces a parse error because of an
+	# unknown modifier, the parse error is ignored in ParseModifierPart
+	# and the faulty variable expression expands to "".
+	@echo $@: ${word:L:C,.*,x${:U:Z}y,W}

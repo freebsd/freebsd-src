@@ -1,6 +1,6 @@
-# $Id: dirdeps.mk,v 1.130 2020/11/02 00:34:30 sjg Exp $
+# $Id: dirdeps.mk,v 1.131 2021/01/07 00:57:51 sjg Exp $
 
-# Copyright (c) 2010-2020, Simon J. Gerraty
+# Copyright (c) 2010-2021, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
 #
@@ -265,24 +265,9 @@ N_notmachine := ${.MAKE.DEPENDFILE_PREFERENCE:E:N*${MACHINE}*:${M_ListToSkip}}
 
 # if we were included recursively _DEP_TARGET_SPEC should be valid.
 .if empty(_DEP_TARGET_SPEC)
-# we may or may not have included a dependfile yet
-.if defined(.INCLUDEDFROMFILE)
-_last_dependfile := ${.INCLUDEDFROMFILE:M${.MAKE.DEPENDFILE_PREFIX}*}
-.else
-_last_dependfile := ${.MAKE.MAKEFILES:M*/${.MAKE.DEPENDFILE_PREFIX}*:[-1]}
-.endif
-.if ${_debug_reldir:U0}
-.info ${DEP_RELDIR}.${DEP_TARGET_SPEC}: _last_dependfile='${_last_dependfile}'
-.endif
-
-.if empty(_last_dependfile) || ${_last_dependfile:E:${N_notmachine}} == ""
-# this is all we have to work with
-DEP_MACHINE = ${TARGET_MACHINE:U${MACHINE}}
-_DEP_TARGET_SPEC := ${DEP_TARGET_SPEC}
-.else
-_DEP_TARGET_SPEC = ${_last_dependfile:${M_dep_qual_fixes:ts:}:E}
-.endif
-.if !empty(_last_dependfile)
+# if not, just use TARGET_SPEC
+_DEP_TARGET_SPEC := ${TARGET_SPEC}
+.if ${.INCLUDEDFROMFILE:U:M${.MAKE.DEPENDFILE_PREFIX}*} != ""
 # record that we've read dependfile for this
 _dirdeps_checked.${_CURDIR}.${TARGET_SPEC}:
 .endif

@@ -7,4 +7,5 @@ tail (basename) of 'a.a' is 'a.a'
 tail (basename) of '.gitignore' is '.gitignore'
 tail (basename) of 'a' is 'a'
 tail (basename) of 'a.a' is 'a.a'
+tail (basename) of 'trailing/' is ''
 exit status 0

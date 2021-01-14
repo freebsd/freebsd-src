@@ -1,3 +1,42 @@
+2021-01-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210101
+
+	* dirdeps.mk: first time we are read, just use TARGET_SPEC for
+	_DEP_TARGET_SPEC
+
+2020-12-22  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* sys.mk (MAKE_SHELL): use ${.SHELL:Ush}
+	and use := when setting SHELL
+
+2020-12-21  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201221
+
+	* dirdeps-options.mk: latest bmake allows only one arg to .undef
+
+2020-12-11  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* dirdeps-targets.mk: allow for "." in DIRDEPS_TARGETS_DIRS
+	so that any directory can be treated as a target.
+
+2020-11-26  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201126
+
+	* own.mk: use .MAKE.{UID,GID} if available.
+
+	* init.mk: suppress _SKIP_BUILD warning if doing -V
+
+2020-11-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20201120
+
+	* init.mk: rename LEVEL0_TARGETS to DIRDEPS_BUILD_LEVEL0_TARGETS
+
+	* dirdeps-targets.mk: fix typo in comment
+
 2020-11-06  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20201106

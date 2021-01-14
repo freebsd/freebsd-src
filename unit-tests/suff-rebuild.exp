@@ -1,5 +1,73 @@
-: from nothing to a
-: from a to b
-: from b to c
-: from c to nothing
+ParseReadLine (10): '.SUFFIXES:'
+ParseDoDependency(.SUFFIXES:)
+Clearing all suffixes
+ParseReadLine (12): '.SUFFIXES: .a .b .c'
+ParseDoDependency(.SUFFIXES: .a .b .c)
+Adding suffix ".a"
+Adding suffix ".b"
+Adding suffix ".c"
+ParseReadLine (14): 'suff-rebuild-example.a:'
+ParseDoDependency(suff-rebuild-example.a:)
+Adding "suff-rebuild-example.a" to all targets.
+ParseReadLine (15): '	: Making ${.TARGET} out of nothing.'
+ParseReadLine (17): '.a.b:'
+ParseDoDependency(.a.b:)
+defining transformation from `.a' to `.b'
+inserting ".a" (1) at end of list
+inserting ".b" (2) at end of list
+ParseReadLine (18): '	: Making ${.TARGET} from ${.IMPSRC}.'
+ParseReadLine (19): '.b.c:'
+transformation .a.b complete
+ParseDoDependency(.b.c:)
+defining transformation from `.b' to `.c'
+inserting ".b" (2) at end of list
+inserting ".c" (3) at end of list
+ParseReadLine (20): '	: Making ${.TARGET} from ${.IMPSRC}.'
+ParseReadLine (21): '.c:'
+transformation .b.c complete
+ParseDoDependency(.c:)
+defining transformation from `.c' to `'
+inserting ".c" (3) at end of list
+inserting "" (0) at end of list
+ParseReadLine (22): '	: Making ${.TARGET} from ${.IMPSRC}.'
+ParseReadLine (44): '.SUFFIXES: .c .b .a'
+transformation .c complete
+ParseDoDependency(.SUFFIXES: .c .b .a)
+Adding ".END" to all targets.
+Wildcard expanding "all"...
+SuffFindDeps "all"
+	No known suffix on all. Using .NULL suffix
+adding suffix rules
+	trying all.c...not there
+	trying all.b...not there
+	trying all.a...not there
+Wildcard expanding "suff-rebuild-example"...
+SuffFindDeps "suff-rebuild-example"
+	No known suffix on suff-rebuild-example. Using .NULL suffix
+adding suffix rules
+	trying suff-rebuild-example.c...not there
+	trying suff-rebuild-example.b...not there
+	trying suff-rebuild-example.a...got it
+Adding "suff-rebuild-example.b" to all targets.
+	applying .a -> .b to "suff-rebuild-example.b"
+Adding "suff-rebuild-example.c" to all targets.
+	applying .b -> .c to "suff-rebuild-example.c"
+	applying .c ->  to "suff-rebuild-example"
+suffix is ".c"...
+suffix is ".b"...
+suffix is ".a"...
+SuffFindDeps "suff-rebuild-example.a"
+suffix is ".a"...
+: Making suff-rebuild-example.a out of nothing.
+: Making suff-rebuild-example.b from suff-rebuild-example.a.
+: Making suff-rebuild-example.c from suff-rebuild-example.b.
+: Making suff-rebuild-example from suff-rebuild-example.c.
+Wildcard expanding "all"...
+SuffFindDeps ".END"
+	No known suffix on .END. Using .NULL suffix
+adding suffix rules
+	trying .END.c...not there
+	trying .END.b...not there
+	trying .END.a...not there
+Wildcard expanding ".END"...
 exit status 0
