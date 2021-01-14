@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2015, Mellanox Technologies, Ltd.  All rights reserved.
+ * Copyright (c) 2013-2021, Mellanox Technologies, Ltd.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -3226,6 +3226,36 @@ free:
 	return ARRAY_SIZE(names);
 }
 
+static int mlx5_ib_stage_bfreg_init(struct mlx5_ib_dev *dev)
+{
+	int err;
+
+	err = mlx5_alloc_bfreg(dev->mdev, &dev->bfreg, false, false);
+	if (err)
+		return err;
+
+	err = mlx5_alloc_bfreg(dev->mdev, &dev->fp_bfreg, false, true);
+	if (err) {
+		mlx5_free_bfreg(dev->mdev, &dev->bfreg);
+		return err;
+	}
+
+	err = mlx5_alloc_bfreg(dev->mdev, &dev->wc_bfreg, true, false);
+	if (err) {
+		mlx5_free_bfreg(dev->mdev, &dev->fp_bfreg);
+		mlx5_free_bfreg(dev->mdev, &dev->bfreg);
+	}
+
+	return err;
+}
+
+static void mlx5_ib_stage_bfreg_cleanup(struct mlx5_ib_dev *dev)
+{
+	mlx5_free_bfreg(dev->mdev, &dev->wc_bfreg);
+	mlx5_free_bfreg(dev->mdev, &dev->fp_bfreg);
+	mlx5_free_bfreg(dev->mdev, &dev->bfreg);
+}
+
 static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_ib_dev *dev;
@@ -3430,9 +3460,13 @@ static void *mlx5_ib_add(struct mlx5_core_dev *mdev)
 	if (err)
 		goto err_odp;
 
-	err = ib_register_device(&dev->ib_dev, NULL);
+	err = mlx5_ib_stage_bfreg_init(dev);
 	if (err)
 		goto err_q_cnt;
+
+	err = ib_register_device(&dev->ib_dev, NULL);
+	if (err)
+		goto err_bfreg;
 
 	err = create_umr_res(dev);
 	if (err)
@@ -3458,6 +3492,9 @@ err_umrc:
 
 err_dev:
 	ib_unregister_device(&dev->ib_dev);
+
+err_bfreg:
+	mlx5_ib_stage_bfreg_cleanup(dev);
 
 err_q_cnt:
 	mlx5_ib_dealloc_q_counters(dev);
@@ -3491,6 +3528,7 @@ static void mlx5_ib_remove(struct mlx5_core_dev *mdev, void *context)
 	mlx5_ib_cleanup_congestion(dev);
 	mlx5_remove_roce_notifier(dev);
 	ib_unregister_device(&dev->ib_dev);
+	mlx5_ib_stage_bfreg_cleanup(dev);
 	mlx5_ib_dealloc_q_counters(dev);
 	destroy_umrc_res(dev);
 	mlx5_ib_odp_remove_one(dev);
