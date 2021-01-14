@@ -1675,6 +1675,11 @@ qat_crypto_deinit(struct qat_softc *sc)
 	struct qat_crypto_bank *qcb;
 	int bank;
 
+	counter_u64_free(sc->sc_sym_alloc_failures);
+	counter_u64_free(sc->sc_ring_full_restarts);
+	counter_u64_free(sc->sc_gcm_aad_updates);
+	counter_u64_free(sc->sc_gcm_aad_restarts);
+
 	if (qcy->qcy_banks != NULL) {
 		for (bank = 0; bank < qcy->qcy_num_banks; bank++) {
 			qcb = &qcy->qcy_banks[bank];
