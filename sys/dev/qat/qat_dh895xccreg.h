@@ -109,7 +109,7 @@
 
 /* AE firmware */
 #define AE_FW_PROD_TYPE_DH895XCC	0x00400000
-#define AE_FW_MOF_NAME_DH895XCC		"qat_895xccfw"
+#define AE_FW_MOF_NAME_DH895XCC		"qat_dh895xccfw"
 #define AE_FW_MMP_NAME_DH895XCC		"qat_895xcc_mmp"
 #define AE_FW_UOF_NAME_DH895XCC		"icp_qat_ae.uof"
 
