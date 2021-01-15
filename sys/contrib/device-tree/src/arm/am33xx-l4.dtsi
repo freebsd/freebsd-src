@@ -1177,6 +1177,8 @@
 				compatible = "ti,am335x-timer";
 				reg = <0x0 0x400>;
 				interrupts = <69>;
+				clocks = <&timer3_fck>;
+				clock-names = "fck";
 			};
 		};
 
@@ -1203,6 +1205,8 @@
 				reg = <0x0 0x400>;
 				interrupts = <92>;
 				ti,timer-pwm;
+				clocks = <&timer4_fck>;
+				clock-names = "fck";
 			};
 		};
 
@@ -1229,6 +1233,8 @@
 				reg = <0x0 0x400>;
 				interrupts = <93>;
 				ti,timer-pwm;
+				clocks = <&timer5_fck>;
+				clock-names = "fck";
 			};
 		};
 
@@ -1255,6 +1261,8 @@
 				reg = <0x0 0x400>;
 				interrupts = <94>;
 				ti,timer-pwm;
+				clocks = <&timer6_fck>;
+				clock-names = "fck";
 			};
 		};
 
@@ -1281,6 +1289,8 @@
 				reg = <0x0 0x400>;
 				interrupts = <95>;
 				ti,timer-pwm;
+				clocks = <&timer7_fck>;
+				clock-names = "fck";
 			};
 		};
 
