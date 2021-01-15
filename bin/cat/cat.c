@@ -48,6 +48,7 @@ static char sccsid[] = "@(#)cat.c	8.2 (Berkeley) 4/27/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capsicum.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #ifndef NO_UDOM_SUPPORT
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 #endif
 
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -68,9 +70,14 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
+#include <casper/cap_net.h>
+
 static int bflag, eflag, lflag, nflag, sflag, tflag, vflag;
 static int rval;
 static const char *filename;
+static fileargs_t *fa;
 
 static void usage(void) __dead2;
 static void scanfiles(char *argv[], int cooked);
@@ -80,6 +87,8 @@ static void cook_cat(FILE *);
 static void raw_cat(int);
 
 #ifndef NO_UDOM_SUPPORT
+static cap_channel_t *capnet;
+
 static int udom_open(const char *path, int flags);
 #endif
 
@@ -111,6 +120,53 @@ static int udom_open(const char *path, int flags);
 #else
 #define SUPPORTED_FLAGS "belnstuv"
 #endif
+
+#ifndef NO_UDOM_SUPPORT
+static void
+init_casper_net(cap_channel_t *casper)
+{
+	cap_net_limit_t *limit;
+	int familylimit;
+
+	capnet = cap_service_open(casper, "system.net");
+	if (capnet == NULL)
+		err(EXIT_FAILURE, "unable to create network service");
+
+	limit = cap_net_limit_init(capnet, CAPNET_NAME2ADDR |
+	    CAPNET_CONNECTDNS);
+	if (limit == NULL)
+		err(EXIT_FAILURE, "unable to create limits");
+
+	familylimit = AF_LOCAL;
+	cap_net_limit_name2addr_family(limit, &familylimit, 1);
+
+	if (cap_net_limit(limit) < 0)
+		err(EXIT_FAILURE, "unable to apply limits");
+}
+#endif
+
+static void
+init_casper(int argc, char *argv[])
+{
+	cap_channel_t *casper;
+	cap_rights_t rights;
+
+	casper = cap_init();
+	if (casper == NULL)
+		err(EXIT_FAILURE, "unable to create Casper");
+
+	fa = fileargs_cinit(casper, argc, argv, O_RDONLY, 0,
+	    cap_rights_init(&rights, CAP_READ | CAP_FSTAT | CAP_FCNTL),
+	    FA_OPEN | FA_REALPATH);
+	if (fa == NULL)
+		err(EXIT_FAILURE, "unable to create fileargs");
+
+#ifndef NO_UDOM_SUPPORT
+	init_casper_net(casper);
+#endif
+
+	cap_close(casper);
+}
 
 int
 main(int argc, char *argv[])
@@ -150,6 +206,7 @@ main(int argc, char *argv[])
 			usage();
 		}
 	argv += optind;
+	argc -= optind;
 
 	if (lflag) {
 		stdout_lock.l_len = 0;
@@ -159,6 +216,13 @@ main(int argc, char *argv[])
 		if (fcntl(STDOUT_FILENO, F_SETLKW, &stdout_lock) == -1)
 			err(EXIT_FAILURE, "stdout");
 	}
+
+	init_casper(argc, argv);
+
+	caph_cache_catpages();
+
+	if (caph_enter_casper() < 0)
+		err(EXIT_FAILURE, "capsicum");
 
 	if (bflag || eflag || nflag || sflag || tflag || vflag)
 		scanfiles(argv, 1);
@@ -196,7 +260,7 @@ scanfiles(char *argv[], int cooked __unused)
 			fd = STDIN_FILENO;
 		} else {
 			filename = path;
-			fd = open(path, O_RDONLY);
+			fd = fileargs_open(fa, path);
 #ifndef NO_UDOM_SUPPORT
 			if (fd < 0 && errno == EOPNOTSUPP)
 				fd = udom_open(path, O_RDONLY);
@@ -366,20 +430,25 @@ udom_open(const char *path, int flags)
 	char rpath[PATH_MAX];
 	int fd = -1;
 	int error;
+	cap_rights_t rights;
 
 	/*
 	 * Construct the unix domain socket address and attempt to connect.
 	 */
 	bzero(&hints, sizeof(hints));
 	hints.ai_family = AF_LOCAL;
-	if (realpath(path, rpath) == NULL)
+
+	if (fileargs_realpath(fa, path, rpath) == NULL)
 		return (-1);
-	error = getaddrinfo(rpath, NULL, &hints, &res0);
+
+	error = cap_getaddrinfo(capnet, rpath, NULL, &hints, &res0);
 	if (error) {
 		warn("%s", gai_strerror(error));
 		errno = EINVAL;
 		return (-1);
 	}
+	cap_rights_init(&rights, CAP_CONNECT, CAP_READ, CAP_WRITE,
+	    CAP_SHUTDOWN, CAP_FSTAT, CAP_FCNTL);
 	for (res = res0; res != NULL; res = res->ai_next) {
 		fd = socket(res->ai_family, res->ai_socktype,
 		    res->ai_protocol);
@@ -387,7 +456,11 @@ udom_open(const char *path, int flags)
 			freeaddrinfo(res0);
 			return (-1);
 		}
-		error = connect(fd, res->ai_addr, res->ai_addrlen);
+		if (caph_rights_limit(fd, &rights) < 0) {
+			close(fd);
+			return (-1);
+		}
+		error = cap_connect(capnet, fd, res->ai_addr, res->ai_addrlen);
 		if (error == 0)
 			break;
 		else {
@@ -403,15 +476,23 @@ udom_open(const char *path, int flags)
 	if (fd >= 0) {
 		switch(flags & O_ACCMODE) {
 		case O_RDONLY:
+			cap_rights_clear(&rights, CAP_WRITE);
 			if (shutdown(fd, SHUT_WR) == -1)
 				warn(NULL);
 			break;
 		case O_WRONLY:
+			cap_rights_clear(&rights, CAP_READ);
 			if (shutdown(fd, SHUT_RD) == -1)
 				warn(NULL);
 			break;
 		default:
 			break;
+		}
+
+		cap_rights_clear(&rights, CAP_CONNECT, CAP_SHUTDOWN);
+		if (caph_rights_limit(fd, &rights) < 0) {
+			close(fd);
+			return (-1);
 		}
 	}
 	return (fd);

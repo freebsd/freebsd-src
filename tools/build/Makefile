@@ -202,6 +202,7 @@ CLEANFILES+=	subr_capability.c
 .endif
 
 CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_fileargs/cap_fileargs.h
+CASPERINC+=	${SRCTOP}/lib/libcasper/services/cap_net/cap_net.h
 
 .if empty(SRCS)
 SRCS=		dummy.c
