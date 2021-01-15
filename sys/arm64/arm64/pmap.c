@@ -1365,16 +1365,42 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	return (m);
 }
 
-vm_paddr_t
-pmap_kextract(vm_offset_t va)
+/*
+ * Walks the page tables to translate a kernel virtual address to a
+ * physical address. Returns true if the kva is valid and stores the
+ * physical address in pa if it is not NULL.
+ */
+bool
+pmap_klookup(vm_offset_t va, vm_paddr_t *pa)
 {
 	pt_entry_t *pte, tpte;
+	register_t intr;
+	uint64_t par;
 
-	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS)
-		return (DMAP_TO_PHYS(va));
+	/*
+	 * Disable interrupts so we don't get interrupted between asking
+	 * for address translation, and getting the result back.
+	 */
+	intr = intr_disable();
+	par = arm64_address_translate_s1e1r(va);
+	intr_restore(intr);
+
+	if (PAR_SUCCESS(par)) {
+		if (pa != NULL)
+			*pa = (par & PAR_PA_MASK) | (va & PAR_LOW_MASK);
+		return (true);
+	}
+
+	/*
+	 * Fall back to walking the page table. The address translation
+	 * instruction may fail when the page is in a break-before-make
+	 * sequence. As we only clear the valid bit in said sequence we
+	 * can walk the page table to find the physical address.
+	 */
+
 	pte = pmap_l1(kernel_pmap, va);
 	if (pte == NULL)
-		return (0);
+		return (false);
 
 	/*
 	 * A concurrent pmap_update_entry() will clear the entry's valid bit
@@ -1384,20 +1410,41 @@ pmap_kextract(vm_offset_t va)
 	 */
 	tpte = pmap_load(pte);
 	if (tpte == 0)
-		return (0);
-	if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK)
-		return ((tpte & ~ATTR_MASK) | (va & L1_OFFSET));
+		return (false);
+	if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK) {
+		if (pa != NULL)
+			*pa = (tpte & ~ATTR_MASK) | (va & L1_OFFSET);
+		return (true);
+	}
 	pte = pmap_l1_to_l2(&tpte, va);
 	tpte = pmap_load(pte);
 	if (tpte == 0)
-		return (0);
-	if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK)
-		return ((tpte & ~ATTR_MASK) | (va & L2_OFFSET));
+		return (false);
+	if ((tpte & ATTR_DESCR_TYPE_MASK) == ATTR_DESCR_TYPE_BLOCK) {
+		if (pa != NULL)
+			*pa = (tpte & ~ATTR_MASK) | (va & L2_OFFSET);
+		return (true);
+	}
 	pte = pmap_l2_to_l3(&tpte, va);
 	tpte = pmap_load(pte);
 	if (tpte == 0)
+		return (false);
+	if (pa != NULL)
+		*pa = (tpte & ~ATTR_MASK) | (va & L3_OFFSET);
+	return (true);
+}
+
+vm_paddr_t
+pmap_kextract(vm_offset_t va)
+{
+	vm_paddr_t pa;
+
+	if (va >= DMAP_MIN_ADDRESS && va < DMAP_MAX_ADDRESS)
+		return (DMAP_TO_PHYS(va));
+
+	if (pmap_klookup(va, &pa) == false)
 		return (0);
-	return ((tpte & ~ATTR_MASK) | (va & L3_OFFSET));
+	return (pa);
 }
 
 /***************************************************
@@ -6833,7 +6880,7 @@ pmap_fault(pmap_t pmap, uint64_t esr, uint64_t far)
 			 * critical section.  Therefore, we must check the
 			 * address without acquiring the kernel pmap's lock.
 			 */
-			if (pmap_kextract(far) != 0)
+			if (pmap_klookup(far, NULL))
 				rv = KERN_SUCCESS;
 		} else {
 			PMAP_LOCK(pmap);
