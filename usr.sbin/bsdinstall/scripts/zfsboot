@@ -1554,8 +1554,8 @@ f_dprintf "FSTAB_FMT=[%s]" "$FSTAB_FMT"
 # Determine default boot type
 #
 case $(uname -m) in
-arm64)
-	# We support only UEFI boot for arm64
+arm64|riscv)
+	# We support only UEFI boot for arm64 and riscv.
 	: ${ZFSBOOT_BOOT_TYPE:=UEFI}
 	: ${ZFSBOOT_PARTITION_SCHEME:=GPT}
 	;;
