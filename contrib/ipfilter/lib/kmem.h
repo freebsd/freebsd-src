@@ -11,11 +11,7 @@
 #define	__KMEM_H__
 
 #ifndef	__P
-# ifdef	__STDC__
 #  define	__P(x)	x
-# else
-#  define	__P(x)	()
-# endif
 #endif
 extern	int	openkmem __P((char *, char *));
 extern	int	kmemcpy __P((char *, long, int));

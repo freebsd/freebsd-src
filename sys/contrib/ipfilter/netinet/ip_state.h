@@ -12,11 +12,7 @@
 #ifndef	__IP_STATE_H__
 #define	__IP_STATE_H__
 
-#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
 # define	SIOCDELST	_IOW('r', 61, struct ipfobj)
-#else
-# define	SIOCDELST	_IOW(r, 61, struct ipfobj)
-#endif
 
 struct ipscan;
 

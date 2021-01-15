@@ -21,19 +21,11 @@
 # endif
 #endif
 
-#if defined(__STDC__) || defined(__GNUC__) || defined(_AIX51)
 #define	SIOCADNAT	_IOW('r', 60, struct ipfobj)
 #define	SIOCRMNAT	_IOW('r', 61, struct ipfobj)
 #define	SIOCGNATS	_IOWR('r', 62, struct ipfobj)
 #define	SIOCGNATL	_IOWR('r', 63, struct ipfobj)
 #define	SIOCPURGENAT	_IOWR('r', 100, struct ipfobj)
-#else
-#define	SIOCADNAT	_IOW(r, 60, struct ipfobj)
-#define	SIOCRMNAT	_IOW(r, 61, struct ipfobj)
-#define	SIOCGNATS	_IOWR(r, 62, struct ipfobj)
-#define	SIOCGNATL	_IOWR(r, 63, struct ipfobj)
-#define	SIOCPURGENAT	_IOWR(r, 100, struct ipfobj)
-#endif
 
 #undef	LARGE_NAT	/* define	this if you're setting up a system to NAT
 			 * LARGE numbers of networks/hosts - i.e. in the
