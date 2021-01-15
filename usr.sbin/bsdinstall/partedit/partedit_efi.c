@@ -34,6 +34,11 @@
 
 #include "partedit.h"
 
+/*
+ * partedit implementation for platforms on which the installer only offers
+ * UEFI-based boot. Currently, this includes arm64 and RISC-V.
+ */
+
 /* EFI partition size in bytes */
 #define	EFI_BOOTPART_SIZE	(260 * 1024 * 1024)
 
@@ -94,7 +99,7 @@ const char *
 partcode_path(const char *part_type, const char *fs_type)
 {
 
-	/* No boot partition data for ARM64 */
+	/* No boot partition data. */
 	return (NULL);
 }
 

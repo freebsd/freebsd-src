@@ -51,7 +51,7 @@ if [ "$(uname -m)" = "amd64" ] || [ "$(uname -m)" = "i386" ]; then
 	X86_BOOTMETHOD=$(sysctl -n machdep.bootmethod)
 fi
 
-if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
+if [ "$(uname -m)" = "arm64" ] || [ "$(uname -m)" = "riscv" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 	UFSBOOT_ESPS=$(cat $TMPDIR/bsdinstall-esps 2>/dev/null)
 	ZFSBOOT_DISKS=$(cat $TMPDIR/bsdinstall-zfsboot 2>/dev/null)
 	num_esps=0
@@ -127,6 +127,7 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 	case $(uname -m) in
 	    arm64)	ARCHBOOTNAME=aa64 ;;
 	    amd64)	ARCHBOOTNAME=x64 ;;
+	    riscv)	ARCHBOOTNAME=riscv64 ;;
     #	    arm)	ARCHBOOTNAME=arm ;; # No other support for arm install
     #	    i386)	ARCHBOOTNAME=ia32 ;; # no support for this in i386 kernels, rare machines
 	    *)		die "Unsupported arch $(uname -m) for UEFI install"
