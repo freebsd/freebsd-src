@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 
-#include <gnu/dts/include/dt-bindings/clock/tegra210-car.h>
+#include <dt-bindings/clock/tegra210-car.h>
 #include "tegra210_car.h"
 
 struct super_mux_def {

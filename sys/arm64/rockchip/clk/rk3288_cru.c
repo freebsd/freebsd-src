@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm64/rockchip/clk/rk_cru.h>
 
-#include <gnu/dts/include/dt-bindings/clock/rk3288-cru.h>
+#include <dt-bindings/clock/rk3288-cru.h>
 
 #define	CRU_SOFTRST_SIZE	12
 

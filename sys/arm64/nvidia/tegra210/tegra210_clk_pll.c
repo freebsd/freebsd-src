@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/clk/clk_gate.h>
 #include <dev/extres/clk/clk_mux.h>
 
-#include <gnu/dts/include/dt-bindings/clock/tegra210-car.h>
+#include <dt-bindings/clock/tegra210-car.h>
 #include "tegra210_car.h"
 
 #if 0

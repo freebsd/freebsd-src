@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/nvidia/tegra_efuse.h>
 
-#include <gnu/dts/include/dt-bindings/pinctrl/pinctrl-tegra-xusb.h>
+#include <dt-bindings/pinctrl/pinctrl-tegra-xusb.h>
 
 #include "phynode_if.h"
 
