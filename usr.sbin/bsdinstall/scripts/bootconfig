@@ -131,7 +131,10 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
     #	    i386)	ARCHBOOTNAME=ia32 ;; # no support for this in i386 kernels, rare machines
 	    *)		die "Unsupported arch $(uname -m) for UEFI install"
 	esac
-	BOOTNAME="/EFI/BOOT/BOOT${ARCHBOOTNAME}.EFI"
+	BOOTDIR="/efi/boot"
+	BOOTNAME="${BOOTDIR}/boot${ARCHBOOTNAME}.efi"
+	FREEBSD_BOOTDIR="/efi/freebsd"
+	FREEBSD_BOOTNAME="${FREEBSD_BOOTDIR}/loader.efi"
 
 	for esp in $ESPS; do
 		f_dprintf "Formatting /dev/${esp} as FAT32"
@@ -148,8 +151,8 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 		fi
 
 		f_dprintf "Installing loader.efi onto ESP"
-		mkdir -p "$mntpt/EFI/freebsd"
-		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/EFI/freebsd/loader.efi"
+		mkdir -p "${mntpt}/${FREEBSD_BOOTDIR}" "${mntpt}/${BOOTDIR}"
+		cp "$BSDINSTALL_CHROOT/boot/loader.efi" "${mntpt}/${FREEBSD_BOOTNAME}"
 
 		#
 		# The following shouldn't be necessary. UEFI defines a way to
@@ -173,7 +176,7 @@ if [ "$(uname -m)" = "arm64" ] || [ "$X86_BOOTMETHOD" = "UEFI" ]; then
 		fi
 
 		f_dprintf "Creating UEFI boot entry"
-		efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/EFI/freebsd/loader.efi" > /dev/null
+		efibootmgr --create --activate --label "$bootlabel" --loader "${mntpt}/${FREEBSD_BOOTNAME}" > /dev/null
 
 		f_dprintf "Unmounting ESP"
 		umount "${mntpt}"
