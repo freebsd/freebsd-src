@@ -100,11 +100,7 @@ static unsigned char PADDING[64] = {
    (a) += (b); \
   }
 
-#ifdef __STDC__
 #define UL(x)	x##U
-#else
-#define UL(x)	x
-#endif
 
 /* The routine MD5Init initializes the message-digest context
    mdContext. All fields are set to zero.

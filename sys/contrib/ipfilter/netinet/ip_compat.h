@@ -12,15 +12,7 @@
 #define	__IP_COMPAT_H__
 
 #ifndef	__P
-# ifdef	__STDC__
 #  define	__P(x)  x
-# else
-#  define	__P(x)  ()
-# endif
-#endif
-#ifndef	__STDC__
-# undef		const
-# define	const
 #endif
 
 #if defined(_KERNEL) || defined(KERNEL) || defined(__KERNEL__)
@@ -63,11 +55,7 @@
 #endif
 
 
-# ifdef __STDC__
 #  define IPL_EXTERN(ep) ipl##ep
-# else
-#  define IPL_EXTERN(ep) ipl/**/ep
-# endif
 
 /*
  * This is a workaround for <sys/uio.h> troubles on FreeBSD and OpenBSD.

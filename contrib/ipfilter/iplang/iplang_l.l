@@ -21,11 +21,7 @@
 #include "ipf.h"
 
 #ifndef	__P
-# ifdef __STDC__
 #  define	__P(x)	x
-# else
-#  define	__P(x)	()
-# endif
 #endif
 
 extern int opts;

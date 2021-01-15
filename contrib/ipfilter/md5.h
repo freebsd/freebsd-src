@@ -42,15 +42,7 @@
 #if !defined(__MD5_INCLUDE__) && !defined(_SYS_MD5_H)
 
 #ifndef __P
-# ifdef __STDC__
 #  define	__P(x)	x
-# else
-#  define	__P(x)	()
-# endif
-#endif
-#ifndef __STDC__
-# undef		const
-# define	const
 #endif
 
 /* typedef a 32-bit type */
