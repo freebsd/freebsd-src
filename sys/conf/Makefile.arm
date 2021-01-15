@@ -30,9 +30,9 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-INCLUDES+= -I$S/contrib/libfdt -I$S/gnu/dts/include 
+INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include
 
-LINUX_DTS_VERSION!=	       make -C $S/gnu/dts/ -V LINUX_DTS_VERSION
+LINUX_DTS_VERSION!=	awk '/freebsd,dts-version/ { sub(/;$$/,"", $$NF); print $$NF }' $S/dts/freebsd-compatible.dts
 CFLAGS += -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\"
 
 .if !defined(DEBUG) && !defined(PROFLEVEL)

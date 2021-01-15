@@ -20,11 +20,9 @@ fi
 : "${ECHO:=echo}"
 : "${CPP:=cpp}"
 
-LINUX_DTS_VERSION=$(make -C $S/gnu/dts -V LINUX_DTS_VERSION)
-
 for d in ${dts}; do
     dtb="${dtb_path}/$(basename "$d" .dts).dtb"
     ${ECHO} "converting $d -> $dtb"
-    ${CPP} -DLINUX_DTS_VERSION=\"${LINUX_DTS_VERSION}\" -P -x assembler-with-cpp -I "$S/gnu/dts/include" -I "$S/dts/${MACHINE}" -I "$S/gnu/dts/${MACHINE}" -I "$S/gnu/dts/" -include "$d" -include "$S/dts/freebsd-compatible.dts" /dev/null |
-	${DTC} -@ -O dtb -o "$dtb" -b 0 -p 1024 -i "$S/dts/${MACHINE}" -i "$S/gnu/dts/${MACHINE}" -i "$S/gnu/dts/"
+    ${CPP} -P -x assembler-with-cpp -I "$S/contrib/device-tree/include" -I "$S/dts/${MACHINE}" -I "$S/contrib/device-tree/src/${MACHINE}" -I "$S/contrib/device-tree/src/" -include "$d" -include "$S/dts/freebsd-compatible.dts" /dev/null |
+	${DTC} -@ -O dtb -o "$dtb" -b 0 -p 1024 -i "$S/dts/${MACHINE}" -i "$S/contrib/device-tree/src/${MACHINE}" -i "$S/contrib/device-tree/src/"
 done

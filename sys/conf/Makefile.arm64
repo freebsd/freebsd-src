@@ -25,7 +25,7 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-INCLUDES+= -I$S/contrib/libfdt -I$S/gnu/dts/include
+INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include
 
 # Use a custom SYSTEM_LD command to generate the elf kernel, so we can
 # set the text segment start address, and also strip the "arm mapping
