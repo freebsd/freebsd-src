@@ -66,11 +66,7 @@ static const char rcsid[] = "@(#)$Id: inet_addr.c,v 1.8.2.3 2004/12/09 19:41:20 
 #include <ctype.h>
 
 #ifndef	__P
-# ifdef	__STDC__
 #  define	__P(x)	x
-# else
-#  define	__P(x)	()
-# endif
 #endif
 int inet_aton __P((const char *, struct in_addr *));
 
