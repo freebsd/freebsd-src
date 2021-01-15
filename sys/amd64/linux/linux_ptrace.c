@@ -583,7 +583,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 	case LINUX_PTRACE_PEEKDATA:
 		error = linux_ptrace_peek(td, pid, addr, (void *)uap->data);
 		if (error != 0)
-			return (error);
+			goto out;
 		/*
 		 * Linux expects this syscall to read 64 bits, not 32.
 		 */
@@ -597,7 +597,7 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 	case LINUX_PTRACE_POKEDATA:
 		error = kern_ptrace(td, PT_WRITE_D, pid, addr, uap->data);
 		if (error != 0)
-			return (error);
+			goto out;
 		/*
 		 * Linux expects this syscall to write 64 bits, not 32.
 		 */
@@ -664,6 +664,10 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = EINVAL;
 		break;
 	}
+
+out:
+	if (error == EBUSY)
+		error = ESRCH;
 
 	return (error);
 }
