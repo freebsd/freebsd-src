@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/extres/regulator/regulator.h>
 #include <dev/gpio/gpiobusvar.h>
 
-#include <gnu/dts/include/dt-bindings/mfd/as3722.h>
+#include <dt-bindings/mfd/as3722.h>
 
 #include "as3722.h"
 

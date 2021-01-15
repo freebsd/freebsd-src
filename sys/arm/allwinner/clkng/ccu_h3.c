@@ -57,8 +57,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/clkng/aw_ccung.h>
 
-#include <gnu/dts/include/dt-bindings/clock/sun8i-h3-ccu.h>
-#include <gnu/dts/include/dt-bindings/reset/sun8i-h3-ccu.h>
+#include <dt-bindings/clock/sun8i-h3-ccu.h>
+#include <dt-bindings/reset/sun8i-h3-ccu.h>
 
 /* Non-exported resets */
 #define	RST_BUS_SCR		53

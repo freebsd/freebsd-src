@@ -53,8 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/allwinner/clkng/aw_ccung.h>
 
-#include <gnu/dts/include/dt-bindings/clock/sun8i-r-ccu.h>
-#include <gnu/dts/include/dt-bindings/reset/sun8i-r-ccu.h>
+#include <dt-bindings/clock/sun8i-r-ccu.h>
+#include <dt-bindings/reset/sun8i-r-ccu.h>
 
 /* Non-exported clocks */
 #define	CLK_AHB0	1
