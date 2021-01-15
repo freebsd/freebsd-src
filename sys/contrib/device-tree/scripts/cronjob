@@ -1,0 +1,124 @@
+#!/bin/bash
+
+set -e
+
+cd $(dirname $0)/..
+
+UPSTREAM_GIT="git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+
+BRANCHES="master filter-state upstream/master upstream/dts"
+
+if [ ! -f scripts/filter.sh ] ; then
+    echo "`pwd`: does not appear to be a device-tree.git" 1>&2
+    exit 1
+fi
+
+if [ -z "$LATEST_VERSION" ] ; then
+    FINGER_BANNER="https://www.kernel.org/finger_banner"
+    LATEST_VERSION=$(wget --quiet -O - "$FINGER_BANNER" |\
+        sed -n -e '0,/^The latest mainline version of the Linux kernel is:\s*\(.*\)$/s//\1/p')
+fi
+
+if [ -z "$LATEST_VERSION" ] ; then
+    echo "Unable to determine latest version" 1>&2
+    exit 1
+fi
+
+echo "Latest Version: v$LATEST_VERSION"
+if ! git show-ref --quiet --verify refs/tags/v${LATEST_VERSION} ; then
+    echo "Latest version is new"
+fi
+if ! git show-ref --quiet --verify refs/tags/v${LATEST_VERSION}-dts ; then
+    echo "Latest version is unmerged"
+fi
+echo
+
+echo "Current State:"
+for branch in $BRANCHES ; do
+    REF=$(git show-ref --verify refs/heads/${branch})
+    if [ $? -ne 0 ] ; then
+	echo "Tree is missing required branch ${branch}, aborting" 1>&2
+	exit 1
+    fi
+    echo "  ${REF}"
+done
+echo
+
+trap '
+if [ -n "$FILTER_OUTPUT" ] ; then
+    echo "---------------------------------------------------------------------"
+    echo "Filter Output:"
+    echo "---------------------------------------------------------------------"
+    echo "$FILTER_OUTPUT"
+    echo
+fi
+if [ -n "$MERGE_OUTPUT" ] ; then
+    echo "---------------------------------------------------------------------"
+    echo "Merge Output:"
+    echo "---------------------------------------------------------------------"
+    echo "$MERGE_OUTPUT"
+    echo
+fi
+' EXIT
+
+FILTER_OUTPUT=`(
+set -e
+echo "Switching to master branch"
+git checkout master
+
+echo "Fetching $UPSTREAM_GIT master"
+git fetch --tags "$UPSTREAM_GIT" master
+echo
+
+echo "Filtering"
+./scripts/filter.sh
+echo
+) 2>&1 `
+
+#git push --dry-run origin filter-state upstream/dts upstream/master
+#git push --dry-run origin --tags
+#echo
+
+DATE=$(date +%Y%m%d)
+TESTBRANCH=test-${DATE}
+MERGE_OUTPUT=`(
+set -e
+git checkout -b ${TESTBRANCH} origin/master
+git merge --no-edit upstream/dts
+) 2>&1 `
+REF=$(git show-ref --verify refs/heads/${TESTBRANCH})
+echo "Testing: ${REF}"
+if git log ${TESTBRANCH} -- MAINTAINERS | grep --quiet . ; then
+    echo "Filter branch has upstream-only content (MAINTAINERS file)"
+    exit 1
+fi
+
+make clean -s
+TEST_OUTPUT=`make -k -s 2>&1 || true`
+if [ -z "${TEST_OUTPUT}" ]; then
+    echo "Success!"
+else
+    echo "---------------------------------------------------------------------"
+    echo "Test Output:"
+    echo "---------------------------------------------------------------------"
+    echo "$TEST_OUTPUT"
+fi
+echo
+
+echo "Switching back to master branch"
+git checkout master
+
+echo "Recording refs/tests/${DATE}"
+git update-ref refs/tests/${DATE} ${TESTBRANCH}
+
+echo "Removing ${TESTBRANCH}"
+git branch -D "${TESTBRANCH}"
+
+echo "Final State:"
+for branch in ${BRANCHES} ; do
+    REF=$(git show-ref --verify refs/heads/${branch})
+    echo "  ${REF}"
+done
+echo
+
+exit 0
