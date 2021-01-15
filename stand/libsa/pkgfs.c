@@ -199,7 +199,7 @@ static int new_package(int, struct package **);
 static struct tarfile *scan_tarfile(struct package *, struct tarfile *);
 
 static int
-pkg_open(const char *fn, struct open_file *f)
+pkg_open_follow(const char *fn, struct open_file *f, int lnks)
 {
 	struct tarfile *tf;
 
@@ -242,11 +242,28 @@ pkg_open(const char *fn, struct open_file *f)
 		if (strcmp(fn, tf->tf_hdr.ut_name) == 0) {
 			f->f_fsdata = tf;
 			tf->tf_fp = 0;	/* Reset the file pointer. */
+			DBG(("%s: found %s type %c\n", __func__,
+			     fn, tf->tf_hdr.ut_typeflag[0]));
+			if (tf->tf_hdr.ut_typeflag[0] == '2') {
+			    /* we have a symlink
+			     * Note: ut_linkname is only 100 chars!
+			     */
+			    if (lnks++ >= 8)
+				return (EMLINK);
+			    return pkg_open_follow(tf->tf_hdr.ut_linkname,
+				f, lnks);
+			}
 			return (0);
 		}
 		tf = scan_tarfile(package, tf);
 	}
 	return (errno);
+}
+
+static int
+pkg_open(const char *fn, struct open_file *f)
+{
+    return pkg_open_follow(fn, f, 0);
 }
 
 static int
