@@ -458,6 +458,7 @@ udom_open(const char *path, int flags)
 		}
 		if (caph_rights_limit(fd, &rights) < 0) {
 			close(fd);
+			freeaddrinfo(res0);
 			return (-1);
 		}
 		error = cap_connect(capnet, fd, res->ai_addr, res->ai_addrlen);
