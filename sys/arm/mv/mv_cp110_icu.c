@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <gnu/dts/include/dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "pic_if.h"
 
 #define	ICU_GRP_NSR		0x0

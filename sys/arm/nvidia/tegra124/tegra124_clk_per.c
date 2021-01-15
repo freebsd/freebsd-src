@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/extres/clk/clk.h>
 
-#include <gnu/dts/include/dt-bindings/clock/tegra124-car.h>
+#include <dt-bindings/clock/tegra124-car.h>
 #include "tegra124_car.h"
 
 /* The TEGRA124_CLK_XUSB_GATE is missing in current

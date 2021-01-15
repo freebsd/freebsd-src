@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/nvidia/drm2/tegra_drm.h>
 
-#include <gnu/dts/include/dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/gpio.h>
 
 int
 tegra_drm_connector_get_modes(struct drm_connector *connector)

@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/nvidia/tegra_efuse.h>
-#include <gnu/dts/include/dt-bindings/thermal/tegra124-soctherm.h>
+#include <dt-bindings/thermal/tegra124-soctherm.h>
 #include "tegra_soctherm_if.h"
 
 /* Per sensors registers - base is 0x0c0*/
