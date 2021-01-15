@@ -594,10 +594,15 @@ linux_ptrace(struct thread *td, struct linux_ptrace_args *uap)
 		error = linux_ptrace_peekuser(td, pid, addr, (void *)uap->data);
 		break;
 	case LINUX_PTRACE_POKETEXT:
-		error = kern_ptrace(td, PT_WRITE_I, pid, addr, uap->data);
-		break;
 	case LINUX_PTRACE_POKEDATA:
 		error = kern_ptrace(td, PT_WRITE_D, pid, addr, uap->data);
+		if (error != 0)
+			return (error);
+		/*
+		 * Linux expects this syscall to write 64 bits, not 32.
+		 */
+		error = kern_ptrace(td, PT_WRITE_D, pid,
+		    (void *)(uap->addr + 4), uap->data >> 32);
 		break;
 	case LINUX_PTRACE_POKEUSER:
 		error = linux_ptrace_pokeuser(td, pid, addr, (void *)uap->data);
