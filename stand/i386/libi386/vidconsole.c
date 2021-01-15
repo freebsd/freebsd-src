@@ -939,7 +939,7 @@ cons_update_mode(bool use_gfx_mode)
 	    gfx_state.tg_fb.fb_mask_green >> goff, goff,
 	    gfx_state.tg_fb.fb_mask_blue >> boff, boff);
 
-	if (gfx_state.tg_ctype == CT_INDEXED && !use_gfx_mode)
+	if (gfx_state.tg_ctype == CT_INDEXED && use_gfx_mode)
 		vidc_load_palette();
 
 	teken_set_winsize(&gfx_state.tg_teken, &gfx_state.tg_tp);
