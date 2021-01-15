@@ -1711,7 +1711,15 @@ buildkernel: .MAKE .PHONY
 	  echo "ncpu: $$(${_ncpu_cmd})${.MAKE.JOBS:S/^/, make -j/}"
 	@echo "--------------------------------------------------------------"
 
+.if !make(packages) && !make(update-packages)
 NO_INSTALLEXTRAKERNELS?=	yes
+.else
+# packages/update-packages installs kernels to a staging directory then builds
+# packages from the result to be installed, typically to other systems.  It is
+# less surprising for these targets to honor KERNCONF if multiple kernels are
+# specified.
+NO_INSTALLEXTRAKERNELS?=	no
+.endif
 
 #
 # installkernel, etc.
@@ -1872,11 +1880,14 @@ PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 .endif
 .endif
 
+PKGMAKEARGS+=	PKG_VERSION=${PKG_VERSION} \
+		NO_INSTALLEXTRAKERNELS=${NO_INSTALLEXTRAKERNELS}
+
 packages: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-packages
+	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-packages
 
 update-packages: .PHONY
-	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} real-update-packages
+	${_+_}${MAKE} -C ${.CURDIR} ${PKGMAKEARGS} real-update-packages
 
 package-pkg: .PHONY
 	rm -rf /tmp/ports.${TARGET} || :
