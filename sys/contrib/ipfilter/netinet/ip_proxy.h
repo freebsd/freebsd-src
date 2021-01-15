@@ -20,11 +20,7 @@
 # endif
 #endif
 
-#if defined(__STDC__) || defined(__GNUC__)
 #define	SIOCPROXY	_IOWR('r', 64, struct ap_control)
-#else
-#define	SIOCPROXY	_IOWR(r, 64, struct ap_control)
-#endif
 
 #ifndef	APR_LABELLEN
 #define	APR_LABELLEN	16
