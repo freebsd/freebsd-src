@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <mips/ingenic/jz4780_regs.h>
-#include <gnu/dts/include/dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 #include "jz4780_gpio_if.h"
 #include "gpio_if.h"

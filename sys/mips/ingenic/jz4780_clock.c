@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include "clkdev_if.h"
 
-#include <gnu/dts/include/dt-bindings/clock/jz4780-cgu.h>
+#include <dt-bindings/clock/jz4780-cgu.h>
 
 /**********************************************************************
  *  JZ4780 CGU clock domain
