@@ -1035,6 +1035,7 @@ ffs_mountfs(odevvp, mp, td)
 	VOP_UNLOCK(odevvp);
 	KASSERT(devvp->v_type == VCHR, ("reclaimed devvp"));
 	dev = devvp->v_rdev;
+	KASSERT(dev->si_snapdata == NULL, ("non-NULL snapshot data"));
 	if (atomic_cmpset_acq_ptr((uintptr_t *)&dev->si_mountpt, 0,
 	    (uintptr_t)mp) == 0) {
 		mntfs_freevp(devvp);
