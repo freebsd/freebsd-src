@@ -184,8 +184,18 @@ setproctitle_fast(const char *fmt, ...)
 		oid[0] = CTL_KERN;
 		oid[1] = KERN_PROC;
 		oid[2] = KERN_PROC_ARGS;
-		oid[3] = getpid();
-		sysctl(oid, 4, 0, 0, "", 0);
+		oid[3] = -1;
+		if (sysctl(oid, 4, 0, 0, "", 0) != 0) {
+			/*
+			 * Temporary compat for kernels which don't support
+			 * passing -1.
+			 */
+			oid[0] = CTL_KERN;
+			oid[1] = KERN_PROC;
+			oid[2] = KERN_PROC_ARGS;
+			oid[3] = getpid();
+			sysctl(oid, 4, 0, 0, "", 0);
+		}
 		fast_update = 1;
 	}
 }
@@ -206,8 +216,18 @@ setproctitle(const char *fmt, ...)
 		oid[0] = CTL_KERN;
 		oid[1] = KERN_PROC;
 		oid[2] = KERN_PROC_ARGS;
-		oid[3] = getpid();
-		sysctl(oid, 4, 0, 0, buf, strlen(buf) + 1);
+		oid[3] = -1;
+		if (sysctl(oid, 4, 0, 0, buf, strlen(buf) + 1) != 0) {
+			/*
+			 * Temporary compat for kernels which don't support
+			 * passing -1.
+			 */
+			oid[0] = CTL_KERN;
+			oid[1] = KERN_PROC;
+			oid[2] = KERN_PROC_ARGS;
+			oid[3] = getpid();
+			sysctl(oid, 4, 0, 0, buf, strlen(buf) + 1);
+		}
 		fast_update = 0;
 	}
 }
