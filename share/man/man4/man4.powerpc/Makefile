@@ -7,6 +7,7 @@ MAN=	adb.4 \
 	cuda.4 \
 	dtsec.4 \
 	llan.4 \
+	ofw_console.4 \
 	pmu.4 \
 	powermac_nvram.4 \
 	smu.4 \
