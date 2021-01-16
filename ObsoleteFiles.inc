@@ -36,6 +36,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210116: if_wl_wavelan.h removed
+.if ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/if_wl_wavelan.h
+.endif
+
 # 20210108: retire cmx, ng_bt3c, wi drivers
 OLD_FILES+=usr/include/dev/wi/if_wireg.h
 OLD_FILES+=usr/include/dev/wi/if_wavelan_ieee.h
