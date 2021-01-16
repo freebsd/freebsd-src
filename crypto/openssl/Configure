@@ -387,6 +387,7 @@ my @disablables = (
     "heartbeats",
     "hw(-.+)?",
     "idea",
+    "ktls",
     "makedepend",
     "md2",
     "md4",
@@ -474,6 +475,7 @@ our %disabled = ( # "what"         => "comment"
                   "weak-ssl-ciphers"    => "default",
                   "zlib"                => "default",
                   "zlib-dynamic"        => "default",
+		  "ktls"                => "default",
                 );
 
 # Note: => pair form used for aesthetics, not to truly make a hash table
@@ -1579,6 +1581,33 @@ unless ($disabled{devcryptoeng}) {
         }
     }
 }
+
+unless ($disabled{ktls}) {
+    $config{ktls}="";
+    if ($target =~ m/^linux/) {
+        my $usr = "/usr/$config{cross_compile_prefix}";
+        chop($usr);
+        if ($config{cross_compile_prefix} eq "") {
+            $usr = "/usr";
+        }
+        my $minver = (4 << 16) + (13 << 8) + 0;
+        my @verstr = split(" ",`cat $usr/include/linux/version.h | grep LINUX_VERSION_CODE`);
+
+        if ($verstr[2] < $minver) {
+            disable('too-old-kernel', 'ktls');
+        }
+    } elsif ($target =~ m/^BSD/) {
+        my $cc = $config{CROSS_COMPILE}.$config{CC};
+        system("printf '#include <sys/types.h>\n#include <sys/ktls.h>' | $cc -E - >/dev/null 2>&1");
+        if ($? != 0) {
+            disable('too-old-freebsd', 'ktls');
+        }
+    } else {
+        disable('not-linux-or-freebsd', 'ktls');
+    }
+}
+
+push @{$config{openssl_other_defines}}, "OPENSSL_NO_KTLS" if ($disabled{ktls});
 
 # Get the extra flags used when building shared libraries and modules.  We
 # do this late because some of them depend on %disabled.
