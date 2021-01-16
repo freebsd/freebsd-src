@@ -1172,7 +1172,6 @@ destroy_devl(struct cdev *dev)
 
 	dev->si_drv1 = 0;
 	dev->si_drv2 = 0;
-	bzero(&dev->__si_u, sizeof(dev->__si_u));
 
 	if (!(dev->si_flags & SI_ALIAS)) {
 		/* Remove from cdevsw list */
