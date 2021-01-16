@@ -51,7 +51,7 @@ bectl_create_setup()
 	kldload -n -q zfs || atf_skip "ZFS module not loaded on the current system"
 	atf_check mkdir -p ${mnt}
 	atf_check truncate -s 1G ${disk}
-	atf_check zpool create -o altroot=${mnt} ${zpool} ${disk}
+	atf_check zpool create -R ${mnt} ${zpool} ${disk}
 	atf_check zfs create -o mountpoint=none ${zpool}/ROOT
 	atf_check zfs create -o mountpoint=/ -o canmount=noauto \
 	    ${zpool}/ROOT/default
