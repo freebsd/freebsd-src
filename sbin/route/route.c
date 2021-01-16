@@ -120,8 +120,7 @@ static int	flushroutes_fib(int);
 static int	getaddr(int, char *, struct hostent **, int);
 static int	keyword(const char *);
 #ifdef INET
-static void	inet_makenetandmask(u_long, struct sockaddr_in *,
-		    struct sockaddr_in *, u_long);
+static void	inet_makemask(struct sockaddr_in *, u_long);
 #endif
 #ifdef INET6
 static int	inet6_makenetandmask(struct sockaddr_in6 *, const char *);
@@ -1113,40 +1112,15 @@ newroute_fib(int fib, char *cmd, int flags)
 
 #ifdef INET
 static void
-inet_makenetandmask(u_long net, struct sockaddr_in *sin,
-    struct sockaddr_in *sin_mask, u_long bits)
+inet_makemask(struct sockaddr_in *sin_mask, u_long bits)
 {
 	u_long mask = 0;
 
 	rtm_addrs |= RTA_NETMASK;
 
-	/*
-	 * MSB of net should be meaningful. 0/0 is exception.
-	 */
-	if (net > 0)
-		while ((net & 0xff000000) == 0)
-			net <<= 8;
-
-	/*
-	 * If no /xx was specified we must calculate the
-	 * CIDR address.
-	 */
-	if ((bits == 0) && (net != 0)) {
-		u_long i, j;
-
-		for(i = 0, j = 0xff; i < 4; i++)  {
-			if (net & j) {
-				break;
-			}
-			j <<= 8;
-		}
-		/* i holds the first non zero bit */
-		bits = 32 - (i*8);
-	}
 	if (bits != 0)
 		mask = 0xffffffff << (32 - bits);
 
-	sin->sin_addr.s_addr = htonl(net);
 	sin_mask->sin_addr.s_addr = htonl(mask);
 	sin_mask->sin_len = sizeof(struct sockaddr_in);
 	sin_mask->sin_family = AF_INET;
@@ -1186,8 +1160,6 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 #if defined(INET)
 	struct sockaddr_in *sin;
 	struct hostent *hp;
-	struct netent *np;
-	u_long val;
 	char *q;
 #elif defined(INET6)
 	char *q;
@@ -1314,34 +1286,21 @@ getaddr(int idx, char *str, struct hostent **hpp, int nrflags)
 
 	q = strchr(str,'/');
 	if (q != NULL && idx == RTAX_DST) {
+		/* A.B.C.D/NUM */
 		*q = '\0';
-		if ((val = inet_network(str)) != INADDR_NONE) {
-			inet_makenetandmask(val, sin,
-			    (struct sockaddr_in *)&so[RTAX_NETMASK],
-			    strtoul(q+1, 0, 0));
-			return (0);
-		}
-		*q = '/';
-	}
-	if ((idx != RTAX_DST || (nrflags & F_FORCENET) == 0) &&
-	    inet_aton(str, &sin->sin_addr)) {
-		val = sin->sin_addr.s_addr;
-		if (idx != RTAX_DST || nrflags & F_FORCEHOST ||
-		    inet_lnaof(sin->sin_addr) != INADDR_ANY)
-			return (1);
-		else {
-			val = ntohl(val);
-			goto netdone;
-		}
-	}
-	if (idx == RTAX_DST && (nrflags & F_FORCEHOST) == 0 &&
-	    ((val = inet_network(str)) != INADDR_NONE ||
-	    ((np = getnetbyname(str)) != NULL && (val = np->n_net) != 0))) {
-netdone:
-		inet_makenetandmask(val, sin,
-		    (struct sockaddr_in *)&so[RTAX_NETMASK], 0);
+		if (inet_aton(str, &sin->sin_addr) == 0)
+			errx(EX_NOHOST, "bad address: %s", str);
+
+		int masklen = strtol(q + 1, NULL, 10);
+		if (masklen < 0 || masklen > 32)
+			errx(EX_NOHOST, "bad mask length: %s", q + 1);
+
+		inet_makemask((struct sockaddr_in *)&so[RTAX_NETMASK],masklen);
 		return (0);
 	}
+	if (inet_aton(str, &sin->sin_addr) != 0)
+		return (1);
+
 	hp = gethostbyname(str);
 	if (hp != NULL) {
 		*hpp = hp;
