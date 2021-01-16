@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "framebuffer.h"
 
+EFI_GUID conout_guid = EFI_CONSOLE_OUT_DEVICE_GUID;
 EFI_GUID gop_guid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
 static EFI_GUID pciio_guid = EFI_PCI_IO_PROTOCOL_GUID;
 static EFI_GUID uga_guid = EFI_UGA_DRAW_PROTOCOL_GUID;
@@ -466,6 +467,8 @@ efifb_from_uga(struct efi_fb *efifb, EFI_UGA_DRAW_PROTOCOL *uga)
 int
 efi_find_framebuffer(teken_gfx_t *gfx_state)
 {
+	EFI_HANDLE h, *hlist;
+	UINTN nhandles, i, hsize;
 	struct efi_fb efifb;
 	EFI_GRAPHICS_OUTPUT *gop;
 	EFI_UGA_DRAW_PROTOCOL *uga;
@@ -474,7 +477,39 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 
 	gfx_state->tg_fb_type = FB_TEXT;
 
-	status = BS->LocateProtocol(&gop_guid, NULL, (VOID **)&gop);
+	hsize = 0;
+	status = BS->LocateHandle(ByProtocol, &gop_guid, NULL, &hsize, hlist);
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		hlist = malloc(hsize);
+		if (hlist == NULL)
+			return (ENOMEM);
+		status = BS->LocateHandle(ByProtocol, &gop_guid, NULL, &hsize,
+		    hlist);
+		if (EFI_ERROR(status))
+			free(hlist);
+	}
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+
+	nhandles = hsize / sizeof(*hlist);
+
+	/*
+	 * Search for ConOut protocol, if not found, use first handle.
+	 */
+	h = *hlist;
+	for (i = 0; i < nhandles; i++) {
+		void *dummy = NULL;
+
+		status = OpenProtocolByHandle(hlist[i], &conout_guid, &dummy);
+		if (status == EFI_SUCCESS) {
+			h = hlist[i];
+			break;
+		}
+	}
+
+	status = OpenProtocolByHandle(h, &gop_guid, (void **)&gop);
+	free(hlist);
+
 	if (status == EFI_SUCCESS) {
 		gfx_state->tg_fb_type = FB_GOP;
 		gfx_state->tg_private = gop;
