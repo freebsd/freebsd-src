@@ -48,12 +48,14 @@
 
 static struct vbeinfoblock *vbe;
 static struct modeinfoblock *vbe_mode;
+
+static uint16_t *vbe_mode_list;
+static size_t vbe_mode_list_size;
+
 /* The default VGA color palette format is 6 bits per primary color. */
 int palette_format = 6;
 
 #define	VESA_MODE_BASE	0x100
-#define	VESA_MODE_MAX	0x1ff
-#define	VESA_MODE_COUNT	(VESA_MODE_MAX - VESA_MODE_BASE + 1)
 
 /*
  * palette array for 8-bit indexed colors. In this case, cmap does store
@@ -545,9 +547,17 @@ mode_set(struct env_var *ev, int flags __unused, const void *value)
 	return (0);
 }
 
+static void *
+vbe_farptr(uint32_t farptr)
+{
+	return (PTOV((((farptr & 0xffff0000) >> 12) + (farptr & 0xffff))));
+}
+
 void
 vbe_init(void)
 {
+	uint16_t *p, *ml;
+
 	/* First set FB for text mode. */
 	gfx_state.tg_fb_type = FB_TEXT;
 	gfx_state.tg_fb.fb_height = TEXT_ROWS;
@@ -572,6 +582,27 @@ vbe_init(void)
 		free(vbe_mode);
 		vbe_mode = NULL;
 	}
+
+	/*
+	 * Copy mode list. We must do this because some systems do
+	 * corrupt the provided list (vbox 6.1 is one example).
+	 */
+	p = ml = vbe_farptr(vbe->VideoModePtr);
+	while(*p++ != 0xFFFF)
+		;
+
+	vbe_mode_list_size = (uintptr_t)p - (uintptr_t)ml;
+	vbe_mode_list = malloc(vbe_mode_list_size);
+	if (vbe_mode_list == NULL) {
+		free(vbe);
+		vbe = NULL;
+		free(vbe_mode);
+		vbe_mode = NULL;
+	}
+	bcopy(ml, vbe_mode_list, vbe_mode_list_size);
+
+	/* reset VideoModePtr, so we will not have chance to use bad data. */
+	vbe->VideoModePtr = 0;
 
 	env_setenv("screen.textmode", EV_VOLATILE, "1", mode_set,
 	    env_nounset);
@@ -717,12 +748,6 @@ vbe_set_mode(int modenum)
 	return (0);
 }
 
-static void *
-vbe_farptr(uint32_t farptr)
-{
-	return (PTOV((((farptr & 0xffff0000) >> 12) + (farptr & 0xffff))));
-}
-
 /*
  * Verify existance of mode number or find mode by
  * dimensions. If depth is not given, walk values 32, 24, 16, 8.
@@ -731,14 +756,12 @@ static int
 vbe_find_mode_xydm(int x, int y, int depth, int m)
 {
 	struct modeinfoblock mi;
-	uint32_t farptr;
+	uint16_t *farptr;
 	uint16_t mode;
-	int safety, i;
+	int idx, nitems, i;
 
 	memset(vbe, 0, sizeof (*vbe));
 	if (biosvbe_info(vbe) != VBE_SUCCESS)
-		return (0);
-	if (vbe->VideoModePtr == 0)
 		return (0);
 
 	if (m != -1)
@@ -748,17 +771,17 @@ vbe_find_mode_xydm(int x, int y, int depth, int m)
 	else
 		i = depth;
 
+	nitems = vbe_mode_list_size / sizeof(*vbe_mode_list);
 	while (i > 0) {
-		farptr = vbe->VideoModePtr;
-		safety = 0;
-		while ((mode = *(uint16_t *)vbe_farptr(farptr)) != 0xffff) {
-			safety++;
-			farptr += 2;
-			if (safety == VESA_MODE_COUNT)
+		for (idx = 0; idx < nitems; idx++) {
+			mode = vbe_mode_list[idx];
+			if (mode == 0xffff)
 				break;
+
 			if (biosvbe_get_mode_info(mode, &mi) != VBE_SUCCESS) {
 				continue;
 			}
+
 			/* we only care about linear modes here */
 			if (vbe_mode_is_supported(&mi) == 0)
 				continue;
@@ -910,9 +933,8 @@ void
 vbe_modelist(int depth)
 {
 	struct modeinfoblock mi;
-	uint32_t farptr;
 	uint16_t mode;
-	int nmodes = 0, safety = 0;
+	int nmodes, idx, nentries;
 	int ddc_caps;
 	uint32_t width, height;
 	bool edid = false;
@@ -948,6 +970,7 @@ vbe_modelist(int depth)
 		if (vbe_get_flatpanel(&width, &height))
 			printf(": Panel %dx%d\n", width, height);
 
+	nmodes = 0;
 	memset(vbe, 0, sizeof (*vbe));
 	memcpy(vbe->VbeSignature, "VBE2", 4);
 	if (biosvbe_info(vbe) != VBE_SUCCESS)
@@ -958,25 +981,18 @@ vbe_modelist(int depth)
 	vbe_print_vbe_info(vbe);
 	printf("Modes: ");
 
-	farptr = vbe->VideoModePtr;
-	if (farptr == 0)
-		goto done;
-
-	while ((mode = *(uint16_t *)vbe_farptr(farptr)) != 0xffff) {
-		safety++;
-		farptr += 2;
-		if (safety == VESA_MODE_COUNT) {
-			printf("[?] ");
+	nentries = vbe_mode_list_size / sizeof(*vbe_mode_list);
+	for (idx = 0; idx < nentries; idx++) {
+		mode = vbe_mode_list[idx];
+		if (mode == 0xffff)
 			break;
-		}
+
 		if (biosvbe_get_mode_info(mode, &mi) != VBE_SUCCESS)
 			continue;
+
 		/* we only care about linear modes here */
 		if (vbe_mode_is_supported(&mi) == 0)
 			continue;
-
-		/* we found some mode so reset safety counter */
-		safety = 0;
 
 		/* apply requested filter */
 		if (depth != -1 && mi.BitsPerPixel != depth)
