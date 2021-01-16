@@ -429,7 +429,7 @@ udom_open(const char *path, int flags)
 	struct addrinfo hints, *res, *res0;
 	char rpath[PATH_MAX];
 	int fd = -1;
-	int error;
+	int error, serrno;
 	cap_rights_t rights;
 
 	/*
@@ -453,18 +453,23 @@ udom_open(const char *path, int flags)
 		fd = socket(res->ai_family, res->ai_socktype,
 		    res->ai_protocol);
 		if (fd < 0) {
+			serrno = errno;
 			freeaddrinfo(res0);
+			errno = serrno;
 			return (-1);
 		}
 		if (caph_rights_limit(fd, &rights) < 0) {
+			serrno = errno;
 			close(fd);
 			freeaddrinfo(res0);
+			errno = serrno;
 			return (-1);
 		}
 		error = cap_connect(capnet, fd, res->ai_addr, res->ai_addrlen);
 		if (error == 0)
 			break;
 		else {
+			serrno = errno;
 			close(fd);
 			fd = -1;
 		}
@@ -492,9 +497,13 @@ udom_open(const char *path, int flags)
 
 		cap_rights_clear(&rights, CAP_CONNECT, CAP_SHUTDOWN);
 		if (caph_rights_limit(fd, &rights) < 0) {
+			serrno = errno;
 			close(fd);
+			errno = serrno;
 			return (-1);
 		}
+	} else {
+		errno = serrno;
 	}
 	return (fd);
 }
