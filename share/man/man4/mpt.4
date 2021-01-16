@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2011
+.Dd January 16, 2021
 .Dt MPT 4
 .Os
 .Sh NAME
@@ -119,7 +119,7 @@ driver can be found onboard on many systems including:
 .Pp
 .Bl -bullet -compact
 .It
-Dell PowerEdge 1750 thru 2850
+Dell PowerEdge 1750 through 2850
 .It
 IBM eServer xSeries 335
 .El
@@ -149,6 +149,14 @@ This driver also supports target mode for Fibre Channel cards.
 This support may be enabled by setting the desired role of the core via
 the LSI Logic firmware utility that establishes what roles the card
 can take on - no separate compilation is required.
+.Sh WARNINGS
+Most controllers supported by the
+.Nm
+driver suffer from limitations on supported disk size (mostly <2TB).
+While most controllers will truncate usable disk size, others might
+behave unexpetedly and can cause severe data loss.
+Refer to the datasheet of the chipset and firmware version for information
+about supported disk size and limitations.
 .Sh SEE ALSO
 .Xr cd 4 ,
 .Xr ch 4 ,
