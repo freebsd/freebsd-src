@@ -90,7 +90,7 @@ KYUA?=	kyua
 # report bogus results unless the new binaries are put in place.
 
 realcheck: .PHONY
-	if ! which -s "${KYUA}"; then \
+	@if ! which -s "${KYUA}"; then \
 		echo; \
 		echo "kyua binary not installed at expected location (${.TARGET})"; \
 		echo; \
