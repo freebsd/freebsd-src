@@ -1,4 +1,5 @@
 LIBS=../libssl
+
 SOURCE[../libssl]=\
         pqueue.c packet.c \
         statem/statem_srvr.c statem/statem_clnt.c  s3_lib.c  s3_enc.c record/rec_layer_s3.c \
@@ -13,3 +14,7 @@ SOURCE[../libssl]=\
         bio_ssl.c ssl_err.c tls_srp.c t1_trce.c ssl_utst.c \
         record/ssl3_buffer.c record/ssl3_record.c record/dtls1_bitmap.c \
         statem/statem.c record/ssl3_record_tls13.c
+
+IF[{- !$disabled{ktls} -}]
+  SOURCE[../libssl]=ktls.c
+ENDIF

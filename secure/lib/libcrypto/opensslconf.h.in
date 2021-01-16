@@ -67,6 +67,9 @@ extern "C" {
 #ifndef OPENSSL_NO_HEARTBEATS
 # define OPENSSL_NO_HEARTBEATS
 #endif
+%%NO_KTLS%%#ifndef OPENSSL_NO_KTLS
+%%NO_KTLS%%# define OPENSSL_NO_KTLS
+%%NO_KTLS%%#endif
 #ifndef OPENSSL_NO_MSAN
 # define OPENSSL_NO_MSAN
 #endif
