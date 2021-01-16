@@ -26,7 +26,7 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
-INCLUDES+= -I$S/contrib/libfdt
+INCLUDES+= -I$S/contrib/libfdt -I$S/contrib/device-tree/include
 
 # Set the ELF LMA to the address that OpenSBI's fw_jump jumps to. This allows
 # us to load the kernel with the -kernel flag in QEMU without having to embed
