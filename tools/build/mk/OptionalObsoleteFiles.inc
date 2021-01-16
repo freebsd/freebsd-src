@@ -1684,6 +1684,7 @@ OLD_FILES+=usr/lib/clang/11.0.1/lib/freebsd/libclang_rt.profile-armhf.a
 OLD_FILES+=usr/lib/clang/11.0.1/lib/freebsd/libclang_rt.profile-i386.a
 OLD_FILES+=usr/lib/clang/11.0.1/lib/freebsd/libclang_rt.profile-powerpc.a
 OLD_FILES+=usr/lib/clang/11.0.1/lib/freebsd/libclang_rt.profile-powerpc64.a
+OLD_FILES+=usr/lib/clang/11.0.1/lib/freebsd/libclang_rt.profile-powerpc64le.a
 OLD_FILES+=usr/lib/clang/11.0.1/lib/freebsd/libclang_rt.profile-x86_64.a
 OLD_FILES+=usr/lib/clang/11.0.1/lib/freebsd/libclang_rt.safestack-aarch64.a
 OLD_FILES+=usr/lib/clang/11.0.1/lib/freebsd/libclang_rt.safestack-i386.a
