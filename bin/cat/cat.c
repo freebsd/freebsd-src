@@ -428,8 +428,7 @@ udom_open(const char *path, int flags)
 {
 	struct addrinfo hints, *res, *res0;
 	char rpath[PATH_MAX];
-	int fd = -1;
-	int error, serrno;
+	int fd, error, serrno;
 	cap_rights_t rights;
 
 	/*
@@ -437,6 +436,7 @@ udom_open(const char *path, int flags)
 	 */
 	bzero(&hints, sizeof(hints));
 	hints.ai_family = AF_LOCAL;
+	fd = -1;
 
 	if (fileargs_realpath(fa, path, rpath) == NULL)
 		return (-1);
