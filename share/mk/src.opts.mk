@@ -330,6 +330,13 @@ BROKEN_OPTIONS+=LOADER_UBOOT
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
 .endif
 
+# Kernel TLS is enabled by default on amd64
+.if ${__T} == "amd64"
+__DEFAULT_YES_OPTIONS+=OPENSSL_KTLS
+.else
+__DEFAULT_NO_OPTIONS+=OPENSSL_KTLS
+.endif
+
 .if ${__T:Mmips64*}
 # profiling won't work on MIPS64 because there is only assembly for o32
 BROKEN_OPTIONS+=PROFILE
