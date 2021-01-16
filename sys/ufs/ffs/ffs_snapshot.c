@@ -2142,7 +2142,16 @@ ffs_snapshot_unmount(mp)
 		xp->i_nextsnap.tqe_prev = 0;
 		lockmgr(&sn->sn_lock, LK_INTERLOCK | LK_EXCLUSIVE,
 		    VI_MTX(devvp));
-		lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+		/*
+		 * Avoid LOR with above snapshot lock. The LK_NOWAIT should
+		 * never fail as the lock is currently unused. Rather than
+		 * panic, we recover by doing the blocking lock.
+		 */
+		if (lockmgr(&vp->v_lock, LK_EXCLUSIVE | LK_NOWAIT, NULL) != 0) {
+			printf("ffs_snapshot_unmount: Unexpected LK_NOWAIT "
+			    "failure\n");
+			lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+		}
 		KASSERT(vp->v_vnlock == &sn->sn_lock,
 		("ffs_snapshot_unmount: lost lock mutation")); 
 		vp->v_vnlock = &vp->v_lock;
