@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
-#include <gnu/dts/include/dt-bindings/clock/sifive-fu540-prci.h>
+#include <dt-bindings/clock/sifive-fu540-prci.h>
 
 static struct ofw_compat_data compat_data[] = {
 	{ "sifive,aloeprci0",		1 },
