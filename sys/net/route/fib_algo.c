@@ -106,12 +106,14 @@ SYSCTL_NODE(_net_route, OID_AUTO, algo, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Fib algorithm lookups");
 
 #ifdef INET6
-bool algo_fixed_inet6 = false;
+VNET_DEFINE_STATIC(bool, algo_fixed_inet6) = false;
+#define	V_algo_fixed_inet6	VNET(algo_fixed_inet6)
 SYSCTL_NODE(_net_route_algo, OID_AUTO, inet6, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IPv6 longest prefix match lookups");
 #endif
 #ifdef INET
-bool algo_fixed_inet = false;
+VNET_DEFINE_STATIC(bool, algo_fixed_inet) = false;
+#define	V_algo_fixed_inet	VNET(algo_fixed_inet)
 SYSCTL_NODE(_net_route_algo, OID_AUTO, inet, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IPv4 longest prefix match lookups");
 #endif
@@ -155,6 +157,7 @@ static void destroy_fd_instance_epoch(epoch_context_t ctx);
 static enum flm_op_result attach_datapath(struct fib_data *fd);
 static bool is_idx_free(struct fib_data *fd, uint32_t index);
 static void set_algo_fixed(struct rib_head *rh);
+static bool is_algo_fixed(struct rib_head *rh);
 
 static uint32_t fib_ref_nhop(struct fib_data *fd, struct nhop_object *nh);
 static void fib_unref_nhop(struct fib_data *fd, struct nhop_object *nh);
@@ -983,7 +986,7 @@ static void
 rebuild_fd_callout(void *_data)
 {
 	struct fib_data *fd, *fd_new, *fd_tmp;
-	struct fib_lookup_module *flm_new;
+	struct fib_lookup_module *flm_new = NULL;
 	struct epoch_tracker et;
 	enum flm_op_result result;
 	bool need_rebuild = false;
@@ -1000,7 +1003,8 @@ rebuild_fd_callout(void *_data)
 	CURVNET_SET(fd->fd_vnet);
 
 	/* First, check if we're still OK to use this algo */
-	flm_new = fib_check_best_algo(fd->fd_rh, fd->fd_flm);
+	if (!is_algo_fixed(fd->fd_rh))
+		flm_new = fib_check_best_algo(fd->fd_rh, fd->fd_flm);
 	if ((flm_new == NULL) && (!need_rebuild)) {
 		/* Keep existing algo, no need to rebuild. */
 		CURVNET_RESTORE();
@@ -1135,7 +1139,7 @@ set_algo_inet_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	return (set_fib_algo(RT_DEFAULT_FIB, AF_INET, oidp, req));
 }
 SYSCTL_PROC(_net_route_algo_inet, OID_AUTO, algo,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     set_algo_inet_sysctl_handler, "A", "Set IPv4 lookup algo");
 #endif
 
@@ -1147,7 +1151,7 @@ set_algo_inet6_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	return (set_fib_algo(RT_DEFAULT_FIB, AF_INET6, oidp, req));
 }
 SYSCTL_PROC(_net_route_algo_inet6, OID_AUTO, algo,
-    CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
+    CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
     set_algo_inet6_sysctl_handler, "A", "Set IPv6 lookup algo");
 #endif
 
@@ -1434,12 +1438,12 @@ set_algo_fixed(struct rib_head *rh)
 	switch (rh->rib_family) {
 #ifdef INET
 	case AF_INET:
-		algo_fixed_inet = true;
+		V_algo_fixed_inet = true;
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		algo_fixed_inet6 = true;
+		V_algo_fixed_inet6 = true;
 		break;
 #endif
 	}
@@ -1452,11 +1456,11 @@ is_algo_fixed(struct rib_head *rh)
 	switch (rh->rib_family) {
 #ifdef INET
 	case AF_INET:
-		return (algo_fixed_inet);
+		return (V_algo_fixed_inet);
 #endif
 #ifdef INET6
 	case AF_INET6:
-		return (algo_fixed_inet6);
+		return (V_algo_fixed_inet6);
 #endif
 	}
 	return (false);
@@ -1480,11 +1484,6 @@ fib_check_best_algo(struct rib_head *rh, struct fib_lookup_module *orig_flm)
 	fib_get_rtable_info(rh, &rinfo);
 
 	FIB_MOD_LOCK();
-	if (is_algo_fixed(rh)) {
-		FIB_MOD_UNLOCK();
-		return (NULL);
-	}
-
 	TAILQ_FOREACH(flm, &all_algo_list, entries) {
 		if (flm->flm_family != rh->rib_family)
 			continue;
