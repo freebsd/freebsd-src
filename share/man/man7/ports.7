@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2020
+.Dd April 17, 2021
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -631,6 +631,18 @@ shells_zsh_UNSET=	DOCS EXAMPLES
 .Pp
 These and other options-related variables are documented in
 .Pa /usr/ports/Mk/bsd.options.mk .
+.It Sy Example 5\&: No Setting Xr make 1 Variables for Specific Ports via Xr make.conf 5
+.Pp
+The following example shows how to set arbitrary
+.Xr make 1
+variables only specific ports:
+.Bd -literal -offset 2n
+# Set DISABLE_MAKE_JOBS for the lang/rust port:
+\&.if ${.CURDIR:M*/lang/rust}
+DISABLE_MAKE_JOBS=	yes
+TRYBROKEN=		yes
+\&.endif
+.Ed
 .El
 .Sh SEE ALSO
 .Xr make 1 ,
