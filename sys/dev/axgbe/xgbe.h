@@ -1296,6 +1296,12 @@ struct xgbe_prv_data {
 	uint64_t rx_coalesce_usecs;
 
 	unsigned int debug_level;
+
+	/*
+	 * Toggles the split header feature.
+	 * This requires a complete restart.
+	 */
+	unsigned int sph_enable;
 };
 
 struct axgbe_if_softc {

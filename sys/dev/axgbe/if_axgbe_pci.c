@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
@@ -62,6 +63,7 @@ __FBSDID("$FreeBSD$");
 MALLOC_DEFINE(M_AXGBE, "axgbe", "axgbe data");
 
 extern struct if_txrx axgbe_txrx;
+static int axgbe_sph_enable;
 
 /* Function prototypes */
 static void *axgbe_register(device_t);
@@ -252,16 +254,11 @@ static struct if_shared_ctx axgbe_sctx_init = {
 	.isc_vendor_info = axgbe_vendor_info_array,
 	.isc_driver_version = XGBE_DRV_VERSION,
 
-	.isc_nrxd_min = {XGBE_RX_DESC_CNT_MIN, XGBE_RX_DESC_CNT_MIN},
-	.isc_nrxd_default = {XGBE_RX_DESC_CNT_DEFAULT, XGBE_RX_DESC_CNT_DEFAULT},
-	.isc_nrxd_max = {XGBE_RX_DESC_CNT_MAX, XGBE_RX_DESC_CNT_MAX},
 	.isc_ntxd_min = {XGBE_TX_DESC_CNT_MIN},
 	.isc_ntxd_default = {XGBE_TX_DESC_CNT_DEFAULT}, 
 	.isc_ntxd_max = {XGBE_TX_DESC_CNT_MAX},
 
-	.isc_nfl = 2,
 	.isc_ntxqs = 1,
-	.isc_nrxqs = 2,
 	.isc_flags = IFLIB_TSO_INIT_IP | IFLIB_NEED_SCRATCH |
 	    IFLIB_NEED_ZERO_CSUM | IFLIB_NEED_ETHER_PAD,
 };
@@ -269,6 +266,44 @@ static struct if_shared_ctx axgbe_sctx_init = {
 static void *
 axgbe_register(device_t dev)
 {
+	int axgbe_nfl;
+	int axgbe_nrxqs;
+	int error, i;
+	char *value = NULL;
+
+	value = kern_getenv("dev.ax.sph_enable");
+	if (value) {
+		axgbe_sph_enable = strtol(value, NULL, 10);
+		freeenv(value);
+	} else {
+		/*
+		 * No tunable found, generate one with default values
+		 * Note: only a reboot will reveal the new kenv
+		 */
+		error = kern_setenv("dev.ax.sph_enable", "1");
+		if (error) {
+			printf("Error setting tunable, using default driver values\n");
+		}
+		axgbe_sph_enable = 1;
+	}
+
+	if (!axgbe_sph_enable) {
+		axgbe_nfl = 1;
+		axgbe_nrxqs = 1;
+	} else {
+		axgbe_nfl = 2;
+		axgbe_nrxqs = 2;
+	}
+
+	axgbe_sctx_init.isc_nfl = axgbe_nfl;
+	axgbe_sctx_init.isc_nrxqs = axgbe_nrxqs;
+
+	for (i = 0 ; i < axgbe_nrxqs ; i++) {
+		axgbe_sctx_init.isc_nrxd_min[i] = XGBE_RX_DESC_CNT_MIN;
+		axgbe_sctx_init.isc_nrxd_default[i] = XGBE_RX_DESC_CNT_DEFAULT;
+		axgbe_sctx_init.isc_nrxd_max[i] = XGBE_RX_DESC_CNT_MAX;
+	}
+
 	return (&axgbe_sctx_init);
 }
 
@@ -1292,6 +1327,9 @@ axgbe_if_attach_post(if_ctx_t ctx)
 	if_softc_ctx_t		scctx = sc->scctx;
 	int i, ret;
 
+	/* set split header support based on tunable */
+	pdata->sph_enable = axgbe_sph_enable;
+
 	/* Initialize ECC timestamps */
         pdata->tx_sec_period = ticks;
         pdata->tx_ded_period = ticks;
@@ -1404,6 +1442,8 @@ axgbe_if_attach_post(if_ctx_t ctx)
 
 	axgbe_sysctl_init(pdata);
 
+	axgbe_pci_init(pdata);
+
 	return (0);
 } /* axgbe_if_attach_post */
 
@@ -1491,7 +1531,12 @@ axgbe_pci_init(struct xgbe_prv_data *pdata)
 	struct xgbe_phy_if	*phy_if = &pdata->phy_if;
 	struct xgbe_hw_if       *hw_if = &pdata->hw_if;
 	int ret = 0;
-	
+
+	if (!__predict_false((test_bit(XGBE_DOWN, &pdata->dev_state)))) {
+		axgbe_printf(1, "%s: Starting when XGBE_UP\n", __func__);
+		return;
+	}
+
 	hw_if->init(pdata);
 
         ret = phy_if->phy_start(pdata);
@@ -1656,7 +1701,11 @@ axgbe_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int nrxqs,
 
 	MPASS(scctx->isc_nrxqsets > 0);
 	MPASS(scctx->isc_nrxqsets == nrxqsets);
-	MPASS(nrxqs == 2);
+	if (!pdata->sph_enable) {
+		MPASS(nrxqs == 1);
+	} else {
+		MPASS(nrxqs == 2);
+	}
 
 	axgbe_printf(1, "%s: rxqsets %d/%d rxqs %d\n", __func__,
 	    scctx->isc_nrxqsets, nrxqsets, nrxqs);	
@@ -2258,15 +2307,40 @@ axgbe_if_media_change(if_ctx_t ctx)
 static int
 axgbe_if_promisc_set(if_ctx_t ctx, int flags)
 {
-        struct axgbe_if_softc *sc = iflib_get_softc(ctx);
+	struct axgbe_if_softc *sc = iflib_get_softc(ctx);
+	struct xgbe_prv_data *pdata = &sc->pdata;
+	struct ifnet *ifp = pdata->netdev;
 
-        if (XGMAC_IOREAD_BITS(&sc->pdata, MAC_PFR, PR) == 1)
-                return (0);
+	axgbe_printf(1, "%s: MAC_PFR 0x%x drv_flags 0x%x if_flags 0x%x\n",
+	    __func__, XGMAC_IOREAD(pdata, MAC_PFR), ifp->if_drv_flags, ifp->if_flags);
 
-        XGMAC_IOWRITE_BITS(&sc->pdata, MAC_PFR, PR, 1);
-        XGMAC_IOWRITE_BITS(&sc->pdata, MAC_PFR, VTFE, 0);
+	if (ifp->if_flags & IFF_PPROMISC) {
 
-        return (0);
+		axgbe_printf(1, "User requested to enter promisc mode\n");
+
+		if (XGMAC_IOREAD_BITS(pdata, MAC_PFR, PR) == 1) {
+			axgbe_printf(1, "Already in promisc mode\n");
+			return (0);
+		}
+
+		axgbe_printf(1, "Entering promisc mode\n");
+		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, PR, 1);
+		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 0);
+	} else {
+
+		axgbe_printf(1, "User requested to leave promisc mode\n");
+
+		if (XGMAC_IOREAD_BITS(pdata, MAC_PFR, PR) == 0) {
+			axgbe_printf(1, "Already not in promisc mode\n");
+			return (0);
+		}
+
+		axgbe_printf(1, "Leaving promisc mode\n");
+		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, PR, 0);
+		XGMAC_IOWRITE_BITS(pdata, MAC_PFR, VTFE, 1);
+	}
+
+	return (0);
 }
 
 static uint64_t
