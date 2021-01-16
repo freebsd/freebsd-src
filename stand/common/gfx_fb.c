@@ -710,8 +710,11 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 	EFI_STATUS status;
 	EFI_GRAPHICS_OUTPUT *gop = gfx_state.tg_private;
 
-	if (gop != NULL && (gop->Mode->Info->PixelFormat == PixelBltOnly ||
-	    gfx_state.tg_fb.fb_addr == 0)) {
+	/*
+	 * We assume Blt() does work, if not, we will need to build
+	 * exception list case by case.
+	 */
+	if (gop != NULL) {
 		switch (BltOperation) {
 		case GfxFbBltVideoFill:
 			status = gop->Blt(gop, BltBuffer, EfiBltVideoFill,
