@@ -293,12 +293,14 @@ xgbe_config_tso_mode(struct xgbe_prv_data *pdata)
 {
 	unsigned int i;
 
+	int tso_enabled = (if_getcapenable(pdata->netdev) & IFCAP_TSO);
+
 	for (i = 0; i < pdata->channel_count; i++) {
 		if (!pdata->channel[i]->tx_ring)
 			break;
 
-		axgbe_printf(0, "Enabling TSO in channel %d\n", i);
-		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_TCR, TSE, 1);
+		axgbe_printf(1, "TSO in channel %d %s\n", i, tso_enabled ? "enabled" : "disabled");
+		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_TCR, TSE, tso_enabled ? 1 : 0);
 	}
 }
 
@@ -306,15 +308,33 @@ static void
 xgbe_config_sph_mode(struct xgbe_prv_data *pdata)
 {
 	unsigned int i;
+	int sph_enable_flag = XGMAC_IOREAD_BITS(pdata, MAC_HWF1R, SPHEN);
+
+	axgbe_printf(1, "sph_enable %d sph feature enabled?: %d\n",
+	    pdata->sph_enable, sph_enable_flag);
+
+	if (pdata->sph_enable && sph_enable_flag)
+		axgbe_printf(0, "SPH Enabled\n");
 
 	for (i = 0; i < pdata->channel_count; i++) {
 		if (!pdata->channel[i]->rx_ring)
 			break;
+		if (pdata->sph_enable && sph_enable_flag) {
+			/* Enable split header feature */
+			XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_CR, SPH, 1);
+		} else {
+			/* Disable split header feature */
+			XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_CR, SPH, 0);
+		}
 
-		XGMAC_DMA_IOWRITE_BITS(pdata->channel[i], DMA_CH_CR, SPH, 1);
+		/* per-channel confirmation of SPH being disabled/enabled */
+		int val = XGMAC_DMA_IOREAD_BITS(pdata->channel[i], DMA_CH_CR, SPH);
+		axgbe_printf(0, "%s: SPH %s in channel %d\n", __func__,
+		    (val ? "enabled" : "disabled"), i);
 	}
 
-	XGMAC_IOWRITE_BITS(pdata, MAC_RCR, HDSMS, XGBE_SPH_HDSMS_SIZE);
+	if (pdata->sph_enable && sph_enable_flag)
+		XGMAC_IOWRITE_BITS(pdata, MAC_RCR, HDSMS, XGBE_SPH_HDSMS_SIZE);
 }
 
 static int
@@ -953,8 +973,8 @@ xgbe_config_rx_mode(struct xgbe_prv_data *pdata)
 {
 	unsigned int pr_mode, am_mode;
 
-	pr_mode = ((pdata->netdev->if_drv_flags & IFF_PPROMISC) != 0);
-	am_mode = ((pdata->netdev->if_drv_flags & IFF_ALLMULTI) != 0);
+	pr_mode = ((pdata->netdev->if_flags & IFF_PPROMISC) != 0);
+	am_mode = ((pdata->netdev->if_flags & IFF_ALLMULTI) != 0);
 
 	xgbe_set_promiscuous_mode(pdata, pr_mode);
 	xgbe_set_all_multicast_mode(pdata, am_mode);
@@ -1352,7 +1372,6 @@ xgbe_dev_read(struct xgbe_channel *channel)
 
 	if (XGMAC_GET_BITS_LE(rdesc->desc3, RX_NORMAL_DESC3, CTXT)) {
 		/* TODO - Timestamp Context Descriptor */
-
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
 		    CONTEXT, 1);
 		XGMAC_SET_BITS(packet->attributes, RX_PACKET_ATTRIBUTES,
