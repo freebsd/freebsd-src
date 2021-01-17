@@ -30,6 +30,11 @@ __FBSDID("$FreeBSD$");
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/kernel.h>
+#include <linux/irq_work.h>
+#include <linux/llist.h>
+
+#include <sys/param.h>
+#include <sys/taskqueue.h>
 
 struct linux_kmem_rcu {
 	struct rcu_head rcu_head;
@@ -43,6 +48,8 @@ struct linux_kmem_rcu {
 #define	LINUX_RCU_TO_KMEM(r)					\
 	((void *)((char *)(r) + sizeof(struct linux_kmem_rcu) - \
 	(r)->cache->cache_size))
+
+static LLIST_HEAD(linux_kfree_async_list);
 
 static int
 linux_kmem_ctor(void *mem, int size, void *arg, int flags)
@@ -125,4 +132,24 @@ linux_kmem_cache_destroy(struct linux_kmem_cache *c)
 
 	uma_zdestroy(c->cache_zone);
 	free(c, M_KMALLOC);
+}
+
+static void
+linux_kfree_async_fn(void *context, int pending)
+{
+	struct llist_node *freed;
+
+	while((freed = llist_del_first(&linux_kfree_async_list)) != NULL)
+		kfree(freed);
+}
+static struct task linux_kfree_async_task =
+    TASK_INITIALIZER(0, linux_kfree_async_fn, &linux_kfree_async_task);
+
+void
+linux_kfree_async(void *addr)
+{
+	if (addr == NULL)
+		return;
+	llist_add(addr, &linux_kfree_async_list);
+	taskqueue_enqueue(linux_irq_work_tq, &linux_kfree_async_task);
 }

@@ -35,10 +35,12 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/limits.h>
+#include <sys/proc.h>
 #include <vm/uma.h>
 
 #include <linux/types.h>
 #include <linux/gfp.h>
+#include <linux/llist.h>
 
 MALLOC_DECLARE(M_KMALLOC);
 
@@ -89,6 +91,19 @@ struct linux_kmem_cache {
 
 #define	ARCH_KMALLOC_MINALIGN \
 	__alignof(unsigned long long)
+
+/*
+ * Critical section-friendly version of kfree().
+ * Requires knowledge of the allocation size at build time.
+ */
+#define kfree_async(ptr)	do {					\
+	_Static_assert(sizeof(*(ptr)) >= sizeof(struct llist_node),	\
+	    "Size of object to free is unknown or too small");		\
+	if (curthread->td_critnest != 0)				\
+		linux_kfree_async(ptr);					\
+	else								\
+		kfree(ptr);						\
+} while (0)
 
 static inline gfp_t
 linux_check_m_flags(gfp_t flags)
@@ -189,5 +204,6 @@ linux_kmem_cache_free(struct linux_kmem_cache *c, void *m)
 }
 
 extern void linux_kmem_cache_destroy(struct linux_kmem_cache *);
+void linux_kfree_async(void *);
 
 #endif					/* _LINUX_SLAB_H_ */

@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <linux/compat.h>
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/irq_work.h>
 
 #include <sys/kernel.h>
 
@@ -58,6 +59,8 @@ struct workqueue_struct *system_long_wq;
 struct workqueue_struct *system_unbound_wq;
 struct workqueue_struct *system_highpri_wq;
 struct workqueue_struct *system_power_efficient_wq;
+
+struct taskqueue *linux_irq_work_tq;
 
 static int linux_default_wq_cpus = 4;
 
@@ -683,3 +686,48 @@ linux_work_uninit(void *arg)
 	system_highpri_wq = NULL;
 }
 SYSUNINIT(linux_work_uninit, SI_SUB_TASKQ, SI_ORDER_THIRD, linux_work_uninit, NULL);
+
+void
+linux_irq_work_fn(void *context, int pending)
+{
+	struct irq_work *irqw = context;
+
+	irqw->func(irqw);
+}
+
+static void
+linux_irq_work_init_fn(void *context, int pending)
+{
+	/*
+	 * LinuxKPI performs lazy allocation of memory structures required by
+	 * current on the first access to it.  As some irq_work clients read
+	 * it with spinlock taken, we have to preallocate td_lkpi_task before
+	 * first call to irq_work_queue().  As irq_work uses a single thread,
+	 * it is enough to read current once at SYSINIT stage.
+	 */
+	if (current == NULL)
+		panic("irq_work taskqueue is not initialized");
+}
+static struct task linux_irq_work_init_task =
+    TASK_INITIALIZER(0, linux_irq_work_init_fn, &linux_irq_work_init_task);
+
+static void
+linux_irq_work_init(void *arg)
+{
+	linux_irq_work_tq = taskqueue_create_fast("linuxkpi_irq_wq",
+	    M_WAITOK, taskqueue_thread_enqueue, &linux_irq_work_tq);
+	taskqueue_start_threads(&linux_irq_work_tq, 1, PWAIT,
+	    "linuxkpi_irq_wq");
+	taskqueue_enqueue(linux_irq_work_tq, &linux_irq_work_init_task);
+}
+SYSINIT(linux_irq_work_init, SI_SUB_TASKQ, SI_ORDER_SECOND,
+    linux_irq_work_init, NULL);
+
+static void
+linux_irq_work_uninit(void *arg)
+{
+	taskqueue_drain_all(linux_irq_work_tq);
+	taskqueue_free(linux_irq_work_tq);
+}
+SYSUNINIT(linux_irq_work_uninit, SI_SUB_TASKQ, SI_ORDER_SECOND,
+    linux_irq_work_uninit, NULL);
