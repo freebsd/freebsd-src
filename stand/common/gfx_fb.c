@@ -29,6 +29,61 @@
  * $FreeBSD$
  */
 
+/*
+ * The workhorse here is gfxfb_blt(). It is implemented to mimic UEFI
+ * GOP Blt, and allows us to fill the rectangle on screen, copy
+ * rectangle from video to buffer and buffer to video and video to video.
+ * Such implementation does allow us to have almost identical implementation
+ * for both BIOS VBE and UEFI.
+ *
+ * ALL pixel data is assumed to be 32-bit BGRA (byte order Blue, Green, Red,
+ * Alpha) format, this allows us to only handle RGB data and not to worry
+ * about mixing RGB with indexed colors.
+ * Data exchange between memory buffer and video will translate BGRA
+ * and native format as following:
+ *
+ * 32-bit to/from 32-bit is trivial case.
+ * 32-bit to/from 24-bit is also simple - we just drop the alpha channel.
+ * 32-bit to/from 16-bit is more complicated, because we nee to handle
+ * data loss from 32-bit to 16-bit. While reading/writing from/to video, we
+ * need to apply masks of 16-bit color components. This will preserve
+ * colors for terminal text. For 32-bit truecolor PMG images, we need to
+ * translate 32-bit colors to 15/16 bit colors and this means data loss.
+ * There are different algorithms how to perform such color space reduction,
+ * we are currently using bitwise right shift to reduce color space and so far
+ * this technique seems to be sufficient (see also gfx_fb_putimage(), the
+ * end of for loop).
+ * 32-bit to/from 8-bit is the most troublesome because 8-bit colors are
+ * indexed. From video, we do get color indexes, and we do translate
+ * color index values to RGB. To write to video, we again need to translate
+ * RGB to color index. Additionally, we need to translate between VGA and
+ * console colors.
+ *
+ * Our internal color data is represented using BGRA format. But the hardware
+ * used indexed colors for 8-bit colors (0-255) and for this mode we do
+ * need to perform translation to/from BGRA and index values.
+ *
+ *                   - paletteentry RGB <-> index -
+ * BGRA BUFFER <----/                              \ - VIDEO
+ *                  \                              /
+ *                   -  RGB (16/24/32)            -
+ *
+ * To perform index to RGB translation, we use palette table generated
+ * from when we set up 8-bit mode video. We cannot read palette data from
+ * the hardware, because not all hardware supports reading it.
+ *
+ * BGRA to index is implemented in rgb_to_color_index() by searching
+ * palette array for closest match of RBG values.
+ *
+ * Note: In 8-bit mode, We do store first 16 colors to palette registers
+ * in VGA color order, this serves two purposes; firstly,
+ * if palette update is not supported, we still have correct 16 colors.
+ * Secondly, the kernel does get correct 16 colors when some other boot
+ * loader is used. However, the palette map for 8-bit colors is using
+ * console color ordering - this does allow us to skip translation
+ * from VGA colors to console colors, while we are reading RGB data.
+ */
+
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <stand.h>
@@ -257,7 +312,7 @@ rgb_to_color_index(uint8_t r, uint8_t g, uint8_t b)
 	int diff;
 
 	color = 0;
-	best = NCMAP * NCMAP * NCMAP;
+	best = 255 * 255 * 255;
 	for (k = 0; k < NCMAP; k++) {
 		diff = r - pe8[k].Red;
 		dist = diff * diff;
@@ -337,7 +392,6 @@ gfx_mem_wr4(uint8_t *base, size_t size, uint32_t o, uint32_t v)
 	*(uint32_t *)(base + o) = v;
 }
 
-/* Our GFX Block transfer toolkit. */
 static int gfxfb_blt_fill(void *BltBuffer,
     uint32_t DestinationX, uint32_t DestinationY,
     uint32_t Width, uint32_t Height)
@@ -409,6 +463,8 @@ static int gfxfb_blt_fill(void *BltBuffer,
 			case 4:
 				gfx_mem_wr4(destination, size, off, data);
 				break;
+			default:
+				return (EINVAL);
 			}
 			off += bpp;
 		}
@@ -430,7 +486,7 @@ gfxfb_blt_video_to_buffer(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
 	uint32_t x, sy, dy;
 	uint32_t bpp, pitch, copybytes;
 	off_t off;
-	uint8_t *source, *destination, *buffer, *sb;
+	uint8_t *source, *destination, *sb;
 	uint8_t rm, rp, gm, gp, bm, bp;
 	bool bgra;
 
@@ -468,36 +524,21 @@ gfxfb_blt_video_to_buffer(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
 	    ffs(gm) - 1 == 8 && gp == 8 &&
 	    ffs(bm) - 1 == 8 && bp == 0;
 
-	if (bgra) {
-		buffer = NULL;
-	} else {
-		buffer = malloc(copybytes);
-		if (buffer == NULL)
-			return (ENOMEM);
-	}
-
 	for (sy = SourceY, dy = DestinationY; dy < Height + DestinationY;
 	    sy++, dy++) {
 		off = sy * pitch + SourceX * bpp;
 		source = gfx_get_fb_address() + off;
+		destination = (uint8_t *)BltBuffer + dy * Delta +
+		    DestinationX * sizeof (*p);
 
 		if (bgra) {
-			destination = (uint8_t *)BltBuffer + dy * Delta +
-			    DestinationX * sizeof (*p);
+			bcopy(source, destination, copybytes);
 		} else {
-			destination = buffer;
-		}
-
-		bcopy(source, destination, copybytes);
-
-		if (!bgra) {
 			for (x = 0; x < Width; x++) {
 				uint32_t c = 0;
 
-				p = (void *)((uint8_t *)BltBuffer +
-				    dy * Delta +
-				    (DestinationX + x) * sizeof (*p));
-				sb = buffer + x * bpp;
+				p = (void *)(destination + x * sizeof (*p));
+				sb = source + x * bpp;
 				switch (bpp) {
 				case 1:
 					c = *sb;
@@ -511,6 +552,8 @@ gfxfb_blt_video_to_buffer(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
 				case 4:
 					c = *(uint32_t *)sb;
 					break;
+				default:
+					return (EINVAL);
 				}
 
 				if (bpp == 1) {
@@ -527,7 +570,6 @@ gfxfb_blt_video_to_buffer(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
 		}
 	}
 
-	free(buffer);
 	return (0);
 }
 
@@ -544,7 +586,7 @@ gfxfb_blt_buffer_to_video(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
 	uint32_t x, sy, dy;
 	uint32_t bpp, pitch, copybytes;
 	off_t off;
-	uint8_t *source, *destination, *buffer;
+	uint8_t *source, *destination;
 	uint8_t rm, rp, gm, gp, bm, bp;
 	bool bgra;
 
@@ -582,13 +624,6 @@ gfxfb_blt_buffer_to_video(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
 	    ffs(gm) - 1 == 8 && gp == 8 &&
 	    ffs(bm) - 1 == 8 && bp == 0;
 
-	if (bgra) {
-		buffer = NULL;
-	} else {
-		buffer = malloc(copybytes);
-		if (buffer == NULL)
-			return (ENOMEM);
-	}
 	for (sy = SourceY, dy = DestinationY; sy < Height + SourceY;
 	    sy++, dy++) {
 		off = dy * pitch + DestinationX * bpp;
@@ -597,6 +632,7 @@ gfxfb_blt_buffer_to_video(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
 		if (bgra) {
 			source = (uint8_t *)BltBuffer + sy * Delta +
 			    SourceX * sizeof (*p);
+			bcopy(source, destination, copybytes);
 		} else {
 			for (x = 0; x < Width; x++) {
 				uint32_t c;
@@ -615,35 +651,33 @@ gfxfb_blt_buffer_to_video(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
 				off = x * bpp;
 				switch (bpp) {
 				case 1:
-					gfx_mem_wr1(buffer, copybytes,
+					gfx_mem_wr1(destination, copybytes,
 					    off, (c < 16) ?
 					    cons_to_vga_colors[c] : c);
 					break;
 				case 2:
-					gfx_mem_wr2(buffer, copybytes,
+					gfx_mem_wr2(destination, copybytes,
 					    off, c);
 					break;
 				case 3:
-					gfx_mem_wr1(buffer, copybytes,
+					gfx_mem_wr1(destination, copybytes,
 					    off, (c >> 16) & 0xff);
-					gfx_mem_wr1(buffer, copybytes,
+					gfx_mem_wr1(destination, copybytes,
 					    off + 1, (c >> 8) & 0xff);
-					gfx_mem_wr1(buffer, copybytes,
+					gfx_mem_wr1(destination, copybytes,
 					    off + 2, c & 0xff);
 					break;
 				case 4:
-					gfx_mem_wr4(buffer, copybytes,
+					gfx_mem_wr4(destination, copybytes,
 					    x * bpp, c);
 					break;
+				default:
+					return (EINVAL);
 				}
 			}
-			source = buffer;
 		}
-
-		bcopy(source, destination, copybytes);
 	}
 
-	free(buffer);
 	return (0);
 }
 
