@@ -23,7 +23,7 @@ LINKS=		${BINDIR}/zgrep ${BINDIR}/zfgrep \
 		${BINDIR}/zgrep ${BINDIR}/xzfgrep \
 		${BINDIR}/zgrep ${BINDIR}/zstdgrep \
 		${BINDIR}/zgrep ${BINDIR}/zstdegrep \
-		${BINDIR}/zgrep ${BINDIR}/zstdegrep
+		${BINDIR}/zgrep ${BINDIR}/zstdfgrep
 
 LINKS+=		${BINDIR}/grep ${BINDIR}/egrep \
 		${BINDIR}/grep ${BINDIR}/fgrep \
