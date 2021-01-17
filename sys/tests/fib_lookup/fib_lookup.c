@@ -219,7 +219,7 @@ run_test_inet(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, run_test_inet, "I", "Execute fib4_lookup test");
 
 static uint64_t
@@ -283,7 +283,7 @@ run_test_inet6(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet6,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, run_test_inet6, "I", "Execute fib6_lookup test");
 
 static bool
@@ -389,7 +389,7 @@ run_test_inet_random(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet_random,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, run_test_inet_random, "I", "Execute fib4_lookup random check tests");
 
 
@@ -502,7 +502,7 @@ run_test_inet_scan(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 SYSCTL_PROC(_net_route_test, OID_AUTO, run_inet_scan,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, run_test_inet_scan, "I", "Execute fib4_lookup scan tests");
 
 
