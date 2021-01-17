@@ -31,22 +31,37 @@
 #ifndef __LINUX_IRQ_WORK_H__
 #define	__LINUX_IRQ_WORK_H__
 
-#include <linux/workqueue.h>
+#include <sys/param.h>
+#include <sys/taskqueue.h>
+
+struct irq_work;
+typedef void (*irq_work_func_t)(struct irq_work *);
 
 struct irq_work {
-	struct work_struct work;
+	struct task irq_task;
+	irq_work_func_t func;
 };
 
+extern struct taskqueue *linux_irq_work_tq;
+
+#define	DEFINE_IRQ_WORK(name, _func)	struct irq_work name = {	\
+	.irq_task = TASK_INITIALIZER(0, linux_irq_work_fn, &(name)),	\
+	.func  = (_func),						\
+}
+
+void	linux_irq_work_fn(void *, int);
+
 static inline void
-init_irq_work(struct irq_work *irqw, void (*func)(struct irq_work *))
+init_irq_work(struct irq_work *irqw, irq_work_func_t func)
 {
-	INIT_WORK(&irqw->work, (work_func_t)func);
+	TASK_INIT(&irqw->irq_task, 0, linux_irq_work_fn, irqw);
+	irqw->func = func;
 }
 
 static inline void
 irq_work_queue(struct irq_work *irqw)
 {
-	schedule_work(&irqw->work);
+	taskqueue_enqueue(linux_irq_work_tq, &irqw->irq_task);
 }
 
 #endif /* __LINUX_IRQ_WORK_H__ */
