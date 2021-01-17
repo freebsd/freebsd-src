@@ -478,6 +478,7 @@ efi_find_framebuffer(teken_gfx_t *gfx_state)
 	gfx_state->tg_fb_type = FB_TEXT;
 
 	hsize = 0;
+	hlist = NULL;
 	status = BS->LocateHandle(ByProtocol, &gop_guid, NULL, &hsize, hlist);
 	if (status == EFI_BUFFER_TOO_SMALL) {
 		hlist = malloc(hsize);
