@@ -360,6 +360,18 @@ bsearch4_process_record(struct bsearch4_array *dst_array,
 			if (!add_array_entry(dst_array, &new_entry))
 				return (false);
 		 }
+
+		 /*
+		  * Special case: adding more specific prefix at the start of
+		  * the previous interval:
+		  * 10.0.0.0(/24,nh=3), 10.0.0.0(/25,nh=4)
+		  * Alter the last record, seeting new nexthop and mask.
+		  */
+		 if (br_tmp->addr4 == rib_entry->addr4) {
+			*br_tmp = *rib_entry;
+			add_array_entry(stack, rib_entry);
+			return (true);
+		 }
 	 }
 
 	if (!add_array_entry(dst_array, rib_entry))
