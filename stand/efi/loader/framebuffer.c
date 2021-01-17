@@ -704,7 +704,6 @@ command_autoresize(int argc, char *argv[])
 	EFI_UGA_DRAW_PROTOCOL *uga;
 	char *textmode;
 	EFI_STATUS status;
-	u_int mode;
 
 	textmode = getenv("hw.vga.textmode");
 	/* If it's set and non-zero, we'll select a console mode instead */
