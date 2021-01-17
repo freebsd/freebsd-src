@@ -990,12 +990,17 @@ typedef struct {
 #define	R_386_RELATIVE		8	/* Add load address of shared object. */
 #define	R_386_GOTOFF		9	/* Add GOT-relative symbol address. */
 #define	R_386_GOTPC		10	/* Add PC-relative GOT table address. */
+#define	R_386_32PLT		11
 #define	R_386_TLS_TPOFF		14	/* Negative offset in static TLS block */
 #define	R_386_TLS_IE		15	/* Absolute address of GOT for -ve static TLS */
 #define	R_386_TLS_GOTIE		16	/* GOT entry for negative static TLS block */
 #define	R_386_TLS_LE		17	/* Negative offset relative to static TLS */
 #define	R_386_TLS_GD		18	/* 32 bit offset to GOT (index,off) pair */
 #define	R_386_TLS_LDM		19	/* 32 bit offset to GOT (index,zero) pair */
+#define	R_386_16		20
+#define	R_386_PC16		21
+#define	R_386_8			22
+#define	R_386_PC8		23
 #define	R_386_TLS_GD_32		24	/* 32 bit offset to GOT (index,off) pair */
 #define	R_386_TLS_GD_PUSH	25	/* pushl instruction for Sun ABI GD sequence */
 #define	R_386_TLS_GD_CALL	26	/* call instruction for Sun ABI GD sequence */
@@ -1010,7 +1015,12 @@ typedef struct {
 #define	R_386_TLS_DTPMOD32	35	/* GOT entry containing TLS index */
 #define	R_386_TLS_DTPOFF32	36	/* GOT entry containing TLS offset */
 #define	R_386_TLS_TPOFF32	37	/* GOT entry of -ve static TLS offset */
+#define	R_386_SIZE32		38
+#define	R_386_TLS_GOTDESC	39
+#define	R_386_TLS_DESC_CALL	40
+#define	R_386_TLS_DESC		41
 #define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
+#define	R_386_GOT32X		43
 
 #define	R_AARCH64_NONE		0	/* No relocation */
 #define	R_AARCH64_ABS64		257	/* Absolute offset */
@@ -1472,6 +1482,10 @@ typedef struct {
 #define	R_X86_64_TLSDESC_CALL	35
 #define	R_X86_64_TLSDESC	36
 #define	R_X86_64_IRELATIVE	37
+#define	R_X86_64_RELATIVE64	38
+/* 39 and 40 were BND-related, already decomissioned */
+#define	R_X86_64_GOTPCRELX	41
+#define	R_X86_64_REX_GOTPCRELX	42
 
 #define	ELF_BSDF_SIGFASTBLK	0x0001	/* Kernel supports fast sigblock */
 
