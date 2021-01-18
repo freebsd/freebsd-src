@@ -2187,3 +2187,33 @@ tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
 	return (enabled);
 }
 #endif
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(timecounter, db_show_timecounter)
+{
+	struct timehands *th;
+	struct timecounter *tc;
+	u_int val1, val2;
+
+	th = timehands;
+	tc = th->th_counter;
+	val1 = tc->tc_get_timecount(tc);
+	__compiler_membar();
+	val2 = tc->tc_get_timecount(tc);
+
+	db_printf("timecounter %p %s\n", tc, tc->tc_name);
+	db_printf("  mask %#x freq %ju qual %d flags %#x priv %p\n",
+	    tc->tc_counter_mask, (uintmax_t)tc->tc_frequency, tc->tc_quality,
+	    tc->tc_flags, tc->tc_priv);
+	db_printf("  val %#x %#x\n", val1, val2);
+	db_printf("timehands adj %#jx scale %#jx ldelta %d off_cnt %d gen %d\n",
+	    (uintmax_t)th->th_adjustment, (uintmax_t)th->th_scale,
+	    th->th_large_delta, th->th_offset_count, th->th_generation);
+	db_printf("  offset %jd %jd boottime %jd %jd\n",
+	    (intmax_t)th->th_offset.sec, (uintmax_t)th->th_offset.frac,
+	    (intmax_t)th->th_boottime.sec, (uintmax_t)th->th_boottime.frac);
+}
+#endif
