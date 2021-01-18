@@ -979,7 +979,7 @@ shminit(void)
 		if (rsv == NULL)
 			rsv = osd_reserve(shm_prison_slot);
 		prison_lock(pr);
-		if ((pr->pr_allow & PR_ALLOW_SYSVIPC) && pr->pr_ref > 0) {
+		if (prison_isvalid(pr) && (pr->pr_allow & PR_ALLOW_SYSVIPC)) {
 			(void)osd_jail_set_reserved(pr, shm_prison_slot, rsv,
 			    &prison0);
 			rsv = NULL;
