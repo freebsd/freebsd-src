@@ -1663,7 +1663,7 @@ vop_setextattr {
 	*p++ = ap->a_attrnamespace;
 	*p++ = eapad2;
 	*p++ = strlen(ap->a_name);
-	strcpy(p, ap->a_name);
+	memcpy(p, ap->a_name, strlen(ap->a_name));
 	p += strlen(ap->a_name);
 	bzero(p, eapad1);
 	p += eapad1;
