@@ -47,11 +47,13 @@
 #define	AES192_ROUNDS	12
 #define	AES256_ROUNDS	14
 #define	AES_SCHED_LEN	((AES256_ROUNDS + 1) * AES_BLOCK_LEN)
+#define	AES_SCHED_ALIGN	16
 
 struct aesni_session {
-	uint8_t enc_schedule[AES_SCHED_LEN] __aligned(16);
-	uint8_t dec_schedule[AES_SCHED_LEN] __aligned(16);
-	uint8_t xts_schedule[AES_SCHED_LEN] __aligned(16);
+	uint8_t schedules[3 * AES_SCHED_LEN + AES_SCHED_ALIGN];
+	uint8_t *enc_schedule;
+	uint8_t *dec_schedule;
+	uint8_t *xts_schedule;
 	int rounds;
 	/* uint8_t *ses_ictx; */
 	/* uint8_t *ses_octx; */
