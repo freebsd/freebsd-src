@@ -565,8 +565,16 @@ vbe_init(void)
 	gfx_state.tg_ctype = CT_INDEXED;
 	gfx_state.tg_mode = 3;
 
-	if (vbe == NULL)
+	env_setenv("screen.textmode", EV_VOLATILE, "1", mode_set,
+	    env_nounset);
+	env_setenv("vbe_max_resolution", EV_VOLATILE, NULL, mode_set,
+	    env_nounset);
+
+	if (vbe == NULL) {
 		vbe = malloc(sizeof(*vbe));
+		if (vbe == NULL)
+			return;
+	}
 
 	if (vbe_mode == NULL) {
 		vbe_mode = malloc(sizeof(*vbe_mode));
@@ -581,6 +589,7 @@ vbe_init(void)
 		vbe = NULL;
 		free(vbe_mode);
 		vbe_mode = NULL;
+		return;
 	}
 
 	/*
@@ -592,22 +601,21 @@ vbe_init(void)
 		;
 
 	vbe_mode_list_size = (uintptr_t)p - (uintptr_t)ml;
-	vbe_mode_list = malloc(vbe_mode_list_size);
-	if (vbe_mode_list == NULL) {
-		free(vbe);
-		vbe = NULL;
-		free(vbe_mode);
-		vbe_mode = NULL;
-	}
-	bcopy(ml, vbe_mode_list, vbe_mode_list_size);
 
-	/* reset VideoModePtr, so we will not have chance to use bad data. */
+	/*
+	 * Since vbe_init() is used only once at very start of the loader,
+	 * we assume malloc will not fail there, but in case it does,
+	 * we point vbe_mode_list to memory pointed by VideoModePtr.
+	 */
+	vbe_mode_list = malloc(vbe_mode_list_size);
+	if (vbe_mode_list == NULL)
+		vbe_mode_list = ml;
+	else
+		bcopy(ml, vbe_mode_list, vbe_mode_list_size);
+
+	/* reset VideoModePtr, to make sure, we only do use vbe_mode_list. */
 	vbe->VideoModePtr = 0;
 
-	env_setenv("screen.textmode", EV_VOLATILE, "1", mode_set,
-	    env_nounset);
-	env_setenv("vbe_max_resolution", EV_VOLATILE, NULL, mode_set,
-	    env_nounset);
 	/* vbe_set_mode() will set up the rest. */
 }
 
@@ -758,7 +766,7 @@ vbe_find_mode_xydm(int x, int y, int depth, int m)
 	struct modeinfoblock mi;
 	uint16_t *farptr;
 	uint16_t mode;
-	int idx, nitems, i;
+	int idx, nentries, i;
 
 	memset(vbe, 0, sizeof (*vbe));
 	if (biosvbe_info(vbe) != VBE_SUCCESS)
@@ -771,9 +779,9 @@ vbe_find_mode_xydm(int x, int y, int depth, int m)
 	else
 		i = depth;
 
-	nitems = vbe_mode_list_size / sizeof(*vbe_mode_list);
+	nentries = vbe_mode_list_size / sizeof(*vbe_mode_list);
 	while (i > 0) {
-		for (idx = 0; idx < nitems; idx++) {
+		for (idx = 0; idx < nentries; idx++) {
 			mode = vbe_mode_list[idx];
 			if (mode == 0xffff)
 				break;
