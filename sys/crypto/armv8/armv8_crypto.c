@@ -112,6 +112,9 @@ armv8_crypto_probe(device_t dev)
 	case ID_AA64ISAR0_AES_PMULL:
 		ret = 0;
 		break;
+	case ID_AA64ISAR0_AES_NONE:
+		device_printf(dev, "CPU lacks AES instructions");
+		break;
 	}
 
 	device_set_desc_copy(dev, "AES-CBC,AES-XTS");
