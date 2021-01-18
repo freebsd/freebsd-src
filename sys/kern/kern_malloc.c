@@ -772,7 +772,7 @@ malloc_domainset_aligned(size_t size, size_t align,
 	KASSERT(align != 0 && powerof2(align),
 	    ("malloc_domainset_aligned: wrong align %#zx size %#zx",
 	    align, size));
-	KASSERT(align <= kmemzones[nitems(kmemzones) - 2].kz_size,
+	KASSERT(align <= PAGE_SIZE,
 	    ("malloc_domainset_aligned: align %#zx (size %#zx) too large",
 	    align, size));
 
@@ -1173,7 +1173,7 @@ mallocinit(void *dummy)
 
 		align = UMA_ALIGN_PTR;
 		if (powerof2(size) && size > sizeof(void *))
-			align = size - 1;
+			align = MIN(size, PAGE_SIZE) - 1;
 		for (subzone = 0; subzone < numzones; subzone++) {
 			kmemzones[indx].kz_zone[subzone] =
 			    uma_zcreate(name, size,
