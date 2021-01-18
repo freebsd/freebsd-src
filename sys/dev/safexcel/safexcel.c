@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/rman.h>
+#include <sys/smp.h>
 #include <sys/sglist.h>
 #include <sys/sysctl.h>
 
@@ -189,6 +190,8 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 		req = STAILQ_FIRST(&ring->queued_requests);
 		KASSERT(req != NULL, ("%s: expected %d pending requests",
 		    __func__, nreqs));
+		KASSERT(req->ringidx == ringidx,
+		    ("%s: ring index mismatch", __func__));
                 STAILQ_REMOVE_HEAD(&ring->queued_requests, link);
 		mtx_unlock(&ring->mtx);
 
@@ -748,9 +751,7 @@ safexcel_execute(struct safexcel_softc *sc, struct safexcel_ring *ring,
 
 	mtx_assert(&ring->mtx, MA_OWNED);
 
-	ringidx = req->sess->ringidx;
-	if (STAILQ_EMPTY(&ring->ready_requests))
-		return;
+	ringidx = req->ringidx;
 	busy = !STAILQ_EMPTY(&ring->queued_requests);
 	ncdescs = nrdescs = nreqs = 0;
 	while ((req = STAILQ_FIRST(&ring->ready_requests)) != NULL &&
@@ -1024,7 +1025,7 @@ safexcel_init_hw(struct safexcel_softc *sc)
 static int
 safexcel_setup_dev_interrupts(struct safexcel_softc *sc)
 {
-	int i, j;
+	int error, i, j;
 
 	for (i = 0; i < SAFEXCEL_MAX_RINGS && sc->sc_intr[i] != NULL; i++) {
 		sc->sc_ih[i].sc = sc;
@@ -1037,6 +1038,11 @@ safexcel_setup_dev_interrupts(struct safexcel_softc *sc)
 			    "couldn't setup interrupt %d\n", i);
 			goto err;
 		}
+
+		error = bus_bind_intr(sc->sc_dev, sc->sc_intr[i], i % mp_ncpus);
+		if (error != 0)
+			device_printf(sc->sc_dev,
+			    "failed to bind ring %d\n", error);
 	}
 
 	return (0);
@@ -1175,6 +1181,7 @@ safexcel_attach(device_t dev)
 		for (i = 0; i < SAFEXCEL_REQUESTS_PER_RING; i++) {
 			req = &ring->requests[i];
 			req->sc = sc;
+			req->ringidx = ringidx;
 			if (bus_dmamap_create(ring->data_dtag,
 			    BUS_DMA_COHERENT, &req->dmap) != 0) {
 				for (j = 0; j < i; j++)
@@ -1783,7 +1790,7 @@ safexcel_set_token(struct safexcel_request *req)
 	csp = crypto_get_params(req->crp->crp_session);
 	cdesc = req->cdesc;
 	sc = req->sc;
-	ringidx = req->sess->ringidx;
+	ringidx = req->ringidx;
 
 	safexcel_set_command(req, cdesc);
 
@@ -1999,7 +2006,7 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 	crp = req->crp;
 	csp = crypto_get_params(crp->crp_session);
 	sess = req->sess;
-	ring = &req->sc->sc_ring[sess->ringidx];
+	ring = &req->sc->sc_ring[req->ringidx];
 
 	mtx_assert(&ring->mtx, MA_OWNED);
 
@@ -2527,10 +2534,6 @@ safexcel_newsession(device_t dev, crypto_session_t cses,
 
 	safexcel_setkey(sess, csp, NULL);
 
-	/* Bind each session to a fixed ring to minimize lock contention. */
-	sess->ringidx = atomic_fetchadd_int(&sc->sc_ringidx, 1);
-	sess->ringidx %= sc->sc_config.rings;
-
 	return (0);
 }
 
@@ -2558,7 +2561,7 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
 	if (crp->crp_cipher_key != NULL || crp->crp_auth_key != NULL)
 		safexcel_setkey(sess, csp, crp);
 
-	ring = &sc->sc_ring[sess->ringidx];
+	ring = &sc->sc_ring[curcpu % sc->sc_config.rings];
 	mtx_lock(&ring->mtx);
 	req = safexcel_alloc_request(sc, ring);
         if (__predict_false(req == NULL)) {
