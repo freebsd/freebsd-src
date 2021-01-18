@@ -290,7 +290,7 @@ msginit()
 		if (rsv == NULL)
 			rsv = osd_reserve(msg_prison_slot);
 		prison_lock(pr);
-		if ((pr->pr_allow & PR_ALLOW_SYSVIPC) && pr->pr_ref > 0) {
+		if (prison_isvalid(pr) && (pr->pr_allow & PR_ALLOW_SYSVIPC)) {
 			(void)osd_jail_set_reserved(pr, msg_prison_slot, rsv,
 			    &prison0);
 			rsv = NULL;

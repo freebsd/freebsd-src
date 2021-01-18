@@ -1008,7 +1008,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		TAILQ_FOREACH(inspr, &allprison, pr_list) {
 			if (inspr->pr_id == jid) {
 				mtx_lock(&inspr->pr_mtx);
-				if (inspr->pr_ref > 0) {
+				if (prison_isvalid(inspr)) {
 					pr = inspr;
 					drflags |= PD_LOCKED;
 					inspr = NULL;
@@ -1041,7 +1041,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				error = ENOENT;
 				vfs_opterror(opts, "jail %d not found", jid);
 				goto done_deref;
-			} else if (pr->pr_uref == 0) {
+			} else if (!prison_isalive(pr)) {
 				if (!(flags & JAIL_DYING)) {
 					error = ENOENT;
 					vfs_opterror(opts, "jail %d is dying",
@@ -1118,24 +1118,18 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			FOREACH_PRISON_CHILD(ppr, tpr) {
 				if (tpr != pr && tpr->pr_ref > 0 &&
 				    !strcmp(tpr->pr_name + pnamelen, namelc)) {
-					if (pr == NULL &&
-					    cuflags != JAIL_CREATE) {
-						mtx_lock(&tpr->pr_mtx);
-						if (tpr->pr_ref > 0) {
+					mtx_lock(&tpr->pr_mtx);
+					drflags |= PD_LOCKED;
+					if (prison_isalive(tpr)) {
+						if (pr == NULL &&
+						    cuflags != JAIL_CREATE) {
 							/*
 							 * Use this jail
 							 * for updates.
 							 */
-							if (tpr->pr_uref > 0) {
-								pr = tpr;
-								drflags |=
-								    PD_LOCKED;
-								break;
-							}
-							deadpr = tpr;
+							pr = tpr;
+							break;
 						}
-						mtx_unlock(&tpr->pr_mtx);
-					} else if (tpr->pr_uref > 0) {
 						/*
 						 * Create, or update(jid):
 						 * name must not exist in an
@@ -1147,13 +1141,19 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 						   name);
 						goto done_deref;
 					}
+					if (pr == NULL &&
+					    cuflags != JAIL_CREATE &&
+					    prison_isvalid(tpr))
+						deadpr = tpr;
+					mtx_unlock(&tpr->pr_mtx);
+					drflags &= ~PD_LOCKED;
 				}
 			}
 			/* If no active jail is found, use a dying one. */
 			if (deadpr != NULL && pr == NULL) {
 				if (flags & JAIL_DYING) {
 					mtx_lock(&deadpr->pr_mtx);
-					if (deadpr->pr_ref == 0) {
+					if (!prison_isvalid(deadpr)) {
 						mtx_unlock(&deadpr->pr_mtx);
 						goto name_again;
 					}
@@ -1192,7 +1192,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				goto done_deref;
 			}
 		mtx_lock(&ppr->pr_mtx);
-		if (ppr->pr_ref == 0) {
+		if (!prison_isvalid(ppr)) {
 			mtx_unlock(&ppr->pr_mtx);
 			error = ENOENT;
 			vfs_opterror(opts, "jail \"%s\" not found",
@@ -1735,7 +1735,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 * for now, so new ones will remain unseen until after the module
 	 * handlers have completed.
 	 */
-	born = pr->pr_uref == 0;
+	born = !prison_isalive(pr);
 	if (!created && (ch_flags & PR_PERSIST & (pr_flags ^ pr->pr_flags))) {
 		if (pr_flags & PR_PERSIST) {
 			pr->pr_ref++;
@@ -2029,8 +2029,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		TAILQ_FOREACH(pr, &allprison, pr_list) {
 			if (pr->pr_id > jid && prison_ischild(mypr, pr)) {
 				mtx_lock(&pr->pr_mtx);
-				if (pr->pr_ref > 0 &&
-				    (pr->pr_uref > 0 || (flags & JAIL_DYING)))
+				if ((flags & JAIL_DYING)
+				    ? prison_isvalid(pr) : prison_isalive(pr))
 					break;
 				mtx_unlock(&pr->pr_mtx);
 			}
@@ -2051,7 +2051,8 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 			pr = prison_find_child(mypr, jid);
 			if (pr != NULL) {
 				drflags |= PD_LOCKED;
-				if (pr->pr_uref == 0 && !(flags & JAIL_DYING)) {
+				if (!(prison_isalive(pr) ||
+				    (flags & JAIL_DYING))) {
 					error = ENOENT;
 					vfs_opterror(opts, "jail %d is dying",
 					    jid);
@@ -2075,7 +2076,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		pr = prison_find_name(mypr, name);
 		if (pr != NULL) {
 			drflags |= PD_LOCKED;
-			if (pr->pr_uref == 0 && !(flags & JAIL_DYING)) {
+			if (!(prison_isalive(pr) || (flags & JAIL_DYING))) {
 				error = ENOENT;
 				vfs_opterror(opts, "jail \"%s\" is dying",
 				    name);
@@ -2203,7 +2204,7 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		if (error != 0 && error != ENOENT)
 			goto done;
 	}
-	i = (pr->pr_uref == 0);
+	i = !prison_isalive(pr);
 	error = vfs_setopt(opts, "dying", &i, sizeof(i));
 	if (error != 0 && error != ENOENT)
 		goto done;
@@ -2314,7 +2315,7 @@ sys_jail_remove(struct thread *td, struct jail_remove_args *uap)
 		lpr = NULL;
 		FOREACH_PRISON_DESCENDANT(pr, cpr, descend) {
 			mtx_lock(&cpr->pr_mtx);
-			if (cpr->pr_ref > 0) {
+			if (prison_isvalid(cpr)) {
 				tpr = cpr;
 				cpr->pr_ref++;
 			} else {
@@ -2414,11 +2415,8 @@ sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
 		return (EINVAL);
 	}
 
-	/*
-	 * Do not allow a process to attach to a prison that is not
-	 * considered to be "alive".
-	 */
-	if (pr->pr_uref == 0) {
+	/* Do not allow a process to attach to a prison that is not alive. */
+	if (!prison_isalive(pr)) {
 		mtx_unlock(&pr->pr_mtx);
 		sx_sunlock(&allprison_lock);
 		return (EINVAL);
@@ -2514,7 +2512,7 @@ prison_find(int prid)
 	TAILQ_FOREACH(pr, &allprison, pr_list) {
 		if (pr->pr_id == prid) {
 			mtx_lock(&pr->pr_mtx);
-			if (pr->pr_ref > 0)
+			if (prison_isvalid(pr))
 				return (pr);
 			/*
 			 * Any active prison with the same ID would have
@@ -2542,7 +2540,7 @@ prison_find_child(struct prison *mypr, int prid)
 	FOREACH_PRISON_DESCENDANT(mypr, pr, descend) {
 		if (pr->pr_id == prid) {
 			mtx_lock(&pr->pr_mtx);
-			if (pr->pr_ref > 0)
+			if (prison_isvalid(pr))
 				return (pr);
 			mtx_unlock(&pr->pr_mtx);
 		}
@@ -2567,18 +2565,17 @@ prison_find_name(struct prison *mypr, const char *name)
 	FOREACH_PRISON_DESCENDANT(mypr, pr, descend) {
 		if (!strcmp(pr->pr_name + mylen, name)) {
 			mtx_lock(&pr->pr_mtx);
-			if (pr->pr_ref > 0) {
-				if (pr->pr_uref > 0)
-					return (pr);
+			if (prison_isalive(pr))
+				return (pr);
+			if (prison_isvalid(pr))
 				deadpr = pr;
-			}
 			mtx_unlock(&pr->pr_mtx);
 		}
 	}
 	/* There was no valid prison - perhaps there was a dying one. */
 	if (deadpr != NULL) {
 		mtx_lock(&deadpr->pr_mtx);
-		if (deadpr->pr_ref == 0) {
+		if (!prison_isvalid(deadpr)) {
 			mtx_unlock(&deadpr->pr_mtx);
 			goto again;
 		}
@@ -2965,6 +2962,37 @@ prison_ischild(struct prison *pr1, struct prison *pr2)
 		if (pr1 == pr2)
 			return (1);
 	return (0);
+}
+
+/*
+ * Return true if the prison is currently alive.  A prison is alive if it is
+ * valid and it holds user references.
+ */
+bool
+prison_isalive(struct prison *pr)
+{
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+	if (__predict_false(pr->pr_ref == 0))
+		return (false);
+	if (__predict_false(pr->pr_uref == 0))
+		return (false);
+	return (true);
+}
+
+/*
+ * Return true if the prison is currently valid.  A prison is valid if it has
+ * been fully created, and is not being destroyed.  Note that dying prisons
+ * are still considered valid.
+ */
+bool
+prison_isvalid(struct prison *pr)
+{
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+	if (__predict_false(pr->pr_ref == 0))
+		return (false);
+	return (true);
 }
 
 /*
@@ -3623,14 +3651,14 @@ sysctl_jail_list(SYSCTL_HANDLER_ARGS)
 			    cpr->pr_ip6s * sizeof(struct in6_addr));
 		}
 #endif
-		if (cpr->pr_ref == 0) {
+		if (!prison_isvalid(cpr)) {
 			mtx_unlock(&cpr->pr_mtx);
 			continue;
 		}
 		bzero(xp, sizeof(*xp));
 		xp->pr_version = XPRISON_VERSION;
 		xp->pr_id = cpr->pr_id;
-		xp->pr_state = cpr->pr_uref > 0
+		xp->pr_state = prison_isalive(cpr)
 		    ? PRISON_STATE_ALIVE : PRISON_STATE_DYING;
 		strlcpy(xp->pr_path, prison_path(pr, cpr), sizeof(xp->pr_path));
 		strlcpy(xp->pr_host, cpr->pr_hostname, sizeof(xp->pr_host));

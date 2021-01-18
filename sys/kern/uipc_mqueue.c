@@ -1569,7 +1569,8 @@ mqfs_prison_remove(void *obj, void *data __unused)
 	found = 0;
 	TAILQ_FOREACH(tpr, &allprison, pr_list) {
 		prison_lock(tpr);
-		if (tpr->pr_root == pr->pr_root && tpr != pr && tpr->pr_ref > 0)
+		if (tpr != pr && prison_isvalid(tpr) &&
+		    tpr->pr_root == pr->pr_root)
 			found = 1;
 		prison_unlock(tpr);
 	}
