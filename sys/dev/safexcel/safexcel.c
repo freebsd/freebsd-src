@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/counter.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -1155,7 +1156,9 @@ safexcel_crypto_register(struct safexcel_softc *sc, int alg)
 static int
 safexcel_attach(device_t dev)
 {
-	struct sysctl_ctx_list *sctx;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *oid;
+	struct sysctl_oid_list *children;
 	struct safexcel_softc *sc;
 	struct safexcel_request *req;
 	struct safexcel_ring *ring;
@@ -1209,10 +1212,29 @@ safexcel_attach(device_t dev)
 		}
 	}
 
-	sctx = device_get_sysctl_ctx(dev);
-	SYSCTL_ADD_INT(sctx, SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	ctx = device_get_sysctl_ctx(dev);
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "debug", CTLFLAG_RWTUN, &sc->sc_debug, 0,
 	    "Debug message verbosity");
+
+	oid = device_get_sysctl_tree(sc->sc_dev);
+	children = SYSCTL_CHILDREN(oid);
+	oid = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "statistics");
+	children = SYSCTL_CHILDREN(oid);
+
+	sc->sc_req_alloc_failures = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "req_alloc_failures",
+	    CTLFLAG_RD, &sc->sc_req_alloc_failures,
+	    "Number of request allocation failures");
+	sc->sc_cdesc_alloc_failures = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "cdesc_alloc_failures",
+	    CTLFLAG_RD, &sc->sc_cdesc_alloc_failures,
+	    "Number of command descriptor ring overflows");
+	sc->sc_rdesc_alloc_failures = counter_u64_alloc(M_WAITOK);
+	SYSCTL_ADD_COUNTER_U64(ctx, children, OID_AUTO, "rdesc_alloc_failures",
+	    CTLFLAG_RD, &sc->sc_rdesc_alloc_failures,
+	    "Number of result descriptor ring overflows");
 
 	sc->sc_cid = crypto_get_driverid(dev, sizeof(struct safexcel_session),
 	    CRYPTOCAP_F_HARDWARE);
@@ -1260,6 +1282,11 @@ safexcel_detach(device_t dev)
 
 	if (sc->sc_cid >= 0)
 		crypto_unregister_all(sc->sc_cid);
+
+	counter_u64_free(sc->sc_req_alloc_failures);
+	counter_u64_free(sc->sc_cdesc_alloc_failures);
+	counter_u64_free(sc->sc_rdesc_alloc_failures);
+
 	for (ringidx = 0; ringidx < sc->sc_config.rings; ringidx++) {
 		ring = &sc->sc_ring[ringidx];
 		for (i = 0; i < SAFEXCEL_REQUESTS_PER_RING; i++) {
@@ -2056,6 +2083,7 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 		    (uint32_t)inlen, req->ctx.paddr);
 		if (cdesc == NULL) {
 			safexcel_cmd_descr_rollback(ring, i);
+			counter_u64_add(req->sc->sc_cdesc_alloc_failures, 1);
 			req->error = EAGAIN;
 			return;
 		}
@@ -2083,6 +2111,7 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 			safexcel_cmd_descr_rollback(ring,
 			    ring->cmd_data->sg_nseg);
 			safexcel_res_descr_rollback(ring, i);
+			counter_u64_add(req->sc->sc_rdesc_alloc_failures, 1);
 			req->error = EAGAIN;
 			return;
 		}
@@ -2664,6 +2693,7 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
         if (__predict_false(req == NULL)) {
 		ring->blocked = CRYPTO_SYMQ;
 		mtx_unlock(&ring->mtx);
+		counter_u64_add(sc->sc_req_alloc_failures, 1);
 		return (ERESTART);
 	}
 

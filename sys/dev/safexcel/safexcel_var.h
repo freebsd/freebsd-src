@@ -29,6 +29,8 @@
 #ifndef _SAFEXCEL_VAR_H_
 #define	_SAFEXCEL_VAR_H_
 
+#include <sys/counter.h>
+
 #define	SAFEXCEL_MAX_RINGS			4
 #define	SAFEXCEL_MAX_BATCH_SIZE			64
 #define	SAFEXCEL_MAX_FRAGMENTS			64
@@ -412,6 +414,10 @@ struct safexcel_softc {
 	struct resource			*sc_res;
 	struct resource			*sc_intr[SAFEXCEL_MAX_RINGS];
 	struct safexcel_intr_handle	sc_ih[SAFEXCEL_MAX_RINGS];
+
+	counter_u64_t			sc_req_alloc_failures;
+	counter_u64_t			sc_cdesc_alloc_failures;
+	counter_u64_t			sc_rdesc_alloc_failures;
 
 	struct safexcel_ring 		sc_ring[SAFEXCEL_MAX_RINGS];
 
