@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
- * Copyright (c) 2020 Rubicon Communications, LLC (Netgate)
+ * Copyright (c) 2020, 2021 Rubicon Communications, LLC (Netgate)
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -1280,59 +1280,153 @@ safexcel_detach(device_t dev)
 }
 
 /*
- * Populate the request's context record with pre-computed key material.
+ * Pre-compute the hash key used in GHASH, which is a block of zeroes encrypted
+ * using the cipher key.
+ */
+static void
+safexcel_setkey_ghash(const uint8_t *key, int klen, uint32_t *hashkey)
+{
+	uint32_t ks[4 * (RIJNDAEL_MAXNR + 1)];
+	uint8_t zeros[AES_BLOCK_LEN];
+	int i, rounds;
+
+	memset(zeros, 0, sizeof(zeros));
+
+	rounds = rijndaelKeySetupEnc(ks, key, klen * NBBY);
+	rijndaelEncrypt(ks, rounds, zeros, (uint8_t *)hashkey);
+	for (i = 0; i < GMAC_BLOCK_LEN / sizeof(uint32_t); i++)
+		hashkey[i] = htobe32(hashkey[i]);
+
+	explicit_bzero(ks, sizeof(ks));
+}
+
+/*
+ * Pre-compute the combined CBC-MAC key, which consists of three keys K1, K2, K3
+ * in the hardware implementation.  K1 is the cipher key and comes last in the
+ * buffer since K2 and K3 have a fixed size of AES_BLOCK_LEN.  For now XCBC-MAC
+ * is not implemented so K2 and K3 are fixed.
+ */
+static void
+safexcel_setkey_xcbcmac(const uint8_t *key, int klen, uint32_t *hashkey)
+{
+	int i, off;
+
+	memset(hashkey, 0, 2 * AES_BLOCK_LEN);
+	off = 2 * AES_BLOCK_LEN / sizeof(uint32_t);
+	for (i = 0; i < klen / sizeof(uint32_t); i++, key += 4)
+		hashkey[i + off] = htobe32(le32dec(key));
+}
+
+static void
+safexcel_setkey_hmac_digest(struct auth_hash *ahash, union authctx *ctx,
+    char *buf)
+{
+	int hashwords, i;
+
+	switch (ahash->type) {
+	case CRYPTO_SHA1_HMAC:
+		hashwords = ahash->hashsize / sizeof(uint32_t);
+		for (i = 0; i < hashwords; i++)
+			((uint32_t *)buf)[i] = htobe32(ctx->sha1ctx.h.b32[i]);
+		break;
+	case CRYPTO_SHA2_224_HMAC:
+		hashwords = auth_hash_hmac_sha2_256.hashsize / sizeof(uint32_t);
+		for (i = 0; i < hashwords; i++)
+			((uint32_t *)buf)[i] = htobe32(ctx->sha224ctx.state[i]);
+		break;
+	case CRYPTO_SHA2_256_HMAC:
+		hashwords = ahash->hashsize / sizeof(uint32_t);
+		for (i = 0; i < hashwords; i++)
+			((uint32_t *)buf)[i] = htobe32(ctx->sha256ctx.state[i]);
+		break;
+	case CRYPTO_SHA2_384_HMAC:
+		hashwords = auth_hash_hmac_sha2_512.hashsize / sizeof(uint64_t);
+		for (i = 0; i < hashwords; i++)
+			((uint64_t *)buf)[i] = htobe64(ctx->sha384ctx.state[i]);
+		break;
+	case CRYPTO_SHA2_512_HMAC:
+		hashwords = ahash->hashsize / sizeof(uint64_t);
+		for (i = 0; i < hashwords; i++)
+			((uint64_t *)buf)[i] = htobe64(ctx->sha512ctx.state[i]);
+		break;
+	}
+}
+
+/*
+ * Pre-compute the inner and outer digests used in the HMAC algorithm.
+ */
+static void
+safexcel_setkey_hmac(const struct crypto_session_params *csp,
+    const uint8_t *key, int klen, uint8_t *ipad, uint8_t *opad)
+{
+	union authctx ctx;
+	struct auth_hash *ahash;
+
+	ahash = crypto_auth_hash(csp);
+	hmac_init_ipad(ahash, key, klen, &ctx);
+	safexcel_setkey_hmac_digest(ahash, &ctx, ipad);
+	hmac_init_opad(ahash, key, klen, &ctx);
+	safexcel_setkey_hmac_digest(ahash, &ctx, opad);
+	explicit_bzero(&ctx, ahash->ctxsize);
+}
+
+static void
+safexcel_setkey_xts(const uint8_t *key, int klen, uint8_t *tweakkey)
+{
+	memcpy(tweakkey, key + klen, klen);
+}
+
+/*
+ * Populate a context record with paramters from a session.  Some consumers
+ * specify per-request keys, in which case the context must be re-initialized
+ * for each request.
  */
 static int
-safexcel_set_context(struct safexcel_request *req)
+safexcel_set_context(struct safexcel_context_record *ctx, int op,
+    const uint8_t *ckey, const uint8_t *akey, struct safexcel_session *sess)
 {
 	const struct crypto_session_params *csp;
-	struct cryptop *crp;
-	struct safexcel_context_record *ctx;
-	struct safexcel_session *sess;
 	uint8_t *data;
-	int off;
+	uint32_t ctrl0, ctrl1;
+	int aklen, alg, cklen, off;
 
-	crp = req->crp;
-	csp = crypto_get_params(crp->crp_session);
-	sess = req->sess;
+	csp = crypto_get_params(sess->cses);
+	aklen = csp->csp_auth_klen;
+	cklen = csp->csp_cipher_klen;
+	if (csp->csp_cipher_alg == CRYPTO_AES_XTS)
+		cklen /= 2;
 
-	ctx = (struct safexcel_context_record *)req->ctx.vaddr;
+	ctrl0 = sess->alg | sess->digest | sess->hash;
+	ctrl1 = sess->mode;
+
 	data = (uint8_t *)ctx->data;
 	if (csp->csp_cipher_alg != 0) {
-		if (crp->crp_cipher_key != NULL)
-			memcpy(data, crp->crp_cipher_key, sess->klen);
-		else
-			memcpy(data, csp->csp_cipher_key, sess->klen);
-		off = sess->klen;
+		memcpy(data, ckey, cklen);
+		off = cklen;
 	} else if (csp->csp_auth_alg == CRYPTO_AES_NIST_GMAC) {
-		if (crp->crp_auth_key != NULL)
-			memcpy(data, crp->crp_auth_key, sess->klen);
-		else
-			memcpy(data, csp->csp_auth_key, sess->klen);
-		off = sess->klen;
+		memcpy(data, akey, aklen);
+		off = aklen;
 	} else {
 		off = 0;
 	}
 
 	switch (csp->csp_cipher_alg) {
 	case CRYPTO_AES_NIST_GCM_16:
-		memcpy(data + off, sess->ghash_key, GMAC_BLOCK_LEN);
+		safexcel_setkey_ghash(ckey, cklen, (uint32_t *)(data + off));
 		off += GMAC_BLOCK_LEN;
 		break;
 	case CRYPTO_AES_CCM_16:
-		memcpy(data + off, sess->xcbc_key,
-		    AES_BLOCK_LEN * 2 + sess->klen);
-		off += AES_BLOCK_LEN * 2 + sess->klen;
+		safexcel_setkey_xcbcmac(ckey, cklen, (uint32_t *)(data + off));
+		off += AES_BLOCK_LEN * 2 + cklen;
 		break;
 	case CRYPTO_AES_XTS:
-		memcpy(data + off, sess->tweak_key, sess->klen);
-		off += sess->klen;
+		safexcel_setkey_xts(ckey, cklen, data + off);
+		off += cklen;
 		break;
 	}
-
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_AES_NIST_GMAC:
-		memcpy(data + off, sess->ghash_key, GMAC_BLOCK_LEN);
+		safexcel_setkey_ghash(akey, aklen, (uint32_t *)(data + off));
 		off += GMAC_BLOCK_LEN;
 		break;
 	case CRYPTO_SHA1_HMAC:
@@ -1340,41 +1434,12 @@ safexcel_set_context(struct safexcel_request *req)
 	case CRYPTO_SHA2_256_HMAC:
 	case CRYPTO_SHA2_384_HMAC:
 	case CRYPTO_SHA2_512_HMAC:
-		memcpy(data + off, sess->hmac_ipad, sess->statelen);
-		off += sess->statelen;
-		memcpy(data + off, sess->hmac_opad, sess->statelen);
-		off += sess->statelen;
+		safexcel_setkey_hmac(csp, akey, aklen,
+		    data + off, data + off + sess->statelen);
+		off += sess->statelen * 2;
 		break;
 	}
-
-	return (off);
-}
-
-/*
- * Populate fields in the first command descriptor of the chain used to encode
- * the specified request.  These fields indicate the algorithms used, the size
- * of the key material stored in the associated context record, the primitive
- * operations to be performed on input data, and the location of the IV if any.
- */
-static void
-safexcel_set_command(struct safexcel_request *req,
-    struct safexcel_cmd_descr *cdesc)
-{
-	const struct crypto_session_params *csp;
-	struct cryptop *crp;
-	struct safexcel_session *sess;
-	uint32_t ctrl0, ctrl1, ctxr_len;
-	int alg;
-
-	crp = req->crp;
-	csp = crypto_get_params(crp->crp_session);
-	sess = req->sess;
-
-	ctrl0 = sess->alg | sess->digest | sess->hash;
-	ctrl1 = sess->mode;
-
-	ctxr_len = safexcel_set_context(req) / sizeof(uint32_t);
-	ctrl0 |= SAFEXCEL_CONTROL0_SIZE(ctxr_len);
+	ctrl0 |= SAFEXCEL_CONTROL0_SIZE(off / sizeof(uint32_t));
 
 	alg = csp->csp_cipher_alg;
 	if (alg == 0)
@@ -1382,7 +1447,7 @@ safexcel_set_command(struct safexcel_request *req,
 
 	switch (alg) {
 	case CRYPTO_AES_CCM_16:
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		if (CRYPTO_OP_IS_ENCRYPT(op)) {
 			ctrl0 |= SAFEXCEL_CONTROL0_TYPE_HASH_ENCRYPT_OUT |
 			    SAFEXCEL_CONTROL0_KEY_EN;
 		} else {
@@ -1395,7 +1460,7 @@ safexcel_set_command(struct safexcel_request *req,
 	case CRYPTO_AES_CBC:
 	case CRYPTO_AES_ICM:
 	case CRYPTO_AES_XTS:
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op)) {
+		if (CRYPTO_OP_IS_ENCRYPT(op)) {
 			ctrl0 |= SAFEXCEL_CONTROL0_TYPE_CRYPTO_OUT |
 			    SAFEXCEL_CONTROL0_KEY_EN;
 			if (csp->csp_auth_alg != 0)
@@ -1410,8 +1475,7 @@ safexcel_set_command(struct safexcel_request *req,
 		break;
 	case CRYPTO_AES_NIST_GCM_16:
 	case CRYPTO_AES_NIST_GMAC:
-		if (CRYPTO_OP_IS_ENCRYPT(crp->crp_op) ||
-		    csp->csp_auth_alg != 0) {
+		if (CRYPTO_OP_IS_ENCRYPT(op) || csp->csp_auth_alg != 0) {
 			ctrl0 |= SAFEXCEL_CONTROL0_TYPE_CRYPTO_OUT |
 			    SAFEXCEL_CONTROL0_KEY_EN |
 			    SAFEXCEL_CONTROL0_TYPE_HASH_OUT;
@@ -1442,8 +1506,10 @@ safexcel_set_command(struct safexcel_request *req,
 		break;
 	}
 
-	cdesc->control_data.control0 = ctrl0;
-	cdesc->control_data.control1 = ctrl1;
+	ctx->control0 = ctrl0;
+	ctx->control1 = ctrl1;
+
+	return (off);
 }
 
 /*
@@ -1809,17 +1875,48 @@ static void
 safexcel_set_token(struct safexcel_request *req)
 {
 	const struct crypto_session_params *csp;
+	struct cryptop *crp;
 	struct safexcel_cmd_descr *cdesc;
+	struct safexcel_context_record *ctx;
+	struct safexcel_context_template *ctxtmp;
 	struct safexcel_instr *instr;
 	struct safexcel_softc *sc;
+	const uint8_t *akey, *ckey;
 	int ringidx;
 
-	csp = crypto_get_params(req->crp->crp_session);
+	crp = req->crp;
+	csp = crypto_get_params(crp->crp_session);
 	cdesc = req->cdesc;
 	sc = req->sc;
 	ringidx = req->ringidx;
 
-	safexcel_set_command(req, cdesc);
+	akey = crp->crp_auth_key;
+	ckey = crp->crp_cipher_key;
+	if (akey != NULL || ckey != NULL) {
+		/*
+		 * If we have a per-request key we have to generate the context
+		 * record on the fly.
+		 */
+		if (akey == NULL)
+			akey = csp->csp_auth_key;
+		if (ckey == NULL)
+			ckey = csp->csp_cipher_key;
+		ctx = (struct safexcel_context_record *)req->ctx.vaddr;
+		(void)safexcel_set_context(ctx, crp->crp_op, ckey, akey,
+		    req->sess);
+	} else {
+		/*
+		 * Use the context record template computed at session
+		 * initialization time.
+		 */
+		ctxtmp = CRYPTO_OP_IS_ENCRYPT(crp->crp_op) ?
+		    &req->sess->encctx : &req->sess->decctx;
+		ctx = &ctxtmp->ctx;
+		memcpy(req->ctx.vaddr + 2 * sizeof(uint32_t), ctx->data,
+		    ctxtmp->len);
+	}
+	cdesc->control_data.control0 = ctx->control0;
+	cdesc->control_data.control1 = ctx->control1;
 
 	/*
 	 * For keyless hash operations, the token instructions can be embedded
@@ -2243,153 +2340,6 @@ safexcel_probesession(device_t dev, const struct crypto_session_params *csp)
 	return (CRYPTODEV_PROBE_HARDWARE);
 }
 
-/*
- * Pre-compute the hash key used in GHASH, which is a block of zeroes encrypted
- * using the cipher key.
- */
-static void
-safexcel_setkey_ghash(struct safexcel_session *sess, const uint8_t *key,
-    int klen)
-{
-	uint32_t ks[4 * (RIJNDAEL_MAXNR + 1)];
-	uint8_t zeros[AES_BLOCK_LEN];
-	int i, rounds;
-
-	memset(zeros, 0, sizeof(zeros));
-
-	rounds = rijndaelKeySetupEnc(ks, key, klen * NBBY);
-	rijndaelEncrypt(ks, rounds, zeros, (uint8_t *)sess->ghash_key);
-	for (i = 0; i < GMAC_BLOCK_LEN / sizeof(uint32_t); i++)
-		sess->ghash_key[i] = htobe32(sess->ghash_key[i]);
-
-	explicit_bzero(ks, sizeof(ks));
-}
-
-/*
- * Pre-compute the combined CBC-MAC key, which consists of three keys K1, K2, K3
- * in the hardware implementation.  K1 is the cipher key and comes last in the
- * buffer since K2 and K3 have a fixed size of AES_BLOCK_LEN.  For now XCBC-MAC
- * is not implemented so K2 and K3 are fixed.
- */
-static void
-safexcel_setkey_xcbcmac(struct safexcel_session *sess, const uint8_t *key,
-    int klen)
-{
-	int i, off;
-
-	memset(sess->xcbc_key, 0, sizeof(sess->xcbc_key));
-	off = 2 * AES_BLOCK_LEN / sizeof(uint32_t);
-	for (i = 0; i < klen / sizeof(uint32_t); i++, key += 4)
-		sess->xcbc_key[i + off] = htobe32(le32dec(key));
-}
-
-static void
-safexcel_setkey_hmac_digest(struct auth_hash *ahash, union authctx *ctx,
-    char *buf)
-{
-	int hashwords, i;
-
-	switch (ahash->type) {
-	case CRYPTO_SHA1_HMAC:
-		hashwords = ahash->hashsize / sizeof(uint32_t);
-		for (i = 0; i < hashwords; i++)
-			((uint32_t *)buf)[i] = htobe32(ctx->sha1ctx.h.b32[i]);
-		break;
-	case CRYPTO_SHA2_224_HMAC:
-		hashwords = auth_hash_hmac_sha2_256.hashsize / sizeof(uint32_t);
-		for (i = 0; i < hashwords; i++)
-			((uint32_t *)buf)[i] = htobe32(ctx->sha224ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_256_HMAC:
-		hashwords = ahash->hashsize / sizeof(uint32_t);
-		for (i = 0; i < hashwords; i++)
-			((uint32_t *)buf)[i] = htobe32(ctx->sha256ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_384_HMAC:
-		hashwords = auth_hash_hmac_sha2_512.hashsize / sizeof(uint64_t);
-		for (i = 0; i < hashwords; i++)
-			((uint64_t *)buf)[i] = htobe64(ctx->sha384ctx.state[i]);
-		break;
-	case CRYPTO_SHA2_512_HMAC:
-		hashwords = ahash->hashsize / sizeof(uint64_t);
-		for (i = 0; i < hashwords; i++)
-			((uint64_t *)buf)[i] = htobe64(ctx->sha512ctx.state[i]);
-		break;
-	}
-}
-
-/*
- * Pre-compute the inner and outer digests used in the HMAC algorithm.
- */
-static void
-safexcel_setkey_hmac(const struct crypto_session_params *csp,
-    struct safexcel_session *sess, const uint8_t *key, int klen)
-{
-	union authctx ctx;
-	struct auth_hash *ahash;
-
-	ahash = crypto_auth_hash(csp);
-	hmac_init_ipad(ahash, key, klen, &ctx);
-	safexcel_setkey_hmac_digest(ahash, &ctx, sess->hmac_ipad);
-	hmac_init_opad(ahash, key, klen, &ctx);
-	safexcel_setkey_hmac_digest(ahash, &ctx, sess->hmac_opad);
-	explicit_bzero(&ctx, ahash->ctxsize);
-}
-
-static void
-safexcel_setkey_xts(struct safexcel_session *sess, const uint8_t *key, int klen)
-{
-	memcpy(sess->tweak_key, key + klen / 2, klen / 2);
-}
-
-static void
-safexcel_setkey(struct safexcel_session *sess,
-    const struct crypto_session_params *csp, struct cryptop *crp)
-{
-	const uint8_t *akey, *ckey;
-	int aklen, cklen;
-
-	aklen = csp->csp_auth_klen;
-	cklen = csp->csp_cipher_klen;
-	akey = ckey = NULL;
-	if (crp != NULL) {
-		akey = crp->crp_auth_key;
-		ckey = crp->crp_cipher_key;
-	}
-	if (akey == NULL)
-		akey = csp->csp_auth_key;
-	if (ckey == NULL)
-		ckey = csp->csp_cipher_key;
-
-	sess->klen = cklen;
-	switch (csp->csp_cipher_alg) {
-	case CRYPTO_AES_NIST_GCM_16:
-		safexcel_setkey_ghash(sess, ckey, cklen);
-		break;
-	case CRYPTO_AES_CCM_16:
-		safexcel_setkey_xcbcmac(sess, ckey, cklen);
-		break;
-	case CRYPTO_AES_XTS:
-		safexcel_setkey_xts(sess, ckey, cklen);
-		sess->klen /= 2;
-		break;
-	}
-
-	switch (csp->csp_auth_alg) {
-	case CRYPTO_SHA1_HMAC:
-	case CRYPTO_SHA2_224_HMAC:
-	case CRYPTO_SHA2_256_HMAC:
-	case CRYPTO_SHA2_384_HMAC:
-	case CRYPTO_SHA2_512_HMAC:
-		safexcel_setkey_hmac(csp, sess, akey, aklen);
-		break;
-	case CRYPTO_AES_NIST_GMAC:
-		sess->klen = aklen;
-		safexcel_setkey_ghash(sess, akey, aklen);
-		break;
-	}
-}
-
 static uint32_t
 safexcel_aes_algid(int keylen)
 {
@@ -2499,6 +2449,7 @@ safexcel_newsession(device_t dev, crypto_session_t cses,
 
 	sc = device_get_softc(dev);
 	sess = crypto_get_driver_session(cses);
+	sess->cses = cses;
 
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_SHA1:
@@ -2562,7 +2513,15 @@ safexcel_newsession(device_t dev, crypto_session_t cses,
 	if (csp->csp_auth_mlen != 0)
 		sess->digestlen = csp->csp_auth_mlen;
 
-	safexcel_setkey(sess, csp, NULL);
+	if ((csp->csp_cipher_alg == 0 || csp->csp_cipher_key != NULL) &&
+	    (csp->csp_auth_alg == 0 || csp->csp_auth_key != NULL)) {
+		sess->encctx.len = safexcel_set_context(&sess->encctx.ctx,
+		    CRYPTO_OP_ENCRYPT, csp->csp_cipher_key, csp->csp_auth_key,
+		    sess);
+		sess->decctx.len = safexcel_set_context(&sess->decctx.ctx,
+		    CRYPTO_OP_DECRYPT, csp->csp_cipher_key, csp->csp_auth_key,
+		    sess);
+	}
 
 	return (0);
 }
@@ -2588,13 +2547,10 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
 		return (0);
 	}
 
-	if (crp->crp_cipher_key != NULL || crp->crp_auth_key != NULL)
-		safexcel_setkey(sess, csp, crp);
-
 	ring = &sc->sc_ring[curcpu % sc->sc_config.rings];
 	mtx_lock(&ring->mtx);
 	req = safexcel_alloc_request(sc, ring);
-        if (__predict_false(req == NULL)) {
+	if (__predict_false(req == NULL)) {
 		ring->blocked = CRYPTO_SYMQ;
 		mtx_unlock(&ring->mtx);
 		counter_u64_add(sc->sc_req_alloc_failures, 1);
