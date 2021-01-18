@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include "safexcel_reg.h"
 #include "safexcel_var.h"
 
-static MALLOC_DEFINE(M_SAFEXCEL, "safexcel_req", "safexcel request buffers");
-
 /*
  * We only support the EIP97 for now.
  */
@@ -93,6 +91,17 @@ const struct safexcel_reg_offsets eip197_regs_offset = {
 	.pe		= SAFEXCEL_EIP197_PE_BASE,
 };
 
+static struct safexcel_request *
+safexcel_next_request(struct safexcel_ring *ring)
+{
+	int i;
+
+	i = ring->cdr.read;
+	KASSERT(i >= 0 && i < SAFEXCEL_RING_SIZE,
+	    ("%s: out of bounds request index %d", __func__, i));
+	return (&ring->requests[i]);
+}
+
 static struct safexcel_cmd_descr *
 safexcel_cmd_descr_next(struct safexcel_cmd_descr_ring *ring)
 {
@@ -120,13 +129,14 @@ safexcel_res_descr_next(struct safexcel_res_descr_ring *ring)
 static struct safexcel_request *
 safexcel_alloc_request(struct safexcel_softc *sc, struct safexcel_ring *ring)
 {
-	struct safexcel_request *req;
+	int i;
 
 	mtx_assert(&ring->mtx, MA_OWNED);
 
-	if ((req = STAILQ_FIRST(&ring->free_requests)) != NULL)
-		STAILQ_REMOVE_HEAD(&ring->free_requests, link);
-	return (req);
+	i = ring->cdr.write;
+	if ((i + 1) % SAFEXCEL_RING_SIZE == ring->cdr.read)
+		return (NULL);
+	return (&ring->requests[i]);
 }
 
 static void
@@ -143,21 +153,13 @@ safexcel_free_request(struct safexcel_ring *ring, struct safexcel_request *req)
 	ctx = (struct safexcel_context_record *)req->ctx.vaddr;
 	explicit_bzero(ctx->data, sizeof(ctx->data));
 	explicit_bzero(req->iv, sizeof(req->iv));
-	STAILQ_INSERT_TAIL(&ring->free_requests, req, link);
-}
-
-static void
-safexcel_enqueue_request(struct safexcel_softc *sc, struct safexcel_ring *ring,
-    struct safexcel_request *req)
-{
-	mtx_assert(&ring->mtx, MA_OWNED);
-
-	STAILQ_INSERT_TAIL(&ring->ready_requests, req, link);
 }
 
 static void
 safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 {
+	TAILQ_HEAD(, cryptop) cq;
+	struct cryptop *crp, *tmp;
 	struct safexcel_cmd_descr *cdesc;
 	struct safexcel_res_descr *rdesc;
 	struct safexcel_request *req;
@@ -167,7 +169,6 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 	blocked = 0;
 	ring = &sc->sc_ring[ringidx];
 
-	mtx_lock(&ring->mtx);
 	nreqs = SAFEXCEL_READ(sc,
 	    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PROC_COUNT);
 	nreqs >>= SAFEXCEL_xDR_PROC_xD_PKT_OFFSET;
@@ -175,8 +176,11 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 	if (nreqs == 0) {
 		SAFEXCEL_DPRINTF(sc, 1,
 		    "zero pending requests on ring %d\n", ringidx);
+		mtx_lock(&ring->mtx);
 		goto out;
 	}
+
+	TAILQ_INIT(&cq);
 
 	ring = &sc->sc_ring[ringidx];
 	bus_dmamap_sync(ring->rdr.dma.tag, ring->rdr.dma.map,
@@ -188,13 +192,7 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 
 	ncdescs = nrdescs = 0;
 	for (i = 0; i < nreqs; i++) {
-		req = STAILQ_FIRST(&ring->queued_requests);
-		KASSERT(req != NULL, ("%s: expected %d pending requests",
-		    __func__, nreqs));
-		KASSERT(req->ringidx == ringidx,
-		    ("%s: ring index mismatch", __func__));
-                STAILQ_REMOVE_HEAD(&ring->queued_requests, link);
-		mtx_unlock(&ring->mtx);
+		req = safexcel_next_request(ring);
 
 		bus_dmamap_sync(req->ctx.tag, req->ctx.map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -226,12 +224,16 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 			}
 		}
 
-		crypto_done(req->crp);
-		mtx_lock(&ring->mtx);
-		safexcel_free_request(ring, req);
+		TAILQ_INSERT_TAIL(&cq, req->crp, crp_next);
 	}
 
+	mtx_lock(&ring->mtx);
 	if (nreqs != 0) {
+		KASSERT(ring->queued >= nreqs,
+		    ("%s: request count underflow, %d queued %d completed",
+		    __func__, ring->queued, nreqs));
+		ring->queued -= nreqs;
+
 		SAFEXCEL_WRITE(sc,
 		    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PROC_COUNT,
 		    SAFEXCEL_xDR_PROC_xD_PKT(nreqs) |
@@ -240,15 +242,18 @@ safexcel_rdr_intr(struct safexcel_softc *sc, int ringidx)
 		ring->blocked = 0;
 	}
 out:
-	if (!STAILQ_EMPTY(&ring->queued_requests)) {
+	if (ring->queued != 0) {
 		SAFEXCEL_WRITE(sc,
 		    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_THRESH,
-		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | 1);
+		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | imin(ring->queued, 16));
 	}
 	mtx_unlock(&ring->mtx);
 
 	if (blocked)
 		crypto_unblock(sc->sc_cid, blocked);
+
+	TAILQ_FOREACH_SAFE(crp, &cq, crp_next, tmp)
+		crypto_done(crp);
 }
 
 static void
@@ -744,38 +749,40 @@ safexcel_enable_pe_engine(struct safexcel_softc *sc, int pe)
 
 static void
 safexcel_execute(struct safexcel_softc *sc, struct safexcel_ring *ring,
-    struct safexcel_request *req)
+    struct safexcel_request *req, int hint)
 {
-	uint32_t ncdescs, nrdescs, nreqs;
-	int ringidx;
+	int ringidx, ncdesc, nrdesc;
 	bool busy;
 
 	mtx_assert(&ring->mtx, MA_OWNED);
 
-	ringidx = req->ringidx;
-	busy = !STAILQ_EMPTY(&ring->queued_requests);
-	ncdescs = nrdescs = nreqs = 0;
-	while ((req = STAILQ_FIRST(&ring->ready_requests)) != NULL &&
-	    req->cdescs + ncdescs <= SAFEXCEL_MAX_BATCH_SIZE &&
-	    req->rdescs + nrdescs <= SAFEXCEL_MAX_BATCH_SIZE) {
-		STAILQ_REMOVE_HEAD(&ring->ready_requests, link);
-		STAILQ_INSERT_TAIL(&ring->queued_requests, req, link);
-		ncdescs += req->cdescs;
-		nrdescs += req->rdescs;
-		nreqs++;
+	if ((hint & CRYPTO_HINT_MORE) != 0) {
+		ring->pending++;
+		ring->pending_cdesc += req->cdescs;
+		ring->pending_rdesc += req->rdescs;
+		return;
 	}
+
+	ringidx = req->ringidx;
+
+	busy = ring->queued != 0;
+	ncdesc = ring->pending_cdesc + req->cdescs;
+	nrdesc = ring->pending_rdesc + req->rdescs;
+	ring->queued += ring->pending + 1;
 
 	if (!busy) {
 		SAFEXCEL_WRITE(sc,
 		    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_THRESH,
-		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | nreqs);
+		    SAFEXCEL_HIA_CDR_THRESH_PKT_MODE | ring->queued);
 	}
 	SAFEXCEL_WRITE(sc,
 	    SAFEXCEL_HIA_RDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PREP_COUNT,
-	    nrdescs * sc->sc_config.rd_offset * sizeof(uint32_t));
+	    nrdesc * sc->sc_config.rd_offset * sizeof(uint32_t));
 	SAFEXCEL_WRITE(sc,
 	    SAFEXCEL_HIA_CDR(sc, ringidx) + SAFEXCEL_HIA_xDR_PREP_COUNT,
-	    ncdescs * sc->sc_config.cd_offset * sizeof(uint32_t));
+	    ncdesc * sc->sc_config.cd_offset * sizeof(uint32_t));
+
+	ring->pending = ring->pending_cdesc = ring->pending_rdesc = 0;
 }
 
 static void
@@ -792,10 +799,9 @@ safexcel_init_rings(struct safexcel_softc *sc)
 		snprintf(ring->lockname, sizeof(ring->lockname),
 		    "safexcel_ring%d", i);
 		mtx_init(&ring->mtx, ring->lockname, NULL, MTX_DEF);
-		STAILQ_INIT(&ring->free_requests);
-		STAILQ_INIT(&ring->ready_requests);
-		STAILQ_INIT(&ring->queued_requests);
 
+		ring->pending = ring->pending_cdesc = ring->pending_rdesc = 0;
+		ring->queued = 0;
 		ring->cdr.read = ring->cdr.write = 0;
 		ring->rdr.read = ring->rdr.write = 0;
 		for (j = 0; j < SAFEXCEL_RING_SIZE; j++) {
@@ -1177,11 +1183,7 @@ safexcel_attach(device_t dev)
 		ring->cmd_data = sglist_alloc(SAFEXCEL_MAX_FRAGMENTS, M_WAITOK);
 		ring->res_data = sglist_alloc(SAFEXCEL_MAX_FRAGMENTS, M_WAITOK);
 
-		ring->requests = mallocarray(SAFEXCEL_REQUESTS_PER_RING,
-		    sizeof(struct safexcel_request), M_SAFEXCEL,
-		    M_WAITOK | M_ZERO);
-
-		for (i = 0; i < SAFEXCEL_REQUESTS_PER_RING; i++) {
+		for (i = 0; i < SAFEXCEL_RING_SIZE; i++) {
 			req = &ring->requests[i];
 			req->sc = sc;
 			req->ringidx = ringidx;
@@ -1202,7 +1204,6 @@ safexcel_attach(device_t dev)
 				}
 				goto err2;
 			}
-			STAILQ_INSERT_TAIL(&ring->free_requests, req, link);
 		}
 	}
 
@@ -1263,12 +1264,11 @@ safexcel_detach(device_t dev)
 
 	for (ringidx = 0; ringidx < sc->sc_config.rings; ringidx++) {
 		ring = &sc->sc_ring[ringidx];
-		for (i = 0; i < SAFEXCEL_REQUESTS_PER_RING; i++) {
+		for (i = 0; i < SAFEXCEL_RING_SIZE; i++) {
 			bus_dmamap_destroy(ring->data_dtag,
 			    ring->requests[i].dmap);
 			safexcel_dma_free_mem(&ring->requests[i].ctx);
 		}
-		free(ring->requests, M_SAFEXCEL);
 		sglist_free(ring->cmd_data);
 		sglist_free(ring->res_data);
 	}
@@ -2077,7 +2077,8 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 		 * length zero.  The EIP97 apparently does not handle
 		 * zero-length packets properly since subsequent requests return
 		 * bogus errors, so provide a dummy segment using the context
-		 * descriptor.
+		 * descriptor.  Also, we must allocate at least one command ring
+		 * entry per request to keep the request shadow ring in sync.
 		 */
 		(void)sglist_append_phys(sg, req->ctx.paddr, 1);
 	}
@@ -2633,10 +2634,8 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
 	bus_dmamap_sync(ring->rdr.dma.tag, ring->rdr.dma.map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	safexcel_enqueue_request(sc, ring, req);
+	safexcel_execute(sc, ring, req, hint);
 
-	if ((hint & CRYPTO_HINT_MORE) == 0)
-		safexcel_execute(sc, ring, req);
 	mtx_unlock(&ring->mtx);
 
 	return (0);

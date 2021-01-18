@@ -38,7 +38,6 @@
 #define	SAFEXCEL_MAX_REQUEST_SIZE		65535
 
 #define	SAFEXCEL_RING_SIZE			512
-#define	SAFEXCEL_REQUESTS_PER_RING		64
 #define	SAFEXCEL_MAX_ITOKENS			4
 #define	SAFEXCEL_MAX_ATOKENS			16
 #define	SAFEXCEL_FETCH_COUNT			1
@@ -49,7 +48,8 @@
  * Context Record format.
  *
  * In this driver the context control words are always set in the control data.
- * This is configured by setting SAFEXCEL_OPTION_CTX_CTRL_IN_CMD.
+ * This helps optimize fetching of the context record.  This is configured by
+ * setting SAFEXCEL_OPTION_CTX_CTRL_IN_CMD.
  */
 struct safexcel_context_record {
 	uint32_t control0;	/* Unused. */
@@ -379,12 +379,18 @@ struct safexcel_ring {
 	struct sglist			*res_data;
 	struct safexcel_res_descr_ring	rdr;
 
-	int				blocked;
+	/* Shadows the command descriptor ring. */
+	struct safexcel_request		requests[SAFEXCEL_RING_SIZE];
 
-	struct safexcel_request		*requests;
-	STAILQ_HEAD(, safexcel_request)	ready_requests;
-	STAILQ_HEAD(, safexcel_request)	queued_requests;
-	STAILQ_HEAD(, safexcel_request)	free_requests;
+	/* Count of requests pending submission. */
+	int				pending;
+	int				pending_cdesc, pending_rdesc;
+
+	/* Count of outstanding requests. */
+	int				queued;
+
+	/* Requests were deferred due to a resource shortage. */
+	int				blocked;
 
 	struct safexcel_dma_mem		dma_atok;
 	bus_dma_tag_t   		data_dtag;
