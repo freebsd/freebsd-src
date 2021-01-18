@@ -2084,7 +2084,7 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 		if (cdesc == NULL) {
 			safexcel_cmd_descr_rollback(ring, i);
 			counter_u64_add(req->sc->sc_cdesc_alloc_failures, 1);
-			req->error = EAGAIN;
+			req->error = ERESTART;
 			return;
 		}
 		if (i == 0)
@@ -2112,7 +2112,7 @@ safexcel_create_chain_cb(void *arg, bus_dma_segment_t *segs, int nseg,
 			    ring->cmd_data->sg_nseg);
 			safexcel_res_descr_rollback(ring, i);
 			counter_u64_add(req->sc->sc_rdesc_alloc_failures, 1);
-			req->error = EAGAIN;
+			req->error = ERESTART;
 			return;
 		}
 	}
@@ -2724,10 +2724,16 @@ safexcel_process(device_t dev, struct cryptop *crp, int hint)
 	error = safexcel_create_chain(ring, req);
 	if (__predict_false(error != 0)) {
 		safexcel_free_request(ring, req);
+		if (error == ERESTART)
+			ring->blocked = CRYPTO_SYMQ;
 		mtx_unlock(&ring->mtx);
-		crp->crp_etype = error;
-		crypto_done(crp);
-		return (0);
+		if (error != ERESTART) {
+			crp->crp_etype = error;
+			crypto_done(crp);
+			return (0);
+		} else {
+			return (ERESTART);
+		}
 	}
 
 	safexcel_set_token(req);
