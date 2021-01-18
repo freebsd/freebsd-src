@@ -560,7 +560,14 @@ aesni_cipher_setup(struct aesni_session *ses,
     const struct crypto_session_params *csp)
 {
 	struct fpu_kern_ctx *ctx;
+	uint8_t *schedbase;
 	int kt, ctxidx, error;
+
+	schedbase = (uint8_t *)roundup2((uintptr_t)ses->schedules,
+	    AES_SCHED_ALIGN);
+	ses->enc_schedule = schedbase;
+	ses->dec_schedule = schedbase + AES_SCHED_LEN;
+	ses->xts_schedule = schedbase + AES_SCHED_LEN * 2;
 
 	switch (csp->csp_auth_alg) {
 	case CRYPTO_SHA1_HMAC:
