@@ -71,7 +71,7 @@ shrinker_shrink(struct shrinker *s)
 	struct shrink_control sc;
 	unsigned long can_free;
 	unsigned long batch;
-	unsigned long freeed = 0;
+	unsigned long scanned = 0;
 	unsigned long ret;
 
 	can_free = s->count_objects(s, &sc);
@@ -79,12 +79,12 @@ shrinker_shrink(struct shrinker *s)
 		return;
 
 	batch = s->batch ? s->batch : SHRINKER_BATCH;
-	while (freeed <= can_free) {
+	while (scanned <= can_free) {
 		sc.nr_to_scan = batch;
 		ret = s->scan_objects(s, &sc);
 		if (ret == SHRINK_STOP)
 			break;
-		freeed += ret;
+		scanned += batch;
 	}
 }
 
