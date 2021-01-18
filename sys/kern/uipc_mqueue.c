@@ -1562,14 +1562,16 @@ static int
 mqfs_prison_remove(void *obj, void *data __unused)
 {
 	const struct prison *pr = obj;
-	const struct prison *tpr;
+	struct prison *tpr;
 	struct mqfs_node *pn, *tpn;
 	int found;
 
 	found = 0;
 	TAILQ_FOREACH(tpr, &allprison, pr_list) {
+		prison_lock(tpr);
 		if (tpr->pr_root == pr->pr_root && tpr != pr && tpr->pr_ref > 0)
 			found = 1;
+		prison_unlock(tpr);
 	}
 	if (!found) {
 		/*
