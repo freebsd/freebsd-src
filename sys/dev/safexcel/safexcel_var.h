@@ -339,7 +339,6 @@ struct safexcel_res_descr_ring {
 };
 
 struct safexcel_session {
-	int			ringidx;
 	uint32_t		alg;		/* cipher algorithm */
 	uint32_t		digest;		/* digest type */
 	uint32_t		hash;		/* hash algorithm */
@@ -366,6 +365,7 @@ struct safexcel_softc;
 struct safexcel_request {
 	STAILQ_ENTRY(safexcel_request)	link;
 	bool				dmap_loaded;
+	int				ringidx;
 	bus_dmamap_t			dmap;
 	int				error;
 	int				cdescs, rdescs;
@@ -414,7 +414,6 @@ struct safexcel_softc {
 	struct safexcel_intr_handle	sc_ih[SAFEXCEL_MAX_RINGS];
 
 	struct safexcel_ring 		sc_ring[SAFEXCEL_MAX_RINGS];
-	int				sc_ringidx;
 
 	int32_t				sc_cid;
 	struct safexcel_reg_offsets 	sc_offsets;
