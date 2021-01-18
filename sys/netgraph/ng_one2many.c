@@ -451,15 +451,15 @@ ng_one2many_rcvdata(hook_p hook, item_p item)
 			/* no need to copy data for the 1st one */
 			dst = &priv->many[priv->activeMany[0]];
 
-			/* make copies of data and send for all links
-			 * except the first one, which we'll do last 
+			/* make modifiable copies of data and send for all
+			 * links except the first one, which we'll do last
 			 */
 			for (i = 1; i < priv->numActiveMany; i++) {
 				struct mbuf *m2;
 				struct ng_one2many_link *mdst;
 
 				mdst = &priv->many[priv->activeMany[i]];
-				m2 = m_dup(m, M_NOWAIT);        /* XXX m_copypacket() */
+				m2 = m_dup(m, M_NOWAIT);
 				if (m2 == NULL) {
 					mdst->stats.memoryFailures++;
 					NG_FREE_ITEM(item);
