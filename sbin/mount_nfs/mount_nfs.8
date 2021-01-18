@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2020
+.Dd January 17, 2021
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -217,6 +217,19 @@ Make a minor version 1 or 2 of the NFS Version 4 protocol mount use a single
 OpenOwner for all Opens.
 This may be useful for a server with a very low limit on OpenOwners, such as
 AmazonEFS.
+It may be required when an accumulation of NFS version 4 Opens occurs,
+as indicated by the
+.Dq Opens
+count displayed by
+.Xr nfsstat 8
+with the
+.Fl c
+and
+.Fl E
+command-line options.
+A common case for an accumulation of Opens is a shared library within
+the NFS mount that is used by several
+processes, where at least one of these processes is always running.
 This option cannot be used for an NFS Version 4, minor version 0 mount.
 As such, this option requires the
 .Cm minorversion
