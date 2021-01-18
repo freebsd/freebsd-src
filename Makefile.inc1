@@ -1872,7 +1872,7 @@ _pkgbootstrap: .PHONY
 PKG_ABI!=${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI
 .endif
 
-.if !defined(PKG_VERSION_FROM)
+.if !defined(PKG_VERSION_FROM) && make(real-update-packages)
 .if defined(PKG_ABI)
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
 .endif
