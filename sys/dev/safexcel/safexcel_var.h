@@ -335,24 +335,21 @@ struct safexcel_res_descr_ring {
 	int				read;
 };
 
+struct safexcel_context_template {
+	struct safexcel_context_record	ctx;
+	int				len;
+};
+
 struct safexcel_session {
+	crypto_session_t	cses;
 	uint32_t		alg;		/* cipher algorithm */
 	uint32_t		digest;		/* digest type */
 	uint32_t		hash;		/* hash algorithm */
 	uint32_t		mode;		/* cipher mode of operation */
 	unsigned int		digestlen;	/* digest length */
 	unsigned int		statelen;	/* HMAC hash state length */
-	unsigned int		klen;		/* cipher key length */
-	union {
-		uint32_t	ghash_key[AES_BLOCK_LEN / sizeof(uint32_t)];
-		uint32_t	xcbc_key[(AES_BLOCK_LEN * 2 + AES_MAX_KEY) /
-				    sizeof(uint32_t)];
-		uint8_t		tweak_key[AES_MAX_KEY];
-	};
-	struct {
-		uint8_t		hmac_ipad[HMAC_MAX_BLOCK_LEN];
-		uint8_t		hmac_opad[HMAC_MAX_BLOCK_LEN];
-	};
+
+	struct safexcel_context_template encctx, decctx;
 };
 
 struct safexcel_softc;
