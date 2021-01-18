@@ -1876,7 +1876,13 @@ PKG_ABI!=${PKG_CMD} -o ABI_FILE=${WSTAGEDIR}/usr/bin/uname config ABI
 
 .if !defined(PKG_VERSION_FROM) && make(real-update-packages)
 .if defined(PKG_ABI)
+.if exists(${REPODIR}/${PKG_ABI})
 PKG_VERSION_FROM!=/usr/bin/readlink ${REPODIR}/${PKG_ABI}/latest
+PKG_VERSION_FROM_DIR=	${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}
+.else
+PKG_VERSION_FROM=
+PKG_VERSION_FROM_DIR=
+.endif
 .endif
 .endif
 
@@ -1900,8 +1906,11 @@ real-packages:	stage-packages create-packages sign-packages .PHONY
 
 real-update-packages: stage-packages .PHONY
 	${_+_}${MAKE} -C ${.CURDIR} PKG_VERSION=${PKG_VERSION} create-packages
+.if empty(PKG_VERSION_FROM_DIR)
+	@echo "==> Bootstrapping repository, not checking for new packages"
+.else
 	@echo "==> Checking for new packages (comparing ${PKG_VERSION} to ${PKG_VERSION_FROM})"
-	@for pkg in ${REPODIR}/${PKG_ABI}/${PKG_VERSION_FROM}/${PKG_NAME_PREFIX}-*; do \
+	@for pkg in ${PKG_VERSION_FROM_DIR}/${PKG_NAME_PREFIX}-*; do \
 	  pkgname=$$(pkg query -F $${pkg} '%n' | sed 's/${PKG_NAME_PREFIX}-\(.*\)/\1/') ; \
 	  newpkgname=${PKG_NAME_PREFIX}-$${pkgname}-${PKG_VERSION}.${PKG_FORMAT} ; \
 	  oldsum=$$(pkg query -F $${pkg} '%X') ; \
@@ -1917,6 +1926,7 @@ real-update-packages: stage-packages .PHONY
 	    echo "==> New package $${newpkgname}" ; \
 	  fi ; \
 	done
+.endif
 	${_+_}@cd ${.CURDIR}; \
 		${MAKE} -f Makefile.inc1 PKG_VERSION=${PKG_VERSION} sign-packages
 
