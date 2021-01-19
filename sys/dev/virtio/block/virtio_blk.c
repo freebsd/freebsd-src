@@ -76,11 +76,10 @@ struct vtblk_softc {
 	uint64_t		 vtblk_features;
 	uint32_t		 vtblk_flags;
 #define VTBLK_FLAG_INDIRECT	0x0001
-#define VTBLK_FLAG_READONLY	0x0002
-#define VTBLK_FLAG_DETACH	0x0004
-#define VTBLK_FLAG_SUSPEND	0x0008
-#define VTBLK_FLAG_BARRIER	0x0010
-#define VTBLK_FLAG_WCE_CONFIG	0x0020
+#define VTBLK_FLAG_DETACH	0x0002
+#define VTBLK_FLAG_SUSPEND	0x0004
+#define VTBLK_FLAG_BARRIER	0x0008
+#define VTBLK_FLAG_WCE_CONFIG	0x0010
 
 	struct virtqueue	*vtblk_vq;
 	struct sglist		*vtblk_sglist;
@@ -553,17 +552,6 @@ vtblk_strategy(struct bio *bp)
 		return;
 	}
 
-	/*
-	 * Fail any write if RO. Unfortunately, there does not seem to
-	 * be a better way to report our readonly'ness to GEOM above.
-	 */
-	if (sc->vtblk_flags & VTBLK_FLAG_READONLY &&
-	    (bp->bio_cmd == BIO_WRITE || bp->bio_cmd == BIO_FLUSH ||
-	    bp->bio_cmd == BIO_DELETE)) {
-		vtblk_bio_done(sc, bp, EROFS);
-		return;
-	}
-
 	if ((bp->bio_cmd != BIO_READ) && (bp->bio_cmd != BIO_WRITE) &&
 	    (bp->bio_cmd != BIO_FLUSH) && (bp->bio_cmd != BIO_DELETE)) {
 		vtblk_bio_done(sc, bp, EOPNOTSUPP);
@@ -609,8 +597,6 @@ vtblk_setup_features(struct vtblk_softc *sc)
 
 	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
 		sc->vtblk_flags |= VTBLK_FLAG_INDIRECT;
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_RO))
-		sc->vtblk_flags |= VTBLK_FLAG_READONLY;
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_CONFIG_WCE))
 		sc->vtblk_flags |= VTBLK_FLAG_WCE_CONFIG;
 
@@ -701,11 +687,13 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	dp->d_hba_subvendor = virtio_get_subvendor(dev);
 	dp->d_hba_subdevice = virtio_get_subdevice(dev);
 
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_FLUSH))
-		dp->d_flags |= DISKFLAG_CANFLUSHCACHE;
-
-	if ((sc->vtblk_flags & VTBLK_FLAG_READONLY) == 0)
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_RO))
+		dp->d_flags |= DISKFLAG_WRITE_PROTECT;
+	else {
+		if (virtio_with_feature(dev, VIRTIO_BLK_F_FLUSH))
+			dp->d_flags |= DISKFLAG_CANFLUSHCACHE;
 		dp->d_dump = vtblk_dump;
+	}
 
 	/* Capacity is always in 512-byte units. */
 	dp->d_mediasize = blkcfg->capacity * VTBLK_BSIZE;
