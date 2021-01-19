@@ -189,6 +189,7 @@ vtrnd_negotiate_features(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->vtrnd_features = virtio_negotiate_features(dev, VTRND_FEATURES);
+	virtio_finalize_features(dev);
 }
 
 static int
