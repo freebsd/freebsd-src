@@ -263,7 +263,6 @@ static SYSCTL_NODE(_hw, OID_AUTO, vtnet, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "VirtIO Net driver parameters");
 
 static int vtnet_csum_disable = 0;
-TUNABLE_INT("hw.vtnet.csum_disable", &vtnet_csum_disable);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, csum_disable, CTLFLAG_RDTUN,
     &vtnet_csum_disable, 0, "Disables receive and send checksum offload");
 
@@ -273,34 +272,29 @@ SYSCTL_INT(_hw_vtnet, OID_AUTO, fixup_needs_csum, CTLFLAG_RDTUN,
     "Calculate valid checksum for NEEDS_CSUM packets");
 
 static int vtnet_tso_disable = 0;
-TUNABLE_INT("hw.vtnet.tso_disable", &vtnet_tso_disable);
-SYSCTL_INT(_hw_vtnet, OID_AUTO, tso_disable, CTLFLAG_RDTUN, &vtnet_tso_disable,
-    0, "Disables TCP Segmentation Offload");
+SYSCTL_INT(_hw_vtnet, OID_AUTO, tso_disable, CTLFLAG_RDTUN,
+    &vtnet_tso_disable, 0, "Disables TSO");
 
 static int vtnet_lro_disable = 0;
-TUNABLE_INT("hw.vtnet.lro_disable", &vtnet_lro_disable);
-SYSCTL_INT(_hw_vtnet, OID_AUTO, lro_disable, CTLFLAG_RDTUN, &vtnet_lro_disable,
-    0, "Disables TCP Large Receive Offload");
+SYSCTL_INT(_hw_vtnet, OID_AUTO, lro_disable, CTLFLAG_RDTUN,
+    &vtnet_lro_disable, 0, "Disables hardware LRO");
 
 static int vtnet_mq_disable = 0;
-TUNABLE_INT("hw.vtnet.mq_disable", &vtnet_mq_disable);
-SYSCTL_INT(_hw_vtnet, OID_AUTO, mq_disable, CTLFLAG_RDTUN, &vtnet_mq_disable,
-    0, "Disables multiqueue support");
+SYSCTL_INT(_hw_vtnet, OID_AUTO, mq_disable, CTLFLAG_RDTUN,
+    &vtnet_mq_disable, 0, "Disables multiqueue support");
 
 static int vtnet_mq_max_pairs = VTNET_MAX_QUEUE_PAIRS;
-TUNABLE_INT("hw.vtnet.mq_max_pairs", &vtnet_mq_max_pairs);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, mq_max_pairs, CTLFLAG_RDTUN,
-    &vtnet_mq_max_pairs, 0, "Sets the maximum number of multiqueue pairs");
+    &vtnet_mq_max_pairs, 0, "Maximum number of multiqueue pairs");
 
 static int vtnet_tso_maxlen = IP_MAXPACKET;
-TUNABLE_INT("hw.vtnet.tso_maxlen", &vtnet_tso_maxlen);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, tso_maxlen, CTLFLAG_RDTUN,
     &vtnet_tso_maxlen, 0, "TSO burst limit");
 
 static int vtnet_rx_process_limit = 1024;
-TUNABLE_INT("hw.vtnet.rx_process_limit", &vtnet_rx_process_limit);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
-    &vtnet_rx_process_limit, 0, "Limits RX segments processed in a single pass");
+    &vtnet_rx_process_limit, 0,
+    "Number of RX segments processed in one pass");
 
 static int vtnet_lro_entry_count = 128;
 SYSCTL_INT(_hw_vtnet, OID_AUTO, lro_entry_count, CTLFLAG_RDTUN,
