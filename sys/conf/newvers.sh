@@ -256,10 +256,6 @@ if [ -n "$git_cmd" ] ; then
 	if [ -n "$git_cnt" ] ; then
 		git="c${git_cnt}-g${git}"
 	fi
-	git_b=$($git_cmd rev-parse --abbrev-ref HEAD)
-	if [ -n "$git_b" -a "$git_b" != "HEAD" ] ; then
-		git="${git_b}-${git}"
-	fi
 	if git_tree_modified; then
 		git="${git}-dirty"
 		modified=yes
