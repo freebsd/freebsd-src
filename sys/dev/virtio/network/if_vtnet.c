@@ -210,6 +210,7 @@ static void	vtnet_update_vlan_filter(struct vtnet_softc *, int, uint16_t);
 static void	vtnet_register_vlan(void *, struct ifnet *, uint16_t);
 static void	vtnet_unregister_vlan(void *, struct ifnet *, uint16_t);
 
+static void	vtnet_update_speed_duplex(struct vtnet_softc *);
 static int	vtnet_is_link_up(struct vtnet_softc *);
 static void	vtnet_update_link_status(struct vtnet_softc *);
 static int	vtnet_ifmedia_upd(struct ifnet *);
@@ -987,7 +988,6 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	}
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_baudrate = IF_Gbps(10);	/* Approx. */
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
 	    IFF_KNOWSEPOCH;
@@ -1005,10 +1005,19 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	IFQ_SET_READY(&ifp->if_snd);
 #endif
 
-	ifmedia_init(&sc->vtnet_media, IFM_IMASK, vtnet_ifmedia_upd,
-	    vtnet_ifmedia_sts);
-	ifmedia_add(&sc->vtnet_media, VTNET_MEDIATYPE, 0, NULL);
-	ifmedia_set(&sc->vtnet_media, VTNET_MEDIATYPE);
+	if (virtio_with_feature(dev, VIRTIO_NET_F_SPEED_DUPLEX)) {
+		uint32_t speed = virtio_read_dev_config_4(dev,
+		    offsetof(struct virtio_net_config, speed));
+		if (speed != -1)
+			ifp->if_baudrate = IF_Mbps(speed);
+		else
+			ifp->if_baudrate = IF_Gbps(10);	/* Approx. */
+	} else
+		ifp->if_baudrate = IF_Gbps(10);	/* Approx. */
+
+	ifmedia_init(&sc->vtnet_media, 0, vtnet_ifmedia_upd, vtnet_ifmedia_sts);
+	ifmedia_add(&sc->vtnet_media, IFM_ETHER | IFM_AUTO, 0, NULL);
+	ifmedia_set(&sc->vtnet_media, IFM_ETHER | IFM_AUTO);
 
 	vtnet_get_hwaddr(sc);
 	ether_ifattach(ifp, sc->vtnet_hwaddr);
@@ -3598,6 +3607,27 @@ vtnet_unregister_vlan(void *arg, struct ifnet *ifp, uint16_t tag)
 	vtnet_update_vlan_filter(arg, 0, tag);
 }
 
+static void
+vtnet_update_speed_duplex(struct vtnet_softc *sc)
+{
+	device_t dev;
+	struct ifnet *ifp;
+	uint32_t speed;
+
+	dev = sc->vtnet_dev;
+	ifp = sc->vtnet_ifp;
+
+	/* BMV: Ignore duplex. */
+	if ((sc->vtnet_features & VIRTIO_NET_F_SPEED_DUPLEX) == 0)
+		speed = -1;
+	else
+		speed = virtio_read_dev_config_4(dev,
+		    offsetof(struct virtio_net_config, speed));
+
+	if (speed != -1)
+		ifp->if_baudrate = IF_Mbps(speed);
+}
+
 static int
 vtnet_is_link_up(struct vtnet_softc *sc)
 {
@@ -3624,12 +3654,12 @@ vtnet_update_link_status(struct vtnet_softc *sc)
 	int link;
 
 	ifp = sc->vtnet_ifp;
-
 	VTNET_CORE_LOCK_ASSERT(sc);
 	link = vtnet_is_link_up(sc);
 
 	/* Notify if the link status has changed. */
 	if (link != 0 && sc->vtnet_link_active == 0) {
+		vtnet_update_speed_duplex(sc);
 		sc->vtnet_link_active = 1;
 		if_link_state_change(ifp, LINK_STATE_UP);
 	} else if (link == 0 && sc->vtnet_link_active != 0) {
@@ -3641,16 +3671,7 @@ vtnet_update_link_status(struct vtnet_softc *sc)
 static int
 vtnet_ifmedia_upd(struct ifnet *ifp)
 {
-	struct vtnet_softc *sc;
-	struct ifmedia *ifm;
-
-	sc = ifp->if_softc;
-	ifm = &sc->vtnet_media;
-
-	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
-		return (EINVAL);
-
-	return (0);
+	return (EOPNOTSUPP);
 }
 
 static void
@@ -3666,7 +3687,7 @@ vtnet_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	VTNET_CORE_LOCK(sc);
 	if (vtnet_is_link_up(sc) != 0) {
 		ifmr->ifm_status |= IFM_ACTIVE;
-		ifmr->ifm_active |= VTNET_MEDIATYPE;
+		ifmr->ifm_active |= IFM_10G_T | IFM_FDX;
 	} else
 		ifmr->ifm_active |= IFM_NONE;
 	VTNET_CORE_UNLOCK(sc);

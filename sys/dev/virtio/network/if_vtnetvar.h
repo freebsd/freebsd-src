@@ -212,12 +212,6 @@ vtnet_modern(struct vtnet_softc *sc)
 #define VTNET_NOTIFY_RETRIES		4
 
 /*
- * Fake the media type. The host does not provide us with any real media
- * information.
- */
-#define VTNET_MEDIATYPE		 (IFM_ETHER | IFM_10G_T | IFM_FDX)
-
-/*
  * Number of words to allocate for the VLAN shadow table. There is one
  * bit for each VLAN.
  */
@@ -313,6 +307,7 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
      VIRTIO_NET_F_GUEST_ECN		| \
      VIRTIO_NET_F_MRG_RXBUF		| \
      VIRTIO_NET_F_MQ			| \
+     VIRTIO_NET_F_SPEED_DUPLEX		| \
      VIRTIO_RING_F_EVENT_IDX		| \
      VIRTIO_RING_F_INDIRECT_DESC)
 
