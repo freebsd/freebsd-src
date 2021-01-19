@@ -289,6 +289,11 @@ TUNABLE_INT("hw.vtnet.mq_max_pairs", &vtnet_mq_max_pairs);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, mq_max_pairs, CTLFLAG_RDTUN,
     &vtnet_mq_max_pairs, 0, "Sets the maximum number of multiqueue pairs");
 
+static int vtnet_tso_maxlen = IP_MAXPACKET;
+TUNABLE_INT("hw.vtnet.tso_maxlen", &vtnet_tso_maxlen);
+SYSCTL_INT(_hw_vtnet, OID_AUTO, tso_maxlen, CTLFLAG_RDTUN,
+    &vtnet_tso_maxlen, 0, "TSO burst limit");
+
 static int vtnet_rx_process_limit = 1024;
 TUNABLE_INT("hw.vtnet.rx_process_limit", &vtnet_rx_process_limit);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
@@ -1042,8 +1047,18 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 		if (gso || virtio_with_feature(dev, VIRTIO_NET_F_HOST_ECN))
 			sc->vtnet_flags |= VTNET_FLAG_TSO_ECN;
 
-		if (ifp->if_capabilities & (IFCAP_TSO4 | IFCAP_TSO6))
+		if (ifp->if_capabilities & (IFCAP_TSO4 | IFCAP_TSO6)) {
+			int tso_maxlen;
+
 			ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
+
+			tso_maxlen = vtnet_tunable_int(sc, "tso_maxlen",
+			    vtnet_tso_maxlen);
+			ifp->if_hw_tsomax = tso_maxlen -
+			    (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+			ifp->if_hw_tsomaxsegcount = sc->vtnet_tx_nsegs - 1;
+			ifp->if_hw_tsomaxsegsize = PAGE_SIZE;
+		}
 	}
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_CSUM)) {
