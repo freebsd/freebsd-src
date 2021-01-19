@@ -273,26 +273,19 @@ stage_includes: ${SHARED}
 SDESTDIR=	${SYSROOT:U${DESTDIR}}
 
 # Take care of stale directory-level symlinks.
+# Note: The "|| true" after find is needed in case one of the directories does
+# not exist (yet).
 compat:
-.for i in ${LDIRS} ${LSUBDIRS} machine ${_MARCHS} crypto
-	if [ -L ${SDESTDIR}${INCLUDEDIR}/$i ]; then \
-		rm -f ${SDESTDIR}${INCLUDEDIR}/$i; \
-	fi
-.endfor
+	cd ${SDESTDIR}${INCLUDEDIR}; find ${LDIRS} ${LSUBDIRS} machine ${_MARCHS} \
+	    crypto -maxdepth 0 -mindepth 0 -type l -print -delete || true
 	mtree -deU ${NO_ROOT:D-W} ${MTREE_FOLLOWS_SYMLINKS} \
 	    -f ${SRCTOP}/etc/mtree/BSD.include.dist \
 	    -p ${SDESTDIR}${INCLUDEDIR} > /dev/null
 
 copies: .PHONY .META
-.for i in ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto machine machine/pc \
-	${_MARCHS}
-	if [ -d ${SDESTDIR}${INCLUDEDIR}/$i ]; then \
-		cd ${SDESTDIR}${INCLUDEDIR}/$i; \
-		for h in *.h; do \
-			if [ -L $$h ]; then rm -f $$h; fi; \
-		done; \
-	fi
-.endfor
+	cd ${SDESTDIR}${INCLUDEDIR}; find ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto \
+	    machine machine/pc ${_MARCHS} -maxdepth 1 -mindepth 1 -type l \
+	    -name "*.h" -print -delete || true
 .for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
