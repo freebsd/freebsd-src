@@ -379,6 +379,7 @@ int	acl_delete_def_link_np(const char *_path_p);
 int	acl_delete_flag_np(acl_flagset_t _flagset_d, acl_flag_t _flag);
 int	acl_delete_perm(acl_permset_t _permset_d, acl_perm_t _perm);
 acl_t	acl_dup(acl_t _acl);
+int	acl_equiv_mode_np(acl_t acl, mode_t *mode_p);
 int	acl_free(void *_obj_p);
 acl_t	acl_from_mode_np(const mode_t mode);
 acl_t	acl_from_text(const char *_buf_p);

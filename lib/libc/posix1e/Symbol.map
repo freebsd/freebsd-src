@@ -87,5 +87,6 @@ FBSD_1.1 {
 
 FBSD_1.7 {
 	acl_cmp_np;
+	acl_equiv_mode_np;
 	acl_from_mode_np;
 };
