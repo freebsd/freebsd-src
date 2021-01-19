@@ -201,7 +201,6 @@ static int	vtnet_ctrl_mq_cmd(struct vtnet_softc *, uint16_t);
 static int	vtnet_ctrl_rx_cmd(struct vtnet_softc *, uint8_t, int);
 static int	vtnet_set_promisc(struct vtnet_softc *, int);
 static int	vtnet_set_allmulti(struct vtnet_softc *, int);
-static void	vtnet_attach_disable_promisc(struct vtnet_softc *);
 static void	vtnet_rx_filter(struct vtnet_softc *);
 static void	vtnet_rx_filter_mac(struct vtnet_softc *);
 static int	vtnet_exec_vlan_filter(struct vtnet_softc *, int, uint16_t);
@@ -569,8 +568,6 @@ vtnet_shutdown(device_t dev)
 static int
 vtnet_attach_completed(device_t dev)
 {
-
-	vtnet_attach_disable_promisc(device_get_softc(dev));
 
 	return (0);
 }
@@ -3349,28 +3346,6 @@ static int
 vtnet_set_allmulti(struct vtnet_softc *sc, int on)
 {
 	return (vtnet_ctrl_rx_cmd(sc, VIRTIO_NET_CTRL_RX_ALLMULTI, on));
-}
-
-/*
- * The device defaults to promiscuous mode for backwards compatibility.
- * Turn it off at attach time if possible.
- */
-static void
-vtnet_attach_disable_promisc(struct vtnet_softc *sc)
-{
-	struct ifnet *ifp;
-
-	ifp = sc->vtnet_ifp;
-
-	VTNET_CORE_LOCK(sc);
-	if ((sc->vtnet_flags & VTNET_FLAG_CTRL_RX) == 0) {
-		ifp->if_flags |= IFF_PROMISC;
-	} else if (vtnet_set_promisc(sc, 0) != 0) {
-		ifp->if_flags |= IFF_PROMISC;
-		device_printf(sc->vtnet_dev,
-		    "cannot disable default promiscuous mode\n");
-	}
-	VTNET_CORE_UNLOCK(sc);
 }
 
 static void
