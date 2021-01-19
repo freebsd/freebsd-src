@@ -2375,7 +2375,7 @@ vtnet_txq_offload_ctx(struct vtnet_txq *txq, struct mbuf *m, int *etype,
 		break;
 #endif
 	default:
-		sc->vtnet_stats.tx_csum_bad_ethtype++;
+		sc->vtnet_stats.tx_csum_unknown_ethtype++;
 		return (EINVAL);
 	}
 
@@ -2383,7 +2383,7 @@ vtnet_txq_offload_ctx(struct vtnet_txq *txq, struct mbuf *m, int *etype,
 }
 
 static int
-vtnet_txq_offload_tso(struct vtnet_txq *txq, struct mbuf *m, int eth_type,
+vtnet_txq_offload_tso(struct vtnet_txq *txq, struct mbuf *m, int flags,
     int offset, struct virtio_net_hdr *hdr)
 {
 	static struct timeval lastecn;
@@ -2401,14 +2401,15 @@ vtnet_txq_offload_tso(struct vtnet_txq *txq, struct mbuf *m, int eth_type,
 
 	hdr->hdr_len = vtnet_gtoh16(sc, offset + (tcp->th_off << 2));
 	hdr->gso_size = vtnet_gtoh16(sc, m->m_pkthdr.tso_segsz);
-	hdr->gso_type = eth_type == ETHERTYPE_IP ? VIRTIO_NET_HDR_GSO_TCPV4 :
-	    VIRTIO_NET_HDR_GSO_TCPV6;
+	hdr->gso_type = (flags & CSUM_IP_TSO) ?
+	    VIRTIO_NET_HDR_GSO_TCPV4 : VIRTIO_NET_HDR_GSO_TCPV6;
 
-	if (tcp->th_flags & TH_CWR) {
+	if (__predict_false(tcp->th_flags & TH_CWR)) {
 		/*
-		 * Drop if VIRTIO_NET_F_HOST_ECN was not negotiated. In FreeBSD,
-		 * ECN support is not on a per-interface basis, but globally via
-		 * the net.inet.tcp.ecn.enable sysctl knob. The default is off.
+		 * Drop if VIRTIO_NET_F_HOST_ECN was not negotiated. In
+		 * FreeBSD, ECN support is not on a per-interface basis,
+		 * but globally via the net.inet.tcp.ecn.enable sysctl
+		 * knob. The default is off.
 		 */
 		if ((sc->vtnet_flags & VTNET_FLAG_TSO_ECN) == 0) {
 			if (ppsratecheck(&lastecn, &curecn, 1))
@@ -2438,30 +2439,36 @@ vtnet_txq_offload(struct vtnet_txq *txq, struct mbuf *m,
 	if (error)
 		goto drop;
 
-	if ((etype == ETHERTYPE_IP && flags & VTNET_CSUM_OFFLOAD) ||
-	    (etype == ETHERTYPE_IPV6 && flags & VTNET_CSUM_OFFLOAD_IPV6)) {
-		/*
-		 * We could compare the IP protocol vs the CSUM_ flag too,
-		 * but that really should not be necessary.
-		 */
+	if (flags & (VTNET_CSUM_OFFLOAD | VTNET_CSUM_OFFLOAD_IPV6)) {
+		/* Sanity check the parsed mbuf matches the offload flags. */
+		if (__predict_false((flags & VTNET_CSUM_OFFLOAD &&
+		    etype != ETHERTYPE_IP) || (flags & VTNET_CSUM_OFFLOAD_IPV6
+		    && etype != ETHERTYPE_IPV6))) {
+			sc->vtnet_stats.tx_csum_proto_mismatch++;
+			goto drop;
+		}
+
 		hdr->flags |= VIRTIO_NET_HDR_F_NEEDS_CSUM;
 		hdr->csum_start = vtnet_gtoh16(sc, csum_start);
 		hdr->csum_offset = vtnet_gtoh16(sc, m->m_pkthdr.csum_data);
 		txq->vtntx_stats.vtxs_csum++;
 	}
 
-	if (flags & CSUM_TSO) {
+	if (flags & (CSUM_IP_TSO | CSUM_IP6_TSO)) {
+		/*
+		 * Sanity check the parsed mbuf IP protocol is TCP, and
+		 * VirtIO TSO reqires the checksum offloading above.
+		 */
 		if (__predict_false(proto != IPPROTO_TCP)) {
-			/* Likely failed to correctly parse the mbuf. */
 			sc->vtnet_stats.tx_tso_not_tcp++;
+			goto drop;
+		} else if (__predict_false((hdr->flags &
+		    VIRTIO_NET_HDR_F_NEEDS_CSUM) == 0)) {
+			sc->vtnet_stats.tx_tso_without_csum++;
 			goto drop;
 		}
 
-		KASSERT(hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM,
-		    ("%s: mbuf %p TSO without checksum offload %#x",
-		    __func__, m, flags));
-
-		error = vtnet_txq_offload_tso(txq, m, etype, csum_start, hdr);
+		error = vtnet_txq_offload_tso(txq, m, flags, csum_start, hdr);
 		if (error)
 			goto drop;
 	}
@@ -4097,7 +4104,7 @@ vtnet_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum", CTLFLAG_RD,
 	    &stats->vtxs_csum, "Transmit checksum offloaded");
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "tso", CTLFLAG_RD,
-	    &stats->vtxs_tso, "Transmit segmentation offloaded");
+	    &stats->vtxs_tso, "Transmit TCP segmentation offloaded");
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled", CTLFLAG_RD,
 	    &stats->vtxs_rescheduled,
 	    "Transmit interrupt handler rescheduled");
@@ -4177,16 +4184,20 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
 	    CTLFLAG_RD, &stats->rx_task_rescheduled,
 	    "Times the receive interrupt task rescheduled itself");
 
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_bad_ethtype",
-	    CTLFLAG_RD, &stats->tx_csum_bad_ethtype,
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_unknown_ethtype",
+	    CTLFLAG_RD, &stats->tx_csum_unknown_ethtype,
 	    "Aborted transmit of checksum offloaded buffer with unknown "
 	    "Ethernet type");
-	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_bad_ethtype",
-	    CTLFLAG_RD, &stats->tx_tso_bad_ethtype,
-	    "Aborted transmit of TSO buffer with unknown Ethernet type");
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_proto_mismatch",
+	    CTLFLAG_RD, &stats->tx_csum_proto_mismatch,
+	    "Aborted transmit of checksum offloaded buffer because mismatched "
+	    "protocols");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_not_tcp",
 	    CTLFLAG_RD, &stats->tx_tso_not_tcp,
 	    "Aborted transmit of TSO buffer with non TCP protocol");
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_without_csum",
+	    CTLFLAG_RD, &stats->tx_tso_without_csum,
+	    "Aborted transmit of TSO buffer without TCP checksum offload");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_defragged",
 	    CTLFLAG_RD, &stats->tx_defragged,
 	    "Transmit mbufs defragged");
