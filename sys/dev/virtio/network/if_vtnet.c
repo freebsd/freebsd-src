@@ -827,6 +827,7 @@ vtnet_alloc_rxtx_queues(struct vtnet_softc *sc)
 			return (error);
 	}
 
+	vtnet_set_rx_process_limit(sc);
 	vtnet_setup_queue_sysctl(sc);
 
 	return (0);
@@ -996,6 +997,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
 	    IFF_KNOWSEPOCH;
+	ifp->if_baudrate = IF_Gbps(10);
 	ifp->if_init = vtnet_init;
 	ifp->if_ioctl = vtnet_ioctl;
 	ifp->if_get_counter = vtnet_get_counter;
@@ -1010,28 +1012,14 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	IFQ_SET_READY(&ifp->if_snd);
 #endif
 
-	if (virtio_with_feature(dev, VIRTIO_NET_F_SPEED_DUPLEX)) {
-		uint32_t speed = virtio_read_dev_config_4(dev,
-		    offsetof(struct virtio_net_config, speed));
-		if (speed != -1)
-			ifp->if_baudrate = IF_Mbps(speed);
-		else
-			ifp->if_baudrate = IF_Gbps(10);	/* Approx. */
-	} else
-		ifp->if_baudrate = IF_Gbps(10);	/* Approx. */
+	vtnet_get_macaddr(sc);
+
+	if (virtio_with_feature(dev, VIRTIO_NET_F_STATUS))
+		ifp->if_capabilities |= IFCAP_LINKSTATE;
 
 	ifmedia_init(&sc->vtnet_media, 0, vtnet_ifmedia_upd, vtnet_ifmedia_sts);
 	ifmedia_add(&sc->vtnet_media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->vtnet_media, IFM_ETHER | IFM_AUTO);
-
-	vtnet_get_macaddr(sc);
-	ether_ifattach(ifp, sc->vtnet_hwaddr);
-
-	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-
-	if (virtio_with_feature(dev, VIRTIO_NET_F_STATUS))
-		ifp->if_capabilities |= IFCAP_LINKSTATE;
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_CSUM)) {
 		int gso;
@@ -1063,7 +1051,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 			ifp->if_capabilities |= IFCAP_LRO;
 	}
 
-	if (ifp->if_capabilities & IFCAP_HWCSUM) {
+	if (ifp->if_capabilities & (IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6)) {
 		/*
 		 * VirtIO does not support VLAN tagging, but we can fake
 		 * it by inserting and removing the 802.1Q header during
@@ -1078,11 +1066,11 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 		ifp->if_capabilities |= IFCAP_JUMBO_MTU;
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
-	ifp->if_capenable = ifp->if_capabilities;
-
 	/*
 	 * Capabilities after here are not enabled by default.
 	 */
+	ifp->if_capenable = ifp->if_capabilities;
+
 	if (sc->vtnet_flags & VTNET_FLAG_VLAN_FILTER) {
 		ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
 
@@ -1092,7 +1080,10 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 		    vtnet_unregister_vlan, sc, EVENTHANDLER_PRI_FIRST);
 	}
 
-	vtnet_set_rx_process_limit(sc);
+	ether_ifattach(ifp, sc->vtnet_hwaddr);
+
+	/* Tell the upper layer(s) we support long frames. */
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	DEBUGNET_SET(ifp, vtnet);
 
@@ -3623,20 +3614,17 @@ vtnet_unregister_vlan(void *arg, struct ifnet *ifp, uint16_t tag)
 static void
 vtnet_update_speed_duplex(struct vtnet_softc *sc)
 {
-	device_t dev;
 	struct ifnet *ifp;
 	uint32_t speed;
 
-	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
-	/* BMV: Ignore duplex. */
 	if ((sc->vtnet_features & VIRTIO_NET_F_SPEED_DUPLEX) == 0)
-		speed = -1;
-	else
-		speed = virtio_read_dev_config_4(dev,
-		    offsetof(struct virtio_net_config, speed));
+		return;
 
+	/* BMV: Ignore duplex. */
+	speed = virtio_read_dev_config_4(sc->vtnet_dev,
+	    offsetof(struct virtio_net_config, speed));
 	if (speed != -1)
 		ifp->if_baudrate = IF_Mbps(speed);
 }
@@ -3644,18 +3632,13 @@ vtnet_update_speed_duplex(struct vtnet_softc *sc)
 static int
 vtnet_is_link_up(struct vtnet_softc *sc)
 {
-	device_t dev;
-	struct ifnet *ifp;
 	uint16_t status;
 
-	dev = sc->vtnet_dev;
-	ifp = sc->vtnet_ifp;
+	if ((sc->vtnet_features & VIRTIO_NET_F_STATUS) == 0)
+		return (1);
 
-	if ((ifp->if_capabilities & IFCAP_LINKSTATE) == 0)
-		status = VIRTIO_NET_S_LINK_UP;
-	else
-		status = virtio_read_dev_config_2(dev,
-		    offsetof(struct virtio_net_config, status));
+	status = virtio_read_dev_config_2(sc->vtnet_dev,
+	    offsetof(struct virtio_net_config, status));
 
 	return ((status & VIRTIO_NET_S_LINK_UP) != 0);
 }
