@@ -140,7 +140,7 @@ struct vtnet_softc {
 	pfil_head_t		 vtnet_pfil;
 
 	uint32_t		 vtnet_flags;
-#define VTNET_FLAG_SUSPENDED	 0x0001
+#define VTNET_FLAG_MODERN	 0x0001
 #define VTNET_FLAG_MAC		 0x0002
 #define VTNET_FLAG_CTRL_VQ	 0x0004
 #define VTNET_FLAG_CTRL_RX	 0x0008
@@ -149,17 +149,18 @@ struct vtnet_softc {
 #define VTNET_FLAG_TSO_ECN	 0x0040
 #define VTNET_FLAG_MRG_RXBUFS	 0x0080
 #define VTNET_FLAG_LRO_NOMRG	 0x0100
-#define VTNET_FLAG_MULTIQ	 0x0200
+#define VTNET_FLAG_MQ		 0x0200
 #define VTNET_FLAG_INDIRECT	 0x0400
 #define VTNET_FLAG_EVENT_IDX	 0x0800
+#define VTNET_FLAG_SUSPENDED	 0x1000
 
 	int			 vtnet_link_active;
 	int			 vtnet_hdr_size;
 	int			 vtnet_rx_process_limit;
 	int			 vtnet_rx_nsegs;
 	int			 vtnet_rx_nmbufs;
-	int			 vtnet_rx_clsize;
-	int			 vtnet_rx_new_clsize;
+	int			 vtnet_rx_clustersz;
+	int			 vtnet_rx_new_clustersz;
 	int			 vtnet_tx_intr_thresh;
 	int			 vtnet_tx_nsegs;
 	int			 vtnet_if_flags;
@@ -182,6 +183,12 @@ struct vtnet_softc {
 	char			 vtnet_mtx_name[16];
 	char			 vtnet_hwaddr[ETHER_ADDR_LEN];
 };
+
+static bool
+vtnet_modern(struct vtnet_softc *sc)
+{
+	return ((sc->vtnet_flags & VTNET_FLAG_MODERN) != 0);
+}
 
 /*
  * Maximum number of queue pairs we will autoconfigure to.
@@ -215,14 +222,19 @@ struct vtnet_softc {
  */
 #define VTNET_VLAN_FILTER_NWORDS	(4096 / 32)
 
+/* We depend on these being the same size (and same layout). */
+CTASSERT(sizeof(struct virtio_net_hdr_mrg_rxbuf) ==
+    sizeof(struct virtio_net_hdr_v1));
+
 /*
- * When mergeable buffers are not negotiated, the vtnet_rx_header structure
- * below is placed at the beginning of the mbuf data. Use 4 bytes of pad to
- * both keep the VirtIO header and the data non-contiguous and to keep the
- * frame's payload 4 byte aligned.
+ * In legacy VirtIO when mergeable buffers are not negotiated, this structure
+ * is placed at the beginning of the mbuf data. Use 4 bytes of pad to keep
+ * both the VirtIO header and the data non-contiguous and the frame's payload
+ * 4 byte aligned. Note this padding would not be necessary if the
+ * VIRTIO_F_ANY_LAYOUT feature was negotiated (but we don't support that yet).
  *
- * When mergeable buffers are negotiated, the host puts the VirtIO header in
- * the beginning of the first mbuf's data.
+ * In modern VirtIO or when mergeable buffers are negotiated, the host puts
+ * the VirtIO header in the beginning of the first mbuf's data.
  */
 #define VTNET_RX_HEADER_PAD	4
 struct vtnet_rx_header {
@@ -238,6 +250,7 @@ struct vtnet_tx_header {
 	union {
 		struct virtio_net_hdr		hdr;
 		struct virtio_net_hdr_mrg_rxbuf	mhdr;
+		struct virtio_net_hdr_v1	v1hdr;
 	} vth_uhdr;
 
 	struct mbuf *vth_mbuf;
@@ -252,6 +265,11 @@ struct vtnet_tx_header {
  */
 #define VTNET_MAX_MAC_ENTRIES	128
 
+/*
+ * The driver version of struct virtio_net_ctrl_mac but with our predefined
+ * number of MAC addresses allocated. This structure is shared with the host,
+ * so nentries field is in the correct VirtIO endianness.
+ */
 struct vtnet_mac_table {
 	uint32_t	nentries;
 	uint8_t		macs[VTNET_MAX_MAC_ENTRIES][ETHER_ADDR_LEN];
@@ -276,8 +294,7 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
 #define VTNET_CSUM_ALL_OFFLOAD	\
     (VTNET_CSUM_OFFLOAD | VTNET_CSUM_OFFLOAD_IPV6 | CSUM_TSO)
 
-/* Features desired/implemented by this driver. */
-#define VTNET_FEATURES \
+#define VTNET_COMMON_FEATURES \
     (VIRTIO_NET_F_MAC			| \
      VIRTIO_NET_F_STATUS		| \
      VIRTIO_NET_F_CTRL_VQ		| \
@@ -285,7 +302,6 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
      VIRTIO_NET_F_CTRL_MAC_ADDR		| \
      VIRTIO_NET_F_CTRL_VLAN		| \
      VIRTIO_NET_F_CSUM			| \
-     VIRTIO_NET_F_GSO			| \
      VIRTIO_NET_F_HOST_TSO4		| \
      VIRTIO_NET_F_HOST_TSO6		| \
      VIRTIO_NET_F_HOST_ECN		| \
@@ -297,6 +313,9 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
      VIRTIO_NET_F_MQ			| \
      VIRTIO_RING_F_EVENT_IDX		| \
      VIRTIO_RING_F_INDIRECT_DESC)
+
+#define VTNET_MODERN_FEATURES (VTNET_COMMON_FEATURES)
+#define VTNET_LEGACY_FEATURES (VTNET_COMMON_FEATURES | VIRTIO_NET_F_GSO)
 
 /*
  * The VIRTIO_NET_F_HOST_TSO[46] features permit us to send the host
@@ -317,11 +336,12 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
 #define VTNET_MAX_RX_SIZE	65550
 
 /*
- * Used to preallocate the Vq indirect descriptors. The first segment
- * is reserved for the header, except for mergeable buffers since the
- * header is placed inline with the data.
+ * Used to preallocate the Vq indirect descriptors. The first segment is
+ * reserved for the header, except for mergeable buffers or modern since
+ * the header is placed inline with the data.
  */
 #define VTNET_MRG_RX_SEGS	1
+#define VTNET_MODERN_RX_SEGS	1
 #define VTNET_MIN_RX_SEGS	2
 #define VTNET_MAX_RX_SEGS	34
 #define VTNET_MIN_TX_SEGS	32
@@ -345,10 +365,10 @@ CTASSERT(((VTNET_MAX_TX_SEGS - 1) * MCLBYTES) >= VTNET_MAX_MTU);
  * mergeable buffers, we must allocate an mbuf chain large enough to
  * hold both the vtnet_rx_header and the maximum receivable data.
  */
-#define VTNET_NEEDED_RX_MBUFS(_sc, _clsize)				\
+#define VTNET_NEEDED_RX_MBUFS(_sc, _clustersz)				\
 	((_sc)->vtnet_flags & VTNET_FLAG_LRO_NOMRG) == 0 ? 1 :		\
 	    howmany(sizeof(struct vtnet_rx_header) + VTNET_MAX_RX_SIZE,	\
-	        (_clsize))
+	        (_clustersz))
 
 #define VTNET_CORE_MTX(_sc)		&(_sc)->vtnet_mtx
 #define VTNET_CORE_LOCK(_sc)		mtx_lock(VTNET_CORE_MTX((_sc)))

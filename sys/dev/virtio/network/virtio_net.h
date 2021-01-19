@@ -34,29 +34,33 @@
 #define _VIRTIO_NET_H
 
 /* The feature bitmap for virtio net */
-#define VIRTIO_NET_F_CSUM	0x00001 /* Host handles pkts w/ partial csum */
-#define VIRTIO_NET_F_GUEST_CSUM 0x00002 /* Guest handles pkts w/ partial csum*/
-#define VIRTIO_NET_F_MAC	0x00020 /* Host has given MAC address. */
-#define VIRTIO_NET_F_GSO	0x00040 /* Host handles pkts w/ any GSO type */
-#define VIRTIO_NET_F_GUEST_TSO4	0x00080 /* Guest can handle TSOv4 in. */
-#define VIRTIO_NET_F_GUEST_TSO6	0x00100 /* Guest can handle TSOv6 in. */
-#define VIRTIO_NET_F_GUEST_ECN	0x00200 /* Guest can handle TSO[6] w/ ECN in.*/
-#define VIRTIO_NET_F_GUEST_UFO	0x00400 /* Guest can handle UFO in. */
-#define VIRTIO_NET_F_HOST_TSO4	0x00800 /* Host can handle TSOv4 in. */
-#define VIRTIO_NET_F_HOST_TSO6	0x01000 /* Host can handle TSOv6 in. */
-#define VIRTIO_NET_F_HOST_ECN	0x02000 /* Host can handle TSO[6] w/ ECN in. */
-#define VIRTIO_NET_F_HOST_UFO	0x04000 /* Host can handle UFO in. */
-#define VIRTIO_NET_F_MRG_RXBUF	0x08000 /* Host can merge receive buffers. */
-#define VIRTIO_NET_F_STATUS	0x10000 /* virtio_net_config.status available*/
-#define VIRTIO_NET_F_CTRL_VQ	0x20000 /* Control channel available */
-#define VIRTIO_NET_F_CTRL_RX	0x40000 /* Control channel RX mode support */
-#define VIRTIO_NET_F_CTRL_VLAN	0x80000 /* Control channel VLAN filtering */
-#define VIRTIO_NET_F_CTRL_RX_EXTRA 0x100000 /* Extra RX mode control support */
-#define VIRTIO_NET_F_GUEST_ANNOUNCE 0x200000 /* Announce device on network */
-#define VIRTIO_NET_F_MQ		0x400000 /* Device supports RFS */
-#define VIRTIO_NET_F_CTRL_MAC_ADDR 0x800000 /* Set MAC address */
+#define VIRTIO_NET_F_CSUM		 0x000001 /* Host handles pkts w/ partial csum */
+#define VIRTIO_NET_F_GUEST_CSUM		 0x000002 /* Guest handles pkts w/ partial csum*/
+#define VIRTIO_NET_F_CTRL_GUEST_OFFLOADS 0x000004 /* Dynamic offload configuration. */
+#define VIRTIO_NET_F_MTU		 0x000008 /* Initial MTU advice */
+#define VIRTIO_NET_F_MAC		 0x000020 /* Host has given MAC address. */
+#define VIRTIO_NET_F_GSO		 0x000040 /* Host handles pkts w/ any GSO type */
+#define VIRTIO_NET_F_GUEST_TSO4		 0x000080 /* Guest can handle TSOv4 in. */
+#define VIRTIO_NET_F_GUEST_TSO6		 0x000100 /* Guest can handle TSOv6 in. */
+#define VIRTIO_NET_F_GUEST_ECN		 0x000200 /* Guest can handle TSO[6] w/ ECN in. */
+#define VIRTIO_NET_F_GUEST_UFO		 0x000400 /* Guest can handle UFO in. */
+#define VIRTIO_NET_F_HOST_TSO4		 0x000800 /* Host can handle TSOv4 in. */
+#define VIRTIO_NET_F_HOST_TSO6		 0x001000 /* Host can handle TSOv6 in. */
+#define VIRTIO_NET_F_HOST_ECN		 0x002000 /* Host can handle TSO[6] w/ ECN in. */
+#define VIRTIO_NET_F_HOST_UFO		 0x004000 /* Host can handle UFO in. */
+#define VIRTIO_NET_F_MRG_RXBUF		 0x008000 /* Host can merge receive buffers. */
+#define VIRTIO_NET_F_STATUS		 0x010000 /* virtio_net_config.status available*/
+#define VIRTIO_NET_F_CTRL_VQ		 0x020000 /* Control channel available */
+#define VIRTIO_NET_F_CTRL_RX		 0x040000 /* Control channel RX mode support */
+#define VIRTIO_NET_F_CTRL_VLAN		 0x080000 /* Control channel VLAN filtering */
+#define VIRTIO_NET_F_CTRL_RX_EXTRA	 0x100000 /* Extra RX mode control support */
+#define VIRTIO_NET_F_GUEST_ANNOUNCE	 0x200000 /* Announce device on network */
+#define VIRTIO_NET_F_MQ			 0x400000 /* Device supports Receive Flow Steering */
+#define VIRTIO_NET_F_CTRL_MAC_ADDR	 0x800000 /* Set MAC address */
+#define VIRTIO_NET_F_SPEED_DUPLEX	 (1ULL << 63) /* Device set linkspeed and duplex */
 
 #define VIRTIO_NET_S_LINK_UP	1	/* Link is up */
+#define VIRTIO_NET_S_ANNOUNCE	2	/* Announcement is needed */
 
 struct virtio_net_config {
 	/* The config defining mac address (if VIRTIO_NET_F_MAC) */
@@ -68,21 +72,55 @@ struct virtio_net_config {
 	 * Legal values are between 1 and 0x8000.
 	 */
 	uint16_t	max_virtqueue_pairs;
+	/* Default maximum transmit unit advice */
+	uint16_t	mtu;
+	/*
+	 * speed, in units of 1Mb. All values 0 to INT_MAX are legal.
+	 * Any other value stands for unknown.
+	 */
+	uint32_t	speed;
+	/*
+	 * 0x00 - half duplex
+	 * 0x01 - full duplex
+	 * Any other value stands for unknown.
+	 */
+	uint8_t		duplex;
 } __packed;
 
 /*
- * This is the first element of the scatter-gather list.  If you don't
+ * This header comes first in the scatter-gather list.  If you don't
  * specify GSO or CSUM features, you can simply ignore the header.
+ *
+ * This is bitwise-equivalent to the legacy struct virtio_net_hdr_mrg_rxbuf,
+ * only flattened.
  */
-struct virtio_net_hdr {
-#define VIRTIO_NET_HDR_F_NEEDS_CSUM	1	/* Use csum_start,csum_offset*/
+struct virtio_net_hdr_v1 {
+#define VIRTIO_NET_HDR_F_NEEDS_CSUM	1	/* Use csum_start, csum_offset */
 #define VIRTIO_NET_HDR_F_DATA_VALID	2	/* Csum is valid */
-	uint8_t	flags;
+	uint8_t flags;
 #define VIRTIO_NET_HDR_GSO_NONE		0	/* Not a GSO frame */
 #define VIRTIO_NET_HDR_GSO_TCPV4	1	/* GSO frame, IPv4 TCP (TSO) */
 #define VIRTIO_NET_HDR_GSO_UDP		3	/* GSO frame, IPv4 UDP (UFO) */
 #define VIRTIO_NET_HDR_GSO_TCPV6	4	/* GSO frame, IPv6 TCP */
 #define VIRTIO_NET_HDR_GSO_ECN		0x80	/* TCP has ECN set */
+	uint8_t gso_type;
+	uint16_t hdr_len;	/* Ethernet + IP + tcp/udp hdrs */
+	uint16_t gso_size;	/* Bytes to append to hdr_len per frame */
+	uint16_t csum_start;	/* Position to start checksumming from */
+	uint16_t csum_offset;	/* Offset after that to place checksum */
+	uint16_t num_buffers;	/* Number of merged rx buffers */
+};
+
+/*
+ * This header comes first in the scatter-gather list.
+ * For legacy virtio, if VIRTIO_F_ANY_LAYOUT is not negotiated, it must
+ * be the first element of the scatter-gather list.  If you don't
+ * specify GSO or CSUM features, you can simply ignore the header.
+ */
+struct virtio_net_hdr {
+	/* See VIRTIO_NET_HDR_F_* */
+	uint8_t	flags;
+	/* See VIRTIO_NET_HDR_GSO_* */
 	uint8_t gso_type;
 	uint16_t hdr_len;	/* Ethernet + IP + tcp/udp hdrs */
 	uint16_t gso_size;	/* Bytes to append to hdr_len per frame */
@@ -200,6 +238,21 @@ struct virtio_net_ctrl_mq {
 #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_SET		0
 #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN		1
 #define VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX		0x8000
+
+/*
+ * Control network offloads
+ *
+ * Reconfigures the network offloads that Guest can handle.
+ *
+ * Available with the VIRTIO_NET_F_CTRL_GUEST_OFFLOADS feature bit.
+ *
+ * Command data format matches the feature bit mask exactly.
+ *
+ * See VIRTIO_NET_F_GUEST_* for the list of offloads
+ * that can be enabled/disabled.
+ */
+#define VIRTIO_NET_CTRL_GUEST_OFFLOADS		5
+#define VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET	0
 
 /*
  * Use the checksum offset in the VirtIO header to set the
