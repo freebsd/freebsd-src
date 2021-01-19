@@ -657,6 +657,20 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 
 	negotiated_features = virtio_negotiate_features(dev, features);
 
+	if (virtio_with_feature(dev, VIRTIO_NET_F_MTU)) {
+		uint16_t mtu;
+
+		mtu = virtio_read_dev_config_2(dev,
+		    offsetof(struct virtio_net_config, mtu));
+		if (mtu < VTNET_MIN_MTU /* || mtu > VTNET_MAX_MTU */) {
+			device_printf(dev, "Invalid MTU value: %d. "
+			    "MTU feature disabled.\n", mtu);
+			features &= ~VIRTIO_NET_F_MTU;
+			negotiated_features =
+			    virtio_negotiate_features(dev, features);
+		}
+	}
+
 	if (virtio_with_feature(dev, VIRTIO_NET_F_MQ)) {
 		uint16_t npairs;
 
