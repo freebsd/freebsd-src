@@ -293,6 +293,7 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
 #define VTNET_COMMON_FEATURES \
     (VIRTIO_NET_F_MAC			| \
      VIRTIO_NET_F_STATUS		| \
+     VIRTIO_NET_F_CTRL_GUEST_OFFLOADS	| \
      VIRTIO_NET_F_MTU			| \
      VIRTIO_NET_F_CTRL_VQ		| \
      VIRTIO_NET_F_CTRL_RX		| \

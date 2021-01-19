@@ -193,6 +193,7 @@ static int	vtnet_init_rx_queues(struct vtnet_softc *);
 static int	vtnet_init_tx_queues(struct vtnet_softc *);
 static int	vtnet_init_rxtx_queues(struct vtnet_softc *);
 static void	vtnet_set_active_vq_pairs(struct vtnet_softc *);
+static void	vtnet_update_rx_offloads(struct vtnet_softc *);
 static int	vtnet_reinit(struct vtnet_softc *);
 static void	vtnet_init_locked(struct vtnet_softc *, int);
 static void	vtnet_init(void *);
@@ -201,6 +202,7 @@ static void	vtnet_free_ctrl_vq(struct vtnet_softc *);
 static void	vtnet_exec_ctrl_cmd(struct vtnet_softc *, void *,
 		    struct sglist *, int, int);
 static int	vtnet_ctrl_mac_cmd(struct vtnet_softc *, uint8_t *);
+static int	vtnet_ctrl_guest_offloads(struct vtnet_softc *, uint64_t);
 static int	vtnet_ctrl_mq_cmd(struct vtnet_softc *, uint16_t);
 static int	vtnet_ctrl_rx_cmd(struct vtnet_softc *, uint8_t, int);
 static int	vtnet_set_promisc(struct vtnet_softc *, int);
@@ -1045,7 +1047,11 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	}
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_CSUM)) {
-		ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+		ifp->if_capabilities |= IFCAP_RXCSUM;
+#ifdef notyet
+		/* BMV: Rx checksums not distinguished between IPv4 and IPv6. */
+		ifp->if_capabilities |= IFCAP_RXCSUM_IPV6;
+#endif
 
 		if (vtnet_tunable_int(sc, "fixup_needs_csum",
 		    vtnet_fixup_needs_csum) != 0)
@@ -1215,10 +1221,11 @@ static int
 vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 {
 	struct ifnet *ifp;
-	int mask, reinit;
+	int mask, reinit, update;
 
 	ifp = sc->vtnet_ifp;
 	mask = (ifr->ifr_reqcap & ifp->if_capabilities) ^ ifp->if_capenable;
+	reinit = update = 0;
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
@@ -1231,10 +1238,15 @@ vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 	if (mask & IFCAP_TSO6)
 		ifp->if_capenable ^= IFCAP_TSO6;
 
-	if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO |
-	    IFCAP_VLAN_HWFILTER)) {
-		/* These Rx features require us to renegotiate. */
-		reinit = 1;
+	if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO)) {
+		/*
+		 * These Rx features require the negotiated features to
+		 * be updated. Avoid a full reinit if possible.
+		 */
+		if (sc->vtnet_features & VIRTIO_NET_F_CTRL_GUEST_OFFLOADS)
+			update = 1;
+		else
+			reinit = 1;
 
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
@@ -1242,19 +1254,41 @@ vtnet_ioctl_ifcap(struct vtnet_softc *sc, struct ifreq *ifr)
 			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
 		if (mask & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
+
+		/*
+		 * VirtIO does not distinguish between IPv4 and IPv6 checksums
+		 * so treat them as a pair. Guest TSO (LRO) requires receive
+		 * checksums.
+		 */
+		if (ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+			ifp->if_capenable |= IFCAP_RXCSUM;
+#ifdef notyet
+			ifp->if_capenable |= IFCAP_RXCSUM_IPV6;
+#endif
+		} else
+			ifp->if_capenable &=
+			    ~(IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO);
+	}
+
+	if (mask & IFCAP_VLAN_HWFILTER) {
+		/* These Rx features require renegotiation. */
+		reinit = 1;
+
 		if (mask & IFCAP_VLAN_HWFILTER)
 			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
-	} else
-		reinit = 0;
+	}
 
 	if (mask & IFCAP_VLAN_HWTSO)
 		ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 	if (mask & IFCAP_VLAN_HWTAGGING)
 		ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 
-	if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		vtnet_init_locked(sc, 0);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		if (reinit) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			vtnet_init_locked(sc, 0);
+		} else if (update)
+			vtnet_update_rx_offloads(sc);
 	}
 
 	return (0);
@@ -3023,28 +3057,14 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	 * via if_capenable and if_hwassist.
 	 */
 
-	if (ifp->if_capabilities & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
-		/*
-		 * VirtIO does not distinguish between the IPv4 and IPv6
-		 * checksums so require both. Guest TSO (LRO) requires
-		 * Rx checksums.
-		 */
-		if ((ifp->if_capenable &
-		    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) == 0) {
-			features &= ~VIRTIO_NET_F_GUEST_CSUM;
-			features &= ~VTNET_LRO_FEATURES;
-		}
-	}
+	if ((ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) == 0)
+		features &= ~(VIRTIO_NET_F_GUEST_CSUM | VTNET_LRO_FEATURES);
 
-	if (ifp->if_capabilities & IFCAP_LRO) {
-		if ((ifp->if_capenable & IFCAP_LRO) == 0)
-			features &= ~VTNET_LRO_FEATURES;
-	}
+	if ((ifp->if_capenable & IFCAP_LRO) == 0)
+		features &= ~VTNET_LRO_FEATURES;
 
-	if (ifp->if_capabilities & IFCAP_VLAN_HWFILTER) {
-		if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
-			features &= ~VIRTIO_NET_F_CTRL_VLAN;
-	}
+	if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
+		features &= ~VIRTIO_NET_F_CTRL_VLAN;
 
 	error = virtio_reinit(dev, features);
 	if (error) {
@@ -3170,6 +3190,47 @@ vtnet_set_active_vq_pairs(struct vtnet_softc *sc)
 	}
 
 	sc->vtnet_act_vq_pairs = npairs;
+}
+
+static void
+vtnet_update_rx_offloads(struct vtnet_softc *sc)
+{
+	struct ifnet *ifp;
+	uint64_t features;
+	int error;
+
+	ifp = sc->vtnet_ifp;
+	features = sc->vtnet_features;
+
+	VTNET_CORE_LOCK_ASSERT(sc);
+
+	if (ifp->if_capabilities & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
+		if (ifp->if_capenable & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6))
+			features |= VIRTIO_NET_F_GUEST_CSUM;
+		else
+			features &= ~VIRTIO_NET_F_GUEST_CSUM;
+	}
+
+	if (ifp->if_capabilities & IFCAP_LRO) {
+		if (ifp->if_capenable & IFCAP_LRO)
+			features |= VTNET_LRO_FEATURES;
+		else
+			features &= ~VTNET_LRO_FEATURES;
+	}
+
+	error = vtnet_ctrl_guest_offloads(sc,
+	    features & (VIRTIO_NET_F_GUEST_CSUM | VIRTIO_NET_F_GUEST_TSO4 |
+		        VIRTIO_NET_F_GUEST_TSO6 | VIRTIO_NET_F_GUEST_ECN  |
+			VIRTIO_NET_F_GUEST_UFO));
+	if (error) {
+		device_printf(sc->vtnet_dev,
+		    "%s: cannot update Rx features\n", __func__);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			vtnet_init_locked(sc, 0);
+		}
+	} else
+		sc->vtnet_features = features;
 }
 
 static int
@@ -3328,6 +3389,40 @@ vtnet_ctrl_mac_cmd(struct vtnet_softc *sc, uint8_t *hwaddr)
 	sglist_init(&sg, nitems(segs), segs);
 	error |= sglist_append(&sg, &s.hdr, sizeof(struct virtio_net_ctrl_hdr));
 	error |= sglist_append(&sg, &s.addr[0], ETHER_ADDR_LEN);
+	error |= sglist_append(&sg, &s.ack, sizeof(uint8_t));
+	MPASS(error == 0 && sg.sg_nseg == nitems(segs));
+
+	if (error == 0)
+		vtnet_exec_ctrl_cmd(sc, &s.ack, &sg, sg.sg_nseg - 1, 1);
+
+	return (s.ack == VIRTIO_NET_OK ? 0 : EIO);
+}
+
+static int
+vtnet_ctrl_guest_offloads(struct vtnet_softc *sc, uint64_t offloads)
+{
+	struct sglist_seg segs[3];
+	struct sglist sg;
+	struct {
+		struct virtio_net_ctrl_hdr hdr __aligned(2);
+		uint8_t pad1;
+		uint64_t offloads __aligned(8);
+		uint8_t pad2;
+		uint8_t ack;
+	} s;
+	int error;
+
+	error = 0;
+	MPASS(sc->vtnet_features & VIRTIO_NET_F_CTRL_GUEST_OFFLOADS);
+
+	s.hdr.class = VIRTIO_NET_CTRL_GUEST_OFFLOADS;
+	s.hdr.cmd = VIRTIO_NET_CTRL_GUEST_OFFLOADS_SET;
+	s.offloads = vtnet_gtoh64(sc, offloads);
+	s.ack = VIRTIO_NET_ERR;
+
+	sglist_init(&sg, nitems(segs), segs);
+	error |= sglist_append(&sg, &s.hdr, sizeof(struct virtio_net_ctrl_hdr));
+	error |= sglist_append(&sg, &s.offloads, sizeof(uint64_t));
 	error |= sglist_append(&sg, &s.ack, sizeof(uint8_t));
 	MPASS(error == 0 && sg.sg_nseg == nitems(segs));
 
