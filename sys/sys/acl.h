@@ -363,6 +363,7 @@ int	acl_add_perm(acl_permset_t _permset_d, acl_perm_t _perm);
 int	acl_calc_mask(acl_t *_acl_p);
 int	acl_clear_flags_np(acl_flagset_t _flagset_d);
 int	acl_clear_perms(acl_permset_t _permset_d);
+int	acl_cmp_np(acl_t _acl1, acl_t _acl2);
 int	acl_copy_entry(acl_entry_t _dest_d, acl_entry_t _src_d);
 ssize_t	acl_copy_ext(void *_buf_p, acl_t _acl, ssize_t _size);
 acl_t	acl_copy_int(const void *_buf_p);

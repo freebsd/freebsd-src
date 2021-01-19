@@ -11,6 +11,7 @@ subr_acl_nfs4.c: ${SRCTOP}/sys/kern/subr_acl_nfs4.c
 CONFS+=	posix1e/mac.conf
 SRCS+=	acl_branding.c			\
 	acl_calc_mask.c			\
+	acl_cmp_np.c			\
 	acl_compat.c			\
 	acl_copy.c			\
 	acl_delete.c			\
@@ -47,6 +48,7 @@ MAN+=	acl.3				\
 	acl_calc_mask.3			\
 	acl_clear_flags_np.3		\
 	acl_clear_perms.3		\
+	acl_cmp_np.3			\
 	acl_copy_entry.3		\
 	acl_create_entry.3		\
 	acl_delete.3			\

@@ -62,8 +62,6 @@ _acl_differs(const acl_t a, const acl_t b)
 	struct acl_entry *entrya, *entryb;
 
 	assert(_acl_brand(a) == _acl_brand(b));
-	assert(_acl_brand(a) != ACL_BRAND_UNKNOWN);
-	assert(_acl_brand(b) != ACL_BRAND_UNKNOWN);
 
 	if (a->ats_acl.acl_cnt != b->ats_acl.acl_cnt)
 		return (1);
