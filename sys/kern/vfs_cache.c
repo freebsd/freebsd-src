@@ -4008,7 +4008,7 @@ cache_fplookup_partial_setup(struct cache_fpl *fpl)
 	 *
 	 * Ultimately this does not affect correctness, any lookup errors
 	 * are userspace racing with itself. It is guaranteed that any
-	 * path which ultimatley gets found could also have been found
+	 * path which ultimately gets found could also have been found
 	 * by regular lookup going all the way in absence of concurrent
 	 * modifications.
 	 */
@@ -4159,7 +4159,7 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	 * reasoning.
 	 *
 	 * XXX At least UFS requires its lookup routine to be called for
-	 * the last path component, which leads to some level of complicaton
+	 * the last path component, which leads to some level of complication
 	 * and inefficiency:
 	 * - the target routine always locks the target vnode, but our caller
 	 *   may not need it locked
@@ -5045,7 +5045,7 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 #ifdef INVARIANTS
 	/*
 	 * Code below is only here to assure compatibility with regular lookup.
-	 * It covers handling of trailing slashles and names like "/", both of
+	 * It covers handling of trailing slashes and names like "/", both of
 	 * which of can be taken care of upfront which lockless lookup does
 	 * in cache_fplookup_preparse. Regular lookup performs these for each
 	 * path component.
