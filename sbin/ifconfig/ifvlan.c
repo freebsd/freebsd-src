@@ -68,6 +68,7 @@ static const char rcsid[] =
 
 static const char proto_8021Q[]  = "802.1q";
 static const char proto_8021ad[] = "802.1ad";
+static const char proto_qinq[] = "qinq";
 
 static 	struct vlanreq params = {
 	.vlr_tag	= NOTAG,
@@ -220,8 +221,8 @@ DECL_CMD_FUNC(setvlanproto, val, d)
 	if (strncasecmp(proto_8021Q, val,
 	    strlen(proto_8021Q)) == 0) {
 		params.vlr_proto = ETHERTYPE_VLAN;
-	} else if (strncasecmp(proto_8021ad, val,
-	           strlen(proto_8021ad)) == 0) {
+	} else if ((strncasecmp(proto_8021ad, val, strlen(proto_8021ad)) == 0)
+	    || (strncasecmp(proto_qinq, val, strlen(proto_qinq)) == 0)) {
 		params.vlr_proto = ETHERTYPE_QINQ;
 	} else
 		errx(1, "invalid value for vlanproto");
