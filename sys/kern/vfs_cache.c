@@ -4748,16 +4748,14 @@ cache_fplookup_next(struct cache_fpl *fpl)
 		return (cache_fpl_partial(fpl));
 	}
 
-	if (cache_fplookup_is_mp(fpl)) {
-		error = cache_fplookup_cross_mount(fpl);
-		if (__predict_false(error != 0)) {
-			return (error);
-		}
-	}
-
 	counter_u64_add(numposhits, 1);
 	SDT_PROBE3(vfs, namecache, lookup, hit, dvp, ncp->nc_name, tvp);
-	return (0);
+
+	error = 0;
+	if (cache_fplookup_is_mp(fpl)) {
+		error = cache_fplookup_cross_mount(fpl);
+	}
+	return (error);
 }
 
 static bool
