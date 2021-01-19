@@ -1,6 +1,6 @@
 #!/bin/sh
 #-
-# Copyright (c) 2020 Rubicon Communications, LLC (netgate.com)
+# Copyright (c) 2020-2021 Rubicon Communications, LLC (netgate.com)
 # Copyright (c) 2013-2019 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
