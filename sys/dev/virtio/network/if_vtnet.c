@@ -2016,6 +2016,7 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 		case VIRTIO_NET_HDR_GSO_TCPV6:
 			m->m_pkthdr.lro_nsegs =
 			    howmany(m->m_pkthdr.len, hdr->gso_size);
+			rxq->vtnrx_stats.vrxs_host_lro++;
 			break;
 		}
 	}
@@ -4074,6 +4075,8 @@ vtnet_setup_rxq_sysctl(struct sysctl_ctx_list *ctx,
 	    &stats->vrxs_csum, "Receive checksum offloaded");
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "csum_failed", CTLFLAG_RD,
 	    &stats->vrxs_csum_failed, "Receive checksum offload failed");
+	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "host_lro", CTLFLAG_RD,
+	    &stats->vrxs_host_lro, "Receive host segmentation offloaded");
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled", CTLFLAG_RD,
 	    &stats->vrxs_rescheduled,
 	    "Receive interrupt handler rescheduled");

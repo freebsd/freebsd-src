@@ -68,6 +68,7 @@ struct vtnet_rxq_stats {
 	uint64_t	vrxs_ierrors;	/* if_ierrors */
 	uint64_t	vrxs_csum;
 	uint64_t	vrxs_csum_failed;
+	uint64_t	vrxs_host_lro;
 	uint64_t	vrxs_rescheduled;
 };
 
