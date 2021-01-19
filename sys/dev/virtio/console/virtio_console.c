@@ -226,6 +226,14 @@ static void	 vtcon_get_console_size(struct vtcon_softc *, uint16_t *,
 static void	 vtcon_enable_interrupts(struct vtcon_softc *);
 static void	 vtcon_disable_interrupts(struct vtcon_softc *);
 
+#define vtcon_modern(_sc) (((_sc)->vtcon_features & VIRTIO_F_VERSION_1) != 0)
+#define vtcon_htog16(_sc, _val)	virtio_htog16(vtcon_modern(_sc), _val)
+#define vtcon_htog32(_sc, _val)	virtio_htog32(vtcon_modern(_sc), _val)
+#define vtcon_htog64(_sc, _val)	virtio_htog64(vtcon_modern(_sc), _val)
+#define vtcon_gtoh16(_sc, _val)	virtio_gtoh16(vtcon_modern(_sc), _val)
+#define vtcon_gtoh32(_sc, _val)	virtio_gtoh32(vtcon_modern(_sc), _val)
+#define vtcon_gtoh64(_sc, _val)	virtio_gtoh64(vtcon_modern(_sc), _val)
+
 static int	 vtcon_pending_free;
 
 static struct ttydevsw vtcon_tty_class = {
@@ -430,6 +438,7 @@ vtcon_negotiate_features(struct vtcon_softc *sc)
 	features = VTCON_FEATURES;
 
 	sc->vtcon_features = virtio_negotiate_features(dev, features);
+	virtio_finalize_features(dev);
 }
 
 static void
@@ -846,17 +855,20 @@ vtcon_ctrl_process_event(struct vtcon_softc *sc,
     struct virtio_console_control *control, void *data, size_t data_len)
 {
 	device_t dev;
-	int id;
+	uint32_t id;
+	uint16_t event;
 
 	dev = sc->vtcon_dev;
-	id = control->id;
+	id = vtcon_htog32(sc, control->id);
+	event = vtcon_htog16(sc, control->event);
 
-	if (id < 0 || id >= sc->vtcon_max_ports) {
-		device_printf(dev, "%s: invalid port ID %d\n", __func__, id);
+	if (id >= sc->vtcon_max_ports) {
+		device_printf(dev, "%s: event %d invalid port ID %d\n",
+		    __func__, event, id);
 		return;
 	}
 
-	switch (control->event) {
+	switch (event) {
 	case VIRTIO_CONSOLE_PORT_ADD:
 		vtcon_ctrl_port_add_event(sc, id);
 		break;
@@ -984,9 +996,9 @@ vtcon_ctrl_send_control(struct vtcon_softc *sc, uint32_t portid,
 	if ((sc->vtcon_flags & VTCON_FLAG_MULTIPORT) == 0)
 		return;
 
-	control.id = portid;
-	control.event = event;
-	control.value = value;
+	control.id = vtcon_gtoh32(sc, portid);
+	control.event = vtcon_gtoh16(sc, event);
+	control.value = vtcon_gtoh16(sc, value);
 
 	vtcon_ctrl_poll(sc, &control);
 }
