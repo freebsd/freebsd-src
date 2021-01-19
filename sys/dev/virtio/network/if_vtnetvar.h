@@ -168,8 +168,8 @@ struct vtnet_softc {
 	int			 vtnet_if_flags;
 	int			 vtnet_max_mtu;
 	int			 vtnet_act_vq_pairs;
+	int			 vtnet_req_vq_pairs;
 	int			 vtnet_max_vq_pairs;
-	int			 vtnet_requested_vq_pairs;
 	int			 vtnet_lro_entry_count;
 	int			 vtnet_lro_mbufq_depth;
 
