@@ -8,6 +8,7 @@ SUBDIR = \
 	ds13rtc \
 	ds1672 \
 	ds3231 \
+	htu21 \
 	icee \
 	if_ic \
 	iic \
