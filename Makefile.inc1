@@ -1001,6 +1001,15 @@ _cleanobj_fast_depend_hack: .PHONY
 		   ${LIBCOMPAT:D${LIBCOMPAT_OBJTOP}/lib/libomp/.depend.${f}.*}; \
 	fi
 .endfor
+# 20201224 2afa221f694 Stop sharing pf_ruleset.c with the kernel
+.for f in pf_ruleset
+	@if [ -e "${OBJTOP}"/sbin/pfctl/.depend.${f}.o ] && \
+	    egrep -qw "sys/netpfil/pf/${f}.c" \
+	    "${OBJTOP}"/sbin/pfctl/.depend.${f}.o; then
+			echo "Removing old ${f} dependency file"
+			rm -rf "${OBJTOP}"/sbin/pfctl/.depend.${f}.o
+	fi
+.endfor
 
 _worldtmp: .PHONY
 	@echo
