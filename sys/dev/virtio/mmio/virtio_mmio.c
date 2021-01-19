@@ -84,7 +84,7 @@ static void	vtmmio_stop(device_t);
 static void	vtmmio_poll(device_t);
 static int	vtmmio_reinit(device_t, uint64_t);
 static void	vtmmio_reinit_complete(device_t);
-static void	vtmmio_notify_virtqueue(device_t, uint16_t);
+static void	vtmmio_notify_virtqueue(device_t, uint16_t, bus_size_t);
 static uint8_t	vtmmio_get_status(device_t);
 static void	vtmmio_set_status(device_t, uint8_t);
 static void	vtmmio_read_dev_config(device_t, bus_size_t, void *, int);
@@ -352,6 +352,13 @@ vtmmio_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		 */
 		*result = 0;
 		break;
+	case VIRTIO_IVAR_MODERN:
+		/*
+		 * There are several modern (aka MMIO v2) spec compliance
+		 * issues with this driver, but keep the status quo.
+		 */
+		*result = sc->vtmmio_version > 1;
+		break;
 	default:
 		return (ENOENT);
 	}
@@ -388,6 +395,10 @@ vtmmio_negotiate_features(device_t dev, uint64_t child_features)
 
 	sc = device_get_softc(dev);
 
+	if (sc->vtmmio_version > 1) {
+		child_features |= VIRTIO_F_VERSION_1;
+	}
+
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_HOST_FEATURES_SEL, 1);
 	host_features = vtmmio_read_config_4(sc, VIRTIO_MMIO_HOST_FEATURES);
 	host_features <<= 32;
@@ -402,7 +413,7 @@ vtmmio_negotiate_features(device_t dev, uint64_t child_features)
 	 * host all support.
 	 */
 	features = host_features & child_features;
-	features = virtqueue_filter_features(features);
+	features = virtio_filter_transport_features(features);
 	sc->vtmmio_features = features;
 
 	vtmmio_describe_features(sc, "negotiated", features);
@@ -504,7 +515,8 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		size = vtmmio_read_config_4(sc, VIRTIO_MMIO_QUEUE_NUM_MAX);
 
 		error = virtqueue_alloc(dev, idx, size,
-		    VIRTIO_MMIO_VRING_ALIGN, ~(vm_paddr_t)0, info, &vq);
+		    VIRTIO_MMIO_QUEUE_NOTIFY, VIRTIO_MMIO_VRING_ALIGN,
+		    ~(vm_paddr_t)0, info, &vq);
 		if (error) {
 			device_printf(dev,
 			    "cannot allocate virtqueue %d: %d\n",
@@ -586,13 +598,14 @@ vtmmio_reinit_complete(device_t dev)
 }
 
 static void
-vtmmio_notify_virtqueue(device_t dev, uint16_t queue)
+vtmmio_notify_virtqueue(device_t dev, uint16_t queue, bus_size_t offset)
 {
 	struct vtmmio_softc *sc;
 
 	sc = device_get_softc(dev);
+	MPASS(offset == VIRTIO_MMIO_QUEUE_NOTIFY);
 
-	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_NOTIFY, queue);
+	vtmmio_write_config_4(sc, offset, queue);
 }
 
 static uint8_t

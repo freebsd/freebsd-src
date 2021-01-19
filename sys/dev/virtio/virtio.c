@@ -60,24 +60,28 @@ static struct virtio_ident {
 	{ VIRTIO_ID_ENTROPY,		"Entropy"			},
 	{ VIRTIO_ID_BALLOON,		"Balloon"			},
 	{ VIRTIO_ID_IOMEMORY,		"IOMemory"			},
-	{ VIRTIO_ID_RPMSG,		"Remote Processor Messaging" 	},
+	{ VIRTIO_ID_RPMSG,		"Remote Processor Messaging"	},
 	{ VIRTIO_ID_SCSI,		"SCSI"				},
 	{ VIRTIO_ID_9P,			"9P Transport"			},
 	{ VIRTIO_ID_RPROC_SERIAL,	"Remote Processor Serial"	},
 	{ VIRTIO_ID_CAIF,		"CAIF"				},
 	{ VIRTIO_ID_GPU,		"GPU"				},
-	{ VIRTIO_ID_INPUT,		"Input" 			},
-	{ VIRTIO_ID_VSOCK,		"VSOCK Transport" 		},
-	{ VIRTIO_ID_CRYPTO,		"Crypto" 			},
+	{ VIRTIO_ID_INPUT,		"Input"				},
+	{ VIRTIO_ID_VSOCK,		"VSOCK Transport"		},
+	{ VIRTIO_ID_CRYPTO,		"Crypto"			},
+
 	{ 0, NULL }
 };
 
 /* Device independent features. */
 static struct virtio_feature_desc virtio_common_feature_desc[] = {
-	{ VIRTIO_F_NOTIFY_ON_EMPTY,	"NotifyOnEmpty"	},
-	{ VIRTIO_RING_F_INDIRECT_DESC,	"RingIndirect"	},
-	{ VIRTIO_RING_F_EVENT_IDX,	"EventIdx"	},
-	{ VIRTIO_F_BAD_FEATURE,		"BadFeature"	},
+	{ VIRTIO_F_NOTIFY_ON_EMPTY,	"NotifyOnEmpty"		}, /* Legacy */
+	{ VIRTIO_F_ANY_LAYOUT,		"AnyLayout"		}, /* Legacy */
+	{ VIRTIO_RING_F_INDIRECT_DESC,	"RingIndirectDesc"	},
+	{ VIRTIO_RING_F_EVENT_IDX,	"RingEventIdx"		},
+	{ VIRTIO_F_BAD_FEATURE,		"BadFeature"		}, /* Legacy */
+	{ VIRTIO_F_VERSION_1,		"Version1"		},
+	{ VIRTIO_F_IOMMU_PLATFORM,	"IOMMUPlatform"		},
 
 	{ 0, NULL }
 };
@@ -125,12 +129,13 @@ virtio_describe(device_t dev, const char *msg,
 	const char *name;
 	int n;
 
-	if ((buf = malloc(512, M_TEMP, M_NOWAIT)) == NULL) {
-		device_printf(dev, "%s features: %#jx\n", msg, (uintmax_t) features);
+	if ((buf = malloc(1024, M_TEMP, M_NOWAIT)) == NULL) {
+		device_printf(dev, "%s features: %#jx\n",
+		    msg, (uintmax_t) features);
 		return;
 	}
 
-	sbuf_new(&sb, buf, 512, SBUF_FIXEDLEN);
+	sbuf_new(&sb, buf, 1024, SBUF_FIXEDLEN);
 	sbuf_printf(&sb, "%s features: %#jx", msg, (uintmax_t) features);
 
 	for (n = 0, val = 1ULL << 63; val != 0; val >>= 1) {
@@ -163,6 +168,48 @@ virtio_describe(device_t dev, const char *msg,
 	free(buf, M_TEMP);
 }
 
+uint64_t
+virtio_filter_transport_features(uint64_t features)
+{
+	uint64_t transport, mask;
+
+	transport = (1ULL <<
+	    (VIRTIO_TRANSPORT_F_END - VIRTIO_TRANSPORT_F_START)) - 1;
+	transport <<= VIRTIO_TRANSPORT_F_START;
+
+	mask = -1ULL & ~transport;
+	mask |= VIRTIO_RING_F_INDIRECT_DESC;
+	mask |= VIRTIO_RING_F_EVENT_IDX;
+	mask |= VIRTIO_F_VERSION_1;
+
+	return (features & mask);
+}
+
+int
+virtio_bus_is_modern(device_t dev)
+{
+	uintptr_t modern;
+
+	virtio_read_ivar(dev, VIRTIO_IVAR_MODERN, &modern);
+	return (modern != 0);
+}
+
+void
+virtio_read_device_config_array(device_t dev, bus_size_t offset, void *dst,
+    int size, int count)
+{
+	int i, gen;
+
+	do {
+		gen = virtio_config_generation(dev);
+
+		for (i = 0; i < count; i++) {
+			virtio_read_device_config(dev, offset + i * size,
+			    (uint8_t *) dst + i * size, size);
+		}
+	} while (gen != virtio_config_generation(dev));
+}
+
 /*
  * VirtIO bus method wrappers.
  */
@@ -188,6 +235,13 @@ virtio_negotiate_features(device_t dev, uint64_t child_features)
 
 	return (VIRTIO_BUS_NEGOTIATE_FEATURES(device_get_parent(dev),
 	    child_features));
+}
+
+int
+virtio_finalize_features(device_t dev)
+{
+
+	return (VIRTIO_BUS_FINALIZE_FEATURES(device_get_parent(dev)));
 }
 
 int

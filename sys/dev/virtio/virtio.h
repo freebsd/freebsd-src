@@ -31,6 +31,7 @@
 #ifndef _VIRTIO_H_
 #define _VIRTIO_H_
 
+#include <dev/virtio/virtio_endian.h>
 #include <dev/virtio/virtio_ids.h>
 #include <dev/virtio/virtio_config.h>
 
@@ -57,6 +58,7 @@ struct vq_alloc_info;
 #define VIRTIO_IVAR_DEVICE		4
 #define VIRTIO_IVAR_SUBVENDOR		5
 #define VIRTIO_IVAR_SUBDEVICE		6
+#define VIRTIO_IVAR_MODERN		7
 
 struct virtio_feature_desc {
 	uint64_t	 vfd_val;
@@ -81,6 +83,10 @@ struct virtio_pnp_match {
 const char *virtio_device_name(uint16_t devid);
 void	 virtio_describe(device_t dev, const char *msg,
 	     uint64_t features, struct virtio_feature_desc *feature_desc);
+uint64_t virtio_filter_transport_features(uint64_t features);
+int	 virtio_bus_is_modern(device_t dev);
+void	 virtio_read_device_config_array(device_t dev, bus_size_t offset,
+	     void *dst, int size, int count);
 
 /*
  * VirtIO Bus Methods.
@@ -88,6 +94,7 @@ void	 virtio_describe(device_t dev, const char *msg,
 void	 virtio_read_ivar(device_t dev, int ivar, uintptr_t *val);
 void	 virtio_write_ivar(device_t dev, int ivar, uintptr_t val);
 uint64_t virtio_negotiate_features(device_t dev, uint64_t child_features);
+int	 virtio_finalize_features(device_t dev);
 int	 virtio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	     struct vq_alloc_info *info);
 int	 virtio_setup_intr(device_t dev, enum intr_type type);
@@ -147,6 +154,7 @@ VIRTIO_READ_IVAR(vendor,	VIRTIO_IVAR_VENDOR);
 VIRTIO_READ_IVAR(device,	VIRTIO_IVAR_DEVICE);
 VIRTIO_READ_IVAR(subvendor,	VIRTIO_IVAR_SUBVENDOR);
 VIRTIO_READ_IVAR(subdevice,	VIRTIO_IVAR_SUBDEVICE);
+VIRTIO_READ_IVAR(modern,	VIRTIO_IVAR_MODERN);
 
 #undef VIRTIO_READ_IVAR
 

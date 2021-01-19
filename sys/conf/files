@@ -3457,6 +3457,9 @@ dev/virtio/virtqueue.c			optional	virtio
 dev/virtio/virtio_bus_if.m		optional	virtio
 dev/virtio/virtio_if.m			optional	virtio
 dev/virtio/pci/virtio_pci.c		optional	virtio_pci
+dev/virtio/pci/virtio_pci_if.m		optional	virtio_pci
+dev/virtio/pci/virtio_pci_legacy.c	optional	virtio_pci
+dev/virtio/pci/virtio_pci_modern.c	optional	virtio_pci
 dev/virtio/mmio/virtio_mmio.c		optional	virtio_mmio
 dev/virtio/mmio/virtio_mmio_acpi.c	optional	virtio_mmio acpi
 dev/virtio/mmio/virtio_mmio_fdt.c	optional	virtio_mmio fdt

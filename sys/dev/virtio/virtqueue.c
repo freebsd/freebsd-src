@@ -64,6 +64,7 @@ struct virtqueue {
 #define	VIRTQUEUE_FLAG_INDIRECT	 0x0001
 #define	VIRTQUEUE_FLAG_EVENT_IDX 0x0002
 
+	bus_size_t		 vq_notify_offset;
 	int			 vq_alignment;
 	int			 vq_ring_size;
 	void			*vq_ring_mem;
@@ -147,8 +148,9 @@ virtqueue_filter_features(uint64_t features)
 }
 
 int
-virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size, int align,
-    vm_paddr_t highaddr, struct vq_alloc_info *info, struct virtqueue **vqp)
+virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size,
+    bus_size_t notify_offset, int align, vm_paddr_t highaddr,
+    struct vq_alloc_info *info, struct virtqueue **vqp)
 {
 	struct virtqueue *vq;
 	int error;
@@ -184,6 +186,7 @@ virtqueue_alloc(device_t dev, uint16_t queue, uint16_t size, int align,
 	vq->vq_dev = dev;
 	strlcpy(vq->vq_name, info->vqai_name, sizeof(vq->vq_name));
 	vq->vq_queue_index = queue;
+	vq->vq_notify_offset = notify_offset;
 	vq->vq_alignment = align;
 	vq->vq_nentries = size;
 	vq->vq_free_cnt = size;
@@ -820,7 +823,8 @@ static void
 vq_ring_notify_host(struct virtqueue *vq)
 {
 
-	VIRTIO_BUS_NOTIFY_VQ(vq->vq_dev, vq->vq_queue_index);
+	VIRTIO_BUS_NOTIFY_VQ(vq->vq_dev, vq->vq_queue_index,
+	    vq->vq_notify_offset);
 }
 
 static void
