@@ -657,6 +657,21 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 
 	negotiated_features = virtio_negotiate_features(dev, features);
 
+	if (virtio_with_feature(dev, VIRTIO_NET_F_MQ)) {
+		uint16_t npairs;
+
+		npairs = virtio_read_dev_config_2(dev,
+		    offsetof(struct virtio_net_config, max_virtqueue_pairs));
+		if (npairs < VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN ||
+		    npairs > VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX) {
+			device_printf(dev, "Invalid max_virtqueue_pairs value: "
+			    "%d. Multiqueue feature disabled.\n", npairs);
+			features &= ~VIRTIO_NET_F_MQ;
+			negotiated_features =
+			    virtio_negotiate_features(dev, features);
+		}
+	}
+
 	if (virtio_with_feature(dev, VTNET_LRO_FEATURES) &&
 	    virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF) == 0) {
 		/*
@@ -763,23 +778,22 @@ vtnet_setup_features(struct vtnet_softc *sc)
 	}
 
 	if (sc->vtnet_max_vq_pairs > 1) {
-		int max;
+		int req;
 
 		/*
-		 * Limit the maximum number of queue pairs to the lower of
-		 * the number of CPUs and the configured maximum. The actual
-		 * number of queues that get used may be less.
+		 * Limit the maximum number of requested queue pairs to the
+		 * number of CPUs and the configured maximum.
 		 */
-		max = vtnet_tunable_int(sc, "mq_max_pairs", vtnet_mq_max_pairs);
-		if (max > VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MIN) {
-			if (max > mp_ncpus)
-				max = mp_ncpus;
-			if (max > VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX)
-				max = VIRTIO_NET_CTRL_MQ_VQ_PAIRS_MAX;
-			if (max > 1) {
-				sc->vtnet_requested_vq_pairs = max;
-				sc->vtnet_flags |= VTNET_FLAG_MQ;
-			}
+		req = vtnet_tunable_int(sc, "mq_max_pairs", vtnet_mq_max_pairs);
+		if (req < 1)
+			req = 1;
+		if (req > sc->vtnet_max_vq_pairs)
+			req = sc->vtnet_max_vq_pairs;
+		if (req > mp_ncpus)
+			req = mp_ncpus;
+		if (req > 1) {
+			sc->vtnet_req_vq_pairs = req;
+			sc->vtnet_flags |= VTNET_FLAG_MQ;
 		}
 	}
 }
@@ -3272,7 +3286,7 @@ vtnet_set_active_vq_pairs(struct vtnet_softc *sc)
 		return;
 	}
 
-	npairs = sc->vtnet_requested_vq_pairs;
+	npairs = sc->vtnet_req_vq_pairs;
 
 	if (vtnet_ctrl_mq_cmd(sc, npairs) != 0) {
 		device_printf(dev,
@@ -4172,8 +4186,8 @@ vtnet_setup_sysctl(struct vtnet_softc *sc)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "max_vq_pairs",
 	    CTLFLAG_RD, &sc->vtnet_max_vq_pairs, 0,
 	    "Number of maximum supported virtqueue pairs");
-	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "requested_vq_pairs",
-	    CTLFLAG_RD, &sc->vtnet_requested_vq_pairs, 0,
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "req_vq_pairs",
+	    CTLFLAG_RD, &sc->vtnet_req_vq_pairs, 0,
 	    "Number of requested virtqueue pairs");
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "act_vq_pairs",
 	    CTLFLAG_RD, &sc->vtnet_act_vq_pairs, 0,
