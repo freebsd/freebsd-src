@@ -214,8 +214,9 @@ static int	vtnet_is_link_up(struct vtnet_softc *);
 static void	vtnet_update_link_status(struct vtnet_softc *);
 static int	vtnet_ifmedia_upd(struct ifnet *);
 static void	vtnet_ifmedia_sts(struct ifnet *, struct ifmediareq *);
-static void	vtnet_get_hwaddr(struct vtnet_softc *);
-static void	vtnet_set_hwaddr(struct vtnet_softc *);
+static void	vtnet_get_macaddr(struct vtnet_softc *);
+static void	vtnet_set_macaddr(struct vtnet_softc *);
+static void	vtnet_attached_set_macaddr(struct vtnet_softc *);
 static void	vtnet_vlan_tag_remove(struct mbuf *);
 static void	vtnet_set_rx_process_limit(struct vtnet_softc *);
 static void	vtnet_set_tx_intr_threshold(struct vtnet_softc *);
@@ -568,6 +569,13 @@ vtnet_shutdown(device_t dev)
 static int
 vtnet_attach_completed(device_t dev)
 {
+	struct vtnet_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	VTNET_CORE_LOCK(sc);
+	vtnet_attached_set_macaddr(sc);
+	VTNET_CORE_UNLOCK(sc);
 
 	return (0);
 }
@@ -1016,7 +1024,7 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	ifmedia_add(&sc->vtnet_media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&sc->vtnet_media, IFM_ETHER | IFM_AUTO);
 
-	vtnet_get_hwaddr(sc);
+	vtnet_get_macaddr(sc);
 	ether_ifattach(ifp, sc->vtnet_hwaddr);
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_STATUS))
@@ -3108,7 +3116,7 @@ vtnet_reinit(struct vtnet_softc *sc)
 
 	/* Use the current MAC address. */
 	bcopy(IF_LLADDR(ifp), sc->vtnet_hwaddr, ETHER_ADDR_LEN);
-	vtnet_set_hwaddr(sc);
+	vtnet_set_macaddr(sc);
 
 	vtnet_set_active_vq_pairs(sc);
 
@@ -3669,30 +3677,7 @@ vtnet_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
-vtnet_set_hwaddr(struct vtnet_softc *sc)
-{
-	device_t dev;
-
-	dev = sc->vtnet_dev;
-
-	if (sc->vtnet_flags & VTNET_FLAG_CTRL_MAC) {
-		if (vtnet_ctrl_mac_cmd(sc, sc->vtnet_hwaddr) != 0)
-			device_printf(dev, "unable to set MAC address\n");
-		return;
-	}
-
-	/* In modern VirtIO the MAC config is read-only. */
-	if (!vtnet_modern(sc) && sc->vtnet_flags & VTNET_FLAG_MAC) {
-		for (int i = 0; i < ETHER_ADDR_LEN; i++) {
-			virtio_write_dev_config_1(dev,
-			    offsetof(struct virtio_net_config, mac) + i,
-			    sc->vtnet_hwaddr[i]);
-		}
-	}
-}
-
-static void
-vtnet_get_hwaddr(struct vtnet_softc *sc)
+vtnet_get_macaddr(struct vtnet_softc *sc)
 {
 
 	if (sc->vtnet_flags & VTNET_FLAG_MAC) {
@@ -3703,9 +3688,38 @@ vtnet_get_hwaddr(struct vtnet_softc *sc)
 		/* Generate a random locally administered unicast address. */
 		sc->vtnet_hwaddr[0] = 0xB2;
 		arc4rand(&sc->vtnet_hwaddr[1], ETHER_ADDR_LEN - 1, 0);
-		/* BMV: FIXME Cannot do before DRIVER_OK! See 3.1.2 */
-		vtnet_set_hwaddr(sc);
 	}
+}
+
+static void
+vtnet_set_macaddr(struct vtnet_softc *sc)
+{
+	int error;
+
+	if (sc->vtnet_flags & VTNET_FLAG_CTRL_MAC) {
+		error = vtnet_ctrl_mac_cmd(sc, sc->vtnet_hwaddr);
+		if (error)
+			if_printf(sc->vtnet_ifp, "unable to set MAC address\n");
+		return;
+	}
+
+	/* MAC in config is read-only in modern VirtIO. */
+	if (!vtnet_modern(sc) && sc->vtnet_flags & VTNET_FLAG_MAC) {
+		for (int i = 0; i < ETHER_ADDR_LEN; i++) {
+			virtio_write_dev_config_1(sc->vtnet_dev,
+			    offsetof(struct virtio_net_config, mac) + i,
+			    sc->vtnet_hwaddr[i]);
+		}
+	}
+}
+
+static void
+vtnet_attached_set_macaddr(struct vtnet_softc *sc)
+{
+
+	/* Assign MAC address if it was generated. */
+	if ((sc->vtnet_flags & VTNET_FLAG_MAC) == 0)
+		vtnet_set_macaddr(sc);
 }
 
 static void
