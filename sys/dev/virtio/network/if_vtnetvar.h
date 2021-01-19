@@ -79,6 +79,7 @@ struct vtnet_rxq {
 	struct vtnet_rxq_stats	 vtnrx_stats;
 	struct taskqueue	*vtnrx_tq;
 	struct task		 vtnrx_intrtask;
+	struct lro_ctrl		 vtnrx_lro;
 #ifdef DEV_NETMAP
 	uint32_t		 vtnrx_nm_refill;
 	struct virtio_net_hdr_mrg_rxbuf vtnrx_shrhdr;
@@ -155,6 +156,7 @@ struct vtnet_softc {
 #define VTNET_FLAG_EVENT_IDX	 0x0800
 #define VTNET_FLAG_SUSPENDED	 0x1000
 #define VTNET_FLAG_FIXUP_NEEDS_CSUM 0x2000
+#define VTNET_FLAG_SW_LRO	 0x4000
 
 	int			 vtnet_link_active;
 	int			 vtnet_hdr_size;
@@ -168,6 +170,8 @@ struct vtnet_softc {
 	int			 vtnet_act_vq_pairs;
 	int			 vtnet_max_vq_pairs;
 	int			 vtnet_requested_vq_pairs;
+	int			 vtnet_lro_entry_count;
+	int			 vtnet_lro_mbufq_depth;
 
 	struct virtqueue	*vtnet_ctrl_vq;
 	struct vtnet_mac_filter	*vtnet_mac_filter;
@@ -190,6 +194,12 @@ static bool
 vtnet_modern(struct vtnet_softc *sc)
 {
 	return ((sc->vtnet_flags & VTNET_FLAG_MODERN) != 0);
+}
+
+static bool
+vtnet_software_lro(struct vtnet_softc *sc)
+{
+	return ((sc->vtnet_flags & VTNET_FLAG_SW_LRO) != 0);
 }
 
 /*
@@ -325,8 +335,7 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
 
 /*
  * The VIRTIO_NET_F_GUEST_TSO[46] features permit the host to send us
- * frames larger than 1514 bytes. We do not yet support software LRO
- * via tcp_lro_rx().
+ * frames larger than 1514 bytes.
  */
 #define VTNET_LRO_FEATURES (VIRTIO_NET_F_GUEST_TSO4 | \
     VIRTIO_NET_F_GUEST_TSO6 | VIRTIO_NET_F_GUEST_ECN)
