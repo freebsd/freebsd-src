@@ -70,7 +70,7 @@ static struct pci_devinst *lpc_bridge;
 
 static const char *romfile;
 
-#define	LPC_UART_NUM	2
+#define	LPC_UART_NUM	4
 static struct lpc_uart_softc {
 	struct uart_softc *uart_softc;
 	const char *opts;
@@ -79,7 +79,7 @@ static struct lpc_uart_softc {
 	int	enabled;
 } lpc_uart_softc[LPC_UART_NUM];
 
-static const char *lpc_uart_names[LPC_UART_NUM] = { "COM1", "COM2" };
+static const char *lpc_uart_names[LPC_UART_NUM] = { "COM1", "COM2", "COM3", "COM4" };
 
 static bool pctestdev_present;
 

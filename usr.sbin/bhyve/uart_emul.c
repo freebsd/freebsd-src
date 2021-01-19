@@ -62,6 +62,10 @@ __FBSDID("$FreeBSD$");
 #define	COM1_IRQ	4
 #define	COM2_BASE      	0x2F8
 #define	COM2_IRQ	3
+#define	COM3_BASE	0x3E8
+#define	COM3_IRQ	4
+#define	COM4_BASE	0x2E8
+#define	COM4_IRQ	3
 
 #define	DEFAULT_RCLK	1843200
 #define	DEFAULT_BAUD	9600
@@ -89,6 +93,8 @@ static struct {
 } uart_lres[] = {
 	{ COM1_BASE, COM1_IRQ, false},
 	{ COM2_BASE, COM2_IRQ, false},
+	{ COM3_BASE, COM3_IRQ, false},
+	{ COM4_BASE, COM4_IRQ, false},
 };
 
 #define	UART_NLDEVS	(sizeof(uart_lres) / sizeof(uart_lres[0]))
