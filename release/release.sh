@@ -65,6 +65,17 @@ env_setup() {
 		[ ! -z "${VCSCMD}" ] && break 2
 	done
 
+	# Find the Subversion binary to use.  This is a workaround to use
+	# the source of truth for the ports tree, as the conversion to Git
+	# is targeted to occur slightly after the currently-scheduled 13.0
+	# release.
+	for _dir in /usr/bin /usr/local/bin; do
+		for _svn in svn svnlite; do
+			[ -x "${_dir}/${_svn}" ] && SVNCMD="${_dir}/${_svn}"
+			[ ! -z "${SVNCMD}" ] && break 2
+		done
+	done
+
 	if [ -z "${VCSCMD}" -a -z "${NOGIT}" ]; then
 		echo "*** The devel/git port/package is required."
 		exit 1
@@ -76,7 +87,7 @@ env_setup() {
 	GITROOT="https://git.FreeBSD.org/"
 	SRCBRANCH="main"
 	DOCBRANCH="main"
-	PORTBRANCH="main"
+	PORTBRANCH="head"
 	GITSRC="src.git"
 	GITPORTS="ports.git"
 	GITDOC="doc.git"
@@ -136,7 +147,7 @@ env_check() {
 	SRC="${GITROOT}${GITSRC}"
 	DOC="${GITROOT}${GITDOC}"
 	#PORT="${GITROOT}${GITPORTS}"
-	PORT="https://cgit-beta.freebsd.org/ports.git"
+	PORT="svn://svn.freebsd.org/ports/${PORTBRANCH}"
 
 	if [ -n "${EMBEDDEDBUILD}" ]; then
 		WITH_DVD=
@@ -238,7 +249,10 @@ chroot_setup() {
 		if [ -d "${CHROOTDIR}/usr/ports/.git" ]; then
 			git -C ${CHROOTDIR}/usr/ports pull -q
 		else
-			${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
+			#${VCSCMD} ${PORT} -b ${PORTBRANCH} ${CHROOTDIR}/usr/ports
+			# XXX: Workaround for the overlap in the Git
+			# conversion timeframe.
+			${SVNCMD} co ${PORT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports
 		fi
 	fi
 
