@@ -2604,8 +2604,35 @@ prison_allow(struct ucred *cred, unsigned flag)
 }
 
 /*
- * Remove a prison reference.  If that was the last reference, remove the
- * prison itself - but not in this context in case there are locks held.
+ * Hold a prison reference, by incrementing pr_ref.  It is generally
+ * an error to hold a prison that does not already have a reference.
+ * A prison record will remain valid as long as it has at least one
+ * reference, and will not be removed as long as either the prison
+ * mutex or the allprison lock is held (allprison_lock may be shared).
+ */
+void
+prison_hold_locked(struct prison *pr)
+{
+
+	mtx_assert(&pr->pr_mtx, MA_OWNED);
+	KASSERT(pr->pr_ref > 0,
+	    ("Trying to hold dead prison %p (jid=%d).", pr, pr->pr_id));
+	pr->pr_ref++;
+}
+
+void
+prison_hold(struct prison *pr)
+{
+
+	mtx_lock(&pr->pr_mtx);
+	prison_hold_locked(pr);
+	mtx_unlock(&pr->pr_mtx);
+}
+
+/*
+ * Remove a prison reference.  If that was the last reference, the
+ * prison will be removed (at a later time).  Return with the prison
+ * unlocked.
  */
 void
 prison_free_locked(struct prison *pr)
@@ -2615,8 +2642,13 @@ prison_free_locked(struct prison *pr)
 	mtx_assert(&pr->pr_mtx, MA_OWNED);
 	ref = --pr->pr_ref;
 	mtx_unlock(&pr->pr_mtx);
-	if (ref == 0)
+	if (ref == 0) {
+		/*
+		 * Don't remove the last reference in this context,
+		 * in case there are locks held.
+		 */
 		taskqueue_enqueue(taskqueue_thread, &pr->pr_task);
+	}
 }
 
 void
@@ -2625,6 +2657,54 @@ prison_free(struct prison *pr)
 
 	mtx_lock(&pr->pr_mtx);
 	prison_free_locked(pr);
+}
+
+/*
+ * Hold a a prison for user visibility, by incrementing pr_uref.
+ * It is generally an error to hold a prison that isn't already
+ * user-visible, except through the the jail system calls.  It is also
+ * an error to hold an invalid prison.  A prison record will remain
+ * alive as long as it has at least one user reference, and will not
+ * be set to the dying state was long as the prison mutex is held.
+ */
+void
+prison_proc_hold(struct prison *pr)
+{
+
+	mtx_lock(&pr->pr_mtx);
+	KASSERT(pr->pr_uref > 0,
+	    ("Cannot add a process to a non-alive prison (jid=%d)", pr->pr_id));
+	pr->pr_uref++;
+	mtx_unlock(&pr->pr_mtx);
+}
+
+/*
+ * Remove a prison user reference.  If it was the last reference, the
+ * prison will be considered "dying", and may be removed once all of
+ * its references are dropped.
+ */
+void
+prison_proc_free(struct prison *pr)
+{
+
+	mtx_lock(&pr->pr_mtx);
+	KASSERT(pr->pr_uref > 0,
+	    ("Trying to kill a process in a dead prison (jid=%d)", pr->pr_id));
+	if (pr->pr_uref > 1)
+		pr->pr_uref--;
+	else {
+		/*
+		 * Don't remove the last user reference in this context,
+		 * which is expected to be a process that is not only locked,
+		 * but also half dead.  Add a reference so any calls to
+		 * prison_free() won't re-submit the task.
+		 */
+		pr->pr_ref++;
+		mtx_unlock(&pr->pr_mtx);
+		taskqueue_enqueue(taskqueue_thread, &pr->pr_task);
+		return;
+	}
+	mtx_unlock(&pr->pr_mtx);
 }
 
 /*
@@ -2637,16 +2717,24 @@ prison_complete(void *context, int pending)
 
 	sx_xlock(&allprison_lock);
 	mtx_lock(&pr->pr_mtx);
-	prison_deref(pr, pr->pr_uref
+	/*
+	 * If this is completing a call to prison_proc_free, there will still
+	 * be a user reference held; clear that as well as the reference that
+	 * was added.  No references are expected if this is completing a call
+	 * to prison_free, but prison_deref is still called for the cleanup.
+	 */
+	prison_deref(pr, pr->pr_uref > 0
 	    ? PD_DEREF | PD_DEUREF | PD_LOCKED | PD_LIST_XLOCKED
 	    : PD_LOCKED | PD_LIST_XLOCKED);
 }
 
 /*
- * Remove a prison reference (usually).  This internal version assumes no
- * mutexes are held, except perhaps the prison itself.  If there are no more
- * references, release and delist the prison.  On completion, the prison lock
- * and the allprison lock are both unlocked.
+ * Remove a prison reference and/or user reference (usually).
+ * This assumes context that allows sleeping (for allprison_lock),
+ * with no non-sleeping locks held, except perhaps the prison itself.
+ * If there are no more references, release and delist the prison.
+ * On completion, the prison lock and the allprison lock are both
+ * unlocked.
  */
 static void
 prison_deref(struct prison *pr, int flags)
@@ -2748,59 +2836,6 @@ prison_deref(struct prison *pr, int flags)
 		mtx_lock(&pr->pr_mtx);
 		flags = PD_DEREF | PD_DEUREF;
 	}
-}
-
-void
-prison_hold_locked(struct prison *pr)
-{
-
-	mtx_assert(&pr->pr_mtx, MA_OWNED);
-	KASSERT(pr->pr_ref > 0,
-	    ("Trying to hold dead prison %p (jid=%d).", pr, pr->pr_id));
-	pr->pr_ref++;
-}
-
-void
-prison_hold(struct prison *pr)
-{
-
-	mtx_lock(&pr->pr_mtx);
-	prison_hold_locked(pr);
-	mtx_unlock(&pr->pr_mtx);
-}
-
-void
-prison_proc_hold(struct prison *pr)
-{
-
-	mtx_lock(&pr->pr_mtx);
-	KASSERT(pr->pr_uref > 0,
-	    ("Cannot add a process to a non-alive prison (jid=%d)", pr->pr_id));
-	pr->pr_uref++;
-	mtx_unlock(&pr->pr_mtx);
-}
-
-void
-prison_proc_free(struct prison *pr)
-{
-
-	mtx_lock(&pr->pr_mtx);
-	KASSERT(pr->pr_uref > 0,
-	    ("Trying to kill a process in a dead prison (jid=%d)", pr->pr_id));
-	if (pr->pr_uref > 1)
-		pr->pr_uref--;
-	else {
-		/*
-		 * Don't remove the last user reference in this context, which
-		 * is expected to be a process that is not only locked, but
-		 * also half dead.
-		 */
-		pr->pr_ref++;
-		mtx_unlock(&pr->pr_mtx);
-		taskqueue_enqueue(taskqueue_thread, &pr->pr_task);
-		return;
-	}
-	mtx_unlock(&pr->pr_mtx);
 }
 
 /*
