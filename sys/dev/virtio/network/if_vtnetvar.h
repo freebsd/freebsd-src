@@ -174,6 +174,7 @@ struct vtnet_softc {
 	uint32_t		*vtnet_vlan_filter;
 
 	uint64_t		 vtnet_features;
+	uint64_t		 vtnet_negotiated_features;
 	struct vtnet_statistics	 vtnet_stats;
 	struct callout		 vtnet_tick_ch;
 	struct ifmedia		 vtnet_media;

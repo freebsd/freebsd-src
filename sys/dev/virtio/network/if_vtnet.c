@@ -600,7 +600,7 @@ static void
 vtnet_negotiate_features(struct vtnet_softc *sc)
 {
 	device_t dev;
-	uint64_t features;
+	uint64_t features, negotiated_features;
 	int no_csum;
 
 	dev = sc->vtnet_dev;
@@ -626,7 +626,7 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 	features &= ~VIRTIO_NET_F_MQ;
 #endif
 
-	sc->vtnet_features = virtio_negotiate_features(dev, features);
+	negotiated_features = virtio_negotiate_features(dev, features);
 
 	if (virtio_with_feature(dev, VTNET_LRO_FEATURES) &&
 	    virtio_with_feature(dev, VIRTIO_NET_F_MRG_RXBUF) == 0) {
@@ -644,11 +644,14 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 			    "LRO disabled since both mergeable buffers and "
 			    "indirect descriptors were not negotiated\n");
 			features &= ~VTNET_LRO_FEATURES;
-			sc->vtnet_features =
+			negotiated_features =
 			    virtio_negotiate_features(dev, features);
 		} else
 			sc->vtnet_flags |= VTNET_FLAG_LRO_NOMRG;
 	}
+
+	sc->vtnet_features = negotiated_features;
+	sc->vtnet_negotiated_features = negotiated_features;
 
 	virtio_finalize_features(dev);
 }
@@ -2964,19 +2967,11 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	device_t dev;
 	struct ifnet *ifp;
 	uint64_t features;
-	int mask, error;
+	int error;
 
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
-	features = sc->vtnet_features;
-
-	mask = 0;
-#if defined(INET)
-	mask |= IFCAP_RXCSUM;
-#endif
-#if defined (INET6)
-	mask |= IFCAP_RXCSUM_IPV6;
-#endif
+	features = sc->vtnet_negotiated_features;
 
 	/*
 	 * Re-negotiate with the host, removing any disabled receive
@@ -2984,14 +2979,17 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	 * via if_capenable and if_hwassist.
 	 */
 
-	if (ifp->if_capabilities & mask) {
+	if (ifp->if_capabilities & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) {
 		/*
-		 * We require both IPv4 and IPv6 offloading to be enabled
-		 * in order to negotiated it: VirtIO does not distinguish
-		 * between the two.
+		 * VirtIO does not distinguish between the IPv4 and IPv6
+		 * checksums so require both. Guest TSO (LRO) requires
+		 * Rx checksums.
 		 */
-		if ((ifp->if_capenable & mask) != mask)
+		if ((ifp->if_capenable &
+		    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) == 0) {
 			features &= ~VIRTIO_NET_F_GUEST_CSUM;
+			features &= ~VTNET_LRO_FEATURES;
+		}
 	}
 
 	if (ifp->if_capabilities & IFCAP_LRO) {
@@ -3005,10 +3003,15 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	}
 
 	error = virtio_reinit(dev, features);
-	if (error)
+	if (error) {
 		device_printf(dev, "virtio reinit error %d\n", error);
+		return (error);
+	}
 
-	return (error);
+	sc->vtnet_features = features;
+	virtio_reinit_complete(dev);
+
+	return (0);
 }
 
 static void
@@ -3019,9 +3022,7 @@ vtnet_init_rx_filters(struct vtnet_softc *sc)
 	ifp = sc->vtnet_ifp;
 
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_RX) {
-		/* Restore promiscuous and all-multicast modes. */
 		vtnet_rx_filter(sc);
-		/* Restore filtered MAC addresses. */
 		vtnet_rx_filter_mac(sc);
 	}
 
@@ -3130,16 +3131,24 @@ vtnet_set_active_vq_pairs(struct vtnet_softc *sc)
 static int
 vtnet_reinit(struct vtnet_softc *sc)
 {
+	device_t dev;
 	struct ifnet *ifp;
 	int error;
 
+	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
-	/* Use the current MAC address. */
 	bcopy(IF_LLADDR(ifp), sc->vtnet_hwaddr, ETHER_ADDR_LEN);
-	vtnet_set_macaddr(sc);
 
+	error = vtnet_virtio_reinit(sc);
+	if (error)
+		return (error);
+
+	vtnet_set_macaddr(sc);
 	vtnet_set_active_vq_pairs(sc);
+
+	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
+		vtnet_init_rx_filters(sc);
 
 	ifp->if_hwassist = 0;
 	if (ifp->if_capenable & IFCAP_TXCSUM)
@@ -3151,15 +3160,9 @@ vtnet_reinit(struct vtnet_softc *sc)
 	if (ifp->if_capenable & IFCAP_TSO6)
 		ifp->if_hwassist |= CSUM_IP6_TSO;
 
-	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
-		vtnet_init_rx_filters(sc);
-
 	error = vtnet_init_rxtx_queues(sc);
 	if (error)
 		return (error);
-
-	vtnet_enable_interrupts(sc);
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 
 	return (0);
 }
@@ -3192,27 +3195,20 @@ vtnet_init_locked(struct vtnet_softc *sc, int init_mode)
 	}
 #endif /* DEV_NETMAP */
 
-	/* Reinitialize with the host. */
-	if (vtnet_virtio_reinit(sc) != 0)
-		goto fail;
+	if (vtnet_reinit(sc) != 0) {
+		vtnet_stop(sc);
+		return;
+	}
 
-	if (vtnet_reinit(sc) != 0)
-		goto fail;
-
-	virtio_reinit_complete(dev);
-
+	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	vtnet_update_link_status(sc);
+	vtnet_enable_interrupts(sc);
 	callout_reset(&sc->vtnet_tick_ch, hz, vtnet_tick, sc);
 
 #ifdef DEV_NETMAP
 	/* Re-enable txsync/rxsync. */
 	netmap_enable_all_rings(ifp);
 #endif /* DEV_NETMAP */
-
-	return;
-
-fail:
-	vtnet_stop(sc);
 }
 
 static void
@@ -3247,8 +3243,8 @@ vtnet_exec_ctrl_cmd(struct vtnet_softc *sc, void *cookie,
 
 	vq = sc->vtnet_ctrl_vq;
 
-	VTNET_CORE_LOCK_ASSERT(sc);
 	MPASS(sc->vtnet_flags & VTNET_FLAG_CTRL_VQ);
+	VTNET_CORE_LOCK_ASSERT(sc);
 
 	if (!virtqueue_empty(vq))
 		return;
@@ -3707,19 +3703,22 @@ vtnet_get_macaddr(struct vtnet_softc *sc)
 static void
 vtnet_set_macaddr(struct vtnet_softc *sc)
 {
+	device_t dev;
 	int error;
+
+	dev = sc->vtnet_dev;
 
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_MAC) {
 		error = vtnet_ctrl_mac_cmd(sc, sc->vtnet_hwaddr);
 		if (error)
-			if_printf(sc->vtnet_ifp, "unable to set MAC address\n");
+			device_printf(dev, "unable to set MAC address\n");
 		return;
 	}
 
 	/* MAC in config is read-only in modern VirtIO. */
 	if (!vtnet_modern(sc) && sc->vtnet_flags & VTNET_FLAG_MAC) {
 		for (int i = 0; i < ETHER_ADDR_LEN; i++) {
-			virtio_write_dev_config_1(sc->vtnet_dev,
+			virtio_write_dev_config_1(dev,
 			    offsetof(struct virtio_net_config, mac) + i,
 			    sc->vtnet_hwaddr[i]);
 		}
