@@ -54,8 +54,7 @@ char	*optarg;		/* argument associated with option */
 
 #define	BADCH	(int)'?'
 #define	BADARG	(int)':'
-#define	EMSG	""
-
+static char EMSG[] = "";
 /*
  * getopt --
  *	Parse argc/argv argument vector.

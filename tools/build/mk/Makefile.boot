@@ -41,6 +41,7 @@ CWARNFLAGS+=	-Wno-typedef-redefinition
 # bsd.sys.mk explicitly turns on -Wsystem-headers, but that's extremely
 # noisy when building on Linux.
 CWARNFLAGS+=	-Wno-system-headers
+CWARNFLAGS.clang+=-Werror=incompatible-pointer-types-discards-qualifiers
 
 # b64_pton and b64_ntop is in libresolv on MacOS and Linux:
 # TODO: only needed for uuencode and uudecode
