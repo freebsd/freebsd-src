@@ -17,6 +17,7 @@ SRCS+=	acl_branding.c			\
 	acl_delete.c			\
 	acl_delete_entry.c		\
 	acl_entry.c			\
+	acl_equiv_mode_np.c		\
 	acl_flag.c			\
 	acl_free.c			\
 	acl_from_mode_np.c		\
@@ -56,6 +57,7 @@ MAN+=	acl.3				\
 	acl_delete_flag_np.3		\
 	acl_delete_perm.3		\
 	acl_dup.3			\
+	acl_equiv_mode_np.3		\
 	acl_free.3			\
 	acl_from_mode_np.3		\
 	acl_from_text.3			\
