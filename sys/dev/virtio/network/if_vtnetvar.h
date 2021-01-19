@@ -153,6 +153,7 @@ struct vtnet_softc {
 #define VTNET_FLAG_INDIRECT	 0x0400
 #define VTNET_FLAG_EVENT_IDX	 0x0800
 #define VTNET_FLAG_SUSPENDED	 0x1000
+#define VTNET_FLAG_FIXUP_NEEDS_CSUM 0x2000
 
 	int			 vtnet_link_active;
 	int			 vtnet_hdr_size;
@@ -160,7 +161,6 @@ struct vtnet_softc {
 	int			 vtnet_rx_nsegs;
 	int			 vtnet_rx_nmbufs;
 	int			 vtnet_rx_clustersz;
-	int			 vtnet_rx_new_clustersz;
 	int			 vtnet_tx_intr_thresh;
 	int			 vtnet_tx_nsegs;
 	int			 vtnet_if_flags;
@@ -193,7 +193,7 @@ vtnet_modern(struct vtnet_softc *sc)
 /*
  * Maximum number of queue pairs we will autoconfigure to.
  */
-#define VTNET_MAX_QUEUE_PAIRS	8
+#define VTNET_MAX_QUEUE_PAIRS	32
 
 /*
  * Additional completed entries can appear in a virtqueue before we can
@@ -336,39 +336,24 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
 #define VTNET_MAX_RX_SIZE	65550
 
 /*
- * Used to preallocate the Vq indirect descriptors. The first segment is
- * reserved for the header, except for mergeable buffers or modern since
- * the header is placed inline with the data.
+ * Used to preallocate the VQ indirect descriptors. Modern and mergeable
+ * buffers do not required one segment for the VirtIO header since it is
+ * placed inline at the beginning of the receive buffer.
  */
-#define VTNET_MRG_RX_SEGS	1
-#define VTNET_MODERN_RX_SEGS	1
-#define VTNET_MIN_RX_SEGS	2
-#define VTNET_MAX_RX_SEGS	34
-#define VTNET_MIN_TX_SEGS	32
-#define VTNET_MAX_TX_SEGS	64
+#define VTNET_RX_SEGS_HDR_INLINE	1
+#define VTNET_RX_SEGS_HDR_SEPARATE	2
+#define VTNET_RX_SEGS_LRO_NOMRG		34
+#define VTNET_TX_SEGS_MIN		32
+#define VTNET_TX_SEGS_MAX		64
 
-/*
- * Assert we can receive and transmit the maximum with regular
- * size clusters.
- */
-CTASSERT(((VTNET_MAX_RX_SEGS - 1) * MCLBYTES) >= VTNET_MAX_RX_SIZE);
-CTASSERT(((VTNET_MAX_TX_SEGS - 1) * MCLBYTES) >= VTNET_MAX_MTU);
+CTASSERT(((VTNET_RX_SEGS_LRO_NOMRG - 1) * MCLBYTES) >= VTNET_MAX_RX_SIZE);
+CTASSERT(((VTNET_TX_SEGS_MAX - 1) * MCLBYTES) >= VTNET_MAX_MTU);
 
 /*
  * Number of slots in the Tx bufrings. This value matches most other
  * multiqueue drivers.
  */
 #define VTNET_DEFAULT_BUFRING_SIZE	4096
-
-/*
- * Determine how many mbufs are in each receive buffer. For LRO without
- * mergeable buffers, we must allocate an mbuf chain large enough to
- * hold both the vtnet_rx_header and the maximum receivable data.
- */
-#define VTNET_NEEDED_RX_MBUFS(_sc, _clustersz)				\
-	((_sc)->vtnet_flags & VTNET_FLAG_LRO_NOMRG) == 0 ? 1 :		\
-	    howmany(sizeof(struct vtnet_rx_header) + VTNET_MAX_RX_SIZE,	\
-	        (_clustersz))
 
 #define VTNET_CORE_MTX(_sc)		&(_sc)->vtnet_mtx
 #define VTNET_CORE_LOCK(_sc)		mtx_lock(VTNET_CORE_MTX((_sc)))

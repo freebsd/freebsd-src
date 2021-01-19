@@ -86,6 +86,10 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
+#if defined(INET) || defined(INET6)
+#include <machine/in_cksum.h>
+#endif
+
 static int	vtnet_modevent(module_t, int, void *);
 
 static int	vtnet_probe(device_t);
@@ -107,7 +111,7 @@ static int	vtnet_alloc_rx_filters(struct vtnet_softc *);
 static void	vtnet_free_rx_filters(struct vtnet_softc *);
 static int	vtnet_alloc_virtqueues(struct vtnet_softc *);
 static int	vtnet_setup_interface(struct vtnet_softc *);
-static int	vtnet_change_mtu(struct vtnet_softc *, int);
+static int	vtnet_ioctl_mtu(struct vtnet_softc *, int);
 static int	vtnet_ioctl(struct ifnet *, u_long, caddr_t);
 static uint64_t	vtnet_get_counter(struct ifnet *, ift_counter);
 
@@ -115,11 +119,15 @@ static int	vtnet_rxq_populate(struct vtnet_rxq *);
 static void	vtnet_rxq_free_mbufs(struct vtnet_rxq *);
 static struct mbuf *
 		vtnet_rx_alloc_buf(struct vtnet_softc *, int , struct mbuf **);
-static int	vtnet_rxq_replace_lro_nomgr_buf(struct vtnet_rxq *,
+static int	vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *,
 		    struct mbuf *, int);
 static int	vtnet_rxq_replace_buf(struct vtnet_rxq *, struct mbuf *, int);
 static int	vtnet_rxq_enqueue_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_new_buf(struct vtnet_rxq *);
+static int	vtnet_rxq_csum_needs_csum(struct vtnet_rxq *, struct mbuf *,
+		     uint16_t, int, struct virtio_net_hdr *);
+static int	vtnet_rxq_csum_data_valid(struct vtnet_rxq *, struct mbuf *,
+		     uint16_t, int, struct virtio_net_hdr *);
 static int	vtnet_rxq_csum(struct vtnet_rxq *, struct mbuf *,
 		     struct virtio_net_hdr *);
 static void	vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *, int);
@@ -243,32 +251,42 @@ DEBUGNET_DEFINE(vtnet);
 
 /* Tunables. */
 static SYSCTL_NODE(_hw, OID_AUTO, vtnet, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
-    "VNET driver parameters");
+    "VirtIO Net driver parameters");
+
 static int vtnet_csum_disable = 0;
 TUNABLE_INT("hw.vtnet.csum_disable", &vtnet_csum_disable);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, csum_disable, CTLFLAG_RDTUN,
     &vtnet_csum_disable, 0, "Disables receive and send checksum offload");
+
+static int vtnet_fixup_needs_csum = 0;
+SYSCTL_INT(_hw_vtnet, OID_AUTO, fixup_needs_csum, CTLFLAG_RDTUN,
+    &vtnet_fixup_needs_csum, 0,
+    "Calculate valid checksum for NEEDS_CSUM packets");
+
 static int vtnet_tso_disable = 0;
 TUNABLE_INT("hw.vtnet.tso_disable", &vtnet_tso_disable);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, tso_disable, CTLFLAG_RDTUN, &vtnet_tso_disable,
     0, "Disables TCP Segmentation Offload");
+
 static int vtnet_lro_disable = 0;
 TUNABLE_INT("hw.vtnet.lro_disable", &vtnet_lro_disable);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, lro_disable, CTLFLAG_RDTUN, &vtnet_lro_disable,
     0, "Disables TCP Large Receive Offload");
+
 static int vtnet_mq_disable = 0;
 TUNABLE_INT("hw.vtnet.mq_disable", &vtnet_mq_disable);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, mq_disable, CTLFLAG_RDTUN, &vtnet_mq_disable,
-    0, "Disables Multi Queue support");
+    0, "Disables multiqueue support");
+
 static int vtnet_mq_max_pairs = VTNET_MAX_QUEUE_PAIRS;
 TUNABLE_INT("hw.vtnet.mq_max_pairs", &vtnet_mq_max_pairs);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, mq_max_pairs, CTLFLAG_RDTUN,
-    &vtnet_mq_max_pairs, 0, "Sets the maximum number of Multi Queue pairs");
-static int vtnet_rx_process_limit = 512;
+    &vtnet_mq_max_pairs, 0, "Sets the maximum number of multiqueue pairs");
+
+static int vtnet_rx_process_limit = 1024;
 TUNABLE_INT("hw.vtnet.rx_process_limit", &vtnet_rx_process_limit);
 SYSCTL_INT(_hw_vtnet, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
-    &vtnet_rx_process_limit, 0,
-    "Limits the number RX segments processed in a single pass");
+    &vtnet_rx_process_limit, 0, "Limits RX segments processed in a single pass");
 
 static uma_zone_t vtnet_tx_header_zone;
 
@@ -617,9 +635,8 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 		 */
 		if (!virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC)) {
 			device_printf(dev,
-			    "LRO disabled due to both mergeable buffers and "
-			    "indirect descriptors not negotiated\n");
-
+			    "LRO disabled since both mergeable buffers and "
+			    "indirect descriptors were not negotiated\n");
 			features &= ~VTNET_LRO_FEATURES;
 			sc->vtnet_features =
 			    virtio_negotiate_features(dev, features);
@@ -655,31 +672,24 @@ vtnet_setup_features(struct vtnet_softc *sc)
 		sc->vtnet_flags |= VTNET_FLAG_MRG_RXBUFS;
 		sc->vtnet_hdr_size = sizeof(struct virtio_net_hdr_mrg_rxbuf);
 	} else if (vtnet_modern(sc)) {
-		/*
-		 * The V1 header is the same size and layout as the mergeable
-		 * buffer header, but num_buffers will always be one. Depending
-		 * on the context, the driver uses the mergeable header for
-		 * either case.
-		 */
+		/* This is identical to the mergeable header. */
 		sc->vtnet_hdr_size = sizeof(struct virtio_net_hdr_v1);
 	} else
 		sc->vtnet_hdr_size = sizeof(struct virtio_net_hdr);
 
-	if (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS)
-		sc->vtnet_rx_nsegs = VTNET_MRG_RX_SEGS;
-	else if (vtnet_modern(sc)) /* TODO: And ANY_LAYOUT when supported */
-		sc->vtnet_rx_nsegs = VTNET_MODERN_RX_SEGS;
+	if (vtnet_modern(sc) || sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS)
+		sc->vtnet_rx_nsegs = VTNET_RX_SEGS_HDR_INLINE;
 	else if (sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG)
-		sc->vtnet_rx_nsegs = VTNET_MAX_RX_SEGS;
+		sc->vtnet_rx_nsegs = VTNET_RX_SEGS_LRO_NOMRG;
 	else
-		sc->vtnet_rx_nsegs = VTNET_MIN_RX_SEGS;
+		sc->vtnet_rx_nsegs = VTNET_RX_SEGS_HDR_SEPARATE;
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_GSO) ||
 	    virtio_with_feature(dev, VIRTIO_NET_F_HOST_TSO4) ||
 	    virtio_with_feature(dev, VIRTIO_NET_F_HOST_TSO6))
-		sc->vtnet_tx_nsegs = VTNET_MAX_TX_SEGS;
+		sc->vtnet_tx_nsegs = VTNET_TX_SEGS_MAX;
 	else
-		sc->vtnet_tx_nsegs = VTNET_MIN_TX_SEGS;
+		sc->vtnet_tx_nsegs = VTNET_TX_SEGS_MIN;
 
 	sc->vtnet_max_vq_pairs = 1;
 
@@ -944,7 +954,7 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 
 	/*
 	 * TODO: Enable interrupt binding if this is multiqueue. This will
-	 * only matter when per-vq MSIX is available.
+	 * only matter when per-virtqueue MSIX is available.
 	 */
 	if (sc->vtnet_flags & VTNET_FLAG_MQ)
 		flags |= 0;
@@ -1024,6 +1034,10 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_CSUM)) {
 		ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
 
+		if (vtnet_tunable_int(sc, "fixup_needs_csum",
+		    vtnet_fixup_needs_csum) != 0)
+			sc->vtnet_flags |= VTNET_FLAG_FIXUP_NEEDS_CSUM;
+
 		if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_TSO4) ||
 		    virtio_with_feature(dev, VIRTIO_NET_F_GUEST_TSO6) ||
 		    virtio_with_feature(dev, VIRTIO_NET_F_GUEST_ECN))
@@ -1069,42 +1083,59 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	return (0);
 }
 
-/* BMV: This needs rethinking. */
 static int
-vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
+vtnet_rx_cluster_size(struct vtnet_softc *sc, int mtu)
 {
-	struct ifnet *ifp;
-	int frame_size, clustersz;
+	int framesz;
 
-	ifp = sc->vtnet_ifp;
-
-	if (new_mtu < ETHERMIN || new_mtu > VTNET_MAX_MTU)
-		return (EINVAL);
-
-	frame_size = sc->vtnet_hdr_size;
-	frame_size += sizeof(struct ether_vlan_header) + new_mtu;
+	if (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS)
+		return (MJUMPAGESIZE);
+	else if (sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG)
+		return (MCLBYTES);
 
 	/*
-	 * Based on the new MTU, determine which cluster size is appropriate
-	 * for the receive queues.
-	 *
-	 * BMV: This likely needs rethinking wrt LRO enabled/disabled and
-	 * the size of the virtqueue.
+	 * Try to scale the receive mbuf cluster size from the MTU. Without
+	 * the GUEST_TSO[46] features, the VirtIO specification says the
+	 * driver must only be able to receive ~1500 byte frames. But if
+	 * jumbo frames can be transmitted then try to receive jumbo.
 	 */
-	if (frame_size <= MCLBYTES)
-		clustersz = MCLBYTES;
-	else if (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS)
-		clustersz = MJUMPAGESIZE;
-	else {
-		if (frame_size > MJUM9BYTES)
-			return (EINVAL);
-		clustersz = MJUM9BYTES;
-	}
+	if (vtnet_modern(sc)) {
+		MPASS(sc->vtnet_hdr_size == sizeof(struct virtio_net_hdr_v1));
+		framesz = sizeof(struct virtio_net_hdr_v1);
+	} else
+		framesz = sizeof(struct vtnet_rx_header);
+	framesz += sizeof(struct ether_vlan_header) + mtu;
 
-	ifp->if_mtu = new_mtu;
-	sc->vtnet_rx_new_clustersz = clustersz;
+	if (framesz <= MCLBYTES)
+		return (MCLBYTES);
+	else if (framesz <= MJUMPAGESIZE)
+		return (MJUMPAGESIZE);
+	else if (framesz <= MJUM9BYTES)
+		return (MJUM9BYTES);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	/* Sane default; avoid 16KB clusters. */
+	return (MCLBYTES);
+}
+
+static int
+vtnet_ioctl_mtu(struct vtnet_softc *sc, int mtu)
+{
+	struct ifnet *ifp;
+	int clustersz;
+
+	ifp = sc->vtnet_ifp;
+	VTNET_CORE_LOCK_ASSERT(sc);
+
+	if (ifp->if_mtu == mtu)
+		return (0);
+	else if (mtu < ETHERMIN || mtu > VTNET_MAX_MTU)
+		return (EINVAL);
+
+	ifp->if_mtu = mtu;
+	clustersz = vtnet_rx_cluster_size(sc, mtu);
+
+	if (clustersz != sc->vtnet_rx_clustersz &&
+	    ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		vtnet_init_locked(sc, 0);
 	}
@@ -1125,11 +1156,9 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFMTU:
-		if (ifp->if_mtu != ifr->ifr_mtu) {
-			VTNET_CORE_LOCK(sc);
-			error = vtnet_change_mtu(sc, ifr->ifr_mtu);
-			VTNET_CORE_UNLOCK(sc);
-		}
+		VTNET_CORE_LOCK(sc);
+		error = vtnet_ioctl_mtu(sc, ifr->ifr_mtu);
+		VTNET_CORE_UNLOCK(sc);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -1160,7 +1189,7 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		VTNET_CORE_LOCK(sc);
-		if (sc->vtnet_flags & VTNET_FLAG_CTRL_RX && 
+		if (sc->vtnet_flags & VTNET_FLAG_CTRL_RX &&
 		    ifp->if_drv_flags & IFF_DRV_RUNNING)
 			vtnet_rx_filter_mac(sc);
 		VTNET_CORE_UNLOCK(sc);
@@ -1289,53 +1318,45 @@ static struct mbuf *
 vtnet_rx_alloc_buf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 {
 	struct mbuf *m_head, *m_tail, *m;
-	int i, clustersz;
+	int i, size;
 
-	clustersz = sc->vtnet_rx_clustersz;
+	m_head = NULL;
+	size = sc->vtnet_rx_clustersz;
 
 	KASSERT(nbufs == 1 || sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG,
-	    ("%s: chained mbuf %d request without LRO_NOMRG", __func__, nbufs));
+	    ("%s: mbuf %d chain requested without LRO_NOMRG", __func__, nbufs));
 
-	m_head = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, clustersz);
-	if (m_head == NULL)
-		goto fail;
+	for (i = 0; i < nbufs; i++) {
+		m = m_getjcl(M_NOWAIT, MT_DATA, i == 0 ? M_PKTHDR : 0, size);
+		if (m == NULL) {
+			sc->vtnet_stats.mbuf_alloc_failed++;
+			m_freem(m_head);
+			return (NULL);
+		}
 
-	m_head->m_len = clustersz;
-	m_tail = m_head;
-
-	/* Allocate the rest of the chain. */
-	for (i = 1; i < nbufs; i++) {
-		m = m_getjcl(M_NOWAIT, MT_DATA, 0, clustersz);
-		if (m == NULL)
-			goto fail;
-
-		m->m_len = clustersz;
-		m_tail->m_next = m;
-		m_tail = m;
+		m->m_len = size;
+		if (m_head != NULL) {
+			m_tail->m_next = m;
+			m_tail = m;
+		} else
+			m_head = m_tail = m;
 	}
 
 	if (m_tailp != NULL)
 		*m_tailp = m_tail;
 
 	return (m_head);
-
-fail:
-	sc->vtnet_stats.mbuf_alloc_failed++;
-	m_freem(m_head);
-
-	return (NULL);
 }
 
 /*
  * Slow path for when LRO without mergeable buffers is negotiated.
  */
 static int
-vtnet_rxq_replace_lro_nomgr_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
+vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
     int len0)
 {
 	struct vtnet_softc *sc;
-	struct mbuf *m, *m_prev;
-	struct mbuf *m_new, *m_tail;
+	struct mbuf *m, *m_prev, *m_new, *m_tail;
 	int len, clustersz, nreplace, error;
 
 	sc = rxq->vtnrx_sc;
@@ -1349,25 +1370,23 @@ vtnet_rxq_replace_lro_nomgr_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
 	len = len0;
 
 	/*
-	 * Since these mbuf chains are so large, we avoid allocating an
-	 * entire replacement chain if possible. When the received frame
-	 * did not consume the entire chain, the unused mbufs are moved
-	 * to the replacement chain.
+	 * Since these mbuf chains are so large, avoid allocating a complete
+	 * replacement when the received frame did not consume the entire
+	 * chain. Unused mbufs are moved to the tail of the replacement mbuf.
 	 */
 	while (len > 0) {
-		/*
-		 * Something is seriously wrong if we received a frame
-		 * larger than the chain. Drop it.
-		 */
 		if (m == NULL) {
 			sc->vtnet_stats.rx_frame_too_large++;
 			return (EMSGSIZE);
 		}
 
-		/* We always allocate the same cluster size. */
+		/*
+		 * Every mbuf should have the expected cluster size since that
+		 * is also used to allocate the replacements.
+		 */
 		KASSERT(m->m_len == clustersz,
-		    ("%s: mbuf size %d is not the cluster size %d",
-		    __func__, m->m_len, clustersz));
+		    ("%s: mbuf size %d not expected cluster size %d", __func__,
+		    m->m_len, clustersz));
 
 		m->m_len = MIN(m->m_len, len);
 		len -= m->m_len;
@@ -1377,9 +1396,9 @@ vtnet_rxq_replace_lro_nomgr_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
 		nreplace++;
 	}
 
-	KASSERT(nreplace <= sc->vtnet_rx_nmbufs,
-	    ("%s: too many replacement mbufs %d max %d", __func__, nreplace,
-	    sc->vtnet_rx_nmbufs));
+	KASSERT(nreplace > 0 && nreplace <= sc->vtnet_rx_nmbufs,
+	    ("%s: invalid replacement mbuf count %d max %d", __func__,
+	    nreplace, sc->vtnet_rx_nmbufs));
 
 	m_new = vtnet_rx_alloc_buf(sc, nreplace, &m_tail);
 	if (m_new == NULL) {
@@ -1388,8 +1407,8 @@ vtnet_rxq_replace_lro_nomgr_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
 	}
 
 	/*
-	 * Move any unused mbufs from the received chain onto the end
-	 * of the new chain.
+	 * Move any unused mbufs from the received mbuf chain onto the
+	 * end of the replacement chain.
 	 */
 	if (m_prev->m_next != NULL) {
 		m_tail->m_next = m_prev->m_next;
@@ -1399,21 +1418,18 @@ vtnet_rxq_replace_lro_nomgr_buf(struct vtnet_rxq *rxq, struct mbuf *m0,
 	error = vtnet_rxq_enqueue_buf(rxq, m_new);
 	if (error) {
 		/*
-		 * BAD! We could not enqueue the replacement mbuf chain. We
-		 * must restore the m0 chain to the original state if it was
-		 * modified so we can subsequently discard it.
+		 * The replacement is suppose to be an copy of the one
+		 * dequeued so this is a very unexpected error.
 		 *
-		 * NOTE: The replacement is suppose to be an identical copy
-		 * to the one just dequeued so this is an unexpected error.
+		 * Restore the m0 chain to the original state if it was
+		 * modified so we can then discard it.
 		 */
-		sc->vtnet_stats.rx_enq_replacement_failed++;
-
 		if (m_tail->m_next != NULL) {
 			m_prev->m_next = m_tail->m_next;
 			m_tail->m_next = NULL;
 		}
-
 		m_prev->m_len = clustersz;
+		sc->vtnet_stats.rx_enq_replacement_failed++;
 		m_freem(m_new);
 	}
 
@@ -1429,31 +1445,23 @@ vtnet_rxq_replace_buf(struct vtnet_rxq *rxq, struct mbuf *m, int len)
 
 	sc = rxq->vtnrx_sc;
 
-	KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG || m->m_next == NULL,
-	    ("%s: chained mbuf without LRO_NOMRG", __func__));
+	if (sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG)
+		return (vtnet_rxq_replace_lro_nomrg_buf(rxq, m, len));
 
-	if (m->m_next == NULL) {
-		/* Fast-path for the common case of just one mbuf. */
-		if (m->m_len < len)
-			return (EINVAL);
+	MPASS(m->m_next == NULL);
+	if (m->m_len < len)
+		return (EMSGSIZE);
 
-		m_new = vtnet_rx_alloc_buf(sc, 1, NULL);
-		if (m_new == NULL)
-			return (ENOBUFS);
+	m_new = vtnet_rx_alloc_buf(sc, 1, NULL);
+	if (m_new == NULL)
+		return (ENOBUFS);
 
-		error = vtnet_rxq_enqueue_buf(rxq, m_new);
-		if (error) {
-			/*
-			 * The new mbuf is suppose to be an identical
-			 * copy of the one just dequeued so this is an
-			 * unexpected error.
-			 */
-			m_freem(m_new);
-			sc->vtnet_stats.rx_enq_replacement_failed++;
-		} else
-			m->m_len = len;
+	error = vtnet_rxq_enqueue_buf(rxq, m_new);
+	if (error) {
+		sc->vtnet_stats.rx_enq_replacement_failed++;
+		m_freem(m_new);
 	} else
-		error = vtnet_rxq_replace_lro_nomgr_buf(rxq, m, len);
+		m->m_len = len;
 
 	return (error);
 }
@@ -1463,33 +1471,36 @@ vtnet_rxq_enqueue_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 {
 	struct vtnet_softc *sc;
 	struct sglist *sg;
-	int error;
+	int header_inlined, error;
 
 	sc = rxq->vtnrx_sc;
 	sg = rxq->vtnrx_sg;
 
 	KASSERT(m->m_next == NULL || sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG,
 	    ("%s: mbuf chain without LRO_NOMRG", __func__));
-	KASSERT(m->m_len == sc->vtnet_rx_clustersz, ("%s: unexpected mbuf "
-		"length %d %d", __func__, m->m_len, sc->vtnet_rx_clustersz));
 	VTNET_RXQ_LOCK_ASSERT(rxq);
 
 	sglist_reset(sg);
-	if (vtnet_modern(sc) || sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) {
-		error = sglist_append_mbuf(sg, m);
-	} else {
-		struct vtnet_rx_header *rxhdr;
+	header_inlined = vtnet_modern(sc) ||
+	    (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) != 0; /* TODO: ANY_LAYOUT */
 
-		rxhdr = mtod(m, struct vtnet_rx_header *);
+	if (header_inlined)
+		error = sglist_append_mbuf(sg, m);
+	else {
+		struct vtnet_rx_header *rxhdr =
+		    mtod(m, struct vtnet_rx_header *);
 		MPASS(sc->vtnet_hdr_size == sizeof(struct virtio_net_hdr));
 
-		/* Append inlined header and then rest of the mbuf chain. */
+		/* Append the header and remaining mbuf data. */
 		error = sglist_append(sg, &rxhdr->vrh_hdr, sc->vtnet_hdr_size);
-		if (error == 0) {
-			error = sglist_append(sg, &rxhdr[1],
-			    m->m_len - sizeof(struct vtnet_rx_header));
-		}
-		if (error == 0 && m->m_next != NULL)
+		if (error)
+			return (error);
+		error = sglist_append(sg, &rxhdr[1],
+		    m->m_len - sizeof(struct vtnet_rx_header));
+		if (error)
+			return (error);
+
+		if (m->m_next != NULL)
 			error = sglist_append_mbuf(sg, m->m_next);
 	}
 
@@ -1519,54 +1530,73 @@ vtnet_rxq_new_buf(struct vtnet_rxq *rxq)
 	return (error);
 }
 
-/*
- * Use the checksum offset in the VirtIO header to set the
- * correct CSUM_* flags.
- */
 static int
-vtnet_rxq_csum_by_offset(struct vtnet_rxq *rxq, struct mbuf *m,
-    uint16_t eth_type, int ip_start, struct virtio_net_hdr *hdr)
+vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, uint16_t etype,
+    int hoff, struct virtio_net_hdr *hdr)
 {
 	struct vtnet_softc *sc;
-#if defined(INET) || defined(INET6)
-	int offset = hdr->csum_start + hdr->csum_offset;
-#endif
+	int error;
 
 	sc = rxq->vtnrx_sc;
 
-	/* Only do a basic sanity check on the offset. */
-	switch (eth_type) {
-#if defined(INET)
-	case ETHERTYPE_IP:
-		if (__predict_false(offset < ip_start + sizeof(struct ip)))
-			return (1);
-		break;
-#endif
-#if defined(INET6)
-	case ETHERTYPE_IPV6:
-		if (__predict_false(offset < ip_start + sizeof(struct ip6_hdr)))
-			return (1);
-		break;
-#endif
-	default:
-		sc->vtnet_stats.rx_csum_bad_ethtype++;
-		return (1);
+	/*
+	 * NEEDS_CSUM corresponds to Linux's CHECKSUM_PARTIAL, but FreeBSD does
+	 * not have an analogous CSUM flag. The checksum has been validated,
+	 * but is incomplete (TCP/UDP pseudo header).
+	 *
+	 * The packet is likely from another VM on the same host that itself
+	 * performed checksum offloading so Tx/Rx is basically a memcpy and
+	 * the checksum has little value.
+	 *
+	 * Default to receiving the packet as-is for performance reasons, but
+	 * this can cause issues if the packet is to be forwarded because it
+	 * does not contain a valid checksum. This patch may be helpful:
+	 * https://reviews.freebsd.org/D6611. In the meantime, have the driver
+	 * compute the checksum if requested.
+	 *
+	 * BMV: Need to add an CSUM_PARTIAL flag?
+	 */
+	if ((sc->vtnet_flags & VTNET_FLAG_FIXUP_NEEDS_CSUM) == 0) {
+		error = vtnet_rxq_csum_data_valid(rxq, m, etype, hoff, hdr);
+		return (error);
 	}
 
 	/*
-	 * Use the offset to determine the appropriate CSUM_* flags. This is
-	 * a bit dirty, but we can get by with it since the checksum offsets
-	 * happen to be different. We assume the host host does not do IPv4
-	 * header checksum offloading.
+	 * Compute the checksum in the driver so the packet will contain a
+	 * valid checksum. The checksum is at csum_offset from csum_start.
 	 */
-	switch (hdr->csum_offset) {
-	case offsetof(struct udphdr, uh_sum):
-	case offsetof(struct tcphdr, th_sum):
+	switch (etype) {
+#if defined(INET) || defined(INET6)
+	case ETHERTYPE_IP:
+	case ETHERTYPE_IPV6: {
+		int csum_off, csum_end;
+		uint16_t csum;
+
+		csum_off = hdr->csum_start + hdr->csum_offset;
+		csum_end = csum_off + sizeof(uint16_t);
+
+		/* Assume checksum will be in the first mbuf. */
+		if (m->m_len < csum_end || m->m_pkthdr.len < csum_end)
+			return (1);
+
+		/*
+		 * Like in_delayed_cksum()/in6_delayed_cksum(), compute the
+		 * checksum and write it at the specified offset. We could
+		 * try to verify the packet: csum_start should probably
+		 * correspond to the start of the TCP/UDP header.
+		 *
+		 * BMV: Need to properly handle UDP with zero checksum. Is
+		 * the IPv4 header checksum implicitly validated?
+		 */
+		csum = in_cksum_skip(m, m->m_pkthdr.len, hdr->csum_start);
+		*(uint16_t *)(mtodo(m, csum_off)) = csum;
 		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		m->m_pkthdr.csum_data = 0xFFFF;
 		break;
+	}
+#endif
 	default:
-		sc->vtnet_stats.rx_csum_bad_offset++;
+		sc->vtnet_stats.rx_csum_bad_ethtype++;
 		return (1);
 	}
 
@@ -1574,64 +1604,55 @@ vtnet_rxq_csum_by_offset(struct vtnet_rxq *rxq, struct mbuf *m,
 }
 
 static int
-vtnet_rxq_csum_by_parse(struct vtnet_rxq *rxq, struct mbuf *m,
-    uint16_t eth_type, int ip_start, struct virtio_net_hdr *hdr)
+vtnet_rxq_csum_data_valid(struct vtnet_rxq *rxq, struct mbuf *m,
+    uint16_t etype, int hoff, struct virtio_net_hdr *hdr)
 {
 	struct vtnet_softc *sc;
-	int offset, proto;
+	int protocol;
 
 	sc = rxq->vtnrx_sc;
 
-	switch (eth_type) {
+	switch (etype) {
 #if defined(INET)
-	case ETHERTYPE_IP: {
-		struct ip *ip;
-		if (__predict_false(m->m_len < ip_start + sizeof(struct ip)))
-			return (1);
-		ip = (struct ip *)(m->m_data + ip_start);
-		proto = ip->ip_p;
-		offset = ip_start + (ip->ip_hl << 2);
+	case ETHERTYPE_IP:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip)))
+			protocol = IPPROTO_DONE;
+		else {
+			struct ip *ip = (struct ip *)(m->m_data + hoff);
+			protocol = ip->ip_p;
+		}
 		break;
-	}
 #endif
 #if defined(INET6)
 	case ETHERTYPE_IPV6:
-		if (__predict_false(m->m_len < ip_start +
-		    sizeof(struct ip6_hdr)))
-			return (1);
-		offset = ip6_lasthdr(m, ip_start, IPPROTO_IPV6, &proto);
-		if (__predict_false(offset < 0))
-			return (1);
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip6_hdr))
+		    || ip6_lasthdr(m, hoff, IPPROTO_IPV6, &protocol) < 0)
+			protocol = IPPROTO_DONE;
 		break;
 #endif
 	default:
-		sc->vtnet_stats.rx_csum_bad_ethtype++;
-		return (1);
+		protocol = IPPROTO_DONE;
+		break;
 	}
 
-	switch (proto) {
+	switch (protocol) {
 	case IPPROTO_TCP:
-		if (__predict_false(m->m_len < offset + sizeof(struct tcphdr)))
-			return (1);
-		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-		m->m_pkthdr.csum_data = 0xFFFF;
-		break;
 	case IPPROTO_UDP:
-		if (__predict_false(m->m_len < offset + sizeof(struct udphdr)))
-			return (1);
 		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 		m->m_pkthdr.csum_data = 0xFFFF;
 		break;
 	default:
 		/*
-		 * For the remaining protocols, FreeBSD does not support
-		 * checksum offloading, so the checksum will be recomputed.
+		 * FreeBSD does not support checksum offloading of this
+		 * protocol. Let the stack re-verify the checksum later
+		 * if the protocol is supported.
 		 */
 #if 0
-		if_printf(sc->vtnet_ifp, "cksum offload of unsupported "
-		    "protocol eth_type=%#x proto=%d csum_start=%d "
-		    "csum_offset=%d\n", __func__, eth_type, proto,
-		    hdr->csum_start, hdr->csum_offset);
+		if_printf(sc->vtnet_ifp,
+		    "%s: checksum offload of unsupported protocol "
+		    "etype=%#x protocol=%d csum_start=%d csum_offset=%d\n",
+		    __func__, etype, protocol, hdr->csum_start,
+		    hdr->csum_offset);
 #endif
 		break;
 	}
@@ -1639,41 +1660,29 @@ vtnet_rxq_csum_by_parse(struct vtnet_rxq *rxq, struct mbuf *m,
 	return (0);
 }
 
-/*
- * Set the appropriate CSUM_* flags. Unfortunately, the information
- * provided is not directly useful to us. The VirtIO header gives the
- * offset of the checksum, which is all Linux needs, but this is not
- * how FreeBSD does things. We are forced to peek inside the packet
- * a bit.
- *
- * It would be nice if VirtIO gave us the L4 protocol or if FreeBSD
- * could accept the offsets and let the stack figure it out.
- */
 static int
 vtnet_rxq_csum(struct vtnet_rxq *rxq, struct mbuf *m,
     struct virtio_net_hdr *hdr)
 {
-	struct ether_header *eh;
-	struct ether_vlan_header *evh;
-	uint16_t eth_type;
-	int offset, error;
+	const struct ether_header *eh;
+	int hoff;
+	uint16_t etype;
 
-	eh = mtod(m, struct ether_header *);
-	eth_type = ntohs(eh->ether_type);
-	if (eth_type == ETHERTYPE_VLAN) {
-		/* BMV: We should handle nested VLAN tags too. */
-		evh = mtod(m, struct ether_vlan_header *);
-		eth_type = ntohs(evh->evl_proto);
-		offset = sizeof(struct ether_vlan_header);
+	eh = mtod(m, const struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	if (etype == ETHERTYPE_VLAN) {
+		/* TODO BMV: Handle QinQ. */
+		const struct ether_vlan_header *evh =
+		    mtod(m, const struct ether_vlan_header *);
+		etype = ntohs(evh->evl_proto);
+		hoff = sizeof(struct ether_vlan_header);
 	} else
-		offset = sizeof(struct ether_header);
+		hoff = sizeof(struct ether_header);
 
 	if (hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)
-		error = vtnet_rxq_csum_by_offset(rxq, m, eth_type, offset, hdr);
-	else
-		error = vtnet_rxq_csum_by_parse(rxq, m, eth_type, offset, hdr);
-
-	return (error);
+		return (vtnet_rxq_csum_needs_csum(rxq, m, etype, hoff, hdr));
+	else /* VIRTIO_NET_HDR_F_DATA_VALID */
+		return (vtnet_rxq_csum_data_valid(rxq, m, etype, hoff, hdr));
 }
 
 static void
@@ -1708,14 +1717,16 @@ vtnet_rxq_merged_eof(struct vtnet_rxq *rxq, struct mbuf *m_head, int nbufs)
 {
 	struct vtnet_softc *sc;
 	struct virtqueue *vq;
-	struct mbuf *m, *m_tail;
-	int len;
+	struct mbuf *m_tail;
 
 	sc = rxq->vtnrx_sc;
 	vq = rxq->vtnrx_vq;
 	m_tail = m_head;
 
 	while (--nbufs > 0) {
+		struct mbuf *m;
+		int len;
+
 		m = virtqueue_dequeue(vq, &len);
 		if (m == NULL) {
 			rxq->vtnrx_stats.vrxs_ierrors++;
@@ -1756,13 +1767,12 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 {
 	struct vtnet_softc *sc;
 	struct ifnet *ifp;
-	struct ether_header *eh;
 
 	sc = rxq->vtnrx_sc;
 	ifp = sc->vtnet_ifp;
 
 	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
-		eh = mtod(m, struct ether_header *);
+		struct ether_header *eh = mtod(m, struct ether_header *);
 		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 			vtnet_vlan_tag_remove(m);
 			/*
@@ -1777,13 +1787,8 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 	m->m_pkthdr.flowid = rxq->vtnrx_id;
 	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 
-	/*
-	 * BMV: FreeBSD does not have the UNNECESSARY and PARTIAL checksum
-	 * distinction that Linux does. Need to reevaluate if performing
-	 * offloading for the NEEDS_CSUM case is really appropriate.
-	 */
-	if (hdr->flags & (VIRTIO_NET_HDR_F_NEEDS_CSUM |
-	    VIRTIO_NET_HDR_F_DATA_VALID)) {
+	if (hdr->flags &
+	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID)) {
 		if (vtnet_rxq_csum(rxq, m, hdr) == 0)
 			rxq->vtnrx_stats.vrxs_csum++;
 		else
@@ -1805,8 +1810,7 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 	struct vtnet_softc *sc;
 	struct ifnet *ifp;
 	struct virtqueue *vq;
-	struct mbuf *m;
-	int len, deq, nbufs, adjsz, count;
+	int deq, count;
 
 	sc = rxq->vtnrx_sc;
 	vq = rxq->vtnrx_vq;
@@ -1817,6 +1821,9 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 	VTNET_RXQ_LOCK_ASSERT(rxq);
 
 	while (count-- > 0) {
+		struct mbuf *m;
+		int len, nbufs, adjsz;
+
 		m = virtqueue_dequeue(vq, &len);
 		if (m == NULL)
 			break;
@@ -1828,20 +1835,21 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 			continue;
 		}
 
-		if (vtnet_modern(sc) ||
-		    sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) {
-			/*
-			 * For our purposes here, the V1 header is the same as
-			 * the mergeable buffers header.
-			 */
+		if (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) {
 			struct virtio_net_hdr_mrg_rxbuf *mhdr =
 			    mtod(m, struct virtio_net_hdr_mrg_rxbuf *);
 			nbufs = vtnet_htog16(sc, mhdr->num_buffers);
 			adjsz = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+		} else if (vtnet_modern(sc)) {
+			nbufs = 1; /* num_buffers is always 1 */
+			adjsz = sizeof(struct virtio_net_hdr_v1);
 		} else {
 			nbufs = 1;
 			adjsz = sizeof(struct vtnet_rx_header);
-			/* Our pad between the header and start of the frame. */
+			/*
+			 * Account for our gap between the header and start of
+			 * data to keep the segments separated.
+			 */
 			len += VTNET_RX_HEADER_PAD;
 		}
 
@@ -1865,9 +1873,9 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 
 		/*
 		 * Save an endian swapped version of the header prior to it
-		 * being stripped. For both mergeable and non-mergeable, the
-		 * header is at the start of the mbuf data. num_buffers was
-		 * already saved (and longer need it) so use a regular header.
+		 * being stripped. The header is always at the start of the
+		 * mbuf data. num_buffers was already saved (and not needed)
+		 * so use the standard header.
 		 */
 		hdr = mtod(m, struct virtio_net_hdr *);
 		lhdr.flags = hdr->flags;
@@ -2986,31 +2994,24 @@ static int
 vtnet_init_rx_queues(struct vtnet_softc *sc)
 {
 	device_t dev;
+	struct ifnet *ifp;
 	struct vtnet_rxq *rxq;
 	int i, clustersz, error;
 
 	dev = sc->vtnet_dev;
+	ifp = sc->vtnet_ifp;
 
-	/*
-	 * Use the new cluster size if one has been set (via a MTU
-	 * change). Otherwise, use the standard 2K clusters.
-	 *
-	 * BMV: It might make sense to use page sized clusters as
-	 * the default (depending on the features negotiated).
-	 */
-	if (sc->vtnet_rx_new_clustersz != 0) {
-		clustersz = sc->vtnet_rx_new_clustersz;
-		sc->vtnet_rx_new_clustersz = 0;
-	} else
-		clustersz = MCLBYTES;
-
+	clustersz = vtnet_rx_cluster_size(sc, ifp->if_mtu);
 	sc->vtnet_rx_clustersz = clustersz;
-	sc->vtnet_rx_nmbufs = VTNET_NEEDED_RX_MBUFS(sc, clustersz);
 
-	KASSERT(sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS ||
-	    sc->vtnet_rx_nmbufs < sc->vtnet_rx_nsegs,
-	    ("%s: too many rx mbufs %d for %d segments", __func__,
-	    sc->vtnet_rx_nmbufs, sc->vtnet_rx_nsegs));
+	if (sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG) {
+		sc->vtnet_rx_nmbufs = howmany(sizeof(struct vtnet_rx_header) +
+		    VTNET_MAX_RX_SIZE, clustersz);
+		KASSERT(sc->vtnet_rx_nmbufs < sc->vtnet_rx_nsegs,
+		    ("%s: too many rx mbufs %d for %d segments", __func__,
+		    sc->vtnet_rx_nmbufs, sc->vtnet_rx_nsegs));
+	} else
+		sc->vtnet_rx_nmbufs = 1;
 
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
@@ -3021,8 +3022,7 @@ vtnet_init_rx_queues(struct vtnet_softc *sc)
 		VTNET_RXQ_UNLOCK(rxq);
 
 		if (error) {
-			device_printf(dev,
-			    "cannot allocate mbufs for Rx queue %d\n", i);
+			device_printf(dev, "cannot populate Rx queue %d\n", i);
 			return (error);
 		}
 	}
