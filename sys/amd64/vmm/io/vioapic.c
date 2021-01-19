@@ -363,12 +363,10 @@ vioapic_write(struct vioapic *vioapic, int vcpuid, uint32_t addr, uint32_t data)
 
 		/*
 		 * Generate an interrupt if the following conditions are met:
-		 * - pin is not masked
 		 * - previous interrupt has been EOIed
 		 * - pin level is asserted
 		 */
-		if ((vioapic->rtbl[pin].reg & IOART_INTMASK) == IOART_INTMCLR &&
-		    (vioapic->rtbl[pin].reg & IOART_REM_IRR) == 0 &&
+		if ((vioapic->rtbl[pin].reg & IOART_REM_IRR) == 0 &&
 		    (vioapic->rtbl[pin].acnt > 0)) {
 			VIOAPIC_CTR2(vioapic, "ioapic pin%d: asserted at rtbl "
 			    "write, acnt %d", pin, vioapic->rtbl[pin].acnt);
