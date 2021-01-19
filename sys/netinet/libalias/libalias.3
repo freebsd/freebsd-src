@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2013
+.Dd January 1, 2020
 .Dt LIBALIAS 3
 .Os
 .Sh NAME
@@ -311,7 +311,7 @@ comprise the minimal set of functions needed for a basic IP masquerading
 implementation.
 .Pp
 .Ft int
-.Fn LibAliasIn "struct libalias *" "char *buffer" "int maxpacketsize"
+.Fn LibAliasIn "struct libalias *" "void *buffer" "int maxpacketsize"
 .Bd -ragged -offset indent
 An incoming packet coming from a remote machine to the local network is
 de-aliased by this function.
@@ -352,7 +352,7 @@ An internal error within the packet aliasing engine occurred.
 .Ed
 .Pp
 .Ft int
-.Fn LibAliasOut "struct libalias *" "char *buffer" "int maxpacketsize"
+.Fn LibAliasOut "struct libalias *" "void *buffer" "int maxpacketsize"
 .Bd -ragged -offset indent
 An outgoing packet coming from the local network to a remote machine is
 aliased by this function.
@@ -770,7 +770,7 @@ Fragments which arrive before the header are saved and then retrieved
 once the header fragment has been resolved.
 .Pp
 .Ft int
-.Fn LibAliasSaveFragment "struct libalias *" "char *ptr"
+.Fn LibAliasSaveFragment "struct libalias *" "void *ptr"
 .Bd -ragged -offset indent
 When
 .Fn LibAliasIn
@@ -794,8 +794,8 @@ if it was successful and
 if there was an error.
 .Ed
 .Pp
-.Ft char *
-.Fn LibAliasGetFragment "struct libalias *" "char *buffer"
+.Ft void *
+.Fn LibAliasGetFragment "struct libalias *" "void *buffer"
 .Bd -ragged -offset indent
 This function can be used to retrieve fragment pointers saved by
 .Fn LibAliasSaveFragment .
@@ -816,7 +816,7 @@ available, at which time it returns
 .Ed
 .Pp
 .Ft void
-.Fn LibAliasFragmentIn "struct libalias *" "char *header" "char *fragment"
+.Fn LibAliasFragmentIn "struct libalias *" "void *header" "void *fragment"
 .Bd -ragged -offset indent
 When a fragment is retrieved with
 .Fn LibAliasGetFragment ,
@@ -896,7 +896,7 @@ will return zero.
 .Ed
 .Pp
 .Ft int
-.Fn LibAliasUnaliasOut "struct libalias *" "char *buffer" "int maxpacketsize"
+.Fn LibAliasUnaliasOut "struct libalias *" "void *buffer" "int maxpacketsize"
 .Bd -ragged -offset indent
 An outgoing packet, which has already been aliased,
 has its private address/port information restored by this function.

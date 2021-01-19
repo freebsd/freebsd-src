@@ -382,7 +382,7 @@ ProxyEncodeIpHeader(struct ip *pip,
 #define OPTION_LEN_BYTES  8
 #define OPTION_LEN_INT16  4
 #define OPTION_LEN_INT32  2
-	u_char option[OPTION_LEN_BYTES];
+	_Alignas(_Alignof(u_short)) u_char option[OPTION_LEN_BYTES];
 
 #ifdef LIBALIAS_DEBUG
 	fprintf(stdout, " ip cksum 1 = %x\n", (u_int) IpChecksum(pip));

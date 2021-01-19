@@ -1742,13 +1742,13 @@ GetFragmentAddr(struct alias_link *lnk, struct in_addr *src_addr)
 }
 
 void
-SetFragmentPtr(struct alias_link *lnk, char *fptr)
+SetFragmentPtr(struct alias_link *lnk, void *fptr)
 {
 	lnk->data.frag_ptr = fptr;
 }
 
 void
-GetFragmentPtr(struct alias_link *lnk, char **fptr)
+GetFragmentPtr(struct alias_link *lnk, void **fptr)
 {
 	*fptr = lnk->data.frag_ptr;
 }
