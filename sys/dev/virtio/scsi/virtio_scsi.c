@@ -135,10 +135,10 @@ static int	vtscsi_execute_reset_dev_cmd(struct vtscsi_softc *,
 
 static void	vtscsi_get_request_lun(uint8_t [], target_id_t *, lun_id_t *);
 static void	vtscsi_set_request_lun(struct ccb_hdr *, uint8_t []);
-static void	vtscsi_init_scsi_cmd_req(struct ccb_scsiio *,
-		    struct virtio_scsi_cmd_req *);
-static void	vtscsi_init_ctrl_tmf_req(struct ccb_hdr *, uint32_t,
-		    uintptr_t, struct virtio_scsi_ctrl_tmf_req *);
+static void	vtscsi_init_scsi_cmd_req(struct vtscsi_softc *,
+		    struct ccb_scsiio *, struct virtio_scsi_cmd_req *);
+static void	vtscsi_init_ctrl_tmf_req(struct vtscsi_softc *, struct ccb_hdr *,
+		    uint32_t, uintptr_t, struct virtio_scsi_ctrl_tmf_req *);
 
 static void	vtscsi_freeze_simq(struct vtscsi_softc *, int);
 static int	vtscsi_thaw_simq(struct vtscsi_softc *, int);
@@ -189,6 +189,14 @@ static void	vtscsi_add_sysctl(struct vtscsi_softc *);
 static void	vtscsi_printf_req(struct vtscsi_request *, const char *,
 		    const char *, ...);
 
+#define vtscsi_modern(_sc) (((_sc)->vtscsi_features & VIRTIO_F_VERSION_1) != 0)
+#define vtscsi_htog16(_sc, _val)	virtio_htog16(vtscsi_modern(_sc), _val)
+#define vtscsi_htog32(_sc, _val)	virtio_htog32(vtscsi_modern(_sc), _val)
+#define vtscsi_htog64(_sc, _val)	virtio_htog64(vtscsi_modern(_sc), _val)
+#define vtscsi_gtoh16(_sc, _val)	virtio_gtoh16(vtscsi_modern(_sc), _val)
+#define vtscsi_gtoh32(_sc, _val)	virtio_gtoh32(vtscsi_modern(_sc), _val)
+#define vtscsi_gtoh64(_sc, _val)	virtio_gtoh64(vtscsi_modern(_sc), _val)
+
 /* Global tunables. */
 /*
  * The current QEMU VirtIO SCSI implementation does not cancel in-flight
@@ -206,6 +214,9 @@ TUNABLE_INT("hw.vtscsi.bus_reset_disable", &vtscsi_bus_reset_disable);
 static struct virtio_feature_desc vtscsi_feature_desc[] = {
 	{ VIRTIO_SCSI_F_INOUT,		"InOut"		},
 	{ VIRTIO_SCSI_F_HOTPLUG,	"Hotplug"	},
+	{ VIRTIO_SCSI_F_CHANGE,		"ChangeEvent"	},
+	{ VIRTIO_SCSI_F_T10_PI, 	"T10PI"		},
+
 	{ 0, NULL }
 };
 
@@ -409,8 +420,10 @@ vtscsi_negotiate_features(struct vtscsi_softc *sc)
 	uint64_t features;
 
 	dev = sc->vtscsi_dev;
-	features = virtio_negotiate_features(dev, VTSCSI_FEATURES);
-	sc->vtscsi_features = features;
+	features = VTSCSI_FEATURES;
+
+	sc->vtscsi_features = virtio_negotiate_features(dev, features);
+	virtio_finalize_features(dev);
 }
 
 #define VTSCSI_GET_CONFIG(_dev, _field, _cfg)			\
@@ -530,8 +543,8 @@ vtscsi_reinit(struct vtscsi_softc *sc)
 	error = virtio_reinit(dev, sc->vtscsi_features);
 	if (error == 0) {
 		vtscsi_write_device_config(sc);
-		vtscsi_reinit_event_vq(sc);
 		virtio_reinit_complete(dev);
+		vtscsi_reinit_event_vq(sc);
 
 		vtscsi_enable_vqs_intr(sc);
 	}
@@ -1085,7 +1098,7 @@ vtscsi_execute_scsi_cmd(struct vtscsi_softc *sc, struct vtscsi_request *req)
 	cmd_req = &req->vsr_cmd_req;
 	cmd_resp = &req->vsr_cmd_resp;
 
-	vtscsi_init_scsi_cmd_req(csio, cmd_req);
+	vtscsi_init_scsi_cmd_req(sc, csio, cmd_req);
 
 	error = vtscsi_fill_scsi_cmd_sglist(sc, req, &readable, &writable);
 	if (error)
@@ -1205,7 +1218,7 @@ vtscsi_abort_timedout_scsi_cmd(struct vtscsi_softc *sc,
 	tmf_req = &req->vsr_tmf_req;
 	tmf_resp = &req->vsr_tmf_resp;
 
-	vtscsi_init_ctrl_tmf_req(to_ccbh, VIRTIO_SCSI_T_TMF_ABORT_TASK,
+	vtscsi_init_ctrl_tmf_req(sc, to_ccbh, VIRTIO_SCSI_T_TMF_ABORT_TASK,
 	    (uintptr_t) to_ccbh, tmf_req);
 
 	sglist_reset(sg);
@@ -1313,22 +1326,24 @@ static cam_status
 vtscsi_complete_scsi_cmd_response(struct vtscsi_softc *sc,
     struct ccb_scsiio *csio, struct virtio_scsi_cmd_resp *cmd_resp)
 {
+	uint32_t resp_sense_length;
 	cam_status status;
 
 	csio->scsi_status = cmd_resp->status;
-	csio->resid = cmd_resp->resid;
+	csio->resid = vtscsi_htog32(sc, cmd_resp->resid);
 
 	if (csio->scsi_status == SCSI_STATUS_OK)
 		status = CAM_REQ_CMP;
 	else
 		status = CAM_SCSI_STATUS_ERROR;
 
-	if (cmd_resp->sense_len > 0) {
+	resp_sense_length = vtscsi_htog32(sc, cmd_resp->sense_len);
+
+	if (resp_sense_length > 0) {
 		status |= CAM_AUTOSNS_VALID;
 
-		if (cmd_resp->sense_len < csio->sense_len)
-			csio->sense_resid = csio->sense_len -
-			    cmd_resp->sense_len;
+		if (resp_sense_length < csio->sense_len)
+			csio->sense_resid = csio->sense_len - resp_sense_length;
 		else
 			csio->sense_resid = 0;
 
@@ -1493,7 +1508,7 @@ vtscsi_execute_abort_task_cmd(struct vtscsi_softc *sc,
 	if (abort_req->vsr_flags & VTSCSI_REQ_FLAG_TIMEOUT_SET)
 		callout_stop(&abort_req->vsr_callout);
 
-	vtscsi_init_ctrl_tmf_req(ccbh, VIRTIO_SCSI_T_TMF_ABORT_TASK,
+	vtscsi_init_ctrl_tmf_req(sc, ccbh, VIRTIO_SCSI_T_TMF_ABORT_TASK,
 	    (uintptr_t) abort_ccbh, tmf_req);
 
 	sglist_reset(sg);
@@ -1562,7 +1577,7 @@ vtscsi_execute_reset_dev_cmd(struct vtscsi_softc *sc,
 	else
 		subtype = VIRTIO_SCSI_T_TMF_LOGICAL_UNIT_RESET;
 
-	vtscsi_init_ctrl_tmf_req(ccbh, subtype, 0, tmf_req);
+	vtscsi_init_ctrl_tmf_req(sc, ccbh, subtype, 0, tmf_req);
 
 	sglist_reset(sg);
 	sglist_append(sg, tmf_req, sizeof(struct virtio_scsi_ctrl_tmf_req));
@@ -1599,7 +1614,7 @@ vtscsi_set_request_lun(struct ccb_hdr *ccbh, uint8_t lun[])
 }
 
 static void
-vtscsi_init_scsi_cmd_req(struct ccb_scsiio *csio,
+vtscsi_init_scsi_cmd_req(struct vtscsi_softc *sc, struct ccb_scsiio *csio,
     struct virtio_scsi_cmd_req *cmd_req)
 {
 	uint8_t attr;
@@ -1620,7 +1635,7 @@ vtscsi_init_scsi_cmd_req(struct ccb_scsiio *csio,
 	}
 
 	vtscsi_set_request_lun(&csio->ccb_h, cmd_req->lun);
-	cmd_req->tag = (uintptr_t) csio;
+	cmd_req->tag = vtscsi_gtoh64(sc, (uintptr_t) csio);
 	cmd_req->task_attr = attr;
 
 	memcpy(cmd_req->cdb,
@@ -1630,15 +1645,15 @@ vtscsi_init_scsi_cmd_req(struct ccb_scsiio *csio,
 }
 
 static void
-vtscsi_init_ctrl_tmf_req(struct ccb_hdr *ccbh, uint32_t subtype,
-    uintptr_t tag, struct virtio_scsi_ctrl_tmf_req *tmf_req)
+vtscsi_init_ctrl_tmf_req(struct vtscsi_softc *sc, struct ccb_hdr *ccbh,
+    uint32_t subtype, uintptr_t tag, struct virtio_scsi_ctrl_tmf_req *tmf_req)
 {
 
 	vtscsi_set_request_lun(ccbh, tmf_req->lun);
 
-	tmf_req->type = VIRTIO_SCSI_T_TMF;
-	tmf_req->subtype = subtype;
-	tmf_req->tag = tag;
+	tmf_req->type = vtscsi_gtoh32(sc, VIRTIO_SCSI_T_TMF);
+	tmf_req->subtype = vtscsi_gtoh32(sc, subtype);
+	tmf_req->tag = vtscsi_gtoh64(sc, tag);
 }
 
 static void
