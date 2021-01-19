@@ -758,6 +758,7 @@ vtnet_setup_features(struct vtnet_softc *sc)
 	else
 		sc->vtnet_tx_nsegs = VTNET_TX_SEGS_MIN;
 
+	sc->vtnet_req_vq_pairs = 1;
 	sc->vtnet_max_vq_pairs = 1;
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_CTRL_VQ)) {
@@ -785,8 +786,10 @@ vtnet_setup_features(struct vtnet_softc *sc)
 		 * number of CPUs and the configured maximum.
 		 */
 		req = vtnet_tunable_int(sc, "mq_max_pairs", vtnet_mq_max_pairs);
-		if (req < 1)
+		if (req < 0)
 			req = 1;
+		if (req == 0)
+			req = mp_ncpus;
 		if (req > sc->vtnet_max_vq_pairs)
 			req = sc->vtnet_max_vq_pairs;
 		if (req > mp_ncpus)
@@ -1014,16 +1017,27 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 	if (info == NULL)
 		return (ENOMEM);
 
-	for (i = 0, idx = 0; i < sc->vtnet_max_vq_pairs; i++, idx += 2) {
+	for (i = 0, idx = 0; i < sc->vtnet_req_vq_pairs; i++, idx += 2) {
 		rxq = &sc->vtnet_rxqs[i];
 		VQ_ALLOC_INFO_INIT(&info[idx], sc->vtnet_rx_nsegs,
 		    vtnet_rx_vq_intr, rxq, &rxq->vtnrx_vq,
-		    "%s-%d rx", device_get_nameunit(dev), rxq->vtnrx_id);
+		    "%s-rx%d", device_get_nameunit(dev), rxq->vtnrx_id);
 
 		txq = &sc->vtnet_txqs[i];
 		VQ_ALLOC_INFO_INIT(&info[idx+1], sc->vtnet_tx_nsegs,
 		    vtnet_tx_vq_intr, txq, &txq->vtntx_vq,
-		    "%s-%d tx", device_get_nameunit(dev), txq->vtntx_id);
+		    "%s-tx%d", device_get_nameunit(dev), txq->vtntx_id);
+	}
+
+	/* These queues will not be used so allocate the minimum resources. */
+	for (/**/; i < sc->vtnet_max_vq_pairs; i++, idx += 2) {
+		rxq = &sc->vtnet_rxqs[i];
+		VQ_ALLOC_INFO_INIT(&info[idx], 0, NULL, rxq, &rxq->vtnrx_vq,
+		    "%s-rx%d", device_get_nameunit(dev), rxq->vtnrx_id);
+
+		txq = &sc->vtnet_txqs[i];
+		VQ_ALLOC_INFO_INIT(&info[idx+1], 0, NULL, txq, &txq->vtntx_vq,
+		    "%s-tx%d", device_get_nameunit(dev), txq->vtntx_id);
 	}
 
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ) {
@@ -3006,7 +3020,7 @@ vtnet_start_taskqueues(struct vtnet_softc *sc)
 	 * Most drivers just ignore the return value - it only fails
 	 * with ENOMEM so an error is not likely.
 	 */
-	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+	for (i = 0; i < sc->vtnet_req_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
 		error = taskqueue_start_threads(&rxq->vtnrx_tq, 1, PI_NET,
 		    "%s rxq %d", device_get_nameunit(dev), rxq->vtnrx_id);
@@ -3076,7 +3090,7 @@ vtnet_drain_rxtx_queues(struct vtnet_softc *sc)
 	struct vtnet_txq *txq;
 	int i;
 
-	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
 		vtnet_rxq_free_mbufs(rxq);
 
@@ -3289,8 +3303,8 @@ vtnet_set_active_vq_pairs(struct vtnet_softc *sc)
 	npairs = sc->vtnet_req_vq_pairs;
 
 	if (vtnet_ctrl_mq_cmd(sc, npairs) != 0) {
-		device_printf(dev,
-		    "cannot set active queue pairs to %d\n", npairs);
+		device_printf(dev, "cannot set active queue pairs to %d, "
+		    "falling back to 1 queue pair\n", npairs);
 		npairs = 1;
 	}
 
@@ -4083,7 +4097,7 @@ vtnet_setup_queue_sysctl(struct vtnet_softc *sc)
 	tree = device_get_sysctl_tree(dev);
 	child = SYSCTL_CHILDREN(tree);
 
-	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
+	for (i = 0; i < sc->vtnet_req_vq_pairs; i++) {
 		vtnet_setup_rxq_sysctl(ctx, child, &sc->vtnet_rxqs[i]);
 		vtnet_setup_txq_sysctl(ctx, child, &sc->vtnet_txqs[i]);
 	}
@@ -4278,7 +4292,7 @@ vtnet_disable_rx_interrupts(struct vtnet_softc *sc)
 {
 	int i;
 
-	for (i = 0; i < sc->vtnet_act_vq_pairs; i++)
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++)
 		vtnet_rxq_disable_intr(&sc->vtnet_rxqs[i]);
 }
 
@@ -4287,7 +4301,7 @@ vtnet_disable_tx_interrupts(struct vtnet_softc *sc)
 {
 	int i;
 
-	for (i = 0; i < sc->vtnet_act_vq_pairs; i++)
+	for (i = 0; i < sc->vtnet_max_vq_pairs; i++)
 		vtnet_txq_disable_intr(&sc->vtnet_txqs[i]);
 }
 
@@ -4320,7 +4334,7 @@ vtnet_debugnet_init(struct ifnet *ifp, int *nrxr, int *ncl, int *clsize)
 	sc = if_getsoftc(ifp);
 
 	VTNET_CORE_LOCK(sc);
-	*nrxr = sc->vtnet_max_vq_pairs;
+	*nrxr = sc->vtnet_req_vq_pairs;
 	*ncl = DEBUGNET_MAX_IN_FLIGHT;
 	*clsize = sc->vtnet_rx_clustersz;
 	VTNET_CORE_UNLOCK(sc);
@@ -4362,7 +4376,7 @@ vtnet_debugnet_poll(struct ifnet *ifp, int count)
 		return (EBUSY);
 
 	(void)vtnet_txq_eof(&sc->vtnet_txqs[0]);
-	for (i = 0; i < sc->vtnet_max_vq_pairs; i++)
+	for (i = 0; i < sc->vtnet_act_vq_pairs; i++)
 		(void)vtnet_rxq_eof(&sc->vtnet_rxqs[i]);
 	return (0);
 }
