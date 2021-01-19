@@ -435,7 +435,8 @@ static int
 IcmpAliasIn(struct libalias *la, struct ip *pip)
 {
 	struct icmp *ic;
-	int dlen, iresult;
+	int iresult;
+	size_t dlen;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
@@ -462,7 +463,7 @@ IcmpAliasIn(struct libalias *la, struct ip *pip)
 	case ICMP_TIMXCEED:
 	case ICMP_PARAMPROB:
 		if (dlen < ICMP_ADVLENMIN ||
-		    dlen < ICMP_ADVLEN(ic))
+		    dlen < (size_t)ICMP_ADVLEN(ic))
 			return (PKT_ALIAS_IGNORED);
 		iresult = IcmpAliasIn2(la, pip);
 		break;
@@ -728,7 +729,7 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 {
 	struct udphdr *ud;
 	struct alias_link *lnk;
-	int dlen;
+	size_t dlen;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
@@ -827,7 +828,8 @@ UdpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 	u_short dest_port;
 	u_short proxy_server_port;
 	int proxy_type;
-	int dlen, error;
+	int error;
+	size_t dlen;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
@@ -930,7 +932,7 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 {
 	struct tcphdr *tc;
 	struct alias_link *lnk;
-	int dlen;
+	size_t dlen;
 
 	LIBALIAS_LOCK_ASSERT(la);
 
@@ -1055,9 +1057,10 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 static int
 TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 {
-	int dlen, proxy_type, error;
+	int proxy_type, error;
 	u_short dest_port;
 	u_short proxy_server_port;
+	size_t dlen;
 	struct in_addr dest_address;
 	struct in_addr proxy_server_address;
 	struct tcphdr *tc;

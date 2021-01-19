@@ -129,7 +129,7 @@ first_handler(void)
 
 #ifndef _KERNEL
 /* Dll manipulation code - this code is not thread safe... */
-SLIST_HEAD(dll_chain, dll) dll_chain = SLIST_HEAD_INITIALIZER(dll_chain);
+static SLIST_HEAD(dll_chain, dll) dll_chain = SLIST_HEAD_INITIALIZER(dll_chain);
 int
 attach_dll(struct dll *p)
 {
