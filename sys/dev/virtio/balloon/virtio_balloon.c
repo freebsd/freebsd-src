@@ -80,6 +80,8 @@ struct vtballoon_softc {
 static struct virtio_feature_desc vtballoon_feature_desc[] = {
 	{ VIRTIO_BALLOON_F_MUST_TELL_HOST,	"MustTellHost"	},
 	{ VIRTIO_BALLOON_F_STATS_VQ,		"StatsVq"	},
+	{ VIRTIO_BALLOON_F_DEFLATE_ON_OOM,	"DeflateOnOOM"	},
+
 	{ 0, NULL }
 };
 
@@ -110,8 +112,11 @@ static int	vtballoon_sleep(struct vtballoon_softc *);
 static void	vtballoon_thread(void *);
 static void	vtballoon_add_sysctl(struct vtballoon_softc *);
 
+#define vtballoon_modern(_sc) \
+    (((_sc)->vtballoon_features & VIRTIO_F_VERSION_1) != 0)
+
 /* Features desired/implemented by this driver. */
-#define VTBALLOON_FEATURES		0
+#define VTBALLOON_FEATURES		VIRTIO_BALLOON_F_MUST_TELL_HOST
 
 /* Timeout between retries when the balloon needs inflating. */
 #define VTBALLOON_LOWMEM_TIMEOUT	hz
@@ -278,8 +283,10 @@ vtballoon_negotiate_features(struct vtballoon_softc *sc)
 	uint64_t features;
 
 	dev = sc->vtballoon_dev;
-	features = virtio_negotiate_features(dev, VTBALLOON_FEATURES);
-	sc->vtballoon_features = features;
+	features = VTBALLOON_FEATURES;
+
+	sc->vtballoon_features = virtio_negotiate_features(dev, features);
+	virtio_finalize_features(dev);
 }
 
 static int
@@ -440,7 +447,8 @@ vtballoon_alloc_page(struct vtballoon_softc *sc)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ);
+	m = vm_page_alloc(NULL, 0,
+	    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_NODUMP);
 	if (m != NULL)
 		sc->vtballoon_current_npages++;
 
@@ -463,16 +471,23 @@ vtballoon_desired_size(struct vtballoon_softc *sc)
 	desired = virtio_read_dev_config_4(sc->vtballoon_dev,
 	    offsetof(struct virtio_balloon_config, num_pages));
 
-	return (le32toh(desired));
+	if (vtballoon_modern(sc))
+		return (desired);
+	else
+		return (le32toh(desired));
 }
 
 static void
 vtballoon_update_size(struct vtballoon_softc *sc)
 {
+	uint32_t npages;
+
+	npages = sc->vtballoon_current_npages;
+	if (!vtballoon_modern(sc))
+		npages = htole32(npages);
 
 	virtio_write_dev_config_4(sc->vtballoon_dev,
-	    offsetof(struct virtio_balloon_config, actual),
-	    htole32(sc->vtballoon_current_npages));
+	    offsetof(struct virtio_balloon_config, actual), npages);
 }
 
 static int
