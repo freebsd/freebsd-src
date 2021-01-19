@@ -119,24 +119,15 @@ virtio_feature_name(uint64_t val, struct virtio_feature_desc *desc)
 	return (NULL);
 }
 
-void
-virtio_describe(device_t dev, const char *msg,
-    uint64_t features, struct virtio_feature_desc *desc)
+int
+virtio_describe_sbuf(struct sbuf *sb, uint64_t features,
+    struct virtio_feature_desc *desc)
 {
-	struct sbuf sb;
-	uint64_t val;
-	char *buf;
 	const char *name;
+	uint64_t val;
 	int n;
 
-	if ((buf = malloc(1024, M_TEMP, M_NOWAIT)) == NULL) {
-		device_printf(dev, "%s features: %#jx\n",
-		    msg, (uintmax_t) features);
-		return;
-	}
-
-	sbuf_new(&sb, buf, 1024, SBUF_FIXEDLEN);
-	sbuf_printf(&sb, "%s features: %#jx", msg, (uintmax_t) features);
+	sbuf_printf(sb, "%#jx", (uintmax_t) features);
 
 	for (n = 0, val = 1ULL << 63; val != 0; val >>= 1) {
 		/*
@@ -147,25 +138,51 @@ virtio_describe(device_t dev, const char *msg,
 			continue;
 
 		if (n++ == 0)
-			sbuf_cat(&sb, " <");
+			sbuf_cat(sb, " <");
 		else
-			sbuf_cat(&sb, ",");
+			sbuf_cat(sb, ",");
 
 		name = virtio_feature_name(val, desc);
 		if (name == NULL)
-			sbuf_printf(&sb, "%#jx", (uintmax_t) val);
+			sbuf_printf(sb, "%#jx", (uintmax_t) val);
 		else
-			sbuf_cat(&sb, name);
+			sbuf_cat(sb, name);
 	}
 
 	if (n > 0)
-		sbuf_cat(&sb, ">");
+		sbuf_cat(sb, ">");
 
-	if (sbuf_finish(&sb) == 0)
+	return (sbuf_finish(sb));
+}
+
+void
+virtio_describe(device_t dev, const char *msg, uint64_t features,
+    struct virtio_feature_desc *desc)
+{
+	struct sbuf sb;
+	char *buf;
+	int error;
+
+	if ((buf = malloc(1024, M_TEMP, M_NOWAIT)) == NULL) {
+		error = ENOMEM;
+		goto out;
+	}
+
+	sbuf_new(&sb, buf, 1024, SBUF_FIXEDLEN);
+	sbuf_printf(&sb, "%s features: ", msg);
+
+	error = virtio_describe_sbuf(&sb, features, desc);
+	if (error == 0)
 		device_printf(dev, "%s\n", sbuf_data(&sb));
 
 	sbuf_delete(&sb);
 	free(buf, M_TEMP);
+
+out:
+	if (error != 0) {
+		device_printf(dev, "%s features: %#jx\n", msg,
+		    (uintmax_t) features);
+	}
 }
 
 uint64_t

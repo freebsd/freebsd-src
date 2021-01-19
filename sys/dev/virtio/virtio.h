@@ -35,6 +35,7 @@
 #include <dev/virtio/virtio_ids.h>
 #include <dev/virtio/virtio_config.h>
 
+struct sbuf;
 struct vq_alloc_info;
 
 /*
@@ -82,7 +83,9 @@ struct virtio_pnp_match {
 
 const char *virtio_device_name(uint16_t devid);
 void	 virtio_describe(device_t dev, const char *msg,
-	     uint64_t features, struct virtio_feature_desc *feature_desc);
+	     uint64_t features, struct virtio_feature_desc *desc);
+int	 virtio_describe_sbuf(struct sbuf *sb, uint64_t features,
+	     struct virtio_feature_desc *desc);
 uint64_t virtio_filter_transport_features(uint64_t features);
 int	 virtio_bus_is_modern(device_t dev);
 void	 virtio_read_device_config_array(device_t dev, bus_size_t offset,

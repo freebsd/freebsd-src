@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
 
@@ -84,6 +86,8 @@ static void	vtpci_vq_shared_intr(void *);
 static int	vtpci_vq_intr_filter(void *);
 static void	vtpci_vq_intr(void *);
 static void	vtpci_config_intr(void *);
+
+static void	vtpci_setup_sysctl(struct vtpci_common *);
 
 #define vtpci_setup_msi_interrupt vtpci_setup_intx_interrupt
 
@@ -156,6 +160,8 @@ vtpci_init(struct vtpci_common *cn, device_t dev, bool modern)
 		cn->vtpci_flags |= VTPCI_FLAG_NO_MSI;
 	if (pci_find_cap(dev, PCIY_MSIX, NULL) != 0)
 		cn->vtpci_flags |= VTPCI_FLAG_NO_MSIX;
+
+	vtpci_setup_sysctl(cn);
 }
 
 int
@@ -202,6 +208,7 @@ vtpci_child_detached(struct vtpci_common *cn)
 	vtpci_release_child_resources(cn);
 
 	cn->vtpci_child_feat_desc = NULL;
+	cn->vtpci_host_features = 0;
 	cn->vtpci_features = 0;
 }
 
@@ -246,6 +253,7 @@ vtpci_negotiate_features(struct vtpci_common *cn,
 {
 	uint64_t features;
 
+	cn->vtpci_host_features = host_features;
 	vtpci_describe_features(cn, "host", host_features);
 
 	/*
@@ -254,9 +262,9 @@ vtpci_negotiate_features(struct vtpci_common *cn,
 	 */
 	features = host_features & child_features;
 	features = virtio_filter_transport_features(features);
-	vtpci_describe_features(cn, "negotiated", features);
 
 	cn->vtpci_features = features;
+	vtpci_describe_features(cn, "negotiated", features);
 
 	return (features);
 }
@@ -929,4 +937,65 @@ vtpci_config_intr(void *xcn)
 
 	if (child != NULL)
 		VIRTIO_CONFIG_CHANGE(child);
+}
+
+static int
+vtpci_feature_sysctl(struct sysctl_req *req, struct vtpci_common *cn,
+    uint64_t features)
+{
+	struct sbuf *sb;
+	int error;
+
+	sb = sbuf_new_for_sysctl(NULL, NULL, 256, req);
+	if (sb == NULL)
+		return (ENOMEM);
+
+	error = virtio_describe_sbuf(sb, features, cn->vtpci_child_feat_desc);
+	sbuf_delete(sb);
+
+	return (error);
+}
+
+static int
+vtpci_host_features_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct vtpci_common *cn;
+
+	cn = arg1;
+
+	return (vtpci_feature_sysctl(req, cn, cn->vtpci_host_features));
+}
+
+static int
+vtpci_negotiated_features_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct vtpci_common *cn;
+
+	cn = arg1;
+
+	return (vtpci_feature_sysctl(req, cn, cn->vtpci_features));
+}
+
+static void
+vtpci_setup_sysctl(struct vtpci_common *cn)
+{
+	device_t dev;
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child;
+
+	dev = cn->vtpci_dev;
+	ctx = device_get_sysctl_ctx(dev);
+	tree = device_get_sysctl_tree(dev);
+	child = SYSCTL_CHILDREN(tree);
+
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "nvqs",
+	    CTLFLAG_RD, &cn->vtpci_nvqs, 0, "Number of virtqueues");
+
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "host_features",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, cn, 0,
+	    vtpci_host_features_sysctl, "A", "Features supported by the host");
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "negotiated_features",
+	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, cn, 0,
+	    vtpci_negotiated_features_sysctl, "A", "Features negotiated");
 }
