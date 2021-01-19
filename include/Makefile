@@ -397,7 +397,7 @@ symlinks: .PHONY .META
 	cd ${SRCTOP}/sys/rpc;
 .if ${MK_CDDL} != "no"
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
-	    ../../../sys/contrib/openenzfs/include/sys/nvpair.h \
+	    ../../../sys/contrib/openzfs/include/sys/nvpair.h \
 	    ${SDESTDIR}${INCLUDEDIR}/sys
 .endif
 .if ${MK_MLX5TOOL} != "no"
