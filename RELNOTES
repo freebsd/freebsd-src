@@ -18,7 +18,7 @@ Changes to this file should not be MFCed.
 	Add support for enforcing W^X mapping policy for user
 	processes.  The policy is not enforced by default but can be
 	enabled by setting the kern.elf32.allow_wx and
-	kern.elf64_allow_wx sysctls to 1.  Individual binaries can be
+	kern.elf64.allow_wx sysctls to 0.  Individual binaries can be
 	exempted from the policy by elfctl(1) via the wxneeded
 	feature.
 
