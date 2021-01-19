@@ -33,26 +33,27 @@
 #ifndef _VIRTIO_BLK_H
 #define _VIRTIO_BLK_H
 
-#define	VTBLK_BSIZE	512
-
 /* Feature bits */
-
-#define VIRTIO_BLK_F_BARRIER		0x0001	/* Does host support barriers? */
 #define VIRTIO_BLK_F_SIZE_MAX		0x0002	/* Indicates maximum segment size */
 #define VIRTIO_BLK_F_SEG_MAX		0x0004	/* Indicates maximum # of segments */
 #define VIRTIO_BLK_F_GEOMETRY		0x0010	/* Legacy geometry available  */
 #define VIRTIO_BLK_F_RO			0x0020	/* Disk is read-only */
 #define VIRTIO_BLK_F_BLK_SIZE		0x0040	/* Block size of disk is available*/
-#define VIRTIO_BLK_F_SCSI		0x0080	/* Supports scsi command passthru */
 #define VIRTIO_BLK_F_FLUSH		0x0200	/* Flush command supported */
-#define VIRTIO_BLK_F_WCE		0x0200	/* Legacy alias for FLUSH */
 #define VIRTIO_BLK_F_TOPOLOGY		0x0400	/* Topology information is available */
 #define VIRTIO_BLK_F_CONFIG_WCE		0x0800	/* Writeback mode available in config */
 #define VIRTIO_BLK_F_MQ			0x1000	/* Support more than one vq */
-#define VIRTIO_BLK_F_DISCARD		0x2000	/* Trim blocks */
-#define VIRTIO_BLK_F_WRITE_ZEROES	0x4000	/* Write zeros */
+#define VIRTIO_BLK_F_DISCARD		0x2000	/* DISCARD is supported */
+#define VIRTIO_BLK_F_WRITE_ZEROES	0x4000	/* WRITE ZEROES is supported */
 
-#define VIRTIO_BLK_ID_BYTES		20	/* ID string length */
+/* Legacy feature bits */
+#define VIRTIO_BLK_F_BARRIER	0x0001	/* Does host support barriers? */
+#define VIRTIO_BLK_F_SCSI	0x0080	/* Supports scsi command passthru */
+
+/* Old (deprecated) name for VIRTIO_BLK_F_FLUSH. */
+#define VIRTIO_BLK_F_WCE VIRTIO_BLK_F_FLUSH
+
+#define VIRTIO_BLK_ID_BYTES	20	/* ID string length */
 
 struct virtio_blk_config {
 	/* The capacity (in 512-byte sectors). */
@@ -87,14 +88,43 @@ struct virtio_blk_config {
 	/* Writeback mode (if VIRTIO_BLK_F_CONFIG_WCE) */
 	uint8_t wce;
 	uint8_t unused;
+
 	/* Number of vqs, only available when VIRTIO_BLK_F_MQ is set */
 	uint16_t num_queues;
+
+	/*
+	 * The next 3 entries are guarded by VIRTIO_BLK_F_DISCARD.
+	 *
+	 * The maximum discard sectors (in 512-byte sectors) for
+	 * one segment.
+	 */
 	uint32_t max_discard_sectors;
+	/*
+	 * The maximum number of discard segments in a
+	 * discard command.
+	 */
 	uint32_t max_discard_seg;
+	/* Discard commands must be aligned to this number of sectors. */
 	uint32_t discard_sector_alignment;
+
+	/*
+	 * The next 3 entries are guarded by VIRTIO_BLK_F_WRITE_ZEROES
+	 *
+	 * The maximum number of write zeroes sectors (in 512-byte sectors) in
+	 * one segment.
+	 */
 	uint32_t max_write_zeroes_sectors;
+	/*
+	 * The maximum number of segments in a write zeroes
+	 * command.
+	 */
 	uint32_t max_write_zeroes_seg;
+	/*
+	 * Set if a VIRTIO_BLK_T_WRITE_ZEROES request may result in the
+	 * deallocation of one or more of the sectors.
+	 */
 	uint8_t write_zeroes_may_unmap;
+
 	uint8_t unused1[3];
 } __packed;
 
@@ -133,13 +163,14 @@ struct virtio_blk_config {
 /* Barrier before this op. */
 #define VIRTIO_BLK_T_BARRIER		0x80000000
 
-/* ID string length */
-#define VIRTIO_BLK_ID_BYTES		20
-
 /* Unmap this range (only valid for write zeroes command) */
 #define VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP	0x00000001
 
-/* This is the first element of the read scatter-gather list. */
+/*
+ * This comes first in the read scatter-gather list.
+ * For legacy virtio, if VIRTIO_F_ANY_LAYOUT is not negotiated,
+ * this is the first element of the read scatter-gather list.
+ */
 struct virtio_blk_outhdr {
 	/* VIRTIO_BLK_T* */
 	uint32_t type;
@@ -149,13 +180,17 @@ struct virtio_blk_outhdr {
 	uint64_t sector;
 };
 
+/* Unmap this range (only valid for write zeroes command) */
+#define VIRTIO_BLK_WRITE_ZEROES_FLAG_UNMAP	0x00000001
+
+/* Discard/write zeroes range for each request. */
 struct virtio_blk_discard_write_zeroes {
+	/* Discard/write zeroes start sector */
 	uint64_t sector;
+	/* Number of discard/write zeroes sectors */
 	uint32_t num_sectors;
-	struct {
-		uint32_t unmap:1;
-		uint32_t reserved:31;
-	} flags;
+	/* Flags for this range */
+	uint32_t flags;
 };
 
 struct virtio_scsi_inhdr {
