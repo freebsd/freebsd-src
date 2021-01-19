@@ -1027,12 +1027,11 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	vtnet_get_macaddr(sc);
 	ether_ifattach(ifp, sc->vtnet_hwaddr);
 
-	if (virtio_with_feature(dev, VIRTIO_NET_F_STATUS))
-		ifp->if_capabilities |= IFCAP_LINKSTATE;
-
 	/* Tell the upper layer(s) we support long frames. */
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU;
+
+	if (virtio_with_feature(dev, VIRTIO_NET_F_STATUS))
+		ifp->if_capabilities |= IFCAP_LINKSTATE;
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_CSUM)) {
 		int gso;
@@ -1074,6 +1073,10 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 		ifp->if_capabilities |=
 		    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 	}
+
+	if (sc->vtnet_max_mtu >= ETHERMTU_JUMBO)
+		ifp->if_capabilities |= IFCAP_JUMBO_MTU;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 
 	ifp->if_capenable = ifp->if_capabilities;
 
