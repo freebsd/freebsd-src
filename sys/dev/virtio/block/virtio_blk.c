@@ -80,8 +80,7 @@ struct vtblk_softc {
 #define VTBLK_FLAG_DETACH	0x0004
 #define VTBLK_FLAG_SUSPEND	0x0008
 #define VTBLK_FLAG_BARRIER	0x0010
-#define VTBLK_FLAG_WC_CONFIG	0x0020
-#define VTBLK_FLAG_DISCARD	0x0040
+#define VTBLK_FLAG_WCE_CONFIG	0x0020
 
 	struct virtqueue	*vtblk_vq;
 	struct sglist		*vtblk_sglist;
@@ -110,10 +109,13 @@ static struct virtio_feature_desc vtblk_feature_desc[] = {
 	{ VIRTIO_BLK_F_RO,		"ReadOnly"	},
 	{ VIRTIO_BLK_F_BLK_SIZE,	"BlockSize"	},
 	{ VIRTIO_BLK_F_SCSI,		"SCSICmds"	},
-	{ VIRTIO_BLK_F_WCE,		"WriteCache"	},
+	{ VIRTIO_BLK_F_FLUSH,		"FlushCmd"	},
 	{ VIRTIO_BLK_F_TOPOLOGY,	"Topology"	},
 	{ VIRTIO_BLK_F_CONFIG_WCE,	"ConfigWCE"	},
+	{ VIRTIO_BLK_F_MQ,		"Multiqueue"	},
 	{ VIRTIO_BLK_F_DISCARD,		"Discard"	},
+	{ VIRTIO_BLK_F_WRITE_ZEROES,	"WriteZeros"	},
+
 	{ 0, NULL }
 };
 
@@ -194,25 +196,34 @@ static int	vtblk_write_cache_sysctl(SYSCTL_HANDLER_ARGS);
 static void	vtblk_setup_sysctl(struct vtblk_softc *);
 static int	vtblk_tunable_int(struct vtblk_softc *, const char *, int);
 
+#define vtblk_modern(_sc) (((_sc)->vtblk_features & VIRTIO_F_VERSION_1) != 0)
+#define vtblk_htog16(_sc, _val)	virtio_htog16(vtblk_modern(_sc), _val)
+#define vtblk_htog32(_sc, _val)	virtio_htog32(vtblk_modern(_sc), _val)
+#define vtblk_htog64(_sc, _val)	virtio_htog64(vtblk_modern(_sc), _val)
+#define vtblk_gtoh16(_sc, _val)	virtio_gtoh16(vtblk_modern(_sc), _val)
+#define vtblk_gtoh32(_sc, _val)	virtio_gtoh32(vtblk_modern(_sc), _val)
+#define vtblk_gtoh64(_sc, _val)	virtio_gtoh64(vtblk_modern(_sc), _val)
+
 /* Tunables. */
 static int vtblk_no_ident = 0;
 TUNABLE_INT("hw.vtblk.no_ident", &vtblk_no_ident);
 static int vtblk_writecache_mode = -1;
 TUNABLE_INT("hw.vtblk.writecache_mode", &vtblk_writecache_mode);
 
-/* Features desired/implemented by this driver. */
-#define VTBLK_FEATURES \
-    (VIRTIO_BLK_F_BARRIER		| \
-     VIRTIO_BLK_F_SIZE_MAX		| \
+#define VTBLK_COMMON_FEATURES \
+    (VIRTIO_BLK_F_SIZE_MAX		| \
      VIRTIO_BLK_F_SEG_MAX		| \
      VIRTIO_BLK_F_GEOMETRY		| \
      VIRTIO_BLK_F_RO			| \
      VIRTIO_BLK_F_BLK_SIZE		| \
-     VIRTIO_BLK_F_WCE			| \
+     VIRTIO_BLK_F_FLUSH			| \
      VIRTIO_BLK_F_TOPOLOGY		| \
      VIRTIO_BLK_F_CONFIG_WCE		| \
      VIRTIO_BLK_F_DISCARD		| \
      VIRTIO_RING_F_INDIRECT_DESC)
+
+#define VTBLK_MODERN_FEATURES	(VTBLK_COMMON_FEATURES)
+#define VTBLK_LEGACY_FEATURES	(VIRTIO_BLK_F_BARRIER | VTBLK_COMMON_FEATURES)
 
 #define VTBLK_MTX(_sc)		&(_sc)->vtblk_mtx
 #define VTBLK_LOCK_INIT(_sc, _name) \
@@ -227,6 +238,7 @@ TUNABLE_INT("hw.vtblk.writecache_mode", &vtblk_writecache_mode);
 
 #define VTBLK_DISK_NAME		"vtbd"
 #define VTBLK_QUIESCE_TIMEOUT	(30 * hz)
+#define VTBLK_BSIZE		512
 
 /*
  * Each block request uses at least two segments - one for the header
@@ -566,13 +578,6 @@ vtblk_strategy(struct bio *bp)
 		return;
 	}
 
-	if ((bp->bio_cmd == BIO_DELETE) &&
-	    !(sc->vtblk_flags & VTBLK_FLAG_DISCARD)) {
-		VTBLK_UNLOCK(sc);
-		vtblk_bio_done(sc, bp, EOPNOTSUPP);
-		return;
-	}
-
 	bioq_insert_tail(&sc->vtblk_bioq, bp);
 	vtblk_startio(sc);
 
@@ -586,9 +591,11 @@ vtblk_negotiate_features(struct vtblk_softc *sc)
 	uint64_t features;
 
 	dev = sc->vtblk_dev;
-	features = VTBLK_FEATURES;
+	features = virtio_bus_is_modern(dev) ? VTBLK_MODERN_FEATURES :
+	    VTBLK_LEGACY_FEATURES;
 
 	sc->vtblk_features = virtio_negotiate_features(dev, features);
+	virtio_finalize_features(dev);
 }
 
 static void
@@ -604,12 +611,12 @@ vtblk_setup_features(struct vtblk_softc *sc)
 		sc->vtblk_flags |= VTBLK_FLAG_INDIRECT;
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_RO))
 		sc->vtblk_flags |= VTBLK_FLAG_READONLY;
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_CONFIG_WCE))
+		sc->vtblk_flags |= VTBLK_FLAG_WCE_CONFIG;
+
+	/* Legacy. */
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_BARRIER))
 		sc->vtblk_flags |= VTBLK_FLAG_BARRIER;
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_CONFIG_WCE))
-		sc->vtblk_flags |= VTBLK_FLAG_WC_CONFIG;
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_DISCARD))
-		sc->vtblk_flags |= VTBLK_FLAG_DISCARD;
 }
 
 static int
@@ -688,12 +695,14 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	dp->d_name = VTBLK_DISK_NAME;
 	dp->d_unit = device_get_unit(dev);
 	dp->d_drv1 = sc;
-	dp->d_flags = DISKFLAG_CANFLUSHCACHE | DISKFLAG_UNMAPPED_BIO |
-	    DISKFLAG_DIRECT_COMPLETION;
+	dp->d_flags = DISKFLAG_UNMAPPED_BIO | DISKFLAG_DIRECT_COMPLETION;
 	dp->d_hba_vendor = virtio_get_vendor(dev);
 	dp->d_hba_device = virtio_get_device(dev);
 	dp->d_hba_subvendor = virtio_get_subvendor(dev);
 	dp->d_hba_subdevice = virtio_get_subdevice(dev);
+
+	if (virtio_with_feature(dev, VIRTIO_BLK_F_FLUSH))
+		dp->d_flags |= DISKFLAG_CANFLUSHCACHE;
 
 	if ((sc->vtblk_flags & VTBLK_FLAG_READONLY) == 0)
 		dp->d_dump = vtblk_dump;
@@ -885,30 +894,31 @@ vtblk_request_bio(struct vtblk_softc *sc)
 	bp = bioq_takefirst(bioq);
 	req->vbr_bp = bp;
 	req->vbr_ack = -1;
-	req->vbr_hdr.ioprio = 1;
+	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
 
 	switch (bp->bio_cmd) {
 	case BIO_FLUSH:
-		req->vbr_hdr.type = VIRTIO_BLK_T_FLUSH;
+		req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_FLUSH);
+		req->vbr_hdr.sector = 0;
 		break;
 	case BIO_READ:
-		req->vbr_hdr.type = VIRTIO_BLK_T_IN;
-		req->vbr_hdr.sector = bp->bio_offset / VTBLK_BSIZE;
+		req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_IN);
+		req->vbr_hdr.sector = vtblk_gtoh64(sc, bp->bio_offset / VTBLK_BSIZE);
 		break;
 	case BIO_WRITE:
-		req->vbr_hdr.type = VIRTIO_BLK_T_OUT;
-		req->vbr_hdr.sector = bp->bio_offset / VTBLK_BSIZE;
+		req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_OUT);
+		req->vbr_hdr.sector = vtblk_gtoh64(sc, bp->bio_offset / VTBLK_BSIZE);
 		break;
 	case BIO_DELETE:
-		req->vbr_hdr.type = VIRTIO_BLK_T_DISCARD;
-		req->vbr_hdr.sector = bp->bio_offset / VTBLK_BSIZE;
+		req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_DISCARD);
+		req->vbr_hdr.sector = vtblk_gtoh64(sc, bp->bio_offset / VTBLK_BSIZE);
 		break;
 	default:
 		panic("%s: bio with unhandled cmd: %d", __func__, bp->bio_cmd);
 	}
 
 	if (bp->bio_flags & BIO_ORDERED)
-		req->vbr_hdr.type |= VIRTIO_BLK_T_BARRIER;
+		req->vbr_hdr.type |= vtblk_gtoh32(sc, VIRTIO_BLK_T_BARRIER);
 
 	return (req);
 }
@@ -939,7 +949,8 @@ vtblk_request_execute(struct vtblk_softc *sc, struct vtblk_request *req)
 			if (!virtqueue_empty(vq))
 				return (EBUSY);
 			ordered = 1;
-			req->vbr_hdr.type &= ~VIRTIO_BLK_T_BARRIER;
+			req->vbr_hdr.type &= vtblk_gtoh32(sc,
+				~VIRTIO_BLK_T_BARRIER);
 		}
 	}
 
@@ -962,9 +973,10 @@ vtblk_request_execute(struct vtblk_softc *sc, struct vtblk_request *req)
 		discard = malloc(sizeof(*discard), M_DEVBUF, M_NOWAIT | M_ZERO);
 		if (discard == NULL)
 			return (ENOMEM);
-		discard->sector = bp->bio_offset / VTBLK_BSIZE;
-		discard->num_sectors = bp->bio_bcount / VTBLK_BSIZE;
+
 		bp->bio_driver1 = discard;
+		discard->sector = vtblk_gtoh64(sc, bp->bio_offset / VTBLK_BSIZE);
+		discard->num_sectors = vtblk_gtoh32(sc, bp->bio_bcount / VTBLK_BSIZE);
 		error = sglist_append(sg, discard, sizeof(*discard));
 		if (error || sg->sg_nseg == sg->sg_maxseg) {
 			panic("%s: bio %p data buffer too big %d",
@@ -1057,15 +1069,16 @@ vtblk_drain_vq(struct vtblk_softc *sc)
 static void
 vtblk_drain(struct vtblk_softc *sc)
 {
-	struct bio_queue queue;
 	struct bio_queue_head *bioq;
 	struct vtblk_request *req;
 	struct bio *bp;
 
 	bioq = &sc->vtblk_bioq;
-	TAILQ_INIT(&queue);
 
 	if (sc->vtblk_vq != NULL) {
+		struct bio_queue queue;
+
+		TAILQ_INIT(&queue);
 		vtblk_queue_completed(sc, &queue);
 		vtblk_done_completed(sc, &queue);
 
@@ -1161,9 +1174,21 @@ vtblk_read_config(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	/* Read the configuration if the feature was negotiated. */
 	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_SIZE_MAX, size_max, blkcfg);
 	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_SEG_MAX, seg_max, blkcfg);
-	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_GEOMETRY, geometry, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_GEOMETRY,
+	    geometry.cylinders, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_GEOMETRY,
+	    geometry.heads, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_GEOMETRY,
+	    geometry.sectors, blkcfg);
 	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_BLK_SIZE, blk_size, blkcfg);
-	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_TOPOLOGY, topology, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_TOPOLOGY,
+	    topology.physical_block_exp, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_TOPOLOGY,
+	    topology.alignment_offset, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_TOPOLOGY,
+	    topology.min_io_size, blkcfg);
+	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_TOPOLOGY,
+	    topology.opt_io_size, blkcfg);
 	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_CONFIG_WCE, wce, blkcfg);
 	VTBLK_GET_CONFIG(dev, VIRTIO_BLK_F_DISCARD, max_discard_sectors,
 	    blkcfg);
@@ -1193,8 +1218,8 @@ vtblk_ident(struct vtblk_softc *sc)
 		return;
 
 	req->vbr_ack = -1;
-	req->vbr_hdr.type = VIRTIO_BLK_T_GET_ID;
-	req->vbr_hdr.ioprio = 1;
+	req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_GET_ID);
+	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
 	req->vbr_hdr.sector = 0;
 
 	req->vbr_bp = &buf;
@@ -1325,9 +1350,9 @@ vtblk_dump_write(struct vtblk_softc *sc, void *virtual, off_t offset,
 
 	req = &sc->vtblk_dump_request;
 	req->vbr_ack = -1;
-	req->vbr_hdr.type = VIRTIO_BLK_T_OUT;
-	req->vbr_hdr.ioprio = 1;
-	req->vbr_hdr.sector = offset / VTBLK_BSIZE;
+	req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_OUT);
+	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
+	req->vbr_hdr.sector = vtblk_gtoh64(sc, offset / VTBLK_BSIZE);
 
 	req->vbr_bp = &buf;
 	g_reset_bio(&buf);
@@ -1347,8 +1372,8 @@ vtblk_dump_flush(struct vtblk_softc *sc)
 
 	req = &sc->vtblk_dump_request;
 	req->vbr_ack = -1;
-	req->vbr_hdr.type = VIRTIO_BLK_T_FLUSH;
-	req->vbr_hdr.ioprio = 1;
+	req->vbr_hdr.type = vtblk_gtoh32(sc, VIRTIO_BLK_T_FLUSH);
+	req->vbr_hdr.ioprio = vtblk_gtoh32(sc, 1);
 	req->vbr_hdr.sector = 0;
 
 	req->vbr_bp = &buf;
@@ -1385,7 +1410,7 @@ vtblk_write_cache_enabled(struct vtblk_softc *sc,
 {
 	int wc;
 
-	if (sc->vtblk_flags & VTBLK_FLAG_WC_CONFIG) {
+	if (sc->vtblk_flags & VTBLK_FLAG_WCE_CONFIG) {
 		wc = vtblk_tunable_int(sc, "writecache_mode",
 		    vtblk_writecache_mode);
 		if (wc >= 0 && wc < VTBLK_CACHE_MAX)
@@ -1393,7 +1418,7 @@ vtblk_write_cache_enabled(struct vtblk_softc *sc,
 		else
 			wc = blkcfg->wce;
 	} else
-		wc = virtio_with_feature(sc->vtblk_dev, VIRTIO_BLK_F_WCE);
+		wc = virtio_with_feature(sc->vtblk_dev, VIRTIO_BLK_F_FLUSH);
 
 	return (wc);
 }
@@ -1410,7 +1435,7 @@ vtblk_write_cache_sysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &wc, 0, req);
 	if (error || req->newptr == NULL)
 		return (error);
-	if ((sc->vtblk_flags & VTBLK_FLAG_WC_CONFIG) == 0)
+	if ((sc->vtblk_flags & VTBLK_FLAG_WCE_CONFIG) == 0)
 		return (EPERM);
 	if (wc < 0 || wc >= VTBLK_CACHE_MAX)
 		return (EINVAL);
