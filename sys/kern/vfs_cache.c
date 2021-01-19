@@ -4963,10 +4963,8 @@ cache_fpl_pathlen_sub(struct cache_fpl *fpl, size_t n)
 static int
 cache_fplookup_preparse(struct cache_fpl *fpl)
 {
-	struct nameidata *ndp;
 	struct componentname *cnp;
 
-	ndp = fpl->ndp;
 	cnp = fpl->cnp;
 
 	if (__predict_false(cnp->cn_nameptr[0] == '\0')) {
