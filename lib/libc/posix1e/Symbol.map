@@ -84,3 +84,7 @@ FBSD_1.1 {
 	acl_strip_np;
 	acl_to_text_np;
 };
+
+FBSD_1.7 {
+	acl_from_mode_np;
+};
