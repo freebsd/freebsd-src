@@ -2010,6 +2010,16 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 			rxq->vtnrx_stats.vrxs_csum_failed++;
 	}
 
+	if (hdr->gso_size != 0) {
+		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
+		case VIRTIO_NET_HDR_GSO_TCPV4:
+		case VIRTIO_NET_HDR_GSO_TCPV6:
+			m->m_pkthdr.lro_nsegs =
+			    howmany(m->m_pkthdr.len, hdr->gso_size);
+			break;
+		}
+	}
+
 	rxq->vtnrx_stats.vrxs_ipackets++;
 	rxq->vtnrx_stats.vrxs_ibytes += m->m_pkthdr.len;
 
