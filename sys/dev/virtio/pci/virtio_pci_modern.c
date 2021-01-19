@@ -462,8 +462,6 @@ vtpci_modern_finalize_features(device_t dev)
 	/*
 	 * Must re-read the status after setting it to verify the negotiated
 	 * features were accepted by the device.
-	 *
-	 * BMV: TODO Drivers need to handle possible failure of this method!
 	 */
 	vtpci_modern_set_status(sc, VIRTIO_CONFIG_S_FEATURES_OK);
 

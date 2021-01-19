@@ -135,8 +135,8 @@ static int	vtblk_ioctl(struct disk *, u_long, void *, int,
 static int	vtblk_dump(void *, void *, vm_offset_t, off_t, size_t);
 static void	vtblk_strategy(struct bio *);
 
-static void	vtblk_negotiate_features(struct vtblk_softc *);
-static void	vtblk_setup_features(struct vtblk_softc *);
+static int	vtblk_negotiate_features(struct vtblk_softc *);
+static int	vtblk_setup_features(struct vtblk_softc *);
 static int	vtblk_maximum_segments(struct vtblk_softc *,
 		    struct virtio_blk_config *);
 static int	vtblk_alloc_virtqueue(struct vtblk_softc *);
@@ -312,10 +312,10 @@ vtblk_attach(device_t dev)
 	struct virtio_blk_config blkcfg;
 	int error;
 
-	virtio_set_feature_desc(dev, vtblk_feature_desc);
-
 	sc = device_get_softc(dev);
 	sc->vtblk_dev = dev;
+	virtio_set_feature_desc(dev, vtblk_feature_desc);
+
 	VTBLK_LOCK_INIT(sc, device_get_nameunit(dev));
 	bioq_init(&sc->vtblk_bioq);
 	TAILQ_INIT(&sc->vtblk_dump_queue);
@@ -323,7 +323,12 @@ vtblk_attach(device_t dev)
 	TAILQ_INIT(&sc->vtblk_req_ready);
 
 	vtblk_setup_sysctl(sc);
-	vtblk_setup_features(sc);
+
+	error = vtblk_setup_features(sc);
+	if (error) {
+		device_printf(dev, "cannot setup features\n");
+		goto fail;
+	}
 
 	vtblk_read_config(sc, &blkcfg);
 
@@ -572,7 +577,7 @@ vtblk_strategy(struct bio *bp)
 	VTBLK_UNLOCK(sc);
 }
 
-static void
+static int
 vtblk_negotiate_features(struct vtblk_softc *sc)
 {
 	device_t dev;
@@ -583,17 +588,20 @@ vtblk_negotiate_features(struct vtblk_softc *sc)
 	    VTBLK_LEGACY_FEATURES;
 
 	sc->vtblk_features = virtio_negotiate_features(dev, features);
-	virtio_finalize_features(dev);
+	return (virtio_finalize_features(dev));
 }
 
-static void
+static int
 vtblk_setup_features(struct vtblk_softc *sc)
 {
 	device_t dev;
+	int error;
 
 	dev = sc->vtblk_dev;
 
-	vtblk_negotiate_features(sc);
+	error = vtblk_negotiate_features(sc);
+	if (error)
+		return (error);
 
 	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
 		sc->vtblk_flags |= VTBLK_FLAG_INDIRECT;
@@ -603,6 +611,8 @@ vtblk_setup_features(struct vtblk_softc *sc)
 	/* Legacy. */
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_BARRIER))
 		sc->vtblk_flags |= VTBLK_FLAG_BARRIER;
+
+	return (0);
 }
 
 static int
