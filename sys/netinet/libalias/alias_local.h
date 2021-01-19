@@ -322,8 +322,8 @@ FindNewPortGroup(struct libalias *la, struct in_addr _dst_addr, struct in_addr _
     u_char _proto, u_char _align);
 void		GetFragmentAddr(struct alias_link *_lnk, struct in_addr *_src_addr);
 void		SetFragmentAddr(struct alias_link *_lnk, struct in_addr _src_addr);
-void		GetFragmentPtr(struct alias_link *_lnk, char **_fptr);
-void		SetFragmentPtr(struct alias_link *_lnk, char *fptr);
+void		GetFragmentPtr(struct alias_link *_lnk, void **_fptr);
+void		SetFragmentPtr(struct alias_link *_lnk, void *fptr);
 void		SetStateIn(struct alias_link *_lnk, int _state);
 void		SetStateOut(struct alias_link *_lnk, int _state);
 int		GetStateIn (struct alias_link *_lnk);
