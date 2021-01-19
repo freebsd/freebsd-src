@@ -160,7 +160,7 @@ The control message contains a
 .Vt struct tls_get_record
 which includes fields from the TLS record header.
 If an invalid or corrupted TLS record is received,
-recvmsg 2
+.Xr recvmsg 2
 will fail with one of the following errors:
 .Bl -tag -width Er
 .It Bq Er EINVAL
