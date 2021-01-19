@@ -1515,7 +1515,7 @@ printb(const char *s, unsigned v, const char *bits)
 		bits++;
 		putchar('<');
 		while ((i = *bits++) != '\0') {
-			if (v & (1 << (i-1))) {
+			if (v & (1u << (i-1))) {
 				if (any)
 					putchar(',');
 				any = 1;
