@@ -95,12 +95,14 @@ enqueue(struct str *x)
 		rotated = true;
 		free(item->dat);
 	}
-	item->dat = grep_malloc(sizeof(char) * x->len);
+	/* len + 1 for NUL-terminator */
+	item->dat = grep_malloc(sizeof(char) * x->len + 1);
 	item->len = x->len;
 	item->line_no = x->line_no;
 	item->boff = x->boff;
 	item->off = x->off;
 	memcpy(item->dat, x->dat, x->len);
+	item->dat[x->len] = '\0';
 	item->file = x->file;
 
 	return (rotated);
