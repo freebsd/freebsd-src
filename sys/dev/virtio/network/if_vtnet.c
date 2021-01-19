@@ -3120,11 +3120,13 @@ vtnet_stop_rendezvous(struct vtnet_softc *sc)
 	struct vtnet_txq *txq;
 	int i;
 
+	VTNET_CORE_LOCK_ASSERT(sc);
+
 	/*
 	 * Lock and unlock the per-queue mutex so we known the stop
 	 * state is visible. Doing only the active queues should be
 	 * sufficient, but it does not cost much extra to do all the
-	 * queues. Note we hold the core mutex here too.
+	 * queues.
 	 */
 	for (i = 0; i < sc->vtnet_max_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
@@ -3168,8 +3170,8 @@ vtnet_stop(struct vtnet_softc *sc)
 	virtio_stop(dev);
 	vtnet_stop_rendezvous(sc);
 
-	/* Free any mbufs left in the virtqueues. */
 	vtnet_drain_rxtx_queues(sc);
+	sc->vtnet_act_vq_pairs = 1;
 }
 
 static int
@@ -4278,10 +4280,14 @@ vtnet_txq_disable_intr(struct vtnet_txq *txq)
 static void
 vtnet_enable_rx_interrupts(struct vtnet_softc *sc)
 {
+	struct vtnet_rxq *rxq;
 	int i;
 
-	for (i = 0; i < sc->vtnet_act_vq_pairs; i++)
-		vtnet_rxq_enable_intr(&sc->vtnet_rxqs[i]);
+	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
+		rxq = &sc->vtnet_rxqs[i];
+		if (vtnet_rxq_enable_intr(rxq) != 0)
+			taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
+	}
 }
 
 static void
