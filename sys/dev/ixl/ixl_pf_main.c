@@ -69,6 +69,7 @@ static int	ixl_sysctl_phy_abilities(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_sw_filter_list(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hw_res_alloc(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS);
+static int	ixl_sysctl_switch_vlans(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hkey(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hena(SYSCTL_HANDLER_ARGS);
 static int	ixl_sysctl_hlut(SYSCTL_HANDLER_ARGS);
@@ -2330,6 +2331,11 @@ ixl_add_device_sysctls(struct ixl_pf *pf)
 	    pf, 0, ixl_sysctl_switch_config, "A", "HW Switch Configuration");
 
 	SYSCTL_ADD_PROC(ctx, debug_list,
+	    OID_AUTO, "switch_vlans",
+	    CTLTYPE_INT | CTLFLAG_WR | CTLFLAG_NEEDGIANT,
+	    pf, 0, ixl_sysctl_switch_vlans, "I", "HW Switch VLAN Configuration");
+
+	SYSCTL_ADD_PROC(ctx, debug_list,
 	    OID_AUTO, "rss_key",
 	    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    pf, 0, ixl_sysctl_hkey, "A", "View RSS key");
@@ -3479,6 +3485,40 @@ ixl_sysctl_switch_config(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(buf);
 
 	return (error);
+}
+
+static int
+ixl_sysctl_switch_vlans(SYSCTL_HANDLER_ARGS)
+{
+	struct ixl_pf *pf = (struct ixl_pf *)arg1;
+	struct i40e_hw *hw = &pf->hw;
+	device_t dev = pf->dev;
+	int requested_vlan = -1;
+	enum i40e_status_code status = 0;
+	int error = 0;
+
+	error = sysctl_handle_int(oidp, &requested_vlan, 0, req);
+	if ((error) || (req->newptr == NULL))
+	    return (error);
+
+	if ((hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) == 0) {
+		device_printf(dev, "Flags disallow setting of vlans\n");
+		return (ENODEV);
+	}
+
+	hw->switch_tag = requested_vlan;
+	device_printf(dev,
+	    "Setting switch config to switch_tag=%04x, first_tag=%04x, second_tag=%04x\n",
+	    hw->switch_tag, hw->first_tag, hw->second_tag);
+	status = i40e_aq_set_switch_config(hw, 0, 0, 0, NULL);
+	if (status) {
+		device_printf(dev,
+		    "%s: aq_set_switch_config() error %s, aq error %s\n",
+		    __func__, i40e_stat_str(hw, status),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
+		return (status);
+	}
+	return (0);
 }
 
 static int
