@@ -102,8 +102,8 @@ static int	vtnet_shutdown(device_t);
 static int	vtnet_attach_completed(device_t);
 static int	vtnet_config_change(device_t);
 
-static void	vtnet_negotiate_features(struct vtnet_softc *);
-static void	vtnet_setup_features(struct vtnet_softc *);
+static int	vtnet_negotiate_features(struct vtnet_softc *);
+static int	vtnet_setup_features(struct vtnet_softc *);
 static int	vtnet_init_rxq(struct vtnet_softc *, int);
 static int	vtnet_init_txq(struct vtnet_softc *, int);
 static int	vtnet_alloc_rxtx_queues(struct vtnet_softc *);
@@ -434,7 +434,6 @@ vtnet_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->vtnet_dev = dev;
-
 	virtio_set_feature_desc(dev, vtnet_feature_desc);
 
 	VTNET_CORE_LOCK_INIT(sc);
@@ -448,7 +447,12 @@ vtnet_attach(device_t dev)
 	}
 
 	vtnet_setup_sysctl(sc);
-	vtnet_setup_features(sc);
+
+	error = vtnet_setup_features(sc);
+	if (error) {
+		device_printf(dev, "cannot setup features\n");
+		goto fail;
+	}
 
 	error = vtnet_alloc_rx_filters(sc);
 	if (error) {
@@ -619,7 +623,7 @@ vtnet_config_change(device_t dev)
 	return (0);
 }
 
-static void
+static int
 vtnet_negotiate_features(struct vtnet_softc *sc)
 {
 	device_t dev;
@@ -705,17 +709,20 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 	sc->vtnet_features = negotiated_features;
 	sc->vtnet_negotiated_features = negotiated_features;
 
-	virtio_finalize_features(dev);
+	return (virtio_finalize_features(dev));
 }
 
-static void
+static int
 vtnet_setup_features(struct vtnet_softc *sc)
 {
 	device_t dev;
+	int error;
 
 	dev = sc->vtnet_dev;
 
-	vtnet_negotiate_features(sc);
+	error = vtnet_negotiate_features(sc);
+	if (error)
+		return (error);
 
 	if (virtio_with_feature(dev, VIRTIO_F_VERSION_1))
 		sc->vtnet_flags |= VTNET_FLAG_MODERN;
@@ -807,6 +814,8 @@ vtnet_setup_features(struct vtnet_softc *sc)
 			sc->vtnet_flags |= VTNET_FLAG_MQ;
 		}
 	}
+
+	return (0);
 }
 
 static int

@@ -157,8 +157,8 @@ static int	 vtcon_attach(device_t);
 static int	 vtcon_detach(device_t);
 static int	 vtcon_config_change(device_t);
 
-static void	 vtcon_setup_features(struct vtcon_softc *);
-static void	 vtcon_negotiate_features(struct vtcon_softc *);
+static int	 vtcon_setup_features(struct vtcon_softc *);
+static int	 vtcon_negotiate_features(struct vtcon_softc *);
 static int	 vtcon_alloc_scports(struct vtcon_softc *);
 static int	 vtcon_alloc_virtqueues(struct vtcon_softc *);
 static void	 vtcon_read_config(struct vtcon_softc *,
@@ -331,12 +331,16 @@ vtcon_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->vtcon_dev = dev;
+	virtio_set_feature_desc(dev, vtcon_feature_desc);
 
 	mtx_init(&sc->vtcon_mtx, "vtconmtx", NULL, MTX_DEF);
 	mtx_init(&sc->vtcon_ctrl_tx_mtx, "vtconctrlmtx", NULL, MTX_DEF);
 
-	virtio_set_feature_desc(dev, vtcon_feature_desc);
-	vtcon_setup_features(sc);
+	error = vtcon_setup_features(sc);
+	if (error) {
+		device_printf(dev, "cannot setup features\n");
+		goto fail;
+	}
 
 	vtcon_read_config(sc, &concfg);
 	vtcon_determine_max_ports(sc, &concfg);
@@ -428,7 +432,7 @@ vtcon_config_change(device_t dev)
 	return (0);
 }
 
-static void
+static int
 vtcon_negotiate_features(struct vtcon_softc *sc)
 {
 	device_t dev;
@@ -438,22 +442,27 @@ vtcon_negotiate_features(struct vtcon_softc *sc)
 	features = VTCON_FEATURES;
 
 	sc->vtcon_features = virtio_negotiate_features(dev, features);
-	virtio_finalize_features(dev);
+	return (virtio_finalize_features(dev));
 }
 
-static void
+static int
 vtcon_setup_features(struct vtcon_softc *sc)
 {
 	device_t dev;
+	int error;
 
 	dev = sc->vtcon_dev;
 
-	vtcon_negotiate_features(sc);
+	error = vtcon_negotiate_features(sc);
+	if (error)
+		return (error);
 
 	if (virtio_with_feature(dev, VIRTIO_CONSOLE_F_SIZE))
 		sc->vtcon_flags |= VTCON_FLAG_SIZE;
 	if (virtio_with_feature(dev, VIRTIO_CONSOLE_F_MULTIPORT))
 		sc->vtcon_flags |= VTCON_FLAG_MULTIPORT;
+
+	return (0);
 }
 
 #define VTCON_GET_CONFIG(_dev, _feature, _field, _cfg)			\

@@ -90,7 +90,8 @@ static int	vtballoon_attach(device_t);
 static int	vtballoon_detach(device_t);
 static int	vtballoon_config_change(device_t);
 
-static void	vtballoon_negotiate_features(struct vtballoon_softc *);
+static int	vtballoon_negotiate_features(struct vtballoon_softc *);
+static int	vtballoon_setup_features(struct vtballoon_softc *);
 static int	vtballoon_alloc_virtqueues(struct vtballoon_softc *);
 
 static void	vtballoon_vq_intr(void *);
@@ -110,7 +111,7 @@ static void	vtballoon_free_page(struct vtballoon_softc *, vm_page_t);
 
 static int	vtballoon_sleep(struct vtballoon_softc *);
 static void	vtballoon_thread(void *);
-static void	vtballoon_add_sysctl(struct vtballoon_softc *);
+static void	vtballoon_setup_sysctl(struct vtballoon_softc *);
 
 #define vtballoon_modern(_sc) \
     (((_sc)->vtballoon_features & VIRTIO_F_VERSION_1) != 0)
@@ -183,14 +184,18 @@ vtballoon_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->vtballoon_dev = dev;
+	virtio_set_feature_desc(dev, vtballoon_feature_desc);
 
 	VTBALLOON_LOCK_INIT(sc, device_get_nameunit(dev));
 	TAILQ_INIT(&sc->vtballoon_pages);
 
-	vtballoon_add_sysctl(sc);
+	vtballoon_setup_sysctl(sc);
 
-	virtio_set_feature_desc(dev, vtballoon_feature_desc);
-	vtballoon_negotiate_features(sc);
+	error = vtballoon_setup_features(sc);
+	if (error) {
+		device_printf(dev, "cannot setup features\n");
+		goto fail;
+	}
 
 	sc->vtballoon_page_frames = malloc(VTBALLOON_PAGES_PER_REQUEST *
 	    sizeof(uint32_t), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -276,7 +281,7 @@ vtballoon_config_change(device_t dev)
 	return (1);
 }
 
-static void
+static int
 vtballoon_negotiate_features(struct vtballoon_softc *sc)
 {
 	device_t dev;
@@ -286,7 +291,19 @@ vtballoon_negotiate_features(struct vtballoon_softc *sc)
 	features = VTBALLOON_FEATURES;
 
 	sc->vtballoon_features = virtio_negotiate_features(dev, features);
-	virtio_finalize_features(dev);
+	return (virtio_finalize_features(dev));
+}
+
+static int
+vtballoon_setup_features(struct vtballoon_softc *sc)
+{
+	int error;
+
+	error = vtballoon_negotiate_features(sc);
+	if (error)
+		return (error);
+
+	return (0);
 }
 
 static int
@@ -559,7 +576,7 @@ vtballoon_thread(void *xsc)
 }
 
 static void
-vtballoon_add_sysctl(struct vtballoon_softc *sc)
+vtballoon_setup_sysctl(struct vtballoon_softc *sc)
 {
 	device_t dev;
 	struct sysctl_ctx_list *ctx;

@@ -76,7 +76,8 @@ static int	vtscsi_detach(device_t);
 static int	vtscsi_suspend(device_t);
 static int	vtscsi_resume(device_t);
 
-static void	vtscsi_negotiate_features(struct vtscsi_softc *);
+static int	vtscsi_negotiate_features(struct vtscsi_softc *);
+static int	vtscsi_setup_features(struct vtscsi_softc *);
 static void	vtscsi_read_config(struct vtscsi_softc *,
 		    struct virtio_scsi_config *);
 static int	vtscsi_maximum_segments(struct vtscsi_softc *, int);
@@ -184,7 +185,7 @@ static void	vtscsi_disable_vqs_intr(struct vtscsi_softc *);
 static void	vtscsi_enable_vqs_intr(struct vtscsi_softc *);
 
 static void	vtscsi_get_tunables(struct vtscsi_softc *);
-static void	vtscsi_add_sysctl(struct vtscsi_softc *);
+static void	vtscsi_setup_sysctl(struct vtscsi_softc *);
 
 static void	vtscsi_printf_req(struct vtscsi_request *, const char *,
 		    const char *, ...);
@@ -285,22 +286,19 @@ vtscsi_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->vtscsi_dev = dev;
+	virtio_set_feature_desc(dev, vtscsi_feature_desc);
 
 	VTSCSI_LOCK_INIT(sc, device_get_nameunit(dev));
 	TAILQ_INIT(&sc->vtscsi_req_free);
 
 	vtscsi_get_tunables(sc);
-	vtscsi_add_sysctl(sc);
+	vtscsi_setup_sysctl(sc);
 
-	virtio_set_feature_desc(dev, vtscsi_feature_desc);
-	vtscsi_negotiate_features(sc);
-
-	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
-		sc->vtscsi_flags |= VTSCSI_FLAG_INDIRECT;
-	if (virtio_with_feature(dev, VIRTIO_SCSI_F_INOUT))
-		sc->vtscsi_flags |= VTSCSI_FLAG_BIDIRECTIONAL;
-	if (virtio_with_feature(dev, VIRTIO_SCSI_F_HOTPLUG))
-		sc->vtscsi_flags |= VTSCSI_FLAG_HOTPLUG;
+	error = vtscsi_setup_features(sc);
+	if (error) {
+		device_printf(dev, "cannot setup features\n");
+		goto fail;
+	}
 
 	vtscsi_read_config(sc, &scsicfg);
 
@@ -413,7 +411,7 @@ vtscsi_resume(device_t dev)
 	return (0);
 }
 
-static void
+static int
 vtscsi_negotiate_features(struct vtscsi_softc *sc)
 {
 	device_t dev;
@@ -423,7 +421,29 @@ vtscsi_negotiate_features(struct vtscsi_softc *sc)
 	features = VTSCSI_FEATURES;
 
 	sc->vtscsi_features = virtio_negotiate_features(dev, features);
-	virtio_finalize_features(dev);
+	return (virtio_finalize_features(dev));
+}
+
+static int
+vtscsi_setup_features(struct vtscsi_softc *sc)
+{
+	device_t dev;
+	int error;
+
+	dev = sc->vtscsi_dev;
+
+	error = vtscsi_negotiate_features(sc);
+	if (error)
+		return (error);
+
+	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
+		sc->vtscsi_flags |= VTSCSI_FLAG_INDIRECT;
+	if (virtio_with_feature(dev, VIRTIO_SCSI_F_INOUT))
+		sc->vtscsi_flags |= VTSCSI_FLAG_BIDIRECTIONAL;
+	if (virtio_with_feature(dev, VIRTIO_SCSI_F_HOTPLUG))
+		sc->vtscsi_flags |= VTSCSI_FLAG_HOTPLUG;
+
+	return (0);
 }
 
 #define VTSCSI_GET_CONFIG(_dev, _field, _cfg)			\
@@ -2287,7 +2307,7 @@ vtscsi_get_tunables(struct vtscsi_softc *sc)
 }
 
 static void
-vtscsi_add_sysctl(struct vtscsi_softc *sc)
+vtscsi_setup_sysctl(struct vtscsi_softc *sc)
 {
 	device_t dev;
 	struct vtscsi_statistics *stats;
