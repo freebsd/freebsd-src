@@ -140,6 +140,7 @@ struct vtnet_softc {
 	struct vtnet_rxq	*vtnet_rxqs;
 	struct vtnet_txq	*vtnet_txqs;
 	pfil_head_t		 vtnet_pfil;
+	uint64_t		 vtnet_features;
 
 	uint32_t		 vtnet_flags;
 #define VTNET_FLAG_MODERN	 0x0001
@@ -158,18 +159,18 @@ struct vtnet_softc {
 #define VTNET_FLAG_FIXUP_NEEDS_CSUM 0x2000
 #define VTNET_FLAG_SW_LRO	 0x4000
 
-	int			 vtnet_link_active;
 	int			 vtnet_hdr_size;
-	int			 vtnet_rx_process_limit;
-	int			 vtnet_rx_nsegs;
 	int			 vtnet_rx_nmbufs;
 	int			 vtnet_rx_clustersz;
-	int			 vtnet_tx_nsegs;
-	int			 vtnet_if_flags;
-	int			 vtnet_max_mtu;
+	int			 vtnet_rx_nsegs;
+	int			 vtnet_rx_process_limit;
+	int			 vtnet_link_active;
 	int			 vtnet_act_vq_pairs;
 	int			 vtnet_req_vq_pairs;
 	int			 vtnet_max_vq_pairs;
+	int			 vtnet_tx_nsegs;
+	int			 vtnet_if_flags;
+	int			 vtnet_max_mtu;
 	int			 vtnet_lro_entry_count;
 	int			 vtnet_lro_mbufq_depth;
 
@@ -177,7 +178,6 @@ struct vtnet_softc {
 	struct vtnet_mac_filter	*vtnet_mac_filter;
 	uint32_t		*vtnet_vlan_filter;
 
-	uint64_t		 vtnet_features;
 	uint64_t		 vtnet_negotiated_features;
 	struct vtnet_statistics	 vtnet_stats;
 	struct callout		 vtnet_tick_ch;
