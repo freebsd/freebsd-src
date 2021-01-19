@@ -43,9 +43,10 @@ struct vtnet_statistics {
 	uint64_t	rx_csum_bad_ipproto;
 	uint64_t	rx_csum_bad_offset;
 	uint64_t	rx_csum_bad_proto;
-	uint64_t	tx_csum_bad_ethtype;
-	uint64_t	tx_tso_bad_ethtype;
+	uint64_t	tx_csum_unknown_ethtype;
+	uint64_t	tx_csum_proto_mismatch;
 	uint64_t	tx_tso_not_tcp;
+	uint64_t	tx_tso_without_csum;
 	uint64_t	tx_defragged;
 	uint64_t	tx_defrag_failed;
 
