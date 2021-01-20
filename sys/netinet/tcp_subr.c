@@ -742,6 +742,16 @@ tcp_default_fb_init(struct tcpcb *tp)
 		    TCPS_HAVEESTABLISHED(tp->t_state) ? TP_KEEPIDLE(tp) :
 		    TP_KEEPINIT(tp));
 
+	/*
+	 * Make sure critical variables are initialized
+	 * if transitioning while in Recovery.
+	 */
+	if IN_FASTRECOVERY(tp->t_flags) {
+		if (tp->sackhint.recover_fs == 0)
+			tp->sackhint.recover_fs = max(1,
+			    tp->snd_nxt - tp->snd_una);
+	}
+
 	return (0);
 }
 

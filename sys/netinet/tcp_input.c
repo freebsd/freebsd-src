@@ -510,6 +510,7 @@ cc_post_recovery(struct tcpcb *tp, struct tcphdr *th)
 	}
 	/* XXXLAS: EXIT_RECOVERY ? */
 	tp->t_bytes_acked = 0;
+	tp->sackhint.recover_fs = 0;
 }
 
 /*
@@ -2590,6 +2591,9 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 							tp->sackhint.sack_bytes_rexmit;
 						tp->sackhint.prr_delivered += del_data;
 						if (pipe > tp->snd_ssthresh) {
+							if (tp->sackhint.recover_fs == 0)
+								tp->sackhint.recover_fs =
+								    max(1, tp->snd_nxt - tp->snd_una);
 							snd_cnt = (tp->sackhint.prr_delivered *
 							    tp->snd_ssthresh /
 							    tp->sackhint.recover_fs) +
@@ -2677,14 +2681,14 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tcp_timer_activate(tp, TT_REXMT, 0);
 					tp->t_rtttime = 0;
 					if (V_tcp_do_prr) {
-					    /*
-					     * snd_ssthresh is already updated by
-					     * cc_cong_signal.
-					     */
-					    tp->sackhint.prr_delivered = 0;
-					    tp->sackhint.sack_bytes_rexmit = 0;
-					    if (!(tp->sackhint.recover_fs = tp->snd_nxt - tp->snd_una))
-						tp->sackhint.recover_fs = 1;
+						/*
+						 * snd_ssthresh is already updated by
+						 * cc_cong_signal.
+						 */
+						tp->sackhint.prr_delivered = 0;
+						tp->sackhint.sack_bytes_rexmit = 0;
+						tp->sackhint.recover_fs = max(1,
+						    tp->snd_nxt - tp->snd_una);
 					}
 					if (tp->t_flags & TF_SACK_PERMIT) {
 						TCPSTAT_INC(
