@@ -62,7 +62,7 @@ EW     09-17-2004     1.0.0     Constant definitions
 #define AGTIAPI_MAX_DEVICE_7H       256 /*Max devices per channel in 7H */
 #define AGTIAPI_MAX_DEVICE_8H       512 /*Max devices per channel in 8H*/
 #define AGTIAPI_MAX_CAM_Q_DEPTH     1024
-#define AGTIAPI_NSEGS               (maxphys / PAGE_SIZE)
+#define AGTIAPI_NSEGS               (btoc(maxphys) + 1)
 /*
 ** Adapter specific defines 
 */
