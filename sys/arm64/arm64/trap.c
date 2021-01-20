@@ -535,8 +535,14 @@ do_el0_sync(struct thread *td, struct trapframe *frame)
 		userret(td, frame);
 		break;
 	case EXCP_MSR:
-		call_trapsignal(td, SIGILL, ILL_PRVOPC, (void *)frame->tf_elr,
-		    exception);
+		/*
+		 * The CPU can raise EXCP_MSR when userspace executes an mrs
+		 * instruction to access a special register userspace doesn't
+		 * have access to.
+		 */
+		if (!undef_insn(0, frame))
+			call_trapsignal(td, SIGILL, ILL_PRVOPC,
+			    (void *)frame->tf_elr, exception);
 		userret(td, frame);
 		break;
 	case EXCP_SOFTSTP_EL0:
