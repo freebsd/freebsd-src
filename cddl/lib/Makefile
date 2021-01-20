@@ -28,10 +28,8 @@ _libicp_rescue=	libicp_rescue
 _libzfs=	libzfs
 _libzutil=	libzutil
 _libzfsbootenv=	libzfsbootenv
-.if ${MK_LIBTHR} != "no"
 _libzpool=	libzpool
 _libtpool=	libtpool
-.endif
 .endif
 
 SUBDIR_DEPEND_libctf=		libspl

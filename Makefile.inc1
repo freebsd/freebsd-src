@@ -2898,7 +2898,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/libzstd \
 		${_lib_casper} \
 		lib/ncurses/ncurses \
-		lib/libopie lib/libpam/libpam ${_lib_libthr} \
+		lib/libopie lib/libpam/libpam lib/libthr \
 		${_lib_libradius} lib/libsbuf lib/libtacplus \
 		lib/libgeom \
 		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
@@ -2931,10 +2931,6 @@ _prebuild_libs+= lib/libc++
 
 lib/libgeom__L: lib/libexpat__L lib/libsbuf__L
 lib/libkvm__L: lib/libelf__L
-
-.if ${MK_LIBTHR} != "no"
-_lib_libthr=	lib/libthr
-.endif
 
 .if ${MK_RADIUS_SUPPORT} != "no"
 _lib_libradius=	lib/libradius

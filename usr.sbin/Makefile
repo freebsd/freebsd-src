@@ -162,10 +162,8 @@ SUBDIR.${MK_LEGACY_CONSOLE}+=	kbdcontrol
 SUBDIR.${MK_LEGACY_CONSOLE}+=	kbdmap
 SUBDIR.${MK_LEGACY_CONSOLE}+=	moused
 SUBDIR.${MK_LEGACY_CONSOLE}+=	vidcontrol
-.if ${MK_LIBTHR} != "no" || ${MK_LIBPTHREAD} != "no"
 SUBDIR.${MK_PPP}+=	pppctl
 SUBDIR.${MK_NS_CACHING}+=	nscd
-.endif
 SUBDIR.${MK_LPR}+=	lpr
 SUBDIR.${MK_MAN_UTILS}+=	manctl
 SUBDIR.${MK_MLX5TOOL}+=	mlx5tool

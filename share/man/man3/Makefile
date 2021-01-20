@@ -370,7 +370,6 @@ MLINKS+=	tree.3 RB_EMPTY.3 \
 		tree.3 SPLAY_RIGHT.3 \
 		tree.3 SPLAY_ROOT.3
 
-.if ${MK_LIBTHR} != "no"
 PTHREAD_MAN=	pthread.3 \
 		pthread_affinity_np.3 \
 		pthread_atfork.3 \
@@ -504,6 +503,5 @@ PTHREAD_MLINKS+=pthread_testcancel.3 pthread_setcancelstate.3 \
 		pthread_testcancel.3 pthread_setcanceltype.3
 PTHREAD_MLINKS+=pthread_join.3 pthread_peekjoin_np.3 \
 		pthread_join.3 pthread_timedjoin_np.3
-.endif
 
 .include <bsd.prog.mk>

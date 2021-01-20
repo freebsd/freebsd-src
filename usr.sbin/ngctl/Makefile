@@ -11,9 +11,7 @@ WARNS?=	3
 
 LIBADD=	netgraph
 
-.if ${MK_LIBTHR} != "no"
 CFLAGS+= -DEDITLINE
 LIBADD+=	edit pthread
-.endif
 
 .include <bsd.prog.mk>
