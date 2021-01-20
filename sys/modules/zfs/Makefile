@@ -282,6 +282,8 @@ SRCS+=	zfs_zstd.c \
 
 .include <bsd.kmod.mk>
 
+CFLAGS+= -include ${SRCTOP}/sys/cddl/compat/opensolaris/sys/debug_compat.h
+
 CWARNFLAGS+=	${OPENZFS_CWARNFLAGS}
 
 CFLAGS.gcc+= -Wno-pointer-to-int-cast
