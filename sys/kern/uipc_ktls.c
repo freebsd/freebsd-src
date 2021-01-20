@@ -113,7 +113,7 @@ static int ktls_bind_threads;
 #endif
 SYSCTL_INT(_kern_ipc_tls, OID_AUTO, bind_threads, CTLFLAG_RDTUN,
     &ktls_bind_threads, 0,
-    "Bind crypto threads to cores or domains at boot");
+    "Bind crypto threads to cores (1) or cores and domains (2) at boot");
 
 static u_int ktls_maxlen = 16384;
 SYSCTL_UINT(_kern_ipc_tls, OID_AUTO, maxlen, CTLFLAG_RWTUN,
@@ -435,10 +435,12 @@ ktls_init(void *dummy __unused)
 	 * If we somehow have an empty domain, fall back to choosing
 	 * among all KTLS threads.
 	 */
-	for (i = 0; i < vm_ndomains; i++) {
-		if (ktls_domains[i].count == 0) {
-			ktls_bind_threads = 0;
-			break;
+	if (ktls_bind_threads > 1) {
+		for (i = 0; i < vm_ndomains; i++) {
+			if (ktls_domains[i].count == 0) {
+				ktls_bind_threads = 1;
+				break;
+			}
 		}
 	}
 
