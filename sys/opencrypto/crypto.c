@@ -134,7 +134,6 @@ static	int crypto_drivers_size = 0;
 
 struct crypto_session {
 	struct cryptocap *cap;
-	void *softc;
 	struct crypto_session_params csp;
 };
 
@@ -201,7 +200,6 @@ SYSCTL_INT(_kern, OID_AUTO, crypto_workers_num, CTLFLAG_RDTUN,
 #endif
 
 static	uma_zone_t cryptop_zone;
-static	uma_zone_t cryptoses_zone;
 
 int	crypto_userasymcrypto = 1;
 SYSCTL_INT(_kern_crypto, OID_AUTO, asym_enable, CTLFLAG_RW,
@@ -331,9 +329,6 @@ crypto_init(void)
 
 	cryptop_zone = uma_zcreate("cryptop",
 	    sizeof(struct cryptop), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
-	cryptoses_zone = uma_zcreate("crypto_session",
-	    sizeof(struct crypto_session), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 
 	crypto_drivers_size = CRYPTO_DRIVERS_INITIAL;
@@ -487,8 +482,6 @@ crypto_destroy(void)
 	}
 	free(crypto_drivers, M_CRYPTO_DATA);
 
-	if (cryptoses_zone != NULL)
-		uma_zdestroy(cryptoses_zone);
 	if (cryptop_zone != NULL)
 		uma_zdestroy(cryptop_zone);
 	mtx_destroy(&crypto_q_mtx);
@@ -515,7 +508,7 @@ crypto_ses2caps(crypto_session_t crypto_session)
 void *
 crypto_get_driver_session(crypto_session_t crypto_session)
 {
-	return (crypto_session->softc);
+	return (crypto_session + 1);
 }
 
 const struct crypto_session_params *
@@ -895,8 +888,7 @@ crypto_deletesession(crypto_session_t cses)
 
 	cap = cses->cap;
 
-	zfree(cses->softc, M_CRYPTO_DATA);
-	uma_zfree(cryptoses_zone, cses);
+	zfree(cses, M_CRYPTO_DATA);
 
 	CRYPTO_DRIVER_LOCK();
 	cap->cc_sessions--;
@@ -948,10 +940,9 @@ crypto_newsession(crypto_session_t *cses,
 	cap->cc_sessions++;
 	CRYPTO_DRIVER_UNLOCK();
 
-	res = uma_zalloc(cryptoses_zone, M_WAITOK | M_ZERO);
+	res = malloc(sizeof(*res) + cap->cc_session_size, M_CRYPTO_DATA,
+	    M_WAITOK | M_ZERO);
 	res->cap = cap;
-	res->softc = malloc(cap->cc_session_size, M_CRYPTO_DATA, M_WAITOK |
-	    M_ZERO);
 	res->csp = *csp;
 
 	/* Call the driver initialization routine. */
