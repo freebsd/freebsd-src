@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2020
+.Dd January 18, 2021
 .Dt HCONF 4
 .Os
 .Sh NAME
@@ -61,11 +61,11 @@ Debug parameter is available as
 .Xr loader 8
 tunable as well.
 .Bl -tag -width indent
-.It Va dev.hmt.*.input_mode
+.It Va dev.hconf.*.input_mode
 HID device input mode: 0 = mouse, 3 = touchpad.
-.It Va dev.hmt.*.surface_switch
+.It Va dev.hconf.*.surface_switch
 Enable / disable switch for surface: 1 = on, 0 = off.
-.It Va dev.hmt.*.buttons_switch
+.It Va dev.hconf.*.buttons_switch
 Enable / disable switch for buttons: 1 = on, 0 = off.
 .It Va hw.hid.hconf.debug
 Debug output level, where 0 is debugging disabled and larger values increase
