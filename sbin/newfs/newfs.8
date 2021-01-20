@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2021
+.Dd April 17, 2021
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -291,6 +291,14 @@ to find the alternate superblocks if the standard superblock is lost.
 .It Fl S Ar sector-size
 The size of a sector in bytes (almost never anything but 512).
 .El
+.Sh NOTES ON THE NAMING
+.Dq newfs
+is a common name prefix for utilities creating filesystems, with the suffix
+indicating the type of the filesystem, for instance
+.Xr newfs_msdos 8 .
+The
+.Nm
+utility is a special case which predates that convention.
 .Sh EXAMPLES
 .Dl newfs /dev/ada3s1a
 .Pp
