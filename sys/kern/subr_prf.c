@@ -179,6 +179,14 @@ uprintf(const char *fmt, ...)
 	if (TD_IS_IDLETHREAD(td))
 		return (0);
 
+	if (td->td_proc == initproc) {
+		/* Produce output when we fail to load /sbin/init: */
+		va_start(ap, fmt);
+		retval = vprintf(fmt, ap);
+		va_end(ap);
+		return (retval);
+	}
+
 	sx_slock(&proctree_lock);
 	p = td->td_proc;
 	PROC_LOCK(p);
