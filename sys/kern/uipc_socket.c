@@ -718,6 +718,7 @@ sonewconn(struct socket *head, int connstatus)
 	}
 	so->so_listen = head;
 	so->so_type = head->so_type;
+	so->so_options = head->so_options & ~SO_ACCEPTCONN;
 	so->so_linger = head->so_linger;
 	so->so_state = head->so_state | SS_NOFDREF;
 	so->so_fibnum = head->so_fibnum;
@@ -754,7 +755,6 @@ sonewconn(struct socket *head, int connstatus)
 	if (head->sol_accept_filter != NULL)
 		connstatus = 0;
 	so->so_state |= connstatus;
-	so->so_options = head->so_options & ~SO_ACCEPTCONN;
 	soref(head); /* A socket on (in)complete queue refs head. */
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->sol_comp, so, so_list);
