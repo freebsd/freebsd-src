@@ -2,6 +2,7 @@
  * SPDX-License-Identifier: BSD-2-Clause-FreeBSD
  *
  * Copyright (c) 2019 Vladimir Kondratyev <wulf@FreeBSD.org>
+ * Copyright (c) 2020 Andriy Gapon <avg@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -69,21 +70,25 @@ struct feature_control_descr {
 	const char	*name;
 	const char	*descr;
 	uint16_t	usage;
+	u_int		value;
 } feature_control_descrs[] = {
 	[INPUT_MODE] = {
 		.name = "input_mode",
 		.descr = "HID device input mode: 0 = mouse, 3 = touchpad",
-		.usage = HUD_INPUT_MODE
+		.usage = HUD_INPUT_MODE,
+		.value = HCONF_INPUT_MODE_MOUSE,
 	},
 	[SURFACE_SWITCH] = {
 		.name = "surface_switch",
 		.descr = "Enable / disable switch for surface: 1 = on, 0 = off",
-		.usage = HUD_SURFACE_SWITCH
+		.usage = HUD_SURFACE_SWITCH,
+		.value = 1,
 	},
 	[BUTTONS_SWITCH] = {
 		.name = "buttons_switch",
 		.descr = "Enable / disable switch for buttons: 1 = on, 0 = off",
-		.usage = HUD_BUTTONS_SWITCH
+		.usage = HUD_BUTTONS_SWITCH,
+		.value = 1,
 	},
 };
 
@@ -145,35 +150,25 @@ hconf_set_feature_control(struct hconf_softc *sc, int ctrl_id, u_int val)
 	fbuf = malloc(fc->rlen, M_TEMP, M_WAITOK | M_ZERO);
 	sx_xlock(&sc->lock);
 
-	/* Reports are not strictly required to be readable */
-	error = hid_get_report(sc->dev, fbuf, fc->rlen, NULL,
-	    HID_FEATURE_REPORT, fc->rid);
-
 	/*
-	 * If the report is write-only, then we have to check for other controls
-	 * that may share the same report and set their bits as well.
+	 * Assume the report is write-only. Then we have to check for other
+	 * controls that may share the same report and set their bits as well.
 	 */
-	if (error != 0) {
-		bzero(fbuf + 1, fc->rlen - 1);
-		for (i = 0; i < nitems(sc->feature_controls); i++) {
-			struct feature_control *ofc = &sc->feature_controls[i];
+	bzero(fbuf + 1, fc->rlen - 1);
+	for (i = 0; i < nitems(sc->feature_controls); i++) {
+		struct feature_control *ofc = &sc->feature_controls[i];
 
-			/* Skip unrelated report IDs. */
-			if (ofc->rid != fc->rid)
-				continue;
-			/* Skip self. */
-			if (ofc == fc)
-				continue;
-			KASSERT(fc->rlen == ofc->rlen,
-			    ("different lengths for report %d: %d vs %d\n",
-			    fc->rid, fc->rlen, ofc->rlen));
-			hid_put_udata(fbuf + 1, ofc->rlen - 1, &ofc->loc,
-			    ofc->val);
-		}
+		/* Skip unrelated report IDs. */
+		if (ofc->rid != fc->rid)
+			continue;
+		KASSERT(fc->rlen == ofc->rlen,
+		    ("different lengths for report %d: %d vs %d\n",
+		    fc->rid, fc->rlen, ofc->rlen));
+		hid_put_udata(fbuf + 1, ofc->rlen - 1, &ofc->loc,
+		    i == ctrl_id ? val : ofc->val);
 	}
 
 	fbuf[0] = fc->rid;
-	hid_put_udata(fbuf + 1, fc->rlen - 1, &fc->loc, val);
 
 	error = hid_set_report(sc->dev, fbuf, fc->rlen,
 	    HID_FEATURE_REPORT, fc->rid);
@@ -277,11 +272,9 @@ hconf_attach(device_t dev)
 			    sc, i, hconf_feature_control_handler, "I",
 			    feature_control_descrs[i].descr);
 		}
+		sc->feature_controls[i].val = feature_control_descrs[i].value;
 	}
 
-	/* Fully enable (at least, try to). */
-	(void)hconf_set_feature_control(sc, SURFACE_SWITCH, 1);
-	(void)hconf_set_feature_control(sc, BUTTONS_SWITCH, 1);
 	return (0);
 }
 
@@ -304,6 +297,10 @@ hconf_resume(device_t dev)
 
 	for (i = 0; i < nitems(sc->feature_controls); i++) {
 		if (sc->feature_controls[i].rlen < 2)
+			continue;
+		/* Do not update usages to default value */
+		if (sc->feature_controls[i].val ==
+		    feature_control_descrs[i].value)
 			continue;
 		error = hconf_set_feature_control(sc, i,
 		    sc->feature_controls[i].val);
