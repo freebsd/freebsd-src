@@ -443,17 +443,13 @@ cgem_setup_descs(struct cgem_softc *sc)
 		return (err);
 
 	/*
-	 * Allocate DMA memory in non-cacheable space.  We allocate transmit,
-	 * receive and null descriptor queues all at once because the
-	 * hardware only provides one register for the upper 32 bits of
-	 * rx and tx descriptor queues hardware addresses.
+	 * Allocate DMA memory. We allocate transmit, receive and null
+	 * descriptor queues all at once because the hardware only provides
+	 * one register for the upper 32 bits of rx and tx descriptor queues
+	 * hardware addresses.
 	 */
 	err = bus_dmamem_alloc(sc->desc_dma_tag, (void **)&sc->rxring,
-#ifdef __arm__
 	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT | BUS_DMA_ZERO,
-#else
-	    BUS_DMA_NOWAIT | BUS_DMA_NOCACHE | BUS_DMA_ZERO,
-#endif
 	    &sc->rxring_dma_map);
 	if (err)
 		return (err);
