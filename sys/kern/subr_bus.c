@@ -5528,18 +5528,12 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	sbuf_new(&sb, udev->dv_fields, sizeof(udev->dv_fields), SBUF_FIXEDLEN);
 	if (dev->nameunit != NULL)
 		sbuf_cat(&sb, dev->nameunit);
-	else
-		sbuf_putc(&sb, '\0');
 	sbuf_putc(&sb, '\0');
 	if (dev->desc != NULL)
 		sbuf_cat(&sb, dev->desc);
-	else
-		sbuf_putc(&sb, '\0');
 	sbuf_putc(&sb, '\0');
 	if (dev->driver != NULL)
 		sbuf_cat(&sb, dev->driver->name);
-	else
-		sbuf_putc(&sb, '\0');
 	sbuf_putc(&sb, '\0');
 	bus_child_pnpinfo_sb(dev, &sb);
 	sbuf_putc(&sb, '\0');
