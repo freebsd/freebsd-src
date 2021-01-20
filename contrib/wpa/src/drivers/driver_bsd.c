@@ -648,7 +648,7 @@ rtbuf_len(void)
 		len = 2048;
 	}
 
-	return len;
+	return (len == 0) ? 2048 : len;
 }
 
 #ifdef HOSTAPD
