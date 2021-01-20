@@ -135,6 +135,7 @@ static	int crypto_drivers_size = 0;
 struct crypto_session {
 	struct cryptocap *cap;
 	struct crypto_session_params csp;
+	uint64_t id;
 };
 
 /*
@@ -908,6 +909,7 @@ int
 crypto_newsession(crypto_session_t *cses,
     const struct crypto_session_params *csp, int crid)
 {
+	static uint64_t sessid = 0;
 	crypto_session_t res;
 	struct cryptocap *cap;
 	int err;
@@ -944,6 +946,7 @@ crypto_newsession(crypto_session_t *cses,
 	    M_WAITOK | M_ZERO);
 	res->cap = cap;
 	res->csp = *csp;
+	res->id = atomic_fetchadd_64(&sessid, 1);
 
 	/* Call the driver initialization routine. */
 	err = CRYPTODEV_NEWSESSION(cap->cc_dev, res, csp);
@@ -1416,7 +1419,7 @@ crypto_dispatch(struct cryptop *crp)
 
 	CRYPTOSTAT_INC(cs_ops);
 
-	crp->crp_retw_id = ((uintptr_t)crp->crp_session) % crypto_workers_num;
+	crp->crp_retw_id = crp->crp_session->id % crypto_workers_num;
 
 	if (CRYPTOP_ASYNC(crp)) {
 		if (crp->crp_flags & CRYPTO_F_ASYNC_KEEPORDER) {
