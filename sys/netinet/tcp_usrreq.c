@@ -163,9 +163,6 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	if (error)
 		goto out;
 
-	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
-		so->so_linger = TCP_LINGERTIME;
-
 	inp = sotoinpcb(so);
 	tp = intotcpcb(inp);
 out:

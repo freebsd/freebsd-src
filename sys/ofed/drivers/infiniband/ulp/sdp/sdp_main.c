@@ -481,8 +481,6 @@ sdp_attach(struct socket *so, int proto, struct thread *td)
 	LIST_INSERT_HEAD(&sdp_list, ssk, list);
 	sdp_count++;
 	SDP_LIST_WUNLOCK();
-	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
-		so->so_linger = TCP_LINGERTIME;
 
 	return (0);
 }
