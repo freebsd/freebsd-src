@@ -4283,7 +4283,7 @@ cache_fplookup_modifying(struct cache_fpl *fpl)
 	if (!cache_fpl_islastcn(ndp)) {
 		return (cache_fpl_partial(fpl));
 	}
-	return  (cache_fplookup_final_modifying(fpl));
+	return (cache_fplookup_final_modifying(fpl));
 }
 
 static int __noinline
