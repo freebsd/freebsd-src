@@ -428,7 +428,7 @@ udom_open(const char *path, int flags)
 {
 	struct addrinfo hints, *res, *res0;
 	char rpath[PATH_MAX];
-	int fd, error, serrno;
+	int error, fd, serrno;
 	cap_rights_t rights;
 
 	/*
