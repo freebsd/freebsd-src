@@ -136,6 +136,7 @@ struct crypto_session {
 	struct cryptocap *cap;
 	struct crypto_session_params csp;
 	uint64_t id;
+	/* Driver softc follows. */
 };
 
 /*
@@ -942,6 +943,7 @@ crypto_newsession(crypto_session_t *cses,
 	cap->cc_sessions++;
 	CRYPTO_DRIVER_UNLOCK();
 
+	/* Allocate a single block for the generic session and driver softc. */
 	res = malloc(sizeof(*res) + cap->cc_session_size, M_CRYPTO_DATA,
 	    M_WAITOK | M_ZERO);
 	res->cap = cap;
