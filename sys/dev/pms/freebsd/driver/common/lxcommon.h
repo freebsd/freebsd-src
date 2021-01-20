@@ -313,7 +313,7 @@ ag_card_id_t ag_card_type[] = {
 #endif   //AGTIAPI_SA
 };
 
-static const char *ag_card_names[] = {
+static char const * const ag_card_names[] = {
   "Unknown",
   "iSCSI DiXL Card",
   "iSCSI iDX1 Card",
