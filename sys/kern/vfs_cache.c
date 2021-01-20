@@ -4578,16 +4578,15 @@ cache_fplookup_dot(struct cache_fpl *fpl)
 	 */
 	fpl->tvp = fpl->dvp;
 	fpl->tvp_seqc = fpl->dvp_seqc;
-	if (cache_fplookup_is_mp(fpl)) {
-		error = cache_fplookup_cross_mount(fpl);
-		if (__predict_false(error != 0)) {
-			return (error);
-		}
-	}
 
 	counter_u64_add(dothits, 1);
 	SDT_PROBE3(vfs, namecache, lookup, hit, fpl->dvp, ".", fpl->dvp);
-	return (0);
+
+	error = 0;
+	if (cache_fplookup_is_mp(fpl)) {
+		error = cache_fplookup_cross_mount(fpl);
+	}
+	return (error);
 }
 
 static int __noinline
