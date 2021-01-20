@@ -15,11 +15,9 @@ SUBDIR.${MK_TESTS}+= tests
 
 .if ${MK_ZFS} != "no"
 _zinject= zinject
-.if ${MK_LIBTHR} != "no"
 _ztest=	ztest
 _zstream = zstream
 _zstreamdump = zstreamdump
-.endif
 .endif
 
 SUBDIR_PARALLEL=
