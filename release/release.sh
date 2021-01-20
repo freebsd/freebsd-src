@@ -147,7 +147,7 @@ env_check() {
 	SRC="${GITROOT}${GITSRC}"
 	DOC="${GITROOT}${GITDOC}"
 	#PORT="${GITROOT}${GITPORTS}"
-	PORT="svn://svn.freebsd.org/ports/${PORTBRANCH}"
+	PORT="svn://svn.freebsd.org/ports/"
 
 	if [ -n "${EMBEDDEDBUILD}" ]; then
 		WITH_DVD=
