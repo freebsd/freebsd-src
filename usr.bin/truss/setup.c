@@ -141,7 +141,7 @@ static struct procabi_table abis[] = {
 	{ "Linux ELF64", &linux },
 	{ "Linux ELF32", &linux32 },
 #else
-	{ "Linux ELF", &linux },
+	{ "Linux ELF32", &linux },
 #endif
 };
 
