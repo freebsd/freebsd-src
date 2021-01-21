@@ -1733,6 +1733,7 @@ compat_passwd(void *retval, void *mdata, va_list ap)
 {
 	char			 keybuf[MAXLOGNAME + 1];
 	DBT			 key, entry;
+	pwkeynum		 keynum;
 	struct compat_state	*st;
 	enum nss_lookup_type	 how;
 	const char		*name;
@@ -1783,9 +1784,10 @@ compat_passwd(void *retval, void *mdata, va_list ap)
 			rv = NS_NOTFOUND;
 			goto fin;
 		}
+		keynum = st->keynum;
 		stayopen = 1;
 	} else {
-		st->keynum = 0;
+		keynum = 0;
 		stayopen = st->stayopen;
 	}
 docompat:
@@ -1829,13 +1831,13 @@ docompat:
 	}
 	key.data = keybuf;
 	rv = NS_NOTFOUND;
-	while (st->keynum >= 0) {
-		st->keynum++;
+	while (keynum >= 0) {
+		keynum++;
 		if (st->version < _PWD_CURRENT_VERSION) {
-			memcpy(&keybuf[1], &st->keynum, sizeof(st->keynum));
-			key.size = sizeof(st->keynum) + 1;
+			memcpy(&keybuf[1], &keynum, sizeof(keynum));
+			key.size = sizeof(keynum) + 1;
 		} else {
-			store = htonl(st->keynum);
+			store = htonl(keynum);
 			memcpy(&keybuf[1], &store, sizeof(store));
 			key.size = sizeof(store) + 1;
 		}
@@ -1846,7 +1848,7 @@ docompat:
 			rv = NS_UNAVAIL;
 			goto fin;
 		} else if (rv == 1) {
-			st->keynum = -1;
+			keynum = -1;
 			rv = NS_NOTFOUND;
 			goto fin;
 		}
@@ -1931,6 +1933,8 @@ docompat:
 			break;
 	}
 fin:
+	if (how == nss_lt_all)
+		st->keynum = keynum;
 	if (st->db != NULL && !stayopen) {
 		(void)st->db->close(st->db);
 		st->db = NULL;
