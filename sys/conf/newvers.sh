@@ -221,7 +221,7 @@ fi
 
 if [ -n "$git_cmd" ] ; then
 	git=$($git_cmd rev-parse --verify --short HEAD 2>/dev/null)
-	if [ "$(git rev-parse --is-shallow-repository)" = false ] ; then
+	if [ "$($git_cmd rev-parse --is-shallow-repository)" = false ] ; then
 		git_cnt=$($git_cmd rev-list --first-parent --count HEAD 2>/dev/null)
 		if [ -n "$git_cnt" ] ; then
 			git="n${git_cnt}-${git}"
