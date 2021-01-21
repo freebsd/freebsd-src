@@ -564,12 +564,12 @@ MAN=	aac.4 \
 	vge.4 \
 	viapm.4 \
 	${_viawd.4} \
-	${_virtio.4} \
-	${_virtio_balloon.4} \
-	${_virtio_blk.4} \
-	${_virtio_console.4} \
-	${_virtio_random.4} \
-	${_virtio_scsi.4} \
+	virtio.4 \
+	virtio_balloon.4 \
+	virtio_blk.4 \
+	virtio_console.4 \
+	virtio_random.4 \
+	virtio_scsi.4 \
 	${_vmci.4} \
 	vkbd.4 \
 	vlan.4 \
@@ -580,7 +580,7 @@ MAN=	aac.4 \
 	vr.4 \
 	vt.4 \
 	vte.4 \
-	${_vtnet.4} \
+	vtnet.4 \
 	watchdog.4 \
 	${_wbwd.4} \
 	witness.4 \
@@ -764,7 +764,7 @@ MLINKS+=vxlan.4 if_vxlan.4
 MLINKS+=${_vmx.4} ${_if_vmx.4}
 MLINKS+=vr.4 if_vr.4
 MLINKS+=vte.4 if_vte.4
-MLINKS+=${_vtnet.4} ${_if_vtnet.4}
+MLINKS+=vtnet.4 if_vtnet.4
 MLINKS+=watchdog.4 SW_WATCHDOG.4
 MLINKS+=${_wpi.4} ${_if_wpi.4}
 MLINKS+=xl.4 if_xl.4
@@ -818,7 +818,6 @@ _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
 _if_urtw.4=	if_urtw.4
 _if_vmx.4=	if_vmx.4
-_if_vtnet.4=	if_vtnet.4
 _if_wpi.4=	if_wpi.4
 _imcsmb.4=	imcsmb.4
 _ipmi.4=	ipmi.4
@@ -849,15 +848,8 @@ _superio.4=	superio.4
 _tpm.4=		tpm.4
 _urtw.4=	urtw.4
 _viawd.4=	viawd.4
-_virtio.4=	virtio.4
-_virtio_balloon.4=virtio_balloon.4
-_virtio_blk.4=	virtio_blk.4
-_virtio_console.4=virtio_console.4
-_virtio_random.4= virtio_random.4
-_virtio_scsi.4= virtio_scsi.4
 _vmci.4=	vmci.4
 _vmx.4=		vmx.4
-_vtnet.4=	vtnet.4
 _wbwd.4=	wbwd.4
 _wpi.4=		wpi.4
 _xen.4=		xen.4
@@ -895,16 +887,8 @@ _nvram2env.4=	nvram2env.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
-_if_vtnet.4=    if_vtnet.4
 _nvd.4= 	nvd.4
 _nvme.4=	nvme.4
-_virtio.4=	virtio.4
-_virtio_balloon.4=virtio_balloon.4
-_virtio_blk.4=	virtio_blk.4
-_virtio_console.4=virtio_console.4
-_virtio_random.4= virtio_random.4
-_virtio_scsi.4=	virtio_scsi.4
-_vtnet.4=	vtnet.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "aarch64" || \
