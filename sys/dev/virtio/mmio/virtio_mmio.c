@@ -171,6 +171,48 @@ DEFINE_CLASS_0(virtio_mmio, vtmmio_driver, vtmmio_methods,
 
 MODULE_VERSION(virtio_mmio, 1);
 
+int
+vtmmio_probe(device_t dev)
+{
+	struct vtmmio_softc *sc;
+	int rid;
+	uint32_t magic, version;
+
+	sc = device_get_softc(dev);
+
+	rid = 0;
+	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->res[0] == NULL) {
+		device_printf(dev, "Cannot allocate memory window.\n");
+		return (ENXIO);
+	}
+
+	magic = vtmmio_read_config_4(sc, VIRTIO_MMIO_MAGIC_VALUE);
+	if (magic != VIRTIO_MMIO_MAGIC_VIRT) {
+		device_printf(dev, "Bad magic value %#x\n", magic);
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res[0]);
+		return (ENXIO);
+	}
+
+	version = vtmmio_read_config_4(sc, VIRTIO_MMIO_VERSION);
+	if (version < 1 || version > 2) {
+		device_printf(dev, "Unsupported version: %#x\n", version);
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res[0]);
+		return (ENXIO);
+	}
+
+	if (vtmmio_read_config_4(sc, VIRTIO_MMIO_DEVICE_ID) == 0) {
+		bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res[0]);
+		return (ENXIO);
+	}
+
+	bus_release_resource(dev, SYS_RES_MEMORY, rid, sc->res[0]);
+
+	device_set_desc(dev, "VirtIO MMIO adapter");
+	return (BUS_PROBE_DEFAULT);
+}
+
 static int
 vtmmio_setup_intr(device_t dev, enum intr_type type)
 {
@@ -225,14 +267,6 @@ vtmmio_attach(device_t dev)
 	}
 
 	sc->vtmmio_version = vtmmio_read_config_4(sc, VIRTIO_MMIO_VERSION);
-	if (sc->vtmmio_version < 1 || sc->vtmmio_version > 2) {
-		device_printf(dev, "Unsupported version: %x\n",
-		    sc->vtmmio_version);
-		bus_release_resource(dev, SYS_RES_MEMORY, 0,
-		    sc->res[0]);
-		sc->res[0] = NULL;
-		return (ENXIO);
-	}
 
 	vtmmio_reset(sc);
 
