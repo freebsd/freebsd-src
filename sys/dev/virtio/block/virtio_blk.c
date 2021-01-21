@@ -267,16 +267,12 @@ static driver_t vtblk_driver = {
 };
 static devclass_t vtblk_devclass;
 
-DRIVER_MODULE(virtio_blk, virtio_mmio, vtblk_driver, vtblk_devclass,
-    vtblk_modevent, 0);
-DRIVER_MODULE(virtio_blk, virtio_pci, vtblk_driver, vtblk_devclass,
+VIRTIO_DRIVER_MODULE(virtio_blk, vtblk_driver, vtblk_devclass,
     vtblk_modevent, 0);
 MODULE_VERSION(virtio_blk, 1);
 MODULE_DEPEND(virtio_blk, virtio, 1, 1, 1);
 
-VIRTIO_SIMPLE_PNPTABLE(virtio_blk, VIRTIO_ID_BLOCK, "VirtIO Block Adapter");
-VIRTIO_SIMPLE_PNPINFO(virtio_mmio, virtio_blk);
-VIRTIO_SIMPLE_PNPINFO(virtio_pci, virtio_blk);
+VIRTIO_SIMPLE_PNPINFO(virtio_blk, VIRTIO_ID_BLOCK, "VirtIO Block Adapter");
 
 static int
 vtblk_modevent(module_t mod, int type, void *unused)

@@ -362,9 +362,7 @@ static driver_t vtnet_driver = {
 };
 static devclass_t vtnet_devclass;
 
-DRIVER_MODULE(vtnet, virtio_mmio, vtnet_driver, vtnet_devclass,
-    vtnet_modevent, 0);
-DRIVER_MODULE(vtnet, virtio_pci, vtnet_driver, vtnet_devclass,
+VIRTIO_DRIVER_MODULE(vtnet, vtnet_driver, vtnet_devclass,
     vtnet_modevent, 0);
 MODULE_VERSION(vtnet, 1);
 MODULE_DEPEND(vtnet, virtio, 1, 1, 1);
@@ -372,9 +370,7 @@ MODULE_DEPEND(vtnet, virtio, 1, 1, 1);
 MODULE_DEPEND(vtnet, netmap, 1, 1, 1);
 #endif
 
-VIRTIO_SIMPLE_PNPTABLE(vtnet, VIRTIO_ID_NETWORK, "VirtIO Networking Adapter");
-VIRTIO_SIMPLE_PNPINFO(virtio_mmio, vtnet);
-VIRTIO_SIMPLE_PNPINFO(virtio_pci, vtnet);
+VIRTIO_SIMPLE_PNPINFO(vtnet, VIRTIO_ID_NETWORK, "VirtIO Networking Adapter");
 
 static int
 vtnet_modevent(module_t mod, int type, void *unused)
