@@ -321,6 +321,8 @@ test_cmds(cap_channel_t *origcapgrp)
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
 
+	cap_setgrent(capgrp);
+
 	cmds[0] = "getgrent";
 	cmds[1] = "getgrent_r";
 	cmds[2] = "getgrnam";
@@ -360,6 +362,8 @@ test_cmds(cap_channel_t *origcapgrp)
 	 */
 	capgrp = cap_clone(origcapgrp);
 	CHECK(capgrp != NULL);
+
+	cap_setgrent(capgrp);
 
 	cmds[0] = "getgrent";
 	cmds[1] = "getgrent_r";
