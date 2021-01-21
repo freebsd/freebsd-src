@@ -458,24 +458,15 @@ fin:
 
 #define	SNAPSHOT_FILE	"snapshot_pwd"
 
-ATF_TC_WITHOUT_HEAD(build_snapshot);
-ATF_TC_BODY(build_snapshot, tc)
-{
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
-}
-
 ATF_TC_WITHOUT_HEAD(getpwent);
 ATF_TC_BODY(getpwent, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWENT) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPWENT) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getpwent_with_snapshot);
 ATF_TC_BODY(getpwent_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWENT) == 0);
 }
@@ -483,21 +474,18 @@ ATF_TC_BODY(getpwent_with_snapshot, tc)
 ATF_TC_WITHOUT_HEAD(getpwent_with_two_pass);
 ATF_TC_BODY(getpwent_with_two_pass, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWENT_2PASS) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPWENT_2PASS) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getpwnam);
 ATF_TC_BODY(getpwnam, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWNAM) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPWNAM) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getpwnam_with_snapshot);
 ATF_TC_BODY(getpwnam_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWNAM) == 0);
 }
@@ -505,22 +493,18 @@ ATF_TC_BODY(getpwnam_with_snapshot, tc)
 ATF_TC_WITHOUT_HEAD(getpwuid);
 ATF_TC_BODY(getpwuid, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWUID) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPWUID) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getpwuid_with_snapshot);
 ATF_TC_BODY(getpwuid_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWUID) == 0);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
-
-	ATF_TP_ADD_TC(tp, build_snapshot);
 	ATF_TP_ADD_TC(tp, getpwent);
 	ATF_TP_ADD_TC(tp, getpwent_with_snapshot);
 	ATF_TP_ADD_TC(tp, getpwent_with_two_pass);
