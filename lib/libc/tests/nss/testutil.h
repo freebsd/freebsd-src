@@ -325,6 +325,6 @@ __##ent##_2pass_test(struct ent##_test_data *td1,			\
 {									\
 	int rv;								\
 									\
-	rv = __##ent##_test_data_compare(td1, td2, cmp_func, cmp_mdata);	\
+	rv = __##ent##_test_data_compare(td1, td2, cmp_func, cmp_mdata);\
 	return (rv);							\
 }
