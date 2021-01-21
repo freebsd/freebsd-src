@@ -147,7 +147,7 @@ main(int argc, char *argv[])
 			continue;
 		}
 		if (pid == getpid()) {
-			warnx("%s: skiping my own pid", s);
+			warnx("%s: skipping my own pid", s);
 			continue;
 		}
 		for (i = 0; i < nleft; i++) {
