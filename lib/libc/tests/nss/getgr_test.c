@@ -480,14 +480,12 @@ fin:
 ATF_TC_WITHOUT_HEAD(getgrent);
 ATF_TC_BODY(getgrent, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRENT) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getgrent_with_snapshot);
 ATF_TC_BODY(getgrent_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT) == 0);
 }
@@ -495,21 +493,18 @@ ATF_TC_BODY(getgrent_with_snapshot, tc)
 ATF_TC_WITHOUT_HEAD(getgrent_with_two_pass);
 ATF_TC_BODY(getgrent_with_two_pass, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRENT_2PASS) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRENT_2PASS) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getgrgid);
 ATF_TC_BODY(getgrgid, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRGID) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRGID) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getgrgid_with_snapshot);
 ATF_TC_BODY(getgrgid_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRGID) == 0);
 }
@@ -517,21 +512,18 @@ ATF_TC_BODY(getgrgid_with_snapshot, tc)
 ATF_TC_WITHOUT_HEAD(getgrnam);
 ATF_TC_BODY(getgrnam, tc)
 {
-
-	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRNAM) == 0);
+	ATF_REQUIRE(run_tests(NULL, TEST_GETGRNAM) == 0);
 }
 
 ATF_TC_WITHOUT_HEAD(getgrnam_with_snapshot);
 ATF_TC_BODY(getgrnam_with_snapshot, tc)
 {
-
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_BUILD_SNAPSHOT) == 0);
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETGRNAM) == 0);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
-
 	ATF_TP_ADD_TC(tp, getgrent);
 	ATF_TP_ADD_TC(tp, getgrent_with_snapshot);
 	ATF_TP_ADD_TC(tp, getgrent_with_two_pass);
