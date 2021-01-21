@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 5, 2020
+.Dd January 21, 2021
 .Dt PWAIT 1
 .Os
 .Sh NAME
@@ -145,6 +145,10 @@ is not a substitute for the
 .Xr wait 1
 builtin
 as it will not clean up any zombies or state in the parent process.
+.Pp
+To avoid deadlock,
+.Nm
+will ignore its own pid, if it is provided as a process id to wait for.
 .Sh HISTORY
 A
 .Nm
