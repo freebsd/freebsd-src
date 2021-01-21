@@ -27,144 +27,140 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 4, 2020
+.Dd January 20, 2021
 .Dt CRYPTO 7
 .Os
 .Sh NAME
 .Nm crypto
 .Nd OpenCrypto algorithms
-.Sh SYNOPSIS
-In the kernel configuration file:
-.Cd "device crypto"
-.Pp
-Or load the crypto.ko module.
 .Sh DESCRIPTION
-The following cryptographic algorithms that are part of the OpenCrypto
-framework have the following requirements.
-.Pp
-Cipher algorithms:
-.Bl -tag -width "CRYPTO_AES_NIST_GCM_16"
-.It Dv CRYPTO_AES_CBC
-.Bl -tag -width "Block size :" -compact -offset indent
-.It IV size :
-16
-.It Block size :
-16
-.It Key size :
-16, 24 or 32
+The in-kernel OpenCrypto framework supports several different encryption
+and authentication algorithms.
+This document describes the parameters and requirements of these algorithms.
+Unless otherwise noted, all sizes listed below are in bytes.
+.Ss Authenticators
+Authenticators compute a value (also known as a digest, hash, or tag)
+over an input of bytes.
+In-kernel requests can either compute the value for a given input,
+or verify if a given tag matches the computed tag for a given input.
+The following authentication algorithms are supported:
+.Bl -column "CRYPTO_AES_CCM_CBC_MAC" "XXX" "16, 24, 32" "Digest"
+.It Sy Name Ta Sy Nonce Ta Sy Key Sizes Ta Sy Digest Ta Sy Description
+.It Dv CRYPTO_AES_CCM_CBC_MAC Ta 12 Ta 16, 24, 32 Ta 16 Ta
+Authentication-only mode of AES-CCM
+.It Dv CRYPTO_AES_NIST_GMAC Ta 12 Ta 16, 24, 32 Ta 16 Ta
+Galois message authentication code
+.It Dv CRYPTO_BLAKE2B Ta Ta 0, 64 Ta 64 Ta
+Blake2b
+.It Dv CRYPTO_BLAKE2S Ta Ta 0, 32 Ta 32 Ta
+Blake2s
+.It Dv CRYPTO_NULL_HMAC Ta Ta Ta 12 Ta
+IPsec NULL HMAC
+.It Dv CRYPTO_POLY1305 Ta Ta 32 Ta 16 Ta
+Poly1305 authenticator
+.It Dv CRYPTO_RIPEMD160 Ta Ta Ta 20 Ta
+RIPE Message Digest-160
+.It Dv CRYPTO_RIPEMD160_HMAC Ta Ta 64 Ta 20 Ta
+RIPE Message Digest-160 HMAC
+.It Dv CRYPTO_SHA1 Ta Ta Ta 20 Ta
+SHA-1
+.It Dv CRYPTO_SHA1_HMAC Ta Ta 64 Ta 20 Ta
+SHA-1 HMAC
+.It Dv CRYPTO_SHA2_224 Ta Ta Ta 28 Ta
+SHA-2 224
+.It Dv CRYPTO_SHA2_224_HMAC Ta Ta 64 Ta 28 Ta
+SHA-2 224 HMAC
+.It Dv CRYPTO_SHA2_256 Ta Ta Ta 32 Ta
+SHA-2 256
+.It Dv CRYPTO_SHA2_256_HMAC Ta Ta 64 Ta 32 Ta
+SHA-2 256 HMAC
+.It Dv CRYPTO_SHA2_384 Ta Ta Ta 48 Ta
+SHA-2 384
+.It Dv CRYPTO_SHA2_384_HMAC Ta Ta 128 Ta 48 Ta
+SHA-2 384 HMAC
+.It Dv CRYPTO_SHA2_512 Ta Ta Ta 64 Ta
+SHA-2 512
+.It Dv CRYPTO_SHA2_512_HMAC Ta Ta 128 Ta 64 Ta
+SHA-2 512 HMAC
+.El
+.Ss Block Ciphers
+Block ciphers in OCF can only operate on messages whose length is an
+exact multiple of the cipher's block size.
+OCF supports the following block ciphers:
+.Bl -column "CRYPTO_CAMELLIA_CBC" "IV Size" "Block Size" "16, 24, 32"
+.It Sy Name Ta Sy IV Size Ta Sy Block Size Ta Sy Key Sizes Ta Sy Description
+.It Dv CRYPTO_AES_CBC Ta 16 Ta 16 Ta 16, 24, 32 Ta
+AES-CBC
+.It Dv CRYPTO_AES_XTS Ta 8 Ta 16 Ta 32, 64 Ta
+AES-XTS
+.It Dv CRYPTO_CAMELLIA_CBC Ta 16 Ta 16 Ta 16, 24, 32 Ta
+Camellia CBC
+.It Dv CRYPTO_NULL_CBC Ta 0 Ta 4 Ta 0-256 Ta
+IPsec NULL cipher
 .El
 .Pp
-This algorithm implements Cipher Block Chaining.
-.It Dv CRYPTO_AES_CCM_16
-.Bl -tag -width "Block size :" -compact -offset indent
-.It IV size :
-12
-.It Block size :
-16
-.It Key size :
-16, 24 or 32
-.It Digest size :
-16
-.El
-.Pp
-This algorithm implements Counter with CBC-MAC Mode.
-This cipher uses AEAD
-.Pq Authenticated Encryption with Associated Data
-mode.
-.Pp
-The authentication tag will be read from or written to the offset
-.Va crp_digest_start
-specified in the request.
-.Pp
-Note: The nonce for each request must be provided in
-.Fa crp_iv
-via the
-.Dv CRYPTO_F_IV_SEPARATE
-flag.
-.It Dv CRYPTO_AES_NIST_GCM_16
-.Bl -tag -width "Block size :" -compact -offset indent
-.It IV size :
-12
-.It Block size :
-1
-.It Key size :
-16, 24 or 32
-.It Digest size :
-16
-.El
-.Pp
-This algorithm implements Galois/Counter Mode.
-This cipher uses AEAD
-.Pq Authenticated Encryption with Associated Data
-mode.
-.Pp
-The authentication tag will be read from or written to the offset
-.Va crp_digest_start
-specified in the request.
-.Pp
-Note: The nonce for each request must be provided in
-.Fa crp_iv
-via the
-.Dv CRYPTO_F_IV_SEPARATE
-flag.
-.It Dv CRYPTO_AES_ICM
-.Bl -tag -width "Block size :" -compact -offset indent
-.It IV size :
-16
-.It Block size :
-1
-.It Key size :
-16, 24 or 32
-.El
-.Pp
-This algorithm implements Integer Counter Mode.
-This is similar to what most people call counter mode, but instead of the
-counter being split into a nonce and a counter part, then entire nonce is
-used as the initial counter.
-This does mean that if a counter is required that rolls over at 32 bits,
-the transaction need to be split into two parts where the counter rolls over.
-The counter incremented as a 128-bit big endian number.
-.Pp
-Note: The counter for each request must be provided in
-.Fa crp_iv
-via the
-.Dv CRYPTO_F_IV_SEPARATE
-flag.
-.It Dv CRYPTO_AES_XTS
-.Bl -tag -width "Block size :" -compact -offset indent
-.It IV size :
-8
-.It Block size :
-16
-.It Key size :
-32 or 64
-.El
-.Pp
-This algorithm implements XEX Tweakable Block Cipher with Ciphertext Stealing
+.Dv CRYPTO_AES_XTS
+implements XEX Tweakable Block Cipher with Ciphertext Stealing
 as defined in NIST SP 800-38E.
+OCF consumers provide the first 8 bytes of the IV.
+The remaining 8 bytes are defined to be a block counter beginning at 0.
 .Pp
-NOTE: The ciphertext stealing part is not implemented which is why this cipher
-is listed as having a block size of 16 instead of 1.
-.It Dv CRYPTO_CAMELLIA_CBC
-.Bl -tag -width "Block size :" -compact -offset indent
-.It IV size :
-16
-.It Block size :
-16
-.It Key size :
-16, 24 or 32
+NOTE: The ciphertext stealing part is not implemented in all backends
+which is why this cipher requires input that is a multiple of the block
+size.
+.Ss Stream Ciphers
+Stream ciphers can operate on messages with arbitrary lengths.
+OCF supports the following stream ciphers:
+.Bl -column "CRYPTO_CHACHA20" "IV Size" "16, 24, 32"
+.It Sy Name Ta Sy IV Size Ta Sy Key Sizes Ta Sy Description
+.It Dv CRYPTO_AES_ICM Ta 16 Ta 16, 24, 32 Ta
+AES Counter Mode
+.It Dv CRYPTO_CHACHA20 Ta 16 Ta 16, 32 Ta
+ChaCha20
 .El
 .Pp
-This algorithm implements Cipher Block Chaining.
-.It Dv CRYPTO_CHACHA20
-.Bl -tag -width "Block size :" -compact -offset indent
-.It IV size :
-16
-.It Block size :
-1
-.It Key size :
-16 or 32
-.El
+The IV for each request must be provided in
+.Fa crp_iv
+via the
+.Dv CRYPTO_F_IV_SEPARATE
+flag.
+.Pp
+.Dv CRYPTO_AES_ICM
+uses the entire IV as a 128-bit big endian block counter.
+The IV sets the initial counter value for a message.
+If a consumer wishes to use an IV whose value is split into
+separate nonce and counter fields (e.g., IPsec),
+the consumer is responsible for splitting requests to handle
+counter rollover.
+.Pp
+.Dv CRYPTO_CHACHA20
+accepts a 16 byte IV.
+The first 8 bytes are used as a nonce.
+The last 8 bytes are used as 64-bit big-endian block counter.
+.Ss Authenticated Encryption with Associated Data Algorithms
+AEAD algorithms in OCF combine a stream cipher with an authentication
+algorithm to provide both secrecy and authentication.
+AEAD algorithms accept additional authentication data (AAD)
+in addition to the ciphertext or plaintext.
+AAD is passed to the authentication algorithm as input in a method
+defined by the specific AEAD algorithm.
+.Pp
+AEAD algorithms in OCF accept a nonce that is combined with an
+algorithm-defined counter to construct the IV for the underlying
+stream cipher.
+This nonce must be provided in
+.Fa crp_iv
+via the
+.Dv CRYPTO_F_IV_SEPARATE
+flag.
+.Pp
+The following AEAD algorithms are supported:
+.Bl -column "CRYPTO_AES_NIST_GCM_16" "Nonce" "16, 24, 32" "Tag"
+.It Sy Name Ta Sy Nonce Ta Sy Key Sizes Ta Sy Tag Ta Sy Description
+.It Dv CRYPTO_AES_NIST_GCM_16 Ta 12 Ta 16, 24, 32 Ta 16 Ta
+AES Galois/Counter Mode
+.It Dv CRYPTO_AES_CCM_16 Ta 12 Ta 16, 24, 32 Ta 16 Ta
+AES Counter with CBC-MAC
 .El
 .Sh SEE ALSO
 .Xr crypto 4 ,
@@ -172,7 +168,5 @@ This algorithm implements Cipher Block Chaining.
 .Sh HISTORY
 The
 .Nm
-manpage first appeared in
+manual page first appeared in
 .Fx 10.1 .
-.Sh BUGS
-Not all the implemented algorithms are listed.
