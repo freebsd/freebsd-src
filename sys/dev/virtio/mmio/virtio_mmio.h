@@ -55,6 +55,7 @@ struct vtmmio_softc {
 	void				*ih;
 };
 
+int vtmmio_probe(device_t);
 int vtmmio_attach(device_t);
 
 #define	VIRTIO_MMIO_MAGIC_VALUE		0x000
@@ -84,6 +85,7 @@ int vtmmio_attach(device_t);
 #define	VIRTIO_MMIO_QUEUE_USED_HIGH	0x0a4	/* requires version 2 */
 #define	VIRTIO_MMIO_CONFIG_GENERATION	0x100	/* requires version 2 */
 #define	VIRTIO_MMIO_CONFIG		0x100
+#define	VIRTIO_MMIO_MAGIC_VIRT		0x74726976
 #define	VIRTIO_MMIO_INT_VRING		(1 << 0)
 #define	VIRTIO_MMIO_INT_CONFIG		(1 << 1)
 #define	VIRTIO_MMIO_VRING_ALIGN		4096

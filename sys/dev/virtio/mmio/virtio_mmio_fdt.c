@@ -97,8 +97,7 @@ vtmmio_fdt_probe(device_t dev)
 	if (!ofw_bus_is_compatible(dev, "virtio,mmio"))
 		return (ENXIO);
 
-	device_set_desc(dev, "VirtIO MMIO adapter");
-	return (BUS_PROBE_DEFAULT);
+	return (vtmmio_probe(dev));
 }
 
 static int
