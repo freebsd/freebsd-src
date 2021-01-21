@@ -2654,7 +2654,8 @@ rxd_frag_to_sd(iflib_rxq_t rxq, if_rxd_frag_t irf, bool unload, if_rxsd_t sd,
 		}
 	} else {
 		fl->ifl_sds.ifsd_m[cidx] = NULL;
-		*pf_rv = PFIL_PASS;
+		if (pf_rv != NULL)
+			*pf_rv = PFIL_PASS;
 	}
 
 	if (unload && irf->irf_len != 0)
