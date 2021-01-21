@@ -199,7 +199,6 @@ static struct ofw_compat_data compat_data[] = {
 	{"ti,am33xx-ehrpwm",    true},
 	{NULL,                  false},
 };
-SIMPLEBUS_PNP_INFO(compat_data);
 
 static void
 am335x_ehrpwm_cfg_duty(struct am335x_ehrpwm_softc *sc, u_int chan, u_int duty)
@@ -713,6 +712,7 @@ static driver_t am335x_ehrpwm_driver = {
 static devclass_t am335x_ehrpwm_devclass;
 
 DRIVER_MODULE(am335x_ehrpwm, am335x_pwmss, am335x_ehrpwm_driver, am335x_ehrpwm_devclass, 0, 0);
+SIMPLEBUS_PNP_INFO(compat_data);
 MODULE_VERSION(am335x_ehrpwm, 1);
 MODULE_DEPEND(am335x_ehrpwm, am335x_pwmss, 1, 1, 1);
 MODULE_DEPEND(am335x_ehrpwm, pwmbus, 1, 1, 1);

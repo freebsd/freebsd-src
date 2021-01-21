@@ -63,7 +63,6 @@ static struct ofw_compat_data compat_data[] = {
 	{"lltc,ltc4306",  CHIP_LTC4306},
 	{NULL,            CHIP_NONE}
 };
-IICBUS_FDT_PNP_INFO(compat_data);
 #endif
 
 #include <dev/iicbus/mux/iicmux.h>
@@ -246,8 +245,8 @@ static devclass_t ltc430x_devclass;
 DEFINE_CLASS_1(ltc430x, ltc430x_driver, ltc430x_methods,
     sizeof(struct ltc430x_softc), iicmux_driver);
 DRIVER_MODULE(ltc430x, iicbus, ltc430x_driver, ltc430x_devclass, 0, 0);
-
 #ifdef FDT
+IICBUS_FDT_PNP_INFO(compat_data);
 DRIVER_MODULE(ofw_iicbus, ltc430x, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
 #else
 DRIVER_MODULE(iicbus, ltc430x, iicbus_driver, iicbus_devclass, 0, 0);
@@ -255,4 +254,3 @@ DRIVER_MODULE(iicbus, ltc430x, iicbus_driver, iicbus_devclass, 0, 0);
 
 MODULE_DEPEND(ltc430x, iicmux, 1, 1, 1);
 MODULE_DEPEND(ltc430x, iicbus, 1, 1, 1);
-
