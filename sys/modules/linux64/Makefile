@@ -50,7 +50,7 @@ OBJCOPY_TARGET=--output-target elf64-x86-64 --binary-architecture i386:x86-64
 .error ${MACHINE_CPUARCH} not yet supported by linux64
 .endif
 ${VDSO}.so: linux_locore.o
-	${OBJCOPY} --input-target binary ${OBJCOPY_TARGET} -S -g \
+	${OBJCOPY} --input-target binary ${OBJCOPY_TARGET} \
 	    linux_locore.o ${.TARGET}
 	${STRIPBIN} -N _binary_linux_locore_o_size ${.TARGET}
 
