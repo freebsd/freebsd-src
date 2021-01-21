@@ -62,8 +62,7 @@ static void free_group(struct group *);
 static void sdump_group(struct group *, char *, size_t);
 static int group_read_snapshot_func(struct group *, char *);
 
-static int group_check_ambiguity(struct group_test_data *,
-	struct group *);
+static int group_check_ambiguity(struct group_test_data *, struct group *);
 static int group_fill_test_data(struct group_test_data *);
 static int group_test_correctness(struct group *, void *);
 static int group_test_getgrnam(struct group *, void *);
@@ -175,7 +174,7 @@ sdump_group(struct group *grp, char *buffer, size_t buflen)
 	int written;
 
 	written = snprintf(buffer, buflen, "%s:%s:%d:",
-		grp->gr_name, grp->gr_passwd, grp->gr_gid);
+	    grp->gr_name, grp->gr_passwd, grp->gr_gid);
 	buffer += written;
 	if (written > (int)buflen)
 		return;
@@ -340,8 +339,8 @@ static int
 group_check_ambiguity(struct group_test_data *td, struct group *pwd)
 {
 
-	return (TEST_DATA_FIND(group, td, pwd, compare_group,
-		NULL) != NULL ? 0 : -1);
+	return (TEST_DATA_FIND(group, td, pwd, compare_group, NULL) !=
+	    NULL ? 0 : -1);
 }
 
 static int
@@ -377,18 +376,19 @@ group_test_getgrgid(struct group *grp_model, void *mdata)
 	grp = getgrgid(grp_model->gr_gid);
 	if (group_test_correctness(grp, NULL) != 0 ||
 	    (compare_group(grp, grp_model, NULL) != 0 &&
-	     group_check_ambiguity((struct group_test_data *)mdata, grp) != 0)) {
+	     group_check_ambiguity((struct group_test_data *)mdata, grp) != 0))
 		return (-1);
-	} else {
+	else
 		return (0);
-	}
 }
 
 static int
 group_test_getgrent(struct group *grp, void *mdata __unused)
 {
-	/* Only correctness can be checked when doing 1-pass test for
-	 * getgrent(). */
+	/*
+	 * Only correctness can be checked when doing 1-pass test for
+	 * getgrent().
+	 */
 	return (group_test_correctness(grp, NULL));
 }
 
@@ -451,12 +451,12 @@ run_tests(const char *snapshot_file, enum test_methods method)
 				compare_group, NULL);
 		break;
 	case TEST_GETGRENT_2PASS:
-			TEST_DATA_INIT(group, &td_2pass, clone_group, free_group);
-			rv = group_fill_test_data(&td_2pass);
-			if (rv != -1)
-				rv = DO_2PASS_TEST(group, &td, &td_2pass,
-					compare_group, NULL);
-			TEST_DATA_DESTROY(group, &td_2pass);
+		TEST_DATA_INIT(group, &td_2pass, clone_group, free_group);
+		rv = group_fill_test_data(&td_2pass);
+		if (rv != -1)
+			rv = DO_2PASS_TEST(group, &td, &td_2pass,
+				compare_group, NULL);
+		TEST_DATA_DESTROY(group, &td_2pass);
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)

@@ -302,8 +302,8 @@ static int
 passwd_check_ambiguity(struct passwd_test_data *td, struct passwd *pwd)
 {
 
-	return (TEST_DATA_FIND(passwd, td, pwd, compare_passwd,
-		NULL) != NULL ? 0 : -1);
+	return (TEST_DATA_FIND(passwd, td, pwd, compare_passwd, NULL) !=
+	    NULL ? 0 : -1);
 }
 
 static int
@@ -320,10 +320,9 @@ passwd_test_getpwnam(struct passwd *pwd_model, void *mdata)
 	if (passwd_test_correctness(pwd, NULL) != 0)
 		goto errfin;
 
-	if ((compare_passwd(pwd, pwd_model, NULL) != 0) &&
-	    (passwd_check_ambiguity((struct passwd_test_data *)mdata, pwd)
-	    !=0))
-	    goto errfin;
+	if (compare_passwd(pwd, pwd_model, NULL) != 0 &&
+	    passwd_check_ambiguity((struct passwd_test_data *)mdata, pwd) != 0)
+		goto errfin;
 
 #ifdef DEBUG
 	printf("ok\n");
@@ -348,10 +347,10 @@ passwd_test_getpwuid(struct passwd *pwd_model, void *mdata)
 #endif
 
 	pwd = getpwuid(pwd_model->pw_uid);
-	if ((passwd_test_correctness(pwd, NULL) != 0) ||
-	    ((compare_passwd(pwd, pwd_model, NULL) != 0) &&
-	    (passwd_check_ambiguity((struct passwd_test_data *)mdata, pwd)
-	    != 0))) {
+	if (passwd_test_correctness(pwd, NULL) != 0 ||
+	    (compare_passwd(pwd, pwd_model, NULL) != 0 &&
+	    passwd_check_ambiguity((struct passwd_test_data *)mdata,
+	    pwd) != 0)) {
 #ifdef DEBUG
 		printf("not ok\n");
 #endif
@@ -367,8 +366,10 @@ passwd_test_getpwuid(struct passwd *pwd_model, void *mdata)
 static int
 passwd_test_getpwent(struct passwd *pwd, void *mdata __unused)
 {
-	/* Only correctness can be checked when doing 1-pass test for
-	 * getpwent(). */
+	/*
+	 * Only correctness can be checked when doing 1-pass test for
+	 * getpwent().
+	 */
 	return (passwd_test_correctness(pwd, NULL));
 }
 
@@ -397,7 +398,7 @@ run_tests(const char *snapshot_file, enum test_methods method)
 			}
 
 			TEST_SNAPSHOT_FILE_READ(passwd, snapshot_file,
-				&td_snap, passwd_read_snapshot_func);
+			    &td_snap, passwd_read_snapshot_func);
 		}
 	}
 
@@ -409,26 +410,26 @@ run_tests(const char *snapshot_file, enum test_methods method)
 	case TEST_GETPWNAM:
 		if (snapshot_file == NULL)
 			rv = DO_1PASS_TEST(passwd, &td,
-				passwd_test_getpwnam, (void *)&td);
+			    passwd_test_getpwnam, (void *)&td);
 		else
 			rv = DO_1PASS_TEST(passwd, &td_snap,
-				passwd_test_getpwnam, (void *)&td_snap);
+			    passwd_test_getpwnam, (void *)&td_snap);
 		break;
 	case TEST_GETPWUID:
 		if (snapshot_file == NULL)
 			rv = DO_1PASS_TEST(passwd, &td,
-				passwd_test_getpwuid, (void *)&td);
+			    passwd_test_getpwuid, (void *)&td);
 		else
 			rv = DO_1PASS_TEST(passwd, &td_snap,
-				passwd_test_getpwuid, (void *)&td_snap);
+			    passwd_test_getpwuid, (void *)&td_snap);
 		break;
 	case TEST_GETPWENT:
 		if (snapshot_file == NULL)
 			rv = DO_1PASS_TEST(passwd, &td, passwd_test_getpwent,
-				(void *)&td);
+			    (void *)&td);
 		else
 			rv = DO_2PASS_TEST(passwd, &td, &td_snap,
-				compare_passwd, NULL);
+			    compare_passwd, NULL);
 		break;
 	case TEST_GETPWENT_2PASS:
 		TEST_DATA_INIT(passwd, &td_2pass, clone_passwd, free_passwd);
