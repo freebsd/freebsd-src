@@ -4908,6 +4908,7 @@ dev/mlx5/mlx5_en/mlx5_en_port_buffer.c		optional mlx5en pci inet inet6	\
 	compile-with "${OFED_C}"
 
 # crypto support
+opencrypto/cbc_mac.c		optional crypto
 opencrypto/criov.c		optional crypto | ipsec | ipsec_support
 opencrypto/crypto.c		optional crypto | ipsec | ipsec_support
 opencrypto/cryptodev.c		optional cryptodev
@@ -4918,6 +4919,7 @@ opencrypto/gmac.c		optional crypto | ipsec | ipsec_support
 opencrypto/gfmult.c		optional crypto | ipsec | ipsec_support
 opencrypto/rmd160.c		optional crypto | ipsec | ipsec_support
 opencrypto/xform.c		optional crypto | ipsec | ipsec_support
+opencrypto/xform_cbc_mac.c	optional crypto
 opencrypto/xform_poly1305.c	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include -I$S/crypto/libsodium"
 contrib/libsodium/src/libsodium/crypto_onetimeauth/poly1305/onetimeauth_poly1305.c \
@@ -4949,9 +4951,6 @@ contrib/libsodium/src/libsodium/crypto_aead/xchacha20poly1305/sodium/aead_xchach
 	optional crypto \
 	compile-with "${NORMAL_C} -I$S/contrib/libsodium/src/libsodium/include/sodium -I$S/crypto/libsodium"
 
-
-opencrypto/cbc_mac.c		optional crypto
-opencrypto/xform_cbc_mac.c	optional crypto
 rpc/auth_none.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd
