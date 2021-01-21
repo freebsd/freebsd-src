@@ -348,6 +348,8 @@ Force the file to be opened read-only.
 Specify the logical and physical sector sizes of the emulated disk.
 The physical sector size is optional and is equal to the logical sector size
 if not explicitly specified.
+.It Li nodelete
+Disable emulation of guest trim requests via DIOCGDELETE requests.
 .El
 .Pp
 SCSI devices:
