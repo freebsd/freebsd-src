@@ -478,10 +478,7 @@ vtmmio_set_virtqueue(struct vtmmio_softc *sc, struct virtqueue *vq,
 	vm_paddr_t paddr;
 
 	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_NUM, size);
-#if 0
-	device_printf(dev, "virtqueue paddr 0x%08lx\n",
-	    (uint64_t)paddr);
-#endif
+
 	if (sc->vtmmio_version == 1) {
 		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_ALIGN,
 		    VIRTIO_MMIO_VRING_ALIGN);
