@@ -152,7 +152,6 @@ static struct ofw_compat_data compat_data[] = {
 	{"ti,ads1115",   (uintptr_t)&ads111x_chip_infos[5]},
 	{NULL,           (uintptr_t)NULL},
 };
-IICBUS_FDT_PNP_INFO(compat_data);
 #endif
 
 struct ads111x_softc {
@@ -609,5 +608,8 @@ static driver_t ads111x_driver = {
 static devclass_t ads111x_devclass;
 
 DRIVER_MODULE(ads111x, iicbus, ads111x_driver, ads111x_devclass, NULL, NULL);
+#ifdef FDT
+IICBUS_FDT_PNP_INFO(compat_data);
+#endif
 MODULE_VERSION(ads111x, 1);
 MODULE_DEPEND(ads111x, iicbus, 1, 1, 1);
