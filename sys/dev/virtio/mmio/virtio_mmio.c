@@ -219,7 +219,7 @@ vtmmio_attach(device_t dev)
 	rid = 0;
 	sc->res[0] = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 			RF_ACTIVE);
-	if (!sc->res[0]) {
+	if (sc->res[0] == NULL) {
 		device_printf(dev, "Cannot allocate memory window.\n");
 		return (ENXIO);
 	}
