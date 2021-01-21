@@ -107,8 +107,7 @@ __FBSDID("$FreeBSD$");
 #define	CARD_INIT_DONE	0x04
 
 #define	DWMMC_DATA_ERR_FLAGS	(SDMMC_INTMASK_DRT | SDMMC_INTMASK_DCRC \
-				|SDMMC_INTMASK_HTO | SDMMC_INTMASK_SBE \
-				|SDMMC_INTMASK_EBE)
+				|SDMMC_INTMASK_SBE | SDMMC_INTMASK_EBE)
 #define	DWMMC_CMD_ERR_FLAGS	(SDMMC_INTMASK_RTO | SDMMC_INTMASK_RCRC \
 				|SDMMC_INTMASK_RE)
 #define	DWMMC_ERR_FLAGS		(DWMMC_DATA_ERR_FLAGS | DWMMC_CMD_ERR_FLAGS \
@@ -134,7 +133,16 @@ struct idmac_desc {
 #define	IDMAC_DESC_SEGS	(PAGE_SIZE / (sizeof(struct idmac_desc)))
 #define	IDMAC_DESC_SIZE	(sizeof(struct idmac_desc) * IDMAC_DESC_SEGS)
 #define	DEF_MSIZE	0x2	/* Burst size of multiple transaction */
-#define	IDMAC_MAX_SIZE	4096
+/*
+ * Size field in DMA descriptor is 13 bits long (up to 4095 bytes),
+ * but must be a multiple of the data bus size.Additionally, we must ensure
+ * that bus_dmamap_load() doesn't additionally fragments buffer (because it
+ * is processed with page size granularity). Thus limit fragment size to half
+ * of page.
+ * XXX switch descriptor format to array and use second buffer pointer for
+ * second half of page
+ */
+#define	IDMAC_MAX_SIZE	2048
 
 static void dwmmc_next_operation(struct dwmmc_softc *);
 static int dwmmc_setup_bus(struct dwmmc_softc *, int);
@@ -165,8 +173,11 @@ static void
 dwmmc_get1paddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
 
+	if (nsegs != 1)
+		panic("%s: nsegs != 1 (%d)\n", __func__, nsegs);
 	if (error != 0)
-		return;
+		panic("%s: error != 0 (%d)\n", __func__, error);
+
 	*(bus_addr_t *)arg = segs[0].ds_addr;
 }
 
@@ -176,15 +187,13 @@ dwmmc_ring_setup(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	struct dwmmc_softc *sc;
 	int idx;
 
-	if (error != 0)
-		return;
-
 	sc = arg;
-
 	dprintf("nsegs %d seg0len %lu\n", nsegs, segs[0].ds_len);
+	if (error != 0)
+		panic("%s: error != 0 (%d)\n", __func__, error);
 
 	for (idx = 0; idx < nsegs; idx++) {
-		sc->desc_ring[idx].des0 = (DES0_OWN | DES0_DIC | DES0_CH);
+		sc->desc_ring[idx].des0 = DES0_DIC | DES0_CH;
 		sc->desc_ring[idx].des1 = segs[idx].ds_len & DES1_BS1_MASK;
 		sc->desc_ring[idx].des2 = segs[idx].ds_addr;
 
@@ -195,6 +204,8 @@ dwmmc_ring_setup(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 			sc->desc_ring[idx].des0 &= ~(DES0_DIC | DES0_CH);
 			sc->desc_ring[idx].des0 |= DES0_LD;
 		}
+		wmb();
+		sc->desc_ring[idx].des0 |= DES0_OWN;
 	}
 }
 
@@ -277,7 +288,7 @@ dma_setup(struct dwmmc_softc *sc)
 
 	error = bus_dma_tag_create(
 	    bus_get_dma_tag(sc->dev),	/* Parent tag. */
-	    CACHE_LINE_SIZE, 0,		/* alignment, boundary */
+	    8, 0,			/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
@@ -786,7 +797,7 @@ dwmmc_attach(device_t dev)
 fail:
         mtx_unlock(&sc->sim_mtx);
 #endif
-	/* 
+	/*
 	 * Schedule a card detection as we won't get an interrupt
 	 * if the card is inserted when we attach
 	 */
@@ -900,8 +911,8 @@ dwmmc_update_ios(device_t brdev, device_t reqdev)
 	sc = device_get_softc(brdev);
 	ios = &sc->host.ios;
 
-	dprintf("Setting up clk %u bus_width %d\n",
-		ios->clock, ios->bus_width);
+	dprintf("Setting up clk %u bus_width %d, timming: %d\n",
+		ios->clock, ios->bus_width, ios->timing);
 
 	if (ios->bus_width == bus_width_8)
 		WRITE4(sc, SDMMC_CTYPE, SDMMC_CTYPE_8BIT);
@@ -985,7 +996,7 @@ dma_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
 	reg = READ4(sc, SDMMC_INTMASK);
 	reg &= ~(SDMMC_INTMASK_TXDR | SDMMC_INTMASK_RXDR);
 	WRITE4(sc, SDMMC_INTMASK, reg);
-
+	dprintf("%s: bus_dmamap_load size: %zu\n", __func__, data->len);
 	err = bus_dmamap_load(sc->buf_tag, sc->buf_map,
 		data->data, data->len, dwmmc_ring_setup,
 		sc, BUS_DMA_NOWAIT);
@@ -1358,7 +1369,13 @@ dwmmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 		*(int *)result = sc->host.caps;
 		break;
 	case MMCBR_IVAR_MAX_DATA:
-		*(int *)result = (IDMAC_MAX_SIZE * IDMAC_DESC_SEGS) / MMC_SECTOR_SIZE;
+		/*
+		 * Busdma may bounce buffers, so we must reserve 2 descriptors
+		 * (on start and on end) for bounced fragments.
+		 *
+		 */
+		*(int *)result = (IDMAC_MAX_SIZE * IDMAC_DESC_SEGS) /
+		    MMC_SECTOR_SIZE - 3;
 		break;
 	case MMCBR_IVAR_TIMING:
 		*(int *)result = sc->host.ios.timing;
