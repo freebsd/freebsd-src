@@ -367,77 +367,51 @@ sysctl_error:
 }
 
 /*
- * In the VIMAGE case kern_sysctl.c already adds the vnet base address given
- * we set CTLFLAG_VNET to get proper access checks.  Have to undo this.
- * Then we add the given offset to the specific malloced struct hanging off
- * virtualized ipmain struct.
+ * arg2 holds the offset of the relevant member in the virtualized
+ * ipfmain structure.
  */
 static int
 sysctl_ipf_int_nat ( SYSCTL_HANDLER_ARGS )
 {
+	ipf_nat_softc_t *nat_softc;
 
-	if (arg1) {
-		ipf_nat_softc_t *nat_softc;
+	nat_softc = V_ipfmain.ipf_nat_soft;
+	arg1 = (void *)((uintptr_t)nat_softc + arg2);
 
-		nat_softc = V_ipfmain.ipf_nat_soft;
-#ifdef VIMAGE
-		arg1 = (void *)((uintptr_t)arg1 - curvnet->vnet_data_base);
-#endif
-		arg1 = (void *)((uintptr_t)nat_softc + (uintptr_t)arg1);
-	}
-
-	return (sysctl_ipf_int(oidp, arg1, arg2, req));
+	return (sysctl_ipf_int(oidp, arg1, 0, req));
 }
 
 static int
 sysctl_ipf_int_state ( SYSCTL_HANDLER_ARGS )
 {
+	ipf_state_softc_t *state_softc;
 
-	if (arg1) {
-		ipf_state_softc_t *state_softc;
+	state_softc = V_ipfmain.ipf_state_soft;
+	arg1 = (void *)((uintptr_t)state_softc + arg2);
 
-		state_softc = V_ipfmain.ipf_state_soft;
-#ifdef VIMAGE
-		arg1 = (void *)((uintptr_t)arg1 - curvnet->vnet_data_base);
-#endif
-		arg1 = (void *)((uintptr_t)state_softc + (uintptr_t)arg1);
-	}
-
-	return (sysctl_ipf_int(oidp, arg1, arg2, req));
+	return (sysctl_ipf_int(oidp, arg1, 0, req));
 }
 
 static int
 sysctl_ipf_int_auth ( SYSCTL_HANDLER_ARGS )
 {
+	ipf_auth_softc_t *auth_softc;
 
-	if (arg1) {
-		ipf_auth_softc_t *auth_softc;
+	auth_softc = V_ipfmain.ipf_auth_soft;
+	arg1 = (void *)((uintptr_t)auth_softc + arg2);
 
-		auth_softc = V_ipfmain.ipf_auth_soft;
-#ifdef VIMAGE
-		arg1 = (void *)((uintptr_t)arg1 - curvnet->vnet_data_base);
-#endif
-		arg1 = (void *)((uintptr_t)auth_softc + (uintptr_t)arg1);
-	}
-
-	return (sysctl_ipf_int(oidp, arg1, arg2, req));
+	return (sysctl_ipf_int(oidp, arg1, 0, req));
 }
 
 static int
 sysctl_ipf_int_frag ( SYSCTL_HANDLER_ARGS )
 {
+	ipf_frag_softc_t *frag_softc;
 
-	if (arg1) {
-		ipf_frag_softc_t *frag_softc;
+	frag_softc = V_ipfmain.ipf_frag_soft;
+	arg1 = (void *)((uintptr_t)frag_softc + arg2);
 
-		frag_softc = V_ipfmain.ipf_frag_soft;
-#ifdef VIMAGE
-		arg1 = (void *)((uintptr_t)arg1 - curvnet->vnet_data_base);
-#endif
-		arg1 = (void *)((uintptr_t)frag_softc + (uintptr_t)arg1);
-	}
-
-	return (sysctl_ipf_int(oidp, arg1, arg2, req));
+	return (sysctl_ipf_int(oidp, arg1, 0, req));
 }
 #endif
 
@@ -645,29 +619,29 @@ ipf_fbsd_sysctl_create(void)
 	sysctl_ctx_init(&ipf_clist);
 
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "fr_defnatage", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_defage), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_defage), "");
 	SYSCTL_DYN_IPF_STATE(_net_inet_ipf, OID_AUTO, "fr_statesize", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_state_softc_t, ipf_state_size), 0, "");
+	    NULL, offsetof(ipf_state_softc_t, ipf_state_size), "");
 	SYSCTL_DYN_IPF_STATE(_net_inet_ipf, OID_AUTO, "fr_statemax", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_state_softc_t, ipf_state_max), 0, "");
+	    NULL, offsetof(ipf_state_softc_t, ipf_state_max), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_nattable_max", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_table_max), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_table_max), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_nattable_sz", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_table_sz), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_table_sz), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_natrules_sz", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_maprules_sz), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_maprules_sz), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_rdrrules_sz", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_rdrrules_sz), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_rdrrules_sz), "");
 	SYSCTL_DYN_IPF_NAT(_net_inet_ipf, OID_AUTO, "ipf_hostmap_sz", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_nat_softc_t, ipf_nat_hostmap_sz), 0, "");
+	    NULL, offsetof(ipf_nat_softc_t, ipf_nat_hostmap_sz), "");
 	SYSCTL_DYN_IPF_AUTH(_net_inet_ipf, OID_AUTO, "fr_authsize", CTLFLAG_RWO,
-	    (void *)offsetof(ipf_auth_softc_t, ipf_auth_size), 0, "");
+	    NULL, offsetof(ipf_auth_softc_t, ipf_auth_size), "");
 	SYSCTL_DYN_IPF_AUTH(_net_inet_ipf, OID_AUTO, "fr_authused", CTLFLAG_RD,
-	    (void *)offsetof(ipf_auth_softc_t, ipf_auth_used), 0, "");
+	    NULL, offsetof(ipf_auth_softc_t, ipf_auth_used), "");
 	SYSCTL_DYN_IPF_AUTH(_net_inet_ipf, OID_AUTO, "fr_defaultauthage", CTLFLAG_RW,
-	    (void *)offsetof(ipf_auth_softc_t, ipf_auth_defaultage), 0, "");
+	    NULL, offsetof(ipf_auth_softc_t, ipf_auth_defaultage), "");
 	SYSCTL_DYN_IPF_FRAG(_net_inet_ipf, OID_AUTO, "fr_ipfrttl", CTLFLAG_RW,
-	    (void *)offsetof(ipf_frag_softc_t, ipfr_ttl), 0, "");
+	    NULL, offsetof(ipf_frag_softc_t, ipfr_ttl), "");
 	return 0;
 }
 
