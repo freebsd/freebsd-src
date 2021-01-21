@@ -204,8 +204,6 @@ tcp_usr_attach(struct socket *so, int proto, struct thread *td)
 	tp->t_state = TCPS_CLOSED;
 	INP_WUNLOCK(inp);
 	TCPSTATES_INC(TCPS_CLOSED);
-	if ((so->so_options & SO_LINGER) && so->so_linger == 0)
-		so->so_linger = TCP_LINGERTIME;
 out:
 	TCPDEBUG2(PRU_ATTACH);
 	TCP_PROBE2(debug__user, tp, PRU_ATTACH);
