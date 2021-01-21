@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 enum test_methods {
 	TEST_GETPWENT,
+	TEST_GETPWENT_INTERLEAVED_GETPWNAM,
+	TEST_GETPWENT_INTERLEAVED_GETPWUID,
 	TEST_GETPWNAM,
 	TEST_GETPWUID,
 	TEST_GETPWENT_2PASS,
@@ -64,7 +66,8 @@ static void dump_passwd(struct passwd *);
 static int passwd_read_snapshot_func(struct passwd *, char *);
 
 static int passwd_check_ambiguity(struct passwd_test_data *, struct passwd *);
-static int passwd_fill_test_data(struct passwd_test_data *);
+static int passwd_fill_test_data(struct passwd_test_data *,
+    int (*cb)(struct passwd *, void *));
 static int passwd_test_correctness(struct passwd *, void *);
 static int passwd_test_getpwnam(struct passwd *, void *);
 static int passwd_test_getpwuid(struct passwd *, void *);
@@ -236,16 +239,20 @@ fin:
 }
 
 static int
-passwd_fill_test_data(struct passwd_test_data *td)
+passwd_fill_test_data(struct passwd_test_data *td,
+    int (*cb)(struct passwd *, void *))
 {
 	struct passwd *pwd;
 
 	setpassent(1);
 	while ((pwd = getpwent()) != NULL) {
-		if (passwd_test_correctness(pwd, NULL) == 0)
+		if (passwd_test_correctness(pwd, NULL) == 0) {
 			TEST_DATA_APPEND(passwd, td, pwd);
-		else
+			if (cb != NULL && cb(pwd, td) != 0)
+				return (-1);
+		} else {
 			return (-1);
+		}
 	}
 	endpwent();
 
@@ -376,7 +383,7 @@ passwd_test_getpwent(struct passwd *pwd, void *mdata __unused)
 static int
 run_tests(const char *snapshot_file, enum test_methods method)
 {
-	struct passwd_test_data td, td_snap, td_2pass;
+	struct passwd_test_data td, td_snap, td_2pass, td_interleaved;
 	int rv;
 
 	TEST_DATA_INIT(passwd, &td, clone_passwd, free_passwd);
@@ -402,7 +409,7 @@ run_tests(const char *snapshot_file, enum test_methods method)
 		}
 	}
 
-	rv = passwd_fill_test_data(&td);
+	rv = passwd_fill_test_data(&td, NULL);
 	if (rv == -1)
 		return (-1);
 
@@ -433,11 +440,27 @@ run_tests(const char *snapshot_file, enum test_methods method)
 		break;
 	case TEST_GETPWENT_2PASS:
 		TEST_DATA_INIT(passwd, &td_2pass, clone_passwd, free_passwd);
-		rv = passwd_fill_test_data(&td_2pass);
+		rv = passwd_fill_test_data(&td_2pass, NULL);
 		if (rv != -1)
 			rv = DO_2PASS_TEST(passwd, &td, &td_2pass,
 			    compare_passwd, NULL);
 		TEST_DATA_DESTROY(passwd, &td_2pass);
+		break;
+	case TEST_GETPWENT_INTERLEAVED_GETPWNAM:
+		TEST_DATA_INIT(passwd, &td_interleaved, clone_passwd, free_passwd);
+		rv = passwd_fill_test_data(&td_interleaved, passwd_test_getpwnam);
+		if (rv != -1)
+			rv = DO_2PASS_TEST(passwd, &td, &td_interleaved,
+			    compare_passwd, NULL);
+		TEST_DATA_DESTROY(passwd, &td_interleaved);
+		break;
+	case TEST_GETPWENT_INTERLEAVED_GETPWUID:
+		TEST_DATA_INIT(passwd, &td_interleaved, clone_passwd, free_passwd);
+		rv = passwd_fill_test_data(&td_interleaved, passwd_test_getpwuid);
+		if (rv != -1)
+			rv = DO_2PASS_TEST(passwd, &td, &td_interleaved,
+			    compare_passwd, NULL);
+		TEST_DATA_DESTROY(passwd, &td_interleaved);
 		break;
 	case TEST_BUILD_SNAPSHOT:
 		if (snapshot_file != NULL)
@@ -503,6 +526,18 @@ ATF_TC_BODY(getpwuid_with_snapshot, tc)
 	ATF_REQUIRE(run_tests(SNAPSHOT_FILE, TEST_GETPWUID) == 0);
 }
 
+ATF_TC_WITHOUT_HEAD(getpwent_interleaved_getpwnam);
+ATF_TC_BODY(getpwent_interleaved_getpwnam, tc)
+{
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPWENT_INTERLEAVED_GETPWNAM) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(getpwent_interleaved_getpwuid);
+ATF_TC_BODY(getpwent_interleaved_getpwuid, tc)
+{
+	ATF_REQUIRE(run_tests(NULL, TEST_GETPWENT_INTERLEAVED_GETPWUID) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, getpwent);
@@ -512,6 +547,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, getpwnam_with_snapshot);
 	ATF_TP_ADD_TC(tp, getpwuid);
 	ATF_TP_ADD_TC(tp, getpwuid_with_snapshot);
+	ATF_TP_ADD_TC(tp, getpwent_interleaved_getpwnam);
+	ATF_TP_ADD_TC(tp, getpwent_interleaved_getpwuid);
 
 	return (atf_no_error());
 }
