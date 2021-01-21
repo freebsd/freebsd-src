@@ -640,8 +640,10 @@ vt_termsize(struct vt_device *vd, struct vt_font *vf, term_pos_t *size)
 		size->tp_row -= vt_logo_sprite_height;
 	size->tp_col = vd->vd_width;
 	if (vf != NULL) {
-		size->tp_row /= vf->vf_height;
-		size->tp_col /= vf->vf_width;
+		size->tp_row = MIN(size->tp_row / vf->vf_height,
+		    PIXEL_HEIGHT(VT_FB_MAX_HEIGHT));
+		size->tp_col = MIN(size->tp_col / vf->vf_width,
+		    PIXEL_WIDTH(VT_FB_MAX_WIDTH));
 	}
 }
 
@@ -660,8 +662,10 @@ vt_termrect(struct vt_device *vd, struct vt_font *vf, term_rect_t *rect)
 		rect->tr_begin.tp_row =
 		    howmany(rect->tr_begin.tp_row, vf->vf_height);
 
-		rect->tr_end.tp_row /= vf->vf_height;
-		rect->tr_end.tp_col /= vf->vf_width;
+		rect->tr_end.tp_row = MIN(rect->tr_end.tp_row / vf->vf_height,
+		    PIXEL_HEIGHT(VT_FB_MAX_HEIGHT));
+		rect->tr_end.tp_col = MIN(rect->tr_end.tp_col / vf->vf_width,
+		    PIXEL_WIDTH(VT_FB_MAX_WIDTH));
 	}
 }
 
@@ -675,8 +679,10 @@ vt_winsize(struct vt_device *vd, struct vt_font *vf, struct winsize *size)
 	size->ws_row = size->ws_ypixel;
 	size->ws_col = size->ws_xpixel = vd->vd_width;
 	if (vf != NULL) {
-		size->ws_row /= vf->vf_height;
-		size->ws_col /= vf->vf_width;
+		size->ws_row = MIN(size->ws_row / vf->vf_height,
+		    PIXEL_HEIGHT(VT_FB_MAX_HEIGHT));
+		size->ws_col = MIN(size->ws_col / vf->vf_width,
+		    PIXEL_WIDTH(VT_FB_MAX_WIDTH));
 	}
 }
 
