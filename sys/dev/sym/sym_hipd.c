@@ -571,8 +571,7 @@ static void sym_mfree(void *ptr, int size, char *name)
  * BUS handle. A reverse table (hashed) is maintained for virtual
  * to BUS address translation.
  */
-static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg __unused,
-    int error)
+static void getbaddrcb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
 	bus_addr_t *baddr;
 
@@ -610,8 +609,6 @@ static m_addr_t ___dma_getp(m_pool_s *mp)
 		return (m_addr_t) vaddr;
 	}
 out_err:
-	if (baddr)
-		bus_dmamap_unload(mp->dmat, vbp->dmamap);
 	if (vaddr)
 		bus_dmamem_free(mp->dmat, vaddr, vbp->dmamap);
 	if (vbp)
@@ -4680,6 +4677,7 @@ static void sym_sir_bad_scsi_status(hcb_p np, ccb_p cp)
 			PRINT_ADDR(cp);
 			printf (s_status == S_BUSY ? "BUSY" : "QUEUE FULL\n");
 		}
+		/* FALLTHROUGH */
 	default:	/* S_INT, S_INT_COND_MET, S_CONFLICT */
 		sym_complete_error (np, cp);
 		break;
@@ -6003,6 +6001,8 @@ static void sym_int_sir (hcb_p np)
 	 *  or has been auto-sensed.
 	 */
 	case SIR_COMPLETE_ERROR:
+		if (!cp)
+			goto out;
 		sym_complete_error(np, cp);
 		return;
 	/*
@@ -6228,6 +6228,8 @@ static void sym_int_sir (hcb_p np)
 	 *  Target does not want answer message.
 	 */
 	case SIR_NEGO_PROTO:
+		if (!cp)
+			goto out;
 		sym_nego_default(np, tp, cp);
 		goto out;
 	}
