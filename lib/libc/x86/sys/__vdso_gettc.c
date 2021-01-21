@@ -125,7 +125,7 @@ struct tsc_selector_tag {
 };
 
 static const struct tsc_selector_tag tsc_selector[] = {
-	[0] = {				/* Intel or AMD Zen+, LFENCE */
+	[0] = {				/* Intel, LFENCE */
 		.ts_rdtsc32 =	rdtsc32_mb_lfence,
 		.ts_rdtsc_low =	rdtsc_low_mb_lfence,
 	},
@@ -163,9 +163,6 @@ tsc_selector_idx(u_int cpu_feature)
 
 	do_cpuid(1, p);
 	cpu_id = p[0];
-
-	if (amd_cpu && CPUID_TO_FAMILY(cpu_id) >= 0x17)
-		return (0);
 
 	if (cpu_feature != 0) {
 		do_cpuid(0x80000000, p);
