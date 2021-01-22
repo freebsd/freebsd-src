@@ -87,7 +87,7 @@ VERSION_FILE=	${.CURDIR}/../loader/version
 
 CLEANFILES+=	8x16.c
 
-8x16.c:		${SRCTOP}/contrib/terminus/ter-u16v.bdf
+8x16.c:		${SRCTOP}/contrib/terminus/ter-u16b.bdf
 	vtfontcvt -f compressed-source -o ${.TARGET} ${.ALLSRC}
 
 FILES+=	${LOADER}.efi

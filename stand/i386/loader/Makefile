@@ -70,7 +70,7 @@ CFLAGS+=	-I${BOOTSRC}/i386
 #CFLAGS+=	-g
 #LDFLAGS+=	-g
 
-8x16.c: ${SRCTOP}/contrib/terminus/ter-u16v.bdf
+8x16.c: ${SRCTOP}/contrib/terminus/ter-u16b.bdf
 	vtfontcvt -f compressed-source -o ${.TARGET} ${.ALLSRC}
 
 ${LOADER}: ${LOADER}.bin ${BTXLDR} ${BTXKERN}
