@@ -12,7 +12,7 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
 NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
-	FreeBSD 13.x has many debugging features turned on, in both the kernel
+	FreeBSD 14.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
