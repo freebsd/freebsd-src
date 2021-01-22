@@ -19,7 +19,7 @@ GITPORTS="ports.git"
 GITDOC="doc.git"
 
 ## Set the src/, ports/, and doc/ branches or tags.
-SRCBRANCH="main"
+SRCBRANCH="stable/13"
 DOCBRANCH="main"
 PORTBRANCH="main"
 
