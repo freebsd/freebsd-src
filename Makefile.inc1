@@ -1005,9 +1005,9 @@ _cleanobj_fast_depend_hack: .PHONY
 .for f in pf_ruleset
 	@if [ -e "${OBJTOP}"/sbin/pfctl/.depend.${f}.o ] && \
 	    egrep -qw "sys/netpfil/pf/${f}.c" \
-	    "${OBJTOP}"/sbin/pfctl/.depend.${f}.o; then
-			echo "Removing old ${f} dependency file"
-			rm -rf "${OBJTOP}"/sbin/pfctl/.depend.${f}.o
+	    "${OBJTOP}"/sbin/pfctl/.depend.${f}.o; then \
+			echo "Removing old ${f} dependency file"; \
+			rm -rf "${OBJTOP}"/sbin/pfctl/.depend.${f}.o; \
 	fi
 .endfor
 
