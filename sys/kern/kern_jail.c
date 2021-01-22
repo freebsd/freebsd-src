@@ -2705,7 +2705,6 @@ prison_proc_hold(struct prison *pr)
 void
 prison_proc_free(struct prison *pr)
 {
-	int lasturef;
 
 	/*
 	 * Locking is only required when releasing the last reference.
@@ -2714,11 +2713,7 @@ prison_proc_free(struct prison *pr)
 	 */
 	KASSERT(refcount_load(&pr->pr_uref) > 0,
 	    ("Trying to kill a process in a dead prison (jid=%d)", pr->pr_id));
-	if (refcount_release_if_not_last(&pr->pr_uref))
-		return;
-	mtx_lock(&pr->pr_mtx);
-	lasturef = refcount_release(&pr->pr_uref);
-	if (lasturef) {
+	if (!refcount_release_if_not_last(&pr->pr_uref)) {
 		/*
 		 * Don't remove the last user reference in this context,
 		 * which is expected to be a process that is not only locked,
@@ -2726,11 +2721,8 @@ prison_proc_free(struct prison *pr)
 		 * prison_free() won't re-submit the task.
 		 */
 		refcount_acquire(&pr->pr_ref);
-		mtx_unlock(&pr->pr_mtx);
 		taskqueue_enqueue(taskqueue_thread, &pr->pr_task);
-		return;
 	}
-	mtx_unlock(&pr->pr_mtx);
 }
 
 /*
