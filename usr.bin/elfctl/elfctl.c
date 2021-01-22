@@ -261,7 +261,7 @@ convert_to_feature_val(char *feature_str, uint32_t *feature_val)
 					warn("%s invalid", feature);
 					return (false);
 				}
-				input != val;
+				input |= val;
 			} else {
 				warnx("%s is not a valid feature", feature);
 				if (!iflag)
