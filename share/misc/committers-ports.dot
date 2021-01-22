@@ -167,6 +167,7 @@ laszlof [label="Frank Laszlo\nlaszlof@FreeBSD.org\n2006/11/07"]
 lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbartoletti [label="Loïc Bartoletti\nlbartoletti@FreeBSD.org\n2020/01/02"]
 lbr [label="Lars Balker Rasmussen\nlbr@FreeBSD.org\n2006/04/30"]
+lcook [label="Lewis Cook\nlcook@FreeBSD.org\n2021/01/21"]
 leeym [label="Yen-Ming Lee\nleeym@FreeBSD.org\n2002/08/14"]
 ler [label="Larry Rosenman\nler@FreeBSD.org\n2017/01/09"]
 leres [label="Craig Leres\nleres@FreeBSD.org\n2017/10/10"]
@@ -436,6 +437,8 @@ feld -> brnrd
 feld -> junovitch
 feld -> mmokhi
 feld -> rezny
+
+fernape -> lcook
 
 fjoe -> danfe
 fjoe -> flo
@@ -754,6 +757,7 @@ tcberner -> fernape
 tcberner -> joneum
 tcberner -> kai
 tcberner -> lbartoletti
+tcberner -> lcook
 tcberner -> pkubaj
 tcberner -> rhurlin
 tcberner -> rigoletto
