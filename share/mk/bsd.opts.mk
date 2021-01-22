@@ -75,7 +75,6 @@ __DEFAULT_NO_OPTIONS = \
     INIT_ALL_PATTERN \
     INIT_ALL_ZERO \
     INSTALL_AS_USER \
-    PIE \
     MANSPLITPKG \
     RETPOLINE \
     STALE_STAGED
@@ -86,6 +85,21 @@ __DEFAULT_DEPENDENT_OPTIONS = \
     STAGING_PROG/STAGING \
     STALE_STAGED/STAGING \
 
+#
+# Default to disabling PIE on 32-bit architectures. The small address space
+# means that ASLR is of limited effectiveness, and it may cause issues with
+# some memory-hungry workloads.
+#
+.if ${MACHINE_ARCH} == "armv6" || ${MACHINE_ARCH} == "armv7" \
+    || ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "mips" \
+    || ${MACHINE_ARCH} == "mipsel" || ${MACHINE_ARCH} == "mipselhf" \
+    || ${MACHINE_ARCH} == "mipshf" || ${MACHINE_ARCH} == "mipsn32" \
+    || ${MACHINE_ARCH} == "mipsn32el" || ${MACHINE_ARCH} == "powerpc" \
+    || ${MACHINE_ARCH} == "powerpcspe"
+__DEFAULT_NO_OPTIONS+= PIE
+.else
+__DEFAULT_YES_OPTIONS+=PIE
+.endif
 
 .include <bsd.mkopt.mk>
 
