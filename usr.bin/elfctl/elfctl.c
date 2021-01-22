@@ -33,12 +33,15 @@
 #include <sys/endian.h>
 #include <sys/stat.h>
 
+#include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
 #include <getopt.h>
 #include <libelf.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -246,9 +249,26 @@ convert_to_feature_val(char *feature_str, uint32_t *feature_val)
 			}
 		}
 		if (i == len) {
-			warnx("%s is not a valid feature", feature);
-			if (!iflag)
-				return (false);
+			if (isdigit(feature[0])) {
+				char *eptr;
+				unsigned long long val;
+
+				errno = 0;
+				val = strtoll(feature, &eptr, 0);
+				if (eptr == feature || *eptr != '\0')
+					errno = EINVAL;
+				else if (val > UINT32_MAX)
+					errno = ERANGE;
+				if (errno != 0) {
+					warn("%s invalid", feature);
+					return (false);
+				}
+				input |= val;
+			} else {
+				warnx("%s is not a valid feature", feature);
+				if (!iflag)
+					return (false);
+			}
 		}
 	}
 
