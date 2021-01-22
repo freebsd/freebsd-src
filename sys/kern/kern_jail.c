@@ -1741,8 +1741,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			prison_hold(pr);
 			refcount_acquire(&pr->pr_uref);
 		} else {
-			refcount_release(&pr->pr_uref);
 			refcount_release(&pr->pr_ref);
+			drflags |= PD_DEUREF;
 		}
 	}
 	pr->pr_flags = (pr->pr_flags & ~ch_flags) | pr_flags;
