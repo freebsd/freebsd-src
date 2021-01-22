@@ -7,7 +7,7 @@
 #
 # $FreeBSD$
 
-include GENERIC-MMCCAP
+include GENERIC-MMCCAM
 include "../../conf/std.nodebug"
 
 ident GENERIC-MMCCAM-NODEBUG
