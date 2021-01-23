@@ -65,6 +65,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"gpioiic",   true}, /* Deprecated old freebsd compat string */
 	{NULL,        false}
 };
+OFWBUS_PNP_INFO(compat_data);
+SIMPLEBUS_PNP_INFO(compat_data);
 
 static phandle_t
 gpioiic_get_node(device_t bus, device_t dev)
@@ -368,13 +370,7 @@ static driver_t gpioiic_driver = {
 };
 
 DRIVER_MODULE(gpioiic, gpiobus, gpioiic_driver, gpioiic_devclass, 0, 0);
-#ifdef FDT
-OFWBUS_PNP_INFO(compat_data);
-#endif
 DRIVER_MODULE(gpioiic, simplebus, gpioiic_driver, gpioiic_devclass, 0, 0);
-#ifdef FDT
-SIMPLEBUS_PNP_INFO(compat_data);
-#endif
 DRIVER_MODULE(iicbb, gpioiic, iicbb_driver, iicbb_devclass, 0, 0);
 MODULE_DEPEND(gpioiic, iicbb, IICBB_MINVER, IICBB_PREFVER, IICBB_MAXVER);
 MODULE_DEPEND(gpioiic, gpiobus, 1, 1, 1);

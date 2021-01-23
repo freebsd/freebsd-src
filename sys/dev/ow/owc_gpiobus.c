@@ -49,6 +49,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"w1-gpio",  true},
 	{NULL,       false}
 };
+OFWBUS_PNP_INFO(compat_data);
+SIMPLEBUS_PNP_INFO(compat_data);
 #endif /* FDT */
 
 #define	OW_PIN		0
@@ -392,13 +394,9 @@ static driver_t owc_gpiobus_driver = {
 
 #ifdef FDT
 DRIVER_MODULE(owc_gpiobus, simplebus, owc_gpiobus_driver, owc_gpiobus_devclass, 0, 0);
-SIMPLEBUS_PNP_INFO(compat_data);
 #endif
 
 DRIVER_MODULE(owc_gpiobus, gpiobus, owc_gpiobus_driver, owc_gpiobus_devclass, 0, 0);
-#ifdef FDT
-OFWBUS_PNP_INFO(compat_data);
-#endif
 MODULE_DEPEND(owc_gpiobus, ow, 1, 1, 1);
 MODULE_DEPEND(owc_gpiobus, gpiobus, 1, 1, 1);
 MODULE_VERSION(owc_gpiobus, 1);

@@ -96,6 +96,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"ti,am335x-timer-1ms", 1},
 	{NULL,                  0},
 };
+SIMPLEBUS_PNP_INFO(compat_data);
 
 /*
  * A table relating pad names to the hardware timer number they can be mux'd to.
@@ -617,5 +618,4 @@ static driver_t dmtpps_driver = {
 static devclass_t dmtpps_devclass;
 
 DRIVER_MODULE(am335x_dmtpps, simplebus, dmtpps_driver, dmtpps_devclass, 0, 0);
-SIMPLEBUS_PNP_INFO(compat_data);
 MODULE_DEPEND(am335x_dmtpps, ti_sysc, 1, 1, 1);

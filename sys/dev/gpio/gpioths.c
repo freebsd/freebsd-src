@@ -72,6 +72,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"dht11",  true},
 	{NULL,     false}
 };
+OFWBUS_PNP_INFO(compat_data);
+SIMPLEBUS_PNP_INFO(compat_data);
 #endif /* FDT */
 
 #define	PIN_IDX 0			/* Use the first/only configured pin. */
@@ -409,11 +411,7 @@ DEFINE_CLASS_0(gpioths, gpioths_driver, gpioths_methods, sizeof(struct gpioths_s
 
 #ifdef FDT
 DRIVER_MODULE(gpioths, simplebus, gpioths_driver, gpioths_devclass, 0, 0);
-SIMPLEBUS_PNP_INFO(compat_data);
 #endif
 
 DRIVER_MODULE(gpioths, gpiobus, gpioths_driver, gpioths_devclass, 0, 0);
-#ifdef FDT
-OFWBUS_PNP_INFO(compat_data);
-#endif
 MODULE_DEPEND(gpioths, gpiobus, 1, 1, 1);
