@@ -1291,9 +1291,8 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * that were dropped must be notified to the upper layer as
 		 * failed to send.
 		 */
-		asoc->strmout[i].next_mid_ordered = 0;
-		asoc->strmout[i].next_mid_unordered = 0;
 		TAILQ_INIT(&asoc->strmout[i].outqueue);
+		asoc->ss_functions.sctp_ss_init_stream(stcb, &asoc->strmout[i], NULL);
 		asoc->strmout[i].chunks_on_queues = 0;
 #if defined(SCTP_DETAILED_STR_STATS)
 		for (j = 0; j < SCTP_PR_SCTP_MAX + 1; j++) {
@@ -1304,10 +1303,11 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		asoc->strmout[i].abandoned_sent[0] = 0;
 		asoc->strmout[i].abandoned_unsent[0] = 0;
 #endif
+		asoc->strmout[i].next_mid_ordered = 0;
+		asoc->strmout[i].next_mid_unordered = 0;
 		asoc->strmout[i].sid = i;
 		asoc->strmout[i].last_msg_incomplete = 0;
 		asoc->strmout[i].state = SCTP_STREAM_OPENING;
-		asoc->ss_functions.sctp_ss_init_stream(stcb, &asoc->strmout[i], NULL);
 	}
 	asoc->ss_functions.sctp_ss_init(stcb, asoc, 0);
 
@@ -2032,14 +2032,13 @@ sctp_timeout_handler(void *t)
 		sctp_inpcb_free(inp, SCTP_FREE_SHOULD_USE_ABORT,
 		    SCTP_CALLED_FROM_INPKILL_TIMER);
 		inp = NULL;
-		goto out_no_decr;
+		goto out_decr;
 	case SCTP_TIMER_TYPE_ASOCKILL:
 		KASSERT(inp != NULL && stcb != NULL && net == NULL,
 		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
 		    type, inp, stcb, net));
 		SCTP_STAT_INCR(sctps_timoassockill);
 		/* Can we free it yet? */
-		SCTP_INP_DECR_REF(inp);
 		sctp_timer_stop(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL,
 		    SCTP_FROM_SCTPUTIL + SCTP_LOC_1);
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC,
@@ -2049,7 +2048,7 @@ sctp_timeout_handler(void *t)
 		 * duplicate unlock or unlock of a free mtx :-0
 		 */
 		stcb = NULL;
-		goto out_no_decr;
+		goto out_decr;
 	case SCTP_TIMER_TYPE_ADDR_WQ:
 		KASSERT(inp == NULL && stcb == NULL && net == NULL,
 		    ("timeout of type %d: inp = %p, stcb = %p, net = %p",
@@ -2107,7 +2106,6 @@ out_decr:
 	if (net != NULL) {
 		sctp_free_remote_addr(net);
 	}
-out_no_decr:
 	SCTPDBG(SCTP_DEBUG_TIMER2, "Timer type %d handler finished.\n", type);
 	CURVNET_RESTORE();
 	NET_EPOCH_EXIT(et);
@@ -2279,14 +2277,19 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 		rndval = sctp_select_initial_TSN(&inp->sctp_ep);
 		jitter = rndval % to_ticks;
-		if (jitter >= (to_ticks >> 1)) {
-			to_ticks = to_ticks + (jitter - (to_ticks >> 1));
+		to_ticks >>= 1;
+		if (jitter < (UINT32_MAX - to_ticks)) {
+			to_ticks += jitter;
 		} else {
-			to_ticks = to_ticks - jitter;
+			to_ticks = UINT32_MAX;
 		}
 		if (!(net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
 		    !(net->dest_state & SCTP_ADDR_PF)) {
-			to_ticks += net->heart_beat_delay;
+			if (net->heart_beat_delay < (UINT32_MAX - to_ticks)) {
+				to_ticks += net->heart_beat_delay;
+			} else {
+				to_ticks = UINT32_MAX;
+			}
 		}
 		/*
 		 * Now we must convert the to_ticks that are now in ms to

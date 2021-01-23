@@ -803,7 +803,7 @@ restart:
 			}
 			memset(nc, 0, sizeof(struct sctp_queued_to_read));
 			TAILQ_REMOVE(&control->reasm, chk, sctp_next);
-			sctp_add_chk_to_control(control, strm, stcb, asoc, chk, SCTP_READ_LOCK_NOT_HELD);
+			sctp_add_chk_to_control(control, strm, stcb, asoc, chk, inp_read_lock_held);
 			fsn++;
 			cnt_added++;
 			chk = NULL;
