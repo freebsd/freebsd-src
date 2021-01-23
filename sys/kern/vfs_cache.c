@@ -367,6 +367,10 @@ static bool __read_frequently cache_fast_revlookup = true;
 SYSCTL_BOOL(_vfs, OID_AUTO, cache_fast_revlookup, CTLFLAG_RW,
     &cache_fast_revlookup, 0, "");
 
+static bool __read_mostly cache_rename_add = true;
+SYSCTL_BOOL(_vfs, OID_AUTO, cache_rename_add, CTLFLAG_RW,
+    &cache_rename_add, 0, "");
+
 static u_int __exclusive_cache_line neg_cycle;
 
 #define ncneghash	3
@@ -2730,6 +2734,21 @@ cache_vop_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
 		    ("%s: lingering negative entry", __func__));
 	} else {
 		cache_remove_cnp(tdvp, tcnp);
+	}
+
+	/*
+	 * TODO
+	 *
+	 * Historically renaming was always purging all revelang entries,
+	 * but that's quite wasteful. In particular turns out that in many cases
+	 * the target file is immediately accessed after rename, inducing a cache
+	 * miss.
+	 *
+	 * Recode this to reduce relocking and reuse the existing entry (if any)
+	 * instead of just removing it above and allocating a new one here.
+	 */
+	if (cache_rename_add) {
+		cache_enter(tdvp, fvp, tcnp);
 	}
 }
 
