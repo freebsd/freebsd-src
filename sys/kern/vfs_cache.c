@@ -1422,10 +1422,14 @@ static void
 cache_zap_locked(struct namecache *ncp)
 {
 	struct nchashhead *ncpp;
+	struct vnode *dvp, *vp;
+
+	dvp = ncp->nc_dvp;
+	vp = ncp->nc_vp;
 
 	if (!(ncp->nc_flag & NCF_NEGATIVE))
-		cache_assert_vnode_locked(ncp->nc_vp);
-	cache_assert_vnode_locked(ncp->nc_dvp);
+		cache_assert_vnode_locked(vp);
+	cache_assert_vnode_locked(dvp);
 	cache_assert_bucket_locked(ncp);
 
 	cache_ncp_invalidate(ncp);
@@ -1433,28 +1437,26 @@ cache_zap_locked(struct namecache *ncp)
 	ncpp = NCP2BUCKET(ncp);
 	CK_SLIST_REMOVE(ncpp, ncp, namecache, nc_hash);
 	if (!(ncp->nc_flag & NCF_NEGATIVE)) {
-		SDT_PROBE3(vfs, namecache, zap, done, ncp->nc_dvp,
-		    ncp->nc_name, ncp->nc_vp);
-		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
-		if (ncp == ncp->nc_vp->v_cache_dd) {
-			vn_seqc_write_begin_unheld(ncp->nc_vp);
-			ncp->nc_vp->v_cache_dd = NULL;
-			vn_seqc_write_end(ncp->nc_vp);
+		SDT_PROBE3(vfs, namecache, zap, done, dvp, ncp->nc_name, vp);
+		TAILQ_REMOVE(&vp->v_cache_dst, ncp, nc_dst);
+		if (ncp == vp->v_cache_dd) {
+			vn_seqc_write_begin_unheld(vp);
+			vp->v_cache_dd = NULL;
+			vn_seqc_write_end(vp);
 		}
 	} else {
-		SDT_PROBE2(vfs, namecache, zap_negative, done, ncp->nc_dvp,
-		    ncp->nc_name);
+		SDT_PROBE2(vfs, namecache, zap_negative, done, dvp, ncp->nc_name);
 		cache_neg_remove(ncp);
 	}
 	if (ncp->nc_flag & NCF_ISDOTDOT) {
-		if (ncp == ncp->nc_dvp->v_cache_dd) {
-			vn_seqc_write_begin_unheld(ncp->nc_dvp);
-			ncp->nc_dvp->v_cache_dd = NULL;
-			vn_seqc_write_end(ncp->nc_dvp);
+		if (ncp == dvp->v_cache_dd) {
+			vn_seqc_write_begin_unheld(dvp);
+			dvp->v_cache_dd = NULL;
+			vn_seqc_write_end(dvp);
 		}
 	} else {
 		LIST_REMOVE(ncp, nc_src);
-		if (LIST_EMPTY(&ncp->nc_dvp->v_cache_src)) {
+		if (LIST_EMPTY(&dvp->v_cache_src)) {
 			ncp->nc_flag |= NCF_DVDROP;
 		}
 	}
