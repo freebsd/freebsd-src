@@ -58,6 +58,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"i2c-mux-gpio",  true},
 	{NULL,            false}
 };
+OFWBUS_PNP_INFO(compat_data);
+SIMPLEBUS_PNP_INFO(compat_data);
 #endif /* FDT */
 
 #include <dev/iicbus/iiconf.h>
@@ -253,13 +255,7 @@ static devclass_t gpiomux_devclass;
 DEFINE_CLASS_1(iic_gpiomux, iic_gpiomux_driver, gpiomux_methods,
     sizeof(struct gpiomux_softc), iicmux_driver);
 DRIVER_MODULE(iic_gpiomux, simplebus, iic_gpiomux_driver, gpiomux_devclass, 0, 0);
-#ifdef FDT
-SIMPLEBUS_PNP_INFO(compat_data);
-#endif
 DRIVER_MODULE(iic_gpiomux, ofw_simplebus, iic_gpiomux_driver, gpiomux_devclass, 0, 0);
-#ifdef FDT
-OFWBUS_PNP_INFO(compat_data);
-#endif
 
 #ifdef FDT
 DRIVER_MODULE(ofw_iicbus, iic_gpiomux, ofw_iicbus_driver, ofw_iicbus_devclass, 0, 0);
