@@ -32,6 +32,29 @@
 #ifndef _MACHINE_VFP_H_
 #define	_MACHINE_VFP_H_
 
+/* VFPCR */
+#define	VFPCR_AHP		(0x04000000)	/* alt. half-precision: */
+#define	VFPCR_DN		(0x02000000)	/* default NaN enable */
+#define	VFPCR_FZ		(0x01000000)	/* flush to zero enabled */
+
+#define	VFPCR_RMODE_OFF		22		/* rounding mode offset */
+#define	VFPCR_RMODE_MASK	(0x00c00000)	/* rounding mode mask */
+#define	VFPCR_RMODE_RN		(0x00000000)	/* round nearest */
+#define	VFPCR_RMODE_RPI		(0x00400000)	/* round to plus infinity */
+#define	VFPCR_RMODE_RNI		(0x00800000)	/* round to neg infinity */
+#define	VFPCR_RMODE_RM		(0x00c00000)	/* round to zero */
+
+#define	VFPCR_STRIDE_OFF	20		/* vector stride -1 */
+#define	VFPCR_STRIDE_MASK	(0x00300000)
+#define	VFPCR_LEN_OFF		16		/* vector length -1 */
+#define	VFPCR_LEN_MASK		(0x00070000)
+#define	VFPCR_IDE		(0x00008000)	/* input subnormal exc enable */
+#define	VFPCR_IXE		(0x00001000)	/* inexact exception enable */
+#define	VFPCR_UFE		(0x00000800)	/* underflow exception enable */
+#define	VFPCR_OFE		(0x00000400)	/* overflow exception enable */
+#define	VFPCR_DZE		(0x00000200)	/* div by zero exception en */
+#define	VFPCR_IOE		(0x00000100)	/* invalid op exec enable */
+
 #ifndef LOCORE
 struct vfpstate {
 	__uint128_t	vfp_regs[32];

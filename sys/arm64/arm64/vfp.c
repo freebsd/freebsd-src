@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 
 #include <machine/armreg.h>
+#include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/vfp.h>
 
@@ -238,6 +239,9 @@ vfp_init(void)
 
 	/* Disable to be enabled when it's used */
 	vfp_disable();
+
+	if (PCPU_GET(cpuid) == 0)
+		thread0.td_pcb->pcb_fpusaved->vfp_fpcr = initial_fpcr;
 }
 
 SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
