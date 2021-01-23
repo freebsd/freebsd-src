@@ -54,4 +54,6 @@ void generic_bs_poke_2(void) __asm(__STRING(generic_bs_poke_2));
 void generic_bs_poke_4(void) __asm(__STRING(generic_bs_poke_4));
 void generic_bs_poke_8(void) __asm(__STRING(generic_bs_poke_8));
 
+extern uint32_t initial_fpcr;
+
 #endif /* !_MACHINE_MD_VAR_H_ */
