@@ -4463,6 +4463,29 @@ zfs_freebsd_fplookup_vexec(struct vop_fplookup_vexec_args *v)
 }
 #endif
 
+static int
+zfs_freebsd_fplookup_symlink(struct vop_fplookup_symlink_args *v)
+{
+	vnode_t *vp;
+	znode_t *zp;
+	char *target;
+
+	vp = v->a_vp;
+	zp = VTOZ_SMR(vp);
+	if (__predict_false(zp == NULL)) {
+		return (EAGAIN);
+	}
+
+	/*
+	 * FIXME: Load consume would be sufficient but there is no primitive to do it.
+	 */
+	target = (char *)atomic_load_acq_ptr((uintptr_t *)&zp->z_cached_symlink);
+	if (target == NULL) {
+		return (EAGAIN);
+	}
+	return (cache_symlink_resolve(v->a_fpl, target, strlen(target)));
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct vop_access_args {
 	struct vnode *a_vp;
@@ -4949,6 +4972,8 @@ zfs_freebsd_symlink(struct vop_symlink_args *ap)
 	struct componentname *cnp = ap->a_cnp;
 	vattr_t *vap = ap->a_vap;
 	znode_t *zp = NULL;
+	char *symlink;
+	size_t symlink_len;
 	int rc;
 
 	ASSERT(cnp->cn_flags & SAVENAME);
@@ -4959,8 +4984,19 @@ zfs_freebsd_symlink(struct vop_symlink_args *ap)
 
 	rc = zfs_symlink(VTOZ(ap->a_dvp), cnp->cn_nameptr, vap,
 	    ap->a_target, &zp, cnp->cn_cred, 0 /* flags */);
-	if (rc == 0)
+	if (rc == 0) {
 		*ap->a_vpp = ZTOV(zp);
+		ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
+		MPASS(zp->z_cached_symlink == NULL);
+		symlink_len = strlen(ap->a_target);
+		symlink = cache_symlink_alloc(symlink_len + 1, M_WAITOK);
+		if (symlink != NULL) {
+			memcpy(symlink, ap->a_target, symlink_len);
+			symlink[symlink_len] = '\0';
+			atomic_store_rel_ptr((uintptr_t *)&zp->z_cached_symlink,
+			    (uintptr_t)symlink);
+		}
+	}
 	return (rc);
 }
 
@@ -4975,8 +5011,36 @@ struct vop_readlink_args {
 static int
 zfs_freebsd_readlink(struct vop_readlink_args *ap)
 {
+	znode_t	*zp = VTOZ(ap->a_vp);
+	struct uio *auio;
+	char *symlink, *base;
+	size_t symlink_len;
+	int error;
+	bool trycache;
 
-	return (zfs_readlink(ap->a_vp, ap->a_uio, ap->a_cred, NULL));
+	auio = ap->a_uio;
+	trycache = false;
+	if (auio->uio_segflg == UIO_SYSSPACE && auio->uio_iovcnt == 1) {
+		base = auio->uio_iov->iov_base;
+		symlink_len = auio->uio_iov->iov_len;
+		trycache = true;
+	}
+	error = zfs_readlink(ap->a_vp, auio, ap->a_cred, NULL);
+	if (atomic_load_ptr(&zp->z_cached_symlink) != NULL ||
+	    error != 0 || !trycache) {
+		return (error);
+	}
+	symlink_len -= auio->uio_resid;
+	symlink = cache_symlink_alloc(symlink_len + 1, M_WAITOK);
+	if (symlink != NULL) {
+		memcpy(symlink, base, symlink_len);
+		symlink[symlink_len] = '\0';
+		if (!atomic_cmpset_rel_ptr((uintptr_t *)&zp->z_cached_symlink,
+		    (uintptr_t)NULL, (uintptr_t)symlink)) {
+			cache_symlink_free(symlink, symlink_len + 1);
+		}
+	}
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -5734,6 +5798,7 @@ struct vop_vector zfs_vnodeops = {
 #if __FreeBSD_version >= 1300102
 	.vop_fplookup_vexec = zfs_freebsd_fplookup_vexec,
 #endif
+	.vop_fplookup_symlink = zfs_freebsd_fplookup_symlink,
 	.vop_access =		zfs_freebsd_access,
 	.vop_allocate =		VOP_EINVAL,
 	.vop_lookup =		zfs_cache_lookup,
@@ -5783,6 +5848,7 @@ struct vop_vector zfs_fifoops = {
 #if __FreeBSD_version >= 1300102
 	.vop_fplookup_vexec = zfs_freebsd_fplookup_vexec,
 #endif
+	.vop_fplookup_symlink = zfs_freebsd_fplookup_symlink,
 	.vop_access =		zfs_freebsd_access,
 	.vop_getattr =		zfs_freebsd_getattr,
 	.vop_inactive =		zfs_freebsd_inactive,
@@ -5806,6 +5872,7 @@ struct vop_vector zfs_shareops = {
 #if __FreeBSD_version >= 1300121
 	.vop_fplookup_vexec =	VOP_EAGAIN,
 #endif
+	.vop_fplookup_symlink =	VOP_EAGAIN,
 	.vop_access =		zfs_freebsd_access,
 	.vop_inactive =		zfs_freebsd_inactive,
 	.vop_reclaim =		zfs_freebsd_reclaim,
