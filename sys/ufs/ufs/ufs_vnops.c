@@ -1006,7 +1006,7 @@ ufs_remove(ap)
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND)) ||
 	    (VTOI(dvp)->i_flags & APPEND))
 		return (EPERM);
-	if (DOINGSOFTDEP(dvp)) {
+	if (DOINGSUJ(dvp)) {
 		error = softdep_prelink(dvp, vp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
@@ -1071,7 +1071,7 @@ ufs_link(ap)
 		panic("ufs_link: no name");
 #endif
 
-	if (DOINGSOFTDEP(tdvp)) {
+	if (DOINGSUJ(tdvp)) {
 		error = softdep_prelink(tdvp, vp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
@@ -1142,7 +1142,7 @@ ufs_whiteout(ap)
 	struct direct newdir;
 	int error = 0;
 
-	if (DOINGSOFTDEP(dvp) && (ap->a_flags == CREATE ||
+	if (DOINGSUJ(dvp) && (ap->a_flags == CREATE ||
 	    ap->a_flags == DELETE)) {
 		error = softdep_prelink(dvp, NULL);
 		if (error != 0) {
@@ -1945,7 +1945,7 @@ ufs_mkdir(ap)
 		goto out;
 	}
 
-	if (DOINGSOFTDEP(dvp)) {
+	if (DOINGSUJ(dvp)) {
 		error = softdep_prelink(dvp, NULL);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
@@ -2209,7 +2209,7 @@ ufs_rmdir(ap)
 		error = EINVAL;
 		goto out;
 	}
-	if (DOINGSOFTDEP(dvp)) {
+	if (DOINGSUJ(dvp)) {
 		error = softdep_prelink(dvp, vp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
@@ -2736,7 +2736,7 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 		print_bad_link_count(callfunc, dvp);
 		return (EINVAL);
 	}
-	if (DOINGSOFTDEP(dvp)) {
+	if (DOINGSUJ(dvp)) {
 		error = softdep_prelink(dvp, NULL);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
