@@ -41,9 +41,17 @@
 /* Ensure that unistd.h pulls in getopt */
 #define __USE_POSIX2
 #endif
+/*
+ * Before version 2.25, glibc's unistd.h would define the POSIX subset of
+ * getopt.h by defining __need_getopt,  including getopt.h (which would
+ * disable the header guard) and then undefining it so later including
+ * getopt.h explicitly would define the extensions. However, we wrap getopt,
+ * and so the wrapper's #pragma once breaks that. Thus getopt.h must be
+ * included before the real unistd.h to ensure we get all the extensions.
+ */
+#include <getopt.h>
 #include_next <unistd.h>
 #include <fcntl.h>
-#include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/syscall.h>
