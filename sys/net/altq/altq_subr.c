@@ -168,15 +168,13 @@ altq_lookup(name, type)
 }
 
 int
-altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
+altq_attach(ifq, type, discipline, enqueue, dequeue, request)
 	struct ifaltq *ifq;
 	int type;
 	void *discipline;
 	int (*enqueue)(struct ifaltq *, struct mbuf *, struct altq_pktattr *);
 	struct mbuf *(*dequeue)(struct ifaltq *, int);
 	int (*request)(struct ifaltq *, int, void *);
-	void *clfier;
-	void *(*classify)(void *, struct mbuf *, int);
 {
 	IFQ_LOCK(ifq);
 	if (!ALTQ_IS_READY(ifq)) {
@@ -189,8 +187,6 @@ altq_attach(ifq, type, discipline, enqueue, dequeue, request, clfier, classify)
 	ifq->altq_enqueue  = enqueue;
 	ifq->altq_dequeue  = dequeue;
 	ifq->altq_request  = request;
-	ifq->altq_clfier   = clfier;
-	ifq->altq_classify = classify;
 	ifq->altq_flags &= (ALTQF_CANTCHANGE|ALTQF_ENABLED);
 	IFQ_UNLOCK(ifq);
 	return 0;
@@ -220,8 +216,6 @@ altq_detach(ifq)
 	ifq->altq_enqueue  = NULL;
 	ifq->altq_dequeue  = NULL;
 	ifq->altq_request  = NULL;
-	ifq->altq_clfier   = NULL;
-	ifq->altq_classify = NULL;
 	ifq->altq_flags &= ALTQF_CANTCHANGE;
 
 	IFQ_UNLOCK(ifq);
@@ -250,8 +244,6 @@ altq_enable(ifq)
 	ASSERT(ifq->ifq_len == 0);
 	ifq->ifq_drv_maxlen = 0;		/* disable bulk dequeue */
 	ifq->altq_flags |= ALTQF_ENABLED;
-	if (ifq->altq_clfier != NULL)
-		ifq->altq_flags |= ALTQF_CLASSIFY;
 	splx(s);
 
 	IFQ_UNLOCK(ifq);
@@ -273,7 +265,7 @@ altq_disable(ifq)
 	s = splnet();
 	IFQ_PURGE_NOLOCK(ifq);
 	ASSERT(ifq->ifq_len == 0);
-	ifq->altq_flags &= ~(ALTQF_ENABLED|ALTQF_CLASSIFY);
+	ifq->altq_flags &= ~(ALTQF_ENABLED);
 	splx(s);
 
 	IFQ_UNLOCK(ifq);
