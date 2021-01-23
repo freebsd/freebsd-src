@@ -179,8 +179,14 @@ int
 sys_mmap(struct thread *td, struct mmap_args *uap)
 {
 
-	return (kern_mmap(td, (uintptr_t)uap->addr, uap->len, uap->prot,
-	    uap->flags, uap->fd, uap->pos));
+	return (kern_mmap(td, &(struct mmap_req){
+		.mr_hint = (uintptr_t)uap->addr,
+		.mr_len = uap->len,
+		.mr_prot = uap->prot,
+		.mr_flags = uap->flags,
+		.mr_fd = uap->fd,
+		.mr_pos = uap->pos,
+	    }));
 }
 
 int
@@ -197,23 +203,7 @@ kern_mmap_maxprot(struct proc *p, int prot)
 }
 
 int
-kern_mmap(struct thread *td, uintptr_t addr0, size_t len, int prot, int flags,
-    int fd, off_t pos)
-{
-	struct mmap_req mr = {
-		.mr_hint = addr0,
-		.mr_len = len,
-		.mr_prot = prot,
-		.mr_flags = flags,
-		.mr_fd = fd,
-		.mr_pos = pos
-	};
-
-	return (kern_mmap_req(td, &mr));
-}
-
-int
-kern_mmap_req(struct thread *td, const struct mmap_req *mrp)
+kern_mmap(struct thread *td, const struct mmap_req *mrp)
 {
 	struct vmspace *vms;
 	struct file *fp;
@@ -442,9 +432,14 @@ done:
 int
 freebsd6_mmap(struct thread *td, struct freebsd6_mmap_args *uap)
 {
-
-	return (kern_mmap(td, (uintptr_t)uap->addr, uap->len, uap->prot,
-	    uap->flags, uap->fd, uap->pos));
+	return (kern_mmap(td, &(struct mmap_req){
+		.mr_hint = (uintptr_t)uap->addr,
+		.mr_len = uap->len,
+		.mr_prot = uap->prot,
+		.mr_flags = uap->flags,
+		.mr_fd = uap->fd,
+		.mr_pos = uap->pos,
+	    }));
 }
 #endif
 
@@ -496,8 +491,14 @@ ommap(struct thread *td, struct ommap_args *uap)
 		flags |= MAP_PRIVATE;
 	if (uap->flags & OMAP_FIXED)
 		flags |= MAP_FIXED;
-	return (kern_mmap(td, (uintptr_t)uap->addr, uap->len, prot, flags,
-	    uap->fd, uap->pos));
+	return (kern_mmap(td, &(struct mmap_req){
+		.mr_hint = (uintptr_t)uap->addr,
+		.mr_len = uap->len,
+		.mr_prot = prot,
+		.mr_flags = flags,
+		.mr_fd = uap->fd,
+		.mr_pos = uap->pos,
+	    }));
 }
 #endif				/* COMPAT_43 */
 
