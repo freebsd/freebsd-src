@@ -1302,6 +1302,7 @@ struct xgbe_prv_data {
 	 * This requires a complete restart.
 	 */
 	unsigned int sph_enable;
+	unsigned int link_workaround;
 };
 
 struct axgbe_if_softc {

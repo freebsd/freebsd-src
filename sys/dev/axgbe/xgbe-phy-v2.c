@@ -213,6 +213,9 @@ enum xgbe_sfp_speed {
 #define XGBE_SFP_BASE_EXT_ID			1
 #define XGBE_SFP_EXT_ID_SFP			0x04
 
+#define XGBE_SFP_BASE_CV			2
+#define XGBE_SFP_BASE_CV_CP			0x21
+
 #define XGBE_SFP_BASE_10GBE_CC			3
 #define XGBE_SFP_BASE_10GBE_CC_SR		BIT(4)
 #define XGBE_SFP_BASE_10GBE_CC_LR		BIT(5)
@@ -380,6 +383,7 @@ struct xgbe_phy_data {
 };
 
 static enum xgbe_an_mode xgbe_phy_an_mode(struct xgbe_prv_data *pdata);
+static int xgbe_phy_reset(struct xgbe_prv_data *pdata);
 
 static int
 xgbe_phy_i2c_xfer(struct xgbe_prv_data *pdata, struct xgbe_i2c_op *i2c_op)
@@ -1209,8 +1213,16 @@ xgbe_phy_sfp_parse_eeprom(struct xgbe_prv_data *pdata)
 	} else
 		phy_data->sfp_cable = XGBE_SFP_CABLE_ACTIVE;
 
-	/* Determine the type of SFP */
-	if (sfp_base[XGBE_SFP_BASE_10GBE_CC] & XGBE_SFP_BASE_10GBE_CC_SR)
+	/*
+	 * Determine the type of SFP. Certain 10G SFP+ modules read as
+	 * 1000BASE-CX. To prevent 10G DAC cables to be recognized as
+	 * 1G, we first check if it is a DAC and the bitrate is 10G.
+	 */
+	if (((sfp_base[XGBE_SFP_BASE_CV] & XGBE_SFP_BASE_CV_CP) ||
+	    (phy_data->sfp_cable == XGBE_SFP_CABLE_PASSIVE)) &&
+	    xgbe_phy_sfp_bit_rate(sfp_eeprom, XGBE_SFP_SPEED_10000))
+		phy_data->sfp_base = XGBE_SFP_BASE_10000_CR;
+	else if (sfp_base[XGBE_SFP_BASE_10GBE_CC] & XGBE_SFP_BASE_10GBE_CC_SR)
 		phy_data->sfp_base = XGBE_SFP_BASE_10000_SR;
 	else if (sfp_base[XGBE_SFP_BASE_10GBE_CC] & XGBE_SFP_BASE_10GBE_CC_LR)
 		phy_data->sfp_base = XGBE_SFP_BASE_10000_LR;
@@ -1226,9 +1238,6 @@ xgbe_phy_sfp_parse_eeprom(struct xgbe_prv_data *pdata)
 		phy_data->sfp_base = XGBE_SFP_BASE_1000_CX;
 	else if (sfp_base[XGBE_SFP_BASE_1GBE_CC] & XGBE_SFP_BASE_1GBE_CC_T)
 		phy_data->sfp_base = XGBE_SFP_BASE_1000_T;
-	else if ((phy_data->sfp_cable == XGBE_SFP_CABLE_PASSIVE) &&
-		 xgbe_phy_sfp_bit_rate(sfp_eeprom, XGBE_SFP_SPEED_10000))
-		phy_data->sfp_base = XGBE_SFP_BASE_10000_CR;
 
 	switch (phy_data->sfp_base) {
 	case XGBE_SFP_BASE_1000_T:
@@ -2879,7 +2888,12 @@ xgbe_phy_link_status(struct xgbe_prv_data *pdata, int *an_restart)
 		axgbe_printf(1, "ENTERED RRC: rrc_count: %d\n",
 		    phy_data->rrc_count);
 		phy_data->rrc_count = 0;
-		xgbe_phy_rrc(pdata);
+		if (pdata->link_workaround) {
+			ret = xgbe_phy_reset(pdata);
+			if (ret)
+				axgbe_error("Error resetting phy\n");
+		} else
+			xgbe_phy_rrc(pdata);
 	}
 
 	return (0);
