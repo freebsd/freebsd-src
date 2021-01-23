@@ -116,8 +116,8 @@ struct nameidata {
 
 #ifdef _KERNEL
 
-enum cache_fpl_status { CACHE_FPL_STATUS_ABORTED, CACHE_FPL_STATUS_PARTIAL,
-    CACHE_FPL_STATUS_HANDLED, CACHE_FPL_STATUS_UNSET };
+enum cache_fpl_status { CACHE_FPL_STATUS_DESTROYED, CACHE_FPL_STATUS_ABORTED,
+    CACHE_FPL_STATUS_PARTIAL, CACHE_FPL_STATUS_HANDLED, CACHE_FPL_STATUS_UNSET };
 int	cache_fplookup(struct nameidata *ndp, enum cache_fpl_status *status,
     struct pwd **pwdp);
 
