@@ -257,7 +257,6 @@ ffs_syncvnode(struct vnode *vp, int waitfor, int flags)
 	bool still_dirty, unlocked, wait;
 
 	ip = VTOI(vp);
-	ip->i_flag &= ~IN_NEEDSYNC;
 	bo = &vp->v_bufobj;
 	ump = VFSTOUFS(vp->v_mount);
 
@@ -445,6 +444,8 @@ next:
 	}
 	if (error == 0 && unlocked)
 		error = ERELOOKUP;
+	if (error == 0)
+		ip->i_flag &= ~IN_NEEDSYNC;
 	return (error);
 }
 
