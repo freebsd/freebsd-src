@@ -1,6 +1,11 @@
 .\"
 .\" Copyright (c) 2003 Bruce M Simpson <bms@spc.org>
+.\" Copyright (c) 2021 The FreeBSD Foundation, Inc.
 .\" All rights reserved.
+.\"
+.\" Parts of this documentation were written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2019
+.Dd January 23, 2021
 .Dt VM_MAP_PROTECT 9
 .Os
 .Sh NAME
@@ -37,70 +42,95 @@
 .In vm/vm_map.h
 .Ft int
 .Fo vm_map_protect
-.Fa "vm_map_t map" "vm_offset_t start" "vm_offset_t end" "vm_prot_t new_prot"
-.Fa "boolean_t set_max"
+.Fa "vm_map_t map"
+.Fa "vm_offset_t start"
+.Fa "vm_offset_t end"
+.Fa "vm_prot_t new_prot"
+.Fa "vm_prot_t new_maxprot"
+.Fa "int flags"
 .Fc
 .Sh DESCRIPTION
 The
 .Fn vm_map_protect
-function sets the protection bits of the address region bounded by
+function sets the protection bits and maximum protection bits of the address
+region bounded by
 .Fa start
 and
 .Fa end
 within the map
-.Fa map
-to
+.Fa map .
+.Pp
+If the
+.Fa flags
+argument has the
+.Dv VM_MAP_PROTECT_SET_PROT
+bit set, then the effective protection is set to
 .Fa new_prot .
-The value specified by
+.Pp
+If the
+.Fa flags
+argument has the
+.Dv VM_MAP_PROTECT_SET_MAXPROT
+bit set, then the maximum protection is set to
+.Fa new_maxprot .
+Protection bits not included into
+.Fa new_maxprot
+will be cleared from existing entries.
+.Pp
+The values specified by
 .Fa new_prot
-may not include any protection bits that are not set in
+and
+.Fa new_maxprot
+are not allowed to include any protection bits that are not set in existing
 .Va max_protection
 on every entry within the range.
+The operation will fail if this condition is violated.
+For instance, this prevents upgrading a shared mapping of a read-only file
+from read-only to read-write.
 .Pp
-If
-.Fa set_max
-is TRUE,
-.Fa new_prot
-is treated as the new
-.Va max_protection
-setting for each underlying entry.
-Protection bits not included
-.Fa new_prot
-will be cleared from existing entries.
-If
-.Fa set_max
-is FALSE only the
-.Va protection
-field is affected.
-.Pp
-The range MUST be contiguous, and MUST NOT contain sub-maps.
+The specified range must not contain sub-maps.
 .Sh IMPLEMENTATION NOTES
 The function acquires a lock on the
 .Fa map
 for the duration, by calling
 .Xr vm_map_lock 9 .
+Also, any in-progress wiring operation on the map affecting the specified
+range will cause
+.Nm
+to sleep, waiting for completion.
 .Sh RETURN VALUES
-The
-.Fn vm_map_protect
-function returns
-.Dv KERN_SUCCESS
-if the protection bits could be set successfully.
-.Pp
-If a sub-map entry was encountered in the range,
-.Dv KERN_INVALID_ARGUMENT
-is returned.
-If the value of
+.Bl -tag -width "Dv KERN_PROTECTION_FAILURE"
+.It Dv KERN_SUCCESS
+The specified protection bits were set successfully.
+.It Dv KERN_INVALID_ARGUMENT
+A sub-map entry was encountered in the range,
+.It Dv KERN_PROTECTION_FAILURE
+The value of
 .Fa new_prot
-would exceed
+or
+.Fa new_maxprot
+exceed
 .Va max_protection
-for an entry within the range,
-.Dv KERN_PROTECTION_FAILURE
-is returned.
-If a copy-on-write mapping is transitioned from read-only to
-read-write, and too little swap space is available for backing the
-copied pages,
-.Dv KERN_RESOURCE_SHORTAGE
-is returned.
+for an entry within the range.
+.It Dv KERN_PROTECTION_FAILURE
+The map does not allow simultaneous setting of write and execute permissions,
+but
+.Fa new_prot
+has both
+.Dv VM_PROT_WRITE
+and
+.Dv VM_PROT_EXECUTE
+set.
+.It Dv KERN_RESOURCE_SHORTAGE
+A copy-on-write mapping is transitioned from read-only to
+read-write, and not enough swap space is available to back the
+copied pages.
+.It Dv KERN_OUT_OF_BOUNDS
+Both new protection and new maximum protection updates were requested,
+but the specified
+.Fa new_prot
+is not a subset of
+.Fa new_maxprot .
 .Sh SEE ALSO
 .Xr vm_map 9
 .Sh AUTHORS
