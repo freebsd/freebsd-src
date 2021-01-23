@@ -964,9 +964,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			if (newdirbp)
 				bdwrite(newdirbp);
 			bdwrite(bp);
-			if ((dp->i_flag & IN_NEEDSYNC) == 0)
-				return (UFS_UPDATE(dvp, 0));
-			return (0);
+			return (UFS_UPDATE(dvp, 0));
 		}
 		if (DOINGASYNC(dvp)) {
 			bdwrite(bp);
