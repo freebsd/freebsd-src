@@ -79,3 +79,27 @@ pfsynct_cleanup()
 {
 	pft_cleanup
 }
+
+is_altq_supported()
+{
+	sysctl -q kern.features.altq >/dev/null || \
+	    atf_skip "Test requires ALTQ"
+
+	while [ -n "$1" ]
+	do
+		sysctl -q kern.features.altq.${1} >/dev/null || \
+		    atf_skip "Test required ALTQ_${1}"
+		shift
+	done
+}
+
+altq_init()
+{
+	pft_init
+	is_altq_supported
+}
+
+altq_cleanup()
+{
+	pft_cleanup
+}
