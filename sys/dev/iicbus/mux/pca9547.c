@@ -50,6 +50,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"nxp,pca9547",		1},
 	{NULL,			0}
 };
+IICBUS_FDT_PNP_INFO(compat_data);
 
 #include <dev/iicbus/mux/iicmux.h>
 
@@ -154,7 +155,6 @@ static devclass_t pca9547_devclass;
 DEFINE_CLASS_1(iicmux, pca9547_driver, pca9547_methods,
     sizeof(struct pca9547_softc), iicmux_driver);
 DRIVER_MODULE(pca_iicmux, iicbus, pca9547_driver, pca9547_devclass, 0, 0);
-IICBUS_FDT_PNP_INFO(compat_data);
 DRIVER_MODULE(iicbus, iicmux, iicbus_driver, iicbus_devclass, 0, 0);
 DRIVER_MODULE(ofw_iicbus, iicmux, ofw_iicbus_driver, ofw_iicbus_devclass,
     0, 0);
