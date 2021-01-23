@@ -284,7 +284,7 @@ ng_source_constructor(node_p node)
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
-	sc->snd_queue.ifq_maxlen = 2048;	/* XXX not checked */
+	sc->snd_queue.ifq_maxlen = 2048;
 	ng_callout_init(&sc->intr_ch);
 
 	return (0);
@@ -567,8 +567,11 @@ ng_source_rcvdata(hook_p hook, item_p item)
 	}
 	KASSERT(hook == sc->input, ("%s: no hook!", __func__));
 
-	/* Enqueue packet. */
-	/* XXX should we check IF_QFULL() ? */
+	/* Enqueue packet if the queue isn't full. */
+	if (_IF_QFULL(&sc->snd_queue)) {
+		NG_FREE_M(m);
+		return (ENOBUFS);
+	}
 	_IF_ENQUEUE(&sc->snd_queue, m);
 	sc->queueOctets += m->m_pkthdr.len;
 	sc->last_packet = m;
