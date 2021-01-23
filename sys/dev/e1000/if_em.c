@@ -828,7 +828,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		device_printf(dev, "attach_pre capping queues at %d\n",
 		    scctx->isc_ntxqsets_max);
 
-	if (adapter->hw.mac.type >= igb_mac_min) {
+	if (hw.mac.type >= igb_mac_min) {
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0] * sizeof(union e1000_adv_tx_desc), EM_DBA_ALIGN);
 		scctx->isc_rxqsizes[0] = roundup2(scctx->isc_nrxd[0] * sizeof(union e1000_adv_rx_desc), EM_DBA_ALIGN);
 		scctx->isc_txd_size[0] = sizeof(union e1000_adv_tx_desc);
@@ -840,7 +840,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_capabilities = scctx->isc_capenable = IGB_CAPS;
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP | CSUM_TSO |
 		     CSUM_IP6_TCP | CSUM_IP6_UDP;
-		if (adapter->hw.mac.type != e1000_82575)
+		if (hw.mac.type != e1000_82575)
 			scctx->isc_tx_csum_flags |= CSUM_SCTP | CSUM_IP6_SCTP;
 		/*
 		** Some new devices, as with ixgbe, now may
@@ -848,7 +848,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		** track of which is used.
 		*/
 		scctx->isc_msix_bar = pci_msix_table_bar(dev);
-	} else if (adapter->hw.mac.type >= em_mac_min) {
+	} else if (hw.mac.type >= em_mac_min) {
 		scctx->isc_txqsizes[0] = roundup2(scctx->isc_ntxd[0]* sizeof(struct e1000_tx_desc), EM_DBA_ALIGN);
 		scctx->isc_rxqsizes[0] = roundup2(scctx->isc_nrxd[0] * sizeof(union e1000_rx_desc_extended), EM_DBA_ALIGN);
 		scctx->isc_txd_size[0] = sizeof(struct e1000_tx_desc);
@@ -880,7 +880,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		 * We support MSI-X with 82574 only, but indicate to iflib(4)
 		 * that it shall give MSI at least a try with other devices.
 		 */
-		if (adapter->hw.mac.type == e1000_82574) {
+		if (hw.mac.type == e1000_82574) {
 			scctx->isc_msix_bar = pci_msix_table_bar(dev);;
 		} else {
 			scctx->isc_msix_bar = -1;
@@ -894,7 +894,7 @@ em_if_attach_pre(if_ctx_t ctx)
 		scctx->isc_tx_csum_flags = CSUM_TCP | CSUM_UDP;
 		scctx->isc_txrx = &lem_txrx;
 		scctx->isc_capabilities = scctx->isc_capenable = LEM_CAPS;
-		if (adapter->hw.mac.type < e1000_82543)
+		if (hw.mac.type < e1000_82543)
 			scctx->isc_capenable &= ~(IFCAP_HWCSUM|IFCAP_VLAN_HWCSUM);
 		/* INTx only */
 		scctx->isc_msix_bar = 0;
@@ -987,9 +987,9 @@ em_if_attach_pre(if_ctx_t ctx)
 	hw->phy.autoneg_wait_to_complete = FALSE;
 	hw->phy.autoneg_advertised = AUTONEG_ADV_DEFAULT;
 
-	if (adapter->hw.mac.type < em_mac_min) {
-		e1000_init_script_state_82541(&adapter->hw, TRUE);
-		e1000_set_tbi_compatibility_82543(&adapter->hw, TRUE);
+	if (hw.mac.type < em_mac_min) {
+		e1000_init_script_state_82541(hw, TRUE);
+		e1000_set_tbi_compatibility_82543(hw, TRUE);
 	}
 	/* Copper options */
 	if (hw->phy.media_type == e1000_media_type_copper) {
@@ -1002,7 +1002,7 @@ em_if_attach_pre(if_ctx_t ctx)
 	 * Set the frame limits assuming
 	 * standard ethernet sized frames.
 	 */
-	scctx->isc_max_frame_size = adapter->hw.mac.max_frame_size =
+	scctx->isc_max_frame_size = hw.mac.max_frame_size =
 	    ETHERMTU + ETHER_HDR_LEN + ETHERNET_FCS_SIZE;
 
 	/*
@@ -1205,7 +1205,7 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	struct adapter *adapter = iflib_get_softc(ctx);
 	if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
 
-	 IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
+	IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFMTU (Set Interface MTU)");
 
 	switch (adapter->hw.mac.type) {
 	case e1000_82571:
@@ -1793,7 +1793,7 @@ em_if_update_admin_status(if_ctx_t ctx)
 		break;
 	case e1000_media_type_internal_serdes:
 		e1000_check_for_link(hw);
-		link_check = adapter->hw.mac.serdes_has_link;
+		link_check = hw.mac.serdes_has_link;
 		break;
 	/* VF device is type_unknown */
 	case e1000_media_type_unknown:
@@ -1840,8 +1840,8 @@ em_if_update_admin_status(if_ctx_t ctx)
 		    (hw->phy.id == I210_I_PHY_ID))
 			msec_delay(I210_LINK_DELAY);
 		/* Reset if the media type changed. */
-		if ((hw->dev_spec._82575.media_changed) &&
-			(adapter->hw.mac.type >= igb_mac_min)) {
+		if (hw->dev_spec._82575.media_changed &&
+		    hw.mac.type >= igb_mac_min) {
 			hw->dev_spec._82575.media_changed = false;
 			adapter->flags |= IGB_MEDIA_RESET;
 			em_reset(ctx);
@@ -1864,8 +1864,7 @@ em_if_update_admin_status(if_ctx_t ctx)
 		lem_smartspeed(adapter);
 	else if (hw->mac.type == e1000_82574 &&
 	    adapter->intr_type == IFLIB_INTR_MSIX)
-		E1000_WRITE_REG(&adapter->hw, E1000_IMS, EM_MSIX_LINK |
-		    E1000_IMS_LSC);
+		E1000_WRITE_REG(hw, E1000_IMS, EM_MSIX_LINK | E1000_IMS_LSC);
 }
 
 static void
@@ -2089,13 +2088,13 @@ igb_configure_queues(struct adapter *adapter)
 	u32 tmp, ivar = 0, newitr = 0;
 
 	/* First turn on RSS capability */
-	if (adapter->hw.mac.type != e1000_82575)
+	if (hw.mac.type != e1000_82575)
 		E1000_WRITE_REG(hw, E1000_GPIE,
 		    E1000_GPIE_MSIX_MODE | E1000_GPIE_EIAME |
 		    E1000_GPIE_PBA | E1000_GPIE_NSICR);
 
 	/* Turn on MSI-X */
-	switch (adapter->hw.mac.type) {
+	switch (hw.mac.type) {
 	case e1000_82580:
 	case e1000_i350:
 	case e1000_i354:
@@ -2494,7 +2493,7 @@ em_reset(if_ctx_t ctx)
 	case e1000_ich9lan:
 	case e1000_ich10lan:
 		/* Boost Receive side for jumbo frames */
-		if (adapter->hw.mac.max_frame_size > 4096)
+		if (hw.mac.max_frame_size > 4096)
 			pba = E1000_PBA_14K;
 		else
 			pba = E1000_PBA_10K;
@@ -2526,7 +2525,7 @@ em_reset(if_ctx_t ctx)
 		pba = E1000_PBA_34K;
 		break;
 	default:
-		if (adapter->hw.mac.max_frame_size > 8192)
+		if (hw.mac.max_frame_size > 8192)
 			pba = E1000_PBA_40K; /* 40K for Rx, 24K for Tx */
 		else
 			pba = E1000_PBA_48K; /* 48K for Rx, 16K for Tx */
@@ -2538,11 +2537,11 @@ em_reset(if_ctx_t ctx)
 		pba = E1000_READ_REG(hw, E1000_PBA);
 		tx_space = pba >> 16;
 		pba &= 0xffff;
-		min_tx = (adapter->hw.mac.max_frame_size +
+		min_tx = (hw.mac.max_frame_size +
 		    sizeof(struct e1000_tx_desc) - ETHERNET_FCS_SIZE) * 2;
 		min_tx = roundup2(min_tx, 1024);
 		min_tx >>= 10;
-		min_rx = adapter->hw.mac.max_frame_size;
+		min_rx = hw.mac.max_frame_size;
 		min_rx = roundup2(min_rx, 1024);
 		min_rx >>= 10;
 		if (tx_space < min_tx &&
@@ -2559,7 +2558,7 @@ em_reset(if_ctx_t ctx)
 	}
 
 	if (hw->mac.type < igb_mac_min)
-		E1000_WRITE_REG(&adapter->hw, E1000_PBA, pba);
+		E1000_WRITE_REG(hw, E1000_PBA, pba);
 
 	INIT_DEBUGOUT1("em_reset: pba=%dK",pba);
 
@@ -2579,7 +2578,7 @@ em_reset(if_ctx_t ctx)
 	 */
 	rx_buffer_size = (pba & 0xffff) << 10;
 	hw->fc.high_water = rx_buffer_size -
-	    roundup2(adapter->hw.mac.max_frame_size, 1024);
+	    roundup2(hw.mac.max_frame_size, 1024);
 	hw->fc.low_water = hw->fc.high_water - 1500;
 
 	if (adapter->fc) /* locally set flow control value? */
@@ -2654,7 +2653,7 @@ em_reset(if_ctx_t ctx)
 
 	/* Issue a global reset */
 	e1000_reset_hw(hw);
-	if (adapter->hw.mac.type >= igb_mac_min) {
+	if (hw.mac.type >= igb_mac_min) {
 		E1000_WRITE_REG(hw, E1000_WUC, 0);
 	} else {
 		E1000_WRITE_REG(hw, E1000_WUFC, 0);
@@ -2670,7 +2669,7 @@ em_reset(if_ctx_t ctx)
 		device_printf(dev, "Hardware Initialization Failed\n");
 		return;
 	}
-	if (adapter->hw.mac.type >= igb_mac_min)
+	if (hw.mac.type >= igb_mac_min)
 		igb_init_dmac(adapter, pba);
 
 	E1000_WRITE_REG(hw, E1000_VET, ETHERTYPE_VLAN);
@@ -2735,7 +2734,7 @@ igb_initialize_rss_mapping(struct adapter *adapter)
 	u32 rss_key[10], mrqc, shift = 0;
 
 	/* XXX? */
-	if (adapter->hw.mac.type == e1000_82575)
+	if (hw.mac.type == e1000_82575)
 		shift = 6;
 
 	/*
@@ -2844,11 +2843,11 @@ em_setup_interface(if_ctx_t ctx)
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
 	 */
-	if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
-	    (adapter->hw.phy.media_type == e1000_media_type_internal_serdes)) {
+	if (hw.phy.media_type == e1000_media_type_fiber ||
+	    hw.phy.media_type == e1000_media_type_internal_serdes) {
 		u_char fiber_type = IFM_1000_SX;	/* default type */
 
-		if (adapter->hw.mac.type == e1000_82545)
+		if (hw.mac.type == e1000_82545)
 			fiber_type = IFM_1000_LX;
 		ifmedia_add(adapter->media, IFM_ETHER | fiber_type | IFM_FDX, 0, NULL);
 		ifmedia_add(adapter->media, IFM_ETHER | fiber_type, 0, NULL);
@@ -2857,7 +2856,7 @@ em_setup_interface(if_ctx_t ctx)
 		ifmedia_add(adapter->media, IFM_ETHER | IFM_10_T | IFM_FDX, 0, NULL);
 		ifmedia_add(adapter->media, IFM_ETHER | IFM_100_TX, 0, NULL);
 		ifmedia_add(adapter->media, IFM_ETHER | IFM_100_TX | IFM_FDX, 0, NULL);
-		if (adapter->hw.phy.type != e1000_phy_ife) {
+		if (hw.phy.type != e1000_phy_ife) {
 			ifmedia_add(adapter->media, IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
 			ifmedia_add(adapter->media, IFM_ETHER | IFM_1000_T, 0, NULL);
 		}
@@ -3032,8 +3031,8 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		E1000_WRITE_REG(hw, E1000_TDH(i), 0);
 
 		HW_DEBUGOUT2("Base = %x, Length = %x\n",
-		    E1000_READ_REG(&adapter->hw, E1000_TDBAL(i)),
-		    E1000_READ_REG(&adapter->hw, E1000_TDLEN(i)));
+		    E1000_READ_REG(hw, E1000_TDBAL(i)),
+		    E1000_READ_REG(hw, E1000_TDLEN(i)));
 
 		txdctl = 0; /* clear txdctl */
 		txdctl |= 0x1f; /* PTHRESH */
@@ -3047,7 +3046,7 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 	}
 
 	/* Set the default values for the Tx Inter Packet Gap timer */
-	switch (adapter->hw.mac.type) {
+	switch (hw.mac.type) {
 	case e1000_80003es2lan:
 		tipg = DEFAULT_82543_TIPG_IPGR1;
 		tipg |= DEFAULT_80003ES2LAN_TIPG_IPGR2 <<
@@ -3059,9 +3058,8 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		tipg |= DEFAULT_82542_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
 		break;
 	default:
-		if ((adapter->hw.phy.media_type == e1000_media_type_fiber) ||
-		    (adapter->hw.phy.media_type ==
-		    e1000_media_type_internal_serdes))
+		if (hw.phy.media_type == e1000_media_type_fiber ||
+		    hw.phy.media_type == e1000_media_type_internal_serdes)
 			tipg = DEFAULT_82543_TIPG_IPGT_FIBER;
 		else
 			tipg = DEFAULT_82543_TIPG_IPGT_COPPER;
@@ -3069,51 +3067,50 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		tipg |= DEFAULT_82543_TIPG_IPGR2 << E1000_TIPG_IPGR2_SHIFT;
 	}
 
-	E1000_WRITE_REG(&adapter->hw, E1000_TIPG, tipg);
-	E1000_WRITE_REG(&adapter->hw, E1000_TIDV, adapter->tx_int_delay.value);
+	E1000_WRITE_REG(hw, E1000_TIPG, tipg);
+	E1000_WRITE_REG(hw, E1000_TIDV, adapter->tx_int_delay.value);
 
-	if(adapter->hw.mac.type >= e1000_82540)
-		E1000_WRITE_REG(&adapter->hw, E1000_TADV,
+	if(hw.mac.type >= e1000_82540)
+		E1000_WRITE_REG(hw, E1000_TADV,
 		    adapter->tx_abs_int_delay.value);
 
-	if ((adapter->hw.mac.type == e1000_82571) ||
-	    (adapter->hw.mac.type == e1000_82572)) {
-		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
+	if (hw.mac.type == e1000_82571 || hw.mac.type == e1000_82572) {
+		tarc = E1000_READ_REG(hw, E1000_TARC(0));
 		tarc |= TARC_SPEED_MODE_BIT;
-		E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
-	} else if (adapter->hw.mac.type == e1000_80003es2lan) {
+		E1000_WRITE_REG(hw, E1000_TARC(0), tarc);
+	} else if (hw.mac.type == e1000_80003es2lan) {
 		/* errata: program both queues to unweighted RR */
-		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
+		tarc = E1000_READ_REG(hw, E1000_TARC(0));
 		tarc |= 1;
-		E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
-		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(1));
+		E1000_WRITE_REG(hw, E1000_TARC(0), tarc);
+		tarc = E1000_READ_REG(hw, E1000_TARC(1));
 		tarc |= 1;
-		E1000_WRITE_REG(&adapter->hw, E1000_TARC(1), tarc);
-	} else if (adapter->hw.mac.type == e1000_82574) {
-		tarc = E1000_READ_REG(&adapter->hw, E1000_TARC(0));
+		E1000_WRITE_REG(hw, E1000_TARC(1), tarc);
+	} else if (hw.mac.type == e1000_82574) {
+		tarc = E1000_READ_REG(hw, E1000_TARC(0));
 		tarc |= TARC_ERRATA_BIT;
 		if ( adapter->tx_num_queues > 1) {
 			tarc |= (TARC_COMPENSATION_MODE | TARC_MQ_FIX);
-			E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
-			E1000_WRITE_REG(&adapter->hw, E1000_TARC(1), tarc);
+			E1000_WRITE_REG(hw, E1000_TARC(0), tarc);
+			E1000_WRITE_REG(hw, E1000_TARC(1), tarc);
 		} else
-			E1000_WRITE_REG(&adapter->hw, E1000_TARC(0), tarc);
+			E1000_WRITE_REG(hw, E1000_TARC(0), tarc);
 	}
 
 	if (adapter->tx_int_delay.value > 0)
 		adapter->txd_cmd |= E1000_TXD_CMD_IDE;
 
 	/* Program the Transmit Control Register */
-	tctl = E1000_READ_REG(&adapter->hw, E1000_TCTL);
+	tctl = E1000_READ_REG(hw, E1000_TCTL);
 	tctl &= ~E1000_TCTL_CT;
 	tctl |= (E1000_TCTL_PSP | E1000_TCTL_RTLC | E1000_TCTL_EN |
 		   (E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT));
 
-	if (adapter->hw.mac.type >= e1000_82571)
+	if (hw.mac.type >= e1000_82571)
 		tctl |= E1000_TCTL_MULR;
 
 	/* This write will effectively turn on the transmit unit. */
-	E1000_WRITE_REG(&adapter->hw, E1000_TCTL, tctl);
+	E1000_WRITE_REG(hw, E1000_TCTL, tctl);
 
 	/* SPT and KBL errata workarounds */
 	if (hw->mac.type == e1000_pch_spt) {
@@ -3176,9 +3173,9 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	if (!em_disable_crc_stripping)
 		rctl |= E1000_RCTL_SECRC;
 
-	if (adapter->hw.mac.type >= e1000_82540) {
-		E1000_WRITE_REG(&adapter->hw, E1000_RADV,
-			    adapter->rx_abs_int_delay.value);
+	if (hw.mac.type >= e1000_82540) {
+		E1000_WRITE_REG(hw, E1000_RADV,
+		    adapter->rx_abs_int_delay.value);
 
 		/*
 		 * Set the interrupt throttling rate. Value is calculated
@@ -3186,8 +3183,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		 */
 		E1000_WRITE_REG(hw, E1000_ITR, DEFAULT_ITR);
 	}
-	E1000_WRITE_REG(&adapter->hw, E1000_RDTR,
-	    adapter->rx_int_delay.value);
+	E1000_WRITE_REG(hw, E1000_RDTR, adapter->rx_int_delay.value);
 
 	/* Use extended rx descriptor formats */
 	rfctl = E1000_READ_REG(hw, E1000_RFCTL);
@@ -3207,9 +3203,9 @@ em_initialize_receive_unit(if_ctx_t ctx)
 
 	rxcsum = E1000_READ_REG(hw, E1000_RXCSUM);
 	if (if_getcapenable(ifp) & IFCAP_RXCSUM &&
-	    adapter->hw.mac.type >= e1000_82543) {
+	    hw.mac.type >= e1000_82543) {
 		if (adapter->tx_num_queues > 1) {
-			if (adapter->hw.mac.type >= igb_mac_min) {
+			if (hw.mac.type >= igb_mac_min) {
 				rxcsum |= E1000_RXCSUM_PCSD;
 				if (hw->mac.type != e1000_82575)
 					rxcsum |= E1000_RXCSUM_CRCOFL;
@@ -3218,11 +3214,11 @@ em_initialize_receive_unit(if_ctx_t ctx)
 					E1000_RXCSUM_IPOFL |
 					E1000_RXCSUM_PCSD;
 		} else {
-			if (adapter->hw.mac.type >= igb_mac_min)
+			if (hw.mac.type >= igb_mac_min)
 				rxcsum |= E1000_RXCSUM_IPPCSE;
 			else
 				rxcsum |= E1000_RXCSUM_TUOFL | E1000_RXCSUM_IPOFL;
-			if (adapter->hw.mac.type > e1000_82575)
+			if (hw.mac.type > e1000_82575)
 				rxcsum |= E1000_RXCSUM_CRCOFL;
 		}
 	} else
@@ -3231,7 +3227,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	E1000_WRITE_REG(hw, E1000_RXCSUM, rxcsum);
 
 	if (adapter->rx_num_queues > 1) {
-		if (adapter->hw.mac.type >= igb_mac_min)
+		if (hw.mac.type >= igb_mac_min)
 			igb_initialize_rss_mapping(adapter);
 		else
 			em_initialize_rss_mapping(adapter);
@@ -3271,14 +3267,11 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	 * Only write to RXDCTL(1) if there is a need for different
 	 * settings.
 	 */
-
-	if (((adapter->hw.mac.type == e1000_ich9lan) ||
-	    (adapter->hw.mac.type == e1000_pch2lan) ||
-	    (adapter->hw.mac.type == e1000_ich10lan)) &&
-	    (if_getmtu(ifp) > ETHERMTU)) {
+	if ((hw.mac.type == e1000_ich9lan || hw.mac.type == e1000_pch2lan ||
+	    hw.mac.type == e1000_ich10lan) && (if_getmtu(ifp) > ETHERMTU)) {
 		u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
 		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl | 3);
-	} else if (adapter->hw.mac.type == e1000_82574) {
+	} else if (hw.mac.type == e1000_82574) {
 		for (int i = 0; i < adapter->rx_num_queues; i++) {
 			u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
 			rxdctl |= 0x20; /* PTHRESH */
@@ -3287,7 +3280,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			rxdctl |= 1 << 24; /* Switch to granularity */
 			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
 		}
-	} else if (adapter->hw.mac.type >= igb_mac_min) {
+	} else if (hw.mac.type >= igb_mac_min) {
 		u32 psize, srrctl = 0;
 
 		if (if_getmtu(ifp) > ETHERMTU) {
@@ -3303,7 +3296,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			/* are we on a vlan? */
 			if (ifp->if_vlantrunk != NULL)
 				psize += VLAN_TAG_SIZE;
-			E1000_WRITE_REG(&adapter->hw, E1000_RLPML, psize);
+			E1000_WRITE_REG(hw, E1000_RLPML, psize);
 		} else {
 			srrctl |= 2048 >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 			rctl |= E1000_RCTL_SZ_2048;
@@ -3349,7 +3342,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			rxdctl |= IGB_RX_WTHRESH << 16;
 			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
 		}		
-	} else if (adapter->hw.mac.type >= e1000_pch2lan) {
+	} else if (hw.mac.type >= e1000_pch2lan) {
 		if (if_getmtu(ifp) > ETHERMTU)
 			e1000_lv_jumbo_workaround_ich8lan(hw, TRUE);
 		else
@@ -3359,7 +3352,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	/* Make sure VLAN Filters are off */
 	rctl &= ~E1000_RCTL_VFE;
 
-	if (adapter->hw.mac.type < igb_mac_min) {
+	if (hw.mac.type < igb_mac_min) {
 		if (adapter->rx_mbuf_sz == MCLBYTES)
 			rctl |= E1000_RCTL_SZ_2048;
 		else if (adapter->rx_mbuf_sz == MJUMPAGESIZE)
@@ -3822,7 +3815,7 @@ em_enable_phy_wakeup(struct adapter *adapter)
 	e1000_copy_rx_addrs_to_phy_ich8lan(hw);
 
 	/* copy MAC MTA to PHY MTA */
-	for (int i = 0; i < adapter->hw.mac.mta_reg_count; i++) {
+	for (int i = 0; i < hw.mac.mta_reg_count; i++) {
 		mreg = E1000_READ_REG_ARRAY(hw, E1000_MTA, i);
 		e1000_write_phy_reg(hw, BM_MTA(i), (u16)(mreg & 0xFFFF));
 		e1000_write_phy_reg(hw, BM_MTA(i) + 1,
@@ -3830,7 +3823,7 @@ em_enable_phy_wakeup(struct adapter *adapter)
 	}
 
 	/* configure PHY Rx Control register */
-	e1000_read_phy_reg(&adapter->hw, BM_RCTL, &preg);
+	e1000_read_phy_reg(hw, BM_RCTL, &preg);
 	mreg = E1000_READ_REG(hw, E1000_RCTL);
 	if (mreg & E1000_RCTL_UPE)
 		preg |= BM_RCTL_UPE;
@@ -3847,7 +3840,7 @@ em_enable_phy_wakeup(struct adapter *adapter)
 	mreg = E1000_READ_REG(hw, E1000_CTRL);
 	if (mreg & E1000_CTRL_RFCE)
 		preg |= BM_RCTL_RFCE;
-	e1000_write_phy_reg(&adapter->hw, BM_RCTL, preg);
+	e1000_write_phy_reg(hw, BM_RCTL, preg);
 
 	/* enable PHY wakeup in MAC register */
 	E1000_WRITE_REG(hw, E1000_WUC,
@@ -3855,8 +3848,8 @@ em_enable_phy_wakeup(struct adapter *adapter)
 	E1000_WRITE_REG(hw, E1000_WUFC, adapter->wol);
 
 	/* configure and enable PHY wakeup in PHY registers */
-	e1000_write_phy_reg(&adapter->hw, BM_WUFC, adapter->wol);
-	e1000_write_phy_reg(&adapter->hw, BM_WUC, E1000_WUC_PME_EN);
+	e1000_write_phy_reg(hw, BM_WUFC, adapter->wol);
+	e1000_write_phy_reg(hw, BM_WUC, E1000_WUC_PME_EN);
 
 	/* activate PHY wakeup */
 	ret = hw->phy.ops.acquire(hw);
