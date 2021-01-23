@@ -277,7 +277,10 @@ struct tmpfs_node {
 
 		/* Valid when tn_type == VLNK. */
 		/* The link's target, allocated from a string pool. */
-		char *			tn_link;	/* (c) */
+		struct tn_link {
+			char *			tn_link_target;	/* (c) */
+			char 			tn_link_smr;	/* (c) */
+		} tn_link;
 
 		/* Valid when tn_type == VREG. */
 		struct tn_reg {
@@ -300,7 +303,8 @@ LIST_HEAD(tmpfs_node_list, tmpfs_node);
 
 #define tn_rdev tn_spec.tn_rdev
 #define tn_dir tn_spec.tn_dir
-#define tn_link tn_spec.tn_link
+#define tn_link_target tn_spec.tn_link.tn_link_target
+#define tn_link_smr tn_spec.tn_link.tn_link_smr
 #define tn_reg tn_spec.tn_reg
 #define tn_fifo tn_spec.tn_fifo
 

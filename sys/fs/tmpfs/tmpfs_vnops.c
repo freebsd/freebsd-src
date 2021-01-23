@@ -1449,11 +1449,38 @@ tmpfs_readlink(struct vop_readlink_args *v)
 
 	node = VP_TO_TMPFS_NODE(vp);
 
-	error = uiomove(node->tn_link, MIN(node->tn_size, uio->uio_resid),
+	error = uiomove(node->tn_link_target, MIN(node->tn_size, uio->uio_resid),
 	    uio);
 	tmpfs_set_accessed(VFS_TO_TMPFS(vp->v_mount), node);
 
 	return (error);
+}
+
+/*
+ * VOP_FPLOOKUP_SYMLINK routines are subject to special circumstances, see
+ * the comment above cache_fplookup for details.
+ *
+ * Check tmpfs_alloc_node for tmpfs-specific synchronisation notes.
+ */
+static int
+tmpfs_fplookup_symlink(struct vop_fplookup_symlink_args *v)
+{
+	struct vnode *vp;
+	struct tmpfs_node *node;
+	char *symlink;
+
+	vp = v->a_vp;
+	node = VP_TO_TMPFS_NODE_SMR(vp);
+	atomic_thread_fence_acq();
+	if (__predict_false(node == NULL))
+		return (EAGAIN);
+	if (!atomic_load_char(&node->tn_link_smr))
+		return (EAGAIN);
+	symlink = atomic_load_ptr(&node->tn_link_target);
+	if (symlink == NULL)
+		return (EAGAIN);
+
+	return (cache_symlink_resolve(v->a_fpl, symlink, node->tn_size));
 }
 
 static int
@@ -1812,6 +1839,7 @@ struct vop_vector tmpfs_vnodeop_entries = {
 	.vop_open =			tmpfs_open,
 	.vop_close =			tmpfs_close,
 	.vop_fplookup_vexec =		tmpfs_fplookup_vexec,
+	.vop_fplookup_symlink =		tmpfs_fplookup_symlink,
 	.vop_access =			tmpfs_access,
 	.vop_stat =			tmpfs_stat,
 	.vop_getattr =			tmpfs_getattr,
