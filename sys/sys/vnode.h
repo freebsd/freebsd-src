@@ -66,6 +66,7 @@ enum vgetstate	{ VGET_NONE, VGET_HOLDCNT, VGET_USECOUNT };
  */
 
 struct namecache;
+struct cache_fpl;
 
 struct vpollinfo {
 	struct	mtx vpi_lock;		/* lock to protect below */
@@ -646,6 +647,10 @@ void	cache_purge(struct vnode *vp);
 void	cache_purge_vgone(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
 void	cache_purgevfs(struct mount *mp);
+char	*cache_symlink_alloc(size_t size, int flags);
+void	cache_symlink_free(char *string, size_t size);
+int	cache_symlink_resolve(struct cache_fpl *fpl, const char *string,
+	    size_t len);
 void	cache_vop_rename(struct vnode *fdvp, struct vnode *fvp, struct vnode *tdvp,
     struct vnode *tvp, struct componentname *fcnp, struct componentname *tcnp);
 void	cache_vop_rmdir(struct vnode *dvp, struct vnode *vp);
@@ -900,6 +905,8 @@ int	vop_sigdefer(struct vop_vector *vop, struct vop_generic_args *a);
 #ifdef DEBUG_VFS_LOCKS
 void	vop_fplookup_vexec_debugpre(void *a);
 void	vop_fplookup_vexec_debugpost(void *a, int rc);
+void	vop_fplookup_symlink_debugpre(void *a);
+void	vop_fplookup_symlink_debugpost(void *a, int rc);
 void	vop_strategy_debugpre(void *a);
 void	vop_lock_debugpre(void *a);
 void	vop_lock_debugpost(void *a, int rc);
@@ -910,6 +917,8 @@ void	vop_mkdir_debugpost(void *a, int rc);
 #else
 #define	vop_fplookup_vexec_debugpre(x)		do { } while (0)
 #define	vop_fplookup_vexec_debugpost(x, y)	do { } while (0)
+#define	vop_fplookup_symlink_debugpre(x)	do { } while (0)
+#define	vop_fplookup_symlink_debugpost(x, y)	do { } while (0)
 #define	vop_strategy_debugpre(x)		do { } while (0)
 #define	vop_lock_debugpre(x)			do { } while (0)
 #define	vop_lock_debugpost(x, y)		do { } while (0)

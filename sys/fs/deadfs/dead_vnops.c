@@ -80,6 +80,7 @@ struct vop_vector dead_vnodeops = {
 	.vop_unset_text =	dead_unset_text,
 	.vop_write =		dead_write,
 	.vop_fplookup_vexec =	VOP_EOPNOTSUPP,
+	.vop_fplookup_symlink =	VOP_EAGAIN,
 };
 VFS_VOP_VECTOR_REGISTER(dead_vnodeops);
 

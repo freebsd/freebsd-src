@@ -156,6 +156,16 @@ vop_fplookup_vexec {
 };
 
 
+%% fplookup_symlink	vp	- - -
+%! fplookup_symlink	debugpre	vop_fplookup_symlink_debugpre
+%! fplookup_symlink	debugpost	vop_fplookup_symlink_debugpost
+
+vop_fplookup_symlink {
+	IN struct vnode *vp;
+	IN struct cache_fpl *fpl;
+};
+
+
 %% access	vp	L L L
 
 vop_access {
