@@ -2963,6 +2963,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_accessx =		ufs_accessx,
 	.vop_bmap =		ufs_bmap,
 	.vop_fplookup_vexec =	ufs_fplookup_vexec,
+	.vop_fplookup_symlink =	VOP_EAGAIN,
 	.vop_cachedlookup =	ufs_lookup,
 	.vop_close =		ufs_close,
 	.vop_create =		ufs_create,
