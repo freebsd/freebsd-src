@@ -252,6 +252,8 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 {
 	struct tmpfs_node *nnode;
 	vm_object_t obj;
+	char *symlink;
+	char symlink_smr;
 
 	/* If the root directory of the 'tmp' file system is not yet
 	 * allocated, this must be the request to do it. */
@@ -327,9 +329,41 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 	case VLNK:
 		MPASS(strlen(target) < MAXPATHLEN);
 		nnode->tn_size = strlen(target);
-		nnode->tn_link = malloc(nnode->tn_size, M_TMPFSNAME,
-		    M_WAITOK);
-		memcpy(nnode->tn_link, target, nnode->tn_size);
+
+		symlink = NULL;
+		if (!tmp->tm_nonc) {
+			symlink = cache_symlink_alloc(nnode->tn_size + 1, M_WAITOK);
+			symlink_smr = true;
+		}
+		if (symlink == NULL) {
+			symlink = malloc(nnode->tn_size + 1, M_TMPFSNAME, M_WAITOK);
+			symlink_smr = false;
+		}
+		memcpy(symlink, target, nnode->tn_size + 1);
+
+		/*
+		 * Allow safe symlink resolving for lockless lookup.
+		 * tmpfs_fplookup_symlink references this comment.
+		 *
+		 * 1. nnode is not yet visible to the world
+		 * 2. both tn_link_target and tn_link_smr get populated
+		 * 3. release fence publishes their content
+		 * 4. tn_link_target content is immutable until node destruction,
+		 *    where the pointer gets set to NULL
+		 * 5. tn_link_smr is never changed once set
+		 *
+		 * As a result it is sufficient to issue load consume on the node
+		 * pointer to also get the above content in a stable manner.
+		 * Worst case tn_link_smr flag may be set to true despite being stale,
+		 * while the target buffer is already cleared out.
+		 *
+		 * TODO: Since there is no load consume primitive provided
+		 * right now, the load is performed with an acquire fence.
+		 */
+		atomic_store_ptr((uintptr_t *)&nnode->tn_link_target,
+		    (uintptr_t)symlink);
+		atomic_store_char((char *)&nnode->tn_link_smr, symlink_smr);
+		atomic_thread_fence_rel();
 		break;
 
 	case VREG:
@@ -382,6 +416,7 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
     bool detach)
 {
 	vm_object_t uobj;
+	char *symlink;
 	bool last;
 
 	TMPFS_MP_ASSERT_LOCKED(tmp);
@@ -417,7 +452,14 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 		break;
 
 	case VLNK:
-		free(node->tn_link, M_TMPFSNAME);
+		symlink = node->tn_link_target;
+		atomic_store_ptr((uintptr_t *)&node->tn_link_target,
+		    (uintptr_t)NULL);
+		if (atomic_load_char(&node->tn_link_smr)) {
+			cache_symlink_free(symlink, node->tn_size + 1);
+		} else {
+			free(symlink, M_TMPFSNAME);
+		}
 		break;
 
 	case VREG:
