@@ -1007,7 +1007,7 @@ ufs_remove(ap)
 	    (VTOI(dvp)->i_flags & APPEND))
 		return (EPERM);
 	if (DOINGSOFTDEP(dvp)) {
-		error = softdep_prelink(dvp, vp, true);
+		error = softdep_prelink(dvp, vp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -1072,7 +1072,7 @@ ufs_link(ap)
 #endif
 
 	if (DOINGSOFTDEP(tdvp)) {
-		error = softdep_prelink(tdvp, vp, true);
+		error = softdep_prelink(tdvp, vp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -1144,7 +1144,7 @@ ufs_whiteout(ap)
 
 	if (DOINGSOFTDEP(dvp) && (ap->a_flags == CREATE ||
 	    ap->a_flags == DELETE)) {
-		error = softdep_prelink(dvp, NULL, true);
+		error = softdep_prelink(dvp, NULL);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -1946,7 +1946,7 @@ ufs_mkdir(ap)
 	}
 
 	if (DOINGSOFTDEP(dvp)) {
-		error = softdep_prelink(dvp, NULL, true);
+		error = softdep_prelink(dvp, NULL);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -2210,7 +2210,7 @@ ufs_rmdir(ap)
 		goto out;
 	}
 	if (DOINGSOFTDEP(dvp)) {
-		error = softdep_prelink(dvp, vp, false);
+		error = softdep_prelink(dvp, vp);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
@@ -2737,7 +2737,7 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 		return (EINVAL);
 	}
 	if (DOINGSOFTDEP(dvp)) {
-		error = softdep_prelink(dvp, NULL, true);
+		error = softdep_prelink(dvp, NULL);
 		if (error != 0) {
 			MPASS(error == ERELOOKUP);
 			return (error);
