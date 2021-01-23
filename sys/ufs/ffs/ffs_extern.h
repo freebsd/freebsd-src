@@ -178,7 +178,7 @@ int	softdep_request_cleanup(struct fs *, struct vnode *,
 	    struct ucred *, int);
 int	softdep_prerename(struct vnode *, struct vnode *, struct vnode *,
 	    struct vnode *);
-int	softdep_prelink(struct vnode *, struct vnode *, int);
+int	softdep_prelink(struct vnode *, struct vnode *);
 void	softdep_setup_freeblocks(struct inode *, off_t, int);
 void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t, int);
 void	softdep_setup_blkmapdep(struct buf *, struct mount *, ufs2_daddr_t,

@@ -621,10 +621,9 @@ softdep_prerename(fdvp, fvp, tdvp, tvp)
 }
 
 int
-softdep_prelink(dvp, vp, will_direnter)
+softdep_prelink(dvp, vp)
 	struct vnode *dvp;
 	struct vnode *vp;
-	int will_direnter;
 {
 
 	panic("softdep_prelink called");
@@ -3358,13 +3357,11 @@ softdep_prerename(fdvp, fvp, tdvp, tvp)
  * syscall must be restarted at top level from the lookup.
  */
 int
-softdep_prelink(dvp, vp, will_direnter)
+softdep_prelink(dvp, vp)
 	struct vnode *dvp;
 	struct vnode *vp;
-	int will_direnter;
 {
 	struct ufsmount *ump;
-	int error, error1;
 
 	ASSERT_VOP_ELOCKED(dvp, "prelink dvp");
 	if (vp != NULL)
@@ -3372,40 +3369,13 @@ softdep_prelink(dvp, vp, will_direnter)
 	ump = VFSTOUFS(dvp->v_mount);
 
 	/*
-	 * Nothing to do if we have sufficient journal space.
-	 * If we currently hold the snapshot lock, we must avoid
-	 * handling other resources that could cause deadlock.
-	 *
-	 * will_direnter == 1: In case allocated a directory block in
-	 * an indirect block, we must prevent holes in the directory
-	 * created if directory entries are written out of order.  To
-	 * accomplish this we fsync when we extend a directory into
-	 * indirects.  During rename it's not safe to drop the tvp
-	 * lock so sync must be delayed until it is.
-	 *
-	 * This synchronous step could be removed if fsck and the
-	 * kernel were taught to fill in sparse directories rather
-	 * than panic.
+	 * Nothing to do if we have sufficient journal space.  We skip
+	 * flushing when vp is a snapshot to avoid deadlock where
+	 * another thread is trying to update the inodeblock for dvp
+	 * and is waiting on snaplk that vp holds.
 	 */
-	if (journal_space(ump, 0) || (vp != NULL && IS_SNAPSHOT(VTOI(vp)))) {
-		error = 0;
-		if (will_direnter && (vp == NULL || !IS_SNAPSHOT(VTOI(vp)))) {
-			if (vp != NULL)
-				VOP_UNLOCK(vp);
-			error = ffs_syncvnode(dvp, MNT_WAIT, 0);
-			if (vp != NULL) {
-				error1 = vn_lock(vp, LK_EXCLUSIVE | LK_NOWAIT);
-				if (error1 != 0) {
-					vn_lock_pair(dvp, true, vp, false);
-					if (error == 0)
-						error = ERELOOKUP;
-				} else if (vp->v_data == NULL) {
-					error = ERELOOKUP;
-				}
-			}
-		}
-		return (error);
-	}
+	if (journal_space(ump, 0) || (vp != NULL && IS_SNAPSHOT(VTOI(vp))))
+		return (0);
 
 	stat_journal_low++;
 	if (vp != NULL) {
