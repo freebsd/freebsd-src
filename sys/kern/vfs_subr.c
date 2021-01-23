@@ -5453,6 +5453,19 @@ vop_fplookup_vexec_debugpost(void *ap __unused, int rc __unused)
 }
 
 void
+vop_fplookup_symlink_debugpre(void *ap __unused)
+{
+
+	VFS_SMR_ASSERT_ENTERED();
+}
+
+void
+vop_fplookup_symlink_debugpost(void *ap __unused, int rc __unused)
+{
+
+	VFS_SMR_ASSERT_ENTERED();
+}
+void
 vop_strategy_debugpre(void *ap)
 {
 	struct vop_strategy_args *a;
