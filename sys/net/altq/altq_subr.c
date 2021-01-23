@@ -114,6 +114,38 @@ static struct ip4_frag	*ip4f_alloc(void);
 static void 	ip4f_free(struct ip4_frag *);
 #endif /* ALTQ3_CLFIER_COMPAT */
 
+#ifdef ALTQ
+SYSCTL_NODE(_kern_features, OID_AUTO, altq, CTLFLAG_RD | CTLFLAG_CAPRD, 0,
+    "ALTQ packet queuing");
+
+#define	ALTQ_FEATURE(name, desc)					\
+	SYSCTL_INT_WITH_LABEL(_kern_features_altq, OID_AUTO, name,	\
+	    CTLFLAG_RD | CTLFLAG_CAPRD, SYSCTL_NULL_INT_PTR, 1,		\
+	    desc, "feature")
+
+#ifdef ALTQ_CBQ
+ALTQ_FEATURE(cbq, "ATLQ Class Based Queuing discipline");
+#endif
+#ifdef ALTQ_CODEL
+ALTQ_FEATURE(codel, "ALTQ Controlled Delay discipline");
+#endif
+#ifdef ALTQ_RED
+ALTQ_FEATURE(red, "ALTQ Random Early Detection discipline");
+#endif
+#ifdef ALTQ_RIO
+ALTQ_FEATURE(rio, "ALTQ Random Early Drop discipline");
+#endif
+#ifdef ALTQ_HFSC
+ALTQ_FEATURE(hfsc, "ALTQ Hierarchical Packet Scheduler discipline");
+#endif
+#ifdef ALTQ_PRIQ
+ALTQ_FEATURE(priq, "ATLQ Priority Queuing discipline");
+#endif
+#ifdef ALTQ_FAIRQ
+ALTQ_FEATURE(fairq, "ALTQ Fair Queuing discipline");
+#endif
+#endif
+
 /*
  * alternate queueing support routines
  */
