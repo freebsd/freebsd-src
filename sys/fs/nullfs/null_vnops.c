@@ -968,6 +968,54 @@ null_read_pgcache(struct vop_read_pgcache_args *ap)
 }
 
 /*
+ * Avoid standard bypass, since lower dvp and vp could be no longer
+ * valid after vput().
+ */
+static int
+null_vput_pair(struct vop_vput_pair_args *ap)
+{
+	struct mount *mp;
+	struct vnode *dvp, *ldvp, *lvp, *vp, *vp1, **vpp;
+	int error, res;
+
+	dvp = ap->a_dvp;
+	ldvp = NULLVPTOLOWERVP(dvp);
+	vref(ldvp);
+
+	vpp = ap->a_vpp;
+	vp = NULL;
+	lvp = NULL;
+	if (vpp != NULL) {
+		vp = *vpp;
+		if (vp != NULL) {
+			vhold(vp);
+			mp = vp->v_mount;
+			lvp = NULLVPTOLOWERVP(vp);
+			if (ap->a_unlock_vp)
+				vref(lvp);
+		}
+	}
+
+	res = VOP_VPUT_PAIR(ldvp, &lvp, ap->a_unlock_vp);
+
+	/* lvp might have been unlocked and vp reclaimed */
+	if (vp != NULL) {
+		if (!ap->a_unlock_vp && vp->v_vnlock != lvp->v_vnlock) {
+			error = null_nodeget(mp, lvp, &vp1);
+			if (error == 0) {
+				vput(vp);
+				*vpp = vp1;
+			}
+		}
+		if (ap->a_unlock_vp)
+			vrele(vp);
+		vdrop(vp);
+	}
+	vrele(dvp);
+	return (res);
+}
+
+/*
  * Global vfs data structures
  */
 struct vop_vector null_vnodeops = {
@@ -997,5 +1045,6 @@ struct vop_vector null_vnodeops = {
 	.vop_vptocnp =		null_vptocnp,
 	.vop_vptofh =		null_vptofh,
 	.vop_add_writecount =	null_add_writecount,
+	.vop_vput_pair =	null_vput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(null_vnodeops);
