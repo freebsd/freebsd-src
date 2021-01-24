@@ -121,7 +121,6 @@ _gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 	char *start, *trv, *suffp, *carryp;
 	char *pad;
 	struct stat sbuf;
-	int rval;
 	uint32_t rand;
 	char carrybuf[MAXPATHLEN];
 
@@ -155,26 +154,6 @@ _gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 
 	/* save first combination of random characters */
 	memcpy(carrybuf, start, suffp - start);
-
-	/*
-	 * check the target directory.
-	 */
-	if (doopen != NULL || domkdir) {
-		for (; trv > path; --trv) {
-			if (*trv == '/') {
-				*trv = '\0';
-				rval = fstatat(dfd, path, &sbuf, 0);
-				*trv = '/';
-				if (rval != 0)
-					return (0);
-				if (!S_ISDIR(sbuf.st_mode)) {
-					errno = ENOTDIR;
-					return (0);
-				}
-				break;
-			}
-		}
-	}
 
 	oflags |= O_CREAT | O_EXCL | O_RDWR;
 	for (;;) {
