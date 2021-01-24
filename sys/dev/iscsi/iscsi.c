@@ -2194,6 +2194,8 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 	}
 
 	initiator_task_tag = is->is_initiator_task_tag++;
+	if (initiator_task_tag == 0xffffffff)
+		initiator_task_tag = is->is_initiator_task_tag++;
 
 	io = iscsi_outstanding_add(is, request, NULL, &initiator_task_tag);
 	if (io == NULL) {
@@ -2254,6 +2256,9 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 	}
 
 	initiator_task_tag = is->is_initiator_task_tag++;
+	if (initiator_task_tag == 0xffffffff)
+		initiator_task_tag = is->is_initiator_task_tag++;
+
 	io = iscsi_outstanding_add(is, request, ccb, &initiator_task_tag);
 	if (io == NULL) {
 		icl_pdu_free(request);
