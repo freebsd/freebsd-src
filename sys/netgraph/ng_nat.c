@@ -961,6 +961,8 @@ ng_nat_translate_flags(unsigned int x)
 		res |= PKT_ALIAS_PROXY_ONLY;
 	if (x & NG_NAT_REVERSE)
 		res |= PKT_ALIAS_REVERSE;
+	if (x & NG_NAT_UNREGISTERED_CGN)
+		res |= PKT_ALIAS_UNREGISTERED_CGN;
 
 	return (res);
 }
