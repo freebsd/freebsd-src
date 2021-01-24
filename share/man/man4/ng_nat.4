@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2018
+.Dd January 24, 2021
 .Dt NG_NAT 4
 .Os
 .Sh NAME
@@ -75,7 +75,13 @@ struct ng_nat_mode {
 #define NG_NAT_RESET_ON_ADDR_CHANGE	0x20
 #define NG_NAT_PROXY_ONLY		0x40
 #define NG_NAT_REVERSE			0x80
+#define NG_NAT_UNREGISTERED_CGN		0x100
 .Ed
+.Pp
+The corresponding libalias flags can be found by replacing the
+.Vt "NG_NAT"
+prefix with
+.Vt "PKT_ALIAS" .
 .It Dv NGM_NAT_SET_TARGET Pq Ic settarget
 Configure target address for a node.
 When an incoming packet not associated with any pre-existing aliasing
