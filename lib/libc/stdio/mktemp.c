@@ -131,8 +131,7 @@ _gettemp(int dfd, char *path, int *doopen, int domkdir, int slen, int oflags)
 		return (0);
 	}
 
-	for (trv = path; *trv != '\0'; ++trv)
-		;
+	trv = path + strlen(path);
 	if (trv - path >= MAXPATHLEN) {
 		errno = ENAMETOOLONG;
 		return (0);
