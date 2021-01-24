@@ -1528,6 +1528,8 @@ parse_font_info(struct font_info *fi)
 	ptr = roundup2(ptr, 8);
 
 	vfp = &vt_font_loader;
+	/* This is default font, set refcount 1 to disable removal. */
+	vfp->vf_refcount = 1;
 	vfp->vf_height = fi->fi_height;
 	vfp->vf_width = fi->fi_width;
 	for (unsigned i = 0; i < VFNT_MAPS; i++) {
