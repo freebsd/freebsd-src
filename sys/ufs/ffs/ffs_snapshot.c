@@ -296,16 +296,21 @@ restart:
 		goto restart;
 	}
 	error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vat);
-	VOP_UNLOCK(nd.ni_dvp);
 	if (error) {
+		VOP_VPUT_PAIR(nd.ni_dvp, NULL, true);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vn_finished_write(wrtmp);
-		vrele(nd.ni_dvp);
 		if (error == ERELOOKUP)
 			goto restart;
 		return (error);
 	}
 	vp = nd.ni_vp;
+	vref(nd.ni_dvp);
+	VOP_VPUT_PAIR(nd.ni_dvp, &vp, false);
+	if (VN_IS_DOOMED(vp)) {
+		error = EBADF;
+		goto out;
+	}
 	vnode_create_vobject(nd.ni_vp, fs->fs_size, td);
 	vp->v_vflag |= VV_SYSTEM;
 	ip = VTOI(vp);
