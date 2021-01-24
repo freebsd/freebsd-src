@@ -1,2 +1,2 @@
 .\" $FreeBSD$
-Set to use LLVM's LLD as the system linker, instead of GNU binutils ld.
+Set to use LLVM's LLD as the system linker.
