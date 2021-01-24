@@ -45,6 +45,7 @@ local MSG_FAILSETENV = "Failed to '%s' with value: %s"
 local MSG_FAILOPENCFG = "Failed to open config: '%s'"
 local MSG_FAILREADCFG = "Failed to read config: '%s'"
 local MSG_FAILPARSECFG = "Failed to parse config: '%s'"
+local MSG_FAILPARSEVAR = "Failed to parse variable '%s': %s"
 local MSG_FAILEXBEF = "Failed to execute '%s' before loading '%s'"
 local MSG_FAILEXAF = "Failed to execute '%s' after loading '%s'"
 local MSG_MALFORMED = "Malformed line (%d):\n\t'%s'"
@@ -56,10 +57,15 @@ local MSG_KERNLOADING = "Loading kernel..."
 local MSG_MODLOADING = "Loading configured modules..."
 local MSG_MODBLACKLIST = "Not loading blacklisted module '%s'"
 
+local MSG_FAILSYN_QUOTE = "Stray quote at position '%d'"
+local MSG_FAILSYN_EOLESC = "Stray escape at end of line"
+local MSG_FAILSYN_EOLVAR = "Unescaped $ at end of line"
+local MSG_FAILSYN_BADVAR = "Malformed variable expression at position '%d'"
+
 local MODULEEXPR = '([%w-_]+)'
-local QVALEXPR = "\"([%w%s%p]-)\""
+local QVALEXPR = '"(.*)"'
 local QVALREPL = QVALEXPR:gsub('%%', '%%%%')
-local WORDEXPR = "([%w]+)"
+local WORDEXPR = "([%w%d-][%w%d-_.]*)"
 local WORDREPL = WORDEXPR:gsub('%%', '%%%%')
 
 -- Entries that should never make it into the environment; each one should have
@@ -146,15 +152,59 @@ local function escapeName(name)
 end
 
 local function processEnvVar(value)
-	for name in value:gmatch("${([^}]+)}") do
-		local replacement = loader.getenv(name) or ""
-		value = value:gsub("${" .. escapeName(name) .. "}", replacement)
+	local pval, vlen = '', #value
+	local nextpos, vdelim, vinit = 1
+	local vpat
+	for i = 1, vlen do
+		if i < nextpos then
+			goto nextc
+		end
+
+		local c = value:sub(i, i)
+		if c == '\\' then
+			if i == vlen then
+				return nil, MSG_FAILSYN_EOLESC
+			end
+			nextpos = i + 2
+			pval = pval .. value:sub(i + 1, i + 1)
+		elseif c == '"' then
+			return nil, MSG_FAILSYN_QUOTE:format(i)
+		elseif c == "$" then
+			if i == vlen then
+				return nil, MSG_FAILSYN_EOLVAR
+			else
+				if value:sub(i + 1, i + 1) == "{" then
+					-- Skip ${
+					vinit = i + 2
+					vdelim = '}'
+					vpat = "^([^}]+)}"
+				else
+					-- Skip the $
+					vinit = i + 1
+					vdelim = nil
+					vpat = "^([%w][%w%d-_.]*)"
+				end
+
+				local name = value:match(vpat, vinit)
+				if not name then
+					return nil, MSG_FAILSYN_BADVAR:format(i)
+				else
+					nextpos = vinit + #name
+					if vdelim then
+						nextpos = nextpos + 1
+					end
+
+					local repl = loader.getenv(name) or ""
+					pval = pval .. repl
+				end
+			end
+		else
+			pval = pval .. c
+		end
+		::nextc::
 	end
-	for name in value:gmatch("$([%w%p]+)%s*") do
-		local replacement = loader.getenv(name) or ""
-		value = value:gsub("$" .. escapeName(name), replacement)
-	end
-	return value
+
+	return pval
 end
 
 local function checkPattern(line, pattern)
@@ -260,21 +310,17 @@ local pattern_table = {
 		end,
 		groups = 1,
 	},
-	--  env_var="value"
+	--  env_var="value" or env_var=[word|num]
 	{
-		str = "([%w%p]+)%s*=%s*$VALUE",
+		str = "([%w][%w%d-_.]*)%s*=%s*$VALUE",
 		process = function(k, v)
-			if setEnv(k, processEnvVar(v)) ~= 0 then
-				print(MSG_FAILSETENV:format(k, v))
+			local pv, msg = processEnvVar(v)
+			if not pv then
+				print(MSG_FAILPARSEVAR:format(k, msg))
+				return
 			end
-		end,
-	},
-	--  env_var=num
-	{
-		str = "([%w%p]+)%s*=%s*(-?%d+)",
-		process = function(k, v)
-			if setEnv(k, processEnvVar(v)) ~= 0 then
-				print(MSG_FAILSETENV:format(k, tostring(v)))
+			if setEnv(k, pv) ~= 0 then
+				print(MSG_FAILSETENV:format(k, v))
 			end
 		end,
 	},
