@@ -1843,13 +1843,15 @@ netmap_ring_reinit(struct netmap_kring *kring)
  *
  */
 int
-netmap_interp_ringid(struct netmap_priv_d *priv, uint32_t nr_mode,
-			uint16_t nr_ringid, uint64_t nr_flags)
+netmap_interp_ringid(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 {
 	struct netmap_adapter *na = priv->np_na;
+	struct nmreq_register *reg = (struct nmreq_register *)hdr->nr_body;
 	int excluded_direction[] = { NR_TX_RINGS_ONLY, NR_RX_RINGS_ONLY };
 	enum txrx t;
 	u_int j;
+	u_int nr_flags = reg->nr_flags, nr_mode = reg->nr_mode,
+	      nr_ringid = reg->nr_ringid;
 
 	for_rx_tx(t) {
 		if (nr_flags & excluded_direction[t]) {
@@ -1943,19 +1945,19 @@ netmap_interp_ringid(struct netmap_priv_d *priv, uint32_t nr_mode,
  * for all rings is the same as a single ring.
  */
 static int
-netmap_set_ringid(struct netmap_priv_d *priv, uint32_t nr_mode,
-		uint16_t nr_ringid, uint64_t nr_flags)
+netmap_set_ringid(struct netmap_priv_d *priv, struct nmreq_header *hdr)
 {
 	struct netmap_adapter *na = priv->np_na;
+	struct nmreq_register *reg = (struct nmreq_register *)hdr->nr_body;
 	int error;
 	enum txrx t;
 
-	error = netmap_interp_ringid(priv, nr_mode, nr_ringid, nr_flags);
+	error = netmap_interp_ringid(priv, hdr);
 	if (error) {
 		return error;
 	}
 
-	priv->np_txpoll = (nr_flags & NR_NO_TX_POLL) ? 0 : 1;
+	priv->np_txpoll = (reg->nr_flags & NR_NO_TX_POLL) ? 0 : 1;
 
 	/* optimization: count the users registered for more than
 	 * one ring, which are the ones sleeping on the global queue.
@@ -1985,6 +1987,19 @@ netmap_unset_ringid(struct netmap_priv_d *priv)
 	priv->np_kloop_state = 0;
 }
 
+#define within_sel(p_, t_, i_)					  	  \
+	((i_) < (p_)->np_qlast[(t_)])
+#define nonempty_sel(p_, t_)						  \
+	(within_sel((p_), (t_), (p_)->np_qfirst[(t_)]))
+#define foreach_selected_ring(p_, t_, i_, kring_)			  \
+	for ((t_) = nonempty_sel((p_), NR_RX) ? NR_RX : NR_TX,		  \
+	     (i_) = (p_)->np_qfirst[(t_)];				  \
+	     (t_ == NR_RX ||						  \
+	      (t == NR_TX && within_sel((p_), (t_), (i_)))) &&     	  \
+	      ((kring_) = NMR((p_)->np_na, (t_))[(i_)]); 		  \
+	     (i_) = within_sel((p_), (t_), (i_) + 1) ? (i_) + 1 :         \
+		(++(t_) < NR_TXRX ? (p_)->np_qfirst[(t_)] : (i_)))
+
 
 /* Set the nr_pending_mode for the requested rings.
  * If requested, also try to get exclusive access to the rings, provided
@@ -2011,29 +2026,23 @@ netmap_krings_get(struct netmap_priv_d *priv)
 	 * are neither alread exclusively owned, nor we
 	 * want exclusive ownership when they are already in use
 	 */
-	for_rx_tx(t) {
-		for (i = priv->np_qfirst[t]; i < priv->np_qlast[t]; i++) {
-			kring = NMR(na, t)[i];
-			if ((kring->nr_kflags & NKR_EXCLUSIVE) ||
-			    (kring->users && excl))
-			{
-				nm_prdis("ring %s busy", kring->name);
-				return EBUSY;
-			}
+	foreach_selected_ring(priv, t, i, kring) {
+		if ((kring->nr_kflags & NKR_EXCLUSIVE) ||
+		    (kring->users && excl))
+		{
+			nm_prdis("ring %s busy", kring->name);
+			return EBUSY;
 		}
 	}
 
 	/* second round: increment usage count (possibly marking them
 	 * as exclusive) and set the nr_pending_mode
 	 */
-	for_rx_tx(t) {
-		for (i = priv->np_qfirst[t]; i < priv->np_qlast[t]; i++) {
-			kring = NMR(na, t)[i];
-			kring->users++;
-			if (excl)
-				kring->nr_kflags |= NKR_EXCLUSIVE;
-	                kring->nr_pending_mode = NKR_NETMAP_ON;
-		}
+	foreach_selected_ring(priv, t, i, kring) {
+		kring->users++;
+		if (excl)
+			kring->nr_kflags |= NKR_EXCLUSIVE;
+		kring->nr_pending_mode = NKR_NETMAP_ON;
 	}
 
 	return 0;
@@ -2046,7 +2055,6 @@ netmap_krings_get(struct netmap_priv_d *priv)
 static void
 netmap_krings_put(struct netmap_priv_d *priv)
 {
-	struct netmap_adapter *na = priv->np_na;
 	u_int i;
 	struct netmap_kring *kring;
 	int excl = (priv->np_flags & NR_EXCLUSIVE);
@@ -2059,15 +2067,12 @@ netmap_krings_put(struct netmap_priv_d *priv)
 			priv->np_qfirst[NR_RX],
 			priv->np_qlast[MR_RX]);
 
-	for_rx_tx(t) {
-		for (i = priv->np_qfirst[t]; i < priv->np_qlast[t]; i++) {
-			kring = NMR(na, t)[i];
-			if (excl)
-				kring->nr_kflags &= ~NKR_EXCLUSIVE;
-			kring->users--;
-			if (kring->users == 0)
-				kring->nr_pending_mode = NKR_NETMAP_OFF;
-		}
+	foreach_selected_ring(priv, t, i, kring) {
+		if (excl)
+			kring->nr_kflags &= ~NKR_EXCLUSIVE;
+		kring->users--;
+		if (kring->users == 0)
+			kring->nr_pending_mode = NKR_NETMAP_OFF;
 	}
 }
 
@@ -2300,7 +2305,7 @@ netmap_buf_size_validate(const struct netmap_adapter *na, unsigned mtu) {
  */
 int
 netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
-	uint32_t nr_mode, uint16_t nr_ringid, uint64_t nr_flags)
+	struct nmreq_header *hdr)
 {
 	struct netmap_if *nifp = NULL;
 	int error;
@@ -2325,7 +2330,7 @@ netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
 	}
 
 	/* compute the range of tx and rx rings to monitor */
-	error = netmap_set_ringid(priv, nr_mode, nr_ringid, nr_flags);
+	error = netmap_set_ringid(priv, hdr);
 	if (error)
 		goto err_put_lut;
 
@@ -2566,8 +2571,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data,
 					break;
 				}
 
-				error = netmap_do_regif(priv, na, req->nr_mode,
-							req->nr_ringid, req->nr_flags);
+				error = netmap_do_regif(priv, na, hdr);
 				if (error) {    /* reg. failed, release priv and ref */
 					break;
 				}
