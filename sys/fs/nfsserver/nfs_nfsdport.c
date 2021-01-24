@@ -1105,7 +1105,8 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 				nfsrv_pnfscreate(ndp->ni_vp, &nvap->na_vattr,
 				    nd->nd_cred, p);
 			}
-			vput(ndp->ni_dvp);
+			VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp :
+			    NULL, false);
 			nfsvno_relpathbuf(ndp);
 			if (!error) {
 				if (*exclusive_flagp) {
@@ -1140,7 +1141,8 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 			nvap->na_rdev = rdev;
 			error = VOP_MKNOD(ndp->ni_dvp, &ndp->ni_vp,
 			    &ndp->ni_cnd, &nvap->na_vattr);
-			vput(ndp->ni_dvp);
+			VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp :
+			    NULL, false);
 			nfsvno_relpathbuf(ndp);
 			vrele(ndp->ni_startdir);
 			if (error)
@@ -1221,7 +1223,8 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		vrele(ndp->ni_startdir);
 		error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
 		    &ndp->ni_cnd, &nvap->na_vattr);
-		vput(ndp->ni_dvp);
+		VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp : NULL,
+		    false);
 		nfsvno_relpathbuf(ndp);
 	} else {
 		if (nvap->na_type != VFIFO &&
@@ -1233,7 +1236,8 @@ nfsvno_mknod(struct nameidata *ndp, struct nfsvattr *nvap, struct ucred *cred,
 		}
 		error = VOP_MKNOD(ndp->ni_dvp, &ndp->ni_vp,
 		    &ndp->ni_cnd, &nvap->na_vattr);
-		vput(ndp->ni_dvp);
+		VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp : NULL,
+		    false);
 		nfsvno_relpathbuf(ndp);
 		vrele(ndp->ni_startdir);
 		/*
@@ -1268,7 +1272,7 @@ nfsvno_mkdir(struct nameidata *ndp, struct nfsvattr *nvap, uid_t saved_uid,
 	}
 	error = VOP_MKDIR(ndp->ni_dvp, &ndp->ni_vp, &ndp->ni_cnd,
 	    &nvap->na_vattr);
-	vput(ndp->ni_dvp);
+	VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp : NULL, false);
 	nfsvno_relpathbuf(ndp);
 
 out:
@@ -1300,17 +1304,15 @@ nfsvno_symlink(struct nameidata *ndp, struct nfsvattr *nvap, char *pathcp,
 
 	error = VOP_SYMLINK(ndp->ni_dvp, &ndp->ni_vp, &ndp->ni_cnd,
 	    &nvap->na_vattr, pathcp);
-	vput(ndp->ni_dvp);
-	vrele(ndp->ni_startdir);
-	nfsvno_relpathbuf(ndp);
 	/*
 	 * Although FreeBSD still had the lookup code in
 	 * it for 7/current, there doesn't seem to be any
 	 * point, since VOP_SYMLINK() returns the ni_vp.
 	 * Just vput it for v2.
 	 */
-	if (!not_v2 && !error)
-		vput(ndp->ni_vp);
+	VOP_VPUT_PAIR(ndp->ni_dvp, &ndp->ni_vp, !not_v2 && error == 0);
+	vrele(ndp->ni_startdir);
+	nfsvno_relpathbuf(ndp);
 
 out:
 	NFSEXITCODE(error);
@@ -1595,11 +1597,13 @@ nfsvno_link(struct nameidata *ndp, struct vnode *vp, struct ucred *cred,
 			error = VOP_LINK(ndp->ni_dvp, vp, &ndp->ni_cnd);
 		else
 			error = EPERM;
-		if (ndp->ni_dvp == vp)
+		if (ndp->ni_dvp == vp) {
 			vrele(ndp->ni_dvp);
-		else
-			vput(ndp->ni_dvp);
-		NFSVOPUNLOCK(vp);
+			NFSVOPUNLOCK(vp);
+		} else {
+			vref(vp);
+			VOP_VPUT_PAIR(ndp->ni_dvp, &vp, true);
+		}
 	} else {
 		if (ndp->ni_dvp == ndp->ni_vp)
 			vrele(ndp->ni_dvp);
@@ -1793,7 +1797,8 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 				nfsrv_pnfscreate(ndp->ni_vp, &nvap->na_vattr,
 				    cred, p);
 			}
-			vput(ndp->ni_dvp);
+			VOP_VPUT_PAIR(ndp->ni_dvp, nd->nd_repstat == 0 ?
+			    &ndp->ni_vp : NULL, false);
 			nfsvno_relpathbuf(ndp);
 			if (!nd->nd_repstat) {
 				if (*exclusive_flagp) {
@@ -4106,7 +4111,8 @@ nfsrv_dscreate(struct vnode *dvp, struct vattr *vap, struct vattr *nvap,
 	error = NFSVOPLOCK(dvp, LK_EXCLUSIVE);
 	if (error == 0) {
 		error = VOP_CREATE(dvp, &nvp, &named.ni_cnd, vap);
-		NFSVOPUNLOCK(dvp);
+		vref(dvp);
+		VOP_VPUT_PAIR(dvp, error == 0 ? &nvp : NULL, false);
 		if (error == 0) {
 			/* Set the ownership of the file. */
 			error = VOP_SETATTR(nvp, nvap, tcred);
