@@ -1487,6 +1487,8 @@ parse_font_info_static(struct font_info *fi)
 	vfp = &vt_font_loader;
 	vfp->vf_height = fi->fi_height;
 	vfp->vf_width = fi->fi_width;
+	/* This is default font, set refcount 1 to disable removal. */
+	vfp->vf_refcount = 1;
 	for (unsigned i = 0; i < VFNT_MAPS; i++) {
 		if (fi->fi_map_count[i] == 0)
 			continue;
@@ -1499,6 +1501,12 @@ parse_font_info_static(struct font_info *fi)
 	return (vfp);
 }
 
+/*
+ * Set up default font with allocated data structures.
+ * However, we can not set refcount here, because it is already set and
+ * incremented in vtterm_cnprobe() to avoid being released by font load from
+ * userland.
+ */
 static struct vt_font *
 parse_font_info(struct font_info *fi)
 {
