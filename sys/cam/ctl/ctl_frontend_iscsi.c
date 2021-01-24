@@ -2693,6 +2693,10 @@ cfiscsi_datamove_out(union ctl_io *io)
 
 	target_transfer_tag =
 	    atomic_fetchadd_32(&cs->cs_target_transfer_tag, 1);
+	if (target_transfer_tag == 0xffffffff) {
+		target_transfer_tag =
+		    atomic_fetchadd_32(&cs->cs_target_transfer_tag, 1);
+	}
 	cdw = cfiscsi_data_wait_new(cs, io, bhssc->bhssc_initiator_task_tag,
 	    &target_transfer_tag);
 	if (cdw == NULL) {
