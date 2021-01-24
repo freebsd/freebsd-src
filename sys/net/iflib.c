@@ -1211,17 +1211,18 @@ iflib_netmap_rxsync(struct netmap_kring *kring, int flags)
 						ring->slot[nm_i].flags = NS_MOREFRAG;
 				}
 
-				if (have_rxcq) {
-					*cidxp = ri.iri_cidx;
-					while (*cidxp >= scctx->isc_nrxd[0])
-						*cidxp -= scctx->isc_nrxd[0];
-				}
-
 				bus_dmamap_sync(fl->ifl_buf_tag,
 				    fl->ifl_sds.ifsd_map[nic_i], BUS_DMASYNC_POSTREAD);
 				nm_i = nm_next(nm_i, lim);
 				fl->ifl_cidx = nic_i = nm_next(nic_i, lim);
 			}
+
+			if (have_rxcq) {
+				*cidxp = ri.iri_cidx;
+				while (*cidxp >= scctx->isc_nrxd[0])
+					*cidxp -= scctx->isc_nrxd[0];
+			}
+
 		}
 		if (n) { /* update the state variables */
 			if (netmap_no_pendintr && !force_update) {
