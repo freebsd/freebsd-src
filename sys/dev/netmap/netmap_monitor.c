@@ -950,8 +950,7 @@ netmap_get_monitor_na(struct nmreq_header *hdr, struct netmap_adapter **na,
 	mna->priv.np_na = pna;
 
 	/* grab all the rings we need in the parent */
-	error = netmap_interp_ringid(&mna->priv, req->nr_mode, req->nr_ringid,
-					req->nr_flags);
+	error = netmap_interp_ringid(&mna->priv, hdr);
 	if (error) {
 		nm_prerr("ringid error");
 		goto free_out;

@@ -1477,8 +1477,7 @@ netmap_bwrap_bdg_ctl(struct nmreq_header *hdr, struct netmap_adapter *na)
 		if (npriv == NULL)
 			return ENOMEM;
 		npriv->np_ifp = na->ifp; /* let the priv destructor release the ref */
-		error = netmap_do_regif(npriv, na, req->reg.nr_mode,
-					req->reg.nr_ringid, req->reg.nr_flags);
+		error = netmap_do_regif(npriv, na, hdr);
 		if (error) {
 			netmap_priv_delete(npriv);
 			return error;
