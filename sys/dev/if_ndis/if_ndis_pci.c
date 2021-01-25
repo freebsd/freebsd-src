@@ -338,7 +338,7 @@ ndis_attach_pci(dev)
 
 	error = ndis_attach(dev);
 	if (error == 0)
-		gone_in_dev(dev, 13, "ndis removed");
+		gone_in_dev(dev, 14, "ndis removed");
 
 
 fail:
