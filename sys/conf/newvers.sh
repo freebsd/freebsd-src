@@ -311,7 +311,7 @@ EOF
 )
 vers_content_old=$(cat vers.c 2>/dev/null || true)
 if [ "$vers_content_new" != "$vers_content_old" ]; then
-	printf "%s" "$vers_content_new" > vers.c
+	printf "%s\n" "$vers_content_new" > vers.c
 fi
 
 echo $((v + 1)) > version
