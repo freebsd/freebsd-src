@@ -299,6 +299,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 			if ((f1 = opentemp(file1)) == NULL ||
 			    fstat(fileno(f1), &stb1) == -1) {
 				warn("%s", file1);
+				rval = D_ERROR;
 				status |= 2;
 				goto closem;
 			}
@@ -309,6 +310,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	}
 	if (f1 == NULL) {
 		warn("%s", file1);
+		rval = D_ERROR;
 		status |= 2;
 		goto closem;
 	}
@@ -320,6 +322,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 			if ((f2 = opentemp(file2)) == NULL ||
 			    fstat(fileno(f2), &stb2) == -1) {
 				warn("%s", file2);
+				rval = D_ERROR;
 				status |= 2;
 				goto closem;
 			}
@@ -330,6 +333,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 	}
 	if (f2 == NULL) {
 		warn("%s", file2);
+		rval = D_ERROR;
 		status |= 2;
 		goto closem;
 	}
@@ -365,6 +369,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 		break;
 	default:
 		/* error */
+		rval = D_ERROR;
 		status |= 2;
 		goto closem;
 	}
