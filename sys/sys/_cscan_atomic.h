@@ -236,6 +236,11 @@ void	kcsan_atomic_thread_fence_seq_cst(void);
 	__retptr;								\
 })
 #define	atomic_load_acq_ptr		kcsan_atomic_load_acq_ptr
+#define	atomic_load_consume_ptr(x)	({					\
+	__typeof(*x) __retptr;							\
+	__retptr = (void *)kcsan_atomic_load_acq_ptr((volatile uintptr_t *)(x));\
+	__retptr;								\
+})
 #define	atomic_readandclear_ptr		kcsan_atomic_readandclear_ptr
 #define	atomic_set_ptr			kcsan_atomic_set_ptr
 #define	atomic_set_acq_ptr		kcsan_atomic_set_acq_ptr
