@@ -1562,7 +1562,8 @@ static const char *nfit_types[] = {
     [ACPI_NFIT_TYPE_SMBIOS] = "SMBIOS",
     [ACPI_NFIT_TYPE_CONTROL_REGION] = "Control Region",
     [ACPI_NFIT_TYPE_DATA_REGION] = "Data Region",
-    [ACPI_NFIT_TYPE_FLUSH_ADDRESS] = "Flush Address"
+    [ACPI_NFIT_TYPE_FLUSH_ADDRESS] = "Flush Address",
+    [ACPI_NFIT_TYPE_CAPABILITIES] = "Platform Capabilities"
 };
 
 
@@ -1579,6 +1580,7 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 	ACPI_NFIT_CONTROL_REGION *ctlreg;
 	ACPI_NFIT_DATA_REGION *datareg;
 	ACPI_NFIT_FLUSH_ADDRESS *fladdr;
+	ACPI_NFIT_CAPABILITIES *caps;
 
 	if (nfit->Type < nitems(nfit_types))
 		printf("\tType=%s\n", nfit_types[nfit->Type]);
@@ -1708,6 +1710,20 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		printf("\tDeviceHandle=%u\n", (u_int)fladdr->DeviceHandle);
 		printf("\tHintCount=%u\n", (u_int)fladdr->HintCount);
 		/* XXX fladdr->HintAddress[i] output is not supported */
+		break;
+	case ACPI_NFIT_TYPE_CAPABILITIES:
+		caps = (ACPI_NFIT_CAPABILITIES *)nfit;
+		printf("\tHighestCapability=%u\n", (u_int)caps->HighestCapability);
+
+#define PRINTFLAG(var, flag)	printflag((var), ACPI_NFIT_CAPABILITY_## flag, #flag)
+
+		printf("\tCapabilities=");
+		PRINTFLAG(caps->Capabilities, CACHE_FLUSH);
+		PRINTFLAG(caps->Capabilities, MEM_FLUSH);
+		PRINTFLAG(caps->Capabilities, MEM_MIRRORING);
+		PRINTFLAG_END();
+
+#undef PRINTFLAG
 		break;
 	}
 }
