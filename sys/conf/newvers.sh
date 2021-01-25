@@ -211,9 +211,9 @@ fi
 
 if [ -n "$git_cmd" ] ; then
 	git=$($git_cmd rev-parse --verify --short HEAD 2>/dev/null)
-	git_cnt=$($git_cmd rev-list --count HEAD 2>/dev/null)
+	git_cnt=$($git_cmd rev-list --first-parent --count HEAD 2>/dev/null)
 	if [ -n "$git_cnt" ] ; then
-		git="c${git_cnt}-g${git}"
+		git="n${git_cnt}-${git}"
 	fi
 	git_b=$($git_cmd rev-parse --abbrev-ref HEAD)
 	if [ -n "$git_b" -a "$git_b" != "HEAD" ] ; then
