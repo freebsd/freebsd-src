@@ -20,13 +20,6 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 cddl/dev/fbt/x86/fbt_isa.c				optional dtrace_fbt | dtraceall compile-with "${FBT_C}"
 cddl/dev/dtrace/x86/dis_tables.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
 cddl/dev/dtrace/x86/instr_size.c			optional dtrace_fbt | dtraceall compile-with "${DTRACE_C}"
-compat/ndis/kern_ndis.c		optional ndisapi pci
-compat/ndis/kern_windrv.c	optional ndisapi pci
-compat/ndis/subr_hal.c		optional ndisapi pci
-compat/ndis/subr_ndis.c		optional ndisapi pci
-compat/ndis/subr_ntoskrnl.c	optional ndisapi pci
-compat/ndis/subr_pe.c		optional ndisapi pci
-compat/ndis/subr_usbd.c		optional ndisapi pci
 crypto/aesni/aesni.c		optional aesni
 aesni_ghash.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
@@ -157,9 +150,6 @@ dev/hyperv/vmbus/vmbus_if.m				optional	hyperv
 dev/hyperv/vmbus/vmbus_res.c				optional	hyperv
 dev/hyperv/vmbus/vmbus_xact.c				optional	hyperv
 dev/ichwd/ichwd.c		optional	ichwd
-dev/if_ndis/if_ndis.c		optional	ndis
-dev/if_ndis/if_ndis_pci.c	optional	ndis cardbus | ndis pci
-dev/if_ndis/if_ndis_usb.c	optional	ndis usb
 dev/imcsmb/imcsmb.c		optional	imcsmb
 dev/imcsmb/imcsmb_pci.c		optional	imcsmb pci
 dev/intel/spi.c			optional	intelspi
