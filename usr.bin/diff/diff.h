@@ -83,6 +83,7 @@
 #define	D_MISMATCH2	4	/* path1 was a file, path2 a dir */
 #define	D_SKIPPED1	5	/* path1 was a special file */
 #define	D_SKIPPED2	6	/* path2 was a special file */
+#define	D_ERROR		7	/* A file access error occurred */
 
 struct excludes {
 	char *pattern;
