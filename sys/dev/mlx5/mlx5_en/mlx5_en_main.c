@@ -3413,6 +3413,8 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_TSO6;
 			ifp->if_hwassist ^= CSUM_IP6_TSO;
 		}
+		if (mask & IFCAP_VLAN_HWTSO)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 		if (mask & IFCAP_VLAN_HWFILTER) {
 			if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
 				mlx5e_disable_vlan_filter(priv);
