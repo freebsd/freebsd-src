@@ -5938,14 +5938,6 @@ OLD_FILES+=usr/share/man/whatis
 OLD_FILES+=usr/share/openssl/man/whatis
 .endif
 
-.if ${MK_NDIS} == no
-OLD_FILES+=usr/sbin/ndiscvt
-OLD_FILES+=usr/sbin/ndisgen
-OLD_FILES+=usr/share/man/man8/ndiscvt.8.gz
-OLD_FILES+=usr/share/man/man8/ndisgen.8.gz
-OLD_FILES+=usr/share/misc/windrv_stub.c
-.endif
-
 .if ${MK_NETCAT} == no
 OLD_FILES+=rescue/nc
 OLD_FILES+=usr/bin/nc

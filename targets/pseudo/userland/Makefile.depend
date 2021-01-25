@@ -737,7 +737,6 @@ DIRDEPS+= \
 	usr.sbin/wlandebug \
 	usr.sbin/wpa/hostapd \
 	usr.sbin/wpa/hostapd_cli \
-	usr.sbin/wpa/ndis_events \
 	usr.sbin/wpa/wpa_cli \
 	usr.sbin/wpa/wpa_passphrase \
 	usr.sbin/wpa/wpa_supplicant \
@@ -788,7 +787,6 @@ DIRDEPS.amd64= \
 	usr.sbin/kgmon \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
-	usr.sbin/ndiscvt \
 	usr.sbin/spkrtest \
 	usr.sbin/sade \
 	usr.sbin/zzz
@@ -814,7 +812,6 @@ DIRDEPS.i386= \
 	usr.sbin/kgmon \
 	usr.sbin/lptcontrol \
 	usr.sbin/mptable \
-	usr.sbin/ndiscvt \
 	usr.sbin/pnpinfo \
 	usr.sbin/sade \
 	usr.sbin/spkrtest \

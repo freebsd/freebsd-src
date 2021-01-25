@@ -75,7 +75,6 @@ compat/linux/linux_uid16.c	optional compat_linux
 compat/linux/linux_util.c	optional compat_linux
 compat/linux/linux_vdso.c	optional compat_linux
 compat/linux/linux.c		optional compat_linux
-compat/ndis/winx32_wrap.S	optional ndisapi pci
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/des/arch/i386/des_enc.S	optional netsmb
 crypto/openssl/i386/sha1-586.S	optional ossl

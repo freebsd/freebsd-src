@@ -24,8 +24,5 @@ SUBDIR+=	hyperv
 SUBDIR+=	kgmon
 SUBDIR+=	lptcontrol
 SUBDIR+=	mptable
-.if ${MK_NDIS} != "no"
-SUBDIR+=	ndiscvt
-.endif
 SUBDIR+=	spkrtest
 SUBDIR+=	zzz
