@@ -4477,10 +4477,7 @@ zfs_freebsd_fplookup_symlink(struct vop_fplookup_symlink_args *v)
 		return (EAGAIN);
 	}
 
-	/*
-	 * FIXME: Load consume would be sufficient but there is no primitive to do it.
-	 */
-	target = (char *)atomic_load_acq_ptr((uintptr_t *)&zp->z_cached_symlink);
+	target = atomic_load_consume_ptr(&zp->z_cached_symlink);
 	if (target == NULL) {
 		return (EAGAIN);
 	}
