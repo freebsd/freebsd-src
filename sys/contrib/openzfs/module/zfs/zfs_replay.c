@@ -859,7 +859,12 @@ zfs_replay_setattr(void *arg1, void *arg2, boolean_t byteswap)
 	zfsvfs->z_fuid_replay = zfs_replay_fuid_domain(start, &start,
 	    lr->lr_uid, lr->lr_gid);
 
+	/*
+	 * Satisfy assertions.
+	 */
+	vn_seqc_write_begin(ZTOV(zp));
 	error = zfs_setattr(zp, vap, 0, kcred);
+	vn_seqc_write_end(ZTOV(zp));
 
 	zfs_fuid_info_free(zfsvfs->z_fuid_replay);
 	zfsvfs->z_fuid_replay = NULL;
