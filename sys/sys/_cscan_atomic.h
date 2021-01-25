@@ -243,7 +243,10 @@ void	kcsan_atomic_thread_fence_seq_cst(void);
 #define	atomic_subtract_ptr		kcsan_atomic_subtract_ptr
 #define	atomic_subtract_acq_ptr		kcsan_atomic_subtract_acq_ptr
 #define	atomic_subtract_rel_ptr		kcsan_atomic_subtract_rel_ptr
-#define	atomic_store_ptr		kcsan_atomic_store_ptr
+#define	atomic_store_ptr(x, v)		({					\
+	__typeof(*x) __value = (v);						\
+	kcsan_atomic_store_ptr((volatile uintptr_t *)(x), (uintptr_t)(__value));\
+})
 #define	atomic_store_rel_ptr		kcsan_atomic_store_rel_ptr
 #define	atomic_swap_ptr			kcsan_atomic_swap_ptr
 #define	atomic_testandclear_ptr		kcsan_atomic_testandclear_ptr
