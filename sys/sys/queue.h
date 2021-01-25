@@ -91,6 +91,7 @@
  * _CLASS_ENTRY			+	+	+	+
  * _INIT			+	+	+	+
  * _EMPTY			+	+	+	+
+ * _END				+	+	+	+
  * _FIRST			+	+	+	+
  * _NEXT			+	+	+	+
  * _PREV			-	+	-	+
@@ -305,6 +306,8 @@ struct {								\
 	SLIST_FIRST(head2) = swap_first;				\
 } while (0)
 
+#define	SLIST_END(head)		NULL
+
 /*
  * Singly-linked Tail queue declarations.
  */
@@ -436,6 +439,9 @@ struct {								\
 	if (STAILQ_EMPTY(head2))					\
 		(head2)->stqh_last = &STAILQ_FIRST(head2);		\
 } while (0)
+
+#define	STAILQ_END(head)	NULL
+
 
 /*
  * List declarations.
@@ -610,6 +616,8 @@ struct {								\
 	if ((swap_tmp = LIST_FIRST((head2))) != NULL)			\
 		swap_tmp->field.le_prev = &LIST_FIRST((head2));		\
 } while (0)
+
+#define	LIST_END(head)	NULL
 
 /*
  * Tail queue declarations.
@@ -866,5 +874,7 @@ struct {								\
 	else								\
 		(head2)->tqh_last = &(head2)->tqh_first;		\
 } while (0)
+
+#define	TAILQ_END(head)		NULL
 
 #endif /* !_SYS_QUEUE_H_ */
