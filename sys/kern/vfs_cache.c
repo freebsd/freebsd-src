@@ -1441,7 +1441,7 @@ cache_zap_locked(struct namecache *ncp)
 		TAILQ_REMOVE(&vp->v_cache_dst, ncp, nc_dst);
 		if (ncp == vp->v_cache_dd) {
 			vn_seqc_write_begin_unheld(vp);
-			vp->v_cache_dd = NULL;
+			atomic_store_ptr(&vp->v_cache_dd, NULL);
 			vn_seqc_write_end(vp);
 		}
 	} else {
@@ -1451,7 +1451,7 @@ cache_zap_locked(struct namecache *ncp)
 	if (ncp->nc_flag & NCF_ISDOTDOT) {
 		if (ncp == dvp->v_cache_dd) {
 			vn_seqc_write_begin_unheld(dvp);
-			dvp->v_cache_dd = NULL;
+			atomic_store_ptr(&dvp->v_cache_dd, NULL);
 			vn_seqc_write_end(dvp);
 		}
 	} else {
@@ -1628,7 +1628,7 @@ retry_dotdot:
 			cache_free(ncp);
 		} else {
 			vn_seqc_write_begin(dvp);
-			dvp->v_cache_dd = NULL;
+			atomic_store_ptr(&dvp->v_cache_dd, NULL);
 			vn_seqc_write_end(dvp);
 			mtx_unlock(dvlp);
 			if (dvlp2 != NULL)
@@ -2157,7 +2157,7 @@ cache_enter_lock(struct celockstate *cel, struct vnode *dvp, struct vnode *vp,
 		cache_lock_vnodes_cel(cel, dvp, vp);
 		if (vp == NULL || vp->v_type != VDIR)
 			break;
-		ncp = vp->v_cache_dd;
+		ncp = atomic_load_consume_ptr(&vp->v_cache_dd);
 		if (ncp == NULL)
 			break;
 		nc_flag = atomic_load_char(&ncp->nc_flag);
@@ -2198,7 +2198,7 @@ cache_enter_lock_dd(struct celockstate *cel, struct vnode *dvp, struct vnode *vp
 	for (;;) {
 		blps[1] = NULL;
 		cache_lock_vnodes_cel(cel, dvp, vp);
-		ncp = dvp->v_cache_dd;
+		ncp = atomic_load_consume_ptr(&dvp->v_cache_dd);
 		if (ncp == NULL)
 			break;
 		nc_flag = atomic_load_char(&ncp->nc_flag);
@@ -2240,7 +2240,7 @@ cache_enter_dotdot_prep(struct vnode *dvp, struct vnode *vp,
 	uint32_t hash;
 	int len;
 
-	if (dvp->v_cache_dd == NULL)
+	if (atomic_load_ptr(&dvp->v_cache_dd) == NULL)
 		return;
 	len = cnp->cn_namelen;
 	cache_celockstate_init(&cel);
@@ -2254,7 +2254,7 @@ cache_enter_dotdot_prep(struct vnode *dvp, struct vnode *vp,
 	} else {
 		ncp = NULL;
 	}
-	dvp->v_cache_dd = NULL;
+	atomic_store_ptr(&dvp->v_cache_dd, NULL);
 	vn_seqc_write_end(dvp);
 	cache_enter_unlock(&cel);
 	if (ncp != NULL)
@@ -2393,7 +2393,7 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 		KASSERT(vp == NULL || vp->v_type == VDIR,
 		    ("wrong vnode type %p", vp));
 		vn_seqc_write_begin(dvp);
-		dvp->v_cache_dd = ncp;
+		atomic_store_ptr(&dvp->v_cache_dd, ncp);
 		vn_seqc_write_end(dvp);
 	}
 
@@ -2411,12 +2411,12 @@ cache_enter_time(struct vnode *dvp, struct vnode *vp, struct componentname *cnp,
 				else
 					ndd = NULL;
 			}
-			vp->v_cache_dd = ncp;
+			atomic_store_ptr(&vp->v_cache_dd, ncp);
 			vn_seqc_write_end(vp);
 		} else if (vp->v_type != VDIR) {
 			if (vp->v_cache_dd != NULL) {
 				vn_seqc_write_begin(vp);
-				vp->v_cache_dd = NULL;
+				atomic_store_ptr(&vp->v_cache_dd, NULL);
 				vn_seqc_write_end(vp);
 			}
 		}
@@ -2658,7 +2658,7 @@ cache_has_entries(struct vnode *vp)
 {
 
 	if (LIST_EMPTY(&vp->v_cache_src) && TAILQ_EMPTY(&vp->v_cache_dst) &&
-	    vp->v_cache_dd == NULL)
+	    atomic_load_ptr(&vp->v_cache_dd) == NULL)
 		return (false);
 	return (true);
 }
@@ -3291,7 +3291,7 @@ vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
 			vp_seqc = tvp_seqc;
 			continue;
 		}
-		ncp = atomic_load_ptr(&vp->v_cache_dd);
+		ncp = atomic_load_consume_ptr(&vp->v_cache_dd);
 		if (ncp == NULL) {
 			cache_rev_failed(&reason);
 			goto out_abort;
@@ -4705,7 +4705,7 @@ cache_fplookup_dotdot(struct cache_fpl *fpl)
 		return (cache_fpl_aborted(fpl));
 	}
 
-	ncp = atomic_load_ptr(&dvp->v_cache_dd);
+	ncp = atomic_load_consume_ptr(&dvp->v_cache_dd);
 	if (ncp == NULL) {
 		return (cache_fpl_aborted(fpl));
 	}
