@@ -356,9 +356,6 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 		 * pointer to also get the above content in a stable manner.
 		 * Worst case tn_link_smr flag may be set to true despite being stale,
 		 * while the target buffer is already cleared out.
-		 *
-		 * TODO: Since there is no load consume primitive provided
-		 * right now, the load is performed with an acquire fence.
 		 */
 		atomic_store_ptr(&nnode->tn_link_target, symlink);
 		atomic_store_char((char *)&nnode->tn_link_smr, symlink_smr);
