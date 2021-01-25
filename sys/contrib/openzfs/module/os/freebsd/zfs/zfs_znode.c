@@ -444,7 +444,7 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	zp->z_blksz = blksz;
 	zp->z_seq = 0x7A4653;
 	zp->z_sync_cnt = 0;
-	atomic_store_ptr((uintptr_t *)&zp->z_cached_symlink, (uintptr_t)NULL);
+	atomic_store_ptr(&zp->z_cached_symlink, NULL);
 
 	vp = ZTOV(zp);
 
