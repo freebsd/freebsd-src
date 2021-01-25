@@ -360,8 +360,7 @@ tmpfs_alloc_node(struct mount *mp, struct tmpfs_mount *tmp, enum vtype type,
 		 * TODO: Since there is no load consume primitive provided
 		 * right now, the load is performed with an acquire fence.
 		 */
-		atomic_store_ptr((uintptr_t *)&nnode->tn_link_target,
-		    (uintptr_t)symlink);
+		atomic_store_ptr(&nnode->tn_link_target, symlink);
 		atomic_store_char((char *)&nnode->tn_link_smr, symlink_smr);
 		atomic_thread_fence_rel();
 		break;
@@ -453,8 +452,7 @@ tmpfs_free_node_locked(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 
 	case VLNK:
 		symlink = node->tn_link_target;
-		atomic_store_ptr((uintptr_t *)&node->tn_link_target,
-		    (uintptr_t)NULL);
+		atomic_store_ptr(&node->tn_link_target, NULL);
 		if (atomic_load_char(&node->tn_link_smr)) {
 			cache_symlink_free(symlink, node->tn_size + 1);
 		} else {
