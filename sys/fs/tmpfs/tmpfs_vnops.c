@@ -1466,7 +1466,6 @@ tmpfs_fplookup_symlink(struct vop_fplookup_symlink_args *v)
 
 	vp = v->a_vp;
 	node = VP_TO_TMPFS_NODE_SMR(vp);
-	atomic_thread_fence_acq();
 	if (__predict_false(node == NULL))
 		return (EAGAIN);
 	if (!atomic_load_char(&node->tn_link_smr))
