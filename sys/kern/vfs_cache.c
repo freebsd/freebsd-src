@@ -5178,7 +5178,7 @@ cache_fplookup_preparse(struct cache_fpl *fpl)
 	return (0);
 }
 
-static int
+static void
 cache_fplookup_parse(struct cache_fpl *fpl)
 {
 	struct nameidata *ndp;
@@ -5241,7 +5241,6 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 		panic("%s: ran into degenerate name from [%s]\n", __func__, cnp->cn_pnbuf);
 	}
 #endif
-	return (0);
 }
 
 static void
@@ -5426,10 +5425,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
 	}
 
 	for (;;) {
-		error = cache_fplookup_parse(fpl);
-		if (__predict_false(error != 0)) {
-			break;
-		}
+		cache_fplookup_parse(fpl);
 
 		error = VOP_FPLOOKUP_VEXEC(fpl->dvp, cnp->cn_cred);
 		if (__predict_false(error != 0)) {
