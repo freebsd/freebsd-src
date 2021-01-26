@@ -45,8 +45,8 @@ char	default_device[] = DEFAULT_DEVICE;
 #endif
 
 
-static	void	usage __P((char *));
-int	main __P((int, char **));
+static	void	usage(char *);
+int	main(int, char **);
 
 
 static void usage(prog)

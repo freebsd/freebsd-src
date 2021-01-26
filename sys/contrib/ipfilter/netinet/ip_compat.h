@@ -11,10 +11,6 @@
 #ifndef	__IP_COMPAT_H__
 #define	__IP_COMPAT_H__
 
-#ifndef	__P
-#  define	__P(x)  x
-#endif
-
 #if defined(_KERNEL) || defined(KERNEL) || defined(__KERNEL__)
 # undef	KERNEL
 # undef	_KERNEL
@@ -365,12 +361,12 @@ typedef	struct	mb_s	{
 					      MTOD((mb_t *)m, char *) + (o), \
 					      (l))
 # define	UIOMOVE(a,b,c,d)	ipfuiomove((caddr_t)a,b,c,d)
-extern	void	m_copydata __P((mb_t *, int, int, caddr_t));
-extern	int	ipfuiomove __P((caddr_t, int, int, struct uio *));
-extern	int	bcopywrap __P((void *, void *, size_t));
-extern	mb_t	*allocmbt __P((size_t));
-extern	mb_t	*dupmbt __P((mb_t *));
-extern	void	freembt __P((mb_t *));
+extern	void	m_copydata(mb_t *, int, int, caddr_t);
+extern	int	ipfuiomove(caddr_t, int, int, struct uio *);
+extern	int	bcopywrap(void *, void *, size_t);
+extern	mb_t	*allocmbt(size_t);
+extern	mb_t	*dupmbt(mb_t *);
+extern	void	freembt(mb_t *);
 
 # define	MUTEX_DESTROY(x)	eMmutex_destroy(&(x)->ipf_emu, \
 							__FILE__, __LINE__)
@@ -397,16 +393,16 @@ extern	void	freembt __P((mb_t *));
 
 # define	USE_MUTEXES		1
 
-extern void eMmutex_destroy __P((eMmutex_t *, char *, int));
-extern void eMmutex_enter __P((eMmutex_t *, char *, int));
-extern void eMmutex_exit __P((eMmutex_t *, char *, int));
-extern void eMmutex_init __P((eMmutex_t *, char *, char *, int));
-extern void eMrwlock_destroy __P((eMrwlock_t *));
-extern void eMrwlock_exit __P((eMrwlock_t *));
-extern void eMrwlock_init __P((eMrwlock_t *, char *));
-extern void eMrwlock_read_enter __P((eMrwlock_t *, char *, int));
-extern void eMrwlock_write_enter __P((eMrwlock_t *, char *, int));
-extern void eMrwlock_downgrade __P((eMrwlock_t *, char *, int));
+extern void eMmutex_destroy(eMmutex_t *, char *, int);
+extern void eMmutex_enter(eMmutex_t *, char *, int);
+extern void eMmutex_exit(eMmutex_t *, char *, int);
+extern void eMmutex_init(eMmutex_t *, char *, char *, int);
+extern void eMrwlock_destroy(eMrwlock_t *);
+extern void eMrwlock_exit(eMrwlock_t *);
+extern void eMrwlock_init(eMrwlock_t *, char *);
+extern void eMrwlock_read_enter(eMrwlock_t *, char *, int);
+extern void eMrwlock_write_enter(eMrwlock_t *, char *, int);
+extern void eMrwlock_downgrade(eMrwlock_t *, char *, int);
 
 #endif
 
@@ -585,7 +581,7 @@ MALLOC_DECLARE(M_IPFILTER);
 #endif
 #ifndef	COPYIFNAME
 # define	NEED_FRGETIFNAME
-extern	char	*ipf_getifname __P((struct ifnet *, char *));
+extern	char	*ipf_getifname(struct ifnet *, char *);
 # define	COPYIFNAME(v, x, b) \
 				ipf_getifname((struct ifnet *)x, b)
 #endif

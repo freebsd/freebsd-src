@@ -56,9 +56,9 @@ typedef struct {
   unsigned char digest[16];     /* actual digest after MD5Final call */
 } MD5_CTX;
 
-extern void MD5Init __P((MD5_CTX *));
-extern void MD5Update __P((MD5_CTX *, unsigned char *, unsigned int));
-extern void MD5Final __P((unsigned char *, MD5_CTX *));
+extern void MD5Init(MD5_CTX *);
+extern void MD5Update(MD5_CTX *, unsigned char *, unsigned int);
+extern void MD5Final(unsigned char *, MD5_CTX *);
 
 #define __MD5_INCLUDE__
 #endif /* __MD5_INCLUDE__ */

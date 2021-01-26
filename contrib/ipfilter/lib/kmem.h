@@ -13,9 +13,9 @@
 #ifndef	__P
 #  define	__P(x)	x
 #endif
-extern	int	openkmem __P((char *, char *));
-extern	int	kmemcpy __P((char *, long, int));
-extern	int	kstrncpy __P((char *, long, int));
+extern	int	openkmem(char *, char *);
+extern	int	kmemcpy(char *, long, int);
+extern	int	kstrncpy(char *, long, int);
 
 #if defined(__NetBSD__)
 # include <paths.h>

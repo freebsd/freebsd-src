@@ -18,25 +18,25 @@
 #define	YYDEBUG	1
 
 extern	char	*optarg;
-extern	void	yyerror __P((char *));
-extern	int	yyparse __P((void));
-extern	int	yylex __P((void));
+extern	void	yyerror(char *);
+extern	int	yyparse(void);
+extern	int	yylex(void);
 extern	int	yydebug;
 extern	FILE	*yyin;
 extern	int	yylineNum;
-extern	void	printbuf __P((char *, int, int));
+extern	void	printbuf(char *, int, int);
 
 
-void		printent __P((ipscan_t *));
-void		showlist __P((void));
-int		getportnum __P((char *));
-struct in_addr	gethostip __P((char *));
-struct in_addr	combine __P((int, int, int, int));
-char		**makepair __P((char *, char *));
-void		addtag __P((char *, char **, char **, struct action *));
-int		cram __P((char *, char *));
-void		usage __P((char *));
-int		main __P((int, char **));
+void		printent(ipscan_t *);
+void		showlist(void);
+int		getportnum(char *);
+struct in_addr	gethostip(char *);
+struct in_addr	combine(int, int, int, int);
+char		**makepair(char *, char *);
+void		addtag(char *, char **, char **, struct action *);
+int		cram(char *, char *);
+void		usage(char *);
+int		main(int, char **);
 
 int		opts = 0;
 int		fd = -1;

@@ -61,7 +61,7 @@ typedef	struct	ipf_pool_stat	{
 extern	ipf_lookup_t	ipf_pool_backend;
 
 #ifndef _KERNEL
-extern	void	ipf_pool_dump __P((ipf_main_softc_t *, void *));
+extern	void	ipf_pool_dump(ipf_main_softc_t *, void *);
 #endif
 
 #endif /* __IP_POOL_H__ */

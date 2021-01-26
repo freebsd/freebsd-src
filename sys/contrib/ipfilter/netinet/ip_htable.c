@@ -53,45 +53,45 @@ static const char rcsid[] = "@(#)$Id$";
 #endif
 
 # ifdef USE_INET6
-static iphtent_t *ipf_iphmfind6 __P((iphtable_t *, i6addr_t *));
+static iphtent_t *ipf_iphmfind6(iphtable_t *, i6addr_t *);
 # endif
-static iphtent_t *ipf_iphmfind __P((iphtable_t *, struct in_addr *));
-static int ipf_iphmfindip __P((ipf_main_softc_t *, void *, int, void *, u_int));
-static int ipf_htable_clear __P((ipf_main_softc_t *, void *, iphtable_t *));
-static int ipf_htable_create __P((ipf_main_softc_t *, void *, iplookupop_t *));
-static int ipf_htable_deref __P((ipf_main_softc_t *, void *, void *));
-static int ipf_htable_destroy __P((ipf_main_softc_t *, void *, int, char *));
-static void *ipf_htable_exists __P((void *, int, char *));
-static size_t ipf_htable_flush __P((ipf_main_softc_t *, void *,
-				    iplookupflush_t *));
-static void ipf_htable_free __P((void *, iphtable_t *));
-static int ipf_htable_iter_deref __P((ipf_main_softc_t *, void *, int,
-				      int, void *));
-static int ipf_htable_iter_next __P((ipf_main_softc_t *, void *, ipftoken_t *,
-				     ipflookupiter_t *));
-static int ipf_htable_node_add __P((ipf_main_softc_t *, void *,
-				    iplookupop_t *, int));
-static int ipf_htable_node_del __P((ipf_main_softc_t *, void *,
-				    iplookupop_t *, int));
-static int ipf_htable_remove __P((ipf_main_softc_t *, void *, iphtable_t *));
-static void *ipf_htable_soft_create __P((ipf_main_softc_t *));
-static void ipf_htable_soft_destroy __P((ipf_main_softc_t *, void *));
-static int ipf_htable_soft_init __P((ipf_main_softc_t *, void *));
-static void ipf_htable_soft_fini __P((ipf_main_softc_t *, void *));
-static int ipf_htable_stats_get __P((ipf_main_softc_t *, void *,
-				     iplookupop_t *));
-static int ipf_htable_table_add __P((ipf_main_softc_t *, void *,
-				     iplookupop_t *));
-static int ipf_htable_table_del __P((ipf_main_softc_t *, void *,
-				     iplookupop_t *));
-static int ipf_htent_deref __P((void *, iphtent_t *));
-static iphtent_t *ipf_htent_find __P((iphtable_t *, iphtent_t *));
-static int ipf_htent_insert __P((ipf_main_softc_t *, void *, iphtable_t *,
-				 iphtent_t *));
-static int ipf_htent_remove __P((ipf_main_softc_t *, void *, iphtable_t *,
-				 iphtent_t *));
-static void *ipf_htable_select_add_ref __P((void *, int, char *));
-static void ipf_htable_expire __P((ipf_main_softc_t *, void *));
+static iphtent_t *ipf_iphmfind(iphtable_t *, struct in_addr *);
+static int ipf_iphmfindip(ipf_main_softc_t *, void *, int, void *, u_int);
+static int ipf_htable_clear(ipf_main_softc_t *, void *, iphtable_t *);
+static int ipf_htable_create(ipf_main_softc_t *, void *, iplookupop_t *);
+static int ipf_htable_deref(ipf_main_softc_t *, void *, void *);
+static int ipf_htable_destroy(ipf_main_softc_t *, void *, int, char *);
+static void *ipf_htable_exists(void *, int, char *);
+static size_t ipf_htable_flush(ipf_main_softc_t *, void *,
+				    iplookupflush_t *);
+static void ipf_htable_free(void *, iphtable_t *);
+static int ipf_htable_iter_deref(ipf_main_softc_t *, void *, int,
+				      int, void *);
+static int ipf_htable_iter_next(ipf_main_softc_t *, void *, ipftoken_t *,
+				     ipflookupiter_t *);
+static int ipf_htable_node_add(ipf_main_softc_t *, void *,
+				    iplookupop_t *, int);
+static int ipf_htable_node_del(ipf_main_softc_t *, void *,
+				    iplookupop_t *, int);
+static int ipf_htable_remove(ipf_main_softc_t *, void *, iphtable_t *);
+static void *ipf_htable_soft_create(ipf_main_softc_t *);
+static void ipf_htable_soft_destroy(ipf_main_softc_t *, void *);
+static int ipf_htable_soft_init(ipf_main_softc_t *, void *);
+static void ipf_htable_soft_fini(ipf_main_softc_t *, void *);
+static int ipf_htable_stats_get(ipf_main_softc_t *, void *,
+				     iplookupop_t *);
+static int ipf_htable_table_add(ipf_main_softc_t *, void *,
+				     iplookupop_t *);
+static int ipf_htable_table_del(ipf_main_softc_t *, void *,
+				     iplookupop_t *);
+static int ipf_htent_deref(void *, iphtent_t *);
+static iphtent_t *ipf_htent_find(iphtable_t *, iphtent_t *);
+static int ipf_htent_insert(ipf_main_softc_t *, void *, iphtable_t *,
+				 iphtent_t *);
+static int ipf_htent_remove(ipf_main_softc_t *, void *, iphtable_t *,
+				 iphtent_t *);
+static void *ipf_htable_select_add_ref(void *, int, char *);
+static void ipf_htable_expire(ipf_main_softc_t *, void *);
 
 
 typedef struct ipf_htable_softc_s {

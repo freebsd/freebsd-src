@@ -1,10 +1,10 @@
 #include "ipf.h"
 
-static void printport __P((int *));
-static void printhosts __P((int *));
-static void printsingle __P((int *));
+static void printport(int *);
+static void printhosts(int *);
+static void printsingle(int *);
 #ifdef USE_INET6
-static void printhostsv6 __P((int *));
+static void printhostsv6(int *);
 #endif
 
 void

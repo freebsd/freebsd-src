@@ -94,9 +94,9 @@ struct	proc	*proc;
 
 
 #if BSD < 199103
-static	struct	proc	*getproc __P((void));
+static	struct	proc	*getproc(void);
 #else
-static	struct	kinfo_proc	*getproc __P((void));
+static	struct	kinfo_proc	*getproc(void);
 #endif
 
 
