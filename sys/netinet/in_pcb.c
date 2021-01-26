@@ -3399,7 +3399,12 @@ in_pcbattach_txrtlmt(struct inpcb *inp, struct ifnet *ifp,
 
 	INP_WLOCK_ASSERT(inp);
 
-	if (*st != NULL)
+	/*
+	 * If there is already a send tag, or the INP is being torn
+	 * down, allocating a new send tag is not allowed. Else send
+	 * tags may leak.
+	 */
+	if (*st != NULL || (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) != 0)
 		return (EINVAL);
 
 	error = m_snd_tag_alloc(ifp, &params, st);
