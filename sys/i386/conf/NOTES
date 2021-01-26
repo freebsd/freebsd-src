@@ -887,10 +887,6 @@ options 	LINPROCFS
 # and PSEUDOFS)
 options 	LINSYSFS
 
-# Enable NDIS binary driver support
-options 	NDISAPI
-device		ndis
-
 
 #####################################################################
 # VM OPTIONS
