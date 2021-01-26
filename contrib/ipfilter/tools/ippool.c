@@ -34,28 +34,28 @@
 #include "kmem.h"
 
 
-extern	int	ippool_yyparse __P((void));
+extern	int	ippool_yyparse(void);
 extern	int	ippool_yydebug;
 extern	FILE	*ippool_yyin;
 extern	char	*optarg;
 extern	int	lineNum;
 
-void	usage __P((char *));
-int	main __P((int, char **));
-int	poolcommand __P((int, int, char *[]));
-int	poolnodecommand __P((int, int, char *[]));
-int	loadpoolfile __P((int, char *[], char *));
-int	poollist __P((int, char *[]));
-void	poollist_dead __P((int, char *, int, char *, char *));
-void	poollist_live __P((int, char *, int, int));
-int	poolflush __P((int, char *[]));
-int	poolstats __P((int, char *[]));
-int	gettype __P((char *, u_int *));
-int	getrole __P((char *));
-int	setnodeaddr __P((int, int, void *ptr, char *arg));
-void	showpools_live __P((int, int, ipf_pool_stat_t *, char *));
-void	showhashs_live __P((int, int, iphtstat_t *, char *));
-void	showdstls_live __P((int, int, ipf_dstl_stat_t *, char *));
+void	usage(char *);
+int	main(int, char **);
+int	poolcommand(int, int, char *[]);
+int	poolnodecommand(int, int, char *[]);
+int	loadpoolfile(int, char *[], char *);
+int	poollist(int, char *[]);
+void	poollist_dead(int, char *, int, char *, char *);
+void	poollist_live(int, char *, int, int);
+int	poolflush(int, char *[]);
+int	poolstats(int, char *[]);
+int	gettype(char *, u_int *);
+int	getrole(char *);
+int	setnodeaddr(int, int, void *ptr, char *arg);
+void	showpools_live(int, int, ipf_pool_stat_t *, char *);
+void	showhashs_live(int, int, iphtstat_t *, char *);
+void	showdstls_live(int, int, ipf_dstl_stat_t *, char *);
 
 int	opts = 0;
 int	fd = -1;

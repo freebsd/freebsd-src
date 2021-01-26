@@ -25,17 +25,17 @@ typedef struct {
 static char *portcmp[] = { "*", "==", "!=", "<", ">", "<=", ">=", "**", "***" };
 static int count = 0;
 
-int intcmp __P((const void *, const void *));
-static void indent __P((FILE *, int));
-static void printeq __P((FILE *, char *, int, int, int));
-static void printipeq __P((FILE *, char *, int, int, int));
-static void addrule __P((FILE *, frentry_t *));
-static void printhooks __P((FILE *, int, int, frgroup_t *));
-static void emitheader __P((frgroup_t *, u_int, u_int));
-static void emitGroup __P((int, int, void *, frentry_t *, char *,
-			   u_int, u_int));
-static void emittail __P((void));
-static void printCgroup __P((int, frentry_t *, mc_t *, char *));
+int intcmp(const void *, const void *);
+static void indent(FILE *, int);
+static void printeq(FILE *, char *, int, int, int);
+static void printipeq(FILE *, char *, int, int, int);
+static void addrule(FILE *, frentry_t *);
+static void printhooks(FILE *, int, int, frgroup_t *);
+static void emitheader(frgroup_t *, u_int, u_int);
+static void emitGroup(int, int, void *, frentry_t *, char *,
+			   u_int, u_int);
+static void emittail(void);
+static void printCgroup(int, frentry_t *, mc_t *, char *);
 
 #define	FRC_IFN	0
 #define	FRC_V	1
@@ -360,15 +360,15 @@ static void emitheader(grp, incount, outcount)
 		if (fph == NULL)
 			return;
 
-		fprintf(fph, "extern int ipfrule_add __P((void));\n");
-		fprintf(fph, "extern int ipfrule_remove __P((void));\n");
+		fprintf(fph, "extern int ipfrule_add(void));\n");
+		fprintf(fph, "extern int ipfrule_remove(void));\n");
 	}
 
 	printhooks(cfile, incount, outcount, grp);
 
 	if (incount) {
 		fprintf(fph, "\n\
-extern frentry_t *ipfrule_match_in_%s __P((fr_info_t *, u_32_t *));\n\
+extern frentry_t *ipfrule_match_in_%s(fr_info_t *, u_32_t *));\n\
 extern frentry_t *ipf_rules_in_%s[%d];\n",
 			grp->fg_name, grp->fg_name, incount);
 
@@ -379,13 +379,13 @@ extern frentry_t *ipf_rules_in_%s[%d];\n",
 				break;
 		if (g == grp) {
 			fprintf(fph, "\n\
-extern int ipfrule_add_in_%s __P((void));\n\
-extern int ipfrule_remove_in_%s __P((void));\n", grp->fg_name, grp->fg_name);
+extern int ipfrule_add_in_%s(void));\n\
+extern int ipfrule_remove_in_%s(void));\n", grp->fg_name, grp->fg_name);
 		}
 	}
 	if (outcount) {
 		fprintf(fph, "\n\
-extern frentry_t *ipfrule_match_out_%s __P((fr_info_t *, u_32_t *));\n\
+extern frentry_t *ipfrule_match_out_%s(fr_info_t *, u_32_t *));\n\
 extern frentry_t *ipf_rules_out_%s[%d];\n",
 			grp->fg_name, grp->fg_name, outcount);
 
@@ -396,8 +396,8 @@ extern frentry_t *ipf_rules_out_%s[%d];\n",
 				break;
 		if (g == grp) {
 			fprintf(fph, "\n\
-extern int ipfrule_add_out_%s __P((void));\n\
-extern int ipfrule_remove_out_%s __P((void));\n",
+extern int ipfrule_add_out_%s(void));\n\
+extern int ipfrule_remove_out_%s(void));\n",
 				grp->fg_name, grp->fg_name);
 		}
 	}

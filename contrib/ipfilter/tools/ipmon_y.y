@@ -17,9 +17,9 @@
 
 #define	YYDEBUG	1
 
-extern	void	yyerror __P((char *));
-extern	int	yyparse __P((void));
-extern	int	yylex __P((void));
+extern	void	yyerror(char *);
+extern	int	yyparse(void);
+extern	int	yylex(void);
 extern	int	yydebug;
 extern	FILE	*yyin;
 extern	int	yylineNum;
@@ -36,14 +36,14 @@ typedef	struct	opt_s	{
 	int		o_logpri;
 } opt_t;
 
-static	void	build_action __P((opt_t *, ipmon_doing_t *));
-static	opt_t	*new_opt __P((int));
-static	void	free_action __P((ipmon_action_t *));
-static	void	print_action __P((ipmon_action_t *));
-static	int	find_doing __P((char *));
-static	ipmon_doing_t *build_doing __P((char *, char *));
-static	void	print_match __P((ipmon_action_t *));
-static	int	install_saver __P((char *, char *));
+static	void	build_action(opt_t *, ipmon_doing_t *);
+static	opt_t	*new_opt(int);
+static	void	free_action(ipmon_action_t *);
+static	void	print_action(ipmon_action_t *);
+static	int	find_doing(char *);
+static	ipmon_doing_t *build_doing(char *, char *);
+static	void	print_match(ipmon_action_t *);
+static	int	install_saver(char *, char *);
 
 static	ipmon_action_t	*alist = NULL;
 

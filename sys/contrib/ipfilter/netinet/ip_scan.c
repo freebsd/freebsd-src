@@ -69,12 +69,12 @@ ipfrwlock_t	ipf_scan_rwlock;
 # endif
 
 
-int ipf_scan_add __P((caddr_t));
-int ipf_scan_remove __P((caddr_t));
-struct ipscan *ipf_scan_lookup __P((char *));
-int ipf_scan_matchstr __P((sinfo_t *, char *, int));
-int ipf_scan_matchisc __P((ipscan_t *, ipstate_t *, int, int, int *));
-int ipf_scan_match __P((ipstate_t *));
+int ipf_scan_add(caddr_t);
+int ipf_scan_remove(caddr_t);
+struct ipscan *ipf_scan_lookup(char *);
+int ipf_scan_matchstr(sinfo_t *, char *, int);
+int ipf_scan_matchisc(ipscan_t *, ipstate_t *, int, int, int *);
+int ipf_scan_match(ipstate_t *);
 
 static int	ipf_scan_inited = 0;
 

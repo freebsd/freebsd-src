@@ -125,17 +125,17 @@ typedef struct ipf_sync_softc_s {
 	int		ipf_sync_inited;
 } ipf_sync_softc_t;
 
-static int ipf_sync_flush_table __P((ipf_sync_softc_t *, int, synclist_t **));
-static void ipf_sync_wakeup __P((ipf_main_softc_t *));
-static void ipf_sync_del __P((ipf_sync_softc_t *, synclist_t *));
-static void ipf_sync_poll_wakeup __P((ipf_main_softc_t *));
-static int ipf_sync_nat __P((ipf_main_softc_t *, synchdr_t *, void *));
-static int ipf_sync_state __P((ipf_main_softc_t *, synchdr_t *, void *));
+static int ipf_sync_flush_table(ipf_sync_softc_t *, int, synclist_t **);
+static void ipf_sync_wakeup(ipf_main_softc_t *);
+static void ipf_sync_del(ipf_sync_softc_t *, synclist_t *);
+static void ipf_sync_poll_wakeup(ipf_main_softc_t *);
+static int ipf_sync_nat(ipf_main_softc_t *, synchdr_t *, void *);
+static int ipf_sync_state(ipf_main_softc_t *, synchdr_t *, void *);
 
 # if !defined(sparc) && !defined(__hppa)
-void ipf_sync_tcporder __P((int, struct tcpdata *));
-void ipf_sync_natorder __P((int, struct nat *));
-void ipf_sync_storder __P((int, struct ipstate *));
+void ipf_sync_tcporder(int, struct tcpdata *);
+void ipf_sync_natorder(int, struct nat *);
+void ipf_sync_storder(int, struct ipstate *);
 # endif
 
 

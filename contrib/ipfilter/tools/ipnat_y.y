@@ -35,9 +35,9 @@
 
 #define	YYDEBUG	1
 
-extern	void	yyerror __P((char *));
-extern	int	yyparse __P((void));
-extern	int	yylex __P((void));
+extern	void	yyerror(char *);
+extern	int	yyparse(void);
+extern	int	yylex(void);
 extern	int	yydebug;
 extern	FILE	*yyin;
 extern	int	yylineNum;
@@ -51,22 +51,22 @@ static	int		suggest_port = 0;
 static	proxyrule_t	*prules = NULL;
 static	int		parser_error = 0;
 
-static	void	newnatrule __P((void));
-static	void	setnatproto __P((int));
-static	void	setmapifnames __P((void));
-static	void	setrdrifnames __P((void));
-static	void	proxy_setconfig __P((int));
-static	void	proxy_unsetconfig __P((void));
-static	namelist_t *proxy_dns_add_pass __P((char *, char *));
-static	namelist_t *proxy_dns_add_block __P((char *, char *));
-static	void	proxy_addconfig __P((char *, int, char *, namelist_t *));
-static	void	proxy_loadconfig __P((int, ioctlfunc_t, char *, int,
-				      char *, namelist_t *));
-static	void	proxy_loadrules __P((int, ioctlfunc_t, proxyrule_t *));
-static	void	setmapifnames __P((void));
-static	void	setrdrifnames __P((void));
-static	void	setifname __P((ipnat_t **, int, char *));
-static	int	addname __P((ipnat_t **, char *));
+static	void	newnatrule(void);
+static	void	setnatproto(int);
+static	void	setmapifnames(void);
+static	void	setrdrifnames(void);
+static	void	proxy_setconfig(int);
+static	void	proxy_unsetconfig(void);
+static	namelist_t *proxy_dns_add_pass(char *, char *);
+static	namelist_t *proxy_dns_add_block(char *, char *);
+static	void	proxy_addconfig(char *, int, char *, namelist_t *);
+static	void	proxy_loadconfig(int, ioctlfunc_t, char *, int,
+				      char *, namelist_t *);
+static	void	proxy_loadrules(int, ioctlfunc_t, proxyrule_t *);
+static	void	setmapifnames(void);
+static	void	setrdrifnames(void);
+static	void	setifname(ipnat_t **, int, char *);
+static	int	addname(ipnat_t **, char *);
 %}
 %union	{
 	char	*str;

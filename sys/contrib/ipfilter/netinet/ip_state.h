@@ -293,41 +293,41 @@ typedef struct ipf_state_softc_s {
 
 
 #ifndef _KERNEL
-extern	void	ipf_state_dump __P((ipf_main_softc_t *, void *));
+extern	void	ipf_state_dump(ipf_main_softc_t *, void *);
 #endif
-extern	int	ipf_tcp_age __P((struct ipftqent *, struct fr_info *,
-				struct ipftq *, int, int));
-extern	int	ipf_tcpinwindow __P((struct fr_info *, struct tcpdata *,
-				    struct tcpdata *, tcphdr_t *, int));
+extern	int	ipf_tcp_age(struct ipftqent *, struct fr_info *,
+				struct ipftq *, int, int);
+extern	int	ipf_tcpinwindow(struct fr_info *, struct tcpdata *,
+				    struct tcpdata *, tcphdr_t *, int);
 
-extern	int	ipf_state_add __P((ipf_main_softc_t *, fr_info_t *,
-				   ipstate_t **, u_int));
-extern	frentry_t *ipf_state_check __P((struct fr_info *, u_32_t *));
-extern	void	ipf_state_deref __P((ipf_main_softc_t *, ipstate_t **));
-extern	void	ipf_state_expire __P((ipf_main_softc_t *));
-extern	int	ipf_state_flush __P((ipf_main_softc_t *, int, int));
-extern	ipstate_t *ipf_state_lookup __P((fr_info_t *, tcphdr_t *, ipftq_t **));
-extern	int	ipf_state_init __P((void));
-extern	int	ipf_state_insert __P((ipf_main_softc_t *, struct ipstate *, int));
-extern	int	ipf_state_ioctl __P((ipf_main_softc_t *, caddr_t, ioctlcmd_t, int, int, void *));
-extern	void	ipf_state_log __P((ipf_main_softc_t *, struct ipstate *, u_int));
-extern	int	ipf_state_matchflush __P((ipf_main_softc_t *, caddr_t));
-extern	int	ipf_state_rehash __P((ipf_main_softc_t *, ipftuneable_t *, ipftuneval_t *));
-extern	void	ipf_state_setqueue __P((ipf_main_softc_t *, ipstate_t *, int));
-extern	void	ipf_state_setpending __P((ipf_main_softc_t *, ipstate_t *));
-extern	int	ipf_state_settimeout __P((struct ipf_main_softc_s *, ipftuneable_t *, ipftuneval_t *));
-extern	void	ipf_state_sync __P((ipf_main_softc_t *, void *));
-extern	void	ipf_state_update __P((fr_info_t *, ipstate_t *));
+extern	int	ipf_state_add(ipf_main_softc_t *, fr_info_t *,
+				   ipstate_t **, u_int);
+extern	frentry_t *ipf_state_check(struct fr_info *, u_32_t *);
+extern	void	ipf_state_deref(ipf_main_softc_t *, ipstate_t **);
+extern	void	ipf_state_expire(ipf_main_softc_t *);
+extern	int	ipf_state_flush(ipf_main_softc_t *, int, int);
+extern	ipstate_t *ipf_state_lookup(fr_info_t *, tcphdr_t *, ipftq_t **);
+extern	int	ipf_state_init(void);
+extern	int	ipf_state_insert(ipf_main_softc_t *, struct ipstate *, int);
+extern	int	ipf_state_ioctl(ipf_main_softc_t *, caddr_t, ioctlcmd_t, int, int, void *);
+extern	void	ipf_state_log(ipf_main_softc_t *, struct ipstate *, u_int);
+extern	int	ipf_state_matchflush(ipf_main_softc_t *, caddr_t);
+extern	int	ipf_state_rehash(ipf_main_softc_t *, ipftuneable_t *, ipftuneval_t *);
+extern	void	ipf_state_setqueue(ipf_main_softc_t *, ipstate_t *, int);
+extern	void	ipf_state_setpending(ipf_main_softc_t *, ipstate_t *);
+extern	int	ipf_state_settimeout(struct ipf_main_softc_s *, ipftuneable_t *, ipftuneval_t *);
+extern	void	ipf_state_sync(ipf_main_softc_t *, void *);
+extern	void	ipf_state_update(fr_info_t *, ipstate_t *);
 
-extern	void	ipf_sttab_init __P((ipf_main_softc_t *, struct ipftq *));
-extern	void	ipf_sttab_destroy __P((struct ipftq *));
-extern	void	ipf_state_setlock __P((void *, int));
-extern	int	ipf_state_main_load __P((void));
-extern	int	ipf_state_main_unload __P((void));
-extern	void	*ipf_state_soft_create __P((ipf_main_softc_t *));
-extern	void	ipf_state_soft_destroy __P((ipf_main_softc_t *, void *));
-extern	int	ipf_state_soft_init __P((ipf_main_softc_t *, void *));
-extern	int	ipf_state_soft_fini __P((ipf_main_softc_t *, void *));
-extern	ipftq_t	*ipf_state_add_tq __P((ipf_main_softc_t *, int));
+extern	void	ipf_sttab_init(ipf_main_softc_t *, struct ipftq *);
+extern	void	ipf_sttab_destroy(struct ipftq *);
+extern	void	ipf_state_setlock(void *, int);
+extern	int	ipf_state_main_load(void);
+extern	int	ipf_state_main_unload(void);
+extern	void	*ipf_state_soft_create(ipf_main_softc_t *);
+extern	void	ipf_state_soft_destroy(ipf_main_softc_t *, void *);
+extern	int	ipf_state_soft_init(ipf_main_softc_t *, void *);
+extern	int	ipf_state_soft_fini(ipf_main_softc_t *, void *);
+extern	ipftq_t	*ipf_state_add_tq(ipf_main_softc_t *, int);
 
 #endif /* __IP_STATE_H__ */
