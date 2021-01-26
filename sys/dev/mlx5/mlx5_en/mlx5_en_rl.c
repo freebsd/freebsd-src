@@ -66,6 +66,7 @@ mlx5e_rl_build_cq_param(struct mlx5e_rl_priv_data *rl,
 	MLX5_SET(cqc, cqc, log_cq_size, log_sq_size);
 	MLX5_SET(cqc, cqc, cq_period, rl->param.tx_coalesce_usecs);
 	MLX5_SET(cqc, cqc, cq_max_count, rl->param.tx_coalesce_pkts);
+	MLX5_SET(cqc, cqc, uar_page, rl->priv->mdev->priv.uar->index);
 
 	switch (rl->param.tx_coalesce_mode) {
 	case 0:
