@@ -124,7 +124,7 @@ SYSCTL_NODE(_kern_features, OID_AUTO, altq, CTLFLAG_RD | CTLFLAG_CAPRD, 0,
 	    desc, "feature")
 
 #ifdef ALTQ_CBQ
-ALTQ_FEATURE(cbq, "ATLQ Class Based Queuing discipline");
+ALTQ_FEATURE(cbq, "ALTQ Class Based Queuing discipline");
 #endif
 #ifdef ALTQ_CODEL
 ALTQ_FEATURE(codel, "ALTQ Controlled Delay discipline");
