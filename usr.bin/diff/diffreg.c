@@ -348,7 +348,7 @@ diffreg(char *file1, char *file2, int flags, int capsicum)
 		if (caph_rights_limit(fileno(f2), &rights_ro) < 0)
 			err(2, "unable to limit rights on: %s", file2);
 		if (fileno(f1) == STDIN_FILENO || fileno(f2) == STDIN_FILENO) {
-			/* stding has already been limited */
+			/* stdin has already been limited */
 			if (caph_limit_stderr() == -1)
 				err(2, "unable to limit stderr");
 			if (caph_limit_stdout() == -1)
