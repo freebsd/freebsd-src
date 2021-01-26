@@ -221,7 +221,7 @@ enum tcp_log_events {
 	BBR_LOG_SETTINGS_CHG,	/* Settings changed for loss response 48 */
 	BBR_LOG_SRTT_GAIN_EVENT, /* SRTT gaining -- now not used    49 */
 	TCP_LOG_REASS,		/* Reassembly buffer logging        50 */
-	TCP_HDWR_TLS,		/* TCP Hardware TLS logs            51 */
+	TCP_HDWR_PACE_SIZE,	/*  TCP pacing size set (rl and rack uses this)  51 */
 	BBR_LOG_HDWR_PACE,	/* TCP Hardware pacing log          52 */
 	BBR_LOG_TSTMP_VAL,	/* Temp debug timestamp validation  53 */
 	TCP_LOG_CONNEND,	/* End of connection                54 */

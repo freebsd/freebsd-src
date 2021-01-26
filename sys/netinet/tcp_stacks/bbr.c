@@ -5551,7 +5551,7 @@ lost_rate:
 				   bbr->rc_inp->inp_route.ro_nh->nh_ifp,
 				   rate,
 				   (RS_PACING_GEQ|RS_PACING_SUB_OK),
-				   &error);
+				   &error, NULL);
 	if (nrte == NULL) {
 		goto lost_rate;
 	}
@@ -14081,7 +14081,7 @@ nomore:
 						      inp->inp_route.ro_nh->nh_ifp,
 						      rate_wanted,
 						      (RS_PACING_GEQ|RS_PACING_SUB_OK),
-						      &err);
+						      &err, NULL);
 		if (bbr->r_ctl.crte) {
 			bbr_type_log_hdwr_pacing(bbr,
 						 bbr->r_ctl.crte->ptbl->rs_ifp,
