@@ -71,11 +71,11 @@ typedef	struct	iphtstat_s	{
 } iphtstat_t;
 
 
-extern void *ipf_iphmfindgroup __P((ipf_main_softc_t *, void *, void *));
-extern iphtable_t *ipf_htable_find __P((void *, int, char *));
+extern void *ipf_iphmfindgroup(ipf_main_softc_t *, void *, void *);
+extern iphtable_t *ipf_htable_find(void *, int, char *);
 extern ipf_lookup_t ipf_htable_backend;
 #ifndef _KERNEL
-extern	void	ipf_htable_dump __P((ipf_main_softc_t *, void *));
+extern	void	ipf_htable_dump(ipf_main_softc_t *, void *);
 #endif
 
 #endif /* __IP_HTABLE_H__ */

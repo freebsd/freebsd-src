@@ -94,32 +94,32 @@ typedef struct ipf_frag_softc_s  {
 #define	IPFR_CMPSZ	(offsetof(ipfr_t, ipfr_pass) - \
 			 offsetof(ipfr_t, ipfr_ifp))
 
-extern	void	*ipf_frag_soft_create __P((ipf_main_softc_t *));
-extern	int	ipf_frag_soft_init __P((ipf_main_softc_t *, void *));
-extern	int	ipf_frag_soft_fini __P((ipf_main_softc_t *, void *));
-extern	void	ipf_frag_soft_destroy __P((ipf_main_softc_t *, void *));
-extern	int	ipf_frag_main_load __P((void));
-extern	int	ipf_frag_main_unload __P((void));
-extern	int	ipf_frag_load __P((void));
-extern	void	ipf_frag_clear __P((ipf_main_softc_t *));
-extern	void	ipf_frag_expire __P((ipf_main_softc_t *));
-extern	void	ipf_frag_forget __P((void *));
-extern	int	ipf_frag_init __P((void));
-extern	u_32_t	ipf_frag_ipidknown __P((fr_info_t *));
-extern	int	ipf_frag_ipidnew __P((fr_info_t *, u_32_t));
-extern	frentry_t *ipf_frag_known __P((fr_info_t *, u_32_t *));
-extern	void	ipf_frag_natforget __P((ipf_main_softc_t *, void *));
-extern	int	ipf_frag_natnew __P((ipf_main_softc_t *, fr_info_t *, u_32_t, struct nat *));
-extern	nat_t	*ipf_frag_natknown __P((fr_info_t *));
-extern	int	ipf_frag_new __P((ipf_main_softc_t *, fr_info_t *, u_32_t));
-extern	ipfrstat_t	*ipf_frag_stats __P((void *));
-extern	void	ipf_frag_setlock __P((void *, int));
-extern	void	ipf_frag_pkt_deref __P((ipf_main_softc_t *, void *));
-extern	int	ipf_frag_pkt_next __P((ipf_main_softc_t *, ipftoken_t *,
-				       ipfgeniter_t *));
-extern	void	ipf_frag_nat_deref __P((ipf_main_softc_t *, void *));
-extern	int	ipf_frag_nat_next __P((ipf_main_softc_t *, ipftoken_t *,
-				       ipfgeniter_t *));
-extern	void	ipf_slowtimer __P((ipf_main_softc_t *));
+extern	void	*ipf_frag_soft_create(ipf_main_softc_t *);
+extern	int	ipf_frag_soft_init(ipf_main_softc_t *, void *);
+extern	int	ipf_frag_soft_fini(ipf_main_softc_t *, void *);
+extern	void	ipf_frag_soft_destroy(ipf_main_softc_t *, void *);
+extern	int	ipf_frag_main_load(void);
+extern	int	ipf_frag_main_unload(void);
+extern	int	ipf_frag_load(void);
+extern	void	ipf_frag_clear(ipf_main_softc_t *);
+extern	void	ipf_frag_expire(ipf_main_softc_t *);
+extern	void	ipf_frag_forget(void *);
+extern	int	ipf_frag_init(void);
+extern	u_32_t	ipf_frag_ipidknown(fr_info_t *);
+extern	int	ipf_frag_ipidnew(fr_info_t *, u_32_t);
+extern	frentry_t *ipf_frag_known(fr_info_t *, u_32_t *);
+extern	void	ipf_frag_natforget(ipf_main_softc_t *, void *);
+extern	int	ipf_frag_natnew(ipf_main_softc_t *, fr_info_t *, u_32_t, struct nat *);
+extern	nat_t	*ipf_frag_natknown(fr_info_t *);
+extern	int	ipf_frag_new(ipf_main_softc_t *, fr_info_t *, u_32_t);
+extern	ipfrstat_t	*ipf_frag_stats(void *);
+extern	void	ipf_frag_setlock(void *, int);
+extern	void	ipf_frag_pkt_deref(ipf_main_softc_t *, void *);
+extern	int	ipf_frag_pkt_next(ipf_main_softc_t *, ipftoken_t *,
+				       ipfgeniter_t *);
+extern	void	ipf_frag_nat_deref(ipf_main_softc_t *, void *);
+extern	int	ipf_frag_nat_next(ipf_main_softc_t *, ipftoken_t *,
+				       ipfgeniter_t *);
+extern	void	ipf_slowtimer(ipf_main_softc_t *);
 
 #endif	/* __IP_FRAG_H__ */

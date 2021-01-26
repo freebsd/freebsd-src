@@ -55,7 +55,7 @@
  */
 
 /* forward declaration */
-static void Transform __P((UINT4 *, UINT4 *));
+static void Transform(UINT4 *, UINT4 *);
 
 static unsigned char PADDING[64] = {
   0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

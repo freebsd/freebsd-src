@@ -23,12 +23,12 @@ static	int	nifs = 0;
 
 struct	rtentry;
 
-static	void	ipf_setifpaddr __P((struct ifnet *, char *));
-void	init_ifp __P((void));
-static int 	no_output __P((struct ifnet *, struct mbuf *,
-			       struct sockaddr *, struct rtentry *));
-static int	write_output __P((struct ifnet *, struct mbuf *,
-				  struct sockaddr *, struct rtentry *));
+static	void	ipf_setifpaddr(struct ifnet *, char *);
+void	init_ifp(void);
+static int 	no_output(struct ifnet *, struct mbuf *,
+			       struct sockaddr *, struct rtentry *);
+static int	write_output(struct ifnet *, struct mbuf *,
+				  struct sockaddr *, struct rtentry *);
 
 struct ifaddr {
 	struct sockaddr_storage ifa_addr;

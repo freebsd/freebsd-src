@@ -204,56 +204,56 @@ static ipftuneable_t ipf_nat_tuneables[] = {
 extern	int		pfil_delayed_copy;
 #endif
 
-static	int	ipf_nat_flush_entry __P((ipf_main_softc_t *, void *));
-static	int	ipf_nat_getent __P((ipf_main_softc_t *, caddr_t, int));
-static	int	ipf_nat_getsz __P((ipf_main_softc_t *, caddr_t, int));
-static	int	ipf_nat_putent __P((ipf_main_softc_t *, caddr_t, int));
-static	void	ipf_nat_addmap __P((ipf_nat_softc_t *, ipnat_t *));
-static	void	ipf_nat_addrdr __P((ipf_nat_softc_t *, ipnat_t *));
-static	int	ipf_nat_builddivertmp __P((ipf_nat_softc_t *, ipnat_t *));
-static	int	ipf_nat_clearlist __P((ipf_main_softc_t *, ipf_nat_softc_t *));
-static	int	ipf_nat_cmp_rules __P((ipnat_t *, ipnat_t *));
-static	int	ipf_nat_decap __P((fr_info_t *, nat_t *));
-static	void	ipf_nat_delrule __P((ipf_main_softc_t *, ipf_nat_softc_t *,
-				     ipnat_t *, int));
-static	int	ipf_nat_extraflush __P((ipf_main_softc_t *, ipf_nat_softc_t *, int));
-static	int	ipf_nat_finalise __P((fr_info_t *, nat_t *));
-static	int	ipf_nat_flushtable __P((ipf_main_softc_t *, ipf_nat_softc_t *));
-static	int	ipf_nat_getnext __P((ipf_main_softc_t *, ipftoken_t *,
-				     ipfgeniter_t *, ipfobj_t *));
-static	int	ipf_nat_gettable __P((ipf_main_softc_t *, ipf_nat_softc_t *,
-				      char *));
-static	hostmap_t *ipf_nat_hostmap __P((ipf_nat_softc_t *, ipnat_t *,
+static	int	ipf_nat_flush_entry(ipf_main_softc_t *, void *);
+static	int	ipf_nat_getent(ipf_main_softc_t *, caddr_t, int);
+static	int	ipf_nat_getsz(ipf_main_softc_t *, caddr_t, int);
+static	int	ipf_nat_putent(ipf_main_softc_t *, caddr_t, int);
+static	void	ipf_nat_addmap(ipf_nat_softc_t *, ipnat_t *);
+static	void	ipf_nat_addrdr(ipf_nat_softc_t *, ipnat_t *);
+static	int	ipf_nat_builddivertmp(ipf_nat_softc_t *, ipnat_t *);
+static	int	ipf_nat_clearlist(ipf_main_softc_t *, ipf_nat_softc_t *);
+static	int	ipf_nat_cmp_rules(ipnat_t *, ipnat_t *);
+static	int	ipf_nat_decap(fr_info_t *, nat_t *);
+static	void	ipf_nat_delrule(ipf_main_softc_t *, ipf_nat_softc_t *,
+				     ipnat_t *, int);
+static	int	ipf_nat_extraflush(ipf_main_softc_t *, ipf_nat_softc_t *, int);
+static	int	ipf_nat_finalise(fr_info_t *, nat_t *);
+static	int	ipf_nat_flushtable(ipf_main_softc_t *, ipf_nat_softc_t *);
+static	int	ipf_nat_getnext(ipf_main_softc_t *, ipftoken_t *,
+				     ipfgeniter_t *, ipfobj_t *);
+static	int	ipf_nat_gettable(ipf_main_softc_t *, ipf_nat_softc_t *,
+				      char *);
+static	hostmap_t *ipf_nat_hostmap(ipf_nat_softc_t *, ipnat_t *,
 					struct in_addr, struct in_addr,
-					struct in_addr, u_32_t));
-static	int	ipf_nat_icmpquerytype __P((int));
-static	int	ipf_nat_iterator __P((ipf_main_softc_t *, ipftoken_t *,
-				      ipfgeniter_t *, ipfobj_t *));
-static	int	ipf_nat_match __P((fr_info_t *, ipnat_t *));
-static	int	ipf_nat_matcharray __P((nat_t *, int *, u_long));
-static	int	ipf_nat_matchflush __P((ipf_main_softc_t *, ipf_nat_softc_t *,
-					caddr_t));
-static	void	ipf_nat_mssclamp __P((tcphdr_t *, u_32_t, fr_info_t *,
-				      u_short *));
-static	int	ipf_nat_newmap __P((fr_info_t *, nat_t *, natinfo_t *));
-static	int	ipf_nat_newdivert __P((fr_info_t *, nat_t *, natinfo_t *));
-static	int	ipf_nat_newrdr __P((fr_info_t *, nat_t *, natinfo_t *));
-static	int	ipf_nat_newrewrite __P((fr_info_t *, nat_t *, natinfo_t *));
-static	int	ipf_nat_nextaddr __P((fr_info_t *, nat_addr_t *, u_32_t *,
-				      u_32_t *));
-static	int	ipf_nat_nextaddrinit __P((ipf_main_softc_t *, char *,
-					  nat_addr_t *, int, void *));
-static	int	ipf_nat_resolverule __P((ipf_main_softc_t *, ipnat_t *));
-static	int	ipf_nat_ruleaddrinit __P((ipf_main_softc_t *,
-					  ipf_nat_softc_t *, ipnat_t *));
-static	void	ipf_nat_rule_fini __P((ipf_main_softc_t *, ipnat_t *));
-static	int	ipf_nat_rule_init __P((ipf_main_softc_t *, ipf_nat_softc_t *,
-				       ipnat_t *));
-static	int	ipf_nat_siocaddnat __P((ipf_main_softc_t *, ipf_nat_softc_t *,
-					ipnat_t *, int));
-static	void	ipf_nat_siocdelnat __P((ipf_main_softc_t *, ipf_nat_softc_t *,
-					ipnat_t *, int));
-static	void	ipf_nat_tabmove __P((ipf_nat_softc_t *, nat_t *));
+					struct in_addr, u_32_t);
+static	int	ipf_nat_icmpquerytype(int);
+static	int	ipf_nat_iterator(ipf_main_softc_t *, ipftoken_t *,
+				      ipfgeniter_t *, ipfobj_t *);
+static	int	ipf_nat_match(fr_info_t *, ipnat_t *);
+static	int	ipf_nat_matcharray(nat_t *, int *, u_long);
+static	int	ipf_nat_matchflush(ipf_main_softc_t *, ipf_nat_softc_t *,
+					caddr_t);
+static	void	ipf_nat_mssclamp(tcphdr_t *, u_32_t, fr_info_t *,
+				      u_short *);
+static	int	ipf_nat_newmap(fr_info_t *, nat_t *, natinfo_t *);
+static	int	ipf_nat_newdivert(fr_info_t *, nat_t *, natinfo_t *);
+static	int	ipf_nat_newrdr(fr_info_t *, nat_t *, natinfo_t *);
+static	int	ipf_nat_newrewrite(fr_info_t *, nat_t *, natinfo_t *);
+static	int	ipf_nat_nextaddr(fr_info_t *, nat_addr_t *, u_32_t *,
+				      u_32_t *);
+static	int	ipf_nat_nextaddrinit(ipf_main_softc_t *, char *,
+					  nat_addr_t *, int, void *);
+static	int	ipf_nat_resolverule(ipf_main_softc_t *, ipnat_t *);
+static	int	ipf_nat_ruleaddrinit(ipf_main_softc_t *,
+					  ipf_nat_softc_t *, ipnat_t *);
+static	void	ipf_nat_rule_fini(ipf_main_softc_t *, ipnat_t *);
+static	int	ipf_nat_rule_init(ipf_main_softc_t *, ipf_nat_softc_t *,
+				       ipnat_t *);
+static	int	ipf_nat_siocaddnat(ipf_main_softc_t *, ipf_nat_softc_t *,
+					ipnat_t *, int);
+static	void	ipf_nat_siocdelnat(ipf_main_softc_t *, ipf_nat_softc_t *,
+					ipnat_t *, int);
+static	void	ipf_nat_tabmove(ipf_nat_softc_t *, nat_t *);
 
 /* ------------------------------------------------------------------------ */
 /* Function:    ipf_nat_main_load                                           */

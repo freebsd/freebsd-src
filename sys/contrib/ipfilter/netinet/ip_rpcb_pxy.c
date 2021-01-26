@@ -44,36 +44,36 @@
 /*
  * Function prototypes
  */
-void	ipf_p_rpcb_main_load __P((void));
-void	ipf_p_rpcb_main_unload __P((void));
-int	ipf_p_rpcb_new __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-void	ipf_p_rpcb_del __P((ipf_main_softc_t *, ap_session_t *));
-int	ipf_p_rpcb_in __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int	ipf_p_rpcb_out __P((void *, fr_info_t *, ap_session_t *, nat_t *));
+void	ipf_p_rpcb_main_load(void);
+void	ipf_p_rpcb_main_unload(void);
+int	ipf_p_rpcb_new(void *, fr_info_t *, ap_session_t *, nat_t *);
+void	ipf_p_rpcb_del(ipf_main_softc_t *, ap_session_t *);
+int	ipf_p_rpcb_in(void *, fr_info_t *, ap_session_t *, nat_t *);
+int	ipf_p_rpcb_out(void *, fr_info_t *, ap_session_t *, nat_t *);
 
-static void	ipf_p_rpcb_flush __P((rpcb_session_t *));
-static int	ipf_p_rpcb_decodereq __P((fr_info_t *, nat_t *,
-	rpcb_session_t *, rpc_msg_t *));
-static int	ipf_p_rpcb_skipauth __P((rpc_msg_t *, xdr_auth_t *, u_32_t **));
-static int	ipf_p_rpcb_insert __P((rpcb_session_t *, rpcb_xact_t *));
-static int	ipf_p_rpcb_xdrrpcb __P((rpc_msg_t *, u_32_t *, rpcb_args_t *));
-static int	ipf_p_rpcb_getuaddr __P((rpc_msg_t *, xdr_uaddr_t *,
-	u_32_t **));
-static u_int	ipf_p_rpcb_atoi __P((char *));
-static int	ipf_p_rpcb_modreq __P((fr_info_t *, nat_t *, rpc_msg_t *,
-	mb_t *, u_int));
-static int	ipf_p_rpcb_decoderep __P((fr_info_t *, nat_t *,
-	rpcb_session_t *, rpc_msg_t *, rpcb_xact_t **));
-static rpcb_xact_t *	ipf_p_rpcb_lookup __P((rpcb_session_t *, u_32_t));
-static void	ipf_p_rpcb_deref __P((rpcb_session_t *, rpcb_xact_t *));
-static int	ipf_p_rpcb_getproto __P((rpc_msg_t *, xdr_proto_t *,
-	u_32_t **));
-static int	ipf_p_rpcb_getnat __P((fr_info_t *, nat_t *, u_int, u_int));
-static int	ipf_p_rpcb_modv3 __P((fr_info_t *, nat_t *, rpc_msg_t *,
-	mb_t *, u_int));
-static int	ipf_p_rpcb_modv4 __P((fr_info_t *, nat_t *, rpc_msg_t *,
-	mb_t *, u_int));
-static void     ipf_p_rpcb_fixlen __P((fr_info_t *, int));
+static void	ipf_p_rpcb_flush(rpcb_session_t *);
+static int	ipf_p_rpcb_decodereq(fr_info_t *, nat_t *,
+	rpcb_session_t *, rpc_msg_t *);
+static int	ipf_p_rpcb_skipauth(rpc_msg_t *, xdr_auth_t *, u_32_t **);
+static int	ipf_p_rpcb_insert(rpcb_session_t *, rpcb_xact_t *);
+static int	ipf_p_rpcb_xdrrpcb(rpc_msg_t *, u_32_t *, rpcb_args_t *);
+static int	ipf_p_rpcb_getuaddr(rpc_msg_t *, xdr_uaddr_t *,
+	u_32_t **);
+static u_int	ipf_p_rpcb_atoi(char *);
+static int	ipf_p_rpcb_modreq(fr_info_t *, nat_t *, rpc_msg_t *,
+	mb_t *, u_int);
+static int	ipf_p_rpcb_decoderep(fr_info_t *, nat_t *,
+	rpcb_session_t *, rpc_msg_t *, rpcb_xact_t **);
+static rpcb_xact_t *	ipf_p_rpcb_lookup(rpcb_session_t *, u_32_t);
+static void	ipf_p_rpcb_deref(rpcb_session_t *, rpcb_xact_t *);
+static int	ipf_p_rpcb_getproto(rpc_msg_t *, xdr_proto_t *,
+	u_32_t **);
+static int	ipf_p_rpcb_getnat(fr_info_t *, nat_t *, u_int, u_int);
+static int	ipf_p_rpcb_modv3(fr_info_t *, nat_t *, rpc_msg_t *,
+	mb_t *, u_int);
+static int	ipf_p_rpcb_modv4(fr_info_t *, nat_t *, rpc_msg_t *,
+	mb_t *, u_int);
+static void     ipf_p_rpcb_fixlen(fr_info_t *, int);
 
 /*
  * Global variables

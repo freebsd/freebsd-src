@@ -68,7 +68,7 @@ static const char rcsid[] = "@(#)$Id: inet_addr.c,v 1.8.2.3 2004/12/09 19:41:20 
 #ifndef	__P
 #  define	__P(x)	x
 #endif
-int inet_aton __P((const char *, struct in_addr *));
+int inet_aton(const char *, struct in_addr *);
 
 /*
  * Because the ctype(3) posix definition, if used "safely" in code everywhere,

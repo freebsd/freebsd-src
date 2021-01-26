@@ -57,15 +57,15 @@ typedef	struct pptp_hdr {
 #define	PPTP_MTCTL_LINKINFO	15
 
 
-void ipf_p_pptp_main_load __P((void));
-void ipf_p_pptp_main_unload __P((void));
-int ipf_p_pptp_new __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-void ipf_p_pptp_del __P((ipf_main_softc_t *, ap_session_t *));
-int ipf_p_pptp_inout __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-void ipf_p_pptp_donatstate __P((fr_info_t *, nat_t *, pptp_pxy_t *));
-int ipf_p_pptp_message __P((fr_info_t *, nat_t *, pptp_pxy_t *, pptp_side_t *));
-int ipf_p_pptp_nextmessage __P((fr_info_t *, nat_t *, pptp_pxy_t *, int));
-int ipf_p_pptp_mctl __P((fr_info_t *, nat_t *, pptp_pxy_t *, pptp_side_t *));
+void ipf_p_pptp_main_load(void);
+void ipf_p_pptp_main_unload(void);
+int ipf_p_pptp_new(void *, fr_info_t *, ap_session_t *, nat_t *);
+void ipf_p_pptp_del(ipf_main_softc_t *, ap_session_t *);
+int ipf_p_pptp_inout(void *, fr_info_t *, ap_session_t *, nat_t *);
+void ipf_p_pptp_donatstate(fr_info_t *, nat_t *, pptp_pxy_t *);
+int ipf_p_pptp_message(fr_info_t *, nat_t *, pptp_pxy_t *, pptp_side_t *);
+int ipf_p_pptp_nextmessage(fr_info_t *, nat_t *, pptp_pxy_t *, int);
+int ipf_p_pptp_mctl(fr_info_t *, nat_t *, pptp_pxy_t *, pptp_side_t *);
 
 static	frentry_t	pptpfr;
 

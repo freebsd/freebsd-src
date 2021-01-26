@@ -22,13 +22,13 @@
 
 #define	YYBUFSIZ	8192
 
-extern	wordtab_t	*yysettab __P((wordtab_t *));
-extern	void		yysetdict __P((wordtab_t *));
-extern	void		yysetfixeddict __P((wordtab_t *));
-extern	int		yylex __P((void));
-extern	void		yyerror __P((char *));
-extern	char		*yykeytostr __P((int));
-extern	void		yyresetdict __P((void));
+extern	wordtab_t	*yysettab(wordtab_t *);
+extern	void		yysetdict(wordtab_t *);
+extern	void		yysetfixeddict(wordtab_t *);
+extern	int		yylex(void);
+extern	void		yyerror(char *);
+extern	char		*yykeytostr(int);
+extern	void		yyresetdict(void);
 
 extern	FILE	*yyin;
 extern	int	yylineNum;

@@ -66,14 +66,14 @@ static const char rcsid[] = "@(#)$Id$";
  * array indexing on the unit, +1 is used to map [-1.IPL_LOGMAX] to
  * [0.POOL_LOOKUP_MAX].
  */
-static int ipf_lookup_addnode __P((ipf_main_softc_t *, caddr_t, int));
-static int ipf_lookup_delnode __P((ipf_main_softc_t *, caddr_t, int));
-static int ipf_lookup_addtable __P((ipf_main_softc_t *, caddr_t));
-static int ipf_lookup_deltable __P((ipf_main_softc_t *, caddr_t));
-static int ipf_lookup_stats __P((ipf_main_softc_t *, caddr_t));
-static int ipf_lookup_flush __P((ipf_main_softc_t *, caddr_t));
-static int ipf_lookup_iterate __P((ipf_main_softc_t *, void *, int, void *));
-static int ipf_lookup_deltok __P((ipf_main_softc_t *, void *, int, void *));
+static int ipf_lookup_addnode(ipf_main_softc_t *, caddr_t, int);
+static int ipf_lookup_delnode(ipf_main_softc_t *, caddr_t, int);
+static int ipf_lookup_addtable(ipf_main_softc_t *, caddr_t);
+static int ipf_lookup_deltable(ipf_main_softc_t *, caddr_t);
+static int ipf_lookup_stats(ipf_main_softc_t *, caddr_t);
+static int ipf_lookup_flush(ipf_main_softc_t *, caddr_t);
+static int ipf_lookup_iterate(ipf_main_softc_t *, void *, int, void *);
+static int ipf_lookup_deltok(ipf_main_softc_t *, void *, int, void *);
 
 #define	MAX_BACKENDS	3
 static ipf_lookup_t *backends[MAX_BACKENDS] = {

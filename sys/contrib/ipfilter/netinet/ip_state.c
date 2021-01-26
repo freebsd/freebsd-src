@@ -143,43 +143,43 @@ static ipftuneable_t ipf_state_tuneables[] = {
 #define	SBUMPDX(x, y, z)do { (softs->x.y)++; DT(z); } while (0)
 
 #ifdef	USE_INET6
-static ipstate_t *ipf_checkicmp6matchingstate __P((fr_info_t *));
+static ipstate_t *ipf_checkicmp6matchingstate(fr_info_t *);
 #endif
-static int ipf_allowstateicmp __P((fr_info_t *, ipstate_t *, i6addr_t *));
-static ipstate_t *ipf_matchsrcdst __P((fr_info_t *, ipstate_t *, i6addr_t *,
-				      i6addr_t *, tcphdr_t *, u_32_t));
-static ipstate_t *ipf_checkicmpmatchingstate __P((fr_info_t *));
-static int ipf_state_flush_entry __P((ipf_main_softc_t *, void *));
-static ips_stat_t *ipf_state_stats __P((ipf_main_softc_t *));
-static int ipf_state_del __P((ipf_main_softc_t *, ipstate_t *, int));
-static int ipf_state_remove __P((ipf_main_softc_t *, caddr_t));
-static int ipf_state_match __P((ipstate_t *is1, ipstate_t *is2));
-static int ipf_state_matchaddresses __P((ipstate_t *is1, ipstate_t *is2));
-static int ipf_state_matchipv4addrs __P((ipstate_t *is1, ipstate_t *is2));
-static int ipf_state_matchipv6addrs __P((ipstate_t *is1, ipstate_t *is2));
-static int ipf_state_matchisps __P((ipstate_t *is1, ipstate_t *is2));
-static int ipf_state_matchports __P((udpinfo_t *is1, udpinfo_t *is2));
-static int ipf_state_matcharray __P((ipstate_t *, int *, u_long));
-static void ipf_ipsmove __P((ipf_state_softc_t *, ipstate_t *, u_int));
-static int ipf_state_tcp __P((ipf_main_softc_t *, ipf_state_softc_t *,
-			      fr_info_t *, tcphdr_t *, ipstate_t *));
-static int ipf_tcpoptions __P((ipf_state_softc_t *, fr_info_t *,
-			       tcphdr_t *, tcpdata_t *));
-static ipstate_t *ipf_state_clone __P((fr_info_t *, tcphdr_t *, ipstate_t *));
-static void ipf_fixinisn __P((fr_info_t *, ipstate_t *));
-static void ipf_fixoutisn __P((fr_info_t *, ipstate_t *));
-static void ipf_checknewisn __P((fr_info_t *, ipstate_t *));
-static int ipf_state_iter __P((ipf_main_softc_t *, ipftoken_t *,
-			       ipfgeniter_t *, ipfobj_t *));
-static int ipf_state_gettable __P((ipf_main_softc_t *, ipf_state_softc_t *,
-				   char *));
-static	int ipf_state_tcpinwindow __P((struct fr_info *, struct tcpdata *,
-				       struct tcpdata *, tcphdr_t *, int));
+static int ipf_allowstateicmp(fr_info_t *, ipstate_t *, i6addr_t *);
+static ipstate_t *ipf_matchsrcdst(fr_info_t *, ipstate_t *, i6addr_t *,
+				      i6addr_t *, tcphdr_t *, u_32_t);
+static ipstate_t *ipf_checkicmpmatchingstate(fr_info_t *);
+static int ipf_state_flush_entry(ipf_main_softc_t *, void *);
+static ips_stat_t *ipf_state_stats(ipf_main_softc_t *);
+static int ipf_state_del(ipf_main_softc_t *, ipstate_t *, int);
+static int ipf_state_remove(ipf_main_softc_t *, caddr_t);
+static int ipf_state_match(ipstate_t *is1, ipstate_t *is2);
+static int ipf_state_matchaddresses(ipstate_t *is1, ipstate_t *is2);
+static int ipf_state_matchipv4addrs(ipstate_t *is1, ipstate_t *is2);
+static int ipf_state_matchipv6addrs(ipstate_t *is1, ipstate_t *is2);
+static int ipf_state_matchisps(ipstate_t *is1, ipstate_t *is2);
+static int ipf_state_matchports(udpinfo_t *is1, udpinfo_t *is2);
+static int ipf_state_matcharray(ipstate_t *, int *, u_long);
+static void ipf_ipsmove(ipf_state_softc_t *, ipstate_t *, u_int);
+static int ipf_state_tcp(ipf_main_softc_t *, ipf_state_softc_t *,
+			      fr_info_t *, tcphdr_t *, ipstate_t *);
+static int ipf_tcpoptions(ipf_state_softc_t *, fr_info_t *,
+			       tcphdr_t *, tcpdata_t *);
+static ipstate_t *ipf_state_clone(fr_info_t *, tcphdr_t *, ipstate_t *);
+static void ipf_fixinisn(fr_info_t *, ipstate_t *);
+static void ipf_fixoutisn(fr_info_t *, ipstate_t *);
+static void ipf_checknewisn(fr_info_t *, ipstate_t *);
+static int ipf_state_iter(ipf_main_softc_t *, ipftoken_t *,
+			       ipfgeniter_t *, ipfobj_t *);
+static int ipf_state_gettable(ipf_main_softc_t *, ipf_state_softc_t *,
+				   char *);
+static	int ipf_state_tcpinwindow(struct fr_info *, struct tcpdata *,
+				       struct tcpdata *, tcphdr_t *, int);
 
-static int ipf_state_getent __P((ipf_main_softc_t *, ipf_state_softc_t *,
-				 caddr_t));
-static int ipf_state_putent __P((ipf_main_softc_t *, ipf_state_softc_t *,
-				 caddr_t));
+static int ipf_state_getent(ipf_main_softc_t *, ipf_state_softc_t *,
+				 caddr_t);
+static int ipf_state_putent(ipf_main_softc_t *, ipf_state_softc_t *,
+				 caddr_t);
 
 #define	ONE_DAY		IPF_TTLVAL(1 * 86400)	/* 1 day */
 #define	FIVE_DAYS	(5 * ONE_DAY)

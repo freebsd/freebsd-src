@@ -15,7 +15,7 @@ typedef	struct	{
 	char	*iee_text;
 } ipf_error_entry_t;
 
-static ipf_error_entry_t *find_error __P((int));
+static ipf_error_entry_t *find_error(int);
 
 #define	IPF_NUM_ERRORS	475
 

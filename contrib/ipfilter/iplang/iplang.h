@@ -50,5 +50,5 @@ typedef	struct	aniphdr	{
 #define	ah_udp	ah_un.ahu_udp
 #define	ah_icmp	ah_un.ahu_icmp
 
-extern	int	get_arpipv4 __P((char *, char *));
+extern	int	get_arpipv4(char *, char *);
 

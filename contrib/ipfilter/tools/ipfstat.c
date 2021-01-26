@@ -120,45 +120,45 @@ typedef struct statetop {
 } statetop_t;
 #endif
 
-int		main __P((int, char *[]));
+int		main(int, char *[]);
 
-static	int	fetchfrag __P((int, int, ipfr_t *));
-static	void	showstats __P((friostat_t *, u_32_t));
-static	void	showfrstates __P((ipfrstat_t *, u_long));
-static	void	showlist __P((friostat_t *));
-static	void	showstatestats __P((ips_stat_t *));
-static	void	showipstates __P((ips_stat_t *, int *));
-static	void	showauthstates __P((ipf_authstat_t *));
-static	void	showtqtable_live __P((int));
-static	void	showgroups __P((friostat_t *));
-static	void	usage __P((char *));
-static	int	state_matcharray __P((ipstate_t *, int *));
-static	int	printlivelist __P((friostat_t *, int, int, frentry_t *,
-				   char *, char *));
-static	void	printdeadlist __P((friostat_t *, int, int, frentry_t *,
-				   char *, char *));
-static	void	printside __P((char *, ipf_statistics_t *));
-static	void	parse_ipportstr __P((const char *, i6addr_t *, int *));
-static	void	ipfstate_live __P((char *, friostat_t **, ips_stat_t **,
-				   ipfrstat_t **, ipf_authstat_t **, u_32_t *));
-static	void	ipfstate_dead __P((char *, friostat_t **, ips_stat_t **,
-				   ipfrstat_t **, ipf_authstat_t **, u_32_t *));
-static	ipstate_t *fetchstate __P((ipstate_t *, ipstate_t *));
+static	int	fetchfrag(int, int, ipfr_t *);
+static	void	showstats(friostat_t *, u_32_t);
+static	void	showfrstates(ipfrstat_t *, u_long);
+static	void	showlist(friostat_t *);
+static	void	showstatestats(ips_stat_t *);
+static	void	showipstates(ips_stat_t *, int *);
+static	void	showauthstates(ipf_authstat_t *);
+static	void	showtqtable_live(int);
+static	void	showgroups(friostat_t *);
+static	void	usage(char *);
+static	int	state_matcharray(ipstate_t *, int *);
+static	int	printlivelist(friostat_t *, int, int, frentry_t *,
+				   char *, char *);
+static	void	printdeadlist(friostat_t *, int, int, frentry_t *,
+				   char *, char *);
+static	void	printside(char *, ipf_statistics_t *);
+static	void	parse_ipportstr(const char *, i6addr_t *, int *);
+static	void	ipfstate_live(char *, friostat_t **, ips_stat_t **,
+				   ipfrstat_t **, ipf_authstat_t **, u_32_t *);
+static	void	ipfstate_dead(char *, friostat_t **, ips_stat_t **,
+				   ipfrstat_t **, ipf_authstat_t **, u_32_t *);
+static	ipstate_t *fetchstate(ipstate_t *, ipstate_t *);
 #ifdef STATETOP
-static	void	topipstates __P((i6addr_t, i6addr_t, int, int, int,
-				 int, int, int, int *));
-static	void	sig_break __P((int));
-static	void	sig_resize __P((int));
-static	char	*getip __P((int, i6addr_t *));
-static	char	*ttl_to_string __P((long));
-static	int	sort_p __P((const void *, const void *));
-static	int	sort_pkts __P((const void *, const void *));
-static	int	sort_bytes __P((const void *, const void *));
-static	int	sort_ttl __P((const void *, const void *));
-static	int	sort_srcip __P((const void *, const void *));
-static	int	sort_srcpt __P((const void *, const void *));
-static	int	sort_dstip __P((const void *, const void *));
-static	int	sort_dstpt __P((const void *, const void *));
+static	void	topipstates(i6addr_t, i6addr_t, int, int, int,
+				 int, int, int, int *);
+static	void	sig_break(int);
+static	void	sig_resize(int);
+static	char	*getip(int, i6addr_t *);
+static	char	*ttl_to_string(long);
+static	int	sort_p(const void *, const void *);
+static	int	sort_pkts(const void *, const void *);
+static	int	sort_bytes(const void *, const void *);
+static	int	sort_ttl(const void *, const void *);
+static	int	sort_srcip(const void *, const void *);
+static	int	sort_srcpt(const void *, const void *);
+static	int	sort_dstip(const void *, const void *);
+static	int	sort_dstpt(const void *, const void *);
 #endif
 
 

@@ -17,9 +17,9 @@ static const char rcsid[] = "@(#)$Id$";
 
 extern	char	*optarg;
 extern	struct ipread	pcap, iptext, iphex;
-extern	struct ifnet	*get_unit __P((char *, int));
-extern	void	init_ifp __P((void));
-extern	ipnat_t	*natparse __P((char *, int));
+extern	struct ifnet	*get_unit(char *, int);
+extern	void	init_ifp(void);
+extern	ipnat_t	*natparse(char *, int);
 extern	hostmap_t **ipf_hm_maptable;
 extern	hostmap_t *ipf_hm_maplist;
 
@@ -32,24 +32,24 @@ int	opts = OPT_DONTOPEN;
 int	use_inet6 = 0;
 int	docksum = 0;
 int	pfil_delayed_copy = 0;
-int	main __P((int, char *[]));
-int	loadrules __P((char *, int));
-int	kmemcpy __P((char *, long, int));
-int     kstrncpy __P((char *, long, int n));
+int	main(int, char *[]);
+int	loadrules(char *, int);
+int	kmemcpy(char *, long, int);
+int     kstrncpy(char *, long, int n);
 int	blockreason;
-void	dumpnat __P((void *));
-void	dumpgroups __P((ipf_main_softc_t *));
-void	dumprules __P((frentry_t *));
-void	drain_log __P((char *));
-void	fixv4sums __P((mb_t *, ip_t *));
+void	dumpnat(void *);
+void	dumpgroups(ipf_main_softc_t *);
+void	dumprules(frentry_t *);
+void	drain_log(char *);
+void	fixv4sums(mb_t *, ip_t *);
 
-int ipftestioctl __P((int, ioctlcmd_t, ...));
-int ipnattestioctl __P((int, ioctlcmd_t, ...));
-int ipstatetestioctl __P((int, ioctlcmd_t, ...));
-int ipauthtestioctl __P((int, ioctlcmd_t, ...));
-int ipscantestioctl __P((int, ioctlcmd_t, ...));
-int ipsynctestioctl __P((int, ioctlcmd_t, ...));
-int ipooltestioctl __P((int, ioctlcmd_t, ...));
+int ipftestioctl(int, ioctlcmd_t, ...);
+int ipnattestioctl(int, ioctlcmd_t, ...);
+int ipstatetestioctl(int, ioctlcmd_t, ...);
+int ipauthtestioctl(int, ioctlcmd_t, ...);
+int ipscantestioctl(int, ioctlcmd_t, ...);
+int ipsynctestioctl(int, ioctlcmd_t, ...);
+int ipooltestioctl(int, ioctlcmd_t, ...);
 
 static	ioctlfunc_t	iocfunctions[IPL_LOGSIZE] = { ipftestioctl,
 						      ipnattestioctl,

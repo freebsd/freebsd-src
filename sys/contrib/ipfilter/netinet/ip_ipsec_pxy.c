@@ -25,16 +25,16 @@ typedef struct ipf_ipsec_softc_s {
 } ipf_ipsec_softc_t;
 
 
-void *ipf_p_ipsec_soft_create __P((ipf_main_softc_t *));
-void ipf_p_ipsec_soft_destroy __P((ipf_main_softc_t *, void *));
-int ipf_p_ipsec_soft_init __P((ipf_main_softc_t *, void *));
-void ipf_p_ipsec_soft_fini __P((ipf_main_softc_t *, void *));
-int ipf_p_ipsec_init __P((void));
-void ipf_p_ipsec_fini __P((void));
-int ipf_p_ipsec_new __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-void ipf_p_ipsec_del __P((ipf_main_softc_t *, ap_session_t *));
-int ipf_p_ipsec_inout __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_ipsec_match __P((fr_info_t *, ap_session_t *, nat_t *));
+void *ipf_p_ipsec_soft_create(ipf_main_softc_t *);
+void ipf_p_ipsec_soft_destroy(ipf_main_softc_t *, void *);
+int ipf_p_ipsec_soft_init(ipf_main_softc_t *, void *);
+void ipf_p_ipsec_soft_fini(ipf_main_softc_t *, void *);
+int ipf_p_ipsec_init(void);
+void ipf_p_ipsec_fini(void);
+int ipf_p_ipsec_new(void *, fr_info_t *, ap_session_t *, nat_t *);
+void ipf_p_ipsec_del(ipf_main_softc_t *, ap_session_t *);
+int ipf_p_ipsec_inout(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_ipsec_match(fr_info_t *, ap_session_t *, nat_t *);
 
 
 /*

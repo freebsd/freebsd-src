@@ -27,33 +27,33 @@
 #include "netinet/tcpip.h"
 #include "ipt.h"
 
-extern	int	resolve __P((char *, char *));
-extern	int	arp __P((char *, char *));
-extern	u_short	chksum __P((u_short *, int));
-extern	int	send_ether __P((int, char *, int, struct in_addr));
-extern	int	send_ip __P((int, int, ip_t *, struct in_addr, int));
-extern	int	send_tcp __P((int, int, ip_t *, struct in_addr));
-extern	int	send_udp __P((int, int, ip_t *, struct in_addr));
-extern	int	send_icmp __P((int, int, ip_t *, struct in_addr));
-extern	int	send_packet __P((int, int, ip_t *, struct in_addr));
-extern	int	send_packets __P((char *, int, ip_t *, struct in_addr));
-extern	u_short	ipseclevel __P((char *));
-extern	u_32_t	buildopts __P((char *, char *, int));
-extern	int	addipopt __P((char *, struct ipopt_names *, int, char *));
-extern	int	initdevice __P((char *, int));
-extern	int	sendip __P((int, char *, int));
-extern	struct	tcpcb	*find_tcp __P((int, struct tcpiphdr *));
-extern	int	ip_resend __P((char *, int, struct ipread *, struct in_addr, char *));
+extern	int	resolve(char *, char *);
+extern	int	arp(char *, char *);
+extern	u_short	chksum(u_short *, int);
+extern	int	send_ether(int, char *, int, struct in_addr);
+extern	int	send_ip(int, int, ip_t *, struct in_addr, int);
+extern	int	send_tcp(int, int, ip_t *, struct in_addr);
+extern	int	send_udp(int, int, ip_t *, struct in_addr);
+extern	int	send_icmp(int, int, ip_t *, struct in_addr);
+extern	int	send_packet(int, int, ip_t *, struct in_addr);
+extern	int	send_packets(char *, int, ip_t *, struct in_addr);
+extern	u_short	ipseclevel(char *);
+extern	u_32_t	buildopts(char *, char *, int);
+extern	int	addipopt(char *, struct ipopt_names *, int, char *);
+extern	int	initdevice(char *, int);
+extern	int	sendip(int, char *, int);
+extern	struct	tcpcb	*find_tcp(int, struct tcpiphdr *);
+extern	int	ip_resend(char *, int, struct ipread *, struct in_addr, char *);
 
-extern	void	ip_test1 __P((char *, int, ip_t *, struct in_addr, int));
-extern	void	ip_test2 __P((char *, int, ip_t *, struct in_addr, int));
-extern	void	ip_test3 __P((char *, int, ip_t *, struct in_addr, int));
-extern	void	ip_test4 __P((char *, int, ip_t *, struct in_addr, int));
-extern	void	ip_test5 __P((char *, int, ip_t *, struct in_addr, int));
-extern	void	ip_test6 __P((char *, int, ip_t *, struct in_addr, int));
-extern	void	ip_test7 __P((char *, int, ip_t *, struct in_addr, int));
-extern	int	do_socket __P((char *, int, struct tcpiphdr *, struct in_addr));
-extern	int	kmemcpy __P((char *, void *, int));
+extern	void	ip_test1(char *, int, ip_t *, struct in_addr, int);
+extern	void	ip_test2(char *, int, ip_t *, struct in_addr, int);
+extern	void	ip_test3(char *, int, ip_t *, struct in_addr, int);
+extern	void	ip_test4(char *, int, ip_t *, struct in_addr, int);
+extern	void	ip_test5(char *, int, ip_t *, struct in_addr, int);
+extern	void	ip_test6(char *, int, ip_t *, struct in_addr, int);
+extern	void	ip_test7(char *, int, ip_t *, struct in_addr, int);
+extern	int	do_socket(char *, int, struct tcpiphdr *, struct in_addr);
+extern	int	kmemcpy(char *, void *, int);
 
 #define	KMCPY(a,b,c)	kmemcpy((char *)(a), (void *)(b), (int)(c))
 

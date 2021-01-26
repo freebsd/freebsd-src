@@ -104,8 +104,8 @@ static const char rcsid[] = "@(#)$Id$";
 
 #define	AP_SESS_SIZE	53
 
-static int ipf_proxy_fixseqack __P((fr_info_t *, ip_t *, ap_session_t *, int ));
-static aproxy_t *ipf_proxy_create_clone __P((ipf_main_softc_t *, aproxy_t *));
+static int ipf_proxy_fixseqack(fr_info_t *, ip_t *, ap_session_t *, int );
+static aproxy_t *ipf_proxy_create_clone(ipf_main_softc_t *, aproxy_t *);
 
 typedef struct ipf_proxy_softc_s {
 	int		ips_proxy_debug;

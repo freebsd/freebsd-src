@@ -83,15 +83,15 @@ static const char rcsid[] = "@(#)$Id$";
 #ifdef CSUM_DATA_VALID
 #include <machine/in_cksum.h>
 #endif
-extern	int	ip_optcopy __P((struct ip *, struct ip *));
+extern	int	ip_optcopy(struct ip *, struct ip *);
 
 # ifdef IPFILTER_M_IPFILTER
 MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures");
 # endif
 
 
-static	int	ipf_send_ip __P((fr_info_t *, mb_t *));
-static void	ipf_timer_func __P((void *arg));
+static	int	ipf_send_ip(fr_info_t *, mb_t *);
+static void	ipf_timer_func(void *arg);
 
 VNET_DEFINE(ipf_main_softc_t, ipfmain) = {
 	.ipf_running		= -2,

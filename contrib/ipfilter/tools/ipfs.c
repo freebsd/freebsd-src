@@ -46,25 +46,25 @@ static const char rcsid[] = "@(#)$Id$";
 #endif
 
 #if !defined(__SVR4) && defined(__GNUC__)
-extern	char	*index __P((const char *, int));
+extern	char	*index(const char *, int);
 #endif
 
 extern	char	*optarg;
 extern	int	optind;
 
-int	main __P((int, char *[]));
-void	usage __P((void));
-int	changestateif __P((char *, char *));
-int	changenatif __P((char *, char *));
-int	readstate __P((int, char *));
-int	readnat __P((int, char *));
-int	writestate __P((int, char *));
-int	opendevice __P((char *));
-void	closedevice __P((int));
-int	setlock __P((int, int));
-int	writeall __P((char *));
-int	readall __P((char *));
-int	writenat __P((int, char *));
+int	main(int, char *[]);
+void	usage(void);
+int	changestateif(char *, char *);
+int	changenatif(char *, char *);
+int	readstate(int, char *);
+int	readnat(int, char *);
+int	writestate(int, char *);
+int	opendevice(char *);
+void	closedevice(int);
+int	setlock(int, int);
+int	writeall(char *);
+int	readall(char *);
+int	writenat(int, char *);
 
 int	opts = 0;
 char	*progname;

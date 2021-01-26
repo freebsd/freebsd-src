@@ -120,67 +120,65 @@ extern	int	blockreason;
 #define	LBUMP(x)	softc->x++
 #define	LBUMPD(x, y)	do { softc->x.y++; DT(y); } while (0)
 
-static	INLINE int	ipf_check_ipf __P((fr_info_t *, frentry_t *, int));
-static	u_32_t		ipf_checkcipso __P((fr_info_t *, u_char *, int));
-static	u_32_t		ipf_checkripso __P((u_char *));
-static	u_32_t		ipf_decaps __P((fr_info_t *, u_32_t, int));
+static	INLINE int	ipf_check_ipf(fr_info_t *, frentry_t *, int);
+static	u_32_t		ipf_checkcipso(fr_info_t *, u_char *, int);
+static	u_32_t		ipf_checkripso(u_char *);
+static	u_32_t		ipf_decaps(fr_info_t *, u_32_t, int);
 #ifdef IPFILTER_LOG
-static	frentry_t	*ipf_dolog __P((fr_info_t *, u_32_t *));
+static	frentry_t	*ipf_dolog(fr_info_t *, u_32_t *);
 #endif
-static	int		ipf_flushlist __P((ipf_main_softc_t *, int *,
-					   frentry_t **));
-static	int		ipf_flush_groups __P((ipf_main_softc_t *, frgroup_t **,
-					      int));
-static	ipfunc_t	ipf_findfunc __P((ipfunc_t));
-static	void		*ipf_findlookup __P((ipf_main_softc_t *, int,
-					     frentry_t *,
-					     i6addr_t *, i6addr_t *));
-static	frentry_t	*ipf_firewall __P((fr_info_t *, u_32_t *));
-static	int		ipf_fr_matcharray __P((fr_info_t *, int *));
-static	int		ipf_frruleiter __P((ipf_main_softc_t *, void *, int,
-					    void *));
-static	void		ipf_funcfini __P((ipf_main_softc_t *, frentry_t *));
-static	int		ipf_funcinit __P((ipf_main_softc_t *, frentry_t *));
-static	int		ipf_geniter __P((ipf_main_softc_t *, ipftoken_t *,
-					 ipfgeniter_t *));
-static	void		ipf_getstat __P((ipf_main_softc_t *,
-					 struct friostat *, int));
-static	int		ipf_group_flush __P((ipf_main_softc_t *, frgroup_t *));
-static	void		ipf_group_free __P((frgroup_t *));
-static	int		ipf_grpmapfini __P((struct ipf_main_softc_s *,
-					    frentry_t *));
-static	int		ipf_grpmapinit __P((struct ipf_main_softc_s *,
-					    frentry_t *));
-static	frentry_t	*ipf_nextrule __P((ipf_main_softc_t *, int, int,
-					   frentry_t *, int));
-static	int		ipf_portcheck __P((frpcmp_t *, u_32_t));
-static	INLINE int	ipf_pr_ah __P((fr_info_t *));
-static	INLINE void	ipf_pr_esp __P((fr_info_t *));
-static	INLINE void	ipf_pr_gre __P((fr_info_t *));
-static	INLINE void	ipf_pr_udp __P((fr_info_t *));
-static	INLINE void	ipf_pr_tcp __P((fr_info_t *));
-static	INLINE void	ipf_pr_icmp __P((fr_info_t *));
-static	INLINE void	ipf_pr_ipv4hdr __P((fr_info_t *));
-static	INLINE void	ipf_pr_short __P((fr_info_t *, int));
-static	INLINE int	ipf_pr_tcpcommon __P((fr_info_t *));
-static	INLINE int	ipf_pr_udpcommon __P((fr_info_t *));
-static	void		ipf_rule_delete __P((ipf_main_softc_t *, frentry_t *f,
-					     int, int));
-static	void		ipf_rule_expire_insert __P((ipf_main_softc_t *,
-						    frentry_t *, int));
-static	int		ipf_synclist __P((ipf_main_softc_t *, frentry_t *,
-					  void *));
-static	void		ipf_token_flush __P((ipf_main_softc_t *));
-static	void		ipf_token_unlink __P((ipf_main_softc_t *,
-					      ipftoken_t *));
-static	ipftuneable_t	*ipf_tune_findbyname __P((ipftuneable_t *,
-						  const char *));
-static	ipftuneable_t	*ipf_tune_findbycookie __P((ipftuneable_t **, void *,
-						    void **));
-static	int		ipf_updateipid __P((fr_info_t *));
-static	int		ipf_settimeout __P((struct ipf_main_softc_s *,
+static	int		ipf_flushlist(ipf_main_softc_t *, int *, frentry_t **);
+static	int		ipf_flush_groups(ipf_main_softc_t *, frgroup_t **,
+					      int);
+static	ipfunc_t	ipf_findfunc(ipfunc_t);
+static	void		*ipf_findlookup(ipf_main_softc_t *, int, frentry_t *,
+					     i6addr_t *, i6addr_t *);
+static	frentry_t	*ipf_firewall(fr_info_t *, u_32_t *);
+static	int		ipf_fr_matcharray(fr_info_t *, int *);
+static	int		ipf_frruleiter(ipf_main_softc_t *, void *, int,
+					    void *);
+static	void		ipf_funcfini(ipf_main_softc_t *, frentry_t *);
+static	int		ipf_funcinit(ipf_main_softc_t *, frentry_t *);
+static	int		ipf_geniter(ipf_main_softc_t *, ipftoken_t *,
+					 ipfgeniter_t *);
+static	void		ipf_getstat(ipf_main_softc_t *,
+					 struct friostat *, int);
+static	int		ipf_group_flush(ipf_main_softc_t *, frgroup_t *);
+static	void		ipf_group_free(frgroup_t *);
+static	int		ipf_grpmapfini(struct ipf_main_softc_s *,
+					    frentry_t *);
+static	int		ipf_grpmapinit(struct ipf_main_softc_s *,
+					    frentry_t *);
+static	frentry_t	*ipf_nextrule(ipf_main_softc_t *, int, int,
+					   frentry_t *, int);
+static	int		ipf_portcheck(frpcmp_t *, u_32_t);
+static	INLINE int	ipf_pr_ah(fr_info_t *);
+static	INLINE void	ipf_pr_esp(fr_info_t *);
+static	INLINE void	ipf_pr_gre(fr_info_t *);
+static	INLINE void	ipf_pr_udp(fr_info_t *);
+static	INLINE void	ipf_pr_tcp(fr_info_t *);
+static	INLINE void	ipf_pr_icmp(fr_info_t *);
+static	INLINE void	ipf_pr_ipv4hdr(fr_info_t *);
+static	INLINE void	ipf_pr_short(fr_info_t *, int);
+static	INLINE int	ipf_pr_tcpcommon(fr_info_t *);
+static	INLINE int	ipf_pr_udpcommon(fr_info_t *);
+static	void		ipf_rule_delete(ipf_main_softc_t *, frentry_t *f,
+					     int, int);
+static	void		ipf_rule_expire_insert(ipf_main_softc_t *,
+						    frentry_t *, int);
+static	int		ipf_synclist(ipf_main_softc_t *, frentry_t *,
+					  void *);
+static	void		ipf_token_flush(ipf_main_softc_t *);
+static	void		ipf_token_unlink(ipf_main_softc_t *,
+					      ipftoken_t *);
+static	ipftuneable_t	*ipf_tune_findbyname(ipftuneable_t *,
+						  const char *);
+static	ipftuneable_t	*ipf_tune_findbycookie(ipftuneable_t **, void *,
+						    void **);
+static	int		ipf_updateipid(fr_info_t *);
+static	int		ipf_settimeout(struct ipf_main_softc_s *,
 					    struct ipftuneable *,
-					    ipftuneval_t *));
+					    ipftuneval_t *);
 #if !defined(_KERNEL) || SOLARIS
 static	int		ppsratecheck(struct timeval *, int *, int);
 #endif
@@ -394,20 +392,20 @@ static ipftuneable_t ipf_main_tuneables[] = {
  * adding more code to a growing switch statement.
  */
 #ifdef USE_INET6
-static	INLINE int	ipf_pr_ah6 __P((fr_info_t *));
-static	INLINE void	ipf_pr_esp6 __P((fr_info_t *));
-static	INLINE void	ipf_pr_gre6 __P((fr_info_t *));
-static	INLINE void	ipf_pr_udp6 __P((fr_info_t *));
-static	INLINE void	ipf_pr_tcp6 __P((fr_info_t *));
-static	INLINE void	ipf_pr_icmp6 __P((fr_info_t *));
-static	INLINE void	ipf_pr_ipv6hdr __P((fr_info_t *));
-static	INLINE void	ipf_pr_short6 __P((fr_info_t *, int));
-static	INLINE int	ipf_pr_hopopts6 __P((fr_info_t *));
-static	INLINE int	ipf_pr_mobility6 __P((fr_info_t *));
-static	INLINE int	ipf_pr_routing6 __P((fr_info_t *));
-static	INLINE int	ipf_pr_dstopts6 __P((fr_info_t *));
-static	INLINE int	ipf_pr_fragment6 __P((fr_info_t *));
-static	INLINE struct ip6_ext *ipf_pr_ipv6exthdr __P((fr_info_t *, int, int));
+static	INLINE int	ipf_pr_ah6(fr_info_t *);
+static	INLINE void	ipf_pr_esp6(fr_info_t *);
+static	INLINE void	ipf_pr_gre6(fr_info_t *);
+static	INLINE void	ipf_pr_udp6(fr_info_t *);
+static	INLINE void	ipf_pr_tcp6(fr_info_t *);
+static	INLINE void	ipf_pr_icmp6(fr_info_t *);
+static	INLINE void	ipf_pr_ipv6hdr(fr_info_t *);
+static	INLINE void	ipf_pr_short6(fr_info_t *, int);
+static	INLINE int	ipf_pr_hopopts6(fr_info_t *);
+static	INLINE int	ipf_pr_mobility6(fr_info_t *);
+static	INLINE int	ipf_pr_routing6(fr_info_t *);
+static	INLINE int	ipf_pr_dstopts6(fr_info_t *);
+static	INLINE int	ipf_pr_fragment6(fr_info_t *);
+static	INLINE struct ip6_ext *ipf_pr_ipv6exthdr(fr_info_t *, int, int);
 
 
 /* ------------------------------------------------------------------------ */
@@ -9809,9 +9807,9 @@ ipf_rule_expire(softc)
 }
 
 
-static int ipf_ht_node_cmp __P((struct host_node_s *, struct host_node_s *));
-static void ipf_ht_node_make_key __P((host_track_t *, host_node_t *, int,
-				      i6addr_t *));
+static int ipf_ht_node_cmp(struct host_node_s *, struct host_node_s *);
+static void ipf_ht_node_make_key(host_track_t *, host_node_t *, int,
+				      i6addr_t *);
 
 host_node_t RBI_ZERO(ipf_rb);
 RBI_CODE(ipf_rb, host_node_t, hn_entry, ipf_ht_node_cmp)

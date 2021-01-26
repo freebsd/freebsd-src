@@ -103,23 +103,23 @@ typedef	struct	aproxy	{
 	int	apr_flags;
 	int	apr_ref;
 	int	apr_clones;
-	void	(* apr_load) __P((void));
-	void	(* apr_unload) __P((void));
-	void	*(* apr_create) __P((ipf_main_softc_t *));
-	void	(* apr_destroy) __P((ipf_main_softc_t *, void *));
-	int	(* apr_init) __P((ipf_main_softc_t *, void *));
-	void	(* apr_fini) __P((ipf_main_softc_t *, void *));
-	int	(* apr_new) __P((void *, fr_info_t *, ap_session_t *,
-				 struct nat *));
-	void	(* apr_del) __P((ipf_main_softc_t *, ap_session_t *));
-	int	(* apr_inpkt) __P((void *, fr_info_t *, ap_session_t *,
-				   struct nat *));
-	int	(* apr_outpkt) __P((void *, fr_info_t *, ap_session_t *,
-				    struct nat *));
-	int	(* apr_match) __P((fr_info_t *, ap_session_t *, struct nat *));
-	int	(* apr_ctl) __P((ipf_main_softc_t *, void *, ap_ctl_t *));
-	int	(* apr_clear) __P((struct aproxy *));
-	int	(* apr_flush) __P((struct aproxy *, int));
+	void	(* apr_load)(void);
+	void	(* apr_unload)(void);
+	void	*(* apr_create)(ipf_main_softc_t *);
+	void	(* apr_destroy)(ipf_main_softc_t *, void *);
+	int	(* apr_init)(ipf_main_softc_t *, void *);
+	void	(* apr_fini)(ipf_main_softc_t *, void *);
+	int	(* apr_new)(void *, fr_info_t *, ap_session_t *,
+				 struct nat *);
+	void	(* apr_del)(ipf_main_softc_t *, ap_session_t *);
+	int	(* apr_inpkt)(void *, fr_info_t *, ap_session_t *,
+				   struct nat *);
+	int	(* apr_outpkt)(void *, fr_info_t *, ap_session_t *,
+				    struct nat *);
+	int	(* apr_match)(fr_info_t *, ap_session_t *, struct nat *);
+	int	(* apr_ctl)(ipf_main_softc_t *, void *, ap_ctl_t *);
+	int	(* apr_clear)(struct aproxy *);
+	int	(* apr_flush)(struct aproxy *, int);
 	void	*apr_soft;
 } aproxy_t;
 
@@ -438,26 +438,26 @@ typedef struct rpcb_session {
  */
 #define XDRALIGN(x)	((((x) % 4) != 0) ? ((((x) + 3) / 4) * 4) : (x))
 
-extern	int	ipf_proxy_add __P((void *, aproxy_t *));
-extern	int	ipf_proxy_check __P((fr_info_t *, struct nat *));
-extern	int	ipf_proxy_ctl __P((ipf_main_softc_t *, void *, ap_ctl_t *));
-extern	int	ipf_proxy_del __P((aproxy_t *));
-extern	void	ipf_proxy_deref __P((aproxy_t *));
-extern	void	ipf_proxy_flush __P((void *, int));
-extern	int	ipf_proxy_init __P((void));
-extern	int	ipf_proxy_ioctl __P((ipf_main_softc_t *, caddr_t, ioctlcmd_t, int, void *));
-extern	aproxy_t	*ipf_proxy_lookup __P((void *, u_int, char *));
-extern	int	ipf_proxy_match __P((fr_info_t *, struct nat *));
-extern	int	ipf_proxy_new __P((fr_info_t *, struct nat *));
-extern	int	ipf_proxy_ok __P((fr_info_t *, tcphdr_t *, struct ipnat *));
-extern	void	ipf_proxy_free __P((ipf_main_softc_t *, ap_session_t *));
-extern	int	ipf_proxy_main_load __P((void));
-extern	int	ipf_proxy_main_unload __P((void));
-extern	ipnat_t	*ipf_proxy_rule_fwd __P((nat_t *));
-extern	ipnat_t	*ipf_proxy_rule_rev __P((nat_t *));
-extern	void	*ipf_proxy_soft_create __P((ipf_main_softc_t *));
-extern	void	ipf_proxy_soft_destroy __P((ipf_main_softc_t *, void *));
-extern	int	ipf_proxy_soft_init __P((ipf_main_softc_t *, void *));
-extern	int	ipf_proxy_soft_fini __P((ipf_main_softc_t *, void *));
+extern	int	ipf_proxy_add(void *, aproxy_t *);
+extern	int	ipf_proxy_check(fr_info_t *, struct nat *);
+extern	int	ipf_proxy_ctl(ipf_main_softc_t *, void *, ap_ctl_t *);
+extern	int	ipf_proxy_del(aproxy_t *);
+extern	void	ipf_proxy_deref(aproxy_t *);
+extern	void	ipf_proxy_flush(void *, int);
+extern	int	ipf_proxy_init(void);
+extern	int	ipf_proxy_ioctl(ipf_main_softc_t *, caddr_t, ioctlcmd_t, int, void *);
+extern	aproxy_t	*ipf_proxy_lookup(void *, u_int, char *);
+extern	int	ipf_proxy_match(fr_info_t *, struct nat *);
+extern	int	ipf_proxy_new(fr_info_t *, struct nat *);
+extern	int	ipf_proxy_ok(fr_info_t *, tcphdr_t *, struct ipnat *);
+extern	void	ipf_proxy_free(ipf_main_softc_t *, ap_session_t *);
+extern	int	ipf_proxy_main_load(void);
+extern	int	ipf_proxy_main_unload(void);
+extern	ipnat_t	*ipf_proxy_rule_fwd(nat_t *);
+extern	ipnat_t	*ipf_proxy_rule_rev(nat_t *);
+extern	void	*ipf_proxy_soft_create(ipf_main_softc_t *);
+extern	void	ipf_proxy_soft_destroy(ipf_main_softc_t *, void *);
+extern	int	ipf_proxy_soft_init(ipf_main_softc_t *, void *);
+extern	int	ipf_proxy_soft_fini(ipf_main_softc_t *, void *);
 
 #endif /* __IP_PROXY_H__ */

@@ -51,11 +51,11 @@ typedef struct {
 	u_32_t	wirelen;
 } packetheader_t;
 
-static	int	ipcap_open __P((char *));
-static	int	ipcap_close __P((void));
-static	int	ipcap_readip __P((mb_t *, char **, int *));
-static	int	ipcap_read_rec __P((packetheader_t *));
-static	void	iswap_hdr __P((fileheader_t *));
+static	int	ipcap_open(char *);
+static	int	ipcap_close(void);
+static	int	ipcap_readip(mb_t *, char **, int *);
+static	int	ipcap_read_rec(packetheader_t *);
+static	void	iswap_hdr(fileheader_t *);
 
 static	int	pfd = -1, swapped = 0;
 static	struct llc	*llcp = NULL;

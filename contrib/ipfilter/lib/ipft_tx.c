@@ -21,9 +21,9 @@ extern	int	opts;
 
 static	char	*tx_proto = "";
 
-static	int	text_open __P((char *)), text_close __P((void));
-static	int	text_readip __P((mb_t *, char **, int *));
-static	int	parseline __P((char *, ip_t *, char **, int *));
+static	int	text_open(char *), text_close(void);
+static	int	text_readip(mb_t *, char **, int *);
+static	int	parseline(char *, ip_t *, char **, int *);
 
 static	char	myflagset[] = "FSRPAUEC";
 static	u_char	myflags[] = { TH_FIN, TH_SYN, TH_RST, TH_PUSH,
@@ -33,11 +33,11 @@ struct	ipread	iptext = { text_open, text_close, text_readip, R_DO_CKSUM };
 static	FILE	*tfp = NULL;
 static	int	tfd = -1;
 
-static	u_32_t	tx_hostnum __P((char *, int *));
-static	u_short	tx_portnum __P((char *));
+static	u_32_t	tx_hostnum(char *, int *);
+static	u_short	tx_portnum(char *);
 
 #ifdef USE_INET6
-int parseipv6 __P((char **, ip6_t *, char **, int *));
+int parseipv6(char **, ip6_t *, char **, int *);
 #endif
 
 /*
