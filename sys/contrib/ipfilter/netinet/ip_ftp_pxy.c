@@ -66,45 +66,45 @@ typedef struct ipf_ftp_softc_s {
 } ipf_ftp_softc_t;
 
 
-void ipf_p_ftp_main_load __P((void));
-void ipf_p_ftp_main_unload __P((void));
-void *ipf_p_ftp_soft_create __P((ipf_main_softc_t *));
-void ipf_p_ftp_soft_destroy __P((ipf_main_softc_t *, void *));
+void ipf_p_ftp_main_load(void);
+void ipf_p_ftp_main_unload(void);
+void *ipf_p_ftp_soft_create(ipf_main_softc_t *);
+void ipf_p_ftp_soft_destroy(ipf_main_softc_t *, void *);
 
-int ipf_p_ftp_client __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			  ftpinfo_t *, int));
-int ipf_p_ftp_complete __P((char *, size_t));
-int ipf_p_ftp_in __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_ftp_new __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-void ipf_p_ftp_del __P((ipf_main_softc_t *, ap_session_t *));
-int ipf_p_ftp_out __P((void *, fr_info_t *, ap_session_t *, nat_t *));
-int ipf_p_ftp_pasv __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			ftpinfo_t *, int));
-int ipf_p_ftp_epsv __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			ftpinfo_t *, int));
-int ipf_p_ftp_port __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			ftpinfo_t *, int));
-int ipf_p_ftp_process __P((ipf_ftp_softc_t *, fr_info_t *, nat_t *,
-			   ftpinfo_t *, int));
-int ipf_p_ftp_server __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			  ftpinfo_t *, int));
-int ipf_p_ftp_valid __P((ipf_ftp_softc_t *, ftpinfo_t *, int, char *, size_t));
-int ipf_p_ftp_server_valid __P((ipf_ftp_softc_t *, ftpside_t *, char *,
-				size_t));
-int ipf_p_ftp_client_valid __P((ipf_ftp_softc_t *, ftpside_t *, char *,
-				size_t));
-u_short ipf_p_ftp_atoi __P((char **));
-int ipf_p_ftp_pasvreply __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			     ftpinfo_t *, u_int, char *, char *));
-int ipf_p_ftp_eprt __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			ftpinfo_t *, int));
-int ipf_p_ftp_eprt4 __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			 ftpinfo_t *, int));
-int ipf_p_ftp_eprt6 __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			 ftpinfo_t *, int));
-int ipf_p_ftp_addport __P((ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
-			   ftpinfo_t *, int, int, int));
-void ipf_p_ftp_setpending __P((ipf_main_softc_t *, ftpinfo_t *));
+int ipf_p_ftp_client(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			  ftpinfo_t *, int);
+int ipf_p_ftp_complete(char *, size_t);
+int ipf_p_ftp_in(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_ftp_new(void *, fr_info_t *, ap_session_t *, nat_t *);
+void ipf_p_ftp_del(ipf_main_softc_t *, ap_session_t *);
+int ipf_p_ftp_out(void *, fr_info_t *, ap_session_t *, nat_t *);
+int ipf_p_ftp_pasv(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			ftpinfo_t *, int);
+int ipf_p_ftp_epsv(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			ftpinfo_t *, int);
+int ipf_p_ftp_port(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			ftpinfo_t *, int);
+int ipf_p_ftp_process(ipf_ftp_softc_t *, fr_info_t *, nat_t *,
+			   ftpinfo_t *, int);
+int ipf_p_ftp_server(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			  ftpinfo_t *, int);
+int ipf_p_ftp_valid(ipf_ftp_softc_t *, ftpinfo_t *, int, char *, size_t);
+int ipf_p_ftp_server_valid(ipf_ftp_softc_t *, ftpside_t *, char *,
+				size_t);
+int ipf_p_ftp_client_valid(ipf_ftp_softc_t *, ftpside_t *, char *,
+				size_t);
+u_short ipf_p_ftp_atoi(char **);
+int ipf_p_ftp_pasvreply(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			     ftpinfo_t *, u_int, char *, char *);
+int ipf_p_ftp_eprt(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			ftpinfo_t *, int);
+int ipf_p_ftp_eprt4(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			 ftpinfo_t *, int);
+int ipf_p_ftp_eprt6(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			 ftpinfo_t *, int);
+int ipf_p_ftp_addport(ipf_ftp_softc_t *, fr_info_t *, ip_t *, nat_t *,
+			   ftpinfo_t *, int, int, int);
+void ipf_p_ftp_setpending(ipf_main_softc_t *, ftpinfo_t *);
 
 /*
  * Debug levels

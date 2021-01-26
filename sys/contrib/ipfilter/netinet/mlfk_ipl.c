@@ -69,15 +69,15 @@ static int ipf_fbsd_sysctl_create(void);
 static int ipf_fbsd_sysctl_destroy(void);
 
 #ifdef __FreeBSD_version
-static	int	ipfopen __P((struct cdev*, int, int, struct thread *));
-static	int	ipfclose __P((struct cdev*, int, int, struct thread *));
-static	int	ipfread __P((struct cdev*, struct uio *, int));
-static	int	ipfwrite __P((struct cdev*, struct uio *, int));
+static	int	ipfopen(struct cdev*, int, int, struct thread *);
+static	int	ipfclose(struct cdev*, int, int, struct thread *);
+static	int	ipfread(struct cdev*, struct uio *, int);
+static	int	ipfwrite(struct cdev*, struct uio *, int);
 #else
-static	int	ipfopen __P((dev_t, int, int, struct proc *));
-static	int	ipfclose __P((dev_t, int, int, struct proc *));
-static	int	ipfread __P((dev_t, struct uio *, int));
-static	int	ipfwrite __P((dev_t, struct uio *, int));
+static	int	ipfopen(dev_t, int, int, struct proc *);
+static	int	ipfclose(dev_t, int, int, struct proc *);
+static	int	ipfread(dev_t, struct uio *, int);
+static	int	ipfwrite(dev_t, struct uio *, int);
 #endif
 
 

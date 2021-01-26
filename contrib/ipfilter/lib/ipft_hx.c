@@ -18,10 +18,10 @@ static const char rcsid[] = "@(#)$Id$";
 
 extern	int	opts;
 
-static	int	hex_open __P((char *));
-static	int	hex_close __P((void));
-static	int	hex_readip __P((mb_t *, char **, int *));
-static	char	*readhex __P((char *, char *));
+static	int	hex_open(char *);
+static	int	hex_close(void);
+static	int	hex_readip(mb_t *, char **, int *);
+static	char	*readhex(char *, char *);
 
 struct	ipread	iphex = { hex_open, hex_close, hex_readip, 0 };
 static	FILE	*tfp = NULL;

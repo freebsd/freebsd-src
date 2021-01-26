@@ -12,16 +12,16 @@ static u_char ipf_enterprise[] = { 6, 7, 0x2b, 6, 1, 4, 1, 0xcd, 0x4c };
 static u_char ipf_trap0_1[] = { 6, 10, 0x2b, 6, 1, 4, 1, 0xcd, 0x4c, 1, 1, 1 };
 static u_char ipf_trap0_2[] = { 6, 10, 0x2b, 6, 1, 4, 1, 0xcd, 0x4c, 1, 1, 2 };
 
-static int writeint __P((u_char *, int));
-static int writelength __P((u_char *, u_int));
-static int maketrap_v1 __P((char *, u_char *, int, u_char *, int, u_32_t,
-			    time_t));
-static void snmpv1_destroy __P((void *));
-static void *snmpv1_dup __P((void *));
-static int snmpv1_match __P((void *, void *));
-static void *snmpv1_parse __P((char **));
-static void snmpv1_print __P((void *));
-static int snmpv1_send __P((void *, ipmon_msg_t *));
+static int writeint(u_char *, int);
+static int writelength(u_char *, u_int);
+static int maketrap_v1(char *, u_char *, int, u_char *, int, u_32_t,
+			    time_t);
+static void snmpv1_destroy(void *);
+static void *snmpv1_dup(void *);
+static int snmpv1_match(void *, void *);
+static void *snmpv1_parse(char **);
+static void snmpv1_print(void *);
+static int snmpv1_send(void *, ipmon_msg_t *);
 
 typedef struct snmpv1_opts_s {
 	char			*community;

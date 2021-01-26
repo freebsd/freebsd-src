@@ -34,9 +34,9 @@
 
 #define	IPF_NETBIOS_PROXY
 
-void ipf_p_netbios_main_load __P((void));
-void ipf_p_netbios_main_unload __P((void));
-int ipf_p_netbios_out __P((void *, fr_info_t *, ap_session_t *, nat_t *));
+void ipf_p_netbios_main_load(void);
+void ipf_p_netbios_main_unload(void);
+int ipf_p_netbios_out(void *, fr_info_t *, ap_session_t *, nat_t *);
 
 static	frentry_t	netbiosfr;
 

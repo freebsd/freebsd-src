@@ -33,12 +33,12 @@ typedef	struct	msnrpchdr	{
 	u_char	mrh_ans;
 } msnrpchdr_t;
 
-int ippr_msnrpc_init __P((void));
-void ippr_msnrpc_fini __P((void));
-int ippr_msnrpc_new __P((fr_info_t *, ap_session_t *, nat_t *));
-int ippr_msnrpc_out __P((fr_info_t *, ap_session_t *, nat_t *));
-int ippr_msnrpc_in __P((fr_info_t *, ap_session_t *, nat_t *));
-int ippr_msnrpc_check __P((ip_t *, msnrpchdr_t *));
+int ippr_msnrpc_init(void);
+void ippr_msnrpc_fini(void);
+int ippr_msnrpc_new(fr_info_t *, ap_session_t *, nat_t *);
+int ippr_msnrpc_out(fr_info_t *, ap_session_t *, nat_t *);
+int ippr_msnrpc_in(fr_info_t *, ap_session_t *, nat_t *);
+int ippr_msnrpc_check(ip_t *, msnrpchdr_t *);
 
 static	frentry_t	msnfr;
 
