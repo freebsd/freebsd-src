@@ -3446,6 +3446,9 @@ in_pcbdetach_txrtlmt(struct inpcb *inp)
 		return;
 
 	m_snd_tag_rele(mst);
+#ifdef INET
+	counter_u64_add(rate_limit_active, -1);
+#endif
 }
 
 int
