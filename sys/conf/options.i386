@@ -25,7 +25,6 @@ COMPAT_AOUT		opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
 LINPROCFS		opt_dontuse.h
 LINSYSFS		opt_dontuse.h
-NDISAPI			opt_dontuse.h
 
 # Change KVM size.  Changes things all over the kernel.
 KVA_PAGES		opt_global.h
