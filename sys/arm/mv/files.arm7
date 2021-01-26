@@ -4,11 +4,9 @@ arm/mv/armadaxp/armadaxp.c	standard
 
 arm/mv/gpio.c			optional	gpio
 arm/mv/mv_common.c		standard
-arm/mv/mv_localbus.c		standard
 arm/mv/mv_armv7_machdep.c	standard
 arm/mv/mv_pci_ctrl.c		optional	pci | fdt
 arm/mv/mv_pci.c			optional	pci
-arm/mv/mv_ts.c			standard
 arm/mv/timer.c			standard
 
 arm/mv/mpic.c			standard
