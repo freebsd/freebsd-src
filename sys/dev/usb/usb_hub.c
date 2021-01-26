@@ -2792,8 +2792,9 @@ repeat:
 			    "remote wakeup failed\n");
 		}
 	}
-
-	USB_BUS_LOCK(udev->bus);
+	if(udev->bus != NULL){	
+		USB_BUS_LOCK(udev->bus);
+	}
 	/*
 	 * Checking for suspend condition and setting suspended bit
 	 * must be atomic!
