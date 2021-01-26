@@ -1557,9 +1557,38 @@ pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
 	rule->u_src_nodes = counter_u64_fetch(krule->src_nodes);
 }
 
-static void
+static int
 pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 {
+
+#ifndef INET
+	if (rule->af == AF_INET) {
+		return (EAFNOSUPPORT);
+	}
+#endif /* INET */
+#ifndef INET6
+	if (rule->af == AF_INET6) {
+		return (EAFNOSUPPORT);
+	}
+#endif /* INET6 */
+
+	if (rule->src.addr.type != PF_ADDR_ADDRMASK &&
+	    rule->src.addr.type != PF_ADDR_DYNIFTL &&
+	    rule->src.addr.type != PF_ADDR_TABLE) {
+		return (EINVAL);
+	}
+	if (rule->src.addr.p.dyn != NULL) {
+		return (EINVAL);
+	}
+
+	if (rule->dst.addr.type != PF_ADDR_ADDRMASK &&
+	    rule->dst.addr.type != PF_ADDR_DYNIFTL &&
+	    rule->dst.addr.type != PF_ADDR_TABLE) {
+		return (EINVAL);
+	}
+	if (rule->dst.addr.p.dyn != NULL) {
+		return (EINVAL);
+	}
 
 	bzero(krule, sizeof(*krule));
 
@@ -1641,6 +1670,8 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	krule->set_prio[1] = rule->set_prio[1];
 
 	bcopy(&rule->divert, &krule->divert, sizeof(krule->divert));
+
+	return (0);
 }
 
 static int
@@ -1815,26 +1846,13 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EINVAL;
 			break;
 		}
-		if (pr->rule.src.addr.p.dyn != NULL ||
-		    pr->rule.dst.addr.p.dyn != NULL) {
-			error = EINVAL;
-			break;
-		}
-#ifndef INET
-		if (pr->rule.af == AF_INET) {
-			error = EAFNOSUPPORT;
-			break;
-		}
-#endif /* INET */
-#ifndef INET6
-		if (pr->rule.af == AF_INET6) {
-			error = EAFNOSUPPORT;
-			break;
-		}
-#endif /* INET6 */
 
 		rule = malloc(sizeof(*rule), M_PFRULE, M_WAITOK);
-		pf_rule_to_krule(&pr->rule, rule);
+		error = pf_rule_to_krule(&pr->rule, rule);
+		if (error != 0) {
+			free(rule, M_PFRULE);
+			break;
+		}
 
 		if (rule->ifname[0])
 			kif = pf_kkif_create(M_WAITOK);
@@ -2090,20 +2108,12 @@ DIOCADDRULE_error:
 		}
 
 		if (pcr->action != PF_CHANGE_REMOVE) {
-#ifndef INET
-			if (pcr->rule.af == AF_INET) {
-				error = EAFNOSUPPORT;
-				break;
-			}
-#endif /* INET */
-#ifndef INET6
-			if (pcr->rule.af == AF_INET6) {
-				error = EAFNOSUPPORT;
-				break;
-			}
-#endif /* INET6 */
 			newrule = malloc(sizeof(*newrule), M_PFRULE, M_WAITOK);
-			pf_rule_to_krule(&pcr->rule, newrule);
+			error = pf_rule_to_krule(&pcr->rule, newrule);
+			if (error != 0) {
+				free(newrule, M_PFRULE);
+				break;
+			}
 
 			if (newrule->ifname[0])
 				kif = pf_kkif_create(M_WAITOK);
