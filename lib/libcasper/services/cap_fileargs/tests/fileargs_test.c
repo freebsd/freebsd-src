@@ -39,12 +39,21 @@ __FBSDID("$FreeBSD$");
 #include <libcasper.h>
 #include <casper/cap_fileargs.h>
 
+#include "freebsd_test_suite/macros.h"
+
 #define MAX_FILES		200
 
 static char *files[MAX_FILES];
 static int fds[MAX_FILES];
 
 #define	TEST_FILE	"/etc/passwd"
+
+static void
+check_capsicum(void)
+{
+	ATF_REQUIRE_FEATURE("security_capabilities");
+	ATF_REQUIRE_FEATURE("security_capability_mode");
+}
 
 static void
 prepare_files(size_t num, bool create)
@@ -281,6 +290,8 @@ ATF_TC_BODY(fileargs__open_read, tc)
 	size_t i;
 	int fd;
 
+	check_capsicum();
+
 	prepare_files(MAX_FILES, true);
 
 	cap_rights_init(&rights, CAP_READ | CAP_FCNTL);
@@ -325,6 +336,8 @@ ATF_TC_BODY(fileargs__open_write, tc)
 	fileargs_t *fa;
 	size_t i;
 	int fd;
+
+	check_capsicum();
 
 	prepare_files(MAX_FILES, true);
 
@@ -371,6 +384,8 @@ ATF_TC_BODY(fileargs__open_create, tc)
 	size_t i;
 	int fd;
 
+	check_capsicum();
+
 	prepare_files(MAX_FILES, false);
 
 	cap_rights_init(&rights, CAP_WRITE | CAP_FCNTL | CAP_READ);
@@ -414,6 +429,8 @@ ATF_TC_BODY(fileargs__open_with_casper, tc)
 	size_t i;
 	int fd;
 
+	check_capsicum();
+
 	prepare_files(MAX_FILES, true);
 
 	capcas = cap_init();
@@ -447,6 +464,8 @@ ATF_TC_BODY(fileargs__fopen_read, tc)
 	size_t i;
 	FILE *pfile;
 	int fd;
+
+	check_capsicum();
 
 	prepare_files(MAX_FILES, true);
 
@@ -496,6 +515,8 @@ ATF_TC_BODY(fileargs__fopen_write, tc)
 	FILE *pfile;
 	int fd;
 
+	check_capsicum();
+
 	prepare_files(MAX_FILES, true);
 
 	cap_rights_init(&rights, CAP_WRITE | CAP_FCNTL);
@@ -544,6 +565,8 @@ ATF_TC_BODY(fileargs__fopen_create, tc)
 	FILE *pfile;
 	int fd;
 
+	check_capsicum();
+
 	prepare_files(MAX_FILES, false);
 
 	cap_rights_init(&rights, CAP_READ | CAP_WRITE | CAP_FCNTL);
@@ -584,6 +607,8 @@ ATF_TC_BODY(fileargs__lstat, tc)
 	fileargs_t *fa;
 	size_t i;
 	int fd;
+
+	check_capsicum();
 
 	prepare_files(MAX_FILES, true);
 
@@ -646,6 +671,8 @@ ATF_TC_BODY(fileargs__open_lstat, tc)
 	size_t i;
 	int fd;
 
+	check_capsicum();
+
 	prepare_files(MAX_FILES, true);
 
 	cap_rights_init(&rights, CAP_READ | CAP_FCNTL);
@@ -691,6 +718,8 @@ ATF_TC_BODY(fileargs__open_realpath, tc)
 	fileargs_t *fa;
 	size_t i;
 	int fd;
+
+	check_capsicum();
 
 	prepare_files(MAX_FILES, true);
 
