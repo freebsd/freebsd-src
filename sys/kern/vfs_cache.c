@@ -4307,11 +4307,22 @@ cache_fplookup_final_modifying(struct cache_fpl *fpl)
 	}
 
 	/*
-	 * Check if the target is either a symlink or a mount point.
-	 * Since we expect this to be the terminal vnode it should
-	 * almost never be true.
+	 * If they want the symlink itself we are fine, but if they want to
+	 * follow it regular lookup has to be engaged.
 	 */
-	if (__predict_false(tvp->v_type == VLNK || cache_fplookup_is_mp(fpl))) {
+	if (tvp->v_type == VLNK) {
+		if ((cnp->cn_flags & FOLLOW) != 0) {
+			vput(dvp);
+			vput(tvp);
+			return (cache_fpl_aborted(fpl));
+		}
+	}
+
+	/*
+	 * Since we expect this to be the terminal vnode it should almost never
+	 * be a mount point.
+	 */
+	if (__predict_false(cache_fplookup_is_mp(fpl))) {
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
@@ -4614,7 +4625,15 @@ cache_fplookup_noentry(struct cache_fpl *fpl)
 		return (cache_fpl_handled(fpl));
 	}
 
-	if (__predict_false(tvp->v_type == VLNK || cache_fplookup_is_mp(fpl))) {
+	if (tvp->v_type == VLNK) {
+		if ((cnp->cn_flags & FOLLOW) != 0) {
+			vput(dvp);
+			vput(tvp);
+			return (cache_fpl_aborted(fpl));
+		}
+	}
+
+	if (__predict_false(cache_fplookup_is_mp(fpl))) {
 		vput(dvp);
 		vput(tvp);
 		return (cache_fpl_aborted(fpl));
