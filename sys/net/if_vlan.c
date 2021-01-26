@@ -977,61 +977,84 @@ static int
 vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 {
 	char *dp;
-	int wildcard;
+	bool wildcard = false;
+	bool subinterface = false;
 	int unit;
 	int error;
-	int vid;
-	uint16_t proto;
+	int vid = 0;
+	uint16_t proto = ETHERTYPE_VLAN;
 	struct ifvlan *ifv;
 	struct ifnet *ifp;
-	struct ifnet *p;
+	struct ifnet *p = NULL;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
 	struct vlanreq vlr;
 	static const u_char eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
-	proto = ETHERTYPE_VLAN;
 
 	/*
-	 * There are two ways to specify the cloned device:
+	 * There are three ways to specify the cloned device:
 	 * o pass a parameter block with the clone request.
+	 * o specify parameters in the text of the clone device name
 	 * o specify no parameters and get an unattached device that
 	 *   must be configured separately.
-	 * The first technique is preferred; the latter is supported
+	 * The first technique is preferred; the latter two are supported
 	 * for backwards compatibility.
 	 *
 	 * XXXRW: Note historic use of the word "tag" here.  New ioctls may be
 	 * called for.
 	 */
+
 	if (params) {
 		error = copyin(params, &vlr, sizeof(vlr));
 		if (error)
 			return error;
+		vid = vlr.vlr_tag;
+		proto = vlr.vlr_proto;
+
 		p = ifunit_ref(vlr.vlr_parent);
 		if (p == NULL)
 			return (ENXIO);
-		error = ifc_name2unit(name, &unit);
-		if (error != 0) {
-			if_rele(p);
-			return (error);
-		}
-		vid = vlr.vlr_tag;
-		proto = vlr.vlr_proto;
-		wildcard = (unit < 0);
-	} else {
-		p = NULL;
-		error = ifc_name2unit(name, &unit);
-		if (error != 0)
-			return (error);
-
-		wildcard = (unit < 0);
 	}
 
-	error = ifc_alloc_unit(ifc, &unit);
+	if ((error = ifc_name2unit(name, &unit)) == 0) {
+
+		/*
+		 * vlanX interface. Set wildcard to true if the unit number
+		 * is not fixed (-1)
+		 */
+		wildcard = (unit < 0);
+	} else {
+		struct ifnet *p_tmp = vlan_clone_match_ethervid(name, &vid);
+		if (p_tmp != NULL) {
+			error = 0;
+			subinterface = true;
+			unit = IF_DUNIT_NONE;
+			wildcard = false;
+			if (p != NULL) {
+				if_rele(p_tmp);
+				if (p != p_tmp)
+					error = EINVAL;
+			} else
+				p = p_tmp;
+		} else
+			error = ENXIO;
+	}
+
 	if (error != 0) {
 		if (p != NULL)
 			if_rele(p);
 		return (error);
+	}
+
+	if (!subinterface) {
+		/* vlanX interface, mark X as busy or allocate new unit # */
+		error = ifc_alloc_unit(ifc, &unit);
+		if (error != 0) {
+			if (p != NULL)
+				if_rele(p);
+			return (error);
+		}
 	}
 
 	/* In the wildcard case, we need to update the name. */
@@ -1046,7 +1069,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifv = malloc(sizeof(struct ifvlan), M_VLAN, M_WAITOK | M_ZERO);
 	ifp = ifv->ifv_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		ifc_free_unit(ifc, unit);
+		if (!subinterface)
+			ifc_free_unit(ifc, unit);
 		free(ifv, M_VLAN);
 		if (p != NULL)
 			if_rele(p);
@@ -1094,7 +1118,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			ether_ifdetach(ifp);
 			vlan_unconfig(ifp);
 			if_free(ifp);
-			ifc_free_unit(ifc, unit);
+			if (!subinterface)
+				ifc_free_unit(ifc, unit);
 			free(ifv, M_VLAN);
 
 			return (error);
@@ -1108,6 +1133,7 @@ static int
 vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 {
 	struct ifvlan *ifv = ifp->if_softc;
+	int unit = ifp->if_dunit;
 
 	if (ifp->if_vlantrunk)
 		return (EBUSY);
@@ -1123,7 +1149,8 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	NET_EPOCH_WAIT();
 	if_free(ifp);
 	free(ifv, M_VLAN);
-	ifc_free_unit(ifc, ifp->if_dunit);
+	if (unit != IF_DUNIT_NONE)
+		ifc_free_unit(ifc, unit);
 
 	return (0);
 }
