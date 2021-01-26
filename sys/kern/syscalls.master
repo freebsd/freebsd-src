@@ -587,7 +587,7 @@
 		    u_int to
 		);
 	}
-91	AUE_NULL	UNIMPL	getdopt
+91	AUE_NULL	UNIMPL	nosys
 92	AUE_FCNTL	STD {
 		int fcntl(
 		    int fd,
@@ -606,7 +606,7 @@
 		    _In_opt_ struct timeval *tv
 		);
 	}
-94	AUE_NULL	UNIMPL	setdopt
+94	AUE_NULL	UNIMPL	nosys
 95	AUE_FSYNC	STD {
 		int fsync(
 		    int fd
@@ -756,7 +756,7 @@
 		    _Inout_  int *avalsize
 		);
 	}
-119	AUE_NULL	UNIMPL	resuba (BSD/OS 2.x)
+119	AUE_NULL	UNIMPL	nosys
 120	AUE_READV	STD {
 		int readv(
 		    int fd,
@@ -945,13 +945,7 @@
 		);
 	} getsockname getsockname_args int
 
-; Syscalls 151-180 inclusive are reserved for vendor-specific
-; system calls.  (This includes various calls added for compatibity
-; with other Unix variants.)
-; Some of these calls are now supported by BSD.
-151	AUE_NULL	UNIMPL	sem_lock (BSD/OS 2.x)
-152	AUE_NULL	UNIMPL	sem_wakeup (BSD/OS 2.x)
-153	AUE_NULL	UNIMPL	asyncdaemon (BSD/OS 2.x)
+151-153	AUE_NULL	UNIMPL	nosys
 ; 154 is initialised by the NLM code, if present.
 154	AUE_NULL	NOSTD {
 		int nlm_syscall(
@@ -1092,12 +1086,7 @@
 		    _Inout_ struct timex *tp
 		);
 	}
-177	AUE_NULL	UNIMPL	sfork (BSD/OS 2.x)
-178	AUE_NULL	UNIMPL	getdescriptor (BSD/OS 2.x)
-179	AUE_NULL	UNIMPL	setdescriptor (BSD/OS 2.x)
-180	AUE_NULL	UNIMPL	nosys
-
-; Syscalls 181-199 are used by/reserved for BSD
+177-180	AUE_NULL	UNIMPL	nosys
 181	AUE_SETGID	STD {
 		int setgid(
 		    gid_t gid
@@ -1435,7 +1424,6 @@
 		);
 	}
 249	AUE_NULL	UNIMPL	nosys
-; syscall numbers initially used in OpenBSD
 250	AUE_MINHERIT	STD {
 		int minherit(
 		    _In_ void *addr,
@@ -2208,9 +2196,7 @@
 		    _In_ const struct __ucontext *sigcntxp
 		);
 	}
-418	AUE_NULL	UNIMPL	__xstat
-419	AUE_NULL	UNIMPL	__xfstat
-420	AUE_NULL	UNIMPL	__xlstat
+418-420	AUE_NULL	UNIMPL	nosys
 421	AUE_NULL	STD {
 		int getcontext(
 		    _Out_ struct __ucontext *ucp
@@ -2485,9 +2471,7 @@
 		    _Inout_ struct rtprio *rtp
 		);
 	}
-467-468	AUE_NULL	UNIMPL	nosys
-469	AUE_NULL	UNIMPL	__getpath_fromfd
-470	AUE_NULL	UNIMPL	__getpath_fromaddr
+467-470	AUE_NULL	UNIMPL	nosys
 471	AUE_SCTP_PEELOFF	NOSTD {
 		int sctp_peeloff(
 		    int sd,
@@ -2843,7 +2827,7 @@
 		    _Out_ pid_t *pidp
 		);
 	}
-521	AUE_PDWAIT	UNIMPL	pdwait4
+521	AUE_NULL	UNIMPL	nosys
 522	AUE_SELECT	STD {
 		int pselect(
 		    int nd,
