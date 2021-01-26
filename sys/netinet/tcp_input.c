@@ -3949,14 +3949,17 @@ tcp_prr_partialack(struct tcpcb *tp, struct tcphdr *th)
 	 * Proportional Rate Reduction
 	 */
 	if (pipe > tp->snd_ssthresh)
-		snd_cnt = (tp->sackhint.prr_delivered * tp->snd_ssthresh / tp->sackhint.recover_fs) -
-		    tp->sackhint.sack_bytes_rexmit;
+		snd_cnt = (tp->sackhint.prr_delivered * tp->snd_ssthresh /
+		    tp->sackhint.recover_fs) - tp->sackhint.sack_bytes_rexmit;
 	else {
 		if (V_tcp_do_prr_conservative)
-			limit = tp->sackhint.prr_delivered - tp->sackhint.sack_bytes_rexmit;
+			limit = tp->sackhint.prr_delivered -
+			    tp->sackhint.sack_bytes_rexmit;
 		else
-			if ((tp->sackhint.prr_delivered - tp->sackhint.sack_bytes_rexmit) > del_data)
-				limit = tp->sackhint.prr_delivered - tp->sackhint.sack_bytes_rexmit + maxseg;
+			if ((tp->sackhint.prr_delivered -
+			    tp->sackhint.sack_bytes_rexmit) > del_data)
+				limit = tp->sackhint.prr_delivered -
+				    tp->sackhint.sack_bytes_rexmit + maxseg;
 			else
 				limit = del_data + maxseg;
 		snd_cnt = min((tp->snd_ssthresh - pipe), limit);
