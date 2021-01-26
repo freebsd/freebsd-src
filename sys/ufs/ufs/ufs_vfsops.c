@@ -222,31 +222,20 @@ ufs_uninit(vfsp)
  * Call the VFS_CHECKEXP beforehand to verify access.
  */
 int
-ufs_fhtovp(mp, ufhp, flags, vpp)
+ufs_fhtovp(mp, nvp, gen)
 	struct mount *mp;
-	struct ufid *ufhp;
-	int flags;
-	struct vnode **vpp;
+	struct vnode *nvp;
+	u_int64_t gen;
 {
 	struct inode *ip;
-	struct vnode *nvp;
-	int error;
 
-	error = VFS_VGET(mp, ufhp->ufid_ino, flags, &nvp);
-	if (error) {
-		*vpp = NULLVP;
-		return (error);
-	}
 	ip = VTOI(nvp);
-	if (ip->i_mode == 0 || ip->i_gen != ufhp->ufid_gen ||
-	    ip->i_effnlink <= 0) {
+	if (ip->i_mode == 0 || ip->i_gen != gen || ip->i_effnlink <= 0) {
 		if (ip->i_mode == 0)
 			vgone(nvp);
 		vput(nvp);
-		*vpp = NULLVP;
 		return (ESTALE);
 	}
-	*vpp = nvp;
-	vnode_create_vobject(*vpp, DIP(ip, i_size), curthread);
+	vnode_create_vobject(nvp, DIP(ip, i_size), curthread);
 	return (0);
 }

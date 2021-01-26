@@ -80,6 +80,8 @@ int	ffs_freefile(struct ufsmount *, struct fs *, struct vnode *, ino_t,
 void	ffs_fserr(struct fs *, ino_t, char *);
 int	ffs_getcg(struct fs *, struct vnode *, u_int, int, struct buf **,
 	    struct cg **);
+int	ffs_inotovp(struct mount *, ino_t, u_int64_t, int, struct vnode **,
+	    int);
 int	ffs_isblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_isfreeblock(struct fs *, u_char *, ufs1_daddr_t);
 void	ffs_oldfscompat_write(struct fs *, struct ufsmount *);

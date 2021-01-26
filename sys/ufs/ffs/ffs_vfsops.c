@@ -2153,35 +2153,55 @@ ffs_fhtovp(mp, fhp, flags, vpp)
 	struct vnode **vpp;
 {
 	struct ufid *ufhp;
+
+	ufhp = (struct ufid *)fhp;
+	return (ffs_inotovp(mp, ufhp->ufid_ino, ufhp->ufid_gen, flags,
+	    vpp, 0));
+}
+
+int
+ffs_inotovp(mp, ino, gen, lflags, vpp, ffs_flags)
+	struct mount *mp;
+	ino_t ino;
+	u_int64_t gen;
+	int lflags;
+	struct vnode **vpp;
+	int ffs_flags;
+{
 	struct ufsmount *ump;
+	struct vnode *nvp;
 	struct fs *fs;
 	struct cg *cgp;
 	struct buf *bp;
-	ino_t ino;
 	u_int cg;
 	int error;
 
-	ufhp = (struct ufid *)fhp;
-	ino = ufhp->ufid_ino;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	if (ino < UFS_ROOTINO || ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
+
 	/*
 	 * Need to check if inode is initialized because UFS2 does lazy
 	 * initialization and nfs_fhtovp can offer arbitrary inode numbers.
 	 */
-	if (fs->fs_magic != FS_UFS2_MAGIC)
-		return (ufs_fhtovp(mp, ufhp, flags, vpp));
-	cg = ino_to_cg(fs, ino);
-	if ((error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp)) != 0)
-		return (error);
-	if (ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
+	if (fs->fs_magic == FS_UFS2_MAGIC) {
+		cg = ino_to_cg(fs, ino);
+		error = ffs_getcg(fs, ump->um_devvp, cg, 0, &bp, &cgp);
+		if (error != 0)
+			return (error);
+		if (ino >= cg * fs->fs_ipg + cgp->cg_initediblk) {
+			brelse(bp);
+			return (ESTALE);
+		}
 		brelse(bp);
-		return (ESTALE);
 	}
-	brelse(bp);
-	return (ufs_fhtovp(mp, ufhp, flags, vpp));
+
+	error = ffs_vgetf(mp, ino, lflags, &nvp, ffs_flags);
+	if (error == 0)
+		error = ufs_fhtovp(mp, nvp, gen);
+	*vpp = error == 0 ? nvp : NULLVP;
+	return (error);
 }
 
 /*
