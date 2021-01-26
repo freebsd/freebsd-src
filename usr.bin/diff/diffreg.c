@@ -1349,64 +1349,41 @@ readhash(FILE *f, int flags)
 
 	sum = 1;
 	space = 0;
-	if ((flags & (D_FOLDBLANKS|D_IGNOREBLANKS)) == 0) {
-		if (flags & D_IGNORECASE)
-			for (i = 0; (t = getc(f)) != '\n'; i++) {
-				if (flags & D_STRIPCR && t == '\r') {
-					t = getc(f);
-					if (t == '\n')
-						break;
-					ungetc(t, f);
-				}
-				if (t == EOF) {
-					if (i == 0)
-						return (0);
+	for (i = 0;;) {
+		switch (t = getc(f)) {
+		case '\r':
+			if (flags & D_STRIPCR) {
+				t = getc(f);
+				if (t == '\n')
 					break;
-				}
-				sum = sum * 127 + chrtran(t);
+				ungetc(t, f);
 			}
-		else
-			for (i = 0; (t = getc(f)) != '\n'; i++) {
-				if (flags & D_STRIPCR && t == '\r') {
-					t = getc(f);
-					if (t == '\n')
-						break;
-					ungetc(t, f);
-				}
-				if (t == EOF) {
-					if (i == 0)
-						return (0);
-					break;
-				}
-				sum = sum * 127 + t;
-			}
-	} else {
-		for (i = 0;;) {
-			switch (t = getc(f)) {
-			case '\r':
-			case '\t':
-			case '\v':
-			case '\f':
-			case ' ':
+			/* FALLTHROUGH */
+		case '\t':
+		case '\v':
+		case '\f':
+		case ' ':
+			if ((flags & (D_FOLDBLANKS|D_IGNOREBLANKS)) != 0) {
 				space++;
 				continue;
-			default:
-				if (space && (flags & D_IGNOREBLANKS) == 0) {
-					i++;
-					space = 0;
-				}
-				sum = sum * 127 + chrtran(t);
-				i++;
-				continue;
-			case EOF:
-				if (i == 0)
-					return (0);
-				/* FALLTHROUGH */
-			case '\n':
-				break;
 			}
+			/* FALLTHROUGH */
+		default:
+			if (space && (flags & D_IGNOREBLANKS) == 0) {
+				i++;
+				space = 0;
+			}
+			sum = sum * 127 + chrtran(t);
+			i++;
+			continue;
+		case EOF:
+			if (i == 0)
+				return (0);
+			/* FALLTHROUGH */
+		case '\n':
 			break;
 		}
+		break;
 	}
 	/*
 	 * There is a remote possibility that we end up with a zero sum.
