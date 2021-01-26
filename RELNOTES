@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+f76393a6305b6:
+	Add AES-GCM support to armv8crypto(4) providing accelerated
+	support for KTLS, IPsec, and other crypto API consumers.
+
 074a91f746bd:
 	The aesni(4) and armv8crypto(4) devices are now included in
 	GENERIC on amd64, i386, and arm64.
