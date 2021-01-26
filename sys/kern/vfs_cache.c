@@ -5328,20 +5328,11 @@ cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 	}
 
 	/*
-	 * Hack: they may be looking up foo/bar, where foo is a
-	 * regular file. In such a case we need to turn ENOTDIR,
-	 * but we may happen to get here with a different error.
+	 * Hack: they may be looking up foo/bar, where foo is not a directory.
+	 * In such a case we need to return ENOTDIR, but we may happen to get
+	 * here with a different error.
 	 */
 	if (dvp->v_type != VDIR) {
-		/*
-		 * The check here is predominantly to catch
-		 * EOPNOTSUPP from dead_vnodeops. If the vnode
-		 * gets doomed past this point it is going to
-		 * fail seqc verification.
-		 */
-		if (VN_IS_DOOMED(dvp)) {
-			return (cache_fpl_aborted(fpl));
-		}
 		error = ENOTDIR;
 	}
 
