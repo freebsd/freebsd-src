@@ -1302,6 +1302,16 @@ When set, these options are also in effect:
 .Va WITH_GSSAPI
 is set explicitly)
 .El
+.It Va WITHOUT_OPENSSL_KTLS
+Set to not include kernel TLS support in OpenSSL.
+.Pp
+This is a default setting on
+arm/armv6, arm/armv7, arm64/aarch64, i386/i386, mips/mips, mips/mips64, powerpc/powerpc, powerpc/powerpc64, riscv/riscv64 and riscv/riscv64sf.
+.It Va WITH_OPENSSL_KTLS
+Set to include kernel TLS support in OpenSSL.
+.Pp
+This is a default setting on
+amd64/amd64.
 .It Va WITHOUT_PAM
 Set to not build PAM library and modules.
 .Bf -symbolic
