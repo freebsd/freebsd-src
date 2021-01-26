@@ -204,6 +204,7 @@ typedef struct teken_gfx {
 	struct gen_fb	tg_fb;
 	teken_funcs_t	*tg_functions;
 	void		*tg_private;
+	bool		tg_kernel_supported;	/* Loaded kernel is supported */
 } teken_gfx_t;
 
 extern font_list_t fonts;
