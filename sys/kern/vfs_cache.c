@@ -2597,7 +2597,7 @@ cache_changesize(u_long newmaxvnodes)
 }
 
 /*
- * Invalidate all entries from and to a particular vnode.
+ * Remove all entries from and to a particular vnode.
  */
 static void
 cache_purge_impl(struct vnode *vp)
@@ -2688,7 +2688,7 @@ cache_purge_vgone(struct vnode *vp)
 }
 
 /*
- * Invalidate all negative entries for a particular directory vnode.
+ * Remove all negative entries for a particular directory vnode.
  */
 void
 cache_purge_negative(struct vnode *vp)
