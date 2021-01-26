@@ -295,6 +295,9 @@ static	int vlan_snd_tag_modify(struct m_snd_tag *,
 static	int vlan_snd_tag_query(struct m_snd_tag *,
     union if_snd_tag_query_params *);
 static	void vlan_snd_tag_free(struct m_snd_tag *);
+static struct m_snd_tag *vlan_next_snd_tag(struct m_snd_tag *);
+static void vlan_ratelimit_query(struct ifnet *,
+    struct if_ratelimit_query_results *);
 #endif
 static	void vlan_qflush(struct ifnet *ifp);
 static	int vlan_setflag(struct ifnet *ifp, int flag, int status,
@@ -1071,6 +1074,8 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	ifp->if_snd_tag_modify = vlan_snd_tag_modify;
 	ifp->if_snd_tag_query = vlan_snd_tag_query;
 	ifp->if_snd_tag_free = vlan_snd_tag_free;
+	ifp->if_next_snd_tag = vlan_next_snd_tag;
+	ifp->if_ratelimit_query = vlan_ratelimit_query;
 #endif
 	ifp->if_flags = VLAN_IFFLAGS;
 	ether_ifattach(ifp, eaddr);
@@ -2073,6 +2078,15 @@ vlan_snd_tag_alloc(struct ifnet *ifp,
 	return (0);
 }
 
+static struct m_snd_tag *
+vlan_next_snd_tag(struct m_snd_tag *mst)
+{
+	struct vlan_snd_tag *vst;
+
+	vst = mst_to_vst(mst);
+	return (vst->tag);
+}
+
 static int
 vlan_snd_tag_modify(struct m_snd_tag *mst,
     union if_snd_tag_modify_params *params)
@@ -2102,4 +2116,20 @@ vlan_snd_tag_free(struct m_snd_tag *mst)
 	m_snd_tag_rele(vst->tag);
 	free(vst, M_VLAN);
 }
+
+static void
+vlan_ratelimit_query(struct ifnet *ifp __unused, struct if_ratelimit_query_results *q)
+{
+	/*
+	 * For vlan, we have an indirect
+	 * interface. The caller needs to
+	 * get a ratelimit tag on the actual
+	 * interface the flow will go on.
+	 */
+	q->rate_table = NULL;
+	q->flags = RT_IS_INDIRECT;
+	q->max_flows = 0;
+	q->number_of_rates = 0;
+}
+
 #endif

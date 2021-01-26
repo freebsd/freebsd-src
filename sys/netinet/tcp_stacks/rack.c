@@ -1928,7 +1928,7 @@ rack_log_type_hrdwtso(struct tcpcb *tp, struct tcp_rack *rack, int len, int mod,
 		TCP_LOG_EVENTP(tp, NULL,
 		    &tp->t_inpcb->inp_socket->so_rcv,
 		    &tp->t_inpcb->inp_socket->so_snd,
-		    TCP_HDWR_TLS, 0,
+		    TCP_HDWR_PACE_SIZE, 0,
 		    0, &log, false, &tv);
 	}
 }
@@ -10289,7 +10289,7 @@ rack_set_pace_segments(struct tcpcb *tp, struct tcp_rack *rack, uint32_t line)
 			segsiz = min(ctf_fixed_maxseg(tp),
 				     rack->r_ctl.rc_pace_min_segs);
 			rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(
-				                           bw_est, segsiz, 0,
+				                           tp, bw_est, segsiz, 0,
 							   rack->r_ctl.crte, NULL);
 		}
 	} else if (rack->rc_always_pace) {
@@ -11348,7 +11348,7 @@ rack_get_pacing_len(struct tcp_rack *rack, uint64_t bw, uint32_t mss)
 		/* Use the user mss since we are not exactly matched */
 		return (user_max);
 	}
-	new_tso = tcp_get_pacing_burst_size(bw, mss, rack_pace_one_seg, rack->r_ctl.crte, NULL);
+	new_tso = tcp_get_pacing_burst_size(rack->rc_tp, bw, mss, rack_pace_one_seg, rack->r_ctl.crte, NULL);
 	if (new_tso > user_max)
 		new_tso = user_max;
 	return(new_tso);
@@ -11575,10 +11575,10 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 								       rack->rc_inp->inp_route.ro_nh->nh_ifp,
 								       rate_wanted,
 								       RS_PACING_GEQ,
-								       &err);
+								       &err, NULL);
 				if (rack->r_ctl.crte) {
 					rack->rack_hdrw_pacing = 1;
-					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(rate_wanted, segsiz,
+					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(rack->rc_tp, rate_wanted, segsiz,
 												 0, rack->r_ctl.crte,
 												 NULL);
 					rack_log_hdwr_pacing(rack, rack->rc_inp->inp_route.ro_nh->nh_ifp,
@@ -11595,14 +11595,14 @@ rack_get_pacing_delay(struct tcp_rack *rack, struct tcpcb *tp, uint32_t len, str
 							   rack->rc_inp->inp_route.ro_nh->nh_ifp,
 							   rate_wanted,
 							   RS_PACING_GEQ,
-							   &err);
+							   &err, NULL);
 				if (nrte == NULL) {
 					/* Lost the rate */
 					rack->rack_hdrw_pacing = 0;
 					rack_set_pace_segments(rack->rc_tp, rack, __LINE__);
 				} else if (nrte != rack->r_ctl.crte) {
 					rack->r_ctl.crte = nrte;
-					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(rate_wanted,
+					rack->r_ctl.rc_pace_max_segs = tcp_get_pacing_burst_size(rack->rc_tp, rate_wanted,
 												 segsiz, 0,
 												 rack->r_ctl.crte,
 												 NULL);
