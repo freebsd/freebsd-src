@@ -114,7 +114,6 @@ extern const char * volatile kdb_why;
 #define	KDB_WHY_BREAK		"break"		/* Console or serial break. */
 #define	KDB_WHY_WATCHDOG	"watchdog"	/* Watchdog entered debugger. */
 #define	KDB_WHY_CAM		"cam"		/* CAM has entered debugger. */
-#define	KDB_WHY_NDIS		"ndis"		/* NDIS entered debugger. */
 #define	KDB_WHY_ACPI		"acpi"		/* ACPI entered debugger. */
 #define	KDB_WHY_TRAPSIG		"trapsig"	/* Sparc fault. */
 #define	KDB_WHY_POWERFAIL	"powerfail"	/* Powerfail NMI. */
