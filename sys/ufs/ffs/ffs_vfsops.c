@@ -1954,13 +1954,16 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	daddr_t dbn;
 	int error;
 
-	MPASS((ffs_flags & FFSV_REPLACE) == 0 || (flags & LK_EXCLUSIVE) != 0);
+	MPASS((ffs_flags & (FFSV_REPLACE | FFSV_REPLACE_DOOMED)) == 0 ||
+	    (flags & LK_EXCLUSIVE) != 0);
 
 	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
 	if (error != 0)
 		return (error);
 	if (*vpp != NULL) {
-		if ((ffs_flags & FFSV_REPLACE) == 0)
+		if ((ffs_flags & FFSV_REPLACE) == 0 ||
+		    ((ffs_flags & FFSV_REPLACE_DOOMED) == 0 ||
+		    !VN_IS_DOOMED(*vpp)))
 			return (0);
 		vgone(*vpp);
 		vput(*vpp);
