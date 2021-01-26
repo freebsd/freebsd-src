@@ -33,8 +33,8 @@ static const char rcsid[] = "@(#)$Id$";
 #include "netinet/ip_sync.h"
 
 
-int	main __P((int, char *[]));
-void	usage __P((const char *));
+int	main(int, char *[]);
+void	usage(const char *);
 
 int	terminate = 0;
 

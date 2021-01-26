@@ -20,8 +20,8 @@ typedef	struct	variable	{
 
 static	variable_t	*vtop = NULL;
 
-static variable_t *find_var __P((char *));
-static char *expand_string __P((char *, int));
+static variable_t *find_var(char *);
+static char *expand_string(char *, int);
 
 
 static variable_t *find_var(name)

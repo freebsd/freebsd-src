@@ -73,41 +73,41 @@ typedef struct ipf_dstl_softc_s {
 } ipf_dstl_softc_t;
 
 
-static void *ipf_dstlist_soft_create __P((ipf_main_softc_t *));
-static void ipf_dstlist_soft_destroy __P((ipf_main_softc_t *, void *));
-static int ipf_dstlist_soft_init __P((ipf_main_softc_t *, void *));
-static void ipf_dstlist_soft_fini __P((ipf_main_softc_t *, void *));
-static int ipf_dstlist_addr_find __P((ipf_main_softc_t *, void *, int,
-				      void *, u_int));
-static size_t ipf_dstlist_flush __P((ipf_main_softc_t *, void *,
-				     iplookupflush_t *));
-static int ipf_dstlist_iter_deref __P((ipf_main_softc_t *, void *, int, int,
-				       void *));
-static int ipf_dstlist_iter_next __P((ipf_main_softc_t *, void *, ipftoken_t *,
-				      ipflookupiter_t *));
-static int ipf_dstlist_node_add __P((ipf_main_softc_t *, void *,
-				     iplookupop_t *, int));
-static int ipf_dstlist_node_del __P((ipf_main_softc_t *, void *,
-				     iplookupop_t *, int));
-static int ipf_dstlist_stats_get __P((ipf_main_softc_t *, void *,
-				      iplookupop_t *));
-static int ipf_dstlist_table_add __P((ipf_main_softc_t *, void *,
-				      iplookupop_t *));
-static int ipf_dstlist_table_del __P((ipf_main_softc_t *, void *,
-				      iplookupop_t *));
-static int ipf_dstlist_table_deref __P((ipf_main_softc_t *, void *, void *));
-static void *ipf_dstlist_table_find __P((void *, int, char *));
-static void ipf_dstlist_table_free __P((ipf_dstl_softc_t *, ippool_dst_t *));
-static void ipf_dstlist_table_remove __P((ipf_main_softc_t *,
-					  ipf_dstl_softc_t *, ippool_dst_t *));
-static void ipf_dstlist_table_clearnodes __P((ipf_dstl_softc_t *,
-					      ippool_dst_t *));
-static ipf_dstnode_t *ipf_dstlist_select __P((fr_info_t *, ippool_dst_t *));
-static void *ipf_dstlist_select_ref __P((void *, int, char *));
-static void ipf_dstlist_node_free __P((ipf_dstl_softc_t *, ippool_dst_t *, ipf_dstnode_t *));
-static int ipf_dstlist_node_deref __P((void *, ipf_dstnode_t *));
-static void ipf_dstlist_expire __P((ipf_main_softc_t *, void *));
-static void ipf_dstlist_sync __P((ipf_main_softc_t *, void *));
+static void *ipf_dstlist_soft_create(ipf_main_softc_t *);
+static void ipf_dstlist_soft_destroy(ipf_main_softc_t *, void *);
+static int ipf_dstlist_soft_init(ipf_main_softc_t *, void *);
+static void ipf_dstlist_soft_fini(ipf_main_softc_t *, void *);
+static int ipf_dstlist_addr_find(ipf_main_softc_t *, void *, int,
+				      void *, u_int);
+static size_t ipf_dstlist_flush(ipf_main_softc_t *, void *,
+				     iplookupflush_t *);
+static int ipf_dstlist_iter_deref(ipf_main_softc_t *, void *, int, int,
+				       void *);
+static int ipf_dstlist_iter_next(ipf_main_softc_t *, void *, ipftoken_t *,
+				      ipflookupiter_t *);
+static int ipf_dstlist_node_add(ipf_main_softc_t *, void *,
+				     iplookupop_t *, int);
+static int ipf_dstlist_node_del(ipf_main_softc_t *, void *,
+				     iplookupop_t *, int);
+static int ipf_dstlist_stats_get(ipf_main_softc_t *, void *,
+				      iplookupop_t *);
+static int ipf_dstlist_table_add(ipf_main_softc_t *, void *,
+				      iplookupop_t *);
+static int ipf_dstlist_table_del(ipf_main_softc_t *, void *,
+				      iplookupop_t *);
+static int ipf_dstlist_table_deref(ipf_main_softc_t *, void *, void *);
+static void *ipf_dstlist_table_find(void *, int, char *);
+static void ipf_dstlist_table_free(ipf_dstl_softc_t *, ippool_dst_t *);
+static void ipf_dstlist_table_remove(ipf_main_softc_t *,
+					  ipf_dstl_softc_t *, ippool_dst_t *);
+static void ipf_dstlist_table_clearnodes(ipf_dstl_softc_t *,
+					      ippool_dst_t *);
+static ipf_dstnode_t *ipf_dstlist_select(fr_info_t *, ippool_dst_t *);
+static void *ipf_dstlist_select_ref(void *, int, char *);
+static void ipf_dstlist_node_free(ipf_dstl_softc_t *, ippool_dst_t *, ipf_dstnode_t *);
+static int ipf_dstlist_node_deref(void *, ipf_dstnode_t *);
+static void ipf_dstlist_expire(ipf_main_softc_t *, void *);
+static void ipf_dstlist_sync(ipf_main_softc_t *, void *);
 
 ipf_lookup_t ipf_dstlist_backend = {
 	IPLT_DSTLIST,
