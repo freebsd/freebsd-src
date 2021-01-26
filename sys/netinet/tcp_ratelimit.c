@@ -57,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #ifdef INET6
 #include <netinet6/tcp6_var.h>
 #endif
+#include <netinet/tcp_hpts.h>
+#include <netinet/tcp_log_buf.h>
 #include <netinet/tcp_ratelimit.h>
 #ifndef USECS_IN_SECOND
 #define USECS_IN_SECOND 1000000
@@ -154,108 +156,77 @@ const uint64_t desired_rates[] = {
 	180500,			/* 1.44Mpbs - rate 2  common rate */
 	375000,			/* 3Mbps    - rate 3 */
 	625000,			/* 5Mbps    - rate 4 */
-	875000,			/* 7Mbps    - rate 5 */
-	1125000,		/* 9Mbps    - rate 6 */
-	1375000,		/* 11Mbps   - rate 7 */
-	1625000,	       	/* 13Mbps   - rate 8 */
-	2625000,		/* 21Mbps   - rate 9 */
-	3875000,		/* 31Mbps   - rate 10 */
-	5125000,		/* 41Meg    - rate 11 */
-	12500000,		/* 100Mbps  - rate 12 */
-	25000000,		/* 200Mbps  - rate 13 */
-	50000000,		/* 400Mbps  - rate 14 */
-	63750000,		/* 51Mbps   - rate 15 */
+	1250000,		/* 10Mbps   - rate 5 */
+	1875000,		/* 15Mbps   - rate 6 */
+	2500000,		/* 20Mbps   - rate 7 */
+	3125000,	       	/* 25Mbps   - rate 8 */
+	3750000,		/* 30Mbps   - rate 9 */
+	4375000,		/* 35Mbps   - rate 10 */
+	5000000,		/* 40Meg    - rate 11 */
+	6250000,		/* 50Mbps   - rate 12 */
+	12500000,		/* 100Mbps  - rate 13 */
+	25000000,		/* 200Mbps  - rate 14 */
+	50000000,		/* 400Mbps  - rate 15 */
 	100000000,		/* 800Mbps  - rate 16 */
-	1875000,		/* 15Mbps   - rate 17 */
-	2125000,		/* 17Mbps   - rate 18 */
-	2375000,		/* 19Mbps   - rate 19 */
-	2875000,		/* 23Mbps   - rate 20 */
-	3125000,		/* 25Mbps   - rate 21 */
-	3375000,		/* 27Mbps   - rate 22 */
-	3625000,		/* 29Mbps   - rate 23 */
-	4125000,		/* 33Mbps   - rate 24 */
-	4375000,		/* 35Mbps   - rate 25 */
-	4625000,		/* 37Mbps   - rate 26 */
-	4875000,		/* 39Mbps   - rate 27 */
-	5375000,		/* 43Mbps   - rate 28 */
-	5625000,		/* 45Mbps   - rate 29 */
-	5875000,		/* 47Mbps   - rate 30 */
-	6125000,		/* 49Mbps   - rate 31 */
-	6625000,		/* 53Mbps   - rate 32 */
-	6875000,		/* 55Mbps   - rate 33 */
-	7125000,		/* 57Mbps   - rate 34 */
-	7375000,		/* 59Mbps   - rate 35 */
-	7625000,		/* 61Mbps   - rate 36 */
-	7875000,		/* 63Mbps   - rate 37 */
-	8125000,		/* 65Mbps   - rate 38 */
-	8375000,		/* 67Mbps   - rate 39 */
-	8625000,		/* 69Mbps   - rate 40 */
-	8875000,		/* 71Mbps   - rate 41 */
-	9125000,		/* 73Mbps   - rate 42 */
-	9375000,		/* 75Mbps   - rate 43 */
-	9625000,		/* 77Mbps   - rate 44 */
-	9875000,		/* 79Mbps   - rate 45 */
-	10125000,		/* 81Mbps   - rate 46 */
-	10375000,		/* 83Mbps   - rate 47 */
-	10625000,		/* 85Mbps   - rate 48 */
-	10875000,		/* 87Mbps   - rate 49 */
-	11125000,		/* 89Mbps   - rate 50 */
-	11375000,		/* 91Mbps   - rate 51 */
-	11625000,		/* 93Mbps   - rate 52 */
-	11875000,		/* 95Mbps   - rate 53 */
-	13125000,		/* 105Mbps  - rate 54 */
-	13750000,		/* 110Mbps  - rate 55 */
-	14375000,		/* 115Mbps  - rate 56 */
-	15000000,		/* 120Mbps  - rate 57 */
-	15625000,		/* 125Mbps  - rate 58 */
-	16250000,		/* 130Mbps  - rate 59 */
-	16875000,		/* 135Mbps  - rate 60 */
-	17500000,		/* 140Mbps  - rate 61 */
-	18125000,		/* 145Mbps  - rate 62 */
-	18750000,		/* 150Mbps  - rate 64 */
-	20000000,		/* 160Mbps  - rate 65 */
-	21250000,		/* 170Mbps  - rate 66 */
-	22500000,		/* 180Mbps  - rate 67 */
-	23750000,		/* 190Mbps  - rate 68 */
-	26250000,		/* 210Mbps  - rate 69 */
-	27500000,		/* 220Mbps  - rate 70 */
-	28750000,		/* 230Mbps  - rate 71 */
-	30000000,	       	/* 240Mbps  - rate 72 */
-	31250000,		/* 250Mbps  - rate 73 */
-	34375000,		/* 275Mbps  - rate 74 */
-	37500000,		/* 300Mbps  - rate 75 */
-	40625000,		/* 325Mbps  - rate 76 */
-	43750000,		/* 350Mbps  - rate 77 */
-	46875000,		/* 375Mbps  - rate 78 */
-	53125000,		/* 425Mbps  - rate 79 */
-	56250000,		/* 450Mbps  - rate 80 */
-	59375000,		/* 475Mbps  - rate 81 */
-	62500000,		/* 500Mbps  - rate 82 */
-	68750000,		/* 550Mbps  - rate 83 */
-	75000000,		/* 600Mbps  - rate 84 */
-	81250000,		/* 650Mbps  - rate 85 */
-	87500000,		/* 700Mbps  - rate 86 */
-	93750000,		/* 750Mbps  - rate 87 */
-	106250000,		/* 850Mbps  - rate 88 */
-	112500000,		/* 900Mbps  - rate 89 */
-	125000000,		/* 1Gbps    - rate 90 */
-	156250000,		/* 1.25Gps  - rate 91 */
-	187500000,		/* 1.5Gps   - rate 92 */
-	218750000,		/* 1.75Gps  - rate 93 */
-	250000000,		/* 2Gbps    - rate 94 */
-	281250000,		/* 2.25Gps  - rate 95 */
-	312500000,		/* 2.5Gbps  - rate 96 */
-	343750000,		/* 2.75Gbps - rate 97 */
-	375000000,		/* 3Gbps    - rate 98 */
-	500000000,		/* 4Gbps    - rate 99 */
-	625000000,		/* 5Gbps    - rate 100 */
-	750000000,		/* 6Gbps    - rate 101 */
-	875000000,		/* 7Gbps    - rate 102 */
-	1000000000,		/* 8Gbps    - rate 103 */
-	1125000000,		/* 9Gbps    - rate 104 */
-	1250000000,		/* 10Gbps   - rate 105 */
-	1875000000,		/* 15Gbps   - rate 106 */
-	2500000000		/* 20Gbps   - rate 107 */
+	5625000,		/* 45Mbps   - rate 17 */
+	6875000,		/* 55Mbps   - rate 19 */
+	7500000,		/* 60Mbps   - rate 20 */
+	8125000,		/* 65Mbps   - rate 21 */
+	8750000,		/* 70Mbps   - rate 22 */
+	9375000,		/* 75Mbps   - rate 23 */
+	10000000,		/* 80Mbps   - rate 24 */
+	10625000,		/* 85Mbps   - rate 25 */
+	11250000,		/* 90Mbps   - rate 26 */
+	11875000,		/* 95Mbps   - rate 27 */
+	12500000,		/* 100Mbps  - rate 28 */
+	13750000,		/* 110Mbps  - rate 29 */
+	15000000,		/* 120Mbps  - rate 30 */
+	16250000,		/* 130Mbps  - rate 31 */
+	17500000,		/* 140Mbps  - rate 32 */
+	18750000,		/* 150Mbps  - rate 33 */
+	20000000,		/* 160Mbps  - rate 34 */
+	21250000,		/* 170Mbps  - rate 35 */
+	22500000,		/* 180Mbps  - rate 36 */
+	23750000,		/* 190Mbps  - rate 37 */
+	26250000,		/* 210Mbps  - rate 38 */
+	27500000,		/* 220Mbps  - rate 39 */
+	28750000,		/* 230Mbps  - rate 40 */
+	30000000,	       	/* 240Mbps  - rate 41 */
+	31250000,		/* 250Mbps  - rate 42 */
+	34375000,		/* 275Mbps  - rate 43 */
+	37500000,		/* 300Mbps  - rate 44 */
+	40625000,		/* 325Mbps  - rate 45 */
+	43750000,		/* 350Mbps  - rate 46 */
+	46875000,		/* 375Mbps  - rate 47 */
+	53125000,		/* 425Mbps  - rate 48 */
+	56250000,		/* 450Mbps  - rate 49 */
+	59375000,		/* 475Mbps  - rate 50 */
+	62500000,		/* 500Mbps  - rate 51 */
+	68750000,		/* 550Mbps  - rate 52 */
+	75000000,		/* 600Mbps  - rate 53 */
+	81250000,		/* 650Mbps  - rate 54 */
+	87500000,		/* 700Mbps  - rate 55 */
+	93750000,		/* 750Mbps  - rate 56 */
+	106250000,		/* 850Mbps  - rate 57 */
+	112500000,		/* 900Mbps  - rate 58 */
+	125000000,		/* 1Gbps    - rate 59 */
+	156250000,		/* 1.25Gps  - rate 60 */
+	187500000,		/* 1.5Gps   - rate 61 */
+	218750000,		/* 1.75Gps  - rate 62 */
+	250000000,		/* 2Gbps    - rate 63 */
+	281250000,		/* 2.25Gps  - rate 64 */
+	312500000,		/* 2.5Gbps  - rate 65 */
+	343750000,		/* 2.75Gbps - rate 66 */
+	375000000,		/* 3Gbps    - rate 67 */
+	500000000,		/* 4Gbps    - rate 68 */
+	625000000,		/* 5Gbps    - rate 69 */
+	750000000,		/* 6Gbps    - rate 70 */
+	875000000,		/* 7Gbps    - rate 71 */
+	1000000000,		/* 8Gbps    - rate 72 */
+	1125000000,		/* 9Gbps    - rate 73 */
+	1250000000,		/* 10Gbps   - rate 74 */
+	1875000000,		/* 15Gbps   - rate 75 */
+	2500000000		/* 20Gbps   - rate 76 */
 };
 
 #define MAX_HDWR_RATES (sizeof(desired_rates)/sizeof(uint64_t))
@@ -283,6 +254,10 @@ static struct head_tcp_rate_set int_rs;
 static struct mtx rs_mtx;
 uint32_t rs_number_alive;
 uint32_t rs_number_dead;
+static uint32_t rs_floor_mss = 0;
+static uint32_t wait_time_floor = 8000;	/* 8 ms */
+static uint32_t rs_hw_floor_mss = 16;
+static uint32_t num_of_waits_allowed = 1; /* How many time blocks are we willing to wait */
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, rl, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "TCP Ratelimit stats");
@@ -292,6 +267,20 @@ SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, alive, CTLFLAG_RW,
 SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, dead, CTLFLAG_RW,
     &rs_number_dead, 0,
     "Number of interfaces departing from ratelimiting");
+SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, floor_mss, CTLFLAG_RW,
+    &rs_floor_mss, 0,
+    "Number of MSS that will override the normal minimums (0 means don't enforce)");
+SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, wait_floor, CTLFLAG_RW,
+    &wait_time_floor, 2000,
+    "Has b/w increases what is the wait floor we are willing to wait at the end?");
+SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, time_blocks, CTLFLAG_RW,
+    &num_of_waits_allowed, 1,
+    "How many time blocks on the end should software pacing be willing to wait?");
+
+SYSCTL_UINT(_net_inet_tcp_rl, OID_AUTO, hw_floor_mss, CTLFLAG_RW,
+    &rs_hw_floor_mss, 16,
+    "Number of mss that are a minum for hardware pacing?");
+
 
 static void
 rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
@@ -383,6 +372,17 @@ rl_add_syctl_entries(struct sysctl_oid *rl_sysctl_root, struct tcp_rate_set *rs)
 				       OID_AUTO, "rate", CTLFLAG_RD,
 				       &rs->rs_rlt[i].rate, 0,
 				       "Rate in bytes per second");
+			SYSCTL_ADD_U64(&rs->sysctl_ctx,
+				       SYSCTL_CHILDREN(rl_rate_num),
+				       OID_AUTO, "using", CTLFLAG_RD,
+				       &rs->rs_rlt[i].using, 0,
+				       "Number of flows using");
+			SYSCTL_ADD_U64(&rs->sysctl_ctx,
+				       SYSCTL_CHILDREN(rl_rate_num),
+				       OID_AUTO, "enobufs", CTLFLAG_RD,
+				       &rs->rs_rlt[i].rs_num_enobufs, 0,
+				       "Number of enobufs logged on this rate");
+
 		}
 	}
 #endif
@@ -443,6 +443,8 @@ rs_defer_destroy(struct tcp_rate_set *rs)
 }
 
 #ifdef INET
+extern counter_u64_t rate_limit_new;
+extern counter_u64_t rate_limit_chg;
 extern counter_u64_t rate_limit_set_ok;
 extern counter_u64_t rate_limit_active;
 extern counter_u64_t rate_limit_alloc_fail;
@@ -519,6 +521,7 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 	int i;
 	struct if_ratelimit_query_results rl;
 	struct sysctl_oid *rl_sysctl_root;
+	struct epoch_tracker et;
 	/*
 	 * We expect to enter with the
 	 * mutex locked.
@@ -562,9 +565,11 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		rl_add_syctl_entries(rl_sysctl_root, rs);
+		NET_EPOCH_ENTER(et);
 		mtx_lock(&rs_mtx);
 		CK_LIST_INSERT_HEAD(&int_rs, rs, next);
 		mtx_unlock(&rs_mtx);
+		NET_EPOCH_EXIT(et);
 		return (rs);
 	} else if ((rl.flags & RT_IS_INDIRECT) == RT_IS_INDIRECT) {
 		memset(rs, 0, sizeof(struct tcp_rate_set));
@@ -580,9 +585,11 @@ rt_setup_new_rs(struct ifnet *ifp, int *error)
 		    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 		    "");
 		rl_add_syctl_entries(rl_sysctl_root, rs);
+		NET_EPOCH_ENTER(et);
 		mtx_lock(&rs_mtx);
 		CK_LIST_INSERT_HEAD(&int_rs, rs, next);
 		mtx_unlock(&rs_mtx);
+		NET_EPOCH_EXIT(et);
 		return (rs);
 	} else if ((rl.flags & RT_IS_FIXED_TABLE) == RT_IS_FIXED_TABLE) {
 		/* Mellanox C4 likely */
@@ -671,6 +678,8 @@ bail:
 		 */
 		rs->rs_rlt[i].ptbl = rs;
 		rs->rs_rlt[i].tag = NULL;
+		rs->rs_rlt[i].using = 0;
+		rs->rs_rlt[i].rs_num_enobufs = 0;
 		/*
 		 * Calculate the time between.
 		 */
@@ -741,18 +750,24 @@ handle_err:
 	    CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 	    "");
 	rl_add_syctl_entries(rl_sysctl_root, rs);
+	NET_EPOCH_ENTER(et);
 	mtx_lock(&rs_mtx);
 	CK_LIST_INSERT_HEAD(&int_rs, rs, next);
 	mtx_unlock(&rs_mtx);
+	NET_EPOCH_EXIT(et);
 	return (rs);
 }
 
+/*
+ * For an explanation of why the argument is volatile please
+ * look at the comments around rt_setup_rate().
+ */
 static const struct tcp_hwrate_limit_table *
-tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
-    uint64_t bytes_per_sec, uint32_t flags)
+tcp_int_find_suitable_rate(const volatile struct tcp_rate_set *rs,
+    uint64_t bytes_per_sec, uint32_t flags, uint64_t *lower_rate)
 {
 	struct tcp_hwrate_limit_table *arte = NULL, *rte = NULL;
-	uint64_t mbits_per_sec, ind_calc;
+	uint64_t mbits_per_sec, ind_calc, previous_rate = 0;
 	int i;
 
 	mbits_per_sec = (bytes_per_sec * 8);
@@ -763,6 +778,7 @@ tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
 			 * Smaller than 1Meg, only
 			 * 3 entries can match it.
 			 */
+			previous_rate = 0;
 			for(i = rs->rs_lowest_valid; i < 3; i++) {
 				if (bytes_per_sec <= rs->rs_rlt[i].rate) {
 					rte = &rs->rs_rlt[i];
@@ -770,6 +786,7 @@ tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
 				} else if (rs->rs_rlt[i].flags & HDWRPACE_INITED) {
 					arte = &rs->rs_rlt[i];
 				}
+				previous_rate = rs->rs_rlt[i].rate;
 			}
 			goto done;
 		} else if ((mbits_per_sec > RS_ONE_GIGABIT_PERSEC) &&
@@ -782,6 +799,7 @@ tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
 				rte = &rs->rs_rlt[(ALL_HARDWARE_RATES-1)];
 			else
 				arte = &rs->rs_rlt[(ALL_HARDWARE_RATES-1)];
+			previous_rate = rs->rs_rlt[(ALL_HARDWARE_RATES-2)].rate;
 			goto done;
 		}
 		/*
@@ -800,8 +818,11 @@ tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
 			ind_calc = ALL_HARDWARE_RATES-1;
 		}
 		if ((ind_calc >= rs->rs_lowest_valid) &&
-		    (ind_calc <= rs->rs_highest_valid))
-		rte = &rs->rs_rlt[ind_calc];
+		    (ind_calc <= rs->rs_highest_valid)) {
+			rte = &rs->rs_rlt[ind_calc];
+			if (ind_calc >= 1)
+				previous_rate = rs->rs_rlt[(ind_calc-1)].rate;
+		}
 	} else if (flags & RS_PACING_EXACT_MATCH) {
 		if ((mbits_per_sec < RS_ONE_MEGABIT_PERSEC) &&
 		    (rs->rs_lowest_valid <= 2)){
@@ -840,10 +861,16 @@ tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
 			for (i=2; i>=rs->rs_lowest_valid; i--) {
 				if (bytes_per_sec < rs->rs_rlt[i].rate) {
 					rte = &rs->rs_rlt[i];
+					if (i >= 1) {
+						previous_rate = rs->rs_rlt[(i-1)].rate;
+					}
 					break;
 				} else if ((flags & RS_PACING_GEQ) &&
 					   (bytes_per_sec == rs->rs_rlt[i].rate)) {
 					rte = &rs->rs_rlt[i];
+					if (i >= 1) {
+						previous_rate = rs->rs_rlt[(i-1)].rate;
+					}
 					break;
 				} else {
 					arte = &rs->rs_rlt[i]; /* new alternate */
@@ -863,6 +890,7 @@ tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
 				/* The top rate is an alternative */
 				arte = &rs->rs_rlt[(ALL_HARDWARE_RATES-1)];
 			}
+			previous_rate = rs->rs_rlt[(ALL_HARDWARE_RATES-2)].rate;
 		} else {
 			/* Its in our range 1Meg - 1Gig */
 			if (flags & RS_PACING_GEQ) {
@@ -873,6 +901,8 @@ tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
 						ind_calc = (ALL_HARDWARE_RATES-1);
 					}
 					rte = &rs->rs_rlt[ind_calc];
+					if (ind_calc >= 1)
+						previous_rate = rs->rs_rlt[(ind_calc-1)].rate;
 				}
 				goto done;
 			}
@@ -882,8 +912,11 @@ tcp_int_find_suitable_rate(const struct tcp_rate_set *rs,
 				/* This should not happen */
 				ind_calc = ALL_HARDWARE_RATES-1;
 			}
-			if (rs->rs_rlt[ind_calc].flags & HDWRPACE_INITED)
+			if (rs->rs_rlt[ind_calc].flags & HDWRPACE_INITED) {
 				rte = &rs->rs_rlt[ind_calc];
+				if (ind_calc >= 1)
+					previous_rate = rs->rs_rlt[(ind_calc-1)].rate;
+			}
 		}
 	}
 done:
@@ -893,11 +926,17 @@ done:
 		/* We can use the substitute */
 		rte = arte;
 	}
+	if (lower_rate)
+		*lower_rate = previous_rate;
 	return (rte);
 }
 
+/*
+ * For an explanation of why the argument is volatile please
+ * look at the comments around rt_setup_rate().
+ */
 static const struct tcp_hwrate_limit_table *
-tcp_find_suitable_rate(const struct tcp_rate_set *rs, uint64_t bytes_per_sec, uint32_t flags)
+tcp_find_suitable_rate(const volatile struct tcp_rate_set *rs, uint64_t bytes_per_sec, uint32_t flags, uint64_t *lower_rate)
 {
 	/**
 	 * Hunt the rate table with the restrictions in flags and find a
@@ -911,6 +950,7 @@ tcp_find_suitable_rate(const struct tcp_rate_set *rs, uint64_t bytes_per_sec, ui
 	 */
 	int i, matched;
 	struct tcp_hwrate_limit_table *rte = NULL;
+	uint64_t previous_rate = 0;
 
 	if ((rs->rs_flags & RS_INT_TBL) &&
 	    (rs->rs_rate_cnt >= ALL_HARDWARE_RATES)) {
@@ -920,7 +960,7 @@ tcp_find_suitable_rate(const struct tcp_rate_set *rs, uint64_t bytes_per_sec, ui
 		 * from 1Meg - 1000Meg in 1Meg increments.
 		 * Use an alternate method to "lookup".
 		 */
-		return (tcp_int_find_suitable_rate(rs, bytes_per_sec, flags));
+		return (tcp_int_find_suitable_rate(rs, bytes_per_sec, flags, lower_rate));
 	}
 	if ((flags & RS_PACING_LT) ||
 	    (flags & RS_PACING_EXACT_MATCH)) {
@@ -934,13 +974,18 @@ tcp_find_suitable_rate(const struct tcp_rate_set *rs, uint64_t bytes_per_sec, ui
 			    (bytes_per_sec == rs->rs_rlt[i].rate)) {
 				rte = &rs->rs_rlt[i];
 				matched = 1;
+				if (lower_rate != NULL)
+					*lower_rate = previous_rate;
 				break;
 			} else if ((flags & RS_PACING_LT) &&
 			    (bytes_per_sec <= rs->rs_rlt[i].rate)) {
 				rte = &rs->rs_rlt[i];
 				matched = 1;
+				if (lower_rate != NULL)
+					*lower_rate = previous_rate;
 				break;
 			}
+			previous_rate = rs->rs_rlt[i].rate;
 			if (bytes_per_sec > rs->rs_rlt[i].rate)
 				break;
 		}
@@ -979,6 +1024,8 @@ tcp_find_suitable_rate(const struct tcp_rate_set *rs, uint64_t bytes_per_sec, ui
 				 * We found a table entry that is smaller,
 				 * stop there will be none greater or equal.
 				 */
+				if (lower_rate != NULL)
+					*lower_rate = rs->rs_rlt[i].rate;
 				break;
 			}
 		}
@@ -995,10 +1042,10 @@ static struct ifnet *
 rt_find_real_interface(struct ifnet *ifp, struct inpcb *inp, int *error)
 {
 	struct ifnet *tifp;
-	struct m_snd_tag *tag;
+	struct m_snd_tag *tag, *ntag;
 	union if_snd_tag_alloc_params params = {
 		.rate_limit.hdr.type = IF_SND_TAG_TYPE_RATE_LIMIT,
-		.rate_limit.hdr.flowid = 1,
+		.rate_limit.hdr.flowid = inp->inp_flowid,
 		.rate_limit.hdr.numa_domain = inp->inp_numa_domain,
 		.rate_limit.max_rate = COMMON_RATE,
 		.rate_limit.flags = M_NOWAIT,
@@ -1017,38 +1064,92 @@ rt_find_real_interface(struct ifnet *ifp, struct inpcb *inp, int *error)
 			*error = err;
 		return (NULL);
 	}
-	tifp = tag->ifp;
+	ntag = tag;
+	while(ntag->ifp->if_next_snd_tag != NULL) {
+		ntag = ntag->ifp->if_next_snd_tag(ntag);
+	}
+	tifp = ntag->ifp;
 	m_snd_tag_rele(tag);
 	return (tifp);
 }
 
+static void
+rl_increment_using(const struct tcp_hwrate_limit_table *rte)
+{
+	struct tcp_hwrate_limit_table *decon_rte;
+
+	decon_rte = __DECONST(struct tcp_hwrate_limit_table *, rte);
+	atomic_add_long(&decon_rte->using, 1);
+}
+
+static void
+rl_decrement_using(const struct tcp_hwrate_limit_table *rte)
+{
+	struct tcp_hwrate_limit_table *decon_rte;
+
+	decon_rte = __DECONST(struct tcp_hwrate_limit_table *, rte);
+	atomic_subtract_long(&decon_rte->using, 1);
+}
+
+void
+tcp_rl_log_enobuf(const struct tcp_hwrate_limit_table *rte)
+{
+	struct tcp_hwrate_limit_table *decon_rte;
+
+	decon_rte = __DECONST(struct tcp_hwrate_limit_table *, rte);
+	atomic_add_long(&decon_rte->rs_num_enobufs, 1);
+}
+
+/*
+ * Do NOT take the __noinline out of the
+ * find_rs_for_ifp() function. If you do the inline
+ * of it for the rt_setup_rate() will show you a
+ * compiler bug. For some reason the compiler thinks
+ * the list can never be empty. The consequence of
+ * this will be a crash when we dereference NULL
+ * if an ifp is removed just has a hw rate limit
+ * is attempted. If you are working on the compiler
+ * and want to "test" this go ahead and take the noinline
+ * out otherwise let sleeping dogs ly until such time
+ * as we get a compiler fix 10/2/20 -- RRS
+ */
+static __noinline struct tcp_rate_set *
+find_rs_for_ifp(struct ifnet *ifp)
+{
+	struct tcp_rate_set *rs;
+
+	CK_LIST_FOREACH(rs, &int_rs, next) {
+		if ((rs->rs_ifp == ifp) &&
+		    (rs->rs_if_dunit == ifp->if_dunit)) {
+			/* Ok we found it */
+			return (rs);
+		}
+	}
+	return (NULL);
+}
+
+
 static const struct tcp_hwrate_limit_table *
 rt_setup_rate(struct inpcb *inp, struct ifnet *ifp, uint64_t bytes_per_sec,
-    uint32_t flags, int *error)
+    uint32_t flags, int *error, uint64_t *lower_rate)
 {
 	/* First lets find the interface if it exists */
 	const struct tcp_hwrate_limit_table *rte;
-	struct tcp_rate_set *rs;
+	/*
+	 * So why is rs volatile? This is to defeat a
+	 * compiler bug where in the compiler is convinced
+	 * that rs can never be NULL (which is not true). Because
+	 * of its conviction it nicely optimizes out the if ((rs == NULL
+	 * below which means if you get a NULL back you dereference it.
+	 */
+	volatile struct tcp_rate_set *rs;
 	struct epoch_tracker et;
+	struct ifnet *oifp = ifp;
 	int err;
 
 	NET_EPOCH_ENTER(et);
 use_real_interface:
-	CK_LIST_FOREACH(rs, &int_rs, next) {
-		/*
-		 * Note we don't look with the lock since we either see a
-		 * new entry or will get one when we try to add it.
-		 */
-		if (rs->rs_flags & RS_IS_DEAD) {
-			/* The dead are not looked at */
-			continue;
-		}
-		if ((rs->rs_ifp == ifp) &&
-		    (rs->rs_if_dunit == ifp->if_dunit)) {
-			/* Ok we found it */
-			break;
-		}
-	}
+	rs = find_rs_for_ifp(ifp);
 	if ((rs == NULL) ||
 	    (rs->rs_flags & RS_INTF_NO_SUP) ||
 	    (rs->rs_flags & RS_IS_DEAD)) {
@@ -1063,14 +1164,14 @@ use_real_interface:
 		 * might be arguable, but its impossible
 		 * to tell from the departing case.
 		 */
-		if (rs->rs_disable && error)
+		if (error)
 			*error = ENODEV;
 		NET_EPOCH_EXIT(et);
 		return (NULL);
 	}
 
 	if ((rs == NULL) || (rs->rs_disable != 0)) {
-		if (rs->rs_disable && error)
+		if (error)
 			*error = ENOSPC;
 		NET_EPOCH_EXIT(et);
 		return (NULL);
@@ -1086,6 +1187,10 @@ use_real_interface:
 			NET_EPOCH_EXIT(et);
 			return (NULL);
 		}
+		KASSERT((tifp != ifp),
+			("Lookup failure ifp:%p inp:%p rt_find_real_interface() returns the same interface tifp:%p?\n",
+			 ifp, inp, tifp));
+		ifp = tifp;
 		goto use_real_interface;
 	}
 	if (rs->rs_flow_limit &&
@@ -1095,9 +1200,9 @@ use_real_interface:
 		NET_EPOCH_EXIT(et);
 		return (NULL);
 	}
-	rte = tcp_find_suitable_rate(rs, bytes_per_sec, flags);
+	rte = tcp_find_suitable_rate(rs, bytes_per_sec, flags, lower_rate);
 	if (rte) {
-		err = in_pcbattach_txrtlmt(inp, rs->rs_ifp,
+		err = in_pcbattach_txrtlmt(inp, oifp,
 		    inp->inp_flowtype,
 		    inp->inp_flowid,
 		    rte->rate,
@@ -1107,6 +1212,11 @@ use_real_interface:
 			if (error)
 				*error = err;
 			rte = NULL;
+		} else {
+			KASSERT((inp->inp_snd_tag != NULL) ,
+				("Setup rate has no snd_tag inp:%p rte:%p rate:%lu rs:%p",
+				 inp, rte, rte->rate, rs));
+			counter_u64_add(rate_limit_new, 1);
 		}
 	}
 	if (rte) {
@@ -1125,6 +1235,7 @@ tcp_rl_ifnet_link(void *arg __unused, struct ifnet *ifp, int link_state)
 {
 	int error;
 	struct tcp_rate_set *rs;
+	struct epoch_tracker et;
 
 	if (((ifp->if_capenable & IFCAP_TXRTLMT) == 0) ||
 	    (link_state != LINK_STATE_UP)) {
@@ -1134,53 +1245,56 @@ tcp_rl_ifnet_link(void *arg __unused, struct ifnet *ifp, int link_state)
 		 */
 		return;
 	}
+	NET_EPOCH_ENTER(et);
 	mtx_lock(&rs_mtx);
-	CK_LIST_FOREACH(rs, &int_rs, next) {
-		if ((rs->rs_ifp == ifp) &&
-		    (rs->rs_if_dunit == ifp->if_dunit)) {
-			/* We already have initialized this guy */
-			mtx_unlock(&rs_mtx);
-			return;
-		}
+	rs = find_rs_for_ifp(ifp);
+	if (rs) {
+		/* We already have initialized this guy */
+		mtx_unlock(&rs_mtx);
+		NET_EPOCH_EXIT(et);
+		return;
 	}
 	mtx_unlock(&rs_mtx);
+	NET_EPOCH_EXIT(et);
 	rt_setup_new_rs(ifp, &error);
 }
 
 static void
 tcp_rl_ifnet_departure(void *arg __unused, struct ifnet *ifp)
 {
-	struct tcp_rate_set *rs, *nrs;
+	struct tcp_rate_set *rs;
+	struct epoch_tracker et;
 	int i;
 
+	NET_EPOCH_ENTER(et);
 	mtx_lock(&rs_mtx);
-	CK_LIST_FOREACH_SAFE(rs, &int_rs, next, nrs) {
-		if ((rs->rs_ifp == ifp) &&
-		    (rs->rs_if_dunit == ifp->if_dunit)) {
-			CK_LIST_REMOVE(rs, next);
-			rs_number_alive--;
-			rs->rs_flags |= RS_IS_DEAD;
-			for (i = 0; i < rs->rs_rate_cnt; i++) {
-				if (rs->rs_rlt[i].flags & HDWRPACE_TAGPRESENT) {
-					in_pcbdetach_tag(rs->rs_rlt[i].tag);
-					rs->rs_rlt[i].tag = NULL;
-				}
-				rs->rs_rlt[i].flags = HDWRPACE_IFPDEPARTED;
+	rs = find_rs_for_ifp(ifp);
+	if (rs) {
+		CK_LIST_REMOVE(rs, next);
+		rs_number_alive--;
+		rs->rs_flags |= RS_IS_DEAD;
+		for (i = 0; i < rs->rs_rate_cnt; i++) {
+			if (rs->rs_rlt[i].flags & HDWRPACE_TAGPRESENT) {
+				in_pcbdetach_tag(rs->rs_rlt[i].tag);
+				rs->rs_rlt[i].tag = NULL;
 			}
-			if (rs->rs_flows_using == 0)
-				rs_defer_destroy(rs);
-			break;
+			rs->rs_rlt[i].flags = HDWRPACE_IFPDEPARTED;
 		}
+		if (rs->rs_flows_using == 0)
+			rs_defer_destroy(rs);
 	}
 	mtx_unlock(&rs_mtx);
+	NET_EPOCH_EXIT(et);
 }
 
 static void
 tcp_rl_shutdown(void *arg __unused, int howto __unused)
 {
 	struct tcp_rate_set *rs, *nrs;
+	struct epoch_tracker et;
 	int i;
 
+	NET_EPOCH_ENTER(et);
 	mtx_lock(&rs_mtx);
 	CK_LIST_FOREACH_SAFE(rs, &int_rs, next, nrs) {
 		CK_LIST_REMOVE(rs, next);
@@ -1197,11 +1311,12 @@ tcp_rl_shutdown(void *arg __unused, int howto __unused)
 			rs_defer_destroy(rs);
 	}
 	mtx_unlock(&rs_mtx);
+	NET_EPOCH_EXIT(et);
 }
 
 const struct tcp_hwrate_limit_table *
 tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error)
+    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate)
 {
 	const struct tcp_hwrate_limit_table *rte;
 #ifdef KERN_TLS
@@ -1233,7 +1348,9 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			}
 		}
 #endif
-		rte = rt_setup_rate(tp->t_inpcb, ifp, bytes_per_sec, flags, error);
+		rte = rt_setup_rate(tp->t_inpcb, ifp, bytes_per_sec, flags, error, lower_rate);
+		if (rte)
+			rl_increment_using(rte);
 #ifdef KERN_TLS
 		if (rte != NULL && tls != NULL && tls->snd_tag != NULL) {
 			/*
@@ -1253,22 +1370,23 @@ tcp_set_pacing_rate(struct tcpcb *tp, struct ifnet *ifp,
 			*error = EINVAL;
 		rte = NULL;
 	}
-	tp->t_pacing_rate = rte->rate;
-	*error = 0;
+	if (rte != NULL) {
+		tp->t_pacing_rate = rte->rate;
+		*error = 0;
+	}
 	return (rte);
 }
 
 const struct tcp_hwrate_limit_table *
 tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
     struct tcpcb *tp, struct ifnet *ifp,
-    uint64_t bytes_per_sec, int flags, int *error)
+    uint64_t bytes_per_sec, int flags, int *error, uint64_t *lower_rate)
 {
 	const struct tcp_hwrate_limit_table *nrte;
 	const struct tcp_rate_set *rs;
 #ifdef KERN_TLS
 	struct ktls_session *tls = NULL;
 #endif
-	int is_indirect = 0;
 	int err;
 
 	INP_WLOCK_ASSERT(tp->t_inpcb);
@@ -1307,41 +1425,13 @@ tcp_chg_pacing_rate(const struct tcp_hwrate_limit_table *crte,
 	if ((rs->rs_flags & RS_IS_DEAD) ||
 	    (crte->flags & HDWRPACE_IFPDEPARTED)) {
 		/* Release the rate, and try anew */
-re_rate:
+
 		tcp_rel_pacing_rate(crte, tp);
 		nrte = tcp_set_pacing_rate(tp, ifp,
-		    bytes_per_sec, flags, error);
+		    bytes_per_sec, flags, error, lower_rate);
 		return (nrte);
 	}
-	if ((rs->rs_flags & RT_IS_INDIRECT ) == RT_IS_INDIRECT)
-		is_indirect = 1;
-	else
-		is_indirect = 0;
-	if ((is_indirect == 0) &&
-	    ((ifp != rs->rs_ifp) ||
-	    (ifp->if_dunit != rs->rs_if_dunit))) {
-		/*
-		 * Something changed, the user is not pointing to the same
-		 * ifp? Maybe a route updated on this guy?
-		 */
-		goto re_rate;
-	} else if (is_indirect) {
-		/*
-		 * For indirect we have to dig in and find the real interface.
-		 */
-		struct ifnet *rifp;
-
-		rifp = rt_find_real_interface(ifp, tp->t_inpcb, error);
-		if (rifp == NULL) {
-			/* Can't find it? */
-			goto re_rate;
-		}
-		if ((rifp != rs->rs_ifp) ||
-		    (ifp->if_dunit != rs->rs_if_dunit)) {
-			goto re_rate;
-		}
-	}
-	nrte = tcp_find_suitable_rate(rs, bytes_per_sec, flags);
+	nrte = tcp_find_suitable_rate(rs, bytes_per_sec, flags, lower_rate);
 	if (nrte == crte) {
 		/* No change */
 		if (error)
@@ -1350,9 +1440,13 @@ re_rate:
 	}
 	if (nrte == NULL) {
 		/* Release the old rate */
+		if (error)
+			*error = ENOENT;
 		tcp_rel_pacing_rate(crte, tp);
 		return (NULL);
 	}
+	rl_decrement_using(crte);
+	rl_increment_using(nrte);
 	/* Change rates to our new entry */
 #ifdef KERN_TLS
 	if (tls != NULL)
@@ -1361,10 +1455,15 @@ re_rate:
 #endif
 		err = in_pcbmodify_txrtlmt(tp->t_inpcb, nrte->rate);
 	if (err) {
+		rl_decrement_using(nrte);
+		/* Do we still have a snd-tag attached? */
+		if (tp->t_inpcb->inp_snd_tag)
+			in_pcbdetach_txrtlmt(tp->t_inpcb);
 		if (error)
 			*error = err;
 		return (NULL);
-	}
+	} else
+		counter_u64_add(rate_limit_chg, 1);
 	if (error)
 		*error = 0;
 	tp->t_pacing_rate = nrte->rate;
@@ -1387,8 +1486,12 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 	 * in order to release our refcount.
 	 */
 	rs = __DECONST(struct tcp_rate_set *, crs);
+	rl_decrement_using(crte);
 	pre = atomic_fetchadd_64(&rs->rs_flows_using, -1);
 	if (pre == 1) {
+		struct epoch_tracker et;
+
+		NET_EPOCH_ENTER(et);
 		mtx_lock(&rs_mtx);
 		/*
 		 * Is it dead?
@@ -1396,6 +1499,7 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 		if (rs->rs_flags & RS_IS_DEAD)
 			rs_defer_destroy(rs);
 		mtx_unlock(&rs_mtx);
+		NET_EPOCH_EXIT(et);
 	}
 
 	/*
@@ -1412,8 +1516,39 @@ tcp_rel_pacing_rate(const struct tcp_hwrate_limit_table *crte, struct tcpcb *tp)
 #define FIVE_HUNDRED_MBPS 62500000	/* 500Mbps in bytes per second */
 #define MAX_MSS_SENT 43	/* 43 mss = 43 x 1500 = 64,500 bytes */
 
+static void
+tcp_log_pacing_size(struct tcpcb *tp, uint64_t bw, uint32_t segsiz, uint32_t new_tso,
+		    uint64_t hw_rate, uint32_t time_between, uint32_t calc_time_between,
+		    uint32_t segs, uint32_t res_div, uint16_t mult, uint8_t mod)
+{
+	if (tp->t_logstate != TCP_LOG_STATE_OFF) {
+		union tcp_log_stackspecific log;
+		struct timeval tv;
+		uint32_t cts;
+
+		memset(&log, 0, sizeof(log));
+		cts = tcp_get_usecs(&tv);
+		log.u_bbr.flex1 = segsiz;
+		log.u_bbr.flex2 = new_tso;
+		log.u_bbr.flex3 = time_between;
+		log.u_bbr.flex4 = calc_time_between;
+		log.u_bbr.flex5 = segs;
+		log.u_bbr.flex6 = res_div;
+		log.u_bbr.flex7 = mult;
+		log.u_bbr.flex8 = mod;
+		log.u_bbr.timeStamp = tcp_get_usecs(&tv);
+		log.u_bbr.cur_del_rate = bw;
+		log.u_bbr.delRate = hw_rate;
+		TCP_LOG_EVENTP(tp, NULL,
+		    &tp->t_inpcb->inp_socket->so_rcv,
+		    &tp->t_inpcb->inp_socket->so_snd,
+		    TCP_HDWR_PACE_SIZE, 0,
+		    0, &log, false, &tv);
+	}
+}
+
 uint32_t
-tcp_get_pacing_burst_size (uint64_t bw, uint32_t segsiz, int can_use_1mss,
+tcp_get_pacing_burst_size (struct tcpcb *tp, uint64_t bw, uint32_t segsiz, int can_use_1mss,
    const struct tcp_hwrate_limit_table *te, int *err)
 {
 	/*
@@ -1439,11 +1574,15 @@ tcp_get_pacing_burst_size (uint64_t bw, uint32_t segsiz, int can_use_1mss,
 		min_tso_segs = 1;
 	else
 		min_tso_segs = 2;
-	if (new_tso < min_tso_segs)
+	if (rs_floor_mss && (new_tso < rs_floor_mss))
+		new_tso = rs_floor_mss;
+	else if (new_tso < min_tso_segs)
 		new_tso = min_tso_segs;
 	if (new_tso > MAX_MSS_SENT)
 		new_tso = MAX_MSS_SENT;
 	new_tso *= segsiz;
+ 	tcp_log_pacing_size(tp, bw, segsiz, new_tso,
+			    0, 0, 0, 0, 0, 0, 1);
 	/*
 	 * If we are not doing hardware pacing
 	 * then we are done.
@@ -1480,25 +1619,33 @@ tcp_get_pacing_burst_size (uint64_t bw, uint32_t segsiz, int can_use_1mss,
 	 * max (43 segments).
 	 */
 	if (te->rate > FIVE_HUNDRED_MBPS)
-		return (segsiz * MAX_MSS_SENT);
+		goto max;
 	if (te->rate == bw) {
 		/* We are pacing at exactly the hdwr rate */
+max:
+		tcp_log_pacing_size(tp, bw, segsiz, new_tso,
+				    te->rate, te->time_between, (uint32_t)0,
+				    (segsiz * MAX_MSS_SENT), 0, 0, 3);
 		return (segsiz * MAX_MSS_SENT);
 	}
 	lentim = ETHERNET_SEGMENT_SIZE * USECS_IN_SECOND;
 	res = lentim / bw;
 	if (res > te->time_between) {
-		uint32_t delta, segs;
+		uint32_t delta, segs, res_div;
 
+		res_div = ((res * num_of_waits_allowed) + wait_time_floor);
 		delta = res - te->time_between;
-		segs = (res + delta - 1)/delta;
-		if (te->rate > ONE_HUNDRED_MBPS)
-			segs *= 2;
+		segs = (res_div + delta - 1)/delta;
 		if (segs < min_tso_segs)
 			segs = min_tso_segs;
+		if (segs < rs_hw_floor_mss)
+			segs = rs_hw_floor_mss;
 		if (segs > MAX_MSS_SENT)
 			segs = MAX_MSS_SENT;
 		segs *= segsiz;
+		tcp_log_pacing_size(tp, bw, segsiz, new_tso,
+				    te->rate, te->time_between, (uint32_t)res,
+				    segs, res_div, 1, 3);
 		if (err)
 			*err = 0;
 		if (segs < new_tso) {
@@ -1514,10 +1661,45 @@ tcp_get_pacing_burst_size (uint64_t bw, uint32_t segsiz, int can_use_1mss,
 		 * hardware. Send back the non-hardware
 		 * rate.
 		 */
+		tcp_log_pacing_size(tp, bw, segsiz, new_tso,
+				    te->rate, te->time_between, (uint32_t)res,
+				    0, 0, 0, 4);
 		if (err)
 			*err = -1;
 		return (new_tso);
 	}
+}
+
+uint64_t
+tcp_hw_highest_rate_ifp(struct ifnet *ifp, struct inpcb *inp)
+{
+	struct epoch_tracker et;
+	struct tcp_rate_set *rs;
+	uint64_t rate_ret;
+
+	NET_EPOCH_ENTER(et);
+use_next_interface:
+	rs = find_rs_for_ifp(ifp);
+	if (rs == NULL) {
+		/* This interface does not do ratelimiting */
+		rate_ret = 0;
+	} else if (rs->rs_flags & RS_IS_DEFF) {
+		/* We need to find the real interface */
+		struct ifnet *tifp;
+
+		tifp = rt_find_real_interface(ifp, inp, NULL);
+		if (tifp == NULL) {
+			NET_EPOCH_EXIT(et);
+			return (0);
+		}
+		ifp = tifp;
+		goto use_next_interface;
+	} else {
+		/* Lets return the highest rate this guy has */
+		rate_ret = rs->rs_rlt[rs->rs_highest_valid].rate;
+	}
+	NET_EPOCH_EXIT(et);
+	return(rate_ret);
 }
 
 static eventhandler_tag rl_ifnet_departs;
