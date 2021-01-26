@@ -11,7 +11,7 @@
 ;		there is no audit event for the call at this time. For the
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
-;	type	one of STD, OBSOL, UNIMPL, COMPAT, COMPAT4, COMPAT6,
+;	type	one of STD, OBSOL, RESERVED, UNIMPL, COMPAT, COMPAT4, COMPAT6,
 ;		COMPAT7, COMPAT11, COMPAT12, NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
@@ -32,6 +32,7 @@
 ;	COMPAT11 included on COMPAT_FREEBSD11 #ifdef (FreeBSD 11 compat)
 ;	COMPAT12 included on COMPAT_FREEBSD12 #ifdef (FreeBSD 12 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
+;	RESERVED reserved for local or vendor use
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
 ;		compiled in; sysent entry will be filled with lkmressys
