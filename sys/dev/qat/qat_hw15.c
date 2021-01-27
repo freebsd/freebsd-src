@@ -818,7 +818,7 @@ qat_hw15_crypto_setup_req_params(struct qat_crypto_bank *qcb,
 	enum fw_la_cmd_id cmd_id = desc->qcd_cmd_id;
 	enum fw_slice next_slice;
 
-	qsbc = &qsc->u.qsc_bulk_cookie;
+	qsbc = &qsc->qsc_bulk_cookie;
 
 	bulk_req = (struct fw_la_bulk_req *)qsbc->qsbc_msg;
 	memcpy(bulk_req, &desc->qcd_req_cache, QAT_HW15_SESSION_REQ_CACHE_SIZE);
@@ -826,7 +826,13 @@ qat_hw15_crypto_setup_req_params(struct qat_crypto_bank *qcb,
 	bulk_req->comn_hdr.comn_req_flags =
 	    qat_hw15_get_comn_req_flags(qcb->qcb_bank % 2);
 	bulk_req->comn_mid.src_data_addr = qsc->qsc_buffer_list_desc_paddr;
-	bulk_req->comn_mid.dest_data_addr = qsc->qsc_buffer_list_desc_paddr;
+	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
+		bulk_req->comn_mid.dest_data_addr =
+		    qsc->qsc_obuffer_list_desc_paddr;
+	} else {
+		bulk_req->comn_mid.dest_data_addr =
+		    qsc->qsc_buffer_list_desc_paddr;
+	}
 	bulk_req->req_params_addr = qsc->qsc_bulk_req_params_buf_paddr;
 	bulk_req->comn_ftr.next_request_addr = 0;
 	bulk_req->comn_mid.opaque_data = (uint64_t)(uintptr_t)qsc;
@@ -918,8 +924,14 @@ qat_hw15_crypto_setup_req_params(struct qat_crypto_bank *qcb,
 			cipher_req->curr_id = FW_SLICE_CIPHER;
 			cipher_req->next_id = next_slice;
 
-			cipher_req->cipher_off = crp->crp_aad_length == 0 ? 0 :
-			    crp->crp_payload_start - crp->crp_aad_start;
+			if (crp->crp_aad_length == 0) {
+				cipher_req->cipher_off = 0;
+			} else if (crp->crp_aad == NULL) {
+				cipher_req->cipher_off =
+				    crp->crp_payload_start - crp->crp_aad_start;
+			} else {
+				cipher_req->cipher_off = crp->crp_aad_length;
+			}
 			cipher_req->cipher_len = crp->crp_payload_length;
 			cipher_req->state_address = qsc->qsc_iv_buf_paddr;
 		}

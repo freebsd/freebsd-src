@@ -1172,9 +1172,8 @@ static void
 qat_crypto_free_sym_cookie(struct qat_crypto_bank *qcb,
     struct qat_sym_cookie *qsc)
 {
-
-	explicit_bzero(qsc->qsc_iv_buf, sizeof(qsc->qsc_iv_buf));
-	explicit_bzero(qsc->qsc_auth_res, sizeof(qsc->qsc_auth_res));
+	explicit_bzero(qsc->qsc_iv_buf, EALG_MAX_BLOCK_LEN);
+	explicit_bzero(qsc->qsc_auth_res, QAT_SYM_HASH_BUFFER_LEN);
 
 	mtx_lock(&qcb->qcb_bank_mtx);
 	qcb->qcb_symck_free[qcb->qcb_symck_free_count++] = qsc;
@@ -1350,48 +1349,17 @@ struct qat_crypto_load_cb_arg {
 	int			error;
 };
 
-static void
-qat_crypto_load_cb(void *_arg, bus_dma_segment_t *segs, int nseg,
-    int error)
+static int
+qat_crypto_populate_buf_list(struct buffer_list_desc *buffers,
+    bus_dma_segment_t *segs, int niseg, int noseg, int skip)
 {
-	struct cryptop *crp;
 	struct flat_buffer_desc *flatbuf;
-	struct qat_crypto_load_cb_arg *arg;
-	struct qat_session *qs;
-	struct qat_sym_cookie *qsc;
 	bus_addr_t addr;
 	bus_size_t len;
-	int iseg, oseg, skip;
+	int iseg, oseg;
 
-	arg = _arg;
-	if (error != 0) {
-		arg->error = error;
-		return;
-	}
-
-	crp = arg->crp;
-	qs = arg->qs;
-	qsc = arg->qsc;
-
-	if (qs->qs_auth_algo == HW_AUTH_ALGO_GALOIS_128) {
-		/*
-		 * The firmware expects AAD to be in a contiguous buffer and
-		 * padded to a multiple of 16 bytes.  To satisfy these
-		 * constraints we bounce the AAD into a per-request buffer.
-		 */
-		crypto_copydata(crp, crp->crp_aad_start, crp->crp_aad_length,
-		    qsc->qsc_gcm_aad);
-		memset(qsc->qsc_gcm_aad + crp->crp_aad_length, 0,
-		    roundup2(crp->crp_aad_length, QAT_AES_GCM_AAD_ALIGN) -
-		    crp->crp_aad_length);
-		skip = crp->crp_payload_start;
-	} else if (crp->crp_aad_length > 0) {
-		skip = crp->crp_aad_start;
-	} else {
-		skip = crp->crp_payload_start;
-	}
-
-	for (iseg = oseg = 0; iseg < nseg; iseg++) {
+	for (iseg = 0, oseg = noseg; iseg < niseg && oseg < QAT_MAXSEG;
+	    iseg++) {
 		addr = segs[iseg].ds_addr;
 		len = segs[iseg].ds_len;
 
@@ -1406,11 +1374,117 @@ qat_crypto_load_cb(void *_arg, bus_dma_segment_t *segs, int nseg,
 			}
 		}
 
-		flatbuf = &qsc->qsc_flat_bufs[oseg++];
+		flatbuf = &buffers->flat_bufs[oseg++];
 		flatbuf->data_len_in_bytes = (uint32_t)len;
 		flatbuf->phy_buffer = (uint64_t)addr;
 	}
-	qsc->qsc_buf_list.num_buffers = oseg;
+	buffers->num_buffers = oseg;
+	return iseg < niseg ? E2BIG : 0;
+}
+
+static void
+qat_crypto_load_aadbuf_cb(void *_arg, bus_dma_segment_t *segs, int nseg,
+    int error)
+{
+	struct qat_crypto_load_cb_arg *arg;
+	struct qat_sym_cookie *qsc;
+
+	arg = _arg;
+	if (error != 0) {
+		arg->error = error;
+		return;
+	}
+
+	qsc = arg->qsc;
+	arg->error = qat_crypto_populate_buf_list(&qsc->qsc_buf_list, segs,
+	    nseg, 0, 0);
+}
+
+static void
+qat_crypto_load_buf_cb(void *_arg, bus_dma_segment_t *segs, int nseg,
+    int error)
+{
+	struct cryptop *crp;
+	struct qat_crypto_load_cb_arg *arg;
+	struct qat_session *qs;
+	struct qat_sym_cookie *qsc;
+	int noseg, skip;
+
+	arg = _arg;
+	if (error != 0) {
+		arg->error = error;
+		return;
+	}
+
+	crp = arg->crp;
+	qs = arg->qs;
+	qsc = arg->qsc;
+
+	if (qs->qs_auth_algo == HW_AUTH_ALGO_GALOIS_128) {
+		/* AAD was handled in qat_crypto_load(). */
+		skip = crp->crp_payload_start;
+		noseg = 0;
+	} else if (crp->crp_aad == NULL && crp->crp_aad_length > 0) {
+		skip = crp->crp_aad_start;
+		noseg = 0;
+	} else {
+		skip = crp->crp_payload_start;
+		noseg = crp->crp_aad == NULL ?
+		    0 : qsc->qsc_buf_list.num_buffers;
+	}
+	arg->error = qat_crypto_populate_buf_list(&qsc->qsc_buf_list, segs,
+	    nseg, noseg, skip);
+}
+
+static void
+qat_crypto_load_obuf_cb(void *_arg, bus_dma_segment_t *segs, int nseg,
+    int error)
+{
+	struct buffer_list_desc *ibufs, *obufs;
+	struct flat_buffer_desc *ibuf, *obuf;
+	struct cryptop *crp;
+	struct qat_crypto_load_cb_arg *arg;
+	struct qat_session *qs;
+	struct qat_sym_cookie *qsc;
+	int buflen, osegs, tocopy;
+
+	arg = _arg;
+	if (error != 0) {
+		arg->error = error;
+		return;
+	}
+
+	crp = arg->crp;
+	qs = arg->qs;
+	qsc = arg->qsc;
+
+	/*
+	 * The payload must start at the same offset in the output SG list as in
+	 * the input SG list.  Copy over SG entries from the input corresponding
+	 * to the AAD buffer.
+	 */
+	osegs = 0;
+	if (qs->qs_auth_algo != HW_AUTH_ALGO_GALOIS_128 &&
+	    crp->crp_aad_length > 0) {
+		tocopy = crp->crp_aad == NULL ?
+		    crp->crp_payload_start - crp->crp_aad_start :
+		    crp->crp_aad_length;
+
+		ibufs = &qsc->qsc_buf_list;
+		obufs = &qsc->qsc_obuf_list;
+		for (; osegs < ibufs->num_buffers && tocopy > 0; osegs++) {
+			ibuf = &ibufs->flat_bufs[osegs];
+			obuf = &obufs->flat_bufs[osegs];
+
+			obuf->phy_buffer = ibuf->phy_buffer;
+			buflen = imin(ibuf->data_len_in_bytes, tocopy);
+			obuf->data_len_in_bytes = buflen;
+			tocopy -= buflen;
+		}
+	}
+
+	arg->error = qat_crypto_populate_buf_list(&qsc->qsc_obuf_list, segs,
+	    nseg, osegs, crp->crp_payload_output_start);
 }
 
 static int
@@ -1426,10 +1500,52 @@ qat_crypto_load(struct qat_session *qs, struct qat_sym_cookie *qsc,
 	arg.qs = qs;
 	arg.qsc = qsc;
 	arg.error = 0;
-	error = bus_dmamap_load_crp(qsc->qsc_buf_dma_tag, qsc->qsc_buf_dmamap,
-	    crp, qat_crypto_load_cb, &arg, BUS_DMA_NOWAIT);
-	if (error == 0)
-		error = arg.error;
+
+	error = 0;
+	if (qs->qs_auth_algo == HW_AUTH_ALGO_GALOIS_128 &&
+	    crp->crp_aad_length > 0) {
+		/*
+		 * The firmware expects AAD to be in a contiguous buffer and
+		 * padded to a multiple of 16 bytes.  To satisfy these
+		 * constraints we bounce the AAD into a per-request buffer.
+		 * There is a small limit on the AAD size so this is not too
+		 * onerous.
+		 */
+		memset(qsc->qsc_gcm_aad, 0, QAT_GCM_AAD_SIZE_MAX);
+		if (crp->crp_aad == NULL) {
+			crypto_copydata(crp, crp->crp_aad_start,
+			    crp->crp_aad_length, qsc->qsc_gcm_aad);
+		} else {
+			memcpy(qsc->qsc_gcm_aad, crp->crp_aad,
+			    crp->crp_aad_length);
+		}
+	} else if (crp->crp_aad != NULL) {
+		error = bus_dmamap_load(
+		    qsc->qsc_dma[QAT_SYM_DMA_AADBUF].qsd_dma_tag,
+		    qsc->qsc_dma[QAT_SYM_DMA_AADBUF].qsd_dmamap,
+		    crp->crp_aad, crp->crp_aad_length,
+		    qat_crypto_load_aadbuf_cb, &arg, BUS_DMA_NOWAIT);
+		if (error == 0)
+			error = arg.error;
+	}
+	if (error == 0) {
+		error = bus_dmamap_load_crp_buffer(
+		    qsc->qsc_dma[QAT_SYM_DMA_BUF].qsd_dma_tag,
+		    qsc->qsc_dma[QAT_SYM_DMA_BUF].qsd_dmamap,
+		    &crp->crp_buf, qat_crypto_load_buf_cb, &arg,
+		    BUS_DMA_NOWAIT);
+		if (error == 0)
+			error = arg.error;
+	}
+	if (error == 0 && CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
+		error = bus_dmamap_load_crp_buffer(
+		    qsc->qsc_dma[QAT_SYM_DMA_OBUF].qsd_dma_tag,
+		    qsc->qsc_dma[QAT_SYM_DMA_OBUF].qsd_dmamap,
+		    &crp->crp_obuf, qat_crypto_load_obuf_cb, &arg,
+		    BUS_DMA_NOWAIT);
+		if (error == 0)
+			error = arg.error;
+	}
 	return error;
 }
 
@@ -1444,11 +1560,11 @@ qat_crypto_select_bank(struct qat_crypto *qcy)
 static int
 qat_crypto_setup_ring(struct qat_softc *sc, struct qat_crypto_bank *qcb)
 {
-	int error, i, bank;
-	int curname = 0;
 	char *name;
+	int bank, curname, error, i, j;
 
 	bank = qcb->qcb_bank;
+	curname = 0;
 
 	name = qcb->qcb_ring_names[curname++];
 	snprintf(name, QAT_RING_NAME_SIZE, "bank%d sym_tx", bank);
@@ -1480,10 +1596,16 @@ qat_crypto_setup_ring(struct qat_softc *sc, struct qat_crypto_bank *qcb)
 		qsc->qsc_self_dma_tag = qdm->qdm_dma_tag;
 		qsc->qsc_bulk_req_params_buf_paddr =
 		    qdm->qdm_dma_seg.ds_addr + offsetof(struct qat_sym_cookie,
-		    u.qsc_bulk_cookie.qsbc_req_params_buf);
+		    qsc_bulk_cookie.qsbc_req_params_buf);
 		qsc->qsc_buffer_list_desc_paddr =
 		    qdm->qdm_dma_seg.ds_addr + offsetof(struct qat_sym_cookie,
 		    qsc_buf_list);
+		qsc->qsc_obuffer_list_desc_paddr =
+		    qdm->qdm_dma_seg.ds_addr + offsetof(struct qat_sym_cookie,
+		    qsc_obuf_list);
+		qsc->qsc_obuffer_list_desc_paddr =
+		    qdm->qdm_dma_seg.ds_addr + offsetof(struct qat_sym_cookie,
+		    qsc_obuf_list);
 		qsc->qsc_iv_buf_paddr =
 		    qdm->qdm_dma_seg.ds_addr + offsetof(struct qat_sym_cookie,
 		    qsc_iv_buf);
@@ -1499,24 +1621,25 @@ qat_crypto_setup_ring(struct qat_softc *sc, struct qat_crypto_bank *qcb)
 		qcb->qcb_symck_free[i] = qsc;
 		qcb->qcb_symck_free_count++;
 
-		error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),
-		    1, 0, 			/* alignment, boundary */
-		    BUS_SPACE_MAXADDR,		/* lowaddr */
-		    BUS_SPACE_MAXADDR, 		/* highaddr */
-		    NULL, NULL, 		/* filter, filterarg */
-		    QAT_MAXLEN,			/* maxsize */
-		    QAT_MAXSEG,			/* nsegments */
-		    QAT_MAXLEN,			/* maxsegsize */
-		    BUS_DMA_COHERENT,		/* flags */
-		    NULL, NULL,			/* lockfunc, lockarg */
-		    &qsc->qsc_buf_dma_tag);
-		if (error != 0)
-			return error;
-
-		error = bus_dmamap_create(qsc->qsc_buf_dma_tag,
-		    BUS_DMA_COHERENT, &qsc->qsc_buf_dmamap);
-		if (error)
-			return error;
+		for (j = 0; j < QAT_SYM_DMA_COUNT; j++) {
+			error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),
+			    1, 0, 		/* alignment, boundary */
+			    BUS_SPACE_MAXADDR,	/* lowaddr */
+			    BUS_SPACE_MAXADDR, 	/* highaddr */
+			    NULL, NULL, 	/* filter, filterarg */
+			    QAT_MAXLEN,		/* maxsize */
+			    QAT_MAXSEG,		/* nsegments */
+			    QAT_MAXLEN,		/* maxsegsize */
+			    BUS_DMA_COHERENT,	/* flags */
+			    NULL, NULL,		/* lockfunc, lockarg */
+			    &qsc->qsc_dma[j].qsd_dma_tag);
+			if (error != 0)
+				return error;
+			error = bus_dmamap_create(qsc->qsc_dma[j].qsd_dma_tag,
+			    BUS_DMA_COHERENT, &qsc->qsc_dma[j].qsd_dmamap);
+			if (error != 0)
+				return error;
+		}
 	}
 
 	return 0;
@@ -1534,10 +1657,17 @@ static void
 qat_crypto_bank_deinit(struct qat_softc *sc, struct qat_crypto_bank *qcb)
 {
 	struct qat_dmamem *qdm;
-	int i;
+	struct qat_sym_cookie *qsc;
+	int i, j;
 
 	for (i = 0; i < QAT_NSYMCOOKIE; i++) {
 		qdm = &qcb->qcb_symck_dmamems[i];
+		qsc = qcb->qcb_symck_free[i];
+		for (j = 0; j < QAT_SYM_DMA_COUNT; j++) {
+			bus_dmamap_destroy(qsc->qsc_dma[j].qsd_dma_tag,
+			    qsc->qsc_dma[j].qsd_dmamap);
+			bus_dma_tag_destroy(qsc->qsc_dma[j].qsd_dma_tag);
+		}
 		qat_free_dmamem(sc, qdm);
 	}
 	qat_free_dmamem(sc, &qcb->qcb_sym_tx->qr_dma);
@@ -1653,6 +1783,15 @@ qat_crypto_stop(struct qat_softc *sc)
 		(void)crypto_unregister_all(qcy->qcy_cid);
 }
 
+static void
+qat_crypto_sym_dma_unload(struct qat_sym_cookie *qsc, enum qat_sym_dma i)
+{
+	bus_dmamap_sync(qsc->qsc_dma[i].qsd_dma_tag, qsc->qsc_dma[i].qsd_dmamap,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	bus_dmamap_unload(qsc->qsc_dma[i].qsd_dma_tag,
+	    qsc->qsc_dma[i].qsd_dmamap);
+}
+
 static int
 qat_crypto_sym_rxintr(struct qat_softc *sc, void *arg, void *msg)
 {
@@ -1669,16 +1808,19 @@ qat_crypto_sym_rxintr(struct qat_softc *sc, void *arg, void *msg)
 
 	qsc = *(void **)((uintptr_t)msg + sc->sc_hw.qhw_crypto_opaque_offset);
 
-	qsbc = &qsc->u.qsc_bulk_cookie;
+	qsbc = &qsc->qsc_bulk_cookie;
 	qcy = qsbc->qsbc_crypto;
 	qs = qsbc->qsbc_session;
 	crp = qsbc->qsbc_cb_tag;
 
 	bus_dmamap_sync(qsc->qsc_self_dma_tag, qsc->qsc_self_dmamap,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_sync(qsc->qsc_buf_dma_tag, qsc->qsc_buf_dmamap,
-	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_unload(qsc->qsc_buf_dma_tag, qsc->qsc_buf_dmamap);
+
+	if (crp->crp_aad != NULL)
+		qat_crypto_sym_dma_unload(qsc, QAT_SYM_DMA_AADBUF);
+	qat_crypto_sym_dma_unload(qsc, QAT_SYM_DMA_BUF);
+	if (CRYPTO_HAS_OUTPUT_BUFFER(crp))
+		qat_crypto_sym_dma_unload(qsc, QAT_SYM_DMA_OBUF);
 
 	error = 0;
 	if ((auth_sz = qs->qs_auth_mlen) != 0) {
@@ -1719,6 +1861,10 @@ qat_crypto_sym_rxintr(struct qat_softc *sc, void *arg, void *msg)
 static int
 qat_probesession(device_t dev, const struct crypto_session_params *csp)
 {
+	if ((csp->csp_flags & ~(CSP_F_SEPARATE_OUTPUT | CSP_F_SEPARATE_AAD)) !=
+	    0)
+		return EINVAL;
+
 	if (csp->csp_cipher_alg == CRYPTO_AES_XTS &&
 	    qat_lookup(dev)->qatp_chip == QAT_CHIP_C2XXX) {
 		/*
@@ -2092,15 +2238,26 @@ qat_process(device_t dev, struct cryptop *crp, int hint)
 	if (error != 0)
 		goto fail2;
 
-	qsbc = &qsc->u.qsc_bulk_cookie;
+	qsbc = &qsc->qsc_bulk_cookie;
 	qsbc->qsbc_crypto = qcy;
 	qsbc->qsbc_session = qs;
 	qsbc->qsbc_cb_tag = crp;
 
 	sc->sc_hw.qhw_crypto_setup_req_params(qcb, qs, desc, qsc, crp);
 
-	bus_dmamap_sync(qsc->qsc_buf_dma_tag, qsc->qsc_buf_dmamap,
+	if (crp->crp_aad != NULL) {
+		bus_dmamap_sync(qsc->qsc_dma[QAT_SYM_DMA_AADBUF].qsd_dma_tag,
+		    qsc->qsc_dma[QAT_SYM_DMA_AADBUF].qsd_dmamap,
+		    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+	}
+	bus_dmamap_sync(qsc->qsc_dma[QAT_SYM_DMA_BUF].qsd_dma_tag,
+	    qsc->qsc_dma[QAT_SYM_DMA_BUF].qsd_dmamap,
 	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
+		bus_dmamap_sync(qsc->qsc_dma[QAT_SYM_DMA_OBUF].qsd_dma_tag,
+		    qsc->qsc_dma[QAT_SYM_DMA_OBUF].qsd_dmamap,
+		    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
+	}
 	bus_dmamap_sync(qsc->qsc_self_dma_tag, qsc->qsc_self_dmamap,
 	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 
