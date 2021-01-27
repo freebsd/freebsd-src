@@ -1550,10 +1550,13 @@ struct flat_buffer_desc {
 	uint64_t phy_buffer;
 };
 
+#define	HW_MAXSEG	32
+
 struct buffer_list_desc {
 	uint64_t resrvd;
 	uint32_t num_buffers;
 	uint32_t reserved;
+	struct flat_buffer_desc flat_bufs[HW_MAXSEG];
 };
 
 /* -------------------------------------------------------------------------- */
