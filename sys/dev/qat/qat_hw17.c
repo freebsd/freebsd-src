@@ -581,13 +581,19 @@ qat_hw17_crypto_setup_req_params(struct qat_crypto_bank *qcb __unused,
 	uint8_t *req_params_ptr;
 	enum fw_la_cmd_id cmd_id = desc->qcd_cmd_id;
 
-	qsbc = &qsc->u.qsc_bulk_cookie;
+	qsbc = &qsc->qsc_bulk_cookie;
 	bulk_req = (struct fw_la_bulk_req *)qsbc->qsbc_msg;
 
 	memcpy(bulk_req, desc->qcd_req_cache, sizeof(struct fw_la_bulk_req));
 	bulk_req->comn_mid.opaque_data = (uint64_t)(uintptr_t)qsc;
 	bulk_req->comn_mid.src_data_addr = qsc->qsc_buffer_list_desc_paddr;
-	bulk_req->comn_mid.dest_data_addr = qsc->qsc_buffer_list_desc_paddr;
+	if (CRYPTO_HAS_OUTPUT_BUFFER(crp)) {
+		bulk_req->comn_mid.dest_data_addr =
+		    qsc->qsc_obuffer_list_desc_paddr;
+	} else {
+		bulk_req->comn_mid.dest_data_addr =
+		    qsc->qsc_buffer_list_desc_paddr;
+	}
 	if (__predict_false(crp->crp_cipher_key != NULL ||
 	    crp->crp_auth_key != NULL))
 		qat_hw17_crypto_req_setkey(desc, qs, qsc, bulk_req, crp);
@@ -643,9 +649,15 @@ qat_hw17_crypto_setup_req_params(struct qat_crypto_bank *qcb __unused,
 		}
 	} else {
 		if (cmd_id != FW_LA_CMD_AUTH) {
-			cipher_param->cipher_offset =
-			    crp->crp_aad_length == 0 ? 0 :
-			    crp->crp_payload_start - crp->crp_aad_start;
+			if (crp->crp_aad_length == 0) {
+				cipher_param->cipher_offset = 0;
+			} else if (crp->crp_aad == NULL) {
+				cipher_param->cipher_offset =
+				    crp->crp_payload_start - crp->crp_aad_start;
+			} else {
+				cipher_param->cipher_offset =
+				    crp->crp_aad_length;
+			}
 			cipher_param->cipher_length = crp->crp_payload_length;
 		}
 		if (cmd_id != FW_LA_CMD_CIPHER) {
