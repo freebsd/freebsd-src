@@ -732,7 +732,7 @@ ipf_pool_select_add_ref(arg, unit, name)
 /*                                                                          */
 /* Searches for an exact match of an entry in the pool.                     */
 /* ------------------------------------------------------------------------ */
-extern void printhostmask(int, u_32_t *, u_32_t *));
+extern void printhostmask(int, u_32_t *, u_32_t *);
 static ip_pool_node_t *
 ipf_pool_findeq(softp, ipo, addr, mask)
 	ipf_pool_softc_t *softp;

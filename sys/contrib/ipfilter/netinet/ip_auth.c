@@ -81,13 +81,13 @@
 # undef	KERNEL
 #endif
 #include <netinet/tcp.h>
-#  if defined(__FreeBSD_version)
-#   include <net/if_var.h>
-#    define IF_QFULL _IF_QFULL
-#    define IF_DROP _IF_DROP
-#  endif
-#  include <netinet/in_var.h>
-#  include <netinet/tcp_fsm.h>
+#if defined(__FreeBSD_version)
+# include <net/if_var.h>
+# define IF_QFULL _IF_QFULL
+# define IF_DROP _IF_DROP
+#endif
+#include <netinet/in_var.h>
+#include <netinet/tcp_fsm.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
 #include "netinet/ip_compat.h"
@@ -298,9 +298,9 @@ ipf_auth_soft_destroy(softc, arg)
 {
 	ipf_auth_softc_t *softa = arg;
 
-# if SOLARIS && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 	cv_destroy(&softa->ipf_auth_wait);
-# endif
+#endif
 	MUTEX_DESTROY(&softa->ipf_auth_mx);
 	RW_DESTROY(&softa->ipf_authlk);
 

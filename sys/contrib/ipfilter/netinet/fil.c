@@ -48,7 +48,7 @@
 #if !defined(__SVR4)
 # include <sys/mbuf.h>
 #else
-#  include <sys/byteorder.h>
+# include <sys/byteorder.h>
 # if (SOLARIS2 < 5) && defined(sun)
 #  include <sys/dditypes.h>
 # endif
@@ -4117,11 +4117,11 @@ ipf_sync(softc, ifp)
 {
 	int i;
 
-# if !SOLARIS
+#if !SOLARIS
 	ipf_nat_sync(softc, ifp);
 	ipf_state_sync(softc, ifp);
 	ipf_lookup_sync(softc, ifp);
-# endif
+#endif
 
 	WRITE_ENTER(&softc->ipf_mutex);
 	(void) ipf_synclist(softc, softc->ipf_acct[0][softc->ipf_active], ifp);
@@ -4168,13 +4168,13 @@ copyinptr(softc, src, dst, size)
 	caddr_t ca;
 	int error;
 
-# if SOLARIS
+#if SOLARIS
 	error = COPYIN(src, &ca, sizeof(ca));
 	if (error != 0)
 		return error;
-# else
+#else
 	bcopy(src, (caddr_t)&ca, sizeof(ca));
-# endif
+#endif
 	error = COPYIN(ca, dst, size);
 	if (error != 0) {
 		IPFERROR(3);
