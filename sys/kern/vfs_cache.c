@@ -4697,7 +4697,7 @@ cache_fplookup_dotdot(struct cache_fpl *fpl)
 		 * TODO
 		 * The opposite of climb mount is needed here.
 		 */
-		return (cache_fpl_aborted(fpl));
+		return (cache_fpl_partial(fpl));
 	}
 
 	ncp = atomic_load_consume_ptr(&dvp->v_cache_dd);
