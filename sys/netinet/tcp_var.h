@@ -984,6 +984,13 @@ extern counter_u64_t tcp_inp_lro_compressed;
 extern counter_u64_t tcp_inp_lro_single_push;
 extern counter_u64_t tcp_inp_lro_locks_taken;
 extern counter_u64_t tcp_inp_lro_sack_wake;
+extern counter_u64_t tcp_extra_mbuf;
+extern counter_u64_t tcp_would_have_but;
+extern counter_u64_t tcp_comp_total;
+extern counter_u64_t tcp_uncomp_total;
+extern counter_u64_t tcp_csum_hardware;
+extern counter_u64_t tcp_csum_hardware_w_ph;
+extern counter_u64_t tcp_csum_software;
 
 #ifdef NETFLIX_EXP_DETECTION
 /* Various SACK attack thresholds */

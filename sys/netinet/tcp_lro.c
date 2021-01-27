@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/ethernet.h>
+#include <net/bpf.h>
 #include <net/vnet.h>
 
 #include <netinet/in_systm.h>
@@ -64,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/tcp_var.h>
+#include <netinet/tcpip.h>
 #include <netinet/tcp_hpts.h>
 #include <netinet/tcp_log_buf.h>
 #include <netinet6/ip6_var.h>
@@ -91,15 +93,20 @@ counter_u64_t tcp_inp_lro_compressed;
 counter_u64_t tcp_inp_lro_single_push;
 counter_u64_t tcp_inp_lro_locks_taken;
 counter_u64_t tcp_inp_lro_sack_wake;
+counter_u64_t tcp_extra_mbuf;
+counter_u64_t tcp_would_have_but;
+counter_u64_t tcp_comp_total;
+counter_u64_t tcp_uncomp_total;
+counter_u64_t tcp_csum_hardware;
+counter_u64_t tcp_csum_hardware_w_ph;
+counter_u64_t tcp_csum_software;
+
 
 static unsigned	tcp_lro_entries = TCP_LRO_ENTRIES;
-static int32_t hold_lock_over_compress = 0;
-SYSCTL_INT(_net_inet_tcp_lro, OID_AUTO, hold_lock, CTLFLAG_RW,
-    &hold_lock_over_compress, 0,
-    "Do we hold the lock over the compress of mbufs?");
 SYSCTL_UINT(_net_inet_tcp_lro, OID_AUTO, entries,
     CTLFLAG_RDTUN | CTLFLAG_MPSAFE, &tcp_lro_entries, 0,
     "default number of LRO entries");
+
 SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, fullqueue, CTLFLAG_RD,
     &tcp_inp_lro_direct_queue, "Number of lro's fully queued to transport");
 SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, wokeup, CTLFLAG_RD,
@@ -112,6 +119,22 @@ SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, lockcnt, CTLFLAG_RD,
     &tcp_inp_lro_locks_taken, "Number of lro's inp_wlocks taken");
 SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, sackwakeups, CTLFLAG_RD,
     &tcp_inp_lro_sack_wake, "Number of wakeups caused by sack/fin");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, extra_mbuf, CTLFLAG_RD,
+    &tcp_extra_mbuf, "Number of times we had an extra compressed ack dropped into the tp");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, would_have_but, CTLFLAG_RD,
+    &tcp_would_have_but, "Number of times we would have had an extra compressed but out of room");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, with_m_ackcmp, CTLFLAG_RD,
+    &tcp_comp_total, "Number of mbufs queued with M_ACKCMP flags set");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, without_m_ackcmp, CTLFLAG_RD,
+    &tcp_uncomp_total, "Number of mbufs queued without M_ACKCMP");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, csum_hw, CTLFLAG_RD,
+    &tcp_csum_hardware, "Number of checksums processed in hardware");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, csum_hw_ph, CTLFLAG_RD,
+    &tcp_csum_hardware_w_ph, "Number of checksums processed in hardware with pseudo header");
+SYSCTL_COUNTER_U64(_net_inet_tcp_lro, OID_AUTO, csum_sw, CTLFLAG_RD,
+    &tcp_csum_software, "Number of checksums processed in software");
+
+
 
 void
 tcp_lro_reg_mbufq(void)
@@ -233,6 +256,19 @@ tcp_lro_get_th(struct lro_entry *le, struct mbuf *m)
 	return (th);
 }
 
+static void
+lro_free_mbuf_chain(struct mbuf *m)
+{
+	struct mbuf *save;
+
+	while (m) {
+		save = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+		m_freem(m);
+		m = save;
+	}
+}
+
 void
 tcp_lro_free(struct lro_ctrl *lc)
 {
@@ -245,7 +281,7 @@ tcp_lro_free(struct lro_ctrl *lc)
 	/* free active mbufs, if any */
 	while ((le = LIST_FIRST(&lc->lro_active)) != NULL) {
 		tcp_lro_active_remove(le);
-		m_freem(le->m_head);
+		lro_free_mbuf_chain(le->m_head);
 	}
 
 	/* free hash table */
@@ -454,11 +490,11 @@ tcp_lro_log(struct tcpcb *tp, struct lro_ctrl *lc,
 			log.u_bbr.flex2 = 0;
 		log.u_bbr.flex3 = le->append_cnt;
 		log.u_bbr.flex4 = le->p_len;
-		log.u_bbr.flex5 = le->m_head->m_pkthdr.len;
-		log.u_bbr.delRate = le->m_head->m_flags;
-		log.u_bbr.rttProp = le->m_head->m_pkthdr.rcv_tstmp;
-		log.u_bbr.flex6 = lc->lro_length_lim;
-		log.u_bbr.flex7 = lc->lro_ackcnt_lim;
+		if (le->m_head) {
+			log.u_bbr.flex5 = le->m_head->m_pkthdr.len;
+			log.u_bbr.delRate = le->m_head->m_flags;
+			log.u_bbr.rttProp = le->m_head->m_pkthdr.rcv_tstmp;
+		}
 		log.u_bbr.inflight = th_seq;
 		log.u_bbr.timeStamp = cts;
 		log.u_bbr.epoch = le->next_seq;
@@ -471,6 +507,12 @@ tcp_lro_log(struct tcpcb *tp, struct lro_ctrl *lc,
 		log.u_bbr.pkts_out = le->mbuf_cnt;	/* Total mbufs added */
 		log.u_bbr.applimited = le->ulp_csum;
 		log.u_bbr.lost = le->mbuf_appended;
+		log.u_bbr.pkt_epoch = le->cmp_ack_cnt;
+		log.u_bbr.flex6 = tcp_tv_to_usectick(&lc->lro_last_flush);
+		if (in_epoch(net_epoch_preempt))
+			log.u_bbr.inhpts = 1;
+		else
+			log.u_bbr.inhpts = 0;
 		TCP_LOG_EVENTP(tp, NULL,
 			       &tp->t_inpcb->inp_socket->so_rcv,
 			       &tp->t_inpcb->inp_socket->so_snd,
@@ -480,7 +522,7 @@ tcp_lro_log(struct tcpcb *tp, struct lro_ctrl *lc,
 }
 
 static void
-tcp_flush_out_le(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, int locked)
+tcp_flush_out_le(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le)
 {
 	if (le->append_cnt > 1) {
 		struct tcphdr *th;
@@ -552,9 +594,6 @@ tcp_flush_out_le(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, in
 			    (le->ulp_csum & 0xffff);
 		th->th_sum = (le->ulp_csum & 0xffff);
 		th->th_sum = ~th->th_sum;
-		if (tp && locked) {
-			tcp_lro_log(tp, lc, le, NULL, 7, 0, 0, 0, 0);
-		}
 	}
 	/*
 	 * Break any chain, this is not set to NULL on the singleton
@@ -563,9 +602,6 @@ tcp_flush_out_le(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, in
 	 */
 	le->m_head->m_nextpkt = NULL;
 	le->m_head->m_pkthdr.lro_nsegs = le->append_cnt;
-	if (tp && locked) {
-		tcp_lro_log(tp, lc, le, le->m_head, 8, 0, 0, 0, 0);
-	}
 	(*lc->ifp->if_input)(lc->ifp, le->m_head);
 	lc->lro_queued += le->append_cnt;
 }
@@ -652,7 +688,7 @@ tcp_set_le_to_m(struct lro_ctrl *lc, struct lro_entry *le, struct mbuf *m)
 }
 
 static void
-tcp_push_and_replace(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, struct mbuf *m, int locked)
+tcp_push_and_replace(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, struct mbuf *m)
 {
 	/*
 	 * Push up the stack the current le and replace
@@ -664,7 +700,7 @@ tcp_push_and_replace(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le
 	msave = le->m_head->m_nextpkt;
 	le->m_head->m_nextpkt = NULL;
 	/* Now push out the old le entry */
-	tcp_flush_out_le(tp, lc, le, locked);
+	tcp_flush_out_le(tp, lc, le);
 	/*
 	 * Now to replace the data properly in the le
 	 * we have to reset the tcp header and
@@ -676,7 +712,7 @@ tcp_push_and_replace(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le
 }
 
 static void
-tcp_lro_condense(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le, int locked)
+tcp_lro_condense(struct tcpcb *tp, struct lro_ctrl *lc, struct lro_entry *le)
 {
 	/*
 	 * Walk through the mbuf chain we
@@ -702,6 +738,9 @@ again:
 		/* Just the one left */
 		return;
 	}
+	if (m->m_flags & M_ACKCMP)
+		panic("LRO condense lc:%p le:%p reaches with mbuf:%p ackcmp",
+		      lc, le, m);
 	th = tcp_lro_get_th(le, le->m_head);
 	KASSERT(th != NULL,
 		("le:%p m:%p th comes back NULL?", le, le->m_head));
@@ -716,7 +755,7 @@ again:
 		 * use this guy as the head.
 		 */
 		le->m_head->m_nextpkt = m->m_nextpkt;
-		tcp_push_and_replace(tp, lc, le, m, locked);
+		tcp_push_and_replace(tp, lc, le, m);
 		goto again;
 	}
 	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0) {
@@ -725,7 +764,9 @@ again:
 		 * before this segment, e.g. FIN.
 		 */
 		le->m_head->m_nextpkt = m->m_nextpkt;
-		tcp_push_and_replace(tp, lc, le, m, locked);
+		KASSERT(((m->m_flags & M_LRO_EHDRSTRP) == 0) ,
+			("tp:%p mbuf:%p has stripped ethernet flags:0x%x", tp,  m, m->m_flags));
+		tcp_push_and_replace(tp, lc, le, m);
 		goto again;
 	}
 	while((m = le->m_head->m_nextpkt) != NULL) {
@@ -733,6 +774,10 @@ again:
 		 * condense m into le, first
 		 * pull m out of the list.
 		 */
+		KASSERT(((m->m_flags & M_LRO_EHDRSTRP) == 0) ,
+			("tp:%p mbuf:%p has stripped ethernet flags:0x%x", tp,  m, m->m_flags));
+		KASSERT(((m->m_flags & M_ACKCMP) == 0),
+			("LRO condense lc:%p le:%p reaches with mbuf:%p ackcmp", lc, le, m));
 		le->m_head->m_nextpkt = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		/* Setup my data */
@@ -743,22 +788,13 @@ again:
 		ts_ptr = (uint32_t *)(th + 1);
 		l = (th->th_off << 2);
 		l -= sizeof(*th);
-		if (tp && locked) {
-			tcp_lro_log(tp, lc, le, m, 1, 0, 0, 0, 0);
-		}
 		if (le->append_cnt >= lc->lro_ackcnt_lim) {
-			if (tp && locked) {
-				tcp_lro_log(tp, lc, le, m, 2, 0, 0, 0, 0);
-			}
-			tcp_push_and_replace(tp, lc, le, m, locked);
+			tcp_push_and_replace(tp, lc, le, m);
 			goto again;
 		}
 		if (le->p_len > (lc->lro_length_lim - tcp_data_len)) {
 			/* Flush now if appending will result in overflow. */
-			if (tp && locked) {
-				tcp_lro_log(tp, lc, le, m, 3, tcp_data_len, 0, 0, 0);
-			}
-			tcp_push_and_replace(tp, lc, le, m, locked);
+			tcp_push_and_replace(tp, lc, le, m);
 			goto again;
 		}
 		if (l != 0 && (__predict_false(l != TCPOLEN_TSTAMP_APPA) ||
@@ -771,18 +807,18 @@ again:
 			 * and flush it (calling the replace again possibly
 			 * or just returning).
 			 */
-			tcp_push_and_replace(tp, lc, le, m, locked);
+			tcp_push_and_replace(tp, lc, le, m);
 			goto again;
 		}
 		if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0) {
-			tcp_push_and_replace(tp, lc, le, m, locked);
+			tcp_push_and_replace(tp, lc, le, m);
 			goto again;
 		}
 		if (l != 0) {
 			uint32_t tsval = ntohl(*(ts_ptr + 1));
 			/* Make sure timestamp values are increasing. */
 			if (TSTMP_GT(le->tsval, tsval))  {
-				tcp_push_and_replace(tp, lc, le, m, locked);
+				tcp_push_and_replace(tp, lc, le, m);
 				goto again;
 			}
 			le->tsval = tsval;
@@ -794,13 +830,7 @@ again:
 				     le->ack_seq == th->th_ack &&
 				     le->window == th->th_win))) {
 			/* Out of order packet or duplicate ACK. */
-			if (tp && locked) {
-				tcp_lro_log(tp, lc, le, m, 4, tcp_data_len,
-					    ntohl(th->th_seq),
-					    th->th_ack,
-					    th->th_win);
-			}
-			tcp_push_and_replace(tp, lc, le, m, locked);
+			tcp_push_and_replace(tp, lc, le, m);
 			goto again;
 		}
 		if (tcp_data_len || SEQ_GT(ntohl(th->th_ack), ntohl(le->ack_seq))) {
@@ -815,12 +845,6 @@ again:
 		if (tcp_data_len == 0) {
 			le->append_cnt++;
 			le->mbuf_cnt--;
-			if (tp && locked) {
-				tcp_lro_log(tp, lc, le, m, 5, tcp_data_len,
-					    ntohl(th->th_seq),
-					    th->th_ack,
-					    th->th_win);
-			}
 			m_freem(m);
 			continue;
 		}
@@ -833,12 +857,6 @@ again:
 		 * append new segment to existing mbuf chain.
 		 */
 		m_adj(m, m->m_pkthdr.len - tcp_data_len);
-		if (tp && locked) {
-			tcp_lro_log(tp, lc, le, m, 6, tcp_data_len,
-					    ntohl(th->th_seq),
-					    th->th_ack,
-					    th->th_win);
-		}
 		m_demote_pkthdr(m);
 		le->m_tail->m_next = m;
 		le->m_tail = m_last(m);
@@ -861,30 +879,38 @@ tcp_queue_pkts(struct tcpcb *tp, struct lro_entry *le)
 	le->m_head = NULL;
 	le->m_last_mbuf = NULL;
 }
-#endif
 
-void
-tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
+static struct mbuf *
+tcp_lro_get_last_if_ackcmp(struct lro_ctrl *lc, struct lro_entry *le, struct inpcb *inp)
 {
-	struct tcpcb *tp = NULL;
-	int locked = 0;
-#ifdef TCPHPTS
-	struct inpcb *inp = NULL;
-	int need_wakeup = 0, can_queue = 0;
-	struct epoch_tracker et;
+	struct mbuf *m = NULL;
+	struct tcpcb *tp;
 
-	/* Now lets lookup the inp first */
-	CURVNET_SET(lc->ifp->if_vnet);
-	/*
-	 * XXXRRS Currently the common input handler for
-	 * mbuf queuing cannot handle VLAN Tagged. This needs
-	 * to be fixed and the or condition removed (i.e. the
-	 * common code should do the right lookup for the vlan
-	 * tag and anything else that the vlan_input() does).
-	 */
-	if ((tcplro_stacks_wanting_mbufq == 0) || (le->m_head->m_flags & M_VLANTAG))
-		goto skip_lookup;
-	NET_EPOCH_ENTER(et);
+	tp = intotcpcb(inp);
+	if (tp) {
+		/* Look at the last mbuf if any in queue */
+		if ((tp->t_tail_pkt) &&
+		    (tp->t_tail_pkt->m_flags & M_ACKCMP)) {
+			if (M_TRAILINGSPACE(tp->t_tail_pkt) >= sizeof(struct tcp_ackent)) {
+				tcp_lro_log(tp, lc, le, NULL, 23, 0, 0, 0, 0);
+				m = tp->t_tail_pkt;
+			} else {
+				if ((inp->inp_flags2 & INP_MBUF_L_ACKS) == 0) {
+					counter_u64_add(tcp_would_have_but, 1);
+					inp->inp_flags2 |= INP_MBUF_L_ACKS;
+				}
+			}
+		}
+	}
+	return (m);
+}
+
+static struct inpcb *
+tcp_lro_lookup(struct lro_ctrl *lc, struct lro_entry *le)
+{
+	struct inpcb *inp = NULL;
+
+	NET_EPOCH_ASSERT();
 	switch (le->eh_type) {
 #ifdef INET6
 	case ETHERTYPE_IPV6:
@@ -903,14 +929,132 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 		break;
 #endif
 	}
-	NET_EPOCH_EXIT(et);
-	if (inp && ((inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
-		    (inp->inp_flags2 & INP_FREED))) {
-		/* We don't want this guy */
-		INP_WUNLOCK(inp);
-		inp = NULL;
+	return (inp);
+}
+
+#endif
+#ifdef NO
+static void
+stack_guard_prep(uint32_t *sg, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		sg[i] = 0xdeadc0de;
 	}
-	if (inp && (inp->inp_flags2 & INP_SUPPORTS_MBUFQ)) {
+}
+
+static void
+stack_guard_check(struct lro_ctrl *lc, struct lro_entry *le, uint32_t *sg, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++) {
+		if (sg[i] != 0xdeadc0de)
+			panic("Stack guard fails sg[%d] = 0x%x le:%p lc:%p sg:%p\n",
+			      i, sg[i], le, lc, sg);
+	}
+}
+#endif
+
+void
+tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
+{
+	struct tcpcb *tp = NULL;
+#ifdef TCPHPTS
+	struct inpcb *inp = NULL;
+	int need_wakeup = 0, can_queue = 0;
+
+	/* Now lets lookup the inp first */
+	CURVNET_SET(lc->ifp->if_vnet);
+	/*
+	 * XXXRRS Currently the common input handler for
+	 * mbuf queuing cannot handle VLAN Tagged. This needs
+	 * to be fixed and the or condition removed (i.e. the
+	 * common code should do the right lookup for the vlan
+	 * tag and anything else that the vlan_input() does).
+	 */
+	if (le->m_head == NULL) {
+		/*
+		 * Everything was pushed up to the stack nothing to do
+		 * but release the reference and be done.
+		 */
+		if (le->inp) {
+			INP_WLOCK(le->inp);
+			if (in_pcbrele_wlocked(le->inp) == 0) {
+				/*
+				 * We released it and still
+				 * have the lock.
+				 */
+				INP_WUNLOCK(le->inp);
+			}
+		}
+		goto done;
+	}
+	if ((tcplro_stacks_wanting_mbufq == 0) || (le->m_head->m_flags & M_VLANTAG))
+		goto skip_lookup;
+
+	if (le->inp == NULL) {
+		le->inp = inp = tcp_lro_lookup(lc, le);
+		if (inp && ((inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
+			    (inp->inp_flags2 & INP_FREED))) {
+			/*
+			 * We can't present these to the inp since
+			 * it will not support the stripped ethernet
+			 * header that these have nor if a compressed
+			 * ack is presnet.
+			 */
+			INP_WUNLOCK(inp);
+			lro_free_mbuf_chain(le->m_head);
+			goto done;
+		}
+		if ((le->flags & HAS_COMP_ENTRIES) &&
+		    ((inp->inp_flags2 & INP_MBUF_ACKCMP) == 0)) {
+			/*
+			 * It swapped to off, must be a stack
+			 * switch. We need to ditch all the packets
+			 * and the peer will just have to retransmit.
+			 */
+			INP_WUNLOCK(inp);
+			lro_free_mbuf_chain(le->m_head);
+			goto done;
+		}
+	} else {
+		/* We have a reference on the inp lets lock and release it */
+		inp = le->inp;
+		INP_WLOCK(inp);
+		if (in_pcbrele_wlocked(inp)) {
+			/*
+			 * We lost the inp. We can't present these to the inp since
+			 * it will not support the stripped off etherent header.
+			 */
+			lro_free_mbuf_chain(le->m_head);
+			goto done;
+		}
+		if (inp && ((inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
+			    (inp->inp_flags2 & INP_FREED))) {
+			/*
+			 * We can't present these to the inp since
+			 * it may not support them.
+			 */
+			INP_WUNLOCK(inp);
+			lro_free_mbuf_chain(le->m_head);
+			goto done;
+		}
+		if ((le->flags & HAS_COMP_ENTRIES) &&
+		    ((inp->inp_flags2 & INP_MBUF_ACKCMP) == 0)) {
+			/*
+			 * It swapped to off, must be a stack
+			 * switch. We need to ditch all the packets
+			 * and the peer will just have to retransmit.
+			 */
+			INP_WUNLOCK(inp);
+			lro_free_mbuf_chain(le->m_head);
+			goto done;
+		}
+	}
+	if (inp && ((inp->inp_flags2 & INP_SUPPORTS_MBUFQ) ||
+		    (inp->inp_flags2 & INP_MBUF_ACKCMP))) {
 		/* The transport supports mbuf queuing */
 		can_queue = 1;
 		if (le->need_wakeup ||
@@ -938,10 +1082,9 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 		    (le->mbuf_cnt >= lc->lro_ackcnt_lim))
 			need_wakeup = 1;
 	}
-	if (inp) {
+	if (inp)
 		tp = intotcpcb(inp);
-		locked = 1;
-	} else
+	else
 		tp = NULL;
 	if (can_queue) {
 		counter_u64_add(tcp_inp_lro_direct_queue, 1);
@@ -953,35 +1096,52 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 			 * We must get the guy to wakeup via
 			 * hpts.
 			 */
-			counter_u64_add(tcp_inp_lro_wokeup_queue, 1);
-			if (le->need_wakeup)
+			NET_EPOCH_ASSERT();
+			if (le->need_wakeup == 2) {
+				/*
+				 * The value 2 is set if the
+				 * options are unrecognized i.e.
+				 * not just a timestamp. So really
+				 * sack is usually what it is but
+				 * it might be some other option (CWR
+				 * etc).
+				 */
 				counter_u64_add(tcp_inp_lro_sack_wake, 1);
-			tcp_queue_to_input(inp);
+			}
+			counter_u64_add(tcp_inp_lro_wokeup_queue, 1);
+			if ((*tp->t_fb->tfb_do_queued_segments)(inp->inp_socket, tp, 0)) {
+				inp = NULL;
+			}
 		}
 	}
-	if (inp && (hold_lock_over_compress == 0)) {
+	if (inp) {
 		/* Unlock it */
-		locked = 0;
 		tp = NULL;
 		counter_u64_add(tcp_inp_lro_locks_taken, 1);
 		INP_WUNLOCK(inp);
 	}
 	if (can_queue == 0) {
 skip_lookup:
+		if (le->strip_cnt) {
+			/* 
+			 * We have stripped mbufs, the connection
+			 * must have changed underneath us. You
+			 * loose the packets as a penalty.
+			 */
+			lro_free_mbuf_chain(le->m_head);
+			goto done;
+		}
 #endif /* TCPHPTS */
 		/* Old fashioned lro method */
 		if (le->m_head != le->m_last_mbuf)  {
 			counter_u64_add(tcp_inp_lro_compressed, 1);
-			tcp_lro_condense(tp, lc, le, locked);
+			tcp_lro_condense(tp, lc, le);
 		} else
 			counter_u64_add(tcp_inp_lro_single_push, 1);
-		tcp_flush_out_le(tp, lc, le, locked);
+		tcp_flush_out_le(tp, lc, le);
 #ifdef TCPHPTS
 	}
-	if (inp && locked) {
-		counter_u64_add(tcp_inp_lro_locks_taken, 1);
-		INP_WUNLOCK(inp);
-	}
+done:
 	CURVNET_RESTORE();
 #endif
 	lc->lro_flushed++;
@@ -1088,6 +1248,7 @@ tcp_lro_flush_all(struct lro_ctrl *lc)
 	if (lc->lro_mbuf_count == 0)
 		goto done;
 
+	microuptime(&lc->lro_last_flush);
 	/* sort all mbufs according to stream */
 	tcp_lro_sort(lc->lro_mbuf_data, lc->lro_mbuf_count);
 
@@ -1132,6 +1293,201 @@ lro_set_mtime(struct timeval *tv, struct timespec *ts)
 	tv->tv_usec = ts->tv_nsec / 1000;
 }
 
+static void
+build_ack_entry(struct tcp_ackent *ae, struct tcphdr *th, struct mbuf *m, uint16_t hdr_len, uint16_t iptos)
+{
+	/*
+	 * Given a TCP ack, summarize it down into the small tcp
+	 * ack entry.
+	 */
+	u_char *cp;
+
+
+	KASSERT(((th->th_flags & ~(TH_ACK | TH_PUSH | TH_CWR | TH_ECE)) == 0),
+		("tcphdr:%p mbuf:%p has unallowed bits %x", th, m, th->th_flags));
+	ae->timestamp = m->m_pkthdr.rcv_tstmp;
+	if (m->m_flags & M_TSTMP_LRO)
+		ae->flags = TSTMP_LRO;
+	else if (m->m_flags & M_TSTMP)
+		ae->flags = TSTMP_HDWR;
+	ae->seq = ntohl(th->th_seq);
+	ae->ack = ntohl(th->th_ack);
+	ae->flags |= th->th_flags;
+	if (hdr_len) {
+		/* We have a timestamp options get out the bits */
+		cp = (u_char *)(th + 1);
+		/* Skip the two NOP's at the front */
+		while (*cp == TCPOPT_NOP)
+			cp++;
+		KASSERT(((*cp == TCPOPT_TIMESTAMP) &&
+			 (cp[1] == TCPOLEN_TIMESTAMP)),
+			("At %p in tcphdr:%p options of %d not timestamp",
+			 cp, th, hdr_len));
+		bcopy((char *)cp + 2,
+		      (char *)&ae->ts_value, sizeof(uint32_t));
+		ae->ts_value = ntohl(ae->ts_value);
+		bcopy((char *)cp + 6,
+		      (char *)&ae->ts_echo, sizeof(uint32_t));
+		ae->ts_echo = ntohl(ae->ts_echo);
+		ae->flags |= HAS_TSTMP;
+	}
+	ae->win = ntohs(th->th_win);
+	ae->codepoint = iptos;
+}
+
+static struct mbuf *
+do_bpf_and_csum(struct inpcb *inp, struct lro_ctrl *lc, struct lro_entry *le,
+	struct ether_header *eh, struct mbuf *m, int bpf_req, int locked)
+{
+	/*
+	 * Do TCP/IP checksum and BPF tap for either ACK_CMP packets or
+	 * MBUF QUEUE type packets.
+	 */
+	struct tcphdr *th;
+#ifdef INET6
+	struct ip6_hdr *ip6 = NULL;	/* Keep compiler happy. */
+#endif
+#ifdef INET
+	struct ip *ip = NULL;		/* Keep compiler happy. */
+#endif
+
+	uint16_t drop_hdrlen;
+	int etype, tlen;
+	uint8_t iptos;
+
+	/* Let the BPF see the packet */
+	if (bpf_req && lc->ifp)
+		ETHER_BPF_MTAP(lc->ifp, m);
+	/* Get type and Trim off the ethernet header */
+	m->m_pkthdr.lro_etype = etype = ntohs(eh->ether_type);
+	m_adj(m,  sizeof(*eh));
+	m->m_flags |= M_LRO_EHDRSTRP;
+	switch (etype) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+	{
+		if (m->m_len < (sizeof(*ip6) + sizeof(*th))) {
+			m = m_pullup(m, sizeof(*ip6) + sizeof(*th));
+			if (m == NULL) {
+				TCPSTAT_INC(tcps_rcvshort);
+				m_freem(m);
+				return (NULL);
+			}
+		}
+		ip6 = (struct ip6_hdr *)(eh + 1);
+		th = (struct tcphdr *)(ip6 + 1);
+		tlen = ntohs(ip6->ip6_plen);
+		drop_hdrlen = sizeof(*ip6);
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID_IPV6) {
+			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR) {
+				counter_u64_add(tcp_csum_hardware_w_ph, 1);
+				th->th_sum = m->m_pkthdr.csum_data;
+			} else {
+				counter_u64_add(tcp_csum_hardware, 1);
+				th->th_sum = in6_cksum_pseudo(ip6, tlen,
+							      IPPROTO_TCP, m->m_pkthdr.csum_data);
+			}
+			th->th_sum ^= 0xffff;
+		} else {
+			counter_u64_add(tcp_csum_software, 1);
+			th->th_sum = in6_cksum(m, IPPROTO_TCP, drop_hdrlen, tlen);
+		}
+		if (th->th_sum) {
+			TCPSTAT_INC(tcps_rcvbadsum);
+			if (locked) {
+				/* Log the bad news */
+				struct tcpcb *tp = intotcpcb(inp);
+
+				tcp_lro_log(tp, lc, le, m, 13, tlen, m->m_pkthdr.csum_flags, drop_hdrlen, th->th_sum);
+			}
+			m_freem(m);
+			return (NULL);
+		}
+
+
+
+
+		/*
+		 * Be proactive about unspecified IPv6 address in source.
+		 * As we use all-zero to indicate unbounded/unconnected pcb,
+		 * unspecified IPv6 address can be used to confuse us.
+		 *
+		 * Note that packets with unspecified IPv6 destination is
+		 * already dropped in ip6_input.
+		 */
+		if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
+			/* XXX stat */
+			m_freem(m);
+			return (NULL);
+		}
+		break;
+	}
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+	{
+		if (m->m_len < sizeof (struct tcpiphdr)) {
+			if ((m = m_pullup(m, sizeof (struct tcpiphdr)))
+			    == NULL) {
+				TCPSTAT_INC(tcps_rcvshort);
+				m_freem(m);
+				return (NULL);
+			}
+		}
+		ip = (struct ip *)(eh + 1);
+		th = (struct tcphdr *)(ip + 1);
+		iptos = ip->ip_tos;
+		drop_hdrlen = sizeof(*ip);
+		tlen = ntohs(ip->ip_len) - sizeof(struct ip);
+		if (m->m_pkthdr.csum_flags & CSUM_DATA_VALID) {
+			if (m->m_pkthdr.csum_flags & CSUM_PSEUDO_HDR) {
+				counter_u64_add(tcp_csum_hardware_w_ph, 1);
+				th->th_sum = m->m_pkthdr.csum_data;
+			} else {
+				counter_u64_add(tcp_csum_hardware, 1);
+				th->th_sum = in_pseudo(ip->ip_src.s_addr,
+						       ip->ip_dst.s_addr,
+						       htonl(m->m_pkthdr.csum_data + tlen +
+							     IPPROTO_TCP));
+			}
+			th->th_sum ^= 0xffff;
+		} else {
+			int len;
+			struct ipovly *ipov = (struct ipovly *)ip;
+			/*
+			 * Checksum extended TCP header and data.
+			 */
+			counter_u64_add(tcp_csum_software, 1);
+			len = drop_hdrlen + tlen;
+			bzero(ipov->ih_x1, sizeof(ipov->ih_x1));
+			ipov->ih_len = htons(tlen);
+			th->th_sum = in_cksum(m, len);
+			/* Reset length for SDT probes. */
+			ip->ip_len = htons(len);
+			/* Reset TOS bits */
+			ip->ip_tos = iptos;
+			/* Re-initialization for later version check */
+			ip->ip_v = IPVERSION;
+			ip->ip_hl = sizeof(*ip) >> 2;
+		}
+		if (th->th_sum) {
+			TCPSTAT_INC(tcps_rcvbadsum);
+			if (locked) {
+				/* Log the bad news */
+				struct tcpcb *tp = intotcpcb(inp);
+
+				tcp_lro_log(tp, lc, le, m, 13, tlen, m->m_pkthdr.csum_flags, drop_hdrlen, th->th_sum);
+			}
+			m_freem(m);
+			return (NULL);
+		}
+		break;
+	}
+#endif
+	} /* end switch */
+	return (m);
+}
+
 static int
 tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 {
@@ -1147,10 +1503,16 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 	void *l3hdr = NULL;		/* Keep compiler happy. */
 	uint32_t *ts_ptr;
 	tcp_seq seq;
-	int error, ip_len, l;
+	int error, ip_len, hdr_len, locked = 0;
 	uint16_t eh_type, tcp_data_len, need_flush;
+#ifdef TCPHPTS
+	uint16_t iptos;
+#endif
 	struct lro_head *bucket;
 	struct timespec arrv;
+
+	/* Clear the flags we may use to communicate with TCP */
+	m->m_flags &= ~(M_ACKCMP|M_LRO_EHDRSTRP);
 
 	/* We expect a contiguous header [eh, ip, tcp]. */
 	if ((m->m_flags & (M_TSTMP_LRO|M_TSTMP)) == 0) {
@@ -1177,6 +1539,9 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 		if (error != 0)
 			return (error);
 		tcp_data_len = ntohs(ip6->ip6_plen);
+#ifdef TCPHPTS
+		iptos = (ntohl(ip6->ip6_flow) >> 20) & 0xff;
+#endif
 		ip_len = sizeof(*ip6) + tcp_data_len;
 		break;
 	}
@@ -1196,6 +1561,9 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 		if (error != 0)
 			return (error);
 		ip_len = ntohs(ip4->ip_len);
+#ifdef TCPHPTS
+		iptos = ip4->ip_tos;
+#endif
 		tcp_data_len = ip_len - sizeof(*ip4);
 		break;
 	}
@@ -1209,29 +1577,29 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 	 * If the frame is padded beyond the end of the IP packet, then we must
 	 * trim the extra bytes off.
 	 */
-	l = m->m_pkthdr.len - (ETHER_HDR_LEN + ip_len);
-	if (l != 0) {
-		if (l < 0)
+	hdr_len = m->m_pkthdr.len - (ETHER_HDR_LEN + ip_len);
+	if (hdr_len != 0) {
+		if (hdr_len < 0)
 			/* Truncated packet. */
 			return (TCP_LRO_CANNOT);
 
-		m_adj(m, -l);
+		m_adj(m, -hdr_len);
 	}
 	/*
 	 * Check TCP header constraints.
 	 */
+	hdr_len = (th->th_off << 2);
+	ts_ptr = (uint32_t *)(th + 1);
+	tcp_data_len -= hdr_len;
+	hdr_len -= sizeof(*th);
 	if (th->th_flags & TH_SYN)
 		return (TCP_LRO_CANNOT);
-	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0)
+	if ((th->th_flags & ~(TH_ACK | TH_PUSH)) != 0) {
 		need_flush = 1;
-	else
+	} else
 		need_flush = 0;
-	l = (th->th_off << 2);
-	ts_ptr = (uint32_t *)(th + 1);
-	tcp_data_len -= l;
-	l -= sizeof(*th);
-	if (l != 0 && (__predict_false(l != TCPOLEN_TSTAMP_APPA) ||
-		       (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
+	if (hdr_len != 0 && (__predict_false(hdr_len != TCPOLEN_TSTAMP_APPA) ||
+			     (*ts_ptr != ntohl(TCPOPT_NOP<<24|TCPOPT_NOP<<16|
 					 TCPOPT_TIMESTAMP<<8|TCPOLEN_TIMESTAMP)))) {
 		/*
 		 * We have an option besides Timestamps, maybe
@@ -1241,7 +1609,6 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 		 */
 		need_flush = 2;
 	}
-
 	/* If the driver did not pass in the checksum, set it now. */
 	if (csum == 0x0000)
 		csum = th->th_sum;
@@ -1312,6 +1679,65 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 			m_freem(m);
 			return (0);
 		}
+#ifdef TCPHPTS
+		if ((tcplro_stacks_wanting_mbufq == 0) || (m->m_flags & M_VLANTAG))
+			goto skip_lookup_a;
+		if (le->inp == NULL) {
+			CURVNET_SET(lc->ifp->if_vnet);
+			le->inp = tcp_lro_lookup(lc, le);
+			if (le->inp) {
+				in_pcbref(le->inp);
+				locked = 1;
+			}
+			CURVNET_RESTORE();
+		} else if (le->inp) {
+			INP_WLOCK(le->inp);
+			locked = 1;
+		}
+		if (locked && ((le->inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
+			       (le->inp->inp_flags2 & INP_FREED))) {
+			/* We can't present these to the inp since
+			 * its dead Jim.
+			 */
+			int ret;
+
+			ret = in_pcbrele_wlocked(le->inp);
+			if (ret == 0)
+				INP_WUNLOCK(le->inp);
+			le->inp = NULL;
+			locked = 0;
+			tcp_lro_active_remove(le);
+			if (le->strip_cnt && le->m_head) {
+				/* 
+				 * If we have any stripped packets we
+				 * just dump the whole chain. The
+				 * tcp_lro_flush code knows how
+				 * to handle things when le->m_head is NULL
+				 * and even le->inp is NULL.
+				 */
+				lro_free_mbuf_chain(le->m_head);
+				le->m_head = NULL;
+			}
+			tcp_lro_flush(lc, le);
+			return (TCP_LRO_CANNOT);
+		}
+		/* See if it has been switched on */
+		if (le->inp && (le->inp->inp_flags2 & INP_MBUF_ACKCMP))
+			le->flags |= CAN_USE_ACKCMP;
+
+		if ((need_flush == 1) &&
+		    le->inp &&
+		    (le->inp->inp_flags2 & (INP_MBUF_ACKCMP|INP_SUPPORTS_MBUFQ)) &&
+		    ((th->th_flags & ~(TH_ACK | TH_PUSH | TH_ECE | TH_CWR)) == 0)) {
+			/*
+			 * For MBUF queuing or ACKCMP we can accept ECE and CWR
+			 * since each packet is sent to the transport (or the
+			 * compressed state including the ECN bits).
+			 */
+			need_flush = 0;
+		}
+skip_lookup_a:
+#endif
 		if (need_flush)
 			le->need_wakeup = need_flush;
 		/* Save of the data only csum */
@@ -1319,17 +1745,135 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 		m->m_pkthdr.lro_csum = tcp_lro_rx_csum_fixup(le, l3hdr, th,
 						      tcp_data_len, ~csum);
 		th->th_sum = csum;	/* Restore checksum */
+#ifdef TCPHPTS
+		if ((le->flags & CAN_USE_ACKCMP) ||
+		    (le->inp &&
+		     (le->inp->inp_flags2 & (INP_MBUF_ACKCMP|INP_SUPPORTS_MBUFQ)))) {
+			/*
+			 * Mbuf queued and ACKCMP packets have their BPF and csum
+			 * done here in LRO. They will still end up looking at the
+			 * headers and such (IP/TCP) but we don't want to proceed
+			 * with any bad csum!
+			 */
+			m = do_bpf_and_csum(le->inp, lc, le, eh, m, bpf_peers_present(lc->ifp->if_bpf), locked);
+			if (m == NULL) {
+				/* Bad csum, accounting already done  */
+				if (locked) {
+					INP_WUNLOCK(le->inp);
+				}
+				return (0);
+			}
+			le->strip_cnt++;
+		}
+		if ((need_flush == 0) &&
+		    (th->th_flags & TH_ACK) &&
+		    (tcp_data_len == 0) &&
+		    (le->flags & CAN_USE_ACKCMP)) {
+			/*
+			 * Ok this is a pure ack lets find out if our
+			 * last packet already has one of these.
+			 */
+			struct mbuf *nm;
+			struct tcp_ackent *ack_ent;
+			int idx;
+
+			INP_WLOCK_ASSERT(le->inp);
+			if (le->m_head == NULL) {
+				/* Ok can we still use the end of the inp's? */
+				nm = tcp_lro_get_last_if_ackcmp(lc, le, le->inp);
+				if (nm == NULL) {
+					/* gone or full */
+					goto new_one;
+				}
+				/* We can add in to the one on the tail */
+				ack_ent = mtod(nm, struct tcp_ackent *);
+				idx = (nm->m_len / sizeof(struct tcp_ackent));
+				build_ack_entry(&ack_ent[idx], th, m, hdr_len, iptos);
+				/* Bump the size of both pkt-hdr and len */
+				nm->m_len += sizeof(struct tcp_ackent);
+				nm->m_pkthdr.len += sizeof(struct tcp_ackent);
+				le->ack_seq = th->th_ack;
+				le->window = th->th_win;
+				m_freem(m);
+				counter_u64_add(tcp_extra_mbuf, 1);
+				INP_WUNLOCK(le->inp);
+				return (0);
+			} else if (le->m_last_mbuf->m_flags & M_ACKCMP) {
+				/* Yes we might be able to be appended to */
+				nm = le->m_last_mbuf;
+				if (M_TRAILINGSPACE(nm) < sizeof(struct tcp_ackent)) {
+					if ((le->inp->inp_flags2 & INP_MBUF_L_ACKS) == 0) {
+						counter_u64_add(tcp_would_have_but, 1);
+						le->inp->inp_flags2 |= INP_MBUF_L_ACKS;
+					}
+					goto new_one;
+				}
+				/* we have room */
+				ack_ent = mtod(nm, struct tcp_ackent *);
+				idx = (nm->m_len / sizeof(struct tcp_ackent));
+				build_ack_entry(&ack_ent[idx], th, m, hdr_len, iptos);
+				/* Bump the size of both pkt-hdr and len */
+				nm->m_len += sizeof(struct tcp_ackent);
+				nm->m_pkthdr.len += sizeof(struct tcp_ackent);
+				m_freem(m);
+				le->flags |= HAS_COMP_ENTRIES;
+				le->cmp_ack_cnt++;
+				goto compressed;
+			} else {
+				/* Nope we need a new one */
+new_one:
+				if (le->inp->inp_flags2 & INP_MBUF_L_ACKS)
+					nm = m_getcl(M_NOWAIT, MT_DATA, (M_ACKCMP|M_PKTHDR));
+				else {
+					nm = m_gethdr(M_NOWAIT, MT_DATA);
+					nm->m_flags |= M_ACKCMP;
+				}
+				if (nm) {
+					nm->m_pkthdr.rcvif = lc->ifp;
+					ack_ent = mtod(nm, struct tcp_ackent *);
+					build_ack_entry(ack_ent, th, m, hdr_len, iptos);
+					m_freem(m);
+					m = nm;
+					m->m_pkthdr.len = m->m_len = sizeof(struct tcp_ackent);
+					le->flags |= HAS_COMP_ENTRIES;
+					le->cmp_ack_cnt++;
+				}
+				/* We fall through and append */
+			}
+		}
+		if (m->m_flags & M_ACKCMP) {
+			counter_u64_add(tcp_comp_total, 1);
+		} else {
+			counter_u64_add(tcp_uncomp_total, 1);
+		}
+#endif
 		/* Save off the tail I am appending too (prev) */
-		le->m_prev_last = le->m_last_mbuf;
-		/* Mark me in the last spot */
-		le->m_last_mbuf->m_nextpkt = m;
-		/* Now set the tail to me  */
-		le->m_last_mbuf = m;
-		le->mbuf_cnt++;
 		m->m_nextpkt = NULL;
+		if (le->m_head == NULL) {
+			/*
+			 * Case where we wer chaining off the inp
+			 * and now no-longer can.
+			 */
+			le->m_head = m;
+			le->m_tail = m_last(m);
+			le->m_last_mbuf = m;
+			le->m_prev_last = NULL;
+		} else {
+			le->m_prev_last = le->m_last_mbuf;
+			/* Mark me in the last spot */
+			le->m_last_mbuf->m_nextpkt = m;
+			/* Now set the tail to me  */
+			le->m_last_mbuf = m;
+			le->tcp_tot_p_len += tcp_data_len;
+		}
+#ifdef TCPHPTS
+compressed:
+#endif
+		le->mbuf_cnt++;
 		/* Add to the total size of data */
-		le->tcp_tot_p_len += tcp_data_len;
 		lro_set_mtime(&le->mtime, &arrv);
+		if (locked)
+			INP_WUNLOCK(le->inp);
 		return (0);
 	}
 	/* Try to find an empty slot. */
@@ -1368,7 +1912,7 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 	le->next_seq = seq + tcp_data_len;
 	le->ack_seq = th->th_ack;
 	le->window = th->th_win;
-	if (l != 0) {
+	if (hdr_len != 0) {
 		le->timestamp = 1;
 		le->tsval = ntohl(*(ts_ptr + 1));
 		le->tsecr = *(ts_ptr + 2);
@@ -1381,23 +1925,125 @@ tcp_lro_rx2(struct lro_ctrl *lc, struct mbuf *m, uint32_t csum, int use_hash)
 					     ~csum);
 	le->append_cnt++;
 	th->th_sum = csum;	/* Restore checksum */
-	le->m_head = m;
 	m->m_pkthdr.rcvif = lc->ifp;
+	m->m_pkthdr.lro_len = tcp_data_len;
 	le->mbuf_cnt = 1;
+	le->cmp_ack_cnt = 0;
+	le->flags = 0;
+#ifdef TCPHPTS
+	/*
+	 * Lets find out if we can use the mbuf-compression.
+	 */
+	if ((tcplro_stacks_wanting_mbufq == 0) || (m->m_flags & M_VLANTAG))
+		goto skip_lookup_b;
+	CURVNET_SET(lc->ifp->if_vnet);
+	le->inp = tcp_lro_lookup(lc, le);
+	if (le->inp && ((le->inp->inp_flags & (INP_DROPPED|INP_TIMEWAIT)) ||
+			(le->inp->inp_flags2 & INP_FREED))) {
+		INP_WUNLOCK(le->inp);
+		le->inp = NULL;
+	}
+	if (le->inp) {
+		if ((need_flush == 1) &&
+		    (le->inp->inp_flags2 & (INP_MBUF_ACKCMP|INP_SUPPORTS_MBUFQ)) &&
+		    ((th->th_flags & ~(TH_ACK | TH_PUSH | TH_ECE | TH_CWR)) == 0)) {
+			/*
+			 * For MBUF queuing or ACKCMP we can accept ECE and CWR
+			 * since each packet is sent to the transport (or the
+			 * compressed state including the ECN bits).
+			 */
+			need_flush = 0;
+		}
+		locked = 1;
+		if (le->inp->inp_flags2 & INP_MBUF_ACKCMP)
+			le->flags |= CAN_USE_ACKCMP;
+		if ((le->flags & CAN_USE_ACKCMP) ||
+		    (le->inp &&
+		     (le->inp->inp_flags2 & (INP_MBUF_ACKCMP|INP_SUPPORTS_MBUFQ)))) {
+			m = do_bpf_and_csum(le->inp, lc, le, eh, m, bpf_peers_present(lc->ifp->if_bpf), locked);
+			if (m == NULL) {
+				/* Bad csum, accounting already done  */
+				INP_WUNLOCK(le->inp);
+				le->inp = NULL;
+				return (0);
+			}
+			le->strip_cnt++;
+		}
+		in_pcbref(le->inp);
+	}
+	CURVNET_RESTORE();
+	if ((need_flush == 0) &&
+	    (th->th_flags & TH_ACK) &&
+	    (tcp_data_len == 0) &&
+	    (le->flags & CAN_USE_ACKCMP)) {
+		/* Ok this is a pure ack lets build our special COMPRESS mbuf */
+		struct mbuf *nm;
+		struct tcp_ackent *ack_ent;
+
+		/* Question what is going on with the last mbuf on the inp queue, can we use it? */
+		INP_WLOCK_ASSERT(le->inp);
+		nm = tcp_lro_get_last_if_ackcmp(lc, le, le->inp);
+		if (nm) {
+			int idx;
+
+			/* We can add in to the one on the tail */
+			ack_ent = mtod(nm, struct tcp_ackent *);
+			idx = (nm->m_len / sizeof(struct tcp_ackent));
+			build_ack_entry(&ack_ent[idx], th, m, hdr_len, iptos);
+			nm->m_len += sizeof(struct tcp_ackent);
+			nm->m_pkthdr.len += sizeof(struct tcp_ackent);
+			le->ack_seq = th->th_ack;
+			le->window = th->th_win;
+			m_freem(m);
+			counter_u64_add(tcp_extra_mbuf, 1);
+			le->m_head = NULL;
+			le->m_tail = NULL;
+			le->m_last_mbuf = NULL;
+			le->m_prev_last = NULL;
+			INP_WUNLOCK(le->inp);
+			return (0);
+		} else {
+			if (le->inp->inp_flags2 & INP_MBUF_L_ACKS)
+				nm = m_getcl(M_NOWAIT, MT_DATA, (M_ACKCMP|M_PKTHDR));
+			else {
+				nm = m_gethdr(M_NOWAIT, MT_DATA);
+				nm->m_flags |= M_ACKCMP;
+			}
+			if (nm) {
+				nm->m_pkthdr.rcvif = lc->ifp;
+				ack_ent = mtod(nm, struct tcp_ackent *);
+				build_ack_entry(ack_ent, th, m, hdr_len, iptos);
+				m_freem(m);
+				m = nm;
+				m->m_pkthdr.len = m->m_len = sizeof(struct tcp_ackent);
+				le->flags |= HAS_COMP_ENTRIES;
+				le->cmp_ack_cnt++;
+			}
+		}
+	}
+	if (m->m_flags & M_ACKCMP) {
+		counter_u64_add(tcp_comp_total, 1);
+	} else {
+		counter_u64_add(tcp_uncomp_total, 1);
+	}
+skip_lookup_b:
+#endif
 	if (need_flush)
 		le->need_wakeup = need_flush;
 	else
 		le->need_wakeup = 0;
+	m->m_nextpkt = NULL;
+ 	le->m_head = m;
 	le->m_tail = m_last(m);
 	le->m_last_mbuf = m;
-	m->m_nextpkt = NULL;
 	le->m_prev_last = NULL;
 	/*
 	 * We keep the total size here for cross checking when we may need
 	 * to flush/wakeup in the MBUF_QUEUE case.
 	 */
 	le->tcp_tot_p_len = tcp_data_len;
-	m->m_pkthdr.lro_len = tcp_data_len;
+	if (locked)
+		INP_WUNLOCK(le->inp);
 	return (0);
 }
 
