@@ -111,10 +111,12 @@ sbi_print_version(void)
 		printf("SBI: Berkely Boot Loader %lu\n", sbi_impl_version);
 		break;
 	case (SBI_IMPL_ID_XVISOR):
-		printf("SBI: eXtensible Versatile hypervISOR %lu\n", sbi_impl_version);
+		printf("SBI: eXtensible Versatile hypervISOR %lu\n",
+		    sbi_impl_version);
 		break;
 	case (SBI_IMPL_ID_KVM):
-		printf("SBI: Kernel-based Virtual Machine %lu\n", sbi_impl_version);
+		printf("SBI: Kernel-based Virtual Machine %lu\n",
+		    sbi_impl_version);
 		break;
 	case (SBI_IMPL_ID_RUSTSBI):
 		printf("SBI: RustSBI %lu\n", sbi_impl_version);
@@ -206,8 +208,9 @@ sbi_remote_sfence_vma_asid(const u_long *hart_mask, u_long start, u_long size,
 
 	/* Use the RFENCE legacy replacement extension, if available. */
 	if (has_rfnc_extension) {
-		ret = SBI_CALL5(SBI_EXT_ID_RFNC, SBI_RFNC_REMOTE_SFENCE_VMA_ASID,
-		    *hart_mask, 0, start, size, asid);
+		ret = SBI_CALL5(SBI_EXT_ID_RFNC,
+		    SBI_RFNC_REMOTE_SFENCE_VMA_ASID, *hart_mask, 0, start,
+		    size, asid);
 		MPASS(ret.error == SBI_SUCCESS);
 	} else {
 		(void)SBI_CALL4(SBI_REMOTE_SFENCE_VMA_ASID, 0,
@@ -220,7 +223,8 @@ sbi_hsm_hart_start(u_long hart, u_long start_addr, u_long priv)
 {
 	struct sbi_ret ret;
 
-	ret = SBI_CALL3(SBI_EXT_ID_HSM, SBI_HSM_HART_START, hart, start_addr, priv);
+	ret = SBI_CALL3(SBI_EXT_ID_HSM, SBI_HSM_HART_START, hart, start_addr,
+	    priv);
 	return (ret.error != 0 ? (int)ret.error : 0);
 }
 
