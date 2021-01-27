@@ -110,7 +110,7 @@ void
 cpu_reset(void)
 {
 
-	sbi_shutdown();
+	sbi_system_reset(SBI_SRST_TYPE_COLD_REBOOT, SBI_SRST_REASON_NONE);
 
 	while(1);
 }
