@@ -130,6 +130,7 @@ static vop_listextattr_t	ffs_listextattr;
 static vop_openextattr_t	ffs_openextattr;
 static vop_setextattr_t	ffs_setextattr;
 static vop_vptofh_t	ffs_vptofh;
+static vop_vput_pair_t	ffs_vput_pair;
 
 /* Global vfs data structures for ufs. */
 struct vop_vector ffs_vnodeops1 = {
@@ -146,6 +147,7 @@ struct vop_vector ffs_vnodeops1 = {
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
 	.vop_vptofh =		ffs_vptofh,
+	.vop_vput_pair =	ffs_vput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(ffs_vnodeops1);
 
@@ -182,6 +184,7 @@ struct vop_vector ffs_vnodeops2 = {
 	.vop_openextattr =	ffs_openextattr,
 	.vop_setextattr =	ffs_setextattr,
 	.vop_vptofh =		ffs_vptofh,
+	.vop_vput_pair =	ffs_vput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(ffs_vnodeops2);
 
@@ -1916,4 +1919,56 @@ ffs_getpages_async(struct vop_getpages_async_args *ap)
 		ap->a_iodone(ap->a_arg, ap->a_m, ap->a_count, error);
 
 	return (error);
+}
+
+static int
+ffs_vput_pair(struct vop_vput_pair_args *ap)
+{
+	struct vnode *dvp, *vp, **vpp;
+	struct inode *dp;
+	int error, vp_locked;
+
+	dvp = ap->a_dvp;
+	dp = VTOI(dvp);
+	vpp = ap->a_vpp;
+	vp = vpp != NULL ? *vpp : NULL;
+
+	if ((dp->i_flag & IN_NEEDSYNC) == 0) {
+		vput(dvp);
+		if (vp != NULL && ap->a_unlock_vp)
+			vput(vp);
+		return (0);
+	}
+
+	if (vp != NULL) {
+		if (ap->a_unlock_vp) {
+			vput(vp);
+		} else {
+			MPASS(vp->v_type != VNON);
+			vp_locked = VOP_ISLOCKED(vp);
+			VOP_UNLOCK(vp);
+		}
+	}
+
+	do {
+		error = ffs_syncvnode(dvp, MNT_WAIT, 0);
+	} while (error == ERELOOKUP);
+	vput(dvp);
+
+	if (vp == NULL || ap->a_unlock_vp)
+		return (0);
+
+	/*
+	 * It is possible that vp is reclaimed at this point. Only
+	 * routines that call us with a_unlock_vp == false can find
+	 * that their vp has been reclaimed. There are three areas
+	 * that are affected:
+	 * 1) vn_open_cred() - later VOPs could fail, but
+	 *    dead_open() returns 0 to simulate successful open.
+	 * 2) ffs_snapshot() - creation of snapshot fails with EBADF.
+	 * 3) NFS server (several places) - code is prepared to detect
+	 *    and respond to dead vnodes by returning ESTALE.
+	 */
+	VOP_LOCK(vp, vp_locked | LK_RETRY);
+	return (0);
 }
