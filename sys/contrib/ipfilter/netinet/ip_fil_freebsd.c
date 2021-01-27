@@ -32,9 +32,9 @@ static const char rcsid[] = "@(#)$Id$";
 #include <sys/filio.h>
 #include <sys/time.h>
 #include <sys/systm.h>
-# include <sys/dirent.h>
+#include <sys/dirent.h>
 #if defined(__FreeBSD_version)
-#include <sys/jail.h>
+# include <sys/jail.h>
 #endif
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
@@ -42,7 +42,6 @@ static const char rcsid[] = "@(#)$Id$";
 #include <sys/socket.h>
 #include <sys/selinfo.h>
 #include <netinet/tcp_var.h>
-
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/netisr.h>
@@ -72,19 +71,19 @@ static const char rcsid[] = "@(#)$Id$";
 #include "netinet/ip_lookup.h"
 #include "netinet/ip_dstlist.h"
 #ifdef	IPFILTER_SCAN
-#include "netinet/ip_scan.h"
+# include "netinet/ip_scan.h"
 #endif
 #include "netinet/ip_pool.h"
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #ifdef CSUM_DATA_VALID
-#include <machine/in_cksum.h>
+# include <machine/in_cksum.h>
 #endif
 extern	int	ip_optcopy(struct ip *, struct ip *);
 
-# ifdef IPFILTER_M_IPFILTER
+#ifdef IPFILTER_M_IPFILTER
 MALLOC_DEFINE(M_IPFILTER, "ipfilter", "IP Filter packet filter data structures");
-# endif
+#endif
 
 
 static	int	ipf_send_ip(fr_info_t *, mb_t *);
@@ -95,8 +94,8 @@ VNET_DEFINE(ipf_main_softc_t, ipfmain) = {
 };
 #define	V_ipfmain		VNET(ipfmain)
 
-# include <sys/conf.h>
-#  include <net/pfil.h>
+#include <sys/conf.h>
+#include <net/pfil.h>
 
 VNET_DEFINE_STATIC(eventhandler_tag, ipf_arrivetag);
 VNET_DEFINE_STATIC(eventhandler_tag, ipf_departtag);
@@ -288,8 +287,8 @@ ipfdetach(softc)
 int
 ipfioctl(dev, cmd, data, mode, p)
 	struct thread *p;
-#    define	p_cred	td_ucred
-#    define	p_uid	td_ucred->cr_ruid
+#define	p_cred	td_ucred
+#define	p_uid	td_ucred->cr_ruid
 	struct cdev *dev;
 	ioctlcmd_t cmd;
 	caddr_t data;
