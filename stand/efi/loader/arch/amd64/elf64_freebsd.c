@@ -69,7 +69,12 @@ static struct file_format amd64_elf_obj = {
 	.l_exec = elf64_obj_exec,
 };
 
+extern struct file_format multiboot2;
+extern struct file_format multiboot2_obj;
+
 struct file_format *file_formats[] = {
+	&multiboot2,
+	&multiboot2_obj,
 	&amd64_elf,
 	&amd64_elf_obj,
 	NULL
