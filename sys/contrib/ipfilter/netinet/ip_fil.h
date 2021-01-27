@@ -11,7 +11,7 @@
 #ifndef	__IP_FIL_H__
 #define	__IP_FIL_H__
 
-# include <netinet/in.h>
+#include <netinet/in.h>
 
 #include "netinet/ip_compat.h"
 #include "netinet/ipf_rb.h"
@@ -19,7 +19,7 @@
 # include <sys/callout.h>
 #endif
 #if defined(BSD) && defined(_KERNEL)
-#  include <sys/selinfo.h>
+# include <sys/selinfo.h>
 #endif
 
 #ifndef	SOLARIS
@@ -31,48 +31,48 @@
 #endif
 
 #ifndef	__P
-#  define	__P(x)	x
+# define	__P(x)	x
 #endif
 
-# define	SIOCADAFR	_IOW('r', 60, struct ipfobj)
-# define	SIOCRMAFR	_IOW('r', 61, struct ipfobj)
-# define	SIOCSETFF	_IOW('r', 62, u_int)
-# define	SIOCGETFF	_IOR('r', 63, u_int)
-# define	SIOCGETFS	_IOWR('r', 64, struct ipfobj)
-# define	SIOCIPFFL	_IOWR('r', 65, int)
-# define	SIOCIPFFB	_IOR('r', 66, int)
-# define	SIOCADIFR	_IOW('r', 67, struct ipfobj)
-# define	SIOCRMIFR	_IOW('r', 68, struct ipfobj)
-# define	SIOCSWAPA	_IOR('r', 69, u_int)
-# define	SIOCINAFR	_IOW('r', 70, struct ipfobj)
-# define	SIOCINIFR	_IOW('r', 71, struct ipfobj)
-# define	SIOCFRENB	_IOW('r', 72, u_int)
-# define	SIOCFRSYN	_IOW('r', 73, u_int)
-# define	SIOCFRZST	_IOWR('r', 74, struct ipfobj)
-# define	SIOCZRLST	_IOWR('r', 75, struct ipfobj)
-# define	SIOCAUTHW	_IOWR('r', 76, struct ipfobj)
-# define	SIOCAUTHR	_IOWR('r', 77, struct ipfobj)
-# define	SIOCSTAT1	_IOWR('r', 78, struct ipfobj)
-# define	SIOCSTLCK	_IOWR('r', 79, u_int)
-# define	SIOCSTPUT	_IOWR('r', 80, struct ipfobj)
-# define	SIOCSTGET	_IOWR('r', 81, struct ipfobj)
-# define	SIOCSTGSZ	_IOWR('r', 82, struct ipfobj)
-# define	SIOCSTAT2	_IOWR('r', 83, struct ipfobj)
-# define	SIOCSETLG	_IOWR('r', 84, int)
-# define	SIOCGETLG	_IOWR('r', 85, int)
-# define	SIOCFUNCL	_IOWR('r', 86, struct ipfunc_resolve)
-# define	SIOCIPFGETNEXT	_IOWR('r', 87, struct ipfobj)
-# define	SIOCIPFGET	_IOWR('r', 88, struct ipfobj)
-# define	SIOCIPFSET	_IOWR('r', 89, struct ipfobj)
-# define	SIOCIPFL6	_IOWR('r', 90, int)
-# define	SIOCIPFITER	_IOWR('r', 91, struct ipfobj)
-# define	SIOCGENITER	_IOWR('r', 92, struct ipfobj)
-# define	SIOCGTABL	_IOWR('r', 93, struct ipfobj)
-# define	SIOCIPFDELTOK	_IOWR('r', 94, int)
-# define	SIOCLOOKUPITER	_IOWR('r', 95, struct ipfobj)
-# define	SIOCGTQTAB	_IOWR('r', 96, struct ipfobj)
-# define	SIOCMATCHFLUSH	_IOWR('r', 97, struct ipfobj)
-# define	SIOCIPFINTERROR	_IOR('r', 98, int)
+#define	SIOCADAFR	_IOW('r', 60, struct ipfobj)
+#define	SIOCRMAFR	_IOW('r', 61, struct ipfobj)
+#define	SIOCSETFF	_IOW('r', 62, u_int)
+#define	SIOCGETFF	_IOR('r', 63, u_int)
+#define	SIOCGETFS	_IOWR('r', 64, struct ipfobj)
+#define	SIOCIPFFL	_IOWR('r', 65, int)
+#define	SIOCIPFFB	_IOR('r', 66, int)
+#define	SIOCADIFR	_IOW('r', 67, struct ipfobj)
+#define	SIOCRMIFR	_IOW('r', 68, struct ipfobj)
+#define	SIOCSWAPA	_IOR('r', 69, u_int)
+#define	SIOCINAFR	_IOW('r', 70, struct ipfobj)
+#define	SIOCINIFR	_IOW('r', 71, struct ipfobj)
+#define	SIOCFRENB	_IOW('r', 72, u_int)
+#define	SIOCFRSYN	_IOW('r', 73, u_int)
+#define	SIOCFRZST	_IOWR('r', 74, struct ipfobj)
+#define	SIOCZRLST	_IOWR('r', 75, struct ipfobj)
+#define	SIOCAUTHW	_IOWR('r', 76, struct ipfobj)
+#define	SIOCAUTHR	_IOWR('r', 77, struct ipfobj)
+#define	SIOCSTAT1	_IOWR('r', 78, struct ipfobj)
+#define	SIOCSTLCK	_IOWR('r', 79, u_int)
+#define	SIOCSTPUT	_IOWR('r', 80, struct ipfobj)
+#define	SIOCSTGET	_IOWR('r', 81, struct ipfobj)
+#define	SIOCSTGSZ	_IOWR('r', 82, struct ipfobj)
+#define	SIOCSTAT2	_IOWR('r', 83, struct ipfobj)
+#define	SIOCSETLG	_IOWR('r', 84, int)
+#define	SIOCGETLG	_IOWR('r', 85, int)
+#define	SIOCFUNCL	_IOWR('r', 86, struct ipfunc_resolve)
+#define	SIOCIPFGETNEXT	_IOWR('r', 87, struct ipfobj)
+#define	SIOCIPFGET	_IOWR('r', 88, struct ipfobj)
+#define	SIOCIPFSET	_IOWR('r', 89, struct ipfobj)
+#define	SIOCIPFL6	_IOWR('r', 90, int)
+#define	SIOCIPFITER	_IOWR('r', 91, struct ipfobj)
+#define	SIOCGENITER	_IOWR('r', 92, struct ipfobj)
+#define	SIOCGTABL	_IOWR('r', 93, struct ipfobj)
+#define	SIOCIPFDELTOK	_IOWR('r', 94, int)
+#define	SIOCLOOKUPITER	_IOWR('r', 95, struct ipfobj)
+#define	SIOCGTQTAB	_IOWR('r', 96, struct ipfobj)
+#define	SIOCMATCHFLUSH	_IOWR('r', 97, struct ipfobj)
+#define	SIOCIPFINTERROR	_IOR('r', 98, int)
 #define	SIOCADDFR	SIOCADAFR
 #define	SIOCDELFR	SIOCRMAFR
 #define	SIOCINSFR	SIOCINAFR
@@ -1640,14 +1640,14 @@ extern	int	ipf_qout(queue_t *, mblk_t *);
 extern	int	ipf_check(void *, struct ip *, int, struct ifnet *, int, mb_t **);
 extern	int	(*fr_checkp)(ip_t *, int, void *, int, mb_t **);
 extern	size_t	mbufchainlen(mb_t *);
-#   ifdef	IPFILTER_LKM
+#  ifdef	IPFILTER_LKM
 extern	int	ipf_identify(char *);
-#   endif
-#     if defined(__FreeBSD_version)
+#  endif
+#  if defined(__FreeBSD_version)
 extern	int	ipfioctl(struct cdev*, u_long, caddr_t, int, struct thread *);
-#     elif defined(__NetBSD__)
+#  elif defined(__NetBSD__)
 extern	int	ipfioctl(dev_t, u_long, void *, int, struct lwp *);
-#     endif
+#  endif
 # endif /* MENTAT */
 
 # if defined(__FreeBSD_version)
