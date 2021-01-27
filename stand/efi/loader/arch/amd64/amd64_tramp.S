@@ -30,6 +30,9 @@
 
 #include <machine/asmacros.h>
 
+#define ASM_FILE
+#include "multiboot2.h"
+
 	.text
 	.globl	amd64_tramp
 
@@ -57,6 +60,15 @@ amd64_tramp:
 
 	ALIGN_TEXT
 amd64_tramp_end:
+
+/* void multiboot2_exec(uint64_t entry, uint64_t multiboot_info, uint64_t stack) */
+	.globl	multiboot2_exec
+multiboot2_exec:
+	movq	%rdx,%rsp
+	pushq	%rdi
+	movq	%rsi,%rbx
+	movq	$MULTIBOOT2_BOOTLOADER_MAGIC,%rax
+	ret
 
 	.data
 	.globl	amd64_tramp_size
