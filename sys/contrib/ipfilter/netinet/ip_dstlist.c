@@ -27,7 +27,7 @@
 # endif
 #endif
 #include <sys/time.h>
-# include <sys/protosw.h>
+#include <sys/protosw.h>
 #include <sys/socket.h>
 #if defined(_KERNEL) && !defined(__SVR4)
 # include <sys/mbuf.h>
