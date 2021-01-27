@@ -49,6 +49,7 @@ u_long sbi_impl_version;
 static bool has_time_extension = false;
 static bool has_ipi_extension = false;
 static bool has_rfnc_extension = false;
+static bool has_srst_extension = false;
 
 static struct sbi_ret
 sbi_get_spec_version(void)
@@ -90,7 +91,18 @@ static void
 sbi_shutdown_final(void *dummy __unused, int howto)
 {
 	if ((howto & RB_POWEROFF) != 0)
-		sbi_shutdown();
+		sbi_system_reset(SBI_SRST_TYPE_SHUTDOWN, SBI_SRST_REASON_NONE);
+}
+
+void
+sbi_system_reset(u_long reset_type, u_long reset_reason)
+{
+	/* Use the SRST extension, if available. */
+	if (has_srst_extension) {
+		(void)SBI_CALL2(SBI_EXT_ID_SRST, SBI_SRST_SYSTEM_RESET,
+		    reset_type, reset_reason);
+	}
+	(void)SBI_CALL0(SBI_SHUTDOWN, 0);
 }
 
 void
@@ -111,10 +123,12 @@ sbi_print_version(void)
 		printf("SBI: Berkely Boot Loader %lu\n", sbi_impl_version);
 		break;
 	case (SBI_IMPL_ID_XVISOR):
-		printf("SBI: eXtensible Versatile hypervISOR %lu\n", sbi_impl_version);
+		printf("SBI: eXtensible Versatile hypervISOR %lu\n",
+		    sbi_impl_version);
 		break;
 	case (SBI_IMPL_ID_KVM):
-		printf("SBI: Kernel-based Virtual Machine %lu\n", sbi_impl_version);
+		printf("SBI: Kernel-based Virtual Machine %lu\n",
+		    sbi_impl_version);
 		break;
 	case (SBI_IMPL_ID_RUSTSBI):
 		printf("SBI: RustSBI %lu\n", sbi_impl_version);
@@ -206,8 +220,9 @@ sbi_remote_sfence_vma_asid(const u_long *hart_mask, u_long start, u_long size,
 
 	/* Use the RFENCE legacy replacement extension, if available. */
 	if (has_rfnc_extension) {
-		ret = SBI_CALL5(SBI_EXT_ID_RFNC, SBI_RFNC_REMOTE_SFENCE_VMA_ASID,
-		    *hart_mask, 0, start, size, asid);
+		ret = SBI_CALL5(SBI_EXT_ID_RFNC,
+		    SBI_RFNC_REMOTE_SFENCE_VMA_ASID, *hart_mask, 0, start,
+		    size, asid);
 		MPASS(ret.error == SBI_SUCCESS);
 	} else {
 		(void)SBI_CALL4(SBI_REMOTE_SFENCE_VMA_ASID, 0,
@@ -220,7 +235,8 @@ sbi_hsm_hart_start(u_long hart, u_long start_addr, u_long priv)
 {
 	struct sbi_ret ret;
 
-	ret = SBI_CALL3(SBI_EXT_ID_HSM, SBI_HSM_HART_START, hart, start_addr, priv);
+	ret = SBI_CALL3(SBI_EXT_ID_HSM, SBI_HSM_HART_START, hart, start_addr,
+	    priv);
 	return (ret.error != 0 ? (int)ret.error : 0);
 }
 
@@ -273,6 +289,8 @@ sbi_init(void)
 		has_ipi_extension = true;
 	if (sbi_probe_extension(SBI_EXT_ID_RFNC) != 0)
 		has_rfnc_extension = true;
+	if (sbi_probe_extension(SBI_EXT_ID_SRST) != 0)
+		has_srst_extension = true;
 
 	/*
 	 * Probe for legacy extensions. We still rely on many of them to be
@@ -295,8 +313,8 @@ sbi_init(void)
 	KASSERT(has_rfnc_extension ||
 	    sbi_probe_extension(SBI_REMOTE_SFENCE_VMA_ASID) != 0,
 	    ("SBI doesn't implement sbi_remote_sfence_vma_asid()"));
-	KASSERT(sbi_probe_extension(SBI_SHUTDOWN) != 0,
-	    ("SBI doesn't implement sbi_shutdown()"));
+	KASSERT(has_srst_extension || sbi_probe_extension(SBI_SHUTDOWN) != 0,
+	    ("SBI doesn't implement a shutdown or reset extension"));
 }
 
 static void
