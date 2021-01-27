@@ -3888,8 +3888,15 @@ getblkx(struct vnode *vp, daddr_t blkno, daddr_t dblkno, int size, int slpflag,
 
 	/* Attempt lockless lookup first. */
 	bp = gbincore_unlocked(bo, blkno);
-	if (bp == NULL)
+	if (bp == NULL) {
+		/*
+		 * With GB_NOCREAT we must be sure about not finding the buffer
+		 * as it may have been reassigned during unlocked lookup.
+		 */
+		if ((flags & GB_NOCREAT) != 0)
+			goto loop;
 		goto newbuf_unlocked;
+	}
 
 	error = BUF_TIMELOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL, "getblku", 0,
 	    0);
