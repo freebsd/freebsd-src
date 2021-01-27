@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2020
+.Dd January 27, 2021
 .Dt QAT 4
 .Os
 .Sh NAME
@@ -57,17 +57,29 @@ The
 driver implements
 .Xr crypto 4
 support for some of the cryptographic acceleration functions of the Intel
-QuickAssist device.
+QuickAssist (QAT) device.
 The
 .Nm
 driver supports the QAT devices integrated with Atom C2000 and C3000 and Xeon
-C620 and D-1500 chipsets, and the Intel QAT Adapter 8950.
-It can accelerate AES in CBC, CTR, XTS (except for the C2000) and GCM modes,
+C620 and D-1500 platforms, and the Intel QAT Adapter 8950.
+Other platforms and adapters not listed here may also be supported.
+QAT devices are enumerated through PCIe and are thus visible in
+.Xr pciconf 8
+output.
+.Pp
+The
+.Nm
+driver can accelerate AES in CBC, CTR, XTS (except for the C2000) and GCM modes,
 and can perform authenticated encryption combining the CBC, CTR and XTS modes
 with SHA1-HMAC and SHA2-HMAC.
 The
 .Nm
 driver can also compute SHA1 and SHA2 digests.
+The implementation of AES-GCM has a firmware-imposed constraint that the length
+of any additional authenticated data (AAD) must not exceed 240 bytes.
+The driver thus rejects
+.Xr crypto 9
+requests that do not satisfy this constraint.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr ipsec 4 ,
