@@ -166,8 +166,8 @@ pci_mv_init(struct pci_mv_softc *sc)
 
 	/* Enable local interrupts */
 	pci_dw_dbi_wr4(sc->dev, DW_MSI_INTR0_MASK, 0xFFFFFFFF);
-	pci_dw_dbi_wr4(sc->dev, MV_INT_MASK1, 0xFFFFFFFF);
-	pci_dw_dbi_wr4(sc->dev, MV_INT_MASK2, 0xFFFFFFFD);
+	pci_dw_dbi_wr4(sc->dev, MV_INT_MASK1, 0x0001FE00);
+	pci_dw_dbi_wr4(sc->dev, MV_INT_MASK2, 0x00000000);
 	pci_dw_dbi_wr4(sc->dev, MV_INT_CAUSE1, 0xFFFFFFFF);
 	pci_dw_dbi_wr4(sc->dev, MV_INT_CAUSE2, 0xFFFFFFFF);
 
