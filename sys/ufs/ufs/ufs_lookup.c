@@ -1112,27 +1112,14 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 		}
 	}
 	UFS_INODE_SET_FLAG(dp, IN_CHANGE | IN_UPDATE);
+
 	/*
-	 * If all went well, and the directory can be shortened, proceed
-	 * with the truncation. Note that we have to unlock the inode for
-	 * the entry that we just entered, as the truncation may need to
-	 * lock other inodes which can lead to deadlock if we also hold a
-	 * lock on the newly entered node.
+	 * If all went well, and the directory can be shortened, mark directory inode
+	 * with the truncation request right before unlock.
 	 */
-	if (isrename == 0 && error == 0 &&
-	    I_ENDOFF(dp) != 0 && I_ENDOFF(dp) < dp->i_size) {
-		if (tvp != NULL)
-			VOP_UNLOCK(tvp);
-		error = UFS_TRUNCATE(dvp, (off_t)I_ENDOFF(dp),
-		    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC), cr);
-		if (error != 0)
-			vn_printf(dvp,
-			    "ufs_direnter: failed to truncate, error %d\n",
-			    error);
-		error = 0;
-		if (tvp != NULL)
-			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
-	}
+	if (isrename == 0 && error == 0)
+		UFS_INODE_SET_FLAG(dp, IN_ENDOFF);
+
 	return (error);
 }
 
