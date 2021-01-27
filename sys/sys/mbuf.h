@@ -205,6 +205,7 @@ struct pkthdr {
 #define	csum_data	PH_per.thirtytwo[1] /* inbound from hardware up */
 #define lro_len		PH_loc.sixteen[0] /* inbound during LRO (no reassembly) */
 #define lro_csum	PH_loc.sixteen[1] /* inbound during LRO (no reassembly) */
+#define lro_etype	PH_loc.sixteen[2] /* inbound during LRO (no reassembly) */
 /* Note PH_loc is used during IP reassembly (all 8 bytes as a ptr) */
 
 /*

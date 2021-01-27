@@ -40,6 +40,29 @@
 #define	TCP_LRO_ENTRIES	8
 #endif
 
+/*
+ * Flags for ACK entry for compression
+ * the bottom 8 bits has the th_flags.
+ * LRO itself adds only the TSTMP flags
+ * to indicate if either of the types
+ * of timestamps are filled and the
+ * HAS_TSTMP option to indicate if the
+ * TCP timestamp option is valid.
+ *
+ * The other 5 flag bits are for processing
+ * by a stack.
+ *
+ */
+#define TSTMP_LRO		0x0100
+#define TSTMP_HDWR		0x0200
+#define HAS_TSTMP		0x0400
+
+/* Flags in LRO entry */
+#define CAN_USE_ACKCMP		0x0001
+#define HAS_COMP_ENTRIES	0x0002
+
+struct inpcb;
+
 struct lro_entry {
 	LIST_ENTRY(lro_entry)	next;
 	LIST_ENTRY(lro_entry)	hash_next;
@@ -47,6 +70,7 @@ struct lro_entry {
 	struct mbuf		*m_tail;
 	struct mbuf		*m_last_mbuf;
 	struct mbuf		*m_prev_last;
+	struct inpcb 		*inp;
 	union {
 		struct ip	*ip4;
 		struct ip6_hdr	*ip6;
@@ -75,6 +99,9 @@ struct lro_entry {
 	uint16_t		need_wakeup;
 	uint16_t		mbuf_cnt;	/* Count of mbufs collected see note */
 	uint16_t		mbuf_appended;
+	uint16_t		cmp_ack_cnt;
+	uint16_t		flags;
+	uint16_t		strip_cnt;
 	struct timeval		mtime;
 };
 /*
@@ -103,6 +130,7 @@ struct lro_mbuf_sort {
 struct lro_ctrl {
 	struct ifnet	*ifp;
 	struct lro_mbuf_sort *lro_mbuf_data;
+	struct timeval lro_last_flush;
 	uint64_t	lro_queued;
 	uint64_t	lro_flushed;
 	uint64_t	lro_bad_csum;
@@ -117,6 +145,23 @@ struct lro_ctrl {
 	struct lro_head	lro_active;
 	struct lro_head	lro_free;
 };
+
+struct tcp_ackent {
+	uint64_t timestamp;	/* hardware or sofware timestamp, valid if TSTMP_LRO or TSTMP_HDRW set */
+	uint32_t seq;		/* th_seq value */
+	uint32_t ack;		/* th_ack value */
+	uint32_t ts_value;	/* If ts option value, valid if HAS_TSTMP is set */
+	uint32_t ts_echo;	/* If ts option echo, valid if HAS_TSTMP is set */
+	uint16_t win;		/* TCP window */
+	uint16_t flags;		/* Flags to say if TS is present and type of timestamp and th_flags */
+	uint8_t  codepoint;	/* IP level codepoint including ECN bits */
+	uint8_t  ack_val_set;	/* Classification of ack used by the stack */
+	uint8_t  pad[2];	/* To 32 byte boundary */
+};
+
+/* We use two M_PROTO on the mbuf */
+#define M_ACKCMP	M_PROTO4   /* Indicates LRO is sending in a  Ack-compression mbuf */
+#define M_LRO_EHDRSTRP	M_PROTO6   /* Indicates that LRO has stripped the etherenet header */
 
 #define	TCP_LRO_LENGTH_MAX	65535
 #define	TCP_LRO_ACKCNT_MAX	65535		/* unlimited */
