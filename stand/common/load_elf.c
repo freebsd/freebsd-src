@@ -875,8 +875,8 @@ nosyms:
 	ef->buckets = ef->hashtab + 2;
 	ef->chains = ef->buckets + ef->nbuckets;
 
-	gfx_state.tg_kernel_supported = false;
-	if (__elfN(lookup_symbol)(ef, "__start_set_vt_drv_set", &sym,
+	if (!gfx_state.tg_kernel_supported &&
+	    __elfN(lookup_symbol)(ef, "__start_set_vt_drv_set", &sym,
 	    STT_NOTYPE) == 0) {
 		p_start = sym.st_value + ef->off;
 		if (__elfN(lookup_symbol)(ef, "__stop_set_vt_drv_set", &sym,
