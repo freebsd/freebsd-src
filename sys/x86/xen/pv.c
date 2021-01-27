@@ -568,25 +568,60 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 
 	if (start_info->modlist_paddr != 0) {
 		struct hvm_modlist_entry *mod;
+		const char *cmdline;
 
 		mod = (struct hvm_modlist_entry *)
 		    (start_info->modlist_paddr + KERNBASE);
-		preload_metadata = (caddr_t)(mod[0].paddr + KERNBASE);
+		cmdline = mod[0].cmdline_paddr ?
+		    (const char *)(mod[0].cmdline_paddr + KERNBASE) : NULL;
 
-		kmdp = preload_search_by_type("elf kernel");
-		if (kmdp == NULL)
-			kmdp = preload_search_by_type("elf64 kernel");
-		KASSERT(kmdp != NULL, ("unable to find kernel"));
+		if (strcmp(cmdline, "header") == 0) {
+			struct xen_header *header;
 
-		/*
-		 * Xen has relocated the metadata and the modules,
-		 * so we need to recalculate it's position. This is
-		 * done by saving the original modulep address and
-		 * then calculating the offset with mod_start,
-		 * which contains the relocated modulep address.
-		 */
-		metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP, vm_paddr_t);
-		off = mod[0].paddr + KERNBASE - metadata;
+			header = (struct xen_header *)(mod[0].paddr + KERNBASE);
+
+			if ((header->flags & XENHEADER_HAS_MODULEP_OFFSET) !=
+			    XENHEADER_HAS_MODULEP_OFFSET) {
+				xc_printf("Unable to load module metadata\n");
+				HYPERVISOR_shutdown(SHUTDOWN_crash);
+			}
+
+			preload_metadata = (caddr_t)(mod[0].paddr +
+			    header->modulep_offset + KERNBASE);
+
+			kmdp = preload_search_by_type("elf kernel");
+			if (kmdp == NULL)
+				kmdp = preload_search_by_type("elf64 kernel");
+			if (kmdp == NULL) {
+				xc_printf("Unable to find kernel\n");
+				HYPERVISOR_shutdown(SHUTDOWN_crash);
+			}
+
+			/*
+			 * Xen has relocated the metadata and the modules, so
+			 * we need to recalculate it's position. This is done
+			 * by saving the original modulep address and then
+			 * calculating the offset from the real modulep
+			 * position.
+			 */
+			metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP,
+			    vm_paddr_t);
+			off = mod[0].paddr + header->modulep_offset - metadata +
+			    KERNBASE;
+		} else {
+			preload_metadata = (caddr_t)(mod[0].paddr + KERNBASE);
+
+			kmdp = preload_search_by_type("elf kernel");
+			if (kmdp == NULL)
+				kmdp = preload_search_by_type("elf64 kernel");
+			if (kmdp == NULL) {
+				xc_printf("Unable to find kernel\n");
+				HYPERVISOR_shutdown(SHUTDOWN_crash);
+			}
+
+			metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP, vm_paddr_t);
+			off = mod[0].paddr + KERNBASE - metadata;
+		}
 
 		preload_bootstrap_relocate(off);
 
