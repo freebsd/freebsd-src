@@ -4816,6 +4816,7 @@ cache_symlink_resolve(struct cache_fpl *fpl, const char *string, size_t len)
 static int __noinline
 cache_fplookup_symlink(struct cache_fpl *fpl)
 {
+	struct mount *mp;
 	struct nameidata *ndp;
 	struct componentname *cnp;
 	struct vnode *dvp, *tvp;
@@ -4830,6 +4831,20 @@ cache_fplookup_symlink(struct cache_fpl *fpl)
 		if ((cnp->cn_flags & FOLLOW) == 0) {
 			return (cache_fplookup_final(fpl));
 		}
+	}
+
+	mp = atomic_load_ptr(&dvp->v_mount);
+	if (__predict_false(mp == NULL)) {
+		return (cache_fpl_aborted(fpl));
+	}
+
+	/*
+	 * Note this check races against setting the flag just like regular
+	 * lookup.
+	 */
+	if (__predict_false((mp->mnt_flag & MNT_NOSYMFOLLOW) != 0)) {
+		cache_fpl_smr_exit(fpl);
+		return (cache_fpl_handled_error(fpl, EACCES));
 	}
 
 	error = VOP_FPLOOKUP_SYMLINK(tvp, fpl);
