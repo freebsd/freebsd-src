@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_directio.h"
 #include "opt_ffs.h"
+#include "opt_ufs.h"
 
 #include <sys/param.h>
 #include <sys/bio.h>
@@ -99,6 +100,10 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufs_extern.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/dir.h>
+#ifdef UFS_DIRHASH
+#include <ufs/ufs/dirhash.h>
+#endif
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
@@ -1929,6 +1934,7 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 	struct inode *dp, *ip;
 	ino_t ip_ino;
 	u_int64_t ip_gen;
+	off_t old_size;
 	int error, vp_locked;
 
 	dvp = ap->a_dvp;
@@ -1936,14 +1942,14 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 	vpp = ap->a_vpp;
 	vp = vpp != NULL ? *vpp : NULL;
 
-	if ((dp->i_flag & IN_NEEDSYNC) == 0) {
+	if ((dp->i_flag & (IN_NEEDSYNC | IN_ENDOFF)) == 0) {
 		vput(dvp);
 		if (vp != NULL && ap->a_unlock_vp)
 			vput(vp);
 		return (0);
 	}
 
-	mp = NULL;
+	mp = dvp->v_mount;
 	if (vp != NULL) {
 		if (ap->a_unlock_vp) {
 			vput(vp);
@@ -1953,14 +1959,40 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 			ip = VTOI(vp);
 			ip_ino = ip->i_number;
 			ip_gen = ip->i_gen;
-			mp = vp->v_mount;
 			VOP_UNLOCK(vp);
 		}
 	}
 
-	do {
-		error = ffs_syncvnode(dvp, MNT_WAIT, 0);
-	} while (error == ERELOOKUP);
+	/*
+	 * If compaction or fsync was requested do it in ffs_vput_pair()
+	 * now that other locks are no longer held.
+         */
+	if ((dp->i_flag & IN_ENDOFF) != 0) {
+		dp->i_flag &= ~IN_ENDOFF;
+		if (I_ENDOFF(dp) != 0 && I_ENDOFF(dp) < dp->i_size) {
+			old_size = dp->i_size;
+			error = UFS_TRUNCATE(dvp, (off_t)I_ENDOFF(dp),
+			    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC),
+			    curthread->td_ucred);
+			if (error != 0 && error != ERELOOKUP) {
+				if (!ffs_fsfail_cleanup(VFSTOUFS(mp), error)) {
+					vn_printf(dvp,
+					    "IN_ENDOFF: failed to truncate, "
+					    "error %d\n", error);
+				}
+#ifdef UFS_DIRHASH
+				ufsdirhash_free(dp);
+#endif
+			}
+		}
+		SET_I_ENDOFF(dp, 0);
+	}
+	if ((dp->i_flag & IN_NEEDSYNC) != 0) {
+		do {
+			error = ffs_syncvnode(dvp, MNT_WAIT, 0);
+		} while (error == ERELOOKUP);
+	}
+
 	vput(dvp);
 
 	if (vp == NULL || ap->a_unlock_vp)
