@@ -99,6 +99,15 @@
 #define	 SBI_HSM_STATUS_START_PENDING	2
 #define	 SBI_HSM_STATUS_STOP_PENDING	3
 
+/* System Reset (SRST) Extension */
+#define	SBI_EXT_ID_SRST			0x53525354
+#define	SBI_SRST_SYSTEM_RESET		0
+#define	 SBI_SRST_TYPE_SHUTDOWN		0
+#define	 SBI_SRST_TYPE_COLD_REBOOT	1
+#define	 SBI_SRST_TYPE_WARM_REBOOT	2
+#define	 SBI_SRST_REASON_NONE		0
+#define	 SBI_SRST_REASON_SYSTEM_FAILURE	1
+
 /* Legacy Extensions */
 #define	SBI_SET_TIMER			0
 #define	SBI_CONSOLE_PUTCHAR		1
@@ -199,6 +208,18 @@ void sbi_hsm_hart_stop(void);
  */
 int sbi_hsm_hart_status(u_long hart);
 
+/* System Reset extension functions. */
+
+/*
+ * Reset the system based on the following 'type' and 'reason' chosen from:
+ *  - SBI_SRST_TYPE_SHUTDOWN
+ *  - SBI_SRST_TYPE_COLD_REBOOT
+ *  - SBI_SRST_TYPE_WARM_REBOOT
+ *  - SBI_SRST_REASON_NONE
+ *  - SBI_SRST_REASON_SYSTEM_FAILURE
+ */
+void sbi_system_reset(u_long reset_type, u_long reset_reason);
+
 /* Legacy extension functions. */
 static __inline void
 sbi_console_putchar(int ch)
@@ -216,13 +237,6 @@ sbi_console_getchar(void)
 	 * continue to return their value in a0.
 	 */
 	return (SBI_CALL0(SBI_CONSOLE_GETCHAR, 0).error);
-}
-
-static __inline void
-sbi_shutdown(void)
-{
-
-	(void)SBI_CALL0(SBI_SHUTDOWN, 0);
 }
 
 void sbi_print_version(void);

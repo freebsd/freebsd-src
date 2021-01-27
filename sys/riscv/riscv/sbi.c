@@ -49,6 +49,7 @@ u_long sbi_impl_version;
 static bool has_time_extension = false;
 static bool has_ipi_extension = false;
 static bool has_rfnc_extension = false;
+static bool has_srst_extension = false;
 
 static struct sbi_ret
 sbi_get_spec_version(void)
@@ -90,7 +91,18 @@ static void
 sbi_shutdown_final(void *dummy __unused, int howto)
 {
 	if ((howto & RB_POWEROFF) != 0)
-		sbi_shutdown();
+		sbi_system_reset(SBI_SRST_TYPE_SHUTDOWN, SBI_SRST_REASON_NONE);
+}
+
+void
+sbi_system_reset(u_long reset_type, u_long reset_reason)
+{
+	/* Use the SRST extension, if available. */
+	if (has_srst_extension) {
+		(void)SBI_CALL2(SBI_EXT_ID_SRST, SBI_SRST_SYSTEM_RESET,
+		    reset_type, reset_reason);
+	}
+	(void)SBI_CALL0(SBI_SHUTDOWN, 0);
 }
 
 void
@@ -277,6 +289,8 @@ sbi_init(void)
 		has_ipi_extension = true;
 	if (sbi_probe_extension(SBI_EXT_ID_RFNC) != 0)
 		has_rfnc_extension = true;
+	if (sbi_probe_extension(SBI_EXT_ID_SRST) != 0)
+		has_srst_extension = true;
 
 	/*
 	 * Probe for legacy extensions. We still rely on many of them to be
@@ -299,8 +313,8 @@ sbi_init(void)
 	KASSERT(has_rfnc_extension ||
 	    sbi_probe_extension(SBI_REMOTE_SFENCE_VMA_ASID) != 0,
 	    ("SBI doesn't implement sbi_remote_sfence_vma_asid()"));
-	KASSERT(sbi_probe_extension(SBI_SHUTDOWN) != 0,
-	    ("SBI doesn't implement sbi_shutdown()"));
+	KASSERT(has_srst_extension || sbi_probe_extension(SBI_SHUTDOWN) != 0,
+	    ("SBI doesn't implement a shutdown or reset extension"));
 }
 
 static void
