@@ -1924,8 +1924,11 @@ ffs_getpages_async(struct vop_getpages_async_args *ap)
 static int
 ffs_vput_pair(struct vop_vput_pair_args *ap)
 {
-	struct vnode *dvp, *vp, **vpp;
-	struct inode *dp;
+	struct mount *mp;
+	struct vnode *dvp, *vp, *vp1, **vpp;
+	struct inode *dp, *ip;
+	ino_t ip_ino;
+	u_int64_t ip_gen;
 	int error, vp_locked;
 
 	dvp = ap->a_dvp;
@@ -1940,12 +1943,17 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 		return (0);
 	}
 
+	mp = NULL;
 	if (vp != NULL) {
 		if (ap->a_unlock_vp) {
 			vput(vp);
 		} else {
 			MPASS(vp->v_type != VNON);
 			vp_locked = VOP_ISLOCKED(vp);
+			ip = VTOI(vp);
+			ip_ino = ip->i_number;
+			ip_gen = ip->i_gen;
+			mp = vp->v_mount;
 			VOP_UNLOCK(vp);
 		}
 	}
@@ -1957,6 +1965,7 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 
 	if (vp == NULL || ap->a_unlock_vp)
 		return (0);
+	MPASS(mp != NULL);
 
 	/*
 	 * It is possible that vp is reclaimed at this point. Only
@@ -1970,5 +1979,29 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 	 *    and respond to dead vnodes by returning ESTALE.
 	 */
 	VOP_LOCK(vp, vp_locked | LK_RETRY);
-	return (0);
+	if (!VN_IS_DOOMED(vp))
+		return (0);
+
+	/*
+	 * Try harder to recover from reclaimed vp if reclaim was not
+	 * because underlying inode was cleared.  We saved inode
+	 * number and inode generation, so we can try to reinstantiate
+	 * exactly same version of inode.  If this fails, return
+	 * original doomed vnode and let caller to handle
+	 * consequences.
+	 *
+	 * Note that callers must keep write started around
+	 * VOP_VPUT_PAIR() calls, so it is safe to use mp without
+	 * busying it.
+	 */
+	VOP_UNLOCK(vp);
+	error = ffs_inotovp(mp, ip_ino, ip_gen, LK_EXCLUSIVE, &vp1,
+	    FFSV_REPLACE_DOOMED);
+	if (error != 0) {
+		VOP_LOCK(vp, vp_locked | LK_RETRY);
+	} else {
+		vrele(vp);
+		*vpp = vp1;
+	}
+	return (error);
 }
