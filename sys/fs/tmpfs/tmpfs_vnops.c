@@ -91,13 +91,9 @@ tmpfs_lookup1(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
 	struct tmpfs_mount *tm;
 	int error;
 
+	/* Caller assumes responsibility for ensuring access (VEXEC). */
 	dnode = VP_TO_TMPFS_DIR(dvp);
 	*vpp = NULLVP;
-
-	/* Check accessibility of requested node as a first step. */
-	error = vn_dir_check_exec(dvp, cnp);
-	if (error != 0)
-		goto out;
 
 	/* We cannot be requesting the parent directory of the root node. */
 	MPASS(IMPLIES(dnode->tn_type == VDIR &&
@@ -241,8 +237,17 @@ tmpfs_cached_lookup(struct vop_cachedlookup_args *v)
 static int
 tmpfs_lookup(struct vop_lookup_args *v)
 {
+	struct vnode *dvp = v->a_dvp;
+	struct vnode **vpp = v->a_vpp;
+	struct componentname *cnp = v->a_cnp;
+	int error;
 
-	return (tmpfs_lookup1(v->a_dvp, v->a_vpp, v->a_cnp));
+	/* Check accessibility of requested node as a first step. */
+	error = vn_dir_check_exec(dvp, cnp);
+	if (error != 0)
+		return (error);
+
+	return (tmpfs_lookup1(dvp, vpp, cnp));
 }
 
 static int
