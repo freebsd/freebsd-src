@@ -5488,10 +5488,29 @@ pf_route(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 	}
 
 	if (r->rt == PF_DUPTO) {
-		if ((m0 = m_dup(*m, M_NOWAIT)) == NULL) {
-			if (s)
+		if ((pd->pf_mtag->flags & PF_DUPLICATED)) {
+			if (s == NULL) {
+				ifp = r->rpool.cur->kif ?
+				    r->rpool.cur->kif->pfik_ifp : NULL;
+			} else {
+				ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
 				PF_STATE_UNLOCK(s);
-			return;
+			}
+			if (ifp == oifp) {
+				/* When the 2nd interface is not skipped */
+				return;
+			} else {
+				m0 = *m;
+				*m = NULL;
+				goto bad;
+			}
+		} else {
+			pd->pf_mtag->flags |= PF_DUPLICATED;
+			if (((m0 = m_dup(*m, M_NOWAIT)) == NULL)) {
+				if (s)
+					PF_STATE_UNLOCK(s);
+				return;
+			}
 		}
 	} else {
 		if ((r->rt == PF_REPLYTO) == (r->direction == dir)) {
@@ -5649,10 +5668,29 @@ pf_route6(struct mbuf **m, struct pf_krule *r, int dir, struct ifnet *oifp,
 	}
 
 	if (r->rt == PF_DUPTO) {
-		if ((m0 = m_dup(*m, M_NOWAIT)) == NULL) {
-			if (s)
+		if ((pd->pf_mtag->flags & PF_DUPLICATED)) {
+			if (s == NULL) {
+				ifp = r->rpool.cur->kif ?
+				    r->rpool.cur->kif->pfik_ifp : NULL;
+			} else {
+				ifp = s->rt_kif ? s->rt_kif->pfik_ifp : NULL;
 				PF_STATE_UNLOCK(s);
-			return;
+			}
+			if (ifp == oifp) {
+				/* When the 2nd interface is not skipped */
+				return;
+			} else {
+				m0 = *m;
+				*m = NULL;
+				goto bad;
+			}
+		} else {
+			pd->pf_mtag->flags |= PF_DUPLICATED;
+			if (((m0 = m_dup(*m, M_NOWAIT)) == NULL)) {
+				if (s)
+					PF_STATE_UNLOCK(s);
+				return;
+			}
 		}
 	} else {
 		if ((r->rt == PF_REPLYTO) == (r->direction == dir)) {
