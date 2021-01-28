@@ -26,6 +26,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 14.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20210128:
+	Various LinuxKPI functionality was added which conflicts with DRM.
+	Please update your drm-kmod port to after the __FreeBSD_verison 1400003
+	update.
+
 20210108:
 	PC Card attachments for all devices have been removed. In the case of
 	wi and cmx, the entire drivers were removed because they were only
