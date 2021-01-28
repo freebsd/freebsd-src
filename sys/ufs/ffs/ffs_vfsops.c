@@ -2170,6 +2170,7 @@ ffs_inotovp(mp, ino, gen, lflags, vpp, ffs_flags)
 {
 	struct ufsmount *ump;
 	struct vnode *nvp;
+	struct inode *ip;
 	struct fs *fs;
 	struct cg *cgp;
 	struct buf *bp;
@@ -2178,6 +2179,8 @@ ffs_inotovp(mp, ino, gen, lflags, vpp, ffs_flags)
 
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
+	*vpp = NULL;
+
 	if (ino < UFS_ROOTINO || ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
 
@@ -2198,10 +2201,20 @@ ffs_inotovp(mp, ino, gen, lflags, vpp, ffs_flags)
 	}
 
 	error = ffs_vgetf(mp, ino, lflags, &nvp, ffs_flags);
-	if (error == 0)
-		error = ufs_fhtovp(mp, nvp, gen);
-	*vpp = error == 0 ? nvp : NULLVP;
-	return (error);
+	if (error != 0)
+		return (error);
+
+	ip = VTOI(nvp);
+	if (ip->i_mode == 0 || ip->i_gen != gen || ip->i_effnlink <= 0) {
+		if (ip->i_mode == 0)
+			vgone(nvp);
+		vput(nvp);
+		return (ESTALE);
+	}
+
+	vnode_create_vobject(nvp, DIP(ip, i_size), curthread);
+	*vpp = nvp;
+	return (0);
 }
 
 /*
