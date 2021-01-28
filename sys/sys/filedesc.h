@@ -177,6 +177,11 @@ struct filedesc_to_leader {
 					    SX_NOTRECURSED)
 #define	FILEDESC_UNLOCK_ASSERT(fdp)	sx_assert(&(fdp)->fd_sx, SX_UNLOCKED)
 
+#define	FILEDESC_IS_ONLY_USER(fdp)	({					\
+	struct filedesc *_fdp = (fdp);						\
+	MPASS(curproc->p_fd == _fdp);						\
+	(curproc->p_numthreads == 1 && refcount_load(&_fdp->fd_refcnt) == 1);	\
+})
 #else
 
 /*
@@ -272,6 +277,13 @@ int	fget_unlocked_seq(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp, seqc_t *seqp);
 int	fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	    struct file **fpp);
+/* Return a file pointer without a ref. FILEDESC_IS_ONLY_USER must be true.  */
+int	fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+	    struct file **fpp);
+#define	fput_only_user(fdp, fp)	({					\
+	MPASS(FILEDESC_IS_ONLY_USER(fdp));				\
+	MPASS(refcount_load(&fp->f_count) > 0);				\
+})
 
 /* Requires a FILEDESC_{S,X}LOCK held and returns without a ref. */
 static __inline struct file *
