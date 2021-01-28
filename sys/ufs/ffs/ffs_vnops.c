@@ -66,6 +66,9 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_directio.h"
+#include "opt_ffs.h"
+
 #include <sys/param.h>
 #include <sys/bio.h>
 #include <sys/systm.h>
@@ -99,8 +102,6 @@ __FBSDID("$FreeBSD$");
 
 #include <ufs/ffs/fs.h>
 #include <ufs/ffs/ffs_extern.h>
-#include "opt_directio.h"
-#include "opt_ffs.h"
 
 #define	ALIGNED_TO(ptr, s)	\
 	(((uintptr_t)(ptr) & (_Alignof(s) - 1)) == 0)
