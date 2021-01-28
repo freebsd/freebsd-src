@@ -447,7 +447,7 @@ typedef	struct ip6_hdr	ip6_t;
 #endif
 
 #if defined(_KERNEL)
-# if defined(MENTAT) && !defined(INSTANCES)
+# if SOLARIS && !defined(INSTANCES)
 #  define	COPYDATA	mb_copydata
 #  define	COPYBACK	mb_copyback
 # else
