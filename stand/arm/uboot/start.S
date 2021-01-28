@@ -39,12 +39,10 @@
 	.globl	_start
 _start:
 
-#ifdef _ARM_ARCH_6
 	mrc     p15, 0, ip, c1, c0, 0
 	orr	ip, ip, #(CPU_CONTROL_UNAL_ENABLE)
 	orr	ip, ip, #(CPU_CONTROL_AFLT_ENABLE)
 	mcr     p15, 0, ip, c1, c0, 0
-#endif
 
 	/* Save the arguments and return register before calling self_reloc */
 	push	{r0, r1, r9, lr}
