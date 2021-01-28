@@ -219,25 +219,12 @@ ENTRY(memcpy)
 	b	.Lmemcpy_bad1
 
 .Lmemcpy_bad1_loop16:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #8
-#else
 	mov	r4, ip, lsr #8
-#endif
 	ldr	r5, [r1], #0x04
 	pld	[r1, #0x018]
 	ldr	r6, [r1], #0x04
 	ldr	r7, [r1], #0x04
 	ldr	ip, [r1], #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, r5, lsr #24
-	mov	r5, r5, lsl #8
-	orr	r5, r5, r6, lsr #24
-	mov	r6, r6, lsl #8
-	orr	r6, r6, r7, lsr #24
-	mov	r7, r7, lsl #8
-	orr	r7, r7, ip, lsr #24
-#else
 	orr	r4, r4, r5, lsl #24
 	mov	r5, r5, lsr #8
 	orr	r5, r5, r6, lsl #24
@@ -245,7 +232,6 @@ ENTRY(memcpy)
 	orr	r6, r6, r7, lsl #24
 	mov	r7, r7, lsr #8
 	orr	r7, r7, ip, lsl #24
-#endif
 	str	r4, [r3], #0x04
 	str	r5, [r3], #0x04
 	str	r6, [r3], #0x04
@@ -262,43 +248,22 @@ ENTRY(memcpy)
 	blt	.Lmemcpy_bad_done
 
 .Lmemcpy_bad1_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #8
-#else
 	mov	r4, ip, lsr #8
-#endif
 	ldr	ip, [r1], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #24
-#else
 	orr	r4, r4, ip, lsl #24
-#endif
 	str	r4, [r3], #0x04
 	bge	.Lmemcpy_bad1_loop4
 	sub	r1, r1, #0x03
 	b	.Lmemcpy_bad_done
 
 .Lmemcpy_bad2_loop16:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #16
-#else
 	mov	r4, ip, lsr #16
-#endif
 	ldr	r5, [r1], #0x04
 	pld	[r1, #0x018]
 	ldr	r6, [r1], #0x04
 	ldr	r7, [r1], #0x04
 	ldr	ip, [r1], #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, r5, lsr #16
-	mov	r5, r5, lsl #16
-	orr	r5, r5, r6, lsr #16
-	mov	r6, r6, lsl #16
-	orr	r6, r6, r7, lsr #16
-	mov	r7, r7, lsl #16
-	orr	r7, r7, ip, lsr #16
-#else
 	orr	r4, r4, r5, lsl #16
 	mov	r5, r5, lsr #16
 	orr	r5, r5, r6, lsl #16
@@ -306,7 +271,6 @@ ENTRY(memcpy)
 	orr	r6, r6, r7, lsl #16
 	mov	r7, r7, lsr #16
 	orr	r7, r7, ip, lsl #16
-#endif
 	str	r4, [r3], #0x04
 	str	r5, [r3], #0x04
 	str	r6, [r3], #0x04
@@ -323,43 +287,22 @@ ENTRY(memcpy)
 	blt	.Lmemcpy_bad_done
 
 .Lmemcpy_bad2_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #16
-#else
 	mov	r4, ip, lsr #16
-#endif
 	ldr	ip, [r1], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #16
-#else
 	orr	r4, r4, ip, lsl #16
-#endif
 	str	r4, [r3], #0x04
 	bge	.Lmemcpy_bad2_loop4
 	sub	r1, r1, #0x02
 	b	.Lmemcpy_bad_done
 
 .Lmemcpy_bad3_loop16:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #24
-#else
 	mov	r4, ip, lsr #24
-#endif
 	ldr	r5, [r1], #0x04
 	pld	[r1, #0x018]
 	ldr	r6, [r1], #0x04
 	ldr	r7, [r1], #0x04
 	ldr	ip, [r1], #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, r5, lsr #8
-	mov	r5, r5, lsl #24
-	orr	r5, r5, r6, lsr #8
-	mov	r6, r6, lsl #24
-	orr	r6, r6, r7, lsr #8
-	mov	r7, r7, lsl #24
-	orr	r7, r7, ip, lsr #8
-#else
 	orr	r4, r4, r5, lsl #8
 	mov	r5, r5, lsr #24
 	orr	r5, r5, r6, lsl #8
@@ -367,7 +310,6 @@ ENTRY(memcpy)
 	orr	r6, r6, r7, lsl #8
 	mov	r7, r7, lsr #24
 	orr	r7, r7, ip, lsl #8
-#endif
 	str	r4, [r3], #0x04
 	str	r5, [r3], #0x04
 	str	r6, [r3], #0x04
@@ -384,18 +326,10 @@ ENTRY(memcpy)
 	blt	.Lmemcpy_bad_done
 
 .Lmemcpy_bad3_loop4:
-#ifdef __ARMEB__
-	mov	r4, ip, lsl #24
-#else
 	mov	r4, ip, lsr #24
-#endif
 	ldr	ip, [r1], #0x04
 	subs	r2, r2, #0x04
-#ifdef __ARMEB__
-	orr	r4, r4, ip, lsr #8
-#else
 	orr	r4, r4, ip, lsl #8
-#endif
 	str	r4, [r3], #0x04
 	bge	.Lmemcpy_bad3_loop4
 	sub	r1, r1, #0x01
@@ -473,13 +407,8 @@ ENTRY(memcpy)
  */
 	ldr	r3, [r1, #-1]		/* BE:r3 = x012  LE:r3 = 210x */
 	ldr	r2, [r1, #3]		/* BE:r2 = 3xxx  LE:r2 = xxx3 */
-#ifdef __ARMEB__
-	mov	r3, r3, lsl #8		/* r3 = 012. */
-	orr	r3, r3, r2, lsr #24	/* r3 = 0123 */
-#else
 	mov	r3, r3, lsr #8		/* r3 = .210 */
 	orr	r3, r3, r2, lsl #24	/* r3 = 3210 */
-#endif
 	str	r3, [r0]
 	bx	lr
 	LMEMCPY_4_PAD
@@ -487,13 +416,8 @@ ENTRY(memcpy)
 /*
  * 0010: dst is 32-bit aligned, src is 16-bit aligned
  */
-#ifdef __ARMEB__
-	ldrh	r3, [r1]
-	ldrh	r2, [r1, #0x02]
-#else
 	ldrh	r3, [r1, #0x02]
 	ldrh	r2, [r1]
-#endif
 	orr	r3, r2, r3, lsl #16
 	str	r3, [r0]
 	bx	lr
@@ -504,13 +428,8 @@ ENTRY(memcpy)
  */
 	ldr	r3, [r1, #-3]		/* BE:r3 = xxx0  LE:r3 = 0xxx */
 	ldr	r2, [r1, #1]		/* BE:r2 = 123x  LE:r2 = x321 */
-#ifdef __ARMEB__
-	mov	r3, r3, lsl #24		/* r3 = 0... */
-	orr	r3, r3, r2, lsr #8	/* r3 = 0123 */
-#else
 	mov	r3, r3, lsr #24		/* r3 = ...0 */
 	orr	r3, r3, r2, lsl #8	/* r3 = 3210 */
-#endif
 	str	r3, [r0]
 	bx	lr
 	LMEMCPY_4_PAD
@@ -519,17 +438,10 @@ ENTRY(memcpy)
  * 0100: dst is 8-bit aligned, src is 32-bit aligned
  */
 	ldr	r2, [r1]
-#ifdef __ARMEB__
-	strb	r2, [r0, #0x03]
-	mov	r3, r2, lsr #8
-	mov	r1, r2, lsr #24
-	strb	r1, [r0]
-#else
 	strb	r2, [r0]
 	mov	r3, r2, lsr #8
 	mov	r1, r2, lsr #24
 	strb	r1, [r0, #0x03]
-#endif
 	strh	r3, [r0, #0x01]
 	bx	lr
 	LMEMCPY_4_PAD
@@ -551,17 +463,10 @@ ENTRY(memcpy)
  */
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
 	ldrh	r3, [r1, #0x02]		/* LE:r3 = ..23  LE:r3 = ..32 */
-#ifdef __ARMEB__
-	mov	r1, r2, lsr #8		/* r1 = ...0 */
-	strb	r1, [r0]
-	mov	r2, r2, lsl #8		/* r2 = .01. */
-	orr	r2, r2, r3, lsr #8	/* r2 = .012 */
-#else
 	strb	r2, [r0]
 	mov	r2, r2, lsr #8		/* r2 = ...1 */
 	orr	r2, r2, r3, lsl #8	/* r2 = .321 */
 	mov	r3, r3, lsr #8		/* r3 = ...3 */
-#endif
 	strh	r2, [r0, #0x01]
 	strb	r3, [r0, #0x03]
 	bx	lr
@@ -583,15 +488,9 @@ ENTRY(memcpy)
  * 1000: dst is 16-bit aligned, src is 32-bit aligned
  */
 	ldr	r2, [r1]
-#ifdef __ARMEB__
-	strh	r2, [r0, #0x02]
-	mov	r3, r2, lsr #16
-	strh	r3, [r0]
-#else
 	strh	r2, [r0]
 	mov	r3, r2, lsr #16
 	strh	r3, [r0, #0x02]
-#endif
 	bx	 lr
 	LMEMCPY_4_PAD
 
@@ -602,13 +501,8 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #3]		/* BE:r3 = 3xxx  LE:r3 = xxx3 */
 	mov	r1, r2, lsr #8		/* BE:r1 = .x01  LE:r1 = .210 */
 	strh	r1, [r0]
-#ifdef __ARMEB__
-	mov	r2, r2, lsl #8		/* r2 = 012. */
-	orr	r2, r2, r3, lsr #24	/* r2 = 0123 */
-#else
 	mov	r2, r2, lsr #24		/* r2 = ...2 */
 	orr	r2, r2, r3, lsl #8	/* r2 = xx32 */
-#endif
 	strh	r2, [r0, #0x02]
 	bx	lr
 	LMEMCPY_4_PAD
@@ -630,13 +524,8 @@ ENTRY(memcpy)
 	ldr	r2, [r1, #-3]		/* BE:r2 = xxx0  LE:r2 = 0xxx */
 	mov	r1, r3, lsr #8		/* BE:r1 = .123  LE:r1 = .x32 */
 	strh	r1, [r0, #0x02]
-#ifdef __ARMEB__
-	mov	r3, r3, lsr #24		/* r3 = ...1 */
-	orr	r3, r3, r2, lsl #8	/* r3 = xx01 */
-#else
 	mov	r3, r3, lsl #8		/* r3 = 321. */
 	orr	r3, r3, r2, lsr #24	/* r3 = 3210 */
-#endif
 	strh	r3, [r0]
 	bx	lr
 	LMEMCPY_4_PAD
@@ -645,19 +534,11 @@ ENTRY(memcpy)
  * 1100: dst is 8-bit aligned, src is 32-bit aligned
  */
 	ldr	r2, [r1]		/* BE:r2 = 0123  LE:r2 = 3210 */
-#ifdef __ARMEB__
-	strb	r2, [r0, #0x03]
-	mov	r3, r2, lsr #8
-	mov	r1, r2, lsr #24
-	strh	r3, [r0, #0x01]
-	strb	r1, [r0]
-#else
 	strb	r2, [r0]
 	mov	r3, r2, lsr #8
 	mov	r1, r2, lsr #24
 	strh	r3, [r0, #0x01]
 	strb	r1, [r0, #0x03]
-#endif
 	bx	lr
 	LMEMCPY_4_PAD
 
@@ -676,16 +557,6 @@ ENTRY(memcpy)
 /*
  * 1110: dst is 8-bit aligned, src is 16-bit aligned
  */
-#ifdef __ARMEB__
-	ldrh	r3, [r1, #0x02]		/* BE:r3 = ..23  LE:r3 = ..32 */
-	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
-	strb	r3, [r0, #0x03]
-	mov	r3, r3, lsr #8		/* r3 = ...2 */
-	orr	r3, r3, r2, lsl #8	/* r3 = ..12 */
-	strh	r3, [r0, #0x01]
-	mov	r2, r2, lsr #8		/* r2 = ...0 */
-	strb	r2, [r0]
-#else
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
 	ldrh	r3, [r1, #0x02]		/* BE:r3 = ..23  LE:r3 = ..32 */
 	strb	r2, [r0]
@@ -694,7 +565,6 @@ ENTRY(memcpy)
 	strh	r2, [r0, #0x01]
 	mov	r3, r3, lsr #8		/* r3 = ...3 */
 	strb	r3, [r0, #0x03]
-#endif
 	bx	lr
 	LMEMCPY_4_PAD
 
@@ -739,13 +609,8 @@ ENTRY(memcpy)
  */
 	ldr	r2, [r1, #-1]		/* BE:r2 = x012  LE:r2 = 210x */
 	ldr	r3, [r1, #0x03]		/* BE:r3 = 345x  LE:r3 = x543 */
-#ifdef __ARMEB__
-	mov	r2, r2, lsl #8		/* r2 = 012. */
-	orr	r2, r2, r3, lsr #24	/* r2 = 0123 */
-#else
 	mov	r2, r2, lsr #8		/* r2 = .210 */
 	orr	r2, r2, r3, lsl #24	/* r2 = 3210 */
-#endif
 	mov	r3, r3, lsr #8		/* BE:r3 = .345  LE:r3 = .x54 */
 	str	r2, [r0]
 	strh	r3, [r0, #0x04]
@@ -757,17 +622,10 @@ ENTRY(memcpy)
  */
 	ldr	r3, [r1, #0x02]		/* BE:r3 = 2345  LE:r3 = 5432 */
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
-#ifdef __ARMEB__
-	mov	r1, r3, lsr #16		/* r1 = ..23 */
-	orr	r1, r1, r2, lsl #16	/* r1 = 0123 */
-	str	r1, [r0]
-	strh	r3, [r0, #0x04]
-#else
 	mov	r1, r3, lsr #16		/* r1 = ..54 */
 	orr	r2, r2, r3, lsl #16	/* r2 = 3210 */
 	str	r2, [r0]
 	strh	r1, [r0, #0x04]
-#endif
 	bx	lr
 	LMEMCPY_6_PAD
 
@@ -777,17 +635,10 @@ ENTRY(memcpy)
 	ldr	r2, [r1, #-3]		/* BE:r2 = xxx0  LE:r2 = 0xxx */
 	ldr	r3, [r1, #1]		/* BE:r3 = 1234  LE:r3 = 4321 */
 	ldr	r1, [r1, #5]		/* BE:r1 = 5xxx  LE:r3 = xxx5 */
-#ifdef __ARMEB__
-	mov	r2, r2, lsl #24		/* r2 = 0... */
-	orr	r2, r2, r3, lsr #8	/* r2 = 0123 */
-	mov	r3, r3, lsl #8		/* r3 = 234. */
-	orr	r1, r3, r1, lsr #24	/* r1 = 2345 */
-#else
 	mov	r2, r2, lsr #24		/* r2 = ...0 */
 	orr	r2, r2, r3, lsl #8	/* r2 = 3210 */
 	mov	r1, r1, lsl #8		/* r1 = xx5. */
 	orr	r1, r1, r3, lsr #24	/* r1 = xx54 */
-#endif
 	str	r2, [r0]
 	strh	r1, [r0, #0x04]
 	bx	lr
@@ -800,17 +651,10 @@ ENTRY(memcpy)
 	ldrh	r2, [r1, #0x04]		/* BE:r2 = ..45  LE:r2 = ..54 */
 	mov	r1, r3, lsr #8		/* BE:r1 = .012  LE:r1 = .321 */
 	strh	r1, [r0, #0x01]
-#ifdef __ARMEB__
-	mov	r1, r3, lsr #24		/* r1 = ...0 */
-	strb	r1, [r0]
-	mov	r3, r3, lsl #8		/* r3 = 123. */
-	orr	r3, r3, r2, lsr #8	/* r3 = 1234 */
-#else
 	strb	r3, [r0]
 	mov	r3, r3, lsr #24		/* r3 = ...3 */
 	orr	r3, r3, r2, lsl #8	/* r3 = .543 */
 	mov	r2, r2, lsr #8		/* r2 = ...5 */
-#endif
 	strh	r3, [r0, #0x03]
 	strb	r2, [r0, #0x05]
 	bx	lr
@@ -835,16 +679,6 @@ ENTRY(memcpy)
  */
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
 	ldr	r1, [r1, #0x02]		/* BE:r1 = 2345  LE:r1 = 5432 */
-#ifdef __ARMEB__
-	mov	r3, r2, lsr #8		/* r3 = ...0 */
-	strb	r3, [r0]
-	strb	r1, [r0, #0x05]
-	mov	r3, r1, lsr #8		/* r3 = .234 */
-	strh	r3, [r0, #0x03]
-	mov	r3, r2, lsl #8		/* r3 = .01. */
-	orr	r3, r3, r1, lsr #24	/* r3 = .012 */
-	strh	r3, [r0, #0x01]
-#else
 	strb	r2, [r0]
 	mov	r3, r1, lsr #24
 	strb	r3, [r0, #0x05]
@@ -853,7 +687,6 @@ ENTRY(memcpy)
 	mov	r3, r2, lsr #8		/* r3 = ...1 */
 	orr	r3, r3, r1, lsl #8	/* r3 = 4321 */
 	strh	r3, [r0, #0x01]
-#endif
 	bx	lr
 	LMEMCPY_6_PAD
 
@@ -874,21 +707,12 @@ ENTRY(memcpy)
 /*
  * 1000: dst is 16-bit aligned, src is 32-bit aligned
  */
-#ifdef __ARMEB__
-	ldr	r2, [r1]		/* r2 = 0123 */
-	ldrh	r3, [r1, #0x04]		/* r3 = ..45 */
-	mov	r1, r2, lsr #16		/* r1 = ..01 */
-	orr	r3, r3, r2, lsl#16	/* r3 = 2345 */
-	strh	r1, [r0]
-	str	r3, [r0, #0x02]
-#else
 	ldrh	r2, [r1, #0x04]		/* r2 = ..54 */
 	ldr	r3, [r1]		/* r3 = 3210 */
 	mov	r2, r2, lsl #16		/* r2 = 54.. */
 	orr	r2, r2, r3, lsr #16	/* r2 = 5432 */
 	strh	r3, [r0]
 	str	r2, [r0, #0x02]
-#endif
 	bx	lr
 	LMEMCPY_6_PAD
 
@@ -898,13 +722,8 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #-1]		/* BE:r3 = x012  LE:r3 = 210x */
 	ldr	r2, [r1, #3]		/* BE:r2 = 345x  LE:r2 = x543 */
 	mov	r1, r3, lsr #8		/* BE:r1 = .x01  LE:r1 = .210 */
-#ifdef __ARMEB__
-	mov	r2, r2, lsr #8		/* r2 = .345 */
-	orr	r2, r2, r3, lsl #24	/* r2 = 2345 */
-#else
 	mov	r2, r2, lsl #8		/* r2 = 543. */
 	orr	r2, r2, r3, lsr #24	/* r2 = 5432 */
-#endif
 	strh	r1, [r0]
 	str	r2, [r0, #0x02]
 	bx	lr
@@ -926,15 +745,9 @@ ENTRY(memcpy)
 	ldrb	r3, [r1]		/* r3 = ...0 */
 	ldr	r2, [r1, #0x01]		/* BE:r2 = 1234  LE:r2 = 4321 */
 	ldrb	r1, [r1, #0x05]		/* r1 = ...5 */
-#ifdef __ARMEB__
-	mov	r3, r3, lsl #8		/* r3 = ..0. */
-	orr	r3, r3, r2, lsr #24	/* r3 = ..01 */
-	orr	r1, r1, r2, lsl #8	/* r1 = 2345 */
-#else
 	orr	r3, r3, r2, lsl #8	/* r3 = 3210 */
 	mov	r1, r1, lsl #24		/* r1 = 5... */
 	orr	r1, r1, r2, lsr #8	/* r1 = 5432 */
-#endif
 	strh	r3, [r0]
 	str	r1, [r0, #0x02]
 	bx	lr
@@ -945,17 +758,10 @@ ENTRY(memcpy)
  */
 	ldr	r2, [r1]		/* BE:r2 = 0123  LE:r2 = 3210 */
 	ldrh	r1, [r1, #0x04]		/* BE:r1 = ..45  LE:r1 = ..54 */
-#ifdef __ARMEB__
-	mov	r3, r2, lsr #24		/* r3 = ...0 */
-	strb	r3, [r0]
-	mov	r2, r2, lsl #8		/* r2 = 123. */
-	orr	r2, r2, r1, lsr #8	/* r2 = 1234 */
-#else
 	strb	r2, [r0]
 	mov	r2, r2, lsr #8		/* r2 = .321 */
 	orr	r2, r2, r1, lsl #24	/* r2 = 4321 */
 	mov	r1, r1, lsr #8		/* r1 = ...5 */
-#endif
 	str	r2, [r0, #0x01]
 	strb	r1, [r0, #0x05]
 	bx	lr
@@ -980,17 +786,10 @@ ENTRY(memcpy)
  */
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
 	ldr	r1, [r1, #0x02]		/* BE:r1 = 2345  LE:r1 = 5432 */
-#ifdef __ARMEB__
-	mov	r3, r2, lsr #8		/* r3 = ...0 */
-	strb	r3, [r0]
-	mov	r2, r2, lsl #24		/* r2 = 1... */
-	orr	r2, r2, r1, lsr #8	/* r2 = 1234 */
-#else
 	strb	r2, [r0]
 	mov	r2, r2, lsr #8		/* r2 = ...1 */
 	orr	r2, r2, r1, lsl #8	/* r2 = 4321 */
 	mov	r1, r1, lsr #24		/* r1 = ...5 */
-#endif
 	str	r2, [r0, #0x01]
 	strb	r1, [r0, #0x05]
 	bx	lr
@@ -1038,16 +837,10 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #-1]		/* BE:r3 = x012  LE:r3 = 210x */
 	ldr	r2, [r1, #0x03]		/* BE:r2 = 3456  LE:r2 = 6543 */
 	ldrb	r1, [r1, #0x07]		/* r1 = ...7 */
-#ifdef __ARMEB__
-	mov	r3, r3, lsl #8		/* r3 = 012. */
-	orr	r3, r3, r2, lsr #24	/* r3 = 0123 */
-	orr	r2, r1, r2, lsl #8	/* r2 = 4567 */
-#else
 	mov	r3, r3, lsr #8		/* r3 = .210 */
 	orr	r3, r3, r2, lsl #24	/* r3 = 3210 */
 	mov	r1, r1, lsl #24		/* r1 = 7... */
 	orr	r2, r1, r2, lsr #8	/* r2 = 7654 */
-#endif
 	str	r3, [r0]
 	str	r2, [r0, #0x04]
 	bx	lr
@@ -1059,15 +852,9 @@ ENTRY(memcpy)
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
 	ldr	r3, [r1, #0x02]		/* BE:r3 = 2345  LE:r3 = 5432 */
 	ldrh	r1, [r1, #0x06]		/* BE:r1 = ..67  LE:r1 = ..76 */
-#ifdef __ARMEB__
-	mov	r2, r2, lsl #16		/* r2 = 01.. */
-	orr	r2, r2, r3, lsr #16	/* r2 = 0123 */
-	orr	r3, r1, r3, lsl #16	/* r3 = 4567 */
-#else
 	orr	r2, r2, r3, lsl #16	/* r2 = 3210 */
 	mov	r3, r3, lsr #16		/* r3 = ..54 */
 	orr	r3, r3, r1, lsl #16	/* r3 = 7654 */
-#endif
 	str	r2, [r0]
 	str	r3, [r0, #0x04]
 	bx	lr
@@ -1079,16 +866,9 @@ ENTRY(memcpy)
 	ldrb	r3, [r1]		/* r3 = ...0 */
 	ldr	r2, [r1, #0x01]		/* BE:r2 = 1234  LE:r2 = 4321 */
 	ldr	r1, [r1, #0x05]		/* BE:r1 = 567x  LE:r1 = x765 */
-#ifdef __ARMEB__
-	mov	r3, r3, lsl #24		/* r3 = 0... */
-	orr	r3, r3, r2, lsr #8	/* r3 = 0123 */
-	mov	r2, r2, lsl #24		/* r2 = 4... */
-	orr	r2, r2, r1, lsr #8	/* r2 = 4567 */
-#else
 	orr	r3, r3, r2, lsl #8	/* r3 = 3210 */
 	mov	r2, r2, lsr #24		/* r2 = ...4 */
 	orr	r2, r2, r1, lsl #8	/* r2 = 7654 */
-#endif
 	str	r3, [r0]
 	str	r2, [r0, #0x04]
 	bx	lr
@@ -1099,21 +879,12 @@ ENTRY(memcpy)
  */
 	ldr	r3, [r1]		/* BE:r3 = 0123  LE:r3 = 3210 */
 	ldr	r2, [r1, #0x04]		/* BE:r2 = 4567  LE:r2 = 7654 */
-#ifdef __ARMEB__
-	mov	r1, r3, lsr #24		/* r1 = ...0 */
-	strb	r1, [r0]
-	mov	r1, r3, lsr #8		/* r1 = .012 */
-	strb	r2, [r0, #0x07]
-	mov	r3, r3, lsl #24		/* r3 = 3... */
-	orr	r3, r3, r2, lsr #8	/* r3 = 3456 */
-#else
 	strb	r3, [r0]
 	mov	r1, r2, lsr #24		/* r1 = ...7 */
 	strb	r1, [r0, #0x07]
 	mov	r1, r3, lsr #8		/* r1 = .321 */
 	mov	r3, r3, lsr #24		/* r3 = ...3 */
 	orr	r3, r3, r2, lsl #8	/* r3 = 6543 */
-#endif
 	strh	r1, [r0, #0x01]
 	str	r3, [r0, #0x03]
 	bx	lr
@@ -1139,15 +910,6 @@ ENTRY(memcpy)
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
 	ldr	r3, [r1, #0x02]		/* BE:r3 = 2345  LE:r3 = 5432 */
 	ldrh	r1, [r1, #0x06]		/* BE:r1 = ..67  LE:r1 = ..76 */
-#ifdef __ARMEB__
-	mov	ip, r2, lsr #8		/* ip = ...0 */
-	strb	ip, [r0]
-	mov	ip, r2, lsl #8		/* ip = .01. */
-	orr	ip, ip, r3, lsr #24	/* ip = .012 */
-	strb	r1, [r0, #0x07]
-	mov	r3, r3, lsl #8		/* r3 = 345. */
-	orr	r3, r3, r1, lsr #8	/* r3 = 3456 */
-#else
 	strb	r2, [r0]		/* 0 */
 	mov	ip, r1, lsr #8		/* ip = ...7 */
 	strb	ip, [r0, #0x07]		/* 7 */
@@ -1155,7 +917,6 @@ ENTRY(memcpy)
 	orr	ip, ip, r3, lsl #8	/* ip = 4321 */
 	mov	r3, r3, lsr #8		/* r3 = .543 */
 	orr	r3, r3, r1, lsl #24	/* r3 = 6543 */
-#endif
 	strh	ip, [r0, #0x01]
 	str	r3, [r0, #0x03]
 	bx	lr
@@ -1170,13 +931,8 @@ ENTRY(memcpy)
 	ldrb	r1, [r1, #0x07]		/* r1 = ...7 */
 	strb	r3, [r0]
 	mov	r3, ip, lsr #16		/* BE:r3 = ..12  LE:r3 = ..43 */
-#ifdef __ARMEB__
-	strh	r3, [r0, #0x01]
-	orr	r2, r2, ip, lsl #16	/* r2 = 3456 */
-#else
 	strh	ip, [r0, #0x01]
 	orr	r2, r3, r2, lsl #16	/* r2 = 6543 */
-#endif
 	str	r2, [r0, #0x03]
 	strb	r1, [r0, #0x07]
 	bx	lr
@@ -1188,15 +944,9 @@ ENTRY(memcpy)
 	ldr	r2, [r1]		/* BE:r2 = 0123  LE:r2 = 3210 */
 	ldr	r3, [r1, #0x04]		/* BE:r3 = 4567  LE:r3 = 7654 */
 	mov	r1, r2, lsr #16		/* BE:r1 = ..01  LE:r1 = ..32 */
-#ifdef __ARMEB__
-	strh	r1, [r0]
-	mov	r1, r3, lsr #16		/* r1 = ..45 */
-	orr	r2, r1 ,r2, lsl #16	/* r2 = 2345 */
-#else
 	strh	r2, [r0]
 	orr	r2, r1, r3, lsl #16	/* r2 = 5432 */
 	mov	r3, r3, lsr #16		/* r3 = ..76 */
-#endif
 	str	r2, [r0, #0x02]
 	strh	r3, [r0, #0x06]
 	bx	lr
@@ -1210,16 +960,10 @@ ENTRY(memcpy)
 	ldrb	ip, [r1, #0x07]		/* ip = ...7 */
 	mov	r1, r2, lsr #8		/* BE:r1 = .x01  LE:r1 = .210 */
 	strh	r1, [r0]
-#ifdef __ARMEB__
-	mov	r1, r2, lsl #24		/* r1 = 2... */
-	orr	r1, r1, r3, lsr #8	/* r1 = 2345 */
-	orr	r3, ip, r3, lsl #8	/* r3 = 4567 */
-#else
 	mov	r1, r2, lsr #24		/* r1 = ...2 */
 	orr	r1, r1, r3, lsl #8	/* r1 = 5432 */
 	mov	r3, r3, lsr #24		/* r3 = ...6 */
 	orr	r3, r3, ip, lsl #8	/* r3 = ..76 */
-#endif
 	str	r1, [r0, #0x02]
 	strh	r3, [r0, #0x06]
 	bx	lr
@@ -1245,16 +989,9 @@ ENTRY(memcpy)
 	ldrb	ip, [r1]		/* ip = ...0 */
 	mov	r1, r3, lsr #8		/* BE:r1 = .567  LE:r1 = .x76 */
 	strh	r1, [r0, #0x06]
-#ifdef __ARMEB__
-	mov	r3, r3, lsr #24		/* r3 = ...5 */
-	orr	r3, r3, r2, lsl #8	/* r3 = 2345 */
-	mov	r2, r2, lsr #24		/* r2 = ...1 */
-	orr	r2, r2, ip, lsl #8	/* r2 = ..01 */
-#else
 	mov	r3, r3, lsl #24		/* r3 = 5... */
 	orr	r3, r3, r2, lsr #8	/* r3 = 5432 */
 	orr	r2, ip, r2, lsl #8	/* r2 = 3210 */
-#endif
 	str	r3, [r0, #0x02]
 	strh	r2, [r0]
 	bx	lr
@@ -1267,21 +1004,12 @@ ENTRY(memcpy)
 	ldr	r2, [r1]		/* BE:r2 = 0123  LE:r2 = 3210 */
 	mov	r1, r3, lsr #8		/* BE:r1 = .456  LE:r1 = .765 */
 	strh	r1, [r0, #0x05]
-#ifdef __ARMEB__
-	strb	r3, [r0, #0x07]
-	mov	r1, r2, lsr #24		/* r1 = ...0 */
-	strb	r1, [r0]
-	mov	r2, r2, lsl #8		/* r2 = 123. */
-	orr	r2, r2, r3, lsr #24	/* r2 = 1234 */
-	str	r2, [r0, #0x01]
-#else
 	strb	r2, [r0]
 	mov	r1, r3, lsr #24		/* r1 = ...7 */
 	strb	r1, [r0, #0x07]
 	mov	r2, r2, lsr #8		/* r2 = .321 */
 	orr	r2, r2, r3, lsl #24	/* r2 = 4321 */
 	str	r2, [r0, #0x01]
-#endif
 	bx	 lr
 	LMEMCPY_8_PAD
 
@@ -1294,13 +1022,8 @@ ENTRY(memcpy)
 	ldrb	r1, [r1, #0x07]		/* r1 = ...7 */
 	strb	r3, [r0]
 	mov	r3, ip, lsr #16		/* BE:r3 = ..34  LE:r3 = ..65 */
-#ifdef __ARMEB__
-	strh	ip, [r0, #0x05]
-	orr	r2, r3, r2, lsl #16	/* r2 = 1234 */
-#else
 	strh	r3, [r0, #0x05]
 	orr	r2, r2, ip, lsl #16	/* r2 = 4321 */
-#endif
 	str	r2, [r0, #0x01]
 	strb	r1, [r0, #0x07]
 	bx	lr
@@ -1312,15 +1035,6 @@ ENTRY(memcpy)
 	ldrh	r2, [r1]		/* BE:r2 = ..01  LE:r2 = ..10 */
 	ldr	r3, [r1, #0x02]		/* BE:r3 = 2345  LE:r3 = 5432 */
 	ldrh	r1, [r1, #0x06]		/* BE:r1 = ..67  LE:r1 = ..76 */
-#ifdef __ARMEB__
-	mov	ip, r2, lsr #8		/* ip = ...0 */
-	strb	ip, [r0]
-	mov	ip, r2, lsl #24		/* ip = 1... */
-	orr	ip, ip, r3, lsr #8	/* ip = 1234 */
-	strb	r1, [r0, #0x07]
-	mov	r1, r1, lsr #8		/* r1 = ...6 */
-	orr	r1, r1, r3, lsl #8	/* r1 = 3456 */
-#else
 	strb	r2, [r0]
 	mov	ip, r2, lsr #8		/* ip = ...1 */
 	orr	ip, ip, r3, lsl #8	/* ip = 4321 */
@@ -1328,7 +1042,6 @@ ENTRY(memcpy)
 	strb	r2, [r0, #0x07]
 	mov	r1, r1, lsl #8		/* r1 = .76. */
 	orr	r1, r1, r3, lsr #24	/* r1 = .765 */
-#endif
 	str	ip, [r0, #0x01]
 	strh	r1, [r0, #0x05]
 	bx	lr
@@ -1380,14 +1093,6 @@ ENTRY(memcpy)
 	ldr	ip, [r1, #0x07]		/* BE:ip = 789A  LE:ip = A987 */
 	ldr	r3, [r1, #0x03]		/* BE:r3 = 3456  LE:r3 = 6543 */
 	ldr	r1, [r1, #-1]		/* BE:r1 = x012  LE:r1 = 210x */
-#ifdef __ARMEB__
-	orr	r2, r2, ip, lsl #8	/* r2 = 89AB */
-	str	r2, [r0, #0x08]
-	mov	r2, ip, lsr #24		/* r2 = ...7 */
-	orr	r2, r2, r3, lsl #8	/* r2 = 4567 */
-	mov	r1, r1, lsl #8		/* r1 = 012. */
-	orr	r1, r1, r3, lsr #24	/* r1 = 0123 */
-#else
 	mov	r2, r2, lsl #24		/* r2 = B... */
 	orr	r2, r2, ip, lsr #8	/* r2 = BA98 */
 	str	r2, [r0, #0x08]
@@ -1395,7 +1100,6 @@ ENTRY(memcpy)
 	orr	r2, r2, r3, lsr #8	/* r2 = 7654 */
 	mov	r1, r1, lsr #8		/* r1 = .210 */
 	orr	r1, r1, r3, lsl #24	/* r1 = 3210 */
-#endif
 	str	r2, [r0, #0x04]
 	str	r1, [r0]
 	bx	lr
@@ -1408,21 +1112,12 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #0x02]		/* BE:r3 = 2345  LE:r3 = 5432 */
 	ldr	ip, [r1, #0x06]		/* BE:ip = 6789  LE:ip = 9876 */
 	ldrh	r1, [r1, #0x0a]		/* BE:r1 = ..AB  LE:r1 = ..BA */
-#ifdef __ARMEB__
-	mov	r2, r2, lsl #16		/* r2 = 01.. */
-	orr	r2, r2, r3, lsr #16	/* r2 = 0123 */
-	str	r2, [r0]
-	mov	r3, r3, lsl #16		/* r3 = 45.. */
-	orr	r3, r3, ip, lsr #16	/* r3 = 4567 */
-	orr	r1, r1, ip, lsl #16	/* r1 = 89AB */
-#else
 	orr	r2, r2, r3, lsl #16	/* r2 = 3210 */
 	str	r2, [r0]
 	mov	r3, r3, lsr #16		/* r3 = ..54 */
 	orr	r3, r3, ip, lsl #16	/* r3 = 7654 */
 	mov	r1, r1, lsl #16		/* r1 = BA.. */
 	orr	r1, r1, ip, lsr #16	/* r1 = BA98 */
-#endif
 	str	r3, [r0, #0x04]
 	str	r1, [r0, #0x08]
 	bx	lr
@@ -1435,22 +1130,12 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #0x01]		/* BE:r3 = 1234  LE:r3 = 4321 */
 	ldr	ip, [r1, #0x05]		/* BE:ip = 5678  LE:ip = 8765 */
 	ldr	r1, [r1, #0x09]		/* BE:r1 = 9ABx  LE:r1 = xBA9 */
-#ifdef __ARMEB__
-	mov	r2, r2, lsl #24		/* r2 = 0... */
-	orr	r2, r2, r3, lsr #8	/* r2 = 0123 */
-	str	r2, [r0]
-	mov	r3, r3, lsl #24		/* r3 = 4... */
-	orr	r3, r3, ip, lsr #8	/* r3 = 4567 */
-	mov	r1, r1, lsr #8		/* r1 = .9AB */
-	orr	r1, r1, ip, lsl #24	/* r1 = 89AB */
-#else
 	orr	r2, r2, r3, lsl #8	/* r2 = 3210 */
 	str	r2, [r0]
 	mov	r3, r3, lsr #24		/* r3 = ...4 */
 	orr	r3, r3, ip, lsl #8	/* r3 = 7654 */
 	mov	r1, r1, lsl #8		/* r1 = BA9. */
 	orr	r1, r1, ip, lsr #24	/* r1 = BA98 */
-#endif
 	str	r3, [r0, #0x04]
 	str	r1, [r0, #0x08]
 	bx	lr
@@ -1464,21 +1149,12 @@ ENTRY(memcpy)
 	ldr	ip, [r1, #0x08]		/* BE:ip = 89AB  LE:ip = BA98 */
 	mov	r1, r2, lsr #8		/* BE:r1 = .012  LE:r1 = .321 */
 	strh	r1, [r0, #0x01]
-#ifdef __ARMEB__
-	mov	r1, r2, lsr #24		/* r1 = ...0 */
-	strb	r1, [r0]
-	mov	r1, r2, lsl #24		/* r1 = 3... */
-	orr	r2, r1, r3, lsr #8	/* r1 = 3456 */
-	mov	r1, r3, lsl #24		/* r1 = 7... */
-	orr	r1, r1, ip, lsr #8	/* r1 = 789A */
-#else
 	strb	r2, [r0]
 	mov	r1, r2, lsr #24		/* r1 = ...3 */
 	orr	r2, r1, r3, lsl #8	/* r1 = 6543 */
 	mov	r1, r3, lsr #24		/* r1 = ...7 */
 	orr	r1, r1, ip, lsl #8	/* r1 = A987 */
 	mov	ip, ip, lsr #24		/* ip = ...B */
-#endif
 	str	r2, [r0, #0x03]
 	str	r1, [r0, #0x07]
 	strb	ip, [r0, #0x0b]
@@ -1508,17 +1184,6 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #0x02]		/* BE:r3 = 2345  LE:r3 = 5432 */
 	ldr	ip, [r1, #0x06]		/* BE:ip = 6789  LE:ip = 9876 */
 	ldrh	r1, [r1, #0x0a]		/* BE:r1 = ..AB  LE:r1 = ..BA */
-#ifdef __ARMEB__
-	mov	r2, r2, ror #8		/* r2 = 1..0 */
-	strb	r2, [r0]
-	mov	r2, r2, lsr #16		/* r2 = ..1. */
-	orr	r2, r2, r3, lsr #24	/* r2 = ..12 */
-	strh	r2, [r0, #0x01]
-	mov	r2, r3, lsl #8		/* r2 = 345. */
-	orr	r3, r2, ip, lsr #24	/* r3 = 3456 */
-	mov	r2, ip, lsl #8		/* r2 = 789. */
-	orr	r2, r2, r1, lsr #8	/* r2 = 789A */
-#else
 	strb	r2, [r0]
 	mov	r2, r2, lsr #8		/* r2 = ...1 */
 	orr	r2, r2, r3, lsl #8	/* r2 = 4321 */
@@ -1528,7 +1193,6 @@ ENTRY(memcpy)
 	mov	r2, ip, lsr #8		/* r2 = .987 */
 	orr	r2, r2, r1, lsl #24	/* r2 = A987 */
 	mov	r1, r1, lsr #8		/* r1 = ...B */
-#endif
 	str	r3, [r0, #0x03]
 	str	r2, [r0, #0x07]
 	strb	r1, [r0, #0x0b]
@@ -1543,22 +1207,12 @@ ENTRY(memcpy)
 	ldr	ip, [r1, #0x05]		/* BE:ip = 5678  LE:ip = 8765 */
 	ldr	r1, [r1, #0x09]		/* BE:r1 = 9ABx  LE:r1 = xBA9 */
 	strb	r2, [r0]
-#ifdef __ARMEB__
-	mov	r2, r3, lsr #16		/* r2 = ..12 */
-	strh	r2, [r0, #0x01]
-	mov	r3, r3, lsl #16		/* r3 = 34.. */
-	orr	r3, r3, ip, lsr #16	/* r3 = 3456 */
-	mov	ip, ip, lsl #16		/* ip = 78.. */
-	orr	ip, ip, r1, lsr #16	/* ip = 789A */
-	mov	r1, r1, lsr #8		/* r1 = .9AB */
-#else
 	strh	r3, [r0, #0x01]
 	mov	r3, r3, lsr #16		/* r3 = ..43 */
 	orr	r3, r3, ip, lsl #16	/* r3 = 6543 */
 	mov	ip, ip, lsr #16		/* ip = ..87 */
 	orr	ip, ip, r1, lsl #16	/* ip = A987 */
 	mov	r1, r1, lsr #16		/* r1 = ..xB */
-#endif
 	str	r3, [r0, #0x03]
 	str	ip, [r0, #0x07]
 	strb	r1, [r0, #0x0b]
@@ -1572,19 +1226,11 @@ ENTRY(memcpy)
 	ldr	r3, [r1, #0x04]		/* BE:r3 = 4567  LE:r3 = 7654 */
 	ldr	r2, [r1, #0x08]		/* BE:r2 = 89AB  LE:r2 = BA98 */
 	mov	r1, ip, lsr #16		/* BE:r1 = ..01  LE:r1 = ..32 */
-#ifdef __ARMEB__
-	strh	r1, [r0]
-	mov	r1, ip, lsl #16		/* r1 = 23.. */
-	orr	r1, r1, r3, lsr #16	/* r1 = 2345 */
-	mov	r3, r3, lsl #16		/* r3 = 67.. */
-	orr	r3, r3, r2, lsr #16	/* r3 = 6789 */
-#else
 	strh	ip, [r0]
 	orr	r1, r1, r3, lsl #16	/* r1 = 5432 */
 	mov	r3, r3, lsr #16		/* r3 = ..76 */
 	orr	r3, r3, r2, lsl #16	/* r3 = 9876 */
 	mov	r2, r2, lsr #16		/* r2 = ..BA */
-#endif
 	str	r1, [r0, #0x02]
 	str	r3, [r0, #0x06]
 	strh	r2, [r0, #0x0a]
@@ -1600,20 +1246,12 @@ ENTRY(memcpy)
 	strh	ip, [r0]
 	ldr	ip, [r1, #0x07]		/* BE:ip = 789A  LE:ip = A987 */
 	ldrb	r1, [r1, #0x0b]		/* r1 = ...B */
-#ifdef __ARMEB__
-	mov	r2, r2, lsl #24		/* r2 = 2... */
-	orr	r2, r2, r3, lsr #8	/* r2 = 2345 */
-	mov	r3, r3, lsl #24		/* r3 = 6... */
-	orr	r3, r3, ip, lsr #8	/* r3 = 6789 */
-	orr	r1, r1, ip, lsl #8	/* r1 = 89AB */
-#else
 	mov	r2, r2, lsr #24		/* r2 = ...2 */
 	orr	r2, r2, r3, lsl #8	/* r2 = 5432 */
 	mov	r3, r3, lsr #24		/* r3 = ...6 */
 	orr	r3, r3, ip, lsl #8	/* r3 = 9876 */
 	mov	r1, r1, lsl #8		/* r1 = ..B. */
 	orr	r1, r1, ip, lsr #24	/* r1 = ..BA */
-#endif
 	str	r2, [r0, #0x02]
 	str	r3, [r0, #0x06]
 	strh	r1, [r0, #0x0a]
@@ -1643,20 +1281,11 @@ ENTRY(memcpy)
 	strh	ip, [r0, #0x0a]
 	ldr	ip, [r1, #0x01]		/* BE:ip = 1234  LE:ip = 4321 */
 	ldrb	r1, [r1]		/* r1 = ...0 */
-#ifdef __ARMEB__
-	mov	r2, r2, lsr #24		/* r2 = ...9 */
-	orr	r2, r2, r3, lsl #8	/* r2 = 6789 */
-	mov	r3, r3, lsr #24		/* r3 = ...5 */
-	orr	r3, r3, ip, lsl #8	/* r3 = 2345 */
-	mov	r1, r1, lsl #8		/* r1 = ..0. */
-	orr	r1, r1, ip, lsr #24	/* r1 = ..01 */
-#else
 	mov	r2, r2, lsl #24		/* r2 = 9... */
 	orr	r2, r2, r3, lsr #8	/* r2 = 9876 */
 	mov	r3, r3, lsl #24		/* r3 = 5... */
 	orr	r3, r3, ip, lsr #8	/* r3 = 5432 */
 	orr	r1, r1, ip, lsl #8	/* r1 = 3210 */
-#endif
 	str	r2, [r0, #0x06]
 	str	r3, [r0, #0x02]
 	strh	r1, [r0]
@@ -1669,19 +1298,6 @@ ENTRY(memcpy)
 	ldr	r2, [r1]		/* BE:r2 = 0123  LE:r2 = 3210 */
 	ldr	ip, [r1, #0x04]		/* BE:ip = 4567  LE:ip = 7654 */
 	ldr	r1, [r1, #0x08]		/* BE:r1 = 89AB  LE:r1 = BA98 */
-#ifdef __ARMEB__
-	mov	r3, r2, lsr #24		/* r3 = ...0 */
-	strb	r3, [r0]
-	mov	r2, r2, lsl #8		/* r2 = 123. */
-	orr	r2, r2, ip, lsr #24	/* r2 = 1234 */
-	str	r2, [r0, #0x01]
-	mov	r2, ip, lsl #8		/* r2 = 567. */
-	orr	r2, r2, r1, lsr #24	/* r2 = 5678 */
-	str	r2, [r0, #0x05]
-	mov	r2, r1, lsr #8		/* r2 = ..9A */
-	strh	r2, [r0, #0x09]
-	strb	r1, [r0, #0x0b]
-#else
 	strb	r2, [r0]
 	mov	r3, r2, lsr #8		/* r3 = .321 */
 	orr	r3, r3, ip, lsl #24	/* r3 = 4321 */
@@ -1693,7 +1309,6 @@ ENTRY(memcpy)
 	strh	r1, [r0, #0x09]
 	mov	r1, r1, lsr #16		/* r1 = ...B */
 	strb	r1, [r0, #0x0b]
-#endif
 	bx	lr
 	LMEMCPY_C_PAD
 
@@ -1705,14 +1320,6 @@ ENTRY(memcpy)
 	ldr	ip, [r1, #0x03]		/* BE:ip = 3456  LE:ip = 6543 */
 	ldr	r1, [r1, #-1]		/* BE:r1 = x012  LE:r1 = 210x */
 	strb	r2, [r0, #0x0b]
-#ifdef __ARMEB__
-	strh	r3, [r0, #0x09]
-	mov	r3, r3, lsr #16		/* r3 = ..78 */
-	orr	r3, r3, ip, lsl #16	/* r3 = 5678 */
-	mov	ip, ip, lsr #16		/* ip = ..34 */
-	orr	ip, ip, r1, lsl #16	/* ip = 1234 */
-	mov	r1, r1, lsr #16		/* r1 = ..x0 */
-#else
 	mov	r2, r3, lsr #16		/* r2 = ..A9 */
 	strh	r2, [r0, #0x09]
 	mov	r3, r3, lsl #16		/* r3 = 87.. */
@@ -1720,7 +1327,6 @@ ENTRY(memcpy)
 	mov	ip, ip, lsl #16		/* ip = 43.. */
 	orr	ip, ip, r1, lsr #16	/* ip = 4321 */
 	mov	r1, r1, lsr #8		/* r1 = .210 */
-#endif
 	str	r3, [r0, #0x05]
 	str	ip, [r0, #0x01]
 	strb	r1, [r0]
@@ -1730,24 +1336,6 @@ ENTRY(memcpy)
 /*
  * 1110: dst is 8-bit aligned (byte 3), src is 16-bit aligned
  */
-#ifdef __ARMEB__
-	ldrh	r2, [r1, #0x0a]		/* r2 = ..AB */
-	ldr	ip, [r1, #0x06]		/* ip = 6789 */
-	ldr	r3, [r1, #0x02]		/* r3 = 2345 */
-	ldrh	r1, [r1]		/* r1 = ..01 */
-	strb	r2, [r0, #0x0b]
-	mov	r2, r2, lsr #8		/* r2 = ...A */
-	orr	r2, r2, ip, lsl #8	/* r2 = 789A */
-	mov	ip, ip, lsr #8		/* ip = .678 */
-	orr	ip, ip, r3, lsl #24	/* ip = 5678 */
-	mov	r3, r3, lsr #8		/* r3 = .234 */
-	orr	r3, r3, r1, lsl #24	/* r3 = 1234 */
-	mov	r1, r1, lsr #8		/* r1 = ...0 */
-	strb	r1, [r0]
-	str	r3, [r0, #0x01]
-	str	ip, [r0, #0x05]
-	strh	r2, [r0, #0x09]
-#else
 	ldrh	r2, [r1]		/* r2 = ..10 */
 	ldr	r3, [r1, #0x02]		/* r3 = 5432 */
 	ldr	ip, [r1, #0x06]		/* ip = 9876 */
@@ -1764,7 +1352,6 @@ ENTRY(memcpy)
 	str	r3, [r0, #0x05]
 	strh	ip, [r0, #0x09]
 	strb	r1, [r0, #0x0b]
-#endif
 	bx	lr
 	LMEMCPY_C_PAD
 
