@@ -92,6 +92,7 @@ static int vop_stdfdatasync(struct vop_fdatasync_args *ap);
 static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
 static int vop_stdread_pgcache(struct vop_read_pgcache_args *ap);
 static int vop_stdstat(struct vop_stat_args *ap);
+static int vop_stdvput_pair(struct vop_vput_pair_args *ap);
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -151,6 +152,7 @@ struct vop_vector default_vnodeops = {
 	.vop_unset_text =	vop_stdunset_text,
 	.vop_add_writecount =	vop_stdadd_writecount,
 	.vop_copy_file_range =	vop_stdcopy_file_range,
+	.vop_vput_pair =	vop_stdvput_pair,
 };
 VFS_VOP_VECTOR_REGISTER(default_vnodeops);
 
@@ -1591,4 +1593,17 @@ static int
 vop_stdread_pgcache(struct vop_read_pgcache_args *ap __unused)
 {
 	return (EJUSTRETURN);
+}
+
+static int
+vop_stdvput_pair(struct vop_vput_pair_args *ap)
+{
+	struct vnode *dvp, *vp, **vpp;
+
+	dvp = ap->a_dvp;
+	vpp = ap->a_vpp;
+	vput(dvp);
+	if (vpp != NULL && ap->a_unlock_vp && (vp = *vpp) != NULL)
+		vput(vp);
+	return (0);
 }
