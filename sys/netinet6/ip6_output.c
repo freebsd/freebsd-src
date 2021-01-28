@@ -225,7 +225,7 @@ ip6_output_delayed_csum(struct mbuf *m, struct ifnet *ifp, int csum_flags,
 #if defined(SCTP) || defined(SCTP_SUPPORT)
 	    (csum_flags & CSUM_SCTP_IPV6) ||
 #endif
-	    (!frag && (ifp->if_capenable & IFCAP_NOMAP) == 0)) {
+	    (!frag && (ifp->if_capenable & IFCAP_MEXTPG) == 0)) {
 		m = mb_unmapped_to_ext(m);
 		if (m == NULL) {
 			if (frag)

@@ -245,7 +245,7 @@ struct if_data {
 #define	IFCAP_HWSTATS		0x800000 /* manages counters internally */
 #define	IFCAP_TXRTLMT		0x1000000 /* hardware supports TX rate limiting */
 #define	IFCAP_HWRXTSTMP		0x2000000 /* hardware rx timestamping */
-#define	IFCAP_NOMAP		0x4000000 /* can TX unmapped mbufs */
+#define	IFCAP_MEXTPG		0x4000000 /* understands M_EXTPG mbufs */
 #define	IFCAP_TXTLS4		0x8000000 /* can do TLS encryption and segmentation for TCP */
 #define	IFCAP_TXTLS6		0x10000000 /* can do TLS encryption and segmentation for TCP6 */
 #define	IFCAP_VXLAN_HWCSUM	0x20000000 /* can do IFCAN_HWCSUM on VXLANs */

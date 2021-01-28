@@ -3379,8 +3379,8 @@ mlx5e_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				    "tso6 disabled due to -txcsum6.\n");
 			}
 		}
-		if (mask & IFCAP_NOMAP)
-			ifp->if_capenable ^= IFCAP_NOMAP;
+		if (mask & IFCAP_MEXTPG)
+			ifp->if_capenable ^= IFCAP_MEXTPG;
 		if (mask & IFCAP_TXTLS4)
 			ifp->if_capenable ^= IFCAP_TXTLS4;
 		if (mask & IFCAP_TXTLS6)
@@ -4397,7 +4397,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	ifp->if_capabilities |= IFCAP_LRO;
 	ifp->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
 	ifp->if_capabilities |= IFCAP_HWSTATS | IFCAP_HWRXTSTMP;
-	ifp->if_capabilities |= IFCAP_NOMAP;
+	ifp->if_capabilities |= IFCAP_MEXTPG;
 	ifp->if_capabilities |= IFCAP_TXTLS4 | IFCAP_TXTLS6;
 #ifdef RATELIMIT
 	ifp->if_capabilities |= IFCAP_TXRTLMT | IFCAP_TXTLS_RTLMT;

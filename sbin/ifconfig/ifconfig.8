@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2020
+.Dd January 28, 2021
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -554,12 +554,14 @@ and
 Enable use of rate limiting (packet pacing) for TLS offload.
 .It Fl txtlsrtlmt
 Disable use of rate limiting for TLS offload.
-.It Cm nomap
-If the driver supports unmapped network buffers,
-enable them on the interface.
-.It Fl nomap
-If the driver supports unmapped network buffers,
-disable them on the interface.
+.It Cm mextpg
+If the driver supports extended multi-page
+.Xr mbuf 9
+buffers, enable them on the interface.
+.It Fl mextpg
+If the driver supports extended multi-page
+.Xr mbuf 9
+biffers, disable them on the interface.
 .It Cm wol , wol_ucast , wol_mcast , wol_magic
 Enable Wake On Lan (WOL) support, if available.
 WOL is a facility whereby a machine in a low power state may be woken

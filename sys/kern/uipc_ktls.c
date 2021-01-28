@@ -868,7 +868,7 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	params.hdr.numa_domain = inp->inp_numa_domain;
 	INP_RUNLOCK(inp);
 
-	if ((ifp->if_capenable & IFCAP_NOMAP) == 0) {	
+	if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
 		error = EOPNOTSUPP;
 		goto out;
 	}
