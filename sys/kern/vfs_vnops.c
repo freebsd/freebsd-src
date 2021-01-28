@@ -274,8 +274,9 @@ restart:
 			if (error == 0)
 #endif
 				error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
-						   &ndp->ni_cnd, vap);
-			vput(ndp->ni_dvp);
+				    &ndp->ni_cnd, vap);
+			VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp :
+			    NULL, false);
 			vn_finished_write(mp);
 			if (error) {
 				NDFREE(ndp, NDF_ONLY_PNBUF);

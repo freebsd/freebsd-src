@@ -669,8 +669,8 @@ restart:
 	if (error == 0)
 		error = VOP_CREATE(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vput(nd.ni_dvp);
 	if (error) {
+		VOP_VPUT_PAIR(nd.ni_dvp, NULL, true);
 		vn_finished_write(mp);
 		if (error == ERELOOKUP)
 			goto restart;
@@ -686,7 +686,8 @@ restart:
 	unp->unp_addr = soun;
 	unp->unp_flags &= ~UNP_BINDING;
 	UNP_PCB_UNLOCK(unp);
-	VOP_UNLOCK(vp);
+	vref(vp);
+	VOP_VPUT_PAIR(nd.ni_dvp, &vp, true);
 	vn_finished_write(mp);
 	free(buf, M_TEMP);
 	return (0);
