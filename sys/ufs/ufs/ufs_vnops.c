@@ -1676,38 +1676,16 @@ unlockout:
 
 	vput(fdvp);
 	vput(fvp);
-	if (tvp)
-		vput(tvp);
+
 	/*
-	 * If compaction or fsync was requested do it now that other locks
-	 * are no longer needed.
+	 * If compaction or fsync was requested do it in
+	 * ffs_vput_pair() now that other locks are no longer needed.
 	 */
 	if (error == 0 && endoff != 0) {
-		do {
-			error = UFS_TRUNCATE(tdvp, endoff, IO_NORMAL |
-			    (DOINGASYNC(tdvp) ? 0 : IO_SYNC), tcnp->cn_cred);
-		} while (error == ERELOOKUP);
-		if (error != 0 && !ffs_fsfail_cleanup(VFSTOUFS(mp), error))
-			vn_printf(tdvp,
-			    "ufs_rename: failed to truncate, error %d\n",
-			    error);
-#ifdef UFS_DIRHASH
-		if (error != 0)
-			ufsdirhash_free(tdp);
-#endif
-		/*
-		 * Even if the directory compaction failed, rename was
-		 * succesful.  Do not propagate a UFS_TRUNCATE() error
-		 * to the caller.
-		 */
-		error = 0;
+		UFS_INODE_SET_FLAG(tdp, IN_ENDOFF);
+		SET_I_ENDOFF(tdp, endoff);
 	}
-	if (error == 0 && tdp->i_flag & IN_NEEDSYNC) {
-		do {
-			error = VOP_FSYNC(tdvp, MNT_WAIT, td);
-		} while (error == ERELOOKUP);
-	}
-	vput(tdvp);
+	VOP_VPUT_PAIR(tdvp, &tvp, true);
 	return (error);
 
 bad:
