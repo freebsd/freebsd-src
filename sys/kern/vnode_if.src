@@ -792,6 +792,15 @@ vop_copy_file_range {
 };
 
 
+%% vput_pair	dvp	E - -
+
+vop_vput_pair {
+	IN struct vnode *dvp;
+	INOUT struct vnode **vpp;
+	IN bool unlock_vp;
+};
+
+
 # The VOPs below are spares at the end of the table to allow new VOPs to be
 # added in stable branches without breaking the KBI.  New VOPs in HEAD should
 # be added above these spares.  When merging a new VOP to a stable branch,
