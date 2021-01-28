@@ -32,6 +32,9 @@
 #ifndef	_LINUX_SCATTERLIST_H_
 #define	_LINUX_SCATTERLIST_H_
 
+#include <sys/types.h>
+#include <sys/sf_buf.h>
+
 #include <linux/page.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
@@ -477,6 +480,57 @@ static inline struct page *
 sg_page_iter_page(struct sg_page_iter *piter)
 {
 	return (nth_page(sg_page(piter->sg), piter->sg_pgoffset));
+}
+
+static __inline size_t
+sg_pcopy_from_buffer(struct scatterlist *sgl, unsigned int nents,
+    const void *buf, size_t buflen, off_t skip)
+{
+	struct sg_page_iter piter;
+	struct page *page;
+	struct sf_buf *sf;
+	size_t len, copied;
+	char *p, *b;
+
+	if (buflen == 0)
+		return (0);
+
+	b = __DECONST(char *, buf);
+	copied = 0;
+	sched_pin();
+	for_each_sg_page(sgl, &piter, nents, 0) {
+
+		/* Skip to the start. */
+		if (piter.sg->length <= skip) {
+			skip -= piter.sg->length;
+			continue;
+		}
+
+		/* See how much to copy. */
+		KASSERT(((piter.sg->length - skip) != 0 && (buflen != 0)),
+		    ("%s: sg len %u - skip %ju || buflen %zu is 0\n",
+		    __func__, piter.sg->length, (uintmax_t)skip, buflen));
+		len = min(piter.sg->length - skip, buflen);
+
+		page = sg_page_iter_page(&piter);
+		sf = sf_buf_alloc(page, SFB_CPUPRIVATE | SFB_NOWAIT);
+		if (sf == NULL)
+			break;
+		p = (char *)sf_buf_kva(sf) + piter.sg_pgoffset + skip;
+		memcpy(p, b, len);
+		sf_buf_free(sf);
+
+		copied += len;
+		/* Either we exactly filled the page, or we are done. */
+		buflen -= len;
+		if (buflen == 0)
+			break;
+		skip -= len;
+		b += len;
+	}
+	sched_unpin();
+
+	return (copied);
 }
 
 #endif					/* _LINUX_SCATTERLIST_H_ */
