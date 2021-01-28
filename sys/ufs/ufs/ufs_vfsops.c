@@ -214,28 +214,3 @@ ufs_uninit(vfsp)
 #endif
 	return (0);
 }
-
-/*
- * This is the generic part of fhtovp called after the underlying
- * filesystem has validated the file handle.
- *
- * Call the VFS_CHECKEXP beforehand to verify access.
- */
-int
-ufs_fhtovp(mp, nvp, gen)
-	struct mount *mp;
-	struct vnode *nvp;
-	u_int64_t gen;
-{
-	struct inode *ip;
-
-	ip = VTOI(nvp);
-	if (ip->i_mode == 0 || ip->i_gen != gen || ip->i_effnlink <= 0) {
-		if (ip->i_mode == 0)
-			vgone(nvp);
-		vput(nvp);
-		return (ESTALE);
-	}
-	vnode_create_vobject(nvp, DIP(ip, i_size), curthread);
-	return (0);
-}
