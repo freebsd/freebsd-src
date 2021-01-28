@@ -1694,8 +1694,6 @@ unlockout:
 #ifdef UFS_DIRHASH
 		if (error != 0)
 			ufsdirhash_free(tdp);
-		else if (tdp->i_dirhash != NULL)
-			ufsdirhash_dirtrunc(tdp, endoff);
 #endif
 		/*
 		 * Even if the directory compaction failed, rename was

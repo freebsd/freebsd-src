@@ -1131,10 +1131,6 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			vn_printf(dvp,
 			    "ufs_direnter: failed to truncate, error %d\n",
 			    error);
-#ifdef UFS_DIRHASH
-		if (error == 0 && dp->i_dirhash != NULL)
-			ufsdirhash_dirtrunc(dp, I_ENDOFF(dp));
-#endif
 		error = 0;
 		if (tvp != NULL)
 			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
