@@ -338,6 +338,14 @@ pci_set_drvdata(struct pci_dev *pdev, void *data)
 	dev_set_drvdata(&pdev->dev, data);
 }
 
+static __inline void
+pci_dev_put(struct pci_dev *pdev)
+{
+
+	if (pdev != NULL)
+		put_device(&pdev->dev);
+}
+
 static inline int
 pci_enable_device(struct pci_dev *pdev)
 {
@@ -1094,7 +1102,7 @@ static inline int
 pci_domain_nr(struct pci_bus *pbus)
 {
 
-	return (pci_get_domain(pbus->self->dev.bsddev));
+	return (pbus->domain);
 }
 
 static inline int

@@ -220,24 +220,42 @@ lkpifill_pci_dev(device_t dev, struct pci_dev *pdev)
 	pdev->devfn = PCI_DEVFN(pci_get_slot(dev), pci_get_function(dev));
 	pdev->vendor = pci_get_vendor(dev);
 	pdev->device = pci_get_device(dev);
+	pdev->subsystem_vendor = pci_get_subvendor(dev);
+	pdev->subsystem_device = pci_get_subdevice(dev);
 	pdev->class = pci_get_class(dev);
 	pdev->revision = pci_get_revid(dev);
-	pdev->dev.bsddev = dev;
+	pdev->bus = malloc(sizeof(*pdev->bus), M_DEVBUF, M_WAITOK | M_ZERO);
 	pdev->bus->self = pdev;
 	pdev->bus->number = pci_get_bus(dev);
 	pdev->bus->domain = pci_get_domain(dev);
+	pdev->dev.bsddev = dev;
+	pdev->dev.parent = &linux_root_device;
+	INIT_LIST_HEAD(&pdev->dev.irqents);
+	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
+	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
+	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
+	    kobject_name(&pdev->dev.kobj));
+}
+
+static void
+lkpinew_pci_dev_release(struct device *dev)
+{
+	struct pci_dev *pdev;
+
+	pdev = to_pci_dev(dev);
+	free(pdev->bus, M_DEVBUF);
+	free(pdev, M_DEVBUF);
 }
 
 static struct pci_dev *
 lkpinew_pci_dev(device_t dev)
 {
 	struct pci_dev *pdev;
-	struct pci_bus *pbus;
 
 	pdev = malloc(sizeof(*pdev), M_DEVBUF, M_WAITOK|M_ZERO);
-	pbus = malloc(sizeof(*pbus), M_DEVBUF, M_WAITOK|M_ZERO);
-	pdev->bus = pbus;
 	lkpifill_pci_dev(dev, pdev);
+	pdev->dev.release = lkpinew_pci_dev_release;
+
 	return (pdev);
 }
 
@@ -309,7 +327,6 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
     const struct pci_device_id *id, struct pci_dev *pdev)
 {
 	struct resource_list_entry *rle;
-	struct pci_devinfo *dinfo;
 	device_t parent;
 	uintptr_t rid;
 	int error;
@@ -321,30 +338,19 @@ linux_pci_attach_device(device_t dev, struct pci_driver *pdrv,
 	isdrm = pdrv != NULL && pdrv->isdrm;
 
 	if (isdrm) {
+		struct pci_devinfo *dinfo;
+
 		dinfo = device_get_ivars(parent);
 		device_set_ivars(dev, dinfo);
-	} else {
-		dinfo = device_get_ivars(dev);
 	}
 
-	pdev->bus = malloc(sizeof(*pdev->bus), M_DEVBUF, M_WAITOK | M_ZERO);
 	lkpifill_pci_dev(dev, pdev);
-	pdev->dev.parent = &linux_root_device;
-	INIT_LIST_HEAD(&pdev->dev.irqents);
 	if (isdrm)
 		PCI_GET_ID(device_get_parent(parent), parent, PCI_ID_RID, &rid);
 	else
 		PCI_GET_ID(parent, dev, PCI_ID_RID, &rid);
 	pdev->devfn = rid;
-	pdev->device = dinfo->cfg.device;
-	pdev->vendor = dinfo->cfg.vendor;
-	pdev->subsystem_vendor = dinfo->cfg.subvendor;
-	pdev->subsystem_device = dinfo->cfg.subdevice;
 	pdev->pdrv = pdrv;
-	kobject_init(&pdev->dev.kobj, &linux_dev_ktype);
-	kobject_set_name(&pdev->dev.kobj, device_get_nameunit(dev));
-	kobject_add(&pdev->dev.kobj, &linux_root_device.kobj,
-	    kobject_name(&pdev->dev.kobj));
 	rle = linux_pci_get_rle(pdev, SYS_RES_IRQ, 0);
 	if (rle != NULL)
 		pdev->dev.irq = rle->start;
