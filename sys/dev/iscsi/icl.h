@@ -89,8 +89,6 @@ struct icl_pdu {
 #define ICL_CONN_STATE_DATA		4
 #define ICL_CONN_STATE_DATA_DIGEST	5
 
-#define	ICL_MAX_DATA_SEGMENT_LENGTH	(128 * 1024)
-
 #define	ICL_NOCOPY			(1 << 30)
 
 struct icl_conn {

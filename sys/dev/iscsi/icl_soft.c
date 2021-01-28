@@ -72,18 +72,29 @@ struct icl_soft_pdu {
 	int		 error;
 };
 
+SYSCTL_NODE(_kern_icl, OID_AUTO, soft, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "Software iSCSI");
 static int coalesce = 1;
-SYSCTL_INT(_kern_icl, OID_AUTO, coalesce, CTLFLAG_RWTUN,
+SYSCTL_INT(_kern_icl_soft, OID_AUTO, coalesce, CTLFLAG_RWTUN,
     &coalesce, 0, "Try to coalesce PDUs before sending");
-static int partial_receive_len = 128 * 1024;
-SYSCTL_INT(_kern_icl, OID_AUTO, partial_receive_len, CTLFLAG_RWTUN,
+static int partial_receive_len = 256 * 1024;
+SYSCTL_INT(_kern_icl_soft, OID_AUTO, partial_receive_len, CTLFLAG_RWTUN,
     &partial_receive_len, 0, "Minimum read size for partially received "
     "data segment");
-static int sendspace = 1048576;
-SYSCTL_INT(_kern_icl, OID_AUTO, sendspace, CTLFLAG_RWTUN,
+static int max_data_segment_length = 256 * 1024;
+SYSCTL_INT(_kern_icl_soft, OID_AUTO, max_data_segment_length, CTLFLAG_RWTUN,
+    &max_data_segment_length, 0, "Maximum data segment length");
+static int first_burst_length = 1024 * 1024;
+SYSCTL_INT(_kern_icl_soft, OID_AUTO, first_burst_length, CTLFLAG_RWTUN,
+    &first_burst_length, 0, "First burst length");
+static int max_burst_length = 1024 * 1024;
+SYSCTL_INT(_kern_icl_soft, OID_AUTO, max_burst_length, CTLFLAG_RWTUN,
+    &max_burst_length, 0, "Maximum burst length");
+static int sendspace = 1536 * 1024;
+SYSCTL_INT(_kern_icl_soft, OID_AUTO, sendspace, CTLFLAG_RWTUN,
     &sendspace, 0, "Default send socket buffer size");
-static int recvspace = 1048576;
-SYSCTL_INT(_kern_icl, OID_AUTO, recvspace, CTLFLAG_RWTUN,
+static int recvspace = 1536 * 1024;
+SYSCTL_INT(_kern_icl_soft, OID_AUTO, recvspace, CTLFLAG_RWTUN,
     &recvspace, 0, "Default receive socket buffer size");
 
 static MALLOC_DEFINE(M_ICL_SOFT, "icl_soft", "iSCSI software backend");
@@ -663,10 +674,8 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 		len = icl_pdu_data_segment_length(request);
 		if (len > ic->ic_max_data_segment_length) {
 			ICL_WARN("received data segment "
-			    "length %zd is larger than negotiated "
-			    "MaxDataSegmentLength %zd; "
-			    "dropping connection",
-			    len, ic->ic_max_data_segment_length);
+			    "length %zd is larger than negotiated; "
+			    "dropping connection", len);
 			error = EINVAL;
 			break;
 		}
@@ -1230,7 +1239,7 @@ icl_soft_new_conn(const char *name, struct mtx *lock)
 #ifdef DIAGNOSTIC
 	refcount_init(&ic->ic_outstanding_pdus, 0);
 #endif
-	ic->ic_max_data_segment_length = ICL_MAX_DATA_SEGMENT_LENGTH;
+	ic->ic_max_data_segment_length = max_data_segment_length;
 	ic->ic_name = name;
 	ic->ic_offload = "None";
 	ic->ic_unmapped = false;
@@ -1280,10 +1289,6 @@ icl_conn_start(struct icl_conn *ic)
 	 * For sendspace, this is required because the current code cannot
 	 * send a PDU in pieces; thus, the minimum buffer size is equal
 	 * to the maximum PDU size.  "+4" is to account for possible padding.
-	 *
-	 * What we should actually do here is to use autoscaling, but set
-	 * some minimal buffer size to "minspace".  I don't know a way to do
-	 * that, though.
 	 */
 	minspace = sizeof(struct iscsi_bhs) + ic->ic_max_data_segment_length +
 	    ISCSI_HEADER_DIGEST_SIZE + ISCSI_DATA_DIGEST_SIZE + 4;
@@ -1520,10 +1525,10 @@ static int
 icl_soft_limits(struct icl_drv_limits *idl)
 {
 
-	idl->idl_max_recv_data_segment_length = 128 * 1024;
-	idl->idl_max_send_data_segment_length = 128 * 1024;
-	idl->idl_max_burst_length = 262144;
-	idl->idl_first_burst_length = idl->idl_max_burst_length;
+	idl->idl_max_recv_data_segment_length = max_data_segment_length;
+	idl->idl_max_send_data_segment_length = max_data_segment_length;
+	idl->idl_max_burst_length = max_burst_length;
+	idl->idl_first_burst_length = first_burst_length;
 
 	return (0);
 }
