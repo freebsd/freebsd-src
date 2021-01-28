@@ -22,7 +22,7 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd October 5, 2014
+.Dd July 3, 2015
 .Dt ATF-TEST-CASE 4
 .Os
 .Sh NAME
@@ -79,8 +79,8 @@ Upon termination, a test case reports a status and, optionally, a textual
 reason describing why the test reported such status.
 The caller must ensure that the test case really performed the task that its
 status describes, as the test program may be bogus and therefore providing a
-misleading result (e.g. providing a result that indicates success but the
-error code of the program says otherwise).
+misleading result, e.g., providing a result that indicates success but the
+error code of the program says otherwise.
 .Pp
 The possible exit status of a test case are one of the following:
 .Bl -tag -width expectedXfailureXX
@@ -149,11 +149,7 @@ APIs to implement the test cases.
 The standard input of the test cases is unconditionally connected to
 .Sq /dev/zero .
 .Ss Meta-data
-The following list describes all meta-data properties interpreted
-internally by ATF.
-You are free to define new properties in your test cases and use them as
-you wish, but non-standard properties must be prefixed by
-.Sq X- .
+The following metadata properties can be exposed via the test case's head:
 .Bl -tag -width requireXmachineXX
 .It descr
 Type: textual.
@@ -275,6 +271,17 @@ test program.
 Can optionally be set to zero, in which case the test case has no run-time
 limit.
 This is discouraged.
+.It X- Ns Sq NAME
+Type: textual.
+Optional.
+.Pp
+A user-defined property named
+.Sq NAME .
+These properties are free form, have no special meaning within ATF, and can
+be specified at will by the test case.
+The runtime engine should propagate these properties from the test case to
+the end user so that the end user can rely on custom properties for test case
+tagging and classification.
 .El
 .Ss Environment
 Every time a test case is executed, several environment variables are

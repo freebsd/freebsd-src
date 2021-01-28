@@ -71,7 +71,7 @@ EXTRA_DIST += atf-c/atf-c.pc.in
 atf-c/atf-c.pc: $(srcdir)/atf-c/atf-c.pc.in Makefile
 	$(AM_V_GEN)test -d atf-c || mkdir -p atf-c; \
 	sed -e 's#__ATF_VERSION__#$(PACKAGE_VERSION)#g' \
-	    -e 's#__CC__#$(CC)#g' \
+	    -e 's#__CC__#$(ATF_BUILD_CC)#g' \
 	    -e 's#__INCLUDEDIR__#$(includedir)#g' \
 	    -e 's#__LIBDIR__#$(libdir)#g' \
 	    <$(srcdir)/atf-c/atf-c.pc.in >atf-c/atf-c.pc.tmp; \
@@ -83,25 +83,33 @@ tests_atf_c_DATA = atf-c/Kyuafile \
 tests_atf_cdir = $(pkgtestsdir)/atf-c
 EXTRA_DIST += $(tests_atf_c_DATA)
 
+ATF_C_TEST_HELPERS_CPPFLAGS = "-DATF_BUILD_CC=\"$(ATF_BUILD_CC)\""
+ATF_C_TEST_HELPERS_LDADD = atf-c/detail/libtest_helpers.la
+
 tests_atf_c_PROGRAMS = atf-c/atf_c_test
 atf_c_atf_c_test_SOURCES = atf-c/atf_c_test.c
-atf_c_atf_c_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
+atf_c_atf_c_test_CPPFLAGS = $(ATF_C_TEST_HELPERS_CPPFLAGS)
+atf_c_atf_c_test_LDADD = $(ATF_C_TEST_HELPERS_LDADD) libatf-c.la
 
 tests_atf_c_PROGRAMS += atf-c/build_test
 atf_c_build_test_SOURCES = atf-c/build_test.c atf-c/h_build.h
-atf_c_build_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
+atf_c_build_test_CPPFLAGS = $(ATF_C_TEST_HELPERS_CPPFLAGS)
+atf_c_build_test_LDADD = $(ATF_C_TEST_HELPERS_LDADD) libatf-c.la
 
 tests_atf_c_PROGRAMS += atf-c/check_test
 atf_c_check_test_SOURCES = atf-c/check_test.c
-atf_c_check_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
+atf_c_check_test_CPPFLAGS = $(ATF_C_TEST_HELPERS_CPPFLAGS)
+atf_c_check_test_LDADD = $(ATF_C_TEST_HELPERS_LDADD) libatf-c.la
 
 tests_atf_c_PROGRAMS += atf-c/error_test
 atf_c_error_test_SOURCES = atf-c/error_test.c
-atf_c_error_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
+atf_c_error_test_CPPFLAGS = $(ATF_C_TEST_HELPERS_CPPFLAGS)
+atf_c_error_test_LDADD = $(ATF_C_TEST_HELPERS_LDADD) libatf-c.la
 
 tests_atf_c_PROGRAMS += atf-c/macros_test
 atf_c_macros_test_SOURCES = atf-c/macros_test.c
-atf_c_macros_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
+atf_c_macros_test_CPPFLAGS = $(ATF_C_TEST_HELPERS_CPPFLAGS)
+atf_c_macros_test_LDADD = $(ATF_C_TEST_HELPERS_LDADD) libatf-c.la
 
 tests_atf_c_SCRIPTS = atf-c/pkg_config_test
 CLEANFILES += atf-c/pkg_config_test
@@ -112,15 +120,18 @@ atf-c/pkg_config_test: $(srcdir)/atf-c/pkg_config_test.sh
 
 tests_atf_c_PROGRAMS += atf-c/tc_test
 atf_c_tc_test_SOURCES = atf-c/tc_test.c
-atf_c_tc_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
+atf_c_tc_test_CPPFLAGS = $(ATF_C_TEST_HELPERS_CPPFLAGS)
+atf_c_tc_test_LDADD = $(ATF_C_TEST_HELPERS_LDADD) libatf-c.la
 
 tests_atf_c_PROGRAMS += atf-c/tp_test
 atf_c_tp_test_SOURCES = atf-c/tp_test.c
-atf_c_tp_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
+atf_c_tp_test_CPPFLAGS = $(ATF_C_TEST_HELPERS_CPPFLAGS)
+atf_c_tp_test_LDADD = $(ATF_C_TEST_HELPERS_LDADD) libatf-c.la
 
 tests_atf_c_PROGRAMS += atf-c/utils_test
 atf_c_utils_test_SOURCES = atf-c/utils_test.c atf-c/h_build.h
-atf_c_utils_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
+atf_c_utils_test_CPPFLAGS = $(ATF_C_TEST_HELPERS_CPPFLAGS)
+atf_c_utils_test_LDADD = $(ATF_C_TEST_HELPERS_LDADD) libatf-c.la
 
 include atf-c/detail/Makefile.am.inc
 

@@ -27,7 +27,7 @@ dnl -----------------------------------------------------------------------
 dnl Initialize the GNU build system.
 dnl -----------------------------------------------------------------------
 
-AC_INIT([Automated Testing Framework], [0.21],
+AC_INIT([Automated Testing Framework], [0.22],
         [atf-discuss@googlegroups.com], [atf],
         [https://github.com/jmmv/atf/])
 AC_PREREQ([2.65])

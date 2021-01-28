@@ -145,10 +145,10 @@ ATF provides a C++ programming interface to implement test programs.
 C++-based test programs follow this template:
 .Bd -literal -offset indent
 extern "C" {
-.Ns ... C-specific includes go here ...
+\&... C-specific includes go here ...
 }
 
-.Ns ... C++-specific includes go here ...
+\&... C++-specific includes go here ...
 
 #include <atf-c++.hpp>
 
@@ -182,7 +182,7 @@ ATF_TEST_CASE_BODY(tc3)
     ... third test case's body ...
 }
 
-.Ns ... additional test cases ...
+\&... additional test cases ...
 
 ATF_INIT_TEST_CASES(tcs)
 {
@@ -202,7 +202,7 @@ To define test cases, one can use the
 .Fn ATF_TEST_CASE_WITH_CLEANUP
 or the
 .Fn ATF_TEST_CASE_WITHOUT_HEAD
-macros, which take a single parameter specifiying the test case's
+macros, which take a single parameter specifying the test case's
 name.
 .Fn ATF_TEST_CASE ,
 requires to define a head and a body for the test case,
@@ -232,7 +232,7 @@ opening and closing brackets.
 Additionally, the
 .Fn ATF_TEST_CASE_NAME
 macro can be used to obtain the name of the class corresponding to a
-particular test case, as the name is internally manged by the library to
+particular test case, as the name is internally managed by the library to
 prevent clashes with other user identifiers.
 Similarly, the
 .Fn ATF_TEST_CASE_USE
@@ -403,8 +403,8 @@ in the collection.
 takes the name of an exception and a statement and raises a failure if
 the statement does not throw the specified exception.
 .Fn ATF_REQUIRE_THROW_RE
-takes the name of an exception, a regular expresion and a statement and raises a
-failure if the statement does not throw the specified exception and if the
+takes the name of an exception, a regular expression and a statement, and raises
+a failure if the statement does not throw the specified exception and if the
 message of the exception does not match the regular expression.
 .Pp
 .Fn ATF_CHECK_ERRNO

@@ -58,7 +58,7 @@ EXTRA_DIST += atf-c++/atf-c++.pc.in
 atf-c++/atf-c++.pc: $(srcdir)/atf-c++/atf-c++.pc.in Makefile
 	$(AM_V_GEN)test -d atf-c++ || mkdir -p atf-c++; \
 	sed -e 's#__ATF_VERSION__#$(PACKAGE_VERSION)#g' \
-	    -e 's#__CXX__#$(CXX)#g' \
+	    -e 's#__CXX__#$(ATF_BUILD_CXX)#g' \
 	    -e 's#__INCLUDEDIR__#$(includedir)#g' \
 	    -e 's#__LIBDIR__#$(libdir)#g' \
 	    <$(srcdir)/atf-c++/atf-c++.pc.in >atf-c++/atf-c++.pc.tmp; \
@@ -70,18 +70,29 @@ tests_atf_c___DATA = atf-c++/Kyuafile \
 tests_atf_c__dir = $(pkgtestsdir)/atf-c++
 EXTRA_DIST += $(tests_atf_c___DATA)
 
+ATF_CXX_TEST_HELPERS_CPPFLAGS = "-DATF_BUILD_CXX=\"$(ATF_BUILD_CXX)\""
+ATF_CXX_TEST_HELPERS_LDADD = atf-c++/detail/libtest_helpers.la
+
 tests_atf_c___PROGRAMS = atf-c++/atf_c++_test
 atf_c___atf_c___test_SOURCES = atf-c++/atf_c++_test.cpp
-atf_c___atf_c___test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
+atf_c___atf_c___test_CPPFLAGS = $(ATF_CXX_TEST_HELPERS_CPPFLAGS)
+atf_c___atf_c___test_LDADD = $(ATF_CXX_TEST_HELPERS_LDADD) $(ATF_CXX_LIBS)
+
 tests_atf_c___PROGRAMS += atf-c++/build_test
 atf_c___build_test_SOURCES = atf-c++/build_test.cpp atf-c/h_build.h
-atf_c___build_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
+atf_c___build_test_CPPFLAGS = $(ATF_CXX_TEST_HELPERS_CPPFLAGS)
+atf_c___build_test_LDADD = $(ATF_CXX_TEST_HELPERS_LDADD) $(ATF_CXX_LIBS)
+
 tests_atf_c___PROGRAMS += atf-c++/check_test
 atf_c___check_test_SOURCES = atf-c++/check_test.cpp
-atf_c___check_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
+atf_c___check_test_CPPFLAGS = $(ATF_CXX_TEST_HELPERS_CPPFLAGS)
+atf_c___check_test_LDADD = $(ATF_CXX_TEST_HELPERS_LDADD) $(ATF_CXX_LIBS)
+
 tests_atf_c___PROGRAMS += atf-c++/macros_test
 atf_c___macros_test_SOURCES = atf-c++/macros_test.cpp
-atf_c___macros_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
+atf_c___macros_test_CPPFLAGS = $(ATF_CXX_TEST_HELPERS_CPPFLAGS)
+atf_c___macros_test_LDADD = $(ATF_CXX_TEST_HELPERS_LDADD) $(ATF_CXX_LIBS)
+
 tests_atf_c___SCRIPTS = atf-c++/pkg_config_test
 CLEANFILES += atf-c++/pkg_config_test
 EXTRA_DIST += atf-c++/pkg_config_test.sh
@@ -91,10 +102,14 @@ atf-c++/pkg_config_test: $(srcdir)/atf-c++/pkg_config_test.sh
 
 tests_atf_c___PROGRAMS += atf-c++/tests_test
 atf_c___tests_test_SOURCES = atf-c++/tests_test.cpp
-atf_c___tests_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
+atf_c___tests_test_CPPFLAGS = $(ATF_CXX_TEST_HELPERS_CPPFLAGS)
+atf_c___tests_test_LDADD = $(ATF_CXX_TEST_HELPERS_LDADD) $(ATF_CXX_LIBS)
+
 tests_atf_c___PROGRAMS += atf-c++/utils_test
 atf_c___utils_test_SOURCES = atf-c++/utils_test.cpp
-atf_c___utils_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
+atf_c___utils_test_CPPFLAGS = $(ATF_CXX_TEST_HELPERS_CPPFLAGS)
+atf_c___utils_test_LDADD = $(ATF_CXX_TEST_HELPERS_LDADD) $(ATF_CXX_LIBS)
+
 include atf-c++/detail/Makefile.am.inc
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8

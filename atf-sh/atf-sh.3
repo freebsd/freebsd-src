@@ -22,13 +22,14 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd October 13, 2014
+.Dd June 08, 2017
 .Dt ATF-SH 3
 .Os
 .Sh NAME
 .Nm atf_add_test_case ,
 .Nm atf_check ,
 .Nm atf_check_equal ,
+.Nm atf_check_not_equal ,
 .Nm atf_config_get ,
 .Nm atf_config_has ,
 .Nm atf_expect_death ,
@@ -52,6 +53,9 @@
 .Nm atf_check
 .Qq command
 .Nm atf_check_equal
+.Qq expected_expression
+.Qq actual_expression
+.Nm atf_check_not_equal
 .Qq expected_expression
 .Qq actual_expression
 .Nm atf_config_get
@@ -129,7 +133,7 @@ tc2_cleanup() {
     ... second test case's cleanup ...
 }
 
-.Ns ... additional test cases ...
+\&... additional test cases ...
 
 atf_init_test_cases() {
     atf_add_test_case tc1
@@ -144,7 +148,7 @@ described in
 .Xr atf-test-case 4 .
 To define test cases, one can use the
 .Nm atf_test_case
-function, which takes a first parameter specifiying the test case's
+function, which takes a first parameter specifying the test case's
 name and instructs the library to set things up to accept it as a valid
 test case.
 The second parameter is optional and, if provided, must be
@@ -307,6 +311,11 @@ This function takes two expressions, evaluates them and, if their
 results differ, aborts the test case with an appropriate failure message.
 The common style is to put the expected value in the first parameter and the
 actual value in the second parameter.
+.It Nm atf_check_not_equal Qo expected_expression Qc Qo actual_expression Qc
+This function takes two expressions, evaluates them and, if their
+results are equal, aborts the test case with an appropriate failure message.
+The common style is to put the expected value in the first parameter and the
+actual value in the second parameter.
 .El
 .Sh EXAMPLES
 The following shows a complete test program with a single test case that
@@ -334,7 +343,7 @@ atf_init_test_cases() {
 This other example shows how to include a file with extra helper functions
 in the test program:
 .Bd -literal -offset indent
-.Ns ... definition of test cases ...
+\&... definition of test cases ...
 
 atf_init_test_cases() {
     . $(atf_get_srcdir)/helper_functions.sh

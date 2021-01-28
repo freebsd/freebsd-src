@@ -395,6 +395,7 @@ fork_and_wait(const int exitstatus, const char* expout, const char* experr)
         fprintf(stderr, "Some error\n");
         exit(123);
     }
+    atf_utils_reset_resultsfile();
     atf_utils_wait(pid, exitstatus, expout, experr);
     exit(EXIT_SUCCESS);
 }
