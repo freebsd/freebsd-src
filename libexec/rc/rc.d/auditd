@@ -16,6 +16,7 @@ name="auditd"
 desc="Audit daemon"
 stop_cmd="auditd_stop"
 command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
 rcvar="auditd_enable"
 command_args="${auditd_flags}"
 required_files="/etc/security/audit_class /etc/security/audit_control
