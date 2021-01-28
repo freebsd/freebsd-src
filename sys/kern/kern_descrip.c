@@ -1860,10 +1860,14 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	 * which must not be freed.
 	 */
 	if (onfiles > NDFILE) {
-		if (curproc->p_numthreads == 1 &&
-		    refcount_load(&fdp->fd_refcnt) == 1)
+		/*
+		 * Note we may be called here from fdinit while allocating a
+		 * table for a new process in which case ->p_fd points
+		 * elsewhere.
+		 */
+		if (curproc->p_fd != fdp || FILEDESC_IS_ONLY_USER(fdp)) {
 			free(otable, M_FILEDESC);
-		else {
+		} else {
 			ft = (struct freetable *)&otable->fdt_ofiles[onfiles];
 			fdp0 = (struct filedesc0 *)fdp;
 			ft->ft_table = otable;
@@ -3175,6 +3179,66 @@ out_fdrop:
 out_fallback:
 	return (fget_unlocked_seq(fdp, fd, needrightsp, fpp, NULL));
 }
+
+/*
+ * Translate fd -> file when the caller guarantees the file descriptor table
+ * can't be changed by others.
+ *
+ * Note this does not mean the file object itself is only visible to the caller,
+ * merely that it wont disappear without having to be referenced.
+ *
+ * Must be paired with fput_only_user.
+ */
+#ifdef	CAPABILITIES
+int
+fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+    struct file **fpp)
+{
+	const struct filedescent *fde;
+	const struct fdescenttbl *fdt;
+	const cap_rights_t *haverights;
+	struct file *fp;
+	int error;
+
+	MPASS(FILEDESC_IS_ONLY_USER(fdp));
+
+	if (__predict_false(fd >= fdp->fd_nfiles))
+		return (EBADF);
+
+	fdt = fdp->fd_files;
+	fde = &fdt->fdt_ofiles[fd];
+	fp = fde->fde_file;
+	if (__predict_false(fp == NULL))
+		return (EBADF);
+	MPASS(refcount_load(&fp->f_count) > 0);
+	haverights = cap_rights_fde_inline(fde);
+	error = cap_check_inline(haverights, needrightsp);
+	if (__predict_false(error != 0))
+		return (EBADF);
+	*fpp = fp;
+	return (0);
+}
+#else
+int
+fget_only_user(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
+    struct file **fpp)
+{
+	struct file *fp;
+
+	MPASS(FILEDESC_IS_ONLY_USER(fdp));
+
+	if (__predict_false(fd >= fdp->fd_nfiles))
+		return (EBADF);
+
+	fp = fdp->fd_ofiles[fd].fde_file;
+	if (__predict_false(fp == NULL))
+		return (EBADF);
+
+	MPASS(refcount_load(&fp->f_count) > 0);
+	*fpp = fp;
+	return (0);
+}
+#endif
 
 /*
  * Extract the file pointer associated with the specified descriptor for the
