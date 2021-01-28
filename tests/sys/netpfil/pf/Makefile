@@ -7,6 +7,7 @@ TESTS_SUBDIRS+=	ioctl
 
 ATF_TESTS_SH+=	anchor \
 		checksum \
+		dup \
 		forward \
 		fragmentation \
 		icmp \
