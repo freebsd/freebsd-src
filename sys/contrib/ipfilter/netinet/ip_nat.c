@@ -3661,7 +3661,7 @@ ipf_nat_icmperrorlookup(fin, dir)
 	mb_t *m;
 
 	m = fin->fin_m;
-# if defined(MENTAT)
+# if SOLARIS
 	if ((char *)oip + fin->fin_dlen - ICMPERR_ICMPHLEN >
 	    (char *)m->b_wptr) {
 		ATOMIC_INCL(nside->ns_icmp_mbuf);
@@ -5116,7 +5116,7 @@ ipf_nat_out(fin, nat, natadd, nflags)
 
 		ipf_fix_outcksum(0, &fin->fin_ip->ip_sum, msumd, 0);
 	}
-#if !defined(_KERNEL) || defined(MENTAT) || \
+#if !defined(_KERNEL) || SOLARIS || \
     defined(BRIDGE_IPF) || defined(__FreeBSD__)
 	else {
 		/*
@@ -5179,7 +5179,7 @@ ipf_nat_out(fin, nat, natadd, nflags)
 
 		m = fin->fin_m;
 
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 		m->b_rptr += skip;
 #else
 		m->m_data += skip;
@@ -5228,7 +5228,7 @@ ipf_nat_out(fin, nat, natadd, nflags)
 		uh = (udphdr_t *)(ip + 1);
 		uh->uh_ulen += fin->fin_plen;
 		uh->uh_ulen = htons(uh->uh_ulen);
-#if !defined(_KERNEL) || defined(MENTAT) || \
+#if !defined(_KERNEL) || SOLARIS || \
     defined(BRIDGE_IPF) || defined(__FreeBSD__)
 		ipf_fix_outcksum(0, &ip->ip_sum, sumd, 0);
 #endif
@@ -5631,7 +5631,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 		}
 		fin->fin_ip->ip_dst = nat->nat_ndstip;
 		fin->fin_daddr = nat->nat_ndstaddr;
-#if !defined(_KERNEL) || defined(MENTAT)
+#if !defined(_KERNEL) || SOLARIS
 		ipf_fix_outcksum(0, &fin->fin_ip->ip_sum, ipsumd, 0);
 #endif
 		break;
@@ -5648,7 +5648,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 		}
 		fin->fin_ip->ip_dst = nat->nat_osrcip;
 		fin->fin_daddr = nat->nat_osrcaddr;
-#if !defined(_KERNEL) || defined(MENTAT)
+#if !defined(_KERNEL) || SOLARIS
 		ipf_fix_incksum(0, &fin->fin_ip->ip_sum, ipsumd, 0);
 #endif
 		break;
@@ -5680,7 +5680,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 		sum2 += ntohs(ip->ip_off) & IP_DF;
 		CALC_SUMD(sum1, sum2, sumd);
 
-#if !defined(_KERNEL) || defined(MENTAT)
+#if !defined(_KERNEL) || SOLARIS
 		ipf_fix_outcksum(0, &ip->ip_sum, sumd, 0);
 #endif
 		PREP_MB_T(fin, m);
@@ -5706,7 +5706,7 @@ ipf_nat_in(fin, nat, natadd, nflags)
 
 		m = fin->fin_m;
 
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 		m->b_rptr += skip;
 #else
 		m->m_data += skip;
@@ -7429,7 +7429,7 @@ ipf_nat_decap(fin, nat)
 			CALC_SUMD(sum1, sum2, sumd);
 			fin->fin_ip->ip_dst = nat->nat_osrcip;
 			fin->fin_daddr = nat->nat_osrcaddr;
-#if !defined(_KERNEL) || defined(MENTAT)
+#if !defined(_KERNEL) || SOLARIS
 			ipf_fix_outcksum(0, &fin->fin_ip->ip_sum, sumd, 0);
 #endif
 		}

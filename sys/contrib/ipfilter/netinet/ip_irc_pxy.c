@@ -267,7 +267,7 @@ ipf_p_irc_send(fin, nat)
 	u_int a1;
 	ip_t *ip;
 	mb_t *m;
-#ifdef	MENTAT
+#if SOLARIS
 	mb_t *m1;
 #endif
 	softc = fin->fin_main_soft;
@@ -322,7 +322,7 @@ ipf_p_irc_send(fin, nat)
 	if ((inc + fin->fin_plen) > 65535)
 		return 0;
 
-#ifdef	MENTAT
+#if SOLARIS
 	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
 		;
 	if ((inc > 0) && (m1->b_datap->db_lim - m1->b_wptr < inc)) {
@@ -357,7 +357,7 @@ ipf_p_irc_send(fin, nat)
 	fin->fin_flx |= FI_DOCKSUM;
 
 	if (inc != 0) {
-#if defined(MENTAT)
+#if SOLARIS
 		register u_32_t	sum1, sum2;
 
 		sum1 = fin->fin_plen;

@@ -94,7 +94,7 @@
 #include <netinet/tcpip.h>
 #include "netinet/ip_fil.h"
 #include "netinet/ip_auth.h"
-#if !defined(MENTAT)
+#if !SOLARIS
 # include <net/netisr.h>
 # ifdef __FreeBSD__
 #  include <machine/cpufunc.h>
@@ -466,7 +466,7 @@ ipf_auth_new(m, fin)
 {
 	ipf_main_softc_t *softc = fin->fin_main_soft;
 	ipf_auth_softc_t *softa = softc->ipf_auth_soft;
-#if defined(_KERNEL) && defined(MENTAT)
+#if defined(_KERNEL) && SOLARIS
 	qpktinfo_t *qpi = fin->fin_qpi;
 #endif
 	frauth_t *fra;
@@ -508,7 +508,7 @@ ipf_auth_new(m, fin)
 	 * them.
 	 */
 	ip = fin->fin_ip;
-# if defined(MENTAT) && defined(_KERNEL)
+# if SOLARIS && defined(_KERNEL)
 	if ((ip == (ip_t *)m->b_rptr) && (fin->fin_v == 4))
 # endif
 	{

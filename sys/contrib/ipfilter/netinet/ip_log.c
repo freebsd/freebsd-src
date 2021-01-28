@@ -488,7 +488,7 @@ ipf_log_pkt(fin, flags)
 	ptrs[0] = (void *)&ipfl;
 	sizes[0] = sizeof(ipfl);
 	types[0] = 0;
-# if defined(MENTAT) && defined(_KERNEL)
+# if SOLARIS && defined(_KERNEL)
 	/*
 	 * Are we copied from the mblk or an aligned array ?
 	 */
@@ -505,7 +505,7 @@ ipf_log_pkt(fin, flags)
 	ptrs[1] = m;
 	sizes[1] = hlen + mlen;
 	types[1] = 1;
-# endif /* MENTAT */
+# endif /* SOLARIS */
 	return ipf_log_items(softc, IPL_LOGIPF, fin, ptrs, sizes, types, 2);
 }
 

@@ -2739,7 +2739,7 @@ ipf_checkicmpmatchingstate(fin)
 	mb_t *m;
 
 	m = fin->fin_m;
-# if defined(MENTAT)
+# if SOLARIS
 	if ((char *)oip + len > (char *)m->b_wptr) {
 		SBUMPDX(ipf_state_stats, iss_icmp_short, iss_icmp_short_2);
 		return NULL;

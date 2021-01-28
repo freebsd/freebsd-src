@@ -1434,7 +1434,7 @@ ipf_nat6_icmperrorlookup(fin, dir)
 	mb_t *m;
 
 	m = fin->fin_m;
-# if defined(MENTAT)
+# if SOLARIS
 	if ((char *)oip6 + fin->fin_dlen - ICMPERR_ICMPHLEN >
 	    (char *)m->b_wptr) {
 		ATOMIC_INCL(nside->ns_icmp_mbuf);
@@ -2858,7 +2858,7 @@ ipf_nat6_out(fin, nat, natadd, nflags)
 
 		m = fin->fin_m;
 
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 		m->b_rptr += skip;
 #else
 		m->m_data += skip;
@@ -3321,7 +3321,7 @@ ipf_nat6_in(fin, nat, natadd, nflags)
 
 		m = fin->fin_m;
 
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 		m->b_rptr += skip;
 #else
 		m->m_data += skip;
