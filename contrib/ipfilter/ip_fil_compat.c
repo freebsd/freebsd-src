@@ -333,7 +333,7 @@ typedef	struct	fr_info_4_1_32 {
 	ip_t	*ofin_ip;
 	mb_t	**fin_mp;		/* pointer to pointer to mbuf */
 	mb_t	*fin_m;			/* pointer to mbuf */
-#ifdef	MENTAT
+#if SOLARIS
 	mb_t	*fin_qfm;		/* pointer to mblk where pkt starts */
 	void	*fin_qpi;
 	char	fin_ifname[LIFNAMSIZ];
@@ -371,7 +371,7 @@ typedef struct  fr_info_4_1_24 {
 	ip_t    *ofin_ip;
 	mb_t    **fin_mp;
 	mb_t    *fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	mb_t    *fin_qfm;
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
@@ -408,7 +408,7 @@ typedef struct  fr_info_4_1_23 {
 	ip_t    *ofin_ip;
 	mb_t    **fin_mp;
 	mb_t    *fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	mb_t    *fin_qfm;
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
@@ -444,7 +444,7 @@ typedef struct  fr_info_4_1_11 {
 	ip_t    *ofin_ip;
 	mb_t    **fin_mp;
 	mb_t    *fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	mb_t    *fin_qfm;
 	void    *fin_qpi;
 	char    fin_ifname[LIFNAMSIZ];
@@ -933,7 +933,7 @@ typedef struct  frauth_4_1_32 {
 	fr_info_4_1_32_t	fra_info;
 	char	*fra_buf;
 	u_32_t	fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -947,7 +947,7 @@ typedef struct  frauth_4_1_29 {
 	fr_info_4_1_24_t	fra_info;
 	char	*fra_buf;
 	u_32_t	fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -960,7 +960,7 @@ typedef struct  frauth_4_1_24 {
 	u_32_t	fra_pass;
 	fr_info_4_1_24_t	fra_info;
 	char	*fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -973,7 +973,7 @@ typedef struct  frauth_4_1_23 {
 	u_32_t	fra_pass;
 	fr_info_4_1_23_t	fra_info;
 	char	*fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -986,7 +986,7 @@ typedef struct  frauth_4_1_11 {
 	u_32_t	fra_pass;
 	fr_info_4_1_11_t	fra_info;
 	char	*fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
@@ -2533,7 +2533,7 @@ frauth_4_1_32_to_current(old, current)
 	fr_info_4_1_32_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
 	fra->fra_flx = old->fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2554,7 +2554,7 @@ frauth_4_1_29_to_current(old, current)
 	fr_info_4_1_24_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
 	fra->fra_flx = old->fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2574,7 +2574,7 @@ frauth_4_1_24_to_current(old, current)
 	fra->fra_pass = old->fra_pass;
 	fr_info_4_1_24_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2594,7 +2594,7 @@ frauth_4_1_23_to_current(old, current)
 	fra->fra_pass = old->fra_pass;
 	fr_info_4_1_23_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2614,7 +2614,7 @@ frauth_4_1_11_to_current(old, current)
 	fra->fra_pass = old->fra_pass;
 	fr_info_4_1_11_to_current(&old->fra_info, &fra->fra_info);
 	fra->fra_buf = old->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	fra->fra_q = old->fra_q;
 	fra->fra_m = old->fra_m;
 #endif
@@ -2652,7 +2652,7 @@ fr_info_4_1_32_to_current(old, current)
 	fin->fin_ip = old->ofin_ip;
 	fin->fin_mp = old->fin_mp;
 	fin->fin_m = old->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
@@ -2690,7 +2690,7 @@ fr_info_4_1_24_to_current(old, current)
 	fin->fin_ip = old->ofin_ip;
 	fin->fin_mp = old->fin_mp;
 	fin->fin_m = old->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
@@ -2727,7 +2727,7 @@ fr_info_4_1_23_to_current(old, current)
 	fin->fin_ip = old->ofin_ip;
 	fin->fin_mp = old->fin_mp;
 	fin->fin_m = old->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
@@ -2764,7 +2764,7 @@ fr_info_4_1_11_to_current(old, current)
 	fin->fin_ip = old->ofin_ip;
 	fin->fin_mp = old->fin_mp;
 	fin->fin_m = old->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	fin->fin_qfm = old->fin_qfm;
 	fin->fin_qpi = old->fin_qpi;
 #endif
@@ -4039,7 +4039,7 @@ fr_info_current_to_4_1_24(current, old)
 	old->ofin_ip = fin->fin_ip;
 	old->fin_mp = fin->fin_mp;
 	old->fin_m = fin->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	old->fin_qfm = fin->fin_qfm;
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
@@ -4079,7 +4079,7 @@ fr_info_current_to_4_1_23(current, old)
 	old->ofin_ip = fin->fin_ip;
 	old->fin_mp = fin->fin_mp;
 	old->fin_m = fin->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	old->fin_qfm = fin->fin_qfm;
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
@@ -4119,7 +4119,7 @@ fr_info_current_to_4_1_11(current, old)
 	old->ofin_ip = fin->fin_ip;
 	old->fin_mp = fin->fin_mp;
 	old->fin_m = fin->fin_m;
-#ifdef  MENTAT
+#if SOLARIS
 	old->fin_qfm = fin->fin_qfm;
 	old->fin_qpi = fin->fin_qpi;
 	old->fin_ifname[0] = '\0';
@@ -4141,7 +4141,7 @@ frauth_current_to_4_1_29(current, old)
 	fr_info_current_to_4_1_24(&fra->fra_info, &old->fra_info);
 	old->fra_buf = fra->fra_buf;
 	old->fra_flx = fra->fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	old->fra_q = fra->fra_q;
 	old->fra_m = fra->fra_m;
 #endif
@@ -4161,7 +4161,7 @@ frauth_current_to_4_1_24(current, old)
 	old->fra_pass = fra->fra_pass;
 	fr_info_current_to_4_1_24(&fra->fra_info, &old->fra_info);
 	old->fra_buf = fra->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	old->fra_q = fra->fra_q;
 	old->fra_m = fra->fra_m;
 #endif
@@ -4181,7 +4181,7 @@ frauth_current_to_4_1_23(current, old)
 	old->fra_pass = fra->fra_pass;
 	fr_info_current_to_4_1_23(&fra->fra_info, &old->fra_info);
 	old->fra_buf = fra->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	old->fra_q = fra->fra_q;
 	old->fra_m = fra->fra_m;
 #endif
@@ -4201,7 +4201,7 @@ frauth_current_to_4_1_11(current, old)
 	old->fra_pass = fra->fra_pass;
 	fr_info_current_to_4_1_11(&fra->fra_info, &old->fra_info);
 	old->fra_buf = fra->fra_buf;
-#ifdef	MENTAT
+#if SOLARIS
 	old->fra_q = fra->fra_q;
 	old->fra_m = fra->fra_m;
 #endif

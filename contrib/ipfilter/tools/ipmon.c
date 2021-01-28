@@ -108,7 +108,7 @@ char *reasons[] = {
 	"natv6_in-fail",
 };
 
-#ifdef	MENTAT
+#if SOLARIS
 static	char	*pidfile = "/etc/opt/ipf/ipmon.pid";
 #else
 static	char	*pidfile = "/var/run/ipmon.pid";
@@ -1108,7 +1108,7 @@ static void print_ipflog(conf, buf, blen)
 	ifname[sizeof(ipf->fl_ifname)] = '\0';
 	sprintf(t, "%s", ifname);
 	t += strlen(t);
-# if defined(MENTAT)
+# if SOLARIS
 		if (ISALPHA(*(t - 1))) {
 			sprintf(t, "%d", ipf->fl_unit);
 			t += strlen(t);
