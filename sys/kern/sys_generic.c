@@ -1304,13 +1304,6 @@ selsetbits(fd_mask **ibits, fd_mask **obits, int idx, fd_mask bit, int events)
 	return (n);
 }
 
-static __inline int
-getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
-{
-
-	return (fget_unlocked(fdp, fd, &cap_event_rights, fpp));
-}
-
 /*
  * Traverse the list of fds attached to this thread's seltd and check for
  * completion.
@@ -1327,10 +1320,12 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 	fd_mask bit;
 	int fd, ev, n, idx;
 	int error;
+	bool only_user;
 
 	fdp = td->td_proc->p_fd;
 	stp = td->td_sel;
 	n = 0;
+	only_user = FILEDESC_IS_ONLY_USER(fdp);
 	STAILQ_FOREACH_SAFE(sfp, &stp->st_selq, sf_link, sfn) {
 		fd = (int)(uintptr_t)sfp->sf_cookie;
 		si = sfp->sf_si;
@@ -1338,13 +1333,19 @@ selrescan(struct thread *td, fd_mask **ibits, fd_mask **obits)
 		/* If the selinfo wasn't cleared the event didn't fire. */
 		if (si != NULL)
 			continue;
-		error = getselfd_cap(fdp, fd, &fp);
-		if (error)
+		if (only_user)
+			error = fget_only_user(fdp, fd, &cap_event_rights, &fp);
+		else
+			error = fget_unlocked(fdp, fd, &cap_event_rights, &fp);
+		if (__predict_false(error != 0))
 			return (error);
 		idx = fd / NFDBITS;
 		bit = (fd_mask)1 << (fd % NFDBITS);
 		ev = fo_poll(fp, selflags(ibits, idx, bit), td->td_ucred, td);
-		fdrop(fp, td);
+		if (only_user)
+			fput_only_user(fdp, fp);
+		else
+			fdrop(fp, td);
 		if (ev != 0)
 			n += selsetbits(ibits, obits, idx, bit, ev);
 	}
@@ -1366,9 +1367,11 @@ selscan(struct thread *td, fd_mask **ibits, fd_mask **obits, int nfd)
 	int ev, flags, end, fd;
 	int n, idx;
 	int error;
+	bool only_user;
 
 	fdp = td->td_proc->p_fd;
 	n = 0;
+	only_user = FILEDESC_IS_ONLY_USER(fdp);
 	for (idx = 0, fd = 0; fd < nfd; idx++) {
 		end = imin(fd + NFDBITS, nfd);
 		for (bit = 1; fd < end; bit <<= 1, fd++) {
@@ -1376,12 +1379,18 @@ selscan(struct thread *td, fd_mask **ibits, fd_mask **obits, int nfd)
 			flags = selflags(ibits, idx, bit);
 			if (flags == 0)
 				continue;
-			error = getselfd_cap(fdp, fd, &fp);
-			if (error)
+			if (only_user)
+				error = fget_only_user(fdp, fd, &cap_event_rights, &fp);
+			else
+				error = fget_unlocked(fdp, fd, &cap_event_rights, &fp);
+			if (__predict_false(error != 0))
 				return (error);
 			selfdalloc(td, (void *)(uintptr_t)fd);
 			ev = fo_poll(fp, flags, td->td_ucred, td);
-			fdrop(fp, td);
+			if (only_user)
+				fput_only_user(fdp, fp);
+			else
+				fdrop(fp, td);
 			if (ev != 0)
 				n += selsetbits(ibits, obits, idx, bit, ev);
 		}
