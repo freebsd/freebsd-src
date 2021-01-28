@@ -71,32 +71,45 @@ vmd_bus_attach(device_t dev)
 	struct pci_devinfo *dinfo;
 	rman_res_t start, end;
 	int b, s, f;
+	int found;
 
 	sc = device_get_softc(device_get_parent(dev));
 
-	/* Start at max PCI vmd_domain and work down */
-	b = s = f = 0;
-	dinfo = pci_read_device(device_get_parent(dev), dev,
-	     PCI_DOMAINMAX - device_get_unit(device_get_parent(dev)),
-	     b, s, f);
-	if (dinfo == NULL) {
-		device_printf(dev, "Cannot allocate dinfo!\n");
-		return (ENOENT);
+	/*
+	 * Start at max PCI vmd_domain and work down.  Only VMD
+	 * starting bus is connect to VMD device directly.  Scan al
+	 * lslots and function connected to starting bus.
+	 */
+
+	b = sc->vmd_bus_start;
+
+	found = 0;
+	for (s = 0; s < PCI_SLOTMAX; s++) {
+		for (f = 0; f < PCI_FUNCMAX; f++) {
+			dinfo = pci_read_device(device_get_parent(dev), dev,
+			     PCI_DOMAINMAX - device_get_unit(
+			     device_get_parent(dev)), b, s, f);
+			if (dinfo != NULL) {
+				found = 1;
+				pci_add_child(dev, dinfo);
+
+				start = rman_get_start(sc->vmd_regs_resource[1]);
+				end = rman_get_end(sc->vmd_regs_resource[1]);
+				resource_list_add_next(&dinfo->resources,
+				    SYS_RES_MEMORY, start, end, end - start + 1);
+
+				start = rman_get_start(sc->vmd_io_resource);
+				end = rman_get_end(sc->vmd_io_resource);
+				resource_list_add_next(&dinfo->resources,
+				    SYS_RES_IOPORT, start, end, end - start + 1);
+
+			}
+		}
 	}
 
-	pci_add_child(dev, dinfo);
-
-	start = rman_get_start(sc->vmd_regs_resource[1]);
-	end = rman_get_end(sc->vmd_regs_resource[1]);
-	resource_list_add_next(&dinfo->resources, SYS_RES_MEMORY, start, end,
-	    end - start + 1);
-
-	start = rman_get_start(sc->vmd_io_resource);
-	end = rman_get_end(sc->vmd_io_resource);
-	resource_list_add_next(&dinfo->resources, SYS_RES_IOPORT, start, end,
-	    end - start + 1);
-
-	bus_generic_attach(dev);
+	if (found) {
+		bus_generic_attach(dev);
+	}
 
 	return (0);
 }
@@ -104,17 +117,23 @@ vmd_bus_attach(device_t dev)
 static int
 vmd_bus_detach(device_t dev)
 {
+	struct vmd_softc *sc;
 	struct pci_devinfo *dinfo;
 	int b, s, f;
 
 	device_delete_children(dev);
 
-	b = s = f = 0;
-	dinfo = pci_read_device(device_get_parent(dev), dev,
-	    PCI_DOMAINMAX - device_get_unit(device_get_parent(dev)),
-	    b, s, f);
-	if (dinfo == NULL) {
-		resource_list_free(&dinfo->resources);
+	sc = device_get_softc(device_get_parent(dev));
+	b = sc->vmd_bus_start;
+
+	for (s = 0; s < PCI_SLOTMAX; s++) {
+		for (f = 0; f < PCI_FUNCMAX; f++) {
+			dinfo = pci_read_device(device_get_parent(dev), dev,
+			     PCI_DOMAINMAX - device_get_unit(
+			     device_get_parent(dev)), b, s, f);
+			if (dinfo != NULL)
+				resource_list_free(&dinfo->resources);
+		}
 	}
 	return (0);
 }

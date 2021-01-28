@@ -78,6 +78,7 @@ struct vmd_softc
 	void                    *vmd_intr;
 	struct vmd_irq          *vmd_irq;
 	int			vmd_msix_count;
+	uint8_t			vmd_bus_start;
 #ifdef TASK_QUEUE_INTR
 	struct taskqueue	*vmd_irq_tq;
 	struct task		vmd_irq_task;

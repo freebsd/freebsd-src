@@ -61,16 +61,32 @@ struct vmd_type {
 	u_int16_t	vmd_vid;
 	u_int16_t	vmd_did;
 	char		*vmd_name;
+	int		flags;
+#define BUS_RESTRICT 1
 };
 
 #define INTEL_VENDOR_ID		0x8086
-#define INTEL_DEVICE_ID_VMD	0x201d
-#define INTEL_DEVICE_ID_VMD2	0x28c0
+#define INTEL_DEVICE_ID_201d	0x201d
+#define INTEL_DEVICE_ID_28c0	0x28c0
+#define INTEL_DEVICE_ID_467f	0x467f
+#define INTEL_DEVICE_ID_4c3d	0x4c3d
+#define INTEL_DEVICE_ID_9a0b	0x9a0b
+
+#define VMD_CAP		0x40
+#define VMD_BUS_RESTRICT	0x1
+
+#define VMD_CONFIG	0x44
+#define VMD_BUS_START(x)	((x >> 8) & 0x3)
+
+#define VMD_LOCK	0x70
 
 static struct vmd_type vmd_devs[] = {
-        { INTEL_VENDOR_ID, INTEL_DEVICE_ID_VMD,  "Intel Volume Management Device" },
-        { INTEL_VENDOR_ID, INTEL_DEVICE_ID_VMD2, "Intel Volume Management Device" },
-        { 0, 0, NULL }
+        { INTEL_VENDOR_ID, INTEL_DEVICE_ID_201d, "Intel Volume Management Device", 0 },
+        { INTEL_VENDOR_ID, INTEL_DEVICE_ID_28c0, "Intel Volume Management Device", BUS_RESTRICT },
+        { INTEL_VENDOR_ID, INTEL_DEVICE_ID_467f, "Intel Volume Management Device", BUS_RESTRICT },
+        { INTEL_VENDOR_ID, INTEL_DEVICE_ID_4c3d, "Intel Volume Management Device", BUS_RESTRICT },
+        { INTEL_VENDOR_ID, INTEL_DEVICE_ID_9a0b, "Intel Volume Management Device", BUS_RESTRICT },
+        { 0, 0, NULL, 0 }
 };
 
 static int
@@ -92,7 +108,7 @@ vmd_probe(device_t dev)
 		t++;
 	}
 
-return (ENXIO);
+	return (ENXIO);
 }
 
 static void
@@ -157,8 +173,12 @@ vmd_read_config(device_t dev, u_int b, u_int s, u_int f, u_int reg, int width)
 	struct vmd_softc *sc;
 	bus_addr_t offset;
 
-	offset = (b << 20) + (s << 15) + (f << 12) + reg;
 	sc = device_get_softc(dev);
+	if (b < sc->vmd_bus_start)
+		return (0xffffffff);
+
+	offset = ((b - sc->vmd_bus_start) << 20) + (s << 15) + (f << 12) + reg;
+
 	switch(width) {
 	case 4:
 		return (bus_space_read_4(sc->vmd_btag, sc->vmd_bhandle,
@@ -183,8 +203,11 @@ vmd_write_config(device_t dev, u_int b, u_int s, u_int f, u_int reg,
 	struct vmd_softc *sc;
 	bus_addr_t offset;
 
-	offset = (b << 20) + (s << 15) + (f << 12) + reg;
 	sc = device_get_softc(dev);
+	if (b < sc->vmd_bus_start)
+		return;
+
+	offset = ((b - sc->vmd_bus_start) << 20) + (s << 15) + (f << 12) + reg;
 
 	switch(width) {
 	case 4:
@@ -271,6 +294,8 @@ vmd_attach(device_t dev)
 {
 	struct vmd_softc *sc;
 	struct pcib_secbus *bus;
+	struct vmd_type *t;
+	uint16_t vid, did;
 	uint32_t bar;
 	int i, j, error;
 	int rid, sec_reg;
@@ -325,13 +350,45 @@ vmd_attach(device_t dev)
 	pci_write_config(dev, PCIR_PRIBUS_2,
 	    pcib_get_bus(device_get_parent(dev)), 1);
 
+	t = vmd_devs;
+	vid = pci_get_vendor(dev);
+	did = pci_get_device(dev);
+
+	sc->vmd_bus_start = 0;
+	while (t->vmd_name != NULL) {
+		if (vid == t->vmd_vid &&
+			did == t->vmd_did) {
+			if (t->flags == BUS_RESTRICT) {
+				if (pci_read_config(dev, VMD_CAP, 2) &
+				    VMD_BUS_RESTRICT)
+					switch (VMD_BUS_START(pci_read_config(
+					    dev, VMD_CONFIG, 2))) {
+					case 1:
+						sc->vmd_bus_start = 128;
+						break;
+					case 2:
+						sc->vmd_bus_start = 224;
+						break;
+					case 3:
+						device_printf(dev,
+						    "Unknown bug offset\n");
+						goto fail;
+						break;
+					}
+			}
+		}
+		t++;
+	}
+
+	device_printf(dev, "VMD bus starts at %d\n", sc->vmd_bus_start);
+
 	sec_reg = PCIR_SECBUS_1;
 	bus = &sc->vmd_bus;
 	bus->sub_reg = PCIR_SUBBUS_1;
 	bus->sec = vmd_read_config(dev, b, s, f, sec_reg, 1);
 	bus->sub = vmd_read_config(dev, b, s, f, bus->sub_reg, 1);
 	bus->dev = dev;
-	bus->rman.rm_start = 0;
+	bus->rman.rm_start = sc->vmd_bus_start;
 	bus->rman.rm_end = PCI_BUSMAX;
 	bus->rman.rm_type = RMAN_ARRAY;
 	snprintf(buf, sizeof(buf), "%s bus numbers", device_get_nameunit(dev));
