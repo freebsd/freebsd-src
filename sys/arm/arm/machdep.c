@@ -107,7 +107,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-#ifndef _ARM_ARCH_6
+#if __ARM_ARCH < 6
 #error FreeBSD requires ARMv6 or later
 #endif
 
