@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2020
+.Dd January 28, 2021
 .Dt MBUF 9
 .Os
 .\"
@@ -213,12 +213,12 @@ flag bits are defined as follows:
 #define	M_PKTHDR	0x00000002 /* start of record */
 #define	M_EOR		0x00000004 /* end of record */
 #define	M_RDONLY	0x00000008 /* associated data marked read-only */
-#define	M_NOMAP		0x00000100 /* mbuf data is unmapped */
-#define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 #define	M_BCAST		0x00000010 /* send/received as link-level broadcast */
 #define	M_MCAST		0x00000020 /* send/received as link-level multicast */
 #define	M_PROMISC	0x00000040 /* packet was not for us */
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
+#define	M_EXTPG		0x00000100 /* has array of unmapped pages and TLS */
+#define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 #define	M_TSTMP		0x00000400 /* rcv_tstmp field is valid */
 #define	M_TSTMP_HPREC	0x00000800 /* rcv_tstmp is high-prec, typically
 				      hw-stamped on port (useful for IEEE 1588
