@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause-FreeBSD
 #
-# Copyright (c) 2017 Kristof Provost <kp@FreeBSD.org>
+# Copyright (c) 2021 Kristof Provost <kp@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -24,31 +24,58 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
-#
 
-import threading
-import scapy.all as sp
+. $(atf_get_srcdir)/utils.subr
 
-class Sniffer(threading.Thread):
-	def __init__(self, args, check_function, recvif=None):
-		threading.Thread.__init__(self)
+common_dir=$(atf_get_srcdir)/../common
 
-		self._args = args
-		if recvif is not None:
-			self._recvif = recvif
-		else:
-			self._recvif = args.recvif[0]
-		self._check_function = check_function
-		self.foundCorrectPacket = False
+atf_test_case "dup_to" "cleanup"
+do_to_head()
+{
+	atf_set descr 'dup-to test'
+	atf_set require.user root
+}
 
-		self.start()
+dup_to_body()
+{
+	pft_init
 
-	def _checkPacket(self, packet):
-		ret = self._check_function(self._args, packet)
-		if ret:
-			self.foundCorrectPacket = True
-		return ret
+	epair_send=$(vnet_mkepair)
+	ifconfig ${epair_send}a 192.0.2.1/24 up
 
-	def run(self):
-		self.packets = sp.sniff(iface=self._recvif,
-				stop_filter=self._checkPacket, timeout=3)
+	epair_recv=$(vnet_mkepair)
+	ifconfig ${epair_recv}a up
+
+	epair_dupto=$(vnet_mkepair)
+	ifconfig ${epair_dupto}a up
+
+	vnet_mkjail alcatraz ${epair_send}b ${epair_recv}b ${epair_dupto}b
+	jexec alcatraz ifconfig ${epair_send}b 192.0.2.2/24 up
+	jexec alcatraz ifconfig ${epair_recv}b 198.51.100.2/24 up
+	jexec alcatraz ifconfig ${epair_dupto}b 203.0.113.2/24 up
+	jexec alcatraz sysctl net.inet.ip.forwarding=1
+	jexec alcatraz arp -s 198.51.100.3 00:01:02:03:04:05
+	jexec alcatraz arp -s 203.0.113.3 01:02:03:04:05:06
+	route add -net 198.51.100.0/24 192.0.2.2
+
+	jexec alcatraz pfctl -e
+
+	pft_set_rules alcatraz "pass out on { ${epair_recv}b } \
+	    dup-to (${epair_dupto}b 203.0.113.3)"
+
+	atf_check -s exit:0 ${common_dir}/pft_ping.py \
+		--sendif ${epair_send}a \
+		--to 198.51.100.3 \
+		--recv ${epair_recv}a \
+		--checkdup ${epair_dupto}a
+}
+
+dup_to_cleanup()
+{
+	pft_cleanup
+}
+
+atf_init_test_cases()
+{
+	atf_add_test_case "dup_to"
+}
