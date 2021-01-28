@@ -4231,7 +4231,7 @@ iflib_if_qflush(if_t ifp)
 #define IFCAP_FLAGS (IFCAP_HWCSUM_IPV6 | IFCAP_HWCSUM | IFCAP_LRO | \
 		     IFCAP_TSO | IFCAP_VLAN_HWTAGGING | IFCAP_HWSTATS | \
 		     IFCAP_VLAN_MTU | IFCAP_VLAN_HWFILTER | \
-		     IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM | IFCAP_NOMAP)
+		     IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM | IFCAP_MEXTPG)
 
 static int
 iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
@@ -4358,7 +4358,7 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 
 		oldmask = if_getcapenable(ifp);
 		mask = ifr->ifr_reqcap ^ oldmask;
-		mask &= ctx->ifc_softc_ctx.isc_capabilities | IFCAP_NOMAP;
+		mask &= ctx->ifc_softc_ctx.isc_capabilities | IFCAP_MEXTPG;
 		setmask = 0;
 #ifdef TCP_OFFLOAD
 		setmask |= mask & (IFCAP_TOE4|IFCAP_TOE6);
@@ -4759,9 +4759,9 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 #endif
 
 	if_setcapabilities(ifp,
-	    scctx->isc_capabilities | IFCAP_HWSTATS | IFCAP_NOMAP);
+	    scctx->isc_capabilities | IFCAP_HWSTATS | IFCAP_MEXTPG);
 	if_setcapenable(ifp,
-	    scctx->isc_capenable | IFCAP_HWSTATS | IFCAP_NOMAP);
+	    scctx->isc_capenable | IFCAP_HWSTATS | IFCAP_MEXTPG);
 
 	if (scctx->isc_ntxqsets == 0 || (scctx->isc_ntxqsets_max && scctx->isc_ntxqsets_max < scctx->isc_ntxqsets))
 		scctx->isc_ntxqsets = scctx->isc_ntxqsets_max;
