@@ -1797,8 +1797,8 @@ vlan_capabilities(struct ifvlan *ifv)
 	 * are prepended in normal mbufs to unmapped mbufs holding
 	 * payload data.
 	 */
-	cap |= (p->if_capabilities & IFCAP_NOMAP);
-	ena |= (mena & IFCAP_NOMAP);
+	cap |= (p->if_capabilities & IFCAP_MEXTPG);
+	ena |= (mena & IFCAP_MEXTPG);
 
 	/*
 	 * If the parent interface can offload encryption and segmentation
