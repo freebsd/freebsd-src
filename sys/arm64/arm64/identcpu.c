@@ -350,7 +350,7 @@ static struct mrs_field id_aa64dfr0_fields[] = {
 	MRS_FIELD(ID_AA64DFR0, PMSVer, false, MRS_EXACT, id_aa64dfr0_pmsver),
 	MRS_FIELD(ID_AA64DFR0, CTX_CMPs, false, MRS_EXACT,
 	    id_aa64dfr0_ctx_cmps),
-	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_EXACT, id_aa64dfr0_wrps),
+	MRS_FIELD(ID_AA64DFR0, WRPs, false, MRS_LOWER, id_aa64dfr0_wrps),
 	MRS_FIELD(ID_AA64DFR0, BRPs, false, MRS_LOWER, id_aa64dfr0_brps),
 	MRS_FIELD(ID_AA64DFR0, PMUVer, false, MRS_EXACT, id_aa64dfr0_pmuver),
 	MRS_FIELD(ID_AA64DFR0, TraceVer, false, MRS_EXACT,

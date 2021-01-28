@@ -962,6 +962,28 @@
 #define	DBG_BCR_BT_SHIFT	20
 #define	DBG_BCR_BT		(0xf << DBG_BCR_BT_SHIFT)
 
+/* Debug Watchpoint Control Registers */
+#define	DBG_WCR_EN		0x1
+#define	DBG_WCR_PAC_SHIFT	1
+#define	DBG_WCR_PAC		(0x3 << DBG_WCR_PAC_SHIFT)
+#define	 DBG_WCR_PAC_EL1	(0x1 << DBG_WCR_PAC_SHIFT)
+#define	 DBG_WCR_PAC_EL0	(0x2 << DBG_WCR_PAC_SHIFT)
+#define	DBG_WCR_LSC_SHIFT	3
+#define	DBG_WCR_LSC		(0x3 << DBG_WCR_LSC_SHIFT)
+#define	DBG_WCR_BAS_SHIFT	5
+#define	DBG_WCR_BAS		(0xff << DBG_WCR_BAS_SHIFT)
+#define	 DBG_WCR_BAS_MASK	DBG_WCR_BAS
+#define	DBG_WCR_HMC_SHIFT	13
+#define	DBG_WCR_HMC		(0x1 << DBG_WCR_HMC_SHIFT)
+#define	DBG_WCR_SSC_SHIFT	14
+#define	DBG_WCR_SSC		(0x3 << DBG_WCR_SSC_SHIFT)
+#define	DBG_WCR_LBN_SHIFT	16
+#define	DBG_WCR_LBN		(0xf << DBG_WCR_LBN_SHIFT)
+#define	DBG_WCR_WT_SHIFT	20
+#define	DBG_WCR_WT		(0x1 << DBG_WCR_WT_SHIFT)
+#define	DBG_WCR_MASK_SHIFT	24
+#define	DBG_WCR_MASK		(0x1f << DBG_WCR_MASK_SHIFT)
+
 /* Perfomance Monitoring Counters */
 #define	PMCR_E		(1 << 0) /* Enable all counters */
 #define	PMCR_P		(1 << 1) /* Reset all counters */
