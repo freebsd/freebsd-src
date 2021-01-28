@@ -333,10 +333,10 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 		    t[8], t[9], t[10], t[11], t[12], t[13], t[14], t[15]);
 	}
 	if (ged->ValidationBits & ACPI_HEST_GEN_VALID_FRU_STRING)
-		printf(" FRU Text: %.20s", ged->FruText);
+		printf(" FRU Text: %.20s\n", ged->FruText);
 	if (ged->Revision == 0x300 &&
 	    ged->ValidationBits & ACPI_HEST_GEN_VALID_TIMESTAMP)
-		printf(" Timestamp: %016jx", ged3->TimeStamp);
+		printf(" Timestamp: %016jx\n", ged3->TimeStamp);
 }
 
 static int
