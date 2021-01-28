@@ -146,13 +146,18 @@ check_auditpipe(struct pollfd fd[], const char *auditregex, FILE *pipestream)
 
 	/* Set the expire time for poll(2) while waiting for syscall audit */
 	ATF_REQUIRE_EQ(0, clock_gettime(CLOCK_MONOTONIC, &endtime));
-	endtime.tv_sec += 10;
-	timeout.tv_nsec = endtime.tv_nsec;
+	/* Set limit to 30 seconds total and ~10s without an event. */
+	endtime.tv_sec += 30;
 
 	for (;;) {
 		/* Update the time left for auditpipe to return any event */
 		ATF_REQUIRE_EQ(0, clock_gettime(CLOCK_MONOTONIC, &currtime));
-		timeout.tv_sec = endtime.tv_sec - currtime.tv_sec;
+		timespecsub(&endtime, &currtime, &timeout);
+		timeout.tv_sec = MIN(timeout.tv_sec, 9);
+		if (timeout.tv_sec < 0) {
+			atf_tc_fail("%s not found in auditpipe within the "
+			    "time limit", auditregex);
+		}
 
 		switch (ppoll(fd, 1, &timeout, NULL)) {
 		/* ppoll(2) returns, check if it's what we want */
