@@ -402,7 +402,7 @@ typedef	struct	fr_info	{
 	} fin_ipu;
 	mb_t	**fin_mp;		/* pointer to pointer to mbuf */
 	mb_t	*fin_m;			/* pointer to mbuf */
-#ifdef	MENTAT
+#if SOLARIS
 	mb_t	*fin_qfm;		/* pointer to mblk where pkt starts */
 	void	*fin_qpi;
 	char	fin_ifname[LIFNAMSIZ];
@@ -1626,8 +1626,7 @@ extern	void	ipfilterattach(int);
 # endif
 extern	int	ipl_enable(void);
 extern	int	ipl_disable(void);
-# ifdef MENTAT
-/* XXX MENTAT is always defined for Solaris */
+# if SOLARIS
 extern	int	ipf_check(void *, struct ip *, int, struct ifnet *, int, void *,
 			       mblk_t **);
 #  if SOLARIS
@@ -1635,8 +1634,7 @@ extern	void	ipf_prependmbt(fr_info_t *, mblk_t *);
 extern	int	ipfioctl(dev_t, int, intptr_t, int, cred_t *, int *);
 #  endif
 extern	int	ipf_qout(queue_t *, mblk_t *);
-# else /* MENTAT */
-/* XXX MENTAT is never defined for FreeBSD & NetBSD */
+# else /* SOLARIS */
 extern	int	ipf_check(void *, struct ip *, int, struct ifnet *, int, mb_t **);
 extern	int	(*fr_checkp)(ip_t *, int, void *, int, mb_t **);
 extern	size_t	mbufchainlen(mb_t *);
@@ -1648,7 +1646,7 @@ extern	int	ipfioctl(struct cdev*, u_long, caddr_t, int, struct thread *);
 #  elif defined(__NetBSD__)
 extern	int	ipfioctl(dev_t, u_long, void *, int, struct lwp *);
 #  endif
-# endif /* MENTAT */
+# endif /* SOLARIS */
 
 # if defined(__FreeBSD_version)
 extern	int	ipf_pfil_hook(void);

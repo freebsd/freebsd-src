@@ -2805,7 +2805,7 @@ ipf_firewall(fin, passp)
 /* ------------------------------------------------------------------------ */
 int
 ipf_check(ctx, ip, hlen, ifp, out
-#if defined(_KERNEL) && defined(MENTAT)
+#if defined(_KERNEL) && SOLARIS
 	, qif, mp)
 	void *qif;
 #else
@@ -2837,7 +2837,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 	 * to hold all the required packet headers.
 	 */
 #ifdef	_KERNEL
-# ifdef MENTAT
+# if SOLARIS
 	qpktinfo_t *qpi = qif;
 
 #  ifdef __sparc
@@ -2854,7 +2854,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 
 	bzero((char *)fin, sizeof(*fin));
 
-# ifdef MENTAT
+# if SOLARIS
 	if (qpi->qpi_flags & QF_BROADCAST)
 		fin->fin_flx |= FI_MBCAST|FI_BROADCAST;
 	if (qpi->qpi_flags & QF_MULTICAST)
@@ -2862,7 +2862,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 	m = qpi->qpi_m;
 	fin->fin_qfm = m;
 	fin->fin_qpi = qpi;
-# else /* MENTAT */
+# else /* SOLARIS */
 
 	m = *mp;
 
@@ -2895,7 +2895,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 #  endif /* CSUM_DELAY_DATA */
-# endif /* MENTAT */
+# endif /* SOLARIS */
 #else
 	bzero((char *)fin, sizeof(*fin));
 	m = *mp;
@@ -6156,7 +6156,7 @@ ipf_getifname(ifp, buffer)
 	char *buffer;
 {
 	static char namebuf[LIFNAMSIZ];
-# if defined(MENTAT) || defined(__FreeBSD__)
+# if SOLARIS || defined(__FreeBSD__)
 	int unit, space;
 	char temp[20];
 	char *s;
@@ -6166,7 +6166,7 @@ ipf_getifname(ifp, buffer)
 		buffer = namebuf;
 	(void) strncpy(buffer, ifp->if_name, LIFNAMSIZ);
 	buffer[LIFNAMSIZ - 1] = '\0';
-# if defined(MENTAT) || defined(__FreeBSD__)
+# if SOLARIS || defined(__FreeBSD__)
 	for (s = buffer; *s; s++)
 		;
 	unit = ifp->if_unit;
@@ -6916,7 +6916,7 @@ ipf_coalesce(fin)
 
 		DT1(frb_coalesce, fr_info_t *, fin);
 		LBUMP(ipf_stats[fin->fin_out].fr_badcoalesces);
-# ifdef MENTAT
+# if SOLARIS
 		FREE_MB_T(*fin->fin_mp);
 # endif
 		fin->fin_reason = FRB_COALESCE;
@@ -8397,7 +8397,7 @@ ipf_ipf_ioctl(softc, data, cmd, mode, uid, ctx)
 			error = EPERM;
 		} else {
 			WRITE_ENTER(&softc->ipf_global);
-#if (defined(MENTAT) && defined(_KERNEL)) && !defined(INSTANCES)
+#if (SOLARIS && defined(_KERNEL)) && !defined(INSTANCES)
 			error = ipfsync();
 #else
 			ipf_sync(softc, NULL);
@@ -8570,7 +8570,7 @@ ipf_decaps(fin, pass, l5proto)
 	fino = fin;
 	fin = &fin2;
 	elen = hlen;
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 	m->b_rptr += elen;
 #else
 	m->m_data += elen;
@@ -8609,7 +8609,7 @@ ipf_decaps(fin, pass, l5proto)
 	if (ipf_makefrip(hlen, ip, fin) == -1) {
 cantdecaps2:
 		if (m != NULL) {
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 			m->b_rptr -= elen;
 #else
 			m->m_data -= elen;
@@ -8642,7 +8642,7 @@ cantdecaps:
 	fino->fin_m = fin->fin_m;
 	m = fin->fin_m;
 	if (m != NULL) {
-#if defined(MENTAT) && defined(_KERNEL)
+#if SOLARIS && defined(_KERNEL)
 		m->b_rptr -= elen;
 #else
 		m->m_data -= elen;

@@ -22,7 +22,7 @@ typedef struct  frauth {
 	fr_info_t	fra_info;
 	char	*fra_buf;
 	u_32_t	fra_flx;
-#ifdef	MENTAT
+#if SOLARIS
 	queue_t	*fra_q;
 	mb_t	*fra_m;
 #endif
