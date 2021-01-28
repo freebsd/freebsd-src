@@ -1547,49 +1547,6 @@ sys_ppoll(struct thread *td, struct ppoll_args *uap)
 	return (kern_poll(td, uap->fds, uap->nfds, tsp, ssp));
 }
 
-#ifdef CAPABILITIES
-static int
-poll_fget(struct filedesc *fdp, int fd, struct file **fpp)
-{
-	const struct filedescent *fde;
-	const struct fdescenttbl *fdt;
-	const cap_rights_t *haverights;
-	struct file *fp;
-	int error;
-
-	if (__predict_false(fd >= fdp->fd_nfiles))
-		return (EBADF);
-
-	fdt = fdp->fd_files;
-	fde = &fdt->fdt_ofiles[fd];
-	fp = fde->fde_file;
-	if (__predict_false(fp == NULL))
-		return (EBADF);
-	haverights = cap_rights_fde_inline(fde);
-	error = cap_check_inline(haverights, &cap_event_rights);
-	if (__predict_false(error != 0))
-		return (EBADF);
-	*fpp = fp;
-	return (0);
-}
-#else
-static int
-poll_fget(struct filedesc *fdp, int fd, struct file **fpp)
-{
-	struct file *fp;
-
-	if (__predict_false(fd >= fdp->fd_nfiles))
-		return (EBADF);
-
-	fp = fdp->fd_ofiles[fd].fde_file;
-	if (__predict_false(fp == NULL))
-		return (EBADF);
-
-	*fpp = fp;
-	return (0);
-}
-#endif
-
 static int
 pollrescan(struct thread *td)
 {
@@ -1600,12 +1557,13 @@ pollrescan(struct thread *td)
 	struct filedesc *fdp;
 	struct file *fp;
 	struct pollfd *fd;
-	int n;
+	int n, error;
+	bool only_user;
 
 	n = 0;
 	fdp = td->td_proc->p_fd;
 	stp = td->td_sel;
-	FILEDESC_SLOCK(fdp);
+	only_user = FILEDESC_IS_ONLY_USER(fdp);
 	STAILQ_FOREACH_SAFE(sfp, &stp->st_selq, sf_link, sfn) {
 		fd = (struct pollfd *)sfp->sf_cookie;
 		si = sfp->sf_si;
@@ -1613,7 +1571,11 @@ pollrescan(struct thread *td)
 		/* If the selinfo wasn't cleared the event didn't fire. */
 		if (si != NULL)
 			continue;
-		if (poll_fget(fdp, fd->fd, &fp) != 0) {
+		if (only_user)
+			error = fget_only_user(fdp, fd->fd, &cap_event_rights, &fp);
+		else
+			error = fget_unlocked(fdp, fd->fd, &cap_event_rights, &fp);
+		if (__predict_false(error != 0)) {
 			fd->revents = POLLNVAL;
 			n++;
 			continue;
@@ -1623,10 +1585,13 @@ pollrescan(struct thread *td)
 		 * POLLERR if appropriate.
 		 */
 		fd->revents = fo_poll(fp, fd->events, td->td_ucred, td);
+		if (only_user)
+			fput_only_user(fdp, fp);
+		else
+			fdrop(fp, td);
 		if (fd->revents != 0)
 			n++;
 	}
-	FILEDESC_SUNLOCK(fdp);
 	stp->st_flags = 0;
 	td->td_retval[0] = n;
 	return (0);
@@ -1658,17 +1623,22 @@ pollscan(struct thread *td, struct pollfd *fds, u_int nfd)
 {
 	struct filedesc *fdp;
 	struct file *fp;
-	int i, n;
+	int i, n, error;
+	bool only_user;
 
 	n = 0;
 	fdp = td->td_proc->p_fd;
-	FILEDESC_SLOCK(fdp);
+	only_user = FILEDESC_IS_ONLY_USER(fdp);
 	for (i = 0; i < nfd; i++, fds++) {
 		if (fds->fd < 0) {
 			fds->revents = 0;
 			continue;
 		}
-		if (poll_fget(fdp, fds->fd, &fp) != 0) {
+		if (only_user)
+			error = fget_only_user(fdp, fds->fd, &cap_event_rights, &fp);
+		else
+			error = fget_unlocked(fdp, fds->fd, &cap_event_rights, &fp);
+		if (__predict_false(error != 0)) {
 			fds->revents = POLLNVAL;
 			n++;
 			continue;
@@ -1680,6 +1650,10 @@ pollscan(struct thread *td, struct pollfd *fds, u_int nfd)
 		selfdalloc(td, fds);
 		fds->revents = fo_poll(fp, fds->events,
 		    td->td_ucred, td);
+		if (only_user)
+			fput_only_user(fdp, fp);
+		else
+			fdrop(fp, td);
 		/*
 		 * POSIX requires POLLOUT to be never
 		 * set simultaneously with POLLHUP.
@@ -1690,7 +1664,6 @@ pollscan(struct thread *td, struct pollfd *fds, u_int nfd)
 		if (fds->revents != 0)
 			n++;
 	}
-	FILEDESC_SUNLOCK(fdp);
 	td->td_retval[0] = n;
 	return (0);
 }
