@@ -1854,8 +1854,8 @@ vunmap(void *addr)
 	kfree(vmmap);
 }
 
-char *
-kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
+static char *
+devm_kvasprintf(struct device *dev, gfp_t gfp, const char *fmt, va_list ap)
 {
 	unsigned int len;
 	char *p;
@@ -1865,9 +1865,32 @@ kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
 	len = vsnprintf(NULL, 0, fmt, aq);
 	va_end(aq);
 
-	p = kmalloc(len + 1, gfp);
+	if (dev != NULL)
+		p = devm_kmalloc(dev, len + 1, gfp);
+	else
+		p = kmalloc(len + 1, gfp);
 	if (p != NULL)
 		vsnprintf(p, len + 1, fmt, ap);
+
+	return (p);
+}
+
+char *
+kvasprintf(gfp_t gfp, const char *fmt, va_list ap)
+{
+
+	return (devm_kvasprintf(NULL, gfp, fmt, ap));
+}
+
+char *
+lkpi_devm_kasprintf(struct device *dev, gfp_t gfp, const char *fmt, ...)
+{
+	va_list ap;
+	char *p;
+
+	va_start(ap, fmt);
+	p = devm_kvasprintf(dev, gfp, fmt, ap);
+	va_end(ap);
 
 	return (p);
 }
