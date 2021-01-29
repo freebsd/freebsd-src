@@ -876,13 +876,12 @@ ufs_makedirentry(ip, cnp, newdirp)
  * soft dependency code).
  */
 int
-ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
+ufs_direnter(dvp, tvp, dirp, cnp, newdirbp)
 	struct vnode *dvp;
 	struct vnode *tvp;
 	struct direct *dirp;
 	struct componentname *cnp;
 	struct buf *newdirbp;
-	int isrename;
 {
 	struct ucred *cr;
 	struct thread *td;
@@ -1111,14 +1110,13 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			error = bwrite(bp);
 		}
 	}
-	UFS_INODE_SET_FLAG(dp, IN_CHANGE | IN_UPDATE);
 
 	/*
-	 * If all went well, and the directory can be shortened, mark directory inode
-	 * with the truncation request right before unlock.
+	 * If all went well, and the directory can be shortened,
+	 * mark directory inode with the truncation request.
 	 */
-	if (isrename == 0 && error == 0)
-		UFS_INODE_SET_FLAG(dp, IN_ENDOFF);
+	UFS_INODE_SET_FLAG(dp, IN_CHANGE | IN_UPDATE | (error == 0 &&
+	    I_ENDOFF(dp) != 0 && I_ENDOFF(dp) < dp->i_size ? IN_ENDOFF : 0));
 
 	return (error);
 }

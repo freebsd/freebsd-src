@@ -68,7 +68,7 @@ int	 ufs_extwrite(struct vop_write_args *);
 void	 ufs_makedirentry(struct inode *, struct componentname *,
 	    struct direct *);
 int	 ufs_direnter(struct vnode *, struct vnode *, struct direct *,
-	    struct componentname *, struct buf *, int);
+	    struct componentname *, struct buf *);
 int	 ufs_dirremove(struct vnode *, struct inode *, int, int);
 int	 ufs_dirrewrite(struct inode *, struct inode *, ino_t, int, int);
 int	 ufs_lookup_ino(struct vnode *, struct vnode **, struct componentname *,

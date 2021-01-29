@@ -1111,7 +1111,7 @@ ufs_link(ap)
 	error = UFS_UPDATE(vp, !DOINGSOFTDEP(vp) && !DOINGASYNC(vp));
 	if (!error) {
 		ufs_makedirentry(ip, cnp, &newdir);
-		error = ufs_direnter(tdvp, vp, &newdir, cnp, NULL, 0);
+		error = ufs_direnter(tdvp, vp, &newdir, cnp, NULL);
 	}
 
 	if (error) {
@@ -1171,7 +1171,7 @@ ufs_whiteout(ap)
 		newdir.d_namlen = cnp->cn_namelen;
 		bcopy(cnp->cn_nameptr, newdir.d_name, (unsigned)cnp->cn_namelen + 1);
 		newdir.d_type = DT_WHT;
-		error = ufs_direnter(dvp, NULL, &newdir, cnp, NULL, 0);
+		error = ufs_direnter(dvp, NULL, &newdir, cnp, NULL);
 		break;
 
 	case DELETE:
@@ -1511,7 +1511,7 @@ relock:
 			}
 		}
 		ufs_makedirentry(fip, tcnp, &newdir);
-		error = ufs_direnter(tdvp, NULL, &newdir, tcnp, NULL, 1);
+		error = ufs_direnter(tdvp, NULL, &newdir, tcnp, NULL);
 		if (error)
 			goto bad;
 		/* Setup tdvp for directory compaction if needed. */
@@ -2132,7 +2132,7 @@ ufs_mkdir(ap)
 	else if (!DOINGSOFTDEP(dvp) && ((error = bwrite(bp))))
 		goto bad;
 	ufs_makedirentry(ip, cnp, &newdir);
-	error = ufs_direnter(dvp, tvp, &newdir, cnp, bp, 0);
+	error = ufs_direnter(dvp, tvp, &newdir, cnp, bp);
 
 bad:
 	if (error == 0) {
@@ -2865,7 +2865,7 @@ ufs_makeinode(mode, dvp, vpp, cnp, callfunc)
 	}
 #endif /* !UFS_ACL */
 	ufs_makedirentry(ip, cnp, &newdir);
-	error = ufs_direnter(dvp, tvp, &newdir, cnp, NULL, 0);
+	error = ufs_direnter(dvp, tvp, &newdir, cnp, NULL);
 	if (error)
 		goto bad;
 	vn_seqc_write_end(tvp);
