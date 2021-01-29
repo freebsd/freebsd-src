@@ -539,6 +539,8 @@ test_feholdupdate(void)
 int
 main(void)
 {
+	/* Avoid double output after fork() */
+	setvbuf(stdout, NULL, _IONBF, 0);
 
 	printf("1..8\n");
 	init_exceptsets();
