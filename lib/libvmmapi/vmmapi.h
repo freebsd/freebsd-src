@@ -255,19 +255,6 @@ void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 /*
  * Save and restore
  */
-
-#define MAX_SNAPSHOT_VMNAME 100
-
-enum checkpoint_opcodes {
-	START_CHECKPOINT = 0,
-	START_SUSPEND = 1,
-};
-
-struct checkpoint_op {
-	unsigned int op;
-	char snapshot_filename[MAX_SNAPSHOT_VMNAME];
-};
-
 int	vm_snapshot_req(struct vm_snapshot_meta *meta);
 int	vm_restore_time(struct vmctx *ctx);
 
