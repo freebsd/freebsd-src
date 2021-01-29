@@ -7,9 +7,6 @@ freebsd_instance:
   cpu: 8
   memory: 24G
 
-env:
-  CIRRUS_CLONE_DEPTH: 1
-
 task:
   only_if: $CIRRUS_BRANCH != 'svn_head'
   timeout_in: 120m
