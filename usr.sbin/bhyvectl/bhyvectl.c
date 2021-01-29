@@ -63,6 +63,10 @@ __FBSDID("$FreeBSD$");
 #include "amd/vmcb.h"
 #include "intel/vmcs.h"
 
+#ifdef BHYVE_SNAPSHOT
+#include "snapshot.h"
+#endif
+
 #define	MB	(1UL << 20)
 #define	GB	(1UL << 30)
 
