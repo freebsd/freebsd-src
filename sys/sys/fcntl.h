@@ -287,6 +287,7 @@ typedef	__pid_t		pid_t;
 #define	F_POSIX		0x040	 	/* Use POSIX semantics for lock */
 #define	F_REMOTE	0x080		/* Lock owner is remote NFS client */
 #define	F_NOINTR	0x100		/* Ignore signals when waiting */
+#define	F_FIRSTOPEN	0x200		/* First right to advlock file */
 #endif
 
 /*
