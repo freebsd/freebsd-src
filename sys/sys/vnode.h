@@ -254,6 +254,8 @@ struct xvnode {
 #define	VI_DOINGINACT	0x0004	/* VOP_INACTIVE is in progress */
 #define	VI_OWEINACT	0x0008	/* Need to call inactive */
 #define	VI_DEFINACT	0x0010	/* deferred inactive */
+#define	VI_FOPENING	0x0020	/* In open, with opening process having the
+				   first right to advlock file */
 
 #define	VV_ROOT		0x0001	/* root of its filesystem */
 #define	VV_ISTTY	0x0002	/* vnode represents a tty */
