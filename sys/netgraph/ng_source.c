@@ -85,7 +85,7 @@ struct privdata {
 	hook_p				input;
 	hook_p				output;
 	struct ng_source_stats		stats;
-	struct ifqueue			snd_queue;	/* packets to send */
+	struct mbufq			snd_queue;	/* packets to send */
 	struct mbuf			*last_packet;	/* last pkt in queue */
 	struct ifnet			*output_ifp;
 	struct callout			intr_ch;
@@ -284,7 +284,7 @@ ng_source_constructor(node_p node)
 
 	NG_NODE_SET_PRIVATE(node, sc);
 	sc->node = node;
-	sc->snd_queue.ifq_maxlen = 2048;
+	mbufq_init(&sc->snd_queue, 2048);
 	ng_callout_init(&sc->intr_ch);
 
 	return (0);
@@ -374,7 +374,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 					goto done;
 				}
 				sc->stats.queueOctets = sc->queueOctets;
-				sc->stats.queueFrames = sc->snd_queue.ifq_len;
+				sc->stats.queueFrames = mbufq_len(&sc->snd_queue);
 				if ((sc->node->nd_flags & NG_SOURCE_ACTIVE)
 				    && !timevalisset(&sc->stats.endTime)) {
 					getmicrotime(&sc->stats.elapsedTime);
@@ -568,11 +568,11 @@ ng_source_rcvdata(hook_p hook, item_p item)
 	KASSERT(hook == sc->input, ("%s: no hook!", __func__));
 
 	/* Enqueue packet if the queue isn't full. */
-	if (_IF_QFULL(&sc->snd_queue)) {
+	error = mbufq_enqueue(&sc->snd_queue, m);
+	if (error) {
 		NG_FREE_M(m);
-		return (ENOBUFS);
+		return (error);
 	}
-	_IF_ENQUEUE(&sc->snd_queue, m);
 	sc->queueOctets += m->m_pkthdr.len;
 	sc->last_packet = m;
 
@@ -671,7 +671,7 @@ ng_source_clr_data (sc_p sc)
 	struct mbuf *m;
 
 	for (;;) {
-		_IF_DEQUEUE(&sc->snd_queue, m);
+		m =  mbufq_dequeue(&sc->snd_queue);
 		if (m == NULL)
 			break;
 		NG_FREE_M(m);
@@ -744,7 +744,7 @@ ng_source_intr(node_p node, hook_p hook, void *arg1, int arg2)
 		ifq = (struct ifqueue *)&sc->output_ifp->if_snd;
 		packets = ifq->ifq_maxlen - ifq->ifq_len;
 	} else
-		packets = sc->snd_queue.ifq_len;
+		packets = mbufq_len(&sc->snd_queue);
 
 	if (sc->stats.maxPps != 0) {
 		struct timeval	now, elapsed;
@@ -788,7 +788,7 @@ ng_source_send(sc_p sc, int tosend, int *sent_p)
 
 	/* Go through the queue sending packets one by one. */
 	for (sent = 0; error == 0 && sent < tosend; ++sent) {
-		_IF_DEQUEUE(&sc->snd_queue, m);
+		m = mbufq_dequeue(&sc->snd_queue);
 		if (m == NULL)
 			break;
 
@@ -796,14 +796,20 @@ ng_source_send(sc_p sc, int tosend, int *sent_p)
 		error = ng_source_dup_mod(sc, m, &m2);
 		if (error) {
 			if (error == ENOBUFS)
-				_IF_PREPEND(&sc->snd_queue, m);
+				mbufq_prepend(&sc->snd_queue, m);
 			else
-				_IF_ENQUEUE(&sc->snd_queue, m);
+				(void)mbufq_enqueue(&sc->snd_queue, m);
 			break;
 		}
 
-		/* Re-enqueue the original packet for us. */
-		_IF_ENQUEUE(&sc->snd_queue, m);
+		/*
+		 * Re-enqueue the original packet for us.  The queue
+		 * has a free slot, because we dequeued the packet
+		 * above and this callout function runs under WRITER
+		 * lock.
+		 */
+		error = mbufq_enqueue(&sc->snd_queue, m);
+		KASSERT(error == 0, ("%s: re-enqueue packet failed", __func__));
 
 		sc->stats.outFrames++;
 		sc->stats.outOctets += m2->m_pkthdr.len;
