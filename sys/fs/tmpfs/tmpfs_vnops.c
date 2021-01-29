@@ -1609,6 +1609,10 @@ tmpfs_pathconf(struct vop_pathconf_args *v)
 		*retval = TMPFS_LINK_MAX;
 		break;
 
+	case _PC_SYMLINK_MAX:
+		*retval = MAXPATHLEN;
+		break;
+
 	case _PC_NAME_MAX:
 		*retval = NAME_MAX;
 		break;
