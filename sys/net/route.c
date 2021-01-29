@@ -79,8 +79,8 @@ EVENTHANDLER_LIST_DEFINE(rt_addrmsg);
 
 static int rt_ifdelroute(const struct rtentry *rt, const struct nhop_object *,
     void *arg);
-static int rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info,
-    int flags);
+static int rt_exportinfo(struct rtentry *rt, struct nhop_object *nh,
+    struct rt_addrinfo *info, int flags);
 
 /*
  * route initialization must occur before ip6_init2(), which happenas at
@@ -330,15 +330,14 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst,
  *
  * Returns 0 on success.
  */
-int
-rt_exportinfo(struct rtentry *rt, struct rt_addrinfo *info, int flags)
+static int
+rt_exportinfo(struct rtentry *rt, struct nhop_object *nh,
+    struct rt_addrinfo *info, int flags)
 {
 	struct rt_metrics *rmx;
 	struct sockaddr *src, *dst;
-	struct nhop_object *nh;
 	int sa_len;
 
-	nh = rt->rt_nhop;
 	if (flags & NHR_COPY) {
 		/* Copy destination if dst is non-zero */
 		src = rt_key(rt);
@@ -424,6 +423,7 @@ rib_lookup_info(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 	struct rib_head *rh;
 	struct radix_node *rn;
 	struct rtentry *rt;
+	struct nhop_object *nh;
 	int error;
 
 	KASSERT((fibnum < rt_numfibs), ("rib_lookup_rte: bad fibnum"));
@@ -435,10 +435,11 @@ rib_lookup_info(uint32_t fibnum, const struct sockaddr *dst, uint32_t flags,
 	rn = rh->rnh_matchaddr(__DECONST(void *, dst), &rh->head);
 	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
 		rt = RNTORT(rn);
+		nh = nhop_select(rt->rt_nhop, flowid);
 		/* Ensure route & ifp is UP */
-		if (RT_LINK_IS_UP(rt->rt_nhop->nh_ifp)) {
+		if (RT_LINK_IS_UP(nh->nh_ifp)) {
 			flags = (flags & NHR_REF) | NHR_COPY;
-			error = rt_exportinfo(rt, info, flags);
+			error = rt_exportinfo(rt, nh, info, flags);
 			RIB_RUNLOCK(rh);
 
 			return (error);
