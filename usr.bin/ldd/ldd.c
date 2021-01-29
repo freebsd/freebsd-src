@@ -33,6 +33,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/param.h>
 #include <sys/wait.h>
 
 #include <machine/elf.h>
@@ -43,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <gelf.h>
+#include <libelf.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -259,179 +263,210 @@ usage(void)
 	exit(1);
 }
 
+static bool
+has_freebsd_abi_tag(const char *fname, Elf *elf, GElf_Ehdr *ehdr, off_t offset,
+    size_t len)
+{
+	Elf_Data dst, src;
+	const Elf_Note *note;
+	char *buf;
+	const char *name;
+	void *copy;
+	size_t namesz, descsz;
+	bool has_abi_tag;
+
+	buf = elf_rawfile(elf, NULL);
+	if (buf == NULL) {
+		warnx("%s: %s", fname, elf_errmsg(0));
+		return (false);
+	}
+
+	memset(&src, 0, sizeof(src));
+	src.d_buf = buf + offset;
+	src.d_size = len;
+	src.d_type = ELF_T_NOTE;
+	src.d_version = EV_CURRENT;
+
+	memset(&dst, 0, sizeof(dst));
+	dst.d_buf = copy = malloc(len);
+	dst.d_size = len;
+	dst.d_type = ELF_T_NOTE;
+	dst.d_version = EV_CURRENT;
+
+	if (gelf_xlatetom(elf, &dst, &src, ehdr->e_ident[EI_DATA]) == NULL) {
+		warnx("%s: failed to parse notes: %s", fname, elf_errmsg(0));
+		free(copy);
+		return (false);
+	}
+
+	buf = copy;
+	has_abi_tag = false;
+	for (;;) {
+		if (len < sizeof(*note))
+			break;
+
+		note = (const void *)buf;
+		buf += sizeof(*note);
+		len -= sizeof(*note);
+
+		namesz = roundup2(note->n_namesz, sizeof(uint32_t));
+		descsz = roundup2(note->n_descsz, sizeof(uint32_t));
+		if (len < namesz + descsz)
+			break;
+
+		name = buf;
+		if (note->n_namesz == sizeof(ELF_NOTE_FREEBSD) &&
+		    strncmp(name, ELF_NOTE_FREEBSD, note->n_namesz) == 0 &&
+		    note->n_type == NT_FREEBSD_ABI_TAG &&
+		    note->n_descsz == sizeof(uint32_t)) {
+			has_abi_tag = true;
+			break;
+		}
+
+		buf += namesz + descsz;
+		len -= namesz + descsz;
+	}
+
+	free(copy);
+	return (has_abi_tag);
+}
+
+static bool
+is_pie(const char *fname, Elf *elf, GElf_Ehdr *ehdr, off_t offset, size_t len)
+{
+	Elf_Data dst, src;
+	char *buf;
+	void *copy;
+	const GElf_Dyn *dyn;
+	size_t dynsize;
+	u_int count, i;
+	bool pie;
+
+	buf = elf_rawfile(elf, NULL);
+	if (buf == NULL) {
+		warnx("%s: %s", fname, elf_errmsg(0));
+		return (false);
+	}
+
+	dynsize = gelf_fsize(elf, ELF_T_DYN, 1, EV_CURRENT);
+	if (dynsize == 0) {
+		warnx("%s: %s", fname, elf_errmsg(0));
+		return (false);
+	}
+	count = len / dynsize;
+
+	memset(&src, 0, sizeof(src));
+	src.d_buf = buf + offset;
+	src.d_size = len;
+	src.d_type = ELF_T_DYN;
+	src.d_version = EV_CURRENT;
+
+	memset(&dst, 0, sizeof(dst));
+	dst.d_buf = copy = malloc(count * sizeof(*dyn));
+	dst.d_size = count * sizeof(*dyn);
+	dst.d_type = ELF_T_DYN;
+	dst.d_version = EV_CURRENT;
+
+	if (gelf_xlatetom(elf, &dst, &src, ehdr->e_ident[EI_DATA]) == NULL) {
+		warnx("%s: failed to parse .dynamic: %s", fname, elf_errmsg(0));
+		free(copy);
+		return (false);
+	}
+
+	dyn = copy;
+	pie = false;
+	for (i = 0; i < count; i++) {
+		if (dyn[i].d_tag != DT_FLAGS_1)
+			continue;
+
+		pie = (dyn[i].d_un.d_val & DF_1_PIE) != 0;
+		break;
+	}
+
+	free(copy);
+	return (pie);
+}
+
 static int
 is_executable(const char *fname, int fd, int *is_shlib, int *type)
 {
-	union {
-#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
-		Elf32_Ehdr elf32;
-#endif
-		Elf_Ehdr elf;
-	} hdr;
-	Elf_Phdr phdr, dynphdr;
-	Elf_Dyn *dynp;
-	void *dyndata;
-#if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
-	Elf32_Phdr phdr32, dynphdr32;
-	Elf32_Dyn *dynp32;
-#endif
-	int df1pie, dynamic, i, n;
+	Elf *elf;
+	GElf_Ehdr ehdr;
+	GElf_Phdr phdr;
+	bool dynamic, freebsd, pie;
+	int i;
 
 	*is_shlib = 0;
 	*type = TYPE_UNKNOWN;
-	df1pie = 0;
+	dynamic = false;
+	freebsd = false;
+	pie = false;
 
-	if ((n = read(fd, &hdr, sizeof(hdr))) == -1) {
-		warn("%s: can't read program header", fname);
+	if (elf_version(EV_CURRENT) == EV_NONE) {
+		warnx("unsupported libelf");
+		return (0);
+	}
+	elf = elf_begin(fd, ELF_C_READ, NULL);
+	if (elf == NULL) {
+		warnx("%s: %s", fname, elf_errmsg(0));
+		return (0);
+	}
+	if (elf_kind(elf) != ELF_K_ELF) {
+		elf_end(elf);
+		warnx("%s: not a dynamic ELF executable", fname);
+		return (0);
+	}
+	if (gelf_getehdr(elf, &ehdr) == NULL) {
+		warnx("%s: %s", fname, elf_errmsg(0));
+		elf_end(elf);
 		return (0);
 	}
 
+	*type = TYPE_ELF;
 #if __ELF_WORD_SIZE > 32 && defined(ELF32_SUPPORTED)
-	if ((size_t)n >= sizeof(hdr.elf32) && IS_ELF(hdr.elf32) &&
-	    hdr.elf32.e_ident[EI_CLASS] == ELFCLASS32) {
-		/* Handle 32 bit ELF objects */
-
-		dynamic = 0;
+	if (gelf_getclass(elf) == ELFCLASS32) {
 		*type = TYPE_ELF32;
-
-		if (lseek(fd, hdr.elf32.e_phoff, SEEK_SET) == -1) {
-			warnx("%s: header too short", fname);
-			return (0);
-		}
-		for (i = 0; i < hdr.elf32.e_phnum; i++) {
-			if (read(fd, &phdr32, hdr.elf32.e_phentsize) !=
-			    sizeof(phdr32)) {
-				warnx("%s: can't read program header", fname);
-				return (0);
-			}
-			if (phdr32.p_type == PT_DYNAMIC) {
-				dynamic = 1;
-				dynphdr32 = phdr32;
-				break;
-			}
-		}
-
-		if (!dynamic) {
-			warnx("%s: not a dynamic ELF executable", fname);
-			return (0);
-		}
-
-		if (hdr.elf32.e_type == ET_DYN) {
-			if (lseek(fd, dynphdr32.p_offset, SEEK_SET) == -1) {
-				warnx("%s: dynamic segment out of range",
-				    fname);
-				return (0);
-			}
-			dyndata = malloc(dynphdr32.p_filesz);
-			if (dyndata == NULL) {
-				warn("malloc");
-				return (0);
-			}
-			if (read(fd, dyndata, dynphdr32.p_filesz) !=
-			    (ssize_t)dynphdr32.p_filesz) {
-				free(dyndata);
-				warnx("%s: can't read dynamic segment", fname);
-				return (0);
-			}
-			for (dynp32 = dyndata; dynp32->d_tag != DT_NULL;
-			    dynp32++) {
-				if (dynp32->d_tag != DT_FLAGS_1)
-					continue;
-				df1pie = (dynp32->d_un.d_val & DF_1_PIE) != 0;
-				break;
-			}
-			free(dyndata);
-
-			if (hdr.elf32.e_ident[EI_OSABI] == ELFOSABI_FREEBSD) {
-				if (!df1pie)
-					*is_shlib = 1;
-				return (1);
-			}
-			warnx("%s: not a FreeBSD ELF shared object", fname);
-			return (0);
-		}
-
-		return (1);
 	}
 #endif
 
-	if ((size_t)n >= sizeof(hdr.elf) && IS_ELF(hdr.elf) &&
-	    hdr.elf.e_ident[EI_CLASS] == ELF_TARG_CLASS) {
-		/* Handle default ELF objects on this architecture */
-
-		dynamic = 0;
-		*type = TYPE_ELF;
-
-		if (lseek(fd, hdr.elf.e_phoff, SEEK_SET) == -1) {
-			warnx("%s: header too short", fname);
+	freebsd = ehdr.e_ident[EI_OSABI] == ELFOSABI_FREEBSD;
+	for (i = 0; i < ehdr.e_phnum; i++) {
+		if (gelf_getphdr(elf, i, &phdr) == NULL) {
+			warnx("%s: %s", fname, elf_errmsg(0));
+			elf_end(elf);
 			return (0);
 		}
-		for (i = 0; i < hdr.elf.e_phnum; i++) {
-			if (read(fd, &phdr, hdr.elf.e_phentsize)
-			   != sizeof(phdr)) {
-				warnx("%s: can't read program header", fname);
-				return (0);
-			}
-			if (phdr.p_type == PT_DYNAMIC) {
-				dynamic = 1;
-				dynphdr = phdr;
-				break;
-			}
+		switch (phdr.p_type) {
+		case PT_NOTE:
+			if (ehdr.e_ident[EI_OSABI] == ELFOSABI_NONE && !freebsd)
+				freebsd = has_freebsd_abi_tag(fname, elf, &ehdr,
+				    phdr.p_offset, phdr.p_filesz);
+			break;
+		case PT_DYNAMIC:
+			dynamic = true;
+			if (ehdr.e_type == ET_DYN)
+				pie = is_pie(fname, elf, &ehdr, phdr.p_offset,
+				    phdr.p_filesz);
+			break;
 		}
+	}
 
-		if (!dynamic) {
-			warnx("%s: not a dynamic ELF executable", fname);
-			return (0);
-		}
+	if (!dynamic) {
+		elf_end(elf);
+		warnx("%s: not a dynamic ELF executable", fname);
+		return (0);
+	}
 
-		if (hdr.elf.e_type == ET_DYN) {
-			if (lseek(fd, dynphdr.p_offset, SEEK_SET) == -1) {
-				warnx("%s: dynamic segment out of range",
-				    fname);
-				return (0);
-			}
-			dyndata = malloc(dynphdr.p_filesz);
-			if (dyndata == NULL) {
-				warn("malloc");
-				return (0);
-			}
-			if (read(fd, dyndata, dynphdr.p_filesz) !=
-			    (ssize_t)dynphdr.p_filesz) {
-				free(dyndata);
-				warnx("%s: can't read dynamic segment", fname);
-				return (0);
-			}
-			for (dynp = dyndata; dynp->d_tag != DT_NULL; dynp++) {
-				if (dynp->d_tag != DT_FLAGS_1)
-					continue;
-				df1pie = (dynp->d_un.d_val & DF_1_PIE) != 0;
-				break;
-			}
-			free(dyndata);
+	if (ehdr.e_type == ET_DYN && !pie) {
+		*is_shlib = 1;
 
-			switch (hdr.elf.e_ident[EI_OSABI]) {
-			case ELFOSABI_FREEBSD:
-				if (!df1pie)
-					*is_shlib = 1;
-				return (1);
-#ifdef __ARM_EABI__
-			case ELFOSABI_NONE:
-				if (hdr.elf.e_machine != EM_ARM)
-					break;
-				if (EF_ARM_EABI_VERSION(hdr.elf.e_flags) <
-				    EF_ARM_EABI_FREEBSD_MIN)
-					break;
-				*is_shlib = 1;
-				return (1);
-#endif
-			}
+		if (!freebsd) {
+			elf_end(elf);
 			warnx("%s: not a FreeBSD ELF shared object", fname);
 			return (0);
 		}
-
-		return (1);
 	}
 
-	warnx("%s: not a dynamic executable", fname);
-	return (0);
+	elf_end(elf);
+	return (1);
 }
