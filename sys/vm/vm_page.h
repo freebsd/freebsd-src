@@ -541,6 +541,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_WAITFAIL	0x0010	/* (acf) Sleep and return error */
 #define	VM_ALLOC_WIRED		0x0020	/* (acfgp) Allocate a wired page */
 #define	VM_ALLOC_ZERO		0x0040	/* (acfgp) Allocate a prezeroed page */
+#define	VM_ALLOC_NORECLAIM	0x0080	/* (c) Do not reclaim after failure */
 #define	VM_ALLOC_NOOBJ		0x0100	/* (acg) No associated object */
 #define	VM_ALLOC_NOBUSY		0x0200	/* (acgp) Do not excl busy the page */
 #define	VM_ALLOC_NOCREAT	0x0400	/* (gp) Don't create a page */
@@ -570,6 +571,8 @@ malloc2vm_flags(int malloc_flags)
 		pflags |= VM_ALLOC_NOWAIT;
 	if ((malloc_flags & M_WAITOK))
 		pflags |= VM_ALLOC_WAITOK;
+	if ((malloc_flags & M_NORECLAIM))
+		pflags |= VM_ALLOC_NORECLAIM;
 	return (pflags);
 }
 #endif
