@@ -52,7 +52,7 @@
  * there.
  * Currently this lives here in the doc/ repository:
  *
- *	head/en_US.ISO8859-1/books/porters-handbook/versions/chapter.xml
+ *	documentation/content/en/books/porters-handbook/versions/chapter.adoc
  *
  * scheme is:  <major><two digit minor>Rxx
  *		'R' is in the range 0 to 4 if this is a release branch or
