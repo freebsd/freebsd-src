@@ -1105,6 +1105,14 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 					    "jail \"%s\" not found", name);
 					goto done_deref;
 				}
+				if (!(flags & JAIL_DYING) &&
+				    !prison_isalive(ppr)) {
+					mtx_unlock(&ppr->pr_mtx);
+					error = ENOENT;
+					vfs_opterror(opts,
+					    "jail \"%s\" is dying", name);
+					goto done_deref;
+				}
 				mtx_unlock(&ppr->pr_mtx);
 				*namelc = '.';
 			}
@@ -1200,8 +1208,18 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			goto done_deref;
 		}
 		prison_hold(ppr);
-		refcount_acquire(&ppr->pr_uref);
-		mtx_unlock(&ppr->pr_mtx);
+		if (refcount_acquire(&ppr->pr_uref))
+			mtx_unlock(&ppr->pr_mtx);
+		else {
+			/* This brings the parent back to life. */
+			mtx_unlock(&ppr->pr_mtx);
+			error = osd_jail_call(ppr, PR_METHOD_CREATE, opts);
+			if (error) {
+				pr = ppr;
+				drflags |= PD_DEREF | PD_DEUREF;
+				goto done_deref;
+			}
+                }
 
 		if (jid == 0 && (jid = get_next_prid(&inspr)) == 0) {
 			error = EAGAIN;
