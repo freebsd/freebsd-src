@@ -322,6 +322,7 @@ END(memcmp)
 	cmpq	$256,%rcx
 	ja	1256f
 
+	ALIGN_TEXT
 103200:
 	movq	(%rsi),%rdx
 	movq	%rdx,(%rdi)
@@ -455,6 +456,7 @@ END(memcmp)
 	cmpq	$32,%rcx
 	jb	2016f
 
+	ALIGN_TEXT
 2032:
 	movq	(%rsi),%rdx
 	movq	%rdx,(%rdi)
@@ -595,6 +597,7 @@ END(memcpy_erms)
 	cmpq	$256,%rcx
 	ja	1256f
 
+	ALIGN_TEXT
 103200:
 	movq	%r10,(%rdi)
 	movq	%r10,8(%rdi)
