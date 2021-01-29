@@ -879,10 +879,14 @@ amd64/amd64, arm64/aarch64 and i386/i386.
 .It Va WITHOUT_LLD_BOOTSTRAP
 Set to not build the LLD linker during the bootstrap phase of
 the build.
-To be able to build the system, either Binutils or LLD bootstrap must be
-enabled unless an alternate linker is provided via XLD.
+To be able to build the system an alternate linker must be provided via XLD.
 .It Va WITHOUT_LLD_IS_LD
-Set to use GNU binutils ld as the system linker, instead of LLVM's LLD.
+Do not install a
+.Pa /usr/bin/ld symlink
+to
+.Pa ld.lld .
+The system will not have a usable tool chain unless a linker is provided
+some other way.
 .It Va WITH_LLVM_ASSERTIONS
 Set to enable debugging assertions in LLVM.
 .It Va WITHOUT_LLVM_COV
