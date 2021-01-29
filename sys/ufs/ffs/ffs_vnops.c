@@ -1968,22 +1968,21 @@ ffs_vput_pair(struct vop_vput_pair_args *ap)
 	 * now that other locks are no longer held.
          */
 	if ((dp->i_flag & IN_ENDOFF) != 0) {
+		VNASSERT(I_ENDOFF(dp) != 0 && I_ENDOFF(dp) < dp->i_size, dvp,
+		    ("IN_ENDOFF set but I_ENDOFF() is not"));
 		dp->i_flag &= ~IN_ENDOFF;
-		if (I_ENDOFF(dp) != 0 && I_ENDOFF(dp) < dp->i_size) {
-			old_size = dp->i_size;
-			error = UFS_TRUNCATE(dvp, (off_t)I_ENDOFF(dp),
-			    IO_NORMAL | (DOINGASYNC(dvp) ? 0 : IO_SYNC),
-			    curthread->td_ucred);
-			if (error != 0 && error != ERELOOKUP) {
-				if (!ffs_fsfail_cleanup(VFSTOUFS(mp), error)) {
-					vn_printf(dvp,
-					    "IN_ENDOFF: failed to truncate, "
-					    "error %d\n", error);
-				}
-#ifdef UFS_DIRHASH
-				ufsdirhash_free(dp);
-#endif
+		old_size = dp->i_size;
+		error = UFS_TRUNCATE(dvp, (off_t)I_ENDOFF(dp), IO_NORMAL |
+		    (DOINGASYNC(dvp) ? 0 : IO_SYNC), curthread->td_ucred);
+		if (error != 0 && error != ERELOOKUP) {
+			if (!ffs_fsfail_cleanup(VFSTOUFS(mp), error)) {
+				vn_printf(dvp,
+				    "IN_ENDOFF: failed to truncate, "
+				    "error %d\n", error);
 			}
+#ifdef UFS_DIRHASH
+			ufsdirhash_free(dp);
+#endif
 		}
 		SET_I_ENDOFF(dp, 0);
 	}
