@@ -7,6 +7,9 @@ freebsd_instance:
   cpu: 8
   memory: 24G
 
+env:
+  CIRRUS_CLONE_DEPTH: 1
+
 task:
   timeout_in: 120m
   install_script:
