@@ -249,7 +249,7 @@ ATF_TC_BODY(test_inf_inputs, tc)
 	unsigned i;
 
 	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("https://bugs.freebsd.org/244732");
+		atf_tc_expect_fail("https://bugs.freebsd.org/244732");
 
 	/*
 	 * IN		CSINH		CCOSH		CTANH
