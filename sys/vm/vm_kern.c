@@ -177,17 +177,22 @@ kmem_alloc_contig_pages(vm_object_t object, vm_pindex_t pindex, int domain,
 {
 	vm_page_t m;
 	int tries;
-	bool wait;
+	bool wait, reclaim;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
 
+	/* Disallow an invalid combination of flags. */
+	MPASS((pflags & (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM)) !=
+	    (VM_ALLOC_WAITOK | VM_ALLOC_NORECLAIM));
+
 	wait = (pflags & VM_ALLOC_WAITOK) != 0;
+	reclaim = (pflags & VM_ALLOC_NORECLAIM) == 0;
 	pflags &= ~(VM_ALLOC_NOWAIT | VM_ALLOC_WAITOK | VM_ALLOC_WAITFAIL);
 	pflags |= VM_ALLOC_NOWAIT;
 	for (tries = wait ? 3 : 1;; tries--) {
 		m = vm_page_alloc_contig_domain(object, pindex, domain, pflags,
 		    npages, low, high, alignment, boundary, memattr);
-		if (m != NULL || tries == 0)
+		if (m != NULL || tries == 0 || !reclaim)
 			break;
 
 		VM_OBJECT_WUNLOCK(object);
