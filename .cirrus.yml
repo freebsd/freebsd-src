@@ -11,7 +11,6 @@ env:
   CIRRUS_CLONE_DEPTH: 1
 
 task:
-  only_if: $CIRRUS_BRANCH != 'svn_head'
   timeout_in: 120m
   install_script:
   - pkg install -y qemu42 uefi-edk2-qemu-x86_64 llvm11
