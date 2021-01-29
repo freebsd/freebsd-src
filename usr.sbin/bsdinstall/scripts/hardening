@@ -52,38 +52,40 @@ FEATURES=$( dialog --backtitle "FreeBSD Installer" \
 exec 3>&-
 
 for feature in $FEATURES; do
-	if [ "$feature" = "hide_uids" ]; then
+	case "$feature" in
+	hide_uids)
 		echo security.bsd.see_other_uids=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
-	fi
-	if [ "$feature" = "hide_gids" ]; then
+		;;
+	hide_gids)
 		echo security.bsd.see_other_gids=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
-	fi
-	if [ "$feature" = "hide_jail" ]; then
+		;;
+	hide_jail)
 		echo security.bsd.see_jail_proc=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
-	fi
-	if [ "$feature" = "read_msgbuf" ]; then
+		;;
+	read_msgbuf)
 		echo security.bsd.unprivileged_read_msgbuf=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
-	fi
-	if [ "$feature" = "proc_debug" ]; then
+		;;
+	proc_debug)
 		echo security.bsd.unprivileged_proc_debug=0 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
-	fi
-	if [ "$feature" = "random_pid" ]; then
+		;;
+	random_pid)
 		echo kern.randompid=1 >> $BSDINSTALL_TMPETC/sysctl.conf.hardening
-	fi
-	if [ "$feature" = "clear_tmp" ]; then
+		;;
+	clear_tmp)
 		echo 'clear_tmp_enable="YES"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
-	fi
-	if [ "$feature" = "disable_syslogd" ]; then
+		;;
+	disable_syslogd)
 		echo 'syslogd_flags="-ss"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
-	fi
-	if [ "$feature" = "disable_sendmail" ]; then
+		;;
+	disable_sendmail)
 		echo 'sendmail_enable="NONE"' >> $BSDINSTALL_TMPETC/rc.conf.hardening
-	fi
-	if [ "$feature" = "secure_console" ]; then
+		;;
+	secure_console)
 		sed "s/unknown	off secure/unknown	off insecure/g" $BSDINSTALL_CHROOT/etc/ttys > $BSDINSTALL_TMPETC/ttys.hardening
-	fi
-	if [ "$feature" = "disable_ddtrace" ]; then
+		;;
+	disable_ddtrace)
 		echo 'security.bsd.allow_destructive_dtrace=0' >> $BSDINSTALL_TMPBOOT/loader.conf.hardening
-	fi
+		;;
+	esac
 done
 
