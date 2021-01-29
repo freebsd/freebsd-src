@@ -182,7 +182,7 @@ bi_checkcpu(void)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
+bi_load64(char *args, vm_offset_t *modulep,
     vm_offset_t *kernendp, int add_smap)
 {
     struct preloaded_file	*xp, *kfp;
@@ -191,6 +191,7 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
     uint64_t			kernend;
     uint64_t			envp;
     uint64_t			module;
+    uint64_t			addr;
     vm_offset_t			size;
     char			*rootdevname;
     int				howto;
@@ -217,12 +218,11 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
     /* Try reading the /etc/fstab file to select the root device */
     getrootmount(i386_fmtdev((void *)rootdev));
 
-    if (addr == 0) {
-        /* find the last module in the chain */
-        for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
-            if (addr < (xp->f_addr + xp->f_size))
-                addr = xp->f_addr + xp->f_size;
-        }
+    addr = 0;
+    /* find the last module in the chain */
+    for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
+        if (addr < (xp->f_addr + xp->f_size))
+            addr = xp->f_addr + xp->f_size;
     }
     /* pad to a page boundary */
     addr = roundup(addr, PAGE_SIZE);
