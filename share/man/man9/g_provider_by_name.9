@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2004
+.Dd January 29, 2021
 .Dt G_PROVIDER_BY_NAME 9
 .Os
 .Sh NAME
@@ -44,9 +44,9 @@ and returns the structure
 bound to it.
 Argument
 .Fa name
-should be a name, not a full path (i.e.,
+can be a name or full path (i.e.,
 .Dq Pa da0 ,
-instead of
+or
 .Dq Pa /dev/da0 ) .
 .Sh RESTRICTIONS/CONDITIONS
 The topology lock has to be held.
