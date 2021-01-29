@@ -16,6 +16,19 @@ from older versions of FreeBSD, try WITHOUT_CLANG and WITH_GCC to bootstrap to
 the tip of head, and then rebuild without this option. The bootstrap process
 from older version of current across the gcc/clang cutover is a bit fragile.
 
+20210128:	p13	FreeBSD-EN-21:01.tzdata
+			FreeBSD-EN-21:03.vnet
+			FreeBSD-SA-21:01.fsdisclosure
+			FreeBSD-SA-21:02.xenoom
+
+	Update timezone database information [EN-21:01.tzdata]
+
+	Panic when destroying VNET and epair simultaneously [EN-21:03.vnet]
+
+	Uninitialized file system kernel stack leaks [SA-21:01.fsdisclosure]
+
+	Xen guest-triggered out of memory [SA-21:02.xenoom]
+
 20201208:	p12	FreeBSD-SA-20:33.openssl
 
         Fix OpenSSL NULL pointer de-reference. [SA-20:33.openssl]
