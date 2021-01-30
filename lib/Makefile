@@ -182,7 +182,7 @@ SUBDIR.${MK_STATS}+=	libstats
 _libclang_rt=	libclang_rt
 .endif
 
-.if ${MK_LIBCPLUSPLUS} != "no"
+.if ${MK_CXX} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
 _libcplusplus+=	libc++experimental

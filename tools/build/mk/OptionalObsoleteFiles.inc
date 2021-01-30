@@ -3793,7 +3793,7 @@ OLD_LIBS+=${DEBUG_LIB32_LIBS}
 .  endif
 .endif
 
-.if ${MK_LIBCPLUSPLUS} == no
+.if ${MK_CXX} == no
 OLD_LIBS+=lib/libcxxrt.so.1
 OLD_FILES+=usr/lib/libc++.a
 OLD_FILES+=usr/lib/libc++_p.a
