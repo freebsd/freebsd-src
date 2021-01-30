@@ -432,6 +432,7 @@ MK_LDNS:=	no
 MK_PKGBOOTSTRAP:=	no
 MK_SVN:=		no
 MK_SVNLITE:=		no
+MK_ZFS:=	no
 .endif
 
 .if ${MK_LDNS} == "no"
