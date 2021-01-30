@@ -218,6 +218,7 @@ check_urpf(struct nhop_object *nh, uint32_t flags,
 		return (check_urpf_nhop(nh, flags, src_if));
 }
 
+#ifndef FIB_ALGO
 static struct nhop_object *
 lookup_nhop(uint32_t fibnum, const struct in6_addr *dst6,
     uint32_t scopeid)
@@ -251,6 +252,7 @@ lookup_nhop(uint32_t fibnum, const struct in6_addr *dst6,
 
 	return (nh);
 }
+#endif
 
 /*
  * Performs reverse path forwarding lookup.
