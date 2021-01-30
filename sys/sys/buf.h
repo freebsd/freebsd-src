@@ -232,7 +232,7 @@ struct buf {
 #define	B_MALLOC	0x00010000	/* malloced b_data */
 #define	B_CLUSTEROK	0x00020000	/* Pagein op, so swap() can count it. */
 #define	B_INVALONERR	0x00040000	/* Invalidate on write error. */
-#define	B_00080000	0x00080000	/* Available flag. */
+#define	B_IOSTARTED	0x00080000	/* buf_start() called */
 #define	B_00100000	0x00100000	/* Available flag. */
 #define	B_MAXPHYS	0x00200000	/* nitems(b_pages[]) = atop(MAXPHYS). */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
@@ -248,8 +248,8 @@ struct buf {
 
 #define PRINT_BUF_FLAGS "\20\40remfree\37cluster\36vmio\35ram\34managed" \
 	"\33paging\32infreecnt\31nocopy\30b23\27relbuf\26maxphys\25b20" \
-	"\24b19\23invalonerr\22clusterok\21malloc\20nocache\17b14\16inval" \
-	"\15reuse\14noreuse\13eintr\12done\11b8\10delwri" \
+	"\24iostarted\23invalonerr\22clusterok\21malloc\20nocache\17b14" \
+	"\16inval\15reuse\14noreuse\13eintr\12done\11b8\10delwri" \
 	"\7validsuspwrt\6cache\5deferred\4direct\3async\2needcommit\1age"
 
 /*
@@ -434,6 +434,9 @@ bstrategy(struct buf *bp)
 static __inline void
 buf_start(struct buf *bp)
 {
+	KASSERT((bp->b_flags & B_IOSTARTED) == 0,
+	    ("recursed buf_start %p", bp));
+	bp->b_flags |= B_IOSTARTED;
 	if (bioops.io_start)
 		(*bioops.io_start)(bp);
 }
@@ -441,8 +444,11 @@ buf_start(struct buf *bp)
 static __inline void
 buf_complete(struct buf *bp)
 {
-	if (bioops.io_complete)
-		(*bioops.io_complete)(bp);
+	if ((bp->b_flags & B_IOSTARTED) != 0) {
+		bp->b_flags &= ~B_IOSTARTED;
+		if (bioops.io_complete)
+			(*bioops.io_complete)(bp);
+	}
 }
 
 static __inline void

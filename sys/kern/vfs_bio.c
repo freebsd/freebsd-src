@@ -2639,6 +2639,13 @@ brelse(struct buf *bp)
 		return;
 	}
 
+	if (LIST_EMPTY(&bp->b_dep)) {
+		bp->b_flags &= ~B_IOSTARTED;
+	} else {
+		KASSERT((bp->b_flags & B_IOSTARTED) == 0,
+		    ("brelse: SU io not finished bp %p", bp));
+	}
+
 	if ((bp->b_vflags & (BV_BKGRDINPROG | BV_BKGRDERR)) == BV_BKGRDERR) {
 		BO_LOCK(bp->b_bufobj);
 		bp->b_vflags &= ~BV_BKGRDERR;
@@ -2825,6 +2832,13 @@ bqrelse(struct buf *bp)
 	}
 	bp->b_flags &= ~(B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	bp->b_xflags &= ~(BX_CVTENXIO);
+
+	if (LIST_EMPTY(&bp->b_dep)) {
+		bp->b_flags &= ~B_IOSTARTED;
+	} else {
+		KASSERT((bp->b_flags & B_IOSTARTED) == 0,
+		    ("bqrelse: SU io not finished bp %p", bp));
+	}
 
 	if (bp->b_flags & B_MANAGED) {
 		if (bp->b_flags & B_REMFREE)
