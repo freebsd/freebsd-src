@@ -118,6 +118,9 @@ SYSCTL_NODE(_net_route_algo, OID_AUTO, inet, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "IPv4 longest prefix match lookups");
 #endif
 
+/* Fib instance counter */
+static uint32_t fib_gen = 0;
+
 struct nhop_ref_table {
 	uint32_t		count;
 	int32_t			refcnt[0];
@@ -137,7 +140,7 @@ struct fib_data {
 	uint8_t			fd_family;	/* family */
 	uint32_t		fd_fibnum;	/* fibnum */
 	uint32_t		fd_failed_rebuilds;	/* stat: failed rebuilds */
-	uint32_t		fd_algo_mask;	/* bitmask for algo data */
+	uint32_t		fd_gen;		/* instance gen# */
 	struct callout		fd_callout;	/* rebuild callout */
 	void			*fd_algo_data;	/* algorithm data */
 	struct nhop_object	**nh_idx;	/* nhop idx->ptr array */
@@ -191,12 +194,15 @@ static int flm_debug_level = LOG_NOTICE;
 SYSCTL_INT(_net_route_algo, OID_AUTO, debug_level, CTLFLAG_RW | CTLFLAG_RWTUN,
     &flm_debug_level, 0, "debuglevel");
 #define	FLM_MAX_DEBUG_LEVEL	LOG_DEBUG
+#ifndef	LOG_DEBUG2
+#define	LOG_DEBUG2	8
+#endif
 
 #define	_PASS_MSG(_l)	(flm_debug_level >= (_l))
 #define	ALGO_PRINTF(_fmt, ...)	printf("[fib_algo] %s: " _fmt "\n", __func__, ##__VA_ARGS__)
-#define	_ALGO_PRINTF(_fib, _fam, _aname, _func, _fmt, ...) \
-    printf("[fib_algo] %s.%u (%s) %s: " _fmt "\n",\
-    print_family(_fam), _fib, _aname, _func, ## __VA_ARGS__)
+#define	_ALGO_PRINTF(_fib, _fam, _aname, _gen, _func, _fmt, ...) \
+    printf("[fib_algo] %s.%u (%s#%u) %s: " _fmt "\n",\
+    print_family(_fam), _fib, _aname, _gen, _func, ## __VA_ARGS__)
 #define	_RH_PRINTF(_fib, _fam, _func, _fmt, ...) \
     printf("[fib_algo] %s.%u %s: " _fmt "\n", print_family(_fam), _fib, _func, ## __VA_ARGS__)
 #define	RH_PRINTF(_l, _rh, _fmt, ...)	if (_PASS_MSG(_l)) {	\
@@ -205,8 +211,13 @@ SYSCTL_INT(_net_route_algo, OID_AUTO, debug_level, CTLFLAG_RW | CTLFLAG_RWTUN,
 #define	FD_PRINTF(_l, _fd, _fmt, ...)	FD_PRINTF_##_l(_l, _fd, _fmt, ## __VA_ARGS__)
 #define	_FD_PRINTF(_l, _fd, _fmt, ...)	if (_PASS_MSG(_l)) {		\
     _ALGO_PRINTF(_fd->fd_fibnum, _fd->fd_family, _fd->fd_flm->flm_name,	\
-    __func__, _fmt, ## __VA_ARGS__);					\
+    _fd->fd_gen, __func__, _fmt, ## __VA_ARGS__);			\
 }
+#if FLM_MAX_DEBUG_LEVEL>=LOG_DEBUG2
+#define	FD_PRINTF_LOG_DEBUG2	_FD_PRINTF
+#else
+#define	FD_PRINTF_LOG_DEBUG2(_l, _fd, _fmt, ...)
+#endif
 #if FLM_MAX_DEBUG_LEVEL>=LOG_DEBUG
 #define	FD_PRINTF_LOG_DEBUG	_FD_PRINTF
 #else
@@ -371,7 +382,7 @@ fib_printf(int level, struct fib_data *fd, const char *func, char *fmt, ...)
 	va_end(ap);
 
 	_ALGO_PRINTF(fd->fd_fibnum, fd->fd_family, fd->fd_flm->flm_name,
-	    func, "%s", buf);
+	    fd->fd_gen, func, "%s", buf);
 }
 
 /*
@@ -450,7 +461,7 @@ schedule_callout(struct fib_data *fd, int delay_ms)
 }
 
 static void
-schedule_fd_rebuild(struct fib_data *fd)
+schedule_fd_rebuild(struct fib_data *fd, const char *reason)
 {
 
 	FIB_MOD_LOCK();
@@ -461,7 +472,8 @@ schedule_fd_rebuild(struct fib_data *fd)
 		 * Potentially re-schedules pending callout
 		 *  initiated by schedule_algo_eval.
 		 */
-		FD_PRINTF(LOG_INFO, fd, "Scheduling rebuilt");
+		FD_PRINTF(LOG_INFO, fd, "Scheduling rebuild: %s (failures=%d)",
+		    reason, fd->fd_failed_rebuilds);
 		schedule_callout(fd, callout_calc_delay_ms(fd));
 	}
 	FIB_MOD_UNLOCK();
@@ -527,7 +539,7 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 	if (rc->rc_nh_new != NULL) {
 		if (fib_ref_nhop(fd, rc->rc_nh_new) == 0) {
 			/* ran out of indexes */
-			schedule_fd_rebuild(fd);
+			schedule_fd_rebuild(fd, "ran out of nhop indexes");
 			return;
 		}
 	}
@@ -546,7 +558,7 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 		 * Algo is not able to apply the update.
 		 * Schedule algo rebuild.
 		 */
-		schedule_fd_rebuild(fd);
+		schedule_fd_rebuild(fd, "algo requested rebuild");
 		break;
 	case FLM_ERROR:
 
@@ -558,7 +570,7 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 		FD_PRINTF(LOG_ERR, fd, "algo reported non-recoverable error");
 		if (!flm_error_add(fd->fd_flm, fd->fd_fibnum))
 			FD_PRINTF(LOG_ERR, fd, "failed to ban algo");
-		schedule_fd_rebuild(fd);
+		schedule_fd_rebuild(fd, "algo reported non-recoverable error");
 	}
 }
 
@@ -667,8 +679,9 @@ sync_algo(struct fib_data *fd)
 
 	rib_walk_ext_internal(fd->fd_rh, true, sync_algo_cb, sync_algo_end_cb, &w);
 
-	FD_PRINTF(LOG_INFO, fd, "initial dump completed, result: %s",
-	    print_op_result(w.result));
+	FD_PRINTF(LOG_INFO, fd,
+	    "initial dump completed (rtable version: %d), result: %s",
+	    fd->fd_rh->rnh_gen, print_op_result(w.result));
 
 	return (w.result);
 }
@@ -794,7 +807,7 @@ destroy_fd_instance(struct fib_data *fd)
 	if ((fd->nh_idx != NULL) && (fd->nh_ref_table != NULL)) {
 		for (int i = 0; i < fd->number_nhops; i++) {
 			if (!is_idx_free(fd, i)) {
-				FD_PRINTF(LOG_DEBUG, fd, " FREE nhop %d %p",
+				FD_PRINTF(LOG_DEBUG2, fd, " FREE nhop %d %p",
 				    i, fd->nh_idx[i]);
 				nhop_free_any(fd->nh_idx[i]);
 			}
@@ -845,6 +858,7 @@ try_setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 	fd = malloc(sizeof(struct fib_data), M_RTABLE, M_NOWAIT | M_ZERO);
 	if (fd == NULL)  {
 		*pfd = NULL;
+		RH_PRINTF(LOG_INFO, rh, "Unable to allocate fib_data structure");
 		return (FLM_REBUILD);
 	}
 	*pfd = fd;
@@ -852,11 +866,14 @@ try_setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 	estimate_nhop_scale(old_fd, fd);
 
 	fd->fd_rh = rh;
+	fd->fd_gen = ++fib_gen;
 	fd->fd_family = rh->rib_family;
 	fd->fd_fibnum = rh->rib_fibnum;
 	callout_init(&fd->fd_callout, 1);
 	fd->fd_vnet = curvnet;
 	fd->fd_flm = flm;
+
+	FD_PRINTF(LOG_DEBUG, fd, "allocated fd %p", fd);
 
 	FIB_MOD_LOCK();
 	flm->flm_refcount++;
@@ -883,21 +900,27 @@ try_setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 	/* Okay, we're ready for algo init */
 	void *old_algo_data = (old_fd != NULL) ? old_fd->fd_algo_data : NULL;
 	result = flm->flm_init_cb(fd->fd_fibnum, fd, old_algo_data, &fd->fd_algo_data);
-	if (result != FLM_SUCCESS)
+	if (result != FLM_SUCCESS) {
+		FD_PRINTF(LOG_INFO, fd, "%s algo init failed", flm->flm_name);
 		return (result);
+	}
 
 	/* Try to subscribe */
 	if (flm->flm_change_rib_item_cb != NULL) {
 		fd->fd_rs = rib_subscribe_internal(fd->fd_rh,
 		    handle_rtable_change_cb, fd, RIB_NOTIFY_IMMEDIATE, 0);
-		if (fd->fd_rs == NULL)
+		if (fd->fd_rs == NULL) {
+			FD_PRINTF(LOG_INFO, fd, "failed to subscribe to the rib changes");
 			return (FLM_REBUILD);
+		}
 	}
 
 	/* Dump */
 	result = sync_algo(fd);
-	if (result != FLM_SUCCESS)
+	if (result != FLM_SUCCESS) {
+		FD_PRINTF(LOG_INFO, fd, "rib sync failed");
 		return (result);
+	}
 	FD_PRINTF(LOG_INFO, fd, "DUMP completed successfully.");
 
 	FIB_MOD_LOCK();
@@ -953,6 +976,9 @@ setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 	}
 
 	if (result != FLM_SUCCESS) {
+		RH_PRINTF(LOG_WARNING, rh,
+		    "%s algo instance setup failed, failures=%d", flm->flm_name,
+		    orig_fd ? orig_fd->fd_failed_rebuilds + 1 : 0);
 		/* update failure count */
 		FIB_MOD_LOCK();
 		if (orig_fd != NULL)
@@ -1370,7 +1396,7 @@ fib_ref_nhop(struct fib_data *fd, struct nhop_object *nh)
 		nhop_ref_any(nh);
 		fd->nh_idx[idx] = nh;
 		fd->nh_ref_table->count++;
-		FD_PRINTF(LOG_DEBUG, fd, " REF nhop %u %p", idx, fd->nh_idx[idx]);
+		FD_PRINTF(LOG_DEBUG2, fd, " REF nhop %u %p", idx, fd->nh_idx[idx]);
 	}
 	fd->nh_ref_table->refcnt[idx]++;
 
