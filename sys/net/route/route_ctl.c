@@ -1407,9 +1407,27 @@ rib_subscribe_internal(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg
 
 	NET_EPOCH_ENTER(et);
 	RIB_WLOCK(rnh);
-	CK_STAILQ_INSERT_TAIL(&rnh->rnh_subscribers, rs, next);
+	CK_STAILQ_INSERT_HEAD(&rnh->rnh_subscribers, rs, next);
 	RIB_WUNLOCK(rnh);
 	NET_EPOCH_EXIT(et);
+
+	return (rs);
+}
+
+struct rib_subscription *
+rib_subscribe_locked(struct rib_head *rnh, rib_subscription_cb_t *f, void *arg,
+    enum rib_subscription_type type)
+{
+	struct rib_subscription *rs;
+
+	NET_EPOCH_ASSERT();
+	RIB_WLOCK_ASSERT(rnh);
+
+	if ((rs = allocate_subscription(f, arg, type, false)) == NULL)
+		return (NULL);
+	rs->rnh = rnh;
+
+	CK_STAILQ_INSERT_HEAD(&rnh->rnh_subscribers, rs, next);
 
 	return (rs);
 }
@@ -1428,6 +1446,20 @@ rib_unsibscribe(struct rib_subscription *rs)
 	RIB_WLOCK(rnh);
 	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
 	RIB_WUNLOCK(rnh);
+
+	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
+	    &rs->epoch_ctx);
+}
+
+void
+rib_unsibscribe_locked(struct rib_subscription *rs)
+{
+	struct rib_head *rnh = rs->rnh;
+
+	NET_EPOCH_ASSERT();
+	RIB_WLOCK_ASSERT(rnh);
+
+	CK_STAILQ_REMOVE(&rnh->rnh_subscribers, rs, rib_subscription, next);
 
 	epoch_call(net_epoch_preempt, destroy_subscription_epoch,
 	    &rs->epoch_ctx);
