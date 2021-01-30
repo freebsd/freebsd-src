@@ -18,10 +18,8 @@ CFLAGS+=	-I${.CURDIR}
 
 .if ${MK_CXX} == "no"
 CFLAGS+=	-DNO_CXA_DEMANGLE
-.elif ${MK_LIBCPLUSPLUS} != "no"
-LIBADD+=		cxxrt
 .else
-LIBADD+=	supcplusplus
+LIBADD+=		cxxrt
 .endif
 
 LIBADD+=	elf procstat rtld_db util
