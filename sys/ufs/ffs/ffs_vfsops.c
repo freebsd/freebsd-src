@@ -2393,10 +2393,10 @@ ffs_backgroundwritedone(struct buf *bp)
 #endif
 	/*
 	 * This buffer is marked B_NOCACHE so when it is released
-	 * by biodone it will be tossed.
+	 * by biodone it will be tossed.  Clear B_IOSTARTED in case of error.
 	 */
 	bp->b_flags |= B_NOCACHE;
-	bp->b_flags &= ~B_CACHE;
+	bp->b_flags &= ~(B_CACHE | B_IOSTARTED);
 	pbrelvp(bp);
 
 	/*
