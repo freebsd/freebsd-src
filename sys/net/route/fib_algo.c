@@ -155,6 +155,7 @@ struct fib_data {
 	TAILQ_ENTRY(fib_data)	entries;	/* list of all fds in vnet */
 };
 
+static bool rebuild_fd(struct fib_data *fd);
 static void rebuild_fd_callout(void *_data);
 static void destroy_fd_instance_epoch(epoch_context_t ctx);
 static enum flm_op_result attach_datapath(struct fib_data *fd);
@@ -1011,13 +1012,28 @@ setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 static void
 rebuild_fd_callout(void *_data)
 {
-	struct fib_data *fd, *fd_new, *fd_tmp;
+	struct fib_data *fd = (struct fib_data *)_data;
+
+	FD_PRINTF(LOG_INFO, fd, "running callout rebuild");
+
+	CURVNET_SET(fd->fd_vnet);
+	rebuild_fd(fd);
+	CURVNET_RESTORE();
+}
+
+/*
+ * Tries to create new algo instance based on @fd data.
+ * Returns true on success.
+ */
+static bool
+rebuild_fd(struct fib_data *fd)
+{
+	struct fib_data *fd_new, *fd_tmp;
 	struct fib_lookup_module *flm_new = NULL;
 	struct epoch_tracker et;
 	enum flm_op_result result;
 	bool need_rebuild = false;
 
-	fd = (struct fib_data *)_data;
 
 	FIB_MOD_LOCK();
 	need_rebuild = fd->fd_need_rebuild;
@@ -1026,15 +1042,12 @@ rebuild_fd_callout(void *_data)
 	fd->fd_num_changes = 0;
 	FIB_MOD_UNLOCK();
 
-	CURVNET_SET(fd->fd_vnet);
-
 	/* First, check if we're still OK to use this algo */
 	if (!is_algo_fixed(fd->fd_rh))
 		flm_new = fib_check_best_algo(fd->fd_rh, fd->fd_flm);
 	if ((flm_new == NULL) && (!need_rebuild)) {
 		/* Keep existing algo, no need to rebuild. */
-		CURVNET_RESTORE();
-		return;
+		return (true);
 	}
 
 	if (flm_new == NULL) {
@@ -1051,19 +1064,16 @@ rebuild_fd_callout(void *_data)
 	}
 	if (result != FLM_SUCCESS) {
 		FD_PRINTF(LOG_NOTICE, fd, "table rebuild failed");
-		CURVNET_RESTORE();
-		return;
+		return (false);
 	}
 	FD_PRINTF(LOG_INFO, fd_new, "switched to new instance");
 
-	/* Remove old instance removal */
-	if (fd != NULL) {
-		NET_EPOCH_ENTER(et);
-		schedule_destroy_fd_instance(fd, true);
-		NET_EPOCH_EXIT(et);
-	}
+	/* Remove old instance */
+	NET_EPOCH_ENTER(et);
+	schedule_destroy_fd_instance(fd, true);
+	NET_EPOCH_EXIT(et);
 
-	CURVNET_RESTORE();
+	return (true);
 }
 
 /*
