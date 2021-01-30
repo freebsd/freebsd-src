@@ -75,6 +75,8 @@ void rib_walk_ext(uint32_t fibnum, int af, bool wlock, rib_walktree_f_t *wa_f,
     rib_walk_hook_f_t *hook_f, void *arg);
 void rib_walk_ext_internal(struct rib_head *rnh, bool wlock,
     rib_walktree_f_t *wa_f, rib_walk_hook_f_t *hook_f, void *arg);
+void rib_walk_ext_locked(struct rib_head *rnh, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg);
 
 void rib_walk_del(u_int fibnum, int family, rib_filter_f_t *filter_f,
     void *arg, bool report);
