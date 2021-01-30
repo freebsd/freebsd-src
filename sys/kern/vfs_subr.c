@@ -3159,9 +3159,21 @@ vput_final(struct vnode *vp, enum vput_op func)
 		break;
 	}
 	if (error == 0) {
-		vinactive(vp);
-		if (want_unlock)
-			VOP_UNLOCK(vp);
+		if (func == VUNREF) {
+			VNASSERT((vp->v_vflag & VV_UNREF) == 0, vp,
+			    ("recursive vunref"));
+			vp->v_vflag |= VV_UNREF;
+		}
+		for (;;) {
+			error = vinactive(vp);
+			if (want_unlock)
+				VOP_UNLOCK(vp);
+			if (error != ERELOOKUP || !want_unlock)
+				break;
+			VOP_LOCK(vp, LK_EXCLUSIVE);
+		}
+		if (func == VUNREF)
+			vp->v_vflag &= ~VV_UNREF;
 		vdropl(vp);
 	} else {
 		vdefer_inactive(vp);
@@ -3546,10 +3558,11 @@ vdropl(struct vnode *vp)
  * Call VOP_INACTIVE on the vnode and manage the DOINGINACT and OWEINACT
  * flags.  DOINGINACT prevents us from recursing in calls to vinactive.
  */
-static void
+static int
 vinactivef(struct vnode *vp)
 {
 	struct vm_object *obj;
+	int error;
 
 	ASSERT_VOP_ELOCKED(vp, "vinactive");
 	ASSERT_VI_LOCKED(vp, "vinactive");
@@ -3575,14 +3588,15 @@ vinactivef(struct vnode *vp)
 		vm_object_page_clean(obj, 0, 0, 0);
 		VM_OBJECT_WUNLOCK(obj);
 	}
-	VOP_INACTIVE(vp);
+	error = VOP_INACTIVE(vp);
 	VI_LOCK(vp);
 	VNASSERT(vp->v_iflag & VI_DOINGINACT, vp,
 	    ("vinactive: lost VI_DOINGINACT"));
 	vp->v_iflag &= ~VI_DOINGINACT;
+	return (error);
 }
 
-void
+int
 vinactive(struct vnode *vp)
 {
 
@@ -3591,14 +3605,14 @@ vinactive(struct vnode *vp)
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 
 	if ((vp->v_iflag & VI_OWEINACT) == 0)
-		return;
+		return (0);
 	if (vp->v_iflag & VI_DOINGINACT)
-		return;
+		return (0);
 	if (vp->v_usecount > 0) {
 		vp->v_iflag &= ~VI_OWEINACT;
-		return;
+		return (0);
 	}
-	vinactivef(vp);
+	return (vinactivef(vp));
 }
 
 /*
@@ -3911,10 +3925,15 @@ vgonel(struct vnode *vp)
 	 */
 	if (active)
 		VOP_CLOSE(vp, FNONBLOCK, NOCRED, td);
-	if ((oweinact || active) && !doinginact) {
-		VI_LOCK(vp);
-		vinactivef(vp);
-		VI_UNLOCK(vp);
+	if (!doinginact) {
+		do {
+			if (oweinact || active) {
+				VI_LOCK(vp);
+				vinactivef(vp);
+				oweinact = (vp->v_iflag & VI_OWEINACT) != 0;
+				VI_UNLOCK(vp);
+			}
+		} while (oweinact);
 	}
 	if (vp->v_type == VSOCK)
 		vfs_unp_reclaim(vp);
