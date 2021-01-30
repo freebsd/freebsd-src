@@ -105,6 +105,11 @@ SYSCTL_DECL(_net_route);
 SYSCTL_NODE(_net_route, OID_AUTO, algo, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "Fib algorithm lookups");
 
+VNET_DEFINE(int, fib_sync_limit) = 100;
+#define	V_fib_sync_limit	VNET(fib_sync_limit)
+SYSCTL_INT(_net_route_algo, OID_AUTO, fib_sync_limit, CTLFLAG_RW | CTLFLAG_VNET,
+    &VNET_NAME(fib_sync_limit), 0, "Guarantee synchronous fib till route limit");
+
 #ifdef INET6
 VNET_DEFINE_STATIC(bool, algo_fixed_inet6) = false;
 #define	V_algo_fixed_inet6	VNET(algo_fixed_inet6)
@@ -465,7 +470,8 @@ static void
 schedule_fd_rebuild(struct fib_data *fd, const char *reason)
 {
 
-	FIB_MOD_LOCK();
+	RIB_WLOCK_ASSERT(fd->fd_rh);
+
 	if (!fd->fd_need_rebuild) {
 		fd->fd_need_rebuild = true;
 
@@ -477,28 +483,50 @@ schedule_fd_rebuild(struct fib_data *fd, const char *reason)
 		    reason, fd->fd_failed_rebuilds);
 		schedule_callout(fd, callout_calc_delay_ms(fd));
 	}
-	FIB_MOD_UNLOCK();
 }
 
 static void
 schedule_algo_eval(struct fib_data *fd)
 {
 
+	RIB_WLOCK_ASSERT(fd->fd_rh);
+
 	if (fd->fd_num_changes++ == 0) {
 		/* Start callout to consider switch */
-		FIB_MOD_LOCK();
 		if (!callout_pending(&fd->fd_callout))
 			schedule_callout(fd, ALGO_EVAL_DELAY_MS);
-		FIB_MOD_UNLOCK();
 	} else if (fd->fd_num_changes > ALGO_EVAL_NUM_ROUTES && !fd->fd_force_eval) {
 		/* Reset callout to exec immediately */
-		FIB_MOD_LOCK();
 		if (!fd->fd_need_rebuild) {
 			fd->fd_force_eval = true;
 			schedule_callout(fd, 1);
 		}
-		FIB_MOD_UNLOCK();
 	}
+}
+
+static bool
+need_immediate_rebuild(struct fib_data *fd, struct rib_cmd_info *rc)
+{
+	struct nhop_object *nh;
+
+	if ((V_fib_sync_limit == 0) || (fd->fd_rh->rnh_prefixes <= V_fib_sync_limit))
+		return (true);
+
+	/* Sync addition/removal of interface routes */
+	switch (rc->rc_cmd) {
+	case RTM_ADD:
+		nh = rc->rc_nh_new;
+		if (!NH_IS_NHGRP(nh) && (!(nh->nh_flags & NHF_GATEWAY)))
+			return (true);
+		break;
+	case RTM_DELETE:
+		nh = rc->rc_nh_old;
+		if (!NH_IS_NHGRP(nh) && (!(nh->nh_flags & NHF_GATEWAY)))
+			return (true);
+		break;
+	}
+
+	return (false);
 }
 
 /*
@@ -559,7 +587,15 @@ handle_rtable_change_cb(struct rib_head *rnh, struct rib_cmd_info *rc,
 		 * Algo is not able to apply the update.
 		 * Schedule algo rebuild.
 		 */
-		schedule_fd_rebuild(fd, "algo requested rebuild");
+		if (!need_immediate_rebuild(fd, rc)) {
+			schedule_fd_rebuild(fd, "algo requested rebuild");
+			break;
+		}
+
+		fd->fd_need_rebuild = true;
+		FD_PRINTF(LOG_INFO, fd, "running sync rebuild");
+		if (!rebuild_fd(fd))
+			schedule_fd_rebuild(fd, "sync rebuild failed");
 		break;
 	case FLM_ERROR:
 
@@ -678,7 +714,7 @@ sync_algo(struct fib_data *fd)
 		.result = FLM_SUCCESS,
 	};
 
-	rib_walk_ext_internal(fd->fd_rh, true, sync_algo_cb, sync_algo_end_cb, &w);
+	rib_walk_ext_locked(fd->fd_rh, sync_algo_cb, sync_algo_end_cb, &w);
 
 	FD_PRINTF(LOG_INFO, fd,
 	    "initial dump completed (rtable version: %d), result: %s",
@@ -702,6 +738,7 @@ schedule_destroy_fd_instance(struct fib_data *fd, bool in_callout)
 	bool is_dead;
 
 	NET_EPOCH_ASSERT();
+	RIB_WLOCK_ASSERT(fd->fd_rh);
 
 	FIB_MOD_LOCK();
 	is_dead = fd->fd_dead;
@@ -718,27 +755,13 @@ schedule_destroy_fd_instance(struct fib_data *fd, bool in_callout)
 	FD_PRINTF(LOG_INFO, fd, "DETACH");
 
 	if (fd->fd_rs != NULL)
-		rib_unsibscribe(fd->fd_rs);
+		rib_unsibscribe_locked(fd->fd_rs);
 
 	/*
 	 * After rib_unsubscribe() no _new_ handle_rtable_change_cb() calls
 	 * will be executed, hence no _new_ callout schedules will happen.
-	 *
-	 * There can be 2 possible scenarious here:
-	 * 1) we're running inside a callout when we're deleting ourselves
-	 *  due to migration to a newer fd
-	 * 2) we're running from rt_table_destroy() and callout is scheduled
-	 *  for execution OR is executing
-	 *
-	 * For (2) we need to wait for the callout termination, as the routing table
-	 * will be destroyed after this function returns.
-	 * For (1) we cannot call drain, but can ensure that this is the last invocation.
 	 */
-
-	if (in_callout)
-		callout_stop(&fd->fd_callout);
-	else
-		callout_drain(&fd->fd_callout);
+	callout_stop(&fd->fd_callout);
 
 	epoch_call(net_epoch_preempt, destroy_fd_instance_epoch,
 	    &fd->fd_epoch_ctx);
@@ -774,7 +797,11 @@ fib_cleanup_algo(struct rib_head *rh, bool keep_first, bool in_callout)
 	/* Pass 2: remove each entry */
 	NET_EPOCH_ENTER(et);
 	TAILQ_FOREACH_SAFE(fd, &tmp_head, entries, fd_tmp) {
+		if (!in_callout)
+			RIB_WLOCK(fd->fd_rh);
 		schedule_destroy_fd_instance(fd, in_callout);
+		if (!in_callout)
+			RIB_WUNLOCK(fd->fd_rh);
 	}
 	NET_EPOCH_EXIT(et);
 }
@@ -870,7 +897,7 @@ try_setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 	fd->fd_gen = ++fib_gen;
 	fd->fd_family = rh->rib_family;
 	fd->fd_fibnum = rh->rib_fibnum;
-	callout_init(&fd->fd_callout, 1);
+	callout_init_rm(&fd->fd_callout, &rh->rib_lock, 0);
 	fd->fd_vnet = curvnet;
 	fd->fd_flm = flm;
 
@@ -908,8 +935,8 @@ try_setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 
 	/* Try to subscribe */
 	if (flm->flm_change_rib_item_cb != NULL) {
-		fd->fd_rs = rib_subscribe_internal(fd->fd_rh,
-		    handle_rtable_change_cb, fd, RIB_NOTIFY_IMMEDIATE, 0);
+		fd->fd_rs = rib_subscribe_locked(fd->fd_rh,
+		    handle_rtable_change_cb, fd, RIB_NOTIFY_IMMEDIATE);
 		if (fd->fd_rs == NULL) {
 			FD_PRINTF(LOG_INFO, fd, "failed to subscribe to the rib changes");
 			return (FLM_REBUILD);
@@ -946,13 +973,14 @@ setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
     struct fib_data *orig_fd, struct fib_data **pfd, bool attach)
 {
 	struct fib_data *prev_fd, *new_fd;
-	struct epoch_tracker et;
 	enum flm_op_result result;
+
+	NET_EPOCH_ASSERT();
+	RIB_WLOCK_ASSERT(rh);
 
 	prev_fd = orig_fd;
 	new_fd = NULL;
 	for (int i = 0; i < FIB_MAX_TRIES; i++) {
-		NET_EPOCH_ENTER(et);
 		result = try_setup_fd_instance(flm, rh, prev_fd, &new_fd);
 
 		if ((result == FLM_SUCCESS) && attach)
@@ -962,7 +990,6 @@ setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 			schedule_destroy_fd_instance(prev_fd, false);
 			prev_fd = NULL;
 		}
-		NET_EPOCH_EXIT(et);
 
 		RH_PRINTF(LOG_INFO, rh, "try %d: fib algo result: %s", i,
 		    print_op_result(result));
@@ -990,14 +1017,12 @@ setup_fd_instance(struct fib_lookup_module *flm, struct rib_head *rh,
 		if (result == FLM_ERROR)
 			flm_error_add(flm, rh->rib_fibnum);
 
-		NET_EPOCH_ENTER(et);
 		if ((prev_fd != NULL) && (prev_fd != orig_fd))
 			schedule_destroy_fd_instance(prev_fd, false);
 		if (new_fd != NULL) {
 			schedule_destroy_fd_instance(new_fd, false);
 			new_fd = NULL;
 		}
-		NET_EPOCH_EXIT(et);
 	}
 
 	*pfd = new_fd;
@@ -1013,12 +1038,15 @@ static void
 rebuild_fd_callout(void *_data)
 {
 	struct fib_data *fd = (struct fib_data *)_data;
+	struct epoch_tracker et;
 
 	FD_PRINTF(LOG_INFO, fd, "running callout rebuild");
 
+	NET_EPOCH_ENTER(et);
 	CURVNET_SET(fd->fd_vnet);
 	rebuild_fd(fd);
 	CURVNET_RESTORE();
+	NET_EPOCH_EXIT(et);
 }
 
 /*
@@ -1030,17 +1058,16 @@ rebuild_fd(struct fib_data *fd)
 {
 	struct fib_data *fd_new, *fd_tmp;
 	struct fib_lookup_module *flm_new = NULL;
-	struct epoch_tracker et;
 	enum flm_op_result result;
 	bool need_rebuild = false;
 
+	NET_EPOCH_ASSERT();
+	RIB_WLOCK_ASSERT(fd->fd_rh);
 
-	FIB_MOD_LOCK();
 	need_rebuild = fd->fd_need_rebuild;
 	fd->fd_need_rebuild = false;
 	fd->fd_force_eval = false;
 	fd->fd_num_changes = 0;
-	FIB_MOD_UNLOCK();
 
 	/* First, check if we're still OK to use this algo */
 	if (!is_algo_fixed(fd->fd_rh))
@@ -1069,9 +1096,7 @@ rebuild_fd(struct fib_data *fd)
 	FD_PRINTF(LOG_INFO, fd_new, "switched to new instance");
 
 	/* Remove old instance */
-	NET_EPOCH_ENTER(et);
 	schedule_destroy_fd_instance(fd, true);
-	NET_EPOCH_EXIT(et);
 
 	return (true);
 }
@@ -1116,6 +1141,7 @@ set_fib_algo(uint32_t fibnum, int family, struct sysctl_oid *oidp, struct sysctl
 	char old_algo_name[32], algo_name[32];
 	struct rib_head *rh = NULL;
 	enum flm_op_result result;
+	struct epoch_tracker et;
 	int error;
 
 	/* Fetch current algo/rib for af/family */
@@ -1149,7 +1175,11 @@ set_fib_algo(uint32_t fibnum, int family, struct sysctl_oid *oidp, struct sysctl
 	}
 
 	fd = NULL;
+	NET_EPOCH_ENTER(et);
+	RIB_WLOCK(rh);
 	result = setup_fd_instance(flm, rh, NULL, &fd, true);
+	RIB_WUNLOCK(rh);
+	NET_EPOCH_EXIT(et);
 	fib_unref_algo(flm);
 	if (result != FLM_SUCCESS)
 		return (EINVAL);
@@ -1558,6 +1588,7 @@ fib_select_algo_initial(struct rib_head *rh)
 	struct fib_lookup_module *flm;
 	struct fib_data *fd = NULL;
 	enum flm_op_result result;
+	struct epoch_tracker et;
 	int error = 0;
 
 	flm = fib_check_best_algo(rh, NULL);
@@ -1567,7 +1598,12 @@ fib_select_algo_initial(struct rib_head *rh)
 	}
 	RH_PRINTF(LOG_INFO, rh, "selected algo %s", flm->flm_name);
 
+	NET_EPOCH_ENTER(et);
+	RIB_WLOCK(rh);
 	result = setup_fd_instance(flm, rh, NULL, &fd, false);
+	RIB_WUNLOCK(rh);
+	NET_EPOCH_EXIT(et);
+
 	RH_PRINTF(LOG_DEBUG, rh, "result=%d fd=%p", result, fd);
 	if (result == FLM_SUCCESS) {
 

@@ -67,6 +67,17 @@ __FBSDID("$FreeBSD$");
  * RIB helper functions.
  */
 
+void
+rib_walk_ext_locked(struct rib_head *rnh, rib_walktree_f_t *wa_f,
+    rib_walk_hook_f_t *hook_f, void *arg)
+{
+	if (hook_f != NULL)
+		hook_f(rnh, RIB_WALK_HOOK_PRE, arg);
+	rnh->rnh_walktree(&rnh->head, (walktree_f_t *)wa_f, arg);
+	if (hook_f != NULL)
+		hook_f(rnh, RIB_WALK_HOOK_POST, arg);
+}
+
 /*
  * Calls @wa_f with @arg for each entry in the table specified by
  * @af and @fibnum.
@@ -86,11 +97,7 @@ rib_walk_ext_internal(struct rib_head *rnh, bool wlock, rib_walktree_f_t *wa_f,
 		RIB_WLOCK(rnh);
 	else
 		RIB_RLOCK(rnh);
-	if (hook_f != NULL)
-		hook_f(rnh, RIB_WALK_HOOK_PRE, arg);
-	rnh->rnh_walktree(&rnh->head, (walktree_f_t *)wa_f, arg);
-	if (hook_f != NULL)
-		hook_f(rnh, RIB_WALK_HOOK_POST, arg);
+	rib_walk_ext_locked(rnh, wa_f, hook_f, arg);
 	if (wlock)
 		RIB_WUNLOCK(rnh);
 	else
