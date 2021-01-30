@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Build the GNU C++ stack (g++, libstdc++).
-This option is deprecated and will be removed before
-.Fx 13 .
