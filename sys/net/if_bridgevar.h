@@ -278,15 +278,15 @@ struct ifbpstpconf {
     "discarding"
 
 #define STP_PROTOS \
-    "stp"          \
-    "-"            \
+    "stp",         \
+    "-",           \
     "rstp"
 
 #define STP_ROLES \
-    "disabled"    \
-    "root"        \
-    "designated"  \
-    "alternate"   \
+    "disabled",   \
+    "root",       \
+    "designated", \
+    "alternate",  \
     "backup"
 
 #define PV2ID(pv, epri, eaddr)	do { \
