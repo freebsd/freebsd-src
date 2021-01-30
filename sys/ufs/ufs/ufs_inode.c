@@ -212,8 +212,6 @@ out:
 		vrecycle(vp);
 	if (mp != NULL)
 		vn_finished_secondary_write(mp);
-	if (error == ERELOOKUP)
-		error = 0;
 	return (error);
 }
 

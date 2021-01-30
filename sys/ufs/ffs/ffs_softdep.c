@@ -1493,13 +1493,14 @@ get_parent_vp(struct vnode *vp, struct mount *mp, ino_t inum, struct buf *bp,
 		}
 
 		/*
-		 * Do not drop vnode lock while inactivating.  This
-		 * would result in leaks of the VI flags and
-		 * reclaiming of non-truncated vnode.  Instead,
+		 * Do not drop vnode lock while inactivating during
+		 * vunref.  This would result in leaks of the VI flags
+		 * and reclaiming of non-truncated vnode.  Instead,
 		 * re-schedule inactivation hoping that we would be
 		 * able to sync inode later.
 		 */
-		if ((vp->v_iflag & VI_DOINGINACT) != 0) {
+		if ((vp->v_iflag & VI_DOINGINACT) != 0 &&
+		    (vp->v_vflag & VV_UNREF) != 0) {
 			VI_LOCK(vp);
 			vp->v_iflag |= VI_OWEINACT;
 			VI_UNLOCK(vp);
