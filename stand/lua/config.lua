@@ -62,10 +62,10 @@ local MSG_FAILSYN_EOLESC = "Stray escape at end of line"
 local MSG_FAILSYN_EOLVAR = "Unescaped $ at end of line"
 local MSG_FAILSYN_BADVAR = "Malformed variable expression at position '%d'"
 
-local MODULEEXPR = '([%w-_]+)'
+local MODULEEXPR = '([-%w_]+)'
 local QVALEXPR = '"(.*)"'
 local QVALREPL = QVALEXPR:gsub('%%', '%%%%')
-local WORDEXPR = "([%w%d-][%w%d-_.]*)"
+local WORDEXPR = "([-%w%d][-%w%d_.]*)"
 local WORDREPL = WORDEXPR:gsub('%%', '%%%%')
 
 -- Entries that should never make it into the environment; each one should have
@@ -182,7 +182,7 @@ local function processEnvVar(value)
 					-- Skip the $
 					vinit = i + 1
 					vdelim = nil
-					vpat = "^([%w][%w%d-_.]*)"
+					vpat = "^([%w][-%w%d_.]*)"
 				end
 
 				local name = value:match(vpat, vinit)
@@ -346,7 +346,7 @@ local function getBlacklist()
 		return blacklist
 	end
 
-	for mod in blacklist_str:gmatch("[;, ]?([%w-_]+)[;, ]?") do
+	for mod in blacklist_str:gmatch("[;, ]?([-%w_]+)[;, ]?") do
 		blacklist[mod] = true
 	end
 	return blacklist
