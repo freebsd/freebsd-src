@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,17 @@ else
 	shift
 fi
 
-out="$testdir/../.log_${d}_test.txt"
+unset BC_ENV_ARGS
+unset BC_LINE_LENGTH
+unset DC_ENV_ARGS
+unset DC_LINE_LENGTH
+
+out="$testdir/${d}_outputs/errors_results.txt"
+outdir=$(dirname "$out")
+
+if [ ! -d "$outdir" ]; then
+	mkdir -p "$outdir"
+fi
 
 exebase=$(basename "$exe")
 
@@ -83,7 +93,7 @@ for testfile in $testdir/$d/*errors.txt; do
 			die "$d" "returned an error ($err)" "POSIX warning" 1
 		fi
 
-		checktest "$d" "1" "$line" "$out" "$exebase"
+		checkerrtest "$d" "1" "$line" "$out" "$exebase"
 
 		options="-ls"
 	else
@@ -101,7 +111,7 @@ for testfile in $testdir/$d/*errors.txt; do
 		printf '%s\n' "$line" | "$exe" "$@" "$options" 2> "$out" > /dev/null
 		err="$?"
 
-		checktest "$d" "$err" "$line" "$out" "$exebase"
+		checkerrtest "$d" "$err" "$line" "$out" "$exebase"
 
 	done < "$testfile"
 
@@ -116,7 +126,7 @@ for testfile in $testdir/$d/errors/*.txt; do
 	printf '%s\n' "$halt" | "$exe" "$@" $opts "$testfile" 2> "$out" > /dev/null
 	err="$?"
 
-	checktest "$d" "$err" "$testfile" "$out" "$exebase"
+	checkerrtest "$d" "$err" "$testfile" "$out" "$exebase"
 
 	printf 'pass\n'
 

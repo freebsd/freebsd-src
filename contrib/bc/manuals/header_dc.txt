@@ -1,1 +1,1 @@
-.TH "DC" "1" "October 2020" "Gavin D. Howard" "General Commands Manual"
+.TH "DC" "1" "January 2021" "Gavin D. Howard" "General Commands Manual"

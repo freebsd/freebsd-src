@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -138,6 +138,16 @@ void bc_vm_info(const char* const help) {
 }
 #endif // !BC_ENABLE_LIBRARY
 
+#if !BC_ENABLE_LIBRARY && !BC_ENABLE_MEMCHECK
+BC_NORETURN
+#endif // !BC_ENABLE_LIBRARY && !BC_ENABLE_MEMCHECK
+void bc_vm_fatalError(BcErr e) {
+	bc_vm_err(e);
+#if !BC_ENABLE_LIBRARY && !BC_ENABLE_MEMCHECK
+	abort();
+#endif // !BC_ENABLE_LIBRARY && !BC_ENABLE_MEMCHECK
+}
+
 #if BC_ENABLE_LIBRARY
 void bc_vm_handleError(BcErr e) {
 
@@ -229,8 +239,19 @@ void bc_vm_handleError(BcErr e, size_t line, ...) {
 
 	s = bc_file_flushErr(&vm.ferr);
 
-	vm.status = s == BC_STATUS_ERROR_FATAL ?
-	    (sig_atomic_t) s : (sig_atomic_t) (uchar) (id + 1);
+#if !BC_ENABLE_MEMCHECK
+	// Because this function is called by a BC_NORETURN function when fatal
+	// errors happen, we need to make sure to exit on fatal errors. This will
+	// be faster anyway. This function *cannot jump when a fatal error occurs!*
+	if (BC_ERR(id == BC_ERR_IDX_FATAL || s == BC_STATUS_ERROR_FATAL))
+		exit(bc_vm_atexit((int) BC_STATUS_ERROR_FATAL));
+#else // !BC_ENABLE_MEMCHECK
+	if (BC_ERR(s == BC_STATUS_ERROR_FATAL)) vm.status = (sig_atomic_t) s;
+	else
+#endif // !BC_ENABLE_MEMCHECK
+	{
+		vm.status = (sig_atomic_t) (uchar) (id + 1);
+	}
 
 	if (BC_ERR(vm.status)) BC_VM_JMP;
 
@@ -367,14 +388,14 @@ void bc_vm_freeTemps(void) {
 inline size_t bc_vm_arraySize(size_t n, size_t size) {
 	size_t res = n * size;
 	if (BC_ERR(res >= SIZE_MAX || (n != 0 && res / n != size)))
-		bc_vm_err(BC_ERR_FATAL_ALLOC_ERR);
+		bc_vm_fatalError(BC_ERR_FATAL_ALLOC_ERR);
 	return res;
 }
 
 inline size_t bc_vm_growSize(size_t a, size_t b) {
 	size_t res = a + b;
 	if (BC_ERR(res >= SIZE_MAX || res < a || res < b))
-		bc_vm_err(BC_ERR_FATAL_ALLOC_ERR);
+		bc_vm_fatalError(BC_ERR_FATAL_ALLOC_ERR);
 	return res;
 }
 
@@ -386,7 +407,7 @@ void* bc_vm_malloc(size_t n) {
 
 	ptr = malloc(n);
 
-	if (BC_ERR(ptr == NULL)) bc_vm_err(BC_ERR_FATAL_ALLOC_ERR);
+	if (BC_ERR(ptr == NULL)) bc_vm_fatalError(BC_ERR_FATAL_ALLOC_ERR);
 
 	return ptr;
 }
@@ -399,7 +420,7 @@ void* bc_vm_realloc(void *ptr, size_t n) {
 
 	temp = realloc(ptr, n);
 
-	if (BC_ERR(temp == NULL)) bc_vm_err(BC_ERR_FATAL_ALLOC_ERR);
+	if (BC_ERR(temp == NULL)) bc_vm_fatalError(BC_ERR_FATAL_ALLOC_ERR);
 
 	return temp;
 }
@@ -412,7 +433,7 @@ char* bc_vm_strdup(const char *str) {
 
 	s = strdup(str);
 
-	if (BC_ERR(!s)) bc_vm_err(BC_ERR_FATAL_ALLOC_ERR);
+	if (BC_ERR(s == NULL)) bc_vm_fatalError(BC_ERR_FATAL_ALLOC_ERR);
 
 	return s;
 }
@@ -477,18 +498,18 @@ static void bc_vm_clean(void) {
 
 #if BC_ENABLED
 		if (BC_IS_BC) {
-			bc_vec_npop(&f->labels, f->labels.len);
-			bc_vec_npop(&f->strs, f->strs.len);
-			bc_vec_npop(&f->consts, f->consts.len);
+			bc_vec_popAll(&f->labels);
+			bc_vec_popAll(&f->strs);
+			bc_vec_popAll(&f->consts);
 		}
 #endif // BC_ENABLED
 
 #if DC_ENABLED
 		// Note to self: you cannot delete strings and functions. Deal with it.
-		if (BC_IS_DC) bc_vec_npop(vm.prog.consts, vm.prog.consts->len);
+		if (BC_IS_DC) bc_vec_popAll(vm.prog.consts);
 #endif // DC_ENABLED
 
-		bc_vec_npop(&f->code, f->code.len);
+		bc_vec_popAll(&f->code);
 
 		ip->idx = 0;
 	}
@@ -659,9 +680,16 @@ err:
 
 	bc_vm_clean();
 
+#if !BC_ENABLE_MEMCHECK
+	assert(vm.status != BC_STATUS_ERROR_FATAL);
+
+	vm.status = vm.status == BC_STATUS_QUIT || !BC_I ?
+	            vm.status : BC_STATUS_SUCCESS;
+#else // !BC_ENABLE_MEMCHECK
 	vm.status = vm.status == BC_STATUS_ERROR_FATAL ||
 	            vm.status == BC_STATUS_QUIT || !BC_I ?
 	            vm.status : BC_STATUS_SUCCESS;
+#endif // !BC_ENABLE_MEMCHECK
 
 	if (!vm.status && !vm.eof) {
 		bc_vec_empty(&buffer);
@@ -779,7 +807,7 @@ static void bc_vm_exec(void) {
 			bc_vec_pushByte(&buf, '\0');
 			bc_vm_process(buf.v);
 
-			bc_vec_npop(&buf, buf.len);
+			bc_vec_popAll(&buf);
 
 		} while (more);
 
@@ -802,10 +830,14 @@ static void bc_vm_exec(void) {
 		bc_vm_file(path);
 	}
 
+#if BC_ENABLE_AFL
+	__AFL_INIT();
+#endif // BC_ENABLE_AFL
+
 	if (BC_IS_BC || !has_file) bc_vm_stdin();
 
 // These are all protected by ifndef NDEBUG because if these are needed, bc is
-// goingi to exit anyway, and I see no reason to include this code in a release
+// going to exit anyway, and I see no reason to include this code in a release
 // build when the OS is going to free all of the resources anyway.
 #ifndef NDEBUG
 	return;
@@ -917,3 +949,27 @@ void bc_vm_init(void) {
 	}
 #endif // BC_ENABLED
 }
+
+#if BC_ENABLE_LIBRARY
+void bc_vm_atexit(void) {
+
+	bc_vm_shutdown();
+
+#ifndef NDEBUG
+	bc_vec_free(&vm.jmp_bufs);
+#endif // NDEBUG
+}
+#else // BC_ENABLE_LIBRARY
+int bc_vm_atexit(int status) {
+
+	int s = BC_STATUS_IS_ERROR(status) ? status : BC_STATUS_SUCCESS;
+
+	bc_vm_shutdown();
+
+#ifndef NDEBUG
+	bc_vec_free(&vm.jmp_bufs);
+#endif // NDEBUG
+
+	return s;
+}
+#endif // BC_ENABLE_LIBRARY

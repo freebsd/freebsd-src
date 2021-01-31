@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -110,195 +110,12 @@ done < "$testdir/$d/all.txt"
 
 sh "$testdir/stdin.sh" "$d" "$exe" "$@"
 
-sh "$testdir/scripts.sh" "$d" "$extra" "$run_stack_tests" "$generate_tests" "$time_tests" "$exe" "$@"
+sh "$testdir/scripts.sh" "$d" "$extra" "$run_stack_tests" "$generate_tests" \
+	"$time_tests" "$exe" "$@"
 sh "$testdir/read.sh" "$d" "$exe" "$@"
 sh "$testdir/errors.sh" "$d" "$exe" "$@"
 
-num=100000000000000000000000000000000000000000000000000000000000000000000000000000
-numres="$num"
-num70="10000000000000000000000000000000000000000000000000000000000000000000\\
-0000000000"
-
-if [ "$d" = "bc" ]; then
-	halt="halt"
-	opt="x"
-	lopt="extended-register"
-	line_var="BC_LINE_LENGTH"
-else
-	halt="q"
-	opt="l"
-	lopt="mathlib"
-	line_var="DC_LINE_LENGTH"
-	num="$num pR"
-fi
-
-printf '\nRunning %s quit test...' "$d"
-
-printf '%s\n' "$halt" | "$exe" "$@" > /dev/null 2>&1
-
-if [ "$d" = bc ]; then
-	printf '%s\n' "quit" | "$exe" "$@" > /dev/null 2>&1
-	two=$("$exe" "$@" -e 1+1 -e quit)
-	if [ "$two" != "2" ]; then
-		err_exit "$d failed a quit test" 1
-	fi
-fi
-
-printf 'pass\n'
-
-base=$(basename "$exe")
-
-if [ "$base" != "bc" -a "$base" != "dc" ]; then
-	exit 0
-fi
-
-printf 'Running %s environment var tests...' "$d"
-
-if [ "$d" = "bc" ]; then
-	export BC_ENV_ARGS=" '-l' '' -q"
-	export BC_EXPR_EXIT="1"
-	printf 's(.02893)\n' | "$exe" "$@" > /dev/null
-	"$exe" -e 4 "$@" > /dev/null
-else
-	export DC_ENV_ARGS="'-x'"
-	export DC_EXPR_EXIT="1"
-	printf '4s stuff\n' | "$exe" "$@" > /dev/null
-	"$exe" -e 4pR "$@" > /dev/null
-fi
-
-printf 'pass\n'
-
-out1="$testdir/../.log_$d.txt"
-out2="$testdir/../.log_${d}_test.txt"
-
-printf 'Running %s line length tests...' "$d"
-
-printf '%s\n' "$numres" > "$out1"
-
-export "$line_var"=80
-printf '%s\n' "$num" | "$exe" "$@" > "$out2"
-
-diff "$out1" "$out2"
-
-printf '%s\n' "$num70" > "$out1"
-
-export "$line_var"=2147483647
-printf '%s\n' "$num" | "$exe" "$@" > "$out2"
-
-diff "$out1" "$out2"
-
-printf 'pass\n'
-
-printf 'Running %s arg tests...' "$d"
-
-f="$testdir/$d/add.txt"
-exprs=$(cat "$f")
-results=$(cat "$testdir/$d/add_results.txt")
-
-printf '%s\n%s\n%s\n%s\n' "$results" "$results" "$results" "$results" > "$out1"
-
-"$exe" "$@" -e "$exprs" -f "$f" --expression "$exprs" --file "$f" -e "$halt" > "$out2"
-
-diff "$out1" "$out2"
-
-printf '%s\n' "$halt" | "$exe" "$@" -- "$f" "$f" "$f" "$f" > "$out2"
-
-diff "$out1" "$out2"
-
-if [ "$d" = "bc" ]; then
-	printf '%s\n' "$halt" | "$exe" "$@" -i > /dev/null 2>&1
-fi
-
-printf '%s\n' "$halt" | "$exe" "$@" -h > /dev/null
-printf '%s\n' "$halt" | "$exe" "$@" -P > /dev/null
-printf '%s\n' "$halt" | "$exe" "$@" -v > /dev/null
-printf '%s\n' "$halt" | "$exe" "$@" -V > /dev/null
-
-set +e
-
-"$exe" "$@" -f "saotehasotnehasthistohntnsahxstnhalcrgxgrlpyasxtsaosysxsatnhoy.txt" > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "invalid file argument" "$out2" "$d"
-
-"$exe" "$@" "-$opt" -e "$exprs" > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "invalid option argument" "$out2" "$d"
-
-"$exe" "$@" "--$lopt" -e "$exprs" > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "invalid long option argument" "$out2" "$d"
-
-"$exe" "$@" "-u" -e "$exprs" > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "unrecognized option argument" "$out2" "$d"
-
-"$exe" "$@" "--uniform" -e "$exprs" > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "unrecognized long option argument" "$out2" "$d"
-
-"$exe" "$@" -f > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "missing required argument to short option" "$out2" "$d"
-
-"$exe" "$@" --file > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "missing required argument to long option" "$out2" "$d"
-
-"$exe" "$@" --version=5 > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "given argument to long option with no argument" "$out2" "$d"
-
-printf 'pass\n'
-
-printf 'Running %s directory test...' "$d"
-
-"$exe" "$@" "$testdir" > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "directory" "$out2" "$d"
-
-printf 'pass\n'
-
-printf 'Running %s binary file test...' "$d"
-
-bin="/bin/sh"
-
-"$exe" "$@" "$bin" > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "binary file" "$out2" "$d"
-
-printf 'pass\n'
-
-printf 'Running %s binary stdin test...' "$d"
-
-cat "$bin" | "$exe" "$@" > /dev/null 2> "$out2"
-err="$?"
-
-checktest "$d" "$err" "binary stdin" "$out2" "$d"
-
-printf 'pass\n'
-
-if [ "$d" = "bc" ]; then
-
-	printf 'Running %s limits tests...' "$d"
-	printf 'limits\n' | "$exe" "$@" > "$out2" /dev/null 2>&1
-
-	if [ ! -s "$out2" ]; then
-		err_exit "$d did not produce output on the limits test" 1
-	fi
-
-	printf 'pass\n'
-
-fi
+sh "$testdir/other.sh" "$d" "$exe" "$@"
 
 printf '\nAll %s tests passed.\n' "$d"
 

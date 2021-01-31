@@ -1,0 +1,7 @@
+zp10[00000000\00]pppppppppppppppR
+_1 _1(pR
+_1 _2(pR
+2 1{pR
+_1 1{pR 990+pR
+2000000 300000300000000+pR
+2070000000aaaaaaaaaaaaaaxaaaaaaaaaaaaR

@@ -1,0 +1,68 @@
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+# * Redistributions of source code must retain the above copyright notice, this
+#   list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright notice,
+#   this list of conditions and the following disclaimer in the documentation
+#   and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# AFL dictionary for bc
+#
+
+keyword_abs="abs"
+keyword_auto="auto"
+keyword_break="break"
+keyword_continue="continue"
+keyword_define="define"
+keyword_else="else"
+keyword_for="for"
+keyword_halt="halt"
+keyword_ibase="ibase"
+keyword_if="if"
+keyword_irand="irand"
+keyword_last="last"
+keyword_length="length"
+keyword_limits="limits"
+keyword_maxibase="maxibase"
+keyword_maxobase="maxobase"
+keyword_maxrand="maxrand"
+keyword_maxscale="maxscale"
+keyword_obase="obase"
+keyword_print="print"
+keyword_quit="quit"
+keyword_rand="rand"
+keyword_read="read"
+keyword_return="return"
+keyword_scale="scale"
+keyword_seed="seed"
+keyword_sqrt="sqrt"
+keyword_while="while"
+
+"{"
+"}"
+","
+"["
+"]"
+"1"
+"1.234"
+"-3.2892"
+"3e4"

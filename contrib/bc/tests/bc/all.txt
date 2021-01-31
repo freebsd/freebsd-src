@@ -1,4 +1,7 @@
 decimal
+print
+print2
+parse
 length
 scale
 shift
@@ -22,9 +25,6 @@ engineering
 globals
 strings
 letters
-print
-print2
-parse
 exponent
 log
 pi

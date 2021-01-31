@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -130,7 +130,7 @@ void bc_lex_number(BcLex *l, char start) {
 
 	l->t = BC_LEX_NUMBER;
 
-	bc_vec_npop(&l->str, l->str.len);
+	bc_vec_popAll(&l->str);
 	bc_vec_push(&l->str, &start);
 
 	l->i += bc_lex_num(l, start, false);

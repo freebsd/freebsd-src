@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -57,7 +57,12 @@ name="$testdir/$d/read.txt"
 results="$testdir/$d/read_results.txt"
 errors="$testdir/$d/read_errors.txt"
 
-out="$testdir/../.log_${d}_test.txt"
+out="$testdir/${d}_outputs/read_results.txt"
+outdir=$(dirname "$out")
+
+if [ ! -d "$outdir" ]; then
+	mkdir -p "$outdir"
+fi
 
 exebase=$(basename "$exe")
 
@@ -79,16 +84,16 @@ fi
 
 printf 'Running %s read...' "$d"
 
+set +e
+
 while read line; do
 
 	printf '%s\n%s\n' "$read_call" "$line" | "$exe" "$@" "$options" > "$out"
-	diff "$results" "$out"
+	checktest "$d" "$?" 'read' "$results" "$out"
 
 done < "$name"
 
 printf 'pass\n'
-
-set +e
 
 printf 'Running %s read errors...' "$d"
 
@@ -97,7 +102,7 @@ while read line; do
 	printf '%s\n%s\n' "$read_call" "$line" | "$exe" "$@" "$options" 2> "$out" > /dev/null
 	err="$?"
 
-	checktest "$d" "$err" "$line" "$out" "$exebase"
+	checkerrtest "$d" "$err" "$line" "$out" "$exebase"
 
 done < "$errors"
 
@@ -110,7 +115,7 @@ read_test=$(printf '%s\n' "$read_call")
 printf '%s\n' "$read_test" | "$exe" "$@" "$opts" 2> "$out" > /dev/null
 err="$?"
 
-checktest "$d" "$err" "$read_test" "$out" "$exebase"
+checkerrtest "$d" "$err" "$read_test" "$out" "$exebase"
 
 printf 'pass\n'
 
@@ -121,6 +126,6 @@ read_test=$(printf '%s' "$read_call")
 printf '%s' "$read_test" | "$exe" "$@" "$opts" 2> "$out" > /dev/null
 err="$?"
 
-checktest "$d" "$err" "$read_test" "$out" "$exebase"
+checkerrtest "$d" "$err" "$read_test" "$out" "$exebase"
 
-printf 'pass\n'
+exec printf 'pass\n'

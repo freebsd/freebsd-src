@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,6 @@
 
 int main(int argc, char *argv[]) {
 
-	int s;
 	char *name;
 	size_t len = strlen(BC_EXECPREFIX);
 
@@ -78,13 +77,5 @@ int main(int argc, char *argv[]) {
 exit:
 	BC_SIG_MAYLOCK;
 
-	s = !BC_STATUS_IS_ERROR(vm.status) ? BC_STATUS_SUCCESS : (int) vm.status;
-
-	bc_vm_shutdown();
-
-#ifndef NDEBUG
-	bc_vec_free(&vm.jmp_bufs);
-#endif // NDEBUG
-
-	return s;
+	return bc_vm_atexit((int) vm.status);
 }

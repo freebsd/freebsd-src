@@ -1,7 +1,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.\" Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+.\" Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions are met:
@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.TH "BC" "1" "October 2020" "Gavin D. Howard" "General Commands Manual"
+.TH "BC" "1" "January 2021" "Gavin D. Howard" "General Commands Manual"
 .SH NAME
 .PP
 bc - arbitrary-precision decimal arithmetic language and calculator
@@ -509,6 +509,10 @@ generator with \f[B]rand()\f[R] and \f[B]irand(E)\f[R] are guaranteed to
 This is a consequence of using a seeded pseudo-random number generator.
 However, they \f[I]are\f[R] guaranteed to be reproducible with identical
 \f[B]seed\f[R] values.
+This means that the pseudo-random values from bc(1) should only be used
+where a reproducible stream of pseudo-random numbers is
+\f[I]ESSENTIAL\f[R].
+In any other case, use a non-seeded pseudo-random number generator.
 .SS Numbers
 .PP
 Numbers are strings made up of digits, uppercase letters, and at most

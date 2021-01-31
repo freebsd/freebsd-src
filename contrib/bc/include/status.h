@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -45,6 +45,16 @@
 #ifndef DC_ENABLED
 #define DC_ENABLED (1)
 #endif // DC_ENABLED
+
+#if BC_ENABLE_AFL
+#ifndef __AFL_HAVE_MANUAL_CONTROL
+#error Must compile with afl-clang-fast for fuzzing
+#endif // __AFL_HAVE_MANUAL_CONTROL
+#endif // BC_ENABLE_AFL
+
+#ifndef BC_ENABLE_MEMCHECK
+#define BC_ENABLE_MEMCHECK (0)
+#endif // BC_ENABLE_MEMCHECK
 
 #include <bcl.h>
 
@@ -173,7 +183,7 @@ typedef enum BcErr {
 #endif // defined(__has_attribute) && __has_attribute(fallthrough)
 #else // defined(__clang__) || defined(__GNUC__)
 #define BC_FALLTHROUGH
-#endif //defined(__clang__) || defined(__GNUC__)
+#endif // defined(__clang__) || defined(__GNUC__)
 
 // Workarounds for AIX's POSIX incompatibility.
 #ifndef SIZE_MAX

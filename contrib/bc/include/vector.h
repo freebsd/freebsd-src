@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -91,6 +91,7 @@ bool bc_map_insert(BcVec *restrict v, const char *name,
 size_t bc_map_index(const BcVec *restrict v, const char *name);
 
 #define bc_vec_pop(v) (bc_vec_npop((v), 1))
+#define bc_vec_popAll(v) (bc_vec_npop((v), (v)->len))
 #define bc_vec_top(v) (bc_vec_item_rev((v), 0))
 
 #ifndef NDEBUG

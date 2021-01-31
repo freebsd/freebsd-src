@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1588,9 +1588,9 @@ static void bc_num_parseBase(BcNum *restrict n, const char *restrict val,
 		bc_num_add(&mult1, &temp, n, 0);
 	}
 
-	if (i == len && !(c = val[i])) goto int_err;
+	if (i == len && !val[i]) goto int_err;
 
-	assert(c == '.');
+	assert(val[i] == '.');
 
 	BC_SIG_LOCK;
 
@@ -2665,7 +2665,7 @@ void bc_num_rshift(BcNum *a, BcNum *b, BcNum *c, size_t scale) {
 void bc_num_sqrt(BcNum *restrict a, BcNum *restrict b, size_t scale) {
 
 	BcNum num1, num2, half, f, fprime, *x0, *x1, *temp;
-	size_t pow, len, rdx, req, digs, digs1, digs2, resscale;
+	size_t pow, len, rdx, req, resscale;
 	BcDig half_digs[1];
 
 	assert(a != NULL && b != NULL && a != b);
@@ -2736,7 +2736,7 @@ void bc_num_sqrt(BcNum *restrict a, BcNum *restrict b, size_t scale) {
 	}
 
 	// I can set the rdx here directly because neg should be false.
-	x0->scale = x0->rdx = digs = digs1 = digs2 = 0;
+	x0->scale = x0->rdx = 0;
 	resscale = (scale + BC_BASE_DIGS) + 2;
 
 	while (bc_num_cmp(x1, x0)) {

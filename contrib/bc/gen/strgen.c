@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -43,7 +43,7 @@
 #include <libgen.h>
 
 static const char* const bc_gen_header =
-	"// Copyright (c) 2018-2020 Gavin D. Howard and contributors.\n"
+	"// Copyright (c) 2018-2021 Gavin D. Howard and contributors.\n"
 	"// Licensed under the 2-clause BSD license.\n"
 	"// *** AUTOMATICALLY GENERATED FROM %s. DO NOT MODIFY. ***\n\n";
 

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -236,7 +236,9 @@ void bc_num_zero(BcNum *restrict n);
 void bc_num_one(BcNum *restrict n);
 ssize_t bc_num_cmpZero(const BcNum *n);
 
+#if !defined(NDEBUG) || BC_ENABLE_LIBRARY
 bool bc_num_strValid(const char *restrict val);
+#endif // !defined(NDEBUG) || BC_ENABLE_LIBRARY
 void bc_num_parse(BcNum *restrict n, const char *restrict val, BcBigDig base);
 void bc_num_print(BcNum *restrict n, BcBigDig base, bool newline);
 #if DC_ENABLED

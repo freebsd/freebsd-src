@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -96,7 +96,7 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt) {
 
 	BC_SIG_ASSERT_NOT_LOCKED;
 
-	bc_vec_npop(vec, vec->len);
+	bc_vec_popAll(vec);
 
 #if BC_ENABLE_PROMPT
 	if (BC_USE_PROMPT) {
@@ -143,7 +143,7 @@ BcStatus bc_read_chars(BcVec *vec, const char *prompt) {
 
 			BC_SIG_UNLOCK;
 
-			bc_vm_err(BC_ERR_FATAL_IO_ERR);
+			bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 		}
 
 		BC_SIG_UNLOCK;
