@@ -1139,7 +1139,6 @@ abortit:
 	if (xp != ip) {
 		if (doingdirectory)
 			panic("rename: lost dir entry");
-		VOP_UNLOCK(fvp);
 		if (newparent)
 			VOP_UNLOCK(fdvp);
 		vrele(ap->a_fvp);
