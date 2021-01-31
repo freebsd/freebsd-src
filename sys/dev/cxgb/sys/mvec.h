@@ -33,20 +33,6 @@
 #define _MVEC_H_
 #include <machine/bus.h>
 
-static __inline void
-busdma_map_mbuf_fast(bus_dma_tag_t tag, bus_dmamap_t map,
-    struct mbuf *m, bus_dma_segment_t *seg)
-{
-#if defined(__i386__) || defined(__amd64__)
-	seg->ds_addr = pmap_kextract(mtod(m, vm_offset_t));
-	seg->ds_len = m->m_len;
-#else
-	int nsegstmp;
-
-	bus_dmamap_load_mbuf_sg(tag, map, m, seg, &nsegstmp, 0);
-#endif
-}
-
 int busdma_map_sg_collapse(bus_dma_tag_t tag, bus_dmamap_t map,
     struct mbuf **m, bus_dma_segment_t *segs, int *nsegs);
 void busdma_map_sg_vec(bus_dma_tag_t tag, bus_dmamap_t map,

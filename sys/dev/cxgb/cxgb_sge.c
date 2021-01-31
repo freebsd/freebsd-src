@@ -322,7 +322,8 @@ coalesce_check(struct mbuf *m, void *arg)
 	int *nbytes = &ci->nbytes;
 
 	if ((*nbytes == 0) || ((*nbytes + m->m_len <= 10500) &&
-		(*count < 7) && (m->m_next == NULL))) {
+	    (*count < 7) && (m->m_next == NULL) &&
+	    ((mtod(m, vm_offset_t) & PAGE_MASK) + m->m_len <= PAGE_SIZE))) {
 		*count += 1;
 		*nbytes += m->m_len;
 		return (1);
