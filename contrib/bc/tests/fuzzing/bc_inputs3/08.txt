@@ -1,0 +1,3 @@
+define i(x){
+c0
+if(6)}

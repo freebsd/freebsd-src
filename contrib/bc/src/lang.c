@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -119,17 +119,17 @@ void bc_func_reset(BcFunc *f) {
 	BC_SIG_ASSERT_LOCKED;
 	assert(f != NULL);
 
-	bc_vec_npop(&f->code, f->code.len);
+	bc_vec_popAll(&f->code);
 
-	bc_vec_npop(&f->consts, f->consts.len);
+	bc_vec_popAll(&f->consts);
 
 #if BC_ENABLED
 	if (BC_IS_BC) {
 
-		bc_vec_npop(&f->strs, f->strs.len);
+		bc_vec_popAll(&f->strs);
 
-		bc_vec_npop(&f->autos, f->autos.len);
-		bc_vec_npop(&f->labels, f->labels.len);
+		bc_vec_popAll(&f->autos);
+		bc_vec_popAll(&f->labels);
 
 		f->nparams = 0;
 		f->voidfn = false;
@@ -183,7 +183,7 @@ void bc_array_copy(BcVec *d, const BcVec *s) {
 	assert(d != NULL && s != NULL);
 	assert(d != s && d->size == s->size && d->dtor == s->dtor);
 
-	bc_vec_npop(d, d->len);
+	bc_vec_popAll(d);
 	bc_vec_expand(d, s->cap);
 	d->len = s->len;
 

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -159,9 +159,9 @@ void bc_parse_reset(BcParse *p) {
 #if BC_ENABLED
 	if (BC_IS_BC) {
 		bc_vec_npop(&p->flags, p->flags.len - 1);
-		bc_vec_npop(&p->exits, p->exits.len);
-		bc_vec_npop(&p->conds, p->conds.len);
-		bc_vec_npop(&p->ops, p->ops.len);
+		bc_vec_popAll(&p->exits);
+		bc_vec_popAll(&p->conds);
+		bc_vec_popAll(&p->ops);
 	}
 #endif // BC_ENABLED
 

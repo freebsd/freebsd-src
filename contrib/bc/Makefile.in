@@ -1,7 +1,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -29,7 +29,7 @@
 #
 .POSIX:
 
-VERSION = 3.2.4
+VERSION = 3.2.6
 
 SRC = %%SRC%%
 OBJ = %%OBJ%%
@@ -40,6 +40,13 @@ BC_ENABLED_NAME = BC_ENABLED
 BC_ENABLED = %%BC_ENABLED%%
 DC_ENABLED_NAME = DC_ENABLED
 DC_ENABLED = %%DC_ENABLED%%
+
+HEADERS = include/args.h include/file.h include/lang.h include/lex.h include/num.h include/opt.h include/parse.h include/program.h include/read.h include/status.h include/vector.h include/vm.h
+BC_HEADERS = include/bc.h
+DC_HEADERS = include/dc.h
+HISTORY_HEADERS = include/history.h
+EXTRA_MATH_HEADERS = include/rand.h
+LIBRARY_HEADERS = include/bcl.h include/library.h
 
 GEN_DIR = gen
 GEN = %%GEN%%
@@ -81,6 +88,11 @@ BC = bc
 DC = dc
 BC_EXEC = $(BIN)/$(EXEC_PREFIX)$(BC)
 DC_EXEC = $(BIN)/$(EXEC_PREFIX)$(DC)
+
+BC_TEST_OUTPUTS = tests/bc_outputs
+BC_FUZZ_OUTPUTS = tests/fuzzing/bc_outputs1 tests/fuzzing/bc_outputs2 tests/fuzzing/bc_outputs3
+DC_TEST_OUTPUTS = tests/dc_outputs
+DC_FUZZ_OUTPUTS = tests/fuzzing/dc_outputs
 
 LIB = libbcl
 LIB_NAME = $(LIB).a
@@ -125,6 +137,9 @@ BC_ENABLE_NLS = %%NLS%%
 BC_ENABLE_PROMPT = %%PROMPT%%
 BC_LONG_BIT = %%LONG_BIT%%
 
+BC_ENABLE_AFL = %%FUZZ%%
+BC_ENABLE_MEMCHECK = %%MEMCHECK%%
+
 RM = rm
 MKDIR = mkdir
 
@@ -138,6 +153,8 @@ LOCALE_UNINSTALL = ./locale_uninstall.sh
 
 VALGRIND_ARGS = --error-exitcode=100 --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=all
 
+TEST_STARS = "***********************************************************************"
+
 BC_NUM_KARATSUBA_LEN = %%KARATSUBA_LEN%%
 
 CPPFLAGS1 = -D$(BC_ENABLED_NAME)=$(BC_ENABLED) -D$(DC_ENABLED_NAME)=$(DC_ENABLED)
@@ -147,7 +164,8 @@ CPPFLAGS4 = $(CPPFLAGS3) -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700
 CPPFLAGS5 = $(CPPFLAGS4) -DBC_NUM_KARATSUBA_LEN=$(BC_NUM_KARATSUBA_LEN)
 CPPFLAGS6 = $(CPPFLAGS5) -DBC_ENABLE_NLS=$(BC_ENABLE_NLS) -DBC_ENABLE_PROMPT=$(BC_ENABLE_PROMPT)
 CPPFLAGS7 = $(CPPFLAGS6) -D$(BC_ENABLE_EXTRA_MATH_NAME)=$(BC_ENABLE_EXTRA_MATH)
-CPPFLAGS = $(CPPFLAGS7) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY) -DBC_ENABLE_LIBRARY=$(BC_ENABLE_LIBRARY)
+CPPFLAGS8 = $(CPPFLAGS7) -DBC_ENABLE_HISTORY=$(BC_ENABLE_HISTORY) -DBC_ENABLE_LIBRARY=$(BC_ENABLE_LIBRARY)
+CPPFLAGS = $(CPPFLAGS8) -DBC_ENABLE_MEMCHECK=$(BC_ENABLE_MEMCHECK) -DBC_ENABLE_AFL=$(BC_ENABLE_AFL)
 CFLAGS = $(CPPFLAGS) %%CPPFLAGS%% %%CFLAGS%%
 LDFLAGS = %%LDFLAGS%%
 
@@ -159,20 +177,15 @@ HOSTCC = %%HOSTCC%%
 BC_LIB_C_ARGS = bc_lib bc_lib_name $(BC_ENABLED_NAME) 1
 BC_LIB2_C_ARGS = bc_lib2 bc_lib2_name "$(BC_ENABLED_NAME) && $(BC_ENABLE_EXTRA_MATH_NAME)" 1
 
-OBJS = $(BC_HELP_O) $(DC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(OBJ)
-OBJ_TARGETS = $(DC_HELP_O) $(BC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(OBJ)
+OBJS = $(DC_HELP_O) $(BC_HELP_O) $(BC_LIB_O) $(BC_LIB2_O) $(OBJ)
 
-.c.o:
-	$(CC) $(CFLAGS) -o $@ -c $<
+all: %%DEFAULT_TARGET%%
 
-all: %%ALL_PREREQ%%
+%%DEFAULT_TARGET%%: %%DEFAULT_TARGET_PREREQS%%
+	%%DEFAULT_TARGET_CMD%%
 
-execs: make_bin $(OBJ_TARGETS)
-	$(CC) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(EXEC)
-	%%LINK%%
-
-library: make_bin $(OBJ) $(BC_LIB_O) $(BC_LIB2_O)
-	ar -r -cu $(LIBBC) $(BC_LIB_O) $(BC_LIB2_O) $(OBJ)
+%%SECOND_TARGET%%: %%SECOND_TARGET_PREREQS%%
+	%%SECOND_TARGET_CMD%%
 
 $(GEN_EXEC):
 	%%GEN_EXEC_TARGET%%
@@ -180,17 +193,31 @@ $(GEN_EXEC):
 $(BC_LIB_C): $(GEN_EXEC) $(BC_LIB)
 	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB) $(BC_LIB_C) $(BC_LIB_C_ARGS)
 
+$(BC_LIB_O): $(BC_LIB_C)
+	$(CC) $(CFLAGS) -o $@ -c $<
+
 $(BC_LIB2_C): $(GEN_EXEC) $(BC_LIB2)
 	$(GEN_EMU) $(GEN_EXEC) $(BC_LIB2) $(BC_LIB2_C) $(BC_LIB2_C_ARGS)
+
+$(BC_LIB2_O): $(BC_LIB2_C)
+	$(CC) $(CFLAGS) -o $@ -c $<
 
 $(BC_HELP_C): $(GEN_EXEC) $(BC_HELP)
 	$(GEN_EMU) $(GEN_EXEC) $(BC_HELP) $(BC_HELP_C) bc_help "" $(BC_ENABLED_NAME)
 
+$(BC_HELP_O): $(BC_HELP_C)
+	$(CC) $(CFLAGS) -o $@ -c $<
+
 $(DC_HELP_C): $(GEN_EXEC) $(DC_HELP)
 	$(GEN_EMU) $(GEN_EXEC) $(DC_HELP) $(DC_HELP_C) dc_help "" $(DC_ENABLED_NAME)
 
-make_bin:
+$(DC_HELP_O): $(DC_HELP_C)
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+$(BIN):
 	$(MKDIR) -p $(BIN)
+
+headers: %%HEADERS%%
 
 help:
 	@printf 'available targets:\n'
@@ -222,40 +249,67 @@ help:
 	@printf '    valgrind_dc     runs the dc test suite, if dc has been built,\n'
 	@printf '                    through valgrind\n'
 
+run_all_tests:
+	%%BC_ALL_TESTS%%
+	%%TIMECONST_ALL_TESTS%%
+	%%DC_ALL_TESTS%%
+
 check: test
 
 test: %%TESTS%%
 
-test_bc:
-	%%BC_TEST%%
+test_bc: test_bc_header test_bc_tests test_bc_scripts test_bc_stdin test_bc_read test_bc_errors test_bc_other
+	@printf '\nAll bc tests passed.\n\n$(TEST_STARS)\n'
 
-test_dc:
-	%%DC_TEST%%
+test_bc_tests:%%BC_TESTS%%
 
-time_test: time_test_bc timeconst time_test_dc
+test_bc_scripts:%%BC_SCRIPT_TESTS%%
 
-time_test_bc:
-	%%BC_TIME_TEST%%
+test_bc_stdin:
+	@sh tests/stdin.sh bc %%BC_TEST_EXEC%%
 
-time_test_dc:
-	%%DC_TIME_TEST%%
+test_bc_read:
+	@sh tests/read.sh bc %%BC_TEST_EXEC%%
+
+test_bc_errors:
+	@sh tests/errors.sh bc %%BC_TEST_EXEC%%
+
+test_bc_other:
+	@sh tests/other.sh bc %%BC_TEST_EXEC%%
+
+test_bc_header:
+	@printf '$(TEST_STARS)\n\nRunning bc tests...\n\n'
+
+test_dc: test_dc_header test_dc_tests test_dc_scripts test_dc_stdin test_dc_read test_dc_errors test_dc_other
+	@printf '\nAll dc tests passed.\n\n$(TEST_STARS)\n'
+
+test_dc_tests:%%DC_TESTS%%
+
+test_dc_scripts:%%DC_SCRIPT_TESTS%%
+
+test_dc_stdin:
+	@sh tests/stdin.sh dc %%DC_TEST_EXEC%%
+
+test_dc_read:
+	@sh tests/read.sh dc %%DC_TEST_EXEC%%
+
+test_dc_errors:
+	@sh tests/errors.sh dc %%DC_TEST_EXEC%%
+
+test_dc_other:
+	@sh tests/other.sh dc %%DC_TEST_EXEC%%
+
+test_dc_header:
+	@printf '$(TEST_STARS)\n\nRunning dc tests...\n\n'
 
 timeconst:
 	%%TIMECONST%%
 
-library_test: library
+library_test: $(LIBBC)
 	$(CC) $(CFLAGS) $(BCL_TEST_C) $(LIBBC) -o $(BCL_TEST)
 
 test_library: library_test
 	$(BCL_TEST)
-
-valgrind: valgrind_bc valgrind_dc
-
-valgrind_bc:
-	%%VG_BC_TEST%%
-
-valgrind_dc:
-	%%VG_DC_TEST%%
 
 karatsuba:
 	%%KARATSUBA%%
@@ -296,6 +350,8 @@ clean:%%CLEAN_PREREQS%%
 	@$(RM) -f $(BC_LIB2_C) $(BC_LIB2_O)
 	@$(RM) -f $(BC_HELP_C) $(BC_HELP_O)
 	@$(RM) -f $(DC_HELP_C) $(DC_HELP_O)
+	@$(RM) -fr $(BC_TEST_OUTPUTS) $(DC_TEST_OUTPUTS)
+	@$(RM) -fr $(BC_FUZZ_OUTPUTS) $(DC_FUZZ_OUTPUTS)
 
 clean_config: clean
 	@printf 'Cleaning config...\n'

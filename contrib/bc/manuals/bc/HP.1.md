@@ -2,7 +2,7 @@
 
 SPDX-License-Identifier: BSD-2-Clause
 
-Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -395,7 +395,10 @@ generator.
 **Note**: The values returned by the pseudo-random number generator with
 **rand()** and **irand(E)** are guaranteed to *NOT* be cryptographically secure.
 This is a consequence of using a seeded pseudo-random number generator. However,
-they *are* guaranteed to be reproducible with identical **seed** values.
+they *are* guaranteed to be reproducible with identical **seed** values. This
+means that the pseudo-random values from bc(1) should only be used where a
+reproducible stream of pseudo-random numbers is *ESSENTIAL*. In any other case,
+use a non-seeded pseudo-random number generator.
 
 ## Numbers
 
