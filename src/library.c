@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -151,9 +151,7 @@ void bcl_free(void) {
 	bc_vec_free(&vm.ctxts);
 #endif // NDEBUG
 
-	bc_vm_shutdown();
-
-	bc_vec_free(&vm.jmp_bufs);
+	bc_vm_atexit();
 
 	BC_SIG_UNLOCK;
 
@@ -213,8 +211,8 @@ void bcl_ctxt_free(BclContext ctxt) {
 }
 
 void bcl_ctxt_freeNums(BclContext ctxt) {
-	bc_vec_npop(&ctxt->nums, ctxt->nums.len);
-	bc_vec_npop(&ctxt->free_nums, ctxt->free_nums.len);
+	bc_vec_popAll(&ctxt->nums);
+	bc_vec_popAll(&ctxt->free_nums);
 }
 
 size_t bcl_ctxt_scale(BclContext ctxt) {
@@ -891,7 +889,7 @@ char* bcl_string(BclNumber n) {
 
 	assert(nptr != NULL && nptr->num != NULL);
 
-	bc_vec_npop(&vm.out, vm.out.len);
+	bc_vec_popAll(&vm.out);
 
 	bc_num_print(nptr, (BcBigDig) ctxt->obase, false);
 	bc_vec_pushByte(&vm.out, '\0');

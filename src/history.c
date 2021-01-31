@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -383,7 +383,7 @@ static BcStatus bc_history_readCode(char *buf, size_t buf_len,
 	return BC_STATUS_SUCCESS;
 
 err:
-	if (BC_ERR(n < 0)) bc_vm_err(BC_ERR_FATAL_IO_ERR);
+	if (BC_ERR(n < 0)) bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 	else *nread = (size_t) n;
 	return BC_STATUS_EOF;
 }
@@ -441,7 +441,7 @@ static void bc_history_enableRaw(BcHistory *h) {
 	BC_SIG_LOCK;
 
 	if (BC_ERR(tcgetattr(STDIN_FILENO, &h->orig_termios) == -1))
-		bc_vm_err(BC_ERR_FATAL_IO_ERR);
+		bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 
 	BC_SIG_UNLOCK;
 
@@ -473,7 +473,7 @@ static void bc_history_enableRaw(BcHistory *h) {
 
 	BC_SIG_UNLOCK;
 
-	if (BC_ERR(err < 0)) bc_vm_err(BC_ERR_FATAL_IO_ERR);
+	if (BC_ERR(err < 0)) bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 
 	h->rawMode = true;
 }
@@ -948,7 +948,8 @@ static void bc_history_escape(BcHistory *h) {
 	}
 	else {
 
-		if (BC_ERR(BC_HIST_READ(seq + 1, 1))) bc_vm_err(BC_ERR_FATAL_IO_ERR);
+		if (BC_ERR(BC_HIST_READ(seq + 1, 1)))
+			bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 
 		// ESC [ sequences.
 		if (c == '[') {
@@ -959,13 +960,13 @@ static void bc_history_escape(BcHistory *h) {
 
 				// Extended escape, read additional byte.
 				if (BC_ERR(BC_HIST_READ(seq + 2, 1)))
-					bc_vm_err(BC_ERR_FATAL_IO_ERR);
+					bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 
 				if (seq[2] == '~' && c == '3') bc_history_edit_delete(h);
 				else if(seq[2] == ';') {
 
 					if (BC_ERR(BC_HIST_READ(seq, 2)))
-						bc_vm_err(BC_ERR_FATAL_IO_ERR);
+						bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 
 					if (seq[0] != '5') return;
 					else if (seq[1] == 'C') bc_history_edit_wordEnd(h);

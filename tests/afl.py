@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -89,6 +89,10 @@ def get_children(dir, get_files):
 	dirs.sort()
 	return dirs
 
+
+def exe_name(d):
+	return "bc" if d == "bc1" or d == "bc2" or d == "bc3" else "dc"
+
 script = sys.argv[0]
 testdir = os.path.dirname(script)
 
@@ -112,18 +116,26 @@ if asan:
 		usage()
 	exedir = sys.argv[idx]
 
+print("exedir: {}".format(exedir))
+
 if len(sys.argv) >= idx + 2:
 	resultsdir = sys.argv[idx + 1]
 else:
-	if exedir == "bc":
-		resultsdir = testdir + "/../../results"
+	if exedir == "bc1":
+		resultsdir = testdir + "/fuzzing/bc_outputs1"
+	elif exedir == "bc2":
+		resultsdir = testdir + "/fuzzing/bc_outputs2"
+	elif exedir == "bc3":
+		resultsdir = testdir + "/fuzzing/bc_outputs3"
 	else:
-		resultsdir = testdir + "/../../results_dc"
+		resultsdir = testdir + "/fuzzing/dc_outputs"
+
+print("resultsdir: {}".format(resultsdir))
 
 if len(sys.argv) >= idx + 3:
 	exe = sys.argv[idx + 2]
 else:
-	exe = testdir + "/../bin/" + exedir
+	exe = testdir + "/../bin/" + exe_name(exedir)
 
 exebase = os.path.basename(exe)
 
