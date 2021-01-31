@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -61,7 +61,7 @@ static void dc_lex_register(BcLex *l) {
 		bc_lex_name(l);
 	}
 	else {
-		bc_vec_npop(&l->str, l->str.len);
+		bc_vec_popAll(&l->str);
 		bc_vec_pushByte(&l->str, (uchar) l->buf[l->i - 1]);
 		bc_vec_pushByte(&l->str, '\0');
 		l->t = BC_LEX_NAME;
@@ -74,7 +74,7 @@ static void dc_lex_string(BcLex *l) {
 	char c;
 
 	l->t = BC_LEX_STR;
-	bc_vec_npop(&l->str, l->str.len);
+	bc_vec_popAll(&l->str);
 
 	for (; (c = l->buf[i]) && depth; ++i) {
 

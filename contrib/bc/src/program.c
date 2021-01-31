@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -454,7 +454,7 @@ static void bc_program_read(BcProgram *p) {
 	BC_SIG_UNLOCK;
 
 	bc_lex_file(&parse.l, bc_program_stdin_name);
-	bc_vec_npop(&f->code, f->code.len);
+	bc_vec_popAll(&f->code);
 
 	s = bc_read_line(&buf, BC_IS_BC ? "read> " : "?> ");
 	if (s == BC_STATUS_EOF) bc_vm_err(BC_ERR_EXEC_READ_EXPR);
@@ -723,13 +723,13 @@ static void bc_program_logical(BcProgram *p, uchar inst) {
 }
 
 #if DC_ENABLED
-static void bc_program_assignStr(BcProgram *p, BcResult *r,
+static void bc_program_assignStr(BcProgram *p, size_t idx,
                                  BcVec *v, bool push)
 {
 	BcNum n2;
 
 	bc_num_clear(&n2);
-	n2.scale = r->d.loc.loc;
+	n2.scale = idx;
 
 	assert(BC_PROG_STACK(&p->results, 1 + !push));
 
@@ -777,8 +777,13 @@ static void bc_program_copyToVar(BcProgram *p, size_t idx,
 
 #if DC_ENABLED
 	if (BC_IS_DC && (ptr->t == BC_RESULT_STR || BC_PROG_STR(n))) {
+
+		size_t str_idx = ptr->t == BC_RESULT_STR ? ptr->d.loc.loc : n->scale;
+
 		if (BC_ERR(!var)) bc_vm_err(BC_ERR_EXEC_TYPE);
-		bc_program_assignStr(p, ptr, vec, true);
+
+		bc_program_assignStr(p, str_idx, vec, true);
+
 		return;
 	}
 #endif // DC_ENABLED
@@ -864,7 +869,7 @@ static void bc_program_assign(BcProgram *p, uchar inst) {
 		}
 		else {
 			BcVec *v = bc_program_vec(p, left->d.loc.loc, BC_TYPE_VAR);
-			bc_program_assignStr(p, right, v, false);
+			bc_program_assignStr(p, idx, v, false);
 		}
 
 		return;
@@ -1249,8 +1254,10 @@ static void bc_program_builtin(BcProgram *p, uchar inst) {
 			{
 #if DC_ENABLED
 				if (!BC_PROG_NUM(opd, num)) {
+
 					size_t idx;
 					char *str;
+
 					idx = opd->t == BC_RESULT_STR ? opd->d.loc.loc : num->scale;
 					str = *((char**) bc_vec_item(p->strs, idx));
 					val = (BcBigDig) strlen(str);
@@ -1578,7 +1585,7 @@ err:
 	BC_SIG_MAYLOCK;
 	bc_parse_free(&prs);
 	f = bc_vec_item(&p->fns, fidx);
-	bc_vec_npop(&f->code, f->code.len);
+	bc_vec_popAll(&f->code);
 exit:
 	bc_vec_pop(&p->results);
 	BC_LONGJMP_CONT;
@@ -1714,7 +1721,6 @@ void bc_program_init(BcProgram *p) {
 
 	BcInstPtr ip;
 	size_t i;
-	BcBigDig val = BC_BASE;
 
 	BC_SIG_ASSERT_LOCKED;
 
@@ -1724,8 +1730,8 @@ void bc_program_init(BcProgram *p) {
 	memset(&ip, 0, sizeof(BcInstPtr));
 
 	for (i = 0; i < BC_PROG_GLOBALS_LEN; ++i) {
+		BcBigDig val = i == BC_PROG_GLOBALS_SCALE ? 0 : BC_BASE;
 		bc_vec_init(p->globals_v + i, sizeof(BcBigDig), NULL);
-		val = i == BC_PROG_GLOBALS_SCALE ? 0 : val;
 		bc_vec_push(p->globals_v + i, &val);
 		p->globals[i] = val;
 	}
@@ -1788,16 +1794,17 @@ void bc_program_reset(BcProgram *p) {
 	BC_SIG_ASSERT_LOCKED;
 
 	bc_vec_npop(&p->stack, p->stack.len - 1);
-	bc_vec_npop(&p->results, p->results.len);
+	bc_vec_popAll(&p->results);
 
 #if BC_ENABLED
 	if (BC_G) bc_program_popGlobals(p, true);
 #endif // BC_ENABLED
 
 	f = bc_vec_item(&p->fns, BC_PROG_MAIN);
+	bc_vec_npop(&f->code, f->code.len);
 	ip = bc_vec_top(&p->stack);
 	bc_program_setVecs(p, f);
-	ip->idx = f->code.len;
+	memset(ip, 0, sizeof(BcInstPtr));
 
 	if (vm.sig) {
 		bc_file_write(&vm.fout, bc_program_ready_msg, bc_program_ready_msg_len);
@@ -2145,7 +2152,7 @@ void bc_program_exec(BcProgram *p) {
 
 			case BC_INST_CLEAR_STACK:
 			{
-				bc_vec_npop(&p->results, p->results.len);
+				bc_vec_popAll(&p->results);
 				break;
 			}
 

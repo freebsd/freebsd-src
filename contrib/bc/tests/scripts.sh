@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -78,9 +78,12 @@ fi
 
 scriptdir="$testdir/$d/scripts"
 
-for s in $scriptdir/*.$d; do
+scripts=$(cat "$scriptdir/all.txt")
+
+for s in $scripts; do
 
 	f=$(basename "$s")
-	sh "$testdir/script.sh" "$d" "$f" "$run_extra_tests" "$run_stack_tests" "$generate" "$time_tests" "$exe" "$@"
+	sh "$testdir/script.sh" "$d" "$f" "$run_extra_tests" "$run_stack_tests" \
+		"$generate" "$time_tests" "$exe" "$@"
 
 done

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2018-2020 Gavin D. Howard and contributors.
+ * Copyright (c) 2018-2021 Gavin D. Howard and contributors.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -105,7 +105,7 @@ void bc_file_flush(BcFile *restrict f) {
 			vm.status = (sig_atomic_t) s;
 			BC_VM_JMP;
 		}
-		else bc_vm_err(BC_ERR_FATAL_IO_ERR);
+		else bc_vm_fatalError(BC_ERR_FATAL_IO_ERR);
 	}
 }
 
