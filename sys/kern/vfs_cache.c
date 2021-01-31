@@ -722,6 +722,27 @@ cache_get_hash(char *name, u_char len, struct vnode *dvp)
 	return (fnv_32_buf(name, len, dvp->v_nchash));
 }
 
+static uint32_t
+cache_get_hash_iter_start(struct vnode *dvp)
+{
+
+	return (dvp->v_nchash);
+}
+
+static uint32_t
+cache_get_hash_iter(char c, uint32_t hash)
+{
+
+	return (fnv_32_buf(&c, 1, hash));
+}
+
+static uint32_t
+cache_get_hash_iter_finish(uint32_t hash)
+{
+
+	return (hash);
+}
+
 static inline struct nchashhead *
 NCP2BUCKET(struct namecache *ncp)
 {
@@ -3693,11 +3714,11 @@ struct cache_fpl {
 	struct nameidata *ndp;
 	struct componentname *cnp;
 	char *nulchar;
-	struct pwd **pwd;
 	struct vnode *dvp;
 	struct vnode *tvp;
 	seqc_t dvp_seqc;
 	seqc_t tvp_seqc;
+	uint32_t hash;
 	struct nameidata_saved snd;
 	struct nameidata_outer snd_outer;
 	int line;
@@ -3705,6 +3726,7 @@ struct cache_fpl {
 	bool in_smr;
 	bool fsearch;
 	bool savename;
+	struct pwd **pwd;
 #ifdef INVARIANTS
 	struct cache_fpl_debug debug;
 #endif
@@ -4951,6 +4973,7 @@ cache_fplookup_next(struct cache_fpl *fpl)
 
 	cnp = fpl->cnp;
 	dvp = fpl->dvp;
+	hash = fpl->hash;
 
 	if (__predict_false(cnp->cn_nameptr[0] == '.')) {
 		if (cnp->cn_namelen == 1) {
@@ -4962,8 +4985,6 @@ cache_fplookup_next(struct cache_fpl *fpl)
 	}
 
 	MPASS(!cache_fpl_isdotdot(cnp));
-
-	hash = cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp);
 
 	CK_SLIST_FOREACH(ncp, (NCHHASH(hash)), nc_hash) {
 		if (ncp->nc_dvp == dvp && ncp->nc_nlen == cnp->cn_namelen &&
@@ -5246,10 +5267,13 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 {
 	struct nameidata *ndp;
 	struct componentname *cnp;
+	struct vnode *dvp;
 	char *cp;
+	uint32_t hash;
 
 	ndp = fpl->ndp;
 	cnp = fpl->cnp;
+	dvp = fpl->dvp;
 
 	/*
 	 * Find the end of this path component, it is either / or nul.
@@ -5257,6 +5281,8 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	 * Store / as a temporary sentinel so that we only have one character
 	 * to test for. Pathnames tend to be short so this should not be
 	 * resulting in cache misses.
+	 *
+	 * TODO: fix this to be word-sized.
 	 */
 	KASSERT(&cnp->cn_nameptr[fpl->debug.ni_pathlen - 1] == fpl->nulchar,
 	    ("%s: mismatch between pathlen (%zu) and nulchar (%p != %p), string [%s]\n",
@@ -5265,17 +5291,30 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	KASSERT(*fpl->nulchar == '\0',
 	    ("%s: expected nul at %p; string [%s]\n", __func__, fpl->nulchar,
 	    cnp->cn_pnbuf));
+	hash = cache_get_hash_iter_start(dvp);
 	*fpl->nulchar = '/';
 	for (cp = cnp->cn_nameptr; *cp != '/'; cp++) {
 		KASSERT(*cp != '\0',
 		    ("%s: encountered unexpected nul; string [%s]\n", __func__,
 		    cnp->cn_nameptr));
+		hash = cache_get_hash_iter(*cp, hash);
 		continue;
 	}
 	*fpl->nulchar = '\0';
+	fpl->hash = cache_get_hash_iter_finish(hash);
 
 	cnp->cn_namelen = cp - cnp->cn_nameptr;
 	cache_fpl_pathlen_sub(fpl, cnp->cn_namelen);
+
+#ifdef INVARIANTS
+	if (cnp->cn_namelen <= NAME_MAX) {
+		if (fpl->hash != cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp)) {
+			panic("%s: mismatched hash for [%s] len %ld", __func__,
+			    cnp->cn_nameptr, cnp->cn_namelen);
+		}
+	}
+#endif
+
 	/*
 	 * Hack: we have to check if the found path component's length exceeds
 	 * NAME_MAX. However, the condition is very rarely true and check can
