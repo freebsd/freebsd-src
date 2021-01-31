@@ -1202,7 +1202,7 @@ static int
 set_algo_inet_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 
-	return (set_fib_algo(RT_DEFAULT_FIB, AF_INET, oidp, req));
+	return (set_fib_algo(curthread->td_proc->p_fibnum, AF_INET, oidp, req));
 }
 SYSCTL_PROC(_net_route_algo_inet, OID_AUTO, algo,
     CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
@@ -1214,7 +1214,7 @@ static int
 set_algo_inet6_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 
-	return (set_fib_algo(RT_DEFAULT_FIB, AF_INET6, oidp, req));
+	return (set_fib_algo(curthread->td_proc->p_fibnum, AF_INET6, oidp, req));
 }
 SYSCTL_PROC(_net_route_algo_inet6, OID_AUTO, algo,
     CTLFLAG_VNET | CTLTYPE_STRING | CTLFLAG_RW | CTLFLAG_MPSAFE, NULL, 0,
