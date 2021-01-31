@@ -1311,6 +1311,7 @@ static int softdep_flushcache = 0; /* Should we do BIO_FLUSH? */
  */
 static int stat_flush_threads;	/* number of softdep flushing threads */
 static int stat_worklist_push;	/* number of worklist cleanups */
+static int stat_delayed_inact;	/* number of delayed inactivation cleanups */
 static int stat_blk_limit_push;	/* number of times block limit neared */
 static int stat_ino_limit_push;	/* number of times inode limit neared */
 static int stat_blk_limit_hit;	/* number of times block slowdown imposed */
@@ -1344,6 +1345,8 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, flush_threads, CTLFLAG_RD,
     &stat_flush_threads, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, worklist_push,
     CTLFLAG_RW | CTLFLAG_STATS, &stat_worklist_push, 0,"");
+SYSCTL_INT(_debug_softdep, OID_AUTO, delayed_inactivations, CTLFLAG_RD,
+    &stat_delayed_inact, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, blk_limit_push,
     CTLFLAG_RW | CTLFLAG_STATS, &stat_blk_limit_push, 0,"");
 SYSCTL_INT(_debug_softdep, OID_AUTO, ino_limit_push,
@@ -13707,6 +13710,37 @@ softdep_slowdown(vp)
 	return (1);
 }
 
+static int
+softdep_request_cleanup_filter(struct vnode *vp, void *arg __unused)
+{
+	return ((vp->v_iflag & VI_OWEINACT) != 0 && vp->v_usecount == 0 &&
+	    ((vp->v_vflag & VV_NOSYNC) != 0 || VTOI(vp)->i_effnlink == 0));
+}
+
+static void
+softdep_request_cleanup_inactivate(struct mount *mp)
+{
+	struct vnode *vp, *mvp;
+	int error;
+
+	MNT_VNODE_FOREACH_LAZY(vp, mp, mvp, softdep_request_cleanup_filter,
+	    NULL) {
+		vholdl(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY);
+		VI_LOCK(vp);
+		if (vp->v_data != NULL && vp->v_usecount == 0) {
+			while ((vp->v_iflag & VI_OWEINACT) != 0) {
+				error = vinactive(vp);
+				if (error != 0 && error != ERELOOKUP)
+					break;
+			}
+			atomic_add_int(&stat_delayed_inact, 1);
+		}
+		VOP_UNLOCK(vp);
+		vdropl(vp);
+	}
+}
+
 /*
  * Called by the allocation routines when they are about to fail
  * in the hope that we can free up the requested resource (inodes
@@ -13819,6 +13853,33 @@ retry:
 			stat_worklist_push += 1;
 		FREE_LOCK(ump);
 	}
+
+	/*
+	 * Check that there are vnodes pending inactivation.  As they
+	 * have been unlinked, inactivating them will free up their
+	 * inodes.
+	 */
+	ACQUIRE_LOCK(ump);
+	if (resource == FLUSH_INODES_WAIT &&
+	    fs->fs_cstotal.cs_nifree <= needed &&
+	    fs->fs_pendinginodes <= needed) {
+		if ((ump->um_softdep->sd_flags & FLUSH_DI_ACTIVE) == 0) {
+			ump->um_softdep->sd_flags |= FLUSH_DI_ACTIVE;
+			FREE_LOCK(ump);
+			softdep_request_cleanup_inactivate(mp);
+			ACQUIRE_LOCK(ump);
+			ump->um_softdep->sd_flags &= ~FLUSH_DI_ACTIVE;
+			wakeup(&ump->um_softdep->sd_flags);
+		} else {
+			while ((ump->um_softdep->sd_flags &
+			    FLUSH_DI_ACTIVE) != 0) {
+				msleep(&ump->um_softdep->sd_flags,
+				    LOCK_PTR(ump), PVM, "ffsvina", hz);
+			}
+		}
+	}
+	FREE_LOCK(ump);
+
 	/*
 	 * If we still need resources and there are no more worklist
 	 * entries to process to obtain them, we have to start flushing
