@@ -591,6 +591,9 @@ ffs_unlock_debug(struct vop_unlock_args *ap)
 			VI_UNLOCK(vp);
 		}
 	}
+	KASSERT(vp->v_type != VDIR || vp->v_vnlock->lk_recurse != 0 ||
+	    (ip->i_flag & IN_ENDOFF) == 0,
+	    ("ufs dir vp %p ip %p flags %#x", vp, ip, ip->i_flag));
 #ifdef DIAGNOSTIC
 	if (VOP_ISLOCKED(vp) == LK_EXCLUSIVE && ip != NULL &&
 	    vp->v_vnlock->lk_recurse == 0)
