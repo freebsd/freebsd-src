@@ -117,9 +117,26 @@ ENTRY(memcmp)
 	cmpq	$16,%rdx
 	ja	101632f
 
-100816:
 	cmpb	$8,%dl
-	jl	100408f
+	jg	100816f
+
+	cmpb	$4,%dl
+	jg	100408f
+
+	cmpb	$2,%dl
+	jge	100204f
+
+	cmpb	$1,%dl
+	jl	100000f
+	movzbl	(%rdi),%eax
+	movzbl	(%rsi),%r8d
+	subl	%r8d,%eax
+100000:
+	POP_FRAME_POINTER
+	ret
+
+	ALIGN_TEXT
+100816:
 	movq	(%rdi),%r8
 	movq	(%rsi),%r9
 	cmpq	%r8,%r9
@@ -130,9 +147,8 @@ ENTRY(memcmp)
 	jne	10081608f
 	POP_FRAME_POINTER
 	ret
+	ALIGN_TEXT
 100408:
-	cmpb	$4,%dl
-	jl	100204f
 	movl	(%rdi),%r8d
 	movl	(%rsi),%r9d
 	cmpl	%r8d,%r9d
@@ -143,9 +159,8 @@ ENTRY(memcmp)
 	jne	10040804f
 	POP_FRAME_POINTER
 	ret
+	ALIGN_TEXT
 100204:
-	cmpb	$2,%dl
-	jl	100001f
 	movzwl	(%rdi),%r8d
 	movzwl	(%rsi),%r9d
 	cmpl	%r8d,%r9d
@@ -156,16 +171,7 @@ ENTRY(memcmp)
 	jne	1f
 	POP_FRAME_POINTER
 	ret
-100001:
-	cmpb	$1,%dl
-	jl	100000f
-	movzbl	(%rdi),%eax
-	movzbl	(%rsi),%r8d
-	subl	%r8d,%eax
-100000:
-	POP_FRAME_POINTER
-	ret
-ALIGN_TEXT
+	ALIGN_TEXT
 101632:
 	cmpq	$32,%rdx
 	ja	103200f
@@ -187,7 +193,7 @@ ALIGN_TEXT
 	jne	10163224f
 	POP_FRAME_POINTER
 	ret
-ALIGN_TEXT
+	ALIGN_TEXT
 103200:
 	movq	(%rdi),%r8
 	movq	8(%rdi),%r9
@@ -218,7 +224,7 @@ ALIGN_TEXT
  *
  * Before we compute it we narrow down the range (16 -> 8 -> 4 bytes).
  */
-ALIGN_TEXT
+	ALIGN_TEXT
 10320016:
 	leaq	16(%rdi),%rdi
 	leaq	16(%rsi),%rsi
@@ -230,29 +236,29 @@ ALIGN_TEXT
 	leaq	8(%rdi),%rdi
 	leaq	8(%rsi),%rsi
 	jmp	80f
-ALIGN_TEXT
+	ALIGN_TEXT
 10081608:
 10163224:
 	leaq	-8(%rdi,%rdx),%rdi
 	leaq	-8(%rsi,%rdx),%rsi
 	jmp	80f
-ALIGN_TEXT
+	ALIGN_TEXT
 10163216:
 	leaq	-16(%rdi,%rdx),%rdi
 	leaq	-16(%rsi,%rdx),%rsi
 	jmp	80f
-ALIGN_TEXT
+	ALIGN_TEXT
 10163208:
 	leaq	8(%rdi),%rdi
 	leaq	8(%rsi),%rsi
 	jmp	80f
-ALIGN_TEXT
+	ALIGN_TEXT
 10040804:
 	leaq	-4(%rdi,%rdx),%rdi
 	leaq	-4(%rsi,%rdx),%rsi
 	jmp	1f
 
-ALIGN_TEXT
+	ALIGN_TEXT
 80:
 	movl	(%rdi),%r8d
 	movl	(%rsi),%r9d
