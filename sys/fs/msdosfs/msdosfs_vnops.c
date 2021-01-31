@@ -1122,6 +1122,14 @@ abortit:
 			VOP_UNLOCK(tdvp);
 		vrele(tdvp);
 		vrele(ap->a_fvp);
+		/*
+		 * fdvp may be locked and has a reference. We need to
+		 * release the lock and reference, unless to and from
+		 * directories are the same.  In that case it is already
+		 * unlocked.
+		 */
+		if (tdvp != fdvp)
+			vput(fdvp);
 		return 0;
 	}
 	xp = VTODE(fvp);
