@@ -893,6 +893,7 @@ t4vf_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 					txq->txpkts1_wrs = 0;
 					txq->txpkts0_pkts = 0;
 					txq->txpkts1_pkts = 0;
+					txq->txpkts_flush = 0;
 					mp_ring_reset_stats(txq->r);
 				}
 			}
