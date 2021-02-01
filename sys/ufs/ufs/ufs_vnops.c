@@ -252,9 +252,10 @@ ufs_mknod(ap)
 		DIP_SET(ip, i_rdev, vap->va_rdev);
 	}
 	/*
-	 * Remove inode, then reload it through VFS_VGET so it is
-	 * checked to see if it is an alias of an existing entry in
-	 * the inode cache.  XXX I don't believe this is necessary now.
+	 * Remove inode, then reload it through VFS_VGET().  This is
+	 * needed to do further inode initialization, for instance
+	 * fifo, which was too early for VFS_VGET() done as part of
+	 * UFS_VALLOC().
 	 */
 	(*vpp)->v_type = VNON;
 	ino = ip->i_number;	/* Save this before vgone() invalidates ip. */
