@@ -4961,6 +4961,7 @@ read_options:
 			break;
 
 		case TOK_EXT6HDR:
+			NEED1("missing extension header");
 			fill_ext6hdr( cmd, *av );
 			av++;
 			break;
