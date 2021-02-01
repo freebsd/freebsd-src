@@ -1253,7 +1253,7 @@ ixl_if_queues_free(if_ctx_t ctx)
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct ixl_vsi *vsi = &pf->vsi;
 
-	if (!vsi->enable_head_writeback) {
+	if (vsi->tx_queues != NULL && !vsi->enable_head_writeback) {
 		struct ixl_tx_queue *que;
 		int i = 0;
 
