@@ -38,8 +38,7 @@ __FBSDID("$FreeBSD$");
 	mov	x18, sp
 	sub	sp, sp, #128
 .endif
-	sub	sp, sp, #(TF_SIZE + 16)
-	stp	x29, lr, [sp, #(TF_SIZE)]
+	sub	sp, sp, #(TF_SIZE)
 	stp	x28, x29, [sp, #(TF_X + 28 * 8)]
 	stp	x26, x27, [sp, #(TF_X + 26 * 8)]
 	stp	x24, x25, [sp, #(TF_X + 24 * 8)]
@@ -132,7 +131,7 @@ __FBSDID("$FreeBSD$");
 	ldr	     x29, [sp, #(TF_X + 29 * 8)]
 .endif
 .if \el == 0
-	add	sp, sp, #(TF_SIZE + 16)
+	add	sp, sp, #(TF_SIZE)
 .else
 	mov	sp, x18
 	mrs	x18, tpidr_el1

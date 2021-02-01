@@ -69,7 +69,6 @@ stack_save_td(struct stack *st, struct thread *td)
 	if (TD_IS_RUNNING(td))
 		return (EOPNOTSUPP);
 
-	frame.sp = td->td_pcb->pcb_sp;
 	frame.fp = td->td_pcb->pcb_x[29];
 	frame.pc = td->td_pcb->pcb_lr;
 
@@ -81,11 +80,7 @@ void
 stack_save(struct stack *st)
 {
 	struct unwind_state frame;
-	uintptr_t sp;
 
-	__asm __volatile("mov %0, sp" : "=&r" (sp));
-
-	frame.sp = sp;
 	frame.fp = (uintptr_t)__builtin_frame_address(0);
 	frame.pc = (uintptr_t)stack_save;
 

@@ -34,7 +34,6 @@
 
 struct unwind_state {
 	uintptr_t fp;
-	uintptr_t sp;
 	uintptr_t pc;
 };
 
