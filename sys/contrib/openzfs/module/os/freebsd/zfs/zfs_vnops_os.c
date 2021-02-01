@@ -4463,7 +4463,6 @@ zfs_freebsd_fplookup_vexec(struct vop_fplookup_vexec_args *v)
 }
 #endif
 
-#if __FreeBSD_version >= 1400001
 static int
 zfs_freebsd_fplookup_symlink(struct vop_fplookup_symlink_args *v)
 {
@@ -4483,7 +4482,6 @@ zfs_freebsd_fplookup_symlink(struct vop_fplookup_symlink_args *v)
 	}
 	return (cache_symlink_resolve(v->a_fpl, target, strlen(target)));
 }
-#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct vop_access_args {
@@ -5797,9 +5795,7 @@ struct vop_vector zfs_vnodeops = {
 #if __FreeBSD_version >= 1300102
 	.vop_fplookup_vexec = zfs_freebsd_fplookup_vexec,
 #endif
-#if __FreeBSD_version >= 1400001
 	.vop_fplookup_symlink = zfs_freebsd_fplookup_symlink,
-#endif
 	.vop_access =		zfs_freebsd_access,
 	.vop_allocate =		VOP_EINVAL,
 	.vop_lookup =		zfs_cache_lookup,
@@ -5849,9 +5845,7 @@ struct vop_vector zfs_fifoops = {
 #if __FreeBSD_version >= 1300102
 	.vop_fplookup_vexec = zfs_freebsd_fplookup_vexec,
 #endif
-#if __FreeBSD_version >= 1400001
 	.vop_fplookup_symlink = zfs_freebsd_fplookup_symlink,
-#endif
 	.vop_access =		zfs_freebsd_access,
 	.vop_getattr =		zfs_freebsd_getattr,
 	.vop_inactive =		zfs_freebsd_inactive,
@@ -5875,9 +5869,7 @@ struct vop_vector zfs_shareops = {
 #if __FreeBSD_version >= 1300121
 	.vop_fplookup_vexec =	VOP_EAGAIN,
 #endif
-#if __FreeBSD_version >= 1400001
 	.vop_fplookup_symlink =	VOP_EAGAIN,
-#endif
 	.vop_access =		zfs_freebsd_access,
 	.vop_inactive =		zfs_freebsd_inactive,
 	.vop_reclaim =		zfs_freebsd_reclaim,
