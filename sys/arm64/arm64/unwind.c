@@ -45,7 +45,6 @@ unwind_frame(struct thread *td, struct unwind_state *frame)
 	if (!kstack_contains(td, fp, sizeof(uintptr_t) * 2))
 		return (false);
 
-	frame->sp = fp + sizeof(uintptr_t) * 2;
 	/* FP to previous frame (X29) */
 	frame->fp = ((uintptr_t *)fp)[0];
 	/* LR (X30) */
