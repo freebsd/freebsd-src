@@ -59,6 +59,17 @@ __FBSDID("$FreeBSD$");
 #include <mips/nlm/hal/pic.h>
 #include <mips/nlm/xlp.h>
 
+#define INTRCNT_COUNT	256
+#define	INTRNAME_LEN	(2*MAXCOMLEN + 1)
+
+MALLOC_DECLARE(M_MIPSINTR);
+MALLOC_DEFINE(M_MIPSINTR, "mipsintr", "MIPS interrupt handling");
+
+u_long *intrcnt;
+char *intrnames;
+size_t sintrcnt;
+size_t sintrnames;
+
 struct xlp_intrsrc {
 	void (*bus_ack)(int, void *);	/* Additional ack */
 	void *bus_ack_arg;		/* arg for additional ack */
@@ -294,6 +305,13 @@ cpu_init_interrupts()
 {
 	int i;
 	char name[MAXCOMLEN + 1];
+
+	intrcnt = mallocarray(INTRCNT_COUNT, sizeof(u_long), M_MIPSINTR,
+	    M_WAITOK | M_ZERO);
+	intrnames = mallocarray(INTRCNT_COUNT, INTRNAME_LEN, M_MIPSINTR,
+	    M_WAITOK | M_ZERO);
+	sintrcnt = INTRCNT_COUNT * sizeof(u_long);
+	sintrnames = INTRCNT_COUNT * INTRNAME_LEN;
 
 	/*
 	 * Initialize all available vectors so spare IRQ
