@@ -6,6 +6,7 @@
 SRCDIR=	${NCURSES_DIR}/menu
 
 LIB=	menuw
+SHLIB_MAJOR=	6
 
 .PATH: ${SRCDIR}
 SRCS=	\

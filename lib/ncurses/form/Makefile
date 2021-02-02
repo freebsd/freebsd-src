@@ -6,6 +6,7 @@
 SRCDIR=	${NCURSES_DIR}/form
 
 LIB=	formw
+SHLIB_MAJOR=	6
 
 .PATH: ${SRCDIR}
 SRCS=	\
