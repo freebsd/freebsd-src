@@ -584,6 +584,7 @@ MAN=	aac.4 \
 	vtnet.4 \
 	watchdog.4 \
 	${_wbwd.4} \
+	wg.4 \
 	witness.4 \
 	wlan.4 \
 	wlan_acl.4 \
