@@ -894,8 +894,10 @@ _rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 	target = (Elf_Addr)(defobj->relocbase + def->st_value);
 
     dbg("\"%s\" in \"%s\" ==> %p in \"%s\"",
-      defobj->strtab + def->st_name, basename(obj->path),
-      (void *)target, basename(defobj->path));
+      defobj->strtab + def->st_name,
+      obj->path == NULL ? NULL : basename(obj->path),
+      (void *)target,
+      defobj->path == NULL ? NULL : basename(defobj->path));
 
     /*
      * Write the new contents for the jmpslot. Note that depending on
