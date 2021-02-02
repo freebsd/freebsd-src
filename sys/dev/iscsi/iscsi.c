@@ -1018,7 +1018,7 @@ iscsi_pdu_handle_task_response(struct icl_pdu *response)
 		ISCSI_SESSION_WARN(is, "task response 0x%x",
 		    bhstmr->bhstmr_response);
 	} else {
-		aio = iscsi_outstanding_find(is, io->io_datasn);
+		aio = iscsi_outstanding_find(is, io->io_referenced_task_tag);
 		if (aio != NULL && aio->io_ccb != NULL)
 			iscsi_session_terminate_task(is, aio, CAM_REQ_ABORTED);
 	}
@@ -1157,6 +1157,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 	struct ccb_scsiio *csio;
 	size_t off, len, total_len;
 	int error;
+	uint32_t datasn = 0;
 
 	is = PDU_SESSION(response);
 
@@ -1182,8 +1183,6 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 	/*
 	 * XXX: Verify R2TSN.
 	 */
-
-	io->io_datasn = 0;
 
 	off = ntohl(bhsr2t->bhsr2t_buffer_offset);
 	if (off > csio->dxfer_len) {
@@ -1234,7 +1233,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 		    bhsr2t->bhsr2t_initiator_task_tag;
 		bhsdo->bhsdo_target_transfer_tag =
 		    bhsr2t->bhsr2t_target_transfer_tag;
-		bhsdo->bhsdo_datasn = htonl(io->io_datasn++);
+		bhsdo->bhsdo_datasn = htonl(datasn++);
 		bhsdo->bhsdo_buffer_offset = htonl(off);
 		error = icl_pdu_append_data(request, csio->data_ptr + off, len,
 		    M_NOWAIT);
@@ -2204,7 +2203,7 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 		xpt_done(ccb);
 		return;
 	}
-	io->io_datasn = aio->io_initiator_task_tag;
+	io->io_referenced_task_tag = aio->io_initiator_task_tag;
 
 	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
 	bhstmr->bhstmr_opcode = ISCSI_BHS_OPCODE_TASK_REQUEST;
