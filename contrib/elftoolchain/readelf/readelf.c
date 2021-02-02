@@ -2632,16 +2632,21 @@ dump_shdr(struct readelf *re)
 				    " %6.6jx %6.6jx %2.2jx  %2u %3u %2ju\n"
 				    "       %s\n", ST_CT);
 			else
-				printf("  [%2d] %-17.17s %-15.15s %8.8jx"
-				    " %6.6jx %6.6jx %2.2jx %3s %2u %3u %2ju\n",
-				    S_CT);
+				if (re->options & RE_WW)
+					printf("  [%2d] %-17s %-15.15s "
+					    "%8.8jx %6.6jx %6.6jx %2.2jx %3s "
+					    "%2u %3u %2ju\n", S_CT);
+				else
+					printf("  [%2d] %-17.17s %-15.15s "
+					    "%8.8jx %6.6jx %6.6jx %2.2jx %3s "
+					    "%2u %3u %2ju\n", S_CT);
 		} else if (re->options & RE_WW) {
 			if (re->options & RE_T)
 				printf("  [%2d] %s\n       %-15.15s %16.16jx"
 				    " %6.6jx %6.6jx %2.2jx  %2u %3u %2ju\n"
 				    "       %s\n", ST_CT);
 			else
-				printf("  [%2d] %-17.17s %-15.15s %16.16jx"
+				printf("  [%2d] %-17s %-15.15s %16.16jx"
 				    " %6.6jx %6.6jx %2.2jx %3s %2u %3u %2ju\n",
 				    S_CT);
 		} else {
