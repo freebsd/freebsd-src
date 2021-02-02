@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20210202:
+	Various LinuxKPI functionality was added which conflicts with DRM.
+	Please update your drm-kmod port to after the __FreeBSD_verison 1300139
+	update.
+
 20210122:
 	The stable/13 branch has been created from main.
 
