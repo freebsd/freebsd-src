@@ -41,6 +41,7 @@ __DEFAULT_YES_OPTIONS = \
     MODULE_DRM \
     MODULE_DRM2 \
     NETGRAPH \
+    OFED \
     PF \
     REPRODUCIBLE_BUILD \
     SCTP_SUPPORT \
@@ -54,7 +55,6 @@ __DEFAULT_NO_OPTIONS = \
     EXTRA_TCP_STACKS \
     KERNEL_RETPOLINE \
     NAND \
-    OFED \
     RATELIMIT
 
 # Some options are totally broken on some architectures. We disable
