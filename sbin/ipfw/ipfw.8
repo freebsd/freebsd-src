@@ -3271,6 +3271,9 @@ Reverse the way libalias handles aliasing.
 Obey transparent proxy rules only, packet aliasing is not performed.
 .It Cm skip_global
 Skip instance in case of global state lookup (see below).
+.It Cm port_range Ar lower-upper
+Set the aliasing ports between the ranges given. Upper port has to be greater
+than lower.
 .El
 .Pp
 Some specials value can be supplied instead of
