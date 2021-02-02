@@ -2,7 +2,7 @@
 
 PACKAGE=	dpv
 LIB=		dpv
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 INCS=		dpv.h
 MAN=		dpv.3
 MLINKS=		dpv.3 dpv_free.3

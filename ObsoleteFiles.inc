@@ -36,6 +36,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210204: bump shared libraries which link against ncurses
+OLD_LIBS+=lib/libedit.so.7
+OLD_LIBS+=usr/lib/libdialog.so.8
+OLD_LIBS+=usr/lib/libdpv.so.1
+OLD_LIBS+=usr/lib/libform.so.5
+OLD_LIBS+=usr/lib/libformw.so.5
+OLD_LIBS+=usr/lib/libmenu.so.5
+OLD_LIBS+=usr/lib/libmenuw.so.5
+OLD_LIBS+=usr/lib/libpanel.so.5
+OLD_LIBS+=usr/lib/libpanelw.so.5
+
 # 20210116: if_wl_wavelan.h removed
 .if ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/if_wl_wavelan.h
