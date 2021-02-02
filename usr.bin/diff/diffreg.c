@@ -490,6 +490,7 @@ opentemp(const char *f)
 		}
 	}
 	close(ifd);
+	lseek(ofd, (off_t)0, SEEK_SET);
 	return (fdopen(ofd, "r"));
 }
 
