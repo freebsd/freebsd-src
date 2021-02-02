@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 25, 2015
+.Dd January 19, 2021
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -151,6 +151,15 @@ this can cause a link at 10GB, 1GB, or 100MB.
 This is a display of the current setting.
 .It Va hw.ixl.fw_version
 This is a display of the Firmware version.
+.It Va dev.ixl.#.debug.switch_vlans
+Set the Ethertype used by the hardware itself to handle internal
+services.
+Frames with this Ethertype will be dropped without notice.
+Defaults to
+.Dv 0x88a8 ,
+which is a well known number for IEEE 802.1ad VLAN stacking.
+If you need 802.1ad support, set this number to any another Ethertype i.e.
+.Dv 0xffff .
 .El
 .Sh Interrupt Storms
 It is important to note that 40G operation can generate high
