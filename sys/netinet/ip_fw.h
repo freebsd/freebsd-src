@@ -549,6 +549,8 @@ struct nat44_cfg_nat {
 	struct in_addr	ip;		/* nat IPv4 address */
 	uint32_t	mode;		/* aliasing mode */
 	uint32_t	redir_cnt;	/* number of entry in spool chain */
+	u_short		alias_port_lo;	/* low range for port aliasing */
+	u_short		alias_port_hi;	/* high range for port aliasing */
 };
 
 /* Nat command. */

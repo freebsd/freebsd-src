@@ -65,6 +65,7 @@ static struct _s_x nat_params[] = {
  	{ "reset",		TOK_RESET_ADDR },
  	{ "reverse",		TOK_ALIAS_REV },
  	{ "proxy_only",		TOK_PROXY_ONLY },
+	{ "port_range",		TOK_PORT_ALIAS },
 	{ "redirect_addr",	TOK_REDIR_ADDR },
 	{ "redirect_port",	TOK_REDIR_PORT },
 	{ "redirect_proto",	TOK_REDIR_PROTO },
@@ -753,12 +754,35 @@ nat_show_cfg(struct nat44_cfg_nat *n, void *arg __unused)
 	printf("\n");
 }
 
+static int
+nat_port_alias_parse(char *str, u_short *lpout, u_short *hpout) {
+	long lp, hp;
+	char *ptr;
+	/* Lower port parsing */
+	lp = (long) strtol(str, &ptr, 10);
+	if (lp < 1024 || lp > 65535)
+		return 0;
+	if (!ptr || *ptr != '-')
+		return 0;
+	/* Upper port parsing */
+	hp = (long) strtol(ptr, &ptr, 10);
+	if (hp < 1024 || hp > 65535)
+		return 0;
+	if (ptr)
+		return 0;
+
+	*lpout = (u_short) lp;
+	*hpout = (u_short) hp;
+	return 1;
+}
+
 void
 ipfw_config_nat(int ac, char **av)
 {
 	ipfw_obj_header *oh;
 	struct nat44_cfg_nat *n;		/* Nat instance configuration. */
 	int i, off, tok, ac1;
+	u_short lp, hp;
 	char *id, *buf, **av1, *end;
 	size_t len;
 
@@ -786,6 +810,7 @@ ipfw_config_nat(int ac, char **av)
 		switch (tok) {
 		case TOK_IP:
 		case TOK_IF:
+		case TOK_PORT_ALIAS:
 			ac1--;
 			av1++;
 			break;
@@ -925,8 +950,24 @@ ipfw_config_nat(int ac, char **av)
 			n->redir_cnt++;
 			off += i;
 			break;
+		case TOK_PORT_ALIAS:
+			if (ac == 0)
+				errx(EX_DATAERR, "missing option");
+			if (!nat_port_alias_parse(av[0], &lp, &hp))
+				errx(EX_DATAERR,
+				    "You need a range of port(s) from 1024 <= x < 65536");
+			if (lp >= hp)
+				errx(EX_DATAERR,
+				    "Upper port has to be greater than lower port");
+			n->alias_port_lo = lp;
+			n->alias_port_hi = hp;
+			ac--;
+			av++;
+			break;
 		}
 	}
+	if (n->mode & PKT_ALIAS_SAME_PORTS && n->alias_port_lo)
+		errx(EX_DATAERR, "same_ports and port_range cannot both be selected");
 
 	i = do_set3(IP_FW_NAT44_XCONFIG, &oh->opheader, len);
 	if (i != 0)

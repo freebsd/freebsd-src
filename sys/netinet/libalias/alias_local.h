@@ -163,6 +163,10 @@ struct libalias {
 	struct in_addr	true_addr;	/* in network byte order. */
 	u_short		true_port;	/* in host byte order. */
 
+	/* Port ranges for aliasing. */
+	u_short		aliasPortLower;
+	u_short		aliasPortLength;
+
 	/*
 	 * sctp code support
 	 */

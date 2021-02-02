@@ -86,6 +86,7 @@ struct alias_link;
 /* Initialization and control functions. */
 struct libalias *LibAliasInit(struct libalias *);
 void		LibAliasSetAddress(struct libalias *, struct in_addr _addr);
+void		LibAliasSetAliasPortRange(struct libalias *la, u_short port_low, u_short port_hi);
 void		LibAliasSetFWBase(struct libalias *, unsigned int _base, unsigned int _num);
 void		LibAliasSetSkinnyPort(struct libalias *, unsigned int _port);
 unsigned int
