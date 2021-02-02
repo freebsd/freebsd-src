@@ -595,6 +595,11 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 			 */
 			port_net = lnk->src_port;
 			port_sys = ntohs(port_net);
+		} else if (la->aliasPortLower) {
+			/* First trial is a random port in the aliasing range. */
+			port_sys = la->aliasPortLower +
+			    (arc4random() % la->aliasPortLength);
+			port_net = htons(port_sys);
 		} else {
 			/* First trial and all subsequent are random. */
 			port_sys = arc4random() & ALIAS_PORT_MASK;
@@ -647,9 +652,15 @@ GetNewPort(struct libalias *la, struct alias_link *lnk, int alias_port_param)
 			}
 #endif
 		}
-		port_sys = arc4random() & ALIAS_PORT_MASK;
-		port_sys += ALIAS_PORT_BASE;
-		port_net = htons(port_sys);
+		if (la->aliasPortLower) {
+			port_sys = la->aliasPortLower +
+			    (arc4random() % la->aliasPortLength);
+			port_net = htons(port_sys);
+		} else {
+			port_sys = arc4random() & ALIAS_PORT_MASK;
+			port_sys += ALIAS_PORT_BASE;
+			port_net = htons(port_sys);
+		}
 	}
 
 #ifdef LIBALIAS_DEBUG
@@ -2378,6 +2389,19 @@ LibAliasSetAddress(struct libalias *la, struct in_addr addr)
 		CleanupAliasData(la);
 
 	la->aliasAddress = addr;
+	LIBALIAS_UNLOCK(la);
+}
+
+
+void
+LibAliasSetAliasPortRange(struct libalias *la, u_short port_low,
+    u_short port_high)
+{
+
+	LIBALIAS_LOCK(la);
+	la->aliasPortLower = port_low;
+	/* Add 1 to the aliasPortLength as modulo has range of 1 to n-1 */
+	la->aliasPortLength = port_high - port_low + 1;
 	LIBALIAS_UNLOCK(la);
 }
 
