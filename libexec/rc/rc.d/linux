@@ -18,6 +18,7 @@ stop_cmd=":"
 linux_start()
 {
 	local _emul_path _tmpdir
+	_emul_path="$(sysctl -n compat.linux.emul_path)"
 
 	load_kld -e 'linux(aout|elf)' linux
 	case `sysctl -n hw.machine_arch` in
@@ -25,11 +26,11 @@ linux_start()
 		load_kld -e 'linux64elf' linux64
 		;;
 	esac
-	if [ -x /compat/linux/sbin/ldconfigDisabled ]; then
+	if [ -x ${_emul_path}/sbin/ldconfigDisabled ]; then
 		_tmpdir=`mktemp -d -t linux-ldconfig`
-		/compat/linux/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
-		if ! cmp -s ${_tmpdir}/ld.so.cache /compat/linux/etc/ld.so.cache; then
-			cat ${_tmpdir}/ld.so.cache > /compat/linux/etc/ld.so.cache
+		${_emul_path}/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
+		if ! cmp -s ${_tmpdir}/ld.so.cache ${_emul_path}/etc/ld.so.cache; then
+			cat ${_tmpdir}/ld.so.cache > ${_emul_path}/etc/ld.so.cache
 		fi
 		rm -rf ${_tmpdir}
 	fi
@@ -47,7 +48,6 @@ linux_start()
 	fi
 
 	if checkyesno linux_mounts_enable; then 
-		_emul_path="/compat/linux"
 		mount -o nocover -t linprocfs linprocfs "${_emul_path}/proc"
 		mount -o nocover -t linsysfs linsysfs "${_emul_path}/sys"
 		mount -o nocover -t devfs devfs "${_emul_path}/dev"
