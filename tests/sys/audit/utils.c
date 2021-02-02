@@ -25,6 +25,8 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/extattr.h>
 #include <sys/ioctl.h>
 
 #include <bsm/libbsm.h>
@@ -202,6 +204,22 @@ check_audit(struct pollfd fd[], const char *auditrgx, FILE *pipestream) {
 
 	/* Teardown: /dev/auditpipe's instance opened for this test-suite */
 	ATF_REQUIRE_EQ(0, fclose(pipestream));
+}
+
+void
+skip_if_extattr_not_supported(const char *path)
+{
+	ssize_t result;
+
+	/*
+	 * Some file systems (e.g. tmpfs) do not support extattr, so we need
+	 * skip tests that use extattrs. To detect this we can check whether
+	 * the extattr_list_file returns EOPNOTSUPP.
+	 */
+	result = extattr_list_file(path, EXTATTR_NAMESPACE_USER, NULL, 0);
+	if (result == -1 && errno == EOPNOTSUPP) {
+		atf_tc_skip("File system does not support extattrs.");
+	}
 }
 
 FILE

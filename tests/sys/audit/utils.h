@@ -37,5 +37,26 @@
 void check_audit(struct pollfd [], const char *, FILE *);
 FILE *setup(struct pollfd [], const char *);
 void cleanup(void);
+void skip_if_extattr_not_supported(const char *);
+
+#define REQUIRE_EXTATTR_SUCCESS(call)						\
+	({									\
+		errno = 0; /* Reset errno before call */			\
+		ssize_t result = (call);					\
+		if (result == -1) {						\
+			atf_tc_fail_requirement(__FILE__, __LINE__,		\
+			    "%s failed with errno %d (%s)", #call, errno,	\
+			    strerror(errno));					\
+		}								\
+		result;								\
+	})
+
+#define REQUIRE_EXTATTR_RESULT(_expected, expr)					\
+	do {									\
+		ssize_t expected = (_expected);					\
+		ssize_t _result = REQUIRE_EXTATTR_SUCCESS(expr);		\
+		ATF_REQUIRE_EQ_MSG(expected, _result, "%s: %zd != %zd", #expr,	\
+		    expected, _result);						\
+	} while (0)
 
 #endif  /* _SETUP_H_ */
