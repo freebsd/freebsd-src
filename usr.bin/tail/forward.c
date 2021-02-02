@@ -367,7 +367,7 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 					continue;
 				ftmp = fileargs_fopen(fa, file->file_name, "r");
 				if (ftmp == NULL ||
-				    fstat(fileno(file->fp), &sb2) == -1) {
+				    fstat(fileno(ftmp), &sb2) == -1) {
 					if (errno != ENOENT)
 						ierr(file->file_name);
 					show(file);
