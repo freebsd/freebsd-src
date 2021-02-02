@@ -5495,6 +5495,16 @@ cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 	dvp_seqc = fpl->dvp_seqc;
 
 	/*
+	 * TODO: Due to ignoring slashes lookup will perform a permission check
+	 * on the last dir when it should not have. If it fails, we get here.
+	 * It is possible possible to fix it up fully without resorting to
+	 * regular lookup, but for now just abort.
+	 */
+	if (cache_fpl_istrailingslash(fpl)) {
+		return (cache_fpl_aborted(fpl));
+	}
+
+	/*
 	 * Hack: delayed name len checking.
 	 */
 	if (__predict_false(cnp->cn_namelen > NAME_MAX)) {
