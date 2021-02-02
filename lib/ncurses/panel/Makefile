@@ -6,6 +6,7 @@
 SRCDIR=	${NCURSES_DIR}/panel
 
 LIB=	panelw
+SHLIB_MAJOR=	6
 
 .PATH: ${SRCDIR}
 SRCS=	\

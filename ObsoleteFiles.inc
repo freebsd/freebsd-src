@@ -36,6 +36,17 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20210201: bump shared libraries which link against ncurses
+OLD_LIBS+=lib/libedit.so.7
+OLD_LIBS+=usr/lib/libdialog.so.8
+OLD_LIBS+=usr/lib/libdpv.so.1
+OLD_LIBS+=usr/lib/libform.so.5
+OLD_LIBS+=usr/lib/libformw.so.5
+OLD_LIBS+=usr/lib/libmenu.so.5
+OLD_LIBS+=usr/lib/libmenuw.so.5
+OLD_LIBS+=usr/lib/libpanel.so.5
+OLD_LIBS+=usr/lib/libpanelw.so.5
+
 # 20210125: ndis driver support removed
 OLD_FILES+=usr/sbin/ndiscvt
 OLD_FILES+=usr/sbin/ndisgen
