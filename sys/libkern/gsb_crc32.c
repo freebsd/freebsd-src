@@ -46,11 +46,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/gsb_crc32.h>
 
 #ifdef _KERNEL
 #include <sys/libkern.h>
 #include <sys/systm.h>
-#include <sys/gsb_crc32.h>
 
 #if defined(__amd64__) || defined(__i386__)
 #include <machine/md_var.h>
@@ -216,7 +216,10 @@ static const uint32_t crc32Table[256] = {
 	0xBE2DA0A5L, 0x4C4623A6L, 0x5F16D052L, 0xAD7D5351L
 };
 
-static uint32_t
+#ifndef TESTING
+static
+#endif
+uint32_t
 singletable_crc32c(uint32_t crc, const void *buf, size_t size)
 {
 	const uint8_t *p = buf;
@@ -730,10 +733,13 @@ crc32c_sb8_64_bit(uint32_t crc,
 	return crc;
 }
 
-static uint32_t
+#ifndef TESTING
+static
+#endif
+uint32_t
 multitable_crc32c(uint32_t crc32c,
-    const unsigned char *buffer,
-    unsigned int length)
+    const void *buffer,
+    size_t length)
 {
 	uint32_t to_even_word;
 

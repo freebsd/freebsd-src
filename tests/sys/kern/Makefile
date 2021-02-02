@@ -56,15 +56,15 @@ NETBSD_ATF_TESTS_C+=	sysv_test
 CFLAGS.mqueue_test+=	-I${SRCTOP}/tests
 LIBADD.mqueue_test+=	rt
 
-.if ${MACHINE_ARCH} == "amd64" || \
-    ${MACHINE_ARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "aarch64"
 ATF_TESTS_C+=	libkern_crc32
+SRCS.libkern_crc32+=	libkern_crc32.c
+.PATH: ${SRCTOP}/sys/libkern
+SRCS.libkern_crc32+=	gsb_crc32.c
+CFLAGS.libkern_crc32+=	-DTESTING
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
-LDADD.libkern_crc32+=	${SRCTOP}/sys/libkern/x86/crc32_sse42.c
-.else
-LDADD.libkern_crc32+=	${SRCTOP}/sys/libkern/arm64/crc32c_armv8.S
-.endif
+SRCS.libkern_crc32+=	${SRCTOP}/sys/libkern/x86/crc32_sse42.c
+.elif ${MACHINE_CPUARCH} == "aarch64"
+SRCS.libkern_crc32+=	${SRCTOP}/sys/libkern/arm64/crc32c_armv8.S
 .endif
 
 # subr_unit.c contains functions whose prototypes lie in headers that cannot be
