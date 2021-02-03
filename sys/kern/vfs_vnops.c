@@ -356,8 +356,6 @@ vn_open_vnode_advlock(struct vnode *vp, int fmode, struct file *fp)
 		fp->f_flag |= FHASLOCK;
 
 	vn_lock(vp, lock_flags | LK_RETRY);
-	if (error == 0 && VN_IS_DOOMED(vp))
-		error = ENOENT;
 	return (error);
 }
 
