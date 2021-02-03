@@ -1,6 +1,5 @@
 #-
 # Copyright 2016 Michal Meloun <mmel@FreeBSD.org>
-# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -23,12 +22,12 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
-#
 
 INTERFACE phynode;
 
 HEADER {
+	#include <dev/extres/phy/phy.h>
+
 	struct phynode;
 }
 
@@ -59,3 +58,12 @@ METHOD int status {
 };
 
 
+#
+# Set mode/submode for multiprotocol phy
+# Returns 0 on success or a standard errno value.
+#
+METHOD int set_mode  {
+	struct phynode	*phynode;
+	phy_mode_t	mode;
+	phy_submode_t	submode;
+};
