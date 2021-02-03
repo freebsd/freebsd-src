@@ -13847,6 +13847,7 @@ retry:
 			failed_vnode = softdep_request_cleanup_flush(mp, ump);
 			ACQUIRE_LOCK(ump);
 			ump->um_softdep->sd_flags &= ~FLUSH_RC_ACTIVE;
+			wakeup(&ump->um_softdep->sd_flags);
 			FREE_LOCK(ump);
 			if (ump->softdep_on_worklist > 0) {
 				stat_cleanup_retries += 1;
@@ -13854,6 +13855,11 @@ retry:
 					goto retry;
 			}
 		} else {
+			while ((ump->um_softdep->sd_flags &
+			    FLUSH_RC_ACTIVE) != 0) {
+				msleep(&ump->um_softdep->sd_flags,
+				    LOCK_PTR(ump), PVM, "ffsrca", hz);
+			}
 			FREE_LOCK(ump);
 			error = 0;
 		}
