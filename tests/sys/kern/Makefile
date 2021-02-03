@@ -62,9 +62,11 @@ SRCS.libkern_crc32+=	libkern_crc32.c
 SRCS.libkern_crc32+=	gsb_crc32.c
 CFLAGS.libkern_crc32+=	-DTESTING
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
-SRCS.libkern_crc32+=	${SRCTOP}/sys/libkern/x86/crc32_sse42.c
+.PATH: ${SRCTOP}/sys/libkern/x86
+SRCS.libkern_crc32+=	crc32_sse42.c
 .elif ${MACHINE_CPUARCH} == "aarch64"
-SRCS.libkern_crc32+=	${SRCTOP}/sys/libkern/arm64/crc32c_armv8.S
+.PATH: ${SRCTOP}/sys/libkern/arm64
+SRCS.libkern_crc32+=	crc32c_armv8.S
 .endif
 
 # subr_unit.c contains functions whose prototypes lie in headers that cannot be
