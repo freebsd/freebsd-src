@@ -736,9 +736,7 @@ timerfd_close(struct file *fp, struct thread *td)
 	timespecclear(&tfd->tfd_time.it_value);
 	timespecclear(&tfd->tfd_time.it_interval);
 
-	mtx_lock(&tfd->tfd_lock);
 	callout_drain(&tfd->tfd_callout);
-	mtx_unlock(&tfd->tfd_lock);
 
 	seldrain(&tfd->tfd_sel);
 	knlist_destroy(&tfd->tfd_sel.si_note);
