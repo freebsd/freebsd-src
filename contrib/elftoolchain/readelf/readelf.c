@@ -3741,9 +3741,7 @@ dump_notes_data(struct readelf *re, const char *name, uint32_t type,
 			return;
 		/* NT_FREEBSD_NOINIT_TAG carries no data, treat as unknown. */
 		case NT_FREEBSD_ARCH_TAG:
-			if (sz != 4)
-				goto unknown;
-			printf("   Arch tag: %x\n", ubuf[0]);
+			printf("   Arch tag: %s\n", buf);
 			return;
 		case NT_FREEBSD_FEATURE_CTL:
 			if (sz != 4)
