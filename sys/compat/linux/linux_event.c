@@ -981,6 +981,7 @@ linux_timerfd_settime(struct thread *td, struct linux_timerfd_settime_args *args
 		linux_timerfd_curval(tfd, &ots);
 
 	tfd->tfd_time = nts;
+	tfd->tfd_count = 0;
 	if (timespecisset(&nts.it_value)) {
 		linux_timerfd_clocktime(tfd, &cts);
 		ts = nts.it_value;
