@@ -424,12 +424,12 @@ extern	mb_t	*allocmbt(size_t);
 # define	USE_QUAD_T
 # define	U_QUAD_T	unsigned long long
 # define	QUAD_T		long long
-#else /* BSD > 199306 */
+#else /* BSD  */
 # if !defined(U_QUAD_T)
 #  define	U_QUAD_T	u_long
 #  define	QUAD_T		long
 # endif
-#endif /* BSD > 199306 */
+#endif /* BSD */
 
 
 #ifdef	USE_INET6
