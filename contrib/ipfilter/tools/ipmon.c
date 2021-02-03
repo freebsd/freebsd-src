@@ -1702,7 +1702,7 @@ int main(argc, argv)
 
 	if (make_daemon &&
 	    ((config.log != stdout) || (ipmonopts & IPMON_SYSLOG))) {
-#if BSD >= 199306
+#ifdef BSD
 		daemon(0, !(ipmonopts & IPMON_SYSLOG));
 #else
 		int pid;

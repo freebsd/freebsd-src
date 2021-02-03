@@ -12,9 +12,6 @@
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
-#if BSD < 199103
-#include <sys/fcntlcom.h>
-#endif
 #if (__FreeBSD_version >= 300000)
 # include <sys/dirent.h>
 #else

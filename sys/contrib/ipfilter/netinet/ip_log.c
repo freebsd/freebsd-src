@@ -734,7 +734,7 @@ ipf_log_read(softc, unit, uio)
 		return EIO;
 	}
 
-# if (defined(BSD) && (BSD >= 199101)) || defined(__FreeBSD__)
+# if defined(BSD)
 	uio->uio_rw = UIO_READ;
 # endif
 

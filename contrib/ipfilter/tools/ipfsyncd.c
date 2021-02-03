@@ -131,7 +131,7 @@ main(argc, argv)
 
 	if (!debuglevel) {
 
-#if BSD >= 199306
+#ifdef BSD
 		daemon(0, 0);
 #else
 		int fd = open("/dev/null", O_RDWR);

@@ -536,12 +536,8 @@ static int ipfclose(dev, flags
  * called during packet processing and cause an inconsistancy to appear in
  * the filter lists.
  */
-#if (BSD >= 199306)
 static int ipfread(dev, uio, ioflag)
 	int ioflag;
-#else
-static int ipfread(dev, uio)
-#endif
 #ifdef __FreeBSD_version
 	struct cdev *dev;
 #else
@@ -583,12 +579,8 @@ static int ipfread(dev, uio)
  * called during packet processing and cause an inconsistancy to appear in
  * the filter lists.
  */
-#if (BSD >= 199306)
 static int ipfwrite(dev, uio, ioflag)
 	int ioflag;
-#else
-static int ipfwrite(dev, uio)
-#endif
 #ifdef __FreeBSD_version
 	struct cdev *dev;
 #else
