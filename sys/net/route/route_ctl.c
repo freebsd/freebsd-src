@@ -101,7 +101,7 @@ SYSCTL_DECL(_net_route);
 #else
 #define _MP_FLAGS	CTLFLAG_RD
 #endif
-VNET_DEFINE(u_int, rib_route_multipath) = 0;
+VNET_DEFINE(u_int, rib_route_multipath) = 1;
 SYSCTL_UINT(_net_route, OID_AUTO, multipath, _MP_FLAGS | CTLFLAG_VNET,
     &VNET_NAME(rib_route_multipath), 0, "Enable route multipath");
 #undef _MP_FLAGS
