@@ -93,11 +93,7 @@ struct	proc	*proc;
 #endif
 
 
-#if BSD < 199103
-static	struct	proc	*getproc(void);
-#else
 static	struct	kinfo_proc	*getproc(void);
-#endif
 
 
 int	kmemcpy(buf, pos, n)
