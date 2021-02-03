@@ -51,14 +51,14 @@ i40e_dmamap_cb(void *arg, bus_dma_segment_t * segs, int nseg, int error)
 i40e_status
 i40e_allocate_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem, u32 size)
 {
-	mem->va = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
+	mem->va = malloc(size, M_IXL, M_NOWAIT | M_ZERO);
 	return (mem->va == NULL);
 }
 
 i40e_status
 i40e_free_virt_mem(struct i40e_hw *hw, struct i40e_virt_mem *mem)
 {
-	free(mem->va, M_DEVBUF);
+	free(mem->va, M_IXL);
 	mem->va = NULL;
 
 	return (I40E_SUCCESS);
