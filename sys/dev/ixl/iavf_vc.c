@@ -456,7 +456,7 @@ iavf_add_vlans(struct iavf_sc *sc)
 
 	/* Get count of VLAN filters to add */
 	SLIST_FOREACH(f, sc->vlan_filters, next) {
-		if (f->flags & IXL_FILTER_ADD)
+		if (f->flags & IAVF_FILTER_ADD)
 			cnt++;
 	}
 
@@ -484,9 +484,9 @@ iavf_add_vlans(struct iavf_sc *sc)
 
 	/* Scan the filter array */
 	SLIST_FOREACH_SAFE(f, sc->vlan_filters, next, ftmp) {
-                if (f->flags & IXL_FILTER_ADD) {
+                if (f->flags & IAVF_FILTER_ADD) {
                         bcopy(&f->vlan, &v->vlan_id[i], sizeof(u16));
-			f->flags = IXL_FILTER_USED;
+			f->flags = IAVF_FILTER_USED;
                         i++;
                 }
                 if (i == cnt)
@@ -514,7 +514,7 @@ iavf_del_vlans(struct iavf_sc *sc)
 
 	/* Get count of VLAN filters to delete */
 	SLIST_FOREACH(f, sc->vlan_filters, next) {
-		if (f->flags & IXL_FILTER_DEL)
+		if (f->flags & IAVF_FILTER_DEL)
 			cnt++;
 	}
 
@@ -542,7 +542,7 @@ iavf_del_vlans(struct iavf_sc *sc)
 
 	/* Scan the filter array */
 	SLIST_FOREACH_SAFE(f, sc->vlan_filters, next, ftmp) {
-                if (f->flags & IXL_FILTER_DEL) {
+                if (f->flags & IAVF_FILTER_DEL) {
                         bcopy(&f->vlan, &v->vlan_id[i], sizeof(u16));
                         i++;
                         SLIST_REMOVE(sc->vlan_filters, f, iavf_vlan_filter, next);
@@ -575,7 +575,7 @@ iavf_add_ether_filters(struct iavf_sc *sc)
 
 	/* Get count of MAC addresses to add */
 	SLIST_FOREACH(f, sc->mac_filters, next) {
-		if (f->flags & IXL_FILTER_ADD)
+		if (f->flags & IAVF_FILTER_ADD)
 			cnt++;
 	}
 	if (cnt == 0) { /* Should not happen... */
@@ -597,9 +597,9 @@ iavf_add_ether_filters(struct iavf_sc *sc)
 
 	/* Scan the filter array */
 	SLIST_FOREACH(f, sc->mac_filters, next) {
-		if (f->flags & IXL_FILTER_ADD) {
+		if (f->flags & IAVF_FILTER_ADD) {
 			bcopy(f->macaddr, a->list[j].addr, ETHER_ADDR_LEN);
-			f->flags &= ~IXL_FILTER_ADD;
+			f->flags &= ~IAVF_FILTER_ADD;
 			j++;
 
 			iavf_dbg_vc(sc, "ADD: " MAC_FORMAT "\n",
@@ -633,7 +633,7 @@ iavf_del_ether_filters(struct iavf_sc *sc)
 
 	/* Get count of MAC addresses to delete */
 	SLIST_FOREACH(f, sc->mac_filters, next) {
-		if (f->flags & IXL_FILTER_DEL)
+		if (f->flags & IAVF_FILTER_DEL)
 			cnt++;
 	}
 	if (cnt == 0) {
@@ -655,7 +655,7 @@ iavf_del_ether_filters(struct iavf_sc *sc)
 
 	/* Scan the filter array */
 	SLIST_FOREACH_SAFE(f, sc->mac_filters, next, f_temp) {
-		if (f->flags & IXL_FILTER_DEL) {
+		if (f->flags & IAVF_FILTER_DEL) {
 			bcopy(f->macaddr, d->list[j].addr, ETHER_ADDR_LEN);
 			iavf_dbg_vc(sc, "DEL: " MAC_FORMAT "\n",
 			    MAC_FORMAT_ARGS(f->macaddr));
