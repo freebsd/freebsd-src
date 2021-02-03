@@ -320,7 +320,7 @@ extra_chroot_setup() {
 				pkg clean -y
 		fi
 	fi
-	if [ -d ${CHROOTDIR}/usr/ports ]; then
+	if [ -z "${NODOC}" ] && [ -d ${CHROOTDIR}/usr/ports ]; then
 		# Trick the ports 'run-autotools-fixup' target to do the right
 		# thing.
 		_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
