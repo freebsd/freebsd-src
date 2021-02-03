@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
 
 VNET_DEFINE(struct pf_kanchor_global,	pf_anchors);
 VNET_DEFINE(struct pf_kanchor,		pf_main_anchor);
+VNET_DEFINE(struct pf_keth_settings*,	pf_keth);
+VNET_DEFINE(struct pf_keth_settings*,	pf_keth_inactive);
 
 static __inline int		pf_kanchor_compare(struct pf_kanchor *,
 				    struct pf_kanchor *);
@@ -143,6 +145,15 @@ pf_init_kruleset(struct pf_kruleset *ruleset)
 		ruleset->rules[i].active.ptr = &ruleset->rules[i].queues[0];
 		ruleset->rules[i].inactive.ptr = &ruleset->rules[i].queues[1];
 	}
+}
+
+void
+pf_init_keth(struct pf_keth_settings *settings)
+{
+
+	TAILQ_INIT(&settings->rules);
+	settings->ticket = 0;
+	settings->open = 0;
 }
 
 struct pf_kruleset *

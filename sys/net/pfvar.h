@@ -52,6 +52,7 @@
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/ethernet.h>
 #include <net/radix.h>
 #include <netinet/in.h>
 #ifdef _KERNEL
@@ -568,6 +569,61 @@ struct pf_rule_actions {
 	uint16_t	 dnpipe;
 	uint16_t	 dnrpipe;	/* Reverse direction pipe */
 	uint32_t	 flags;
+};
+
+union pf_keth_rule_ptr {
+	struct pf_keth_rule	*ptr;
+	uint32_t		nr;
+};
+
+struct pf_keth_rule_addr {
+	uint8_t	addr[ETHER_ADDR_LEN];
+	bool neg;
+	uint8_t	isset;
+};
+
+struct pf_keth_rule {
+#define PFE_SKIP_IFP		0
+#define PFE_SKIP_DIR		1
+#define PFE_SKIP_PROTO		2
+#define PFE_SKIP_SRC_ADDR	3
+#define PFE_SKIP_DST_ADDR	4
+#define PFE_SKIP_COUNT		5
+	union pf_keth_rule_ptr	 skip[PFE_SKIP_COUNT];
+
+	TAILQ_ENTRY(pf_keth_rule)	entries;
+
+	uint32_t		 nr;
+
+	bool			 quick;
+
+	/* Filter */
+	char			 ifname[IFNAMSIZ];
+	struct pfi_kkif		*kif;
+	bool			 ifnot;
+	uint8_t			 direction;
+	uint16_t		 proto;
+	struct pf_keth_rule_addr src, dst;
+
+	/* Stats */
+	counter_u64_t		 evaluations;
+	counter_u64_t		 packets[2];
+	counter_u64_t		 bytes[2];
+
+	/* Action */
+	char			 qname[PF_QNAME_SIZE];
+	int			 qid;
+	char			 tagname[PF_TAG_NAME_SIZE];
+	uint16_t		 tag;
+	uint8_t			 action;
+};
+
+TAILQ_HEAD(pf_keth_rules, pf_keth_rule);
+
+struct pf_keth_settings {
+	struct pf_keth_rules	rules;
+	uint32_t		ticket;
+	int			open;
 };
 
 union pf_krule_ptr {
@@ -1617,6 +1673,7 @@ struct pfioc_ruleset {
 
 #define PF_RULESET_ALTQ		(PF_RULESET_MAX)
 #define PF_RULESET_TABLE	(PF_RULESET_MAX+1)
+#define PF_RULESET_ETH		(PF_RULESET_MAX+2)
 struct pfioc_trans {
 	int		 size;	/* number of elements */
 	int		 esize; /* size of each element in bytes */
@@ -1756,6 +1813,9 @@ struct pfioc_iface {
 #define	DIOCSETSYNCOOKIES	_IOWR('D', 95, struct pfioc_nv)
 #define	DIOCKEEPCOUNTERS	_IOWR('D', 96, struct pfioc_nv)
 #define	DIOCKEEPCOUNTERS_FREEBSD13	_IOWR('D', 92, struct pfioc_nv)
+#define	DIOCADDETHRULE		_IOWR('D', 97, struct pfioc_nv)
+#define	DIOCGETETHRULE		_IOWR('D', 98, struct pfioc_nv)
+#define	DIOCGETETHRULES		_IOWR('D', 99, struct pfioc_nv)
 
 struct pf_ifspeed_v0 {
 	char			ifname[IFNAMSIZ];
@@ -1980,6 +2040,7 @@ extern void			 pf_addrcpy(struct pf_addr *, struct pf_addr *,
 				    u_int8_t);
 void				pf_free_rule(struct pf_krule *);
 
+int	pf_test_eth(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
 #ifdef INET
 int	pf_test(int, int, struct ifnet *, struct mbuf **, struct inpcb *);
 int	pf_normalize_ip(struct mbuf **, int, struct pfi_kkif *, u_short *,
@@ -2142,7 +2203,13 @@ VNET_DECLARE(struct pf_kanchor,			 pf_main_anchor);
 #define	V_pf_main_anchor			 VNET(pf_main_anchor)
 #define pf_main_ruleset	V_pf_main_anchor.ruleset
 
+VNET_DECLARE(struct pf_keth_settings*,		 pf_keth);
+#define	V_pf_keth				 VNET(pf_keth)
+VNET_DECLARE(struct pf_keth_settings*,		 pf_keth_inactive);
+#define	V_pf_keth_inactive			 VNET(pf_keth_inactive)
+
 void			 pf_init_kruleset(struct pf_kruleset *);
+void			 pf_init_keth(struct pf_keth_settings *);
 int			 pf_kanchor_setup(struct pf_krule *,
 			    const struct pf_kruleset *, const char *);
 int			 pf_kanchor_nvcopyout(const struct pf_kruleset *,
