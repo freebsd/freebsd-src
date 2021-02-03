@@ -43,6 +43,13 @@
 #define IAVF_MAX_QUEUES		16
 #define IAVF_AQ_TIMEOUT		(1 * hz)
 
+/* MacVlan Flags */
+#define IAVF_FILTER_USED	(u16)(1 << 0)
+#define IAVF_FILTER_VLAN	(u16)(1 << 1)
+#define IAVF_FILTER_ADD		(u16)(1 << 2)
+#define IAVF_FILTER_DEL		(u16)(1 << 3)
+#define IAVF_FILTER_MC		(u16)(1 << 4)
+
 #define IAVF_FLAG_AQ_ENABLE_QUEUES            (u32)(1 << 0)
 #define IAVF_FLAG_AQ_DISABLE_QUEUES           (u32)(1 << 1)
 #define IAVF_FLAG_AQ_ADD_MAC_FILTER           (u32)(1 << 2)
