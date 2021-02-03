@@ -705,8 +705,30 @@ out:
 }
 
 /*
+ * Hashing.
+ *
+ * The code was made to use FNV in 2001 and this choice needs to be revisited.
+ *
+ * Short summary of the difficulty:
+ * The longest name which can be inserted is NAME_MAX characters in length (or
+ * 255 at the time of writing this comment), while majority of names used in
+ * practice are significantly shorter (mostly below 10). More importantly
+ * majority of lookups performed find names are even shorter than that.
+ *
+ * This poses a problem where hashes which do better than FNV past word size
+ * (or so) tend to come with additional overhead when finalizing the result,
+ * making them noticeably slower for the most commonly used range.
+ *
+ * Consider a path like: /usr/obj/usr/src/sys/amd64/GENERIC/vnode_if.c
+ *
+ * When looking it up the most time consuming part by a large margin (at least
+ * on amd64) is hashing.  Replacing FNV with something which pessimizes short
+ * input would make the slowest part stand out even more.
+ */
+
+/*
  * TODO: With the value stored we can do better than computing the hash based
- * on the address. The choice of FNV should also be revisited.
+ * on the address.
  */
 static void
 cache_prehash(struct vnode *vp)
