@@ -1,6 +1,5 @@
 /*-
  * Copyright 2016 Michal Meloun <mmel@FreeBSD.org>
- * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,7 +24,6 @@
  */
 
  #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
 #include <sys/param.h>
@@ -271,6 +269,22 @@ phynode_disable(struct phynode *phynode)
 	return (0);
 }
 
+/*
+ * Set phy mode (protocol and its variant).
+ */
+int
+phynode_set_mode(struct phynode *phynode, phy_mode_t mode,
+    phy_submode_t submode)
+{
+	int rv;
+
+	PHY_TOPO_ASSERT();
+
+	PHYNODE_XLOCK(phynode);
+	rv = PHYNODE_SET_MODE(phynode, mode, submode);
+	PHYNODE_UNLOCK(phynode);
+	return (rv);
+}
 
 /*
  * Get phy status. (PHY_STATUS_*)
@@ -349,6 +363,22 @@ phy_disable(phy_t phy)
 	rv = phynode_disable(phynode);
 	if (rv == 0)
 		phy->enable_cnt--;
+	PHY_TOPO_UNLOCK();
+	return (rv);
+}
+
+int
+phy_set_mode(phy_t phy, phy_mode_t mode, phy_submode_t submode)
+{
+	int rv;
+	struct phynode *phynode;
+
+	phynode = phy->phynode;
+	KASSERT(phynode->ref_cnt > 0,
+	   ("Attempt to access unreferenced phy.\n"));
+
+	PHY_TOPO_SLOCK();
+	rv = phynode_set_mode(phynode, mode, submode);
 	PHY_TOPO_UNLOCK();
 	return (rv);
 }
