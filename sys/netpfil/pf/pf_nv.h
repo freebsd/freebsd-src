@@ -84,4 +84,6 @@ int		 pf_nvstate_kill_to_kstate_kill(const nvlist_t *,
 		    struct pf_kstate_kill *);
 nvlist_t	*pf_state_to_nvstate(const struct pf_kstate *);
 
+nvlist_t	*pf_keth_rule_to_nveth_rule(const struct pf_keth_rule *);
+int		 pf_nveth_rule_to_keth_rule(const nvlist_t *, struct pf_keth_rule *);
 #endif

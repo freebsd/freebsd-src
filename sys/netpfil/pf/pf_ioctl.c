@@ -106,6 +106,10 @@ static void		 pf_mv_kpool(struct pf_kpalist *, struct pf_kpalist *);
 static void		 pf_empty_kpool(struct pf_kpalist *);
 static int		 pfioctl(struct cdev *, u_long, caddr_t, int,
 			    struct thread *);
+static int		 pf_begin_eth(uint32_t *);
+static int		 pf_rollback_eth(uint32_t);
+static int		 pf_commit_eth(uint32_t);
+static void		 pf_free_eth_rule(struct pf_keth_rule *);
 #ifdef ALTQ
 static int		 pf_begin_altq(u_int32_t *);
 static int		 pf_rollback_altq(u_int32_t);
@@ -218,6 +222,10 @@ static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
 /*
  * Wrapper functions for pfil(9) hooks
  */
+static pfil_return_t pf_eth_check_in(struct mbuf **m, struct ifnet *ifp,
+    int flags, void *ruleset __unused, struct inpcb *inp);
+static pfil_return_t pf_eth_check_out(struct mbuf **m, struct ifnet *ifp,
+    int flags, void *ruleset __unused, struct inpcb *inp);
 #ifdef INET
 static pfil_return_t pf_check_in(struct mbuf **m, struct ifnet *ifp,
     int flags, void *ruleset __unused, struct inpcb *inp);
@@ -303,6 +311,9 @@ pfattach_vnet(void)
 
 	RB_INIT(&V_pf_anchors);
 	pf_init_kruleset(&pf_main_ruleset);
+
+	pf_init_keth(V_pf_keth);
+	pf_init_keth(V_pf_keth_inactive);
 
 	/* default rule should never be garbage collected */
 	V_pf_default_rule.entries.tqe_prev = &V_pf_default_rule.entries.tqe_next;
@@ -469,6 +480,32 @@ pf_unlink_rule(struct pf_krulequeue *rulequeue, struct pf_krule *rule)
 	rule->rule_ref |= PFRULE_REFS;
 	TAILQ_INSERT_TAIL(&V_pf_unlinked_rules, rule, entries);
 	PF_UNLNKDRULES_UNLOCK();
+}
+
+static void
+pf_free_eth_rule(struct pf_keth_rule *rule)
+{
+	PF_RULES_WASSERT();
+
+	if (rule == NULL)
+		return;
+
+	if (rule->tag)
+		tag_unref(&V_pf_tags, rule->tag);
+#ifdef ALTQ
+	pf_qid_unref(rule->qid);
+#endif
+
+	if (rule->kif)
+		pfi_kkif_unref(rule->kif);
+
+	counter_u64_free(rule->evaluations);
+	for (int i = 0; i < 2; i++) {
+		counter_u64_free(rule->packets[i]);
+		counter_u64_free(rule->bytes[i]);
+	}
+
+	free(rule, M_PFRULE);
 }
 
 void
@@ -655,6 +692,103 @@ static uint16_t
 pf_tagname2tag(const char *tagname)
 {
 	return (tagname2tag(&V_pf_tags, tagname));
+}
+
+static int
+pf_begin_eth(uint32_t *ticket)
+{
+	struct pf_keth_rule *rule, *tmp;
+
+	PF_RULES_WASSERT();
+
+	/* Purge old inactive rules. */
+	TAILQ_FOREACH_SAFE(rule, &V_pf_keth_inactive->rules, entries, tmp) {
+		TAILQ_REMOVE(&V_pf_keth_inactive->rules, rule, entries);
+		pf_free_eth_rule(rule);
+	}
+
+	*ticket = ++V_pf_keth_inactive->ticket;
+	V_pf_keth_inactive->open = 1;
+
+	return (0);
+}
+
+static int
+pf_rollback_eth(uint32_t ticket)
+{
+	struct pf_keth_rule *rule, *tmp;
+
+	PF_RULES_WASSERT();
+
+	if (!V_pf_keth_inactive->open || ticket != V_pf_keth_inactive->ticket)
+		return (0);
+
+	/* Purge old inactive rules. */
+	TAILQ_FOREACH_SAFE(rule, &V_pf_keth_inactive->rules, entries, tmp) {
+		TAILQ_REMOVE(&V_pf_keth_inactive->rules, rule, entries);
+		pf_free_eth_rule(rule);
+	}
+
+	V_pf_keth_inactive->open = 0;
+
+	return (0);
+}
+
+#define	PF_SET_SKIP_STEPS(i)					\
+	do {							\
+		while (head[i] != cur) {			\
+			head[i]->skip[i].ptr = cur;		\
+			head[i] = TAILQ_NEXT(head[i], entries);	\
+		}						\
+	} while (0)
+
+static void
+pf_eth_calc_skip_steps(struct pf_keth_rules *rules)
+{
+	struct pf_keth_rule *cur, *prev, *head[PFE_SKIP_COUNT];
+	int i;
+
+	cur = TAILQ_FIRST(rules);
+	prev = cur;
+	for (i = 0; i < PFE_SKIP_COUNT; ++i)
+		head[i] = cur;
+	while (cur != NULL) {
+		if (cur->kif != prev->kif || cur->ifnot != prev->ifnot)
+			PF_SET_SKIP_STEPS(PFE_SKIP_IFP);
+		if (cur->direction != prev->direction)
+			PF_SET_SKIP_STEPS(PFE_SKIP_DIR);
+		if (cur->proto != prev->proto)
+			PF_SET_SKIP_STEPS(PFE_SKIP_PROTO);
+		if (memcmp(&cur->src, &prev->src, sizeof(cur->src)) != 0)
+			PF_SET_SKIP_STEPS(PFE_SKIP_SRC_ADDR);
+		if (memcmp(&cur->dst, &prev->dst, sizeof(cur->dst)) != 0)
+			PF_SET_SKIP_STEPS(PFE_SKIP_DST_ADDR);
+
+		prev = cur;
+		cur = TAILQ_NEXT(cur, entries);
+	}
+	for (i = 0; i < PFE_SKIP_COUNT; ++i)
+		PF_SET_SKIP_STEPS(i);
+}
+
+static int
+pf_commit_eth(uint32_t ticket)
+{
+	struct pf_keth_settings *settings;
+
+	if (!V_pf_keth_inactive->open ||
+	    ticket != V_pf_keth_inactive->ticket)
+		return (EBUSY);
+
+	pf_eth_calc_skip_steps(&V_pf_keth_inactive->rules);
+
+	settings = V_pf_keth;
+	V_pf_keth = V_pf_keth_inactive;
+	V_pf_keth_inactive = settings;
+	V_pf_keth_inactive->ticket = V_pf_keth->ticket;
+
+	/* Clean up inactive rules. */
+	return (pf_rollback_eth(ticket));
 }
 
 #ifdef ALTQ
@@ -2219,6 +2353,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGIFSPEEDV1:
 		case DIOCSETIFFLAG:
 		case DIOCCLRIFFLAG:
+		case DIOCGETETHRULES:
+		case DIOCGETETHRULE:
 			break;
 		case DIOCRCLRTABLES:
 		case DIOCRADDTABLES:
@@ -2266,6 +2402,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		case DIOCGIFSPEEDV1:
 		case DIOCGIFSPEEDV0:
 		case DIOCGETRULENV:
+		case DIOCGETETHRULES:
+		case DIOCGETETHRULE:
 			break;
 		case DIOCRCLRTABLES:
 		case DIOCRADDTABLES:
@@ -2323,6 +2461,213 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			DPFPRINTF(PF_DEBUG_MISC, ("pf: stopped\n"));
 		}
 		break;
+
+	case DIOCGETETHRULES: {
+		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
+		nvlist_t		*nvl;
+		void			*packed;
+		struct pf_keth_rule	*tail;
+		u_int32_t		 ticket, nr;
+
+		nvl = NULL;
+		packed = NULL;
+
+#define	ERROUT(x)	do { error = (x); goto DIOCGETETHRULES_error; } while (0)
+
+		nvl = nvlist_create(0);
+		if (nvl == NULL)
+			ERROUT(ENOMEM);
+
+		PF_RULES_RLOCK();
+
+		ticket = V_pf_keth->ticket;
+		tail = TAILQ_LAST(&V_pf_keth->rules, pf_keth_rules);
+		if (tail)
+			nr = tail->nr + 1;
+		else
+			nr = 0;
+
+		PF_RULES_RUNLOCK();
+
+		nvlist_add_number(nvl, "ticket", ticket);
+		nvlist_add_number(nvl, "nr", nr);
+
+		packed = nvlist_pack(nvl, &nv->len);
+		if (packed == NULL)
+			ERROUT(ENOMEM);
+
+		if (nv->size == 0)
+			ERROUT(0);
+		else if (nv->size < nv->len)
+			ERROUT(ENOSPC);
+
+		error = copyout(packed, nv->data, nv->len);
+
+#undef ERROUT
+DIOCGETETHRULES_error:
+		free(packed, M_TEMP);
+		nvlist_destroy(nvl);
+		break;
+	}
+
+	case DIOCGETETHRULE: {
+		struct epoch_tracker	 et;
+		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
+		nvlist_t		*nvl = NULL;
+		void			*nvlpacked = NULL;
+		struct pf_keth_rule	*rule = NULL;
+		u_int32_t		 ticket, nr;
+
+#define ERROUT(x)	do { error = (x); goto DIOCGETETHRULE_error; } while (0)
+
+		nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+		if (nvlpacked == NULL)
+			ERROUT(ENOMEM);
+
+		error = copyin(nv->data, nvlpacked, nv->len);
+		if (error)
+			ERROUT(error);
+
+		nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+		if (! nvlist_exists_number(nvl, "ticket"))
+			ERROUT(EBADMSG);
+		ticket = nvlist_get_number(nvl, "ticket");
+
+		if (! nvlist_exists_number(nvl, "nr"))
+			ERROUT(EBADMSG);
+		nr = nvlist_get_number(nvl, "nr");
+
+		nvlist_destroy(nvl);
+		nvl = NULL;
+		free(nvlpacked, M_TEMP);
+		nvlpacked = NULL;
+
+		nvl = nvlist_create(0);
+
+		PF_RULES_RLOCK();
+		if (ticket != V_pf_keth->ticket) {
+			PF_RULES_RUNLOCK();
+			ERROUT(EBUSY);
+		}
+		rule = TAILQ_FIRST(&V_pf_keth->rules);
+		while ((rule != NULL) && (rule->nr != nr))
+			rule = TAILQ_NEXT(rule, entries);
+		if (rule == NULL) {
+			PF_RULES_RUNLOCK();
+			ERROUT(ENOENT);
+		}
+		/* Make sure rule can't go away. */
+		NET_EPOCH_ENTER(et);
+		PF_RULES_RUNLOCK();
+		nvl = pf_keth_rule_to_nveth_rule(rule);
+		NET_EPOCH_EXIT(et);
+		if (nvl == NULL)
+			ERROUT(ENOMEM);
+
+		nvlpacked = nvlist_pack(nvl, &nv->len);
+		if (nvlpacked == NULL)
+			ERROUT(ENOMEM);
+
+		if (nv->size == 0)
+			ERROUT(0);
+		else if (nv->size < nv->len)
+			ERROUT(ENOSPC);
+
+		error = copyout(nvlpacked, nv->data, nv->len);
+
+#undef ERROUT
+DIOCGETETHRULE_error:
+		free(nvlpacked, M_TEMP);
+		nvlist_destroy(nvl);
+		break;
+	}
+
+	case DIOCADDETHRULE: {
+		struct pfioc_nv		*nv = (struct pfioc_nv *)addr;
+		nvlist_t		*nvl = NULL;
+		void			*nvlpacked = NULL;
+		struct pf_keth_rule	*rule = NULL;
+		struct pfi_kkif		*kif = NULL;
+
+#define ERROUT(x)	do { error = (x); goto DIOCADDETHRULE_error; } while (0)
+
+		nvlpacked = malloc(nv->len, M_TEMP, M_WAITOK);
+		if (nvlpacked == NULL)
+			ERROUT(ENOMEM);
+
+		error = copyin(nv->data, nvlpacked, nv->len);
+		if (error)
+			ERROUT(error);
+
+		nvl = nvlist_unpack(nvlpacked, nv->len, 0);
+		if (nvl == NULL)
+			ERROUT(EBADMSG);
+
+		if (! nvlist_exists_number(nvl, "ticket"))
+			ERROUT(EBADMSG);
+
+		if (nvlist_get_number(nvl, "ticket") !=
+		    V_pf_keth_inactive->ticket) {
+			DPFPRINTF(PF_DEBUG_MISC,
+			    ("ticket: %d != %d\n",
+			    (u_int32_t)nvlist_get_number(nvl, "ticket"),
+			    V_pf_keth_inactive->ticket));
+			ERROUT(EBUSY);
+		}
+
+		rule = malloc(sizeof(*rule), M_PFRULE, M_WAITOK);
+		if (rule == NULL)
+			ERROUT(ENOMEM);
+
+		error = pf_nveth_rule_to_keth_rule(nvl, rule);
+		if (error != 0)
+			ERROUT(error);
+
+		if (rule->ifname[0])
+			kif = pf_kkif_create(M_WAITOK);
+		rule->evaluations = counter_u64_alloc(M_WAITOK);
+		for (int i = 0; i < 2; i++) {
+			rule->packets[i] = counter_u64_alloc(M_WAITOK);
+			rule->bytes[i] = counter_u64_alloc(M_WAITOK);
+		}
+
+		PF_RULES_WLOCK();
+
+		if (rule->ifname[0]) {
+			rule->kif = pfi_kkif_attach(kif, rule->ifname);
+			pfi_kkif_ref(rule->kif);
+		} else
+			rule->kif = NULL;
+
+#ifdef ALTQ
+		/* set queue IDs */
+		if (rule->qname[0] != 0) {
+			if ((rule->qid = pf_qname2qid(rule->qname)) == 0)
+				error = EBUSY;
+			else
+				rule->qid = rule->qid;
+		}
+#endif
+		if (rule->tagname[0])
+			if ((rule->tag = pf_tagname2tag(rule->tagname)) == 0)
+				error = EBUSY;
+
+		if (error) {
+			pf_free_eth_rule(rule);
+			PF_RULES_WUNLOCK();
+			ERROUT(error);
+		}
+
+		TAILQ_INSERT_TAIL(&V_pf_keth_inactive->rules, rule, entries);
+
+		PF_RULES_WUNLOCK();
+
+#undef ERROUT
+DIOCADDETHRULE_error:
+		nvlist_destroy(nvl);
+		free(nvlpacked, M_TEMP);
+		break;
+	}
 
 	case DIOCADDRULENV: {
 		struct pfioc_nv	*nv = (struct pfioc_nv *)addr;
@@ -4367,6 +4712,19 @@ DIOCCHANGEADDR_error:
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
 			switch (ioe->rs_num) {
+			case PF_RULESET_ETH:
+				if (ioe->anchor[0]) {
+					PF_RULES_WUNLOCK();
+					free(ioes, M_TEMP);
+					error = EINVAL;
+					goto fail;
+				}
+				if ((error = pf_begin_eth(&ioe->ticket))) {
+					PF_RULES_WUNLOCK();
+					free(ioes, M_TEMP);
+					goto fail;
+				}
+				break;
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
@@ -4441,6 +4799,19 @@ DIOCCHANGEADDR_error:
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			ioe->anchor[sizeof(ioe->anchor) - 1] = '\0';
 			switch (ioe->rs_num) {
+			case PF_RULESET_ETH:
+				if (ioe->anchor[0]) {
+					PF_RULES_WUNLOCK();
+					free(ioes, M_TEMP);
+					error = EINVAL;
+					goto fail;
+				}
+				if ((error = pf_rollback_eth(ioe->ticket))) {
+					PF_RULES_WUNLOCK();
+					free(ioes, M_TEMP);
+					goto fail; /* really bad */
+				}
+				break;
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
@@ -4518,6 +4889,21 @@ DIOCCHANGEADDR_error:
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			ioe->anchor[sizeof(ioe->anchor) - 1] = 0;
 			switch (ioe->rs_num) {
+			case PF_RULESET_ETH:
+				if (ioe->anchor[0]) {
+					PF_RULES_WUNLOCK();
+					free(ioes, M_TEMP);
+					error = EINVAL;
+					goto fail;
+				}
+				if (!V_pf_keth_inactive->ticket ||
+				    ioe->ticket != V_pf_keth_inactive->ticket) {
+					PF_RULES_WUNLOCK();
+					free(ioes, M_TEMP);
+					error = EBUSY;
+					goto fail;
+				}
+				break;
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if (ioe->anchor[0]) {
@@ -4569,6 +4955,13 @@ DIOCCHANGEADDR_error:
 		/* Now do the commit - no errors should happen here. */
 		for (i = 0, ioe = ioes; i < io->size; i++, ioe++) {
 			switch (ioe->rs_num) {
+			case PF_RULESET_ETH:
+				if ((error = pf_commit_eth(ioe->ticket))) {
+					PF_RULES_WUNLOCK();
+					free(ioes, M_TEMP);
+					goto fail; /* really bad */
+				}
+				break;
 #ifdef ALTQ
 			case PF_RULESET_ALTQ:
 				if ((error = pf_commit_altq(ioe->ticket))) {
@@ -5510,6 +5903,12 @@ shutdown_pf(void)
 		if ((error = pf_clear_tables()) != 0)
 			break;
 
+		if ((error = pf_begin_eth(&t[0])) != 0) {
+			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: eth\n"));
+			break;
+		}
+		pf_commit_eth(t[0]);
+
 #ifdef ALTQ
 		if ((error = pf_begin_altq(&t[0])) != 0) {
 			DPFPRINTF(PF_DEBUG_MISC, ("shutdown_pf: ALTQ\n"));
@@ -5547,6 +5946,28 @@ pf_check_return(int chk, struct mbuf **m)
 		}
 		return (PFIL_DROPPED);
 	}
+}
+
+static pfil_return_t
+pf_eth_check_in(struct mbuf **m, struct ifnet *ifp, int flags,
+    void *ruleset __unused, struct inpcb *inp)
+{
+	int chk;
+
+	chk = pf_test_eth(PF_IN, flags, ifp, m, inp);
+
+	return (pf_check_return(chk, m));
+}
+
+static pfil_return_t
+pf_eth_check_out(struct mbuf **m, struct ifnet *ifp, int flags,
+    void *ruleset __unused, struct inpcb *inp)
+{
+	int chk;
+
+	chk = pf_test_eth(PF_OUT, flags, ifp, m, inp);
+
+	return (pf_check_return(chk, m));
 }
 
 #ifdef INET
@@ -5606,6 +6027,11 @@ pf_check6_out(struct mbuf **m, struct ifnet *ifp, int flags,
 }
 #endif /* INET6 */
 
+VNET_DEFINE_STATIC(pfil_hook_t, pf_eth_in_hook);
+VNET_DEFINE_STATIC(pfil_hook_t, pf_eth_out_hook);
+#define	V_pf_eth_in_hook	VNET(pf_eth_in_hook)
+#define	V_pf_eth_out_hook	VNET(pf_eth_out_hook)
+
 #ifdef INET
 VNET_DEFINE_STATIC(pfil_hook_t, pf_ip4_in_hook);
 VNET_DEFINE_STATIC(pfil_hook_t, pf_ip4_out_hook);
@@ -5634,6 +6060,24 @@ hook_pf(void)
 	pha.pa_ruleset = NULL;
 
 	pla.pa_version = PFIL_VERSION;
+
+	pha.pa_type = PFIL_TYPE_ETHERNET;
+	pha.pa_func = pf_eth_check_in;
+	pha.pa_flags = PFIL_IN;
+	pha.pa_rulname = "eth-in";
+	V_pf_eth_in_hook = pfil_add_hook(&pha);
+	pla.pa_flags = PFIL_IN | PFIL_HEADPTR | PFIL_HOOKPTR;
+	pla.pa_head = V_link_pfil_head;
+	pla.pa_hook = V_pf_eth_in_hook;
+	(void)pfil_link(&pla);
+	pha.pa_func = pf_eth_check_out;
+	pha.pa_flags = PFIL_OUT;
+	pha.pa_rulname = "eth-out";
+	V_pf_eth_out_hook = pfil_add_hook(&pha);
+	pla.pa_flags = PFIL_OUT | PFIL_HEADPTR | PFIL_HOOKPTR;
+	pla.pa_head = V_link_pfil_head;
+	pla.pa_hook = V_pf_eth_out_hook;
+	(void)pfil_link(&pla);
 
 #ifdef INET
 	pha.pa_type = PFIL_TYPE_IP4;
@@ -5688,6 +6132,9 @@ dehook_pf(void)
 	if (V_pf_pfil_hooked == 0)
 		return;
 
+	pfil_remove_hook(V_pf_eth_in_hook);
+	pfil_remove_hook(V_pf_eth_out_hook);
+
 #ifdef INET
 	pfil_remove_hook(V_pf_ip4_in_hook);
 	pfil_remove_hook(V_pf_ip4_out_hook);
@@ -5712,6 +6159,10 @@ pf_load_vnet(void)
 	pf_init_tagset(&V_pf_qids, &pf_queue_tag_hashsize,
 	    PF_QUEUE_TAG_HASH_SIZE_DEFAULT);
 #endif
+
+	V_pf_keth = malloc(sizeof(*V_pf_keth), M_PFRULE, M_WAITOK);
+	V_pf_keth_inactive = malloc(sizeof(*V_pf_keth_inactive),
+	    M_PFRULE, M_WAITOK);
 
 	pfattach_vnet();
 	V_pf_vnet_active = 1;
@@ -5822,6 +6273,9 @@ pf_unload_vnet(void)
 		pf_counter_u64_deinit(&V_pf_status.fcounters[i]);
 	for (int i = 0; i < SCNT_MAX; i++)
 		counter_u64_free(V_pf_status.scounters[i]);
+
+	free(V_pf_keth, M_PFRULE);
+	free(V_pf_keth_inactive, M_PFRULE);
 }
 
 static void
