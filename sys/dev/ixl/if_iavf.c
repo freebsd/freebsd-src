@@ -663,7 +663,7 @@ iavf_if_init(if_ctx_t ctx)
 	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_DISABLE_QUEUES);
 
 	bcopy(IF_LLADDR(ifp), tmpaddr, ETHER_ADDR_LEN);
-	if (!cmp_etheraddr(hw->mac.addr, tmpaddr) &&
+	if (!ixl_ether_is_equal(hw->mac.addr, tmpaddr) &&
 	    (i40e_validate_mac_addr(tmpaddr) == I40E_SUCCESS)) {
 		error = iavf_del_mac_filter(sc, hw->mac.addr);
 		if (error == 0)
@@ -1233,7 +1233,7 @@ iavf_mc_filter_apply(void *arg, struct sockaddr_dl *sdl, u_int count __unused)
 	struct iavf_sc *sc = arg;
 	int error;
 
-	error = iavf_add_mac_filter(sc, (u8*)LLADDR(sdl), IXL_FILTER_MC);
+	error = iavf_add_mac_filter(sc, (u8*)LLADDR(sdl), IAVF_FILTER_MC);
 	return (!error);
 }
 
@@ -1404,7 +1404,7 @@ iavf_if_vlan_register(if_ctx_t ctx, u16 vtag)
 	v = malloc(sizeof(struct iavf_vlan_filter), M_IAVF, M_WAITOK | M_ZERO);
 	SLIST_INSERT_HEAD(sc->vlan_filters, v, next);
 	v->vlan = vtag;
-	v->flags = IXL_FILTER_ADD;
+	v->flags = IAVF_FILTER_ADD;
 
 	iavf_send_vc_msg(sc, IAVF_FLAG_AQ_ADD_VLAN_FILTER);
 }
@@ -1422,7 +1422,7 @@ iavf_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 
 	SLIST_FOREACH(v, sc->vlan_filters, next) {
 		if (v->vlan == vtag) {
-			v->flags = IXL_FILTER_DEL;
+			v->flags = IAVF_FILTER_DEL;
 			++i;
 			--vsi->num_vlans;
 		}
@@ -1624,7 +1624,7 @@ iavf_find_mac_filter(struct iavf_sc *sc, u8 *macaddr)
 	bool match = FALSE;
 
 	SLIST_FOREACH(f, sc->mac_filters, next) {
-		if (cmp_etheraddr(f->macaddr, macaddr)) {
+		if (ixl_ether_is_equal(f->macaddr, macaddr)) {
 			match = TRUE;
 			break;
 		}
@@ -1828,9 +1828,9 @@ iavf_init_multi(struct iavf_sc *sc)
 
 	/* First clear any multicast filters */
 	SLIST_FOREACH(f, sc->mac_filters, next) {
-		if ((f->flags & IXL_FILTER_USED)
-		    && (f->flags & IXL_FILTER_MC)) {
-			f->flags |= IXL_FILTER_DEL;
+		if ((f->flags & IAVF_FILTER_USED)
+		    && (f->flags & IAVF_FILTER_MC)) {
+			f->flags |= IAVF_FILTER_DEL;
 			mcnt++;
 		}
 	}
@@ -2034,7 +2034,7 @@ iavf_add_mac_filter(struct iavf_sc *sc, u8 *macaddr, u16 flags)
 	    MAC_FORMAT_ARGS(macaddr));
 
 	bcopy(macaddr, f->macaddr, ETHER_ADDR_LEN);
-	f->flags |= (IXL_FILTER_ADD | IXL_FILTER_USED);
+	f->flags |= (IAVF_FILTER_ADD | IAVF_FILTER_USED);
 	f->flags |= flags;
 	return (0);
 }
@@ -2051,7 +2051,7 @@ iavf_del_mac_filter(struct iavf_sc *sc, u8 *macaddr)
 	if (f == NULL)
 		return (ENOENT);
 
-	f->flags |= IXL_FILTER_DEL;
+	f->flags |= IAVF_FILTER_DEL;
 	return (0);
 }
 

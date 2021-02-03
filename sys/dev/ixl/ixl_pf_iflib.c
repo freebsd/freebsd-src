@@ -185,7 +185,7 @@ ixl_msix_adminq(void *arg)
 		}
 		device_printf(dev, "Reset Requested! (%s)\n", reset_type);
 		/* overload admin queue task to check reset progress */
-		atomic_set_int(&pf->state, IXL_PF_STATE_ADAPTER_RESETTING);
+		atomic_set_int(&pf->state, IXL_PF_STATE_RESETTING);
 		do_task = TRUE;
 	}
 
@@ -864,41 +864,6 @@ ixl_set_rss_hlut(struct ixl_pf *pf)
 			wr32(hw, I40E_PFQF_HLUT(i), ((u32 *)hlut_buf)[i]);
 		ixl_flush(hw);
 	}
-}
-
-/*
-** This routine updates vlan filters, called by init
-** it scans the filter table and then updates the hw
-** after a soft reset.
-*/
-void
-ixl_setup_vlan_filters(struct ixl_vsi *vsi)
-{
-	struct ixl_mac_filter	*f;
-	int			cnt = 0, flags;
-
-	if (vsi->num_vlans == 0)
-		return;
-	/*
-	** Scan the filter list for vlan entries,
-	** mark them for addition and then call
-	** for the AQ update.
-	*/
-	SLIST_FOREACH(f, &vsi->ftl, next) {
-		if (f->flags & IXL_FILTER_VLAN) {
-			f->flags |=
-			    (IXL_FILTER_ADD |
-			    IXL_FILTER_USED);
-			cnt++;
-		}
-	}
-	if (cnt == 0) {
-		printf("setup vlan: no filters found!\n");
-		return;
-	}
-	flags = IXL_FILTER_VLAN;
-	flags |= (IXL_FILTER_ADD | IXL_FILTER_USED);
-	ixl_add_hw_filters(vsi, flags, cnt);
 }
 
 /* For PF VSI only */

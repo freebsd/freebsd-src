@@ -1025,7 +1025,7 @@ ixl_vf_mac_valid(struct ixl_vf *vf, const uint8_t *addr)
 	 * is not its assigned MAC.
 	 */
 	if (!(vf->vf_flags & VF_FLAG_SET_MAC_CAP) &&
-	    !(ETHER_IS_MULTICAST(addr) || cmp_etheraddr(addr, vf->mac)))
+	    !(ETHER_IS_MULTICAST(addr) || !ixl_ether_is_equal(addr, vf->mac)))
 		return (EPERM);
 
 	return (0);
@@ -1717,7 +1717,7 @@ ixl_if_iov_uninit(if_ctx_t ctx)
 		if (pf->vfs[i].vsi.seid != 0)
 			i40e_aq_delete_element(hw, pf->vfs[i].vsi.seid, NULL);
 		ixl_pf_qmgr_release(&pf->qmgr, &pf->vfs[i].qtag);
-		ixl_free_mac_filters(&pf->vfs[i].vsi);
+		ixl_free_filters(&pf->vfs[i].vsi.ftl);
 		ixl_dbg_iov(pf, "VF %d: %d released\n",
 		    i, pf->vfs[i].qtag.num_allocated);
 		ixl_dbg_iov(pf, "Unallocated total: %d\n", ixl_pf_qmgr_get_num_free(&pf->qmgr));
