@@ -154,10 +154,10 @@ if __name__ == "__main__":
                         help="Print information on inferred env vars")
     parser.add_argument("--clean", action="store_true",
                         help="Do a clean rebuild instead of building with "
-                             "-DNO_CLEAN")
+                             "-DWITHOUT_CLEAN")
     parser.add_argument("--no-clean", action="store_false", dest="clean",
                         help="Do a clean rebuild instead of building with "
-                             "-DNO_CLEAN")
+                             "-DWITHOUT_CLEAN")
     try:
         import argcomplete  # bash completion:
 
@@ -250,10 +250,10 @@ if __name__ == "__main__":
             and not is_make_var_set("WITHOUT_CLEAN")):
         # Avoid accidentally deleting all of the build tree and wasting lots of
         # time cleaning directories instead of just doing a rm -rf ${.OBJDIR}
-        want_clean = input("You did not set -DNO_CLEAN/--clean/--no-clean."
-                           " Did you really mean to do a  clean build? y/[N] ")
+        want_clean = input("You did not set -DWITHOUT_CLEAN/--clean/--no-clean."
+                           " Did you really mean to do a clean build? y/[N] ")
         if not want_clean.lower().startswith("y"):
-            bmake_args.append("-DNO_CLEAN")
+            bmake_args.append("-DWITHOUT_CLEAN")
 
     env_cmd_str = " ".join(
         shlex.quote(k + "=" + v) for k, v in new_env_vars.items())
