@@ -165,14 +165,22 @@ do {                                                \
         device_printf(sc->mrsas_dev, msg, ##args);  \
 } while (0)
 
+#define	le32_to_cpus(x)	do { *((u_int32_t *)(x)) = le32toh((*(u_int32_t *)x)); } while (0)
+#define le16_to_cpus(x) do { *((u_int16_t *)(x)) = le16toh((*(u_int16_t *)x)); } while (0)
+
 /****************************************************************************
  * Raid Context structure which describes MegaRAID specific IO Paramenters
  * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
  ****************************************************************************/
 
 typedef struct _RAID_CONTEXT {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 	u_int8_t Type:4;
 	u_int8_t nseg:4;
+#else
+	u_int8_t nseg:4;
+	u_int8_t Type:4;
+#endif
 	u_int8_t resvd0;
 	u_int16_t timeoutValue;
 	u_int8_t regLockFlags;
@@ -197,12 +205,19 @@ typedef struct _RAID_CONTEXT {
  * This resides at offset 0x60 where the SGL normally starts in MPT IO Frames
  */
 typedef struct _RAID_CONTEXT_G35 {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 	u_int16_t Type:4;
 	u_int16_t nseg:4;
 	u_int16_t resvd0:8;
+#else
+	u_int16_t resvd0:8;
+	u_int16_t nseg:4;
+	u_int16_t Type:4;
+#endif
 	u_int16_t timeoutValue;
 	union {
 		struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 			u_int16_t reserved:1;
 			u_int16_t sld:1;
 			u_int16_t c2f:1;
@@ -213,6 +228,18 @@ typedef struct _RAID_CONTEXT_G35 {
 			u_int16_t log:1;
 			u_int16_t cpuSel:4;
 			u_int16_t setDivert:4;
+#else
+			u_int16_t setDivert:4;
+			u_int16_t cpuSel:4;
+			u_int16_t log:1;
+			u_int16_t rw:1;
+			u_int16_t sbs:1;
+			u_int16_t sqn:1;
+			u_int16_t fwn:1;
+			u_int16_t c2f:1;
+			u_int16_t sld:1;
+			u_int16_t reserved:1;
+#endif
 		}	bits;
 		u_int16_t s;
 	}	routingFlags;
@@ -228,9 +255,15 @@ typedef struct _RAID_CONTEXT_G35 {
 	u_int8_t RAIDFlags;
 	u_int8_t spanArm;
 	u_int16_t configSeqNum;
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 	u_int16_t numSGE:12;
 	u_int16_t reserved:3;
 	u_int16_t streamDetected:1;
+#else
+	u_int16_t streamDetected:1;
+	u_int16_t reserved:3;
+	u_int16_t numSGE:12;
+#endif
 	u_int8_t resvd2[2];
 }	RAID_CONTEXT_G35;
 
@@ -433,9 +466,15 @@ typedef struct _MR_TASK_MANAGE_REQUEST {
 	MR_TM_REQUEST        TmRequest;
 	union {
 		struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 			u_int32_t isTMForLD:1;
 			u_int32_t isTMForPD:1;
 			u_int32_t reserved1:30;
+#else
+			u_int32_t reserved1:30;
+			u_int32_t isTMForPD:1;
+			u_int32_t isTMForLD:1;
+#endif
 			u_int32_t reserved2;
 		} tmReqFlags;
 		MR_TM_REPLY   TMReply;
@@ -808,6 +847,7 @@ typedef struct _MR_SPAN_BLOCK_INFO {
 
 typedef struct _MR_LD_RAID {
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int32_t fpCapable:1;
 		u_int32_t raCapable:1;
 		u_int32_t reserved5:2;
@@ -822,6 +862,22 @@ typedef struct _MR_LD_RAID {
 		u_int32_t tmCapable:1;
 		u_int32_t fpCacheBypassCapable:1;
 		u_int32_t reserved4:5;
+#else
+		u_int32_t reserved4:5;
+		u_int32_t fpCacheBypassCapable:1;
+		u_int32_t tmCapable:1;
+		u_int32_t fpNonRWCapable:1;
+		u_int32_t fpReadAcrossStripe:1;
+		u_int32_t fpWriteAcrossStripe:1;
+		u_int32_t fpReadCapable:1;
+		u_int32_t fpWriteCapable:1;
+		u_int32_t encryptionType:8;
+		u_int32_t pdPiMode:4;
+		u_int32_t ldPiMode:4;
+		u_int32_t reserved5:2;
+		u_int32_t raCapable:1;
+		u_int32_t fpCapable:1;
+#endif
 	}	capability;
 	u_int32_t reserved6;
 	u_int64_t size;
@@ -844,9 +900,15 @@ typedef struct _MR_LD_RAID {
 	u_int16_t seqNum;
 
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		u_int32_t reserved:30;
+		u_int32_t regTypeReqOnReadLsValid:1;
+		u_int32_t ldSyncRequired:1;
+#else
 		u_int32_t ldSyncRequired:1;
 		u_int32_t regTypeReqOnReadLsValid:1;
 		u_int32_t reserved:30;
+#endif
 	}	flags;
 
 	u_int8_t LUN[8];
@@ -854,9 +916,15 @@ typedef struct _MR_LD_RAID {
 	u_int8_t reserved2[3];
 	u_int32_t logicalBlockLength;
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		u_int32_t reserved1:24;
+		u_int32_t LdLogicalBlockExp:4;
+		u_int32_t LdPiExp:4;
+#else
 		u_int32_t LdPiExp:4;
 		u_int32_t LdLogicalBlockExp:4;
 		u_int32_t reserved1:24;
+#endif
 	}	exponent;
 	u_int8_t reserved3[0x80 - 0x38];
 }	MR_LD_RAID;
@@ -1039,8 +1107,13 @@ struct MR_PD_CFG_SEQ {
 	u_int16_t seqNum;
 	u_int16_t devHandle;
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int8_t tmCapable:1;
 		u_int8_t reserved:7;
+#else
+		u_int8_t reserved:7;
+		u_int8_t tmCapable:1;
+#endif
 	} capability;
 	u_int8_t reserved;
 	u_int16_t pdTargetId;
@@ -1868,6 +1941,7 @@ struct mrsas_ctrl_prop {
 	 * structure.
 	 */
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int32_t copyBackDisabled:1;
 		u_int32_t SMARTerEnabled:1;
 		u_int32_t prCorrectUnconfiguredAreas:1;
@@ -1899,6 +1973,39 @@ struct mrsas_ctrl_prop {
 		u_int32_t enableSwZone:1;
 		u_int32_t limitMaxRateSATA3G:1;
 		u_int32_t reserved:2;
+#else
+		u_int32_t reserved:2;
+		u_int32_t limitMaxRateSATA3G:1;
+		u_int32_t enableSwZone:1;
+		u_int32_t ignore64ldRestriction:1;
+		u_int32_t disableT10RebuildAssist:1;
+		u_int32_t disableImmediateIO:1;
+		u_int32_t enableAutoLockRecovery:1;
+		u_int32_t enableVirtualCache:1;
+		u_int32_t enableConfigAutoBalance:1;
+		u_int32_t forceSGPIOForQuadOnly:1;
+		u_int32_t useEmergencySparesforSMARTer:1;
+		u_int32_t useUnconfGoodForEmergency:1;
+		u_int32_t useGlobalSparesForEmergency:1;
+		u_int32_t preventPIImport:1;
+		u_int32_t enablePI:1;
+		u_int32_t useDiskActivityForLocate:1;
+		u_int32_t disableCacheBypass:1;
+		u_int32_t enableJBOD:1;
+		u_int32_t disableSpinDownHS:1;
+		u_int32_t allowBootWithPinnedCache:1;
+		u_int32_t disableOnlineCtrlReset:1;
+		u_int32_t enableSecretKeyControl:1;
+		u_int32_t autoEnhancedImport:1;
+		u_int32_t enableSpinDownUnconfigured:1;
+		u_int32_t SSDPatrolReadEnabled:1;
+		u_int32_t SSDSMARTerEnabled:1;
+		u_int32_t disableNCQ:1;
+		u_int32_t useFdeOnly:1;
+		u_int32_t prCorrectUnconfiguredAreas:1;
+		u_int32_t SMARTerEnabled:1;
+		u_int32_t copyBackDisabled:1;
+#endif
 	}	OnOffProperties;
 	u_int8_t autoSnapVDSpace;
 	u_int8_t viewSpace;
@@ -2170,6 +2277,7 @@ struct mrsas_ctrl_info {
 	u_int16_t cacheMemorySize;	/* 0x7A2 */
 
 	struct {			/* 0x7A4 */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int32_t supportPIcontroller:1;
 		u_int32_t supportLdPIType1:1;
 		u_int32_t supportLdPIType2:1;
@@ -2194,6 +2302,30 @@ struct mrsas_ctrl_info {
 
 		u_int32_t supportUnevenSpans:1;
 		u_int32_t reserved:11;
+#else
+		u_int32_t reserved:11;
+		u_int32_t supportUnevenSpans:1;
+		u_int32_t dedicatedHotSparesLimited:1;
+		u_int32_t headlessMode:1;
+		u_int32_t supportEmulatedDrives:1;
+		u_int32_t supportResetNow:1;
+		u_int32_t realTimeScheduler:1;
+		u_int32_t supportSSDPatrolRead:1;
+		u_int32_t supportPerfTuning:1;
+		u_int32_t disableOnlinePFKChange:1;
+		u_int32_t supportJBOD:1;
+		u_int32_t supportBootTimePFKChange:1;
+		u_int32_t supportSetLinkSpeed:1;
+		u_int32_t supportEmergencySpares:1;
+		u_int32_t supportSuspendResumeBGops:1;
+		u_int32_t blockSSDWriteCacheChange:1;
+		u_int32_t supportShieldState:1;
+		u_int32_t supportLdBBMInfo:1;
+		u_int32_t supportLdPIType3:1;
+		u_int32_t supportLdPIType2:1;
+		u_int32_t supportLdPIType1:1;
+		u_int32_t supportPIcontroller:1;
+#endif
 	}	adapterOperations2;
 
 	u_int8_t driverVersion[32];	/* 0x7A8 */
@@ -2206,6 +2338,7 @@ struct mrsas_ctrl_info {
 	u_int8_t reserved5[2];		/* 0x7CD reserved */
 
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int32_t peerIsPresent:1;
 		u_int32_t peerIsIncompatible:1;
 
@@ -2214,6 +2347,15 @@ struct mrsas_ctrl_info {
 		u_int32_t ctrlPropIncompatible:1;
 		u_int32_t premiumFeatureMismatch:1;
 		u_int32_t reserved:26;
+#else
+		u_int32_t reserved:26;
+		u_int32_t premiumFeatureMismatch:1;
+		u_int32_t ctrlPropIncompatible:1;
+		u_int32_t fwVersionMismatch:1;
+		u_int32_t hwIncompatible:1;
+		u_int32_t peerIsIncompatible:1;
+		u_int32_t peerIsPresent:1;
+#endif
 	}	cluster;
 
 	char	clusterId[16];		/* 0x7D4 */
@@ -2221,6 +2363,7 @@ struct mrsas_ctrl_info {
 	char	reserved6[4];		/* 0x7E4 RESERVED FOR IOV */
 
 	struct {			/* 0x7E8 */
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int32_t supportPersonalityChange:2;
 		u_int32_t supportThermalPollInterval:1;
 		u_int32_t supportDisableImmediateIO:1;
@@ -2246,11 +2389,39 @@ struct mrsas_ctrl_info {
 		u_int32_t supportExtendedSSCSize:1;
 		u_int32_t useSeqNumJbodFP:1;
 		u_int32_t reserved:7;
+#else
+		u_int32_t reserved:7;
+		u_int32_t useSeqNumJbodFP:1;
+		u_int32_t supportExtendedSSCSize:1;
+		u_int32_t supportDiskCacheSettingForSysPDs:1;
+		u_int32_t supportCPLDUpdate:1;
+		u_int32_t supportTTYLogCompression:1;
+		u_int32_t discardCacheDuringLDDelete:1;
+		u_int32_t supportSecurityonJBOD:1;
+		u_int32_t supportCacheBypassModes:1;
+		u_int32_t supportDisableSESMonitoring:1;
+		u_int32_t supportForceFlash:1;
+		u_int32_t supportNVDRAM:1;
+		u_int32_t supportDrvActivityLEDSetting:1;
+		u_int32_t supportAllowedOpsforDrvRemoval:1;
+		u_int32_t supportHOQRebuild:1;
+		u_int32_t supportForceTo512e:1;
+		u_int32_t supportNVCacheErase:1;
+		u_int32_t supportDebugQueue:1;
+		u_int32_t supportSwZone:1;
+		u_int32_t supportCrashDump:1;
+		u_int32_t supportMaxExtLDs:1;
+		u_int32_t supportT10RebuildAssist:1;
+		u_int32_t supportDisableImmediateIO:1;
+		u_int32_t supportThermalPollInterval:1;
+		u_int32_t supportPersonalityChange:2;
+#endif
 	}	adapterOperations3;
 
 	u_int8_t pad_cpld[16];
 
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int16_t ctrlInfoExtSupported:1;
 		u_int16_t supportIbuttonLess:1;
 		u_int16_t supportedEncAlgo:1;
@@ -2260,6 +2431,17 @@ struct mrsas_ctrl_info {
 		u_int16_t supportPdMapTargetId:1;
 		u_int16_t FWSwapsBBUVPDInfo:1;
 		u_int16_t reserved:8;
+#else
+		u_int16_t reserved:8;
+		u_int16_t FWSwapsBBUVPDInfo:1;
+		u_int16_t supportPdMapTargetId:1;
+		u_int16_t supportSESCtrlInMultipathCfg:1;
+		u_int16_t imageUploadSupported:1;
+		u_int16_t supportEncryptedMfc:1;
+		u_int16_t supportedEncAlgo:1;
+		u_int16_t supportIbuttonLess:1;
+		u_int16_t ctrlInfoExtSupported:1;
+#endif
 	}	adapterOperations4;
 
 	u_int8_t pad[0x800 - 0x7FE];	/* 0x7FE */
@@ -2332,6 +2514,7 @@ struct mrsas_ctrl_info {
 
 typedef union _MFI_CAPABILITIES {
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int32_t support_fp_remote_lun:1;
 		u_int32_t support_additional_msix:1;
 		u_int32_t support_fastpath_wb:1;
@@ -2342,6 +2525,18 @@ typedef union _MFI_CAPABILITIES {
 		u_int32_t support_ext_queue_depth:1;
 		u_int32_t support_ext_io_size:1;
 		u_int32_t reserved:23;
+#else
+		u_int32_t reserved:23;
+		u_int32_t support_ext_io_size:1;
+		u_int32_t support_ext_queue_depth:1;
+		u_int32_t security_protocol_cmds_fw:1;
+		u_int32_t support_core_affinity:1;
+		u_int32_t support_ndrive_r1_lb:1;
+		u_int32_t support_max_255lds:1;
+		u_int32_t support_fastpath_wb:1;
+		u_int32_t support_additional_msix:1;
+		u_int32_t support_fp_remote_lun:1;
+#endif
 	}	mfi_capabilities;
 	u_int32_t reg;
 }	MFI_CAPABILITIES;
@@ -2602,9 +2797,15 @@ union mrsas_frame {
 #pragma pack(1)
 union mrsas_evt_class_locale {
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int16_t locale;
 		u_int8_t reserved;
 		int8_t	class;
+#else
+		int8_t	class;
+		u_int8_t reserved;
+		u_int16_t locale;
+#endif
 	} __packed members;
 
 	u_int32_t word;
@@ -2890,6 +3091,7 @@ typedef struct _MRSAS_DRV_PCI_COMMON_HEADER {
 typedef struct _MRSAS_DRV_PCI_LINK_CAPABILITY {
 	union {
 		struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 			u_int32_t linkSpeed:4;
 			u_int32_t linkWidth:6;
 			u_int32_t aspmSupport:2;
@@ -2897,6 +3099,15 @@ typedef struct _MRSAS_DRV_PCI_LINK_CAPABILITY {
 			u_int32_t l1ExitLatency:3;
 			u_int32_t rsvdp:6;
 			u_int32_t portNumber:8;
+#else
+			u_int32_t portNumber:8;
+			u_int32_t rsvdp:6;
+			u_int32_t l1ExitLatency:3;
+			u_int32_t losExitLatency:3;
+			u_int32_t aspmSupport:2;
+			u_int32_t linkWidth:6;
+			u_int32_t linkSpeed:4;
+#endif
 		}	bits;
 
 		u_int32_t asUlong;
@@ -2908,12 +3119,21 @@ typedef struct _MRSAS_DRV_PCI_LINK_CAPABILITY {
 typedef struct _MRSAS_DRV_PCI_LINK_STATUS_CAPABILITY {
 	union {
 		struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 			u_int16_t linkSpeed:4;
 			u_int16_t negotiatedLinkWidth:6;
 			u_int16_t linkTrainingError:1;
 			u_int16_t linkTraning:1;
 			u_int16_t slotClockConfig:1;
 			u_int16_t rsvdZ:3;
+#else
+			u_int16_t rsvdZ:3;
+			u_int16_t slotClockConfig:1;
+			u_int16_t linkTraning:1;
+			u_int16_t linkTrainingError:1;
+			u_int16_t negotiatedLinkWidth:6;
+			u_int16_t linkSpeed:4;
+#endif
 		}	bits;
 
 		u_int16_t asUshort;
@@ -2967,6 +3187,7 @@ union MR_PD_DDF_TYPE {
 	struct {
 		union {
 			struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 				u_int16_t forcedPDGUID:1;
 				u_int16_t inVD:1;
 				u_int16_t isGlobalSpare:1;
@@ -2974,6 +3195,15 @@ union MR_PD_DDF_TYPE {
 				u_int16_t isForeign:1;
 				u_int16_t reserved:7;
 				u_int16_t intf:4;
+#else
+				u_int16_t intf:4;
+				u_int16_t reserved:7;
+				u_int16_t isForeign:1;
+				u_int16_t isSpare:1;
+				u_int16_t isGlobalSpare:1;
+				u_int16_t inVD:1;
+				u_int16_t forcedPDGUID:1;
+#endif
 			} pdType;
 			u_int16_t type;
 		};
@@ -3004,6 +3234,7 @@ union MR_PROGRESS {
  */
 struct MR_PD_PROGRESS {
     struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
         u_int32_t     rbld:1;
         u_int32_t     patrol:1;
         u_int32_t     clear:1;
@@ -3011,6 +3242,15 @@ struct MR_PD_PROGRESS {
         u_int32_t     erase:1;
         u_int32_t     locate:1;
         u_int32_t     reserved:26;
+#else
+		    u_int32_t     reserved:26;
+		    u_int32_t     locate:1;
+		    u_int32_t     erase:1;
+		    u_int32_t     copyBack:1;
+		    u_int32_t     clear:1;
+		    u_int32_t     patrol:1;
+		    u_int32_t     rbld:1;
+#endif
     } active;
     union MR_PROGRESS     rbld;
     union MR_PROGRESS     patrol;
@@ -3020,12 +3260,21 @@ struct MR_PD_PROGRESS {
     };
 
     struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
         u_int32_t     rbld:1;
         u_int32_t     patrol:1;
         u_int32_t     clear:1;
         u_int32_t     copyBack:1;
         u_int32_t     erase:1;
         u_int32_t     reserved:27;
+#else
+		    u_int32_t     reserved:27;
+		    u_int32_t     erase:1;
+		    u_int32_t     copyBack:1;
+		    u_int32_t     clear:1;
+		    u_int32_t     patrol:1;
+		    u_int32_t     rbld:1;
+#endif
     } pause;
 
     union MR_PROGRESS     reserved[3];
@@ -3057,13 +3306,18 @@ struct  mrsas_pd_info {
 
 	 struct {
 		 u_int8_t		 count;
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		 u_int8_t		 isPathBroken:4;
 		 u_int8_t		 reserved3:3;
 		 u_int8_t		 widePortCapable:1;
-
+#else
+		 u_int8_t		 widePortCapable:1;
+		 u_int8_t		 reserved3:3;
+		 u_int8_t		 isPathBroken:4;
+#endif
 		 u_int8_t		 connectorIndex[2];
 		 u_int8_t		 reserved[4];
-		 u_int64_t	 sasAddr[2];
+		 u_int64_t		 sasAddr[2];
 		 u_int8_t		 reserved2[16];
 	 } pathInfo;
 
@@ -3088,6 +3342,7 @@ struct  mrsas_pd_info {
 	 u_int16_t	 copyBackPartnerId;
 	 u_int16_t	 enclPartnerDeviceId;
 	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		 u_int16_t fdeCapable:1;
 		 u_int16_t fdeEnabled:1;
 		 u_int16_t secured:1;
@@ -3095,6 +3350,15 @@ struct  mrsas_pd_info {
 		 u_int16_t foreign:1;
 		 u_int16_t needsEKM:1;
 		 u_int16_t reserved:10;
+#else
+		 u_int16_t reserved:10;
+		 u_int16_t needsEKM:1;
+		 u_int16_t foreign:1;
+		 u_int16_t locked:1;
+		 u_int16_t secured:1;
+		 u_int16_t fdeEnabled:1;
+		 u_int16_t fdeCapable:1;
+#endif
 	 } security;
 	 u_int8_t		 mediaType;
 	 u_int8_t		 notCertified;
@@ -3110,6 +3374,7 @@ struct  mrsas_pd_info {
 	 u_int16_t	 reserved2;
 
 	 struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		 u_int32_t piType:3;
 		 u_int32_t piFormatted:1;
 		 u_int32_t piEligible:1;
@@ -3123,6 +3388,21 @@ struct  mrsas_pd_info {
 		 u_int32_t wceUnchanged:1;
 		 u_int32_t supportScsiUnmap:1;
 		 u_int32_t reserved:18;
+#else
+		 u_int32_t reserved:18;
+		 u_int32_t supportScsiUnmap:1;
+		 u_int32_t wceUnchanged:1;
+		 u_int32_t useSSEraseType:1;
+		 u_int32_t ineligibleForLd:1;
+		 u_int32_t ineligibleForSSCD:1;
+		 u_int32_t emergencySpare:1;
+		 u_int32_t commissionedSpare:1;
+		 u_int32_t WCE:1;
+		 u_int32_t NCQ:1;
+		 u_int32_t piEligible:1;
+		 u_int32_t piFormatted:1;
+		 u_int32_t piType:3;
+#endif
 	 } properties;
 
 	 u_int64_t   shieldDiagCompletionTime;
@@ -3132,8 +3412,13 @@ struct  mrsas_pd_info {
 	 u_int8_t reserved4[2];
 
 	 struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
 		u_int32_t bbmErrCountSupported:1;
 		u_int32_t bbmErrCount:31;
+#else
+		u_int32_t bbmErrCount:31;
+		u_int32_t bbmErrCountSupported:1;
+#endif
 	 } bbmErr;
 
 	 u_int8_t reserved1[512-428];
