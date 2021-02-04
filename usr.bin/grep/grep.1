@@ -30,7 +30,7 @@
 .\"
 .\"	@(#)grep.1	8.3 (Berkeley) 4/18/94
 .\"
-.Dd November 19, 2020
+.Dd February 4, 2021
 .Dt GREP 1
 .Os
 .Sh NAME
@@ -405,6 +405,9 @@ and
 .Sq [[:>:]] ;
 see
 .Xr re_format 7 ) .
+This option has no effect if
+.Fl x
+is also specified.
 .It Fl x , Fl Fl line-regexp
 Only input lines selected against an entire fixed string or regular
 expression are considered to be matching lines.
