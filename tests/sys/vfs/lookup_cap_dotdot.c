@@ -80,6 +80,7 @@ check_capsicum(void)
 {
 	ATF_REQUIRE_FEATURE("security_capabilities");
 	ATF_REQUIRE_FEATURE("security_capability_mode");
+	ATF_REQUIRE_SYSCTL_INT("kern.trap_enotcap", 0);
 }
 
 /*
@@ -124,8 +125,6 @@ ATF_TC_BODY(lookup_cap_dotdot__basic, tc)
 	cap_rights_init(&rights, CAP_LOOKUP, CAP_READ);
 	ATF_REQUIRE(cap_rights_limit(dirfd, &rights) >= 0);
 
-	atf_tc_expect_signal(SIGABRT, "needs change done upstream in atf/kyua according to cem: bug 215690");
-
 	ATF_REQUIRE(cap_enter() >= 0);
 
 	ATF_REQUIRE_MSG(openat(dirfd, "d1/..", O_RDONLY) >= 0, "%s",
@@ -145,8 +144,6 @@ ATF_TC_BODY(lookup_cap_dotdot__advanced, tc)
 
 	check_capsicum();
 	prepare_dotdot_tests();
-
-	atf_tc_expect_signal(SIGABRT, "needs change done upstream in atf/kyua according to cem: bug 215690");
 
 	cap_rights_init(&rights, CAP_LOOKUP, CAP_READ);
 	ATF_REQUIRE(cap_rights_limit(dirfd, &rights) >= 0);
@@ -191,8 +188,6 @@ ATF_TC_BODY(capmode__negative, tc)
 	check_capsicum();
 	prepare_dotdot_tests();
 
-	atf_tc_expect_signal(SIGABRT, "needs change done upstream in atf/kyua according to cem: bug 215690");
-
 	ATF_REQUIRE(cap_enter() == 0);
 
 	/* open() not permitted in capability mode */
@@ -230,8 +225,6 @@ ATF_TC_BODY(lookup_cap_dotdot__negative, tc)
 
 	cap_rights_init(&rights, CAP_LOOKUP, CAP_READ);
 	ATF_REQUIRE(cap_rights_limit(dirfd, &rights) >= 0);
-
-	atf_tc_expect_signal(SIGABRT, "needs change done upstream in atf/kyua according to cem: bug 215690");
 
 	ATF_REQUIRE(cap_enter() >= 0);
 
