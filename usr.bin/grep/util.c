@@ -471,31 +471,28 @@ procline(struct parsec *pc)
 
 	matchidx = pc->matchidx;
 
-	/*
-	 * With matchall (empty pattern), we can try to take some shortcuts.
-	 * Emtpy patterns trivially match every line except in the -w and -x
-	 * cases.  For -w (whole-word) cases, we only match if the first
-	 * character isn't a word-character.  For -x (whole-line) cases, we only
-	 * match if the line is empty.
-	 */
+	/* Null pattern shortcuts. */
 	if (matchall) {
-		if (pc->ln.len == 0)
+		if (xflag && pc->ln.len == 0) {
+			/* Matches empty lines (-x). */
 			return (true);
-		if (wflag) {
-			wend = L' ';
-			if (sscanf(&pc->ln.dat[0], "%lc", &wend) == 1 &&
-			    !iswword(wend))
-				return (true);
-		} else if (!xflag)
+		} else if (!wflag && !xflag) {
+			/* Matches every line (no -w or -x). */
 			return (true);
+		}
 
 		/*
-		 * If we don't have any other patterns, we really don't match.
-		 * If we do have other patterns, we must fall through and check
-		 * them.
+		 * If we only have the NULL pattern, whether we match or not
+		 * depends on if we got here with -w or -x.  If either is set,
+		 * the answer is no.  If we have other patterns, we'll defer
+		 * to them.
 		 */
-		if (patterns == 0)
-			return (false);
+		if (patterns == 0) {
+			return (!(wflag || xflag));
+		}
+	} else if (patterns == 0) {
+		/* Pattern file with no patterns. */
+		return (false);
 	}
 
 	matched = false;
