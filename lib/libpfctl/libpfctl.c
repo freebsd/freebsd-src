@@ -546,6 +546,185 @@ pf_nvrule_to_rule(const nvlist_t *nvl, struct pfctl_rule *rule)
 	rule->src_nodes = nvlist_get_number(nvl, "src_nodes");
 }
 
+static void
+pfctl_nveth_addr_to_eth_addr(const nvlist_t *nvl, struct pfctl_eth_addr *addr)
+{
+	size_t len;
+	const void *data;
+
+	data = nvlist_get_binary(nvl, "addr", &len);
+	assert(len == sizeof(addr->addr));
+	memcpy(addr->addr, data, sizeof(addr->addr));
+
+	addr->neg = nvlist_get_bool(nvl, "neg");
+}
+
+static nvlist_t *
+pfctl_eth_addr_to_nveth_addr(const struct pfctl_eth_addr *addr)
+{
+	nvlist_t *nvl;
+
+	nvl = nvlist_create(0);
+	if (nvl == NULL)
+		return (NULL);
+
+	nvlist_add_bool(nvl, "neg", addr->neg);
+	nvlist_add_binary(nvl, "addr", &addr->addr, ETHER_ADDR_LEN);
+
+	return (nvl);
+}
+
+static void
+pfctl_nveth_rule_to_eth_rule(const nvlist_t *nvl, struct pfctl_eth_rule *rule)
+{
+	rule->nr = nvlist_get_number(nvl, "nr");
+	rule->quick = nvlist_get_bool(nvl, "quick");
+	strlcpy(rule->ifname, nvlist_get_string(nvl, "ifname"), IFNAMSIZ);
+	rule->ifnot = nvlist_get_bool(nvl, "ifnot");
+	rule->direction = nvlist_get_number(nvl, "direction");
+	rule->proto = nvlist_get_number(nvl, "proto");
+
+	pfctl_nveth_addr_to_eth_addr(nvlist_get_nvlist(nvl, "src"),
+	    &rule->src);
+	pfctl_nveth_addr_to_eth_addr(nvlist_get_nvlist(nvl, "dst"),
+	    &rule->dst);
+
+	rule->evaluations = nvlist_get_number(nvl, "evaluations");
+	rule->packets[0] = nvlist_get_number(nvl, "packets-in");
+	rule->packets[1] = nvlist_get_number(nvl, "packets-out");
+	rule->bytes[0] = nvlist_get_number(nvl, "bytes-in");
+	rule->bytes[1] = nvlist_get_number(nvl, "bytes-out");
+
+	strlcpy(rule->qname, nvlist_get_string(nvl, "qname"), PF_QNAME_SIZE);
+	strlcpy(rule->tagname, nvlist_get_string(nvl, "tagname"),
+	    PF_TAG_NAME_SIZE);
+
+	rule->action = nvlist_get_number(nvl, "action");
+}
+
+int
+pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules)
+{
+	uint8_t buf[1024];
+	struct pfioc_nv nv;
+	nvlist_t *nvl;
+
+	bzero(rules, sizeof(*rules));
+
+	nv.data = buf;
+	nv.len = nv.size = sizeof(buf);
+
+	if (ioctl(dev, DIOCGETETHRULES, &nv) != 0)
+		return (errno);
+
+	nvl = nvlist_unpack(buf, nv.len, 0);
+	if (nvl == NULL)
+		return (EIO);
+
+	rules->nr = nvlist_get_number(nvl, "nr");
+	rules->ticket = nvlist_get_number(nvl, "ticket");
+
+	nvlist_destroy(nvl);
+	return (0);
+}
+
+int
+pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
+    struct pfctl_eth_rule *rule, bool clear)
+{
+	uint8_t buf[1024];
+	struct pfioc_nv nv;
+	nvlist_t *nvl;
+	void *data;
+	size_t len;
+
+	nvl = nvlist_create(0);
+
+	nvlist_add_number(nvl, "ticket", ticket);
+	nvlist_add_number(nvl, "nr", nr);
+	nvlist_add_bool(nvl, "clear", clear);
+
+	data = nvlist_pack(nvl, &len);
+	nv.data = buf;
+	memcpy(buf, data, len);
+	free(data);
+	nv.len = len;
+	nv.size = sizeof(buf);
+	if (ioctl(dev, DIOCGETETHRULE, &nv)) {
+		nvlist_destroy(nvl);
+		return (errno);
+	}
+	nvlist_destroy(nvl);
+
+	nvl = nvlist_unpack(buf, nv.len, 0);
+	if (nvl == NULL) {
+		return (EIO);
+	}
+
+	pfctl_nveth_rule_to_eth_rule(nvl, rule);
+
+	nvlist_destroy(nvl);
+	return (0);
+}
+
+int
+pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r, uint32_t ticket)
+{
+	struct pfioc_nv nv;
+	nvlist_t *nvl, *addr;
+	void *packed;
+	int error;
+	size_t size;
+
+	nvl = nvlist_create(0);
+
+	nvlist_add_number(nvl, "ticket", ticket);
+
+	nvlist_add_number(nvl, "nr", r->nr);
+	nvlist_add_bool(nvl, "quick", r->quick);
+	nvlist_add_string(nvl, "ifname", r->ifname);
+	nvlist_add_bool(nvl, "ifnot", r->ifnot);
+	nvlist_add_number(nvl, "direction", r->direction);
+	nvlist_add_number(nvl, "proto", r->proto);
+
+	addr = pfctl_eth_addr_to_nveth_addr(&r->src);
+	if (addr == NULL) {
+		nvlist_destroy(nvl);
+		return (ENOMEM);
+	}
+	nvlist_add_nvlist(nvl, "src", addr);
+	nvlist_destroy(addr);
+
+	addr = pfctl_eth_addr_to_nveth_addr(&r->dst);
+	if (addr == NULL) {
+		nvlist_destroy(nvl);
+		return (ENOMEM);
+	}
+	nvlist_add_nvlist(nvl, "dst", addr);
+	nvlist_destroy(addr);
+
+	nvlist_add_string(nvl, "qname", r->qname);
+	nvlist_add_string(nvl, "tagname", r->tagname);
+	nvlist_add_number(nvl, "action", r->action);
+
+	packed = nvlist_pack(nvl, &size);
+	if (packed == NULL) {
+		nvlist_destroy(nvl);
+		return (ENOMEM);
+	}
+
+	nv.len = size;
+	nv.size = size;
+	nv.data = packed;
+
+	error = ioctl(dev, DIOCADDETHRULE, &nv);
+
+	free(packed);
+	nvlist_destroy(nvl);
+
+	return (error);
+}
+
 int
 pfctl_add_rule(int dev, const struct pfctl_rule *r, const char *anchor,
     const char *anchor_call, uint32_t ticket, uint32_t pool_ticket)

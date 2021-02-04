@@ -96,7 +96,9 @@ int	 pfctl_load_hostid(struct pfctl *, u_int32_t);
 int	 pfctl_load_syncookies(struct pfctl *, u_int8_t);
 int	 pfctl_get_pool(int, struct pfctl_pool *, u_int32_t, u_int32_t, int,
 	    char *);
+void	 pfctl_print_eth_rule_counters(struct pfctl_eth_rule *, int);
 void	 pfctl_print_rule_counters(struct pfctl_rule *, int);
+int	 pfctl_show_eth_rules(int, int);
 int	 pfctl_show_rules(int, char *, int, enum pfctl_show, char *, int);
 int	 pfctl_show_nat(int, int, char *);
 int	 pfctl_show_src_nodes(int, int);
@@ -109,6 +111,7 @@ void	 pfctl_debug(int, u_int32_t, int);
 int	 pfctl_test_altqsupport(int, int);
 int	 pfctl_show_anchors(int, int, char *);
 int	 pfctl_ruleset_trans(struct pfctl *, char *, struct pfctl_anchor *);
+int	 pfctl_load_eth_ruleset(struct pfctl *);
 int	 pfctl_load_ruleset(struct pfctl *, char *,
 		struct pfctl_ruleset *, int, int);
 int	 pfctl_load_rule(struct pfctl *, char *, struct pfctl_rule *, int);
@@ -222,9 +225,9 @@ static const char * const clearopt_list[] = {
 };
 
 static const char * const showopt_list[] = {
-	"nat", "queue", "rules", "Anchors", "Sources", "states", "info",
-	"Interfaces", "labels", "timeouts", "memory", "Tables", "osfp",
-	"Running", "all", NULL
+	"ether", "nat", "queue", "rules", "Anchors", "Sources", "states",
+	"info", "Interfaces", "labels", "timeouts", "memory", "Tables",
+	"osfp", "Running", "all", NULL
 };
 
 static const char * const tblcmdopt_list[] = {
@@ -987,6 +990,20 @@ pfctl_clear_pool(struct pfctl_pool *pool)
 }
 
 void
+pfctl_print_eth_rule_counters(struct pfctl_eth_rule *rule, int opts)
+{
+	if (opts & PF_OPT_VERBOSE) {
+		printf("  [ Evaluations: %-8llu  Packets: %-8llu  "
+			    "Bytes: %-10llu]\n",
+			    (unsigned long long)rule->evaluations,
+			    (unsigned long long)(rule->packets[0] +
+			    rule->packets[1]),
+			    (unsigned long long)(rule->bytes[0] +
+			    rule->bytes[1]));
+	}
+}
+
+void
 pfctl_print_rule_counters(struct pfctl_rule *rule, int opts)
 {
 	if (opts & PF_OPT_DEBUG) {
@@ -1032,6 +1049,35 @@ pfctl_print_title(char *title)
 		printf("\n");
 	first_title = 0;
 	printf("%s\n", title);
+}
+
+int
+pfctl_show_eth_rules(int dev, int opts)
+{
+	struct pfctl_eth_rules_info info;
+	struct pfctl_eth_rule rule;
+	int dotitle = opts & PF_OPT_SHOWALL;
+
+	if (pfctl_get_eth_rules_info(dev, &info)) {
+		warn("DIOCGETETHRULES");
+		return (-1);
+	}
+	for (int nr = 0; nr < info.nr; nr++) {
+		if (pfctl_get_eth_rule(dev, nr, info.ticket, &rule, false)
+		    != 0) {
+			warn("DIOCGETETHRULE");
+			return (-1);
+		}
+		if (dotitle) {
+			pfctl_print_title("ETH RULES:");
+			dotitle = 0;
+		}
+		print_eth_rule(&rule, opts & (PF_OPT_VERBOSE2 | PF_OPT_DEBUG));
+		printf("\n");
+		pfctl_print_eth_rule_counters(&rule, opts);
+	}
+
+	return (0);
 }
 
 int
@@ -1466,6 +1512,12 @@ pfctl_ruleset_trans(struct pfctl *pf, char *path, struct pfctl_anchor *a)
 {
 	int osize = pf->trans->pfrb_size;
 
+	if ((pf->loadopt & PFCTL_FLAG_ETH) != 0) {
+		if (! path[0]) {
+			if (pfctl_add_trans(pf->trans, PF_RULESET_ETH, path))
+				return (1);
+		}
+	}
 	if ((pf->loadopt & PFCTL_FLAG_NAT) != 0) {
 		if (pfctl_add_trans(pf->trans, PF_RULESET_NAT, path) ||
 		    pfctl_add_trans(pf->trans, PF_RULESET_BINAT, path) ||
@@ -1487,6 +1539,27 @@ pfctl_ruleset_trans(struct pfctl *pf, char *path, struct pfctl_anchor *a)
 			return (4);
 	if (pfctl_trans(pf->dev, pf->trans, DIOCXBEGIN, osize))
 		return (5);
+
+	return (0);
+}
+
+int
+pfctl_load_eth_ruleset(struct pfctl *pf)
+{
+	struct pfctl_eth_rule	*r;
+	int	error;
+
+	while ((r = TAILQ_FIRST(&pf->eth_rules)) != NULL) {
+		TAILQ_REMOVE(&pf->eth_rules, r, entries);
+
+		if ((pf->opts & PF_OPT_NOACTION) == 0) {
+			error = pfctl_add_eth_rule(pf->dev, r, pf->eth_ticket);
+			if (error)
+				return (error);
+		}
+
+		free(r);
+	}
 
 	return (0);
 }
@@ -1669,6 +1742,7 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 	pf.opts = opts;
 	pf.optimize = optimize;
 	pf.loadopt = loadopt;
+	TAILQ_INIT(&pf.eth_rules);
 
 	/* non-brace anchor, create without resolving the path */
 	if ((pf.anchor = calloc(1, sizeof(*pf.anchor))) == NULL)
@@ -1700,6 +1774,8 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 		 */
 		if (pfctl_ruleset_trans(&pf, anchorname, pf.anchor))
 			ERRX("pfctl_rules");
+		if (pf.loadopt & PFCTL_FLAG_ETH)
+			pf.eth_ticket = pfctl_get_ticket(t, PF_RULESET_ETH, anchorname);
 		if (altqsupport && (pf.loadopt & PFCTL_FLAG_ALTQ))
 			pa.ticket =
 			    pfctl_get_ticket(t, PF_RULESET_ALTQ, anchorname);
@@ -1720,6 +1796,8 @@ pfctl_rules(int dev, char *filename, int opts, int optimize,
 
 	if ((pf.loadopt & PFCTL_FLAG_FILTER &&
 	    (pfctl_load_ruleset(&pf, path, rs, PF_RULESET_SCRUB, 0))) ||
+	    (pf.loadopt & PFCTL_FLAG_ETH &&
+	    (pfctl_load_eth_ruleset(&pf))) ||
 	    (pf.loadopt & PFCTL_FLAG_NAT &&
 	    (pfctl_load_ruleset(&pf, path, rs, PF_RULESET_NAT, 0) ||
 	    pfctl_load_ruleset(&pf, path, rs, PF_RULESET_RDR, 0) ||
@@ -2561,9 +2639,14 @@ main(int argc, char *argv[])
 		case 'm':
 			pfctl_show_limits(dev, opts);
 			break;
+		case 'e':
+			pfctl_show_eth_rules(dev, opts);
+			break;
 		case 'a':
 			opts |= PF_OPT_SHOWALL;
 			pfctl_load_fingerprints(dev, opts);
+
+			pfctl_show_eth_rules(dev, opts);
 
 			pfctl_show_nat(dev, opts, anchorname);
 			pfctl_show_rules(dev, path, opts, 0, anchorname, 0);

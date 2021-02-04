@@ -691,6 +691,50 @@ print_src_node(struct pf_src_node *sn, int opts)
 	}
 }
 
+static void
+print_eth_addr(const struct pfctl_eth_addr *a)
+{
+	printf("%s%02x:%02x:%02x:%02x:%02x:%02x", a->neg ? "! " : "",
+	    a->addr[0], a->addr[1], a->addr[2], a->addr[3], a->addr[4],
+	    a->addr[5]);
+}
+
+void
+print_eth_rule(struct pfctl_eth_rule *r, int rule_numbers)
+{
+	static const char *actiontypes[] = { "pass", "block" };
+
+	if (rule_numbers)
+		printf("@%u ", r->nr);
+
+	printf("ether %s", actiontypes[r->action]);
+	if (r->direction == PF_IN)
+		printf(" in");
+	else if (r->direction == PF_OUT)
+		printf(" out");
+
+	if (r->quick)
+		printf(" quick");
+	if (r->ifname[0]) {
+		if (r->ifnot)
+			printf(" on ! %s", r->ifname);
+		else
+			printf(" on %s", r->ifname);
+	}
+	if (r->proto)
+		printf(" proto 0x%04x", r->proto);
+
+	printf(" from ");
+	print_eth_addr(&r->src);
+	printf(" to ");
+	print_eth_addr(&r->dst);
+
+	if (r->qname[0])
+		printf(" queue %s", r->qname);
+	if (r->tagname[0])
+		printf(" tag %s", r->tagname);
+}
+
 void
 print_rule(struct pfctl_rule *r, const char *anchor_call, int verbose, int numeric)
 {
