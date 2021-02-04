@@ -94,7 +94,6 @@ struct crypto_session {
 	void *softc;
 	uint32_t hid;
 	uint32_t capabilities;
-	uint64_t id;
 };
 
 SDT_PROVIDER_DEFINE(opencrypto);
@@ -573,7 +572,6 @@ again:
 int
 crypto_newsession(crypto_session_t *cses, struct cryptoini *cri, int crid)
 {
-	static uint64_t sessid = 0;
 	crypto_session_t res;
 	void *softc_mem;
 	struct cryptocap *cap;
@@ -618,7 +616,6 @@ restart:
 	softc_mem = malloc(softc_size, M_CRYPTO_DATA, M_WAITOK | M_ZERO);
 	res = uma_zalloc(cryptoses_zone, M_WAITOK | M_ZERO);
 	res->softc = softc_mem;
-	res->id = atomic_fetchadd_64(&sessid, 1);
 
 	CRYPTO_DRIVER_LOCK();
 	cap = crypto_checkdriver(hid);
@@ -1019,7 +1016,7 @@ crypto_dispatch(struct cryptop *crp)
 		binuptime(&crp->crp_tstamp);
 #endif
 
-	crp->crp_retw_id = crp->crp_session->id % crypto_workers_num;
+	crp->crp_retw_id = ((uintptr_t)crp->crp_session) % crypto_workers_num;
 
 	if (CRYPTOP_ASYNC(crp)) {
 		if (crp->crp_flags & CRYPTO_F_ASYNC_KEEPORDER) {
