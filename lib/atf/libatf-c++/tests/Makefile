@@ -10,6 +10,8 @@ ATF=		${SRCTOP}/contrib/atf
 .PATH:		${ATF}/atf-c++
 .PATH:		${ATF}/atf-c++/detail
 
+CFLAGS+=	-DATF_BUILD_CXX='"c++"'
+CFLAGS+=	-DATF_BUILD_CXXFLAGS='"-Wall"'
 CFLAGS+=	-DATF_C_TESTS_BASE='"${TESTSBASE}/lib/atf/libatf-c"'
 CFLAGS+=	-DATF_INCLUDEDIR='"${INCLUDEDIR}"'
 CFLAGS+=	-I${ATF}
