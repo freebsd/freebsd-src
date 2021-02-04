@@ -630,6 +630,10 @@ main(int argc, char *argv[])
 	aargc -= optind;
 	aargv += optind;
 
+	/* xflag takes precedence, don't confuse the matching bits. */
+	if (wflag && xflag)
+		wflag = false;
+
 	/* Fail if we don't have any pattern */
 	if (aargc == 0 && needpattern)
 		usage();
