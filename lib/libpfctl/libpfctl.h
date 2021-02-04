@@ -65,6 +65,43 @@ struct pfctl_status {
 	uint64_t	bcounters[2][2];
 };
 
+struct pfctl_eth_rules_info {
+	uint32_t	nr;
+	uint32_t	ticket;
+};
+
+struct pfctl_eth_addr {
+	uint8_t	addr[ETHER_ADDR_LEN];
+	bool	neg;
+};
+
+struct pfctl_eth_rule {
+	uint32_t		 nr;
+
+	bool			 quick;
+
+	/* Filter */
+	char			 ifname[IFNAMSIZ];
+	uint8_t			 ifnot;
+	uint8_t			 direction;
+	uint16_t		 proto;
+	struct pfctl_eth_addr	 src, dst;
+
+	/* Stats */
+	uint64_t		 evaluations;
+	uint64_t		 packets[2];
+	uint64_t		 bytes[2];
+
+	/* Action */
+	char			 qname[PF_QNAME_SIZE];
+	char			 tagname[PF_TAG_NAME_SIZE];
+	uint8_t			 action;
+
+	TAILQ_ENTRY(pfctl_eth_rule)	 entries;
+};
+
+TAILQ_HEAD(pfctl_eth_rules, pfctl_eth_rule);
+
 struct pfctl_pool {
 	struct pf_palist	 list;
 	struct pf_pooladdr	*cur;
@@ -291,6 +328,11 @@ struct pfctl_syncookies {
 struct pfctl_status* pfctl_get_status(int dev);
 void	pfctl_free_status(struct pfctl_status *status);
 
+int	pfctl_get_eth_rules_info(int dev, struct pfctl_eth_rules_info *rules);
+int	pfctl_get_eth_rule(int dev, uint32_t nr, uint32_t ticket,
+	    struct pfctl_eth_rule *rule, bool clear);
+int	pfctl_add_eth_rule(int dev, const struct pfctl_eth_rule *r,
+	    uint32_t ticket);
 int	pfctl_get_rule(int dev, uint32_t nr, uint32_t ticket,
 	    const char *anchor, uint32_t ruleset, struct pfctl_rule *rule,
 	    char *anchor_call);
