@@ -192,13 +192,13 @@ MR_LdRaidGet(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map)
 u_int16_t
 MR_GetLDTgtId(u_int32_t ld, MR_DRV_RAID_MAP_ALL * map)
 {
-	return (map->raidMap.ldSpanMap[ld].ldRaid.targetId);
+	return le16toh(map->raidMap.ldSpanMap[ld].ldRaid.targetId);
 }
 
 static u_int16_t
 MR_LdSpanArrayGet(u_int32_t ld, u_int32_t span, MR_DRV_RAID_MAP_ALL * map)
 {
-	return map->raidMap.ldSpanMap[ld].spanBlock[span].span.arrayRef;
+	return le16toh(map->raidMap.ldSpanMap[ld].spanBlock[span].span.arrayRef);
 }
 
 static u_int8_t
@@ -221,7 +221,7 @@ static u_int8_t MR_PdInterfaceTypeGet(u_int32_t pd, MR_DRV_RAID_MAP_ALL *map)
 static u_int16_t
 MR_ArPdGet(u_int32_t ar, u_int32_t arm, MR_DRV_RAID_MAP_ALL * map)
 {
-	return map->raidMap.arMapInfo[ar].pd[arm];
+	return le16toh(map->raidMap.arMapInfo[ar].pd[arm]);
 }
 
 static MR_LD_SPAN *
@@ -291,11 +291,11 @@ MR_PopulateDrvRaidMapVentura(struct mrsas_softc *sc)
 	device_printf(sc->mrsas_dev,
 	    " raidMapSize 0x%x, descTableOffset 0x%x, "
 	    " descTableSize 0x%x, descTableNumElements 0x%x \n",
-	    fw_map_dyn->raidMapSize, fw_map_dyn->descTableOffset,
+	    fw_map_dyn->raidMapSize, le32toh(fw_map_dyn->descTableOffset),
 	    fw_map_dyn->descTableSize, fw_map_dyn->descTableNumElements);
 #endif
 	desc_table = (MR_RAID_MAP_DESC_TABLE *) ((char *)fw_map_dyn +
-	    fw_map_dyn->descTableOffset);
+	    le32toh(fw_map_dyn->descTableOffset));
 	if (desc_table != fw_map_dyn->raidMapDescTable) {
 		device_printf(sc->mrsas_dev,
 		    "offsets of desc table are not matching returning "
@@ -303,15 +303,16 @@ MR_PopulateDrvRaidMapVentura(struct mrsas_softc *sc)
 		    desc_table, fw_map_dyn->raidMapDescTable);
 	}
 	memset(drv_map, 0, sc->drv_map_sz);
-	ld_count = fw_map_dyn->ldCount;
-	pDrvRaidMap->ldCount = ld_count;
+	ld_count = le16toh(fw_map_dyn->ldCount);
+	pDrvRaidMap->ldCount = htole16(ld_count);
 	pDrvRaidMap->fpPdIoTimeoutSec = fw_map_dyn->fpPdIoTimeoutSec;
-	pDrvRaidMap->totalSize = sizeof(MR_DRV_RAID_MAP_ALL);
+	pDrvRaidMap->totalSize = htole32(sizeof(MR_DRV_RAID_MAP_ALL));
 	/* point to actual data starting point */
 	raid_map_data = (char *)fw_map_dyn +
-	    fw_map_dyn->descTableOffset + fw_map_dyn->descTableSize;
+	    le32toh(fw_map_dyn->descTableOffset) +
+	    le32toh(fw_map_dyn->descTableSize);
 
-	for (i = 0; i < fw_map_dyn->descTableNumElements; ++i) {
+	for (i = 0; i < le32toh(fw_map_dyn->descTableNumElements); ++i) {
 		if (!desc_table) {
 			device_printf(sc->mrsas_dev,
 			    "desc table is null, coming out %p \n", desc_table);
@@ -324,28 +325,29 @@ MR_PopulateDrvRaidMapVentura(struct mrsas_softc *sc)
 		device_printf(sc->mrsas_dev,
 		    "raidmap type %d, raidmapOffset 0x%x, "
 		    " raid map number of elements 0%x, raidmapsize 0x%x\n",
-		    desc_table->raidMapDescType, desc_table->raidMapDescOffset,
-		    desc_table->raidMapDescElements, desc_table->raidMapDescBufferSize);
+		    le32toh(desc_table->raidMapDescType), desc_table->raidMapDescOffset,
+		    le32toh(desc_table->raidMapDescElements), desc_table->raidMapDescBufferSize);
 #endif
-		switch (desc_table->raidMapDescType) {
+		switch (le32toh(desc_table->raidMapDescType)) {
 		case RAID_MAP_DESC_TYPE_DEVHDL_INFO:
 			fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo = (MR_DEV_HANDLE_INFO *)
-			    ((char *)raid_map_data + desc_table->raidMapDescOffset);
+			    ((char *)raid_map_data + le32toh(desc_table->raidMapDescOffset));
 #if VD_EXT_DEBUG
 			device_printf(sc->mrsas_dev,
 			    "devHndlInfo address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo);
 #endif
 			memcpy(pDrvRaidMap->devHndlInfo, fw_map_dyn->RaidMapDescPtrs.ptrStruct.devHndlInfo,
-			    sizeof(MR_DEV_HANDLE_INFO) * desc_table->raidMapDescElements);
+			    sizeof(MR_DEV_HANDLE_INFO) * le32toh(desc_table->raidMapDescElements));
 			break;
 		case RAID_MAP_DESC_TYPE_TGTID_INFO:
 			fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd = (u_int16_t *)
-			    ((char *)raid_map_data + desc_table->raidMapDescOffset);
+			    ((char *)raid_map_data +
+			     le32toh(desc_table->raidMapDescOffset));
 #if VD_EXT_DEBUG
 			device_printf(sc->mrsas_dev,
 			    "ldTgtIdToLd  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd);
 #endif
-			for (j = 0; j < desc_table->raidMapDescElements; j++) {
+			for (j = 0; j < le32toh(desc_table->raidMapDescElements); j++) {
 				pDrvRaidMap->ldTgtIdToLd[j] = fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldTgtIdToLd[j];
 #if VD_EXT_DEBUG
 				device_printf(sc->mrsas_dev,
@@ -355,19 +357,20 @@ MR_PopulateDrvRaidMapVentura(struct mrsas_softc *sc)
 			break;
 		case RAID_MAP_DESC_TYPE_ARRAY_INFO:
 			fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo = (MR_ARRAY_INFO *) ((char *)raid_map_data +
-			    desc_table->raidMapDescOffset);
+			    le32toh(desc_table->raidMapDescOffset));
 #if VD_EXT_DEBUG
 			device_printf(sc->mrsas_dev,
 			    "arMapInfo  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo);
 #endif
 			memcpy(pDrvRaidMap->arMapInfo, fw_map_dyn->RaidMapDescPtrs.ptrStruct.arMapInfo,
-			    sizeof(MR_ARRAY_INFO) * desc_table->raidMapDescElements);
+			    sizeof(MR_ARRAY_INFO) * le32toh(desc_table->raidMapDescElements));
 			break;
 		case RAID_MAP_DESC_TYPE_SPAN_INFO:
 			fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap = (MR_LD_SPAN_MAP *) ((char *)raid_map_data +
-			    desc_table->raidMapDescOffset);
+			    le32toh(desc_table->raidMapDescOffset));
 			memcpy(pDrvRaidMap->ldSpanMap, fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap,
-			    sizeof(MR_LD_SPAN_MAP) * desc_table->raidMapDescElements);
+			    sizeof(MR_LD_SPAN_MAP) *
+			    le32toh(desc_table->raidMapDescElements));
 #if VD_EXT_DEBUG
 			device_printf(sc->mrsas_dev,
 			    "ldSpanMap  address %p\n", fw_map_dyn->RaidMapDescPtrs.ptrStruct.ldSpanMap);
@@ -419,7 +422,7 @@ MR_PopulateDrvRaidMap(struct mrsas_softc *sc)
 		return MR_PopulateDrvRaidMapVentura(sc);
 	} else if (sc->max256vdSupport) {
 		fw_map_ext = (MR_FW_RAID_MAP_EXT *) sc->raidmap_mem[(sc->map_id & 1)];
-		ld_count = (u_int16_t)(fw_map_ext->ldCount);
+		ld_count = (u_int16_t)le16toh(fw_map_ext->ldCount);
 		if (ld_count > MAX_LOGICAL_DRIVES_EXT) {
 			device_printf(sc->mrsas_dev,
 			    "mrsas: LD count exposed in RAID map in not valid\n");
@@ -434,7 +437,7 @@ MR_PopulateDrvRaidMap(struct mrsas_softc *sc)
 		}
 #endif
 		memset(drv_map, 0, sc->drv_map_sz);
-		pDrvRaidMap->ldCount = ld_count;
+		pDrvRaidMap->ldCount = htole16(ld_count);
 		pDrvRaidMap->fpPdIoTimeoutSec = fw_map_ext->fpPdIoTimeoutSec;
 		for (i = 0; i < (MAX_LOGICAL_DRIVES_EXT); i++) {
 			pDrvRaidMap->ldTgtIdToLd[i] = (u_int16_t)fw_map_ext->ldTgtIdToLd[i];
@@ -462,13 +465,13 @@ MR_PopulateDrvRaidMap(struct mrsas_softc *sc)
 		memcpy(pDrvRaidMap->devHndlInfo, fw_map_ext->devHndlInfo,
 		    sizeof(MR_DEV_HANDLE_INFO) * MAX_RAIDMAP_PHYSICAL_DEVICES);
 
-		pDrvRaidMap->totalSize = sizeof(MR_FW_RAID_MAP_EXT);
+		pDrvRaidMap->totalSize = htole32(sizeof(MR_FW_RAID_MAP_EXT));
 	} else {
 		fw_map_old = (MR_FW_RAID_MAP_ALL *) sc->raidmap_mem[(sc->map_id & 1)];
 		pFwRaidMap = &fw_map_old->raidMap;
 
 #if VD_EXT_DEBUG
-		for (i = 0; i < pFwRaidMap->ldCount; i++) {
+		for (i = 0; i < le32toh(pFwRaidMap->ldCount); i++) {
 			device_printf(sc->mrsas_dev,
 			    "Index 0x%x Target Id 0x%x Seq Num 0x%x Size 0/%lx\n", i,
 			    fw_map_old->raidMap.ldSpanMap[i].ldRaid.targetId,
@@ -550,12 +553,12 @@ MR_ValidateMapInfo(struct mrsas_softc *sc)
 	else
 		expected_map_size =
 		    (sizeof(MR_FW_RAID_MAP) - sizeof(MR_LD_SPAN_MAP)) +
-		    (sizeof(MR_LD_SPAN_MAP) * pDrvRaidMap->ldCount);
+		    (sizeof(MR_LD_SPAN_MAP) * le16toh(pDrvRaidMap->ldCount));
 
-	if (pDrvRaidMap->totalSize != expected_map_size) {
+	if (le32toh(pDrvRaidMap->totalSize) != expected_map_size) {
 		device_printf(sc->mrsas_dev, "map size %x not matching ld count\n", expected_map_size);
 		device_printf(sc->mrsas_dev, "span map= %x\n", (unsigned int)sizeof(MR_LD_SPAN_MAP));
-		device_printf(sc->mrsas_dev, "pDrvRaidMap->totalSize=%x\n", pDrvRaidMap->totalSize);
+		device_printf(sc->mrsas_dev, "pDrvRaidMap->totalSize=%x\n", le32toh(pDrvRaidMap->totalSize));
 		return 1;
 	}
 	if (sc->UnevenSpanSupport) {
@@ -597,8 +600,8 @@ getSpanInfo(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 		printf("LD %x: span_depth=%x\n", ld, raid->spanDepth);
 		for (span = 0; span < raid->spanDepth; span++)
 			printf("Span=%x, number of quads=%x\n", span,
-			    map->raidMap.ldSpanMap[ld].spanBlock[span].
-			    block_span_info.noElements);
+			    le32toh(map->raidMap.ldSpanMap[ld].spanBlock[span].
+			    block_span_info.noElements));
 		for (element = 0; element < MAX_QUAD_DEPTH; element++) {
 			span_set = &(ldSpanInfo[ld].span_set[element]);
 			if (span_set->span_row_data_width == 0)
@@ -627,12 +630,12 @@ getSpanInfo(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 					    spanBlock[span].block_span_info.
 					    quad[element];
 					printf("Span=%x, Quad=%x, diff=%x\n", span,
-					    element, quad->diff);
+					    element, le32toh(quad->diff));
 					printf("offset_in_span=0x%08lx\n",
-					    (long unsigned int)quad->offsetInSpan);
+					    (long unsigned int)le64toh(quad->offsetInSpan));
 					printf("logical start=0x%08lx, end=0x%08lx\n",
-					    (long unsigned int)quad->logStart,
-					    (long unsigned int)quad->logEnd);
+					    (long unsigned int)le64toh(quad->logStart),
+					    (long unsigned int)le64toh(quad->logEnd));
 				}
 			}
 		}
@@ -674,8 +677,8 @@ mr_spanset_get_span_block(struct mrsas_softc *sc, u_int32_t ld, u_int64_t row,
 			continue;
 
 		for (span = 0; span < raid->spanDepth; span++)
-			if (map->raidMap.ldSpanMap[ld].spanBlock[span].
-			    block_span_info.noElements >= info + 1) {
+			if (le32toh(map->raidMap.ldSpanMap[ld].spanBlock[span].
+			    block_span_info.noElements) >= info + 1) {
 				quad = &map->raidMap.ldSpanMap[ld].
 				    spanBlock[span].
 				    block_span_info.quad[info];
@@ -683,17 +686,17 @@ mr_spanset_get_span_block(struct mrsas_softc *sc, u_int32_t ld, u_int64_t row,
 					*div_error = 1;
 					return span;
 				}
-				if (quad->logStart <= row &&
-				    row <= quad->logEnd &&
-				    (mega_mod64(row - quad->logStart,
-				    quad->diff)) == 0) {
+				if (le64toh(quad->logStart) <= row &&
+				    row <= le64toh(quad->logEnd) &&
+				    (mega_mod64(row - le64toh(quad->logStart),
+				    le32toh(quad->diff))) == 0) {
 					if (span_blk != NULL) {
 						u_int64_t blk;
 
 						blk = mega_div64_32
-						    ((row - quad->logStart),
-						    quad->diff);
-						blk = (blk + quad->offsetInSpan)
+						    ((row - le64toh(quad->logStart)),
+						    le32toh(quad->diff));
+						blk = (blk + le64toh(quad->offsetInSpan))
 						    << raid->stripeShift;
 						*span_blk = blk;
 					}
@@ -740,8 +743,8 @@ get_row_from_strip(struct mrsas_softc *sc,
 		span_set_Row = mega_div64_32(span_set_Strip,
 		    span_set->span_row_data_width) * span_set->diff;
 		for (span = 0, span_offset = 0; span < raid->spanDepth; span++)
-			if (map->raidMap.ldSpanMap[ld].spanBlock[span].
-			    block_span_info.noElements >= info + 1) {
+			if (le32toh(map->raidMap.ldSpanMap[ld].spanBlock[span].
+			    block_span_info.noElements) >= info + 1) {
 				if (strip_offset >=
 				    span_set->strip_offset[span])
 					span_offset++;
@@ -793,18 +796,18 @@ get_strip_from_row(struct mrsas_softc *sc,
 			continue;
 
 		for (span = 0; span < raid->spanDepth; span++)
-			if (map->raidMap.ldSpanMap[ld].spanBlock[span].
-			    block_span_info.noElements >= info + 1) {
+			if (le32toh(map->raidMap.ldSpanMap[ld].spanBlock[span].
+			    block_span_info.noElements) >= info + 1) {
 				quad = &map->raidMap.ldSpanMap[ld].
 				    spanBlock[span].block_span_info.quad[info];
-				if (quad->logStart <= row &&
-				    row <= quad->logEnd &&
-				    mega_mod64((row - quad->logStart),
-				    quad->diff) == 0) {
+				if (le64toh(quad->logStart) <= row &&
+				    row <= le64toh(quad->logEnd) &&
+				    mega_mod64((row - le64toh(quad->logStart)),
+				    le32toh(quad->diff)) == 0) {
 					strip = mega_div64_32
 					    (((row - span_set->data_row_start)
-					    - quad->logStart),
-					    quad->diff);
+					    - le64toh(quad->logStart)),
+					    le32toh(quad->diff));
 					strip *= span_set->span_row_data_width;
 					strip += span_set->data_strip_start;
 					strip += span_set->strip_offset[span];
@@ -853,8 +856,8 @@ get_arm_from_strip(struct mrsas_softc *sc,
 		    span_set->span_row_data_width);
 
 		for (span = 0, span_offset = 0; span < raid->spanDepth; span++)
-			if (map->raidMap.ldSpanMap[ld].spanBlock[span].
-			    block_span_info.noElements >= info + 1) {
+			if (le32toh(map->raidMap.ldSpanMap[ld].spanBlock[span].
+			    block_span_info.noElements) >= info + 1) {
 				if (strip_offset >= span_set->strip_offset[span])
 					span_offset = span_set->strip_offset[span];
 				else
@@ -957,7 +960,7 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 				io_info->r1_alt_dev_handle = MR_PdDevHandleGet(r1_alt_pd, map);
 		}
 	} else {
-		*pDevHandle = MR_DEVHANDLE_INVALID;
+		*pDevHandle = htole16(MR_DEVHANDLE_INVALID);
 		if ((raid->level >= 5) && ((sc->device_id == MRSAS_TBOLT) ||
 			(sc->mrsas_gen3_ctrl &&
 			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
@@ -971,7 +974,7 @@ mr_spanset_get_phy_params(struct mrsas_softc *sc, u_int32_t ld, u_int64_t stripR
 		}
 	}
 
-	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
+	*pdBlock += stripRef + le64toh(MR_LdSpanPtrGet(ld, span, map)->startBlk);
 	if (sc->is_ventura || sc->is_aero) {
 		((RAID_CONTEXT_G35 *) pRAID_Context)->spanArm =
 		    (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
@@ -1152,14 +1155,14 @@ MR_BuildRaidContext(struct mrsas_softc *sc, struct IO_REQUEST_INFO *io_info,
 		else
 			regSize += stripSize;
 	}
-	pRAID_Context->timeoutValue = map->raidMap.fpPdIoTimeoutSec;
+	pRAID_Context->timeoutValue = htole16(map->raidMap.fpPdIoTimeoutSec);
 	if (sc->mrsas_gen3_ctrl)
 		pRAID_Context->regLockFlags = (isRead) ? raid->regTypeReqOnRead : raid->regTypeReqOnWrite;
 	else if (sc->device_id == MRSAS_TBOLT)
 		pRAID_Context->regLockFlags = (isRead) ? REGION_TYPE_SHARED_READ : raid->regTypeReqOnWrite;
 	pRAID_Context->VirtualDiskTgtId = raid->targetId;
-	pRAID_Context->regLockRowLBA = regStart;
-	pRAID_Context->regLockLength = regSize;
+	pRAID_Context->regLockRowLBA = htole64(regStart);
+	pRAID_Context->regLockLength = htole32(regSize);
 	pRAID_Context->configSeqNum = raid->seqNum;
 
 	/*
@@ -1232,20 +1235,20 @@ mr_update_span_set(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 		raid = MR_LdRaidGet(ld, map);
 		for (element = 0; element < MAX_QUAD_DEPTH; element++) {
 			for (span = 0; span < raid->spanDepth; span++) {
-				if (map->raidMap.ldSpanMap[ld].spanBlock[span].
-				    block_span_info.noElements < element + 1)
+				if (le32toh(map->raidMap.ldSpanMap[ld].spanBlock[span].
+				    block_span_info.noElements) < element + 1)
 					continue;
 				/* TO-DO */
 				span_set = &(ldSpanInfo[ld].span_set[element]);
 				quad = &map->raidMap.ldSpanMap[ld].
 				    spanBlock[span].block_span_info.quad[element];
 
-				span_set->diff = quad->diff;
+				span_set->diff = le32toh(quad->diff);
 
 				for (count = 0, span_row_width = 0;
 				    count < raid->spanDepth; count++) {
-					if (map->raidMap.ldSpanMap[ld].spanBlock[count].
-					    block_span_info.noElements >= element + 1) {
+					if (le32toh(map->raidMap.ldSpanMap[ld].spanBlock[count].
+					    block_span_info.noElements) >= element + 1) {
 						span_set->strip_offset[count] = span_row_width;
 						span_row_width +=
 						    MR_LdSpanPtrGet(ld, count, map)->spanRowDataSize;
@@ -1257,8 +1260,9 @@ mr_update_span_set(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 				}
 
 				span_set->span_row_data_width = span_row_width;
-				span_row = mega_div64_32(((quad->logEnd -
-				    quad->logStart) + quad->diff), quad->diff);
+				span_row = mega_div64_32(((le64toh(quad->logEnd) -
+				    le64toh(quad->logStart)) + le32toh(quad->diff)),
+				    le32toh(quad->diff));
 
 				if (element == 0) {
 					span_set->log_start_lba = 0;
@@ -1272,7 +1276,8 @@ mr_update_span_set(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 					span_set->data_strip_end = (span_row * span_row_width) - 1;
 
 					span_set->data_row_start = 0;
-					span_set->data_row_end = (span_row * quad->diff) - 1;
+					span_set->data_row_end =
+					  (span_row * le32toh(quad->diff)) - 1;
 				} else {
 					span_set_prev = &(ldSpanInfo[ld].span_set[element - 1]);
 					span_set->log_start_lba = span_set_prev->log_end_lba + 1;
@@ -1290,7 +1295,7 @@ mr_update_span_set(MR_DRV_RAID_MAP_ALL * map, PLD_SPAN_INFO ldSpanInfo)
 
 					span_set->data_row_start = span_set_prev->data_row_end + 1;
 					span_set->data_row_end = span_set->data_row_start +
-					    (span_row * quad->diff) - 1;
+					    (span_row * le32toh(quad->diff)) - 1;
 				}
 				break;
 			}
@@ -1331,6 +1336,7 @@ mrsas_update_load_balance_params(struct mrsas_softc *sc,
 			continue;
 		}
 		raid = MR_LdRaidGet(ld, drv_map);
+		le32_to_cpus(&raid->capability);
 		if ((raid->level != 1) ||
 		    (raid->ldState != MR_LD_STATE_OPTIMAL)) {
 			lbInfo[ldCount].loadBalanceFlag = 0;
@@ -1390,9 +1396,9 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
 		cdb[19] = (u_int8_t)(start_blk & 0xff);
 
 		/* Logical block reference tag */
-		io_request->CDB.EEDP32.PrimaryReferenceTag = swap32(ref_tag);
-		io_request->CDB.EEDP32.PrimaryApplicationTagMask = 0xffff;
-		io_request->IoFlags = 32;	/* Specify 32-byte cdb */
+		io_request->CDB.EEDP32.PrimaryReferenceTag = htobe32(ref_tag);
+		io_request->CDB.EEDP32.PrimaryApplicationTagMask = htobe16(0xffff);
+		io_request->IoFlags = htole16(32);	/* Specify 32-byte cdb */
 
 		/* Transfer length */
 		cdb[28] = (u_int8_t)((num_blocks >> 24) & 0xff);
@@ -1402,19 +1408,19 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
 
 		/* set SCSI IO EEDP Flags */
 		if (ccb_h->flags == CAM_DIR_OUT) {
-			io_request->EEDPFlags =
+			io_request->EEDPFlags = htole16(
 			    MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
 			    MPI2_SCSIIO_EEDPFLAGS_CHECK_REFTAG |
 			    MPI2_SCSIIO_EEDPFLAGS_CHECK_REMOVE_OP |
 			    MPI2_SCSIIO_EEDPFLAGS_CHECK_APPTAG |
-			    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD;
+			    MPI2_SCSIIO_EEDPFLAGS_CHECK_GUARD);
 		} else {
-			io_request->EEDPFlags =
+			io_request->EEDPFlags = htole16(
 			    MPI2_SCSIIO_EEDPFLAGS_INC_PRI_REFTAG |
-			    MPI2_SCSIIO_EEDPFLAGS_INSERT_OP;
+			    MPI2_SCSIIO_EEDPFLAGS_INSERT_OP);
 		}
-		io_request->Control |= (0x4 << 26);
-		io_request->EEDPBlockSize = ld_block_size;
+		io_request->Control |= htole32(0x4 << 26);
+		io_request->EEDPBlockSize = htole32(ld_block_size);
 	} else {
 		/* Some drives don't support 16/12 byte CDB's, convert to 10 */
 		if (((cdb_len == 12) || (cdb_len == 16)) &&
@@ -1442,7 +1448,7 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
 			cdb[8] = (u_int8_t)(num_blocks & 0xff);
 			cdb[7] = (u_int8_t)((num_blocks >> 8) & 0xff);
 
-			io_request->IoFlags = 10;	/* Specify 10-byte cdb */
+			io_request->IoFlags = htole16(10);	/* Specify 10-byte cdb */
 			cdb_len = 10;
 		} else if ((cdb_len < 16) && (start_blk > 0xffffffff)) {
 			/* Convert to 16 byte CDB for large LBA's */
@@ -1478,7 +1484,7 @@ mrsas_set_pd_lba(MRSAS_RAID_SCSI_IO_REQUEST * io_request, u_int8_t cdb_len,
 			cdb[11] = (u_int8_t)((num_blocks >> 16) & 0xff);
 			cdb[10] = (u_int8_t)((num_blocks >> 24) & 0xff);
 
-			io_request->IoFlags = 16;	/* Specify 16-byte cdb */
+			io_request->IoFlags = htole16(16);	/* Specify 16-byte cdb */
 			cdb_len = 16;
 		} else if ((cdb_len == 6) && (start_blk > 0x1fffff)) {
 			/* convert to 10 byte CDB */
@@ -1700,7 +1706,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 				io_info->r1_alt_dev_handle = MR_PdDevHandleGet(r1_alt_pd, map);
 		}
 	} else {
-		*pDevHandle = MR_DEVHANDLE_INVALID;	/* set dev handle as invalid. */
+		*pDevHandle = htole16(MR_DEVHANDLE_INVALID);	/* set dev handle as invalid. */
 		if ((raid->level >= 5) && ((sc->device_id == MRSAS_TBOLT) ||
 			(sc->mrsas_gen3_ctrl &&
 			raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
@@ -1716,7 +1722,7 @@ MR_GetPhyParams(struct mrsas_softc *sc, u_int32_t ld,
 		}
 	}
 
-	*pdBlock += stripRef + MR_LdSpanPtrGet(ld, span, map)->startBlk;
+	*pdBlock += stripRef + le64toh(MR_LdSpanPtrGet(ld, span, map)->startBlk);
 	if (sc->is_ventura || sc->is_aero) {
 		((RAID_CONTEXT_G35 *) pRAID_Context)->spanArm =
 		    (span << RAID_CTX_SPANARM_SPAN_SHIFT) | physArm;
