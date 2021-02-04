@@ -139,6 +139,50 @@ atf_check_equal_eval_fail_body()
     atf_check_equal '${x}' '${y}'
 }
 
+atf_test_case atf_check_not_equal_ok
+atf_check_not_equal_ok_head()
+{
+    atf_set "descr" "Helper test case for the t_atf_check test program"
+}
+atf_check_not_equal_ok_body()
+{
+    atf_check_not_equal a b
+}
+
+atf_test_case atf_check_not_equal_fail
+atf_check_not_equal_fail_head()
+{
+    atf_set "descr" "Helper test case for the t_atf_check test program"
+}
+atf_check_not_equal_fail_body()
+{
+    atf_check_not_equal a a
+}
+
+atf_test_case atf_check_not_equal_eval_ok
+atf_check_not_equal_eval_ok_head()
+{
+    atf_set "descr" "Helper test case for the t_atf_check test program"
+}
+atf_check_not_equal_eval_ok_body()
+{
+    x=a
+    y=b
+    atf_check_not_equal '${x}' '${y}'
+}
+
+atf_test_case atf_check_not_equal_eval_fail
+atf_check_not_equal_eval_fail_head()
+{
+    atf_set "descr" "Helper test case for the t_atf_check test program"
+}
+atf_check_not_equal_eval_fail_body()
+{
+    x=a
+    y=a
+    atf_check_not_equal '${x}' '${y}'
+}
+
 atf_test_case atf_check_flush_stdout
 atf_check_flush_stdout_head()
 {
@@ -285,6 +329,10 @@ atf_init_test_cases()
     atf_add_test_case atf_check_equal_fail
     atf_add_test_case atf_check_equal_eval_ok
     atf_add_test_case atf_check_equal_eval_fail
+    atf_add_test_case atf_check_not_equal_ok
+    atf_add_test_case atf_check_not_equal_fail
+    atf_add_test_case atf_check_not_equal_eval_ok
+    atf_add_test_case atf_check_not_equal_eval_fail
     atf_add_test_case atf_check_flush_stdout
 
     # Add helper tests for t_config.

@@ -22,13 +22,14 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd March 6, 2017
+.Dd June 08, 2017
 .Dt ATF-SH 3
 .Os
 .Sh NAME
 .Nm atf_add_test_case ,
 .Nm atf_check ,
 .Nm atf_check_equal ,
+.Nm atf_check_not_equal ,
 .Nm atf_config_get ,
 .Nm atf_config_has ,
 .Nm atf_expect_death ,
@@ -53,6 +54,9 @@
 .Nm atf_check
 .Qq command
 .Nm atf_check_equal
+.Qq expected_expression
+.Qq actual_expression
+.Nm atf_check_not_equal
 .Qq expected_expression
 .Qq actual_expression
 .Nm atf_config_get
@@ -308,6 +312,11 @@ tool in your scripts; the latter is not even in the path.
 .It Nm atf_check_equal Qo expected_expression Qc Qo actual_expression Qc
 This function takes two expressions, evaluates them and, if their
 results differ, aborts the test case with an appropriate failure message.
+The common style is to put the expected value in the first parameter and the
+actual value in the second parameter.
+.It Nm atf_check_not_equal Qo expected_expression Qc Qo actual_expression Qc
+This function takes two expressions, evaluates them and, if their
+results are equal, aborts the test case with an appropriate failure message.
 The common style is to put the expected value in the first parameter and the
 actual value in the second parameter.
 .El

@@ -74,7 +74,7 @@ new_entry(void *object, bool managed)
         le->m_prev = le->m_next = NULL;
         le->m_object = object;
         le->m_managed = managed;
-    } else
+    } else if (managed)
         free(object);
 
     return le;

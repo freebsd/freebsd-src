@@ -149,11 +149,7 @@ APIs to implement the test cases.
 The standard input of the test cases is unconditionally connected to
 .Sq /dev/zero .
 .Ss Meta-data
-The following list describes all meta-data properties interpreted
-internally by ATF.
-You are free to define new properties in your test cases and use them as
-you wish, but non-standard properties must be prefixed by
-.Sq X- .
+The following metadata properties can be exposed via the test case's head:
 .Bl -tag -width requireXmachineXX
 .It descr
 Type: textual.
@@ -275,6 +271,17 @@ test program.
 Can optionally be set to zero, in which case the test case has no run-time
 limit.
 This is discouraged.
+.It X- Ns Sq NAME
+Type: textual.
+Optional.
+.Pp
+A user-defined property named
+.Sq NAME .
+These properties are free form, have no special meaning within ATF, and can
+be specified at will by the test case.
+The runtime engine should propagate these properties from the test case to
+the end user so that the end user can rely on custom properties for test case
+tagging and classification.
 .El
 .Ss Environment
 Every time a test case is executed, several environment variables are

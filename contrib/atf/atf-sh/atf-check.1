@@ -22,7 +22,7 @@
 .\" IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 .\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 .\" IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.Dd March 6, 2017
+.Dd June 21, 2020
 .Dt ATF-CHECK 1
 .Os
 .Sh NAME
@@ -120,6 +120,14 @@ as a shell command line, executing it with the system shell defined by
 .Va ATF_SHELL .
 You should avoid using this flag if at all possible to prevent shell quoting
 issues.
+.It Fl r Ar timeout[:interval]
+Repeats failed checks until the
+.Ar timeout
+(in seconds) expires.
+If unspecified, the default
+.Ar interval
+(in milliseconds) is 50 ms.
+This can be used to wait for an expected update to the contents of a file.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width ATFXSHELLXX -compact
@@ -157,6 +165,11 @@ atf_check -s signal:sigsegv my_program
 
 # Combined checks
 atf_check -o match:foo -o not-match:bar echo foo baz
+
+# Wait 5 seconds for a line to show up in a file
+( sleep 2 ; echo "testing 123" > $test_path ) &
+atf-check -o ignore -e ignore -s exit:0 -r 5 \e
+    grep "testing 123" $test_path
 .Ed
 .Sh SEE ALSO
 .Xr atf-sh 1

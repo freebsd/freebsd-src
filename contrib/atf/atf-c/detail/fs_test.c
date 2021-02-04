@@ -779,7 +779,7 @@ ATF_TC_BODY(rmdir_enotempty, tc)
     atf_fs_path_fini(&p);
 }
 
-ATF_TC(rmdir_eperm);
+ATF_TC_WITH_CLEANUP(rmdir_eperm);
 ATF_TC_HEAD(rmdir_eperm, tc)
 {
     atf_tc_set_md_var(tc, "descr", "Tests the atf_fs_rmdir function");
@@ -807,6 +807,13 @@ ATF_TC_BODY(rmdir_eperm, tc)
     }
 
     atf_fs_path_fini(&p);
+}
+ATF_TC_CLEANUP(rmdir_eperm, tc)
+{
+    if (chmod("test-dir", 0755) == -1) {
+        fprintf(stderr, "Failed to unprotect test-dir; test directory "
+                "cleanup will fail\n");
+    }
 }
 
 ATF_TC(mkdtemp_ok);
