@@ -489,11 +489,11 @@ wflag_emptypat_body()
 
 	atf_check -s exit:1 -o empty grep -w -e "" test1
 
-	atf_check -o file:test2 grep -w -e "" test2
+	atf_check -o file:test2 grep -vw -e "" test2
 
 	atf_check -s exit:1 -o empty grep -w -e "" test3
 
-	atf_check -o file:test4 grep -w -e "" test4
+	atf_check -o file:test4 grep -vw -e "" test4
 }
 
 atf_test_case xflag_emptypat
@@ -504,7 +504,6 @@ xflag_emptypat_body()
 	printf "qaz" > test3
 	printf " qaz\n" > test4
 
-	# -x is whole-line, more strict than -w.
 	atf_check -s exit:1 -o empty grep -x -e "" test1
 
 	atf_check -o file:test2 grep -x -e "" test2
@@ -548,6 +547,22 @@ xflag_emptypat_plus_body()
 	# -v handling
 	atf_check -s exit:1 -o empty grep -Fvxf patlist1 target
 	atf_check -o file:spacelines grep -Fxvf patlist1 target_spacelines
+}
+
+atf_test_case emptyfile
+emptyfile_descr()
+{
+	atf_set "descr" "Check for proper handling of empty pattern files (PR 253209)"
+}
+emptyfile_body()
+{
+	:> epatfile
+	echo "blubb" > subj
+
+	# From PR 253209, bsdgrep was short-circuiting completely on an empty
+	# file, but we should have still been processing lines.
+	atf_check -s exit:1 -o empty fgrep -f epatfile subj
+	atf_check -o file:subj fgrep -vf epatfile subj
 }
 
 atf_test_case excessive_matches
@@ -946,6 +961,7 @@ atf_init_test_cases()
 	atf_add_test_case wflag_emptypat
 	atf_add_test_case xflag_emptypat
 	atf_add_test_case xflag_emptypat_plus
+	atf_add_test_case emptyfile
 	atf_add_test_case excessive_matches
 	atf_add_test_case wv_combo_break
 	atf_add_test_case fgrep_sanity

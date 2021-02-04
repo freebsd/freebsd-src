@@ -70,13 +70,6 @@ const char	*errstr[] = {
 int		 cflags = REG_NOSUB | REG_NEWLINE;
 int		 eflags = REG_STARTEND;
 
-/* XXX TODO: Get rid of this flag.
- * matchall is a gross hack that means that an empty pattern was passed to us.
- * It is a necessary evil at the moment because our regex(3) implementation
- * does not allow for empty patterns, as supported by POSIX's definition of
- * grammar for BREs/EREs. When libregex becomes available, it would be wise
- * to remove this and let regex(3) handle the dirty details of empty patterns.
- */
 bool		 matchall;
 
 /* Searching patterns */
@@ -641,10 +634,6 @@ main(int argc, char *argv[])
 	}
 	aargc -= optind;
 	aargv += optind;
-
-	/* Empty pattern file matches nothing */
-	if (!needpattern && (patterns == 0) && !matchall)
-		exit(1);
 
 	/* Fail if we don't have any pattern */
 	if (aargc == 0 && needpattern)
