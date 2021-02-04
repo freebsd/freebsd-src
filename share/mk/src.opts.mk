@@ -212,6 +212,7 @@ __DEFAULT_NO_OPTIONS = \
     LOADER_VERIEXEC_PASS_MANIFEST \
     OFED_EXTRA \
     OPENLDAP \
+    OPENSSL_KTLS \
     RPCBIND_WARMSTART_SUPPORT \
     SORT_THREADS \
     SVN \
@@ -328,13 +329,6 @@ BROKEN_OPTIONS+=LOADER_UBOOT
 # crazy high addresses, which is typical of endianness problems).
 .if ${__T:Mpowerpc*}
 BROKEN_OPTIONS+=LOADER_GELI LOADER_LUA
-.endif
-
-# Kernel TLS is enabled by default on amd64
-.if ${__T} == "amd64"
-__DEFAULT_YES_OPTIONS+=OPENSSL_KTLS
-.else
-__DEFAULT_NO_OPTIONS+=OPENSSL_KTLS
 .endif
 
 .if ${__T:Mmips64*}
