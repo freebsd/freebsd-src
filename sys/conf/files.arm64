@@ -349,9 +349,9 @@ arm/annapurna/alpine/alpine_serdes.c		optional al_serdes fdt		\
 	compile-with "${CC} -c -o ${.TARGET} ${CFLAGS} -I$S/contrib/alpine-hal -I$S/contrib/alpine-hal/eth ${PROF} ${.IMPSRC}"
 
 # Broadcom
-arm64/broadcom/brcmmdio/mdio_mux_iproc.c		optional fdt
-arm64/broadcom/brcmmdio/mdio_nexus_iproc.c		optional fdt
-arm64/broadcom/brcmmdio/mdio_ns2_pcie_phy.c		optional fdt pci
+arm64/broadcom/brcmmdio/mdio_mux_iproc.c		optional soc_brcm_ns2 fdt
+arm64/broadcom/brcmmdio/mdio_nexus_iproc.c		optional soc_brcm_ns2 fdt
+arm64/broadcom/brcmmdio/mdio_ns2_pcie_phy.c		optional soc_brcm_ns2 fdt pci
 arm64/broadcom/genet/if_genet.c				optional SOC_BRCM_BCM2838 fdt genet
 arm/broadcom/bcm2835/bcm2835_audio.c			optional sound vchiq fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
