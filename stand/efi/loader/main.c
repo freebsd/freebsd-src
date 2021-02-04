@@ -735,6 +735,8 @@ parse_uefi_con_out(void)
 	how = 0;
 	sz = sizeof(buf);
 	rv = efi_global_getenv("ConOut", buf, &sz);
+	if (rv != EFI_SUCCESS)
+		rv = efi_global_getenv("ConOutDev", buf, &sz);
 	if (rv != EFI_SUCCESS) {
 		/* If we don't have any ConOut default to serial */
 		how = RB_SERIAL;
