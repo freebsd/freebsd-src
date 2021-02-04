@@ -33,6 +33,7 @@
 
 #include <atf-c.h>
 
+#include <atf-c/detail/env.h>
 #include <atf-c/error_fwd.h>
 #include <atf-c/tc.h>
 
@@ -46,8 +47,11 @@ struct atf_fs_path;
     ATF_TC(name); \
     ATF_TC_HEAD(name, tc) \
     { \
+        const char *cc; \
         atf_tc_set_md_var(tc, "descr", "Tests that the " hdrname " file can " \
             "be included on its own, without any prerequisites"); \
+        cc = atf_env_get_with_default("ATF_BUILD_CC", ATF_BUILD_CC); \
+        atf_tc_set_md_var(tc, "require.progs", cc); \
     } \
     ATF_TC_BODY(name, tc) \
     { \
@@ -58,7 +62,10 @@ struct atf_fs_path;
     ATF_TC(name); \
     ATF_TC_HEAD(name, tc) \
     { \
+        const char *cc; \
         atf_tc_set_md_var(tc, "descr", descr); \
+        cc = atf_env_get_with_default("ATF_BUILD_CC", ATF_BUILD_CC); \
+        atf_tc_set_md_var(tc, "require.progs", cc); \
     } \
     ATF_TC_BODY(name, tc) \
     { \

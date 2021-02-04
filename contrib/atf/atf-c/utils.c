@@ -41,6 +41,9 @@
 
 #include "atf-c/detail/dynstr.h"
 
+/* No prototype in header for this one, it's a little sketchy (internal). */
+void atf_tc_set_resultsfile(const char *);
+
 /** Allocate a filename to be used by atf_utils_{fork,wait}.
  *
  * In case of a failure, marks the calling test as failed when in_parent is
@@ -269,6 +272,13 @@ atf_utils_fork(void)
         atf_dynstr_fini(&out_name);
     }
     return pid;
+}
+
+void
+atf_utils_reset_resultsfile(void)
+{
+
+    atf_tc_set_resultsfile("/dev/null");
 }
 
 /** Frees an dynamically-allocated "argv" array.

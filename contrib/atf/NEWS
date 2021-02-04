@@ -1,6 +1,24 @@
 Major changes between releases                  Automated Testing Framework
 ===========================================================================
 
+Changes in version 0.22
+***********************
+
+STILL UNDER DEVELOPMENT; NOT RELEASED YET.
+DON'T FORGET TO BUMP THE -version-info PRE-RELEASE IF NECESSARY!
+
+* Issue #23: Fix double-free triggered by atf_map_insert in low memory
+  scenarios, caused by an overlook in the atf_list code.
+
+* Issue #29: Fixed various typos and formatting errors in manual pages.
+
+* Issue #31: Added require.progs metadata properties to the tests that
+  need a compiler to run.
+
+* Added the atf_check_not_equal function to atf-sh to check for
+  unequal values.
+
+
 Changes in version 0.21
 ***********************
 

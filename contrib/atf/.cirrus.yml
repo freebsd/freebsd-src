@@ -1,0 +1,26 @@
+env:
+  CIRRUS_CLONE_DEPTH: 1
+  ARCH: amd64
+
+task:
+  matrix:
+    - name: 13.0-CURRENT
+      freebsd_instance:
+        image_family: freebsd-13-0-snap
+    - name: 12.2-STABLE
+      freebsd_instance:
+        image_family: freebsd-12-2-snap
+    - name: 12.1-RELEASE
+      freebsd_instance:
+        image_family: freebsd-12-1
+  install_script:
+    - sed -i.bak -e 's,pkg+http://pkg.FreeBSD.org/\${ABI}/quarterly,pkg+http://pkg.FreeBSD.org/\${ABI}/latest,' /etc/pkg/FreeBSD.conf
+    - ASSUME_ALWAYS_YES=yes pkg bootstrap -f
+    - pkg install -y autoconf automake libtool kyua
+  script:
+    - env JUNIT_OUTPUT=$(pwd)/test-results.xml ./admin/travis-build.sh
+  always:
+    junit_artifacts:
+      path: "test-results.xml"
+      type: text/xml
+      format: junit

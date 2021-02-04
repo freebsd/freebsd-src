@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -552,7 +553,7 @@ static
 int
 const_execvp(const char *file, const char *const *argv)
 {
-#define UNCONST(a) ((void *)(unsigned long)(const void *)(a))
+#define UNCONST(a) ((void *)(uintptr_t)(const void *)(a))
     return execvp(file, UNCONST(argv));
 #undef UNCONST
 }

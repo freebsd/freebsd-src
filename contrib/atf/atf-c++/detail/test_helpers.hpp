@@ -36,6 +36,7 @@
 
 #include <atf-c++.hpp>
 
+#include <atf-c++/detail/env.hpp>
 #include <atf-c++/detail/process.hpp>
 
 #define HEADER_TC(name, hdrname) \
@@ -44,6 +45,8 @@
     { \
         set_md_var("descr", "Tests that the " hdrname " file can be " \
             "included on its own, without any prerequisites"); \
+        const std::string cxx = atf::env::get("ATF_BUILD_CXX", ATF_BUILD_CXX); \
+        set_md_var("require.progs", cxx); \
     } \
     ATF_TEST_CASE_BODY(name) \
     { \
@@ -55,6 +58,8 @@
     ATF_TEST_CASE_HEAD(name) \
     { \
         set_md_var("descr", descr); \
+        const std::string cxx = atf::env::get("ATF_BUILD_CXX", ATF_BUILD_CXX); \
+        set_md_var("require.progs", cxx); \
     } \
     ATF_TEST_CASE_BODY(name) \
     { \
