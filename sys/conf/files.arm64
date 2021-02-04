@@ -274,10 +274,10 @@ dev/vnic/mrml_bridge.c				optional vnic fdt
 dev/vnic/nic_main.c				optional vnic pci
 dev/vnic/nicvf_main.c				optional vnic pci pci_iov
 dev/vnic/nicvf_queues.c				optional vnic pci pci_iov
-dev/vnic/thunder_bgx_fdt.c			optional vnic fdt
-dev/vnic/thunder_bgx.c				optional vnic pci
-dev/vnic/thunder_mdio_fdt.c			optional vnic fdt
-dev/vnic/thunder_mdio.c				optional vnic
+dev/vnic/thunder_bgx_fdt.c			optional soc_cavm_thunderx pci vnic fdt
+dev/vnic/thunder_bgx.c				optional soc_cavm_thunderx pci vnic pci
+dev/vnic/thunder_mdio_fdt.c			optional soc_cavm_thunderx pci vnic fdt
+dev/vnic/thunder_mdio.c				optional soc_cavm_thunderx pci vnic
 dev/vnic/lmac_if.m				optional inet | inet6 | vnic
 
 ##
