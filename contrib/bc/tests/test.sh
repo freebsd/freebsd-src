@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -32,8 +32,6 @@ set -e
 script="$0"
 
 testdir=$(dirname "$script")
-
-. "$testdir/../functions.sh"
 
 if [ "$#" -lt 2 ]; then
 	printf 'usage: %s dir test [generate_tests] [time_tests] [exe [args...]]\n' "$0"
@@ -73,17 +71,7 @@ else
 	exe="$testdir/../bin/$d"
 fi
 
-out="$testdir/${d}_outputs/${t}_results.txt"
-outdir=$(dirname "$out")
-
-if [ ! -d "$outdir" ]; then
-	mkdir -p "$outdir"
-fi
-
-unset BC_ENV_ARGS
-unset BC_LINE_LENGTH
-unset DC_ENV_ARGS
-unset DC_LINE_LENGTH
+out="$testdir/../.log_${d}_test.txt"
 
 if [ "$d" = "bc" ]; then
 	options="-lq"
@@ -93,6 +81,14 @@ else
 	options=""
 	var="DC_LINE_LENGTH"
 	halt="q"
+fi
+
+if [ "${exe#*toybox}" != "$exe" -o "${exe#*busybox}" != "$exe" ]; then
+	if [ "$t" = "print2" -o "$t" = "misc4" ]; then
+		base=$(basename "$exe")
+		printf 'Skipping %s test for %s...\n' "$t" "$base"
+		exit 0
+	fi
 fi
 
 if [ ! -f "$name" ]; then
@@ -119,22 +115,18 @@ fi
 
 export $var=string
 
-set +e
-
 printf 'Running %s %s...' "$d" "$t"
 
 if [ "$time_tests" -ne 0 ]; then
 	printf '\n'
 	printf '%s\n' "$halt" | /usr/bin/time -p "$exe" "$@" $options "$name" > "$out"
-	err="$?"
 	printf '\n'
 else
 	printf '%s\n' "$halt" | "$exe" "$@" $options "$name" > "$out"
-	err="$?"
 fi
 
-checktest "$d" "$err" "$t" "$results" "$out"
+diff "$results" "$out"
 
 rm -f "$out"
 
-exec printf 'pass\n'
+printf 'pass\n'

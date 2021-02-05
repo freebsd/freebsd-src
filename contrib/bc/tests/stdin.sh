@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -33,8 +33,6 @@ script="$0"
 
 testdir=$(dirname "$script")
 
-. "$testdir/../functions.sh"
-
 if [ "$#" -lt 1 ]; then
 	printf 'usage: %s dir [exe [args...]]\n' "$0"
 	printf 'valid dirs are:\n'
@@ -54,12 +52,7 @@ else
 	exe="$testdir/../bin/$d"
 fi
 
-out="$testdir/${d}_outputs/stdin_results.txt"
-outdir=$(dirname "$out")
-
-if [ ! -d "$outdir" ]; then
-	mkdir -p "$outdir"
-fi
+out="$testdir/../.log_${d}_test.txt"
 
 if [ "$d" = "bc" ]; then
 	options="-ilq"
@@ -69,22 +62,20 @@ fi
 
 rm -f "$out"
 
-set +e
-
 printf 'Running %s stdin tests...' "$d"
 
 cat "$testdir/$d/stdin.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
-checktest "$d" "$?" "stdin" "$testdir/$d/stdin_results.txt" "$out"
+diff "$testdir/$d/stdin_results.txt" "$out"
 
 if [ "$d" = "bc" ]; then
 
 	cat "$testdir/$d/stdin1.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
-	checktest "$d" "$?" "stdin" "$testdir/$d/stdin1_results.txt" "$out"
+	diff "$testdir/$d/stdin1_results.txt" "$out"
 
 	cat "$testdir/$d/stdin2.txt" | "$exe" "$@" "$options" > "$out" 2> /dev/null
-	checktest "$d" "$?" "stdin" "$testdir/$d/stdin2_results.txt" "$out"
+	diff "$testdir/$d/stdin2_results.txt" "$out"
 fi
 
-rm -f "$out"
+rm -f "$out1"
 
-exec printf 'pass\n'
+printf 'pass\n'

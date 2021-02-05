@@ -1,7 +1,0 @@
-engineering
-lib2
-places
-rand
-scientific
-shift
-trunc

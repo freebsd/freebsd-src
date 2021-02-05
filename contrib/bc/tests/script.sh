@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2018-2021 Gavin D. Howard and contributors.
+# Copyright (c) 2018-2020 Gavin D. Howard and contributors.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -32,8 +32,6 @@ set -e
 script="$0"
 
 testdir=$(dirname "${script}")
-
-. "$testdir/../functions.sh"
 
 if [ "$#" -lt 2 ]; then
 	printf 'usage: %s dir script [run_extra_tests] [run_stack_tests] [generate_tests] [time_tests] [exec args...]\n' "$script"
@@ -81,6 +79,8 @@ else
 	exe="$testdir/../bin/$d"
 fi
 
+out="$testdir/../.log_${d}_test.txt"
+
 if [ "$d" = "bc" ]; then
 
 	if [ "$run_stack_tests" -ne 0 ]; then
@@ -120,18 +120,6 @@ if [ "$run_stack_tests" -eq 0 ]; then
 
 fi
 
-out="$testdir/${d}_outputs/${name}_script_results.txt"
-outdir=$(dirname "$out")
-
-if [ ! -d "$outdir" ]; then
-	mkdir -p "$outdir"
-fi
-
-unset BC_ENV_ARGS
-unset BC_LINE_LENGTH
-unset DC_ENV_ARGS
-unset DC_LINE_LENGTH
-
 s="$scriptdir/$f"
 orig="$testdir/$name.txt"
 results="$scriptdir/$name.txt"
@@ -150,22 +138,18 @@ else
 	res="$results"
 fi
 
-set +e
-
 printf 'Running %s script %s...' "$d" "$f"
 
 if [ "$time_tests" -ne 0 ]; then
 	printf '\n'
 	printf '%s\n' "$halt" | /usr/bin/time -p "$exe" "$@" $options "$s" > "$out"
-	err="$?"
 	printf '\n'
 else
 	printf '%s\n' "$halt" | "$exe" "$@" $options "$s" > "$out"
-	err="$?"
 fi
 
-checktest "$d" "$err" "script $f" "$res" "$out"
+diff "$res" "$out"
 
 rm -f "$out"
 
-exec printf 'pass\n'
+printf 'pass\n'
