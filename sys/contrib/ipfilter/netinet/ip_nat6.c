@@ -390,7 +390,7 @@ ipf_nat6_hostmap(softn, np, src, dst, map, port)
 	hv += dst->i6[2];
 	hv += dst->i6[1];
 	hv += dst->i6[0];
-	hv %= HOSTMAP_SIZE;
+	hv %= softn->ipf_nat_hostmap_sz;
 	for (hm = softn->ipf_hm_maptable[hv]; hm; hm = hm->hm_next)
 		if (IP6_EQ(&hm->hm_osrc6, src) &&
 		    IP6_EQ(&hm->hm_odst6, dst) &&
