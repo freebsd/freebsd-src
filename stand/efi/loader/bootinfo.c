@@ -440,7 +440,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	struct devdesc *rootdev;
 	struct file_metadata *md;
 	vm_offset_t addr;
-	uint64_t kernend;
+	uint64_t kernend, module;
 	uint64_t envp;
 	vm_offset_t size;
 	char *rootdevname;
@@ -519,6 +519,10 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 	if (kfp == NULL)
 		panic("can't find kernel file");
 	kernend = 0;	/* fill it in later */
+
+	/* Figure out the size and location of the metadata. */
+	module = *modulep = addr;
+
 	file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof(howto), &howto);
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof(envp), &envp);
 #if defined(LOADER_FDT_SUPPORT)
@@ -529,14 +533,13 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 		    "device tree blob found!\n");
 #endif
 	file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof(kernend), &kernend);
+	file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof(module), &module);
 	file_addmetadata(kfp, MODINFOMD_FW_HANDLE, sizeof(ST), &ST);
 #ifdef LOADER_GELI_SUPPORT
 	geli_export_key_metadata(kfp);
 #endif
 	bi_load_efi_data(kfp, exit_bs);
 
-	/* Figure out the size and location of the metadata. */
-	*modulep = addr;
 	size = bi_copymodules(0);
 	kernend = roundup(addr + size, PAGE_SIZE);
 	*kernendp = kernend;
