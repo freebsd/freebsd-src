@@ -1,0 +1,19 @@
+#
+# Xilinx SoC support
+#
+
+# SoC support
+options 	SOC_XILINX_ZYNQ
+
+# Serial (COM) ports
+device		uart_ns8250		# ns8250-type UART driver
+device		uart_snps
+device		pl011
+
+# Ethernet NICs
+device		cgem			# Cadence GEM Gigabit Ethernet device
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+
+options 	FDT

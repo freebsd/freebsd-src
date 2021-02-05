@@ -1,0 +1,14 @@
+#
+# Qualcomm SoC support
+#
+
+# Qualcomm Snapdragon drivers
+device		qcom_gcc		# Global Clock Controller
+
+# Serial (COM) ports
+device		uart_msm		# Qualcomm MSM UART driver
+
+# MMC/SD/SDIO Card slot support
+device		sdhci
+
+options 	FDT
