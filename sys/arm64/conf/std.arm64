@@ -1,0 +1,98 @@
+# Standard kernel config items for all ARM64 systems.
+#
+# $FreeBSD$
+
+makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	WITH_CTF=1		# Run ctfconvert(1) for DTrace support
+
+options 	SCHED_ULE		# ULE scheduler
+options 	NUMA			# Non-Uniform Memory Architecture support
+options 	PREEMPTION		# Enable kernel thread preemption
+options 	VIMAGE			# Subsystem virtualization, e.g. VNET
+options 	INET			# InterNETworking
+options 	INET6			# IPv6 communications protocols
+options 	IPSEC_SUPPORT		# Allow kldload of ipsec and tcpmd5
+options 	ROUTE_MPATH		# Multipath routing support
+options 	FIB_ALGO		# Modular fib lookups
+options 	TCP_OFFLOAD		# TCP offload
+options 	TCP_HHOOK		# hhook(9) framework for TCP
+options 	TCP_RFC7413		# TCP Fast Open
+options 	SCTP_SUPPORT		# Allow kldload of SCTP
+options 	KERN_TLS		# TLS transmit & receive offload
+options 	FFS			# Berkeley Fast Filesystem
+options 	SOFTUPDATES		# Enable FFS soft updates support
+options 	UFS_ACL			# Support for access control lists
+options 	UFS_DIRHASH		# Improve performance on big directories
+options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
+options 	QUOTA			# Enable disk quotas for UFS
+options 	MD_ROOT			# MD is a potential root device
+options 	NFSCL			# Network Filesystem Client
+options 	NFSD			# Network Filesystem Server
+options 	NFSLOCKD		# Network Lock Manager
+options 	NFS_ROOT		# NFS usable as /, requires NFSCL
+options 	MSDOSFS			# MSDOS Filesystem
+options 	CD9660			# ISO 9660 Filesystem
+options 	PROCFS			# Process filesystem (requires PSEUDOFS)
+options 	PSEUDOFS		# Pseudo-filesystem framework
+options 	TMPFS			# Efficient memory filesystem
+options 	GEOM_RAID		# Soft RAID functionality.
+options 	GEOM_LABEL		# Provides labelization
+options 	EFIRT			# EFI Runtime Services support
+options 	COMPAT_FREEBSD32	# Compatible with FreeBSD/arm
+options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
+options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
+options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
+options 	KTRACE			# ktrace(1) support
+options 	STACK			# stack(9) support
+options 	SYSVSHM			# SYSV-style shared memory
+options 	SYSVMSG			# SYSV-style message queues
+options 	SYSVSEM			# SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
+options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
+options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
+options 	AUDIT			# Security event auditing
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
+options 	MAC			# TrustedBSD MAC Framework
+options 	KDTRACE_FRAME		# Ensure frames are compiled in
+options 	KDTRACE_HOOKS		# Kernel DTrace hooks
+options 	DDB_CTF			# Kernel ELF linker loads CTF data
+options 	VFP			# Floating-point support
+options 	RACCT			# Resource accounting framework
+options 	RACCT_DEFAULT_TO_DISABLED # Set kern.racct.enable=0 by default
+options 	RCTL			# Resource limits
+options 	INTRNG
+options 	LINUX_BOOT_ABI		# Boot using booti command from U-Boot
+
+# Debugging support.  Always need this:
+options 	KDB			# Enable kernel debugger support.
+options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
+options 	DDB			# Support DDB.
+options 	GDB			# Support remote GDB.
+options 	DEADLKRES		# Enable the deadlock resolver
+options 	INVARIANTS		# Enable calls of extra sanity checking
+options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
+options 	WITNESS			# Enable checks to detect deadlocks and cycles
+options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
+options 	MALLOC_DEBUG_MAXZONES=8	# Separate malloc(9) zones
+options 	ALT_BREAK_TO_DEBUGGER	# Enter debugger on keyboard escape sequence
+options 	VERBOSE_SYSINIT=0	# Support debug.verbose_sysinit, off by default
+
+# Kernel Sanitizers
+#options 	COVERAGE		# Generic kernel coverage. Used by KCOV
+#options 	KCOV			# Kernel Coverage Sanitizer
+# Warning: KUBSAN can result in a kernel too large for loader to load
+#options 	KUBSAN			# Kernel Undefined Behavior Sanitizer
+#options 	KCSAN			# Kernel Concurrency Sanitizer
+
+# Kernel dump features.
+options 	EKCD			# Support for encrypted kernel dumps
+options 	GZIO			# gzip-compressed kernel and user dumps
+options 	ZSTDIO			# zstd-compressed kernel and user dumps
+options 	DEBUGNET		# debugnet networking
+options 	NETDUMP			# netdump(4) client support
+
+# Make an SMP-capable kernel by default
+options 	SMP			# Symmetric MultiProcessor Kernel

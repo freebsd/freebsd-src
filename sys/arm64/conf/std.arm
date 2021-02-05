@@ -1,0 +1,15 @@
+#
+# ARM SoC support
+#
+
+# Bus drivers
+device		pci_n1sdp		# ARM Neoverse N1 SDP PCI
+
+# GPIO / PINCTRL
+device		pl061			# Arm PL061 GPIO controller
+
+# Serial (COM) ports
+device		pl011
+
+options 	FDT
+device		acpi

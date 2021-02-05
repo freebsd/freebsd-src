@@ -1,0 +1,27 @@
+#
+# Cavium SoC support
+#
+
+# SoC support
+options 	SOC_CAVM_THUNDERX
+
+# Serial (COM) ports
+device		uart_ns8250		# ns8250-type UART driver
+device		uart_snps
+device		pl011
+
+# Ethernet NICs
+device		vnic			# Cavium ThunderX NIC
+
+# VirtIO support
+device		virtio
+device		virtio_pci
+device		virtio_mmio
+device		virtio_blk
+device		vtnet
+
+# Chip-specific errata
+options 	THUNDERX_PASS_1_1_ERRATA
+
+options 	FDT
+device		acpi
