@@ -31,6 +31,9 @@
  * $FreeBSD$
  */
 
+#include <sys/timetc.h>
+
+#include <machine/clock.h>
 #include <machine/cpufunc.h>
 #include <machine/stack.h>
 #include <machine/vmparam.h>
@@ -64,7 +67,14 @@ kcsan_md_enable_intrs(uint64_t *state)
 static inline void
 kcsan_md_delay(uint64_t us)
 {
-	DELAY(us);
+	/*
+	 * Only call DELAY if not using the early delay code. The i8254
+	 * early delay function may cause us to recurse on a spin lock
+	 * leading to a panic.
+	 */
+	if ((tsc_is_invariant && tsc_freq != 0) ||
+	    timecounter->tc_quality > 0)
+		DELAY(us);
 }
 
 static void
