@@ -1178,7 +1178,7 @@ linux_send(struct thread *td, struct linux_send_args *args)
 	bsd_args.s = args->s;
 	bsd_args.buf = (caddr_t)PTRIN(args->msg);
 	bsd_args.len = args->len;
-	bsd_args.flags = args->flags;
+	bsd_args.flags = linux_to_bsd_msg_flags(args->flags);
 	bsd_args.to = NULL;
 	bsd_args.tolen = 0;
 	error = sys_sendto(td, &bsd_args);
