@@ -1659,20 +1659,20 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		printf("\tRegionIndex=%u\n", (u_int)ctlreg->RegionIndex);
 		printf("\tVendorId=0x%04x\n", (u_int)ctlreg->VendorId);
 		printf("\tDeviceId=0x%04x\n", (u_int)ctlreg->DeviceId);
-		printf("\tRevisionId=%u\n", (u_int)ctlreg->RevisionId);
+		printf("\tRevisionId=0x%02x\n", (u_int)ctlreg->RevisionId);
 		printf("\tSubsystemVendorId=0x%04x\n",
 		    (u_int)ctlreg->SubsystemVendorId);
 		printf("\tSubsystemDeviceId=0x%04x\n",
 		    (u_int)ctlreg->SubsystemDeviceId);
-		printf("\tSubsystemRevisionId=%u\n",
+		printf("\tSubsystemRevisionId=0x%02x\n",
 		    (u_int)ctlreg->SubsystemRevisionId);
 		printf("\tValidFields=0x%02x\n", (u_int)ctlreg->ValidFields);
-		printf("\tManufacturingLocation=%u\n",
+		printf("\tManufacturingLocation=0x%02x\n",
 		    (u_int)ctlreg->ManufacturingLocation);
-		printf("\tManufacturingDate=%u\n",
-		    (u_int)ctlreg->ManufacturingDate);
-		printf("\tSerialNumber=%u\n",
-		    (u_int)ctlreg->SerialNumber);
+		printf("\tManufacturingDate=%04x\n",
+		    (u_int)be16toh(ctlreg->ManufacturingDate));
+		printf("\tSerialNumber=%08X\n",
+		    (u_int)be32toh(ctlreg->SerialNumber));
 		printf("\tCode=0x%04x\n", (u_int)ctlreg->Code);
 		printf("\tWindows=%u\n", (u_int)ctlreg->Windows);
 		printf("\tWindowSize=0x%016jx\n",
