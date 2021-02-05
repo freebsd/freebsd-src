@@ -1615,8 +1615,8 @@ acpi_print_nfit(ACPI_NFIT_HEADER *nfit)
 		break;
 	case ACPI_NFIT_TYPE_MEMORY_MAP:
 		mmap = (ACPI_NFIT_MEMORY_MAP *)nfit;
-		printf("\tDeviceHandle=%u\n", (u_int)mmap->DeviceHandle);
-		printf("\tPhysicalId=%u\n", (u_int)mmap->PhysicalId);
+		printf("\tDeviceHandle=0x%x\n", (u_int)mmap->DeviceHandle);
+		printf("\tPhysicalId=0x%04x\n", (u_int)mmap->PhysicalId);
 		printf("\tRegionId=%u\n", (u_int)mmap->RegionId);
 		printf("\tRangeIndex=%u\n", (u_int)mmap->RangeIndex);
 		printf("\tRegionIndex=%u\n", (u_int)mmap->RegionIndex);
