@@ -147,6 +147,7 @@ options 	PCI_IOV		# PCI SR-IOV support
 device		ahci
 device		scbus
 device		da
+device		pvscsi			# VMware PVSCSI
 
 # ATA/SCSI peripherals
 device		cd		# CD
@@ -260,6 +261,7 @@ device		pl011
 device		iflib
 device		em			# Intel PRO/1000 Gigabit Ethernet Family
 device		ix			# Intel 10Gb Ethernet Family
+device		vmx			# VMware VMXNET3 Ethernet
 
 # Ethernet NICs
 device		mdio
