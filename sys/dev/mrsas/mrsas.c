@@ -2782,9 +2782,7 @@ mrsas_ioc_init(struct mrsas_softc *sc)
 	init_frame->queue_info_new_phys_addr_lo = htole32(phys_addr);
 	init_frame->data_xfer_len = htole32(sizeof(Mpi2IOCInitRequest_t));
 
-	req_desc.addr.u.low = htole32((bus_addr_t)sc->ioc_init_phys_mem & 0xFFFFFFFF);
-	req_desc.addr.u.high = htole32((bus_addr_t)sc->ioc_init_phys_mem >> 32);
-
+	req_desc.addr.Words = htole64((bus_addr_t)sc->ioc_init_phys_mem);
 	req_desc.MFAIo.RequestFlags =
 	    (MRSAS_REQ_DESCRIPT_FLAGS_MFA << MRSAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 
