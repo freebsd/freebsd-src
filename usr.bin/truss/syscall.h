@@ -117,6 +117,8 @@ enum Argtype {
 	Procctl,
 	Priowhich,
 	Ptraceop,
+	Sendfileflags,
+	Sendfilehdtr,
 	Quotactlcmd,
 	Reboothowto,
 	Resource,
