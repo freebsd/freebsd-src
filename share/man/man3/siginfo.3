@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2020
+.Dd February 17, 2021
 .Dt SIGINFO 3
 .Os
 .Sh NAME
@@ -218,6 +218,11 @@ and
 may report the address of the faulting memory access (if available) in
 .Va si_addr
 instead.
+Additionally
+.Dv SIGTRAP
+raised by a hardware watchpoint exception may report the data address that
+triggered the watchpoint in
+.Va si_addr .
 .Pp
 Sychronous signals set
 .Va si_trapno
