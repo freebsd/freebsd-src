@@ -30,10 +30,13 @@
 #define	_MACHINE_VM_H_
 
 /* Memory attribute configuration. */
-#define	VM_MEMATTR_DEVICE		0
+#define	VM_MEMATTR_DEVICE_nGnRnE	0
 #define	VM_MEMATTR_UNCACHEABLE		1
 #define	VM_MEMATTR_WRITE_BACK		2
 #define	VM_MEMATTR_WRITE_THROUGH	3
+#define	VM_MEMATTR_DEVICE_nGnRE		4
+
+#define	VM_MEMATTR_DEVICE		VM_MEMATTR_DEVICE_nGnRnE
 
 #ifdef _KERNEL
 /* If defined vmstat will try to use both of these in a switch statement */
