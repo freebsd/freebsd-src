@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "loader_efi.h"
 
-extern int bi_load(char *, vm_offset_t *, vm_offset_t *);
+extern int bi_load(char *, vm_offset_t *, vm_offset_t *, bool);
 
 static int
 __elfN(exec)(struct preloaded_file *fp)
@@ -66,7 +66,7 @@ __elfN(exec)(struct preloaded_file *fp)
 	printf("Kernel entry at %p...\n", entry);
 	printf("Kernel args: %s\n", fp->f_args);
 
-	if ((error = bi_load(fp->f_args, &modulep, &kernend)) != 0) {
+	if ((error = bi_load(fp->f_args, &modulep, &kernend, true)) != 0) {
 		efi_time_init();
 		return (error);
 	}

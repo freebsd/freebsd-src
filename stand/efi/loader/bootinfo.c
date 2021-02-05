@@ -60,7 +60,8 @@ __FBSDID("$FreeBSD$");
 #include "geliboot.h"
 #endif
 
-int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp);
+int bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp,
+    bool exit_bs);
 
 extern EFI_SYSTEM_TABLE	*ST;
 
@@ -284,7 +285,7 @@ efi_do_vmap(EFI_MEMORY_DESCRIPTOR *mm, UINTN sz, UINTN mmsz, UINT32 mmver)
 }
 
 static int
-bi_load_efi_data(struct preloaded_file *kfp)
+bi_load_efi_data(struct preloaded_file *kfp, bool exit_bs)
 {
 	EFI_MEMORY_DESCRIPTOR *mm;
 	EFI_PHYSICAL_ADDRESS addr = 0;
@@ -393,7 +394,9 @@ bi_load_efi_data(struct preloaded_file *kfp)
 			sz = (EFI_PAGE_SIZE * pages) - efisz;
 		}
 
-		status = efi_exit_boot_services(efi_mapkey);
+		if (!exit_bs)
+			break;
+		status = BS->ExitBootServices(IH, efi_mapkey);
 		if (!EFI_ERROR(status))
 			break;
 	}
@@ -431,7 +434,7 @@ bi_load_efi_data(struct preloaded_file *kfp)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
+bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp, bool exit_bs)
 {
 	struct preloaded_file *xp, *kfp;
 	struct devdesc *rootdev;
@@ -530,7 +533,7 @@ bi_load(char *args, vm_offset_t *modulep, vm_offset_t *kernendp)
 #ifdef LOADER_GELI_SUPPORT
 	geli_export_key_metadata(kfp);
 #endif
-	bi_load_efi_data(kfp);
+	bi_load_efi_data(kfp, exit_bs);
 
 	/* Figure out the size and location of the metadata. */
 	*modulep = addr;
