@@ -276,52 +276,6 @@ cache_ncp_invalidate(struct namecache *ncp)
 	__predict_true((_nc_flag & (NCF_INVALID | NCF_WIP | NCF_WHITE)) == 0);	\
 })
 
-/*
- * Name caching works as follows:
- *
- * Names found by directory scans are retained in a cache
- * for future reference.  It is managed LRU, so frequently
- * used names will hang around.  Cache is indexed by hash value
- * obtained from (dvp, name) where dvp refers to the directory
- * containing name.
- *
- * If it is a "negative" entry, (i.e. for a name that is known NOT to
- * exist) the vnode pointer will be NULL.
- *
- * Upon reaching the last segment of a path, if the reference
- * is for DELETE, or NOCACHE is set (rewrite), and the
- * name is located in the cache, it will be dropped.
- *
- * These locks are used (in the order in which they can be taken):
- * NAME		TYPE	ROLE
- * vnodelock	mtx	vnode lists and v_cache_dd field protection
- * bucketlock	mtx	for access to given set of hash buckets
- * neglist	mtx	negative entry LRU management
- *
- * It is legal to take multiple vnodelock and bucketlock locks. The locking
- * order is lower address first. Both are recursive.
- *
- * "." lookups are lockless.
- *
- * ".." and vnode -> name lookups require vnodelock.
- *
- * name -> vnode lookup requires the relevant bucketlock to be held for reading.
- *
- * Insertions and removals of entries require involved vnodes and bucketlocks
- * to be locked to provide safe operation against other threads modifying the
- * cache.
- *
- * Some lookups result in removal of the found entry (e.g. getting rid of a
- * negative entry with the intent to create a positive one), which poses a
- * problem when multiple threads reach the state. Similarly, two different
- * threads can purge two different vnodes and try to remove the same name.
- *
- * If the already held vnode lock is lower than the second required lock, we
- * can just take the other lock. However, in the opposite case, this could
- * deadlock. As such, this is resolved by trylocking and if that fails unlocking
- * the first node, locking everything in order and revalidating the state.
- */
-
 VFS_SMR_DECLARE;
 
 static SYSCTL_NODE(_vfs_cache, OID_AUTO, param, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
