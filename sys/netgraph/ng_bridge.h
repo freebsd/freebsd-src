@@ -64,6 +64,8 @@
 /* Hook names */
 #define NG_BRIDGE_HOOK_LINK_PREFIX	"link"	 /* append decimal integer */
 #define NG_BRIDGE_HOOK_LINK_FMT		"link%d" /* for use with printf(3) */
+#define NG_BRIDGE_HOOK_UPLINK_PREFIX	"uplink" /* append decimal integer */
+#define NG_BRIDGE_HOOK_UPLINK_FMT	"uplink%d" /* for use with printf(3) */
 
 /* Node configuration structure */
 struct ng_bridge_config {
