@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 2, 2019
+.Dd February 6, 2021
 .Dt NG_BRIDGE 4
 .Os
 .Sh NAME
@@ -92,6 +92,23 @@ To connect the host machine to a bridged network, simply connect the
 hook of an
 .Xr ng_ether 4
 node to the bridge node.
+.Pp
+Instead of naming a hook
+.Dv linkX
+the hook might be also named
+.Dv uplinkX .
+The node does not learn MAC addresses on uplink hooks, which keeps
+the internal address table small.
+This way it is desirable to connect the
+.Dv lower
+hook of an
+.Xr ng_ether 4
+node to an
+.Dv uplink
+hook of the bridge, and ignore the complexity of the outside world.
+Frames with unknown MACs are always sent out to
+.Dv uplink
+hooks, so no functionality is lost.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the
 following:
@@ -141,8 +158,9 @@ The node configuration is not changed.
 This command takes a four byte link number as an argument and
 returns a
 .Dv "struct ng_bridge_link_stats"
-containing statistics for the corresponding link, which must be
-currently connected:
+containing statistics for the corresponding
+.Dv link ,
+which must be currently connected:
 .Bd -literal -offset 0n
 /* Statistics structure (one for each link) */
 struct ng_bridge_link_stats {
@@ -162,6 +180,12 @@ struct ng_bridge_link_stats {
   uint64_t   memoryFailures; /* times couldn't get mem or mbuf */
 };
 .Ed
+.Pp
+Negative numbers refer to the
+.Dv uplink
+hooks.
+So querying for -7 will get the statistics for hook
+.Dv uplink7 .
 .It Dv NGM_BRIDGE_CLR_STATS Pq Ic clrstats
 This command takes a four byte link number as an argument and
 clears the statistics for that link.
