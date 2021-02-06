@@ -109,6 +109,22 @@ hook of the bridge, and ignore the complexity of the outside world.
 Frames with unknown MACs are always sent out to
 .Ar uplink
 hooks, so no functionality is lost.
+.Pp
+Frames with unknown destination MAC addresses are replicated to any
+available hook, unless the first connected hook is an
+.Ar uplink
+hook.
+In this case the node assumes, that all unknown MAC addresses are
+located soley on the
+.Ar uplink
+hooks and only those hooks will be used to send out frames with
+unknown destination MACs.
+If the first connected hook is an
+.Ar link
+hook, the node will replicate such frames to all types of hooks,
+even if
+.Ar uplink
+hooks are connected later.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the
 following:
