@@ -28,7 +28,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2016
+.Dd February 10, 2021
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -62,14 +62,11 @@ By default
 .Nm
 displays the processes getting the largest percentage of the processor
 in the lower window.
-Other displays show swap space usage, disk
-.Tn I/O
-statistics (a la
+Other displays show swap space usage, disk I/O statistics (a la
 .Xr iostat 8 ) ,
 virtual memory statistics (a la
 .Xr vmstat 8 ) ,
-.Tn TCP/IP
-statistics,
+TCP/IP statistics,
 and network connections (a la
 .Xr netstat 1 ) .
 .Pp
@@ -189,7 +186,7 @@ is accounted to the ``idle'' process.
 .It Ic icmp
 Display, in the lower window, statistics about messages received and
 transmitted by the Internet Control Message Protocol
-.Pq Dq Tn ICMP .
+.Pq Dq ICMP .
 The left half of the screen displays information about received
 packets, and the right half displays information regarding transmitted
 packets.
@@ -232,32 +229,21 @@ but displays statistics for IPv6 ICMP.
 .It Ic ip
 Otherwise identical to the
 .Ic icmp
-display, except that it displays
-.Tn IP
-and
-.Tn UDP
-statistics.
+display, except that it displays IP and UDP statistics.
 .It Ic ip6
 Like the
 .Ic ip
 display,
-except that it displays
-.Tn IPv6
-statistics.
-It does not display
-.Tn UDP statistics.
+except that it displays IPv6 statistics.
+It does not display UDP statistics.
 .It Ic sctp
 Like
 .Ic icmp ,
-but with
-.Tn SCTP
-statistics.
+but with SCTP statistics.
 .It Ic tcp
 Like
 .Ic icmp ,
-but with
-.Tn TCP
-statistics.
+but with TCP statistics.
 .It Ic iostat
 Display, in the lower window, statistics about processor use
 and disk throughput.
@@ -281,15 +267,11 @@ display; the minimum unambiguous prefix may be supplied.
 .Pp
 .Bl -tag -width Fl -compact
 .It Cm numbers
-Show the disk
-.Tn I/O
-statistics in numeric form.
+Show the disk I/O statistics in numeric form.
 Values are
 displayed in numeric columns which scroll downward.
 .It Cm bars
-Show the disk
-.Tn I/O
-statistics in bar graph form (default).
+Show the disk I/O statistics in bar graph form (default).
 .It Cm kbpt
 Toggle the display of kilobytes per transaction.
 (the default is to
@@ -310,9 +292,7 @@ Areas known to the kernel, but not in use are shown as not available.
 .It Ic vmstat
 Take over the entire display and show a (rather crowded) compendium
 of statistics related to virtual memory usage, process scheduling,
-device interrupts, system name translation caching, disk
-.Tn I/O
-etc.
+device interrupts, system name translation caching, disk I/O etc.
 .Pp
 The upper left quadrant of the screen shows the number
 of users logged in and the load average over the last one, five,
@@ -666,18 +646,11 @@ and
 displays appeared in
 .Fx 3.0 ;
 the notion of having different display modes for the
-.Tn ICMP ,
-.Tn IP ,
-.Tn TCP ,
-and
-.Tn UDP
-statistics was stolen from the
+ICMP, IP, TCP, and UDP statistics was stolen from the
 .Fl C
 option to
 .Xr netstat 1
-in Silicon Graphics'
-.Tn IRIX
-system.
+in Silicon Graphics' IRIX system.
 .Sh BUGS
 Certain displays presume a minimum of 80 characters per line.
 Ifstat does not detect new interfaces.
