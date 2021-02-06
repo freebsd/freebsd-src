@@ -67,7 +67,6 @@ SUBDIR=	alias \
 	ktrace \
 	ktrdump \
 	lam \
-	lastcomm \
 	ldd \
 	leave \
 	less \
@@ -192,6 +191,7 @@ SUBDIR=	alias \
 
 # NB: keep these sorted by MK_* knobs
 
+SUBDIR.${MK_ACCT}+=	lastcomm
 SUBDIR.${MK_AT}+=	at
 SUBDIR.${MK_ATM}+=	atm
 SUBDIR.${MK_BLUETOOTH}+=	bluetooth
