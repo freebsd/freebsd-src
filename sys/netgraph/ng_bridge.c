@@ -105,7 +105,8 @@ struct ng_bridge_private {
 	u_int			numBuckets;	/* num buckets in table */
 	u_int			hashMask;	/* numBuckets - 1 */
 	int			numLinks;	/* num connected links */
-	int			persistent;	/* can exist w/o hooks */
+	unsigned int		persistent : 1,	/* can exist w/o hooks */
+				sendUnknown : 1;/* links receive unknowns by default */
 	struct callout		timer;		/* one second periodic timer */
 };
 typedef struct ng_bridge_private *priv_p;
@@ -309,6 +310,7 @@ ng_bridge_constructor(node_p node)
 	priv->conf.loopTimeout = DEFAULT_LOOP_TIMEOUT;
 	priv->conf.maxStaleness = DEFAULT_MAX_STALENESS;
 	priv->conf.minStableAge = DEFAULT_MIN_STABLE_AGE;
+	priv->sendUnknown = 1;	       /* classic bridge */
 
 	/*
 	 * This node has all kinds of stuff that could be screwed by SMP.
@@ -371,9 +373,11 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 	if (isUplink) {
 		link->learnMac = 0;
 		link->sendUnknown = 1;
+		if (priv->numLinks == 0)	/* if the first link is an uplink */
+		    priv->sendUnknown = 0;	/* switch to restrictive mode */
 	} else {
 		link->learnMac = 1;
-		link->sendUnknown = 1;
+		link->sendUnknown = priv->sendUnknown;
 	}
 
 	NG_HOOK_SET_PRIVATE(hook, link);
