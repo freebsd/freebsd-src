@@ -35,10 +35,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Portable strlen() for 32-bit and 64-bit systems.
  *
- * Rationale: it is generally much more efficient to do word length
- * operations and avoid branches on modern computer systems, as
- * compared to byte-length operations with a lot of branches.
- *
  * The expression:
  *
  *	((x - 0x01....01) & ~x & 0x80....80)
@@ -46,15 +42,12 @@ __FBSDID("$FreeBSD$");
  * would evaluate to a non-zero value iff any of the bytes in the
  * original word is zero.
  *
- * On multi-issue processors, we can divide the above expression into:
- *	a)  (x - 0x01....01)
- *	b) (~x & 0x80....80)
- *	c) a & b
- *
- * Where, a) and b) can be partially computed in parallel.
- *
  * The algorithm above is found on "Hacker's Delight" by
  * Henry S. Warren, Jr.
+ *
+ * Note: this leaves performance on the table and each architecture
+ * would be best served with a tailor made routine instead, even if
+ * using the same trick.
  */
 
 /* Magic numbers for the algorithm */
