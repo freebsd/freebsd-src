@@ -102,6 +102,7 @@ dteske [label="Devin Teske\ndteske@FreeBSD.org\n2018/03/01"]
 dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2017/01/10"]
 dvl [label="Dan Langille\ndvl@FreeBSD.org\n2014/08/10"]
 eadler [label="Eitan Adler\neadler@FreeBSD.org\n2011/08/17"]
+eduardo [label="Nuno Teixeira\neduardo@FreeBSD.org\n2021/01/27"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2002/10/22"]
 egypcio [label="Vin&iacute;cius Zavam\negypcio@FreeBSD.org\n2018/10/04"]
 ehaupt [label="Emanuel Haupt\nehaupt@FreeBSD.org\n2005/10/03"]
@@ -396,6 +397,8 @@ culot -> wg
 db -> tj
 db -> shurd
 
+dbaio -> eduardo
+
 decke -> sperber
 
 delphij -> junovitch
@@ -466,6 +469,7 @@ gabor -> scheidell
 garga -> acm
 garga -> alepulver
 garga -> dbaio
+garga -> eduardo
 garga -> mandree
 garga -> mm
 garga -> rnoland
