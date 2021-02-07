@@ -539,6 +539,7 @@ ng_btsocket_hci_raw_data_input(struct mbuf *nam)
 
 				NG_FREE_M(m);
 				NG_FREE_M(ctl);
+				soroverflow(pcb->so);
 			}
 		}
 next:

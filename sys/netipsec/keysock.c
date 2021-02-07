@@ -141,7 +141,6 @@ end:
 static int
 key_sendup0(struct rawcb *rp, struct mbuf *m, int promisc)
 {
-	int error;
 
 	if (promisc) {
 		struct sadb_msg *pmsg;
@@ -165,11 +164,12 @@ key_sendup0(struct rawcb *rp, struct mbuf *m, int promisc)
 	    m, NULL)) {
 		PFKEYSTAT_INC(in_nomem);
 		m_freem(m);
-		error = ENOBUFS;
-	} else
-		error = 0;
+		soroverflow(rp->rcb_socket);
+		return ENOBUFS;
+	}
+
 	sorwakeup(rp->rcb_socket);
-	return error;
+	return 0;
 }
 
 /* so can be NULL if target != KEY_SENDUP_ONE */

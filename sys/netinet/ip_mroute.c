@@ -1199,7 +1199,7 @@ socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in *src)
 	    sorwakeup_locked(s);
 	    return 0;
 	}
-	SOCKBUF_UNLOCK(&s->so_rcv);
+	soroverflow_locked(s);
     }
     m_freem(mm);
     return -1;
