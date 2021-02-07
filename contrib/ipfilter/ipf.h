@@ -172,7 +172,7 @@ typedef	struct	proxyrule {
 } proxyrule_t;
 
 
-#if defined(__NetBSD__) || defined(__FreeBSD_version) || \
+#if defined(__NetBSD__) || defined(__FreeBSD__) || \
 	SOLARIS
 # include <stdarg.h>
 typedef	int	(* ioctlfunc_t)(int, ioctlcmd_t, ...);

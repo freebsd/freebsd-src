@@ -101,7 +101,7 @@
  * There may be other, safe, kernels but this is not extensively tested yet.
  */
 # define HAVE_M_PULLDOWN
-# if !defined(IPFILTER_LKM) && defined(__FreeBSD_version)
+# if !defined(IPFILTER_LKM) && defined(__FreeBSD__)
 #  include "opt_ipfilter.h"
 # endif
 # define	COPYIN(a,b,c)	copyin((caddr_t)(a), (caddr_t)(b), (c))
@@ -282,7 +282,7 @@ typedef union {
 #define	ipf_isw		ipf_lkun_s.ipf_sw
 #define	ipf_magic	ipf_lkun_s.ipf_magic
 
-#if !defined(__GNUC__) || defined(__FreeBSD_version)
+#if !defined(__GNUC__) || defined(__FreeBSD__)
 # ifndef	INLINE
 #  define	INLINE
 # endif
@@ -290,7 +290,7 @@ typedef union {
 # define	INLINE	__inline__
 #endif
 
-#if defined(__FreeBSD_version) && defined(_KERNEL)
+#if defined(__FreeBSD__) && defined(_KERNEL)
      CTASSERT(sizeof(ipfrwlock_t) == KRWLOCK_FILL_SZ);
      CTASSERT(sizeof(ipfmutex_t) == KMUTEX_FILL_SZ);
 #endif
