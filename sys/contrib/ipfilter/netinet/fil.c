@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#if defined(_KERNEL) && defined(__FreeBSD_version)
+#if defined(_KERNEL) && defined(__FreeBSD__)
 #  if !defined(IPFILTER_LKM)
 #   include "opt_inet6.h"
 #  endif
@@ -91,7 +91,7 @@
 #if defined(IPFILTER_BPF) && defined(_KERNEL)
 # include <net/bpf.h>
 #endif
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/malloc.h>
 #endif
 #include "netinet/ipl.h"
@@ -2886,7 +2886,7 @@ ipf_check(ctx, ip, hlen, ifp, out
 	 */
 	m->m_flags &= ~M_CANFASTFWD;
 #  endif /* M_CANFASTFWD */
-#  if defined(CSUM_DELAY_DATA) && !defined(__FreeBSD_version)
+#  if defined(CSUM_DELAY_DATA) && !defined(__FreeBSD__)
 	/*
 	 * disable delayed checksums.
 	 */

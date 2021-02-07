@@ -22,7 +22,7 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/select.h>
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 # include <sys/selinfo.h>
 # include <sys/jail.h>
 # ifdef _KERNEL
@@ -52,7 +52,7 @@
 VNET_DECLARE(ipf_main_softc_t, ipfmain);
 #define	V_ipfmain		VNET(ipfmain)
 
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 static struct cdev *ipf_devs[IPL_LOGSIZE];
 #else
 static dev_t ipf_devs[IPL_LOGSIZE];
@@ -68,7 +68,7 @@ static int ipf_modunload(void);
 static int ipf_fbsd_sysctl_create(void);
 static int ipf_fbsd_sysctl_destroy(void);
 
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 static	int	ipfopen(struct cdev*, int, int, struct thread *);
 static	int	ipfclose(struct cdev*, int, int, struct thread *);
 static	int	ipfread(struct cdev*, struct uio *, int);
@@ -135,7 +135,7 @@ SYSCTL_IPF(_net_inet_ipf, OID_AUTO, fr_minttl, CTLFLAG_RW, &VNET_NAME(ipfmain.ip
 
 #define CDEV_MAJOR 79
 #include <sys/poll.h>
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 # include <sys/select.h>
 static int ipfpoll(struct cdev *dev, int events, struct thread *td);
 
@@ -417,7 +417,7 @@ sysctl_ipf_int_frag ( SYSCTL_HANDLER_ARGS )
 
 
 static int
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 ipfpoll(struct cdev *dev, int events, struct thread *td)
 #else
 ipfpoll(dev_t dev, int events, struct proc *td)
@@ -470,7 +470,7 @@ ipfpoll(dev_t dev, int events, struct proc *td)
  * routines below for saving IP headers to buffer
  */
 static int ipfopen(dev, flags
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 , devtype, p)
 	int devtype;
 	struct thread *p;
@@ -510,7 +510,7 @@ static int ipfopen(dev, flags
 
 
 static int ipfclose(dev, flags
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 , devtype, p)
 	int devtype;
 	struct thread *p;
@@ -538,7 +538,7 @@ static int ipfclose(dev, flags
  */
 static int ipfread(dev, uio, ioflag)
 	int ioflag;
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 	struct cdev *dev;
 #else
 	dev_t dev;
@@ -581,7 +581,7 @@ static int ipfread(dev, uio, ioflag)
  */
 static int ipfwrite(dev, uio, ioflag)
 	int ioflag;
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 	struct cdev *dev;
 #else
 	dev_t dev;
