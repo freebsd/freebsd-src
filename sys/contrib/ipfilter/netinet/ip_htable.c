@@ -24,7 +24,7 @@
 # undef _KERNEL
 #endif
 #include <sys/socket.h>
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/malloc.h>
 #endif
 #if defined(__FreeBSD__)

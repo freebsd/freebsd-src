@@ -12,7 +12,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/socket.h>
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # if defined(_KERNEL)
 #  include <sys/libkern.h>
 # else
