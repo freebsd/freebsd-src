@@ -82,6 +82,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 
+#define	SECURITY_CONTEXT_STRING	"unconfined"
+
 static int linux_sendmsg_common(struct thread *, l_int, struct l_msghdr *,
 					l_uint);
 static int linux_recvmsg_common(struct thread *, l_int, struct l_msghdr *,
@@ -1861,6 +1863,28 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	return (error);
 }
 
+static int
+linux_getsockopt_so_peersec(struct thread *td,
+    struct linux_getsockopt_args *args)
+{
+	socklen_t len;
+	int error;
+
+	len = sizeof(SECURITY_CONTEXT_STRING);
+	if (args->optlen < len) {
+		error = copyout(&len, PTRIN(args->optlen), sizeof(len));
+		if (error == 0)
+			error = ERANGE;
+		return (error);
+	}
+
+	error = copyout(SECURITY_CONTEXT_STRING,
+	    PTRIN(args->optval), sizeof(SECURITY_CONTEXT_STRING));
+	if (error == 0)
+		error = copyout(&len, PTRIN(args->optlen), sizeof(len));
+	return (error);
+}
+
 int
 linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 {
@@ -1875,6 +1899,8 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 	level = linux_to_bsd_sockopt_level(args->level);
 	switch (level) {
 	case SOL_SOCKET:
+		if (args->optname == LINUX_SO_PEERSEC)
+			return (linux_getsockopt_so_peersec(td, args));
 		name = linux_to_bsd_so_sockopt(args->optname);
 		switch (name) {
 		case LOCAL_CREDS_PERSISTENT:

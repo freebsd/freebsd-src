@@ -195,6 +195,7 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #endif
 #define	LINUX_SO_TIMESTAMP	29
 #define	LINUX_SO_ACCEPTCONN	30
+#define	LINUX_SO_PEERSEC	31
 #define	LINUX_SO_SNDBUFFORCE	32
 #define	LINUX_SO_RCVBUFFORCE	33
 #define	LINUX_SO_PROTOCOL	38
