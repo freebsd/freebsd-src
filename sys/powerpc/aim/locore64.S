@@ -255,6 +255,16 @@ ASENTRY_NOPROF(__restartkernel_virtual)
 	addi	%r14, %r14, 1
 	cmpdi	%r14, 16
 	blt	1b
+
+	/*
+	 * Now that we are set up with a temporary direct map, we can
+	 * continue with __restartkernel. Translation will be switched
+	 * back on at the rfid, at which point we will be executing from
+	 * the temporary direct map we just installed, until the kernel
+	 * takes over responsibility for the MMU.
+	 */
+	bl	__restartkernel
+	nop
 ASEND(__restartkernel_virtual)
 
 ASENTRY_NOPROF(__restartkernel)
