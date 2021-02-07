@@ -12,7 +12,7 @@
 #include <sys/socket.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 # include <sys/dirent.h>
 #else
 # include <sys/dir.h>

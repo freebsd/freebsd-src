@@ -30,14 +30,14 @@
 #  include <sys/mbuf.h>
 # endif
 # include <sys/select.h>
-# ifdef __FreeBSD_version
+# ifdef __FreeBSD__
 #  include <sys/selinfo.h>
 # endif
 #endif
 #if defined(__NetBSD__) && (__NetBSD_Version__ >= 104000000)
 # include <sys/proc.h>
 #endif
-#if defined(_KERNEL) && defined(__FreeBSD_version)
+#if defined(_KERNEL) && defined(__FreeBSD__)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -79,7 +79,7 @@
 #ifdef  USE_INET6
 #include <netinet/icmp6.h>
 #endif
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/malloc.h>
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include <sys/libkern.h>
