@@ -2771,7 +2771,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 	case NGM_BINARY2ASCII:
 	    {
-		int bufSize = 20 * 1024;	/* XXX hard coded constant */
+		int bufSize = 1024;
 		const struct ng_parse_type *argstype;
 		const struct ng_cmdlist *c;
 		struct ng_mesg *binary, *ascii;
@@ -2785,7 +2785,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 			error = EINVAL;
 			break;
 		}
-
+retry_b2a:
 		/* Get a response message with lots of room */
 		NG_MKRESPONSE(resp, msg, sizeof(*ascii) + bufSize, M_NOWAIT);
 		if (resp == NULL) {
@@ -2827,9 +2827,13 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		if (argstype == NULL) {
 			*ascii->data = '\0';
 		} else {
-			if ((error = ng_unparse(argstype,
-			    (u_char *)binary->data,
-			    ascii->data, bufSize)) != 0) {
+			error = ng_unparse(argstype, (u_char *)binary->data,
+			    ascii->data, bufSize);
+			if (error == ERANGE) {
+				NG_FREE_MSG(resp);
+				bufSize *= 2;
+				goto retry_b2a;
+			} else if (error) {
 				NG_FREE_MSG(resp);
 				break;
 			}
