@@ -199,6 +199,10 @@ size_t	kcsan_strlen(const char *);
 #define	strcpy(d, s) kcsan_strcpy((d), (s))
 #define	strcmp(s1, s2) kcsan_strcmp((s1), (s2))
 #define	strlen(s) kcsan_strlen((s))
+#else
+#define strcpy(d, s) __builtin_strcpy((d), (s))
+#define strcmp(s1, s2) __builtin_strcmp((s1), (s2))
+#define strlen(s) __builtin_strlen((s))
 #endif
 
 static __inline char *
