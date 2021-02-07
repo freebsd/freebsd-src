@@ -29,7 +29,7 @@
 # include <sys/protosw.h>
 #include <sys/socket.h>
 #if defined(_KERNEL)
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 #  include <sys/ctype.h>
 # endif
 # include <sys/systm.h>
@@ -37,7 +37,7 @@
 #  include <sys/mbuf.h>
 # endif
 #endif
-#if defined(_KERNEL) && defined(__FreeBSD_version)
+#if defined(_KERNEL) && defined(__FreeBSD__)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -51,11 +51,11 @@
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 # include <sys/queue.h>
 #endif
 #include <net/if.h>
-#if defined(__FreeBSD_version) && defined(_KERNEL)
+#if defined(__FreeBSD__) && defined(_KERNEL)
 #include <net/vnet.h>
 #else
 #define CURVNET_SET(arg)
@@ -80,7 +80,7 @@
 #include "netinet/ip_nat.h"
 #include "netinet/ip_state.h"
 #include "netinet/ip_proxy.h"
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/malloc.h>
 #endif
 

@@ -31,7 +31,7 @@ struct file;
 # include <sys/uio.h>
 # undef KERNEL
 #endif
-#if defined(_KERNEL) && defined(__FreeBSD_version)
+#if defined(_KERNEL) && defined(__FreeBSD__)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -55,11 +55,11 @@ struct file;
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/queue.h>
 #endif
 #include <net/if.h>
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <net/if_var.h>
 #endif
 #ifdef sun
@@ -90,7 +90,7 @@ extern struct ifnet vpnif;
 #include "netinet/ip_lookup.h"
 #include "netinet/ip_dstlist.h"
 #include "netinet/ip_sync.h"
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/malloc.h>
 #endif
 #ifdef HAS_SYS_MD5_H
@@ -1017,7 +1017,7 @@ ipf_nat_ioctl(softc, data, cmd, mode, uid, ctx)
 				     KAUTH_REQ_NETWORK_FIREWALL_FW,
 				     NULL, NULL, NULL))
 # else
-#  if defined(__FreeBSD_version)
+#  if defined(__FreeBSD__)
 	if (securelevel_ge(curthread->td_ucred, 3) && (mode & FWRITE))
 #  else
 	if ((securelevel >= 3) && (mode & FWRITE))

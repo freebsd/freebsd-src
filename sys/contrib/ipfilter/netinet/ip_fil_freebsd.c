@@ -16,11 +16,11 @@ static const char rcsid[] = "@(#)$Id$";
 # define	KERNEL	1
 # define	_KERNEL	1
 #endif
-#if defined(__FreeBSD_version) && \
+#if defined(__FreeBSD__) && \
     !defined(KLD_MODULE) && !defined(IPFILTER_LKM)
 # include "opt_inet6.h"
 #endif
-#if defined(__FreeBSD_version) && \
+#if defined(__FreeBSD__) && \
     !defined(KLD_MODULE) && !defined(IPFILTER_LKM)
 # include "opt_random_ip_id.h"
 #endif
@@ -35,7 +35,7 @@ static const char rcsid[] = "@(#)$Id$";
 #include <sys/time.h>
 #include <sys/systm.h>
 #include <sys/dirent.h>
-#if defined(__FreeBSD_version)
+#if defined(__FreeBSD__)
 # include <sys/jail.h>
 #endif
 #include <sys/malloc.h>

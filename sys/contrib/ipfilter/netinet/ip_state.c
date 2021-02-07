@@ -19,7 +19,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/file.h>
-#if defined(_KERNEL) && defined(__FreeBSD_version) && \
+#if defined(_KERNEL) && defined(__FreeBSD__) && \
     !defined(KLD_MODULE)
 #include "opt_inet6.h"
 #endif
@@ -31,7 +31,7 @@
 # include <sys/uio.h>
 # undef _KERNEL
 #endif
-#if defined(_KERNEL) && defined(__FreeBSD_version)
+#if defined(_KERNEL) && defined(__FreeBSD__)
 # include <sys/filio.h>
 # include <sys/fcntl.h>
 #else
@@ -82,7 +82,7 @@
 #ifdef	USE_INET6
 #include <netinet/icmp6.h>
 #endif
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 # include <sys/malloc.h>
 # if defined(_KERNEL) && !defined(IPFILTER_LKM)
 #  include <sys/libkern.h>
@@ -307,7 +307,7 @@ ipf_state_seed_alloc(u_int state_size, u_int state_max)
 		/*
 		 * XXX - ipf_state_seed[X] should be a random number of sorts.
 		 */
-#ifdef __FreeBSD_version
+#ifdef __FreeBSD__
 		state_seed[i] = arc4random();
 #else
 		state_seed[i] = ((u_long)state_seed + i) * state_size;
