@@ -143,7 +143,6 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 {
 	struct linux_emuldata *em;
 	struct linux_pemuldata *pem;
-	struct epoll_emuldata *emd;
 	struct proc *p;
 
 	if (newtd != NULL) {
@@ -185,15 +184,9 @@ linux_proc_init(struct thread *td, struct thread *newtd, int flags)
 		em->child_clear_tid = NULL;
 		em->child_set_tid = NULL;
 
-		 /* epoll should be destroyed in a case of exec. */
 		pem = pem_find(p);
 		KASSERT(pem != NULL, ("proc_exit: proc emuldata not found.\n"));
 		pem->persona = 0;
-		if (pem->epoll != NULL) {
-			emd = pem->epoll;
-			pem->epoll = NULL;
-			free(emd, M_EPOLL);
-		}
 	}
 
 }
@@ -202,7 +195,6 @@ void
 linux_on_exit(struct proc *p)
 {
 	struct linux_pemuldata *pem;
-	struct epoll_emuldata *emd;
 	struct thread *td = curthread;
 
 	MPASS(SV_CURPROC_ABI() == SV_ABI_LINUX);
@@ -216,12 +208,6 @@ linux_on_exit(struct proc *p)
 	(p->p_sysent->sv_thread_detach)(td);
 
 	p->p_emuldata = NULL;
-
-	if (pem->epoll != NULL) {
-		emd = pem->epoll;
-		pem->epoll = NULL;
-		free(emd, M_EPOLL);
-	}
 
 	sx_destroy(&pem->pem_sx);
 	free(pem, M_LINUX);
@@ -267,7 +253,6 @@ int
 linux_common_execve(struct thread *td, struct image_args *eargs)
 {
 	struct linux_pemuldata *pem;
-	struct epoll_emuldata *emd;
 	struct vmspace *oldvmspace;
 	struct linux_emuldata *em;
 	struct proc *p;
@@ -298,12 +283,6 @@ linux_common_execve(struct thread *td, struct image_args *eargs)
 		KASSERT(pem != NULL, ("proc_exec: proc pemuldata not found.\n"));
 		p->p_emuldata = NULL;
 		PROC_UNLOCK(p);
-
-		if (pem->epoll != NULL) {
-			emd = pem->epoll;
-			pem->epoll = NULL;
-			free(emd, M_EPOLL);
-		}
 
 		free(em, M_TEMP);
 		free(pem, M_LINUX);

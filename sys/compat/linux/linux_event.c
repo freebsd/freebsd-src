@@ -71,24 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_timer.h>
 #include <compat/linux/linux_util.h>
 
-/*
- * epoll defines 'struct epoll_event' with the field 'data' as 64 bits
- * on all architectures. But on 32 bit architectures BSD 'struct kevent' only
- * has 32 bit opaque pointer as 'udata' field. So we can't pass epoll supplied
- * data verbatuim. Therefore we allocate 64-bit memory block to pass
- * user supplied data for every file descriptor.
- */
-
 typedef uint64_t	epoll_udata_t;
-
-struct epoll_emuldata {
-	uint32_t	fdc;		/* epoll udata max index */
-	epoll_udata_t	udata[1];	/* epoll user data vector */
-};
-
-#define	EPOLL_DEF_SZ		16
-#define	EPOLL_SIZE(fdn)			\
-	(sizeof(struct epoll_emuldata)+(fdn) * sizeof(epoll_udata_t))
 
 struct epoll_event {
 	uint32_t	events;
@@ -101,7 +84,6 @@ __attribute__((packed))
 
 #define	LINUX_MAX_EVENTS	(INT_MAX / sizeof(struct epoll_event))
 
-static void	epoll_fd_install(struct thread *td, int fd, epoll_udata_t udata);
 static int	epoll_to_kevent(struct thread *td, int fd,
 		    struct epoll_event *l_event, struct kevent *kevent,
 		    int *nkevents);
@@ -175,47 +157,11 @@ struct timerfd {
 static void	linux_timerfd_expire(void *);
 static void	linux_timerfd_curval(struct timerfd *, struct itimerspec *);
 
-static void
-epoll_fd_install(struct thread *td, int fd, epoll_udata_t udata)
-{
-	struct linux_pemuldata *pem;
-	struct epoll_emuldata *emd;
-	struct proc *p;
-
-	p = td->td_proc;
-
-	pem = pem_find(p);
-	KASSERT(pem != NULL, ("epoll proc emuldata not found.\n"));
-
-	LINUX_PEM_XLOCK(pem);
-	if (pem->epoll == NULL) {
-		emd = malloc(EPOLL_SIZE(fd), M_EPOLL, M_WAITOK);
-		emd->fdc = fd;
-		pem->epoll = emd;
-	} else {
-		emd = pem->epoll;
-		if (fd > emd->fdc) {
-			emd = realloc(emd, EPOLL_SIZE(fd), M_EPOLL, M_WAITOK);
-			emd->fdc = fd;
-			pem->epoll = emd;
-		}
-	}
-	emd->udata[fd] = udata;
-	LINUX_PEM_XUNLOCK(pem);
-}
-
 static int
 epoll_create_common(struct thread *td, int flags)
 {
-	int error;
 
-	error = kern_kqueue(td, flags, NULL);
-	if (error != 0)
-		return (error);
-
-	epoll_fd_install(td, EPOLL_DEF_SZ, 0);
-
-	return (0);
+	return (kern_kqueue(td, flags, NULL));
 }
 
 #ifdef LINUX_LEGACY_SYSCALLS
@@ -271,11 +217,15 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 
 	/* flags related to what event is registered */
 	if ((levents & LINUX_EPOLL_EVRD) != 0) {
-		EV_SET(kevent++, fd, EVFILT_READ, kev_flags, 0, 0, 0);
+		EV_SET(kevent, fd, EVFILT_READ, kev_flags, 0, 0, 0);
+		kevent->ext[0] = l_event->data;
+		++kevent;
 		++(*nkevents);
 	}
 	if ((levents & LINUX_EPOLL_EVWR) != 0) {
-		EV_SET(kevent++, fd, EVFILT_WRITE, kev_flags, 0, 0, 0);
+		EV_SET(kevent, fd, EVFILT_WRITE, kev_flags, 0, 0, 0);
+		kevent->ext[0] = l_event->data;
+		++kevent;
 		++(*nkevents);
 	}
 	/* zero event mask is legal */
@@ -289,7 +239,6 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 
 		pem = pem_find(p);
 		KASSERT(pem != NULL, ("epoll proc emuldata not found.\n"));
-		KASSERT(pem->epoll != NULL, ("epoll proc epolldata not found.\n"));
 
 		LINUX_PEM_XLOCK(pem);
 		if ((pem->flags & LINUX_XUNSUP_EPOLL) == 0) {
@@ -313,6 +262,8 @@ epoll_to_kevent(struct thread *td, int fd, struct epoll_event *l_event,
 static void
 kevent_to_epoll(struct kevent *kevent, struct epoll_event *l_event)
 {
+
+	l_event->data = kevent->ext[0];
 
 	if ((kevent->flags & EV_ERROR) != 0) {
 		l_event->events = LINUX_EPOLLERR;
@@ -342,29 +293,14 @@ static int
 epoll_kev_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct epoll_copyout_args *args;
-	struct linux_pemuldata *pem;
-	struct epoll_emuldata *emd;
 	struct epoll_event *eep;
-	int error, fd, i;
+	int error, i;
 
 	args = (struct epoll_copyout_args*) arg;
 	eep = malloc(sizeof(*eep) * count, M_EPOLL, M_WAITOK | M_ZERO);
 
-	pem = pem_find(args->p);
-	KASSERT(pem != NULL, ("epoll proc emuldata not found.\n"));
-	LINUX_PEM_SLOCK(pem);
-	emd = pem->epoll;
-	KASSERT(emd != NULL, ("epoll proc epolldata not found.\n"));
-
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < count; i++)
 		kevent_to_epoll(&kevp[i], &eep[i]);
-
-		fd = kevp[i].ident;
-		KASSERT(fd <= emd->fdc, ("epoll user data vector"
-						    " is too small.\n"));
-		eep[i].data = emd->udata[fd];
-	}
-	LINUX_PEM_SUNLOCK(pem);
 
 	error = copyout(eep, args->leventlist, count * sizeof(*eep));
 	if (error == 0) {
@@ -472,8 +408,6 @@ linux_epoll_ctl(struct thread *td, struct linux_epoll_ctl_args *args)
 		error = EINVAL;
 		goto leave0;
 	}
-
-	epoll_fd_install(td, args->fd, le.data);
 
 	error = kern_kevent_fp(td, epfp, nchanges, 0, &k_ops, NULL);
 
