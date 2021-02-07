@@ -68,7 +68,6 @@ int	linux_common_execve(struct thread *, struct image_args *);
 struct linux_pemuldata {
 	uint32_t	flags;		/* process emuldata flags */
 	struct sx	pem_sx;		/* lock for this struct */
-	void		*epoll;		/* epoll data */
 	uint32_t	persona;	/* process execution domain */
 	uint32_t	ptrace_flags;	/* used by ptrace(2) */
 };
