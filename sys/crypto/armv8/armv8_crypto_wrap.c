@@ -263,9 +263,16 @@ armv8_aes_encrypt_gcm(AES_key_t *aes_key, size_t len,
 	aes_counter[AES_BLOCK_LEN - 1] = 2;
 
 	memset(Xi.c, 0, sizeof(Xi.c));
-	memset(block, 0, sizeof(block));
-	memcpy(block, authdata, min(authdatalen, sizeof(block)));
-	gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
+	trailer = authdatalen % AES_BLOCK_LEN;
+	if (authdatalen - trailer > 0) {
+		gcm_ghash_v8(Xi.u, Htable, authdata, authdatalen - trailer);
+		authdata += authdatalen - trailer;
+	}
+	if (trailer > 0 || authdatalen == 0) {
+		memset(block, 0, sizeof(block));
+		memcpy(block, authdata, trailer);
+		gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
+	}
 
 	from64 = (const uint64_t*)from;
 	to64 = (uint64_t*)to;
@@ -288,12 +295,10 @@ armv8_aes_encrypt_gcm(AES_key_t *aes_key, size_t len,
 	if (trailer) {
 		aes_v8_encrypt(aes_counter, EKi.c, aes_key);
 		AES_INC_COUNTER(aes_counter);
+		memset(block, 0, sizeof(block));
 		for (i = 0; i < trailer; i++) {
-			block[i] = to[i] = from[i] ^ EKi.c[i % AES_BLOCK_LEN];
+			block[i] = to[i] = from[i] ^ EKi.c[i];
 		}
-
-		for (; i < AES_BLOCK_LEN; i++)
-			block[i] = 0;
 
 		gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
 	}
@@ -343,17 +348,23 @@ armv8_aes_decrypt_gcm(AES_key_t *aes_key, size_t len,
 	aes_v8_encrypt(aes_counter, EK0.c, aes_key);
 
 	memset(Xi.c, 0, sizeof(Xi.c));
-	memset(block, 0, sizeof(block));
-	memcpy(block, authdata, min(authdatalen, sizeof(block)));
-	gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
-	trailer = len % AES_BLOCK_LEN;
-	gcm_ghash_v8(Xi.u, Htable, from, len - trailer);
+	trailer = authdatalen % AES_BLOCK_LEN;
+	if (authdatalen - trailer > 0) {
+		gcm_ghash_v8(Xi.u, Htable, authdata, authdatalen - trailer);
+		authdata += authdatalen - trailer;
+	}
+	if (trailer > 0 || authdatalen == 0) {
+		memset(block, 0, sizeof(block));
+		memcpy(block, authdata, trailer);
+		gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
+	}
 
-	if (trailer) {
-		for (i = 0; i < trailer; i++)
-			block[i] = from[len - trailer + i];
-		for (; i < AES_BLOCK_LEN; i++)
-			block[i] = 0;
+	trailer = len % AES_BLOCK_LEN;
+	if (len - trailer > 0)
+		gcm_ghash_v8(Xi.u, Htable, from, len - trailer);
+	if (trailer > 0) {
+		memset(block, 0, sizeof(block));
+		memcpy(block, from + len - trailer, trailer);
 		gcm_ghash_v8(Xi.u, Htable, block, AES_BLOCK_LEN);
 	}
 
@@ -392,7 +403,7 @@ armv8_aes_decrypt_gcm(AES_key_t *aes_key, size_t len,
 		aes_v8_encrypt(aes_counter, EKi.c, aes_key);
 		AES_INC_COUNTER(aes_counter);
 		for (i = 0; i < trailer; i++)
-			to[i] = from[i] ^ EKi.c[i % AES_BLOCK_LEN];
+			to[i] = from[i] ^ EKi.c[i];
 	}
 
 out:
