@@ -703,7 +703,7 @@ END(fillw)
  *
  * Uses the ((x - 0x01....01) & ~x & 0x80....80) trick.
  *
- * 0x80....80 is replaced with 0 - 0x80....80 so that it can be added
+ * 0x01....01 is replaced with 0x0 - 0x01....01 so that it can be added
  * with leaq.
  *
  * For a description see either:
