@@ -907,6 +907,22 @@ mflag_body()
 	atf_check -o inline:"test1:2\n" grep -m 2 -EHc "a|b|e|f" test1
 }
 
+atf_test_case mflag_trail_ctx
+mflag_trail_ctx_head()
+{
+	atf_set "descr" "Check proper handling of -m with trailing context (PR 253350)"
+}
+mflag_trail_ctx_body()
+{
+	printf "foo\nfoo\nbar\nfoo\nbar\nfoo\nbar\n" > test1
+
+	# Should pick up the next line after matching the first.
+	atf_check -o inline:"foo\nfoo\n" grep -A1 -m1 foo test1
+
+	# Make sure the trailer is picked up as a non-match!
+	atf_check -o inline:"1:foo\n2-foo\n" grep -A1 -nm1 foo test1
+}
+
 atf_test_case zgrep_multiple_files
 zgrep_multiple_files_head()
 {
@@ -978,6 +994,7 @@ atf_init_test_cases()
 	atf_add_test_case fgrep_oflag
 	atf_add_test_case cflag
 	atf_add_test_case mflag
+	atf_add_test_case mflag_trail_ctx
 	atf_add_test_case zgrep_multiple_files
 # End FreeBSD
 }
