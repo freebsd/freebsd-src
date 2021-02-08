@@ -189,7 +189,7 @@
 
 #if defined(_KERNEL) || defined(_STANDALONE)
 
-#define	HID_ITEM_MAXUSAGE	4
+#define	HID_ITEM_MAXUSAGE	8
 #define	HID_MAX_AUTO_QUIRK	8	/* maximum number of dynamic quirks */
 #define	HID_PNP_ID_SIZE		20	/* includes null terminator */
 
