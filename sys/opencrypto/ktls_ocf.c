@@ -72,37 +72,37 @@ static SYSCTL_NODE(_kern_ipc_tls_stats, OID_AUTO, ocf,
     CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "Kernel TLS offload via OCF stats");
 
-static counter_u64_t ocf_tls10_cbc_crypts;
+static COUNTER_U64_DEFINE_EARLY(ocf_tls10_cbc_crypts);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls10_cbc_crypts,
     CTLFLAG_RD, &ocf_tls10_cbc_crypts,
     "Total number of OCF TLS 1.0 CBC encryption operations");
 
-static counter_u64_t ocf_tls11_cbc_crypts;
+static COUNTER_U64_DEFINE_EARLY(ocf_tls11_cbc_crypts);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls11_cbc_crypts,
     CTLFLAG_RD, &ocf_tls11_cbc_crypts,
     "Total number of OCF TLS 1.1/1.2 CBC encryption operations");
 
-static counter_u64_t ocf_tls12_gcm_crypts;
+static COUNTER_U64_DEFINE_EARLY(ocf_tls12_gcm_crypts);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls12_gcm_crypts,
     CTLFLAG_RD, &ocf_tls12_gcm_crypts,
     "Total number of OCF TLS 1.2 GCM encryption operations");
 
-static counter_u64_t ocf_tls13_gcm_crypts;
+static COUNTER_U64_DEFINE_EARLY(ocf_tls13_gcm_crypts);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, tls13_gcm_crypts,
     CTLFLAG_RD, &ocf_tls13_gcm_crypts,
     "Total number of OCF TLS 1.3 GCM encryption operations");
 
-static counter_u64_t ocf_inplace;
+static COUNTER_U64_DEFINE_EARLY(ocf_inplace);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, inplace,
     CTLFLAG_RD, &ocf_inplace,
     "Total number of OCF in-place operations");
 
-static counter_u64_t ocf_separate_output;
+static COUNTER_U64_DEFINE_EARLY(ocf_separate_output);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, separate_output,
     CTLFLAG_RD, &ocf_separate_output,
     "Total number of OCF operations with a separate output buffer");
 
-static counter_u64_t ocf_retries;
+static COUNTER_U64_DEFINE_EARLY(ocf_retries);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats_ocf, OID_AUTO, retries, CTLFLAG_RD,
     &ocf_retries,
     "Number of OCF encryption operation retries");
@@ -698,30 +698,11 @@ struct ktls_crypto_backend ocf_backend = {
 static int
 ktls_ocf_modevent(module_t mod, int what, void *arg)
 {
-	int error;
-
 	switch (what) {
 	case MOD_LOAD:
-		ocf_tls10_cbc_crypts = counter_u64_alloc(M_WAITOK);
-		ocf_tls11_cbc_crypts = counter_u64_alloc(M_WAITOK);
-		ocf_tls12_gcm_crypts = counter_u64_alloc(M_WAITOK);
-		ocf_tls13_gcm_crypts = counter_u64_alloc(M_WAITOK);
-		ocf_inplace = counter_u64_alloc(M_WAITOK);
-		ocf_separate_output = counter_u64_alloc(M_WAITOK);
-		ocf_retries = counter_u64_alloc(M_WAITOK);
 		return (ktls_crypto_backend_register(&ocf_backend));
 	case MOD_UNLOAD:
-		error = ktls_crypto_backend_deregister(&ocf_backend);
-		if (error)
-			return (error);
-		counter_u64_free(ocf_tls10_cbc_crypts);
-		counter_u64_free(ocf_tls11_cbc_crypts);
-		counter_u64_free(ocf_tls12_gcm_crypts);
-		counter_u64_free(ocf_tls13_gcm_crypts);
-		counter_u64_free(ocf_inplace);
-		counter_u64_free(ocf_separate_output);
-		counter_u64_free(ocf_retries);
-		return (0);
+		return (ktls_crypto_backend_deregister(&ocf_backend));
 	default:
 		return (EOPNOTSUPP);
 	}
