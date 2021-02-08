@@ -1237,10 +1237,6 @@ u_long bootdev;		/* not a struct cdev *- encoding is different */
 SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
 	CTLFLAG_RD, &bootdev, 0, "Maybe the Boot device (not in struct cdev *format)");
 
-static char bootmethod[16] = "BIOS";
-SYSCTL_STRING(_machdep, OID_AUTO, bootmethod, CTLFLAG_RD, bootmethod, 0,
-    "System firmware boot method");
-
 /*
  * Initialize 386 and configure to run kernel
  */
@@ -2347,6 +2343,9 @@ init386(int first)
 
 	/* Init basic tunables, hz etc */
 	init_param1();
+
+	/* Set bootmethod to BIOS: it's the only supported on i386. */
+	strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
 
 	/*
 	 * Make gdt memory segments.  All segments cover the full 4GB

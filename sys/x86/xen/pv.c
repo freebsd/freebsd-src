@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ctype.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
+#include <sys/efi.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -65,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pc/bios.h>
 #include <machine/smp.h>
 #include <machine/intr_machdep.h>
+#include <machine/md_var.h>
 #include <machine/metadata.h>
 
 #include <xen/xen-os.h>
@@ -630,6 +632,11 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 		if (envp != NULL)
 			envp += off;
 		xen_pvh_set_env(envp, reject_option);
+
+		if (MD_FETCH(kmdp, MODINFOMD_EFI_MAP, void *) != NULL)
+		    strlcpy(bootmethod, "UEFI", sizeof(bootmethod));
+		else
+		    strlcpy(bootmethod, "BIOS", sizeof(bootmethod));
 	} else {
 		/* Parse the extra boot information given by Xen */
 		if (start_info->cmdline_paddr != 0)
@@ -637,6 +644,7 @@ xen_pvh_parse_preload_data(uint64_t modulep)
 			    (char *)(start_info->cmdline_paddr + KERNBASE),
 			    ",");
 		kmdp = NULL;
+		strlcpy(bootmethod, "XEN", sizeof(bootmethod));
 	}
 
 	boothowto |= boot_env_to_howto();
