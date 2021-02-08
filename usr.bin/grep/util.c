@@ -252,6 +252,16 @@ static bool
 procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
 {
 
+	if (mflag && mcount <= 0) {
+		/*
+		 * We already hit our match count, but we need to keep dumping
+		 * lines until we've lost our tail.
+		 */
+		grep_printline(&pc->ln, '-');
+		mc->tail--;
+		return (mc->tail != 0);
+	}
+
 	/*
 	 * XXX TODO: This should loop over pc->matches and handle things on a
 	 * line-by-line basis, setting up a `struct str` as needed.
@@ -265,7 +275,7 @@ procmatches(struct mprintc *mc, struct parsec *pc, bool matched)
 			/* XXX TODO: Decrement by number of matched lines */
 			mcount -= 1;
 			if (mcount <= 0)
-				return (false);
+				return (mc->tail != 0);
 		}
 	} else if (mc->doctx)
 		procmatch_nomatch(mc, pc);
@@ -357,6 +367,15 @@ procfile(const char *fn)
 			return (0);
 		}
 
+		if (mflag && mcount <= 0) {
+			/*
+			 * Short-circuit, already hit match count and now we're
+			 * just picking up any remaining pieces.
+			 */
+			if (!procmatches(&mc, &pc, false))
+				break;
+			continue;
+		}
 		line_matched = procline(&pc) == !vflag;
 		if (line_matched)
 			++lines;
