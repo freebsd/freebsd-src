@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 1, 2020
+.Dd February 8, 2021
 .Dt KTLS 4
 .Os
 .Sh NAME
@@ -237,7 +237,9 @@ port may also be built with support for
 .Nm
 by enabling the
 .Dv KTLS
-option .
+option.
+OpenSSL in the base system includes KTLS support when built with
+.Dv WITH_OPENSSL_KTLS .
 .Pp
 Applications using a supported library should generally work with
 .Nm
@@ -256,6 +258,7 @@ As a result, it is only supported on architectures with a direct map.
 .Xr cxgbe 4 ,
 .Xr mlx5en 4 ,
 .Xr tcp 4 ,
+.Xr src.conf 5 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8 ,
 .Xr crypto 9
