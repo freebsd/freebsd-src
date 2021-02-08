@@ -3229,7 +3229,8 @@ void
 xpt_pollwait(union ccb *start_ccb, uint32_t timeout)
 {
 
-	KASSERT(cam_sim_pollable(sim), ("%s: non-pollable sim", __func__));
+	KASSERT(cam_sim_pollable(start_ccb->ccb_h.path->bus->sim),
+	    ("%s: non-pollable sim", __func__));
 	while (--timeout > 0) {
 		xpt_sim_poll(start_ccb->ccb_h.path->bus->sim);
 		if ((start_ccb->ccb_h.status & CAM_STATUS_MASK)
