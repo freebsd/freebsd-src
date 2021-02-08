@@ -406,8 +406,6 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 
 	/* Crypto operation descriptor */
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
-	if (V_async_crypto)
-		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = esp_input_cb;
 	crp->crp_opaque = xd;
@@ -460,7 +458,10 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	} else if (sav->ivlen != 0)
 		crp->crp_iv_start = skip + hlen - sav->ivlen;
 
-	return (crypto_dispatch(crp));
+	if (V_async_crypto)
+		return (crypto_dispatch_async(crp, CRYPTO_ASYNC_ORDERED));
+	else
+		return (crypto_dispatch(crp));
 
 crp_aad_fail:
 	free(xd, M_XDATA);
@@ -895,8 +896,6 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 
 	/* Crypto operation descriptor. */
 	crp->crp_flags |= CRYPTO_F_CBIFSYNC;
-	if (V_async_crypto)
-		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = esp_output_cb;
 	crp->crp_opaque = xd;
@@ -944,7 +943,10 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 		crp->crp_digest_start = m->m_pkthdr.len - alen;
 	}
 
-	return crypto_dispatch(crp);
+	if (V_async_crypto)
+		return (crypto_dispatch_async(crp, CRYPTO_ASYNC_ORDERED));
+	else
+		return (crypto_dispatch(crp));
 
 crp_aad_fail:
 	free(xd, M_XDATA);

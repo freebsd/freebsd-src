@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2020
+.Dd February 8, 2021
 .Dt CRYPTO_REQUEST 9
 .Os
 .Sh NAME
@@ -40,6 +40,10 @@
 .In opencrypto/cryptodev.h
 .Ft int
 .Fn crypto_dispatch "struct cryptop *crp"
+.Ft int
+.Fn crypto_dispatch_async "struct cryptop *crp" "int flags"
+.Ft void
+.Fn crypto_dispatch_batch "struct cryptopq *crpq" "int flags"
 .Ft void
 .Fn crypto_destroyreq "struct cryptop *crp"
 .Ft void
@@ -104,10 +108,15 @@ the caller should set fields in the structure to describe
 request-specific parameters.
 Unused fields should be left as-is.
 .Pp
-.Fn crypto_dispatch
-passes a crypto request to the driver attached to the request's session.
-If there are errors in the request's fields, this function may return
-an error to the caller.
+The
+.Fn crypto_dispatch ,
+.Fn crypto_dispatch_async ,
+and
+.Fn crypto_dispatch_batch
+functions pass one or more crypto requests to the driver attached to the
+request's session.
+If there are errors in the request's fields, these functions may return an
+error to the caller.
 If errors are encountered while servicing the request, they will instead
 be reported to the request's callback function
 .Pq Fa crp_callback
@@ -341,64 +350,53 @@ store the partial IV in the data buffer and pass the full IV separately in
 .Ss Request and Callback Scheduling
 The crypto framework provides multiple methods of scheduling the dispatch
 of requests to drivers along with the processing of driver callbacks.
-Requests use flags in
-.Fa crp_flags
-to select the desired scheduling methods.
-.Pp
-.Fn crypto_dispatch
-can pass the request to the session's driver via three different methods:
-.Bl -enum
-.It
-The request is queued to a taskqueue backed by a pool of worker threads.
-By default the pool is sized to provide one thread for each CPU.
-Worker threads dequeue requests and pass them to the driver
-asynchronously.
-.It
-The request is passed to the driver synchronously in the context of the
-thread invoking
-.Fn crypto_dispatch .
-.It
-The request is queued to a queue of pending requests.
-A single worker thread dequeues requests and passes them to the driver
-asynchronously.
-.El
-.Pp
-To select the first method (taskqueue backed by multiple threads),
-requests should set
-.Dv CRYPTO_F_ASYNC .
-To always use the third method (queue to single worker thread),
-requests should set
-.Dv CRYPTO_F_BATCH .
-If both flags are set,
-.Dv CRYPTO_F_ASYNC
-takes precedence.
-If neither flag is set,
-.Fn crypto_dispatch
-will first attempt the second method (invoke driver synchronously).
-If the driver is blocked,
-the request will be queued using the third method.
-One caveat is that the first method is only used for requests using software
-drivers which use host CPUs to process requests.
-Requests whose session is associated with a hardware driver will ignore
-.Dv CRYPTO_F_ASYNC
-and only use
-.Dv CRYPTO_F_BATCH
-to determine how requests should be scheduled.
-.Pp
-In addition to bypassing synchronous dispatch in
+The
 .Fn crypto_dispatch ,
-.Dv CRYPTO_F_BATCH
-requests additional changes aimed at optimizing batches of requests to
-the same driver.
-When the worker thread processes a request with
-.Dv CRYPTO_F_BATCH ,
-it will search the pending request queue for any other requests for the same
-driver,
-including requests from different sessions.
-If any other requests are present,
+.Fn crypto_dispatch_async ,
+and
+.Fn crypto_dispatch_batch
+functions can be used to request different dispatch scheduling policies.
+.Pp
+.Fn crypto_dispatch
+synchronously passes the request to the driver.
+The driver itself may process the request synchronously or asynchronously
+depending on whether the driver is implemented by software or hardware.
+.Pp
+.Fn crypto_dispatch_async
+dispatches the request asynchronously.
+If the driver is inherently synchronous, the request is queued to a taskqueue
+backed by a pool of worker threads.
+This can increase througput by allowing requests from a single producer to be
+processed in parallel.
+By default the pool is sized to provide one thread for each CPU.
+Worker threads dequeue requests and pass them to the driver asynchronously.
+.Fn crypto_dispatch_async
+additionally takes a
+.Va flags
+parameter.
+The
+.Dv CRYPTO_ASYNC_ORDERED
+flag indicates that completion callbacks for requests must be called in the
+same order as requests were dispatched.
+If the driver is asynchronous, the behavior of
+.Fn crypto_dispatch_async
+is identical to that of
+.Fn crypto_dispatch .
+.Pp
+.Fn crypto_dispatch_batch
+allows the caller to collect a batch of requests and submit them to the driver
+at the same time.
+This allows hardware drivers to optimize the scheduling of request processing
+and batch completion interrupts.
+A batch is submitted to the driver by invoking the driver's process method on
+each request, specifying
 .Dv CRYPTO_HINT_MORE
-is passed to the driver's process method.
-Drivers may use this to batch completion interrupts.
+with each request except for the last.
+The
+.Fa flags
+parameter to
+.Fn crypto_dispatch_batch
+is currently ignored.
 .Pp
 Callback function scheduling is simpler than request scheduling.
 Callbacks can either be invoked synchronously from

@@ -261,13 +261,14 @@ void
 g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 {
 	struct g_eli_softc *sc;
+	struct cryptopq crpq;
 	struct cryptop *crp;
 	vm_page_t *pages;
 	u_int i, nsec, secsize;
 	off_t dstoff;
 	u_char *data = NULL;
-	int error;
-	int pages_offset;
+	int error, pages_offset;
+	bool batch;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
 
@@ -303,6 +304,9 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		}
 	}
 
+	TAILQ_INIT(&crpq);
+	batch = atomic_load_int(&g_eli_batch) != 0;
+
 	for (i = 0, dstoff = bp->bio_offset; i < nsec; i++, dstoff += secsize) {
 		crp = crypto_getreq(wr->w_sid, M_WAITOK);
 
@@ -325,9 +329,6 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 			crp->crp_callback = g_eli_crypto_read_done;
 		}
 		crp->crp_flags = CRYPTO_F_CBIFSYNC;
-		if (g_eli_batch)
-			crp->crp_flags |= CRYPTO_F_BATCH;
-
 		crp->crp_payload_start = 0;
 		crp->crp_payload_length = secsize;
 		if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0) {
@@ -340,8 +341,15 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 			    sizeof(crp->crp_iv));
 		}
 
-		error = crypto_dispatch(crp);
-		KASSERT(error == 0, ("crypto_dispatch() failed (error=%d)",
-		    error));
+		if (batch) {
+			TAILQ_INSERT_TAIL(&crpq, crp, crp_next);
+		} else {
+			error = crypto_dispatch(crp);
+			KASSERT(error == 0,
+			    ("crypto_dispatch() failed (error=%d)", error));
+		}
 	}
+
+	if (batch)
+		crypto_dispatch_batch(&crpq, 0);
 }

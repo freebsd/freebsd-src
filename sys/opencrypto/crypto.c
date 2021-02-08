@@ -188,8 +188,6 @@ static struct crypto_ret_worker *crypto_ret_workers = NULL;
 
 #define	CRYPTO_RETW_LOCK(w)	mtx_lock(&w->crypto_ret_mtx)
 #define	CRYPTO_RETW_UNLOCK(w)	mtx_unlock(&w->crypto_ret_mtx)
-#define	CRYPTO_RETW_EMPTY(w) \
-	(TAILQ_EMPTY(&w->crp_ret_q) && TAILQ_EMPTY(&w->crp_ret_kq) && TAILQ_EMPTY(&w->crp_ordered_ret_q))
 
 static int crypto_workers_num = 0;
 SYSCTL_INT(_kern_crypto, OID_AUTO, num_workers, CTLFLAG_RDTUN,
@@ -1406,11 +1404,8 @@ crp_sanity(struct cryptop *crp)
 }
 #endif
 
-/*
- * Add a crypto request to a queue, to be processed by the kernel thread.
- */
-int
-crypto_dispatch(struct cryptop *crp)
+static int
+crypto_dispatch_one(struct cryptop *crp, int hint)
 {
 	struct cryptocap *cap;
 	int result;
@@ -1418,49 +1413,82 @@ crypto_dispatch(struct cryptop *crp)
 #ifdef INVARIANTS
 	crp_sanity(crp);
 #endif
-
 	CRYPTOSTAT_INC(cs_ops);
 
 	crp->crp_retw_id = crp->crp_session->id % crypto_workers_num;
 
-	if (CRYPTOP_ASYNC(crp)) {
-		if (crp->crp_flags & CRYPTO_F_ASYNC_KEEPORDER) {
-			struct crypto_ret_worker *ret_worker;
+	/*
+	 * Caller marked the request to be processed immediately; dispatch it
+	 * directly to the driver unless the driver is currently blocked, in
+	 * which case it is queued for deferred dispatch.
+	 */
+	cap = crp->crp_session->cap;
+	if (!atomic_load_int(&cap->cc_qblocked)) {
+		result = crypto_invoke(cap, crp, hint);
+		if (result != ERESTART)
+			return (result);
 
-			ret_worker = CRYPTO_RETW(crp->crp_retw_id);
-
-			CRYPTO_RETW_LOCK(ret_worker);
-			crp->crp_seq = ret_worker->reorder_ops++;
-			CRYPTO_RETW_UNLOCK(ret_worker);
-		}
-
-		TASK_INIT(&crp->crp_task, 0, crypto_task_invoke, crp);
-		taskqueue_enqueue(crypto_tq, &crp->crp_task);
-		return (0);
-	}
-
-	if ((crp->crp_flags & CRYPTO_F_BATCH) == 0) {
 		/*
-		 * Caller marked the request to be processed
-		 * immediately; dispatch it directly to the
-		 * driver unless the driver is currently blocked.
+		 * The driver ran out of resources, put the request on the
+		 * queue.
 		 */
-		cap = crp->crp_session->cap;
-		if (!cap->cc_qblocked) {
-			result = crypto_invoke(cap, crp, 0);
-			if (result != ERESTART)
-				return (result);
-			/*
-			 * The driver ran out of resources, put the request on
-			 * the queue.
-			 */
-		}
 	}
 	crypto_batch_enqueue(crp);
-	return 0;
+	return (0);
+}
+
+int
+crypto_dispatch(struct cryptop *crp)
+{
+	return (crypto_dispatch_one(crp, 0));
+}
+
+int
+crypto_dispatch_async(struct cryptop *crp, int flags)
+{
+	struct crypto_ret_worker *ret_worker;
+
+	if (!CRYPTO_SESS_SYNC(crp->crp_session)) {
+		/*
+		 * The driver issues completions asynchonously, don't bother
+		 * deferring dispatch to a worker thread.
+		 */
+		return (crypto_dispatch(crp));
+	}
+
+#ifdef INVARIANTS
+	crp_sanity(crp);
+#endif
+	CRYPTOSTAT_INC(cs_ops);
+
+	crp->crp_retw_id = crp->crp_session->id % crypto_workers_num;
+	if ((flags & CRYPTO_ASYNC_ORDERED) != 0) {
+		crp->crp_flags |= CRYPTO_F_ASYNC_ORDERED;
+		ret_worker = CRYPTO_RETW(crp->crp_retw_id);
+		CRYPTO_RETW_LOCK(ret_worker);
+		crp->crp_seq = ret_worker->reorder_ops++;
+		CRYPTO_RETW_UNLOCK(ret_worker);
+	}
+	TASK_INIT(&crp->crp_task, 0, crypto_task_invoke, crp);
+	taskqueue_enqueue(crypto_tq, &crp->crp_task);
+	return (0);
 }
 
 void
+crypto_dispatch_batch(struct cryptopq *crpq, int flags)
+{
+	struct cryptop *crp;
+	int hint;
+
+	while ((crp = TAILQ_FIRST(crpq)) != NULL) {
+		hint = TAILQ_NEXT(crp, crp_next) != NULL ? CRYPTO_HINT_MORE : 0;
+		TAILQ_REMOVE(crpq, crp, crp_next);
+		if (crypto_dispatch_one(crp, hint) != 0)
+			crypto_batch_enqueue(crp);
+	}
+}
+
+static void
 crypto_batch_enqueue(struct cryptop *crp)
 {
 
@@ -1814,10 +1842,10 @@ crypto_done(struct cryptop *crp)
 	 * doing extraneous context switches; the latter is mostly
 	 * used with the software crypto driver.
 	 */
-	if (!CRYPTOP_ASYNC_KEEPORDER(crp) &&
-	    ((crp->crp_flags & CRYPTO_F_CBIMM) ||
-	    ((crp->crp_flags & CRYPTO_F_CBIFSYNC) &&
-	     (crypto_ses2caps(crp->crp_session) & CRYPTOCAP_F_SYNC)))) {
+	if ((crp->crp_flags & CRYPTO_F_ASYNC_ORDERED) == 0 &&
+	    ((crp->crp_flags & CRYPTO_F_CBIMM) != 0 ||
+	    ((crp->crp_flags & CRYPTO_F_CBIFSYNC) != 0 &&
+	    CRYPTO_SESS_SYNC(crp->crp_session)))) {
 		/*
 		 * Do the callback directly.  This is ok when the
 		 * callback routine does very little (e.g. the
@@ -1829,36 +1857,35 @@ crypto_done(struct cryptop *crp)
 		bool wake;
 
 		ret_worker = CRYPTO_RETW(crp->crp_retw_id);
-		wake = false;
 
 		/*
 		 * Normal case; queue the callback for the thread.
 		 */
 		CRYPTO_RETW_LOCK(ret_worker);
-		if (CRYPTOP_ASYNC_KEEPORDER(crp)) {
+		if ((crp->crp_flags & CRYPTO_F_ASYNC_ORDERED) != 0) {
 			struct cryptop *tmp;
 
-			TAILQ_FOREACH_REVERSE(tmp, &ret_worker->crp_ordered_ret_q,
-					cryptop_q, crp_next) {
+			TAILQ_FOREACH_REVERSE(tmp,
+			    &ret_worker->crp_ordered_ret_q, cryptop_q,
+			    crp_next) {
 				if (CRYPTO_SEQ_GT(crp->crp_seq, tmp->crp_seq)) {
-					TAILQ_INSERT_AFTER(&ret_worker->crp_ordered_ret_q,
-							tmp, crp, crp_next);
+					TAILQ_INSERT_AFTER(
+					    &ret_worker->crp_ordered_ret_q, tmp,
+					    crp, crp_next);
 					break;
 				}
 			}
 			if (tmp == NULL) {
-				TAILQ_INSERT_HEAD(&ret_worker->crp_ordered_ret_q,
-						crp, crp_next);
+				TAILQ_INSERT_HEAD(
+				    &ret_worker->crp_ordered_ret_q, crp,
+				    crp_next);
 			}
 
-			if (crp->crp_seq == ret_worker->reorder_cur_seq)
-				wake = true;
-		}
-		else {
-			if (CRYPTO_RETW_EMPTY(ret_worker))
-				wake = true;
-
-			TAILQ_INSERT_TAIL(&ret_worker->crp_ret_q, crp, crp_next);
+			wake = crp->crp_seq == ret_worker->reorder_cur_seq;
+		} else {
+			wake = TAILQ_EMPTY(&ret_worker->crp_ret_q);
+			TAILQ_INSERT_TAIL(&ret_worker->crp_ret_q, crp,
+			    crp_next);
 		}
 
 		if (wake)
@@ -1894,7 +1921,7 @@ crypto_kdone(struct cryptkop *krp)
 	ret_worker = CRYPTO_RETW(0);
 
 	CRYPTO_RETW_LOCK(ret_worker);
-	if (CRYPTO_RETW_EMPTY(ret_worker))
+	if (TAILQ_EMPTY(&ret_worker->crp_ret_kq))
 		wakeup_one(&ret_worker->crp_ret_q);		/* shared wait channel */
 	TAILQ_INSERT_TAIL(&ret_worker->crp_ret_kq, krp, krp_next);
 	CRYPTO_RETW_UNLOCK(ret_worker);
@@ -1991,13 +2018,10 @@ crypto_proc(void)
 					 */
 					if (submit->crp_session->cap == cap)
 						hint = CRYPTO_HINT_MORE;
-					break;
 				} else {
 					submit = crp;
-					if ((submit->crp_flags & CRYPTO_F_BATCH) == 0)
-						break;
-					/* keep scanning for more are q'd */
 				}
+				break;
 			}
 		}
 		if (submit != NULL) {
