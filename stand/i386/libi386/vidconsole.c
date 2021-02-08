@@ -908,8 +908,8 @@ cons_update_mode(bool use_gfx_mode)
 	} else {
 		/* Trigger loading of 8x16 font. */
 		setup_font(&gfx_state,
-		    16 * gfx_state.tg_fb.fb_height + BORDER_PIXELS,
-		    8 * gfx_state.tg_fb.fb_width + BORDER_PIXELS);
+		    16 * gfx_state.tg_fb.fb_height,
+		    8 * gfx_state.tg_fb.fb_width);
 		gfx_state.tg_functions = &tf;
 		/* ensure the following are not set for text mode */
 		unsetenv("screen.height");

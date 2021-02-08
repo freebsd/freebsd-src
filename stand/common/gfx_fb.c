@@ -1888,25 +1888,18 @@ set_font(teken_unit_t *rows, teken_unit_t *cols, teken_unit_t h, teken_unit_t w)
 	}
 
 	if (font != NULL) {
-		*rows = (height - BORDER_PIXELS) / font->vfbd_height;
-		*cols = (width - BORDER_PIXELS) / font->vfbd_width;
+		*rows = height / font->vfbd_height;
+		*cols = width / font->vfbd_width;
 		return (font);
 	}
 
 	/*
 	 * Find best font for these dimensions, or use default
-	 *
-	 * A 1 pixel border is the absolute minimum we could have
-	 * as a border around the text window (BORDER_PIXELS = 2),
-	 * however a slightly larger border not only looks better
-	 * but for the fonts currently statically built into the
-	 * emulator causes much better font selection for the
-	 * normal range of screen resolutions.
 	 */
 	STAILQ_FOREACH(fl, &fonts, font_next) {
 		font = fl->font_data;
-		if ((((*rows * font->vfbd_height) + BORDER_PIXELS) <= height) &&
-		    (((*cols * font->vfbd_width) + BORDER_PIXELS) <= width)) {
+		if ((*rows * font->vfbd_height <= height) &&
+		    (*cols * font->vfbd_width <= width)) {
 			if (font->vfbd_font == NULL ||
 			    fl->font_flags == FONT_RELOAD) {
 				if (fl->font_load != NULL &&
@@ -1916,8 +1909,8 @@ set_font(teken_unit_t *rows, teken_unit_t *cols, teken_unit_t h, teken_unit_t w)
 				if (font == NULL)
 					continue;
 			}
-			*rows = (height - BORDER_PIXELS) / font->vfbd_height;
-			*cols = (width - BORDER_PIXELS) / font->vfbd_width;
+			*rows = height / font->vfbd_height;
+			*cols = width / font->vfbd_width;
 			break;
 		}
 		font = NULL;
@@ -1936,8 +1929,8 @@ set_font(teken_unit_t *rows, teken_unit_t *cols, teken_unit_t h, teken_unit_t w)
 		if (font == NULL)
 			font = &DEFAULT_FONT_DATA;
 
-		*rows = (height - BORDER_PIXELS) / font->vfbd_height;
-		*cols = (width - BORDER_PIXELS) / font->vfbd_width;
+		*rows = height / font->vfbd_height;
+		*cols = width / font->vfbd_width;
 	}
 
 	return (font);

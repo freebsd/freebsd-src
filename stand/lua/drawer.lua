@@ -308,7 +308,7 @@ local function drawbrand()
 	if core.isFramebufferConsole() and
 	    loader.term_putimage ~= nil and
 	    branddef.image ~= nil then
-		if loader.term_putimage(branddef.image, 0, 0, 0, 7, 0)
+		if loader.term_putimage(branddef.image, 1, 1, 0, 7, 0)
 		then
 			return true
 		end
