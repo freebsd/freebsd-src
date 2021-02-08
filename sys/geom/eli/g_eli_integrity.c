@@ -449,11 +449,13 @@ void
 g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 {
 	struct g_eli_softc *sc;
+	struct cryptopq crpq;
 	struct cryptop *crp;
 	u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 	off_t dstoff;
 	u_char *p, *data, *authkey, *plaindata;
 	int error;
+	bool batch;
 
 	G_ELI_LOGREQ(3, bp, "%s", __func__);
 
@@ -496,6 +498,9 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 	p = (char *)roundup((uintptr_t)p, sizeof(uintptr_t));
 #endif
 
+	TAILQ_INIT(&crpq);
+	batch = atomic_load_int(&g_eli_batch) != 0;
+
 	for (i = 1; i <= nsec; i++, dstoff += encr_secsize) {
 		crp = crypto_getreq(wr->w_sid, M_WAITOK);
 		authkey = (u_char *)p;		p += G_ELI_AUTH_SECKEYLEN;
@@ -521,8 +526,6 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		crp->crp_opaque = (void *)bp;
 		data += encr_secsize;
 		crp->crp_flags = CRYPTO_F_CBIFSYNC;
-		if (g_eli_batch)
-			crp->crp_flags |= CRYPTO_F_BATCH;
 		if (bp->bio_cmd == BIO_WRITE) {
 			crp->crp_callback = g_eli_auth_write_done;
 			crp->crp_op = CRYPTO_OP_ENCRYPT |
@@ -549,8 +552,15 @@ g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
 		g_eli_auth_keygen(sc, dstoff, authkey);
 		crp->crp_auth_key = authkey;
 
-		error = crypto_dispatch(crp);
-		KASSERT(error == 0, ("crypto_dispatch() failed (error=%d)",
-		    error));
+		if (batch) {
+			TAILQ_INSERT_TAIL(&crpq, crp, crp_next);
+		} else {
+			error = crypto_dispatch(crp);
+			KASSERT(error == 0,
+			    ("crypto_dispatch() failed (error=%d)", error));
+		}
 	}
+
+	if (batch)
+		crypto_dispatch_batch(&crpq, 0);
 }

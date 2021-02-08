@@ -652,8 +652,6 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	/* Crypto operation descriptor. */
 	crp->crp_op = CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
-	if (V_async_crypto)
-		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = ah_input_cb;
 	crp->crp_opaque = xd;
@@ -671,7 +669,10 @@ ah_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	xd->skip = skip;
 	xd->cryptoid = cryptoid;
 	xd->vnet = curvnet;
-	return (crypto_dispatch(crp));
+	if (V_async_crypto)
+		return (crypto_dispatch_async(crp, CRYPTO_ASYNC_ORDERED));
+	else
+		return (crypto_dispatch(crp));
 bad:
 	m_freem(m);
 	key_freesav(&sav);
@@ -1036,8 +1037,6 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	/* Crypto operation descriptor. */
 	crp->crp_op = CRYPTO_OP_COMPUTE_DIGEST;
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
-	if (V_async_crypto)
-		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
 	crypto_use_mbuf(crp, m);
 	crp->crp_callback = ah_output_cb;
 	crp->crp_opaque = xd;
@@ -1055,7 +1054,10 @@ ah_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	xd->cryptoid = cryptoid;
 	xd->vnet = curvnet;
 
-	return crypto_dispatch(crp);
+	if (V_async_crypto)
+		return (crypto_dispatch_async(crp, CRYPTO_ASYNC_ORDERED));
+	else
+		return (crypto_dispatch(crp));
 bad:
 	if (m)
 		m_freem(m);

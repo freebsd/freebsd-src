@@ -455,18 +455,10 @@ struct cryptop {
 					 */
 	int		crp_flags;
 
-#define	CRYPTO_F_BATCH		0x0008	/* Batch op if possible */
 #define	CRYPTO_F_CBIMM		0x0010	/* Do callback immediately */
 #define	CRYPTO_F_DONE		0x0020	/* Operation completed */
 #define	CRYPTO_F_CBIFSYNC	0x0040	/* Do CBIMM if op is synchronous */
-#define	CRYPTO_F_ASYNC		0x0080	/* Dispatch crypto jobs on several threads
-					 * if op is synchronous
-					 */
-#define	CRYPTO_F_ASYNC_KEEPORDER	0x0100	/*
-					 * Dispatch the crypto jobs in the same
-					 * order there are submitted. Applied only
-					 * if CRYPTO_F_ASYNC flags is set
-					 */
+#define	CRYPTO_F_ASYNC_ORDERED	0x0100	/* Completions must happen in order */
 #define	CRYPTO_F_IV_SEPARATE	0x0200	/* Use crp_iv[] as IV. */
 
 	int		crp_op;
@@ -505,6 +497,8 @@ struct cryptop {
 					 *  used for ordered dispatch
 					 */
 };
+
+TAILQ_HEAD(cryptopq, cryptop);
 
 static __inline void
 _crypto_use_buf(struct crypto_buffer *cb, void *buf, int len)
@@ -587,12 +581,6 @@ crypto_use_output_uio(struct cryptop *crp, struct uio *uio)
 	_crypto_use_uio(&crp->crp_obuf, uio);
 }
 
-#define	CRYPTOP_ASYNC(crp)			\
-	(((crp)->crp_flags & CRYPTO_F_ASYNC) && \
-	crypto_ses2caps((crp)->crp_session) & CRYPTOCAP_F_SYNC)
-#define	CRYPTOP_ASYNC_KEEPORDER(crp) \
-	(CRYPTOP_ASYNC(crp) && \
-	(crp)->crp_flags & CRYPTO_F_ASYNC_KEEPORDER)
 #define	CRYPTO_HAS_OUTPUT_BUFFER(crp)					\
 	((crp)->crp_obuf.cb_type != CRYPTO_BUF_NONE)
 
@@ -642,6 +630,8 @@ extern	void crypto_freesession(crypto_session_t cses);
 #define	CRYPTOCAP_F_SOFTWARE	CRYPTO_FLAG_SOFTWARE
 #define	CRYPTOCAP_F_SYNC	0x04000000	/* operates synchronously */
 #define	CRYPTOCAP_F_ACCEL_SOFTWARE 0x08000000
+#define	CRYPTO_SESS_SYNC(sess)	\
+	((crypto_ses2caps(sess) & CRYPTOCAP_F_SYNC) != 0)
 extern	int32_t crypto_get_driverid(device_t dev, size_t session_size,
     int flags);
 extern	int crypto_find_driver(const char *);
@@ -650,6 +640,9 @@ extern	int crypto_getcaps(int hid);
 extern	int crypto_kregister(uint32_t, int, uint32_t);
 extern	int crypto_unregister_all(uint32_t driverid);
 extern	int crypto_dispatch(struct cryptop *crp);
+#define	CRYPTO_ASYNC_ORDERED	0x1	/* complete in order dispatched */
+extern	int crypto_dispatch_async(struct cryptop *crp, int flags);
+extern	void crypto_dispatch_batch(struct cryptopq *crpq, int flags);
 extern	int crypto_kdispatch(struct cryptkop *);
 #define	CRYPTO_SYMQ	0x1
 #define	CRYPTO_ASYMQ	0x2
