@@ -134,51 +134,51 @@ SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, cbc_enable, CTLFLAG_RW,
     &ktls_cbc_enable, 1,
     "Enable Support of AES-CBC crypto for kernel TLS");
 
-static counter_u64_t ktls_tasks_active;
+static COUNTER_U64_DEFINE_EARLY(ktls_tasks_active);
 SYSCTL_COUNTER_U64(_kern_ipc_tls, OID_AUTO, tasks_active, CTLFLAG_RD,
     &ktls_tasks_active, "Number of active tasks");
 
-static counter_u64_t ktls_cnt_tx_queued;
+static COUNTER_U64_DEFINE_EARLY(ktls_cnt_tx_queued);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, sw_tx_inqueue, CTLFLAG_RD,
     &ktls_cnt_tx_queued,
     "Number of TLS records in queue to tasks for SW encryption");
 
-static counter_u64_t ktls_cnt_rx_queued;
+static COUNTER_U64_DEFINE_EARLY(ktls_cnt_rx_queued);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, sw_rx_inqueue, CTLFLAG_RD,
     &ktls_cnt_rx_queued,
     "Number of TLS sockets in queue to tasks for SW decryption");
 
-static counter_u64_t ktls_offload_total;
+static COUNTER_U64_DEFINE_EARLY(ktls_offload_total);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, offload_total,
     CTLFLAG_RD, &ktls_offload_total,
     "Total successful TLS setups (parameters set)");
 
-static counter_u64_t ktls_offload_enable_calls;
+static COUNTER_U64_DEFINE_EARLY(ktls_offload_enable_calls);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, enable_calls,
     CTLFLAG_RD, &ktls_offload_enable_calls,
     "Total number of TLS enable calls made");
 
-static counter_u64_t ktls_offload_active;
+static COUNTER_U64_DEFINE_EARLY(ktls_offload_active);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, active, CTLFLAG_RD,
     &ktls_offload_active, "Total Active TLS sessions");
 
-static counter_u64_t ktls_offload_corrupted_records;
+static COUNTER_U64_DEFINE_EARLY(ktls_offload_corrupted_records);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, corrupted_records, CTLFLAG_RD,
     &ktls_offload_corrupted_records, "Total corrupted TLS records received");
 
-static counter_u64_t ktls_offload_failed_crypto;
+static COUNTER_U64_DEFINE_EARLY(ktls_offload_failed_crypto);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, failed_crypto, CTLFLAG_RD,
     &ktls_offload_failed_crypto, "Total TLS crypto failures");
 
-static counter_u64_t ktls_switch_to_ifnet;
+static COUNTER_U64_DEFINE_EARLY(ktls_switch_to_ifnet);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, switch_to_ifnet, CTLFLAG_RD,
     &ktls_switch_to_ifnet, "TLS sessions switched from SW to ifnet");
 
-static counter_u64_t ktls_switch_to_sw;
+static COUNTER_U64_DEFINE_EARLY(ktls_switch_to_sw);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, switch_to_sw, CTLFLAG_RD,
     &ktls_switch_to_sw, "TLS sessions switched from ifnet to SW");
 
-static counter_u64_t ktls_switch_failed;
+static COUNTER_U64_DEFINE_EARLY(ktls_switch_failed);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_stats, OID_AUTO, switch_failed, CTLFLAG_RD,
     &ktls_switch_failed, "TLS sessions unable to switch between SW and ifnet");
 
@@ -191,34 +191,34 @@ SYSCTL_NODE(_kern_ipc_tls, OID_AUTO, toe, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
     "TOE TLS session stats");
 #endif
 
-static counter_u64_t ktls_sw_cbc;
+static COUNTER_U64_DEFINE_EARLY(ktls_sw_cbc);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_sw, OID_AUTO, cbc, CTLFLAG_RD, &ktls_sw_cbc,
     "Active number of software TLS sessions using AES-CBC");
 
-static counter_u64_t ktls_sw_gcm;
+static COUNTER_U64_DEFINE_EARLY(ktls_sw_gcm);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_sw, OID_AUTO, gcm, CTLFLAG_RD, &ktls_sw_gcm,
     "Active number of software TLS sessions using AES-GCM");
 
-static counter_u64_t ktls_ifnet_cbc;
+static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_cbc);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, cbc, CTLFLAG_RD,
     &ktls_ifnet_cbc,
     "Active number of ifnet TLS sessions using AES-CBC");
 
-static counter_u64_t ktls_ifnet_gcm;
+static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_gcm);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, gcm, CTLFLAG_RD,
     &ktls_ifnet_gcm,
     "Active number of ifnet TLS sessions using AES-GCM");
 
-static counter_u64_t ktls_ifnet_reset;
+static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_reset);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, reset, CTLFLAG_RD,
     &ktls_ifnet_reset, "TLS sessions updated to a new ifnet send tag");
 
-static counter_u64_t ktls_ifnet_reset_dropped;
+static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_reset_dropped);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, reset_dropped, CTLFLAG_RD,
     &ktls_ifnet_reset_dropped,
     "TLS sessions dropped after failing to update ifnet send tag");
 
-static counter_u64_t ktls_ifnet_reset_failed;
+static COUNTER_U64_DEFINE_EARLY(ktls_ifnet_reset_failed);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_ifnet, OID_AUTO, reset_failed, CTLFLAG_RD,
     &ktls_ifnet_reset_failed,
     "TLS sessions that failed to allocate a new ifnet send tag");
@@ -229,12 +229,12 @@ SYSCTL_UINT(_kern_ipc_tls_ifnet, OID_AUTO, permitted, CTLFLAG_RWTUN,
     "Whether to permit hardware (ifnet) TLS sessions");
 
 #ifdef TCP_OFFLOAD
-static counter_u64_t ktls_toe_cbc;
+static COUNTER_U64_DEFINE_EARLY(ktls_toe_cbc);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, cbc, CTLFLAG_RD,
     &ktls_toe_cbc,
     "Active number of TOE TLS sessions using AES-CBC");
 
-static counter_u64_t ktls_toe_gcm;
+static COUNTER_U64_DEFINE_EARLY(ktls_toe_gcm);
 SYSCTL_COUNTER_U64(_kern_ipc_tls_toe, OID_AUTO, gcm, CTLFLAG_RD,
     &ktls_toe_gcm,
     "Active number of TOE TLS sessions using AES-GCM");
@@ -358,29 +358,6 @@ ktls_init(void *dummy __unused)
 	struct pcpu *pc;
 	cpuset_t mask;
 	int count, domain, error, i;
-
-	ktls_tasks_active = counter_u64_alloc(M_WAITOK);
-	ktls_cnt_tx_queued = counter_u64_alloc(M_WAITOK);
-	ktls_cnt_rx_queued = counter_u64_alloc(M_WAITOK);
-	ktls_offload_total = counter_u64_alloc(M_WAITOK);
-	ktls_offload_enable_calls = counter_u64_alloc(M_WAITOK);
-	ktls_offload_active = counter_u64_alloc(M_WAITOK);
-	ktls_offload_corrupted_records = counter_u64_alloc(M_WAITOK);
-	ktls_offload_failed_crypto = counter_u64_alloc(M_WAITOK);
-	ktls_switch_to_ifnet = counter_u64_alloc(M_WAITOK);
-	ktls_switch_to_sw = counter_u64_alloc(M_WAITOK);
-	ktls_switch_failed = counter_u64_alloc(M_WAITOK);
-	ktls_sw_cbc = counter_u64_alloc(M_WAITOK);
-	ktls_sw_gcm = counter_u64_alloc(M_WAITOK);
-	ktls_ifnet_cbc = counter_u64_alloc(M_WAITOK);
-	ktls_ifnet_gcm = counter_u64_alloc(M_WAITOK);
-	ktls_ifnet_reset = counter_u64_alloc(M_WAITOK);
-	ktls_ifnet_reset_dropped = counter_u64_alloc(M_WAITOK);
-	ktls_ifnet_reset_failed = counter_u64_alloc(M_WAITOK);
-#ifdef TCP_OFFLOAD
-	ktls_toe_cbc = counter_u64_alloc(M_WAITOK);
-	ktls_toe_gcm = counter_u64_alloc(M_WAITOK);
-#endif
 
 	rm_init(&ktls_backends_lock, "ktls backends");
 	LIST_INIT(&ktls_backends);
