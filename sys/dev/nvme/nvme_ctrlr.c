@@ -261,7 +261,7 @@ nvme_ctrlr_wait_for_ready(struct nvme_controller *ctrlr, int desired_val)
 	ms_waited = 0;
 	while (1) {
 		csts = nvme_mmio_read_4(ctrlr, csts);
-		if (csts == 0xffffffff)		/* Hot unplug. */
+		if (csts == NVME_GONE)		/* Hot unplug. */
 			return (ENXIO);
 		if (((csts >> NVME_CSTS_REG_RDY_SHIFT) & NVME_CSTS_REG_RDY_MASK)
 		    == desired_val)
@@ -1471,7 +1471,7 @@ nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev)
 	 * Check whether it is a hot unplug or a clean driver detach.
 	 * If device is not there any more, skip any shutdown commands.
 	 */
-	gone = (nvme_mmio_read_4(ctrlr, csts) == 0xffffffff);
+	gone = (nvme_mmio_read_4(ctrlr, csts) == NVME_GONE);
 	if (gone)
 		nvme_ctrlr_fail(ctrlr);
 	else
@@ -1549,7 +1549,7 @@ nvme_ctrlr_shutdown(struct nvme_controller *ctrlr)
 	    ((uint64_t)ctrlr->cdata.rtd3e * hz + 999999) / 1000000;
 	while (1) {
 		csts = nvme_mmio_read_4(ctrlr, csts);
-		if (csts == 0xffffffff)		/* Hot unplug. */
+		if (csts == NVME_GONE)		/* Hot unplug. */
 			break;
 		if (NVME_CSTS_GET_SHST(csts) == NVME_SHST_COMPLETE)
 			break;

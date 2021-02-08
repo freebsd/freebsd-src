@@ -104,6 +104,8 @@ MALLOC_DECLARE(M_NVME);
 #define CACHE_LINE_SIZE		(64)
 #endif
 
+#define NVME_GONE		0xfffffffful
+
 extern int32_t		nvme_retry_count;
 extern bool		nvme_verbose_cmd_dump;
 
