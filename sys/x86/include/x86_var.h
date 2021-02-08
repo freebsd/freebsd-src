@@ -95,6 +95,7 @@ extern	int	x86_taa_enable;
 extern	int	cpu_flush_rsb_ctxsw;
 extern	int	x86_rngds_mitg_enable;
 extern	int	cpu_amdc1e_bug;
+extern	char	bootmethod[16];
 
 struct	pcb;
 struct	thread;
