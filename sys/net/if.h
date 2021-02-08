@@ -604,6 +604,9 @@ struct ifdownreason {
 MALLOC_DECLARE(M_IFADDR);
 MALLOC_DECLARE(M_IFMADDR);
 #endif
+
+extern struct sx ifnet_detach_sxlock;
+
 #endif
 
 #ifndef _KERNEL
