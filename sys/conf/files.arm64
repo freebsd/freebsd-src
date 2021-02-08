@@ -432,6 +432,7 @@ libkern/memcmp.c		standard				\
 	compile-with "${NORMAL_C:N-fsanitize*}"
 libkern/memset.c		standard				\
 	compile-with "${NORMAL_C:N-fsanitize*}"
+libkern/strlen.c		standard
 libkern/arm64/crc32c_armv8.S	standard
 cddl/dev/dtrace/aarch64/dtrace_asm.S			optional dtrace compile-with "${DTRACE_S}"
 cddl/dev/dtrace/aarch64/dtrace_subr.c			optional dtrace compile-with "${DTRACE_C}"
