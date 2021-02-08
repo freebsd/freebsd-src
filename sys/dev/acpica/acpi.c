@@ -2273,6 +2273,8 @@ acpi_DeviceIsPresent(device_t dev)
 	h = acpi_get_handle(dev);
 	if (h == NULL)
 		return (FALSE);
+
+#ifdef ACPI_EARLY_EPYC_WAR
 	/*
 	 * Certain Treadripper boards always returns 0 for FreeBSD because it
 	 * only returns non-zero for the OS string "Windows 2015". Otherwise it
@@ -2281,6 +2283,7 @@ acpi_DeviceIsPresent(device_t dev)
 	 */
 	if (acpi_MatchHid(h, "AMDI0020") || acpi_MatchHid(h, "AMDI0010"))
 		return (TRUE);
+#endif
 
 	status = acpi_GetInteger(h, "_STA", &s);
 

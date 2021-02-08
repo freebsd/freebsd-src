@@ -705,6 +705,7 @@ ACPI_DEBUG		opt_acpi.h
 ACPI_MAX_TASKS		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
 DEV_ACPI		opt_acpi.h
+ACPI_EARLY_EPYC_WAR	opt_acpi.h
 
 # options for IOMMU support
 IOMMU			opt_iommu.h
