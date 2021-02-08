@@ -284,6 +284,8 @@ add_cmd(__unused int argc, char *argv[], ximgact_binmisc_entry_t *xbe)
 	char *magic = NULL, *mask = NULL;
 	int sz;
 
+	if (argc == 0)
+		usage("Required argument missing\n");
 	if (strlen(argv[0]) > IBE_NAME_MAX)
 		usage("'%s' string length longer than IBE_NAME_MAX (%d)",
 		    IBE_NAME_MAX);
