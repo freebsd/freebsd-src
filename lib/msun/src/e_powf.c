@@ -136,7 +136,7 @@ __ieee754_powf(float x, float y)
     /* |y| is huge */
 	if(iy>0x4d000000) { /* if |y| > 2**27 */
 	/* over/underflow if x is not close to one */
-	    if(ix<0x3f7ffff8) return (hy<0)? sn*huge*huge:sn*tiny*tiny;
+	    if(ix<0x3f7ffff7) return (hy<0)? sn*huge*huge:sn*tiny*tiny;
 	    if(ix>0x3f800007) return (hy>0)? sn*huge*huge:sn*tiny*tiny;
 	/* now |1-x| is tiny <= 2**-20, suffice to compute
 	   log(x) by x-x^2/2+x^3/3-x^4/4 */
