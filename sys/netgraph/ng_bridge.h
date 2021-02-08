@@ -109,13 +109,6 @@ struct ng_bridge_link_stats {
 
 struct ng_bridge_link;
 typedef struct ng_bridge_link *link_p;
-/* Structure describing a single host */
-struct ng_bridge_host {
-	u_char		addr[6];	/* ethernet address */
-	link_p		link;		/* link where addr can be found */
-	u_int16_t	age;		/* seconds ago entry was created */
-	u_int16_t	staleness;	/* seconds ago host last heard from */
-};
 
 /* external representation of the host */
 struct ng_bridge_hostent {
