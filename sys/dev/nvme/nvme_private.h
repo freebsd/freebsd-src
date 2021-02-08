@@ -398,7 +398,6 @@ void	nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl);
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 void	nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev);
 void	nvme_ctrlr_shutdown(struct nvme_controller *ctrlr);
-int	nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr);
 void	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */
 void	nvme_ctrlr_start_config_hook(void *ctrlr_arg);
