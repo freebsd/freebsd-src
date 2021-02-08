@@ -18,7 +18,6 @@ stop_cmd=":"
 linux_start()
 {
 	local _emul_path _tmpdir
-	_emul_path="$(sysctl -n compat.linux.emul_path)"
 
 	load_kld -e 'linux(aout|elf)' linux
 	case `sysctl -n hw.machine_arch` in
@@ -26,6 +25,9 @@ linux_start()
 		load_kld -e 'linux64elf' linux64
 		;;
 	esac
+
+	_emul_path="$(sysctl -n compat.linux.emul_path)"
+
 	if [ -x ${_emul_path}/sbin/ldconfigDisabled ]; then
 		_tmpdir=`mktemp -d -t linux-ldconfig`
 		${_emul_path}/sbin/ldconfig -C ${_tmpdir}/ld.so.cache
