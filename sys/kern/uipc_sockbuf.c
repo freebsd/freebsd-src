@@ -436,30 +436,6 @@ socantrcvmore(struct socket *so)
 	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
 }
 
-void
-soroverflow_locked(struct socket *so)
-{
-
-	SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-
-	if (so->so_options & SO_RERROR) {
-		so->so_rerror = ENOBUFS;
-		sorwakeup_locked(so);
-	} else
-		SOCKBUF_UNLOCK(&so->so_rcv);
-
-	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
-}
-
-void
-soroverflow(struct socket *so)
-{
-
-	SOCKBUF_LOCK(&so->so_rcv);
-	soroverflow_locked(so);
-	mtx_assert(SOCKBUF_MTX(&so->so_rcv), MA_NOTOWNED);
-}
-
 /*
  * Wait for data to arrive at/drain from a socket buffer.
  */

@@ -1058,7 +1058,7 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			m = NULL;
 			control = NULL;
 		} else {
-			soroverflow_locked(so2);
+			SOCKBUF_UNLOCK(&so2->so_rcv);
 			error = ENOBUFS;
 		}
 		if (nam != NULL)

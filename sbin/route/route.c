@@ -1444,20 +1444,9 @@ monitor(int argc, char *argv[])
 		interfaces();
 		exit(0);
 	}
-
-#ifdef SO_RERROR
-	n = 1;
-	if (setsockopt(s, SOL_SOCKET, SO_RERROR, &n, sizeof(n)) == -1)
-		warn("SO_RERROR");
-#endif
-
 	for (;;) {
 		time_t now;
-		n = read(s, msg, sizeof(msg));
-		if (n == -1) {
-			warn("read");
-			continue;
-		}
+		n = read(s, msg, 2048);
 		now = time(NULL);
 		(void)printf("\ngot message of size %d on %s", n, ctime(&now));
 		print_rtmsg((struct rt_msghdr *)(void *)msg, n);

@@ -197,7 +197,7 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	SOCKBUF_LOCK(&so->so_rcv);
 	if (sbappendaddr_locked(&so->so_rcv, (struct sockaddr *)&fromsa[0], n,
 	    opts) == 0) {
-		soroverflow_locked(so);
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		m_freem(n);
 		if (opts)
 			m_freem(opts);

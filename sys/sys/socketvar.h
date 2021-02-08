@@ -100,7 +100,6 @@ struct socket {
 	struct	protosw *so_proto;	/* (a) protocol handle */
 	short	so_timeo;		/* (g) connection timeout */
 	u_short	so_error;		/* (f) error affecting connection */
-	u_short so_rerror;		/* (f) error affecting connection */
 	struct	sigio *so_sigio;	/* [sg] information for async I/O or
 					   out of band data (SIGURG) */
 	struct	ucred *so_cred;		/* (a) user credentials */
@@ -267,8 +266,7 @@ struct socket {
 
 /* can we read something from so? */
 #define	soreadabledata(so) \
-	(sbavail(&(so)->so_rcv) >= (so)->so_rcv.sb_lowat || \
-	(so)->so_error || (so)->so_rerror)
+	(sbavail(&(so)->so_rcv) >= (so)->so_rcv.sb_lowat ||  (so)->so_error)
 #define	soreadable(so) \
 	(soreadabledata(so) || ((so)->so_rcv.sb_state & SBS_CANTRCVMORE))
 
@@ -482,8 +480,6 @@ void	socantrcvmore(struct socket *so);
 void	socantrcvmore_locked(struct socket *so);
 void	socantsendmore(struct socket *so);
 void	socantsendmore_locked(struct socket *so);
-void	soroverflow(struct socket *so);
-void	soroverflow_locked(struct socket *so);
 
 /*
  * Accept filter functions (duh).

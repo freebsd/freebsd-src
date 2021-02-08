@@ -1576,7 +1576,6 @@ ip6_notify_pmtu(struct inpcb *inp, struct sockaddr_in6 *dst, u_int32_t mtu)
 	so =  inp->inp_socket;
 	if (sbappendaddr(&so->so_rcv, (struct sockaddr *)dst, NULL, m_mtu)
 	    == 0) {
-		soroverflow(so);
 		m_freem(m_mtu);
 		/* XXX: should count statistics */
 	} else

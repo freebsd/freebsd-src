@@ -291,7 +291,7 @@ send_input(struct mbuf *m, struct ifnet *ifp, int direction, int msglen __unused
 	SOCKBUF_LOCK(&V_send_so->so_rcv);
 	if (sbappendaddr_locked(&V_send_so->so_rcv,
 	    (struct sockaddr *)&sendsrc, m, NULL) == 0) {
-		soroverflow_locked(V_send_so);
+		SOCKBUF_UNLOCK(&V_send_so->so_rcv);
 		/* XXX stats. */
 		m_freem(m);
 	} else {
