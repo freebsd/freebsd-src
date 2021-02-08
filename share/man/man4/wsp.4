@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 15, 2018
+.Dd February 9, 2021
 .Dt WSP 4
 .Os
 .Sh NAME
@@ -67,6 +67,11 @@ Pointer sensitivity can be controlled using the sysctl tunable
 Tap to left-click can be controlled using the sysctl tunable
 .Nm hw.usb.wsp.enable_single_tap_clicks ,
 set to 0 to disable single tap clicks or 1 to enable them (default).
+Z-Axis sensitivity can be controlled using the sysctl tunable
+.Nm hw.usb.wsp.z_factor .
+Z-Axis inversion can be controlled using the sysctl tunable
+.Nm hw.usb.wsp.z_invert ,
+set to 0 to disable (default) or 1 to enable inversion.
 .Sh FILES
 .Nm
 creates a blocking pseudo-device file,
