@@ -107,7 +107,6 @@ struct fontlist {
 	STAILQ_ENTRY(fontlist)	font_next;
 };
 
-#define	BORDER_PIXELS	10	/* space from screen border */
 typedef STAILQ_HEAD(font_list, fontlist) font_list_t;
 
 #define	FONT_HEADER_MAGIC	"VFNT0002"
