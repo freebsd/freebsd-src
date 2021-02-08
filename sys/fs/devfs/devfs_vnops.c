@@ -974,7 +974,7 @@ devfs_ioctl(struct vop_ioctl_args *ap)
 
 		/* Get rid of reference to old control tty */
 		if (vpold)
-			vrele(vpold);
+			devfs_ctty_unref(vpold);
 	}
 	return (error);
 }
