@@ -403,7 +403,7 @@ nvme_ctrlr_disable_qpairs(struct nvme_controller *ctrlr)
 	}
 }
 
-int
+static int
 nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 {
 	int err;
