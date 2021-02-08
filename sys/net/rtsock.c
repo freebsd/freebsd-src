@@ -564,6 +564,54 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 	return (0);
 }
 
+static int
+fill_blackholeinfo(struct rt_addrinfo *info, union sockaddr_union *saun)
+{
+	struct ifaddr *ifa;
+	sa_family_t saf;
+
+	if (V_loif == NULL) {
+		printf("Unable to add blackhole/reject nhop without loopback");
+		return (ENOTSUP);
+	}
+	info->rti_ifp = V_loif;
+
+	saf = info->rti_info[RTAX_DST]->sa_family;
+
+	CK_STAILQ_FOREACH(ifa, &info->rti_ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == saf) {
+			info->rti_ifa = ifa;
+			break;
+		}
+	}
+	if (info->rti_ifa == NULL)
+		return (ENOTSUP);
+
+	bzero(saun, sizeof(union sockaddr_union));
+	switch (saf) {
+#ifdef INET
+	case AF_INET:
+		saun->sin.sin_family = AF_INET;
+		saun->sin.sin_len = sizeof(struct sockaddr_in);
+		saun->sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		saun->sin6.sin6_family = AF_INET6;
+		saun->sin6.sin6_len = sizeof(struct sockaddr_in6);
+		saun->sin6.sin6_addr = in6addr_loopback;
+		break;
+#endif
+	default:
+		return (ENOTSUP);
+	}
+	info->rti_info[RTAX_GATEWAY] = &saun->sa;
+	info->rti_flags |= RTF_GATEWAY;
+
+	return (0);
+}
+
 /*
  * Fills in @info based on userland-provided @rtm message.
  *
@@ -951,7 +999,6 @@ route_output(struct mbuf *m, struct socket *so, ...)
 #endif
 	int alloc_len = 0, len, error = 0, fibnum;
 	sa_family_t saf = AF_UNSPEC;
-	struct walkarg w;
 	struct rib_cmd_info rc;
 	struct nhop_object *nh;
 
@@ -979,7 +1026,6 @@ route_output(struct mbuf *m, struct socket *so, ...)
 
 	m_copydata(m, 0, len, (caddr_t)rtm);
 	bzero(&info, sizeof(info));
-	bzero(&w, sizeof(w));
 	nh = NULL;
 
 	if (rtm->rtm_version != RTM_VERSION) {
@@ -1009,6 +1055,18 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			rti_need_deembed = 1;
 #endif
 		goto flush;
+	}
+
+	union sockaddr_union gw_saun;
+	int blackhole_flags = rtm->rtm_flags & (RTF_BLACKHOLE|RTF_REJECT);
+	if (blackhole_flags != 0) {
+		if (blackhole_flags != (RTF_BLACKHOLE | RTF_REJECT))
+			error = fill_blackholeinfo(&info, &gw_saun);
+		else
+			error = EINVAL;
+		if (error != 0)
+			senderr(error);
+		/* TODO: rebuild rtm from scratch */
 	}
 
 	switch (rtm->rtm_type) {
