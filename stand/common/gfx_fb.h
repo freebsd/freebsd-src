@@ -164,6 +164,18 @@ struct vesa_flat_panel_info {
 #define	NCMAP	256
 extern uint32_t cmap[NCMAP];
 
+/*
+ * VT_FB_MAX_WIDTH and VT_FB_MAX_HEIGHT are dimensions from where
+ * we will not auto select smaller font than 8x16.
+ * See also sys/dev/vt/vt.h
+ */
+#ifndef VT_FB_MAX_WIDTH
+#define	VT_FB_MAX_WIDTH		4096
+#endif
+#ifndef VT_FB_MAX_HEIGHT
+#define	VT_FB_MAX_HEIGHT	2400
+#endif
+
 enum FB_TYPE {
 	FB_TEXT = -1,
 	FB_GOP,

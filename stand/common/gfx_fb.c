@@ -1894,12 +1894,18 @@ set_font(teken_unit_t *rows, teken_unit_t *cols, teken_unit_t h, teken_unit_t w)
 	}
 
 	/*
-	 * Find best font for these dimensions, or use default
+	 * Find best font for these dimensions, or use default.
+	 * If height >= VT_FB_MAX_HEIGHT and width >= VT_FB_MAX_WIDTH,
+	 * do not use smaller font than our DEFAULT_FONT_DATA.
 	 */
 	STAILQ_FOREACH(fl, &fonts, font_next) {
 		font = fl->font_data;
-		if ((*rows * font->vfbd_height <= height) &&
-		    (*cols * font->vfbd_width <= width)) {
+		if ((*rows * font->vfbd_height <= height &&
+		    *cols * font->vfbd_width <= width) ||
+		    (height >= VT_FB_MAX_HEIGHT &&
+		    width >= VT_FB_MAX_WIDTH &&
+		    font->vfbd_height == DEFAULT_FONT_DATA.vfbd_height &&
+		    font->vfbd_width == DEFAULT_FONT_DATA.vfbd_width)) {
 			if (font->vfbd_font == NULL ||
 			    fl->font_flags == FONT_RELOAD) {
 				if (fl->font_load != NULL &&
