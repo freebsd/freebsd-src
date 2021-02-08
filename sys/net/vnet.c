@@ -281,7 +281,9 @@ vnet_destroy(struct vnet *vnet)
 	VNET_LIST_WUNLOCK();
 
 	CURVNET_SET_QUIET(vnet);
+	sx_xlock(&ifnet_detach_sxlock);
 	vnet_sysuninit();
+	sx_xunlock(&ifnet_detach_sxlock);
 	CURVNET_RESTORE();
 
 	/*
