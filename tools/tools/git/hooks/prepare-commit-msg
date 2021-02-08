@@ -41,7 +41,7 @@ $(awk '1;/^#$/{exit}' $1)
 #                                                         72 columns --|
 #
 # Uncomment and complete these metadata fields, as appropriate:
-# 
+#
 # PR:		<If and which Problem Report is related.>
 # Reported by:	<If someone else reported the issue.>
 # Reviewed by:	<If someone else reviewed your modification.>
