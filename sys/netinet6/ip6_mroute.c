@@ -1038,8 +1038,7 @@ socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in6 *src)
 				 mm, (struct mbuf *)0) != 0) {
 			sorwakeup(s);
 			return (0);
-		} else
-			soroverflow(s);
+		}
 	}
 	m_freem(mm);
 	return (-1);

@@ -982,7 +982,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	/* Send it up to the socket. */
 	if (sbappendaddr_locked(&so->so_rcv, (struct sockaddr *)&addr, m,
 	    NULL) == 0) {
-		soroverflow_locked(so);
+		SOCKBUF_UNLOCK(&so->so_rcv);
 		TRAP_ERROR;
 		m_freem(m);
 		return (ENOBUFS);

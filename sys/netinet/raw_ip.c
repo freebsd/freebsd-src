@@ -263,10 +263,11 @@ rip_append(struct inpcb *last, struct ip *ip, struct mbuf *n,
 		SOCKBUF_LOCK(&so->so_rcv);
 		if (sbappendaddr_locked(&so->so_rcv,
 		    (struct sockaddr *)ripsrc, n, opts) == 0) {
-			soroverflow_locked(so);
+			/* should notify about lost packet */
 			m_freem(n);
 			if (opts)
 				m_freem(opts);
+			SOCKBUF_UNLOCK(&so->so_rcv);
 		} else
 			sorwakeup_locked(so);
 	} else
