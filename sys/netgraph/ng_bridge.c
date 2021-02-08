@@ -134,13 +134,16 @@ typedef struct ng_bridge_private *priv_p;
 typedef struct ng_bridge_private const *priv_cp;	/* read only access */
 
 /* Information about a host, stored in a hash table entry */
-struct ng_bridge_hent {
-	struct ng_bridge_host		host;	/* actual host info */
-	SLIST_ENTRY(ng_bridge_hent)	next;	/* next entry in bucket */
+struct ng_bridge_host {
+	u_char		addr[6];	/* ethernet address */
+	link_p		link;		/* link where addr can be found */
+	u_int16_t	age;		/* seconds ago entry was created */
+	u_int16_t	staleness;	/* seconds ago host last heard from */
+	SLIST_ENTRY(ng_bridge_host)	next;	/* next entry in bucket */
 };
 
 /* Hash table bucket declaration */
-SLIST_HEAD(ng_bridge_bucket, ng_bridge_hent);
+SLIST_HEAD(ng_bridge_bucket, ng_bridge_host);
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_bridge_constructor;
@@ -567,7 +570,7 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_BRIDGE_GET_TABLE:
 		    {
 			struct ng_bridge_host_ary *ary;
-			struct ng_bridge_hent *hent;
+			struct ng_bridge_host *host;
 			int i = 0, bucket;
 
 			NG_MKRESPONSE(resp, msg, sizeof(*ary)
@@ -579,14 +582,14 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			ary = (struct ng_bridge_host_ary *)resp->data;
 			ary->numHosts = priv->numHosts;
 			for (bucket = 0; bucket < priv->numBuckets; bucket++) {
-				SLIST_FOREACH(hent, &priv->tab[bucket], next) {
+				SLIST_FOREACH(host, &priv->tab[bucket], next) {
 					memcpy(ary->hosts[i].addr,
-					       hent->host.addr,
+					       host->addr,
 					       sizeof(ary->hosts[i].addr));
-					ary->hosts[i].age       = hent->host.age;
-					ary->hosts[i].staleness = hent->host.staleness;
+					ary->hosts[i].age       = host->age;
+					ary->hosts[i].staleness = host->staleness;
 					strncpy(ary->hosts[i].hook,
-						NG_HOOK_NAME(hent->host.link->hook),
+						NG_HOOK_NAME(host->link->hook),
 						sizeof(ary->hosts[i].hook));
 					i++;
 				}
@@ -925,11 +928,11 @@ static struct ng_bridge_host *
 ng_bridge_get(priv_cp priv, const u_char *addr)
 {
 	const int bucket = HASH(addr, priv->hashMask);
-	struct ng_bridge_hent *hent;
+	struct ng_bridge_host *host;
 
-	SLIST_FOREACH(hent, &priv->tab[bucket], next) {
-		if (ETHER_EQUAL(hent->host.addr, addr))
-			return (&hent->host);
+	SLIST_FOREACH(host, &priv->tab[bucket], next) {
+		if (ETHER_EQUAL(host->addr, addr))
+			return (host);
 	}
 	return (NULL);
 }
@@ -943,27 +946,27 @@ static int
 ng_bridge_put(priv_p priv, const u_char *addr, link_p link)
 {
 	const int bucket = HASH(addr, priv->hashMask);
-	struct ng_bridge_hent *hent;
+	struct ng_bridge_host *host;
 
 #ifdef INVARIANTS
 	/* Assert that entry does not already exist in hashtable */
-	SLIST_FOREACH(hent, &priv->tab[bucket], next) {
-		KASSERT(!ETHER_EQUAL(hent->host.addr, addr),
+	SLIST_FOREACH(host, &priv->tab[bucket], next) {
+		KASSERT(!ETHER_EQUAL(host->addr, addr),
 		    ("%s: entry %6D exists in table", __func__, addr, ":"));
 	}
 #endif
 
 	/* Allocate and initialize new hashtable entry */
-	hent = malloc(sizeof(*hent), M_NETGRAPH_BRIDGE, M_NOWAIT);
-	if (hent == NULL)
+	host = malloc(sizeof(*host), M_NETGRAPH_BRIDGE, M_NOWAIT);
+	if (host == NULL)
 		return (0);
-	bcopy(addr, hent->host.addr, ETHER_ADDR_LEN);
-	hent->host.link = link;
-	hent->host.staleness = 0;
-	hent->host.age = 0;
+	bcopy(addr, host->addr, ETHER_ADDR_LEN);
+	host->link = link;
+	host->staleness = 0;
+	host->age = 0;
 
 	/* Add new element to hash bucket */
-	SLIST_INSERT_HEAD(&priv->tab[bucket], hent, next);
+	SLIST_INSERT_HEAD(&priv->tab[bucket], host, next);
 	priv->numHosts++;
 
 	/* Resize table if necessary */
@@ -1008,12 +1011,12 @@ ng_bridge_rehash(priv_p priv)
 		struct ng_bridge_bucket *const oldList = &priv->tab[oldBucket];
 
 		while (!SLIST_EMPTY(oldList)) {
-			struct ng_bridge_hent *const hent
+			struct ng_bridge_host *const host
 			    = SLIST_FIRST(oldList);
 
 			SLIST_REMOVE_HEAD(oldList, next);
-			newBucket = HASH(hent->host.addr, newMask);
-			SLIST_INSERT_HEAD(&newTab[newBucket], hent, next);
+			newBucket = HASH(host->addr, newMask);
+			SLIST_INSERT_HEAD(&newTab[newBucket], host, next);
 		}
 	}
 
@@ -1044,17 +1047,17 @@ ng_bridge_remove_hosts(priv_p priv, link_p link)
 	int bucket;
 
 	for (bucket = 0; bucket < priv->numBuckets; bucket++) {
-		struct ng_bridge_hent **hptr = &SLIST_FIRST(&priv->tab[bucket]);
+		struct ng_bridge_host **hptr = &SLIST_FIRST(&priv->tab[bucket]);
 
 		while (*hptr != NULL) {
-			struct ng_bridge_hent *const hent = *hptr;
+			struct ng_bridge_host *const host = *hptr;
 
-			if (link == NULL || hent->host.link == link) {
-				*hptr = SLIST_NEXT(hent, next);
-				free(hent, M_NETGRAPH_BRIDGE);
+			if (link == NULL || host->link == link) {
+				*hptr = SLIST_NEXT(host, next);
+				free(host, M_NETGRAPH_BRIDGE);
 				priv->numHosts--;
 			} else
-				hptr = &SLIST_NEXT(hent, next);
+				hptr = &SLIST_NEXT(host, next);
 		}
 	}
 }
@@ -1095,20 +1098,20 @@ ng_bridge_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 
 	/* Update host time counters and remove stale entries */
 	for (bucket = 0; bucket < priv->numBuckets; bucket++) {
-		struct ng_bridge_hent **hptr = &SLIST_FIRST(&priv->tab[bucket]);
+		struct ng_bridge_host **hptr = &SLIST_FIRST(&priv->tab[bucket]);
 
 		while (*hptr != NULL) {
-			struct ng_bridge_hent *const hent = *hptr;
+			struct ng_bridge_host *const host = *hptr;
 
 			/* Remove hosts we haven't heard from in a while */
-			if (++hent->host.staleness >= priv->conf.maxStaleness) {
-				*hptr = SLIST_NEXT(hent, next);
-				free(hent, M_NETGRAPH_BRIDGE);
+			if (++host->staleness >= priv->conf.maxStaleness) {
+				*hptr = SLIST_NEXT(host, next);
+				free(host, M_NETGRAPH_BRIDGE);
 				priv->numHosts--;
 			} else {
-				if (hent->host.age < 0xffff)
-					hent->host.age++;
-				hptr = &SLIST_NEXT(hent, next);
+				if (host->age < 0xffff)
+					host->age++;
+				hptr = &SLIST_NEXT(host, next);
 				counter++;
 			}
 		}
