@@ -943,6 +943,23 @@
 #define	DBG_MDSCR_KDE	(0x1 << 13)
 #define	DBG_MDSCR_MDE	(0x1 << 15)
 
+/* Debug Breakpoint Control Registers */
+#define	DBG_BCR_EN		0x1
+#define	DBG_BCR_PMC_SHIFT	1
+#define	DBG_BCR_PMC		(0x3 << DBG_BCR_PMC_SHIFT)
+#define	 DBG_BCR_PMC_EL1	(0x1 << DBG_BCR_PMC_SHIFT)
+#define	 DBG_BCR_PMC_EL0	(0x2 << DBG_BCR_PMC_SHIFT)
+#define	DBG_BCR_BAS_SHIFT	5
+#define	DBG_BCR_BAS		(0xf << DBG_BCR_BAS_SHIFT)
+#define	DBG_BCR_HMC_SHIFT	13
+#define	DBG_BCR_HMC		(0x1 << DBG_BCR_HMC_SHIFT)
+#define	DBG_BCR_SSC_SHIFT	14
+#define	DBG_BCR_SSC		(0x3 << DBG_BCR_SSC_SHIFT)
+#define	DBG_BCR_LBN_SHIFT	16
+#define	DBG_BCR_LBN		(0xf << DBG_BCR_LBN_SHIFT)
+#define	DBG_BCR_BT_SHIFT	20
+#define	DBG_BCR_BT		(0xf << DBG_BCR_BT_SHIFT)
+
 /* Perfomance Monitoring Counters */
 #define	PMCR_E		(1 << 0) /* Enable all counters */
 #define	PMCR_P		(1 << 1) /* Reset all counters */
