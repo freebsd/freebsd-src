@@ -75,6 +75,15 @@ mac_body()
 	pft_set_rules alcatraz \
 		"ether block on ${epair}a from ${epair_a_mac}"
 	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	# Test negation
+	pft_set_rules alcatraz \
+		"ether block in on ${epair}b from ! ${epair_a_mac}"
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	pft_set_rules alcatraz \
+		"ether block out on ${epair}b to ! ${epair_a_mac}"
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
 }
 
 mac_cleanup()
