@@ -5268,6 +5268,10 @@ cache_fplookup_parse(struct cache_fpl *fpl)
 	cache_fpl_pathlen_sub(fpl, cnp->cn_namelen);
 
 #ifdef INVARIANTS
+	/*
+	 * cache_get_hash only accepts lengths up to NAME_MAX. This is fine since
+	 * we are going to fail this lookup with ENAMETOOLONG (see below).
+	 */
 	if (cnp->cn_namelen <= NAME_MAX) {
 		if (fpl->hash != cache_get_hash(cnp->cn_nameptr, cnp->cn_namelen, dvp)) {
 			panic("%s: mismatched hash for [%s] len %ld", __func__,
@@ -5359,7 +5363,7 @@ cache_fplookup_skip_slashes(struct cache_fpl *fpl)
  * manner relying on an invariant that a non-directory vnode will get a miss.
  * In this case cn_nameptr[0] == '\0' and cn_namelen == 0.
  *
- * Thus for a path like "foo/bar/" the code unwinds the state back to 'bar/'
+ * Thus for a path like "foo/bar/" the code unwinds the state back to "bar/"
  * and denotes this is the last path component, which avoids looping back.
  *
  * Only plain lookups are supported for now to restrict corner cases to handle.
@@ -5454,14 +5458,14 @@ cache_fplookup_trailingslash(struct cache_fpl *fpl)
 #endif
 
 	/*
-	 * The previous directory is this one.
+	 * If this was a "./" lookup the parent directory is already correct.
 	 */
 	if (cnp->cn_nameptr[0] == '.' && cnp->cn_namelen == 1) {
 		return (0);
 	}
 
 	/*
-	 * The previous directory is something else.
+	 * Otherwise we need to look it up.
 	 */
 	tvp = fpl->tvp;
 	ncp = atomic_load_consume_ptr(&tvp->v_cache_dd);
@@ -5495,10 +5499,11 @@ cache_fplookup_failed_vexec(struct cache_fpl *fpl, int error)
 	dvp_seqc = fpl->dvp_seqc;
 
 	/*
-	 * TODO: Due to ignoring slashes lookup will perform a permission check
-	 * on the last dir when it should not have. If it fails, we get here.
-	 * It is possible possible to fix it up fully without resorting to
-	 * regular lookup, but for now just abort.
+	 * TODO: Due to ignoring trailing slashes lookup will perform a
+	 * permission check on the last dir when it should not be doing it.  It
+	 * may fail, but said failure should be ignored. It is possible to fix
+	 * it up fully without resorting to regular lookup, but for now just
+	 * abort.
 	 */
 	if (cache_fpl_istrailingslash(fpl)) {
 		return (cache_fpl_aborted(fpl));
