@@ -357,6 +357,8 @@ int
 set_dbregs(struct thread *td, struct dbreg *regs)
 {
 	struct debug_monitor_state *monitor;
+	uint64_t addr;
+	uint32_t ctrl;
 	int count;
 	int i;
 
@@ -364,11 +366,38 @@ set_dbregs(struct thread *td, struct dbreg *regs)
 	count = 0;
 	monitor->dbg_enable_count = 0;
 	for (i = 0; i < DBG_BRP_MAX; i++) {
-		/* TODO: Check these values */
-		monitor->dbg_bvr[i] = regs->db_regs[i].dbr_addr;
-		monitor->dbg_bcr[i] = regs->db_regs[i].dbr_ctrl;
-		if ((monitor->dbg_bcr[i] & 1) != 0)
+		addr = regs->db_regs[i].dbr_addr;
+		ctrl = regs->db_regs[i].dbr_ctrl;
+
+		/* Don't let the user set a breakpoint on a kernel address. */
+		if (addr >= VM_MAXUSER_ADDRESS)
+			return (EINVAL);
+
+		/*
+		 * The lowest 2 bits are ignored, so record the effective
+		 * address.
+		 */
+		addr = rounddown2(addr, 4);
+
+		/*
+		 * Some control fields are ignored, and other bits reserved.
+		 * Only unlinked, address-matching breakpoints are supported.
+		 *
+		 * XXX: fields that appear unvalidated, such as BAS, have
+		 * constrained undefined behaviour. If the user mis-programs
+		 * these, there is no risk to the system.
+		 */
+		ctrl &= DBG_BCR_EN | DBG_BCR_PMC | DBG_BCR_BAS;
+		if ((ctrl & DBG_BCR_EN) != 0) {
+			/* Only target EL0. */
+			if ((ctrl & DBG_BCR_PMC) != DBG_BCR_PMC_EL0)
+				return (EINVAL);
+
 			monitor->dbg_enable_count++;
+		}
+
+		monitor->dbg_bvr[i] = addr;
+		monitor->dbg_bcr[i] = ctrl;
 	}
 	if (monitor->dbg_enable_count > 0)
 		monitor->dbg_flags |= DBGMON_ENABLED;
