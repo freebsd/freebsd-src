@@ -140,7 +140,7 @@ gen_table "sockopt"         "SO_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/
 gen_table "sockoptip"       "(IP_[[:alnum:]_]+|MCAST_[[:alnum:]_]+_GROUP)[[:space:]]+" "netinet/in.h" "IP_DEFAULT|IP_MIN|IP_MAX|IP_PORTRANGE"
 gen_table "sockoptipv6"     "IPV6_[[:alnum:]_]+[[:space:]]+[0-9]+"         "netinet6/in6.h"     "IPV6_ADDR_|IPV6_TAG_DIRECT|IPV6_OPTIONS|IPV6_RECVOPTS|IPV6_RECVRETOPTS|IPV6_RECVDSTADDR|IPV6_RETOPTS|IPV6_2292|IPV6_RECVRTHDRDSTOPTS|IPV6_REACHCONF|IPV6_PKTOPTIONS"
 gen_table "sockoptsctp"     "SCTP_[[:alnum:]_]+[[:space:]]+[0-9]+"         "netinet/sctp.h"
-gen_table "sockopttcp"      "TCP_[[:alnum:]_]+[[:space:]]+[0-9]+"          "netinet/tcp.h"      "TCP_MIN|TCP_MAX[^S]|TCP_MSS|TCP_[[:alnum:]_]+_MAX"
+gen_table "sockopttcp"      "TCP_[[:alnum:]_]+[[:space:]]+[0-9]+"          "netinet/tcp.h"      "TCP_MIN|TCP_MAX[^S]|TCP_MSS|TCP_[[:alnum:]_]+_MAX|TCP_FASTOPEN_MIN_COOKIE_LEN|TCP_FASTOPEN_PSK_LEN"
 gen_table "sockoptudp"      "UDP_[[:alnum:]]+[[:space:]]+[0-9]+"           "netinet/udp.h"      "UDP_ENCAP_"
 gen_table "sockoptudplite"  "UDPLITE_[[:alnum:]_]+[[:space:]]+[0-9]+"      "netinet/udplite.h"
 gen_table "socktype"        "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*"          "sys/socket.h"
