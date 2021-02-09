@@ -187,7 +187,16 @@ ${X_}COMPILER_TYPE:=	gcc
 . elif ${_v:Mclang} || ${_v:M(clang-*.*.*)}
 ${X_}COMPILER_TYPE:=	clang
 . else
+# With GCC, cc --version prints "cc $VERSION ($PKGVERSION)", so if a
+# distribution overrides the default GCC PKGVERSION it is not identified.
+# However, its -v output always says "gcc version" in it, so fall back on that.
+_gcc_version!=	${${cc}:N${CCACHE_BIN}} -v 2>&1 | grep "gcc version"
+.  if !empty(_gcc_version)
+${X_}COMPILER_TYPE:=	gcc
+.  else
 .error Unable to determine compiler type for ${cc}=${${cc}}.  Consider setting ${X_}COMPILER_TYPE.
+.  endif
+.undef _gcc_version
 . endif
 .endif
 .if !defined(${X_}COMPILER_VERSION)
