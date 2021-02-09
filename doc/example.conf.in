@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.13.0.
+# See unbound.conf(5) man page, version 1.13.1.
 #
 # this is a comment.
 
@@ -377,6 +377,9 @@ server:
 	# the version to report. Leave "" or default to return package version.
 	# version: ""
 
+	# NSID identity (hex string, or "ascii_somestring"). default disabled.
+	# nsid: "aabbccdd"
+
 	# the target fetch policy.
 	# series of integers describing the policy per dependency depth.
 	# The number of values in the list determines the maximum dependency
@@ -388,7 +391,7 @@ server:
 	# target-fetch-policy: "3 2 1 0 0"
 
 	# Harden against very small EDNS buffer sizes.
-	# harden-short-bufsize: no
+	# harden-short-bufsize: yes
 
 	# Harden against unseemly large queries.
 	# harden-large-queries: no
@@ -595,6 +598,13 @@ server:
 	# A recommended value is 1800.
 	# serve-expired-client-timeout: 0
 
+	# Return the original TTL as received from the upstream name server rather
+	# than the decrementing TTL as stored in the cache.  Enabling this feature
+	# does not impact cache expiry, it only changes the TTL unbound embeds in
+	# responses to queries. Note that enabling this feature implicitly disables
+	# enforcement of the configured minimum and maximum TTL.
+	# serve-original-ttl: no
+
 	# Have the validator log failed validations for your diagnosis.
 	# 0: off. 1: A line per failed user query. 2: With reason and bad IP.
 	# val-log-level: 0
@@ -704,8 +714,10 @@ server:
 	# o inform acts like transparent, but logs client IP address
 	# o inform_deny drops queries and logs client IP address
 	# o inform_redirect redirects queries and logs client IP address
-	# o always_transparent, always_refuse, always_nxdomain, resolve in
-	#   that way but ignore local data for that name
+	# o always_transparent, always_refuse, always_nxdomain, always_nodata,
+	#   always_deny resolve in that way but ignore local data for
+	#   that name
+	# o always_null returns 0.0.0.0 or ::0 for any name in the zone.
 	# o noview breaks out of that view towards global local-zones.
 	#
 	# defaults are localhost address, reverse for 127.0.0.1 and ::1
@@ -753,6 +765,12 @@ server:
 	# cipher setting for TLSv1.3
 	# tls-ciphersuites: "TLS_AES_128_GCM_SHA256:TLS_AES_128_CCM_8_SHA256:TLS_AES_128_CCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256"
 
+	# Pad responses to padded queries received over TLS
+	# pad-responses: yes
+
+	# Padded responses will be padded to the closest multiple of this size.
+	# pad-responses-block-size: 468
+
 	# Use the SNI extension for TLS connections.  Default is yes.
 	# Changing the value requires a reload.
 	# tls-use-sni: yes
@@ -774,6 +792,12 @@ server:
 
 	# Add system certs to the cert bundle, from the Windows Cert Store
 	# tls-win-cert: no
+
+	# Pad queries over TLS upstreams
+	# pad-queries: yes
+
+	# Padded queries will be padded to the closest multiple of this size.
+	# pad-queries-block-size: 128
 
 	# Also serve tls on these port numbers (eg. 443, ...), by listing
 	# tls-additional-port: portno for each of the port numbers.

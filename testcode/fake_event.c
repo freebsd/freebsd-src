@@ -64,6 +64,7 @@
 #include "sldns/sbuffer.h"
 #include "sldns/wire2str.h"
 #include "sldns/str2wire.h"
+#include "daemon/remote.h"
 #include <signal.h>
 struct worker;
 struct daemon_remote;
@@ -1228,6 +1229,7 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 		edns.bits = 0;
 		if(dnssec)
 			edns.bits = EDNS_DO;
+		edns.padding_block_size = 0;
 		if((client_string_addr = edns_string_addr_lookup(
 			&env->edns_strings->client_strings,
 			addr, addrlen))) {

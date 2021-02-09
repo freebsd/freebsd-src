@@ -257,8 +257,8 @@ struct inplace_cb {
 typedef int inplace_cb_reply_func_type(struct query_info* qinfo,
 	struct module_qstate* qstate, struct reply_info* rep, int rcode,
 	struct edns_data* edns, struct edns_option** opt_list_out,
-	struct comm_reply* repinfo, struct regional* region, int id,
-	void* callback);
+	struct comm_reply* repinfo, struct regional* region,
+	struct timeval* start_time, int id, void* callback);
 
 /**
  * Inplace callback function called before sending the query to a nameserver.

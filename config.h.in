@@ -747,7 +747,8 @@
    your system. */
 #undef PTHREAD_CREATE_JOINABLE
 
-/* Define as the return type of signal handlers (`int' or `void'). */
+/* Return type of signal handlers, but autoconf 2.70 says 'your code may
+   safely assume C89 semantics that RETSIGTYPE is void.' */
 #undef RETSIGTYPE
 
 /* if REUSEPORT is enabled by default */

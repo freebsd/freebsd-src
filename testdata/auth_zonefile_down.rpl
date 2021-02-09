@@ -1,6 +1,12 @@
 ; config options
 server:
 	target-fetch-policy: "0 0 0 0 0"
+	; Options for signed zone. The zone is partially copied from val_negcache_nxdomain.rpl
+	trust-anchor: "testzone.nlnetlabs.nl.	IN	DS	2926 8 2 6f8512d1e82eecbd684fc4a76f39f8c5b411af385494873bdead663ddb78a88b"
+	val-override-date: "20180213111425"
+	qname-minimisation: "no"
+	trust-anchor-signaling: no
+	aggressive-nsec: yes
 
 auth-zone:
 	name: "example.com."
@@ -41,6 +47,50 @@ ns1	3600	IN	A	1.2.3.4
 ns2	3600	IN	AAAA	::2
 TEMPFILE_END
 
+auth-zone:
+	name: "soa.high.com."
+	for-downstream: yes
+	for-upstream: no
+	zonefile:
+TEMPFILE_NAME soa.high.com
+TEMPFILE_CONTENTS soa.high.com
+$ORIGIN high.com.
+soa	500	IN	SOA	dns.example.de. hostmaster.dns.example.de. (
+		1379078166 28800 7200 604800 200 )
+	3600	IN	NS	ns1.example.com.
+	3600	IN	NS	ns2.example.com.
+TEMPFILE_END
+
+auth-zone:
+	name: "soa.low.com."
+	for-downstream: yes
+	for-upstream: no
+	zonefile:
+TEMPFILE_NAME soa.low.com
+TEMPFILE_CONTENTS soa.low.com
+$ORIGIN low.com.
+soa	200	IN	SOA	dns.example.de. hostmaster.dns.example.de. (
+		1379078166 28800 7200 604800 500 )
+	3600	IN	NS	ns1.example.com.
+	3600	IN	NS	ns2.example.com.
+TEMPFILE_END
+
+auth-zone:
+	name: "testzone.nlnetlabs.nl."
+	for-downstream: yes
+	for-upstream: no
+	zonefile:
+TEMPFILE_NAME testzone.nlnetlabs.nl
+TEMPFILE_CONTENTS testzone.nlnetlabs.nl
+$ORIGIN testzone.nlnetlabs.nl.
+testzone.nlnetlabs.nl.  3600    IN      NSEC    alligator.testzone.nlnetlabs.nl. NS SOA RRSIG NSEC DNSKEY
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   NSEC 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. gTKn6U1nal9oA79IRxLa/7zexl6A0yJZzeEGBbZ5rh5feyAr2X4LTR9bPCgcHeMVggf4FP+kD1L/sxzj/YLwB1ZKGKlwnzsHtPFTlmvDClaqQ76DRZq5Vejr2ZfnclBUb2vtxaXywTRW8oueaaq9flcShEQ/cQ+KRU8sc344qd0=
+alligator.testzone.nlnetlabs.nl.        3600    IN      NSEC    cheetah.testzone.nlnetlabs.nl. TXT RRSIG NSEC
+alligator.testzone.nlnetlabs.nl.        3600    IN      RRSIG   NSEC 8 4 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. QAgQ0AsMoYG02+VPfoOctSPlTHdQOkQt5fFkSkzIbVhUzNOqa+dB/Qkc81AwFeJosA+PvYjt6utcVkIWmK2Djy9eXC49gILtVF79vUe4G7ZrybO5NXjqNa5ANoUGM+yew4wkjeNOMVAsvs+1kvFY7S8RAa/0AIYlZHQ8vNBPNaI=
+testzone.nlnetlabs.nl.  4600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  4600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
+TEMPFILE_END
+
 stub-zone:
 	name: "."
 	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
@@ -50,7 +100,7 @@ SCENARIO_BEGIN Test authority zone with zonefile for downstream responses
 
 ; K.ROOT-SERVERS.NET.
 RANGE_BEGIN 0 100
-	ADDRESS 193.0.14.129 
+	ADDRESS 193.0.14.129
 ENTRY_BEGIN
 MATCH opcode qtype qname
 ADJUST copy_id
@@ -180,6 +230,111 @@ SECTION QUESTION
 www.example.com. IN A
 SECTION ANSWER
 www.example.com. IN A	1.2.3.4
+ENTRY_END
+
+; check SOA TTL to be the minimum of the SOA.minimum and the SOA TTL
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+nonexistent.soa.high.com. IN A
+ENTRY_END
+STEP 31 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA AA NXDOMAIN
+SECTION QUESTION
+nonexistent.soa.high.com IN A
+SECTION AUTHORITY
+soa.high.com. 200 IN SOA dns.example.de. hostmaster.dns.example.de. 1379078166 28800 7200 604800 200
+ENTRY_END
+; check that the original SOA is also returned
+STEP 32 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+soa.high.com. IN SOA
+ENTRY_END
+STEP 33 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+soa.high.com. IN SOA
+SECTION ANSWER
+soa.high.com. 500 IN SOA dns.example.de. hostmaster.dns.example.de. 1379078166 28800 7200 604800 200
+ENTRY_END
+
+; check SOA TTL to be the minimum of the SOA.minimum and the SOA TTL
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+nonexistent.soa.low.com. IN A
+ENTRY_END
+STEP 41 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA AA NXDOMAIN
+SECTION QUESTION
+nonexistent.soa.low.com. IN A
+SECTION AUTHORITY
+soa.low.com. 200 IN SOA dns.example.de. hostmaster.dns.example.de. 1379078166 28800 7200 604800 500
+ENTRY_END
+; check that the original SOA is also returned
+STEP 42 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+soa.low.com. IN SOA
+ENTRY_END
+STEP 43 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA AA NOERROR
+SECTION QUESTION
+soa.low.com. IN SOA
+SECTION ANSWER
+soa.low.com. 200 IN SOA dns.example.de. hostmaster.dns.example.de. 1379078166 28800 7200 604800 500
+ENTRY_END
+
+; check SOA TTL to be minimum of the SOA.minimum and the SOA TTL for DNSSEC
+STEP 50 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+ant.testzone.nlnetlabs.nl. IN A
+ENTRY_END
+STEP 51 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD DO RA AA NXDOMAIN
+SECTION QUESTION
+ant.testzone.nlnetlabs.nl. IN A
+SECTION AUTHORITY
+testzone.nlnetlabs.nl.  3600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
+alligator.testzone.nlnetlabs.nl.        3600    IN      NSEC    cheetah.testzone.nlnetlabs.nl. TXT RRSIG NSEC
+alligator.testzone.nlnetlabs.nl.        3600    IN      RRSIG   NSEC 8 4 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. QAgQ0AsMoYG02+VPfoOctSPlTHdQOkQt5fFkSkzIbVhUzNOqa+dB/Qkc81AwFeJosA+PvYjt6utcVkIWmK2Djy9eXC49gILtVF79vUe4G7ZrybO5NXjqNa5ANoUGM+yew4wkjeNOMVAsvs+1kvFY7S8RAa/0AIYlZHQ8vNBPNaI=
+testzone.nlnetlabs.nl.  3600    IN      NSEC    alligator.testzone.nlnetlabs.nl. NS SOA RRSIG NSEC DNSKEY
+testzone.nlnetlabs.nl.  3600    IN      RRSIG   NSEC 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. gTKn6U1nal9oA79IRxLa/7zexl6A0yJZzeEGBbZ5rh5feyAr2X4LTR9bPCgcHeMVggf4FP+kD1L/sxzj/YLwB1ZKGKlwnzsHtPFTlmvDClaqQ76DRZq5Vejr2ZfnclBUb2vtxaXywTRW8oueaaq9flcShEQ/cQ+KRU8sc344qd0=
+ENTRY_END
+; check that the original SOA is also returned
+STEP 52 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+testzone.nlnetlabs.nl. IN SOA
+ENTRY_END
+STEP 53 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD DO RA AA NOERROR
+SECTION QUESTION
+testzone.nlnetlabs.nl. IN SOA
+SECTION ANSWER
+testzone.nlnetlabs.nl.  4600    IN      SOA     ns.nlnetlabs.nl. ralph.nlnetlabs.nl. 1 14400 3600 604800 3600
+testzone.nlnetlabs.nl.  4600    IN      RRSIG   SOA 8 3 3600 20180313102201 20180213102201 44940 testzone.nlnetlabs.nl. GhmXNFQktZIgaBpGKwj9Q2mfq5+jcbRPK+PPgtRVicUPZga/d/iGEL8PV/8DzGwkaZbM14pamSUMgdJibW4zNhLz/ukjPilbjoj6giH1jtbdZLAQ6iK9pZ/4jKUEq4txviTczZNnDeolgPEEl4xo4NclQmi7zj1XBlQRbjvG0/0=
 ENTRY_END
 
 SCENARIO_END

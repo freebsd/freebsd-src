@@ -7,8 +7,10 @@
  * And to build for windows, first make unbound with the --with-dynlibmod
  * switch, then use this command:
  *   x86_64-w64-mingw32-gcc -m64 -I../.. -shared -Wall -Werror -fpic
- *      -o helloworld.dll helloworld.c -L../.. -l:libunbound.a
- * to cross-compile a 64-bit Windows DLL.
+ *      -o helloworld.dll helloworld.c -L../.. -l:libunbound.dll.a
+ * to cross-compile a 64-bit Windows DLL.  The libunbound.dll.a is produced
+ * by the compile step that makes unbound.exe and allows the dynlib dll to
+ * access definitions in unbound.exe.
  */
 
 #include "../../config.h"
@@ -30,8 +32,8 @@
 int reply_callback(struct query_info* qinfo,
     struct module_qstate* qstate, struct reply_info* rep, int rcode,
     struct edns_data* edns, struct edns_option** opt_list_out,
-    struct comm_reply* repinfo, struct regional* region, int id,
-    void* callback);
+    struct comm_reply* repinfo, struct regional* region,
+    struct timeval* start_time, int id, void* callback);
 
 /* Init is called when the module is first loaded. It should be used to set up
  * the environment for this module and do any other initialisation required. */
@@ -116,8 +118,8 @@ EXPORT size_t get_mem(struct module_env* env, int id) {
 int reply_callback(struct query_info* qinfo,
     struct module_qstate* qstate, struct reply_info* rep, int rcode,
     struct edns_data* edns, struct edns_option** opt_list_out,
-    struct comm_reply* repinfo, struct regional* region, int id,
-    void* callback) {
+    struct comm_reply* repinfo, struct regional* region,
+    struct timeval* start_time, int id, void* callback) {
     log_info("dynlib: hello world from callback");
     struct dynlibmod_env* env = qstate->env->modinfo[id];
     if (env->dyn_env != NULL) {

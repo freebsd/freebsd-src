@@ -90,6 +90,10 @@ static int randomize_and_send_udp(struct pending* pend, sldns_buffer* packet,
 static void waiting_list_remove(struct outside_network* outnet,
 	struct waiting_tcp* w);
 
+/** remove reused element from tree and lru list */
+static void reuse_tcp_remove_tree_list(struct outside_network* outnet,
+	struct reuse_tcp* reuse);
+
 int 
 pending_cmp(const void* key1, const void* key2)
 {
@@ -424,8 +428,11 @@ static int
 reuse_tcp_insert(struct outside_network* outnet, struct pending_tcp* pend_tcp)
 {
 	log_reuse_tcp(VERB_CLIENT, "reuse_tcp_insert", &pend_tcp->reuse);
-	if(pend_tcp->reuse.item_on_lru_list)
+	if(pend_tcp->reuse.item_on_lru_list) {
+		if(!pend_tcp->reuse.node.key)
+			log_err("internal error: reuse_tcp_insert: on lru list without key");
 		return 1;
+	}
 	pend_tcp->reuse.node.key = &pend_tcp->reuse;
 	pend_tcp->reuse.pending = pend_tcp;
 	if(!rbtree_insert(&outnet->tcp_reuse, &pend_tcp->reuse.node)) {
@@ -477,7 +484,7 @@ reuse_tcp_find(struct outside_network* outnet, struct sockaddr_storage* addr,
 	if(outnet->tcp_reuse.root == NULL ||
 		outnet->tcp_reuse.root == RBTREE_NULL)
 		return NULL;
-	if(rbtree_find_less_equal(&outnet->tcp_reuse, &key_p.reuse.node,
+	if(rbtree_find_less_equal(&outnet->tcp_reuse, &key_p.reuse,
 		&result)) {
 		/* exact match */
 		/* but the key is on stack, and ptr is compared, impossible */
@@ -661,6 +668,14 @@ outnet_tcp_take_into_use(struct waiting_tcp* w)
 	pend->reuse.cp_more_write_again = 0;
 	memcpy(&pend->c->repinfo.addr, &w->addr, w->addrlen);
 	pend->reuse.pending = pend;
+
+	/* Remove from tree in case the is_ssl will be different and causes the
+	 * identity of the reuse_tcp to change; could result in nodes not being
+	 * deleted from the tree (because the new identity does not match the
+	 * previous node) but their ->key would be changed to NULL. */
+	if(pend->reuse.node.key)
+		reuse_tcp_remove_tree_list(w->outnet, &pend->reuse);
+
 	if(pend->c->ssl)
 		pend->reuse.is_ssl = 1;
 	else	pend->reuse.is_ssl = 0;
@@ -677,8 +692,10 @@ outnet_tcp_take_into_use(struct waiting_tcp* w)
 static void
 reuse_tcp_lru_touch(struct outside_network* outnet, struct reuse_tcp* reuse)
 {
-	if(!reuse->item_on_lru_list)
+	if(!reuse->item_on_lru_list) {
+		log_err("internal error: we need to touch the lru_list but item not in list");
 		return; /* not on the list, no lru to modify */
+	}
 	if(!reuse->lru_prev)
 		return; /* already first in the list */
 	/* remove at current position */
@@ -847,7 +864,7 @@ reuse_tcp_remove_tree_list(struct outside_network* outnet,
 	verbose(VERB_CLIENT, "reuse_tcp_remove_tree_list");
 	if(reuse->node.key) {
 		/* delete it from reuse tree */
-		(void)rbtree_delete(&outnet->tcp_reuse, &reuse->node);
+		(void)rbtree_delete(&outnet->tcp_reuse, reuse);
 		reuse->node.key = NULL;
 	}
 	/* delete from reuse list */
@@ -1745,6 +1762,33 @@ select_id(struct outside_network* outnet, struct pending* pend,
 	return 1;
 }
 
+/** return true is UDP connect error needs to be logged */
+static int udp_connect_needs_log(int err)
+{
+	switch(err) {
+	case ECONNREFUSED:
+#  ifdef ENETUNREACH
+	case ENETUNREACH:
+#  endif
+#  ifdef EHOSTDOWN
+	case EHOSTDOWN:
+#  endif
+#  ifdef EHOSTUNREACH
+	case EHOSTUNREACH:
+#  endif
+#  ifdef ENETDOWN
+	case ENETDOWN:
+#  endif
+		if(verbosity >= VERB_ALGO)
+			return 1;
+		return 0;
+	default:
+		break;
+	}
+	return 1;
+}
+
+
 /** Select random interface and port */
 static int
 select_ifport(struct outside_network* outnet, struct pending* pend,
@@ -1804,9 +1848,11 @@ select_ifport(struct outside_network* outnet, struct pending* pend,
 				/* connect() to the destination */
 				if(connect(fd, (struct sockaddr*)&pend->addr,
 					pend->addrlen) < 0) {
-					log_err_addr("udp connect failed",
-						strerror(errno), &pend->addr,
-						pend->addrlen);
+					if(udp_connect_needs_log(errno)) {
+						log_err_addr("udp connect failed",
+							strerror(errno), &pend->addr,
+							pend->addrlen);
+					}
 					sock_close(fd);
 					return 0;
 				}
@@ -2213,7 +2259,8 @@ static struct serviced_query*
 serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	int want_dnssec, int nocaps, int tcp_upstream, int ssl_upstream,
 	char* tls_auth_name, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, int qtype, struct edns_option* opt_list)
+	uint8_t* zone, size_t zonelen, int qtype, struct edns_option* opt_list,
+	size_t pad_queries_block_size)
 {
 	struct serviced_query* sq = (struct serviced_query*)malloc(sizeof(*sq));
 #ifdef UNBOUND_DEBUG
@@ -2271,6 +2318,7 @@ serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	sq->status = serviced_initial;
 	sq->retry = 0;
 	sq->to_be_deleted = 0;
+	sq->padding_block_size = pad_queries_block_size;
 #ifdef UNBOUND_DEBUG
 	ins = 
 #else
@@ -2452,6 +2500,7 @@ serviced_encode(struct serviced_query* sq, sldns_buffer* buff, int with_edns)
 	if(with_edns) {
 		/* add edns section */
 		struct edns_data edns;
+		struct edns_option padding_option;
 		edns.edns_present = 1;
 		edns.ext_rcode = 0;
 		edns.edns_version = EDNS_ADVERTISED_VERSION;
@@ -2474,6 +2523,14 @@ serviced_encode(struct serviced_query* sq, sldns_buffer* buff, int with_edns)
 			edns.bits = EDNS_DO;
 		if(sq->dnssec & BIT_CD)
 			LDNS_CD_SET(sldns_buffer_begin(buff));
+		if (sq->ssl_upstream && sq->padding_block_size) {
+			padding_option.opt_code = LDNS_EDNS_PADDING;
+			padding_option.opt_len = 0;
+			padding_option.opt_data = NULL;
+			padding_option.next = edns.opt_list;
+			edns.opt_list = &padding_option;
+			edns.padding_block_size = sq->padding_block_size;
+		}
 		attach_edns_record(buff, &edns);
 	}
 }
@@ -2997,7 +3054,9 @@ outnet_serviced_query(struct outside_network* outnet,
 		sq = serviced_create(outnet, buff, dnssec, want_dnssec, nocaps,
 			tcp_upstream, ssl_upstream, tls_auth_name, addr,
 			addrlen, zone, zonelen, (int)qinfo->qtype,
-			qstate->edns_opts_back_out);
+			qstate->edns_opts_back_out,
+			( ssl_upstream && env->cfg->pad_queries
+			? env->cfg->pad_queries_block_size : 0 ));
 		if(!sq) {
 			free(cb);
 			return NULL;

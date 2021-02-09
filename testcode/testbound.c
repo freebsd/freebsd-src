@@ -42,16 +42,22 @@
 #ifdef HAVE_TIME_H
 #  include <time.h>
 #endif
+#include <ctype.h>
 #include "testcode/testpkts.h"
 #include "testcode/replay.h"
 #include "testcode/fake_event.h"
 #include "daemon/remote.h"
+#include "libunbound/worker.h"
 #include "util/config_file.h"
 #include "sldns/keyraw.h"
-#include <ctype.h>
+#ifdef UB_ON_WINDOWS
+#include "winrc/win_svc.h"
+#endif
 
 /** signal that this is a testbound compile */
 #define unbound_testbound 1
+/** renamed main routine */
+int daemon_main(int argc, char* argv[]);
 /** 
  * include the main program from the unbound daemon.
  * rename main to daemon_main to call it
@@ -333,7 +339,7 @@ setup_playback(const char* filename, int* pass_argc, char* pass_argv[])
 }
 
 /** remove config file at exit */
-void remove_configfile(void)
+static void remove_configfile(void)
 {
 	struct config_strlist* p;
 	for(p=cfgfiles; p; p=p->next)
@@ -551,22 +557,28 @@ void remote_get_opt_ssl(char* ATTR_UNUSED(str), void* ATTR_UNUSED(arg))
         log_assert(0);
 }
 
+#ifdef UB_ON_WINDOWS
 void wsvc_command_option(const char* ATTR_UNUSED(wopt), 
 	const char* ATTR_UNUSED(cfgfile), int ATTR_UNUSED(v), 
 	int ATTR_UNUSED(c))
 {
 	log_assert(0);
 }
+#endif
 
+#ifdef UB_ON_WINDOWS
 void wsvc_setup_worker(struct worker* ATTR_UNUSED(worker))
 {
 	/* do nothing */
 }
+#endif
 
+#ifdef UB_ON_WINDOWS
 void wsvc_desetup_worker(struct worker* ATTR_UNUSED(worker))
 {
 	/* do nothing */
 }
+#endif
 
 #ifdef UB_ON_WINDOWS
 void worker_win_stop_cb(int ATTR_UNUSED(fd), short ATTR_UNUSED(ev),

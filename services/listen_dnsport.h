@@ -404,7 +404,7 @@ size_t http2_get_response_buffer_size(void);
  * Create nghttp2 callbacks to handle HTTP2 requests.
  * @return malloc'ed struct, NULL on failure
  */
-nghttp2_session_callbacks* http2_req_callbacks_create();
+nghttp2_session_callbacks* http2_req_callbacks_create(void);
 
 /** Free http2 stream buffers and decrease buffer counters */
 void http2_req_stream_clear(struct http2_stream* h2_stream);

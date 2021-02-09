@@ -1,0 +1,69 @@
+# #-- padding.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+if grep "define USE_DNSTAP 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+
+get_random_port 5
+UNBOUND_PORT=$RND_PORT
+UPSTREAM_PORT=$(($RND_PORT + 1))
+FWD_PORT=$(($RND_PORT + 2))
+CONTROL_PORT=$(($RND_PORT + 3))
+CONTROL_PORT2=$(($RND_PORT + 4))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "UPSTREAM_PORT=$UPSTREAM_PORT" >> .tpkg.var.test
+echo "FWD_PORT=$FWD_PORT" >> .tpkg.var.test
+echo "CONTROL_PORT=$CONTROL_PORT" >> .tpkg.var.test
+echo "CONTROL_PORT2=$CONTROL_PORT2" >> .tpkg.var.test
+
+# start ldns-testnd
+get_ldns_testns
+$LDNS_TESTNS -p $FWD_PORT padding.testns >fwd.log 2>&1 &
+FWD_PID=$!
+echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
+
+# start the dnstap log server
+# the -vvvv flag prints protocol and connection information from the
+# unbound-dnstap-socket server.
+# the -l flag prints the DNS info in the DNSTAP packet in multiline output.
+# stderr is the '-vvvv' server logs and errors.
+# stdout is the one-line packet logs (or with -l, multiline).
+$PRE/unbound-dnstap-socket -u dnstap.socket -l -vvvv 2>tap.errlog >tap.log &
+if test $? -ne 0; then
+        echo "could not start unbound-dnstap-socket server"
+        exit 1
+fi
+DNSTAP_SOCKET_PID=$!
+echo "DNSTAP_SOCKET_PID=$DNSTAP_SOCKET_PID" >> .tpkg.var.test
+# wait for the server to go up and make the dnstap.socket file
+wait_server_up "tap.errlog" "creating unix socket"
+if test ! -S dnstap.socket; then 
+        echo "the dnstap.socket file does not exist!"
+fi
+
+# make config file
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$UPSTREAM_PORT'/' -e 's/@CONTROL_PORT\@/'$CONTROL_PORT'/' < padding.conf > ub.conf
+# start unbound in the background
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+#$PRE/unbound -d -c ub.conf 2>&1 | tee unbound.log &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+
+# make upstream config file
+sed -e 's/@PORT\@/'$UPSTREAM_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's/@CONTROL_PORT2\@/'$CONTROL_PORT2'/' < padding.conf2 > ub2.conf
+# start upstream unbound in the background
+$PRE/unbound -d -c ub2.conf >unbound2.log 2>&1 &
+#$PRE/unbound -d -c ub2.conf 2>&1 | tee unbound2.log &
+UPSTREAM_PID=$!
+echo "UPSTREAM_PID=$UPSTREAM_PID" >> .tpkg.var.test
+
+wait_ldns_testns_up fwd.log
+wait_unbound_up unbound.log
+wait_unbound_up unbound2.log
+
+cat .tpkg.var.test
+

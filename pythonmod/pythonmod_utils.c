@@ -39,6 +39,7 @@
  * conversions.
  */
 #include "config.h"
+#include "pythonmod/pythonmod_utils.h"
 #include "util/module.h"
 #include "util/netevent.h"
 #include "util/net_help.h"

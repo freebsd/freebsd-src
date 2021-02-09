@@ -72,8 +72,8 @@ size_t pythonmod_get_mem(struct module_env* env, int id);
 int python_inplace_cb_reply_generic(struct query_info* qinfo,
 	struct module_qstate* qstate, struct reply_info* rep, int rcode,
 	struct edns_data* edns, struct edns_option** opt_list_out,
-	struct comm_reply* repinfo, struct regional* region, int id,
-	void* python_callback);
+	struct comm_reply* repinfo, struct regional* region,
+	struct timeval* start_time, int id, void* python_callback);
 
 /** Declared here for fptr_wlist access. The definition is in interface.i. */
 int python_inplace_cb_query_generic(

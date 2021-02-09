@@ -35,6 +35,9 @@ server:
 	local-zone: "redirect.top." redirect
 	local-data: "redirect.top. A 20.30.40.54"
 
+	; null zone
+	local-zone: "null.top." always_null
+
 	; create implicit data in the IN domain as well
 	local-data: "a.a.implicit. A 20.30.41.50"
 	local-data: "b.a.implicit. A 20.30.42.50"
@@ -85,12 +88,12 @@ local. IN A
 ENTRY_END
 STEP 6 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RA AA
 SECTION QUESTION
 local. IN A
 SECTION AUTHORITY
-local. 3600 IN SOA nobody nobody 1 2 3 4 5
+local. 5 IN SOA nobody nobody 1 2 3 4 5
 ENTRY_END
 
 ; positive SOA
@@ -101,7 +104,7 @@ local. IN SOA
 ENTRY_END
 STEP 8 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RA AA
 SECTION QUESTION
 local. IN SOA
@@ -133,12 +136,12 @@ serv.local. IN MX
 ENTRY_END
 STEP 12 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RA AA
 SECTION QUESTION
 serv.local. IN MX
 SECTION AUTHORITY
-local. 3600 IN SOA nobody nobody 1 2 3 4 5
+local. 5 IN SOA nobody nobody 1 2 3 4 5
 ENTRY_END
 
 ; no such type, empty nonterminal
@@ -149,12 +152,12 @@ bla.local. IN MX
 ENTRY_END
 STEP 14 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RA AA
 SECTION QUESTION
 bla.local. IN MX
 SECTION AUTHORITY
-local. 3600 IN SOA nobody nobody 1 2 3 4 5
+local. 5 IN SOA nobody nobody 1 2 3 4 5
 ENTRY_END
 
 ; nxdomain with SOA
@@ -165,12 +168,12 @@ doing.local. IN MX
 ENTRY_END
 STEP 16 CHECK_ANSWER
 ENTRY_BEGIN
-MATCH all
+MATCH all ttl
 REPLY QR RA AA NXDOMAIN
 SECTION QUESTION
 doing.local. IN MX
 SECTION AUTHORITY
-local. 3600 IN SOA nobody nobody 1 2 3 4 5
+local. 5 IN SOA nobody nobody 1 2 3 4 5
 ENTRY_END
 
 ; nxdomain without SOA
@@ -353,6 +356,38 @@ SECTION QUESTION
 www.redirect.top. IN A
 SECTION ANSWER
 www.redirect.top. IN A 20.30.40.54
+ENTRY_END
+
+; always_null zone
+STEP 60 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+null.top. IN A
+ENTRY_END
+STEP 61 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NOERROR
+SECTION QUESTION
+null.top. IN A
+SECTION ANSWER
+null.top. IN A 0.0.0.0
+ENTRY_END
+
+; always_null zone AAAA
+STEP 62 QUERY
+ENTRY_BEGIN
+SECTION QUESTION
+foo.null.top. IN AAAA
+ENTRY_END
+STEP 63 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RA AA NOERROR
+SECTION QUESTION
+foo.null.top. IN AAAA
+SECTION ANSWER
+foo.null.top. IN AAAA ::0
 ENTRY_END
 
 SCENARIO_END

@@ -1,0 +1,47 @@
+# this is the upstream server that has pipelining and responds to queries.
+server:
+	verbosity: 1
+	# num-threads: 1
+	interface: 127.0.0.1@@PORT@
+	port: @PORT@
+	use-syslog: no
+	directory: .
+	pidfile: "unbound2.pid"
+	chroot: ""
+	username: ""
+	do-not-query-localhost: no
+	tls-port: @PORT@
+	tls-service-key: "unbound_server.key"
+	tls-service-pem: "unbound_server.pem"
+	tcp-idle-timeout: 10000
+	log-queries: yes
+	log-replies: yes
+	log-identity: "upstream"
+
+remote-control:
+        control-enable: yes
+        control-interface: 127.0.0.1
+        # control-interface: ::1
+        control-port: @CONTROL_PORT2@
+        server-key-file: "unbound_server.key"
+        server-cert-file: "unbound_server.pem"
+        control-key-file: "unbound_control.key"
+        control-cert-file: "unbound_control.pem"
+
+forward-zone:
+	name: "."
+	forward-addr: "127.0.0.1@@TOPORT@"
+
+dnstap:
+        dnstap-enable: yes
+        dnstap-socket-path: "dnstap.socket"
+        dnstap-send-identity: yes
+        dnstap-send-version: yes
+        #dnstap-identity
+        #dnstap-version
+        dnstap-log-resolver-query-messages: no
+        dnstap-log-resolver-response-messages: no
+        dnstap-log-client-query-messages: yes
+        dnstap-log-client-response-messages: yes
+        dnstap-log-forwarder-query-messages: no
+        dnstap-log-forwarder-response-messages: no

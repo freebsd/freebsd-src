@@ -43,6 +43,7 @@
 
 #include "util/module.h"
 struct delegpt_addr;
+struct sldns_buffer;
 
 /**
  *  Store the reply_info and query_info pair in message cache (qstate->msg_cache)
@@ -77,7 +78,7 @@ void invalidateQueryInCache(struct module_qstate* qstate, struct query_info* qin
  * @param pkt: a sldns_buffer which contains sldns_packet data
  * @return 0 on failure, out of memory or parse error.
  */
-int createResponse(struct module_qstate* qstate, sldns_buffer* pkt);
+int createResponse(struct module_qstate* qstate, struct sldns_buffer* pkt);
 
 /**
  *  Convert reply->addr to string

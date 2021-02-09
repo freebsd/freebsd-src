@@ -20,6 +20,7 @@
  * called to perform operations on queries.
  */
    #include <sys/types.h>
+   #include <time.h>
    #ifdef HAVE_SYS_SOCKET_H
    #include <sys/socket.h>
    #endif
@@ -696,6 +697,8 @@ struct edns_data {
 /* ************************************************************************************ *
    Structure module_env
  * ************************************************************************************ */
+%rename(_now) module_env::now;
+%rename(_now_tv) module_env::now_tv;
 struct module_env {
     struct config_file* cfg;
     struct slabhash* msg_cache;
@@ -738,6 +741,19 @@ struct module_env {
     struct edns_known_option* edns_known_options;
     size_t edns_known_options_num;
 };
+
+%inline %{
+    PyObject* _module_env_now_get(struct module_env* env) {
+        double ts = env->now_tv->tv_sec + env->now_tv->tv_usec / 1e6;
+        return PyFloat_FromDouble(ts);
+    }
+%}
+%extend module_env {
+    %pythoncode %{
+        def _now_get(self): return _module_env_now_get(self)
+        now = property(_now_get)
+    %}
+}
 
 /* ************************************************************************************ *
    Structure module_qstate
@@ -1525,13 +1541,14 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
     int python_inplace_cb_reply_generic(struct query_info* qinfo,
         struct module_qstate* qstate, struct reply_info* rep, int rcode,
         struct edns_data* edns, struct edns_option** opt_list_out,
-        struct comm_reply* repinfo, struct regional* region, int id,
-        void* python_callback)
+        struct comm_reply* repinfo, struct regional* region,
+        struct timeval* start_time, int id, void* python_callback)
     {
         PyObject *func, *py_edns, *py_qstate, *py_opt_list_out, *py_qinfo;
         PyObject *py_rep, *py_repinfo, *py_region;
         PyObject *py_args, *py_kwargs, *result;
         int res = 0;
+        double py_start_time = ((double)start_time->tv_sec) + ((double)start_time->tv_usec) / 1.0e6;
 
         PyGILState_STATE gstate = PyGILState_Ensure();
         func = (PyObject *) python_callback;
@@ -1546,7 +1563,8 @@ int edns_opt_list_append(struct edns_option** list, uint16_t code, size_t len,
         py_region = SWIG_NewPointerObj((void*) region, SWIGTYPE_p_regional, 0);
         py_args = Py_BuildValue("(OOOiOOO)", py_qinfo, py_qstate, py_rep,
             rcode, py_edns, py_opt_list_out, py_region);
-        py_kwargs = Py_BuildValue("{s:O}", "repinfo", py_repinfo);
+        py_kwargs = Py_BuildValue("{s:O,s:d}", "repinfo", py_repinfo, "start_time",
+                                  py_start_time);
         result = PyObject_Call(func, py_args, py_kwargs);
         Py_XDECREF(py_edns);
         Py_XDECREF(py_qstate);

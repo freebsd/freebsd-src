@@ -1,0 +1,170 @@
+echo There we go...
+
+# #-- padding.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+if grep "define USE_DNSTAP 1" $PRE/config.h; then echo test enabled; else echo test skipped; exit 0; fi
+
+echo "> query www.example.com. A"
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. | tee outfile
+echo "> check answer"
+if grep "10.20.30.40" outfile; then
+        echo "OK"
+else
+        echo "> cat logfiles"
+        cat tap.log
+        cat tap.errlog
+        cat fwd.log
+	cat unbound2.log 
+        cat unbound.log
+        echo "Not OK"
+        exit 1
+fi
+
+echo "> wait for log to happen on timer"
+sleep 3
+echo "> check tap.log for dnstap info"
+# see if it logged the information in tap.log
+# wait for a moment for filesystem to catch up.
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "www.example.com" tap.log >/dev/null; then :; else sleep 10; fi
+if grep "www.example.com" tap.log; then echo "yes it is in tap.log";
+else
+        echo "information not in tap.log"
+        echo "failed"
+        echo "> cat logfiles"
+        cat tap.log
+        cat tap.errlog
+        cat fwd.log
+        cat unbound.log
+        echo "Not OK"
+        exit 1
+fi
+
+echo "> query txt.example.com. TXT"
+dig @127.0.0.1 -p $UNBOUND_PORT txt.example.com. TXT | tee outfile
+echo "> check answer"
+if grep "Lorem ipsum" outfile; then
+        echo "OK"
+else
+        echo "> cat logfiles"
+        cat tap.log
+        cat tap.errlog
+        cat fwd.log
+	cat unbound2.log 
+        cat unbound.log
+        echo "Not OK"
+        exit 1
+fi
+echo "> check tap.log for dnstap info"
+# see if it logged the information in tap.log
+# wait for a moment for filesystem to catch up.
+if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "txt.example.com" tap.log >/dev/null; then :; else sleep 10; fi
+if grep "txt.example.com" tap.log; then echo "yes it is in tap.log";
+else
+        echo "information not in tap.log"
+        echo "failed"
+        echo "> cat logfiles"
+        cat tap.log
+        cat tap.errlog
+        cat fwd.log
+        cat unbound.log
+        echo "Not OK"
+        exit 1
+fi
+
+echo "> flush cache entries."
+$PRE/unbound-control -c ub.conf flush_type www.example.com A
+$PRE/unbound-control -c ub.conf flush_type txt.example.com TXT
+echo "> disable padding of responses."
+$PRE/unbound-control -c ub2.conf set_option pad-responses: no
+echo "> query www.example.com. A"
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. A | tee outfile
+echo "> query txt.example.com. TXT"
+dig @127.0.0.1 -p $UNBOUND_PORT txt.example.com. TXT | tee outfile
+echo "> flush cache entries."
+$PRE/unbound-control -c ub.conf flush_type www.example.com A
+$PRE/unbound-control -c ub.conf flush_type txt.example.com TXT
+echo "> enable padding of responses."
+$PRE/unbound-control -c ub2.conf set_option pad-responses: yes
+echo "> set pad responses block size to 64"
+$PRE/unbound-control -c ub2.conf set_option pad-responses-block-size: 64
+echo "> disable padding of queries."
+$PRE/unbound-control -c ub.conf set_option pad-queries: no
+echo "> query www.example.com. A"
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. A | tee outfile
+echo "> query txt.example.com. TXT"
+dig @127.0.0.1 -p $UNBOUND_PORT txt.example.com. TXT | tee outfile
+echo "> flush cache entries."
+$PRE/unbound-control -c ub.conf flush_type www.example.com A
+$PRE/unbound-control -c ub.conf flush_type txt.example.com TXT
+echo "> enable padding of queries."
+$PRE/unbound-control -c ub.conf set_option pad-queries: yes
+echo "> set pad queries block size to 48"
+$PRE/unbound-control -c ub.conf set_option pad-queries-block-size: 48
+echo "> query www.example.com. A"
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. A | tee outfile
+echo "> query txt.example.com. TXT"
+dig @127.0.0.1 -p $UNBOUND_PORT txt.example.com. TXT | tee outfile
+echo "> flush cache entries."
+$PRE/unbound-control -c ub.conf flush_type www.example.com A
+$PRE/unbound-control -c ub.conf flush_type txt.example.com TXT
+echo "> set pad responses block size to 512"
+$PRE/unbound-control -c ub2.conf set_option pad-responses-block-size: 512
+echo "> query www.example.com. A"
+dig @127.0.0.1 -p $UNBOUND_PORT www.example.com. A | tee outfile
+echo "> query fin.example.com. TXT"
+dig @127.0.0.1 -p $UNBOUND_PORT fin.example.com. TXT | tee outfile
+echo "> check tap.log for dnstap info"
+# see if it logged the information in tap.log
+# wait for a moment for filesystem to catch up.
+if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "fini" tap.log >/dev/null; then :; else sleep 1; fi
+if grep "fini" tap.log >/dev/null; then :; else sleep 10; fi
+if grep "fini" tap.log; then echo "yes it is in tap.log";
+else
+        echo "information not in tap.log"
+        echo "failed"
+        echo "> cat logfiles"
+        cat tap.log
+        cat tap.errlog
+        cat fwd.log
+        cat unbound.log
+        echo "Not OK"
+        exit 1
+fi
+
+grep '^;; MSG SIZE  rcvd: ' tap.log > message.sizes
+
+if diff message.sizes padding.msgsizes
+then
+	echo "OK - Message sizes matched expected sizes"
+	exit 0
+else
+        echo "unexpected message sizes"
+        echo "failed"
+        echo "> cat logfiles"
+        cat tap.log
+        cat tap.errlog
+        cat fwd.log
+        cat unbound.log
+        echo "Not OK"
+        exit 1
+fi
