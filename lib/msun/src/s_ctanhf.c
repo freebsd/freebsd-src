@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 float complex
 ctanhf(float complex z)
 {
-	float x, y;
+	volatile float x, y;
 	float t, beta, s, rho, denom;
 	uint32_t hx, ix;
 
