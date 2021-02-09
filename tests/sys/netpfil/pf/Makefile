@@ -9,6 +9,7 @@ ATF_TESTS_SH+=	altq \
 		anchor \
 		checksum \
 		dup \
+		ether \
 		forward \
 		fragmentation \
 		get_state \
