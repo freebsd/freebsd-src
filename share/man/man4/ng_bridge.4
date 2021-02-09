@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 17, 2021
+.Dd May 13, 2021
 .Dt NG_BRIDGE 4
 .Os
 .Sh NAME
@@ -221,12 +221,19 @@ as an argument.
 It assigns the MAC
 .Va addr
 to the
-.Va hook ,
-which must not be assigned yet.
+.Va hook .
 If the
 .Va hook
 is the empty string, the incoming hook of the control message is
 used as fallback.
+.Pp
+If necessary, the MAC is removed from the currently assigned hook and
+moved to the new one.
+If the MAC is moved faster than
+.Va minStableAge ,
+the hook is considered as a loop and will block traffic for
+.Va loopTimeout
+seconds.
 .Bd -literal -offset 0n
 struct ng_bridge_move_host {
   u_char  addr[ETHER_ADDR_LEN];	/* ethernet address */
