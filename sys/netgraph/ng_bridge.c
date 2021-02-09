@@ -808,8 +808,10 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 
 	/* Look up packet's source Ethernet address in hashtable */
 	if ((host = ng_bridge_get(priv, eh->ether_shost)) != NULL) {
-
-		/* Update time since last heard from this host */
+		/* Update time since last heard from this host.
+		 * This is safe without locking, because it's
+		 * the only operation during shared access.
+		 */
 		host->staleness = 0;
 
 		/* Did host jump to a different link? */
