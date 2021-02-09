@@ -32,7 +32,7 @@
 .\"     @(#)compress.1	8.2 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2020
+.Dd March 4, 2021
 .Dt COMPRESS 1
 .Os
 .Sh NAME
@@ -177,6 +177,13 @@ Compression is generally much better than that achieved by Huffman
 coding (as used in the historical command pack), or adaptive Huffman
 coding (as used in the historical command compact), and takes less
 time to compute.
+.Pp
+If
+.Ar file
+is a soft or hard link
+.Nm
+will replace it with a compressed copy of the file pointed to by the link.
+The link's target file is left uncompressed.
 .Sh EXIT STATUS
 .Ex -std compress uncompress
 .Pp
@@ -248,6 +255,8 @@ The
 command appeared in
 .Bx 4.3 .
 .Sh BUGS
+The program does not handle links well and has no link-handling options.
+.Pp
 Some of these might be considered otherwise-undocumented features.
 .Pp
 .Nm compress :
