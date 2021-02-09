@@ -103,7 +103,7 @@ struct ng_bridge_link_kernel_stats {
 	counter_u64_t	xmitMulticasts;	/* multicast pkts xmit'd on link */
 	counter_u64_t	xmitBroadcasts;	/* broadcast pkts xmit'd on link */
 	counter_u64_t	loopDrops;	/* pkts dropped due to loopback */
-	counter_u64_t	loopDetects;	/* number of loop detections */
+	u_int64_t	loopDetects;	/* number of loop detections */
 	counter_u64_t	memoryFailures;	/* times couldn't get mem or mbuf */
 };
 
@@ -420,7 +420,6 @@ ng_bridge_newhook(node_p node, hook_p hook, const char *name)
 	link->stats.xmitMulticasts = counter_u64_alloc(M_WAITOK);
 	link->stats.xmitBroadcasts = counter_u64_alloc(M_WAITOK);
 	link->stats.loopDrops = counter_u64_alloc(M_WAITOK);
-	link->stats.loopDetects = counter_u64_alloc(M_WAITOK);
 	link->stats.memoryFailures = counter_u64_alloc(M_WAITOK);
 
 	link->hook = hook;
@@ -456,7 +455,7 @@ static void ng_bridge_clear_link_stats(struct ng_bridge_link_kernel_stats * p)
 	counter_u64_zero(p->xmitMulticasts);
 	counter_u64_zero(p->xmitBroadcasts);
 	counter_u64_zero(p->loopDrops);
-	counter_u64_zero(p->loopDetects);
+	p->loopDetects = 0;
 	counter_u64_zero(p->memoryFailures);
 };
 
@@ -641,7 +640,7 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				FETCH(xmitMulticasts);
 				FETCH(xmitBroadcasts);
 				FETCH(loopDrops);
-				FETCH(loopDetects);
+				rs->loopDetects = link->stats.loopDetects;
 				FETCH(memoryFailures);
 #undef FETCH
 			}
@@ -687,7 +686,6 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		{
 			struct ng_bridge_move_host *mh;
 			hook_p hook;
-			struct ng_bridge_host *host;
 
 			if (msg->header.arglen < sizeof(*mh)) {
 				error = EINVAL;
@@ -699,11 +697,6 @@ ng_bridge_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			    : ng_findhook(node, mh->hook);
 			if (hook == NULL) {
 				error = ENOENT;
-				break;
-			}
-			host = ng_bridge_get(priv, mh->addr);
-			if (host != NULL) {
-				error = EADDRINUSE;
 				break;
 			}
 			error = ng_bridge_put(priv, mh->addr, NG_HOOK_PRIVATE(hook));
@@ -858,7 +851,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 		counter_u64_add(ctx.incoming->stats.loopDrops, 1);
 		NG_FREE_ITEM(item);
 		NG_FREE_M(ctx.m);
-		return (ELOOP);		/* XXX is this an appropriate error? */
+		return (ELOOP);
 	}
 
 	/* Update stats */
@@ -873,58 +866,15 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Look up packet's source Ethernet address in hashtable */
-	if ((host = ng_bridge_get(priv, eh->ether_shost)) != NULL) {
+	if ((host = ng_bridge_get(priv, eh->ether_shost)) != NULL)
 		/* Update time since last heard from this host.
 		 * This is safe without locking, because it's
 		 * the only operation during shared access.
 		 */
 		host->staleness = 0;
 
-		/* Did host jump to a different link? */
-		if (host->link != ctx.incoming) {
-
-			/*
-			 * If the host's old link was recently established
-			 * on the old link and it's already jumped to a new
-			 * link, declare a loopback condition.
-			 */
-			if (host->age < priv->conf.minStableAge) {
-
-				/* Log the problem */
-				if (priv->conf.debugLevel >= 2) {
-					struct ifnet *ifp = ctx.m->m_pkthdr.rcvif;
-					char suffix[32];
-
-					if (ifp != NULL)
-						snprintf(suffix, sizeof(suffix),
-						    " (%s)", ifp->if_xname);
-					else
-						*suffix = '\0';
-					log(LOG_WARNING, "ng_bridge: %s:"
-					    " loopback detected on %s%s\n",
-					    ng_bridge_nodename(node),
-					    NG_HOOK_NAME(hook), suffix);
-				}
-
-				/* Mark link as linka non grata */
-				ctx.incoming->loopCount = priv->conf.loopTimeout;
-				counter_u64_add(ctx.incoming->stats.loopDetects, 1);
-
-				/* Forget all hosts on this link */
-				ng_bridge_remove_hosts(priv, ctx.incoming);
-
-				/* Drop packet */
-				counter_u64_add(ctx.incoming->stats.loopDrops, 1);
-				NG_FREE_ITEM(item);
-				NG_FREE_M(ctx.m);
-				return (ELOOP);		/* XXX appropriate? */
-			}
-
-			/* Move host over to new link */
-			host->link = ctx.incoming;
-			host->age = 0;
-		}
-	} else if (ctx.incoming->learnMac) {
+	if ((host == NULL && ctx.incoming->learnMac) ||
+	    (host != NULL && host->link != ctx.incoming)) {
 		struct ng_mesg *msg;
 		struct ng_bridge_move_host *mh;
 		int error = 0;
@@ -945,6 +895,16 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 		    NG_NODE_ID(node));
 		if (error)
 			counter_u64_add(ctx.incoming->stats.memoryFailures, 1);
+	}
+
+	if (host != NULL && host->link != ctx.incoming) {
+		if (host->age < priv->conf.minStableAge) {
+			/* Drop packet on instable links */
+			counter_u64_add(ctx.incoming->stats.loopDrops, 1);
+			NG_FREE_ITEM(item);
+			NG_FREE_M(ctx.m);
+			return (ELOOP);
+		}
 	}
 
 	/* Run packet through ipfw processing, if enabled */
@@ -1046,7 +1006,6 @@ ng_bridge_disconnect(hook_p hook)
 	counter_u64_free(link->stats.xmitMulticasts);
 	counter_u64_free(link->stats.xmitBroadcasts);
 	counter_u64_free(link->stats.loopDrops);
-	counter_u64_free(link->stats.loopDetects);
 	counter_u64_free(link->stats.memoryFailures);
 	free(link, M_NETGRAPH_BRIDGE);
 	priv->numLinks--;
@@ -1088,8 +1047,8 @@ ng_bridge_get(priv_cp priv, const u_char *addr)
 }
 
 /*
- * Add a new host entry to the table. This assumes the host doesn't
- * already exist in the table. Returns 0 on success.
+ * Add a host entry to the table. If it already exists, move it
+ * to the new link. Returns 0 on success.
  */
 static int
 ng_bridge_put(priv_p priv, const u_char *addr, link_p link)
@@ -1097,11 +1056,36 @@ ng_bridge_put(priv_p priv, const u_char *addr, link_p link)
 	const int bucket = HASH(addr, priv->hashMask);
 	struct ng_bridge_host *host;
 
-#ifdef INVARIANTS
-	/* Assert that entry does not already exist in hashtable */
-	KASSERT(ng_bridge_get(priv, addr) == NULL,
-	    ("%s: entry %6D exists in table", __func__, addr, ":"));
-#endif
+	if ((host = ng_bridge_get(priv, addr)) != NULL) {
+		/* Host already on the correct link? */
+		if (host->link == link)
+			return 0;
+
+		/* Move old host over to new link */
+		if (host->age >= priv->conf.minStableAge) {
+			host->link = link;
+			host->age = 0;
+			return (0);
+		}
+		/*
+		 * If the host was recently moved to the old link and
+		 * it's now jumping to a new link, declare a loopback
+		 * condition.
+		 */
+		if (priv->conf.debugLevel >= 2)
+		    log(LOG_WARNING, "ng_bridge: %s:"
+			" loopback detected on %s\n",
+			ng_bridge_nodename(priv->node),
+			NG_HOOK_NAME(link->hook));
+
+		/* Mark link as linka non grata */
+		link->loopCount = priv->conf.loopTimeout;
+		link->stats.loopDetects++;
+
+		/* Forget all hosts on this link */
+		ng_bridge_remove_hosts(priv, link);
+		return (ELOOP);
+	}
 
 	/* Allocate and initialize new hashtable entry */
 	host = malloc(sizeof(*host), M_NETGRAPH_BRIDGE, M_NOWAIT);
