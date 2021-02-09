@@ -68,12 +68,9 @@ sync_icache(uintptr_t addr, size_t len)
 	size_t size;
 	vm_offset_t rv;
 
-	/*
-	 * Align starting address to even number because value of "1"
-	 * is used as return value for success.
-	 */
-	len += addr & 1;
-	addr &= ~1;
+	 /* Align starting address to cacheline size */
+	len += addr & cpuinfo.dcache_line_mask;
+	addr &= ~cpuinfo.dcache_line_mask;
 
 	/* Break whole range to pages. */
 	do {
