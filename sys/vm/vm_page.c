@@ -3989,7 +3989,7 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 			 * (i.e., the VPRC_OBJREF bit is clear), we only need to
 			 * clear leftover queue state.
 			 */
-			vm_page_release_toq(m, nqueue, false);
+			vm_page_release_toq(m, nqueue, noreuse);
 		} else if (old == 1) {
 			vm_page_aflag_clear(m, PGA_DEQUEUE);
 		}
