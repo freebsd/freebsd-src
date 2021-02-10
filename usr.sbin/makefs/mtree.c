@@ -783,6 +783,8 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 			free(node->inode);
 			node->inode = curino;
 			node->inode->nlink++;
+			/* Reset st since node->inode has been updated. */
+			st = &node->inode->st;
 		}
 	}
 
