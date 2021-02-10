@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to build and install
+.Pa /usr/sbin/fmtree .
+This option is deprecated, and will be gone in
+.Fx 14.0 .
