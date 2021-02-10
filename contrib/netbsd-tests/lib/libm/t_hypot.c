@@ -70,12 +70,36 @@ ATF_TC_BODY(pr50698, tc)
 	ATF_CHECK(!isnan(val));
 }
 
+#if __LDBL_MANT_DIG__ == 64
+ATF_TC(hypotl_near_underflow);
+ATF_TC_HEAD(hypotl_near_underflow, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test hypotl near underflow");
+}
+
+ATF_TC_BODY(hypotl_near_underflow, tc)
+{
+	volatile long double a = 0x1.b2933cafa0bb7p-16383L;
+	volatile long double b = 0x1.fffffffffffffp-16351L;
+	volatile long double e = 0x1.fffffffffffffp-16351L;
+	volatile long double ulp = __LDBL_EPSILON__;
+
+	volatile long double val = hypotl(a, b);
+
+	ATF_CHECK(!isinf(val));
+	ATF_CHECK(fabsl(val - e) <= 2 * ulp);
+}
+#endif /* __LDBL_MANT_DIG__ == 64 */
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, hypot_integer);
 	ATF_TP_ADD_TC(tp, hypotf_integer);
 	ATF_TP_ADD_TC(tp, pr50698);
+#if __LDBL_MANT_DIG__ == 64
+	ATF_TP_ADD_TC(tp, hypotl_near_underflow);
+#endif /* __LDBL_MANT_DIG__ == 64 */
 
 	return atf_no_error();
 }
