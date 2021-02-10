@@ -20,10 +20,6 @@ static const char rcsid[] = "@(#)$Id$";
     !defined(KLD_MODULE) && !defined(IPFILTER_LKM)
 # include "opt_inet6.h"
 #endif
-#if defined(__FreeBSD__) && \
-    !defined(KLD_MODULE) && !defined(IPFILTER_LKM)
-# include "opt_random_ip_id.h"
-#endif
 #include <sys/param.h>
 #include <sys/eventhandler.h>
 #include <sys/conf.h>
