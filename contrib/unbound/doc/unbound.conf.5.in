@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Dec  3, 2020" "NLnet Labs" "unbound 1.13.0"
+.TH "unbound.conf" "5" "Feb  9, 2021" "NLnet Labs" "unbound 1.13.1"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -564,6 +564,25 @@ and that is the default.
 Set the list of ciphersuites to allow when serving TLS.  This is for newer
 TLS 1.3 connections.  Use "" for defaults, and that is the default.
 .TP
+.B pad\-responses: \fI<yes or no>
+If enabled, TLS serviced queries that contained an EDNS Padding option will
+cause responses padded to the closest multiple of the size specified in
+\fBpad\-responses\-block\-size\fR.
+Default is yes.
+.TP
+.B pad\-responses\-block\-size: \fI<number>
+The block size with which to pad responses serviced over TLS. Only responses
+to padded queries will be padded.
+Default is 468.
+.TP
+.B pad\-queries: \fI<yes or no>
+If enabled, all queries sent over TLS upstreams will be padded to the closest
+multiple of the size specified in \fBpad\-queries\-block\-size\fR.
+Default is yes.
+.TP
+.B pad\-queries\-block\-size: \fI<number>
+The block size with which to pad queries sent over TLS upstreams.
+Default is 128.
 .B tls\-use\-sni: \fI<yes or no>
 Enable or disable sending the SNI extension on TLS connections.
 Default is yes.
@@ -819,6 +838,11 @@ If enabled version.server and version.bind queries are refused.
 Set the version to report. If set to "", the default, then the package
 version is returned.
 .TP
+.B nsid:\fR <string>
+Add the specified nsid to the EDNS section of the answer when queried
+with an NSID EDNS enabled packet.  As a sequence of hex characters or
+with ascii_ prefix and then an ascii string.
+.TP
 .B hide\-trustanchor: \fI<yes or no>
 If enabled trustanchor.unbound queries are refused.
 .TP
@@ -839,9 +863,8 @@ closer to that of BIND 9, while setting "\-1 \-1 \-1 \-1 \-1" gives behaviour
 rumoured to be closer to that of BIND 8.
 .TP
 .B harden\-short\-bufsize: \fI<yes or no>
-Very small EDNS buffer sizes from queries are ignored. Default is off, since
-it is legal protocol wise to send these, and unbound tries to give very
-small answers to these queries, where possible.
+Very small EDNS buffer sizes from queries are ignored. Default is on, as
+described in the standard.
 .TP
 .B harden\-large\-queries: \fI<yes or no>
 Very large queries are ignored. Default is off, since it is legal protocol
@@ -1163,6 +1186,19 @@ responding with expired data.  A recommended value per
 RFC 8767 is 1800.  Setting this to 0 will disable this
 behavior.  Default is 0.
 .TP
+.B serve\-original\-ttl: \fI<yes or no>
+If enabled, unbound will always return the original TTL as received from
+the upstream name server rather than the decrementing TTL as
+stored in the cache.  This feature may be useful if unbound serves as a 
+front-end to a hidden authoritative name server. Enabling this feature does 
+not impact cache expiry, it only changes the TTL unbound embeds in responses to 
+queries. Note that enabling this feature implicitly disables enforcement of
+the configured minimum and maximum TTL, as it is assumed users who enable this 
+feature do not want unbound to change the TTL obtained from an upstream server. 
+Thus, the values set using \fBcache\-min\-ttl\fR and \fBcache\-max\-ttl\fR are
+ignored.
+Default is "no".
+.TP
 .B val\-nsec3\-keysize\-iterations: \fI<"list of values">
 List of keysize and iteration count values, separated by spaces, surrounded
 by quotes. Default is "1024 150 2048 500 4096 2500". This determines the
@@ -1231,7 +1267,7 @@ address space are not validated.  This is usually required whenever
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
 transparent, redirect, nodefault, typetransparent, inform, inform_deny,
-inform_redirect, always_transparent, always_refuse, always_nxdomain, noview,
+inform_redirect, always_transparent, always_refuse, always_nxdomain, always_null, noview,
 and are explained below. After that the default settings are listed. Use
 local\-data: to enter data into the local zone. Answers for local zones
 are authoritative DNS answers. By default the zones are class IN.
@@ -1304,6 +1340,17 @@ Like refuse, but ignores local data and refuses the query.
 .TP 10
 \h'5'\fIalways_nxdomain\fR
 Like static, but ignores local data and returns nxdomain for the query.
+.TP 10
+\h'5'\fIalways_nodata\fR
+Like static, but ignores local data and returns nodata for the query.
+.TP 10
+\h'5'\fIalways_deny\fR
+Like deny, but ignores local data and drops the query.
+.TP 10
+\h'5'\fIalways_null\fR
+Always returns 0.0.0.0 or ::0 for every name in the zone.  Like redirect
+with zero data for A and AAAA.  Ignores local data in the zone.  Used for
+some block lists.
 .TP 10
 \h'5'\fInoview\fR
 Breaks out of that view and moves towards the global local zones for answer
@@ -2033,7 +2080,8 @@ Specify whether the ECS address check (configured using
 query contains an ECS record, or only for queries for which the ECS record is
 generated using the querier address (and therefore did not contain ECS data in
 the client query). If enabled, the address check is skipped when the client
-query contains an ECS record. Default is no.
+query contains an ECS record. And the lookup in the regular cache is skipped.
+Default is no.
 .TP
 .B max\-client\-subnet\-ipv6: \fI<number>\fR
 Specifies the maximum prefix length of the client source address we are willing

@@ -2331,7 +2331,8 @@ static int
 az_add_negative_soa(struct auth_zone* z, struct regional* region,
 	struct dns_msg* msg)
 {
-	uint32_t minimum;
+	time_t minimum;
+	size_t i;
 	struct packed_rrset_data* d;
 	struct auth_rrset* soa;
 	struct auth_data* apex = az_find_name(z, z->name, z->namelen);
@@ -2348,9 +2349,11 @@ az_add_negative_soa(struct auth_zone* z, struct regional* region,
 	/* last 4 bytes are minimum ttl in network format */
 	if(d->count == 0) return 0;
 	if(d->rr_len[0] < 2+4) return 0;
-	minimum = sldns_read_uint32(d->rr_data[0]+(d->rr_len[0]-4));
-	d->ttl = (time_t)minimum;
-	d->rr_ttl[0] = (time_t)minimum;
+	minimum = (time_t)sldns_read_uint32(d->rr_data[0]+(d->rr_len[0]-4));
+	minimum = d->ttl<minimum?d->ttl:minimum;
+	d->ttl = minimum;
+	for(i=0; i < d->count + d->rrsig_count; i++)
+		d->rr_ttl[i] = minimum;
 	msg->rep->ttl = get_rrset_ttl(msg->rep->rrsets[0]);
 	msg->rep->prefetch_ttl = PREFETCH_TTL_CALC(msg->rep->ttl);
 	msg->rep->serve_expired_ttl = msg->rep->ttl + SERVE_EXPIRED_TTL;
@@ -3286,7 +3289,7 @@ auth_answer_encode(struct query_info* qinfo, struct module_env* env,
 	edns->bits &= EDNS_DO;
 
 	if(!inplace_cb_reply_local_call(env, qinfo, NULL, msg->rep,
-		(int)FLAGS_GET_RCODE(msg->rep->flags), edns, repinfo, temp)
+		(int)FLAGS_GET_RCODE(msg->rep->flags), edns, repinfo, temp, env->now_tv)
 		|| !reply_info_answer_encode(qinfo, msg->rep,
 		*(uint16_t*)sldns_buffer_begin(buf),
 		sldns_buffer_read_u16_at(buf, 2),
@@ -3310,7 +3313,7 @@ auth_error_encode(struct query_info* qinfo, struct module_env* env,
 	edns->bits &= EDNS_DO;
 
 	if(!inplace_cb_reply_local_call(env, qinfo, NULL, NULL,
-		rcode, edns, repinfo, temp))
+		rcode, edns, repinfo, temp, env->now_tv))
 		edns->opt_list = NULL;
 	error_encode(buf, rcode|BIT_AA, qinfo,
 		*(uint16_t*)sldns_buffer_begin(buf),
@@ -5107,6 +5110,7 @@ xfr_transfer_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	edns.edns_version = 0;
 	edns.bits = EDNS_DO;
 	edns.opt_list = NULL;
+	edns.padding_block_size = 0;
 	if(sldns_buffer_capacity(buf) < 65535)
 		edns.udp_size = (uint16_t)sldns_buffer_capacity(buf);
 	else	edns.udp_size = 65535;
@@ -6295,6 +6299,7 @@ xfr_probe_lookup_host(struct auth_xfer* xfr, struct module_env* env)
 	edns.edns_version = 0;
 	edns.bits = EDNS_DO;
 	edns.opt_list = NULL;
+	edns.padding_block_size = 0;
 	if(sldns_buffer_capacity(buf) < 65535)
 		edns.udp_size = (uint16_t)sldns_buffer_capacity(buf);
 	else	edns.udp_size = 65535;

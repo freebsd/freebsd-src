@@ -2860,6 +2860,57 @@ do_ip_ratelimit_list(RES* ssl, struct worker* worker, char* arg)
 	slabhash_traverse(a.infra->client_ip_rates, 0, ip_rate_list, &a);
 }
 
+/** do the rpz_enable/disable command */
+static void
+do_rpz_enable_disable(RES* ssl, struct worker* worker, char* arg, int enable) {
+    size_t nmlen;
+    int nmlabs;
+    uint8_t *nm = NULL;
+    struct auth_zones *az = worker->env.auth_zones;
+    struct auth_zone *z = NULL;
+    if (!parse_arg_name(ssl, arg, &nm, &nmlen, &nmlabs))
+        return;
+    if (az) {
+        lock_rw_rdlock(&az->lock);
+        z = auth_zone_find(az, nm, nmlen, LDNS_RR_CLASS_IN);
+        if (z) {
+            lock_rw_wrlock(&z->lock);
+        }
+        lock_rw_unlock(&az->lock);
+    }
+    free(nm);
+    if (!z) {
+        (void) ssl_printf(ssl, "error no auth-zone %s\n", arg);
+        return;
+    }
+    if (!z->rpz) {
+        (void) ssl_printf(ssl, "error auth-zone %s not RPZ\n", arg);
+        lock_rw_unlock(&z->lock);
+        return;
+    }
+    if (enable) {
+        rpz_enable(z->rpz);
+    } else {
+        rpz_disable(z->rpz);
+    }
+    lock_rw_unlock(&z->lock);
+    send_ok(ssl);
+}
+
+/** do the rpz_enable command */
+static void
+do_rpz_enable(RES* ssl, struct worker* worker, char* arg)
+{
+    do_rpz_enable_disable(ssl, worker, arg, 1);
+}
+
+/** do the rpz_disable command */
+static void
+do_rpz_disable(RES* ssl, struct worker* worker, char* arg)
+{
+    do_rpz_enable_disable(ssl, worker, arg, 0);
+}
+
 /** tell other processes to execute the command */
 static void
 distribute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd)
@@ -3060,6 +3111,10 @@ execute_cmd(struct daemon_remote* rc, RES* ssl, char* cmd,
 		do_flush_bogus(ssl, worker);
 	} else if(cmdcmp(p, "flush_negative", 14)) {
 		do_flush_negative(ssl, worker);
+    } else if(cmdcmp(p, "rpz_enable", 10)) {
+        do_rpz_enable(ssl, worker, skipwhite(p+10));
+    } else if(cmdcmp(p, "rpz_disable", 11)) {
+        do_rpz_disable(ssl, worker, skipwhite(p+11));
 	} else {
 		(void)ssl_printf(ssl, "error unknown command '%s'\n", p);
 	}

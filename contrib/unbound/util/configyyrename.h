@@ -73,5 +73,11 @@
 #define yyget_leng ub_c_get_leng
 #define yylineno ub_c_lineno
 #define yyget_text ub_c_get_text
+#define yyss    ub_c_ss
+#define yysslim ub_c_sslim
+#define yyssp   ub_c_ssp
+#define yystacksize ub_c_stacksize
+#define yyvs    ub_c_vs
+#define yyvsp   ub_c_vsp
 
 #endif /* UTIL_CONFIGYYRENAME_H */

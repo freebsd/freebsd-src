@@ -523,7 +523,7 @@ copy_rrset(const struct ub_packed_rrset_key* key, struct regional* region)
 			return NULL; /* guard against integer overflow */
 		dsize += data->rr_len[i];
 	}
-	d = regional_alloc(region, dsize);
+	d = regional_alloc_zero(region, dsize);
 	if(!d)
 		return NULL;
 	*d = *data;
