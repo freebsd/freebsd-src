@@ -39,6 +39,7 @@ RFC 4343: case insensitive handling of domain names.
 RFC 4509: SHA256 DS hash.
 RFC 4592: wildcards.
 RFC 4697: No DNS Resolution Misbehavior.
+RFC 5001: DNS Name Server Identifier (NSID) Option
 RFC 5011: update of trust anchors with timers.
 RFC 5155: NSEC3, NSEC3PARAM types
 RFC 5358: reflectors-are-evil: access control list for recursive
