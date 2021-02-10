@@ -694,6 +694,41 @@ struct ng_bridge_send_ctx {
 	int manycast, error;
 };
 
+/*
+ * Update stats and send out
+ */
+static inline int
+ng_bridge_send_data(link_cp dst, int manycast, struct mbuf *m, item_p item) {
+	int error = 0;
+	size_t len = m->m_pkthdr.len;
+
+	if(item != NULL)
+		NG_FWD_NEW_DATA(error, item, dst->hook, m);
+	else
+		NG_SEND_DATA_ONLY(error, dst->hook, m);
+
+	if (error == 0) {
+		counter_u64_add(dst->stats.xmitPackets, 1);
+		counter_u64_add(dst->stats.xmitOctets, len);
+		switch (manycast) {
+		default:		       /* unknown unicast */
+			break;
+		case 1:			       /* multicast */
+			counter_u64_add(dst->stats.xmitMulticasts, 1);
+			break;
+		case 2:			       /* broadcast */
+			counter_u64_add(dst->stats.xmitBroadcasts, 1);
+			break;
+		}
+	}
+
+	return (error);
+}
+
+/*
+ * Loop body for sending to multiple destinations
+ * return 0 to stop looping
+ */
 static int
 ng_bridge_send_ctx(hook_p dst, void *arg)
 {
@@ -732,23 +767,8 @@ ng_bridge_send_ctx(hook_p dst, void *arg)
 		return (0);	       /* abort loop */
 	}
 
-
-	/* Update stats */
-	counter_u64_add(destLink->stats.xmitPackets, 1);
-	counter_u64_add(destLink->stats.xmitOctets, m2->m_pkthdr.len);
-	switch (ctx->manycast) {
-	 default:					/* unknown unicast */
-		break;
-	 case 1:					/* multicast */
-		counter_u64_add(destLink->stats.xmitMulticasts, 1);
-		break;
-	 case 2:					/* broadcast */
-		counter_u64_add(destLink->stats.xmitBroadcasts, 1);
-		break;
-	}
-
 	/* Send packet */
-	NG_SEND_DATA_ONLY(error, destLink->hook, m2);
+	error = ng_bridge_send_data(destLink, ctx->manycast, m2, NULL);
 	if(error)
 	  ctx->error = error;
 	return (1);
@@ -892,10 +912,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 			}
 
 			/* Deliver packet out the destination link */
-			counter_u64_add(destLink->stats.xmitPackets, 1);
-			counter_u64_add(destLink->stats.xmitOctets, ctx.m->m_pkthdr.len);
-			NG_FWD_NEW_DATA(ctx.error, item, destLink->hook, ctx.m);
-			return (ctx.error);
+			return (ng_bridge_send_data(destLink, ctx.manycast, ctx.m, item));
 		}
 
 		/* Destination host is not known */
@@ -916,8 +933,7 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 	 * If we've sent all the others, send the original
 	 * on the first link we found.
 	 */
-	NG_FWD_NEW_DATA(ctx.error, item, ctx.foundFirst->hook, ctx.m);
-	return (ctx.error);
+	return (ng_bridge_send_data(ctx.foundFirst, ctx.manycast, ctx.m, item));
 }
 
 /*
