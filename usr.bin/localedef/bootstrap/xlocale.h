@@ -35,8 +35,21 @@
  *
  * $FreeBSD$
  */
+
+#pragma once
+
 /*
- * This header only exists to avoid pulling in the host xlocale.h from
- * the libc-internal headers. This is required since newer Linux GLibc no
- * longer includes xlocale.h and older versions include an incompatible header.
+ * This header only exists to avoid pulling in the host xlocale.h from the
+ * libc-internal headers. New versions of glibc include bits/types/locale.h
+ * from stdlib.h and so get their own locale_t (and don't provide xlocale.h),
+ * but older versions include xlocale.h and expect to have a __locale_t. Thus
+ * we provide dummy definitions of both so the (unused) prototypes don't give
+ * errors.
  */
+
+#ifdef locale_t
+#error "Dummy xlocale.h included inside bootstrapping namespace context"
+#endif
+
+typedef	struct __dummy_host_locale	*__locale_t;
+typedef	__locale_t			locale_t;
