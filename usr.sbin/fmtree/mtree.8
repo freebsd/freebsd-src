@@ -28,7 +28,7 @@
 .\"     From: @(#)mtree.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2007
+.Dd February 13, 2021
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -362,6 +362,12 @@ style BSD.*.dist file, use
 .Fl n
 .Fl k
 .Cm uname,gname,mode,nochange.
+.Sh DEPRECATION NOTICE
+.Nm fmtree
+is deprecated, and will be gone in
+.Fx 14.0 .
+.Xr mtree 8
+should be used instead.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
@@ -371,7 +377,8 @@ style BSD.*.dist file, use
 .Xr stat 2 ,
 .Xr fts 3 ,
 .Xr md5 3 ,
-.Xr chown 8
+.Xr chown 8 ,
+.Xr mtree 8
 .Sh HISTORY
 The
 .Nm
