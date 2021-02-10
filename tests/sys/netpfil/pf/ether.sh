@@ -91,7 +91,50 @@ mac_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "proto" "cleanup"
+proto_head()
+{
+	atf_set descr 'Test EtherType filtering'
+	atf_set require.user root
+}
+
+proto_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	epair_a_mac=$(ifconfig ${epair}a ether | awk '/ether/ { print $2; }')
+
+	ifconfig ${epair}a 192.0.2.1/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.2/24 up
+
+	pft_set_rules alcatraz \
+		"ether block proto 0x0810"
+	jexec alcatraz pfctl -e
+
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	# Block IP
+	pft_set_rules alcatraz \
+		"ether block proto 0x0800"
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+
+	# Block ARP
+	pft_set_rules alcatraz \
+		"ether block proto 0x0806"
+	arp -d 192.0.2.2
+	atf_check -s exit:2 -o ignore ping -c 1 -t 1 192.0.2.2
+}
+
+proto_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "mac"
+	atf_add_test_case "proto"
 }
