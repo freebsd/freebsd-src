@@ -31,6 +31,7 @@ NETBSD_ATF_TESTS_C+=	erf_test
 NETBSD_ATF_TESTS_C+=	exp_test
 NETBSD_ATF_TESTS_C+=	fmod_test
 NETBSD_ATF_TESTS_C+=	fe_round_test
+NETBSD_ATF_TESTS_C+=	hypot_test
 NETBSD_ATF_TESTS_C+=	infinity_test
 NETBSD_ATF_TESTS_C+=	ilogb_test
 NETBSD_ATF_TESTS_C+=	ldexp_test
