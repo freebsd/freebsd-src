@@ -3712,18 +3712,18 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 	struct ether_header *e;
 	struct pf_keth_rule *r, *rm;
 	struct pf_mtag *mtag;
+	struct pf_keth_settings *settings;
 	uint8_t action;
 
-	PF_RULES_RLOCK_TRACKER;
+	NET_EPOCH_ASSERT();
 
 	MPASS(kif->pfik_ifp->if_vnet == curvnet);
 	NET_EPOCH_ASSERT();
 
 	e = mtod(m, struct ether_header *);
 
-	PF_RULES_RLOCK();
-
-	r = TAILQ_FIRST(&V_pf_keth->rules);
+	settings = ck_pr_load_ptr(&V_pf_keth);
+	r = TAILQ_FIRST(&settings->rules);
 	rm = NULL;
 
 	while (r != NULL) {
@@ -3753,26 +3753,21 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 	r = rm;
 
 	/* Default to pass. */
-	if (r == NULL) {
-		PF_RULES_RUNLOCK();
+	if (r == NULL)
 		return (PF_PASS);
-	}
 
 	/* Execute action. */
 	counter_u64_add(r->packets[dir == PF_OUT], 1);
 	counter_u64_add(r->bytes[dir == PF_OUT], m_length(m, NULL));
 
 	/* Shortcut. Don't tag if we're just going to drop anyway. */
-	if (r->action == PF_DROP) {
-		PF_RULES_RUNLOCK();
+	if (r->action == PF_DROP)
 		return (PF_DROP);
-	}
 
 	if (r->tag > 0) {
 		mtag = pf_get_mtag(m);
 		if (mtag == NULL) {
 			counter_u64_add(V_pf_status.counters[PFRES_MEMORY], 1);
-			PF_RULES_RUNLOCK();
 			return (PF_DROP);
 		}
 		mtag->tag = r->tag;
@@ -3782,15 +3777,12 @@ pf_test_eth_rule(int dir, struct pfi_kkif *kif, struct mbuf *m)
 		mtag = pf_get_mtag(m);
 		if (mtag == NULL) {
 			counter_u64_add(V_pf_status.counters[PFRES_MEMORY], 1);
-			PF_RULES_RUNLOCK();
 			return (PF_DROP);
 		}
 		mtag->qid = r->qid;
 	}
 
 	action = r->action;
-
-	PF_RULES_RUNLOCK();
 
 	return (action);
 }

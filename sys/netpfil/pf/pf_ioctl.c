@@ -107,6 +107,7 @@ static void		 pf_empty_kpool(struct pf_kpalist *);
 static int		 pfioctl(struct cdev *, u_long, caddr_t, int,
 			    struct thread *);
 static int		 pf_begin_eth(uint32_t *);
+static void		 pf_rollback_eth_cb(struct epoch_context *);
 static int		 pf_rollback_eth(uint32_t);
 static int		 pf_commit_eth(uint32_t);
 static void		 pf_free_eth_rule(struct pf_keth_rule *);
@@ -701,6 +702,12 @@ pf_begin_eth(uint32_t *ticket)
 
 	PF_RULES_WASSERT();
 
+	if (V_pf_keth_inactive->open) {
+		/* We may be waiting for NET_EPOCH_CALL(pf_rollback_eth_cb) to
+		 * finish. */
+		return (EBUSY);
+	}
+
 	/* Purge old inactive rules. */
 	TAILQ_FOREACH_SAFE(rule, &V_pf_keth_inactive->rules, entries, tmp) {
 		TAILQ_REMOVE(&V_pf_keth_inactive->rules, rule, entries);
@@ -711,6 +718,24 @@ pf_begin_eth(uint32_t *ticket)
 	V_pf_keth_inactive->open = 1;
 
 	return (0);
+}
+
+static void
+pf_rollback_eth_cb(struct epoch_context *ctx)
+{
+	struct pf_keth_settings *settings;
+
+	settings = __containerof(ctx, struct pf_keth_settings, epoch_ctx);
+
+	CURVNET_SET(settings->vnet);
+
+	MPASS(settings == V_pf_keth_inactive);
+
+	PF_RULES_WLOCK();
+	pf_rollback_eth(V_pf_keth_inactive->ticket);
+	PF_RULES_WUNLOCK();
+
+	CURVNET_RESTORE();
 }
 
 static int
@@ -780,15 +805,20 @@ pf_commit_eth(uint32_t ticket)
 	    ticket != V_pf_keth_inactive->ticket)
 		return (EBUSY);
 
+	PF_RULES_WASSERT();
+
 	pf_eth_calc_skip_steps(&V_pf_keth_inactive->rules);
 
 	settings = V_pf_keth;
-	V_pf_keth = V_pf_keth_inactive;
+	ck_pr_store_ptr(&V_pf_keth, V_pf_keth_inactive);
 	V_pf_keth_inactive = settings;
 	V_pf_keth_inactive->ticket = V_pf_keth->ticket;
 
-	/* Clean up inactive rules. */
-	return (pf_rollback_eth(ticket));
+	/* Clean up inactive rules (i.e. previously active rules), only when
+	 * we're sure they're no longer used. */
+	NET_EPOCH_CALL(pf_rollback_eth_cb, &V_pf_keth_inactive->epoch_ctx);
+
+	return (0);
 }
 
 #ifdef ALTQ
