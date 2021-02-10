@@ -11,7 +11,7 @@ AC_DEFUN([dnsc_DNSCRYPT],
     [opt_dnscrypt=$enableval], [opt_dnscrypt=no])
 
   if test "x$opt_dnscrypt" != "xno"; then
-    AC_ARG_WITH([libsodium], AC_HELP_STRING([--with-libsodium=path],
+    AC_ARG_WITH([libsodium], AS_HELP_STRING([--with-libsodium=path],
     	[Path where libsodium is installed, for dnscrypt]), [
 	CFLAGS="$CFLAGS -I$withval/include"
 	LDFLAGS="$LDFLAGS -L$withval/lib"

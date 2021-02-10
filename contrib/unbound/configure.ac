@@ -1,6 +1,6 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
-AC_PREREQ(2.56)
+AC_PREREQ([2.56])
 sinclude(acx_nlnetlabs.m4)
 sinclude(ax_pthread.m4)
 sinclude(acx_python.m4)
@@ -11,14 +11,14 @@ sinclude(dnscrypt/dnscrypt.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[13])
-m4_define([VERSION_MICRO],[0])
-AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues, unbound)
+m4_define([VERSION_MICRO],[1])
+AC_INIT([unbound],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues],[unbound])
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=9
-LIBUNBOUND_REVISION=11
+LIBUNBOUND_REVISION=12
 LIBUNBOUND_AGE=1
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -97,6 +97,7 @@ LIBUNBOUND_AGE=1
 # 1.11.0 had 9:9:1
 # 1.12.0 had 9:10:1
 # 1.13.0 had 9:11:1
+# 1.13.1 had 9:12:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -125,7 +126,7 @@ cmdln="`echo $@ | sed -e 's/\\\\/\\\\\\\\/g' | sed -e 's/"/\\\\"/'g`"
 AC_DEFINE_UNQUOTED(CONFCMDLINE, ["$cmdln"], [Command line arguments used with configure])
 
 CFLAGS="$CFLAGS"
-AC_AIX
+AC_USE_SYSTEM_EXTENSIONS
 if test "$ac_cv_header_minix_config_h" = "yes"; then
 	AC_DEFINE(_NETBSD_SOURCE,1, [Enable for compile on Minix])
 fi
@@ -166,8 +167,7 @@ else
   ub_conf_file="C:\\Program Files\\Unbound\\service.conf"
 fi
 AC_ARG_WITH([conf_file],
-        AC_HELP_STRING([--with-conf-file=path], 
-	[Pathname to the Unbound configuration file]),
+        AS_HELP_STRING([--with-conf-file=path],[Pathname to the Unbound configuration file]),
 	[ub_conf_file="$withval"])
 AC_SUBST(ub_conf_file)
 ACX_ESCAPE_BACKSLASH($ub_conf_file, hdr_config)
@@ -177,8 +177,7 @@ AC_SUBST(ub_conf_dir)
 
 # Determine run, chroot directory and pidfile locations
 AC_ARG_WITH(run-dir, 
-    AC_HELP_STRING([--with-run-dir=path], 
-    [set default directory to chdir to (by default dir part of cfg file)]), 
+    AS_HELP_STRING([--with-run-dir=path],[set default directory to chdir to (by default dir part of cfg file)]), 
     UNBOUND_RUN_DIR="$withval", 
 if test $on_mingw = no; then
     UNBOUND_RUN_DIR=`dirname "$ub_conf_file"`
@@ -191,8 +190,7 @@ ACX_ESCAPE_BACKSLASH($UNBOUND_RUN_DIR, hdr_run)
 AC_DEFINE_UNQUOTED(RUN_DIR, ["$hdr_run"], [Directory to chdir to])
 
 AC_ARG_WITH(chroot-dir, 
-    AC_HELP_STRING([--with-chroot-dir=path], 
-    [set default directory to chroot to (by default same as run-dir)]), 
+    AS_HELP_STRING([--with-chroot-dir=path],[set default directory to chroot to (by default same as run-dir)]), 
     UNBOUND_CHROOT_DIR="$withval", 
 if test $on_mingw = no; then
     UNBOUND_CHROOT_DIR="$UNBOUND_RUN_DIR"
@@ -205,16 +203,14 @@ ACX_ESCAPE_BACKSLASH($UNBOUND_CHROOT_DIR, hdr_chroot)
 AC_DEFINE_UNQUOTED(CHROOT_DIR, ["$hdr_chroot"], [Directory to chroot to])
 
 AC_ARG_WITH(share-dir,
-    AC_HELP_STRING([--with-share-dir=path],
-    [set default directory with shared data (by default same as share/unbound)]),
+    AS_HELP_STRING([--with-share-dir=path],[set default directory with shared data (by default same as share/unbound)]),
     UNBOUND_SHARE_DIR="$withval",
     UNBOUND_SHARE_DIR="$UNBOUND_RUN_DIR")
 AC_SUBST(UNBOUND_SHARE_DIR)
 AC_DEFINE_UNQUOTED(SHARE_DIR, ["$UNBOUND_SHARE_DIR"], [Shared data])
 
 AC_ARG_WITH(pidfile, 
-    AC_HELP_STRING([--with-pidfile=filename], 
-    [set default pathname to unbound pidfile (default run-dir/unbound.pid)]), 
+    AS_HELP_STRING([--with-pidfile=filename],[set default pathname to unbound pidfile (default run-dir/unbound.pid)]), 
     UNBOUND_PIDFILE="$withval", 
 if test $on_mingw = no; then
     UNBOUND_PIDFILE="$UNBOUND_RUN_DIR/unbound.pid"
@@ -227,8 +223,7 @@ ACX_ESCAPE_BACKSLASH($UNBOUND_PIDFILE, hdr_pid)
 AC_DEFINE_UNQUOTED(PIDFILE, ["$hdr_pid"], [default pidfile location])
 
 AC_ARG_WITH(rootkey-file, 
-    AC_HELP_STRING([--with-rootkey-file=filename], 
-    [set default pathname to root key file (default run-dir/root.key). This file is read and written.]), 
+    AS_HELP_STRING([--with-rootkey-file=filename],[set default pathname to root key file (default run-dir/root.key). This file is read and written.]), 
     UNBOUND_ROOTKEY_FILE="$withval", 
 if test $on_mingw = no; then
     UNBOUND_ROOTKEY_FILE="$UNBOUND_RUN_DIR/root.key"
@@ -241,8 +236,7 @@ ACX_ESCAPE_BACKSLASH($UNBOUND_ROOTKEY_FILE, hdr_rkey)
 AC_DEFINE_UNQUOTED(ROOT_ANCHOR_FILE, ["$hdr_rkey"], [default rootkey location])
 
 AC_ARG_WITH(rootcert-file, 
-    AC_HELP_STRING([--with-rootcert-file=filename], 
-    [set default pathname to root update certificate file (default run-dir/icannbundle.pem).  This file need not exist if you are content with the builtin.]), 
+    AS_HELP_STRING([--with-rootcert-file=filename],[set default pathname to root update certificate file (default run-dir/icannbundle.pem).  This file need not exist if you are content with the builtin.]), 
     UNBOUND_ROOTCERT_FILE="$withval", 
 if test $on_mingw = no; then
     UNBOUND_ROOTCERT_FILE="$UNBOUND_RUN_DIR/icannbundle.pem"
@@ -255,8 +249,7 @@ ACX_ESCAPE_BACKSLASH($UNBOUND_ROOTCERT_FILE, hdr_rpem)
 AC_DEFINE_UNQUOTED(ROOT_CERT_FILE, ["$hdr_rpem"], [default rootcert location])
 
 AC_ARG_WITH(username, 
-    AC_HELP_STRING([--with-username=user], 
-    [set default user that unbound changes to (default user is unbound)]), 
+    AS_HELP_STRING([--with-username=user],[set default user that unbound changes to (default user is unbound)]), 
     UNBOUND_USERNAME="$withval", 
     UNBOUND_USERNAME="unbound")
 AC_SUBST(UNBOUND_USERNAME)
@@ -268,7 +261,7 @@ AC_DEFINE_UNQUOTED(RSRC_PACKAGE_VERSION, [$wnvs], [version number for resource f
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
-AC_LANG_C
+AC_LANG([C])
 # allow user to override the -g -O2 flags.
 default_cflags=no
 if test "x$CFLAGS" = "x" ; then
@@ -281,8 +274,8 @@ ACX_DEPFLAG
 ACX_DETERMINE_EXT_FLAGS_UNBOUND
 
 # debug mode flags warnings
-AC_ARG_ENABLE(checking, AC_HELP_STRING([--enable-checking], [Enable warnings, asserts, makefile-dependencies]))
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug], [same as enable-checking]))
+AC_ARG_ENABLE(checking, AS_HELP_STRING([--enable-checking],[Enable warnings, asserts, makefile-dependencies]))
+AC_ARG_ENABLE(debug, AS_HELP_STRING([--enable-debug],[same as enable-checking]))
 if test "$enable_debug" = "yes"; then debug_enabled="$enable_debug"; 
 else debug_enabled="$enable_checking"; fi
 AC_SUBST(debug_enabled)
@@ -316,14 +309,11 @@ AC_DEFUN([CHECK_WEAK_ATTRIBUTE],
 AC_MSG_CHECKING(whether the C compiler (${CC-cc}) accepts the "weak" attribute)
 AC_CACHE_VAL(ac_cv_c_weak_attribute,
 [ac_cv_c_weak_attribute=no
-AC_TRY_COMPILE(
-[ #include <stdio.h>
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <stdio.h>
 __attribute__((weak)) void f(int x) { printf("%d", x); }
-], [
+]], [[
    f(1);
-],
-[ac_cv_c_weak_attribute="yes"],
-[ac_cv_c_weak_attribute="no"])
+]])],[ac_cv_c_weak_attribute="yes"],[ac_cv_c_weak_attribute="no"])
 ])
 
 AC_MSG_RESULT($ac_cv_c_weak_attribute)
@@ -340,14 +330,11 @@ AC_DEFUN([CHECK_NORETURN_ATTRIBUTE],
 AC_MSG_CHECKING(whether the C compiler (${CC-cc}) accepts the "noreturn" attribute)
 AC_CACHE_VAL(ac_cv_c_noreturn_attribute,
 [ac_cv_c_noreturn_attribute=no
-AC_TRY_COMPILE(
-[ #include <stdio.h>
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[ #include <stdio.h>
 __attribute__((noreturn)) void f(int x) { printf("%d", x); }
-], [
+]], [[
    f(1);
-],
-[ac_cv_c_noreturn_attribute="yes"],
-[ac_cv_c_noreturn_attribute="no"])
+]])],[ac_cv_c_noreturn_attribute="yes"],[ac_cv_c_noreturn_attribute="no"])
 ])
 
 AC_MSG_RESULT($ac_cv_c_noreturn_attribute)
@@ -385,7 +372,7 @@ EOF
 	fi
 ])
 
-AC_PROG_LEX
+AC_PROG_LEX([noyywrap])
 if test "$LEX" != "" -a "$LEX" != ":"; then
 ACX_YYLEX_DESTROY
 fi
@@ -494,7 +481,7 @@ fi
 # check some functions of the OS before linking libs (while still runnable).
 AC_FUNC_CHOWN
 AC_FUNC_FORK
-AC_TYPE_SIGNAL
+AC_DEFINE(RETSIGTYPE,void,[Return type of signal handlers, but autoconf 2.70 says 'your code may safely assume C89 semantics that RETSIGTYPE is void.'])
 AC_FUNC_FSEEKO
 ACX_SYS_LARGEFILE
 ACX_CHECK_NONBLOCKING_BROKEN
@@ -513,14 +500,11 @@ sinclude(systemd.m4)
 # Include systemd.m4 - end
 
 # set memory allocation checking if requested
-AC_ARG_ENABLE(alloc-checks, AC_HELP_STRING([--enable-alloc-checks],
-	[ enable to memory allocation statistics, for debug purposes ]), 
+AC_ARG_ENABLE(alloc-checks, AS_HELP_STRING([--enable-alloc-checks],[ enable to memory allocation statistics, for debug purposes ]), 
 	, )
-AC_ARG_ENABLE(alloc-lite, AC_HELP_STRING([--enable-alloc-lite],
-	[ enable for lightweight alloc assertions, for debug purposes ]), 
+AC_ARG_ENABLE(alloc-lite, AS_HELP_STRING([--enable-alloc-lite],[ enable for lightweight alloc assertions, for debug purposes ]), 
 	, )
-AC_ARG_ENABLE(alloc-nonregional, AC_HELP_STRING([--enable-alloc-nonregional],
-	[ enable nonregional allocs, slow but exposes regional allocations to other memory purifiers, for debug purposes ]), 
+AC_ARG_ENABLE(alloc-nonregional, AS_HELP_STRING([--enable-alloc-nonregional],[ enable nonregional allocs, slow but exposes regional allocations to other memory purifiers, for debug purposes ]), 
 	, )
 if test x_$enable_alloc_nonregional = x_yes; then
 	AC_DEFINE(UNBOUND_ALLOC_NONREGIONAL, 1, [use malloc not regions, for debug use])
@@ -564,8 +548,7 @@ else
 # check this first, so that the pthread lib does not get linked in via
 # libssl or libpython, and thus distorts the tests, and we end up using
 # the non-threadsafe C libraries.
-AC_ARG_WITH(pthreads, AC_HELP_STRING([--with-pthreads], 
- [use pthreads library, or --without-pthreads to disable threading support.]), 
+AC_ARG_WITH(pthreads, AS_HELP_STRING([--with-pthreads],[use pthreads library, or --without-pthreads to disable threading support.]), 
  [ ],[ withval="yes" ])
 ub_have_pthreads=no
 if test x_$withval != x_no; then
@@ -612,12 +595,11 @@ int main(void) {return 0;}
 fi
 
 # check solaris thread library 
-AC_ARG_WITH(solaris-threads, AC_HELP_STRING([--with-solaris-threads], 
-	[use solaris native thread library.]), [ ],[ withval="no" ])
+AC_ARG_WITH(solaris-threads, AS_HELP_STRING([--with-solaris-threads],[use solaris native thread library.]), [ ],[ withval="no" ])
 ub_have_sol_threads=no
 if test x_$withval != x_no; then
 	if test x_$ub_have_pthreads != x_no; then
-	    AC_WARN([Have pthreads already, ignoring --with-solaris-threads])
+	    AC_MSG_WARN([Have pthreads already, ignoring --with-solaris-threads])
 	else
 	AC_SEARCH_LIBS(thr_create, [thread],
 	[
@@ -627,7 +609,7 @@ if test x_$withval != x_no; then
 			[CFLAGS="$CFLAGS -D_REENTRANT"])
 		ub_have_sol_threads=yes
 	] , [ 
-		AC_ERROR([no solaris threads found.]) 
+		AC_MSG_ERROR([no solaris threads found.]) 
 	])
 	fi
 fi
@@ -635,7 +617,7 @@ fi
 fi # end of non-mingw check of thread libraries
 
 # Check for SYSLOG_FACILITY
-AC_ARG_WITH(syslog-facility, AC_HELP_STRING([--with-syslog-facility=LOCAL0 - LOCAL7], [ set SYSLOG_FACILITY, default DAEMON ]),
+AC_ARG_WITH(syslog-facility, AS_HELP_STRING([--with-syslog-facility=LOCAL0 - LOCAL7],[ set SYSLOG_FACILITY, default DAEMON ]),
 	[ UNBOUND_SYSLOG_FACILITY="$withval" ], [])
 case "${UNBOUND_SYSLOG_FACILITY}" in
 
@@ -648,8 +630,7 @@ AC_DEFINE_UNQUOTED(UB_SYSLOG_FACILITY,${UNBOUND_SYSLOG_FACILITY},[the SYSLOG_FAC
 
 # Check for dynamic library module
 AC_ARG_WITH(dynlibmodule,
-   AC_HELP_STRING([--with-dynlibmodule],
-   [build dynamic library module, or --without-dynlibmodule to disable it. (default=no)]),
+   AS_HELP_STRING([--with-dynlibmodule],[build dynamic library module, or --without-dynlibmodule to disable it. (default=no)]),
    [], [ withval="no" ])
 
 if test x_$withval != x_no; then
@@ -661,17 +642,20 @@ if test x_$withval != x_no; then
   DYNLIBMOD_HEADER='$(srcdir)/dynlibmod/dynlibmod.h'
   AC_SUBST(DYNLIBMOD_HEADER)
   if test $on_mingw = "no"; then
-    DYNLIBMOD_EXTRALIBS="-ldl -export-dynamic"
+    # link with -ldl if not already there, for all executables because
+    # dlopen call is in the dynlib module.  For unbound executable, also
+    # export symbols.
+    AC_SEARCH_LIBS([dlopen], [dl])
+    DYNLIBMOD_EXTRALIBS="-export-dynamic"
   else
-    DYNLIBMOD_EXTRALIBS="-Wl,--export-all-symbols,--out-implib,libunbound.a"
+    DYNLIBMOD_EXTRALIBS="-Wl,--export-all-symbols,--out-implib,libunbound.dll.a"
   fi
   AC_SUBST(DYNLIBMOD_EXTRALIBS)
 fi
 
 # Check for PyUnbound
 AC_ARG_WITH(pyunbound,
-   AC_HELP_STRING([--with-pyunbound],
-   [build PyUnbound, or --without-pyunbound to skip it. (default=no)]),
+   AS_HELP_STRING([--with-pyunbound],[build PyUnbound, or --without-pyunbound to skip it. (default=no)]),
    [], [ withval="no" ])
 
 ub_test_python=no
@@ -683,8 +667,7 @@ fi
 
 # Check for Python module
 AC_ARG_WITH(pythonmodule,
-   AC_HELP_STRING([--with-pythonmodule],
-   [build Python module, or --without-pythonmodule to disable script engine. (default=no)]),
+   AS_HELP_STRING([--with-pythonmodule],[build Python module, or --without-pythonmodule to disable script engine. (default=no)]),
    [], [ withval="no" ])
 
 ub_with_pythonmod=no
@@ -702,7 +685,7 @@ if test x_$ub_test_python != x_no; then
    AC_PYTHON_DEVEL
    if test ! -z "$PYTHON_VERSION"; then
 	if test `$PYTHON -c "print('$PYTHON_VERSION' >= '2.4.0')"` = "False"; then
-		AC_ERROR([Python version >= 2.4.0 is required])
+		AC_MSG_ERROR([Python version >= 2.4.0 is required])
 	fi
 
       [PY_MAJOR_VERSION="`$PYTHON -c \"import sys; print(sys.version_info[0])\"`"]
@@ -730,7 +713,7 @@ if test x_$ub_test_python != x_no; then
 
       # Check for SWIG
       ub_have_swig=no
-      AC_ARG_ENABLE(swig-version-check, AC_HELP_STRING([--disable-swig-version-check], [Disable swig version check to build python modules with older swig even though that is unreliable]))
+      AC_ARG_ENABLE(swig-version-check, AS_HELP_STRING([--disable-swig-version-check],[Disable swig version check to build python modules with older swig even though that is unreliable]))
       if test "$enable_swig_version_check" = "yes"; then
       	AC_PROG_SWIG(2.0.1)
       else
@@ -738,7 +721,7 @@ if test x_$ub_test_python != x_no; then
       fi
       AC_MSG_CHECKING(SWIG)
       if test ! -x "$SWIG"; then
-         AC_ERROR([failed to find swig tool, install it, or do not build Python module and PyUnbound])
+         AC_MSG_ERROR([failed to find swig tool, install it, or do not build Python module and PyUnbound])
       else
          AC_DEFINE(HAVE_SWIG, 1, [Define if you have Swig libraries and header files.])
          AC_SUBST(swig, "$SWIG")
@@ -793,8 +776,7 @@ AC_SUBST(CONFIG_DATE)
 
 # libnss
 USE_NSS="no"
-AC_ARG_WITH([nss], AC_HELP_STRING([--with-nss=path],
-	[use libnss instead of openssl, installed at path.]),
+AC_ARG_WITH([nss], AS_HELP_STRING([--with-nss=path],[use libnss instead of openssl, installed at path.]),
 	[
 	USE_NSS="yes"
 	AC_DEFINE(HAVE_NSS, 1, [Use libnss for crypto])
@@ -816,8 +798,7 @@ AC_ARG_WITH([nss], AC_HELP_STRING([--with-nss=path],
 
 # libnettle
 USE_NETTLE="no"
-AC_ARG_WITH([nettle], AC_HELP_STRING([--with-nettle=path],
-	[use libnettle as crypto library, installed at path.]),
+AC_ARG_WITH([nettle], AS_HELP_STRING([--with-nettle=path],[use libnettle as crypto library, installed at path.]),
 	[
 	USE_NETTLE="yes"
 	AC_DEFINE(HAVE_NETTLE, 1, [Use libnettle for crypto])
@@ -849,7 +830,10 @@ AC_SUBST(PC_CRYPTO_DEPENDENCY)
 BAKLIBS="$LIBS"
 LIBS="-lssl $LIBS"
 AC_MSG_CHECKING([if libssl needs -lcrypt32])
-AC_TRY_LINK_FUNC([EVP_sha256], [
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[
+	int EVP_sha256(void);
+	(void)EVP_sha256();
+]])], [
 	AC_MSG_RESULT([no])
 	LIBS="$BAKLIBS"
 ], [
@@ -937,7 +921,7 @@ fi
 AC_SUBST(SSLLIB)
 
 # libbsd
-AC_ARG_WITH([libbsd], AC_HELP_STRING([--with-libbsd], [Use portable libbsd functions]), [
+AC_ARG_WITH([libbsd], AS_HELP_STRING([--with-libbsd],[Use portable libbsd functions]), [
 	AC_CHECK_HEADERS([bsd/string.h bsd/stdlib.h],,, [AC_INCLUDES_DEFAULT])
 	if test "x$ac_cv_header_bsd_string_h" = xyes -a "x$ac_cv_header_bsd_stdlib_h" = xyes; then
 		for func in strlcpy strlcat arc4random arc4random_uniform reallocarray; do
@@ -950,7 +934,7 @@ AC_ARG_WITH([libbsd], AC_HELP_STRING([--with-libbsd], [Use portable libbsd funct
 	fi
 ])
 
-AC_ARG_ENABLE(sha1, AC_HELP_STRING([--disable-sha1], [Disable SHA1 RRSIG support, does not disable nsec3 support]))
+AC_ARG_ENABLE(sha1, AS_HELP_STRING([--disable-sha1],[Disable SHA1 RRSIG support, does not disable nsec3 support]))
 case "$enable_sha1" in
 	no)
 	;;
@@ -960,7 +944,7 @@ case "$enable_sha1" in
 esac
 
 
-AC_ARG_ENABLE(sha2, AC_HELP_STRING([--disable-sha2], [Disable SHA256 and SHA512 RRSIG support]))
+AC_ARG_ENABLE(sha2, AS_HELP_STRING([--disable-sha2],[Disable SHA256 and SHA512 RRSIG support]))
 case "$enable_sha2" in
 	no)
 	;;
@@ -969,7 +953,7 @@ case "$enable_sha2" in
 	;;
 esac
 
-AC_ARG_ENABLE(subnet, AC_HELP_STRING([--enable-subnet], [Enable client subnet]))
+AC_ARG_ENABLE(subnet, AS_HELP_STRING([--enable-subnet],[Enable client subnet]))
 case "$enable_subnet" in
 	yes)
 	AC_DEFINE([CLIENT_SUBNET], [1], [Define this to enable client subnet option.])
@@ -1080,7 +1064,7 @@ fi
 AC_MSG_RESULT($ac_cv_c_gost_works)
 ])dnl
 
-AC_ARG_ENABLE(gost, AC_HELP_STRING([--disable-gost], [Disable GOST support]))
+AC_ARG_ENABLE(gost, AS_HELP_STRING([--disable-gost],[Disable GOST support]))
 use_gost="no"
 if test $USE_NSS = "no" -a $USE_NETTLE = "no"; then
 case "$enable_gost" in
@@ -1098,7 +1082,7 @@ case "$enable_gost" in
 esac
 fi dnl !USE_NSS && !USE_NETTLE
 
-AC_ARG_ENABLE(ecdsa, AC_HELP_STRING([--disable-ecdsa], [Disable ECDSA support]))
+AC_ARG_ENABLE(ecdsa, AS_HELP_STRING([--disable-ecdsa],[Disable ECDSA support]))
 use_ecdsa="no"
 case "$enable_ecdsa" in
     no)
@@ -1130,7 +1114,7 @@ case "$enable_ecdsa" in
       ;;
 esac
 
-AC_ARG_ENABLE(dsa, AC_HELP_STRING([--disable-dsa], [Disable DSA support]))
+AC_ARG_ENABLE(dsa, AS_HELP_STRING([--disable-dsa],[Disable DSA support]))
 use_dsa="no"
 case "$enable_dsa" in
     yes)
@@ -1170,7 +1154,7 @@ AC_INCLUDES_DEFAULT
       ;;
 esac
 
-AC_ARG_ENABLE(ed25519, AC_HELP_STRING([--disable-ed25519], [Disable ED25519 support]))
+AC_ARG_ENABLE(ed25519, AS_HELP_STRING([--disable-ed25519],[Disable ED25519 support]))
 use_ed25519="no"
 case "$enable_ed25519" in
     no)
@@ -1193,7 +1177,7 @@ case "$enable_ed25519" in
       ;;
 esac
 
-AC_ARG_ENABLE(ed448, AC_HELP_STRING([--disable-ed448], [Disable ED448 support]))
+AC_ARG_ENABLE(ed448, AS_HELP_STRING([--disable-ed448],[Disable ED448 support]))
 use_ed448="no"
 case "$enable_ed448" in
     no)
@@ -1213,7 +1197,7 @@ case "$enable_ed448" in
       ;;
 esac
 
-AC_ARG_ENABLE(event-api, AC_HELP_STRING([--enable-event-api], [Enable (experimental) pluggable event base libunbound API installed to unbound-event.h]))
+AC_ARG_ENABLE(event-api, AS_HELP_STRING([--enable-event-api],[Enable (experimental) pluggable event base libunbound API installed to unbound-event.h]))
 case "$enable_event_api" in
     yes)
       AC_SUBST(UNBOUND_EVENT_INSTALL, [unbound-event-install])
@@ -1223,7 +1207,7 @@ case "$enable_event_api" in
       ;;
 esac
 
-AC_ARG_ENABLE(tfo-client, AC_HELP_STRING([--enable-tfo-client], [Enable TCP Fast Open for client mode]))
+AC_ARG_ENABLE(tfo-client, AS_HELP_STRING([--enable-tfo-client],[Enable TCP Fast Open for client mode]))
 case "$enable_tfo_client" in
 	yes)
 		case `uname` in
@@ -1247,7 +1231,7 @@ case "$enable_tfo_client" in
 		;;
 esac
 
-AC_ARG_ENABLE(tfo-server, AC_HELP_STRING([--enable-tfo-server], [Enable TCP Fast Open for server mode]))
+AC_ARG_ENABLE(tfo-server, AS_HELP_STRING([--enable-tfo-server],[Enable TCP Fast Open for server mode]))
 case "$enable_tfo_server" in
 	yes)
 	      AC_CHECK_DECL([TCP_FASTOPEN], [AC_MSG_WARN([Check the platform specific TFO kernel parameters are correctly configured to support server mode TFO])], [AC_MSG_ERROR([TCP Fast Open is not available for server mode: please rerun without --enable-tfo-server])], [AC_INCLUDES_DEFAULT
@@ -1260,8 +1244,7 @@ case "$enable_tfo_server" in
 esac
 
 # check for libevent
-AC_ARG_WITH(libevent, AC_HELP_STRING([--with-libevent=pathname],
-    [use libevent (will check /usr/local /opt/local /usr/lib /usr/pkg /usr/sfw /usr  or you can specify an explicit path). Slower, but allows use of large outgoing port ranges.]),
+AC_ARG_WITH(libevent, AS_HELP_STRING([--with-libevent=pathname],[use libevent (will check /usr/local /opt/local /usr/lib /usr/pkg /usr/sfw /usr  or you can specify an explicit path). Slower, but allows use of large outgoing port ranges.]),
     [ ],[ with_libevent="no" ])
 if test "x_$with_libevent" != x_no; then
         AC_DEFINE([USE_LIBEVENT], [1], [Define if you enable libevent])
@@ -1355,8 +1338,7 @@ else
 fi
 
 # check for libexpat
-AC_ARG_WITH(libexpat, AC_HELP_STRING([--with-libexpat=path],
-    [specify explicit path for libexpat.]),
+AC_ARG_WITH(libexpat, AS_HELP_STRING([--with-libexpat=path],[specify explicit path for libexpat.]),
     [ ],[ withval="/usr/local /opt/local /usr/lib /usr/pkg /usr/sfw /usr" ])
 AC_MSG_CHECKING(for libexpat)
 found_libexpat="no"
@@ -1373,7 +1355,7 @@ for dir in $withval ; do
             fi
 done
 if test x_$found_libexpat != x_yes; then
-	AC_ERROR([Could not find libexpat, expat.h])
+	AC_MSG_ERROR([Could not find libexpat, expat.h])
 fi
 AC_CHECK_HEADERS([expat.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_DECLS([XML_StopParser], [], [], [AC_INCLUDES_DEFAULT
@@ -1381,8 +1363,7 @@ AC_CHECK_DECLS([XML_StopParser], [], [], [AC_INCLUDES_DEFAULT
 ])
 
 # hiredis (redis C client for cachedb)
-AC_ARG_WITH(libhiredis, AC_HELP_STRING([--with-libhiredis=path],
-    [specify explicit path for libhiredis.]),
+AC_ARG_WITH(libhiredis, AS_HELP_STRING([--with-libhiredis=path],[specify explicit path for libhiredis.]),
     [ ],[ withval="no" ])
 found_libhiredis="no"
 if test x_$withval = x_yes -o x_$withval != x_no; then
@@ -1405,7 +1386,7 @@ if test x_$withval = x_yes -o x_$withval != x_no; then
             fi
     done
     if test x_$found_libhiredis != x_yes; then
-	AC_ERROR([Could not find libhiredis, hiredis.h])
+	AC_MSG_ERROR([Could not find libhiredis, hiredis.h])
     fi
     AC_CHECK_HEADERS([hiredis/hiredis.h],,, [AC_INCLUDES_DEFAULT])
     AC_CHECK_DECLS([redisConnect], [], [], [AC_INCLUDES_DEFAULT
@@ -1414,8 +1395,7 @@ if test x_$withval = x_yes -o x_$withval != x_no; then
 fi
 
 # nghttp2
-AC_ARG_WITH(libnghttp2, AC_HELP_STRING([--with-libnghttp2=path],
-    [specify explicit path for libnghttp2.]),
+AC_ARG_WITH(libnghttp2, AS_HELP_STRING([--with-libnghttp2=path],[specify explicit path for libnghttp2.]),
     [ ],[ withval="no" ])
 found_libnghttp2="no"
 if test x_$withval = x_yes -o x_$withval != x_no; then
@@ -1438,7 +1418,7 @@ if test x_$withval = x_yes -o x_$withval != x_no; then
             fi
     done
     if test x_$found_libnghttp2 != x_yes; then
-	AC_ERROR([Could not find libnghttp2, nghttp2.h])
+	AC_MSG_ERROR([Could not find libnghttp2, nghttp2.h])
     fi
     AC_CHECK_HEADERS([nghttp2/nghttp2.h],,, [AC_INCLUDES_DEFAULT])
     AC_CHECK_DECLS([nghttp2_session_server_new], [], [], [AC_INCLUDES_DEFAULT
@@ -1449,8 +1429,7 @@ fi
 # set static linking for uninstalled libraries if requested
 AC_SUBST(staticexe)
 staticexe=""
-AC_ARG_ENABLE(static-exe, AC_HELP_STRING([--enable-static-exe],
-	[ enable to compile executables statically against (event) uninstalled libs, for debug purposes ]),
+AC_ARG_ENABLE(static-exe, AS_HELP_STRING([--enable-static-exe],[ enable to compile executables statically against (event) uninstalled libs, for debug purposes ]),
 	, )
 if test x_$enable_static_exe = x_yes; then
 	staticexe="-static"
@@ -1463,12 +1442,12 @@ if test x_$enable_static_exe = x_yes; then
 			LIBS="$LIBS -lgdi32"
 		fi
 		LIBS="$LIBS -lz"
+		LIBS="$LIBS -l:libssp.a"
 	fi
 fi
 
 # set full static linking if requested
-AC_ARG_ENABLE(fully-static, AC_HELP_STRING([--enable-fully-static],
-	[ enable to compile fully static ]),
+AC_ARG_ENABLE(fully-static, AS_HELP_STRING([--enable-fully-static],[ enable to compile fully static ]),
 	, )
 if test x_$enable_fully_static = x_yes; then
 	staticexe="-all-static"
@@ -1480,12 +1459,12 @@ if test x_$enable_fully_static = x_yes; then
 			LIBS="$LIBS -lgdi32"
 		fi
 		LIBS="$LIBS -lz"
+		LIBS="$LIBS -l:libssp.a"
 	fi
 fi
 
 # set lock checking if requested
-AC_ARG_ENABLE(lock_checks, AC_HELP_STRING([--enable-lock-checks],
-	[ enable to check lock and unlock calls, for debug purposes ]), 
+AC_ARG_ENABLE(lock_checks, AS_HELP_STRING([--enable-lock-checks],[ enable to check lock and unlock calls, for debug purposes ]), 
 	, )
 if test x_$enable_lock_checks = x_yes; then
 	AC_DEFINE(ENABLE_LOCK_CHECKS, 1, [Define if you want to use debug lock checking (slow).])
@@ -1727,7 +1706,7 @@ AC_SUBST(LIBOBJ_WITHOUT_CTIME)
 AC_REPLACE_FUNCS(ctime_r)
 AC_REPLACE_FUNCS(strsep)
 
-AC_ARG_ENABLE(allsymbols, AC_HELP_STRING([--enable-allsymbols], [export all symbols from libunbound and link binaries to it, smaller install size but libunbound export table is polluted by internal symbols]))
+AC_ARG_ENABLE(allsymbols, AS_HELP_STRING([--enable-allsymbols],[export all symbols from libunbound and link binaries to it, smaller install size but libunbound export table is polluted by internal symbols]))
 case "$enable_allsymbols" in
 	yes)
 	COMMON_OBJ_ALL_SYMBOLS=""
@@ -1770,7 +1749,7 @@ dt_DNSTAP([$UNBOUND_RUN_DIR/dnstap.sock],
         AC_DEFINE_UNQUOTED(DNSTAP_SOCKET_PATH,
             ["$hdr_dnstap_socket_path"], [default dnstap socket path])
 	AC_SUBST(DNSTAP_SOCKET_PATH,["$hdr_dnstap_socket_path"])
-
+	AC_SUBST(DNSTAP_SOCKET_TESTBIN,['unbound-dnstap-socket$(EXEEXT)'])
         AC_SUBST([DNSTAP_SRC], ["dnstap/dnstap.c dnstap/dnstap.pb-c.c dnstap/dnstap_fstrm.c dnstap/dtstream.c"])
         AC_SUBST([DNSTAP_OBJ], ["dnstap.lo dnstap.pb-c.lo dnstap_fstrm.lo dtstream.lo"])
     ],
@@ -1793,7 +1772,7 @@ dnsc_DNSCRYPT([
 )
 
 # check for cachedb if requested
-AC_ARG_ENABLE(cachedb, AC_HELP_STRING([--enable-cachedb], [enable cachedb module that can use external cache storage]))
+AC_ARG_ENABLE(cachedb, AS_HELP_STRING([--enable-cachedb],[enable cachedb module that can use external cache storage]))
 # turn on cachedb when hiredis support is enabled.
 if test "$found_libhiredis" = "yes"; then enable_cachedb="yes"; fi
 case "$enable_cachedb" in
@@ -1806,7 +1785,7 @@ case "$enable_cachedb" in
 esac
 
 # check for ipsecmod if requested
-AC_ARG_ENABLE(ipsecmod, AC_HELP_STRING([--enable-ipsecmod], [Enable ipsecmod module that facilitates opportunistic IPsec]))
+AC_ARG_ENABLE(ipsecmod, AS_HELP_STRING([--enable-ipsecmod],[Enable ipsecmod module that facilitates opportunistic IPsec]))
 case "$enable_ipsecmod" in
 	yes)
 		AC_DEFINE([USE_IPSECMOD], [1], [Define to 1 to use ipsecmod support.])
@@ -1821,7 +1800,7 @@ case "$enable_ipsecmod" in
 esac
 
 # check for ipset if requested
-AC_ARG_ENABLE(ipset, AC_HELP_STRING([--enable-ipset], [enable ipset module]))
+AC_ARG_ENABLE(ipset, AS_HELP_STRING([--enable-ipset],[enable ipset module]))
 case "$enable_ipset" in
     yes)
 		AC_DEFINE([USE_IPSET], [1], [Define to 1 to use ipset support])
@@ -1831,8 +1810,7 @@ case "$enable_ipset" in
 		AC_SUBST(IPSET_OBJ)
 
 		# mnl
-		AC_ARG_WITH(libmnl, AC_HELP_STRING([--with-libmnl=path],
-			[specify explicit path for libmnl.]),
+		AC_ARG_WITH(libmnl, AS_HELP_STRING([--with-libmnl=path],[specify explicit path for libmnl.]),
 			[ ],[ withval="yes" ])
 		found_libmnl="no"
 		AC_MSG_CHECKING(for libmnl)
@@ -1853,14 +1831,14 @@ case "$enable_ipset" in
 			fi
 		done
 		if test x_$found_libmnl != x_yes; then
-			AC_ERROR([Could not find libmnl, libmnl.h])
+			AC_MSG_ERROR([Could not find libmnl, libmnl.h])
 		fi
 		;;
     no|*)
     	# nothing
 		;;
 esac
-AC_ARG_ENABLE(explicit-port-randomisation, AC_HELP_STRING([--disable-explicit-port-randomisation], [disable explicit source port randomisation and rely on the kernel to provide random source ports]))
+AC_ARG_ENABLE(explicit-port-randomisation, AS_HELP_STRING([--disable-explicit-port-randomisation],[disable explicit source port randomisation and rely on the kernel to provide random source ports]))
 case "$enable_explicit_port_randomisation" in
 	no)
 		AC_DEFINE([DISABLE_EXPLICIT_PORT_RANDOMISATION], [1], [Define this to enable kernel based UDP source port randomization.])
@@ -1908,8 +1886,7 @@ AC_SUBST(SOURCEFILE)
 # see if we want to build the library or everything
 ALLTARGET="alltargets"
 INSTALLTARGET="install-all"
-AC_ARG_WITH(libunbound-only, AC_HELP_STRING([--with-libunbound-only],
-	[do not build daemon and tool programs]),
+AC_ARG_WITH(libunbound-only, AS_HELP_STRING([--with-libunbound-only],[do not build daemon and tool programs]),
 	[
 	if test "$withval" = "yes"; then
 		ALLTARGET="lib"
@@ -1918,10 +1895,10 @@ AC_ARG_WITH(libunbound-only, AC_HELP_STRING([--with-libunbound-only],
 ])
 if test $ALLTARGET = "alltargets"; then
 	if test $USE_NSS = "yes"; then 
-		AC_ERROR([--with-nss can only be used in combination with --with-libunbound-only.])	
+		AC_MSG_ERROR([--with-nss can only be used in combination with --with-libunbound-only.])	
 	fi
 	if test $USE_NETTLE = "yes"; then
-		AC_ERROR([--with-nettle can only be used in combination with --with-libunbound-only.])	
+		AC_MSG_ERROR([--with-nettle can only be used in combination with --with-libunbound-only.])	
 	fi
 fi
 
@@ -2198,5 +2175,5 @@ AC_SUBST(version, [VERSION_MAJOR.VERSION_MINOR.VERSION_MICRO])
 AC_SUBST(date, [`date +'%b %e, %Y'`])
 
 AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h dnscrypt/dnscrypt_config.h contrib/libunbound.pc contrib/unbound.socket contrib/unbound.service contrib/unbound_portable.service])
-AC_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 AC_OUTPUT

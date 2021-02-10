@@ -321,7 +321,7 @@ static int ipdnametoaddr(uint8_t* dname, size_t dnamelen,
 	struct sockaddr_storage* addr, socklen_t* addrlen, int* af)
 {
 	uint8_t* ia;
-	size_t dnamelabs = dname_count_labels(dname);
+	int dnamelabs = dname_count_labels(dname);
 	uint8_t lablen;
 	char* e = NULL;
 	int z = 0;
