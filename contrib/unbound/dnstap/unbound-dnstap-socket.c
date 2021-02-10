@@ -727,7 +727,7 @@ static ssize_t tap_receive(struct tap_data* data, void* buf, size_t len)
 }
 
 /** delete the tap structure */
-void tap_data_free(struct tap_data* data)
+static void tap_data_free(struct tap_data* data)
 {
 	ub_event_del(data->ev);
 	ub_event_free(data->ev);
@@ -1166,7 +1166,8 @@ int sig_quit = 0;
 /** signal handler for user quit */
 static RETSIGTYPE main_sigh(int sig)
 {
-	verbose(VERB_ALGO, "exit on signal %d\n", sig);
+	if(!sig_quit)
+		fprintf(stderr, "exit on signal %d\n", sig);
 	if(sig_base) {
 		ub_event_base_loopexit(sig_base);
 		sig_base = NULL;
@@ -1354,6 +1355,10 @@ int main(int argc, char** argv)
 struct tube;
 struct query_info;
 #include "util/data/packed_rrset.h"
+#include "daemon/worker.h"
+#include "daemon/remote.h"
+#include "util/fptr_wlist.h"
+#include "libunbound/context.h"
 
 void worker_handle_control_cmd(struct tube* ATTR_UNUSED(tube),
 	uint8_t* ATTR_UNUSED(buffer), size_t ATTR_UNUSED(len),

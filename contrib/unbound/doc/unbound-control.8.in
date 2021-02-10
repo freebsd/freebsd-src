@@ -1,4 +1,4 @@
-.TH "unbound-control" "8" "Dec  3, 2020" "NLnet Labs" "unbound 1.13.0"
+.TH "unbound-control" "8" "Feb  9, 2021" "NLnet Labs" "unbound 1.13.1"
 .\"
 .\" unbound-control.8 -- unbound remote control manual
 .\"
@@ -304,6 +304,12 @@ with \fBflush_zone\fR \fIzone\fR.
 Transfer the auth zone from master.  The auth zone probe sequence is started,
 where the masters are probed to see if they have an updated zone (with the SOA
 serial check).  And then the zone is transferred for a newer zone version.
+.TP
+.B rpz_enable \fIzone\fR
+Enable the RPZ zone if it had previously been disabled.
+.TP
+.B rpz_enable \fIzone\fR
+Disable the RPZ zone.
 .TP
 .B view_list_local_zones \fIview\fR
 \fIlist_local_zones\fR for given view.

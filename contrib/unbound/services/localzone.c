@@ -463,6 +463,48 @@ lz_find_create_node(struct local_zone* z, uint8_t* nm, size_t nmlen,
 	return 1;
 }
 
+/* Mark the SOA record for the zone. This only marks the SOA rrset; the data
+ * for the RR is entered later on local_zone_enter_rr() as with the other
+ * records. An artifical soa_negative record with a modified TTL (minimum of
+ * the TTL and the SOA.MINIMUM) is also created and marked for usage with
+ * negative answers and to avoid allocations during those answers. */
+static int
+lz_mark_soa_for_zone(struct local_zone* z, struct ub_packed_rrset_key* soa_rrset,
+	uint8_t* rdata, size_t rdata_len, time_t ttl, const char* rrstr)
+{
+	struct packed_rrset_data* pd = (struct packed_rrset_data*)
+		regional_alloc_zero(z->region, sizeof(*pd));
+	struct ub_packed_rrset_key* rrset_negative = (struct ub_packed_rrset_key*)
+		regional_alloc_zero(z->region, sizeof(*rrset_negative));
+	time_t minimum;
+	if(!rrset_negative||!pd) {
+		log_err("out of memory");
+		return 0;
+	}
+	/* Mark the original SOA record and then continue with the negative one. */
+	z->soa = soa_rrset;
+	rrset_negative->entry.key = rrset_negative;
+	pd->trust = rrset_trust_prim_noglue;
+	pd->security = sec_status_insecure;
+	rrset_negative->entry.data = pd;
+	rrset_negative->rk.dname = soa_rrset->rk.dname;
+	rrset_negative->rk.dname_len = soa_rrset->rk.dname_len;
+	rrset_negative->rk.type = soa_rrset->rk.type;
+	rrset_negative->rk.rrset_class = soa_rrset->rk.rrset_class;
+	if(!rrset_insert_rr(z->region, pd, rdata, rdata_len, ttl, rrstr))
+		return 0;
+	/* last 4 bytes are minimum ttl in network format */
+	if(pd->count == 0 || pd->rr_len[0] < 2+4)
+		return 0;
+	minimum = (time_t)sldns_read_uint32(pd->rr_data[0]+(pd->rr_len[0]-4));
+	minimum = ttl<minimum?ttl:minimum;
+	pd->ttl = minimum;
+	pd->rr_ttl[0] = minimum;
+
+	z->soa_negative = rrset_negative;
+	return 1;
+}
+
 int
 local_zone_enter_rr(struct local_zone* z, uint8_t* nm, size_t nmlen,
 	int nmlabs, uint16_t rrtype, uint16_t rrclass, time_t ttl,
@@ -502,8 +544,10 @@ local_zone_enter_rr(struct local_zone* z, uint8_t* nm, size_t nmlen,
 		if(query_dname_compare(node->name, z->name) == 0) {
 			if(rrtype == LDNS_RR_TYPE_NSEC)
 			  rrset->rrset->rk.flags = PACKED_RRSET_NSEC_AT_APEX;
-			if(rrtype == LDNS_RR_TYPE_SOA)
-				z->soa = rrset->rrset;
+			if(rrtype == LDNS_RR_TYPE_SOA &&
+				!lz_mark_soa_for_zone(z, rrset->rrset, rdata, rdata_len, ttl,
+					rrstr))
+				return 0;
 		}
 	} 
 	pd = (struct packed_rrset_data*)rrset->rrset->entry.data;
@@ -1215,7 +1259,7 @@ local_encode(struct query_info* qinfo, struct module_env* env,
 	edns->ext_rcode = 0;
 	edns->bits &= EDNS_DO;
 	if(!inplace_cb_reply_local_call(env, qinfo, NULL, &rep, rcode, edns,
-		repinfo, temp) || !reply_info_answer_encode(qinfo, &rep,
+		repinfo, temp, env->now_tv) || !reply_info_answer_encode(qinfo, &rep,
 		*(uint16_t*)sldns_buffer_begin(buf), sldns_buffer_read_u16_at(buf, 2),
 		buf, 0, 0, temp, udpsize, edns, (int)(edns->bits&EDNS_DO), 0)) {
 		error_encode(buf, (LDNS_RCODE_SERVFAIL|BIT_AA), qinfo,
@@ -1237,7 +1281,7 @@ local_error_encode(struct query_info* qinfo, struct module_env* env,
 	edns->bits &= EDNS_DO;
 
 	if(!inplace_cb_reply_local_call(env, qinfo, NULL, NULL,
-		rcode, edns, repinfo, temp))
+		rcode, edns, repinfo, temp, env->now_tv))
 		edns->opt_list = NULL;
 	error_encode(buf, r, qinfo, *(uint16_t*)sldns_buffer_begin(buf),
 		sldns_buffer_read_u16_at(buf, 2), edns);
@@ -1548,9 +1592,9 @@ local_zones_zone_answer(struct local_zone* z, struct module_env* env,
 			lz_type == local_zone_inform_redirect ||
 			lz_type == local_zone_always_nodata)?
 			LDNS_RCODE_NOERROR:LDNS_RCODE_NXDOMAIN;
-		if(z->soa)
+		if(z->soa && z->soa_negative)
 			return local_encode(qinfo, env, edns, repinfo, buf, temp,
-				z->soa, 0, rcode);
+				z->soa_negative, 0, rcode);
 		local_error_encode(qinfo, env, edns, repinfo, buf, temp, rcode,
 			(rcode|BIT_AA));
 		return 1;
@@ -1558,6 +1602,46 @@ local_zones_zone_answer(struct local_zone* z, struct module_env* env,
 		|| lz_type == local_zone_always_transparent) {
 		/* no NODATA or NXDOMAINS for this zone type */
 		return 0;
+	} else if(lz_type == local_zone_always_null) {
+		/* 0.0.0.0 or ::0 or noerror/nodata for this zone type,
+		 * used for blocklists. */
+		if(qinfo->qtype == LDNS_RR_TYPE_A ||
+			qinfo->qtype == LDNS_RR_TYPE_AAAA) {
+			struct ub_packed_rrset_key lrr;
+			struct packed_rrset_data d;
+			time_t rr_ttl = 3600;
+			size_t rr_len = 0;
+			uint8_t rr_data[2+16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+			uint8_t* rr_datas = rr_data;
+			memset(&lrr, 0, sizeof(lrr));
+			memset(&d, 0, sizeof(d));
+			lrr.entry.data = &d;
+			lrr.rk.dname = qinfo->qname;
+			lrr.rk.dname_len = qinfo->qname_len;
+			lrr.rk.type = htons(qinfo->qtype);
+			lrr.rk.rrset_class = htons(qinfo->qclass);
+			if(qinfo->qtype == LDNS_RR_TYPE_A) {
+				rr_len = 4;
+				sldns_write_uint16(rr_data, rr_len);
+				rr_len += 2;
+			} else {
+				rr_len = 16;
+				sldns_write_uint16(rr_data, rr_len);
+				rr_len += 2;
+			}
+			d.ttl = rr_ttl;
+			d.count = 1;
+			d.rr_len = &rr_len;
+			d.rr_data = &rr_datas;
+			d.rr_ttl = &rr_ttl;
+			return local_encode(qinfo, env, edns, repinfo, buf, temp,
+				&lrr, 1, LDNS_RCODE_NOERROR);
+		} else {
+			local_error_encode(qinfo, env, edns, repinfo, buf,
+				temp, LDNS_RCODE_NOERROR,
+				(LDNS_RCODE_NOERROR|BIT_AA));
+		}
+		return 1;
 	}
 	/* else lz_type == local_zone_transparent */
 
@@ -1565,9 +1649,9 @@ local_zones_zone_answer(struct local_zone* z, struct module_env* env,
 	 * does not, then we should make this noerror/nodata */
 	if(ld && ld->rrsets) {
 		int rcode = LDNS_RCODE_NOERROR;
-		if(z->soa)
+		if(z->soa && z->soa_negative)
 			return local_encode(qinfo, env, edns, repinfo, buf, temp,
-				z->soa, 0, rcode);
+				z->soa_negative, 0, rcode);
 		local_error_encode(qinfo, env, edns, repinfo, buf, temp, rcode,
 			(rcode|BIT_AA));
 		return 1;
@@ -1762,6 +1846,7 @@ const char* local_zone_type2str(enum localzone_type t)
 		case local_zone_always_nxdomain: return "always_nxdomain";
 		case local_zone_always_nodata: return "always_nodata";
 		case local_zone_always_deny: return "always_deny";
+		case local_zone_always_null: return "always_null";
 		case local_zone_noview: return "noview";
 		case local_zone_invalid: return "invalid";
 	}
@@ -1798,6 +1883,8 @@ int local_zone_str2type(const char* type, enum localzone_type* t)
 		*t = local_zone_always_nodata;
 	else if(strcmp(type, "always_deny") == 0)
 		*t = local_zone_always_deny;
+	else if(strcmp(type, "always_null") == 0)
+		*t = local_zone_always_null;
 	else if(strcmp(type, "noview") == 0)
 		*t = local_zone_noview;
 	else if(strcmp(type, "nodefault") == 0)
@@ -2000,8 +2087,10 @@ void local_zones_del_data(struct local_zones* zones,
 		/* no memory recycling for zone deletions ... */
 		d->rrsets = NULL;
 		/* did we delete the soa record ? */
-		if(query_dname_compare(d->name, z->name) == 0)
+		if(query_dname_compare(d->name, z->name) == 0) {
 			z->soa = NULL;
+			z->soa_negative = NULL;
+		}
 
 		/* cleanup the empty nonterminals for this name */
 		del_empty_term(z, d, name, len, labs);

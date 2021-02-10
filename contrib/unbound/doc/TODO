@@ -14,7 +14,6 @@ o (option) store primed key data in a overlaid keyhints file (sort of like draft
 o windows version, auto update feature, a query to check for the version.
 o command the server with TSIG inband. get-config, clearcache, 
 	get stats, get memstats, get ..., reload, clear one zone from cache
-o NSID rfc 5001 support.
 o timers rfc 5011 support.
 o Treat YXDOMAIN from a DNAME properly, in iterator (not throwaway), validator.
 o make timeout backoffs randomized (a couple percent random) to spread traffic.

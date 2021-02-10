@@ -502,6 +502,8 @@ struct serviced_query {
 	struct service_callback* cblist;
 	/** the UDP or TCP query that is pending, see status which */
 	void* pending;
+	/** block size with which to pad encrypted queries (default: 128) */
+	size_t padding_block_size;
 };
 
 /**

@@ -96,6 +96,9 @@ enum localzone_type {
 	local_zone_always_nodata,
 	/** drop query, even when there is local data */
 	local_zone_always_deny,
+	/** answer with 0.0.0.0 or ::0 or noerror/nodata, even when there is
+	 * local data */
+	local_zone_always_null,
 	/** answer not from the view, but global or no-answer */
 	local_zone_noview,
 	/** Invalid type, cannot be used to generate answer */
@@ -155,6 +158,10 @@ struct local_zone {
 	rbtree_type data;
 	/** if data contains zone apex SOA data, this is a ptr to it. */
 	struct ub_packed_rrset_key* soa;
+	/** if data contains zone apex SOA data, this is a prt to an
+	 * artificial negative SOA rrset (TTL is the minimum of the TTL and the
+	 * SOA.MINIMUM). */
+	struct ub_packed_rrset_key* soa_negative;
 };
 
 /**

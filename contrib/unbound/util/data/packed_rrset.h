@@ -233,6 +233,9 @@ enum sec_status {
  *	the ttl value to send changes due to time.
  */
 struct packed_rrset_data {
+	/** Timestamp added to TTLs in the packed data.
+	 * Needed to support serving original TTLs. */
+	time_t ttl_add;
 	/** TTL (in seconds like time()) of the rrset.
 	 * Same for all RRs see rfc2181(5.2).  */
 	time_t ttl;

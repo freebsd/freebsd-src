@@ -99,6 +99,7 @@ struct rpz {
 	int log;
 	char* log_name;
 	struct regional* region;
+	int disabled;
 };
 
 /**
@@ -197,5 +198,17 @@ void rpz_finish_config(struct rpz* r);
  */
 enum respip_action
 rpz_action_to_respip_action(enum rpz_action a);
+
+/**
+ * Enable RPZ
+ * @param r: RPZ struct to enable
+ */
+void rpz_enable(struct rpz* r);
+
+/**
+ * Disable RPZ
+ * @param r: RPZ struct to disable
+ */
+void rpz_disable(struct rpz* r);
 
 #endif /* SERVICES_RPZ_H */

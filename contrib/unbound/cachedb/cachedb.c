@@ -465,6 +465,7 @@ packed_rrset_ttl_subtract(struct packed_rrset_data* data, time_t subtract)
 			data->rr_ttl[i] -= subtract;
 		else	data->rr_ttl[i] = 0;
 	}
+	data->ttl_add = (subtract < data->ttl_add) ? (data->ttl_add - subtract) : 0;
 }
 
 /* Adjust the TTL of a DNS message and its RRs by 'adjust'.  If 'adjust' is
