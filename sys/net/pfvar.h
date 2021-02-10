@@ -39,6 +39,7 @@
 #include <sys/queue.h>
 #include <sys/counter.h>
 #include <sys/cpuset.h>
+#include <sys/epoch.h>
 #include <sys/malloc.h>
 #include <sys/nv.h>
 #include <sys/refcount.h>
@@ -624,6 +625,8 @@ struct pf_keth_settings {
 	struct pf_keth_rules	rules;
 	uint32_t		ticket;
 	int			open;
+	struct vnet		*vnet;
+	struct epoch_context	epoch_ctx;
 };
 
 union pf_krule_ptr {

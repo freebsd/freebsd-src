@@ -154,6 +154,7 @@ pf_init_keth(struct pf_keth_settings *settings)
 	TAILQ_INIT(&settings->rules);
 	settings->ticket = 0;
 	settings->open = 0;
+	settings->vnet = curvnet;
 }
 
 struct pf_kruleset *
