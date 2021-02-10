@@ -36,5 +36,8 @@
  * $FreeBSD$
  */
 #pragma once
-/* This can be empty when building the FreeBSD compatible bootstrap files */
+
+/* Undo the changes made by namespace.h */
+#undef	err
+#undef	warn
 
