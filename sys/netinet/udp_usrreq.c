@@ -610,9 +610,11 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 						    uh);
 					if (udp_append(last, ip, n, iphlen,
 						udp_in)) {
-						goto inp_lost;
+						INP_RUNLOCK(inp);
+						goto badunlocked;
 					}
 				}
+				/* Release PCB lock taken on previous pass. */
 				INP_RUNLOCK(last);
 			}
 			last = inp;
@@ -635,9 +637,11 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			 * to send an ICMP Port Unreachable for a broadcast
 			 * or multicast datgram.)
 			 */
-			UDPSTAT_INC(udps_noportbcast);
-			if (inp)
-				INP_RUNLOCK(inp);
+			UDPSTAT_INC(udps_noport);
+			if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)))
+				UDPSTAT_INC(udps_noportmcast);
+			else
+				UDPSTAT_INC(udps_noportbcast);
 			goto badunlocked;
 		}
 		if (proto == IPPROTO_UDPLITE)
@@ -646,7 +650,6 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			UDP_PROBE(receive, NULL, last, ip, last, uh);
 		if (udp_append(last, ip, m, iphlen, udp_in) == 0)
 			INP_RUNLOCK(last);
-	inp_lost:
 		return (IPPROTO_DONE);
 	}
 
