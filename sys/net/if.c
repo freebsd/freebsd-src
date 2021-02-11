@@ -1953,6 +1953,7 @@ ifa_ifwithnet(const struct sockaddr *addr, int ignore_ptp, int fibnum)
 	struct ifaddr *ifa_maybe = NULL;
 	u_int af = addr->sa_family;
 	const char *addr_data = addr->sa_data, *cplim;
+	const struct sockaddr_dl *sdl;
 
 	NET_EPOCH_ASSERT();
 	/*
@@ -1960,9 +1961,14 @@ ifa_ifwithnet(const struct sockaddr *addr, int ignore_ptp, int fibnum)
 	 * so do that if we can.
 	 */
 	if (af == AF_LINK) {
-	    const struct sockaddr_dl *sdl = (const struct sockaddr_dl *)addr;
-	    if (sdl->sdl_index && sdl->sdl_index <= V_if_index)
-		return (ifaddr_byindex(sdl->sdl_index));
+		sdl = (const struct sockaddr_dl *)addr;
+		if (sdl->sdl_index && sdl->sdl_index <= V_if_index) {
+			ifp = ifnet_byindex(sdl->sdl_index);
+			if (ifp == NULL)
+				return (NULL);
+
+			return (ifp->if_addr);
+		}
 	}
 
 	/*
