@@ -171,7 +171,6 @@ static void	iscsi_pdu_handle_reject(struct icl_pdu *response);
 static void	iscsi_session_reconnect(struct iscsi_session *is);
 static void	iscsi_session_terminate(struct iscsi_session *is);
 static void	iscsi_action(struct cam_sim *sim, union ccb *ccb);
-static void	iscsi_poll(struct cam_sim *sim);
 static struct iscsi_outstanding	*iscsi_outstanding_find(struct iscsi_session *is,
 		    uint32_t initiator_task_tag);
 static struct iscsi_outstanding	*iscsi_outstanding_add(struct iscsi_session *is,
@@ -1491,7 +1490,7 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 			return (ENOMEM);
 		}
 
-		is->is_sim = cam_sim_alloc(iscsi_action, iscsi_poll, "iscsi",
+		is->is_sim = cam_sim_alloc(iscsi_action, NULL, "iscsi",
 		    is, is->is_id /* unit */, &is->is_lock,
 		    1, ic->ic_maxtags, is->is_devq);
 		if (is->is_sim == NULL) {
@@ -2460,13 +2459,6 @@ iscsi_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	xpt_done(ccb);
-}
-
-static void
-iscsi_poll(struct cam_sim *sim)
-{
-
-	KASSERT(0, ("%s: you're not supposed to be here", __func__));
 }
 
 static void
