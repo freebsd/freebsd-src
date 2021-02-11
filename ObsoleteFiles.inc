@@ -52,6 +52,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20230203: loader help files renamed
+OLD_FILES+=boot/loader.help
+
 # 20230201: timeout moved from /usr/bin to /bin
 OLD_FILES+=usr/tests/usr.bin/timeout/Kyuafile
 OLD_FILES+=usr/tests/usr.bin/timeout/timeout_test
