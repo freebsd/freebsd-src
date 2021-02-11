@@ -1880,7 +1880,8 @@ adaregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_close = adaclose;
 	softc->disk->d_strategy = adastrategy;
 	softc->disk->d_getattr = adagetattr;
-	softc->disk->d_dump = adadump;
+	if (cam_sim_pollable(periph->sim))
+		softc->disk->d_dump = adadump;
 	softc->disk->d_gone = adadiskgonecb;
 	softc->disk->d_name = "ada";
 	softc->disk->d_drv1 = periph;
