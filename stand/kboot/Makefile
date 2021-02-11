@@ -44,6 +44,8 @@ CFLAGS+=        -I${SYSDIR}/contrib/openzfs/include/os/freebsd/zfs
 HAVE_ZFS=yes
 .endif
 
+HELP_FILENAME=	loader.help.kboot
+
 .include	"${BOOTSRC}/fdt.mk"
 
 # We share bootinfo.c with efi
