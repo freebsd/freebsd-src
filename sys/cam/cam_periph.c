@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_ccb.h>
 #include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
+#include <cam/cam_xpt_internal.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_debug.h>
 #include <cam/cam_sim.h>
@@ -1247,7 +1248,10 @@ cam_periph_runccb(union ccb *ccb,
 	 * in the do loop below.
 	 */
 	if (must_poll) {
-		timeout = xpt_poll_setup(ccb);
+		if (cam_sim_pollable(ccb->ccb_h.path->bus->sim))
+			timeout = xpt_poll_setup(ccb);
+		else
+			timeout = 0;
 	}
 
 	if (timeout == 0) {

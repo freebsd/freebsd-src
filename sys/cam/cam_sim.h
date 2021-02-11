@@ -142,5 +142,11 @@ cam_sim_bus(const struct cam_sim *sim)
 	return (sim->bus_id);
 }
 
+static __inline bool
+cam_sim_pollable(const struct cam_sim *sim)
+{
+	return (sim->sim_poll != NULL);
+}
+
 #endif /* _KERNEL */
 #endif /* _CAM_CAM_SIM_H */
