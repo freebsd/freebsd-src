@@ -1,11 +1,11 @@
 dnl
 dnl RCSid:
-dnl	$Id: configure.in,v 1.69 2020/11/14 07:40:43 sjg Exp $
+dnl	$Id: configure.in,v 1.70 2021/02/01 18:29:26 sjg Exp $
 dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 AC_PREREQ(2.50)
-AC_INIT([bmake], [20201112], [sjg@NetBSD.org])
+AC_INIT([bmake], [20210201], [sjg@NetBSD.org])
 AC_CONFIG_HEADERS(config.h)
 
 dnl make srcdir absolute
@@ -184,6 +184,17 @@ AC_TYPE_UINT32_T
 AC_DECL_SYS_SIGLIST
 AC_HEADER_TIME
 AC_STRUCT_TM
+
+dnl we need sig_atomic_t
+AH_TEMPLATE([sig_atomic_t],[type that signal handlers can safely frob])
+AC_CHECK_TYPE(sig_atomic_t,,[
+AC_DEFINE([sig_atomic_t],[int],)
+],[
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#include <signal.h>
+])
 
 dnl Checks for library functions.
 AC_TYPE_SIGNAL

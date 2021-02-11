@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.131 2021/01/07 00:57:51 sjg Exp $
+# $Id: dirdeps.mk,v 1.133 2021/01/31 04:39:22 sjg Exp $
 
 # Copyright (c) 2010-2021, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
@@ -265,8 +265,8 @@ N_notmachine := ${.MAKE.DEPENDFILE_PREFERENCE:E:N*${MACHINE}*:${M_ListToSkip}}
 
 # if we were included recursively _DEP_TARGET_SPEC should be valid.
 .if empty(_DEP_TARGET_SPEC)
-# if not, just use TARGET_SPEC
-_DEP_TARGET_SPEC := ${TARGET_SPEC}
+DEP_MACHINE = ${TARGET_MACHINE:U${MACHINE}}
+_DEP_TARGET_SPEC := ${DEP_TARGET_SPEC}
 .if ${.INCLUDEDFROMFILE:U:M${.MAKE.DEPENDFILE_PREFIX}*} != ""
 # record that we've read dependfile for this
 _dirdeps_checked.${_CURDIR}.${TARGET_SPEC}:
@@ -386,8 +386,10 @@ DIRDEP_LOADAVG_LAST = 0
 # yes the expression here is a bit complicated,
 # the trick is to only eval ${DIRDEP_LOADAVG_LAST::=${now_utc}}
 # when we want to report.
+# Note: expr(1) will exit 1 if the expression evaluates to 0
+# hence the  || true
 DIRDEP_LOADAVG_REPORT = \
-	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTEVAL:U60} - ${DIRDEP_LOADAVG_LAST}:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
+	test -z "${"${expr ${now_utc} - ${DIRDEP_LOADAVG_INTEVAL:U60} - ${DIRDEP_LOADAVG_LAST} || true:L:sh:N-*}":?yes${DIRDEP_LOADAVG_LAST::=${now_utc}}:}" || \
 	echo "${TRACER}`${DIRDEP_LOADAVG_CMD}`"
 
 # we suppress SUBDIR when visiting the leaves

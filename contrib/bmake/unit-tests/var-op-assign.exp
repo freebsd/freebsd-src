@@ -1,5 +1,5 @@
 this will be evaluated later
-make: "var-op-assign.mk" line 59: Need an operator
+make: "var-op-assign.mk" line 59: Invalid line type
 make: "var-op-assign.mk" line 93: Parsing still continues until here.
 make: Fatal errors encountered -- cannot continue
 make: stopped in unit-tests

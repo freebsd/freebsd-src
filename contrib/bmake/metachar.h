@@ -1,6 +1,6 @@
-/*	$NetBSD: metachar.h,v 1.13 2021/01/10 21:20:46 rillig Exp $	*/
+/*	$NetBSD: metachar.h,v 1.15 2021/01/19 20:51:46 rillig Exp $	*/
 
-/*-
+/*
  * Copyright (c) 2015 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -37,7 +37,7 @@ extern unsigned char _metachar[];
 
 #define is_shell_metachar(c)	(_metachar[(c) & 0x7f] != 0)
 
-MAKE_INLINE int
+MAKE_INLINE Boolean
 needshell(const char *cmd)
 {
 	while (!is_shell_metachar(*cmd) && *cmd != ':' && *cmd != '=')

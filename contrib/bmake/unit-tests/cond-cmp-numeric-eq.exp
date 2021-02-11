@@ -1,4 +1,3 @@
-make: "cond-cmp-numeric-eq.mk" line 67: warning: Unknown operator
 make: "cond-cmp-numeric-eq.mk" line 67: Malformed conditional (!(12345 = 12345))
 make: "cond-cmp-numeric-eq.mk" line 74: Malformed conditional (!(12345 === 12345))
 make: Fatal errors encountered -- cannot continue

@@ -15,40 +15,40 @@ Global:_ = before ${UNDEF} after
 ParseReadLine (137): '_:=	before ${UNDEF:${:US,a,a,}} after'
 Var_Parse: ${UNDEF:${:US,a,a,}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
 Var_Parse: ${:US,a,a,}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
-Applying ${:U...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
-Result of ${:US,a,a,} is "S,a,a," (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
+Result of ${:US,a,a,} is "S,a,a," (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_DEF)
 Indirect modifier "S,a,a," from "${:US,a,a,}"
-Applying ${UNDEF:S...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
+Applying ${UNDEF:S...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
 Modifier part: "a"
 Modifier part: "a"
 ModifyWords: split "" into 1 words
-Result of ${UNDEF:S,a,a,} is "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
+Result of ${UNDEF:S,a,a,} is "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
 Var_Parse: ${:US,a,a,}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
-Applying ${:U...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
-Result of ${:US,a,a,} is "S,a,a," (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
+Result of ${:US,a,a,} is "S,a,a," (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_DEF)
 Global:_ = before ${UNDEF:S,a,a,} after
 ParseReadLine (147): '_:=	before ${UNDEF:${:U}} after'
 Var_Parse: ${UNDEF:${:U}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
 Var_Parse: ${:U}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
-Applying ${:U} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
-Result of ${:U} is "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_DEF)
 Indirect modifier "" from "${:U}"
 Var_Parse: ${:U}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
-Applying ${:U} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
-Result of ${:U} is "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_DEF)
 Global:_ = before ${UNDEF:} after
 ParseReadLine (152): '_:=	before ${UNDEF:${:UZ}} after'
 Var_Parse: ${UNDEF:${:UZ}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
 Var_Parse: ${:UZ}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
-Applying ${:U...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
-Result of ${:UZ} is "Z" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
+Result of ${:UZ} is "Z" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_DEF)
 Indirect modifier "Z" from "${:UZ}"
-Applying ${UNDEF:Z} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
+Applying ${UNDEF:Z} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
 make: "varmod-indirect.mk" line 152: Unknown modifier 'Z'
-Result of ${UNDEF:Z} is error (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
+Result of ${UNDEF:Z} is error (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
 Var_Parse: ${:UZ}} after with VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF
-Applying ${:U...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF)
-Result of ${:UZ} is "Z" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_UNDEF)
+Result of ${:UZ} is "Z" (VARE_WANTRES|VARE_KEEP_DOLLAR|VARE_KEEP_UNDEF, none, VES_DEF)
 Global:_ = before ${UNDEF:Z} after
 ParseReadLine (154): '.MAKEFLAGS: -d0'
 ParseDoDependency(.MAKEFLAGS: -d0)

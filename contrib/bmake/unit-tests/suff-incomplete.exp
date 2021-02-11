@@ -18,8 +18,8 @@ defining transformation from `.a' to `.c'
 inserting ".a" (1) at end of list
 inserting ".c" (3) at end of list
 # LinkSource: added child .a.c - ${.PREFIX}.dependency
-# .a.c, made UNMADE, type OP_DEPENDS|OP_TRANSFORM, flags none
-# ${.PREFIX}.dependency, made UNMADE, type none, flags none
+# .a.c, unmade, type OP_DEPENDS|OP_TRANSFORM, flags none
+# ${.PREFIX}.dependency, unmade, type none, flags none
 ParseReadLine (23): '.DEFAULT:'
 transformation .a.c complete
 ParseDoDependency(.DEFAULT:)

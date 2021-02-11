@@ -1,7 +1,5 @@
-make: "cond-func-defined.mk" line 23: warning: Missing closing parenthesis for defined()
-make: "cond-func-defined.mk" line 23: Malformed conditional (!defined(A B))
-make: "cond-func-defined.mk" line 33: warning: Missing closing parenthesis for defined()
-make: "cond-func-defined.mk" line 33: Malformed conditional (defined(DEF)
+make: "cond-func-defined.mk" line 23: Missing closing parenthesis for defined()
+make: "cond-func-defined.mk" line 33: Missing closing parenthesis for defined()
 make: "cond-func-defined.mk" line 45: In .for loops, variable expressions for the loop variables are
 make: "cond-func-defined.mk" line 46: substituted at evaluation time.  There is no actual variable
 make: "cond-func-defined.mk" line 47: involved, even if it feels like it.

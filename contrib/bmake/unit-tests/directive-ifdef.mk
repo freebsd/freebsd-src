@@ -1,4 +1,4 @@
-# $NetBSD: directive-ifdef.mk,v 1.3 2020/11/08 22:38:28 rillig Exp $
+# $NetBSD: directive-ifdef.mk,v 1.4 2021/01/21 23:03:41 rillig Exp $
 #
 # Tests for the .ifdef directive.
 
@@ -10,6 +10,21 @@ DEFINED=	defined
 # possible.  The .ifdef only affects plain symbols, not function calls.
 .ifdef defined(DEFINED)
 .  info Function calls in .ifdef are possible.
+.else
+.  error
+.endif
+
+# String literals are handled the same in all variants of the .if directive.
+# They evaluate to true if they are not empty.  Whitespace counts as non-empty
+# as well.
+.ifdef ""
+.  error
+.else
+.  info String literals are tested for emptiness.
+.endif
+
+.ifdef " "
+.  info String literals are tested for emptiness.  Whitespace is non-empty.
 .else
 .  error
 .endif

@@ -1,4 +1,4 @@
-# $NetBSD: varparse-dynamic.mk,v 1.3 2020/11/21 15:48:05 rillig Exp $
+# $NetBSD: varparse-dynamic.mk,v 1.4 2021/02/04 21:42:47 rillig Exp $
 
 # Before 2020-07-27, there was an off-by-one error in Var_Parse that skipped
 # the last character in the variable name.
@@ -11,7 +11,7 @@
 .endif
 
 # When a dynamic variable (such as .TARGET) is evaluated in the global
-# context, it is not yet ready to be expanded.  Therefore the complete
+# scope, it is not yet ready to be expanded.  Therefore the complete
 # expression is returned as the variable value, hoping that it can be
 # resolved at a later point.
 #
@@ -21,7 +21,7 @@
 .  error
 .endif
 
-# If a dynamic variable is expanded in a non-local context, the expression
+# If a dynamic variable is expanded in a non-local scope, the expression
 # based on this variable is not expanded.  But there may be nested variable
 # expressions in the modifiers, and these are kept unexpanded as well.
 .if ${.TARGET:M${:Ufallback}} != "\${.TARGET:M\${:Ufallback}}"

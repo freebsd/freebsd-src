@@ -1,2 +1,4 @@
 make: "directive-ifdef.mk" line 12: Function calls in .ifdef are possible.
+make: "directive-ifdef.mk" line 23: String literals are tested for emptiness.
+make: "directive-ifdef.mk" line 27: String literals are tested for emptiness.  Whitespace is non-empty.
 exit status 0

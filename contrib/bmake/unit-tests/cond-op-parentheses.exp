@@ -1,2 +1,6 @@
 make: "cond-op-parentheses.mk" line 13: Parentheses can be nested at least to depth 112.
-exit status 0
+make: "cond-op-parentheses.mk" line 19: Malformed conditional (()
+make: "cond-op-parentheses.mk" line 29: Malformed conditional ())
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

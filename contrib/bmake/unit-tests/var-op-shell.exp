@@ -1,7 +1,7 @@
 make: "var-op-shell.mk" line 28: warning: "echo "failed"; false" returned non-zero status
 make: "var-op-shell.mk" line 34: warning: "false" returned non-zero status
-make: "var-op-shell.mk" line 59: warning: "kill -14 $$" exited on a signal
+make: "var-op-shell.mk" line 56: warning: "kill $$" exited on a signal
 /bin/no/such/command: not found
-make: "var-op-shell.mk" line 65: warning: "/bin/no/such/command" returned non-zero status
+make: "var-op-shell.mk" line 62: warning: "/bin/no/such/command" returned non-zero status
 stderr
 exit status 0

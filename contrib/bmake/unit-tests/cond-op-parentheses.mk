@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-parentheses.mk,v 1.3 2020/11/15 14:58:14 rillig Exp $
+# $NetBSD: cond-op-parentheses.mk,v 1.4 2021/01/19 17:49:13 rillig Exp $
 #
 # Tests for parentheses in .if conditions.
 
@@ -11,6 +11,23 @@
 	))))))))))))))))))))))))))))))))))))))))))))))))))))))))	\
 	))))))))))))))))))))))))))))))))))))))))))))))))))))))))
 .  info Parentheses can be nested at least to depth 112.
+.else
+.  error
+.endif
+
+# An unbalanced opening parenthesis is a parse error.
+.if (
+.  error
+.else
+.  error
+.endif
+
+# An unbalanced closing parenthesis is a parse error.
+#
+# As of 2021-01-19, CondParser_Term returned TOK_RPAREN even though this
+# function promised to only ever return TOK_TRUE, TOK_FALSE or TOK_ERROR.
+.if )
+.  error
 .else
 .  error
 .endif

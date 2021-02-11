@@ -1,4 +1,4 @@
-# $NetBSD: cond-op-not.mk,v 1.6 2020/11/15 14:58:14 rillig Exp $
+# $NetBSD: cond-op-not.mk,v 1.7 2021/01/19 17:49:13 rillig Exp $
 #
 # Tests for the ! operator in .if conditions, which negates its argument.
 
@@ -53,6 +53,13 @@
 .  info Not word evaluates to true.
 .else
 .  info Not word evaluates to false.
+.endif
+
+# A single exclamation mark is a parse error.
+.if !
+.  error
+.else
+.  error
 .endif
 
 all:

@@ -1,6 +1,10 @@
-# $NetBSD: cond-token-string.mk,v 1.3 2020/11/10 22:23:37 rillig Exp $
+# $NetBSD: cond-token-string.mk,v 1.4 2021/01/21 00:38:28 rillig Exp $
 #
-# Tests for quoted and unquoted string literals in .if conditions.
+# Tests for quoted string literals in .if conditions.
+#
+# See also:
+#	cond-token-plain.mk
+#		Covers string literals without quotes (called "bare words").
 
 # TODO: Implementation
 
@@ -34,6 +38,45 @@
 .else
 .  error
 .endif
+
+.MAKEFLAGS: -dc
+
+# A string in quotes is checked whether it is not empty.
+.if "UNDEF"
+.  info The string literal "UNDEF" is not empty.
+.else
+.  error
+.endif
+
+# A space is not empty as well.
+# This differs from many other places where whitespace is trimmed.
+.if " "
+.  info The string literal " " is not empty, even though it consists of $\
+	whitespace only.
+.else
+.  error
+.endif
+
+.if "${UNDEF}"
+.  error
+.else
+.  info An undefined variable in quotes expands to an empty string, which $\
+	then evaluates to false.
+.endif
+
+.if "${:Uvalue}"
+.  info A nonempty variable expression evaluates to true.
+.else
+.  error
+.endif
+
+.if "${:U}"
+.  error
+.else
+.  info An empty variable evaluates to false.
+.endif
+
+.MAKEFLAGS: -d0
 
 all:
 	@:;

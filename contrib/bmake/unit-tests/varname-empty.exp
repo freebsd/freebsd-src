@@ -1,13 +1,47 @@
+Var_Parse: ${:U} with VARE_WANTRES
+Applying ${:U} to "" (VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_WANTRES, none, VES_DEF)
 Var_Set("${:U}", "cmdline-u", ...) name expands to empty string - ignored
 Var_Set("", "cmdline-plain", ...) name expands to empty string - ignored
+Global:.CURDIR = <curdir>
+Var_Parse: ${MAKE_OBJDIR_CHECK_WRITABLE:U} with VARE_WANTRES
+Applying ${MAKE_OBJDIR_CHECK_WRITABLE:U} to "" (VARE_WANTRES, none, VES_UNDEF)
+Result of ${MAKE_OBJDIR_CHECK_WRITABLE:U} is "" (VARE_WANTRES, none, VES_DEF)
+Global:.OBJDIR = <curdir>
+Global:delete .PATH (not found)
+Global:.PATH = .
+Global:.PATH = . <curdir>
+Global:.TARGETS = 
+Internal:MAKEFILE = varname-empty.mk
+Global:.MAKE.MAKEFILES = varname-empty.mk
+Global:.PARSEFILE = varname-empty.mk
+Global:delete .INCLUDEDFROMDIR (not found)
+Global:delete .INCLUDEDFROMFILE (not found)
 Var_Set("", "default", ...) name expands to empty string - ignored
 Var_Set("", "assigned", ...) name expands to empty string - ignored
-Var_Set("", "appended", ...) name expands to empty string - ignored
+SetVar: variable name is empty - ignored
 Var_Set("", "", ...) name expands to empty string - ignored
 Var_Set("", "subst", ...) name expands to empty string - ignored
 Var_Set("", "shell-output", ...) name expands to empty string - ignored
+Var_Parse: ${:Ufallback} != "fallback" with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:Ufallback} is "fallback" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
+Var_Parse: ${:U} with VARE_WANTRES
+Applying ${:U} to "" (VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_WANTRES, none, VES_DEF)
 Var_Set("${:U}", "assigned indirectly", ...) name expands to empty string - ignored
-Var_Set("", "assigned", ...) name expands to empty string - ignored
+Var_Parse: ${:Ufallback} != "fallback" with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:Ufallback} is "fallback" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
+Var_Parse: ${:U} with VARE_WANTRES
+Applying ${:U} to "" (VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_WANTRES, none, VES_DEF)
+Var_Append("${:U}", "appended indirectly", ...) name expands to empty string - ignored
+Var_Parse: ${:Ufallback} != "fallback" with VARE_UNDEFERR|VARE_WANTRES
+Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:Ufallback} is "fallback" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
+Global:.MAKEFLAGS =  -r -d v -d
+Global:.MAKEFLAGS =  -r -d v -d 0
 out: fallback
 out: 1 2 3
 exit status 0

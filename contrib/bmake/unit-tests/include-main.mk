@@ -1,4 +1,4 @@
-# $NetBSD: include-main.mk,v 1.5 2020/09/05 18:18:05 rillig Exp $
+# $NetBSD: include-main.mk,v 1.6 2021/01/22 00:44:55 rillig Exp $
 #
 # Until 2020-09-05, the .INCLUDEDFROMFILE magic variable did not behave
 # as described in the manual page.
@@ -17,7 +17,7 @@
 .endif
 
 .for i in once
-.  if !defined(${.INCLUDEDFROMFILE})
+.  if !defined(.INCLUDEDFROMFILE)
 .    info main-before-for-ok
 .  else
 .    warning main-before-for-fail(${.INCLUDEDFROMFILE})
@@ -33,7 +33,7 @@
 .endif
 
 .for i in once
-.  if !defined(${.INCLUDEDFROMFILE})
+.  if !defined(.INCLUDEDFROMFILE)
 .    info main-after-for-ok
 .  else
 .    warning main-after-for-fail(${.INCLUDEDFROMFILE})

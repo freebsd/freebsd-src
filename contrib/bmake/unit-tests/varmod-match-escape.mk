@@ -1,4 +1,4 @@
-# $NetBSD: varmod-match-escape.mk,v 1.5 2020/11/01 19:49:28 rillig Exp $
+# $NetBSD: varmod-match-escape.mk,v 1.6 2021/02/01 22:36:28 rillig Exp $
 #
 # As of 2020-08-01, the :M and :N modifiers interpret backslashes differently,
 # depending on whether there was a variable expression somewhere before the
@@ -67,6 +67,24 @@ VALUES=		: :: :\:
 .if ${:U\$:M\$} != ""
 .  error
 .endif
+
+# The control flow of the pattern parser depends on the actual string that
+# is being matched.  There needs to be either a test that shows a difference
+# in behavior, or a proof that the behavior does not depend on the actual
+# string.
+#
+# TODO: Str_Match("a-z]", "[a-z]")
+# TODO: Str_Match("012", "[0-]]")
+# TODO: Str_Match("0]", "[0-]]")
+# TODO: Str_Match("1]", "[0-]]")
+# TODO: Str_Match("[", "[[]")
+# TODO: Str_Match("]", "[]")
+# TODO: Str_Match("]", "[[-]]")
+
+# In brackets, the backslash is just an ordinary character.
+# Outside brackets, it is an escape character for a few special characters.
+# TODO: Str_Match("\\", "[\\-]]")
+# TODO: Str_Match("-]", "[\\-]]")
 
 all:
 	@:;

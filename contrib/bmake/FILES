@@ -83,6 +83,8 @@ unit-tests/cmd-errors.exp
 unit-tests/cmd-errors.mk
 unit-tests/cmd-interrupt.exp
 unit-tests/cmd-interrupt.mk
+unit-tests/cmdline-redirect-stdin.exp
+unit-tests/cmdline-redirect-stdin.mk
 unit-tests/cmdline-undefined.exp
 unit-tests/cmdline-undefined.mk
 unit-tests/cmdline.exp
@@ -397,6 +399,8 @@ unit-tests/job-flags.exp
 unit-tests/job-flags.mk
 unit-tests/job-output-long-lines.exp
 unit-tests/job-output-long-lines.mk
+unit-tests/jobs-empty-commands.exp
+unit-tests/jobs-empty-commands.mk
 unit-tests/jobs-error-indirect.exp
 unit-tests/jobs-error-indirect.mk
 unit-tests/jobs-error-nested-make.exp
@@ -501,6 +505,8 @@ unit-tests/opt-no-action-at-all.exp
 unit-tests/opt-no-action-at-all.mk
 unit-tests/opt-no-action-runflags.exp
 unit-tests/opt-no-action-runflags.mk
+unit-tests/opt-no-action-touch.exp
+unit-tests/opt-no-action-touch.mk
 unit-tests/opt-no-action.exp
 unit-tests/opt-no-action.mk
 unit-tests/opt-query.exp

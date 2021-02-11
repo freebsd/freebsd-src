@@ -1,4 +1,4 @@
-# $NetBSD: varmod-localtime.mk,v 1.7 2020/12/22 07:22:39 rillig Exp $
+# $NetBSD: varmod-localtime.mk,v 1.8 2021/01/19 05:26:34 rillig Exp $
 #
 # Tests for the :localtime variable modifier, which formats a timestamp
 # using strftime(3) in local time.
@@ -36,7 +36,7 @@
 
 # If the modifier name is not matched exactly, fall back to the
 # :from=to modifier.
-.if ${gmtime:L:gm%=local%} != "localtime"
+.if ${localtime:L:local%=gm%} != "gmtime"
 .  error
 .endif
 
@@ -54,9 +54,6 @@
 #
 # If ApplyModifier_Localtime were to pass its argument through
 # ParseModifierPart, this would work.
-#
-# XXX: Where does the empty line 4 in varmod-localtime.exp come from?
-# TODO: Remove the \n from "Invalid time value: %s\n" in var.c.
 .if ${%Y:L:localtime=${:U1593536400}} != "mtime=11593536400}"
 .  error
 .endif
@@ -74,8 +71,8 @@
 .endif
 
 
-# Spaces were allowed before var.c 1.631, not because it would make sense
-# but just as a side-effect from using strtoul.
+# Spaces were allowed before var.c 1.631 from 2020-10-31 21:40:20, not
+# because it would make sense but just as a side-effect from using strtoul.
 .if ${:L:localtime= 1} != ""
 .  error
 .endif
@@ -102,8 +99,12 @@
 
 .if ${:L:localtime=2147483648} == "Tue Jan 19 04:14:08 2038"
 # All systems that have unsigned time_t or 64-bit time_t.
-.elif ${:L:localtime=2147483648} != "Fri Dec 13 21:45:52 1901"
-# FreeBSD-12.0-i386 still has 32-bit signed time_t.
+.elif ${:L:localtime=2147483648} == "Fri Dec 13 21:45:52 1901"
+# FreeBSD-12.0-i386 still has 32-bit signed time_t, see
+# sys/x86/include/_types.h, __LP64__.
+#
+# Linux on 32-bit systems may still have 32-bit signed time_t, see
+# sysdeps/unix/sysv/linux/generic/bits/typesizes.h, __TIMESIZE.
 .else
 .  error
 .endif
@@ -122,7 +123,7 @@
 .endif
 
 # Before var.c 1.631 from 2020-10-31, there was no error handling while
-# parsing the :localtime modifier, thus no error message is printed.  Parsing
+# parsing the :localtime modifier, thus no error message was printed.  Parsing
 # stopped after the '=', and the remaining string was parsed for more variable
 # modifiers.  Because of the unknown modifier 'e' from the 'error', the whole
 # variable value was discarded and thus not printed.

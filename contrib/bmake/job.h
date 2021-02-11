@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.71 2020/12/30 10:03:16 rillig Exp $	*/
+/*	$NetBSD: job.h,v 1.72 2021/02/05 19:19:17 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -205,5 +205,6 @@ void Job_ServerStart(int, int, int);
 void Job_SetPrefix(void);
 Boolean Job_RunTarget(const char *, const char *);
 void Job_FlagsToString(const Job *, char *, size_t);
+int Job_TempFile(const char *, char *, size_t);
 
 #endif /* MAKE_JOB_H */

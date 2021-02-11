@@ -2,7 +2,14 @@ make: "include-main.mk" line 14: main-before-ok
 make: "include-main.mk" line 21: main-before-for-ok
 make: "include-sub.mk" line 4: sub-before-ok
 make: "include-sub.mk" line 14: sub-before-for-ok
-make: "include-subsub.mk" line 4: subsub-ok
+ParseReadLine (5): '.  info subsub-ok'
+make: "include-subsub.mk" line 5: subsub-ok
+	in .for loop from include-sub.mk:31
+	in .for loop from include-sub.mk:30
+	in .for loop from include-sub.mk:29
+	in .include from include-main.mk:27
+ParseReadLine (6): '.MAKEFLAGS: -d0'
+ParseDoDependency(.MAKEFLAGS: -d0)
 make: "include-sub.mk" line 38: sub-after-ok
 make: "include-sub.mk" line 45: sub-after-for-ok
 make: "include-main.mk" line 30: main-after-ok

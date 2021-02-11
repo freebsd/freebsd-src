@@ -1,4 +1,4 @@
-/*	$NetBSD: hash.c,v 1.60 2020/12/30 10:03:16 rillig Exp $	*/
+/*	$NetBSD: hash.c,v 1.61 2021/02/01 17:32:10 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -74,7 +74,7 @@
 #include "make.h"
 
 /*	"@(#)hash.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: hash.c,v 1.60 2020/12/30 10:03:16 rillig Exp $");
+MAKE_RCSID("$NetBSD: hash.c,v 1.61 2021/02/01 17:32:10 rillig Exp $");
 
 /*
  * The ratio of # entries to # buckets at which we rebuild the table to
@@ -82,7 +82,7 @@ MAKE_RCSID("$NetBSD: hash.c,v 1.60 2020/12/30 10:03:16 rillig Exp $");
  */
 #define rebuildLimit 3
 
-/* This hash function matches Gosling's emacs and java.lang.String. */
+/* This hash function matches Gosling's Emacs and java.lang.String. */
 static unsigned int
 hash(const char *key, size_t *out_keylen)
 {
@@ -142,7 +142,10 @@ HashTable_Init(HashTable *t)
 	t->maxchain = 0;
 }
 
-/* Remove everything from the hash table and frees up the memory. */
+/*
+ * Remove everything from the hash table and free up the memory for the keys
+ * of the hash table, but not for the values associated to these keys.
+ */
 void
 HashTable_Done(HashTable *t)
 {
@@ -157,8 +160,8 @@ HashTable_Done(HashTable *t)
 			he = next;
 		}
 	}
-	free(t->buckets);
 
+	free(t->buckets);
 #ifdef CLEANUP
 	t->buckets = NULL;
 #endif

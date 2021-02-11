@@ -1,6 +1,6 @@
-/*	$NetBSD: make_malloc.h,v 1.15 2020/12/30 10:03:16 rillig Exp $	*/
+/*	$NetBSD: make_malloc.h,v 1.16 2021/01/19 20:51:46 rillig Exp $	*/
 
-/*-
+/*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

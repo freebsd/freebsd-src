@@ -1,4 +1,4 @@
-# $NetBSD: var-op-append.mk,v 1.7 2020/10/30 20:36:33 rillig Exp $
+# $NetBSD: var-op-append.mk,v 1.8 2021/02/03 08:40:47 rillig Exp $
 #
 # Tests for the += variable assignment operator, which appends to a variable,
 # creating it if necessary.
@@ -32,17 +32,15 @@ C++=	value
 .  error
 .endif
 
-# Try out how often the variable name is expanded when appending to a
-# nonexistent variable.
-# As of 2020-10-30, that's two times.
-# XXX: That's one time too often.
-# See Var_Append, the call to Var_Set.
+# Before var.c 1.793 from 2021-02-03, the variable name of a newly created
+# variable was expanded two times in a row, which was unexpected but
+# irrelevant in practice since variable names containing dollars lead to
+# strange side effects in several other places as well.
 .MAKEFLAGS: -dv
 VAR.${:U\$\$\$\$\$\$\$\$}+=	dollars
 .MAKEFLAGS: -d0
-.if ${VAR.${:U\$\$\$\$}} != "dollars"
+.if ${VAR.${:U\$\$\$\$\$\$\$\$}} != "dollars"
 .  error
 .endif
 
 all:
-	@:;

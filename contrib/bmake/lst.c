@@ -1,4 +1,4 @@
-/* $NetBSD: lst.c,v 1.102 2020/12/30 10:03:16 rillig Exp $ */
+/* $NetBSD: lst.c,v 1.104 2021/02/01 19:39:31 rillig Exp $ */
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -34,7 +34,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: lst.c,v 1.102 2020/12/30 10:03:16 rillig Exp $");
+MAKE_RCSID("$NetBSD: lst.c,v 1.104 2021/02/01 19:39:31 rillig Exp $");
 
 static ListNode *
 LstNodeNew(ListNode *prev, ListNode *next, void *datum)
@@ -86,17 +86,6 @@ Lst_Free(List *list)
 {
 
 	Lst_Done(list);
-	free(list);
-}
-
-/*
- * Destroy a list and free all its resources. The freeProc is called with the
- * datum from each node in turn before the node is freed.
- */
-void
-Lst_Destroy(List *list, LstFreeProc freeProc)
-{
-	Lst_DoneCall(list, freeProc);
 	free(list);
 }
 
@@ -287,7 +276,7 @@ Vector_Push(Vector *v)
 }
 
 /*
- * Return the pointer to the last item in the vector.
+ * Remove the last item from the vector, return the pointer to it.
  * The returned data is valid until the next modifying operation.
  */
 void *

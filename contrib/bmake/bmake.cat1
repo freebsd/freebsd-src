@@ -37,7 +37,7 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
              [1m-C [4m[22m/etc[24m.
 
      [1m-D [4m[22mvariable[0m
-             Define [4mvariable[24m to be 1, in the global context.
+             Define [4mvariable[24m to be 1, in the global scope.
 
      [1m-d [4m[22m[-]flags[0m
              Turn on debugging, and specify which portions of [1mbmake [22mare to
@@ -224,7 +224,7 @@ BMAKE(1)                FreeBSD General Commands Manual               BMAKE(1)
              instances of this option may be specified; the variables will be
              printed one per line, with a blank line for each null or unde-
              fined variable.  The value printed is extracted from the global
-             context after all makefiles have been read.  By default, the raw
+             scope after all makefiles have been read.  By default, the raw
              variable contents (which may include additional unexpanded vari-
              able references) are shown.  If [4mvariable[24m contains a `$' then the
              value will be recursively expanded to its complete resultant text
