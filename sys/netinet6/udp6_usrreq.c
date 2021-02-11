@@ -353,6 +353,13 @@ skip_checksum:
 					continue;
 			}
 
+			INP_RLOCK(inp);
+
+			if (__predict_false(inp->inp_flags2 & INP_FREED)) {
+				INP_RUNLOCK(inp);
+				continue;
+			}
+
 			/*
 			 * XXXRW: Because we weren't holding either the inpcb
 			 * or the hash lock when we checked for a match 
@@ -365,15 +372,9 @@ skip_checksum:
 			 * and source-specific multicast. [RFC3678]
 			 */
 			imo = inp->in6p_moptions;
-			if (imo && IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+			if (imo != NULL) {
 				struct sockaddr_in6	 mcaddr;
 				int			 blocked;
-
-				INP_RLOCK(inp);
-				if (__predict_false(inp->inp_flags2 & INP_FREED)) {
-					INP_RUNLOCK(inp);
-					continue;
-				}
 
 				bzero(&mcaddr, sizeof(struct sockaddr_in6));
 				mcaddr.sin6_len = sizeof(struct sockaddr_in6);
@@ -389,33 +390,30 @@ skip_checksum:
 					if (blocked == MCAST_NOTSMEMBER ||
 					    blocked == MCAST_MUTED)
 						UDPSTAT_INC(udps_filtermcast);
-					INP_RUNLOCK(inp); /* XXX */
+					INP_RUNLOCK(inp);
 					continue;
 				}
-
-				INP_RUNLOCK(inp);
 			}
+
 			if (last != NULL) {
 				struct mbuf *n;
 
 				if ((n = m_copym(m, 0, M_COPYALL, M_NOWAIT)) !=
 				    NULL) {
-					INP_RLOCK(last);
-					if (__predict_true(last->inp_flags2 & INP_FREED) == 0) {
-						if (nxt == IPPROTO_UDPLITE)
-							UDPLITE_PROBE(receive, NULL, last,
-							    ip6, last, uh);
-						else
-							UDP_PROBE(receive, NULL, last,
-							    ip6, last, uh);
-						if (udp6_append(last, n, off, fromsa)) {
-							/* XXX-BZ do we leak m here? */
-							*mp = NULL;
-							return (IPPROTO_DONE);
-						}
+					if (nxt == IPPROTO_UDPLITE)
+						UDPLITE_PROBE(receive, NULL,
+						    last, ip6, last, uh);
+					else
+						UDP_PROBE(receive, NULL, last,
+						    ip6, last, uh);
+					if (udp6_append(last, n, off,
+					    fromsa)) {
+						INP_RUNLOCK(inp);
+						goto badunlocked;
 					}
-					INP_RUNLOCK(last);
 				}
+				/* Release PCB lock taken on previous pass. */
+				INP_RUNLOCK(last);
 			}
 			last = inp;
 			/*
@@ -441,15 +439,12 @@ skip_checksum:
 			UDPSTAT_INC(udps_noportmcast);
 			goto badunlocked;
 		}
-		INP_RLOCK(last);
-		if (__predict_true(last->inp_flags2 & INP_FREED) == 0) {
-			if (nxt == IPPROTO_UDPLITE)
-				UDPLITE_PROBE(receive, NULL, last, ip6, last, uh);
-			else
-				UDP_PROBE(receive, NULL, last, ip6, last, uh);
-			if (udp6_append(last, m, off, fromsa) == 0)
-				INP_RUNLOCK(last);
-		} else
+
+		if (nxt == IPPROTO_UDPLITE)
+			UDPLITE_PROBE(receive, NULL, last, ip6, last, uh);
+		else
+			UDP_PROBE(receive, NULL, last, ip6, last, uh);
+		if (udp6_append(last, m, off, fromsa) == 0)
 			INP_RUNLOCK(last);
 		*mp = NULL;
 		return (IPPROTO_DONE);
