@@ -54,6 +54,8 @@ CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 HAVE_ZFS=yes
 .endif
 
+HELP_FILENAME=	loader.help.userboot
+
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
 CFLAGS+=	-I.

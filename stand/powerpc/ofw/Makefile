@@ -37,6 +37,7 @@ SRCS+=		trampolineLE.S
 .endif
 
 HELP_FILES=	${FDTSRC}/help.fdt
+HELP_FILENAME=	loader.help.ofw
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"

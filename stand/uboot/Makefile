@@ -35,7 +35,8 @@ WARNS?=		1
 CWARNFLAGS.self_reloc.c+=	-Wno-error=maybe-uninitialized
 .endif
 
-HELP_FILES=	 ${.CURDIR}/help.uboot ${BOOTSRC}/fdt/help.fdt
+HELP_FILES=	${.CURDIR}/help.uboot ${BOOTSRC}/fdt/help.fdt
+HELP_FILENAME=	loader.help.uboot
 
 # Always add MI sources
 .include	"${BOOTSRC}/loader.mk"
