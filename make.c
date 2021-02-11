@@ -1,4 +1,4 @@
-/*	$NetBSD: make.c,v 1.234 2021/01/10 21:20:46 rillig Exp $	*/
+/*	$NetBSD: make.c,v 1.242 2021/02/05 05:15:12 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -78,8 +78,8 @@
  *	Make_Update	After a target is made, update all its parents.
  *			Perform various bookkeeping chores like the updating
  *			of the youngestChild field of the parent, filling
- *			of the IMPSRC context variable, etc. Place the parent
- *			on the toBeMade queue if it should be.
+ *			of the IMPSRC variable, etc. Place the parent on the
+ *			toBeMade queue if it should be.
  *
  *	GNode_UpdateYoungestChild
  *			Update the node's youngestChild field based on the
@@ -103,7 +103,7 @@
 #include "job.h"
 
 /*	"@(#)make.c	8.1 (Berkeley) 6/6/93"	*/
-MAKE_RCSID("$NetBSD: make.c,v 1.234 2021/01/10 21:20:46 rillig Exp $");
+MAKE_RCSID("$NetBSD: make.c,v 1.242 2021/02/05 05:15:12 rillig Exp $");
 
 /* Sequence # to detect recursion. */
 static unsigned int checked_seqno = 1;
@@ -137,10 +137,6 @@ make_abort(GNode *gn, int lineno)
 	abort();
 }
 
-ENUM_VALUE_RTTI_8(GNodeMade,
-    UNMADE, DEFERRED, REQUESTED, BEINGMADE,
-    MADE, UPTODATE, ERROR, ABORTED);
-
 ENUM_FLAGS_RTTI_31(GNodeType,
     OP_DEPENDS, OP_FORCE, OP_DOUBLEDEP,
 /* OP_OPMASK is omitted since it combines other flags */
@@ -152,10 +148,10 @@ ENUM_FLAGS_RTTI_31(GNodeType,
     OP_TRANSFORM, OP_MEMBER, OP_LIB, OP_ARCHV,
     OP_HAS_COMMANDS, OP_SAVE_CMDS, OP_DEPS_FOUND, OP_MARK);
 
-ENUM_FLAGS_RTTI_10(GNodeFlags,
+ENUM_FLAGS_RTTI_9(GNodeFlags,
     REMAKE, CHILDMADE, FORCE, DONE_WAIT,
     DONE_ORDER, FROM_DEPEND, DONE_ALLSRC, CYCLE,
-    DONECYCLE, INTERNAL);
+    DONECYCLE);
 
 void
 GNode_FprintDetails(FILE *f, const char *prefix, const GNode *gn,
@@ -164,13 +160,11 @@ GNode_FprintDetails(FILE *f, const char *prefix, const GNode *gn,
 	char type_buf[GNodeType_ToStringSize];
 	char flags_buf[GNodeFlags_ToStringSize];
 
-	fprintf(f, "%smade %s, type %s, flags %s%s",
+	fprintf(f, "%s%s, type %s, flags %s%s",
 	    prefix,
-	    Enum_ValueToString(gn->made, GNodeMade_ToStringSpecs),
-	    Enum_FlagsToString(type_buf, sizeof type_buf,
-		gn->type, GNodeType_ToStringSpecs),
-	    Enum_FlagsToString(flags_buf, sizeof flags_buf,
-		gn->flags, GNodeFlags_ToStringSpecs),
+	    GNodeMade_Name(gn->made),
+	    GNodeType_ToString(type_buf, gn->type),
+	    GNodeFlags_ToString(flags_buf, gn->flags),
 	    suffix);
 }
 
@@ -574,9 +568,9 @@ UpdateImplicitParentsVars(GNode *cgn, const char *cname)
 	for (ln = cgn->implicitParents.first; ln != NULL; ln = ln->next) {
 		GNode *pgn = ln->datum;
 		if (pgn->flags & REMAKE) {
-			Var_Set(IMPSRC, cname, pgn);
+			Var_Set(pgn, IMPSRC, cname);
 			if (cpref != NULL)
-				Var_Set(PREFIX, cpref, pgn);
+				Var_Set(pgn, PREFIX, cpref);
 		}
 	}
 }
@@ -601,7 +595,7 @@ IsWaitingForOrder(GNode *gn)
 	return FALSE;
 }
 
-static int MakeBuildParent(GNode *, GNodeListNode *);
+static void MakeBuildParent(GNode *, GNodeListNode *);
 
 static void
 ScheduleOrderSuccessors(GNode *gn)
@@ -610,8 +604,7 @@ ScheduleOrderSuccessors(GNode *gn)
 	GNodeListNode *ln;
 
 	for (ln = gn->order_succ.first; ln != NULL; ln = ln->next)
-		if (MakeBuildParent(ln->datum, toBeMadeNext) != 0)
-			break;
+		MakeBuildParent(ln->datum, toBeMadeNext);
 }
 
 /*
@@ -810,50 +803,53 @@ UnmarkChildren(GNode *gn)
 static void
 MakeAddAllSrc(GNode *cgn, GNode *pgn)
 {
+	const char *child, *allsrc;
+
 	if (cgn->type & OP_MARK)
 		return;
 	cgn->type |= OP_MARK;
 
-	if (!(cgn->type & (OP_EXEC | OP_USE | OP_USEBEFORE | OP_INVISIBLE))) {
-		const char *child, *allsrc;
+	if (cgn->type & (OP_EXEC | OP_USE | OP_USEBEFORE | OP_INVISIBLE))
+		return;
 
-		if (cgn->type & OP_ARCHV)
-			child = GNode_VarMember(cgn);
-		else
-			child = GNode_Path(cgn);
-		if (cgn->type & OP_JOIN) {
-			allsrc = GNode_VarAllsrc(cgn);
-		} else {
-			allsrc = child;
-		}
-		if (allsrc != NULL)
-			Var_Append(ALLSRC, allsrc, pgn);
-		if (pgn->type & OP_JOIN) {
-			if (cgn->made == MADE) {
-				Var_Append(OODATE, child, pgn);
-			}
-		} else if ((pgn->mtime < cgn->mtime) ||
-			   (cgn->mtime >= now && cgn->made == MADE)) {
-			/*
-			 * It goes in the OODATE variable if the parent is
-			 * younger than the child or if the child has been
-			 * modified more recently than the start of the make.
-			 * This is to keep pmake from getting confused if
-			 * something else updates the parent after the make
-			 * starts (shouldn't happen, I know, but sometimes it
-			 * does). In such a case, if we've updated the child,
-			 * the parent is likely to have a modification time
-			 * later than that of the child and anything that
-			 * relies on the OODATE variable will be hosed.
-			 *
-			 * XXX: This will cause all made children to go in
-			 * the OODATE variable, even if they're not touched,
-			 * if RECHECK isn't defined, since cgn->mtime is set
-			 * to now in Make_Update. According to some people,
-			 * this is good...
-			 */
-			Var_Append(OODATE, child, pgn);
-		}
+	if (cgn->type & OP_ARCHV)
+		child = GNode_VarMember(cgn);
+	else
+		child = GNode_Path(cgn);
+
+	if (cgn->type & OP_JOIN)
+		allsrc = GNode_VarAllsrc(cgn);
+	else
+		allsrc = child;
+
+	if (allsrc != NULL)
+		Var_Append(pgn, ALLSRC, allsrc);
+
+	if (pgn->type & OP_JOIN) {
+		if (cgn->made == MADE)
+			Var_Append(pgn, OODATE, child);
+
+	} else if ((pgn->mtime < cgn->mtime) ||
+		   (cgn->mtime >= now && cgn->made == MADE)) {
+		/*
+		 * It goes in the OODATE variable if the parent is
+		 * younger than the child or if the child has been
+		 * modified more recently than the start of the make.
+		 * This is to keep pmake from getting confused if
+		 * something else updates the parent after the make
+		 * starts (shouldn't happen, I know, but sometimes it
+		 * does). In such a case, if we've updated the child,
+		 * the parent is likely to have a modification time
+		 * later than that of the child and anything that
+		 * relies on the OODATE variable will be hosed.
+		 *
+		 * XXX: This will cause all made children to go in
+		 * the OODATE variable, even if they're not touched,
+		 * if RECHECK isn't defined, since cgn->mtime is set
+		 * to now in Make_Update. According to some people,
+		 * this is good...
+		 */
+		Var_Append(pgn, OODATE, child);
 	}
 }
 
@@ -883,17 +879,17 @@ Make_DoAllVar(GNode *gn)
 	for (ln = gn->children.first; ln != NULL; ln = ln->next)
 		MakeAddAllSrc(ln->datum, gn);
 
-	if (!Var_Exists(OODATE, gn))
-		Var_Set(OODATE, "", gn);
-	if (!Var_Exists(ALLSRC, gn))
-		Var_Set(ALLSRC, "", gn);
+	if (!Var_Exists(gn, OODATE))
+		Var_Set(gn, OODATE, "");
+	if (!Var_Exists(gn, ALLSRC))
+		Var_Set(gn, ALLSRC, "");
 
 	if (gn->type & OP_JOIN)
-		Var_Set(TARGET, GNode_VarAllsrc(gn), gn);
+		Var_Set(gn, TARGET, GNode_VarAllsrc(gn));
 	gn->flags |= DONE_ALLSRC;
 }
 
-static int
+static Boolean
 MakeBuildChild(GNode *cn, GNodeListNode *toBeMadeNext)
 {
 
@@ -903,13 +899,13 @@ MakeBuildChild(GNode *cn, GNodeListNode *toBeMadeNext)
 		GNode_FprintDetails(opts.debug_file, "", cn, "\n");
 	}
 	if (GNode_IsReady(cn))
-		return 0;
+		return FALSE;
 
 	/* If this node is on the RHS of a .ORDER, check LHSs. */
 	if (IsWaitingForOrder(cn)) {
 		/* Can't build this (or anything else in this child list) yet */
 		cn->made = DEFERRED;
-		return 0;	/* but keep looking */
+		return FALSE;	/* but keep looking */
 	}
 
 	DEBUG2(MAKE, "MakeBuildChild: schedule %s%s\n",
@@ -925,7 +921,7 @@ MakeBuildChild(GNode *cn, GNodeListNode *toBeMadeNext)
 		ListNode *ln;
 
 		for (ln = cn->cohorts.first; ln != NULL; ln = ln->next)
-			if (MakeBuildChild(ln->datum, toBeMadeNext) != 0)
+			if (MakeBuildChild(ln->datum, toBeMadeNext))
 				break;
 	}
 
@@ -937,18 +933,16 @@ MakeBuildChild(GNode *cn, GNodeListNode *toBeMadeNext)
 }
 
 /* When a .ORDER LHS node completes, we do this on each RHS. */
-static int
+static void
 MakeBuildParent(GNode *pn, GNodeListNode *toBeMadeNext)
 {
 	if (pn->made != DEFERRED)
-		return 0;
+		return;
 
-	if (MakeBuildChild(pn, toBeMadeNext) == 0) {
+	if (!MakeBuildChild(pn, toBeMadeNext)) {
 		/* When this node is built, reschedule its parents. */
 		pn->flags |= DONE_ORDER;
 	}
-
-	return 0;
 }
 
 static void
@@ -958,7 +952,7 @@ MakeChildren(GNode *gn)
 	GNodeListNode *ln;
 
 	for (ln = gn->children.first; ln != NULL; ln = ln->next)
-		if (MakeBuildChild(ln->datum, toBeMadeNext) != 0)
+		if (MakeBuildChild(ln->datum, toBeMadeNext))
 			break;
 }
 
@@ -1038,9 +1032,9 @@ MakeStartJobs(void)
 			if (gn->type & OP_JOIN) {
 				/*
 				 * Even for an up-to-date .JOIN node, we
-				 * need it to have its context variables so
+				 * need it to have its local variables so
 				 * references to it get the correct value
-				 * for .TARGET when building up the context
+				 * for .TARGET when building up the local
 				 * variables of its parent(s)...
 				 */
 				Make_DoAllVar(gn);
@@ -1243,14 +1237,14 @@ Make_ExpandUse(GNodeList *targs)
 				continue;
 			*eoa = '\0';
 			*eon = '\0';
-			Var_Set(MEMBER, eoa + 1, gn);
-			Var_Set(ARCHIVE, gn->name, gn);
+			Var_Set(gn, MEMBER, eoa + 1);
+			Var_Set(gn, ARCHIVE, gn->name);
 			*eoa = '(';
 			*eon = ')';
 		}
 
 		Dir_UpdateMTime(gn, FALSE);
-		Var_Set(TARGET, GNode_Path(gn), gn);
+		Var_Set(gn, TARGET, GNode_Path(gn));
 		UnmarkChildren(gn);
 		HandleUseNodes(gn);
 

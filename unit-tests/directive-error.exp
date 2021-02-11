@@ -1,1 +1,4 @@
-exit status 0
+make: "directive-error.mk" line 13: message
+
+make: stopped in unit-tests
+exit status 1

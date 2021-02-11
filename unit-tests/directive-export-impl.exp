@@ -12,7 +12,7 @@ Result of ${UT_VAR:N*} is "" (VARE_UNDEFERR|VARE_WANTRES, VAR_EXPORTED|VAR_REEXP
 ParseDoDependency(: )
 CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<>"
 Var_Parse: ${:!echo "\$UT_VAR"!} != "<>" with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:!...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
+Applying ${:!...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
 Modifier part: "echo "$UT_VAR""
 Var_Parse: ${.MAKE.EXPORTED:O:u} with VARE_WANTRES
 Applying ${.MAKE.EXPORTED:O} to "UT_VAR" (VARE_WANTRES, none, none)
@@ -21,7 +21,7 @@ Applying ${.MAKE.EXPORTED:u} to "UT_VAR" (VARE_WANTRES, none, none)
 Result of ${.MAKE.EXPORTED:u} is "UT_VAR" (VARE_WANTRES, none, none)
 Var_Parse: ${UT_VAR} with VARE_WANTRES
 Var_Parse: ${REF}> with VARE_WANTRES
-Result of ${:!echo "\$UT_VAR"!} is "<>" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Result of ${:!echo "\$UT_VAR"!} is "<>" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 lhs = "<>", rhs = "<>", op = !=
 ParseReadLine (49): ': ${UT_VAR:N*}'
 Var_Parse: ${UT_VAR:N*} with VARE_UNDEFERR|VARE_WANTRES
@@ -35,7 +35,7 @@ ParseReadLine (53): 'REF=		defined'
 Global:REF = defined
 CondParser_Eval: ${:!echo "\$UT_VAR"!} != "<defined>"
 Var_Parse: ${:!echo "\$UT_VAR"!} != "<defined>" with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:!...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
+Applying ${:!...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
 Modifier part: "echo "$UT_VAR""
 Var_Parse: ${.MAKE.EXPORTED:O:u} with VARE_WANTRES
 Applying ${.MAKE.EXPORTED:O} to "UT_VAR" (VARE_WANTRES, none, none)
@@ -44,7 +44,7 @@ Applying ${.MAKE.EXPORTED:u} to "UT_VAR" (VARE_WANTRES, none, none)
 Result of ${.MAKE.EXPORTED:u} is "UT_VAR" (VARE_WANTRES, none, none)
 Var_Parse: ${UT_VAR} with VARE_WANTRES
 Var_Parse: ${REF}> with VARE_WANTRES
-Result of ${:!echo "\$UT_VAR"!} is "<defined>" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Result of ${:!echo "\$UT_VAR"!} is "<defined>" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 lhs = "<defined>", rhs = "<defined>", op = !=
 ParseReadLine (61): 'all:'
 ParseDoDependency(all:)

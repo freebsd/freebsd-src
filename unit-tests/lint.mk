@@ -1,10 +1,13 @@
-# $NetBSD: lint.mk,v 1.3 2020/09/15 16:22:04 rillig Exp $
+# $NetBSD: lint.mk,v 1.4 2021/01/30 13:50:18 rillig Exp $
 #
-# Demonstrates stricter checks that are only enabled in the lint mode,
-# using the -dL option.
+# Demonstrates stricter checks that are only enabled in lint mode, using the
+# option -dL.
 
-# Ouch: as of 2020-08-03, make exits successfully even though the error
-# message has been issued as PARSE_FATAL.
+# Before main.c 1.421 from 2020-11-01, make exited successfully even though
+# the error message had been issued as PARSE_FATAL.  This was because back
+# then, make checked for parse errors only after parsing each top-level
+# makefile, in Parse_File.  After that, when expanding variable expressions
+# in shell commands, the parse errors were not checked again.
 
 # Ouch: as of 2020-08-03, the variable is malformed and parsing stops
 # for a moment, but is continued after the wrongly-guessed end of the

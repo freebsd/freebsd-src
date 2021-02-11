@@ -1,4 +1,4 @@
-# $NetBSD: directive-include-fatal.mk,v 1.2 2020/09/13 10:20:11 rillig Exp $
+# $NetBSD: directive-include-fatal.mk,v 1.3 2021/02/01 22:16:57 rillig Exp $
 #
 # Test for the .include directive combined with fatal errors.
 #
@@ -6,7 +6,7 @@
 # suspicious, as if it were possible to suppress fatal errors by including
 # another file.  It was a false alarm though, since Parse_File only handles
 # the top-level makefiles from the command line.  Any included files are
-# handled by Parse_include_file instead, and that function does not reset
+# handled by IncludeFile instead, and that function does not reset
 # the "fatals" counter.
 
 # Using an undefined variable in a condition generates a fatal error.

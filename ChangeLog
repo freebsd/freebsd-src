@@ -1,3 +1,76 @@
+2021-02-06  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210206
+	Merge with NetBSD make, pick up
+	o unit-tests: use private TMPDIR to avoid errors from other users
+
+2021-02-05  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210205
+	Merge with NetBSD make, pick up
+	o avoid strdup in mkTempFile
+	o always use vfork
+	o rename context and ctxt to scope
+	o rename some VAR constants to SCOPE
+	o Var_ functions, move the scope to the front
+	o use shortcut functions Global_Set and Global_Append
+	o add shortcut Global_Delete for deleting a global variable
+	o rename Var_Delete to Var_DeleteExpand, Var_DeleteVar to Var_Delete
+	o compat.c: when exiting due to an error, print graph information
+	o enum.c: remove overengineered Enum_ValueToString
+	o make.c: remove unused INTERNAL flag
+	remove unused return type of MakeBuildParent
+	o parse.c: replace parse error "Need an operator" with better message
+	o var.c: improve documentation about variable scopes
+	rename Var_ValueDirect to GNode_ValueDirect
+	rename old Var_SetWithFlags to Var_SetExpandWithFlags
+	merge SetVar into Var_SetWithFlags
+	split Var_Exists into plain Var_Exists and Var_ExistsExpand
+	split Var_Append into Var_Append and Var_AppendExpand
+	replace enum bit-set with bit-field
+	o unit-tests/var-op-shell: use kill rather than kill -14
+	which broke on darwin with recent update.
+
+2021-02-01  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* configure.in: check for sig_atomic_t and define it as 'int'
+	if missing.
+
+	* VERSION (_MAKE_VERSION): 20210201
+	Merge with NetBSD make, pick up
+	o use sig_atomic_t for caught_sigchld
+
+2021-01-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210130
+	Merge with NetBSD make, pick up
+	o more unit tests
+	o convert SearchPath to struct
+	o split Buf_Destroy into Buf_Done and Buf_DoneData
+	o for.c: split For_Eval into separate functions
+	rename struct For to struct ForLoop
+	o job.c: do not create empty shell files in jobs mode
+	rename JobOpenTmpFile to JobWriteShellCommands
+	reduce unnecessary calls to waitpid
+	o parse.c: in -dp mode, print stack trace with each diagnostic
+
+2021-01-23  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210123
+	Merge with NetBSD make, pick up
+	o rename Dir_Expand to SearchPath_Expand
+	o rename Dir_AddDir, reorder parameters of SearchPath_ToFlags
+	o cond.c: fix debug output for comparison operators in conditionals
+	o dir.c: split Dir_FindFile into separate functions
+
+2021-01-20  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* VERSION (_MAKE_VERSION): 20210120
+	Merge with NetBSD make, pick up
+	o fix some more lint nits
+	o refine some unit tests for portability
+	o cond.c: rework parsing
+
 2021-01-10  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* VERSION (_MAKE_VERSION): 20210110

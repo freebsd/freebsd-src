@@ -1,4 +1,4 @@
-# $NetBSD: cond-cmp-string.mk,v 1.13 2020/11/15 14:07:53 rillig Exp $
+# $NetBSD: cond-cmp-string.mk,v 1.14 2021/01/19 19:54:57 rillig Exp $
 #
 # Tests for string comparisons in .if conditions.
 
@@ -106,5 +106,33 @@
 # comparison is performed.  The ".0" in the left-hand side makes the two
 # sides of the equation unequal.
 .if 12345.0 == "12345"
+.  error
+.endif
+
+# Strings cannot be compared relationally, only for equality.
+.if "string" < "string"
+.  error
+.else
+.  error
+.endif
+
+# Strings cannot be compared relationally, only for equality.
+.if "string" <= "string"
+.  error
+.else
+.  error
+.endif
+
+# Strings cannot be compared relationally, only for equality.
+.if "string" > "string"
+.  error
+.else
+.  error
+.endif
+
+# Strings cannot be compared relationally, only for equality.
+.if "string" >= "string"
+.  error
+.else
 .  error
 .endif

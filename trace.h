@@ -1,6 +1,6 @@
-/*	$NetBSD: trace.h,v 1.5 2020/11/28 08:41:53 rillig Exp $	*/
+/*	$NetBSD: trace.h,v 1.6 2021/01/19 20:51:46 rillig Exp $	*/
 
-/*-
+/*
  * Copyright (c) 2000 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*-
+/*
  * trace.h --
  *	Definitions pertaining to the tracing of jobs in parallel mode.
  */

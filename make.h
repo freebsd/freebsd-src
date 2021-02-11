@@ -1,4 +1,4 @@
-/*	$NetBSD: make.h,v 1.242 2021/01/10 21:20:46 rillig Exp $	*/
+/*	$NetBSD: make.h,v 1.256 2021/02/05 19:19:17 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -72,7 +72,7 @@
  *	from: @(#)make.h	8.3 (Berkeley) 6/13/95
  */
 
-/*-
+/*
  * make.h --
  *	The global definitions for pmake
  */
@@ -350,25 +350,23 @@ typedef enum GNodeType {
 typedef enum GNodeFlags {
 	GNF_NONE	= 0,
 	/* this target needs to be (re)made */
-	REMAKE		= 0x0001,
+	REMAKE		= 1 << 0,
 	/* children of this target were made */
-	CHILDMADE	= 0x0002,
+	CHILDMADE	= 1 << 1,
 	/* children don't exist, and we pretend made */
-	FORCE		= 0x0004,
+	FORCE		= 1 << 2,
 	/* Set by Make_ProcessWait() */
-	DONE_WAIT	= 0x0008,
+	DONE_WAIT	= 1 << 3,
 	/* Build requested by .ORDER processing */
-	DONE_ORDER	= 0x0010,
+	DONE_ORDER	= 1 << 4,
 	/* Node created from .depend */
-	FROM_DEPEND	= 0x0020,
+	FROM_DEPEND	= 1 << 5,
 	/* We do it once only */
-	DONE_ALLSRC	= 0x0040,
+	DONE_ALLSRC	= 1 << 6,
 	/* Used by MakePrintStatus */
-	CYCLE		= 0x1000,
+	CYCLE		= 1 << 12,
 	/* Used by MakePrintStatus */
-	DONECYCLE	= 0x2000,
-	/* Internal use only */
-	INTERNAL	= 0x4000
+	DONECYCLE	= 1 << 13
 } GNodeFlags;
 
 typedef struct List StringList;
@@ -377,7 +375,9 @@ typedef struct ListNode StringListNode;
 typedef struct List GNodeList;
 typedef struct ListNode GNodeListNode;
 
-typedef struct List /* of CachedDir */ SearchPath;
+typedef struct SearchPath {
+	List /* of CachedDir */ dirs;
+} SearchPath;
 
 /*
  * A graph node represents a target that can possibly be made, including its
@@ -429,7 +429,10 @@ typedef struct GNode {
 	 * this node, in the normal sense. */
 	GNodeList order_succ;
 
-	/* Other nodes of the same name, for the '::' dependency operator. */
+	/*
+	 * Other nodes of the same name, for targets that were defined using
+	 * the '::' dependency operator (OP_DOUBLEDEP).
+	 */
 	GNodeList cohorts;
 	/* The "#n" suffix for this cohort, or "" for other nodes */
 	char cohort_num[8];
@@ -442,11 +445,14 @@ typedef struct GNode {
 	/* Last time (sequence number) we tried to make this node */
 	unsigned int checked_seqno;
 
-	/* The "local" variables that are specific to this target and this
+	/*
+	 * The "local" variables that are specific to this target and this
 	 * target only, such as $@, $<, $?.
 	 *
-	 * Also used for the global variable scopes VAR_GLOBAL, VAR_CMDLINE,
-	 * VAR_INTERNAL, which contain variables with arbitrary names. */
+	 * Also used for the global variable scopes SCOPE_GLOBAL,
+	 * SCOPE_CMDLINE, SCOPE_INTERNAL, which contain variables with
+	 * arbitrary names.
+	 */
 	HashTable /* of Var pointer */ vars;
 
 	/* The commands to be given to a shell to create this target. */
@@ -509,11 +515,11 @@ extern GNode *defaultNode;
  * Variables defined internally by make which should not override those set
  * by makefiles.
  */
-extern GNode *VAR_INTERNAL;
-/* Variables defined in a global context, e.g in the Makefile itself. */
-extern GNode *VAR_GLOBAL;
+extern GNode *SCOPE_INTERNAL;
+/* Variables defined in a global scope, e.g in the makefile itself. */
+extern GNode *SCOPE_GLOBAL;
 /* Variables defined on the command line. */
-extern GNode *VAR_CMDLINE;
+extern GNode *SCOPE_CMDLINE;
 
 /*
  * Value returned by Var_Parse when an error is encountered. It actually
@@ -532,8 +538,8 @@ extern SearchPath dirSearchPath;
 /* Used for .include "...". */
 extern SearchPath *parseIncPath;
 /*
- * Used for .include <...>, for the built-in sys.mk and makefiles from the
- * command line arguments.
+ * Used for .include <...>, for the built-in sys.mk and for makefiles from
+ * the command line arguments.
  */
 extern SearchPath *sysIncPath;
 /* The default for sysIncPath. */
@@ -543,18 +549,12 @@ extern SearchPath *defSysIncPath;
 extern char curdir[];
 /* The basename of the program name, suffixed with [n] for sub-makes.  */
 extern const char *progname;
+extern int makelevel;
 /* Name of the .depend makefile */
 extern char *makeDependfile;
 /* If we replaced environ, this will be non-NULL. */
 extern char **savedEnv;
 
-extern int makelevel;
-
-/*
- * We cannot vfork() in a child of vfork().
- * Most systems do not enforce this but some do.
- */
-#define vFork() ((getpid() == myPid) ? vfork() : fork())
 extern pid_t myPid;
 
 #define MAKEFLAGS	".MAKEFLAGS"
@@ -606,7 +606,7 @@ void debug_printf(const char *, ...) MAKE_ATTR_PRINTFLIKE(1, 2);
 	do { \
 		if (DEBUG(module)) \
 			debug_printf args; \
-	} while (/*CONSTCOND*/ 0)
+	} while (/*CONSTCOND*/FALSE)
 
 #define DEBUG0(module, text) \
 	DEBUG_IMPL(module, ("%s", text))
@@ -671,11 +671,13 @@ typedef struct CmdOpts {
 	/* -n: execute almost no commands from the targets */
 	Boolean noExecute;
 
-	/* -q: if true, we aren't supposed to really make anything, just see
-	 * if the targets are out-of-date */
+	/*
+	 * -q: if true, do not really make anything, just see if the targets
+	 * are out-of-date
+	 */
 	Boolean queryFlag;
 
-	/* -r: raw mode, without loading the builtin rules. */
+	/* -r: raw mode, do not load the builtin rules. */
 	Boolean noBuiltins;
 
 	/* -s: don't echo the shell commands before executing them */
@@ -693,7 +695,7 @@ typedef struct CmdOpts {
 	/* -W: if true, makefile parsing warnings are treated as errors */
 	Boolean parseWarnFatal;
 
-	/* -w: print Entering and Leaving for submakes */
+	/* -w: print 'Entering' and 'Leaving' for submakes */
 	Boolean enterFlag;
 
 	/* -X: if true, do not export variables set on the command line to the
@@ -722,7 +724,7 @@ Boolean shouldDieQuietly(GNode *, int);
 void PrintOnError(GNode *, const char *);
 void Main_ExportMAKEFLAGS(Boolean);
 Boolean Main_SetObjdir(Boolean, const char *, ...) MAKE_ATTR_PRINTFLIKE(2, 3);
-int mkTempFile(const char *, char **);
+int mkTempFile(const char *, char *, size_t);
 int str2Lst_Append(StringList *, char *);
 void GNode_FprintDetails(FILE *, const char *, const GNode *, const char *);
 Boolean GNode_ShouldExecute(GNode *gn);
@@ -765,19 +767,19 @@ GNode_IsError(const GNode *gn)
 }
 
 MAKE_INLINE const char *
-GNode_VarTarget(GNode *gn) { return Var_ValueDirect(TARGET, gn); }
+GNode_VarTarget(GNode *gn) { return GNode_ValueDirect(gn, TARGET); }
 MAKE_INLINE const char *
-GNode_VarOodate(GNode *gn) { return Var_ValueDirect(OODATE, gn); }
+GNode_VarOodate(GNode *gn) { return GNode_ValueDirect(gn, OODATE); }
 MAKE_INLINE const char *
-GNode_VarAllsrc(GNode *gn) { return Var_ValueDirect(ALLSRC, gn); }
+GNode_VarAllsrc(GNode *gn) { return GNode_ValueDirect(gn, ALLSRC); }
 MAKE_INLINE const char *
-GNode_VarImpsrc(GNode *gn) { return Var_ValueDirect(IMPSRC, gn); }
+GNode_VarImpsrc(GNode *gn) { return GNode_ValueDirect(gn, IMPSRC); }
 MAKE_INLINE const char *
-GNode_VarPrefix(GNode *gn) { return Var_ValueDirect(PREFIX, gn); }
+GNode_VarPrefix(GNode *gn) { return GNode_ValueDirect(gn, PREFIX); }
 MAKE_INLINE const char *
-GNode_VarArchive(GNode *gn) { return Var_ValueDirect(ARCHIVE, gn); }
+GNode_VarArchive(GNode *gn) { return GNode_ValueDirect(gn, ARCHIVE); }
 MAKE_INLINE const char *
-GNode_VarMember(GNode *gn) { return Var_ValueDirect(MEMBER, gn); }
+GNode_VarMember(GNode *gn) { return GNode_ValueDirect(gn, MEMBER); }
 
 #ifdef __GNUC__
 #define UNCONST(ptr)	({		\
@@ -851,18 +853,18 @@ pp_skip_hspace(char **pp)
 }
 
 #if defined(lint)
-#  define MAKE_RCSID(id) extern void do_not_define_rcsid(void)
+# define MAKE_RCSID(id) extern void do_not_define_rcsid(void)
 #elif defined(MAKE_NATIVE)
-#  include <sys/cdefs.h>
-#  define MAKE_RCSID(id) __RCSID(id)
+# include <sys/cdefs.h>
+# define MAKE_RCSID(id) __RCSID(id)
 #elif defined(MAKE_ALL_IN_ONE) && defined(__COUNTER__)
-#  define MAKE_RCSID_CONCAT(x, y) CONCAT(x, y)
-#  define MAKE_RCSID(id) static volatile char \
+# define MAKE_RCSID_CONCAT(x, y) CONCAT(x, y)
+# define MAKE_RCSID(id) static volatile char \
 	MAKE_RCSID_CONCAT(rcsid_, __COUNTER__)[] = id
 #elif defined(MAKE_ALL_IN_ONE)
-#  define MAKE_RCSID(id) extern void do_not_define_rcsid(void)
+# define MAKE_RCSID(id) extern void do_not_define_rcsid(void)
 #else
-#  define MAKE_RCSID(id) static volatile char rcsid[] = id
+# define MAKE_RCSID(id) static volatile char rcsid[] = id
 #endif
 
 #endif /* MAKE_MAKE_H */

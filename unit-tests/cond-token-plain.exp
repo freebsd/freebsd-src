@@ -18,12 +18,37 @@ lhs = "yes", rhs = "yes", op = !=
 CondParser_Eval: ${UNDEF:Uundefined}!=undefined
 lhs = "undefined", rhs = "undefined", op = !=
 CondParser_Eval: ${UNDEF:U12345}>12345
-lhs = 12345.000000, rhs = 12345.000000, op = >1
+lhs = 12345.000000, rhs = 12345.000000, op = >
 CondParser_Eval: ${UNDEF:U12345}<12345
-lhs = 12345.000000, rhs = 12345.000000, op = <1
+lhs = 12345.000000, rhs = 12345.000000, op = <
 CondParser_Eval: (${UNDEF:U0})||0
 CondParser_Eval: ${:Uvar}&&name != "var&&name"
 lhs = "var&&name", rhs = "var&&name", op = !=
 CondParser_Eval: ${:Uvar}||name != "var||name"
 lhs = "var||name", rhs = "var||name", op = !=
-exit status 0
+CondParser_Eval: bare
+make: "cond-token-plain.mk" line 102: A bare word is treated like defined(...), and the variable 'bare' is not defined.
+CondParser_Eval: VAR
+make: "cond-token-plain.mk" line 107: A bare word is treated like defined(...).
+CondParser_Eval: V${:UA}R
+make: "cond-token-plain.mk" line 114: ok
+CondParser_Eval: V${UNDEF}AR
+make: "cond-token-plain.mk" line 122: Undefined variables in bare words expand to an empty string.
+CondParser_Eval: 0${:Ux00}
+make: "cond-token-plain.mk" line 130: Numbers can be composed from literals and variable expressions.
+CondParser_Eval: 0${:Ux01}
+make: "cond-token-plain.mk" line 134: Numbers can be composed from literals and variable expressions.
+CondParser_Eval: "" ==
+make: "cond-token-plain.mk" line 140: Missing right-hand-side of operator '=='
+CondParser_Eval: == ""
+make: "cond-token-plain.mk" line 148: Malformed conditional (== "")
+CondParser_Eval: \\
+make: "cond-token-plain.mk" line 163: The variable '\\' is not defined.
+CondParser_Eval: \\
+make: "cond-token-plain.mk" line 168: Now the variable '\\' is defined.
+CondParser_Eval: "unquoted\"quoted" != unquoted"quoted
+lhs = "unquoted"quoted", rhs = "unquoted"quoted", op = !=
+CondParser_Eval: $$$$$$$$ != ""
+make: Fatal errors encountered -- cannot continue
+make: stopped in unit-tests
+exit status 1

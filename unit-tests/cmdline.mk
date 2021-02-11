@@ -1,8 +1,8 @@
-# $NetBSD: cmdline.mk,v 1.2 2020/11/15 14:07:53 rillig Exp $
+# $NetBSD: cmdline.mk,v 1.3 2021/02/06 18:26:03 sjg Exp $
 #
 # Tests for command line parsing and related special variables.
 
-TMPBASE?=	/tmp/uid${.MAKE.UID}
+TMPBASE?=	${TMPDIR:U/tmp/uid${.MAKE.UID}}
 SUB1=		a7b41170-53f8-4cc2-bc5c-e4c3dd93ec45	# just a random UUID
 SUB2=		6a8899d2-d227-4b55-9b6b-f3c8eeb83fd5	# just a random UUID
 MAKE_CMD=	env TMPBASE=${TMPBASE}/${SUB1} ${.MAKE} -f ${MAKEFILE} -r
