@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2021
+.Dd February 11, 2021
 .Dt KLDLOAD 8
 .Os
 .Sh NAME
@@ -112,7 +112,8 @@ Modules may also be auto-loaded through their addition to
 or kld_list in
 .Xr rc.conf 5 .
 .Pp
-Only modules needed to get to mountroot should be loaded via
+Only those modules necessary for booting the system, including those
+required for mounting the root filesystem, should be handled by
 .Xr loader.conf 5 .
 .Sh SEE ALSO
 .Xr kldload 2 ,
