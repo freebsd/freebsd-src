@@ -6,12 +6,12 @@ Global:VAR = overwritten
 Global:delete VAR
 Global:delete VAR (not found)
 Var_Parse: ${:U} with VARE_WANTRES
-Applying ${:U} to "" (VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:U} is "" (VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U} to "" (VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_WANTRES, none, VES_DEF)
 Var_Set("${:U}", "empty name", ...) name expands to empty string - ignored
 Var_Parse: ${:U} with VARE_WANTRES
-Applying ${:U} to "" (VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:U} is "" (VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U} to "" (VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_WANTRES, none, VES_DEF)
 Var_Append("${:U}", "empty name", ...) name expands to empty string - ignored
 Global:FROM_CMDLINE = overwritten ignored!
 Global:VAR = 1
@@ -47,32 +47,32 @@ Result of ${VAR:tl} is "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Applying ${VAR:Q} to "1 2 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Result of ${VAR:Q} is "1\ 2\ 3" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Var_Parse: ${:Uvalue:${:UM*e}:Mvalu[e]} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:Uvalue} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:Uvalue} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Var_Parse: ${:UM*e}:Mvalu[e]} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:UM*e} is "M*e" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:UM*e} is "M*e" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Indirect modifier "M*e" from "${:UM*e}"
-Applying ${:M...} to "value" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:M...} to "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Pattern[] for [value] is [*e]
 ModifyWords: split "value" into 1 words
 VarMatch [value] [*e]
-Result of ${:M*e} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
-Applying ${:M...} to "value" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Result of ${:M*e} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
+Applying ${:M...} to "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Pattern[] for [value] is [valu[e]]
 ModifyWords: split "value" into 1 words
 VarMatch [value] [valu[e]]
-Result of ${:Mvalu[e]} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Result of ${:Mvalu[e]} is "value" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Var_Parse: ${:UVAR} with VARE_WANTRES
-Applying ${:U...} to "" (VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:UVAR} is "VAR" (VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_WANTRES, none, VES_UNDEF)
+Result of ${:UVAR} is "VAR" (VARE_WANTRES, none, VES_DEF)
 Global:delete VAR
 Var_Parse: ${:Uvariable:unknown} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:Uvariable} is "variable" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
-Applying ${:u...} to "variable" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:Uvariable} is "variable" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
+Applying ${:u...} to "variable" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 make: "vardebug.mk" line 44: Unknown modifier 'u'
-Result of ${:unknown} is error (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Result of ${:unknown} is error (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 make: "vardebug.mk" line 44: Malformed conditional (${:Uvariable:unknown})
 Var_Parse: ${UNDEFINED} with VARE_UNDEFERR|VARE_WANTRES
 make: "vardebug.mk" line 53: Malformed conditional (${UNDEFINED})

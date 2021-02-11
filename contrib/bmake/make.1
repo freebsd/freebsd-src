@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.295 2020/12/23 13:49:12 rillig Exp $
+.\"	$NetBSD: make.1,v 1.296 2021/02/04 21:42:46 rillig Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -99,7 +99,7 @@ is equivalent to
 .It Fl D Ar variable
 Define
 .Ar variable
-to be 1, in the global context.
+to be 1, in the global scope.
 .It Fl d Ar [-]flags
 Turn on debugging, and specify which portions of
 .Nm
@@ -355,7 +355,7 @@ Do not build any targets.
 Multiple instances of this option may be specified;
 the variables will be printed one per line,
 with a blank line for each null or undefined variable.
-The value printed is extracted from the global context after all
+The value printed is extracted from the global scope after all
 makefiles have been read.
 By default, the raw variable contents (which may
 include additional unexpanded variable references) are shown.

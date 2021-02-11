@@ -3,8 +3,8 @@ CondParser_Eval: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}}
 Var_Parse: ${SPECIALS:M${:U}\:} != ${SPECIALS:M\:${:U}} with VARE_UNDEFERR|VARE_WANTRES
 Applying ${SPECIALS:M...} to "\: : \\ * \*" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Var_Parse: ${:U}\: with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Pattern[SPECIALS] for [\: : \\ * \*] is [\:]
 ModifyWords: split "\: : \\ * \*" into 5 words
 VarMatch [\:] [\:]
@@ -16,8 +16,8 @@ Result of ${SPECIALS:M${:U}\:} is ":" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Var_Parse: ${SPECIALS:M\:${:U}} with VARE_UNDEFERR|VARE_WANTRES
 Applying ${SPECIALS:M...} to "\: : \\ * \*" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Var_Parse: ${:U} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Pattern[SPECIALS] for [\: : \\ * \*] is [:]
 ModifyWords: split "\: : \\ * \*" into 5 words
 VarMatch [\:] [:]
@@ -32,8 +32,8 @@ CondParser_Eval: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:}
 Var_Parse: ${VALUES:M\:${:U\:}} != ${VALUES:M${:U\:}\:} with VARE_UNDEFERR|VARE_WANTRES
 Applying ${VALUES:M...} to ": :: :\:" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Var_Parse: ${:U:} with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U} is "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Pattern[VALUES] for [: :: :\:] is [:]
 ModifyWords: split ": :: :\:" into 3 words
 VarMatch [:] [:]
@@ -43,8 +43,8 @@ Result of ${VALUES:M\:${:U\:}} is ":" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Var_Parse: ${VALUES:M${:U\:}\:} with VARE_UNDEFERR|VARE_WANTRES
 Applying ${VALUES:M...} to ": :: :\:" (VARE_UNDEFERR|VARE_WANTRES, none, none)
 Var_Parse: ${:U\:}\: with VARE_UNDEFERR|VARE_WANTRES
-Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF)
-Result of ${:U\:} is ":" (VARE_UNDEFERR|VARE_WANTRES, none, VEF_UNDEF|VEF_DEF)
+Applying ${:U...} to "" (VARE_UNDEFERR|VARE_WANTRES, none, VES_UNDEF)
+Result of ${:U\:} is ":" (VARE_UNDEFERR|VARE_WANTRES, none, VES_DEF)
 Pattern[VALUES] for [: :: :\:] is [:\:]
 ModifyWords: split ": :: :\:" into 3 words
 VarMatch [:] [:\:]

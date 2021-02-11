@@ -1,3 +1,12 @@
+2021-01-30  Simon J Gerraty  <sjg@beast.crufty.net>
+
+	* install-mk (MK_VERSION): 20210130
+
+	* dirdeps.mk: expr 2 - 1 - 1 exits with a bad status
+	  we need to  guard against this in DIRDEP_LOADAVG_REPORT.
+
+	* dirdeps.mk: restore respect for TARGET_MACHINE
+
 2021-01-06  Simon J Gerraty  <sjg@beast.crufty.net>
 
 	* install-mk (MK_VERSION): 20210101

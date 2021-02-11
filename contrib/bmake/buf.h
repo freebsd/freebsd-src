@@ -1,4 +1,4 @@
-/*	$NetBSD: buf.h,v 1.38 2020/12/28 15:42:53 rillig Exp $	*/
+/*	$NetBSD: buf.h,v 1.42 2021/01/30 21:25:10 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -81,15 +81,10 @@
 
 /* An automatically growing null-terminated buffer of characters. */
 typedef struct Buffer {
-	size_t cap;	/* Allocated size of the buffer, including the null */
-	size_t len;	/* Number of bytes in buffer, excluding the null */
+	size_t cap;	/* Allocated size of the buffer, including the '\0' */
+	size_t len;	/* Number of bytes in buffer, excluding the '\0' */
 	char *data;	/* The buffer itself (always null-terminated) */
 } Buffer;
-
-/* If we aren't on NetBSD, __predict_false() might not be defined. */
-#ifndef __predict_false
-#define __predict_false(x) (x)
-#endif
 
 void Buf_Expand(Buffer *);
 
@@ -99,17 +94,11 @@ Buf_AddByte(Buffer *buf, char byte)
 {
 	size_t old_len = buf->len++;
 	char *end;
-	if (__predict_false(old_len + 1 >= buf->cap))
+	if (old_len + 1 >= buf->cap)
 		Buf_Expand(buf);
 	end = buf->data + old_len;
 	end[0] = byte;
 	end[1] = '\0';
-}
-
-MAKE_INLINE size_t
-Buf_Len(const Buffer *buf)
-{
-	return buf->len;
 }
 
 MAKE_INLINE Boolean
@@ -122,11 +111,11 @@ void Buf_AddBytes(Buffer *, const char *, size_t);
 void Buf_AddBytesBetween(Buffer *, const char *, const char *);
 void Buf_AddStr(Buffer *, const char *);
 void Buf_AddInt(Buffer *, int);
-char *Buf_GetAll(Buffer *, size_t *);
 void Buf_Empty(Buffer *);
 void Buf_Init(Buffer *);
 void Buf_InitSize(Buffer *, size_t);
-char *Buf_Destroy(Buffer *, Boolean);
-char *Buf_DestroyCompact(Buffer *);
+void Buf_Done(Buffer *);
+char *Buf_DoneData(Buffer *);
+char *Buf_DoneDataCompact(Buffer *);
 
 #endif /* MAKE_BUF_H */

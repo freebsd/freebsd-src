@@ -1,4 +1,4 @@
-# $NetBSD: var-op-shell.mk,v 1.3 2020/11/09 20:39:46 rillig Exp $
+# $NetBSD: var-op-shell.mk,v 1.4 2021/02/06 04:55:08 sjg Exp $
 #
 # Tests for the != variable assignment operator, which runs its right-hand
 # side through the shell.
@@ -50,13 +50,10 @@ OUTPUT!=	echo "before"; false; echo "after"
 .  error
 .endif
 
-# NB: The signal number must be numeric since some shells (which ones?) don't
-# accept symbolic signal names.  14 is typically SIGALRM.
-#
-# XXX: The number of the signal is not mentioned in the warning since that
-# would have been difficult to implement; currently the errfmt is a format
-# string containing a single %s conversion.
-OUTPUT!=	kill -14 $$$$
+# This should result in a warning about "exited on a signal".
+# This used to be kill -14 (SIGALRM), but that stopped working on
+# Darwin18 after recent update.
+OUTPUT!=	kill $$$$
 .if ${OUTPUT} != ""
 .  error
 .endif

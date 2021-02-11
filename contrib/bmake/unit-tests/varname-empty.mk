@@ -1,4 +1,4 @@
-# $NetBSD: varname-empty.mk,v 1.7 2020/10/23 17:53:01 rillig Exp $
+# $NetBSD: varname-empty.mk,v 1.8 2021/02/03 08:34:15 rillig Exp $
 #
 # Tests for the special variable with the empty name.
 #
@@ -40,6 +40,13 @@ ${:U}=	assigned indirectly
 .if ${:Ufallback} != "fallback"
 .  error
 .endif
+
+${:U}+=	appended indirectly
+.if ${:Ufallback} != "fallback"
+.  error
+.endif
+
+.MAKEFLAGS: -d0
 
 # Before 2020-08-22, the simple assignment operator '=' after an empty
 # variable name had an off-by-one bug in Parse_DoVar.  The code that was

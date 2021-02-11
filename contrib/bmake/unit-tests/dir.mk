@@ -1,4 +1,4 @@
-# $NetBSD: dir.mk,v 1.8 2020/11/03 18:42:33 rillig Exp $
+# $NetBSD: dir.mk,v 1.9 2021/01/23 10:48:49 rillig Exp $
 #
 # Tests for dir.c.
 
@@ -79,7 +79,7 @@ single-word:
 
 # Demonstrate debug logging for filename expansion, especially curly braces.
 .MAKEFLAGS: -dd
-# The below line does not call Dir_Expand yet.
+# The below line does not call SearchPath_Expand yet.
 # It is expanded only when necessary, that is, when the 'debug' target is
 # indeed made.
 debug: {{thi,fou}r,fif}twen

@@ -1,4 +1,4 @@
-/*	$NetBSD: arch.c,v 1.193 2021/01/09 16:06:09 rillig Exp $	*/
+/*	$NetBSD: arch.c,v 1.197 2021/02/05 05:15:12 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -147,7 +147,7 @@ struct ar_hdr {
 #include "dir.h"
 
 /*	"@(#)arch.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: arch.c,v 1.193 2021/01/09 16:06:09 rillig Exp $");
+MAKE_RCSID("$NetBSD: arch.c,v 1.197 2021/02/05 05:15:12 rillig Exp $");
 
 typedef struct List ArchList;
 typedef struct ListNode ArchListNode;
@@ -225,14 +225,14 @@ ArchFree(void *ap)
  * Input:
  *	pp		The start of the specification.
  *	gns		The list on which to place the nodes.
- *	ctxt		The context in which to expand variables.
+ *	scope		The scope in which to expand variables.
  *
  * Output:
  *	return		TRUE if it was a valid specification.
  *	*pp		Points to the first non-space after the archive spec.
  */
 Boolean
-Arch_ParseArchive(char **pp, GNodeList *gns, GNode *ctxt)
+Arch_ParseArchive(char **pp, GNodeList *gns, GNode *scope)
 {
 	char *cp;		/* Pointer into line */
 	GNode *gn;		/* New node */
@@ -255,7 +255,7 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *ctxt)
 			Boolean isError;
 
 			/* XXX: is expanded twice: once here and once below */
-			(void)Var_Parse(&nested_p, ctxt,
+			(void)Var_Parse(&nested_p, scope,
 					VARE_WANTRES | VARE_UNDEFERR, &result);
 			/* TODO: handle errors */
 			isError = result.str == var_Error;
@@ -272,7 +272,7 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *ctxt)
 	*cp++ = '\0';
 	if (expandLibName) {
 		char *expanded;
-		(void)Var_Subst(libName.str, ctxt,
+		(void)Var_Subst(libName.str, scope,
 		    VARE_WANTRES | VARE_UNDEFERR, &expanded);
 		/* TODO: handle errors */
 		libName = MFStr_InitOwn(expanded);
@@ -298,7 +298,7 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *ctxt)
 				Boolean isError;
 				const char *nested_p = cp;
 
-				(void)Var_Parse(&nested_p, ctxt,
+				(void)Var_Parse(&nested_p, scope,
 						VARE_WANTRES | VARE_UNDEFERR,
 						&result);
 				/* TODO: handle errors */
@@ -355,7 +355,7 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *ctxt)
 			char *p;
 			char *unexpandedMemName = memName;
 
-			(void)Var_Subst(memName, ctxt,
+			(void)Var_Subst(memName, scope,
 					VARE_WANTRES | VARE_UNDEFERR,
 					&memName);
 			/* TODO: handle errors */
@@ -379,7 +379,7 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *ctxt)
 				gn->type |= OP_ARCHV;
 				Lst_Append(gns, gn);
 
-			} else if (!Arch_ParseArchive(&p, gns, ctxt)) {
+			} else if (!Arch_ParseArchive(&p, gns, scope)) {
 				/* Error in nested call. */
 				free(fullName);
 				/* XXX: does unexpandedMemName leak? */
@@ -390,7 +390,7 @@ Arch_ParseArchive(char **pp, GNodeList *gns, GNode *ctxt)
 
 		} else if (Dir_HasWildcards(memName)) {
 			StringList members = LST_INIT;
-			Dir_Expand(memName, &dirSearchPath, &members);
+			SearchPath_Expand(&dirSearchPath, memName, &members);
 
 			while (!Lst_IsEmpty(&members)) {
 				char *member = Lst_Dequeue(&members);
@@ -1022,9 +1022,9 @@ Arch_FindLib(GNode *gn, SearchPath *path)
 	free(libName);
 
 #ifdef LIBRARIES
-	Var_Set(TARGET, gn->name, gn);
+	Var_Set(gn, TARGET, gn->name);
 #else
-	Var_Set(TARGET, gn->path == NULL ? gn->name : gn->path, gn);
+	Var_Set(gn, TARGET, GNode_Path(gn));
 #endif
 }
 

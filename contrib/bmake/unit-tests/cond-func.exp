@@ -1,9 +1,6 @@
-make: "cond-func.mk" line 36: warning: Missing closing parenthesis for defined()
-make: "cond-func.mk" line 36: Malformed conditional (!defined(A B))
-make: "cond-func.mk" line 51: warning: Missing closing parenthesis for defined()
-make: "cond-func.mk" line 51: Malformed conditional (!defined(A&B))
-make: "cond-func.mk" line 54: warning: Missing closing parenthesis for defined()
-make: "cond-func.mk" line 54: Malformed conditional (!defined(A|B))
+make: "cond-func.mk" line 36: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 51: Missing closing parenthesis for defined()
+make: "cond-func.mk" line 54: Missing closing parenthesis for defined()
 make: "cond-func.mk" line 94: The empty variable is never defined.
 make: "cond-func.mk" line 102: A plain function name is parsed as !empty(...).
 make: "cond-func.mk" line 109: A plain function name is parsed as !empty(...).

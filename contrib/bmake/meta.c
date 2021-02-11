@@ -1,4 +1,4 @@
-/*      $NetBSD: meta.c,v 1.168 2021/01/10 21:20:46 rillig Exp $ */
+/*      $NetBSD: meta.c,v 1.177 2021/02/05 19:19:17 sjg Exp $ */
 
 /*
  * Implement 'meta' mode.
@@ -144,7 +144,10 @@ meta_open_filemon(BuildMon *pbm)
      * cwd causing getcwd to do a lot more work.
      * We only care about the descriptor.
      */
-    pbm->mon_fd = mkTempFile("filemon.XXXXXX", NULL);
+    if (!opts.compatMake)
+	pbm->mon_fd = Job_TempFile("filemon.XXXXXX", NULL, 0);
+    else
+	pbm->mon_fd = mkTempFile("filemon.XXXXXX", NULL, 0);
     if ((dupfd = dup(pbm->mon_fd)) == -1) {
 	err(1, "Could not dup filemon output!");
     }
@@ -327,7 +330,7 @@ is_submake(const char *cmd, GNode *gn)
     Boolean rc = FALSE;
 
     if (p_make == NULL) {
-	p_make = Var_Value(".MAKE", gn).str;
+	p_make = Var_Value(gn, ".MAKE").str;
 	p_len = strlen(p_make);
     }
     cp = strchr(cmd, '$');
@@ -407,7 +410,7 @@ printCMDs(GNode *gn, FILE *fp)
 	} \
 	return FALSE; \
     } \
-} while (/*CONSTCOND*/0)
+} while (/*CONSTCOND*/FALSE)
 
 
 /*
@@ -483,7 +486,7 @@ meta_create(BuildMon *pbm, GNode *gn)
 
     fp = NULL;
 
-    dname = Var_Value(".OBJDIR", gn);
+    dname = Var_Value(gn, ".OBJDIR");
     tname = GNode_VarTarget(gn);
 
     /* if this succeeds objdir_realpath is realpath of dname */
@@ -538,8 +541,8 @@ meta_create(BuildMon *pbm, GNode *gn)
     fprintf(fp, "-- command output --\n");
     fflush(fp);
 
-    Var_Append(".MAKE.META.FILES", fname, VAR_GLOBAL);
-    Var_Append(".MAKE.META.CREATED", fname, VAR_GLOBAL);
+    Global_Append(".MAKE.META.FILES", fname);
+    Global_Append(".MAKE.META.CREATED", fname);
 
     gn->type |= OP_META;		/* in case anyone wants to know */
     if (metaSilent) {
@@ -573,7 +576,7 @@ meta_init(void)
 {
 #ifdef USE_FILEMON
 	/* this allows makefiles to test if we have filemon support */
-	Var_Set(".MAKE.PATH_FILEMON", filemon_path(), VAR_GLOBAL);
+	Global_Set(".MAKE.PATH_FILEMON", filemon_path());
 #endif
 }
 
@@ -613,14 +616,15 @@ meta_mode_init(const char *make_mode)
 	get_mode_bf(metaMissing, "missing-meta=");
 	get_mode_bf(metaSilent, "silent=");
     }
-    if (metaVerbose && !Var_Exists(MAKE_META_PREFIX, VAR_GLOBAL)) {
+    if (metaVerbose && !Var_Exists(SCOPE_GLOBAL, MAKE_META_PREFIX)) {
 	/*
 	 * The default value for MAKE_META_PREFIX
 	 * prints the absolute path of the target.
 	 * This works be cause :H will generate '.' if there is no /
 	 * and :tA will resolve that to cwd.
 	 */
-	Var_Set(MAKE_META_PREFIX, "Building ${.TARGET:H:tA}/${.TARGET:T}", VAR_GLOBAL);
+	Global_Set(MAKE_META_PREFIX,
+	    "Building ${.TARGET:H:tA}/${.TARGET:T}");
     }
     if (once)
 	return;
@@ -630,28 +634,28 @@ meta_mode_init(const char *make_mode)
      * We consider ourselves master of all within ${.MAKE.META.BAILIWICK}
      */
     (void)Var_Subst("${.MAKE.META.BAILIWICK:O:u:tA}",
-		    VAR_GLOBAL, VARE_WANTRES, &metaBailiwickStr);
+		    SCOPE_GLOBAL, VARE_WANTRES, &metaBailiwickStr);
     /* TODO: handle errors */
     str2Lst_Append(&metaBailiwick, metaBailiwickStr);
     /*
      * We ignore any paths that start with ${.MAKE.META.IGNORE_PATHS}
      */
-    Var_Append(MAKE_META_IGNORE_PATHS,
-	       "/dev /etc /proc /tmp /var/run /var/tmp ${TMPDIR}", VAR_GLOBAL);
+    Global_Append(MAKE_META_IGNORE_PATHS,
+	       "/dev /etc /proc /tmp /var/run /var/tmp ${TMPDIR}");
     (void)Var_Subst("${" MAKE_META_IGNORE_PATHS ":O:u:tA}",
-		    VAR_GLOBAL, VARE_WANTRES, &metaIgnorePathsStr);
+		    SCOPE_GLOBAL, VARE_WANTRES, &metaIgnorePathsStr);
     /* TODO: handle errors */
     str2Lst_Append(&metaIgnorePaths, metaIgnorePathsStr);
 
     /*
      * We ignore any paths that match ${.MAKE.META.IGNORE_PATTERNS}
      */
-    value = Var_Value(MAKE_META_IGNORE_PATTERNS, VAR_GLOBAL);
+    value = Var_Value(SCOPE_GLOBAL, MAKE_META_IGNORE_PATTERNS);
     if (value.str != NULL) {
 	metaIgnorePatterns = TRUE;
 	FStr_Done(&value);
     }
-    value = Var_Value(MAKE_META_IGNORE_FILTER, VAR_GLOBAL);
+    value = Var_Value(SCOPE_GLOBAL, MAKE_META_IGNORE_FILTER);
     if (value.str != NULL) {
 	metaIgnoreFilter = TRUE;
 	FStr_Done(&value);
@@ -786,13 +790,12 @@ meta_job_error(Job *job, GNode *gn, Boolean ignerr, int status)
 	fprintf(pbm->mfp, "\n*** Error code %d%s\n",
 		status, ignerr ? "(ignored)" : "");
     }
-    if (gn != NULL) {
-	Var_Set(".ERROR_TARGET", GNode_Path(gn), VAR_GLOBAL);
-    }
+    if (gn != NULL)
+	Global_Set(".ERROR_TARGET", GNode_Path(gn));
     getcwd(cwd, sizeof cwd);
-    Var_Set(".ERROR_CWD", cwd, VAR_GLOBAL);
+    Global_Set(".ERROR_CWD", cwd);
     if (pbm->meta_fname[0] != '\0') {
-	Var_Set(".ERROR_META_FILE", pbm->meta_fname, VAR_GLOBAL);
+	Global_Set(".ERROR_META_FILE", pbm->meta_fname);
     }
     meta_job_finish(job);
 }
@@ -816,7 +819,7 @@ meta_job_output(Job *job, char *cp, const char *nl)
 		char *cp2;
 
 		(void)Var_Subst("${" MAKE_META_PREFIX "}",
-				VAR_GLOBAL, VARE_WANTRES, &meta_prefix);
+				SCOPE_GLOBAL, VARE_WANTRES, &meta_prefix);
 		/* TODO: handle errors */
 		if ((cp2 = strchr(meta_prefix, '$')) != NULL)
 		    meta_prefix_len = (size_t)(cp2 - meta_prefix);
@@ -993,7 +996,13 @@ meta_ignore(GNode *gn, const char *p)
 	const char *expr;
 	char *pm;
 
-	Var_Set(".p.", p, gn);
+	/*
+	 * XXX: This variable is set on a target GNode but is not one of
+	 * the usual local variables.  It should be deleted afterwards.
+	 * Ideally it would not be created in the first place, just like
+	 * in a .for loop.
+	 */
+	Var_Set(gn, ".p.", p);
 	expr = "${" MAKE_META_IGNORE_PATTERNS ":@m@${.p.:M$m}@}";
 	(void)Var_Subst(expr, gn, VARE_WANTRES, &pm);
 	/* TODO: handle errors */
@@ -1093,7 +1102,7 @@ meta_oodate(GNode *gn, Boolean oodate)
     if (oodate)
 	return oodate;		/* we're done */
 
-    dname = Var_Value(".OBJDIR", gn);
+    dname = Var_Value(gn, ".OBJDIR");
     tname = GNode_VarTarget(gn);
 
     /* if this succeeds fname3 is realpath of dname */
@@ -1146,7 +1155,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 	}
 
 	/* we want to track all the .meta we read */
-	Var_Append(".MAKE.META.FILES", fname, VAR_GLOBAL);
+	Global_Append(".MAKE.META.FILES", fname);
 
 	cmdNode = gn->commands.first;
 	while (!oodate && (x = fgetLine(&buf, &bufsz, 0, fp)) > 0) {
@@ -1198,7 +1207,7 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    /*
 		     * We need to track pathnames per-process.
 		     *
-		     * Each process run by make, starts off in the 'CWD'
+		     * Each process run by make starts off in the 'CWD'
 		     * recorded in the .meta file, if it chdirs ('C')
 		     * elsewhere we need to track that - but only for
 		     * that process.  If it forks ('F'), we initialize
@@ -1221,18 +1230,18 @@ meta_oodate(GNode *gn, Boolean oodate)
 
 			if (lastpid > 0) {
 			    /* We need to remember these. */
-			    Var_Set(lcwd_vname, lcwd, VAR_GLOBAL);
-			    Var_Set(ldir_vname, latestdir, VAR_GLOBAL);
+			    Global_SetExpand(lcwd_vname, lcwd);
+			    Global_SetExpand(ldir_vname, latestdir);
 			}
 			snprintf(lcwd_vname, sizeof lcwd_vname, LCWD_VNAME_FMT, pid);
 			snprintf(ldir_vname, sizeof ldir_vname, LDIR_VNAME_FMT, pid);
 			lastpid = pid;
-			ldir = Var_Value(ldir_vname, VAR_GLOBAL);
+			ldir = Var_Value(SCOPE_GLOBAL, ldir_vname);
 			if (ldir.str != NULL) {
 			    strlcpy(latestdir, ldir.str, sizeof latestdir);
 			    FStr_Done(&ldir);
 			}
-			ldir = Var_Value(lcwd_vname, VAR_GLOBAL);
+			ldir = Var_Value(SCOPE_GLOBAL, lcwd_vname);
 			if (ldir.str != NULL) {
 			    strlcpy(lcwd, ldir.str, sizeof lcwd);
 			    FStr_Done(&ldir);
@@ -1255,8 +1264,8 @@ meta_oodate(GNode *gn, Boolean oodate)
 		/* Process according to record type. */
 		switch (buf[0]) {
 		case 'X':		/* eXit */
-		    Var_Delete(lcwd_vname, VAR_GLOBAL);
-		    Var_Delete(ldir_vname, VAR_GLOBAL);
+		    Var_DeleteExpand(SCOPE_GLOBAL, lcwd_vname);
+		    Var_DeleteExpand(SCOPE_GLOBAL, ldir_vname);
 		    lastpid = 0;	/* no need to save ldir_vname */
 		    break;
 
@@ -1268,9 +1277,9 @@ meta_oodate(GNode *gn, Boolean oodate)
 			child = atoi(p);
 			if (child > 0) {
 			    snprintf(cldir, sizeof cldir, LCWD_VNAME_FMT, child);
-			    Var_Set(cldir, lcwd, VAR_GLOBAL);
+			    Global_SetExpand(cldir, lcwd);
 			    snprintf(cldir, sizeof cldir, LDIR_VNAME_FMT, child);
-			    Var_Set(cldir, latestdir, VAR_GLOBAL);
+			    Global_SetExpand(cldir, latestdir);
 #ifdef DEBUG_META_MODE
 			    if (DEBUG(META))
 				debug_printf(
@@ -1286,8 +1295,8 @@ meta_oodate(GNode *gn, Boolean oodate)
 		    /* Update lcwd and latest directory. */
 		    strlcpy(latestdir, p, sizeof latestdir);
 		    strlcpy(lcwd, p, sizeof lcwd);
-		    Var_Set(lcwd_vname, lcwd, VAR_GLOBAL);
-		    Var_Set(ldir_vname, lcwd, VAR_GLOBAL);
+		    Global_SetExpand(lcwd_vname, lcwd);
+		    Global_SetExpand(ldir_vname, lcwd);
 #ifdef DEBUG_META_MODE
 		    DEBUG4(META, "%s: %d: cwd=%s ldir=%s\n",
 			   fname, lineno, cwd, lcwd);
@@ -1605,8 +1614,8 @@ meta_oodate(GNode *gn, Boolean oodate)
 	 * We have decided it is oodate, so .OODATE needs to be set.
 	 * All we can sanely do is set it to .ALLSRC.
 	 */
-	Var_Delete(OODATE, gn);
-	Var_Set(OODATE, GNode_VarAllsrc(gn), gn);
+	Var_Delete(gn, OODATE);
+	Var_Set(gn, OODATE, GNode_VarAllsrc(gn));
     }
 
  oodate_out:
@@ -1699,7 +1708,7 @@ meta_compat_parent(pid_t child)
 	    fflush(stdout);
 	    buf[nread] = '\0';
 	    meta_job_output(NULL, buf, "");
-	} while (/*CONSTCOND*/0);
+	} while (/*CONSTCOND*/FALSE);
 	if (metafd != -1 && FD_ISSET(metafd, &readfds) != 0) {
 	    if (meta_job_event(NULL) <= 0)
 		metafd = -1;

@@ -1,4 +1,4 @@
-/*	$NetBSD: dir.c,v 1.255 2021/01/10 21:20:46 rillig Exp $	*/
+/*	$NetBSD: dir.c,v 1.270 2021/02/05 05:48:19 rillig Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -89,8 +89,9 @@
  *			Returns TRUE if the name given it needs to
  *			be wildcard-expanded.
  *
- *	Dir_Expand	Given a pattern and a path, return a Lst of names
- *			which match the pattern on the search path.
+ *	SearchPath_Expand
+ *			Expand a filename pattern to find all matching files
+ *			from the search path.
  *
  *	Dir_FindFile	Searches for a file on a given search path.
  *			If it exists, the entire path is returned.
@@ -105,7 +106,7 @@
  *			Update the modification time and path of a node with
  *			data from the file corresponding to the node.
  *
- *	Dir_AddDir	Add a directory to a search path.
+ *	SearchPath_Add	Add a directory to a search path.
  *
  *	SearchPath_ToFlags
  *			Given a search path and a command flag, create
@@ -137,7 +138,7 @@
 #include "job.h"
 
 /*	"@(#)dir.c	8.2 (Berkeley) 1/2/94"	*/
-MAKE_RCSID("$NetBSD: dir.c,v 1.255 2021/01/10 21:20:46 rillig Exp $");
+MAKE_RCSID("$NetBSD: dir.c,v 1.270 2021/02/05 05:48:19 rillig Exp $");
 
 /*
  * A search path is a list of CachedDir structures. A CachedDir has in it the
@@ -252,7 +253,7 @@ typedef enum CachedStatsFlags {
 } CachedStatsFlags;
 
 
-SearchPath dirSearchPath = LST_INIT;	/* main search path */
+SearchPath dirSearchPath = { LST_INIT }; /* main search path */
 
 static OpenDirs openDirs;	/* all cached directories */
 
@@ -484,18 +485,18 @@ Dir_Init(void)
  * Called by Dir_InitDir and whenever .CURDIR is assigned to.
  */
 void
-Dir_InitCur(const char *cdname)
+Dir_InitCur(const char *newCurdir)
 {
 	CachedDir *dir;
 
-	if (cdname == NULL)
+	if (newCurdir == NULL)
 		return;
 
 	/*
 	 * Our build directory is not the same as our source directory.
 	 * Keep this one around too.
 	 */
-	dir = Dir_AddDir(NULL, cdname);
+	dir = SearchPath_Add(NULL, newCurdir);
 	if (dir == NULL)
 		return;
 
@@ -511,7 +512,7 @@ Dir_InitDot(void)
 {
 	CachedDir *dir;
 
-	dir = Dir_AddDir(NULL, ".");
+	dir = SearchPath_Add(NULL, ".");
 	if (dir == NULL) {
 		Error("Cannot open `.' (%s)", strerror(errno));
 		exit(2);	/* Not 1 so -q can distinguish error */
@@ -548,37 +549,37 @@ Dir_SetPATH(void)
 	CachedDirListNode *ln;
 	Boolean seenDotLast = FALSE;	/* true if we should search '.' last */
 
-	Var_Delete(".PATH", VAR_GLOBAL);
+	Global_Delete(".PATH");
 
-	if ((ln = dirSearchPath.first) != NULL) {
+	if ((ln = dirSearchPath.dirs.first) != NULL) {
 		CachedDir *dir = ln->datum;
 		if (dir == dotLast) {
 			seenDotLast = TRUE;
-			Var_Append(".PATH", dotLast->name, VAR_GLOBAL);
+			Global_Append(".PATH", dotLast->name);
 		}
 	}
 
 	if (!seenDotLast) {
 		if (dot != NULL)
-			Var_Append(".PATH", dot->name, VAR_GLOBAL);
+			Global_Append(".PATH", dot->name);
 		if (cur != NULL)
-			Var_Append(".PATH", cur->name, VAR_GLOBAL);
+			Global_Append(".PATH", cur->name);
 	}
 
-	for (ln = dirSearchPath.first; ln != NULL; ln = ln->next) {
+	for (ln = dirSearchPath.dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
 		if (dir == dotLast)
 			continue;
 		if (dir == dot && seenDotLast)
 			continue;
-		Var_Append(".PATH", dir->name, VAR_GLOBAL);
+		Global_Append(".PATH", dir->name);
 	}
 
 	if (seenDotLast) {
 		if (dot != NULL)
-			Var_Append(".PATH", dot->name, VAR_GLOBAL);
+			Global_Append(".PATH", dot->name);
 		if (cur != NULL)
-			Var_Append(".PATH", cur->name, VAR_GLOBAL);
+			Global_Append(".PATH", cur->name);
 	}
 }
 
@@ -633,7 +634,9 @@ Dir_HasWildcards(const char *name)
  * This is incomplete -- wildcards are only expanded in the final path
  * component, but not in directories like src/lib*c/file*.c, but it
  * will do for now (now being 1993 until at least 2020). To expand these,
- * use the ':sh' variable modifier such as in ${:!echo src/lib*c/file*.c!}.
+ * delegate the work to the shell, using the '!=' variable assignment
+ * operator, the ':sh' variable modifier or the ':!...!' variable modifier,
+ * such as in ${:!echo src/lib*c/file*.c!}.
  *
  * Input:
  *	pattern		Pattern to look for
@@ -667,7 +670,8 @@ DirMatchFiles(const char *pattern, CachedDir *dir, StringList *expansions)
 		 * directory cache.
 		 *
 		 * This means that the pattern '[a-z.]*' does not find
-		 * '.file', which is consistent with bash, NetBSD sh and csh.
+		 * '.file', which is consistent with NetBSD sh, NetBSD ksh,
+		 * bash, dash, csh and probably many other shells as well.
 		 */
 		if (base[0] == '.' && pattern[0] != '.')
 			continue;
@@ -797,7 +801,7 @@ DirExpandCurly(const char *word, const char *brace, SearchPath *path,
 				     suffix, suffix_len);
 
 		if (contains_wildcard(file)) {
-			Dir_Expand(file, path, expansions);
+			SearchPath_Expand(path, file, expansions);
 			free(file);
 		} else {
 			Lst_Append(expansions, file);
@@ -814,7 +818,7 @@ static void
 DirExpandPath(const char *word, SearchPath *path, StringList *expansions)
 {
 	SearchPathNode *ln;
-	for (ln = path->first; ln != NULL; ln = ln->next) {
+	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
 		DirMatchFiles(word, dir, expansions);
 	}
@@ -834,112 +838,121 @@ PrintExpansions(StringList *expansions)
 }
 
 /*
- * Expand the given word into a list of words by globbing it, looking in the
- * directories on the given search path.
+ * The wildcard isn't in the first component.
+ * Find all the components up to the one with the wildcard.
+ */
+static void
+SearchPath_ExpandMiddle(SearchPath *path, const char *pattern,
+			const char *wildcardComponent, StringList *expansions)
+{
+	char *prefix, *dirpath, *end;
+	SearchPath *partPath;
+
+	prefix = bmake_strsedup(pattern, wildcardComponent + 1);
+	/*
+	 * XXX: Check the "the directory is added to the path" part.
+	 * It is probably surprising that the directory before a
+	 * wildcard gets added to the path.
+	 */
+	/*
+	 * XXX: Only the first match of the prefix in the path is
+	 * taken, any others are ignored.  The expectation may be
+	 * that the pattern is expanded in the whole path.
+	 */
+	dirpath = Dir_FindFile(prefix, path);
+	free(prefix);
+
+	/*
+	 * dirpath is null if can't find the leading component
+	 *
+	 * XXX: Dir_FindFile won't find internal components.  i.e. if the
+	 * path contains ../Etc/Object and we're looking for Etc, it won't
+	 * be found.  Ah well.  Probably not important.
+	 *
+	 * XXX: Check whether the above comment is still true.
+	 */
+	if (dirpath == NULL)
+		return;
+
+	end = &dirpath[strlen(dirpath) - 1];
+	/* XXX: What about multiple trailing slashes? */
+	if (*end == '/')
+		*end = '\0';
+
+	partPath = SearchPath_New();
+	(void)SearchPath_Add(partPath, dirpath);
+	DirExpandPath(wildcardComponent + 1, partPath, expansions);
+	SearchPath_Free(partPath);
+}
+
+/*
+ * Expand the given pattern into a list of existing filenames by globbing it,
+ * looking in each directory from the search path.
  *
  * Input:
- *	word		the word to expand
  *	path		the directories in which to find the files
+ *	pattern		the pattern to expand
  *	expansions	the list on which to place the results
  */
 void
-Dir_Expand(const char *word, SearchPath *path, StringList *expansions)
+SearchPath_Expand(SearchPath *path, const char *pattern, StringList *expansions)
 {
-	const char *cp;
+	const char *brace, *slash, *wildcard, *wildcardComponent;
 
 	assert(path != NULL);
 	assert(expansions != NULL);
 
-	DEBUG1(DIR, "Expanding \"%s\"... ", word);
+	DEBUG1(DIR, "Expanding \"%s\"... ", pattern);
 
-	cp = strchr(word, '{');
-	if (cp != NULL) {
-		DirExpandCurly(word, cp, path, expansions);
+	brace = strchr(pattern, '{');
+	if (brace != NULL) {
+		DirExpandCurly(pattern, brace, path, expansions);
 		goto done;
 	}
 
-	/* At this point, the word does not contain '{'. */
+	/* At this point, the pattern does not contain '{'. */
 
-	cp = strchr(word, '/');
-	if (cp == NULL) {
-		/* The word has no directory component. */
+	slash = strchr(pattern, '/');
+	if (slash == NULL) {
+		/* The pattern has no directory component. */
+
 		/* First the files in dot. */
-		DirMatchFiles(word, dot, expansions);
-
+		DirMatchFiles(pattern, dot, expansions);
 		/* Then the files in every other directory on the path. */
-		DirExpandPath(word, path, expansions);
+		DirExpandPath(pattern, path, expansions);
 		goto done;
 	}
 
-	/* At this point, the word has a directory component. */
+	/* At this point, the pattern has a directory component. */
 
-	/* Find the first wildcard in the word. */
-	for (cp = word; *cp != '\0'; cp++)
-		if (*cp == '?' || *cp == '[' || *cp == '*')
+	/* Find the first wildcard in the pattern. */
+	for (wildcard = pattern; *wildcard != '\0'; wildcard++)
+		if (*wildcard == '?' || *wildcard == '[' || *wildcard == '*')
 			break;
 
-	if (*cp == '\0') {
+	if (*wildcard == '\0') {
 		/*
 		 * No directory component and no wildcard at all -- this
 		 * should never happen as in such a simple case there is no
 		 * need to expand anything.
 		 */
-		DirExpandPath(word, path, expansions);
+		DirExpandPath(pattern, path, expansions);
 		goto done;
 	}
 
 	/* Back up to the start of the component containing the wildcard. */
 	/* XXX: This handles '///' and '/' differently. */
-	while (cp > word && *cp != '/')
-		cp--;
+	wildcardComponent = wildcard;
+	while (wildcardComponent > pattern && *wildcardComponent != '/')
+		wildcardComponent--;
 
-	if (cp == word) {
+	if (wildcardComponent == pattern) {
 		/* The first component contains the wildcard. */
 		/* Start the search from the local directory */
-		DirExpandPath(word, path, expansions);
-		goto done;
-	}
-
-	{
-		char *prefix = bmake_strsedup(word, cp + 1);
-		/*
-		 * The wildcard isn't in the first component.
-		 * Find all the components up to the one with the wildcard.
-		 */
-		/*
-		 * XXX: Check the "the directory is added to the path" part.
-		 * It is probably surprising that the directory before a
-		 * wildcard gets added to the path.
-		 */
-		/*
-		 * XXX: Only the first match of the prefix in the path is
-		 * taken, any others are ignored.  The expectation may be
-		 * that the pattern is expanded in the whole path.
-		 */
-		char *dirpath = Dir_FindFile(prefix, path);
-		free(prefix);
-
-		/*
-		 * dirpath is null if can't find the leading component
-		 * XXX: Dir_FindFile won't find internal components.
-		 * i.e. if the path contains ../Etc/Object and we're
-		 * looking for Etc, it won't be found. Ah well.
-		 * Probably not important.
-		 * XXX: Check whether the above comment is still true.
-		 */
-		if (dirpath != NULL) {
-			SearchPath *partPath;
-
-			char *end = &dirpath[strlen(dirpath) - 1];
-			/* XXX: What about multiple trailing slashes? */
-			if (*end == '/')
-				*end = '\0';
-
-			partPath = SearchPath_New();
-			(void)Dir_AddDir(partPath, dirpath);
-			DirExpandPath(cp + 1, partPath, expansions);
-			SearchPath_Free(partPath);
-		}
+		DirExpandPath(pattern, path, expansions);
+	} else {
+		SearchPath_ExpandMiddle(path, pattern, wildcardComponent,
+		    expansions);
 	}
 
 done:
@@ -1051,6 +1064,115 @@ DirFindDot(const char *name, const char *base)
 	return NULL;
 }
 
+static Boolean
+FindFileRelative(SearchPath *path, Boolean seenDotLast,
+		 const char *name, char **out_file)
+{
+	SearchPathNode *ln;
+	Boolean checkedDot = FALSE;
+	char *file;
+
+	DEBUG0(DIR, "   Trying subdirectories...\n");
+
+	if (!seenDotLast) {
+		if (dot != NULL) {
+			checkedDot = TRUE;
+			if ((file = DirLookupSubdir(dot, name)) != NULL)
+				goto found;
+		}
+		if (cur != NULL &&
+		    (file = DirLookupSubdir(cur, name)) != NULL)
+			goto found;
+	}
+
+	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
+		CachedDir *dir = ln->datum;
+		if (dir == dotLast)
+			continue;
+		if (dir == dot) {
+			if (checkedDot)
+				continue;
+			checkedDot = TRUE;
+		}
+		if ((file = DirLookupSubdir(dir, name)) != NULL)
+			goto found;
+	}
+
+	if (seenDotLast) {
+		if (dot != NULL && !checkedDot) {
+			checkedDot = TRUE;
+			if ((file = DirLookupSubdir(dot, name)) != NULL)
+				goto found;
+		}
+		if (cur != NULL &&
+		    (file = DirLookupSubdir(cur, name)) != NULL)
+			goto found;
+	}
+
+	if (checkedDot) {
+		/*
+		 * Already checked by the given name, since . was in
+		 * the path, so no point in proceeding.
+		 */
+		DEBUG0(DIR, "   Checked . already, returning NULL\n");
+		file = NULL;
+		goto found;
+	}
+
+	return FALSE;
+
+found:
+	*out_file = file;
+	return TRUE;
+}
+
+static Boolean
+FindFileAbsolute(SearchPath *path, Boolean const seenDotLast,
+		 const char *const name, const char *const base,
+		 char **out_file)
+{
+	char *file;
+	SearchPathNode *ln;
+
+	/*
+	 * For absolute names, compare directory path prefix against
+	 * the the directory path of each member on the search path
+	 * for an exact match. If we have an exact match on any member
+	 * of the search path, use the cached contents of that member
+	 * to lookup the final file component. If that lookup fails we
+	 * can safely assume that the file does not exist at all.
+	 * This is signified by DirLookupAbs() returning an empty
+	 * string.
+	 */
+	DEBUG0(DIR, "   Trying exact path matches...\n");
+
+	if (!seenDotLast && cur != NULL &&
+	    ((file = DirLookupAbs(cur, name, base)) != NULL))
+		goto found;
+
+	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
+		CachedDir *dir = ln->datum;
+		if (dir == dotLast)
+			continue;
+		if ((file = DirLookupAbs(dir, name, base)) != NULL)
+			goto found;
+	}
+
+	if (seenDotLast && cur != NULL &&
+	    ((file = DirLookupAbs(cur, name, base)) != NULL))
+		goto found;
+
+	return FALSE;
+
+found:
+	if (file[0] == '\0') {
+		free(file);
+		file = NULL;
+	}
+	*out_file = file;
+	return TRUE;
+}
+
 /*
  * Find the file with the given name along the given search path.
  *
@@ -1085,8 +1207,8 @@ Dir_FindFile(const char *name, SearchPath *path)
 		return NULL;
 	}
 
-	if (path->first != NULL) {
-		CachedDir *dir = path->first->datum;
+	if (path->dirs.first != NULL) {
+		CachedDir *dir = path->dirs.first->datum;
 		if (dir == dotLast) {
 			seenDotLast = TRUE;
 			DEBUG0(DIR, "[dot last]...");
@@ -1105,7 +1227,7 @@ Dir_FindFile(const char *name, SearchPath *path)
 		/*
 		 * We look through all the directories on the path seeking one
 		 * which contains the final component of the given name.  If
-		 * such a beast is found, we concatenate the directory name
+		 * such a file is found, we concatenate the directory name
 		 * and the final component and return the resulting string.
 		 * If we don't find any such thing, we go on to phase two.
 		 *
@@ -1119,7 +1241,7 @@ Dir_FindFile(const char *name, SearchPath *path)
 		if (!seenDotLast && (file = DirFindDot(name, base)) != NULL)
 			return file;
 
-		for (ln = path->first; ln != NULL; ln = ln->next) {
+		for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 			CachedDir *dir = ln->datum;
 			if (dir == dotLast)
 				continue;
@@ -1139,7 +1261,7 @@ Dir_FindFile(const char *name, SearchPath *path)
 	 * path. (eg. /usr/include and sys/types.h. The above search would
 	 * fail to turn up types.h in /usr/include, but it *is* in
 	 * /usr/include/sys/types.h).
-	 * [ This no longer applies: If we find such a beast, we assume there
+	 * [ This no longer applies: If we find such a file, we assume there
 	 * will be more (what else can we assume?) and add all but the last
 	 * component of the resulting name onto the search path (at the
 	 * end).]
@@ -1157,100 +1279,11 @@ Dir_FindFile(const char *name, SearchPath *path)
 	}
 
 	if (name[0] != '/') {
-		SearchPathNode *ln;
-		Boolean checkedDot = FALSE;
-
-		DEBUG0(DIR, "   Trying subdirectories...\n");
-
-		if (!seenDotLast) {
-			if (dot != NULL) {
-				checkedDot = TRUE;
-				if ((file = DirLookupSubdir(dot, name)) != NULL)
-					return file;
-			}
-			if (cur != NULL &&
-			    (file = DirLookupSubdir(cur, name)) != NULL)
-				return file;
-		}
-
-		for (ln = path->first; ln != NULL; ln = ln->next) {
-			CachedDir *dir = ln->datum;
-			if (dir == dotLast)
-				continue;
-			if (dir == dot) {
-				if (checkedDot)
-					continue;
-				checkedDot = TRUE;
-			}
-			if ((file = DirLookupSubdir(dir, name)) != NULL)
-				return file;
-		}
-
-		if (seenDotLast) {
-			if (dot != NULL && !checkedDot) {
-				checkedDot = TRUE;
-				if ((file = DirLookupSubdir(dot, name)) != NULL)
-					return file;
-			}
-			if (cur != NULL &&
-			    (file = DirLookupSubdir(cur, name)) != NULL)
-				return file;
-		}
-
-		if (checkedDot) {
-			/*
-			 * Already checked by the given name, since . was in
-			 * the path, so no point in proceeding.
-			 */
-			DEBUG0(DIR, "   Checked . already, returning NULL\n");
-			return NULL;
-		}
-
-	} else { /* name[0] == '/' */
-		SearchPathNode *ln;
-
-		/*
-		 * For absolute names, compare directory path prefix against
-		 * the the directory path of each member on the search path
-		 * for an exact match. If we have an exact match on any member
-		 * of the search path, use the cached contents of that member
-		 * to lookup the final file component. If that lookup fails we
-		 * can safely assume that the file does not exist at all.
-		 * This is signified by DirLookupAbs() returning an empty
-		 * string.
-		 */
-		DEBUG0(DIR, "   Trying exact path matches...\n");
-
-		if (!seenDotLast && cur != NULL &&
-		    ((file = DirLookupAbs(cur, name, base)) != NULL)) {
-			if (file[0] == '\0') {
-				free(file);
-				return NULL;
-			}
+		if (FindFileRelative(path, seenDotLast, name, &file))
 			return file;
-		}
-
-		for (ln = path->first; ln != NULL; ln = ln->next) {
-			CachedDir *dir = ln->datum;
-			if (dir == dotLast)
-				continue;
-			if ((file = DirLookupAbs(dir, name, base)) != NULL) {
-				if (file[0] == '\0') {
-					free(file);
-					return NULL;
-				}
-				return file;
-			}
-		}
-
-		if (seenDotLast && cur != NULL &&
-		    ((file = DirLookupAbs(cur, name, base)) != NULL)) {
-			if (file[0] == '\0') {
-				free(file);
-				return NULL;
-			}
+	} else {
+		if (FindFileAbsolute(path, seenDotLast, name, base, &file))
 			return file;
-		}
 	}
 
 	/*
@@ -1281,7 +1314,7 @@ Dir_FindFile(const char *name, SearchPath *path)
 			base++;
 		}
 		prefix = bmake_strsedup(name, base - 1);
-		(void)Dir_AddDir(path, prefix);
+		(void)SearchPath_Add(path, prefix);
 		free(prefix);
 
 		bigmisses++;
@@ -1511,7 +1544,7 @@ CacheNewDir(const char *name, SearchPath *path)
 
 	OpenDirs_Add(&openDirs, dir);
 	if (path != NULL)
-		Lst_Append(path, CachedDir_Ref(dir));
+		Lst_Append(&path->dirs, CachedDir_Ref(dir));
 
 	DEBUG1(DIR, "Caching %s done\n", name);
 	return dir;
@@ -1536,28 +1569,28 @@ CacheNewDir(const char *name, SearchPath *path)
  *			Lst_Append and CachedDir_Ref.
  */
 CachedDir *
-Dir_AddDir(SearchPath *path, const char *name)
+SearchPath_Add(SearchPath *path, const char *name)
 {
 
 	if (path != NULL && strcmp(name, ".DOTLAST") == 0) {
 		SearchPathNode *ln;
 
 		/* XXX: Linear search gets slow with thousands of entries. */
-		for (ln = path->first; ln != NULL; ln = ln->next) {
+		for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 			CachedDir *pathDir = ln->datum;
 			if (strcmp(pathDir->name, name) == 0)
 				return pathDir;
 		}
 
-		Lst_Prepend(path, CachedDir_Ref(dotLast));
+		Lst_Prepend(&path->dirs, CachedDir_Ref(dotLast));
 	}
 
 	if (path != NULL) {
 		/* XXX: Why is OpenDirs only checked if path != NULL? */
 		CachedDir *dir = OpenDirs_Find(&openDirs, name);
 		if (dir != NULL) {
-			if (Lst_FindDatum(path, dir) == NULL)
-				Lst_Append(path, CachedDir_Ref(dir));
+			if (Lst_FindDatum(&path->dirs, dir) == NULL)
+				Lst_Append(&path->dirs, CachedDir_Ref(dir));
 			return dir;
 		}
 	}
@@ -1574,9 +1607,9 @@ Dir_CopyDirSearchPath(void)
 {
 	SearchPath *path = SearchPath_New();
 	SearchPathNode *ln;
-	for (ln = dirSearchPath.first; ln != NULL; ln = ln->next) {
+	for (ln = dirSearchPath.dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
-		Lst_Append(path, CachedDir_Ref(dir));
+		Lst_Append(&path->dirs, CachedDir_Ref(dir));
 	}
 	return path;
 }
@@ -1596,7 +1629,7 @@ Dir_CopyDirSearchPath(void)
  *	don't go well.
  */
 char *
-SearchPath_ToFlags(const char *flag, SearchPath *path)
+SearchPath_ToFlags(SearchPath *path, const char *flag)
 {
 	Buffer buf;
 	SearchPathNode *ln;
@@ -1604,7 +1637,7 @@ SearchPath_ToFlags(const char *flag, SearchPath *path)
 	Buf_Init(&buf);
 
 	if (path != NULL) {
-		for (ln = path->first; ln != NULL; ln = ln->next) {
+		for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 			CachedDir *dir = ln->datum;
 			Buf_AddStr(&buf, " ");
 			Buf_AddStr(&buf, flag);
@@ -1612,7 +1645,7 @@ SearchPath_ToFlags(const char *flag, SearchPath *path)
 		}
 	}
 
-	return Buf_Destroy(&buf, FALSE);
+	return Buf_DoneData(&buf);
 }
 
 /* Free the search path and all directories mentioned in it. */
@@ -1621,11 +1654,12 @@ SearchPath_Free(SearchPath *path)
 {
 	SearchPathNode *ln;
 
-	for (ln = path->first; ln != NULL; ln = ln->next) {
+	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
 		CachedDir_Unref(dir);
 	}
-	Lst_Free(path);
+	Lst_Done(&path->dirs);
+	free(path);
 }
 
 /*
@@ -1635,8 +1669,8 @@ SearchPath_Free(SearchPath *path)
 void
 SearchPath_Clear(SearchPath *path)
 {
-	while (!Lst_IsEmpty(path)) {
-		CachedDir *dir = Lst_Dequeue(path);
+	while (!Lst_IsEmpty(&path->dirs)) {
+		CachedDir *dir = Lst_Dequeue(&path->dirs);
 		CachedDir_Unref(dir);
 	}
 }
@@ -1651,10 +1685,10 @@ SearchPath_AddAll(SearchPath *dst, SearchPath *src)
 {
 	SearchPathNode *ln;
 
-	for (ln = src->first; ln != NULL; ln = ln->next) {
+	for (ln = src->dirs.first; ln != NULL; ln = ln->next) {
 		CachedDir *dir = ln->datum;
-		if (Lst_FindDatum(dst, dir) == NULL)
-			Lst_Append(dst, CachedDir_Ref(dir));
+		if (Lst_FindDatum(&dst->dirs, dir) == NULL)
+			Lst_Append(&dst->dirs, CachedDir_Ref(dir));
 	}
 }
 
@@ -1685,11 +1719,11 @@ Dir_PrintDirectories(void)
 }
 
 void
-SearchPath_Print(SearchPath *path)
+SearchPath_Print(const SearchPath *path)
 {
 	SearchPathNode *ln;
 
-	for (ln = path->first; ln != NULL; ln = ln->next) {
+	for (ln = path->dirs.first; ln != NULL; ln = ln->next) {
 		const CachedDir *dir = ln->datum;
 		debug_printf("%s ", dir->name);
 	}

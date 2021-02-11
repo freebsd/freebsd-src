@@ -1,4 +1,4 @@
-# $NetBSD: varmod-loop.mk,v 1.8 2020/11/12 00:40:55 rillig Exp $
+# $NetBSD: varmod-loop.mk,v 1.9 2021/02/04 21:42:47 rillig Exp $
 #
 # Tests for the :@var@...${var}...@ variable modifier.
 
@@ -39,7 +39,7 @@ mod-loop-varname:
 	@echo empty: :${:U1 2 3:@@x${}y@}:
 
 # The :@ modifier resolves the variables a little more often than expected.
-# In particular, it resolves _all_ variables from the context, and not only
+# In particular, it resolves _all_ variables from the scope, and not only
 # the loop variable (in this case v).
 #
 # The d means direct reference, the i means indirect reference.
@@ -77,7 +77,7 @@ mod-loop-dollar:
 # for the loop variable.  These modifiers influence each other.
 #
 # As of 2020-10-18, the :@ modifier is implemented by actually setting a
-# variable in the context of the expression and deleting it again after the
+# variable in the scope of the expression and deleting it again after the
 # loop.  This is different from the .for loops, which substitute the variable
 # expression with ${:Uvalue}, leading to different unwanted side effects.
 #
