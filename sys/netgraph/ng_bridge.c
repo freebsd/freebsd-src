@@ -862,7 +862,8 @@ ng_bridge_rcvdata(hook_p hook, item_p item)
 		 * This is safe without locking, because it's
 		 * the only operation during shared access.
 		 */
-		host->staleness = 0;
+		if (__predict_false(host->staleness > 0))
+			host->staleness = 0;
 
 	if ((host == NULL && ctx.incoming->learnMac) ||
 	    (host != NULL && host->link != ctx.incoming)) {
