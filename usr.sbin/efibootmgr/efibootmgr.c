@@ -1072,11 +1072,12 @@ int
 main(int argc, char *argv[])
 {
 
+	memset(&opts, 0, sizeof (bmgr_opts_t));
+	parse_args(argc, argv);
+
 	if (!efi_variables_supported())
 		errx(1, "efi variables not supported on this system. root? kldload efirt?");
 
-	memset(&opts, 0, sizeof (bmgr_opts_t));
-	parse_args(argc, argv);
 	read_vars();
 
 	if (opts.create)
