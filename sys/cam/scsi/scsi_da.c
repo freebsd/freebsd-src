@@ -2849,7 +2849,7 @@ daregister(struct cam_periph *periph, void *arg)
 	TASK_INIT(&softc->sysctl_task, 0, dasysctlinit, periph);
 
 	/*
-	 * Take an exclusive section lock qon the periph while dastart is called
+	 * Take an exclusive section lock on the periph while dastart is called
 	 * to finish the probe.  The lock will be dropped in dadone at the end
 	 * of probe. This locks out daopen and daclose from racing with the
 	 * probe.
@@ -2914,7 +2914,8 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_open = daopen;
 	softc->disk->d_close = daclose;
 	softc->disk->d_strategy = dastrategy;
-	softc->disk->d_dump = dadump;
+	if (cam_sim_pollable(periph->sim))
+		softc->disk->d_dump = dadump;
 	softc->disk->d_getattr = dagetattr;
 	softc->disk->d_gone = dadiskgonecb;
 	softc->disk->d_name = "da";
