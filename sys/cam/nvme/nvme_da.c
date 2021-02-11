@@ -898,7 +898,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 	disk->d_strategy = ndastrategy;
 	disk->d_ioctl = ndaioctl;
 	disk->d_getattr = ndagetattr;
-	disk->d_dump = ndadump;
+	if (cam_sim_pollable(periph->sim))
+		disk->d_dump = ndadump;
 	disk->d_gone = ndadiskgonecb;
 	disk->d_name = "nda";
 	disk->d_drv1 = periph;
