@@ -28,12 +28,12 @@
 .\"     @(#)usleep.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 13, 1998
+.Dd February 11, 2021
 .Dt USLEEP 3
 .Os
 .Sh NAME
 .Nm usleep
-.Nd suspend process execution for an interval measured in microseconds
+.Nd suspend thread execution for an interval measured in microseconds
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -43,9 +43,9 @@
 .Sh DESCRIPTION
 The
 .Fn usleep
-function suspends execution of the calling process until either
+function suspends execution of the calling thread until either
 .Fa microseconds
-microseconds have elapsed or a signal is delivered to the process and its
+microseconds have elapsed or a signal is delivered to the thread and its
 action is to invoke a signal-catching function or to terminate the
 process.
 System activity may lengthen the sleep by an indeterminate amount.
@@ -67,7 +67,7 @@ function
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINTR
-A signal was delivered to the process and its
+A signal was delivered to the calling thread and its
 action was to invoke a signal-catching function.
 .El
 .Sh SEE ALSO
