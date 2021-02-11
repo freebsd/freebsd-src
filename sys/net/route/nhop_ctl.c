@@ -219,42 +219,44 @@ set_nhop_gw_from_info(struct nhop_object *nh, struct rt_addrinfo *info)
 	gw = info->rti_info[RTAX_GATEWAY];
 	KASSERT(gw != NULL, ("gw is NULL"));
 
-	if (info->rti_flags & RTF_GATEWAY) {
+	if ((gw->sa_family == AF_LINK) && !(info->rti_flags & RTF_GATEWAY)) {
+
+		/*
+		 * Interface route with interface specified by the interface
+		 * index in sockadd_dl structure. It is used in the IPv6 loopback
+		 * output code, where we need to preserve the original interface
+		 * to maintain proper scoping.
+		 * Despite the fact that nexthop code stores original interface
+		 * in the separate field (nh_aifp, see below), write AF_LINK
+		 * compatible sa with shorter total length.
+		 */
+		struct sockaddr_dl *sdl = (struct sockaddr_dl *)gw;
+		struct ifnet *ifp = ifnet_byindex(sdl->sdl_index);
+		if (ifp == NULL) {
+			DPRINTF("invalid ifindex %d", sdl->sdl_index);
+			return (EINVAL);
+		}
+		fill_sdl_from_ifp(&nh->gwl_sa, ifp);
+	} else {
+
+		/*
+		 * Multiple options here:
+		 *
+		 * 1) RTF_GATEWAY with IPv4/IPv6 gateway data
+		 * 2) Interface route with IPv4/IPv6 address of the
+		 *   matching interface. Some routing daemons do that
+		 *   instead of specifying ifindex in AF_LINK.
+		 *
+		 * In both cases, save the original nexthop to make the callers
+		 *   happy.
+		 */
 		if (gw->sa_len > sizeof(struct sockaddr_in6)) {
 			DPRINTF("nhop SA size too big: AF %d len %u",
 			    gw->sa_family, gw->sa_len);
 			return (ENOMEM);
 		}
 		memcpy(&nh->gw_sa, gw, gw->sa_len);
-	} else {
-
-		/*
-		 * Interface route. Currently the route.c code adds
-		 * sa of type AF_LINK, which is 56 bytes long. The only
-		 * meaningful data there is the interface index. It is used
-		 * used is the IPv6 loopback output, where we need to preserve
-		 * the original interface to maintain proper scoping.
-		 * Despite the fact that nexthop code stores original interface
-		 * in the separate field (nh_aifp, see below), write AF_LINK
-		 * compatible sa with shorter total length.
-		 */
-		struct sockaddr_dl *sdl;
-		struct ifnet *ifp;
-
-		/* Fetch and validate interface index */
-		sdl = (struct sockaddr_dl *)gw;
-		if (sdl->sdl_family != AF_LINK) {
-			DPRINTF("unsupported AF: %d", sdl->sdl_family);
-			return (ENOTSUP);
-		}
-		ifp = ifnet_byindex(sdl->sdl_index);
-		if (ifp == NULL) {
-			DPRINTF("invalid ifindex %d", sdl->sdl_index);
-			return (EINVAL);
-		}
-		fill_sdl_from_ifp(&nh->gwl_sa, ifp);
 	}
-
 	return (0);
 }
 
