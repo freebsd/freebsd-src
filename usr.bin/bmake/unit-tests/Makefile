@@ -2,9 +2,9 @@
 # See contrib/bmake/bsd.after-import.mk
 #
 # $FreeBSD$
-# $Id: Makefile,v 1.138 2021/01/01 22:55:09 sjg Exp $
+# $Id: Makefile,v 1.143 2021/02/06 18:31:30 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.260 2020/12/31 03:05:12 rillig Exp $
+# $NetBSD: Makefile,v 1.269 2021/02/06 18:26:03 sjg Exp $
 #
 # Unit tests for make(1)
 #
@@ -34,6 +34,8 @@
 # src/tests/usr.bin/make/t_make.sh.
 #
 
+.MAIN: all
+
 # we use these below but we might be an older make
 .MAKE.OS?= ${uname -s:L:sh}
 .MAKE.UID?= ${id -u:L:sh}
@@ -49,6 +51,7 @@ TESTS+=		cmd-errors-jobs
 TESTS+=		cmd-errors-lint
 TESTS+=		cmd-interrupt
 TESTS+=		cmdline
+TESTS+=		cmdline-redirect-stdin
 TESTS+=		cmdline-undefined
 TESTS+=		comment
 TESTS+=		compat-error
@@ -204,6 +207,7 @@ TESTS+=		impsrc
 TESTS+=		include-main
 TESTS+=		job-flags
 #TESTS+=		job-output-long-lines
+TESTS+=		jobs-empty-commands
 TESTS+=		jobs-error-indirect
 TESTS+=		jobs-error-nested
 TESTS+=		jobs-error-nested-make
@@ -260,6 +264,7 @@ TESTS+=		opt-m-include-dir
 TESTS+=		opt-no-action
 TESTS+=		opt-no-action-at-all
 TESTS+=		opt-no-action-runflags
+TESTS+=		opt-no-action-touch
 TESTS+=		opt-query
 TESTS+=		opt-raw
 TESTS+=		opt-silent
@@ -443,16 +448,10 @@ TESTS+=		varquote
 #	escape-for-item.mk
 #	posix-*.mk (see posix.mk and posix1.mk)
 
-.if ${.OBJDIR} != ${.CURDIR}
-RO_OBJDIR:=	${.OBJDIR}/roobj
-.else
-RO_OBJDIR:=	${TMPDIR:U/tmp}/roobj
-.endif
 # Additional environment variables for some of the tests.
 # The base environment is -i PATH="$PATH".
 ENV.depsrc-optional+=   TZ=UTC
 ENV.envfirst=		FROM_ENV=value-from-env
-ENV.objdir-writable+=	RO_OBJDIR=${RO_OBJDIR}
 ENV.varmisc=		FROM_ENV=env
 ENV.varmisc+=		FROM_ENV_BEFORE=env
 ENV.varmisc+=		FROM_ENV_AFTER=env
@@ -489,8 +488,9 @@ SED_CMDS.job-output-long-lines= \
 	${:D marker should always be at the beginning of the line. } \
 	-e '/^aa*--- job-b ---$$/d' \
 	-e '/^bb*--- job-a ---$$/d'
-SED_CMDS.objdir-writable=	-e 's,${RO_OBJDIR},OBJDIR/roobj,g'
 SED_CMDS.opt-debug-graph1=	${STD_SED_CMDS.dg1}
+SED_CMDS.opt-debug-graph2=	${STD_SED_CMDS.dg2}
+SED_CMDS.opt-debug-graph3=	${STD_SED_CMDS.dg3}
 SED_CMDS.opt-debug-jobs=	-e 's,([0-9][0-9]*),(<pid>),'
 SED_CMDS.opt-debug-jobs+=	-e 's,pid [0-9][0-9]*,pid <pid>,'
 SED_CMDS.opt-debug-jobs+=	-e 's,Process [0-9][0-9]*,Process <pid>,'
@@ -510,11 +510,9 @@ SED_CMDS.sh-flags=		${STD_SED_CMDS.hide-from-output}
 SED_CMDS.suff-main+=		${STD_SED_CMDS.dg1}
 SED_CMDS.suff-main-several+=	${STD_SED_CMDS.dg1}
 SED_CMDS.suff-transform-debug+=	${STD_SED_CMDS.dg1}
-SED_CMDS.var-op-shell+=	\
-	-e 's,^${.SHELL:T}: [ 0-9:]*,,' \
-	-e 's,^${.SHELL:T}: ,,' \
-	-e '/command/s,No such.*,not found,'
-SED_CMDS.vardebug+=	-e 's,${.SHELL},</path/to/shell>,'
+SED_CMDS.var-op-shell+=		${STD_SED_CMDS.shell}
+SED_CMDS.var-op-shell+=		-e '/command/s,No such.*,not found,'
+SED_CMDS.vardebug+=		-e 's,${.SHELL},</path/to/shell>,'
 SED_CMDS.varmod-subst-regex+= \
 			-e 's,\(Regex compilation error:\).*,\1 (details omitted),'
 SED_CMDS.varname-dot-parsedir=	-e '/in some cases/ s,^make: "[^"]*,make: "<normalized>,'
@@ -522,11 +520,13 @@ SED_CMDS.varname-dot-parsefile=	-e '/in some cases/ s,^make: "[^"]*,make: "<norm
 SED_CMDS.varname-dot-shell=	-e 's, = /[^ ]*, = (details omitted),g'
 SED_CMDS.varname-dot-shell+=	-e 's,"/[^" ]*","(details omitted)",g'
 SED_CMDS.varname-dot-shell+=	-e 's,\[/[^] ]*\],[(details omitted)],g'
+SED_CMDS.varname-empty=		-e 's,${.CURDIR},<curdir>,g'
+SED_CMDS.varname-empty+=	-e '/\.PARSEDIR/d'
+SED_CMDS.varname-empty+=	-e '/\.SHELL/d'
 
 # Some tests need an additional round of postprocessing.
 POSTPROC.deptgt-suffixes=	awk '/^\#\*\*\* Suffixes/,/^never-stop/'
 POSTPROC.gnode-submake=		awk '/Input graph/, /^$$/'
-POSTPROC.varname-empty=		${TOOL_SED} -n -e '/^Var_Set/p' -e '/^out:/p'
 
 # Some tests reuse other tests, which makes them unnecessarily fragile.
 export-all.rawout: export.mk
@@ -546,6 +546,11 @@ STD_SED_CMDS.dg1+=	-e 's,^\(\.MAKE *=\) .*,\1 <details omitted>,'
 STD_SED_CMDS.dg1+=	-e 's,^\(\.MAKE\.[A-Z_]* *=\) .*,\1 <details omitted>,'
 STD_SED_CMDS.dg1+=	-e 's,^\(MACHINE[_ARCH]* *=\) .*,\1 <details omitted>,'
 STD_SED_CMDS.dg1+=	-e 's,^\(MAKE *=\) .*,\1 <details omitted>,'
+STD_SED_CMDS.dg1+=	-e 's,^\(\.SHELL *=\) .*,\1 <details omitted>,'
+
+STD_SED_CMDS.dg2=	${STD_SED_CMDS.dg1}
+STD_SED_CMDS.dg2+=	-e 's,\(last modified\) ..:..:.. ... ..\, ....,\1 <timestamp>,'
+STD_SED_CMDS.dg3=	${STD_SED_CMDS.dg2}
 
 # Omit details such as process IDs from the output of the -dj option.
 STD_SED_CMDS.dj= \
@@ -562,9 +567,34 @@ STD_SED_CMDS.hide-from-output= \
 	-e 's,hide-from-output ,,' \
 	-e 's,hide-from-output,,'
 
-# End of the configuration helpers section.
+# Normalize the output for error messages from the shell.
+#
+# $shell -c '...'
+#	NetBSD sh	...: not found
+#	NetBSD ksh	ksh: ...: not found
+#	bash 5.0.18	bash: ...: command not found
+#	bash 5.1.0	bash: line 1: ...: command not found
+#	dash		dash: 1: ...: not found
+#
+# $shell -c '< /nonexistent'
+#	NetBSD sh	sh: cannot open /nonexistent: no such file
+#	NetBSD ksh	ksh: cannot open /nonexistent: No such file or directory
+#	bash 5.0.18	bash: /nonexistent: No such file or directory
+#	bash 5.1.0	bash: line 1: /nonexistent: No such file or directory
+#	dash		dash: 1: cannot open /nonexistent: No such file
+#
+# echo '< /nonexistent' | $shell
+#	NetBSD sh	sh: cannot open /nonexistent: no such file
+#	NetBSD ksh	ksh: <stdin>[1]: cannot open /nonexistent: No such file or directory
+#	bash 5.0.18	bash: line 1: /nonexistent: No such file or directory
+#	bash 5.1.0	bash: line 1: /nonexistent: No such file or directory
+#	dash		dash: 1: cannot open /nonexistent: No such file
+#
+STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: line [0-9][0-9]*: ,,'
+STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: [0-9][0-9]*: ,,'
+STD_SED_CMDS.shell+=		-e 's,^${.SHELL:T}: ,,'
 
-.MAIN: all
+# End of the configuration helpers section.
 
 .sinclude "Makefile.inc"
 .sinclude "Makefile.config"
@@ -607,7 +637,22 @@ LANG=		C
 _MKMSG_TEST= :
 .endif
 
+
+# for many tests we need a TMPDIR that will not collide
+# with other users.
+.if ${.OBJDIR} != ${.CURDIR}
+# easy
+TMPDIR:=	${.OBJDIR}/tmp
+.else
+TMPDIR:=	${TMPDIR:U/tmp}/uid${.MAKE.UID}
+.endif
+# make sure it exists
+.if !exist(${TMPDIR})
+x!= echo; mkdir -p ${TMPDIR}
+.endif
+
 MAKE_TEST_ENV?=	MALLOC_OPTIONS="JA"	# for jemalloc
+MAKE_TEST_ENV+= TMPDIR=${TMPDIR}
 
 .if ${.MAKE.OS} == "NetBSD"
 LIMIT_RESOURCES?=	ulimit -v 200000
@@ -641,6 +686,7 @@ _SED_CMDS+=	-e 's,${TEST_MAKE:T:S,.,\\.,g}[][0-9]* warning,make warning,'
 _SED_CMDS+=	-e 's,^usage: ${TEST_MAKE:T:S,.,\\.,g} ,usage: make ,'
 # replace anything after 'stopped in' with unit-tests
 _SED_CMDS+=	-e '/stopped/s, /.*, unit-tests,'
+_SED_CMDS+=	-e 's,${TMPDIR},TMPDIR,g'
 # strip ${.CURDIR}/ from the output
 _SED_CMDS+=	-e 's,${.CURDIR:S,.,\\.,g}/,,g'
 _SED_CMDS+=	-e 's,${UNIT_TESTS:S,.,\\.,g}/,,g'

@@ -1,6 +1,6 @@
-/*	$NetBSD: make_malloc.c,v 1.24 2020/12/07 22:37:18 rillig Exp $	*/
+/*	$NetBSD: make_malloc.c,v 1.25 2021/01/19 20:51:46 rillig Exp $	*/
 
-/*-
+/*
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -30,7 +30,7 @@
 
 #include "make.h"
 
-MAKE_RCSID("$NetBSD: make_malloc.c,v 1.24 2020/12/07 22:37:18 rillig Exp $");
+MAKE_RCSID("$NetBSD: make_malloc.c,v 1.25 2021/01/19 20:51:46 rillig Exp $");
 
 #ifndef USE_EMALLOC
 

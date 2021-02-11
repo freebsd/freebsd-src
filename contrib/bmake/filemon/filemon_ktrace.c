@@ -1,6 +1,6 @@
-/*	$NetBSD: filemon_ktrace.c,v 1.12 2021/01/10 23:59:53 rillig Exp $	*/
+/*	$NetBSD: filemon_ktrace.c,v 1.14 2021/02/01 21:34:41 rillig Exp $	*/
 
-/*-
+/*
  * Copyright (c) 2019 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -761,6 +761,8 @@ filemon_sys_chdir(struct filemon *F, const struct filemon_key *key,
 	return syscall_enter(key, call, 1, &show_chdir);
 }
 
+/* TODO: monitor fchdir as well */
+
 /*ARGSUSED*/
 static struct filemon_state *
 filemon_sys_execve(struct filemon *F, const struct filemon_key *key,
@@ -832,6 +834,11 @@ filemon_sys_openat(struct filemon *F, const struct filemon_key *key,
 	const register_t *args = (const void *)&call[1];
 	int flags, fd;
 
+	/*
+	 * XXX: In the .meta log, the base directory is missing, which makes
+	 * all references to relative pathnames useless.
+	 */
+
 	if (call->ktr_argsize < 3)
 		return NULL;
 	fd = (int)args[0];
@@ -859,6 +866,8 @@ filemon_sys_openat(struct filemon *F, const struct filemon_key *key,
 			return NULL;
 	}
 }
+
+/* TODO: monitor the other *at syscalls as well, not only openat. */
 
 /*ARGSUSED*/
 static struct filemon_state *

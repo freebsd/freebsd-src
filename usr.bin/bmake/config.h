@@ -245,7 +245,7 @@
 #define PACKAGE_NAME "bmake"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "bmake 20201112"
+#define PACKAGE_STRING "bmake 20210201"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "bmake"
@@ -254,7 +254,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "20201112"
+#define PACKAGE_VERSION "20210201"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void
@@ -334,6 +334,9 @@
 
 /* Define to `int' if <sys/types.h> does not define. */
 /* #undef pid_t */
+
+/* type that signal handlers can safely frob */
+/* #undef sig_atomic_t */
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */

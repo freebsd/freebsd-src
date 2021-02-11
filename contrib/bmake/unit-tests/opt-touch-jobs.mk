@@ -1,4 +1,4 @@
-# $NetBSD: opt-touch-jobs.mk,v 1.1 2020/11/14 15:35:20 rillig Exp $
+# $NetBSD: opt-touch-jobs.mk,v 1.2 2021/01/30 12:14:08 rillig Exp $
 #
 # Tests for the -t command line option in jobs mode.
 
@@ -9,12 +9,18 @@
 .MAKEFLAGS: opt-touch-use
 .MAKEFLAGS: opt-touch-make
 
+# .PHONY targets are not touched since they do not represent actual files.
+# See Job_Touch.
 opt-touch-phony: .PHONY
 	: Making $@.
 
+# .JOIN targets are not touched since they do not represent actual files.
+# See Job_Touch.
 opt-touch-join: .JOIN
 	: Making $@.
 
+# .USE targets are not touched since they do not represent actual files.
+# See Job_Touch.
 opt-touch-use: .USE
 	: Making use of $@.
 
