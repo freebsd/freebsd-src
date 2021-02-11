@@ -175,6 +175,10 @@ arm_install_base() {
 	if [ "${PART_SCHEME}" == "MBR" ]; then
 		chroot ${CHROOTDIR} mount /dev/${mddev}s2a ${DESTDIR}
 	fi
+	_OSVERSION=$(chroot ${CHROOTDIR} /usr/bin/uname -U)
+	REVISION=$(chroot ${CHROOTDIR} make -C /usr/src/release -V REVISION)
+	BRANCH=$(chroot ${CHROOTDIR} make -C /usr/src/release -V BRANCH)
+	export UNAME_r=${REVISION}-${BRANCH}
 	eval chroot ${CHROOTDIR} make -C ${WORLDDIR} \
 		TARGET=${EMBEDDED_TARGET} \
 		TARGET_ARCH=${EMBEDDED_TARGET_ARCH} \
