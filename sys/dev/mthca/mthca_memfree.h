@@ -42,11 +42,9 @@
 	((256 - sizeof (struct list_head) - 2 * sizeof (int)) /		\
 	 (sizeof (struct scatterlist)))
 
-enum {
-	MTHCA_ICM_PAGE_SHIFT	= 12,
-	MTHCA_ICM_PAGE_SIZE	= 1 << MTHCA_ICM_PAGE_SHIFT,
-	MTHCA_DB_REC_PER_PAGE	= MTHCA_ICM_PAGE_SIZE / 8
-};
+#define MTHCA_ICM_PAGE_SHIFT	12
+#define MTHCA_ICM_PAGE_SIZE	(1 << MTHCA_ICM_PAGE_SHIFT)
+#define MTHCA_DB_REC_PER_PAGE	(MTHCA_ICM_PAGE_SIZE / 8)
 
 struct mthca_icm_chunk {
 	struct list_head   list;

@@ -1707,9 +1707,11 @@ int mlx4_QUERY_FW(struct mlx4_dev *dev)
 	 * Round up number of system pages needed in case
 	 * MLX4_ICM_PAGE_SIZE < PAGE_SIZE.
 	 */
+#if MLX4_ICM_PAGE_SIZE < PAGE_SIZE
 	fw->fw_pages =
 		ALIGN(fw->fw_pages, PAGE_SIZE / MLX4_ICM_PAGE_SIZE) >>
 		(PAGE_SHIFT - MLX4_ICM_PAGE_SHIFT);
+#endif
 
 	mlx4_dbg(dev, "Clear int @ %llx, BAR %d\n",
 		 (unsigned long long) fw->clr_int_base, fw->clr_int_bar);
@@ -2546,8 +2548,10 @@ int mlx4_SET_ICM_SIZE(struct mlx4_dev *dev, u64 icm_size, u64 *aux_pages)
 	 * Round up number of system pages needed in case
 	 * MLX4_ICM_PAGE_SIZE < PAGE_SIZE.
 	 */
+#if MLX4_ICM_PAGE_SIZE < PAGE_SIZE
 	*aux_pages = ALIGN(*aux_pages, PAGE_SIZE / MLX4_ICM_PAGE_SIZE) >>
 		(PAGE_SHIFT - MLX4_ICM_PAGE_SHIFT);
+#endif
 
 	return 0;
 }
