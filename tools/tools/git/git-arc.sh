@@ -217,7 +217,7 @@ commit2diff()
 
 create_one_review()
 {
-    local childphid commit dir doprompt msg parent parentphid reviewers
+    local childphid commit doprompt msg parent parentphid reviewers
     local subscribers
 
     commit=$1
@@ -232,10 +232,7 @@ create_one_review()
 
     git checkout -q $commit
 
-    dir=$(git rev-parse --git-dir)/arc
-    mkdir -p "$dir"
-
-    msg=${dir}/create-message
+    msg=$(mktemp)
     git show -s --format='%B' $commit > $msg
     printf "\nTest Plan:\n" >> $msg
     printf "\nReviewers:\n" >> $msg
@@ -244,7 +241,7 @@ create_one_review()
     printf "${subscribers}\n" >> $msg
 
     yes | env EDITOR=true \
-        arc diff --never-apply-patches --create --allow-untracked $BROWSE HEAD~
+        arc diff --message-file $msg --never-apply-patches --create --allow-untracked $BROWSE HEAD~
     [ $? -eq 0 ] || err "could not create Phabricator diff"
 
     if [ -n "$parent" ]; then
@@ -263,6 +260,7 @@ create_one_review()
              ]}' |
             arc call-conduit -- differential.revision.edit >&3
     fi
+    rm -f $msg
     return 0
 }
 
