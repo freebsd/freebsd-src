@@ -99,7 +99,7 @@ static int efi_status2err[25] = {
 static int efi_enter(void);
 static void efi_leave(void);
 
-static int
+int
 efi_status_to_errno(efi_status status)
 {
 	u_long code;
@@ -262,8 +262,8 @@ efi_uninit(void)
 	mtx_destroy(&efi_lock);
 }
 
-int
-efi_rt_ok(void)
+static int
+rt_ok(void)
 {
 
 	if (efi_runtime == NULL)
@@ -309,8 +309,8 @@ efi_leave(void)
 	PMAP_UNLOCK(curpmap);
 }
 
-int
-efi_get_table(struct uuid *uuid, void **ptr)
+static int
+get_table(struct uuid *uuid, void **ptr)
 {
 	struct efi_cfgtbl *ct;
 	u_long count;
@@ -419,8 +419,8 @@ efi_get_time_locked(struct efi_tm *tm, struct efi_tmcap *tmcap)
 	return (efi_call(&ec));
 }
 
-int
-efi_get_time(struct efi_tm *tm)
+static int
+get_time(struct efi_tm *tm)
 {
 	struct efi_tmcap dummy;
 	int error;
@@ -439,8 +439,8 @@ efi_get_time(struct efi_tm *tm)
 	return (error);
 }
 
-int
-efi_get_time_capabilities(struct efi_tmcap *tmcap)
+static int
+get_time_capabilities(struct efi_tmcap *tmcap)
 {
 	struct efi_tm dummy;
 	int error;
@@ -453,8 +453,8 @@ efi_get_time_capabilities(struct efi_tmcap *tmcap)
 	return (error);
 }
 
-int
-efi_reset_system(enum efi_reset type)
+static int
+reset_system(enum efi_reset type)
 {
 	struct efirt_callinfo ec;
 
@@ -495,8 +495,8 @@ efi_set_time_locked(struct efi_tm *tm)
 	return (efi_call(&ec));
 }
 
-int
-efi_set_time(struct efi_tm *tm)
+static int
+set_time(struct efi_tm *tm)
 {
 	int error;
 
@@ -508,8 +508,8 @@ efi_set_time(struct efi_tm *tm)
 	return (error);
 }
 
-int
-efi_var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
+static int
+var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
     size_t *datasize, void *data)
 {
 	struct efirt_callinfo ec;
@@ -528,8 +528,8 @@ efi_var_get(efi_char *name, struct uuid *vendor, uint32_t *attrib,
 	return (efi_call(&ec));
 }
 
-int
-efi_var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
+static int
+var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
 {
 	struct efirt_callinfo ec;
 
@@ -545,8 +545,8 @@ efi_var_nextname(size_t *namesize, efi_char *name, struct uuid *vendor)
 	return (efi_call(&ec));
 }
 
-int
-efi_var_set(efi_char *name, struct uuid *vendor, uint32_t attrib,
+static int
+var_set(efi_char *name, struct uuid *vendor, uint32_t attrib,
     size_t datasize, void *data)
 {
 	struct efirt_callinfo ec;
@@ -564,6 +564,19 @@ efi_var_set(efi_char *name, struct uuid *vendor, uint32_t attrib,
 	ec.ec_fptr = EFI_RT_METHOD_PA(rt_setvar);
 	return (efi_call(&ec));
 }
+
+const static struct efi_ops efi_ops = {
+	.rt_ok = rt_ok,
+	.get_table = get_table,
+	.get_time = get_time,
+	.get_time_capabilities = get_time_capabilities,
+	.reset_system = reset_system,
+	.set_time = set_time,
+	.var_get = var_get,
+	.var_nextname = var_nextname,
+	.var_set = var_set,
+};
+const struct efi_ops *active_efi_ops = &efi_ops;
 
 static int
 efirt_modevents(module_t m, int event, void *arg __unused)
