@@ -385,6 +385,7 @@ struct mbuf {
  * https://docs.microsoft.com/en-us/windows-hardware/drivers/network/rss-hashing-types#ndishashipv6ex
  */
 #define	M_HASHTYPE_HASHPROP		0x80	/* has hash properties */
+#define	M_HASHTYPE_INNER		0x40	/* calculated from inner headers */
 #define	M_HASHTYPE_HASH(t)		(M_HASHTYPE_HASHPROP | (t))
 /* Microsoft RSS standard hash types */
 #define	M_HASHTYPE_NONE			0
@@ -401,15 +402,19 @@ struct mbuf {
 #define	M_HASHTYPE_RSS_UDP_IPV6_EX	M_HASHTYPE_HASH(10)/* IPv6 UDP 4-tuple +
 							    * ext hdrs */
 
-#define	M_HASHTYPE_OPAQUE		63	/* ordering, not affinity */
+#define	M_HASHTYPE_OPAQUE		0x3f	/* ordering, not affinity */
 #define	M_HASHTYPE_OPAQUE_HASH		M_HASHTYPE_HASH(M_HASHTYPE_OPAQUE)
 						/* ordering+hash, not affinity*/
 
 #define	M_HASHTYPE_CLEAR(m)	((m)->m_pkthdr.rsstype = 0)
-#define	M_HASHTYPE_GET(m)	((m)->m_pkthdr.rsstype)
+#define	M_HASHTYPE_GET(m)	((m)->m_pkthdr.rsstype & ~M_HASHTYPE_INNER)
 #define	M_HASHTYPE_SET(m, v)	((m)->m_pkthdr.rsstype = (v))
 #define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
-#define	M_HASHTYPE_ISHASH(m)	(M_HASHTYPE_GET(m) & M_HASHTYPE_HASHPROP)
+#define	M_HASHTYPE_ISHASH(m)	\
+    (((m)->m_pkthdr.rsstype & M_HASHTYPE_HASHPROP) != 0)
+#define	M_HASHTYPE_SETINNER(m)	do {			\
+	(m)->m_pkthdr.rsstype |= M_HASHTYPE_INNER;	\
+    } while (0)
 
 /*
  * COS/QOS class and quality of service tags.
@@ -659,6 +664,7 @@ extern uma_zone_t	zone_jumbo16;
 void		 mb_dupcl(struct mbuf *, struct mbuf *);
 void		 mb_free_ext(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
+void		 m_adj_decap(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
