@@ -322,7 +322,7 @@ cleanup:
  * etc...
  */
 static void
-parse_repo_file(ucl_object_t *obj)
+parse_repo_file(ucl_object_t *obj, const char *requested_repo)
 {
 	ucl_object_iter_t it = NULL;
 	const ucl_object_t *cur;
@@ -337,13 +337,17 @@ parse_repo_file(ucl_object_t *obj)
 		if (cur->type != UCL_OBJECT)
 			continue;
 
+		if (requested_repo != NULL && strcmp(requested_repo, key) != 0)
+			continue;
+
 		config_parse(cur, CONFFILE_REPO);
 	}
 }
 
 
 static int
-read_conf_file(const char *confpath, pkg_conf_file_t conftype)
+read_conf_file(const char *confpath, const char *requested_repo,
+    pkg_conf_file_t conftype)
 {
 	struct ucl_parser *p;
 	ucl_object_t *obj = NULL;
@@ -367,7 +371,7 @@ read_conf_file(const char *confpath, pkg_conf_file_t conftype)
 		if (conftype == CONFFILE_PKG)
 			config_parse(obj, conftype);
 		else if (conftype == CONFFILE_REPO)
-			parse_repo_file(obj);
+			parse_repo_file(obj, requested_repo);
 	}
 
 	ucl_object_unref(obj);
@@ -377,7 +381,7 @@ read_conf_file(const char *confpath, pkg_conf_file_t conftype)
 }
 
 static int
-load_repositories(const char *repodir)
+load_repositories(const char *repodir, const char *requested_repo)
 {
 	struct dirent *ent;
 	DIR *d;
@@ -401,8 +405,10 @@ load_repositories(const char *repodir)
 			    repodir,
 			    repodir[strlen(repodir) - 1] == '/' ? "" : "/",
 			    ent->d_name);
-			if (access(path, F_OK) == 0 &&
-			    read_conf_file(path, CONFFILE_REPO)) {
+			if (access(path, F_OK) != 0)
+				continue;
+			if (read_conf_file(path, requested_repo,
+			    CONFFILE_REPO)) {
 				ret = 1;
 				goto cleanup;
 			}
@@ -416,7 +422,7 @@ cleanup:
 }
 
 int
-config_init(void)
+config_init(const char *requested_repo)
 {
 	char *val;
 	int i;
@@ -457,7 +463,7 @@ config_init(void)
 	localbase = getlocalbase();
 	snprintf(confpath, sizeof(confpath), "%s/etc/pkg.conf", localbase);
 
-	if (access(confpath, F_OK) == 0 && read_conf_file(confpath,
+	if (access(confpath, F_OK) == 0 && read_conf_file(confpath, NULL,
 	    CONFFILE_PKG))
 		goto finalize;
 
@@ -475,7 +481,7 @@ config_init(void)
 	}
 
 	STAILQ_FOREACH(cv, c[REPOS_DIR].list, next)
-		if (load_repositories(cv->value))
+		if (load_repositories(cv->value, requested_repo))
 			goto finalize;
 
 finalize:
