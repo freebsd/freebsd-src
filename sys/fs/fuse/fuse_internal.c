@@ -583,7 +583,7 @@ fuse_internal_readdir_processdata(struct uio *uio,
     u_long **cookiesp)
 {
 	int err = 0;
-	int bytesavail;
+	int oreclen;
 	size_t freclen;
 
 	struct dirent *de;
@@ -620,10 +620,10 @@ fuse_internal_readdir_processdata(struct uio *uio,
 			err = EINVAL;
 			break;
 		}
-		bytesavail = GENERIC_DIRSIZ((struct pseudo_dirent *)
+		oreclen = GENERIC_DIRSIZ((struct pseudo_dirent *)
 					    &fudge->namelen);
 
-		if (bytesavail > uio_resid(uio)) {
+		if (oreclen > uio_resid(uio)) {
 			/* Out of space for the dir so we are done. */
 			err = -1;
 			break;
@@ -633,12 +633,13 @@ fuse_internal_readdir_processdata(struct uio *uio,
 		 * the requested offset in the directory is found.
 		 */
 		if (*fnd_start != 0) {
-			fiov_adjust(cookediov, bytesavail);
-			bzero(cookediov->base, bytesavail);
+			fiov_adjust(cookediov, oreclen);
+			bzero(cookediov->base, oreclen);
 
 			de = (struct dirent *)cookediov->base;
 			de->d_fileno = fudge->ino;
-			de->d_reclen = bytesavail;
+			de->d_off = fudge->off;
+			de->d_reclen = oreclen;
 			de->d_type = fudge->type;
 			de->d_namlen = fudge->namelen;
 			memcpy((char *)cookediov->base + sizeof(struct dirent) -

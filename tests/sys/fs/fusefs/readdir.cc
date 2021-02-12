@@ -62,6 +62,9 @@ void expect_lookup(const char *relpath, uint64_t ino)
 }
 };
 
+const char dot[] = ".";
+const char dotdot[] = "..";
+
 /* FUSE_READDIR returns nothing but "." and ".." */
 TEST_F(Readdir, dots)
 {
@@ -72,8 +75,6 @@ TEST_F(Readdir, dots)
 	struct dirent *de;
 	vector<struct dirent> ents(2);
 	vector<struct dirent> empty_ents(0);
-	const char dot[] = ".";
-	const char dotdot[] = "..";
 
 	expect_lookup(RELPATH, ino);
 	expect_opendir(ino);
@@ -98,11 +99,6 @@ TEST_F(Readdir, dots)
 	de = readdir(dir);
 	ASSERT_NE(nullptr, de) << strerror(errno);
 	EXPECT_EQ(2ul, de->d_fileno);
-	/*
-	 * fuse(4) doesn't actually set d_off, which is ok for now because
-	 * nothing uses it.
-	 */
-	//EXPECT_EQ(2000, de->d_off);
 	EXPECT_EQ(DT_DIR, de->d_type);
 	EXPECT_EQ(sizeof(dotdot), de->d_namlen);
 	EXPECT_EQ(0, strcmp(dotdot, de->d_name));
@@ -111,7 +107,6 @@ TEST_F(Readdir, dots)
 	de = readdir(dir);
 	ASSERT_NE(nullptr, de) << strerror(errno);
 	EXPECT_EQ(3ul, de->d_fileno);
-	//EXPECT_EQ(3000, de->d_off);
 	EXPECT_EQ(DT_DIR, de->d_type);
 	EXPECT_EQ(sizeof(dot), de->d_namlen);
 	EXPECT_EQ(0, strcmp(dot, de->d_name));
@@ -153,8 +148,11 @@ TEST_F(Readdir, eio)
 	leakdir(dir);
 }
 
-/* getdirentries(2) can use a larger buffer size than readdir(3) */
-TEST_F(Readdir, getdirentries)
+/*
+ * getdirentries(2) can use a larger buffer size than readdir(3).  It also has
+ * some additional non-standardized fields in the returned dirent.
+ */
+TEST_F(Readdir, getdirentries_empty)
 {
 	const char FULLPATH[] = "mountpoint/some_dir";
 	const char RELPATH[] = "some_dir";
@@ -184,6 +182,62 @@ TEST_F(Readdir, getdirentries)
 	ASSERT_EQ(0, r) << strerror(errno);
 
 	leak(fd);
+}
+
+/*
+ * The dirent.d_off field can be used with lseek to position the directory so
+ * that getdirentries will return the subsequent dirent.
+ */
+TEST_F(Readdir, getdirentries_seek)
+{
+	const char FULLPATH[] = "mountpoint/some_dir";
+	const char RELPATH[] = "some_dir";
+	vector<struct dirent> ents0(2);
+	vector<struct dirent> ents1(1);
+	uint64_t ino = 42;
+	int fd;
+	const size_t bufsize = 8192;
+	char buf[bufsize];
+	struct dirent *de0, *de1;
+	ssize_t r;
+
+	expect_lookup(RELPATH, ino);
+	expect_opendir(ino);
+
+	ents0[0].d_fileno = 2;
+	ents0[0].d_off = 2000;
+	ents0[0].d_namlen = sizeof(dotdot);
+	ents0[0].d_type = DT_DIR;
+	strncpy(ents0[0].d_name, dotdot, ents0[0].d_namlen);
+	expect_readdir(ino, 0, ents0);
+	ents0[1].d_fileno = 3;
+	ents0[1].d_off = 3000;
+	ents0[1].d_namlen = sizeof(dot);
+	ents0[1].d_type = DT_DIR;
+	ents1[0].d_fileno = 3;
+	ents1[0].d_off = 3000;
+	ents1[0].d_namlen = sizeof(dot);
+	ents1[0].d_type = DT_DIR;
+	strncpy(ents1[0].d_name, dot, ents1[0].d_namlen);
+	expect_readdir(ino, 0, ents0);
+	expect_readdir(ino, 2000, ents1);
+
+	fd = open(FULLPATH, O_DIRECTORY);
+	ASSERT_LE(0, fd) << strerror(errno);
+	r = getdirentries(fd, buf, sizeof(buf), 0);
+	ASSERT_LT(0, r) << strerror(errno);
+	de0 = (struct dirent*)&buf[0];
+	ASSERT_EQ(2000, de0->d_off);
+	ASSERT_LT(de0->d_reclen + offsetof(struct dirent, d_fileno), bufsize);
+	de1 = (struct dirent*)(&(buf[de0->d_reclen]));
+	ASSERT_EQ(3ul, de1->d_fileno);
+
+	r = lseek(fd, de0->d_off, SEEK_SET);
+	ASSERT_LE(0, r);
+	r = getdirentries(fd, buf, sizeof(buf), 0);
+	ASSERT_LT(0, r) << strerror(errno);
+	de0 = (struct dirent*)&buf[0];
+	ASSERT_EQ(3000, de0->d_off);
 }
 
 /* 
