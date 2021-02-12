@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 31, 2020
+.Dd February 7, 2021
 .Dt PKG 7
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Nm
 add
 .Op Fl f
+.Op Fl r Ar reponame
 .Op Fl y
 .Ao Pa pkg.txz Ac
 .Nm
@@ -44,6 +45,7 @@ add
 .Op Fl 4 | Fl 6
 bootstrap
 .Op Fl f
+.Op Fl r Ar reponame
 .Op Fl y
 .Sh DESCRIPTION
 .Nm
@@ -68,7 +70,7 @@ is not installed yet, it will be fetched, have its signature verified,
 installed, and then have the original command forwarded to it.
 If already installed, the command requested will be forwarded to the real
 .Xr pkg 8 .
-.It Nm Li add Oo Fl f Oc Oo Fl y Oc Ao Pa pkg.txz Ac
+.It Nm Li add Oo Fl f Oc Oo Fl r Ar reponame Oc Oo Fl y Oc Ao Pa pkg.txz Ac
 Install
 .Xr pkg 8
 from a local package instead of fetching from remote.
@@ -83,13 +85,19 @@ If the
 .Fl y
 flag is specified, no confirmation will be asked when bootstrapping
 .Xr pkg 8 .
+.Pp
+If a
+.Ar reponame
+has been specified, then the signature configuration for that repository will be
+used.
 .It Nm Fl N
 Do not bootstrap, just determine if
 .Xr pkg 8
 is actually installed or not.
 Returns 0 and the number of packages installed
 if it is, otherwise 1.
-.It Nm Oo Fl 4 | Fl 6 Oc Li bootstrap Oo Fl f Oc Oo Fl y Oc
+.It Nm Oo Fl 4 | Fl 6 Oc Li bootstrap Oo Fl f Oc \
+Oo Fl r Ar reponame Oc Oo Fl y Oc
 Attempt to bootstrap and do not forward anything to
 .Xr pkg 8
 after it is installed.
@@ -110,14 +118,30 @@ If the
 .Fl y
 flag is specified, no confirmation will be asked when bootstrapping
 .Xr pkg 8 .
+.Pp
+If a
+.Ar reponame
+has been specified, then the configuration for that repository will be used.
 .El
 .Sh CONFIGURATION
 Configuration varies in whether it is in a repository configuration file
 or the global configuration file.
+The default repository configuration for
+.Fx
+is stored in
+.Pa /etc/pkg/FreeBSD.conf ,
+and additional repository configuration files will be searched for in
+.Ev REPOS_DIR ,
+or
+.Pa /usr/local/etc/pkg/repos
+if it is unset.
 .Pp
-Repository configuration can be stored in
-.Pa /etc/pkg/FreeBSD.conf
-in the following format:
+For bootstrapping,
+.Nm
+will process all repositories that it finds and use the last enabled repository
+by default.
+.Pp
+Repository configuration is stored in the following format:
 .Bd -literal -offset indent
 FreeBSD: {
   url: "pkg+http://pkg.FreeBSD.org/${ABI}/latest",
@@ -127,6 +151,7 @@ FreeBSD: {
   enabled: yes
 }
 .Ed
+.Pp
 .Bl -tag -width signature_type -compact
 .It url
 Refer to

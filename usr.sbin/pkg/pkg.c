@@ -1042,7 +1042,7 @@ int
 main(int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
-	const char *pkgarg;
+	const char *pkgarg, *repo_name;
 	bool activation_test, add_pkg, bootstrap_only, force, yes;
 	signed char ch;
 	const char *fetchOpts;
@@ -1055,6 +1055,7 @@ main(int argc, char *argv[])
 	fetchOpts = "";
 	force = false;
 	pkgarg = NULL;
+	repo_name = NULL;
 	yes = false;
 
 	struct option longopts[] = {
@@ -1068,7 +1069,7 @@ main(int argc, char *argv[])
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
-	while ((ch = getopt_long(argc, argv, "-:fyN46", longopts, NULL)) != -1) {
+	while ((ch = getopt_long(argc, argv, "-:fr::yN46", longopts, NULL)) != -1) {
 		switch (ch) {
 		case 'f':
 			force = true;
@@ -1084,6 +1085,46 @@ main(int argc, char *argv[])
 			break;
 		case '6':
 			fetchOpts = "6";
+			break;
+		case 'r':
+			/*
+			 * The repository can only be specified for an explicit
+			 * bootstrap request at this time, so that we don't
+			 * confuse the user if they're trying to use a verb that
+			 * has some other conflicting meaning but we need to
+			 * bootstrap.
+			 *
+			 * For that reason, we specify that -r has an optional
+			 * argument above and process the next index ourselves.
+			 * This is mostly significant because getopt(3) will
+			 * otherwise eat the next argument, which could be
+			 * something we need to try and make sense of.
+			 *
+			 * At worst this gets us false positives that we ignore
+			 * in other contexts, and we have to do a little fudging
+			 * in order to support separating -r from the reponame
+			 * with a space since it's not actually optional in
+			 * the bootstrap/add sense.
+			 */
+			if (add_pkg || bootstrap_only) {
+				if (optarg != NULL) {
+					repo_name = optarg;
+				} else if (optind < argc) {
+					repo_name = argv[optind];
+				}
+
+				if (repo_name == NULL || *repo_name == '\0') {
+					fprintf(stderr,
+					    "Must specify a repository with -r!\n");
+					exit(EXIT_FAILURE);
+				}
+
+				if (optarg == NULL) {
+					/* Advance past repo name. */
+					optreset = 1;
+					optind++;
+				}
+			}
 			break;
 		case 1:
 			// Non-option arguments, first one is the command
@@ -1124,7 +1165,7 @@ main(int argc, char *argv[])
 		if (activation_test)
 			errx(EXIT_FAILURE, "pkg is not installed");
 
-		config_init();
+		config_init(repo_name);
 
 		if (add_pkg) {
 			if (pkgarg == NULL) {
