@@ -540,7 +540,8 @@ gif_input(struct mbuf *m, struct ifnet *ifp, int proto, uint8_t ecn)
 			m_freem(m);
 			goto drop;
 		}
-		m_adj(m, sizeof(struct etherip_header));
+
+		m_adj_decap(m, sizeof(struct etherip_header));
 
 		m->m_flags &= ~(M_BCAST|M_MCAST);
 		m->m_pkthdr.rcvif = ifp;
