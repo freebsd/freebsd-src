@@ -589,16 +589,20 @@ fill_blackholeinfo(struct rt_addrinfo *info, union sockaddr_union *saun)
 
 	bzero(saun, sizeof(union sockaddr_union));
 	switch (saf) {
+#ifdef INET
 	case AF_INET:
 		saun->sin.sin_family = AF_INET;
 		saun->sin.sin_len = sizeof(struct sockaddr_in);
 		saun->sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 		break;
+#endif
+#ifdef INET6
 	case AF_INET6:
 		saun->sin6.sin6_family = AF_INET6;
 		saun->sin6.sin6_len = sizeof(struct sockaddr_in6);
 		saun->sin6.sin6_addr = in6addr_loopback;
 		break;
+#endif
 	default:
 		return (ENOTSUP);
 	}
