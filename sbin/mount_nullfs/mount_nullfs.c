@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 {
 	struct iovec *iov;
 	char *p, *val;
-	char source[MAXPATHLEN];
+	char mountpoint[MAXPATHLEN];
 	char target[MAXPATHLEN];
 	char errmsg[255];
 	int ch, iovlen;
@@ -97,21 +97,21 @@ main(int argc, char *argv[])
 	if (argc != 2)
 		usage();
 
-	/* resolve target and source with realpath(3) */
+	/* resolve target and mountpoint with realpath(3) */
 	if (checkpath(argv[0], target) != 0)
 		err(EX_USAGE, "%s", target);
-	if (checkpath(argv[1], source) != 0)
-		err(EX_USAGE, "%s", source);
+	if (checkpath(argv[1], mountpoint) != 0)
+		err(EX_USAGE, "%s", mountpoint);
 
 	build_iovec(&iov, &iovlen, "fstype", nullfs, (size_t)-1);
-	build_iovec(&iov, &iovlen, "fspath", source, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", mountpoint, (size_t)-1);
 	build_iovec(&iov, &iovlen, "target", target, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 	if (nmount(iov, iovlen, 0) < 0) {
 		if (errmsg[0] != 0)
-			err(1, "%s: %s", source, errmsg);
+			err(1, "%s: %s", mountpoint, errmsg);
 		else
-			err(1, "%s", source);
+			err(1, "%s", mountpoint);
 	}
 	exit(0);
 }
