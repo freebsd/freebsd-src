@@ -1,17 +1,18 @@
 #$FreeBSD$
 
-.PATH:  ${SRCTOP}/sys/dev/ixl
+.PATH:  ${SRCTOP}/sys/dev/iavf
 
 KMOD    = if_iavf
 SRCS    = device_if.h bus_if.h pci_if.h ifdi_if.h
-SRCS    += opt_inet.h opt_inet6.h opt_rss.h opt_ixl.h opt_iflib.h opt_global.h
-SRCS    += if_iavf.c iavf_vc.c ixl_txrx.c i40e_osdep.c
+SRCS    += opt_inet.h opt_inet6.h opt_rss.h opt_iflib.h
+SRCS    += if_iavf_iflib.c iavf_lib.c iavf_osdep.c iavf_txrx_iflib.c
+SRCS    += iavf_vc_common.c iavf_vc_iflib.c
 
 # Shared source
-SRCS    += i40e_common.c i40e_nvm.c i40e_adminq.c
+SRCS    += iavf_adminq.c iavf_common.c
 
 # Debug messages / sysctls
-# CFLAGS += -DIXL_DEBUG
+# CFLAGS += -DIAVF_DEBUG
 # Enable asserts and other debugging facilities
 # CFLAGS += -DINVARIANTS -DINVARIANTS_SUPPORT -DWITNESS
 
