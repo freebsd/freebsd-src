@@ -133,8 +133,83 @@ proto_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "captive" "cleanup"
+captive_head()
+{
+	atf_set descr 'Test a basic captive portal-like setup'
+	atf_set require.user root
+}
+
+captive_body()
+{
+	# Host is client, jail 'gw' is the captive portal gateway, jail 'srv'
+	# is a random (web)server. We use the echo protocol rather than http
+	# for the test, because that's easier.
+	pft_init
+
+	epair_gw=$(vnet_mkepair)
+	epair_srv=$(vnet_mkepair)
+	epair_gw_a_mac=$(ifconfig ${epair_gw}a ether | awk '/ether/ { print $2; }')
+
+	vnet_mkjail gw ${epair_gw}b ${epair_srv}a
+	vnet_mkjail srv ${epair_srv}b
+
+	ifconfig ${epair_gw}a 192.0.2.2/24 up
+	route add -net 198.51.100.0/24 192.0.2.1
+	jexec gw ifconfig ${epair_gw}b 192.0.2.1/24 up
+	jexec gw ifconfig lo0 127.0.0.1/8 up
+	jexec gw sysctl net.inet.ip.forwarding=1
+
+	jexec gw ifconfig ${epair_srv}a 198.51.100.1/24 up
+	jexec srv ifconfig ${epair_srv}b 198.51.100.2/24 up
+	jexec srv route add -net 192.0.2.0/24 198.51.100.1
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 198.51.100.2
+
+	pft_set_rules gw \
+		"ether pass quick proto 0x0806" \
+		"ether pass tag captive" \
+		"rdr on ${epair_gw}b proto tcp to port echo tagged captive -> 127.0.0.1 port echo"
+	jexec gw pfctl -e
+
+	# ICMP should still work, because we don't redirect it.
+	atf_check -s exit:0 -o ignore ping -c 1 -t 1 198.51.100.2
+
+	# Run the echo server only on the gw, so we know we've redirectly
+	# correctly if we get an echo message.
+	jexec gw /usr/sbin/inetd $(atf_get_srcdir)/echo_inetd.conf
+
+	# Confirm that we're getting redirected
+	atf_check -s exit:0 -o match:"^foo$" -x "echo foo | nc -N 198.51.100.2 7"
+
+	jexec gw killall inetd
+
+	# Now pretend we've authenticated, so add the client's MAC address
+	pft_set_rules gw \
+		"ether pass quick proto 0x0806" \
+		"ether pass quick from ${epair_gw_a_mac}" \
+		"ether pass tag captive" \
+		"rdr on ${epair_gw}b proto tcp to port echo tagged captive -> 127.0.0.1 port echo"
+
+	# No redirect, so failure.
+	atf_check -s exit:1 -x "echo foo | nc -N 198.51.100.2 7"
+
+	# Start a server in srv
+	jexec srv /usr/sbin/inetd $(atf_get_srcdir)/echo_inetd.conf
+
+	# And now we can talk to that one.
+	atf_check -s exit:0 -o match:"^foo$" -x "echo foo | nc -N 198.51.100.2 7"
+}
+
+captive_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "mac"
 	atf_add_test_case "proto"
+	atf_add_test_case "captive"
 }
