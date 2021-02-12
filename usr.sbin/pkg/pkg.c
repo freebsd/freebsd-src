@@ -434,9 +434,7 @@ sha256_fd(int fd, char out[SHA256_DIGEST_LENGTH * 2 + 1])
 	int ret;
 	SHA256_CTX sha256;
 
-	my_fd = -1;
 	fp = NULL;
-	r = 0;
 	ret = 1;
 
 	out[0] = '\0';
@@ -627,7 +625,6 @@ parse_cert(int fd) {
 	ssize_t linelen;
 
 	buf = NULL;
-	my_fd = -1;
 	sc = NULL;
 	line = NULL;
 	linecap = 0;
