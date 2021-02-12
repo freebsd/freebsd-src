@@ -110,6 +110,22 @@ dev/axgbe/xgbe-i2c.c		optional	axp
 dev/axgbe/xgbe-phy-v2.c		optional	axp
 dev/hyperv/vmbus/amd64/hyperv_machdep.c			optional	hyperv
 dev/hyperv/vmbus/amd64/vmbus_vector.S			optional	hyperv
+dev/iavf/if_iavf_iflib.c	optional	iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/iavf"
+dev/iavf/iavf_lib.c		optional	iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/iavf"
+dev/iavf/iavf_osdep.c		optional	iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/iavf"
+dev/iavf/iavf_txrx_iflib.c	optional	iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/iavf"
+dev/iavf/iavf_common.c		optional	iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/iavf"
+dev/iavf/iavf_adminq.c		optional	iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/iavf"
+dev/iavf/iavf_vc_common.c	optional	iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/iavf"
+dev/iavf/iavf_vc_iflib.c	optional	iavf pci \
+	compile-with "${NORMAL_C} -I$S/dev/iavf"
 dev/ice/if_ice_iflib.c		optional	ice pci \
 	compile-with "${NORMAL_C} -I$S/dev/ice"
 dev/ice/ice_lib.c		optional	ice pci \
@@ -172,23 +188,19 @@ dev/ixl/ixl_pf_iov.c		optional	ixl pci  pci_iov \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/ixl_pf_i2c.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/if_iavf.c		optional	iavf pci \
+dev/ixl/ixl_txrx.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/iavf_vc.c			optional	iavf pci \
+dev/ixl/i40e_osdep.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/ixl_txrx.c		optional	ixl pci | iavf pci \
+dev/ixl/i40e_lan_hmc.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_osdep.c		optional	ixl pci | iavf pci \
+dev/ixl/i40e_hmc.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_lan_hmc.c		optional	ixl pci | iavf pci \
+dev/ixl/i40e_common.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_hmc.c		optional	ixl pci | iavf pci \
+dev/ixl/i40e_nvm.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_common.c		optional	ixl pci | iavf pci \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_nvm.c		optional	ixl pci | iavf pci \
-	compile-with "${NORMAL_C} -I$S/dev/ixl"
-dev/ixl/i40e_adminq.c		optional	ixl pci | iavf pci \
+dev/ixl/i40e_adminq.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/ixl/i40e_dcb.c		optional	ixl pci \
 	compile-with "${NORMAL_C} -I$S/dev/ixl"
