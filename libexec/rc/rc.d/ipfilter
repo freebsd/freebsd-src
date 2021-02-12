@@ -14,7 +14,7 @@ name="ipfilter"
 desc="IP packet filter"
 rcvar="ipfilter_enable"
 load_rc_config $name
-stop_precmd="test -f ${ipfilter_rules} -o -f ${ipv6_ipfilter_rules}"
+stop_precmd="test -f ${ipfilter_rules}"
 
 start_precmd="$stop_precmd"
 start_cmd="ipfilter_start"
@@ -39,10 +39,6 @@ ipfilter_start()
 		${ipfilter_program:-/sbin/ipf} \
 		    -f "${ipfilter_rules}" ${ipfilter_flags}
 	fi
-	if [ -r "${ipv6_ipfilter_rules}" ]; then
-		${ipfilter_program:-/sbin/ipf} -6 \
-		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
-	fi
 }
 
 ipfilter_stop()
@@ -65,13 +61,6 @@ ipfilter_reload()
 		    -f "${ipfilter_rules}" ${ipfilter_flags}
 		if [ $? -ne 0 ]; then
 			err 1 'Load of rules into alternate set failed; aborting reload'
-		fi
-	fi
-	if [ -r "${ipv6_ipfilter_rules}" ]; then
-		${ipfilter_program:-/sbin/ipf} -I -6 \
-		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
-		if [ $? -ne 0 ]; then
-			err 1 'Load of IPv6 rules into alternate set failed; aborting reload'
 		fi
 	fi
 	${ipfilter_program:-/sbin/ipf} -s
