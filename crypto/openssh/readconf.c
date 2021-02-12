@@ -336,7 +336,7 @@ void
 add_local_forward(Options *options, const struct Forward *newfwd)
 {
 	struct Forward *fwd;
-	int i, ipport_reserved;
+	int i;
 
 	/* Don't add duplicates */
 	for (i = 0; i < options->num_local_forwards; i++) {
