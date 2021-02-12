@@ -594,14 +594,12 @@ create_rtentry(struct rib_head *rnh, struct rt_addrinfo *info,
 	}
 
 	error = nhop_create_from_info(rnh, info, &nh);
-	if (error != 0) {
-		ifa_free(info->rti_ifa);
+	ifa_free(info->rti_ifa);
+	if (error != 0)
 		return (error);
-	}
 
 	rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
 	if (rt == NULL) {
-		ifa_free(info->rti_ifa);
 		nhop_free(nh);
 		return (ENOBUFS);
 	}
