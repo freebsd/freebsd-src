@@ -2780,8 +2780,9 @@ vxlan_rcv_udp_packet(struct mbuf *m, int offset, struct inpcb *inpcb,
 		goto out;
 
 	vni = ntohl(vxh->vxlh_vni) >> VXLAN_HDR_VNI_SHIFT;
+
 	/* Adjust to the start of the inner Ethernet frame. */
-	m_adj(m, offset + sizeof(struct vxlan_header));
+	m_adj_decap(m, offset + sizeof(struct vxlan_header));
 
 	error = vxlan_input(vso, vni, &m, srcsa);
 	MPASS(error != 0 || m == NULL);
