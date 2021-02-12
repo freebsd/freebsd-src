@@ -34,7 +34,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2021
+.Dd February 11, 2021
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -544,9 +544,22 @@ This gently reduces the congestion window during periods, where TCP is
 application limited and the network bandwidth is not utilized completely.
 That prevents self-inflicted packet losses once the application starts to
 transmit data at a higher speed.
+.It Va do_prr
+Perform SACK loss recovery using the Proportional Rate Reduction (PRR) algorithm
+described in RFC6937.
+This improves the effectiveness of retransmissions particular in environments
+with ACK thinning or burst loss events, as chances to run out of the ACK clock
+are reduced, preventing lengthy and performance reducing RTO based loss recovery
+(default is true).
+.It Va do_prr_conservative
+While doing Proportional Rate Reduction, remain strictly in a packet conserving
+mode, sending only one new packet for each ACK received.
+Helpful when a misconfigured token bucket traffic policer causes persistent
+high losses leading to RTO, but reduces PRR effectiveness in more common settings
+(default is false).
 .It Va rfc6675_pipe
 Calculate the bytes in flight using the algorithm described in RFC 6675, and
-is also a prerequisite to enable Proportional Rate Reduction.
+is also an improvement when Proportional Rate Reduction is enabled.
 .It Va rfc3042
 Enable the Limited Transmit algorithm as described in RFC 3042.
 It helps avoid timeouts on lossy links and also when the congestion window
