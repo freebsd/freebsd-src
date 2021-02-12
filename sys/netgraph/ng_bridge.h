@@ -49,8 +49,8 @@
  * Please note: There is no API support!
  * You canno create new messages using the old API but messages conforming the
  * old ABI are understood.
+ * Define NGM_BRIDGE_TABLE_ABI to enable this in 13.x
  */
-#define	NGM_BRIDGE_TABLE_ABI
 
 /* Node type name and magic cookie */
 #define NG_BRIDGE_NODE_TYPE		"bridge"
