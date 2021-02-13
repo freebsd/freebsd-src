@@ -2244,7 +2244,7 @@ svn_ra_has_capability(svn_ra_session_t *session,
 
 /**
  * The capability of a server to automatically remove transaction
- * properties prefixed with SVN_PROP_EPHEMERAL_PREFIX.
+ * properties prefixed with #SVN_PROP_TXN_PREFIX.
  *
  * @since New in 1.8.
  */

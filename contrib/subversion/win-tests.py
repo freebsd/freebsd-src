@@ -25,7 +25,7 @@ For a list of options, run this script with the --help option.
 """
 
 # $HeadURL: https://svn.apache.org/repos/asf/subversion/branches/1.14.x/win-tests.py $
-# $LastChangedRevision: 1813897 $
+# $LastChangedRevision: 1884665 $
 
 import os, sys, subprocess
 import filecmp
@@ -1263,7 +1263,11 @@ elif test_swig == 'python':
         or isinstance(i, gen_base.TargetSWIGLib)) and i.lang == 'python':
 
       src = os.path.join(abs_objdir, i.filename)
-      copy_changed_file(src, to_dir=swig_py_libsvn)
+      basename = os.path.basename(src)
+      if sys.version_info[:2] >= (3, 5) \
+          and basename.endswith('.pyd') and objdir == 'Debug':
+        basename = basename[:-4] + '_d.pyd'
+      copy_changed_file(src, os.path.join(swig_py_libsvn, basename))
 
   py_src = os.path.join(abs_srcdir, 'subversion', 'bindings', 'swig', 'python')
 
@@ -1285,7 +1289,8 @@ elif test_swig == 'python':
   if 'PYTHONPATH' in os.environ:
     pythonpath += os.pathsep + os.environ['PYTHONPATH']
 
-  python_exe = 'python.exe'
+  python_exe = sys.executable if objdir != 'Debug' else \
+               os.path.join(os.path.dirname(sys.executable), 'python_d.exe')
   old_cwd = os.getcwd()
   try:
     os.environ['PYTHONPATH'] = pythonpath
