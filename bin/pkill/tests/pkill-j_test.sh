@@ -9,7 +9,7 @@ jail_name_to_jid()
 
 base=pkill_j_test
 
-if [ `id -u` -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
 	echo "1..0 # skip Test needs uid 0."
 	exit 0
 fi
@@ -29,13 +29,16 @@ jail -c path=/ name=${base}_1_2 ip4.addr=127.0.0.1 \
 
 $sleep $sleep_amount &
 
-for i in `seq 1 10`; do
+for i in $(seq 1 10); do
 	jid1=$(jail_name_to_jid ${base}_1_1)
 	jid2=$(jail_name_to_jid ${base}_1_2)
 	jid="${jid1},${jid2}"
 	case "$jid" in
-	[0-9]+,[0-9]+)
+	[0-9]*,[0-9]*)
 		break
+		;;
+	*)
+		echo "Did not match: '${jid}'" >&2
 		;;
 	esac
 	sleep 0.1
@@ -43,14 +46,14 @@ done
 sleep 0.5
 
 if pkill -f -j "$jid" $sleep && sleep 0.5 &&
-    ! -f ${PWD}/${base}_1_1.pid &&
-    ! -f ${PWD}/${base}_1_2.pid ; then
+    ! test -f "${PWD}/${base}_1_1.pid" &&
+    ! test -f "${PWD}/${base}_1_2.pid" ; then
 	echo "ok 1 - $name"
 else
 	echo "not ok 1 - $name"
 fi 2>/dev/null
-[ -f ${PWD}/${base}_1_1.pid ] && kill $(cat ${PWD}/${base}_1_1.pid)
-[ -f ${PWD}/${base}_1_2.pid ] && kill $(cat ${PWD}/${base}_1_2.pid)
+[ -f ${PWD}/${base}_1_1.pid ] && kill "$(cat ${PWD}/${base}_1_1.pid)"
+[ -f ${PWD}/${base}_1_2.pid ] && kill "$(cat ${PWD}/${base}_1_2.pid)"
 wait
 
 name="pkill -j any"
@@ -65,14 +68,14 @@ $sleep $sleep_amount &
 chpid3=$!
 sleep 0.5
 if pkill -f -j any $sleep && sleep 0.5 &&
-    [ ! -f ${PWD}/${base}_2_1.pid -a
-      ! -f ${PWD}/${base}_2_2.pid ] && kill $chpid3; then
+    ! test -f ${PWD}/${base}_2_1.pid &&
+    ! test -f ${PWD}/${base}_2_2.pid && kill $chpid3; then
 	echo "ok 2 - $name"
 else
 	echo "not ok 2 - $name"
 fi 2>/dev/null
-[ -f ${PWD}/${base}_2_1.pid ] && kill $(cat ${PWD}/${base}_2_1.pid)
-[ -f ${PWD}/${base}_2_2.pid ] && kill $(cat ${PWD}/${base}_2_2.pid)
+[ -f ${PWD}/${base}_2_1.pid ] && kill "$(cat ${PWD}/${base}_2_1.pid)"
+[ -f ${PWD}/${base}_2_2.pid ] && kill "$(cat ${PWD}/${base}_2_2.pid)"
 wait
 
 name="pkill -j none"
@@ -88,8 +91,8 @@ else
 	ls ${PWD}/*.pid
 	echo "not ok 3 - $name"
 fi 2>/dev/null
-[ -f ${PWD}/${base}_3_1.pid ] && kill $(cat ${base}_3_1.pid)
-[ -f ${PWD}/${base}_3_2.pid ] && kill $(cat ${base}_3_2.pid)
+[ -f ${PWD}/${base}_3_1.pid ] && kill "$(cat ${base}_3_1.pid)"
+[ -f ${PWD}/${base}_3_2.pid ] && kill "$(cat ${base}_3_2.pid)"
 wait
 
 # test 4 is like test 1 except with jname instead of jid.
@@ -107,14 +110,14 @@ sleep 0.5
 
 jname="${base}_4_1,${base}_4_2"
 if pkill -f -j "$jname" $sleep && sleep 0.5 &&
-    ! -f ${PWD}/${base}_4_1.pid &&
-    ! -f ${PWD}/${base}_4_2.pid ; then
+    ! test -f ${PWD}/${base}_4_1.pid &&
+    ! test -f ${PWD}/${base}_4_2.pid ; then
 	echo "ok 4 - $name"
 else
 	echo "not ok 4 - $name"
 fi 2>/dev/null
-[ -f ${PWD}/${base}_4_1.pid ] && kill $(cat ${PWD}/${base}_4_1.pid)
-[ -f ${PWD}/${base}_4_2.pid ] && kill $(cat ${PWD}/${base}_4_2.pid)
+[ -f ${PWD}/${base}_4_1.pid ] && kill "$(cat ${PWD}/${base}_4_1.pid)"
+[ -f ${PWD}/${base}_4_2.pid ] && kill "$(cat ${PWD}/${base}_4_2.pid)"
 wait
 
 rm -f $sleep
