@@ -68,6 +68,7 @@ dexter [label="Michael Dexter\ndexter@FreeBSD.org\n2016/11/15"]
 dru [label="Dru Lavigne\ndru@FreeBSD.org\n2013/01/22"]
 eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/10/15"]
 ebrandi [label="Edson Brandi\nebrandi@FreeBSD.org\n2012/09/13"]
+fernape [label="Fernando Apesteguia\fernape@FreeBSD.org\n2021/02/07"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
 ganbold [label="Ganbold Tsagaankhuu\nganbold@FreeBSD.org\n2008/02/26"]
 gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2011/07/18"]
@@ -105,6 +106,7 @@ zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03"]
 # Keep the list sorted by mentor login.
 
 "0mp" -> debdrup
+"0mp" -> fernape
 
 allanjude -> debdrup
 
@@ -123,6 +125,8 @@ bcr -> carlavilla
 bcr -> "0mp"
 bcr -> gbe
 bcr -> debdrup
+
+bge -> fernape
 
 blackend -> ale
 
