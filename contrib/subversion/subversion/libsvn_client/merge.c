@@ -264,7 +264,7 @@ typedef struct merge_cmd_baton_t {
 
   /* Reference to the one-and-only CHILDREN_WITH_MERGEINFO (see global
      comment) or a similar list for single-file-merges */
-  const apr_array_header_t *children_with_mergeinfo;
+  apr_array_header_t *children_with_mergeinfo;
 
   svn_client_ctx_t *ctx;              /* Client context for callbacks, etc. */
 
@@ -1543,6 +1543,25 @@ record_update_delete(merge_cmd_baton_t *merge_b,
 
       svn_hash_sets(parent_db->pending_deletes, dup_abspath,
                     svn_node_kind_to_word(kind));
+    }
+
+  /* Note in children_with_mergeinfo that all paths in this subtree are
+   * being deleted, to avoid trying to set mergeinfo on them later. */
+  if (merge_b->children_with_mergeinfo)
+    {
+      int i;
+
+      for (i = 0; i < merge_b->children_with_mergeinfo->nelts; i++)
+        {
+          svn_client__merge_path_t *child
+            = APR_ARRAY_IDX(merge_b->children_with_mergeinfo, i,
+                            svn_client__merge_path_t *);
+
+          if (svn_dirent_is_ancestor(local_abspath, child->abspath))
+            {
+              SVN_ERR(svn_sort__array_delete2(merge_b->children_with_mergeinfo, i--, 1));
+            }
+        }
     }
 
   return SVN_NO_ERROR;
@@ -5595,7 +5614,7 @@ svn_client__make_merge_conflict_error(svn_client__conflict_report_t *report,
    with paths (svn_client__merge_path_t *) arranged in depth first order,
    which have mergeinfo set on them or meet one of the other criteria
    defined in get_mergeinfo_paths().  Remove any paths absent from disk
-   or scheduled for deletion from CHILDREN_WITH_MERGEINFO which are equal to
+   from CHILDREN_WITH_MERGEINFO which are equal to
    or are descendants of TARGET_WCPATH by setting those children to NULL. */
 static svn_error_t *
 remove_absent_children(const char *target_wcpath,
@@ -5609,7 +5628,7 @@ remove_absent_children(const char *target_wcpath,
     {
       svn_client__merge_path_t *child =
         APR_ARRAY_IDX(children_with_mergeinfo, i, svn_client__merge_path_t *);
-      if ((child->absent || child->scheduled_for_deletion)
+      if (child->absent
           && svn_dirent_is_ancestor(target_wcpath, child->abspath))
         {
           SVN_ERR(svn_sort__array_delete2(children_with_mergeinfo, i--, 1));
@@ -7896,18 +7915,23 @@ process_children_with_new_mergeinfo(merge_cmd_baton_t *merge_b,
                                     apr_pool_t *pool)
 {
   apr_pool_t *iterpool;
-  apr_hash_index_t *hi;
+  apr_array_header_t *a;
+  int i;
 
   if (!merge_b->paths_with_new_mergeinfo || merge_b->dry_run)
     return SVN_NO_ERROR;
 
   /* Iterate over each path with explicit mergeinfo added by the merge. */
+  /* Iterate over the paths in a parent-to-child order so that inherited
+   * mergeinfo is propagated consistently from each parent path to its
+   * children. (Issue #4862) */
+  a = svn_sort__hash(merge_b->paths_with_new_mergeinfo,
+                     svn_sort_compare_items_as_paths, pool);
   iterpool = svn_pool_create(pool);
-  for (hi = apr_hash_first(pool, merge_b->paths_with_new_mergeinfo);
-       hi;
-       hi = apr_hash_next(hi))
+  for (i = 0; i < a->nelts; i++)
     {
-      const char *abspath_with_new_mergeinfo = apr_hash_this_key(hi);
+      svn_sort__item_t *item = &APR_ARRAY_IDX(a, i, svn_sort__item_t);
+      const char *abspath_with_new_mergeinfo = item->key;
       svn_mergeinfo_t path_inherited_mergeinfo;
       svn_mergeinfo_t path_explicit_mergeinfo;
       svn_client__merge_path_t *new_child;
