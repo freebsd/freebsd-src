@@ -827,7 +827,7 @@ svn_fs_fs__l2p_index_append(svn_checksum_t **checksum,
                                               &eof, local_pool));
 
       /* handle new revision */
-      if ((entry > 0 && proto_entry.offset == 0) || eof)
+      if (eof || (entry > 0 && proto_entry.offset == 0))
         {
           /* dump entries, grouped into pages */
 

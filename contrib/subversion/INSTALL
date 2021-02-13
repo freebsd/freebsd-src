@@ -3,7 +3,7 @@
                           A Quick Guide
                ======================================
 
-$LastChangedDate: 2020-02-17 03:49:42 +0000 (Mon, 17 Feb 2020) $
+$LastChangedDate: 2020-12-18 04:00:24 +0000 (Fri, 18 Dec 2020) $
 
 
 Contents:
@@ -206,7 +206,7 @@ I.    INTRODUCTION
       commands described in section II.B before installing the following.
 
 
-      1.  Apache Portable Runtime 1.5 or newer  (REQUIRED)
+      1.  Apache Portable Runtime 1.4 or newer  (REQUIRED)
 
       Whenever you want to build any part of Subversion, you need the
       Apache Portable Runtime (APR) and the APR Utility (APR-util)
@@ -505,6 +505,12 @@ I.    INTRODUCTION
       2.7 is being phased out.  As of 1 January 2020, Python 2.7 has
       reached end of life.  All users are strongly encouraged to move
       to Python 3.
+
+      Note: If you are using a Subversion distribution tarball and want
+      to build the Python bindings for Python 2, you should rebuild
+      the build environment in non-release mode by running
+      'sh autogen.sh' before running the ./configure script; see
+      section II.B for more about autogen.sh.
 
 
       13. Perl 5.8 or newer (Windows only)  (OPTIONAL)
@@ -832,7 +838,7 @@ II.   INSTALLATION
         needed to compile Apache.  Note that this is the actual awk program,
         not an installer - just rename it to awk.exe and it is ready to use.
       * Apache apr, apr-util, and optionally apr-iconv libraries, version
-        1.5 or later (1.2 for apr-iconv). If you are building from a Subversion
+        1.4 or later (1.2 for apr-iconv). If you are building from a Subversion
         checkout and have not downloaded Apache 2, then get these 3 libraries
         from https://www.apache.org/dist/apr/.
       * SQLite 3.8.2 or higher from https://www.sqlite.org/download.html

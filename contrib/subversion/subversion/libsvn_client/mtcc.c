@@ -453,7 +453,8 @@ mtcc_verify_create(svn_client__mtcc_t *mtcc,
 
       if (op)
         return svn_error_createf(SVN_ERR_FS_ALREADY_EXISTS, NULL,
-                                 _("Path '%s' already exists"),
+                                 _("Path '%s' already exists, or was created "
+                                   "by an earlier operation"),
                                  new_relpath);
 
       SVN_ERR(mtcc_op_find(&op, NULL, new_relpath, mtcc->root_op, TRUE, TRUE,
