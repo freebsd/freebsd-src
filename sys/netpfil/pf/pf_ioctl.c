@@ -1558,8 +1558,32 @@ pf_krule_to_rule(const struct pf_krule *krule, struct pf_rule *rule)
 }
 
 static int
+pf_check_rule_addr(const struct pf_rule_addr *addr)
+{
+
+	switch (addr->addr.type) {
+	case PF_ADDR_ADDRMASK:
+	case PF_ADDR_NOROUTE:
+	case PF_ADDR_DYNIFTL:
+	case PF_ADDR_TABLE:
+	case PF_ADDR_URPFFAILED:
+	case PF_ADDR_RANGE:
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	if (addr->addr.p.dyn != NULL) {
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
 pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 {
+	int ret;
 
 #ifndef INET
 	if (rule->af == AF_INET) {
@@ -1572,23 +1596,12 @@ pf_rule_to_krule(const struct pf_rule *rule, struct pf_krule *krule)
 	}
 #endif /* INET6 */
 
-	if (rule->src.addr.type != PF_ADDR_ADDRMASK &&
-	    rule->src.addr.type != PF_ADDR_DYNIFTL &&
-	    rule->src.addr.type != PF_ADDR_TABLE) {
-		return (EINVAL);
-	}
-	if (rule->src.addr.p.dyn != NULL) {
-		return (EINVAL);
-	}
-
-	if (rule->dst.addr.type != PF_ADDR_ADDRMASK &&
-	    rule->dst.addr.type != PF_ADDR_DYNIFTL &&
-	    rule->dst.addr.type != PF_ADDR_TABLE) {
-		return (EINVAL);
-	}
-	if (rule->dst.addr.p.dyn != NULL) {
-		return (EINVAL);
-	}
+	ret = pf_check_rule_addr(&rule->src);
+	if (ret != 0)
+		return (ret);
+	ret = pf_check_rule_addr(&rule->dst);
+	if (ret != 0)
+		return (ret);
 
 	bzero(krule, sizeof(*krule));
 
