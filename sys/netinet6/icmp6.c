@@ -260,6 +260,7 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 {
 	struct ip6_hdr *oip6, *nip6;
 	struct icmp6_hdr *icmp6;
+	struct epoch_tracker et;
 	u_int preplen;
 	int off;
 	int nxt;
@@ -379,7 +380,9 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 	icmp6->icmp6_pptr = htonl((u_int32_t)param);
 
 	ICMP6STAT_INC(icp6s_outhist[type]);
+	NET_EPOCH_ENTER(et);
 	icmp6_reflect(m, sizeof(struct ip6_hdr)); /* header order: IPv6 - ICMPv6 */
+	NET_EPOCH_EXIT(et);
 
 	return;
 
