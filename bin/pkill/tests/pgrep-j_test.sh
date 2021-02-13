@@ -9,7 +9,7 @@ jail_name_to_jid()
 
 base=pgrep_j_test
 
-if [ `id -u` -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
 	echo "1..0 # skip Test needs uid 0."
 	exit 0
 fi
@@ -28,12 +28,12 @@ jail -c path=/ name=${base}_1_2 ip4.addr=127.0.0.1 \
     command=daemon -p ${PWD}/${base}_1_2.pid $sleep $sleep_amount &
 sleep 0.5
 
-for i in `seq 1 10`; do
+for i in $(seq 1 10); do
 	jid1=$(jail_name_to_jid ${base}_1_1)
 	jid2=$(jail_name_to_jid ${base}_1_2)
 	jid="${jid1},${jid2}"
 	case "$jid" in
-	[0-9]+,[0-9]+)
+	[0-9]*,[0-9]*)
 		break
 		;;
 	esac
@@ -43,14 +43,14 @@ sleep 0.5
 
 pid1="$(pgrep -f -x -j "$jid" "$sleep $sleep_amount" | sort)"
 pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_1_1.pid)" \
-    $(cat ${PWD}/${base}_1_2.pid) | sort)
+    "$(cat ${PWD}/${base}_1_2.pid)" | sort)
 if [ "$pid1" = "$pid2" ]; then
 	echo "ok 1 - $name"
 else
-	echo "not ok 1 - $name # pgrep output: '$(echo $pid1)', pidfile output: '$(echo $pid2)'"
+	echo "not ok 1 - $name # pgrep output: '$pid1', pidfile output: '$pid2'"
 fi
-[ -f ${PWD}/${base}_1_1.pid ] && kill $(cat ${PWD}/${base}_1_1.pid)
-[ -f ${PWD}/${base}_1_2.pid ] && kill $(cat ${PWD}/${base}_1_2.pid)
+[ -f ${PWD}/${base}_1_1.pid ] && kill "$(cat ${PWD}/${base}_1_1.pid)"
+[ -f ${PWD}/${base}_1_2.pid ] && kill "$(cat ${PWD}/${base}_1_2.pid)"
 wait
 
 name="pgrep -j any"
@@ -64,14 +64,14 @@ jail -c path=/ name=${base}_2_2 ip4.addr=127.0.0.1 \
 sleep 2
 pid1="$(pgrep -f -x -j any "$sleep $sleep_amount" | sort)"
 pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_2_1.pid)" \
-    $(cat ${PWD}/${base}_2_2.pid) | sort)
+    "$(cat ${PWD}/${base}_2_2.pid)" | sort)
 if [ "$pid1" = "$pid2" ]; then
 	echo "ok 2 - $name"
 else
-	echo "not ok 2 - $name # pgrep output: '$(echo $pid1)', pidfile output: '$(echo $pid2)'"
+	echo "not ok 2 - $name # pgrep output: '$pid1', pidfile output: '$pid2'"
 fi
-[ -f ${PWD}/${base}_2_1.pid ] && kill $(cat ${PWD}/${base}_2_1.pid)
-[ -f ${PWD}/${base}_2_2.pid ] && kill $(cat ${PWD}/${base}_2_2.pid)
+[ -f ${PWD}/${base}_2_1.pid ] && kill "$(cat ${PWD}/${base}_2_1.pid)"
+[ -f ${PWD}/${base}_2_2.pid ] && kill "$(cat ${PWD}/${base}_2_2.pid)"
 wait
 
 name="pgrep -j none"
@@ -84,10 +84,10 @@ pid="$(pgrep -f -x -j none "$sleep $sleep_amount")"
 if [ "$pid" = "$(cat ${PWD}/${base}_3_1.pid)" ]; then
 	echo "ok 3 - $name"
 else
-	echo "not ok 3 - $name # pgrep output: '$(echo $pid1)', pidfile output: '$(echo $pid2)'"
+	echo "not ok 3 - $name # pgrep output: '$pid1', pidfile output: '$pid2'"
 fi
-[ -f ${PWD}/${base}_3_1.pid ] && kill $(cat $PWD/${base}_3_1.pid) 
-[ -f ${PWD}/${base}_3_2.pid ] && kill $(cat $PWD/${base}_3_2.pid) 
+[ -f ${PWD}/${base}_3_1.pid ] && kill "$(cat $PWD/${base}_3_1.pid)"
+[ -f ${PWD}/${base}_3_2.pid ] && kill "$(cat $PWD/${base}_3_2.pid)"
 wait
 
 # test 4 is like test 1 except with jname instead of jid.
@@ -104,14 +104,14 @@ sleep 0.5
 jname="${base}_4_1,${base}_4_2"
 pid1="$(pgrep -f -x -j "$jname" "$sleep $sleep_amount" | sort)"
 pid2=$(printf "%s\n%s" "$(cat ${PWD}/${base}_4_1.pid)" \
-    $(cat ${PWD}/${base}_4_2.pid) | sort)
+    "$(cat ${PWD}/${base}_4_2.pid)" | sort)
 if [ "$pid1" = "$pid2" ]; then
 	echo "ok 4 - $name"
 else
 	echo "not ok 4 - $name # pgrep output: '$(echo $pid1)', pidfile output: '$(echo $pid2)'"
 fi
-[ -f ${PWD}/${base}_4_1.pid ] && kill $(cat ${PWD}/${base}_4_1.pid)
-[ -f ${PWD}/${base}_4_2.pid ] && kill $(cat ${PWD}/${base}_4_2.pid)
+[ -f ${PWD}/${base}_4_1.pid ] && kill "$(cat ${PWD}/${base}_4_1.pid)"
+[ -f ${PWD}/${base}_4_2.pid ] && kill "$(cat ${PWD}/${base}_4_2.pid)"
 wait
 
 rm -f $sleep
