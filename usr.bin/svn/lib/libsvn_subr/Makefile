@@ -8,6 +8,7 @@ INTERNALLIB=	yes
 LIB=		svn_subr
 
 SRCS=		adler32.c \
+		apr_escape.c \
 		atomic.c \
 		auth.c \
 		base64.c \

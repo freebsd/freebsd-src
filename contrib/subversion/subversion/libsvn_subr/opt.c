@@ -326,7 +326,7 @@ print_command_info3(const svn_opt_subcommand_desc3_t *cmd,
             }
         }
 
-      if (!verbose)
+      if (!verbose && global_options && *global_options)
         SVN_ERR(svn_cmdline_fputs(_("\n(Use '-v' to show global and experimental options.)\n"),
                                   stream, pool));
       if (have_options)

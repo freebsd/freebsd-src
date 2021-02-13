@@ -88,15 +88,24 @@ format_size(double human_readable_size,
      + 1 nul terminator
      ---
      = 5 characters of space needed in the buffer. */
-    char buffer[8];
+    char buffer[64];
 
-    assert(absolute_human_readable_size < 1000.0);
+    assert(absolute_human_readable_size < 1000);
 
-    /* When the adjusted size has only one significant digit left of the
-       decimal point, show tenths of a unit, too. */
-    sprintf(buffer, "%.*f",
-            absolute_human_readable_size < 10.0 ? 1 : 0,
-            human_readable_size);
+    /* When the adjusted size has only one significant digit left of
+       the decimal point, show tenths of a unit, too. Except when
+       the absolute size is actually a single-digit number, because
+       files can't have fractional byte sizes. */
+    if (absolute_human_readable_size >= 10)
+      sprintf(buffer, "%.0f", human_readable_size);
+    else
+      {
+        double integral;
+        const double frac = modf(absolute_human_readable_size, &integral);
+        const int decimals = (index > 0 && (integral < 9 || frac <= .949999999));
+        sprintf(buffer, "%.*f", decimals, human_readable_size);
+      }
+
     return apr_pstrcat(result_pool, buffer, suffix, SVN_VA_NULL);
 }
 
@@ -138,8 +147,9 @@ get_base2_unit_file_size(svn_filesize_t size,
       assert(index < order_size - 1);
       ++index;
     }
+
   human_readable_size = (index == 0 ? (double)size
-                         : (size >> 3 * index) / 128.0 / index);
+                         : (size >> (10 * index - 10)) / 1024.0);
 
   return format_size(human_readable_size,
                      long_units, order, index, result_pool);
@@ -160,7 +170,7 @@ get_base10_unit_file_size(svn_filesize_t size,
       {APR_INT64_C(      999999999999), " TB", "T"}, /* tera */
       {APR_INT64_C(   999999999999999), " EB", "E"}, /* exa  */
       {APR_INT64_C(999999999999999999), " PB", "P"}  /* peta */
-      /*         18446744073709551615 is the maximum value.  */
+      /*          9223372036854775807 is the maximum value.  */
     };
   static const apr_size_t order_size = sizeof(order) / sizeof(order[0]);
 
@@ -170,20 +180,29 @@ get_base10_unit_file_size(svn_filesize_t size,
 
   /* Adjust the size to the given order of magnitude.
 
-     This is division by (order[index].mask + 1), which is the base-1000
-     magnitude of the size. For large file sizes, we split the operation
-     into an integer and a floating-point division, so that we don't
+     This is division by (order[index].mask + 1), which is the
+     base-1000 magnitude of the size. We split the operation into an
+     integer and a floating-point division, so that we don't
      overflow the mantissa. */
   if (index == 0)
     human_readable_size = (double)size;
-  else if (index <= 3)
-    human_readable_size = (double)size / (order[index].mask + 1);
   else
     {
-      /*                             [   Keep integer division here!   ] */
-      const double divisor = (double)((order[index].mask + 1) / 1000000);
-      human_readable_size = (size / 1000000) / divisor;
-      /*                    [   And here!  ] */
+      const svn_filesize_t divisor = (order[index - 1].mask + 1);
+      /*      [Keep integer arithmetic here!] */
+      human_readable_size = (size / divisor) / 1000.0;
+    }
+
+  /* Adjust index and number for rounding. */
+  if (human_readable_size >= 999.5)
+    {
+      /* This assertion should never fail, because we only have one
+         decimal digit in the petabyte range and so the number of
+         petabytes can't be large enough to cause the program flow
+         to enter this conditional block. */
+      assert(index < order_size - 1);
+      human_readable_size /= 1000.0;
+      ++index;
     }
 
   return format_size(human_readable_size,

@@ -80,7 +80,7 @@ svn_sort__array(apr_array_header_t *array,
                 int (*comparison_func)(const void *,
                                        const void *));
 
-/* Return the lowest index at which the element @a *key should be inserted into
+/** Return the lowest index at which the element @a *key should be inserted into
  * the array @a array, according to the ordering defined by @a compare_func.
  * The array must already be sorted in the ordering defined by @a compare_func.
  * @a compare_func is defined as for the C stdlib function bsearch(); the
@@ -93,7 +93,7 @@ svn_sort__bsearch_lower_bound(const apr_array_header_t *array,
                               const void *key,
                               int (*compare_func)(const void *, const void *));
 
-/* Find the lowest index at which the element @a *key should be inserted into
+/** Find the lowest index at which the element @a *key should be inserted into
  * the array @a array, according to the ordering defined by @a compare_func.
  * The array must already be sorted in the ordering defined by @a compare_func.
  * @a compare_func is defined as for the C stdlib function bsearch(); the
@@ -116,7 +116,7 @@ svn_sort__array_lookup(const apr_array_header_t *array,
                        int (*compare_func)(const void *, const void *));
 
 
-/* Insert a shallow copy of @a *new_element into the array @a array at the index
+/** Insert a shallow copy of @a *new_element into the array @a array at the index
  * @a insert_index, growing the array and shuffling existing elements along to
  * make room.
  *
@@ -131,7 +131,7 @@ svn_sort__array_insert2(apr_array_header_t *array,
                         int insert_index);
 
 
-/* Remove @a elements_to_delete elements starting at @a delete_index from the
+/** Remove @a elements_to_delete elements starting at @a delete_index from the
  * array @a arr.
  *
  * Raise an error if the indexes to delete extends outside the array bounds
@@ -144,7 +144,7 @@ svn_sort__array_delete2(apr_array_header_t *arr,
                         int delete_index,
                         int elements_to_delete);
 
-/* Reverse the order of elements in @a array, in place.
+/** Reverse the order of elements in @a array, in place.
  *
  * @note Private. For use by Subversion's own code only.
  */
