@@ -182,13 +182,6 @@ if __name__ == "__main__":
                 sys.exit("TARGET= and TARGET_ARCH= must be set explicitly "
                          "when building on non-FreeBSD")
         # infer values for CC/CXX/CPP
-
-        if sys.platform.startswith(
-                "linux") and parsed_args.host_compiler_type == "cc":
-            # FIXME: bsd.compiler.mk doesn't handle the output of GCC if it
-            #  is /usr/bin/cc on Ubuntu since it doesn't contain the GCC string.
-            parsed_args.host_compiler_type = "gcc"
-
         if parsed_args.host_compiler_type == "gcc":
             default_cc, default_cxx, default_cpp = ("gcc", "g++", "cpp")
         # FIXME: this should take values like `clang-9` and then look for
@@ -225,8 +218,8 @@ if __name__ == "__main__":
         if not shutil.which("strip"):
             if sys.platform.startswith("darwin"):
                 # On macOS systems we have to use /usr/bin/strip.
-                sys.exit("Cannot find required tool 'strip'. Please install the"
-                         " host compiler and command line tools.")
+                sys.exit("Cannot find required tool 'strip'. Please install "
+                         "the host compiler and command line tools.")
             if parsed_args.host_compiler_type == "clang":
                 strip_binary = "llvm-strip"
             else:
