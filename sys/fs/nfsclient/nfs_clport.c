@@ -1006,15 +1006,18 @@ nfscl_getmyip(struct nfsmount *nmp, struct in6_addr *paddr, int *isinet6p)
 #endif
 #ifdef INET6
 	if (nmp->nm_nam->sa_family == AF_INET6) {
+		struct epoch_tracker et;
 		struct sockaddr_in6 *sin6;
 		int error;
 
 		sin6 = (struct sockaddr_in6 *)nmp->nm_nam;
 
+		NET_EPOCH_ENTER(et);
 		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
 		error = in6_selectsrc_addr(fibnum, &sin6->sin6_addr,
 		    sin6->sin6_scope_id, NULL, paddr, NULL);
 		CURVNET_RESTORE();
+		NET_EPOCH_EXIT(et);
 		if (error != 0)
 			return (NULL);
 

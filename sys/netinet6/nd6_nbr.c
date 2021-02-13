@@ -413,6 +413,8 @@ nd6_ns_output_fib(struct ifnet *ifp, const struct in6_addr *saddr6,
 	int maxlen;
 	caddr_t mac;
 
+	NET_EPOCH_ASSERT();
+
 	if (IN6_IS_ADDR_MULTICAST(taddr6))
 		return;
 
@@ -946,6 +948,8 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	struct ip6_moptions im6o;
 	struct in6_addr daddr6, dst6, src6;
 	uint32_t scopeid;
+
+	NET_EPOCH_ASSERT();
 
 	int icmp6len, maxlen, error;
 	caddr_t mac = NULL;

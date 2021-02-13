@@ -352,6 +352,7 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr *nam,
 	int error = 0;
 	int scope_ambiguous = 0;
 	struct in6_addr in6a;
+	struct epoch_tracker et;
 
 	INP_WLOCK_ASSERT(inp);
 	INP_HASH_WLOCK_ASSERT(inp->inp_pcbinfo);	/* XXXRW: why? */
@@ -379,8 +380,10 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr *nam,
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 
+	NET_EPOCH_ENTER(et);
 	error = in6_selectsrc_socket(sin6, inp->in6p_outputopts,
 	    inp, inp->inp_cred, scope_ambiguous, &in6a, NULL);
+	NET_EPOCH_EXIT(et);
 	if (error)
 		return (error);
 
