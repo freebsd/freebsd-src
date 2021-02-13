@@ -636,7 +636,7 @@ ON NODES (wc_id, moved_to, op_depth);
 
 CREATE INDEX IF NOT EXISTS I_PRISTINE_MD5 ON PRISTINE (md5_checksum);
 
-UPDATE nodes SET presence = "server-excluded" WHERE presence = "absent";
+UPDATE nodes SET presence = 'server-excluded' WHERE presence = 'absent';
 
 /* Just to be sure clear out file external skels from pre 1.7.0 development
    working copies that were never updated by 1.7.0+ style clients */
