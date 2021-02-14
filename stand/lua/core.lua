@@ -403,7 +403,10 @@ end
 function core.isSerialConsole()
 	local c = loader.getenv("console")
 	if c ~= nil then
-		if c:find("comconsole") ~= nil then
+		-- serial console is comconsole, but also userboot.
+		-- userboot is there, because we have no way to know
+		-- if the user terminal can draw unicode box chars or not.
+		if c:find("comconsole") ~= nil or c:find("userboot") ~= nil then
 			return true
 		end
 	end
