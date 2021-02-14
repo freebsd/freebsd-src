@@ -43,6 +43,9 @@
 /* If non-zero, the hypervisor has been configured to use a direct vector */
 extern int xen_vector_callback_enabled;
 
+/* Signal whether the event channel vector requires EOI at the lapic */
+extern bool xen_evtchn_needs_ack;
+
 /* tunable for disabling PV disks */
 extern int xen_disable_pv_disks;
 
