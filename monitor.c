@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.210 2020/03/13 03:17:07 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.214 2020/08/27 01:07:09 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -679,7 +679,7 @@ mm_answer_sign(struct ssh *ssh, int sock, struct sshbuf *m)
 
 	if ((key = get_hostkey_by_index(keyid)) != NULL) {
 		if ((r = sshkey_sign(key, &signature, &siglen, p, datlen, alg,
-		    options.sk_provider, compat)) != 0)
+		    options.sk_provider, NULL, compat)) != 0)
 			fatal("%s: sshkey_sign failed: %s",
 			    __func__, ssh_err(r));
 	} else if ((key = get_hostkey_public_by_index(keyid, ssh)) != NULL &&
@@ -1387,7 +1387,8 @@ mm_answer_keyverify(struct ssh *ssh, int sock, struct sshbuf *m)
 	const u_char *signature, *data, *blob;
 	char *sigalg = NULL, *fp = NULL;
 	size_t signaturelen, datalen, bloblen;
-	int r, ret, req_presence = 0, valid_data = 0, encoded_ret;
+	int r, ret, req_presence = 0, req_verify = 0, valid_data = 0;
+	int encoded_ret;
 	struct sshkey_sig_details *sig_details = NULL;
 
 	if ((r = sshbuf_get_string_direct(m, &blob, &bloblen)) != 0 ||
@@ -1447,6 +1448,18 @@ mm_answer_keyverify(struct ssh *ssh, int sock, struct sshbuf *m)
 			    "port %d rejected: user presence "
 			    "(authenticator touch) requirement not met ",
 			    sshkey_type(key), fp,
+			    authctxt->valid ? "" : "invalid user ",
+			    authctxt->user, ssh_remote_ipaddr(ssh),
+			    ssh_remote_port(ssh));
+			ret = SSH_ERR_SIGNATURE_INVALID;
+		}
+		req_verify = (options.pubkey_auth_options &
+		    PUBKEYAUTH_VERIFY_REQUIRED) || key_opts->require_verify;
+		if (req_verify &&
+		    (sig_details->sk_flags & SSH_SK_USER_VERIFICATION_REQD) == 0) {
+			error("public key %s %s signature for %s%s from %.128s "
+			    "port %d rejected: user verification requirement "
+			    "not met ", sshkey_type(key), fp,
 			    authctxt->valid ? "" : "invalid user ",
 			    authctxt->user, ssh_remote_ipaddr(ssh),
 			    ssh_remote_port(ssh));
@@ -1568,7 +1581,7 @@ mm_answer_pty(struct ssh *ssh, int sock, struct sshbuf *m)
 	if (fd0 != 0)
 		error("%s: fd0 %d != 0", __func__, fd0);
 
-	/* slave is not needed */
+	/* slave side of pty is not needed */
 	close(s->ttyfd);
 	s->ttyfd = s->ptyfd;
 	/* no need to dup() because nobody closes ptyfd */

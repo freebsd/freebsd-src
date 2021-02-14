@@ -1,4 +1,4 @@
-#	$OpenBSD: multiplex.sh,v 1.32 2020/01/25 02:57:53 dtucker Exp $
+#	$OpenBSD: multiplex.sh,v 1.33 2020/06/24 15:16:23 markus Exp $
 #	Placed in the Public Domain.
 
 make_tmpdir
@@ -97,22 +97,24 @@ kill $netcat_pid 2>/dev/null
 rm -f ${COPY} $OBJ/unix-[123].fwd
 
 for s in 0 1 4 5 44; do
-	trace "exit status $s over multiplexed connection"
-	verbose "test $tid: status $s"
-	${SSH} -F $OBJ/ssh_config -S $CTL otherhost exit $s
+   for mode in "" "-Oproxy"; do
+	trace "exit status $s over multiplexed connection ($mode)"
+	verbose "test $tid: status $s ($mode)"
+	${SSH} -F $OBJ/ssh_config -S $CTL $mode otherhost exit $s
 	r=$?
 	if [ $r -ne $s ]; then
 		fail "exit code mismatch: $r != $s"
 	fi
 
 	# same with early close of stdout/err
-	trace "exit status $s with early close over multiplexed connection"
-	${SSH} -F $OBJ/ssh_config -S $CTL -n otherhost \
+	trace "exit status $s with early close over multiplexed connection ($mode)"
+	${SSH} -F $OBJ/ssh_config -S $CTL -n $mode otherhost \
                 exec sh -c \'"sleep 2; exec > /dev/null 2>&1; sleep 3; exit $s"\'
 	r=$?
 	if [ $r -ne $s ]; then
 		fail "exit code (with sleep) mismatch: $r != $s"
 	fi
+   done
 done
 
 verbose "test $tid: cmd check"

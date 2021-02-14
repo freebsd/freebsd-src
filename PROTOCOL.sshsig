@@ -71,7 +71,7 @@ encoding rules for the chosen key type. For RSA signatures, the
 signature algorithm must be "rsa-sha2-512" or "rsa-sha2-256" (i.e.
 not the legacy RSA-SHA1 "ssh-rsa").
 
-This blob is encoded as a string using the RFC4243 encoding
+This blob is encoded as a string using the RFC4253 encoding
 rules and base64 encoded to form the middle part of the
 armored signature.
 
@@ -97,3 +97,4 @@ the reserved field if it is not empty.
 The data is concatenated and passed to the SSH signing
 function.
 
+$OpenBSD: PROTOCOL.sshsig,v 1.4 2020/08/31 00:17:41 djm Exp $

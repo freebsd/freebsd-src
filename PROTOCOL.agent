@@ -2,4 +2,6 @@ This file used to contain a description of the SSH agent protocol
 implemented by OpenSSH. It has since been superseded by an Internet-
 draft that is available from:
 
+$OpenBSD: PROTOCOL.agent,v 1.13 2020/08/31 00:17:41 djm Exp $
+
 https://tools.ietf.org/html/draft-miller-ssh-agent-02

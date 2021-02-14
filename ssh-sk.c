@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-sk.c,v 1.30 2020/04/28 04:02:29 djm Exp $ */
+/* $OpenBSD: ssh-sk.c,v 1.32 2020/09/09 03:08:02 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -174,6 +174,7 @@ sshsk_free_enroll_response(struct sk_enroll_response *r)
 	freezero(r->public_key, r->public_key_len);
 	freezero(r->signature, r->signature_len);
 	freezero(r->attestation_cert, r->attestation_cert_len);
+	freezero(r->authdata, r->authdata_len);
 	freezero(r, sizeof(*r));
 }
 
@@ -419,6 +420,31 @@ make_options(const char *device, const char *user_id,
 	return ret;
 }
 
+
+static int
+fill_attestation_blob(const struct sk_enroll_response *resp,
+    struct sshbuf *attest)
+{
+	int r;
+
+	if (attest == NULL)
+		return 0; /* nothing to do */
+	if ((r = sshbuf_put_cstring(attest, "ssh-sk-attest-v01")) != 0 ||
+	    (r = sshbuf_put_string(attest,
+	    resp->attestation_cert, resp->attestation_cert_len)) != 0 ||
+	    (r = sshbuf_put_string(attest,
+	    resp->signature, resp->signature_len)) != 0 ||
+	    (r = sshbuf_put_string(attest,
+	    resp->authdata, resp->authdata_len)) != 0 ||
+	    (r = sshbuf_put_u32(attest, 0)) != 0 || /* resvd flags */
+	    (r = sshbuf_put_string(attest, NULL, 0)) != 0 /* resvd */) {
+		error("%s: buffer error: %s", __func__, ssh_err(r));
+		return r;
+	}
+	/* success */
+	return 0;
+}
+
 int
 sshsk_enroll(int type, const char *provider_path, const char *device,
     const char *application, const char *userid, uint8_t flags,
@@ -506,19 +532,9 @@ sshsk_enroll(int type, const char *provider_path, const char *device,
 		goto out;
 
 	/* Optionally fill in the attestation information */
-	if (attest != NULL) {
-		if ((r = sshbuf_put_cstring(attest,
-		    "ssh-sk-attest-v00")) != 0 ||
-		    (r = sshbuf_put_string(attest,
-		    resp->attestation_cert, resp->attestation_cert_len)) != 0 ||
-		    (r = sshbuf_put_string(attest,
-		    resp->signature, resp->signature_len)) != 0 ||
-		    (r = sshbuf_put_u32(attest, 0)) != 0 || /* resvd flags */
-		    (r = sshbuf_put_string(attest, NULL, 0)) != 0 /* resvd */) {
-			error("%s: buffer error: %s", __func__, ssh_err(r));
-			goto out;
-		}
-	}
+	if ((r = fill_attestation_blob(resp, attest)) != 0)
+		goto out;
+
 	/* success */
 	*keyp = key;
 	key = NULL; /* transferred */
@@ -769,8 +785,9 @@ sshsk_load_resident(const char *provider_path, const char *device,
 		default:
 			continue;
 		}
-		/* XXX where to get flags? */
 		flags = SSH_SK_USER_PRESENCE_REQD|SSH_SK_RESIDENT_KEY;
+		if ((rks[i]->flags & SSH_SK_USER_VERIFICATION_REQD))
+			flags |= SSH_SK_USER_VERIFICATION_REQD;
 		if ((r = sshsk_key_from_response(rks[i]->alg,
 		    rks[i]->application, flags, &rks[i]->key, &key)) != 0)
 			goto out;

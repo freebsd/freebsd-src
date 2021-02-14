@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.49 2020/03/13 04:16:27 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.50 2020/05/29 03:14:02 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  * Copyright (c) 2014 Pedro Martelletto. All rights reserved.
@@ -1859,7 +1859,8 @@ pkcs11_init(int interactive)
 }
 
 int
-pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp)
+pkcs11_add_provider(char *provider_id, char *pin, struct sshkey ***keyp,
+    char ***labelsp)
 {
 	error("%s: dlopen() not supported", __func__);
 	return (-1);

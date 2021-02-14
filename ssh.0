@@ -786,6 +786,16 @@ ENVIRONMENT
                            redirect the input from /dev/null to make this
                            work.)
 
+     SSH_ASKPASS_REQUIRE   Allows further control over the use of an askpass
+                           program.  If this variable is set to M-bM-^@M-^\neverM-bM-^@M-^] then
+                           ssh will never attempt to use one.  If it is set to
+                           M-bM-^@M-^\preferM-bM-^@M-^], then ssh will prefer to use the askpass
+                           program instead of the TTY when requesting
+                           passwords.  Finally, if the variable is set to
+                           M-bM-^@M-^\forceM-bM-^@M-^], then the askpass program will be used for
+                           all passphrase input regardless of whether DISPLAY
+                           is set.
+
      SSH_AUTH_SOCK         Identifies the path of a UNIX-domain socket used to
                            communicate with the agent.
 
@@ -989,4 +999,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.7                     April 17, 2020                     OpenBSD 6.7
+OpenBSD 6.8                      July 15, 2020                     OpenBSD 6.8

@@ -98,8 +98,12 @@ DESCRIPTION
              details).  If this option is set to confirm, each use of the key
              must be confirmed, as if the -c option was specified to
              ssh-add(1).  If this option is set to no, no keys are added to
-             the agent.  The argument must be yes, confirm, ask, or no (the
-             default).
+             the agent.  Alternately, this option may be specified as a time
+             interval using the format described in the TIME FORMATS section
+             of sshd_config(5) to specify the key's lifetime in ssh-agent(1),
+             after which it will automatically be removed.  The argument must
+             be no (the default), yes, confirm (optionally followed by a time
+             interval), ask or a time interval.
 
      AddressFamily
              Specifies which address family to use when connecting.  Valid
@@ -186,8 +190,9 @@ DESCRIPTION
              SecurityKeyProvider.
 
              Arguments to CertificateFile may use the tilde syntax to refer to
-             a user's home directory or the tokens described in the TOKENS
-             section.
+             a user's home directory, the tokens described in the TOKENS
+             section and environment variables as described in the ENVIRONMENT
+             VARIABLES section.
 
              It is possible to have multiple certificate files specified in
              configuration files; these certificates will be tried in
@@ -294,10 +299,11 @@ DESCRIPTION
              sharing as described in the ControlMaster section above or the
              string none to disable connection sharing.  Arguments to
              ControlPath may use the tilde syntax to refer to a user's home
-             directory or the tokens described in the TOKENS section.  It is
-             recommended that any ControlPath used for opportunistic
-             connection sharing include at least %h, %p, and %r (or
-             alternatively %C) and be placed in a directory that is not
+             directory, the tokens described in the TOKENS section and
+             environment variables as described in the ENVIRONMENT VARIABLES
+             section.  It is recommended that any ControlPath used for
+             opportunistic connection sharing include at least %h, %p, and %r
+             (or alternatively %C) and be placed in a directory that is not
              writable by other users.  This ensures that shared connections
              are uniquely identified.
 
@@ -547,8 +553,9 @@ DESCRIPTION
              location of the socket.
 
              Arguments to IdentityAgent may use the tilde syntax to refer to a
-             user's home directory or the tokens described in the TOKENS
-             section.
+             user's home directory, the tokens described in the TOKENS section
+             and environment variables as described in the ENVIRONMENT
+             VARIABLES section.
 
      IdentityFile
              Specifies a file from which the user's DSA, ECDSA, authenticator-
@@ -591,8 +598,9 @@ DESCRIPTION
              Include the specified configuration file(s).  Multiple pathnames
              may be specified and each pathname may contain glob(7) wildcards
              and, for user configurations, shell-like M-bM-^@M-^X~M-bM-^@M-^Y references to user
-             home directories.  Files without absolute paths are assumed to be
-             in ~/.ssh if included in a user configuration file or /etc/ssh if
+             home directories.  Wildcards will be expanded and processed in
+             lexical order.  Files without absolute paths are assumed to be in
+             ~/.ssh if included in a user configuration file or /etc/ssh if
              included from the system configuration file.  Include directive
              may appear inside a Match or Host block to perform conditional
              inclusion.
@@ -673,8 +681,9 @@ DESCRIPTION
              specific address.  The bind_address of localhost indicates that
              the listening port be bound for local use only, while an empty
              address or M-bM-^@M-^X*M-bM-^@M-^Y indicates that the port should be available from
-             all interfaces.  Unix domain socket paths accept the tokens
-             described in the TOKENS section.
+             all interfaces.  Unix domain socket paths may use the tokens
+             described in the TOKENS section and environment variables as
+             described in the ENVIRONMENT VARIABLES section.
 
      LogLevel
              Gives the verbosity level that is used when logging messages from
@@ -861,8 +870,9 @@ DESCRIPTION
              brackets.  Multiple forwardings may be specified, and additional
              forwardings can be given on the command line.  Privileged ports
              can be forwarded only when logging in as root on the remote
-             machine.  Unix domain socket paths accept the tokens described in
-             the TOKENS section.
+             machine.  Unix domain socket paths may use the tokens described
+             in the TOKENS section and environment variables as described in
+             the ENVIRONMENT VARIABLES section.
 
              If the port argument is 0, the listen port will be dynamically
              allocated on the server and reported to the client at run time.
@@ -1053,7 +1063,10 @@ DESCRIPTION
 
      UserKnownHostsFile
              Specifies one or more files to use for the user host key
-             database, separated by whitespace.  The default is
+             database, separated by whitespace.  Each filename may use tilde
+             notation to refer to the user's home directory, the tokens
+             described in the TOKENS section and environment variables as
+             described in the ENVIRONMENT VARIABLES section.  The default is
              ~/.ssh/known_hosts, ~/.ssh/known_hosts2.
 
      VerifyHostKeyDNS
@@ -1122,6 +1135,8 @@ TOKENS
            %d    Local user's home directory.
            %h    The remote hostname.
            %i    The local user ID.
+           %k    The host key alias if specified, otherwise the orignal remote
+                 hostname given on the command line.
            %L    The local hostname.
            %l    The local hostname, including the domain name.
            %n    The original remote hostname, as given on the command line.
@@ -1132,14 +1147,26 @@ TOKENS
            %u    The local username.
 
      CertificateFile, ControlPath, IdentityAgent, IdentityFile, LocalForward,
-     Match exec, RemoteCommand, and RemoteForward accept the tokens %%, %C,
-     %d, %h, %i, %L, %l, %n, %p, %r, and %u.
+     Match exec, RemoteCommand, RemoteForward, and UserKnownHostsFile accept
+     the tokens %%, %C, %d, %h, %i, %L, %l, %n, %p, %r, and %u.
 
      Hostname accepts the tokens %% and %h.
 
      LocalCommand accepts all tokens.
 
      ProxyCommand accepts the tokens %%, %h, %n, %p, and %r.
+
+ENVIRONMENT VARIABLES
+     Arguments to some keywords can be expanded at runtime from environment
+     variables on the client by enclosing them in ${}, for example
+     ${HOME}/.ssh would refer to the user's .ssh directory.  If a specified
+     environment variable does not exist then an error will be returned and
+     the setting for that keyword will be ignored.
+
+     The keywords CertificateFile, ControlPath, IdentityAgent, IdentityFile
+     and UserKnownHostsFile support environment variables.  The keywords
+     LocalForward and RemoteForward support environment variables only for
+     Unix domain socket paths.
 
 FILES
      ~/.ssh/config
@@ -1164,4 +1191,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.7                     April 11, 2020                     OpenBSD 6.7
+OpenBSD 6.8                     August 11, 2020                    OpenBSD 6.8

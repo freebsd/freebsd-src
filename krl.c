@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $OpenBSD: krl.c,v 1.50 2020/04/03 05:48:57 djm Exp $ */
+/* $OpenBSD: krl.c,v 1.51 2020/08/27 01:06:18 djm Exp $ */
 
 #include "includes.h"
 
@@ -812,9 +812,10 @@ ssh_krl_to_blob(struct ssh_krl *krl, struct sshbuf *buf,
 		if ((r = sshbuf_put_u8(buf, KRL_SECTION_SIGNATURE)) != 0 ||
 		    (r = sshkey_puts(sign_keys[i], buf)) != 0)
 			goto out;
-
+		/* XXX support sk-* keys */
 		if ((r = sshkey_sign(sign_keys[i], &sblob, &slen,
-		    sshbuf_ptr(buf), sshbuf_len(buf), NULL, NULL, 0)) != 0)
+		    sshbuf_ptr(buf), sshbuf_len(buf), NULL, NULL,
+		    NULL, 0)) != 0)
 			goto out;
 		KRL_DBG(("%s: signature sig len %zu", __func__, slen));
 		if ((r = sshbuf_put_string(buf, sblob, slen)) != 0)

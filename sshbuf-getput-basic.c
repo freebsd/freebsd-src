@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-getput-basic.c,v 1.10 2019/12/13 19:09:37 djm Exp $	*/
+/*	$OpenBSD: sshbuf-getput-basic.c,v 1.11 2020/06/05 03:25:35 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -338,6 +338,8 @@ sshbuf_put(struct sshbuf *buf, const void *v, size_t len)
 int
 sshbuf_putb(struct sshbuf *buf, const struct sshbuf *v)
 {
+	if (v == NULL)
+		return 0;
 	return sshbuf_put(buf, sshbuf_ptr(v), sshbuf_len(v));
 }
 

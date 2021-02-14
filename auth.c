@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.146 2020/01/31 22:42:45 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.147 2020/08/27 01:07:09 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -1006,21 +1006,22 @@ auth_log_authopts(const char *loc, const struct sshauthopt *opts, int do_remote)
 
 	snprintf(buf, sizeof(buf), "%d", opts->force_tun_device);
 	/* Try to keep this alphabetically sorted */
-	snprintf(msg, sizeof(msg), "key options:%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+	snprintf(msg, sizeof(msg), "key options:%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	    opts->permit_agent_forwarding_flag ? " agent-forwarding" : "",
 	    opts->force_command == NULL ? "" : " command",
 	    do_env ?  " environment" : "",
 	    opts->valid_before == 0 ? "" : "expires",
+	    opts->no_require_user_presence ? " no-touch-required" : "",
 	    do_permitopen ?  " permitopen" : "",
 	    do_permitlisten ?  " permitlisten" : "",
 	    opts->permit_port_forwarding_flag ? " port-forwarding" : "",
 	    opts->cert_principals == NULL ? "" : " principals",
 	    opts->permit_pty_flag ? " pty" : "",
+	    opts->require_verify ? " uv" : "",
 	    opts->force_tun_device == -1 ? "" : " tun=",
 	    opts->force_tun_device == -1 ? "" : buf,
 	    opts->permit_user_rc ? " user-rc" : "",
-	    opts->permit_x11_forwarding_flag ? " x11-forwarding" : "",
-	    opts->no_require_user_presence ? " no-touch-required" : "");
+	    opts->permit_x11_forwarding_flag ? " x11-forwarding" : "");
 
 	debug("%s: %s", loc, msg);
 	if (do_remote)

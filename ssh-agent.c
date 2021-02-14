@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.257 2020/03/06 18:28:27 markus Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.264 2020/09/18 08:16:38 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -77,6 +77,7 @@
 
 #include "xmalloc.h"
 #include "ssh.h"
+#include "ssh2.h"
 #include "sshbuf.h"
 #include "sshkey.h"
 #include "authfd.h"
@@ -92,8 +93,8 @@
 #include "ssh-pkcs11.h"
 #include "sk-api.h"
 
-#ifndef DEFAULT_PROVIDER_WHITELIST
-# define DEFAULT_PROVIDER_WHITELIST "/usr/lib*/*,/usr/local/lib*/*"
+#ifndef DEFAULT_ALLOWED_PROVIDERS
+# define DEFAULT_ALLOWED_PROVIDERS "/usr/lib*/*,/usr/local/lib*/*"
 #endif
 
 /* Maximum accepted message length */
@@ -149,8 +150,8 @@ pid_t cleanup_pid = 0;
 char socket_name[PATH_MAX];
 char socket_dir[PATH_MAX];
 
-/* PKCS#11/Security key path whitelist */
-static char *provider_whitelist;
+/* Pattern-list of allowed PKCS#11/Security key paths */
+static char *allowed_providers;
 
 /* locking */
 #define LOCK_SIZE	32
@@ -166,6 +167,9 @@ extern char *__progname;
 static long lifetime = 0;
 
 static int fingerprint_hash = SSH_FP_HASH_DEFAULT;
+
+/* Refuse signing of non-SSH messages for web-origin FIDO keys */
+static int restrict_websafe = 1;
 
 static void
 close_socket(SocketEntry *e)
@@ -282,6 +286,80 @@ agent_decode_alg(struct sshkey *key, u_int flags)
 	return NULL;
 }
 
+/*
+ * This function inspects a message to be signed by a FIDO key that has a
+ * web-like application string (i.e. one that does not begin with "ssh:".
+ * It checks that the message is one of those expected for SSH operations
+ * (pubkey userauth, sshsig, CA key signing) to exclude signing challenges
+ * for the web.
+ */
+static int
+check_websafe_message_contents(struct sshkey *key,
+    const u_char *msg, size_t len)
+{
+	int matched = 0;
+	struct sshbuf *b;
+	u_char m, n;
+	char *cp1 = NULL, *cp2 = NULL;
+	int r;
+	struct sshkey *mkey = NULL;
+
+	if ((b = sshbuf_from(msg, len)) == NULL)
+		fatal("%s: sshbuf_new", __func__);
+
+	/* SSH userauth request */
+	if ((r = sshbuf_get_string_direct(b, NULL, NULL)) == 0 && /* sess_id */
+	    (r = sshbuf_get_u8(b, &m)) == 0 && /* SSH2_MSG_USERAUTH_REQUEST */
+	    (r = sshbuf_get_cstring(b, NULL, NULL)) == 0 && /* server user */
+	    (r = sshbuf_get_cstring(b, &cp1, NULL)) == 0 && /* service */
+	    (r = sshbuf_get_cstring(b, &cp2, NULL)) == 0 && /* method */
+	    (r = sshbuf_get_u8(b, &n)) == 0 && /* sig-follows */
+	    (r = sshbuf_get_cstring(b, NULL, NULL)) == 0 && /* alg */
+	    (r = sshkey_froms(b, &mkey)) == 0 && /* key */
+	    sshbuf_len(b) == 0) {
+		debug("%s: parsed userauth", __func__);
+		if (m == SSH2_MSG_USERAUTH_REQUEST && n == 1 &&
+		    strcmp(cp1, "ssh-connection") == 0 &&
+		    strcmp(cp2, "publickey") == 0 &&
+		    sshkey_equal(key, mkey)) {
+			debug("%s: well formed userauth", __func__);
+			matched = 1;
+		}
+	}
+	free(cp1);
+	free(cp2);
+	sshkey_free(mkey);
+	sshbuf_free(b);
+	if (matched)
+		return 1;
+
+	if ((b = sshbuf_from(msg, len)) == NULL)
+		fatal("%s: sshbuf_new", __func__);
+	cp1 = cp2 = NULL;
+	mkey = NULL;
+
+	/* SSHSIG */
+	if ((r = sshbuf_cmp(b, 0, "SSHSIG", 6)) == 0 &&
+	    (r = sshbuf_consume(b, 6)) == 0 &&
+	    (r = sshbuf_get_cstring(b, NULL, NULL)) == 0 && /* namespace */
+	    (r = sshbuf_get_string_direct(b, NULL, NULL)) == 0 && /* reserved */
+	    (r = sshbuf_get_cstring(b, NULL, NULL)) == 0 && /* hashalg */
+	    (r = sshbuf_get_string_direct(b, NULL, NULL)) == 0 && /* H(msg) */
+	    sshbuf_len(b) == 0) {
+		debug("%s: parsed sshsig", __func__);
+		matched = 1;
+	}
+
+	sshbuf_free(b);
+	if (matched)
+		return 1;
+
+	/* XXX CA signature operation */
+
+	error("web-origin key attempting to sign non-SSH message");
+	return 0;
+}
+
 /* ssh2 only */
 static void
 process_sign_request2(SocketEntry *e)
@@ -314,18 +392,25 @@ process_sign_request2(SocketEntry *e)
 		verbose("%s: user refused key", __func__);
 		goto send;
 	}
-	if (sshkey_is_sk(id->key) &&
-	    (id->key->sk_flags & SSH_SK_USER_PRESENCE_REQD)) {
-		if ((fp = sshkey_fingerprint(key, SSH_FP_HASH_DEFAULT,
-		    SSH_FP_DEFAULT)) == NULL)
-			fatal("%s: fingerprint failed", __func__);
-		notifier = notify_start(0,
-		    "Confirm user presence for key %s %s",
-		    sshkey_type(id->key), fp);
+	if (sshkey_is_sk(id->key)) {
+		if (strncmp(id->key->sk_application, "ssh:", 4) != 0 &&
+		    !check_websafe_message_contents(key, data, dlen)) {
+			/* error already logged */
+			goto send;
+		}
+		if ((id->key->sk_flags & SSH_SK_USER_PRESENCE_REQD)) {
+			if ((fp = sshkey_fingerprint(key, SSH_FP_HASH_DEFAULT,
+			    SSH_FP_DEFAULT)) == NULL)
+				fatal("%s: fingerprint failed", __func__);
+			notifier = notify_start(0,
+			    "Confirm user presence for key %s %s",
+			    sshkey_type(id->key), fp);
+		}
 	}
+	/* XXX support PIN required FIDO keys */
 	if ((r = sshkey_sign(id->key, &signature, &slen,
 	    data, dlen, agent_decode_alg(key, flags),
-	    id->sk_provider, compat)) != 0) {
+	    id->sk_provider, NULL, compat)) != 0) {
 		error("%s: sshkey_sign: %s", __func__, ssh_err(r));
 		goto send;
 	}
@@ -528,9 +613,9 @@ process_add_identity(SocketEntry *e)
 			free(sk_provider);
 			sk_provider = xstrdup(canonical_provider);
 			if (match_pattern_list(sk_provider,
-			    provider_whitelist, 0) != 1) {
+			    allowed_providers, 0) != 1) {
 				error("Refusing add key: "
-				    "provider %s not whitelisted", sk_provider);
+				    "provider %s not allowed", sk_provider);
 				free(sk_provider);
 				goto send;
 			}
@@ -685,9 +770,9 @@ process_add_smartcard_key(SocketEntry *e)
 		    provider, strerror(errno));
 		goto send;
 	}
-	if (match_pattern_list(canonical_provider, provider_whitelist, 0) != 1) {
+	if (match_pattern_list(canonical_provider, allowed_providers, 0) != 1) {
 		verbose("refusing PKCS#11 add of \"%.100s\": "
-		    "provider not whitelisted", canonical_provider);
+		    "provider not allowed", canonical_provider);
 		goto send;
 	}
 	debug("%s: add %.100s", __func__, canonical_provider);
@@ -767,8 +852,10 @@ send:
 }
 #endif /* ENABLE_PKCS11 */
 
-/* dispatch incoming messages */
-
+/*
+ * dispatch incoming message.
+ * returns 1 on success, 0 for incomplete messages or -1 on error.
+ */
 static int
 process_message(u_int socknum)
 {
@@ -822,7 +909,7 @@ process_message(u_int socknum)
 			/* send a fail message for all other request types */
 			send_status(e, 0);
 		}
-		return 0;
+		return 1;
 	}
 
 	switch (type) {
@@ -866,7 +953,7 @@ process_message(u_int socknum)
 		send_status(e, 0);
 		break;
 	}
-	return 0;
+	return 1;
 }
 
 static void
@@ -957,7 +1044,12 @@ handle_conn_read(u_int socknum)
 	if ((r = sshbuf_put(sockets[socknum].input, buf, len)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	explicit_bzero(buf, sizeof(buf));
-	process_message(socknum);
+	for (;;) {
+		if ((r = process_message(socknum)) == -1)
+			return -1;
+		else if (r == 0)
+			break;
+	}
 	return 0;
 }
 
@@ -1170,7 +1262,9 @@ usage(void)
 {
 	fprintf(stderr,
 	    "usage: ssh-agent [-c | -s] [-Dd] [-a bind_address] [-E fingerprint_hash]\n"
-	    "                 [-P provider_whitelist] [-t life] [command [arg ...]]\n"
+	    "                 [-P allowed_providers] [-t life]\n"
+	    "       ssh-agent [-a bind_address] [-E fingerprint_hash] [-P allowed_providers]\n"
+	    "                 [-t life] command [arg ...]\n"
 	    "       ssh-agent [-c | -s] -k\n");
 	exit(1);
 }
@@ -1212,7 +1306,7 @@ main(int ac, char **av)
 	__progname = ssh_get_progname(av[0]);
 	seed_rng();
 
-	while ((ch = getopt(ac, av, "cDdksE:a:P:t:")) != -1) {
+	while ((ch = getopt(ac, av, "cDdksE:a:O:P:t:")) != -1) {
 		switch (ch) {
 		case 'E':
 			fingerprint_hash = ssh_digest_alg_by_name(optarg);
@@ -1227,10 +1321,16 @@ main(int ac, char **av)
 		case 'k':
 			k_flag++;
 			break;
+		case 'O':
+			if (strcmp(optarg, "no-restrict-websafe") == 0)
+				restrict_websafe  = 0;
+			else
+				fatal("Unknown -O option");
+			break;
 		case 'P':
-			if (provider_whitelist != NULL)
+			if (allowed_providers != NULL)
 				fatal("-P option already specified");
-			provider_whitelist = xstrdup(optarg);
+			allowed_providers = xstrdup(optarg);
 			break;
 		case 's':
 			if (c_flag)
@@ -1266,8 +1366,8 @@ main(int ac, char **av)
 	if (ac > 0 && (c_flag || k_flag || s_flag || d_flag || D_flag))
 		usage();
 
-	if (provider_whitelist == NULL)
-		provider_whitelist = xstrdup(DEFAULT_PROVIDER_WHITELIST);
+	if (allowed_providers == NULL)
+		allowed_providers = xstrdup(DEFAULT_ALLOWED_PROVIDERS);
 
 	if (ac == 0 && !c_flag && !s_flag) {
 		shell = getenv("SHELL");

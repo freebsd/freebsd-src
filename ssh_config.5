@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.325 2020/04/11 20:20:09 jmc Exp $
-.Dd $Mdocdate: April 11 2020 $
+.\" $OpenBSD: ssh_config.5,v 1.332 2020/08/11 09:49:57 djm Exp $
+.Dd $Mdocdate: August 11 2020 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -245,13 +245,22 @@ option was specified to
 If this option is set to
 .Cm no ,
 no keys are added to the agent.
+Alternately, this option may be specified as a time interval
+using the format described in the
+.Sx TIME FORMATS
+section of
+.Xr sshd_config 5
+to specify the key's lifetime in
+.Xr ssh-agent 1 ,
+after which it will automatically be removed.
 The argument must be
-.Cm yes ,
-.Cm confirm ,
-.Cm ask ,
-or
 .Cm no
-(the default).
+(the default),
+.Cm yes ,
+.Cm confirm
+(optionally followed by a time interval),
+.Cm ask
+or a time interval.
 .It Cm AddressFamily
 Specifies which address family to use when connecting.
 Valid arguments are
@@ -389,9 +398,11 @@ or
 .Pp
 Arguments to
 .Cm CertificateFile
-may use the tilde syntax to refer to a user's home directory
-or the tokens described in the
+may use the tilde syntax to refer to a user's home directory,
+the tokens described in the
 .Sx TOKENS
+section and environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
 section.
 .Pp
 It is possible to have multiple certificate files specified in
@@ -551,9 +562,11 @@ section above or the string
 to disable connection sharing.
 Arguments to
 .Cm ControlPath
-may use the tilde syntax to refer to a user's home directory
-or the tokens described in the
+may use the tilde syntax to refer to a user's home directory,
+the tokens described in the
 .Sx TOKENS
+section and environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
 section.
 It is recommended that any
 .Cm ControlPath
@@ -934,9 +947,11 @@ the location of the socket.
 .Pp
 Arguments to
 .Cm IdentityAgent
-may use the tilde syntax to refer to a user's home directory
-or the tokens described in the
+may use the tilde syntax to refer to a user's home directory,
+the tokens described in the
 .Sx TOKENS
+section and environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
 section.
 .It Cm IdentityFile
 Specifies a file from which the user's DSA, ECDSA, authenticator-hosted ECDSA,
@@ -1004,6 +1019,7 @@ Multiple pathnames may be specified and each pathname may contain
 wildcards and, for user configurations, shell-like
 .Sq ~
 references to user home directories.
+Wildcards will be expanded and processed in lexical order.
 Files without absolute paths are assumed to be in
 .Pa ~/.ssh
 if included in a user configuration file or
@@ -1152,8 +1168,10 @@ indicates that the listening port be bound for local use only, while an
 empty address or
 .Sq *
 indicates that the port should be available from all interfaces.
-Unix domain socket paths accept the tokens described in the
+Unix domain socket paths may use the tokens described in the
 .Sx TOKENS
+section and environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
 section.
 .It Cm LogLevel
 Gives the verbosity level that is used when logging messages from
@@ -1423,8 +1441,10 @@ Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
 Privileged ports can be forwarded only when
 logging in as root on the remote machine.
-Unix domain socket paths accept the tokens described in the
+Unix domain socket paths may use the tokens described in the
 .Sx TOKENS
+section and environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
 section.
 .Pp
 If the
@@ -1727,6 +1747,12 @@ having to remember to give the user name on the command line.
 .It Cm UserKnownHostsFile
 Specifies one or more files to use for the user
 host key database, separated by whitespace.
+Each filename may use tilde notation to refer to the user's home directory,
+the tokens described in the
+.Sx TOKENS
+section and environment variables as described in the
+.Sx ENVIRONMENT VARIABLES
+section.
 The default is
 .Pa ~/.ssh/known_hosts ,
 .Pa ~/.ssh/known_hosts2 .
@@ -1833,6 +1859,9 @@ Local user's home directory.
 The remote hostname.
 .It %i
 The local user ID.
+.It %k
+The host key alias if specified, otherwise the orignal remote hostname given
+on the command line.
 .It %L
 The local hostname.
 .It %l
@@ -1863,8 +1892,9 @@ The local username.
 .Cm LocalForward ,
 .Cm Match exec ,
 .Cm RemoteCommand ,
+.Cm RemoteForward ,
 and
-.Cm RemoteForward
+.Cm UserKnownHostsFile
 accept the tokens %%, %C, %d, %h, %i, %L, %l, %n, %p, %r, and %u.
 .Pp
 .Cm Hostname
@@ -1875,6 +1905,29 @@ accepts all tokens.
 .Pp
 .Cm ProxyCommand
 accepts the tokens %%, %h, %n, %p, and %r.
+.Sh ENVIRONMENT VARIABLES
+Arguments to some keywords can be expanded at runtime from environment
+variables on the client by enclosing them in
+.Ic ${} ,
+for example
+.Ic ${HOME}/.ssh
+would refer to the user's .ssh directory.
+If a specified environment variable does not exist then an error will be
+returned and the setting for that keyword will be ignored.
+.Pp
+The keywords
+.Cm CertificateFile ,
+.Cm ControlPath ,
+.Cm IdentityAgent ,
+.Cm IdentityFile
+and
+.Cm UserKnownHostsFile
+support environment variables.
+The keywords
+.Cm LocalForward
+and
+.Cm RemoteForward
+support environment variables only for Unix domain socket paths.
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa ~/.ssh/config

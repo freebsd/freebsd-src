@@ -4,21 +4,22 @@ NAME
      ssh-keygen M-bM-^@M-^S OpenSSH authentication key utility
 
 SYNOPSIS
-     ssh-keygen [-q] [-b bits] [-C comment] [-f output_keyfile] [-m format]
+     ssh-keygen [-q] [-a rounds] [-b bits] [-C comment] [-f output_keyfile]
+                [-m format] [-N new_passphrase] [-O option]
                 [-t dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa]
-                [-N new_passphrase] [-O option] [-w provider]
-     ssh-keygen -p [-f keyfile] [-m format] [-N new_passphrase]
+                [-w provider]
+     ssh-keygen -p [-a rounds] [-f keyfile] [-m format] [-N new_passphrase]
                 [-P old_passphrase]
      ssh-keygen -i [-f input_keyfile] [-m key_format]
      ssh-keygen -e [-f input_keyfile] [-m key_format]
      ssh-keygen -y [-f input_keyfile]
-     ssh-keygen -c [-C comment] [-f keyfile] [-P passphrase]
+     ssh-keygen -c [-a rounds] [-C comment] [-f keyfile] [-P passphrase]
      ssh-keygen -l [-v] [-E fingerprint_hash] [-f input_keyfile]
      ssh-keygen -B [-f input_keyfile]
      ssh-keygen -D pkcs11
      ssh-keygen -F hostname [-lv] [-f known_hosts_file]
      ssh-keygen -H [-f known_hosts_file]
-     ssh-keygen -K [-w provider]
+     ssh-keygen -K [-a rounds] [-w provider]
      ssh-keygen -R hostname [-f known_hosts_file]
      ssh-keygen -r hostname [-g] [-f input_keyfile]
      ssh-keygen -M generate [-O option] output_file
@@ -27,7 +28,7 @@ SYNOPSIS
                 [-n principals] [-O option] [-V validity_interval]
                 [-z serial_number] file ...
      ssh-keygen -L [-f input_keyfile]
-     ssh-keygen -A [-f prefix_path]
+     ssh-keygen -A [-a rounds] [-f prefix_path]
      ssh-keygen -k -f krl_file [-u] [-s ca_public] [-z version_number]
                 file ...
      ssh-keygen -Q [-l] -f krl_file file ...
@@ -87,8 +88,8 @@ DESCRIPTION
      new keys, and existing new-format keys may be converted using this option
      in conjunction with the -p (change passphrase) flag.
 
-     After a key is generated, instructions below detail where the keys should
-     be placed to be activated.
+     After a key is generated, ssh-keygen will ask where the keys should be
+     placed to be activated.
 
      The options are as follows:
 
@@ -104,7 +105,8 @@ DESCRIPTION
              When saving a private key, this option specifies the number of
              KDF (key derivation function) rounds used.  Higher numbers result
              in slower passphrase verification and increased resistance to
-             brute-force password cracking (should the keys be stolen).
+             brute-force password cracking (should the keys be stolen).  The
+             default is 16 rounds.
 
      -B      Show the bubblebabble digest of specified private or public key
              file.
@@ -182,7 +184,9 @@ DESCRIPTION
 
      -K      Download resident keys from a FIDO authenticator.  Public and
              private key files will be written to the current directory for
-             each downloaded key.
+             each downloaded key.  If multiple FIDO authenticators are
+             attached, keys will be downloaded from the first touched
+             authenticator.
 
      -k      Generate a KRL file.  In this mode, ssh-keygen will generate a
              KRL file at the location specified via the -f flag that revokes
@@ -285,10 +289,18 @@ DESCRIPTION
                      username may be useful when generating multiple resident
                      keys for the same application name.
 
+             verify-required
+                     Indicate that this private key should require user
+                     verification for each signature.  Not all FIDO tokens
+                     support this option.  Currently PIN authentication is the
+                     only supported verification method, but other methods may
+                     be supported in the future.
+
              write-attestation=path
                      May be used at key generation time to record the
-                     attestation certificate returned from FIDO tokens during
-                     key generation.  By default this information is
+                     attestation data returned from FIDO tokens during key
+                     generation.  Please note that this information is
+                     potentially sensitive.  By default, this information is
                      discarded.
 
              The -O option may be specified multiple times.
@@ -606,7 +618,7 @@ CERTIFICATES
              Allows X11 forwarding.
 
      no-touch-required
-             Do not require signatures made using this key require
+             Do not require signatures made using this key include
              demonstration of user presence (e.g. by having the user touch the
              authenticator).  This option only makes sense for the FIDO
              authenticator algorithms ecdsa-sk and ed25519-sk.
@@ -615,6 +627,13 @@ CERTIFICATES
              Restrict the source addresses from which the certificate is
              considered valid.  The address_list is a comma-separated list of
              one or more address/netmask pairs in CIDR format.
+
+     verify-required
+             Require signatures made using this key indicate that the user was
+             first verified.  This option only makes sense for the FIDO
+             authenticator algorithms ecdsa-sk and ed25519-sk.  Currently PIN
+             authentication is the only supported verification method, but
+             other methods may be supported in the future.
 
      At present, no standard options are valid for host keys.
 
@@ -787,4 +806,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.7                      April 3, 2020                     OpenBSD 6.7
+OpenBSD 6.8                    September 9, 2020                   OpenBSD 6.8

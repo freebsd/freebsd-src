@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-misc.c,v 1.14 2020/02/26 13:40:09 jsg Exp $	*/
+/*	$OpenBSD: sshbuf-misc.c,v 1.16 2020/06/22 05:54:10 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -63,7 +63,7 @@ sshbuf_dump_data(const void *s, size_t len, FILE *f)
 }
 
 void
-sshbuf_dump(struct sshbuf *buf, FILE *f)
+sshbuf_dump(const struct sshbuf *buf, FILE *f)
 {
 	fprintf(f, "buffer %p len = %zu\n", buf, sshbuf_len(buf));
 	sshbuf_dump_data(sshbuf_ptr(buf), sshbuf_len(buf), f);
@@ -165,6 +165,49 @@ sshbuf_b64tod(struct sshbuf *buf, const char *b64)
 	}
 	freezero(p, plen);
 	return 0;
+}
+
+int
+sshbuf_dtourlb64(const struct sshbuf *d, struct sshbuf *b64, int wrap)
+{
+	int r = SSH_ERR_INTERNAL_ERROR;
+	u_char *p;
+	struct sshbuf *b = NULL;
+	size_t i, l;
+
+	if ((b = sshbuf_new()) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	/* Encode using regular base64; we'll transform it once done */
+	if ((r = sshbuf_dtob64(d, b, wrap)) != 0)
+		goto out;
+	/* remove padding from end of encoded string*/
+	for (;;) {
+		l = sshbuf_len(b);
+		if (l <= 1 || sshbuf_ptr(b) == NULL) {
+			r = SSH_ERR_INTERNAL_ERROR;
+			goto out;
+		}
+		if (sshbuf_ptr(b)[l - 1] != '=')
+			break;
+		if ((r = sshbuf_consume_end(b, 1)) != 0)
+			goto out;
+	}
+	/* Replace characters with rfc4648 equivalents */
+	l = sshbuf_len(b);
+	if ((p = sshbuf_mutable_ptr(b)) == NULL) {
+		r = SSH_ERR_INTERNAL_ERROR;
+		goto out;
+	}
+	for (i = 0; i < l; i++) {
+		if (p[i] == '+')
+			p[i] = '-';
+		else if (p[i] == '/')
+			p[i] = '_';
+	}
+	r = sshbuf_putb(b64, b);
+ out:
+	sshbuf_free(b);
+	return r;
 }
 
 char *

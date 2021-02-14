@@ -497,10 +497,11 @@ DESCRIPTION
 
      Include
              Include the specified configuration file(s).  Multiple pathnames
-             may be specified and each pathname may contain glob(7) wildcards.
-             Files without absolute paths are assumed to be in /etc/ssh.  An
-             Include directive may appear inside a Match block to perform
-             conditional inclusion.
+             may be specified and each pathname may contain glob(7) wildcards
+             that will be expanded and processed in lexical order.  Files
+             without absolute paths are assumed to be in /etc/ssh.  An Include
+             directive may appear inside a Match block to perform conditional
+             inclusion.
 
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for the
              connection.  Accepted values are af11, af12, af13, af21, af22,
@@ -866,9 +867,10 @@ DESCRIPTION
              -Q PubkeyAcceptedKeyTypes".
 
      PubkeyAuthOptions
-             Sets one or more public key authentication options.  Two option
-             keywords are currently supported: none (the default; indicating
-             no additional options are enabled) and touch-required.
+             Sets one or more public key authentication options.  The
+             supported keywords are: none (the default; indicating no
+             additional options are enabled), touch-required and
+             verify-required.
 
              The touch-required option causes public key authentication using
              a FIDO authenticator algorithm (i.e. ecdsa-sk or ed25519-sk) to
@@ -876,8 +878,13 @@ DESCRIPTION
              user explicitly confirmed the authentication (usually by touching
              the authenticator).  By default, sshd(8) requires user presence
              unless overridden with an authorized_keys option.  The
-             touch-required flag disables this override.  This option has no
-             effect for other, non-authenticator public key types.
+             touch-required flag disables this override.
+
+             The verify-required option requires a FIDO key signature attest
+             that the user was verified, e.g. via a PIN.
+
+             Neither the touch-required or verify-required options have any
+             effect for other, non-FIDO, public key types.
 
      PubkeyAuthentication
              Specifies whether public key authentication is allowed.  The
@@ -1143,4 +1150,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.7                     April 17, 2020                     OpenBSD 6.7
+OpenBSD 6.8                     August 27, 2020                    OpenBSD 6.8

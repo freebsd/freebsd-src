@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_file.c,v 1.8 2018/09/13 09:03:20 djm Exp $ */
+/* 	$OpenBSD: test_file.c,v 1.9 2020/06/19 03:48:49 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -413,6 +413,137 @@ sshkey_file_tests(void)
 
 	TEST_START("Ed25519 key bubblebabble fingerprint");
 	buf = load_text_file("ed25519_1.fp.bb");
+	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA1, SSH_FP_BUBBLEBABBLE);
+	ASSERT_PTR_NE(cp, NULL);
+	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
+	sshbuf_free(buf);
+	free(cp);
+	TEST_DONE();
+
+	sshkey_free(k1);
+
+#if defined(WITH_OPENSSL) && defined(OPENSSL_HAS_ECC)
+	TEST_START("parse ECDSA-SK from private");
+	buf = load_file("ecdsa_sk1");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(k1, NULL);
+	ASSERT_INT_EQ(k1->type, KEY_ECDSA_SK);
+	TEST_DONE();
+
+	TEST_START("parse ECDSA-SK from private w/ passphrase");
+	buf = load_file("ecdsa_sk1_pw");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf,
+	    (const char *)sshbuf_ptr(pw), &k2, NULL), 0);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("load ECDSA-SK from public");
+	ASSERT_INT_EQ(sshkey_load_public(test_data_file("ecdsa_sk1.pub"), &k2,
+	    NULL), 0);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("load ECDSA-SK cert");
+	ASSERT_INT_EQ(sshkey_load_cert(test_data_file("ecdsa_sk1"), &k2), 0);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(k2->type, KEY_ECDSA_SK_CERT);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 0);
+	ASSERT_INT_EQ(sshkey_equal_public(k1, k2), 1);
+	TEST_DONE();
+
+	TEST_START("ECDSA-SK key hex fingerprint");
+	buf = load_text_file("ecdsa_sk1.fp");
+	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA256, SSH_FP_BASE64);
+	ASSERT_PTR_NE(cp, NULL);
+	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
+	sshbuf_free(buf);
+	free(cp);
+	TEST_DONE();
+
+	TEST_START("ECDSA-SK cert hex fingerprint");
+	buf = load_text_file("ecdsa_sk1-cert.fp");
+	cp = sshkey_fingerprint(k2, SSH_DIGEST_SHA256, SSH_FP_BASE64);
+	ASSERT_PTR_NE(cp, NULL);
+	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
+	sshbuf_free(buf);
+	free(cp);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("ECDSA-SK key bubblebabble fingerprint");
+	buf = load_text_file("ecdsa_sk1.fp.bb");
+	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA1, SSH_FP_BUBBLEBABBLE);
+	ASSERT_PTR_NE(cp, NULL);
+	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
+	sshbuf_free(buf);
+	free(cp);
+	TEST_DONE();
+
+	sshkey_free(k1);
+#endif
+
+	TEST_START("parse Ed25519-SK from private");
+	buf = load_file("ed25519_sk1");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf, "", &k1, NULL), 0);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(k1, NULL);
+	ASSERT_INT_EQ(k1->type, KEY_ED25519_SK);
+	/* XXX check key contents */
+	TEST_DONE();
+
+	TEST_START("parse Ed25519-SK from private w/ passphrase");
+	buf = load_file("ed25519_sk1_pw");
+	ASSERT_INT_EQ(sshkey_parse_private_fileblob(buf,
+	    (const char *)sshbuf_ptr(pw), &k2, NULL), 0);
+	sshbuf_free(buf);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("load Ed25519-SK from public");
+	ASSERT_INT_EQ(sshkey_load_public(test_data_file("ed25519_sk1.pub"),
+	    &k2, NULL), 0);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 1);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("load Ed25519-SK cert");
+	ASSERT_INT_EQ(sshkey_load_cert(test_data_file("ed25519_sk1"), &k2), 0);
+	ASSERT_PTR_NE(k2, NULL);
+	ASSERT_INT_EQ(k2->type, KEY_ED25519_SK_CERT);
+	ASSERT_INT_EQ(sshkey_equal(k1, k2), 0);
+	ASSERT_INT_EQ(sshkey_equal_public(k1, k2), 1);
+	TEST_DONE();
+
+	TEST_START("Ed25519-SK key hex fingerprint");
+	buf = load_text_file("ed25519_sk1.fp");
+	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA256, SSH_FP_BASE64);
+	ASSERT_PTR_NE(cp, NULL);
+	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
+	sshbuf_free(buf);
+	free(cp);
+	TEST_DONE();
+
+	TEST_START("Ed25519-SK cert hex fingerprint");
+	buf = load_text_file("ed25519_sk1-cert.fp");
+	cp = sshkey_fingerprint(k2, SSH_DIGEST_SHA256, SSH_FP_BASE64);
+	ASSERT_PTR_NE(cp, NULL);
+	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));
+	sshbuf_free(buf);
+	free(cp);
+	sshkey_free(k2);
+	TEST_DONE();
+
+	TEST_START("Ed25519-SK key bubblebabble fingerprint");
+	buf = load_text_file("ed25519_sk1.fp.bb");
 	cp = sshkey_fingerprint(k1, SSH_DIGEST_SHA1, SSH_FP_BUBBLEBABBLE);
 	ASSERT_PTR_NE(cp, NULL);
 	ASSERT_STRING_EQ(cp, (const char *)sshbuf_ptr(buf));

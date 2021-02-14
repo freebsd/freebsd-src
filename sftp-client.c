@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-client.c,v 1.135 2019/10/04 04:31:59 djm Exp $ */
+/* $OpenBSD: sftp-client.c,v 1.136 2020/05/15 03:57:33 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -1415,7 +1415,7 @@ do_download(struct sftp_conn *conn, const char *remote_path,
 					    (unsigned long long)offset,
 					    num_req);
 					max_req = 1;
-				} else if (max_req <= conn->num_requests) {
+				} else if (max_req < conn->num_requests) {
 					++max_req;
 				}
 			}

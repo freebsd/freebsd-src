@@ -5,8 +5,7 @@ NAME
 
 SYNOPSIS
      sftp-server [-ehR] [-d start_directory] [-f log_facility] [-l log_level]
-                 [-P blacklisted_requests] [-p whitelisted_requests]
-                 [-u umask]
+                 [-P denied_requests] [-p allowed_requests] [-u umask]
      sftp-server -Q protocol_feature
 
 DESCRIPTION
@@ -48,17 +47,19 @@ DESCRIPTION
              DEBUG1 are equivalent.  DEBUG2 and DEBUG3 each specify higher
              levels of debugging output.  The default is ERROR.
 
-     -P blacklisted_requests
+     -P denied_requests
              Specify a comma-separated list of SFTP protocol requests that are
-             banned by the server.  sftp-server will reply to any blacklisted
+             banned by the server.  sftp-server will reply to any denied
              request with a failure.  The -Q flag can be used to determine the
-             supported request types.  If both a blacklist and a whitelist are
-             specified, then the blacklist is applied before the whitelist.
+             supported request types.  If both denied and allowed lists are
+             specified, then the denied list is applied before the allowed
+             list.
 
-     -p whitelisted_requests
+     -p allowed_requests
              Specify a comma-separated list of SFTP protocol requests that are
              permitted by the server.  All request types that are not on the
-             whitelist will be logged and replied to with a failure message.
+             allowed list will be logged and replied to with a failure
+             message.
 
              Care must be taken when using this feature to ensure that
              requests made implicitly by SFTP clients are permitted.
@@ -66,7 +67,8 @@ DESCRIPTION
      -Q protocol_feature
              Query protocol features supported by sftp-server.  At present the
              only feature that may be queried is M-bM-^@M-^\requestsM-bM-^@M-^], which may be used
-             for black or whitelisting (flags -P and -p respectively).
+             to deny or allow specific requests (flags -P and -p
+             respectively).
 
      -R      Places this instance of sftp-server into a read-only mode.
              Attempts to open files for writing, as well as other operations
@@ -93,4 +95,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 6.7                    November 30, 2019                   OpenBSD 6.7
+OpenBSD 6.8                      June 22, 2020                     OpenBSD 6.8

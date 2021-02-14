@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.398 2020/04/25 06:59:36 dtucker Exp $ */
+/* $OpenBSD: channels.c,v 1.402 2020/09/20 05:47:25 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -354,6 +354,7 @@ channel_new(struct ssh *ssh, char *ctype, int type, int rfd, int wfd, int efd,
 	struct ssh_channels *sc = ssh->chanctxt;
 	u_int i, found;
 	Channel *c;
+	int r;
 
 	/* Try to find a free slot where to put the new channel. */
 	for (i = 0; i < sc->channels_alloc; i++) {
@@ -383,6 +384,8 @@ channel_new(struct ssh *ssh, char *ctype, int type, int rfd, int wfd, int efd,
 	    (c->output = sshbuf_new()) == NULL ||
 	    (c->extended = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __func__);
+	if ((r = sshbuf_set_max_size(c->input, CHAN_INPUT_MAX)) != 0)
+		fatal("%s: sshbuf_set_max_size: %s", __func__, ssh_err(r));
 	c->ostate = CHAN_OUTPUT_OPEN;
 	c->istate = CHAN_INPUT_OPEN;
 	channel_register_fds(ssh, c, rfd, wfd, efd, extusage, nonblock, 0);
@@ -603,6 +606,10 @@ channel_free(struct ssh *ssh, Channel *c)
 
 	if (c->type == SSH_CHANNEL_MUX_CLIENT)
 		mux_remove_remote_forwardings(ssh, c);
+	else if (c->type == SSH_CHANNEL_MUX_LISTENER) {
+		free(c->mux_ctx);
+		c->mux_ctx = NULL;
+	}
 
 	if (log_level_get() >= SYSLOG_LEVEL_DEBUG3) {
 		s = channel_open_message(ssh);

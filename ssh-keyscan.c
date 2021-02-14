@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.131 2019/12/15 19:47:10 djm Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.132 2020/08/12 01:23:45 cheloha Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -584,16 +584,9 @@ conloop(void)
 	monotime_tv(&now);
 	c = TAILQ_FIRST(&tq);
 
-	if (c && (c->c_tv.tv_sec > now.tv_sec ||
-	    (c->c_tv.tv_sec == now.tv_sec && c->c_tv.tv_usec > now.tv_usec))) {
-		seltime = c->c_tv;
-		seltime.tv_sec -= now.tv_sec;
-		seltime.tv_usec -= now.tv_usec;
-		if (seltime.tv_usec < 0) {
-			seltime.tv_usec += 1000000;
-			seltime.tv_sec--;
-		}
-	} else
+	if (c && timercmp(&c->c_tv, &now, >))
+		timersub(&c->c_tv, &now, &seltime);
+	else
 		timerclear(&seltime);
 
 	r = xcalloc(read_wait_nfdset, sizeof(fd_mask));
@@ -616,8 +609,7 @@ conloop(void)
 	free(e);
 
 	c = TAILQ_FIRST(&tq);
-	while (c && (c->c_tv.tv_sec < now.tv_sec ||
-	    (c->c_tv.tv_sec == now.tv_sec && c->c_tv.tv_usec < now.tv_usec))) {
+	while (c && timercmp(&c->c_tv, &now, <)) {
 		int s = c->c_fd;
 
 		c = TAILQ_NEXT(c, c_link);

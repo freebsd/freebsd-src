@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.89 2020/04/30 18:28:37 jmc Exp $
+.\" $OpenBSD: scp.1,v 1.90 2020/08/03 02:43:41 djm Exp $
 .\"
-.Dd $Mdocdate: April 30 2020 $
+.Dd $Mdocdate: August 3 2020 $
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -18,7 +18,7 @@
 .Nd OpenSSH secure file copy
 .Sh SYNOPSIS
 .Nm scp
-.Op Fl 346BCpqrTv
+.Op Fl 346ABCpqrTv
 .Op Fl c Ar cipher
 .Op Fl F Ar ssh_config
 .Op Fl i Ar identity_file
@@ -86,6 +86,11 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
+.It Fl A
+Allows forwarding of
+.Xr ssh-agent 1
+to the remote system.
+The default is not to forward an authentication agent.
 .It Fl B
 Selects batch mode (prevents asking for passwords or passphrases).
 .It Fl C

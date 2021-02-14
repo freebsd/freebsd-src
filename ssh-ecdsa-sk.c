@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-ecdsa-sk.c,v 1.5 2019/11/26 03:04:27 djm Exp $ */
+/* $OpenBSD: ssh-ecdsa-sk.c,v 1.8 2020/06/22 23:44:27 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2010 Damien Miller.  All rights reserved.
@@ -49,6 +49,7 @@
 #define SSHKEY_INTERNAL
 #include "sshkey.h"
 
+#ifndef OPENSSL_HAS_ECC
 /* ARGSUSED */
 int
 ssh_ecdsa_sk_verify(const struct sshkey *key,
@@ -56,15 +57,102 @@ ssh_ecdsa_sk_verify(const struct sshkey *key,
     const u_char *data, size_t datalen, u_int compat,
     struct sshkey_sig_details **detailsp)
 {
-#ifdef OPENSSL_HAS_ECC
+	return SSH_ERR_FEATURE_UNSUPPORTED;
+}
+#else /* OPENSSL_HAS_ECC */
+
+/*
+ * Check FIDO/W3C webauthn signatures clientData field against the expected
+ * format and prepare a hash of it for use in signature verification.
+ *
+ * webauthn signatures do not sign the hash of the message directly, but
+ * instead sign a JSON-like "clientData" wrapper structure that contains the
+ * message hash along with a other information.
+ *
+ * Fortunately this structure has a fixed format so it is possible to verify
+ * that the hash of the signed message is present within the clientData
+ * structure without needing to implement any JSON parsing.
+ */
+static int
+webauthn_check_prepare_hash(const u_char *data, size_t datalen,
+    const char *origin, const struct sshbuf *wrapper,
+    uint8_t flags, const struct sshbuf *extensions,
+    u_char *msghash, size_t msghashlen)
+{
+	int r = SSH_ERR_INTERNAL_ERROR;
+	struct sshbuf *chall = NULL, *m = NULL;
+
+	if ((m = sshbuf_new()) == NULL ||
+	    (chall = sshbuf_from(data, datalen)) == NULL) {
+		r = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
+	/*
+	 * Ensure origin contains no quote character and that the flags are
+	 * consistent with what we received
+	 */
+	if (strchr(origin, '\"') != NULL ||
+	    (flags & 0x40) != 0 /* AD */ ||
+	    ((flags & 0x80) == 0 /* ED */) != (sshbuf_len(extensions) == 0)) {
+		r = SSH_ERR_INVALID_FORMAT;
+		goto out;
+	}
+
+	/*
+	 * Prepare the preamble to clientData that we expect, poking the
+	 * challenge and origin into their canonical positions in the
+	 * structure. The crossOrigin flag and any additional extension
+	 * fields present are ignored.
+	 */
+#define WEBAUTHN_0	"{\"type\":\"webauthn.get\",\"challenge\":\""
+#define WEBAUTHN_1	"\",\"origin\":\""
+#define WEBAUTHN_2	"\""
+	if ((r = sshbuf_put(m, WEBAUTHN_0, sizeof(WEBAUTHN_0) - 1)) != 0 ||
+	    (r = sshbuf_dtourlb64(chall, m, 0)) != 0 ||
+	    (r = sshbuf_put(m, WEBAUTHN_1, sizeof(WEBAUTHN_1) - 1)) != 0 ||
+	    (r = sshbuf_put(m, origin, strlen(origin))) != 0 ||
+	    (r = sshbuf_put(m, WEBAUTHN_2, sizeof(WEBAUTHN_2) - 1)) != 0)
+		goto out;
+#ifdef DEBUG_SK
+	fprintf(stderr, "%s: received origin: %s\n", __func__, origin);
+	fprintf(stderr, "%s: received clientData:\n", __func__);
+	sshbuf_dump(wrapper, stderr);
+	fprintf(stderr, "%s: expected clientData premable:\n", __func__);
+	sshbuf_dump(m, stderr);
+#endif
+	/* Check that the supplied clientData has the preamble we expect */
+	if ((r = sshbuf_cmp(wrapper, 0, sshbuf_ptr(m), sshbuf_len(m))) != 0)
+		goto out;
+
+	/* Prepare hash of clientData */
+	if ((r = ssh_digest_buffer(SSH_DIGEST_SHA256, wrapper,
+	    msghash, msghashlen)) != 0)
+		goto out;
+
+	/* success */
+	r = 0;
+ out:
+	sshbuf_free(chall);
+	sshbuf_free(m);
+	return r;
+}
+
+/* ARGSUSED */
+int
+ssh_ecdsa_sk_verify(const struct sshkey *key,
+    const u_char *signature, size_t signaturelen,
+    const u_char *data, size_t datalen, u_int compat,
+    struct sshkey_sig_details **detailsp)
+{
 	ECDSA_SIG *sig = NULL;
 	BIGNUM *sig_r = NULL, *sig_s = NULL;
 	u_char sig_flags;
 	u_char msghash[32], apphash[32], sighash[32];
 	u_int sig_counter;
-	int ret = SSH_ERR_INTERNAL_ERROR;
+	int is_webauthn = 0, ret = SSH_ERR_INTERNAL_ERROR;
 	struct sshbuf *b = NULL, *sigbuf = NULL, *original_signed = NULL;
-	char *ktype = NULL;
+	struct sshbuf *webauthn_wrapper = NULL, *webauthn_exts = NULL;
+	char *ktype = NULL, *webauthn_origin = NULL;
 	struct sshkey_sig_details *details = NULL;
 #ifdef DEBUG_SK
 	char *tmp = NULL;
@@ -83,16 +171,33 @@ ssh_ecdsa_sk_verify(const struct sshkey *key,
 	/* fetch signature */
 	if ((b = sshbuf_from(signature, signaturelen)) == NULL)
 		return SSH_ERR_ALLOC_FAIL;
-	if (sshbuf_get_cstring(b, &ktype, NULL) != 0 ||
-	    sshbuf_froms(b, &sigbuf) != 0 ||
+	if ((details = calloc(1, sizeof(*details))) == NULL) {
+		ret = SSH_ERR_ALLOC_FAIL;
+		goto out;
+	}
+	if (sshbuf_get_cstring(b, &ktype, NULL) != 0) {
+		ret = SSH_ERR_INVALID_FORMAT;
+		goto out;
+	}
+	if (strcmp(ktype, "webauthn-sk-ecdsa-sha2-nistp256@openssh.com") == 0)
+		is_webauthn = 1;
+	else if (strcmp(ktype, "sk-ecdsa-sha2-nistp256@openssh.com") != 0) {
+		ret = SSH_ERR_INVALID_FORMAT;
+		goto out;
+	}
+	if (sshbuf_froms(b, &sigbuf) != 0 ||
 	    sshbuf_get_u8(b, &sig_flags) != 0 ||
 	    sshbuf_get_u32(b, &sig_counter) != 0) {
 		ret = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
-	if (strcmp(sshkey_ssh_name_plain(key), ktype) != 0) {
-		ret = SSH_ERR_KEY_TYPE_MISMATCH;
-		goto out;
+	if (is_webauthn) {
+		if (sshbuf_get_cstring(b, &webauthn_origin, NULL) != 0 ||
+		    sshbuf_froms(b, &webauthn_wrapper) != 0 ||
+		    sshbuf_froms(b, &webauthn_exts) != 0) {
+			ret = SSH_ERR_INVALID_FORMAT;
+			goto out;
+		}
 	}
 	if (sshbuf_len(b) != 0) {
 		ret = SSH_ERR_UNEXPECTED_TRAILING_DATA;
@@ -105,14 +210,11 @@ ssh_ecdsa_sk_verify(const struct sshkey *key,
 		ret = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
-	if ((sig = ECDSA_SIG_new()) == NULL) {
-		ret = SSH_ERR_ALLOC_FAIL;
+	if (sshbuf_len(sigbuf) != 0) {
+		ret = SSH_ERR_UNEXPECTED_TRAILING_DATA;
 		goto out;
 	}
-	if (!ECDSA_SIG_set0(sig, sig_r, sig_s)) {
-		ret = SSH_ERR_LIBCRYPTO_ERROR;
-		goto out;
-	}
+
 #ifdef DEBUG_SK
 	fprintf(stderr, "%s: data: (len %zu)\n", __func__, datalen);
 	/* sshbuf_dump_data(data, datalen, stderr); */
@@ -122,20 +224,34 @@ ssh_ecdsa_sk_verify(const struct sshkey *key,
 	free(tmp);
 	fprintf(stderr, "%s: sig_flags = 0x%02x, sig_counter = %u\n",
 	    __func__, sig_flags, sig_counter);
+	if (is_webauthn) {
+		fprintf(stderr, "%s: webauthn origin: %s\n", __func__,
+		    webauthn_origin);
+		fprintf(stderr, "%s: webauthn_wrapper:\n", __func__);
+		sshbuf_dump(webauthn_wrapper, stderr);
+	}
 #endif
-	sig_r = sig_s = NULL; /* transferred */
-
-	if (sshbuf_len(sigbuf) != 0) {
-		ret = SSH_ERR_UNEXPECTED_TRAILING_DATA;
+	if ((sig = ECDSA_SIG_new()) == NULL) {
+		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
+	if (!ECDSA_SIG_set0(sig, sig_r, sig_s)) {
+		ret = SSH_ERR_LIBCRYPTO_ERROR;
+		goto out;
+	}
+	sig_r = sig_s = NULL; /* transferred */
 
 	/* Reconstruct data that was supposedly signed */
 	if ((original_signed = sshbuf_new()) == NULL) {
 		ret = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
-	if ((ret = ssh_digest_memory(SSH_DIGEST_SHA256, data, datalen,
+	if (is_webauthn) {
+		if ((ret = webauthn_check_prepare_hash(data, datalen,
+		    webauthn_origin, webauthn_wrapper, sig_flags, webauthn_exts,
+		    msghash, sizeof(msghash))) != 0)
+			goto out;
+	} else if ((ret = ssh_digest_memory(SSH_DIGEST_SHA256, data, datalen,
 	    msghash, sizeof(msghash))) != 0)
 		goto out;
 	/* Application value is hashed before signature */
@@ -152,16 +268,13 @@ ssh_ecdsa_sk_verify(const struct sshkey *key,
 	    apphash, sizeof(apphash))) != 0 ||
 	    (ret = sshbuf_put_u8(original_signed, sig_flags)) != 0 ||
 	    (ret = sshbuf_put_u32(original_signed, sig_counter)) != 0 ||
+	    (ret = sshbuf_putb(original_signed, webauthn_exts)) != 0 ||
 	    (ret = sshbuf_put(original_signed, msghash, sizeof(msghash))) != 0)
 		goto out;
 	/* Signature is over H(original_signed) */
 	if ((ret = ssh_digest_buffer(SSH_DIGEST_SHA256, original_signed,
 	    sighash, sizeof(sighash))) != 0)
 		goto out;
-	if ((details = calloc(1, sizeof(*details))) == NULL) {
-		ret = SSH_ERR_ALLOC_FAIL;
-		goto out;
-	}
 	details->sk_counter = sig_counter;
 	details->sk_flags = sig_flags;
 #ifdef DEBUG_SK
@@ -195,6 +308,9 @@ ssh_ecdsa_sk_verify(const struct sshkey *key,
 	explicit_bzero(sighash, sizeof(msghash));
 	explicit_bzero(apphash, sizeof(apphash));
 	sshkey_sig_details_free(details);
+	sshbuf_free(webauthn_wrapper);
+	sshbuf_free(webauthn_exts);
+	free(webauthn_origin);
 	sshbuf_free(original_signed);
 	sshbuf_free(sigbuf);
 	sshbuf_free(b);
@@ -203,7 +319,6 @@ ssh_ecdsa_sk_verify(const struct sshkey *key,
 	BN_clear_free(sig_s);
 	free(ktype);
 	return ret;
-#else
-	return SSH_ERR_INTERNAL_ERROR;
-#endif
 }
+
+#endif /* OPENSSL_HAS_ECC */

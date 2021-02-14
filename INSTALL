@@ -1,4 +1,3 @@
-1. Prerequisites
 ----------------
 
 A C compiler.  Any C89 or better compiler should work.  Where supported,
@@ -97,11 +96,12 @@ http://nlnetlabs.nl/projects/ldns/
 Autoconf:
 
 If you modify configure.ac or configure doesn't exist (eg if you checked
-the code out of git yourself) then you will need autoconf-2.69 to rebuild
-the automatically generated files by running "autoreconf".  Earlier
-versions may also work but this is not guaranteed.
+the code out of git yourself) then you will need autoconf-2.69 and
+automake-1.16.1 to rebuild the automatically generated files by running
+"autoreconf".  Earlier versions may also work but this is not guaranteed.
 
 http://www.gnu.org/software/autoconf/
+http://www.gnu.org/software/automake/
 
 Basic Security Module (BSM):
 
@@ -120,7 +120,8 @@ the dependency (.depend) file using "make depend", which requires the
 libfido2:
 
 libfido2 allows the use of hardware security keys over USB.  libfido2
-in turn depends on libcbor.
+in turn depends on libcbor.  libfido2 >= 1.5.0 is strongly recommended.
+Limited functionality is possible with earlier libfido2 versions.
 
 https://github.com/Yubico/libfido2
 https://github.com/pjk/libcbor
@@ -220,6 +221,11 @@ created.
 libraries are installed.
 
 --with-ssl-engine enables Libre/OpenSSL's (hardware) ENGINE support
+
+--without-openssl builds without using OpenSSL.  Only a subset of ciphers
+and algorithms are supported in this configuration.
+
+--without-zlib builds without zlib.  This disables the Compression option.
 
 --with-4in6 Check for IPv4 in IPv6 mapped addresses and convert them to
 real (AF_INET) IPv4 addresses. Works around some quirks on Linux.

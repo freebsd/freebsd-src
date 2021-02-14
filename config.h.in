@@ -573,6 +573,21 @@
 /* Define to 1 if you have the <features.h> header file. */
 #undef HAVE_FEATURES_H
 
+/* Define to 1 if you have the `fido_cred_prot' function. */
+#undef HAVE_FIDO_CRED_PROT
+
+/* Define to 1 if you have the `fido_cred_set_prot' function. */
+#undef HAVE_FIDO_CRED_SET_PROT
+
+/* Define to 1 if you have the `fido_dev_get_touch_begin' function. */
+#undef HAVE_FIDO_DEV_GET_TOUCH_BEGIN
+
+/* Define to 1 if you have the `fido_dev_get_touch_status' function. */
+#undef HAVE_FIDO_DEV_GET_TOUCH_STATUS
+
+/* Define to 1 if you have the `fido_dev_supports_cred_prot' function. */
+#undef HAVE_FIDO_DEV_SUPPORTS_CRED_PROT
+
 /* Define to 1 if you have the <floatingpoint.h> header file. */
 #undef HAVE_FLOATINGPOINT_H
 
@@ -1275,6 +1290,9 @@
 /* Fields in struct sockaddr_storage */
 #undef HAVE_SS_FAMILY_IN_SS
 
+/* Define if you have ut_ss in utmpx.h */
+#undef HAVE_SS_IN_UTMPX
+
 /* Define to 1 if you have the `statfs' function. */
 #undef HAVE_STATFS
 
@@ -1855,6 +1873,9 @@
 
 /* The size of `short int', as computed by sizeof. */
 #undef SIZEOF_SHORT_INT
+
+/* The size of `size_t', as computed by sizeof. */
+#undef SIZEOF_SIZE_T
 
 /* Define as const if snprintf() can declare const char *fmt */
 #undef SNPRINTF_CONST

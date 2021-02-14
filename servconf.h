@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.144 2020/04/17 03:30:05 djm Exp $ */
+/* $OpenBSD: servconf.h,v 1.146 2020/08/27 01:07:10 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -50,7 +50,8 @@
 #define INTERNAL_SFTP_NAME	"internal-sftp"
 
 /* PubkeyAuthOptions flags */
-#define PUBKEYAUTH_TOUCH_REQUIRED	1
+#define PUBKEYAUTH_TOUCH_REQUIRED	(1)
+#define PUBKEYAUTH_VERIFY_REQUIRED	(1<<1)
 
 struct ssh;
 struct fwd_perm_list;
@@ -146,7 +147,7 @@ typedef struct {
 	int     permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
 	int     permit_user_env;	/* If true, read ~/.ssh/environment */
-	char   *permit_user_env_whitelist; /* pattern-list whitelist */
+	char   *permit_user_env_allowlist; /* pattern-list of allowed env names */
 	int     compression;	/* If true, compression is allowed */
 	int	allow_tcp_forwarding; /* One of FORWARD_* */
 	int	allow_streamlocal_forwarding; /* One of FORWARD_* */
@@ -250,7 +251,7 @@ TAILQ_HEAD(include_list, include_item);
 /*
  * These are string config options that must be copied between the
  * Match sub-config and the main config, and must be sent from the
- * privsep slave to the privsep master. We use a macro to ensure all
+ * privsep child to the privsep master. We use a macro to ensure all
  * the options are copied and the copies are done in the correct order.
  *
  * NB. an option must appear in servconf.c:copy_set_server_options() or
@@ -269,7 +270,7 @@ TAILQ_HEAD(include_list, include_item);
 		M_CP_STROPT(pubkey_key_types); \
 		M_CP_STROPT(ca_sign_algorithms); \
 		M_CP_STROPT(routing_domain); \
-		M_CP_STROPT(permit_user_env_whitelist); \
+		M_CP_STROPT(permit_user_env_allowlist); \
 		M_CP_STRARRAYOPT(authorized_keys_files, num_authkeys_files); \
 		M_CP_STRARRAYOPT(allow_users, num_allow_users); \
 		M_CP_STRARRAYOPT(deny_users, num_deny_users); \

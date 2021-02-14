@@ -4,7 +4,7 @@ NAME
      sftp M-bM-^@M-^S OpenSSH secure file transfer
 
 SYNOPSIS
-     sftp [-46aCfNpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
+     sftp [-46AaCfNpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
           [-D sftp_server_path] [-F ssh_config] [-i identity_file]
           [-J destination] [-l limit] [-o ssh_option] [-P port]
           [-R num_requests] [-S program] [-s subsystem | sftp_server]
@@ -37,6 +37,9 @@ DESCRIPTION
      -4      Forces sftp to use IPv4 addresses only.
 
      -6      Forces sftp to use IPv6 addresses only.
+
+     -A      Allows forwarding of ssh-agent(1) to the remote system.  The
+             default is not to forward an authentication agent.
 
      -a      Attempt to continue interrupted transfers rather than overwriting
              existing partial or complete copies of files.  If the partial
@@ -396,4 +399,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 6.7                     April 23, 2020                     OpenBSD 6.7
+OpenBSD 6.8                     August 3, 2020                     OpenBSD 6.8

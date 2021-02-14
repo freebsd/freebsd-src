@@ -140,7 +140,7 @@ window space and may be sent even if no window space is available.
 NB. due to certain broken SSH implementations aborting upon receipt
 of this message (in contravention of RFC4254 section 5.4), this
 message is only sent to OpenSSH peers (identified by banner).
-Other SSH implementations may be whitelisted to receive this message
+Other SSH implementations may be listed to receive this message
 upon request.
 
 2.2. connection: disallow additional sessions extension
@@ -169,7 +169,7 @@ Note that this is not a general defence against compromised clients
 NB. due to certain broken SSH implementations aborting upon receipt
 of this message, the no-more-sessions request is only sent to OpenSSH
 servers (identified by banner). Other SSH implementations may be
-whitelisted to receive this message upon request.
+listed to receive this message upon request.
 
 2.3. connection: Tunnel forward extension "tun@openssh.com"
 
@@ -496,4 +496,4 @@ OpenSSH's connection multiplexing uses messages as described in
 PROTOCOL.mux over a Unix domain socket for communications between a
 master instance and later clients.
 
-$OpenBSD: PROTOCOL,v 1.37 2020/02/21 00:04:43 dtucker Exp $
+$OpenBSD: PROTOCOL,v 1.38 2020/07/05 23:59:45 djm Exp $

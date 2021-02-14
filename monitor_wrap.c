@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.117 2019/12/15 18:57:30 djm Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.118 2020/08/27 01:06:18 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -216,7 +216,7 @@ mm_choose_dh(int min, int nbits, int max)
 int
 mm_sshkey_sign(struct ssh *ssh, struct sshkey *key, u_char **sigp, size_t *lenp,
     const u_char *data, size_t datalen, const char *hostkey_alg,
-    const char *sk_provider, u_int compat)
+    const char *sk_provider, const char *sk_pin, u_int compat)
 {
 	struct kex *kex = *pmonitor->m_pkex;
 	struct sshbuf *m;

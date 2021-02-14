@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.200 2020/04/03 05:53:52 jmc Exp $ */
+/* $OpenBSD: sftp.c,v 1.201 2020/08/03 02:43:41 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -2363,7 +2363,7 @@ usage(void)
 	extern char *__progname;
 
 	fprintf(stderr,
-	    "usage: %s [-46aCfNpqrv] [-B buffer_size] [-b batchfile] [-c cipher]\n"
+	    "usage: %s [-46AaCfNpqrv] [-B buffer_size] [-b batchfile] [-c cipher]\n"
 	    "          [-D sftp_server_path] [-F ssh_config] [-i identity_file]\n"
 	    "          [-J destination] [-l limit] [-o ssh_option] [-P port]\n"
 	    "          [-R num_requests] [-S program] [-s subsystem | sftp_server]\n"
@@ -2401,7 +2401,6 @@ main(int argc, char **argv)
 	args.list = NULL;
 	addargs(&args, "%s", ssh_program);
 	addargs(&args, "-oForwardX11 no");
-	addargs(&args, "-oForwardAgent no");
 	addargs(&args, "-oPermitLocalCommand no");
 	addargs(&args, "-oClearAllForwardings yes");
 
@@ -2409,9 +2408,10 @@ main(int argc, char **argv)
 	infile = stdin;
 
 	while ((ch = getopt(argc, argv,
-	    "1246afhNpqrvCc:D:i:l:o:s:S:b:B:F:J:P:R:")) != -1) {
+	    "1246AafhNpqrvCc:D:i:l:o:s:S:b:B:F:J:P:R:")) != -1) {
 		switch (ch) {
 		/* Passed through to ssh(1) */
+		case 'A':
 		case '4':
 		case '6':
 		case 'C':
@@ -2510,6 +2510,9 @@ main(int argc, char **argv)
 			usage();
 		}
 	}
+
+	/* Do this last because we want the user to be able to override it */
+	addargs(&args, "-oForwardAgent no");
 
 	if (!isatty(STDERR_FILENO))
 		showprogress = 0;

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.527 2020/04/10 00:52:07 dtucker Exp $ */
+/* $OpenBSD: ssh.c,v 1.536 2020/09/21 07:29:09 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -16,7 +16,7 @@
  * Copyright (c) 1999 Niels Provos.  All rights reserved.
  * Copyright (c) 2000, 2001, 2002, 2003 Markus Friedl.  All rights reserved.
  *
- * Modified to work with SSL by Niels Provos <provos@citi.umich.edu>
+ * Modified to work with SSLeay by Niels Provos <provos@citi.umich.edu>
  * in Canada (German citizen).
  *
  * Redistribution and use in source and binary forms, with or without
@@ -137,11 +137,11 @@ int stdin_null_flag = 0;
 
 /*
  * Flag indicating that the current process should be backgrounded and
- * a new slave launched in the foreground for ControlPersist.
+ * a new mux-client launched in the foreground for ControlPersist.
  */
 int need_controlpersist_detach = 0;
 
-/* Copies of flags for ControlPersist foreground slave */
+/* Copies of flags for ControlPersist foreground mux-client */
 int ostdin_null_flag, ono_shell_flag, otty_flag, orequest_tty;
 
 /*
@@ -176,6 +176,7 @@ char *forward_agent_sock_path = NULL;
 /* Various strings used to to percent_expand() arguments */
 static char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
 static char uidstr[32], *host_arg, *conn_hash_hex;
+static const char *keyalias;
 
 /* socket address the host resolves to */
 struct sockaddr_storage hostaddr;
@@ -235,6 +236,7 @@ tilde_expand_paths(char **paths, u_int num_paths)
     "C", conn_hash_hex, \
     "L", shorthost, \
     "i", uidstr, \
+    "k", keyalias, \
     "l", thishost, \
     "n", host_arg, \
     "p", portstr
@@ -257,6 +259,31 @@ default_client_percent_expand(const char *str, const char *homedir,
 	    "r", remuser,
 	    "u", locuser,
 	    (char *)NULL);
+}
+
+/*
+ * Expands the set of percent_expand options used by the majority of keywords
+ * AND perform environment variable substitution.
+ * Caller must free returned string.
+ */
+static char *
+default_client_percent_dollar_expand(const char *str, const char *homedir,
+    const char *remhost, const char *remuser, const char *locuser)
+{
+	char *ret;
+
+	ret = percent_dollar_expand(str,
+	    /* values from statics above */
+	    DEFAULT_CLIENT_PERCENT_EXPAND_ARGS,
+	    /* values from arguments */
+	    "d", homedir,
+	    "h", remhost,
+	    "r", remuser,
+	    "u", locuser,
+	    (char *)NULL);
+	if (ret == NULL)
+		fatal("invalid environment variable expansion");
+	return ret;
 }
 
 /*
@@ -620,7 +647,7 @@ main(int ac, char **av)
 	struct ssh *ssh = NULL;
 	int i, r, opt, exit_status, use_syslog, direct, timeout_ms;
 	int was_addr, config_test = 0, opt_terminated = 0, want_final_pass = 0;
-	char *p, *cp, *line, *argv0, buf[PATH_MAX], *logfile;
+	char *p, *cp, *line, *argv0, *logfile;
 	char cname[NI_MAXHOST];
 	struct stat st;
 	struct passwd *pw;
@@ -629,6 +656,7 @@ main(int ac, char **av)
 	struct Forward fwd;
 	struct addrinfo *addrs = NULL;
 	size_t n, len;
+	u_int j;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
@@ -1228,19 +1256,25 @@ main(int ac, char **av)
 	/* Fill configuration defaults. */
 	fill_default_options(&options);
 
+	if (options.user == NULL)
+		options.user = xstrdup(pw->pw_name);
+
 	/*
 	 * If ProxyJump option specified, then construct a ProxyCommand now.
 	 */
 	if (options.jump_host != NULL) {
 		char port_s[8];
-		const char *sshbin = argv0;
+		const char *jumpuser = options.jump_user, *sshbin = argv0;
 		int port = options.port, jumpport = options.jump_port;
 
 		if (port <= 0)
 			port = default_ssh_port();
 		if (jumpport <= 0)
 			jumpport = default_ssh_port();
-		if (strcmp(options.jump_host, host) == 0 && port == jumpport)
+		if (jumpuser == NULL)
+			jumpuser = options.user;
+		if (strcmp(options.jump_host, host) == 0 && port == jumpport &&
+		    strcmp(options.user, jumpuser) == 0)
 			fatal("jumphost loop via %s", options.jump_host);
 
 		/*
@@ -1343,9 +1377,6 @@ main(int ac, char **av)
 		tty_flag = 0;
 	}
 
-	if (options.user == NULL)
-		options.user = xstrdup(pw->pw_name);
-
 	/* Set up strings used to percent_expand() arguments */
 	if (gethostname(thishost, sizeof(thishost)) == -1)
 		fatal("gethostname: %s", strerror(errno));
@@ -1354,6 +1385,7 @@ main(int ac, char **av)
 	snprintf(portstr, sizeof(portstr), "%d", options.port);
 	snprintf(uidstr, sizeof(uidstr), "%llu",
 	    (unsigned long long)pw->pw_uid);
+	keyalias = options.host_key_alias ? options.host_key_alias : host_arg;
 
 	conn_hash_hex = ssh_connection_hash(thishost, host, portstr,
 	    options.user);
@@ -1378,14 +1410,14 @@ main(int ac, char **av)
 	if (options.control_path != NULL) {
 		cp = tilde_expand_filename(options.control_path, getuid());
 		free(options.control_path);
-		options.control_path = default_client_percent_expand(cp,
+		options.control_path = default_client_percent_dollar_expand(cp,
 		    pw->pw_dir, host, options.user, pw->pw_name);
 		free(cp);
 	}
 
 	if (options.identity_agent != NULL) {
 		p = tilde_expand_filename(options.identity_agent, getuid());
-		cp = default_client_percent_expand(p,
+		cp = default_client_percent_dollar_expand(p,
 		    pw->pw_dir, host, options.user, pw->pw_name);
 		free(p);
 		free(options.identity_agent);
@@ -1395,11 +1427,26 @@ main(int ac, char **av)
 	if (options.forward_agent_sock_path != NULL) {
 		p = tilde_expand_filename(options.forward_agent_sock_path,
 		    getuid());
-		cp = default_client_percent_expand(p,
+		cp = default_client_percent_dollar_expand(p,
 		    pw->pw_dir, host, options.user, pw->pw_name);
 		free(p);
 		free(options.forward_agent_sock_path);
 		options.forward_agent_sock_path = cp;
+	}
+
+	for (j = 0; j < options.num_user_hostfiles; j++) {
+		if (options.user_hostfiles[j] != NULL) {
+			cp = tilde_expand_filename(options.user_hostfiles[j],
+			    getuid());
+			p = default_client_percent_dollar_expand(cp,
+			    pw->pw_dir, host, options.user, pw->pw_name);
+			if (strcmp(options.user_hostfiles[j], p) != 0)
+				debug3("expanded UserKnownHostsFile '%s' -> "
+				    "'%s'", options.user_hostfiles[j], p);
+			free(options.user_hostfiles[j]);
+			free(cp);
+			options.user_hostfiles[j] = p;
+		}
 	}
 
 	for (i = 0; i < options.num_local_forwards; i++) {
@@ -1547,22 +1594,6 @@ main(int ac, char **av)
 		}
 	}
 
-	/* Create ~/.ssh * directory if it doesn't already exist. */
-	if (config == NULL) {
-		r = snprintf(buf, sizeof buf, "%s%s%s", pw->pw_dir,
-		    strcmp(pw->pw_dir, "/") ? "/" : "", _PATH_SSH_USER_DIR);
-		if (r > 0 && (size_t)r < sizeof(buf) && stat(buf, &st) == -1) {
-#ifdef WITH_SELINUX
-			ssh_selinux_setfscreatecon(buf);
-#endif
-			if (mkdir(buf, 0700) < 0)
-				error("Could not create directory '%.200s'.",
-				    buf);
-#ifdef WITH_SELINUX
-			ssh_selinux_setfscreatecon(NULL);
-#endif
-		}
-	}
 	/* load options.identity_files */
 	load_public_identity_files(pw);
 
@@ -1573,7 +1604,8 @@ main(int ac, char **av)
 			unsetenv(SSH_AUTHSOCKET_ENV_NAME);
 		} else {
 			cp = options.identity_agent;
-			if (cp[0] == '$') {
+			/* legacy (limited) format */
+			if (cp[0] == '$' && cp[1] != '{') {
 				if (!valid_env_name(cp + 1)) {
 					fatal("Invalid IdentityAgent "
 					    "environment variable name %s", cp);
@@ -1681,7 +1713,7 @@ control_persist_detach(void)
 		/* Child: master process continues mainloop */
 		break;
 	default:
-		/* Parent: set up mux slave to connect to backgrounded master */
+		/* Parent: set up mux client to connect to backgrounded master */
 		debug2("%s: background process is %ld", __func__, (long)pid);
 		stdin_null_flag = ostdin_null_flag;
 		options.request_tty = orequest_tty;
@@ -1713,12 +1745,26 @@ control_persist_detach(void)
 static void
 fork_postauth(void)
 {
+	int devnull, keep_stderr;
+
 	if (need_controlpersist_detach)
 		control_persist_detach();
 	debug("forking to background");
 	fork_after_authentication_flag = 0;
 	if (daemon(1, 1) == -1)
 		fatal("daemon() failed: %.200s", strerror(errno));
+	if ((devnull = open(_PATH_DEVNULL, O_WRONLY)) == -1)
+		error("%s: open %s: %s", __func__,
+		    _PATH_DEVNULL, strerror(errno));
+	else {
+		keep_stderr = log_is_on_stderr() && debug_flag;
+		if (dup2(devnull, STDIN_FILENO) == -1 ||
+		    dup2(devnull, STDOUT_FILENO) == -1 ||
+		    (!keep_stderr && dup2(devnull, STDOUT_FILENO) == -1))
+			fatal("%s: dup2() stdio failed", __func__);
+		if (devnull > STDERR_FILENO)
+			close(devnull);
+	}
 }
 
 static void
@@ -2060,9 +2106,9 @@ ssh_session2(struct ssh *ssh, struct passwd *pw)
 	/*
 	 * If we are in control persist mode and have a working mux listen
 	 * socket, then prepare to background ourselves and have a foreground
-	 * client attach as a control slave.
+	 * client attach as a control client.
 	 * NB. we must save copies of the flags that we override for
-	 * the backgrounding, since we defer attachment of the slave until
+	 * the backgrounding, since we defer attachment of the client until
 	 * after the connection is fully established (in particular,
 	 * async rfwd replies have been received for ExitOnForwardFailure).
 	 */
@@ -2117,13 +2163,15 @@ ssh_session2(struct ssh *ssh, struct passwd *pw)
 	 * as it may want to write to stdout.
 	 */
 	if (!need_controlpersist_detach) {
-		if ((devnull = open(_PATH_DEVNULL, O_WRONLY)) == -1)
+		if ((devnull = open(_PATH_DEVNULL, O_WRONLY)) == -1) {
 			error("%s: open %s: %s", __func__,
 			    _PATH_DEVNULL, strerror(errno));
-		if (dup2(devnull, STDOUT_FILENO) == -1)
-			fatal("%s: dup2() stdout failed", __func__);
-		if (devnull > STDERR_FILENO)
-			close(devnull);
+		} else {
+			if (dup2(devnull, STDOUT_FILENO) == -1)
+				fatal("%s: dup2() stdout failed", __func__);
+			if (devnull > STDERR_FILENO)
+				close(devnull);
+		}
 	}
 
 	/*
@@ -2201,7 +2249,7 @@ load_public_identity_files(struct passwd *pw)
 			continue;
 		}
 		cp = tilde_expand_filename(options.identity_files[i], getuid());
-		filename = default_client_percent_expand(cp,
+		filename = default_client_percent_dollar_expand(cp,
 		    pw->pw_dir, host, options.user, pw->pw_name);
 		free(cp);
 		check_load(sshkey_load_public(filename, &public, NULL),
@@ -2251,7 +2299,7 @@ load_public_identity_files(struct passwd *pw)
 	for (i = 0; i < options.num_certificate_files; i++) {
 		cp = tilde_expand_filename(options.certificate_files[i],
 		    getuid());
-		filename = default_client_percent_expand(cp,
+		filename = default_client_percent_dollar_expand(cp,
 		    pw->pw_dir, host, options.user, pw->pw_name);
 		free(cp);
 

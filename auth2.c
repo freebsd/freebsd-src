@@ -390,20 +390,20 @@ userauth_finish(struct ssh *ssh, int authenticated, const char *method,
 
 #ifdef USE_PAM
 	if (options.use_pam && authenticated) {
-		int r;
+		int r, success = PRIVSEP(do_pam_account());
 
-		if (!PRIVSEP(do_pam_account())) {
-			/* if PAM returned a message, send it to the user */
-			if (sshbuf_len(loginmsg) > 0) {
-				if ((r = sshbuf_put(loginmsg, "\0", 1)) != 0)
-					fatal("%s: buffer error: %s",
-					    __func__, ssh_err(r));
-				userauth_send_banner(ssh, sshbuf_ptr(loginmsg));
-				if ((r = ssh_packet_write_wait(ssh)) != 0) {
-					sshpkt_fatal(ssh, r,
-					    "%s: send PAM banner", __func__);
-				}
+		/* If PAM returned a message, send it to the user. */
+		if (sshbuf_len(loginmsg) > 0) {
+			if ((r = sshbuf_put(loginmsg, "\0", 1)) != 0)
+				fatal("%s: buffer error: %s",
+				    __func__, ssh_err(r));
+			userauth_send_banner(ssh, sshbuf_ptr(loginmsg));
+			if ((r = ssh_packet_write_wait(ssh)) != 0) {
+				sshpkt_fatal(ssh, r,
+				    "%s: send PAM banner", __func__);
 			}
+		}
+		if (!success) {
 			fatal("Access denied for user %s by PAM account "
 			    "configuration", authctxt->user);
 		}

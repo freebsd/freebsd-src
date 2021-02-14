@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.h,v 1.48 2019/12/21 02:19:13 djm Exp $ */
+/* $OpenBSD: authfd.h,v 1.49 2020/06/26 05:03:36 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -33,8 +33,8 @@ void	ssh_free_identitylist(struct ssh_identitylist *idl);
 int	ssh_add_identity_constrained(int sock, struct sshkey *key,
 	    const char *comment, u_int life, u_int confirm, u_int maxsign,
 	    const char *provider);
-int	ssh_agent_has_key(int sock, struct sshkey *key);
-int	ssh_remove_identity(int sock, struct sshkey *key);
+int	ssh_agent_has_key(int sock, const struct sshkey *key);
+int	ssh_remove_identity(int sock, const struct sshkey *key);
 int	ssh_update_card(int sock, int add, const char *reader_id,
 	    const char *pin, u_int life, u_int confirm);
 int	ssh_remove_all_identities(int sock, int version);

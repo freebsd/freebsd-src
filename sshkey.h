@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.h,v 1.45 2020/04/08 00:08:46 djm Exp $ */
+/* $OpenBSD: sshkey.h,v 1.46 2020/08/27 01:06:19 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -200,12 +200,13 @@ size_t	 sshkey_format_cert_validity(const struct sshkey_cert *,
 int	 sshkey_check_cert_sigtype(const struct sshkey *, const char *);
 
 int	 sshkey_certify(struct sshkey *, struct sshkey *,
-    const char *, const char *);
+    const char *, const char *, const char *);
 /* Variant allowing use of a custom signature function (e.g. for ssh-agent) */
 typedef int sshkey_certify_signer(struct sshkey *, u_char **, size_t *,
-    const u_char *, size_t, const char *, const char *, u_int, void *);
+    const u_char *, size_t, const char *, const char *, const char *,
+    u_int, void *);
 int	 sshkey_certify_custom(struct sshkey *, struct sshkey *, const char *,
-    const char *, sshkey_certify_signer *, void *);
+    const char *, const char *, sshkey_certify_signer *, void *);
 
 int		 sshkey_ecdsa_nid_from_name(const char *);
 int		 sshkey_curve_name_to_nid(const char *);
@@ -234,7 +235,7 @@ int	 sshkey_plain_to_blob(const struct sshkey *, u_char **, size_t *);
 int	 sshkey_putb_plain(const struct sshkey *, struct sshbuf *);
 
 int	 sshkey_sign(struct sshkey *, u_char **, size_t *,
-    const u_char *, size_t, const char *, const char *, u_int);
+    const u_char *, size_t, const char *, const char *, const char *, u_int);
 int	 sshkey_verify(const struct sshkey *, const u_char *, size_t,
     const u_char *, size_t, const char *, u_int, struct sshkey_sig_details **);
 int	 sshkey_check_sigtype(const u_char *, size_t, const char *);

@@ -4,7 +4,7 @@ NAME
      scp M-bM-^@M-^S OpenSSH secure file copy
 
 SYNOPSIS
-     scp [-346BCpqrTv] [-c cipher] [-F ssh_config] [-i identity_file]
+     scp [-346ABCpqrTv] [-c cipher] [-F ssh_config] [-i identity_file]
          [-J destination] [-l limit] [-o ssh_option] [-P port] [-S program]
          source ... target
 
@@ -34,6 +34,9 @@ DESCRIPTION
      -4      Forces scp to use IPv4 addresses only.
 
      -6      Forces scp to use IPv6 addresses only.
+
+     -A      Allows forwarding of ssh-agent(1) to the remote system.  The
+             default is not to forward an authentication agent.
 
      -B      Selects batch mode (prevents asking for passwords or
              passphrases).
@@ -180,4 +183,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 6.7                     April 30, 2020                     OpenBSD 6.7
+OpenBSD 6.8                     August 3, 2020                     OpenBSD 6.8

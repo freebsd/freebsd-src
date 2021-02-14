@@ -1,4 +1,4 @@
-/* $OpenBSD: compat.c,v 1.113 2018/08/13 02:41:05 djm Exp $ */
+/* $OpenBSD: compat.c,v 1.115 2020/07/05 23:59:45 djm Exp $ */
 /*
  * Copyright (c) 1999, 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  *
@@ -157,40 +157,14 @@ compat_datafellows(const char *version)
 	return 0;
 }
 
-#define	SEP	","
-int
-proto_spec(const char *spec)
-{
-	char *s, *p, *q;
-	int ret = SSH_PROTO_UNKNOWN;
-
-	if (spec == NULL)
-		return ret;
-	q = s = strdup(spec);
-	if (s == NULL)
-		return ret;
-	for ((p = strsep(&q, SEP)); p && *p != '\0'; (p = strsep(&q, SEP))) {
-		switch (atoi(p)) {
-		case 2:
-			ret |= SSH_PROTO_2;
-			break;
-		default:
-			logit("ignoring bad proto spec: '%s'.", p);
-			break;
-		}
-	}
-	free(s);
-	return ret;
-}
-
 char *
 compat_cipher_proposal(char *cipher_prop)
 {
 	if (!(datafellows & SSH_BUG_BIGENDIANAES))
 		return cipher_prop;
 	debug2("%s: original cipher proposal: %s", __func__, cipher_prop);
-	if ((cipher_prop = match_filter_blacklist(cipher_prop, "aes*")) == NULL)
-		fatal("match_filter_blacklist failed");
+	if ((cipher_prop = match_filter_denylist(cipher_prop, "aes*")) == NULL)
+		fatal("match_filter_denylist failed");
 	debug2("%s: compat cipher proposal: %s", __func__, cipher_prop);
 	if (*cipher_prop == '\0')
 		fatal("No supported ciphers found");
@@ -203,8 +177,8 @@ compat_pkalg_proposal(char *pkalg_prop)
 	if (!(datafellows & SSH_BUG_RSASIGMD5))
 		return pkalg_prop;
 	debug2("%s: original public key proposal: %s", __func__, pkalg_prop);
-	if ((pkalg_prop = match_filter_blacklist(pkalg_prop, "ssh-rsa")) == NULL)
-		fatal("match_filter_blacklist failed");
+	if ((pkalg_prop = match_filter_denylist(pkalg_prop, "ssh-rsa")) == NULL)
+		fatal("match_filter_denylist failed");
 	debug2("%s: compat public key proposal: %s", __func__, pkalg_prop);
 	if (*pkalg_prop == '\0')
 		fatal("No supported PK algorithms found");
@@ -218,14 +192,14 @@ compat_kex_proposal(char *p)
 		return p;
 	debug2("%s: original KEX proposal: %s", __func__, p);
 	if ((datafellows & SSH_BUG_CURVE25519PAD) != 0)
-		if ((p = match_filter_blacklist(p,
+		if ((p = match_filter_denylist(p,
 		    "curve25519-sha256@libssh.org")) == NULL)
-			fatal("match_filter_blacklist failed");
+			fatal("match_filter_denylist failed");
 	if ((datafellows & SSH_OLD_DHGEX) != 0) {
-		if ((p = match_filter_blacklist(p,
+		if ((p = match_filter_denylist(p,
 		    "diffie-hellman-group-exchange-sha256,"
 		    "diffie-hellman-group-exchange-sha1")) == NULL)
-			fatal("match_filter_blacklist failed");
+			fatal("match_filter_denylist failed");
 	}
 	debug2("%s: compat KEX proposal: %s", __func__, p);
 	if (*p == '\0')

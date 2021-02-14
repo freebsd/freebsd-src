@@ -1,4 +1,4 @@
-/* $OpenBSD: kexdh.c,v 1.32 2019/01/21 10:40:11 djm Exp $ */
+/* $OpenBSD: kexdh.c,v 1.33 2020/05/08 05:13:14 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  *
@@ -42,6 +42,7 @@
 #include "digest.h"
 #include "ssherr.h"
 #include "dh.h"
+#include "log.h"
 
 int
 kex_dh_keygen(struct kex *kex)

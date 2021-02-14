@@ -49,7 +49,6 @@ PICFLAG=@PICFLAG@
 LIBS=@LIBS@
 K5LIBS=@K5LIBS@
 GSSLIBS=@GSSLIBS@
-SSHLIBS=@SSHLIBS@
 SSHDLIBS=@SSHDLIBS@
 LIBEDIT=@LIBEDIT@
 LIBFIDO2=@LIBFIDO2@
@@ -58,7 +57,6 @@ AWK=@AWK@
 RANLIB=@RANLIB@
 INSTALL=@INSTALL@
 SED=@SED@
-ENT=@ENT@
 XAUTH_PATH=@XAUTH_PATH@
 LDFLAGS=-L. -Lopenbsd-compat/ @LDFLAGS@
 LDFLAGS_NOPIE=-L. -Lopenbsd-compat/ @LDFLAGS_NOPIE@
@@ -189,7 +187,7 @@ $(SSHOBJS): Makefile.in config.h
 $(SSHDOBJS): Makefile.in config.h
 configure-check: $(srcdir)/configure
 
-$(srcdir)/configure: configure.ac aclocal.m4
+$(srcdir)/configure: configure.ac $(srcdir)/m4/*.m4
 	@echo "ERROR: configure is out of date; please run ${AUTORECONF} (and configure)" 1>&2
 	@exit 1
 
@@ -206,7 +204,7 @@ libssh.a: $(LIBSSH_OBJS)
 	$(RANLIB) $@
 
 ssh$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHOBJS)
-	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHLIBS) $(LIBS) $(GSSLIBS)
+	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(GSSLIBS)
 
 sshd$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHDOBJS)
 	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(GSSLIBS) $(K5LIBS)
@@ -277,6 +275,8 @@ clean:	regressclean
 	rm -f regress/unittests/sshbuf/test_sshbuf$(EXEEXT)
 	rm -f regress/unittests/sshkey/*.o
 	rm -f regress/unittests/sshkey/test_sshkey$(EXEEXT)
+	rm -f regress/unittests/sshsig/*.o
+	rm -f regress/unittests/sshsig/test_sshsig$(EXEEXT)
 	rm -f regress/unittests/bitmap/*.o
 	rm -f regress/unittests/bitmap/test_bitmap$(EXEEXT)
 	rm -f regress/unittests/conversion/*.o
@@ -310,6 +310,8 @@ distclean:	regressclean
 	rm -f regress/unittests/sshbuf/test_sshbuf
 	rm -f regress/unittests/sshkey/*.o
 	rm -f regress/unittests/sshkey/test_sshkey
+	rm -f regress/unittests/sshsig/*.o
+	rm -f regress/unittests/sshsig/test_sshsig
 	rm -f regress/unittests/bitmap/*.o
 	rm -f regress/unittests/bitmap/test_bitmap
 	rm -f regress/unittests/conversion/*.o
@@ -488,6 +490,7 @@ regress-prep:
 	$(MKDIR_P) `pwd`/regress/unittests/test_helper
 	$(MKDIR_P) `pwd`/regress/unittests/sshbuf
 	$(MKDIR_P) `pwd`/regress/unittests/sshkey
+	$(MKDIR_P) `pwd`/regress/unittests/sshsig
 	$(MKDIR_P) `pwd`/regress/unittests/bitmap
 	$(MKDIR_P) `pwd`/regress/unittests/conversion
 	$(MKDIR_P) `pwd`/regress/unittests/hostkeys
@@ -556,6 +559,17 @@ UNITTESTS_TEST_SSHKEY_OBJS=\
 regress/unittests/sshkey/test_sshkey$(EXEEXT): ${UNITTESTS_TEST_SSHKEY_OBJS} \
     regress/unittests/test_helper/libtest_helper.a libssh.a
 	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_SSHKEY_OBJS) \
+	    regress/unittests/test_helper/libtest_helper.a \
+	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
+
+UNITTESTS_TEST_SSHSIG_OBJS=\
+	sshsig.o \
+	regress/unittests/sshsig/tests.o \
+	$(SKOBJS)
+
+regress/unittests/sshsig/test_sshsig$(EXEEXT): ${UNITTESTS_TEST_SSHSIG_OBJS} \
+    regress/unittests/test_helper/libtest_helper.a libssh.a
+	$(LD) -o $@ $(LDFLAGS) $(UNITTESTS_TEST_SSHSIG_OBJS) \
 	    regress/unittests/test_helper/libtest_helper.a \
 	    -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
@@ -655,6 +669,7 @@ regress-binaries: regress-prep $(LIBCOMPAT) \
 regress-unit-binaries: regress-prep $(REGRESSLIBS) \
 	regress/unittests/sshbuf/test_sshbuf$(EXEEXT) \
 	regress/unittests/sshkey/test_sshkey$(EXEEXT) \
+	regress/unittests/sshsig/test_sshsig$(EXEEXT) \
 	regress/unittests/bitmap/test_bitmap$(EXEEXT) \
 	regress/unittests/conversion/test_conversion$(EXEEXT) \
 	regress/unittests/hostkeys/test_hostkeys$(EXEEXT) \

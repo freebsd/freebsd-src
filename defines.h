@@ -829,10 +829,6 @@ struct winsize {
 # define getgroups(a,b) ((a)==0 && (b)==NULL ? NGROUPS_MAX : getgroups((a),(b)))
 #endif
 
-#if defined(HAVE_MMAP) && defined(BROKEN_MMAP)
-# undef HAVE_MMAP
-#endif
-
 #ifndef IOV_MAX
 # if defined(_XOPEN_IOV_MAX)
 #  define	IOV_MAX		_XOPEN_IOV_MAX

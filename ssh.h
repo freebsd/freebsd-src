@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.h,v 1.89 2018/12/27 03:25:25 djm Exp $ */
+/* $OpenBSD: ssh.h,v 1.90 2020/07/14 23:57:01 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -66,6 +66,11 @@
  * Environment variable for overwriting the default location of askpass
  */
 #define SSH_ASKPASS_ENV		"SSH_ASKPASS"
+
+/*
+ * Environment variable to control whether or not askpass is used.
+ */
+#define SSH_ASKPASS_REQUIRE_ENV		"SSH_ASKPASS_REQUIRE"
 
 /*
  * Force host key length and server key length to differ by at least this

@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.99 2020/02/06 22:30:54 naddy Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.100 2020/08/27 01:07:09 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -97,7 +97,7 @@ userauth_pubkey(struct ssh *ssh)
 	u_char *pkblob = NULL, *sig = NULL, have_sig;
 	size_t blen, slen;
 	int r, pktype;
-	int req_presence = 0, authenticated = 0;
+	int req_presence = 0, req_verify = 0, authenticated = 0;
 	struct sshauthopt *authopts = NULL;
 	struct sshkey_sig_details *sig_details = NULL;
 
@@ -233,6 +233,20 @@ userauth_pubkey(struct ssh *ssh)
 				    "%.128s port %d rejected: user presence "
 				    "(authenticator touch) requirement "
 				    "not met ", key_s,
+				    authctxt->valid ? "" : "invalid user ",
+				    authctxt->user, ssh_remote_ipaddr(ssh),
+				    ssh_remote_port(ssh));
+				authenticated = 0;
+				goto done;
+			}
+			req_verify = (options.pubkey_auth_options &
+			    PUBKEYAUTH_VERIFY_REQUIRED) ||
+			    authopts->require_verify;
+			if (req_verify && (sig_details->sk_flags &
+			    SSH_SK_USER_VERIFICATION_REQD) == 0) {
+				error("public key %s signature for %s%s from "
+				    "%.128s port %d rejected: user "
+				    "verification requirement not met ", key_s,
 				    authctxt->valid ? "" : "invalid user ",
 				    authctxt->user, ssh_remote_ipaddr(ssh),
 				    ssh_remote_port(ssh));

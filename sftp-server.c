@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.117 2019/07/05 04:55:40 djm Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.119 2020/07/17 03:51:32 djm Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -74,7 +74,7 @@ static int init_done;
 static int readonly;
 
 /* Requests that are allowed/denied */
-static char *request_whitelist, *request_blacklist;
+static char *request_allowlist, *request_denylist;
 
 /* portable attributes, etc. */
 typedef struct Stat Stat;
@@ -164,20 +164,20 @@ request_permitted(const struct sftp_handler *h)
 		verbose("Refusing %s request in read-only mode", h->name);
 		return 0;
 	}
-	if (request_blacklist != NULL &&
-	    ((result = match_list(h->name, request_blacklist, NULL))) != NULL) {
+	if (request_denylist != NULL &&
+	    ((result = match_list(h->name, request_denylist, NULL))) != NULL) {
 		free(result);
-		verbose("Refusing blacklisted %s request", h->name);
+		verbose("Refusing denylisted %s request", h->name);
 		return 0;
 	}
-	if (request_whitelist != NULL &&
-	    ((result = match_list(h->name, request_whitelist, NULL))) != NULL) {
+	if (request_allowlist != NULL &&
+	    ((result = match_list(h->name, request_allowlist, NULL))) != NULL) {
 		free(result);
-		debug2("Permitting whitelisted %s request", h->name);
+		debug2("Permitting allowlisted %s request", h->name);
 		return 1;
 	}
-	if (request_whitelist != NULL) {
-		verbose("Refusing non-whitelisted %s request", h->name);
+	if (request_allowlist != NULL) {
+		verbose("Refusing non-allowlisted %s request", h->name);
 		return 0;
 	}
 	return 1;
@@ -799,18 +799,19 @@ process_write(u_int32_t id)
 		if (!(handle_to_flags(handle) & O_APPEND) &&
 				lseek(fd, off, SEEK_SET) == -1) {
 			status = errno_to_portable(errno);
-			error("process_write: seek failed");
+			error("%s: seek failed", __func__);
 		} else {
 /* XXX ATOMICIO ? */
 			ret = write(fd, data, len);
 			if (ret == -1) {
-				error("process_write: write failed");
+				error("%s: write: %s", __func__,
+				    strerror(errno));
 				status = errno_to_portable(errno);
 			} else if ((size_t)ret == len) {
 				status = SSH2_FX_OK;
 				handle_update_write(handle, ret);
 			} else {
-				debug2("nothing at all written");
+				debug2("%s: nothing at all written", __func__);
 				status = SSH2_FX_FAILURE;
 			}
 		}
@@ -1556,8 +1557,8 @@ sftp_server_usage(void)
 
 	fprintf(stderr,
 	    "usage: %s [-ehR] [-d start_directory] [-f log_facility] "
-	    "[-l log_level]\n\t[-P blacklisted_requests] "
-	    "[-p whitelisted_requests] [-u umask]\n"
+	    "[-l log_level]\n\t[-P denied_requests] "
+	    "[-p allowed_requests] [-u umask]\n"
 	    "       %s -Q protocol_feature\n",
 	    __progname, __progname);
 	exit(1);
@@ -1627,14 +1628,14 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 			free(cp);
 			break;
 		case 'p':
-			if (request_whitelist != NULL)
+			if (request_allowlist != NULL)
 				fatal("Permitted requests already set");
-			request_whitelist = xstrdup(optarg);
+			request_allowlist = xstrdup(optarg);
 			break;
 		case 'P':
-			if (request_blacklist != NULL)
+			if (request_denylist != NULL)
 				fatal("Refused requests already set");
-			request_blacklist = xstrdup(optarg);
+			request_denylist = xstrdup(optarg);
 			break;
 		case 'u':
 			errno = 0;

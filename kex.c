@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.158 2020/03/13 04:01:56 djm Exp $ */
+/* $OpenBSD: kex.c,v 1.159 2020/07/05 23:59:45 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -247,7 +247,7 @@ kex_assemble_names(char **listp, const char *def, const char *all)
 		list = tmp;
 	} else if (*list == '-') {
 		/* Remove names from default list */
-		if ((*listp = match_filter_blacklist(def, list + 1)) == NULL) {
+		if ((*listp = match_filter_denylist(def, list + 1)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
 			goto fail;
 		}
@@ -284,7 +284,7 @@ kex_assemble_names(char **listp, const char *def, const char *all)
 			goto fail;
 		}
 		free(matching);
-		if ((matching = match_filter_whitelist(all, cp)) == NULL) {
+		if ((matching = match_filter_allowlist(all, cp)) == NULL) {
 			r = SSH_ERR_ALLOC_FAIL;
 			goto fail;
 		}

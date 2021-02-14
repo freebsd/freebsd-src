@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.108 2020/04/20 04:44:47 djm Exp $
+#	$OpenBSD: Makefile,v 1.109 2020/06/19 05:07:09 dtucker Exp $
 
 tests:		prep file-tests t-exec unit
 
@@ -41,6 +41,7 @@ LTESTS= 	connect \
 		agent-getpeereid \
 		agent-timeout \
 		agent-ptrace \
+		agent-subprocess \
 		keyscan \
 		keygen-change \
 		keygen-convert \
@@ -250,6 +251,8 @@ unit:
 		$$V ${.OBJDIR}/unittests/sshbuf/test_sshbuf ; \
 		$$V ${.OBJDIR}/unittests/sshkey/test_sshkey \
 			-d ${.CURDIR}/unittests/sshkey/testdata ; \
+		$$V ${.OBJDIR}/unittests/sshsig/test_sshsig \
+			-d ${.CURDIR}/unittests/sshsig/testdata ; \
 		$$V ${.OBJDIR}/unittests/bitmap/test_bitmap ; \
 		$$V ${.OBJDIR}/unittests/conversion/test_conversion ; \
 		$$V ${.OBJDIR}/unittests/kex/test_kex ; \

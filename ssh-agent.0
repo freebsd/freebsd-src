@@ -5,7 +5,9 @@ NAME
 
 SYNOPSIS
      ssh-agent [-c | -s] [-Dd] [-a bind_address] [-E fingerprint_hash]
-               [-P provider_whitelist] [-t life] [command [arg ...]]
+               [-P allowed_providers] [-t life]
+     ssh-agent [-a bind_address] [-E fingerprint_hash] [-P allowed_providers]
+               [-t life] command [arg ...]
      ssh-agent [-c | -s] -k
 
 DESCRIPTION
@@ -37,13 +39,13 @@ DESCRIPTION
      -k      Kill the current agent (given by the SSH_AGENT_PID environment
              variable).
 
-     -P provider_whitelist
-             Specify a pattern-list of acceptable paths for PKCS#11 and FIDO
-             authenticator shared libraries that may be used with the -S or -s
-             options to ssh-add(1).  Libraries that do not match the whitelist
-             will be refused.  See PATTERNS in ssh_config(5) for a description
-             of pattern-list syntax.  The default whitelist is
-             M-bM-^@M-^\/usr/lib/*,/usr/local/lib/*M-bM-^@M-^].
+     -P allowed_providers
+             Specify a pattern-list of acceptable paths for PKCS#11 provider
+             and FIDO authenticator middleware shared libraries that may be
+             used with the -S or -s options to ssh-add(1).  Libraries that do
+             not match the pattern list will be refused.  See PATTERNS in
+             ssh_config(5) for a description of pattern-list syntax.  The
+             default list is M-bM-^@M-^\/usr/lib/*,/usr/local/lib/*M-bM-^@M-^].
 
      -s      Generate Bourne shell commands on stdout.  This is the default if
              SHELL does not look like it's a csh style of shell.
@@ -114,4 +116,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.7                    December 21, 2019                   OpenBSD 6.7
+OpenBSD 6.8                      June 22, 2020                     OpenBSD 6.8

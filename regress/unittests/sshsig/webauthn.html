@@ -1,0 +1,692 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>webauthn test</title>
+</head>
+<body onload="init()">
+<h1>webauthn test</h1>
+<p>
+This is a demo/test page for generating FIDO keys and signatures in SSH
+formats. The page initially displays a form to generate a FIDO key and
+convert it to a SSH public key.
+</p>
+<p>
+Once a key has been generated, an additional form will be displayed to
+allow signing of data using the just-generated key. The data may be signed
+as either a raw SSH signature or wrapped in a sshsig message (the latter is
+easier to test using command-line tools.
+</p>
+<p>
+Lots of debugging is printed along the way.
+</p>
+<h2>Enroll</h2>
+<span id="error" style="color: #800; font-weight: bold; font-size: 150%;"></span>
+<form id="enrollform">
+<table>
+<tr>
+<td><b>Username:</b></td>
+<td><input id="username" type="text" size="20" name="user" value="test" /></td>
+</tr>
+<tr><td></td><td><input id="assertsubmit" type="submit" value="submit" /></td></tr>
+</table>
+</form>
+<span id="enrollresult" style="visibility: hidden;">
+<h2>clientData</h2>
+<pre id="enrollresultjson" style="color: #008; font-family: monospace;"></pre>
+<h2>attestationObject raw</h2>
+<pre id="enrollresultraw" style="color: #008; font-family: monospace;"></pre>
+<h2>attestationObject</h2>
+<pre id="enrollresultattestobj" style="color: #008; font-family: monospace;"></pre>
+<h2>authData raw</h2>
+<pre id="enrollresultauthdataraw" style="color: #008; font-family: monospace;"></pre>
+<h2>authData</h2>
+<pre id="enrollresultauthdata" style="color: #008; font-family: monospace;"></pre>
+<h2>SSH pubkey blob</h2>
+<pre id="enrollresultpkblob" style="color: #008; font-family: monospace;"></pre>
+<h2>SSH pubkey string</h2>
+<pre id="enrollresultpk" style="color: #008; font-family: monospace;"></pre>
+</span>
+<span id="assertsection" style="visibility: hidden;">
+<h2>Assert</h2>
+<form id="assertform">
+<span id="asserterror" style="color: #800; font-weight: bold;"></span>
+<table>
+<tr>
+<td><b>Data to sign:</b></td>
+<td><input id="message" type="text" size="20" name="message" value="test" /></td>
+</tr>
+<tr>
+<td><input id="message_sshsig" type="checkbox" checked /> use sshsig format</td>
+</tr>
+<tr>
+<td><b>Signature namespace:</b></td>
+<td><input id="message_namespace" type="text" size="20" name="namespace" value="test" /></td>
+</tr>
+<tr><td></td><td><input type="submit" value="submit" /></td></tr>
+</table>
+</form>
+</span>
+<span id="assertresult" style="visibility: hidden;">
+<h2>clientData</h2>
+<pre id="assertresultjson" style="color: #008; font-family: monospace;"></pre>
+<h2>signature raw</h2>
+<pre id="assertresultsigraw" style="color: #008; font-family: monospace;"></pre>
+<h2>authenticatorData raw</h2>
+<pre id="assertresultauthdataraw" style="color: #008; font-family: monospace;"></pre>
+<h2>authenticatorData</h2>
+<pre id="assertresultauthdata" style="color: #008; font-family: monospace;"></pre>
+<h2>signature in SSH format</h2>
+<pre id="assertresultsshsigraw" style="color: #008; font-family: monospace;"></pre>
+<h2>signature in SSH format (base64 encoded)</h2>
+<pre id="assertresultsshsigb64" style="color: #008; font-family: monospace;"></pre>
+</span>
+</body>
+<script>
+// ------------------------------------------------------------------
+// a crappy CBOR decoder - 20200401 djm@openbsd.org
+
+var CBORDecode = function(buffer) {
+	this.buf = buffer
+	this.v = new DataView(buffer)
+	this.offset = 0
+}
+
+CBORDecode.prototype.empty = function() {
+	return this.offset >= this.buf.byteLength
+}
+
+CBORDecode.prototype.getU8 = function() {
+	let r = this.v.getUint8(this.offset)
+	this.offset += 1
+	return r
+}
+
+CBORDecode.prototype.getU16 = function() {
+	let r = this.v.getUint16(this.offset)
+	this.offset += 2
+	return r
+}
+
+CBORDecode.prototype.getU32 = function() {
+	let r = this.v.getUint32(this.offset)
+	this.offset += 4
+	return r
+}
+
+CBORDecode.prototype.getU64 = function() {
+	let r = this.v.getUint64(this.offset)
+	this.offset += 8
+	return r
+}
+
+CBORDecode.prototype.getCBORTypeLen = function() {
+	let tl, t, l
+	tl = this.getU8()
+	t = (tl & 0xe0) >> 5
+	l = tl & 0x1f
+	return [t, this.decodeInteger(l)]
+}
+
+CBORDecode.prototype.decodeInteger = function(len) {
+	switch (len) {
+	case 0x18: return this.getU8()
+	case 0x19: return this.getU16()
+	case 0x20: return this.getU32()
+	case 0x21: return this.getU64()
+	default:
+		if (len <= 23) {
+			return len
+		}
+		throw new Error("Unsupported int type 0x" + len.toString(16))
+	}
+}
+
+CBORDecode.prototype.decodeNegint = function(len) {
+	let r = -(this.decodeInteger(len) + 1)
+	return r
+}
+
+CBORDecode.prototype.decodeByteString = function(len) {
+	let r = this.buf.slice(this.offset, this.offset + len)
+	this.offset += len
+	return r
+}
+
+CBORDecode.prototype.decodeTextString = function(len) {
+	let u8dec = new TextDecoder('utf-8')
+	r = u8dec.decode(this.decodeByteString(len))
+	return r
+}
+
+CBORDecode.prototype.decodeArray = function(len, level) {
+	let r = []
+	for (let i = 0; i < len; i++) {
+		let v = this.decodeInternal(level)
+		r.push(v)
+		// console.log("decodeArray level " + level.toString() + " index " + i.toString() + " value " + JSON.stringify(v))
+	}
+	return r
+}
+
+CBORDecode.prototype.decodeMap = function(len, level) {
+	let r = {}
+	for (let i = 0; i < len; i++) {
+		let k = this.decodeInternal(level)
+		let v = this.decodeInternal(level)
+		r[k] = v
+		// console.log("decodeMap level " + level.toString() + " key " + k.toString() + " value " + JSON.stringify(v))
+		// XXX check string keys, duplicates
+	}
+	return r
+}
+
+CBORDecode.prototype.decodePrimitive = function(t) {
+	switch (t) {
+	case 20: return false
+	case 21: return true
+	case 22: return null
+	case 23: return undefined
+	default:
+		throw new Error("Unsupported primitive 0x" + t.toString(2))
+	}
+}
+
+CBORDecode.prototype.decodeInternal = function(level) {
+	if (level > 256) {
+		throw new Error("CBOR nesting too deep")
+	}
+	let t, l, r
+	[t, l] = this.getCBORTypeLen()
+	// console.log("decode level " + level.toString() + " type " + t.toString() + " len " + l.toString())
+	switch (t) {
+		case 0:
+			r = this.decodeInteger(l)
+			break
+		case 1:
+			r = this.decodeNegint(l)
+			break
+		case 2:
+			r = this.decodeByteString(l)
+			break
+		case 3:
+			r = this.decodeTextString(l)
+			break
+		case 4:
+			r = this.decodeArray(l, level + 1)
+			break
+		case 5:
+			r = this.decodeMap(l, level + 1)
+			break
+		case 6:
+			console.log("XXX ignored semantic tag " + this.decodeInteger(l).toString())
+			break;
+		case 7:
+			r = this.decodePrimitive(l)
+			break
+		default:
+			throw new Error("Unsupported type 0x" + t.toString(2) + " len " + l.toString())
+	}
+	// console.log("decode level " + level.toString() + " value " + JSON.stringify(r))
+	return r
+}
+
+CBORDecode.prototype.decode = function() {
+	return this.decodeInternal(0)
+}
+
+// ------------------------------------------------------------------
+// a crappy SSH message packer - 20200401 djm@openbsd.org
+
+var SSHMSG = function() {
+	this.r = []
+}
+
+SSHMSG.prototype.serialise = function() {
+	let len = 0
+	for (buf of this.r) {
+		len += buf.length
+	}
+	let r = new ArrayBuffer(len)
+	let v = new Uint8Array(r)
+	let offset = 0
+	for (buf of this.r) {
+		v.set(buf, offset)
+		offset += buf.length
+	}
+	if (offset != r.byteLength) {
+		throw new Error("djm can't count")
+	}
+	return r
+}
+
+SSHMSG.prototype.serialiseBase64 = function(v) {
+	let b = this.serialise()
+	return btoa(String.fromCharCode(...new Uint8Array(b)));
+}
+
+SSHMSG.prototype.putU8 = function(v) {
+	this.r.push(new Uint8Array([v]))
+}
+
+SSHMSG.prototype.putU32 = function(v) {
+	this.r.push(new Uint8Array([
+		(v >> 24) & 0xff,
+		(v >> 16) & 0xff,
+		(v >> 8) & 0xff,
+		(v & 0xff)
+	]))
+}
+
+SSHMSG.prototype.put = function(v) {
+	this.r.push(new Uint8Array(v))
+}
+
+SSHMSG.prototype.putString = function(v) {
+	let enc = new TextEncoder();
+	let venc = enc.encode(v)
+	this.putU32(venc.length)
+	this.put(venc)
+}
+
+SSHMSG.prototype.putSSHMSG = function(v) {
+	let msg = v.serialise()
+	this.putU32(msg.byteLength)
+	this.put(msg)
+}
+
+SSHMSG.prototype.putBytes = function(v) {
+	this.putU32(v.byteLength)
+	this.put(v)
+}
+
+SSHMSG.prototype.putECPoint = function(x, y) {
+	let x8 = new Uint8Array(x)
+	let y8 = new Uint8Array(y)
+	this.putU32(1 + x8.length + y8.length)
+	this.putU8(0x04) // Uncompressed point format.
+	this.put(x8)
+	this.put(y8)
+}
+
+// ------------------------------------------------------------------
+// webauthn to SSH glue - djm@openbsd.org 20200408
+
+function error(msg, ...args) {
+	document.getElementById("error").innerText = msg
+	console.log(msg)
+	for (const arg of args) {
+		console.dir(arg)
+	}
+}
+function hexdump(buf) {
+	const hex = Array.from(new Uint8Array(buf)).map(
+		b => b.toString(16).padStart(2, "0"))
+	const fmt = new Array()
+	for (let i = 0; i < hex.length; i++) {
+		if ((i % 16) == 0) {
+			// Prepend length every 16 bytes.
+			fmt.push(i.toString(16).padStart(4, "0"))
+			fmt.push("  ")
+		}
+		fmt.push(hex[i])
+		fmt.push(" ")
+		if ((i % 16) == 15) {
+			fmt.push("\n")
+		}
+	}
+	return fmt.join("")
+}
+function enrollform_submit(event) {
+	event.preventDefault();
+	console.log("submitted")
+	username = event.target.elements.username.value
+	if (username === "") {
+		error("no username specified")
+		return false
+	}
+	enrollStart(username)
+}
+function enrollStart(username) {
+	let challenge = new Uint8Array(32)
+	window.crypto.getRandomValues(challenge)
+	let userid = new Uint8Array(8)
+	window.crypto.getRandomValues(userid)
+
+	console.log("challenge:" + btoa(challenge))
+	console.log("userid:" + btoa(userid))
+
+	let pkopts = {
+		challenge: challenge,
+		rp: {
+			name: "mindrot.org",
+			id: "mindrot.org",
+		},
+		user: {
+			id: userid,
+			name: username,
+			displayName: username,
+		},
+		authenticatorSelection: {
+			authenticatorAttachment: "cross-platform",
+			userVerification: "discouraged",
+		},
+		pubKeyCredParams: [{alg: -7, type: "public-key"}], // ES256
+		timeout: 30 * 1000,
+	};
+	console.dir(pkopts)
+	window.enrollOpts = pkopts
+	let credpromise = navigator.credentials.create({ publicKey: pkopts });
+	credpromise.then(enrollSuccess, enrollFailure)
+}
+function enrollFailure(result) {
+	error("Enroll failed", result)
+}
+function enrollSuccess(result) {
+	console.log("Enroll succeeded")
+	console.dir(result)
+	window.enrollResult = result
+	document.getElementById("enrollresult").style.visibility = "visible"
+
+	// Show the clientData
+	let u8dec = new TextDecoder('utf-8')
+	clientData = u8dec.decode(result.response.clientDataJSON)
+	document.getElementById("enrollresultjson").innerText = clientData
+
+	// Decode and show the attestationObject
+	document.getElementById("enrollresultraw").innerText = hexdump(result.response.attestationObject)
+	let aod = new CBORDecode(result.response.attestationObject)
+	let attestationObject = aod.decode()
+	console.log("attestationObject")
+	console.dir(attestationObject)
+	document.getElementById("enrollresultattestobj").innerText = JSON.stringify(attestationObject)
+
+	// Decode and show the authData
+	document.getElementById("enrollresultauthdataraw").innerText = hexdump(attestationObject.authData)
+	let authData = decodeAuthenticatorData(attestationObject.authData, true)
+	console.log("authData")
+	console.dir(authData)
+	window.enrollAuthData = authData
+	document.getElementById("enrollresultauthdata").innerText = JSON.stringify(authData)
+
+	// Reformat the pubkey as a SSH key for easy verification
+	window.rawKey = reformatPubkey(authData.attestedCredentialData.credentialPublicKey, window.enrollOpts.rp.id)
+	console.log("SSH pubkey blob")
+	console.dir(window.rawKey)
+	document.getElementById("enrollresultpkblob").innerText = hexdump(window.rawKey)
+	let pk64 = btoa(String.fromCharCode(...new Uint8Array(window.rawKey)));
+	let pk = "sk-ecdsa-sha2-nistp256@openssh.com " + pk64
+	document.getElementById("enrollresultpk").innerText = pk
+
+	// Success: show the assertion form.
+	document.getElementById("assertsection").style.visibility = "visible"
+}
+
+function decodeAuthenticatorData(authData, expectCred) {
+	let r = new Object()
+	let v = new DataView(authData)
+
+	r.rpIdHash = authData.slice(0, 32)
+	r.flags = v.getUint8(32)
+	r.signCount = v.getUint32(33)
+
+	// Decode attestedCredentialData if present.
+	let offset = 37
+	let acd = new Object()
+	if (expectCred) {
+		acd.aaguid = authData.slice(offset, offset+16)
+		offset += 16
+		let credentialIdLength = v.getUint16(offset)     
+		offset += 2
+		acd.credentialIdLength = credentialIdLength
+		acd.credentialId = authData.slice(offset, offset+credentialIdLength)
+		offset += credentialIdLength
+		r.attestedCredentialData = acd
+	}
+	console.log("XXXXX " + offset.toString())
+	let pubkeyrest = authData.slice(offset, authData.byteLength)
+	let pkdecode = new CBORDecode(pubkeyrest)
+	if (expectCred) {
+		// XXX unsafe: doesn't mandate COSE canonical format.
+		acd.credentialPublicKey = pkdecode.decode()
+	}
+	if (!pkdecode.empty()) {
+		// Decode extensions if present.
+		r.extensions = pkdecode.decode()
+	}
+	return r
+}
+
+function reformatPubkey(pk, rpid) {
+	// pk is in COSE format. We only care about a tiny subset.
+	if (pk[1] != 2) {
+		console.dir(pk)
+		throw new Error("pubkey is not EC")
+	}
+	if (pk[-1] != 1) {
+		throw new Error("pubkey is not in P256")
+	}
+	if (pk[3] != -7) {
+		throw new Error("pubkey is not ES256")
+	}
+	if (pk[-2].byteLength != 32 || pk[-3].byteLength != 32) {
+		throw new Error("pubkey EC coords have bad length")
+	}
+	let msg = new SSHMSG()
+	msg.putString("sk-ecdsa-sha2-nistp256@openssh.com")	// Key type
+	msg.putString("nistp256")				// Key curve
+	msg.putECPoint(pk[-2], pk[-3])				// EC key
+	msg.putString(rpid)					// RP ID
+	return msg.serialise()
+}
+
+async function assertform_submit(event) {
+	event.preventDefault();
+	console.log("submitted")
+	message = event.target.elements.message.value
+	if (message === "") {
+		error("no message specified")
+		return false
+	}
+	let enc = new TextEncoder()
+	let encmsg = enc.encode(message)
+	window.assertSignRaw = !event.target.elements.message_sshsig.checked
+	console.log("using sshsig ", !window.assertSignRaw)
+	if (window.assertSignRaw) {
+		assertStart(encmsg)
+		return
+	}
+	// Format a sshsig-style message.
+	window.sigHashAlg = "sha512"
+	let msghash = await crypto.subtle.digest("SHA-512", encmsg);
+	console.log("raw message hash")
+	console.dir(msghash)
+	window.sigNamespace = event.target.elements.message_namespace.value
+	let sigbuf = new SSHMSG()
+	sigbuf.put(enc.encode("SSHSIG"))
+	sigbuf.putString(window.sigNamespace)
+	sigbuf.putU32(0) // Reserved string
+	sigbuf.putString(window.sigHashAlg)
+	sigbuf.putBytes(msghash)
+	let msg = sigbuf.serialise()
+	console.log("sigbuf")
+	console.dir(msg)
+	assertStart(msg)
+}
+
+function assertStart(message) {
+	let assertReqOpts = {
+		challenge: message,
+		rpId: "mindrot.org",
+		allowCredentials: [{
+			type: 'public-key',
+			id: window.enrollResult.rawId,
+		}],
+		userVerification: "discouraged",
+		timeout: (30 * 1000),
+	}
+	console.log("assertReqOpts")
+	console.dir(assertReqOpts)
+	window.assertReqOpts = assertReqOpts
+	let assertpromise = navigator.credentials.get({
+		publicKey: assertReqOpts
+	});
+	assertpromise.then(assertSuccess, assertFailure)
+}
+function assertFailure(result) {
+	error("Assertion failed", result)
+}
+function linewrap(s) {
+	const linelen = 70
+	let ret = ""
+	for (let i = 0; i < s.length; i += linelen) {
+		end = i + linelen
+		if (end > s.length) {
+			end = s.length
+		}
+		if (i > 0) {
+			ret += "\n"
+		}
+		ret += s.slice(i, end)
+	}
+	return ret + "\n"
+}
+function assertSuccess(result) {
+	console.log("Assertion succeeded")
+	console.dir(result)
+	window.assertResult = result
+	document.getElementById("assertresult").style.visibility = "visible"
+
+	// show the clientData.
+	let u8dec = new TextDecoder('utf-8')
+	clientData = u8dec.decode(result.response.clientDataJSON)
+	document.getElementById("assertresultjson").innerText = clientData
+
+	// show the signature.
+	document.getElementById("assertresultsigraw").innerText = hexdump(result.response.signature)
+	
+	// decode and show the authData.
+	document.getElementById("assertresultauthdataraw").innerText = hexdump(result.response.authenticatorData)
+	authData = decodeAuthenticatorData(result.response.authenticatorData, false)
+	document.getElementById("assertresultauthdata").innerText = JSON.stringify(authData)
+
+	// Parse and reformat the signature to an SSH style signature.
+	let sshsig = reformatSignature(result.response.signature, clientData, authData)
+	document.getElementById("assertresultsshsigraw").innerText = hexdump(sshsig)
+	let sig64 = btoa(String.fromCharCode(...new Uint8Array(sshsig)));
+	if (window.assertSignRaw) {
+		document.getElementById("assertresultsshsigb64").innerText = sig64
+	} else {
+		document.getElementById("assertresultsshsigb64").innerText =
+		    "-----BEGIN SSH SIGNATURE-----\n" + linewrap(sig64) +
+		    "-----END SSH SIGNATURE-----\n";
+	}
+}
+
+function reformatSignature(sig, clientData, authData) {
+	if (sig.byteLength < 2) {
+		throw new Error("signature is too short")
+	}
+	let offset = 0
+	let v = new DataView(sig)
+	// Expect an ASN.1 SEQUENCE that exactly spans the signature.
+	if (v.getUint8(offset) != 0x30) {
+		throw new Error("signature not an ASN.1 sequence")
+	}
+	offset++
+	let seqlen = v.getUint8(offset)
+	offset++
+	if ((seqlen & 0x80) != 0 || seqlen != sig.byteLength - offset) {
+		throw new Error("signature has unexpected length " + seqlen.toString() + " vs expected " + (sig.byteLength - offset).toString())
+	}
+
+	// Parse 'r' INTEGER value.
+	if (v.getUint8(offset) != 0x02) {
+		throw new Error("signature r not an ASN.1 integer")
+	}
+	offset++
+	let rlen = v.getUint8(offset)
+	offset++
+	if ((rlen & 0x80) != 0 || rlen > sig.byteLength - offset) {
+		throw new Error("signature r has unexpected length " + rlen.toString() + " vs buffer " + (sig.byteLength - offset).toString())
+	}
+	let r = sig.slice(offset, offset + rlen)
+	offset += rlen
+	console.log("sig_r")
+	console.dir(r)
+
+	// Parse 's' INTEGER value.
+	if (v.getUint8(offset) != 0x02) {
+		throw new Error("signature r not an ASN.1 integer")
+	}
+	offset++
+	let slen = v.getUint8(offset)
+	offset++
+	if ((slen & 0x80) != 0 || slen > sig.byteLength - offset) {
+		throw new Error("signature s has unexpected length " + slen.toString() + " vs buffer " + (sig.byteLength - offset).toString())
+	}
+	let s = sig.slice(offset, offset + slen)
+	console.log("sig_s")
+	console.dir(s)
+	offset += slen
+
+	if (offset != sig.byteLength) {
+		throw new Error("unexpected final offset during signature parsing " + offset.toString() + " expected " + sig.byteLength.toString())
+	}
+	
+	// Reformat as an SSH signature.
+	let clientDataParsed = JSON.parse(clientData)
+	let innersig = new SSHMSG()
+	innersig.putBytes(r)
+	innersig.putBytes(s)
+
+	let rawsshsig = new SSHMSG()
+	rawsshsig.putString("webauthn-sk-ecdsa-sha2-nistp256@openssh.com")
+	rawsshsig.putSSHMSG(innersig)
+	rawsshsig.putU8(authData.flags)
+	rawsshsig.putU32(authData.signCount)
+	rawsshsig.putString(clientDataParsed.origin)
+	rawsshsig.putString(clientData)
+	if (authData.extensions == undefined) {
+		rawsshsig.putU32(0)
+	} else {
+		rawsshsig.putBytes(authData.extensions)
+	}
+
+	if (window.assertSignRaw) {
+		return rawsshsig.serialise()
+	}
+	// Format as SSHSIG.
+	let enc = new TextEncoder()
+	let sshsig = new SSHMSG()
+	sshsig.put(enc.encode("SSHSIG"))
+	sshsig.putU32(0x01) // Signature version.
+	sshsig.putBytes(window.rawKey)
+	sshsig.putString(window.sigNamespace)
+	sshsig.putU32(0) // Reserved string
+	sshsig.putString(window.sigHashAlg)
+	sshsig.putBytes(rawsshsig.serialise())
+	return sshsig.serialise()
+}
+
+function toggleNamespaceVisibility() {
+	const assertsigtype = document.getElementById('message_sshsig');
+	const assertsignamespace = document.getElementById('message_namespace');
+	assertsignamespace.disabled = !assertsigtype.checked;
+}
+
+function init() {
+	if (document.location.protocol != "https:") {
+		error("This page must be loaded via https")
+		const assertsubmit = document.getElementById('assertsubmit')
+		assertsubmit.disabled = true
+	}
+	const enrollform = document.getElementById('enrollform');
+	enrollform.addEventListener('submit', enrollform_submit);
+	const assertform = document.getElementById('assertform');
+	assertform.addEventListener('submit', assertform_submit);
+	const assertsigtype = document.getElementById('message_sshsig');
+	assertsigtype.onclick = toggleNamespaceVisibility;
+}
+</script>
+
+</html>

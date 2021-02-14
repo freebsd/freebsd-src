@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.321 2020/04/17 03:38:47 djm Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.326 2020/09/18 05:23:03 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -102,12 +102,25 @@ verify_host_key_callback(struct sshkey *hostkey, struct ssh *ssh)
 	return 0;
 }
 
+/* Returns the first item from a comma-separated algorithm list */
+static char *
+first_alg(const char *algs)
+{
+	char *ret, *cp;
+
+	ret = xstrdup(algs);
+	if ((cp = strchr(ret, ',')) != NULL)
+		*cp = '\0';
+	return ret;
+}
+
 static char *
 order_hostkeyalgs(char *host, struct sockaddr *hostaddr, u_short port)
 {
-	char *oavail, *avail, *first, *last, *alg, *hostname, *ret;
+	char *oavail = NULL, *avail = NULL, *first = NULL, *last = NULL;
+	char *alg = NULL, *hostname = NULL, *ret = NULL, *best = NULL;
 	size_t maxlen;
-	struct hostkeys *hostkeys;
+	struct hostkeys *hostkeys = NULL;
 	int ktype;
 	u_int i;
 
@@ -119,6 +132,26 @@ order_hostkeyalgs(char *host, struct sockaddr *hostaddr, u_short port)
 	for (i = 0; i < options.num_system_hostfiles; i++)
 		load_hostkeys(hostkeys, hostname, options.system_hostfiles[i]);
 
+	/*
+	 * If a plain public key exists that matches the type of the best
+	 * preference HostkeyAlgorithms, then use the whole list as is.
+	 * Note that we ignore whether the best preference algorithm is a
+	 * certificate type, as sshconnect.c will downgrade certs to
+	 * plain keys if necessary.
+	 */
+	best = first_alg(options.hostkeyalgorithms);
+	if (lookup_key_in_hostkeys_by_type(hostkeys,
+	    sshkey_type_plain(sshkey_type_from_name(best)), NULL)) {
+		debug3("%s: have matching best-preference key type %s, "
+		    "using HostkeyAlgorithms verbatim", __func__, best);
+		ret = xstrdup(options.hostkeyalgorithms);
+		goto out;
+	}
+
+	/*
+	 * Otherwise, prefer the host key algorithms that match known keys
+	 * while keeping the ordering of HostkeyAlgorithms as much as possible.
+	 */
 	oavail = avail = xstrdup(options.hostkeyalgorithms);
 	maxlen = strlen(avail) + 1;
 	first = xmalloc(maxlen);
@@ -135,11 +168,23 @@ order_hostkeyalgs(char *host, struct sockaddr *hostaddr, u_short port)
 	while ((alg = strsep(&avail, ",")) && *alg != '\0') {
 		if ((ktype = sshkey_type_from_name(alg)) == KEY_UNSPEC)
 			fatal("%s: unknown alg %s", __func__, alg);
-		if (lookup_key_in_hostkeys_by_type(hostkeys,
-		    sshkey_type_plain(ktype), NULL))
+		/*
+		 * If we have a @cert-authority marker in known_hosts then
+		 * prefer all certificate algorithms.
+		 */
+		if (sshkey_type_is_cert(ktype) &&
+		    lookup_marker_in_hostkeys(hostkeys, MRK_CA)) {
 			ALG_APPEND(first, alg);
-		else
-			ALG_APPEND(last, alg);
+			continue;
+		}
+		/* If the key appears in known_hosts then prefer it */
+		if (lookup_key_in_hostkeys_by_type(hostkeys,
+		    sshkey_type_plain(ktype), NULL)) {
+			ALG_APPEND(first, alg);
+			continue;
+		}
+		/* Otherwise, put it last */
+		ALG_APPEND(last, alg);
 	}
 #undef ALG_APPEND
 	xasprintf(&ret, "%s%s%s", first,
@@ -147,6 +192,8 @@ order_hostkeyalgs(char *host, struct sockaddr *hostaddr, u_short port)
 	if (*first != '\0')
 		debug3("%s: prefer hostkeyalgs: %s", __func__, first);
 
+ out:
+	free(best);
 	free(first);
 	free(last);
 	free(hostname);
@@ -1144,7 +1191,8 @@ key_sig_algorithm(struct ssh *ssh, const struct sshkey *key)
 	while ((cp = strsep(&allowed, ",")) != NULL) {
 		if (sshkey_type_from_name(cp) != key->type)
 			continue;
-		tmp = match_list(sshkey_sigalg_by_name(cp), ssh->kex->server_sig_algs, NULL);
+		tmp = match_list(sshkey_sigalg_by_name(cp),
+		    ssh->kex->server_sig_algs, NULL);
 		if (tmp != NULL)
 			alg = xstrdup(cp);
 		free(tmp);
@@ -1162,7 +1210,7 @@ identity_sign(struct identity *id, u_char **sigp, size_t *lenp,
 	struct sshkey *sign_key = NULL, *prv = NULL;
 	int r = SSH_ERR_INTERNAL_ERROR;
 	struct notifier_ctx *notifier = NULL;
-	char *fp = NULL;
+	char *fp = NULL, *pin = NULL, *prompt = NULL;
 
 	*sigp = NULL;
 	*lenp = 0;
@@ -1191,20 +1239,28 @@ identity_sign(struct identity *id, u_char **sigp, size_t *lenp,
 			goto out;
 		}
 		sign_key = prv;
-		if (sshkey_is_sk(sign_key) &&
-		    (sign_key->sk_flags & SSH_SK_USER_PRESENCE_REQD)) {
-			/* XXX match batch mode should just skip these keys? */
-			if ((fp = sshkey_fingerprint(sign_key,
-			    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
-				fatal("%s: sshkey_fingerprint", __func__);
-			notifier = notify_start(options.batch_mode,
-			    "Confirm user presence for key %s %s",
-			    sshkey_type(sign_key), fp);
-			free(fp);
+		if (sshkey_is_sk(sign_key)) {
+			if ((sign_key->sk_flags &
+			    SSH_SK_USER_VERIFICATION_REQD)) {
+				xasprintf(&prompt, "Enter PIN for %s key %s: ",
+				    sshkey_type(sign_key), id->filename);
+				pin = read_passphrase(prompt, 0);
+			}
+			if ((sign_key->sk_flags & SSH_SK_USER_PRESENCE_REQD)) {
+				/* XXX should batch mode just skip these? */
+				if ((fp = sshkey_fingerprint(sign_key,
+				    options.fingerprint_hash,
+				    SSH_FP_DEFAULT)) == NULL)
+					fatal("%s: fingerprint", __func__);
+				notifier = notify_start(options.batch_mode,
+				    "Confirm user presence for key %s %s",
+				    sshkey_type(sign_key), fp);
+				free(fp);
+			}
 		}
 	}
 	if ((r = sshkey_sign(sign_key, sigp, lenp, data, datalen,
-	    alg, options.sk_provider, compat)) != 0) {
+	    alg, options.sk_provider, pin, compat)) != 0) {
 		debug("%s: sshkey_sign: %s", __func__, ssh_err(r));
 		goto out;
 	}
@@ -1219,6 +1275,9 @@ identity_sign(struct identity *id, u_char **sigp, size_t *lenp,
 	/* success */
 	r = 0;
  out:
+	free(prompt);
+	if (pin != NULL)
+		freezero(pin, strlen(pin));
 	notify_complete(notifier);
 	sshkey_free(prv);
 	return r;
@@ -1658,10 +1717,7 @@ pubkey_prepare(Authctxt *authctxt)
 		}
 		ssh_free_identitylist(idlist);
 		/* append remaining agent keys */
-		for (id = TAILQ_FIRST(&agent); id; id = TAILQ_FIRST(&agent)) {
-			TAILQ_REMOVE(&agent, id, next);
-			TAILQ_INSERT_TAIL(preferred, id, next);
-		}
+		TAILQ_CONCAT(preferred, &agent, next);
 		authctxt->agent_fd = agent_fd;
 	}
 	/* Prefer PKCS11 keys that are explicitly listed */
@@ -1687,10 +1743,7 @@ pubkey_prepare(Authctxt *authctxt)
 		}
 	}
 	/* append remaining keys from the config file */
-	for (id = TAILQ_FIRST(&files); id; id = TAILQ_FIRST(&files)) {
-		TAILQ_REMOVE(&files, id, next);
-		TAILQ_INSERT_TAIL(preferred, id, next);
-	}
+	TAILQ_CONCAT(preferred, &files, next);
 	/* finally, filter by PubkeyAcceptedKeyTypes */
 	TAILQ_FOREACH_SAFE(id, preferred, next, id2) {
 		if (id->key != NULL && !key_type_allowed_by_config(id->key)) {

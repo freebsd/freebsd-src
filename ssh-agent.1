@@ -1,4 +1,4 @@
-.\" $OpenBSD: ssh-agent.1,v 1.70 2019/12/21 20:22:34 naddy Exp $
+.\" $OpenBSD: ssh-agent.1,v 1.72 2020/06/22 05:52:05 djm Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: December 21 2019 $
+.Dd $Mdocdate: June 22 2020 $
 .Dt SSH-AGENT 1
 .Os
 .Sh NAME
@@ -46,9 +46,14 @@
 .Op Fl \&Dd
 .Op Fl a Ar bind_address
 .Op Fl E Ar fingerprint_hash
-.Op Fl P Ar provider_whitelist
+.Op Fl P Ar allowed_providers
 .Op Fl t Ar life
-.Op Ar command Op Ar arg ...
+.Nm ssh-agent
+.Op Fl a Ar bind_address
+.Op Fl E Ar fingerprint_hash
+.Op Fl P Ar allowed_providers
+.Op Fl t Ar life
+.Ar command Op Ar arg ...
 .Nm ssh-agent
 .Op Fl c | s
 .Fl k
@@ -97,19 +102,19 @@ The default is
 Kill the current agent (given by the
 .Ev SSH_AGENT_PID
 environment variable).
-.It Fl P Ar provider_whitelist
-Specify a pattern-list of acceptable paths for PKCS#11 and FIDO authenticator
-shared libraries that may be used with the
+.It Fl P Ar allowed_providers
+Specify a pattern-list of acceptable paths for PKCS#11 provider and FIDO
+authenticator middleware shared libraries that may be used with the
 .Fl S
 or
 .Fl s
 options to
 .Xr ssh-add 1 .
-Libraries that do not match the whitelist will be refused.
+Libraries that do not match the pattern list will be refused.
 See PATTERNS in
 .Xr ssh_config 5
 for a description of pattern-list syntax.
-The default whitelist is
+The default list is
 .Dq /usr/lib/*,/usr/local/lib/* .
 .It Fl s
 Generate Bourne shell commands on

@@ -1,28 +1,22 @@
-/* $OpenBSD: misc.c,v 1.147 2020/04/25 06:59:36 dtucker Exp $ */
+/* $OpenBSD: misc.c,v 1.153 2020/06/26 05:16:38 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
- * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
+ * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
+ * Copyright (c) 2004 Henning Brauer <henning@openbsd.org>
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
 
 #include "includes.h"
 
@@ -259,7 +253,7 @@ waitfd(int fd, int *timeoutp, short events)
 		errno = oerrno;
 		if (r > 0)
 			return 0;
-		else if (r == -1 && errno != EAGAIN)
+		else if (r == -1 && errno != EAGAIN && errno != EINTR)
 			return -1;
 		else if (r == 0)
 			break;
@@ -298,12 +292,17 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
 		return connect(sockfd, serv_addr, addrlen);
 
 	set_nonblock(sockfd);
-	if (connect(sockfd, serv_addr, addrlen) == 0) {
-		/* Succeeded already? */
-		unset_nonblock(sockfd);
-		return 0;
-	} else if (errno != EINPROGRESS)
-		return -1;
+	for (;;) {
+		if (connect(sockfd, serv_addr, addrlen) == 0) {
+			/* Succeeded already? */
+			unset_nonblock(sockfd);
+			return 0;
+		} else if (errno == EINTR)
+			continue;
+		else if (errno != EINPROGRESS)
+			return -1;
+		break;
+	}
 
 	if (waitfd(sockfd, timeoutp, POLLIN | POLLOUT) == -1)
 		return -1;
@@ -493,7 +492,7 @@ a2tun(const char *s, int *remote)
 long
 convtime(const char *s)
 {
-	long total, secs, multiplier = 1;
+	long total, secs, multiplier;
 	const char *p;
 	char *endp;
 
@@ -511,6 +510,7 @@ convtime(const char *s)
 		    secs < 0)
 			return -1;
 
+		multiplier = 1;
 		switch (*endp++) {
 		case '\0':
 			endp--;
@@ -549,6 +549,43 @@ convtime(const char *s)
 	}
 
 	return total;
+}
+
+#define TF_BUFS	8
+#define TF_LEN	9
+
+const char *
+fmt_timeframe(time_t t)
+{
+	char		*buf;
+	static char	 tfbuf[TF_BUFS][TF_LEN];	/* ring buffer */
+	static int	 idx = 0;
+	unsigned int	 sec, min, hrs, day;
+	unsigned long long	week;
+
+	buf = tfbuf[idx++];
+	if (idx == TF_BUFS)
+		idx = 0;
+
+	week = t;
+
+	sec = week % 60;
+	week /= 60;
+	min = week % 60;
+	week /= 60;
+	hrs = week % 24;
+	week /= 24;
+	day = week % 7;
+	week /= 7;
+
+	if (week > 0)
+		snprintf(buf, TF_LEN, "%02lluw%01ud%02uh", week, day, hrs);
+	else if (day > 0)
+		snprintf(buf, TF_LEN, "%01ud%02uh%02um", day, hrs, min);
+	else
+		snprintf(buf, TF_LEN, "%02u:%02u:%02u", hrs, min, sec);
+
+	return (buf);
 }
 
 /*
@@ -1052,45 +1089,90 @@ tilde_expand_filename(const char *filename, uid_t uid)
 }
 
 /*
- * Expand a string with a set of %[char] escapes. A number of escapes may be
- * specified as (char *escape_chars, char *replacement) pairs. The list must
- * be terminated by a NULL escape_char. Returns replaced string in memory
- * allocated by xmalloc.
+ * Expand a string with a set of %[char] escapes and/or ${ENVIRONMENT}
+ * substitutions.  A number of escapes may be specified as
+ * (char *escape_chars, char *replacement) pairs. The list must be terminated
+ * by a NULL escape_char. Returns replaced string in memory allocated by
+ * xmalloc which the caller must free.
  */
-char *
-percent_expand(const char *string, ...)
+static char *
+vdollar_percent_expand(int *parseerror, int dollar, int percent,
+    const char *string, va_list ap)
 {
 #define EXPAND_MAX_KEYS	16
-	u_int num_keys, i;
+	u_int num_keys = 0, i;
 	struct {
 		const char *key;
 		const char *repl;
 	} keys[EXPAND_MAX_KEYS];
 	struct sshbuf *buf;
-	va_list ap;
-	int r;
-	char *ret;
+	int r, missingvar = 0;
+	char *ret = NULL, *var, *varend, *val;
+	size_t len;
 
 	if ((buf = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __func__);
+	if (parseerror == NULL)
+		fatal("%s: null parseerror arg", __func__);
+	*parseerror = 1;
 
-	/* Gather keys */
-	va_start(ap, string);
-	for (num_keys = 0; num_keys < EXPAND_MAX_KEYS; num_keys++) {
-		keys[num_keys].key = va_arg(ap, char *);
-		if (keys[num_keys].key == NULL)
-			break;
-		keys[num_keys].repl = va_arg(ap, char *);
-		if (keys[num_keys].repl == NULL)
-			fatal("%s: NULL replacement", __func__);
+	/* Gather keys if we're doing percent expansion. */
+	if (percent) {
+		for (num_keys = 0; num_keys < EXPAND_MAX_KEYS; num_keys++) {
+			keys[num_keys].key = va_arg(ap, char *);
+			if (keys[num_keys].key == NULL)
+				break;
+			keys[num_keys].repl = va_arg(ap, char *);
+			if (keys[num_keys].repl == NULL)
+				fatal("%s: NULL replacement for token %s", __func__, keys[num_keys].key);
+		}
+		if (num_keys == EXPAND_MAX_KEYS && va_arg(ap, char *) != NULL)
+			fatal("%s: too many keys", __func__);
+		if (num_keys == 0)
+			fatal("%s: percent expansion without token list",
+			    __func__);
 	}
-	if (num_keys == EXPAND_MAX_KEYS && va_arg(ap, char *) != NULL)
-		fatal("%s: too many keys", __func__);
-	va_end(ap);
 
 	/* Expand string */
 	for (i = 0; *string != '\0'; string++) {
-		if (*string != '%') {
+		/* Optionally process ${ENVIRONMENT} expansions. */
+		if (dollar && string[0] == '$' && string[1] == '{') {
+			string += 2;  /* skip over '${' */
+			if ((varend = strchr(string, '}')) == NULL) {
+				error("%s: environment variable '%s' missing "
+				   "closing '}'", __func__, string);
+				goto out;
+			}
+			len = varend - string;
+			if (len == 0) {
+				error("%s: zero-length environment variable",
+				    __func__);
+				goto out;
+			}
+			var = xmalloc(len + 1);
+			(void)strlcpy(var, string, len + 1);
+			if ((val = getenv(var)) == NULL) {
+				error("%s: env var ${%s} has no value",
+				    __func__, var);
+				missingvar = 1;
+			} else {
+				debug3("%s: expand ${%s} -> '%s'", __func__,
+				    var, val);
+				if ((r = sshbuf_put(buf, val, strlen(val))) !=0)
+					fatal("%s: sshbuf_put: %s", __func__,
+					    ssh_err(r));
+			}
+			free(var);
+			string += len;
+			continue;
+		}
+
+		/*
+		 * Process percent expansions if we have a list of TOKENs.
+		 * If we're not doing percent expansion everything just gets
+		 * appended here.
+		 */
+		if (*string != '%' || !percent) {
  append:
 			if ((r = sshbuf_put_u8(buf, *string)) != 0) {
 				fatal("%s: sshbuf_put_u8: %s",
@@ -1102,8 +1184,10 @@ percent_expand(const char *string, ...)
 		/* %% case */
 		if (*string == '%')
 			goto append;
-		if (*string == '\0')
-			fatal("%s: invalid format", __func__);
+		if (*string == '\0') {
+			error("%s: invalid format", __func__);
+			goto out;
+		}
 		for (i = 0; i < num_keys; i++) {
 			if (strchr(keys[i].key, *string) != NULL) {
 				if ((r = sshbuf_put(buf, keys[i].repl,
@@ -1114,14 +1198,77 @@ percent_expand(const char *string, ...)
 				break;
 			}
 		}
-		if (i >= num_keys)
-			fatal("%s: unknown key %%%c", __func__, *string);
+		if (i >= num_keys) {
+			error("%s: unknown key %%%c", __func__, *string);
+			goto out;
+		}
 	}
-	if ((ret = sshbuf_dup_string(buf)) == NULL)
+	if (!missingvar && (ret = sshbuf_dup_string(buf)) == NULL)
 		fatal("%s: sshbuf_dup_string failed", __func__);
+	*parseerror = 0;
+ out:
 	sshbuf_free(buf);
-	return ret;
+	return *parseerror ? NULL : ret;
 #undef EXPAND_MAX_KEYS
+}
+
+/*
+ * Expand only environment variables.
+ * Note that although this function is variadic like the other similar
+ * functions, any such arguments will be unused.
+ */
+
+char *
+dollar_expand(int *parseerr, const char *string, ...)
+{
+	char *ret;
+	int err;
+	va_list ap;
+
+	va_start(ap, string);
+	ret = vdollar_percent_expand(&err, 1, 0, string, ap);
+	va_end(ap);
+	if (parseerr != NULL)
+		*parseerr = err;
+	return ret;
+}
+
+/*
+ * Returns expanded string or NULL if a specified environment variable is
+ * not defined, or calls fatal if the string is invalid.
+ */
+char *
+percent_expand(const char *string, ...)
+{
+	char *ret;
+	int err;
+	va_list ap;
+
+	va_start(ap, string);
+	ret = vdollar_percent_expand(&err, 0, 1, string, ap);
+	va_end(ap);
+	if (err)
+		fatal("%s failed", __func__);
+	return ret;
+}
+
+/*
+ * Returns expanded string or NULL if a specified environment variable is
+ * not defined, or calls fatal if the string is invalid.
+ */
+char *
+percent_dollar_expand(const char *string, ...)
+{
+	char *ret;
+	int err;
+	va_list ap;
+
+	va_start(ap, string);
+	ret = vdollar_percent_expand(&err, 1, 1, string, ap);
+	va_end(ap);
+	if (err)
+		fatal("%s failed", __func__);
+	return ret;
 }
 
 int

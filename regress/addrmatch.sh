@@ -1,4 +1,4 @@
-#	$OpenBSD: addrmatch.sh,v 1.5 2020/03/13 03:18:45 djm Exp $
+#	$OpenBSD: addrmatch.sh,v 1.6 2020/08/28 03:17:13 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="address match"
@@ -51,6 +51,18 @@ run_trial user 2001::1 somehost ::2 1234 nomatch "IP6 network"
 run_trial user ::5 somehost ::1 1234 match3 "IP6 localaddress"
 run_trial user ::5 somehost ::2 5678 match4 "IP6 localport"
 fi
+
+#
+# Check that we catch invalid address/mask in Match Address/Localaddress
+#
+for i in 10.0.1.0/8 10.0.0.1/24 2000:aa:bb:01::/56; do
+    for a in address localaddress; do
+	verbose "test invalid Match $a $i"
+	echo "Match $a $i" > $OBJ/sshd_proxy
+	${SUDO} ${SSHD} -f $OBJ/sshd_proxy -t >/dev/null 2>&1 && \
+	    fail "accepted invalid match $a $i"
+    done
+done
 
 cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
 rm $OBJ/sshd_proxy_bak

@@ -1,4 +1,4 @@
-/* $OpenBSD: authfile.c,v 1.140 2020/04/17 07:15:11 djm Exp $ */
+/* $OpenBSD: authfile.c,v 1.141 2020/06/18 23:33:38 djm Exp $ */
 /*
  * Copyright (c) 2000, 2013 Markus Friedl.  All rights reserved.
  *
@@ -263,7 +263,7 @@ int
 sshkey_load_public(const char *filename, struct sshkey **keyp, char **commentp)
 {
 	char *pubfile = NULL;
-	int r;
+	int r, oerrno;
 
 	if (keyp != NULL)
 		*keyp = NULL;
@@ -283,8 +283,14 @@ sshkey_load_public(const char *filename, struct sshkey **keyp, char **commentp)
 	if ((r = sshkey_load_pubkey_from_private(filename, keyp)) == 0)
 		goto out;
 
+	/* Pretend we couldn't find the key */
+	r = SSH_ERR_SYSTEM_ERROR;
+	errno = ENOENT;
+
  out:
+	oerrno = errno;
 	free(pubfile);
+	errno = oerrno;
 	return r;
 }
 

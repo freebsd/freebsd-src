@@ -391,6 +391,11 @@ AUTHORIZED_KEYS FILE FORMAT
              using this key.  This option only makes sense for the FIDO
              authenticator algorithms ecdsa-sk and ed25519-sk.
 
+     verify-required
+             Require that signatures made using this key attest that they
+             verified the user, e.g. via a PIN.  This option only makes sense
+             for the FIDO authenticator algorithms ecdsa-sk and ed25519-sk.
+
      restrict
              Enable all restrictions, i.e. disable port, agent and X11
              forwarding, as well as disabling PTY allocation and execution of
@@ -664,4 +669,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.7                    January 25, 2020                    OpenBSD 6.7
+OpenBSD 6.8                     August 27, 2020                    OpenBSD 6.8

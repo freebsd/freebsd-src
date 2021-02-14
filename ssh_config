@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.34 2019/02/04 02:39:42 dtucker Exp $
+#	$OpenBSD: ssh_config,v 1.35 2020/07/17 03:43:42 dtucker Exp $
 
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for
@@ -43,3 +43,4 @@
 #   VisualHostKey no
 #   ProxyCommand ssh -q -W %h:%p gateway.example.com
 #   RekeyLimit 1G 1h
+#   UserKnownHostsFile ~/.ssh/known_hosts.d/%k

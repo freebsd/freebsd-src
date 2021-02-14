@@ -1,4 +1,4 @@
-%global ver 8.3p1
+%global ver 8.4p1
 %global rel 1%{?dist}
 
 # OpenSSH privilege separation requires a user & group ID
@@ -363,8 +363,10 @@ fi
 %attr(0755,root,root) %dir %{_libexecdir}/openssh
 %attr(4711,root,root) %{_libexecdir}/openssh/ssh-keysign
 %attr(0755,root,root) %{_libexecdir}/openssh/ssh-pkcs11-helper
+%attr(0755,root,root) %{_libexecdir}/openssh/ssh-sk-helper
 %attr(0644,root,root) %{_mandir}/man8/ssh-keysign.8*
 %attr(0644,root,root) %{_mandir}/man8/ssh-pkcs11-helper.8*
+%attr(0644,root,root) %{_mandir}/man8/ssh-sk-helper.8*
 %endif
 %if %{scard}
 %attr(0755,root,root) %dir %{_datadir}/openssh
@@ -422,6 +424,9 @@ fi
 %endif
 
 %changelog
+* Mon Jul 20 2020 Damien Miller <djm@mindrto.org>
+- Add ssh-sk-helper and corresponding manual page.
+
 * Sat Feb 10 2018 Darren Tucker <dtucker@dtucker.net>
 - Update openssl-devel dependency to match current requirements.
 - Handle Fedora >=6 openssl 1.0 compat libs.

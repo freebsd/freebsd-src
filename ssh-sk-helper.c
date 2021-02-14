@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-sk-helper.c,v 1.9 2020/01/25 23:13:09 djm Exp $ */
+/* $OpenBSD: ssh-sk-helper.c,v 1.10 2020/05/26 01:59:46 djm Exp $ */
 /*
  * Copyright (c) 2019 Google LLC
  *
@@ -93,12 +93,12 @@ process_sign(struct sshbuf *req)
 {
 	int r = SSH_ERR_INTERNAL_ERROR;
 	struct sshbuf *resp, *kbuf;
-	struct sshkey *key;
+	struct sshkey *key = NULL;
 	uint32_t compat;
 	const u_char *message;
-	u_char *sig;
-	size_t msglen, siglen;
-	char *provider, *pin;
+	u_char *sig = NULL;
+	size_t msglen, siglen = 0;
+	char *provider = NULL, *pin = NULL;
 
 	if ((r = sshbuf_froms(req, &kbuf)) != 0 ||
 	    (r = sshbuf_get_cstring(req, &provider, NULL)) != 0 ||
@@ -134,8 +134,11 @@ process_sign(struct sshbuf *req)
 	    (r = sshbuf_put_string(resp, sig, siglen)) != 0)
 		fatal("%s: buffer error: %s", __progname, ssh_err(r));
  out:
+	sshkey_free(key);
 	sshbuf_free(kbuf);
 	free(provider);
+	if (sig != NULL)
+		freezero(sig, siglen);
 	if (pin != NULL)
 		freezero(pin, strlen(pin));
 	return resp;

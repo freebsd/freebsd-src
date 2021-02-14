@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keysign.c,v 1.63 2019/11/18 16:10:05 naddy Exp $ */
+/* $OpenBSD: ssh-keysign.c,v 1.64 2020/08/27 01:06:18 djm Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -278,7 +278,7 @@ main(int argc, char **argv)
 	}
 
 	if ((r = sshkey_sign(keys[i], &signature, &slen, data, dlen,
-	    NULL, NULL, 0)) != 0)
+	    NULL, NULL, NULL, 0)) != 0)
 		fatal("sshkey_sign failed: %s", ssh_err(r));
 	free(data);
 

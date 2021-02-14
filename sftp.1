@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.131 2020/04/23 21:28:09 jmc Exp $
+.\" $OpenBSD: sftp.1,v 1.132 2020/08/03 02:43:41 djm Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -22,7 +22,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: April 23 2020 $
+.Dd $Mdocdate: August 3 2020 $
 .Dt SFTP 1
 .Os
 .Sh NAME
@@ -30,7 +30,7 @@
 .Nd OpenSSH secure file transfer
 .Sh SYNOPSIS
 .Nm sftp
-.Op Fl 46aCfNpqrv
+.Op Fl 46AaCfNpqrv
 .Op Fl B Ar buffer_size
 .Op Fl b Ar batchfile
 .Op Fl c Ar cipher
@@ -104,6 +104,11 @@ to use IPv4 addresses only.
 Forces
 .Nm
 to use IPv6 addresses only.
+.It Fl A
+Allows forwarding of
+.Xr ssh-agent 1
+to the remote system.
+The default is not to forward an authentication agent.
 .It Fl a
 Attempt to continue interrupted transfers rather than overwriting
 existing partial or complete copies of files.

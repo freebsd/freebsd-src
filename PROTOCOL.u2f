@@ -39,6 +39,13 @@ the key handle be supplied for each signature operation. U2F tokens
 primarily use ECDSA signatures in the NIST-P256 field, though the FIDO2
 standard specifies additional key types, including one based on Ed25519.
 
+Use of U2F security keys does not automatically imply multi-factor
+authentication. From sshd's perspective, a security key constitutes a
+single factor of authentication, even if protected by a PIN or biometric
+authentication.  To enable multi-factor authentication in ssh, please
+refer to the AuthenticationMethods option in sshd_config(5).
+
+
 SSH U2F Key formats
 -------------------
 
@@ -147,6 +154,16 @@ by trusted hardware before it will issue a certificate. To support this
 case, OpenSSH optionally allows retaining the attestation information
 at the time of key generation. It will take the following format:
 
+	string		"ssh-sk-attest-v01"
+	string		attestation certificate
+	string		enrollment signature
+	string		authenticator data (CBOR encoded)
+	uint32		reserved flags
+	string		reserved string
+
+A previous version of this format, emitted prior to OpenSSH 8.4 omitted
+the authenticator data.
+
 	string		"ssh-sk-attest-v00"
 	string		attestation certificate
 	string		enrollment signature
@@ -202,6 +219,32 @@ For Ed25519 keys the signature is encoded as:
 	byte		flags
 	uint32		counter
 
+webauthn signatures
+-------------------
+
+The W3C/FIDO webauthn[1] standard defines a mechanism for a web browser to
+interact with FIDO authentication tokens. This standard builds upon the
+FIDO standards, but requires different signature contents to raw FIDO
+messages. OpenSSH supports ECDSA/p256 webauthn signatures through the
+"webauthn-sk-ecdsa-sha2-nistp256@openssh.com" signature algorithm.
+
+The wire encoding for a webauthn-sk-ecdsa-sha2-nistp256@openssh.com
+signature is similar to the sk-ecdsa-sha2-nistp256@openssh.com format:
+
+	string		"webauthn-sk-ecdsa-sha2-nistp256@openssh.com"
+	string		ecdsa_signature
+	byte		flags
+	uint32		counter
+	string		origin
+	string		clientData
+	string		extensions
+
+Where "origin" is the HTTP origin making the signature, "clientData" is
+the JSON-like structure signed by the browser and "extensions" are any
+extensions used in making the signature.
+
+[1] https://www.w3.org/TR/webauthn-2/
+
 ssh-agent protocol extensions
 -----------------------------
 
@@ -234,87 +277,15 @@ regress testing. For this reason, OpenSSH shall support a dynamically-
 loaded middleware libraries to communicate with security keys, but offer
 support for the common case of USB HID security keys internally.
 
-The middleware library need only expose a handful of functions:
-
-	#define SSH_SK_VERSION_MAJOR		0x00050000 /* API version */
-	#define SSH_SK_VERSION_MAJOR_MASK	0xffff0000
-
-	/* Flags */
-	#define SSH_SK_USER_PRESENCE_REQD	0x01
-	#define SSH_SK_USER_VERIFICATION_REQD	0x04
-	#define SSH_SK_RESIDENT_KEY		0x20
-
-	/* Algs */
-	#define SSH_SK_ECDSA                   0x00
-	#define SSH_SK_ED25519                 0x01
-
-	/* Error codes */
-	#define SSH_SK_ERR_GENERAL		-1
-	#define SSH_SK_ERR_UNSUPPORTED		-2
-	#define SSH_SK_ERR_PIN_REQUIRED		-3
-	#define SSH_SK_ERR_DEVICE_NOT_FOUND	-4
-
-	struct sk_enroll_response {
-		uint8_t *public_key;
-		size_t public_key_len;
-		uint8_t *key_handle;
-		size_t key_handle_len;
-		uint8_t *signature;
-		size_t signature_len;
-		uint8_t *attestation_cert;
-		size_t attestation_cert_len;
-	};
-
-	struct sk_sign_response {
-		uint8_t flags;
-		uint32_t counter;
-		uint8_t *sig_r;
-		size_t sig_r_len;
-		uint8_t *sig_s;
-		size_t sig_s_len;
-	};
-
-	struct sk_resident_key {
-		uint32_t alg;
-		size_t slot;
-		char *application;
-		struct sk_enroll_response key;
-	};
-
-	struct sk_option {
-		char *name;
-		char *value;
-		uint8_t important;
-	};
-
-	/* Return the version of the middleware API */
-	uint32_t sk_api_version(void);
-
-	/* Enroll a U2F key (private key generation) */
-	int sk_enroll(uint32_t alg,
-	    const uint8_t *challenge, size_t challenge_len,
-	    const char *application, uint8_t flags, const char *pin,
-	    struct sk_option **options,
-	    struct sk_enroll_response **enroll_response);
-
-	/* Sign a challenge */
-	int sk_sign(uint32_t alg, const uint8_t *message, size_t message_len,
-	    const char *application,
-	    const uint8_t *key_handle, size_t key_handle_len,
-	    uint8_t flags, const char *pin, struct sk_option **options,
-	    struct sk_sign_response **sign_response);
-
-	/* Enumerate all resident keys */
-	int sk_load_resident_keys(const char *pin, struct sk_option **options,
-	    struct sk_resident_key ***rks, size_t *nrks);
-
-The SSH_SK_VERSION_MAJOR should be incremented for each incompatible
+The middleware library need only expose a handful of functions and
+numbers listed in sk-api.h. Included in the defined numbers is a
+SSH_SK_VERSION_MAJOR that should be incremented for each incompatible
 API change.
 
-The options may be used to pass miscellaneous options to the middleware
-as a NULL-terminated array of pointers to struct sk_option. The middleware
-may ignore unsupported or unknown options unless the "important" flag is
-set, in which case it should return failure if an unsupported option is
+miscellaneous options may be passed to the middleware as a NULL-
+terminated array of pointers to struct sk_option. The middleware may
+ignore unsupported or unknown options unless the "required" flag is set,
+in which case it should return failure if an unsupported option is
 requested.
 
 At present the following options names are supported:
@@ -335,3 +306,4 @@ In OpenSSH, the middleware will be invoked by using a similar mechanism to
 ssh-pkcs11-helper to provide address-space containment of the
 middleware from ssh-agent.
 
+$OpenBSD: PROTOCOL.u2f,v 1.26 2020/09/09 03:08:01 djm Exp $

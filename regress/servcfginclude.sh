@@ -146,9 +146,43 @@ Include
 _EOF
 
 trace "disallow invalid with no argument"
-${SUDO} ${REAL_SSHD} -f $OBJ/sshd_config.i.x \
+${SUDO} ${REAL_SSHD} -f $OBJ/sshd_config.i.x -T \
     -C "host=x,user=test,addr=127.0.0.1" 2>/dev/null && \
 	fail "sshd allowed Include with no argument"
+
+# Ensure the Include before any Match block works as expected (bug #3122)
+cat > $OBJ/sshd_config.i << _EOF
+Banner /xx
+HostKey $OBJ/host.ssh-ed25519
+Include $OBJ/sshd_config.i.2
+Match host a
+	Banner /aaaa
+_EOF
+cat > $OBJ/sshd_config.i.2 << _EOF
+Match host a
+	Banner /aa
+_EOF
+
+trace "Include before match blocks"
+trial a /aa "included file before match blocks is properly evaluated"
+
+# Port in included file is correctly interpretted (bug #3169)
+cat > $OBJ/sshd_config.i << _EOF
+Include $OBJ/sshd_config.i.2
+Port 7722
+_EOF
+cat > $OBJ/sshd_config.i.2 << _EOF
+HostKey $OBJ/host.ssh-ed25519
+_EOF
+
+trace "Port after included files"
+${SUDO} ${REAL_SSHD} -f $OBJ/sshd_config.i -T \
+    -C "host=x,user=test,addr=127.0.0.1" > $OBJ/sshd_config.out || \
+	fail "failed to parse Port after included files"
+_port=`grep -i '^port ' $OBJ/sshd_config.out | awk '{print $2}'`
+if test "x7722" != "x$_port" ; then
+	fail "The Port in included file was intertepretted wrongly. Expected 7722, got $_port"
+fi
 
 # cleanup
 rm -f $OBJ/sshd_config.i $OBJ/sshd_config.i.* $OBJ/sshd_config.out

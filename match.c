@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.41 2019/11/13 04:47:52 deraadt Exp $ */
+/* $OpenBSD: match.c,v 1.42 2020/07/05 23:59:45 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -309,13 +309,13 @@ match_list(const char *client, const char *server, u_int *next)
 
 /*
  * Filter proposal using pattern-list filter.
- * "blacklist" determines sense of filter:
+ * "denylist" determines sense of filter:
  * non-zero indicates that items matching filter should be excluded.
  * zero indicates that only items matching filter should be included.
  * returns NULL on allocation error, otherwise caller must free result.
  */
 static char *
-filter_list(const char *proposal, const char *filter, int blacklist)
+filter_list(const char *proposal, const char *filter, int denylist)
 {
 	size_t len = strlen(proposal) + 1;
 	char *fix_prop = malloc(len);
@@ -333,7 +333,7 @@ filter_list(const char *proposal, const char *filter, int blacklist)
 	*fix_prop = '\0';
 	while ((cp = strsep(&tmp, ",")) != NULL) {
 		r = match_pattern_list(cp, filter, 0);
-		if ((blacklist && r != 1) || (!blacklist && r == 1)) {
+		if ((denylist && r != 1) || (!denylist && r == 1)) {
 			if (*fix_prop != '\0')
 				strlcat(fix_prop, ",", len);
 			strlcat(fix_prop, cp, len);
@@ -348,7 +348,7 @@ filter_list(const char *proposal, const char *filter, int blacklist)
  * the 'filter' pattern list. Caller must free returned string.
  */
 char *
-match_filter_blacklist(const char *proposal, const char *filter)
+match_filter_denylist(const char *proposal, const char *filter)
 {
 	return filter_list(proposal, filter, 1);
 }
@@ -358,7 +358,7 @@ match_filter_blacklist(const char *proposal, const char *filter)
  * the 'filter' pattern list. Caller must free returned string.
  */
 char *
-match_filter_whitelist(const char *proposal, const char *filter)
+match_filter_allowlist(const char *proposal, const char *filter)
 {
 	return filter_list(proposal, filter, 0);
 }
