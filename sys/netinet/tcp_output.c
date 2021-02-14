@@ -785,6 +785,10 @@ send:
 #endif
 		hdrlen = sizeof (struct tcpiphdr);
 
+	if (flags & TH_SYN) {
+		tp->snd_nxt = tp->iss;
+	}
+
 	/*
 	 * Compute options for segment.
 	 * We only have to care about SYN and established connection
@@ -795,7 +799,6 @@ send:
 	if ((tp->t_flags & TF_NOOPT) == 0) {
 		/* Maximum segment size. */
 		if (flags & TH_SYN) {
-			tp->snd_nxt = tp->iss;
 			to.to_mss = tcp_mssopt(&tp->t_inpcb->inp_inc);
 			to.to_flags |= TOF_MSS;
 
