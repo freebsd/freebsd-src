@@ -3450,7 +3450,7 @@ dev/videomode/videomode.c		optional videomode
 dev/videomode/edid.c			optional videomode
 dev/videomode/pickmode.c		optional videomode
 dev/videomode/vesagtf.c			optional videomode
-dev/veriexec/verified_exec.c	optional veriexec mac_veriexec
+dev/veriexec/verified_exec.c	optional mac_veriexec
 dev/vge/if_vge.c		optional vge
 dev/viapm/viapm.c		optional viapm pci
 dev/virtio/virtio.c			optional	virtio
