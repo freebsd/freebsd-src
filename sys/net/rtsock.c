@@ -587,8 +587,6 @@ fill_addrinfo(struct rt_msghdr *rtm, int len, u_int fibnum, struct rt_addrinfo *
 	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, info))
 		return (EINVAL);
 
-	if (rtm->rtm_flags & RTF_RNH_LOCKED)
-		return (EINVAL);
 	info->rti_flags = rtm->rtm_flags;
 	if (info->rti_info[RTAX_DST] == NULL ||
 	    info->rti_info[RTAX_DST]->sa_family >= AF_MAX ||
