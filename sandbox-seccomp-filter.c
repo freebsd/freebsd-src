@@ -177,6 +177,9 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_shmdt
 	SC_DENY(__NR_shmdt, EACCES),
 #endif
+#ifdef __NR_ipc
+	SC_DENY(__NR_ipc, EACCES),
+#endif
 
 	/* Syscalls to permit */
 #ifdef __NR_brk
@@ -184,6 +187,9 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_clock_gettime
 	SC_ALLOW(__NR_clock_gettime),
+#endif
+#ifdef __NR_clock_gettime64
+	SC_ALLOW(__NR_clock_gettime64),
 #endif
 #ifdef __NR_close
 	SC_ALLOW(__NR_close),
@@ -241,6 +247,15 @@ static const struct sock_filter preauth_insns[] = {
 #endif
 #ifdef __NR_nanosleep
 	SC_ALLOW(__NR_nanosleep),
+#endif
+#ifdef __NR_clock_nanosleep
+	SC_ALLOW(__NR_clock_nanosleep),
+#endif
+#ifdef __NR_clock_nanosleep_time64
+	SC_ALLOW(__NR_clock_nanosleep_time64),
+#endif
+#ifdef __NR_clock_gettime64
+	SC_ALLOW(__NR_clock_gettime64),
 #endif
 #ifdef __NR__newselect
 	SC_ALLOW(__NR__newselect),

@@ -56,6 +56,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -99,6 +100,7 @@ extern char *__progname;
 #include "servconf.h"
 #include "ssh2.h"
 #include "auth-options.h"
+#include "misc.h"
 #ifdef GSSAPI
 #include "ssh-gss.h"
 #endif
@@ -150,12 +152,12 @@ static struct pam_ctxt *cleanup_ctxt;
  */
 
 static int sshpam_thread_status = -1;
-static mysig_t sshpam_oldsig;
+static sshsig_t sshpam_oldsig;
 
 static void
 sshpam_sigchld_handler(int sig)
 {
-	signal(SIGCHLD, SIG_DFL);
+	ssh_signal(SIGCHLD, SIG_DFL);
 	if (cleanup_ctxt == NULL)
 		return;	/* handler called after PAM cleanup, shouldn't happen */
 	if (waitpid(cleanup_ctxt->pam_thread, &sshpam_thread_status, WNOHANG)
@@ -207,7 +209,7 @@ pthread_create(sp_pthread_t *thread, const void *attr,
 		*thread = pid;
 		close(ctx->pam_csock);
 		ctx->pam_csock = -1;
-		sshpam_oldsig = signal(SIGCHLD, sshpam_sigchld_handler);
+		sshpam_oldsig = ssh_signal(SIGCHLD, sshpam_sigchld_handler);
 		return (0);
 	}
 }
@@ -215,7 +217,7 @@ pthread_create(sp_pthread_t *thread, const void *attr,
 static int
 pthread_cancel(sp_pthread_t thread)
 {
-	signal(SIGCHLD, sshpam_oldsig);
+	ssh_signal(SIGCHLD, sshpam_oldsig);
 	return (kill(thread, SIGTERM));
 }
 
@@ -227,7 +229,7 @@ pthread_join(sp_pthread_t thread, void **value)
 
 	if (sshpam_thread_status != -1)
 		return (sshpam_thread_status);
-	signal(SIGCHLD, sshpam_oldsig);
+	ssh_signal(SIGCHLD, sshpam_oldsig);
 	while (waitpid(thread, &status, 0) == -1) {
 		if (errno == EINTR)
 			continue;
@@ -299,7 +301,7 @@ sshpam_chauthtok_ruid(pam_handle_t *pamh, int flags)
 # define pam_chauthtok(a,b)	(sshpam_chauthtok_ruid((a), (b)))
 #endif
 
-void
+static void
 sshpam_password_change_required(int reqd)
 {
 	extern struct sshauthopt *auth_opts;

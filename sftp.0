@@ -1,7 +1,7 @@
 SFTP(1)                     General Commands Manual                    SFTP(1)
 
 NAME
-     sftp M-bM-^@M-^S secure file transfer program
+     sftp M-bM-^@M-^S OpenSSH secure file transfer
 
 SYNOPSIS
      sftp [-46aCfpqrv] [-B buffer_size] [-b batchfile] [-c cipher]
@@ -393,4 +393,4 @@ SEE ALSO
      T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
      filexfer-00.txt, January 2001, work in progress material.
 
-OpenBSD 6.6                      June 19, 2019                     OpenBSD 6.6
+OpenBSD 6.6                    November 30, 2019                   OpenBSD 6.6

@@ -1,16 +1,19 @@
-#	$OpenBSD: krl.sh,v 1.8 2019/07/25 09:17:35 dtucker Exp $
+#	$OpenBSD: krl.sh,v 1.11 2019/12/16 02:39:05 djm Exp $
 #	Placed in the Public Domain.
 
 tid="key revocation lists"
 
 # Use ed25519 by default since it's fast and it's supported when building
 # w/out OpenSSL.  Populate ktype[2-4] with the other types if supported.
-ktype1=ed25519; ktype2=ed25519; ktype3=ed25519; ktype4=ed25519
-for t in `${SSH} -Q key-plain`; do
+ktype1=ed25519; ktype2=ed25519; ktype3=ed25519;
+ktype4=ed25519; ktype5=ed25519; ktype6=ed25519;
+for t in $SSH_KEYTYPES; do
 	case "$t" in
 		ecdsa*)		ktype2=ecdsa ;;
 		ssh-rsa)	ktype3=rsa ;;
 		ssh-dss)	ktype4=dsa ;;
+		sk-ssh-ed25519@openssh.com)		ktype5=ed25519-sk ;;
+		sk-ecdsa-sha2-nistp256@openssh.com)	ktype6=ecdsa-sk ;;
 	esac
 done
 
@@ -34,6 +37,7 @@ serial: 10
 serial: 15
 serial: 30
 serial: 50
+serial: 90
 serial: 999
 # The following sum to 500-799
 serial: 500
@@ -51,7 +55,7 @@ EOF
 
 # A specification that revokes some certificated by key ID.
 touch $OBJ/revoked-keyid
-for n in 1 2 3 4 10 15 30 50 `jot 500 300` 999 1000 1001 1002; do
+for n in 1 2 3 4 10 15 30 50 90 `jot 500 300` 999 1000 1001 1002; do
 	test "x$n" = "x499" && continue
 	# Fill in by-ID revocation spec.
 	echo "id: revoked $n" >> $OBJ/revoked-keyid
@@ -64,9 +68,11 @@ keygen() {
 	# supported.
 	keytype=$ktype1
 	case $N in
-	2 | 10 | 510 | 1001)	keytype=$ktype2 ;;
-	4 | 30 | 520 | 1002)	keytype=$ktype3 ;;
-	8 | 50 | 530 | 1003)	keytype=$ktype4 ;;
+	2  | 10 | 510 | 1001)	keytype=$ktype2 ;;
+	4  | 30 | 520 | 1002)	keytype=$ktype3 ;;
+	8  | 50 | 530 | 1003)	keytype=$ktype4 ;;
+	16 | 70 | 540 | 1004)	keytype=$ktype5 ;;
+	32 | 90 | 550 | 1005)	keytype=$ktype6 ;;
 	esac
 	$SSHKEYGEN -t $keytype -f $f -C "" -N "" > /dev/null \
 		|| fatal "$SSHKEYGEN failed"
@@ -78,7 +84,7 @@ keygen() {
 
 # Generate some keys.
 verbose "$tid: generating test keys"
-REVOKED_SERIALS="1 4 10 50 500 510 520 799 999"
+REVOKED_SERIALS="1 4 10 50 90 500 510 520 550 799 999"
 for n in $REVOKED_SERIALS ; do
 	f=`keygen $n`
 	RKEYS="$RKEYS ${f}.pub"

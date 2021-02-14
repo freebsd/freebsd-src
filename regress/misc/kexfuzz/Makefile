@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.4 2019/01/21 12:50:12 djm Exp $
+#	$OpenBSD: Makefile,v 1.7 2020/01/26 00:09:50 djm Exp $
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>
@@ -20,6 +20,7 @@ SRCS+=ssherr.c uidswap.c cleanup.c xmalloc.c match.c krl.c fatal.c
 SRCS+=addrmatch.c bitmap.c packet.c dispatch.c canohost.c ssh_api.c
 SRCS+=compat.c ed25519.c hash.c ge25519.c fe25519.c sc25519.c verify.c
 SRCS+=cipher-chachapoly.c chacha.c poly1305.c
+SRCS+=sshbuf-io.c ssh-ecdsa-sk.c ssh-ed25519-sk.c msg.c ssh-sk-client.c
 
 SRCS+=	kex.c
 SRCS+=	dh.c
@@ -49,6 +50,9 @@ SSH1=		no
 .if (${SSH1:L} == "yes")
 CFLAGS+=	-DWITH_SSH1
 .endif
+
+LDADD+= -lfido2 -lcbor -lusbhid
+DPADD+= ${LIBFIDO2} ${LIBCBOR} ${LIBUSBHID}
 
 # enable warnings
 WARNINGS=Yes

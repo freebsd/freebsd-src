@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.h,v 1.140 2019/04/18 18:56:16 dtucker Exp $ */
+/* $OpenBSD: servconf.h,v 1.143 2020/01/31 22:42:45 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -15,6 +15,8 @@
 
 #ifndef SERVCONF_H
 #define SERVCONF_H
+
+#include <openbsd-compat/sys-queue.h>
 
 #define MAX_PORTS		256	/* Max # ports. */
 
@@ -41,6 +43,9 @@
 
 /* Magic name for internal sftp-server */
 #define INTERNAL_SFTP_NAME	"internal-sftp"
+
+/* PubkeyAuthOptions flags */
+#define PUBKEYAUTH_TOUCH_REQUIRED	1
 
 struct ssh;
 struct fwd_perm_list;
@@ -114,6 +119,7 @@ typedef struct {
 	char   *ca_sign_algorithms;	/* Allowed CA signature algorithms */
 	int     pubkey_authentication;	/* If true, permit ssh2 pubkey authentication. */
 	char   *pubkey_key_types;	/* Key types allowed for public key */
+	int	pubkey_auth_options;	/* -1 or mask of PUBKEYAUTH_* flags */
 	int     kerberos_authentication;	/* If true, permit Kerberos
 						 * authentication. */
 	int     kerberos_or_local_passwd;	/* If true, permit kerberos
@@ -211,6 +217,7 @@ typedef struct {
 	int	fingerprint_hash;
 	int	expose_userauth_info;
 	u_int64_t timing_secret;
+	char   *sk_provider;
 }       ServerOptions;
 
 /* Information about the incoming connection as used by Match */
@@ -224,6 +231,15 @@ struct connection_info {
 	int test;		/* test mode, allow some attributes to be
 				 * unspecified */
 };
+
+/* List of included files for re-exec from the parsed configuration */
+struct include_item {
+	char *selector;
+	char *filename;
+	struct sshbuf *contents;
+	TAILQ_ENTRY(include_item) entry;
+};
+TAILQ_HEAD(include_list, include_item);
 
 
 /*
@@ -264,12 +280,13 @@ struct connection_info *get_connection_info(struct ssh *, int, int);
 void	 initialize_server_options(ServerOptions *);
 void	 fill_default_server_options(ServerOptions *);
 int	 process_server_config_line(ServerOptions *, char *, const char *, int,
-	     int *, struct connection_info *);
+	     int *, struct connection_info *, struct include_list *includes);
 void	 process_permitopen(struct ssh *ssh, ServerOptions *options);
 void	 load_server_config(const char *, struct sshbuf *);
 void	 parse_server_config(ServerOptions *, const char *, struct sshbuf *,
-	     struct connection_info *);
-void	 parse_server_match_config(ServerOptions *, struct connection_info *);
+	     struct include_list *includes, struct connection_info *);
+void	 parse_server_match_config(ServerOptions *,
+	     struct include_list *includes, struct connection_info *);
 int	 parse_server_match_testspec(struct connection_info *, char *);
 int	 server_match_spec_complete(struct connection_info *);
 void	 copy_set_server_options(ServerOptions *, ServerOptions *, int);

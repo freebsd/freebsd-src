@@ -1,4 +1,4 @@
-#	$OpenBSD: sshsig.sh,v 1.2 2019/10/04 03:39:19 djm Exp $
+#	$OpenBSD: sshsig.sh,v 1.3 2019/11/26 23:43:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshsig"
@@ -23,7 +23,7 @@ CA_PRIV=$OBJ/sigca-key
 CA_PUB=$OBJ/sigca-key.pub
 
 trace "start agent"
-eval `${SSHAGENT} -s` > /dev/null
+eval `${SSHAGENT} ${EXTRA_AGENT_ARGS} -s` > /dev/null
 r=$?
 if [ $r -ne 0 ]; then
 	fatal "could not start ssh-agent: exit code $r"

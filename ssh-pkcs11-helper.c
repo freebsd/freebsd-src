@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-helper.c,v 1.21 2019/09/06 05:23:55 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11-helper.c,v 1.22 2020/01/25 00:03:36 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -26,7 +26,9 @@
 
 #include <stdlib.h>
 #include <errno.h>
+#ifdef HAVE_POLL_H
 #include <poll.h>
+#endif
 #include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
@@ -48,7 +50,7 @@
 
 struct pkcs11_keyinfo {
 	struct sshkey	*key;
-	char		*providername;
+	char		*providername, *label;
 	TAILQ_ENTRY(pkcs11_keyinfo) next;
 };
 
@@ -61,13 +63,14 @@ struct sshbuf *iqueue;
 struct sshbuf *oqueue;
 
 static void
-add_key(struct sshkey *k, char *name)
+add_key(struct sshkey *k, char *name, char *label)
 {
 	struct pkcs11_keyinfo *ki;
 
 	ki = xcalloc(1, sizeof(*ki));
 	ki->providername = xstrdup(name);
 	ki->key = k;
+	ki->label = xstrdup(label);
 	TAILQ_INSERT_TAIL(&pkcs11_keylist, ki, next);
 }
 
@@ -81,6 +84,7 @@ del_keys_by_name(char *name)
 		if (!strcmp(ki->providername, name)) {
 			TAILQ_REMOVE(&pkcs11_keylist, ki, next);
 			free(ki->providername);
+			free(ki->label);
 			sshkey_free(ki->key);
 			free(ki);
 		}
@@ -94,7 +98,7 @@ lookup_key(struct sshkey *k)
 	struct pkcs11_keyinfo *ki;
 
 	TAILQ_FOREACH(ki, &pkcs11_keylist, next) {
-		debug("check %p %s", ki, ki->providername);
+		debug("check %p %s %s", ki, ki->providername, ki->label);
 		if (sshkey_equal(k, ki->key))
 			return (ki->key);
 	}
@@ -119,13 +123,14 @@ process_add(void)
 	u_char *blob;
 	size_t blen;
 	struct sshbuf *msg;
+	char **labels = NULL;
 
 	if ((msg = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __func__);
 	if ((r = sshbuf_get_cstring(iqueue, &name, NULL)) != 0 ||
 	    (r = sshbuf_get_cstring(iqueue, &pin, NULL)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
-	if ((nkeys = pkcs11_add_provider(name, pin, &keys)) > 0) {
+	if ((nkeys = pkcs11_add_provider(name, pin, &keys, &labels)) > 0) {
 		if ((r = sshbuf_put_u8(msg,
 		    SSH2_AGENT_IDENTITIES_ANSWER)) != 0 ||
 		    (r = sshbuf_put_u32(msg, nkeys)) != 0)
@@ -137,11 +142,12 @@ process_add(void)
 				continue;
 			}
 			if ((r = sshbuf_put_string(msg, blob, blen)) != 0 ||
-			    (r = sshbuf_put_cstring(msg, name)) != 0)
+			    (r = sshbuf_put_cstring(msg, labels[i])) != 0)
 				fatal("%s: buffer error: %s",
 				    __func__, ssh_err(r));
 			free(blob);
-			add_key(keys[i], name);
+			add_key(keys[i], name, labels[i]);
+			free(labels[i]);
 		}
 	} else {
 		if ((r = sshbuf_put_u8(msg, SSH_AGENT_FAILURE)) != 0)
@@ -149,7 +155,8 @@ process_add(void)
 		if ((r = sshbuf_put_u32(msg, -nkeys)) != 0)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	}
-	free(keys);
+	free(labels);
+	free(keys); /* keys themselves are transferred to pkcs11_keylist */
 	free(pin);
 	free(name);
 	send_msg(msg);

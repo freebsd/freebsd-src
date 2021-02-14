@@ -1,4 +1,4 @@
-/* $OpenBSD: match.c,v 1.40 2019/10/04 04:13:39 djm Exp $ */
+/* $OpenBSD: match.c,v 1.41 2019/11/13 04:47:52 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -42,6 +42,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdio.h>
 
 #include "xmalloc.h"
@@ -178,7 +179,7 @@ match_usergroup_pattern_list(const char *string, const char *pattern)
 	/* Windows usernames may be Unicode and are not case sensitive */
 	return cygwin_ug_match_pattern_list(string, pattern);
 #else
-	/* Case insensitive match */
+	/* Case sensitive match */
 	return match_pattern_list(string, pattern, 0);
 #endif
 }

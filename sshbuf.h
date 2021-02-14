@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.18 2019/09/06 05:23:55 djm Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.19 2020/01/25 23:02:14 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -290,6 +290,22 @@ sshbuf_find(const struct sshbuf *b, size_t start_offset,
  * nul character.
  */
 char *sshbuf_dup_string(struct sshbuf *buf);
+
+/*
+ * Fill a buffer from a file descriptor or filename. Both allocate the
+ * buffer for the caller.
+ */
+int sshbuf_load_fd(int, struct sshbuf **)
+    __attribute__((__nonnull__ (2)));
+int sshbuf_load_file(const char *, struct sshbuf **)
+    __attribute__((__nonnull__ (2)));
+
+/*
+ * Write a buffer to a path, creating/truncating as needed (mode 0644,
+ * subject to umask). The buffer contents are not modified.
+ */
+int sshbuf_write_file(const char *path, struct sshbuf *buf)
+    __attribute__((__nonnull__ (2)));
 
 /* Macros for decoding/encoding integers */
 #define PEEK_U64(p) \

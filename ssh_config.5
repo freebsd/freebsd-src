@@ -33,13 +33,13 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.304 2019/09/13 04:52:34 djm Exp $
-.Dd $Mdocdate: September 13 2019 $
+.\" $OpenBSD: ssh_config.5,v 1.322 2020/02/07 03:54:44 dtucker Exp $
+.Dd $Mdocdate: February 7 2020 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
 .Nm ssh_config
-.Nd OpenSSH SSH client configuration files
+.Nd OpenSSH client configuration file
 .Sh DESCRIPTION
 .Xr ssh 1
 obtains configuration data from the following sources in
@@ -264,9 +264,11 @@ Valid arguments are
 .It Cm BatchMode
 If set to
 .Cm yes ,
-passphrase/password querying will be disabled.
+user interaction such as password prompts and host key confirmation requests
+will be disabled.
 This option is useful in scripts and other batch jobs where no user
-is present to supply the password.
+is present to interact with
+.Xr ssh 1 .
 The argument must be
 .Cm yes
 or
@@ -381,7 +383,9 @@ flag to
 via
 .Xr ssh-agent 1 ,
 or via a
-.Cm PKCS11Provider .
+.Cm PKCS11Provider
+or
+.Cm SecurityKeyProvider .
 .Pp
 Arguments to
 .Cm CertificateFile
@@ -564,7 +568,8 @@ specifies that the master connection should remain open
 in the background (waiting for future client connections)
 after the initial client connection has been closed.
 If set to
-.Cm no ,
+.Cm no
+(the default),
 then the master connection will not be placed into the background,
 and will close as soon as the initial client connection is closed.
 If set to
@@ -667,11 +672,14 @@ and
 .It Cm ForwardAgent
 Specifies whether the connection to the authentication agent (if any)
 will be forwarded to the remote machine.
-The argument must be
-.Cm yes
-or
+The argument may be
+.Cm yes ,
 .Cm no
-(the default).
+(the default),
+an explicit path to an agent socket or the name of an environment variable
+(beginning with
+.Sq $ )
+in which to find the path.
 .Pp
 Agent forwarding should be enabled with caution.
 Users with the ability to bypass file permissions on the remote host
@@ -771,8 +779,8 @@ These hashed names may be used normally by
 .Xr ssh 1
 and
 .Xr sshd 8 ,
-but they do not reveal identifying information should the file's contents
-be disclosed.
+but they do not visually reveal identifying information if the
+file's contents are disclosed.
 The default is
 .Cm no .
 Note that existing names and addresses in known hosts files
@@ -807,11 +815,16 @@ The default for this option is:
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
-rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+sk-ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,
+rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+sk-ecdsa-sha2-nistp256@openssh.com,
+ssh-ed25519,sk-ssh-ed25519@openssh.com,
+rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 The
@@ -839,18 +852,23 @@ The default for this option is:
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
-rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+sk-ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,
+rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+sk-ecdsa-sha2-nistp256@openssh.com,
+ssh-ed25519,sk-ssh-ed25519@openssh.com,
+rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 If hostkeys are known for the destination host then this default is modified
 to prefer their algorithms.
 .Pp
 The list of available key types may also be obtained using
-.Qq ssh -Q key .
+.Qq ssh -Q HostKeyAlgorithms .
 .It Cm HostKeyAlias
 Specifies an alias that should be used instead of the
 real host name when looking up or saving the host key
@@ -883,6 +901,8 @@ even if
 .Xr ssh-agent 1
 or a
 .Cm PKCS11Provider
+or
+.Cm SecurityKeyProvider
 offers more identities.
 The argument to this keyword must be
 .Cm yes
@@ -919,12 +939,14 @@ or the tokens described in the
 .Sx TOKENS
 section.
 .It Cm IdentityFile
-Specifies a file from which the user's DSA, ECDSA, Ed25519 or RSA authentication
-identity is read.
+Specifies a file from which the user's DSA, ECDSA, authenticator-hosted ECDSA,
+Ed25519, authenticator-hosted Ed25519 or RSA authentication identity is read.
 The default is
 .Pa ~/.ssh/id_dsa ,
 .Pa ~/.ssh/id_ecdsa ,
-.Pa ~/.ssh/id_ed25519
+.Pa ~/.ssh/id_ecdsa_sk ,
+.Pa ~/.ssh/id_ed25519 ,
+.Pa ~/.ssh/id_ed25519_sk
 and
 .Pa ~/.ssh/id_rsa .
 Additionally, any identities represented by the authentication agent
@@ -1018,6 +1040,7 @@ Accepted values are
 .Cm cs6 ,
 .Cm cs7 ,
 .Cm ef ,
+.Cm le ,
 .Cm lowdelay ,
 .Cm throughput ,
 .Cm reliability ,
@@ -1074,8 +1097,7 @@ ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
 diffie-hellman-group16-sha512,
 diffie-hellman-group18-sha512,
-diffie-hellman-group14-sha256,
-diffie-hellman-group14-sha1
+diffie-hellman-group14-sha256
 .Ed
 .Pp
 The list of available key exchange algorithms may also be obtained using
@@ -1318,15 +1340,20 @@ The default for this option is:
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
-rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+sk-ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,
+rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+sk-ecdsa-sha2-nistp256@openssh.com,
+ssh-ed25519,sk-ssh-ed25519@openssh.com,
+rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 The list of available key types may also be obtained using
-.Qq ssh -Q key .
+.Qq ssh -Q PubkeyAcceptedKeyTypes .
 .It Cm PubkeyAuthentication
 Specifies whether to try public key authentication.
 The argument to this keyword must be
@@ -1437,6 +1464,15 @@ an OpenSSH Key Revocation List (KRL) as generated by
 .Xr ssh-keygen 1 .
 For more information on KRLs, see the KEY REVOCATION LISTS section in
 .Xr ssh-keygen 1 .
+.It Cm SecurityKeyProvider
+Specifies a path to a library that will be used when loading any
+FIDO authenticator-hosted keys, overriding the default of using
+the built-in USB HID support.
+.Pp
+If the specified value begins with a
+.Sq $
+character, then it will be treated as an environment variable containing
+the path to the library.
 .It Cm SendEnv
 Specifies what variables from the local
 .Xr environ 7
@@ -1642,13 +1678,22 @@ after authentication has completed and add them to
 The argument must be
 .Cm yes ,
 .Cm no
-(the default) or
+or
 .Cm ask .
-Enabling this option allows learning alternate hostkeys for a server
+This option allows learning alternate hostkeys for a server
 and supports graceful key rotation by allowing a server to send replacement
 public keys before old ones are removed.
 Additional hostkeys are only accepted if the key used to authenticate the
 host was already trusted or explicitly accepted by the user.
+.Pp
+.Cm UpdateHostKeys
+is enabled by default if the user has not overridden the default
+.Cm UserKnownHostsFile
+setting, otherwise
+.Cm UpdateHostKeys
+will be set to
+.Cm ask .
+.Pp
 If
 .Cm UpdateHostKeys
 is set to

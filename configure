@@ -624,6 +624,8 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
+CFLAGS_NOPIE
+LDFLAGS_NOPIE
 DEPEND
 UNSUPPORTED_ALGORITHMS
 TEST_MALLOC_OPTIONS
@@ -643,8 +645,10 @@ KRB5CONF
 SSHDLIBS
 SSHLIBS
 SSH_PRIVSEP_USER
+LIBFIDO2
 COMMENT_OUT_ECC
 TEST_SSH_ECC
+PICFLAG
 LIBEDIT
 PKGCONFIG
 LDNSCONFIG
@@ -756,6 +760,8 @@ with_libedit
 with_audit
 with_pie
 enable_pkcs11
+enable_security_key
+with_security_key_builtin
 with_ssl_dir
 with_openssl_header_check
 with_ssl_engine
@@ -1415,6 +1421,7 @@ Optional Features:
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --disable-largefile     omit support for large files
   --disable-pkcs11        disable PKCS#11 support code [no]
+  --disable-security-key  disable U2F/FIDO support code no
   --disable-strip         Disable calling strip(1) on install
   --disable-etc-default-login Disable using PATH from /etc/default/login no
   --disable-lastlog       disable use of lastlog even if detected no
@@ -1450,6 +1457,7 @@ Optional Packages:
   --with-libedit[=PATH]   Enable libedit support for sftp
   --with-audit=module     Enable audit support (modules=debug,bsm,linux)
   --with-pie              Build Position Independent Executables if possible
+  --with-security-key-builtin include builtin U2F/FIDO support
   --with-ssl-dir=PATH     Specify path to OpenSSL installation
   --without-openssl-header-check Disable OpenSSL version consistency check
   --with-ssl-engine       Enable OpenSSL (hardware) ENGINE support
@@ -6066,6 +6074,49 @@ fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 }
 	{
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -Wimplicit-fallthrough" >&5
+$as_echo_n "checking if $CC supports compile flag -Wimplicit-fallthrough... " >&6; }
+	saved_CFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS $WERROR -Wimplicit-fallthrough"
+	_define_flag=""
+	test "x$_define_flag" = "x" && _define_flag="-Wimplicit-fallthrough"
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <stdlib.h>
+#include <stdio.h>
+int main(int argc, char **argv) {
+	/* Some math to catch -ftrapv problems in the toolchain */
+	int i = 123 * argc, j = 456 + argc, k = 789 - argc;
+	float l = i * 2.1;
+	double m = l / 0.5;
+	long long int n = argc * 12345LL, o = 12345LL * (long long int)argc;
+	printf("%d %d %d %f %f %lld %lld\n", i, j, k, l, m, n, o);
+	exit(0);
+}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+if $ac_cv_path_EGREP -i "unrecognized option|warning.*ignored" conftest.err >/dev/null
+then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		CFLAGS="$saved_CFLAGS"
+else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+		 CFLAGS="$saved_CFLAGS $_define_flag"
+fi
+else
+   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		  CFLAGS="$saved_CFLAGS"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+}
+	{
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $CC supports compile flag -fno-strict-aliasing" >&5
 $as_echo_n "checking if $CC supports compile flag -fno-strict-aliasing... " >&6; }
 	saved_CFLAGS="$CFLAGS"
@@ -6481,13 +6532,16 @@ $as_echo_n "checking if $CC supports $t... " >&6; }
 		LDFLAGS="$LDFLAGS $t -Werror"
 		cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- #include <stdio.h>
+
+	#include <stdio.h>
+	int func (int t) {char b[100]; snprintf(b,sizeof b,"%d",t); return t;}
+
 int
 main ()
 {
 
 	char x[256];
-	snprintf(x, sizeof(x), "XXX");
+	snprintf(x, sizeof(x), "XXX%d", func(1));
 
   ;
   return 0;
@@ -6508,13 +6562,16 @@ $as_echo "$as_me: WARNING: cross compiling: cannot test" >&2;}
 else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
- #include <stdio.h>
+
+	#include <stdio.h>
+	int func (int t) {char b[100]; snprintf(b,sizeof b,"%d",t); return t;}
+
 int
 main ()
 {
 
 	char x[256];
-	snprintf(x, sizeof(x), "XXX");
+	snprintf(x, sizeof(x), "XXX%d", func(1));
 
   ;
   return 0;
@@ -6741,6 +6798,7 @@ for ac_header in  \
 	features.h \
 	fcntl.h \
 	floatingpoint.h \
+	fnmatch.h \
 	getopt.h \
 	glob.h \
 	ia.h \
@@ -7531,6 +7589,7 @@ done
 	;;
 *-*-haiku*)
 	LIBS="$LIBS -lbsd "
+	CFLAGS="$CFLAGS -D_BSD_SOURCE"
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for socket in -lnetwork" >&5
 $as_echo_n "checking for socket in -lnetwork... " >&6; }
 if ${ac_cv_lib_network_socket+:} false; then :
@@ -7577,6 +7636,9 @@ _ACEOF
 fi
 
 	$as_echo "#define HAVE_U_INT64_T 1" >>confdefs.h
+
+
+$as_echo "#define DISABLE_UTMPX 1" >>confdefs.h
 
 	MANTYPE=man
 	;;
@@ -8656,11 +8718,34 @@ $as_echo "#define BROKEN_SHADOW_EXPIRE 1" >>confdefs.h
 
 $as_echo "#define BROKEN_GETGROUPS 1" >>confdefs.h
 
-	$as_echo "#define NEED_SETPGRP 1" >>confdefs.h
+
+$as_echo "#define NEED_SETPGRP 1" >>confdefs.h
 
 
 $as_echo "#define HAVE_SYS_SYSLOG_H 1" >>confdefs.h
 
+
+$as_echo "#define DISABLE_UTMPX 1" >>confdefs.h
+
+	# DISABLE_FD_PASSING so that we call setpgrp as root, otherwise we
+	# don't get a controlling tty.
+
+$as_echo "#define DISABLE_FD_PASSING 1" >>confdefs.h
+
+	# On Ultrix some headers are not protected against multiple includes,
+	# so we create wrappers and put it where the compiler will find it.
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: creating compat wrappers for headers" >&5
+$as_echo "$as_me: WARNING: creating compat wrappers for headers" >&2;}
+	mkdir -p netinet
+	for header in netinet/ip.h netdb.h resolv.h; do
+		name=`echo $header | tr 'a-z/.' 'A-Z__'`
+		cat >$header <<EOD
+#ifndef _SSH_COMPAT_${name}
+#define _SSH_COMPAT_${name}
+#include "/usr/include/${header}"
+#endif
+EOD
+	done
 	;;
 
 *-*-lynxos)
@@ -8990,11 +9075,12 @@ $as_echo "#define HAVE_BASENAME 1" >>confdefs.h
 fi
 
 
+zlib=yes
 
 # Check whether --with-zlib was given.
 if test "${with_zlib+set}" = set; then :
   withval=$with_zlib;  if test "x$withval" = "xno" ; then
-		as_fn_error $? "*** zlib is required ***" "$LINENO" 5
+		zlib=no
 	  elif test "x$withval" != "xyes"; then
 		if test -d "$withval/lib"; then
 			if test -n "${rpath_opt}"; then
@@ -9019,7 +9105,18 @@ if test "${with_zlib+set}" = set; then :
 fi
 
 
-ac_fn_c_check_header_mongrel "$LINENO" "zlib.h" "ac_cv_header_zlib_h" "$ac_includes_default"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for zlib" >&5
+$as_echo_n "checking for zlib... " >&6; }
+if test "x${zlib}" = "xno"; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+else
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define WITH_ZLIB 1" >>confdefs.h
+
+    ac_fn_c_check_header_mongrel "$LINENO" "zlib.h" "ac_cv_header_zlib_h" "$ac_includes_default"
 if test "x$ac_cv_header_zlib_h" = xyes; then :
 
 else
@@ -9027,7 +9124,7 @@ else
 fi
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for deflate in -lz" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for deflate in -lz" >&5
 $as_echo_n "checking for deflate in -lz... " >&6; }
 if ${ac_cv_lib_z_deflate+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -9127,9 +9224,9 @@ if test "${with_zlib_version_check+set}" = set; then :
 fi
 
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for possibly buggy zlib" >&5
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for possibly buggy zlib" >&5
 $as_echo_n "checking for possibly buggy zlib... " >&6; }
-if test "$cross_compiling" = yes; then :
+    if test "$cross_compiling" = yes; then :
   	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: cross compiling: not checking zlib version" >&5
 $as_echo "$as_me: WARNING: cross compiling: not checking zlib version" >&2;}
 
@@ -9190,6 +9287,7 @@ rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
   conftest.$ac_objext conftest.beam conftest.$ac_ext
 fi
 
+fi
 
 ac_fn_c_check_func "$LINENO" "strcasecmp" "ac_cv_func_strcasecmp"
 if test "x$ac_cv_func_strcasecmp" = xyes; then :
@@ -10350,8 +10448,6 @@ else
 fi
 
 		if test "x$LDNSCONFIG" = "xno"; then
-			CPPFLAGS="$CPPFLAGS -I${withval}/include"
-			LDFLAGS="$LDFLAGS -L${withval}/lib"
 			LIBS="-lldns $LIBS"
 			ldns=yes
 		else
@@ -10379,7 +10475,9 @@ $as_echo_n "checking for ldns support... " >&6; }
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 #include <ldns/ldns.h>
 int main() { ldns_status status = ldns_verify_trusted(NULL, NULL, NULL, NULL); status=LDNS_STATUS_OK; exit(0); }
 
@@ -10920,6 +11018,34 @@ $as_echo "no" >&6; }
 	fi
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether -fPIC is accepted" >&5
+$as_echo_n "checking whether -fPIC is accepted... " >&6; }
+SAVED_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fPIC"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+ #include <stdlib.h>
+int
+main ()
+{
+ exit(0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+    PICFLAG="-fPIC";
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    PICFLAG="";
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CFLAGS="$SAVED_CFLAGS"
+
+
 for ac_func in  \
 	Blowfish_initstate \
 	Blowfish_expandstate \
@@ -10951,6 +11077,7 @@ for ac_func in  \
 	fchown \
 	fchownat \
 	flock \
+	fnmatch \
 	freeaddrinfo \
 	freezero \
 	fstatfs \
@@ -10978,6 +11105,7 @@ for ac_func in  \
 	inet_ntop \
 	innetgr \
 	llabs \
+	localtime_r \
 	login_getcapbool \
 	md5_crypt \
 	memmem \
@@ -10995,6 +11123,7 @@ for ac_func in  \
 	raise \
 	readpassphrase \
 	reallocarray \
+	realpath \
 	recvmsg \
 	recallocarray \
 	rresvport_af \
@@ -11072,6 +11201,16 @@ fi
 
 cat >>confdefs.h <<_ACEOF
 #define HAVE_DECL_BZERO $ac_have_decl
+_ACEOF
+ac_fn_c_check_decl "$LINENO" "memmem" "ac_cv_have_decl_memmem" "$ac_includes_default"
+if test "x$ac_cv_have_decl_memmem" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_MEMMEM $ac_have_decl
 _ACEOF
 
 
@@ -11160,10 +11299,32 @@ if test "${enable_pkcs11+set}" = set; then :
 fi
 
 
-# PKCS11 depends on OpenSSL.
-if test "x$openssl" = "xyes" && test "x$disable_pkcs11" = "x"; then
-	# PKCS#11 support requires dlopen() and co
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
+disable_sk=
+# Check whether --enable-security-key was given.
+if test "${enable_security_key+set}" = set; then :
+  enableval=$enable_security_key;
+		if test "x$enableval" = "xno" ; then
+			disable_sk=1
+		fi
+
+
+fi
+
+enable_sk_internal=
+
+# Check whether --with-security-key-builtin was given.
+if test "${with_security_key_builtin+set}" = set; then :
+  withval=$with_security_key_builtin;
+		if test "x$withval" != "xno" ; then
+			enable_sk_internal=yes
+		fi
+
+
+fi
+
+test "x$disable_sk" != "x" && enable_sk_internal=""
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for library containing dlopen" >&5
 $as_echo_n "checking for library containing dlopen... " >&6; }
 if ${ac_cv_search_dlopen+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -11216,19 +11377,26 @@ $as_echo "$ac_cv_search_dlopen" >&6; }
 ac_res=$ac_cv_search_dlopen
 if test "$ac_res" != no; then :
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
-  ac_fn_c_check_decl "$LINENO" "RTLD_NOW" "ac_cv_have_decl_RTLD_NOW" "#include <dlfcn.h>
 
+fi
+
+for ac_func in dlopen
+do :
+  ac_fn_c_check_func "$LINENO" "dlopen" "ac_cv_func_dlopen"
+if test "x$ac_cv_func_dlopen" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_DLOPEN 1
+_ACEOF
+
+fi
+done
+
+ac_fn_c_check_decl "$LINENO" "RTLD_NOW" "ac_cv_have_decl_RTLD_NOW" "#include <dlfcn.h>
 "
 if test "x$ac_cv_have_decl_RTLD_NOW" = xyes; then :
 
-$as_echo "#define ENABLE_PKCS11 /**/" >>confdefs.h
-
 fi
 
-
-fi
-
-fi
 
 # IRIX has a const char return value for gai_strerror()
 for ac_func in gai_strerror
@@ -13384,26 +13552,6 @@ fi
 done
 
 
-	# Search for RIPE-MD support in OpenSSL
-	for ac_func in EVP_ripemd160
-do :
-  ac_fn_c_check_func "$LINENO" "EVP_ripemd160" "ac_cv_func_EVP_ripemd160"
-if test "x$ac_cv_func_EVP_ripemd160" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_EVP_RIPEMD160 1
-_ACEOF
-
-else
-  unsupported_algorithms="$unsupported_algorithms \
-		hmac-ripemd160 \
-		hmac-ripemd160@openssh.com \
-		hmac-ripemd160-etm@openssh.com"
-
-
-fi
-done
-
-
 	# Check complete ECC support in OpenSSL
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether OpenSSL has NID_X9_62_prime256v1" >&5
 $as_echo_n "checking whether OpenSSL has NID_X9_62_prime256v1... " >&6; }
@@ -13570,6 +13718,9 @@ _ACEOF
 fi
 done
 
+		openssl_ecc=yes
+	else
+		openssl_ecc=no
 	fi
 	if test x$enable_nistp256 = x1; then
 
@@ -13661,6 +13812,220 @@ _ACEOF
 
 fi
 done
+
+fi
+
+# PKCS11/U2F depend on OpenSSL and dlopen().
+enable_pkcs11=yes
+enable_sk=yes
+if test "x$openssl" != "xyes" ; then
+	enable_pkcs11="disabled; missing libcrypto"
+	enable_sk="disabled; missing libcrypto"
+fi
+if test "x$openssl_ecc" != "xyes" ; then
+	enable_sk="disabled; OpenSSL has no ECC support"
+fi
+if test "x$ac_cv_func_dlopen" != "xyes" ; then
+	enable_pkcs11="disabled; missing dlopen(3)"
+	enable_sk="disabled; missing dlopen(3)"
+fi
+if test "x$ac_cv_have_decl_RTLD_NOW" != "xyes" ; then
+	enable_pkcs11="disabled; missing RTLD_NOW"
+	enable_sk="disabled; missing RTLD_NOW"
+fi
+if test ! -z "$disable_pkcs11" ; then
+	enable_pkcs11="disabled by user"
+fi
+if test ! -z "$disable_sk" ; then
+	enable_sk="disabled by user"
+fi
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable PKCS11" >&5
+$as_echo_n "checking whether to enable PKCS11... " >&6; }
+if test "x$enable_pkcs11" = "xyes" ; then
+
+$as_echo "#define ENABLE_PKCS11 /**/" >>confdefs.h
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_pkcs11" >&5
+$as_echo "$enable_pkcs11" >&6; }
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable U2F" >&5
+$as_echo_n "checking whether to enable U2F... " >&6; }
+if test "x$enable_sk" = "xyes" ; then
+
+$as_echo "#define ENABLE_SK /**/" >>confdefs.h
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $enable_sk" >&5
+$as_echo "$enable_sk" >&6; }
+
+# Now check for built-in security key support.
+if test "x$enable_sk" = "xyes" -a "x$enable_sk_internal" = "xyes" ; then
+	if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PKGCONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PKGCONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKGCONFIG="$PKGCONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKGCONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKGCONFIG=$ac_cv_path_PKGCONFIG
+if test -n "$PKGCONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKGCONFIG" >&5
+$as_echo "$PKGCONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_path_PKGCONFIG"; then
+  ac_pt_PKGCONFIG=$PKGCONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_ac_pt_PKGCONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $ac_pt_PKGCONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKGCONFIG="$ac_pt_PKGCONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_ac_pt_PKGCONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKGCONFIG=$ac_cv_path_ac_pt_PKGCONFIG
+if test -n "$ac_pt_PKGCONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKGCONFIG" >&5
+$as_echo "$ac_pt_PKGCONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKGCONFIG" = x; then
+    PKGCONFIG="no"
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKGCONFIG=$ac_pt_PKGCONFIG
+  fi
+else
+  PKGCONFIG="$ac_cv_path_PKGCONFIG"
+fi
+
+	use_pkgconfig_for_libfido2=
+	if test "x$PKGCONFIG" != "xno"; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking if $PKGCONFIG knows about libfido2" >&5
+$as_echo_n "checking if $PKGCONFIG knows about libfido2... " >&6; }
+		if "$PKGCONFIG" libfido2; then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+			use_pkgconfig_for_libfido2=yes
+		else
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		fi
+	fi
+	if test "x$use_pkgconfig_for_libfido2" = "xyes"; then
+		LIBFIDO2=`$PKGCONFIG --libs libfido2`
+		CPPFLAGS="$CPPFLAGS `$PKGCONFIG --cflags libfido2`"
+	else
+		LIBFIDO2="-lfido2 -lcbor"
+	fi
+	OTHERLIBS=`echo $LIBFIDO2 | sed 's/-lfido2//'`
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for fido_init in -lfido2" >&5
+$as_echo_n "checking for fido_init in -lfido2... " >&6; }
+if ${ac_cv_lib_fido2_fido_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lfido2  $OTHERLIBS
+	 $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char fido_init ();
+int
+main ()
+{
+return fido_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_fido2_fido_init=yes
+else
+  ac_cv_lib_fido2_fido_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_fido2_fido_init" >&5
+$as_echo "$ac_cv_lib_fido2_fido_init" >&6; }
+if test "x$ac_cv_lib_fido2_fido_init" = xyes; then :
+
+
+
+$as_echo "#define ENABLE_SK_INTERNAL /**/" >>confdefs.h
+
+			enable_sk="built-in"
+
+fi
 
 fi
 
@@ -14756,6 +15121,28 @@ fi
 
 fi
 
+ac_fn_c_check_decl "$LINENO" "UINT32_MAX" "ac_cv_have_decl_UINT32_MAX" "
+#ifdef HAVE_SYS_LIMITS_H
+# include <sys/limits.h>
+#endif
+#ifdef HAVE_LIMITS_H
+# include <limits.h>
+#endif
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
+
+"
+if test "x$ac_cv_have_decl_UINT32_MAX" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_UINT32_MAX $ac_have_decl
+_ACEOF
+
 
 # More checks for data types
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for u_int type" >&5
@@ -15215,7 +15602,9 @@ fi
 
 ac_fn_c_check_type "$LINENO" "intmax_t" "ac_cv_type_intmax_t" "
 #include <sys/types.h>
-#include <stdint.h>
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 
 "
 if test "x$ac_cv_type_intmax_t" = xyes; then :
@@ -15228,7 +15617,9 @@ _ACEOF
 fi
 ac_fn_c_check_type "$LINENO" "uintmax_t" "ac_cv_type_uintmax_t" "
 #include <sys/types.h>
-#include <stdint.h>
+#ifdef HAVE_STDINT_H
+# include <stdint.h>
+#endif
 
 "
 if test "x$ac_cv_type_uintmax_t" = xyes; then :
@@ -15361,7 +15752,8 @@ _ACEOF
 fi
 
 
-ac_fn_c_check_member "$LINENO" "struct statfs" "f_flags" "ac_cv_member_struct_statfs_f_flags" "
+ac_fn_c_check_member "$LINENO" "struct statfs" "f_files" "ac_cv_member_struct_statfs_f_files" "
+#include <sys/param.h>
 #include <sys/types.h>
 #ifdef HAVE_SYS_BITYPES_H
 #include <sys/bitypes.h>
@@ -15374,6 +15766,37 @@ ac_fn_c_check_member "$LINENO" "struct statfs" "f_flags" "ac_cv_member_struct_st
 #endif
 #ifdef HAVE_SYS_VFS_H
 #include <sys/vfs.h>
+#endif
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
+#endif
+
+"
+if test "x$ac_cv_member_struct_statfs_f_files" = xyes; then :
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_STRUCT_STATFS_F_FILES 1
+_ACEOF
+
+
+fi
+ac_fn_c_check_member "$LINENO" "struct statfs" "f_flags" "ac_cv_member_struct_statfs_f_flags" "
+#include <sys/param.h>
+#include <sys/types.h>
+#ifdef HAVE_SYS_BITYPES_H
+#include <sys/bitypes.h>
+#endif
+#ifdef HAVE_SYS_STATFS_H
+#include <sys/statfs.h>
+#endif
+#ifdef HAVE_SYS_STATVFS_H
+#include <sys/statvfs.h>
+#endif
+#ifdef HAVE_SYS_VFS_H
+#include <sys/vfs.h>
+#endif
+#ifdef HAVE_SYS_MOUNT_H
+#include <sys/mount.h>
 #endif
 
 "
@@ -15807,6 +16230,42 @@ $as_echo "#define HAVE_STRUCT_ADDRINFO 1" >>confdefs.h
 
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether time.h and sys/time.h may both be included" >&5
+$as_echo_n "checking whether time.h and sys/time.h may both be included... " >&6; }
+if ${ac_cv_header_time+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+#include <sys/types.h>
+#include <sys/time.h>
+#include <time.h>
+
+int
+main ()
+{
+if ((struct tm *) 0)
+return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ac_cv_header_time=yes
+else
+  ac_cv_header_time=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_header_time" >&5
+$as_echo "$ac_cv_header_time" >&6; }
+if test $ac_cv_header_time = yes; then
+
+$as_echo "#define TIME_WITH_SYS_TIME 1" >>confdefs.h
+
+fi
+
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for struct timeval" >&5
 $as_echo_n "checking for struct timeval... " >&6; }
 if ${ac_cv_have_struct_timeval+:} false; then :
@@ -15842,16 +16301,51 @@ $as_echo "#define HAVE_STRUCT_TIMEVAL 1" >>confdefs.h
 	have_struct_timeval=1
 fi
 
-ac_fn_c_check_type "$LINENO" "struct timespec" "ac_cv_type_struct_timespec" "$ac_includes_default"
-if test "x$ac_cv_type_struct_timespec" = xyes; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for struct timespec" >&5
+$as_echo_n "checking for struct timespec... " >&6; }
+if ${ac_cv_have_struct_timespec+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
 
-cat >>confdefs.h <<_ACEOF
-#define HAVE_STRUCT_TIMESPEC 1
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #ifdef TIME_WITH_SYS_TIME
+    # include <sys/time.h>
+    # include <time.h>
+    #else
+    # ifdef HAVE_SYS_TIME_H
+    #  include <sys/time.h>
+    # else
+    #  include <time.h>
+    # endif
+    #endif
+
+int
+main ()
+{
+ struct timespec ts; ts.tv_sec = 1;
+  ;
+  return 0;
+}
 _ACEOF
-
+if ac_fn_c_try_compile "$LINENO"; then :
+   ac_cv_have_struct_timespec="yes"
+else
+   ac_cv_have_struct_timespec="no"
 
 fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_have_struct_timespec" >&5
+$as_echo "$ac_cv_have_struct_timespec" >&6; }
+if test "x$ac_cv_have_struct_timespec" = "xyes" ; then
+
+$as_echo "#define HAVE_STRUCT_TIMESPEC 1" >>confdefs.h
+
+	have_struct_timespec=1
+fi
 
 # We need int64_t or else certain parts of the compile will fail.
 if test "x$ac_cv_have_int64_t" = "xno" && \
@@ -19428,6 +19922,12 @@ DEPEND=$(cat $srcdir/.depend)
 CFLAGS="${CFLAGS} ${CFLAGS_AFTER}"
 LDFLAGS="${LDFLAGS} ${LDFLAGS_AFTER}"
 
+# Make a copy of CFLAGS/LDFLAGS without PIE options.
+LDFLAGS_NOPIE=`echo "$LDFLAGS" | sed 's/ -pie//'`
+CFLAGS_NOPIE=`echo "$CFLAGS" | sed 's/ -fPIE//'`
+
+
+
 
 ac_config_files="$ac_config_files Makefile buildpkg.sh opensshd.init openssh.xml openbsd-compat/Makefile openbsd-compat/regress/Makefile survey.sh"
 
@@ -20777,6 +21277,8 @@ echo "           Translate v4 in v6 hack: $IPV4_IN6_HACK_MSG"
 echo "                  BSD Auth support: $BSD_AUTH_MSG"
 echo "              Random number source: $RAND_MSG"
 echo "             Privsep sandbox style: $SANDBOX_STYLE"
+echo "                   PKCS#11 support: $enable_pkcs11"
+echo "                  U2F/FIDO support: $enable_sk"
 
 echo ""
 

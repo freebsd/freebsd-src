@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-timeout.sh,v 1.5 2019/09/03 08:37:06 djm Exp $
+#	$OpenBSD: agent-timeout.sh,v 1.6 2019/11/26 23:43:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="agent timeout test"
@@ -6,7 +6,7 @@ tid="agent timeout test"
 SSHAGENT_TIMEOUT=10
 
 trace "start agent"
-eval `${SSHAGENT} -s` > /dev/null
+eval `${SSHAGENT} -s ${EXTRA_AGENT_ARGS}` > /dev/null
 r=$?
 if [ $r -ne 0 ]; then
 	fail "could not start ssh-agent: exit code $r"

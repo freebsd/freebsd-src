@@ -137,6 +137,7 @@ sys_set_process_rdomain(const char *name)
 
 #if defined(SSH_TUN_LINUX)
 #include <linux/if_tun.h>
+#define TUN_CTRL_DEV "/dev/net/tun"
 
 int
 sys_tun_open(int tun, int mode, char **ifname)
@@ -147,10 +148,9 @@ sys_tun_open(int tun, int mode, char **ifname)
 
 	if (ifname != NULL)
 		*ifname = NULL;
-
-	if ((fd = open("/dev/net/tun", O_RDWR)) == -1) {
-		debug("%s: failed to open tunnel control interface: %s",
-		    __func__, strerror(errno));
+	if ((fd = open(TUN_CTRL_DEV, O_RDWR)) == -1) {
+		debug("%s: failed to open tunnel control device \"%s\": %s",
+		    __func__, TUN_CTRL_DEV, strerror(errno));
 		return (-1);
 	}
 

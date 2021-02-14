@@ -84,7 +84,7 @@ get_random_bytes_prngd(unsigned char *buf, int len,
 	struct sockaddr_storage addr;
 	struct sockaddr_in *addr_in = (struct sockaddr_in *)&addr;
 	struct sockaddr_un *addr_un = (struct sockaddr_un *)&addr;
-	mysig_t old_sigpipe;
+	sshsig_t old_sigpipe;
 
 	/* Sanity checks */
 	if (socket_path == NULL && tcp_port == 0)
@@ -110,7 +110,7 @@ get_random_bytes_prngd(unsigned char *buf, int len,
 		    strlen(socket_path) + 1;
 	}
 
-	old_sigpipe = signal(SIGPIPE, SIG_IGN);
+	old_sigpipe = ssh_signal(SIGPIPE, SIG_IGN);
 
 	errors = 0;
 	rval = -1;
@@ -160,7 +160,7 @@ reopen:
 
 	rval = 0;
 done:
-	signal(SIGPIPE, old_sigpipe);
+	ssh_signal(SIGPIPE, old_sigpipe);
 	if (fd != -1)
 		close(fd);
 	return rval;

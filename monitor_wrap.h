@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.h,v 1.42 2019/09/06 05:23:55 djm Exp $ */
+/* $OpenBSD: monitor_wrap.h,v 1.44 2019/11/25 00:51:37 djm Exp $ */
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -38,6 +38,7 @@ struct monitor;
 struct Authctxt;
 struct sshkey;
 struct sshauthopt;
+struct sshkey_sig_details;
 
 void mm_log_handler(LogLevel, const char *, void *);
 int mm_is_monitor(void);
@@ -45,7 +46,7 @@ int mm_is_monitor(void);
 DH *mm_choose_dh(int, int, int);
 #endif
 int mm_sshkey_sign(struct ssh *, struct sshkey *, u_char **, size_t *,
-    const u_char *, size_t, const char *, u_int compat);
+    const u_char *, size_t, const char *, const char *, u_int compat);
 void mm_inform_authserv(char *, char *);
 struct passwd *mm_getpwnamallow(struct ssh *, const char *);
 char *mm_auth2_read_banner(void);
@@ -57,7 +58,7 @@ int mm_user_key_allowed(struct ssh *, struct passwd *, struct sshkey *, int,
 int mm_hostbased_key_allowed(struct ssh *, struct passwd *, const char *,
     const char *, struct sshkey *);
 int mm_sshkey_verify(const struct sshkey *, const u_char *, size_t,
-    const u_char *, size_t, const char *, u_int);
+    const u_char *, size_t, const char *, u_int, struct sshkey_sig_details **);
 
 #ifdef GSSAPI
 OM_uint32 mm_ssh_gssapi_server_ctx(Gssctxt **, gss_OID);

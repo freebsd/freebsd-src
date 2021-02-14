@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.216 2019/06/28 13:35:04 deraadt Exp $ */
+/* $OpenBSD: serverloop.c,v 1.222 2020/01/30 07:21:38 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -184,7 +184,8 @@ client_alive_check(struct ssh *ssh)
 	int r, channel_id;
 
 	/* timeout, check to see how many we have had */
-	if (ssh_packet_inc_alive_timeouts(ssh) >
+	if (options.client_alive_count_max > 0 &&
+	    ssh_packet_inc_alive_timeouts(ssh) >
 	    options.client_alive_count_max) {
 		sshpkt_fmt_connection_id(ssh, remote_id, sizeof(remote_id));
 		logit("Timeout, client not responding from %s", remote_id);
@@ -358,9 +359,10 @@ process_output(struct ssh *ssh, fd_set *writeset, int connection_out)
 
 	/* Send any buffered packet data to the client. */
 	if (FD_ISSET(connection_out, writeset)) {
-		if ((r = ssh_packet_write_poll(ssh)) != 0)
-			fatal("%s: ssh_packet_write_poll: %s",
-			    __func__, ssh_err(r));
+		if ((r = ssh_packet_write_poll(ssh)) != 0) {
+			sshpkt_fatal(ssh, r, "%s: ssh_packet_write_poll",
+			    __func__);
+		}
 	}
 }
 
@@ -402,15 +404,15 @@ server_loop2(struct ssh *ssh, Authctxt *authctxt)
 
 	debug("Entering interactive session for SSH2.");
 
-	signal(SIGCHLD, sigchld_handler);
+	ssh_signal(SIGCHLD, sigchld_handler);
 	child_terminated = 0;
 	connection_in = ssh_packet_get_connection_in(ssh);
 	connection_out = ssh_packet_get_connection_out(ssh);
 
 	if (!use_privsep) {
-		signal(SIGTERM, sigterm_handler);
-		signal(SIGINT, sigterm_handler);
-		signal(SIGQUIT, sigterm_handler);
+		ssh_signal(SIGTERM, sigterm_handler);
+		ssh_signal(SIGINT, sigterm_handler);
+		ssh_signal(SIGQUIT, sigterm_handler);
 	}
 
 	notify_setup();
@@ -685,9 +687,7 @@ server_input_channel_open(int type, u_int32_t seq, struct ssh *ssh)
 	debug("%s: ctype %s rchan %u win %u max %u", __func__,
 	    ctype, rchan, rwindow, rmaxpack);
 
-	if (rchan > INT_MAX) {
-		error("%s: invalid remote channel ID", __func__);
-	} else if (strcmp(ctype, "session") == 0) {
+	if (strcmp(ctype, "session") == 0) {
 		c = server_request_session(ssh);
 	} else if (strcmp(ctype, "direct-tcpip") == 0) {
 		c = server_request_direct_tcpip(ssh, &reason, &errmsg);
@@ -698,7 +698,7 @@ server_input_channel_open(int type, u_int32_t seq, struct ssh *ssh)
 	}
 	if (c != NULL) {
 		debug("%s: confirm %s", __func__, ctype);
-		c->remote_id = (int)rchan;
+		c->remote_id = rchan;
 		c->have_remote_id = 1;
 		c->remote_window = rwindow;
 		c->remote_maxpacket = rmaxpack;

@@ -1,7 +1,7 @@
 SSH(1)                      General Commands Manual                     SSH(1)
 
 NAME
-     ssh M-bM-^@M-^S OpenSSH SSH client (remote login program)
+     ssh M-bM-^@M-^S OpenSSH remote login client
 
 SYNOPSIS
      ssh [-46AaCfGgKkMNnqsTtVvXxYy] [-B bind_interface] [-b bind_address]
@@ -33,9 +33,9 @@ DESCRIPTION
 
      -6      Forces ssh to use IPv6 addresses only.
 
-     -A      Enables forwarding of the authentication agent connection.  This
-             can also be specified on a per-host basis in a configuration
-             file.
+     -A      Enables forwarding of connections from an authentication agent
+             such as ssh-agent(1).  This can also be specified on a per-host
+             basis in a configuration file.
 
              Agent forwarding should be enabled with caution.  Users with the
              ability to bypass file permissions on the remote host (for the
@@ -43,7 +43,8 @@ DESCRIPTION
              the forwarded connection.  An attacker cannot obtain key material
              from the agent, however they can perform operations on the keys
              that enable them to authenticate using the identities loaded into
-             the agent.
+             the agent.  A safer alternative may be to use a jump host (see
+             -J).
 
      -a      Disables forwarding of the authentication agent connection.
 
@@ -135,14 +136,14 @@ DESCRIPTION
      -i identity_file
              Selects a file from which the identity (private key) for public
              key authentication is read.  The default is ~/.ssh/id_dsa,
-             ~/.ssh/id_ecdsa, ~/.ssh/id_ed25519 and ~/.ssh/id_rsa.  Identity
-             files may also be specified on a per-host basis in the
-             configuration file.  It is possible to have multiple -i options
-             (and multiple identities specified in configuration files).  If
-             no certificates have been explicitly specified by the
-             CertificateFile directive, ssh will also try to load certificate
-             information from the filename obtained by appending -cert.pub to
-             identity filenames.
+             ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519,
+             ~/.ssh/id_ed25519_sk and ~/.ssh/id_rsa.  Identity files may also
+             be specified on a per-host basis in the configuration file.  It
+             is possible to have multiple -i options (and multiple identities
+             specified in configuration files).  If no certificates have been
+             explicitly specified by the CertificateFile directive, ssh will
+             also try to load certificate information from the filename
+             obtained by appending -cert.pub to identity filenames.
 
      -J destination
              Connect to the target host by first making a ssh connection to
@@ -329,8 +330,11 @@ DESCRIPTION
              for use with the -Q flag), mac (supported message integrity
              codes), kex (key exchange algorithms), key (key types), key-cert
              (certificate key types), key-plain (non-certificate key types),
+             key-sig (all key types and signature algorithms),
              protocol-version (supported SSH protocol versions), and sig
-             (supported signature algorithms).
+             (supported signature algorithms).  Alternatively, any keyword
+             from ssh_config(5) or sshd_config(5) that takes an algorithm list
+             may be used as an alias for the corresponding query_option.
 
      -q      Quiet mode.  Causes most warning and diagnostic messages to be
              suppressed.
@@ -491,9 +495,12 @@ AUTHENTICATION
 
      The user creates his/her key pair by running ssh-keygen(1).  This stores
      the private key in ~/.ssh/id_dsa (DSA), ~/.ssh/id_ecdsa (ECDSA),
-     ~/.ssh/id_ed25519 (Ed25519), or ~/.ssh/id_rsa (RSA) and stores the public
-     key in ~/.ssh/id_dsa.pub (DSA), ~/.ssh/id_ecdsa.pub (ECDSA),
-     ~/.ssh/id_ed25519.pub (Ed25519), or ~/.ssh/id_rsa.pub (RSA) in the user's
+     ~/.ssh/id_ecdsa_sk (authenticator-hosted ECDSA), ~/.ssh/id_ed25519
+     (Ed25519), ~/.ssh/id_ed25519_sk (authenticator-hosted Ed25519), or
+     ~/.ssh/id_rsa (RSA) and stores the public key in ~/.ssh/id_dsa.pub (DSA),
+     ~/.ssh/id_ecdsa.pub (ECDSA), ~/.ssh/id_ecdsa_sk.pub (authenticator-hosted
+     ECDSA), ~/.ssh/id_ed25519.pub (Ed25519), ~/.ssh/id_ed25519_sk.pub
+     (authenticator-hosted Ed25519), or ~/.ssh/id_rsa.pub (RSA) in the user's
      home directory.  The user should then copy the public key to
      ~/.ssh/authorized_keys in his/her home directory on the remote machine.
      The authorized_keys file corresponds to the conventional ~/.rhosts file,
@@ -858,7 +865,9 @@ FILES
 
      ~/.ssh/id_dsa
      ~/.ssh/id_ecdsa
+     ~/.ssh/id_ecdsa_sk
      ~/.ssh/id_ed25519
+     ~/.ssh/id_ed25519_sk
      ~/.ssh/id_rsa
              Contains the private key for authentication.  These files contain
              sensitive data and should be readable by the user but not
@@ -870,7 +879,9 @@ FILES
 
      ~/.ssh/id_dsa.pub
      ~/.ssh/id_ecdsa.pub
+     ~/.ssh/id_ecdsa_sk.pub
      ~/.ssh/id_ed25519.pub
+     ~/.ssh/id_ed25519_sk.pub
      ~/.ssh/id_rsa.pub
              Contains the public key for authentication.  These files are not
              sensitive and can (but need not) be readable by anyone.
@@ -977,4 +988,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.6                      June 12, 2019                     OpenBSD 6.6
+OpenBSD 6.6                    February 7, 2020                    OpenBSD 6.6

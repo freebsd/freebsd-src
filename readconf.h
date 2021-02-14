@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.129 2018/11/23 05:08:07 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.132 2020/01/23 02:46:49 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -29,6 +29,7 @@ struct allowed_cname {
 
 typedef struct {
 	int     forward_agent;	/* Forward authentication agent. */
+	char   *forward_agent_sock_path; /* Optional path of the agent. */
 	int     forward_x11;	/* Forward X11 display. */
 	int     forward_x11_timeout;	/* Expiration for Cookies */
 	int     forward_x11_trusted;	/* Trust Forward X11 display. */
@@ -82,6 +83,7 @@ typedef struct {
 	char   *bind_address;	/* local socket address for connection to sshd */
 	char   *bind_interface;	/* local interface for bind address */
 	char   *pkcs11_provider; /* PKCS#11 provider */
+	char   *sk_provider; /* Security key provider */
 	int	verify_host_key_dns;	/* Verify host key using DNS */
 
 	int     num_identity_files;	/* Number of files for RSA/DSA identities. */
@@ -197,6 +199,7 @@ typedef struct {
 #define SSH_STRICT_HOSTKEY_YES	2
 #define SSH_STRICT_HOSTKEY_ASK	3
 
+const char *kex_default_pk_alg(void);
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
 void	 fill_default_options_for_canonicalization(Options *);

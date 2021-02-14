@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect2.c,v 1.308 2019/08/05 11:50:33 dtucker Exp $ */
+/* $OpenBSD: sshconnect2.c,v 1.320 2020/02/06 22:48:23 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -36,9 +36,9 @@
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #if defined(HAVE_STRNVIS) && defined(HAVE_VIS_H) && !defined(BROKEN_STRNVIS)
 #include <vis.h>
@@ -72,6 +72,8 @@
 #include "hostfile.h"
 #include "ssherr.h"
 #include "utf8.h"
+#include "ssh-sk.h"
+#include "sk-api.h"
 
 #ifdef GSSAPI
 #include "ssh-gss.h"
@@ -117,7 +119,7 @@ order_hostkeyalgs(char *host, struct sockaddr *hostaddr, u_short port)
 	for (i = 0; i < options.num_system_hostfiles; i++)
 		load_hostkeys(hostkeys, hostname, options.system_hostfiles[i]);
 
-	oavail = avail = xstrdup(KEX_DEFAULT_PK_ALG);
+	oavail = avail = xstrdup(options.hostkeyalgorithms);
 	maxlen = strlen(avail) + 1;
 	first = xmalloc(maxlen);
 	last = xmalloc(maxlen);
@@ -159,10 +161,27 @@ ssh_kex2(struct ssh *ssh, char *host, struct sockaddr *hostaddr, u_short port)
 {
 	char *myproposal[PROPOSAL_MAX] = { KEX_CLIENT };
 	char *s, *all_key;
-	int r;
+	int r, use_known_hosts_order = 0;
 
 	xxx_host = host;
 	xxx_hostaddr = hostaddr;
+
+	/*
+	 * If the user has not specified HostkeyAlgorithms, or has only
+	 * appended or removed algorithms from that list then prefer algorithms
+	 * that are in the list that are supported by known_hosts keys.
+	 */
+	if (options.hostkeyalgorithms == NULL ||
+	    options.hostkeyalgorithms[0] == '-' ||
+	    options.hostkeyalgorithms[0] == '+')
+		use_known_hosts_order = 1;
+
+	/* Expand or fill in HostkeyAlgorithms */
+	all_key = sshkey_alg_list(0, 0, 1, ',');
+	if (kex_assemble_names(&options.hostkeyalgorithms,
+	    kex_default_pk_alg(), all_key) != 0)
+		fatal("%s: kex_assemble_namelist", __func__);
+	free(all_key);
 
 	if ((s = kex_names_cat(options.kex_algorithms, "ext-info-c")) == NULL)
 		fatal("%s: kex_names_cat", __func__);
@@ -172,25 +191,19 @@ ssh_kex2(struct ssh *ssh, char *host, struct sockaddr *hostaddr, u_short port)
 	myproposal[PROPOSAL_ENC_ALGS_STOC] =
 	    compat_cipher_proposal(options.ciphers);
 	myproposal[PROPOSAL_COMP_ALGS_CTOS] =
-	    myproposal[PROPOSAL_COMP_ALGS_STOC] = options.compression ?
-	    "zlib@openssh.com,zlib,none" : "none,zlib@openssh.com,zlib";
+	    myproposal[PROPOSAL_COMP_ALGS_STOC] =
+	    (char *)compression_alg_list(options.compression);
 	myproposal[PROPOSAL_MAC_ALGS_CTOS] =
 	    myproposal[PROPOSAL_MAC_ALGS_STOC] = options.macs;
-	if (options.hostkeyalgorithms != NULL) {
-		all_key = sshkey_alg_list(0, 0, 1, ',');
-		if (kex_assemble_names(&options.hostkeyalgorithms,
-		    KEX_DEFAULT_PK_ALG, all_key) != 0)
-			fatal("%s: kex_assemble_namelist", __func__);
-		free(all_key);
-		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] =
-		    compat_pkalg_proposal(options.hostkeyalgorithms);
-	} else {
-		/* Enforce default */
-		options.hostkeyalgorithms = xstrdup(KEX_DEFAULT_PK_ALG);
-		/* Prefer algorithms that we already have keys for */
+	if (use_known_hosts_order) {
+		/* Query known_hosts and prefer algorithms that appear there */
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] =
 		    compat_pkalg_proposal(
 		    order_hostkeyalgs(host, hostaddr, port));
+	} else {
+		/* Use specified HostkeyAlgorithms exactly */
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] =
+		    compat_pkalg_proposal(options.hostkeyalgorithms);
 	}
 
 	if (options.rekey_limit || options.rekey_interval)
@@ -601,17 +614,23 @@ static char *
 format_identity(Identity *id)
 {
 	char *fp = NULL, *ret = NULL;
+	const char *note = "";
 
 	if (id->key != NULL) {
 	     fp = sshkey_fingerprint(id->key, options.fingerprint_hash,
 		    SSH_FP_DEFAULT);
 	}
+	if (id->key) {
+		if ((id->key->flags & SSHKEY_FLAG_EXT) != 0)
+			note = " token";
+		else if (sshkey_is_sk(id->key))
+			note = " authenticator";
+	}
 	xasprintf(&ret, "%s %s%s%s%s%s%s",
 	    id->filename,
 	    id->key ? sshkey_type(id->key) : "", id->key ? " " : "",
 	    fp ? fp : "",
-	    id->userprovided ? " explicit" : "",
-	    (id->key && (id->key->flags & SSHKEY_FLAG_EXT)) ? " token" : "",
+	    id->userprovided ? " explicit" : "", note,
 	    id->agent_fd != -1 ? " agent" : "");
 	free(fp);
 	return ret;
@@ -1140,8 +1159,13 @@ static int
 identity_sign(struct identity *id, u_char **sigp, size_t *lenp,
     const u_char *data, size_t datalen, u_int compat, const char *alg)
 {
-	struct sshkey *prv;
-	int r;
+	struct sshkey *sign_key = NULL, *prv = NULL;
+	int r = SSH_ERR_INTERNAL_ERROR;
+	struct notifier_ctx *notifier = NULL;
+	char *fp = NULL;
+
+	*sigp = NULL;
+	*lenp = 0;
 
 	/* The agent supports this key. */
 	if (id->key != NULL && id->agent_fd != -1) {
@@ -1155,27 +1179,47 @@ identity_sign(struct identity *id, u_char **sigp, size_t *lenp,
 	 */
 	if (id->key != NULL &&
 	    (id->isprivate || (id->key->flags & SSHKEY_FLAG_EXT))) {
-		if ((r = sshkey_sign(id->key, sigp, lenp, data, datalen,
-		    alg, compat)) != 0)
-			return r;
-		/*
-		 * PKCS#11 tokens may not support all signature algorithms,
-		 * so check what we get back.
-		 */
-		if ((r = sshkey_check_sigtype(*sigp, *lenp, alg)) != 0)
-			return r;
-		return 0;
+		sign_key = id->key;
+	} else {
+		/* Load the private key from the file. */
+		if ((prv = load_identity_file(id)) == NULL)
+			return SSH_ERR_KEY_NOT_FOUND;
+		if (id->key != NULL && !sshkey_equal_public(prv, id->key)) {
+			error("%s: private key %s contents do not match public",
+			   __func__, id->filename);
+			r = SSH_ERR_KEY_NOT_FOUND;
+			goto out;
+		}
+		sign_key = prv;
+		if (sshkey_is_sk(sign_key) &&
+		    (sign_key->sk_flags & SSH_SK_USER_PRESENCE_REQD)) {
+			/* XXX match batch mode should just skip these keys? */
+			if ((fp = sshkey_fingerprint(sign_key,
+			    options.fingerprint_hash, SSH_FP_DEFAULT)) == NULL)
+				fatal("%s: sshkey_fingerprint", __func__);
+			notifier = notify_start(options.batch_mode,
+			    "Confirm user presence for key %s %s",
+			    sshkey_type(sign_key), fp);
+			free(fp);
+		}
 	}
-
-	/* Load the private key from the file. */
-	if ((prv = load_identity_file(id)) == NULL)
-		return SSH_ERR_KEY_NOT_FOUND;
-	if (id->key != NULL && !sshkey_equal_public(prv, id->key)) {
-		error("%s: private key %s contents do not match public",
-		   __func__, id->filename);
-		return SSH_ERR_KEY_NOT_FOUND;
+	if ((r = sshkey_sign(sign_key, sigp, lenp, data, datalen,
+	    alg, options.sk_provider, compat)) != 0) {
+		debug("%s: sshkey_sign: %s", __func__, ssh_err(r));
+		goto out;
 	}
-	r = sshkey_sign(prv, sigp, lenp, data, datalen, alg, compat);
+	/*
+	 * PKCS#11 tokens may not support all signature algorithms,
+	 * so check what we get back.
+	 */
+	if ((r = sshkey_check_sigtype(*sigp, *lenp, alg)) != 0) {
+		debug("%s: sshkey_check_sigtype: %s", __func__, ssh_err(r));
+		goto out;
+	}
+	/* success */
+	r = 0;
+ out:
+	notify_complete(notifier);
 	sshkey_free(prv);
 	return r;
 }
@@ -1278,7 +1322,7 @@ sign_and_send_pubkey(struct ssh *ssh, Identity *id)
 			error("%s: no mutual signature supported", __func__);
 			goto out;
 		}
-		debug3("%s: signing using %s", __func__, alg);
+		debug3("%s: signing using %s %s", __func__, alg, fp);
 
 		sshbuf_free(b);
 		if ((b = sshbuf_new()) == NULL)
@@ -1325,7 +1369,9 @@ sign_and_send_pubkey(struct ssh *ssh, Identity *id)
 			    loc, sshkey_type(id->key), fp);
 			continue;
 		}
-		error("%s: signing failed: %s", __func__, ssh_err(r));
+		error("%s: signing failed for %s \"%s\"%s: %s", __func__,
+		    sshkey_type(sign_id->key), sign_id->filename,
+		    id->agent_fd != -1 ? " from agent" : "", ssh_err(r));
 		goto out;
 	}
 	if (slen == 0 || signature == NULL) /* shouldn't happen */
@@ -1450,6 +1496,14 @@ load_identity_file(Identity *id)
 			quit = 1;
 			break;
 		}
+		if (private != NULL && sshkey_is_sk(private) &&
+		    options.sk_provider == NULL) {
+			debug("key \"%s\" is an authenticator-hosted key, "
+			    "but no provider specified", id->filename);
+			sshkey_free(private);
+			private = NULL;
+			quit = 1;
+		}
 		if (!quit && private != NULL && id->agent_fd == -1 &&
 		    !(id->key && id->isprivate))
 			maybe_add_key_to_agent(id->filename, private, comment,
@@ -1520,8 +1574,19 @@ pubkey_prepare(Authctxt *authctxt)
 	/* list of keys stored in the filesystem and PKCS#11 */
 	for (i = 0; i < options.num_identity_files; i++) {
 		key = options.identity_keys[i];
-		if (key && key->cert && key->cert->type != SSH2_CERT_TYPE_USER)
+		if (key && key->cert &&
+		    key->cert->type != SSH2_CERT_TYPE_USER) {
+			debug("%s: ignoring certificate %s: not a user "
+			    "certificate",  __func__,
+			    options.identity_files[i]);
 			continue;
+		}
+		if (key && sshkey_is_sk(key) && options.sk_provider == NULL) {
+			debug("%s: ignoring authenticator-hosted key %s as no "
+			    "SecurityKeyProvider has been specified",
+			    __func__, options.identity_files[i]);
+			continue;
+		}
 		options.identity_keys[i] = NULL;
 		id = xcalloc(1, sizeof(*id));
 		id->agent_fd = -1;
@@ -1534,8 +1599,19 @@ pubkey_prepare(Authctxt *authctxt)
 	for (i = 0; i < options.num_certificate_files; i++) {
 		key = options.certificates[i];
 		if (!sshkey_is_cert(key) || key->cert == NULL ||
-		    key->cert->type != SSH2_CERT_TYPE_USER)
+		    key->cert->type != SSH2_CERT_TYPE_USER) {
+			debug("%s: ignoring certificate %s: not a user "
+			    "certificate",  __func__,
+			    options.identity_files[i]);
 			continue;
+		}
+		if (key && sshkey_is_sk(key) && options.sk_provider == NULL) {
+			debug("%s: ignoring authenticator-hosted key "
+			    "certificate %s as no "
+			    "SecurityKeyProvider has been specified",
+			    __func__, options.identity_files[i]);
+			continue;
+		}
 		id = xcalloc(1, sizeof(*id));
 		id->agent_fd = -1;
 		id->key = key;
@@ -1860,7 +1936,7 @@ ssh_keysign(struct ssh *ssh, struct sshkey *key, u_char **sigp, size_t *lenp,
 		error("%s: fork: %s", __func__, strerror(errno));
 		return -1;
 	}
-	osigchld = signal(SIGCHLD, SIG_DFL);
+	osigchld = ssh_signal(SIGCHLD, SIG_DFL);
 	if (pid == 0) {
 		close(from[0]);
 		if (dup2(from[1], STDOUT_FILENO) == -1)
@@ -1932,11 +2008,11 @@ ssh_keysign(struct ssh *ssh, struct sshkey *key, u_char **sigp, size_t *lenp,
 	if ((r = sshbuf_get_string(b, sigp, lenp)) != 0) {
 		error("%s: buffer error: %s", __func__, ssh_err(r));
  fail:
-		signal(SIGCHLD, osigchld);
+		ssh_signal(SIGCHLD, osigchld);
 		sshbuf_free(b);
 		return -1;
 	}
-	signal(SIGCHLD, osigchld);
+	ssh_signal(SIGCHLD, osigchld);
 	sshbuf_free(b);
 
 	return 0;

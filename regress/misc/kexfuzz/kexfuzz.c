@@ -1,4 +1,4 @@
-/* 	$OpenBSD: kexfuzz.c,v 1.5 2019/01/21 12:50:12 djm Exp $ */
+/* 	$OpenBSD: kexfuzz.c,v 1.6 2020/01/26 00:09:50 djm Exp $ */
 /*
  * Fuzz harness for KEX code
  *
@@ -424,12 +424,8 @@ main(int argc, char **argv)
 		if (packet_index == -1 || direction == -1 || data_path == NULL)
 			badusage("Replace (-r) mode must specify direction "
 			    "(-D) packet index (-i) and data path (-f)");
-		if ((fd = open(data_path, O_RDONLY)) == -1)
-			err(1, "open %s", data_path);
-		replace_data = sshbuf_new();
-		if ((r = sshkey_load_file(fd, replace_data)) != 0)
+		if ((r = sshbuf_load_file(data_path, &replace_data)) != 0)
 			errx(1, "read %s: %s", data_path, ssh_err(r));
-		close(fd);
 	}
 
 	/* Dump mode */

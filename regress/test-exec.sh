@@ -1,4 +1,4 @@
-#	$OpenBSD: test-exec.sh,v 1.66 2019/07/05 04:12:46 dtucker Exp $
+#	$OpenBSD: test-exec.sh,v 1.75 2020/01/31 23:25:08 djm Exp $
 #	Placed in the Public Domain.
 
 #SUDO=sudo
@@ -80,6 +80,9 @@ PLINK=plink
 PUTTYGEN=puttygen
 CONCH=conch
 
+# Tools used by multiple tests
+NC=$OBJ/netcat
+
 if [ "x$TEST_SSH_SSH" != "x" ]; then
 	SSH="${TEST_SSH_SSH}"
 fi
@@ -127,6 +130,12 @@ if [ "x$TEST_SSH_CONCH" != "x" ]; then
 	/*) CONCH="${TEST_SSH_CONCH}" ;;
 	*) CONCH=`which ${TEST_SSH_CONCH} 2>/dev/null` ;;
 	esac
+fi
+if [ "x$TEST_SSH_PKCS11_HELPER" != "x" ]; then
+	SSH_PKCS11_HELPER="${TEST_SSH_PKCS11_HELPER}"
+fi
+if [ "x$TEST_SSH_SK_HELPER" != "x" ]; then
+	SSH_SK_HELPER="${TEST_SSH_SK_HELPER}"
 fi
 
 # Path to sshd must be absolute for rexec
@@ -230,6 +239,7 @@ echo "exec ${SSH} -E${TEST_SSH_LOGFILE} "'"$@"' >>$SSHLOGWRAP
 
 chmod a+rx $OBJ/ssh-log-wrapper.sh
 REAL_SSH="$SSH"
+REAL_SSHD="$SSHD"
 SSH="$SSHLOGWRAP"
 
 # Some test data.  We make a copy because some tests will overwrite it.
@@ -252,6 +262,7 @@ increase_datafile_size()
 
 # these should be used in tests
 export SSH SSHD SSHAGENT SSHADD SSHKEYGEN SSHKEYSCAN SFTP SFTPSERVER SCP
+export SSH_PKCS11_HELPER SSH_SK_HELPER
 #echo $SSH $SSHD $SSHAGENT $SSHADD $SSHKEYGEN $SSHKEYSCAN $SFTP $SFTPSERVER $SCP
 
 # Portable specific functions
@@ -437,6 +448,31 @@ EOF
 # be abused to locally escalate privileges.
 if [ ! -z "$TEST_SSH_UNSAFE_PERMISSIONS" ]; then
 	echo "StrictModes no" >> $OBJ/sshd_config
+else
+	# check and warn if excessive permissions are likely to cause failures.
+	unsafe=""
+	dir="${OBJ}"
+	while test ${dir} != "/"; do
+		if test -d "${dir}" && ! test -h "${dir}"; then
+			perms=`ls -ld ${dir}`
+			case "${perms}" in
+			?????w????*|????????w?*) unsafe="${unsafe} ${dir}" ;;
+			esac
+		fi
+		dir=`dirname ${dir}`
+	done
+	if ! test  -z "${unsafe}"; then
+		cat <<EOD
+
+WARNING: Unsafe (group or world writable) directory permissions found:
+${unsafe}
+
+These could be abused to locally escalate privileges.  If you are
+sure that this is not a risk (eg there are no other users), you can
+bypass this check by setting TEST_SSH_UNSAFE_PERMISSIONS=1
+
+EOD
+	fi
 fi
 
 if [ ! -z "$TEST_SSH_SSHD_CONFOPTS" ]; then
@@ -475,8 +511,33 @@ fi
 
 rm -f $OBJ/known_hosts $OBJ/authorized_keys_$USER
 
-SSH_KEYTYPES=`$SSH -Q key-plain`
+SSH_SK_PROVIDER=
+if [ -f "${SRC}/misc/sk-dummy/obj/sk-dummy.so" ] ; then
+	SSH_SK_PROVIDER="${SRC}/misc/sk-dummy/obj/sk-dummy.so"
+elif [ -f "${SRC}/misc/sk-dummy/sk-dummy.so" ] ; then
+	SSH_SK_PROVIDER="${SRC}/misc/sk-dummy/sk-dummy.so"
+fi
+export SSH_SK_PROVIDER
 
+if ! test -z "$SSH_SK_PROVIDER"; then
+	EXTRA_AGENT_ARGS='-P/*' # XXX want realpath(1)...
+	echo "SecurityKeyProvider $SSH_SK_PROVIDER" >> $OBJ/ssh_config
+	echo "SecurityKeyProvider $SSH_SK_PROVIDER" >> $OBJ/sshd_config
+	echo "SecurityKeyProvider $SSH_SK_PROVIDER" >> $OBJ/sshd_proxy
+fi
+export EXTRA_AGENT_ARGS
+
+maybe_filter_sk() {
+	if test -z "$SSH_SK_PROVIDER" ; then
+		grep -v ^sk
+	else
+		cat
+	fi
+}
+
+SSH_KEYTYPES=`$SSH -Q key-plain | maybe_filter_sk`
+SSH_HOSTKEY_TYPES=`$SSH -Q key-plain | maybe_filter_sk`
+ 
 for t in ${SSH_KEYTYPES}; do
 	# generate user key
 	trace "generating key type $t"
@@ -486,15 +547,17 @@ for t in ${SSH_KEYTYPES}; do
 			fail "ssh-keygen for $t failed"
 	fi
 
+	# setup authorized keys
+	cat $OBJ/$t.pub >> $OBJ/authorized_keys_$USER
+	echo IdentityFile $OBJ/$t >> $OBJ/ssh_config
+done
+
+for t in ${SSH_HOSTKEY_TYPES}; do
 	# known hosts file for client
 	(
 		printf 'localhost-with-alias,127.0.0.1,::1 '
 		cat $OBJ/$t.pub
 	) >> $OBJ/known_hosts
-
-	# setup authorized keys
-	cat $OBJ/$t.pub >> $OBJ/authorized_keys_$USER
-	echo IdentityFile $OBJ/$t >> $OBJ/ssh_config
 
 	# use key as host key, too
 	$SUDO cp $OBJ/$t $OBJ/host.$t
@@ -564,7 +627,7 @@ fi
 # create a proxy version of the client config
 (
 	cat $OBJ/ssh_config
-	echo proxycommand ${SUDO} sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy
+	echo proxycommand ${SUDO} env SSH_SK_HELPER=\"$SSH_SK_HELPER\" sh ${SRC}/sshd-log-wrapper.sh ${TEST_SSHD_LOGFILE} ${SSHD} -i -f $OBJ/sshd_proxy
 ) > $OBJ/ssh_proxy
 
 # check proxy config
@@ -574,7 +637,8 @@ start_sshd ()
 {
 	# start sshd
 	$SUDO ${SSHD} -f $OBJ/sshd_config "$@" -t || fatal "sshd_config broken"
-	$SUDO ${SSHD} -f $OBJ/sshd_config "$@" -E$TEST_SSHD_LOGFILE
+	$SUDO env SSH_SK_HELPER="$SSH_SK_HELPER" \
+	    ${SSHD} -f $OBJ/sshd_config "$@" -E$TEST_SSHD_LOGFILE
 
 	trace "wait for sshd"
 	i=0;

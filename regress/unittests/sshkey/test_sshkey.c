@@ -1,4 +1,4 @@
-/* 	$OpenBSD: test_sshkey.c,v 1.18 2019/06/21 04:21:45 djm Exp $ */
+/* 	$OpenBSD: test_sshkey.c,v 1.20 2019/11/25 10:32:35 djm Exp $ */
 /*
  * Regress test for sshkey.h key management API
  *
@@ -101,7 +101,7 @@ build_cert(struct sshbuf *b, struct sshkey *k, const char *type,
 	ASSERT_INT_EQ(sshbuf_put_string(b, NULL, 0), 0); /* reserved */
 	ASSERT_INT_EQ(sshbuf_put_stringb(b, ca_buf), 0); /* signature key */
 	ASSERT_INT_EQ(sshkey_sign(sign_key, &sigblob, &siglen,
-	    sshbuf_ptr(b), sshbuf_len(b), sig_alg, 0), 0);
+	    sshbuf_ptr(b), sshbuf_len(b), sig_alg, NULL, 0), 0);
 	ASSERT_INT_EQ(sshbuf_put_string(b, sigblob, siglen), 0); /* signature */
 
 	free(sigblob);
@@ -120,14 +120,14 @@ signature_test(struct sshkey *k, struct sshkey *bad, const char *sig_alg,
 	size_t len;
 	u_char *sig;
 
-	ASSERT_INT_EQ(sshkey_sign(k, &sig, &len, d, l, sig_alg, 0), 0);
+	ASSERT_INT_EQ(sshkey_sign(k, &sig, &len, d, l, sig_alg, NULL, 0), 0);
 	ASSERT_SIZE_T_GT(len, 8);
 	ASSERT_PTR_NE(sig, NULL);
-	ASSERT_INT_EQ(sshkey_verify(k, sig, len, d, l, NULL, 0), 0);
-	ASSERT_INT_NE(sshkey_verify(bad, sig, len, d, l, NULL, 0), 0);
+	ASSERT_INT_EQ(sshkey_verify(k, sig, len, d, l, NULL, 0, NULL), 0);
+	ASSERT_INT_NE(sshkey_verify(bad, sig, len, d, l, NULL, 0, NULL), 0);
 	/* Fuzz test is more comprehensive, this is just a smoke test */
 	sig[len - 5] ^= 0x10;
-	ASSERT_INT_NE(sshkey_verify(k, sig, len, d, l, NULL, 0), 0);
+	ASSERT_INT_NE(sshkey_verify(k, sig, len, d, l, NULL, 0, NULL), 0);
 	free(sig);
 }
 
@@ -437,7 +437,7 @@ sshkey_tests(void)
 	put_opt(k1->cert->extensions, "permit-X11-forwarding", NULL);
 	put_opt(k1->cert->extensions, "permit-agent-forwarding", NULL);
 	ASSERT_INT_EQ(sshkey_from_private(k2, &k1->cert->signature_key), 0);
-	ASSERT_INT_EQ(sshkey_certify(k1, k2, NULL), 0);
+	ASSERT_INT_EQ(sshkey_certify(k1, k2, NULL, NULL), 0);
 	b = sshbuf_new();
 	ASSERT_PTR_NE(b, NULL);
 	ASSERT_INT_EQ(sshkey_putb(k1, b), 0);

@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.117 2019/09/03 08:29:15 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.121 2019/12/21 02:19:13 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -44,8 +44,8 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -82,20 +82,15 @@ decode_reply(u_char type)
 		return SSH_ERR_INVALID_FORMAT;
 }
 
-/* Returns the number of the authentication fd, or -1 if there is none. */
+/*
+ * Opens an authentication socket at the provided path and stores the file
+ * descriptor in fdp. Returns 0 on success and an error on failure.
+ */
 int
-ssh_get_authentication_socket(int *fdp)
+ssh_get_authentication_socket_path(const char *authsocket, int *fdp)
 {
-	const char *authsocket;
 	int sock, oerrno;
 	struct sockaddr_un sunaddr;
-
-	if (fdp != NULL)
-		*fdp = -1;
-
-	authsocket = getenv(SSH_AUTHSOCKET_ENV_NAME);
-	if (authsocket == NULL || *authsocket == '\0')
-		return SSH_ERR_AGENT_NOT_PRESENT;
 
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_UNIX;
@@ -117,6 +112,25 @@ ssh_get_authentication_socket(int *fdp)
 	else
 		close(sock);
 	return 0;
+}
+
+/*
+ * Opens the default authentication socket and stores the file descriptor in
+ * fdp. Returns 0 on success and an error on failure.
+ */
+int
+ssh_get_authentication_socket(int *fdp)
+{
+	const char *authsocket;
+
+	if (fdp != NULL)
+		*fdp = -1;
+
+	authsocket = getenv(SSH_AUTHSOCKET_ENV_NAME);
+	if (authsocket == NULL || *authsocket == '\0')
+		return SSH_ERR_AGENT_NOT_PRESENT;
+
+	return ssh_get_authentication_socket_path(authsocket, fdp);
 }
 
 /* Communicate with agent: send request and read reply */
@@ -423,7 +437,8 @@ ssh_agent_sign(int sock, const struct sshkey *key,
 
 
 static int
-encode_constraints(struct sshbuf *m, u_int life, u_int confirm, u_int maxsign)
+encode_constraints(struct sshbuf *m, u_int life, u_int confirm, u_int maxsign,
+    const char *provider)
 {
 	int r;
 
@@ -441,6 +456,14 @@ encode_constraints(struct sshbuf *m, u_int life, u_int confirm, u_int maxsign)
 		    (r = sshbuf_put_u32(m, maxsign)) != 0)
 			goto out;
 	}
+	if (provider != NULL) {
+		if ((r = sshbuf_put_u8(m,
+		    SSH_AGENT_CONSTRAIN_EXTENSION)) != 0 ||
+		    (r = sshbuf_put_cstring(m,
+		    "sk-provider@openssh.com")) != 0 ||
+		    (r = sshbuf_put_cstring(m, provider)) != 0)
+			goto out;
+	}
 	r = 0;
  out:
 	return r;
@@ -452,10 +475,11 @@ encode_constraints(struct sshbuf *m, u_int life, u_int confirm, u_int maxsign)
  */
 int
 ssh_add_identity_constrained(int sock, struct sshkey *key,
-    const char *comment, u_int life, u_int confirm, u_int maxsign)
+    const char *comment, u_int life, u_int confirm, u_int maxsign,
+    const char *provider)
 {
 	struct sshbuf *msg;
-	int r, constrained = (life || confirm || maxsign);
+	int r, constrained = (life || confirm || maxsign || provider);
 	u_char type;
 
 	if ((msg = sshbuf_new()) == NULL)
@@ -469,9 +493,13 @@ ssh_add_identity_constrained(int sock, struct sshkey *key,
 	case KEY_DSA_CERT:
 	case KEY_ECDSA:
 	case KEY_ECDSA_CERT:
+	case KEY_ECDSA_SK:
+	case KEY_ECDSA_SK_CERT:
 #endif
 	case KEY_ED25519:
 	case KEY_ED25519_CERT:
+	case KEY_ED25519_SK:
+	case KEY_ED25519_SK_CERT:
 	case KEY_XMSS:
 	case KEY_XMSS_CERT:
 		type = constrained ?
@@ -488,7 +516,8 @@ ssh_add_identity_constrained(int sock, struct sshkey *key,
 		goto out;
 	}
 	if (constrained &&
-	    (r = encode_constraints(msg, life, confirm, maxsign)) != 0)
+	    (r = encode_constraints(msg, life, confirm, maxsign,
+	    provider)) != 0)
 		goto out;
 	if ((r = ssh_request_reply(sock, msg, msg)) != 0)
 		goto out;
@@ -566,7 +595,7 @@ ssh_update_card(int sock, int add, const char *reader_id, const char *pin,
 	    (r = sshbuf_put_cstring(msg, pin)) != 0)
 		goto out;
 	if (constrained &&
-	    (r = encode_constraints(msg, life, confirm, 0)) != 0)
+	    (r = encode_constraints(msg, life, confirm, 0, NULL)) != 0)
 		goto out;
 	if ((r = ssh_request_reply(sock, msg, msg)) != 0)
 		goto out;

@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.7 2019/01/21 09:54:11 djm Exp $	*/
+/*	$OpenBSD: sshbuf-getput-crypto.c,v 1.8 2019/11/15 06:00:20 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef WITH_OPENSSL
 #include <openssl/bn.h>
 #ifdef OPENSSL_HAS_ECC
 # include <openssl/ec.h>
@@ -153,23 +154,17 @@ int
 sshbuf_put_ec(struct sshbuf *buf, const EC_POINT *v, const EC_GROUP *g)
 {
 	u_char d[SSHBUF_MAX_ECPOINT];
-	BN_CTX *bn_ctx;
 	size_t len;
 	int ret;
 
-	if ((bn_ctx = BN_CTX_new()) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
 	if ((len = EC_POINT_point2oct(g, v, POINT_CONVERSION_UNCOMPRESSED,
-	    NULL, 0, bn_ctx)) > SSHBUF_MAX_ECPOINT) {
-		BN_CTX_free(bn_ctx);
+	    NULL, 0, NULL)) > SSHBUF_MAX_ECPOINT) {
 		return SSH_ERR_INVALID_ARGUMENT;
 	}
 	if (EC_POINT_point2oct(g, v, POINT_CONVERSION_UNCOMPRESSED,
-	    d, len, bn_ctx) != len) {
-		BN_CTX_free(bn_ctx);
+	    d, len, NULL) != len) {
 		return SSH_ERR_INTERNAL_ERROR; /* Shouldn't happen */
 	}
-	BN_CTX_free(bn_ctx);
 	ret = sshbuf_put_string(buf, d, len);
 	explicit_bzero(d, len);
 	return ret;
@@ -182,4 +177,4 @@ sshbuf_put_eckey(struct sshbuf *buf, const EC_KEY *v)
 	    EC_KEY_get0_group(v));
 }
 #endif /* OPENSSL_HAS_ECC */
-
+#endif /* WITH_OPENSSL */

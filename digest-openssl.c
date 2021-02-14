@@ -32,9 +32,6 @@
 #include "digest.h"
 #include "ssherr.h"
 
-#ifndef HAVE_EVP_RIPEMD160
-# define EVP_ripemd160 NULL
-#endif
 #ifndef HAVE_EVP_SHA256
 # define EVP_sha256 NULL
 #endif

@@ -1,4 +1,4 @@
-#	$OpenBSD: keytype.sh,v 1.8 2019/07/23 13:49:14 dtucker Exp $
+#	$OpenBSD: keytype.sh,v 1.10 2019/12/16 02:39:05 djm Exp $
 #	Placed in the Public Domain.
 
 tid="login with different key types"
@@ -16,43 +16,56 @@ for i in ${SSH_KEYTYPES}; do
 		ecdsa-sha2-nistp256)	ktypes="$ktypes ecdsa-256" ;;
 		ecdsa-sha2-nistp384)	ktypes="$ktypes ecdsa-384" ;;
 		ecdsa-sha2-nistp521)	ktypes="$ktypes ecdsa-521" ;;
+		sk-ssh-ed25519*)	ktypes="$ktypes ed25519-sk" ;;
+		sk-ecdsa-sha2-nistp256*) ktypes="$ktypes ecdsa-sk" ;;
 	esac
 done
 
 for kt in $ktypes; do
 	rm -f $OBJ/key.$kt
-	bits=`echo ${kt} | awk -F- '{print $2}'`
-	type=`echo ${kt}  | awk -F- '{print $1}'`
+	xbits=`echo ${kt} | awk -F- '{print $2}'`
+	xtype=`echo ${kt}  | awk -F- '{print $1}'`
+	case "$kt" in
+	*sk)	type="$kt"; bits="n/a"; bits_arg="";;
+	*)	type=$xtype; bits=$xbits; bits_arg="-b $bits";;
+	esac
 	verbose "keygen $type, $bits bits"
-	${SSHKEYGEN} -b $bits -q -N '' -t $type  -f $OBJ/key.$kt ||\
+	${SSHKEYGEN} $bits_arg -q -N '' -t $type  -f $OBJ/key.$kt || \
 		fail "ssh-keygen for type $type, $bits bits failed"
 done
 
+kname_to_ktype() {
+	case $1 in
+	dsa-1024)	echo ssh-dss;;
+	ecdsa-256)	echo ecdsa-sha2-nistp256;;
+	ecdsa-384)	echo ecdsa-sha2-nistp384;;
+	ecdsa-521)	echo ecdsa-sha2-nistp521;;
+	ed25519-512)	echo ssh-ed25519;;
+	rsa-*)		echo rsa-sha2-512,rsa-sha2-256,ssh-rsa;;
+	ed25519-sk)	echo sk-ssh-ed25519@openssh.com;;
+	ecdsa-sk)	echo sk-ecdsa-sha2-nistp256@openssh.com;;
+	esac
+}
+
 tries="1 2 3"
 for ut in $ktypes; do
-	htypes=$ut
+	user_type=`kname_to_ktype "$ut"`
+	htypes="$ut"
 	#htypes=$ktypes
 	for ht in $htypes; do
-		case $ht in
-		dsa-1024)	t=ssh-dss;;
-		ecdsa-256)	t=ecdsa-sha2-nistp256;;
-		ecdsa-384)	t=ecdsa-sha2-nistp384;;
-		ecdsa-521)	t=ecdsa-sha2-nistp521;;
-		ed25519-512)	t=ssh-ed25519;;
-		rsa-*)		t=rsa-sha2-512,rsa-sha2-256,ssh-rsa;;
-		esac
+		host_type=`kname_to_ktype "$ht"`
 		trace "ssh connect, userkey $ut, hostkey $ht"
 		(
 			grep -v HostKey $OBJ/sshd_proxy_bak
 			echo HostKey $OBJ/key.$ht
-			echo PubkeyAcceptedKeyTypes $t
-			echo HostKeyAlgorithms $t
+			echo PubkeyAcceptedKeyTypes $user_type
+			echo HostKeyAlgorithms $host_type
 		) > $OBJ/sshd_proxy
 		(
 			grep -v IdentityFile $OBJ/ssh_proxy_bak
 			echo IdentityFile $OBJ/key.$ut
-			echo PubkeyAcceptedKeyTypes $t
-			echo HostKeyAlgorithms $t
+			echo PubkeyAcceptedKeyTypes $user_type
+			echo HostKeyAlgorithms $host_type
 		) > $OBJ/ssh_proxy
 		(
 			printf 'localhost-with-alias,127.0.0.1,::1 '

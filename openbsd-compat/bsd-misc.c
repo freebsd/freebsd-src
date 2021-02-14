@@ -426,3 +426,13 @@ int _ssh_compat_fflush(FILE *f)
 	return fflush(f);
 }
 #endif
+
+#ifndef HAVE_LOCALTIME_R
+struct tm *
+localtime_r(const time_t *timep, struct tm *result)
+{
+	struct tm *tm = localtime(timep);
+	*result = *tm;
+	return result;
+}
+#endif

@@ -44,9 +44,9 @@
 #include "getrrsetbyname.h"
 #include "sha1.h"
 #include "sha2.h"
-#include "rmd160.h"
 #include "md5.h"
 #include "blf.h"
+#include "fnmatch.h"
 
 #ifndef HAVE_BASENAME
 char *basename(const char *path);
@@ -73,7 +73,7 @@ int getpagesize(void);
 char *getcwd(char *pt, size_t size);
 #endif
 
-#ifdef HAVE_MEMMEM
+#if defined(HAVE_DECL_MEMMEM) && HAVE_DECL_MEMMEM == 0
 void *memmem(const void *, size_t, const void *, size_t);
 #endif
 
@@ -320,6 +320,10 @@ void explicit_bzero(void *p, size_t n);
 
 #ifndef HAVE_FREEZERO
 void freezero(void *, size_t);
+#endif
+
+#ifndef HAVE_LOCALTIME_R
+struct tm *localtime_r(const time_t *, struct tm *);
 #endif
 
 char *xcrypt(const char *password, const char *salt);

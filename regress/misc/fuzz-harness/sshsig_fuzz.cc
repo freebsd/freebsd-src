@@ -22,10 +22,12 @@ int LLVMFuzzerTestOneInput(const uint8_t* sig, size_t slen)
   struct sshbuf *signature = sshbuf_from(sig, slen);
   struct sshbuf *message = sshbuf_from(data, strlen(data));
   struct sshkey *k = NULL;
+  struct sshkey_sig_details *details = NULL;
   extern char *__progname;
 
   log_init(__progname, SYSLOG_LEVEL_QUIET, SYSLOG_FACILITY_USER, 1);
-  sshsig_verifyb(signature, message, "castle", &k);
+  sshsig_verifyb(signature, message, "castle", &k, &details);
+  sshkey_sig_details_free(details);
   sshkey_free(k);
   sshbuf_free(signature);
   sshbuf_free(message);

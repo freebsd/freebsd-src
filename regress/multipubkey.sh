@@ -1,4 +1,4 @@
-#	$OpenBSD: multipubkey.sh,v 1.2 2018/10/31 11:09:27 dtucker Exp $
+#	$OpenBSD: multipubkey.sh,v 1.3 2019/12/11 18:47:14 djm Exp $
 #	Placed in the Public Domain.
 
 tid="multiple pubkey"
@@ -31,7 +31,7 @@ grep -v IdentityFile $OBJ/ssh_proxy.orig > $OBJ/ssh_proxy
 opts="-oProtocol=2 -F $OBJ/ssh_proxy -oIdentitiesOnly=yes"
 opts="$opts -i $OBJ/cert_user_key1 -i $OBJ/user_key1 -i $OBJ/user_key2"
 
-for privsep in yes sandbox ; do
+for privsep in yes ; do
 	(
 		grep -v "Protocol"  $OBJ/sshd_proxy.orig
 		echo "Protocol 2"

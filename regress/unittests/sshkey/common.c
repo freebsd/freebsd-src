@@ -1,4 +1,4 @@
-/* 	$OpenBSD: common.c,v 1.3 2018/09/13 09:03:20 djm Exp $ */
+/* 	$OpenBSD: common.c,v 1.4 2020/01/26 00:09:50 djm Exp $ */
 /*
  * Helpers for key API tests
  *
@@ -43,13 +43,10 @@
 struct sshbuf *
 load_file(const char *name)
 {
-	int fd;
-	struct sshbuf *ret;
+	struct sshbuf *ret = NULL;
 
-	ASSERT_PTR_NE(ret = sshbuf_new(), NULL);
-	ASSERT_INT_NE(fd = open(test_data_file(name), O_RDONLY), -1);
-	ASSERT_INT_EQ(sshkey_load_file(fd, ret), 0);
-	close(fd);
+	ASSERT_INT_EQ(sshbuf_load_file(test_data_file(name), &ret), 0);
+	ASSERT_PTR_NE(ret, NULL);
 	return ret;
 }
 

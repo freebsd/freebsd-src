@@ -1,5 +1,5 @@
 
-/* $OpenBSD: servconf.c,v 1.352 2019/09/06 14:45:34 naddy Exp $ */
+/* $OpenBSD: servconf.c,v 1.360 2020/01/31 22:42:45 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -40,6 +40,11 @@
 #ifdef HAVE_UTIL_H
 #include <util.h>
 #endif
+#ifdef USE_SYSTEM_GLOB
+# include <glob.h>
+#else
+# include "openbsd-compat/glob.h"
+#endif
 
 #include "openbsd-compat/sys-queue.h"
 #include "xmalloc.h"
@@ -69,6 +74,9 @@ static void add_listen_addr(ServerOptions *, const char *,
     const char *, int);
 static void add_one_listen_addr(ServerOptions *, const char *,
     const char *, int);
+void parse_server_config_depth(ServerOptions *options, const char *filename,
+    struct sshbuf *conf, struct include_list *includes,
+    struct connection_info *connectinfo, int flags, int *activep, int depth);
 
 /* Use of privilege separation or not */
 extern int use_privsep;
@@ -118,6 +126,7 @@ initialize_server_options(ServerOptions *options)
 	options->hostbased_key_types = NULL;
 	options->hostkeyalgorithms = NULL;
 	options->pubkey_authentication = -1;
+	options->pubkey_auth_options = -1;
 	options->pubkey_key_types = NULL;
 	options->kerberos_authentication = -1;
 	options->kerberos_or_local_passwd = -1;
@@ -170,6 +179,7 @@ initialize_server_options(ServerOptions *options)
 	options->authorized_keys_command = NULL;
 	options->authorized_keys_command_user = NULL;
 	options->revoked_keys_file = NULL;
+	options->sk_provider = NULL;
 	options->trusted_user_ca_keys = NULL;
 	options->authorized_principals_file = NULL;
 	options->authorized_principals_command = NULL;
@@ -193,6 +203,7 @@ static void
 assemble_algorithms(ServerOptions *o)
 {
 	char *all_cipher, *all_mac, *all_kex, *all_key, *all_sig;
+	char *def_cipher, *def_mac, *def_kex, *def_key, *def_sig;
 	int r;
 
 	all_cipher = cipher_alg_list(',', 0);
@@ -200,24 +211,35 @@ assemble_algorithms(ServerOptions *o)
 	all_kex = kex_alg_list(',');
 	all_key = sshkey_alg_list(0, 0, 1, ',');
 	all_sig = sshkey_alg_list(0, 1, 1, ',');
+	/* remove unsupported algos from default lists */
+	def_cipher = match_filter_whitelist(KEX_SERVER_ENCRYPT, all_cipher);
+	def_mac = match_filter_whitelist(KEX_SERVER_MAC, all_mac);
+	def_kex = match_filter_whitelist(KEX_SERVER_KEX, all_kex);
+	def_key = match_filter_whitelist(KEX_DEFAULT_PK_ALG, all_key);
+	def_sig = match_filter_whitelist(SSH_ALLOWED_CA_SIGALGS, all_sig);
 #define ASSEMBLE(what, defaults, all) \
 	do { \
 		if ((r = kex_assemble_names(&o->what, defaults, all)) != 0) \
 			fatal("%s: %s: %s", __func__, #what, ssh_err(r)); \
 	} while (0)
-	ASSEMBLE(ciphers, KEX_SERVER_ENCRYPT, all_cipher);
-	ASSEMBLE(macs, KEX_SERVER_MAC, all_mac);
-	ASSEMBLE(kex_algorithms, KEX_SERVER_KEX, all_kex);
-	ASSEMBLE(hostkeyalgorithms, KEX_DEFAULT_PK_ALG, all_key);
-	ASSEMBLE(hostbased_key_types, KEX_DEFAULT_PK_ALG, all_key);
-	ASSEMBLE(pubkey_key_types, KEX_DEFAULT_PK_ALG, all_key);
-	ASSEMBLE(ca_sign_algorithms, SSH_ALLOWED_CA_SIGALGS, all_sig);
+	ASSEMBLE(ciphers, def_cipher, all_cipher);
+	ASSEMBLE(macs, def_mac, all_mac);
+	ASSEMBLE(kex_algorithms, def_kex, all_kex);
+	ASSEMBLE(hostkeyalgorithms, def_key, all_key);
+	ASSEMBLE(hostbased_key_types, def_key, all_key);
+	ASSEMBLE(pubkey_key_types, def_key, all_key);
+	ASSEMBLE(ca_sign_algorithms, def_sig, all_sig);
 #undef ASSEMBLE
 	free(all_cipher);
 	free(all_mac);
 	free(all_kex);
 	free(all_key);
 	free(all_sig);
+	free(def_cipher);
+	free(def_mac);
+	free(def_kex);
+	free(def_key);
+	free(def_sig);
 }
 
 static void
@@ -341,6 +363,8 @@ fill_default_server_options(ServerOptions *options)
 		options->hostbased_uses_name_from_packet_only = 0;
 	if (options->pubkey_authentication == -1)
 		options->pubkey_authentication = 1;
+	if (options->pubkey_auth_options == -1)
+		options->pubkey_auth_options = 0;
 	if (options->kerberos_authentication == -1)
 		options->kerberos_authentication = 0;
 	if (options->kerberos_or_local_passwd == -1)
@@ -368,7 +392,12 @@ fill_default_server_options(ServerOptions *options)
 		options->permit_user_env_whitelist = NULL;
 	}
 	if (options->compression == -1)
+#ifdef WITH_ZLIB
 		options->compression = COMP_DELAYED;
+#else
+		options->compression = COMP_NONE;
+#endif
+
 	if (options->rekey_limit == -1)
 		options->rekey_limit = 0;
 	if (options->rekey_interval == -1)
@@ -425,6 +454,8 @@ fill_default_server_options(ServerOptions *options)
 		options->disable_forwarding = 0;
 	if (options->expose_userauth_info == -1)
 		options->expose_userauth_info = 0;
+	if (options->sk_provider == NULL)
+		options->sk_provider = xstrdup("internal");
 
 	assemble_algorithms(options);
 
@@ -444,10 +475,12 @@ fill_default_server_options(ServerOptions *options)
 	CLEAR_ON_NONE(options->banner);
 	CLEAR_ON_NONE(options->trusted_user_ca_keys);
 	CLEAR_ON_NONE(options->revoked_keys_file);
+	CLEAR_ON_NONE(options->sk_provider);
 	CLEAR_ON_NONE(options->authorized_principals_file);
 	CLEAR_ON_NONE(options->adm_forced_command);
 	CLEAR_ON_NONE(options->chroot_directory);
 	CLEAR_ON_NONE(options->routing_domain);
+	CLEAR_ON_NONE(options->host_key_agent);
 	for (i = 0; i < options->num_host_key_files; i++)
 		CLEAR_ON_NONE(options->host_key_files[i]);
 	for (i = 0; i < options->num_host_cert_files; i++)
@@ -501,7 +534,7 @@ typedef enum {
 	sAcceptEnv, sSetEnv, sPermitTunnel,
 	sMatch, sPermitOpen, sPermitListen, sForceCommand, sChrootDirectory,
 	sUsePrivilegeSeparation, sAllowAgentForwarding,
-	sHostCertificate,
+	sHostCertificate, sInclude,
 	sRevokedKeys, sTrustedUserCAKeys, sAuthorizedPrincipalsFile,
 	sAuthorizedPrincipalsCommand, sAuthorizedPrincipalsCommandUser,
 	sKexAlgorithms, sCASignatureAlgorithms, sIPQoS, sVersionAddendum,
@@ -509,13 +542,14 @@ typedef enum {
 	sAuthenticationMethods, sHostKeyAgent, sPermitUserRC,
 	sStreamLocalBindMask, sStreamLocalBindUnlink,
 	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
-	sExposeAuthInfo, sRDomain,
+	sExposeAuthInfo, sRDomain, sPubkeyAuthOptions, sSecurityKeyProvider,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
 
-#define SSHCFG_GLOBAL	0x01	/* allowed in main section of sshd_config */
-#define SSHCFG_MATCH	0x02	/* allowed inside a Match section */
-#define SSHCFG_ALL	(SSHCFG_GLOBAL|SSHCFG_MATCH)
+#define SSHCFG_GLOBAL		0x01	/* allowed in main section of config */
+#define SSHCFG_MATCH		0x02	/* allowed inside a Match section */
+#define SSHCFG_ALL		(SSHCFG_GLOBAL|SSHCFG_MATCH)
+#define SSHCFG_NEVERMATCH	0x04  /* Match never matches; internal only */
 
 /* Textual representation of the tokens. */
 static struct {
@@ -551,6 +585,7 @@ static struct {
 	{ "rsaauthentication", sDeprecated, SSHCFG_ALL },
 	{ "pubkeyauthentication", sPubkeyAuthentication, SSHCFG_ALL },
 	{ "pubkeyacceptedkeytypes", sPubkeyAcceptedKeyTypes, SSHCFG_ALL },
+	{ "pubkeyauthoptions", sPubkeyAuthOptions, SSHCFG_ALL },
 	{ "dsaauthentication", sPubkeyAuthentication, SSHCFG_GLOBAL }, /* alias */
 #ifdef KRB5
 	{ "kerberosauthentication", sKerberosAuthentication, SSHCFG_ALL },
@@ -643,6 +678,7 @@ static struct {
 	{ "trustedusercakeys", sTrustedUserCAKeys, SSHCFG_ALL },
 	{ "authorizedprincipalsfile", sAuthorizedPrincipalsFile, SSHCFG_ALL },
 	{ "kexalgorithms", sKexAlgorithms, SSHCFG_GLOBAL },
+	{ "include", sInclude, SSHCFG_ALL },
 	{ "ipqos", sIPQoS, SSHCFG_ALL },
 	{ "authorizedkeyscommand", sAuthorizedKeysCommand, SSHCFG_ALL },
 	{ "authorizedkeyscommanduser", sAuthorizedKeysCommandUser, SSHCFG_ALL },
@@ -658,6 +694,7 @@ static struct {
 	{ "exposeauthinfo", sExposeAuthInfo, SSHCFG_ALL },
 	{ "rdomain", sRDomain, SSHCFG_ALL },
 	{ "casignaturealgorithms", sCASignatureAlgorithms, SSHCFG_ALL },
+	{ "securitykeyprovider", sSecurityKeyProvider, SSHCFG_GLOBAL },
 	{ NULL, sBadOption, 0 }
 };
 
@@ -1191,8 +1228,10 @@ static const struct multistate multistate_permitrootlogin[] = {
 	{ NULL, -1 }
 };
 static const struct multistate multistate_compression[] = {
+#ifdef WITH_ZLIB
 	{ "yes",			COMP_DELAYED },
 	{ "delayed",			COMP_DELAYED },
+#endif
 	{ "no",				COMP_NONE },
 	{ NULL, -1 }
 };
@@ -1211,13 +1250,14 @@ static const struct multistate multistate_tcpfwd[] = {
 	{ NULL, -1 }
 };
 
-int
-process_server_config_line(ServerOptions *options, char *line,
+static int
+process_server_config_line_depth(ServerOptions *options, char *line,
     const char *filename, int linenum, int *activep,
-    struct connection_info *connectinfo)
+    struct connection_info *connectinfo, int inc_flags, int depth,
+    struct include_list *includes)
 {
 	char ch, *cp, ***chararrayptr, **charptr, *arg, *arg2, *p;
-	int cmdline = 0, *intptr, value, value2, n, port;
+	int cmdline = 0, *intptr, value, value2, n, port, oactive, r, found;
 	SyslogFacility *log_facility_ptr;
 	LogLevel *log_level_ptr;
 	ServerOpCodes opcode;
@@ -1226,6 +1266,8 @@ process_server_config_line(ServerOptions *options, char *line,
 	long long val64;
 	const struct multistate *multistate_ptr;
 	const char *errstr;
+	struct include_item *item;
+	glob_t gbuf;
 
 	/* Strip trailing whitespace. Allow \f (form feed) at EOL only */
 	if ((len = strlen(line)) == 0)
@@ -1252,7 +1294,7 @@ process_server_config_line(ServerOptions *options, char *line,
 		cmdline = 1;
 		activep = &cmdline;
 	}
-	if (*activep && opcode != sMatch)
+	if (*activep && opcode != sMatch && opcode != sInclude)
 		debug3("%s:%d setting %s %s", filename, linenum, arg, cp);
 	if (*activep == 0 && !(flags & SSHCFG_MATCH)) {
 		if (connectinfo == NULL) {
@@ -1467,6 +1509,24 @@ process_server_config_line(ServerOptions *options, char *line,
 	case sPubkeyAcceptedKeyTypes:
 		charptr = &options->pubkey_key_types;
 		goto parse_keytypes;
+
+	case sPubkeyAuthOptions:
+		intptr = &options->pubkey_auth_options;
+		value = 0;
+		while ((arg = strdelim(&cp)) && *arg != '\0') {
+			if (strcasecmp(arg, "none") == 0)
+				continue;
+			if (strcasecmp(arg, "touch-required") == 0)
+				value |= PUBKEYAUTH_TOUCH_REQUIRED;
+			else {
+				fatal("%s line %d: unsupported "
+				    "PubkeyAuthOptions option %s",
+				    filename, linenum, arg);
+			}
+		}
+		if (*activep && *intptr == -1)
+			*intptr = value;
+		break;
 
 	case sKerberosAuthentication:
 		intptr = &options->kerberos_authentication;
@@ -1907,6 +1967,96 @@ process_server_config_line(ServerOptions *options, char *line,
 			*intptr = value;
 		break;
 
+	case sInclude:
+		if (cmdline) {
+			fatal("Include directive not supported as a "
+			    "command-line option");
+		}
+		value = 0;
+		while ((arg2 = strdelim(&cp)) != NULL && *arg2 != '\0') {
+			value++;
+			found = 0;
+			if (*arg2 != '/' && *arg2 != '~') {
+				xasprintf(&arg, "%s/%s", SSHDIR, arg);
+			} else
+				arg = xstrdup(arg2);
+
+			/*
+			 * Don't let included files clobber the containing
+			 * file's Match state.
+			 */
+			oactive = *activep;
+
+			/* consult cache of include files */
+			TAILQ_FOREACH(item, includes, entry) {
+				if (strcmp(item->selector, arg) != 0)
+					continue;
+				if (item->filename != NULL) {
+					parse_server_config_depth(options,
+					    item->filename, item->contents,
+					    includes, connectinfo,
+					    (oactive ? 0 : SSHCFG_NEVERMATCH),
+					    activep, depth + 1);
+				}
+				found = 1;
+				*activep = oactive;
+			}
+			if (found != 0) {
+				free(arg);
+				continue;
+			}
+
+			/* requested glob was not in cache */
+			debug2("%s line %d: new include %s",
+			    filename, linenum, arg);
+			if ((r = glob(arg, 0, NULL, &gbuf)) != 0) {
+				if (r != GLOB_NOMATCH) {
+					fatal("%s line %d: include \"%s\" "
+					    "glob failed", filename,
+					    linenum, arg);
+				}
+				/*
+				 * If no entry matched then record a
+				 * placeholder to skip later glob calls.
+				 */
+				debug2("%s line %d: no match for %s",
+				    filename, linenum, arg);
+				item = xcalloc(1, sizeof(*item));
+				item->selector = strdup(arg);
+				TAILQ_INSERT_TAIL(includes,
+				    item, entry);
+			}
+			if (gbuf.gl_pathc > INT_MAX)
+				fatal("%s: too many glob results", __func__);
+			for (n = 0; n < (int)gbuf.gl_pathc; n++) {
+				debug2("%s line %d: including %s",
+				    filename, linenum, gbuf.gl_pathv[n]);
+				item = xcalloc(1, sizeof(*item));
+				item->selector = strdup(arg);
+				item->filename = strdup(gbuf.gl_pathv[n]);
+				if ((item->contents = sshbuf_new()) == NULL) {
+					fatal("%s: sshbuf_new failed",
+					    __func__);
+				}
+				load_server_config(item->filename,
+				    item->contents);
+				parse_server_config_depth(options,
+				    item->filename, item->contents,
+				    includes, connectinfo,
+				    (oactive ? 0 : SSHCFG_NEVERMATCH),
+				    activep, depth + 1);
+				*activep = oactive;
+				TAILQ_INSERT_TAIL(includes, item, entry);
+			}
+			globfree(&gbuf);
+			free(arg);
+		}
+		if (value == 0) {
+			fatal("%s line %d: Include missing filename argument",
+			    filename, linenum);
+		}
+		break;
+
 	case sMatch:
 		if (cmdline)
 			fatal("Match directive not supported as a command-line "
@@ -1915,7 +2065,7 @@ process_server_config_line(ServerOptions *options, char *line,
 		if (value < 0)
 			fatal("%s line %d: Bad Match condition", filename,
 			    linenum);
-		*activep = value;
+		*activep = (inc_flags & SSHCFG_NEVERMATCH) ? 0 : value;
 		break;
 
 	case sPermitListen:
@@ -2002,6 +2152,21 @@ process_server_config_line(ServerOptions *options, char *line,
 	case sRevokedKeys:
 		charptr = &options->revoked_keys_file;
 		goto parse_filename;
+
+	case sSecurityKeyProvider:
+		charptr = &options->sk_provider;
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing file name.",
+			    filename, linenum);
+		if (*activep && *charptr == NULL) {
+			*charptr = strcasecmp(arg, "internal") == 0 ?
+			    xstrdup(arg) : derelativise_path(arg);
+			/* increase optional counter */
+			if (intptr != NULL)
+				*intptr = *intptr + 1;
+		}
+		break;
 
 	case sIPQoS:
 		arg = strdelim(&cp);
@@ -2194,6 +2359,16 @@ process_server_config_line(ServerOptions *options, char *line,
 	return 0;
 }
 
+int
+process_server_config_line(ServerOptions *options, char *line,
+    const char *filename, int linenum, int *activep,
+    struct connection_info *connectinfo, struct include_list *includes)
+{
+	return process_server_config_line_depth(options, line, filename,
+	    linenum, activep, connectinfo, 0, 0, includes);
+}
+
+
 /* Reads the server configuration file. */
 
 void
@@ -2232,12 +2407,13 @@ load_server_config(const char *filename, struct sshbuf *conf)
 
 void
 parse_server_match_config(ServerOptions *options,
-   struct connection_info *connectinfo)
+   struct include_list *includes, struct connection_info *connectinfo)
 {
 	ServerOptions mo;
 
 	initialize_server_options(&mo);
-	parse_server_config(&mo, "reprocess config", cfg, connectinfo);
+	parse_server_config(&mo, "reprocess config", cfg, includes,
+	    connectinfo);
 	copy_set_server_options(options, &mo, 0);
 }
 
@@ -2290,6 +2466,7 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	M_CP_INTOPT(password_authentication);
 	M_CP_INTOPT(gss_authentication);
 	M_CP_INTOPT(pubkey_authentication);
+	M_CP_INTOPT(pubkey_auth_options);
 	M_CP_INTOPT(kerberos_authentication);
 	M_CP_INTOPT(hostbased_authentication);
 	M_CP_INTOPT(hostbased_uses_name_from_packet_only);
@@ -2380,22 +2557,27 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 #undef M_CP_STROPT
 #undef M_CP_STRARRAYOPT
 
+#define SERVCONF_MAX_DEPTH	16
 void
-parse_server_config(ServerOptions *options, const char *filename,
-    struct sshbuf *conf, struct connection_info *connectinfo)
+parse_server_config_depth(ServerOptions *options, const char *filename,
+    struct sshbuf *conf, struct include_list *includes,
+    struct connection_info *connectinfo, int flags, int *activep, int depth)
 {
-	int active, linenum, bad_options = 0;
+	int linenum, bad_options = 0;
 	char *cp, *obuf, *cbuf;
+
+	if (depth < 0 || depth > SERVCONF_MAX_DEPTH)
+		fatal("Too many recursive configuration includes");
 
 	debug2("%s: config %s len %zu", __func__, filename, sshbuf_len(conf));
 
 	if ((obuf = cbuf = sshbuf_dup_string(conf)) == NULL)
 		fatal("%s: sshbuf_dup_string failed", __func__);
-	active = connectinfo ? 0 : 1;
 	linenum = 1;
 	while ((cp = strsep(&cbuf, "\n")) != NULL) {
-		if (process_server_config_line(options, cp, filename,
-		    linenum++, &active, connectinfo) != 0)
+		if (process_server_config_line_depth(options, cp,
+		    filename, linenum++, activep, connectinfo, flags,
+		    depth, includes) != 0)
 			bad_options++;
 	}
 	free(obuf);
@@ -2403,6 +2585,16 @@ parse_server_config(ServerOptions *options, const char *filename,
 		fatal("%s: terminating, %d bad configuration options",
 		    filename, bad_options);
 	process_queued_listen_addrs(options);
+}
+
+void
+parse_server_config(ServerOptions *options, const char *filename,
+    struct sshbuf *conf, struct include_list *includes,
+    struct connection_info *connectinfo)
+{
+	int active = connectinfo ? 0 : 1;
+	parse_server_config_depth(options, filename, conf, includes,
+	    connectinfo, 0, &active, 0);
 }
 
 static const char *
@@ -2616,13 +2808,14 @@ dump_config(ServerOptions *o)
 	/* string arguments */
 	dump_cfg_string(sPidFile, o->pid_file);
 	dump_cfg_string(sXAuthLocation, o->xauth_location);
-	dump_cfg_string(sCiphers, o->ciphers ? o->ciphers : KEX_SERVER_ENCRYPT);
-	dump_cfg_string(sMacs, o->macs ? o->macs : KEX_SERVER_MAC);
+	dump_cfg_string(sCiphers, o->ciphers);
+	dump_cfg_string(sMacs, o->macs);
 	dump_cfg_string(sBanner, o->banner);
 	dump_cfg_string(sForceCommand, o->adm_forced_command);
 	dump_cfg_string(sChrootDirectory, o->chroot_directory);
 	dump_cfg_string(sTrustedUserCAKeys, o->trusted_user_ca_keys);
 	dump_cfg_string(sRevokedKeys, o->revoked_keys_file);
+	dump_cfg_string(sSecurityKeyProvider, o->sk_provider);
 	dump_cfg_string(sAuthorizedPrincipalsFile,
 	    o->authorized_principals_file);
 	dump_cfg_string(sVersionAddendum, *o->version_addendum == '\0'
@@ -2632,16 +2825,11 @@ dump_config(ServerOptions *o)
 	dump_cfg_string(sAuthorizedPrincipalsCommand, o->authorized_principals_command);
 	dump_cfg_string(sAuthorizedPrincipalsCommandUser, o->authorized_principals_command_user);
 	dump_cfg_string(sHostKeyAgent, o->host_key_agent);
-	dump_cfg_string(sKexAlgorithms,
-	    o->kex_algorithms ? o->kex_algorithms : KEX_SERVER_KEX);
-	dump_cfg_string(sCASignatureAlgorithms, o->ca_sign_algorithms ?
-	    o->ca_sign_algorithms : SSH_ALLOWED_CA_SIGALGS);
-	dump_cfg_string(sHostbasedAcceptedKeyTypes, o->hostbased_key_types ?
-	    o->hostbased_key_types : KEX_DEFAULT_PK_ALG);
-	dump_cfg_string(sHostKeyAlgorithms, o->hostkeyalgorithms ?
-	    o->hostkeyalgorithms : KEX_DEFAULT_PK_ALG);
-	dump_cfg_string(sPubkeyAcceptedKeyTypes, o->pubkey_key_types ?
-	    o->pubkey_key_types : KEX_DEFAULT_PK_ALG);
+	dump_cfg_string(sKexAlgorithms, o->kex_algorithms);
+	dump_cfg_string(sCASignatureAlgorithms, o->ca_sign_algorithms);
+	dump_cfg_string(sHostbasedAcceptedKeyTypes, o->hostbased_key_types);
+	dump_cfg_string(sHostKeyAlgorithms, o->hostkeyalgorithms);
+	dump_cfg_string(sPubkeyAcceptedKeyTypes, o->pubkey_key_types);
 	dump_cfg_string(sRDomain, o->routing_domain);
 
 	/* string arguments requiring a lookup */
@@ -2711,4 +2899,10 @@ dump_config(ServerOptions *o)
 		    o->permit_user_env_whitelist);
 	}
 
+	printf("pubkeyauthoptions");
+	if (o->pubkey_auth_options == 0)
+		printf(" none");
+	if (o->pubkey_auth_options & PUBKEYAUTH_TOUCH_REQUIRED)
+		printf(" touch-required");
+	printf("\n");
 }

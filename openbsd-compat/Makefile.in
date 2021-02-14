@@ -7,12 +7,15 @@ VPATH=@srcdir@
 CC=@CC@
 LD=@LD@
 CFLAGS=@CFLAGS@
+CFLAGS_NOPIE=@CFLAGS_NOPIE@
 CPPFLAGS=-I. -I.. -I$(srcdir) -I$(srcdir)/.. @CPPFLAGS@ @DEFS@
+PICFLAG=@PICFLAG@
 LIBS=@LIBS@
 AR=@AR@
 RANLIB=@RANLIB@
 INSTALL=@INSTALL@
 LDFLAGS=-L. @LDFLAGS@
+LDFLAGS_NOPIE=-L. -Lopenbsd-compat/ @LDFLAGS_NOPIE@
 
 OPENBSD=base64.o \
 	basename.o \
@@ -25,6 +28,7 @@ OPENBSD=base64.o \
 	explicit_bzero.o \
 	fmt_scaled.o \
 	freezero.o \
+	fnmatch.o \
 	getcwd.o \
 	getgrouplist.o \
 	getopt_long.o \
@@ -40,7 +44,6 @@ OPENBSD=base64.o \
 	readpassphrase.o \
 	reallocarray.o \
 	recallocarray.o \
-	rmd160.o \
 	rresvport.o \
 	setenv.o \
 	setproctitle.o \
@@ -96,7 +99,7 @@ PORTS=	port-aix.o \
 	port-uw.o
 
 .c.o:
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+	$(CC) $(CFLAGS_NOPIE) $(PICFLAG) $(CPPFLAGS) -c $<
 
 all: libopenbsd-compat.a
 

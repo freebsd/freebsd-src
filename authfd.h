@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.h,v 1.46 2019/09/03 08:29:15 djm Exp $ */
+/* $OpenBSD: authfd.h,v 1.48 2019/12/21 02:19:13 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -24,13 +24,15 @@ struct ssh_identitylist {
 };
 
 int	ssh_get_authentication_socket(int *fdp);
+int	ssh_get_authentication_socket_path(const char *authsocket, int *fdp);
 void	ssh_close_authentication_socket(int sock);
 
 int	ssh_lock_agent(int sock, int lock, const char *password);
 int	ssh_fetch_identitylist(int sock, struct ssh_identitylist **idlp);
 void	ssh_free_identitylist(struct ssh_identitylist *idl);
 int	ssh_add_identity_constrained(int sock, struct sshkey *key,
-	    const char *comment, u_int life, u_int confirm, u_int maxsign);
+	    const char *comment, u_int life, u_int confirm, u_int maxsign,
+	    const char *provider);
 int	ssh_agent_has_key(int sock, struct sshkey *key);
 int	ssh_remove_identity(int sock, struct sshkey *key);
 int	ssh_update_card(int sock, int add, const char *reader_id,
@@ -77,6 +79,7 @@ int	ssh_agent_sign(int sock, const struct sshkey *key,
 #define	SSH_AGENT_CONSTRAIN_LIFETIME		1
 #define	SSH_AGENT_CONSTRAIN_CONFIRM		2
 #define	SSH_AGENT_CONSTRAIN_MAXSIGN		3
+#define	SSH_AGENT_CONSTRAIN_EXTENSION		255
 
 /* extended failure messages */
 #define SSH2_AGENT_FAILURE			30

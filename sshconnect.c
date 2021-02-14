@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.319 2019/09/13 04:31:19 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.328 2020/01/25 07:17:18 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -39,9 +39,9 @@
 #include <poll.h>
 #endif
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <string.h>
 #include <unistd.h>
 #ifdef HAVE_IFADDRS_H
@@ -141,7 +141,7 @@ ssh_proxy_fdpass_connect(struct ssh *ssh, const char *host,
 		    "proxy dialer: %.100s", strerror(errno));
 
 	command_string = expand_proxy_command(proxy_command, options.user,
-	    host_arg, host, port);
+	    host, host_arg, port);
 	debug("Executing proxy dialer command: %.500s", command_string);
 
 	/* Fork and execute the proxy command. */
@@ -224,7 +224,7 @@ ssh_proxy_connect(struct ssh *ssh, const char *host, const char *host_arg,
 		    strerror(errno));
 
 	command_string = expand_proxy_command(proxy_command, options.user,
-	    host_arg, host, port);
+	    host, host_arg, port);
 	debug("Executing proxy command: %.500s", command_string);
 
 	/* Fork and execute the proxy command. */
@@ -259,7 +259,7 @@ ssh_proxy_connect(struct ssh *ssh, const char *host, const char *host_arg,
 
 		/* Execute the proxy command.  Note that we gave up any
 		   extra privileges above. */
-		signal(SIGPIPE, SIG_DFL);
+		ssh_signal(SIGPIPE, SIG_DFL);
 		execv(argv[0], argv);
 		perror(argv[0]);
 		exit(1);
@@ -580,22 +580,23 @@ confirm(const char *prompt, const char *fingerprint)
 {
 	const char *msg, *again = "Please type 'yes' or 'no': ";
 	const char *again_fp = "Please type 'yes', 'no' or the fingerprint: ";
-	char *p;
+	char *p, *cp;
 	int ret = -1;
 
 	if (options.batch_mode)
 		return 0;
 	for (msg = prompt;;msg = fingerprint ? again_fp : again) {
-		p = read_passphrase(msg, RP_ECHO);
+		cp = p = read_passphrase(msg, RP_ECHO);
 		if (p == NULL)
 			return 0;
-		p[strcspn(p, "\n")] = '\0';
+		p += strspn(p, " \t"); /* skip leading whitespace */
+		p[strcspn(p, " \t\n")] = '\0'; /* remove trailing whitespace */
 		if (p[0] == '\0' || strcasecmp(p, "no") == 0)
 			ret = 0;
 		else if (strcasecmp(p, "yes") == 0 || (fingerprint != NULL &&
 		    strcasecmp(p, fingerprint) == 0))
 			ret = 1;
-		free(p);
+		free(cp);
 		if (ret != -1)
 			return ret;
 	}
@@ -1382,10 +1383,10 @@ ssh_local_cmd(const char *args)
 	if ((shell = getenv("SHELL")) == NULL || *shell == '\0')
 		shell = _PATH_BSHELL;
 
-	osighand = signal(SIGCHLD, SIG_DFL);
+	osighand = ssh_signal(SIGCHLD, SIG_DFL);
 	pid = fork();
 	if (pid == 0) {
-		signal(SIGPIPE, SIG_DFL);
+		ssh_signal(SIGPIPE, SIG_DFL);
 		debug3("Executing %s -c \"%s\"", shell, args);
 		execl(shell, shell, "-c", args, (char *)NULL);
 		error("Couldn't execute %s -c \"%s\": %s",
@@ -1396,7 +1397,7 @@ ssh_local_cmd(const char *args)
 	while (waitpid(pid, &status, 0) == -1)
 		if (errno != EINTR)
 			fatal("Couldn't wait for child: %s", strerror(errno));
-	signal(SIGCHLD, osighand);
+	ssh_signal(SIGCHLD, osighand);
 
 	if (!WIFEXITED(status))
 		return (1);
@@ -1405,10 +1406,11 @@ ssh_local_cmd(const char *args)
 }
 
 void
-maybe_add_key_to_agent(char *authfile, struct sshkey *private,
-    char *comment, char *passphrase)
+maybe_add_key_to_agent(const char *authfile, struct sshkey *private,
+    const char *comment, const char *passphrase)
 {
 	int auth_sock = -1, r;
+	const char *skprovider = NULL;
 
 	if (options.add_keys_to_agent == 0)
 		return;
@@ -1424,9 +1426,11 @@ maybe_add_key_to_agent(char *authfile, struct sshkey *private,
 		close(auth_sock);
 		return;
 	}
-
-	if ((r = ssh_add_identity_constrained(auth_sock, private, comment, 0,
-	    (options.add_keys_to_agent == 3), 0)) == 0)
+	if (sshkey_is_sk(private))
+		skprovider = options.sk_provider;
+	if ((r = ssh_add_identity_constrained(auth_sock, private,
+	    comment == NULL ? authfile : comment, 0,
+	    (options.add_keys_to_agent == 3), 0, skprovider)) == 0)
 		debug("identity added to agent: %s", authfile);
 	else
 		debug("could not add identity to agent: %s (%d)", authfile, r);

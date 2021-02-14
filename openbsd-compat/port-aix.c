@@ -26,6 +26,8 @@
  */
 #include "includes.h"
 
+#ifdef _AIX
+
 #include "xmalloc.h"
 #include "sshbuf.h"
 #include "ssherr.h"
@@ -35,8 +37,6 @@
 #include "ssh.h"
 #include "ssh_api.h"
 #include "log.h"
-
-#ifdef _AIX
 
 #include <errno.h>
 #if defined(HAVE_NETDB_H)

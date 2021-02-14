@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.316 2019/06/28 13:35:04 deraadt Exp $ */
+/* $OpenBSD: session.c,v 1.318 2020/01/23 07:10:22 dtucker Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -56,10 +56,10 @@
 #endif
 #include <pwd.h>
 #include <signal.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <limits.h>
 
@@ -946,6 +946,7 @@ read_etc_default_login(char ***env, u_int *envsize, uid_t uid)
 }
 #endif /* HAVE_ETC_DEFAULT_LOGIN */
 
+#if defined(USE_PAM) || defined(HAVE_CYGWIN)
 static void
 copy_environment_blacklist(char **source, char ***env, u_int *envsize,
     const char *blacklist)
@@ -973,12 +974,15 @@ copy_environment_blacklist(char **source, char ***env, u_int *envsize,
 		free(var_name);
 	}
 }
+#endif /* defined(USE_PAM) || defined(HAVE_CYGWIN) */
 
-void
+#ifdef HAVE_CYGWIN
+static void
 copy_environment(char **source, char ***env, u_int *envsize)
 {
 	copy_environment_blacklist(source, env, envsize, NULL);
 }
+#endif
 
 static char **
 do_setup_env(struct ssh *ssh, Session *s, const char *shell)
@@ -1638,7 +1642,7 @@ do_child(struct ssh *ssh, Session *s, const char *command)
 	do_rc_files(ssh, s, shell);
 
 	/* restore SIGPIPE for child */
-	signal(SIGPIPE, SIG_DFL);
+	ssh_signal(SIGPIPE, SIG_DFL);
 
 	if (s->is_subsystem == SUBSYSTEM_INT_SFTP_ERROR) {
 		error("Connection from %s: refusing non-sftp session",

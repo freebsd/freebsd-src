@@ -1,7 +1,7 @@
 SSH-PKCS11-HELPER(8)        System Manager's Manual       SSH-PKCS11-HELPER(8)
 
 NAME
-     ssh-pkcs11-helper M-bM-^@M-^S ssh-agent helper program for PKCS#11 support
+     ssh-pkcs11-helper M-bM-^@M-^S OpenSSH helper for PKCS#11 support
 
 SYNOPSIS
      ssh-pkcs11-helper [-v]
@@ -32,4 +32,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 6.6                    January 21, 2019                    OpenBSD 6.6
+OpenBSD 6.6                    November 30, 2019                   OpenBSD 6.6

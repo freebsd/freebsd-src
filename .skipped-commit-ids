@@ -11,6 +11,11 @@ db6375fc302e3bdf07d96430c63c991b2c2bd3ff	moduli update
 99dd10e72c04e93849981d43d64c946619efa474	include sshbuf-misc.c
 9e1c23476bb845f3cf3d15d9032da3ed0cb2fcf5	sshbuf-misc.c in regress
 569f08445c27124ec7c7f6c0268d844ec56ac061	Makefile tweaks for !openssl
+58ec755be4e51978ecfee73539090eb68652a987	moduli update
+4bd5551b306df55379afe17d841207990eb773bf	Makefile.inc
+14806a59353152f843eb349e618abbf6f4dd3ada	Makefile.inc
+8ea4455a2d9364a0a04f9e4a2cbfa4c9fcefe77e	Makefile.inc
+d9b910e412d139141b072a905e66714870c38ac0	Makefile.inc
 
 Old upstream tree:
 

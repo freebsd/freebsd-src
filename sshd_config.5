@@ -33,13 +33,13 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.290 2019/09/06 14:45:34 naddy Exp $
-.Dd $Mdocdate: September 6 2019 $
+.\" $OpenBSD: sshd_config.5,v 1.307 2020/02/07 03:54:44 dtucker Exp $
+.Dd $Mdocdate: February 7 2020 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
 .Nm sshd_config
-.Nd OpenSSH SSH daemon configuration file
+.Nd OpenSSH daemon configuration file
 .Sh DESCRIPTION
 .Xr sshd 8
 reads configuration data from
@@ -113,11 +113,8 @@ If specified, login is allowed only for users whose primary
 group or supplementary group list matches one of the patterns.
 Only group names are valid; a numerical group ID is not recognized.
 By default, login is allowed for all groups.
-The allow/deny directives are processed in the following order:
-.Cm DenyUsers ,
-.Cm AllowUsers ,
+The allow/deny groups directives are processed in the following order:
 .Cm DenyGroups ,
-and finally
 .Cm AllowGroups .
 .Pp
 See PATTERNS in
@@ -173,12 +170,9 @@ are separately checked, restricting logins to particular
 users from particular hosts.
 HOST criteria may additionally contain addresses to match in CIDR
 address/masklen format.
-The allow/deny directives are processed in the following order:
+The allow/deny users directives are processed in the following order:
 .Cm DenyUsers ,
-.Cm AllowUsers ,
-.Cm DenyGroups ,
-and finally
-.Cm AllowGroups .
+.Cm AllowUsers .
 .Pp
 See PATTERNS in
 .Xr ssh_config 5
@@ -525,6 +519,9 @@ is set to 15, and
 .Cm ClientAliveCountMax
 is left at the default, unresponsive SSH clients
 will be disconnected after approximately 45 seconds.
+Setting a zero
+.Cm ClientAliveCountMax
+disables connection termination.
 .It Cm ClientAliveInterval
 Sets a timeout interval in seconds after which if no data has been received
 from the client,
@@ -552,11 +549,8 @@ Login is disallowed for users whose primary group or supplementary
 group list matches one of the patterns.
 Only group names are valid; a numerical group ID is not recognized.
 By default, login is allowed for all groups.
-The allow/deny directives are processed in the following order:
-.Cm DenyUsers ,
-.Cm AllowUsers ,
+The allow/deny groups directives are processed in the following order:
 .Cm DenyGroups ,
-and finally
 .Cm AllowGroups .
 .Pp
 See PATTERNS in
@@ -573,12 +567,9 @@ are separately checked, restricting logins to particular
 users from particular hosts.
 HOST criteria may additionally contain addresses to match in CIDR
 address/masklen format.
-The allow/deny directives are processed in the following order:
+The allow/deny users directives are processed in the following order:
 .Cm DenyUsers ,
-.Cm AllowUsers ,
-.Cm DenyGroups ,
-and finally
-.Cm AllowGroups .
+.Cm AllowUsers .
 .Pp
 See PATTERNS in
 .Xr ssh_config 5
@@ -689,15 +680,20 @@ The default for this option is:
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
-rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+sk-ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,
+rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+sk-ecdsa-sha2-nistp256@openssh.com,
+ssh-ed25519,sk-ssh-ed25519@openssh.com,
+rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 The list of available key types may also be obtained using
-.Qq ssh -Q key .
+.Qq ssh -Q HostbasedAcceptedKeyTypes .
 .It Cm HostbasedAuthentication
 Specifies whether rhosts or /etc/hosts.equiv authentication together
 with successful public key client host authentication is allowed
@@ -767,15 +763,20 @@ The default for this option is:
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
-rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+sk-ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,
+rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+sk-ecdsa-sha2-nistp256@openssh.com,
+ssh-ed25519,sk-ssh-ed25519@openssh.com,
+rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 The list of available key types may also be obtained using
-.Qq ssh -Q key .
+.Qq ssh -Q HostKeyAlgorithms .
 .It Cm IgnoreRhosts
 Specifies that
 .Pa .rhosts
@@ -800,7 +801,20 @@ during
 and use only the system-wide known hosts file
 .Pa /etc/ssh/known_hosts .
 The default is
-.Cm no .
+.Dq no .
+.It Cm Include
+Include the specified configuration file(s).
+Multiple pathnames may be specified and each pathname may contain
+.Xr glob 7
+wildcards.
+Files without absolute paths are assumed to be in
+.Pa /etc/ssh .
+An
+.Cm Include
+directive may appear inside a
+.Cm Match
+block
+to perform conditional inclusion.
 .It Cm IPQoS
 Specifies the IPv4 type-of-service or DSCP class for the connection.
 Accepted values are
@@ -825,6 +839,7 @@ Accepted values are
 .Cm cs6 ,
 .Cm cs7 ,
 .Cm ef ,
+.Cm le ,
 .Cm lowdelay ,
 .Cm throughput ,
 .Cm reliability ,
@@ -920,6 +935,8 @@ ecdh-sha2-nistp256
 ecdh-sha2-nistp384
 .It
 ecdh-sha2-nistp521
+.It
+sntrup4591761x25519-sha512@tinyssh.org
 .El
 .Pp
 The default is:
@@ -928,11 +945,11 @@ curve25519-sha256,curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
 diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,
-diffie-hellman-group14-sha256,diffie-hellman-group14-sha1
+diffie-hellman-group14-sha256
 .Ed
 .Pp
 The list of available key exchange algorithms may also be obtained using
-.Qq ssh -Q kex .
+.Qq ssh -Q KexAlgorithms .
 .It Cm ListenAddress
 Specifies the local addresses
 .Xr sshd 8
@@ -1145,6 +1162,7 @@ Available keywords are
 .Cm HostbasedAcceptedKeyTypes ,
 .Cm HostbasedAuthentication ,
 .Cm HostbasedUsesNameFromPacketOnly ,
+.Cm Include ,
 .Cm IPQoS ,
 .Cm KbdInteractiveAuthentication ,
 .Cm KerberosAuthentication ,
@@ -1287,7 +1305,9 @@ An argument of
 can be used to prohibit all forwarding requests.
 The wildcard
 .Sq *
-can be used for host or port to allow all hosts or ports, respectively.
+can be used for host or port to allow all hosts or ports respectively.
+Otherwise, no pattern matching or address lookups are performed on supplied
+names.
 By default all port forwarding requests are permitted.
 .It Cm PermitRootLogin
 Specifies whether root can log in using
@@ -1428,15 +1448,44 @@ The default for this option is:
 ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ecdsa-sha2-nistp384-cert-v01@openssh.com,
 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
 ssh-ed25519-cert-v01@openssh.com,
-rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+sk-ssh-ed25519-cert-v01@openssh.com,
+rsa-sha2-512-cert-v01@openssh.com,
+rsa-sha2-256-cert-v01@openssh.com,
 ssh-rsa-cert-v01@openssh.com,
 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+sk-ecdsa-sha2-nistp256@openssh.com,
+ssh-ed25519,sk-ssh-ed25519@openssh.com,
+rsa-sha2-512,rsa-sha2-256,ssh-rsa
 .Ed
 .Pp
 The list of available key types may also be obtained using
-.Qq ssh -Q key .
+.Qq ssh -Q PubkeyAcceptedKeyTypes .
+.It Cm PubkeyAuthOptions
+Sets one or more public key authentication options.
+Two option keywords are currently supported:
+.Cm none
+(the default; indicating no additional options are enabled)
+and
+.Cm touch-required .
+.Pp
+The
+.Cm touch-required
+option causes public key authentication using a FIDO authenticator algorithm
+(i.e.\&
+.Cm ecdsa-sk
+or
+.Cm ed25519-sk )
+to always require the signature to attest that a physically present user
+explicitly confirmed the authentication (usually by touching the authenticator).
+By default,
+.Xr sshd 8
+requires user presence unless overridden with an authorized_keys option.
+The
+.Cm touch-required
+flag disables this override.
+This option has no effect for other, non-authenticator public key types.
 .It Cm PubkeyAuthentication
 Specifies whether public key authentication is allowed.
 The default is
@@ -1487,6 +1536,10 @@ will be bound to this
 If the routing domain is set to
 .Cm \&%D ,
 then the domain in which the incoming connection was received will be applied.
+.It Cm SecurityKeyProvider
+Specifies a path to a library that will be used when loading
+FIDO authenticator-hosted keys, overriding the default of using
+the built-in USB HID support.
 .It Cm SetEnv
 Specifies one or more environment variables to set in child sessions started
 by

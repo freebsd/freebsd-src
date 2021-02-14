@@ -31,19 +31,31 @@ int LLVMFuzzerTestOneInput(const uint8_t* sig, size_t slen)
   static struct sshkey *ecdsa384 = generate_or_die(KEY_ECDSA, 384);
   static struct sshkey *ecdsa521 = generate_or_die(KEY_ECDSA, 521);
 #endif
+  struct sshkey_sig_details *details = NULL;
   static struct sshkey *ed25519 = generate_or_die(KEY_ED25519, 0);
   static const char *data = "If everyone started announcing his nose had "
       "run away, I don’t know how it would all end";
   static const size_t dlen = strlen(data);
 
 #ifdef WITH_OPENSSL
-  sshkey_verify(rsa, sig, slen, (const u_char *)data, dlen, NULL, 0);
-  sshkey_verify(dsa, sig, slen, (const u_char *)data, dlen, NULL, 0);
-  sshkey_verify(ecdsa256, sig, slen, (const u_char *)data, dlen, NULL, 0);
-  sshkey_verify(ecdsa384, sig, slen, (const u_char *)data, dlen, NULL, 0);
-  sshkey_verify(ecdsa521, sig, slen, (const u_char *)data, dlen, NULL, 0);
+  sshkey_verify(rsa, sig, slen, (const u_char *)data, dlen, NULL, 0, &details);
+  sshkey_sig_details_free(details);
+  details = NULL;
+  sshkey_verify(dsa, sig, slen, (const u_char *)data, dlen, NULL, 0, &details);
+  sshkey_sig_details_free(details);
+  details = NULL;
+  sshkey_verify(ecdsa256, sig, slen, (const u_char *)data, dlen, NULL, 0, &details);
+  sshkey_sig_details_free(details);
+  details = NULL;
+  sshkey_verify(ecdsa384, sig, slen, (const u_char *)data, dlen, NULL, 0, &details);
+  sshkey_sig_details_free(details);
+  details = NULL;
+  sshkey_verify(ecdsa521, sig, slen, (const u_char *)data, dlen, NULL, 0, &details);
+  sshkey_sig_details_free(details);
+  details = NULL;
 #endif
-  sshkey_verify(ed25519, sig, slen, (const u_char *)data, dlen, NULL, 0);
+  sshkey_verify(ed25519, sig, slen, (const u_char *)data, dlen, NULL, 0, &details);
+  sshkey_sig_details_free(details);
   return 0;
 }
 

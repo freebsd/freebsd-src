@@ -1,4 +1,4 @@
-#	$OpenBSD: agent.sh,v 1.15 2019/07/23 07:39:43 dtucker Exp $
+#	$OpenBSD: agent.sh,v 1.17 2019/12/21 02:33:07 djm Exp $
 #	Placed in the Public Domain.
 
 tid="simple agent test"
@@ -8,11 +8,17 @@ if [ $? -ne 2 ]; then
 	fail "ssh-add -l did not fail with exit code 2"
 fi
 
-trace "start agent"
-eval `${SSHAGENT} -s` > /dev/null
+trace "start agent, args ${EXTRA_AGENT_ARGS} -s"
+eval `${SSHAGENT} ${EXTRA_AGENT_ARGS} -s` > /dev/null
 r=$?
 if [ $r -ne 0 ]; then
 	fatal "could not start ssh-agent: exit code $r"
+fi
+
+eval `${SSHAGENT} ${EXTRA_AGENT_ARGS} -s | sed 's/SSH_/FW_SSH_/g'` > /dev/null
+r=$?
+if [ $r -ne 0 ]; then
+	fatal "could not start second ssh-agent: exit code $r"
 fi
 
 ${SSHADD} -l > /dev/null 2>&1
@@ -38,10 +44,15 @@ for t in ${SSH_KEYTYPES}; do
 
 	# add to authorized keys
 	cat $OBJ/$t-agent.pub >> $OBJ/authorized_keys_$USER
-	# add privat key to agent
-	${SSHADD} $OBJ/$t-agent > /dev/null 2>&1
+	# add private key to agent
+	${SSHADD} $OBJ/$t-agent #> /dev/null 2>&1
 	if [ $? -ne 0 ]; then
-		fail "ssh-add did succeed exit code 0"
+		fail "ssh-add failed exit code $?"
+	fi
+	# add private key to second agent
+	SSH_AUTH_SOCK=$FW_SSH_AUTH_SOCK ${SSHADD} $OBJ/$t-agent #> /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		fail "ssh-add failed exit code $?"
 	fi
 	# Remove private key to ensure that we aren't accidentally using it.
 	rm -f $OBJ/$t-agent
@@ -90,11 +101,40 @@ r=$?
 if [ $r -ne 0 ]; then
 	fail "ssh-add -l via agent fwd failed (exit code $r)"
 fi
+${SSH} "-oForwardAgent=$SSH_AUTH_SOCK" -F $OBJ/ssh_proxy somehost ${SSHADD} -l > /dev/null 2>&1
+r=$?
+if [ $r -ne 0 ]; then
+	fail "ssh-add -l via agent path fwd failed (exit code $r)"
+fi
 ${SSH} -A -F $OBJ/ssh_proxy somehost \
 	"${SSH} -F $OBJ/ssh_proxy somehost exit 52"
 r=$?
 if [ $r -ne 52 ]; then
 	fail "agent fwd failed (exit code $r)"
+fi
+
+trace "agent forwarding different agent"
+${SSH} "-oForwardAgent=$FW_SSH_AUTH_SOCK" -F $OBJ/ssh_proxy somehost ${SSHADD} -l > /dev/null 2>&1
+r=$?
+if [ $r -ne 0 ]; then
+	fail "ssh-add -l via agent path fwd of different agent failed (exit code $r)"
+fi
+${SSH} '-oForwardAgent=$FW_SSH_AUTH_SOCK' -F $OBJ/ssh_proxy somehost ${SSHADD} -l > /dev/null 2>&1
+r=$?
+if [ $r -ne 0 ]; then
+	fail "ssh-add -l via agent path env fwd of different agent failed (exit code $r)"
+fi
+
+# Remove keys from forwarded agent, ssh-add on remote machine should now fail.
+SSH_AUTH_SOCK=$FW_SSH_AUTH_SOCK ${SSHADD} -D > /dev/null 2>&1
+r=$?
+if [ $r -ne 0 ]; then
+	fail "ssh-add -D failed: exit code $r"
+fi
+${SSH} '-oForwardAgent=$FW_SSH_AUTH_SOCK' -F $OBJ/ssh_proxy somehost ${SSHADD} -l > /dev/null 2>&1
+r=$?
+if [ $r -ne 1 ]; then
+	fail "ssh-add -l with different agent did not fail with exit code 1 (exit code $r)"
 fi
 
 (printf 'cert-authority,principals="estragon" '; cat $OBJ/user_ca_key.pub) \
@@ -121,3 +161,4 @@ fi
 
 trace "kill agent"
 ${SSHAGENT} -k > /dev/null
+SSH_AGENT_PID=$FW_SSH_AGENT_PID ${SSHAGENT} -k > /dev/null

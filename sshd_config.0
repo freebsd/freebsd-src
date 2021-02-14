@@ -1,7 +1,7 @@
 SSHD_CONFIG(5)                File Formats Manual               SSHD_CONFIG(5)
 
 NAME
-     sshd_config M-bM-^@M-^S OpenSSH SSH daemon configuration file
+     sshd_config M-bM-^@M-^S OpenSSH daemon configuration file
 
 DESCRIPTION
      sshd(8) reads configuration data from /etc/ssh/sshd_config (or the file
@@ -45,9 +45,8 @@ DESCRIPTION
              users whose primary group or supplementary group list matches one
              of the patterns.  Only group names are valid; a numerical group
              ID is not recognized.  By default, login is allowed for all
-             groups.  The allow/deny directives are processed in the following
-             order: DenyUsers, AllowUsers, DenyGroups, and finally
-             AllowGroups.
+             groups.  The allow/deny groups directives are processed in the
+             following order: DenyGroups, AllowGroups.
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
@@ -79,9 +78,8 @@ DESCRIPTION
              USER@HOST then USER and HOST are separately checked, restricting
              logins to particular users from particular hosts.  HOST criteria
              may additionally contain addresses to match in CIDR
-             address/masklen format.  The allow/deny directives are processed
-             in the following order: DenyUsers, AllowUsers, DenyGroups, and
-             finally AllowGroups.
+             address/masklen format.  The allow/deny users directives are
+             processed in the following order: DenyUsers, AllowUsers.
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
@@ -295,6 +293,8 @@ DESCRIPTION
              The default value is 3.  If ClientAliveInterval is set to 15, and
              ClientAliveCountMax is left at the default, unresponsive SSH
              clients will be disconnected after approximately 45 seconds.
+             Setting a zero ClientAliveCountMax disables connection
+             termination.
 
      ClientAliveInterval
              Sets a timeout interval in seconds after which if no data has
@@ -314,8 +314,8 @@ DESCRIPTION
              group or supplementary group list matches one of the patterns.
              Only group names are valid; a numerical group ID is not
              recognized.  By default, login is allowed for all groups.  The
-             allow/deny directives are processed in the following order:
-             DenyUsers, AllowUsers, DenyGroups, and finally AllowGroups.
+             allow/deny groups directives are processed in the following
+             order: DenyGroups, AllowGroups.
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
@@ -328,9 +328,8 @@ DESCRIPTION
              then USER and HOST are separately checked, restricting logins to
              particular users from particular hosts.  HOST criteria may
              additionally contain addresses to match in CIDR address/masklen
-             format.  The allow/deny directives are processed in the following
-             order: DenyUsers, AllowUsers, DenyGroups, and finally
-             AllowGroups.
+             format.  The allow/deny users directives are processed in the
+             following order: DenyUsers, AllowUsers.
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
@@ -407,14 +406,19 @@ DESCRIPTION
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ssh-ed25519-cert-v01@openssh.com,
-                rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+                sk-ssh-ed25519-cert-v01@openssh.com,
+                rsa-sha2-512-cert-v01@openssh.com,
+                rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                sk-ecdsa-sha2-nistp256@openssh.com,
+                ssh-ed25519,sk-ssh-ed25519@openssh.com,
+                rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              The list of available key types may also be obtained using "ssh
-             -Q key".
+             -Q HostbasedAcceptedKeyTypes".
 
      HostbasedAuthentication
              Specifies whether rhosts or /etc/hosts.equiv authentication
@@ -463,14 +467,19 @@ DESCRIPTION
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ssh-ed25519-cert-v01@openssh.com,
-                rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+                sk-ssh-ed25519-cert-v01@openssh.com,
+                rsa-sha2-512-cert-v01@openssh.com,
+                rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                sk-ecdsa-sha2-nistp256@openssh.com,
+                ssh-ed25519,sk-ssh-ed25519@openssh.com,
+                rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              The list of available key types may also be obtained using "ssh
-             -Q key".
+             -Q HostKeyAlgorithms".
 
      IgnoreRhosts
              Specifies that .rhosts and .shosts files will not be used in
@@ -483,12 +492,19 @@ DESCRIPTION
              Specifies whether sshd(8) should ignore the user's
              ~/.ssh/known_hosts during HostbasedAuthentication and use only
              the system-wide known hosts file /etc/ssh/known_hosts.  The
-             default is no.
+             default is M-bM-^@M-^\noM-bM-^@M-^].
+
+     Include
+             Include the specified configuration file(s).  Multiple pathnames
+             may be specified and each pathname may contain glob(7) wildcards.
+             Files without absolute paths are assumed to be in /etc/ssh.  An
+             Include directive may appear inside a Match block to perform
+             conditional inclusion.
 
      IPQoS   Specifies the IPv4 type-of-service or DSCP class for the
              connection.  Accepted values are af11, af12, af13, af21, af22,
              af23, af31, af32, af33, af41, af42, af43, cs0, cs1, cs2, cs3,
-             cs4, cs5, cs6, cs7, ef, lowdelay, throughput, reliability, a
+             cs4, cs5, cs6, cs7, ef, le, lowdelay, throughput, reliability, a
              numeric value, or none to use the operating system default.  This
              option may take one or two arguments, separated by whitespace.
              If one argument is specified, it is used as the packet class
@@ -548,6 +564,7 @@ DESCRIPTION
                    ecdh-sha2-nistp256
                    ecdh-sha2-nistp384
                    ecdh-sha2-nistp521
+                   sntrup4591761x25519-sha512@tinyssh.org
 
              The default is:
 
@@ -555,10 +572,10 @@ DESCRIPTION
                    ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
                    diffie-hellman-group-exchange-sha256,
                    diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,
-                   diffie-hellman-group14-sha256,diffie-hellman-group14-sha1
+                   diffie-hellman-group14-sha256
 
              The list of available key exchange algorithms may also be
-             obtained using "ssh -Q kex".
+             obtained using "ssh -Q KexAlgorithms".
 
      ListenAddress
              Specifies the local addresses sshd(8) should listen on.  The
@@ -669,14 +686,15 @@ DESCRIPTION
              Banner, ChrootDirectory, ClientAliveCountMax,
              ClientAliveInterval, DenyGroups, DenyUsers, ForceCommand,
              GatewayPorts, GSSAPIAuthentication, HostbasedAcceptedKeyTypes,
-             HostbasedAuthentication, HostbasedUsesNameFromPacketOnly, IPQoS,
-             KbdInteractiveAuthentication, KerberosAuthentication, LogLevel,
-             MaxAuthTries, MaxSessions, PasswordAuthentication,
-             PermitEmptyPasswords, PermitListen, PermitOpen, PermitRootLogin,
-             PermitTTY, PermitTunnel, PermitUserRC, PubkeyAcceptedKeyTypes,
-             PubkeyAuthentication, RekeyLimit, RevokedKeys, RDomain, SetEnv,
-             StreamLocalBindMask, StreamLocalBindUnlink, TrustedUserCAKeys,
-             X11DisplayOffset, X11Forwarding and X11UseLocalhost.
+             HostbasedAuthentication, HostbasedUsesNameFromPacketOnly,
+             Include, IPQoS, KbdInteractiveAuthentication,
+             KerberosAuthentication, LogLevel, MaxAuthTries, MaxSessions,
+             PasswordAuthentication, PermitEmptyPasswords, PermitListen,
+             PermitOpen, PermitRootLogin, PermitTTY, PermitTunnel,
+             PermitUserRC, PubkeyAcceptedKeyTypes, PubkeyAuthentication,
+             RekeyLimit, RevokedKeys, RDomain, SetEnv, StreamLocalBindMask,
+             StreamLocalBindUnlink, TrustedUserCAKeys, X11DisplayOffset,
+             X11Forwarding and X11UseLocalhost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -751,8 +769,9 @@ DESCRIPTION
              restrictions and permit any forwarding requests.  An argument of
              none can be used to prohibit all forwarding requests.  The
              wildcard M-bM-^@M-^X*M-bM-^@M-^Y can be used for host or port to allow all hosts or
-             ports, respectively.  By default all port forwarding requests are
-             permitted.
+             ports respectively.  Otherwise, no pattern matching or address
+             lookups are performed on supplied names.  By default all port
+             forwarding requests are permitted.
 
      PermitRootLogin
              Specifies whether root can log in using ssh(1).  The argument
@@ -831,14 +850,33 @@ DESCRIPTION
                 ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ecdsa-sha2-nistp384-cert-v01@openssh.com,
                 ecdsa-sha2-nistp521-cert-v01@openssh.com,
+                sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,
                 ssh-ed25519-cert-v01@openssh.com,
-                rsa-sha2-512-cert-v01@openssh.com,rsa-sha2-256-cert-v01@openssh.com,
+                sk-ssh-ed25519-cert-v01@openssh.com,
+                rsa-sha2-512-cert-v01@openssh.com,
+                rsa-sha2-256-cert-v01@openssh.com,
                 ssh-rsa-cert-v01@openssh.com,
                 ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,
-                ssh-ed25519,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+                sk-ecdsa-sha2-nistp256@openssh.com,
+                ssh-ed25519,sk-ssh-ed25519@openssh.com,
+                rsa-sha2-512,rsa-sha2-256,ssh-rsa
 
              The list of available key types may also be obtained using "ssh
-             -Q key".
+             -Q PubkeyAcceptedKeyTypes".
+
+     PubkeyAuthOptions
+             Sets one or more public key authentication options.  Two option
+             keywords are currently supported: none (the default; indicating
+             no additional options are enabled) and touch-required.
+
+             The touch-required option causes public key authentication using
+             a FIDO authenticator algorithm (i.e. ecdsa-sk or ed25519-sk) to
+             always require the signature to attest that a physically present
+             user explicitly confirmed the authentication (usually by touching
+             the authenticator).  By default, sshd(8) requires user presence
+             unless overridden with an authorized_keys option.  The
+             touch-required flag disables this override.  This option has no
+             effect for other, non-authenticator public key types.
 
      PubkeyAuthentication
              Specifies whether public key authentication is allowed.  The
@@ -874,6 +912,11 @@ DESCRIPTION
              forwarded or listening IP sockets, will be bound to this
              rdomain(4).  If the routing domain is set to %D, then the domain
              in which the incoming connection was received will be applied.
+
+     SecurityKeyProvider
+             Specifies a path to a library that will be used when loading FIDO
+             authenticator-hosted keys, overriding the default of using the
+             built-in USB HID support.
 
      SetEnv  Specifies one or more environment variables to set in child
              sessions started by sshd(8) as M-bM-^@M-^\NAME=VALUEM-bM-^@M-^].  The environment
@@ -1099,4 +1142,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.6                    September 6, 2019                   OpenBSD 6.6
+OpenBSD 6.6                    February 7, 2020                    OpenBSD 6.6

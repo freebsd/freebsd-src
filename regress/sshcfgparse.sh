@@ -1,4 +1,4 @@
-#	$OpenBSD: sshcfgparse.sh,v 1.5 2019/07/23 13:32:48 dtucker Exp $
+#	$OpenBSD: sshcfgparse.sh,v 1.6 2019/12/21 02:33:07 djm Exp $
 #	Placed in the Public Domain.
 
 tid="ssh config parse"
@@ -93,6 +93,16 @@ if [ "$dsa" = "1" ]; then
 	expect_result_present "$f" "ssh-ed25519" "ssh-ed25519-cert-v01.*" "ssh-dss"
 	expect_result_absent "$f" "ssh-dss-cert-v01.*"
 fi
+
+verbose "agentforwarding"
+f=`${SSH} -GF none host | awk '/^forwardagent /{print$2}'`
+expect_result_present "$f" "no"
+f=`${SSH} -GF none -oforwardagent=no host | awk '/^forwardagent /{print$2}'`
+expect_result_present "$f" "no"
+f=`${SSH} -GF none -oforwardagent=yes host | awk '/^forwardagent /{print$2}'`
+expect_result_present "$f" "yes"
+f=`${SSH} -GF none '-oforwardagent=SSH_AUTH_SOCK.forward' host | awk '/^forwardagent /{print$2}'`
+expect_result_present "$f" "SSH_AUTH_SOCK.forward"
 
 # cleanup
 rm -f $OBJ/ssh_config.[012]

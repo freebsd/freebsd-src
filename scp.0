@@ -1,7 +1,7 @@
 SCP(1)                      General Commands Manual                     SCP(1)
 
 NAME
-     scp M-bM-^@M-^S secure copy (remote file copy program)
+     scp M-bM-^@M-^S OpenSSH secure file copy
 
 SYNOPSIS
      scp [-346BCpqrTv] [-c cipher] [-F ssh_config] [-i identity_file]
@@ -179,4 +179,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 6.6                      June 12, 2019                     OpenBSD 6.6
+OpenBSD 6.6                    November 30, 2019                   OpenBSD 6.6

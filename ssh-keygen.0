@@ -1,11 +1,12 @@
 SSH-KEYGEN(1)               General Commands Manual              SSH-KEYGEN(1)
 
 NAME
-     ssh-keygen M-bM-^@M-^S authentication key generation, management and conversion
+     ssh-keygen M-bM-^@M-^S OpenSSH authentication key utility
 
 SYNOPSIS
      ssh-keygen [-q] [-b bits] [-C comment] [-f output_keyfile] [-m format]
-                [-N new_passphrase] [-t dsa | ecdsa | ed25519 | rsa]
+                [-t dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa]
+                [-N new_passphrase] [-O option] [-w provider]
      ssh-keygen -p [-f keyfile] [-m format] [-N new_passphrase]
                 [-P old_passphrase]
      ssh-keygen -i [-f input_keyfile] [-m key_format]
@@ -17,11 +18,11 @@ SYNOPSIS
      ssh-keygen -D pkcs11
      ssh-keygen -F hostname [-lv] [-f known_hosts_file]
      ssh-keygen -H [-f known_hosts_file]
+     ssh-keygen -K [-w provider]
      ssh-keygen -R hostname [-f known_hosts_file]
      ssh-keygen -r hostname [-g] [-f input_keyfile]
-     ssh-keygen -G output_file [-v] [-b bits] [-M memory] [-S start_point]
-     ssh-keygen -f input_file -T output_file [-v] [-a rounds] [-J num_lines]
-                [-j start_line] [-K checkpt] [-W generator]
+     ssh-keygen -M generate [-O option] output_file
+     ssh-keygen -M screen [-f input_file] [-O option] output_file
      ssh-keygen -I certificate_identity -s ca_key [-hU] [-D pkcs11_provider]
                 [-n principals] [-O option] [-V validity_interval]
                 [-z serial_number] file ...
@@ -30,6 +31,7 @@ SYNOPSIS
      ssh-keygen -k -f krl_file [-u] [-s ca_public] [-z version_number]
                 file ...
      ssh-keygen -Q -f krl_file file ...
+     ssh-keygen -Y find-principals -s signature_file -f allowed_signers_file
      ssh-keygen -Y check-novalidate -n namespace -s signature_file
      ssh-keygen -Y sign -f key_file -n namespace file ...
      ssh-keygen -Y verify -f allowed_signers_file -I signer_identity
@@ -51,9 +53,9 @@ DESCRIPTION
 
      Normally each user wishing to use SSH with public key authentication runs
      this once to create the authentication key in ~/.ssh/id_dsa,
-     ~/.ssh/id_ecdsa, ~/.ssh/id_ed25519 or ~/.ssh/id_rsa.  Additionally, the
-     system administrator may use this to generate host keys, as seen in
-     /etc/rc.
+     ~/.ssh/id_ecdsa, ~/.ssh/id_ecdsa_sk, ~/.ssh/id_ed25519,
+     ~/.ssh/id_ed25519_sk or ~/.ssh/id_rsa.  Additionally, the system
+     administrator may use this to generate host keys, as seen in /etc/rc.
 
      Normally this program generates the key and asks for a file in which to
      store the private key.  The public key is stored in a file with the same
@@ -104,9 +106,6 @@ DESCRIPTION
              in slower passphrase verification and increased resistance to
              brute-force password cracking (should the keys be stolen).
 
-             When screening DH-GEX candidates (using the -T command), this
-             option specifies the number of primality tests to perform.
-
      -B      Show the bubblebabble digest of specified private or public key
              file.
 
@@ -118,8 +117,8 @@ DESCRIPTION
              the -b flag determines the key length by selecting from one of
              three elliptic curve sizes: 256, 384 or 521 bits.  Attempting to
              use bit lengths other than these three values for ECDSA keys will
-             fail.  Ed25519 keys have a fixed length and the -b flag will be
-             ignored.
+             fail.  ECDSA-SK, Ed25519 and Ed25519-SK keys have a fixed length
+             and the -b flag will be ignored.
 
      -C comment
              Provides a new comment.
@@ -156,10 +155,6 @@ DESCRIPTION
      -f filename
              Specifies the filename of the key file.
 
-     -G output_file
-             Generate candidate primes for DH-GEX.  These primes must be
-             screened for safety (using the -T option) before use.
-
      -g      Use generic DNS format when printing fingerprint resource records
              using the -r command.
 
@@ -185,19 +180,9 @@ DESCRIPTION
              importing keys from other software, including several commercial
              SSH implementations.  The default import format is M-bM-^@M-^\RFC4716M-bM-^@M-^].
 
-     -J num_lines
-             Exit after screening the specified number of lines while
-             performing DH candidate screening using the -T option.
-
-     -j start_line
-             Start screening at the specified line number while performing DH
-             candidate screening using the -T option.
-
-     -K checkpt
-             Write the last line processed to the file checkpt while
-             performing DH candidate screening using the -T option.  This will
-             be used to skip lines in the input file that have already been
-             processed if the job is restarted.
+     -K      Download resident keys from a FIDO authenticator.  Public and
+             private key files will be written to the current directory for
+             each downloaded key.
 
      -k      Generate a KRL file.  In this mode, ssh-keygen will generate a
              KRL file at the location specified via the -f flag that revokes
@@ -213,9 +198,21 @@ DESCRIPTION
              prints its fingerprint.  If combined with -v, a visual ASCII art
              representation of the key is supplied with the fingerprint.
 
-     -M memory
-             Specify the amount of memory to use (in megabytes) when
-             generating candidate moduli for DH-GEX.
+     -M generate
+             Generate candidate Diffie-Hellman Group Exchange (DH-GEX)
+             parameters for eventual use by the
+             M-bM-^@M-^Xdiffie-hellman-group-exchange-*M-bM-^@M-^Y key exchange methods.  The
+             numbers generated by this operation must be further screened
+             before use.  See the MODULI GENERATION section for more
+             information.
+
+     -M screen
+             Screen candidate parameters for Diffie-Hellman Group Exchange.
+             This will accept a list of candidate numbers and test that they
+             are safe (Sophie Germain) primes with acceptable group
+             generators.  The results of this operation may be added to the
+             /etc/moduli file.  See the MODULI GENERATION section for more
+             information.
 
      -m key_format
              Specify a key format for key generation, the -i (import), -e
@@ -240,70 +237,61 @@ DESCRIPTION
              CERTIFICATES section for details.
 
      -O option
-             Specify a certificate option when signing a key.  This option may
-             be specified multiple times.  See also the CERTIFICATES section
-             for further details.
+             Specify a key/value option.  These are specific to the operation
+             that ssh-keygen has been requested to perform.
 
-             At present, no standard options are valid for host keys.  The
-             options that are valid for user certificates are:
+             When signing certificates, one of the options listed in the
+             CERTIFICATES section may be specified here.
 
-             clear   Clear all enabled permissions.  This is useful for
-                     clearing the default set of permissions so permissions
-                     may be added individually.
+             When performing moduli generation or screening, one of the
+             options listed in the MODULI GENERATION section may be specified.
 
-             critical:name[=contents]
-             extension:name[=contents]
-                     Includes an arbitrary certificate critical option or
-                     extension.  The specified name should include a domain
-                     suffix, e.g. M-bM-^@M-^\name@example.comM-bM-^@M-^].  If contents is
-                     specified then it is included as the contents of the
-                     extension/option encoded as a string, otherwise the
-                     extension/option is created with no contents (usually
-                     indicating a flag).  Extensions may be ignored by a
-                     client or server that does not recognise them, whereas
-                     unknown critical options will cause the certificate to be
-                     refused.
+             When generating a key that will be hosted on a FIDO
+             authenticator, this flag may be used to specify key-specific
+             options.  Those supported at present are:
 
-             force-command=command
-                     Forces the execution of command instead of any shell or
-                     command specified by the user when the certificate is
-                     used for authentication.
+             application
+                     Override the default FIDO application/origin string of
+                     M-bM-^@M-^\ssh:M-bM-^@M-^].  This may be useful when generating host or
+                     domain-specific resident keys.  The specified application
+                     string must begin with M-bM-^@M-^\ssh:M-bM-^@M-^].
 
-             no-agent-forwarding
-                     Disable ssh-agent(1) forwarding (permitted by default).
+             challenge=path
+                     Specifies a path to a challenge string that will be
+                     passed to the FIDO token during key generation.  The
+                     challenge string may be used as part of an out-of-band
+                     protocol for key enrollment (a random challenge is used
+                     by default).
 
-             no-port-forwarding
-                     Disable port forwarding (permitted by default).
+             device  Explicitly specify a fido(4) device to use, rather than
+                     letting the token middleware select one.
 
-             no-pty  Disable PTY allocation (permitted by default).
+             no-touch-required
+                     Indicate that the generated private key should not
+                     require touch events (user presence) when making
+                     signatures.  Note that sshd(8) will refuse such
+                     signatures by default, unless overridden via an
+                     authorized_keys option.
 
-             no-user-rc
-                     Disable execution of ~/.ssh/rc by sshd(8) (permitted by
-                     default).
+             resident
+                     Indicate that the key should be stored on the FIDO
+                     authenticator itself.  Resident keys may be supported on
+                     FIDO2 tokens and typically require that a PIN be set on
+                     the token prior to generation.  Resident keys may be
+                     loaded off the token using ssh-add(1).
 
-             no-x11-forwarding
-                     Disable X11 forwarding (permitted by default).
+             user    A username to be associated with a resident key,
+                     overriding the empty default username.  Specifying a
+                     username may be useful when generating multiple resident
+                     keys for the same application name.
 
-             permit-agent-forwarding
-                     Allows ssh-agent(1) forwarding.
+             write-attestation=path
+                     May be used at key generation time to record the
+                     attestation certificate returned from FIDO tokens during
+                     key generation.  By default this information is
+                     discarded.
 
-             permit-port-forwarding
-                     Allows port forwarding.
-
-             permit-pty
-                     Allows PTY allocation.
-
-             permit-user-rc
-                     Allows execution of ~/.ssh/rc by sshd(8).
-
-             permit-X11-forwarding
-                     Allows X11 forwarding.
-
-             source-address=address_list
-                     Restrict the source addresses from which the certificate
-                     is considered valid.  The address_list is a comma-
-                     separated list of one or more address/netmask pairs in
-                     CIDR format.
+             The -O option may be specified multiple times.
 
      -P passphrase
              Provides the (old) passphrase.
@@ -326,10 +314,6 @@ DESCRIPTION
              Print the SSHFP fingerprint resource record named hostname for
              the specified public key file.
 
-     -S start
-             Specify start point (in hex) when generating candidate moduli for
-             DH-GEX.
-
      -s ca_key
              Certify (sign) a public key using the specified CA key.  Please
              see the CERTIFICATES section for details.
@@ -338,13 +322,9 @@ DESCRIPTION
              file used to revoke certificates directly by key ID or serial
              number.  See the KEY REVOCATION LISTS section for details.
 
-     -T output_file
-             Test DH group exchange candidate primes (generated using the -G
-             option) for safety.
-
-     -t dsa | ecdsa | ed25519 | rsa
+     -t dsa | ecdsa | ecdsa-sk | ed25519 | ed25519-sk | rsa
              Specifies the type of key to create.  The possible values are
-             M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].
+             M-bM-^@M-^\dsaM-bM-^@M-^], M-bM-^@M-^\ecdsaM-bM-^@M-^], M-bM-^@M-^\ecdsa-skM-bM-^@M-^], M-bM-^@M-^\ed25519M-bM-^@M-^], M-bM-^@M-^\ed25519-skM-bM-^@M-^], or M-bM-^@M-^\rsaM-bM-^@M-^].
 
              This flag may also be used to specify the desired signature type
              when signing certificates using an RSA CA key.  The available RSA
@@ -390,12 +370,28 @@ DESCRIPTION
              generation.  Multiple -v options increase the verbosity.  The
              maximum is 3.
 
-     -W generator
-             Specify desired generator when testing candidate moduli for DH-
-             GEX.
+     -w provider
+             Specifies a path to a library that will be used when creating
+             FIDO authenticator-hosted keys, overriding the default of using
+             the internal USB HID support.
 
-     -y      This option will read a private OpenSSH format file and print an
-             OpenSSH public key to stdout.
+     -Y find-principals
+             Find the principal(s) associated with the public key of a
+             signature, provided using the -s flag in an authorized signers
+             file provided using the -f flag.  The format of the allowed
+             signers file is documented in the ALLOWED SIGNERS section below.
+             If one or more matching principals are found, they are returned
+             on standard output.
+
+     -Y check-novalidate
+             Checks that a signature generated using ssh-keygen -Y sign has a
+             valid structure.  This does not validate if a signature comes
+             from an authorized signer.  When testing a signature, ssh-keygen
+             accepts a message on standard input and a signature namespace
+             using -n.  A file containing the corresponding signature must
+             also be supplied using the -s flag.  Successful testing of the
+             signature is signalled by ssh-keygen returning a zero exit
+             status.
 
      -Y sign
              Cryptographically sign a file or some data using a SSH key.  When
@@ -427,16 +423,10 @@ DESCRIPTION
              keys can be passed using the -r flag.  The revocation file may be
              a KRL or a one-per-line list of public keys.  Successful
              verification by an authorized signer is signalled by ssh-keygen
+             returning a zero exit status.
 
-     -Y check-novalidate
-             Checks that a signature generated using ssh-keygen -Y sign has a
-             valid structure.  This does not validate if a signature comes
-             from an authorized signer.  When testing a signature, ssh-keygen
-             accepts a message on standard input and a signature namespace
-             using -n.  A file containing the corresponding signature must
-             also be supplied using the -s flag.  Successful testing of the
-             signature is signalled by ssh-keygen returning a zero exit
-             status.
+     -y      This option will read a private OpenSSH format file and print an
+             OpenSSH public key to stdout.
 
      -z serial_number
              Specifies a serial number to be embedded in the certificate to
@@ -455,31 +445,61 @@ MODULI GENERATION
      intensive process.  These candidate primes are then tested for
      suitability (a CPU-intensive process).
 
-     Generation of primes is performed using the -G option.  The desired
-     length of the primes may be specified by the -b option.  For example:
+     Generation of primes is performed using the -M generate option.  The
+     desired length of the primes may be specified by the -O bits option.  For
+     example:
 
-           # ssh-keygen -G moduli-2048.candidates -b 2048
+           # ssh-keygen -M generate -O bits=2048 moduli-2048.candidates
 
      By default, the search for primes begins at a random point in the desired
-     length range.  This may be overridden using the -S option, which
+     length range.  This may be overridden using the -O start option, which
      specifies a different start point (in hex).
 
      Once a set of candidates have been generated, they must be screened for
-     suitability.  This may be performed using the -T option.  In this mode
-     ssh-keygen will read candidates from standard input (or a file specified
-     using the -f option).  For example:
+     suitability.  This may be performed using the -M screen option.  In this
+     mode ssh-keygen will read candidates from standard input (or a file
+     specified using the -f option).  For example:
 
-           # ssh-keygen -T moduli-2048 -f moduli-2048.candidates
+           # ssh-keygen -M screen -f moduli-2048.candidates moduli-2048
 
      By default, each candidate will be subjected to 100 primality tests.
-     This may be overridden using the -a option.  The DH generator value will
-     be chosen automatically for the prime under consideration.  If a specific
-     generator is desired, it may be requested using the -W option.  Valid
-     generator values are 2, 3, and 5.
+     This may be overridden using the -O prime-tests option.  The DH generator
+     value will be chosen automatically for the prime under consideration.  If
+     a specific generator is desired, it may be requested using the -O
+     generator option.  Valid generator values are 2, 3, and 5.
 
      Screened DH groups may be installed in /etc/moduli.  It is important that
      this file contains moduli of a range of bit lengths and that both ends of
      a connection share common moduli.
+
+     A number of options are available for moduli generation and screening via
+     the -O flag:
+
+     lines=number
+             Exit after screening the specified number of lines while
+             performing DH candidate screening.
+
+     start-line=line-number
+             Start screening at the specified line number while performing DH
+             candidate screening.
+
+     checkpoint=filename
+             Write the last line processed to the specified file while
+             performing DH candidate screening.  This will be used to skip
+             lines in the input file that have already been processed if the
+             job is restarted.
+
+     memory=mbytes
+             Specify the amount of memory to use (in megabytes) when
+             generating candidate moduli for DH-GEX.
+
+     start=hex-value
+             Specify start point (in hex) when generating candidate moduli for
+             DH-GEX.
+
+     generator=value
+             Specify desired generator (in decimal) when testing candidate
+             moduli for DH-GEX.
 
 CERTIFICATES
      ssh-keygen supports signing of keys to produce certificates that may be
@@ -531,8 +551,71 @@ CERTIFICATES
      be specified through certificate options.  A certificate option may
      disable features of the SSH session, may be valid only when presented
      from particular source addresses or may force the use of a specific
-     command.  For a list of valid certificate options, see the documentation
-     for the -O option above.
+     command.
+
+     The options that are valid for user certificates are:
+
+     clear   Clear all enabled permissions.  This is useful for clearing the
+             default set of permissions so permissions may be added
+             individually.
+
+     critical:name[=contents]
+     extension:name[=contents]
+             Includes an arbitrary certificate critical option or extension.
+             The specified name should include a domain suffix, e.g.
+             M-bM-^@M-^\name@example.comM-bM-^@M-^].  If contents is specified then it is included
+             as the contents of the extension/option encoded as a string,
+             otherwise the extension/option is created with no contents
+             (usually indicating a flag).  Extensions may be ignored by a
+             client or server that does not recognise them, whereas unknown
+             critical options will cause the certificate to be refused.
+
+     force-command=command
+             Forces the execution of command instead of any shell or command
+             specified by the user when the certificate is used for
+             authentication.
+
+     no-agent-forwarding
+             Disable ssh-agent(1) forwarding (permitted by default).
+
+     no-port-forwarding
+             Disable port forwarding (permitted by default).
+
+     no-pty  Disable PTY allocation (permitted by default).
+
+     no-user-rc
+             Disable execution of ~/.ssh/rc by sshd(8) (permitted by default).
+
+     no-x11-forwarding
+             Disable X11 forwarding (permitted by default).
+
+     permit-agent-forwarding
+             Allows ssh-agent(1) forwarding.
+
+     permit-port-forwarding
+             Allows port forwarding.
+
+     permit-pty
+             Allows PTY allocation.
+
+     permit-user-rc
+             Allows execution of ~/.ssh/rc by sshd(8).
+
+     permit-X11-forwarding
+             Allows X11 forwarding.
+
+     no-touch-required
+             Do not require signatures made using this key require
+             demonstration of user presence (e.g. by having the user touch the
+             authenticator).  This option only makes sense for the FIDO
+             authenticator algorithms ecdsa-sk and ed25519-sk.
+
+     source-address=address_list
+             Restrict the source addresses from which the certificate is
+             considered valid.  The address_list is a comma-separated list of
+             one or more address/netmask pairs in CIDR format.
+
+     At present, no standard options are valid for host keys.
 
      Finally, certificates may be defined with a validity lifetime.  The -V
      option allows specification of certificate start and end times.  A
@@ -618,7 +701,7 @@ ALLOWED SIGNERS
      The principals field is a pattern-list (See PATTERNS in ssh_config(5))
      consisting of one or more comma-separated USER@DOMAIN identity patterns
      that are accepted for signing.  When verifying, the identity presented
-     via the -I -option must match a principals pattern in order for the
+     via the -I option must match a principals pattern in order for the
      corresponding key to be considered acceptable for verification.
 
      The options (if present) consist of comma-separated option
@@ -651,13 +734,22 @@ ALLOWED SIGNERS
         # A key that is accepted only for file signing.
         user2@example.com namespaces="file" ssh-ed25519 AAA41...
 
+ENVIRONMENT
+     SSH_SK_PROVIDER
+             Specifies a path to a library that will be used when loading any
+             FIDO authenticator-hosted keys, overriding the default of using
+             the built-in USB HID support.
+
 FILES
      ~/.ssh/id_dsa
      ~/.ssh/id_ecdsa
+     ~/.ssh/id_ecdsa_sk
      ~/.ssh/id_ed25519
+     ~/.ssh/id_ed25519_sk
      ~/.ssh/id_rsa
-             Contains the DSA, ECDSA, Ed25519 or RSA authentication identity
-             of the user.  This file should not be readable by anyone but the
+             Contains the DSA, ECDSA, authenticator-hosted ECDSA, Ed25519,
+             authenticator-hosted Ed25519 or RSA authentication identity of
+             the user.  This file should not be readable by anyone but the
              user.  It is possible to specify a passphrase when generating the
              key; that passphrase will be used to encrypt the private part of
              this file using 128-bit AES.  This file is not automatically
@@ -667,9 +759,12 @@ FILES
 
      ~/.ssh/id_dsa.pub
      ~/.ssh/id_ecdsa.pub
+     ~/.ssh/id_ecdsa_sk.pub
      ~/.ssh/id_ed25519.pub
+     ~/.ssh/id_ed25519_sk.pub
      ~/.ssh/id_rsa.pub
-             Contains the DSA, ECDSA, Ed25519 or RSA public key for
+             Contains the DSA, ECDSA, authenticator-hosted ECDSA, Ed25519,
+             authenticator-hosted Ed25519 or RSA public key for
              authentication.  The contents of this file should be added to
              ~/.ssh/authorized_keys on all machines where the user wishes to
              log in using public key authentication.  There is no need to keep
@@ -691,4 +786,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 6.6                     October 3, 2019                    OpenBSD 6.6
+OpenBSD 6.6                    February 7, 2020                    OpenBSD 6.6

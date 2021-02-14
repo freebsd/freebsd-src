@@ -7,28 +7,35 @@ options.  Some notes about specific compilers:
  - clang: -ftrapv and -sanitize=integer require the compiler-rt runtime
   (CC=clang LDFLAGS=--rtlib=compiler-rt ./configure)
 
-You will need working installations of Zlib and libcrypto (LibreSSL /
-OpenSSL)
-
-Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
-http://www.gzip.org/zlib/
-
-libcrypto from either of:
- - LibreSSL (https://www.libressl.org/)
- - OpenSSL (https://www.openssl.org) with any of the following versions:
-   - 1.0.x >= 1.0.1 or 1.1.0 >= 1.1.0g or any 1.1.1
-
-LibreSSL/OpenSSL should be compiled as a position-independent library
-(i.e. with -fPIC) otherwise OpenSSH will not be able to link with it.
-If you must use a non-position-independent libcrypto, then you may need
-to configure OpenSSH --without-pie.  Note that due to a bug in EVP_CipherInit
-OpenSSL 1.1 versions prior to 1.1.0g can't be used.
-
 To support Privilege Separation (which is now required) you will need
 to create the user, group and directory used by sshd for privilege
 separation.  See README.privsep for details.
 
+
 The remaining items are optional.
+
+A working installation of zlib:
+Zlib 1.1.4 or 1.2.1.2 or greater (earlier 1.2.x versions have problems):
+http://www.gzip.org/zlib/
+
+libcrypto from either of LibreSSL or OpenSSL.  Building without libcrypto
+is supported but severely restricts the avilable ciphers and algorithms.
+ - LibreSSL (https://www.libressl.org/)
+ - OpenSSL (https://www.openssl.org) with any of the following versions:
+   - 1.0.x >= 1.0.1 or 1.1.0 >= 1.1.0g or any 1.1.1
+
+Note that due to a bug in EVP_CipherInit OpenSSL 1.1 versions prior to
+1.1.0g can't be used.
+
+LibreSSL/OpenSSL should be compiled as a position-independent library
+(i.e. -fPIC, eg by configuring OpenSSL as "./config [options] -fPIC"
+or LibreSSL as "CFLAGS=-fPIC ./configure") otherwise OpenSSH will not
+be able to link with it.  If you must use a non-position-independent
+libcrypto, then you may need to configure OpenSSH --without-pie.
+
+If you build either from source, running the OpenSSL self-test ("make
+tests") or the LibreSSL equivalent ("make check") and ensuring that all
+tests pass is strongly recommended.
 
 NB. If you operating system supports /dev/random, you should configure
 libcrypto (LibreSSL/OpenSSL) to use it. OpenSSH relies on libcrypto's
@@ -53,7 +60,7 @@ PAM:
 
 OpenSSH can utilise Pluggable Authentication Modules (PAM) if your
 system supports it. PAM is standard most Linux distributions, Solaris,
-HP-UX 11, AIX >= 5.2, FreeBSD and NetBSD.
+HP-UX 11, AIX >= 5.2, FreeBSD, NetBSD and Mac OS X.
 
 Information about the various PAM implementations are available:
 
@@ -109,6 +116,15 @@ https://www.x.org/archive/individual/util/
 If you are making significant changes to the code you may need to rebuild
 the dependency (.depend) file using "make depend", which requires the
 "makedepend" tool from the X11 distribution.
+
+libfido2:
+
+libfido2 allows the use of hardware security keys over USB.  libfido2
+in turn depends on libcbor.
+
+https://github.com/Yubico/libfido2
+https://github.com/pjk/libcbor
+
 
 2. Building / Installation
 --------------------------
@@ -236,7 +252,7 @@ to generate keys for all supported types.
 
 Replacing /etc/ssh with the correct path to the configuration directory.
 (${prefix}/etc or whatever you specified with --sysconfdir during
-configuration)
+configuration).
 
 If you have configured OpenSSH with EGD support, ensure that EGD is
 running and has collected some Entropy.

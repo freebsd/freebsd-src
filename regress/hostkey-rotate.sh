@@ -1,10 +1,7 @@
-#	$OpenBSD: hostkey-rotate.sh,v 1.6 2019/08/30 05:08:28 dtucker Exp $
+#	$OpenBSD: hostkey-rotate.sh,v 1.8 2019/11/26 23:43:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey rotate"
-
-# Need full names here since they are used in HostKeyAlgorithms
-HOSTKEY_TYPES="`${SSH} -Q key-plain`"
 
 rm -f $OBJ/hkr.* $OBJ/ssh_proxy.orig
 
@@ -20,7 +17,7 @@ secondary="$primary"
 trace "prepare hostkeys"
 nkeys=0
 all_algs=""
-for k in $HOSTKEY_TYPES; do
+for k in $SSH_HOSTKEY_TYPES; do
 	${SSHKEYGEN} -qt $k -f $OBJ/hkr.$k -N '' || fatal "ssh-keygen $k"
 	echo "Hostkey $OBJ/hkr.${k}" >> $OBJ/sshd_proxy.orig
 	nkeys=`expr $nkeys + 1`
@@ -67,12 +64,12 @@ verbose "learn additional hostkeys"
 dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=$all_algs
 # Check that other keys learned
 expect_nkeys $nkeys "learn hostkeys"
-for k in $HOSTKEY_TYPES; do
+for k in $SSH_HOSTKEY_TYPES; do
 	check_key_present $k || fail "didn't learn keytype $k"
 done
 
 # Check each key type
-for k in $HOSTKEY_TYPES; do
+for k in $SSH_HOSTKEY_TYPES; do
 	verbose "learn additional hostkeys, type=$k"
 	dossh -oStrictHostKeyChecking=yes -oHostKeyAlgorithms=$k,$all_algs
 	expect_nkeys $nkeys "learn hostkeys $k"

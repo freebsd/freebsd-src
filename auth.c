@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.c,v 1.141 2019/10/02 00:42:30 djm Exp $ */
+/* $OpenBSD: auth.c,v 1.146 2020/01/31 22:42:45 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -79,6 +79,7 @@
 
 /* import */
 extern ServerOptions options;
+extern struct include_list includes;
 extern int use_privsep;
 extern struct sshbuf *loginmsg;
 extern struct passwd *privsep_pw;
@@ -489,7 +490,7 @@ check_key_in_hostfiles(struct passwd *pw, struct sshkey *key, const char *host,
 	host_status = check_key_in_hostkeys(hostkeys, key, &found);
 	if (host_status == HOST_REVOKED)
 		error("WARNING: revoked key for %s attempted authentication",
-		    found->host);
+		    host);
 	else if (host_status == HOST_OK)
 		debug("%s: key for %s found at %s:%ld", __func__,
 		    found->host, found->file, found->line);
@@ -571,7 +572,7 @@ getpwnamallow(struct ssh *ssh, const char *user)
 
 	ci = get_connection_info(ssh, 1, options.use_dns);
 	ci->user = user;
-	parse_server_match_config(&options, ci);
+	parse_server_match_config(&options, &includes, ci);
 	log_change_level(options.log_level);
 	process_permitopen(ssh, &options);
 
@@ -748,7 +749,7 @@ remote_hostname(struct ssh *ssh)
 	if (getpeername(ssh_packet_get_connection_in(ssh),
 	    (struct sockaddr *)&from, &fromlen) == -1) {
 		debug("getpeername failed: %.100s", strerror(errno));
-		return strdup(ntop);
+		return xstrdup(ntop);
 	}
 
 	ipv64_normalise_mapped(&from, &fromlen);
@@ -760,7 +761,7 @@ remote_hostname(struct ssh *ssh)
 	if (getnameinfo((struct sockaddr *)&from, fromlen, name, sizeof(name),
 	    NULL, 0, NI_NAMEREQD) != 0) {
 		/* Host name not found.  Use ip address. */
-		return strdup(ntop);
+		return xstrdup(ntop);
 	}
 
 	/*
@@ -775,7 +776,7 @@ remote_hostname(struct ssh *ssh)
 		logit("Nasty PTR record \"%s\" is set up for %s, ignoring",
 		    name, ntop);
 		freeaddrinfo(ai);
-		return strdup(ntop);
+		return xstrdup(ntop);
 	}
 
 	/* Names are stored in lowercase. */
@@ -796,7 +797,7 @@ remote_hostname(struct ssh *ssh)
 	if (getaddrinfo(name, NULL, &hints, &aitop) != 0) {
 		logit("reverse mapping checking getaddrinfo for %.700s "
 		    "[%s] failed.", name, ntop);
-		return strdup(ntop);
+		return xstrdup(ntop);
 	}
 	/* Look for the address from the list of addresses. */
 	for (ai = aitop; ai; ai = ai->ai_next) {
@@ -811,9 +812,9 @@ remote_hostname(struct ssh *ssh)
 		/* Address not found for the host name. */
 		logit("Address %.100s maps to %.600s, but this does not "
 		    "map back to the address.", ntop, name);
-		return strdup(ntop);
+		return xstrdup(ntop);
 	}
-	return strdup(name);
+	return xstrdup(name);
 }
 
 /*
@@ -921,7 +922,7 @@ subprocess(const char *tag, struct passwd *pw, const char *command,
 			child_set_env(&child_env, &envsize, "LANG", cp);
 
 		for (i = 0; i < NSIG; i++)
-			signal(i, SIG_DFL);
+			ssh_signal(i, SIG_DFL);
 
 		if ((devnull = open(_PATH_DEVNULL, O_RDWR)) == -1) {
 			error("%s: open %s: %s", tag, _PATH_DEVNULL,
@@ -1005,7 +1006,7 @@ auth_log_authopts(const char *loc, const struct sshauthopt *opts, int do_remote)
 
 	snprintf(buf, sizeof(buf), "%d", opts->force_tun_device);
 	/* Try to keep this alphabetically sorted */
-	snprintf(msg, sizeof(msg), "key options:%s%s%s%s%s%s%s%s%s%s%s%s%s",
+	snprintf(msg, sizeof(msg), "key options:%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	    opts->permit_agent_forwarding_flag ? " agent-forwarding" : "",
 	    opts->force_command == NULL ? "" : " command",
 	    do_env ?  " environment" : "",
@@ -1018,7 +1019,8 @@ auth_log_authopts(const char *loc, const struct sshauthopt *opts, int do_remote)
 	    opts->force_tun_device == -1 ? "" : " tun=",
 	    opts->force_tun_device == -1 ? "" : buf,
 	    opts->permit_user_rc ? " user-rc" : "",
-	    opts->permit_x11_forwarding_flag ? " x11-forwarding" : "");
+	    opts->permit_x11_forwarding_flag ? " x11-forwarding" : "",
+	    opts->no_require_user_presence ? " no-touch-required" : "");
 
 	debug("%s: %s", loc, msg);
 	if (do_remote)

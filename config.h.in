@@ -99,7 +99,7 @@
 /* Define if you want to specify the path to your wtmp file */
 #undef CONF_WTMP_FILE
 
-/* Define if your platform needs to skip post auth file descriptor passing */
+/* Need to call setpgrp as root */
 #undef DISABLE_FD_PASSING
 
 /* Define if you don't want to use lastlog */
@@ -131,6 +131,12 @@
 
 /* Enable for PKCS#11 support */
 #undef ENABLE_PKCS11
+
+/* Enable for U2F/FIDO support */
+#undef ENABLE_SK
+
+/* Enable for built-in U2F/FIDO support */
+#undef ENABLE_SK_INTERNAL
 
 /* define if fflush(NULL) does not work */
 #undef FFLUSH_NULL_BUG
@@ -341,6 +347,10 @@
    don't. */
 #undef HAVE_DECL_MAXSYMLINKS
 
+/* Define to 1 if you have the declaration of `memmem', and to 0 if you don't.
+   */
+#undef HAVE_DECL_MEMMEM
+
 /* Define to 1 if you have the declaration of `NFDBITS', and to 0 if you
    don't. */
 #undef HAVE_DECL_NFDBITS
@@ -368,6 +378,10 @@
 /* Define to 1 if you have the declaration of `SHUT_RD', and to 0 if you
    don't. */
 #undef HAVE_DECL_SHUT_RD
+
+/* Define to 1 if you have the declaration of `UINT32_MAX', and to 0 if you
+   don't. */
+#undef HAVE_DECL_UINT32_MAX
 
 /* Define to 1 if you have the declaration of `writev', and to 0 if you don't.
    */
@@ -413,6 +427,9 @@
 
 /* Define to 1 if you have the `dirname' function. */
 #undef HAVE_DIRNAME
+
+/* Define to 1 if you have the `dlopen' function. */
+#undef HAVE_DLOPEN
 
 /* Define to 1 if you have the `DSA_generate_parameters_ex' function. */
 #undef HAVE_DSA_GENERATE_PARAMETERS_EX
@@ -510,9 +527,6 @@
 /* Define to 1 if you have the `EVP_PKEY_get0_RSA' function. */
 #undef HAVE_EVP_PKEY_GET0_RSA
 
-/* Define to 1 if you have the `EVP_ripemd160' function. */
-#undef HAVE_EVP_RIPEMD160
-
 /* Define to 1 if you have the `EVP_sha256' function. */
 #undef HAVE_EVP_SHA256
 
@@ -560,6 +574,12 @@
 
 /* Define to 1 if you have the `fmt_scaled' function. */
 #undef HAVE_FMT_SCALED
+
+/* Define to 1 if you have the `fnmatch' function. */
+#undef HAVE_FNMATCH
+
+/* Define to 1 if you have the <fnmatch.h> header file. */
+#undef HAVE_FNMATCH_H
 
 /* Define to 1 if you have the `freeaddrinfo' function. */
 #undef HAVE_FREEADDRINFO
@@ -852,6 +872,9 @@
 /* Define to 1 if you have the <locale.h> header file. */
 #undef HAVE_LOCALE_H
 
+/* Define to 1 if you have the `localtime_r' function. */
+#undef HAVE_LOCALTIME_R
+
 /* Define to 1 if you have the `login' function. */
 #undef HAVE_LOGIN
 
@@ -1040,6 +1063,9 @@
 
 /* Define to 1 if you have the `reallocarray' function. */
 #undef HAVE_REALLOCARRAY
+
+/* Define to 1 if you have the `realpath' function. */
+#undef HAVE_REALPATH
 
 /* Define to 1 if you have the `recallocarray' function. */
 #undef HAVE_RECALLOCARRAY
@@ -1344,6 +1370,9 @@
 /* define if you have struct sockaddr_storage data type */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE
 
+/* Define to 1 if `f_files' is a member of `struct statfs'. */
+#undef HAVE_STRUCT_STATFS_F_FILES
+
 /* Define to 1 if `f_flags' is a member of `struct statfs'. */
 #undef HAVE_STRUCT_STATFS_F_FLAGS
 
@@ -1356,7 +1385,7 @@
 /* Define to 1 if `st_mtime' is a member of `struct stat'. */
 #undef HAVE_STRUCT_STAT_ST_MTIME
 
-/* Define to 1 if the system has the type `struct timespec'. */
+/* define if you have struct timespec */
 #undef HAVE_STRUCT_TIMESPEC
 
 /* define if you have struct timeval */
@@ -1684,7 +1713,7 @@
 /* Set this to your mail directory if you do not have _PATH_MAILDIR */
 #undef MAIL_DIRECTORY
 
-/* Need setpgrp to acquire controlling tty */
+/* Need setpgrp to for controlling tty */
 #undef NEED_SETPGRP
 
 /* compiler does not accept __attribute__ on prototype args */
@@ -1869,6 +1898,9 @@
 /* Support routing domains using Linux VRF */
 #undef SYS_RDOMAIN_LINUX
 
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
 /* Support passwords > 8 chars */
 #undef UNIXWARE_LONG_PASSWORDS
 
@@ -1932,6 +1964,9 @@
 
 /* Define if you want SELinux support. */
 #undef WITH_SELINUX
+
+/* Enable zlib */
+#undef WITH_ZLIB
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

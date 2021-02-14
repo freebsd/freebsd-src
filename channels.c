@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.394 2019/07/07 01:05:00 dtucker Exp $ */
+/* $OpenBSD: channels.c,v 1.395 2020/01/25 06:40:20 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -3356,7 +3356,12 @@ channel_fwd_bind_addr(struct ssh *ssh, const char *listen_addr, int *wildcardp,
 		} else if (strcmp(listen_addr, "localhost") != 0 ||
 		    strcmp(listen_addr, "127.0.0.1") == 0 ||
 		    strcmp(listen_addr, "::1") == 0) {
-			/* Accept localhost address when GatewayPorts=yes */
+			/*
+			 * Accept explicit localhost address when
+			 * GatewayPorts=yes. The "localhost" hostname is
+			 * deliberately skipped here so it will listen on all
+			 * available local address families.
+			 */
 			addr = listen_addr;
 		}
 	} else if (strcmp(listen_addr, "127.0.0.1") == 0 ||

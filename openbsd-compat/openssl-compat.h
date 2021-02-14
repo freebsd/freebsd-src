@@ -87,12 +87,6 @@ void ssh_aes_ctr_iv(EVP_CIPHER_CTX *, int, u_char *, size_t);
 # endif
 #endif
 
-#if defined(HAVE_EVP_RIPEMD160)
-# if defined(OPENSSL_NO_RIPEMD) || defined(OPENSSL_NO_RMD160)
-#  undef HAVE_EVP_RIPEMD160
-# endif
-#endif
-
 /* LibreSSL/OpenSSL 1.1x API compat */
 #ifndef HAVE_DSA_GET0_PQG
 void DSA_get0_pqg(const DSA *d, const BIGNUM **p, const BIGNUM **q,

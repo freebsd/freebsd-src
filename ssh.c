@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.507 2019/09/13 04:27:35 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.519 2020/02/07 03:54:44 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -65,6 +65,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <limits.h>
 #include <locale.h>
@@ -166,6 +167,12 @@ char *config = NULL;
  * configuration file.
  */
 char *host;
+
+/*
+ * A config can specify a path to forward, overriding SSH_AUTH_SOCK. If this is
+ * not NULL, forward the socket at this path instead.
+ */
+char *forward_agent_sock_path = NULL;
 
 /* Various strings used to to percent_expand() arguments */
 static char thishost[NI_MAXHOST], shorthost[NI_MAXHOST], portstr[NI_MAXSERV];
@@ -595,6 +602,7 @@ main(int ac, char **av)
 	struct addrinfo *addrs = NULL;
 	struct ssh_digest_ctx *md;
 	u_char conn_hash[SSH_DIGEST_MAX_LENGTH];
+	size_t n, len;
 
 	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
 	sanitise_stdfd();
@@ -728,13 +736,16 @@ main(int ac, char **av)
 			break;
 		case 'Q':
 			cp = NULL;
-			if (strcmp(optarg, "cipher") == 0)
+			if (strcmp(optarg, "cipher") == 0 ||
+			    strcasecmp(optarg, "Ciphers") == 0)
 				cp = cipher_alg_list('\n', 0);
 			else if (strcmp(optarg, "cipher-auth") == 0)
 				cp = cipher_alg_list('\n', 1);
-			else if (strcmp(optarg, "mac") == 0)
+			else if (strcmp(optarg, "mac") == 0 ||
+			    strcasecmp(optarg, "MACs") == 0)
 				cp = mac_alg_list('\n');
-			else if (strcmp(optarg, "kex") == 0)
+			else if (strcmp(optarg, "kex") == 0 ||
+			    strcasecmp(optarg, "KexAlgorithms") == 0)
 				cp = kex_alg_list('\n');
 			else if (strcmp(optarg, "key") == 0)
 				cp = sshkey_alg_list(0, 0, 0, '\n');
@@ -742,14 +753,26 @@ main(int ac, char **av)
 				cp = sshkey_alg_list(1, 0, 0, '\n');
 			else if (strcmp(optarg, "key-plain") == 0)
 				cp = sshkey_alg_list(0, 1, 0, '\n');
+			else if (strcmp(optarg, "key-sig") == 0 ||
+			    strcasecmp(optarg, "PubkeyAcceptedKeyTypes") == 0 ||
+			    strcasecmp(optarg, "HostKeyAlgorithms") == 0 ||
+			    strcasecmp(optarg, "HostbasedKeyTypes") == 0 ||
+			    strcasecmp(optarg, "HostbasedAcceptedKeyTypes") == 0)
+				cp = sshkey_alg_list(0, 0, 1, '\n');
 			else if (strcmp(optarg, "sig") == 0)
 				cp = sshkey_alg_list(0, 1, 1, '\n');
 			else if (strcmp(optarg, "protocol-version") == 0)
 				cp = xstrdup("2");
-			else if (strcmp(optarg, "help") == 0) {
+			else if (strcmp(optarg, "compression") == 0) {
+				cp = xstrdup(compression_alg_list(0));
+				len = strlen(cp);
+				for (n = 0; n < len; n++)
+					if (cp[n] == ',')
+						cp[n] = '\n';
+			} else if (strcmp(optarg, "help") == 0) {
 				cp = xstrdup(
-				    "cipher\ncipher-auth\nkex\nkey\n"
-				    "key-cert\nkey-plain\nmac\n"
+				    "cipher\ncipher-auth\ncompression\nkex\n"
+				    "key\nkey-cert\nkey-plain\nkey-sig\nmac\n"
 				    "protocol-version\nsig");
 			}
 			if (cp == NULL)
@@ -952,7 +975,11 @@ main(int ac, char **av)
 			break;
 
 		case 'C':
+#ifdef WITH_ZLIB
 			options.compression = 1;
+#else
+			error("Compression not supported, disabling.");
+#endif
 			break;
 		case 'N':
 			no_shell_flag = 1;
@@ -1230,11 +1257,21 @@ main(int ac, char **av)
 	    strcmp(options.proxy_command, "-") == 0 &&
 	    options.proxy_use_fdpass)
 		fatal("ProxyCommand=- and ProxyUseFDPass are incompatible");
-	if (options.control_persist &&
-	    options.update_hostkeys == SSH_UPDATE_HOSTKEYS_ASK) {
-		debug("UpdateHostKeys=ask is incompatible with ControlPersist; "
-		    "disabling");
-		options.update_hostkeys = 0;
+	if (options.update_hostkeys == SSH_UPDATE_HOSTKEYS_ASK) {
+		if (options.control_persist && options.control_path != NULL) {
+			debug("UpdateHostKeys=ask is incompatible with "
+			    "ControlPersist; disabling");
+			options.update_hostkeys = 0;
+		} else if (sshbuf_len(command) != 0 ||
+		    options.remote_command != NULL ||
+		    options.request_tty == REQUEST_TTY_NO) {
+			debug("UpdateHostKeys=ask is incompatible with "
+			    "remote command execution; disabling");
+			options.update_hostkeys = 0;
+		} else if (options.log_level < SYSLOG_LEVEL_INFO) {
+			/* no point logging anything; user won't see it */
+			options.update_hostkeys = 0;
+		}
 	}
 	if (options.connection_attempts <= 0)
 		fatal("Invalid number of ConnectionAttempts");
@@ -1344,6 +1381,22 @@ main(int ac, char **av)
 		exit(0);
 	}
 
+	/* Expand SecurityKeyProvider if it refers to an environment variable */
+	if (options.sk_provider != NULL && *options.sk_provider == '$' &&
+	    strlen(options.sk_provider) > 1) {
+		if ((cp = getenv(options.sk_provider + 1)) == NULL) {
+			debug("Authenticator provider %s did not resolve; "
+			    "disabling", options.sk_provider);
+			free(options.sk_provider);
+			options.sk_provider = NULL;
+		} else {
+			debug2("resolved SecurityKeyProvider %s => %s",
+			    options.sk_provider, cp);
+			free(options.sk_provider);
+			options.sk_provider = xstrdup(cp);
+		}
+	}
+
 	if (muxclient_command != 0 && options.control_path == NULL)
 		fatal("No ControlPath specified for \"-O\" command");
 	if (options.control_path != NULL) {
@@ -1369,7 +1422,7 @@ main(int ac, char **av)
 	timeout_ms = options.connection_timeout * 1000;
 
 	/* Open a connection to the remote host. */
-	if (ssh_connect(ssh, host_arg, host, addrs, &hostaddr, options.port,
+	if (ssh_connect(ssh, host, host_arg, addrs, &hostaddr, options.port,
 	    options.address_family, options.connection_attempts,
 	    &timeout_ms, options.tcp_keep_alive) != 0)
  		exit(255);
@@ -1481,13 +1534,39 @@ main(int ac, char **av)
 		}
 	}
 
+	if (options.forward_agent && (options.forward_agent_sock_path != NULL)) {
+		p = tilde_expand_filename(options.forward_agent_sock_path, getuid());
+		cp = percent_expand(p,
+		    "d", pw->pw_dir,
+		    "h", host,
+		    "i", uidstr,
+		    "l", thishost,
+		    "r", options.user,
+		    "u", pw->pw_name,
+		    (char *)NULL);
+		free(p);
+
+		if (cp[0] == '$') {
+			if (!valid_env_name(cp + 1)) {
+				fatal("Invalid ForwardAgent environment variable name %s", cp);
+			}
+			if ((p = getenv(cp + 1)) != NULL)
+				forward_agent_sock_path = p;
+			else
+				options.forward_agent = 0;
+			free(cp);
+		} else {
+			forward_agent_sock_path = cp;
+		}
+	}
+
 	/* Expand ~ in known host file names. */
 	tilde_expand_paths(options.system_hostfiles,
 	    options.num_system_hostfiles);
 	tilde_expand_paths(options.user_hostfiles, options.num_user_hostfiles);
 
-	signal(SIGPIPE, SIG_IGN); /* ignore SIGPIPE early */
-	signal(SIGCHLD, main_sigchld_handler);
+	ssh_signal(SIGPIPE, SIG_IGN); /* ignore SIGPIPE early */
+	ssh_signal(SIGCHLD, main_sigchld_handler);
 
 	/* Log into the remote system.  Never returns if the login fails. */
 	ssh_login(ssh, &sensitive_data, host, (struct sockaddr *)&hostaddr,
@@ -2012,7 +2091,8 @@ load_public_identity_files(struct passwd *pw)
 	struct sshkey *certificates[SSH_MAX_CERTIFICATE_FILES];
 	int certificate_file_userprovided[SSH_MAX_CERTIFICATE_FILES];
 #ifdef ENABLE_PKCS11
-	struct sshkey **keys;
+	struct sshkey **keys = NULL;
+	char **comments = NULL;
 	int nkeys;
 #endif /* PKCS11 */
 
@@ -2031,18 +2111,19 @@ load_public_identity_files(struct passwd *pw)
 	    options.num_identity_files < SSH_MAX_IDENTITY_FILES &&
 	    (pkcs11_init(!options.batch_mode) == 0) &&
 	    (nkeys = pkcs11_add_provider(options.pkcs11_provider, NULL,
-	    &keys)) > 0) {
+	    &keys, &comments)) > 0) {
 		for (i = 0; i < nkeys; i++) {
 			if (n_ids >= SSH_MAX_IDENTITY_FILES) {
 				sshkey_free(keys[i]);
+				free(comments[i]);
 				continue;
 			}
 			identity_keys[n_ids] = keys[i];
-			identity_files[n_ids] =
-			    xstrdup(options.pkcs11_provider); /* XXX */
+			identity_files[n_ids] = comments[i]; /* transferred */
 			n_ids++;
 		}
 		free(keys);
+		free(comments);
 	}
 #endif /* ENABLE_PKCS11 */
 	for (i = 0; i < options.num_identity_files; i++) {

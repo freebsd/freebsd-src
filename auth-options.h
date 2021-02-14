@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.h,v 1.28 2019/07/09 04:15:00 djm Exp $ */
+/* $OpenBSD: auth-options.h,v 1.29 2019/11/25 00:54:23 djm Exp $ */
 
 /*
  * Copyright (c) 2018 Damien Miller <djm@mindrot.org>
@@ -68,6 +68,9 @@ struct sshauthopt {
 	 */
 	char *required_from_host_cert;
 	char *required_from_host_keys;
+
+	/* Key requires user presence asserted */
+	int no_require_user_presence;
 };
 
 struct sshauthopt *sshauthopt_new(void);

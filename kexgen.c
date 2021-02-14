@@ -1,4 +1,4 @@
-/* $OpenBSD: kexgen.c,v 1.3 2019/09/06 05:23:55 djm Exp $ */
+/* $OpenBSD: kexgen.c,v 1.4 2019/11/25 00:51:37 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl.  All rights reserved.
  *
@@ -212,7 +212,7 @@ input_kex_gen_reply(int type, u_int32_t seq, struct ssh *ssh)
 		goto out;
 
 	if ((r = sshkey_verify(server_host_key, signature, slen, hash, hashlen,
-	    kex->hostkey_alg, ssh->compat)) != 0)
+	    kex->hostkey_alg, ssh->compat, NULL)) != 0)
 		goto out;
 
 	if ((r = kex_derive_keys(ssh, hash, hashlen, shared_secret)) == 0)

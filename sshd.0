@@ -1,7 +1,7 @@
 SSHD(8)                     System Manager's Manual                    SSHD(8)
 
 NAME
-     sshd M-bM-^@M-^S OpenSSH SSH daemon
+     sshd M-bM-^@M-^S OpenSSH daemon
 
 SYNOPSIS
      sshd [-46DdeiqTt] [-C connection_spec] [-c host_certificate_file]
@@ -128,14 +128,12 @@ AUTHENTICATION
      host-specific key, used to identify the host.  Whenever a client
      connects, the daemon responds with its public host key.  The client
      compares the host key against its own database to verify that it has not
-     changed.  Forward security is provided through a Diffie-Hellman key
+     changed.  Forward secrecy is provided through a Diffie-Hellman key
      agreement.  This key agreement results in a shared session key.  The rest
-     of the session is encrypted using a symmetric cipher, currently 128-bit
-     AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.  The
-     client selects the encryption algorithm to use from those offered by the
-     server.  Additionally, session integrity is provided through a
-     cryptographic message authentication code (hmac-md5, hmac-sha1, umac-64,
-     umac-128, hmac-sha2-256 or hmac-sha2-512).
+     of the session is encrypted using a symmetric cipher.  The client selects
+     the encryption algorithm to use from those offered by the server.
+     Additionally, session integrity is provided through a cryptographic
+     message authentication code (MAC).
 
      Finally, the server and the client enter an authentication dialog.  The
      client tries to authenticate itself using host-based authentication,
@@ -237,16 +235,25 @@ AUTHORIZED_KEYS FILE FORMAT
      file contains one key (empty lines and lines starting with a M-bM-^@M-^X#M-bM-^@M-^Y are
      ignored as comments).  Public keys consist of the following space-
      separated fields: options, keytype, base64-encoded key, comment.  The
-     options field is optional.  The keytype is M-bM-^@M-^\ecdsa-sha2-nistp256M-bM-^@M-^],
-     M-bM-^@M-^\ecdsa-sha2-nistp384M-bM-^@M-^], M-bM-^@M-^\ecdsa-sha2-nistp521M-bM-^@M-^], M-bM-^@M-^\ssh-ed25519M-bM-^@M-^], M-bM-^@M-^\ssh-dssM-bM-^@M-^] or
-     M-bM-^@M-^\ssh-rsaM-bM-^@M-^]; the comment field is not used for anything (but may be
-     convenient for the user to identify the key).
+     options field is optional.  The supported key types are:
+
+           sk-ecdsa-sha2-nistp256@openssh.com
+           ecdsa-sha2-nistp256
+           ecdsa-sha2-nistp384
+           ecdsa-sha2-nistp521
+           sk-ssh-ed25519@openssh.com
+           ssh-ed25519
+           ssh-dss
+           ssh-rsa
+
+     The comment field is not used for anything (but may be convenient for the
+     user to identify the key).
 
      Note that lines in this file can be several hundred bytes long (because
      of the size of the public key encoding) up to a limit of 8 kilobytes,
-     which permits DSA keys up to 8 kilobits and RSA keys up to 16 kilobits.
-     You don't want to type them in; instead, copy the id_dsa.pub,
-     id_ecdsa.pub, id_ed25519.pub, or the id_rsa.pub file and edit it.
+     which permits RSA keys up to 16 kilobits.  You don't want to type them
+     in; instead, copy the id_dsa.pub, id_ecdsa.pub, id_ecdsa_sk.pub,
+     id_ed25519.pub, id_ed25519_sk.pub, or the id_rsa.pub file and edit it.
 
      sshd enforces a minimum RSA key modulus size of 1024 bits.
 
@@ -360,9 +367,9 @@ AUTHORIZED_KEYS FILE FORMAT
              it may only connect to the specified host and port.  IPv6
              addresses can be specified by enclosing the address in square
              brackets.  Multiple permitopen options may be applied separated
-             by commas.  No pattern matching is performed on the specified
-             hostnames, they must be literal domains or addresses.  A port
-             specification of * matches any port.
+             by commas.  No pattern matching or name lookup is performed on
+             the specified hostnames, they must be literal host names and/or
+             addresses.  A port specification of * matches any port.
 
      port-forwarding
              Enable port forwarding previously disabled by the restrict
@@ -378,6 +385,11 @@ AUTHORIZED_KEYS FILE FORMAT
 
      pty     Permits tty allocation previously disabled by the restrict
              option.
+
+     no-touch-required
+             Do not require demonstration of user presence for signatures made
+             using this key.  This option only makes sense for the FIDO
+             authenticator algorithms ecdsa-sk and ed25519-sk.
 
      restrict
              Enable all restrictions, i.e. disable port, agent and X11
@@ -415,6 +427,8 @@ AUTHORIZED_KEYS FILE FORMAT
         restrict,command="uptime" ssh-rsa AAAA1C8...32Tv==
         user@example.net
         restrict,pty,command="nethack" ssh-rsa AAAA1f8...IrrC5==
+        user@example.net
+        no-touch-required sk-ecdsa-sha2-nistp256@openssh.com AAAAInN...Ko==
         user@example.net
 
 SSH_KNOWN_HOSTS FILE FORMAT
@@ -650,4 +664,4 @@ AUTHORS
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 6.6                      July 22, 2018                     OpenBSD 6.6
+OpenBSD 6.6                    January 25, 2020                    OpenBSD 6.6

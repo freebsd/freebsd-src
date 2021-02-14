@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-hostkey.sh,v 1.18 2019/07/25 08:28:15 dtucker Exp $
+#	$OpenBSD: cert-hostkey.sh,v 1.23 2020/01/03 03:02:26 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified host keys"
@@ -9,7 +9,7 @@ rm -f $OBJ/cert_host_key* $OBJ/host_krl_*
 # Allow all hostkey/pubkey types, prefer certs for the client
 rsa=0
 types=""
-for i in `$SSH -Q key`; do
+for i in `$SSH -Q key | maybe_filter_sk`; do
 	if [ -z "$types" ]; then
 		types="$i"
 		continue
@@ -70,7 +70,7 @@ touch $OBJ/host_revoked_plain
 touch $OBJ/host_revoked_cert
 cat $OBJ/host_ca_key.pub $OBJ/host_ca_key2.pub > $OBJ/host_revoked_ca
 
-PLAIN_TYPES=`$SSH -Q key-plain | sed 's/^ssh-dss/ssh-dsa/g;s/^ssh-//'`
+PLAIN_TYPES=`echo "$SSH_KEYTYPES" | sed 's/^ssh-dss/ssh-dsa/g;s/^ssh-//'`
 
 if echo "$PLAIN_TYPES" | grep '^rsa$' >/dev/null 2>&1 ; then
 	PLAIN_TYPES="$PLAIN_TYPES rsa-sha2-256 rsa-sha2-512"
@@ -131,7 +131,7 @@ attempt_connect() {
 }
 
 # Basic connect and revocation tests.
-for privsep in yes sandbox ; do
+for privsep in yes ; do
 	for ktype in $PLAIN_TYPES ; do
 		verbose "$tid: host ${ktype} cert connect privsep $privsep"
 		(
@@ -169,7 +169,7 @@ for ktype in $PLAIN_TYPES ; do
 	kh_revoke cert_host_key_${ktype}.pub >> $OBJ/known_hosts-cert.orig
 done
 cp $OBJ/known_hosts-cert.orig $OBJ/known_hosts-cert
-for privsep in yes sandbox ; do
+for privsep in yes ; do
 	for ktype in $PLAIN_TYPES ; do
 		verbose "$tid: host ${ktype} revoked cert privsep $privsep"
 		(
@@ -252,7 +252,7 @@ test_one() {
 test_one "user-certificate"	failure "-n $HOSTS"
 test_one "empty principals"	success "-h"
 test_one "wrong principals"	failure "-h -n foo"
-test_one "cert not yet valid"	failure "-h -V20200101:20300101"
+test_one "cert not yet valid"	failure "-h -V20300101:20320101"
 test_one "cert expired"		failure "-h -V19800101:19900101"
 test_one "cert valid interval"	success "-h -V-1w:+2w"
 test_one "cert has constraints"	failure "-h -Oforce-command=false"

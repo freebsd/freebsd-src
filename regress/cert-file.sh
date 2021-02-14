@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-file.sh,v 1.7 2018/04/10 00:14:10 djm Exp $
+#	$OpenBSD: cert-file.sh,v 1.8 2019/11/26 23:43:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="ssh with certificates"
@@ -120,7 +120,7 @@ if [ $? -ne 2 ]; then
 fi
 
 trace "start agent"
-eval `${SSHAGENT} -s` > /dev/null
+eval `${SSHAGENT} ${EXTRA_AGENT_ARGS} -s` > /dev/null
 r=$?
 if [ $r -ne 0 ]; then
 	fatal "could not start ssh-agent: exit code $r"

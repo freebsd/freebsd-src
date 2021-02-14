@@ -1,4 +1,4 @@
-#	$OpenBSD: agent-pkcs11.sh,v 1.6 2019/01/21 09:13:41 djm Exp $
+#	$OpenBSD: agent-pkcs11.sh,v 1.7 2019/11/26 23:43:10 djm Exp $
 #	Placed in the Public Domain.
 
 tid="pkcs11 agent test"
@@ -75,7 +75,7 @@ openssl pkcs8 -nocrypt -in $EC |\
     softhsm2-util --slot "$slot" --label 02 --id 02 --pin "$TEST_SSH_PIN" --import /dev/stdin
 
 trace "start agent"
-eval `${SSHAGENT} -s` > /dev/null
+eval `${SSHAGENT} ${EXTRA_AGENT_ARGS} -s` > /dev/null
 r=$?
 if [ $r -ne 0 ]; then
 	fail "could not start ssh-agent: exit code $r"

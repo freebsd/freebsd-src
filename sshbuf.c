@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.c,v 1.13 2018/11/16 06:10:29 djm Exp $	*/
+/*	$OpenBSD: sshbuf.c,v 1.14 2020/01/23 07:10:22 dtucker Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -42,7 +42,7 @@ sshbuf_check_sanity(const struct sshbuf *buf)
 	    buf->off > buf->size)) {
 		/* Do not try to recover from corrupted buffer internals */
 		SSHBUF_DBG(("SSH_ERR_INTERNAL_ERROR"));
-		signal(SIGSEGV, SIG_DFL);
+		ssh_signal(SIGSEGV, SIG_DFL);
 		raise(SIGSEGV);
 		return SSH_ERR_INTERNAL_ERROR;
 	}

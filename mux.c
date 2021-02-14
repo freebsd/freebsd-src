@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.80 2019/06/28 13:35:04 deraadt Exp $ */
+/* $OpenBSD: mux.c,v 1.81 2020/01/23 07:10:22 dtucker Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -1911,7 +1911,7 @@ mux_client_request_session(int fd)
 		return -1;
 	}
 
-	signal(SIGPIPE, SIG_IGN);
+	ssh_signal(SIGPIPE, SIG_IGN);
 
 	if (stdin_null_flag) {
 		if ((devnull = open(_PATH_DEVNULL, O_RDONLY)) == -1)
@@ -2012,10 +2012,10 @@ mux_client_request_session(int fd)
 		fatal("%s pledge(): %s", __func__, strerror(errno));
 	platform_pledge_mux();
 
-	signal(SIGHUP, control_client_sighandler);
-	signal(SIGINT, control_client_sighandler);
-	signal(SIGTERM, control_client_sighandler);
-	signal(SIGWINCH, control_client_sigrelay);
+	ssh_signal(SIGHUP, control_client_sighandler);
+	ssh_signal(SIGINT, control_client_sighandler);
+	ssh_signal(SIGTERM, control_client_sighandler);
+	ssh_signal(SIGWINCH, control_client_sigrelay);
 
 	rawmode = tty_flag;
 	if (tty_flag)
@@ -2145,7 +2145,7 @@ mux_client_request_stdio_fwd(int fd)
 		return -1;
 	}
 
-	signal(SIGPIPE, SIG_IGN);
+	ssh_signal(SIGPIPE, SIG_IGN);
 
 	if (stdin_null_flag) {
 		if ((devnull = open(_PATH_DEVNULL, O_RDONLY)) == -1)
@@ -2219,10 +2219,10 @@ mux_client_request_stdio_fwd(int fd)
 	}
 	muxclient_request_id++;
 
-	signal(SIGHUP, control_client_sighandler);
-	signal(SIGINT, control_client_sighandler);
-	signal(SIGTERM, control_client_sighandler);
-	signal(SIGWINCH, control_client_sigrelay);
+	ssh_signal(SIGHUP, control_client_sighandler);
+	ssh_signal(SIGINT, control_client_sighandler);
+	ssh_signal(SIGTERM, control_client_sighandler);
+	ssh_signal(SIGWINCH, control_client_sigrelay);
 
 	/*
 	 * Stick around until the controlee closes the client_fd.

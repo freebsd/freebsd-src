@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.206 2019/09/09 02:31:19 dtucker Exp $ */
+/* $OpenBSD: scp.c,v 1.207 2020/01/23 07:10:22 dtucker Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -94,7 +94,9 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
+#endif
 #include <limits.h>
 #include <locale.h>
 #include <pwd.h>
@@ -213,9 +215,9 @@ do_local_cmd(arglist *a)
 	}
 
 	do_cmd_pid = pid;
-	signal(SIGTERM, killchild);
-	signal(SIGINT, killchild);
-	signal(SIGHUP, killchild);
+	ssh_signal(SIGTERM, killchild);
+	ssh_signal(SIGINT, killchild);
+	ssh_signal(SIGHUP, killchild);
 
 	while (waitpid(pid, &status, 0) == -1)
 		if (errno != EINTR)
@@ -266,9 +268,9 @@ do_cmd(char *host, char *remuser, int port, char *cmd, int *fdin, int *fdout)
 	close(reserved[0]);
 	close(reserved[1]);
 
-	signal(SIGTSTP, suspchild);
-	signal(SIGTTIN, suspchild);
-	signal(SIGTTOU, suspchild);
+	ssh_signal(SIGTSTP, suspchild);
+	ssh_signal(SIGTTIN, suspchild);
+	ssh_signal(SIGTTOU, suspchild);
 
 	/* Fork a child to execute the command on the remote host using ssh. */
 	do_cmd_pid = fork();
@@ -305,9 +307,9 @@ do_cmd(char *host, char *remuser, int port, char *cmd, int *fdin, int *fdout)
 	*fdout = pin[1];
 	close(pout[1]);
 	*fdin = pout[0];
-	signal(SIGTERM, killchild);
-	signal(SIGINT, killchild);
-	signal(SIGHUP, killchild);
+	ssh_signal(SIGTERM, killchild);
+	ssh_signal(SIGINT, killchild);
+	ssh_signal(SIGHUP, killchild);
 	return 0;
 }
 
@@ -559,7 +561,7 @@ main(int argc, char **argv)
 	    iamrecursive ? " -r" : "", pflag ? " -p" : "",
 	    targetshouldbedirectory ? " -d" : "");
 
-	(void) signal(SIGPIPE, lostconn);
+	(void) ssh_signal(SIGPIPE, lostconn);
 
 	if (colon(argv[argc - 1]))	/* Dest is remote host. */
 		toremote(argc, argv);

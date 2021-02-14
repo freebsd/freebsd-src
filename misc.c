@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.142 2019/09/03 08:32:11 djm Exp $ */
+/* $OpenBSD: misc.c,v 1.146 2020/01/28 01:49:36 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
@@ -38,7 +38,9 @@
 #ifdef HAVE_LIBGEN_H
 # include <libgen.h>
 #endif
+#ifdef HAVE_POLL_H
 #include <poll.h>
+#endif
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -236,12 +238,12 @@ set_rdomain(int fd, const char *name)
 }
 
 /*
- * Wait up to *timeoutp milliseconds for fd to be readable. Updates
+ * Wait up to *timeoutp milliseconds for events on fd. Updates
  * *timeoutp with time remaining.
  * Returns 0 if fd ready or -1 on timeout or error (see errno).
  */
-int
-waitrfd(int fd, int *timeoutp)
+static int
+waitfd(int fd, int *timeoutp, short events)
 {
 	struct pollfd pfd;
 	struct timeval t_start;
@@ -249,7 +251,7 @@ waitrfd(int fd, int *timeoutp)
 
 	monotime_tv(&t_start);
 	pfd.fd = fd;
-	pfd.events = POLLIN;
+	pfd.events = events;
 	for (; *timeoutp >= 0;) {
 		r = poll(&pfd, 1, *timeoutp);
 		oerrno = errno;
@@ -265,6 +267,16 @@ waitrfd(int fd, int *timeoutp)
 	/* timeout */
 	errno = ETIMEDOUT;
 	return -1;
+}
+
+/*
+ * Wait up to *timeoutp milliseconds for fd to be readable. Updates
+ * *timeoutp with time remaining.
+ * Returns 0 if fd ready or -1 on timeout or error (see errno).
+ */
+int
+waitrfd(int fd, int *timeoutp) {
+	return waitfd(fd, timeoutp, POLLIN);
 }
 
 /*
@@ -293,7 +305,7 @@ timeout_connect(int sockfd, const struct sockaddr *serv_addr,
 	} else if (errno != EINPROGRESS)
 		return -1;
 
-	if (waitrfd(sockfd, timeoutp) == -1)
+	if (waitfd(sockfd, timeoutp, POLLIN | POLLOUT) == -1)
 		return -1;
 
 	/* Completed or failed */
@@ -1232,6 +1244,33 @@ tohex(const void *vp, size_t l)
 	return (r);
 }
 
+/*
+ * Extend string *sp by the specified format. If *sp is not NULL (or empty),
+ * then the separator 'sep' will be prepended before the formatted arguments.
+ * Extended strings are heap allocated.
+ */
+void
+xextendf(char **sp, const char *sep, const char *fmt, ...)
+{
+	va_list ap;
+	char *tmp1, *tmp2;
+
+	va_start(ap, fmt);
+	xvasprintf(&tmp1, fmt, ap);
+	va_end(ap);
+
+	if (*sp == NULL || **sp == '\0') {
+		free(*sp);
+		*sp = tmp1;
+		return;
+	}
+	xasprintf(&tmp2, "%s%s%s", *sp, sep == NULL ? "" : sep, tmp1);
+	free(tmp1);
+	free(*sp);
+	*sp = tmp2;
+}
+
+
 u_int64_t
 get_u64(const void *vp)
 {
@@ -1520,6 +1559,7 @@ static const struct {
 	{ "cs6", IPTOS_DSCP_CS6 },
 	{ "cs7", IPTOS_DSCP_CS7 },
 	{ "ef", IPTOS_DSCP_EF },
+	{ "le", IPTOS_DSCP_LE },
 	{ "lowdelay", IPTOS_LOWDELAY },
 	{ "throughput", IPTOS_THROUGHPUT },
 	{ "reliability", IPTOS_RELIABILITY },
@@ -2209,3 +2249,20 @@ opt_match(const char **opts, const char *term)
 	return 0;
 }
 
+sshsig_t
+ssh_signal(int signum, sshsig_t handler)
+{
+	struct sigaction sa, osa;
+
+	/* mask all other signals while in handler */
+	bzero(&sa, sizeof(sa));
+	sa.sa_handler = handler;
+	sigfillset(&sa.sa_mask);
+	if (signum != SIGALRM)
+		sa.sa_flags = SA_RESTART;
+	if (sigaction(signum, &sa, &osa) == -1) {
+		debug3("sigaction(%s): %s", strsignal(signum), strerror(errno));
+		return SIG_ERR;
+	}
+	return osa.sa_handler;
+}

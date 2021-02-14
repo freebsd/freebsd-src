@@ -33,13 +33,13 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.304 2018/07/22 12:16:59 dtucker Exp $
-.Dd $Mdocdate: July 22 2018 $
+.\" $OpenBSD: sshd.8,v 1.312 2020/01/25 06:03:10 djm Exp $
+.Dd $Mdocdate: January 25 2020 $
 .Dt SSHD 8
 .Os
 .Sh NAME
 .Nm sshd
-.Nd OpenSSH SSH daemon
+.Nd OpenSSH daemon
 .Sh SYNOPSIS
 .Nm sshd
 .Bk -words
@@ -253,16 +253,13 @@ Whenever a client connects, the daemon responds with its public
 host key.
 The client compares the
 host key against its own database to verify that it has not changed.
-Forward security is provided through a Diffie-Hellman key agreement.
+Forward secrecy is provided through a Diffie-Hellman key agreement.
 This key agreement results in a shared session key.
-The rest of the session is encrypted using a symmetric cipher, currently
-128-bit AES, Blowfish, 3DES, CAST128, Arcfour, 192-bit AES, or 256-bit AES.
+The rest of the session is encrypted using a symmetric cipher.
 The client selects the encryption algorithm
 to use from those offered by the server.
 Additionally, session integrity is provided
-through a cryptographic message authentication code
-(hmac-md5, hmac-sha1, umac-64, umac-128,
-hmac-sha2-256 or hmac-sha2-512).
+through a cryptographic message authentication code (MAC).
 .Pp
 Finally, the server and the client enter an authentication dialog.
 The client tries to authenticate itself using
@@ -429,25 +426,39 @@ comments).
 Public keys consist of the following space-separated fields:
 options, keytype, base64-encoded key, comment.
 The options field is optional.
-The keytype is
-.Dq ecdsa-sha2-nistp256 ,
-.Dq ecdsa-sha2-nistp384 ,
-.Dq ecdsa-sha2-nistp521 ,
-.Dq ssh-ed25519 ,
-.Dq ssh-dss
-or
-.Dq ssh-rsa ;
-the comment field is not used for anything (but may be convenient for the
+The supported key types are:
+.Pp
+.Bl -item -compact -offset indent
+.It
+sk-ecdsa-sha2-nistp256@openssh.com
+.It
+ecdsa-sha2-nistp256
+.It
+ecdsa-sha2-nistp384
+.It
+ecdsa-sha2-nistp521
+.It
+sk-ssh-ed25519@openssh.com
+.It
+ssh-ed25519
+.It
+ssh-dss
+.It
+ssh-rsa
+.El
+.Pp
+The comment field is not used for anything (but may be convenient for the
 user to identify the key).
 .Pp
 Note that lines in this file can be several hundred bytes long
 (because of the size of the public key encoding) up to a limit of
-8 kilobytes, which permits DSA keys up to 8 kilobits and RSA
-keys up to 16 kilobits.
+8 kilobytes, which permits RSA keys up to 16 kilobits.
 You don't want to type them in; instead, copy the
 .Pa id_dsa.pub ,
 .Pa id_ecdsa.pub ,
+.Pa id_ecdsa_sk.pub ,
 .Pa id_ed25519.pub ,
+.Pa id_ed25519_sk.pub ,
 or the
 .Pa id_rsa.pub
 file and edit it.
@@ -589,8 +600,8 @@ IPv6 addresses can be specified by enclosing the address in square brackets.
 Multiple
 .Cm permitopen
 options may be applied separated by commas.
-No pattern matching is performed on the specified hostnames,
-they must be literal domains or addresses.
+No pattern matching or name lookup is performed on the
+specified hostnames, they must be literal host names and/or addresses.
 A port specification of
 .Cm *
 matches any port.
@@ -613,6 +624,13 @@ option.
 Permits tty allocation previously disabled by the
 .Cm restrict
 option.
+.It Cm no-touch-required
+Do not require demonstration of user presence
+for signatures made using this key.
+This option only makes sense for the FIDO authenticator algorithms
+.Cm ecdsa-sk
+and
+.Cm ed25519-sk .
 .It Cm restrict
 Enable all restrictions, i.e. disable port, agent and X11 forwarding,
 as well as disabling PTY allocation
@@ -655,6 +673,8 @@ jane@example.net
 restrict,command="uptime" ssh-rsa AAAA1C8...32Tv==
 user@example.net
 restrict,pty,command="nethack" ssh-rsa AAAA1f8...IrrC5==
+user@example.net
+no-touch-required sk-ecdsa-sha2-nistp256@openssh.com AAAAInN...Ko==
 user@example.net
 .Ed
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
